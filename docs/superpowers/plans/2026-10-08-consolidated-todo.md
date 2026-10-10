@@ -397,7 +397,8 @@ D2 / E / F 登记在册不吞：E 中「分渠道验签」属安全项，与 A �
 - **两枚同类慢测**（`user-web/bridge/test/humanize.test.js` 3701ms、`test/adapter-b24-send-verify.test.js` 文件级 13422ms）：
   与本轮报告的入口不同类不同泳道，只登记。
 - **`sop_state_memories.session_id` 的 `not null`**：属 schema 取舍决策，`20ed9fbd` 里点名过，未擅改。
-- **四刀「真杀」仍需要一个会编 Go 的 bash 3.2 执行点**、**`make audit` 整链在 CI 里无执行点**：沿用第五十六轮的在册判定，本轮没有新增执行点。
+- **四刀「真杀」仍需要一个会编 Go 的 bash 3.2 执行点**、**`make audit` 整链在 CI 里无执行点**：沿用第五十六轮的在册判定，本轮没有给整链新增执行点。
+  例外只有本文件 (8) 那一道：取证器的口径自检单独搬进了 CI，其余 21 道仍只在本地 `make audit` 跑。
 
 ### (7) 反向那一趟量出来的三条真断链候选与一处静默错数据（本轮未擅改，理由在册）
 
@@ -423,3 +424,34 @@ client 面 1324 个形状里 **499** 个在路由表无精确对应，其中 `/a
 要定"按 kb 过滤文档"的契约归属（前端改打 `/api/knowledge/documents` 还是后端给 `FAQFilter`/`List` 加 `kb_id`），
 补 QQ 回调口是**新增一条无鉴权写口**并要定验签口径——两者都是产品/安全拍板面，不是"发现即修"的代码缺陷；
 且一次动 3 渠道 × 5 张卡的对称面会重演上一轮被驳回的整站改造。已按上面坐标登记，判据全部可在本树复算。
+
+### (8) 给取证器的 10 枚控制补执行点（本地 ＋ CI 各一处），四格反向验证
+
+**修的是什么**：`--self-check` 的 10 枚控制此前只有人手跑一次工具才会响。这不是假想的风险，是本轮已经兑现过两次的
+失效形态——文件级排除表漏掉 `mut_*` 锚点、token 级漏掉 `@/api/x`，两次都不是门报的，是人工比对两份名册才发现的。
+工具的正常路径本来就有闸门（`scripts/route-consumer-triage.py:475`：名册写出前先判 `control_rc`，不过就不产出），
+缺的是"每次提交都跑到"这一层：**恒绿的自检与坏掉的自检长得一样**。
+
+**落点两处**（同一判据，两道执行点）：
+
+- 仓根 `Makefile` 的 `audit:` 配方，接在 `check-battery-identity.py --quiet-ok` 之后 ⇒ audit 门标题行 **21 → 22**
+  （`python3` 现数，不是 `grep -c '^── '`；日志里那个 26 含子脚本自己印的分节线）。
+- `.github/workflows/user-server-ci.yml` 的 `static-gates` 作业加同名步骤 ⇒ 该作业步骤 **16 → 17**
+  （`yaml.safe_load` 现数）。同时把 `scripts/route-consumer-triage.py` 加进该文件 `on.push.paths` 与
+  `on.pull_request.paths`——这一步是被作业真执行的门站点，不进触发面就得到"看着在跑、实际永远绿"的门，
+  由 `scripts/check-ci-gate-paths.py` 常驻拦截。
+
+**四格反向验证**（全部 `cp` 备份＋写回，没对未提交文件跑过 `git checkout`／`restore`；每格还原后逐文件 md5 比对）：
+
+| 注码 | 判据应当怎么红 | 实测 |
+|---|---|---|
+| ① `MODULE_SPEC_PREV = set()`（token 级排除表摘掉） | 控制五失效 | `✗ 负向控制之五：token 级模块路径规则坏了` ＋ 同一行把三枚别名串**原样列出**（`@/api/material`、`../../../../packages/browser-core/index.js`、`~/api/material/upload` 都被重新抽成路径），并印出极性另一侧「真实调用读出 `['/api/material']`」；末行 `自检：10 枚控制，失败 1 枚`，rc=1 |
+| ① 同注码下跑整链 | audit 当场红、不跳过下游 | `make audit` rc=2，末行 `make: *** [audit] Error 1`；`✅ 静态审计通过` 出现 **0** 次；排在它之后的 vite 门出现 **0** 次（＝没被跳过，是真拦住了） |
+| ② `NON_CONSUMER_PREFIXES = ()`（文件级排除表摘掉） | 控制四失效并点名漏网的文件 | `✗ 负向控制之四：非消费方排除表坏了（该排没排 ['mut_route_surface.py', 'mut_tg_gate_policy.py'] · 误伤 []）`，rc=1 |
+| ③ 摘掉 workflow 里那两行 `paths` | 触发面守卫点名这一道门 | `check-ci-gate-paths.py` rc=1，两行分别印「user-server-ci.yml 的 pull_request.paths 缺 `scripts/route-consumer-triage.py`（该路径被作业 static-gates 的步骤实际执行 ⇒ 改它不会重跑这道门）」与 push 同句 ⇒ 证明新步骤**真被当成门站点数到**、paths 那两行是载荷而非装饰 |
+| ④ 三处注码逐一还原 | 回到基线字节 | 取证器 md5 `a564da79da77e78d484b025e621bc4f9`（＝`git show HEAD:scripts/route-consumer-triage.py`，`git status` 该文件干净）；workflow md5 `656634db426d13655f671302b93cad29`；还原后 `make audit` rc=0 且日志里 `自检：10 枚控制，失败 0 枚` 恰 1 次 |
+
+**成本现测**：`--self-check` 三连跑 0.10 / 0.04 / 0.04s（取中位 0.04s），不读仓库、不连库、不联网
+（`if args.self_check: return self_check()[0]` 在 `root = args.repo or repo_root()` 之前，见 `scripts/route-consumer-triage.py:428-431`）。
+注释里"文档引用的数字必须能现算"这一条也是这么处理的：上面 21/22、16/17、0.04s 全是本轮现取，不是沿用。
+
