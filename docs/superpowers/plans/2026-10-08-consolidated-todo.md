@@ -455,6 +455,24 @@ client 面 1324 个形状里 **499** 个在路由表无精确对应，其中 `/a
 （`if args.self_check: return self_check()[0]` 在 `root = args.repo or repo_root()` 之前，见 `scripts/route-consumer-triage.py:428-431`）。
 注释里"文档引用的数字必须能现算"这一条也是这么处理的：上面 21/22、16/17、0.04s 全是本轮现取，不是沿用。
 
+**推送后 CI 回读（tip `37ef8136`，双远端同 SHA）**：7 条 run 全部 `completed success`
+（`38089276906` user-server-ci／`38089276910` Markdown Lint／`38089276955` Docs Consistency／
+`38089276927` Lint／`38089276897` DCO／`38089276899` SBOM／`38089277005` Docs Link Check；
+唯一 skipped 是 `Lint` 作业里的 `LICENSE Compliance Scan`——它挂 `if: schedule`，属节奏步骤，见 `check-ci-step-coverage.py` 的既有口径）。
+新步骤的**执行证据到步骤级**：`gh api …/actions/runs/38089276906/jobs` 现数该作业 `steps` 共 **23** 项，
+第 **10** 项就是「路由消费面取证器口径自检（10 枚控制，含两条极性对）」，`conclusion=success`；
+第二端取 job 日志原文（`actions/jobs/114322182208/logs`）——
+`##[group]Run python3 scripts/route-consumer-triage.py --self-check` 打在 `21:52:57.9415`，
+`自检：10 枚控制，失败 0 枚` 打在 `21:52:57.9957`（runner 上 0.054s，与本地中位同量级），
+前后两步分别是参数中心读取点门（`.9316`）与 `check-ci-pg-capacity`（`21:52:58.0062`）
+⇒ 它排在链中、真被执行、且没被上游遮挡（作业级 `success` 不够，步骤级才算）。
+**这一段的第一版把"读日志"的理由写成"steps 数组只回前 10 项"——那句是错的**：把两条读数摆在一起才发现
+API 那份数组本来就含这一步（23 项、第 10 项、success），我先前看到的 9 行截断是**我这边命令输出的截断**，
+不是 GitHub 的。结论（步骤级证据＝数组＋日志双端）不变，但机制句要按现数改回来，别留给下一个人当事实。
+门站点计数也现取了两版：`d9669f76` 的干净克隆 `check-ci-gate-paths.py` 印 **41 处**，本轮改完是 **42 处**
+（新增的那一处就是 static-gates 里的这一步 ⇒ "这道门在 CI 里真被数到"有独立于 rc 的证据）。
+
+
 ### (9) `npx -y markdownlint-cli2` 这条本地复现命令恒红 8 处——红在豁免表漏抄，不在门
 
 复现 (8) 那道门的文档改动时按 `.github/workflows/markdownlint.yml` 头注释给的命令跑了一遍：
