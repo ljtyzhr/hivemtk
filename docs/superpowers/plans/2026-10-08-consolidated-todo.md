@@ -455,3 +455,20 @@ client 面 1324 个形状里 **499** 个在路由表无精确对应，其中 `/a
 （`if args.self_check: return self_check()[0]` 在 `root = args.repo or repo_root()` 之前，见 `scripts/route-consumer-triage.py:428-431`）。
 注释里"文档引用的数字必须能现算"这一条也是这么处理的：上面 21/22、16/17、0.04s 全是本轮现取，不是沿用。
 
+### (9) `npx -y markdownlint-cli2` 这条本地复现命令恒红 8 处——红在豁免表漏抄，不在门
+
+复现 (8) 那道门的文档改动时按 `.github/workflows/markdownlint.yml` 头注释给的命令跑了一遍：
+
+- 实测 `rc=1`、`Summary: 8 issues in 1 file`，8 处全是 MD004/ul-style，出处 `models/laya/README.md:83,85,86,330,331,332,359,360`。
+- 那份文件 `git check-ignore -v` 回 `.gitignore:248:models/` ⇒ **从未入库**；CI 跑的是干净检出，
+  且 Markdown Lint 作业在 tip `d9669f76` 上回读是 `completed success`。
+  ⇒ 恒红的是**本地复现命令的口径**，不是这道门；照这个读数去"修 README"等于给一个 CI 里不存在的文件改样式。
+- 根因：markdownlint-cli2 不读 `.gitignore`，而 `.markdownlint-cli2.jsonc` 的 `ignores` 手抄了
+  `dist/build/pg_data/uploads/logs/vendor/tmp/backups` 那一族，独独漏了 `models/`——手抄表最先失效的那一格。
+- 处置（一行豁免，代价先核再改）：`git ls-files 'models/**/*.md' '**/models/**/*.md'` 现测 **0** 份，
+  `find models -name '*.md'` 的两份（`laya/README.md`、`laya/eval/results.md`）逐份读 `tracked=0 ignored=yes`
+  ⇒ 这条豁免不挡任何在库文件。改完 `npx -y markdownlint-cli2` **rc=0**、`Linting: 183 → 181 files`
+  （少的两份就是上面这两份），`.markdownlint-cli2.jsonc` 本就在该作业 `paths` 第 32 行 ⇒ 这次改动会自己拉起 Markdown Lint。
+- **本轮没测的那段**：CI 侧结论以推送后回读为准（本地 rc=0 只证明工作树口径与干净检出对齐了，不证明 runner 上一样）。
+
+
