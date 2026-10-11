@@ -39,13 +39,17 @@
         <el-table-column prop="description" label="描述" show-overflow-tooltip />
         <el-table-column label="图片" width="120">
           <template #default="scope">
-            <el-image 
-              style="width: 100px; height: 100px" 
+            <el-image
+              v-if="scope.row.image_url"
+              style="width: 100px; height: 100px"
               :src="scope.row.image_url"
-              @error="onImgError" 
               :preview-src-list="[scope.row.image_url]"
               fit="cover"
-            />
+            >
+              <template #error>
+                <div class="img-error-fallback">{{ $t('图片加载失败') }}</div>
+              </template>
+            </el-image>
           </template>
         </el-table-column>
         <el-table-column prop="view_count" label="浏览数" width="100" />
@@ -195,7 +199,11 @@
             style="width: 200px; height: 200px"
             fit="cover"
             :preview-src-list="[currentCard.image_url]"
-          />
+          >
+            <template #error>
+              <div class="img-error-fallback">{{ $t('图片加载失败') }}</div>
+            </template>
+          </el-image>
           <span v-else>无图片</span>
         </el-descriptions-item>
       </el-descriptions>
@@ -207,14 +215,6 @@
 </template>
 
 <script setup>
-
-const onImgError = (e) => {
-  const img = e.target
-  if (img && !img.dataset.fallback) {
-    img.dataset.fallback = '1'
-    img.src = 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"><rect width="80" height="80" fill="%23f0f2f5"/><text x="40" y="46" font-size="12" text-anchor="middle" fill="%2390a0b0">%E6%97%A0%E5%9B%BE</text></svg>')
-  }
-};
 import i18n from '@/i18n'
 
 import { ref, reactive, onMounted } from 'vue'
@@ -222,6 +222,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { useRouter } from 'vue-router'
 import TikTokCardPreview from '@/components/TikTokCardPreview.vue'
 import { domainPoolApi } from '@/api/domainPool'
+import { copyToClipboard } from '@/utils/clipboard.js'
 import {
   getTikTokCardList,
   getTikTokCard,
@@ -443,25 +444,11 @@ const handleCopyLink = async (row) => {
       }
     }
     
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      await navigator.clipboard.writeText(linkUrl)
+    const copied = await copyToClipboard(linkUrl)
+    if (copied) {
       ElMessage.success(i18n.global.t('链接已复制到剪贴板'))
     } else {
-      const textArea = document.createElement('textarea');
-      textArea.value = linkUrl
-      document.body.appendChild(textArea)
-      textArea.focus()
-      textArea.select()
-      
-      try {
-        document.execCommand('copy')
-        ElMessage.success(i18n.global.t('链接已复制到剪贴板'))
-      } catch (copyError) {
-        ElMessage.error(i18n.global.t('复制链接失败，请手动复制链接'))
-        console.error('复制失败:', copyError)
-      } finally {
-        document.body.removeChild(textArea)
-      }
+      ElMessage.error(i18n.global.t('复制链接失败，请手动复制链接'))
     }
   } catch (error) {
     ElMessage.error(i18n.global.t('复制链接失败'))

@@ -7,7 +7,16 @@
       show-icon
       :closable="false"
       title="订单草稿底座不可用"
-      description="后端回的是 503（FF_LTC_ORDER_DRAFT_DB 为 off 或未装配草稿运行时）。下面的空列表不是「草稿清完了」，是一次都没读到；档位只在装配期读一次，改完须重启。"
+      description="档位读数说本进程没装配草稿运行时（FF_LTC_ORDER_DRAFT_DB 为 off 或值无法识别），所以这一页连列表请求都没发 —— 发出去后端只会回 503。下面的空列表不是「草稿清完了」，是一次都没读到；档位只在装配期读一次，改完须重启。"
+    />
+    <el-alert
+      v-if="loadError"
+      class="mb-12"
+      type="error"
+      show-icon
+      :closable="false"
+      title="草稿列表读取失败"
+      :description="loadError"
     />
     <el-alert
       v-if="!me"
@@ -272,6 +281,7 @@ const actingId = ref('')
 const list = ref([])
 const truncated = ref(false)
 const unavailable = ref(false)
+const loadError = ref('')
 const stats = reactive({ mode: '', store: '', assembled: undefined, counts: null, warning: '' })
 const filter = reactive({ owner: 'pool', limit: 50 })
 
@@ -313,15 +323,29 @@ function queryParams() {
 }
 
 async function fetchList() {
+  // 旗子关着时读口恒 503，而这是装配期事实（改档要重启）—— 先问档位，关着就不发这条
+  // 注定失败的请求：请求发出去只会在控制台留一行 503，而页面的告警位已经把原因说完了。
+  if (stats.assembled === false) {
+    unavailable.value = true
+    loadError.value = ''
+    // 这一格清列表与 catch 里"绝不清成 []"不矛盾：catch 是"这次刷新失败、上一轮读数还在"，
+    // 而闸门说的是"本进程根本没有读口"——留着的只可能是上一代进程的行，
+    // 指着它们说"一次都没读到"是让告警和表格互相打脸。
+    list.value = []
+    truncated.value = false
+    return
+  }
   loading.value = true
   try {
     const data = await orderDraftApi.list(queryParams())
     list.value = Array.isArray(data?.list) ? data.list : []
     truncated.value = !!data?.truncated
     unavailable.value = false
+    loadError.value = ''
   } catch (err) {
     // 503 是配置状态，页面要长期挂着说一句话；刷新失败绝不清成 [] 假装读到了。
     unavailable.value = err?.status === 503
+    loadError.value = unavailable.value ? '' : `${err?.message || '读取草稿列表失败'}（HTTP ${err?.status || '无响应'}）`
   } finally {
     loading.value = false
   }
@@ -336,10 +360,13 @@ async function fetchStats() {
     stats.assembled = data.assembled
     stats.counts = data.counts
     stats.warning = data.warning || ''
-    unavailable.value = false
-  } catch (err) {
-    if (err?.status === 503) unavailable.value = true
-    // 静默失败：档位读数是辅助信息，失败时留着上一轮，弹错交给拦截器。
+  } catch {
+    // 静默失败：档位读数是辅助信息，失败时留着上一轮。唯一要清的是闸门本身 ——
+    // 没读到档位就不能武断地认定"底座关着"而不发列表请求。
+    // （这里不许写 unavailable.value = false：它是 fetchList 的结论，
+    //  refresh() 先 stats 后 list，无条件清会把刚立起来的"底座不可用"告警抹掉，
+    //  页面于是举着空表格说一切正常 —— 实测点一次「刷新」就会出这个形态。）
+    stats.assembled = undefined
   }
 }
 
@@ -347,9 +374,9 @@ function reload() {
   fetchList()
 }
 
-function refresh() {
-  fetchList()
-  fetchStats()
+async function refresh() {
+  await fetchStats()
+  await fetchList()
 }
 
 function openDetail(row) {

@@ -32,6 +32,7 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { capabilitiesApi } from '@/api/kbConnector'
+import { copyToClipboard } from '@/utils/clipboard'
 
 const entries = ref([])
 const markdown = ref('')
@@ -50,10 +51,9 @@ const load = async () => {
 }
 
 const copyMd = async () => {
-  try {
-    await navigator.clipboard.writeText(markdown.value)
+  if (await copyToClipboard(markdown.value)) {
     ElMessage.success('已复制')
-  } catch {
+  } else {
     ElMessage.info('复制失败，请手动选择')
   }
 }

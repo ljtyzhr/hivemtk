@@ -320,11 +320,13 @@ import { useRoute } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, WarningFilled, Calendar, List } from '@element-plus/icons-vue'
 import { followupApi } from '@/api/followup.js'
+import { useUserStore } from '@/stores/user'
 
 // 今日跟进（A11）：跟进提醒读写口的第一批消费方。
 // 三区并排（逾期/今日/全部待办）— 读口三条端点一一对应，完成/取消动作走
 // 写口。/followups/:id 深链（sales_workbench 聚合待办生成）在此定位高亮。
 const route = useRoute()
+const userStore = useUserStore()
 
 const loading = ref(false)
 const submitting = ref(false)
@@ -389,16 +391,10 @@ const describeError = (err) => {
 
 // ownerId：后端 owner_id 必带（空串=不过滤全员，读侧按当前登录人隔离）。
 // 没有用户 id 时拿不到三区数据 —— 明确报错，不静默请求（后端 400）。
-const currentOwnerId = () => {
-  try {
-    const raw = localStorage.getItem('user') || localStorage.getItem('userInfo')
-    if (raw) {
-      const u = JSON.parse(raw)
-      return String(u?.id || u?.user_id || u?.userId || '')
-    }
-  } catch { /* 脏数据当未登录处理 */ }
-  return ''
-}
+// 取数只认 user store：登录时 stores/user.js 把 id 写进 'user_info'，
+// 页面上原先读的 'user'/'userInfo' 两个键全仓无人写，真机每次进本页都会
+// 落到"未识别当前登录用户"的红条并把三区数据清空。
+const currentOwnerId = () => String(userStore.userInfo?.id ?? '')
 
 const locateRouteId = async () => {
   if (!routeId.value) return

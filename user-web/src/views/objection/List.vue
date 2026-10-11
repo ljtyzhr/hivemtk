@@ -197,6 +197,7 @@ import {
   listObjectionCategories,
   recordObjectionUsage
 } from '@/api/objection.js'
+import { copyToClipboard } from '@/utils/clipboard.js'
 
 const form = reactive({
   text: '',
@@ -294,17 +295,11 @@ const resetForm = () => {
 }
 
 const copyTemplate = async (template) => {
-  try {
-    await navigator.clipboard.writeText(template.content)
+  const copied = await copyToClipboard(template.content)
+  if (copied) {
     ElMessage.success(i18n.global.t('已复制到剪贴板'))
-  } catch (e) {
-    const ta = document.createElement('textarea');
-    ta.value = template.content
-    document.body.appendChild(ta)
-    ta.select()
-    document.execCommand('copy')
-    document.body.removeChild(ta)
-    ElMessage.success(i18n.global.t('已复制到剪贴板'))
+  } else {
+    ElMessage.error(i18n.global.t('复制失败'))
   }
 }
 

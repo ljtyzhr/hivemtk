@@ -202,6 +202,7 @@ import {
   updateMaterialCategory,
   deleteMaterialCategory
 } from '@/api/material'
+import { copyToClipboard } from '@/utils/clipboard.js'
 
 const loading = ref(false)
 const materialList = ref([])
@@ -361,12 +362,13 @@ const handleUploadClose = () => {
   uploadForm.categoryId = ''
 }
 
-const handleCopyUrl = (url) => {
-  navigator.clipboard.writeText(url).then(() => {
+const handleCopyUrl = async (url) => {
+  const copied = await copyToClipboard(url)
+  if (copied) {
     ElMessage.success(i18n.global.t('链接已复制到剪贴板'))
-  }).catch(() => {
+  } else {
     ElMessage.error(i18n.global.t('复制失败'))
-  })
+  }
 }
 
 const handleDelete = async (material) => {

@@ -99,6 +99,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { getScriptCategories, getScripts, createScript, updateScript, deleteScript as deleteScriptApi, useScript as useScriptApi } from '@/api/scriptTemplate.js'
 import { toList } from '@/utils/list.js'
+import { copyToClipboard } from '@/utils/clipboard.js'
 
 const loading = ref(false)
 const searchKeyword = ref('')
@@ -199,13 +200,21 @@ const submitForm = async () => {
 
 const useScript = async (row) => {
   await useScriptApi(row.id)
-  ElMessage.success(i18n.global.t('话术已复制到剪贴板'))
-  navigator.clipboard.writeText(row.content)
+  const copied = await copyToClipboard(row.content)
+  if (copied) {
+    ElMessage.success(i18n.global.t('话术已复制到剪贴板'))
+  } else {
+    ElMessage.warning(i18n.global.t('复制失败，请手动复制'))
+  }
 }
 
-const copyScript = (row) => {
-  navigator.clipboard.writeText(row.content)
-  ElMessage.success(i18n.global.t('已复制'))
+const copyScript = async (row) => {
+  const copied = await copyToClipboard(row.content)
+  if (copied) {
+    ElMessage.success(i18n.global.t('已复制'))
+  } else {
+    ElMessage.warning(i18n.global.t('复制失败，请手动复制'))
+  }
 }
 
 const deleteScript = async (row) => {

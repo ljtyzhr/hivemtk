@@ -118,7 +118,13 @@ const handlePurchase = async (asset) => {
   } catch {
     return
   }
-  await purchaseAsset({ asset_id: asset.asset_id })
+  try {
+    await purchaseAsset({ asset_id: asset.asset_id })
+  } catch {
+    // 同 Detail.vue：失败文案 request.js 已给，逸出成组件事件处理器的未捕获
+    // 错误会把一次正常拒绝写成 console 报错。
+    return
+  }
   ElMessage.success(paid ? '购买并同步成功，积分已从账户扣款，请到「我的资产」查看' : '试用并同步成功，请到「我的资产」查看')
   fetchList()
 }

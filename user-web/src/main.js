@@ -6,6 +6,7 @@ import ElementPlus from 'element-plus'
 import 'element-plus/dist/index.css'
 import './styles/index.scss'
 import { updateRequestConfig, http } from './utils/request'
+import { isUserReportedError } from './utils/errorReporting'
 import i18n from './i18n'
 import { applyDirection } from './i18n/locale'
 import { initWebVitals } from './utils/webVitalsMonitor'
@@ -20,11 +21,20 @@ applyDirection(i18n.global.locale.value)
 const app = createApp(App)
 
 // 全局错误兜底：Vue 渲染/生命周期异常与未捕获 Promise 拒绝统一落 console，
-// 防止单点异常静默吞掉导致"页面白屏但无任何报错"的不可观测故障。
+// 防止单点异常静默吞掉导致「页面白屏但无任何报错」的不可观测故障。
+//
+// 兜底管的是"没人处理过"的错误。有两类已经有人处理过了，再打一行只会把真信号冲走：
+//   1. request.js 的拦截器——reject 之前已经把后端文案弹给用户（或调用方声明 _silent、
+//      由页面自己的告警位说明）。组件没接住这条拒绝，用户该看到的那句话已经看到了。
+//   2. ElMessageBox 的取消/关闭：reject('cancel') 是"用户改了主意"，属正常控制流。
+//      走确认框点取消是最常发生的人工操作之一，它不该在控制台留错误。
+// 其余一律照打，包括处理器自己抛的业务异常——判定口径见 utils/errorReporting.js。
 app.config.errorHandler = (err, instance, info) => {
+  if (isUserReportedError(err)) return
   console.error('[Vue errorHandler]', info, err)
 }
 window.addEventListener('unhandledrejection', (event) => {
+  if (isUserReportedError(event.reason)) return
   console.error('[unhandledrejection]', event.reason)
 })
 

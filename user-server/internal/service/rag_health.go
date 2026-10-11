@@ -94,7 +94,7 @@ func (s *RagHealthService) GetHealth(ctx context.Context, window time.Duration) 
 		return nil, fmt.Errorf("service or repository is nil")
 	}
 	if window <= 0 {
-		window = RagHealthDefaultWindow
+		window = ragHealthDefaultWindow(ctx)
 	}
 
 	now := time.Now()
@@ -179,6 +179,9 @@ func (s *RagHealthService) computeDimensions(ctx context.Context,
 ) []RagHealthDimension {
 	dims := make([]RagHealthDimension, 0, 6)
 
+	// 六维权重按参数中心读取并归一化（见 health_weights_runtime_params.go）。
+	wRetrieval, wRecall, wEmbedding, wCoverage, wPerformance, wAlerts := ragHealthWeights(ctx)
+
 	retrievalScore := 0
 	retrievalMetric := 0.0
 	retrievalDesc := "无检索记录"
@@ -189,7 +192,7 @@ func (s *RagHealthService) computeDimensions(ctx context.Context,
 		retrievalDesc = fmt.Sprintf("最近窗口检索 %d 次", recall.TotalQueries)
 		retrievalStatus = "healthy"
 	}
-	dims = append(dims, makeDimension(RagHealthDimRetrieval, "检索可用性", retrievalScore, RagHealthWeightRetrieval, retrievalMetric, retrievalDesc, retrievalStatus))
+	dims = append(dims, makeDimension(RagHealthDimRetrieval, "检索可用性", retrievalScore, wRetrieval, retrievalMetric, retrievalDesc, retrievalStatus))
 
 	recallScore := 0
 	recallMetric := recall.AvgRecall
@@ -210,7 +213,7 @@ func (s *RagHealthService) computeDimensions(ctx context.Context,
 			recallStatus = "critical"
 		}
 	}
-	dims = append(dims, makeDimension(RagHealthDimRecall, "召回质量", recallScore, RagHealthWeightRecall, recallMetric, recallDesc, recallStatus))
+	dims = append(dims, makeDimension(RagHealthDimRecall, "召回质量", recallScore, wRecall, recallMetric, recallDesc, recallStatus))
 
 	embedScore := 0
 	embedMetric := embedFailRate
@@ -233,7 +236,7 @@ func (s *RagHealthService) computeDimensions(ctx context.Context,
 			embedStatus = "critical"
 		}
 	}
-	dims = append(dims, makeDimension(RagHealthDimEmbedding, "向量化质量", embedScore, RagHealthWeightEmbedding, embedMetric, embedDesc, embedStatus))
+	dims = append(dims, makeDimension(RagHealthDimEmbedding, "向量化质量", embedScore, wEmbedding, embedMetric, embedDesc, embedStatus))
 
 	coverageScore := 0
 	coverageMetric := float64(chunkCount)
@@ -259,7 +262,7 @@ func (s *RagHealthService) computeDimensions(ctx context.Context,
 			coverageStatus = "critical"
 		}
 	}
-	dims = append(dims, makeDimension(RagHealthDimCoverage, "知识库覆盖", coverageScore, RagHealthWeightCoverage, coverageMetric, coverageDesc, coverageStatus))
+	dims = append(dims, makeDimension(RagHealthDimCoverage, "知识库覆盖", coverageScore, wCoverage, coverageMetric, coverageDesc, coverageStatus))
 
 	perfScore := 0
 	perfMetric := float64(recall.P99LatencyMs)
@@ -282,7 +285,7 @@ func (s *RagHealthService) computeDimensions(ctx context.Context,
 			perfStatus = "critical"
 		}
 	}
-	dims = append(dims, makeDimension(RagHealthDimPerformance, "性能", perfScore, RagHealthWeightPerformance, perfMetric, perfDesc, perfStatus))
+	dims = append(dims, makeDimension(RagHealthDimPerformance, "性能", perfScore, wPerformance, perfMetric, perfDesc, perfStatus))
 
 	alertScore := 0
 	alertMetric := float64(activeAlertCount)
@@ -307,7 +310,7 @@ func (s *RagHealthService) computeDimensions(ctx context.Context,
 	if activeAlertCount > 0 {
 		alertDesc = fmt.Sprintf("活跃预警 %d 个", activeAlertCount)
 	}
-	dims = append(dims, makeDimension(RagHealthDimAlerts, "告警状态", alertScore, RagHealthWeightAlerts, alertMetric, alertDesc, alertStatus))
+	dims = append(dims, makeDimension(RagHealthDimAlerts, "告警状态", alertScore, wAlerts, alertMetric, alertDesc, alertStatus))
 
 	return dims
 }

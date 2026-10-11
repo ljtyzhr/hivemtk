@@ -295,6 +295,7 @@ import {
   updateLiveCodeQR,
   shareLiveCode
 } from '@/api/livecode'
+import { copyToClipboard } from '@/utils/clipboard'
 
 const loading = ref(false);
 const submitLoading = ref(false)
@@ -551,15 +552,12 @@ const handleShare = async (row) => {
   try {
     const response = await shareLiveCode(row.id, {})
     const shareUrl = response.share_url;
-    
-    const input = document.createElement('input');
-    input.value = shareUrl
-    document.body.appendChild(input)
-    input.select()
-    document.execCommand('copy')
-    document.body.removeChild(input)
-    
-    ElMessage.success(i18n.global.t('分享链接已复制到剪贴板'))
+
+    if (await copyToClipboard(shareUrl)) {
+      ElMessage.success(i18n.global.t('分享链接已复制到剪贴板'))
+    } else {
+      ElMessage.warning(i18n.global.t('复制失败，请手动复制'))
+    }
   } catch (error) {
     ElMessage.error(i18n.global.t('分享失败'))
   }

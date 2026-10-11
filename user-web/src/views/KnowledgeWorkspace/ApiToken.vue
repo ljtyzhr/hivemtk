@@ -174,6 +174,7 @@ import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, CopyDocument } from '@element-plus/icons-vue'
 import { knowledgeMerchantAPI } from '@/api/knowledgeMerchant'
+import { copyToClipboard } from '@/utils/clipboard'
 import { ragProductConfigAPI } from '@/api/ragProductConfig'
 
 const loading = ref(false)
@@ -283,10 +284,9 @@ const handleRevoke = async (row) => {
 }
 
 const copyToken = async () => {
-  try {
-    await navigator.clipboard.writeText(createdToken.value.token_plain)
+  if (await copyToClipboard(createdToken.value.token_plain)) {
     ElMessage.success(i18n.global.t('已复制到剪贴板'))
-  } catch {
+  } else {
     ElMessage.warning(i18n.global.t('复制失败,请手动选择'))
   }
 }

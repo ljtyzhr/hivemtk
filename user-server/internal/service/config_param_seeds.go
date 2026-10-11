@@ -576,5 +576,44 @@ func DefaultParamDefs() []ParamDef {
 		{Group: "sop", Key: "compensation_max_plans_kept", Name: "Saga 补偿计划保留条数",
 			Description: "内存中保留的补偿计划条数上界，超出即淘汰最旧者。这是防无界增长的内存闸：写大＝常驻内存上升；写小＝仍在执行中的旧补偿计划可能被提前淘汰（若在读取时被淘汰，返回那一刻的内容仍有效，但后续状态机会丢失依据）。仅在 FF_LTC_SAGA_COMPENSATION 开关开启时才有意义。构造期读一次，改完需重启才生效",
 			ValueType:   "int", DefaultValue: "512", Min: strPtr("1"), Max: strPtr("100000"), Step: strPtr("1"), Restart: true},
+		// ── domain_health 组：域名健康度阈值 ──────────────────────────────
+		// 四条全是"看一眼分数就做决定"的类型：改错的结果不是性能问题，而是"该切的没切"。
+		{Group: "domain_health", Key: "score_healthy", Name: "域名健康分达标线",
+			Description: "域名健康分达到该值即视为健康、可参与选优与自动启用（0-100）。写大＝很多域名被判不健康、可用池缩小甚至无域名可选；写小＝带病的域名被当成健康继续承载流量。这是整条健康度判定的主刻度，score_switch_threshold 应低于它",
+			ValueType:   "int", DefaultValue: "80", Min: strPtr("1"), Max: strPtr("100"), Step: strPtr("1"), Restart: false},
+		{Group: "domain_health", Key: "score_switch_threshold", Name: "域名自动切换触发线",
+			Description: "活跃域名健康分跌破该值即触发自动切换到最优域名（0-100）。写大＝一有抖动就切主域名（表现为域名频繁变动、上下游缓存失效）；写小＝已经明显带病的域名还在承载流量。必须低于 score_healthy，高于它等于「永远不切，因为健康判定先失败」",
+			ValueType:   "int", DefaultValue: "30", Min: strPtr("0"), Max: strPtr("100"), Step: strPtr("1"), Restart: false},
+		{Group: "domain_health", Key: "consecutive_failure_limit", Name: "域名连续失败次数上限",
+			Description: "连续探测失败达到该次数即触发自动切换，是「分数还没掉下来就先切走」的旁路。写大＝域名已经明显连不上还要继续探；写小＝偶发的网络抖动就触发切换（域名频繁变动）",
+			ValueType:   "int", DefaultValue: "3", Min: strPtr("1"), Max: strPtr("100"), Step: strPtr("1"), Restart: false},
+		{Group: "domain_health", Key: "check_timeout", Name: "域名探测超时",
+			Description: "每次域名探测的 HTTP 超时（秒）。写大＝挂起的域名拖长整轮巡检（批量巡检会串行等满超时）；写小＝慢一点的正常域名被误判不可达、健康分下滑。构造期读一次，改完需重启才生效",
+			ValueType:   "duration", DefaultValue: "5", Min: strPtr("1"), Max: strPtr("60"), Step: strPtr("1"), Restart: true},
+
+		// ── rag_health 组：RAG 健康度窗口与六维权重 ───────────────────────
+		// 六个权重按总和归一化后使用（report.Score 是六个 WeightedScore 直接相加），
+		// 所以每个旋钮的语义是干净的"相对比重"，调哪一项都不会把总分推出 0-100。
+		{Group: "rag_health", Key: "default_window", Name: "RAG 健康度默认窗口",
+			Description: "计算 RAG 健康度时在调用方没给 window 的默认时间窗（秒）。写大＝一次要回更多行的指标按时间聚合，报告更稳但更钝（问题过去很久才从分数上消退）；写小＝样本不足（不足 2 天直接无环比），分数抖动明显",
+			ValueType:   "duration", DefaultValue: "3600", Min: strPtr("60"), Max: strPtr("604800"), Step: strPtr("60"), Restart: false},
+		{Group: "rag_health", Key: "weight_retrieval", Name: "RAG 健康度·检索可用性权重",
+			Description: "六个维度里「检索可用性」的相对比重。这一项衡量最近窗口内有没有检索发生过（TotalQueries>0 即满分）。默认只给 0.10：它更像「链路通不通」的存活信号，不该主导总分。六项会按总和归一化，所以调任一项都不会把总分推出 0-100",
+			ValueType:   "float", DefaultValue: "0.10", Min: strPtr("0.01"), Max: strPtr("10"), Step: strPtr("0.01"), Restart: false},
+		{Group: "rag_health", Key: "weight_recall", Name: "RAG 健康度·召回质量权重",
+			Description: "六个维度里「召回质量」的相对比重（按 AvgRecall 打分）。默认给到 0.30，是六个里最大的一项：召回不到正确内容，后面所有环节做得再好也答不对。写大＝总分几乎等于召回率；写小＝召回烂掉时总分看起来还正常，属于掩盖问题",
+			ValueType:   "float", DefaultValue: "0.30", Min: strPtr("0.01"), Max: strPtr("10"), Step: strPtr("0.01"), Restart: false},
+		{Group: "rag_health", Key: "weight_embedding", Name: "RAG 健康度·向量化质量权重",
+			Description: "六个维度里「向量化质量」的相对比重（失败率/维度异常）。默认 0.15。写大＝向量化一有抖动总分就掉；写小＝批量文档向量化失败只在告警维度反映，总分看不出来",
+			ValueType:   "float", DefaultValue: "0.15", Min: strPtr("0.01"), Max: strPtr("10"), Step: strPtr("0.01"), Restart: false},
+		{Group: "rag_health", Key: "weight_coverage", Name: "RAG 健康度·知识库覆盖权重",
+			Description: "六个维度里「知识库覆盖」的相对比重（有多少知识库真的被检索命中过）。默认 0.15。写大＝新导入的知识库长期没人问会导致总分下滑；写小＝覆盖盲区被掩盖",
+			ValueType:   "float", DefaultValue: "0.15", Min: strPtr("0.01"), Max: strPtr("10"), Step: strPtr("0.01"), Restart: false},
+		{Group: "rag_health", Key: "weight_performance", Name: "RAG 健康度·性能权重",
+			Description: "六个维度里「性能」的相对比重（检索延迟分位）。默认 0.15。写大＝一次慢查询就把总分拉低；写小＝检索已经慢到影响体验，总分仍显示健康",
+			ValueType:   "float", DefaultValue: "0.15", Min: strPtr("0.01"), Max: strPtr("10"), Step: strPtr("0.01"), Restart: false},
+		{Group: "rag_health", Key: "weight_alerts", Name: "RAG 健康度·告警状态权重",
+			Description: "六个维度里「告警状态」的相对比重（未处理告警数）。默认 0.15。写大＝堆积一批未读告警就让总分跌到 C/D；写小＝告警无人处理时总分仍是 A，看板失去预警意义",
+			ValueType:   "float", DefaultValue: "0.15", Min: strPtr("0.01"), Max: strPtr("10"), Step: strPtr("0.01"), Restart: false},
 	}
 }

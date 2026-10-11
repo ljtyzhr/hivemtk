@@ -56,7 +56,11 @@
             :preview-src-list="[row.cover_image]"
             fit="cover"
             style="width: 64px; height: 48px; border-radius: 6px"
-          />
+          >
+            <template #error>
+              <div class="img-error-fallback">{{ $t('图片加载失败') }}</div>
+            </template>
+          </el-image>
           <div v-else class="cover-placeholder-bundle">{{ (row.title || '?').slice(0, 1) }}</div>
         </template>
       </el-table-column>

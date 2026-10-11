@@ -30,7 +30,9 @@
 
       <div v-if="typing" class="message-row left">
         <div class="avatar" :style="avatarStyle({ sender_type: 'ai' })">
-          <span class="avatar-text">{{ $t('客服') }}</span>
+          <!-- 32px 圆头像只放一个字符，和上面 avatarText(msg) 的口径一致；
+               整词 $t('客服') 在非中文语种是 "Customer Service"，会从圆里铺到气泡上。 -->
+          <span class="avatar-text">{{ $t('客服').slice(0, 1) }}</span>
         </div>
         <div class="bubble-wrap">
           <div class="bubble typing">

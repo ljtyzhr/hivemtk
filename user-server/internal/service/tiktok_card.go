@@ -230,6 +230,7 @@ func (s *tiktokCardService) StatsOverall(ctx context.Context) (*dto.TikTokCardSt
 			CardTitle: titleMap[a.CardID],
 			Action:    a.ActivityType,
 			Username:  a.UserID,
+			IPAddress: a.IPAddress,
 			CreatedAt: a.CreatedAt.Format("2006-01-02 15:04:05"),
 		})
 	}
@@ -269,6 +270,7 @@ func (s *tiktokCardService) Stats(ctx context.Context, cardID uint) (*dto.TikTok
 			CardTitle: card.Title,
 			Action:    a.ActivityType,
 			Username:  a.UserID,
+			IPAddress: a.IPAddress,
 			CreatedAt: a.CreatedAt.Format("2006-01-02 15:04:05"),
 		})
 	}

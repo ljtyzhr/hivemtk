@@ -45,11 +45,14 @@
             <el-image
               v-if="scope.row.image_url"
               :src="scope.row.image_url"
-              @error="onImgError"
               :preview-src-list="[scope.row.image_url]"
               fit="cover"
               style="width: 80px; height: 60px; border-radius: 4px;"
-            />
+            >
+              <template #error>
+                <div class="img-error-fallback">{{ $t('图片加载失败') }}</div>
+              </template>
+            </el-image>
             <span v-else class="no-image">无图片</span>
           </template>
         </el-table-column>
@@ -143,7 +146,7 @@
                 v-model="formData.description"
                 placeholder="请输入卡片描述"
                 type="textarea"
-                rows="4"
+                :rows="4"
                 maxlength="500"
                 show-word-limit
               />
@@ -161,7 +164,11 @@
                   :src="formData.image_url"
                   fit="cover"
                   style="width: 200px; height: 150px; border-radius: 4px; margin-top: 10px;"
-                />
+                >
+                  <template #error>
+                    <div class="img-error-fallback">{{ $t('图片加载失败') }}</div>
+                  </template>
+                </el-image>
               </div>
             </el-form-item>
             <el-form-item label="跳转链接" prop="redirect_url">
@@ -216,14 +223,6 @@
 </template>
 
 <script setup>
-
-const onImgError = (e) => {
-  const img = e.target
-  if (img && !img.dataset.fallback) {
-    img.dataset.fallback = '1'
-    img.src = 'data:image/svg+xml;base64,' + btoa('<svg xmlns="http://www.w3.org/2000/svg" width="80" height="80"><rect width="80" height="80" fill="%23f0f2f5"/><text x="40" y="46" font-size="12" text-anchor="middle" fill="%2390a0b0">%E6%97%A0%E5%9B%BE</text></svg>')
-  }
-};
 import i18n from '@/i18n'
 
 import { ref, reactive, onMounted, computed } from 'vue'
@@ -233,6 +232,7 @@ import { useRouter } from 'vue-router'
 import KuaishouCardPreview from '@/components/KuaishouCardPreview.vue'
 import { domainPoolApi } from '@/api/domainPool'
 import * as kuaishouCardApi from '@/api/kuaishouCard'
+import { copyToClipboard } from '@/utils/clipboard.js'
 
 const formatDate = (date, format) => {
   if (!date) return ''
@@ -370,14 +370,12 @@ const handleStats = (row) => {
 }
 
 const handleCopyLink = async (row) => {
-  try {
-    const cardLink = `${window.location.origin}/kuaishou/card/${row.id}`;
-    
-    await navigator.clipboard.writeText(cardLink)
+  const cardLink = `${window.location.origin}/kuaishou/card/${row.id}`;
+  const copied = await copyToClipboard(cardLink)
+  if (copied) {
     ElMessage.success(i18n.global.t('链接已复制到剪贴板'))
-  } catch (error) {
+  } else {
     ElMessage.error(i18n.global.t('复制链接失败'))
-    console.error('复制链接失败:', error)
   }
 }
 

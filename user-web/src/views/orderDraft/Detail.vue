@@ -15,8 +15,8 @@
       :type="loadError === 404 ? 'info' : 'warning'"
       show-icon
       :closable="false"
-      :title="loadError === 404 ? '这条草稿不存在（或已被清扫）' : '草稿读取失败'"
-      :description="loadError === 404 ? '它可能刚被别人确认/取消，或已过期被清扫器收口。' : '后端回了非 404 的错误，稍后重试；不要当成草稿没了。'"
+      :title="errorTitle"
+      :description="errorDescription"
     />
 
     <el-card
@@ -246,11 +246,25 @@ const me = computed(() => String(userStore.userInfo?.id ?? ''))
 
 const loading = ref(false)
 const acting = ref('') // '' | 'confirm' | 'cancel' | 'edit'
-const loadError = ref(0) // 0 无 / 404 不存在 / 500 读取失败
+const loadError = ref(0) // 0 无 / 404 不存在 / 503 底座未装配 / 其他 读取失败
+const loadErrorMsg = ref('')
 const draft = ref(null)
 const form = reactive({ product_name: '', quantity: 1, unit_price: 0, note: '' })
 
 const draftId = computed(() => String(route.params.id || ''))
+
+// 「稍后重试」对 503 是假话：档位是装配期事实，不重启永远不会自己变好。
+// 深链正是工作台待办的落点，用户从这里看到的第一句必须是能行动的那句。
+const errorTitle = computed(() => {
+  if (loadError.value === 404) return '这条草稿不存在（或已被清扫）'
+  if (loadError.value === 503) return '订单草稿底座不可用'
+  return '草稿读取失败'
+})
+const errorDescription = computed(() => {
+  if (loadError.value === 404) return '它可能刚被别人确认/取消，或已过期被清扫器收口。'
+  if (loadError.value === 503) return '本进程没装配草稿运行时（FF_LTC_ORDER_DRAFT_DB 为 off 或值无法识别）。这不是「草稿没了」，稍后重试也不会好 —— 档位只在装配期读一次，改完须重启服务。'
+  return `${loadErrorMsg.value || '后端回了非 404 的错误'}；不要当成草稿没了。`
+})
 
 // dirty 只比较动过的字段：后端对「没给」什么都不做，把原值也发过去
 // 等于让「保存」按钮在无改动时也能点出一次无意义的写。
@@ -308,17 +322,24 @@ async function load() {
   }
   loading.value = true
   loadError.value = 0
+  loadErrorMsg.value = ''
+  draft.value = null
   try {
+    // 底座没装配时这条深链读到的永远是 503，而工作台待办恰恰会生成这条深链。
+    // 先问档位（/stats 不随旗子消失）：关着就不发那条注定失败的请求，
+    // 页面直接把「要改旗子并重启」说出口，而不是留一行 503 和一句"稍后重试"。
+    const gate = await orderDraftApi.stats().catch(() => null)
+    if (gate && gate.assembled === false) {
+      loadError.value = 503
+      return
+    }
     const d = await orderDraftApi.get(draftId.value)
     draft.value = d
     fillForm(d)
   } catch (err) {
     draft.value = null
-    if (err?.status === 404) {
-      loadError.value = 404
-    } else {
-      loadError.value = 500
-    }
+    loadError.value = err?.status || 500
+    loadErrorMsg.value = err?.message || ''
   } finally {
     loading.value = false
   }

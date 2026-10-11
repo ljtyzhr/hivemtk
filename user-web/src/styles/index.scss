@@ -175,6 +175,23 @@ body {
   line-height: 23px;
 }
 
+/* el-image 缺 #error 插槽时会落英文红字 "FAILED"，各页面统一用这个类做中性占位 */
+.img-error-fallback {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  height: 100%;
+  padding: 4px;
+  background: #F8FAFC;
+  color: #94A3B8;
+  font-size: 12px;
+  line-height: 1.2;
+  text-align: center;
+  overflow: hidden;
+  border-radius: 6px;
+}
+
 .el-button {
   font-weight: 500;
   transition: all 0.2s ease;

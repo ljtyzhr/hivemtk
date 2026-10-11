@@ -3,6 +3,7 @@ import { ElMessage } from 'element-plus'
 import { getApiConfig } from './configManager'
 import i18n from '@/i18n'
 import { getStoredLocale } from '@/i18n/locale'
+import { markUserReported } from './errorReporting'
 
 // 生产构建里 vue-i18n 的预编译消息编译器对全部现存 key 抛 UNEXPECTED_RETURN_TYPE
 // （spec §6：dev/prod 一致，1834/1834）。这里必须兜住：t() 的调用点全在拦截器给错误对象
@@ -75,7 +76,7 @@ function buildRequestError(message, response, bizCode) {
   // 服务端换一次措辞（或切了语言）就把逻辑判错——浏览器任务的「忙」与「Host 离线」都栽过这条。
   err.status = (response && response.status) || 0
   if (bizCode !== undefined) err.bizCode = bizCode
-  return err
+  return markUserReported(err)
 }
 
 function redirectTo(path) {
@@ -243,11 +244,11 @@ const addInterceptors = () => {
       if (error.request) {
         if (!error.config || !error.config._silent)
           showToast(t('http.networkTimeout'));
-        return Promise.reject(error)
+        return Promise.reject(markUserReported(error))
       }
       if (!error.config || !error.config._silent)
         showToast(t('http.configError'));
-      return Promise.reject(error)
+      return Promise.reject(markUserReported(error))
     }
   );
 };

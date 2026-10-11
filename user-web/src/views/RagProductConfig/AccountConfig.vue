@@ -215,7 +215,8 @@ onMounted(() => {
 const loadRagProducts = async () => {
   try {
     const response = await ragProductConfigAPI.getRagProducts()
-    ragProducts.value = response.items || [];
+    // 信封键是 list；只认 items 时这个下拉恒空。
+    ragProducts.value = response?.list || response?.items || [];
   } catch (error) {
     ElMessage.error('加载RAG产品失败: ' + error.message)
   }

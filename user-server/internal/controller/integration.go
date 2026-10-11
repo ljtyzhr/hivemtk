@@ -103,7 +103,7 @@ func (c *IntegrationController) UpdateAccount(ctx *gin.Context) {
 		return
 	}
 
-	var req service.CreateIntegrationAccountRequest
+	var req service.UpdateIntegrationAccountRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		response.Error(ctx, http.StatusBadRequest, "请求参数错误："+err.Error())
 		return

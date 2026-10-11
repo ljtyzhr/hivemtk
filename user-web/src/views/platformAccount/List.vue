@@ -54,7 +54,9 @@
     
     <el-table :data="accountList" border style="width: 100%" v-loading="loading">
       <el-table-column prop="id" label="ID" width="80" />
-      <el-table-column prop="platform" :label="$t('平台')" width="120" />
+      <el-table-column prop="platform" :label="$t('平台')" width="120">
+        <template #default="scope">{{ platformLabel(scope.row.platform) }}</template>
+      </el-table-column>
       <el-table-column prop="account_name" :label="$t('账号名称')" min-width="150" show-overflow-tooltip />
       <el-table-column prop="account_id" :label="$t('账号ID')" min-width="150" show-overflow-tooltip />
       <el-table-column prop="status" :label="$t('状态')" width="100">
@@ -64,8 +66,15 @@
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="last_login_at" label="最后登录" width="180" />
-      <el-table-column prop="created_at" label="创建时间" width="180" />
+      <!-- 接口模型里没有 last_login_at 这个字段（键只有 last_sync_at/expires_at/created_at/updated_at），
+           原先这列绑的是不存在的名字 ⇒ 整列恒空白，标题还写着「最后登录」。
+           改成数据里真有的最后同步时间，并把标题改成与之相符。 -->
+      <el-table-column prop="last_sync_at" label="最后同步" width="180">
+        <template #default="scope">{{ formatDateTime(scope.row.last_sync_at) }}</template>
+      </el-table-column>
+      <el-table-column prop="created_at" label="创建时间" width="180">
+        <template #default="scope">{{ formatDateTime(scope.row.created_at) }}</template>
+      </el-table-column>
       <el-table-column label="操作" width="280" fixed="right">
         <template #default="scope">
           <el-button type="primary" size="small" @click="handleEdit(scope.row)">
@@ -95,7 +104,7 @@
         v-model:page-size="pagination.pageSize"
         :page-sizes="[10, 20, 50, 100]"
         layout="total, sizes, prev, pager, next, jumper"
-        :total="pagination.total"
+        :total="filteredAccounts.length"
         @size-change="handleSizeChange"
         @current-change="handleCurrentChange"
       />
@@ -227,7 +236,7 @@
 <script setup>
 import i18n from '@/i18n'
 
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, computed, watch, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import {
   Plus, Search, RefreshRight, Edit, Delete, Platform, SwitchButton, Check
@@ -240,7 +249,7 @@ const submitting = ref(false)
 const platformsLoading = ref(false)
 const loginLoading = ref(false)
 const statusLoading = ref(false)
-const accountList = ref([])
+const allAccounts = ref([])
 const platformList = ref([])
 const platformOptions = ref([])
 const dialogVisible = ref(false)
@@ -260,9 +269,35 @@ const searchForm = reactive({
 
 const pagination = reactive({
   page: 1,
-  pageSize: 10,
-  total: 0
+  pageSize: 10
 });
+
+// GET /api/platform-accounts 返回的是全量数组：它不接 page/page_size，也不接
+// platform/account/status 这三个筛选条件（控制器直接走 repo.GetAll）。
+// 所以筛选与分页必须在本地做，否则「共 N 条」恒为 0、翻页与搜索点了没有反应。
+const filteredAccounts = computed(() => {
+  const kw = searchForm.account.trim().toLowerCase()
+  return allAccounts.value.filter(row => {
+    if (searchForm.platform && row.platform !== searchForm.platform) return false
+    if (searchForm.status && String(row.status) !== String(searchForm.status)) return false
+    if (kw) {
+      const hay = `${row.account_name || ''} ${row.account_id || ''}`.toLowerCase()
+      if (!hay.includes(kw)) return false
+    }
+    return true
+  })
+})
+
+const accountList = computed(() => {
+  const start = (pagination.page - 1) * pagination.pageSize
+  return filteredAccounts.value.slice(start, start + pagination.pageSize)
+})
+
+// 筛选后剩余页数可能小于当前页码，页码不收回就会停在一张空表上。
+watch(filteredAccounts, list => {
+  const lastPage = Math.max(1, Math.ceil(list.length / pagination.pageSize))
+  if (pagination.page > lastPage) pagination.page = lastPage
+})
 
 const form = reactive({
   id: null,
@@ -309,8 +344,8 @@ const fetchAccountList = async () => {
       status: searchForm.status ? parseInt(searchForm.status) : undefined
     }
     const res = await platformAccountApi.getAccounts(params)
-    accountList.value = res || []
-    pagination.total = res.total || 0
+    // 回的是裸数组（没有 {list,total} 信封），旧写法 res.total 恒 undefined ⇒ 「共 0 条」。
+    allAccounts.value = Array.isArray(res) ? res : (res?.list || [])
   } catch (error) {
     console.error(error)
   } finally {
@@ -331,15 +366,15 @@ const resetSearch = () => {
   fetchAccountList()
 }
 
+// 分页是本地切片（见 filteredAccounts），这里不再回源取全量：
+// 每翻一页重发一次请求只会让表格闪一次 loading，数据完全一样。
 const handleSizeChange = (val) => {
   pagination.pageSize = val
   pagination.page = 1
-  fetchAccountList()
 }
 
 const handleCurrentChange = (val) => {
   pagination.page = val
-  fetchAccountList()
 }
 
 const handleAdd = () => {
@@ -489,6 +524,25 @@ const handleCheckStatus = async (row) => {
 
 const getStatusType = (status) => getAccountStatusTagType(status);
 const getStatusText = (status) => getAccountStatusLabel(status)
+
+// 表格里原先直接透出 "douyin" 这种 code，而同页面的筛选下拉用的是接口给的中文名，
+// 同一屏两个标签指同一个平台。另外存量数据里有 wecom 这类不在 /platforms 返回列表里的
+// code，所以要能回落到原始 code，不能显示成空白。
+const platformLabel = (code) => {
+  if (!code) return '—'
+  const hit = platformList.value.find(item => item.code === code)
+  return hit?.name || code
+}
+
+// created_at 是带微秒和时区偏移的 RFC3339（"2026-08-31T22:32:02.681459+08:00"），
+// 直接当文本渲染就是一长串机器格式；last_sync_at 可能为 null。
+const formatDateTime = (value) => {
+  if (!value) return '—'
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return String(value)
+  const pad = (n) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`
+}
 </script>
 
 <style lang="scss" scoped>

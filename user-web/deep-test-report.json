@@ -1,0 +1,222 @@
+[
+  {
+    "name": "仪表盘",
+    "route": "/ops-overview",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "数据卡片",
+        "passed": true,
+        "detail": "14 个元素"
+      },
+      {
+        "desc": "关键指标文本",
+        "passed": true,
+        "detail": "找到: 系统状态, 在线用户, 总用户, 今日消息, 告警"
+      },
+      {
+        "desc": "数据表格",
+        "passed": true,
+        "detail": "27 个元素"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "客户列表",
+    "route": "/customer360/list",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "客户表格",
+        "passed": true,
+        "detail": "3 个元素"
+      },
+      {
+        "desc": "搜索框",
+        "passed": true,
+        "detail": "2 个元素"
+      },
+      {
+        "desc": "表头文本",
+        "passed": true,
+        "detail": "找到: 客户, 姓名, 手机号, 来源"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "知识库",
+    "route": "/knowledgeBase/list",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "知识库表格",
+        "passed": true,
+        "detail": "3 个元素"
+      },
+      {
+        "desc": "操作按钮",
+        "passed": true,
+        "detail": "36 个元素"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 知识库, 名称, 文档, 状态"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "AI Agent",
+    "route": "/aiAgent/list",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "Agent表格",
+        "passed": true,
+        "detail": "3 个元素"
+      },
+      {
+        "desc": "操作按钮",
+        "passed": true,
+        "detail": "90 个元素"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: Agent, 名称, 模型, 状态"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "个人资料",
+    "route": "/profile",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "表单",
+        "passed": true,
+        "detail": "39 个元素"
+      },
+      {
+        "desc": "输入框",
+        "passed": true,
+        "detail": "14 个元素"
+      },
+      {
+        "desc": "保存按钮",
+        "passed": true,
+        "detail": "5 个元素"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "系统用户",
+    "route": "/system/users",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "用户表格",
+        "passed": true,
+        "detail": "3 个元素"
+      },
+      {
+        "desc": "操作按钮",
+        "passed": true,
+        "detail": "40 个元素"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: Personnel, New Account, Manage accounts"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "角色权限",
+    "route": "/system/roles",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "角色卡片",
+        "passed": true,
+        "detail": "11 个元素"
+      },
+      {
+        "desc": "操作按钮",
+        "passed": true,
+        "detail": "4 个元素"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: Role, Members, 权限"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "LLM路由",
+    "route": "/llmRouting/list",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "路由表格",
+        "passed": true,
+        "detail": "21 个元素"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 模型, 状态"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "消息中心",
+    "route": "/messageHub/list",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "消息列表",
+        "passed": true,
+        "detail": "11 个元素"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 消息, 发送, 接收, 状态"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "操作日志",
+    "route": "/operationLog/list",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "日志表格",
+        "passed": true,
+        "detail": "5 个元素"
+      },
+      {
+        "desc": "分页",
+        "passed": true,
+        "detail": "6 个元素"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 操作, 时间, 详情"
+      }
+    ],
+    "errors": []
+  }
+]

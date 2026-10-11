@@ -49,15 +49,14 @@ export function updateIntegration(id, data) {
 export function deleteIntegration(id) {
   return deleteIntegrationAccount(id)
 }
-export function toggleIntegrationStatus(id, enabled) {
-  return updateIntegrationAccount(id, { enabled })
+export function toggleIntegrationStatus(id, status) {
+  return updateIntegrationAccount(id, { status })
 }
 export function testIntegration(id) {
   return http.post(`/api/integrations/${id}/test`)
 }
-export function getIntegrationStats() {
-  return http.get('/api/integrations')
-}
-export function getIntegrationLogs(id) {
-  return getSyncLogs({ integration_id: id })
+export function getIntegrationLogs(params) {
+  // 后端 /api/integration/sync-logs 只按分页返回全平台日志，没有按账号过滤的参数，
+  // 所以按账号取最近一页再由调用方按 platform 收窄。
+  return getSyncLogs(params)
 }

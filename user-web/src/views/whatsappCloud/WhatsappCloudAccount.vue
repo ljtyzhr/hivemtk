@@ -133,6 +133,7 @@
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import AgentBindingDialog from '@/components/AgentBindingDialog.vue'
+import { copyToClipboard } from '@/utils/clipboard.js'
 import {
   listWhatsappCloud,
   getWhatsappCloud,
@@ -312,12 +313,14 @@ function onBindSaved() {
   loadData()
 }
 
-function copyText(text) {
+async function copyText(text) {
   if (!text) return
-  navigator.clipboard.writeText(text).then(
-    () => ElMessage.success('已复制到剪贴板'),
-    () => ElMessage.error('复制失败，请手动复制')
-  )
+  const copied = await copyToClipboard(text)
+  if (copied) {
+    ElMessage.success('已复制到剪贴板')
+  } else {
+    ElMessage.error('复制失败，请手动复制')
+  }
 }
 
 function copyCallbackUrl(row) {

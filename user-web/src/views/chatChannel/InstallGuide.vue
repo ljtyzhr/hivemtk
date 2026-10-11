@@ -177,6 +177,7 @@ import {
 } from '@element-plus/icons-vue'
 import { listChannels, getChannel, updateChannel } from '@/api/chatChannel'
 import { http } from '@/utils/request'
+import { copyToClipboard } from '@/utils/clipboard'
 
 const router = useRouter()
 void Back; void Refresh; void CopyDocument; void ChatDotRound
@@ -250,10 +251,9 @@ const onChannelChange = async (channelId) => {
 
 const copyEmbed = async () => {
   if (!embedSnippet.value) return
-  try {
-    await navigator.clipboard.writeText(embedSnippet.value)
+  if (await copyToClipboard(embedSnippet.value)) {
     ElMessage.success(i18n.global.t('已复制到剪贴板'))
-  } catch {
+  } else {
     ElMessage.error(i18n.global.t('复制失败，请手动复制'))
   }
 }

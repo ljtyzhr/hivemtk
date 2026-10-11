@@ -105,7 +105,19 @@ type CreateIntegrationAccountRequest struct {
 	AccountName string         `json:"account_name"`
 	APIKey      string         `json:"api_key"`
 	APISecret   string         `json:"api_secret"`
+	WebhookURL  string         `json:"webhook_url"`
 	Config      map[string]any `json:"config"`
+}
+
+// 读接口回传的 api_secret/access_token 是掩码值，所以更新只能按"字段出现才改"，
+// 否则把整条记录原样 PUT 回去会把掩码写进库、毁掉真凭据。
+type UpdateIntegrationAccountRequest struct {
+	AccountName *string        `json:"account_name"`
+	APIKey      *string        `json:"api_key"`
+	APISecret   *string        `json:"api_secret"`
+	WebhookURL  *string        `json:"webhook_url"`
+	Config      map[string]any `json:"config"`
+	Status      *int           `json:"status"`
 }
 
 func (s *IntegrationService) CreateIntegrationAccount(ctx context.Context, req *CreateIntegrationAccountRequest) (*model.IntegrationAccount, error) {
@@ -120,6 +132,7 @@ func (s *IntegrationService) CreateIntegrationAccount(ctx context.Context, req *
 		AccountName: req.AccountName,
 		APIKey:      req.APIKey,
 		APISecret:   req.APISecret,
+		WebhookURL:  req.WebhookURL,
 		Config:      configJSON,
 		Status:      1,
 	}
@@ -139,18 +152,30 @@ func (s *IntegrationService) GetIntegrationAccountByID(ctx context.Context, id u
 	return s.accountRepo.GetByID(ctx, id)
 }
 
-func (s *IntegrationService) UpdateIntegrationAccount(ctx context.Context, id uint, req *CreateIntegrationAccountRequest) (*model.IntegrationAccount, error) {
+func (s *IntegrationService) UpdateIntegrationAccount(ctx context.Context, id uint, req *UpdateIntegrationAccountRequest) (*model.IntegrationAccount, error) {
 	account, err := s.accountRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
-	account.AccountName = req.AccountName
-	account.APIKey = req.APIKey
-	account.APISecret = req.APISecret
+	if req.AccountName != nil {
+		account.AccountName = *req.AccountName
+	}
+	if req.APIKey != nil {
+		account.APIKey = *req.APIKey
+	}
+	if req.APISecret != nil {
+		account.APISecret = *req.APISecret
+	}
+	if req.WebhookURL != nil {
+		account.WebhookURL = *req.WebhookURL
+	}
 	if req.Config != nil {
 		data, _ := json.Marshal(req.Config)
 		account.Config = string(data)
+	}
+	if req.Status != nil {
+		account.Status = *req.Status
 	}
 
 	if err := s.accountRepo.Update(ctx, account); err != nil {

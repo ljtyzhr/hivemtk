@@ -224,6 +224,7 @@ import { ref, reactive, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Search, RefreshRight, View, Check, Top, CopyDocument } from '@element-plus/icons-vue'
 import { unifiedMessageApi } from '@/api/unifiedMessage'
+import { copyToClipboard } from '@/utils/clipboard.js'
 import { getMyAgent } from '@/api/customerService'
 import AgentSocket from '@/utils/agentSocket'
 import { CHANNEL_OPTIONS, getChannelLabel, getChannelTagType } from '@/constants/channel'
@@ -421,19 +422,10 @@ const handleCopyContent = async (row) => {
     ElMessage.warning(i18n.global.t('无可复制内容'))
     return
   }
-  try {
-    if (navigator?.clipboard?.writeText) {
-      await navigator.clipboard.writeText(text)
-    } else {
-      const ta = document.createElement('textarea')
-      ta.value = text
-      document.body.appendChild(ta)
-      ta.select()
-      document.execCommand('copy')
-      document.body.removeChild(ta)
-    }
+  const copied = await copyToClipboard(text)
+  if (copied) {
     ElMessage.success(i18n.global.t('已复制到剪贴板'))
-  } catch (e) {
+  } else {
     ElMessage.error(i18n.global.t('复制失败，请手动选择'))
   }
 };

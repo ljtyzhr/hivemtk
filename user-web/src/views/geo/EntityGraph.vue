@@ -106,6 +106,7 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import { copyToClipboard } from '@/utils/clipboard'
 import { listEntities, getEntityRelations, extractEntities } from '@/api/geoEntity.js'
 import { geoApi } from '@/api/geo.js'
 
@@ -192,10 +193,9 @@ const onGenerateSchema = async () => {
 }
 
 const onCopySchema = async () => {
-  try {
-    await navigator.clipboard.writeText(schema.value)
+  if (await copyToClipboard(schema.value)) {
     ElMessage.success('已复制到剪贴板')
-  } catch {
+  } else {
     ElMessage.error('复制失败')
   }
 }

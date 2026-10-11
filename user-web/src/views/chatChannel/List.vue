@@ -124,6 +124,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, Refresh, Search, CopyDocument, ChatLineRound } from '@element-plus/icons-vue'
 import { listChannels, updateChannel, rotateAppKey, resetAppSecret } from '@/api/chatChannel'
+import { copyToClipboard } from '@/utils/clipboard'
 import DOMPurify from 'dompurify'
 import { getEnabledLabel, getEnabledTagType } from '@/constants/enabled';
 import { getLanguageLabel } from '@/constants/languages'
@@ -247,10 +248,9 @@ const onResetSecret = async (row) => {
 }
 
 const copy = async (text) => {
-  try {
-    await navigator.clipboard.writeText(text)
+  if (await copyToClipboard(text)) {
     ElMessage.success(i18n.global.t('已复制到剪贴板'))
-  } catch {
+  } else {
     ElMessage.error(i18n.global.t('复制失败'))
   }
 }

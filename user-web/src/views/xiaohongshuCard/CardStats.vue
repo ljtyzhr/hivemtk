@@ -1,6 +1,16 @@
 <template>
   <div class="xiaohongshu-card-stats-container">
     
+    <el-alert
+      v-if="cardLoadFailed || statsLoadFailed"
+      class="stats-alert"
+      type="warning"
+      show-icon
+      :closable="false"
+      :title="cardLoadFailed ? '这张卡片读不到了' : '统计数据读取失败'"
+      :description="cardLoadFailed ? '卡片已被删除，或链接里的 id 不属于当前账号。上方卡片的空白与下方的 0、空图是「没读到」，不是「真的没有」。' : '卡片本身还在，但这一轮的统计没读到。下方的 0 与空图是「没读到」，不是「真的没有」——请点「刷新数据」重试。'"
+    />
+
     <div class="chat-message-container">
       <div class="chat-message">
         <div class="message-avatar">
@@ -16,11 +26,16 @@
             <div class="message-description">{{ cardInfo.description }}</div>
             <div class="message-image" v-if="cardInfo.image_url">
               <el-image
+                v-if="cardInfo.image_url"
                 :src="cardInfo.image_url"
                 :preview-src-list="[cardInfo.image_url]"
                 fit="cover"
                 style="width: 100%; height: 200px; border-radius: 8px;"
-              />
+              >
+                <template #error>
+                  <div class="img-error-fallback">{{ $t('图片加载失败') }}</div>
+                </template>
+              </el-image>
             </div>
             <div class="message-tags" v-if="cardInfo.tags">
               <el-tag
@@ -149,8 +164,10 @@
         <span>{{ $t('最近活动') }}</span>
       </div>
       <el-table :data="recentActivities" stripe style="width: 100%" v-loading="loading">
-          <el-table-column prop="date" :label="$t('日期')" width="120" />
-          <el-table-column prop="views" :label="$t('浏览量')" width="80" />
+          <el-table-column prop="date" :label="$t('日期')" width="120">
+            <template #default="scope">{{ formatDay(scope.row.date) }}</template>
+          </el-table-column>
+          <el-table-column prop="view" :label="$t('浏览量')" width="80" />
         </el-table>
       
       
@@ -170,12 +187,8 @@
 </template>
 
 <script setup>
-import i18n from '@/i18n'
-
-import { ref, reactive, onMounted, nextTick } from 'vue'
+import { ref, reactive, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import * as echarts from 'echarts'
 import { safeInit } from '@/utils/echarts'
 import { getXiaohongshuCard, getXiaohongshuCardStats } from '@/api/xiaohongshuCard'
 
@@ -183,7 +196,9 @@ const route = useRoute();
 const router = useRouter()
 
 const loading = ref(false);
-const viewChart = ref(null)
+const cardLoadFailed = ref(false)
+const statsLoadFailed = ref(false)
+let viewChartInstance = null
 
 const cardInfo = reactive({
   id: null,
@@ -223,15 +238,18 @@ const pagination = reactive({
 const fetchCardInfo = async () => {
   const cardId = route.params.id
   if (!cardId) {
-    ElMessage.error(i18n.global.t('缺少卡片ID'))
+    cardLoadFailed.value = true
     return
   }
   
   try {
     const res = await getXiaohongshuCard(cardId)
-    Object.assign(cardInfo, res);
+    Object.assign(cardInfo, res || {});
+    cardLoadFailed.value = !res?.id
   } catch (error) {
-    ElMessage.error(i18n.global.t('获取卡片信息失败'))
+    // 拦截器已经按状态码弹过一次，这里再弹一条是两句同义 toast；
+    // 页面用常驻告警说结论——toast 三秒就没了，卡片框的空标题不会。
+    cardLoadFailed.value = true
     console.error(error)
   }
 };
@@ -239,7 +257,7 @@ const fetchCardInfo = async () => {
 const fetchCardStats = async () => {
   const cardId = route.params.id
   if (!cardId) {
-    ElMessage.error(i18n.global.t('缺少卡片ID'))
+    statsLoadFailed.value = true
     return
   }
   
@@ -258,12 +276,15 @@ const fetchCardStats = async () => {
     params.group_by = filterForm.groupBy;
     
     const res = await getXiaohongshuCardStats(cardId, params)
+    statsLoadFailed.value = false
     if (res.card) {
       Object.assign(cardStats, res.card)
     } else if (res.viewCount !== undefined) {
       cardStats.view_count = res.viewCount
     }
 
+    // 这里放的是 dto.DailyStat 行（{date, view}），不是 dto.Activity：
+    // 横轴和表格都按日浏览读数用，所以表格列的 prop 必须是单数 view。
     recentActivities.value = res.dailyStats || [];
     pagination.total = res.dailyStats ? res.dailyStats.length : 0
 
@@ -271,7 +292,8 @@ const fetchCardStats = async () => {
       updateCharts()
     });
   } catch (error) {
-    ElMessage.error(i18n.global.t('获取统计数据失败'))
+    // 同上：统计读失败时拦截器已经出声，页面把「这一屏的 0 不是真值」常驻说出口。
+    statsLoadFailed.value = true
     console.error(error)
   } finally {
     loading.value = false
@@ -304,42 +326,40 @@ const handleCurrentChange = (val) => {
 };
 
 const updateCharts = () => {
-  if (viewChart.value) {
-    viewChart.value.dispose()
-  }
-  
+  // 模板里的 ref 挂的是 DOM 节点，原先却把它当 echarts 实例用（viewChart.value.dispose()），
+  // 又把实例赋值回这个 ref ⇒ 下一次刷新时对 DOM 调 .dispose()。实例与容器分开存。
   const viewChartDom = document.getElementById('viewChart')
-  if (viewChartDom) {
-    viewChart.value = safeInit(viewChartDom)
-    const viewOption = {
-      title: {
-        text: '访问趋势',
-        left: 'center'
-      },
-      tooltip: {
-        trigger: 'axis'
-      },
-      xAxis: {
-        type: 'category',
-        data: recentActivities.value.map(item => item.date)
-      },
-      yAxis: {
-        type: 'value'
-      },
-      series: [
-        {
-          name: '浏览量',
-          type: 'line',
-          data: recentActivities.value.map(item => item.view),
-          smooth: true,
-          itemStyle: {
-            color: '#4F46E5'
-          }
+  if (!viewChartDom) return
+  viewChartInstance = safeInit(viewChartDom)
+  if (!viewChartInstance) return
+  const viewOption = {
+    title: {
+      text: '访问趋势',
+      left: 'center'
+    },
+    tooltip: {
+      trigger: 'axis'
+    },
+    xAxis: {
+      type: 'category',
+      data: recentActivities.value.map(item => formatDay(item.date))
+    },
+    yAxis: {
+      type: 'value'
+    },
+    series: [
+      {
+        name: '浏览量',
+        type: 'line',
+        data: recentActivities.value.map(item => item.view),
+        smooth: true,
+        itemStyle: {
+          color: '#4F46E5'
         }
-      ]
-    }
-    viewChart.value.setOption(viewOption)
+      }
+    ]
   }
+  viewChartInstance.setOption(viewOption)
 };
 
 const formatNumber = (num) => {
@@ -357,6 +377,11 @@ const formatDate = (date) => {
   return new Date(date).toLocaleDateString()
 }
 
+// dto.DailyStat.date 这条链路给的是完整时间戳（"2026-09-30T00:00:00Z"），
+// 表格里是「日期」列、图上是类目轴，两处都只要日 ⇒ 直接截前 10 位，
+// 不要走 toLocaleDateString（那会跟着浏览器语言变成 9/30/2026）。
+const formatDay = (value) => (value ? String(value).slice(0, 10) : '')
+
 const formatTime = (time) => {
   if (!time) return ''
   return new Date(time).toLocaleString()
@@ -370,6 +395,10 @@ const getActionText = (type) => {
   return '浏览'
 }
 
+const handleResize = () => {
+  if (viewChartInstance) viewChartInstance.resize()
+}
+
 onMounted(() => {
   const end = new Date();
   const start = new Date()
@@ -379,15 +408,30 @@ onMounted(() => {
     start.toISOString().split('T')[0],
     end.toISOString().split('T')[0]
   ]
+
+  window.addEventListener('resize', handleResize)
   
   fetchCardInfo()
   fetchCardStats()
+});
+
+// 实例挂在会被组件销毁的 DOM 上：不 dispose 就是每次进这一页留一个孤儿 echarts 实例。
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleResize)
+  if (viewChartInstance) {
+    viewChartInstance.dispose()
+    viewChartInstance = null
+  }
 });
 </script>
 
 <style scoped>
 .xiaohongshu-card-stats-container {
   padding: 20px;
+}
+
+.stats-alert {
+  margin-bottom: 20px;
 }
 
 /* 聊天消息样式 */

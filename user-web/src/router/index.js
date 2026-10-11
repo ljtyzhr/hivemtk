@@ -98,6 +98,8 @@ const moduleNames = [
   "orderDraft",
   "salesWorkbench",
   'followups',
+  "kbConnector",
+  "mcpCredential",
 ];
 
 const eagerLoadedRoutes = [];
@@ -166,6 +168,9 @@ const pathToModule = {
   'xiaohongshu-card-stats': 'xiaohongshuCard',
   'kuaishou-card-stats': 'kuaishouCard',
   'xianyu-card-stats': 'xianyuCard',
+  // 缺这一条时，/#/tiktok-card-stats/20 只有"先从列表页点进去"才装得上模块；
+  // 刷新或新开深链会按首段找模块名，找不到就落进 404 页。
+  'tiktok-card-stats': 'tiktok',
   'asset-market': 'assetMarket',
   'asset-bundle': 'assetBundle',
   'confidence': 'tuning',
@@ -184,6 +189,13 @@ const pathToModule = {
   'token': 'bridgeToken',
   'lead-mining': 'leadMining',
   'browser-automation': 'browserAutomation',
+  'kb': 'kbConnector',
+  'mcp': 'mcpCredential',
+  'cap': 'kbConnector',
+  'cron': 'browserAutomation',
+  'sessions': 'browserAutomation',
+  'status': 'browserAutomation',
+  'tasks': 'browserAutomation',
 };
 
 async function ensureRouteLoaded(path) {

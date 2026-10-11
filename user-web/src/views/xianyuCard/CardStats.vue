@@ -12,6 +12,7 @@
               range-separator="至"
               start-placeholder="开始日期"
               end-placeholder="结束日期"
+              value-format="YYYY-MM-DD"
               @change="handleDateChange"
             />
             <el-select v-model="groupBy" :placeholder="$t('分组方式')" @change="handleGroupByChange">
@@ -25,6 +26,25 @@
       </template>
 
       
+      <el-alert
+        v-if="cardLoadFailed"
+        class="stats-alert"
+        type="warning"
+        show-icon
+        :closable="false"
+        title="这张卡片读不到了"
+        description="卡片已被删除，或链接里的 id 不属于当前账号。下方信息栏因此整块隐藏，统计里的 0 与空图是「没读到」，不是「真的没有」。"
+      />
+      <el-alert
+        v-else-if="statsLoadFailed"
+        class="stats-alert"
+        type="error"
+        show-icon
+        :closable="false"
+        title="统计数据读取失败"
+        description="卡片本身还在，但这一轮的统计没读到。下方的 0 与空图是「没读到」，不是「真的没有」——请点「刷新」重试。"
+      />
+
       <div class="card-info" v-if="cardInfo">
         <el-descriptions :column="3" border>
           <el-descriptions-item label="卡片标题">{{ cardInfo.title }}</el-descriptions-item>
@@ -101,7 +121,9 @@
         <el-card>
           <div class="table-title">详细访问记录</div>
           <el-table :data="detailData" style="width: 100%" v-loading="loading">
-            <el-table-column prop="date" label="日期" width="120" />
+            <el-table-column prop="date" label="日期" width="120">
+              <template #default="scope">{{ toBusinessDate(scope.row.date) }}</template>
+            </el-table-column>
             <el-table-column prop="views" label="浏览量" width="100" />
             <el-table-column prop="clicks" label="点击量" width="100" />
             <el-table-column prop="shares" label="分享量" width="100" />
@@ -132,12 +154,8 @@
 </template>
 
 <script setup>
-import i18n from '@/i18n'
-
 import { ref, reactive, onMounted, onUnmounted } from 'vue'
-import { ElMessage } from 'element-plus'
 import { useRouter, useRoute } from 'vue-router'
-import * as echarts from 'echarts'
 import { safeInit } from '@/utils/echarts'
 import { getXianyuCard, getXianyuCardStats } from '@/api/xianyuCard'
 
@@ -146,6 +164,11 @@ const route = useRoute()
 const loading = ref(false)
 
 const cardId = ref(route.params.id);
+
+// 这两条原先只在 fetch 的 catch 里弹 toast（和拦截器的那一句重复），
+// 现在改成常驻告警：toast 三秒就没了，整块消失的卡片信息和满屏的 0 会一直留着。
+const cardLoadFailed = ref(false)
+const statsLoadFailed = ref(false)
 
 const dateRange = ref([]);
 const groupBy = ref('day')
@@ -190,6 +213,17 @@ const formatNumber = (num) => {
 const formatPercent = (rate) => {
   if (!rate) return '0%'
   return (rate * 100).toFixed(2) + '%'
+};
+
+// 接口按业务日（YYYY-MM-DD）解析日期。选择器在没有 value-format 时回的是 Date 对象，
+// axios 会把它序列化成 "2026-08-31T16:00:00.000Z"，后端 ParseBusinessDate 直接失败，
+// 而控制器把这条错误兜成了 200 + 全 0 ⇒ 用户挑完日期整页统计清零，看着像"这张卡没人看过"。
+const toBusinessDate = (value) => {
+  if (!value) return ''
+  if (typeof value === 'string') return value.slice(0, 10)
+  const d = new Date(value)
+  if (Number.isNaN(d.getTime())) return ''
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 };
 
 const goBack = () => {
@@ -257,9 +291,11 @@ const initCharts = () => {
 const fetchCardInfo = async () => {
   try {
     const res = await getXianyuCard(cardId.value)
-    cardInfo.value = res;
+    cardInfo.value = res || null
+    cardLoadFailed.value = !res?.id
   } catch (error) {
-    ElMessage.error(i18n.global.t('获取卡片信息失败'))
+    // 拦截器已经按状态码弹过一次，这里不再补第二句同义 toast。
+    cardLoadFailed.value = true
     console.error(error)
   }
 };
@@ -268,17 +304,19 @@ const fetchStats = async () => {
   loading.value = true
   try {
     const params = {
-      start_date: dateRange.value?.[0] || '',
-      end_date: dateRange.value?.[1] || '',
+      start_date: toBusinessDate(dateRange.value?.[0]),
+      end_date: toBusinessDate(dateRange.value?.[1]),
       group_by: groupBy.value,
       page: pagination.page,
       page_size: pagination.page_size
     }
     
     const res = await getXianyuCardStats(cardId.value, params)
+    statsLoadFailed.value = false
     Object.assign(statsData, res.stats || {});
 
-    chartData.dates = res.chart?.dates || [];
+    // 接口回的是完整时间戳，类目轴直接印会是一串 ISO，统一截成业务日。
+    chartData.dates = (res.chart?.dates || []).map(toBusinessDate);
     chartData.views = res.chart?.views || []
     chartData.clicks = res.chart?.clicks || []
 
@@ -289,7 +327,7 @@ const fetchStats = async () => {
       initCharts()
     }
   } catch (error) {
-    ElMessage.error(i18n.global.t('获取统计数据失败'))
+    statsLoadFailed.value = true
     console.error(error)
   } finally {
     loading.value = false
@@ -375,6 +413,10 @@ onUnmounted(() => {
 }
 
 .card-info {
+  margin-bottom: 20px;
+}
+
+.stats-alert {
   margin-bottom: 20px;
 }
 

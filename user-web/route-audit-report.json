@@ -1,0 +1,1770 @@
+[
+  {
+    "route": "/setup",
+    "url": "http://localhost:8211/#//setup",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/login",
+    "url": "http://localhost:8211/#//login",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/help-center",
+    "url": "http://localhost:8211/#//help-center",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/chat/embed/default",
+    "url": "http://localhost:8211/#//chat/embed/default",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/abExperiment/list",
+    "url": "http://localhost:8211/#//abExperiment/list",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/aiAgent",
+    "url": "http://localhost:8211/#//aiAgent",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/aiAgent/list",
+    "url": "http://localhost:8211/#//aiAgent/list",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/aiAgent/create",
+    "url": "http://localhost:8211/#//aiAgent/create",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/aiAgent/edit/1",
+    "url": "http://localhost:8211/#//aiAgent/edit/1",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/aiAgent/tools",
+    "url": "http://localhost:8211/#//aiAgent/tools",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/aiProductivity/list",
+    "url": "http://localhost:8211/#//aiProductivity/list",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/analytics/cohort-path",
+    "url": "http://localhost:8211/#//analytics/cohort-path",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/approvalTask/list",
+    "url": "http://localhost:8211/#//approvalTask/list",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/asset-bundle/list",
+    "url": "http://localhost:8211/#//asset-bundle/list",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/asset-bundle/playground",
+    "url": "http://localhost:8211/#//asset-bundle/playground",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/asset-bundle/playground/1",
+    "url": "http://localhost:8211/#//asset-bundle/playground/1",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/asset-bundle/merchant-new",
+    "url": "http://localhost:8211/#//asset-bundle/merchant-new",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/asset-bundle/merchant/1",
+    "url": "http://localhost:8211/#//asset-bundle/merchant/1",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/asset-market",
+    "url": "http://localhost:8211/#//asset-market",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/asset-market/detail/1",
+    "url": "http://localhost:8211/#//asset-market/detail/1",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/asset-market/my-assets",
+    "url": "http://localhost:8211/#//asset-market/my-assets",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/asset-market/sync-log",
+    "url": "http://localhost:8211/#//asset-market/sync-log",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/backup/list",
+    "url": "http://localhost:8211/#//backup/list",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/backup/enhanced",
+    "url": "http://localhost:8211/#//backup/enhanced",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/badCase/list",
+    "url": "http://localhost:8211/#//badCase/list",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/batchOperation/list",
+    "url": "http://localhost:8211/#//batchOperation/list",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/bridge",
+    "url": "http://localhost:8211/#//bridge",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/bridge/token",
+    "url": "http://localhost:8211/#//bridge/token",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/token",
+    "url": "http://localhost:8211/#//token",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/browser-automation",
+    "url": "http://localhost:8211/#//browser-automation",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/browser-automation/tasks",
+    "url": "http://localhost:8211/#//browser-automation/tasks",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/browser-automation/tasks/create",
+    "url": "http://localhost:8211/#//browser-automation/tasks/create",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/browser-automation/tasks/1/edit",
+    "url": "http://localhost:8211/#//browser-automation/tasks/1/edit",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/browser-automation/tasks/1",
+    "url": "http://localhost:8211/#//browser-automation/tasks/1",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/browser-automation/sessions/1",
+    "url": "http://localhost:8211/#//browser-automation/sessions/1",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/browser-automation/cron",
+    "url": "http://localhost:8211/#//browser-automation/cron",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/browser-automation/status",
+    "url": "http://localhost:8211/#//browser-automation/status",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/chatChannel/list",
+    "url": "http://localhost:8211/#//chatChannel/list",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/chatChannel/create",
+    "url": "http://localhost:8211/#//chatChannel/create",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/chatChannel/edit/1",
+    "url": "http://localhost:8211/#//chatChannel/edit/1",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/chatChannel/install-guide/1",
+    "url": "http://localhost:8211/#//chatChannel/install-guide/1",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/churnPrediction/list",
+    "url": "http://localhost:8211/#//churnPrediction/list",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/clue/list",
+    "url": "http://localhost:8211/#//clue/list",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/clue/statistics",
+    "url": "http://localhost:8211/#//clue/statistics",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/community/list",
+    "url": "http://localhost:8211/#//community/list",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/conversionFunnel/list",
+    "url": "http://localhost:8211/#//conversionFunnel/list",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/customReport/list",
+    "url": "http://localhost:8211/#//customReport/list",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/customer360/list",
+    "url": "http://localhost:8211/#//customer360/list",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/customerEvent/list",
+    "url": "http://localhost:8211/#//customerEvent/list",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/customerJourney/dashboard",
+    "url": "http://localhost:8211/#//customerJourney/dashboard",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/customerService/agentStatus",
+    "url": "http://localhost:8211/#//customerService/agentStatus",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/customerService/quickReply",
+    "url": "http://localhost:8211/#//customerService/quickReply",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/customerService/sessionTag",
+    "url": "http://localhost:8211/#//customerService/sessionTag",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/customerService/aiSuggestion",
+    "url": "http://localhost:8211/#//customerService/aiSuggestion",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/customerService/csat",
+    "url": "http://localhost:8211/#//customerService/csat",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/customerSession/list",
+    "url": "http://localhost:8211/#//customerSession/list",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/dashboardScreen/list",
+    "url": "http://localhost:8211/#//dashboardScreen/list",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/dashboardScreen/builder",
+    "url": "http://localhost:8211/#//dashboardScreen/builder",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/dialogueMemory/list",
+    "url": "http://localhost:8211/#//dialogueMemory/list",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/dingtalk-app",
+    "url": "http://localhost:8211/#//dingtalk-app",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/domainPool",
+    "url": "http://localhost:8211/#//domainPool",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/douyinCard",
+    "url": "http://localhost:8211/#//douyinCard",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/douyin/stats",
+    "url": "http://localhost:8211/#//douyin/stats",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/douyin-card-stats/1",
+    "url": "http://localhost:8211/#//douyin-card-stats/1",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/email",
+    "url": "http://localhost:8211/#//email",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/email/drafts",
+    "url": "http://localhost:8211/#//email/drafts",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/email/jobs",
+    "url": "http://localhost:8211/#//email/jobs",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/email/smtp",
+    "url": "http://localhost:8211/#//email/smtp",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/email/info",
+    "url": "http://localhost:8211/#//email/info",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/email/guide",
+    "url": "http://localhost:8211/#//email/guide",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/email/deliverability",
+    "url": "http://localhost:8211/#//email/deliverability",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/email/drag-editor",
+    "url": "http://localhost:8211/#//email/drag-editor",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/faq",
+    "url": "http://localhost:8211/#//faq",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/faq/list",
+    "url": "http://localhost:8211/#//faq/list",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/faq/editor",
+    "url": "http://localhost:8211/#//faq/editor",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/faq/editor/1",
+    "url": "http://localhost:8211/#//faq/editor/1",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/feishu",
+    "url": "http://localhost:8211/#//feishu",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/feishu/account",
+    "url": "http://localhost:8211/#//feishu/account",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/followups/today",
+    "url": "http://localhost:8211/#//followups/today",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/followups/1",
+    "url": "http://localhost:8211/#//followups/1",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/geo-tools/brand-config",
+    "url": "http://localhost:8211/#//geo-tools/brand-config",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/geo-tools/seo-infra",
+    "url": "http://localhost:8211/#//geo-tools/seo-infra",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/geo-tools/pusher-config",
+    "url": "http://localhost:8211/#//geo-tools/pusher-config",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/geo-tools/site-config",
+    "url": "http://localhost:8211/#//geo-tools/site-config",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/geo-tools/schema-templates",
+    "url": "http://localhost:8211/#//geo-tools/schema-templates",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/geo-tools/competitors",
+    "url": "http://localhost:8211/#//geo-tools/competitors",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/geo-tools/config",
+    "url": "http://localhost:8211/#//geo-tools/config",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/geo-tools/keyword-mining",
+    "url": "http://localhost:8211/#//geo-tools/keyword-mining",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/geo-tools/content-creation",
+    "url": "http://localhost:8211/#//geo-tools/content-creation",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/geo-tools/content-optimize",
+    "url": "http://localhost:8211/#//geo-tools/content-optimize",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/geo-tools/site-publish",
+    "url": "http://localhost:8211/#//geo-tools/site-publish",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/geo-tools/push-center",
+    "url": "http://localhost:8211/#//geo-tools/push-center",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/geo-tools/platform-publish",
+    "url": "http://localhost:8211/#//geo-tools/platform-publish",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/geo-tools/workflow",
+    "url": "http://localhost:8211/#//geo-tools/workflow",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/geo-tools/knowledge-base",
+    "url": "http://localhost:8211/#//geo-tools/knowledge-base",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/geo-tools/entity-graph",
+    "url": "http://localhost:8211/#//geo-tools/entity-graph",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/geo-tools/funnel-dashboard",
+    "url": "http://localhost:8211/#//geo-tools/funnel-dashboard",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/geo-tools/index-tracking",
+    "url": "http://localhost:8211/#//geo-tools/index-tracking",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/geo-tools/visibility",
+    "url": "http://localhost:8211/#//geo-tools/visibility",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/geo-tools/sov-board",
+    "url": "http://localhost:8211/#//geo-tools/sov-board",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/geo-tools/crawler-stats",
+    "url": "http://localhost:8211/#//geo-tools/crawler-stats",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/geo-tools/verification",
+    "url": "http://localhost:8211/#//geo-tools/verification",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/geo/decision-report",
+    "url": "http://localhost:8211/#//geo/decision-report",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/geo-tools/reports",
+    "url": "http://localhost:8211/#//geo-tools/reports",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/geo-tools/alerts",
+    "url": "http://localhost:8211/#//geo-tools/alerts",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/glossary",
+    "url": "http://localhost:8211/#//glossary",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/i18n/dashboard",
+    "url": "http://localhost:8211/#//i18n/dashboard",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/inbox/list",
+    "url": "http://localhost:8211/#//inbox/list",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/integration/list",
+    "url": "http://localhost:8211/#//integration/list",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/intentRecognition/list",
+    "url": "http://localhost:8211/#//intentRecognition/list",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/kb/connectors",
+    "url": "http://localhost:8211/#//kb/connectors",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/cap/matrix",
+    "url": "http://localhost:8211/#//cap/matrix",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/knowledge/management",
+    "url": "http://localhost:8211/#//knowledge/management",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/knowledge/batch-import",
+    "url": "http://localhost:8211/#//knowledge/batch-import",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/knowledge/playground",
+    "url": "http://localhost:8211/#//knowledge/playground",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/knowledge/connectors",
+    "url": "http://localhost:8211/#//knowledge/connectors",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/knowledge/feedbacks",
+    "url": "http://localhost:8211/#//knowledge/feedbacks",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/knowledge/tokens",
+    "url": "http://localhost:8211/#//knowledge/tokens",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/knowledge/external",
+    "url": "http://localhost:8211/#//knowledge/external",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/knowledge/statistics",
+    "url": "http://localhost:8211/#//knowledge/statistics",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/knowledge/openapi",
+    "url": "http://localhost:8211/#//knowledge/openapi",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/knowledge/rag-eval",
+    "url": "http://localhost:8211/#//knowledge/rag-eval",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/knowledgeBase",
+    "url": "http://localhost:8211/#//knowledgeBase",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/knowledgeBase/list",
+    "url": "http://localhost:8211/#//knowledgeBase/list",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/knowledgeBase/create",
+    "url": "http://localhost:8211/#//knowledgeBase/create",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/knowledgeBase/edit/1",
+    "url": "http://localhost:8211/#//knowledgeBase/edit/1",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/kuaishouCard",
+    "url": "http://localhost:8211/#//kuaishouCard",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/kuaishou/stats",
+    "url": "http://localhost:8211/#//kuaishou/stats",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/kuaishou-card-stats/1",
+    "url": "http://localhost:8211/#//kuaishou-card-stats/1",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/lead-mining/index",
+    "url": "http://localhost:8211/#//lead-mining/index",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/livecode",
+    "url": "http://localhost:8211/#//livecode",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/llmRouting/list",
+    "url": "http://localhost:8211/#//llmRouting/list",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/llmRouting/cost",
+    "url": "http://localhost:8211/#//llmRouting/cost",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/marketingFlow/list",
+    "url": "http://localhost:8211/#//marketingFlow/list",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/mcp/credentials",
+    "url": "http://localhost:8211/#//mcp/credentials",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/messageHub/list",
+    "url": "http://localhost:8211/#//messageHub/list",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/messageHub/dashboard",
+    "url": "http://localhost:8211/#//messageHub/dashboard",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/objection/list",
+    "url": "http://localhost:8211/#//objection/list",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/oneid/list",
+    "url": "http://localhost:8211/#//oneid/list",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/oneid/conflicts",
+    "url": "http://localhost:8211/#//oneid/conflicts",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/oneid/merge-rules",
+    "url": "http://localhost:8211/#//oneid/merge-rules",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/operationLog/list",
+    "url": "http://localhost:8211/#//operationLog/list",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/operationLog/enhanced",
+    "url": "http://localhost:8211/#//operationLog/enhanced",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/ops-overview",
+    "url": "http://localhost:8211/#//ops-overview",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/sales-cockpit",
+    "url": "http://localhost:8211/#//sales-cockpit",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/dashboard/drafts",
+    "url": "http://localhost:8211/#//dashboard/drafts",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/dashboard/drafts/1",
+    "url": "http://localhost:8211/#//dashboard/drafts/1",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/system/permissions",
+    "url": "http://localhost:8211/#//system/permissions",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/persona/list",
+    "url": "http://localhost:8211/#//persona/list",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/platformAccount/list",
+    "url": "http://localhost:8211/#//platformAccount/list",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/qq",
+    "url": "http://localhost:8211/#//qq",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/qq/account",
+    "url": "http://localhost:8211/#//qq/account",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/system/rag-product-config",
+    "url": "http://localhost:8211/#//system/rag-product-config",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/system/rag-account",
+    "url": "http://localhost:8211/#//system/rag-account",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/system/rag-product",
+    "url": "http://localhost:8211/#//system/rag-product",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/reachPipeline/list",
+    "url": "http://localhost:8211/#//reachPipeline/list",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/reachPipeline/editor/1",
+    "url": "http://localhost:8211/#//reachPipeline/editor/1",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/system/roles",
+    "url": "http://localhost:8211/#//system/roles",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/sales-workbench",
+    "url": "http://localhost:8211/#//sales-workbench",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/scriptTemplate/list",
+    "url": "http://localhost:8211/#//scriptTemplate/list",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/scriptTemplate/ab-stats",
+    "url": "http://localhost:8211/#//scriptTemplate/ab-stats",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/securityAudit/list",
+    "url": "http://localhost:8211/#//securityAudit/list",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/shortLink",
+    "url": "http://localhost:8211/#//shortLink",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/shortLink/stats",
+    "url": "http://localhost:8211/#//shortLink/stats",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/sms/list",
+    "url": "http://localhost:8211/#//sms/list",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/sms/drafts",
+    "url": "http://localhost:8211/#//sms/drafts",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/sms/jobs",
+    "url": "http://localhost:8211/#//sms/jobs",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/sms/config",
+    "url": "http://localhost:8211/#//sms/config",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/sopAgent/list",
+    "url": "http://localhost:8211/#//sopAgent/list",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/sop-template",
+    "url": "http://localhost:8211/#//sop-template",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/sop-template/list",
+    "url": "http://localhost:8211/#//sop-template/list",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/sop-template/market",
+    "url": "http://localhost:8211/#//sop-template/market",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/sop-template/editor",
+    "url": "http://localhost:8211/#//sop-template/editor",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/sop-template/editor/1",
+    "url": "http://localhost:8211/#//sop-template/editor/1",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/system/config",
+    "url": "http://localhost:8211/#//system/config",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/system/obs-config",
+    "url": "http://localhost:8211/#//system/obs-config",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/system/material-library",
+    "url": "http://localhost:8211/#//system/material-library",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/system/monitor",
+    "url": "http://localhost:8211/#//system/monitor",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/system/trace",
+    "url": "http://localhost:8211/#//system/trace",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/system/guide",
+    "url": "http://localhost:8211/#//system/guide",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/system/rag-overview",
+    "url": "http://localhost:8211/#//system/rag-overview",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/system/automation-hub",
+    "url": "http://localhost:8211/#//system/automation-hub",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/system/config-params",
+    "url": "http://localhost:8211/#//system/config-params",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/system/ltc-config",
+    "url": "http://localhost:8211/#//system/ltc-config",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/system/users",
+    "url": "http://localhost:8211/#//system/users",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/tagSegmentation/list",
+    "url": "http://localhost:8211/#//tagSegmentation/list",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/telegram",
+    "url": "http://localhost:8211/#//telegram",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/telegram/account",
+    "url": "http://localhost:8211/#//telegram/account",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/telegram/gate",
+    "url": "http://localhost:8211/#//telegram/gate",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/tiktok",
+    "url": "http://localhost:8211/#//tiktok",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/tiktok/list",
+    "url": "http://localhost:8211/#//tiktok/list",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/tiktok/stats",
+    "url": "http://localhost:8211/#//tiktok/stats",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/tiktok-card-stats/1",
+    "url": "http://localhost:8211/#//tiktok-card-stats/1",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/confidence/panel",
+    "url": "http://localhost:8211/#//confidence/panel",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/humanize/panel",
+    "url": "http://localhost:8211/#//humanize/panel",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/feedbackLoop/panel",
+    "url": "http://localhost:8211/#//feedbackLoop/panel",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/unifiedMessage/list",
+    "url": "http://localhost:8211/#//unifiedMessage/list",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/userSegment/list",
+    "url": "http://localhost:8211/#//userSegment/list",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/userSegment/rfm-matrix",
+    "url": "http://localhost:8211/#//userSegment/rfm-matrix",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/userSegment/builder",
+    "url": "http://localhost:8211/#//userSegment/builder",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/wecomAccount/list",
+    "url": "http://localhost:8211/#//wecomAccount/list",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/wecomAccount/data",
+    "url": "http://localhost:8211/#//wecomAccount/data",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/whatsapp",
+    "url": "http://localhost:8211/#//whatsapp",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/whatsapp/account",
+    "url": "http://localhost:8211/#//whatsapp/account",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/whatsapp/drafts",
+    "url": "http://localhost:8211/#//whatsapp/drafts",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/whatsapp/jobs",
+    "url": "http://localhost:8211/#//whatsapp/jobs",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/whatsapp/lead-group-selection",
+    "url": "http://localhost:8211/#//whatsapp/lead-group-selection",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/whatsapp/group-messaging",
+    "url": "http://localhost:8211/#//whatsapp/group-messaging",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/whatsapp/bulk-matrix",
+    "url": "http://localhost:8211/#//whatsapp/bulk-matrix",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/whatsapp-cloud",
+    "url": "http://localhost:8211/#//whatsapp-cloud",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/workflow-orchestrator/list",
+    "url": "http://localhost:8211/#//workflow-orchestrator/list",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/workflow-orchestrator/editor/1",
+    "url": "http://localhost:8211/#//workflow-orchestrator/editor/1",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/workflow-orchestrator/execution/1",
+    "url": "http://localhost:8211/#//workflow-orchestrator/execution/1",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/xianyuCard",
+    "url": "http://localhost:8211/#//xianyuCard",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/xianyu/stats",
+    "url": "http://localhost:8211/#//xianyu/stats",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/xianyu-card-stats/1",
+    "url": "http://localhost:8211/#//xianyu-card-stats/1",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/xiaohongshuCard",
+    "url": "http://localhost:8211/#//xiaohongshuCard",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/xiaohongshu/stats",
+    "url": "http://localhost:8211/#//xiaohongshu/stats",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/xiaohongshu-card-stats/1",
+    "url": "http://localhost:8211/#//xiaohongshu-card-stats/1",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/profile",
+    "url": "http://localhost:8211/#//profile",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  },
+  {
+    "route": "/notifications",
+    "url": "http://localhost:8211/#//notifications",
+    "status": "ok",
+    "errors": [],
+    "apiErrors": [],
+    "renderOk": true
+  }
+]

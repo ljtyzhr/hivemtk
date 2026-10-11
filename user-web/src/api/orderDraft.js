@@ -7,6 +7,11 @@ import { http } from '@/utils/request'
 // 本进程的草稿运行时档位（旗子 FF_LTC_ORDER_DRAFT_DB），和业务数据是两件事，
 // 路径因此不同前缀，不是笔误。
 //
+// 三条读口带 _silent：它们的失败在页面里都有常驻告警位（503=底座未装配、
+// 404=这条草稿不在、其他=读取失败），拦截器再弹一条会把页面那句真话盖掉 ——
+// 5xx 分支固定弹「服务器内部错误」，正好把"FF_LTC_ORDER_DRAFT_DB 为 off"这条
+// 唯一有用的信息换成一句没信息量的兜底。写口（编辑/确认/取消）照旧由拦截器出声。
+//
 // id 一律 encodeURIComponent：草稿 id 是 string 列（生成格式 draft_<unixnano>_<seq>
 // 用不到 30 字符），但列上没有格式约束，含 / 的 id 不编码就等于让调用方改写请求路径。
 //
@@ -15,6 +20,7 @@ import { http } from '@/utils/request'
 // 在它存在之前，工作台点草稿待办是 404。
 const base = '/api/manage/order-drafts'
 const seg = (id) => encodeURIComponent(id)
+const SILENT = { _silent: true }
 
 export const orderDraftApi = {
   // 待确认池列表（缺省视图 = 全部待确认，不分人 —— AI 建的草稿 owner_id 是 "system"，
@@ -23,11 +29,11 @@ export const orderDraftApi = {
   // （含终态，响应 pending=false，别当待办计数用）。
   // limit 1..200，非法值后端 400 而不是静默兜底。
   list(params) {
-    return http.get(base, params)
+    return http.get(base, params, SILENT)
   },
 
   get(id) {
-    return http.get(`${base}/${seg(id)}`)
+    return http.get(`${base}/${seg(id)}`, undefined, SILENT)
   },
 
   // 改价/改量/改产品名/加备注。四个字段都是"没给=不改"，空对象后端 400；
@@ -51,8 +57,9 @@ export const orderDraftApi = {
 
   // 运行时档位读数。这是打开页面时取一次的配置状态，不轮询 —— counts=null（旗子关着
   // 压根没读）与 counts={}（读了且真没有）必须原样透给页面，页面负责分别措辞。
+  // 这条永远挂在路由上（不随旗子消失），所以它也是"该不该去发列表请求"的闸门。
   stats() {
-    return http.get('/api/agent/order-drafts/stats')
+    return http.get('/api/agent/order-drafts/stats', undefined, SILENT)
   }
 }
 

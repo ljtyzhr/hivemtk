@@ -189,7 +189,11 @@
                   fit="cover"
                   class="msg-image"
                   lazy
-                />
+                >
+                  <template #error>
+                    <div class="img-error-fallback">{{ $t('图片加载失败') }}</div>
+                  </template>
+                </el-image>
                 <template v-else>{{ msg.content || '-' }}</template>
               </div>
             </div>

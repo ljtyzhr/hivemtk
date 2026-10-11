@@ -18,8 +18,7 @@
 </template>
 
 <script setup>
-import { ref, onMounted, watch } from 'vue';
-import * as echarts from 'echarts'
+import { ref, reactive, onMounted, nextTick, watch } from 'vue';
 import { safeInit } from '@/utils/echarts'
 import { http } from '@/utils/request'
 
@@ -28,15 +27,29 @@ const cohortChartRef = ref()
 const pathChartRef = ref()
 const cohortEmpty = ref(false)
 const pathEmpty = ref(false)
+const options = reactive({ cohort: null, path: null })
+
+// 未激活的页签是 v-show 藏起来的，容器宽高为 0。此时 init，echarts 会把画布宽度回退成
+// 100px，切过来就是一张挤在左侧、标签互相压着读的图。所以数据先存着，只画当前页签，
+// 换页签时再补画。
+async function paint(key) {
+  await nextTick()
+  if (activeTab.value !== key) return
+  const el = key === 'cohort' ? cohortChartRef.value : pathChartRef.value
+  const option = options[key]
+  if (!el || !option) return
+  const chart = safeInit(el)
+  chart.setOption(option)
+  chart.resize()
+}
 
 async function loadCohort() {
   const data = await http.get('/api/analytics/cohort', { period: 'weekly' })
   const days = data.periods || []
   const cohorts = data.cohorts || []
   cohortEmpty.value = cohorts.every((c) => !c.size)
-  if (cohortEmpty.value || !cohortChartRef.value) return
-  const chart = safeInit(cohortChartRef.value)
-  chart.setOption({
+  if (cohortEmpty.value) return
+  options.cohort = {
     tooltip: { trigger: 'item' },
     xAxis: { type: 'category', data: days },
     yAxis: { type: 'category', data: cohorts.map((c) => c.label) },
@@ -46,32 +59,30 @@ async function loadCohort() {
       data: cohorts.flatMap((c) => c.retention.map((r, i) => [i, c.label, r])),
       label: { show: true, formatter: (p) => p.value[2] + '%' }
     }]
-  })
+  }
+  await paint('cohort')
 }
 
 async function loadPath() {
   const data = await http.get('/api/analytics/path', { limit: 5 })
   pathEmpty.value = !(data.nodes || []).length
-  if (pathEmpty.value || !pathChartRef.value) return
-  const chart = safeInit(pathChartRef.value)
-  chart.setOption({
+  if (pathEmpty.value) return
+  options.path = {
     tooltip: {},
     series: [{
       type: 'sankey',
       data: data.nodes || [],
       links: data.links || []
     }]
-  })
+  }
+  await paint('path')
 }
 
 onMounted(() => {
   loadCohort()
   loadPath()
 })
-watch(activeTab, (v) => {
-  if (v === 'cohort') loadCohort()
-  else loadPath()
-})
+watch(activeTab, paint)
 </script>
 
 <style scoped>

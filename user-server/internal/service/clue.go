@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"hivemtk-user/internal/dto"
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/repository"
 )
@@ -27,6 +28,19 @@ func (s *ClueService) GetClue(ctx context.Context, id string) (*model.Clue, erro
 
 func (s *ClueService) GetClueList(ctx context.Context, page int, limit int) ([]*model.Clue, int64, error) {
 	return s.repo.GetClueList(ctx, page, limit)
+}
+
+// ListWithQuery 带筛选条件的分页查询：筛选在 DB 侧完成，total 与筛选同口径。
+// 页面上的「线索类型/关键字/验证状态」必须走这里 —— 前端自己过滤只能过滤已加载的那一页。
+func (s *ClueService) ListWithQuery(ctx context.Context, req dto.GetClueRequest) ([]*model.Clue, int64, error) {
+	q := repository.ClueQuery{
+		Keyword:   req.Keyword,
+		Type:      req.Type,
+		IsVerify:  req.IsVerify,
+		StartUnix: req.Start,
+		EndUnix:   req.End,
+	}
+	return s.repo.ListWithQuery(ctx, q, req.Page, req.PageSize)
 }
 
 func (s *ClueService) DeleteClue(ctx context.Context, id string) error {

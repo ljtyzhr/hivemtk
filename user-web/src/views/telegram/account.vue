@@ -307,6 +307,7 @@ import i18n from '@/i18n'
 
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
+import { copyToClipboard } from '@/utils/clipboard'
 import {
   listAccounts,
   createAccount,
@@ -475,10 +476,10 @@ const handleTestToken = async () => {
 }
 
 const copyText = async (text) => {
-  try {
-    await navigator.clipboard.writeText(text)
+  const copied = await copyToClipboard(text)
+  if (copied) {
     ElMessage.success('已复制到剪贴板')
-  } catch {
+  } else {
     ElMessage.warning('浏览器不支持自动复制，请手动复制')
   }
 }

@@ -138,18 +138,21 @@ const submitForm = () => {
   form.limit = Number(form.limit)
   formRef.value.validate(async (valid) => {
     if (valid) {
-          if(form.id){
-            const res = await emailApi.updateEmailSmtp(form.id,form)
-            ElMessage.success(i18n.global.t('更新成功'));
-            dialogVisible.value = false
-            fetchEmailSmtp();
-          }else{
-            const res = await emailApi.addEmailSmtp(form)
-            ElMessage.success(i18n.global.t('新增成功'));
-            dialogVisible.value = false
-            fetchEmailSmtp();
-          }
-      dialogVisible.value = false;
+      const isEdit = !!form.id
+      try {
+        if (isEdit) {
+          await emailApi.updateEmailSmtp(form.id, form)
+        } else {
+          await emailApi.addEmailSmtp(form)
+        }
+      } catch {
+        // 失败原因 request.js 已经弹过；validate() 的回调是异步的，这里的拒绝
+        // 不会回到任何调用方，逸出去就是控制台一条未捕获错误 + 一次假"没反应"。
+        return
+      }
+      ElMessage.success(isEdit ? i18n.global.t('更新成功') : i18n.global.t('新增成功'))
+      dialogVisible.value = false
+      fetchEmailSmtp()
     }
   });
 };

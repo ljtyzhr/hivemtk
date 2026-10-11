@@ -20,15 +20,18 @@ func NewClueController() *ClueController {
 
 // GetClueList godoc
 // @Summary      获取线索列表
-// @Description  分页查询线索池，支持按来源/状态筛选
+// @Description  分页查询线索池，筛选条件在 DB 侧生效并与 total 同口径
 // @Tags         Clue
 // @Accept       json
 // @Produce      json
 // @Security     BearerAuth
-// @Param        page      query  int  false  "页码"  default(1)
-// @Param        page_size query  int  false  "每页数量"  default(20)
-// @Param        source    query  int  false  "来源 ID"
-// @Param        status    query  int  false  "状态"
+// @Param        page      query  int     false  "页码"  default(1)
+// @Param        limit     query  int     false  "每页数量"  default(20)
+// @Param        keyword   query  string  false  "名称/账号/城市/地址模糊匹配"
+// @Param        type      query  int     false  "线索类型（见 /api/clues/type）"
+// @Param        is_verify query  int     false  "验证状态：0 未验证 / 1 已验证"
+// @Param        start     query  int     false  "创建时间下界（unix 秒）"
+// @Param        end       query  int     false  "创建时间上界（unix 秒）"
 // @Success      200  {object}  response.Response  "成功"
 // @Router       /api/clues [get]
 func (c *ClueController) GetClueList(ctx *gin.Context) {
@@ -43,7 +46,7 @@ func (c *ClueController) GetClueList(ctx *gin.Context) {
 	if req.PageSize <= 0 {
 		req.PageSize = 20
 	}
-	clues, total, err := c.svc.GetClueList(ctx.Request.Context(), req.Page, req.PageSize)
+	clues, total, err := c.svc.ListWithQuery(ctx.Request.Context(), req)
 	if err != nil {
 		response.ErrorFromDB(ctx, err, "获取线索列表失败")
 		return
@@ -54,14 +57,17 @@ func (c *ClueController) GetClueList(ctx *gin.Context) {
 	}
 	for _, clue := range clues {
 		resp.List = append(resp.List, &dto.ClueListResponse{
-			ID:       clue.ID,
-			SourceID: clue.SourceID,
-			Account:  clue.Account,
-			IsVerify: clue.IsVerify,
-			Name:     clue.Name,
-			City:     clue.City,
-			Address:  clue.Address,
-			Type:     clue.Type,
+			ID:           clue.ID,
+			SourceID:     clue.SourceID,
+			Account:      clue.Account,
+			IsVerify:     clue.IsVerify,
+			Name:         clue.Name,
+			City:         clue.City,
+			Address:      clue.Address,
+			Type:         clue.Type,
+			OwnerAccount: clue.OwnerAccount,
+			CreateTime:   clue.CreateTime,
+			UpdatedAt:    clue.UpdatedAt,
 		})
 	}
 

@@ -6,19 +6,31 @@ type GetClueListResponse struct {
 }
 
 type ClueListResponse struct {
-	ID       string `json:"id"`
-	SourceID string `json:"source_id"`
-	Account  string `json:"account"`
-	IsVerify int64  `json:"is_verify"`
-	Type     int64  `json:"type"`
-	Name     string `json:"name"`
-	City     string `json:"city"`
-	Address  string `json:"address"`
+	ID           string `json:"id"`
+	SourceID     string `json:"source_id"`
+	Account      string `json:"account"`
+	IsVerify     int64  `json:"is_verify"`
+	Type         int64  `json:"type"`
+	Name         string `json:"name"`
+	City         string `json:"city"`
+	Address      string `json:"address"`
+	OwnerAccount string `json:"owner_account"`
+	CreateTime   int64  `json:"create_time"`
+	UpdatedAt    int64  `json:"updated_at"`
 }
 
+// GetClueRequest 列表筛选条件全部下推到 DB：
+// 页面上的「线索类型/关键字/验证状态」原先只在前端过滤当前这一页（10 条），
+// 选中库里真实存在 29 条的类型也会显示「暂无线索数据」而分页仍写「共 214 条」。
+// Type / IsVerify 用指针区分"没传"与"传了 0"（未验证＝0）。
 type GetClueRequest struct {
-	Page     int `form:"page"`
-	PageSize int `form:"limit"`
+	Page     int    `form:"page"`
+	PageSize int    `form:"limit"`
+	Keyword  string `form:"keyword"`
+	Type     *int64 `form:"type"`
+	IsVerify *int64 `form:"is_verify"`
+	Start    int64  `form:"start"`
+	End      int64  `form:"end"`
 }
 
 type DeleteClueRequest struct {

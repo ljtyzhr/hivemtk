@@ -256,6 +256,7 @@ import { shortLinkApi } from '@/api/shortLink'
 import PageState from '@/components/PageState.vue'
 import * as echarts from 'echarts'
 import { safeInit } from '@/utils/echarts'
+import { copyToClipboard as writeClipboard } from '@/utils/clipboard.js'
 
 const loading = ref(false);
 const error = ref('')
@@ -522,21 +523,12 @@ const handleShare = async (row) => {
   }
 }
 
-const copyToClipboard = (text) => {
-  if (navigator.clipboard) {
-    navigator.clipboard.writeText(text).then(() => {
-      ElMessage.success(i18n.global.t('复制成功'))
-    }).catch(() => {
-      ElMessage.error(i18n.global.t('复制失败'))
-    })
-  } else {
-    const textarea = document.createElement('textarea');
-    textarea.value = text
-    document.body.appendChild(textarea)
-    textarea.select()
-    document.execCommand('copy')
-    document.body.removeChild(textarea)
+const copyToClipboard = async (text) => {
+  const copied = await writeClipboard(text)
+  if (copied) {
     ElMessage.success(i18n.global.t('复制成功'))
+  } else {
+    ElMessage.error(i18n.global.t('复制失败'))
   }
 }
 

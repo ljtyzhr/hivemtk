@@ -202,10 +202,13 @@ func TestIntegrationService_UpdateIntegrationAccount(t *testing.T) {
 	}
 	db.GetDB().Create(account)
 
-	req := &CreateIntegrationAccountRequest{
-		AccountName: "New Name",
-		APIKey:      "new_key",
-		APISecret:   "new_secret",
+	newName := "New Name"
+	newKey := "new_key"
+	newSecret := "new_secret"
+	req := &UpdateIntegrationAccountRequest{
+		AccountName: &newName,
+		APIKey:      &newKey,
+		APISecret:   &newSecret,
 		Config:      map[string]any{"updated": true},
 	}
 
@@ -236,8 +239,9 @@ func TestIntegrationService_UpdateIntegrationAccount_SingleTenant(t *testing.T) 
 	}
 	db.GetDB().Create(account)
 
-	req := &CreateIntegrationAccountRequest{
-		AccountName: "Updated",
+	updatedName := "Updated"
+	req := &UpdateIntegrationAccountRequest{
+		AccountName: &updatedName,
 	}
 	updated, err := service.UpdateIntegrationAccount(context.Background(), account.ID, req)
 	if err != nil {
@@ -245,6 +249,56 @@ func TestIntegrationService_UpdateIntegrationAccount_SingleTenant(t *testing.T) 
 	}
 	if updated.AccountName != "Updated" {
 		t.Errorf("Expected account name 'Updated', got '%s'", updated.AccountName)
+	}
+	if updated.APIKey != "test_key" || updated.APISecret != "test_secret" {
+		t.Errorf("Omitted credential fields must survive the update, got key=%q secret=%q", updated.APIKey, updated.APISecret)
+	}
+}
+
+// TestIntegrationService_UpdateIntegrationAccount_StatusOnly 只 PUT 状态时其余字段（含凭据）不动。
+// 前端开关就走这条路：请求体里只有 status，没有 api_secret，掩码值也就不会被写回库。
+func TestIntegrationService_UpdateIntegrationAccount_StatusOnly(t *testing.T) {
+	service := setupIntegrationService(t)
+
+	account := &model.IntegrationAccount{
+		Platform:    "crm_xiaoshouyi",
+		AccountName: "Status Account",
+		APIKey:      "keep_key",
+		APISecret:   "keep_secret",
+		WebhookURL:  "https://example.com/hook",
+		Status:      1,
+	}
+	if err := db.GetDB().Create(account).Error; err != nil {
+		t.Fatalf("create account: %v", err)
+	}
+
+	off := 0
+	if _, err := service.UpdateIntegrationAccount(context.Background(), account.ID, &UpdateIntegrationAccountRequest{Status: &off}); err != nil {
+		t.Fatalf("disable account: %v", err)
+	}
+
+	var disabled model.IntegrationAccount
+	if err := db.GetDB().First(&disabled, account.ID).Error; err != nil {
+		t.Fatalf("read back disabled account: %v", err)
+	}
+	if disabled.Status != 0 {
+		t.Errorf("Expected status 0 after disable, got %d", disabled.Status)
+	}
+	if disabled.APIKey != "keep_key" || disabled.APISecret != "keep_secret" || disabled.WebhookURL != "https://example.com/hook" {
+		t.Errorf("Status-only update must not touch other columns, got key=%q secret=%q webhook=%q",
+			disabled.APIKey, disabled.APISecret, disabled.WebhookURL)
+	}
+
+	on := 1
+	if _, err := service.UpdateIntegrationAccount(context.Background(), account.ID, &UpdateIntegrationAccountRequest{Status: &on}); err != nil {
+		t.Fatalf("enable account: %v", err)
+	}
+	var enabled model.IntegrationAccount
+	if err := db.GetDB().First(&enabled, account.ID).Error; err != nil {
+		t.Fatalf("read back enabled account: %v", err)
+	}
+	if enabled.Status != 1 {
+		t.Errorf("Expected status 1 after enable, got %d", enabled.Status)
 	}
 }
 

@@ -2,7 +2,10 @@
   <div class="visitor-header" :style="{ borderBottomColor: color }">
     <div class="title">
       <div class="title-main">
-        <div class="title-icon" :style="{ background: color }">{{ $t('客') }}</div>
+        <!-- 徽标是 28px 方块里的头像字，只放得下一个字符（与 ChatMessages 的
+             avatarText 同口径）。整词量过：en 的译文 33px、ja 的ゲスト 28px，
+             居中后从方块两侧溢出，白字压在白底上等于少半边。 -->
+        <div class="title-icon" :style="{ background: color }">{{ $t('客').slice(0, 1) }}</div>
         <span class="title-text">{{ title }}</span>
         <span class="status-dot" :class="{ online: isOnline }"></span>
       </div>

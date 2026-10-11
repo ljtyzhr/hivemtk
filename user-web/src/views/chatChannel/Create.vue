@@ -162,6 +162,7 @@ import { CopyDocument } from '@element-plus/icons-vue'
 import { createChannel } from '@/api/chatChannel'
 import { listEnabledAgents } from '@/api/aiAgent'
 import { createBinding } from '@/api/channelAgentBinding'
+import { copyToClipboard } from '@/utils/clipboard.js'
 import { TARGET_LANGUAGE_OPTIONS } from '@/constants/languages'
 
 const router = useRouter()
@@ -272,27 +273,11 @@ const goBack = () => router.push({ name: 'ChatChannelList' })
 
 const copy = async (text) => {
   if (!text) return
-  try {
-    if (navigator.clipboard && navigator.clipboard.writeText) {
-      await navigator.clipboard.writeText(text)
-    } else {
-      throw new Error('clipboard unavailable')
-    }
+  const copied = await copyToClipboard(text)
+  if (copied) {
     ElMessage.success(i18n.global.t('已复制'))
-  } catch {
-    try {
-      const ta = document.createElement('textarea')
-      ta.value = text
-      ta.style.position = 'fixed'
-      ta.style.opacity = '0'
-      document.body.appendChild(ta)
-      ta.select()
-      document.execCommand('copy')
-      document.body.removeChild(ta)
-      ElMessage.success(i18n.global.t('已复制'))
-    } catch {
-      ElMessage.error(i18n.global.t('复制失败，请手动选择复制'))
-    }
+  } else {
+    ElMessage.error(i18n.global.t('复制失败，请手动选择复制'))
   }
 }
 

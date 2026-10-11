@@ -138,7 +138,7 @@
             <el-table-column prop="description" label="描述" min-width="220" show-overflow-tooltip />
             <el-table-column label="类型" width="90" align="center">
               <template #default="{ row }">
-                <el-tag :type="typeTagColor(row.type)" size="small">{{ row.type }}</el-tag>
+                <el-tag :type="typeTagColor(row.value_type)" size="small">{{ row.value_type }}</el-tag>
               </template>
             </el-table-column>
             <el-table-column label="当前值" min-width="180" show-overflow-tooltip>
@@ -148,7 +148,7 @@
                     {{ formatValue(row, row.value) }}
                   </span>
                   <el-tag v-if="!isDefault(row)" type="warning" size="small" effect="plain" class="changed-badge">已修改</el-tag>
-                  <el-tag v-if="row.readonly" type="info" size="small" effect="plain">只读</el-tag>
+                  <el-tag v-if="row.read_only" type="info" size="small" effect="plain">只读</el-tag>
                 </div>
               </template>
             </el-table-column>
@@ -170,7 +170,7 @@
             </el-table-column>
             <el-table-column label="操作" width="160" fixed="right" align="center">
               <template #default="{ row }">
-                <el-button link type="primary" size="small" :disabled="row.readonly" @click="openEdit(row)">
+                <el-button link type="primary" size="small" :disabled="row.read_only" @click="openEdit(row)">
                   <el-icon><Edit /></el-icon>编辑
                 </el-button>
                 <el-button link type="warning" size="small" :disabled="isDefault(row)" :loading="row._resetting" @click="handleResetOne(row)">
@@ -195,13 +195,13 @@
         <el-descriptions :column="2" border size="small" class="edit-desc">
           <el-descriptions-item label="分组">{{ editing.group }}</el-descriptions-item>
           <el-descriptions-item label="类型">
-            <el-tag :type="typeTagColor(editing.type)" size="small">{{ editing.type }}</el-tag>
+            <el-tag :type="typeTagColor(editing.value_type)" size="small">{{ editing.value_type }}</el-tag>
           </el-descriptions-item>
           <el-descriptions-item label="名称" :span="2">{{ editing.name }}</el-descriptions-item>
           <el-descriptions-item label="描述" :span="2">{{ editing.description || '-' }}</el-descriptions-item>
           <el-descriptions-item label="默认值">{{ formatValue(editing, editing.default_value) }}</el-descriptions-item>
           <el-descriptions-item label="只读">
-            <el-tag :type="editing.readonly ? 'info' : 'success'" size="small">{{ editing.readonly ? '是' : '否' }}</el-tag>
+            <el-tag :type="editing.read_only ? 'info' : 'success'" size="small">{{ editing.read_only ? '是' : '否' }}</el-tag>
           </el-descriptions-item>
           <el-descriptions-item v-if="editing.min !== undefined" label="最小值">{{ editing.min }}</el-descriptions-item>
           <el-descriptions-item v-if="editing.max !== undefined" label="最大值">{{ editing.max }}</el-descriptions-item>
@@ -211,41 +211,41 @@
           <div class="edit-field__label">当前值</div>
 
           
-          <template v-if="isBoolType(editing.type)">
+          <template v-if="isBoolType(editing.value_type)">
             <el-switch v-model="editValueBool" :active-value="true" :inactive-value="false" />
             <span class="muted" style="margin-left:8px">{{ editValueBool ? 'true' : 'false' }}</span>
           </template>
 
           
-          <template v-else-if="isNumericType(editing.type)">
+          <template v-else-if="isNumericType(editing.value_type)">
             <div v-if="hasSlider(editing)" class="slider-wrap">
               <el-slider
                 v-model="editValueNum"
-                :min="editing.min ?? 0"
-                :max="editing.max ?? 100"
-                :step="editing.step ?? (editing.type === 'float' || editing.type === 'duration' ? 0.1 : 1)"
+                :min="numBound(editing.min) ?? 0"
+                :max="numBound(editing.max) ?? 100"
+                :step="numBound(editing.step) ?? (editing.value_type === 'float' || editing.value_type === 'duration' ? 0.1 : 1)"
                 :show-tooltip="false"
                 style="flex:1; margin-right:12px"
               />
               <el-input-number
                 v-model="editValueNum"
-                :min="editing.min"
-                :max="editing.max"
-                :step="editing.step ?? (editing.type === 'float' || editing.type === 'duration' ? 0.1 : 1)"
-                :precision="editing.type === 'float' || editing.type === 'duration' ? 3 : 0"
+                :min="numBound(editing.min)"
+                :max="numBound(editing.max)"
+                :step="numBound(editing.step) ?? (editing.value_type === 'float' || editing.value_type === 'duration' ? 0.1 : 1)"
+                :precision="editing.value_type === 'float' || editing.value_type === 'duration' ? 3 : 0"
                 controls-position="right"
                 size="default"
                 style="width:140px"
               />
-              <span v-if="editing.type === 'duration'" class="unit-label">秒</span>
+              <span v-if="editing.value_type === 'duration'" class="unit-label">秒</span>
             </div>
             <el-input-number
               v-else
               v-model="editValueNum"
-              :min="editing.min"
-              :max="editing.max"
-              :step="editing.step ?? (editing.type === 'float' || editing.type === 'duration' ? 0.1 : 1)"
-              :precision="editing.type === 'float' || editing.type === 'duration' ? 3 : 0"
+              :min="numBound(editing.min)"
+              :max="numBound(editing.max)"
+              :step="numBound(editing.step) ?? (editing.value_type === 'float' || editing.value_type === 'duration' ? 0.1 : 1)"
+              :precision="editing.value_type === 'float' || editing.value_type === 'duration' ? 3 : 0"
               controls-position="right"
               size="default"
               style="width:100%"
@@ -256,7 +256,7 @@
           <template v-else>
             <el-input
               v-model="editValueStr"
-              :type="isTextareaType(editing.type) ? 'textarea' : 'text'"
+              :type="isTextareaType(editing.value_type) ? 'textarea' : 'text'"
               :rows="3"
               :placeholder="`默认: ${formatValue(editing, editing.default_value)}`"
             />
@@ -295,14 +295,17 @@
           >
             <div class="audit-item">
               <div class="audit-item__head">
-                <el-tag size="small" effect="plain">{{ item.group }}</el-tag>
-                <code class="audit-key">{{ item.key }}</code>
-                <span class="audit-user">{{ item.operator || item.user || item.updated_by || '-' }}</span>
+                <!-- 审计接口回的键是 param_group / param_key / actor_id（不是 group / key / operator），
+                     原先三个绑定全部落空 ⇒ 每条记录只剩一个空标签、一个空参数名和一个 "-"，
+                     等于整份变更日志读不出"改了哪个参数、谁改的"。 -->
+                <el-tag size="small" effect="plain">{{ item.param_group || '-' }}</el-tag>
+                <code class="audit-key">{{ item.param_key }}</code>
+                <span class="audit-user">{{ item.actor_id ? `用户 #${item.actor_id}` : '-' }}</span>
               </div>
               <div class="audit-item__diff">
-                <span class="val-default">{{ String(item.old_value ?? item.old ?? '') || '(空)' }}</span>
+                <span class="val-default">{{ String(item.old_value ?? '') || '(空)' }}</span>
                 <el-icon class="audit-arrow"><ArrowRight /></el-icon>
-                <span class="val-current val-changed">{{ String(item.new_value ?? item.value ?? '') || '(空)' }}</span>
+                <span class="val-current val-changed">{{ String(item.new_value ?? '') || '(空)' }}</span>
               </div>
             </div>
           </el-timeline-item>
@@ -322,29 +325,69 @@ import { computed, ref, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import * as configParamsApi from '@/api/configParams'
 
-const SEED_GROUPS = [
-  { key: 'agent_llm',    label: 'AI 大模型',      count: 16 },
-  { key: 'agent_tool',   label: 'AI 工具',        count: 5  },
-  { key: 'bridge',       label: '消息桥接',       count: 8  },
-  { key: 'cache',        label: '缓存策略',       count: 6  },
-  { key: 'channelgw',    label: '渠道网关',       count: 5  },
-  { key: 'confidence',   label: '置信度阈值',     count: 7  },
-  { key: 'inbox_sales',  label: '私信销售',       count: 4  },
-  { key: 'knowledge',    label: '知识库',         count: 12 },
-  { key: 'middleware',   label: '中间件',         count: 2  },
-  { key: 'misc',         label: '其它',           count: 18 },
-  { key: 'pagination',   label: '分页',           count: 3  },
-  { key: 'sales',        label: '销售',           count: 2  },
-  { key: 'session',      label: '会话',           count: 5  },
-  { key: 'smart_cs',     label: '智能客服',       count: 3  },
-  { key: 'telemetry',    label: '遥测',           count: 4  },
-  { key: 'wechat',       label: '微信',           count: 3  },
-  { key: 'wecom',        label: '企业微信',       count: 2  },
-  { key: 'workflow',     label: '工作流',         count: 4  }
-];
+// 这里只保留「分组键 → 中文名」和展示顺序，分组集合与条数一律从接口返回的参数推导。
+// 原先这是一份写死的 18 项数组，连每组的 count 都是写死的数字：
+// 一则接口现在实际有 29 组，channelbot / embedding / geo / human_task / lead / lock /
+// memory / permission / reach / sse / webhook 这些组的参数在页面上根本没有入口
+// （读得到、改不了，而顶部分组计数又写着 29，自相矛盾）；
+// 二则侧栏徽标显示「AI 大模型 16」，同一屏右侧表头显示「共 18 条」，两个数打脸。
+const GROUP_LABELS = {
+  agent_llm: 'AI 大模型',
+  agent_tool: 'AI 工具',
+  bridge: '消息桥接',
+  cache: '缓存策略',
+  channelbot: '渠道机器人',
+  channelgw: '渠道网关',
+  confidence: '置信度阈值',
+  embedding: '向量嵌入',
+  geo: '可见性统计',
+  human_task: '转人工任务',
+  inbox_sales: '私信销售',
+  knowledge: '知识库',
+  lead: '线索画像',
+  lock: '分布式锁',
+  memory: '短期记忆',
+  middleware: '中间件',
+  misc: '其它',
+  pagination: '分页',
+  permission: '角色权限',
+  reach: '触达频控',
+  sales: '销售',
+  session: '会话',
+  smart_cs: '智能客服',
+  sse: 'SSE 推送',
+  telemetry: '遥测',
+  webhook: 'Webhook 回调',
+  wechat: '微信',
+  wecom: '企业微信',
+  workflow: '工作流'
+}
 
-const groups = ref(SEED_GROUPS)
 const allParams = ref([])
+
+const groups = computed(() => {
+  const counts = new Map()
+  for (const p of allParams.value) {
+    // 用原始 group 计数，口径必须和 filteredList 的 `p.group === currentGroup` 完全一致，
+    // 否则侧栏数字与表头「共 N 条」又会各说各话。
+    if (!p.group) continue
+    counts.set(p.group, (counts.get(p.group) || 0) + 1)
+  }
+  const order = Object.keys(GROUP_LABELS)
+  return [...counts.entries()]
+    .map(([key, count]) => ({ key, count, label: GROUP_LABELS[key] || key }))
+    .sort((a, b) => {
+      const ia = order.indexOf(a.key)
+      const ib = order.indexOf(b.key)
+      if (ia !== ib) {
+        if (ia === -1) return 1
+        if (ib === -1) return -1
+        return ia - ib
+      }
+      return a.key.localeCompare(b.key)
+    })
+})
+
 const currentGroup = ref('agent_llm')
 const loading = ref(false)
 const saving = ref(false)
@@ -354,9 +397,9 @@ const stats = computed(() => {
   const list = allParams.value
   return {
     total: list.length,
-    groupCount: new Set(list.map((p) => p.group)).size || SEED_GROUPS.length,
+    groupCount: groups.value.length,
     modified: list.filter((p) => !isDefault(p)).length,
-    readonly: list.filter((p) => p.readonly).length
+    readonly: list.filter((p) => p.read_only).length
   }
 });
 
@@ -385,6 +428,10 @@ async function loadAll() {
     const res = await configParamsApi.list(undefined);
     const list = Array.isArray(res) ? res : (res && Array.isArray(res.list) ? res.list : [])
     allParams.value = list
+    // 默认选中的组必须在真实返回的分组里，否则进页面就是一张没有任何解释的空表。
+    if (list.length && !list.some((p) => p.group === currentGroup.value)) {
+      currentGroup.value = list[0].group
+    }
   } catch (e) {
     ElMessage.error('加载参数失败')
   } finally {
@@ -399,8 +446,7 @@ async function loadGroup(groupKey) {
     const list = Array.isArray(res) ? res : (res && Array.isArray(res.list) ? res.list : [])
     const remain = allParams.value.filter((p) => p.group !== groupKey);
     allParams.value = [...remain, ...list]
-    const g = groups.value.find((x) => x.key === groupKey);
-    if (g) g.count = list.length
+    // 组数不在这里手改：groups 是从 allParams 推导的 computed，改一处只会造成两份计数真相。
   } catch (e) {
     ElMessage.error('加载分组参数失败')
   } finally {
@@ -437,7 +483,7 @@ function isDefault(p) {
 
 function formatValue(row, v) {
   if (v === undefined || v === null) return ''
-  if (row && row.type === 'duration') {
+  if (row && row.value_type === 'duration') {
     const n = Number(v)
     if (Number.isFinite(n)) return `${n} 秒`
   }
@@ -457,8 +503,11 @@ function typeTagColor(type) {
     case 'integer': return 'primary'
     case 'float': return 'warning'
     case 'duration': return 'danger'
+    // el-tag 的 type 只接受 primary/success/info/warning/danger（2.14.5 的 values 里
+    // 没有空串），返回 '' 会为每一条 string 类型的参数行触发一次 Vue prop 校验告警，
+    // 并回落到 default='primary'。中性色用 'info'。
     case 'string':
-    case 'text': return ''
+    case 'text': return 'info'
     default: return 'info'
   }
 }
@@ -474,7 +523,16 @@ function isTextareaType(t) {
 }
 function hasSlider(row) {
   const hasMinMax = row.min !== undefined && row.max !== undefined && Number(row.min) !== Number(row.max)
-  return hasMinMax && (isNumericType(row.type))
+  return hasMinMax && (isNumericType(row.value_type))
+}
+
+// 接口把 min/max/step 存成字符串（"1"、"0.1"），而 el-slider / el-input-number 的这三个
+// prop 声明为 Number ⇒ 直接绑字符串会让每个数值参数弹一次 Vue prop 校验告警。
+// 缺省或非法值返回 undefined，交给调用点的 ?? 兜底。
+function numBound(v) {
+  if (v === undefined || v === null || v === '') return undefined
+  const n = Number(v)
+  return Number.isFinite(n) ? n : undefined
 }
 
 const editDialogVisible = ref(false);
@@ -487,8 +545,8 @@ const editError = ref('')
 const editValueUnchanged = computed(() => {
   if (!editing.value) return true
   const p = editing.value
-  if (isBoolType(p.type)) return editValueBool.value === (p.value === true || p.value === 'true')
-  if (isNumericType(p.type)) {
+  if (isBoolType(p.value_type)) return editValueBool.value === (p.value === true || p.value === 'true')
+  if (isNumericType(p.value_type)) {
     if (p.value === undefined || p.value === null) return editValueNum.value === 0
     const a = Number(editValueNum.value)
     const b = Number(p.value)
@@ -498,16 +556,16 @@ const editValueUnchanged = computed(() => {
 })
 
 function openEdit(row) {
-  if (row.readonly) {
+  if (row.read_only) {
     ElMessage.warning('该参数为只读，不可编辑')
     return
   }
   editing.value = { ...row }
   editError.value = ''
-  if (isBoolType(row.type)) {
+  if (isBoolType(row.value_type)) {
     const v = row.value === true || row.value === 'true' || row.value === 1
     editValueBool.value = v
-  } else if (isNumericType(row.type)) {
+  } else if (isNumericType(row.value_type)) {
     const n = Number(row.value)
     editValueNum.value = Number.isFinite(n) ? n : Number(row.default_value || 0)
   } else {
@@ -519,7 +577,7 @@ function openEdit(row) {
 function validateEdit() {
   editError.value = ''
   const p = editing.value
-  if (isNumericType(p.type)) {
+  if (isNumericType(p.value_type)) {
     const n = Number(editValueNum.value)
     if (!Number.isFinite(n)) { editError.value = '必须是合法数字'; return false }
     if (p.min !== undefined && n < Number(p.min)) { editError.value = `不能小于最小值 ${p.min}`; return false }
@@ -536,9 +594,9 @@ async function confirmEdit() {
   if (!validateEdit()) return
   const p = editing.value
   let submitValue
-  if (isBoolType(p.type)) submitValue = editValueBool.value
-  else if (isNumericType(p.type)) {
-    if (p.type === 'int' || p.type === 'integer') submitValue = Math.round(Number(editValueNum.value))
+  if (isBoolType(p.value_type)) submitValue = editValueBool.value
+  else if (isNumericType(p.value_type)) {
+    if (p.value_type === 'int' || p.value_type === 'integer') submitValue = Math.round(Number(editValueNum.value))
     else submitValue = Number(editValueNum.value)
   } else submitValue = editValueStr.value
 

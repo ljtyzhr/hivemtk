@@ -1,8 +1,9 @@
 /**
  * 跟进提醒 API 单元测试（A11 读写口的契约锁）。
  *
- * 钉五件事：五条路径/方法、owner_id 恒带（后端空=全员，前端不能漏）、
- * date/limit 可选不硬塞、complete 的 body 形状、id 段编码。
+ * 钉六件事：五条路径/方法、owner_id 恒带（后端空=全员，前端不能漏）、
+ * date/limit 可选不硬塞、complete 的 body 形状、id 段编码、
+ * 三条读口带 _silent（页面有常驻告警位，拦截器那条兜底 toast 会把真话盖掉）而写口不带。
  */
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
@@ -21,6 +22,8 @@ vi.mock('@/utils/request', () => ({ default: request, http }))
 
 import { followupApi } from '@/api/followup.js'
 
+const SILENT = { _silent: true }
+
 describe('跟进提醒 API', () => {
   beforeEach(() => {
     request.mockReset()
@@ -32,22 +35,22 @@ describe('跟进提醒 API', () => {
 
   it('today 带 owner_id，date 缺省不硬塞', async () => {
     await followupApi.today('u1')
-    expect(http.get).toHaveBeenCalledWith('/api/followups/today', { owner_id: 'u1' })
+    expect(http.get).toHaveBeenCalledWith('/api/followups/today', { owner_id: 'u1' }, SILENT)
   })
 
   it('today 带 date 时原样透传', async () => {
     await followupApi.today('u1', '2026-10-09')
-    expect(http.get).toHaveBeenCalledWith('/api/followups/today', { owner_id: 'u1', date: '2026-10-09' })
+    expect(http.get).toHaveBeenCalledWith('/api/followups/today', { owner_id: 'u1', date: '2026-10-09' }, SILENT)
   })
 
   it('pending 带 owner_id，limit 缺省不硬塞', async () => {
     await followupApi.pending('u1')
-    expect(http.get).toHaveBeenCalledWith('/api/followups/pending', { owner_id: 'u1' })
+    expect(http.get).toHaveBeenCalledWith('/api/followups/pending', { owner_id: 'u1' }, SILENT)
   })
 
   it('overdue 带 owner_id', async () => {
     await followupApi.overdue('u2')
-    expect(http.get).toHaveBeenCalledWith('/api/followups/overdue', { owner_id: 'u2' })
+    expect(http.get).toHaveBeenCalledWith('/api/followups/overdue', { owner_id: 'u2' }, SILENT)
   })
 
   it('complete 打 /complete 并带 result/note body，id 段编码', async () => {
@@ -73,5 +76,12 @@ describe('跟进提醒 API', () => {
     err.status = 409
     http.post.mockRejectedValue(err)
     await expect(followupApi.complete('rem_1')).rejects.toMatchObject({ status: 409 })
+  })
+  it('写口不带 _silent（完成/取消没有告警位，失败要出声）', async () => {
+    await followupApi.complete('r1', 'contacted', 'n')
+    await followupApi.cancel('r2')
+    for (const call of http.post.mock.calls) {
+      expect(JSON.stringify(call)).not.toContain('_silent')
+    }
   })
 })

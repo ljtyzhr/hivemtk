@@ -3,7 +3,7 @@
     <el-card class="box-card">
       <template #header>
         <div class="card-header">
-          <span>抖音卡片统计 - {{ cardInfo.title ?? '加载中...' }}</span>
+          <span>抖音卡片统计 - {{ cardInfo.title ?? (cardLoadFailed ? $t('加载失败') : '加载中...') }}</span>
           <div class="header-actions">
             <el-button @click="goBack">{{ $t('返回') }}</el-button>
             <el-date-picker
@@ -24,16 +24,31 @@
         </div>
       </template>
 
+      <el-alert
+        v-if="cardLoadFailed || statsLoadFailed"
+        class="stats-alert"
+        type="warning"
+        show-icon
+        :closable="false"
+        :title="cardLoadFailed ? '这张卡片读不到了' : '统计数据读取失败'"
+        :description="cardLoadFailed ? '卡片已被删除，或链接里的 id 不属于当前账号。下方的 0 与空图是「没读到」，不是「真的没有」。' : '卡片本身还在，但这一轮的统计没读到。下方的 0 与空图是「没读到」，不是「真的没有」——请点「刷新」重试。'"
+      />
+
       
       <div class="card-info-section" v-if="cardInfo.id">
         <el-row :gutter="20">
           <el-col :span="6">
-            <el-image 
-              style="width: 100%; height: 200px" 
-              :src="cardInfo.image_url" 
+            <el-image
+              v-if="cardInfo.image_url"
+              style="width: 100%; height: 200px"
+              :src="cardInfo.image_url"
               :preview-src-list="[cardInfo.image_url]"
               fit="cover"
-            />
+            >
+              <template #error>
+                <div class="img-error-fallback">{{ $t('图片加载失败') }}</div>
+              </template>
+            </el-image>
           </el-col>
           <el-col :span="18">
             <el-descriptions :column="2" border>
@@ -100,10 +115,10 @@
                     </el-tag>
                   </template>
                 </el-table-column>
-                <el-table-column prop="ip_address" label="IP地址" />
-                <el-table-column prop="created_at" label="时间">
+                <el-table-column prop="ipAddress" label="IP地址" />
+                <el-table-column prop="createdAt" label="时间">
                   <template #default="scope">
-                    {{ formatDate(scope.row.created_at) }}
+                    {{ formatDate(scope.row.createdAt) }}
                   </template>
                 </el-table-column>
               </el-table>
@@ -116,12 +131,8 @@
 </template>
 
 <script setup>
-import i18n from '@/i18n'
-
-import { ref, reactive, onMounted, nextTick } from 'vue'
+import { ref, reactive, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
-import * as echarts from 'echarts'
 import { safeInit } from '@/utils/echarts'
 import { getDouyinCard, getDouyinCardStats } from '@/api/douyinCard'
 
@@ -131,6 +142,11 @@ const router = useRouter()
 const loading = ref(false);
 const cardId = ref(route.params.id)
 const cardInfo = ref({})
+// 表头那句「加载中...」必须有出路：卡片被删后 /api/douyin/:id 回 404，cardInfo 永远是 {}，
+// 只靠 cardInfo.title 判断的话这句话会一直挂着，把"这条不在了"读成"还在转"。
+const cardLoadFailed = ref(false)
+// 两条读口各自失败：卡片在、统计挂了时，"这张卡片读不到了"就是说谎。
+const statsLoadFailed = ref(false)
 const dateRange = ref([])
 const groupBy = ref('day')
 
@@ -148,9 +164,13 @@ let visitChartInstance = null
 const fetchCardInfo = async () => {
   try {
     const res = await getDouyinCard(cardId.value)
-    cardInfo.value = res;
+    cardInfo.value = res || {}
+    cardLoadFailed.value = !res?.id
   } catch (error) {
-    ElMessage.error(i18n.global.t('获取卡片信息失败'))
+    // 拦截器已经按状态码弹过一次（404 → 「资源不存在」），这里再弹一条是两句同义 toast。
+    // 页面改用常驻的 cardLoadFailed 说结论：toast 三秒就没了，标题的「加载中...」不会。
+    cardInfo.value = {}
+    cardLoadFailed.value = true
     console.error(error)
   }
 };
@@ -169,24 +189,30 @@ const fetchCardStats = async () => {
     
     const res = await getDouyinCardStats(cardId.value, params)
     Object.assign(cardStats, res);
+    statsLoadFailed.value = false
 
     nextTick(() => {
       updateCharts()
     });
   } catch (error) {
-    ElMessage.error(i18n.global.t('获取统计数据失败'))
+    // 同上：统计读失败时拦截器已经出声，页面把「这一屏的 0 不是真值」常驻说出口。
+    statsLoadFailed.value = true
     console.error(error)
   } finally {
     loading.value = false
   }
 };
 
+// safeInit 在没有容器时回 null（图在告警/卡片信息之后渲染，v-if 关掉时拿不到 dom）。
+// 之前这里不判空直接 .setOption，于是"卡片被删 + 统计回来了"这一格会抛 TypeError：
+// 那是一条未捕获异常（控制台红），且页面停在旧图上。
 const updateCharts = () => {
   if (visitChartInstance) {
     visitChartInstance.dispose()
   }
-  
+
   visitChartInstance = safeInit(visitTrendChart.value)
+  if (!visitChartInstance) return
   const visitOption = {
     title: {
       text: '访问量趋势',
@@ -197,7 +223,8 @@ const updateCharts = () => {
     },
     xAxis: {
       type: 'category',
-      data: (cardStats.dailyStats || []).map(item => item.date)
+      // dto.DailyStat.date 在这条链路上是完整时间戳，直接当类目标签会印一长串 ISO。
+      data: (cardStats.dailyStats || []).map(item => formatDate(item.date))
     },
     yAxis: {
       type: 'value'
@@ -212,10 +239,12 @@ const updateCharts = () => {
     ]
   }
   visitChartInstance.setOption(visitOption)
-  
-  window.addEventListener('resize', () => {
-    if (visitChartInstance) visitChartInstance.resize()
-  });
+};
+
+// 每次刷新都 addEventListener 一个新的匿名回调 = 监听器只增不减（DOM 只对同一函数引用去重），
+// 离开本页后还在给已 dispose 的实例喊 resize。命名 + 挂一次 + 卸载时摘掉。
+const handleResize = () => {
+  if (visitChartInstance && !visitChartInstance.isDisposed()) visitChartInstance.resize()
 };
 
 const handleDateChange = () => {
@@ -242,14 +271,15 @@ const formatNumber = (num) => {
 
 const formatDate = (date) => {
   if (!date) return ''
-  if (typeof date === 'string') return date
-  
+  // 两个调用点：查询参数传 Date，接口回显传字符串（后端 DTO 里是 RFC3339）。
+  // 字符串原先原样透出 ⇒ 表格与横轴上是 "2026-09-30T00:00:00Z" 这种长串，这里统一成 YYYY-MM-DD。
   const d = new Date(date)
+  if (Number.isNaN(d.getTime())) return typeof date === 'string' ? date : ''
   const year = d.getFullYear()
   const month = String(d.getMonth() + 1).padStart(2, '0')
-  const day = String(d.getDate()).padStart(2, '0')
+  const day = String(d.getDate())
   
-  return `${year}-${month}-${day}`
+  return `${year}-${month}-${String(day).padStart(2, '0')}`
 };
 
 // el-tag 的 type 只接受 primary/success/info/warning/danger，传 '' 会触发 Vue prop 校验告警
@@ -274,9 +304,17 @@ onMounted(() => {
   startDate.setDate(endDate.getDate() - 7)
   
   dateRange.value = [startDate, endDate]
-  
+
+  window.addEventListener('resize', handleResize)
+
   fetchCardInfo()
   fetchCardStats()
+});
+
+onBeforeUnmount(() => {
+  window.removeEventListener('resize', handleResize)
+  if (visitChartInstance && !visitChartInstance.isDisposed()) visitChartInstance.dispose()
+  visitChartInstance = null
 });
 </script>
 
@@ -298,6 +336,10 @@ onMounted(() => {
 
 .card-info-section {
   margin-bottom: 20px;
+}
+
+.stats-alert {
+  margin-bottom: 16px;
 }
 
 .stats-overview {

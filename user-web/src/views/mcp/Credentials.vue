@@ -74,6 +74,7 @@
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { mcpCredentialApi } from '@/api/mcpCredential'
+import { copyToClipboard } from '@/utils/clipboard'
 
 const rows = ref([])
 const loading = ref(false)
@@ -117,10 +118,9 @@ const doCreate = async () => {
 
 const copyAll = async () => {
   const text = `Client ID: ${issued.value.client_id}\nAPI Key: ${issued.value.api_key}`
-  try {
-    await navigator.clipboard.writeText(text)
+  if (await copyToClipboard(text)) {
     ElMessage.success('已复制')
-  } catch {
+  } else {
     ElMessage.info('请手动复制')
   }
   issuedVisible.value = false

@@ -11,7 +11,11 @@
               :preview-src-list="[asset.cover_url]"
               fit="cover"
               class="cover-big"
-            />
+            >
+              <template #error>
+                <div class="img-error-fallback">{{ $t('图片加载失败') }}</div>
+              </template>
+            </el-image>
             <div v-else class="cover-big-placeholder">{{ (asset.name || '?').slice(0, 1) }}</div>
             <div class="header-text">
               <h2>{{ asset.name }}</h2>
@@ -72,7 +76,13 @@ const handlePurchase = async () => {
   } catch {
     return
   }
-  await purchaseAsset({ asset_id: asset.value.asset_id || route.params.id })
+  try {
+    await purchaseAsset({ asset_id: asset.value.asset_id || route.params.id })
+  } catch {
+    // 失败原因 request.js 已经提示过（平台未启用/积分不足/上游异常），
+    // 这里不接成功文案，也不让 promise 逸出成组件事件处理器里的未捕获错误。
+    return
+  }
   ElMessage.success('试用并同步成功')
   router.push('/asset-market/my-assets')
 }

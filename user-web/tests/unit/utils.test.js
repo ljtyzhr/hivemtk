@@ -49,31 +49,36 @@ describe('initHelper', () => {
 })
 
 describe('map 工具 - 平台标签', () => {
-  it('getPlatformTag 返回正确样式', () => {
-    expect(getPlatformTag('1')).toBe('success')
-    expect(getPlatformTag('4')).toBe('info')
+  // 期望值 = 后端 defaultClueTypes 的权威档位（1=QQ/2=微信/3=电话/4=Telegram），
+  // 与 tests/unit/clue_type_labels_sync.test.js 同源；'99' 已登记为「自定义」，
+  // 未登记档位改用 88 断言。
+  it('getPlatformTag 取权威表的 tagType', () => {
+    expect(getPlatformTag('1')).toBe('info')
+    expect(getPlatformTag('4')).toBe('primary')
+    expect(getPlatformTag('99')).toBe('info')
   })
 
-  it('getPlatformTag 未知类型返回 "未知"', () => {
-    expect(getPlatformTag('99')).toBe('未知')
+  it('getPlatformTag 未登记档位返回 "未知"', () => {
+    expect(getPlatformTag('88')).toBe('未知')
   })
 
-  it('getPlatformName 返回正确中文名', () => {
-    expect(getPlatformName('1')).toBe('小红书')
-    expect(getPlatformName('2')).toBe('视频号')
-    expect(getPlatformName('3')).toBe('抖音')
-    expect(getPlatformName('4')).toBe('快手')
+  it('getPlatformName 取权威表名称', () => {
+    expect(getPlatformName('1')).toBe('QQ')
+    expect(getPlatformName('2')).toBe('微信')
+    expect(getPlatformName('3')).toBe('电话')
+    expect(getPlatformName('4')).toBe('Telegram')
+    expect(getPlatformName('9')).toBe('抖音')
   })
 
-  it('getPlatformName 未知类型返回 "未知"', () => {
-    expect(getPlatformName('99')).toBe('未知')
+  it('getPlatformName 未登记档位返回 "未知"', () => {
+    expect(getPlatformName('88')).toBe('未知')
   })
 
-  it('getPlatformMap 返回 4 个平台', () => {
+  it('getPlatformMap 返回全部 18 档', () => {
     const map = getPlatformMap()
-    expect(map).toHaveLength(4)
+    expect(map).toHaveLength(18)
     expect(map[0].value).toBe('1')
-    expect(map[3].label).toBe('快手')
+    expect(map[3].label).toBe('Telegram')
   })
 })
 
@@ -95,9 +100,10 @@ describe('map 工具 - 状态标签', () => {
 })
 
 describe('map 工具 - 线索渠道', () => {
-  it('getClueMap 返回 6 个渠道', () => {
+  it('getClueMap 与 getPlatformMap 同源，不再另存 6 档抄本', () => {
     const map = getClueMap()
-    expect(map).toHaveLength(6)
+    expect(map).toHaveLength(18)
+    expect(map.map((o) => o.value)).toEqual(getPlatformMap().map((o) => o.value))
   })
 
   it('getClueName 已知渠道正确', () => {
@@ -105,11 +111,11 @@ describe('map 工具 - 线索渠道', () => {
     expect(getClueName('2')).toBe('微信')
     expect(getClueName('3')).toBe('电话')
     expect(getClueName('4')).toBe('Telegram')
-    expect(getClueName('5')).toBe('Whatsapp')
-    expect(getClueName('6')).toBe('twitter')
+    expect(getClueName('5')).toBe('WhatsApp')
+    expect(getClueName('6')).toBe('Twitter/X')
   })
 
-  it('getClueName 未知类型返回 "未知"', () => {
-    expect(getClueName('99')).toBe('未知')
+  it('getClueName 未登记档位返回 "未知"', () => {
+    expect(getClueName('88')).toBe('未知')
   })
 })

@@ -204,7 +204,18 @@ func TestFallbackNilDB(t *testing.T) {
 //     在 NewSOPExecutionDispatcher 里定型，改完只对下次启动的进程生效。
 //   - 调度器没纳入参数中心的 MaxAttempts/InitialBackoff/MaxBackoff/BackoffMultiplier
 //     四项只从字面量提成常量（DefaultSOPDispatcher*），语义不变。
-const defaultParamDefsWant = 160
+//
+// 2026-10-10（第十次，阶段三 3.1 第四批）：+11 = domain_health 4 条 + rag_health 7 条。
+//   - domain_health：score_healthy / score_switch_threshold / consecutive_failure_limit
+//     / check_timeout。这四条是"看一眼分数就做决定"的类型，改错的结果不是性能问题而是
+//     "该切的没切"。除 check_timeout 在 http.Client 构造时定型（Restart=true）外都每请求读。
+//   - rag_health：default_window + 六维权重。六个权重按总和归一化后使用——
+//     report.Score 是六个 WeightedScore 直接相加（rag_health.go:132-136），不归一化
+//     的话运营把某一项调成 3 就会让总分超出 0-100、scoreToGrade 的分档全部错位。
+//     归一化后每个旋钮的语义就是干净的"相对比重"。
+//   - 六项全读不到或全被写成 0 时回落常量权重：那时 report.Weight 会是 0，
+//     任何维度看起来都是 0 分，比百分比失准更难排查。
+const defaultParamDefsWant = 171
 
 func TestDefaultParamDefsCount(t *testing.T) {
 	defs := DefaultParamDefs()

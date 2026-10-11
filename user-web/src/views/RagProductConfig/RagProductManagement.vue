@@ -356,8 +356,10 @@ const loadProducts = async () => {
       page: pagination.page,
       page_size: pagination.pageSize
     })
-    products.value = response.items || [];
-    pagination.total = response.total || 0
+    // 后端给的信封键是 list/total，原先只认 items ⇒ 恒取到 undefined，
+    // 库里 14 条产品在前端渲染成「暂无数据 + 共 0 条」。
+    products.value = response?.list || response?.items || [];
+    pagination.total = response?.total ?? products.value.length
   } catch (error) {
     ElMessage.error('加载RAG产品失败: ' + error.message)
   } finally {

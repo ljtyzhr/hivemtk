@@ -108,6 +108,7 @@
 import { ref, reactive, onMounted, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import { MagicStick, Right } from '@element-plus/icons-vue'
+import { copyToClipboard } from '@/utils/clipboard'
 import { geoApi } from '@/api/geo'
 
 const form = reactive({
@@ -196,10 +197,9 @@ const handleScore = async (stage) => {
 }
 
 const copyOptimized = async () => {
-  try {
-    await navigator.clipboard.writeText(optimizedContent.value)
+  if (await copyToClipboard(optimizedContent.value)) {
     ElMessage.success('已复制到剪贴板')
-  } catch {
+  } else {
     ElMessage.error('复制失败')
   }
 }

@@ -63,7 +63,11 @@
                   :preview-src-list="[form.cover_image]"
                   fit="cover"
                   class="cover-preview"
-                />
+                >
+                  <template #error>
+                    <div class="img-error-fallback">{{ $t('图片加载失败') }}</div>
+                  </template>
+                </el-image>
                 <el-icon v-else class="cover-uploader-icon"><Plus /></el-icon>
               </el-upload>
               <div class="cover-tip">点击上传封面图</div>

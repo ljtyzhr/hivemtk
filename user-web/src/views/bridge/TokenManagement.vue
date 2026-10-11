@@ -37,6 +37,7 @@
 import { onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getBridgeTokenStatus, resetBridgeToken } from '@/api/bridgeToken.js'
+import { copyToClipboard } from '@/utils/clipboard.js'
 
 const status = ref({})
 const newToken = ref('')
@@ -61,8 +62,12 @@ const onReset = async () => {
 }
 
 const copyToken = async () => {
-  await navigator.clipboard.writeText(newToken.value)
-  ElMessage.success('已复制')
+  const copied = await copyToClipboard(newToken.value)
+  if (copied) {
+    ElMessage.success('已复制')
+  } else {
+    ElMessage.warning('复制失败，请手动选择复制')
+  }
 }
 
 onMounted(loadStatus)

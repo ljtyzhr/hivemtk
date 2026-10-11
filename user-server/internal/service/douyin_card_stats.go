@@ -48,11 +48,31 @@ func (s *douyinCardStatsService) GetCardStats(ctx context.Context, req *dto.Douy
 
 	dailyStats := convertDouyinTempStats(tempStats)
 
+	// 单卡响应必须带 recentActivity：douyinCard/CardStats.vue 的「最近活动」表格正是绑它，
+	// 字段缺失时前端只能兜成空数组 ⇒ 表格永远「暂无数据」，看着像"这张卡没人看过"。
+	// 仓储的 GetRecentActivitiesByCard 早就在，只是这条链路没调它（快手单卡同形问题已按此补齐）。
+	recentResults, err := s.repo.GetRecentActivitiesByCard(ctx, req.CardID, 10)
+	if err != nil {
+		return nil, err
+	}
+	recentActivity := make([]dto.Activity, 0, len(recentResults))
+	for _, a := range recentResults {
+		recentActivity = append(recentActivity, dto.Activity{
+			ID:        a.ID,
+			CardID:    a.CardID,
+			Action:    a.Action,
+			Username:  a.Username,
+			IPAddress: a.IPAddress,
+			CreatedAt: a.CreatedAt.Format(time.RFC3339),
+		})
+	}
+
 	response := &dto.DouyinCardStatsResponse{
-		CardID:     req.CardID,
-		Title:      card.Title,
-		ViewCount:  int(views),
-		DailyStats: dailyStats,
+		CardID:         req.CardID,
+		Title:          card.Title,
+		ViewCount:      int(views),
+		DailyStats:     dailyStats,
+		RecentActivity: recentActivity,
 	}
 
 	return response, nil

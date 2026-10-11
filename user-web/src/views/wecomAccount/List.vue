@@ -231,6 +231,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Refresh, Plus, ArrowDown, Link, Promotion, RefreshRight, DataLine } from '@element-plus/icons-vue'
 import { wecomAccountApi } from '@/api/wecomAccount.js'
+import { copyToClipboard } from '@/utils/clipboard'
 import AgentBindingDialog from '@/components/AgentBindingDialog.vue'
 import WeComSendDialog from '@/components/WeComSendDialog.vue'
 import { getAccountStatusLabel, getAccountStatusTagType } from '@/constants/accountType';
@@ -267,10 +268,9 @@ const wecomCallbackUrl = computed(() => {
   return `${window.location.origin}/api/webhook/wecom/${editingId.value}`
 })
 const copyCallbackUrl = async () => {
-  try {
-    await navigator.clipboard.writeText(wecomCallbackUrl.value)
+  if (await copyToClipboard(wecomCallbackUrl.value)) {
     ElMessage.success('回调 URL 已复制')
-  } catch {
+  } else {
     ElMessage.error('复制失败，请手动复制')
   }
 }

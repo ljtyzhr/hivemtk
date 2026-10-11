@@ -20,8 +20,19 @@ import { createPinia } from 'pinia'
 
 const apiLogin = vi.hoisted(() => vi.fn())
 const routerPush = vi.hoisted(() => vi.fn())
+// 登录页在 <script setup> 顶层就发 GET /api/public/config（自助注册开关，未登录可取）。
+// 不桩掉 @/utils/request 的话，jsdom 里那条请求拿不到响应，走 request.js 的
+// error.request 分支弹一条「网络超时」红条 —— 于是"校验不通过 ⇒ 零红条"这条判据
+// 量的其实是这条后台配置请求，而不是登录分支。桩成"开关关"，让页面停在登录态。
+const httpGet = vi.hoisted(() => vi.fn().mockResolvedValue({ data: { enable_register: false } }))
+const httpPost = vi.hoisted(() => vi.fn())
 
 vi.mock('@/api/users', () => ({ usersApi: { login: apiLogin } }))
+vi.mock('@/utils/request', () => ({
+  default: vi.fn(),
+  http: { get: httpGet, post: httpPost },
+  getRequestInstance: () => ({ interceptors: { response: { use: vi.fn() } } })
+}))
 vi.mock('vue-router', () => ({
   useRouter: () => ({ push: routerPush }),
   useRoute: () => ({ path: '/login', query: {} })
@@ -104,14 +115,16 @@ describe('Login.vue：漏填≠登录失败，真失败仍要出声', () => {
     expect(errorToasts()).toEqual([])
   })
 
-  it('校验通过：按 {username, password} 发一次请求，成功后存令牌并跳首页', async () => {
+  it('校验通过：发一次登录请求，成功后存令牌并跳首页', async () => {
     apiLogin.mockResolvedValue({ token: 'jwt-1', user: { id: 1, role: 'admin' } })
     const wrapper = mountLogin(() => Promise.resolve(true))
     await fill(wrapper)
     await clickLogin(wrapper)
 
     expect(apiLogin).toHaveBeenCalledTimes(1)
-    expect(apiLogin.mock.calls[0][0]).toEqual({ username: VALID.username, password: VALID.password })
+    // handleLogin 把整个 loginForm 交出去，而 loginForm 自自助注册起是三字段；
+    // 登录态下邮箱输入框不渲染（v-if mode==='register'），所以带出去的是空串。
+    expect(apiLogin.mock.calls[0][0]).toEqual({ username: VALID.username, password: VALID.password, email: '' })
     expect(routerPush).toHaveBeenCalledWith('/')
     expect(errorToasts()).toEqual([])
     expect(successToasts()).toEqual([t('core.login.success')])

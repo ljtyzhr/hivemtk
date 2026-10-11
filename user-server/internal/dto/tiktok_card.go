@@ -80,6 +80,9 @@ type TikTokCardActivityItem struct {
 	CardTitle string `json:"card_title"`
 	Action    string `json:"action"`
 	Username  string `json:"username"`
+	// IPAddress 与抖音/快手/小红书单卡响应的 dto.Activity 对齐：前端
+	// tiktokCard/CardStats.vue 的「最近活动」表有 IP地址 列，字段不给就是恒空白列。
+	IPAddress string `json:"ip_address"`
 	CreatedAt string `json:"created_at"`
 }
 

@@ -15,23 +15,28 @@ import { http } from '@/utils/request'
 const base = '/api/followups'
 const seg = (id) => encodeURIComponent(id)
 
+// 三条读口带 _silent，与 api/orderDraft.js 同口径：它们的失败在页面里有常驻
+// 告警位（503=底座未装配、其他=describeError 给的具体文案），拦截器再弹一条会
+// 用固定的「服务器内部错误」把页面那句真话盖掉。写口（完成/取消）照旧出声。
+const SILENT = { _silent: true }
+
 export const followupApi = {
   // 今日日历：date 可选（YYYY-MM-DD，缺省后端取今天）。
   today(ownerId, date) {
     const params = { owner_id: ownerId }
     if (date) params.date = date
-    return http.get(`${base}/today`, params)
+    return http.get(`${base}/today`, params, SILENT)
   },
 
   // 全部待办：limit 可选（后端缺省 50，给了必须 1..500）。
   pending(ownerId, limit) {
     const params = { owner_id: ownerId }
     if (limit) params.limit = limit
-    return http.get(`${base}/pending`, params)
+    return http.get(`${base}/pending`, params, SILENT)
   },
 
   overdue(ownerId) {
-    return http.get(`${base}/overdue`, { owner_id: ownerId })
+    return http.get(`${base}/overdue`, { owner_id: ownerId }, SILENT)
   },
 
   // 完成跟进：result 七选一（contacted/interested/quoted/converted/rejected/

@@ -126,6 +126,7 @@ import { ElMessage } from 'element-plus'
 import { EditPen, DocumentCopy, DataAnalysis } from '@element-plus/icons-vue'
 import { geoApi } from '@/api/geo'
 import { http } from '@/utils/request'
+import { copyToClipboard } from '@/utils/clipboard'
 
 const models = ref([])
 
@@ -225,10 +226,9 @@ const handleScore = async () => {
 }
 
 const copyContent = async () => {
-  try {
-    await navigator.clipboard.writeText(generatedContent.value)
+  if (await copyToClipboard(generatedContent.value)) {
     ElMessage.success('已复制到剪贴板')
-  } catch {
+  } else {
     ElMessage.error('复制失败，请手动选择文本复制')
   }
 }

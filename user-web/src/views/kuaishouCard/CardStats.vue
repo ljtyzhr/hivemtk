@@ -3,7 +3,7 @@
     <el-card class="box-card">
       <template #header>
         <div class="card-header">
-          <span>快手卡片统计 - {{ cardInfo.title ?? '加载中...' }}</span>
+          <span>快手卡片统计 - {{ cardInfo.title ?? (cardLoadFailed ? '加载失败' : '加载中...') }}</span>
           <div class="header-actions">
             <el-button @click="goBack">{{ $t('返回') }}</el-button>
             <el-date-picker
@@ -24,16 +24,31 @@
         </div>
       </template>
 
+      <el-alert
+        v-if="cardLoadFailed || statsLoadFailed"
+        class="stats-alert"
+        type="warning"
+        show-icon
+        :closable="false"
+        :title="cardLoadFailed ? '这张卡片读不到了' : '统计数据读取失败'"
+        :description="cardLoadFailed ? '卡片已被删除，或链接里的 id 不属于当前账号。下方的 0 与空图是「没读到」，不是「真的没有」。' : '卡片本身还在，但这一轮的统计没读到。下方的 0 与空图是「没读到」，不是「真的没有」——请点「刷新」重试。'"
+      />
+
       
       <div class="card-info-section" v-if="cardInfo.id">
         <el-row :gutter="20">
           <el-col :span="6">
-            <el-image 
-              style="width: 100%; height: 200px" 
-              :src="cardInfo.image_url" 
+            <el-image
+              v-if="cardInfo.image_url"
+              style="width: 100%; height: 200px"
+              :src="cardInfo.image_url"
               :preview-src-list="[cardInfo.image_url]"
               fit="cover"
-            />
+            >
+              <template #error>
+                <div class="img-error-fallback">{{ $t('图片加载失败') }}</div>
+              </template>
+            </el-image>
           </el-col>
           <el-col :span="18">
             <el-descriptions :column="2" border>
@@ -57,7 +72,7 @@
           <el-col :span="24">
             <el-card class="stats-card">
               <div class="stats-item">
-                <div class="stats-value">{{ formatNumber(cardStats.view_count) }}</div>
+                <div class="stats-value">{{ formatNumber(cardStats.totalViews) }}</div>
                 <div class="stats-label">总浏览量</div>
               </div>
             </el-card>
@@ -100,10 +115,10 @@
                     </el-tag>
                   </template>
                 </el-table-column>
-                <el-table-column prop="ip_address" label="IP地址" />
-                <el-table-column prop="created_at" label="时间">
+                <el-table-column prop="ipAddress" label="IP地址" />
+                <el-table-column prop="createdAt" label="时间">
                   <template #default="scope">
-                    {{ formatDate(scope.row.created_at) }}
+                    {{ formatDate(scope.row.createdAt) }}
                   </template>
                 </el-table-column>
               </el-table>
@@ -116,11 +131,8 @@
 </template>
 
 <script setup>
-import i18n from '@/i18n'
-
-import { ref, reactive, onMounted, nextTick } from 'vue'
+import { ref, reactive, onMounted, onBeforeUnmount, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
 import * as echarts from 'echarts'
 import { safeInit } from '@/utils/echarts'
 import { getKuaishouCard, getKuaishouCardStats } from '@/api/kuaishouCard'
@@ -131,13 +143,19 @@ const router = useRouter()
 const loading = ref(false);
 const cardId = ref(route.params.id)
 const cardInfo = ref({})
+// 模板头部的「加载失败」与告警条都要有真值可依：这两个 ref 先前只在模板里出现、
+// script 里从未声明，于是 v-if 恒假、头部永远停在「加载中...」。
+const cardLoadFailed = ref(false)
+const statsLoadFailed = ref(false)
 const dateRange = ref([])
 const groupBy = ref('day')
 
 const cardStats = reactive({
   cardId: 0,
-  title: '',
-  viewCount: 0,
+  cardTitle: '',
+  // 键名跟响应走：dto/kuaishoucardstats.go 的单卡响应是 totalViews（不是抖音的 viewCount，
+  // 也不是本文件原来写的 view_count），原先三个名字互不认账 ⇒ 「总浏览量」这一格恒 0。
+  totalViews: 0,
   dailyStats: [],
   recentActivity: []
 });
@@ -148,26 +166,39 @@ let visitChartInstance = null
 const fetchCardInfo = async () => {
   try {
     const res = await getKuaishouCard(cardId.value)
-    cardInfo.value = res;
+    cardInfo.value = res || {}
+    cardLoadFailed.value = !res?.id
   } catch (error) {
-    ElMessage.error(i18n.global.t('获取卡片信息失败'))
-    console.error('获取快手卡片信息失败:', error)
+    // 拦截器已经按状态码弹过一次，这里再弹一条是两句同义 toast；
+    // 页面用常驻的 cardLoadFailed 说结论——toast 三秒就没了，头部的「加载中...」不会。
+    cardInfo.value = {}
+    cardLoadFailed.value = true
+    console.error(error)
   }
 };
 
 const fetchCardStats = async () => {
   try {
-    const params = {}
-    
-    if (dateRange.value && dateRange.value.length === 2) {
-      params.start_date = formatDate(dateRange.value[0])
-      params.end_date = formatDate(dateRange.value[1])
+    const params = {
+      groupBy: groupBy.value
     }
     
-    params.group_by = groupBy.value;
+    if (dateRange.value && dateRange.value.length === 2) {
+      // 快手这条接口和抖音/小红书不一样：dto.KuaishouCardStatsRequest 的 StartDate/EndDate 是
+      // time.Time 且没挂 time_format，gin 只按 RFC3339 解析。原来这里发的是 start_date=2026-09-11
+      // 这种 snake + 纯日期：键名不绑定（日期区间控件是个哑控件），改成 camel 的纯日期又会 400。
+      // 带毫秒的 Z 形 ISO 串两端都成立，实测 http=200 且区间真生效。
+      params.startDate = new Date(dateRange.value[0]).toISOString()
+      // 选择器回的是当天 00:00 的 Date：直接发出去会把结束日那天的浏览全 cut 掉，
+      // 所以右端要抬到当天末尾，让区间是闭区间。
+      const rangeEnd = new Date(dateRange.value[1])
+      rangeEnd.setHours(23, 59, 59, 999)
+      params.endDate = rangeEnd.toISOString()
+    }
     
     const res = await getKuaishouCardStats(cardId.value, params)
     Object.assign(cardStats, res);
+    statsLoadFailed.value = false
     if (!Array.isArray(cardStats.dailyStats))
       cardStats.dailyStats = [];
     if (!Array.isArray(cardStats.recentActivity)) cardStats.recentActivity = []
@@ -176,8 +207,9 @@ const fetchCardStats = async () => {
       initCharts()
     });
   } catch (error) {
-    ElMessage.error(i18n.global.t('获取统计数据失败'))
-    console.error('获取快手卡片统计失败:', error)
+    // 同上：统计读失败时拦截器已经出声，页面把「这一屏的 0 不是真值」常驻说出口。
+    statsLoadFailed.value = true
+    console.error(error)
   }
 };
 
@@ -201,7 +233,9 @@ const initCharts = () => {
       xAxis: {
         type: 'category',
         boundaryGap: false,
-        data: cardStats.dailyStats.map(item => item.date)
+        // dto.DailyStat.date 在快手这条链路上是完整时间戳（"2026-09-30T00:00:00Z"），
+        // 抖音那条是 YYYY-MM-DD。直接喂给类目轴会让横轴印一长串 ISO，这里统一截成日期。
+        data: cardStats.dailyStats.map(item => formatDate(item.date))
       },
       yAxis: {
         type: 'value'
@@ -211,7 +245,7 @@ const initCharts = () => {
           name: '浏览量',
           type: 'line',
           smooth: true,
-          data: cardStats.dailyStats.map(item => item.view_count),
+          data: cardStats.dailyStats.map(item => item.view),
           itemStyle: {
             color: '#2684FF'
           },
@@ -226,10 +260,10 @@ const initCharts = () => {
     }
     visitChartInstance.setOption(visitOption)
   }
-
-  window.addEventListener('resize', handleResize);
 };
 
+// 监听器只在 onMounted 注册一次（原先挂在 initCharts 里，每次刷新都调一遍）：
+// handleResize 引用稳定时浏览器会去重，但卸载时也必须能按同一个引用摘掉。
 const handleResize = () => {
   if (visitChartInstance) visitChartInstance.resize()
 };
@@ -286,15 +320,19 @@ onMounted(async () => {
   const startDate = new Date()
   startDate.setDate(startDate.getDate() - 30)
   dateRange.value = [startDate, endDate]
+
+  window.addEventListener('resize', handleResize)
   
   await fetchCardInfo();
   await fetchCardStats()
 });
 
-import { onUnmounted } from 'vue';
-onUnmounted(() => {
+onBeforeUnmount(() => {
   window.removeEventListener('resize', handleResize)
-  if (visitChartInstance) visitChartInstance.dispose()
+  if (visitChartInstance) {
+    visitChartInstance.dispose()
+    visitChartInstance = null
+  }
 })
 </script>
 
@@ -317,6 +355,10 @@ onUnmounted(() => {
 
 .card-info-section {
   margin-bottom: 30px;
+}
+
+.stats-alert {
+  margin-bottom: 16px;
 }
 
 .stats-overview {

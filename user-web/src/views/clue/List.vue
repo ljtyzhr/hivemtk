@@ -96,7 +96,7 @@
     
     <el-card class="table-card" shadow="never">
       <el-table
-        :data="filteredList"
+        :data="cluelist"
         v-loading="loading"
         stripe
         :empty-text="$t('暂无线索数据')"
@@ -113,25 +113,27 @@
         <el-table-column prop="address" label="地址" min-width="180" show-overflow-tooltip />
         <el-table-column label="来源" min-width="120" show-overflow-tooltip>
           <template #default="{ row }">
-            <el-tag :type="getChannelTagType(row.source)" effect="plain" size="small">
-              {{ getChannelLabel(row.source) || row.source || '-' }}
+            <el-tag :type="getChannelTagType(row.source_id)" effect="plain" size="small">
+              {{ getChannelLabel(row.source_id) || row.source_id || '-' }}
             </el-tag>
           </template>
         </el-table-column>
         <el-table-column label="验证状态" min-width="100" align="center">
           <template #default="{ row }">
-            <el-tag :type="(row.is_verify ?? row.verified) >= 1 ? 'success' : 'info'" size="small">
-              {{ (row.is_verify ?? row.verified) >= 1 ? '已验证' : '未验证' }}
+            <el-tag :type="row.is_verify >= 1 ? 'success' : 'info'" size="small">
+              {{ row.is_verify >= 1 ? '已验证' : '未验证' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="created_at" label="创建时间" min-width="170" show-overflow-tooltip>
-          <template #default="{ row }">{{ formatTime(row.created_at || row.createdAt) }}</template>
+        <el-table-column prop="create_time" label="创建时间" min-width="170" show-overflow-tooltip>
+          <template #default="{ row }">{{ formatTime(row.create_time) }}</template>
         </el-table-column>
-        <el-table-column prop="last_follow_at" label="最后跟进" min-width="170" show-overflow-tooltip>
-          <template #default="{ row }">{{ formatTime(row.last_follow_at || row.lastFollowAt) }}</template>
+        <el-table-column prop="updated_at" label="最后跟进" min-width="170" show-overflow-tooltip>
+          <template #default="{ row }">{{ formatTime(row.updated_at) }}</template>
         </el-table-column>
-        <el-table-column prop="assignee" label="跟进人" min-width="120" show-overflow-tooltip />
+        <el-table-column prop="owner_account" label="跟进人" min-width="120" show-overflow-tooltip>
+          <template #default="{ row }">{{ row.owner_account || '-' }}</template>
+        </el-table-column>
         <el-table-column label="操作" min-width="200" fixed="right">
           <template #default="{ row }">
             <el-button link type="primary" size="small" @click="viewClue(row)">查看</el-button>
@@ -189,10 +191,11 @@
         <el-descriptions-item label="类型">{{ getClueType(current.type) }}</el-descriptions-item>
         <el-descriptions-item label="城市">{{ current.city || '-' }}</el-descriptions-item>
         <el-descriptions-item label="地址">{{ current.address || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="来源">{{ getChannelLabel(current.source) || current.source || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="验证">{{ (current.is_verify ?? current.verified) >= 1 ? '已验证' : '未验证' }}</el-descriptions-item>
-        <el-descriptions-item label="创建时间">{{ formatTime(current.created_at || current.createdAt) }}</el-descriptions-item>
-        <el-descriptions-item label="跟进人">{{ current.assignee || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="来源">{{ getChannelLabel(current.source_id) || current.source_id || '-' }}</el-descriptions-item>
+        <el-descriptions-item label="验证">{{ current.is_verify >= 1 ? '已验证' : '未验证' }}</el-descriptions-item>
+        <el-descriptions-item label="创建时间">{{ formatTime(current.create_time) }}</el-descriptions-item>
+        <el-descriptions-item label="最后跟进">{{ formatTime(current.updated_at) }}</el-descriptions-item>
+        <el-descriptions-item label="跟进人">{{ current.owner_account || '-' }}</el-descriptions-item>
       </el-descriptions>
     </el-dialog>
   </div>
@@ -201,7 +204,7 @@
 <script setup>
 import i18n from '@/i18n'
 
-import { ref, reactive, computed, onMounted } from 'vue'
+import { ref, reactive, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Search, Refresh, RefreshRight, Upload } from '@element-plus/icons-vue'
 import { clueApi } from '@/api/clue'
@@ -223,34 +226,6 @@ const filterForm = reactive({
 });
 const dateRange = ref([])
 
-const filteredList = computed(() => {
-  let arr = cluelist.value.slice()
-  const k = (filterForm.keyword || '').trim().toLowerCase()
-  if (k) {
-    arr = arr.filter(
-      (c) =>
-        (c.name || '').toLowerCase().includes(k) ||
-        (c.account || '').toLowerCase().includes(k) ||
-        (c.city || '').toLowerCase().includes(k) ||
-        (c.address || '').toLowerCase().includes(k)
-    )
-  }
-  if (filterForm.type) {
-    arr = arr.filter((c) => String(c.type) === String(filterForm.type))
-  }
-  if (filterForm.verified !== '' && filterForm.verified !== null) {
-    arr = arr.filter((c) => Number(c.is_verify ?? c.verified) === Number(filterForm.verified))
-  }
-  if (Array.isArray(dateRange.value) && dateRange.value.length === 2) {
-    const [s, e] = dateRange.value
-    arr = arr.filter((c) => {
-      const t = (c.created_at || c.createdAt || '').slice(0, 10)
-      return t >= s && t <= e
-    })
-  }
-  return arr
-});
-
 const getClueType = (type) => getClueTypeLabel(type)
 
 const handlePageChange = (val) => {
@@ -263,6 +238,22 @@ const handleSizeChange = (val) => {
   cluelimit.value = val
   cluepage.value = 1
   fetchCluelist()
+}
+
+// 筛选必须下推到后端：客户端只能过滤已经加载的那一页，
+// 选中库里真有 29 条的类型也会显示「暂无线索数据」。
+const buildFilterQuery = () => {
+  const q = {}
+  const kw = (filterForm.keyword || '').trim()
+  if (kw) q.keyword = kw
+  if (filterForm.type !== '' && filterForm.type !== null) q.type = filterForm.type
+  if (filterForm.verified !== '' && filterForm.verified !== null) q.is_verify = filterForm.verified
+  if (Array.isArray(dateRange.value) && dateRange.value.length === 2) {
+    const [s, e] = dateRange.value
+    q.start = Math.floor(new Date(`${s}T00:00:00`).getTime() / 1000)
+    q.end = Math.floor(new Date(`${e}T23:59:59`).getTime() / 1000)
+  }
+  return q
 }
 
 const handleSearch = () => {
@@ -283,7 +274,7 @@ const fetchCluelist = async () => {
   if (loading.value) return
   loading.value = true
   try {
-    const res = await clueApi.list(cluepage.value, cluelimit.value)
+    const res = await clueApi.list(cluepage.value, cluelimit.value, buildFilterQuery())
     cluelist.value = res.list || []
     cluetotal.value = res.total || 0
     refreshStats()
@@ -296,14 +287,23 @@ const fetchCluelist = async () => {
   }
 }
 
-const refreshStats = () => {
-  const list = cluelist.value || []
-  const today = new Date().toISOString().slice(0, 10)
+// 统计卡是全局口径（标签写的是「线索总数/已验证/未验证/今日新增」），
+// 不能拿当前这一页（10 条）去数 —— 那样「未验证」永远最多 10。
+const refreshStats = async () => {
+  const todayStart = new Date()
+  todayStart.setHours(0, 0, 0, 0)
+  const [st, today] = await Promise.all([
+    clueApi.statistics().catch(() => []),
+    clueApi.list(1, 1, { start: Math.floor(todayStart.getTime() / 1000) }).catch(() => null)
+  ])
+  const rows = Array.isArray(st) ? st : (st?.list || [])
+  const total = rows.reduce((s, x) => s + (x.total || 0), 0)
+  const verified = rows.reduce((s, x) => s + (x.verify_total || 0), 0)
   stats.value = {
-    total: cluetotal.value || list.length,
-    verified: list.filter((c) => (c.is_verify ?? c.verified) >= 1).length,
-    unverified: list.filter((c) => (c.is_verify ?? c.verified) < 1).length,
-    today: list.filter((c) => (c.created_at || c.createdAt || '').slice(0, 10) === today).length
+    total,
+    verified,
+    unverified: total - verified,
+    today: today?.total || 0
   }
 }
 
@@ -401,7 +401,8 @@ const handleTypeChange = (value) => {
 const formatTime = (val) => {
   if (!val) return '-'
   try {
-    const d = new Date(val)
+    // create_time / updated_at 是 unix 秒；直接 new Date(秒) 会落回 1970
+    const d = new Date(typeof val === 'number' && val < 1e12 ? val * 1000 : val)
     if (Number.isNaN(d.getTime())) return val
     const pad = (n) => String(n).padStart(2, '0')
     return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}`

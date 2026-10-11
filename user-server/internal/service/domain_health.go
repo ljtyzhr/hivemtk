@@ -52,7 +52,9 @@ type HealthCheckResult struct {
 	ActionTaken  string    `json:"action_taken"`
 }
 
-// 评分阈值（导出常量，供测试断言使用）
+// 评分阈值（导出常量，供测试断言使用）。这四个常量现在只是兜底值：运行时读的是
+// health_weights_runtime_params.go 里的 domain_health 组（除 HealthCheckTimeout 在
+// http.Client 构造时定型、种子标 Restart=true 外，其余三条每请求读）。
 const (
 	HealthScoreSwitchThreshold = 30
 	HealthScoreHealthy         = 80
@@ -77,7 +79,7 @@ func NewDomainHealthService(db interface{}, repo repository.DomainPoolRepository
 		repo:        repo,
 		logRepo:     repository.NewDomainHealthLogRepository(nil),
 		blacklistR:  blRepo,
-		httpClient:  &http.Client{Timeout: HealthCheckTimeout},
+		httpClient:  &http.Client{Timeout: domainHealthCheckTimeout(context.Background())},
 		probeTarget: "/",
 	}
 }
@@ -94,7 +96,7 @@ func NewDomainHealthServiceWithDeps(repo repository.DomainPoolRepository, logRep
 		repo:        repo,
 		logRepo:     logRepo,
 		blacklistR:  blRepo,
-		httpClient:  &http.Client{Timeout: HealthCheckTimeout},
+		httpClient:  &http.Client{Timeout: domainHealthCheckTimeout(context.Background())},
 		probeTarget: "/",
 	}
 }
@@ -156,7 +158,7 @@ func (s *domainHealthService) checkAndPersist(ctx context.Context, dp *model.Dom
 	if !probe.DNSOK || !probe.HTTPOk || blacklisted || score == 0 {
 		newStatus = 2
 		action = "mark_unhealthy"
-	} else if score >= HealthScoreHealthy && newStatus != 1 {
+	} else if score >= domainHealthScoreHealthy(ctx) && newStatus != 1 {
 		newStatus = 1
 	}
 
@@ -196,7 +198,7 @@ func (s *domainHealthService) checkAndPersist(ctx context.Context, dp *model.Dom
 	}
 
 	if dp.AutoSwitchEnabled {
-		if dp.IsActive && (score < HealthScoreSwitchThreshold || failures >= ConsecutiveFailureLimit) {
+		if dp.IsActive && (score < domainHealthScoreSwitchThreshold(ctx) || failures >= domainHealthConsecutiveFailureLimit(ctx)) {
 			if _, err := s.SwitchToBest(ctx, fmt.Sprintf("健康度自动切换: score=%d failures=%d", score, failures)); err != nil {
 				logger.Errorf("自动切换失败: %v", err)
 			} else {
@@ -309,7 +311,7 @@ func (s *domainHealthService) SwitchActive(ctx context.Context, domainID int, re
 	if dp.OnBlacklist {
 		return errors.New("域名在黑名单中，禁止切换")
 	}
-	if dp.HealthScore < HealthScoreHealthy {
+	if dp.HealthScore < domainHealthScoreHealthy(ctx) {
 		return fmt.Errorf("域名健康度过低（%d），禁止切换", dp.HealthScore)
 	}
 	if err := s.repo.DeactivateAll(ctx); err != nil {
@@ -320,12 +322,12 @@ func (s *domainHealthService) SwitchActive(ctx context.Context, domainID int, re
 }
 
 func (s *domainHealthService) SwitchToBest(ctx context.Context, reason string) (*model.DomainPool, error) {
-	candidates, err := s.repo.ListAvailable(ctx, HealthScoreHealthy)
+	candidates, err := s.repo.ListAvailable(ctx, domainHealthScoreHealthy(ctx))
 	if err != nil {
 		return nil, err
 	}
 	if len(candidates) == 0 {
-		return nil, errors.New("无可用域名（健康度 >= " + strconv.Itoa(HealthScoreHealthy) + " 且未在黑名单）")
+		return nil, errors.New("无可用域名（健康度 >= " + strconv.Itoa(domainHealthScoreHealthy(ctx)) + " 且未在黑名单）")
 	}
 	best := candidates[0]
 	actives, _ := s.repo.ListActive(ctx)
@@ -358,7 +360,7 @@ func (s *domainHealthService) GetActiveDomain(ctx context.Context) (*model.Domai
 
 func (s *domainHealthService) ListAvailable(ctx context.Context, minScore int) ([]*model.DomainPool, error) {
 	if minScore <= 0 {
-		minScore = HealthScoreHealthy
+		minScore = domainHealthScoreHealthy(ctx)
 	}
 	return s.repo.ListAvailable(ctx, minScore)
 }
