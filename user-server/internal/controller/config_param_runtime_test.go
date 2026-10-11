@@ -163,10 +163,17 @@ func TestRuntimeReadsRealValues(t *testing.T) {
 	service.SetGlobalForTest(svc)
 	t.Cleanup(func() { service.SetGlobalForTest(nil) })
 
-	// pagination 组在种子里存在，取其一条改掉再读。
+	// 取一条**不在 runtimePublicKeys 排除清单里**的 pagination 种子来改。
+	// 排除清单里那两条（page_max_size / page_default_size）是故意的：它们的后端
+	// 消费点为 0（ParsePagination 全树只有测试调用），给前端等于给一个改了没人读的
+	// 旋钮。取下一条是为了证明"白名单里的键真的能读到改后的值"，而不是撞上排除。
 	var p model.ConfigParam
-	if err := database.Where("param_group = ?", "pagination").First(&p).Error; err != nil {
-		t.Fatalf("pagination 组无种子：%v", err)
+	if err := database.Where("param_group = ? AND key = ?", "pagination", "cursor_page_size").
+		First(&p).Error; err != nil {
+		t.Fatalf("pagination.cursor_page_size 无种子：%v", err)
+	}
+	if _, excluded := runtimePublicKeys["pagination."+p.Key]; excluded {
+		t.Fatal("cursor_page_size 不应在排除清单里")
 	}
 	orig := p.Value
 	defer func() {

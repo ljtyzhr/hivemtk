@@ -923,3 +923,57 @@ ConfigParams 路由一直标了 `requiresAdmin: true`，两端口径不一致，
 - 前端：**`vitest run` 53 个文件 582 例全绿**（新增 `tests/unit/runtimeConfigStore.test.js`
   10 例，覆盖三种坏输入 × 四个读取口 + 截断顺序 + 秒→毫秒 + 非对象响应）；
   `eslint` **0 errors**（18687 warnings 是仓内既有基线）；`vite build` 通过。
+
+#### 4.1~4.3 已落地（2026-10-11）：业务字典两表 + 种子 + 前后端读取
+
+**与 `config_params` 的分界（这是两套机制并行以来第一次把边界写下来）**：
+
+| | 管什么 | 一个 key 对应 |
+| --- | --- | --- |
+| `config_params` | 「这一个旋钮拧到几」 | 一个标量值（int/float/bool/duration/string） |
+| `dictionaries` | 「有哪几种状态」「A 能不能到 B」 | 一组枚举项 + 一组跃迁 |
+
+不让字典寄生在参数中心上的理由：一个 5 状态的审批流要 5 条 string 参数 + 一张 10 行的
+有序二元组，而参数中心既没有顺序也没有「成组」的概念，翻出来是 15 行平铺记录，
+运维看不出它们是一套。字典表用 `parent_code` 分层表达「选项」与「跃迁」两种行，
+一次查询就能拿到整张状态机。
+
+**五层全套**（Model/Repository/Service/Controller/Router）：
+- `internal/model/dictionary.go`：`Dictionary` + `DictionaryTransition`。复合唯一
+  `(parent_code, code)` 而不是单列——不同域完全可能各有一个 `pending`
+  （`approval_status.pending` 与 `bad_case_status.pending` 是两条合法行），
+  单列唯一会逼着人给键名加域前缀，那正是 config_params 在 v3.47.0 之前踩过的坑。
+- `internal/service/dictionary_seeds.go`：5 个状态域种子（approval_status /
+  bad_case_status / human_task_status / opportunity_stage / payment_status），
+  共 21 项 + 22 条跃迁，与 `model/*.go` 的常量逐字对应。
+- 建表走 `RegisterExtraModels`（AutoMigrate），**没有写 migration**。
+
+**读取口径：DB 优先，DB 没有这一批就回落 Go 种子。** 不反过来（常量优先、DB 只做覆盖），
+因为字典描述的是**存量行正在用的值域**——历史数据里躺着的状态码必须一直在册，
+否则前端翻译存量值时会翻车。回落常量还保证「没配过字典的站点行为与今天逐字节一致」。
+
+**与 config_params 种子不同的一点**：那边的 DefaultValue 是「没人配置时的行为」，
+可随代码演进调整；这边的种子是**存量数据的值域**，删一项等于让历史行变成非法值。
+因此字典种子只增不改，要停用一项走 `Enabled=false`，不删行。`SystemLocked` 标记的项
+管理端不能改名或停用（代码是权威的那一侧）。
+
+**4.3 的受控边界（没有把前端 24 个字典全搬）**：
+`src/constants/*.js` 那 24 个是含 `label/tagType/sort/group` 的**富展示对象**，
+与后端字典表的 `code/name/description/sort_order` 不是同一种东西。全量搬要么给后端
+加一堆展示专用列，要么前端丢掉 tagType（筛选色就没了）。所以只做三件事：
+1. 建后端只读端点 `GET /api/config/dictionaries/:parent`（挂 plainAuth）+ 管理端 CRUD
+   （挂 admin），两条返回体一致、只差鉴权。
+2. 建前端 `useDictionaryStore`，口径与后端一致（DB 优先 → 回落本地），失败静默回落，
+   且**不写进 loaded**（否则后端恢复后前端会永久用本地常量）。
+3. 剩下 21 个纯展示字典保持本地，在文档里记明边界。
+
+**顺带修掉一个 3.2 引入的测试样本错误**：`TestRuntimeReadsRealValues` 原本取
+`pagination` 组第一条，而该组前两条恰好落在 `runtimePublicKeys` 排除清单里
+（后端消费点为 0，故意不下发）。那是排除逻辑按设计工作，不是 bug——测试改取
+`pagination.cursor_page_size`（明确断言它不在排除清单里）。
+
+**验证**：干净 worktree `/tmp/hivemtk_v29`（@`5de6b1d4`）gofmt 空、`go build ./...`、
+`go vet` 全过；`internal/service`(427.641s) / `controller`(108.689s) /
+`router`(15.952s) / `repository`(90.585s) / `migration/...` **全绿**。
+前端 `vitest run` **54 文件 590 例全绿**（新增 `tests/unit/dictionaryStore.test.js` 8 例）。
+门禁读数不变（`wired 198`，rc=0）——本批不新增 config_params 键。

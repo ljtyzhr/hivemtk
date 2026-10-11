@@ -12,3 +12,22 @@ import { http } from '@/utils/request'
 export function runtimeConfig(groups) {
   return http.get('/api/config/runtime', { params: groups ? { groups } : {} })
 }
+
+// 业务字典（后端 dictionaries 表，阶段四）。
+//
+// 为什么只有一个入口而不是每个页面自己拼 URL：字典是「存量行的值域」——
+// 前后端必须读同一份，否则前端按本地常量翻译、后端按库里值域判定，两边对同一行的
+// 结论会不一致。管理端 CRUD 走 `dictionariesApi`（挂在 admin 鉴权下），
+// 终端页面读值域走 `dictionary(parent)`（走只读白名单端点）。
+export function dictionary(parent) {
+  return http.get(`/api/config/dictionaries/${encodeURIComponent(parent)}`)
+}
+
+// 管理端字典 CRUD（admin 鉴权）。
+export const dictionariesApi = {
+  listParents: () => http.get('/api/manage/dictionaries'),
+  get: (parent) => http.get(`/api/manage/dictionaries/${encodeURIComponent(parent)}`),
+  upsertItem: (parent, item) => http.put(`/api/manage/dictionaries/${encodeURIComponent(parent)}/items`, item),
+  replaceTransitions: (parent, transitions) =>
+    http.put(`/api/manage/dictionaries/${encodeURIComponent(parent)}/transitions`, { transitions }),
+}

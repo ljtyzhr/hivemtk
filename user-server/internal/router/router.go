@@ -458,6 +458,9 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 		// plainAuth 只挂只读的 Runtime；五个全量/写端点走 admin 组（见 config_param_routes.go）
 		setupConfigParamRoutes(auth, systemAdmin, gormDB)
 
+		// 业务字典（阶段四）。与参数中心同级：只挂 admin，路由文件里说明为什么不是普通运维该碰的。
+		setupDictionaryRoutes(auth, systemAdmin, gormDB)
+
 		setupRoleRoutes(auth)
 
 		setupPermissionRoutes(auth)

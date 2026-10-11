@@ -336,6 +336,10 @@ func allModels() []any {
 		&model.ExternalKBSyncItem{},
 		&model.ConfigParam{},
 		&model.ConfigParamAuditLog{},
+
+		// 业务字典（阶段四）：与 config_params 同级登记，AutoMigrate 建表。
+		&model.Dictionary{},
+		&model.DictionaryTransition{},
 		&model.CustomerChannel{},
 		// HumanTask（表 human_tasks）：T-P3-03 / N-9 统一人工待办，三类 kind 共用一张表。
 		// 写入路径有两条且都已接线：repository.humanTaskRepo.Insert（转人工投递）与

@@ -403,3 +403,45 @@ alignment 五维应合并成 1 张 `alignment_dimension_weight` 字典项，不�
    捕获调用那一刻的 `db.GetDB()`，为 nil 时 `Get` 会 **panic 而非返回 error**。
 
 以上 4 项属**实施阶段的前置修复**，详见 `docs/CONFIG_DB_DRIVEN_PLAN.md` §4 阶段 0。
+
+### 3.1 F 桶落地进展（2026-10-11，阶段 4.1~4.3）
+
+已在 `dictionaries` / `dictionary_transitions` 两表落地 **5 个状态机域**（21 项 + 22 条跃迁），
+与 `model/*.go` 常量逐字对应：
+
+| parent_code | 项 | 跃迁 |
+| --- | --- | --- |
+| `approval_status` | 4（pending/approved/rejected/expired） | 3 |
+| `bad_case_status` | 3（pending/labeled/exported） | 2 |
+| `human_task_status` | 5（open/assigned/in_progress/completed/cancelled） | 6 |
+| `opportunity_stage` | 6（lead/qualified/proposal/negotiation/won/lost） | 7 |
+| `payment_status` | 4（created/paid/refunded/closed） | 3 |
+
+**未落地的 39 项及原因**（逐类写清，不留给下一个人猜）：
+
+- **状态机类未落地的 6 项**（`BillStatuses` / `KBChangeStatuses` /
+  `OrderDraftTerminalStatuses` / `QuoteStatuses` / `OpportunityStatuses` /
+  `OpportunityOutcomes`）：它们的跃迁规则没有显式表达过（代码里只有常量数组），
+  落字典表会造出一张空跃迁表——那比没有表更糟（看着像有状态机约束，实际谁都能跳）。
+  要落得先补跃迁事实。
+- **`SystemRoleList` 不落**：角色是 `roles` 表驱动的主体，字典只是它的展示枚举。
+  两份各说各话的风险大于收益，且角色的权限语义在 `permission_matrix`。
+- **分类标签类 13 项不落**：它们多数带展示属性（tagType/sort），属于前端
+  `src/constants/*.js` 那一侧，与后端字典表的 `code/name/description/sort_order`
+  不是同一种东西。硬搬要么给后端加展示专用列，要么前端丢掉 tagType。
+- **流程步骤类 4 项不落**：`DefaultPipelineSteps` / `DefaultSendPipelineSteps` 是**默认值**
+  不是值域（用户可自定义整条流水线），属 `config_params` 语义而非字典语义；
+  `LTCKnownStages` / `LTCKnownThresholdKeys` 是 LTC 配置的键名清单，同前者。
+- **意图/提示词类 4 项不落**：`DefaultIntents` 是带训练向量的意图定义，
+  `SystemPromptTemplates` / `DefaultLongtailTemplates` 是长文本模板，
+  都不是「状态 + 跃迁」，塞字典表要把 `param_value` 变成第二份 JSON 泥潭。
+- **`HumanTaskSLAColumns` 不落**：真·DB 列名，属 MODEL 不属配置。
+
+**读取口径**：后端 `DictionaryService.GetDictionary` 是「**DB 优先，DB 没有这一批就回落
+Go 种子**」。不反过来（常量优先、DB 只做覆盖）——字典描述的是存量行正在用的值域，
+反向会让管理端改了不生效。前端 `useDictionaryStore` 与之后端一致，失败静默回落本地常量，
+且**不写进 loaded**（否则后端恢复后前端会永久用本地常量）。
+
+**种子只增不改**：与 `config_params` 的 DefaultValue 不同（那边是「没人配置时的行为」，
+可随代码演进调整），字典种子是**存量数据的值域**，删一项等于让历史行变成非法值。
+要停用一项走 `Enabled=false`，不删行。`SystemLocked` 项管理端不能改名或停用。
