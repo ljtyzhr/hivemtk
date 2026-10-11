@@ -326,14 +326,16 @@ alignment 五维应合并成 1 张 `alignment_dimension_weight` 字典项，不�
 
 | 门 | 挡住什么 | 当前读数 |
 | --- | --- | --- |
-| G1+G2 `check-config-param-readpoints.py`（改造） | 登记了没人读（僵尸）/ 接了线却不撤「未接线」标注 / **代码在读而种子里没有的孤儿 key** / 种子里没有的组名 | 215 条种子 / wired 200 / 已声明未接线 14 / **ORPHAN 0** |
+| G1+G2 `check-config-param-readpoints.py`（改造） | 登记了没人读（僵尸）/ 接了线却不撤「未接线」标注 / **代码在读而种子里没有的孤儿 key** / 种子里没有的组名 | 217 条种子 / wired 206 / 已声明未接线 11 / **UNDECLARED 0 / STALE 0 / ORPHAN 0** |
 | G3 `check-config-param-defaults.py` | 库里改了默认值、代码兜底常量还是老值 | 可比 114 个 / **不一致 0** |
-| G4 `check-hardcode-tunable.py` | 新加的阈值/TTL/上限常量绕过参数中心 | 168 个常量声明 / **新增未入库 0** |
-| G5 `check-config-param-keystyle.py` | key 命名不规范 / 组内重名 / runtime 白名单指向不存在的组 | 215 条 35 组 / **违规 0** |
+| G4 `check-hardcode-tunable.py` | 新加的阈值/TTL/上限常量绕过参数中心 | 174 个常量声明 / **新增未入库 0** |
+| G5 `check-config-param-keystyle.py` | key 命名不规范 / 组内重名 / runtime 白名单指向不存在的组 | 217 条 35 组 / **违规 0** |
 | G6 `check-i18n-coverage.py` | 中文文案硬编码的覆盖率退步 | 见下 |
 
-**总读数（本会话累计）**：种子 **115 → 215 条**、`wired 40 → 200`、
-`UNDECLARED 72 → 0`、`已声明未接线 14`（逐条写明为何接不上，见 §7 表格行末标注）。
+**总读数（本会话累计）**：种子 **115 → 217 条**、`wired 40 → 206`、
+`UNDECLARED 72 → 0`、`STALE 0`、`已声明未接线 14 → 11`（下架 3 条，逐条写明为何接不上，见 §7 表格行末标注与 §7.2）。
+
+**清单口径的一处修正（2026-10-11 终验时发现）**：`hardcode_inventory.py` 原先把「已接进参数中心的兜底常量」也算进 TUNABLE，于是接线做完后可行动点位不降反升（338 → 370）。原因是接线按约定**保留原常量名**（避免把一次参数化放大成一片 diff），接完之后名字里依然带 `Limit/TTL/Threshold`，按名字形状分类时分不出接没接。修法是复用 G4 的**实参位置**判据（常量是否出现在 `Get*(...)` 的兜底实参位，或直连范式里 `Get*` 兜底传 0 而随后回落到该常量），把 `WIRED`（14）与 `PARAM_FALLBACK`（78，`Default*` 前缀＝参数化标记，与 G4 的 `DEFAULT_PREFIX` 豁免同口径）单独摘出。**两个脚本口径必须一致**，否则台账说「已参数化」而门说「这是硬编码」，两边数字无法互相校验。修正后：`WIRED 14 / PARAM_FALLBACK 78 / TUNABLE 278`（前端 `CONFIG TUNABLE 67` 未变，见 §3.1 的受控边界）。
 
 **G6 的三条棘轮与实测数字**。G6 不比"绝对覆盖率"，只比趋势——存量太高，卡全量会让 CI
 永远红，实际结果一定是大家学会绕过门禁：
@@ -367,7 +369,7 @@ alignment 五维应合并成 1 张 `alignment_dimension_weight` 字典项，不�
 | group | 僵尸 key |
 | --- | --- |
 | `misc`(16) ✅已接线 | `visitor_token_ttl`、`sso_cookie_ttl`、`polling_lock_stale_threshold`、`domain_check_concurrency`、`sms_max_retry`、`csv_export_max_rows`、`backup_page_size`、`text_truncate_max_bytes`、`preview_max_len`、`sop_scheduler_interval`、`sop_max_wait`、`deepl_timeout`、`reply_sem_timeout`、`ownership_cache_ttl`、`summary_stale_threshold`、`agentloop_history_max_candidates` |
-| `confidence`(7) ⚠️5条已接线 | `humanize_default_threshold`✅、`intent_fewshot_min_cos`✅、`weak_truth_min_confidence`✅、`emb_retry_cooldown`✅、`veto_low_rag_threshold`✅；`persona_default_threshold`/`persona_max_retry` **无处可接**——其实现 `persona_evaluator.go` 已随 `9a5f716c` 整体删除（749 行实现 + 958 行测试），代码里不存在等价能力，保留「未接线」标注 |
+| `confidence`(5) ✅全部接线 | `humanize_default_threshold`、`humanize_boundary_low`、`humanize_boundary_high`、`humanize_sample_rate`、`humanize_max_retry`（5 条均在 3.1a，`service/humanize/service.go`）、`intent_fewshot_min_cos`、`weak_truth_min_confidence`、`emb_retry_cooldown`、`veto_low_rag_threshold`。原 7 条里的 `persona_default_threshold`/`persona_max_retry` **已于 2026-10-11 下架**：其实现 `persona_evaluator.go` 已随 `9a5f716c` 整体删除（749 行实现 + 958 行测试），这两条永远不会有读取点，等价能力是 humanize（其五条已在 3.1a 接线），留在页面上只会诱导后来人去查一个已经删掉的实现 |
 | `agent_llm`(7) ✅已接线 | `vote_agreement_threshold`、`default_health_check_interval`、`default_circuit_open_duration`、`default_health_check_timeout`、`default_failure_threshold`、`default_http_timeout`、`db_sink_stop_deadline` |
 | `cache`(5) ✅已接线 | `max_keys`、`faq_decay_max_batch`、`memo_ttl`、`platform_cache_ttl`、`translation_cache_max_entries` |
 | `agent_tool`(5) ⚠️4条已接线 | `max_concurrent`✅、`max_content_len`✅、`cooldown_duration`✅、`fail_threshold`✅；`result_cache_ttl` **无处可接**——`tooluse/result_cache.go` 的 `NewResultCache` 全仓只有 `p2_test.go` 调用，生产链路从未构造过它，没有构造点就接不上 TTL，保留「未接线」标注 |
@@ -381,8 +383,26 @@ alignment 五维应合并成 1 张 `alignment_dimension_weight` 字典项，不�
 | `sales`(2) ⚠️1条已接线 | `identity_max_attempts`✅（`service/customer_identity.go findExistingWithRetry`）；`insight_limit` **无处可接**——`trace_learning.TopInsights` 的 `limit` 是**入参不是默认值**，全仓唯一调用方是 `insights_test.go`（且三处都硬传 3），生产链路没有任何地方取这个数量 |
 | `middleware`(2) ✅已接线 | `audit_flush_interval`✅（`middleware/audit.go processAuditLogs` 的 `time.NewTicker`）、`mfa_recent_verify_ttl`✅（`middleware/mfa.go`，4 个读取点：Redis Set / 近期校验 / 内存表校验 / 后台清理） |
 | `knowledge`(2) ✅已接线 | `max_upload_file_size`✅（`knowledge/service/knowledge_base_import.go`，5 个读取点 + `knowledge_service_import.go` 4 个；导出 const 已改为函数）、`merchant_knowledge_max_len`✅（`knowledge/service/knowledge_merchant_external.go splitMarkdownToItems` 的 flush 闭包内，原本是闭包内的局部 const） |
-| `wecom`(1) ❌无处可接 | `error_rate_degrade` **无处可接**——`WeComErrorRateDegradeThreshold=0.3` 只出现在常量声明和一句**撒谎的注释**里（「运行时通过 GlobalConfigParam() 读取」），根本没有对应读取函数；现存 `computeHealthScore` 的成功率判定是写死的三档（`<50` 扣 30 / `<80` 扣 15 / `<95` 扣 5），单一阈值表达不了递减分档 |
+| `wecom`(6) ✅全部接线 | 2d 接了 `quota_degrade`（并顺带修掉「配额降级半接线」：`-25` 档原写死 0.95，改参数调到 0.95 以上时高档先命中、参数根本轮不到生效）；**2026-10-11 终验时拆成六条**：配额 `quota_min_rate`/`quota_degrade`/`quota_critical_rate` + 成功率 `success_rate_critical`/`success_rate_degrade`/`success_rate_warn`。原 `error_rate_degrade` 随之下架——它标未接线的理由「单一阈值表达不了递减分档」成立，但结论不成立：**正解是拆成多条独立参数而不是放弃**。附带查出该参数名不副实：它叫「错误率」而 `computeHealthScore` 判定用的是「成功率」，互补数拿一个当另一个用会得出方向相反的结论。递减关系由 `runtimeWeComQuotaTiers`/`runtimeWeComSuccessRateTiers` 用 clamp 强制，运维乱序填值也不会把扣分方向搞反 |
 | `channelgw`(1) ✅已接线 | `ws_push_interval`✅（`channelgw/ws.go runtimeWSPushIntervalDefault`）——**但这条原本是门禁抓不到的假接线**：读取点存在，key 却是 `"ws_push_interval_default"`，种子里登记的是 `"ws_push_interval"`，多一个后缀导致每次读都 miss、每次都回落兜底 2s，参数改了永远不生效。同组另外 4 条 key 都对，是单点笔误。readpoints 门检查的是「种子 key 有没有读取点」，看不出读取点用的是别的 key，本批已改正并补真库行为测试钉住 |
+
+### 7.2 余下 11 条「已声明未接线」：为什么它们接不了（2026-10-11 终验逐条核实）
+
+方案 §8 验收标准 5 原写「参数中心页面上不存在任何标着（未接线）的条目」。这一条**方向错了**：标着「为什么接不上」比偷偷留一个永远不生效的旋钮要好。真正必须为 0 的是 readpoints 门里的 `UNDECLARED`（有旋钮没人读也没人承认）和 `STALE`（已接线却还标着未接线），这两项现在都是 0。
+
+余下 11 条按「接不了的原因」分四类。**接不了 ≠ 没做工作**：前两类是死代码事实，强行接线只会造出「读取点存在但整条链路是死的」假接线——阶段 1.8 在 `channelgw.ws_push_interval` 上就栽过这种（key 写错导致每次读都 miss，而门禁判它已接线）。
+
+| key | 接不了的原因 | 该做什么（不是接线） |
+| --- | --- | --- |
+| `bridge.polling_max_timeout`<br>`bridge.polling_default_timeout` | 服务端没有 HTTP 长轮询实现：`ingest` 立即返回，回复走 SSE 或 `/outbox` 轮询。两个常量全树只有 `defaults_test.go` 引用 | 要长轮询时先把实现建起来，再把常量当 fallback 传给 `GetDuration` 并给等待加 `ctx.Done()` 退出 |
+| `bridge.max_reply_content_bytes` | `bridge_helpers.go` 的 `maxReplyContentBytes` 自带 `//nolint:unused`，生产路径没有任何回复内容截断逻辑 | 要在出网前对该字段做截断，再接本参数 |
+| `pagination.page_max_size`<br>`pagination.page_default_size` | `ParsePagination`/`ParsePaginationOffset` 全树只有 `pagination_test.go` 调用；`page_default_size` 的另一处消费（`ParseCursorParams` 的兜底分支）又被 operation_log/security_audit/customer 三个调用方的正数 `defaultLimit` 完全遮蔽。另：种子写 100、代码 `defaultMaxPageSize` 写 200 本就不一致 | 先决定列表分页到底走 `ParsePagination` 还是 `ParseCursorParams`，把另一条路径下掉或补上生产调用方 |
+| `wechat.chat_ws_ping_period`<br>`chat_ws_pong_wait`<br>`chat_ws_write_wait` | 常量在 `controller/chat_ws.go` 有读取点，但承载它的 `router/ws.go RegisterWSRoutes` **全树零调用方**——`GET /ws/chat` 从未注册，实际落到 SPA 的 NoRoute 兜底。另：后端根本没有微信渠道 WS 客户端（`channelbot` 只有 core/qq/telegram/whatsapp），种子的「微信渠道 WS」名不副实 | 修 `/ws/chat` 路由（后端确实需要它）或删掉整段死代码。这属于功能债不是配置债 |
+| `agent_tool.result_cache_ttl` | `NewResultCache` 全仓只有 `p2_test.go` 调用，生产链路从未构造过 `ResultCache`——没有构造点就接不上 TTL | 要启用先在 executor 装饰链上挂 `ResultCache` |
+| `sales.insight_limit` | `trace_learning.TopInsights` 的 `limit` 是**入参不是默认值**，唯一调用方是测试（且三处都硬传 3） | 要有一个生产调用方把数量传进来，才有默认值可言 |
+| `lock.ai_lock_ttl` | `tryAcquireAILock`/`ReleaseAILock`/`IsSessionAIBusy` 三个函数整条生产链路都没人调用（源文件自带 `//nolint:unused`）；真正在跑的并发闸是 `lock.ai_processing_ttl`（2c 已接） | 与 wecom 那三条同理：要么删死代码，要么在生产链路上真正启用这把锁 |
+
+**若要清零这 11 条**：8 条要动的是死代码与路由（功能债），3 条要动的是产品决策（分页走哪条路径、洞察给多少条、结果缓存要不要启用）。没有一条是「再花半小时接线」能解决的，所以把它们挂在门禁上等 CI 变红（`UNDECLARED`/`STALE` 为 0）比对它们永远显示「未接线」更诚实。
 
 **逐条对上了本清单 A 桶的硬编码**（这就是"接线"的具体施工单）：
 

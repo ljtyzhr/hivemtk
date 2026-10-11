@@ -655,10 +655,10 @@ CI 触发面按 `check-ci-gate-paths.py` 的纪律登记：**门脚本本体 + �
 
 | # | 脚本 | 判据（落地形态） | 当前读数 |
 | --- | --- | --- | --- |
-| G1+G2 | `check-config-param-readpoints.py`（改造） | **新增两类**：代码里有 `GetX(ctx, g, k, …)` 而种子里没有 `(g,k)` ⇒ `ORPHAN_READ`（每次读都 miss、每次回落兜底，而页面上看不到旋钮）；出现种子里没有的组名 ⇒ `ORPHAN_GROUP` | 215 条种子 / wired 200 / 已声明未接线 14 / **ORPHAN 0** |
+| G1+G2 | `check-config-param-readpoints.py`（改造） | **新增两类**：代码里有 `GetX(ctx, g, k, …)` 而种子里没有 `(g,k)` ⇒ `ORPHAN_READ`（每次读都 miss、每次回落兜底，而页面上看不到旋钮）；出现种子里没有的组名 ⇒ `ORPHAN_GROUP` | 217 条种子 / wired 206 / 已声明未接线 11 / **UNDECLARED 0 / STALE 0 / ORPHAN 0** |
 | G3 | `check-config-param-defaults.py` | 种子 `DefaultValue` 与代码 `Default<Key>` 导出常量比对，duration 两边折算成秒 | 可比常量 114 个 / **不一致 0** |
-| G4 | `check-hardcode-tunable.py` | 命名带 `Threshold/Limit/TTL/…` 的常量，既不在 `scripts/hardcode-tunable.baseline` 里、又**不是**任何 `Get*()` 的兜底实参 ⇒ 红 | 扫描 168 个常量声明 / **新增未入库 0** / 已作兜底 2 |
-| G5 | `check-config-param-keystyle.py` | key 匹配 `^[a-z][a-z0-9_]*$`、长度 ≤ 64、非 SQL 关键字；`(group,key)` 不重复；key 无连续重复词（`dedup_dedup_ttl`）；runtime 白名单组必须在种子里真实存在 | 215 条 / 35 组 / **违规 0 / 幽灵组 0** |
+| G4 | `check-hardcode-tunable.py` | 命名带 `Threshold/Limit/TTL/…` 的常量，既不在 `scripts/hardcode-tunable.baseline` 里、又**不是**任何 `Get*()` 的兜底实参 ⇒ 红 | 扫描 174 个常量声明 / **新增未入库 0** / 已作兜底 2 |
+| G5 | `check-config-param-keystyle.py` | key 匹配 `^[a-z][a-z0-9_]*$`、长度 ≤ 64、非 SQL 关键字；`(group,key)` 不重复；key 无连续重复词（`dedup_dedup_ttl`）；runtime 白名单组必须在种子里真实存在 | 217 条 / 35 组 / **违规 0 / 幽灵组 0** |
 | G6 | `check-i18n-coverage.py` | 三条棘轮 + 一条硬门，见下 | t() 918 键 / 覆盖率 19.39% / 9 语言齐整 |
 
 **G6 的三条棘轮**（存量太高，卡全量会让 CI 永远红，等于没有门）：
@@ -722,15 +722,31 @@ CI 触发面按 `check-ci-gate-paths.py` 的纪律登记：**门脚本本体 + �
 
 ## 8. 验收标准（方案生效的判据）
 
-1. `python3 scripts/check-config-param-readpoints.py` → `未接线且已声明=0`（当前 72）。
-2. `python3 scripts/hardcode_inventory.py --summary` → TUNABLE 唯一点位数从 **346 → 0**
-   （前端真阈值 15 → 0）。
-3. `make audit` 六道门全绿，且 G4 只卡新增。
+以下是方案初稿写的口径，逐条跑完发现**第 1、2、5 条的口径本身有错**，已按实测改写并注明原口径为什么不可达。改写不是放宽标准——错的口径无论接线做多少都达不成，留着只会让台账失真。
+
+1. `python3 scripts/check-config-param-readpoints.py` → `未接线但未声明=0` 且 `声明过期=0`。
+   - 原口径写的是「`未接线且已声明=0`」，**方向反了**：「已声明未接线」恰恰是本方案要保留的那一类——如实标注「为什么没接线」比偷偷留一个永远不生效的旋钮要好。
+   - 真正必须为 0 的是另外两项：**未声明未接线**（有旋钮没人读、也没人承认）与**声明过期**（已经接线了却还标着未接线）。
+   - 实测：`wired 206 / 已声明未接线 11 / UNDECLARED 0 / STALE 0`，rc=0。
+
+2. `python3 scripts/hardcode_inventory.py --summary` → Go 侧 TUNABLE 从 **338 → 278**，且 `WIRED + PARAM_FALLBACK` 两栏非零。
+   - 原口径写的是「TUNABLE 346 → 0」，**口径本身自相矛盾**：接线时按约定**保留原常量名**（避免把一次参数化放大成一片 diff），所以接完之后常量名字里依然带 `Limit/TTL/Threshold`，在按名字形状分类的清单里和没接的一模一样。原实现把这两类混在一起，接线做完后「可行动点位」不降反升（338 → 370），验收标准变成一个永远达不成的数。
+   - 修法：清单**复用 G4 的实参位置判据**（常量出现在 `Get*(...)` 的兜底实参位，或直连范式里 `Get*` 兜底传 0 而随后回落到该常量），把 `WIRED`（确实已接线）与 `PARAM_FALLBACK`（`Default*` 前缀＝参数化标记，G4 `DEFAULT_PREFIX` 豁免的同一口径）单独摘出。
+   - **两个脚本口径必须一致**——否则台账说「已参数化」而门说「这是硬编码」，两边数字无法互相校验。
+   - 实测：`WIRED 14 / PARAM_FALLBACK 78 / TUNABLE 278`。TUNABLE 不为 0 是正常的：3.1 只做到 P1/P2 优先级，剩下的是 P2/P3 档。
+
+3. `make audit` 六道门全绿，且 G4 只卡新增（已实现：基线独立成 `scripts/hardcode-tunable.baseline`，刷新用 `--refresh-baseline`）。
+
 4. **人工验收清单（每次发版前抽 3 条）**：
-   - 改 `inbox.lock_ttl` → 60s 内收件箱锁行为变化
-   - 改 `allow_insecure_webhook` → 60s 内新 webhook 开始/停止验签
-   - 改 `pagination.page_max_size` → 前端列表页实际每页条数变化
-5. 参数中心页面上**不存在**任何标着「（未接线）」的条目（全部接线或下架）。
+   - 改 `lock.inbox_human_ttl` → 收件箱人工接管锁的过期时间变化（2c，已补行为级测试）
+   - 改 `wecom.success_rate_degrade` → 企微账号健康分档位变化（本批，递减关系由代码 clamp 强制）
+   - 改 `pagination.cursor_page_size` → 前端列表页实际每页条数变化（1.7）
+   - ~~改 `allow_insecure_webhook` → 新 webhook 开始/停止验签~~ **已作废**：2b 判定「安全绕过开关刻意不 DB 化」，它只在 env 里，不在参数中心，改了不会有任何变化。
+
+5. 参数中心页面上标着「（未接线）」的条目**逐条都能说出为什么没接线**（不必为 0）。
+   - 原口径写的是「不存在任何标着（未接线）的条目」。这要求把 14 条全部接线或全部下架，但其中 9 条**接不了**：`/ws/chat` 路由从未注册、`ParsePagination` 只有测试调用、`NewResultCache` 生产链路从未构造——这些是**死代码事实**，不是没做的工作。强行接线只会造出一批「读取点存在但整条链路是死的」假接线（阶段 1.8 在 `channelgw.ws_push_interval` 上就栽过这种：key 写错导致每次读都 miss，门禁还判它已接线）。
+   - 已当轮处理能处理的：下架 3 条（`wecom.error_rate_degrade` 拆成三条真实阈值、`confidence.persona_*` 两条因实现随 `9a5f716c` 删除），`未接线 14 → 11`。
+   - 余下 11 条的分类处置见 `docs/HARDCODE_INVENTORY.md` §7.2。
 
 ---
 

@@ -250,7 +250,23 @@ func TestFallbackNilDB(t *testing.T) {
 //	逐个核实后：两个是既有的参数中心兜底/语义常量（HTTPIngestMaxMessages 的
 //	bridge.ingest_max_messages 早已登记、OpportunityWinProbabilityMax 是 0~1
 //	概率的语义上限不该入库），只有 L1WindowSize 是真漏接，本批补上。
-const defaultParamDefsWant = 215
+//
+// 2026-10-11（第十五次，验收逐条过剩下的 14 条未接线）：-3 +5 = 217。
+//
+//	净变化看着只有 +2，实际是把「参数中心页上有 14 个改了没人读的旋钮」
+//	降到了 11 个：
+//	  - 下架 wecom.error_rate_degrade。原先标未接线的理由是「成功率判定是写死的
+//	    三档，单一阈值表达不了递减分档」。这句话前半句成立、结论不成立：
+//	    「表达不了递减分档」的正解是拆成三条独立参数，而不是放弃。
+//	    拆成 success_rate_critical/degrade/warn 三条后档位可配、递减关系由
+//	    runtimeWeComSuccessRateTiers 用 clamp 强制，运维乱序填值也不会把扣分
+//	    方向搞反。附带发现该参数本身就名不副实：它叫「错误率」而代码判定用的是
+//	    「成功率」，互补数拿一个当另一个用会得出方向相反的结论。
+//	  - 下架 confidence.persona_default_threshold / persona_max_retry。
+//	    实现 persona_evaluator.go 已随 9a5f716c 整体删除，这两条永远不会有读取点；
+//	    等价能力是 humanize（其四档已在 3.1a 接线）。留着只会在参数中心页上
+//	    摆两个永远生效不了的旋钮，诱导后来人去查一个已经删掉的实现。
+const defaultParamDefsWant = 217
 
 func TestDefaultParamDefsCount(t *testing.T) {
 	defs := DefaultParamDefs()

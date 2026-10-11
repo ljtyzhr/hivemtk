@@ -188,7 +188,54 @@ def priority_for(name: str, bucket: str) -> str:
     return "P3"
 
 
-def rows_from_go(sweep: dict, classified: dict) -> list[dict]:
+def collect_wired_fallback_names(base: str) -> set[str]:
+    """扫出**已经被读成参数中心兜底值**的常量名。
+
+    直接复用 G4（scripts/check-hardcode-tunable.py）的判据：常量出现在
+    Get*(...) 的兜底实参位，或直连范式里 Get* 兜底传 0 而随后回落到该常量。
+
+    为什么清单要专门区分这一类：接线时按 3.1a 的约定**保留原常量名**（避免把
+    一次参数化放大成一片 diff），所以接完之后这些常量名字里依然带
+    Limit/TTL/Threshold，看起来和没接的一模一样。原清单把它们全算进 TUNABLE，
+    于是接线做完后「可行动点位」不降反升 —— 台账失真，连带把验收标准 2 也变成
+    一个永远达不成的数。按名字配对救不了这个（名字与 key 毫无关系，实参位置不会）。
+    """
+    # 门脚本文件名带连字符（check-hardcode-tunable.py），不是合法模块名，
+    # 只能按路径加载。
+    import importlib.util
+
+    gate_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "check-hardcode-tunable.py")
+    spec = importlib.util.spec_from_file_location("check_hardcode_tunable", gate_path)
+    gate = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(gate)
+    collect_fallback_idents = gate.collect_fallback_idents
+
+    out: set[str] = set()
+    for dirpath, dirnames, filenames in os.walk(base):
+        rel = os.path.relpath(dirpath, base).replace(os.sep, "/")
+        if any(rel == s or rel.startswith(s + "/") or s in rel.split("/") for s in SKIP_SEGMENTS):
+            continue
+        dirnames[:] = [d for d in dirnames if d not in ("vendor", "migrations")]
+        for fn in filenames:
+            if not fn.endswith(".go") or fn.endswith("_test.go"):
+                continue
+            try:
+                text = open(os.path.join(dirpath, fn), encoding="utf-8", errors="ignore").read()
+            except OSError:
+                continue
+            out |= collect_fallback_idents(text)
+    return out
+
+
+SKIP_SEGMENTS = {"cmd/seed", "vendor", "migrations", "test", "tests", "tmp", "backups"}
+
+# G4 门对 `Default*` 前缀的豁免口径（参数中心兜底值的约定标记），清单沿用同一判据，
+# 不另立一套 —— 两处口径分叉的话，台账说「已参数化」而门说「这是硬编码」，
+# 两边数字没法互相校验。
+DEFAULT_PREFIX = re.compile(r"^Default")
+
+
+def rows_from_go(sweep: dict, classified: dict, wired: set[str]) -> list[dict]:
     by_key = {(r["file"], r["line"], r["name"]): r for r in classified.get("rows", [])}
     out = []
     for c in sweep.get("config_consts", []):
@@ -196,20 +243,33 @@ def rows_from_go(sweep: dict, classified: dict) -> list[dict]:
         bucket = meta.get("bucket", "NEEDS_REVIEW")
         if bucket not in ("TUNABLE", "PROTOCOL", "DEPLOY", "INFRA"):
             continue
+        # 已经接进参数中心的，从 TUNABLE 里摘出来单独记一类。
+        # WIRED 不是「不处理」而是「已处理」—— 混进 TUNABLE 会让存量清单不降反升。
+        if bucket == "TUNABLE" and c["name"] in wired:
+            bucket = "WIRED"
+        # `Default*` 前缀是 3.1 五批接线统一留下的形态标记（G4 的 DEFAULT_PREFIX
+        # 豁免就是为它设的）：名字带 Default 是因为它在 provider 注入缺失时当兜底。
+        # classify 会按名字形状把它判成 FIELD_LIT 而漏出清单，于是「已参数化」
+        # 与「纯默认值」在这里混成一条。单独归一类，台账才能读出参数化的真实覆盖面。
+        elif bucket == "TUNABLE" and DEFAULT_PREFIX.match(c["name"]):
+            bucket = "PARAM_FALLBACK"
         grp = group_for(c["file"])
         out.append(
             {
                 "side": "user-server",
                 "kind": "CONFIG",
                 "bucket": bucket,
-                "priority": priority_for(c["name"], bucket),
+                "priority": "DONE" if bucket in ("WIRED", "PARAM_FALLBACK") else priority_for(c["name"], bucket),
                 "file": c["file"],
                 "line": c["line"],
                 "name": c["name"],
                 "value": c.get("value", ""),
                 "suggest_group": grp,
                 "suggest_key": key_for(c["name"], c["file"]) if bucket == "TUNABLE" else "",
-                "note": meta.get("why", ""),
+                "note": meta.get("why", "") or {
+                    "WIRED": "已接进参数中心（常量被读成 Get* 的兜底实参）",
+                    "PARAM_FALLBACK": "Default* 前缀＝参数中心兜底值的约定标记（G4 DEFAULT_PREFIX 豁免同一口径）",
+                }.get(bucket, ""),
             }
         )
     # DATA：只收真正的字典型/提示词常量，局部变量赋值不进清单
@@ -303,7 +363,9 @@ def main() -> int:
     classified = load("hardcode-sweep-classified.json")
     web = load("hardcode-sweep-web.json")
 
-    rows = rows_from_go(sweep, classified) + rows_from_web(web)
+    wired = collect_wired_fallback_names(os.path.join(ROOT, "user-server"))
+    print(f"=== 已接进参数中心的兜底常量: {len(wired)} 个（从 TUNABLE 里单独摘出） ===")
+    rows = rows_from_go(sweep, classified, wired) + rows_from_web(web)
 
     summary = Counter((r["side"], r["kind"], r["bucket"]) for r in rows)
     prio = Counter(r["priority"] for r in rows)

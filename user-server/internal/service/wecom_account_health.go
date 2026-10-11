@@ -36,22 +36,91 @@ const (
 	WeComLoginOffline = "offline"
 	WeComLoginBanned  = "banned"
 
-	// WeComQuotaDegradeThreshold 为 fallback 默认值（DB 驱动）。
-	// 运行时通过 GlobalConfigParam() 按 group=wecom 读取 DB 参数：
-	//   wecom.quota_degrade → WeComQuotaDegradeThreshold (fallback)
-	// 它控制 computeHealthScore 里配额扣分的 -15 档；-25 档取
-	// max(0.95, quotaDegrade)，改这个参数会同时挪动两档（见 computeHealthScore）。
+	// 配额与成功率两套三档阈值的 fallback 默认值（DB 驱动）。
 	//
-	// WeComErrorRateDegradeThreshold 没有对应的读取函数，且现存实现也用不上它：
-	// computeHealthScore 的成功率判定是写死的三档（<50 / <80 / <95），
-	// 单一「错误率阈值」表达不了这种递减分档，硬套进来只能新造第四档或改掉现有行为。
-	// 参数中心那条 wecom.error_rate_degrade 仍如实标着「未接线」。
-	WeComErrorRateDegradeThreshold = 0.3
-	WeComQuotaDegradeThreshold     = 0.9
+	// 运行时通过 GlobalConfigParam() 按 group=wecom 读 DB 参数，逐档对应
+	// computeHealthScore 里的三档扣分。原先配额三档是 0.7 写死 + 0.9 读参数 +
+	// 0.95 写死（后两档在 2d 被收敛成 max(0.95, quotaDegrade)），成功率三档
+	// 50/80/95 全写死，参数中心只有一条 wecom.error_rate_degrade 表达不了递减分档
+	// 而被标着「未接线」。
+	//
+	// 现在把每一档都变成独立参数：档位可配，递减关系由代码强制（见
+	// runtimeWeComSuccessRateTiers / runtimeWeComQuotaTiers），运维不可能通过
+	// 乱序填值把「更差的账号反而不扣分」这种事造出来。weecom.error_rate_degrade
+	// 随之下架——它对应的是「错误率」，而代码判定用的是「成功率」，两者是互补数，
+	// 拿一个当另一个用会得出方向相反的结论。
+	WeComQuotaMinRateThreshold      = 0.7
+	WeComQuotaDegradeThreshold      = 0.9
+	WeComQuotaCriticalRateThreshold = 0.95
+	// 成功率三档的单位是百分数（0-100），与 SuccessRate 字段同口径。
+	WeComSuccessRateCriticalThreshold = 50.0
+	WeComSuccessRateDegradeThreshold  = 80.0
+	WeComSuccessRateWarnThreshold     = 95.0
 )
 
+// ParamGroupWeCom 是企微相关参数的组名，与种子里的 Group 字面量一致。
+const ParamGroupWeCom = "wecom"
+
+// runtimeWeComQuotaDegrade 单独读「配额降级」中间档，供只需要这一档的地方用
+// （如判断「配额降级中」这个风险态）。要拿完整三档请用 runtimeWeComQuotaTiers。
 func runtimeWeComQuotaDegrade(ctx context.Context) float64 {
-	return GlobalConfigParam().GetFloat(ctx, "wecom", "quota_degrade", WeComQuotaDegradeThreshold)
+	return GlobalConfigParam().GetFloat(ctx, ParamGroupWeCom, "quota_degrade", WeComQuotaDegradeThreshold)
+}
+
+// runtimeWeComQuotaTiers 返回配额三档阈值，已强制严格递增。
+//
+// 配额三档是 minRate < degrade < criticalRate，判定用 > 而非 >=：
+// 配额用率恰好等于档位时不扣分（用满了才开始扣），这与原有行为一致。
+// 任一档被配得比相邻档更宽松时夹回相邻档，而不是直接采用——因为判定是
+// 顺序 if/else if 命中，配成 minRate=0.99/degrade=0.5 会让「用率 0.6」先落进
+// 第一档扣 5 分，而「用率 0.99」反而落到最后一档扣 25 分，方向整个反过来。
+func runtimeWeComQuotaTiers(ctx context.Context) (minRate, degrade, criticalRate float64) {
+	minRate = clampRate01(GlobalConfigParam().GetFloat(ctx, ParamGroupWeCom, "quota_min_rate", WeComQuotaMinRateThreshold))
+	degrade = clampRate01(GlobalConfigParam().GetFloat(ctx, ParamGroupWeCom, "quota_degrade", WeComQuotaDegradeThreshold))
+	criticalRate = clampRate01(GlobalConfigParam().GetFloat(ctx, ParamGroupWeCom, "quota_critical_rate", WeComQuotaCriticalRateThreshold))
+	if degrade <= minRate {
+		degrade = minRate
+	}
+	if criticalRate <= degrade {
+		criticalRate = degrade
+	}
+	return minRate, degrade, criticalRate
+}
+
+// runtimeWeComSuccessRateTiers 返回成功率三档阈值，已强制严格递增。
+//
+// 单位是**百分数**（0-100）而不是 0-1 比例——health_score 的调用方传进来的
+// SuccessRate 就是百分数（见 model.WeComAccountHealth.SuccessRate 与
+// ReportHealthRequest），参数中心必须与它同口径，否则页面上填 0.8 会被
+// code 读成「0.8% 成功率」，直接把账号打到 -30 档。
+//
+// 判定用 < 而非 <=：成功率恰好等于档位时不扣分（刚好算达标）。
+// 递减方向的钳制理由同 runtimeWeComQuotaTiers。
+// clampPercent 复用 system_monitor.go 里的同名函数，不另造一个。
+func runtimeWeComSuccessRateTiers(ctx context.Context) (critical, degrade, warn float64) {
+	critical = clampPercent(GlobalConfigParam().GetFloat(ctx, ParamGroupWeCom, "success_rate_critical", WeComSuccessRateCriticalThreshold))
+	degrade = clampPercent(GlobalConfigParam().GetFloat(ctx, ParamGroupWeCom, "success_rate_degrade", WeComSuccessRateDegradeThreshold))
+	warn = clampPercent(GlobalConfigParam().GetFloat(ctx, ParamGroupWeCom, "success_rate_warn", WeComSuccessRateWarnThreshold))
+	if degrade >= warn {
+		degrade = warn
+	}
+	if critical >= degrade {
+		critical = degrade
+	}
+	return critical, degrade, warn
+}
+
+// clampRate01 把比例夹进 [0,1]。种子 Min/Max 已经限制了写入，但直写库、
+// 历史数据、service 层守卫被绕过都可能送进越界值；比例越界会让所有账号
+// 落进同一档或一档都不落。
+func clampRate01(v float64) float64 {
+	if v < 0 {
+		return 0
+	}
+	if v > 1 {
+		return 1
+	}
+	return v
 }
 
 // 错误定义
@@ -377,34 +446,29 @@ func (s *WeComAccountHealthService) GetHealthSummary(ctx context.Context) (*Acco
 
 func computeHealthScore(loginState string, quotaRate, successRate float64, errorCount int) int {
 	score := 100
-	quotaDegrade := runtimeWeComQuotaDegrade(context.Background())
 	if loginState == WeComLoginBanned {
 		return WeComHealthScoreBanned
 	}
 	if loginState == WeComLoginOffline {
 		score -= 50
 	}
-	// quotaCriticalRate 是 -25 档（配额近乎耗尽）的阈值。它原来写死 0.95，
-	// 与下面读参数的 -15 档（quotaDegrade）是两套独立阈值 —— 于是运维把
-	// wecom.quota_degrade 调到 0.95 以上时，>0.95 那一档先命中，参数根本轮不到生效，
-	// 「配额降级」就成了半接线：改得动中间档、改不动最高档。
-	// 取两者较大者，保证三档严格递减；默认 0.9 < 0.95，行为与写死 0.95 逐档一致。
-	quotaCriticalRate := 0.95
-	if quotaDegrade > quotaCriticalRate {
-		quotaCriticalRate = quotaDegrade
-	}
+	// 配额与成功率都是「越差扣得越多」的三档递减分档。档位全部从参数中心读，
+	// 递减关系由 runtimeWeComQuotaTiers / runtimeWeComSuccessRateTiers 强制，
+	// 默认值与原先写死的 0.7/0.9/0.95 与 50/80/95 逐格相同 ⇒ 行为不变。
+	quotaMinRate, quotaDegrade, quotaCriticalRate := runtimeWeComQuotaTiers(context.Background())
 	if quotaRate > quotaCriticalRate {
 		score -= 25
 	} else if quotaRate > quotaDegrade {
 		score -= 15
-	} else if quotaRate > 0.7 {
+	} else if quotaRate > quotaMinRate {
 		score -= 5
 	}
-	if successRate < 50 {
+	successCritical, successDegrade, successWarn := runtimeWeComSuccessRateTiers(context.Background())
+	if successRate < successCritical {
 		score -= 30
-	} else if successRate < 80 {
+	} else if successRate < successDegrade {
 		score -= 15
-	} else if successRate < 95 {
+	} else if successRate < successWarn {
 		score -= 5
 	}
 	if errorCount > 50 {
