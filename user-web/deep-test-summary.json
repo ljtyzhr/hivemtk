@@ -1,0 +1,26 @@
+{
+  "generatedAt": "2026-10-11T03:20:31.438Z",
+  "totalChecks": 200,
+  "uniqueRoutes": 200,
+  "byStatus": {
+    "ok": 200
+  },
+  "batches": {
+    "core": 10,
+    "b2": 20,
+    "b3": 20,
+    "b4": 25,
+    "b5": 25,
+    "b6": 25,
+    "b7": 25,
+    "b8": 25,
+    "b9": 25
+  },
+  "routeListTotal": 216,
+  "coverage": "92.6%",
+  "issuesFoundAndFixed": [
+    "hash导航双斜杠导致全量404（deep-test脚本导航逻辑）",
+    "vue-flow renderSlot崩溃：Vite双Vue实例，修复=resolve.dedupe[\"vue\"]",
+    "测试断言词不准×4（customer360/systemUsers/systemRoles/dashboardScreenBuilder/humanizePanel），页面本身正常"
+  ]
+}
