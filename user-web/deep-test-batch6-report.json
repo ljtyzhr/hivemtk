@@ -1,0 +1,977 @@
+[
+  {
+    "name": "AI生产力",
+    "route": "/aiProductivity/list",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "540 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "4 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: AI, Productivity"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "审批任务",
+    "route": "/approvalTask/list",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "2319 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "59 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 审批"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "资产包列表",
+    "route": "/asset-bundle/list",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "1277 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "41 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 资产, 包, Bundle"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "BadCase队列",
+    "route": "/badCase/list",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "3029 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "80 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: Bad, Case, 队列"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "批量操作",
+    "route": "/batchOperation/list",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "502 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "8 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 批量, 操作, Batch"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "渠道列表",
+    "route": "/chatChannel/list",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "731 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "24 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 渠道, Channel"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "流失预测",
+    "route": "/churnPrediction/list",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "16299 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "328 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 流失, 预测, Churn"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "线索统计",
+    "route": "/clue/statistics",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "665 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "18 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 线索, 统计"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "社群列表",
+    "route": "/community/list",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "1788 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "66 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 社群, Community"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "客户旅程",
+    "route": "/customerJourney/dashboard",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "1530 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "18 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 旅程, Journey, 客户"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "对话记忆",
+    "route": "/dialogueMemory/list",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "2013 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "56 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 记忆, Memory, 对话"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "域名池",
+    "route": "/domainPool",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "1620 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "45 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 域名, Domain, 池"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "意图识别",
+    "route": "/intentRecognition/list",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "4240 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "43 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 意图, Intent"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "知识连接器",
+    "route": "/kb/connectors",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "567 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "6 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 连接, 知识"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "平台账号",
+    "route": "/platformAccount/list",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "1434 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "56 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 平台, 账号, Account"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "触达管线列表",
+    "route": "/reachPipeline/list",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "983 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "52 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: Pipeline"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "增强操作日志",
+    "route": "/operationLog/enhanced",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "567 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "22 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 日志, 操作"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "消息看板",
+    "route": "/messageHub/dashboard",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "2799 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "93 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 消息, 看板, Dashboard"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "异议处理",
+    "route": "/objection/list",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "777 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "19 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 异议, Objection, 处理"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "今日跟进",
+    "route": "/followups/today",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "454 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "5 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 跟进, 今日, Follow"
+      },
+      {
+        "desc": "API请求",
+        "passed": false,
+        "detail": "503 /api/followups/pending?owner_id=1 | 503 /api/followups/today?owner_id=1 | 503 /api/followups/overdue?owner_id=1",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "RFM矩阵",
+    "route": "/userSegment/rfm-matrix",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "454 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "13 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: RFM, 矩阵"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "短信配置",
+    "route": "/sms/config",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "600 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "19 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 短信, 配置, SMS"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "邮件SMTP",
+    "route": "/email/smtp",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "1559 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "55 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 邮件"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "Telegram账号",
+    "route": "/telegram/account",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "1302 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "19 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: Telegram"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "WhatsApp账号",
+    "route": "/whatsapp/account",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "1363 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "87 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: WhatsApp, 账号"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  }
+]
