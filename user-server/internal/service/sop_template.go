@@ -47,6 +47,7 @@ type sopRepoIface interface {
 	IncrementHitCount(ctx context.Context, id uint) error
 	ListWithFilter(ctx context.Context, filter repository.SOPTemplateListParams) ([]model.SOPTemplate, int64, error)
 	Update(ctx context.Context, id uint, tpl *model.SOPTemplate) error
+	SetEnabled(ctx context.Context, id uint, enabled bool) error
 	Delete(ctx context.Context, id uint) error
 }
 
@@ -251,6 +252,18 @@ func (s *SOPTemplateService) Update(ctx context.Context, id uint, tpl *model.SOP
 	} else {
 		s.InvalidateAllCache()
 	}
+	return nil
+}
+
+// SetEnabled 仅切换启用状态（列表页开关专用）
+func (s *SOPTemplateService) SetEnabled(ctx context.Context, id uint, enabled bool) error {
+	if s.repo == nil {
+		return fmt.Errorf("repo not initialized")
+	}
+	if err := s.repo.SetEnabled(ctx, id, enabled); err != nil {
+		return err
+	}
+	s.InvalidateAllCache()
 	return nil
 }
 

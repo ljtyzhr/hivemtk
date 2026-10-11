@@ -1,0 +1,4661 @@
+{
+  "runId": "e2e-1791704626732",
+  "batch": "6",
+  "total": 24,
+  "results": [
+    {
+      "route": "/knowledge/openapi",
+      "status": "ok",
+      "pageLoad": {
+        "not404": true,
+        "contentLength": 682,
+        "url": "http://localhost:8211/#/knowledge/openapi"
+      },
+      "interactions": [
+        {
+          "type": "button:click",
+          "target": "刷新",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:write",
+          "target": "新建数据源",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        }
+      ],
+      "consoleErrors": [],
+      "apiErrors": [],
+      "dbVerifications": [],
+      "summary": "2次交互，无异常",
+      "discovered": {
+        "tabs": 0,
+        "buttons": 2,
+        "pagination": 0,
+        "switches": 0,
+        "tableRows": 0,
+        "forms": 0,
+        "inputs": 1
+      }
+    },
+    {
+      "route": "/knowledge/rag-eval",
+      "status": "ok",
+      "pageLoad": {
+        "not404": true,
+        "contentLength": 1147,
+        "url": "http://localhost:8211/#/knowledge/rag-eval"
+      },
+      "interactions": [
+        {
+          "type": "button:click",
+          "target": "上传评估集（CSV/JSONL）",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "对比当前",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "对比当前",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "对比当前",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "对比当前",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "对比当前",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "对比当前",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "对比当前",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "对比当前",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "对比当前",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "对比当前",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "对比当前",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "table-row",
+          "target": "(first row)",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        }
+      ],
+      "consoleErrors": [],
+      "apiErrors": [],
+      "dbVerifications": [],
+      "summary": "13次交互，无异常",
+      "discovered": {
+        "tabs": 0,
+        "buttons": 22,
+        "pagination": 0,
+        "switches": 0,
+        "tableRows": 20,
+        "forms": 0,
+        "inputs": 1
+      }
+    },
+    {
+      "route": "/knowledgeBase",
+      "status": "ok",
+      "pageLoad": {
+        "not404": true,
+        "contentLength": 1157,
+        "url": "http://localhost:8211/#/knowledgeBase"
+      },
+      "interactions": [
+        {
+          "type": "tab",
+          "target": "RAG 文档库",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "tab",
+          "target": "FAQ 知识库",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "tab",
+          "target": "SOP 模板库",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "pagination",
+          "target": "Go to previous page",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "pagination",
+          "target": "1",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "pagination",
+          "target": "Go to next page",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "button:read",
+          "target": "详情",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "详情",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "详情",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "详情",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "详情",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "详情",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "Refresh",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "Search",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "Reset",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "编辑",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "启用",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "1 个",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "table-row",
+          "target": "(first row)",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        }
+      ],
+      "consoleErrors": [],
+      "apiErrors": [],
+      "dbVerifications": [],
+      "summary": "19次交互，无异常",
+      "discovered": {
+        "tabs": 3,
+        "buttons": 33,
+        "pagination": 3,
+        "switches": 0,
+        "tableRows": 6,
+        "forms": 1,
+        "inputs": 4
+      }
+    },
+    {
+      "route": "/knowledgeBase/list",
+      "status": "ok",
+      "pageLoad": {
+        "not404": true,
+        "contentLength": 1138,
+        "url": "http://localhost:8211/#/knowledgeBase/list"
+      },
+      "interactions": [
+        {
+          "type": "tab",
+          "target": "RAG 文档库",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "tab",
+          "target": "FAQ 知识库",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "tab",
+          "target": "SOP 模板库",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "pagination",
+          "target": "Go to previous page",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "pagination",
+          "target": "1",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "pagination",
+          "target": "Go to next page",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "button:read",
+          "target": "详情",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "详情",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "详情",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "详情",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "详情",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "详情",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "Refresh",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "Search",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "Reset",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "编辑",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "启用",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "1 个",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "table-row",
+          "target": "(first row)",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        }
+      ],
+      "consoleErrors": [],
+      "apiErrors": [],
+      "dbVerifications": [],
+      "summary": "19次交互，无异常",
+      "discovered": {
+        "tabs": 3,
+        "buttons": 33,
+        "pagination": 3,
+        "switches": 0,
+        "tableRows": 6,
+        "forms": 1,
+        "inputs": 4
+      }
+    },
+    {
+      "route": "/knowledgeBase/create",
+      "status": "ok",
+      "pageLoad": {
+        "not404": true,
+        "contentLength": 1172,
+        "url": "http://localhost:8211/#/knowledgeBase/create"
+      },
+      "interactions": [
+        {
+          "type": "tab",
+          "target": "RAG 文档库",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": true,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "tab",
+          "target": "FAQ 知识库",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "tab",
+          "target": "SOP 模板库",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "pagination",
+          "target": "Go to previous page",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "pagination",
+          "target": "1",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "pagination",
+          "target": "Go to next page",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "button:read",
+          "target": "详情",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "详情",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "详情",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "详情",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "详情",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "详情",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "Refresh",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "Search",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "Reset",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "编辑",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "启用",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "1 个",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "table-row",
+          "target": "(first row)",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        }
+      ],
+      "consoleErrors": [],
+      "apiErrors": [],
+      "dbVerifications": [],
+      "summary": "19次交互，无异常",
+      "discovered": {
+        "tabs": 3,
+        "buttons": 36,
+        "pagination": 3,
+        "switches": 0,
+        "tableRows": 6,
+        "forms": 2,
+        "inputs": 8
+      }
+    },
+    {
+      "route": "/knowledgeBase/edit/1",
+      "status": "ok",
+      "pageLoad": {
+        "not404": true,
+        "contentLength": 1138,
+        "url": "http://localhost:8211/#/knowledgeBase/edit/1"
+      },
+      "interactions": [
+        {
+          "type": "tab",
+          "target": "RAG 文档库",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "tab",
+          "target": "FAQ 知识库",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "tab",
+          "target": "SOP 模板库",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "pagination",
+          "target": "Go to previous page",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "pagination",
+          "target": "1",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "pagination",
+          "target": "Go to next page",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "button:read",
+          "target": "详情",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "详情",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "详情",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "详情",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "详情",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "详情",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "Refresh",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "Search",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "Reset",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "编辑",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "启用",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "1 个",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "table-row",
+          "target": "(first row)",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        }
+      ],
+      "consoleErrors": [],
+      "apiErrors": [],
+      "dbVerifications": [],
+      "summary": "19次交互，无异常",
+      "discovered": {
+        "tabs": 3,
+        "buttons": 33,
+        "pagination": 3,
+        "switches": 0,
+        "tableRows": 6,
+        "forms": 1,
+        "inputs": 4
+      }
+    },
+    {
+      "route": "/kuaishouCard",
+      "status": "partial",
+      "pageLoad": {
+        "not404": true,
+        "contentLength": 1492,
+        "url": "http://localhost:8211/#/kuaishouCard"
+      },
+      "interactions": [
+        {
+          "type": "pagination",
+          "target": "Go to previous page",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "pagination",
+          "target": "1",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "pagination",
+          "target": "2",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "pagination",
+          "target": "Go to next page",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "switch",
+          "target": "switch",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 1,
+            "api": 1
+          },
+          "dialogOpened": false,
+          "uiChanged": true,
+          "uiBroken": false,
+          "newConsole": [
+            "Failed to load resource: the server responded with a status of 400 (Bad Request)"
+          ],
+          "newApi": [
+            "400 /api/kuaishou/update"
+          ]
+        },
+        {
+          "type": "switch",
+          "target": "switch",
+          "before": {
+            "console": 1,
+            "api": 1
+          },
+          "after": {
+            "console": 2,
+            "api": 2
+          },
+          "dialogOpened": false,
+          "uiChanged": true,
+          "uiBroken": false,
+          "newConsole": [
+            "Failed to load resource: the server responded with a status of 400 (Bad Request)"
+          ],
+          "newApi": [
+            "400 /api/kuaishou/update"
+          ]
+        },
+        {
+          "type": "switch",
+          "target": "switch",
+          "before": {
+            "console": 2,
+            "api": 2
+          },
+          "after": {
+            "console": 3,
+            "api": 3
+          },
+          "dialogOpened": false,
+          "uiChanged": true,
+          "uiBroken": false,
+          "newConsole": [
+            "Failed to load resource: the server responded with a status of 400 (Bad Request)"
+          ],
+          "newApi": [
+            "400 /api/kuaishou/update"
+          ]
+        },
+        {
+          "type": "button:read",
+          "target": "统计",
+          "before": {
+            "console": 3,
+            "api": 3
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "复制链接",
+          "before": {
+            "console": 3,
+            "api": 3
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "统计",
+          "before": {
+            "console": 3,
+            "api": 3
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "复制链接",
+          "before": {
+            "console": 3,
+            "api": 3
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "统计",
+          "before": {
+            "console": 3,
+            "api": 3
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "复制链接",
+          "before": {
+            "console": 3,
+            "api": 3
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "统计",
+          "before": {
+            "console": 3,
+            "api": 3
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "复制链接",
+          "before": {
+            "console": 3,
+            "api": 3
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "统计",
+          "before": {
+            "console": 3,
+            "api": 3
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "复制链接",
+          "before": {
+            "console": 3,
+            "api": 3
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "统计",
+          "before": {
+            "console": 3,
+            "api": 3
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "复制链接",
+          "before": {
+            "console": 3,
+            "api": 3
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "table-row",
+          "target": "(first row)",
+          "before": {
+            "console": 3,
+            "api": 3
+          },
+          "after": {
+            "console": 3,
+            "api": 3
+          },
+          "dialogOpened": false,
+          "uiChanged": true,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        }
+      ],
+      "consoleErrors": [],
+      "apiErrors": [
+        "400 /api/kuaishou/update",
+        "400 /api/kuaishou/update",
+        "400 /api/kuaishou/update"
+      ],
+      "dbVerifications": [],
+      "summary": "API失败3条",
+      "discovered": {
+        "tabs": 0,
+        "buttons": 46,
+        "pagination": 4,
+        "switches": 10,
+        "tableRows": 10,
+        "forms": 1,
+        "inputs": 14
+      }
+    },
+    {
+      "route": "/kuaishou/stats",
+      "status": "ok",
+      "pageLoad": {
+        "not404": true,
+        "contentLength": 743,
+        "url": "http://localhost:8211/#/kuaishou/stats"
+      },
+      "interactions": [
+        {
+          "type": "button:read",
+          "target": "统计",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "统计",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "统计",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "统计",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "统计",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "统计",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "统计",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "统计",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "统计",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "统计",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "Refresh",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "table-row",
+          "target": "(first row)",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        }
+      ],
+      "consoleErrors": [],
+      "apiErrors": [],
+      "dbVerifications": [],
+      "summary": "12次交互，无异常",
+      "discovered": {
+        "tabs": 0,
+        "buttons": 11,
+        "pagination": 0,
+        "switches": 0,
+        "tableRows": 11,
+        "forms": 0,
+        "inputs": 3
+      }
+    },
+    {
+      "route": "/kuaishou-card-stats/1",
+      "status": "ok",
+      "pageLoad": {
+        "not404": true,
+        "contentLength": 572,
+        "url": "http://localhost:8211/#/kuaishou-card-stats/1"
+      },
+      "interactions": [
+        {
+          "type": "button:click",
+          "target": "Back",
+          "before": {
+            "console": 4,
+            "api": 2
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "Refresh",
+          "before": {
+            "console": 4,
+            "api": 2
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        }
+      ],
+      "consoleErrors": [
+        "Error: 资源不存在\n    at buildRequestError (http://localhost:8211/src/utils/request.js?t=1791704439399:73:15)\n    at http://localhost:8211/src/utils/request.js?t=1791704439399:241:31\n    at async Axios$1.request (http://localhost:8211/node_modules/.vite/deps/axios.js?v=8ff9c3ac:3387:11)\n    at async fetchCardInfo (http://localhost:8211/src/views/kuaishouCard/CardStats.vue:55:17)\n    at async http://loc",
+        "Error: 记录不存在\n    at buildRequestError (http://localhost:8211/src/utils/request.js?t=1791704439399:73:15)\n    at http://localhost:8211/src/utils/request.js?t=1791704439399:241:31\n    at async Axios$1.request (http://localhost:8211/node_modules/.vite/deps/axios.js?v=8ff9c3ac:3387:11)\n    at async fetchCardStats (http://localhost:8211/src/views/kuaishouCard/CardStats.vue:86:17)\n    at async http://lo"
+      ],
+      "apiErrors": [],
+      "dbVerifications": [],
+      "summary": "2次交互，无异常",
+      "discovered": {
+        "tabs": 0,
+        "buttons": 2,
+        "pagination": 0,
+        "switches": 0,
+        "tableRows": 0,
+        "forms": 0,
+        "inputs": 3
+      }
+    },
+    {
+      "route": "/lead-mining/index",
+      "status": "ok",
+      "pageLoad": {
+        "not404": true,
+        "contentLength": 547,
+        "url": "http://localhost:8211/#/lead-mining/index"
+      },
+      "interactions": [
+        {
+          "type": "tab",
+          "target": "发掘设置",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "tab",
+          "target": "线索库",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": true,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "pagination",
+          "target": "Go to previous page",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "pagination",
+          "target": "1",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "pagination",
+          "target": "2",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "pagination",
+          "target": "3",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "switch",
+          "target": "switch",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "button:click",
+          "target": "重置",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:write",
+          "target": "保存设置",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        }
+      ],
+      "consoleErrors": [],
+      "apiErrors": [],
+      "dbVerifications": [],
+      "summary": "9次交互，无异常",
+      "discovered": {
+        "tabs": 2,
+        "buttons": 2,
+        "pagination": 9,
+        "switches": 1,
+        "tableRows": 0,
+        "forms": 1,
+        "inputs": 17
+      }
+    },
+    {
+      "route": "/livecode",
+      "status": "ok",
+      "pageLoad": {
+        "not404": true,
+        "contentLength": 537,
+        "url": "http://localhost:8211/#/livecode"
+      },
+      "interactions": [
+        {
+          "type": "pagination",
+          "target": "Go to previous page",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "pagination",
+          "target": "1",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "pagination",
+          "target": "Go to next page",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "button:click",
+          "target": "Add Voucher",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "查询",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "重置",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "Go to previous page",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "Go to next page",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        }
+      ],
+      "consoleErrors": [],
+      "apiErrors": [],
+      "dbVerifications": [],
+      "summary": "8次交互，无异常",
+      "discovered": {
+        "tabs": 0,
+        "buttons": 5,
+        "pagination": 3,
+        "switches": 0,
+        "tableRows": 0,
+        "forms": 1,
+        "inputs": 4
+      }
+    },
+    {
+      "route": "/llmRouting/list",
+      "status": "ok",
+      "pageLoad": {
+        "not404": true,
+        "contentLength": 1729,
+        "url": "http://localhost:8211/#/llmRouting/list"
+      },
+      "interactions": [
+        {
+          "type": "tab",
+          "target": "模型列表",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "tab",
+          "target": "场景路由配置",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": true,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "tab",
+          "target": "Fallback 策略",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": true,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "tab",
+          "target": "成本统计",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": true,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "tab",
+          "target": "路由审计",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": true,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "tab",
+          "target": "分类统计与出域审计",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": true,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "button:click",
+          "target": "成本看板",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "刷新",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "测试",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "启用",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "编辑",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "测试",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "编辑",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "测试",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "编辑",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "测试",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "启用",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "编辑",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "table-row",
+          "target": "(first row)",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        }
+      ],
+      "consoleErrors": [],
+      "apiErrors": [],
+      "dbVerifications": [],
+      "summary": "19次交互，无异常",
+      "discovered": {
+        "tabs": 6,
+        "buttons": 39,
+        "pagination": 0,
+        "switches": 0,
+        "tableRows": 92,
+        "forms": 0,
+        "inputs": 8
+      }
+    },
+    {
+      "route": "/llmRouting/cost",
+      "status": "ok",
+      "pageLoad": {
+        "not404": true,
+        "contentLength": 814,
+        "url": "http://localhost:8211/#/llmRouting/cost"
+      },
+      "interactions": [
+        {
+          "type": "table-row",
+          "target": "(first row)",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        }
+      ],
+      "consoleErrors": [],
+      "apiErrors": [],
+      "dbVerifications": [],
+      "summary": "1次交互，无异常",
+      "discovered": {
+        "tabs": 0,
+        "buttons": 0,
+        "pagination": 0,
+        "switches": 0,
+        "tableRows": 6,
+        "forms": 0,
+        "inputs": 3
+      }
+    },
+    {
+      "route": "/marketingFlow/list",
+      "status": "ok",
+      "pageLoad": {
+        "not404": true,
+        "contentLength": 737,
+        "url": "http://localhost:8211/#/marketingFlow/list"
+      },
+      "interactions": [
+        {
+          "type": "button:click",
+          "target": "New Process",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        }
+      ],
+      "consoleErrors": [],
+      "apiErrors": [],
+      "dbVerifications": [],
+      "summary": "1次交互，无异常",
+      "discovered": {
+        "tabs": 0,
+        "buttons": 1,
+        "pagination": 0,
+        "switches": 0,
+        "tableRows": 0,
+        "forms": 0,
+        "inputs": 0
+      }
+    },
+    {
+      "route": "/mcp/credentials",
+      "status": "ok",
+      "pageLoad": {
+        "not404": true,
+        "contentLength": 715,
+        "url": "http://localhost:8211/#/mcp/credentials"
+      },
+      "interactions": [
+        {
+          "type": "button:click",
+          "target": "签发新凭证",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        }
+      ],
+      "consoleErrors": [],
+      "apiErrors": [],
+      "dbVerifications": [],
+      "summary": "1次交互，无异常",
+      "discovered": {
+        "tabs": 0,
+        "buttons": 1,
+        "pagination": 0,
+        "switches": 0,
+        "tableRows": 0,
+        "forms": 0,
+        "inputs": 0
+      }
+    },
+    {
+      "route": "/messageHub/list",
+      "status": "ok",
+      "pageLoad": {
+        "not404": true,
+        "contentLength": 4404,
+        "url": "http://localhost:8211/#/messageHub/list"
+      },
+      "interactions": [
+        {
+          "type": "pagination",
+          "target": "Go to previous page",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "pagination",
+          "target": "1",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "pagination",
+          "target": "2",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": true,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "pagination",
+          "target": "3",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": true,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "button:read",
+          "target": "详情",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "详情",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "详情",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "详情",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "详情",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "详情",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "详情",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "详情",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "详情",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "详情",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "详情",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "详情",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "table-row",
+          "target": "(first row)",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": true,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        }
+      ],
+      "consoleErrors": [],
+      "apiErrors": [],
+      "dbVerifications": [],
+      "summary": "17次交互，无异常",
+      "discovered": {
+        "tabs": 0,
+        "buttons": 42,
+        "pagination": 9,
+        "switches": 0,
+        "tableRows": 20,
+        "forms": 1,
+        "inputs": 32
+      }
+    },
+    {
+      "route": "/messageHub/dashboard",
+      "status": "ok",
+      "pageLoad": {
+        "not404": true,
+        "contentLength": 2780,
+        "url": "http://localhost:8211/#/messageHub/dashboard"
+      },
+      "interactions": [
+        {
+          "type": "button:click",
+          "target": "丢弃",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "丢弃",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "丢弃",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "丢弃",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "丢弃",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "丢弃",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "丢弃",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "丢弃",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "丢弃",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "丢弃",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "丢弃",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "丢弃",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "table-row",
+          "target": "(first row)",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        }
+      ],
+      "consoleErrors": [],
+      "apiErrors": [],
+      "dbVerifications": [],
+      "summary": "13次交互，无异常",
+      "discovered": {
+        "tabs": 0,
+        "buttons": 79,
+        "pagination": 0,
+        "switches": 0,
+        "tableRows": 41,
+        "forms": 0,
+        "inputs": 0
+      }
+    },
+    {
+      "route": "/objection/list",
+      "status": "ok",
+      "pageLoad": {
+        "not404": true,
+        "contentLength": 872,
+        "url": "http://localhost:8211/#/objection/list"
+      },
+      "interactions": [
+        {
+          "type": "button:click",
+          "target": "Intelligent handling",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "Refresh Categories",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "智能匹配",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "仅分类",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:danger",
+          "target": "清空",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:danger",
+          "target": "清空",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        }
+      ],
+      "consoleErrors": [],
+      "apiErrors": [],
+      "dbVerifications": [],
+      "summary": "6次交互，无异常",
+      "discovered": {
+        "tabs": 0,
+        "buttons": 6,
+        "pagination": 0,
+        "switches": 0,
+        "tableRows": 0,
+        "forms": 1,
+        "inputs": 2
+      }
+    },
+    {
+      "route": "/oneid/list",
+      "status": "ok",
+      "pageLoad": {
+        "not404": true,
+        "contentLength": 2239,
+        "url": "http://localhost:8211/#/oneid/list"
+      },
+      "interactions": [
+        {
+          "type": "pagination",
+          "target": "Go to previous page",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "pagination",
+          "target": "1",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "pagination",
+          "target": "2",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": true,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "pagination",
+          "target": "3",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": true,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "button:read",
+          "target": "查看身份",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "查看身份",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "查看身份",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "查看身份",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "查看身份",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "查看身份",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "查看身份",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "查看身份",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "查看身份",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "查看身份",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "查看身份",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "查看身份",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "table-row",
+          "target": "(first row)",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        }
+      ],
+      "consoleErrors": [],
+      "apiErrors": [],
+      "dbVerifications": [],
+      "summary": "17次交互，无异常",
+      "discovered": {
+        "tabs": 0,
+        "buttons": 44,
+        "pagination": 8,
+        "switches": 0,
+        "tableRows": 20,
+        "forms": 0,
+        "inputs": 2
+      }
+    },
+    {
+      "route": "/oneid/conflicts",
+      "status": "ok",
+      "pageLoad": {
+        "not404": true,
+        "contentLength": 435,
+        "url": "http://localhost:8211/#/oneid/conflicts"
+      },
+      "interactions": [
+        {
+          "type": "button:click",
+          "target": "刷新",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        }
+      ],
+      "consoleErrors": [],
+      "apiErrors": [],
+      "dbVerifications": [],
+      "summary": "1次交互，无异常",
+      "discovered": {
+        "tabs": 0,
+        "buttons": 1,
+        "pagination": 0,
+        "switches": 0,
+        "tableRows": 0,
+        "forms": 0,
+        "inputs": 0
+      }
+    },
+    {
+      "route": "/oneid/merge-rules",
+      "status": "ok",
+      "pageLoad": {
+        "not404": true,
+        "contentLength": 898,
+        "url": "http://localhost:8211/#/oneid/merge-rules"
+      },
+      "interactions": [
+        {
+          "type": "switch",
+          "target": "switch",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "switch",
+          "target": "switch",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "switch",
+          "target": "switch",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "button:click",
+          "target": "编辑",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "编辑",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "编辑",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "编辑",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "编辑",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "编辑",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:write",
+          "target": "+ 新增规则",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:danger",
+          "target": "删除",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:danger",
+          "target": "删除",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:danger",
+          "target": "删除",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:danger",
+          "target": "删除",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:danger",
+          "target": "删除",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "table-row",
+          "target": "(first row)",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        }
+      ],
+      "consoleErrors": [],
+      "apiErrors": [],
+      "dbVerifications": [],
+      "summary": "16次交互，无异常",
+      "discovered": {
+        "tabs": 0,
+        "buttons": 13,
+        "pagination": 0,
+        "switches": 6,
+        "tableRows": 6,
+        "forms": 0,
+        "inputs": 6
+      }
+    },
+    {
+      "route": "/operationLog/list",
+      "status": "ok",
+      "pageLoad": {
+        "not404": true,
+        "contentLength": 2234,
+        "url": "http://localhost:8211/#/operationLog/list"
+      },
+      "interactions": [
+        {
+          "type": "pagination",
+          "target": "Go to previous page",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "pagination",
+          "target": "1",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "pagination",
+          "target": "2",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": true,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "pagination",
+          "target": "3",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": true,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "button:read",
+          "target": "详情",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "详情",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "详情",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "详情",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "详情",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "详情",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "详情",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "详情",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "详情",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "详情",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "详情",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:read",
+          "target": "详情",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "table-row",
+          "target": "(first row)",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        }
+      ],
+      "consoleErrors": [],
+      "apiErrors": [],
+      "dbVerifications": [],
+      "summary": "17次交互，无异常",
+      "discovered": {
+        "tabs": 0,
+        "buttons": 25,
+        "pagination": 9,
+        "switches": 0,
+        "tableRows": 20,
+        "forms": 0,
+        "inputs": 7
+      }
+    },
+    {
+      "route": "/operationLog/enhanced",
+      "status": "ok",
+      "pageLoad": {
+        "not404": true,
+        "contentLength": 422,
+        "url": "http://localhost:8211/#/operationLog/enhanced"
+      },
+      "interactions": [
+        {
+          "type": "pagination",
+          "target": "Go to previous page",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "pagination",
+          "target": "1",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "pagination",
+          "target": "2",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "pagination",
+          "target": "3",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": []
+        },
+        {
+          "type": "button:read",
+          "target": "导出",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "刷新",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "查询",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "Go to previous page",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "Go to next page",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        }
+      ],
+      "consoleErrors": [],
+      "apiErrors": [],
+      "dbVerifications": [],
+      "summary": "9次交互，无异常",
+      "discovered": {
+        "tabs": 0,
+        "buttons": 5,
+        "pagination": 9,
+        "switches": 0,
+        "tableRows": 0,
+        "forms": 1,
+        "inputs": 5
+      }
+    },
+    {
+      "route": "/ops-overview",
+      "status": "ok",
+      "pageLoad": {
+        "not404": true,
+        "contentLength": 680,
+        "url": "http://localhost:8211/#/ops-overview"
+      },
+      "interactions": [],
+      "consoleErrors": [],
+      "apiErrors": [],
+      "dbVerifications": [],
+      "summary": "0次交互，无异常",
+      "discovered": {
+        "tabs": 0,
+        "buttons": 0,
+        "pagination": 0,
+        "switches": 0,
+        "tableRows": 0,
+        "forms": 0,
+        "inputs": 0
+      }
+    }
+  ]
+}

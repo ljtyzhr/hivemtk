@@ -396,7 +396,8 @@ const goTest = () => {
 const onToggle = async (row, v) => {
   row._toggling = true
   try {
-    await faqApi.update(row.id, { ...stripToPayload(row), enabled: v })
+    // 专用 toggle 端点只收 enabled，避免全量 Update 的 agent_id required 校验
+    await faqApi.toggle(row.id, v)
     ElMessage.success(v ? '已启用' : '已禁用')
     await loadList()
     await loadStats()

@@ -17,6 +17,10 @@ export const sopTemplateApi = {
     return http.put(`/api/sop-templates/${id}`, data)
   },
 
+  toggle(id, enabled) {
+    return http.patch(`/api/sop-templates/${id}/toggle`, { enabled })
+  },
+
   remove(id) {
     return http.delete(`/api/sop-templates/${id}`)
   },

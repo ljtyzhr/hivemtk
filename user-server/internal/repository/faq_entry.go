@@ -253,6 +253,13 @@ func (r *FAQRepository) Update(ctx context.Context, id uint, entry *model.FAQEnt
 		Select("*").Updates(entry).Error
 }
 
+// SetEnabled 仅切换启用状态（列表页开关专用，避免全量 Update 的 required 校验）
+func (r *FAQRepository) SetEnabled(ctx context.Context, id uint, enabled bool) error {
+	return r.db.WithContext(ctx).Model(&model.FAQEntry{}).
+		Where("id = ?", id).
+		Update("enabled", enabled).Error
+}
+
 // Delete 删除 FAQ
 func (r *FAQRepository) Delete(ctx context.Context, id uint) error {
 	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&model.FAQEntry{}).Error

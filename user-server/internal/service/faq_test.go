@@ -205,6 +205,10 @@ func (m *mockFAQRepoForDecay) IncrementHitCount(ctx context.Context, id uint) er
 	return nil
 }
 
+func (m *mockFAQRepoForDecay) SetEnabled(ctx context.Context, id uint, enabled bool) error {
+	return nil
+}
+
 func (m *mockFAQRepoForDecay) DecayQuality(ctx context.Context, id uint, decay float64) error {
 	m.decayCalls = append(m.decayCalls, struct {
 		ID    uint

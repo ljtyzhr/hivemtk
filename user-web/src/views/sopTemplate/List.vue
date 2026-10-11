@@ -280,16 +280,8 @@ const goEdit = (row) => {
 const onToggle = async (row, v) => {
   row._toggling = true
   try {
-    await sopTemplateApi.update(row.id, {
-      name: row.name,
-      intent: row.intent,
-      stage: row.stage,
-      template: row.template,
-      vars: row.vars || '',
-      priority: row.priority || 0,
-      confidence: row.confidence || 0,
-      enabled: v
-    })
+    // 专用 toggle 端点只收 enabled，避免全量 Update 的 agent_id required 校验
+    await sopTemplateApi.toggle(row.id, v)
     ElMessage.success(v ? '已启用' : '已禁用')
     await loadList()
   } catch (e) {

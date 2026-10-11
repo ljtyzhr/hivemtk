@@ -212,6 +212,13 @@ func (r *SOPTemplateRepository) Update(ctx context.Context, id uint, tpl *model.
 		Select("*").Updates(tpl).Error
 }
 
+// SetEnabled 仅切换启用状态（列表页开关专用，避免全量 Update 的 required 校验）
+func (r *SOPTemplateRepository) SetEnabled(ctx context.Context, id uint, enabled bool) error {
+	return r.db.WithContext(ctx).Model(&model.SOPTemplate{}).
+		Where("id = ?", id).
+		Update("enabled", enabled).Error
+}
+
 // Delete 删除 SOP 模板
 func (r *SOPTemplateRepository) Delete(ctx context.Context, id uint) error {
 	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&model.SOPTemplate{}).Error

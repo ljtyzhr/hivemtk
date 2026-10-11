@@ -345,6 +345,10 @@ func (m *mockSOPRepoForTask16) Update(ctx context.Context, id uint, tpl *model.S
 	return nil
 }
 
+func (m *mockSOPRepoForTask16) SetEnabled(ctx context.Context, id uint, enabled bool) error {
+	return nil
+}
+
 func (m *mockSOPRepoForTask16) Delete(ctx context.Context, id uint) error {
 	return nil
 }

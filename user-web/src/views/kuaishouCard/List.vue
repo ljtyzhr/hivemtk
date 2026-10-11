@@ -402,8 +402,18 @@ const handleDelete = async (row) => {
 
 const handleStatusChange = async (row) => {
   try {
+    // 后端 KuaishouCardUpdateRequest.Title 为 required，漏传会 400
     const res = await kuaishouCardApi.updateKuaishouCard({
       id: row.id,
+      title: row.title,
+      description: row.description || '',
+      image_url: row.image_url || '',
+      redirect_url: row.redirect_url || '',
+      domain_pool_id: row.domain_pool_id || 0,
+      tags: row.tags || '',
+      like_count: row.like_count || 0,
+      share_count: row.share_count || 0,
+      view_count: row.view_count || 0,
       is_active: row.is_active
     });
   } catch (error) {

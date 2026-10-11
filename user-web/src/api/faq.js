@@ -17,6 +17,10 @@ export const faqApi = {
     return http.put(`/api/faqs/${id}`, data)
   },
 
+  toggle(id, enabled) {
+    return http.patch(`/api/faqs/${id}/toggle`, { enabled })
+  },
+
   remove(id) {
     return http.delete(`/api/faqs/${id}`)
   },

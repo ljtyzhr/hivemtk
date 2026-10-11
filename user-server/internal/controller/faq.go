@@ -33,6 +33,7 @@ func (c *FAQController) RegisterRoutes(router *gin.RouterGroup) {
 		g.GET("/:id", c.Get)
 		g.POST("", c.Create)
 		g.PUT("/:id", c.Update)
+		g.PATCH("/:id/toggle", c.Toggle)
 		g.DELETE("/:id", c.Delete)
 		g.POST("/match", c.Match)
 	}
@@ -185,6 +186,27 @@ func (c *FAQController) Update(ctx *gin.Context) {
 		return
 	}
 	response.Success(ctx, gin.H{"id": id}, "更新成功")
+}
+
+// Toggle 切换启用状态（列表页开关专用，只收 enabled，不走全量 required 校验）
+func (c *FAQController) Toggle(ctx *gin.Context) {
+	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
+	if err != nil {
+		response.Error(ctx, http.StatusBadRequest, "无效的 FAQ ID")
+		return
+	}
+	var req struct {
+		Enabled *bool `json:"enabled" binding:"required"`
+	}
+	if err := ctx.ShouldBindJSON(&req); err != nil {
+		response.Error(ctx, http.StatusBadRequest, "请求参数错误: "+err.Error())
+		return
+	}
+	if err := c.svc.SetEnabled(ctx.Request.Context(), uint(id), *req.Enabled); err != nil {
+		response.ErrorFromDB(ctx, err, err.Error())
+		return
+	}
+	response.Success(ctx, gin.H{"id": id, "enabled": *req.Enabled}, "状态已更新")
 }
 
 // Delete 删除

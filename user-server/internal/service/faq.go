@@ -73,6 +73,7 @@ type faqRepoIface interface {
 	ScoreCandidates(ctx context.Context, entries []model.FAQEntry, msg string, topK int) ([]model.FAQEntry, error)
 	Create(ctx context.Context, entry *model.FAQEntry) error
 	Update(ctx context.Context, id uint, entry *model.FAQEntry) error
+	SetEnabled(ctx context.Context, id uint, enabled bool) error
 	Delete(ctx context.Context, id uint) error
 }
 
@@ -345,6 +346,19 @@ func (s *FAQService) Update(ctx context.Context, id uint, entry *model.FAQEntry)
 	} else {
 		s.InvalidateAllCache()
 	}
+	return nil
+}
+
+// SetEnabled 仅切换启用状态（列表页开关专用）
+func (s *FAQService) SetEnabled(ctx context.Context, id uint, enabled bool) error {
+	if s.repo == nil {
+		return fmt.Errorf("repo not initialized")
+	}
+	if err := s.repo.SetEnabled(ctx, id, enabled); err != nil {
+		return err
+	}
+	// 全量失效：SetEnabled 无 agent 上下文，宁可多清一次缓存也不能留脏读
+	s.InvalidateAllCache()
 	return nil
 }
 
