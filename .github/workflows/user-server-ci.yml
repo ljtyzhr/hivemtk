@@ -21,6 +21,14 @@ on:
       - 'scripts/check-cleared-fake-assets.sh'
       # 参数中心读取点门：每条参数要么有人读、要么文案承认未接线（同上，脚本本体即判据）。
       - 'scripts/check-config-param-readpoints.py'
+      # 配置治理五道门（G2~G6）的脚本本体与判据基线，进触发面的原因同上：
+      # 只改判据/只动基线的提交不重跑这道门，就得到一道「看起来在跑、永远绿」的门。
+      - 'scripts/check-config-param-defaults.py'
+      - 'scripts/check-hardcode-tunable.py'
+      - 'scripts/hardcode-tunable.baseline'
+      - 'scripts/check-config-param-keystyle.py'
+      - 'scripts/check-i18n-coverage.py'
+      - 'scripts/i18n-coverage-baseline.json'
       - 'scripts/date-bucket-tz.baseline'
       # 下面两行是 `test-nil-deref` 作业的命门：门自己的判据与它读的基线若不进触发面，
       # "只改判据"/"只动基线"这类提交就根本不重跑这道门（platform docs-link-check.yml 的教训）。
@@ -54,6 +62,14 @@ on:
       - 'scripts/check-unwired-assets.sh'
       - 'scripts/check-cleared-fake-assets.sh'
       - 'scripts/check-config-param-readpoints.py'
+      # 配置治理五道门（G2~G6）的脚本本体与判据基线，进触发面的原因同上：
+      # 只改判据/只动基线的提交不重跑这道门，就得到一道「看起来在跑、永远绿」的门。
+      - 'scripts/check-config-param-defaults.py'
+      - 'scripts/check-hardcode-tunable.py'
+      - 'scripts/hardcode-tunable.baseline'
+      - 'scripts/check-config-param-keystyle.py'
+      - 'scripts/check-i18n-coverage.py'
+      - 'scripts/i18n-coverage-baseline.json'
       - 'scripts/date-bucket-tz.baseline'
       - 'scripts/check-test-nil-deref.py'
       - 'scripts/test-nil-deref.baseline'
@@ -187,6 +203,28 @@ jobs:
         # 2026-10-09（B7）：同上从 make audit 常驻化到 CI。判据现读 user-server 种子与
         # 非测试 Go 源，接线后不撤"未接线"标注、或新参数既没人读也不自我声明，都当场红。
         run: python3 scripts/check-config-param-readpoints.py
+
+      - name: 参数中心默认值与代码兜底常量一致（阻断）
+        # 2026-10-11（阶段五 G3）：读侧（GetDuration）与校验侧（validateValue）共用
+        # parseDurationSeconds，所以种子 DefaultValue 与代码兜底常量必须同源，否则读出来
+        # 的值会被 min/max 静默改写成别的数。
+        run: python3 scripts/check-config-param-defaults.py
+
+      - name: 新增可调旋钮必须入库（阻断；已是 Get*() 兜底实参的算已接线）
+        # 2026-10-11（阶段五 G4）：只卡新增。存量 286 个常量名在
+        # scripts/hardcode-tunable.baseline 里，刷基线必须是人的显式动作。
+        run: python3 scripts/check-hardcode-tunable.py
+
+      - name: 参数 key/group 命名规范与唯一（阻断）
+        # 2026-10-11（阶段五 G5）：key 一旦上线就是公开契约（前端 runtime 端点把 key
+        # 原样当 JSON 字段下发），改名等于让已配站点静默回落默认值。
+        run: python3 scripts/check-config-param-keystyle.py
+
+      - name: i18n 真接入占比只许涨不许跌（阻断）
+        # 2026-10-11（阶段五 G6）：三条棘轮（真 i18n 键占比 / 中文字面量直传数 /
+        # 词条库孤儿数）+ 各语言包齐整。注意本门必须认 $t() 形态——实测 918 个去重键里
+        # 716 个走 $t()，只认裸 t() 会漏掉 78% 的使用而且漏得悄无声息。
+        run: python3 scripts/check-i18n-coverage.py
 
       - name: 路由消费面取证器口径自检（10 枚控制，含两条极性对）
         # scripts/route-consumer-triage.py 产出的四档名册是接口废弃判据唯一可重跑的事实源，

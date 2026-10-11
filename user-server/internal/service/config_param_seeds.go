@@ -524,6 +524,9 @@ func DefaultParamDefs() []ParamDef {
 			ValueType:   "int", DefaultValue: "100", Min: strPtr("1"), Max: strPtr("100000"), Step: strPtr("1"), Restart: true}, {Group: "memory", Key: "l1_ttl_hours", Name: "短期记忆 TTL",
 			Description: "L1 短期记忆（MemoryLayerShortTerm）的存活秒数。它同时是召回窗口：调大让多轮对话上下文更连贯，调小让旧消息更快沉到 L4 长期层。默认 24h 与单会话的常见跨度相当。调 0 会让刚写入的短期消息立即过期、短期召回永远空手，症状是「AI 突然不记得上一句」；非正数一律回落代码兜底",
 			ValueType:   "duration", DefaultValue: "86400", Min: strPtr("60"), Max: strPtr("604800"), Step: strPtr("60")},
+		{Group: "memory", Key: "l1_window_size", Name: "短期记忆窗口大小",
+			Description: "单个会话保留的 L1 短期记忆条数（超出即淘汰最旧）。它同时是多轮召回的上下文宽度：写大＝上下文更连贯，但每轮召回喂给 LLM 的 token 变多、成本上升；写小＝更早丢历史，「AI 突然不记得上一句」。0 或负值会让 l1Trim 把整个会话的短期记忆删光，故一律回落兜底",
+			ValueType:   "int", DefaultValue: "10", Min: strPtr("1"), Max: strPtr("1000"), Step: strPtr("1"), Restart: false},
 		{Group: "geo", Key: "default_visibility_days", Name: "可见性趋势默认天数",
 			Description: "AI 可见性趋势查询在调用方没给 days 时的默认时间窗（天）。注意它不是上限：days 大于 365 仍会被夹到 365（一次要回 365 行按引擎的聚合，是查询成本闸，不随默认值一起放大）。改小会让环比对比的样本不足（不足 2 天直接无环比）",
 			ValueType:   "int", DefaultValue: "30", Min: strPtr("1"), Max: strPtr("365"), Step: strPtr("1")},
@@ -751,5 +754,15 @@ func DefaultParamDefs() []ParamDef {
 		{Group: "frontend_ui", Key: "toast_duration_ms", Name: "全局提示停留时长",
 			Description: "全局 toast/消息提示的停留时长（毫秒）。默认 3000：短了用户来不及读完（尤其是较长的错误文案），长了会挡住下面的操作区",
 			ValueType:   "int", DefaultValue: "3000", Min: strPtr("1000"), Max: strPtr("30000"), Step: strPtr("500"), Restart: false},
+		// ── G1 补登记：门禁反向核对抓出的两条孤儿读取点 ──────────────────
+		// 两条都在注释里写着「可经 X 调整」，但种子里没有这一条 ⇒ 代码每次读都 miss、
+		// 每次都回落 fallback，运维在页面上看不到这个旋钮。这正是 1.8 在
+		// channelgw/ws.go 上栽过的形状，只是那次的 key 写错、这次是压根没登记。
+		{Group: "agent_llm", Key: "geo_pipeline_batch_per_run", Name: "Geo SEO 管线每轮词数",
+			Description: "Geo 关键词管线每轮送 LLM 做 SEO（生成→评分→验证→探针）的词数上限。写大＝单轮更快清零积压但单轮超时风险高（20 词约消耗 60 分钟预算的一半）；写小＝单轮更快返回但积压清得慢。0 或负值关闭该批次（表现为「SEO批次已关闭」）",
+			ValueType:   "int", DefaultValue: "20", Min: strPtr("0"), Max: strPtr("500"), Step: strPtr("1"), Restart: false},
+		{Group: "bridge", Key: "sse_max_stream_duration", Name: "bridge SSE 单流最长时长",
+			Description: "单个 bridge SSE 连接从建立到被强制关闭的最长时长（秒）。写大＝长连接存活更久（重连少），代价是服务端持有连接的句柄与缓冲占用更久；写小＝客户端需要更频繁地重连重放 backlog。0 或负值回落兜底",
+			ValueType:   "duration", DefaultValue: "28800", Min: strPtr("60"), Max: strPtr("86400"), Step: strPtr("60"), Restart: false},
 	}
 }

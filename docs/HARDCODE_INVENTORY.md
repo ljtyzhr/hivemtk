@@ -318,6 +318,52 @@ alignment 五维应合并成 1 张 `alignment_dimension_weight` 字典项，不�
 > `q.Days <= 0 || q.Days > 365` 那一个条件兼任的两件事。
 > 下表是**接线前**的基线快照，各行状态见行末标注。
 
+### 7.1 阶段五：六道门已落地（2026-10-11）
+
+阶段一到阶段四把"能接的都接了"，但那是一次性动作——**下一次有人加新的硬编码，
+没有任何一道门会问他要不要入库**。阶段五把方案 §6 的六道门全部落地，接进
+`make audit` 与 `.github/workflows/user-server-ci.yml` 的 `static-gates` 作业。
+
+| 门 | 挡住什么 | 当前读数 |
+| --- | --- | --- |
+| G1+G2 `check-config-param-readpoints.py`（改造） | 登记了没人读（僵尸）/ 接了线却不撤「未接线」标注 / **代码在读而种子里没有的孤儿 key** / 种子里没有的组名 | 215 条种子 / wired 200 / 已声明未接线 14 / **ORPHAN 0** |
+| G3 `check-config-param-defaults.py` | 库里改了默认值、代码兜底常量还是老值 | 可比 114 个 / **不一致 0** |
+| G4 `check-hardcode-tunable.py` | 新加的阈值/TTL/上限常量绕过参数中心 | 168 个常量声明 / **新增未入库 0** |
+| G5 `check-config-param-keystyle.py` | key 命名不规范 / 组内重名 / runtime 白名单指向不存在的组 | 215 条 35 组 / **违规 0** |
+| G6 `check-i18n-coverage.py` | 中文文案硬编码的覆盖率退步 | 见下 |
+
+**总读数（本会话累计）**：种子 **115 → 215 条**、`wired 40 → 200`、
+`UNDECLARED 72 → 0`、`已声明未接线 14`（逐条写明为何接不上，见 §7 表格行末标注）。
+
+**G6 的三条棘轮与实测数字**。G6 不比"绝对覆盖率"，只比趋势——存量太高，卡全量会让 CI
+永远红，实际结果一定是大家学会绕过门禁：
+
+- **真 i18n 键 178 个 / 全部 `t()` 调用 918 个 = 19.39%**，不许跌
+- **740 处把中文字面量直接当 `t()` 的键传入**，不许增。这类调用查找必然 miss，
+  vue-i18n 回落成 key 本身，于是"中文看起来正常、8 种语言全是中文"。它比不写 i18n 更坏：
+  不写至少能被 `hardcode_sweep.py` 数出来，写成 `t()` 之后人 review 时会以为这页已国际化。
+- **1662 / 1840 条词条无人引用**（`zh.json` 的 90%），不许增。词条库是批量生成后与真实页面脱节了。
+- 硬门：9 种语言词条数齐整（zh 1840 / en 1841 / ar 1850 / ja 1850 / 其余 1842）。
+
+**两处"测量本身是坏的"的坑**（都写进脚本文件头了。这类坑比判据写错更危险：
+数字看着仍然是个正数，只是全错）：
+
+1. **只认裸 `t()` 会漏掉 78% 的 i18n 使用**。实测 918 个去重键里 **716 个走 `$t()`**
+   （vue-i18n 组合式 API 的全局属性形态），只有 203 个走裸 `t()`。
+2. **按名字判断"常量是否已接参数中心"必然漂移**。接线时刻意保留原常量名，
+   `HTTPIngestMaxMessages` 的 key 是 `bridge.ingest_max_messages`、
+   `L1WindowSize` 的是 `memory.l1_window_size`。正确判据是**实参位置**——
+   该常量是否出现在 `Get*(ctx, group, key, <常量>)` 的兜底位。
+
+**门禁抓出并已修的真问题**：
+
+| 门 | 抓出 | 性质 |
+| --- | --- | --- |
+| G1 | `agent_llm.geo_pipeline_batch_per_run`、`bridge.sse_max_stream_duration` 两条孤儿 key | 代码注释写着"可经该 key 调整"，种子里却没登记 ⇒ 每次读都 miss、每次回落兜底 |
+| G4 | `memory.l1_window_size` 真漏接，且 `BuildFullContext` 里还有一处直接传常量 | LLM 提示词的生产构造入口绕过了参数；同文件 `L1List`/`l1Trim` 都读参数、唯独提示词不读 |
+| — | `audit_api_contract.py` 按名推断表缺 `plainAuth`/`admin` ⇒ 3.2/4.1 新增的两个端点被判"后端没有" | 已按该脚本既有规则补齐，UNMATCHED 2→0 |
+| — | `check-hardcode-tunable.py` 跳过目录判定用绝对路径段 ⇒ 仓库检出在 `/tmp` 下时每个文件都被跳过 | 主仓路径不含 `tmp` 段，门一直是绿的；**干净 worktree 验证抓出来的** |
+
 | group | 僵尸 key |
 | --- | --- |
 | `misc`(16) ✅已接线 | `visitor_token_ttl`、`sso_cookie_ttl`、`polling_lock_stale_threshold`、`domain_check_concurrency`、`sms_max_retry`、`csv_export_max_rows`、`backup_page_size`、`text_truncate_max_bytes`、`preview_max_len`、`sop_scheduler_interval`、`sop_max_wait`、`deepl_timeout`、`reply_sem_timeout`、`ownership_cache_ttl`、`summary_stale_threshold`、`agentloop_history_max_candidates` |

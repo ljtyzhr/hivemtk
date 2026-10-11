@@ -645,6 +645,66 @@ GET  /api/config/runtime?groups=frontend_ws,frontend_ui,pagination
 **G4 是整套方案的关键**：只卡新增不卡存量，才能让"新增硬编码"在 review 前就被挡住，
 而存量靠阶段一二三四慢慢消化。一上来就卡全量会让所有 PR 全红，实际结果一定是大家学会绕过门禁。
 
+### 6.1 六道门已落地（2026-10-11）
+
+六道门全部接进 `make audit`（紧邻 `check-config-param-readpoints.py`，读数连着看），
+并接进 `.github/workflows/user-server-ci.yml` 的 `static-gates` 作业。
+CI 触发面按 `check-ci-gate-paths.py` 的纪律登记：**门脚本本体 + 它读的判据基线**
+都要进 `on.push.paths` 与 `on.pull_request.paths` 双份，缺一份就是
+"只改判据/只动基线的提交不重跑这道门"。
+
+| # | 脚本 | 判据（落地形态） | 当前读数 |
+| --- | --- | --- | --- |
+| G1+G2 | `check-config-param-readpoints.py`（改造） | **新增两类**：代码里有 `GetX(ctx, g, k, …)` 而种子里没有 `(g,k)` ⇒ `ORPHAN_READ`（每次读都 miss、每次回落兜底，而页面上看不到旋钮）；出现种子里没有的组名 ⇒ `ORPHAN_GROUP` | 215 条种子 / wired 200 / 已声明未接线 14 / **ORPHAN 0** |
+| G3 | `check-config-param-defaults.py` | 种子 `DefaultValue` 与代码 `Default<Key>` 导出常量比对，duration 两边折算成秒 | 可比常量 114 个 / **不一致 0** |
+| G4 | `check-hardcode-tunable.py` | 命名带 `Threshold/Limit/TTL/…` 的常量，既不在 `scripts/hardcode-tunable.baseline` 里、又**不是**任何 `Get*()` 的兜底实参 ⇒ 红 | 扫描 168 个常量声明 / **新增未入库 0** / 已作兜底 2 |
+| G5 | `check-config-param-keystyle.py` | key 匹配 `^[a-z][a-z0-9_]*$`、长度 ≤ 64、非 SQL 关键字；`(group,key)` 不重复；key 无连续重复词（`dedup_dedup_ttl`）；runtime 白名单组必须在种子里真实存在 | 215 条 / 35 组 / **违规 0 / 幽灵组 0** |
+| G6 | `check-i18n-coverage.py` | 三条棘轮 + 一条硬门，见下 | t() 918 键 / 覆盖率 19.39% / 9 语言齐整 |
+
+**G6 的三条棘轮**（存量太高，卡全量会让 CI 永远红，等于没有门）：
+
+- `resolved_ratio` = 能解析到词条库的点分键 / 全部 `t()` 键，**不许跌**（19.39%）
+- `raw_t_calls` = 把中文字面量直接当 `t()` 键传入的去重条数，**不许增**（740）
+- `locale_orphans` = locales 里无人引用的词条数，**不许增**（1662 / 1840）
+- 硬门：非基准语言词条数不得少于基准语言（9 种语言目前齐整）
+
+**四条与方案原文不符、已按实测改写的判据**：
+
+1. **G4 的"已接线"判据不是名字匹配，是实参位置**。接线时刻意保留原常量名
+   （避免把参数化放大成一片 diff），所以常量名与种子 key 往往毫无关系：
+   `HTTPIngestMaxMessages` 的 key 是 `bridge.ingest_max_messages`、
+   `L1WindowSize` 的是 `memory.l1_window_size`。按名字配对只能靠一张人工映射表，
+   而映射表必然和代码漂移。改判据为：**该常量是否出现在 `Get*(ctx, g, k, <常量>)`
+   的兜底实参位**（含直连范式 `GetInt(..., 0)` 后 `return <常量>`）。
+2. **G6 必须认 `$t()` 形态**。实测 918 个去重键里 **716 个走 `$t()`、只有 203 个走裸
+   `t()`**（vue-i18n 组合式 API 的全局属性形态）。只认裸 `t()` 会漏掉 78% 的 i18n 使用，
+   而且漏得悄无声息——数字看着仍然是个正数，只是全错。本门第一次写完就踩了这个。
+3. **G6 的"覆盖率"不是"中文有没有进 i18n"**，是"写了 `t()` 的里有多少真解析得到"。
+   实测的真 i18n 键只有 178 个，另有 **740 处把中文当 `t()` 的键直接传入**——
+   这种调用查找必然 miss，vue-i18n 回落成 key 本身，于是"中文看起来正常、8 种语言全是中文"。
+   它比不写 i18n 更坏：不写至少能被扫描器数出来，写成 `t()` 之后人 review 时会以为这页已国际化。
+4. **G1 的孤儿判定必须支持组名常量**。`GetInt(ctx, ParamGroupMemory, Key, fallback)`
+   这种写法里第一个实参是标识符而非字符串字面量，正则只认字面量就会漏掉整条读取点。
+
+**G1/G4 各抓出一条真问题（都已修）**：
+
+| 门 | 抓出 | 真因 | 修法 |
+| --- | --- | --- | --- |
+| G1 | `agent_llm.geo_pipeline_batch_per_run`、`bridge.sse_max_stream_duration` 各一条孤儿 | 代码注释里写着"可经该 key 调整"，但种子里根本没登记 ⇒ 每次读都 miss、每次回落兜底，运维在页面上也看不到旋钮 | 补种子两条（212→214） |
+| G4 | `memory.l1_window_size` 真漏接 | `L1WindowSize = 10` 没有任何读取点走参数中心 | `runtimeL1WindowSize(ctx)` 直连读取 + **补上 `BuildFullContext` 里漏掉的一处**（LLM 提示词的生产构造入口，原先直接传常量，运维调了不生效——同文件 `L1List`/`l1Trim` 都读参数、唯独提示词不读，这种半接线最难发现） |
+
+**顺带修掉的两个既有缺陷（规则 2）**：
+
+- `audit_api_contract.py` 的按名推断表只有 `auth`/`public`/`router`，不含 3.2/4.1 引入的
+  `plainAuth`/`admin` 形参名 ⇒ `GET /api/config/runtime` 与
+  `GET /api/config/dictionaries/:parent` 被判成"前端调了后端没有"，`--strict` 直接红。
+  按该脚本**已有**的按名推断规则补齐（两者装配处分别绑到 `auth := r.Group("/api")`
+  与 `systemAdmin := auth.Group("")`，前缀都是 `/api`），UNMATCHED 2→0。
+- `check-hardcode-tunable.py` 的跳过目录判定原写 `seg in p.parts`，而 `p` 是绝对路径
+  ⇒ 仓库只要检出在含 `tmp`/`test`/`migrations` 段的位置（本仓的干净 worktree 验证就在
+  `/tmp` 下），**每个文件都被跳过**。改为只看相对扫描根的路径段。
+  这个 bug 是干净 worktree 验证抓出来的——主仓路径不含这些段，门一直是绿的。
+
 ---
 
 ## 7. 风险与回滚

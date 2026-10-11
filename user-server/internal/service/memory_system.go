@@ -28,6 +28,8 @@ type MemorySystem struct {
 }
 
 const (
+	// L1WindowSize 现在只是兜底值：运行时读的是 memory.l1_window_size
+	//（G4 门禁抓出来的未入库旋钮，2026-10-11 补接，见下方 runtimeL1WindowSize）。
 	L1WindowSize = 10
 	L1TTLHours   = 24 * time.Hour
 	L4MaxPerCust = 500
@@ -68,6 +70,27 @@ func EffectiveL1TTLHours() time.Duration {
 		return v
 	}
 	return L1TTLHours
+}
+
+// ParamGroupMemory / MemoryL1WindowSizeParam：memory 组与 L1 窗口键名。
+// 抽成常量而不是在调用点写字面量：1.8 栽过一次——channelgw/ws.go 把种子登记的
+// "ws_push_interval" 写成 "ws_push_interval_default"，每次读都 miss、每次回落兜底，
+// 而读取点门禁结构上看不出这类漂移（读取点存在，只是用的别的 key）。
+const (
+	ParamGroupMemory        = "memory"
+	MemoryL1WindowSizeParam = "l1_window_size"
+)
+
+// ---- G4 补接：L1 窗口大小接进参数中心（memory.l1_window_size） ----
+//
+// runtimeL1WindowSize 直连读参数中心而不是造 provider seam：读取点全在
+// internal/service 包内（3.1a 定的判据）。非正值一律回落 L1WindowSize——
+// 窗口 0 会让 l1Trim 把整个会话的短期记忆删光。
+func runtimeL1WindowSize(ctx context.Context) int {
+	if v := GlobalConfigParam().GetInt(ctx, ParamGroupMemory, MemoryL1WindowSizeParam, 0); v > 0 {
+		return v
+	}
+	return L1WindowSize
 }
 
 var (
@@ -146,7 +169,7 @@ func (m *MemorySystem) L1List(ctx context.Context, sessionID string, limit int) 
 		return nil, nil
 	}
 	if limit <= 0 {
-		limit = L1WindowSize
+		limit = runtimeL1WindowSize(ctx)
 	}
 	return m.memoryRepo.ListShortTermMemoryBySession(ctx, sessionID, limit)
 }
@@ -167,10 +190,11 @@ func (m *MemorySystem) l1Trim(ctx context.Context, sessionID string) {
 	if err != nil {
 		return
 	}
-	if count <= int64(L1WindowSize) {
+	window := runtimeL1WindowSize(ctx)
+	if count <= int64(window) {
 		return
 	}
-	exceed := count - int64(L1WindowSize)
+	exceed := count - int64(window)
 	oldIDs, err := m.memoryRepo.PluckOldestShortTermMemoryIDs(ctx, sessionID, int(exceed))
 	if err != nil {
 		return
@@ -411,7 +435,7 @@ func (m *MemorySystem) BuildFullContext(ctx context.Context, sessionID, customer
 	}
 	var sb strings.Builder
 
-	l1, _ := m.L1List(ctx, sessionID, L1WindowSize)
+	l1, _ := m.L1List(ctx, sessionID, runtimeL1WindowSize(ctx))
 	if len(l1) > 0 {
 		sb.WriteString("【L1 短期记忆（最近对话）】\n")
 		for i := len(l1) - 1; i >= 0; i-- {

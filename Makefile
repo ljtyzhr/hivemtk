@@ -532,6 +532,14 @@ audit:
 	@python3 scripts/check-env-coverage.py
 	@echo "── 参数中心登记的每条动态参数要么真有人读、要么文案自己承认未接线（接线后不撤标注也红）──"
 	@python3 scripts/check-config-param-readpoints.py
+	@echo "── 种子默认值必须与代码兜底常量一致（读侧与校验侧共用同一口径）──"
+	@python3 scripts/check-config-param-defaults.py
+	@echo "── 新增的可调旋钮常量必须入库；已是 Get*() 兜底实参的算已接线 ──"
+	@python3 scripts/check-hardcode-tunable.py
+	@echo "── 参数 key/group 命名规范、组内唯一、runtime 白名单无幽灵组 ──"
+	@python3 scripts/check-config-param-keystyle.py
+	@echo "── i18n 真接入占比只许涨不许跌（含 $$t() 形态），各语言包齐整 ──"
+	@python3 scripts/check-i18n-coverage.py
 	@echo "── 已清零的假性未完成资产（假回执/假状态/零装配点）不得长回来 ──"
 	@bash scripts/check-cleared-fake-assets.sh --repo .
 	@echo "── 用例不得在被调函数能交回 (nil, nil) 的返回值上未判空即解引用 ──"

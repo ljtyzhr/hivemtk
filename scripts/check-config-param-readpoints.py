@@ -23,6 +23,21 @@
     需要人工审查面）；也不核对 group 是否写对——group 写错时 Get 会回落 fallback，
     形状上仍是绿的。
 
+G1/G2（2026-10-11 阶段五「门禁」补）：上面三条是"种子 → 读取点"的**单向**核对
+（登记的每一条都得有人读）。反向还有一类故障它结构上抓不到，本门一并补上：
+
+  G1 ORPHAN_READ   代码里有 `GetInt(ctx, "g", "k", …)`，但种子里没有 (g,k) 这一条
+                    ⇒ 那个键**读一次 miss 一次、每次都回落 fallback**，而运维在页面上
+                    根本看不到这个旋钮。这比"没人读"更隐蔽：读点存在，形状上是绿的。
+                    1.8 在 channelgw/ws.go 上栽过一次——种子登记 ws_push_interval，
+                    代码写 ws_push_interval_default，每次读都 miss、每次回落兜底，
+                    而读取点门禁结构上看不出这类漂移（读取点存在，只是用的别的 key）。
+  G2 ORPHAN_GROUP  代码里出现了种子中没有的**组名**（同一 miss 形状，但通常意味着
+                    整组都接错了，或组名改了种子忘了跟）。
+
+两轴都只红「新增」，存量由白名单显式豁免（新写一行坏键就得先来这里解释一次，
+而不是让整门因为历史包袱常红——常红的门等于没有门）。
+
 执行入口：`make audit`（本地聚合门）。CI 接线待 user-server-ci.yml 上的并行改动回 clean 再补，
 补时触发 paths 必须含本脚本与 config_param_seeds.go（否则改判据不触发这道门）。
 """
@@ -124,6 +139,47 @@ def main() -> int:
 
     joined_gets = "\n".join(get_lines)
 
+    # G1/G2 素材：从每个 Get*( 调用里解出 (group, key) 字面量对。
+    # 形状：GetInt(<ctx>, "<group>", "<key>"[, fallback])  /  GetInt(<ctx>, GroupConst, "<key>")
+    # 两种都收：第二种的 group 走 CONST 解析（见下方 group_const）。
+    read_pairs: set[tuple[str, str]] = set()
+    read_groups: set[str] = set()
+    # ctx 实参形状很多样：`ctx` / `bg` / `context.Background()` /
+    # `service.GlobalConfigParam()`（这是调用对象不是 ctx，但它在 Get* 之前）。
+    # 这里只要求"第一个实参不是紧跟的字符串字面量"，用非贪婪的任意非逗号片段兜住。
+    GETCALL_PAIR = re.compile(
+        r'Get(?:Int|Float|Bool|Duration|String)\(\s*(?:"([a-z0-9_]+)"|([A-Za-z_]\w*))\s*,\s*"([a-z0-9_]+)"')
+    group_const: dict[str, str] = {}
+    for line in get_lines:
+        for m in GETCALL_PAIR.finditer(line):
+            g_lit, g_ident, k = m.group(1), m.group(2), m.group(3)
+            if g_lit:
+                read_pairs.add((g_lit, k))
+                read_groups.add(g_lit)
+            # g_ident 形态留到下方 group_const 建好后回填
+    # `ParamGroupXxx = "xxx"` 形态的组名常量
+    for line in joined_gets.split("\n"):
+        for m in re.finditer(r'\b([A-Za-z_]\w*)\s*=\s*"([a-z0-9_]+)"', line):
+            group_const.setdefault(m.group(1), m.group(2))
+    # 全文件扫一遍组名常量（不限于 Get* 行，常量通常在别处声明）
+    for fpath in files:
+        try:
+            ftext = fpath.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        for m in re.finditer(r'\b([A-Za-z_]\w*)\s*=\s*"([a-z0-9_]+)"', ftext):
+            group_const.setdefault(m.group(1), m.group(2))
+    for line in get_lines:
+        for m in GETCALL_PAIR.finditer(line):
+            g_ident, k = m.group(2), m.group(3)
+            if g_ident and g_ident in group_const:
+                read_pairs.add((group_const[g_ident], k))
+                read_groups.add(group_const[g_ident])
+
+    # G1/G2 白名单：存量孤儿显式豁免。新增一行坏键必须先在这里解释一次。
+    # 形状：{"group.key": "理由"}。
+    orphan_allowlist: dict[str, str] = {}
+
     # 前端消费者组：从 controller/config_param_runtime.go 的 runtimePublicGroups map
     # 字面量里解出键名。解不出来就 rc=1（不是 rc=2 的"枚举源坏了"：这是"豁免清单
     # 与实现不一致"，属于判据失准，必须让人看见）。
@@ -193,10 +249,25 @@ def main() -> int:
     for coord in stale:
         print(f"  STALE: {coord} 已声明「{MARKER}」但代码里已有读取点，请把那句撤掉")
 
-    if undeclared or stale:
+    # ── G1/G2：反向核对（读取点 → 种子）──
+    # 注意 entries 是 (group, key, name, desc) 四元组，取前两列比。
+    seeded = {(g, k) for g, k, _n, _d in entries}
+    seeded_groups = {g for g, _k, _n, _d in entries}
+    orphan_read = sorted(f"{g}.{k}" for g, k in read_pairs
+                        if (g, k) not in seeded and f"{g}.{k}" not in orphan_allowlist)
+    orphan_group = sorted(read_groups - seeded_groups - {""})
+    for coord in orphan_read:
+        print(f"  G1 ORPHAN_READ: {coord} 代码里有读取点但种子没登记"
+              "——每次读都 miss、每次都回落 fallback，运维在页面上看不到这个旋钮")
+    for g in orphan_group:
+        print(f"  G2 ORPHAN_GROUP: {g} 代码里出现了种子中没有的组名"
+              "——整组都接错了，或组名改了种子忘了跟")
+
+    if undeclared or stale or orphan_read or orphan_group:
         print("❌ 参数中心读取点门未通过")
         return 1
-    print("✅ 参数中心读取点门通过：每条要么有人读，要么自己承认没接线")
+    print("✅ 参数中心读取点门通过：每条要么有人读，要么自己承认没接线；"
+          "且没有孤儿读取点（读了种子没登记的键）")
     return 0
 
 

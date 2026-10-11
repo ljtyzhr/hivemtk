@@ -246,7 +246,13 @@ def resolve(fkey, var, depth=0):
         for idx, pname in rgn:
             if idx >= 0:
                 return bindings.get((cf, var, pname))
-    if var in ('auth', 'public', 'router'):
+    # 按名推断的根组。`plainAuth` / `admin` 是 setupConfigParamRoutes 与
+    # setupDictionaryRoutes 的形参名，装配处分别绑到 `auth`（= r.Group("/api")）
+    # 与 `systemAdmin`（= auth.Group("")）——两者前缀都是 /api。
+    # 这两个形参名是 3.2（GET /api/config/runtime）与 4.1（字典只读下发）
+    # 引入时起的，此前的按名推断表里没有，于是这两条路由被判成"后端没有"，
+    # strict 模式直接红。与 `auth`/`public`/`router` 同属一类，一并列出。
+    if var in ('auth', 'public', 'router', 'plainAuth', 'admin', 'systemAdmin'):
         return '/api'
     if var == 'r':
         return ''

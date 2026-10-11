@@ -234,7 +234,23 @@ func TestFallbackNilDB(t *testing.T) {
 //     （pagination.page_max_size / page_default_size 在排除清单里，它们后端确实没人读）。
 //   - frontend_ui.material_max_size_mb 是前端提示用的副本，与后端
 //     misc.upload_max_size_mb（2a，真正生效）必须一致，Description 写明了这个耦合。
-const defaultParamDefsWant = 212
+//
+// 2026-10-11（第十三次，G1 门禁反向核对）：+2 = G1 抓出的两条孤儿读取点。
+//   - agent_llm.geo_pipeline_batch_per_run：keyword_pipeline.go:30 一直在读，
+//     注释里也写着「可经 agent_llm.geo_pipeline_batch_per_run 调整」，但种子里
+//     没有这一条 ⇒ 每次读都 miss、每次回落 fallback，运维在页面上看不到旋钮。
+//   - bridge.sse_max_stream_duration：sse.go:71 同理，注释声称「更早就已 DB 驱动」
+//     但种子没登记。
+//     这正是 1.8 在 channelgw/ws.go 上栽过的形状（key 写错），只是这次压根没登记。
+//     单向的「种子 → 读取点」核对抓不到它：读点存在，形状上是绿的。
+//
+// 2026-10-11（第十四次，G4/G1 补接）：+1 = memory.l1_window_size。
+//
+//	G4（scripts/check-hardcode-tunable.py）扫命名常量时抓出三个未入库旋钮，
+//	逐个核实后：两个是既有的参数中心兜底/语义常量（HTTPIngestMaxMessages 的
+//	bridge.ingest_max_messages 早已登记、OpportunityWinProbabilityMax 是 0~1
+//	概率的语义上限不该入库），只有 L1WindowSize 是真漏接，本批补上。
+const defaultParamDefsWant = 215
 
 func TestDefaultParamDefsCount(t *testing.T) {
 	defs := DefaultParamDefs()

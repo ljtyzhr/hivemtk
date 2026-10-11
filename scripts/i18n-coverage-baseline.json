@@ -1,0 +1,20 @@
+{
+  "_readme": "G6 i18n 棘轮基线，只许涨不许跌。刷新前先确认这次是「补齐了词条 / 把中文直传改成点分键」而不是「把还在用的文案删掉了」。",
+  "resolved_ratio": 19.39,
+  "t_call_keys": 918,
+  "dotted_keys": 178,
+  "raw_t_calls": 740,
+  "locale_orphans": 1662,
+  "base_locale_entries": 1840,
+  "locale_counts": {
+    "ar": 1850,
+    "de": 1842,
+    "en": 1841,
+    "es": 1842,
+    "fr": 1842,
+    "ja": 1850,
+    "pt": 1842,
+    "ru": 1842,
+    "zh": 1840
+  }
+}
