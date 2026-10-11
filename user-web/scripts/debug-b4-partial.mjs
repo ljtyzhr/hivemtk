@@ -1,0 +1,18 @@
+import { chromium } from 'playwright';
+const b = await chromium.launch({ headless: true });
+const ctx = await b.newContext({ viewport: { width: 1280, height: 800 } });
+const page = await ctx.newPage();
+await page.goto('http://localhost:8211/#/login', { waitUntil: 'networkidle', timeout: 15000 });
+await page.waitForTimeout(2000);
+const u = await page.$('input[type="text"], input[placeholder*="用户名"], input[placeholder*="邮箱"]');
+const p = await page.$('input[type="password"]');
+await u.fill('admin'); await p.fill('Seed@123456');
+const btn = await page.$('button[type="submit"], .el-button--primary');
+if (btn) await btn.click();
+await page.waitForTimeout(5000);
+await page.goto('http://localhost:8211/#/dashboardScreen/builder', { waitUntil: 'networkidle', timeout: 15000 });
+await page.waitForTimeout(3000);
+const t = await page.evaluate(() => document.body?.innerText || '');
+console.log('URL:', page.url());
+console.log('CONTENT:', t.substring(0, 800));
+await b.close();

@@ -1,0 +1,977 @@
+[
+  {
+    "name": "GEO品牌配置",
+    "route": "/geo-tools/brand-config",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "809 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "6 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 品牌, Brand, 配置"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "GEO SEO基建",
+    "route": "/geo-tools/seo-infra",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "838 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "2 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: SEO, 站点"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "GEO关键词挖掘",
+    "route": "/geo-tools/keyword-mining",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "3337 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "106 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 关键词, Keyword, 挖掘"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "GEO内容创作",
+    "route": "/geo-tools/content-creation",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "738 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "11 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 内容, 创作, Content"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "GEO报告",
+    "route": "/geo-tools/reports",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "1712 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "23 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: Report, GEO"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "GEO实体图谱",
+    "route": "/geo-tools/entity-graph",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "1363 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "15 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 实体, Entity, 图谱"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "可观测配置",
+    "route": "/system/obs-config",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "765 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "17 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 配置"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "素材库",
+    "route": "/system/material-library",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "530 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "14 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 素材, Material, 库"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "系统监控",
+    "route": "/system/monitor",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "596 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "11 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 监控, Monitor, 系统"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "链路追踪",
+    "route": "/system/trace",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "535 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "35 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 追踪, Trace, 链路"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "系统指南",
+    "route": "/system/guide",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "1040 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "12 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 指南, Guide, 系统"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "RAG总览",
+    "route": "/system/rag-overview",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "669 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "12 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: RAG, 知识"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "配置参数",
+    "route": "/system/config-params",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "3790 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "52 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 配置, 参数, Config"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "权限列表",
+    "route": "/system/permissions",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "940 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "20 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: Permission"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "销售驾驶舱",
+    "route": "/sales-cockpit",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "1109 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "21 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 销售, 驾驶舱, Sales"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "销售工作台",
+    "route": "/sales-workbench",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "815 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "17 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 工作台, Workbench, 销售"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "AB实验",
+    "route": "/abExperiment/list",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "3094 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "89 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 实验, Experiment"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "队列路径分析",
+    "route": "/analytics/cohort-path",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "819 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "3 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: Cohort, 分析"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "自定义报表",
+    "route": "/customReport/list",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "951 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "7 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 报表, Report, 自定义"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "大屏构建",
+    "route": "/dashboardScreen/builder",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "843 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "4 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 看板, 组件, 添加, 保存"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "i18n看板",
+    "route": "/i18n/dashboard",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "621 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "19 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: i18n, 语言"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "线索挖掘",
+    "route": "/lead-mining/index",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "547 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "26 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 线索, 挖掘, Lead"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "短链",
+    "route": "/shortLink",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "2092 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "55 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 短链, Short"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "WhatsApp Cloud",
+    "route": "/whatsapp-cloud",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "447 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "6 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: WhatsApp, Cloud"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "标签分群",
+    "route": "/tagSegmentation/list",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "1773 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "78 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 标签, Tag"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  }
+]
