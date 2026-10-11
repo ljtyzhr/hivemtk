@@ -1,5 +1,5 @@
 {
-  "runId": "e2e-1791703518714",
+  "runId": "e2e-1791707486455",
   "batch": "2",
   "total": 24,
   "results": [
@@ -1111,7 +1111,7 @@
           "dbVerification": {
             "type": "inline-form-submit",
             "route": "/browser-automation/tasks/create",
-            "testName": "E2E测试-1791703588821",
+            "testName": "E2E测试-1791707556394",
             "result": "submitted",
             "clicked": "保存"
           }
@@ -1133,7 +1133,7 @@
           "dbVerification": {
             "type": "inline-form-submit",
             "route": "/browser-automation/tasks/create",
-            "testName": "E2E测试-1791703590836",
+            "testName": "E2E测试-1791707558407",
             "result": "submitted",
             "clicked": "保存"
           }
@@ -1148,14 +1148,14 @@
         {
           "type": "inline-form-submit",
           "route": "/browser-automation/tasks/create",
-          "testName": "E2E测试-1791703588821",
+          "testName": "E2E测试-1791707556394",
           "result": "submitted",
           "clicked": "保存"
         },
         {
           "type": "inline-form-submit",
           "route": "/browser-automation/tasks/create",
-          "testName": "E2E测试-1791703590836",
+          "testName": "E2E测试-1791707558407",
           "result": "submitted",
           "clicked": "保存"
         }

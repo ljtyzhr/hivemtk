@@ -1,5 +1,5 @@
 {
-  "runId": "e2e-1791705136951",
+  "runId": "e2e-1791708078639",
   "batch": "8",
   "total": 24,
   "results": [
@@ -397,7 +397,7 @@
     },
     {
       "route": "/sop-template/list",
-      "status": "partial",
+      "status": "ok",
       "pageLoad": {
         "not404": true,
         "contentLength": 3345,
@@ -480,67 +480,55 @@
             "api": 0
           },
           "after": {
-            "console": 1,
-            "api": 1
+            "console": 0,
+            "api": 0
           },
           "dialogOpened": false,
           "uiChanged": true,
           "uiBroken": false,
-          "newConsole": [
-            "Failed to load resource: the server responded with a status of 400 (Bad Request)"
-          ],
-          "newApi": [
-            "400 /api/sop-templates/4196"
-          ]
+          "newConsole": [],
+          "newApi": []
         },
         {
           "type": "switch",
           "target": "switch",
           "before": {
-            "console": 1,
-            "api": 1
+            "console": 0,
+            "api": 0
           },
           "after": {
-            "console": 2,
-            "api": 2
+            "console": 0,
+            "api": 0
           },
           "dialogOpened": false,
           "uiChanged": true,
           "uiBroken": false,
-          "newConsole": [
-            "Failed to load resource: the server responded with a status of 400 (Bad Request)"
-          ],
-          "newApi": [
-            "400 /api/sop-templates/4200"
-          ]
+          "newConsole": [],
+          "newApi": []
         },
         {
           "type": "switch",
           "target": "switch",
           "before": {
-            "console": 2,
-            "api": 2
+            "console": 0,
+            "api": 0
           },
           "after": {
-            "console": 3,
-            "api": 3
+            "console": 0,
+            "api": 0
           },
           "dialogOpened": false,
           "uiChanged": true,
           "uiBroken": false,
-          "newConsole": [
-            "Failed to load resource: the server responded with a status of 400 (Bad Request)"
-          ],
-          "newApi": [
-            "400 /api/sop-templates/4204"
-          ]
+          "newConsole": [],
+          "newApi": []
         },
         {
           "type": "button:click",
           "target": "刷新",
           "before": {
-            "console": 3,
-            "api": 3
+            "console": 0,
+            "api": 0
           },
           "after": {},
           "dialogOpened": false,
@@ -554,8 +542,8 @@
           "type": "button:click",
           "target": "搜索",
           "before": {
-            "console": 3,
-            "api": 3
+            "console": 0,
+            "api": 0
           },
           "after": {},
           "dialogOpened": false,
@@ -569,8 +557,8 @@
           "type": "button:click",
           "target": "重置",
           "before": {
-            "console": 3,
-            "api": 3
+            "console": 0,
+            "api": 0
           },
           "after": {},
           "dialogOpened": false,
@@ -584,8 +572,8 @@
           "type": "button:click",
           "target": "编辑",
           "before": {
-            "console": 3,
-            "api": 3
+            "console": 0,
+            "api": 0
           },
           "after": {},
           "dialogOpened": false,
@@ -599,8 +587,8 @@
           "type": "button:click",
           "target": "编辑",
           "before": {
-            "console": 3,
-            "api": 3
+            "console": 0,
+            "api": 0
           },
           "after": {},
           "dialogOpened": false,
@@ -614,8 +602,8 @@
           "type": "button:click",
           "target": "编辑",
           "before": {
-            "console": 3,
-            "api": 3
+            "console": 0,
+            "api": 0
           },
           "after": {},
           "dialogOpened": false,
@@ -629,8 +617,8 @@
           "type": "button:click",
           "target": "编辑",
           "before": {
-            "console": 3,
-            "api": 3
+            "console": 0,
+            "api": 0
           },
           "after": {},
           "dialogOpened": false,
@@ -644,8 +632,8 @@
           "type": "button:click",
           "target": "编辑",
           "before": {
-            "console": 3,
-            "api": 3
+            "console": 0,
+            "api": 0
           },
           "after": {},
           "dialogOpened": false,
@@ -659,8 +647,8 @@
           "type": "button:click",
           "target": "编辑",
           "before": {
-            "console": 3,
-            "api": 3
+            "console": 0,
+            "api": 0
           },
           "after": {},
           "dialogOpened": false,
@@ -674,8 +662,8 @@
           "type": "button:click",
           "target": "编辑",
           "before": {
-            "console": 3,
-            "api": 3
+            "console": 0,
+            "api": 0
           },
           "after": {},
           "dialogOpened": false,
@@ -689,8 +677,8 @@
           "type": "button:click",
           "target": "编辑",
           "before": {
-            "console": 3,
-            "api": 3
+            "console": 0,
+            "api": 0
           },
           "after": {},
           "dialogOpened": false,
@@ -704,8 +692,8 @@
           "type": "button:click",
           "target": "编辑",
           "before": {
-            "console": 3,
-            "api": 3
+            "console": 0,
+            "api": 0
           },
           "after": {},
           "dialogOpened": false,
@@ -719,12 +707,12 @@
           "type": "table-row",
           "target": "(first row)",
           "before": {
-            "console": 3,
-            "api": 3
+            "console": 0,
+            "api": 0
           },
           "after": {
-            "console": 3,
-            "api": 3
+            "console": 0,
+            "api": 0
           },
           "dialogOpened": false,
           "uiChanged": true,
@@ -734,13 +722,9 @@
         }
       ],
       "consoleErrors": [],
-      "apiErrors": [
-        "400 /api/sop-templates/4196",
-        "400 /api/sop-templates/4200",
-        "400 /api/sop-templates/4204"
-      ],
+      "apiErrors": [],
       "dbVerifications": [],
-      "summary": "API失败3条",
+      "summary": "20次交互，无异常",
       "discovered": {
         "tabs": 0,
         "buttons": 46,
@@ -1028,7 +1012,7 @@
           "dbVerification": {
             "type": "inline-form-submit",
             "route": "/sop-template/editor",
-            "testName": "E2E测试-1791705197187",
+            "testName": "E2E测试-1791708137882",
             "result": "submitted",
             "clicked": "创建模板"
           }
@@ -1040,7 +1024,7 @@
         {
           "type": "inline-form-submit",
           "route": "/sop-template/editor",
-          "testName": "E2E测试-1791705197187",
+          "testName": "E2E测试-1791708137882",
           "result": "submitted",
           "clicked": "创建模板"
         }
@@ -1129,7 +1113,7 @@
           "dbVerification": {
             "type": "inline-form-submit",
             "route": "/sop-template/editor/1",
-            "testName": "E2E测试-1791705203175",
+            "testName": "E2E测试-1791708143865",
             "result": "submitted",
             "clicked": "保存更新"
           }
@@ -1143,7 +1127,7 @@
         {
           "type": "inline-form-submit",
           "route": "/sop-template/editor/1",
-          "testName": "E2E测试-1791705203175",
+          "testName": "E2E测试-1791708143865",
           "result": "submitted",
           "clicked": "保存更新"
         }
@@ -2121,7 +2105,7 @@
       "status": "ok",
       "pageLoad": {
         "not404": true,
-        "contentLength": 3790,
+        "contentLength": 3860,
         "url": "http://localhost:8211/#/system/config-params"
       },
       "interactions": [

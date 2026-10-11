@@ -1,5 +1,5 @@
 {
-  "runId": "e2e-1791704626732",
+  "runId": "e2e-1791707829358",
   "batch": "6",
   "total": 24,
   "results": [
@@ -1572,7 +1572,7 @@
     },
     {
       "route": "/kuaishouCard",
-      "status": "partial",
+      "status": "ok",
       "pageLoad": {
         "not404": true,
         "contentLength": 1492,
@@ -1655,67 +1655,55 @@
             "api": 0
           },
           "after": {
-            "console": 1,
-            "api": 1
+            "console": 0,
+            "api": 0
           },
           "dialogOpened": false,
-          "uiChanged": true,
+          "uiChanged": false,
           "uiBroken": false,
-          "newConsole": [
-            "Failed to load resource: the server responded with a status of 400 (Bad Request)"
-          ],
-          "newApi": [
-            "400 /api/kuaishou/update"
-          ]
+          "newConsole": [],
+          "newApi": []
         },
         {
           "type": "switch",
           "target": "switch",
           "before": {
-            "console": 1,
-            "api": 1
+            "console": 0,
+            "api": 0
           },
           "after": {
-            "console": 2,
-            "api": 2
+            "console": 0,
+            "api": 0
           },
           "dialogOpened": false,
-          "uiChanged": true,
+          "uiChanged": false,
           "uiBroken": false,
-          "newConsole": [
-            "Failed to load resource: the server responded with a status of 400 (Bad Request)"
-          ],
-          "newApi": [
-            "400 /api/kuaishou/update"
-          ]
+          "newConsole": [],
+          "newApi": []
         },
         {
           "type": "switch",
           "target": "switch",
           "before": {
-            "console": 2,
-            "api": 2
+            "console": 0,
+            "api": 0
           },
           "after": {
-            "console": 3,
-            "api": 3
+            "console": 0,
+            "api": 0
           },
           "dialogOpened": false,
-          "uiChanged": true,
+          "uiChanged": false,
           "uiBroken": false,
-          "newConsole": [
-            "Failed to load resource: the server responded with a status of 400 (Bad Request)"
-          ],
-          "newApi": [
-            "400 /api/kuaishou/update"
-          ]
+          "newConsole": [],
+          "newApi": []
         },
         {
           "type": "button:read",
           "target": "统计",
           "before": {
-            "console": 3,
-            "api": 3
+            "console": 0,
+            "api": 0
           },
           "after": {},
           "dialogOpened": false,
@@ -1729,8 +1717,8 @@
           "type": "button:read",
           "target": "复制链接",
           "before": {
-            "console": 3,
-            "api": 3
+            "console": 0,
+            "api": 0
           },
           "after": {},
           "dialogOpened": false,
@@ -1744,8 +1732,8 @@
           "type": "button:read",
           "target": "统计",
           "before": {
-            "console": 3,
-            "api": 3
+            "console": 0,
+            "api": 0
           },
           "after": {},
           "dialogOpened": false,
@@ -1759,8 +1747,8 @@
           "type": "button:read",
           "target": "复制链接",
           "before": {
-            "console": 3,
-            "api": 3
+            "console": 0,
+            "api": 0
           },
           "after": {},
           "dialogOpened": false,
@@ -1774,8 +1762,8 @@
           "type": "button:read",
           "target": "统计",
           "before": {
-            "console": 3,
-            "api": 3
+            "console": 0,
+            "api": 0
           },
           "after": {},
           "dialogOpened": false,
@@ -1789,8 +1777,8 @@
           "type": "button:read",
           "target": "复制链接",
           "before": {
-            "console": 3,
-            "api": 3
+            "console": 0,
+            "api": 0
           },
           "after": {},
           "dialogOpened": false,
@@ -1804,8 +1792,8 @@
           "type": "button:read",
           "target": "统计",
           "before": {
-            "console": 3,
-            "api": 3
+            "console": 0,
+            "api": 0
           },
           "after": {},
           "dialogOpened": false,
@@ -1819,8 +1807,8 @@
           "type": "button:read",
           "target": "复制链接",
           "before": {
-            "console": 3,
-            "api": 3
+            "console": 0,
+            "api": 0
           },
           "after": {},
           "dialogOpened": false,
@@ -1834,8 +1822,8 @@
           "type": "button:read",
           "target": "统计",
           "before": {
-            "console": 3,
-            "api": 3
+            "console": 0,
+            "api": 0
           },
           "after": {},
           "dialogOpened": false,
@@ -1849,8 +1837,8 @@
           "type": "button:read",
           "target": "复制链接",
           "before": {
-            "console": 3,
-            "api": 3
+            "console": 0,
+            "api": 0
           },
           "after": {},
           "dialogOpened": false,
@@ -1864,8 +1852,8 @@
           "type": "button:read",
           "target": "统计",
           "before": {
-            "console": 3,
-            "api": 3
+            "console": 0,
+            "api": 0
           },
           "after": {},
           "dialogOpened": false,
@@ -1879,8 +1867,8 @@
           "type": "button:read",
           "target": "复制链接",
           "before": {
-            "console": 3,
-            "api": 3
+            "console": 0,
+            "api": 0
           },
           "after": {},
           "dialogOpened": false,
@@ -1894,28 +1882,24 @@
           "type": "table-row",
           "target": "(first row)",
           "before": {
-            "console": 3,
-            "api": 3
+            "console": 0,
+            "api": 0
           },
           "after": {
-            "console": 3,
-            "api": 3
+            "console": 0,
+            "api": 0
           },
           "dialogOpened": false,
-          "uiChanged": true,
+          "uiChanged": false,
           "uiBroken": false,
           "newConsole": [],
           "newApi": []
         }
       ],
       "consoleErrors": [],
-      "apiErrors": [
-        "400 /api/kuaishou/update",
-        "400 /api/kuaishou/update",
-        "400 /api/kuaishou/update"
-      ],
+      "apiErrors": [],
       "dbVerifications": [],
-      "summary": "API失败3条",
+      "summary": "20次交互，无异常",
       "discovered": {
         "tabs": 0,
         "buttons": 46,
@@ -1931,7 +1915,7 @@
       "status": "ok",
       "pageLoad": {
         "not404": true,
-        "contentLength": 743,
+        "contentLength": 742,
         "url": "http://localhost:8211/#/kuaishou/stats"
       },
       "interactions": [
@@ -2173,8 +2157,8 @@
         }
       ],
       "consoleErrors": [
-        "Error: 资源不存在\n    at buildRequestError (http://localhost:8211/src/utils/request.js?t=1791704439399:73:15)\n    at http://localhost:8211/src/utils/request.js?t=1791704439399:241:31\n    at async Axios$1.request (http://localhost:8211/node_modules/.vite/deps/axios.js?v=8ff9c3ac:3387:11)\n    at async fetchCardInfo (http://localhost:8211/src/views/kuaishouCard/CardStats.vue:55:17)\n    at async http://loc",
-        "Error: 记录不存在\n    at buildRequestError (http://localhost:8211/src/utils/request.js?t=1791704439399:73:15)\n    at http://localhost:8211/src/utils/request.js?t=1791704439399:241:31\n    at async Axios$1.request (http://localhost:8211/node_modules/.vite/deps/axios.js?v=8ff9c3ac:3387:11)\n    at async fetchCardStats (http://localhost:8211/src/views/kuaishouCard/CardStats.vue:86:17)\n    at async http://lo"
+        "Error: 资源不存在\n    at buildRequestError (http://localhost:8211/src/utils/request.js?t=1791706548974:73:15)\n    at http://localhost:8211/src/utils/request.js?t=1791706548974:241:31\n    at async Axios$1.request (http://localhost:8211/node_modules/.vite/deps/axios.js?v=8ff9c3ac:3387:11)\n    at async fetchCardInfo (http://localhost:8211/src/views/kuaishouCard/CardStats.vue?t=1791706548974:55:17)\n    at ",
+        "Error: 记录不存在\n    at buildRequestError (http://localhost:8211/src/utils/request.js?t=1791706548974:73:15)\n    at http://localhost:8211/src/utils/request.js?t=1791706548974:241:31\n    at async Axios$1.request (http://localhost:8211/node_modules/.vite/deps/axios.js?v=8ff9c3ac:3387:11)\n    at async fetchCardStats (http://localhost:8211/src/views/kuaishouCard/CardStats.vue?t=1791706548974:86:17)\n    at"
       ],
       "apiErrors": [],
       "dbVerifications": [],
@@ -2670,81 +2654,6 @@
         },
         {
           "type": "button:click",
-          "target": "启用",
-          "before": {
-            "console": 0,
-            "api": 0
-          },
-          "after": {},
-          "dialogOpened": false,
-          "uiChanged": false,
-          "uiBroken": false,
-          "newConsole": [],
-          "newApi": [],
-          "skipped": "element-not-found"
-        },
-        {
-          "type": "button:click",
-          "target": "编辑",
-          "before": {
-            "console": 0,
-            "api": 0
-          },
-          "after": {},
-          "dialogOpened": false,
-          "uiChanged": false,
-          "uiBroken": false,
-          "newConsole": [],
-          "newApi": [],
-          "skipped": "element-not-found"
-        },
-        {
-          "type": "button:click",
-          "target": "测试",
-          "before": {
-            "console": 0,
-            "api": 0
-          },
-          "after": {},
-          "dialogOpened": false,
-          "uiChanged": false,
-          "uiBroken": false,
-          "newConsole": [],
-          "newApi": [],
-          "skipped": "element-not-found"
-        },
-        {
-          "type": "button:click",
-          "target": "编辑",
-          "before": {
-            "console": 0,
-            "api": 0
-          },
-          "after": {},
-          "dialogOpened": false,
-          "uiChanged": false,
-          "uiBroken": false,
-          "newConsole": [],
-          "newApi": [],
-          "skipped": "element-not-found"
-        },
-        {
-          "type": "button:click",
-          "target": "测试",
-          "before": {
-            "console": 0,
-            "api": 0
-          },
-          "after": {},
-          "dialogOpened": false,
-          "uiChanged": false,
-          "uiBroken": false,
-          "newConsole": [],
-          "newApi": [],
-          "skipped": "element-not-found"
-        },
-        {
-          "type": "button:click",
           "target": "编辑",
           "before": {
             "console": 0,
@@ -2791,6 +2700,81 @@
         {
           "type": "button:click",
           "target": "编辑",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "测试",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "启用",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "编辑",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "测试",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
+        },
+        {
+          "type": "button:click",
+          "target": "启用",
           "before": {
             "console": 0,
             "api": 0
@@ -2959,7 +2943,7 @@
       "status": "ok",
       "pageLoad": {
         "not404": true,
-        "contentLength": 4404,
+        "contentLength": 4374,
         "url": "http://localhost:8211/#/messageHub/list"
       },
       "interactions": [
@@ -4183,7 +4167,7 @@
       "status": "ok",
       "pageLoad": {
         "not404": true,
-        "contentLength": 2234,
+        "contentLength": 2208,
         "url": "http://localhost:8211/#/operationLog/list"
       },
       "interactions": [

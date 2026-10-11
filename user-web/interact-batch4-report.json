@@ -1,5 +1,5 @@
 {
-  "runId": "e2e-1791703851596",
+  "runId": "e2e-1791707661165",
   "batch": "4",
   "total": 24,
   "results": [
@@ -74,10 +74,10 @@
     },
     {
       "route": "/faq/list",
-      "status": "partial",
+      "status": "ok",
       "pageLoad": {
         "not404": true,
-        "contentLength": 4375,
+        "contentLength": 4367,
         "url": "http://localhost:8211/#/faq/list"
       },
       "interactions": [
@@ -157,67 +157,55 @@
             "api": 0
           },
           "after": {
-            "console": 1,
-            "api": 1
+            "console": 0,
+            "api": 0
           },
           "dialogOpened": false,
           "uiChanged": true,
           "uiBroken": false,
-          "newConsole": [
-            "Failed to load resource: the server responded with a status of 400 (Bad Request)"
-          ],
-          "newApi": [
-            "400 /api/faqs/32"
-          ]
+          "newConsole": [],
+          "newApi": []
         },
         {
           "type": "switch",
           "target": "switch",
           "before": {
-            "console": 1,
-            "api": 1
+            "console": 0,
+            "api": 0
           },
           "after": {
-            "console": 2,
-            "api": 2
+            "console": 0,
+            "api": 0
           },
           "dialogOpened": false,
           "uiChanged": true,
           "uiBroken": false,
-          "newConsole": [
-            "Failed to load resource: the server responded with a status of 400 (Bad Request)"
-          ],
-          "newApi": [
-            "400 /api/faqs/33"
-          ]
+          "newConsole": [],
+          "newApi": []
         },
         {
           "type": "switch",
           "target": "switch",
           "before": {
-            "console": 2,
-            "api": 2
+            "console": 0,
+            "api": 0
           },
           "after": {
-            "console": 3,
-            "api": 3
+            "console": 0,
+            "api": 0
           },
           "dialogOpened": false,
           "uiChanged": true,
           "uiBroken": false,
-          "newConsole": [
-            "Failed to load resource: the server responded with a status of 400 (Bad Request)"
-          ],
-          "newApi": [
-            "400 /api/faqs/37"
-          ]
+          "newConsole": [],
+          "newApi": []
         },
         {
           "type": "button:click",
           "target": "刷新",
           "before": {
-            "console": 3,
-            "api": 3
+            "console": 0,
+            "api": 0
           },
           "after": {},
           "dialogOpened": false,
@@ -231,8 +219,8 @@
           "type": "button:click",
           "target": "匹配测试",
           "before": {
-            "console": 3,
-            "api": 3
+            "console": 0,
+            "api": 0
           },
           "after": {},
           "dialogOpened": false,
@@ -246,8 +234,8 @@
           "type": "button:click",
           "target": "搜索",
           "before": {
-            "console": 3,
-            "api": 3
+            "console": 0,
+            "api": 0
           },
           "after": {},
           "dialogOpened": false,
@@ -261,8 +249,8 @@
           "type": "button:click",
           "target": "重置",
           "before": {
-            "console": 3,
-            "api": 3
+            "console": 0,
+            "api": 0
           },
           "after": {},
           "dialogOpened": false,
@@ -276,8 +264,8 @@
           "type": "button:click",
           "target": "编辑",
           "before": {
-            "console": 3,
-            "api": 3
+            "console": 0,
+            "api": 0
           },
           "after": {},
           "dialogOpened": false,
@@ -291,8 +279,8 @@
           "type": "button:click",
           "target": "测试",
           "before": {
-            "console": 3,
-            "api": 3
+            "console": 0,
+            "api": 0
           },
           "after": {},
           "dialogOpened": false,
@@ -306,8 +294,8 @@
           "type": "button:click",
           "target": "编辑",
           "before": {
-            "console": 3,
-            "api": 3
+            "console": 0,
+            "api": 0
           },
           "after": {},
           "dialogOpened": false,
@@ -321,8 +309,8 @@
           "type": "button:click",
           "target": "测试",
           "before": {
-            "console": 3,
-            "api": 3
+            "console": 0,
+            "api": 0
           },
           "after": {},
           "dialogOpened": false,
@@ -336,8 +324,8 @@
           "type": "button:click",
           "target": "编辑",
           "before": {
-            "console": 3,
-            "api": 3
+            "console": 0,
+            "api": 0
           },
           "after": {},
           "dialogOpened": false,
@@ -351,8 +339,8 @@
           "type": "button:click",
           "target": "测试",
           "before": {
-            "console": 3,
-            "api": 3
+            "console": 0,
+            "api": 0
           },
           "after": {},
           "dialogOpened": false,
@@ -366,8 +354,8 @@
           "type": "button:click",
           "target": "编辑",
           "before": {
-            "console": 3,
-            "api": 3
+            "console": 0,
+            "api": 0
           },
           "after": {},
           "dialogOpened": false,
@@ -381,8 +369,8 @@
           "type": "button:click",
           "target": "测试",
           "before": {
-            "console": 3,
-            "api": 3
+            "console": 0,
+            "api": 0
           },
           "after": {},
           "dialogOpened": false,
@@ -396,12 +384,12 @@
           "type": "table-row",
           "target": "(first row)",
           "before": {
-            "console": 3,
-            "api": 3
+            "console": 0,
+            "api": 0
           },
           "after": {
-            "console": 3,
-            "api": 3
+            "console": 0,
+            "api": 0
           },
           "dialogOpened": false,
           "uiChanged": true,
@@ -411,13 +399,9 @@
         }
       ],
       "consoleErrors": [],
-      "apiErrors": [
-        "400 /api/faqs/32",
-        "400 /api/faqs/33",
-        "400 /api/faqs/37"
-      ],
+      "apiErrors": [],
       "dbVerifications": [],
-      "summary": "API失败3条",
+      "summary": "20次交互，无异常",
       "discovered": {
         "tabs": 0,
         "buttons": 67,
@@ -501,7 +485,7 @@
           "dbVerification": {
             "type": "inline-form-submit",
             "route": "/faq/editor",
-            "testName": "E2E测试-1791703884719",
+            "testName": "E2E测试-1791707693094",
             "result": "submitted",
             "clicked": "创建 FAQ"
           }
@@ -513,7 +497,7 @@
         {
           "type": "inline-form-submit",
           "route": "/faq/editor",
-          "testName": "E2E测试-1791703884719",
+          "testName": "E2E测试-1791707693094",
           "result": "submitted",
           "clicked": "创建 FAQ"
         }
@@ -534,7 +518,7 @@
       "status": "ok",
       "pageLoad": {
         "not404": true,
-        "contentLength": 4423,
+        "contentLength": 4415,
         "url": "http://localhost:8211/#/faq/list"
       },
       "interactions": [
@@ -614,67 +598,55 @@
             "api": 1
           },
           "after": {
-            "console": 2,
-            "api": 2
+            "console": 1,
+            "api": 1
           },
           "dialogOpened": false,
           "uiChanged": true,
           "uiBroken": false,
-          "newConsole": [
-            "Failed to load resource: the server responded with a status of 400 (Bad Request)"
-          ],
-          "newApi": [
-            "400 /api/faqs/32"
-          ]
+          "newConsole": [],
+          "newApi": []
         },
         {
           "type": "switch",
           "target": "switch",
           "before": {
-            "console": 2,
-            "api": 2
+            "console": 1,
+            "api": 1
           },
           "after": {
-            "console": 3,
-            "api": 3
+            "console": 1,
+            "api": 1
           },
           "dialogOpened": false,
           "uiChanged": true,
           "uiBroken": false,
-          "newConsole": [
-            "Failed to load resource: the server responded with a status of 400 (Bad Request)"
-          ],
-          "newApi": [
-            "400 /api/faqs/33"
-          ]
+          "newConsole": [],
+          "newApi": []
         },
         {
           "type": "switch",
           "target": "switch",
           "before": {
-            "console": 3,
-            "api": 3
+            "console": 1,
+            "api": 1
           },
           "after": {
-            "console": 4,
-            "api": 4
+            "console": 1,
+            "api": 1
           },
           "dialogOpened": false,
           "uiChanged": true,
           "uiBroken": false,
-          "newConsole": [
-            "Failed to load resource: the server responded with a status of 400 (Bad Request)"
-          ],
-          "newApi": [
-            "400 /api/faqs/37"
-          ]
+          "newConsole": [],
+          "newApi": []
         },
         {
           "type": "button:click",
           "target": "刷新",
           "before": {
-            "console": 4,
-            "api": 4
+            "console": 1,
+            "api": 1
           },
           "after": {},
           "dialogOpened": false,
@@ -688,8 +660,8 @@
           "type": "button:click",
           "target": "匹配测试",
           "before": {
-            "console": 4,
-            "api": 4
+            "console": 1,
+            "api": 1
           },
           "after": {},
           "dialogOpened": false,
@@ -703,8 +675,8 @@
           "type": "button:click",
           "target": "搜索",
           "before": {
-            "console": 4,
-            "api": 4
+            "console": 1,
+            "api": 1
           },
           "after": {},
           "dialogOpened": false,
@@ -718,8 +690,8 @@
           "type": "button:click",
           "target": "重置",
           "before": {
-            "console": 4,
-            "api": 4
+            "console": 1,
+            "api": 1
           },
           "after": {},
           "dialogOpened": false,
@@ -733,8 +705,8 @@
           "type": "button:click",
           "target": "编辑",
           "before": {
-            "console": 4,
-            "api": 4
+            "console": 1,
+            "api": 1
           },
           "after": {},
           "dialogOpened": false,
@@ -748,8 +720,8 @@
           "type": "button:click",
           "target": "测试",
           "before": {
-            "console": 4,
-            "api": 4
+            "console": 1,
+            "api": 1
           },
           "after": {},
           "dialogOpened": false,
@@ -763,8 +735,8 @@
           "type": "button:click",
           "target": "编辑",
           "before": {
-            "console": 4,
-            "api": 4
+            "console": 1,
+            "api": 1
           },
           "after": {},
           "dialogOpened": false,
@@ -778,8 +750,8 @@
           "type": "button:click",
           "target": "测试",
           "before": {
-            "console": 4,
-            "api": 4
+            "console": 1,
+            "api": 1
           },
           "after": {},
           "dialogOpened": false,
@@ -793,8 +765,8 @@
           "type": "button:click",
           "target": "编辑",
           "before": {
-            "console": 4,
-            "api": 4
+            "console": 1,
+            "api": 1
           },
           "after": {},
           "dialogOpened": false,
@@ -808,8 +780,8 @@
           "type": "button:click",
           "target": "测试",
           "before": {
-            "console": 4,
-            "api": 4
+            "console": 1,
+            "api": 1
           },
           "after": {},
           "dialogOpened": false,
@@ -823,8 +795,8 @@
           "type": "button:click",
           "target": "编辑",
           "before": {
-            "console": 4,
-            "api": 4
+            "console": 1,
+            "api": 1
           },
           "after": {},
           "dialogOpened": false,
@@ -838,8 +810,8 @@
           "type": "button:click",
           "target": "测试",
           "before": {
-            "console": 4,
-            "api": 4
+            "console": 1,
+            "api": 1
           },
           "after": {},
           "dialogOpened": false,
@@ -853,12 +825,12 @@
           "type": "table-row",
           "target": "(first row)",
           "before": {
-            "console": 4,
-            "api": 4
+            "console": 1,
+            "api": 1
           },
           "after": {
-            "console": 4,
-            "api": 4
+            "console": 1,
+            "api": 1
           },
           "dialogOpened": false,
           "uiChanged": true,
@@ -868,11 +840,7 @@
         }
       ],
       "consoleErrors": [],
-      "apiErrors": [
-        "400 /api/faqs/32",
-        "400 /api/faqs/33",
-        "400 /api/faqs/37"
-      ],
+      "apiErrors": [],
       "dbVerifications": [],
       "summary": "20次交互，无异常",
       "discovered": {
@@ -1398,8 +1366,8 @@
       "consoleErrors": [],
       "apiErrors": [
         "503 /api/followups/today?owner_id=1",
-        "503 /api/followups/pending?owner_id=1",
-        "503 /api/followups/overdue?owner_id=1"
+        "503 /api/followups/overdue?owner_id=1",
+        "503 /api/followups/pending?owner_id=1"
       ],
       "dbVerifications": [],
       "summary": "1次交互，无异常",
