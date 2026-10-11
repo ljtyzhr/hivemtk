@@ -864,3 +864,62 @@ ConfigParams 路由一直标了 `requiresAdmin: true`，两端口径不一致，
 本批不新增参数键。
 行为级测试：`TestRuntimeReadsRealValues`（真库 seed 后把 `pagination` 组一条改成 77，
 断言端点读到 77）。
+
+#### 3.3 已落地（2026-10-11）：`useRuntimeConfig` + 19 条前端阈值入库
+
+**前半：参数入库（`wired 179 → 198`，种子 193 → 212）**
+
+新增 `frontend_ws`(12) + `frontend_ui`(7) 两组共 19 条。这些常量的读取点在 `user-web`，
+后端 Go 代码里一个都没有——所以它们不是" wired "，而是换了一种 wired。
+
+| 组 | 条数 | 覆盖的常量 |
+| --- | --- | --- |
+| `frontend_ws` | 12 | agentSocket / chatSocket 的重连次数、首连延迟、退避上限、心跳、ACK 合批 ×2，journeyTracker 的 history/queue/flush ×3 |
+| `frontend_ui` | 7 | 审批未读轮询、坏案例统计轮询、浏览器监控失败上限、深链扫描页宽、素材库上限、WS 重连最大等待、toast 时长 |
+
+**后半：门禁的判定粒度从组细化到键（这是本批最关键的一处）**
+
+`scripts/check-config-param-readpoints.py` 原本只认 `user-server` 下的 `Get*(` 调用。
+`frontend_ws`/`frontend_ui` 的读取点在前端，门禁看不见 ⇒ 两个选择都错：
+全判 UNDECLARED（前端明明在读，门在撒谎），或整组挂「未接线」（文案在撒谎）。
+
+解法：**让前端自己的注册表成为事实源**。`controller/config_param_runtime.go` 的
+`runtimePublicGroups` 白名单就是那份注册表，门禁直接解析它。
+
+粒度必须到 **`group.key`** 而不是 `group`：`pagination` 组整体给前端，但组里
+`page_max_size` / `page_default_size` 两条的后端消费点是 0（`ParsePagination` 全树只有
+测试调用）。第一版按 group 判定，门禁当场抓出 2 条 STALE——那两条的 Description 里
+明写着「当前不生效」，判成已接线就是让门禁自己替谎话盖章。于是补一层
+`runtimePublicKeys` 键级排除清单，两处由同一个脚本核对。
+
+**前半里两个自查出来的真 bug（都是规则2，当轮修）**
+
+1. `num()` 对 `'0.4'` 不回落：`Number('0.4')=0.4 > 0` 通过检查，之后 `Math.trunc`
+   截成 0。**判下限必须在 `Math.trunc` 之前**——否则 0.4 秒的心跳间隔截成 0 就是
+   "每条消息都发一次 ping"。改用 `n < 1` 判定。
+2. `bool()` 把「配了 false」也当没配：第一版"非 true 一律回落 fallback"，结果库里明写
+   `false` 的开关在 fallback=true 的调用点显示成开——**运维在控制台关掉的开关，
+   前端照样开着，且没有任何报错**。改成三分：没配过才回落，`false`/`0` 就是 false，
+   认不出的脏值回落 fallback。
+
+**前半里最重的一处：`useRuntimeConfigStore()` 在无 Pinia 环境会抛，把调用方整条路径干掉**
+
+仓内既有的 `customerSession_deeplink` / `browser_monitor_resilience` 等测试文件 mount
+组件时没 `app.use(pinia)`。`useRuntimeConfigStore()` 在这种环境直接抛
+`getActivePinia() was called but there was no active Pinia`，于是深链扫描不再发那一次
+宽列表请求（实测 26 例前端渲染测试同时红）。
+
+修法是加一层 **nil-safe 读取层** `utils/runtimeConfig.js`：`rtNum/rtDur/rtStr/rtBool`
+内部 try `useRuntimeConfigStore()`，catch 后回落 fallback，并 only-once 打一行 warn。
+所有调用点（2 个 util + 5 个 .vue）都改走这一层。兜底常量全部保留，取值就是改造前的
+硬编码值 ⇒ 这两种环境下行为与改造前**逐字节一致**。
+
+代价是静默回落。这是故意的取舍：这些阈值全是前端自己的行为旋钮，拉不到配置时站点必须
+还能跑；store 内部已把失败记进 `failed` 标志，需要时可查。
+
+**验证**：
+- 后端：`internal/service` 全包 ok（锚点同步到 212）；门禁 **`wired 179 → 198`、
+  已声明未接线 14、UNDECLARED 0、STALE 0，rc=0**，种子 193 → 212。
+- 前端：**`vitest run` 53 个文件 582 例全绿**（新增 `tests/unit/runtimeConfigStore.test.js`
+  10 例，覆盖三种坏输入 × 四个读取口 + 截断顺序 + 秒→毫秒 + 非对象响应）；
+  `eslint` **0 errors**（18687 warnings 是仓内既有基线）；`vite build` 通过。

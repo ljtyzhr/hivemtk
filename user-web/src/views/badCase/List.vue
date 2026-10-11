@@ -484,6 +484,7 @@
 </template>
 
 <script setup>
+import { rtStr, rtNum, rtDur, rtBool } from '@/utils/runtimeConfig'
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { badCaseApi } from '@/api/badCase'
@@ -545,6 +546,8 @@ const ACTION_LABELS = { label: '打标', dismiss: '撤销' }
 
 // STATS_POLL_MS：已判率是本卡北极星，值班要的是"打开时看到的是此刻的数"。
 // 30s 与待办中心同档；更短只是把读接口打成压力源。
+
+// 统计轮询间隔改由参数中心下发（frontend_ui 组），常量保留为兜底。
 const STATS_POLL_MS = 30000
 
 const userStore = useUserStore()
@@ -844,7 +847,7 @@ let pollTimer = null
 onMounted(() => {
   fetchTaxonomy()
   refresh()
-  pollTimer = setInterval(fetchStats, STATS_POLL_MS)
+  pollTimer = setInterval(fetchStats, rtDur('frontend_ui', 'bad_case_stats_poll_ms', STATS_POLL_MS))
 })
 
 onBeforeUnmount(() => {

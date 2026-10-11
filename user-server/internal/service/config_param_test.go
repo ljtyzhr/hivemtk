@@ -225,7 +225,16 @@ func TestFallbackNilDB(t *testing.T) {
 //     InitFeedbackLoopComponents / InitFeedbackCollector 里组装完就固化。
 //   - iterator_negative_reward_threshold 的默认是负数（-0.5），读取侧用 fbOrAnyFloat
 //     而不是 fbOrPosFloat：0 的语义是「关掉这道门限」，不是「没配过」。
-const defaultParamDefsWant = 193
+//
+// 2026-10-11（第十二次，阶段 3.3）：+19 = frontend_ws 12 + frontend_ui 7，前端自己的阈值。
+//   - 这批的后端没有读取点：常量活在 user-web/src/utils/{agentSocket,chatSocket,
+//     journeyTracker}.js 与若干 views/ 里，前端经 GET /api/config/runtime 拉取值。
+//     controller/config_param_runtime.go 的 runtimePublicGroups 就是前端的注册表，
+//     scripts/check-config-param-readpoints.py 按 group.key 粒度核对该份清单
+//     （pagination.page_max_size / page_default_size 在排除清单里，它们后端确实没人读）。
+//   - frontend_ui.material_max_size_mb 是前端提示用的副本，与后端
+//     misc.upload_max_size_mb（2a，真正生效）必须一致，Description 写明了这个耦合。
+const defaultParamDefsWant = 212
 
 func TestDefaultParamDefsCount(t *testing.T) {
 	defs := DefaultParamDefs()

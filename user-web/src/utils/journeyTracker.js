@@ -1,10 +1,14 @@
+import { rtStr, rtNum, rtDur, rtBool } from '@/utils/runtimeConfig'
 const STORAGE_KEY_USER = 'journey:userId';
 const STORAGE_KEY_SESSION = 'journey:sessionId'
 const STORAGE_KEY_HISTORY = 'journey:history'
 const QUEUE_KEY = 'journey:queue'
+
+// 三个轨迹旋钮改由参数中心下发（frontend_ws 组），常量保留为兜底。
 const MAX_HISTORY = 50
 const MAX_QUEUE = 100
 const FLUSH_INTERVAL_MS = 30 * 1000
+
 const JOURNEY_STAGES = [
   "visit",
   "browse",
@@ -69,7 +73,7 @@ function loadHistory() {
 
 function saveHistory(events) {
   try {
-    localStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(events.slice(-MAX_HISTORY)))
+    localStorage.setItem(STORAGE_KEY_HISTORY, JSON.stringify(events.slice(-rtNum('frontend_ws', 'journey_history_max', MAX_HISTORY))))
   } catch (_) { /* 忽略：清理/存储/恢复类 best-effort 操作 */ }
 }
 
@@ -84,7 +88,7 @@ function loadQueue() {
 
 function saveQueue(queue) {
   try {
-    localStorage.setItem(QUEUE_KEY, JSON.stringify(queue.slice(-MAX_QUEUE)))
+    localStorage.setItem(QUEUE_KEY, JSON.stringify(queue.slice(-rtNum('frontend_ws', 'journey_queue_max', MAX_QUEUE))))
   } catch (_) { /* 忽略：清理/存储/恢复类 best-effort 操作 */ }
 }
 
@@ -104,7 +108,7 @@ let flushTimer = null
 
 function startFlush() {
   if (flushTimer) return
-  flushTimer = setInterval(flush, FLUSH_INTERVAL_MS)
+  flushTimer = setInterval(flush, rtDur('frontend_ws', 'journey_flush_interval_ms', FLUSH_INTERVAL_MS))
   if (typeof window !== 'undefined') {
     window.addEventListener('beforeunload', () => {
       navigator.sendBeacon?.('/api/customer-events/batch', JSON.stringify({ events: loadQueue() }))

@@ -188,6 +188,7 @@
 </template>
 
 <script setup>
+import { rtStr, rtNum, rtDur, rtBool } from '@/utils/runtimeConfig'
 import i18n from '@/i18n'
 
 import { ref, reactive, onMounted } from 'vue'
@@ -321,7 +322,11 @@ const handleFileChange = (file, files) => {
 }
 
 const beforeUpload = (file) => {
-  const maxSize = 10 * 1024 * 1024;
+  // 上限改由参数中心下发（frontend_ui.material_max_size_mb）。
+  // 注意这是**前端提示用**的副本，真正生效的是后端 misc.upload_max_size_mb（阶段 2a）——
+  // 两边不一致会出现「前端放过、后端拦死」。默认取 frontend_ui 的 10MB，
+  // 与后端 misc.upload_max_size_mb 的默认 0（=不覆盖、沿用 10MB 兜底）对齐。
+  const maxSize = rtNum('frontend_ui', 'material_max_size_mb', 10) * 1024 * 1024
   if (file.size > maxSize) {
     ElMessage.error(i18n.global.t('文件大小不能超过10MB'))
     return false

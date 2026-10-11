@@ -166,6 +166,7 @@
 </template>
 
 <script setup>
+import { rtStr, rtNum, rtDur, rtBool } from '@/utils/runtimeConfig'
 import { ref, computed, onMounted, onBeforeUnmount } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
@@ -281,6 +282,8 @@ const unpack = (res) => res?.data ?? res
 // 而 session 正因为读不到才是空的 —— 于是每 2s 两次 404、每轮一条未捕获异常，
 // 页面空白，用户看不出它到底在监控什么。404 的会话不会自己变回来；
 // 网络抖光是暂时的，所以只连续失败若干轮才收，收掉之后还给用户一个「重试」。
+
+// 连续失败上限改由参数中心下发（frontend_ui 组），常量保留为兜底。
 const POLL_FAILURE_LIMIT = 3
 const loadError = ref('')
 let pollFailures = 0
@@ -317,7 +320,7 @@ async function load() {
     // 否则每个轮询周期都在控制台留一条未捕获 rejection。
     loadError.value = String(e?.message || e)
     pollFailures += 1
-    if (e?.status === 404 || pollFailures >= POLL_FAILURE_LIMIT) stopPolling()
+    if (e?.status === 404 || pollFailures >= rtNum('frontend_ui', 'browser_poll_failure_limit', POLL_FAILURE_LIMIT)) stopPolling()
   } finally {
     loading.value = false
   }

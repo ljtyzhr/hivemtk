@@ -1,9 +1,13 @@
+import { rtStr, rtNum, rtDur, rtBool } from '@/utils/runtimeConfig'
 const STORAGE_KEY_PREFIX = 'chatSocket:lastSeq:';
+// 同 agentSocket：五个 WS 旋钮改由参数中心下发（frontend_ws 组），常量只作兜底。
+
 const MAX_RECONNECT_DELAY_MS = 30000
 const INITIAL_RECONNECT_DELAY_MS = 1000
 const PING_INTERVAL_MS = 25000
 const ACK_BATCH_INTERVAL_MS = 200;
 const MAX_RECONNECT_ATTEMPTS_DEFAULT = 50;
+
 
 export class ChatSocket {
   constructor(options) {
@@ -26,11 +30,11 @@ export class ChatSocket {
     this.ws = null
     this.pingTimer = null
     this.reconnectTimer = null
-    this.reconnectDelay = INITIAL_RECONNECT_DELAY_MS
+    this.reconnectDelay = rtDur('frontend_ws', 'chat_initial_reconnect_delay_ms', INITIAL_RECONNECT_DELAY_MS)
     this.connected = false
     this.shouldReconnect = true
     this.reconnectAttempts = 0
-    this.maxReconnectAttempts = options.maxReconnectAttempts || MAX_RECONNECT_ATTEMPTS_DEFAULT
+    this.maxReconnectAttempts = options.maxReconnectAttempts || rtNum('frontend_ws', 'chat_max_reconnect_attempts', MAX_RECONNECT_ATTEMPTS_DEFAULT)
 
     this.lastSeq = this._loadLastSeq();
     this.seenSeqs = new Set();
@@ -90,7 +94,7 @@ export class ChatSocket {
 
     this.ws.onopen = () => {
       this.connected = true
-      this.reconnectDelay = INITIAL_RECONNECT_DELAY_MS
+      this.reconnectDelay = rtDur('frontend_ws', 'chat_initial_reconnect_delay_ms', INITIAL_RECONNECT_DELAY_MS)
       this.reconnectAttempts = 0;
       this.onConnected()
       this.startPing()
@@ -243,7 +247,7 @@ export class ChatSocket {
     if (typeof seq !== 'number' || seq <= 0) return
     this.pendingAcks.add(seq)
     if (this.ackFlushTimer) return
-    this.ackFlushTimer = setTimeout(() => this._flushAcks(false), ACK_BATCH_INTERVAL_MS)
+    this.ackFlushTimer = setTimeout(() => this._flushAcks(false), rtDur('frontend_ws', 'chat_ack_batch_interval_ms', ACK_BATCH_INTERVAL_MS))
   }
 
   _flushAcks(immediate) {
@@ -285,7 +289,7 @@ export class ChatSocket {
       if (this.ws && this.ws.readyState === WebSocket.OPEN) {
         try { this.ws.send(JSON.stringify({ type: 'ping' })) } catch { /* 忽略：清理/存储/恢复类 best-effort 操作 */ }
       }
-    }, PING_INTERVAL_MS)
+    }, rtDur('frontend_ws', 'chat_ping_interval_ms', PING_INTERVAL_MS))
   }
 
   stopPing() {
@@ -303,7 +307,7 @@ export class ChatSocket {
     if (this.reconnectTimer) return
     if (!this.shouldReconnect) return
     this.reconnectAttempts++
-    const baseDelay = Math.min(this.reconnectDelay * Math.min(this.reconnectAttempts, 5), MAX_RECONNECT_DELAY_MS);
+    const baseDelay = Math.min(this.reconnectDelay * Math.min(this.reconnectAttempts, 5), rtDur('frontend_ws', 'max_reconnect_delay_ms', MAX_RECONNECT_DELAY_MS));
     const delay = Math.floor(baseDelay * (0.5 + Math.random() * 0.5))
     this.reconnectTimer = setTimeout(() => {
       this.reconnectTimer = null

@@ -10,17 +10,20 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// runtimePublicGroups 是 `GET /api/config/runtime` 允许读取的组白名单。
+// runtimePublicGroups 是 `GET /api/config/runtime` 允许读取的**组**白名单；
+// runtimePublicKeys 是在组内进一步收窄的**键**级排除清单。
 //
-// 为什么必须白名单而不是「全量吐回去」：
-//  1. `/api/manage/config-params` 是**管理端全量列表**，每条带 Name/Description/Min/Max/
-//     Restart/ReadOnly。把它暴露给终端用户等于把整套运维决策面摊开——里面既有
-//     `misc.upload_max_size_mb` 这种可直接放开的口子，也有 `read_only` 标记为系统
-//     推导的键。运维改一格是一回事，让任意登录用户看见全部键名与取值是另一回事。
-//  2. 前端真正需要的只是「这一格当前填了几」，即 value 一个字段。给它一个扁平的
-//     `group.key -> value` 映射就够，不给任何可解释性字段。
+// 为什么两级而不是一级：
+//  1. 组级白名单挡的是「别把管理端全量列表端给终端用户」——`/api/manage/config-params`
+//     每条带 Name/Description/Min/Max/Restart/ReadOnly，暴露它等于把整套运维决策面摊开。
+//  2. 键级排除挡的是另一种泄漏：某个组整体上是给前端的，但组里有个别键的后端消费点
+//     是 0（如 `pagination.page_max_size`——`ParsePagination` 全树只有测试调用）。
+//     这类键留在白名单里，前端会在页面上拿到一个「改了没人读」的旋钮，
+//     比不给更糟（运维以为它生效）。**标注和后端事实由
+//     `scripts/check-config-param-readpoints.py` 用同一份清单核对**：把键登记进
+//     runtimePublicKeys 就是向门禁声明"这条有前端消费者"。
 //
-// 新增组要在这里显式登记，并写清楚为什么前端需要它。
+// 新增组/键要在这里显式登记，并写清楚为什么前端需要它。
 var runtimePublicGroups = map[string]struct{}{
 	// 前端自己实现的 WS 客户端重连/心跳/ACK 批次等旋钮
 	//（utils/agentSocket.js、utils/chatSocket.js、utils/journeyTracker.js）。
@@ -30,6 +33,17 @@ var runtimePublicGroups = map[string]struct{}{
 	// 列表分页的默认页大小与单页上限：前端 api/*.js 里各写一份的
 	// limit||20 / pageSize||20 应统一读这里。
 	"pagination": {},
+}
+
+// runtimePublicKeys 是组内排除清单：这些键即使所属组在白名单里也不下发。
+//
+// 当前两条的后端消费点都是 0（详见 config_param_seeds.go 里它们各自的 Description：
+// `ParsePagination`/`ParsePaginationOffset` 全树只有测试调用；`ParseCursorParams`
+// 的兜底分支被三个调用方的正数 defaultLimit 遮蔽）。给前端等于给一个改了没人读的
+// 旋钮。
+var runtimePublicKeys = map[string]struct{}{
+	"pagination.page_max_size":     {},
+	"pagination.page_default_size": {},
 }
 
 // Runtime GET /api/config/runtime?groups=frontend_ws,pagination
@@ -78,7 +92,11 @@ func (c *ConfigParamController) Runtime(ctx *gin.Context) {
 				continue
 			}
 			for i := range list {
-				out[g+"."+list[i].Key] = list[i].Value
+				coord := g + "." + list[i].Key
+				if _, excluded := runtimePublicKeys[coord]; excluded {
+					continue
+				}
+				out[coord] = list[i].Value
 			}
 		}
 	}

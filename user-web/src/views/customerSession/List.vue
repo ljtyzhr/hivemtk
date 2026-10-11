@@ -345,6 +345,7 @@
 </template>
 
 <script setup>
+import { rtStr, rtNum, rtDur, rtBool } from '@/utils/runtimeConfig'
 // 客户会话列表 · 容器组件:负责组装 composables 与子组件、生命周期编排。
 // 数据流/操作逻辑拆分至 ./composables/{useSessionFilters,useSessionList,useSessionActions}.js
 // 右栏客户 360° 与黑名单弹窗拆分至 ./components/{CustomerProfilePanel,BlacklistDialog}.vue
@@ -449,11 +450,13 @@ const findSessionByDeepLinkId = (deepLinkId) => sessions.value.find(
 // 于是从看板点「查看会话」会打开一个既没选中任何东西、也不说为什么的空页面。
 // 所以这里按深链专用的一页宽列表再找一次（后端 page_size 无上限，实测 500 条 178 KB / 7 ms），
 // 找不到则明确告诉用户，而不是留一个"点了没反应"。
+
+// 深链扫描每页条数改由参数中心下发（frontend_ui 组），常量保留为兜底。
 const DEEP_LINK_SCAN_PAGE_SIZE = 500
 async function fetchDeepLinkSession(deepLinkId) {
   const first = findSessionByDeepLinkId(deepLinkId)
   if (first) return first
-  await loadSessions({ page: 1, page_size: DEEP_LINK_SCAN_PAGE_SIZE })
+  await loadSessions({ page: 1, page_size:  rtNum('frontend_ui', 'deep_link_scan_page_size', DEEP_LINK_SCAN_PAGE_SIZE) })
   return findSessionByDeepLinkId(deepLinkId) || null
 }
 

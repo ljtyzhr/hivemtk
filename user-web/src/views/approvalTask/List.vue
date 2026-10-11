@@ -308,6 +308,7 @@
 </template>
 
 <script setup>
+import { rtStr, rtNum, rtDur, rtBool } from '@/utils/runtimeConfig'
 import { computed, onBeforeUnmount, onMounted, reactive, ref } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { humanTaskApi } from '@/api/humanTask'
@@ -365,6 +366,8 @@ const VERDICT_LABELS = { approved: '批准', rejected: '驳回' }
 
 // COUNTS_POLL_MS 未读数轮询间隔。30s 是"值班换班时看得见新账"的量级；
 // 更短只是把读接口打成压力源，而这一页的正确性不靠推送（推送归 Notifications.vue）。
+
+// 轮询间隔改由参数中心下发（frontend_ui 组），常量保留为兜底。
 const COUNTS_POLL_MS = 30000
 
 const userStore = useUserStore()
@@ -592,7 +595,7 @@ let pollTimer = null
 
 onMounted(() => {
   refresh()
-  pollTimer = setInterval(fetchCounts, COUNTS_POLL_MS)
+  pollTimer = setInterval(fetchCounts, rtDur('frontend_ui', 'approval_counts_poll_ms', COUNTS_POLL_MS))
 })
 
 onBeforeUnmount(() => {

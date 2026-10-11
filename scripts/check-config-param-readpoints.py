@@ -40,6 +40,15 @@ for _i, _a in enumerate(sys.argv):
 MARKER = "未接线"
 SEEDS_REL = Path("user-server") / "internal" / "service" / "config_param_seeds.go"
 SCAN_REL = Path("user-server")
+# 前端消费者白名单：`GET /api/config/runtime` 只暴露这些组的 value。凡是在这份清单里的
+# 组，其参数的真实读取点在 user-web（Pinia 的 useRuntimeConfig + 各组件的 str()/num()/
+# durSeconds()/bool()），而本门的扫描面只有 user-server —— 所以这些组要么被误判成
+# UNDECLARED（前端明明在读），要么为了过门而挂一句「未接线」的谎话。
+#
+# 解法不是放宽本门，而是让前端自己的注册表成为事实源：这里直接读 controller 里的
+# runtimePublicGroups 字面量集合。新增组必须同时出现在两处，否则本条解析失败、门红
+# （宁可红，也不要一个悄悄失效的豁免）。
+FRONTEND_RT_REL = Path("user-server") / "internal" / "controller" / "config_param_runtime.go"
 GETCALL = re.compile(r'Get(?:Int|Float|Bool|Duration|String)\(')
 KEY_LINE = re.compile(r'Key:\s*"([a-z0-9_]+)"')
 # 条目头：每个条目的固定前缀是 `{Group: "g", Key: "k", Name: "n"`，其余字段顺序不定
@@ -115,6 +124,30 @@ def main() -> int:
 
     joined_gets = "\n".join(get_lines)
 
+    # 前端消费者组：从 controller/config_param_runtime.go 的 runtimePublicGroups map
+    # 字面量里解出键名。解不出来就 rc=1（不是 rc=2 的"枚举源坏了"：这是"豁免清单
+    # 与实现不一致"，属于判据失准，必须让人看见）。
+    if not FRONTEND_RT_REL.is_file():
+        fail(f"前端只读端点文件不存在: {FRONTEND_RT_REL}"
+             "（它承载 runtimePublicGroups 白名单，本门靠它判定前端消费组）", 1)
+    rt_text = FRONTEND_RT_REL.read_text(encoding="utf-8", errors="replace")
+    # 注意 `[^}]*` 会在第一个值的 `{}` 处截断（map[string]struct{} 的每个值就是一对
+    # 空花括号），只能解出第一组键。改为解到「末尾的 `}` 且其后紧跟换行或 EOF」，
+    # 即在 map 字面量内部允许任意 `{}`。
+    rt_block = re.search(r"var runtimePublicGroups\s*=\s*map\[string\]struct\{}\{(.*?)\n\}",
+                         rt_text, re.S)
+    if not rt_block:
+        fail("config_param_runtime.go 里解不出 runtimePublicGroups 的 map 字面量"
+             "（形状变了，前端口径失准）", 1)
+    frontend_groups = set(re.findall(r'"([a-z0-9_]+)"\s*:', rt_block.group(1)))
+    if not frontend_groups:
+        fail("runtimePublicGroups 解出来是空集合", 1)
+    # 组内排除清单：这些键即使所属组在白名单里也不下发给前端。
+    rt_excl = re.search(r"var runtimePublicKeys\s*=\s*map\[string\]struct\{}\{(.*?)\n\}",
+                        rt_text, re.S)
+    frontend_excluded = set(re.findall(r'"([a-z0-9_]+\.[a-z0-9_]+)"\s*:', rt_excl.group(1))) \
+        if rt_excl else set()
+
     wired: list[str] = []
     unwired_marked: list[str] = []
     undeclared: list[str] = []
@@ -124,7 +157,13 @@ def main() -> int:
         # 标识符按整词匹配：子串会把 `Key` 这类短名算成别的词的一部分（读到就判绿）。
         via_const = any(re.search(rf'\b{re.escape(ident)}\b', joined_gets)
                         for ident in const_map.get(k, []))
-        has_read = direct or via_const
+        # 前端消费：读取点在 user-web，由 runtimePublicGroups/Keys 作证。
+        # 判定按 group.key 粒度：组在白名单里还不够，键不能在排除清单里——
+        # 否则「组整体给前端、个别键后端没人读」会被整组判成已接线，
+        # 而那些键的 Description 里明写着「当前不生效」。
+        coord = f"{g}.{k}"
+        via_frontend = (g in frontend_groups) and (coord not in frontend_excluded)
+        has_read = direct or via_const or via_frontend
         declared = MARKER in name or MARKER in desc
         coord = f"{g}.{k}"
         # 四类互斥：一条只能落进一格。曾经把 STALE 同时记进"有读取点"，
@@ -139,7 +178,8 @@ def main() -> int:
             undeclared.append(coord)
 
     print(f"扫描面: Go 文件（非测试、非种子）{len(files)} 个 / Get* 行 {len(get_lines)} 行 / "
-          f"种子条目 {len(entries)} 条")
+          f"种子条目 {len(entries)} 条 / 前端消费组 {len(frontend_groups)} 个（排除 "
+          f"{len(frontend_excluded)} 键）")
     print(f"读数: 有读取点且未挂标注={len(wired)}  未接线且已声明={len(unwired_marked)}  "
           f"未接线但未声明={len(undeclared)}  声明过期={len(stale)}")
     total = len(wired) + len(unwired_marked) + len(undeclared) + len(stale)

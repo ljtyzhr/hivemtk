@@ -1,11 +1,19 @@
+import { rtStr, rtNum, rtDur, rtBool } from '@/utils/runtimeConfig'
 import { getApiConfig as getConfig } from './configManager'
 
 const STORAGE_KEY_PREFIX = 'agentSocket:lastSeq:';
+
+// 五个 WS 旋钮改由参数中心下发（config_params 的 frontend_ws 组）。
+// 常量保留为兜底：运行时配置拉不到时（弱网、配置面不可达）站点必须还能跑，
+// 不能因为少一条配置就把重连打成 0 次或把心跳关掉。
+// 读取是惰性的（每次用到才查 store），所以不要求 store 已被 ensureLoaded() 预热——
+// 没预热时读到兜底值，预热完成后下一次重连/心跳就是新值。
 const MAX_RECONNECT_ATTEMPTS_DEFAULT = 10
 const INITIAL_RECONNECT_DELAY_MS = 2000
 const MAX_RECONNECT_DELAY_MS = 30000
 const PING_INTERVAL_MS = 25000
 const ACK_BATCH_INTERVAL_MS = 200
+
 
 export default class AgentSocket {
   constructor(agentId, agentName, options = {}) {
@@ -16,8 +24,8 @@ export default class AgentSocket {
     this.connected = false
     this.shouldReconnect = true
     this.reconnectAttempts = 0
-    this.maxReconnectAttempts = options.maxReconnectAttempts || MAX_RECONNECT_ATTEMPTS_DEFAULT
-    this.reconnectDelay = options.reconnectDelay || INITIAL_RECONNECT_DELAY_MS
+    this.maxReconnectAttempts = options.maxReconnectAttempts || rtNum('frontend_ws', 'agent_max_reconnect_attempts', MAX_RECONNECT_ATTEMPTS_DEFAULT)
+    this.reconnectDelay = options.reconnectDelay || rtDur('frontend_ws', 'agent_initial_reconnect_delay_ms', INITIAL_RECONNECT_DELAY_MS)
     this.pingInterval = null
 
     this.onNewSession = options.onNewSession || (() => {})
@@ -100,7 +108,7 @@ export default class AgentSocket {
     ws.onopen = () => {
       this.connected = true
       this.reconnectAttempts = 0
-      this.reconnectDelay = INITIAL_RECONNECT_DELAY_MS
+      this.reconnectDelay = rtDur('frontend_ws', 'agent_initial_reconnect_delay_ms', INITIAL_RECONNECT_DELAY_MS)
       this.startPing()
       this._flushAcks(true);
       this.onConnected()
@@ -175,7 +183,7 @@ export default class AgentSocket {
     if (typeof seq !== 'number' || seq <= 0) return
     this.pendingAcks.add(seq)
     if (this.ackFlushTimer) return
-    this.ackFlushTimer = setTimeout(() => this._flushAcks(false), ACK_BATCH_INTERVAL_MS)
+    this.ackFlushTimer = setTimeout(() => this._flushAcks(false), rtDur('frontend_ws', 'agent_ack_batch_interval_ms', ACK_BATCH_INTERVAL_MS))
   }
 
   _flushAcks(_immediate) {
@@ -200,7 +208,7 @@ export default class AgentSocket {
       if (this.ws && this.ws.readyState === WebSocket.OPEN) {
         try { this.ws.send(JSON.stringify({ event: 'ping' })) } catch (e) { /* 忽略：清理/存储/恢复类 best-effort 操作 */ }
       }
-    }, PING_INTERVAL_MS)
+    }, rtDur('frontend_ws', 'agent_ping_interval_ms', PING_INTERVAL_MS))
   }
 
   stopPing() {
@@ -213,7 +221,7 @@ export default class AgentSocket {
   scheduleReconnect() {
     if (this.reconnectAttempts >= this.maxReconnectAttempts) return
     this.reconnectAttempts++
-    const baseDelay = Math.min(this.reconnectDelay * Math.min(this.reconnectAttempts, 5), MAX_RECONNECT_DELAY_MS);
+    const baseDelay = Math.min(this.reconnectDelay * Math.min(this.reconnectAttempts, 5), rtDur('frontend_ws', 'max_reconnect_delay_ms', MAX_RECONNECT_DELAY_MS));
     const delay = Math.floor(baseDelay * (0.5 + Math.random() * 0.5))
     setTimeout(() => {
       if (this.shouldReconnect) this.connect()
