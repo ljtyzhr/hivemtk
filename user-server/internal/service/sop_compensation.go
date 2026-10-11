@@ -108,12 +108,20 @@ type CompensationConfig struct {
 // 业界依据：
 //   - 单节点补偿应比原 Activity 执行时间短（撤销操作通常更快）
 //   - 总超时留 5 分钟（与 execute 总超时同数量级）
+//
+// 三个默认值提成导出常量，供 sop_runtime_params.go 做兜底。
+const (
+	DefaultCompensationMaxAttempts  = 3
+	DefaultCompensationPerTTL       = 30 * time.Second
+	DefaultCompensationMaxPlansKept = 512
+)
+
 func DefaultCompensationConfig() CompensationConfig {
 	return CompensationConfig{
-		MaxAttempts:        3,
-		PerCompensationTTL: 30 * time.Second,
+		MaxAttempts:        DefaultCompensationMaxAttempts,
+		PerCompensationTTL: DefaultCompensationPerTTL,
 		TotalTimeout:       5 * time.Minute,
-		MaxPlansKept:       512,
+		MaxPlansKept:       DefaultCompensationMaxPlansKept,
 	}
 }
 
@@ -451,7 +459,9 @@ func InitSOPCompensation(d *SOPExecutionDispatcher) *CompensationManager {
 			Msg("[saga] 补偿未启用（失败执行仍不补偿，与接线前一致）")
 		return nil
 	}
-	mgr := NewCompensationManager(DefaultCompensationConfig())
+	// MaxAttempts / PerCompensationTTL / MaxPlansKept 三项走参数中心
+	// （sop 组，构造期读，Restart=true）；TotalTimeout 未参数化，仍取常量。
+	mgr := NewCompensationManager(CompensationConfigFromParams(context.Background()))
 	d.SetCompensationManager(mgr)
 	logger.GetLogger().Info().
 		Str("flag", compensationEnvVar).

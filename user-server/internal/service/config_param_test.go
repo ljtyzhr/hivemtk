@@ -193,7 +193,18 @@ func TestFallbackNilDB(t *testing.T) {
 //     make(chan, N) 与起 goroutine，只对下次启动生效，三条都标 Restart=true。
 //   - max_retries 与 agent_llm.max_retries 同名不同义（那一条管 LLM 调用本身的重试，
 //     本条目管渠道出网投递），Description 里写明了区分，免得运维在页面上看混。
-const defaultParamDefsWant = 154
+//
+// 2026-10-10（第九次，阶段三 3.1 第三批）：+6 = sop 组的调度器并发三项 + Saga 补偿三项。
+//   - dispatcher_worker_count / dispatcher_queue_capacity / dispatcher_llm_concurrency：
+//     DefaultSOPDispatcherConfig() 里原本写死的 16/1000/4。
+//   - compensation_max_attempts / compensation_ttl / compensation_max_plans_kept：
+//     DefaultCompensationConfig() 里原本写死的 3/30s/512。补偿链路受
+//     FF_LTC_SAGA_COMPENSATION 开关控制（默认关闭），开关开启时这些值才真的被读。
+//   - 六条全部是构造期读一次，故全标 Restart=true：make(chan,N) 与 goroutine 数
+//     在 NewSOPExecutionDispatcher 里定型，改完只对下次启动的进程生效。
+//   - 调度器没纳入参数中心的 MaxAttempts/InitialBackoff/MaxBackoff/BackoffMultiplier
+//     四项只从字面量提成常量（DefaultSOPDispatcher*），语义不变。
+const defaultParamDefsWant = 160
 
 func TestDefaultParamDefsCount(t *testing.T) {
 	defs := DefaultParamDefs()

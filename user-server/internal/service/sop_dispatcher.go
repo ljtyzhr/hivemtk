@@ -29,16 +29,29 @@ type SOPDispatcherConfig struct {
 	BackoffMultiplier float64
 }
 
+// 六个默认值提成导出常量，供 sop_runtime_params.go 做兜底。
+// 前三项已参数化（sop 组，构造期读，Restart=true）；后三项本轮未动，
+// 只从字面量提成常量，语义不变。
+const (
+	DefaultSOPDispatcherWorkerCount       = 16
+	DefaultSOPDispatcherQueueCapacity     = 1000
+	DefaultSOPDispatcherLLMConcurrency    = 4
+	DefaultSOPDispatcherMaxAttempts       = 3
+	DefaultSOPDispatcherInitialBackoff    = 1 * time.Second
+	DefaultSOPDispatcherMaxBackoff        = 30 * time.Second
+	DefaultSOPDispatcherBackoffMultiplier = 2.0
+)
+
 // DefaultSOPDispatcherConfig 默认配置
 func DefaultSOPDispatcherConfig() *SOPDispatcherConfig {
 	return &SOPDispatcherConfig{
-		WorkerCount:       16,
-		QueueCapacity:     1000,
-		LLMConcurrency:    4,
-		MaxAttempts:       3,
-		InitialBackoff:    1 * time.Second,
-		MaxBackoff:        30 * time.Second,
-		BackoffMultiplier: 2.0,
+		WorkerCount:       DefaultSOPDispatcherWorkerCount,
+		QueueCapacity:     DefaultSOPDispatcherQueueCapacity,
+		LLMConcurrency:    DefaultSOPDispatcherLLMConcurrency,
+		MaxAttempts:       DefaultSOPDispatcherMaxAttempts,
+		InitialBackoff:    DefaultSOPDispatcherInitialBackoff,
+		MaxBackoff:        DefaultSOPDispatcherMaxBackoff,
+		BackoffMultiplier: DefaultSOPDispatcherBackoffMultiplier,
 	}
 }
 
@@ -199,7 +212,9 @@ func (p *SOPRetryPolicy) Backoff(ctx context.Context, attempt int) time.Duration
 // 不会自动启动 Worker，需调用 Start 启动。
 func NewSOPExecutionDispatcher(db *gorm.DB, sopSvc *SOPService, registry *NodeExecutorRegistry, cfg *SOPDispatcherConfig) *SOPExecutionDispatcher {
 	if cfg == nil {
-		cfg = DefaultSOPDispatcherConfig()
+		// cfg 传 nil（cmd/api/main.go:380 就是这么调的）时按参数中心组装，
+		// 读不到才回落 DefaultSOPDispatcherConfig 的常量。
+		cfg = SOPDispatcherConfigFromParams(context.Background())
 	}
 	if cfg.WorkerCount <= 0 {
 		cfg.WorkerCount = 16

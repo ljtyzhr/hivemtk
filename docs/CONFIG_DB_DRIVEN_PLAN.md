@@ -682,3 +682,51 @@ GET  /api/config/runtime?groups=frontend_ws,frontend_ui,pagination
   `dictionaries` 走标准 `Model → Repository → Service → Controller → Router`。
 - 不引入新框架：不加 ORM 之外的依赖，不改 `config_params` 已有列语义，
   新增列全部可空并给默认值，**旧数据零迁移风险**。
+
+#### 3.1 第三批已落地（2026-10-10）：`sop` 组 6 条
+
+| group.key | 默认 | 代码点位 | 生效时机 |
+| --- | --- | --- | --- |
+| `sop.dispatcher_worker_count` | 16 | `sop_dispatcher.go` `DefaultSOPDispatcherConfig` | 构造期 · Restart=true |
+| `sop.dispatcher_queue_capacity` | 1000 | 同上 | 构造期 · Restart=true |
+| `sop.dispatcher_llm_concurrency` | 4 | 同上 | 构造期 · Restart=true |
+| `sop.compensation_max_attempts` | 3 | `sop_compensation.go` `DefaultCompensationConfig` | 构造期 · Restart=true |
+| `sop.compensation_ttl` | 30 | 同上 | 构造期 · Restart=true |
+| `sop.compensation_max_plans_kept` | 512 | 同上 | 构造期 · Restart=true |
+
+**六条全部是构造期读一次**：调度器的 worker 数、队列 channel 容量、LLM 信号量在
+`NewSOPExecutionDispatcher` 里 `make(chan, N)` / 起 goroutine 时定型；补偿管理器的
+`MaxPlansKept` 决定的是内存里保留的计划表大小。改完只对下次启动的进程生效，
+故六条全标 `Restart=true`。
+
+**装配路径已核实**（这是本批与"僵尸参数"的区别所在）：
+- `cmd/api/main.go:380` `InitSOPExecutionDispatcher(db, sopSvc, nil)` —— cfg 传 **nil**，
+  旧代码在这里回落写死的 `16/1000/4`。改成 `cfg == nil` 时读
+  `SOPDispatcherConfigFromParams(ctx)`。
+- `cmd/api/main.go:384` `InitSOPCompensation(execDispatcher)` —— 受
+  `FF_LTC_SAGA_COMPENSATION` 开关控制（**默认关闭**）。开关开启时才构造管理器，
+  所以这三个补偿参数在现网默认配置下不被读取——但这不是"僵尸"：开关一开就生效，
+  Description 里写明了这层关系。
+
+**两条判断**：
+1. **走直连不造 seam**：读取点全在 `internal/service` 包内。
+2. **`DefaultSOPDispatcherConfig()` 里没纳入参数中心的四项**（`MaxAttempts` /
+   `InitialBackoff` / `MaxBackoff` / `BackoffMultiplier`）只从字面量提成导出常量
+   `DefaultSOPDispatcher*`，**语义不变**。理由：它们是单条 SOP 节点的重试与退避，
+   已经有一套独立的按 dispatcher 注入的配置通道（`SOPDispatcherConfig` 结构体本身），
+   再造参数中心入口只会让同一个旋钮有两个 UI，改哪个生效说不清。
+   `CompensationConfig.TotalTimeout` 同理（仍取 `DefaultCompensationConfig()` 的 5m），
+   避免两处各写一份 5 分钟。
+
+**一个需要说明的口径**：`sop.compensation_max_attempts` 的 `Min` 是 `0`（"显式关掉
+补偿重试"是合法取值），但读取侧 `sopCompensationMaxAttempts` 仍把 0 当"没配过"
+回落 3。二者只在"重启前已构造的管理器"这一层有区别，Description 里写明了。
+
+**验证**：干净 worktree `/tmp/hivemtk_v25`（@`4ca99e15`）gofmt 空、
+`go build ./...` 全过；`internal/service` 全包 **ok 476.324s**（0 失败）。
+门禁 **`wired 140 → 146`、已声明未接线 14、UNDECLARED 0、STALE 0，rc=0**，
+种子条目 154 → 160、锚点同步到 160。
+行为级测试：`TestNewSOPExecutionDispatcherNilConfigPicksUpParams`（走生产的 nil cfg
+路径，断言 workerCount / 队列容量 / LLM 信号量真的是参数值）、
+`TestInitSOPCompensationPicksUpParams`（开关开启后装配出的管理器真的用参数值，
+且 `TotalTimeout` 未被参数化）。

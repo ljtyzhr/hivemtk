@@ -554,5 +554,27 @@ func DefaultParamDefs() []ParamDef {
 		{Group: "webhook", Key: "max_retries", Name: "webhook 失败重试次数",
 			Description: "渠道投递失败后的重试轮数（不含首投）。写大＝下游长时间不可用时会一直重试，占用 worker 与令牌；写小＝一次瞬时失败就放弃（客户收不到回复）。只对「可重试」错误生效，不可重试错误立即放弃。注意与 agent_llm.max_retries 区分：那一条管 LLM 调用本身的重试，本条目管渠道出网投递",
 			ValueType:   "int", DefaultValue: "3", Min: strPtr("0"), Max: strPtr("20"), Step: strPtr("1"), Restart: false},
+		// ── sop 组：SOP 调度器并发 与 Saga 补偿参数 ───────────────────────
+		// 六条全部是构造期读一次，故全标 Restart=true：调度器的 worker 数/队列容量/
+		// LLM 信号量在 NewSOPExecutionDispatcher 里 make(chan,N) 时定型，补偿的
+		// 计划表大小决定内存占用。改完只对下次启动的进程生效。
+		{Group: "sop", Key: "dispatcher_worker_count", Name: "SOP 调度 worker 数",
+			Description: "SOP 执行调度器并发处理节点的 goroutine 数。写大＝下游依赖被打满（表现为节点执行超时成串）；写小＝节点排队、整条 SOP 流程变慢。构造期读一次，改完需重启才生效",
+			ValueType:   "int", DefaultValue: "16", Min: strPtr("1"), Max: strPtr("512"), Step: strPtr("1"), Restart: true},
+		{Group: "sop", Key: "dispatcher_queue_capacity", Name: "SOP 调度队列容量",
+			Description: "SOP 待执行任务的 channel 容量（条）。写大＝洪峰时更多任务在内存里排队（重启全丢）；写小＝队列满时新任务被直接丢弃（流程卡住不动）。构造期读一次，改完需重启才生效",
+			ValueType:   "int", DefaultValue: "1000", Min: strPtr("1"), Max: strPtr("1000000"), Step: strPtr("1"), Restart: true},
+		{Group: "sop", Key: "dispatcher_llm_concurrency", Name: "SOP 节点 LLM 并发闸",
+			Description: "同时允许进行的 LLM 类 SOP 节点数（信号量容量）。这是防 LLM 侧被打满的总闸。写大＝LLM 侧并发超限触发限流/降级；写小＝节点排队，流程尾部长时间等待。构造期读一次，改完需重启才生效",
+			ValueType:   "int", DefaultValue: "4", Min: strPtr("1"), Max: strPtr("1000"), Step: strPtr("1"), Restart: true},
+		{Group: "sop", Key: "compensation_max_attempts", Name: "Saga 补偿单节点重试次数",
+			Description: "单个 SOP 节点补偿失败后的重试轮数（不含首偿）。写大＝补偿侧长时间占用资源；写小＝一次瞬时失败就放弃补偿（流程停在失败态，需人工介入）。仅在 FF_LTC_SAGA_COMPENSATION 开关开启时才有意义，开关关闭时整条链路不装配。构造期读一次，改完需重启才生效",
+			ValueType:   "int", DefaultValue: "3", Min: strPtr("0"), Max: strPtr("20"), Step: strPtr("1"), Restart: true},
+		{Group: "sop", Key: "compensation_ttl", Name: "Saga 单节点补偿超时",
+			Description: "单个节点补偿操作的上下文超时（秒）。写大＝一个卡死的补偿动作长时间占着资源；写小＝慢一点的撤销动作被判超时放弃（流程停在半补偿态）。仅在 FF_LTC_SAGA_COMPENSATION 开关开启时才有意义。构造期读一次，改完需重启才生效",
+			ValueType:   "duration", DefaultValue: "30", Min: strPtr("1"), Max: strPtr("600"), Step: strPtr("1"), Restart: true},
+		{Group: "sop", Key: "compensation_max_plans_kept", Name: "Saga 补偿计划保留条数",
+			Description: "内存中保留的补偿计划条数上界，超出即淘汰最旧者。这是防无界增长的内存闸：写大＝常驻内存上升；写小＝仍在执行中的旧补偿计划可能被提前淘汰（若在读取时被淘汰，返回那一刻的内容仍有效，但后续状态机会丢失依据）。仅在 FF_LTC_SAGA_COMPENSATION 开关开启时才有意义。构造期读一次，改完需重启才生效",
+			ValueType:   "int", DefaultValue: "512", Min: strPtr("1"), Max: strPtr("100000"), Step: strPtr("1"), Restart: true},
 	}
 }
