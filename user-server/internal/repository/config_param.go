@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/dbencrypt"
@@ -24,6 +25,14 @@ func encryptAuditValues(oldValue, newValue string) (string, string) {
 	return dbencrypt.Encrypt(oldValue), dbencrypt.Encrypt(newValue)
 }
 
+// ErrConfigParamStoreUnavailable 参数中心仓储没装配 DB 句柄时的哨兵错。
+//
+// 与 0.4 的 ErrKVStoreUnavailable / 0.5 的 ErrSystemConfigStoreUnavailable 同一口径：
+// 返回 error 而不是让 gorm 的 nil DB 在 WithContext 上 panic。装配顺序出错
+// （setupConfigParamRoutes 早于 SeedConfigParams、或 NewConfigParamService(nil)）时
+// 这条路径必然被走到，panic 会把一次配置面故障放大成整站起不来。
+var ErrConfigParamStoreUnavailable = errors.New("config_params: 未装配数据库句柄")
+
 // ConfigParamRepository 动态参数仓储
 type ConfigParamRepository struct {
 	db *gorm.DB
@@ -35,6 +44,9 @@ func NewConfigParamRepository(db *gorm.DB) *ConfigParamRepository {
 
 // List 返回全部参数（管理端用）
 func (r *ConfigParamRepository) List(ctx context.Context) ([]model.ConfigParam, error) {
+	if r == nil || r.db == nil {
+		return nil, ErrConfigParamStoreUnavailable
+	}
 	var params []model.ConfigParam
 	if err := r.db.WithContext(ctx).Order("param_group").Order("key").Find(&params).Error; err != nil {
 		return nil, err
@@ -44,6 +56,9 @@ func (r *ConfigParamRepository) List(ctx context.Context) ([]model.ConfigParam, 
 
 // ListByGroup 按分组返回参数（管理端分组展示）
 func (r *ConfigParamRepository) ListByGroup(ctx context.Context, group string) ([]model.ConfigParam, error) {
+	if r == nil || r.db == nil {
+		return nil, ErrConfigParamStoreUnavailable
+	}
 	var params []model.ConfigParam
 	if err := r.db.WithContext(ctx).Where(&model.ConfigParam{Group: group}).Order("key").Find(&params).Error; err != nil {
 		return nil, err
@@ -53,6 +68,9 @@ func (r *ConfigParamRepository) ListByGroup(ctx context.Context, group string) (
 
 // GetByGroupKey 单条查询（Service 层类型化读取的底层）
 func (r *ConfigParamRepository) GetByGroupKey(ctx context.Context, group, key string) (*model.ConfigParam, error) {
+	if r == nil || r.db == nil {
+		return nil, ErrConfigParamStoreUnavailable
+	}
 	var p model.ConfigParam
 	if err := r.db.WithContext(ctx).Where(&model.ConfigParam{Group: group, Key: key}).First(&p).Error; err != nil {
 		return nil, err
@@ -62,6 +80,9 @@ func (r *ConfigParamRepository) GetByGroupKey(ctx context.Context, group, key st
 
 // UpdateValue 更新参数值（含 actor 审计）
 func (r *ConfigParamRepository) UpdateValue(ctx context.Context, group, key, newValue string, actorID uint) error {
+	if r == nil || r.db == nil {
+		return ErrConfigParamStoreUnavailable
+	}
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var p model.ConfigParam
 		if err := tx.Where(&model.ConfigParam{Group: group, Key: key}).First(&p).Error; err != nil {
@@ -92,6 +113,9 @@ func (r *ConfigParamRepository) UpdateValue(ctx context.Context, group, key, new
 
 // ResetToDefault 重置单条为默认值
 func (r *ConfigParamRepository) ResetToDefault(ctx context.Context, group, key string, actorID uint) error {
+	if r == nil || r.db == nil {
+		return ErrConfigParamStoreUnavailable
+	}
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var p model.ConfigParam
 		if err := tx.Where(&model.ConfigParam{Group: group, Key: key}).First(&p).Error; err != nil {
@@ -118,6 +142,9 @@ func (r *ConfigParamRepository) ResetToDefault(ctx context.Context, group, key s
 
 // BulkResetGroup 整组重置默认值
 func (r *ConfigParamRepository) BulkResetGroup(ctx context.Context, group string, actorID uint) error {
+	if r == nil || r.db == nil {
+		return ErrConfigParamStoreUnavailable
+	}
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var params []model.ConfigParam
 		if err := tx.Where(&model.ConfigParam{Group: group}).Find(&params).Error; err != nil {
@@ -149,6 +176,9 @@ func (r *ConfigParamRepository) BulkResetGroup(ctx context.Context, group string
 
 // AuditLogs 变更日志查询（管理端只读）
 func (r *ConfigParamRepository) AuditLogs(ctx context.Context, limit int) ([]model.ConfigParamAuditLog, error) {
+	if r == nil || r.db == nil {
+		return nil, ErrConfigParamStoreUnavailable
+	}
 	if limit <= 0 {
 		limit = 100
 	}

@@ -419,12 +419,24 @@ func (s *ConfigParamService) getString(ctx context.Context, group, key string) (
 }
 
 // List 返回全部参数（管理端 CRUD）
+// repoNotInitializedErr 是「参数中心没装 DB」的统一哨兵。返回 error 而不是 panic：
+// 装配顺序出错（setupConfigParamRoutes 早于 SeedConfigParams）时这条路径必然被走到，
+// panic 会让整个进程起不来，而 error 只是让这一次查询空手——前者把一次配置面故障
+// 放大成整站不可用。
+var repoNotInitializedErr = repository.ErrConfigParamStoreUnavailable
+
 func (s *ConfigParamService) List(ctx context.Context) ([]model.ConfigParam, error) {
+	if s.repo == nil {
+		return nil, repoNotInitializedErr
+	}
 	return s.repo.List(ctx)
 }
 
 // ListByGroup 按分组返回参数
 func (s *ConfigParamService) ListByGroup(ctx context.Context, group string) ([]model.ConfigParam, error) {
+	if s.repo == nil {
+		return nil, repoNotInitializedErr
+	}
 	return s.repo.ListByGroup(ctx, group)
 }
 
@@ -451,6 +463,9 @@ func (s *ConfigParamService) UpdateValue(ctx context.Context, group, key, newVal
 
 // ResetToDefault 重置单条为默认值
 func (s *ConfigParamService) ResetToDefault(ctx context.Context, group, key string, actorID uint) error {
+	if s.repo == nil {
+		return repoNotInitializedErr
+	}
 	if err := s.repo.ResetToDefault(ctx, group, key, actorID); err != nil {
 		return err
 	}
@@ -460,6 +475,9 @@ func (s *ConfigParamService) ResetToDefault(ctx context.Context, group, key stri
 
 // BulkResetGroup 整组重置默认值
 func (s *ConfigParamService) BulkResetGroup(ctx context.Context, group string, actorID uint) error {
+	if s.repo == nil {
+		return repoNotInitializedErr
+	}
 	if err := s.repo.BulkResetGroup(ctx, group, actorID); err != nil {
 		return err
 	}
@@ -469,6 +487,9 @@ func (s *ConfigParamService) BulkResetGroup(ctx context.Context, group string, a
 
 // AuditLogs 变更日志
 func (s *ConfigParamService) AuditLogs(ctx context.Context, limit int) ([]model.ConfigParamAuditLog, error) {
+	if s.repo == nil {
+		return nil, repoNotInitializedErr
+	}
 	return s.repo.AuditLogs(ctx, limit)
 }
 

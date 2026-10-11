@@ -455,7 +455,8 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 
 		setupSystemUserRoutes(auth)
 
-		setupConfigParamRoutes(auth, gormDB)
+		// plainAuth 只挂只读的 Runtime；五个全量/写端点走 admin 组（见 config_param_routes.go）
+		setupConfigParamRoutes(auth, systemAdmin, gormDB)
 
 		setupRoleRoutes(auth)
 

@@ -825,3 +825,42 @@ GET  /api/config/runtime?groups=frontend_ws,frontend_ui,pagination
 
 **阶段三到此收尾**：3.1 五批共接 **54 条**（9 + 7 + 6 + 11 + 22），门禁从
 `wired 131` 到 `wired 179`，种子从 138 到 193。
+
+#### 3.2 已落地（2026-10-11）：`GET /api/config/runtime` 只读端点
+
+前端拿运行时配置的唯一出口。**三条判据写死在代码里，不给「可配置」的口子**：
+
+1. **只返回白名单内的组**（`runtimePublicGroups`：`frontend_ws` / `frontend_ui` /
+   `pagination`）。传入的 groups 里不在白名单的**静默忽略**——不报错也不回显，
+   免得调用方拿它当「探测有哪些组」的手段。
+2. **只返回 value**（`group.key -> string` 扁平映射）。`Name`/`Description`/`Min`/
+   `Max`/`Restart`/`ReadOnly` 一个都不给。`/api/manage/config-params` 是**管理端全量
+   列表**，把它暴露给终端用户等于把整套运维决策面摊开——里面既有
+   `misc.upload_max_size_mb` 这种可直接放开的口子，也有 `read_only` 标记为系统推导的键。
+3. **不读数据库时返回空 map + code 0**，前端据此用代码兜底值。不能因为运维配置面挂了
+   就让整个 SPA 白屏。
+
+**顺带修掉一个后端口径缺口（规则2，当轮修）**：`setupConfigParamRoutes` 此前把那五个
+全量/写端点挂在 `auth` 上，而 `auth` **只要求登录、不要求管理员**——任何普通登录用户
+都能改上传上限、改验签旁路、改锁 TTL。前端侧 `router/modules/system.js` 的
+ConfigParams 路由一直标了 `requiresAdmin: true`，两端口径不一致，靠前端藏菜单挡着。
+本批把五个端点改挂 `systemAdmin`（已过 `AdminAuthMiddleware` 的 auth 子组），
+`plainAuth` 只留只读的 `Runtime` 一条。
+
+**顺带补掉两处 nil DB panic（同为规则2）**：
+- `ConfigParamRepository` 七个方法（`List`/`ListByGroup`/`GetByGroupKey`/`UpdateValue`/
+  `ResetToDefault`/`BulkResetGroup`/`AuditLogs`）在 `r.db == nil` 时 `WithContext` 直接
+  panic。统一返回哨兵错 `ErrConfigParamStoreUnavailable`（与 0.4 的
+  `ErrKVStoreUnavailable`、0.5 的 `ErrSystemConfigStoreUnavailable` 同一口径）。
+- `ConfigParamService` 的 `List`/`ListByGroup`/`ResetToDefault`/`BulkResetGroup`/
+  `AuditLogs` 补 `s.repo == nil` 守卫；`ConfigParamController.Runtime` 补 `c.svc == nil`
+  守卫——**Runtime 是前端启动链上的一环，它 panic 会让整个 SPA 打不开**，这一条比
+  别的端点更要 nil-safe。
+
+**验证**：干净 worktree `/tmp/hivemtk_v28`（@`400a79fc`）gofmt 空、`go build ./...`、
+`go vet ./internal/...` 全过；`controller`(95.859s) / `repository`(76.867s) /
+`router`(11.095s) / `service`(474.315s) **全绿**。
+门禁读数不变（`wired 179 / 已声明未接线 14 / UNDECLARED 0 / STALE 0`，rc=0）——
+本批不新增参数键。
+行为级测试：`TestRuntimeReadsRealValues`（真库 seed 后把 `pagination` 组一条改成 77，
+断言端点读到 77）。
