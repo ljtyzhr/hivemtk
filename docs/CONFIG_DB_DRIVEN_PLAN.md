@@ -730,3 +730,52 @@ GET  /api/config/runtime?groups=frontend_ws,frontend_ui,pagination
 路径，断言 workerCount / 队列容量 / LLM 信号量真的是参数值）、
 `TestInitSOPCompensationPicksUpParams`（开关开启后装配出的管理器真的用参数值，
 且 `TotalTimeout` 未被参数化）。
+
+#### 3.1 第四批已落地（2026-10-10）：`domain_health`(4) + `rag_health`(7) 共 11 条
+
+**域名健康度 4 条**——"看一眼分数就做决定"的类型，改错的结果不是性能问题而是
+"该切的没切"：
+
+| group.key | 默认 | 生效时机 |
+| --- | --- | --- |
+| `domain_health.score_healthy` | 80 | 每请求（参与选优 / 状态提升 / 无可用域名报错） |
+| `domain_health.score_switch_threshold` | 30 | 每请求（自动切换触发线，须低于 score_healthy） |
+| `domain_health.consecutive_failure_limit` | 3 | 每请求（"分数还没掉下来就先切走"的旁路） |
+| `domain_health.check_timeout` | 5s | **构造期，Restart=true**（`http.Client.Timeout`） |
+
+**RAG 健康度 7 条**：`default_window`（1h）+ 六维权重（0.10 / 0.30 / 0.15 ×4，
+总和 1.0）。
+
+**本批最关键的一个设计决定：六个权重按总和归一化后使用。**
+
+`report.Score` 是六个 `WeightedScore` 直接相加再取整（`rag_health.go:132-136`），
+等级表 `scoreToGrade` 按 90/75/60 分档。如果权重不归一化，运营把某一项调成 3 就会
+让**总分超出 0-100、等级分档全部错位**——而且症状是"分数突然变 300 分会"，不是
+"比重变了"，极难定位。归一化后每个旋钮的语义变成干净的"相对比重"：
+`召回质量` 调到 3 就是"召回占总分 3/(3+其余)"这么多。
+
+六项全被写成 0（或非正）时**回落常量权重**：那时 `report.Weight` 会是 0、
+任何维度看起来都是 0 分，比百分比失准更难排查。读取侧 `positiveFloatOrDH` 把
+单一项的 0 也当"没配过"回落常量——想降比重应该调小，清零只会让总分少一块而看不出原因。
+
+**两条判断**：
+1. **走直连不造 provider seam**：两组读取点全在 `internal/service` 包内。
+2. **`domain_health.check_timeout` 是四条的 Restart 异类**：它在 `http.Client`
+   构造时定型，改完只对下次新建的服务实例生效，故单独标 `Restart=true`；
+   其余三条每请求读，标 false。
+
+**一个测试上的坑（已写进测试注释）**：`setDHRaw` 直接写库绕过 service，
+而 `ConfigParamService.invalidate` 只在 `UpdateValue`/`Reset` 路径上被调——
+所以"先 `UpdateValue` 再直接写库"的混合用例，60s 内读到的还是旧值。
+修法是 `refreshParamCache(db)` 换一个冷缓存的服务实例。这不是新问题，
+是 3.1b 起就存在的 `configParamTTL` 语义，只是本批第一次把它撞出来。
+
+**验证**：干净 worktree `/tmp/hivemtk_v26`（@`d9f8fa3e`）gofmt 空、
+`go build ./...` 全过；`internal/service` 全包 **ok 452.764s**（0 失败）。
+门禁 **`wired 146 → 157`、已声明未接线 14、UNDECLARED 0、STALE 0，rc=0**，
+种子条目 160 → 171、锚点同步到 171。
+行为级测试：`TestDomainHealthNewServicePicksUpTimeout`（新服务实例的
+`http.Client.Timeout` 真的是参数值）、`TestRagHealthWeightsNormalizedToSumOne`
+（召回调成 3.0 后占主导且六项和仍为 1.0）、
+`TestRagHealthWeightsFallBackWhenAllZero`（全 0 回落常量）、
+`TestRagHealthWeightIndividualFallback`（只回落那一项）。
