@@ -215,7 +215,17 @@ func TestFallbackNilDB(t *testing.T) {
 //     归一化后每个旋钮的语义就是干净的"相对比重"。
 //   - 六项全读不到或全被写成 0 时回落常量权重：那时 report.Weight 会是 0，
 //     任何维度看起来都是 0 分，比百分比失准更难排查。
-const defaultParamDefsWant = 171
+//
+// 2026-10-10（第十一次，阶段三 3.1 第五批）：+22 = feedback 组，反馈学习闭环全部旋钮。
+//   - bandit 6：样本量三档（转利用/晋升/后验采样）+ 三个比例（探索下限/流量上限/收敛阈值）。
+//   - collector 3：队列容量 / 刷盘间隔 / 批量。信号权重表 DefaultSignalWeights（12 键）
+//     刻意不入库——那是一张双射表，拆成 12 条参数后运维要看全貌反而更难。
+//   - analyzer 5 / iterator 4 / optimizer 4：销冠分析、Prompt 迭代、自动优化。
+//   - 22 条全部构造期读一次，故全标 Restart=true：五个组件的配置在
+//     InitFeedbackLoopComponents / InitFeedbackCollector 里组装完就固化。
+//   - iterator_negative_reward_threshold 的默认是负数（-0.5），读取侧用 fbOrAnyFloat
+//     而不是 fbOrPosFloat：0 的语义是「关掉这道门限」，不是「没配过」。
+const defaultParamDefsWant = 193
 
 func TestDefaultParamDefsCount(t *testing.T) {
 	defs := DefaultParamDefs()

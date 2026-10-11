@@ -779,3 +779,49 @@ GET  /api/config/runtime?groups=frontend_ws,frontend_ui,pagination
 （召回调成 3.0 后占主导且六项和仍为 1.0）、
 `TestRagHealthWeightsFallBackWhenAllZero`（全 0 回落常量）、
 `TestRagHealthWeightIndividualFallback`（只回落那一项）。
+
+#### 3.1 第五批已落地（2026-10-10）：`feedback` 组 22 条（阶段三收尾）
+
+反馈学习闭环全部旋钮。**22 条全部构造期读一次，故全标 `Restart=true`**：
+五个组件的配置在 `InitFeedbackLoopComponents` / `InitFeedbackCollector`
+（`cmd/api/main.go:408/418`）里组装完就固化在各组件的 `config` 字段里。
+
+| 子域 | 条数 | 参数 |
+| --- | --- | --- |
+| `bandit` | 6 | `min_samples_for_exploit` 30 / `exploration_floor` 0.10 / `traffic_ceiling` 0.60 / `convergence_threshold` 0.95 / `min_samples_for_promote` 100 / `posterior_samples` 1000 |
+| `collector` | 3 | `queue_size` 1000 / `flush_interval` 2s / `batch_size` 50 |
+| `analyzer` | 5 | `min_reward` 1.0 / `cluster_sim_threshold` 0.85 / `min_cluster_size` 3 / `top_k_per_cluster` 3 / `max_dialogues_per_run` 500 |
+| `iterator` | 4 | `min_samples_for_iteration` 50 / `negative_reward_threshold` -0.5 / `candidates_per_run` 3 / `auto_approve` false |
+| `optimizer` | 4 | `auto_apply_priority` 2 / `rollback_drop_threshold` 0.20 / `rollback_complaint_ratio` 0.50 / `ab_test_duration` 7d |
+
+**两条克制（不做什么）**：
+1. **`DefaultSignalWeights`（12 键信号权重表）刻意不入库**。它是一张
+   `dto.FeedbackSignalKey → float64` 的双射表，拆成 12 条参数后每一行仍是
+   "配了这一格才覆盖一格的权重"，运维要看全貌反而更难，而且 key 是 `dto` 常量
+   （与 `model/feedback_loop.go:39` 的注释绑定，改了要同步两处）。要动它应走
+   **字典表（阶段四）**，不是参数中心。
+2. **`iterator_auto_approve` 默认 false，Description 写明了"改成 true 等于把
+   提示词改写这条产线全自动"**。它是本组唯一一个"改了影响每一通对话"的开关，
+   与 2b 的验签旁路同类——但区别在于它**不翻安全闸**，只翻产线行为，
+   所以入库 + 默认关闭是正确的处置。
+
+**本批一个真实的设计坑：`fbMissingFloat` 哨兵。**
+`iterator_negative_reward_threshold` 的默认是 **-0.5**，而 `0` 是它的合法语义
+（"关掉这道负向门限"）。第一版照抄正值参数的写法用 0 当 `GetFloat` 的 fallback，
+结果「没配过」和「配了 0」都落到兜底 -0.5 上——运维填 0 后看不到任何变化，
+且没有报错。改用 `math.NaN()` 当哨兵：库里存不下 NaN（`validateValue` 走
+`strconv.ParseFloat`），所以它**只可能来自 fallback 这一条路**。
+同类参数（合法取值可以是 0 或负数的）今后一律走 `fbOrAnyFloat`。
+
+**验证**：干净 worktree `/tmp/hivemtk_v27`（@`e86ab783`）gofmt 空、
+`go build ./...` 全过；`internal/service/...` **10 个包全绿**
+（service 453.953s、feedback_loop 14.407s）。门禁 **`wired 157 → 179`、
+已声明未接线 14、UNDECLARED 0、STALE 0，rc=0**，种子条目 171 → 193、
+锚点同步到 193。
+行为级测试：`TestFeedbackConfigsFromParamsMatchDefaults`（无库时五个组件逐字段
+等于各自的 `DefaultXxxConfig()`——这是"参数缺省时行为不变"的总闸）、
+`TestFeedbackFloatFallbackSemantics`（`fbOrPosFloat` 与 `fbOrAnyFloat` 的分界）、
+`TestFeedbackParamKeysAreAllRead`（22 条逐一改库后断言对应字段真的变了）。
+
+**阶段三到此收尾**：3.1 五批共接 **54 条**（9 + 7 + 6 + 11 + 22），门禁从
+`wired 131` 到 `wired 179`，种子从 138 到 193。

@@ -60,7 +60,7 @@ func (a *feedbackLLMAdapter) Dispatch(ctx context.Context, scenario string, prom
 // 启动后会异步消费事件队列（每 2s 刷盘），调用 Stop() 优雅关闭
 func InitFeedbackCollector(db *gorm.DB) *feedbackloop.FeedbackCollector {
 	feedbackCollectorOnce.Do(func() {
-		cfg := feedbackloop.DefaultFeedbackCollectorConfig()
+		cfg := FeedbackCollectorConfigFromParams(context.Background())
 		feedbackCollector = feedbackloop.NewFeedbackCollector(db, cfg)
 	})
 	return feedbackCollector
@@ -79,11 +79,13 @@ func InitFeedbackLoopComponents(db *gorm.DB, dispatcher *llm.Dispatcher, embedde
 	embAdapter := &embeddingAdapter{embedder: embedder}
 	llmAdapter := &feedbackLLMAdapter{dispatcher: dispatcher}
 
-	collector := feedbackloop.NewFeedbackCollector(db, feedbackloop.DefaultFeedbackCollectorConfig())
-	analyzer := feedbackloop.NewChampionDialogueAnalyzer(db, embAdapter, llmAdapter, feedbackloop.DefaultChampionAnalyzerConfig())
-	iterator := feedbackloop.NewPromptIterator(db, llmAdapter, feedbackloop.DefaultPromptIteratorConfig())
-	bandit := feedbackloop.NewBanditAllocator(db, feedbackloop.DefaultBanditConfig(), 42)
-	optimizer := feedbackloop.NewSOPAutoOptimizer(db, bandit, feedbackloop.DefaultSOPAutoOptimizerConfig())
+	// 五个组件的配置全部走参数中心（feedback 组，22 条，构造期读，Restart=true）。
+	bg := context.Background()
+	collector := feedbackloop.NewFeedbackCollector(db, FeedbackCollectorConfigFromParams(bg))
+	analyzer := feedbackloop.NewChampionDialogueAnalyzer(db, embAdapter, llmAdapter, ChampionAnalyzerConfigFromParams(bg))
+	iterator := feedbackloop.NewPromptIterator(db, llmAdapter, PromptIteratorConfigFromParams(bg))
+	bandit := feedbackloop.NewBanditAllocator(db, BanditConfigFromParams(bg), 42)
+	optimizer := feedbackloop.NewSOPAutoOptimizer(db, bandit, SOPAutoOptimizerConfigFromParams(bg))
 
 	return &FeedbackLoopComponents{
 		Collector:    collector,
