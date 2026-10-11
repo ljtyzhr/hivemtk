@@ -256,6 +256,9 @@ export default defineConfig({
     }),
   ],
   resolve: {
+    // vue 必须去重：@vue-flow 等依赖被 Vite 预构建时若解析到第二份 Vue 运行时，
+    // 模块级 currentRenderingInstance 不共享，renderSlot 读 null 报 "reading 'ce'"
+    dedupe: ['vue'],
     alias: {
       '@': resolve(__dirname, 'src'),
     },

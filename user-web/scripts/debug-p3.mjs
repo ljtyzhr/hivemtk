@@ -1,0 +1,33 @@
+import { chromium } from 'playwright';
+const BASE_URL = 'http://localhost:8211';
+const browser = await chromium.launch({ headless: true });
+const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+const page = await ctx.newPage();
+const errs = [];
+page.on('console', m => { if (m.type()==='error') errs.push(m.text().substring(0,500)); });
+await page.goto(BASE_URL + '/#/login', { waitUntil: 'networkidle', timeout: 15000 });
+await page.waitForTimeout(2000);
+const u = await page.$('input[type="text"], input[placeholder*="用户名"], input[placeholder*="username"], input[placeholder*="邮箱"]');
+const p = await page.$('input[type="password"]');
+await u.fill('admin'); await p.fill('Seed@123456');
+const btn = await page.$('button[type="submit"], .el-button--primary');
+if (btn) await btn.click();
+await page.waitForTimeout(5000);
+
+errs.length = 0;
+await page.goto(BASE_URL + '/#/' + 'setup', { waitUntil: 'networkidle', timeout: 15000 });
+await page.waitForTimeout(2500);
+const t1 = await page.evaluate(() => document.body?.innerText || '');
+console.log('=== /setup ===');
+console.log(t1.substring(0, 800));
+console.log('URL:', page.url());
+
+errs.length = 0;
+await page.goto(BASE_URL + '/#/' + 'reachPipeline/editor', { waitUntil: 'networkidle', timeout: 15000 });
+await page.waitForTimeout(3000);
+const t2 = await page.evaluate(() => document.body?.innerText || '');
+console.log('\n=== /reachPipeline/editor ===');
+console.log(t2.substring(0, 800));
+console.log('\n=== console errors ===');
+console.log(errs.join('\n---\n').substring(0, 3000));
+await browser.close();

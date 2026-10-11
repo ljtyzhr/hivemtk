@@ -1,0 +1,782 @@
+[
+  {
+    "name": "帮助中心",
+    "route": "/help-center",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "162 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "1 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 帮助, 中心"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "在线客服嵌入",
+    "route": "/chat/embed/default",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "51 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "4 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 客服"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "系统初始化",
+    "route": "/setup",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "884 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "5 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: Marketing, 部署, Log In"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "新建AI Agent",
+    "route": "/aiAgent/create",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "1114 字符"
+      },
+      {
+        "desc": "表单元素",
+        "passed": true,
+        "detail": "50 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: Agent, 名称, 模型, 创建"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "新建知识库",
+    "route": "/knowledgeBase/create",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "1061 字符"
+      },
+      {
+        "desc": "表单元素",
+        "passed": true,
+        "detail": "13 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 知识库, 名称, 新建, 创建"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "新建渠道",
+    "route": "/chatChannel/create",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "879 字符"
+      },
+      {
+        "desc": "表单元素",
+        "passed": true,
+        "detail": "14 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 渠道, Channel, 新建, 创建"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "FAQ编辑器",
+    "route": "/faq/editor",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "593 字符"
+      },
+      {
+        "desc": "表单元素",
+        "passed": true,
+        "detail": "9 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: FAQ, 问题, 答案"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "SOP编辑器",
+    "route": "/sop-template/editor",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "639 字符"
+      },
+      {
+        "desc": "表单元素",
+        "passed": true,
+        "detail": "11 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: SOP, 模板, 编辑, 保存"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "触达管线编辑器",
+    "route": "/reachPipeline/editor",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "370 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "7 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: Pipeline, 节点"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "短信草稿",
+    "route": "/sms/drafts",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "1535 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "40 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 草稿, Draft, 短信"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "邮件草稿",
+    "route": "/email/drafts",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "1370 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "91 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 草稿, Draft, 邮件"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "邮件拖拽编辑器",
+    "route": "/email/drag-editor",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "695 字符"
+      },
+      {
+        "desc": "表单元素",
+        "passed": true,
+        "detail": "4 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 编辑, 拖拽, Email"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "编辑AI Agent(id=1)",
+    "route": "/aiAgent/edit/1",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "3368 字符"
+      },
+      {
+        "desc": "表单元素",
+        "passed": true,
+        "detail": "6 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: Agent, 名称, 模型"
+      },
+      {
+        "desc": "API请求",
+        "passed": false,
+        "detail": "404 /api/ai-agents/1",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "编辑知识库(id=1)",
+    "route": "/knowledgeBase/edit/1",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "1027 字符"
+      },
+      {
+        "desc": "表单元素",
+        "passed": true,
+        "detail": "7 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 知识库, 名称"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "编辑渠道(id=1)",
+    "route": "/chatChannel/edit/1",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "725 字符"
+      },
+      {
+        "desc": "表单元素",
+        "passed": true,
+        "detail": "16 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 渠道, Channel, 加载"
+      },
+      {
+        "desc": "API请求",
+        "passed": false,
+        "detail": "404 /api/chat-channels/1",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "FAQ编辑(id=1)",
+    "route": "/faq/editor/1",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "4453 字符"
+      },
+      {
+        "desc": "表单元素",
+        "passed": true,
+        "detail": "30 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: FAQ, 问题, 答案, 不存在, 加载"
+      },
+      {
+        "desc": "API请求",
+        "passed": false,
+        "detail": "404 /api/faqs/1",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "工作流编辑(id=1)",
+    "route": "/workflow-orchestrator/editor/1",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "633 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "8 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 工作流, 保存, 节点"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "自动化任务详情(id=1)",
+    "route": "/browser-automation/tasks/1",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "506 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "3 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 任务, 不存在"
+      },
+      {
+        "desc": "API请求",
+        "passed": false,
+        "detail": "404 /api/browser-automation/tasks/1",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "资产详情(id=1)",
+    "route": "/asset-market/detail/1",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "485 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "3 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 资产, 详情"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  },
+  {
+    "name": "草稿详情(id=1)",
+    "route": "/dashboard/drafts/1",
+    "status": "ok",
+    "checks": [
+      {
+        "desc": "非404页面",
+        "passed": true,
+        "detail": "正常渲染"
+      },
+      {
+        "desc": "页面内容",
+        "passed": true,
+        "detail": "568 字符"
+      },
+      {
+        "desc": "交互/结构元素",
+        "passed": true,
+        "detail": "3 个"
+      },
+      {
+        "desc": "关键文本",
+        "passed": true,
+        "detail": "找到: 草稿, 详情"
+      },
+      {
+        "desc": "API请求",
+        "passed": true,
+        "detail": "全部成功",
+        "info": true
+      },
+      {
+        "desc": "控制台错误",
+        "passed": true,
+        "detail": "无"
+      }
+    ],
+    "errors": []
+  }
+]
