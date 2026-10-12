@@ -13,6 +13,11 @@
 //   - 表只做"升到 admin"，不做降级。默认档仍是登录即可，避免一次改动把 1570 条
 //     路由推进一个没人核对过的口径。
 //
+// 后来补上的第二档（能力面表，见 route_capability.go）解决的正是上面那句"留到以后"：
+// 那批"页面看着像管理页、接口却只对登录态开放"的口，判据不该由我在这里逐条拍，
+// 而该由菜单授权自己说——侧栏不给看的，接口也不给调；管理员勾了菜单，接口同时开。
+// 那张表是生成件（scripts/menu-route-role-audit.py --emit-go），口径与消费证据同源。
+//
 // 匹配对象是 c.Request.URL.Path（真实请求路径），不是 c.FullPath()：FullPath 带的是
 // 注册时的参数名，表里写 `/api/users/*/password` 时不需要知道代码里那段叫 :id 还是
 // :user_id，表的读者也不必去对照两种命名。
@@ -162,7 +167,12 @@ func AdminOnlyRoutePatterns() [][2][]string {
 	return out
 }
 
-// RoutePolicyGuard 按 adminOnlyRoutes 拦截非超管。
+// RoutePolicyGuard 按 adminOnlyRoutes 与能力面表拦截非超管／未授权角色。
+//
+// 两档判据，先后有序：
+//  1. 仅超管表（adminOnlyRoutes）：无条件要超管，菜单授权开不了它；
+//  2. 能力面表（model.MenuCapabilities，生成件）：要的是**该功能的菜单授权**，
+//     超管恒放行，其余角色按 role_menu_permissions 的授予判。
 //
 // 与 AdminAuthMiddleware / RequireAdminMiddleware 的差别只在"要不要走表"：
 // 401/403 的文案与形状沿用 RequireAdminMiddleware，让客户端看到同一个口径。
@@ -171,6 +181,18 @@ func AdminOnlyRoutePatterns() [][2][]string {
 func RoutePolicyGuard() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		if !IsAdminOnlyRoute(c.Request.Method, c.Request.URL.Path) {
+			roleStr, _ := c.Get("role")
+			roleName, _ := roleStr.(string)
+			inTable, allowed := CapabilityAllows(c.Request.Context(), roleName, c.Request.URL.Path)
+			if inTable && !allowed {
+				logger.Infof("RoutePolicyGuard: 角色未被授予该能力菜单，已拒绝 method=%s path=%s role=%s",
+					c.Request.Method, c.Request.URL.Path, roleName)
+				c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
+					"code":    403,
+					"message": capabilityDeniedMsg,
+				})
+				return
+			}
 			c.Next()
 			return
 		}

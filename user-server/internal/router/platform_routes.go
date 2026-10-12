@@ -23,6 +23,10 @@ func setupWhatsappRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 	auth.GET("/whatsapp/drafts", whatsappCtrl.ListDrafts)
 	auth.GET("/whatsapp/jobs", whatsappCtrl.ListJobs)
 	auth.GET("/whatsapp/jobs/:id", whatsappCtrl.GetJob)
+	// 进度读侧跟列表/详情同档：一个角色能列出这批任务、能读到它的详情，
+	// 就应当能读到它的进度。挂在 admin 组里时批量矩阵页的进度条对非超管恒空转
+	// （POST /jobs 仍是 admin，"能不能发起"没有跟着放开）。
+	auth.GET("/whatsapp/jobs/:id/progress", whatsappGroupMsgCtrl.GetJobProgress)
 	auth.GET("/whatsapp/accounts/:id/login/status", whatsappCtrl.LoginStatus)
 	auth.GET("/whatsapp/lead-groups", whatsappGroupMsgCtrl.GetLeadGroups)
 	auth.GET("/whatsapp/group-messaging/status/:queue_id", whatsappGroupMsgCtrl.GetMessageStatus)
@@ -44,7 +48,6 @@ func setupWhatsappRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 		admin.DELETE("/jobs/:id", whatsappCtrl.DeleteJob)
 		admin.POST("/group-messaging/send", whatsappGroupMsgCtrl.SelectGroupAndSendMessage)
 		admin.POST("/bulk-send", whatsappGroupMsgCtrl.BulkSend)
-		admin.GET("/jobs/:id/progress", whatsappGroupMsgCtrl.GetJobProgress)
 		admin.POST("/templates", whatsappGroupMsgCtrl.CreateTemplate)
 		admin.PUT("/templates/:id", whatsappGroupMsgCtrl.UpdateTemplate)
 		admin.DELETE("/templates/:id", whatsappGroupMsgCtrl.DeleteTemplate)

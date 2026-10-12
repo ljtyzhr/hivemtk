@@ -376,10 +376,6 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 	bridgeTokenCtrl := controller.NewBridgeTokenController()
 	auth.GET("/bridge/token/status", middleware.JWTAuthMiddleware(), middleware.RequireAdminMiddleware(), bridgeTokenCtrl.GetStatus)
 	auth.POST("/bridge/token/reset", middleware.JWTAuthMiddleware(), middleware.RequireAdminMiddleware(), bridgeTokenCtrl.ResetBridgeToken)
-	tlCtrl := controller.NewTraceLearningController(trace_learning.Global())
-	auth.POST("/monitor/trace-eval/trigger", middleware.JWTAuthMiddleware(), middleware.RequireAdminMiddleware(), tlCtrl.TriggerEval)
-	auth.GET("/monitor/trace-eval/logs", middleware.JWTAuthMiddleware(), tlCtrl.EvalLogs)
-	auth.GET("/monitor/knowledge-weights", middleware.JWTAuthMiddleware(), tlCtrl.KnowledgeWeights)
 
 	auth.Use(middleware.JWTAuthMiddleware())
 	// 仅超管能力面（备份/恢复/重启、全局配置写、LLM 与 MCP 凭据、功能开关放量、
@@ -387,7 +383,13 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 	//
 	// 位置必须在 JWT 之后：守卫从 ctx 读 role，早于 JWT 就等于每条命中都走"无身份 ⇒ 401"。
 	// 也必须在任何 auth 路由注册之后、注册动作之前：gin 在注册时快照当时的 handler 链，
-	// 这一行之前注册的少数 /api/monitor/* 不会带上它（它们各自已有内联守卫）。
+	// 这一行之前注册的那两条 /api/bridge/token/* 带不到它，它们靠内联
+	// RequireAdminMiddleware 收口；任何在能力表里有归属的接口都不许注册在这一行之前。
+	// 能力面守卫的第二档判据要先有数据源：菜单授予来自库里的 role_menu_permissions，
+	// 装配期注一次，守卫内自带 60s 缓存与 stale-while-error。
+	// 漏这一行的后果是**拦**（守卫把"查不到授予"按无授予判），不是放行，
+	// 所以新增装配路径时必须一起带上它。
+	middleware.SetMenuGrantProvider(service.NewMenuService().GrantProvider)
 	auth.Use(middleware.RoutePolicyGuard())
 	{
 		// 业务链路监控 /api/monitor/*（health/anomalies/node-health/latency/
@@ -398,6 +400,14 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 		// 历史缺陷：该行原位于 294 行 Use 之前，导致 7 个监控接口全部匿名可访问
 		// （启动日志中 handler 数为 11，而需登录的 /api/users 为 12）。
 		monitor.RegisterRoutes(auth)
+
+		// 链路自学习监控口：/monitor/trace-eval/logs 与 /monitor/knowledge-weights 在
+		// 能力表里归 systemTrace，注册必须在 auth.Use(RoutePolicyGuard()) 之后，
+		// 否则那两行表对它们不生效（gin 注册时快照当时的 handler 链）。
+		tlCtrl := controller.NewTraceLearningController(trace_learning.Global())
+		auth.POST("/monitor/trace-eval/trigger", middleware.RequireAdminMiddleware(), tlCtrl.TriggerEval)
+		auth.GET("/monitor/trace-eval/logs", tlCtrl.EvalLogs)
+		auth.GET("/monitor/knowledge-weights", tlCtrl.KnowledgeWeights)
 
 		setupAuthRoutes(auth, gormDB)
 

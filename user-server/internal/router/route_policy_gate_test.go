@@ -31,6 +31,7 @@ import (
 	"hivemtk-user/internal/pkg/utils"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 // 守卫在链上的函数名片段。刻意不写包前缀，也不写 .funcN 后缀：
@@ -49,6 +50,9 @@ const (
 	jwtNoTokenMsg    = "未提供认证令牌"
 	policyDeniedMsg  = "权限不足，需要超管权限"
 	adminAuthDenyMsg = "权限不足，需要管理员权限"
+	// 能力面（菜单授予）拒绝文案，与 middleware.capabilityDeniedMsg 同字面量：
+	// 守卫的拒绝口径是对外契约，改文案要同时改这里。
+	capabilityDeniedMsg = "权限不足，该功能需先被授予对应菜单"
 )
 
 // identityGuards 认"这条链知道请求者是谁"的守卫：坐席登录态、渠道机对接令牌、
@@ -377,18 +381,36 @@ func TestRouteGuardChain_SetupOnlyOnBootstrapWrites(t *testing.T) {
 
 func gateEngine(t *testing.T) *gin.Engine {
 	t.Helper()
+	engine, _ := gateEngineAndDB(t)
+	return engine
+}
+
+// gateEngineAndDB 装配真实引擎并回库句柄：能力面的行为腿要往 role_menu_permissions
+// 里插一行授予、再删掉，只有引擎句柄做不到。
+//
+// 表里必须带 RoleMenuPermission：它是能力守卫的数据源。少建这张表时守卫读库会拿到
+// "relation does not exist"，按无授予拦下一切非超管 —— 用例照样绿（它只断"被拦"），
+// 但拦的原因是缺表而不是缺授权，判据就此失去区分力。实测踩过一次。
+func gateEngineAndDB(t *testing.T) (*gin.Engine, *gorm.DB) {
+	t.Helper()
 	t.Setenv("USER_WEB_DIST", t.TempDir())
 	t.Setenv("ENABLE_DEBUG_ROUTES", "true")
 	database := testutil.NewTestDB(t, &model.Opportunity{}, &model.Quote{}, &model.QuoteLineItem{},
-		&model.ApprovalRequest{}, &model.SalesEvent{}, &model.SystemConfigKV{}, &model.SystemUser{})
+		&model.ApprovalRequest{}, &model.SalesEvent{}, &model.SystemConfigKV{}, &model.SystemUser{},
+		&model.RoleMenuPermission{})
 	prev := dbutil.GetDB()
 	dbutil.SetTestDB(database)
-	t.Cleanup(func() { dbutil.SetTestDB(prev) })
+	t.Cleanup(func() {
+		dbutil.SetTestDB(prev)
+		// 授予查询在装配期绑的是本用例的库句柄，缓存也是包级全局：
+		// 留给下一个用例一个指向已回收库的 provider，它读到的就是 stale 值而非真判定。
+		middleware.SetMenuGrantProvider(nil)
+	})
 
 	gin.SetMode(gin.TestMode)
 	engine := gin.New()
 	Setup(engine, database)
-	return engine
+	return engine, database
 }
 
 func gateCall(t *testing.T, engine *gin.Engine, method, path, token string) (int, string) {
@@ -482,6 +504,9 @@ func TestRouteGuardChain_StaffRejectedOnAdminOnlyRoutes(t *testing.T) {
 // TestRouteGuardChain_StaffStillPassesLoginTier 反向：守卫不许顺手把登录档也拦了。
 // 表里只写 PUT /api/auth/password-policy，GET 同一路径必须照旧放行；
 // /api/customer-sessions 这类"本人数据"口对 staff 也必须可达。
+//
+// 清单里的路径必须是**两张表都不沾**的：能力表落进来一条（/api/feature-flags 就落进过）
+// 而这里只认前两句拒绝文案，守卫拦下来也照样 PASS —— 门就此失明，判据要连第三档一起吃。
 func TestRouteGuardChain_StaffStillPassesLoginTier(t *testing.T) {
 	engine := gateEngine(t)
 	staff, _ := gateTokens(t)
@@ -495,12 +520,18 @@ func TestRouteGuardChain_StaffStillPassesLoginTier(t *testing.T) {
 	for _, c := range [][2]string{
 		{"GET", "/api/auth/password-policy"},
 		{"GET", "/api/customer-sessions"},
-		{"GET", "/api/feature-flags"},
 	} {
+		if len(middleware.CapabilityOwnerKeysFor(c[1])) > 0 {
+			t.Errorf("登录档对照组 %s %s 已在能力表里，它不再是「没被拦」的证据，请换一条并另写授予用例",
+				c[0], c[1])
+			continue
+		}
 		code, body := gateCall(t, engine, c[0], c[1], staff)
 		if code == http.StatusForbidden &&
-			(strings.Contains(body, policyDeniedMsg) || strings.Contains(body, adminAuthDenyMsg)) {
-			t.Errorf("登录档口 %s %s 被当成仅超管口拦下（表写宽了）：%d / %s",
+			(strings.Contains(body, policyDeniedMsg) ||
+				strings.Contains(body, adminAuthDenyMsg) ||
+				strings.Contains(body, capabilityDeniedMsg)) {
+			t.Errorf("登录档口 %s %s 被当成仅超管/能力口拦下（表写宽了）：%d / %s",
 				c[0], c[1], code, strings.TrimSpace(body))
 		}
 	}
@@ -520,5 +551,181 @@ func TestRouteGuardChain_PolicyGuardFailsClosedWithoutIdentity(t *testing.T) {
 	}
 	if code != http.StatusUnauthorized || !strings.Contains(body, "未授权") {
 		t.Errorf("表命中且无身份时应 401 加未授权，实得 %d / %s", code, strings.TrimSpace(body))
+	}
+}
+
+// —— 能力面（菜单授予）那张生成件的常驻腿 ——
+//
+// 生成表由 scripts/menu-route-role-audit.py 从"菜单注册表 × live 路由档位 × 前端调用图"
+// 推导，一旦落进树里就没有编译器管它了：路径写错的死行不生效、菜单 key 拼错的行会把
+// 所有人都拦在门外、注册在守卫之前（auth.Use 快照）的行等于没写。三条静态腿各钉一种失效，
+// 第四条钉"授予真的参与判定"（不是恒拦、也不是恒放）。
+
+func TestRouteGuardChain_CapabilityTableNotEmpty(t *testing.T) {
+	rules := model.CapabilityPatterns()
+	if len(rules) == 0 {
+		t.Fatal("能力表是空的：守卫这一档退化成恒真（生成件没进树，或被覆盖成空）")
+	}
+	t.Logf("能力表 %d 条规则", len(rules))
+}
+
+// TestRouteGuardChain_CapabilityRulesAreNotDeadLines 每条 pattern 必须命中至少一条 live 路由，
+// 且不能**全部**被仅超管表遮蔽（遮蔽后守卫先走超管分支 return，能力行永远读不到）。
+func TestRouteGuardChain_CapabilityRulesAreNotDeadLines(t *testing.T) {
+	chains := liveRouteGuardChains(t)
+	rules := model.CapabilityPatterns()
+
+	dead, shadowed := []string{}, []string{}
+	totalHits := 0
+	for _, rule := range rules {
+		pattern := rule[0][0]
+		hits, adminOnlyHits := 0, 0
+		for key := range chains {
+			parts := strings.SplitN(key, " ", 2)
+			if !model.MatchCapabilityPattern(pattern, parts[1]) {
+				continue
+			}
+			hits++
+			if middleware.IsAdminOnlyRoute(parts[0], parts[1]) {
+				adminOnlyHits++
+			}
+		}
+		if hits == 0 {
+			dead = append(dead, pattern)
+			continue
+		}
+		if adminOnlyHits == hits {
+			shadowed = append(shadowed, pattern)
+			continue
+		}
+		totalHits += hits - adminOnlyHits
+	}
+	if len(dead) > 0 {
+		t.Errorf("能力表里有 %d 条命中不到任何 live 路由（路径写错或接口已下线）：%v", len(dead), dead)
+	}
+	if len(shadowed) > 0 {
+		t.Errorf("能力表里有 %d 条命中的路由全被仅超管表遮蔽（这一行永远轮不到裁决）：%v"+
+			"（要么它们该从能力表里去掉，要么仅超管表写宽了）", len(shadowed), shadowed)
+	}
+	t.Logf("规则 %d 条，实际由能力档裁决的 live 路由 %d 条", len(rules), totalHits)
+}
+
+// TestRouteGuardChain_CapabilityMenuKeysExist 每条归属菜单 key 必须在注册表里存在。
+// 拼错的 key 永远查不到授予 ⇒ 这条口对所有非超管恒 403，症状和"接口坏了"一模一样。
+func TestRouteGuardChain_CapabilityMenuKeysExist(t *testing.T) {
+	unknown := []string{}
+	keyTotal := 0
+	for _, rule := range model.CapabilityPatterns() {
+		pattern := rule[0][0]
+		if len(rule[1]) == 0 {
+			t.Errorf("能力规则 %s 没有任何归属菜单 key：它对非超管恒拦，且界面无从放开", pattern)
+			continue
+		}
+		for _, k := range rule[1] {
+			keyTotal++
+			if !model.ExistsMenuKey(k) {
+				unknown = append(unknown, pattern+" -> "+k)
+			}
+		}
+	}
+	if len(unknown) > 0 {
+		t.Errorf("能力表里有 %d 个菜单 key 不在注册表里：%v", len(unknown), unknown)
+	}
+	t.Logf("归属引用合计 %d 处，全部命中注册表", keyTotal)
+}
+
+// TestRouteGuardChain_CapabilityRoutesCarryGuard 命中能力表的 live 路由，链上必须同时有
+// RoutePolicyGuard（裁决者）和 JWT（role 的来源）。能力行写在守卫快照之外的路由上＝静默无效，
+// 正是当初 7 条 /api/monitor/* 匿名可读的同一种缺陷。
+func TestRouteGuardChain_CapabilityRoutesCarryGuard(t *testing.T) {
+	chains := liveRouteGuardChains(t)
+	naked, noIdentity := []string{}, []string{}
+	covered := 0
+	for key, chain := range chains {
+		parts := strings.SplitN(key, " ", 2)
+		if len(middleware.CapabilityOwnerKeysFor(parts[1])) == 0 {
+			continue
+		}
+		if middleware.IsAdminOnlyRoute(parts[0], parts[1]) {
+			continue // 由仅超管档裁决，已在上一条腿里排除
+		}
+		covered++
+		if !chainHasGuard(chain, guardPolicy) {
+			naked = append(naked, key)
+			continue
+		}
+		if !chainHasGuard(chain, guardJWT) {
+			noIdentity = append(noIdentity, key)
+		}
+	}
+	if covered == 0 {
+		t.Fatal("没有 live 路由落进能力档：这张生成表没在裁决任何东西")
+	}
+	if len(naked) > 0 {
+		t.Errorf("有 %d 条路由在能力表里但链上没有 RoutePolicyGuard（注册在 auth.Use 之前）：%v",
+			len(naked), naked)
+	}
+	if len(noIdentity) > 0 {
+		t.Errorf("有 %d 条能力口链上没有 JWTAuthMiddleware（守卫读不到 role）：%v", len(noIdentity), noIdentity)
+	}
+	t.Logf("能力档裁决 live 路由 %d 条", covered)
+}
+
+// TestRouteGuardChain_CapabilityGrantDrivesAccess 行为腿：判定跟着授予走。
+//
+// 四步闭环：无授予⇒拦（403 + 能力文案）→ 超管同口⇒不被这档拦 → 给 staff 插一行授予并撤缓存
+// ⇒放行到 handler → 删掉那行⇒回到拦。缺任何一步都能被"恒拦"或"恒放"的守卫骗过去，
+// 所以四步都在，且最后一步兼作清理（不留测试数据）。
+func TestRouteGuardChain_CapabilityGrantDrivesAccess(t *testing.T) {
+	engine, database := gateEngineAndDB(t)
+	staff, admin := gateTokens(t)
+
+	const path = "/api/feature-flags"
+	owners := middleware.CapabilityOwnerKeysFor(path)
+	if len(owners) == 0 {
+		t.Fatalf("%s 不在能力表里，这条行为腿测的是不存在的东西", path)
+	}
+	grantKey := owners[0]
+
+	// 一、出厂分配（库里没有 role_menu_permissions 行，按 DefaultMenuKeys 判）不含该能力 ⇒ 拦。
+	code, body := gateCall(t, engine, "GET", path, staff)
+	if code != http.StatusForbidden || !strings.Contains(body, capabilityDeniedMsg) {
+		t.Errorf("未授予时 staff 打 %s 应 403+%q，实得 %d / %s",
+			path, capabilityDeniedMsg, code, strings.TrimSpace(body))
+	}
+
+	// 二、超管恒放行（这一档不该把 admin 也关在外面）。
+	code, body = gateCall(t, engine, "GET", path, admin)
+	if code == http.StatusForbidden && strings.Contains(body, capabilityDeniedMsg) {
+		t.Errorf("admin 打 %s 被能力档拦了：%d / %s", path, code, strings.TrimSpace(body))
+	}
+
+	// 三、授予 ⇒ 守卫那句 403 必须消失（handler 在测试库里回什么不由门管）。
+	if err := database.Create(&model.RoleMenuPermission{RoleCode: "staff", MenuKey: grantKey}).Error; err != nil {
+		t.Fatalf("插入授予行失败: %v", err)
+	}
+	middleware.InvalidateMenuGrants("")
+	code, body = gateCall(t, engine, "GET", path, staff)
+	if code == http.StatusForbidden && strings.Contains(body, capabilityDeniedMsg) {
+		t.Errorf("已授予 %s 却仍被能力档拦下（授予没参与判定，或撤缓存没生效）：%d / %s",
+			grantKey, code, strings.TrimSpace(body))
+	}
+
+	// 四、撤授予 ⇒ 回到拦。既是"判定跟着授予走"的另一半，也保证库里不留行。
+	if err := database.Where("role_code = ? AND menu_key = ?", "staff", grantKey).
+		Delete(&model.RoleMenuPermission{}).Error; err != nil {
+		t.Fatalf("清理授予行失败: %v", err)
+	}
+	middleware.InvalidateMenuGrants("")
+	code, body = gateCall(t, engine, "GET", path, staff)
+	if code != http.StatusForbidden || !strings.Contains(body, capabilityDeniedMsg) {
+		t.Errorf("撤授予后 staff 打 %s 应回到 403+%q，实得 %d / %s",
+			path, capabilityDeniedMsg, code, strings.TrimSpace(body))
+	}
+
+	var left int64
+	database.Model(&model.RoleMenuPermission{}).Count(&left)
+	if left != 0 {
+		t.Errorf("本用例残留 %d 行授予数据，会改变后续用例的授予口径", left)
 	}
 }

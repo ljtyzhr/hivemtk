@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"hivemtk-user/internal/middleware"
 	"hivemtk-user/internal/pkg/utils/response"
 	"hivemtk-user/internal/service"
 )
@@ -63,6 +64,11 @@ func (ctrl *MenuController) AdminGetRoleMenus(c *gin.Context) {
 // AdminUpdateRoleMenus PUT /api/system/roles/:code/menus
 //
 // 覆盖式保存某角色的菜单分配。Body: {"menu_keys": ["key1", ...]}
+//
+// `[]` 是合法值（＝清空该角色的全部菜单，service 侧口径），所以这里不能用
+// binding:"required"：go-playground 对切片把"零长度"也判成缺失，那样清空这条路
+// 在本接口上根本表达不出来，而能力面守卫的放行判据就挂在这份授予上。
+// 缺字段与空数组的区分用 nil 判：JSON 里没写这个键 ⇒ nil ⇒ 400。
 func (ctrl *MenuController) AdminUpdateRoleMenus(c *gin.Context) {
 	code := c.Param("code")
 	if code == "" {
@@ -70,15 +76,21 @@ func (ctrl *MenuController) AdminUpdateRoleMenus(c *gin.Context) {
 		return
 	}
 	var req struct {
-		MenuKeys []string `json:"menu_keys" binding:"required"`
+		MenuKeys *[]string `json:"menu_keys"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
-		response.Error(c, http.StatusBadRequest, "参数错误：menu_keys 必填")
+		response.Error(c, http.StatusBadRequest, "参数错误：请求体应为 {\"menu_keys\": [...]}")
 		return
 	}
-	if err := ctrl.svc.UpdateRoleMenuKeys(c.Request.Context(), code, req.MenuKeys); err != nil {
+	if req.MenuKeys == nil {
+		response.Error(c, http.StatusBadRequest, "参数错误：menu_keys 必填（清空请传空数组）")
+		return
+	}
+	if err := ctrl.svc.UpdateRoleMenuKeys(c.Request.Context(), code, *req.MenuKeys); err != nil {
 		writeServiceError(c, err)
 		return
 	}
+	// 能力面守卫按这份授予决定接口档位：不撤缓存的话，改完分配最长要等一个 TTL 才生效。
+	middleware.InvalidateMenuGrants(code)
 	response.Success(c, nil, "保存角色菜单权限成功")
 }

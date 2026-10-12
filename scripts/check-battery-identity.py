@@ -133,6 +133,13 @@ NOT_A_BATTERY = {
                    "本就不该认领它。它也不是人工重定向的产物——产物由工具自己落盘，"
                    "且每轮带 `00-provenance.log` 的 `基线字节` 身份行（HEAD＋工具与事实源的 md5＋自检枚数），"
                    "复跑 `python3 scripts/route-consumer-triage.py --self-check` 可验它的 9 枚控制",
+    "MenuRouteAudit": "静态取证器 `scripts/menu-route-role-audit.py`（菜单×live 路由档位×前端调用图"
+                      "三方对账，产出能力面归属表与 BLOCK/LEAK/ORPHAN 名册）的轮次名册，"
+                      "同 RouteTriage：没有格子、不注码、不 overlay，驱动轴（只 ast 解析 `mut_*.py`）"
+                      "不该认领它；产物由工具自己落盘且每轮带 `00-provenance.log` 的 `基线字节` 身份行"
+                      "（HEAD＋工具与事实源 md5＋自检枚数）。离线复跑 "
+                      "`python3 scripts/menu-route-role-audit.py --self-check` 现证 11 枚控制，"
+                      "带仓库读数的同一趟共 14 枚（多出的 3 枚要测试库）",
 }
 
 # 合并带进来的**他人泳道**常驻电池：它们确实把逐格产物写进仓库树，但驱动里没有身份发射点

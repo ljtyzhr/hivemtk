@@ -18,6 +18,8 @@ import (
 	"sort"
 	"strings"
 	"testing"
+
+	"hivemtk-user/internal/middleware"
 )
 
 // routeDumpFileEnv 是导出路径的环境变量名：设为某个文件路径才导出，未设则跳过本用例。
@@ -76,4 +78,129 @@ func TestDumpLiveRouteTable(t *testing.T) {
 		t.Fatalf("导出的 %d 行里没有 GET /health ⇒ 事实源不是完整的路由表，读数不可用", len(rows))
 	}
 	t.Logf("导出 %d 行路由表到 %s", len(rows), target)
+}
+
+// routeGuardDumpFileEnv 是守卫链导出路径的环境变量名：设为某个文件路径才导出，未设则跳过。
+const routeGuardDumpFileEnv = "ROUTE_GUARD_DUMP_FILE"
+
+// TestDumpLiveRouteGuardChains 把每条 live 路由"链上认得的守卫"导成 TSV，供跨层复算。
+//
+// 为什么要有它：菜单可见性和路由守卫是两份独立写下的授权（model/menu.go 的节点 Roles
+// 决定侧栏给谁看，注册点上的守卫决定谁能真调到），两者会各改各的。要把"某角色看得见
+// 菜单却调不动接口 / 菜单只给超管看却谁都能调"这类错配算出来，需要一份既是路由表、
+// 又带授权档位的事实源——而 ROUTE_DUMP_FILE 那份只有 HANDLER 名，读不出档位。
+//
+// 导出的第三列是**档位**而不是原始函数名链：链上的符号名会随内联而变（见同目录
+// route_policy_gate_test.go 里对 guardJWT 的说明），档位用的是同一份守卫名单，
+// 所以门与导出件对同一条口的判断不会分叉。
+//
+// 第四列是链上命中的守卫名（逗号分隔，只列认得的那些）：给取证方核对档位是不是
+// 由它以为的那个守卫撑起来的。
+//
+// 不挂进 CI：没设 ROUTE_GUARD_DUMP_FILE 时直接 Skip。
+func TestDumpLiveRouteGuardChains(t *testing.T) {
+	target := strings.TrimSpace(os.Getenv(routeGuardDumpFileEnv))
+	if target == "" {
+		t.Skipf("未设置 %s：本用例只在复算菜单/守卫错配时导出，不作为门禁", routeGuardDumpFileEnv)
+	}
+	chains := liveRouteGuardChains(t)
+
+	rows := make([]string, 0, len(chains))
+	for key, chain := range chains {
+		parts := strings.SplitN(key, " ", 2)
+		if len(parts) != 2 {
+			t.Fatalf("路由键的形状不是 \"METHOD /path\"：%q", key)
+		}
+		// 档位判的是**有效**授权，不是"链上出现过哪个守卫名"。RoutePolicyGuard 挂在
+		// auth 组每一条链上（router.go 里 auth.Use），但它只在路径命中仅超管表时才拦人：
+		// 按守卫名分档会把 1667 条口全读成"仅超管"（实测踩过，正控制当场抓住它）。
+		hasIdentity := chainHasAny(chain, identityGuards)
+		hardAdmin := chainHasGuard(chain, guardRequireAdm) || chainHasGuard(chain, guardAdminAuth)
+		policyAdmin := chainHasGuard(chain, guardPolicy) && middleware.IsAdminOnlyRoute(parts[0], parts[1])
+		// 能力档：链上有守卫、但拦不拦取决于调用者有没有被授予该能力所属的菜单节点。
+		// 导出件里它必须是**独立一档**而不是 identity：菜单/守卫错配的复算把 identity
+		// 读成"任何登录角色都能调"，能力口混在里面会被算成泄露面。
+		capability := hasIdentity && !hardAdmin && !policyAdmin &&
+			len(middleware.CapabilityOwnerKeysFor(parts[1])) > 0
+
+		tier := "anonymous"
+		switch {
+		case hasIdentity && (hardAdmin || policyAdmin):
+			tier = "super-admin"
+		case capability:
+			tier = "capability"
+		case hasIdentity:
+			tier = "identity"
+		}
+
+		found := make([]string, 0, len(superAdminGuards)+len(identityGuards)+1)
+		known := append(append([]string{}, identityGuards...), superAdminGuards...)
+		known = append(known, guardSetupOnly)
+		for _, g := range known {
+			if chainHasGuard(chain, g) {
+				found = append(found, g)
+			}
+		}
+		rows = append(rows, parts[0]+"\t"+parts[1]+"\t"+tier+"\t"+strings.Join(found, ","))
+	}
+	sort.Strings(rows)
+
+	f, err := os.Create(target)
+	if err != nil {
+		t.Fatalf("写守卫链导出件 %s 失败：%v", target, err)
+	}
+	defer f.Close()
+	w := bufio.NewWriter(f)
+	if _, err := w.WriteString("METHOD\tPATH\tTIER\tGUARDS\n"); err != nil {
+		t.Fatalf("写表头失败：%v", err)
+	}
+	for _, r := range rows {
+		if _, err := w.WriteString(r + "\n"); err != nil {
+			t.Fatalf("写行失败：%v", err)
+		}
+	}
+	if err := w.Flush(); err != nil {
+		t.Fatalf("flush 失败：%v", err)
+	}
+
+	// 自证：档位分类必须真的按**有效**规则开火。四条形控制分别从三档里点名，
+	// 其中 GET /api/menus 是关键的一条：它的链上确实有 RoutePolicyGuard（挂在 auth 组），
+	// 但它不在仅超管表里，所以每个角色都读得到菜单——若分档按守卫名而不是按命中表，
+	// 这条会被误读成 super-admin，而"菜单谁都能读"正是全站侧栏能渲染的前提。
+	if len(rows) == 0 {
+		t.Fatalf("Setup() 跑出的路由表是空的：装配入口坏了，导出无意义")
+	}
+	tierOf := map[string]string{}
+	for _, r := range rows {
+		p := strings.Split(r, "\t")
+		tierOf[p[0]+" "+p[1]] = p[2]
+	}
+	for key, want := range map[string]string{
+		"GET /health":                   "anonymous",
+		"GET /api/system/info":          "anonymous",
+		"GET /api/menus":                "identity",
+		"GET /api/llm/providers/policy": "super-admin",
+		"POST /api/customer-sessions":   "identity",
+		"GET /api/feature-flags":        "capability",
+	} {
+		if got := tierOf[key]; got != want {
+			t.Fatalf("正控制失效：%s 档位应为 %q，实得 %q（分档口径或路由表变了）", key, want, got)
+		}
+	}
+	// 分档计数按档各点名一次：capability 一档的存在性必须由读数证明，
+	// 否则"生成表空了/匹配器坏了"这种全表失效也会让上面那条正控制照样绿
+	// （正控制命中的是表里的一条，表空时它读回 identity，两头的红都出得来；
+	// 但 SHARED/LEAK 那批复算会静默少一整档）。
+	tierCount := map[string]int{}
+	for _, r := range rows {
+		tierCount[strings.Split(r, "\t")[2]]++
+	}
+	for _, tierName := range []string{"anonymous", "identity", "capability", "super-admin"} {
+		if tierCount[tierName] == 0 {
+			t.Fatalf("导出件里 %q 一档为 0 条：这一档的判据没开火（守卫装配或生成表出了问题）", tierName)
+		}
+	}
+	t.Logf("档位分布：anonymous %d · identity %d · capability %d · super-admin %d",
+		tierCount["anonymous"], tierCount["identity"], tierCount["capability"], tierCount["super-admin"])
+	t.Logf("导出 %d 行守卫档位到 %s", len(rows), target)
 }

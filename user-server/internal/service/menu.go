@@ -90,6 +90,44 @@ func (s *MenuService) UpdateRoleMenuKeys(ctx context.Context, role string, keys 
 	return s.repo.ReplaceRoleKeys(ctx, role, keys)
 }
 
+// GrantProvider 给能力面守卫用的"角色 → 已授予菜单 key 集合"查询。
+//
+// 与 GetRoleMenuKeys 的差别只有两点，两点都是守卫这条链路要的：
+//   - 返回集合而不是切片（守卫是 O(1) 命中判断，每条请求都跑）；
+//   - 首空表**不落库**：守卫跑在读到空表的那一刻，写库不是它的职责，
+//     直接按 DefaultMenuKeys 的出厂分配判，保证首屏菜单和首屏接口档位一致。
+//
+// 非法/空角色返回空集合：能力面按"无授予"拦（向拒的方向收）。
+func (s *MenuService) GrantProvider(ctx context.Context, role string) (map[string]struct{}, error) {
+	if role == model.SystemRoleCodeAdmin {
+		return nil, nil // 守卫对 admin 短路，不走到这里
+	}
+	if !model.IsValidRole(role) {
+		return map[string]struct{}{}, nil
+	}
+	n, err := s.repo.CountAll(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if n == 0 {
+		keys := model.DefaultMenuKeys(role)
+		set := make(map[string]struct{}, len(keys))
+		for _, k := range keys {
+			set[k] = struct{}{}
+		}
+		return set, nil
+	}
+	list, err := s.repo.ListKeysByRole(ctx, role)
+	if err != nil {
+		return nil, err
+	}
+	set := make(map[string]struct{}, len(list))
+	for _, k := range list {
+		set[k] = struct{}{}
+	}
+	return set, nil
+}
+
 // ensureSeededAndGetKeys 取角色分配 keys；全表为空时先 seed 一次默认分配
 func (s *MenuService) ensureSeededAndGetKeys(ctx context.Context, role string) ([]string, error) {
 	n, err := s.repo.CountAll(ctx)
