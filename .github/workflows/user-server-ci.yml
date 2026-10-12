@@ -377,7 +377,7 @@ jobs:
         # （AKIA/ghp_/sk-/PRIVATE KEY/xoxb/AIza）扫描，命中 0 处；
         # "首次启用不阻断"前提已不成立。若未来误报测试夹具，
         # 用仓库根 .gitleaks.toml allowlist 精确豁免，而不是回退本门禁。
-        uses: gitleaks/gitleaks-action@v2
+        uses: gitleaks/gitleaks-action@v3
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           GITLEAKS_ENABLE_UPLOAD_ARTIFACT: true
