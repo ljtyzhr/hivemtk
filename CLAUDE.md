@@ -49,9 +49,16 @@ Router → Controller → Service → Repository → Model
 |----|------|------|
 | Router | URL→Controller映射 | 写业务逻辑、内联闭包 |
 | Controller | 参数绑定+调Service+返回响应 | 写SQL、业务判断 |
-| Service | 业务逻辑 | 直接操作DB |
+| Service | 业务逻辑 | 直接操作DB、直接持有 `*gorm.DB` |
 | Repository | GORM数据访问 | 包含业务判断 |
 | Model | 纯数据结构 | 外部依赖 |
+
+### 辅助层职责
+| 层 | 职责 | 禁止 |
+|----|------|------|
+| DTO | 数据传输对象 | 包含业务逻辑 |
+| Middleware | 请求中间件 | 直接操作DB |
+| Pkg | 公共工具包 | 依赖业务层 |
 
 ### 铁律
 1. **禁止跨层调用** — Controller → Repository = 违规
@@ -76,8 +83,24 @@ Router → Controller → Service → Repository → Model
 {"code": 0, "data": {"list":[], "total":N}}           // 列表
 ```
 
+### 特殊路由（不受 `/api/{domain}/{resource}` 约束）
+```
+/health,/healthz,/readyz    # 健康检查
+/ws/*                        # WebSocket
+/files/*                     # 文件服务
+/__debug__/*                 # 调试路由（仅开发环境）
+/swagger/*                  # API 文档
+```
+
 ### 错误码
+```
+# HTTP 标准错误码
 0=成功 400=参数 401=认证 403=权限 404=不存在 409=冲突 500=服务端
+
+# 业务错误码（10000-19999）
+10001=用户不存在 10002=客户不存在 10003=订单不存在
+10010=余额不足 10011=库存不足 10012=权限不足
+```
 
 ---
 
