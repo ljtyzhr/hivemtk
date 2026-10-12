@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -388,19 +389,54 @@ func HashPassword(password string) (string, error) {
 	return bcrypt.HashPassword(password)
 }
 
+// ErrAdminAlreadyInitialized 首个超管只能铸一次。
+// 文案与 response.ErrSystemAlreadyInitialized 一致，便于控制层原样透出并映射 403。
+var ErrAdminAlreadyInitialized = errors.New("系统已初始化，禁止重复创建超管")
+
+// assertFirstAdminPossible 判定"此刻还允许铸首个超管"。
+//
+// 两道依据，任一为真即拒绝：
+//  1. install.lock 已标记 initialized——最快路径，也是安装向导走完的正常状态。
+//  2. 库里已存在 role=admin 的账号——真相源。lock 只是缓存：它可能被删、写坏，
+//     而 install.GetStatus 在"文件不可用 + 数据库探针不可用"时会把这种实例读成
+//     NOT_INSTALLED（探针未装配时返回空串，与"库里真没超管"同形），
+//     只看第 1 条就会给匿名建号留一个窗口。
+//
+// 计数查询本身失败也拒绝：无法证明"还没有超管"时，不放行建超管。
+func (s *AuthService) assertFirstAdminPossible(ctx context.Context) error {
+	if install.GetStatus().Initialized {
+		return ErrAdminAlreadyInitialized
+	}
+	admins, err := s.systemUserRepo.CountAdmins(ctx)
+	if err != nil {
+		return fmt.Errorf("核对既有超管账号失败，已拒绝创建: %w", err)
+	}
+	if admins > 0 {
+		return ErrAdminAlreadyInitialized
+	}
+	return nil
+}
+
 // InitAdmin 初始化系统首个超管（公开，无 JWT）
 //
 // 系统用户统一 plan v3.1 §3.2：
 //   - 调用方必须传入 username/password，email 选填（不再读 config 默认值）
 //   - 密码强度：至少 8 位，含大小写字母 + 数字
-//   - username 唯一性、email 唯一性（防重复初始化由路由层 install.lock 闸负责，见 admin_routes.go）
+//   - username 唯一性、email 唯一性
+//   - "禁止重复初始化"在本方法开头断言（见 assertFirstAdminPossible），不依赖任何路由层守卫；
+//     任何把本方法挂到公开前缀上的新入口都自动带上同一道门，不会再出现"某个别名忘了判"
 //   - 创建后写 install.lock（AdminUsername + Initialized=true），作为"已初始化"标记
 //
 // 失败语义：
-//   - 已初始化（install.lock 存在）→ 由路由层返回 403 禁止重复创建，不到达本方法
+//   - 已有超管 / lock 已 initialized → ErrAdminAlreadyInitialized（调用方映射为 403）
+//   - 超管计数查询失败 → 直接拒绝（fail-closed：宁可安装者重试一次，不放过第二个匿名超管）
 //   - 密码强度不达标 → 复用 service.validatePassword 返回的错误
 //   - username/email 冲突 → 透传 repo 错误
 func (s *AuthService) InitAdmin(ctx context.Context, username, password, email string) error {
+	if err := s.assertFirstAdminPossible(ctx); err != nil {
+		return err
+	}
+
 	username = strings.TrimSpace(username)
 	email = strings.TrimSpace(email)
 	if username == "" || password == "" {
@@ -440,7 +476,8 @@ func (s *AuthService) InitAdmin(ctx context.Context, username, password, email s
 	}
 	if err := s.systemUserRepo.Create(ctx, user); err != nil {
 		logger.Error(err, "InitAdmin 创建超管失败")
-		return errors.New("创建超管失败: " + err.Error())
+		// %w 而不是字符串拼接：错误文案不变，但调用方仍能用 errors.Is 认出底层原因。
+		return fmt.Errorf("创建超管失败: %w", err)
 	}
 
 	if err := install.MarkAdminInitialized(username); err != nil {

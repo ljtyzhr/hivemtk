@@ -11,6 +11,7 @@ package controller
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	"hivemtk-user/internal/storage/storagetest"
@@ -20,8 +21,19 @@ import (
 func TestMain(m *testing.M) {
 	restoreStorageRoots := storagetest.Install()
 
+	// install.lock 的默认路径是相对的 ./install.lock，而 go test 的 CWD 就是本包目录：
+	// 走过一次 InitAdmin 成功路径的用例就会把"已初始化"写进源码树（本机实测残留过一份
+	// internal/controller/install.lock），于是后面每个读安装态的用例都被这份残留判成重复安装。
+	// 整体挪进临时目录，收尾删掉——安装态只能由用例自己 t.Setenv 显式给。
+	installLockDir, err := os.MkdirTemp("", "hivemtk-controller-install-lock")
+	if err != nil {
+		panic("创建测试用 install.lock 目录失败: " + err.Error())
+	}
+	_ = os.Setenv("INSTALL_LOCK_PATH", filepath.Join(installLockDir, "install.lock"))
+
 	code := m.Run()
 	storagetest.Sweep(".")
 	restoreStorageRoots()
+	_ = os.RemoveAll(installLockDir)
 	os.Exit(code)
 }

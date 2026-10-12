@@ -299,6 +299,12 @@ func TestAuthService_ChangePassword_UserNotFound(t *testing.T) {
 	mockRepo.AssertExpectations(t)
 }
 
+// expectNoAdminYet InitAdmin 的第一步是核对"库里是否已有超管"；本文件的用例都在测
+// 参数校验/唯一性分支，所以夹具统一回答"还没有"。漏了这一句时 testify 会因未预期调用 panic。
+func expectNoAdminYet(m *MockSystemUserRepository, ctx context.Context) {
+	m.On("CountAdmins", ctx).Return(int64(0), nil)
+}
+
 // TestAuthService_InitAdmin_EmptyUsername 测试初始化管理员时用户名为空
 func TestAuthService_InitAdmin_EmptyUsername(t *testing.T) {
 	mockRepo := new(MockSystemUserRepository)
@@ -310,6 +316,7 @@ func TestAuthService_InitAdmin_EmptyUsername(t *testing.T) {
 	}
 
 	ctx := context.Background()
+	expectNoAdminYet(mockRepo, ctx)
 
 	err := authService.InitAdmin(ctx, "", "Password123!", "test@example.com")
 
@@ -329,6 +336,8 @@ func TestAuthService_InitAdmin_WeakPassword(t *testing.T) {
 
 	ctx := context.Background()
 
+	expectNoAdminYet(mockRepo, ctx)
+
 	err := authService.InitAdmin(ctx, "admin", "weak", "test@example.com")
 
 	assert.Error(t, err)
@@ -345,6 +354,8 @@ func TestAuthService_InitAdmin_InvalidEmail(t *testing.T) {
 	}
 
 	ctx := context.Background()
+
+	expectNoAdminYet(mockRepo, ctx)
 
 	err := authService.InitAdmin(ctx, "admin", "Password123!", "invalid-email")
 
@@ -364,6 +375,8 @@ func TestAuthService_InitAdmin_UsernameExists(t *testing.T) {
 	ctx := context.Background()
 
 	mockRepo.On("UsernameExists", ctx, "existinguser", uint(0)).Return(true, nil)
+
+	expectNoAdminYet(mockRepo, ctx)
 
 	err := authService.InitAdmin(ctx, "existinguser", "Password123!", "new@example.com")
 
@@ -387,6 +400,8 @@ func TestAuthService_InitAdmin_EmailExists(t *testing.T) {
 	mockRepo.On("UsernameExists", ctx, "newuser", uint(0)).Return(false, nil)
 	mockRepo.On("EmailExists", ctx, "existing@example.com", uint(0)).Return(true, nil)
 
+	expectNoAdminYet(mockRepo, ctx)
+
 	err := authService.InitAdmin(ctx, "newuser", "Password123!", "existing@example.com")
 
 	assert.Error(t, err)
@@ -409,6 +424,8 @@ func TestAuthService_InitAdmin_Success(t *testing.T) {
 	mockRepo.On("UsernameExists", ctx, "newadmin", uint(0)).Return(false, nil)
 	mockRepo.On("EmailExists", ctx, "admin@example.com", uint(0)).Return(false, nil)
 	mockRepo.On("Create", ctx, mock.AnythingOfType("*model.SystemUser")).Return(nil)
+
+	expectNoAdminYet(mockRepo, ctx)
 
 	err := authService.InitAdmin(ctx, "newadmin", "Password123!", "admin@example.com")
 

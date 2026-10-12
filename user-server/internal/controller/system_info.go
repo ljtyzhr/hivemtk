@@ -33,7 +33,24 @@ func (c *SystemInfoController) GetSystemInfo(ctx *gin.Context) {
 		return
 	}
 
+	// 这条口挂在 public 组上，链上只有 OptionalAuthMiddleware：认得出身份就写进上下文，
+	// 认不出也不拦。因此「谁能看到什么」只能在这里按身份切片，而不是靠状态码。
+	if ctx.GetString("role") != "admin" {
+		response.Success(ctx, publicSystemInfo(info), "获取系统信息成功")
+		return
+	}
+
 	response.Success(ctx, info, "获取系统信息成功")
+}
+
+// publicSystemInfo 非超管（含匿名）可见的那一片字段。
+//
+// 留下的只有前端启动期需要的功能开关；被裁掉的是这台机器的画像——主机名（内网机器名/
+// 容器命名常带项目与租户信息）、Go 版本（精确到 minor，直接可对漏洞库）、uptime（判定
+// 重启窗口与实例新鲜度）、CPU/内存/磁盘占用与协程数（容量与负载侧写）。
+// 判据留在此处而不是路由表，是因为这些字段同属一个 DTO，路由层无法只拦其中几个。
+func publicSystemInfo(info *service.SystemInfo) gin.H {
+	return gin.H{"platform_enabled": info.PlatformEnabled}
 }
 
 func (c *SystemInfoController) Health(ctx *gin.Context) {

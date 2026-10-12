@@ -35,7 +35,13 @@ func setupPublicRoutes(public *gin.RouterGroup, liveCodeController *controller.L
 
 	systemInfoCtrl := controller.NewSystemInfoController()
 	public.GET("/health", systemInfoCtrl.Health)
-	public.GET("/system/info", systemInfoCtrl.GetSystemInfo)
+	// 这条口有两种读者，要的字段不一样：Playground 只要 platform_enabled（决定「上架到
+	// 官方商城」入口渲不渲染），而且它可能在令牌刷新完成前就发请求，匿名必须能拿到 200；
+	// 「系统监控」页要的是主机名 / CPU / 内存 / 磁盘 / uptime 这台机器的画像，而它的菜单
+	// 节点 systemMonitor 挂在 siteConfig（Roles=["admin"]）下。
+	// 所以收口点不是「这条口要不要登录」，而是「按身份回哪一片字段」：
+	// OptionalAuth 只认身份不拦人，字段裁剪在 handler 里（见 publicSystemInfo）。
+	public.GET("/system/info", middleware.OptionalAuthMiddleware(), systemInfoCtrl.GetSystemInfo)
 
 	public.POST("/auth/login", middleware.BruteForceGuard("auth.login"), controller.NewAuthController().Login)
 
@@ -49,9 +55,15 @@ func setupPublicRoutes(public *gin.RouterGroup, liveCodeController *controller.L
 	systemInitCtrl := controller.NewSystemInitController()
 	authCtrl := controller.NewAuthController()
 	public.GET("/system/init-status", systemInitCtrl.GetInitStatus)
-	public.POST("/system/init-admin", authCtrl.InitAdmin)
-	public.POST("/system/init-complete", systemInitCtrl.InitComplete)
-	public.POST("/system/create-default-admin", authCtrl.CreateDefaultAdmin)
+	// 首次安装的三条写入口：公开可达是必需的（还没登录态），但它们只能在这台实例
+	// 还没装完之前起作用——装完之后再来一发就是"匿名给自己造一个超管"，
+	// 所以每条都挂 SetupOnlyGuard（已初始化 → 403）。
+	// 门只挂在路由层不够：service.AuthService.InitAdmin 还会再核对一次库里既有超管数，
+	// 这样任何人把这些前缀挂到别的组、或新增一个别名，都越不过去同一道判定。
+	setupOnly := middleware.SetupOnlyGuard()
+	public.POST("/system/init-admin", setupOnly, authCtrl.InitAdmin)
+	public.POST("/system/init-complete", setupOnly, systemInitCtrl.InitComplete)
+	public.POST("/system/create-default-admin", setupOnly, authCtrl.CreateDefaultAdmin)
 
 	redirectCtrl := controller.NewRedirectController(
 		service.NewShortLinkService(db),

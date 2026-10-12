@@ -17,6 +17,11 @@ type optionalEmailAdminRepo struct {
 
 var errOptionalEmailCreate = errors.New("测试在写库前停止")
 
+// CountAdmins 回答"库里还没有超管"，让用例能走到邮箱这条分支上。
+func (r *optionalEmailAdminRepo) CountAdmins(context.Context) (int64, error) {
+	return 0, nil
+}
+
 func (r *optionalEmailAdminRepo) UsernameExists(context.Context, string, uint) (bool, error) {
 	return false, nil
 }

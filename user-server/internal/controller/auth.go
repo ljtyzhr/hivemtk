@@ -742,7 +742,10 @@ func (c *SystemUserController) ResetPassword(ctx *gin.Context) {
 
 // InitAdmin 公开：初始化系统超管
 // 路由：POST /api/system/init-admin（详见 admin_routes.go setupPublicRoutes）
-// 流程：BindJSON → service.AuthService.InitAdmin → install.lock
+// 流程：SetupOnlyGuard（已初始化直接 403）→ 本方法的安装态快检 → BindJSON → service.AuthService.InitAdmin → install.lock
+//
+// 这里开头的 IsSystemInitialized() 只是把"已初始化"挡在参数校验之前（省一次 bind、
+// 且不给探测性请求回显字段规则）；真正的判定在 service 层，见 assertFirstAdminPossible。
 //
 // InitAdminRequest 复用 controller/system_init.go 已有的同 struct（避免重复定义）：
 //   - Username: 3-20 位
@@ -762,6 +765,10 @@ func (c *AuthController) InitAdmin(ctx *gin.Context) {
 	}
 
 	if err := c.authService.InitAdmin(ctx.Request.Context(), req.Username, req.Password, req.Email); err != nil {
+		if errors.Is(err, service.ErrAdminAlreadyInitialized) {
+			response.Error(ctx, http.StatusForbidden, response.ErrSystemAlreadyInitialized)
+			return
+		}
 		response.Error(ctx, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -772,15 +779,20 @@ func (c *AuthController) InitAdmin(ctx *gin.Context) {
 	}, "超管初始化完成")
 }
 
-// CreateDefaultAdmin 创建默认管理员账户（不需要认证，保留兼容旧前端）
+// CreateDefaultAdmin 创建默认超管（兼容旧前端的入口，无认证）
 //
 // 系统用户统一 plan v3.1 §3.2：
 //   - 函数名保留（避免破坏旧路由 / 测试 / 文档引用）
 //   - 函数体重写：不再读取 config.GetAdminConfig().DefaultAdmin 的硬编码密码，
 //     从请求体 InitAdminRequest 读取 username/password/email
 //   - 委派给 service.AuthService.InitAdmin（统一的强密码 / 唯一性 / install.lock 流程）
-//   - 路由 /api/system/create-default-admin 已从 public 中移除（见 admin_routes.go），
-//     但函数保留以便 init_guard 白名单 / 历史测试 / 第三方集成仍可调用
+//
+// 装配现状（本注释只描述磁盘上的事实，别照着旧版本改回去）：
+//   - 生产路由 POST /api/system/create-default-admin 挂的是 AuthController.CreateDefaultAdmin
+//     （见 admin_routes.go），它会转打本文件上方的 InitAdmin；本方法当前没有生产挂载点，
+//     只被 internal/controller/auth_test.go 直接调用。
+//   - "已初始化就禁止再建超管"的判定在 service.AuthService.InitAdmin 里做，
+//     所以哪怕哪天把本方法重新挂到某个公开前缀，也只会撞上 403，不会静默建号。
 func (c *SystemUserController) CreateDefaultAdmin(ctx *gin.Context) {
 	var req InitAdminRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
@@ -790,6 +802,10 @@ func (c *SystemUserController) CreateDefaultAdmin(ctx *gin.Context) {
 
 	authSvc := service.NewAuthService()
 	if err := authSvc.InitAdmin(ctx.Request.Context(), req.Username, req.Password, req.Email); err != nil {
+		if errors.Is(err, service.ErrAdminAlreadyInitialized) {
+			response.Error(ctx, http.StatusForbidden, response.ErrSystemAlreadyInitialized)
+			return
+		}
 		response.Error(ctx, http.StatusBadRequest, err.Error())
 		return
 	}

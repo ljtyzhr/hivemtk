@@ -5,6 +5,7 @@ import (
 
 	"hivemtk-user/internal/middleware"
 	"hivemtk-user/internal/pkg/utils/response"
+	"hivemtk-user/internal/system/install"
 
 	"github.com/gin-gonic/gin"
 )
@@ -50,7 +51,35 @@ func (c *SystemInitController) GetInitStatus(ctx *gin.Context) {
 		return
 	}
 	status := checker.GetInitStatus()
-	response.Success(ctx, status, "ok")
+	response.Success(ctx, publicInitStatus(status), "ok")
+}
+
+// publicInitStatus 把安装态 DTO 收成"公开可读的那几个字段"。
+//
+// 这条路由挂在 public 组上（安装向导在还没有登录态时就要能问"装完了没有"），
+// 所以凡是能由安装态推出的**身份类**字段都不该从这里出去：install_id 是这台实例
+// 在安装平台侧的商户身份，冒用它可以伪造心跳与用量归属。进程内的心跳上报直接读
+// install 包，前端也从不取这个字段（全仓 grep 无消费点），删掉不影响任何调用方。
+// 判据留在这一层而不是 DTO 上：install.Status 本身还要给心跳带身份，字段不能少。
+func publicInitStatus(s *install.Status) gin.H {
+	if s == nil {
+		return gin.H{
+			"state":       "NOT_INSTALLED",
+			"initialized": false,
+			"has_admin":   false,
+			"version":     "unknown",
+		}
+	}
+	version := s.Version
+	if version == "" {
+		version = "unknown"
+	}
+	return gin.H{
+		"state":       s.State,
+		"initialized": s.Initialized,
+		"has_admin":   s.HasAdmin,
+		"version":     version,
+	}
 }
 
 // InitAdminRequest 创建超管请求
