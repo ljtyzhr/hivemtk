@@ -391,6 +391,13 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 	// 所以新增装配路径时必须一起带上它。
 	middleware.SetMenuGrantProvider(service.NewMenuService().GrantProvider)
 	auth.Use(middleware.RoutePolicyGuard())
+	// 行级数据隔离：判"这一行数据是不是你的"，与上一行的能力面守卫相互独立
+	// （能力面判角色有没有这个功能的门，这里判调用者有没有这一行的权限），两道都过才到 handler。
+	//
+	// 判据与登记表见 model.DataScopeRow；漏装配查询源（SetOwnerLookup）的后果是**拦**，
+	// 与上面的菜单授予源同一条 fail-closed 口径。
+	middleware.SetOwnerLookup(service.NewDataScopeService().LookupOwner)
+	auth.Use(middleware.DataScopeGuard())
 	{
 		// 业务链路监控 /api/monitor/*（health/anomalies/node-health/latency/
 		// lifecycle/traces/trace-tree）—— 返回会话链路与业务指标，必须登录态可见。
