@@ -202,8 +202,13 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 	r.GET("/readyz", ReadinessCheck(HealthRedis, gormDB))
 
 	// 路由表调试端点：默认仅本地/开发环境开放；生产需显式 ENABLE_DEBUG_ROUTES=true
+	//
+	// "本地/开发开放"只管住了"要不要注册这条路"这一半；一旦注册，它原先是**引擎级裸路由**，
+	// 本机端口上的任何进程（以及转发到本机的反向代理、隧道、同网络的访客）都能一次拿走
+	// 整张路由表——那是把全部攻击面按方法和路径名清单化地交给对方。注册条件不动（开发期
+	// 确实要看路由），但读它需要超管身份：这条是调试面，不是前端功能面，加守卫不会碰到任何页面。
 	if os.Getenv("ENABLE_DEBUG_ROUTES") == "true" || isLocalEnv() {
-		r.GET("/__debug__/routes", controller.DebugRoutesHandler(r))
+		r.GET("/__debug__/routes", middleware.JWTAuthMiddleware(), middleware.AdminAuthMiddleware(), controller.DebugRoutesHandler(r))
 	}
 
 	r.Use(middleware.RateLimitMiddleware(middleware.RateLimitConfig{
@@ -377,6 +382,13 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 	auth.GET("/monitor/knowledge-weights", middleware.JWTAuthMiddleware(), tlCtrl.KnowledgeWeights)
 
 	auth.Use(middleware.JWTAuthMiddleware())
+	// 仅超管能力面（备份/恢复/重启、全局配置写、LLM 与 MCP 凭据、功能开关放量、
+	// 代他人重置口令……）集中升档的那一道守卫，判据见 middleware.RoutePolicyGuard。
+	//
+	// 位置必须在 JWT 之后：守卫从 ctx 读 role，早于 JWT 就等于每条命中都走"无身份 ⇒ 401"。
+	// 也必须在任何 auth 路由注册之后、注册动作之前：gin 在注册时快照当时的 handler 链，
+	// 这一行之前注册的少数 /api/monitor/* 不会带上它（它们各自已有内联守卫）。
+	auth.Use(middleware.RoutePolicyGuard())
 	{
 		// 业务链路监控 /api/monitor/*（health/anomalies/node-health/latency/
 		// lifecycle/traces/trace-tree）—— 返回会话链路与业务指标，必须登录态可见。

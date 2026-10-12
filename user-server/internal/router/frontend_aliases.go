@@ -282,11 +282,15 @@ func setupFrontendAliases(auth *gin.RouterGroup, engine *gin.Engine, gormDB *gor
 	doReg("GET", "/tiktok-cards/list", tiktokCtrl.List)
 	doReg("GET", "/tiktok-cards/:id", tiktokCtrl.Get)
 
+	// 渠道账号列表别名与权威口同层级：GET /api/feishu/accounts 与 /api/telegram/accounts
+	// 由权威路由挂 admin，别名此前落在 doReg（登录即可读），等于"同一个 handler、
+	// 换个 URL 就掉一级守卫"。这两个口回的是对端渠道的账号清单（app_id、同步状态、
+	// 错误详情），属于运营配置面，不是坐席工作数据；前端零消费点（全仓 grep user-web 无引用）。
 	feishuCtrl := controller.NewFeishuAccountController(service.NewFeishuService(gormDB), service.NewFeishuIntegrationService(gormDB))
-	doReg("GET", "/feishu/accounts/list", feishuCtrl.List)
+	doRegAdmin("GET", "/feishu/accounts/list", feishuCtrl.List)
 
 	tgCtrl := controller.NewTelegramAccountController(service.NewTelegramService(gormDB))
-	doReg("GET", "/telegram/accounts/list", tgCtrl.List)
+	doRegAdmin("GET", "/telegram/accounts/list", tgCtrl.List)
 
 	shortLinkCtrl := controller.NewShortLinkController(service.NewShortLinkService(gormDB))
 	doReg("GET", "/short-links", shortLinkCtrl.GetList)

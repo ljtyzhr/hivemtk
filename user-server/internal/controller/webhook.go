@@ -68,7 +68,10 @@ func (c *WebhookController) RegisterRoutes(r *gin.Engine) {
 	{
 		wh.POST("/:channel/:account_id", c.Receive)
 		wh.POST("/:channel", c.ReceiveWithoutAccount)
-		wh.GET("/stats", c.Stats)
+		// 队列水位（待处理事件数、积压长度）是运营内部指标，不属于渠道回调面：
+		// /health 留给外部探活（只有一个 ok），stats 改到超管可读——
+		// 判据是"这条口的读者是谁"：渠道方与监控脚本只读健康位，水位是给后台看板用的。
+		wh.GET("/stats", middleware.JWTAuthMiddleware(), middleware.AdminAuthMiddleware(), c.Stats)
 		wh.GET("/health", c.Health)
 		wh.GET("/wecom/:account_id", c.WeComVerify)
 		wh.GET("/feishu/:account_id", c.FeishuVerify)
