@@ -19,6 +19,18 @@ vi.mock('@/utils/initHelper', () => ({ isInitialized: () => true }))
 vi.mock('@/stores/user', () => ({
   useUserStore: () => ({ isLoggedIn: true, role: 'admin', userInfo: { id: 1, username: 'probe' } })
 }))
+// Layout.vue 在 setup 顶层就调 usePermissionStore()，而它是 pinia setup store，
+// 内部 useUserStore() 要求有 active Pinia —— 本用例只装真路由（router.push），
+// 没有 app.use(pinia)，于是 Layout 被懒加载进来时直接抛
+// "getActivePinia() was called but there was no active Pinia"。
+//
+// 这里 mock 掉它（与上面 mock @/stores/user 同一条隔离思路：本用例的判据是路由守卫
+// 怎么带 query，不是菜单怎么从后端拉），而不是给测试装一个真 Pinia ——
+// 装上 pinia 会让守卫之外多出一整条菜单加载链路，而那条链路另有它的用例。
+// stub 的两个成员是 Layout.vue 真正用到的那两个：menus（computed 读）与 ensureMenus（挂载时调）。
+vi.mock('@/stores/permission', () => ({
+  usePermissionStore: () => ({ menus: [], ensureMenus: () => Promise.resolve() })
+}))
 
 import router from '@/router'
 

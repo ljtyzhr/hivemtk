@@ -1222,9 +1222,202 @@ Postgres 布尔序 false<true，天然把排过序的排在没排的最后。
 
 ##### 6.8 验证
 
-门禁五道全 rc=0，`已声明未接线` 从 11 归零、`UNDECLARED` 仍 0、`STALE` 仍 0、
-`RETIRED_BUT_WIRED` 0。前端 `vitest run` **56 文件 605 例全绿**
+前端：`vitest run` **56 文件 605 例全绿**
 （新增 `configParams_render.test.js` 8 例 + `dictionaryManager_render.test.js` 7 例），
-`vite build` 通过，`eslint` 0 errors。后端在干净 worktree 上
-gofmt / build / vet 全过，`internal/{service,app,controller,router,repository,model,bridge,pkg/db}`
-全包测试绿。
+`vite build` 通过（PWA precache 572 entries），`eslint` 对两个新/改 `.vue` 文件 0 errors。
+
+门禁：`已声明未接线` 从 11 归零、`UNDECLARED` 0、`STALE` 0、`RETIRED_BUT_WIRED` 0；
+keystyle 门 217 条 / 35 组 / 违规 0 / runtime 幽灵组 0；契约门 `--strict` UNMATCHED=0
+（1032 个前端调用全部可解析并与后端匹配，含本批新增的 `/manage/config-params/groups`
+与字典四端点）。
+
+后端：**这里原本写的是「干净 worktree 上八包全绿」，是错的**——首轮干净检出验证里
+`internal/app` 就是 FAIL（build failed，`migrate.go` 混了他人 WIP 的
+`&model.RoleMenuPermission{}`），`internal/service` 的结论行又被管道截断没看到。
+按「不记假绿」改写如下，逐条都是实测：
+
+| 包 | 结果 |
+|---|---|
+| `internal/router` | **ok 18.578s**（`TestFrontendAliases_NoFailedRegistration` PASS 4.83s，修掉 `/api/system/menus` 重复注册之后复跑） |
+| `internal/app` | 定向 ok 0.803s（`TestAILockTTLStaysRetired` / `TestMessageHubIdemTTLIsMarkedRestart`） |
+| `internal/service` | **整包 ok 1350.258s**（连跑两遍，两遍都无 FAIL；`TestLockGroupSeedDefaultsPassValidation` 修完后复跑）；定向 ok 8.330s |
+| `internal/{controller,repository,model,bridge,pkg/db}` | 全 ok（首轮 HEAD 全量验证即通过） |
+| gofmt / `go build ./...` / `go vet ./...` | 全过（`GOFMT_RC=0 / BUILD_RC=0 / VET_RC=0`，且未接管道，退出码可信） |
+
+`internal/service` 整包在本轮 HEAD 全量验证里失败过一次，原因分两块：
+`TestLockGroupSeedDefaultsPassValidation` 是**测试没跟上本批下架改动**（已修，见 6.9 第 3 条）；
+`TestRecognize_MultiSession` **单跑稳定通过（1.02s）、整包高负载下偶发失败**，
+代码核实已排除本批改动（`GetRecentIntents` 是纯 DB 查询无 TTL；`embRetryCooldown()`
+未注入时逐字节等于原常量；`recognizeByEmbedding` 在 `embedSvc == nil` 时直接返 nil，
+根本不碰 cooldown 逻辑）。
+
+**结论：判为既有用例的 flaky，本轮不修。** 专门重跑整包两遍取证——两遍都绿
+（`ok 1350.258s`，耗时是平时的三倍多，因为两遍连着跑且同时有 `go build` 在抢 CPU），
+**这一条记下来不是为了说明它没问题，而是为了说明它确实失败过一次**：
+它在 HEAD 全量验证那一轮真的红了，只是重跑不复现。判 flaky 的依据是「同一棵树、
+同一份代码，单跑稳定通过、整包偶发失败」，而不是「这次没复现就算过」。
+按「不记假绿」，本条留在台账里；真要根治得改那条用例对异步落库的等待方式
+（`time.Sleep(200ms)` 换成轮询），属于意图识别的测试质量，不在配置治理范围内。
+
+##### 6.9 归属登记：本阶段随他人提交入库 + 接手他人提交留下的三条红灯
+
+**归属**（第三次被夹带，前两次是 `86b92349` 的 confidence 批次、`40a19abb` 的 2d 生产代码）：
+
+阶段六的 28 个代码文件 + 2 份文档，在我做完干净检出验证、正准备提交时，
+被一次并行的 `feat(rbac): user-web 菜单权限 + 角色菜单分配 + 收件箱数据权限`
+（`64b46dd1`）一并带走，该提交的 commit message 与这些文件的内容毫无关系。
+逐文件核对（`git diff --quiet HEAD` 对 28 个文件逐个检查为空 + `git grep`
+抽查 `config_param_groups` / `已下架` / `DeprecatedReason` / `deprecated_reason` / `risk`）
+确认内容完整无缺，双远端也已含，故不改写已推送历史，只在此登记归属。
+
+**代价**：暂存区是共享的，「验证通过后立刻提交」这条纪律连续第三次失效。
+未造成内容丢失，但每次都要在最后回头核对一遍归属，是纯粹的返工。
+
+**接手的三条红灯**（他人提交把两处冲突一起带进 master）：
+
+1. `/api/system/menus` 重复注册 —— `menu_routes.go:25` 的
+   `adminSystem.GET("/menus")` 与既有 `frontend_aliases.go:442` 的
+   `doReg("GET","/system/menus", …)` 撞同一路径，`doReg` 对已注册路径 panic，
+   整个 `internal/router` 包起不来。
+   删掉旧别名不是绕过测试，是修真 bug：旧 `SystemMenus` 自陈「当前开源版无动态菜单配置，
+   返回空数组供前端做初始渲染占位」，该前提已被 RBAC 推翻；前端 `RoleList.vue:285`
+   读 `treeRes?.tree || treeRes?.data?.tree`，新 handler 返回 `{"tree":…}` 命中，
+   而旧桩返回 `[]any{}` 落到 `undefined` —— **菜单分配对话框一个节点都渲染不出来，
+   RBAC 特性看起来接上了，管理员却无法给任何角色分配菜单**。
+   处置：删 `frontend_aliases.go:441-442` 两行（连带 `systemInfoCtrl` 变量）与
+   `controller/system_info.go` 的 `SystemMenus` 方法，两处原位各留注释写清理由。
+2. G6 判 4 个 `t()` 键解析不到词条 —— 同一提交里 `RoleList.vue` 用了
+   `t('role.assignMenus', '分配菜单权限')` 这种形式：中文放在第二参数 fallback 位，
+   **界面看着正常，但其余 8 种语言无词条、全回落中文**（"看起来做了 i18n，
+   实际八种语言全是中文"，比不写 i18n 更难发现）。给 9 种语言各补 4 个键后门绿。
+   不动 `t()` 的 fallback 参数——它是词条缺失时的兜底，留着无害且是防御。
+3. 两处我自己写的反向钉死测试未跟上本批下架改动：`lock.ai_lock_ttl` 从「未接线」
+   改判「已下架」后，`TestLockGroupSeedDefaultsPassValidation` 与
+   `TestAILockTTLStaysUnwired` 还在断言「未接线」。跟着改成断言「已下架」+
+   `d.Deprecated == true`，并**反向断言 Name 不含「未接线」**
+   （已是终态就不能同时挂过渡态标注，否则 readpoints 门会判声明过期）。
+   后者重命名为 `TestAILockTTLStaysRetired`，让名字与它断言的状态一致。
+
+##### 6.10 接手他人提交暴露的前端测试基础设施缺陷（不是配置治理，但会阻塞 CI）
+
+上一条红灯修完之后，前端全量测试冒出**一批与本任务毫无关系的新失败**。它值得单独
+一节，因为它比任何一条配置缺陷都更容易让人做出错误判断。
+
+**取证（同一棵树、同一份代码，前端全量 605 例连跑四次）**：
+
+| 场景 | 失败数 | 涉及文件 |
+|---|---|---|
+| 空闲 | **0** | — |
+| 中等负载（与 go test 并行） | **7** / 4 个 | browser_detail_run_error、browser_duration_text、browser_monitor_resilience、clue_list_filter_push |
+| 重负载 RUN 1 | **30** / 15 个 | 横跨 approvalTask / badCase / browser_\* / clue_list / cohort / followups / messageHub / router 等互不相干的页面 |
+| 重负载 RUN 2 | **11** / 4 个 | approvalTask_render、badCase_render、clue_list_filter_push、error_reporting_console_scope |
+
+失败集合每次都不同、且这 4 个（乃至 15 个）文件**单跑全绿** ⇒ flaky 坐实，
+且与本批改动零交集（本批只动了 9 个 i18n json、3 个 router 用例、两页新配置界面）。
+
+**根因（定位到机制，不是猜）**：`@vue/test-utils@2.4.11` 的 `flushPromises()`
+实现是 `new Promise(resolve => scheduler(resolve, 0))`，也就是**一次宏任务**，
+只排空**微任务**队列。而本仓的组件用例普遍用「刷新 N 次」等渲染稳定
+（`tests/unit/` 里裸 `await flushPromises()` 98 处 / 21 个文件，
+`for (let i=0;i<N;i++) await flushPromises()` 15 处 / 8 个文件），
+**对组件里 `setTimeout` 驱动的防抖搜索、轮询、重试退避一个都不等**。
+空闲时 N 次碰巧够用；worker 一抢 CPU，定时器回调就排在 N 次刷新之外，
+断言在渲染完成前就去读 DOM。
+
+**为什么必须当成真问题处理**：这类失败比真 bug 更坏——它每次落在不同的文件上，
+让人怀疑刚改的代码，久了整套测试就没人信了。而它同时会**阻塞 CI**：
+本仓 CI 里前端是并行跑的，红灯是随机的、无法复现、无法定位。
+
+**处置（两处）**：
+
+1. 新建 `user-web/tests/unit/settle-helper.js`，导出 `settle(w)`：每轮
+   「`await flushPromises()` + 让出一个宏任务」之后比对一次 `w.html()`，
+   **连续两轮渲染结果相同即认为稳定并早停**，`MAX_ROUNDS = 40` 只作硬上限。
+   不用「多刷几次」那种概率式写法——那只是把同一个问题往后推。
+   自己新写的两个文件（`configParams_render.test.js` 14 处、
+   `dictionaryManager_render.test.js` 17 处）已全部改用它，残留裸调用为 0。
+2. `vitest.config.js` 加 `fileParallelism: false`。这一步一次性消灭整类假失败。
+   代价是 56 个文件串行约一分多钟，注释里写明了将来要恢复并行，
+   必须先把 `settle()` 铺进所有用例，**而不是把这个开关调回 true**。
+
+**没有一并做的事（如实记录，不假装清零）**：另外 23 个含 `flushPromises`
+的文件（67 处裸调用）仍是固定次数写法，只是靠串行不再触发。
+一次性重写 15 个跨域文件与本任务无关，强行塞进本轮会让已完成并验证的一批改动
+失去稳定性。串行开关 + 助手已经把它们从「随机红」变成「确定绿」，
+**剩下的路已写在配置注释里，谁想并行谁照着走**。
+
+##### 6.11 复查「所有数据项都能在 UI 配置」时挖出的缺口（2026-10-12）
+
+阶段六做完了参数页与字典页。任务书里那句「**所有数据项在 UI 页面允许用户配置**」这句话，到这一步才算有资格被认真读一遍——于是又挖出四件事，前两件是产品缺口，后两件是既有缺陷。
+
+**（1）`feature_flags` 的五个管理动作有实现、有签名，但没有任何路由能到。**
+
+`internal/controller/feature_flag.go` 实现了 Update(`:68`) / Delete(`:86`) / Enable(`:98`) / Disable(`:111`) / Rollout(`:124`) 五个动作，而 `internal/router/business_routes.go` 的 `flagAdmin` 组**只挂了 `POST ""`（Create）**。后果不是"少几个端点"，而是**功能整体不可用**：能建出开关，却没有一条路能把它启用——`Evaluate` 于是永远走 `not_found` 分支返回 false，一个用不起来的开关比没有开关更坑（运维看到它躺在列表里，以为灰度没生效是策略选错了，实际上压根没启用过）。
+
+已补挂 5 条：`PUT /:id`、`DELETE /:id`、`POST /:id/enable`、`POST /:id/disable`、`POST /:id/rollout`。
+
+**没有**顺手把 `RegisterCodeReference` 也挂上：它全仓零调用方（只有 Controller 与 Service 两处定义），自陈是给工具链调的，挂上去等于开一个没有消费者的写端点。`GET` 侧本来就存在，KV 里目前恒为空，UI 也不展示这个标签。
+
+**（2）唯一的 `ReadOnly` 参数没有写为什么不可改。**
+
+217 条种子里 `ReadOnly: true` 只有一条：`knowledge.embedding_dimension`。UI 侧有独立的「只读」徽标与禁用按钮（不是没有提示），但 Description 只写了「向量嵌入维度（bge-m3 默认 1024）」——用户看到禁用按钮，依然不知道**为什么**。已改写为写清后果：改它必须把所有已入库的向量按新维度重新生成并重建索引；而维度与存量向量不一致时，检索结果全是噪声，**而且错得很安静**（不报错，只是答非所问），所以只能走「换嵌入模型 + 全量重建索引」的运维流程。
+
+Name 没有加「（只读）」后缀：UI 已有独立徽标，`stripSuffix()` 也会把它剥掉，加了是重复。
+
+**（3）只加前端路由不会出现在菜单里——菜单已经改成后端驱动。**
+
+这条值得单拎出来，因为它会**静默失败**：路由注册成功、`/system/feature-flags` 能直接输地址打开，但左侧菜单里没有入口。菜单树在他人 RBAC 提交后搬到了 `user-server/internal/model/menu.go` 的 `var SystemMenuTree`，由 `GET /api/menus` 下发。我自己的 `/system/dictionaries` 其实也中招了（上一轮只加了前端路由）。
+
+已在 `SystemMenuTree` 的 `dynamicThreshold`（动态阈值参数）之后并列加两条。**放在它后面而不是塞进别的分组**，是因为运维调这三页时的心理模型是同一个：「这个系统有哪些可配置的东西」。
+
+**（4）15 个菜单项一直显示着错的图标，而且是静默的。**
+
+两条原因叠在一起：
+
+- **解析路径不一致**：`Layout.vue:25` 写的是 `<component :is="iconComponents[menu.icon]" />`，直接下标、**没有兜底**；而 `SubMenuItem.vue:9/21` 走的是 `resolveRouteIcon(menu.icon)`，兜底 Document。一级菜单没兜底 ⇒ 图标名不认识时渲染出空的组件。
+- **`routeIconMap` 登记不全**：未登记的 13 个名字里，`Cloud` / `QrCode` / `Shield` 在 `@element-plus/icons-vue` 里**根本不存在**（只有 `Cloudy` / `Postcard` / `Lock` 之类），另外 10 个有效但没登记。合计 15 个菜单项一直静默显示成 Document。
+
+处置三件：`Layout.vue` 改走 `resolveRouteIcon`（统一两条路径）；`iconMap.js` 补登记 12 个（实测新增的全部是有效图标）；`menu.go` 里三个无效名换成有效等价图标——`livecode: QrCode→Postcard`、`systemObsConfig: Cloud→Box`、`securityAudit: Shield→Lock`。
+
+**（5）顺带修掉我自己刚写的一个"看起来在守、其实在漏"的 helper。**
+
+`menuRegistry-helper.js` 原本用 `NODE_RE = /\{([^{}]*)\}/g` 解析 `menu.go`，**跨不过嵌套花括号**。凡是写成一行且带 `Roles: []string{"admin"}` 的菜单项（含 `dynamicThreshold`、`systemDictionaries`、`systemFeatureFlags` 这三条）全部被静默丢弃：170 个 `Path:` 字面量只解析出 139 个。后果特别恶劣——「菜单 path 都能在前端路由里找到」那条断言，因为**列表本身少了几条**而显示通过。
+
+改成逐行取 `Key/Title/Icon/Path`（都是 `字段: "字面量"` 形态，不受嵌套花括号影响），并加一道自检：**解析出的 path 条数必须等于 `Path:` 字面量个数**，不等直接抛错。这类失败是静默的，只能显式拦一道。
+
+解析器修好后立刻又暴露 2 处「父子同 path」（`/browser-automation/tasks`、`/geo-tools/keyword-mining`）。核实后确认**不是真重复**：分组节点自己也带 `Path` 指向默认子页，点分组名进默认页、点子项进具体页，是有意设计。是我最初的断言没区分分组与叶子。helper 加 `isGroup` 字段并导出 `backendLeafMenuItems()`，判据是「抹掉 `Roles: []string{...}` 后该行是否自带闭合 `}`」——分组节点的 `Children:` 落在下一行、自己这行不闭合。
+
+**新增的 `menuRegistry_routes.test.js`（6 例）**
+
+这道门是加完上面 (3)(4)(5) 之后才写的，而它一上来就把这三件事全抓了出来——包括 (5) 那个我自己刚写出来的漏。六个判据里有两个值得单独说：
+
+- 「菜单里每一条 path 都能在前端路由里找到」这条，**直接 import 各路由模块并递归展开 children**。不用 `router.getRoutes()`：路由是懒加载的，`router.beforeEach` 里 `ensureRouteLoaded → addRoute`，刚 import 时只有 13 条骨架，会把未加载的路由全误判成缺失。也不用 `router.push`：beforeEach 带登录守卫，未登录弹到 `/login`，每个 path 的 matched 都变成登录页。也不用正则扫 path 字面量：`browserAutomation` 的 `path: 'tasks'` 是嵌套相对路由，正则看不到 `/browser-automation/tasks`。
+- 「控制台里的配置页都登记进了菜单」只钉 `['/system/config-params','/system/dictionaries','/system/feature-flags']` 这组入口。**不能**写成「所有前端路由都必须在菜单里」——详情页、编辑页本来是从列表点进去的，不该出现在菜单。
+
+**一个必须记下来的教训**：这道门第一次跑是绿的，我顺手把 `systemFeatureFlags` 菜单项拆掉做破坏验证，它**正确报红**了；可把菜单项还原之后，它又红了——暴露的是 (5) 那个 helper bug。**门能通过不代表门在守，必须做一次破坏验证。** 这个习惯此前只在 `check-config-param-readpoints` 上用过，这次证明它对测试同样成立。
+
+**新建 `FeatureFlags.vue` + `api/featureFlags.js`**
+
+页面结构与字典页一致（顶部 el-alert 讲清与阈值参数的分工、工具栏、表格、对话框、日志抽屉）。三个交互决定：
+
+- 开关的停用/启用走 `ElMessageBox.confirm` 二次确认。开关是**运行时立刻生效**的，停用会让用户立刻看不到某个功能，不是那种"改了明天生效"的配置。
+- 失败后**回读服务端真实状态**，不让开关停在一个"本地以为改了、实际没改成"的态——那个态比报错更难发现。
+- 删除的确认文案区分「删除不可恢复」与「只是想让它不生效请用停用」。这两件事经常被混为一谈。
+
+编辑保存时若 `enabled` 与列表现状不一致，额外调一次 enable/disable：`FlagUpdateRequest` 结构体里**没有** `Enabled` 字段（开关状态只走那两条端点，以便单独留审计记录）。
+
+**本轮验证（2026-10-12）**
+
+| 项 | 结果 |
+|---|---|
+| `menuRegistry_routes.test.js` + `router_approvalTask` + `router_badCase` | **16 passed (16)**（3 文件全绿；helper 解析器改动影响到的另两个文件一并复跑） |
+| 前端全量 `vitest run` | **57 文件 611 例全绿**（较 §6.8 的 56/605 多出 `menuRegistry_routes.test.js` 的 6 例），`fileParallelism: false` 串行 |
+| `vite build` | 通过（PWA precache 574 entries） |
+| `eslint` 12 个新增/改动文件 | **0 errors**（559 warnings 全是 `vue/max-attributes-per-line` 一类格式告警，既有的 `LTCConfig.vue`/`ObsConfig.vue` 同样 100+，warning 不是本仓门槛） |
+| `go build ./...` / `go vet ./...` / `gofmt -l internal router` | 全过（`BUILD_RC=0` 未接管道可信；`gofmt -l` 无论有无输出都返回 0，只能看输出文字） |
+| `go test ./internal/router/ -count=1` | **ok 30.848s**（`flagAdmin` 补挂 5 条之后；gin 的 `:id` 与静态段 `stale` 同级不冲突） |
+| `go test ./internal/service/ -run 'TestSeedDefaultsPassTheirOwnValidation\|TestDefaultParamDefs'` | **ok 1.124s**（改 `embedding_dimension` 的 Description 之后） |
+| 五道门 + 契约门 + CI paths 门 | 全 rc=0；readpoints 读数 `wired 206 / 已声明未接线 0 / UNDECLARED 0 / STALE 0 / 已下架 11（接上了却没摘下架标记 0）` |
+| 文档门 | `check-md-links-offline.py` 断链 0（扫描 201 个 md）；`check-doc-consistency.sh` 27 个关键文件全通过 |
+
+前端全量这次是**与另一个全量 vitest 会话并发**跑的（即机器有明显 CPU 争抢），仍然 611/611 全绿——这是 §6.10 那个串行开关的实证，不是空闲下的侥幸绿。

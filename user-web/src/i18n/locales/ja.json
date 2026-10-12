@@ -99,7 +99,11 @@
     "status": "状態",
     "enabled": "有効",
     "disabled": "無効",
-    "loadFailed": "ロール一覧の読み込みに失敗しました"
+    "loadFailed": "ロール一覧の読み込みに失敗しました",
+    "assignMenus": "メニュー権限を割り当て",
+    "menuAssignHint": "このロールがアクセスできるメニューをチェックしてください。スーパー管理者は常にすべてのメニューにアクセスでき、割り当ては不要です。",
+    "filterMenus": "メニューを検索",
+    "adminFullMenus": "スーパー管理者はすべてのメニュー権限を持っており、割り当ては不要です"
   },
   "permission": {
     "title": "権限管理",

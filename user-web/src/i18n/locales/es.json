@@ -97,7 +97,11 @@
     "status": "Status",
     "enabled": "Enabled",
     "disabled": "Disabled",
-    "loadFailed": "Failed to load role list"
+    "loadFailed": "Failed to load role list",
+    "assignMenus": "Asignar permisos de menú",
+    "menuAssignHint": "Marque los menús a los que puede acceder este rol; el superadministrador siempre tiene acceso a todos los menús y no necesita asignación.",
+    "filterMenus": "Buscar menús",
+    "adminFullMenus": "El superadministrador tiene todos los permisos de menú y no necesita asignación"
   },
   "permission": {
     "title": "Permission Management",

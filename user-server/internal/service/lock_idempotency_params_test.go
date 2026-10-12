@@ -148,8 +148,11 @@ func TestLockGroupSeedDefaultsPassValidation(t *testing.T) {
 		case "message_hub_idem_ttl":
 			got = MessageHubDefaultIdemTTL
 		case "ai_lock_ttl":
-			if !strings.Contains(def.Name, "未接线") {
-				t.Errorf("lock.ai_lock_ttl 的实现仍是死代码，Name 应保留未接线标注，实际 %q", def.Name)
+			// 2026-10-12：这条从「未接线」改判为「已下架」。未接线是过渡态
+			//（承认改了不生效，将来接上就能摘），已下架是终态（不再是对外承诺）。
+			// readpoints 门禁对这两类分开记账，所以这里跟着改而不是把断言放宽。
+			if !strings.Contains(def.Name, "已下架") {
+				t.Errorf("lock.ai_lock_ttl 的实现仍是死代码，Name 应标注已下架，实际 %q", def.Name)
 			}
 			continue
 		}

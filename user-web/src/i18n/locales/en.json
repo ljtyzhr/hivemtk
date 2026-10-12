@@ -96,7 +96,11 @@
     "status": "Status",
     "enabled": "Enabled",
     "disabled": "Disabled",
-    "loadFailed": "Failed to load role list"
+    "loadFailed": "Failed to load role list",
+    "assignMenus": "Assign Menu Permissions",
+    "menuAssignHint": "Check the menus this role can access; the super admin always has every menu and needs no assignment.",
+    "filterMenus": "Search menus",
+    "adminFullMenus": "The super admin has all menu permissions and needs no assignment"
   },
   "permission": {
     "title": "Permission Management",

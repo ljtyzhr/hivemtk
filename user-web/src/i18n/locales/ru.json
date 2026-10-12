@@ -97,7 +97,11 @@
     "status": "Status",
     "enabled": "Enabled",
     "disabled": "Disabled",
-    "loadFailed": "Failed to load role list"
+    "loadFailed": "Failed to load role list",
+    "assignMenus": "Назначить права меню",
+    "menuAssignHint": "Отметьте меню, доступные этой роли; суперадминистратор всегда имеет доступ ко всем меню, назначение не требуется.",
+    "filterMenus": "Поиск меню",
+    "adminFullMenus": "Суперадминистратор имеет все права меню, назначение не требуется"
   },
   "permission": {
     "title": "Permission Management",

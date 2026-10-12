@@ -113,8 +113,10 @@ func DefaultParamDefs() []ParamDef {
 			Description: "BM25 关键词匹配扫描的最大分片数",
 			ValueType:   "int", Unit: "条", DefaultValue: "10000", Min: strPtr("1000"), Max: strPtr("500000"), Step: strPtr("1000")},
 		{Group: "knowledge", Key: "embedding_dimension", Name: "Embedding 维度",
-			Description: "向量嵌入维度（bge-m3 默认 1024）",
-			ValueType:   "int", Unit: "维", DefaultValue: "1024", Min: strPtr("128"), Max: strPtr("8192"), ReadOnly: true},
+			Description: "向量嵌入维度（bge-m3 默认 1024）。改它必须把所有已入库的向量按新维度重新生成并重建索引，" +
+				"不是改个数字就生效的参数——维度与存量向量不一致时检索结果全是噪声，而且错得很安静（不报错，只是答非所问）。" +
+				"所以这里只读：要换维度，走「换嵌入模型 + 全量重建索引」的运维流程。",
+			ValueType: "int", Unit: "维", DefaultValue: "1024", Min: strPtr("128"), Max: strPtr("8192"), ReadOnly: true},
 		{Group: "knowledge", Key: "async_processing_timeout", Name: "异步处理超时",
 			Description: "文档异步处理（分片+embedding+索引）总超时（秒）",
 			ValueType:   "duration", DefaultValue: "900", Min: strPtr("60"), Max: strPtr("7200"), Step: strPtr("60")},

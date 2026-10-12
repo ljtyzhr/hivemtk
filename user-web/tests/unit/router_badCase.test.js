@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { backendMenuKeyByPath } from './menuRegistry-helper'
 
 // Bad Case 队列的路由登记守护用例（镜像 tests/unit/router_approvalTask.test.js 的判据）。
 //
@@ -37,10 +38,11 @@ describe('Bad Case 队列的路由登记', () => {
     expect(moduleNames).toContain('badCase')
   })
 
-  it('菜单里有这一项，且 path 与路由字面量一致（不一致时高亮与面包屑都会失效）', async () => {
-    const layout = readFileSync(at('src/layout/Layout.vue'), 'utf8')
+  it('后端菜单注册表里有这一项，且 path 与路由字面量一致（不一致时点菜单进 NotFound、面包屑也不显示）', async () => {
     const mod = await badCaseRoute()
-    expect(layout).toContain(`path: '${mod.default[0].path}'`)
+    // 菜单改成后端驱动后，权威注册表是 user-server/internal/model/menu.go 的
+    // SystemMenuTree，不再是 Layout.vue 里的静态常量。判据没过时，只是读取点搬了家。
+    expect(backendMenuKeyByPath(mod.default[0].path)).toBe('badCase')
   })
 
   it('菜单项的 key 在九份语言包里都有译文（缺一个就整站显示成字面量 menu.badCase）', () => {

@@ -580,3 +580,55 @@ G6 棘轮确保它不会再退。
 原委逐条见 §7.2 的表格。读路径仍能读到它们（`ListByGroup(…, includeDeprecated=true)`
 只用于 service 内部缓存加载），管理端默认看不到（`include_deprecated=0`）。
 写入侧返回 `ErrParamDeprecated` 而不是静默成功。
+
+### 9.5 阶段六的归属与接手的三条红灯
+
+阶段六的 28 个代码文件 + 2 份文档，在我做完干净检出验证、正准备提交时，
+被一次并行的 RBAC 提交（`64b46dd1`，commit message 是「user-web 菜单权限 +
+角色菜单分配 + 收件箱数据权限」）一并带走——**第三次被他人提交夹带**
+（前两次：`86b92349` 的 confidence 批次、`40a19abb` 的 2d 生产代码）。
+逐文件核对内容完整、双远端已含，故不改写历史，只在此登记。
+
+同一提交还把两处冲突带进了 master，本轮一并修掉：
+
+| 红灯 | 真因（不是绕过测试） | 处置 |
+|---|---|---|
+| `/api/system/menus` 重复注册，整个 `internal/router` 包起不来 | 新 `menu_routes.go:25` 与既有 `frontend_aliases.go:442` 的 `doReg` 撞同一路径，`doReg` 对已注册路径 panic | 删旧别名 + 删 `SystemMenus` 方法。旧桩返回 `[]any{}` 落到前端 `treeRes?.tree \|\| treeRes?.data?.tree` 的 `undefined` ⇒ **菜单分配对话框一个节点都渲染不出来，RBAC 接上了但管理员无法给任何角色分配菜单** |
+| G6 判 4 个 `t()` 键解析不到词条 | 同一提交里 `RoleList.vue` 用 `t('key', '中文')` 形式，中文在 fallback 位 ⇒ 界面正常但 8 种语言全回落中文 | 给 9 种语言各补 4 个键，门绿。fallback 参数保留（词条缺失时的兜底） |
+| 两处反向钉死测试未跟上下架改动 | `lock.ai_lock_ttl` 从「未接线」改判「已下架」，测试还在断言前者 | 跟着改成断言「已下架」+ `d.Deprecated == true`，并反向断言不含「未接线」；`TestAILockTTLStaysUnwired` 重命名为 `TestAILockTTLStaysRetired` |
+
+纪律复盘：「验证通过后立刻提交」连续第三次失效。暂存区是共享的，
+跨会话等待提交就等于把成果交到别人手里让人替你背书。
+
+修完上面三条之后又冒出来一批**与本任务无关**的前端失败：同一棵树连跑四次分别是
+0 / 7 / 30 / 11 个失败，每次落在不同文件，单跑全绿。真因是用例普遍拿
+`await flushPromises()`（只排空微任务）当「等渲染稳定」，而组件的防抖搜索、
+轮询、重试退避全靠 `setTimeout`。这类随机红灯会阻塞 CI，详见
+`CONFIG_DB_DRIVEN_PLAN.md` §6.10（新建 `tests/unit/settle-helper.js` 的
+`settle()` + `vitest.config.js` 串行化）。**不记在配置治理的账上**——
+它既不是硬编码也不是僵尸参数，是仓库本来就有的测试基础设施债，
+只是这轮收尾时被负载放大了才浮出来。
+
+### 9.6 复查「所有数据项都能在 UI 配置」挖出的四件事（2026-10-12）
+
+阶段六做完了参数页与字典页之后，才回头认真读任务书里那句「所有数据项在 UI 页面允许用户配置」。这一读又挖出四件事——**两件是产品缺口，两件是既有缺陷**，都不是硬编码，但都属于「债务遗留」的范畴。
+
+| # | 事 | 真因 | 处置 |
+|---|---|---|---|
+| 1 | 功能开关建得出却启不了、调不了灰度、删不掉 | `internal/controller/feature_flag.go` 的 Update/Delete/Enable/Disable/Rollout 五个动作**签名齐全但零路由可达**，`flagAdmin` 组只挂了 Create。`Evaluate` 于是永远走 `not_found` 返回 false | 补挂 5 条 `PUT/DELETE /:id` + `POST /:id/{enable,disable,rollout}`；`RegisterCodeReference` 不挂（零调用方，挂了等于开一个没有消费者的写端点） |
+| 2 | 唯一的只读参数没有写为什么不可改 | 217 条种子里 `ReadOnly: true` 只有 `knowledge.embedding_dimension` 一条，Description 只写「bge-m3 默认 1024」。UI 有徽标但没写**后果** | Description 改写为：改它必须重建全部向量与索引；维度与存量不一致时检索全是噪声，**而且错得很安静**（不报错，只是答非所问） |
+| 3 | 我自己的两个配置页「路由能进、菜单点不到」 | 菜单在他人 RBAC 提交后改为后端驱动（`internal/model/menu.go` 的 `SystemMenuTree` + `GET /api/menus`）。只加前端路由不会自动进菜单 | 在 `dynamicThreshold` 之后并列加 `systemDictionaries` / `systemFeatureFlags` 两条 |
+| 4 | 15 个菜单项一直静默显示成兜底图标 | `Layout.vue:25` 直接下标 `iconComponents[menu.icon]` 且**无兜底**，而 `SubMenuItem.vue` 走有兜底的 `resolveRouteIcon`；`routeIconMap` 未登记 13 个名字，其中 `Cloud`/`QrCode`/`Shield` 在 `@element-plus/icons-vue` 里根本不存在 | `Layout.vue` 统一走 `resolveRouteIcon`；`iconMap.js` 补登记 12 个；`menu.go` 三处换成有效图标（`QrCode→Postcard`、`Cloud→Box`、`Shield→Lock`） |
+
+**（5）第四件事牵出第五件：一条"看起来在守、其实在漏"的判据。**
+
+新写的 `menuRegistry_routes.test.js` 抓出 (3)(4) 之后，还抓出了我自己刚写的 `menuRegistry-helper.js`：它用 `NODE_RE = /\{([^{}]*)\}/g` 解析 `menu.go`，**跨不过嵌套花括号**，于是所有写成一行且带 `Roles: []string{"admin"}` 的菜单项（含 `dynamicThreshold`、`systemDictionaries`、`systemFeatureFlags`）被静默丢弃——170 个 `Path:` 字面量只解析出 139 个。
+
+后果比 bug 本身恶劣：**「菜单 path 都能在前端路由里找到」那条断言，因为列表本身少了几条而显示通过。** 改成逐行取 `Key/Title/Icon/Path`（都是 `字段: "字面量"` 形态），并加自检「解析条数必须等于 `Path:` 字面量个数」，不等直接抛错。
+
+解析器修好后立刻又冒出 2 处「父子同 path」（`/browser-automation/tasks`、`/geo-tools/keyword-mining`）。核实后确认**不是真重复**：分组节点自己也带 `Path` 指向默认子页，点分组名进默认页、点子项进具体页，是有意设计；是我的断言没区分分组与叶子。
+
+**教训（这条值得单独立账）**：那道门第一次跑是绿的，我拆掉一个菜单项做破坏验证，它正确报红；**可把菜单项还原之后它又红了**——暴露的是上面那个 helper bug。
+⇒ **门能通过不代表门在守，必须做一次破坏验证。** 这个习惯此前只用在对 shell 脚本门禁的怀疑上（"以为自己修好了，其实没修好"），这次证明它对测试同样成立，也是唯一能抓到"静默漏"的办法。
+
+**最终状态**：功能开关页 `FeatureFlags.vue` + `api/featureFlags.js` 新建（开关二次确认、失败后回读服务端真实状态、删除与停用的文案区分；编辑保存时因 `FlagUpdateRequest` 没有 `Enabled` 字段而额外调一次 enable/disable）。详见 `CONFIG_DB_DRIVEN_PLAN.md` §6.11。

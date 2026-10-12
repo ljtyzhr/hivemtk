@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { readFileSync, readdirSync } from 'node:fs'
 import { resolve } from 'node:path'
+import { backendMenuKeyByPath } from './menuRegistry-helper'
 
 // 路由登记面的守护用例。
 //
@@ -48,10 +49,14 @@ describe('待办中心的路由登记', () => {
     expect(moduleNames).toContain('approvalTask')
   })
 
-  it('菜单里有这一项，且 path 与路由字面量一致（不一致时高亮与面包屑都会失效）', async () => {
-    const layout = readFileSync(at('src/layout/Layout.vue'), 'utf8')
+  it('后端菜单注册表里有这一项，且 path 与路由字面量一致（不一致时点菜单进 NotFound、面包屑也不显示）', async () => {
     const mod = await approvalRoute()
-    expect(layout).toContain(`path: '${mod.default[0].path}'`)
+    const routePath = mod.default[0].path
+    // 菜单改成后端驱动后，权威注册表是 user-server/internal/model/menu.go 的
+    // SystemMenuTree，不再是 Layout.vue 里的静态常量。判据没过时，只是读取点搬了家。
+    // 一并钉住匹配到的 key：只断言"有东西匹配上了"的话，注册表里将来多一条同 path
+    // 的错项也会照样绿。
+    expect(backendMenuKeyByPath(routePath)).toBe('approvalTask')
   })
 })
 

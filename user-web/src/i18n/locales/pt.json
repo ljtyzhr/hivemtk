@@ -97,7 +97,11 @@
     "status": "Status",
     "enabled": "Enabled",
     "disabled": "Disabled",
-    "loadFailed": "Failed to load role list"
+    "loadFailed": "Failed to load role list",
+    "assignMenus": "Atribuir permissões de menu",
+    "menuAssignHint": "Marque os menus que esta função pode acessar; o super administrador sempre tem acesso a todos os menus e não precisa de atribuição.",
+    "filterMenus": "Pesquisar menus",
+    "adminFullMenus": "O super administrador tem todas as permissões de menu e não precisa de atribuição"
   },
   "permission": {
     "title": "Permission Management",

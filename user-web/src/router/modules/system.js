@@ -62,6 +62,14 @@ export default [
     meta: { title: '业务字典', group: 'system', icon: 'Collection', requiresAuth: true, requiresAdmin: true }
   },
   {
+    path: '/system/feature-flags',
+    name: 'SystemFeatureFlags',
+    component: () => import('@/views/system/FeatureFlags.vue'),
+    // requiresAdmin 与后端一致：enable/disable/rollout/delete 五个写端点在
+    // 2026-10-12 补挂时全部放进了 flagAdmin 组（AdminAuthMiddleware 之后）。
+    meta: { title: '功能开关', group: 'system', icon: 'Switch', requiresAuth: true, requiresAdmin: true }
+  },
+  {
     path: '/system/ltc-config',
     name: 'LTCConfig',
     component: () => import('@/views/system/LTCConfig.vue'),

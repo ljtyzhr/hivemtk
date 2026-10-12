@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { mount, flushPromises } from '@vue/test-utils'
+import { mount } from '@vue/test-utils'
 import ElementPlus from 'element-plus'
 
 // 动态阈值参数页的渲染用例。
@@ -34,6 +34,7 @@ vi.mock('@/api/configParams', () => ({
 }))
 
 import ConfigParams from '@/views/system/ConfigParams.vue'
+import { settle } from './settle-helper'
 
 const GROUPS = [
   { group: 'lock', label: '分布式锁', description: '锁与幂等的存活时间', sort_order: 10 },
@@ -102,7 +103,7 @@ describe('ConfigParams.vue 渲染与友好性承诺', () => {
 
   it('分组中文名来自后端，不再是前端硬编码表', async () => {
     const w = mountPage()
-    await flushPromises()
+    await settle(w)
     expect(api.listGroups).toHaveBeenCalled()
     const text = w.text()
     expect(text).toContain('分布式锁')
@@ -111,7 +112,7 @@ describe('ConfigParams.vue 渲染与友好性承诺', () => {
 
   it('默认不显示已下架项，打开开关后才列出', async () => {
     const w = mountPage()
-    await flushPromises()
+    await settle(w)
     // 后端即使把已下架项一起返回（过滤回归 / 老后端配新前端），页面也不渲染它。
     // 判据用表格行数而不是全文搜索「已下架」三个字 —— 开关的标签本身就叫
     // 「显示已下架」，全文搜索会把开关当成一条已下架记录，判红得毫无道理。
@@ -119,14 +120,14 @@ describe('ConfigParams.vue 渲染与友好性承诺', () => {
     expect(w.findAll('.el-table__row')).toHaveLength(1)
 
     await w.find('.el-switch').trigger('click')
-    await flushPromises()
+    await settle(w)
     expect(api.list).toHaveBeenLastCalledWith(undefined, true)
     expect(w.findAll('.el-table__row')).toHaveLength(2)
   })
 
   it('duration 显示成人类可读单位而不是一串秒数', async () => {
     const w = mountPage()
-    await flushPromises()
+    await settle(w)
     const text = w.text()
     expect(text).toContain('1 天')
     expect(text).not.toContain('86400 秒')
@@ -134,9 +135,9 @@ describe('ConfigParams.vue 渲染与友好性承诺', () => {
 
   it('已下架项的编辑按钮禁用，且行内给出下架原因', async () => {
     const w = mountPage()
-    await flushPromises()
+    await settle(w)
     await w.find('.el-switch').trigger('click')
-    await flushPromises()
+    await settle(w)
     // 下架原因必须出现在行内（不是 tooltip 里悬停才看得到）。
     expect(w.text()).toContain('tryAcquireAILock')
     // 两行各有各的编辑按钮，所以这里数的是「禁用的那一个有几个」而不是
@@ -154,11 +155,11 @@ describe('ConfigParams.vue 渲染与友好性承诺', () => {
 
   it('高危 + 需重启参数带徽标', async () => {
     const w = mountPage()
-    await flushPromises()
+    await settle(w)
     // temperature 在 agent_llm 组，当前选中的是第一个组 lock —— 必须先切过去，
     // 否则「找不到徽标」会被误读成「徽标没渲染」。
     await w.findAll('.group-item')[1].trigger('click')
-    await flushPromises()
+    await settle(w)
     const text = w.text()
     expect(text).toContain('高危')
     expect(text).toContain('需重启')
@@ -166,15 +167,15 @@ describe('ConfigParams.vue 渲染与友好性承诺', () => {
 
   it('种子里的状态标记（「（未接线）」等）不出现在给用户看的表格里', async () => {
     const w = mountPage()
-    await flushPromises()
+    await settle(w)
     expect(w.text()).not.toContain('（未接线）')
   })
 
   it('已下架项不计入「重置整组」条数', async () => {
     const w = mountPage()
-    await flushPromises()
+    await settle(w)
     await w.find('.el-switch').trigger('click')
-    await flushPromises()
+    await settle(w)
     // 只有 ai_processing_ttl 有「已修改」标记（value 120 vs default 120 → 实为未改），
     // 这里再显式造一条已修改且已下架的行，确认它不进计数。
     api.list.mockResolvedValue([
@@ -182,7 +183,7 @@ describe('ConfigParams.vue 渲染与友好性承诺', () => {
       param({ key: 'modified_dead', value: '3600', default_value: '86400', deprecated: true, deprecated_reason: '无消费点' })
     ])
     await w.vm.loadAll()
-    await flushPromises()
+    await settle(w)
     expect(w.text()).toContain('重置整组')
     // 两条都「已修改」，但 modified_dead 已下架 ⇒ 只有 1 条进计数。
     // 后端 BulkResetGroup 遇 deprecated 是「跳过」而不是「整组失败」，
@@ -192,10 +193,10 @@ describe('ConfigParams.vue 渲染与友好性承诺', () => {
 
   it('搜索跨组时列出分组列并给出提示', async () => {
     const w = mountPage()
-    await flushPromises()
+    await settle(w)
     const input = w.find('.header-actions input')
     await input.setValue('temperature')
-    await flushPromises()
+    await settle(w)
     expect(w.text()).toContain('正在跨全部')
     expect(w.text()).toContain('AI 大模型')
   })

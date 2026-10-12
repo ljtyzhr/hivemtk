@@ -97,7 +97,11 @@
     "status": "Status",
     "enabled": "Enabled",
     "disabled": "Disabled",
-    "loadFailed": "Failed to load role list"
+    "loadFailed": "Failed to load role list",
+    "assignMenus": "Menüberechtigungen zuweisen",
+    "menuAssignHint": "Aktivieren Sie die Menüs, auf die diese Rolle zugreifen kann; der Superadmin besitzt immer alle Menüs und benötigt keine Zuweisung.",
+    "filterMenus": "Menüs durchsuchen",
+    "adminFullMenus": "Der Superadmin besitzt alle Menüberechtigungen und benötigt keine Zuweisung"
   },
   "permission": {
     "title": "Permission Management",

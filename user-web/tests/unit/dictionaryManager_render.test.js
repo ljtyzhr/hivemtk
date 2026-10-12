@@ -1,5 +1,5 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { mount, flushPromises } from '@vue/test-utils'
+import { mount } from '@vue/test-utils'
 import ElementPlus, { ElMessageBox } from 'element-plus'
 
 // 业务字典管理页的渲染用例。
@@ -29,6 +29,7 @@ vi.mock('@/api/runtimeConfig', () => ({
 }))
 
 import DictionaryManager from '@/views/system/DictionaryManager.vue'
+import { settle } from './settle-helper'
 
 const PARENTS = [
   {
@@ -64,7 +65,7 @@ function mountPage() {
 
 async function openParent(w, index = 0) {
   await w.findAll('.parent-item')[index].trigger('click')
-  await flushPromises()
+  await settle(w)
 }
 
 function clickButton(w, label) {
@@ -93,7 +94,7 @@ describe('DictionaryManager.vue 渲染与危险操作提示', () => {
 
   it('字典域列表显示后端给的中文名与项数，而不是英文 code', async () => {
     const w = mountPage()
-    await flushPromises()
+    await settle(w)
     expect(api.listParents).toHaveBeenCalled()
     const text = w.text()
     expect(text).toContain('审批状态')
@@ -104,7 +105,7 @@ describe('DictionaryManager.vue 渲染与危险操作提示', () => {
 
   it('选中域后列出字典项并给 system_locked 项打「锁定」标记', async () => {
     const w = mountPage()
-    await flushPromises()
+    await settle(w)
     await openParent(w)
     expect(api.get).toHaveBeenCalledWith('approval_status')
     const text = w.text()
@@ -116,7 +117,7 @@ describe('DictionaryManager.vue 渲染与危险操作提示', () => {
 
   it('跃迁表把 from/to 的 code 补成中文名', async () => {
     const w = mountPage()
-    await flushPromises()
+    await settle(w)
     await openParent(w)
     const rows = w.findAll('.trans-name').map((n) => n.text())
     // 后端只给 from_code / to_code；页面上必须同时能看到中文名，
@@ -128,30 +129,30 @@ describe('DictionaryManager.vue 渲染与危险操作提示', () => {
 
   it('Code 非法时拒绝提交并给出可读的规则说明', async () => {
     const w = mountPage()
-    await flushPromises()
+    await settle(w)
     await openParent(w)
     await clickButton(w, '新增字典项')
-    await flushPromises()
+    await settle(w)
     // 走新增路径：parent_code 已经被预填，code 是空的 —— 空值也必须被规则拦住。
     const inputs = w.findAll('.el-dialog input')
     await inputs[0].setValue('Bad-Code')
     await clickButton(w, '保存')
-    await flushPromises()
+    await settle(w)
     expect(w.find('.form-error').text()).toContain('[a-z0-9_]')
     expect(api.upsertItem).not.toHaveBeenCalled()
   })
 
   it('新增字典项成功后带着完整的父域与字段提交', async () => {
     const w = mountPage()
-    await flushPromises()
+    await settle(w)
     await openParent(w)
     await clickButton(w, '新增字典项')
-    await flushPromises()
+    await settle(w)
     const inputs = w.findAll('.el-dialog input')
     await inputs[0].setValue('escalated')
     await inputs[1].setValue('  已升级  ')
     await clickButton(w, '保存')
-    await flushPromises()
+    await settle(w)
     expect(api.upsertItem).toHaveBeenCalledTimes(1)
     const [parent, payload] = api.upsertItem.mock.calls[0]
     expect(parent).toBe('approval_status')
@@ -167,14 +168,14 @@ describe('DictionaryManager.vue 渲染与危险操作提示', () => {
     // submitTransitions 会永远卡在 await 上，整条用例变成测超时而不是测行为。
     const confirm = vi.spyOn(ElMessageBox, 'confirm').mockResolvedValue('confirm')
     const w = mountPage()
-    await flushPromises()
+    await settle(w)
     await openParent(w)
     await clickButton(w, '编辑跃迁')
-    await flushPromises()
+    await settle(w)
     // 打开就写明「整体替换」的后果：后端 ReplaceTransitions 先清空再写。
     expect(w.text()).toContain('整体替换')
     await clickButton(w, '整体替换')
-    await flushPromises()
+    await settle(w)
     expect(confirm).toHaveBeenCalled()
     const [msg] = confirm.mock.calls[0]
     expect(msg).toContain('整体替换')
@@ -188,16 +189,16 @@ describe('DictionaryManager.vue 渲染与危险操作提示', () => {
   it('有半截行时直接拦下，不弹确认框也不提交', async () => {
     const confirm = vi.spyOn(ElMessageBox, 'confirm').mockResolvedValue('confirm')
     const w = mountPage()
-    await flushPromises()
+    await settle(w)
     await openParent(w)
     await clickButton(w, '编辑跃迁')
-    await flushPromises()
+    await settle(w)
     // 加一条没填完的跃迁再保存：后端拿到的是「被过滤掉的行」，
     // 页面若不拦就是「用户以为加了、其实没加」——而且这条行会静默消失。
     await clickButton(w, '加一条跃迁')
-    await flushPromises()
+    await settle(w)
     await clickButton(w, '整体替换')
-    await flushPromises()
+    await settle(w)
     expect(confirm).not.toHaveBeenCalled()
     expect(api.replaceTransitions).not.toHaveBeenCalled()
     expect(w.find('.form-error').text()).toContain('它们会被丢掉')

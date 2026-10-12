@@ -200,20 +200,26 @@ func TestMessageHubIdemTTLIsMarkedRestart(t *testing.T) {
 	t.Fatal("lock.message_hub_idem_ttl 不在 DefaultParamDefs() 里")
 }
 
-// TestAILockTTLStaysUnwired 反向钉死 ai_lock_ttl 的「未接线」标注。
-// 它是刻意不接的：tryAcquireAILock / ReleaseAILock / IsSessionAIBusy 整条生产链路
+// TestAILockTTLStaysRetired 反向钉死 ai_lock_ttl 的「已下架」标注。
+// 它是接不上的：tryAcquireAILock / ReleaseAILock / IsSessionAIBusy 整条生产链路
 // 没有调用方（源文件自带 //nolint:unused），真正在跑的并发闸是 ai_processing_ttl。
-// 谁要是将来把标注去掉，这条测试先红，逼他把 callers 一起接上。
-func TestAILockTTLStaysUnwired(t *testing.T) {
+// 2026-10-12 由「未接线」改判「已下架」：未接线是过渡态，已下架是终态，
+// readpoints 门禁对两类分开记账，所以标注变了这里也要跟着变。
+// 谁要是将来把它重新接上，必须同时摘掉下架标记并删掉 Deprecated，
+// 否则管理端默认过滤掉它、运维看不见也改不了，而行为已经跟着参数变了。
+func TestAILockTTLStaysRetired(t *testing.T) {
 	for _, d := range service.DefaultParamDefs() {
 		if d.Group != "lock" || d.Key != "ai_lock_ttl" {
 			continue
 		}
-		if !strings.Contains(d.Name, "未接线") {
-			t.Error("lock.ai_lock_ttl 的 Name 必须仍含「未接线」标注（readpoints 门禁依赖它）")
+		if !strings.Contains(d.Name, "已下架") {
+			t.Error("lock.ai_lock_ttl 的 Name 必须仍含「已下架」标注（readpoints 门禁对它单独记账）")
 		}
-		if !strings.Contains(d.Description, "当前不生效") {
-			t.Error("lock.ai_lock_ttl 的 Description 必须仍含「当前不生效」标注（readpoints 门禁依赖它）")
+		if !d.Deprecated {
+			t.Error("lock.ai_lock_ttl 必须 Deprecated=true——标记缺了的话管理端会把它当可配置项展示，而它改了不生效")
+		}
+		if strings.Contains(d.Name, "未接线") {
+			t.Error("lock.ai_lock_ttl 已是终态下架，不能同时挂「未接线」过渡态标注（门禁会判成声明过期）")
 		}
 		return
 	}

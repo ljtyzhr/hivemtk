@@ -96,7 +96,11 @@
     "status": "状态",
     "enabled": "已启用",
     "disabled": "已禁用",
-    "loadFailed": "加载角色列表失败"
+    "loadFailed": "加载角色列表失败",
+    "assignMenus": "分配菜单权限",
+    "menuAssignHint": "勾选该角色可访问的菜单；超管始终拥有全部菜单，无需分配。",
+    "filterMenus": "搜索菜单",
+    "adminFullMenus": "超管拥有全部菜单权限，无需分配"
   },
   "permission": {
     "title": "授权管理",

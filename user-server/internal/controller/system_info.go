@@ -40,11 +40,12 @@ func (c *SystemInfoController) Health(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"status": "ok"}, "ok")
 }
 
-// SystemMenus 返回前端侧边栏菜单树。
-// 当前开源版无动态菜单配置，返回空数组供前端做初始渲染占位。
-func (c *SystemInfoController) SystemMenus(ctx *gin.Context) {
-	response.Success(ctx, []any{}, "ok")
-}
+// 2026-10-12 移除 SystemMenus（返回空数组的占位桩）。
+// 它原先被 frontend_aliases 注册为 GET /api/system/menus 的兼容别名，
+// 菜单 RBAC 上线后该路径已由 menu_routes.go 的 AdminGetAllMenus 承担，
+// 且桩返回的 [] 没有 tree 字段，前端 RoleList.vue 读不到任何节点。
+// 保留一个无路由、无测试覆盖、语义已被取代的导出方法没有意义，
+// 与配置治理里「没有消费点的东西要么接上要么删掉」是同一条标准。
 
 // IsSystemInitialized 检查系统是否已完成安装（install.lock.initialized=true）。
 // 供 router / init 流程调用，避免路由层直接依赖 install 包。

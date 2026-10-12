@@ -22,7 +22,7 @@
           :key="menu.key"
           :index="menu.key"
         >
-          <el-icon><component :is="iconComponents[menu.icon]" /></el-icon>
+          <el-icon><component :is="resolveRouteIcon(menu.icon)" /></el-icon>
           <span>{{ t('menu.' + menu.key) }}</span>
         </el-menu-item>
       </el-menu>
@@ -137,10 +137,15 @@ import i18n from '@/i18n'
 import { useUserStore } from '@/stores/user'
 import { usePermissionStore } from '@/stores/permission'
 import { Warning, Bell, Menu, SwitchButton, Fold, Expand, QuestionFilled } from '@element-plus/icons-vue'
-import { routeIconMap } from '@/utils/iconMap'
+import { routeIconMap, resolveRouteIcon } from '@/utils/iconMap'
 void Bell; void Warning; void Menu; void SwitchButton; void Fold; void Expand
 
-const iconComponents = routeIconMap;
+// 传给 SubMenuItem 的仍��整张表（它内部走 resolveRouteIcon 逐个解析），
+// 顶层菜单这里也走同一个解析函数：2026-10-12 之前这里写的是
+// <component :is="iconComponents[menu.icon]" />，直接下标没有兜底，
+// 一个没在 iconMap 登记的图标名会得到 undefined，静默渲染成空白——
+// 菜单项还在、只是少了图标，比整条路由失效更难被发现。
+const iconComponents = routeIconMap
 
 const route = useRoute()
 const router = useRouter()
