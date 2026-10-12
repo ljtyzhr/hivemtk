@@ -304,6 +304,8 @@
     "backupEnhanced": "Advanced Backup",
     "automationCenter": "Automation Hub",
     "dynamicThreshold": "Dynamic Thresholds",
+    "systemDictionaries": "Business Dictionary",
+    "systemFeatureFlags": "Feature Flags",
     "ltcConfig": "LTC Operations Switch",
     "opsOverview": "Ops Overview",
     "knowledgeRagEval": "RAG Evaluation",

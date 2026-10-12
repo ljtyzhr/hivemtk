@@ -124,6 +124,32 @@ describe('后端菜单注册表 ↔ 前端路由', () => {
   })
 })
 
+describe('菜单标题 i18n 覆盖', () => {
+  it('注册表里每个菜单 key 在全部语言包都有标题（缺一个就渲染成裸 key）', () => {
+    // Layout.vue / SubMenuItem.vue 渲染标题走 t('menu.' + key)。vue-i18n 对缺失的
+    // key 不报错、不抛异常，直接把 key 原样当文案显示出来——2026-10-12 实测
+    // systemDictionaries、systemFeatureFlags 两条在侧边栏显示成
+    // 「menu.systemDictionaries」。上一份用例管住了 path 与图标，没有管标题，
+    // 所以这两条一路全绿进到了页面上。
+    const localesDir = resolve(process.cwd(), 'src/i18n/locales')
+    const localeFiles = readdirSync(localesDir).filter((f) => f.endsWith('.json'))
+    expect(localeFiles.length, '读不到语言包，后面的断言会真空通过').toBeGreaterThan(5)
+
+    const keys = backendMenuItems().map((it) => it.key).filter(Boolean)
+    expect(keys.length, '读不到后端菜单 key，后面的断言会真空通过').toBeGreaterThan(20)
+
+    for (const file of localeFiles) {
+      const menuLabels = JSON.parse(readFileSync(resolve(localesDir, file), 'utf8')).menu || {}
+      const missing = keys.filter((k) => typeof menuLabels[k] !== 'string' || !menuLabels[k].trim()).sort()
+      expect(
+        missing,
+        `${file} 的 menu 段缺这些标题：${missing.join(', ')}\n` +
+          `缺 key 时页面不报错，直接把「menu.xxx」显示在菜单上。`
+      ).toEqual([])
+    }
+  })
+})
+
 describe('菜单图标', () => {
   it('注册表里用到的每个图标名都登记在 routeIconMap 里（否则静默显示成兜底图标）', () => {
     // resolveRouteIcon 对未登记的名字兜底成 Document，所以「不报错、菜单照常显示」，

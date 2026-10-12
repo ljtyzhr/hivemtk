@@ -305,6 +305,8 @@
     "backupEnhanced": "Расширенное резервное копирование",
     "automationCenter": "Центр автоматизации",
     "dynamicThreshold": "Динамические пороги",
+    "systemDictionaries": "Бизнес-словарь",
+    "systemFeatureFlags": "Флаги функций",
     "ltcConfig": "Переключатель операций LTC",
     "opsOverview": "Обзор операций",
     "knowledgeRagEval": "Оценка RAG",

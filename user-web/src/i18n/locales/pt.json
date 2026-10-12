@@ -305,6 +305,8 @@
     "backupEnhanced": "Backup avançado",
     "automationCenter": "Central de automação",
     "dynamicThreshold": "Limites dinâmicos",
+    "systemDictionaries": "Dicionário de negócio",
+    "systemFeatureFlags": "Feature flags",
     "ltcConfig": "Interruptor de operações LTC",
     "opsOverview": "Visão geral de operações",
     "knowledgeRagEval": "Avaliação RAG",

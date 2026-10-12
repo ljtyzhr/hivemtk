@@ -304,6 +304,8 @@
     "backupEnhanced": "备份高级版",
     "automationCenter": "自动化中心",
     "dynamicThreshold": "动态阈值参数",
+    "systemDictionaries": "业务字典",
+    "systemFeatureFlags": "功能开关",
     "ltcConfig": "LTC 运营开关",
     "opsOverview": "运维总览",
     "knowledgeRagEval": "RAG 评测",

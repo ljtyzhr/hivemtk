@@ -659,13 +659,19 @@ CI 触发面按 `check-ci-gate-paths.py` 的纪律登记：**门脚本本体 + �
 | G3 | `check-config-param-defaults.py` | 种子 `DefaultValue` 与代码 `Default<Key>` 导出常量比对，duration 两边折算成秒 | 可比常量 114 个 / **不一致 0** |
 | G4 | `check-hardcode-tunable.py` | 命名带 `Threshold/Limit/TTL/…` 的常量，既不在 `scripts/hardcode-tunable.baseline` 里、又**不是**任何 `Get*()` 的兜底实参 ⇒ 红 | 扫描 174 个常量声明 / **新增未入库 0** / 已作兜底 2 |
 | G5 | `check-config-param-keystyle.py` | key 匹配 `^[a-z][a-z0-9_]*$`、长度 ≤ 64、非 SQL 关键字；`(group,key)` 不重复；key 无连续重复词（`dedup_dedup_ttl`）；runtime 白名单组必须在种子里真实存在 | 217 条 / 35 组 / **违规 0 / 幽灵组 0** |
-| G6 | `check-i18n-coverage.py` | 三条棘轮 + 一条硬门，见下 | t() 918 键 / 覆盖率 19.39% / 9 语言齐整 |
+| G6 | `check-i18n-coverage.py` | 三条棘轮 + 一条硬门，见下 | t() 923 键 / 覆盖率 19.83% / 9 语言齐整 |
 
 **G6 的三条棘轮**（存量太高，卡全量会让 CI 永远红，等于没有门）：
 
-- `resolved_ratio` = 能解析到词条库的点分键 / 全部 `t()` 键，**不许跌**（19.39%）
+- `resolved_ratio` = 能解析到词条库的点分键 / 全部 `t()` 键，**不许跌**（19.83%）
 - `raw_t_calls` = 把中文字面量直接当 `t()` 键传入的去重条数，**不许增**（740）
-- `locale_orphans` = locales 里无人引用的词条数，**不许增**（1662 / 1840）
+- `locale_orphans` = locales 里无人引用的词条数，**不许增**（1455 / 1846）
+  - 口径：`menu.*` 里被后端菜单注册表（`user-server/internal/model/menu.go` 的
+    `var SystemMenuTree`，208 个 key）点名的词条**不计入**——它们的消费方是拼接键
+    `t('menu.' + key)`，静态 `t()` 扫描抓不到，但页面确实在用。注册表读不到或解析出
+    的 key 少于 20 个时本门直接 rc=2，不给"豁免集为空 ⇒ 全量放行"的假绿留位置。
+    注册表之外残留的 `menu.xxx` 死词条照旧计入孤儿（2026-10-12 反向实测：注入一条
+    `menu.menuNotInRegistry` 后 1455→1456，门红）。
 - 硬门：非基准语言词条数不得少于基准语言（9 种语言目前齐整）
 
 **四条与方案原文不符、已按实测改写的判据**：
@@ -758,6 +764,17 @@ CI 触发面按 `check-ci-gate-paths.py` 的纪律登记：**门脚本本体 + �
   `dictionaries` 走标准 `Model → Repository → Service → Controller → Router`。
 - 不引入新框架：不加 ORM 之外的依赖，不改 `config_params` 已有列语义，
   新增列全部可空并给默认值，**旧数据零迁移风险**。
+
+---
+
+## 10. 落地记录（按批次追加）
+
+每批参数/端点落地后在本节末尾追加一段记录，**小节编号沿用其所属阶段**（所以本节里会同时出现
+`3.1 第三批`、`4.1~4.3`、`阶段六` 这样的编号），不改动上方 §3/§4 的方案正文。
+每条记录给出「`group.key` → 代码点位 → 生效时机」，并写明装配路径已核实的那一段——
+这是与"僵尸参数"的区别所在。
+
+### 10.1 记录清单
 
 #### 3.1 第三批已落地（2026-10-10）：`sop` 组 6 条
 

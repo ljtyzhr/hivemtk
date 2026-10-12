@@ -20,8 +20,10 @@
        miss，vue-i18n 回落成 key 本身，于是"中文看起来正常、8 种语言全是中文"。
        它比不写 i18n 更坏：不写至少还能被扫描器数出来，写成 `t()` 之后
        扫描器的 TUNE/CN 分类仍会算它是文案，但人 review 时会以为"这页已国际化"。
-3. `zh.json` 1840 条里有 **1662 条没有任何 `t()` 引用**（90%）——词条库是批量
+3. `zh.json` 1846 条里有 **1455 条没有任何静态 `t()` 引用**——词条库是批量
    生成后与真实页面脱节了。这些是死重量，不是覆盖率问题，但同样会误导人。
+   其中 `menu.*` 那批不算：它们的消费方是拼接键 `t('menu.' + key)`（见
+   `backend_menu_keys`），静态扫描看不见但页面确实在用，按后端注册表逐条豁免。
 
 三条棘轮（rc=1）
 ----------------
@@ -29,7 +31,8 @@
                      不许低于基线。
   - `RAW_T_CALLS`     非点分 `t()` 调用的去重条数（当前 740）。不许增加——
                      新写的中文必须先进 locales 再按点分键引。
-  - `LOCALE_ORPHAN`   locales 里无人引用的词条数（当前 1662）。不许增加——
+  - `LOCALE_ORPHAN`   locales 里无人引用的词条数（当前 1455，口径见
+                     `backend_menu_keys`）。不许增加——
                      页面删了就别留词条，或者反过来：词条在库里却没引到页面，
                      说明页面在写死文案。
 
@@ -64,6 +67,8 @@ BASELINE_REL = Path("scripts") / "i18n-coverage-baseline.json"
 LOCALES_DIR = Path("user-web") / "src" / "i18n" / "locales"
 WEB_SRC = Path("user-web") / "src"
 GO_I18N_DIR = Path("user-server") / "internal" / "pkg" / "i18n"
+#: 后端菜单权威注册表（`var SystemMenuTree`）——`menu.*` 词条的真实消费方。
+GO_MENU_REL = Path("user-server") / "internal" / "model" / "menu.go"
 
 BASE_LOCALE = "zh"
 
@@ -105,6 +110,34 @@ def locale_keys(name: str) -> list[str]:
     except (OSError, json.JSONDecodeError) as e:
         fail(f"语言包解析失败 {name}.json: {e}")
     return leaf_keys(data)
+
+
+def backend_menu_keys() -> set[str]:
+    """后端菜单注册表里的 key，折算成它们在前端的真实词条键 `menu.<key>`。
+
+    为什么必须有这一步：菜单在 RBAC 改造后由 `GET /api/menus` 下发，标题渲染走
+    `t('menu.' + menu.key)`（user-web/src/layout/Layout.vue 与 SubMenuItem.vue）。
+    `T_CALL` 只能抓 `t('字面量')`，抓不到这种拼接形态，于是每一条**合法在用**的菜单
+    词条都被算成"无人引用"。后果不是数字难看：往菜单里加一项（后端注册表 + 9 个语言包
+    各补一条，完全正确的做法）会让 `locale_orphans` 净增、把棘轮判红。
+    2026-10-12 补 systemDictionaries / systemFeatureFlags 两条时实测：
+    换 HEAD 语言包 rc=0（1661），换上补齐后的语言包 rc=1（1663）——门在惩罚做对的人。
+
+    只豁免注册表点名的那些键：语言包里一条 `menu.xxx` 若不在注册表里，它照旧算孤儿。
+    这样"菜单摘掉了但词条留着"仍会被数到，豁免不是把整个 menu 命名空间放行。
+    注册表读不到时直接红：宁可门停摆，也不要"豁免集为空 ⇒ 全量放行"的假绿。
+    """
+    p = REPO_ROOT / GO_MENU_REL
+    if not p.is_file():
+        fail(f"后端菜单注册表缺失: {p}")
+    src = p.read_text(encoding="utf-8", errors="replace")
+    block = re.search(r"var\s+SystemMenuTree\s*=\s*\[\]SystemMenuNode\{([\s\S]*?)\n\}", src)
+    if not block:
+        fail(f"{p} 里找不到 var SystemMenuTree——豁免集无法确定，本门不能空跑")
+    keys = set(re.findall(r'Key:\s*"([A-Za-z0-9_]+)"', block.group(1)))
+    if len(keys) < 20:
+        fail(f"{p} 只解析出 {len(keys)} 个菜单 key，疑似解析失效")
+    return {f"menu.{k}" for k in keys}
 
 
 def collect_t_call_keys() -> set[str]:
@@ -168,7 +201,7 @@ def main() -> int:
     resolved = dotted & base_keys
     resolved_ratio = round(len(resolved) * 100.0 / len(t_keys), 2) if t_keys else 0.0
 
-    orphan_locale = sorted(base_keys - dotted)
+    orphan_locale = sorted(base_keys - dotted - backend_menu_keys())
     missing_locale = sorted(
         lc for lc in locales if lc != BASE_LOCALE and len(keys_per_locale[lc]) < len(base_keys))
 

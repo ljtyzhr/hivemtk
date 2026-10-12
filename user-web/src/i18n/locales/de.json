@@ -305,6 +305,8 @@
     "backupEnhanced": "Erweiterte Sicherung",
     "automationCenter": "Automatisierungs-Hub",
     "dynamicThreshold": "Dynamische Schwellenwerte",
+    "systemDictionaries": "Fachwörterbuch",
+    "systemFeatureFlags": "Feature Flags",
     "ltcConfig": "LTC-Betriebsschalter",
     "opsOverview": "Betriebsübersicht",
     "knowledgeRagEval": "RAG-Bewertung",
