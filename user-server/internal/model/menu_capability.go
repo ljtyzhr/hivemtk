@@ -37,7 +37,7 @@ func buildCapabilityIndex() capabilityIndex {
 			continue
 		}
 		idx.byFirstSegment[segs[0]] = append(idx.byFirstSegment[segs[0]],
-			CapabilityOwner{Pattern: c.Pattern, MenuKeys: c.MenuKeys})
+			CapabilityOwner(c))
 	}
 	return idx
 }

@@ -162,7 +162,7 @@ func MatchAdminOnlyPattern(pattern, path string) bool {
 func AdminOnlyRoutePatterns() [][2][]string {
 	out := make([][2][]string, 0, len(adminOnlyRoutes))
 	for _, r := range adminOnlyRoutes {
-		out = append(out, [2][]string{r.Methods, []string{r.Pattern}})
+		out = append(out, [2][]string{r.Methods, {r.Pattern}})
 	}
 	return out
 }
