@@ -155,7 +155,7 @@ function attachWriteTracker(page) {
       if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method) && res.status() < 400 && res.url().includes('/api/')) {
         writeApiCalls.push({ method, status: res.status(), url: res.url().replace(BASE_URL, ''), ts: Date.now() });
       }
-    } catch {}
+    } catch { /* 个别响应取不到 request()，这条写操作记录放弃 */ }
   };
   page.on('response', fn);
   return fn;
@@ -754,7 +754,7 @@ async function safeClose(browser) {
       browser.close(),
       new Promise((_, rj) => setTimeout(() => rj(new Error('close timeout')), 3000)),
     ]);
-  } catch {}
+  } catch { /* 3s 内关不掉就当它已关，调用方不读关闭结果 */ }
 }
 
 async function main() {
@@ -785,9 +785,9 @@ async function main() {
       // 超时/崩溃：截图 → 重启恢复 → 重试一次
       const err = e.message.substring(0, 120);
       try {
-        const shot = path.join(SHOT_DIR, `${BATCH}-${route.replace(/[\/:]/g, '_')}-crash.png`);
-        await page.screenshot({ path: shot, timeout: 3000 }).catch(() => {});
-      } catch {}
+        const shot = path.join(SHOT_DIR, `${BATCH}-${route.replace(/[/:]/g, '_')}-crash.png`);
+        await page.screenshot({ path: shot, timeout: 3000 }).catch(() => { /* 页已经崩了，截不到就算了 */ });
+      } catch { /* 截图路径本身算不出来时不阻断重试 */ }
       await safeClose(browser);
       await new Promise(r2 => setTimeout(r2, 500));
       try {
@@ -809,10 +809,10 @@ async function main() {
     // 失败路由截图
     if (r.status !== 'ok') {
       try {
-        const shot = path.join(SHOT_DIR, `${BATCH}-${route.replace(/[\/:]/g, '_')}-${r.status}.png`);
-        await page.screenshot({ path: shot, timeout: 3000 }).catch(() => {});
+        const shot = path.join(SHOT_DIR, `${BATCH}-${route.replace(/[/:]/g, '_')}-${r.status}.png`);
+        await page.screenshot({ path: shot, timeout: 3000 }).catch(() => { /* 截图失败不改变这条路由的判定 */ });
         r.screenshot = shot;
-      } catch {}
+      } catch { /* 文件名算不出来就跳过截图 */ }
     }
     await page.waitForTimeout(500);
   }

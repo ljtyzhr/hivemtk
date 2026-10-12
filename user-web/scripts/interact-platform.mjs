@@ -34,7 +34,7 @@ async function login(page) {
 async function interactRoute(page, route, apiErrs, conErrs) {
   apiErrs.length = 0; conErrs.length = 0;
   // 先跳 about:blank 清理上一路由可能残留的 SSE/定时器
-  try { await page.goto('about:blank', { timeout: 5000 }); } catch {}
+  try { await page.goto('about:blank', { timeout: 5000 }); } catch { /* 上一页面可能已关，清不掉就继续 */ }
   await page.waitForTimeout(300);
   await page.goto(BASE + '#/' + route.replace(/^\//, ''), { waitUntil: 'domcontentloaded', timeout: 20000 });
   await page.waitForTimeout(2500);
@@ -64,7 +64,7 @@ async function interactRoute(page, route, apiErrs, conErrs) {
         await page.waitForTimeout(1500);
         break;
       }
-    } catch {}
+    } catch { /* 单个按钮点不动不影响其余，继续下一个 */ }
   }
 
   // 填写输入框（跳过密码/搜索）
@@ -75,25 +75,25 @@ async function interactRoute(page, route, apiErrs, conErrs) {
       if (/密码|password|搜索|search/i.test(ph)) continue;
       await inp.fill('测试');
       await page.waitForTimeout(100);
-    } catch {}
+    } catch { /* 只读/受控输入框填不进，跳过 */ }
   }
 
   // 点击el-tabs
   const tabs = await page.$$('.el-tabs__item:visible');
   for (const t of tabs.slice(0, 4)) {
-    try { await t.click({ timeout: 1500 }); await page.waitForTimeout(500); } catch {}
+    try { await t.click({ timeout: 1500 }); await page.waitForTimeout(500); } catch { /* 切不动的 tab 不算页面缺陷 */ }
   }
 
   // 点击el-switch
   const switches = await page.$$('.el-switch:visible');
   for (const sw of switches.slice(0, 3)) {
-    try { await sw.click({ timeout: 1500 }); await page.waitForTimeout(400); } catch {}
+    try { await sw.click({ timeout: 1500 }); await page.waitForTimeout(400); } catch { /* 禁用的开关点不动 */ }
   }
 
   // 点击分页
   const pagerNums = await page.$$('.el-pagination .el-pager li:visible');
   if (pagerNums.length > 1) {
-    try { await pagerNums[1].click({ timeout: 1000 }); await page.waitForTimeout(500); } catch {}
+    try { await pagerNums[1].click({ timeout: 1000 }); await page.waitForTimeout(500); } catch { /* 只有一页时分页项会消失 */ }
   }
 
   const pageErrs = conErrs.filter(e => !/favicon|Download the Vue Devtools|Failed to load resource|登录失败/i.test(e));
@@ -122,7 +122,7 @@ for (let i = 0; i < routes.length; i++) {
   if (skip.includes(i)) continue;
   // 每6路由强制重启browser，清理SSE/内存累积（heartbeat/monitoring的EventSource会拖垮后续page）
   if (i > 0 && i % 6 === 0) {
-    try { await Promise.race([browser.close(), new Promise((_, rj) => setTimeout(() => rj(new Error('close timeout')), 3000))]); } catch {}
+    try { await Promise.race([browser.close(), new Promise((_, rj) => setTimeout(() => rj(new Error('close timeout')), 3000))]); } catch { /* 关不掉就走下面的重新登录 */ }
     await new Promise(r => setTimeout(r, 500));
     ({ browser, ctx, page, apiErrs, conErrs } = await launchAndLogin());
     console.log('  [browser restarted for memory/SSE cleanup]');
@@ -138,8 +138,8 @@ for (let i = 0; i < routes.length; i++) {
     } catch (e) {
       console.log(`  ${route.padEnd(45)} ${attempt === 0 ? 'CRASH' : 'FAIL'}: ${e.message.substring(0, 100)}`);
       // 重启整个 browser（close 带超时防挂起）
-      try { await Promise.race([browser.close(), new Promise((_, rj) => setTimeout(() => rj(new Error('close timeout')), 3000))]); } catch {}
-      try { execSync('pkill -9 -f "playwright_chromium" 2>/dev/null || true', { timeout: 1500, shell: '/bin/bash' }); } catch {}
+      try { await Promise.race([browser.close(), new Promise((_, rj) => setTimeout(() => rj(new Error('close timeout')), 3000))]); } catch { /* 关不掉的残骸由下一行 pkill 收走 */ }
+      try { execSync('pkill -9 -f "playwright_chromium" 2>/dev/null || true', { timeout: 1500, shell: '/bin/bash' }); } catch { /* 命令自带 || true，这里只兜 execSync 超时 */ }
       await new Promise(r => setTimeout(r, 500));
       try {
         ({ browser, ctx, page, apiErrs, conErrs } = await launchAndLogin());

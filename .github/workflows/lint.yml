@@ -52,10 +52,14 @@ jobs:
 
   # 主应用 lint：阻断项为「error」。此处刻意不加 --max-warnings——历史告警债务不阻断，
   # 但任何新增 error（含 default 导入、未定义变量等）都会让 job 失败。
-  # 读数只认 CI：本 job 的 eslint 汇总行在 run 35769669195 印的是
-  # `18738 problems (2 errors, 18736 warnings)`。那 2 条 error 在 HEAD 上
-  # （browser_automation/src/core/cdp/input.js 的 preserve-caught-error、
-  # primitives.js 的 no-useless-assignment），修法在另一条泳道的未提交字节里。
+  # 读数只认 CI：本 job 的 eslint 汇总行在 run 38209524973 印的是
+  # `19517 problems (15 errors, 19502 warnings)`。那 15 条 error 全在
+  # user-web/scripts/interact-human.mjs 与 interact-platform.mjs——13 条 no-empty
+  # （`catch {}` / `.catch(() => {})` 空块）+ 2 条 no-useless-escape
+  # （字符类里的 `[\/:]`，那个反斜杠是多余的）。自 22526b8b 起连着 7 次推送把本 job
+  # 判红，直到 2026-10-12 补齐：空块逐处写明"为什么这里可以吞"（no-empty 认注释），
+  # 两处正则去掉转义——现测同一棵树 0 errors，`[\/:]` 与 `[/:]` 对 6 条路由样本
+  # 的替换结果逐字相同，截图文件名不受影响。
   # 别拿本地数对账：`npm run lint` 带 --fix 会当场改写文件，只读的是 lint:check。
   eslint-user-web:
     name: ESLint (user-web 主应用)
