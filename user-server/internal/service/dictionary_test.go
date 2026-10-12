@@ -177,8 +177,8 @@ func TestListParentsMergesDBAndSeed(t *testing.T) {
 		t.Fatalf("want %v, got %v", want, got)
 	}
 	for i := range want {
-		if got[i] != want[i] {
-			t.Errorf("[%d] want %s, got %s", i, want[i], got[i])
+		if got[i].Code != want[i] {
+			t.Errorf("[%d] want %s, got %s", i, want[i], got[i].Code)
 		}
 	}
 }

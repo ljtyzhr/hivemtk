@@ -80,29 +80,63 @@ func (s *DictionaryService) GetDictionary(ctx context.Context, parent string) ([
 	return items, trans, nil
 }
 
-// ListParents 管理端目录。DB 与种子的并集（去重排序）。
-func (s *DictionaryService) ListParents(ctx context.Context) ([]string, error) {
+// DictionaryParent 管理端侧栏的一个字典域。
+//
+// 为什么不让 ListParents 继续返回 []string：那样管理端只能显示
+// approval_status / payment_status 这种英文 key，既不像给人看的，也无法说明
+// 这一域管什么。域这一层的中文名与说明是真实存在的信息，不该让前端再硬编码一份
+// （config_param_groups 就是因为前端硬编码 GROUP_LABELS 才出的问题）。
+type DictionaryParent struct {
+	Code        string `json:"code"`
+	Label       string `json:"label"`
+	Description string `json:"description"`
+	// ItemCount 是这一域的项数（含已停用项）：停用项不参与新写入，但存量行仍可能是它，
+	// 所以侧栏徽标必须把它算进去，否则用户会以为某状态不存在。
+	ItemCount int `json:"item_count"`
+	// Seeded 标记该域的元数据来自代码种子。运营改了 label 也不会覆盖种子
+	// （DomainMeta 不落库），这里只用于在 UI 上说明"名称由代码定义"。
+	Seeded bool `json:"seeded"`
+}
+
+// ListParents 管理端目录。DB 与种子的并集（去重排序），带域级中文名。
+func (s *DictionaryService) ListParents(ctx context.Context) ([]DictionaryParent, error) {
 	dbParents, err := s.repo.ListParents(ctx)
 	if err != nil {
 		return nil, err
 	}
 	seen := make(map[string]struct{}, len(dbParents)+len(dictionarySeedIndex))
-	out := make([]string, 0, len(dbParents)+len(dictionarySeedIndex))
-	for _, p := range dbParents {
-		if _, dup := seen[p]; dup {
-			continue
+	out := make([]DictionaryParent, 0, len(dbParents)+len(dictionarySeedIndex))
+	appendParent := func(code string) {
+		if _, dup := seen[code]; dup {
+			return
 		}
-		seen[p] = struct{}{}
+		seen[code] = struct{}{}
+		seed, hasSeed := dictionarySeedIndex[code]
+		p := DictionaryParent{Code: code, Label: code, Seeded: hasSeed}
+		if hasSeed {
+			if seed.label != "" {
+				p.Label = seed.label
+			}
+			p.Description = seed.description
+		}
 		out = append(out, p)
+	}
+	for _, p := range dbParents {
+		appendParent(p)
 	}
 	for p := range dictionarySeedIndex {
-		if _, dup := seen[p]; dup {
+		appendParent(p)
+	}
+	// 计数从「真实读到的那一份」数：DB 有就用 DB 的（运营可能加过项），
+	// 否则用种子的项数。与 GetDictionary 的回落口径一致。
+	for i := range out {
+		items, _, err := s.GetDictionary(ctx, out[i].Code)
+		if err != nil {
 			continue
 		}
-		seen[p] = struct{}{}
-		out = append(out, p)
+		out[i].ItemCount = len(items)
 	}
-	sort.Strings(out)
+	sort.Slice(out, func(a, b int) bool { return out[a].Code < out[b].Code })
 	return out, nil
 }
 

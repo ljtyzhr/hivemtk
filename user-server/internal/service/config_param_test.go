@@ -71,17 +71,22 @@ func TestConfigParamUpdateResetAudit(t *testing.T) {
 	svc := NewConfigParamService(gdb)
 	ctx := context.Background()
 
-	if err := svc.UpdateValue(ctx, "bridge", "polling_default_timeout", "60", 1); err != nil {
+	// 样本参数从 bridge.polling_default_timeout 换成 bridge.online_grace_window：
+	// 前者已于 2026-10-12 下架（服务端没有长轮询实现，见 seeds 的 DeprecatedReason），
+	// 而写入已下架参数会被 ErrParamDeprecated 拒掉——那正是下架护栏在起作用，
+	// 但它不该让这条「更新/重置/审计」的基线用例失去样本。默认值仍是 30s，
+	// 所以下面两条断言的期望值一字未改。
+	if err := svc.UpdateValue(ctx, "bridge", "online_grace_window", "60", 1); err != nil {
 		t.Fatalf("Update: %v", err)
 	}
-	if v := svc.GetDuration(ctx, "bridge", "polling_default_timeout", 0); v != 60*time.Second {
+	if v := svc.GetDuration(ctx, "bridge", "online_grace_window", 0); v != 60*time.Second {
 		t.Errorf("after update = %v, want 60s", v)
 	}
 
-	if err := svc.ResetToDefault(ctx, "bridge", "polling_default_timeout", 1); err != nil {
+	if err := svc.ResetToDefault(ctx, "bridge", "online_grace_window", 1); err != nil {
 		t.Fatalf("ResetToDefault: %v", err)
 	}
-	if v := svc.GetDuration(ctx, "bridge", "polling_default_timeout", 0); v != 30*time.Second {
+	if v := svc.GetDuration(ctx, "bridge", "online_grace_window", 0); v != 30*time.Second {
 		t.Errorf("after reset = %v, want 30s", v)
 	}
 

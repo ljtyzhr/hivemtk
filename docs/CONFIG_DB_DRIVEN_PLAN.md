@@ -1053,3 +1053,178 @@ ConfigParams 路由一直标了 `requiresAdmin: true`，两端口径不一致，
 `router`(15.952s) / `repository`(90.585s) / `migration/...` **全绿**。
 前端 `vitest run` **54 文件 590 例全绿**（新增 `tests/unit/dictionaryStore.test.js` 8 例）。
 门禁读数不变（`wired 198`，rc=0）——本批不新增 config_params 键。
+
+---
+
+#### 阶段六已落地（2026-10-11）——清零最后一类债务：11 条僵尸旋钮**下架** + 配置页重做 + 字典管理页
+
+上一阶段收尾时，`HARDCODE_INVENTORY` §7.2 记着 11 条「已声明未接线」，当时的结论是
+「8 条要动死代码与路由、3 条要动产品决策，没有一条是再花半小时接线能解决的」。
+这一阶段把那个结论兑现了——**不是把 11 条接上，而是把 11 条下架**。
+
+##### 6.1 为什么是「下架」而不是继续挂着标注
+
+前 11 个阶段里，「未接线」这个状态一直是个**过渡态**：条目知道自己没接线，
+`Name` 上挂「（未接线）」、`Description` 上挂「【当前不生效，改了也没人读】」，
+门禁认它为「已声明未接线」并放过。但过渡态放着不收，最终就是永久态——
+页面上永远挂着 11 个改了不生效的旋钮，用户改完排查半天，日志里连一条
+「这个旋钮根本没接线」的记录都不会有（因为请求确实成功返回了 code=0）。
+
+下架（`deprecated=true`）是**终态**：它承认「这个旋钮不对外存在了」，
+并且必须写清为什么下线、将来要接回来得先做什么。于是：
+
+| 处置 | 从管理台 | 从读路径 | 门禁 |
+|---|---|---|---|
+| 未接线（过渡） | 可见可编辑，改了不生效 | 读不到 | 第五类之一 |
+| 已下架（终态） | **默认不可见**，带开关才显示且禁用编辑 | 仍可读 | 新增 `已下架` 计数 + `接上了却没摘下架标记` 判红 |
+
+读路径**刻意保留**读取能力这一点值得单说：`ConfigParamService` 内部缓存加载
+（`getString` 里的 `ListByGroup(ctx, group, true)`）传的是 `true`，
+管理端 `List` 传的是查询参数默认 `false`。两者口径故意相反——
+管理端不该给用户看改了不生效的旋钮，但代码侧必须能读到它，
+否则「有人重新接线却忘了摘下架标记」会退化成最隐蔽的那种故障：
+每次读都 miss、每次静默回落兜底值，而页面上那个旋钮写着「可配置」。
+
+写入侧同步收口：`UpdateValue` / `ResetToDefault` 遇已下架直接返回
+`ErrParamDeprecated`，**不做「静默成功」**。理由：API 收下改动 + 审计表留下一条
+`update` 记录 + 用户在页面上看到「保存成功」，然后发现行为没变——这三件事叠加起来
+比直接报错糟糕得多，它把一个五秒钟能发现的错误变成一个查不出根因的错误。
+`BulkResetGroup` 则是**跳过**而非整组失败，因为整组重置的语义是「这组回到出厂」，
+一条下架项让全组失败对用户毫无意义。
+
+##### 6.2 顺手删掉的死代码（不是顺手清理）
+
+下架 11 条的同时删掉了三段**只被测试引用**的生产常量：
+`internal/bridge/handler_http.go` 的 `HTTPPollingMaxTimeout` / `HTTPPollingDefaultTimeout`
+（服务端没有长轮询实现）、`internal/bridge/bridge_helpers.go` 的 `maxReplyContentBytes`
+（自带 `//nolint:unused`）。删它们不是洁癖：这两个常量的存在本身，
+就是在证明「有个旋钮改了不生效」这件事还有代码在维护它。
+连带重写了 `defaults_test.go`、删了 `handler_http_test.go` 里两个只测它们的用例。
+
+##### 6.3 三组新字段：`Unit` / `Risk` / 组元数据
+
+217 条参数此前只有 12 个定义列，UI 能显示的只有 key/name/description/类型/值/范围。
+「用户能不能配得友好」卡在三处，全部需要后端先有数据：
+
+- **`Unit`（95 条）**：只给「填这个数字时用户怎么理解」用。`duration` 和 `bool`
+  一律不填——前者的单位恒为秒、后者的单位根本不存在，UI 自己知道，
+  填了是噪声。像 `top_k`、`max_concurrent` 这类「数出来的东西」也不填。
+- **`Risk`（52 条，闭集 `""` / `warning` / `danger`）**：`danger` 34 条全是
+  「填错会直接挂」的（锁 TTL、上传上限、body 上限、队列容量、并发闸）；
+  `warning` 18 条是「不会挂但会静默改业务语义」的（自动回复开关、评分阈值）。
+  用字符串而不是 bool 存，是因为空串本身就有意义（「普通」），
+  用 bool 表达三态要么多一列要么让 false 同时表示「普通」和「未标注」。
+- **`config_param_groups` 新表**：35 组的**中文名、说明、排序**。
+  此前 29 组中文名硬编码在前端 `GROUP_LABELS` 里——那正是「新增一个组没人知道叫什么」
+  的根因。组元数据独立成表而不是加列在参数上，有三个理由：
+  ① 35 组 × 几十条参数会让同一个中文标签重复几百遍；
+  ② 排序是**组级属性**，参数表里没有位置；
+  ③ 组说明挂在单条参数上错位（「本组控制所有锁的超时时长」不是任何一条参数的说明）。
+  建表走 `RegisterExtraModels`（AutoMigrate）而**不写自建表 migration**——
+  阶段四已经在字典表上踩过这个坑：`TestFullMigrationChainUpThenRollback`
+  的「Down 不删不属于它的表/索引/列」规则会把自建表迁移判红。
+
+**组元数据的 seed 与参数 seed 解耦成两个入口**这件事也是被测试逼出来的：
+`seedParamGroups` 原本挂在 `SeedConfigParams` 尾部，导致 **27 个只声明
+`&model.ConfigParam{}` 的测试 fixture 全部撞 `relation "config_param_groups" does not exist`**。
+拆成独立的 `service.SeedParamGroups(ctx, db)` 之后，两个入口天然表达了
+「哪张表和哪张表绑着」这条知识。拆分的判据是**失败后果不同级**：
+参数值没进库 ⇒ 管理台看不到、代码读兜底值，行为与声明不一致，必须冒泡；
+组元数据没进库 ⇒ 侧栏那列回落英文 group key，纯外观降级，
+所以 `main.go` 里它只 `logger.Errorf` 不阻断启动。
+
+`ListGroups` 的排序有个坑：原来的 `Order("sort_order")` 会把
+`sort_order = 0`（哨兵值，意为「没排过序」）顶到**最前**，
+于是每加一个新组，侧栏顺序就在两次发布之间悄悄变。
+改成 `Order("(sort_order = 0)").Order("sort_order").Order("param_group")`——
+Postgres 布尔序 false<true，天然把排过序的排在没排的最后。
+
+##### 6.4 门禁加第五类「已下架」
+
+`check-config-param-readpoints.py` 的 `parse_entries` 返回值从 4 元组扩到 6 元组，
+主分类从四类扩成**五类互斥**：`deprecated` 先于其他判据分诊——
+「不再对外承诺」不属于「接线做得好不好」。两条新判红：
+
+- **RETIRED_BUT_WIRED**：已下架却接上了。后果是管理端 `List` 默认过滤掉它，
+  运维看不见也改不了，但参数被改过、行为跟着变，却找不到在哪改的。
+- **DEPRECATED_NO_REASON**：只有「已下架」标签，没有理由。
+  用户既不知道为什么，也没有办法知道将来怎么接回来——这跟没标注是一个问题。
+
+**下架与未接线的分工**：未接线是过渡态（承认「现在改了不生效」），
+下架是终态（承认「这个旋钮不对外存在了」）。两者都留着就是债。
+本阶段把 11 条从过渡态推到终态，`已声明未接线` 归零。
+
+##### 6.5 配置页重做：`ConfigParams.vue`
+
+| 原缺口 | 现在 |
+|---|---|
+| 11 条僵尸旋钮看不出来 | 「显示已下架」开关（默认关）+ 行底色变红 + 徽标 + tooltip 给出**下架原因与时间** + 编辑/重置按钮禁用 |
+| 29 组中文名硬编码在前端 | 删掉 `GROUP_LABELS`，改读 `GET /manage/config-params/groups`，按 `sort_order` 排（`0` 排末尾）；后端没给元数据时回落英文 key 而不崩 |
+| duration 一律显示「N 秒」 | `formatDuration()`：60~3600 整除才升「分钟」，<86400 整除才升「小时」，≥86400 显示「N 天 M 小时」。**只在整除时升单位**——90 秒显示「1.5 分钟」不如「90 秒」 |
+| 无 `Unit` / `Risk` / `Restart` 提示 | 单位后缀（duration/bool 不挂）、名称列挂「高危」「敏感」「需重启」徽标、编辑框内按四档给不同的 alert |
+| 高危参数无警示 | `risk === 'danger'` 保存走 `ElMessageBox.confirm`（`type:'error'`，文案列出当前值与将改为的值），保存按钮改 danger 色 |
+| 编辑框内无法恢复默认 | footer 加「恢复默认值」，调 reset 接口并把表单填成默认值，同时提示「记得点保存提交」 |
+| 搜索仅组内 | 加 `searchScope`（本组 / 全部组）。**无搜索词时永远只看当前组**（左侧分组栏是主导航），输入搜索词后才按 scope 搜；跨组时表格自动多一列「分组」 |
+| 状态标记漏进界面 | `stripSuffix()` 剥掉 Name 里的「（未接线）/（已下架）/（只读）」与 Description 里的「【…】」前缀——那是给扫描器和审计看的 |
+
+还有三处**判断**值得记下来：
+
+1. **JSON 识别不按 `value_type` 白名单**。4 条 `string` 参数里有 3 条实际装的是
+   JSON blob 但类型写的是 `string`，只认 `json` 类型会让它们退化成单行输入框。
+   改成：`type == json` **或** key 以 `_json` 结尾 **或** default/value 以 `{`/`[` 开头
+   ⇒ 走 textarea + `JSON.parse` 语法校验 + 「格式化 JSON」按钮。
+2. **零值拦截按 key 语义分档**。int 一律拦 0；duration 只拦 key 匹配
+   `/ttl|buffer|size|cap|limit|timeout/i` 的——因为 duration 的 0 到底是「零秒」
+   还是「永不过期」取决于读取侧有没有回落兜底，前端不可能知道，
+   但对明显是上限/超时的旋钮拦下来，比事后排查便宜。
+3. **前端兜底过滤是有意的冗余**。后端 `List` 默认过滤 `deprecated=true`，
+   前端又加了一层 `visibleParams` computed。看起来重复，但这一页**唯一不能出的错**
+   就是「页面挂着改了不生效的旋钮」——而那种错会同时留下一条 `update` 审计记录，
+   是所有配置故障里最难排查的一种。前端过滤是最后一道防线，
+   哪怕后端哪天回归了这道防线还在。
+
+统计卡第 4 张从「只读参数」改成「高危参数」（danger 计数）；
+侧栏每组的重置徽标改为排除已下架项（后端 `BulkResetGroup` 会跳过它们，
+报一个含它们的条数是骗人）。
+
+##### 6.6 字典管理页：`DictionaryManager.vue`
+
+阶段四建好了字典的完整五层与 CRUD 端点，但**前端一个视图都没有**——
+只有 `src/api/runtimeConfig.js` 里的 `dictionary(parent)` 与 `dictionariesApi`。
+这一阶段补上管理页 `/system/dictionaries`：
+
+- 左侧字典域列表：中文 label + 英文 `code` + 「代码种子」标签 + 项数徽标。
+  为此给 `DictionaryService.ListParents` 的返回类型从 `[]string` 改成
+  `[]DictionaryParent`（含 `Label` / `Description` / `ItemCount` / `Seeded`）。
+  **为什么不让它继续返回 `[]string`**：管理端只能显示英文 key，
+  前端就会再硬编码一份中文映射——`config_param_groups` 正是这么出问题的，
+  不想同一个坑踩第二次。`Seeded` 标出来是为了让运维知道哪些域还有代码种子兜底。
+- 右侧上块「字典项」：Code / 名称 / 说明 / 排序 / 状态 / 操作。
+  `system_locked` 的项带「锁定」标签与 tooltip：
+  「代码常量是权威的一侧，改名会让两侧分叉」——这正是字典表存在的理由，
+  所以锁的语义必须在界面上说清楚。
+- 右侧下块「状态跃迁」：`from_code`/`to_code` 用 items 建 code→中文名映射补上，
+  否则运营盯着两个英文 code 看不出这是「待审批 → 已批准」。这一格是整个字典管理页
+  最有价值的部分——状态机才是业务方真正想维护的东西，字典项本身反倒是配角。
+- 「新增字典项」对话框：code 必须匹配 `/^[a-z][a-z0-9_]*$/`（与后端 G5 键规范门同源），
+  `system_locked` 项禁改 code。说明文字讲清「停用而不是删除，因为历史行还躺着这个值」。
+- 「替换状态跃迁」对话框：`ReplaceTransitions` 是**整体替换**语义
+  （先清空再写入），所以 el-alert 里明写这一点，且提交前必须 `ElMessageBox` 确认；
+  空行与「起点=终点」都在前端拦下并给出行内错误——因为整体替换漏掉一条
+  会在下次提交时被静默抹掉，用户根本不会发现。
+
+##### 6.7 顺带修掉的既有红灯
+
+`TestConfigParamUpdateResetAudit` 拿 `bridge.polling_default_timeout` 做样本，
+而那条已下架 → 被新的 `ErrParamDeprecated` 护栏拒了。护栏在正确工作，
+但基线用例不该因此失去样本，换成 `bridge.online_grace_window`
+（默认仍是 30s，两条断言的期望值一字未改）。
+
+##### 6.8 验证
+
+门禁五道全 rc=0，`已声明未接线` 从 11 归零、`UNDECLARED` 仍 0、`STALE` 仍 0、
+`RETIRED_BUT_WIRED` 0。前端 `vitest run` **56 文件 605 例全绿**
+（新增 `configParams_render.test.js` 8 例 + `dictionaryManager_render.test.js` 7 例），
+`vite build` 通过，`eslint` 0 errors。后端在干净 worktree 上
+gofmt / build / vet 全过，`internal/{service,app,controller,router,repository,model,bridge,pkg/db}`
+全包测试绿。

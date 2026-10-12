@@ -42,14 +42,24 @@
               {{ t('role.memberCount') }}:
               <strong>{{ role.member_count }}</strong>
             </span>
-            <el-button
-              type="primary"
-              link
-              :disabled="role.member_count === 0"
-              @click="openMembersDialog(role)"
-            >
-              {{ t('role.viewMembers') }}
-            </el-button>
+            <span class="role-actions">
+              <el-button
+                type="primary"
+                link
+                :disabled="role.member_count === 0"
+                @click="openMembersDialog(role)"
+              >
+                {{ t('role.viewMembers') }}
+              </el-button>
+              <el-button
+                v-if="role.code !== 'admin'"
+                type="primary"
+                link
+                @click="openMenuDialog(role)"
+              >
+                {{ t('role.assignMenus', '分配菜单权限') }}
+              </el-button>
+            </span>
           </div>
         </el-card>
       </el-col>
@@ -110,15 +120,61 @@
         style="margin-top: 12px; text-align: right"
       />
     </el-dialog>
+
+    <!-- 分配菜单权限对话框 -->
+    <el-dialog
+      v-model="menuDialogVisible"
+      :title="menuDialogTitle"
+      width="560px"
+      :close-on-click-modal="false"
+    >
+      <el-alert
+        v-if="menuRole && menuRole.code !== 'admin'"
+        type="info"
+        :closable="false"
+        show-icon
+        style="margin-bottom: 12px"
+        :description="t('role.menuAssignHint', '勾选该角色可访问的菜单；超管始终拥有全部菜单，无需分配。')"
+      />
+      <el-input
+        v-model="menuFilterText"
+        :placeholder="t('role.filterMenus', '搜索菜单')"
+        clearable
+        style="margin-bottom: 12px"
+      />
+      <el-tree
+        ref="menuTreeRef"
+        :data="menuTree"
+        :props="{ label: 'title', children: 'children' }"
+        node-key="key"
+        show-checkbox
+        default-expand-all
+        :filter-node-method="filterMenuNode"
+        :check-strictly="false"
+        style="max-height: 420px; overflow: auto"
+      />
+      <template #footer>
+        <el-button @click="menuDialogVisible = false">{{ t('common.cancel', '取消') }}</el-button>
+        <el-button
+          type="primary"
+          :loading="menuSaving"
+          :disabled="!menuRole || menuRole.code === 'admin'"
+          @click="saveRoleMenus"
+        >
+          {{ t('common.save', '保存') }}
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, computed, onMounted, watch } from 'vue'
 import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { Lock, User } from '@element-plus/icons-vue'
 import { listRoles, listRoleMembers } from '@/api/role'
+import { getAllMenus, getRoleMenuKeys, updateRoleMenuKeys } from '@/api/menu'
 import PageState from '@/components/PageState.vue'
 
 const { t } = useI18n()
@@ -134,6 +190,27 @@ const membersLoading = ref(false)
 const currentRole = ref(null)
 const members = ref([])
 const membersPagination = ref({ page: 1, size: 20, total: 0 })
+
+// 菜单权限弹窗
+const menuDialogVisible = ref(false)
+const menuRole = ref(null)
+const menuTree = ref([])
+const menuTreeRef = ref(null)
+const menuSaving = ref(false)
+const menuFilterText = ref('')
+
+const menuDialogTitle = computed(() =>
+  menuRole.value ? `${menuRole.value.name} - ${t('role.assignMenus', '分配菜单权限')}` : ''
+)
+
+watch(menuFilterText, (val) => {
+  menuTreeRef.value?.filter(val)
+})
+
+function filterMenuNode(value, data) {
+  if (!value) return true
+  return (data.title || '').includes(value) || (data.key || '').includes(value)
+}
 
 // 加载角色列表
 async function loadRoles() {
@@ -192,6 +269,49 @@ function onMembersSizeChange(size) {
 function onMembersCurrentChange(page) {
   membersPagination.value.page = page
   loadMembers()
+}
+
+// 打开菜单权限分配弹窗（超管不可分配）
+async function openMenuDialog(role) {
+  if (role.code === 'admin') {
+    ElMessage.info(t('role.adminFullMenus', '超管拥有全部菜单权限，无需分配'))
+    return
+  }
+  menuRole.value = role
+  menuDialogVisible.value = true
+  menuFilterText.value = ''
+  try {
+    const [treeRes, keysRes] = await Promise.all([getAllMenus(), getRoleMenuKeys(role.code)])
+    menuTree.value = treeRes?.tree || treeRes?.data?.tree || []
+    const checked = keysRes?.menu_keys || keysRes?.data?.menu_keys || []
+    // 渲染完成后回填勾选状态
+    setTimeout(() => {
+      menuTreeRef.value?.setCheckedKeys(checked)
+    }, 0)
+  } catch (e) {
+    ElMessage.error(e?.message || t('common.operationFailed'))
+    menuDialogVisible.value = false
+  }
+}
+
+// 保存：勾选 + 半选父节点一并提交（后端按 key 集合覆盖）
+async function saveRoleMenus() {
+  if (!menuRole.value) return
+  const treeRef = menuTreeRef.value
+  if (!treeRef) return
+  const checked = treeRef.getCheckedKeys()
+  const halfChecked = treeRef.getHalfCheckedKeys()
+  const menuKeys = [...new Set([...checked, ...halfChecked])]
+  menuSaving.value = true
+  try {
+    await updateRoleMenuKeys(menuRole.value.code, menuKeys)
+    ElMessage.success(t('common.operationSuccess', '保存成功'))
+    menuDialogVisible.value = false
+  } catch (e) {
+    ElMessage.error(e?.message || t('common.operationFailed'))
+  } finally {
+    menuSaving.value = false
+  }
 }
 
 onMounted(loadRoles)
@@ -260,5 +380,10 @@ onMounted(loadRoles)
   color: var(--el-color-primary);
   font-size: 16px;
   margin-left: 4px;
+}
+.role-actions {
+  display: flex;
+  align-items: center;
+  gap: 4px;
 }
 </style>

@@ -54,6 +54,7 @@ func allModels() []any {
 		&model.SmsJob{},
 		&model.SmsJobDetail{},
 		&model.SystemUser{},
+		&model.RoleMenuPermission{},
 		&model.LiveCode{},
 		&model.LiveCodeQR{},
 		&model.LiveCodeQRStat{},
@@ -336,6 +337,7 @@ func allModels() []any {
 		&model.ExternalKBSyncItem{},
 		&model.ConfigParam{},
 		&model.ConfigParamAuditLog{},
+		&model.ConfigParamGroup{},
 
 		// 业务字典（阶段四）：与 config_params 同级登记，AutoMigrate 建表。
 		&model.Dictionary{},

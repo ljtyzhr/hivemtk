@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
@@ -19,6 +20,29 @@ type InboxController struct {
 // NewInboxController 创建统一收件箱控制器
 func NewInboxController(svc *service.InboxService) *InboxController {
 	return &InboxController{svc: svc}
+}
+
+// inboxScopeFromCtx 从 JWT 上下文构造数据权限 scope（role/username 由 JWTAuthMiddleware 写入）
+func inboxScopeFromCtx(ctx *gin.Context) service.InboxScope {
+	return service.InboxScope{
+		Role:     ctx.GetString("role"),
+		Username: ctx.GetString("username"),
+	}
+}
+
+// writeScopedError 统一映射数据权限相关错误：
+//   - ErrInboxForbidden → 403
+//   - ErrInboxConversationMissing → 404
+//   - 其余 → ErrorFromDB
+func writeScopedError(ctx *gin.Context, err error) {
+	switch {
+	case errors.Is(err, service.ErrInboxForbidden):
+		response.Error(ctx, http.StatusForbidden, "无权访问该会话")
+	case errors.Is(err, service.ErrInboxConversationMissing):
+		response.NotFound(ctx, "会话不存在")
+	default:
+		response.ErrorFromDB(ctx, err, err.Error())
+	}
 }
 
 // List 列表
@@ -52,9 +76,9 @@ func (c *InboxController) List(ctx *gin.Context) {
 	q.Page, _ = strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	q.PageSize, _ = strconv.Atoi(ctx.DefaultQuery("page_size", "20"))
 
-	list, total, err := c.svc.List(ctx.Request.Context(), q)
+	list, total, err := c.svc.ListScoped(ctx.Request.Context(), q, inboxScopeFromCtx(ctx))
 	if err != nil {
-		response.ErrorFromDB(ctx, err, err.Error())
+		writeScopedError(ctx, err)
 		return
 	}
 	response.SuccessWithPage(ctx, list, int64(q.Page), int64(q.PageSize), total)
@@ -67,9 +91,9 @@ func (c *InboxController) GetByID(ctx *gin.Context) {
 		response.Error(ctx, http.StatusBadRequest, "无效的ID")
 		return
 	}
-	conv, err := c.svc.GetByID(ctx.Request.Context(), uint(id))
+	conv, err := c.svc.GetByIDScoped(ctx.Request.Context(), uint(id), inboxScopeFromCtx(ctx))
 	if err != nil {
-		response.NotFound(ctx, "会话不存在")
+		writeScopedError(ctx, err)
 		return
 	}
 	response.Success(ctx, conv, "获取成功")
@@ -82,8 +106,8 @@ func (c *InboxController) MarkRead(ctx *gin.Context) {
 		response.Error(ctx, http.StatusBadRequest, "无效的ID")
 		return
 	}
-	if err := c.svc.MarkRead(ctx.Request.Context(), uint(id)); err != nil {
-		response.ErrorFromDB(ctx, err, err.Error())
+	if err := c.svc.MarkReadScoped(ctx.Request.Context(), uint(id), inboxScopeFromCtx(ctx)); err != nil {
+		writeScopedError(ctx, err)
 		return
 	}
 	response.Success(ctx, gin.H{"id": id}, "标记已读成功")
@@ -103,8 +127,8 @@ func (c *InboxController) Pin(ctx *gin.Context) {
 		response.Error(ctx, http.StatusBadRequest, "请求参数错误")
 		return
 	}
-	if err := c.svc.Pin(ctx.Request.Context(), uint(id), req.Pinned); err != nil {
-		response.ErrorFromDB(ctx, err, err.Error())
+	if err := c.svc.PinScoped(ctx.Request.Context(), uint(id), req.Pinned, inboxScopeFromCtx(ctx)); err != nil {
+		writeScopedError(ctx, err)
 		return
 	}
 	response.Success(ctx, gin.H{"pinned": req.Pinned}, "操作成功")
@@ -124,8 +148,8 @@ func (c *InboxController) Star(ctx *gin.Context) {
 		response.Error(ctx, http.StatusBadRequest, "请求参数错误")
 		return
 	}
-	if err := c.svc.Star(ctx.Request.Context(), uint(id), req.Starred); err != nil {
-		response.ErrorFromDB(ctx, err, err.Error())
+	if err := c.svc.StarScoped(ctx.Request.Context(), uint(id), req.Starred, inboxScopeFromCtx(ctx)); err != nil {
+		writeScopedError(ctx, err)
 		return
 	}
 	response.Success(ctx, gin.H{"starred": req.Starred}, "操作成功")
@@ -145,8 +169,8 @@ func (c *InboxController) Mute(ctx *gin.Context) {
 		response.Error(ctx, http.StatusBadRequest, "请求参数错误")
 		return
 	}
-	if err := c.svc.Mute(ctx.Request.Context(), uint(id), req.Muted); err != nil {
-		response.ErrorFromDB(ctx, err, err.Error())
+	if err := c.svc.MuteScoped(ctx.Request.Context(), uint(id), req.Muted, inboxScopeFromCtx(ctx)); err != nil {
+		writeScopedError(ctx, err)
 		return
 	}
 	response.Success(ctx, gin.H{"muted": req.Muted}, "操作成功")
@@ -166,8 +190,8 @@ func (c *InboxController) AddTag(ctx *gin.Context) {
 		response.Error(ctx, http.StatusBadRequest, "请求参数错误")
 		return
 	}
-	if err := c.svc.AddTag(ctx.Request.Context(), uint(id), req.Tag); err != nil {
-		response.ErrorFromDB(ctx, err, err.Error())
+	if err := c.svc.AddTagScoped(ctx.Request.Context(), uint(id), req.Tag, inboxScopeFromCtx(ctx)); err != nil {
+		writeScopedError(ctx, err)
 		return
 	}
 	response.Success(ctx, gin.H{"tag": req.Tag}, "添加成功")
@@ -185,8 +209,8 @@ func (c *InboxController) RemoveTag(ctx *gin.Context) {
 		response.Error(ctx, http.StatusBadRequest, "tag不能为空")
 		return
 	}
-	if err := c.svc.RemoveTag(ctx.Request.Context(), uint(id), tag); err != nil {
-		response.ErrorFromDB(ctx, err, err.Error())
+	if err := c.svc.RemoveTagScoped(ctx.Request.Context(), uint(id), tag, inboxScopeFromCtx(ctx)); err != nil {
+		writeScopedError(ctx, err)
 		return
 	}
 	response.Success(ctx, gin.H{"tag": tag}, "移除成功")
@@ -262,9 +286,9 @@ func (c *InboxController) AutoAssign(ctx *gin.Context) {
 
 // Stats 统计
 func (c *InboxController) Stats(ctx *gin.Context) {
-	stats, err := c.svc.GetStats(ctx.Request.Context())
+	stats, err := c.svc.GetStatsScoped(ctx.Request.Context(), inboxScopeFromCtx(ctx))
 	if err != nil {
-		response.ErrorFromDB(ctx, err, err.Error())
+		writeScopedError(ctx, err)
 		return
 	}
 	response.Success(ctx, stats, "统计成功")
@@ -315,9 +339,9 @@ func (c *InboxController) GetMessages(ctx *gin.Context) {
 	}
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(ctx.DefaultQuery("page_size", "20"))
-	list, total, err := c.svc.GetMessagesByConversation(ctx.Request.Context(), uint(id), page, pageSize)
+	list, total, err := c.svc.GetMessagesByConversationScoped(ctx.Request.Context(), uint(id), page, pageSize, inboxScopeFromCtx(ctx))
 	if err != nil {
-		response.ErrorFromDB(ctx, err, err.Error())
+		writeScopedError(ctx, err)
 		return
 	}
 	response.SuccessWithPage(ctx, list, int64(page), int64(pageSize), total)
@@ -341,8 +365,8 @@ func (c *InboxController) DeleteMessage(ctx *gin.Context) {
 		response.Error(ctx, http.StatusBadRequest, "无效的消息来源")
 		return
 	}
-	if err := c.svc.DeleteMessage(ctx.Request.Context(), uint(conversationID), uint(mid), source); err != nil {
-		response.ErrorFromDB(ctx, err, err.Error())
+	if err := c.svc.DeleteMessageScoped(ctx.Request.Context(), uint(conversationID), uint(mid), source, inboxScopeFromCtx(ctx)); err != nil {
+		writeScopedError(ctx, err)
 		return
 	}
 	response.Success(ctx, gin.H{"deleted": mid, "source": source}, "删除成功")

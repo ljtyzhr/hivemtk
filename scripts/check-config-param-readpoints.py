@@ -38,8 +38,22 @@ G1/G2（2026-10-11 阶段五「门禁」补）：上面三条是"种子 → 读�
 两轴都只红「新增」，存量由白名单显式豁免（新写一行坏键就得先来这里解释一次，
 而不是让整门因为历史包袱常红——常红的门等于没有门）。
 
-执行入口：`make audit`（本地聚合门）。CI 接线待 user-server-ci.yml 上的并行改动回 clean 再补，
-补时触发 paths 必须含本脚本与 config_param_seeds.go（否则改判据不触发这道门）。
+第五类「已下架」（2026-10-12 阶段六补）：条目标了 `Deprecated: true` 之后，它既不是
+wired（管理端 List 默认过滤掉、runtime 也不下发）也不是 UNDECLARED（运维在页面上
+根本碰不到它）——拿前两类去套会得出两处都错的结论。所以它单列，并自带两条判据：
+
+  RETIRED_BUT_WIRED   已下架却已经接上了。管理端默认过滤下架项 ⇒ 运维看不见也改不了这个
+                      旋钮，而代码真在读它的值。参数被改过、行为跟着变，但页面上找不到
+                      它在哪改的 —— 本门要抓的就是这一类，它比 UNDECLARED 更难查。
+  DEPRECATED_NO_REASON 已下架却没写 DeprecatedReason。页面上只剩一个「已下架」标签，
+                      用户既不知道为什么，也无从知道将来怎么接回来。
+
+下架与 `未接线` 的分工：`未接线` 是「我承认这个旋钮改了不生效」（过渡态，允许存在）；
+`Deprecated` 是「我不再对外承诺这个旋钮」（终态，管理端不可见、写入被拒）。
+两者都留着就是债 —— 所以阶段六把 11 条过渡态一次性推进到终态，本门的
+「未接线且已声明」读数因此归零。
+
+执行入口：`make audit`（本地聚合门）+ `.github/workflows/user-server-ci.yml`。
 """
 
 from __future__ import annotations
@@ -73,21 +87,34 @@ KEY_LINE = re.compile(r'Key:\s*"([a-z0-9_]+)"')
 # 因此这里只锚条目头，Description 在该条目到下一个条目头之间的片段里找。
 ENTRY_HEAD = re.compile(r'\{Group:\s*"([a-z_]+)",\s*Key:\s*"([a-z0-9_]+)",\s*Name:\s*"([^"]*)"')
 ENTRY_DESC = re.compile(r'Description:\s*"([^"]*)"')
+# 下架标记：`Deprecated: true`。它把一条参数从「可配置旋钮」降级成「历史记录」，
+# 管理端默认不返回、runtime 不下发、写入被 ErrParamDeprecated 拒掉。
+ENTRY_DEPRECATED = re.compile(r'Deprecated:\s*true')
+ENTRY_DEPRECATED_REASON = re.compile(r'DeprecatedReason:\s*"([^"]*)"')
 CONST_ASSIGN = re.compile(r'\b([A-Za-z_]\w*)\s*=\s*"([a-z0-9_]+)"')
 
 
-def parse_entries(text: str) -> list[tuple[str, str, str, str]]:
-    """列出 (group, key, name, description)。
+def parse_entries(text: str) -> list[tuple[str, str, str, str, bool, str]]:
+    """列出 (group, key, name, description, deprecated, deprecated_reason)。
 
     没有 Description 的条目返回空串：它照样要过判据 1（没读取点又不承认 ⇒ UNDECLARED），
     不能因为"读不出文案"就绕过分诊。
+
+    `deprecated` / `deprecated_reason` 的取法与 Description 同理：在该条目到下一个
+    条目头之间的片段里找。不在 parse 里做「有 reason 没 flag」这类一致性判定 ——
+    那是需要出红字的判据，混在解析里会变成解析失败（rc=2），两种红含义不同。
     """
     heads = list(ENTRY_HEAD.finditer(text))
-    out: list[tuple[str, str, str, str]] = []
+    out: list[tuple[str, str, str, str, bool, str]] = []
     for i, m in enumerate(heads):
         end = heads[i + 1].start() if i + 1 < len(heads) else len(text)
-        d = ENTRY_DESC.search(text[m.end():end])
-        out.append((m.group(1), m.group(2), m.group(3), d.group(1) if d else ""))
+        span = text[m.end():end]
+        d = ENTRY_DESC.search(span)
+        r = ENTRY_DEPRECATED_REASON.search(span)
+        out.append((m.group(1), m.group(2), m.group(3),
+                    d.group(1) if d else "",
+                    ENTRY_DEPRECATED.search(span) is not None,
+                    r.group(1) if r else ""))
     return out
 
 
@@ -111,7 +138,7 @@ def main() -> int:
         fail(f"条目解析对账失败: 解出条目 {len(entries)} 条，`Key:` 行 {len(key_rows)} 行"
              "（条目形状变了，本门的枚举源就瞎了）")
     seen: set[tuple[str, str]] = set()
-    for g, k, _n, _d in entries:
+    for g, k, _n, _d, _dep, _dep_r in entries:
         if (g, k) in seen:
             fail(f"种子里有重复条目 group={g} key={k}（本门按条目定位，重复会让判据落到错的条目上）")
         seen.add((g, k))
@@ -208,7 +235,10 @@ def main() -> int:
     unwired_marked: list[str] = []
     undeclared: list[str] = []
     stale: list[str] = []
-    for g, k, name, desc in entries:
+    retired: list[str] = []
+    retired_but_wired: list[str] = []
+    reason_missing: list[str] = []
+    for g, k, name, desc, deprecated, dep_reason in entries:
         direct = any(f'"{k}"' in line and GETCALL.search(line) for line, _p in key_lines)
         # 标识符按整词匹配：子串会把 `Key` 这类短名算成别的词的一部分（读到就判绿）。
         via_const = any(re.search(rf'\b{re.escape(ident)}\b', joined_gets)
@@ -221,10 +251,23 @@ def main() -> int:
         via_frontend = (g in frontend_groups) and (coord not in frontend_excluded)
         has_read = direct or via_const or via_frontend
         declared = MARKER in name or MARKER in desc
-        coord = f"{g}.{k}"
-        # 四类互斥：一条只能落进一格。曾经把 STALE 同时记进"有读取点"，
-        # 于是四类之和 > 条目数，对账格把门自己判红了。
-        if has_read and declared:
+        # 五类互斥：一条只能落进一格。曾经把 STALE 同时记进"有读取点"，
+        # 于是各类之和 > 条目数，对账格把门自己判红了。
+        #
+        # 下架（Deprecated）先于其他判据分诊，因为它是「这条旋钮不再是对外承诺」，
+        # 不属于「接线做得好不好」这条线。下架条目既不是 wired（管理端看不到它）也
+        # 不是 UNDECLARED（运维在页面上根本碰不到它），拿前两类去套都会得出错误结论。
+        if deprecated:
+            if not dep_reason.strip():
+                reason_missing.append(coord)
+            if has_read:
+                # 接上了却还挂着下架标记：管理端 List 默认过滤 deprecated=true，
+                # 运维看不到这个旋钮，改不了；代码却真在读它的值。这是最难查的一类 ——
+                # 参数被改过、行为跟着变，但页面上找不到它在哪改的。
+                retired_but_wired.append(coord)
+            else:
+                retired.append(coord)
+        elif has_read and declared:
             stale.append(coord)
         elif has_read:
             wired.append(coord)
@@ -237,10 +280,12 @@ def main() -> int:
           f"种子条目 {len(entries)} 条 / 前端消费组 {len(frontend_groups)} 个（排除 "
           f"{len(frontend_excluded)} 键）")
     print(f"读数: 有读取点且未挂标注={len(wired)}  未接线且已声明={len(unwired_marked)}  "
-          f"未接线但未声明={len(undeclared)}  声明过期={len(stale)}")
-    total = len(wired) + len(unwired_marked) + len(undeclared) + len(stale)
+          f"未接线但未声明={len(undeclared)}  声明过期={len(stale)}  已下架={len(retired)}"
+          f"（其中接上了却没摘下架标记={len(retired_but_wired)}）")
+    total = (len(wired) + len(unwired_marked) + len(undeclared) + len(stale)
+             + len(retired) + len(retired_but_wired))
     if total != len(entries):
-        fail(f"分类对账失败: 四类之和 {total} != 条目数 {len(entries)}（有条目既没被分类也没被丢弃，"
+        fail(f"分类对账失败: 各类之和 {total} != 条目数 {len(entries)}（有条目既没被分类也没被丢弃，"
              "说明判据漏了分支）")
 
     for coord in undeclared:
@@ -248,11 +293,17 @@ def main() -> int:
               "——运维在页面上改它是不生效的")
     for coord in stale:
         print(f"  STALE: {coord} 已声明「{MARKER}」但代码里已有读取点，请把那句撤掉")
+    for coord in retired_but_wired:
+        print(f"  RETIRED_BUT_WIRED: {coord} 已下架但代码里已有读取点——"
+              "管理端默认过滤下架项，运维看不见也改不了这个旋钮，请摘掉下架标记")
+    for coord in reason_missing:
+        print(f"  DEPRECATED_NO_REASON: {coord} 标了下架却没写 DeprecatedReason——"
+              "页面上会只剩一个「已下架」标签，用户无从知道为什么，也无从知道将来怎么接回来")
 
     # ── G1/G2：反向核对（读取点 → 种子）──
     # 注意 entries 是 (group, key, name, desc) 四元组，取前两列比。
-    seeded = {(g, k) for g, k, _n, _d in entries}
-    seeded_groups = {g for g, _k, _n, _d in entries}
+    seeded = {(g, k) for g, k, _n, _d, _dep, _dr in entries}
+    seeded_groups = {g for g, _k, _n, _d, _dep, _dr in entries}
     orphan_read = sorted(f"{g}.{k}" for g, k in read_pairs
                         if (g, k) not in seeded and f"{g}.{k}" not in orphan_allowlist)
     orphan_group = sorted(read_groups - seeded_groups - {""})
@@ -263,11 +314,11 @@ def main() -> int:
         print(f"  G2 ORPHAN_GROUP: {g} 代码里出现了种子中没有的组名"
               "——整组都接错了，或组名改了种子忘了跟")
 
-    if undeclared or stale or orphan_read or orphan_group:
+    if undeclared or stale or orphan_read or orphan_group or retired_but_wired or reason_missing:
         print("❌ 参数中心读取点门未通过")
         return 1
-    print("✅ 参数中心读取点门通过：每条要么有人读，要么自己承认没接线；"
-          "且没有孤儿读取点（读了种子没登记的键）")
+    print("✅ 参数中心读取点门通过：每条要么有人读，要么自己承认没接线，要么已下架并写清了"
+          "下架理由；且没有孤儿读取点（读了种子没登记的键）")
     return 0
 
 

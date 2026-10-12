@@ -1,5 +1,5 @@
 {
-  "runId": "e2e-1791703331411",
+  "runId": "e2e-1791735181970",
   "batch": "1",
   "total": 24,
   "results": [
@@ -52,10 +52,14 @@
         "buttons": 2,
         "pagination": 0,
         "switches": 0,
+        "searchInputs": 0,
+        "selects": 0,
+        "sortableHeaders": 0,
         "tableRows": 0,
         "forms": 1,
         "inputs": 2
-      }
+      },
+      "writeApis": []
     },
     {
       "route": "/login",
@@ -106,33 +110,60 @@
         "buttons": 2,
         "pagination": 0,
         "switches": 0,
+        "searchInputs": 0,
+        "selects": 0,
+        "sortableHeaders": 0,
         "tableRows": 0,
         "forms": 1,
         "inputs": 2
-      }
+      },
+      "writeApis": []
     },
     {
       "route": "/help-center",
       "status": "ok",
       "pageLoad": {
         "not404": true,
-        "contentLength": 162,
+        "contentLength": 420,
         "url": "http://localhost:8211/#/help-center"
       },
-      "interactions": [],
+      "interactions": [
+        {
+          "type": "search",
+          "target": "search",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "searched": true
+        }
+      ],
       "consoleErrors": [],
       "apiErrors": [],
       "dbVerifications": [],
-      "summary": "0次交互，无异常",
+      "summary": "1次交互，无异常",
       "discovered": {
         "tabs": 0,
         "buttons": 0,
         "pagination": 0,
         "switches": 0,
+        "searchInputs": 1,
+        "selects": 0,
+        "sortableHeaders": 0,
         "tableRows": 0,
         "forms": 0,
         "inputs": 1
-      }
+      },
+      "writeApis": []
     },
     {
       "route": "/chat/embed/default",
@@ -198,10 +229,21 @@
         "buttons": 3,
         "pagination": 0,
         "switches": 0,
+        "searchInputs": 0,
+        "selects": 0,
+        "sortableHeaders": 0,
         "tableRows": 0,
         "forms": 0,
         "inputs": 2
-      }
+      },
+      "writeApis": [
+        {
+          "method": "POST",
+          "status": 200,
+          "url": "/api/chat/public/sessions",
+          "ts": 1791735202364
+        }
+      ]
     },
     {
       "route": "/abExperiment/list",
@@ -212,6 +254,24 @@
         "url": "http://localhost:8211/#/abExperiment/list"
       },
       "interactions": [
+        {
+          "type": "select",
+          "target": "select",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": true,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "optionSelected": true
+        },
         {
           "type": "button:click",
           "target": "Search",
@@ -413,16 +473,27 @@
       "consoleErrors": [],
       "apiErrors": [],
       "dbVerifications": [],
-      "summary": "13次交互，无异常",
+      "summary": "14次交互，无异常",
       "discovered": {
         "tabs": 0,
         "buttons": 80,
         "pagination": 0,
         "switches": 0,
+        "searchInputs": 0,
+        "selects": 1,
+        "sortableHeaders": 0,
         "tableRows": 19,
         "forms": 1,
         "inputs": 2
-      }
+      },
+      "writeApis": [
+        {
+          "method": "POST",
+          "status": 200,
+          "url": "/api/auth/refresh-token",
+          "ts": 1791735205392
+        }
+      ]
     },
     {
       "route": "/aiAgent",
@@ -434,6 +505,60 @@
       },
       "interactions": [
         {
+          "type": "search",
+          "target": "search",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "searched": true
+        },
+        {
+          "type": "select",
+          "target": "select",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": true,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "optionSelected": true
+        },
+        {
+          "type": "select",
+          "target": "select",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": true,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "optionSelected": true
+        },
+        {
           "type": "button:click",
           "target": "Refresh",
           "before": {
@@ -620,30 +745,32 @@
             "console": 0,
             "api": 0
           },
-          "after": {
-            "console": 0,
-            "api": 0
-          },
+          "after": {},
           "dialogOpened": false,
           "uiChanged": false,
           "uiBroken": false,
           "newConsole": [],
-          "newApi": []
+          "newApi": [],
+          "skipped": "element-not-found"
         }
       ],
       "consoleErrors": [],
       "apiErrors": [],
       "dbVerifications": [],
-      "summary": "13次交互，无异常",
+      "summary": "16次交互，无异常",
       "discovered": {
         "tabs": 0,
         "buttons": 89,
         "pagination": 0,
         "switches": 0,
+        "searchInputs": 1,
+        "selects": 2,
+        "sortableHeaders": 0,
         "tableRows": 17,
         "forms": 1,
         "inputs": 3
-      }
+      },
+      "writeApis": []
     },
     {
       "route": "/aiAgent/list",
@@ -655,6 +782,60 @@
       },
       "interactions": [
         {
+          "type": "search",
+          "target": "search",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "searched": true
+        },
+        {
+          "type": "select",
+          "target": "select",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": true,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "optionSelected": true
+        },
+        {
+          "type": "select",
+          "target": "select",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": true,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "optionSelected": true
+        },
+        {
           "type": "button:click",
           "target": "Refresh",
           "before": {
@@ -841,30 +1022,32 @@
             "console": 0,
             "api": 0
           },
-          "after": {
-            "console": 0,
-            "api": 0
-          },
+          "after": {},
           "dialogOpened": false,
           "uiChanged": false,
           "uiBroken": false,
           "newConsole": [],
-          "newApi": []
+          "newApi": [],
+          "skipped": "element-not-found"
         }
       ],
       "consoleErrors": [],
       "apiErrors": [],
       "dbVerifications": [],
-      "summary": "13次交互，无异常",
+      "summary": "16次交互，无异常",
       "discovered": {
         "tabs": 0,
         "buttons": 89,
         "pagination": 0,
         "switches": 0,
+        "searchInputs": 1,
+        "selects": 2,
+        "sortableHeaders": 0,
         "tableRows": 17,
         "forms": 1,
         "inputs": 3
-      }
+      },
+      "writeApis": []
     },
     {
       "route": "/aiAgent/create",
@@ -875,6 +1058,42 @@
         "url": "http://localhost:8211/#/aiAgent/create"
       },
       "interactions": [
+        {
+          "type": "select",
+          "target": "select",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "optionSelected": true
+        },
+        {
+          "type": "select",
+          "target": "select",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "optionSelected": true
+        },
         {
           "type": "switch",
           "target": "switch",
@@ -1003,10 +1222,23 @@
           "dbVerification": {
             "type": "inline-form-submit",
             "route": "/aiAgent/create",
-            "testName": "E2E测试-1791703370154",
+            "testName": "E2E测试-1791735234206",
             "result": "submitted",
             "clicked": "创建智能体"
           }
+        },
+        {
+          "type": "validate:empty-submit",
+          "target": "(empty form submit)",
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "submitButton": "创建智能体",
+          "validationErrors": [
+            "Please enter the agent code",
+            "Please enter a person description"
+          ],
+          "validationPassed": true
         }
       ],
       "consoleErrors": [],
@@ -1015,21 +1247,32 @@
         {
           "type": "inline-form-submit",
           "route": "/aiAgent/create",
-          "testName": "E2E测试-1791703370154",
+          "testName": "E2E测试-1791735234206",
           "result": "submitted",
           "clicked": "创建智能体"
         }
       ],
-      "summary": "8次交互，无异常",
+      "summary": "11次交互，无异常",
       "discovered": {
         "tabs": 0,
         "buttons": 5,
         "pagination": 0,
         "switches": 5,
+        "searchInputs": 0,
+        "selects": 12,
+        "sortableHeaders": 0,
         "tableRows": 0,
         "forms": 1,
         "inputs": 37
-      }
+      },
+      "writeApis": [
+        {
+          "method": "POST",
+          "status": 200,
+          "url": "/api/asset-bundle/list",
+          "ts": 1791735226178
+        }
+      ]
     },
     {
       "route": "/aiAgent/edit/1",
@@ -1040,6 +1283,60 @@
         "url": "http://localhost:8211/#/aiAgent/list"
       },
       "interactions": [
+        {
+          "type": "search",
+          "target": "search",
+          "before": {
+            "console": 1,
+            "api": 1
+          },
+          "after": {
+            "console": 1,
+            "api": 1
+          },
+          "dialogOpened": false,
+          "uiChanged": true,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "searched": true
+        },
+        {
+          "type": "select",
+          "target": "select",
+          "before": {
+            "console": 1,
+            "api": 1
+          },
+          "after": {
+            "console": 1,
+            "api": 1
+          },
+          "dialogOpened": false,
+          "uiChanged": true,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "optionSelected": true
+        },
+        {
+          "type": "select",
+          "target": "select",
+          "before": {
+            "console": 1,
+            "api": 1
+          },
+          "after": {
+            "console": 1,
+            "api": 1
+          },
+          "dialogOpened": false,
+          "uiChanged": true,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "optionSelected": true
+        },
         {
           "type": "button:click",
           "target": "Refresh",
@@ -1227,30 +1524,39 @@
             "console": 1,
             "api": 1
           },
-          "after": {
-            "console": 1,
-            "api": 1
-          },
+          "after": {},
           "dialogOpened": false,
           "uiChanged": false,
           "uiBroken": false,
           "newConsole": [],
-          "newApi": []
+          "newApi": [],
+          "skipped": "element-not-found"
         }
       ],
       "consoleErrors": [],
       "apiErrors": [],
       "dbVerifications": [],
-      "summary": "13次交互，无异常",
+      "summary": "16次交互，无异常",
       "discovered": {
         "tabs": 0,
         "buttons": 89,
         "pagination": 0,
         "switches": 0,
+        "searchInputs": 1,
+        "selects": 2,
+        "sortableHeaders": 0,
         "tableRows": 17,
         "forms": 1,
         "inputs": 3
-      }
+      },
+      "writeApis": [
+        {
+          "method": "POST",
+          "status": 200,
+          "url": "/api/asset-bundle/list",
+          "ts": 1791735246830
+        }
+      ]
     },
     {
       "route": "/aiAgent/tools",
@@ -1262,8 +1568,8 @@
       },
       "interactions": [
         {
-          "type": "switch",
-          "target": "switch",
+          "type": "select",
+          "target": "select",
           "before": {
             "console": 0,
             "api": 0
@@ -1276,7 +1582,41 @@
           "uiChanged": true,
           "uiBroken": false,
           "newConsole": [],
-          "newApi": []
+          "newApi": [],
+          "optionSelected": true
+        },
+        {
+          "type": "select",
+          "target": "select",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": true,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "optionSelected": true
+        },
+        {
+          "type": "switch",
+          "target": "switch",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {},
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "skipped": "element-not-found"
         },
         {
           "type": "button:read",
@@ -1345,30 +1685,32 @@
             "console": 0,
             "api": 0
           },
-          "after": {
-            "console": 0,
-            "api": 0
-          },
+          "after": {},
           "dialogOpened": false,
           "uiChanged": false,
           "uiBroken": false,
           "newConsole": [],
-          "newApi": []
+          "newApi": [],
+          "skipped": "element-not-found"
         }
       ],
       "consoleErrors": [],
       "apiErrors": [],
       "dbVerifications": [],
-      "summary": "6次交互，无异常",
+      "summary": "8次交互，无异常",
       "discovered": {
         "tabs": 0,
         "buttons": 4,
         "pagination": 0,
         "switches": 1,
+        "searchInputs": 0,
+        "selects": 2,
+        "sortableHeaders": 0,
         "tableRows": 1,
         "forms": 1,
         "inputs": 3
-      }
+      },
+      "writeApis": []
     },
     {
       "route": "/aiProductivity/list",
@@ -1404,10 +1746,14 @@
         "buttons": 1,
         "pagination": 0,
         "switches": 0,
+        "searchInputs": 0,
+        "selects": 0,
+        "sortableHeaders": 0,
         "tableRows": 0,
         "forms": 0,
         "inputs": 0
-      }
+      },
+      "writeApis": []
     },
     {
       "route": "/analytics/cohort-path",
@@ -1462,17 +1808,21 @@
         "buttons": 0,
         "pagination": 0,
         "switches": 0,
+        "searchInputs": 0,
+        "selects": 0,
+        "sortableHeaders": 0,
         "tableRows": 0,
         "forms": 0,
         "inputs": 0
-      }
+      },
+      "writeApis": []
     },
     {
       "route": "/approvalTask/list",
       "status": "ok",
       "pageLoad": {
         "not404": true,
-        "contentLength": 2318,
+        "contentLength": 2319,
         "url": "http://localhost:8211/#/approvalTask/list"
       },
       "interactions": [
@@ -1526,6 +1876,42 @@
           "uiBroken": false,
           "newConsole": [],
           "newApi": []
+        },
+        {
+          "type": "select",
+          "target": "select",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": true,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "optionSelected": true
+        },
+        {
+          "type": "select",
+          "target": "select",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": true,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "optionSelected": true
         },
         {
           "type": "button:click",
@@ -1714,30 +2100,32 @@
             "console": 0,
             "api": 0
           },
-          "after": {
-            "console": 0,
-            "api": 0
-          },
+          "after": {},
           "dialogOpened": false,
           "uiChanged": false,
           "uiBroken": false,
           "newConsole": [],
-          "newApi": []
+          "newApi": [],
+          "skipped": "element-not-found"
         }
       ],
       "consoleErrors": [],
       "apiErrors": [],
       "dbVerifications": [],
-      "summary": "16次交互，无异常",
+      "summary": "18次交互，无异常",
       "discovered": {
         "tabs": 0,
         "buttons": 40,
         "pagination": 3,
         "switches": 0,
+        "searchInputs": 0,
+        "selects": 3,
+        "sortableHeaders": 0,
         "tableRows": 15,
         "forms": 1,
         "inputs": 3
-      }
+      },
+      "writeApis": []
     },
     {
       "route": "/asset-bundle/list",
@@ -1798,6 +2186,60 @@
           "uiBroken": false,
           "newConsole": [],
           "newApi": []
+        },
+        {
+          "type": "search",
+          "target": "search",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "searched": true
+        },
+        {
+          "type": "select",
+          "target": "select",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "optionSelected": true
+        },
+        {
+          "type": "select",
+          "target": "select",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "optionSelected": true
         },
         {
           "type": "button:click",
@@ -2000,16 +2442,33 @@
       "consoleErrors": [],
       "apiErrors": [],
       "dbVerifications": [],
-      "summary": "16次交互，无异常",
+      "summary": "19次交互，无异常",
       "discovered": {
         "tabs": 0,
         "buttons": 30,
         "pagination": 3,
         "switches": 0,
+        "searchInputs": 1,
+        "selects": 2,
+        "sortableHeaders": 0,
         "tableRows": 6,
         "forms": 1,
         "inputs": 4
-      }
+      },
+      "writeApis": [
+        {
+          "method": "POST",
+          "status": 200,
+          "url": "/api/asset-bundle/list",
+          "ts": 1791735285195
+        },
+        {
+          "method": "POST",
+          "status": 200,
+          "url": "/api/asset-bundle/enabled/list",
+          "ts": 1791735285202
+        }
+      ]
     },
     {
       "route": "/asset-bundle/playground",
@@ -2120,10 +2579,14 @@
         "buttons": 6,
         "pagination": 0,
         "switches": 0,
+        "searchInputs": 0,
+        "selects": 0,
+        "sortableHeaders": 0,
         "tableRows": 0,
         "forms": 1,
         "inputs": 10
-      }
+      },
+      "writeApis": []
     },
     {
       "route": "/asset-bundle/playground/1",
@@ -2234,10 +2697,14 @@
         "buttons": 6,
         "pagination": 0,
         "switches": 0,
+        "searchInputs": 0,
+        "selects": 0,
+        "sortableHeaders": 0,
         "tableRows": 0,
         "forms": 1,
         "inputs": 10
-      }
+      },
+      "writeApis": []
     },
     {
       "route": "/asset-bundle/merchant-new",
@@ -2248,6 +2715,42 @@
         "url": "http://localhost:8211/#/asset-bundle/merchant-new"
       },
       "interactions": [
+        {
+          "type": "select",
+          "target": "select",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": true,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "optionSelected": true
+        },
+        {
+          "type": "select",
+          "target": "select",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": true,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "optionSelected": true
+        },
         {
           "type": "button:click",
           "target": "▶️ 恢复托管",
@@ -2357,16 +2860,20 @@
       "consoleErrors": [],
       "apiErrors": [],
       "dbVerifications": [],
-      "summary": "7次交互，无异常",
+      "summary": "9次交互，无异常",
       "discovered": {
         "tabs": 0,
         "buttons": 7,
         "pagination": 0,
         "switches": 0,
+        "searchInputs": 0,
+        "selects": 2,
+        "sortableHeaders": 0,
         "tableRows": 0,
         "forms": 1,
         "inputs": 22
-      }
+      },
+      "writeApis": []
     },
     {
       "route": "/asset-bundle/merchant/1",
@@ -2377,6 +2884,42 @@
         "url": "http://localhost:8211/#/asset-bundle/merchant/1"
       },
       "interactions": [
+        {
+          "type": "select",
+          "target": "select",
+          "before": {
+            "console": 1,
+            "api": 1
+          },
+          "after": {
+            "console": 1,
+            "api": 1
+          },
+          "dialogOpened": false,
+          "uiChanged": true,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "optionSelected": true
+        },
+        {
+          "type": "select",
+          "target": "select",
+          "before": {
+            "console": 1,
+            "api": 1
+          },
+          "after": {
+            "console": 1,
+            "api": 1
+          },
+          "dialogOpened": false,
+          "uiChanged": true,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "optionSelected": true
+        },
         {
           "type": "button:click",
           "target": "▶️ 恢复托管",
@@ -2471,16 +3014,20 @@
       "consoleErrors": [],
       "apiErrors": [],
       "dbVerifications": [],
-      "summary": "6次交互，无异常",
+      "summary": "8次交互，无异常",
       "discovered": {
         "tabs": 0,
         "buttons": 6,
         "pagination": 0,
         "switches": 0,
+        "searchInputs": 0,
+        "selects": 2,
+        "sortableHeaders": 0,
         "tableRows": 0,
         "forms": 1,
         "inputs": 19
-      }
+      },
+      "writeApis": []
     },
     {
       "route": "/asset-market",
@@ -2541,6 +3088,42 @@
           "uiBroken": false,
           "newConsole": [],
           "newApi": []
+        },
+        {
+          "type": "select",
+          "target": "select",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": true,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "optionSelected": true
+        },
+        {
+          "type": "select",
+          "target": "select",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "optionSelected": true
         },
         {
           "type": "button:click",
@@ -2606,16 +3189,20 @@
       "consoleErrors": [],
       "apiErrors": [],
       "dbVerifications": [],
-      "summary": "7次交互，无异常",
+      "summary": "9次交互，无异常",
       "discovered": {
         "tabs": 0,
         "buttons": 4,
         "pagination": 3,
         "switches": 0,
+        "searchInputs": 0,
+        "selects": 2,
+        "sortableHeaders": 0,
         "tableRows": 0,
         "forms": 1,
         "inputs": 2
-      }
+      },
+      "writeApis": []
     },
     {
       "route": "/asset-market/detail/1",
@@ -2651,10 +3238,14 @@
         "buttons": 1,
         "pagination": 0,
         "switches": 0,
+        "searchInputs": 0,
+        "selects": 0,
+        "sortableHeaders": 0,
         "tableRows": 0,
         "forms": 0,
         "inputs": 0
-      }
+      },
+      "writeApis": []
     },
     {
       "route": "/asset-market/my-assets",
@@ -2715,6 +3306,60 @@
           "uiBroken": false,
           "newConsole": [],
           "newApi": []
+        },
+        {
+          "type": "search",
+          "target": "search",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "searched": true
+        },
+        {
+          "type": "select",
+          "target": "select",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": true,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "optionSelected": true
+        },
+        {
+          "type": "select",
+          "target": "select",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": true,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "optionSelected": true
         },
         {
           "type": "button:read",
@@ -2917,16 +3562,20 @@
       "consoleErrors": [],
       "apiErrors": [],
       "dbVerifications": [],
-      "summary": "16次交互，无异常",
+      "summary": "19次交互，无异常",
       "discovered": {
         "tabs": 0,
         "buttons": 43,
         "pagination": 3,
         "switches": 0,
+        "searchInputs": 1,
+        "selects": 2,
+        "sortableHeaders": 0,
         "tableRows": 9,
         "forms": 1,
         "inputs": 3
-      }
+      },
+      "writeApis": []
     },
     {
       "route": "/asset-market/sync-log",
@@ -2994,343 +3643,52 @@
         "buttons": 2,
         "pagination": 0,
         "switches": 0,
+        "searchInputs": 0,
+        "selects": 0,
+        "sortableHeaders": 0,
         "tableRows": 9,
         "forms": 1,
         "inputs": 1
-      }
+      },
+      "writeApis": []
     },
     {
       "route": "/backup/list",
-      "status": "ok",
-      "pageLoad": {
-        "not404": true,
-        "contentLength": 3185,
-        "url": "http://localhost:8211/#/backup/list"
-      },
-      "interactions": [
-        {
-          "type": "tab",
-          "target": "Backup Record",
-          "before": {
-            "console": 0,
-            "api": 0
-          },
-          "after": {
-            "console": 0,
-            "api": 0
-          },
-          "dialogOpened": false,
-          "uiChanged": false,
-          "uiBroken": false,
-          "newConsole": [],
-          "newApi": []
-        },
-        {
-          "type": "tab",
-          "target": "恢复记录",
-          "before": {
-            "console": 0,
-            "api": 0
-          },
-          "after": {
-            "console": 0,
-            "api": 0
-          },
-          "dialogOpened": false,
-          "uiChanged": true,
-          "uiBroken": false,
-          "newConsole": [],
-          "newApi": []
-        },
-        {
-          "type": "pagination",
-          "target": "Go to previous page",
-          "before": {
-            "console": 0,
-            "api": 0
-          },
-          "after": {
-            "console": 0,
-            "api": 0
-          },
-          "dialogOpened": false,
-          "uiChanged": false,
-          "uiBroken": false,
-          "newConsole": [],
-          "newApi": []
-        },
-        {
-          "type": "pagination",
-          "target": "1",
-          "before": {
-            "console": 0,
-            "api": 0
-          },
-          "after": {
-            "console": 0,
-            "api": 0
-          },
-          "dialogOpened": false,
-          "uiChanged": false,
-          "uiBroken": false,
-          "newConsole": [],
-          "newApi": []
-        },
-        {
-          "type": "pagination",
-          "target": "2",
-          "before": {
-            "console": 0,
-            "api": 0
-          },
-          "after": {
-            "console": 0,
-            "api": 0
-          },
-          "dialogOpened": false,
-          "uiChanged": false,
-          "uiBroken": false,
-          "newConsole": [],
-          "newApi": []
-        },
-        {
-          "type": "pagination",
-          "target": "3",
-          "before": {
-            "console": 0,
-            "api": 0
-          },
-          "after": {
-            "console": 0,
-            "api": 0
-          },
-          "dialogOpened": false,
-          "uiChanged": false,
-          "uiBroken": false,
-          "newConsole": [],
-          "newApi": []
-        },
-        {
-          "type": "button:read",
-          "target": "详情",
-          "before": {
-            "console": 0,
-            "api": 0
-          },
-          "after": {},
-          "dialogOpened": false,
-          "uiChanged": false,
-          "uiBroken": false,
-          "newConsole": [],
-          "newApi": [],
-          "skipped": "element-not-found"
-        },
-        {
-          "type": "button:read",
-          "target": "详情",
-          "before": {
-            "console": 0,
-            "api": 0
-          },
-          "after": {},
-          "dialogOpened": false,
-          "uiChanged": false,
-          "uiBroken": false,
-          "newConsole": [],
-          "newApi": [],
-          "skipped": "element-not-found"
-        },
-        {
-          "type": "button:read",
-          "target": "详情",
-          "before": {
-            "console": 0,
-            "api": 0
-          },
-          "after": {},
-          "dialogOpened": false,
-          "uiChanged": false,
-          "uiBroken": false,
-          "newConsole": [],
-          "newApi": [],
-          "skipped": "element-not-found"
-        },
-        {
-          "type": "button:read",
-          "target": "详情",
-          "before": {
-            "console": 0,
-            "api": 0
-          },
-          "after": {},
-          "dialogOpened": false,
-          "uiChanged": false,
-          "uiBroken": false,
-          "newConsole": [],
-          "newApi": [],
-          "skipped": "element-not-found"
-        },
-        {
-          "type": "button:read",
-          "target": "详情",
-          "before": {
-            "console": 0,
-            "api": 0
-          },
-          "after": {},
-          "dialogOpened": false,
-          "uiChanged": false,
-          "uiBroken": false,
-          "newConsole": [],
-          "newApi": [],
-          "skipped": "element-not-found"
-        },
-        {
-          "type": "button:read",
-          "target": "详情",
-          "before": {
-            "console": 0,
-            "api": 0
-          },
-          "after": {},
-          "dialogOpened": false,
-          "uiChanged": false,
-          "uiBroken": false,
-          "newConsole": [],
-          "newApi": [],
-          "skipped": "element-not-found"
-        },
-        {
-          "type": "button:read",
-          "target": "详情",
-          "before": {
-            "console": 0,
-            "api": 0
-          },
-          "after": {},
-          "dialogOpened": false,
-          "uiChanged": false,
-          "uiBroken": false,
-          "newConsole": [],
-          "newApi": [],
-          "skipped": "element-not-found"
-        },
-        {
-          "type": "button:read",
-          "target": "详情",
-          "before": {
-            "console": 0,
-            "api": 0
-          },
-          "after": {},
-          "dialogOpened": false,
-          "uiChanged": false,
-          "uiBroken": false,
-          "newConsole": [],
-          "newApi": [],
-          "skipped": "element-not-found"
-        },
-        {
-          "type": "button:read",
-          "target": "详情",
-          "before": {
-            "console": 0,
-            "api": 0
-          },
-          "after": {},
-          "dialogOpened": false,
-          "uiChanged": false,
-          "uiBroken": false,
-          "newConsole": [],
-          "newApi": [],
-          "skipped": "element-not-found"
-        },
-        {
-          "type": "button:read",
-          "target": "详情",
-          "before": {
-            "console": 0,
-            "api": 0
-          },
-          "after": {},
-          "dialogOpened": false,
-          "uiChanged": false,
-          "uiBroken": false,
-          "newConsole": [],
-          "newApi": [],
-          "skipped": "element-not-found"
-        },
-        {
-          "type": "button:read",
-          "target": "详情",
-          "before": {
-            "console": 0,
-            "api": 0
-          },
-          "after": {},
-          "dialogOpened": false,
-          "uiChanged": false,
-          "uiBroken": false,
-          "newConsole": [],
-          "newApi": [],
-          "skipped": "element-not-found"
-        },
-        {
-          "type": "button:read",
-          "target": "详情",
-          "before": {
-            "console": 0,
-            "api": 0
-          },
-          "after": {},
-          "dialogOpened": false,
-          "uiChanged": false,
-          "uiBroken": false,
-          "newConsole": [],
-          "newApi": [],
-          "skipped": "element-not-found"
-        },
-        {
-          "type": "table-row",
-          "target": "(first row)",
-          "before": {
-            "console": 0,
-            "api": 0
-          },
-          "after": {
-            "console": 0,
-            "api": 0
-          },
-          "dialogOpened": false,
-          "uiChanged": false,
-          "uiBroken": false,
-          "newConsole": [],
-          "newApi": []
-        }
-      ],
+      "status": "error",
+      "interactions": [],
       "consoleErrors": [],
       "apiErrors": [],
-      "dbVerifications": [],
-      "summary": "19次交互，无异常",
-      "discovered": {
-        "tabs": 2,
-        "buttons": 64,
-        "pagination": 10,
-        "switches": 0,
-        "tableRows": 20,
-        "forms": 0,
-        "inputs": 9
-      }
+      "writeApis": [],
+      "summary": "CRASH: /backup/list timeout 25000ms | RETRY: /backup/list:retry timeout 25000ms",
+      "screenshot": "/Users/xiaofang/Documents/www/go/hivemtk/hivemtk/user-web/interact-shots/1-_backup_list-error.png"
     },
     {
       "route": "/backup/enhanced",
       "status": "ok",
       "pageLoad": {
         "not404": true,
-        "contentLength": 6188,
+        "contentLength": 6096,
         "url": "http://localhost:8211/#/backup/enhanced"
       },
       "interactions": [
+        {
+          "type": "select",
+          "target": "select",
+          "before": {
+            "console": 0,
+            "api": 0
+          },
+          "after": {
+            "console": 0,
+            "api": 0
+          },
+          "dialogOpened": false,
+          "uiChanged": false,
+          "uiBroken": false,
+          "newConsole": [],
+          "newApi": [],
+          "optionSelected": true
+        },
         {
           "type": "switch",
           "target": "switch",
@@ -3566,16 +3924,20 @@
       "consoleErrors": [],
       "apiErrors": [],
       "dbVerifications": [],
-      "summary": "15次交互，无异常",
+      "summary": "16次交互，无异常",
       "discovered": {
         "tabs": 0,
         "buttons": 278,
         "pagination": 0,
         "switches": 2,
+        "searchInputs": 0,
+        "selects": 1,
+        "sortableHeaders": 0,
         "tableRows": 92,
         "forms": 1,
         "inputs": 6
-      }
+      },
+      "writeApis": []
     }
   ]
 }

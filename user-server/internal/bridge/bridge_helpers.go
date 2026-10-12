@@ -8,8 +8,6 @@ import (
 	"hivemtk-user/internal/model"
 )
 
-const maxReplyContentBytes = 4 * 1024 //nolint:unused //// 仅被 *_test.go 引用，生产路径未用
-
 // OwnershipChecker 账号归属校验回调：
 //   - 输入：uid (JWT 解析的 user_id), channel, accountID
 //   - 输出：true 表示当前 user 拥有该 bridge 账号

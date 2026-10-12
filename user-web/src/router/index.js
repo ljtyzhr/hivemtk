@@ -2,6 +2,7 @@ import { createRouter, createWebHashHistory } from 'vue-router'
 import Layout from '@/layout/Layout.vue'
 import { isInitialized } from '@/utils/initHelper'
 import { useUserStore } from '@/stores/user'
+import { usePermissionStore } from '@/stores/permission'
 import { ElMessage } from 'element-plus'
 
 const routeModules = import.meta.glob('./modules/*.js');
@@ -266,6 +267,23 @@ router.beforeEach(async (to, from, next) => {
       ElMessage.error('无权访问（403）：仅管理员可使用该功能')
       next({ name: 'NotFound', query: { status: '403', from: to.fullPath }, replace: true })
       return
+    }
+    // RBAC 菜单权限：登录后拉取后端菜单树（缓存），非超管校验路径授权
+    const permissionStore = usePermissionStore()
+    await permissionStore.ensureMenus()
+    if (userStore.role !== 'admin') {
+      const personalPaths = ['/profile', '/notifications']
+      const isPersonal = personalPaths.some(p => to.path === p || to.path.startsWith(p + '/'))
+      if (!isPersonal && !permissionStore.canAccessPath(to.path)) {
+        // 默认落地页不可访问时重定向到首个授权菜单，避免登录后直接 403
+        if (to.path === '/messageHub/list') {
+          next({ path: permissionStore.menuPaths[0] || '/inbox/list', replace: true })
+          return
+        }
+        ElMessage.error('无权访问（403）：请联系管理员分配菜单权限')
+        next({ name: 'NotFound', query: { status: '403', from: to.fullPath }, replace: true })
+        return
+      }
     }
   }
 

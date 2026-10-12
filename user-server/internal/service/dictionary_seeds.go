@@ -16,22 +16,29 @@ import "hivemtk-user/internal/model"
 // 常量与页面上的名字会分叉，而代码是权威的那一侧）。
 
 type dictionarySeed struct {
-	items []model.Dictionary
-	trans []model.DictionaryTransition
+	// label/description 是「域」这一层的元数据，不是某一项的。
+	// 管理端侧栏要显示中文名；只有 parent_code 的话页面上就是一排
+	// approval_status / payment_status，既不像给人看的，也无法说明这域管什么。
+	label       string
+	description string
+	items       []model.Dictionary
+	trans       []model.DictionaryTransition
 }
 
 // dictionarySeedIndex 域 → 种子。按域分层：项与跃迁分开存，
 // 避免把「有哪几种状态」和「A 能不能到 B」混成一列 JSON。
 var dictionarySeedIndex = map[string]dictionarySeed{}
 
-func registerDictionarySeed(parent string, items []model.Dictionary, trans []model.DictionaryTransition) {
+func registerDictionarySeed(parent, label, description string, items []model.Dictionary, trans []model.DictionaryTransition) {
 	for i := range items {
 		items[i].ParentCode = parent
 	}
 	for i := range trans {
 		trans[i].ParentCode = parent
 	}
-	dictionarySeedIndex[parent] = dictionarySeed{items: items, trans: trans}
+	dictionarySeedIndex[parent] = dictionarySeed{
+		label: label, description: description, items: items, trans: trans,
+	}
 }
 
 func lookupDictionarySeed(parent string) ([]model.Dictionary, []model.DictionaryTransition, bool) {
@@ -59,6 +66,7 @@ func init() {
 	// ── approval_status：审批流状态机 ──
 	// 与 model/approval_request.go 的常量逐字对应（那是代码侧的事实源）。
 	registerDictionarySeed("approval_status",
+		"审批状态", "审批请求的生命周期：提交 → 裁决 → 终态。与代码里 model/approval_request.go 的状态常量逐字对应。",
 		[]model.Dictionary{
 			lockedDict("pending", "待审批", "提交后尚未有人裁决。过期由清扫任务改写，不由人点", 1),
 			lockedDict("approved", "已批准", "终态。批准之后流程往哪跑由 checkpoint 侧负责，不在本表再记一份", 2),
@@ -75,6 +83,7 @@ func init() {
 
 	// ── bad_case_status：坏案例状态机 ──
 	registerDictionarySeed("bad_case_status",
+		"坏案例状态", "坏案例从发现到闭环的处理阶段。",
 		[]model.Dictionary{
 			lockedDict("pending", "待判定", "新收集到的坏例，尚未打标", 1),
 			lockedDict("labeled", "已判定", "已打上类目与依据，可导出", 2),
@@ -90,6 +99,7 @@ func init() {
 	// HumanTaskOpenStatuses / HumanTaskTerminalStatuses 的分界也在这里表达：
 	// 落在终态集合里的行不再被任何人改写。
 	registerDictionarySeed("human_task_status",
+		"转人工任务状态", "转人工工单的流转：待接单 → 已分派 → 处理中 → 完成。",
 		[]model.Dictionary{
 			lockedDict("open", "待处理", "开集。进队列等人领", 1),
 			lockedDict("assigned", "已分派", "开集。已指定处理人，尚未完成", 2),
@@ -109,6 +119,7 @@ func init() {
 
 	// ── opportunity_stage：商机阶段 ──
 	registerDictionarySeed("opportunity_stage",
+		"商机阶段", "销售漏斗的阶段划分，lead 到 won/lost 为终态。",
 		[]model.Dictionary{
 			lockedDict("lead", "线索", "尚未确认意向", 1),
 			lockedDict("qualified", "已验证", "需求与预算都确认过", 2),
@@ -130,6 +141,7 @@ func init() {
 
 	// ── payment_status：支付状态机 ──
 	registerDictionarySeed("payment_status",
+		"支付状态", "订单收款生命周期：创建 → 支付 → 退款 / 关闭。",
 		[]model.Dictionary{
 			lockedDict("created", "已创建", "订单已发起，未收钱", 1),
 			lockedDict("paid", "已支付", "收到钱，待履约", 2),

@@ -178,19 +178,24 @@ func SeedConfigParams(ctx context.Context, db *gorm.DB) error {
 		}
 
 		if err := db.WithContext(ctx).Create(&model.ConfigParam{
-			Group:        def.Group,
-			Key:          def.Key,
-			Name:         def.Name,
-			Description:  def.Description,
-			ValueType:    def.ValueType,
-			Value:        def.DefaultValue,
-			DefaultValue: def.DefaultValue,
-			Min:          def.Min,
-			Max:          def.Max,
-			Step:         def.Step,
-			ReadOnly:     def.ReadOnly,
-			Restart:      def.Restart,
-			Category:     def.Category,
+			Group:            def.Group,
+			Key:              def.Key,
+			Name:             def.Name,
+			Description:      def.Description,
+			ValueType:        def.ValueType,
+			Value:            def.DefaultValue,
+			DefaultValue:     def.DefaultValue,
+			Min:              def.Min,
+			Max:              def.Max,
+			Step:             def.Step,
+			Unit:             def.Unit,
+			Risk:             def.Risk,
+			Deprecated:       def.Deprecated,
+			DeprecatedAt:     deprecatedAtIf(def.Deprecated),
+			DeprecatedReason: def.DeprecatedReason,
+			ReadOnly:         def.ReadOnly,
+			Restart:          def.Restart,
+			Category:         def.Category,
 		}).Error; err != nil {
 			logger.Errorf("[ConfigParam] seed create %s.%s failed: %v（这条参数没有进库：管理台看不到、代码只会读兜底值）",
 				def.Group, def.Key, err)
@@ -206,6 +211,43 @@ func SeedConfigParams(ctx context.Context, db *gorm.DB) error {
 			len(seedFailures), len(DefaultParamDefs()), strings.Join(seedFailures, "; "))
 	}
 	return nil
+}
+
+// SeedParamGroups 把分组元数据（中文名/说明/排序）upsert 进库。启动期调用，与
+// SeedConfigParams 分开。
+//
+// 为什么分成两次 seed：这两件事的失败后果根本不同级。参数值没进库 ⇒ 管理台看不到、
+// 代码读兜底值，那条链路的行为与声明不一致，必须冒泡（0.3 起 seed 失败会返回 error）。
+// 而组元数据只决定侧栏那列中文名，读不到时前端回落显示英文 group key——
+// 纯外观降级，功能不残废。把两者绑在一起的后果是：任何一个只声明 &model.ConfigParam{}
+// 的测试 fixture 都会在 seed 那一步撞 `relation "config_param_groups" does not exist`。
+// 曾经为此在 testutil 里藏耦合（靠 reflect 拿类型名绕开 import 成环），那等于把
+// 「哪张表和哪张表绑着」这条知识藏进一个所有测试共用的黑箱里，而它本可以由两个独立的
+// 入口自然表达。改为独立入口后：失败只降级外观、只在 main.go 一处调用、
+// 且各有各的测试。
+func SeedParamGroups(ctx context.Context, db *gorm.DB) error {
+	if db == nil {
+		return repository.ErrConfigParamStoreUnavailable
+	}
+	return seedParamGroups(ctx, repository.NewConfigParamRepository(db))
+}
+
+// seedParamGroups 把分组元数据 upsert 进库。
+func seedParamGroups(ctx context.Context, repo *repository.ConfigParamRepository) error {
+	defs := DefaultParamGroupDefs()
+	if len(defs) == 0 {
+		return nil
+	}
+	rows := make([]model.ConfigParamGroup, 0, len(defs))
+	for _, d := range defs {
+		rows = append(rows, model.ConfigParamGroup{
+			Group:       d.Group,
+			Label:       d.Label,
+			Description: d.Description,
+			SortOrder:   d.SortOrder,
+		})
+	}
+	return repo.UpsertGroups(ctx, rows)
 }
 
 // syncParamDef 把存量行的**定义列**对齐当前种子定义。
@@ -249,6 +291,27 @@ func syncParamDef(ctx context.Context, db *gorm.DB, p *model.ConfigParam, def Pa
 	if p.Category != def.Category {
 		updates["Category"] = def.Category
 	}
+	if p.Unit != def.Unit {
+		updates["Unit"] = def.Unit
+	}
+	if p.Risk != def.Risk {
+		updates["Risk"] = def.Risk
+	}
+	if p.DeprecatedReason != def.DeprecatedReason {
+		updates["DeprecatedReason"] = def.DeprecatedReason
+	}
+	if p.Deprecated != def.Deprecated {
+		updates["Deprecated"] = def.Deprecated
+		// DeprecatedAt 只在 false→true 的那一刻写。
+		// 每次启动都刷新的话，「什么时候下架的」会被冲成最近一次启动时间，
+		// 而排查「上周三那次改动之后行为变了没有」时这个字段就是唯一线索。
+		// 反向（true→false，重新接线）则清空：它不再是下架的行，留个下架时间只会误导。
+		if def.Deprecated {
+			updates["DeprecatedAt"] = time.Now()
+		} else {
+			updates["DeprecatedAt"] = nil
+		}
+	}
 	if len(updates) == 0 {
 		return false
 	}
@@ -267,6 +330,15 @@ func sameOptionalPtr(a, b *string) bool {
 		return a == nil && b == nil
 	}
 	return *a == *b
+}
+
+// deprecatedAtIf 新建一行时给下架条目打上时刻；非下架返回 nil。
+func deprecatedAtIf(deprecated bool) *time.Time {
+	if !deprecated {
+		return nil
+	}
+	now := time.Now()
+	return &now
 }
 
 func (s *ConfigParamService) GetInt(ctx context.Context, group, key string, fallback int) int {
@@ -392,7 +464,12 @@ func (s *ConfigParamService) getString(ctx context.Context, group, key string) (
 	s.loaded[group] = true
 	s.mu.Unlock()
 
-	params, err := s.repo.ListByGroup(ctx, group)
+	// 这里传 includeDeprecated=true，与管理端 List 的口径**故意相反**：
+	// 管理端列表不该给用户看改了不生效的旋钮，但代码读取路径必须能读到它。
+	// 两者混用会造成一类极隐蔽的故障：有人重新接线了某个旋钮却忘了去掉下架标记，
+	// 代码侧从此每次读都 miss、每次静默回落兜底值，而页面上它明明白白写着「可配置」。
+	// 让读取侧无视下架标记，这个故障就只剩下「该去把标记摘掉」这一种解法。
+	params, err := s.repo.ListByGroup(ctx, group, true)
 	if err != nil {
 
 		logger.Warnf("[ConfigParam] load group %s failed: %v", group, err)
@@ -425,19 +502,27 @@ func (s *ConfigParamService) getString(ctx context.Context, group, key string) (
 // 放大成整站不可用。
 var repoNotInitializedErr = repository.ErrConfigParamStoreUnavailable
 
-func (s *ConfigParamService) List(ctx context.Context) ([]model.ConfigParam, error) {
+func (s *ConfigParamService) List(ctx context.Context, includeDeprecated bool) ([]model.ConfigParam, error) {
 	if s.repo == nil {
 		return nil, repoNotInitializedErr
 	}
-	return s.repo.List(ctx)
+	return s.repo.List(ctx, includeDeprecated)
 }
 
 // ListByGroup 按分组返回参数
-func (s *ConfigParamService) ListByGroup(ctx context.Context, group string) ([]model.ConfigParam, error) {
+func (s *ConfigParamService) ListByGroup(ctx context.Context, group string, includeDeprecated bool) ([]model.ConfigParam, error) {
 	if s.repo == nil {
 		return nil, repoNotInitializedErr
 	}
-	return s.repo.ListByGroup(ctx, group)
+	return s.repo.ListByGroup(ctx, group, includeDeprecated)
+}
+
+// Groups 返回分组元数据（中文名 / 说明 / 排序），管理端侧栏直接渲染这一份。
+func (s *ConfigParamService) Groups(ctx context.Context) ([]model.ConfigParamGroup, error) {
+	if s.repo == nil {
+		return nil, repoNotInitializedErr
+	}
+	return s.repo.ListGroups(ctx)
 }
 
 // UpdateValue 更新单个参数值（会做范围校验 + 失效缓存）

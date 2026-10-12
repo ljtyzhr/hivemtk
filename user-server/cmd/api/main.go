@@ -155,6 +155,15 @@ func main() {
 			// 跟「登记了没人读」是同一类病：日志看着像证据，实际早就不准了。
 			logger.Info("[ConfigParam] dynamic threshold params seeded (" + strconv.Itoa(len(service.DefaultParamDefs())) + " defaults)")
 		}
+		// 分组元数据（侧栏中文名/排序）单独 seed，失败只降级外观——页面上回落显示英文
+		// group key，功能不残废，所以这里只记 error 不阻断启动。与 SeedConfigParams
+		// 分开是为了不让「组表缺失」把参数值本身的 seed 一起判死（那会让每个只声明
+		// &model.ConfigParam{} 的测试 fixture 全红，详见 service.SeedParamGroups 的注释）。
+		if err := service.SeedParamGroups(context.Background(), gdb); err != nil {
+			logger.Errorf("[ConfigParam] 分组元数据 seed failed（管理端侧栏会回落成英文组名）: %v", err)
+		} else {
+			logger.Info("[ConfigParam] param group metadata seeded (" + strconv.Itoa(len(service.DefaultParamGroupDefs())) + " groups)")
+		}
 	}
 
 	// misc 组接线上线：把参数中心的取值注入到 model/repository/middleware/pkg/ops 等

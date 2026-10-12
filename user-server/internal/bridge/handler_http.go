@@ -28,16 +28,17 @@ import (
 //	bridge.ingest_max_body_bytes → HTTPIngestMaxBodySize (fallback)
 //	bridge.ingest_max_messages → HTTPIngestMaxMessages (fallback)
 //
-// HTTPPollingMaxTimeout / HTTPPollingDefaultTimeout 是**尚未接线**的两个值：服务端没有
-// 长轮询实现（ingest 立即返回，回复走 SSE 推送或扩展侧 /outbox 轮询），因此
-// bridge.polling_max_timeout / bridge.polling_default_timeout 两个参数读不到任何消费点。
-// 两行仍留在种子里（存量库已有这两行），它们的 Description 写明了"当前不生效"。
-// 真要长轮询时：把这两个常量当 fallback 传给 GetDuration，并给等待加 ctx.Done() 退出。
+// 长轮询超时两个旋钮（bridge.polling_max_timeout / polling_default_timeout）
+// 已于 2026-10-12 下架，对应的 HTTPPollingMaxTimeout / HTTPPollingDefaultTimeout
+// 常量同时删除。删除理由不是「顺手清理」，而是那两个常量全树只有 defaults_test.go
+// 引用——它们的存在本身就在证明「有个旋钮改了不生效」。留着一个改了不生效的旋钮
+// 比没有旋钮更糟：运营改完排查半天，问题却在代码里。
+//
+// 真要长轮询时：把新的兜底常量登记回 config_params（bridge.polling_max_timeout），
+// 并给等待加 ctx.Done() 退出。
 const (
-	HTTPPollingMaxTimeout     = 500 * time.Second
-	HTTPPollingDefaultTimeout = 30 * time.Second
-	HTTPIngestMaxBodySize     = 4 << 20
-	HTTPIngestMaxMessages     = 200
+	HTTPIngestMaxBodySize = 4 << 20
+	HTTPIngestMaxMessages = 200
 )
 
 func runtimeIngestMaxBodySize(ctx context.Context) int {

@@ -84,7 +84,7 @@ func (c *ConfigParamController) Runtime(ctx *gin.Context) {
 	}
 	if len(allowed) > 0 {
 		for _, g := range allowed {
-			list, err := c.svc.ListByGroup(ctx.Request.Context(), g)
+			list, err := c.svc.ListByGroup(ctx.Request.Context(), g, false)
 			if err != nil {
 				// 单组读失败不应让整次请求失败：其余组照常返回，失败的组由前端用
 				// 兜底值顶着（这正是「配置面挂了不白屏」的判据 3）。

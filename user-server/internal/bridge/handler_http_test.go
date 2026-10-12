@@ -12,16 +12,6 @@ import (
 )
 
 func TestHTTPIngestDefaults(t *testing.T) {
-	t.Run("HTTPPollingMaxTimeout_500s", func(t *testing.T) {
-		if HTTPPollingMaxTimeout.Seconds() != 500 {
-			t.Errorf("HTTPPollingMaxTimeout 应为 500 秒，实际 %v", HTTPPollingMaxTimeout)
-		}
-	})
-	t.Run("HTTPPollingDefaultTimeout_30s", func(t *testing.T) {
-		if HTTPPollingDefaultTimeout.Seconds() != 30 {
-			t.Errorf("HTTPPollingDefaultTimeout 应为 30 秒，实际 %v", HTTPPollingDefaultTimeout)
-		}
-	})
 	t.Run("HTTPIngestMaxBodySize_4MB", func(t *testing.T) {
 		if HTTPIngestMaxBodySize != 4<<20 {
 			t.Errorf("HTTPIngestMaxBodySize 应为 4MB，实际 %d", HTTPIngestMaxBodySize)

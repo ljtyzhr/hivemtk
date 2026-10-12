@@ -26,6 +26,7 @@ func setupConfigParamRoutes(plainAuth, admin *gin.RouterGroup, db *gorm.DB) {
 
 	admin.GET("/manage/config-params", ctrl.List)
 	admin.GET("/manage/config-params/audit-logs", ctrl.AuditLogs)
+	admin.GET("/manage/config-params/groups", ctrl.ListGroups)
 	admin.PUT("/manage/config-params/:group/:key", ctrl.Update)
 	admin.POST("/manage/config-params/:group/:key/reset", ctrl.ResetToDefault)
 	admin.POST("/manage/config-params/:group/reset", ctrl.BulkResetGroup)

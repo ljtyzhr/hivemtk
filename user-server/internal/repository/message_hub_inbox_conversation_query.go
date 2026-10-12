@@ -4,6 +4,8 @@ import (
 	"context"
 	"time"
 
+	"gorm.io/gorm"
+
 	"hivemtk-user/internal/model"
 )
 
@@ -275,6 +277,17 @@ type InboxStatsResult struct {
 //   - from: last_message_from 过滤值（通常 "customer"）
 //   - threshold: 超时阈值（last_message_at <= threshold 视为 overdue）
 func (r *InboxConversationRepository) GetStats(ctx context.Context, validStatuses, activeStatuses []string, from string, threshold time.Time) (*InboxStatsResult, error) {
+	return r.getStats(ctx, validStatuses, activeStatuses, from, threshold, "")
+}
+
+// GetStatsByAssignedTo 按坐席过滤的收件箱统计（数据权限：非超管只见分配给自己的）
+//
+// assignedTo 为空时退化为全量统计。其余语义与 GetStats 一致。
+func (r *InboxConversationRepository) GetStatsByAssignedTo(ctx context.Context, validStatuses, activeStatuses []string, from string, threshold time.Time, assignedTo string) (*InboxStatsResult, error) {
+	return r.getStats(ctx, validStatuses, activeStatuses, from, threshold, assignedTo)
+}
+
+func (r *InboxConversationRepository) getStats(ctx context.Context, validStatuses, activeStatuses []string, from string, threshold time.Time, assignedTo string) (*InboxStatsResult, error) {
 	if r == nil || r.db == nil {
 		return &InboxStatsResult{
 			ByPlatform: map[string]int64{}, ByAssignedTo: map[string]int64{},
@@ -284,13 +297,19 @@ func (r *InboxConversationRepository) GetStats(ctx context.Context, validStatuse
 		ByPlatform:   map[string]int64{},
 		ByAssignedTo: map[string]int64{},
 	}
+	scope := func(tx *gorm.DB) *gorm.DB {
+		if assignedTo != "" {
+			return tx.Where("assigned_to = ?", assignedTo)
+		}
+		return tx
+	}
 
 	type sc struct {
 		Status string
 		C      int64
 	}
 	var scs []sc
-	if err := r.db.WithContext(ctx).Model(&model.InboxConversation{}).
+	if err := scope(r.db.WithContext(ctx).Model(&model.InboxConversation{})).
 		Select("status, COUNT(*) AS c").
 		Where("status IN ?", validStatuses).
 		Group("status").Scan(&scs).Error; err != nil {
@@ -315,7 +334,7 @@ func (r *InboxConversationRepository) GetStats(ctx context.Context, validStatuse
 		C        int64
 	}
 	var pcs []pc
-	r.db.WithContext(ctx).Model(&model.InboxConversation{}).
+	scope(r.db.WithContext(ctx).Model(&model.InboxConversation{})).
 		Select("platform AS platform, COUNT(*) AS c").
 		Group("platform").Scan(&pcs)
 	for _, p := range pcs {
@@ -327,7 +346,7 @@ func (r *InboxConversationRepository) GetStats(ctx context.Context, validStatuse
 		C          int64
 	}
 	var acs []ac
-	r.db.WithContext(ctx).Model(&model.InboxConversation{}).
+	scope(r.db.WithContext(ctx).Model(&model.InboxConversation{})).
 		Select("assigned_to, COUNT(*) AS c").
 		Where("assigned_to <> '' AND status IN ?", activeStatuses).
 		Group("assigned_to").Scan(&acs)
@@ -336,7 +355,7 @@ func (r *InboxConversationRepository) GetStats(ctx context.Context, validStatuse
 	}
 
 	var overdue int64
-	r.db.WithContext(ctx).Model(&model.InboxConversation{}).
+	scope(r.db.WithContext(ctx).Model(&model.InboxConversation{})).
 		Where("status IN ? AND last_message_from = ? AND last_message_at <= ?",
 			[]string{"unread", "open", "assigned"}, from, threshold).
 		Count(&overdue)

@@ -115,7 +115,10 @@ func TestWireEmbeddingConfigParamsWriteLegReachesParamAndAudit(t *testing.T) {
 		t.Fatalf("SetGlobalEmbeddingOverride 失败：%v", err)
 	}
 
-	list, err := svc.List(ctx)
+	// 第二参数 includeDeprecated=true：与旧签名等价（列出全部），且参数中心新增
+	// 「已下架」过滤后，这里若用 false，一旦 embedding.global_override 被标下架，
+	// 本用例会变成「查不到就红」而不是「真的没写进去就红」，失败原因会被伪装。
+	list, err := svc.List(ctx, true)
 	if err != nil {
 		t.Fatalf("List 失败：%v", err)
 	}

@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"strconv"
 
+	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/service"
 
@@ -24,16 +25,20 @@ func NewConfigParamController(svc *service.ConfigParamService) *ConfigParamContr
 
 // List GET /api/manage/config-params
 // 全部参数（分组按 group 字段排序）
+//
+// include_deprecated=1 时连已下架的旋钮一起返回（查历史值用）。默认不返回：
+// 页面上挂着一个改了不生效的旋钮，比没有这个旋钮更糟。
 func (c *ConfigParamController) List(ctx *gin.Context) {
 	group := ctx.Query("group")
+	includeDeprecated := ctx.Query("include_deprecated") == "1"
 	var (
 		list interface{}
 		err  error
 	)
 	if group != "" {
-		list, err = c.svc.ListByGroup(ctx.Request.Context(), group)
+		list, err = c.svc.ListByGroup(ctx.Request.Context(), group, includeDeprecated)
 	} else {
-		list, err = c.svc.List(ctx.Request.Context())
+		list, err = c.svc.List(ctx.Request.Context(), includeDeprecated)
 	}
 	if err != nil {
 		logger.Warnf("[ConfigParam] List group=%s err=%v", group, err)
@@ -41,6 +46,26 @@ func (c *ConfigParamController) List(ctx *gin.Context) {
 		return
 	}
 	ctx.JSON(http.StatusOK, gin.H{"code": 0, "data": list, "message": "ok"})
+}
+
+// ListGroups GET /api/manage/config-params/groups
+// 分组元数据（中文名 / 说明 / 排序）。
+//
+// 前端原来硬编码了一份 29 组的 GROUP_LABELS，那份清单与 param_group 是两份事实：
+// 新增一个组前端不知道中文名，页面上就显示 "inbox_sales" 这种英文 key，像出了 bug。
+// 这里下发唯一事实源，前端只负责渲染。
+func (c *ConfigParamController) ListGroups(ctx *gin.Context) {
+	groups, err := c.svc.Groups(ctx.Request.Context())
+	if err != nil {
+		logger.Warnf("[ConfigParam] ListGroups err=%v", err)
+		ctx.JSON(http.StatusOK, gin.H{"code": 500, "message": err.Error()})
+		return
+	}
+	// nil slice 序列化成 null，前端 map/Object.entries 会炸；空集合必须是 []。
+	if groups == nil {
+		groups = []model.ConfigParamGroup{}
+	}
+	ctx.JSON(http.StatusOK, gin.H{"code": 0, "data": groups, "message": "ok"})
 }
 
 // Update PUT /api/manage/config-params/:group/:key

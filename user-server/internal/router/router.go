@@ -465,6 +465,10 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 
 		setupPermissionRoutes(auth)
 
+		// 菜单权限（RBAC）：GET /api/menus（本人可见树）+ /api/system/menus 与
+		// /api/system/roles/:code/menus 分配读写（RequireAdmin 在文件内挂）。
+		setupMenuRoutes(auth)
+
 		setupRagRoutes(auth, gormDB)
 
 		setupKnowledgeBaseRoutes(auth)

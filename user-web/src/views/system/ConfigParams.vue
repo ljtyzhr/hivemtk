@@ -1,6 +1,6 @@
 <template>
   <div class="config-params-page">
-    
+
     <el-row :gutter="16" class="stat-row">
       <el-col :xs="12" :sm="6">
         <el-card shadow="hover" class="stat-card">
@@ -36,21 +36,21 @@
         </el-card>
       </el-col>
       <el-col :xs="12" :sm="6">
-        <el-card shadow="hover" class="stat-card">
+        <el-card shadow="hover" class="stat-card" :class="{ 'stat-card--danger': stats.danger > 0 }">
           <div class="stat-inner">
-            <div class="stat-icon stat-icon--readonly"><el-icon :size="24"><Lock /></el-icon></div>
+            <div class="stat-icon stat-icon--danger"><el-icon :size="24"><WarningFilled /></el-icon></div>
             <div class="stat-body">
-              <div class="stat-value">{{ stats.readonly }}</div>
-              <div class="stat-label">只读</div>
+              <div class="stat-value">{{ stats.danger }}</div>
+              <div class="stat-label">高危参数</div>
             </div>
           </div>
         </el-card>
       </el-col>
     </el-row>
 
-    
+
     <el-row :gutter="16" class="main-row">
-      
+
       <el-col :xs="24" :md="5" :lg="4">
         <el-card shadow="hover" class="group-card">
           <template #header>
@@ -85,10 +85,11 @@
               </div>
             </div>
           </div>
+          <div v-if="groups.length === 0" class="group-empty">后端未返回任何分组元数据</div>
         </el-card>
       </el-col>
 
-      
+
       <el-col :xs="24" :md="19" :lg="20">
         <el-card shadow="hover" class="table-card">
           <template #header>
@@ -96,6 +97,9 @@
               <div class="header-title">
                 <el-tag type="info" effect="plain" class="group-tag">{{ currentGroupLabel }}</el-tag>
                 <span class="header-count">共 {{ filteredList.length }} 条</span>
+                <el-tooltip v-if="currentGroupDesc" :content="currentGroupDesc" placement="top">
+                  <el-icon class="header-help"><Document /></el-icon>
+                </el-tooltip>
               </div>
               <div class="header-actions">
                 <el-input
@@ -103,10 +107,17 @@
                   placeholder="搜索 key / 名称 / 描述"
                   clearable
                   size="default"
-                  style="width: 260px"
+                  style="width: 240px"
                 >
                   <template #prefix><el-icon><Search /></el-icon></template>
                 </el-input>
+                <el-radio-group v-model="searchScope" size="default">
+                  <el-radio-button value="group">本组</el-radio-button>
+                  <el-radio-button value="all">全部组</el-radio-button>
+                </el-radio-group>
+                <el-tooltip content="默认不列出已下架参数：那些旋钮在代码里没有消费点，改了不生效" placement="top">
+                  <el-switch v-model="showRetired" active-text="显示已下架" />
+                </el-tooltip>
                 <el-button :disabled="groupModifiedCount === 0" :loading="resettingGroup" @click="handleBulkReset">
                   <el-icon><RefreshLeft /></el-icon>
                   重置整组
@@ -120,60 +131,94 @@
             </div>
           </template>
 
+          <el-alert
+            v-if="isGlobalSearch"
+            type="info"
+            :closable="false"
+            show-icon
+            class="scope-hint"
+            :title="`正在跨全部 ${groups.length} 个分组搜索「${keyword.trim()}」，命中 ${filteredList.length} 条`"
+          />
+
           <el-table
             v-loading="loading"
             :data="filteredList"
             stripe
             border
-            empty-text="暂无参数"
+            empty-text="没有匹配的参数"
             style="width: 100%"
             :header-cell-style="{ background: '#fafafa' }"
+            :row-class-name="rowClassName"
           >
-            <el-table-column prop="key" label="Key" width="220" show-overflow-tooltip>
+            <el-table-column v-if="isGlobalSearch" prop="group" label="分组" width="120" show-overflow-tooltip>
+              <template #default="{ row }">
+                <el-tag size="small" effect="plain" type="info">{{ groupLabel(row.group) }}</el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column prop="key" label="Key" width="210" show-overflow-tooltip>
               <template #default="{ row }">
                 <code class="param-key">{{ row.key }}</code>
               </template>
             </el-table-column>
-            <el-table-column prop="name" label="名称" min-width="140" show-overflow-tooltip />
-            <el-table-column prop="description" label="描述" min-width="220" show-overflow-tooltip />
-            <el-table-column label="类型" width="90" align="center">
+            <el-table-column prop="name" label="名称" min-width="150" show-overflow-tooltip>
+              <template #default="{ row }">
+                <div class="name-cell">
+                  <span class="name-text">{{ stripSuffix(row.name) }}</span>
+                  <el-tooltip v-if="row.deprecated" :content="retiredTip(row)" placement="top">
+                    <el-tag type="danger" size="small" effect="dark">已下架</el-tag>
+                  </el-tooltip>
+                  <el-tooltip v-else-if="row.risk === 'danger'" content="高危：填错可能直接让功能不可用，保存前会二次确认" placement="top">
+                    <el-tag type="danger" size="small" effect="plain">高危</el-tag>
+                  </el-tooltip>
+                  <el-tooltip v-else-if="row.risk === 'warning'" content="敏感：填错不报错，但会静默改变业务行为" placement="top">
+                    <el-tag type="warning" size="small" effect="plain">敏感</el-tag>
+                  </el-tooltip>
+                  <el-tooltip v-if="row.restart" content="装配期读取：改完需要重启服务才对已建立的连接/账号生效" placement="top">
+                    <el-tag type="warning" size="small" effect="plain">需重启</el-tag>
+                  </el-tooltip>
+                  <el-tag v-if="row.read_only" type="info" size="small" effect="plain">只读</el-tag>
+                </div>
+              </template>
+            </el-table-column>
+            <el-table-column label="描述" min-width="200" show-overflow-tooltip>
+              <template #default="{ row }">
+                <span v-if="!row.deprecated">{{ row.description || '-' }}</span>
+                <span v-else class="retired-reason">{{ row.deprecated_reason || '未记录下架原因' }}</span>
+              </template>
+            </el-table-column>
+            <el-table-column label="类型" width="86" align="center">
               <template #default="{ row }">
                 <el-tag :type="typeTagColor(row.value_type)" size="small">{{ row.value_type }}</el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="当前值" min-width="180" show-overflow-tooltip>
+            <el-table-column label="当前值" min-width="170" show-overflow-tooltip>
               <template #default="{ row }">
                 <div class="val-cell">
                   <span class="val-current" :class="{ 'val-changed': !isDefault(row) }">
                     {{ formatValue(row, row.value) }}
                   </span>
+                  <span v-if="unitSuffix(row)" class="unit-inline">{{ unitSuffix(row) }}</span>
                   <el-tag v-if="!isDefault(row)" type="warning" size="small" effect="plain" class="changed-badge">已修改</el-tag>
-                  <el-tag v-if="row.read_only" type="info" size="small" effect="plain">只读</el-tag>
                 </div>
               </template>
             </el-table-column>
-            <el-table-column label="默认值" min-width="140" show-overflow-tooltip>
+            <el-table-column label="默认值" min-width="130" show-overflow-tooltip>
               <template #default="{ row }">
                 <span class="val-default">{{ formatValue(row, row.default_value) }}</span>
               </template>
             </el-table-column>
-            <el-table-column label="范围" width="170" show-overflow-tooltip>
+            <el-table-column label="范围" width="150" show-overflow-tooltip>
               <template #default="{ row }">
-                <span v-if="row.min !== undefined || row.max !== undefined || row.step !== undefined" class="range-cell">
-                  <template v-if="row.min !== undefined && row.max !== undefined">[{{ row.min }}, {{ row.max }}]</template>
-                  <template v-else-if="row.min !== undefined">≥ {{ row.min }}</template>
-                  <template v-else-if="row.max !== undefined">≤ {{ row.max }}</template>
-                  <template v-if="row.step !== undefined && row.step !== 1 && row.step !== 0"> step={{ row.step }}</template>
-                </span>
+                <span v-if="hasRange(row)" class="range-cell">{{ rangeText(row) }}</span>
                 <span v-else class="muted">-</span>
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="160" fixed="right" align="center">
+            <el-table-column label="操作" width="150" fixed="right" align="center">
               <template #default="{ row }">
-                <el-button link type="primary" size="small" :disabled="row.read_only" @click="openEdit(row)">
+                <el-button link type="primary" size="small" :disabled="row.read_only || row.deprecated" @click="openEdit(row)">
                   <el-icon><Edit /></el-icon>编辑
                 </el-button>
-                <el-button link type="warning" size="small" :disabled="isDefault(row)" :loading="row._resetting" @click="handleResetOne(row)">
+                <el-button link type="warning" size="small" :disabled="isDefault(row) || row.deprecated" :loading="row._resetting" @click="handleResetOne(row)">
                   <el-icon><RefreshLeft /></el-icon>重置
                 </el-button>
               </template>
@@ -183,47 +228,76 @@
       </el-col>
     </el-row>
 
-    
+
     <el-dialog
       v-model="editDialogVisible"
       :title="`编辑参数 · ${editing?.key ?? ''}`"
-      width="520px"
+      width="560px"
       :close-on-click-modal="false"
       destroy-on-close
     >
       <div v-if="editing" class="edit-body">
+        <el-alert
+          v-if="editing.deprecated"
+          type="error"
+          show-icon
+          :closable="false"
+          :title="editing.deprecated_reason || '该参数已下架'"
+        />
+        <el-alert
+          v-else-if="editing.restart"
+          type="warning"
+          show-icon
+          :closable="false"
+          title="该参数在服务装配期读取，保存后需重启服务，才会对已建立的连接 / 已加载的账号生效。"
+        />
+        <el-alert
+          v-else-if="editing.risk === 'danger'"
+          type="error"
+          show-icon
+          :closable="false"
+          title="高危参数：填错可能让功能直接不可用（例如锁 TTL 填 0 会变成永不过期）。保存时会再确认一次。"
+        />
+        <el-alert
+          v-else-if="editing.risk === 'warning'"
+          type="warning"
+          show-icon
+          :closable="false"
+          title="敏感参数：填错不会报错，但会静默改变业务行为。"
+        />
+
         <el-descriptions :column="2" border size="small" class="edit-desc">
-          <el-descriptions-item label="分组">{{ editing.group }}</el-descriptions-item>
+          <el-descriptions-item label="分组">{{ groupLabel(editing.group) }}</el-descriptions-item>
           <el-descriptions-item label="类型">
             <el-tag :type="typeTagColor(editing.value_type)" size="small">{{ editing.value_type }}</el-tag>
           </el-descriptions-item>
-          <el-descriptions-item label="名称" :span="2">{{ editing.name }}</el-descriptions-item>
+          <el-descriptions-item label="名称" :span="2">{{ stripSuffix(editing.name) }}</el-descriptions-item>
           <el-descriptions-item label="描述" :span="2">{{ editing.description || '-' }}</el-descriptions-item>
           <el-descriptions-item label="默认值">{{ formatValue(editing, editing.default_value) }}</el-descriptions-item>
           <el-descriptions-item label="只读">
             <el-tag :type="editing.read_only ? 'info' : 'success'" size="small">{{ editing.read_only ? '是' : '否' }}</el-tag>
           </el-descriptions-item>
-          <el-descriptions-item v-if="editing.min !== undefined" label="最小值">{{ editing.min }}</el-descriptions-item>
-          <el-descriptions-item v-if="editing.max !== undefined" label="最大值">{{ editing.max }}</el-descriptions-item>
+          <el-descriptions-item v-if="hasRange(editing)" label="可填范围" :span="2">{{ rangeText(editing) }}</el-descriptions-item>
         </el-descriptions>
 
         <div class="edit-field">
-          <div class="edit-field__label">当前值</div>
+          <div class="edit-field__label">
+            新值
+            <span v-if="isDefault(editing)" class="muted">（与默认值一致）</span>
+          </div>
 
-          
           <template v-if="isBoolType(editing.value_type)">
             <el-switch v-model="editValueBool" :active-value="true" :inactive-value="false" />
-            <span class="muted" style="margin-left:8px">{{ editValueBool ? 'true' : 'false' }}</span>
+            <span class="muted switch-hint">{{ editValueBool ? 'true' : 'false' }}</span>
           </template>
 
-          
           <template v-else-if="isNumericType(editing.value_type)">
             <div v-if="hasSlider(editing)" class="slider-wrap">
               <el-slider
                 v-model="editValueNum"
                 :min="numBound(editing.min) ?? 0"
                 :max="numBound(editing.max) ?? 100"
-                :step="numBound(editing.step) ?? (editing.value_type === 'float' || editing.value_type === 'duration' ? 0.1 : 1)"
+                :step="numBound(editing.step) ?? defaultStep(editing)"
                 :show-tooltip="false"
                 style="flex:1; margin-right:12px"
               />
@@ -231,35 +305,44 @@
                 v-model="editValueNum"
                 :min="numBound(editing.min)"
                 :max="numBound(editing.max)"
-                :step="numBound(editing.step) ?? (editing.value_type === 'float' || editing.value_type === 'duration' ? 0.1 : 1)"
-                :precision="editing.value_type === 'float' || editing.value_type === 'duration' ? 3 : 0"
+                :step="numBound(editing.step) ?? defaultStep(editing)"
+                :precision="precisionOf(editing)"
                 controls-position="right"
                 size="default"
                 style="width:140px"
               />
-              <span v-if="editing.value_type === 'duration'" class="unit-label">秒</span>
+              <span v-if="unitSuffix(editing)" class="unit-label">{{ unitSuffix(editing) }}</span>
             </div>
             <el-input-number
               v-else
               v-model="editValueNum"
               :min="numBound(editing.min)"
               :max="numBound(editing.max)"
-              :step="numBound(editing.step) ?? (editing.value_type === 'float' || editing.value_type === 'duration' ? 0.1 : 1)"
-              :precision="editing.value_type === 'float' || editing.value_type === 'duration' ? 3 : 0"
+              :step="numBound(editing.step) ?? defaultStep(editing)"
+              :precision="precisionOf(editing)"
               controls-position="right"
               size="default"
               style="width:100%"
             />
+            <div v-if="editing.value_type === 'duration'" class="edit-hint">
+              单位是秒。填 {{ editValueNum }} 秒 ≈ <strong>{{ formatDuration(editValueNum) }}</strong>
+            </div>
+            <div v-else-if="unitSuffix(editing)" class="edit-hint">单位：{{ unitSuffix(editing) }}</div>
           </template>
 
-          
           <template v-else>
             <el-input
               v-model="editValueStr"
-              :type="isTextareaType(editing.value_type) ? 'textarea' : 'text'"
-              :rows="3"
-              :placeholder="`默认: ${formatValue(editing, editing.default_value)}`"
+              :type="isTextareaType(editing) ? 'textarea' : 'text'"
+              :rows="isTextareaType(editing) ? 6 : 3"
+              :placeholder="`默认值：${editing.default_value ?? ''}`"
             />
+            <div v-if="looksLikeJson(editing)" class="json-tools">
+              <el-button size="small" @click="formatEditJson">
+                <el-icon><Document /></el-icon>格式化 JSON
+              </el-button>
+              <span class="muted">默认值是一段 JSON，保存前会校验语法</span>
+            </div>
           </template>
         </div>
 
@@ -269,8 +352,15 @@
       <template #footer>
         <el-button @click="editDialogVisible = false">取消</el-button>
         <el-button
-          type="warning"
-          :disabled="editValueUnchanged || editError"
+          v-if="editing && !isDefault(editing) && !editing.read_only && !editing.deprecated"
+          :loading="resettingOne"
+          @click="resetInDialog"
+        >
+          <el-icon><RefreshLeft /></el-icon>恢复默认值
+        </el-button>
+        <el-button
+          :type="editing?.risk === 'danger' ? 'danger' : 'primary'"
+          :disabled="editValueUnchanged || !!editError || !editing || editing.deprecated || editing.read_only"
           :loading="saving"
           @click="confirmEdit"
         >
@@ -279,7 +369,7 @@
       </template>
     </el-dialog>
 
-    
+
     <el-drawer v-model="auditDrawerVisible" title="变更审计日志" size="640px">
       <template v-if="auditLoading">
         <div class="drawer-loading"><el-icon class="is-loading" :size="28"><Loading /></el-icon></div>
@@ -295,9 +385,6 @@
           >
             <div class="audit-item">
               <div class="audit-item__head">
-                <!-- 审计接口回的键是 param_group / param_key / actor_id（不是 group / key / operator），
-                     原先三个绑定全部落空 ⇒ 每条记录只剩一个空标签、一个空参数名和一个 "-"，
-                     等于整份变更日志读不出"改了哪个参数、谁改的"。 -->
                 <el-tag size="small" effect="plain">{{ item.param_group || '-' }}</el-tag>
                 <code class="audit-key">{{ item.param_key }}</code>
                 <span class="audit-user">{{ item.actor_id ? `用户 #${item.actor_id}` : '-' }}</span>
@@ -325,152 +412,160 @@ import { computed, ref, onMounted, watch } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import * as configParamsApi from '@/api/configParams'
 
-// 这里只保留「分组键 → 中文名」和展示顺序，分组集合与条数一律从接口返回的参数推导。
-// 原先这是一份写死的 18 项数组，连每组的 count 都是写死的数字：
-// 一则接口现在实际有 29 组，channelbot / embedding / geo / human_task / lead / lock /
-// memory / permission / reach / sse / webhook 这些组的参数在页面上根本没有入口
-// （读得到、改不了，而顶部分组计数又写着 29，自相矛盾）；
-// 二则侧栏徽标显示「AI 大模型 16」，同一屏右侧表头显示「共 18 条」，两个数打脸。
-const GROUP_LABELS = {
-  agent_llm: 'AI 大模型',
-  agent_tool: 'AI 工具',
-  bridge: '消息桥接',
-  cache: '缓存策略',
-  channelbot: '渠道机器人',
-  channelgw: '渠道网关',
-  confidence: '置信度阈值',
-  embedding: '向量嵌入',
-  geo: '可见性统计',
-  human_task: '转人工任务',
-  inbox_sales: '私信销售',
-  knowledge: '知识库',
-  lead: '线索画像',
-  lock: '分布式锁',
-  memory: '短期记忆',
-  middleware: '中间件',
-  misc: '其它',
-  pagination: '分页',
-  permission: '角色权限',
-  reach: '触达频控',
-  sales: '销售',
-  session: '会话',
-  smart_cs: '智能客服',
-  sse: 'SSE 推送',
-  telemetry: '遥测',
-  webhook: 'Webhook 回调',
-  wechat: '微信',
-  wecom: '企业微信',
-  workflow: '工作流'
-}
-
 const allParams = ref([])
 
+// 分组元数据（中文名 / 说明 / 排序）来自后端 config_param_groups。
+// 原来这里是前端写死的一张 GROUP_LABELS 表：后端加一个新组，前端不知道中文名就
+// 静默回落显示英文 group key，页面上看不出哪里不对（当时是 18 项硬编码、实际 29 组）。
+// 事实源只保留一份，这里只负责渲染；后端没给元数据时回落英文 key 而不是崩溃。
+const groupMeta = ref([])
+const groupMetaMap = computed(() => {
+  const m = new Map()
+  for (const g of groupMeta.value) {
+    if (g && g.group) m.set(g.group, g)
+  }
+  return m
+})
+
+function groupLabel(key) {
+  const g = groupMetaMap.value.get(key)
+  return g && g.label ? g.label : (key || '-')
+}
+
+function groupDesc(key) {
+  const g = groupMetaMap.value.get(key)
+  return g && g.description ? g.description : ''
+}
+
 const groups = computed(() => {
+  // 计数一律从 allParams 推导，口径必须和 filteredList 的分组过滤完全一致，
+  // 否则侧栏数字与表头「共 N 条」又会各说各话（历史上就这么打脸过）。
   const counts = new Map()
-  for (const p of allParams.value) {
-    // 用原始 group 计数，口径必须和 filteredList 的 `p.group === currentGroup` 完全一致，
-    // 否则侧栏数字与表头「共 N 条」又会各说各话。
+  for (const p of visibleParams.value) {
     if (!p.group) continue
     counts.set(p.group, (counts.get(p.group) || 0) + 1)
   }
-  const order = Object.keys(GROUP_LABELS)
+  // 元数据里的组也一并列出：某组参数全部处于「已下架」且当前未勾选显示时，
+  // 它的计数是 0，但从侧栏进得去、看得见有这一组，而不是凭空消失。
+  for (const g of groupMeta.value) {
+    if (g && g.group && !counts.has(g.group)) counts.set(g.group, 0)
+  }
+  const meta = groupMetaMap.value
   return [...counts.entries()]
-    .map(([key, count]) => ({ key, count, label: GROUP_LABELS[key] || key }))
+    .map(([key, count]) => ({ key, count, label: groupLabel(key), meta: meta.get(key) }))
     .sort((a, b) => {
-      const ia = order.indexOf(a.key)
-      const ib = order.indexOf(b.key)
-      if (ia !== ib) {
-        if (ia === -1) return 1
-        if (ib === -1) return -1
-        return ia - ib
+      const sa = a.meta ? Number(a.meta.sort_order || 0) : 0
+      const sb = b.meta ? Number(b.meta.sort_order || 0) : 0
+      // sort_order=0 是「没排过序」的哨兵（后端 ORDER BY 已把它排到最后），
+      // 前端再排一次是为了在元数据缺失时也能有个稳定顺序。
+      if (sa !== sb) {
+        if (sa === 0) return 1
+        if (sb === 0) return -1
+        return sa - sb
       }
       return a.key.localeCompare(b.key)
     })
 })
 
-const currentGroup = ref('agent_llm')
+const currentGroup = ref('')
 const loading = ref(false)
 const saving = ref(false)
+const resettingOne = ref(false)
+const resettingGroup = ref(false)
 const keyword = ref('')
+const searchScope = ref('all')
+const showRetired = ref(false)
+
+// visibleParams 是真正参与渲染的集合。后端 list(include_deprecated=0) 本来就过滤了
+// 已下架项，这里再滤一次是**有意的冗余**：这一页唯一不能出的错就是「页面上挂着一个
+// 改了不生效的旋钮」。后端过滤一旦回归（老后端配新前端、或某次改动漏传参数），
+// 用户看到的仍然是一个能编辑、能保存、但行为不变的行——而且审计里还留下一条 update，
+// 排查时最难的那种。后端过滤是性能与职责边界，前端过滤是最后一道防线。
+const visibleParams = computed(() => {
+  if (showRetired.value) return allParams.value
+  return allParams.value.filter((p) => !p.deprecated)
+})
+
+const isGlobalSearch = computed(() => keyword.value.trim() !== '' && searchScope.value === 'all')
 
 const stats = computed(() => {
-  const list = allParams.value
+  const list = visibleParams.value
   return {
     total: list.length,
     groupCount: groups.value.length,
     modified: list.filter((p) => !isDefault(p)).length,
-    readonly: list.filter((p) => p.read_only).length
+    danger: list.filter((p) => p.risk === 'danger' && !p.deprecated).length
   }
-});
+})
 
 const currentGroupLabel = computed(() => {
   const g = groups.value.find((x) => x.key === currentGroup.value)
-  return g ? `${g.label} / ${g.key}` : currentGroup.value
+  return g ? `${g.label} / ${g.key}` : (currentGroup.value || '全部')
 })
+
+const currentGroupDesc = computed(() => groupDesc(currentGroup.value))
 
 const filteredList = computed(() => {
   const kw = keyword.value.trim().toLowerCase()
-  const groupList = allParams.value.filter((p) => p.group === currentGroup.value)
-  if (!kw) return groupList
-  return groupList.filter((p) => {
-    const hay = `${p.key} ${p.name} ${p.description || ''}`.toLowerCase()
+  // 没有搜索词时永远只看当前组：左侧分组栏是这页的主导航，
+  // 一进页面就把 217 条全铺在表里会让人不知道该从哪看起。
+  // 一旦输入搜索词，才按 searchScope 决定搜本组还是搜全部组。
+  if (!kw) return visibleParams.value.filter((p) => p.group === currentGroup.value)
+  const base = searchScope.value === 'group'
+    ? visibleParams.value.filter((p) => p.group === currentGroup.value)
+    : visibleParams.value
+  return base.filter((p) => {
+    const hay = `${p.group} ${p.key} ${p.name} ${p.description || ''} ${p.deprecated_reason || ''}`.toLowerCase()
     return hay.includes(kw)
   })
 })
 
 const groupModifiedCount = computed(() => {
-  return filteredList.value.filter((p) => !isDefault(p)).length
+  return filteredList.value.filter((p) => !p.deprecated && !isDefault(p)).length
 })
 
 async function loadAll() {
   loading.value = true
   try {
-    const res = await configParamsApi.list(undefined);
-    const list = Array.isArray(res) ? res : (res && Array.isArray(res.list) ? res.list : [])
+    const [paramsRes, groupsRes] = await Promise.all([
+      configParamsApi.list(undefined, showRetired.value),
+      configParamsApi.listGroups()
+    ])
+    const list = Array.isArray(paramsRes) ? paramsRes : (paramsRes && Array.isArray(paramsRes.list) ? paramsRes.list : [])
     allParams.value = list
+    const meta = Array.isArray(groupsRes) ? groupsRes : (groupsRes && Array.isArray(groupsRes.list) ? groupsRes.list : [])
+    groupMeta.value = meta
     // 默认选中的组必须在真实返回的分组里，否则进页面就是一张没有任何解释的空表。
-    if (list.length && !list.some((p) => p.group === currentGroup.value)) {
-      currentGroup.value = list[0].group
+    if (!groups.value.some((g) => g.key === currentGroup.value)) {
+      currentGroup.value = groups.value.length ? groups.value[0].key : ''
     }
   } catch (e) {
-    ElMessage.error('加载参数失败')
-  } finally {
-    loading.value = false
-  }
-}
-
-async function loadGroup(groupKey) {
-  loading.value = true
-  try {
-    const res = await configParamsApi.list(groupKey)
-    const list = Array.isArray(res) ? res : (res && Array.isArray(res.list) ? res.list : [])
-    const remain = allParams.value.filter((p) => p.group !== groupKey);
-    allParams.value = [...remain, ...list]
-    // 组数不在这里手改：groups 是从 allParams 推导的 computed，改一处只会造成两份计数真相。
-  } catch (e) {
-    ElMessage.error('加载分组参数失败')
+    ElMessage.error('加载参数失败：' + (e.message || '未知错误'))
   } finally {
     loading.value = false
   }
 }
 
 function switchGroup(key) {
-  if (currentGroup.value === key) return
   currentGroup.value = key
-  if (!allParams.value.some((p) => p.group === key)) {
-    loadGroup(key)
-  }
 }
+
+// 已下架的旋钮不参与「重置整组」的计数：它们本来就不在默认值语义之外，
+// 而且后端 BulkResetGroup 会跳过它们，前端报一个含它们的条数就是骗人。
+watch(showRetired, () => {
+  loadAll()
+})
 
 onMounted(() => {
   loadAll()
 })
 
 function getGroupModified(groupKey) {
-  return allParams.value.filter((p) => p.group === groupKey && !isDefault(p)).length
+  return visibleParams.value.filter((p) => p.group === groupKey && !p.deprecated && !isDefault(p)).length
 }
 
 function isDefault(p) {
+  if (!p) return true
   if (p.value === undefined || p.value === null) return true
   if (p.default_value === undefined || p.default_value === null) return false
   if (typeof p.value === 'number' || (typeof p.value === 'string' && /^-?\d+(\.\d+)?$/.test(p.value))) {
@@ -481,11 +576,57 @@ function isDefault(p) {
   return String(p.value) === String(p.default_value)
 }
 
+// 种子里的 Name/Description 带的是状态标记（「（未接线）」/「【已下架：…】」），
+// 那是给扫描器和审计看的，不该出现在给用户看的表格里。
+const STATUS_SUFFIX_RE = /[（(]\s*(未接线|已下架|只读)\s*[）)]\s*$/;
+const STATUS_PREFIX_RE = /^【[^】]*】\s*/;
+
+function stripSuffix(text) {
+  if (!text) return ''
+  return String(text).replace(STATUS_SUFFIX_RE, '').replace(STATUS_PREFIX_RE, '').trim()
+}
+
+function formatNum(n) {
+  if (!Number.isFinite(n)) return String(n)
+  return Number.isInteger(n) ? String(n) : String(Math.round(n * 1000) / 1000)
+}
+
+// duration 一律显示「N 秒」在参数中心里是反人类：86400 秒没人能一眼读成一天。
+// 这里给人读，但只有「整除」时才升单位——90 秒显示成「1.5 分钟」不如显示「90 秒」。
+function formatDuration(seconds) {
+  const n = Number(seconds)
+  if (!Number.isFinite(n)) return String(seconds)
+  const sign = n < 0 ? '-' : ''
+  const s = Math.abs(n)
+  if (s < 60) return `${sign}${formatNum(s)} 秒`
+  if (s < 3600) {
+    const m = s / 60
+    return Number.isInteger(m) ? `${sign}${m} 分钟` : `${sign}${formatNum(s)} 秒`
+  }
+  if (s < 86400) {
+    const h = s / 3600
+    return Number.isInteger(h) ? `${sign}${h} 小时` : `${sign}${formatNum(s)} 秒`
+  }
+  const d = Math.floor(s / 86400)
+  const restH = Math.round((s - d * 86400) / 3600)
+  if (restH === 0) return `${sign}${d} 天`
+  return `${sign}${d} 天 ${restH} 小时`
+}
+
+// duration 的单位恒为秒，bool 没有单位——这两种 Unit 留空是对的，
+// 不能因为「单位」听起来是必填就把所有 duration 都挂上「秒」。
+function unitSuffix(row) {
+  if (!row) return ''
+  const t = String(row.value_type || '').toLowerCase()
+  if (t === 'duration' || t === 'bool' || t === 'boolean') return ''
+  return row.unit || ''
+}
+
 function formatValue(row, v) {
   if (v === undefined || v === null) return ''
-  if (row && row.value_type === 'duration') {
+  if (row && String(row.value_type || '').toLowerCase() === 'duration') {
     const n = Number(v)
-    if (Number.isFinite(n)) return `${n} 秒`
+    if (Number.isFinite(n)) return formatDuration(n)
   }
   if (typeof v === 'boolean') return v ? 'true' : 'false'
   if (typeof v === 'object') {
@@ -518,12 +659,56 @@ function isBoolType(t) {
 function isNumericType(t) {
   return typeof t === 'string' && ['int', 'integer', 'float', 'duration', 'number'].includes(t.toLowerCase())
 }
-function isTextareaType(t) {
-  return typeof t === 'string' && ['text', 'json', 'yaml'].includes(t.toLowerCase())
+// 现在按「这一条参数实际是不是一段 JSON」判断，而不是按 value_type 白名单：
+// 4 条 string 参数里 3 条装的是 JSON blob，type 却写 string，
+// 按类型名判断会让它们全部落进单行输入框，JSON 语法错了也看不出来。
+function isTextareaType(row) {
+  const t = String(row && row.value_type ? row.value_type : row || '').toLowerCase()
+  if (['text', 'json', 'yaml', 'string'].includes(t)) return looksLikeJson(row)
+  return false
+}
+function looksLikeJson(row) {
+  if (!row) return false
+  const t = String(row.value_type || '').toLowerCase()
+  if (t === 'json') return true
+  if (t !== 'string' && t !== 'text') return false
+  if (/_json$/.test(String(row.key || ''))) return true
+  for (const probe of [row.default_value, row.value]) {
+    const s = String(probe ?? '').trim()
+    if (s.startsWith('{') || s.startsWith('[')) return true
+  }
+  return false
+}
+function hasRange(row) {
+  return !!(row && (row.min !== undefined || row.max !== undefined || row.step !== undefined))
+}
+function rangeText(row) {
+  const parts = []
+  if (row.min !== undefined && row.max !== undefined) parts.push(`[${row.min}, ${row.max}]`)
+  else if (row.min !== undefined) parts.push(`≥ ${row.min}`)
+  else if (row.max !== undefined) parts.push(`≤ ${row.max}`)
+  const step = Number(row.step)
+  if (Number.isFinite(step) && step !== 0 && step !== 1) parts.push(`步长 ${row.step}`)
+  return parts.join(' ')
+}
+function defaultStep(row) {
+  const t = String(row && row.value_type ? row.value_type : '').toLowerCase()
+  return (t === 'float' || t === 'duration') ? 0.1 : 1
+}
+function precisionOf(row) {
+  const t = String(row && row.value_type ? row.value_type : '').toLowerCase()
+  return (t === 'float' || t === 'duration') ? 3 : 0
 }
 function hasSlider(row) {
   const hasMinMax = row.min !== undefined && row.max !== undefined && Number(row.min) !== Number(row.max)
-  return hasMinMax && (isNumericType(row.value_type))
+  return hasMinMax && isNumericType(row.value_type)
+}
+function retiredTip(row) {
+  const when = row.deprecated_at ? formatTs(row.deprecated_at) : '时间未记录'
+  return `${row.deprecated_reason || '未记录下架原因'}（下架于 ${when}）`
+}
+function rowClassName({ row }) {
+  return row.deprecated ? 'row-retired' : ''
 }
 
 // 接口把 min/max/step 存成字符串（"1"、"0.1"），而 el-slider / el-input-number 的这三个
@@ -556,6 +741,10 @@ const editValueUnchanged = computed(() => {
 })
 
 function openEdit(row) {
+  if (row.deprecated) {
+    ElMessage.warning('该参数已下架：' + (row.deprecated_reason || '代码里没有消费点，改了不生效'))
+    return
+  }
   if (row.read_only) {
     ElMessage.warning('该参数为只读，不可编辑')
     return
@@ -577,18 +766,48 @@ function openEdit(row) {
 function validateEdit() {
   editError.value = ''
   const p = editing.value
+  if (!p) return false
   if (isNumericType(p.value_type)) {
     const n = Number(editValueNum.value)
     if (!Number.isFinite(n)) { editError.value = '必须是合法数字'; return false }
     if (p.min !== undefined && n < Number(p.min)) { editError.value = `不能小于最小值 ${p.min}`; return false }
     if (p.max !== undefined && n > Number(p.max)) { editError.value = `不能大于最大值 ${p.max}`; return false }
+    if (n === 0 && looksBlockingZero(p)) {
+      editError.value = '0 会让这个参数失效（锁不会过期 / 缓冲不存任何东西 / 上限清零），确认要填 0 吗？'
+      return false
+    }
+  }
+  if (looksLikeJson(p) && String(editValueStr.value).trim()) {
+    try {
+      JSON.parse(editValueStr.value)
+    } catch (e) {
+      editError.value = 'JSON 语法错误：' + (e.message || '解析失败')
+      return false
+    }
   }
   return true
+}
+
+// duration 型的 0 是「零秒」还是「不过期」取决于读取侧有没有回落兜底，
+// 前端不可能知道；但把 0 一律拦下来比事后排查便宜——锁 TTL、缓冲区大小、上传上限
+// 这几类填 0 的后果都是静默的（不是报错，是功能悄悄不工作）。
+function looksBlockingZero(p) {
+  if (p.value_type !== 'duration') return true
+  return /ttl|buffer|size|cap|limit|timeout/i.test(String(p.key || ''))
 }
 
 watch([editValueBool, editValueNum, editValueStr], () => {
   if (editing.value) validateEdit()
 })
+
+function formatEditJson() {
+  try {
+    editValueStr.value = JSON.stringify(JSON.parse(editValueStr.value), null, 2)
+    editError.value = ''
+  } catch (e) {
+    editError.value = 'JSON 解析失败：' + (e.message || '语法错误')
+  }
+}
 
 async function confirmEdit() {
   if (!validateEdit()) return
@@ -600,13 +819,27 @@ async function confirmEdit() {
     else submitValue = Number(editValueNum.value)
   } else submitValue = editValueStr.value
 
+  // 高危参数二次确认：不是所有 danger 都值得拦一次，但代价只是多按一下回车，
+  // 而漏按的那一次可能是「锁 TTL 改成 0」这种不报错、只是服务行为悄悄变掉的事故。
+  if (p.risk === 'danger') {
+    try {
+      await ElMessageBox.confirm(
+        `「${p.key}」是高危参数，改错可能让功能直接不可用。\n当前值：${formatValue(p, p.value)}\n将改为：${formatValue(p, submitValue)}\n\n确定继续吗？`,
+        '高危参数二次确认',
+        { confirmButtonText: '我确认，继续保存', cancelButtonText: '再想想', type: 'error' }
+      )
+    } catch (e) {
+      return
+    }
+  }
+
   saving.value = true
   try {
     await configParamsApi.update(p.group, p.key, submitValue)
-    const target = allParams.value.find((x) => x.group === p.group && x.key === p.key);
+    const target = visibleParams.value.find((x) => x.group === p.group && x.key === p.key);
     if (target) target.value = submitValue
     editDialogVisible.value = false
-    ElMessage.success('参数已更新')
+    ElMessage.success(p.restart ? '参数已更新（需重启服务后才对已有连接生效）' : '参数已更新')
   } catch (e) {
     ElMessage.error('保存失败：' + (e.message || '未知错误'))
   } finally {
@@ -614,7 +847,28 @@ async function confirmEdit() {
   }
 }
 
-const resettingGroup = ref(false);
+async function resetInDialog() {
+  const p = editing.value
+  if (!p) return
+  resettingOne.value = true
+  try {
+    await configParamsApi.reset(p.group, p.key)
+    const def = p.default_value ?? ''
+    if (isBoolType(p.value_type)) editValueBool.value = def === true || def === 'true'
+    else if (isNumericType(p.value_type)) {
+      const n = Number(def)
+      editValueNum.value = Number.isFinite(n) ? n : 0
+    } else editValueStr.value = String(def)
+    const target = visibleParams.value.find((x) => x.group === p.group && x.key === p.key)
+    if (target) target.value = def
+    editing.value = { ...p, value: def }
+    ElMessage.success('已恢复默认值，记得点「保存修改」提交')
+  } catch (e) {
+    ElMessage.error('恢复默认值失败：' + (e.message || '未知错误'))
+  } finally {
+    resettingOne.value = false
+  }
+}
 
 async function handleResetOne(row) {
   if (isDefault(row)) { ElMessage.info('已是默认值'); return }
@@ -640,13 +894,13 @@ async function handleBulkReset() {
   if (count === 0) { ElMessage.info('当前分组没有已修改的参数'); return }
   try {
     await ElMessageBox.confirm(
-      `即将重置分组「${currentGroup.value}」下 ${count} 条已修改的参数，全部恢复为默认值。此操作不可撤销。`,
+      `即将重置分组「${currentGroupLabel.value}」下 ${count} 条已修改的参数，全部恢复为默认值。此操作不可撤销。`,
       `重置整组（${count} 条）`,
       { confirmButtonText: '全部重置', cancelButtonText: '取消', type: 'warning' }
     )
     resettingGroup.value = true
     await configParamsApi.bulkReset(currentGroup.value)
-    await loadGroup(currentGroup.value);
+    await loadAll();
     ElMessage.success(`已重置 ${count} 条参数`)
   } catch (e) {
     if (e !== 'cancel') ElMessage.error('整组重置失败：' + (e.message || '未知错误'))
@@ -692,6 +946,7 @@ function formatTs(ts) {
 }
 .stat-row { margin-bottom: 16px; }
 .stat-card { border-radius: 10px; }
+.stat-card--danger { border-color: #fca5a5; }
 .stat-inner { display: flex; align-items: center; gap: 14px; }
 .stat-icon {
   width: 44px; height: 44px;
@@ -702,7 +957,7 @@ function formatTs(ts) {
 .stat-icon--total    { background: linear-gradient(135deg, #6366f1, #8b5cf6); }
 .stat-icon--group   { background: linear-gradient(135deg, #06b6d4, #0ea5e9); }
 .stat-icon--modified{ background: linear-gradient(135deg, #f59e0b, #f97316); }
-.stat-icon--readonly{ background: linear-gradient(135deg, #64748b, #475569); }
+.stat-icon--danger  { background: linear-gradient(135deg, #ef4444, #dc2626); }
 .stat-body { flex: 1; }
 .stat-value { font-size: 24px; font-weight: 600; color: #1f2937; line-height: 1.1; }
 .stat-label { font-size: 13px; color: #6b7280; margin-top: 4px; }
@@ -717,6 +972,7 @@ function formatTs(ts) {
   display: flex; flex-direction: column; gap: 4px;
   max-height: calc(100vh - 260px); overflow-y: auto;
 }
+.group-empty { font-size: 12px; color: #9ca3af; text-align: center; padding: 12px 0; }
 .group-item {
   display: flex; align-items: center; justify-content: space-between;
   padding: 9px 10px; border-radius: 8px; cursor: pointer;
@@ -742,7 +998,9 @@ function formatTs(ts) {
 .header-title { display: flex; align-items: center; gap: 10px; }
 .group-tag { font-weight: 600; }
 .header-count { font-size: 13px; color: #6b7280; }
+.header-help { color: #9ca3af; cursor: help; }
 .header-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.scope-hint { margin-bottom: 12px; }
 .reset-badge {
   display: inline-block; margin-left: 4px; padding: 0 6px;
   background: #f59e0b; color: #fff; border-radius: 10px; font-size: 11px; line-height: 16px;
@@ -752,22 +1010,31 @@ function formatTs(ts) {
   background: #f3f4f6; padding: 2px 6px; border-radius: 4px;
   font-size: 12px; color: #4338ca;
 }
+.name-cell { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.name-text { font-size: 13px; color: #1f2937; }
+.retired-reason { font-size: 12px; color: #b91c1c; }
 
 .val-cell { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .val-current { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; color: #1f2937; }
 .val-changed { color: #b45309; font-weight: 500; }
 .val-default { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; color: #6b7280; }
 .changed-badge { margin-left: 4px; }
+.unit-inline { font-size: 11px; color: #9ca3af; }
 .range-cell { font-size: 12px; color: #374151; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
 .muted { color: #9ca3af; font-size: 12px; }
 
+:deep(.row-retired) { background: #fef2f2; opacity: .85; }
+
 /* 编辑对话框 */
-.edit-body { display: flex; flex-direction: column; gap: 16px; }
+.edit-body { display: flex; flex-direction: column; gap: 12px; }
 .edit-desc { margin-bottom: 4px; }
 .edit-field { display: flex; flex-direction: column; gap: 8px; }
 .edit-field__label { font-size: 13px; color: #374151; font-weight: 600; }
 .slider-wrap { display: flex; align-items: center; }
-.unit-label { font-size: 12px; color: #6b7280; margin-left: 8px; }
+.unit-label { font-size: 12px; color: #6b7280; margin-left: 8px; white-space: nowrap; }
+.switch-hint { margin-left: 8px; }
+.edit-hint { font-size: 12px; color: #6b7280; }
+.json-tools { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
 .edit-error {
   display: flex; align-items: center; gap: 6px;
   color: #dc2626; font-size: 13px; background: #fef2f2;

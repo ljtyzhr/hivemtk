@@ -8,6 +8,7 @@ import (
 	"hivemtk-user/internal/pkg/dbencrypt"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // 变更审计里的改前/改后值默认加密落库（OPT-SEC-04 残项，与 api_logs 同一把钥匙）。
@@ -42,28 +43,84 @@ func NewConfigParamRepository(db *gorm.DB) *ConfigParamRepository {
 	return &ConfigParamRepository{db: db}
 }
 
-// List 返回全部参数（管理端用）
-func (r *ConfigParamRepository) List(ctx context.Context) ([]model.ConfigParam, error) {
+// List 返回参数（管理端用）。
+//
+// 默认**不含**已下架的旋钮。理由：页面上挂着一个改了不生效的旋钮，比没有这个
+// 旋钮更糟——用户改完排查半天，问题却出在代码里而不是配置里。需要查历史值时用
+// includeDeprecated=true（或 API 的 ?include_deprecated=1）。
+func (r *ConfigParamRepository) List(ctx context.Context, includeDeprecated bool) ([]model.ConfigParam, error) {
 	if r == nil || r.db == nil {
 		return nil, ErrConfigParamStoreUnavailable
 	}
+	q := r.db.WithContext(ctx)
+	if !includeDeprecated {
+		q = q.Where("deprecated = ?", false)
+	}
 	var params []model.ConfigParam
-	if err := r.db.WithContext(ctx).Order("param_group").Order("key").Find(&params).Error; err != nil {
+	if err := q.Order("param_group").Order("key").Find(&params).Error; err != nil {
 		return nil, err
 	}
 	return params, nil
 }
 
-// ListByGroup 按分组返回参数（管理端分组展示）
-func (r *ConfigParamRepository) ListByGroup(ctx context.Context, group string) ([]model.ConfigParam, error) {
+// ListByGroup 按分组返回参数（管理端分组展示），口径与 List 一致。
+func (r *ConfigParamRepository) ListByGroup(ctx context.Context, group string, includeDeprecated bool) ([]model.ConfigParam, error) {
 	if r == nil || r.db == nil {
 		return nil, ErrConfigParamStoreUnavailable
 	}
+	q := r.db.WithContext(ctx).Where(&model.ConfigParam{Group: group})
+	if !includeDeprecated {
+		q = q.Where("deprecated = ?", false)
+	}
 	var params []model.ConfigParam
-	if err := r.db.WithContext(ctx).Where(&model.ConfigParam{Group: group}).Order("key").Find(&params).Error; err != nil {
+	if err := q.Order("key").Find(&params).Error; err != nil {
 		return nil, err
 	}
 	return params, nil
+}
+
+// UpsertGroups 写入分组元数据（seed 期调用）。
+//
+// 用 upsert 而不是先删后插：分组表没有历史可追溯需求，但它可能被运营手工排过序，
+// 启动时整表重建会把运营的排序抹掉。逐组按 group 唯一键更新才是「代码是默认值、
+// 运营可覆盖」的正确形态。
+func (r *ConfigParamRepository) UpsertGroups(ctx context.Context, groups []model.ConfigParamGroup) error {
+	if r == nil || r.db == nil {
+		return ErrConfigParamStoreUnavailable
+	}
+	if len(groups) == 0 {
+		return nil
+	}
+	rows := make([]model.ConfigParamGroup, len(groups))
+	copy(rows, groups)
+	return r.db.WithContext(ctx).
+		Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "param_group"}},
+			DoUpdates: clause.AssignmentColumns([]string{"label", "description", "sort_order", "updated_at"}),
+		}).
+		Create(&rows).Error
+}
+
+// ListGroups 返回全部分组元数据，按 sort_order、group 排序。
+//
+// sort_order=0 是「没排过序」的哨兵值，它必须排**最后**而不是最前。
+// 直接 `ORDER BY sort_order` 会让 0 顶到最前，于是每加一个没配顺序的新组，
+// 管理端侧栏的顺序就在两次发布之间悄悄变 —— 而顺序是组级属性，运维是照着
+// 记忆在侧栏里找组的，顺序一飘就找不到。`(sort_order = 0)` 在 Postgres 里
+// 布尔序 false < true，天然把"排过序的"排在"没排的"前面。
+func (r *ConfigParamRepository) ListGroups(ctx context.Context) ([]model.ConfigParamGroup, error) {
+	if r == nil || r.db == nil {
+		return nil, ErrConfigParamStoreUnavailable
+	}
+	var groups []model.ConfigParamGroup
+	if err := r.db.WithContext(ctx).
+		Order("(sort_order = 0)").
+		Order("sort_order").
+		Order("param_group").
+		Find(&groups).Error; err != nil {
+		return nil, err
+	}
+	return groups, nil
 }
 
 // GetByGroupKey 单条查询（Service 层类型化读取的底层）
@@ -78,6 +135,13 @@ func (r *ConfigParamRepository) GetByGroupKey(ctx context.Context, group, key st
 	return &p, nil
 }
 
+// ErrParamDeprecated 试图改动一个已下架的旋钮。
+//
+// 为什么写入要拦：下架的语义是「这个旋钮改了不生效」。如果 API 还收下改动、
+// 审计里还留下一条 update 记录，用户看到「保存成功 + 有审计」却发现行为没变——
+// 这比直接报错糟糕得多，它把一个明确的失败变成了一个需要人去推理的矛盾。
+var ErrParamDeprecated = errors.New("该参数已下架（改了也不生效），如需恢复请先在代码里重新接线")
+
 // UpdateValue 更新参数值（含 actor 审计）
 func (r *ConfigParamRepository) UpdateValue(ctx context.Context, group, key, newValue string, actorID uint) error {
 	if r == nil || r.db == nil {
@@ -90,6 +154,9 @@ func (r *ConfigParamRepository) UpdateValue(ctx context.Context, group, key, new
 		}
 		if p.ReadOnly {
 			return gorm.ErrRecordNotFound
+		}
+		if p.Deprecated {
+			return ErrParamDeprecated
 		}
 		oldValue := p.Value
 		updates := map[string]any{
@@ -121,6 +188,9 @@ func (r *ConfigParamRepository) ResetToDefault(ctx context.Context, group, key s
 		if err := tx.Where(&model.ConfigParam{Group: group, Key: key}).First(&p).Error; err != nil {
 			return err
 		}
+		if p.Deprecated {
+			return ErrParamDeprecated
+		}
 		oldValue := p.Value
 		if err := tx.Model(&p).Updates(map[string]any{
 			"Value":      p.DefaultValue,
@@ -151,7 +221,7 @@ func (r *ConfigParamRepository) BulkResetGroup(ctx context.Context, group string
 			return err
 		}
 		for _, p := range params {
-			if p.ReadOnly || p.Value == p.DefaultValue {
+			if p.ReadOnly || p.Deprecated || p.Value == p.DefaultValue {
 				continue
 			}
 			oldValue := p.Value

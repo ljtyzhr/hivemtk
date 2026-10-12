@@ -1,11 +1,15 @@
 /**
  * user-web 真人模拟交互引擎
- * 对每条路由：发现可交互元素 → 逐个点击（tab/按钮/分页/开关/行操作/表单）
+ * 对每条路由：发现可交互元素 → 逐个点击（tab/按钮/分页/开关/行操作/表单/搜索/下拉/排序/校验）
  * 每次交互后四重验证：
  *   1. 控制台新增错误
  *   2. API 新增失败请求
  *   3. UI 渲染变化（DOM/文本 diff）
- *   4. 写操作后 API 回读 DB 确认落库
+ *   4. 写操作后 2xx 写API 请求作为落库证据（POST/PUT/PATCH/DELETE 成功回执）
+ * 新增深化：
+ *   - 搜索框输入+回车+清空、el-select 下拉选一项、表头排序、空提交表单校验（el-form-item__error）
+ *   - 单路由 25s 硬超时；每 8 路由重启 browser 清理 SSE/内存；崩溃自动恢复重登
+ *   - 失败路由自动截图到 interact-shots/
  * 安全规则：删除类按钮只点开确认框后取消；表单用假数据+测后清理
  */
 import { chromium } from 'playwright';
@@ -16,6 +20,9 @@ const BASE_URL = 'http://localhost:8211';
 const API_URL = 'http://localhost:8204';
 const BATCH = process.argv[2] || '1';
 const RUN_ID = `e2e-${Date.now()}`;
+const ROUTE_TIMEOUT_MS = 60000;   // 单路由硬超时（交互密集页62+按钮，需足够预算；只防挂死不限工作量）
+const RESTART_EVERY = 8;          // 每N路由重启browser（SSE/内存清理）
+const SHOT_DIR = path.join(process.cwd(), 'interact-shots');
 
 // 全部 216 条路由（与 ROUTE_AUDIT_LIST.md 一致）
 const ALL_ROUTES = [
@@ -137,6 +144,23 @@ const READ_PATTERNS = [/查看|详情|预览|展开|更多|日志|历史|统计|
 
 const is404 = (text) => text.includes('404 Page Does not Exist') || text.includes('页面不存在');
 
+// 全局写API成功回执（2xx 的 POST/PUT/PATCH/DELETE），作为写操作落库证据
+const writeApiCalls = [];
+
+function attachWriteTracker(page) {
+  const fn = (res) => {
+    try {
+      const req = res.request();
+      const method = req.method();
+      if (['POST', 'PUT', 'PATCH', 'DELETE'].includes(method) && res.status() < 400 && res.url().includes('/api/')) {
+        writeApiCalls.push({ method, status: res.status(), url: res.url().replace(BASE_URL, ''), ts: Date.now() });
+      }
+    } catch {}
+  };
+  page.on('response', fn);
+  return fn;
+}
+
 function classifyButton(text) {
   if (!text) return 'unknown';
   if (DANGER_PATTERNS.some(p => p.test(text))) return 'danger';
@@ -178,6 +202,7 @@ async function interactRoute(page, route, tracked) {
 
   const consoleErrors = [];
   const apiErrors = [];
+  const writeBaseline = writeApiCalls.length;
   const listeners = {
     console: (msg) => { if (msg.type() === 'error') consoleErrors.push(msg.text().substring(0, 400)); },
     response: (res) => {
@@ -231,6 +256,27 @@ async function interactRoute(page, route, tracked) {
       await page.waitForTimeout(800);
     }
 
+    // 3b2. 搜索框：输入关键词 → 回车 → 清空（验证过滤不报错）
+    for (const si of discoveries.searchInputs) {
+      const inter = await safeInteract(page, 'search', si, baseline, consoleErrors, apiErrors);
+      result.interactions.push(inter);
+      await page.waitForTimeout(600);
+    }
+
+    // 3b3. 表头排序：点一次升序，再点一次降序
+    for (const sh of discoveries.sortableHeaders) {
+      const inter = await safeInteract(page, 'table-sort', sh, baseline, consoleErrors, apiErrors);
+      result.interactions.push(inter);
+      await page.waitForTimeout(500);
+    }
+
+    // 3b4. 下拉选择：展开 el-select 选第一项
+    for (const sel of discoveries.selects) {
+      const inter = await safeInteract(page, 'select', sel, baseline, consoleErrors, apiErrors);
+      result.interactions.push(inter);
+      await page.waitForTimeout(500);
+    }
+
     // 3c. 开关
     for (const sw of discoveries.switches.slice(0, 3)) {
       const inter = await safeInteract(page, 'switch', sw, baseline, consoleErrors, apiErrors);
@@ -280,6 +326,12 @@ async function interactRoute(page, route, tracked) {
       if (rowInter.dialogOpened) await closeDialog(page);
     }
 
+    // 3f. 表单校验：create/editor 路由空提交，断言必填错误提示出现（不填假数据，纯验证校验反馈）
+    if (route.includes('/create') || route.includes('/editor') || discoveries.forms > 0) {
+      const valInter = await testFormValidation(page);
+      if (valInter) result.interactions.push(valInter);
+    }
+
     // 4. 汇总
     const realConsole = consoleErrors.filter(e => !e.includes('favicon') && !e.includes('Failed to load resource'));
     // 假ID 404 提示属预期
@@ -290,6 +342,8 @@ async function interactRoute(page, route, tracked) {
     });
     result.consoleErrors = realConsole;
     result.apiErrors = realApi;
+    // 写API成功回执（落库证据）
+    result.writeApis = writeApiCalls.slice(writeBaseline);
 
     const uiBug = result.interactions.some(i => i.uiBroken);
     const consoleBug = realConsole.length > 0 && !isFakeId;
@@ -349,13 +403,40 @@ async function discoverInteractive(page) {
       switches.push({ idx: i, checked: el.classList.contains('is-checked') });
     });
 
+    // 搜索/筛选输入框（placeholder 含搜索/筛选/关键词/find）
+    const searchInputs = [];
+    document.querySelectorAll('input:not([type=hidden]):not([type=password])').forEach((el, i) => {
+      if (el.offsetParent === null) return;
+      const ph = (el.placeholder || '').toLowerCase();
+      if (/搜索|筛选|查找|关键词|search|filter|keyword|find/.test(ph)) {
+        searchInputs.push({ idx: i, placeholder: el.placeholder });
+      }
+    });
+
+    // 下拉选择器（el-select 可见的）
+    const selects = [];
+    document.querySelectorAll('.el-select').forEach((el, i) => {
+      if (el.offsetParent === null) return;
+      selects.push({ idx: i, placeholder: (el.querySelector('input')?.placeholder || '') });
+    });
+
+    // 表头可排序列
+    const sortableHeaders = [];
+    document.querySelectorAll('.el-table__header th.el-table__cell.is-leaf').forEach((el, i) => {
+      if (el.offsetParent === null) return;
+      if (!el.classList.contains('ascending') && !el.classList.contains('descending') && !el.querySelector('.sort-caret')) return;
+      const text = (el.innerText || '').trim().replace(/\s+/g, ' ');
+      if (text && text.length < 20) sortableHeaders.push({ idx: i, text });
+    });
+
     const tableRows = document.querySelectorAll('.el-table__body tr').length;
     const forms = document.querySelectorAll('form, .el-form').length;
     const inputs = document.querySelectorAll('input:not([type=hidden]), textarea').length;
 
     return {
-      counts: { tabs: tabs.length, buttons: buttons.length, pagination: pagination.length, switches: switches.length, tableRows, forms, inputs },
+      counts: { tabs: tabs.length, buttons: buttons.length, pagination: pagination.length, switches: switches.length, searchInputs: searchInputs.length, selects: selects.length, sortableHeaders: sortableHeaders.length, tableRows, forms, inputs },
       tabs, buttons, pagination: pagination.slice(0, 4), switches,
+      searchInputs: searchInputs.slice(0, 2), selects: selects.slice(0, 2), sortableHeaders: sortableHeaders.slice(0, 3),
       tableRows,
     };
   });
@@ -387,6 +468,16 @@ async function safeInteract(page, type, target, baseline, consoleErrors, apiErro
       }
     } else if (type === 'table-row') {
       el = await page.$(target.sel);
+    } else if (type === 'search') {
+      // 搜索框：直接用 input idx 定位
+      const inputs = await page.$$('input:not([type=hidden]):not([type=password])');
+      el = inputs[target.idx];
+    } else if (type === 'select') {
+      const sels = await page.$$('.el-select');
+      el = sels[target.idx];
+    } else if (type === 'table-sort') {
+      const ths = await page.$$('.el-table__header th.el-table__cell.is-leaf');
+      el = ths[target.idx];
     }
 
     if (!el) {
@@ -394,8 +485,32 @@ async function safeInteract(page, type, target, baseline, consoleErrors, apiErro
       return inter;
     }
 
-    await el.click({ timeout: 3000 }).catch(() => {});
-    await page.waitForTimeout(900);
+    if (type === 'search') {
+      // 输入关键词 → 回车 → 清空
+      await el.fill('测试', { timeout: 2000 }).catch(() => {});
+      await page.keyboard.press('Enter').catch(() => {});
+      await page.waitForTimeout(700);
+      await el.fill('').catch(() => {});
+      await page.keyboard.press('Enter').catch(() => {});
+      await page.waitForTimeout(500);
+      inter.searched = true;
+    } else if (type === 'select') {
+      await el.click({ timeout: 2000 }).catch(() => {});
+      await page.waitForTimeout(400);
+      // 选第一个可见 option
+      const opt = await page.$('.el-select-dropdown__item:not(.is-disabled):visible');
+      if (opt) { await opt.click({ timeout: 1500 }).catch(() => {}); await page.waitForTimeout(400); }
+      // Esc 收起
+      await page.keyboard.press('Escape').catch(() => {});
+      inter.optionSelected = !!opt;
+    } else if (type === 'table-sort') {
+      await el.click({ timeout: 2000 }).catch(() => {});
+      await page.waitForTimeout(600);
+      inter.sorted = true;
+    } else {
+      await el.click({ timeout: 3000 }).catch(() => {});
+      await page.waitForTimeout(900);
+    }
 
     // 对话框检测
     inter.dialogOpened = await page.evaluate(() => {
@@ -455,6 +570,54 @@ async function cancelDialog(page) {
     }
     return false;
   });
+}
+
+/**
+ * 表单校验测试：空提交断言必填错误提示（el-form-item__error / el-message--error）
+ * 只在有可见表单且无已填数据时执行，避免覆盖已填内容
+ */
+async function testFormValidation(page) {
+  try {
+    const hasForm = await page.evaluate(() => {
+      const form = document.querySelector('.el-form:not([style*="display: none"]), form');
+      if (!form || form.offsetParent === null) return false;
+      // 至少有一个可见必填项
+      return !!form.querySelector('.is-required, [aria-required="true"]');
+    });
+    if (!hasForm) return null;
+
+    const inter = { type: 'validate:empty-submit', target: '(empty form submit)', dialogOpened: false, uiChanged: false, uiBroken: false };
+    // 找提交按钮（保存/提交/确定）
+    const clicked = await page.evaluate(() => {
+      const btns = document.querySelectorAll('.el-form button, form button, .form-actions button, .el-dialog button');
+      for (const b of btns) {
+        if (b.offsetParent === null) continue;
+        const t = (b.innerText || '').trim();
+        if (/保存|提交|确定|创建|Save|Submit/i.test(t) && !/取消/.test(t)) { b.click(); return t; }
+      }
+      return null;
+    });
+    if (!clicked) { inter.skipped = 'no-submit-button'; return inter; }
+    inter.submitButton = clicked;
+    await page.waitForTimeout(800);
+
+    // 断言校验错误出现
+    const errors = await page.evaluate(() => {
+      const msgs = [];
+      document.querySelectorAll('.el-form-item__error, .el-message--error').forEach(el => {
+        if (el.offsetParent !== null) {
+          const t = (el.innerText || '').trim();
+          if (t) msgs.push(t);
+        }
+      });
+      return [...new Set(msgs)];
+    });
+    inter.validationErrors = errors;
+    inter.validationPassed = errors.length > 0; // 必填校验提示出现 = 校验机制正常
+    return inter;
+  } catch (e) {
+    return { type: 'validate:empty-submit', error: e.message.substring(0, 150) };
+  }
 }
 
 /**
@@ -568,33 +731,93 @@ function planButtonOrder(buttons) {
   return scored;
 }
 
-async function main() {
-  console.log(`=== 真人模拟交互测试 第${BATCH}批（${routes.length}条，共${ALL_ROUTES.length}条）===\n`);
+function withTimeout(p, ms, label) {
+  return Promise.race([
+    p,
+    new Promise((_, rej) => setTimeout(() => rej(new Error(`${label} timeout ${ms}ms`)), ms)),
+  ]);
+}
 
+async function launchAndLogin() {
   const browser = await chromium.launch({ headless: true });
   const context = await browser.newContext({ viewport: { width: 1440, height: 900 } });
   const page = await context.newPage();
-
-  console.log('--- 登录 ---');
+  const writeTracker = attachWriteTracker(page);
   await login(page);
-  console.log('✓ 登录成功\n');
+  return { browser, context, page, writeTracker };
+}
+
+async function safeClose(browser) {
+  if (!browser) return;
+  try {
+    await Promise.race([
+      browser.close(),
+      new Promise((_, rj) => setTimeout(() => rj(new Error('close timeout')), 3000)),
+    ]);
+  } catch {}
+}
+
+async function main() {
+  console.log(`=== 真人模拟交互测试 第${BATCH}批（${routes.length}条，共${ALL_ROUTES.length}条）===\n`);
+  if (!fs.existsSync(SHOT_DIR)) fs.mkdirSync(SHOT_DIR, { recursive: true });
+
+  let { browser, page } = await launchAndLogin();
+  console.log('--- 登录成功 ---\n');
 
   const results = [];
   for (let i = 0; i < routes.length; i++) {
     const route = routes[i];
+
+    // 每 N 路由重启 browser（SSE/内存清理，heartbeat/monitoring 类页面会累积）
+    if (i > 0 && i % RESTART_EVERY === 0) {
+      await safeClose(browser);
+      await new Promise(r => setTimeout(r, 500));
+      ({ browser, page } = await launchAndLogin());
+      console.log(`  [browser restarted @${i} routes for SSE/memory cleanup]`);
+    }
+
     process.stdout.write(`[${i + 1}/${routes.length}] ${route} ... `);
-    const r = await interactRoute(page, route, null);
+    let r;
+    try {
+      if (page.isClosed()) throw new Error('page closed');
+      r = await withTimeout(interactRoute(page, route, null), ROUTE_TIMEOUT_MS, route);
+    } catch (e) {
+      // 超时/崩溃：截图 → 重启恢复 → 重试一次
+      const err = e.message.substring(0, 120);
+      try {
+        const shot = path.join(SHOT_DIR, `${BATCH}-${route.replace(/[\/:]/g, '_')}-crash.png`);
+        await page.screenshot({ path: shot, timeout: 3000 }).catch(() => {});
+      } catch {}
+      await safeClose(browser);
+      await new Promise(r2 => setTimeout(r2, 500));
+      try {
+        ({ browser, page } = await launchAndLogin());
+        r = await withTimeout(interactRoute(page, route, null), ROUTE_TIMEOUT_MS, route + ':retry');
+      } catch (e2) {
+        r = { route, status: 'error', interactions: [], consoleErrors: [], apiErrors: [], writeApis: [], summary: `CRASH: ${err} | RETRY: ${e2.message.substring(0, 80)}` };
+      }
+    }
+
     results.push(r);
     const icon = r.status === 'ok' ? '✓' : r.status === 'partial' ? '⚠' : '✗';
     console.log(`${icon} ${r.status} — ${r.interactions.length}次交互 | ${r.summary}`);
-    if (r.consoleErrors.length > 0) console.log(`    控制台: ${r.consoleErrors[0].substring(0, 120)}`);
-    if (r.apiErrors.length > 0) console.log(`    API: ${r.apiErrors.slice(0, 2).join(' | ')}`);
-    if (r.dbVerifications.length > 0) console.log(`    DB: ${r.dbVerifications.map(d => d.result || d.error).join('; ')}`);
-    // 交互间冷却，避免 session 抖动
+    if (r.consoleErrors && r.consoleErrors.length > 0) console.log(`    控制台: ${r.consoleErrors[0].substring(0, 120)}`);
+    if (r.apiErrors && r.apiErrors.length > 0) console.log(`    API: ${r.apiErrors.slice(0, 2).join(' | ')}`);
+    if (r.writeApis && r.writeApis.length > 0) console.log(`    写API成功: ${r.writeApis.map(w => `${w.method} ${w.status} ${w.url.substring(0, 50)}`).join('; ')}`);
+    if (r.dbVerifications && r.dbVerifications.length > 0) console.log(`    DB: ${r.dbVerifications.map(d => d.result || d.error).join('; ')}`);
+
+    // 失败路由截图
+    if (r.status !== 'ok') {
+      try {
+        const shot = path.join(SHOT_DIR, `${BATCH}-${route.replace(/[\/:]/g, '_')}-${r.status}.png`);
+        await page.screenshot({ path: shot, timeout: 3000 }).catch(() => {});
+        r.screenshot = shot;
+      } catch {}
+    }
     await page.waitForTimeout(500);
   }
 
-  await browser.close();
+  await safeClose(browser);
 
   const reportPath = path.join(process.cwd(), `interact-batch${BATCH}-report.json`);
   fs.writeFileSync(reportPath, JSON.stringify({ runId: RUN_ID, batch: BATCH, total: routes.length, results }, null, 2));
@@ -602,11 +825,13 @@ async function main() {
   const ok = results.filter(r => r.status === 'ok').length;
   const partial = results.filter(r => r.status === 'partial').length;
   const fail = results.filter(r => ['fail', 'error'].includes(r.status)).length;
-  const totalInteractions = results.reduce((s, r) => s + r.interactions.length, 0);
+  const totalInteractions = results.reduce((s, r) => s + (r.interactions ? r.interactions.length : 0), 0);
+  const validations = results.reduce((s, r) => s + (r.interactions || []).filter(i => i.type === 'validate:empty-submit' && i.validationPassed).length, 0);
+  const writeApis = results.reduce((s, r) => s + (r.writeApis ? r.writeApis.length : 0), 0);
 
   console.log(`\n=== 第${BATCH}批交互测试完成 ===`);
   console.log(`路由: ${ok} ok | ${partial} partial | ${fail} fail`);
-  console.log(`总交互次数: ${totalInteractions}`);
+  console.log(`总交互次数: ${totalInteractions} | 表单校验通过: ${validations} | 写API成功: ${writeApis}`);
   console.log(`报告: ${reportPath}`);
 }
 

@@ -13,23 +13,40 @@ import (
 //  4. min/max/value_type 约束 + UI 渲染提示
 //  5. read_only=true 标记由系统自动推导/锁死（暂不开放给用户改）
 type ConfigParam struct {
-	ID           uint      `gorm:"primaryKey;autoIncrement" json:"id"`
-	Group        string    `gorm:"column:param_group;type:varchar(50);not null;index;uniqueIndex:idx_group_key,priority:1" json:"group"`
-	Key          string    `gorm:"type:varchar(100);not null;uniqueIndex:idx_group_key,priority:2" json:"key"`
-	Name         string    `gorm:"type:varchar(200);not null" json:"name"`
-	Description  string    `gorm:"type:varchar(500)" json:"description"`
-	ValueType    string    `gorm:"type:varchar(20);not null;default:int" json:"value_type"`
-	Value        string    `gorm:"column:param_value;type:text;not null" json:"value"`
-	DefaultValue string    `gorm:"column:default_value;type:text;not null" json:"default_value"`
-	Min          *string   `gorm:"type:varchar(50)" json:"min,omitempty"`
-	Max          *string   `gorm:"type:varchar(50)" json:"max,omitempty"`
-	Step         *string   `gorm:"type:varchar(20)" json:"step,omitempty"`
-	ReadOnly     bool      `gorm:"default:false" json:"read_only"`
-	Restart      bool      `gorm:"default:false" json:"restart"`
-	Category     string    `gorm:"type:varchar(100)" json:"category"`
-	UpdatedBy    uint      `json:"updated_by"`
-	CreatedAt    time.Time `gorm:"autoCreateTime" json:"created_at"`
-	UpdatedAt    time.Time `gorm:"autoUpdateTime" json:"updated_at"`
+	ID           uint    `gorm:"primaryKey;autoIncrement" json:"id"`
+	Group        string  `gorm:"column:param_group;type:varchar(50);not null;index;uniqueIndex:idx_group_key,priority:1" json:"group"`
+	Key          string  `gorm:"type:varchar(100);not null;uniqueIndex:idx_group_key,priority:2" json:"key"`
+	Name         string  `gorm:"type:varchar(200);not null" json:"name"`
+	Description  string  `gorm:"type:varchar(500)" json:"description"`
+	ValueType    string  `gorm:"type:varchar(20);not null;default:int" json:"value_type"`
+	Value        string  `gorm:"column:param_value;type:text;not null" json:"value"`
+	DefaultValue string  `gorm:"column:default_value;type:text;not null" json:"default_value"`
+	Min          *string `gorm:"type:varchar(50)" json:"min,omitempty"`
+	Max          *string `gorm:"type:varchar(50)" json:"max,omitempty"`
+	Step         *string `gorm:"type:varchar(20)" json:"step,omitempty"`
+	// Unit 只回答「填数字时用户怎么理解这个数字」，不参与任何计算：
+	// 86400 后面挂「秒」读起来是噪音，「1 天」才读得懂。UI 靠它决定输入框后面挂什么。
+	Unit string `gorm:"type:varchar(20)" json:"unit,omitempty"`
+	// Risk 回答「填错了会怎样」，三档：""（普通）/ "warning"（行为会变但不会挂）/
+	// "danger"（会挂：锁 TTL 填 0 变成永不过期、上传上限配错会把上传全打死）。
+	// UI 靠它决定要不要弹二次确认。空串是有意义的「普通」，所以存串不存 bool。
+	Risk string `gorm:"type:varchar(10)" json:"risk,omitempty"`
+	// Deprecated 标记这个旋钮已下架。
+	//
+	// 「下架」与「删行」的区别是本页最重要的一处设计：历史值与审计留痕必须能查，
+	// 一条去年被改成 300 的锁 TTL 不能因为旋钮下线就查不到了。但下架的行默认不
+	// 出现在管理端列表里——页面上挂着一个改了不生效的旋钮，比没有这个旋钮更糟。
+	// DeprecatedAt 记下架时刻（只在 false→true 那次写入，之后不再刷新，
+	// 否则每次启动都把「什么时候下架的」冲成启动时间），DeprecatedReason 记为什么。
+	Deprecated       bool       `gorm:"default:false;index" json:"deprecated"`
+	DeprecatedAt     *time.Time `json:"deprecated_at,omitempty"`
+	DeprecatedReason string     `gorm:"type:varchar(500)" json:"deprecated_reason,omitempty"`
+	ReadOnly         bool       `gorm:"default:false" json:"read_only"`
+	Restart          bool       `gorm:"default:false" json:"restart"`
+	Category         string     `gorm:"type:varchar(100)" json:"category"`
+	UpdatedBy        uint       `json:"updated_by"`
+	CreatedAt        time.Time  `gorm:"autoCreateTime" json:"created_at"`
+	UpdatedAt        time.Time  `gorm:"autoUpdateTime" json:"updated_at"`
 }
 
 func (ConfigParam) TableName() string { return "config_params" }
