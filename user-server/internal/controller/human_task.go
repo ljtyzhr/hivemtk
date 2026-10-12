@@ -118,6 +118,18 @@ func (c *HumanTaskController) Get(ctx *gin.Context) {
 		response.Error(ctx, http.StatusNotFound, "待办不存在（id="+id+"）")
 		return
 	}
+	// 数据隔离：非管理员只能看「未分配 或 分给自己」的待办详情。
+	if ctx.GetString("role") != "admin" {
+		op, ok := contextOperatorID(ctx)
+		if !ok {
+			response.Error(ctx, http.StatusUnauthorized, "未登录或无权访问")
+			return
+		}
+		if task.AssigneeUserID != "" && task.AssigneeUserID != op {
+			response.Error(ctx, http.StatusForbidden, "无权访问该待办")
+			return
+		}
+	}
 	response.Success(ctx, task, "ok")
 }
 
@@ -253,6 +265,18 @@ func humanTaskQueryFromRequest(ctx *gin.Context) (service.HumanTaskListQuery, bo
 		// 按他人 id 过滤不算越权：这套读口本来就是全池可见（待办中心与收件箱共用），
 		// 未过滤的列表里已经含有别人名下的行。
 		q.AssigneeUserID = assignee
+	}
+
+	// 数据隔离：非管理员强制「自己 + 未分配池」可见范围（ScopeSelfID 与上面的
+	// assignee 筛选 AND）。此前的"全池可见"注释描述的是旧口径 —— 旧口径允许
+	// 改 URL 列出全部同事名下的待办，本轮收紧。
+	if ctx.GetString("role") != "admin" {
+		op, ok := contextOperatorID(ctx)
+		if !ok {
+			response.Error(ctx, http.StatusUnauthorized, "未登录或无权访问")
+			return q, false
+		}
+		q.ScopeSelfID = op
 	}
 
 	page, size, ok := humanTaskPaging(ctx)

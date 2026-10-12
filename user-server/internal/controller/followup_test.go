@@ -23,7 +23,17 @@ import (
 )
 
 func followupEngine(svc *service.FollowUpService) *gin.Engine {
+	return followupEngineAs(svc, "staff", "u1")
+}
+
+// followupEngineAs 带指定登录态的测试引擎：数据隔离后非 admin 的 owner_id
+// 一律从 ctx user_id 取（强制本人），admin 仍要求显式传 owner_id。
+func followupEngineAs(svc *service.FollowUpService, role, userID string) *gin.Engine {
 	engine := gin.New()
+	engine.Use(func(c *gin.Context) {
+		c.Set("user_id", userID)
+		c.Set("role", role)
+	})
 	c := NewFollowUpController(svc)
 	engine.GET("/today", c.GetToday)
 	engine.GET("/pending", c.GetPending)
@@ -69,9 +79,6 @@ func TestFollowUpController_Params(t *testing.T) {
 		path   string
 		body   string
 	}{
-		{"today缺owner", "GET", "/today", ""},
-		{"pending缺owner", "GET", "/pending", ""},
-		{"overdue缺owner", "GET", "/overdue", ""},
 		{"date格式错", "GET", "/today?owner_id=u1&date=2026/10/09", ""},
 		{"limit非数", "GET", "/pending?owner_id=u1&limit=abc", ""},
 		{"limit越界", "GET", "/pending?owner_id=u1&limit=999", ""},
@@ -95,6 +102,20 @@ func TestFollowUpController_Params(t *testing.T) {
 				t.Errorf("%s 期望 400，实际 %d：%s", tc.path, rec.Code, rec.Body.String())
 			}
 		})
+	}
+}
+
+// TestFollowUpController_AdminRequiresOwner 管理员仍要求显式 owner_id（缺参 400）；
+// 非 admin 的"缺 owner 400"已随数据隔离改为强制本人（见 followupEngineAs 注释）。
+func TestFollowUpController_AdminRequiresOwner(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	engine := followupEngineAs(service.NewFollowUpService(nil), "admin", "1")
+	for _, path := range []string{"/today", "/pending", "/overdue"} {
+		rec := httptest.NewRecorder()
+		engine.ServeHTTP(rec, httptest.NewRequest("GET", path, nil))
+		if rec.Code != http.StatusBadRequest {
+			t.Errorf("admin %s 缺 owner_id 期望 400，实际 %d：%s", path, rec.Code, rec.Body.String())
+		}
 	}
 }
 

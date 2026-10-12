@@ -35,7 +35,19 @@ func NewFollowUpController(svc *service.FollowUpService) *FollowUpController {
 
 // requireOwner 取并校验 owner_id：service 层 owner_id="" 等于不过滤全员，
 // 端点又是"销售看自己的跟进"，缺参必须 400 而不是默默放大可见范围。
+//
+// 数据隔离：非管理员一律强制为自己（登录态 user_id），忽略查询参数 ——
+// 前端本来就只传自己的 id，这里把"改 URL 看别人跟进"这条路一并堵死。
+// 管理员保留原口径（必须显式给 owner_id）。
 func requireOwner(ctx *gin.Context) (string, bool) {
+	if ctx.GetString("role") != "admin" {
+		op, ok := contextOperatorID(ctx)
+		if !ok {
+			response.Error(ctx, http.StatusUnauthorized, "未登录或无权访问")
+			return "", false
+		}
+		return op, true
+	}
 	owner := ctx.Query("owner_id")
 	if owner == "" {
 		response.Error(ctx, http.StatusBadRequest, "参数错误")

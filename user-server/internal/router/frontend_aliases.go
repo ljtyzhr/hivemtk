@@ -438,8 +438,17 @@ func setupFrontendAliases(auth *gin.RouterGroup, engine *gin.Engine, gormDB *gor
 	notifCtrlAlias := controller.NewNotificationController(service.NewNotificationService(gormDB))
 	doReg("POST", "/mentions/:id/read", notifCtrlAlias.MarkRead)
 	doReg("GET", "/mentions/mine", notifCtrlAlias.List)
-	systemInfoCtrl := controller.NewSystemInfoController()
-	doReg("GET", "/system/menus", systemInfoCtrl.SystemMenus)
+	// 2026-10-12 移除：doReg("GET", "/system/menus", systemInfoCtrl.SystemMenus)
+	//
+	// 这条别名原指 SystemInfoController.SystemMenus，而那个方法的注释自陈
+	// 「当前开源版无动态菜单配置，返回空数组供前端做初始渲染占位」。
+	// 菜单 RBAC 上线后该前提已经不成立，真正实现注册在 menu_routes.go 的
+	// AdminGetAllMenus（同一路径 /api/system/menus）。两者并存有两重后果：
+	// 一是后注册的重复注册直接 panic，TestFrontendAliases_NoFailedRegistration 长期红；
+	// 二是即便不冲突，前端 RoleList.vue 读的是 treeRes?.tree，
+	// 而空数组没有 tree 字段，菜单分配对话框里一个节点都渲染不出来——
+	// 也就是 RBAC 特性看起来接上了，管理员却无法给任何角色分配菜单。
+	// 因此这里删除的是被取代的占位桩，不是新实现的替代品。
 
 	domainDB := gormDB
 	domainPoolRepo := repository.NewDomainPoolRepository(domainDB)
@@ -494,7 +503,7 @@ func setupFrontendAliases(auth *gin.RouterGroup, engine *gin.Engine, gormDB *gor
 	doReg("GET", "/user-segments/rfm", emailGapCtrl.RFMMatrix)
 	doReg("GET", "/user-segments/rfm/stats", emailGapCtrl.RFMMatrixStats)
 	doRegAdmin("POST", "/message-hub/dlq/batch-retry", csPlusCtrl.DLQBatchRetry)
-	doReg("GET", "/message-hub/dlq", csPlusCtrl.DLQList)
+	doRegAdmin("GET", "/message-hub/dlq", csPlusCtrl.DLQList)
 	doRegAdmin("POST", "/message-hub/dlq/:id/retry", csPlusCtrl.DLQRetryOne)
 	doRegAdmin("DELETE", "/message-hub/dlq/:id", csPlusCtrl.DLQDrop)
 	doReg("GET", "/knowledge/playground/presets", emailGapCtrl.PlaygroundPresets)

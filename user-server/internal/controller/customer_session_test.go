@@ -652,8 +652,9 @@ func TestAgentStatusController_GetAgentSessions(t *testing.T) {
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
-	if w.Code != http.StatusOK && w.Code != http.StatusBadRequest && w.Code != http.StatusInternalServerError {
-		t.Errorf("Expected status OK, Bad Request or Internal Server Error, got %d, body: %s", w.Code, w.Body.String())
+	// 数据隔离后：无登录态（非 admin、user_id=0）查他人坐席会话 → 403 也是合法档。
+	if w.Code != http.StatusOK && w.Code != http.StatusBadRequest && w.Code != http.StatusForbidden && w.Code != http.StatusInternalServerError {
+		t.Errorf("Expected status OK, Bad Request, Forbidden or Internal Server Error, got %d, body: %s", w.Code, w.Body.String())
 	}
 }
 

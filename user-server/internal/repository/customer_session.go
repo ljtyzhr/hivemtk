@@ -154,6 +154,29 @@ func (r *CustomerSessionRepository) GetByMerchant(ctx context.Context, status mo
 	return sessions, total, err
 }
 
+// GetByMerchantForAgent 数据隔离版列表：非管理员只看「自己名下 + 未分配池(agent_id=0)」。
+//
+// 与 GetByMerchant 唯一的差别是这条 agent 过滤；status 过滤、排序、分页口径逐字一致，
+// 两条路径的行为差异因此只可能来自可见范围本身。
+func (r *CustomerSessionRepository) GetByMerchantForAgent(ctx context.Context, status model.SessionStatus, page, pageSize int, agentID uint) ([]*model.CustomerSession, int64, error) {
+	var sessions []*model.CustomerSession
+	var total int64
+
+	query := r.db.Model(&model.CustomerSession{}).Where("(agent_id = 0 OR agent_id = ?)", agentID)
+	if status != "" {
+		query = query.Where("status = ?", status)
+	}
+
+	if err := query.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+
+	offset := (page - 1) * pageSize
+
+	err := query.Order("priority DESC, last_message_at DESC").Offset(offset).Limit(pageSize).Find(&sessions).Error
+	return sessions, total, err
+}
+
 // GetByUserID 获取某用户的所有会话（CC- N+1 优化）
 //
 // 替代 service 层「GetByMerchant(空 merchant, 1, 1000) + 内存过滤」模式，

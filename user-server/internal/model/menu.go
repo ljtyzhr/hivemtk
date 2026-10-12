@@ -31,9 +31,16 @@ func (RoleMenuPermission) TableName() string {
 	return "role_menu_permissions"
 }
 
-// SystemMenuTree 系统菜单树（权威注册表，结构与前端 Layout.vue topMenus 同步）
+// SystemMenuTree 系统菜单树（权威注册表：菜单树已改为后端驱动，GET /api/menus 下发）
 //
-// 变更时必须同步检查前端 topMenus，否则前后端菜单口径漂移。
+// 变更时必须同步检查前端 src/router/modules/*.js 的路由 path 字面量：path 对不上时
+// 点菜单会进 NotFound、面包屑也不显示，而两边分处两个目录两个语言，没有编译器会替你
+// 发现。前端 tests/unit/menuRegistry-helper.js 会读本文件，前端
+// tests/unit/router_*.test.js 用它把每个菜单 path 与对应路由模块钉在一起。
+//
+// 注意：原先这条注释写的是"与前端 Layout.vue topMenus 同步"——那句话在菜单搬走后
+// 就已经不成立了（Layout.vue 里不再有静态 topMenus），照着它去 Layout.vue 找对不上的地方
+// 只会白费时间。
 var SystemMenuTree = []SystemMenuNode{
 	{
 		Key: "workspace", Title: "工作台", Icon: "Monitor",
@@ -62,7 +69,7 @@ var SystemMenuTree = []SystemMenuNode{
 			{Key: "customerEvent", Title: "客户事件", Icon: "Bell", Path: "/customerEvent/list"},
 			{Key: "tagSegmentation", Title: "标签分层", Icon: "PriceTag", Path: "/tagSegmentation/list", Roles: []string{"admin", "manager", "viewer"}},
 			{Key: "userSegment", Title: "用户分层 RFM", Icon: "PieChart", Path: "/userSegment/list", Roles: []string{"admin", "manager", "viewer"}},
-			{Key: "unifiedMessage", Title: "统一消息", Icon: "Message", Path: "/unifiedMessage/list"},
+			{Key: "unifiedMessage", Title: "统一消息", Icon: "Message", Path: "/unifiedMessage/list", Roles: []string{"admin", "manager"}},
 			{
 				Key: "customerIdentity", Title: "客户身份", Icon: "Connection",
 				Roles: []string{"admin", "manager"},
@@ -243,7 +250,7 @@ var SystemMenuTree = []SystemMenuNode{
 					{Key: "shortLinkStats", Title: "短链统计", Icon: "DataAnalysis", Path: "/shortLink/stats"},
 				},
 			},
-			{Key: "livecode", Title: "活码管理", Icon: "QrCode", Path: "/livecode"},
+			{Key: "livecode", Title: "活码管理", Icon: "Postcard", Path: "/livecode"},
 			{Key: "workflowOrchestrator", Title: "工作流编排", Icon: "Share", Path: "/workflow-orchestrator/list", Roles: []string{"admin", "manager"}},
 		},
 	},
@@ -372,7 +379,7 @@ var SystemMenuTree = []SystemMenuNode{
 				Roles: []string{"admin"},
 				Children: []SystemMenuNode{
 					{Key: "systemConfig", Title: "站点设置", Icon: "Tools", Path: "/system/config"},
-					{Key: "systemObsConfig", Title: "存储配置", Icon: "Cloud", Path: "/system/obs-config"},
+					{Key: "systemObsConfig", Title: "存储配置", Icon: "Box", Path: "/system/obs-config"},
 					{Key: "systemMaterialLibrary", Title: "素材库", Icon: "Picture", Path: "/system/material-library"},
 					{Key: "systemMonitor", Title: "监控", Icon: "Cpu", Path: "/system/monitor"},
 					{Key: "systemTrace", Title: "链路追踪", Icon: "Connection", Path: "/system/trace"},
@@ -382,6 +389,10 @@ var SystemMenuTree = []SystemMenuNode{
 					{Key: "backupEnhanced", Title: "备份高级版", Icon: "FolderChecked", Path: "/backup/enhanced"},
 					{Key: "automationCenter", Title: "自动化中心", Icon: "Operation", Path: "/system/automation-hub", Roles: []string{"admin"}},
 					{Key: "dynamicThreshold", Title: "动态阈值参数", Icon: "DataLine", Path: "/system/config-params", Roles: []string{"admin"}},
+					// 下面两项与动态阈值参数是同一族配置治理界面，放在它后面而不是塞到别的分组，
+					// 是因为运维调这三页时的心理模型是同一个：「这个系统有哪些可配置的东西」。
+					{Key: "systemDictionaries", Title: "业务字典", Icon: "Collection", Path: "/system/dictionaries", Roles: []string{"admin"}},
+					{Key: "systemFeatureFlags", Title: "功能开关", Icon: "Switch", Path: "/system/feature-flags", Roles: []string{"admin"}},
 					{Key: "ltcConfig", Title: "LTC 运营开关", Icon: "Open", Path: "/system/ltc-config", Roles: []string{"admin"}},
 					{Key: "opsOverview", Title: "运维总览", Icon: "Monitor", Path: "/ops-overview", Roles: []string{"admin"}},
 				},
@@ -403,7 +414,7 @@ var SystemMenuTree = []SystemMenuNode{
 					{Key: "integration", Title: "第三方对接", Icon: "Connection", Path: "/integration/list"},
 					{Key: "bridgeToken", Title: "桥接凭证", Icon: "Key", Path: "/bridge/token"},
 					{Key: "operationLog", Title: "操作日志", Icon: "Tickets", Path: "/operationLog/list"},
-					{Key: "securityAudit", Title: "安全审计", Icon: "Shield", Path: "/securityAudit/list"},
+					{Key: "securityAudit", Title: "安全审计", Icon: "Lock", Path: "/securityAudit/list"},
 				},
 			},
 			{

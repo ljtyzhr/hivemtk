@@ -134,18 +134,24 @@ func setupCustomerServiceRoutes(auth *gin.RouterGroup, aiAgentSvc *service.AIAge
 
 func setupMessageRoutes(auth *gin.RouterGroup, db *gorm.DB) {
 	unifiedMsgCtrl := controller.NewUnifiedMessageController()
-	auth.GET("/messages", unifiedMsgCtrl.GetMessages)
-	auth.GET("/messages/:id", unifiedMsgCtrl.GetMessageByID)
+	// 统一消息（跨平台消息归档）无用户归属字段，按共享全量读会把全部平台消息
+	// 暴露给任意登录用户 —— 收紧为仅管理员可读（菜单 unifiedMessage 同步限 admin/manager）。
+	unifiedMsgAdmin := auth.Group("/messages", middleware.RequireAdminMiddleware())
+	unifiedMsgAdmin.GET("", unifiedMsgCtrl.GetMessages)
+	unifiedMsgAdmin.GET("/:id", unifiedMsgCtrl.GetMessageByID)
 
+	// 消息中心（message-hub）同理：全量跨账号消息读口，仅管理员可用
+	// （菜单 messageHub 本就限 admin/manager，这里把 API 层补上同一道闸）。
 	messageHubCtrl := controller.NewMessageHubController(service.NewMessageHubService())
-	auth.POST("/message-hub/push", messageHubCtrl.Push)
-	auth.POST("/message-hub/push-batch", messageHubCtrl.PushBatch)
-	auth.POST("/message-hub/push-from-channel", messageHubCtrl.PushFromChannel)
-	auth.GET("/message-hub/list", messageHubCtrl.List)
-	auth.GET("/message-hub/stats", messageHubCtrl.Stats)
-	auth.GET("/message-hub/platforms", messageHubCtrl.Platforms)
-	auth.GET("/message-hub/:id", messageHubCtrl.GetByID)
-	auth.POST("/message-hub/:id/read", messageHubCtrl.MarkRead)
+	hub := auth.Group("/message-hub", middleware.RequireAdminMiddleware())
+	hub.POST("/push", messageHubCtrl.Push)
+	hub.POST("/push-batch", messageHubCtrl.PushBatch)
+	hub.POST("/push-from-channel", messageHubCtrl.PushFromChannel)
+	hub.GET("/list", messageHubCtrl.List)
+	hub.GET("/stats", messageHubCtrl.Stats)
+	hub.GET("/platforms", messageHubCtrl.Platforms)
+	hub.GET("/:id", messageHubCtrl.GetByID)
+	hub.POST("/:id/read", messageHubCtrl.MarkRead)
 
 	inboxIngressCtrl := controller.NewInboxIngressController(service.NewInboxIngressService())
 	auth.POST("/inbox/lock-human", inboxIngressCtrl.LockHuman)

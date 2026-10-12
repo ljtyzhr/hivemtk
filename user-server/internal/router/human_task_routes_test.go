@@ -29,6 +29,12 @@ import (
 // newHumanTaskTestEngine 挂一条"已登录"的中间件（user_id 是 uint，与 jwt.go 的写入类型一致）。
 // as: 传 "" 表示不带身份（复现未登录 / claims 里没 user_id 那一支）。
 func newHumanTaskTestEngine(svc *service.HumanTaskService, uid any) http.Handler {
+	return newHumanTaskTestEngineAs(svc, uid, "")
+}
+
+// newHumanTaskTestEngineAs 带指定 role 的测试引擎：数据隔离后非 admin 只见
+// 「自己 + 未分配池」，assignee=他人 会与可见范围 AND 成空集；admin 不受限。
+func newHumanTaskTestEngineAs(svc *service.HumanTaskService, uid any, role string) http.Handler {
 	gin.SetMode(gin.TestMode)
 	engine := gin.New()
 	auth := engine.Group("/api")
@@ -36,6 +42,7 @@ func newHumanTaskTestEngine(svc *service.HumanTaskService, uid any) http.Handler
 		if uid != nil {
 			c.Set("user_id", uid)
 		}
+		c.Set("role", role)
 		c.Next()
 	})
 	controller.NewHumanTaskController(svc).RegisterRoutes(auth)
@@ -271,8 +278,22 @@ func TestHumanTaskAPI_ListFilterByAssignee(t *testing.T) {
 		}
 	}
 	other := rows("/api/human-tasks?assignee=77")
-	if !other["sess_own_other"] || len(other) != 1 {
-		t.Errorf("assignee=77 应只含挂到 77 的那条，实际 %v", other)
+	if len(other) != 0 {
+		t.Errorf("非 admin 查他人名下应为空（数据隔离 ScopeSelfID AND），实际 %v", other)
+	}
+	// admin 不受限：assignee=77 的过滤语义保持原样。
+	adminEngine := newHumanTaskTestEngineAs(svc, uint(1), "admin")
+	adminCode, adminBody := doHumanTask(t, adminEngine, http.MethodGet, "/api/human-tasks?assignee=77", "")
+	if adminCode != http.StatusOK {
+		t.Fatalf("admin assignee=77 应 200，实际 %d：%s", adminCode, adminBody.Message)
+	}
+	adminGot := map[string]bool{}
+	for _, row := range humanTaskRows(t, adminBody.Data["list"]) {
+		sid, _ := row["subject_id"].(string)
+		adminGot[sid] = true
+	}
+	if !adminGot["sess_own_other"] || len(adminGot) != 1 {
+		t.Errorf("admin 的 assignee=77 应只含挂到 77 的那条，实际 %v", adminGot)
 	}
 }
 

@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/utils/response"
 	"hivemtk-user/internal/service"
 	"net/http"
@@ -105,11 +106,25 @@ func (c *AgentStatusController) GetMyAgent(ctx *gin.Context) {
 }
 
 // ListAllAgents 列出全部客服（监管控制台）
+//
+// 数据隔离：admin 看全部；其余角色只回自己那条坐席记录（AgentID=系统用户ID），
+// 避免任意登录用户拉走全量坐席名册与状态。
 func (c *AgentStatusController) ListAllAgents(ctx *gin.Context) {
 	agents, err := c.agentService.ListAllAgents(ctx.Request.Context())
 	if err != nil {
 		response.ErrorFromDB(ctx, err, err.Error())
 		return
+	}
+
+	if ctx.GetString("role") != "admin" {
+		uid := getUserIDFromContext(ctx)
+		mine := make([]*model.AgentStatus, 0, 1)
+		for _, a := range agents {
+			if a != nil && a.AgentID == uid {
+				mine = append(mine, a)
+			}
+		}
+		agents = mine
 	}
 
 	response.Success(ctx, agents, "获取成功")
@@ -175,11 +190,18 @@ func (c *AgentStatusController) GoOffline(ctx *gin.Context) {
 }
 
 // GetAgentSessions 获取客服的会话
+//
+// 数据隔离：admin 可看任意坐席；其余角色只允许查自己的会话（:id 即 AgentID=用户ID）。
 func (c *AgentStatusController) GetAgentSessions(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
 		response.Error(ctx, http.StatusBadRequest, "无效的客服ID")
+		return
+	}
+
+	if ctx.GetString("role") != "admin" && uint(id) != getUserIDFromContext(ctx) {
+		response.Error(ctx, http.StatusForbidden, "无权访问该坐席的会话")
 		return
 	}
 

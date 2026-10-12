@@ -31,6 +31,11 @@ func (c *CustomerSessionController) Takeover(ctx *gin.Context) {
 		response.Error(ctx, http.StatusUnauthorized, "未登录或无权操作", "missing user_id")
 		return
 	}
+	// 数据隔离：接管前先过可见性检查（未分配池/自己名下可接管，他人名下 403）
+	if _, err := c.sessionService.GetSessionByIDScoped(ctx.Request.Context(), uint(id), sessionScopeFromCtx(ctx)); err != nil {
+		writeSessionScopedError(ctx, err, "会话不存在")
+		return
+	}
 	if err := c.sessionService.TakeoverByAgent(ctx.Request.Context(), &service.TakeoverRequest{
 		SessionID: uint(id),
 		AgentID:   agentID,
@@ -58,6 +63,11 @@ func (c *CustomerSessionController) Release(ctx *gin.Context) {
 	agentID := getUserIDFromContext(ctx)
 	if agentID == 0 {
 		response.Error(ctx, http.StatusUnauthorized, "未登录或无权操作", "missing user_id")
+		return
+	}
+	// 数据隔离：释放前先过可见性检查
+	if _, err := c.sessionService.GetSessionByIDScoped(ctx.Request.Context(), uint(id), sessionScopeFromCtx(ctx)); err != nil {
+		writeSessionScopedError(ctx, err, "会话不存在")
 		return
 	}
 	if err := c.sessionService.ReleaseToAI(ctx.Request.Context(), &service.ReleaseToAIRequest{
@@ -98,6 +108,11 @@ func (c *CustomerSessionController) SwitchHandler(ctx *gin.Context) {
 	agentID := getUserIDFromContext(ctx)
 	if req.HandlerType == "human" && agentID == 0 {
 		response.Error(ctx, http.StatusUnauthorized, "切人工时必须登录", "missing user_id")
+		return
+	}
+	// 数据隔离：切换前先过可见性检查
+	if _, err := c.sessionService.GetSessionByIDScoped(ctx.Request.Context(), uint(id), sessionScopeFromCtx(ctx)); err != nil {
+		writeSessionScopedError(ctx, err, "会话不存在")
 		return
 	}
 	if err := c.sessionService.SwitchHandler(ctx.Request.Context(), &service.SwitchHandlerRequest{

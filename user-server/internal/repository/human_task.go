@@ -64,6 +64,10 @@ type HumanTaskQuery struct {
 	// 非空 = 精确列这些状态（每个都必须是已知状态）。
 	Statuses       []string
 	AssigneeUserID string
+	// ScopeSelfID 非空时只列「未分配 或 分给自己」的行（数据隔离用，controller
+	// 从登录态填入）。与 AssigneeUserID 是两条独立的过滤：前者是可见范围闸门，
+	// 后者是业务筛选器，两者 AND。
+	ScopeSelfID string
 	// OverdueOnly 为真时只列"自己那一档 SLA 已过 OverdueAt"的行，口径与
 	// CountOverdueOpenByKind 逐字一致（每类只认自己那一列，绝不 COALESCE 三列）。
 	OverdueOnly bool
@@ -349,6 +353,10 @@ func (r *humanTaskRepo) List(ctx context.Context, q HumanTaskQuery) ([]*model.Hu
 		tx = tx.Where(where, whereArgs...)
 		if a := strings.TrimSpace(q.AssigneeUserID); a != "" {
 			tx = tx.Where("assignee_user_id = ?", a)
+		}
+		if sid := strings.TrimSpace(q.ScopeSelfID); sid != "" {
+			// 未分配池（assignee 空/NULL）必须对非管理员可见：认领流程靠它发现可认领行。
+			tx = tx.Where("(assignee_user_id = ? OR COALESCE(assignee_user_id, '') = '')", sid)
 		}
 		return tx
 	}

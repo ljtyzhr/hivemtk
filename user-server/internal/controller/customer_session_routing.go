@@ -17,6 +17,12 @@ func (c *CustomerSessionController) AssignSession(ctx *gin.Context) {
 		return
 	}
 
+	// 数据隔离：分配前先过可见性检查（未分配池/自己名下可操作）
+	if _, err := c.sessionService.GetSessionByIDScoped(ctx.Request.Context(), req.SessionID, sessionScopeFromCtx(ctx)); err != nil {
+		writeSessionScopedError(ctx, err, "会话不存在")
+		return
+	}
+
 	if err := c.sessionService.AssignSession(ctx.Request.Context(), &req); err != nil {
 		response.Error(ctx, http.StatusBadRequest, err.Error())
 		return
@@ -31,6 +37,12 @@ func (c *CustomerSessionController) AutoAssignSession(ctx *gin.Context) {
 	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
 		response.Error(ctx, http.StatusBadRequest, "无效的会话ID")
+		return
+	}
+
+	// 数据隔离：自动分配前先过可见性检查
+	if _, err := c.sessionService.GetSessionByIDScoped(ctx.Request.Context(), uint(id), sessionScopeFromCtx(ctx)); err != nil {
+		writeSessionScopedError(ctx, err, "会话不存在")
 		return
 	}
 
@@ -56,6 +68,12 @@ func (c *CustomerSessionController) TransferSession(ctx *gin.Context) {
 	}
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		response.Error(ctx, http.StatusBadRequest, "请求参数错误: "+err.Error())
+		return
+	}
+
+	// 数据隔离：转接前先过可见性检查（他人名下的会话不可转接）
+	if _, err := c.sessionService.GetSessionByIDScoped(ctx.Request.Context(), uint(id), sessionScopeFromCtx(ctx)); err != nil {
+		writeSessionScopedError(ctx, err, "会话不存在")
 		return
 	}
 

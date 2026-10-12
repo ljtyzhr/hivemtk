@@ -33,8 +33,17 @@ func (c *SalesWorkbenchController) GetOverview(ctx *gin.Context) {
 		response.Error(ctx, http.StatusServiceUnavailable, "工作台服务未装配")
 		return
 	}
+	// 数据隔离：非管理员一律强制为本人（登录态 user_id），忽略查询参数 ——
+	// 前端本来就传自己的 id，这里把"改 URL 看别人概览"堵死；管理员保留原口径。
 	salesID := ctx.Query("sales_id")
-	if salesID == "" {
+	if ctx.GetString("role") != "admin" {
+		op, ok := contextOperatorID(ctx)
+		if !ok {
+			response.Error(ctx, http.StatusUnauthorized, "未登录或无权访问")
+			return
+		}
+		salesID = op
+	} else if salesID == "" {
 		response.Error(ctx, http.StatusBadRequest, "参数错误")
 		return
 	}
