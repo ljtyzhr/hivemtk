@@ -8,6 +8,7 @@ user-server/internal/service/ai_agent.go	4	存量：service 直接取 DB 句柄�
 user-server/internal/service/channel_media.go	1	存量：service 直接取 DB 句柄，收口需改构造注入（R22 登记，勿新增）
 user-server/internal/service/customer_session.go	3	存量：service 直接取 DB 句柄，收口需改构造注入（R22 登记，勿新增）
 user-server/internal/service/customer_session_cron.go	1	存量：service 直接取 DB 句柄，收口需改构造注入（R22 登记，勿新增）
+user-server/internal/service/customer_session_scope.go	2	存量：service 经 sessionRepo.GetDB 取句柄做只读作用域过滤（RBAC 隔离批次新增，同 R22 口径待收口为构造注入）
 user-server/internal/service/data_export.go	1	存量：service 直接取 DB 句柄，收口需改构造注入（R22 登记，勿新增）
 user-server/internal/service/faq.go	1	存量：service 直接取 DB 句柄，收口需改构造注入（R22 登记，勿新增）
 user-server/internal/service/inbox.go	1	存量：service 直接取 DB 句柄，收口需改构造注入（R22 登记，勿新增）
