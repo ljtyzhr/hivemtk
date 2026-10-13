@@ -53,12 +53,23 @@ GROUP_RE = re.compile(r"^[a-z][a-z0-9_]*$")
 MAX_KEY_LEN = 64
 MAX_GROUP_LEN = 32
 
-# 与 check-config-param-readpoints.py 同源的条目解析正则。必须逐组 finditer
-# 取五元组，不能用 findall —— findall 返回的是分组元组，计数会全错。
-ENTRY = re.compile(
-    r'\{\s*Group:\s*"([^"]+)"\s*,\s*Key:\s*"([^"]+)"\s*,\s*Name:\s*"([^"]*)"\s*,\s*'
-    r'Description:\s*"([^"]*)"\s*,\s*ValueType:\s*"([^"]*)"',
-    re.S)
+# 条目的**头部**解析：只取 `(group, key)` 这一对，不要求后面的 Name/Description
+# 是单行字符串字面量。
+#
+# 为什么不用整条字面量匹配（旧写法）：旧 ENTRY 一路锚到 `ValueType:`，于是
+# 「Description 是单个 `"..."`」成了条目可见的**前置条件**。而 Description 里写
+# 多行拼接（`"…" + "…"`）是完全合法的 Go，`knowledge.embedding_dimension`
+# （2026-10 起三段拼接）就是这么写的——结果那整条种子对本门**隐形**：
+# 门扫 216 条、文件里 217 条 `{Group:`，差的正是那条，而它恰好是唯一
+# `ReadOnly: true` 的一条。隐形不是"少检查一条"，是"这一条以后再坏也无声"：
+# 同一个 key 复制两遍，DUPLICATE 判不出来。
+# 只锚头部之后，Name/Description/ValueType 的写法怎么变都不影响条目可见性。
+# group/key 用 `[^"]*` 而不是 `[a-z0-9_]+`：本门的职责就是抓**不规范**的名字，
+# 解析式里带规范约束等于让违规条目绕开检查（`Group: "Knowledge"` 会匹配不上，
+# BAD_GROUP 就永远不响）。
+ENTRY_HEAD = re.compile(r'\{\s*Group:\s*"([^"]*)"\s*,\s*Key:\s*"([^"]*)"')
+#: 与头部解析同形状的条目起点计数，用作「解析数 == 起点数」的自检基准。
+ENTRY_HEAD_COUNT = re.compile(r'\{\s*Group:\s*"')
 
 SQL_RESERVED = {
     "order", "group", "select", "table", "index", "key", "value", "user",
@@ -93,16 +104,24 @@ def main() -> int:
         fail(f"种子文件不存在: {seeds}")
     text = seeds.read_text(encoding="utf-8")
 
-    entries = [(m.group(1), m.group(2), m.group(3), m.group(4), m.group(5))
-               for m in ENTRY.finditer(text)]
+    entries = [(m.group(1), m.group(2)) for m in ENTRY_HEAD.finditer(text)]
     if not entries:
-        fail("一条种子都没解析到：ENTRY 正则与种子格式不符（或种子被挪了文件）")
+        fail("一条种子都没解析到：ENTRY_HEAD 正则与种子格式不符（或种子被挪了文件）")
+
+    # 自检：解析到的条数必须等于文件里条目起点的个数。
+    # 这条对账是本门唯一的「我是不是在少扫」探测器——旧版的整条匹配就是缺它，
+    # 才让一条种子隐形而读数看上去一切正常。不相等 ⇒ 有条目形状解析不出来，
+    # 退 2（不是退 1：内容违规才是红，判据失准是门坏了）。
+    head_starts = len(ENTRY_HEAD_COUNT.findall(text))
+    if len(entries) != head_starts:
+        fail(f"解析到 {len(entries)} 条，但文件里有 {head_starts} 个 "
+             f"`{{Group: \"` 起点——有条目形状解不出来，本门的读数不可信")
 
     bad: list[str] = []
     seen: dict[tuple[str, str], int] = {}
     repeat: list[str] = []
 
-    for group, key, _name, _desc, vtype in entries:
+    for group, key in entries:
         coord = f"{group}.{key}"
 
         if not GROUP_RE.match(group):
@@ -147,7 +166,7 @@ def main() -> int:
         else:
             fail(f"{RUNTIME_REL} 里解析不到 runtimePublicGroups："
                  "端点白名单改了形状，本门的交叉检查会静默变成空检查")
-    seed_groups = {g for g, _k, _n, _d, _v in entries}
+    seed_groups = {g for g, _k in entries}
     ghost = [g for g in runtime_groups if g not in seed_groups]
 
     print(f"扫描面: 种子条目 {len(entries)} 条 / group {len(seed_groups)} 个 / "

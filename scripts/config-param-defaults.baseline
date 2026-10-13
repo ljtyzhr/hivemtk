@@ -1,0 +1,7 @@
+# 参数中心默认值门（scripts/check-config-param-defaults.py）的覆盖率棘轮。
+# 一个整数：本门当前**真能比对**的种子条数下界。它代表的是「门自己的覆盖面」，
+# 不是「代码质量分数」——可比对数低于它 ⇒ 门 rc=2（门坏了），而不是内容红。
+# 刷新：python3 scripts/check-config-param-defaults.py --refresh-baseline
+# 只在两种情况下改小：门的某条兜底形态被**改进**成别的判据、或种子条目被删；
+# 都要在同一笔里写明是哪一种。
+187

@@ -322,13 +322,16 @@ const handleFileChange = (file, files) => {
 }
 
 const beforeUpload = (file) => {
-  // 上限改由参数中心下发（frontend_ui.material_max_size_mb）。
-  // 注意这是**前端提示用**的副本，真正生效的是后端 misc.upload_max_size_mb（阶段 2a）——
-  // 两边不一致会出现「前端放过、后端拦死」。默认取 frontend_ui 的 10MB，
-  // 与后端 misc.upload_max_size_mb 的默认 0（=不覆盖、沿用 10MB 兜底）对齐。
-  const maxSize = rtNum('frontend_ui', 'material_max_size_mb', 10) * 1024 * 1024
+  // 上限由参数中心下发（frontend_ui.material_max_size_mb），后端素材库上传口
+  // （internal/content/controller/material.go）读的是同一条，两边同源：
+  // 这里以前只是「前端提示用的副本」，真正生效的是另一条 misc.upload_max_size_mb，
+  // 后端那句写死的 10MB 不认参数，运维调大后就是「前端放过、后端拦死」的 400。
+  // 兜底 10 = 后端接线前写死的那个数，读不到库时两侧行为一致。
+  const maxSizeMB = rtNum('frontend_ui', 'material_max_size_mb', 10)
+  const maxSize = maxSizeMB * 1024 * 1024
   if (file.size > maxSize) {
-    ElMessage.error(i18n.global.t('文件大小不能超过10MB'))
+    // 提示里的数字必须跟着旋钮走，否则运维把上限改成 20MB 之后，页面仍在告诉用户「不能超过 10MB」。
+    ElMessage.error(i18n.global.t('文件大小不能超过{size}MB', { size: maxSizeMB }))
     return false
   }
   return true

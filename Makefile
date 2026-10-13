@@ -446,8 +446,19 @@ fmt-check:
 	fi; \
 	echo "✅ gofmt 检查通过"
 
+# 本地全量 Go 测试。
+#
+# -p 1 是硬要求，与 .github/workflows/user-server-ci.yml:562-566 保持一致：
+# 用例共享同一批测试库槽位（见 internal/pkg/testutil/testdb.go），并发跑会互相认领
+# 对方的行（reply_guard 认领表 / delayed-<id> 撞自增主键），表现为多个重度依赖测试库的
+# 包（internal/{controller,repository,service,pkg/db}）同时挂起、10 分钟集体超时。
+# 实测 2026-10-13：去掉 -p 1 后这 4 个包 FAIL，单独串行跑任一包均可通过。
+# -timeout 900s 配套放宽单包预算（Go 默认 10m0s；CI 实测最慢包 98s，900s ≈ 9 倍余量）。
+#
+# 与 CI 的有意差异：本地不加 -short（跳过 Short() 门控用例会漏问题）、不加 -race
+# （全量耗时数倍拉长，本地不适用）。
 test-go:
-	cd user-server && go test ./... -count=1
+	cd user-server && go test ./... -count=1 -p 1 -timeout 900s
 
 # 清理 testutil **旧版**遗留的进程级测试库（user_db_test_<pid> / user_db_test_bench_<pid>）。
 #
@@ -540,6 +551,8 @@ audit:
 	@python3 scripts/check-config-param-keystyle.py
 	@echo "── i18n 真接入占比只许涨不许跌（含 $$t() 形态），各语言包齐整 ──"
 	@python3 scripts/check-i18n-coverage.py
+	@echo "── 文本编码：非 UTF-8 字节 / U+FFFD 替身字符 / 双重编码签名（替身只放行 text-encoding.baseline 登记的刻意用法）──"
+	@python3 scripts/check-text-encoding.py
 	@echo "── 已清零的假性未完成资产（假回执/假状态/零装配点）不得长回来 ──"
 	@bash scripts/check-cleared-fake-assets.sh --repo .
 	@echo "── 用例不得在被调函数能交回 (nil, nil) 的返回值上未判空即解引用 ──"
@@ -560,6 +573,8 @@ audit:
 	@python3 scripts/check-battery-identity.py --quiet-ok
 	@echo "── 路由消费面取证器的口径自检（10 枚控制，含两条极性对：夹具锚点与模块说明符都不许算消费方）──"
 	@python3 scripts/route-consumer-triage.py --self-check
+	@echo "── 菜单×路由×守卫三方对账器的口径自检（39 枚控制：两向错配各自开火且有极性对、BLOCK 拆两档的挂载区间正反两枪、UNROUTED 的调用点抽取覆盖面）──"
+	@python3 scripts/menu-route-role-audit.py --self-check
 	@echo "── vite 主版本守卫：7 个 pin 必须同主版本，锁文件不得落后一个 minor（OPT-FE-07）──"
 	@bash scripts/check-vite-version.sh
 	@echo "✅ 静态审计通过"
@@ -590,3 +605,28 @@ audit-artifacts:
 # 恒红的门与坏掉的门长得一样，故本次逐值豁免那条、并把入口固定在这里。
 audit-secrets:
 	@bash scripts/check-secrets.sh
+
+# 菜单 × live 路由守卫 × 前端调用图 三方对账（跨栈读数，需要测试库）。
+#
+# **不在 audit 里**：audit 整条链不碰库（CI 侧同口径挂在没有 services.postgres 的
+# static-gates 作业，所以只能跑 `--self-check` 那 39 枚内存夹具控制）。本目标跑的是
+# 真读数：live 守卫档位由 internal/router 的导出用例现打（ROUTE_GUARD_DUMP_FILE，
+# 脚本自己去调 go test），再与 model/menu.go 的注册表面、user-web 的调用图对账。
+#
+# 它拦的三样编译／单测／lint 全都不会红：
+#   ① 生成件 user-server/internal/model/menu_capability_routes.go 与再生成结果不一致
+#      （改了菜单注册／路由守卫／前端调用图却没重跑 `--emit-go`，或手改了那份表）；
+#   ② BLOCK 两档：整页死冒出一条，或页内残余与 scripts/menu-block-residual.baseline 对不上；
+#   ③ UNROUTED：user-web/src/api 在打一条 live 路由表里没有的口（页面一调就 404）。
+# CI 侧的执行点是 user-server-ci.yml 的 `test-race-core` 末步（带库那两片作业之一），
+# 名册写 $RUNNER_TEMP；本地写进 docs/superpowers/specs/ledger/logs/MenuRouteAudit/<时间戳>/，
+# 那份留痕就是这一轮的取证。
+#
+# 前提：本机库起着、.env 在位（缺库时脚本退 2 并抄出 go test 的红因，不静默零读数）。
+#   make audit-rbac-surface
+audit-rbac-surface:
+	@set -a && . ./.env && set +a; \
+	EMBEDDING_ALLOW_FALLBACK=true \
+		python3 scripts/menu-route-role-audit.py \
+		--check-go user-server/internal/model/menu_capability_routes.go
+

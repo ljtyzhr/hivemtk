@@ -93,6 +93,51 @@ ENTRY_DEPRECATED = re.compile(r'Deprecated:\s*true')
 ENTRY_DEPRECATED_REASON = re.compile(r'DeprecatedReason:\s*"([^"]*)"')
 CONST_ASSIGN = re.compile(r'\b([A-Za-z_]\w*)\s*=\s*"([a-z0-9_]+)"')
 
+WEB_SRC_REL = Path("user-web") / "src"
+# 前端读取口的调用形状：rt*(group, key, 兜底实参)，四个函数都定义在
+# user-web/src/utils/runtimeConfig.js（值来自 GET /api/config/runtime，缺失即回落第 3 个实参）。
+# 第 3 个实参**不参与**「这条键有没有人读」的判断（写成字面量也算读），
+# 只是要单独取出它是不是一个常量名——清单那边判「这个常量接完了没有」用的就是它。
+# 已知取舍：第 3 个实参里再套括号（`rtNum('g','k', Math.max(1, X))`）时 [^)] 会在内层
+# 括号处截断、整条不匹配 ⇒ 少记一个读取点，方向是**向红偏置**（门会问起这条键），不会假绿。
+WEB_READPOINT = re.compile(
+    r"""\brt(?:Num|Dur|Bool|Str)\(\s*(['"])([^'"]+)\1\s*,\s*(['"])([^'"]+)\3\s*,\s*([^)]*)\)"""
+)
+# JS 的字面量关键字长得和标识符一样，但它们是「把值写在调用点」，不是常量名。
+WEB_LITERAL_WORDS = {"true", "false", "null", "undefined", "NaN"}
+WEB_IDENT = re.compile(r"^[A-Za-z_$][\w$]*$")
+# 测试夹具里的 rt* 调用不是生产读取点（与 Go 侧排 _test.go 同一口径）。
+WEB_SKIP_SEGMENTS = {"node_modules", "dist", "__tests__", "tests", "test", "coverage", "public"}
+
+
+def collect_frontend_readpoints(root: Path) -> dict[str, set[str]]:
+    """返回 {group.key: 该键作为兜底实参出现的**常量名**集合（字面量兜底则集合为空）。
+
+    为什么不再拿 runtimePublicGroups 当「前端在读」的证据：白名单只证明**服务端愿意下发**，
+    不证明**前端真的读了**。实测两条 `frontend_ui` 键（toast_duration_ms、
+    websocket_reconnect_max_wait_ms）在 user-web 全树零调用，却因所属组在白名单里
+    被本门算成「有读取点」——正是本门在 Go 侧要抓的那类「登记了、页面上能改、改了没人读」，
+    只是换到了前端这一臂上。白名单仍然有用，但它的角色变成另一端的对账（见 not_dispatched）。
+    """
+    out: dict[str, set[str]] = {}
+    for path in sorted(root.rglob("*")):
+        if path.suffix not in (".js", ".vue") or not path.is_file():
+            continue
+        if WEB_SKIP_SEGMENTS.intersection(path.relative_to(root).parts):
+            continue
+        try:
+            text = path.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        for m in WEB_READPOINT.finditer(text):
+            coord = f"{m.group(2)}.{m.group(4)}"
+            names = out.setdefault(coord, set())
+            fallback = m.group(5).strip()
+            if WEB_IDENT.match(fallback) and fallback not in WEB_LITERAL_WORDS:
+                names.add(fallback)
+    return out
+
+
 
 def parse_entries(text: str) -> list[tuple[str, str, str, str, bool, str]]:
     """列出 (group, key, name, description, deprecated, deprecated_reason)。
@@ -210,10 +255,14 @@ def main() -> int:
     # 前端消费者组：从 controller/config_param_runtime.go 的 runtimePublicGroups map
     # 字面量里解出键名。解不出来就 rc=1（不是 rc=2 的"枚举源坏了"：这是"豁免清单
     # 与实现不一致"，属于判据失准，必须让人看见）。
-    if not FRONTEND_RT_REL.is_file():
-        fail(f"前端只读端点文件不存在: {FRONTEND_RT_REL}"
+    # 必须按 --repo 解析：写成相对 CWD 的话，用例夹具（--repo 指临时树、CWD 仍在真仓库）
+    # 会读到真仓库的白名单——夹具里 demo 组的判定实际用的是 frontend_ws 那张表，
+    # 「夹具满足判据前置」这条就不成立了。
+    rt_file = REPO_ROOT / FRONTEND_RT_REL
+    if not rt_file.is_file():
+        fail(f"前端只读端点文件不存在: {rt_file}"
              "（它承载 runtimePublicGroups 白名单，本门靠它判定前端消费组）", 1)
-    rt_text = FRONTEND_RT_REL.read_text(encoding="utf-8", errors="replace")
+    rt_text = rt_file.read_text(encoding="utf-8", errors="replace")
     # 注意 `[^}]*` 会在第一个值的 `{}` 处截断（map[string]struct{} 的每个值就是一对
     # 空花括号），只能解出第一组键。改为解到「末尾的 `}` 且其后紧跟换行或 EOF」，
     # 即在 map 字面量内部允许任意 `{}`。
@@ -230,6 +279,21 @@ def main() -> int:
                         rt_text, re.S)
     frontend_excluded = set(re.findall(r'"([a-z0-9_]+\.[a-z0-9_]+)"\s*:', rt_excl.group(1))) \
         if rt_excl else set()
+    # 跨组单独放行的键：所属组不在白名单，但这一个键下发给前端。
+    # 解不出来时按空集处理是对的——这个清单是可选的，缺它只是回到「只有组级白名单」，
+    # 而前端如果真在读一个跨组键，下面的 not_dispatched 会照旧报红，不会假绿。
+    rt_cross = re.search(r"var runtimeCrossGroupKeys\s*=\s*map\[string\]struct\{}\{(.*?)\n\}",
+                         rt_text, re.S)
+    frontend_cross = set(re.findall(r'"([a-z0-9_]+\.[a-z0-9_]+)"\s*:', rt_cross.group(1))) \
+        if rt_cross else set()
+
+    # 前端真实读取点：扫 user-web/src 的 rt*(group, key, 兜底) 调用。
+    # 目录不存在 ⇒ rc=1（与上面白名单同一口径：这是判据失准，不是内容红）。
+    web_src = REPO_ROOT / WEB_SRC_REL
+    if not web_src.is_dir():
+        fail(f"前端扫描面不存在: {web_src}"
+             "（本门靠它判定前端是否真的读了某条参数，缺目录会让前端组全部误判成没读取点）", 1)
+    frontend_reads = collect_frontend_readpoints(web_src)
 
     wired: list[str] = []
     unwired_marked: list[str] = []
@@ -238,17 +302,15 @@ def main() -> int:
     retired: list[str] = []
     retired_but_wired: list[str] = []
     reason_missing: list[str] = []
+    read_not_dispatched: list[str] = []
     for g, k, name, desc, deprecated, dep_reason in entries:
         direct = any(f'"{k}"' in line and GETCALL.search(line) for line, _p in key_lines)
         # 标识符按整词匹配：子串会把 `Key` 这类短名算成别的词的一部分（读到就判绿）。
         via_const = any(re.search(rf'\b{re.escape(ident)}\b', joined_gets)
                         for ident in const_map.get(k, []))
-        # 前端消费：读取点在 user-web，由 runtimePublicGroups/Keys 作证。
-        # 判定按 group.key 粒度：组在白名单里还不够，键不能在排除清单里——
-        # 否则「组整体给前端、个别键后端没人读」会被整组判成已接线，
-        # 而那些键的 Description 里明写着「当前不生效」。
+        # 前端消费：只认 user-web 里真实出现的 rt* 调用（group.key 粒度）。
         coord = f"{g}.{k}"
-        via_frontend = (g in frontend_groups) and (coord not in frontend_excluded)
+        via_frontend = coord in frontend_reads
         has_read = direct or via_const or via_frontend
         declared = MARKER in name or MARKER in desc
         # 五类互斥：一条只能落进一格。曾经把 STALE 同时记进"有读取点"，
@@ -278,7 +340,7 @@ def main() -> int:
 
     print(f"扫描面: Go 文件（非测试、非种子）{len(files)} 个 / Get* 行 {len(get_lines)} 行 / "
           f"种子条目 {len(entries)} 条 / 前端消费组 {len(frontend_groups)} 个（排除 "
-          f"{len(frontend_excluded)} 键）")
+          f"{len(frontend_excluded)} 键）/ 前端真实读取点 {len(frontend_reads)} 个 group.key")
     print(f"读数: 有读取点且未挂标注={len(wired)}  未接线且已声明={len(unwired_marked)}  "
           f"未接线但未声明={len(undeclared)}  声明过期={len(stale)}  已下架={len(retired)}"
           f"（其中接上了却没摘下架标记={len(retired_but_wired)}）")
@@ -314,7 +376,33 @@ def main() -> int:
         print(f"  G2 ORPHAN_GROUP: {g} 代码里出现了种子中没有的组名"
               "——整组都接错了，或组名改了种子忘了跟")
 
-    if undeclared or stale or orphan_read or orphan_group or retired_but_wired or reason_missing:
+    # 另一端的对账：前端在读、但下发面白名单没给这个键 ⇒ 每次都 miss、每次都回落兜底常量，
+    # 运维在页面上改了也不生效（和 G1 ORPHAN_READ 同一形状，只是发生在前端）。
+    for coord in sorted(frontend_reads):
+        g, _ = coord.split(".", 1)
+        if coord in frontend_cross:
+            continue
+        if g not in frontend_groups or coord in frontend_excluded:
+            read_not_dispatched.append(coord)
+
+    # 跨组放行清单自身的两条自检：写错一个字母的坐标会一路静默到前端回落兜底值，
+    # 而页面上那条参数看着完全正常（组在白名单里的键不会有这种形态，因为组名是解析出来的）。
+    seeded_coords = {f"{g}.{k}" for g, k in seeded}
+    for coord in sorted(frontend_cross):
+        if coord not in seeded_coords:
+            fail(f"runtimeCrossGroupKeys 里的 {coord} 在种子里查无此键"
+                 "——下发面会永远返回空值，前端静默回落兜底，运维改了不起作用", 1)
+        if coord in frontend_excluded:
+            fail(f"runtimeCrossGroupKeys 与 runtimePublicKeys 同时列出了 {coord}"
+                 "——一条既放行又排除，实现里先排除后放行的顺序会变成第二个读取面的隐式契约", 1)
+
+    for coord in read_not_dispatched:
+        print(f"  FRONTEND_READ_NOT_DISPATCHED: {coord} 前端有 rt* 读取点，但 "
+              "runtimePublicGroups/runtimePublicKeys 不会把它下发——前端永远拿不到库里的值，"
+              "运维改了也不生效；要么把组/键放进下发面，要么删掉那个读取点")
+
+    if (undeclared or stale or orphan_read or orphan_group or retired_but_wired
+            or reason_missing or read_not_dispatched):
         print("❌ 参数中心读取点门未通过")
         return 1
     print("✅ 参数中心读取点门通过：每条要么有人读，要么自己承认没接线，要么已下架并写清了"

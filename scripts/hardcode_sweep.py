@@ -25,19 +25,41 @@ from collections import defaultdict
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
-SERVER = REPO_ROOT / "user-server"
 
 CN_RANGE = "\u4e00-\u9fa5"
 CN_IN_STR = re.compile(r'"([^"\n]*[' + CN_RANGE + r']+[^"\n]*)"')
-# 命名数值/布尔/时段/位移常量: Ident = <literal>
+# 命名数值/布尔/时长常量: Ident = <literal>
+# 两条形态并集，**缺一不可**：
+#  1) CONST_ASSIGN（裸、不锚行首）—— 本表历来如此。它顺带把结构体字段赋值
+#     （`req.Page = 1`、`score.Empathy = 5`）也算进 CONFIG 面，那些由
+#     hardcode_classify.py 的 FIELD_* 词表判成非阈值，不在这里减噪：
+#     改了它等于把台账的整个 CONFIG 面搬家（871 行的口径一夜作废）。
+#  2) CONST_DECL（锚行首，抄 G4 的 `check-hardcode-tunable.py`）—— 补**带类型标注**
+#     的包级声明：`MaxWebhookBody int64 = 2 << 20`、`InboxRecheckBudgetMax int64 = 1`。
+#     裸形态要求标识符紧跟 `=`，于是这类行整类不在视野，G4 的基线（本表 TUNABLE
+#     归类的产物）里永远没有它们 ⇒ 下一批照范式新增带类型的旋钮时 G4 当场假红，
+#     而 `--refresh-baseline` 又永远捞不回它。三道扫描器里 G3 早就是认的
+#     （它的 NUM_CONST 注释明写 `var X time.Duration = …`），本表与 G4 补齐后三边口径才一致。
+# **不要**用「给裸形态加一个可选类型段」来补第 2 条：那样 `Where("... AND is_active = true")`
+# 里的 `AND`、`SET x = 1` 里的 `SET` 会被当成常量名（实测 5 条假阳性），
+# 因为不锚行首的「标识符 单词 = 数字」在 SQL 串里天天出现。
 CONST_ASSIGN = re.compile(
     r'\b([A-Z][A-Za-z0-9_]*)\s*=\s*'
     r'(\d[\d_.e+]*|true|false|(?:\d+(?:\.\d+)?\s*\*\s*)?time\.(?:Second|Millisecond|Minute|Hour)|'
     r'\d+\s*<<\s*\d+)'
 )
+# 与 G4 的 CONST_DECL 同形（值侧允许 `*` / `<<` / `/` 链与 `int64(N)` 型字面量转换），
+# 只多包了一个**值捕获组**供 kind 归类用。
+CONST_DECL = re.compile(
+    r'^[ \t]*(?:const\s+|var\s+)?([A-Z]\w*)(?:[ \t]+[A-Za-z_][\w.\[\]*<>]*)?[ \t]*='
+    r'([ \t]*(?:[A-Za-z]\w*[ \t]*\([ \t]*)?\d[\w.]*(?:[ \t]*(?:\*|<<|/)[ \t]*[\w.]+)*[ \t]*\)?)'
+    r'[ \t]*(?://.*)?$'
+)
 TIME_LIT = re.compile(r'time\.(?:Second|Millisecond|Minute|Hour)')
 BOOL_LIT = re.compile(r'\btrue\b|\bfalse\b')
-NUM_LIT = re.compile(r'^[\d.]+$')
+# 数字段允许 Go 的下划线分隔符（`10_000`）。G4 的 CONST_DECL 早就接这种值（`\d[\w.]*`），
+# 本表不接就会出现「门看得见、台账看不见」的口径分叉——两边数字无法互相校验。
+NUM_LIT = re.compile(r"^[\d._]+$")
 # 数据字面量: Ident = ([]T{...} | map[...]...{...})
 DATA_LIT = re.compile(
     r'\b([A-Z][A-Za-z0-9_]*)\s*=\s*(?:map\[[^\]]*\]|\[\][A-Za-z0-9_.\[\]]*)\s*\{'
@@ -62,13 +84,15 @@ def classify_const(value: str) -> str | None:
 
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--out", default=str(REPO_ROOT / "hardcode-sweep"), help="输出目录")
-    ap.add_argument("--repo", default=str(REPO_ROOT))
+    ap.add_argument("--out", default=None, help="输出目录（默认为 --repo 下的 hardcode-sweep/）")
+    ap.add_argument("--repo", default=str(REPO_ROOT), help="仓库根，默认脚本所在目录的上一级")
     args = ap.parse_args()
-    out = Path(args.out)
+    repo = Path(args.repo).resolve()
+    server = repo / "user-server"
+    out = Path(args.out) if args.out else repo / "hardcode-sweep"
     out.mkdir(parents=True, exist_ok=True)
 
-    roots = [SERVER / "internal", SERVER / "cmd"]
+    roots = [server / "internal", server / "cmd"]
     cfg: list[dict] = []
     data: list[dict] = []
     cn: list[dict] = []
@@ -79,24 +103,37 @@ def main() -> int:
         if not root.is_dir():
             continue
         for p in root.rglob("*.go"):
-            sp = str(p)
             if p.name.endswith(SKIP_SUFFIX):
                 continue
-            if any(t in sp for t in SKIP_TREE):
+            # SKIP_TREE 按「相对仓库根」匹配，不按绝对路径。原先比的是 str(p)：
+            # 仓库一旦被克隆到 /tmp 下（做干净检出复测时的默认落点），每条路径都含
+            # "/tmp/"，文件面直接归零，而脚本照样退 0、照样写出「全仓没有硬编码」的空清单。
+            rel_root = p.relative_to(repo).as_posix()
+            if any(t in rel_root for t in SKIP_TREE):
                 continue
             files.append(p)
+
+    if not files:
+        print(f"错误: 文件面为 0——{roots} 下没扫到任何非测试、非种子的 .go；"
+              f"疑似 --repo 指错（当前 {repo}）", file=sys.stderr)
+        return 2
 
     for p in sorted(files):
         try:
             text = p.read_text(encoding="utf-8", errors="replace")
         except OSError:
             continue
-        rel = str(p.relative_to(SERVER))
+        rel = str(p.relative_to(server))
         for ln, raw in enumerate(text.splitlines(), 1):
             code = re.sub(r'//.*$', '', raw)
             # CONFIG / DATA 常量名
             for m in CONST_ASSIGN.finditer(code):
                 name, val = m.group(1), m.group(2)
+                kind = classify_const(val)
+                if kind:
+                    cfg.append({"file": rel, "line": ln, "name": name, "value": val, "kind": kind})
+            for m in CONST_DECL.finditer(code):
+                name, val = m.group(1), m.group(2).strip()
                 kind = classify_const(val)
                 if kind:
                     cfg.append({"file": rel, "line": ln, "name": name, "value": val, "kind": kind})

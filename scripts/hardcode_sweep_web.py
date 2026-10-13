@@ -53,7 +53,7 @@ SKIP_DIR = ("node_modules", "dist", "tests", "stories", ".git", "coverage")
 VISIBLE_ATTR = re.compile(
     r'(placeholder|title|alt|label|description|message|content|text|empty-text|confirm-button-text|cancel-button-text)='
 )
-SKIP_FILE_SUFFIX = (".spec.js", ".test.js", ".config.js")
+SKIP_FILE_SUFFIX = (".spec.js", ".test.js", ".config.js", ".stories.js")
 
 # 这些模式里的中文不是「用户可见文案」
 NOT_USER_FACING = re.compile(
@@ -74,8 +74,11 @@ def iter_files():
     for p in sorted(SRC.rglob("*")):
         if p.suffix not in (".vue", ".js"):
             continue
-        sp = str(p)
-        if any(t in sp for t in SKIP_DIR):
+        # SKIP_DIR 只按「目录成分整名」匹配，不按整条路径的子串：原先比 str(p) 时
+        # 文件名里带这些词也会被剔（`components/Breadcrumb.stories.js` 就是这样被"stories"吃掉的），
+        # 而仓库一旦克隆到含这些词的路径下，文件面会整片归零，脚本照样退 0、
+        # 照样写出「前端没有硬编码」的空清单。故事文件改由 SKIP_FILE_SUFFIX 显式点名。
+        if any(t in p.relative_to(SRC).parent.parts for t in SKIP_DIR):
             continue
         if p.name.endswith(SKIP_FILE_SUFFIX):
             continue

@@ -78,9 +78,8 @@ func SetupGeoRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 			Account:  contact,
 			Name:     contact,
 			SourceID: chainID,
-			// ClueTypeGeoCapture 当前与 ClueTypeDouyin 同值（都是 9）：GEO 捕获的线索
-			// 因此在列表页显示成「抖音」、评分走抖音档。改值要连同存量 clues.type 一起迁移，
-			// 属数据决策，这里只把裸字面量换成命名常量，不改变行为。
+			// GEO 捕获有自己的类型号（历史版本借用抖音的 9，列表页因此把它叫成抖音、
+			// 还与抖音线索共用 (type, account) 判重键）。存量 9 的改判见 v3.56.0。
 			Type: service.ClueTypeGeoCapture,
 		}
 		if err := mainClueRepo.Create(ctx, clue); err != nil {

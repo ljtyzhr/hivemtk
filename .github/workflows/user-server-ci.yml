@@ -21,14 +21,28 @@ on:
       - 'scripts/check-cleared-fake-assets.sh'
       # 参数中心读取点门：每条参数要么有人读、要么文案承认未接线（同上，脚本本体即判据）。
       - 'scripts/check-config-param-readpoints.py'
+      # 上面那道门的用例（12 枚夹具控制）：门的判据分叉在前端那一臂，而前端臂的失效形态是
+      # 「少一个读取点没人报」——只有用例能把它变成红。用例不进触发面 ⇒ 改夹具/改判据的提交
+      # 不重跑那一步（#63 同一口井）。
+      - 'scripts/check-config-param-readpoints.test.sh'
       # 配置治理五道门（G2~G6）的脚本本体与判据基线，进触发面的原因同上：
       # 只改判据/只动基线的提交不重跑这道门，就得到一道「看起来在跑、永远绿」的门。
       - 'scripts/check-config-param-defaults.py'
+      # 上面那道门的覆盖率棘轮：门读它，不进触发面 ⇒ "只放宽基线"的提交不重跑这道门。
+      - 'scripts/config-param-defaults.baseline'
       - 'scripts/check-hardcode-tunable.py'
       - 'scripts/hardcode-tunable.baseline'
       - 'scripts/check-config-param-keystyle.py'
       - 'scripts/check-i18n-coverage.py'
       - 'scripts/i18n-coverage-baseline.json'
+      # 文本编码门（G7）的脚本本体与它的替身字符豁免基线：注释里的中文被工具折成
+      # U+FFFD 这种损坏不会编译报错、不会测试报错，只有门能出声；基线不进触发面
+      # ⇒「只放宽豁免」的提交不重跑这道门（同 #63 那口井）。
+      - 'scripts/check-text-encoding.py'
+      - 'scripts/text-encoding.baseline'
+      # 上面那道门的用例（21 枚假树控制）也有自己的 CI 执行点，判据文件同样得进触发面：
+      # 否则"只改夹具/只放宽某格期望"的提交不重跑那一步（同一口井）。
+      - 'scripts/check-text-encoding.test.sh'
       - 'scripts/date-bucket-tz.baseline'
       # 下面两行是 `test-nil-deref` 作业的命门：门自己的判据与它读的基线若不进触发面，
       # "只改判据"/"只动基线"这类提交就根本不重跑这道门（platform docs-link-check.yml 的教训）。
@@ -42,7 +56,11 @@ on:
       # 唯一能自证判据没坏的东西，而它产出的四档名册会被别的文档引用。
       # 脚本本体不进触发面 ⇒ "只改正则/只放宽排除表"的提交不重跑这一步（同 #63 那口井）。
       - 'scripts/route-consumer-triage.py'
-      # `make fmt-check` 与 `make lint-config-verify` 两步的判据就写在仓根 Makefile 的配方里：
+      # 菜单×路由×守卫三方对账器（上面那一步的自检 + 能力面表的事实源）与它的残余基线：
+      # 判据本体不进触发面 ⇒ "只改一条区间口径/只往基线里加一条理由"的提交不重跑这一步；
+      # 基线不进触发面 ⇒ "只放宽基线"（把一条真残余写成已评审）的提交同样不重跑。
+      - 'scripts/menu-route-role-audit.py'
+      - 'scripts/menu-block-residual.baseline'
       # Makefile 不进触发面 ⇒ "只改这两道门的配方"的提交根本不重跑它们。
       # 由 scripts/check-ci-gate-paths.py 第 4 条判据常驻守着（含 pull_request 那份镜像）。
       - 'Makefile'
@@ -62,14 +80,23 @@ on:
       - 'scripts/check-unwired-assets.sh'
       - 'scripts/check-cleared-fake-assets.sh'
       - 'scripts/check-config-param-readpoints.py'
+      # 与 push 段同因：读取点门的用例只在被改动的那次运行里才有机会出声。
+      - 'scripts/check-config-param-readpoints.test.sh'
       # 配置治理五道门（G2~G6）的脚本本体与判据基线，进触发面的原因同上：
       # 只改判据/只动基线的提交不重跑这道门，就得到一道「看起来在跑、永远绿」的门。
       - 'scripts/check-config-param-defaults.py'
+      # 上面那道门的覆盖率棘轮：门读它，不进触发面 ⇒ "只放宽基线"的提交不重跑这道门。
+      - 'scripts/config-param-defaults.baseline'
       - 'scripts/check-hardcode-tunable.py'
       - 'scripts/hardcode-tunable.baseline'
       - 'scripts/check-config-param-keystyle.py'
       - 'scripts/check-i18n-coverage.py'
       - 'scripts/i18n-coverage-baseline.json'
+      # 与 push 段同因：文本编码门的脚本本体与替身字符豁免基线，两个事件都要能被
+      # "改到它的那次提交"拉起；它的用例（21 枚假树控制）也在这道作业里跑，一并进。
+      - 'scripts/check-text-encoding.py'
+      - 'scripts/text-encoding.baseline'
+      - 'scripts/check-text-encoding.test.sh'
       - 'scripts/date-bucket-tz.baseline'
       - 'scripts/check-test-nil-deref.py'
       - 'scripts/test-nil-deref.baseline'
@@ -77,6 +104,9 @@ on:
       - 'scripts/check-ci-pg-capacity.test.sh'
       # 与 push 段同因：取证器的自检门在两个事件上都得能被改到脚本的那次运行拉起。
       - 'scripts/route-consumer-triage.py'
+      # 与 push 段同因：对账器的判据本体与它的残余基线，两个事件都要能被改到它的那次提交拉起。
+      - 'scripts/menu-route-role-audit.py'
+      - 'scripts/menu-block-residual.baseline'
       # 与上面 push 段同因：`make fmt-check`／`make lint-config-verify` 的判据在 Makefile 里。
       - 'Makefile'
       - '.github/workflows/user-server-ci.yml'
@@ -204,6 +234,18 @@ jobs:
         # 非测试 Go 源，接线后不撤"未接线"标注、或新参数既没人读也不自我声明，都当场红。
         run: python3 scripts/check-config-param-readpoints.py
 
+      - name: 参数中心读取点门用例（假树夹具，不联网、不要数据库）
+        # 这道门有 12 枚夹具控制（处数由用例自己现报，写死的枚数会随格子漂移）：
+        # UNDECLARED／STALE／单行条目枚举／条目头漂走退 2／缺种子文件退 2／常量形态读取点／
+        # 只有 _test.go 引用不算读取点，以及前端那一臂的三枚——
+        # 「rt* 调用算生产读取点」「组不在下发面 ⇒ FRONTEND_READ_NOT_DISPATCHED」
+        # 「键被 runtimePublicKeys 排除 ⇒ 同一条判据的第二条腿也要开火」。
+        # 为什么这一格必须常驻：本轮把「白名单=前端在读」换成「user-web 里真有 rt* 调用」时，
+        # 门本体绿了，而它的用例在缺 `user-web/src` 的假树上悄悄坏了 6 枚（新加的扫描面
+        # 前置把每格的 rc 都改写成 1）——没有执行点的自检就是会这样烂掉，
+        # 而它烂掉之后与「全绿」在 CI 输出上完全一样。
+        run: bash scripts/check-config-param-readpoints.test.sh
+
       - name: 参数中心默认值与代码兜底常量一致（阻断）
         # 2026-10-11（阶段五 G3）：读侧（GetDuration）与校验侧（validateValue）共用
         # parseDurationSeconds，所以种子 DefaultValue 与代码兜底常量必须同源，否则读出来
@@ -226,6 +268,37 @@ jobs:
         # 716 个走 $t()，只认裸 t() 会漏掉 78% 的使用而且漏得悄无声息。
         run: python3 scripts/check-i18n-coverage.py
 
+      - name: 文本编码门（非 UTF-8 字节 / U+FFFD 替身 / 双重编码签名，阻断）
+        # 2026-10-12（阶段五 G7）：本轮在两个已入库文件里各发现一段 U+FFFD——中文注释被某个
+        # 「容错写回」的工具折成了替身字符（`user-web/src/layout/Layout.vue:143` 连续 2 个、
+        # `user-server/internal/service/config_param_test.go:335` 连续 3 个）。
+        # 这类损坏不会编译红、不会测试红、不会页面报错，症状只有"人读到那行时才看得见"，
+        # 所以没有发现机制就等于没有。三条判据：严格 UTF-8 解码、U+FFFD 次数（只放行
+        # `text-encoding.baseline` 里逐文件登记的刻意用法，变小报 STALE）、双重编码签名
+        # （建门时全仓 0 处，故无豁免通道）。牙齿常驻在下一步的用例里（21 枚控制 +
+        # 10 枚专杀变异），建门当趟的真树反向对账 14 格是它的来路：三种内容红各一格、
+        # 撤探针复绿、基线抬高/撤豁免两向各有判据、缺基线与幽灵登记与空扫描面各退 2、
+        # 中文名文件真在面里（不带 `-z` 时 git 会把它们列成转义名⇒静默不扫）。
+        # 耗时（2026-10-13 现测，工作树 7247 个路径 / 7228 个文本；影子树 7245 / 7226）：
+        # user CPU 两侧都是 1.62–1.69s（工作树 1.69/1.63，影子 1.69/1.62，各测两次）；
+        # wall 随页缓存与并发负载摆动（1.95s–6.17s，其中 6.17s 那一趟同机在跑四包 go test），
+        # 所以拿 user CPU 当口径。这一步排在 go build 之前，挡在编译前面的还有架构门那一步。
+        run: python3 scripts/check-text-encoding.py
+
+      - name: 文本编码门用例（假树夹具 21 枚控制，不联网、不要数据库）
+        # 门的 `--self-check` 只喂内存字节夹具，它证的是「检测函数有牙」；而
+        # 「豁免按次数正好对上才放行」「基线里的文件读不到必须退 2」「中文名的文件真在面上」
+        # 「未跟踪又未忽略的临时件也在面上」「门自己挂在 Makefile 与 CI 两个事件 paths 上」
+        # 这些只在真 git 树上才成立的判据，self-check 一条都证不了。
+        # 21 枚控制各配一枚专杀变异跑过（`> 基线` 放宽成 `>= 基线` 由 T5 那格抓到、
+        # STALE 分支关死由 T7、缺基线/幽灵登记/读不到/空面四格各退 2 由 T8~T11、
+        # 二进制嗅探关死由 T15、`-z` 摘掉由 T13b、Makefile 少一步由 T17a、
+        # CI paths 少一行由 T17b、CI 没有执行点由 T17c）。
+        # 有一处实测与预期不符已写进用例文件头：把 `registered.get(rel, 0)` 换成
+        # `10**9` 杀不到 T6——登记过的文件仍走登记值，那条分支要单独杀得改坏比较两侧。
+        # 全程在 mktemp 的假 git 树里做，不往工作树写一个字节（工作树里压着别的泳道在途件）。
+        run: bash scripts/check-text-encoding.test.sh
+
       - name: 路由消费面取证器口径自检（10 枚控制，含两条极性对）
         # scripts/route-consumer-triage.py 产出的四档名册是接口废弃判据唯一可重跑的事实源，
         # 文档里的每个计数都由它复算。而它自检的 10 枚控制此前只在人手动跑一次时才响：
@@ -235,6 +308,17 @@ jobs:
         # 两条极性对各测两侧：模块说明符什么都抽不出来 ＋ 同一个串写成真调用照常抽出。
         # 耗时实测 0.04s（mac 出厂 python3，三次取中位）。
         run: python3 scripts/route-consumer-triage.py --self-check
+
+      - name: 菜单×路由×守卫三方对账器口径自检（阻断；枚数由脚本现报）
+        # scripts/menu-route-role-audit.py 是能力面表
+        # （user-server/internal/model/menu_capability_routes.go）唯一的事实源：LEAK/BLOCK/GLOBAL/
+        # PENDING/UNROUTED 五档名册与那张生成件都由它算。它此前只在人手动跑那一天才响，
+        # 而它的判据全是文本区间口径——摘掉"挂载区间"那一筛、把 BLOCK 的极性方向写反、
+        # UNROUTED 的抽取退化成"整段文件的 /api/ 串"，三样都不会让任何编译或单测变红，
+        # 只会让下一轮名册静默少一档或多一档（挂载区间那一刀就是这么漏掉的）。
+        # `--self-check` 在定位仓库根之前就返回：不读仓库、不连库、不联网，
+        # 夹具里正反两枪各自开火，"逐条对上时放行"那枚反向也在其中。
+        run: python3 scripts/menu-route-role-audit.py --self-check
 
       - name: CI 的 PG 名额与代码侧池上界必须同源
         # §23.21 第 8 段⑤ 的常驻化：此前"CI 容器只有默认名额、代码侧池上界比它大"这件事
@@ -490,6 +574,25 @@ jobs:
             exit 1
           fi
           exit $rc
+
+      - name: 菜单×路由×守卫三方对账（全量读数，阻断）
+        # static-gates 里那一步只跑 `--self-check`（内存夹具，定位仓库根之前就返回，不读仓库）。
+        # 这一步跑真读数：live 守卫档位由 internal/router 的导出用例现打 ⇒ 必须挂在带
+        # postgres 的作业末尾，静态线里跑只会得到恒 rc=2 的哑门。它拦的三样编译／单测／lint
+        # 全都不会红：
+        #   ① 生成件 menu_capability_routes.go 与再生成结果不再逐字相同（手改，或改了
+        #      menu.go／注册点／前端调用图却没重跑 `--emit-go`）；
+        #   ② 整页死冒出一条（菜单授给非超管、页面挂载即打仅超管口 ⇒ 角色点进去是空表＋403），
+        #      以及页内残余与 scripts/menu-block-residual.baseline 逐条对不上（名册有基线没有、
+        #      基线有名册没有、条目没理由）；
+        #   ③ UNROUTED：`user-web/src/api/` 在打一条 live 表里没有的口（页面一调就 404）。
+        # `--out` 指到 RUNNER_TEMP：CI 这轮的名册是判据的中间产物而不是留存的取证，
+        # 工作树要保持干净（往仓库树里写未提交残骸会让后面的门读到不属于提交的东西）。
+        run: |
+          set -euo pipefail
+          python3 scripts/menu-route-role-audit.py \
+            --check-go user-server/internal/model/menu_capability_routes.go \
+            --out "$RUNNER_TEMP/menu-route-audit"
 
   test-race-service:
     name: Unit tests -race (user-server service)

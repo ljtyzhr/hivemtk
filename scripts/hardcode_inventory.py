@@ -229,6 +229,31 @@ def collect_wired_fallback_names(base: str) -> set[str]:
 
 SKIP_SEGMENTS = {"cmd/seed", "vendor", "migrations", "test", "tests", "tmp", "backups"}
 
+
+def collect_web_wired_fallback_names(base: str) -> set[str]:
+    """扫出前端**已经坐在 rt* 兜底实参位上**的常量名。
+
+    判据不另立一套：直接复用 G1（scripts/check-config-param-readpoints.py）的前端读取点采集，
+    取其中「第 3 个实参是常量名」的那部分。两处各写一份正则的话，清单说「这条已接」而门说
+    「这条没人读」（或反过来），两边数字没法互相校验——Go 侧的兜底实参判据就是同一个道理共用
+    G4 的 collect_fallback_idents。
+
+    第三个实参是字面量的（`rtNum(..., 'material_max_size_mb', 10)`）不进名单：那说明前端确实
+    读了这条参数，但值写在调用点，常量本身仍是硬编码，正该留在待接桶里。
+    与 Go 侧不同的一处：前端没有 `Default*` 命名约定，所以只出 WIRED，不出 PARAM_FALLBACK。
+    """
+    import importlib.util
+    from pathlib import Path
+
+    gate_path = os.path.join(os.path.dirname(os.path.abspath(__file__)), "check-config-param-readpoints.py")
+    spec = importlib.util.spec_from_file_location("check_config_param_readpoints", gate_path)
+    gate = importlib.util.module_from_spec(spec)
+    spec.loader.exec_module(gate)
+    names: set[str] = set()
+    for idents in gate.collect_frontend_readpoints(Path(base)).values():
+        names |= idents
+    return names
+
 # G4 门对 `Default*` 前缀的豁免口径（参数中心兜底值的约定标记），清单沿用同一判据，
 # 不另立一套 —— 两处口径分叉的话，台账说「已参数化」而门说「这是硬编码」，
 # 两边数字没法互相校验。
@@ -273,13 +298,26 @@ def rows_from_go(sweep: dict, classified: dict, wired: set[str]) -> list[dict]:
             }
         )
     # DATA：只收真正的字典型/提示词常量，局部变量赋值不进清单
+    # `Keys` 词缀是补的：`LTCKnownThresholdKeys`（thresholds 下必须逐条给出的四个键名）
+    # 是真键名清单，但词缀表里没有 `Keys`，于是整行被静默丢弃 —— 台账把它列进「流程步骤类」
+    # 而 CSV 里没有这一行，两份清单对不上。这类词缀表**天生追不上命名**，
+    # 所以改动它时要把「新命中哪些行」实际列出来核一遍，别只加词。
+    # 词缀表只保证「名字像字典」，不保证这行是**包级常量声明**：
+    # `intent.Categories = []string{"social"}` 这类结构体字段赋值（dialog_manager.go 的 if 链 6 处）
+    # 会被同一张词缀表捞进来，于是「业务字典」桶里混进 6 行不是字典的东西。
+    # 现要求等号左侧是一个裸标识名（可带 var/const）且等于扫描器给出的名字，才算字典声明。
+    bare_lhv = re.compile(r"^\s*(?:var\s+|const\s+)?([A-Za-z_]\w*)\s*=")
     dictish = re.compile(
         r"(Statuses|Status|Stages|Stage|Outcomes|Levels|Types|Kinds|Actions|Labels|Sources|"
         r"Priorities|Layers|Ops|Columns|Dimensions|Categories|Intents|Steps|Templates|"
-        r"Policies|Rules|Flags|Roles|Scenarios|Rows|Options|Set|List|Dict)\w*\s*=",
+        r"Policies|Rules|Flags|Roles|Scenarios|Rows|Options|Keys|Set|List|Dict)\w*\s*=",
     )
     for d in sweep.get("data_literals", []):
-        if not dictish.search(d.get("text", "")):
+        text = d.get("text", "")
+        if not dictish.search(text):
+            continue
+        lhv = bare_lhv.match(text)
+        if lhv is None or lhv.group(1) != d["name"]:
             continue
         grp = group_for(d["file"])
         out.append(
@@ -312,7 +350,7 @@ def cn_bucket(it: dict) -> str:
     return "API_MESSAGE"
 
 
-def rows_from_web(web: dict) -> list[dict]:
+def rows_from_web(web: dict, wired: set[str]) -> list[dict]:
     out = []
     for it in web.get("cn_strings", []):
         b = cn_bucket(it)
@@ -336,19 +374,25 @@ def rows_from_web(web: dict) -> list[dict]:
             }
         )
     for it in web.get("config_consts", []):
+        # 与 Go 侧同一判据：常量坐在 rt* 的兜底实参位 = 这条点位已经接完。
+        bucket = "WIRED" if it["name"] in wired else "TUNABLE"
         out.append(
             {
                 "side": "user-web",
                 "kind": "CONFIG",
-                "bucket": "TUNABLE",
-                "priority": priority_for(it["name"], "TUNABLE"),
+                "bucket": bucket,
+                "priority": "DONE" if bucket == "WIRED" else priority_for(it["name"], "TUNABLE"),
                 "file": it["file"],
                 "line": it["line"],
                 "name": it["name"],
                 "value": it.get("value", ""),
                 "suggest_group": group_for(it["file"]),
-                "suggest_key": key_for(it["name"], it["file"]),
-                "note": "前端阈值，需经 /api/manage/config-params 暴露后由前端读",
+                "suggest_key": "" if bucket == "WIRED" else key_for(it["name"], it["file"]),
+                "note": (
+                    "已接进参数中心（常量坐在 rt* 的兜底实参位，值来自 /api/config/runtime）"
+                    if bucket == "WIRED"
+                    else "前端阈值，需经 /api/manage/config-params 暴露后由前端读"
+                ),
             }
         )
     return out
@@ -365,7 +409,9 @@ def main() -> int:
 
     wired = collect_wired_fallback_names(os.path.join(ROOT, "user-server"))
     print(f"=== 已接进参数中心的兜底常量: {len(wired)} 个（从 TUNABLE 里单独摘出） ===")
-    rows = rows_from_go(sweep, classified, wired) + rows_from_web(web)
+    wired_web = collect_web_wired_fallback_names(os.path.join(ROOT, "user-web", "src"))
+    print(f"=== 前端已坐在 rt* 兜底实参位的常量: {len(wired_web)} 个 ===")
+    rows = rows_from_go(sweep, classified, wired) + rows_from_web(web, wired_web)
 
     summary = Counter((r["side"], r["kind"], r["bucket"]) for r in rows)
     prio = Counter(r["priority"] for r in rows)

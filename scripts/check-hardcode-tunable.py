@@ -27,6 +27,18 @@
 口径边界（别把"没扫到"印成"没问题"）：
   - 只看命名常量赋值。函数内的裸字面量（`f(30)`）不在本门视野——那属于 INLINE_NUM，
     由 hardcode_sweep.py 体检，治理结论是"不治理"（见 HARDCODE_INVENTORY §6）。
+  - 本门的**声明面**是「大写名 + 数字链」，不是「所有包级常量」（CONST_DECL 的注释记着
+    这条形状是怎么定下来的）。读数由 `scripts/measure-tunable-blindspot.py` 现测（与 G4 共用
+    GO_ROOTS / is_skipped / TUNABLE_SUFFIX / CONST_DECL，改形状后它会跟着变，别引用旧数）：
+      1) **小写名一律看不见**（`missingThreshold = int64(20)`、`dbSinkBatchSize = 128`）——
+         现测 276 个，这是文件头「改个名就能绕开」那条代价的具体形状。
+      2) 名字大写但**值不是非负数字链**的看不见。现测这一类只剩 1 个：
+         `internal/pkg/utils/type/type.go` 的 `OrderStatusTimeout OrderStatusType = -1`
+         ——它是状态枚举的负值哨兵而非旋钮（名字撞上了 `Timeout` 词缀），
+         所以**故意不扩**值形状去接它。
+      同口径的「包级阈值命名数值常量」共 474 个，本门声明面覆盖 197 个（大写、形状在内）。
+    报这条覆盖面的读数时，「新增未入库=0」的意思是「没有**这种形状**的新旋钮」，
+    不是「仓里没有未入库的阈值」。前者是本门的判据，后者没人能保证。
   - 协议常量（错误码、端口、状态枚举、版本号）由 EXEMPT_NAME 正则豁免，命中仍打印
     但不计红。
   - `Default*` 前缀是**参数中心兜底值**的约定标记，同样豁免（见 DEFAULT_PREFIX）。
@@ -52,12 +64,26 @@ CLASSIFIED_REL = Path("hardcode-sweep") / "hardcode-sweep-classified.json"
 BASELINE_REL = Path("scripts") / "hardcode-tunable.baseline"
 GO_ROOTS = [Path("user-server") / "internal", Path("user-server") / "cmd"]
 
-# 跳过目录按**相对扫描根**的路径段判定，不看绝对路径。
+# 跳过目录按**相对仓库根**的路径判定，不看绝对路径。
 # 踩过的坑：原先写 `seg in p.parts`，而 `p` 是 rglob 出来的绝对路径——只要
 # 仓库被检出到任何含 `tmp` / `test` / `migrations` 段的位置（本仓的干净 worktree
 # 验证恰好就在 /tmp 下），**每一个文件都会被跳过**，门扫出 0 条常量。
 # 表现是 rc=2 而不是恒绿（本门拒绝冒充绿），但真因在路径判定，修在这里。
+# 第二处同类坑（本轮修）：带斜杠的多段条目（`cmd/seed`）原先拿去比 **相对扫描根**
+# 的前缀，而扫描根本身就是 `user-server/cmd`，于是那条路径永远是 `seed/...`——
+# `cmd/seed` 这个排除**从未生效过**（现测：`cmd/seed` 下 14 个非测试文件、
+# `CONST_DECL` 命中 0，所以一直没出声）。改成统一按相对仓库根判定，
+# 与 hardcode_sweep.py 的排除口径对齐（两边的口径必须一致，否则清单说不迁、门说新增）。
 SKIP_SEGMENTS = {"cmd/seed", "vendor", "migrations", "test", "tests", "tmp", "backups"}
+
+
+def is_skipped(p: Path) -> bool:
+    """相对仓库根判定：多段条目比对整条路径，单段条目比对路径段。"""
+    rel = p.relative_to(REPO_ROOT)
+    rel_str = f"/{rel.as_posix()}/"
+    if any(f"/{seg}/" in rel_str for seg in SKIP_SEGMENTS if "/" in seg):
+        return True
+    return any(seg in SKIP_SEGMENTS for seg in rel.parts if "/" not in seg)
 
 TUNABLE_SUFFIX = re.compile(
     r"(Threshold|Limit|Max|Min|TTL|Timeout|Interval|Window|Size|Count|Concurrency|"
@@ -65,7 +91,13 @@ TUNABLE_SUFFIX = re.compile(
 EXEMPT_NAME = re.compile(
     r"^(Code|Err|Status|SpanIDHexLen|TraceIDHexLen|RDays|Version|Port|DefaultPort|"
     r"ImplicitTLSPort|AGENT_RUNTIME_BUS|SSL|DSN|MaxOpenConns|MaxIdleConns|"
-    r"HNSW|Dimension|TopLogprobs|SourceDim|BGEM3)", re.I)
+    r"HNSW|Dimension|TopLogprobs|SourceDim|BGEM3|"
+    # 枚举成员名里**含着**阈值词缀的子串，会被 re.I 的 TUNABLE_SUFFIX 命中：
+    # `Acc|ount|StatusActive` 里的 `count`、`LeadMining` 里的 `min`。
+    # 这类是值域成员（状态码/类型码），不是旋钮；本门按名字判就必须给它们一个出口，
+    # 否则「补声明形状」这件事会立刻变成一批假红（现测 4 条：ClueType*、AccountStatus*）。
+    # 只放**真命中的两个家族**：豁免表每多一个前缀就多掩掉一批未来可能出现的真旋钮。
+    r"ClueType|AccountStatus)", re.I)
 # `Default*` 前缀是参数中心兜底值的约定标记：这些常量名字里带 Default，是因为
 # 它们在 provider 注入缺失时当 fallback 用（3.1 五批统一留下的形态）。
 # 它们**已经**是参数中心的一份子，不是新的硬编码旋钮——判红等于让"接线"这个动作
@@ -77,19 +109,54 @@ DEFAULT_PREFIX = re.compile(r"^Default")
 # 判据：这类常量的值只可能取「值域的极值」，改了不会让系统行为变"可调"，
 # 只会让同一份数据在边界两侧给出矛盾的结论。
 SEMANTIC_BOUND = re.compile(r"(ProbabilityMax|ProbabilityMin|RatioMax|RatioMin)$")
-CONST_DECL = re.compile(r'^\s*([A-Z]\w*)\s*=\s*(\d[\w.]*|\d+\s*\*\s*[\w.]+)\s*(?://.*)?$', re.M)
+# 声明形状：三条已知缺口，逐条在这轮补掉/写明。
+#   1) **值**这一侧原先只认「一个数字」或「数字 × 一个因子」，而本门文件头的判据举的例子
+#      就有 `XxxMaxSize = 10 * 1024 * 1024`（两个乘号）——那种形状匹配不上，于是
+#      `HTTPIngestMaxBodySize = 4 << 20`、`MaxApprovalRequestTTL = 30 * 24 * time.Hour`
+#      这类声明根本不在视野里。现扩成：数字链（任意个 `*` / `<<` / `/` 因子）
+#      或类型化字面量 `int|float64|(u)int(32|64)(N)`。
+#   2) 原先只认 `Name = 值`，而**带 `const`/`var` 关键字的单行声明**（`const MaxWebhookBody int64 = 2 << 20`）
+#      与**带类型的声明**（`Name OrderStatusType = -1`）都要求名字后紧跟 `=`，所以整类看不见。
+#      这不是理论缺口：现测这类行有 115 条（其中名字带阈值词缀的 70 条），
+#      也就是说「新写一个旋钮」只要多打一个 `const` 关键字就能绕过本门。现把关键字与类型都放进形状。
+#      顺带把值与行尾注释之间的分隔从 `\s*` 改成 `[ \t]*`：`\s` 含换行，旧写法会把
+#      下一行的注释吃进本次匹配，`finditer` 不回头，于是被吃掉那一行上的声明可能整个漏判。
+#   3) **名字仍只认大写开头**——小写名是文件头「改个名就能绕开」那条代价的具体形状，
+#      数量由 `scripts/measure-tunable-blindspot.py` 现产（不在本门判据面内，只出声不计红）。
+CONST_DECL = re.compile(
+    r'^[ \t]*(?:const\s+|var\s+)?([A-Z]\w*)(?:[ \t]+[A-Za-z_][\w.\[\]*<>]*)?[ \t]*='
+    r'[ \t]*(?:[A-Za-z]\w*[ \t]*\([ \t]*)?\d[\w.]*(?:[ \t]*(?:\*|<<|/)[ \t]*[\w.]+)*[ \t]*\)?'
+    r'[ \t]*(?://.*)?$', re.M)
 # 兜底实参位：GetInt(ctx, "bridge", "ingest_max_messages", HTTPIngestMaxMessages)
 # 取最后一个逗号分段。实参里允许一层括号（GlobalConfigParam() 之类），
 # 但不允许再嵌括号——真出现嵌套时这条正则不匹配，退化成"未接线"判红，不会漏放。
 GET_CALL = re.compile(
     r"Get(?:Int|Float|Bool|Duration|String)\(((?:[^()\n]|\([^()]*\))*)\)", re.M)
-FALLBACK_IDENT = re.compile(r"^[A-Za-z_]\w*$")
+# 兜底实参允许**带包名前缀**的限定名。provider seam 的装配文件在 `internal/app`，
+# 它写的是 `service.L1TTLHours` / `qq.QQMessageMaxLen`，而常量声明在被导入的那个包里，
+# 两边都不可能在同一份文件里出现裸名。只认裸标识符的代价：
+# 1) 本门的「已作参数中心兜底」只剩同包直连那几条（实测漏认 69 个名字）；
+# 2) 复用同一判据的 hardcode_inventory.py 把已接线常量算回 TUNABLE，台账虚高；
+# 3) 下一批照 3.1 范式新增常量并接线时，兜底位是限定名 ⇒ 判不成 WIRED、
+#    又不在基线里 ⇒ 当场假红 NEW_TUNABLE。
+# 代价是取末段后名字空间变宽（不同包的同名常量共享一个判定），
+# 本门只需知道「这个名字确实被当过兜底值」，不区分它来自哪个包。
+FALLBACK_IDENT = re.compile(r"^[A-Za-z_]\w*(?:\.[A-Za-z_]\w*)*$")
 # 直连范式的哨兵写法：GetInt(ctx, group, key, 0) 之后回落到常量。
 #   if v := cp.GetInt(ctx, "memory", "l1_window_size", 0); v > 0 { return v }
 #   return L1WindowSize
 # 兜底实参是字面量 0（"没读到值"哨兵），真正的兜底常量在随后的 return/赋值上。
 # 取调用结束后的 5 行——足够覆盖上面这个两行形态，又不会跨到别的函数。
-SENTINEL_TAIL = re.compile(r"(?:return\s+|:=\s*|=\s*)([A-Z]\w*)\b")
+# 哨兵尾巴**只认裸名大写常量**（`return L1WindowSize`），不认限定名：这种形态的
+# 右值经常是表达式或包内字段（`timeout = time.Second * 5`），取末段会把 `Second`
+# 这类名字塞进免判红集合。仓内实测限定名兜底全部走的是上面那条直接实参位，
+# 没有 `Get*(..., 0)` 之后回落 `pkg.Const` 的写法。
+# 尾巴上的 `(?![\w.]|\s*\()` 是把「函数调用」挡在集合外：这一行的扫描窗口从
+# Get* 调用所在的那一行本身开始（`lines[start_line:]`），于是
+# `if v := GlobalConfigParam().GetInt(...)` 里的 `GlobalConfigParam` 会被当常量收进来
+# （HEAD 的集合里就有这个名字，放宽后还会再收进一个 `GetInt`）。
+# 集合只用来免判红，混进函数名就是给同名常量开后门。
+SENTINEL_TAIL = re.compile(r"(?:return\s+|:=\s*|=\s*)([A-Z]\w*)\b(?![\w.]|\s*\()")
 SENTINEL_LOOKAHEAD_LINES = 5
 
 
@@ -116,7 +183,7 @@ def collect_fallback_idents(text: str) -> set[str]:
             continue
         last = parts[-1].strip()
         if FALLBACK_IDENT.match(last):
-            out.add(last)
+            out.add(last.rsplit(".", 1)[-1])
             continue
         if last != "0":
             continue
@@ -195,14 +262,7 @@ def scan_go() -> tuple[list[tuple[str, str]], set[str]]:
         for p in base.rglob("*.go"):
             if p.name.endswith("_test.go"):
                 continue
-            # 跳过目录只看**相对扫描根**的路径段：SKIP_SEGMENTS 里带斜杠的
-            # 是多段前缀（cmd/seed），纯名字的是单段。
-            rel_parts = p.relative_to(base).parts
-            skipped = any("/".join(rel_parts[:i + 1]) in SKIP_SEGMENTS
-                          for i in range(len(rel_parts)))
-            skipped = skipped or any(seg in SKIP_SEGMENTS
-                                     for seg in rel_parts if "/" not in seg)
-            if skipped:
+            if is_skipped(p):
                 continue
             try:
                 t = p.read_text(encoding="utf-8", errors="replace")
@@ -215,7 +275,23 @@ def scan_go() -> tuple[list[tuple[str, str]], set[str]]:
     return out, fallback
 
 
+def check_alternation_shape() -> None:
+    """交替表坏成「空支」时本门会静默失效，所以自检必须自己发（判红偏绿的那侧没人报警）。
+
+    `^(A|B|)` / `^()` / `^(|A)` 都能匹配**空前缀**：`EXEMPT_NAME.match(anything)` 恒真
+    ⇒ 每个候选名都被判成协议豁免，门当场变橡皮章。实测踩过：摘掉一个豁免前缀时漏删
+    它前面那根竖线，读数从「兜底=3 豁免=52」跳成「兜底=0 豁免=77」且 rc=0——
+    少掉的 25 个不是消失了，是被空支吞进了豁免桶。TUNABLE_SUFFIX 的空支反向（恒真）
+    会把所有常量判成旋钮，同样要当场停。
+    """
+    for name, rx in (("TUNABLE_SUFFIX", TUNABLE_SUFFIX), ("EXEMPT_NAME", EXEMPT_NAME),
+                     ("DEFAULT_PREFIX", DEFAULT_PREFIX), ("SEMANTIC_BOUND", SEMANTIC_BOUND)):
+        if re.search(r"\|\||\(\||\|\)", rx.pattern):
+            fail(f"{name} 的交替表里有空支（`||` / `(|` / `|)`），判据会恒真：{rx.pattern}")
+
+
 def main() -> int:
+    check_alternation_shape()
     if "--refresh-baseline" in sys.argv:
         return refresh_baseline()
     baseline = load_baseline()

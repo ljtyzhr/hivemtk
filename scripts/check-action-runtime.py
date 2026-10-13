@@ -79,9 +79,11 @@ RUNTIMES = {
     "softprops/action-gh-release@v3": "node24",
 }
 
-# (工作流文件名, pin) -> (站点数上界, 原因)。
+# (工作流文件名, pin) -> (原因, 站点数上界)。
 # 这些是本仓库当前动不了的部分：user-server-ci.yml 整份在并行泳道手里（未提交改动），
 # 逐条抬 pin 会撞对方正在编辑的 hunk；slsa-verifier 则是上游根本没发过 node24 的版本。
+# 每条都必须有真站点对着：站点被抬走而不删条目，R3 会直接报 STALE（曾有
+# actions/setup-go@v5 那一条，user-server-ci.yml 全量升到 v7 后账本没跟着收）。
 GRANDFATHER = {
     ("user-server-ci.yml", "codecov/codecov-action@v4"): (2, "同上"),
     ("slsa.yml", "slsa-framework/slsa-verifier/actions/installer@v2.7.1"):

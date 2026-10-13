@@ -297,6 +297,14 @@ type DictionaryTransition struct { // 表 dictionary_transitions：状态机
 > 它们的唯一读取点在 `app/faq_cache_wiring.go`——一个尚未入库的在途文件，属于别人正在做的
 > FAQ 语义缓存特性（该特性还要改 `rag/cache/service.go` 的构造签名并连带两个测试文件）。
 > **不为了让门变绿而把别人的半成品特性带进本提交**；等对方入库后这两条自然转绿。
+>
+> **这一句已经兑现（2026-10-13 现测，写在原话下面而不是改原话）**：
+> `user-server/internal/app/faq_cache_wiring.go` 现在**在 HEAD 里**
+> （`git ls-files` 命中、`git cat-file -e HEAD:…` 通过、`git status --porcelain` 对它空＝工作树与库内一致）；
+> 两条键都已进种子（`config_param_seeds.go:192` 的 `cache.faq_ttl`、`:429` 的
+> `agent_llm.default_semantic_threshold`），读取点常量在同一文件 `:20-21`；
+> G1 现测 **UNDECLARED 0 / ORPHAN 0**（影子 B 面 `15ccabb7`，08:36，`fp_shadow4/g1.log`）。
+> 也就是说"孤儿 key"这一类判据真的把这条链闭过：它当时红的是**事实**，不是门坏了。
 
 - **动作**：清单 §7 对照表右列的常量，逐个换成 `config.GetInt/GetDuration/GetBool/GetFloat/GetString`，
   保留原常量名做 fallback（避免大面积改调用点）。
@@ -515,6 +523,12 @@ env MAX_JSON_BODY_MB > middleware.max_json_body_mb > DefaultMaxJSONBodyMB(8)
 要求有可解析默认值"，并把空默认的豁免面收成一条**具名清单**（`TestDefaultParamDefsEmptyDefaultRatchet`），
 而不是"凡是 string 都放行"——否则这道门对自由文本的放行会变成又一个改了没人读的入口。
 
+（**2026-10-12 收尾**：那条具名豁免清单现在是**空的** —— `lead.industry_profile` 补了
+`DefaultLeadIndustryProfile` 常量，种子里的 `DefaultValue` 与该常量逐字一致，兜底位不再是空串
+（`config_param_seeds.go:463-465`，判据与来路见 `docs/HARDCODE_INVENTORY.md` §8 的 G3 行）。
+`TestDefaultParamDefsEmptyDefaultRatchet` 是双向棘轮：清单里有而种子不再为空 ⇒ 也判红，
+所以这条豁免不会以"永久放行"的形式留在树里。`config_param_test.go:308` 现读 `allowedEmptyDefault := map[string]bool{}`。）
+
 **仍未修的 master 红灯（他的文件，未动）**：`TestD12_NoNewLegacyKVDirectQuery` 在纯净 HEAD
 上同样红，报的是 `internal/aiagent/llm/embedding_global_config.go` 直查 `system_config_kv`。
 那是他自己的 D12 在途工作（`agent_llm.provider_failover_policy` / `embedding.global_override`），
@@ -645,21 +659,44 @@ GET  /api/config/runtime?groups=frontend_ws,frontend_ui,pagination
 **G4 是整套方案的关键**：只卡新增不卡存量，才能让"新增硬编码"在 review 前就被挡住，
 而存量靠阶段一二三四慢慢消化。一上来就卡全量会让所有 PR 全红，实际结果一定是大家学会绕过门禁。
 
-### 6.1 六道门已落地（2026-10-11）
+### 6.1 七道门已落地（G1–G6 于 2026-10-11，G7 于 2026-10-12）
 
-六道门全部接进 `make audit`（紧邻 `check-config-param-readpoints.py`，读数连着看），
+七道门全部接进 `make audit`（紧邻 `check-config-param-readpoints.py`，读数连着看），
 并接进 `.github/workflows/user-server-ci.yml` 的 `static-gates` 作业。
 CI 触发面按 `check-ci-gate-paths.py` 的纪律登记：**门脚本本体 + 它读的判据基线**
 都要进 `on.push.paths` 与 `on.pull_request.paths` 双份，缺一份就是
 "只改判据/只动基线的提交不重跑这道门"。
 
-| # | 脚本 | 判据（落地形态） | 当前读数 |
+| # | 脚本 | 判据（落地形态） | 当前读数（2026-10-13 08:35–08:38 复跑，测于 **tip `15ccabb7` 影子树 ＋ 本泳道 45 个改动文件**那一面，即"提交后别人克隆到就应当复现"的那棵树；同一批门在工作树上跑（同一 tip，多并行泳道的在途件全在）**判据行逐字节相同**，只有 G7 的扫描面变：影子 `7245 路径／7226 文本` vs 工作树 09:01:28 现测 `7248／7229`。**差在哪是现取的**：G1／G3／盲区的枚举源是 `Path.rglob`（`check-config-param-readpoints.py:123,192`、`check-config-param-defaults.py:310`、`measure-tunable-blindspot.py:103`）——只认磁盘目录树，两棵树里本泳道的文件都实实在在在盘上，所以读数逐字相同（G1 `Go 1867／Get* 232`、G3 `Go 1768／常量池 2822`）；只有 G7 用 `git ls-files --cached --others --exclude-standard`（`check-text-encoding.py:34,103`）把**未跟踪且没被忽略**的文件并进来，09:01 那趟差集逐条列出来是 3 个、都不在本泳道名单里（`user-server/docs/capabilities.md`、`user-server/internal/bridge/testdb_helper_test.go`、`user-server/internal/service/menu_ceiling_test.go`），08:58 那趟是前两个。这一格几分钟就在动（工作树 08:21＝7237／7218 → 08:57＝7247／7228 → 09:01＝7248／7229），**引它只能连时间戳一起引**。另有两处**上一版记成"树间差"、其实是"tip 间差"**的数，一并订正：`Get* 行 230 → 232` 与 G7 的 `7234／7215 → 7245／7226` 都发生在 `f7381630 → 15ccabb7` 那三笔之间（他们新增了 `data_scope` 面的读取点、又把 `MenuRouteAudit` 的 9 个证据文件入库），对账口径与本轮两次自我订正见 `docs/HARDCODE_INVENTORY.md` §7.1 注。**这整格读数的 base 已在 09:19 又被推前**：GitHub master 现为 `dd7ee2e6`，其中含 `user-server/go.mod`／`go.sum` 的 11 项 go-minor 抬级（这两枚连同 `user-web/bridge/package.json`／`package-lock.json` 本泳道均未触碰，`git status --porcelain -z` 现测四条＝非脏），所以新依赖集下这批 Go 侧门**没有复跑过**，分叉与取证见 `未完成任务.md` §7） |
 | --- | --- | --- | --- |
-| G1+G2 | `check-config-param-readpoints.py`（改造） | **新增两类**：代码里有 `GetX(ctx, g, k, …)` 而种子里没有 `(g,k)` ⇒ `ORPHAN_READ`（每次读都 miss、每次回落兜底，而页面上看不到旋钮）；出现种子里没有的组名 ⇒ `ORPHAN_GROUP` | 217 条种子 / wired 206 / 已声明未接线 11 / **UNDECLARED 0 / STALE 0 / ORPHAN 0** |
-| G3 | `check-config-param-defaults.py` | 种子 `DefaultValue` 与代码 `Default<Key>` 导出常量比对，duration 两边折算成秒 | 可比常量 114 个 / **不一致 0** |
-| G4 | `check-hardcode-tunable.py` | 命名带 `Threshold/Limit/TTL/…` 的常量，既不在 `scripts/hardcode-tunable.baseline` 里、又**不是**任何 `Get*()` 的兜底实参 ⇒ 红 | 扫描 174 个常量声明 / **新增未入库 0** / 已作兜底 2 |
-| G5 | `check-config-param-keystyle.py` | key 匹配 `^[a-z][a-z0-9_]*$`、长度 ≤ 64、非 SQL 关键字；`(group,key)` 不重复；key 无连续重复词（`dedup_dedup_ttl`）；runtime 白名单组必须在种子里真实存在 | 217 条 / 35 组 / **违规 0 / 幽灵组 0** |
-| G6 | `check-i18n-coverage.py` | 三条棘轮 + 一条硬门，见下 | t() 923 键 / 覆盖率 19.83% / 9 语言齐整 |
+| G1+G2 | `check-config-param-readpoints.py`（改造） | **新增两类**：代码里有 `GetX(ctx, g, k, …)` 而种子里没有 `(g,k)` ⇒ `ORPHAN_READ`（每次读都 miss、每次回落兜底，而页面上看不到旋钮）；出现种子里没有的组名 ⇒ `ORPHAN_GROUP` | 217 条种子 / **wired 204** / 未接线且已声明 **0** / 已下架 13 / **UNDECLARED 0 / STALE 0 / ORPHAN 0**（前端真实读取点 17 个 group.key；这 17 是按 `rt*` 调用点数的，不是按 `runtimePublicGroups` 白名单点数——白名单当过读取点证据的那段原委见 `docs/HARDCODE_INVENTORY.md` §7.1 的「wired 这一格为什么从 206 掉到 204」） |
+| G3 | `check-config-param-defaults.py` | 认 `Get*(ctx,g,k,<兜底>)` 的**实参位置**（五种兜底形态），不比名字；再加种子自己过 Min/Max | 种子 217 / 常量池 2822（同名歧义剔除 209）/ 定位到兜底点的键 187；四向对账 **可比对 184 + 无法比对 3 + 前端下发 17 + 已下架 13 = 217**；**不一致 0 / 越界 0**；覆盖率棘轮 `scripts/config-param-defaults.baseline` = 184 |
+| G4 | `check-hardcode-tunable.py` | 命名带 `Threshold/Limit/TTL/…` 的常量，既不在 `scripts/hardcode-tunable.baseline` 里、又**不是**任何 `Get*()` 的兜底实参 ⇒ 红 | Go 常量声明 **294** / 基线 TUNABLE **326** / **新增未入库 0** / 已作兜底 3 / 豁免 52 |
+| G5 | `check-config-param-keystyle.py` | key 匹配 `^[a-z][a-z0-9_]*$`、长度 ≤ 64、非 SQL 关键字；`(group,key)` 不重复；key 无连续重复词（`dedup_dedup_ttl`）；runtime 白名单组必须在种子里真实存在 | 217 条 / 35 组 / **违规 0 / 重复条目 0 / 重复词 0 / 幽灵组 0** |
+| G6 | `check-i18n-coverage.py` | 三条棘轮 + 一条硬门，见下 | t() 去重键 923 / 真 i18n 键 183 / 覆盖率 19.83% / 中文直传 740 / 孤儿词条 1455（zh 1846）/ 9 语言齐整 |
+| G7 | `check-text-encoding.py`（**新增**，2026-10-12） | 文本文件的三条编码判据：严格 UTF-8 解码（`NOT_UTF8`，无豁免）、U+FFFD 替身字符按**次数**放行 `scripts/text-encoding.baseline` 登记的刻意用法（新增红 / 变小 STALE 红）、双重编码签名（`MOJIBAKE`，建门时全仓 0 处故无豁免）；缺基线 / `git ls-files` 失败 / 扫描面为 0 / 基线登记的文件不在面上或读不到 ⇒ **rc=2** | 扫描面 `git` 列出 7245 路径 / 文本 **7226** 个（二进制按前 8 KiB 无 NUL 跳过 19 个）/ **NOT_UTF8 0 / FFFD 超基线 0 / MOJIBAKE 0 / STALE 0** / 基线 1 处（`message_hub_inbox_conversation.go:318` 的 `strings.ToValidUTF8`）；牙齿常驻 `scripts/check-text-encoding.test.sh`（21 枚控制，假 git 树夹具）。7245 这一格 = 已跟踪文件 ＋ 未跟踪未忽略件，本泳道那 5 个新脚本／基线件在 `git add` 之前正是加数；工作树同 tip 现测 7248／7229（09:01:28），多出的 3 个是并行泳道的在途未跟踪件（见本表表头那份逐条名单，08:58 那趟只有 2 个）——这一格随他们的落盘在动，只能连时间戳引。耗时 2026-10-13 现测：user CPU 1.62–1.69s（两棵树各测两次），wall 1.95–6.17s——wall 受同机负载摆动，不是可比口径 |
+
+**G7 是这一批里唯一由"发现即建门"生出来的门**：它抓的不是配置改造的漏项，而是改造过程中
+被静默损坏的两处中文注释——`user-web/src/layout/Layout.vue:143` 的注释里是 **2 个连续 U+FFFD**、
+`user-server/internal/service/config_param_test.go:335` 是 **3 个**（两处都在 HEAD 的 blob 里
+按 `git show HEAD:<路径>` 现数，不在工作树里——工作树已经是修好的那份）。
+建门过程本身有两条值得留下的教训：
+
+1. **门自己先红了一次**：docstring 里举的签名实例被自己的正则命中。这不是门的缺陷，
+   是它的第一个有效发现——"举实例"这种写法在编码门里必须换成转义描述。
+2. **不带 `-z` 的 `git ls-files` 会静默漏扫中文名文件**：默认 `core.quotePath` 把非 ASCII
+   路径八进制转义并加引号，门于是"打不开"这 5 个文件（含 `改进清单.md`）。第一版的自证只印
+   `读不到跳过 5 个`——计数完全看不出"没扫"。现在列面用 `-z`，且读不到的路径**按名字打印**，
+   并新增一格判据：基线登记的豁免对象若不在面上或读不到 ⇒ rc=2。
+
+G7 建门当趟在真树上做过 14 格反向对账（三种内容红各一格、撤探针复绿、基线抬高与撤豁免两向、
+缺基线 / 幽灵登记 / 空扫描面各退 2、中文名文件真在面里、未跟踪件真在面里）+ CI 侧两格
+（摘 `push.paths` 两行 ⇒ `check-ci-gate-paths.py` 点名这两行；摘 `pull_request.paths` 同）。
+**这套对账已经常驻成电池**：`scripts/check-text-encoding.test.sh`（21 枚控制，全部跑在
+`mktemp -d` 出来的假 git 树里，不碰工作树），每枚控制另跑过 10 枚专杀变异确认它不是橡皮章，
+并已挂进 CI `static-gates`（紧跟门那一步）。**上一段那 14 格是来路，不是当前防线**——
+当前防线是这 21 枚，怀疑门坏了直接复跑 `bash scripts/check-text-encoding.test.sh`，
+现测读数见 §7.1 那张表。
 
 **G6 的三条棘轮**（存量太高，卡全量会让 CI 永远红，等于没有门）：
 
@@ -685,8 +722,11 @@ CI 触发面按 `check-ci-gate-paths.py` 的纪律登记：**门脚本本体 + �
 2. **G6 必须认 `$t()` 形态**。实测 918 个去重键里 **716 个走 `$t()`、只有 203 个走裸
    `t()`**（vue-i18n 组合式 API 的全局属性形态）。只认裸 `t()` 会漏掉 78% 的 i18n 使用，
    而且漏得悄无声息——数字看着仍然是个正数，只是全错。本门第一次写完就踩了这个。
+   （**这两个分子是发现当时的读数**，2026-10-12 复跑分母已是 923、真 i18n 键 183；
+   比例口径没变，别拿 716/203 去和今天的 183 对账。）
 3. **G6 的"覆盖率"不是"中文有没有进 i18n"**，是"写了 `t()` 的里有多少真解析得到"。
-   实测的真 i18n 键只有 178 个，另有 **740 处把中文当 `t()` 的键直接传入**——
+   实测的真 i18n 键只有 178 个（2026-10-11 收官快照；2026-10-12 现测 **183 / 923 = 19.83%**），
+   另有 **740 处把中文当 `t()` 的键直接传入**——
    这种调用查找必然 miss，vue-i18n 回落成 key 本身，于是"中文看起来正常、8 种语言全是中文"。
    它比不写 i18n 更坏：不写至少能被扫描器数出来，写成 `t()` 之后人 review 时会以为这页已国际化。
 4. **G1 的孤儿判定必须支持组名常量**。`GetInt(ctx, ParamGroupMemory, Key, fallback)`
@@ -696,7 +736,7 @@ CI 触发面按 `check-ci-gate-paths.py` 的纪律登记：**门脚本本体 + �
 
 | 门 | 抓出 | 真因 | 修法 |
 | --- | --- | --- | --- |
-| G1 | `agent_llm.geo_pipeline_batch_per_run`、`bridge.sse_max_stream_duration` 各一条孤儿 | 代码注释里写着"可经该 key 调整"，但种子里根本没登记 ⇒ 每次读都 miss、每次回落兜底，运维在页面上也看不到旋钮 | 补种子两条（212→214） |
+| G1 | `agent_llm.geo_pipeline_batch_per_run`、`bridge.sse_max_stream_duration` 各一条孤儿 | 代码注释里写着"可经该 key 调整"，但种子里根本没登记 ⇒ 每次读都 miss、每次回落兜底，运维在页面上也看不到旋钮 | 补种子两条（当批 212→214；2026-10-12 现测 217） |
 | G4 | `memory.l1_window_size` 真漏接 | `L1WindowSize = 10` 没有任何读取点走参数中心 | `runtimeL1WindowSize(ctx)` 直连读取 + **补上 `BuildFullContext` 里漏掉的一处**（LLM 提示词的生产构造入口，原先直接传常量，运维调了不生效——同文件 `L1List`/`l1Trim` 都读参数、唯独提示词不读，这种半接线最难发现） |
 
 **顺带修掉的两个既有缺陷（规则 2）**：
@@ -733,15 +773,22 @@ CI 触发面按 `check-ci-gate-paths.py` 的纪律登记：**门脚本本体 + �
 1. `python3 scripts/check-config-param-readpoints.py` → `未接线但未声明=0` 且 `声明过期=0`。
    - 原口径写的是「`未接线且已声明=0`」，**方向反了**：「已声明未接线」恰恰是本方案要保留的那一类——如实标注「为什么没接线」比偷偷留一个永远不生效的旋钮要好。
    - 真正必须为 0 的是另外两项：**未声明未接线**（有旋钮没人读、也没人承认）与**声明过期**（已经接线了却还标着未接线）。
-   - 实测：`wired 206 / 已声明未接线 11 / UNDECLARED 0 / STALE 0`，rc=0。
+   - 实测（2026-10-11 阶段六收官）：`wired 206 / 已声明未接线 11 / UNDECLARED 0 / STALE 0`，rc=0。
+     **2026-10-12 复跑**：`wired 204 / 未接线且已声明 0 / 已下架 13 / UNDECLARED 0 / STALE 0 / ORPHAN 0`，
+     rc=0。`wired` 掉 2 不是有人拆了接线，是 G1 的前端判据本身被修严（白名单不再当读取点证据），
+     那两条改挂 `deprecated=true`——机制见 `docs/HARDCODE_INVENTORY.md` §7.1。
 
-2. `python3 scripts/hardcode_inventory.py --summary` → Go 侧 TUNABLE 从 **338 → 278**，且 `WIRED + PARAM_FALLBACK` 两栏非零。
+2. `python3 scripts/hardcode_inventory.py --summary` → Go 侧 TUNABLE 从 **338 → 278**（当批读数；2026-10-12 现测 258 未接 ＋ 已接 120 ＝ 可迁 378，见下一条），且 `WIRED + PARAM_FALLBACK` 两栏非零。
    - 原口径写的是「TUNABLE 346 → 0」，**口径本身自相矛盾**：接线时按约定**保留原常量名**（避免把一次参数化放大成一片 diff），所以接完之后常量名字里依然带 `Limit/TTL/Threshold`，在按名字形状分类的清单里和没接的一模一样。原实现把这两类混在一起，接线做完后「可行动点位」不降反升（338 → 370），验收标准变成一个永远达不成的数。
    - 修法：清单**复用 G4 的实参位置判据**（常量出现在 `Get*(...)` 的兜底实参位，或直连范式里 `Get*` 兜底传 0 而随后回落到该常量），把 `WIRED`（确实已接线）与 `PARAM_FALLBACK`（`Default*` 前缀＝参数化标记，G4 `DEFAULT_PREFIX` 豁免的同一口径）单独摘出。
    - **两个脚本口径必须一致**——否则台账说「已参数化」而门说「这是硬编码」，两边数字无法互相校验。
-   - 实测：`WIRED 14 / PARAM_FALLBACK 78 / TUNABLE 278`。TUNABLE 不为 0 是正常的：3.1 只做到 P1/P2 优先级，剩下的是 P2/P3 档。
+   - 实测（2026-10-11 阶段六收官）：`WIRED 14 / PARAM_FALLBACK 78 / TUNABLE 278`。
+     **2026-10-12 复跑**（`--summary` 的 `user-server CONFIG` 三行）：`TUNABLE 258`（未接）
+     `+ WIRED 89 + PARAM_FALLBACK 31` = **Go 侧可迁总量 378**；前端另 `TUNABLE 50 / WIRED 17`。
+     TUNABLE 不为 0 是正常的：3.1 只做到 P1/P2 优先级，剩下的是 P2/P3 档。
+     逐档分布与"已接 120"的对账见 `docs/HARDCODE_INVENTORY.md` §7.1（那张表按同一次复扫写）。
 
-3. `make audit` 六道门全绿，且 G4 只卡新增（已实现：基线独立成 `scripts/hardcode-tunable.baseline`，刷新用 `--refresh-baseline`）。
+3. `make audit` 七道门全绿（G1–G7；G7 是 2026-10-12 补的文本编码门），且 G4 只卡新增（已实现：基线独立成 `scripts/hardcode-tunable.baseline`，刷新用 `--refresh-baseline`）。
 
 4. **人工验收清单（每次发版前抽 3 条）**：
    - 改 `lock.inbox_human_ttl` → 收件箱人工接管锁的过期时间变化（2c，已补行为级测试）

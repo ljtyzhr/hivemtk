@@ -29,8 +29,17 @@ from pathlib import Path
 REPO_ROOT = Path(__file__).resolve().parent.parent
 SERVER = REPO_ROOT / "user-server"
 
+# `Type` / `Status` 前缀后面接的是**枚举成员名**（`ClueTypeQQ`、`UserStatusValid`），
+# 不是阈值：sweep 补上锚定声明形态（CONST_DECL）之后，带类型标注的枚举块
+# （`ClueTypeQQ int64 = 1`）第一次以**成员名**进入 CONFIG 面——此前它们只以
+# **类型名**（`SmlistType = 1`、`CrisisLevel = 0`）被裸形态捞到，而那几个类型名
+# 在 FIELD_REGEX 里，于是被丢弃。成员名一个都不在那些词表里 ⇒ 18 条 `ClueType*`
+# 之类会整批算成「应入参数中心的旋钮」。判成 PROTOCOL（状态/类型枚举，不迁）
+# 与既有台账对枚举的处理一致。
 PROTOCOL_HINT = re.compile(
-    r"^(Code|ProtocolVersion|Status|Type|SpanIDHexLen|TraceIDHexLen|RDays|Version|MFAEnabled$)"
+    r"^(Code|ProtocolVersion|Status|Type|SpanIDHexLen|TraceIDHexLen|RDays|Version|MFAEnabled$"
+    r"|Crisis(None|Low|Medium|High)|UserStatus|OrderStatus|AccountStatus|SmlistType"
+    r"|ClueType|QuoteVersion|EmailStatus)"
 )
 DEPLOY_HINT = re.compile(
     r"(Port|Ports$|MaxOpenConns|MaxIdleConns|ConnLifetime|Dsn|DSN|Host$|SSL$|ImplicitTLSPort|"

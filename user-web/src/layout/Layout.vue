@@ -140,7 +140,7 @@ import { Warning, Bell, Menu, SwitchButton, Fold, Expand, QuestionFilled } from 
 import { routeIconMap, resolveRouteIcon } from '@/utils/iconMap'
 void Bell; void Warning; void Menu; void SwitchButton; void Fold; void Expand
 
-// 传给 SubMenuItem 的仍��整张表（它内部走 resolveRouteIcon 逐个解析），
+// 传给 SubMenuItem 的仍是整张表（它内部走 resolveRouteIcon 逐个解析），
 // 顶层菜单这里也走同一个解析函数：2026-10-12 之前这里写的是
 // <component :is="iconComponents[menu.icon]" />，直接下标没有兜底，
 // 一个没在 iconMap 登记的图标名会得到 undefined，静默渲染成空白——

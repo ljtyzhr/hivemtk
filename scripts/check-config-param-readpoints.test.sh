@@ -17,6 +17,9 @@
 #   F5 种子文件不在 ⇒ rc=2，不许把"没对象"印成"没问题"
 #   F6 读取点走常量（IDENT = "key" ＋ Get*(…, IDENT, …)） ⇒ 绿（证明门认得这条读取路径）
 #   F7 读取点只出现在 *_test.go ⇒ 红，UNDECLARED 点名（测试引用不算生产读取点）
+#   F8 读取点只在 user-web 的 rt* 调用里 ⇒ 绿（前端那一臂真算生产读取点）
+#   F9 前端读取点的组不在下发白名单里 ⇒ 红，FRONTEND_READ_NOT_DISPATCHED 点名
+#   F10 前端读取点的键被 runtimePublicKeys 排除 ⇒ 同一句判据的第二条腿也要开火
 #   REAL 真仓库 ⇒ 必须绿
 set -u
 
@@ -52,10 +55,14 @@ if [ -z "$PYBIN" ]; then
 fi
 
 # seed_tree <目录>：造一棵最小树——种子目录两条条目（一条接线、一条未接线且已声明）
-# ＋一份生产 Go 文件（把 wired_threshold 真读走）。
+# ＋一份生产 Go 文件（把 wired_threshold 真读走）＋下发面白名单（只放 demo 组）
+# ＋一个空的 user-web/src 扫描面。
+# 白名单与前端目录都要造：本门现在拿它们当判据的两条腿，缺任何一条都会先撞上
+# 「扫描面不存在」的 rc=1，后面每一格断的分支就再也开不了火（夹具必须自己满足前置）。
 seed_tree() {
   d="$1"
-  mkdir -p "$d/user-server/internal/service" "$d/user-server/internal/bridge"
+  mkdir -p "$d/user-server/internal/service" "$d/user-server/internal/bridge" \
+           "$d/user-server/internal/controller" "$d/user-web/src"
   cat >"$d/user-server/internal/service/config_param_seeds.go" <<'GO'
 package service
 
@@ -79,6 +86,13 @@ package bridge
 
 func readThresh(svc interface{ GetInt(a, b, c string) int }) int {
 	return svc.GetInt("demo", "wired_threshold", 5)
+}
+GO
+  cat >"$d/user-server/internal/controller/config_param_runtime.go" <<'GO'
+package controller
+
+var runtimePublicGroups = map[string]struct{}{
+	"demo": {},
 }
 GO
 }
@@ -215,6 +229,84 @@ if [ "$RC" = 1 ] && printf '%s\n' "$OUT" | grep -q 'UNDECLARED: demo\.sleepy_ttl
   ok "F7 只有测试引用时不算生产读取点，红在 UNDECLARED"
 else
   bad "F7 应 rc=1 且点名 UNDECLARED: demo.sleepy_ttl，实际 rc=${RC}：$(printf '%s\n' "$OUT" | tr '\n' ' | ')"
+fi
+
+# ── F8 读取点只在 user-web 的 rt* 调用里 ⇒ 绿 ──
+# 这一格守的是「前端那一臂算不算生产读取点」。白名单只证明服务端愿意下发，不证明前端读了；
+# 反过来，前端真的 rt*(group, key, 兜底) 就是真实消费点，不能再要求它在 user-server 里
+# 有一个 Go 读取位（否则 17 个前端旋钮全会被报成「改了没人读」）。
+T=$WORK/f8
+seed_tree "$T"
+perl -0pi -e 's/演示 TTL（未接线）/演示 TTL/; s/【当前不生效，改了也没人读】//' \
+  "$T/user-server/internal/service/config_param_seeds.go"
+cat >"$T/user-web/src/tracker.js" <<'JS'
+import { rtNum } from './utils/runtimeConfig'
+const MAX_HISTORY = 50
+export function keep(events) {
+  return events.slice(-rtNum('demo', 'sleepy_ttl', MAX_HISTORY))
+}
+JS
+if ! grep -q "rtNum('demo', 'sleepy_ttl'" "$T/user-web/src/tracker.js"; then
+  bad "F8 注码没落到磁盘（前端调用未写入＝变异未生效），本格结论不作数"
+else
+  OUT=$(run "$T")
+  RC=$?
+  if [ "$RC" = 0 ] && printf '%s\n' "$OUT" | grep -q '前端真实读取点 1 个' \
+     && printf '%s\n' "$OUT" | grep -q '有读取点且未挂标注=2  未接线且已声明=0  未接线但未声明=0  声明过期=0'; then
+    ok "F8 前端 rt* 调用被认成生产读取点（rc=0，读取点 1 个，两条都是 wired）"
+  else
+    bad "F8 应 rc=0 且前端读取点=1、读数 2/0/0/0，实际 rc=${RC}：$(printf '%s\n' "$OUT" | tr '\n' ' | ')"
+  fi
+fi
+
+# ── F9 前端读取点的组不在下发面 ⇒ 红，FRONTEND_READ_NOT_DISPATCHED 点名 ──
+# 读的是一把种子外的键（offlist.not_seeded_key）：这样这一格只可能开火在「在读却没下发」
+# 这条腿上——如果改用 sleepy_ttl 并撤掉标注，它会同时把 UNDECLARED 那格也点亮（组名写错
+# ⇒ 对 demo.sleepy_ttl 而言等于没有读取点），两个红挤在一起就分不出是哪条腿起作用了。
+T=$WORK/f9
+seed_tree "$T"
+cat >"$T/user-web/src/tracker.js" <<'JS'
+import { rtNum } from './utils/runtimeConfig'
+const MAX_HISTORY = 50
+export function keep(events) {
+  return events.slice(-rtNum('offlist', 'not_seeded_key', MAX_HISTORY))
+}
+JS
+OUT=$(run "$T")
+RC=$?
+if [ "$RC" = 1 ] && printf '%s\n' "$OUT" | grep -q 'FRONTEND_READ_NOT_DISPATCHED: offlist\.not_seeded_key' \
+   && printf '%s\n' "$OUT" | grep -q '未接线且已声明=1  未接线但未声明=0  声明过期=0'; then
+  ok "F9 白名单外的前端读取点红在 FRONTEND_READ_NOT_DISPATCHED，其余读数不受牵连"
+else
+  bad "F9 应 rc=1 且点名 FRONTEND_READ_NOT_DISPATCHED: offlist.not_seeded_key、读数 1/0/0，实际 rc=${RC}：$(printf '%s\n' "$OUT" | tr '\n' ' | ')"
+fi
+
+# ── F10 组在白名单里、键被 runtimePublicKeys 排除 ⇒ 同一条判据的第二条腿 ──
+# 判据是 `组不在白名单 或 键在排除表`，两条腿共用一句报错。只测第一条腿的格子
+# 挡不住「排除表解析坏了」：这里把 wired_threshold 放进排除表并给它一个前端读取点，
+# Go 侧读取点照旧在（所以 wired=1、没有 STALE/UNDECLARED），红的只能是被排除这一条。
+T=$WORK/f10
+seed_tree "$T"
+cat >>"$T/user-server/internal/controller/config_param_runtime.go" <<'GO'
+
+var runtimePublicKeys = map[string]struct{}{
+	"demo.wired_threshold": {},
+}
+GO
+cat >"$T/user-web/src/socket.js" <<'JS'
+import { rtNum } from './utils/runtimeConfig'
+const PAGE = 20
+export function pageSize() {
+  return rtNum('demo', 'wired_threshold', PAGE)
+}
+JS
+OUT=$(run "$T")
+RC=$?
+if [ "$RC" = 1 ] && printf '%s\n' "$OUT" | grep -q 'FRONTEND_READ_NOT_DISPATCHED: demo\.wired_threshold' \
+   && printf '%s\n' "$OUT" | grep -q '未接线但未声明=0  声明过期=0'; then
+  ok "F10 被排除键的前端读取点也红在 FRONTEND_READ_NOT_DISPATCHED（第二条腿有牙）"
+else
+  bad "F10 应 rc=1 且点名 demo.wired_threshold、读数里未接线但未声明=0/声明过期=0，实际 rc=${RC}：$(printf '%s\n' "$OUT" | tr '\n' ' | ')"
 fi
 
 # ── REAL 真仓库 ⇒ 必须绿 ──
