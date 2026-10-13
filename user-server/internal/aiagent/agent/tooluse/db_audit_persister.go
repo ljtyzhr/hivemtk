@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -459,7 +460,9 @@ func (a *ToolAlertManager) emitAlert(event AlertEvent) {
 	for _, handler := range a.handlers {
 		go func(h AlertHandler) {
 			defer func() {
-				_ = recover()
+				if r := recover(); r != nil {
+					logger.Errorf("[ToolAlert] handler panic: %v\n%s", r, debug.Stack())
+				}
 			}()
 			h.OnAlert(event)
 		}(handler)

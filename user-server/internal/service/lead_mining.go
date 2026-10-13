@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"runtime/debug"
 	"sort"
 	"strings"
 	"sync"
@@ -190,7 +191,7 @@ func (s *Service) worker(ctx context.Context) {
 			func() {
 				defer func() {
 					if r := recover(); r != nil {
-						logger.Errorf("[lead-mining] worker panic recovered: %v", r)
+						logger.Errorf("[lead-mining] worker panic recovered: %v\n%s", r, debug.Stack())
 					}
 				}()
 				s.process(ctx, hub)

@@ -2,6 +2,7 @@ package router
 
 import (
 	"fmt"
+	"runtime/debug"
 
 	"hivemtk-user/internal/app"
 	contentctrl "hivemtk-user/internal/content/controller"
@@ -39,7 +40,7 @@ func setupFrontendAliases(auth *gin.RouterGroup, engine *gin.Engine, gormDB *gor
 	doReg := func(method, path string, handlers ...gin.HandlerFunc) {
 		defer func() {
 			if r := recover(); r != nil {
-				msg := fmt.Sprintf("doReg %s %s -> %v", method, path, r)
+				msg := fmt.Sprintf("doReg %s %s -> %v\n%s", method, path, r, debug.Stack())
 				aliasRegFailures = append(aliasRegFailures, msg)
 				fmt.Printf("[WARN] %s\n", msg)
 			}
@@ -61,7 +62,7 @@ func setupFrontendAliases(auth *gin.RouterGroup, engine *gin.Engine, gormDB *gor
 	doRegAdmin := func(method, path string, handlers ...gin.HandlerFunc) {
 		defer func() {
 			if r := recover(); r != nil {
-				msg := fmt.Sprintf("doRegAdmin %s %s -> %v", method, path, r)
+				msg := fmt.Sprintf("doRegAdmin %s %s -> %v\n%s", method, path, r, debug.Stack())
 				aliasRegFailures = append(aliasRegFailures, msg)
 				fmt.Printf("[WARN] %s\n", msg)
 			}

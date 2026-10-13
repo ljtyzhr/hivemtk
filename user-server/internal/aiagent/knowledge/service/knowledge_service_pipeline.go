@@ -12,6 +12,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"os"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -25,7 +26,7 @@ import (
 func (s *KnowledgeService) processDocumentAsync(bgCtx context.Context, documentID uint64, productID string, filePath, fileName, content, mimeType, title string, source model.SourceType, docMeta map[string]any) {
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Errorf("[knowledge] processDocumentAsync panic doc=%d: %v", documentID, r)
+			logger.Errorf("[knowledge] processDocumentAsync panic doc=%d: %v\n%s", documentID, r, debug.Stack())
 			s.markFailed(bgCtx, documentID, fmt.Sprintf("处理异常: %v", r))
 		}
 	}()

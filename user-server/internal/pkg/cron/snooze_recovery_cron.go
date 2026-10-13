@@ -2,6 +2,7 @@ package cron
 
 import (
 	"context"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -31,7 +32,7 @@ func (c *SnoozeRecoveryCron) Start() {
 			defer c.wg.Done()
 			defer func() {
 				if r := recover(); r != nil {
-					logger.Errorf("[SnoozeCron] panic 隔离: %v", r)
+					logger.Errorf("[SnoozeCron] panic 隔离: %v\n%s", r, debug.Stack())
 				}
 			}()
 			ticker := time.NewTicker(c.interval)

@@ -3,6 +3,7 @@ package cron
 import (
 	"context"
 	"fmt"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -76,6 +77,7 @@ func (c *WeComQuotaResetCron) loop(ctx context.Context) {
 func (c *WeComQuotaResetCron) runOnce(ctx context.Context) (n int64, err error) {
 	defer func() {
 		if r := recover(); r != nil {
+			logger.Errorf("[WeComQuotaResetCron] panic: %v\n%s", r, debug.Stack())
 			err = fmt.Errorf("日配额重置 panic: %v", r)
 		}
 	}()

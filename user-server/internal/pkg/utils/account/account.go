@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"runtime/debug"
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/tgbot"
 	logger "hivemtk-user/internal/pkg/utils/logger"
@@ -96,7 +97,7 @@ func RunTgBot(account accountData) {
 func handleUpdate(account accountData, update tgbotapi.Update) {
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Error(fmt.Errorf("机器人处理消息崩溃: %v", r), "goroutine panic recovered")
+			logger.Error(fmt.Errorf("机器人处理消息崩溃: %v\n%s", r, debug.Stack()), "goroutine panic recovered")
 		}
 	}()
 

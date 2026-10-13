@@ -9,7 +9,10 @@ package tooluse
 import (
 	"context"
 	"fmt"
+	"runtime/debug"
 	"time"
+
+	"hivemtk-user/internal/pkg/utils/logger"
 
 	"gorm.io/gorm"
 )
@@ -131,7 +134,11 @@ func (t *BrowserOpenTaskTool) Execute(ctx context.Context, args map[string]any) 
 
 	// 异步派发：执行可能持续数分钟，不阻塞工具调用；结果经 browser_task_status 轮询
 	go func(taskID, userID uint) {
-		defer func() { _ = recover() }()
+		defer func() {
+			if r := recover(); r != nil {
+				logger.Errorf("[BrowserTools] task runner panic: taskID=%d userID=%d panic=%v\n%s", taskID, userID, r, debug.Stack())
+			}
+		}()
 		runCtx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
 		defer cancel()
 		_ = browserTaskRunner(runCtx, taskID, userID, 0) // 失败落库 task.last_result / browser_sessions

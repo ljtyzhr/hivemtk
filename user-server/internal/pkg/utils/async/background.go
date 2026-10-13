@@ -3,7 +3,10 @@ package async
 
 import (
 	"context"
+	"runtime/debug"
 	"time"
+
+	"hivemtk-user/internal/pkg/utils/logger"
 )
 
 // RunWithTimeout 启动异步任务，保留原 ctx 的 Value 但使用新超时控制
@@ -46,7 +49,7 @@ func SafeGo(fn func()) {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				_ = r
+				logger.Errorf("[SafeGo] panic recovered: %v\n%s", r, debug.Stack())
 			}
 		}()
 		fn()

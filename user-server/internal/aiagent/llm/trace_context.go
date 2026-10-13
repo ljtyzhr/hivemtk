@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
+	"runtime/debug"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -262,7 +263,7 @@ func (b *InMemoryTraceBus) dispatch() {
 			func() {
 				defer func() {
 					if r := recover(); r != nil {
-						logger.Errorf("[TraceBus] subscriber panic: %v", r)
+						logger.Errorf("[TraceBus] subscriber panic: %v\n%s", r, debug.Stack())
 					}
 				}()
 				sub.OnEvent(event)

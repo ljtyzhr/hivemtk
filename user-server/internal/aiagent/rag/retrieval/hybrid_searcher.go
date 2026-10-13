@@ -5,6 +5,7 @@ import (
 	"crypto/sha256"
 	"encoding/base64"
 	"fmt"
+	"runtime/debug"
 	"sort"
 	"strings"
 	"sync"
@@ -263,7 +264,7 @@ func (h *HybridSearcher) logSearch(query, productID string, topK, vectorCount, b
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				logger.Warnf("[Hybrid] logSearch panic recovered: %v", r)
+				logger.Warnf("[Hybrid] logSearch panic recovered: %v\n%s", r, debug.Stack())
 			}
 		}()
 		sql := `INSERT INTO knowledge_search_logs

@@ -3,6 +3,7 @@ package tooluse
 import (
 	"context"
 	"fmt"
+	"runtime/debug"
 	"time"
 )
 
@@ -24,7 +25,8 @@ func TimeoutDecorator(duration time.Duration) ToolDecorator {
 			go func() {
 				defer func() {
 					if rec := recover(); rec != nil {
-						ch <- ret{ErrorResult(GetToolName(childCtx), fmt.Errorf("%w: %v", ErrToolPanic, rec)), ErrToolPanic}
+						stack := string(debug.Stack())
+					ch <- ret{ErrorResult(GetToolName(childCtx), fmt.Errorf("%w: %v\n%s", ErrToolPanic, rec, stack)), ErrToolPanic}
 					}
 				}()
 				r, e := next(childCtx, args)

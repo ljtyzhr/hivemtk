@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"os"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
@@ -193,7 +194,7 @@ func (s *EmailSendService) SendEmail(ctx context.Context, req dto.SendEmailReque
 			defer func() { <-emailSendSem }()
 			defer func() {
 				if r := recover(); r != nil {
-					logger.Errorf("邮件发送异步协程 panic [%s]: %v", emailSend.ID, r)
+					logger.Errorf("邮件发送异步协程 panic [%s]: %v\n%s", emailSend.ID, r, debug.Stack())
 				}
 			}()
 			sendCtx := context.WithoutCancel(ctx)

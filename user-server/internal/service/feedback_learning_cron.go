@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -69,7 +70,7 @@ func (c *FeedbackLearningCron) runDaily(ctx context.Context) {
 func (c *FeedbackLearningCron) trigger(ctx context.Context) {
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Errorf("[feedback_learning_cron] trigger panic: %v", r)
+			logger.Errorf("[feedback_learning_cron] trigger panic: %v\n%s", r, debug.Stack())
 		}
 	}()
 	if c.svc == nil {

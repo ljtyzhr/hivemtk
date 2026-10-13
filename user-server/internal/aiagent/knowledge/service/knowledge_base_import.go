@@ -8,6 +8,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"runtime/debug"
 	"hivemtk-user/internal/aiagent/knowledge/model"
 	rag_core "hivemtk-user/internal/aiagent/rag/core"
 	ragretrieval "hivemtk-user/internal/aiagent/rag/retrieval"
@@ -170,7 +171,7 @@ func (s *KnowledgeBaseService) processDocumentAsync(ctx context.Context, documen
 	bgCtx := ctx
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Errorf("[knowledge-base] processDocumentAsync panic doc=%d: %v", documentID, r)
+			logger.Errorf("[knowledge-base] processDocumentAsync panic doc=%d: %v\n%s", documentID, r, debug.Stack())
 			s.markDocumentFailed(bgCtx, documentID, fmt.Sprintf("处理异常: %v", r))
 		}
 	}()

@@ -10,6 +10,7 @@ import (
 	"hivemtk-user/internal/repository"
 	"hivemtk-user/internal/service"
 	"hivemtk-user/internal/storage"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"time"
@@ -71,7 +72,7 @@ var bulkLinkWarnOnce sync.Once
 func EmailListCron() {
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Errorf("[email_list_cron] panic recovered: %v", r)
+			logger.Errorf("[email_list_cron] panic recovered: %v\n%s", r, debug.Stack())
 		}
 	}()
 	emailListService := email.NewEmailListService()

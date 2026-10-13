@@ -389,7 +389,7 @@ func (o *SmartCSOrchestrator) HandleIncomingWithAgent(ctx context.Context, in *I
 			func() {
 				defer func() {
 					if r := recover(); r != nil {
-						logger.Ctx(ctx).Warn().Interface("panic", r).
+						logger.Ctx(ctx).Warn().Interface("panic", r).Str("stack", string(debug.Stack())).
 							Msg("[Orchestrator] RuleEngine 触发 panic，已 recover 不影响主链路")
 					}
 				}()
@@ -599,7 +599,7 @@ func (o *SmartCSOrchestrator) embedFAQQuery(ctx context.Context, text string) []
 func (o *SmartCSOrchestrator) lookupFAQAnswerCache(ctx context.Context, kbID, promptVersion string, vec []float32, result *HandleResult) (*HandleResult, bool) {
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Warnf("[ragcache] lookup panic (kb_id=%s): %v", kbID, r)
+			logger.Warnf("[ragcache] lookup panic (kb_id=%s): %v\n%s", kbID, r, debug.Stack())
 		}
 	}()
 	lr, err := o.faqCache.Lookup(ctx, ragcache.LookupRequest{
@@ -1091,6 +1091,7 @@ func (o *SmartCSOrchestrator) incrementAIReplyCount(ctx context.Context, session
 func (o *SmartCSOrchestrator) isAgentOnline(ctx context.Context, agentID uint) (online bool) {
 	defer func() {
 		if r := recover(); r != nil {
+			logger.Warnf("[Orchestrator] isAgentOnline panic: %v\n%s", r, debug.Stack())
 			online = false
 		}
 	}()
@@ -1176,6 +1177,7 @@ func safeMessageID(id string) string {
 func (o *SmartCSOrchestrator) AgentTakeover(ctx context.Context, sessionID string, agentID uint) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
+			logger.Warnf("[Orchestrator] repo panic: %v\n%s", r, debug.Stack())
 			err = fmt.Errorf("session not found (repo panic): %s, %v", sessionID, r)
 		}
 	}()
@@ -1195,6 +1197,7 @@ func (o *SmartCSOrchestrator) AgentTakeover(ctx context.Context, sessionID strin
 func (o *SmartCSOrchestrator) AgentReply(ctx context.Context, sessionID string, agentID uint, content string) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
+			logger.Warnf("[Orchestrator] repo panic: %v\n%s", r, debug.Stack())
 			err = fmt.Errorf("session not found (repo panic): %s, %v", sessionID, r)
 		}
 	}()

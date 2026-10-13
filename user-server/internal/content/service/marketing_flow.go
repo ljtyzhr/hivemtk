@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"runtime/debug"
 	"hivemtk-user/internal/content/model"
 	"hivemtk-user/internal/content/repository"
 	"hivemtk-user/internal/pkg/utils/logger"
@@ -286,7 +287,7 @@ func (s *MarketingFlowService) executeFlow(ctx context.Context, execution *model
 	}
 	defer func() {
 		if r := recover(); r != nil {
-
+			logger.Errorf("[MarketingFlow] 执行 panic: %v\n%s", r, debug.Stack())
 			execution.Status = "failed"
 			execution.ErrorMessage = fmt.Sprintf("流程执行异常：%v", r)
 			persist()
@@ -325,7 +326,7 @@ func (s *MarketingFlowService) executeFlow(ctx context.Context, execution *model
 				defer func() {
 					if r := recover(); r != nil {
 						levelMu.Lock()
-						levelErrs = append(levelErrs, fmt.Errorf("node %s panic: %v", n.ID, r))
+						levelErrs = append(levelErrs, fmt.Errorf("node %s panic: %v\n%s", n.ID, r, debug.Stack()))
 						levelMu.Unlock()
 					}
 				}()

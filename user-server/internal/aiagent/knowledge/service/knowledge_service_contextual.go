@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"os"
+	"runtime/debug"
 	"strings"
 
 	"hivemtk-user/internal/aiagent/llm"
@@ -22,7 +23,7 @@ func contextualEnhanceEnabled() bool {
 func (s *KnowledgeService) enhanceDocumentContextual(ctx context.Context, documentID uint64) {
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Errorf("[R-3] contextual enhance panic doc=%d: %v", documentID, r)
+			logger.Errorf("[R-3] contextual enhance panic doc=%d: %v\n%s", documentID, r, debug.Stack())
 		}
 	}()
 	if s.db == nil || s.llmSvc == nil || s.embeddingSvc == nil {

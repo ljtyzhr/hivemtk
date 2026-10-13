@@ -7,6 +7,7 @@ import (
 	"net"
 	"net/http"
 	"net/url"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
@@ -283,7 +284,9 @@ func (h *VisitorWSHandler) onConnect(client *Client, sinceSeq uint64, ctx contex
 
 func sendToClient(client *Client, payload []byte) {
 	defer func() {
-		_ = recover()
+		if r := recover(); r != nil {
+			logger.Errorf("[WebSocket] send panic recovered: session=%s panic=%v\n%s", client.sessionID, r, debug.Stack())
+		}
 	}()
 	select {
 	case client.send <- payload:

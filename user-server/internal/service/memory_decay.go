@@ -140,7 +140,7 @@ func StartMemoryDecayLoop(ctx context.Context, db *gorm.DB, interval time.Durati
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				logger.Errorf("[MemoryDecay] 循环退出 panic: %v", r)
+				logger.Errorf("[MemoryDecay] 循环退出 panic: %v\n%s", r, debug.Stack())
 			}
 		}()
 		ticker := time.NewTicker(interval)

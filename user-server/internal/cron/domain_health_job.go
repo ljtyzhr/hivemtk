@@ -2,6 +2,7 @@ package cron
 
 import (
 	"context"
+	"runtime/debug"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
 	"hivemtk-user/internal/service"
@@ -42,7 +43,7 @@ func (j *DomainHealthCheckJob) Start() {
 func (j *DomainHealthCheckJob) runOnce() {
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Errorf("[domain-health] runOnce panic recovered: %v", r)
+			logger.Errorf("[domain-health] runOnce panic recovered: %v\n%s", r, debug.Stack())
 		}
 	}()
 	results, err := j.healthSvc.CheckAll(context.Background())

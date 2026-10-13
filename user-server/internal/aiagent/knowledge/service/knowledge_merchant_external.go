@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"runtime/debug"
 	"strings"
 	"time"
 
@@ -117,7 +118,7 @@ func (s *KnowledgeMerchantService) ExternalImport(ctx context.Context, req *Exte
 			// SafeGo：裸 go func 中 panic 会击穿进程；失败不得标 completed
 			defer func() {
 				if r := recover(); r != nil {
-					logger.Errorf("[ExternalImport] panic recovered job_no=%s panic=%v", jobNo, r)
+					logger.Errorf("[ExternalImport] panic recovered job_no=%s panic=%v\n%s", jobNo, r, debug.Stack())
 					failedAt := time.Now()
 					_ = s.externalRepo.UpdateStatusByJobNo(context.Background(), jobNo, map[string]any{
 						"status":       "failed",

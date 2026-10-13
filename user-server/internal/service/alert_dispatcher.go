@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"runtime/debug"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -115,7 +116,7 @@ func (d *AsyncAlertDispatcher) worker(ctx context.Context, id int) {
 func (d *AsyncAlertDispatcher) run(task alertTask) {
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Errorf("[D-6] 告警任务 panic key=%s err=%v", task.key, r)
+			logger.Errorf("[D-6] 告警任务 panic key=%s err=%v\n%s", task.key, r, debug.Stack())
 		}
 		d.ExecutedCount.Add(1)
 	}()

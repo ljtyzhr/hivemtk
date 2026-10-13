@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"runtime/debug"
 	"time"
 
 	"hivemtk-user/internal/aiagent/knowledge/model"
@@ -103,7 +104,7 @@ func (s *KnowledgeMerchantService) ValidateToken(ctx context.Context, plain stri
 	go func(id uint64) {
 		defer func() {
 			if r := recover(); r != nil {
-				logger.Errorf("knowledge_merchant: async IncrementUsage recovered from panic: %v", r)
+				logger.Errorf("knowledge_merchant: async IncrementUsage recovered from panic: %v\n%s", r, debug.Stack())
 			}
 		}()
 		if err := s.tokenRepo.IncrementUsage(context.Background(), id); err != nil {

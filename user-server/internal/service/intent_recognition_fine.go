@@ -461,7 +461,7 @@ func (s *IntentRecognizer) saveIntentLog(ctx context.Context, customerID, sessio
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				logger.Errorf("intent_recognition_fine: async persist recovered from panic: %v", r)
+				logger.Errorf("intent_recognition_fine: async persist recovered from panic: %v\n%s", r, debug.Stack())
 			}
 		}()
 		if err := s.logRepo.Create(context.Background(), log); err != nil {

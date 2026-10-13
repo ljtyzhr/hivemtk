@@ -547,6 +547,7 @@ func (h *BridgeIngestHandler) HandleHTTPIngest(c *gin.Context) {
 				if r := recover(); r != nil {
 					logger.Ctx(context.Background()).Error().
 						Interface("panic", r).
+						Str("stack", string(debug.Stack())).
 						Str("module", "bridge").
 						Str("channel", up.Channel).
 						Str("account_id", up.AccountID).

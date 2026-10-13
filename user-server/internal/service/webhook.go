@@ -291,7 +291,7 @@ func (s *WebhookService) worker(ctx context.Context, id int) {
 			func() {
 				defer func() {
 					if r := recover(); r != nil {
-						logger.Errorf("[Webhook] worker-%d panic recovered, job dropped: %v", id, r)
+						logger.Errorf("[Webhook] worker-%d panic recovered, job dropped: %v\n%s", id, r, debug.Stack())
 					}
 				}()
 				s.handleJob(ctx, job)

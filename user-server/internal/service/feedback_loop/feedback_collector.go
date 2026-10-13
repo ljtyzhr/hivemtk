@@ -8,6 +8,7 @@ import (
 	"encoding/json"
 	"fmt"
 	"math"
+	"runtime/debug"
 	"time"
 
 	"hivemtk-user/internal/dto"
@@ -115,7 +116,7 @@ func (c *FeedbackCollector) worker() {
 	safeFlush := func() {
 		defer func() {
 			if r := recover(); r != nil {
-				logger.Errorf("[feedback_collector] flush panic recovered: %v", r)
+				logger.Errorf("[feedback_collector] flush panic recovered: %v\n%s", r, debug.Stack())
 			}
 		}()
 		flush()

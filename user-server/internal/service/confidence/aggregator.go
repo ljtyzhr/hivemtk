@@ -2,6 +2,7 @@ package confidence
 
 import (
 	"context"
+	"runtime/debug"
 	"time"
 
 	"github.com/google/uuid"
@@ -202,7 +203,7 @@ func (a *ConfidenceAggregator) saveSignalAsync(
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				logger.Errorf("confidence_aggregator: async signalRepo.Create recovered from panic: %v", r)
+				logger.Errorf("confidence_aggregator: async signalRepo.Create recovered from panic: %v\n%s", r, debug.Stack())
 			}
 		}()
 		if err := a.signalRepo.Create(context.Background(), record); err != nil {

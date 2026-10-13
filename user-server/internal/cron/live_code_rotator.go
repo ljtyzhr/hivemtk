@@ -2,6 +2,7 @@ package cron
 
 import (
 	"context"
+	"runtime/debug"
 
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/service"
@@ -35,7 +36,7 @@ func (r *LiveCodeRotator) Start() {
 func (r *LiveCodeRotator) rotate() {
 	defer func() {
 		if rec := recover(); rec != nil {
-			logger.Errorf("[live-code] rotate panic recovered: %v", rec)
+			logger.Errorf("[live-code] rotate panic recovered: %v\n%s", rec, debug.Stack())
 		}
 	}()
 	logger.Info("开始执行活码轮询任务...")

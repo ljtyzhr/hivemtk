@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"runtime/debug"
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
@@ -115,6 +116,7 @@ func ParseBackupType(s string) model.BackupType {
 func (s *BackupService) executeBackup(ctx context.Context, backup *model.Backup) {
 	defer func() {
 		if r := recover(); r != nil {
+			logger.Errorf("[Backup] executeBackup panic: %v\n%s", r, debug.Stack())
 			if backup == nil {
 				return
 			}

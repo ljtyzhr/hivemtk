@@ -150,6 +150,49 @@ func seatConvIDs(t *testing.T, database *gorm.DB) uint {
 	return ca.ID
 }
 
+// seatSessionLeg 客服域一条按行寻址的腿。寻址形态用 bySID 区分：GetMessages 那条口
+// 数字 id 与字符串 session_id 两种入口各走一个 scoped 查询，漏一种等于没测那条分支。
+type seatSessionLeg struct {
+	name   string
+	method string
+	idPath string
+	bySID  bool
+	body   string
+}
+
+// seatReseedA 把"A 名下那条会话"重置回没人动过的初始态，并返回它当前的
+// 自增 ID 与业务 session_id。
+//
+// 为什么需要逐腿重置：坐席隔离这批腿的控制组（本人令牌）本身就是写口，跑完会把
+// 会话 close 掉、release 回池（agent_id 归 0）。而未分配池按 SessionScope 的设计
+// 对全体坐席可见——那是要抢的池子。不重置的话，正文腿的"别人令牌"就能合法读到
+// 上一条腿刚释放出来的会话，403 断言会静默失效。真删重建也顺手避开了软删行的干扰。
+func seatReseedA(t *testing.T, database *gorm.DB) (aID uint, aSID string) {
+	t.Helper()
+	if err := database.Unscoped().Where("session_id LIKE ?", "seat-e2e-%").Delete(&model.CustomerSession{}).Error; err != nil {
+		t.Fatalf("清理旧客服测试会话失败: %v", err)
+	}
+	s := &model.CustomerSession{
+		SessionID: "seat-e2e-owned-by-a", Platform: model.PlatformWeb,
+		Status: model.SessionStatusPending, AgentID: 7101,
+	}
+	if err := database.Create(s).Error; err != nil {
+		t.Fatalf("重建 A 名下测试会话失败: %v", err)
+	}
+	if s.AgentID != 7101 {
+		t.Fatalf("种子会话归属没写进去：agent_id=%d", s.AgentID)
+	}
+	return s.ID, s.SessionID
+}
+
+// seatLegPath 按腿声明的寻址形态拼路径：bySID 吃字符串 session_id，否则吃自增 ID。
+func seatLegPath(l seatSessionLeg, aID uint, aSID string) string {
+	if l.bySID {
+		return fmt.Sprintf(l.idPath, aSID)
+	}
+	return fmt.Sprintf(l.idPath, aID)
+}
+
 // seatForbidden 判定"是行级隔离这一档拦的"。
 func seatForbidden(code int, body string) bool {
 	return code == http.StatusForbidden && strings.Contains(body, seatForbiddenMsg)
@@ -164,44 +207,37 @@ func seatForbidden(code int, body string) bool {
 func TestSeatIsolation_CustomerSessionRosterIsEnforced(t *testing.T) {
 	engine, database := seatEngine(t)
 	agentA, agentB, admin := seatTokens(t)
-	aID, aSID := seatSessionIDs(t, database)
 
-	type leg struct {
-		name   string
-		method string
-		// idPath 用 %s 吃会话 ID；数字 id 与字符串 session_id 两条都覆盖，
-		// 因为 GetMessages 那条口两种形态各走一个 scoped 查询。
-		idPath string
-		id     any
-		body   string
-	}
-	legs := []leg{
-		{"GET /customer-sessions/:id", "GET", "/api/customer-sessions/%d", aID, ""},
-		{"POST /customer-sessions/:id/auto-assign", "POST", "/api/customer-sessions/%d/auto-assign", aID, "{}"},
-		{"POST /customer-sessions/:id/close", "POST", "/api/customer-sessions/%d/close", aID, "{}"},
-		{"GET /customer-sessions/:id/messages(数字id)", "GET", "/api/customer-sessions/%d/messages", aID, ""},
-		{"GET /customer-sessions/:id/messages(字符串id)", "GET", "/api/customer-sessions/%s/messages", aSID, ""},
-		{"POST /customer-sessions/:id/messages", "POST", "/api/customer-sessions/%s/messages", aSID, `{"content":"hi"}`},
-		{"POST /customer-sessions/:id/rate", "POST", "/api/customer-sessions/%d/rate", aID, `{"rating":1}`},
-		{"POST /customer-sessions/:id/release", "POST", "/api/customer-sessions/%d/release", aID, "{}"},
-		{"PUT /customer-sessions/:id/status", "PUT", "/api/customer-sessions/%d/status", aID, `{"status":"closed"}`},
-		{"POST /customer-sessions/:id/switch-handler", "POST", "/api/customer-sessions/%d/switch-handler", aID, `{"handler_type":"human"}`},
-		{"POST /customer-sessions/:id/tags", "POST", "/api/customer-sessions/%d/tags", aID, `{"tags":["stolen"]}`},
-		{"POST /customer-sessions/:id/takeover", "POST", "/api/customer-sessions/%d/takeover", aID, "{}"},
-		{"POST /customer-sessions/:id/transfer", "POST", "/api/customer-sessions/%d/transfer", aID, `{"new_agent_id":7102}`},
+	legs := []seatSessionLeg{
+		{"GET /customer-sessions/:id", "GET", "/api/customer-sessions/%d", false, ""},
+		{"POST /customer-sessions/:id/auto-assign", "POST", "/api/customer-sessions/%d/auto-assign", false, "{}"},
+		{"POST /customer-sessions/:id/close", "POST", "/api/customer-sessions/%d/close", false, "{}"},
+		{"GET /customer-sessions/:id/messages(数字id)", "GET", "/api/customer-sessions/%d/messages", false, ""},
+		{"GET /customer-sessions/:id/messages(字符串id)", "GET", "/api/customer-sessions/%s/messages", true, ""},
+		{"POST /customer-sessions/:id/messages", "POST", "/api/customer-sessions/%s/messages", true, `{"content":"hi"}`},
+		{"POST /customer-sessions/:id/rate", "POST", "/api/customer-sessions/%d/rate", false, `{"rating":1}`},
+		{"POST /customer-sessions/:id/release", "POST", "/api/customer-sessions/%d/release", false, "{}"},
+		{"PUT /customer-sessions/:id/status", "PUT", "/api/customer-sessions/%d/status", false, `{"status":"closed"}`},
+		{"POST /customer-sessions/:id/switch-handler", "POST", "/api/customer-sessions/%d/switch-handler", false, `{"handler_type":"human"}`},
+		{"POST /customer-sessions/:id/tags", "POST", "/api/customer-sessions/%d/tags", false, `{"tags":["stolen"]}`},
+		{"POST /customer-sessions/:id/takeover", "POST", "/api/customer-sessions/%d/takeover", false, "{}"},
+		{"POST /customer-sessions/:id/transfer", "POST", "/api/customer-sessions/%d/transfer", false, `{"new_agent_id":7102}`},
 	}
 
-	// 控制组：同一批口、**本人**令牌，不许被隔离档拦（否则上面全 403 可能只是"恒拦"）。
 	for _, l := range legs {
-		if code, body := seatCall(t, engine, l.method, fmt.Sprintf(l.idPath, l.id), agentA, l.body); seatForbidden(code, body) {
+		// 控制组：本人令牌，同一批口不许被隔离档拦（否则正文的 403 可能只是"恒拦"）。
+		aID, aSID := seatReseedA(t, database)
+		if code, body := seatCall(t, engine, l.method, seatLegPath(l, aID, aSID), agentA, l.body); seatForbidden(code, body) {
 			t.Errorf("[%s] 本人的会话被隔离档拦了（恒拦）：%d / %s", l.name, code, strings.TrimSpace(body))
+			continue
 		}
-	}
 
-	// 正文腿：别人的令牌打别人的会话 ⇒ 必须是隔离档那句 403。
-	for _, l := range legs {
-		path := fmt.Sprintf(l.idPath, l.id)
-		code, body := seatCall(t, engine, l.method, path, agentB, l.body)
+		// 控制组这批口本身就是写口，跑完 A 的会话可能已被改脏（close 掉、release 回池）。
+		// 不重置就接着跑正文的话：release 把 agent_id 归 0 变成未分配池，而未分配池按
+		// SessionScope 的设计对全体坐席可见（要抢的池子），正文的 B 就会"合法"读到 A 的会话
+		// ——判据从"拦得住"悄悄退化成"设计如此"。所以每条腿前都把归属重置回 A。
+		aID, aSID = seatReseedA(t, database)
+		code, body := seatCall(t, engine, l.method, seatLegPath(l, aID, aSID), agentB, l.body)
 		if !seatForbidden(code, body) {
 			t.Errorf("[%s] 坐席 B 打 A 名下会话没有被行级隔离拦下：%d / %s（越权面仍敞着）",
 				l.name, code, strings.TrimSpace(body))
@@ -224,10 +260,11 @@ func TestSeatIsolation_CustomerSessionRosterIsEnforced(t *testing.T) {
 	}
 
 	// 超管对照组：隔离档不许把超管也关在外面。
-	if code, body := seatCall(t, engine, "GET", fmt.Sprintf("/api/customer-sessions/%d", aID), admin, ""); seatForbidden(code, body) {
+	adminAID, _ := seatReseedA(t, database)
+	if code, body := seatCall(t, engine, "GET", fmt.Sprintf("/api/customer-sessions/%d", adminAID), admin, ""); seatForbidden(code, body) {
 		t.Errorf("admin 读 A 名下会话被隔离档拦了：%d / %s", code, strings.TrimSpace(body))
 	}
-	t.Logf("客服会话域名册 %d 条（含 messages 两条入口形态），B→A 全部 403+%q 且数据未变", len(legs), seatForbiddenMsg)
+	t.Logf("客服会话域名册 %d 条（含 messages 两条入口形态），B→A 全部 403+%q 且数据未变；每条腿前把会话归属重置回 A，不让上一条写口腿把 agent_id 归 0 变成公共池", len(legs), seatForbiddenMsg)
 }
 
 // TestSeatIsolation_InboxRosterIsEnforced 收件箱域：名册里那 8 条按行口 + 坐席负载那条，
