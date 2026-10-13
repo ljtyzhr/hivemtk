@@ -16,6 +16,10 @@ Slug 解析路径：conversation context（本轮刚跑完 fix，`fix.md` 存在
 （`internal/controller` 9 枚）现证属并行泳道的未跟踪在途用例。验证阶段另发现并修掉同一条
 「写响应」路上的第二处引信（`localeOf` 在无 Request 的 Context 上 SIGSEGV），A/B 已定死早于本轮就在场。
 
+验证不止于本轮那四个文件：推送出去的是「本轮内容 ∪ 上游 12 笔 dependabot 抬版」的合并树，
+该树在干净克隆里跑过 `make -k audit`（rc=0）、`go vet ./...`（rc=0）、`./internal/pkg/...`
+全包（39 ok / 0 FAIL），且合并即红的那道 action 运行时门已先收账再推。
+
 ## Checks Performed
 
 | Check | Command / Action | Result | Notes |
@@ -32,6 +36,13 @@ Slug 解析路径：conversation context（本轮刚跑完 fix，`fix.md` 存在
 | Doc gate: 一致性 | `bash scripts/check-doc-consistency.sh` | pass | 6/6（含 ADR 编号连续性、27 关键文件存在性） |
 | 架构门 | `bash scripts/check-architecture.sh` | fail → 归因 pass | 活树 rc=1 红在 `[L4] service 取 DB 句柄宽口径与基线不符`（全在 `internal/service/`）；同克隆只叠本轮 4 份文件后 `rc=0` ⇒ 他泳道在途态 |
 | 文档码值对账 | `python3 .specify/bugs/business-error-code-panic/check-doc-code-literals.py` | pass | 登记表 13 数值 / 36 字符串，10 处引用全对得上；三枚反向格各自开火后 `cp` 还原 md5 一致 |
+| 上游合并 | `git merge --no-edit upstream/master`（12 笔 dependabot，tip `8a00b975`）于干净克隆 `/tmp/sk-push/hivemtk` | pass | ort 零冲突，只吃 5 份文件；`git rev-parse HEAD:<f>` vs `d28a8336:<f>` 比 blob ⇒ 本轮 4 份文件 4/4 SAME |
+| 合并后常驻门 | `python3 scripts/check-action-runtime.py --repo .` | fail → 修后 pass | 合并即红 rc=2（`gitleaks…@v3` 未登记 + 3 条豁免 STALE）；现读该 tag `action.yml` 得 `node24` 登记、删 3 条失效豁免后 rc=0（`站点 81 处／node20 命中 3 全在豁免内`） |
+| 该门的两向电池 | `bash scripts/check-action-runtime.test.sh` | pass | `PASS=43 FAIL=0`，含格10「跑真仓库，表与账必须对得上磁盘」 |
+| 静态门全链 | `make -k audit`（合并树） | pass | rc=0、`✅ 静态审计通过`；`check-ci-gate-paths.py` 门站点 46 处不变；`check-vite-version.sh` 读到 dependabot 的 `^8.3.4` 判 GREEN |
+| 测试可编译性 | `go vet ./...`（合并树，vet 才编 `_test.go`） | pass | rc=0，无诊断 ⇒ 抬版后的依赖集不破坏任何已提交测试的编译 |
+| 合并树包级回归 | `EMBEDDING_ALLOW_FALLBACK=true POSTGRES_TEST_PASSWORD=<.env> go test ./internal/pkg/... -count=1` | pass | `^ok` 39 包 / `^FAIL` 0 包（`db 377.773s`、`testutil 52.278s`）；无口令时 4 包 `testdb.go:320` SASL 红＝环境前提 |
+| 合并树响应包用例 | `go test ./internal/pkg/utils/response/ -v -count=1` | pass | 全 `--- PASS`，`ok … 0.541s`（本轮 4 枚新用例在内，含 `TestResponsePath_RequestlessContextDoesNotPanic` 的 4 个子用例） |
 
 ## Output Excerpts
 
@@ -67,6 +78,28 @@ HEAD 那份（md5 62ad21e6…）：nilreq_test.go:20: red: runtime error: invali
 本轮那份（md5 3970552d…）：--- PASS: TestNilRequestOnValidStatus (0.00s)
 ```
 
+合并上游后、收账前那道门的原样红（读数取自 `/tmp/sk-push/hivemtk`，非活树）：
+
+```
+❌ 以下 pin 不在 RUNTIMES 表里，无法判定其 runs.using：
+   gitleaks/gitleaks-action@v3
+   去读该 tag 的 action.yml（子路径 action 要读子路径下那份），把 runs.using 登记进表；不要凭版本号猜。
+❌ 豁免账本里有匹配不到站点的条目（该文件已迁完或已改名，请删条目）：
+   user-server-ci.yml: actions/setup-go@v5  （原由：同上）
+   user-server-ci.yml: actions/upload-artifact@v4  （原由：同上）
+   user-server-ci.yml: gitleaks/gitleaks-action@v2  （原由：同上）
+项目根: /private/tmp/sk-push/hivemtk
+扫描工作流 15 份；uses 站点 81 处（可判定），跳过 1 处（可复用工作流/本地/容器）
+```
+
+`gh api "repos/gitleaks/gitleaks-action/contents/action.yml?ref=v3"` 解码后的判定行（登记值的出处，
+zsh 下 `?` 必须整体加引号，否则被当 glob 报 `no matches found`）：
+
+```
+12:runs:
+13:  using: "node24"
+```
+
 ## Residual Risks
 
 - **降级不是编译期拦截**：照越界码调用仍会编译通过，只是运行时得 500 并出声。真正的结构性防线是
@@ -78,8 +111,11 @@ HEAD 那份（md5 62ad21e6…）：nilreq_test.go:20: red: runtime error: invali
   已被结构性消除，门的边际收益低。若要把这条判据常驻，应按 `/speckit-specify` 单开一轮而不是并进本轮。
 - **`LogBindError` 一类仍裸读 `c.Request`**（`response.go:352`、`:362`）：调用前提是真实请求，
   gin 的 `ServeHTTP` 保证非空，本轮不扩面。
-- **没有跑全量 `go test ./...`**：本工作树有并行泳道 200+ 个未提交文件，全量读数无法归因；
-  改跑的是「含整数状态码调用的 14 个包」这一有界集合，外加对越界码的 0 调用点计数。
+- **没有跑全量 `go test ./...`**：本工作树有并行泳道 200+ 个未提交文件，全量读数无法归因。
+  实际跑的是两个有界集合：活树上「含整数状态码调用的 14 个包」，以及合并克隆里
+  `./internal/pkg/...` 全包（39 包 `ok`／0 包 `FAIL`）+ 全树 `go vet ./...`（rc=0，含 `_test.go` 编译）。
+  **未跑**：`./internal/service/...`（单包 450–880s 随负载摆动）与 `./internal/controller/...`
+  （他泳道在途用例即在此包，跑了也无法归因）。
 - **本机测试库前提**：不带 `POSTGRES_TEST_PASSWORD` 时 9 个包会同一句 SASL 红（`testdb.go:331`），
   文档里的 dev 端口 8232 本机无监听（实听 5432 与容器 8202）。这是环境前提，不是仓库红。
 

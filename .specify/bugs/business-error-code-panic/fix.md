@@ -23,6 +23,7 @@
 | `user-server/internal/pkg/utils/response/response.go` | modified（第二处，`localeOf`，`:29-35`） | **验证阶段新发现的引信**：gin 1.12 的 `GetHeader` 直取 `c.Request.Header`，`localeOf` 只判了 `c != nil`，于是在没有 Request 的 Context 上以 SIGSEGV 收场。补 `c.Request == nil` 早退到 `i18n.ZH` |
 | `user-server/internal/pkg/utils/response/response_test.go` | added 1 test（4 个子用例） | `TestResponsePath_RequestlessContextDoesNotPanic`：`Error`/`Success`/`ErrorWithBusinessCode`/`LocaleOf` 在裸 `gin.CreateTestContext` 上都不许崩 |
 | `.specify/bugs/business-error-code-panic/check-doc-code-literals.py` | added | 把「文档抄码值」这一根因做成可复现对账：文档里出现的每个码值字面量必须能在两张登记表里找到且取值一致 |
+| `scripts/check-action-runtime.py` | modified（合并阶段收账，非 assessment 预估） | 把本轮的 merge 提交推上双远端时，上游 12 笔 dependabot 抬版（`setup-go@v5→v7`、`upload-artifact@v4→v7`、`gitleaks…@v2→v3`）使这道常驻门 rc=2：`gitleaks…@v3` 不在 RUNTIMES 表 + 三条豁免账本条目匹配不到站点。按门自己的要求现读该 tag 的 `action.yml` 登记 `node24`，删三条失效豁免，保留仍在场的 `codecov…@v4`×2 |
 
 ## Diff Highlights
 
@@ -109,6 +110,38 @@ case int:
   补齐口令后同一批逐包转绿 ⇒ 那一轮的红是缺测试库口令，不是代码红。
   本机现听端口为 5432（Homebrew PG）与 8202（`mtk-postgres` 容器），文档里的 8232 dev 端口无进程监听。
 
+## Integration Verification（推送前在干净克隆里合并上游后现测）
+
+本轮的提交要推的树不是活树，而是「本轮内容 ∪ 上游 12 笔 dependabot 抬版」，因此所有读数在
+`/tmp/sk-push/hivemtk`（以仓库目录为源的克隆，HEAD 到 `4eb0ec7b`）重跑一遍：
+
+- `git merge --no-edit upstream/master`（tip `8a00b975`）⇒ ort 策略干净合并，**零冲突**，
+  只吃进 5 份文件（`user-server-ci.yml`、`go.mod`、`go.sum`、`user-web/bridge/package.json`、
+  `package-lock.json`）；合并后用 `git rev-parse HEAD:<file>` 对 `git rev-parse d28a8336:<file>`
+  逐枚比 blob，本轮四个文件 **4/4 SAME**（合并没动过我的字节）。
+- 合并把 `check-action-runtime.py` 这道常驻门打成 **rc=2**（三条 STALE + 一个未登记的 `gitleaks…@v3`），
+  即「合并即坏」，按规则2 当场收账（见 Changes 表最后一行），收账后：
+  - `python3 scripts/check-action-runtime.py --repo .` → rc=0，`扫描工作流 15 份；uses 站点 81 处，
+    跳过 1 处；node20/node16 命中 3 处：未豁免 0，豁免内 3`。
+  - `bash scripts/check-action-runtime.test.sh` → `PASS=43 FAIL=0`，含「格10 出厂基线自洽
+    （跑真仓库，表与账必须对得上磁盘）」这一枚真仓库控制格。
+  - `python3 scripts/check-ci-gate-paths.py --repo .` → rc=0，`门站点 46 处`（抬版只改 step 的
+    `uses:`，没增删门，故 paths 触发面无需跟着改）。
+- `make -k audit` → **rc=0**（`✅ 静态审计通过`），含 i18n 覆盖、seam-guard、battery-identity、
+  `check-vite-version.sh`（现读到 bridge `^8.3.4`/lock 8.3.4，与 dependabot 的 npm 抬版同源，
+  自证行 `扫描package.json=6 含vite的pin=5 判定=GREEN`）。
+- `go build ./...` → 无输出；`go vet ./...` → **rc=0**（vet 会编译 `_test.go`，即已提交的测试
+  在这套新依赖上全部编得过）。
+- `EMBEDDING_ALLOW_FALLBACK=true POSTGRES_TEST_PASSWORD=<.env 值> go test ./internal/pkg/... -count=1`
+  → `^ok` 39 个包、`^FAIL` **0** 个包（`grep -c` 取 0 时末句退 1，是 grep 的语义不是测试红）；
+  其中 `internal/pkg/db 377.773s`、`internal/pkg/testutil 52.278s`。不带口令时同一批里
+  4 个包在 `testdb.go:320` 报 `failed SASL auth … "admin" (SQLSTATE 28P01)` ⇒ 环境前提，非代码红。
+- `go test ./internal/pkg/utils/response/ -v -count=1` 在合并树上 → 全 `--- PASS`（含本轮 4 枚新用例），
+  `ok hivemtk-user/internal/pkg/utils/response 0.541s`。
+- `.specify/bugs/business-error-code-panic/check-doc-code-literals.py` 在合并树上 → rc=0（10 处码值全对得上）。
+- 推送前祖先判定：`git merge-base --is-ancestor` 现证 `upstream/master`(8a00b975) 与新 tip 的父系
+  含自身、`gitee-upstream/master`(15ccabb7) 亦是本轮两笔提交的基 ⇒ 两推都是 fast-forward，无 `--force`。
+
 ## Deviations from Assessment
 
 0. **验证阶段扩了一次面（新增文件外的一处代码改动）**：跑 assessment §Reproduction 的字面复现时，
@@ -133,6 +166,15 @@ case int:
 3. **assessment 的数字是二手的，已现测订正**：controller 文件 157 → 实测 179；
    非测试 `response.Error(` 调用点写的是估值，实测 2053。订正已回写在本报告的
    Local Verification 里（按 spec-kit 规矩 `assessment.md` 本身不编辑）。
+4. **收账这一改与并行泳道在途的同一枚改动重叠**：主工作树里 `scripts/check-action-runtime.py`
+   与 `.github/workflows/user-server-ci.yml` 均处于 ` M`（未提交）状态，对方正在做的正是
+   「抬 gitleaks/upload-artifact pin + 删对应豁免」，其中 `RUNTIMES` 新增行的日期与取值
+   （`gitleaks…@v3 = node24`）与本轮现读结果逐字一致。差异只在 `("user-server-ci.yml",
+   "actions/setup-go@v5"): (6, …)` 这一条——对方的树里 v5 站点仍在（其基线是 `15ccabb7`），
+   那条豁免对他们仍是**必需**的，删了会把他们的本地门判红；而本轮推的是「已合并上游」的树，
+   v5 站点为 0，R3 要求删。故本轮**只**在克隆里按已合并内容收账，没有把这一行删进对方的
+   工作树副本（那会用他们的树读不到的语义去改他们的文件）。对方下次合并本轮 tip 时，
+   该条会由 R3 自然要求删除，冲突面为 1 行、可机械解决。
 
 ## Follow-ups
 
