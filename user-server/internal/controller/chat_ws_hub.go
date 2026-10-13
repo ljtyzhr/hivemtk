@@ -23,6 +23,7 @@ package controller
 import (
 	"encoding/json"
 	"fmt"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -99,6 +100,7 @@ func (c *Client) sendSafe(payload []byte) (sent bool) {
 
 		if r := recover(); r != nil {
 			sent = false
+			logger.Errorf("[ChatWSHub] send panic recovered: %v\n%s", r, debug.Stack())
 		}
 	}()
 	select {

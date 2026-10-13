@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"math"
+	"runtime/debug"
 	"time"
 
 	"gorm.io/gorm"
@@ -169,7 +170,7 @@ func RunMemoryDecayOnce(db *gorm.DB) int {
 func runMemoryDecayOnce(ctx context.Context, db *gorm.DB) {
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Errorf("[MemoryDecay] 单轮 panic: %v", r)
+			logger.Errorf("[MemoryDecay] 单轮 panic: %v\n%s", r, debug.Stack())
 		}
 	}()
 	stats, err := RunMemoryDecayJob(ctx, db, false)

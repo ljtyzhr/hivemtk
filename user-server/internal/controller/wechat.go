@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"net/http"
+	"runtime/debug"
 	"strconv"
 	"time"
 
@@ -252,8 +253,8 @@ func (c *WechatController) handleIncomingMessage(accountID uint, msg *service.We
 
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Errorf("[Wechat] handleIncomingMessage panic recovered: account=%d from=%s panic=%v",
-				accountID, msg.FromUserName, r)
+			logger.Errorf("[Wechat] handleIncomingMessage panic recovered: account=%d from=%s panic=%v\n%s",
+				accountID, msg.FromUserName, r, debug.Stack())
 		}
 	}()
 

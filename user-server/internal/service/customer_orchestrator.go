@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"runtime/debug"
 	"sync"
 
 	"hivemtk-user/internal/cache"
@@ -92,7 +93,7 @@ func (o *CustomerOrchestrator) OnCustomerCreated(ctx context.Context, customer *
 		func() {
 			defer func() {
 				if r := recover(); r != nil {
-					logger.Errorf("orchestrator.OnCustomerCreated: journey.Touch panic: %v", r)
+					logger.Errorf("orchestrator.OnCustomerCreated: journey.Touch panic: %v\n%s", r, debug.Stack())
 				}
 			}()
 			o.journey.Touch(ctx, customer.ID, "system_create")
@@ -102,7 +103,7 @@ func (o *CustomerOrchestrator) OnCustomerCreated(ctx context.Context, customer *
 		func() {
 			defer func() {
 				if r := recover(); r != nil {
-					logger.Errorf("orchestrator.OnCustomerCreated: tagger.EvaluateAndTag panic: %v", r)
+					logger.Errorf("orchestrator.OnCustomerCreated: tagger.EvaluateAndTag panic: %v\n%s", r, debug.Stack())
 				}
 			}()
 			if err := o.tagger.EvaluateAndTag(ctx, customer.ID); err != nil {
@@ -126,7 +127,7 @@ func (o *CustomerOrchestrator) OnCustomerEvent(ctx context.Context, customerID s
 		func() {
 			defer func() {
 				if r := recover(); r != nil {
-					logger.Errorf("orchestrator.OnCustomerEvent: journey.Touch panic: %v", r)
+					logger.Errorf("orchestrator.OnCustomerEvent: journey.Touch panic: %v\n%s", r, debug.Stack())
 				}
 			}()
 			o.journey.Touch(ctx, customerID, string(event.EventSource))
@@ -136,7 +137,7 @@ func (o *CustomerOrchestrator) OnCustomerEvent(ctx context.Context, customerID s
 		func() {
 			defer func() {
 				if r := recover(); r != nil {
-					logger.Errorf("orchestrator.OnCustomerEvent: journey.Transition panic: %v", r)
+					logger.Errorf("orchestrator.OnCustomerEvent: journey.Transition panic: %v\n%s", r, debug.Stack())
 				}
 			}()
 			targetStage := stageForEvent(event.EventType)
@@ -152,7 +153,7 @@ func (o *CustomerOrchestrator) OnCustomerEvent(ctx context.Context, customerID s
 		func() {
 			defer func() {
 				if r := recover(); r != nil {
-					logger.Errorf("orchestrator.OnCustomerEvent: tagger.ProcessEvent panic: %v", r)
+					logger.Errorf("orchestrator.OnCustomerEvent: tagger.ProcessEvent panic: %v\n%s", r, debug.Stack())
 				}
 			}()
 			if err := o.tagger.ProcessEvent(ctx, event); err != nil {
@@ -178,7 +179,7 @@ func (o *CustomerOrchestrator) OnRFMComputed(ctx context.Context, customerID str
 		func() {
 			defer func() {
 				if r := recover(); r != nil {
-					logger.Errorf("orchestrator.OnRFMComputed: cache.Delete panic: %v", r)
+					logger.Errorf("orchestrator.OnRFMComputed: cache.Delete panic: %v\n%s", r, debug.Stack())
 				}
 			}()
 			key := fmt.Sprintf("customer_360:%s", customerID)
@@ -191,7 +192,7 @@ func (o *CustomerOrchestrator) OnRFMComputed(ctx context.Context, customerID str
 		func() {
 			defer func() {
 				if r := recover(); r != nil {
-					logger.Errorf("orchestrator.OnRFMComputed: tagger.EvaluateAndTag panic: %v", r)
+					logger.Errorf("orchestrator.OnRFMComputed: tagger.EvaluateAndTag panic: %v\n%s", r, debug.Stack())
 				}
 			}()
 			if err := o.tagger.EvaluateAndTag(ctx, customerID); err != nil {
@@ -203,7 +204,7 @@ func (o *CustomerOrchestrator) OnRFMComputed(ctx context.Context, customerID str
 		func() {
 			defer func() {
 				if r := recover(); r != nil {
-					logger.Errorf("orchestrator.OnRFMComputed: clueScoreUpd.UpdateByCustomerRFM panic: %v", r)
+					logger.Errorf("orchestrator.OnRFMComputed: clueScoreUpd.UpdateByCustomerRFM panic: %v\n%s", r, debug.Stack())
 				}
 			}()
 			if err := o.clueScoreUpd.UpdateByCustomerRFM(ctx, customerID, segment, 0); err != nil {
@@ -215,7 +216,7 @@ func (o *CustomerOrchestrator) OnRFMComputed(ctx context.Context, customerID str
 		func() {
 			defer func() {
 				if r := recover(); r != nil {
-					logger.Errorf("orchestrator.OnRFMComputed: segmentRecomp.RecomputeForCustomer panic: %v", r)
+					logger.Errorf("orchestrator.OnRFMComputed: segmentRecomp.RecomputeForCustomer panic: %v\n%s", r, debug.Stack())
 				}
 			}()
 			if err := o.segmentRecomp.RecomputeForCustomer(ctx, customerID); err != nil {

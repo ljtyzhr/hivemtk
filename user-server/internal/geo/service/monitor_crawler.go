@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math/rand"
 	"net/http"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -391,7 +392,7 @@ func CrawlerMonitorCronSync() (int, error) {
 func CrawlerMonitorCronWithContext(ctx context.Context) (int, error) {
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Error(fmt.Errorf("panic: %v", r), "[GEO Crawler] panic recovered")
+			logger.Error(fmt.Errorf("panic: %v\n%s", r, debug.Stack()), "[GEO Crawler] panic recovered")
 		}
 	}()
 	svc := NewMonitorCrawlerService(

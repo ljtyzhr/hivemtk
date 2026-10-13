@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"encoding/hex"
 	"fmt"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"sync"
@@ -1004,7 +1005,7 @@ func (r *gateSweeperRunner) tickLoop(ctx context.Context) {
 		if rec == nil {
 			return
 		}
-		logger.Errorf("[TG-Gate] TTL 清扫协程 panic 重启: %v", rec)
+		logger.Errorf("[TG-Gate] TTL 清扫协程 panic 重启: %v\n%s", rec, debug.Stack())
 		r.restartAfterPanic(ctx)
 	}()
 	ticker := time.NewTicker(r.interval)

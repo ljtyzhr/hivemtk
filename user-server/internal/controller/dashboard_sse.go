@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"math"
 	"net/http"
+	"runtime/debug"
 	"sync"
 	"sync/atomic"
 	"time"
@@ -164,7 +165,7 @@ func (c *DashboardSSEController) collectLLMMetrics(ctx context.Context) *service
 	m := &service.LLMRealTimeMetrics{}
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Ctx(ctx).Warn().Interface("panic", r).Msg("dashboard_sse: LLM metrics collection recovered from panic")
+			logger.Ctx(ctx).Warn().Interface("panic", r).Str("stack", string(debug.Stack())).Msg("dashboard_sse: LLM metrics collection recovered from panic")
 		}
 	}()
 	return m

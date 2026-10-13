@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"regexp"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -122,7 +123,7 @@ func (t *MessageTraceCleanupTask) run(ctx context.Context) {
 func (t *MessageTraceCleanupTask) trigger(ctx context.Context) {
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Errorf("[trace_cleanup_cron] panic: %v", r)
+			logger.Errorf("[trace_cleanup_cron] panic: %v\n%s", r, debug.Stack())
 		}
 	}()
 	masked, nulled, err := t.RunOnce(ctx)

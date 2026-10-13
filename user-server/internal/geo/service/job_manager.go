@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"runtime/debug"
 	"strings"
 	"sync"
 	"sync/atomic"
@@ -290,7 +291,7 @@ func (m *JobManager) execute(def geoJobDef, runID uint, trigger string) {
 		defer func() {
 			if r := recover(); r != nil {
 				status = "failed"
-				errMsg = fmt.Sprintf("panic: %v", r)
+				errMsg = fmt.Sprintf("panic: %v\n%s", r, debug.Stack())
 				logger.Error(fmt.Errorf("%s", errMsg), fmt.Sprintf("[GEO Jobs] 任务 %s panic（trigger=%s）", def.Name, trigger))
 			}
 		}()

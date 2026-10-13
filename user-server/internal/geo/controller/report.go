@@ -3,6 +3,7 @@ package controller
 import (
 	"fmt"
 	"net/http"
+	"runtime/debug"
 	"strconv"
 	"time"
 
@@ -154,7 +155,7 @@ func (c *ReportController) RunCrawler(ctx *gin.Context) {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
-				fmt.Printf("[GEO Crawler] panic: %v\n", r)
+				fmt.Printf("[GEO Crawler] panic: %v\n%s", r, debug.Stack())
 			}
 		}()
 		if _, err := service.CrawlerMonitorCronSync(); err != nil {

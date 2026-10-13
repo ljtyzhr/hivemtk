@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"os"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -187,7 +188,7 @@ func (sc *webhookRecoveryScanner) replay(ctx context.Context, evt *model.Webhook
 
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Errorf("[WebhookRecovery] replay panic event=%s: %v", evt.EventID, r)
+			logger.Errorf("[WebhookRecovery] replay panic event=%s: %v\n%s", evt.EventID, r, debug.Stack())
 			sc.markProcessed(ctx, evt)
 		}
 	}()
