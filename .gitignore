@@ -229,6 +229,11 @@ test-results/
 
 # ---------- 临时文件 ----------
 tmp/
+# 各会话的取证落点与影子克隆根名（`check-vite-version.sh` 的 prune 名单、
+# `route-consumer-triage.py` 的忽略集合里都已经有它，只有本表漏了）：未跟踪又未忽略
+# ⇒ `git ls-files --exclude-standard` 把它捞进 shellcheck 门的面
+# （2026-10-12 实测：一枚 SC1071 让 `make audit` 整链退 2），也会被 `git add -A` 带进仓。
+.tmp_files/
 temp/
 uploads/
 downloads/
@@ -312,9 +317,30 @@ user-web/tests/API_INVENTORY.json
 user-web/tests/.api_id_cache.json
 user-web/docs/ui-inventory/inventory.json
 # 页面级端到端审计脚手架运行时产物（由脚本重新生成，非源码）
+# 判据：这些均是测试/审计脚本运行时写出的数据文件（audit-runner.mjs、
+# deep-test-*.mjs、interact-human.mjs、page-route-audit/audit-routes.mjs、playwright
+# storage-state 等），CI 不读取，任何环境 clone 后重新跑脚本即可再生。
 user-web/tests/audit/reports/
+user-web/tests/audit/deep-reports/
+user-web/tests/audit/backend_routes.json
+user-web/tests/audit/pages.json
+user-web/tests/audit/pages_api.json
+user-web/tests/audit/smoke_get.json
 user-web/tests/e2e/audit/reach/
+user-web/tests/e2e/audit/aiAgent/
+user-web/tests/e2e/audit/customer/
+user-web/tests/e2e/audit/dataAnalysis/
+user-web/tests/e2e/audit/knowledge/
+user-web/tests/e2e/audit/system/
+user-web/tests/e2e/audit/workspace/
 user-web/tests/e2e/audit/summary.json
+# Playwright 登录态快照（含 cookies/localStorage，敏感）
+user-web/tests/.auth/
+# 前端审计直方产物（脚本重新生成；与 docs/audit/ 同口径，不进公开仓库）
+user-web/*-report.json
+user-web/deep-test-summary.json
+# 硬编码扫描报告（hardcode-sweep 产物，脚本重新生成，非源码）
+hardcode-sweep/
 # 临时运行日志（前端桥接运行输出，非源码）
 user-web/_bridge_run.txt
 
