@@ -382,3 +382,9 @@ docs/superpowers/specs/ledger/logs/R22-lanes/service-full-mut-batchecho.log
 !docs/superpowers/specs/ledger/logs/RouteTriage/
 !docs/superpowers/specs/ledger/logs/RouteTriage/**/*.tsv
 !docs/superpowers/specs/ledger/logs/RouteTriage/**/*.log
+# MenuRouteAudit：静态取证器 `scripts/menu-route-role-audit.py`（菜单×live 路由档位×前端调用图三方对账）
+# 的轮次产物。`check-battery-identity.py` 的 A5 要求"非电池名单里登记的族必须在树里有轮次目录"，
+# 而 A3 要求目录行与 `**/*.log` 行成对——只登记不入库＝豁免在 CI 上过期（2026-10-12 实测红过一枚）。
+!docs/superpowers/specs/ledger/logs/MenuRouteAudit/
+!docs/superpowers/specs/ledger/logs/MenuRouteAudit/**/*.tsv
+!docs/superpowers/specs/ledger/logs/MenuRouteAudit/**/*.log
