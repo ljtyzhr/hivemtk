@@ -200,4 +200,267 @@ describe('ConfigParams.vue 渲染与友好性承诺', () => {
     expect(w.text()).toContain('正在跨全部')
     expect(w.text()).toContain('AI 大模型')
   })
+
+  it('只读项的编辑与重置按钮都禁用', async () => {
+    // 服务端对 read_only 的 UpdateValue/ResetToDefault 一律回 ErrParamReadOnly，
+    // 表格这一列曾经只禁了「编辑」没禁「重置」：用户点得动，然后收到一条红字。
+    api.list.mockResolvedValue([
+      param({ key: 'embedding_dimension', name: 'Embedding 维度', value: '512', default_value: '1024', read_only: true })
+    ])
+    const w = mountPage()
+    await settle(w)
+    const buttons = w.findAll('button')
+    const edit = buttons.filter((b) => b.text().includes('编辑'))
+    const reset = buttons.filter((b) => b.text() === '重置')
+    expect(edit).toHaveLength(1)
+    expect(reset).toHaveLength(1)
+    expect(edit[0].attributes('disabled')).toBeDefined()
+    expect(reset[0].attributes('disabled')).toBeDefined()
+    // 正控制：同一列的写侧入口对可写项必须是**能点**的，否则上面两条断言
+    // 只是「整列都渲染成禁用」的假绿。
+    api.list.mockResolvedValue([param({ key: 'embedding_dimension', value: '512', default_value: '1024' })])
+    await w.vm.loadAll()
+    await settle(w)
+    const writable = w.findAll('button')
+    expect(writable.filter((b) => b.text() === '重置')[0].attributes('disabled')).toBeUndefined()
+  })
+
+  it('已修改的只读项不计入「重置整组」条数', async () => {
+    // 后端 BulkResetGroup 遇 read_only 是「跳过」，整组请求不会失败，
+    // 所以前端多报的那一条既没被改、也不会有任何错误提示——纯粹的谎。
+    api.list.mockResolvedValue([
+      param({ key: 'embedding_dimension', value: '512', default_value: '1024', read_only: true })
+    ])
+    const w = mountPage()
+    await settle(w)
+    expect(w.find('.reset-badge').exists()).toBe(false)
+    api.list.mockResolvedValue([
+      param({ key: 'embedding_dimension', value: '512', default_value: '1024', read_only: true }),
+      param({ key: 'inbox_human_ttl', value: '3600', default_value: '86400' })
+    ])
+    await w.vm.loadAll()
+    await settle(w)
+    // 两条都「已修改」，但只读那条不参与 ⇒ 计数 1。
+    expect(w.find('.reset-badge').text()).toBe('1')
+  })
+
+  it('只读项不让左侧栏分组亮起「已修改」角标', async () => {
+    // 分组栏那个角标是「这组有本页能处理的偏离」的指路牌。只读项在本页三处入口
+    // （编辑、单条重置、批量重置）全都动不了，把它算进角标等于把人往一扇锁着的门上引。
+    // 行内的「已修改」徽标仍然显示，所以状态本身没有被藏起来。
+    api.list.mockResolvedValue([
+      param({ key: 'embedding_dimension', value: '512', default_value: '1024', read_only: true })
+    ])
+    const w = mountPage()
+    await settle(w)
+    expect(w.find('.group-mod').exists()).toBe(false)
+    expect(w.find('.changed-badge').exists()).toBe(true)
+    api.list.mockResolvedValue([param({ key: 'embedding_dimension', value: '512', default_value: '1024' })])
+    await w.vm.loadAll()
+    await settle(w)
+    // 正控制：同一行改成可写后角标必须亮起来，否则上面的「不存在」是渲染坏了不是判据生效。
+    expect(w.find('.group-mod').text()).toBe('1')
+  })
+})
+
+// 写入载荷形状：整页用例都把 api mock 掉断「调用发生过」，这一族断「传过去的是什么」。
+//
+// 服务端把 value 当一段 JSON 标量解析（controller.decodeScalarValue）后再按 value_type
+// 校验，所以每种类型必须送出**那一种**标量：int 送数字 42 而不是 "42"、bool 送 boolean
+// 而不是 "1"。这条腿以前完全没被测过 —— 前端送字符串在服务端还没收紧时照样存进去，
+// 服务端一收紧就是整页 400；反过来前端形状错了也没有任何门会响。
+describe('ConfigParams.vue 写入载荷形状', () => {
+  beforeEach(() => {
+    api.list.mockReset()
+    api.update.mockReset().mockResolvedValue({})
+    api.listGroups.mockResolvedValue([...GROUPS])
+  })
+
+  // 走真实入口：从表格渲染出来的那一行点「编辑」开对话框，再改编辑框绑定的值。
+  // 不直接 openEdit(手造 row)，否则测的是「我以为的 row 形状」而不是后端真回的形状。
+  async function editFirstRow(rows) {
+    api.list.mockResolvedValue(rows)
+    const w = mountPage()
+    await settle(w)
+    const editBtn = w.findAll('button').find((b) => b.text().includes('编辑'))
+    expect(editBtn).toBeTruthy()
+    await editBtn.trigger('click')
+    await settle(w)
+    return w
+  }
+
+  function sent(over) {
+    expect(api.update).toHaveBeenCalledTimes(1)
+    const call = api.update.mock.calls[0]
+    expect(call[0]).toBe('lock')
+    expect(call[1]).toBe(over)
+    return call[2]
+  }
+
+  it('int 送取整后的数字', async () => {
+    // 取整来自 confirmEdit 的 Math.round 而不是输入框精度：把那一处短路成 if (false)
+    // 后这一格即红（42.6 原样送出），所以这一格同时钉住了形状与取整两条腿。
+    const w = await editFirstRow([
+      param({ key: 'page_size', name: '分页条数', value_type: 'int', value: '30', default_value: '30', min: '1', max: '1000', step: '1' })
+    ])
+    w.vm.editValueNum = 42.6
+    await settle(w)
+    await w.vm.confirmEdit()
+    expect(sent('page_size')).toBe(43)
+    expect(typeof api.update.mock.calls[0][2]).toBe('number')
+  })
+
+  it('float 送数字且不取整', async () => {
+    const w = await editFirstRow([
+      param({ key: 'ratio', name: '采样比例', value_type: 'float', value: '0.7', default_value: '0.7', min: '0', max: '1', step: '0.1' })
+    ])
+    w.vm.editValueNum = 0.25
+    await settle(w)
+    await w.vm.confirmEdit()
+    expect(sent('ratio')).toBe(0.25)
+  })
+
+  it('duration 送秒数的数字形态', async () => {
+    const w = await editFirstRow([param({ key: 'inbox_human_ttl', value: '3600', default_value: '86400' })])
+    w.vm.editValueNum = 7200
+    await settle(w)
+    await w.vm.confirmEdit()
+    expect(sent('inbox_human_ttl')).toBe(7200)
+    expect(typeof api.update.mock.calls[0][2]).toBe('number')
+  })
+
+  it('bool 送真正的布尔值', async () => {
+    // 这条最容易被漏：bool 行的编辑控件是 el-switch，值是 boolean；
+    // 一旦某次改动把它写成字符串 "true"，服务端的 bool 校验会把它当非法值拒掉，
+    // 而「拒掉」在页面上只是一条红字，不看载荷断言根本发现不了。
+    const w = await editFirstRow([
+      param({ key: 'verbose_log', name: '详细日志', value_type: 'bool', value: 'false', default_value: 'false', min: undefined, max: undefined, step: undefined })
+    ])
+    w.vm.editValueBool = true
+    await settle(w)
+    await w.vm.confirmEdit()
+    expect(sent('verbose_log')).toBe(true)
+    expect(typeof api.update.mock.calls[0][2]).toBe('boolean')
+  })
+
+  it('json 送字符串且逐字不改', async () => {
+    // 正控制：合法 JSON 的改动必须真的发出去。下面两格「不发请求」的断言只有配上这一格
+    // 才有意义，否则「confirmEdit 从不提交」也能让三格全绿。
+    const w = await editFirstRow([
+      param({ key: 'global_override', name: '全局覆盖', value_type: 'json', value: '{"a":1}', default_value: '{"a":1}' })
+    ])
+    w.vm.editValueStr = '{"a":2}'
+    await settle(w)
+    await w.vm.confirmEdit()
+    expect(sent('global_override')).toBe('{"a":2}')
+    expect(typeof api.update.mock.calls[0][2]).toBe('string')
+  })
+
+  it('string 送字符串', async () => {
+    const w = await editFirstRow([
+      param({ key: 'industry_profile', name: '行业画像', value_type: 'string', value: 'retail', default_value: 'retail' })
+    ])
+    w.vm.editValueStr = 'manufacture'
+    await settle(w)
+    await w.vm.confirmEdit()
+    expect(sent('industry_profile')).toBe('manufacture')
+  })
+
+  it('JSON 参数不能置空：拦在前端，不发请求', async () => {
+    const w = await editFirstRow([
+      param({ key: 'global_override', name: '全局覆盖', value_type: 'json', value: '{"a":1}', default_value: '{"a":1}' })
+    ])
+    w.vm.editValueStr = ''
+    await settle(w)
+    await w.vm.confirmEdit()
+    expect(api.update).not.toHaveBeenCalled()
+    expect(String(w.vm.editError)).toContain('不能置空')
+  })
+
+  it('坏 JSON 提交不出去', async () => {
+    const w = await editFirstRow([
+      param({ key: 'global_override', name: '全局覆盖', value_type: 'json', value: '{"a":1}', default_value: '{"a":1}' })
+    ])
+    w.vm.editValueStr = '{"a":1,}'
+    await settle(w)
+    await w.vm.confirmEdit()
+    expect(api.update).not.toHaveBeenCalled()
+    expect(String(w.vm.editError)).toContain('JSON 语法错误')
+  })
+
+  it('值本身是 JSON 的 string 参数同样受空值与语法约束', async () => {
+    // looksLikeJson 不只认 value_type：库里存量的 string 旋钮照样可能装着一整份 JSON
+    // （这一轮把 3 条 retyped 成 json，但读侧与历史行仍会回字符串），
+    // 空串对它们同样是「把整份策略抹掉」，不能让类型名成为漏网的口子。
+    const w = await editFirstRow([
+      param({ key: 'provider_failover_policy', name: '容灾策略', value_type: 'string', value: '[{"p":"a"}]', default_value: '[{"p":"a"}]' })
+    ])
+    w.vm.editValueStr = ''
+    await settle(w)
+    await w.vm.confirmEdit()
+    expect(api.update).not.toHaveBeenCalled()
+    expect(String(w.vm.editError)).toContain('不能置空')
+  })
+
+  it('普通字符串参数允许显式置空', async () => {
+    // 反向一格：上面的空值拦截只能打在 JSON 上。普通串参数「置空」是有意义的
+    // （服务端的 string 分支明确接受空串＝显式清空），前端把它一起拦掉就是多了一处假墙。
+    const w = await editFirstRow([
+      param({ key: 'industry_profile', name: '行业画像', value_type: 'string', value: 'retail', default_value: 'retail' })
+    ])
+    w.vm.editValueStr = ''
+    await settle(w)
+    await w.vm.confirmEdit()
+    expect(sent('industry_profile')).toBe('')
+  })
+
+  it('数字输入框会把越界值夹回上下限后提交', async () => {
+    // 这一格原本断的是「validateEdit 报『不能大于最大值』」，实测读数是提交成功、
+    // 值为 100：el-input-number 在 modelValue 变化时就先把值夹进 [min,max] 并回写，
+    // 那条范围报错在配了 min/max 的行上根本走不到。
+    // 所以这里如实钉住**真实防线**（客户端夹价），而不是钉一条打不着的错误文案；
+    // 后端 validateValue 的范围校验仍是权威，见 controller/service 那侧的用例。
+    const w = await editFirstRow([
+      param({ key: 'page_size', name: '分页条数', value_type: 'int', value: '30', default_value: '30', min: '1', max: '100', step: '1' })
+    ])
+    w.vm.editValueNum = 5000
+    await settle(w)
+    await w.vm.confirmEdit()
+    expect(sent('page_size')).toBe(100)
+    // 下界同样夹：填 0 不会把 0 发出去（int 的 0 对分页条数同样是「填错了」）。
+    w.vm.editValueNum = 0
+    await settle(w)
+    api.update.mockClear()
+    await w.vm.confirmEdit()
+    expect(sent('page_size')).toBe(1)
+    expect(String(w.vm.editError)).toBe('')
+  })
+
+  it('min 为 0 的 duration 填 0 时由前端拦下', async () => {
+    // 锁 TTL / 缓冲区上限填 0 的后果是「不报错、只是功能悄悄不工作」，
+    // 而这种行的 min 就是 0 ⇒ 客户端夹价拦不住，服务端按范围校验也放行，
+    // 唯一还在出声的就是 looksBlockingZero 这一层。
+    const w = await editFirstRow([
+      param({ key: 'inbox_human_ttl', value: '3600', default_value: '86400', min: '0', max: '604800', step: '60' })
+    ])
+    w.vm.editValueNum = 0
+    await settle(w)
+    await w.vm.confirmEdit()
+    expect(api.update).not.toHaveBeenCalled()
+    expect(String(w.vm.editError)).toContain('0 会让这个参数失效')
+  })
+
+  it('值没改时保存按钮禁用（不会留一条空审计）', async () => {
+    // 每一次 update 都写一条 config_param_audit_logs。原值不改也提交，
+    // 审计里就会堆满「A 改成 A」这种噪声行，把真改动埋掉。
+    api.list.mockResolvedValue([param({ key: 'inbox_human_ttl', value: '86400', default_value: '86400' })])
+    const w = mountPage()
+    await settle(w)
+    const editBtn = w.findAll('button').find((b) => b.text().includes('编辑'))
+    await editBtn.trigger('click')
+    await settle(w)
+    const save = w.findAll('button').find((b) => b.text().includes('保存'))
+    expect(save).toBeTruthy()
+    expect(save.attributes('disabled')).toBeDefined()
+  })
 })

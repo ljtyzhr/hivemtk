@@ -39,7 +39,10 @@ export const CLUE_TYPE_OPTIONS = Object.freeze([
   { value: '15', label: '网页组件', tagType: 'primary', sort: 15, group: 'clue' },
   { value: '16', label: '邮件', tagType: 'info', sort: 16, group: 'clue' },
   { value: '17', label: '短信', tagType: 'info', sort: 17, group: 'clue' },
-  { value: '99', label: '自定义', tagType: 'info', sort: 18, group: 'clue' }
+  // 18 = GEO 决策链捕获：以前它与抖音共用 9，所以这一档在前端根本不存在（后端也是，
+  // 列表页把它显示成「抖音」）。号由 v3.56.0 迁移从存量 9 里分出来，标签表随之多出一条。
+  { value: '18', label: 'GEO 决策链捕获', tagType: 'primary', sort: 18, group: 'clue' },
+  { value: '99', label: '自定义', tagType: 'info', sort: 19, group: 'clue' }
 ]);
 
 // 历史 6 档：仅 utils/map.js 的旧接口还在引，标签一律以 CLUE_TYPE_OPTIONS 为准

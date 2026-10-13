@@ -213,4 +213,5 @@ func RegisterMigrations(registry *migration.MigrationRegistry, db *gorm.DB) {
 	register(NewFailoverPolicyToConfigParamMigration(db))
 	register(NewEmbeddingGlobalOverrideToConfigParamMigration(db))
 	register(NewMenuGrantCeilingPruneMigration(db))
+	register(NewClueGeoCaptureTypeSplitMigration(db))
 }

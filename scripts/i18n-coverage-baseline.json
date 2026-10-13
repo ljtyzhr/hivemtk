@@ -4,17 +4,17 @@
   "t_call_keys": 923,
   "dotted_keys": 183,
   "raw_t_calls": 740,
-  "locale_orphans": 1455,
-  "base_locale_entries": 1846,
+  "locale_orphans": 1453,
+  "base_locale_entries": 1844,
   "locale_counts": {
-    "ar": 1856,
-    "de": 1848,
-    "en": 1847,
-    "es": 1848,
-    "fr": 1848,
-    "ja": 1856,
-    "pt": 1848,
-    "ru": 1848,
-    "zh": 1846
+    "ar": 1854,
+    "de": 1846,
+    "en": 1845,
+    "es": 1846,
+    "fr": 1846,
+    "ja": 1854,
+    "pt": 1846,
+    "ru": 1846,
+    "zh": 1844
   }
 }

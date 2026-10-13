@@ -197,7 +197,7 @@
                 <el-icon class="el-icon--upload"><upload-filled /></el-icon>
                 <div class="el-upload__text">将文件拖到此处，或<em>点击上传</em></div>
                 <template #tip>
-                  <div class="el-upload__tip">支持 PDF / Word / TXT / Markdown / HTML / JSON / CSV,单个文件不超过 50MB</div>
+                  <div class="el-upload__tip">支持 PDF / Word / TXT / Markdown / HTML / JSON / CSV,单个文件不超过 {{ maxUploadMB }}MB</div>
                 </template>
               </el-upload>
             </el-form-item>
@@ -284,7 +284,7 @@
 <script setup>
 import i18n from '@/i18n'
 
-import { ref, reactive, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Upload, Refresh, UploadFilled, Search, Document, ChatDotRound, Plus, List } from '@element-plus/icons-vue'
@@ -294,6 +294,7 @@ import { ragProductConfigAPI } from '@/api/ragProductConfig'
 import { listTools } from '@/api/aiTool'
 import { EMBED_STATUS, getStatusLabel, getStatusTagType } from '@/constants/status';
 import { getSourceLabel, getSourceTagType } from '@/constants/source'
+import { rtNum } from '@/utils/runtimeConfig'
 
 const router = useRouter()
 
@@ -412,9 +413,15 @@ const handleSearch = () => {
   loadDocuments()
 }
 
+// 上传上限的 MB 数：模板里那句「不超过 N MB」的提示与本地拦截共用这一个来源。
+// 以前同一个概念有三份真相——提示写死 50、拦截写死 50*1024*1024、后端读
+// knowledge.max_upload_file_size。运维调到 100MB 后页面照样拦在 50MB，
+// 调到 20MB 后页面又放行到 50MB 让后端报一条本地没有对应文案的错。
+const maxUploadMB = computed(() => Math.round(rtNum('knowledge', 'max_upload_file_size', 52428800) / 1024 / 1024))
+
 const handleFileChange = (file) => {
-  if (file.size > 50 * 1024 * 1024) {
-    ElMessage.error(i18n.global.t('文件大小不能超过 50MB'))
+  if (file.size > maxUploadMB.value * 1024 * 1024) {
+    ElMessage.error(i18n.global.t('文件大小不能超过{size}MB', { size: maxUploadMB.value }))
     return false
   }
   importForm.file = file.raw

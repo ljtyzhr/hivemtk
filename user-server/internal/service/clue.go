@@ -82,17 +82,14 @@ type ClueType struct {
 }
 
 const (
-	ClueTypeQQ         int64 = 1
-	ClueTypeWeChat     int64 = 2
-	ClueTypePhone      int64 = 3
-	ClueTypeTelegram   int64 = 4
-	ClueTypeWhatsapp   int64 = 5
-	ClueTypeTwitter    int64 = 6
-	ClueTypeWeCom      int64 = 7
-	ClueTypeLeadMining int64 = 8
-	// ClueTypeGeoCapture GEO 决策链捕获线索（v3）：与 LLM 挖掘(8)区分，
-	// SourceID 存思维链 chain_id 供转化归因回写
-	ClueTypeGeoCapture  int64 = 9
+	ClueTypeQQ          int64 = 1
+	ClueTypeWeChat      int64 = 2
+	ClueTypePhone       int64 = 3
+	ClueTypeTelegram    int64 = 4
+	ClueTypeWhatsapp    int64 = 5
+	ClueTypeTwitter     int64 = 6
+	ClueTypeWeCom       int64 = 7
+	ClueTypeLeadMining  int64 = 8
 	ClueTypeDouyin      int64 = 9
 	ClueTypeKuaishou    int64 = 10
 	ClueTypeXiaohongshu int64 = 11
@@ -102,13 +99,20 @@ const (
 	ClueTypeWebWidget   int64 = 15
 	ClueTypeEmail       int64 = 16
 	ClueTypeSMS         int64 = 17
-	ClueTypeCustom      int64 = 99
+	// ClueTypeGeoCapture GEO 决策链捕获线索（v3）：SourceID 存思维链 chain_id 供转化归因回写。
+	//
+	// 它历史上等于 9，与 ClueTypeDouyin 撞号 —— 撞号不是显示瑕疵，是三处实打实的错账：
+	// GEO 捕获的线索在列表页显示成「抖音」、评分走抖音档、并且与抖音线索共用
+	// (type, account) 去重键（同一个联系人被两个来源各抓一次时，第二个会被当成重复丢掉）。
+	// 18 是这张表第一个没被占用的号（1-17 连续、99 留给自定义）。
+	//
+	// 改值必须连同存量 clues.type 一起迁移，否则老库里 GEO 捕获的行仍写着 9、
+	// 新写入的行写 18，同一个来源被拆成两类。迁移见 v3.56.0；
+	// 判据是 source_id 命中 geo_query_chains.chain_id（chain_id 形如
+	// "verify:<品牌>:<uuid>"，与抖音侧的群号/lead_mining 字面量不同形，误伤面为零）。
+	ClueTypeGeoCapture int64 = 18
+	ClueTypeCustom     int64 = 99
 )
-
-// IsWhatsappType 判断是否为 WhatsApp 线索类型（兼容历史错误 type=7）
-func IsWhatsappType(t int64) bool {
-	return t == ClueTypeWhatsapp || t == 7
-}
 
 // PlatformToClueType 平台渠道名 → 线索类型 ID 映射
 func PlatformToClueType(platform string) int64 {
@@ -170,6 +174,9 @@ var defaultClueTypes = []ClueType{
 	{Value: "15", Label: "网页组件"},
 	{Value: "16", Label: "邮件"},
 	{Value: "17", Label: "短信"},
+	// 18 = GEO 决策链捕获。这一档以前不存在：它和抖音共用 9，所以列表页把 GEO 捕获
+	// 显示成「抖音」、按类型筛选时也筛不出来。类型号由 v3.56.0 迁移从存量 9 里分出来。
+	{Value: "18", Label: "GEO 决策链捕获"},
 	{Value: "99", Label: "自定义"},
 }
 

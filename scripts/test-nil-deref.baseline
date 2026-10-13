@@ -4,13 +4,25 @@
 # 判据：现算 > 登记 ⇒ OVER 红；文件不在本表却出现站点 ⇒ NEW 红；
 #       登记数额大于现算 ⇒ STALE 红（修掉就划掉，不许留旧数额养僵尸条目）。
 #
-# 当前是**零条目**（2026-09-22 批M-10 建门时）：门首跑实测到的 8 处确证站点，本轮全部就地判空收口，
-# 没有留下一处需要登记的存量——
+# 当前条目（2026-10-13 现跑 `python3 scripts/check-test-nil-deref.py` 所得，两边数字同源）：
 #   · internal/service/webhook_batchf4_m01_qq_test.go 4 处（dispatchQQ 的 `lazyDB()==nil` 那一支）
 #   · internal/service/handoff_cond_tree_test.go 2 处（ParseCondTree 的空串那一支；:50 那处的期望值
 #     与 nil 守卫的返回值同为 false，不钉非 nil 就是**假绿**，比 panic 更阴）
 #   · internal/repository/agent_kb_binding_test.go 1 处、knowledge_base_test.go 1 处
 #     （GetByAgentKB／GetByID 把 ErrRecordNotFound 归成 (nil, nil)）
+# 以上 2026-09-22 建门时全部就地判空收口，遂以零条目入库。
+#
+#   · internal/service/inbox_test.go 63 处、message_hub_test.go 2 处（2026-10-13 登记）：
+#     `4b2c05d3`（Service 构造器去 *gorm.DB 参数）给各 Service 的读方法补了
+#     `if s.xxxRepo == nil { return nil, nil }` 的未装配兜底支，同时把测试里的接收者变成能被
+#     类型解析构造出来的 `svc := NewInboxService(...)` —— 于是原先归入"存疑"的调用点整批转成
+#     "确证"。用例一侧走的是已装配的那一支（nil 分支在测试里不可达），所以这 65 处是本门口径下的
+#     **候选清单**而不是缺陷清单；要收口的是产码那句 `return nil, nil`（未装配应当报错，
+#     与 check-async-global-read／零装配点哨兵同一条不变量），不在这道门的承诺范围内，故登记存量、
+#     把"新增一处就红"留给下一位。
 # 取证与四档收紧口径见脚本 docstring 与审计文档 §23.17 第 2 段（来路登记在 §23.16 第 8 条）。
 #
 # 注意：本文件**必须存在**（可以是零条目）。缺文件时门退 2 报 ENV-BROKEN，而不是"没基线 ⇒ 全绿"。
+user-server/internal/service/inbox_test.go	63
+user-server/internal/service/message_hub_test.go	2
+

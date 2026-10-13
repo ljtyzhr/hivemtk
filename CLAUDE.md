@@ -107,6 +107,22 @@
 | 文档/Markdown | `python3 scripts/check-md-links-offline.py .`（**只认 git 索引**，先 `git add` 再跑） |
 | 提交前总门禁 | `make audit` + `make lint` + `make vet` + `make test-go` |
 
+**跑 Go 测试前必须先导出测试库连接变量**，否则 `testdb.go:346` 会用空密码连 8202，批量报
+`初始化进程级测试库失败: ... password authentication failed for user "admin" (SQLSTATE 28P01)`
+——**这是环境失败，不是代码 bug**，不许当缺陷去「修」（2026-10-13 实测：不导出时
+`./internal/aiagent/...` 21 个 FAIL，导出后全绿）：
+
+```bash
+cd user-server
+export POSTGRES_TEST_HOST=127.0.0.1 POSTGRES_TEST_PORT=8202 \
+       POSTGRES_TEST_PASSWORD="$(grep '^POSTGRES_PASSWORD=' ../.env | cut -d= -f2)"
+go test ./internal/<改动包>/...
+```
+
+变量名是 `POSTGRES_TEST_*` 前缀，**与 `.env` 的 `POSTGRES_PASSWORD` 不同名**，不会自动继承；
+`testdb.go:91` 也支持 `POSTGRES_TEST_DSN` 一把梭。判据：报错含 `SQLSTATE 28P01` 或
+`初始化进程级测试库失败` ⇒ 先查环境，不是 bug。
+
 `make audit` 已知会因**在途未提交修改**在 `check-test-nil-deref.py` 报 Error 1
 （`internal/service/inbox_test.go`、`message_hub_test.go`）——那是别人 lane 的存量改动，
 本轮改的是别的文件时，如实记录在 `fix.md` 的「Local Verification」里，**不许为了绿灯去改别人的文件，
@@ -182,6 +198,9 @@ spec/plan/tasks 写什么，实现就必须按什么落地。凡是下列约束�
 | 前端 `user-web/` | `cd user-web && npm run test`（vitest） |
 | 文档/Markdown | `python3 scripts/check-md-links-offline.py .`（**只认 git 索引**，先 `git add` 再跑） |
 | 提交前总门禁 | `make audit` + `make lint` + `make vet` + `make test-go` |
+
+**Go 测试同样适用 3.5 的测试库连接前提**：先 `export POSTGRES_TEST_HOST/PORT/PASSWORD`
+（见 3.5 代码块），否则 `SQLSTATE 28P01` 批量失败是环境问题，不许当 bug 修。
 
 `make audit` 的已知红同上（`check-test-nil-deref.py` 报 Error 1，源于**在途未提交修改**的
 `internal/service/inbox_test.go`、`message_hub_test.go`）——如实记录，**不许为绿灯改别人的文件，也不许谎称通过**。

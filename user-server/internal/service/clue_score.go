@@ -353,6 +353,11 @@ func scoreChannel(clueType int64) int {
 		return 70
 	case ClueTypeLeadMining:
 		return 60
+	// GEO 决策链捕获在撞号期间一直吃的是抖音档（65）。这次只把"它是谁"分开，
+	// 不动"它值多少"——评分档位属产品口径，真要单开一档得连着线索温度阈值一起看，
+	// 不在一次身份修复里顺手改排序。
+	case ClueTypeGeoCapture:
+		return 65
 	default:
 		return 50
 	}

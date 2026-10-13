@@ -77,6 +77,11 @@ export const inboxApi = {
   // 坐席负载
   staffLoad(staff) {
     return http.get(`/api/inbox/staff/${encodeURIComponent(staff)}/load`)
+  },
+
+  // 可分配坐席名单（脱敏四列：id/username/real_name/role）
+  listAgents() {
+    return http.get('/api/inbox/agents')
   }
 }
 

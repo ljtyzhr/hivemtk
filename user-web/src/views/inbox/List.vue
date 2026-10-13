@@ -221,7 +221,7 @@
       <el-form label-width="90px">
         <el-form-item :label="$t('坐席')">
           <el-select v-model="assignForm.to_user_id" filterable :placeholder="$t('选择坐席')" style="width: 100%">
-            <el-option v-for="s in staffOptions" :key="s.username" :label="`${s.nickname || s.username}`" :value="s.username" />
+            <el-option v-for="s in staffOptions" :key="s.username" :label="`${s.real_name || s.username}`" :value="s.username" />
           </el-select>
         </el-form-item>
         <el-form-item :label="$t('备注')">
@@ -290,7 +290,6 @@ import {
   Delete, ArrowDown
 } from '@element-plus/icons-vue'
 import { inboxApi } from '@/api/inbox'
-import { listSystemUsers } from '@/api/systemUser'
 import { useUserStore } from '@/stores/user'
 import { CHANNEL_OPTIONS, getChannelLabel, getChannelTagType } from '@/constants/channel'
 import i18n from '@/i18n'
@@ -542,9 +541,9 @@ const handleDeleteMessage = async (msg) => {
 const loadStaffOptions = async () => {
   if (staffOptions.value.length) return
   try {
-    const res = await listSystemUsers({ page: 1, page_size: 100 })
+    const res = await inboxApi.listAgents()
     const data = res?.data || res || {}
-    staffOptions.value = data.list || data || []
+    staffOptions.value = data.list || []
   } catch (e) {
     console.warn('[inbox] loadStaff', e)
     staffOptions.value = []

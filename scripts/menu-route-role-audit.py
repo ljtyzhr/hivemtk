@@ -3,14 +3,15 @@
 
 ## 它补的是哪个洞
 侧栏给谁看、接口谁能调，是两份**独立写下**的授权：
-- 前者在 `user-server/internal/model/menu.go` 的 `SystemMenuTree` 各节点 `Roles`
-  （落库后经 `role_menu_permissions` 分配，首空表按 `DefaultMenuKeys` seed）；
+- 前者在 `user-server/internal/model/menu.go` 的 `SystemMenuTree` 各节点 `Roles`。
+  它是**授权上界**，不是初始值：每次读都过它（`model.EligibleMenuKeys`），
+  库里的 `role_menu_permissions` 只能在它之内再收窄；首空表按 `DefaultMenuKeys` seed；
 - 后者在路由注册点上的守卫（`JWTAuthMiddleware` / `AdminAuthMiddleware` /
   `RoutePolicyGuard` 那张仅超管表）。
 
-两者会各改各的，而两个方向的错配都已经在真系统里发生过：
+两者会各改各的，而两个方向的错配都在真系统里发生过：
 - **菜单藏着、接口放行**＝"前端不显示＝没有权限"这个假前提：任何登录角色直接调 API
-  就能读到只该超管看的数据（本轮实测到的形态：统一消息、若干运营看板）。
+  就能读到只该超管看的数据（实测到的形态：统一消息、若干运营看板）。
 - **菜单给了、接口拦人**＝页面能打开但一片空白／满屏 403，症状与"没有菜单"几乎一样，
   排查时最容易先怀疑前端。
 
@@ -34,7 +35,7 @@
 
 ## 消费面口径
 一个页面调了哪些接口：从视图文件出发，沿**本地模块 import**（`@/…`、`./…`、`../…`）
-递归到深度 3，沿途每份文件里出现的 `/api/…` 字面量都算这个页面的调用面。
+递归到深度 4（含视图文件自己那一层），沿途每份文件里出现的 `/api/…` 字面量都算这个页面的调用面。
 形状归一与串抽取直接复用 `scripts/route-consumer-triage.py` 的 `shape_of` /
 `extract_tokens`——两处口径必须同源，否则同一个页面在两份读数里会被算成两个消费面。
 
@@ -68,13 +69,53 @@ LEAK 名册不只是清单：`--emit-go REL` 把它渲染成 `user-server/intern
   且未收口条数为 0（防"表还在、防线没了"——把一条注册挪到守卫快照之前时，档位退回
   identity，那份表反而成了没人读的字节，只比字节的门照样绿）。
 
+## BLOCK 再拆两档：整页死 / 页内残余（block-dead.tsv / block-residual.tsv）
+BLOCK 只说"菜单给了非超管、接口钉死超管"，可这一条接口是哪一刻打的决定后果：
+挂载就打 ⇒ 角色点进去是空表加一串 403（`block-dead.tsv`，这一档必须为 0）；
+按钮才打 ⇒ 页面能用、缺一个动作（`block-residual.tsv`，按基线逐条管）。
+"哪一刻"用的是文本区间口径（`<script>` 顶层语句、`onMounted(…)` 实参、选项式
+`mounted(){…}` 三种算挂载；模板与函数体不算），认不出宿主方法时**倒向残余**——
+误判死会把合法残余变成整条门红，而残余档本来就有基线逐条兜着。
+基线 `scripts/menu-block-residual.baseline` 是四列 TSV（菜单 key、页面、形状、人判的理由），
+门的四条判据：有整页死就红；名册有、基线没有就红；基线有、名册已经没有就红；
+条目没理由或行列数不对就红。整页死不许写进基线过门。
+
+## UNROUTED：前端在打、后端没有那条口（unrouted-api.tsv）
+ORPHAN 量的是"菜单指向的 path 在前端路由里找不到"，这一档量相反的那半：
+`user-web/src/api/` 里每个请求调用的路径形状，守卫档位导出件必须有一行接得住。
+接不住就是页面一调就 404，而编译、单测、lint 全都不会红——只有这一档跨前后端对账。
+它最容易在"前后端同一批加"的改动里半边失踪（方法建了、注册没跟上，或注册被删、方法留着）。
+真仓库 1014 个调用点实测 0 条失联 ⇒ 这一档按"必须为 0"管，不设基线；调用点归零单列退 2
+（那是判据没吃饭，不是全绿）。抽取口径三条各有控制，缺任何一条都会读出假孤儿：
+只取调用第一个实参位上的字面量（拦截器错误文案里就写着接口路径）、
+不认接收者（公开会话那一族先转给本文件的包装函数再转 axios）、
+与 live 路由逐段比且路由侧 `*` 吃任一段（注册写 `:id`、前端写死 `list` 是 gin 的正常匹配）。
+没盖住的：`http.get(BASE + '/x')` 这种字符串拼接，实测 0 处。
+
 ## 自检
-`--self-check` 用内存夹具验三样东西：菜单解析器能算出父子链上的可见性、
+`--self-check` 用内存夹具验四样东西：菜单解析器能算出父子链上的可见性、
 路由页解析器能把嵌套相对 path 拼成绝对 path、两向错配各自开火且有极性对
 （"admin-only 菜单 + identity 接口"必须报 LEAK，"admin-only 菜单 + super-admin 接口"
 必须不报；"非超管可见菜单 + super-admin 接口"必须报 BLOCK；同一形状若是壳层在调，
-LEAK 必须让位给降级）。
+LEAK 必须让位给降级）、强制项这条腿真的会拦（名单里的形状没进表、或档位还留着
+identity，都必须出声，都在场才算过）。
+BLOCK 两档另有夹具：挂载区间正反两枪（顶层语句与 `onMounted` 算挂载、模板与函数体不算）、
+宿主方法名的三种写法、基线对账的四条判据各打一枪且带"逐条对上时放行"那枚反向。
+UNROUTED 另有 10 枚：调用点抽取覆盖面、包装函数转发、`${id}` 逐段匹配、模块级 BASE 折叠、
+注释与文案两枚排除、以及"全接得住⇒名册空"和"api 目录读不到⇒调用点 0"两枚极性对。
 任何一枚不成立就退非零：读数先要能否掉自己，才允许拿去判别人。
+
+## 执行入口（两个面各有各的，缺一面就是半道门）
+- `--self-check`（39 枚，定位仓库根之前就返回，不读仓库、不连库、不联网）：
+  `make audit` 与 user-server-ci.yml 的 `static-gates` 作业各跑一次。
+- 全量读数（42 枚＝上面 39 枚 + 3 枚要真仓库/测试库）：`make audit-rbac-surface`
+  与 `test-race-core` 末步（带 postgres 的作业；静态线里跑只会得到恒 rc=2 的哑门）。
+
+为什么两条都要有执行点，而不是一条：本脚本一度**两个都没有**——判据与名册都在仓库里，
+`--self-check` 与 `--check-go` 都写好了，CI 与 Makefile 里却零引用，于是它是一段
+"只有脚手架没有检查器"的注释：改坏正则、把 BLOCK 的极性写反、把能力面表手改一行，
+编译／单测／lint 没有一样会红。判据文件本身还要单独进触发 paths（见
+scripts/check-ci-gate-paths.py 的判据 4），否则"只改判据"的提交连那一步都不重跑。
 """
 
 import argparse
@@ -82,8 +123,10 @@ import hashlib
 import importlib.util
 import os
 import re
+import shutil
 import subprocess
 import sys
+import tempfile
 import time
 
 HERE = os.path.dirname(os.path.abspath(__file__))
@@ -497,13 +540,13 @@ def _import_child(root, rel_path, spec):
     return None
 
 
-def collect_shapes(root, view_rel, max_depth=4, forbidden=()):
-    """沿本地 import 递归收 /api/… 形状。
+def walk_closure_files(root, view_rel, max_depth=4, forbidden=()):
+    """沿本地 import 递归，返回页面闭包里**真实存在**的仓库相对文件路径。
 
-    forbidden 用来在某个目录边界停住：页面闭包不许顺路由表爬进别的页面，
-    壳层闭包不许顺 `@/router` 把 216 个页面的调用面全收进来（那样 LEAK 恒空）。
+    collect_shapes 与"这条形状由哪个方法拥有"的判定必须走同一棵闭包树：两套走法
+    （比如一处认 index.js 一处不认）会让名册与证据对不上，而读名册的人只会看到"没证据"。
     """
-    shapes = set()
+    files = []
     seen = set()
 
     def visit(rel_path, depth):
@@ -523,7 +566,7 @@ def collect_shapes(root, view_rel, max_depth=4, forbidden=()):
                     break
             else:
                 return
-        shapes.update(api_shapes_in_file(abs_path))
+        files.append(abs_path)
         try:
             with open(abs_path, encoding="utf-8") as f:
                 text = f.read()
@@ -536,6 +579,18 @@ def collect_shapes(root, view_rel, max_depth=4, forbidden=()):
             visit(child, depth + 1)
 
     visit(view_rel, 1)
+    return files
+
+
+def collect_shapes(root, view_rel, max_depth=4, forbidden=()):
+    """沿本地 import 递归收 /api/… 形状。
+
+    forbidden 用来在某个目录边界停住：页面闭包不许顺路由表爬进别的页面，
+    壳层闭包不许顺 `@/router` 把 216 个页面的调用面全收进来（那样 LEAK 恒空）。
+    """
+    shapes = set()
+    for abs_path in walk_closure_files(root, view_rel, max_depth, forbidden):
+        shapes.update(api_shapes_in_file(abs_path))
     return shapes
 
 
@@ -671,6 +726,370 @@ def audit(root, tiers):
                                vis[CUSTOMER_SERVICE], vis[STAFF]))
     return (menu_nodes, pages, leaves, leaks, blocks, orphans, shared,
             demoted, unknowns, globals_, shape_users)
+
+
+# ── BLOCK 拆两档：整页死 / 页内残余 ─────────────────────────────────────────
+#
+# BLOCK 那句话只有一层意思：菜单把节点发给了非超管角色，页面里的某条接口却钉死 super-admin。
+# 但那条接口是**哪一刻**打的，后果差一个量级：
+#
+#   整页死（block-dead）：挂载就打 ⇒ 角色点进菜单看到的是空表加一串 403。这一档必须为 0。
+#   页内残余（block-residual）：主数据口能用，只有一个动作（删除／同步／试跑）403 ⇒
+#       缺的是功能不是页面。这一档按基线管：每条一句人判过的理由，条目只减不增。
+#
+# "挂载就打"用的是文本区间口径，不是执行语义，因为调用图要跨文件且没有类型信息：
+#   ① <script> 段里括号深度为 0 的语句（`<script setup>` 的顶层就是 setup 期执行）；
+#   ② onMounted(...)／onBeforeMount(...) 的实参区间；
+#   ③ 选项式 API 的 mounted() {...}／beforeMount() {...} 方法体。
+# 模板不算挂载区间（`@click="del(row)"` 就躺在那儿）。认不出宿主方法、或方法只在挂载区间
+# 之外被调用 ⇒ 不判死。这个方向的选择是刻意的：误判成死会把一条合法的残余变成整条门红，
+# 而残余档本来就有基线逐条管着，漏判死只会让名册多一行"待人工看"，不会放过任何东西。
+
+MOUNT_HOOK_PAREN_RE = re.compile(r"\b(?:onMounted|onBeforeMount)\s*\(")
+MOUNT_HOOK_BRACE_RE = re.compile(r"\b(?:mounted|beforeMount)\s*\(\s*\)\s*\{")
+METHOD_DEF_RE = re.compile(r"^\s*(?:async\s+)?([A-Za-z_$][\w$]*)\s*\([^()]*\)\s*\{\s*$")
+PROP_FN_RE = re.compile(r"^\s*([A-Za-z_$][\w$]*)\s*:\s*(?:async\s*)?(?:function\s*)?\(")
+FUNC_DECL_RE = re.compile(r"\bfunction\s+([A-Za-z_$][\w$]*)\s*\(")
+SCRIPT_BLOCK_RE = re.compile(r"<script\b[^>]*>(.*?)</script>", re.S)
+BLOCK_BASELINE_REL = os.path.join("scripts", "menu-block-residual.baseline")
+
+
+def _skip_literal(text, i):
+    """i 指向引号时返回串结束后的下标；不是引号就返回 i。与 match_brace 用的同一套跳法。"""
+    n = len(text)
+    if i >= n or text[i] not in "\"'`":
+        return i
+    quote = text[i]
+    j = i + 1
+    while j < n:
+        if text[j] == "\\":
+            j += 2
+            continue
+        if text[j] == quote:
+            return j + 1
+        j += 1
+    return n
+
+
+def match_paren(text, open_idx):
+    """从 '(' 配到闭合 ')'，跳过字符串与注释；配不平就抛，让读数出声而不是静默少一段。"""
+    depth = 0
+    i = open_idx
+    n = len(text)
+    while i < n:
+        ch = text[i]
+        if ch in "\"'`":
+            i = _skip_literal(text, i)
+            continue
+        if ch == "/" and i + 1 < n and text[i + 1] == "/":
+            while i < n and text[i] != "\n":
+                i += 1
+            continue
+        if ch == "/" and i + 1 < n and text[i + 1] == "*":
+            end = text.find("*/", i + 2)
+            i = n if end < 0 else end + 2
+            continue
+        if ch == "(":
+            depth += 1
+        elif ch == ")":
+            depth -= 1
+            if depth == 0:
+                return i
+        i += 1
+    raise ValueError(f"圆括号没配平（起始下标 {open_idx}）：解析器该修，读数不可用")
+
+
+def script_region(text):
+    """只取 .vue 的 <script> 段并拼接；纯 js/ts 文件没有 script 标签，原样返回。
+
+    不剥模板的话，`<template>` 里的 `@click="remove(row)"` 会被当成挂载区间——
+    于是所有"行内按钮调超管接口"的残余都会被读成整页死，那道必须为 0 的闸就恒红。
+    """
+    blocks = SCRIPT_BLOCK_RE.findall(text)
+    if not blocks:
+        return text
+    return "\n".join(blocks)
+
+
+def _top_level_spans(region):
+    """region 里括号深度为 0 的那几段文本的下标区间。"""
+    spans = []
+    depth = 0
+    start = 0
+    i = 0
+    n = len(region)
+    while i < n:
+        ch = region[i]
+        if ch in "\"'`":
+            i = _skip_literal(region, i)
+            continue
+        if ch == "/" and i + 1 < n and region[i + 1] == "/":
+            while i < n and region[i] != "\n":
+                i += 1
+            continue
+        if ch == "/" and i + 1 < n and region[i + 1] == "*":
+            end = region.find("*/", i + 2)
+            i = n if end < 0 else end + 2
+            continue
+        if ch in "([{":
+            if depth == 0:
+                spans.append((start, i))
+                start = -1
+            depth += 1
+        elif ch in ")]}":
+            depth -= 1
+            if depth == 0:
+                start = i + 1
+        i += 1
+    if start >= 0:
+        spans.append((start, n))
+    return spans
+
+
+def mount_spans(text):
+    """挂载即执行的文本区间（下标按传入的那段文本算，调用方别拿全文的下标来比）。"""
+    region = script_region(text)
+    spans = [s for s in _top_level_spans(region) if s[1] > s[0]]
+    for m in MOUNT_HOOK_PAREN_RE.finditer(region):
+        open_idx = region.index("(", m.start())
+        try:
+            close = match_paren(region, open_idx)
+        except ValueError:
+            continue
+        spans.append((m.start(), close + 1))
+    for m in MOUNT_HOOK_BRACE_RE.finditer(region):
+        open_idx = region.rindex("{", m.start(), m.end())
+        close = match_brace(region, open_idx)
+        spans.append((m.start(), close + 1))
+    return region, spans
+
+
+def in_span(spans, idx):
+    return any(a <= idx < b for a, b in spans)
+
+
+def shape_positions(text, shape):
+    """shape 在该文本里的字面量起点。
+
+    归一仍然走 RCT.extract_tokens：自己再写一遍"`${id}` ⇒ `*`"必然与名册漂移，
+    到那时候同一处调用在名册里是一个形状、在证据里是另一个形状，两栏对不上。
+    """
+    for m in RCT.PATH_TOKEN_RE.finditer(text):
+        if m.start() and text[m.start() - 1] in RCT.MODULE_SPEC_PREV:
+            continue
+        if shape in RCT.extract_tokens(m.group(0)):
+            yield m.start()
+
+
+def owner_symbol(text, idx):
+    """idx 处那条接口串所属的方法名；认不出回 None（调用方据此走"不判死"那一侧）。
+
+    只认 src/api/*.js 里真实存在的三种写法：对象方法简写 `remove(id) {`、
+    属性函数 `remove: (id) =>`／`remove: function (id)`、顶层 `function remove(id)`。
+    要求定义行的缩进不深于接口串那行：接口串嵌在 if/循环里时，往上第一条更深的定义
+    不是它的宿主，把宿主认错会把一个根本没被调用的方法名拿去判死。
+    """
+    lines = text.split("\n")
+    line_no = min(text[:idx].count("\n"), len(lines) - 1)
+    cur = lines[line_no]
+    shape_indent = len(cur) - len(cur.lstrip())
+    for j in range(line_no, -1, -1):
+        s = lines[j]
+        if not s.strip():
+            continue
+        indent = len(s) - len(s.lstrip())
+        if indent > shape_indent:
+            continue
+        m = METHOD_DEF_RE.match(s) or PROP_FN_RE.match(s)
+        if m:
+            return m.group(1)
+        fm = FUNC_DECL_RE.search(s)
+        if fm:
+            return fm.group(1)
+    return None
+
+
+def _read_source(abs_path):
+    try:
+        with open(abs_path, encoding="utf-8") as f:
+            return strip_comments(f.read(), abs_path.endswith(".vue"))
+    except (OSError, UnicodeDecodeError):
+        return ""
+
+
+def resolve_view_file(root, view_rel):
+    """把路由表里的组件路径折成磁盘上的实际文件（与 walk_closure_files 同一套补后缀规则）。"""
+    abs_path = os.path.join(root, view_rel)
+    if os.path.isdir(abs_path):
+        abs_path = os.path.join(abs_path, "index.js")
+    if not os.path.exists(abs_path):
+        for cand in (abs_path + ".vue", abs_path + ".js", abs_path + ".ts",
+                     os.path.join(abs_path, "index.js")):
+            if os.path.exists(cand):
+                return cand
+        return None
+    return abs_path
+
+
+def block_dead_evidence(root, view_rel, shape):
+    """(是否整页死, 证据串)。证据串要能让人一眼看出判据落在哪个文件的哪一段。"""
+    page_abs = resolve_view_file(root, view_rel)
+    if page_abs is None:
+        return False, f"页面文件不存在（{view_rel}），挂载区间无从判定"
+    page_text = _read_source(page_abs)
+    region, spans = mount_spans(page_text)
+    # 两条腿都以"落在挂载区间里"为判据：直接字面量这一条也不例外。只按"整段 script 里出现过"
+    # 判的话，任何一条写在点击处理函数里的接口串都会被读成整页死（真仓库上拿按钮触发的删除口
+    # 试过：那条一被写成字面量就红，而它恰恰是最该读成残余的形状）。
+    for pos in shape_positions(region, shape):
+        if in_span(spans, pos):
+            return True, f"形状字面量就在 {view_rel} 的挂载区间内"
+    for abs_path in walk_closure_files(root, view_rel, forbidden=("user-web/src/router",)):
+        if abs_path == page_abs:
+            continue
+        rel = os.path.relpath(abs_path, root).replace(os.sep, "/")
+        text = _read_source(abs_path)
+        names = set()
+        for pos in shape_positions(text, shape):
+            sym = owner_symbol(text, pos)
+            if sym:
+                names.add(sym)
+        for sym in sorted(names):
+            for m in re.finditer(r"\b%s\s*\(" % re.escape(sym), region):
+                if in_span(spans, m.start()):
+                    return True, (f"{view_rel} 的挂载区间调用了 {rel}#{sym}()"
+                                  f"（该方法持有 {shape}）")
+    return False, "挂载区间里没有这条接口的调用点 ⇒ 页内残余"
+
+
+# ── UNROUTED：前端在打、live 路由表里查不到那一条口 ──────────────────────────
+#
+# 这一档量的不是菜单（那是 ORPHAN：菜单指向的 path 在前端路由里找不到），而是**前端调用点
+# 与后端注册面**的对接：`user-web/src/api/` 里每一个请求实参的形状，守卫档位导出件里必须有
+# 一行接得住它。接不住就是页面一调就 404——而编译、单测、lint 全都不会红，因为只有这一侧
+# 会跨前后端对账。
+#
+# 它最容易在"前后端同一批加"的改动里半边失踪：方法建了、注册没跟上（或注册被删、方法留着）。
+# 真仓库 979 个调用点实测 0 条失联，所以这一档按"必须为 0"管，不设基线。
+#
+# 三条口径是它不恒红的前提，各有控制（见 unrouted_api_controls）：
+#   ① 只取**调用第一个实参位**上的字面量。拿整段文件的 /api/ 串当调用点会读出假孤儿：
+#      拦截器的错误文案里就写着 "请先取 GET /sessions/:id/confirm-gate"；
+#   ② 认不出接收者（`http.` / `axios.` / 本地包装函数都算），因为公开会话那一族是先传给
+#      本文件的 `publicPost(url, …)` 再转给 axios 的——按接收者筛会把这 11 条整体漏掉；
+#   ③ 与 live 路由**逐段**比，路由侧的 `*` 吃任一段：注册写 `/api/x/:id`、前端写死
+#      `/api/x/list` 是 gin 的正常匹配，不是失联（拿形状字符串相等判的话会读出一批假孤儿）。
+#
+# 已知没盖住的：`http.get(BASE + '/x')` 这种字符串拼接（api 目录里实测 0 处）。
+
+UNROUTED_API_DIR_REL = os.path.join("user-web", "src", "api")
+# 第一个实参位上的字面量：整串不含空白（含空白的是文案不是路径）。
+# 不以 / 起头也先收（`${BASE}/${id}/test` 起头是插值），折完常量再判是不是路径。
+PATH_ARG_CALL_RE = re.compile(
+    r"[A-Za-z_$][\w$.]*\s*\(\s*(?:\"([^\"\s]*)\"|'([^'\s]*)'|`([^`\s]*)`)")
+MODULE_PATH_CONST_RE = re.compile(
+    r"(?:const|let|var)\s+([A-Za-z_$][\w$]*)\s*=\s*[\"'](/[^\"']*)[\"']")
+
+
+def api_call_shapes(root, api_dir_rel=None):
+    """api 目录里每个请求调用点的 (相对文件, 行号, 形状)。
+
+    目录常量在调用时才取（不写进默认参数）：默认值绑在定义那一刻，测试里换目录会换不动，
+    而"换目录"正是这一档唯一会静默失效的失效方式（见 unrouted_api_controls）。
+
+    返回空名册要让调用方出声：目录改名或挪走时，"0 条失联"是判据没吃饭，不是全绿。
+    """
+    base = os.path.join(root, api_dir_rel or UNROUTED_API_DIR_REL)
+    out = []
+    for dirpath, dirnames, filenames in os.walk(base):
+        dirnames[:] = [x for x in dirnames if x != "node_modules"]
+        for fn in sorted(filenames):
+            if not fn.endswith((".js", ".ts")):
+                continue
+            abs_path = os.path.join(dirpath, fn)
+            rel = os.path.relpath(abs_path, root).replace(os.sep, "/")
+            text = strip_comments(_read_source(abs_path), False)
+            consts = {c.group(1): c.group(2)
+                      for c in MODULE_PATH_CONST_RE.finditer(text)}
+            for vm_ in PATH_ARG_CALL_RE.finditer(text):
+                raw = next(g for g in vm_.groups() if g)
+                for name, val in consts.items():
+                    raw = raw.replace("${" + name + "}", val)
+                raw = raw.split("?")[0].split("#")[0]
+                if not raw.startswith("/"):
+                    continue
+                out.append((rel, text.count("\n", 0, vm_.start()) + 1,
+                            RCT.shape_of(raw)))
+    return out
+
+
+def shape_routed(shape, live_shapes):
+    """live 路由集合里有没有一行接得住这个形状（逐段比，路由侧 * 吃任一段）。"""
+    segs = tuple(shape.split("/"))
+    return any(len(ls) == len(segs)
+               and all(a == "*" or a == b for a, b in zip(ls, segs))
+               for ls in (tuple(s.split("/")) for s in live_shapes))
+
+
+def unrouted_api_calls(root, tiers):
+    """(失联名册, 调用点总数)。名册每条 = (文件, 行号, 形状)。"""
+    calls = api_call_shapes(root)
+    live = set(tiers)
+    return ([c for c in calls if not shape_routed(c[2], live)], len(calls))
+
+
+def load_block_baseline(path):
+    """读残余基线：MENU_KEY、PAGE_PATH、API_SHAPE、REASON 四列制表符分隔。
+
+    表头与 # 开头的说明行不算条目。列数不为 4 的行直接出声——静默跳过会让一条
+    写漏理由的条目被读成"没这条"，而"没这条"在门那边是红，在审计人这里是"已经判过"。
+    """
+    rows = []
+    bad = []
+    if not os.path.exists(path):
+        return None, [f"基线文件不存在：{path}"]
+    with open(path, encoding="utf-8") as f:
+        for no, line in enumerate(f, 1):
+            raw = line.rstrip("\n")
+            if not raw.strip() or raw.startswith("#"):
+                continue
+            cols = raw.split("\t")
+            if cols == ["MENU_KEY", "PAGE_PATH", "API_SHAPE", "REASON"]:
+                continue
+            if len(cols) != 4:
+                bad.append(f"{os.path.relpath(path)}:{no} 列数 {len(cols)}，应为 4 列")
+                continue
+            rows.append(tuple(cols))
+    return rows, bad
+
+
+def block_gate(blocks, dead, baseline_rows, baseline_bad):
+    """BLOCK 两档的判定，返回问题名册（空＝两档都合规）。
+
+    四条判据各自堵一种把门读绿的路子：
+      1) 出现整页死 ⇒ 当场红（这一档没有"先记着"的余地）。
+      2) 名册里有、基线里没有 ⇒ 红：要么修，要么把它写成一条有人签过理由的残余。
+      3) 基线里有、名册里已经没有 ⇒ 红：留着的陈旧条目会把下一批同类误读成"已评审"。
+      4) 基线条目没有理由 ⇒ 红；基线本身格式坏 ⇒ 红（读不全就把没读到的当成不存在）。
+    """
+    problems = []
+    problems.extend(f"整页死：{k} {p} 挂载路径打 {s} —— 菜单发给了非超管，页面落地就是空表加 403"
+                    for k, p, s, _cs, _st in sorted(dead))
+    problems.extend(baseline_bad)
+    produced = {(k, p, s) for k, p, s, _cs, _st in blocks}
+    keyed = {(k, p, s): r for k, p, s, r in baseline_rows}
+    for item in sorted(produced - set(keyed)):
+        problems.append(f"未评审的 BLOCK 条目：{item[0]}|{item[1]}|{item[2]}"
+                        "（修：把接口收进能力档或把菜单收回超管；不修就写进基线并留一句理由）")
+    for item in sorted(set(keyed) - produced):
+        problems.append(f"基线条目已不在名册里，请删掉：{item[0]}|{item[1]}|{item[2]}")
+    for item, reason in sorted(keyed.items()):
+        if not reason.strip():
+            problems.append(f"基线条目缺理由：{item[0]}|{item[1]}|{item[2]}")
+    dead_in_baseline = [item for item in keyed if item in {(k, p, s) for k, p, s, *_ in dead}]
+    for item in sorted(dead_in_baseline):
+        problems.append(f"整页死不许进基线（基线只收残余）：{item[0]}|{item[1]}|{item[2]}")
+    return problems
 
 
 def synthetic_controls():
@@ -810,7 +1229,42 @@ export default [
         print("  ✗ 注释剥离过宽：URL 字面量被 // 截断，真调用点丢了（会把该收口的漏掉）")
         failed += 1
 
-    return (1 if failed else 0), checks, failed
+    # 强制项这条腿：名单要能压过 SHARED 降级，且它的两条前提各自会开火。
+    # 夹具只喂内存里的名册，不碰真仓库——这条判据管的是"生成件自己有没有牙"，
+    # 拿真表跑它属于 --check-go 的职责。
+    checks += 1
+    fake_forced = {"/api/dir-catalog": "读侧被角色可见页面共用、写侧须由菜单授予裁决的形状"}
+    fake_shape_users = {"/api/dir-catalog": [("pageA", True), ("pageB", False)]}
+    got_rules = capability_rules([], [("/m", "/p", "/api/dir-catalog", "")],
+                                 fake_shape_users, forced=fake_forced)
+    clean = forced_shape_problems({"/api/dir-catalog": {"capability"}},
+                                  got_rules, forced=fake_forced)
+    with_identity = forced_shape_problems(
+        {"/api/dir-catalog": {"capability", "identity"}}, got_rules, forced=fake_forced)
+    not_in_table = forced_shape_problems({"/api/dir-catalog": {"capability"}},
+                                         [], forced=fake_forced)
+    dead_shape = forced_shape_problems({}, got_rules, forced={"/api/typo/path": "x"})
+    owners = dict(got_rules).get("/api/dir-catalog")
+    if (owners == ["pageA", "pageB"] and not clean and with_identity
+            and not_in_table and dead_shape
+            and any("identity" in p for p in with_identity)
+            and any("没进能力表" in p for p in not_in_table)
+            and any("没有对应行" in p for p in dead_shape)):
+        print("  ✓ 强制项腿：名单压过 SHARED 降级，归属取该形状的全部菜单消费点；"
+              "档位留着 identity／没进表／路径写死 三极都出声")
+    else:
+        print("  ✗ 强制项腿坏了：名单进不了表（实得 "
+              f"{owners}），或三条前提判据有一极没开火（identity={with_identity} "
+              f"未进表={not_in_table} 死行={dead_shape}）")
+        failed += 1
+
+    checks += 1
+    try:
+        capability_rules([], [], {}, forced={"/api/nobody-calls": "无消费点"})
+        print("  ✗ 强制项无消费点时静默生成了一条除超管外全员禁调的死行")
+        failed += 1
+    except SystemExit:
+        print("  ✓ 强制项没有前端消费点时直接退件：进表等于把功能关死，不是加防线")
 
     return (1 if failed else 0), checks, failed
 
@@ -825,6 +1279,51 @@ export default [
 #     未收口（tiers 只有 identity）= 真泄露，已收口（tiers 含 capability）= 防线在场。
 # super-admin 不在集合里：那一档由硬守卫裁决，不需要菜单授予。
 LEAK_TRIGGER_TIERS = {"identity", "capability"}
+
+
+# FORCED_CAPABILITY_SHAPES 手工点名的"必须由菜单授予裁决"的形状，
+# 即便名册按判据会把它降级成 SHARED。
+#
+# 为什么要一份名单而不是让判据自己算：判据看的是"有没有角色可见的页面共用这条形状"，
+# 而能力表按路径匹配、不带方法维（与仅超管表不同），所以它分不清同一形状上的读侧与写侧。
+# 快捷回复／会话标签这组目录正是"读侧好几个页面在用、写侧原先钉死超管"的形状：
+# 判据据此把它们降级成 SHARED，而降级＝写侧退回登录档，任何登录角色都能改共享目录。
+# 名单把这条口子按住：照样进表，归属取该形状的全部菜单消费点，于是
+# "有这些页面的人能读能改，一个都没有的人两头都调不动"——两侧都不打挂。
+#
+# 名单里每一条都要满足两条前提，--check-go 逐条核对（写错路径或注册挪出守卫都会红）：
+#   1. 该形状在前端调用图里至少有一个菜单消费点。否则进表等于除超管外全员禁调，
+#      是条把功能关死的死行，而不是防线；
+#   2. 该形状的所有 live 路由档位都只剩 capability。还留着 identity 说明它注册在
+#      RoutePolicyGuard 的快照之外（auth.Use 之前），表罩不住它，读数会假绿。
+FORCED_CAPABILITY_SHAPES = {
+    "/api/quick-replies": "工作台快捷回复目录：写侧曾钉死超管，坐席改不了自己在用的话术",
+    "/api/quick-replies/*": "单条快捷回复的改／删，同上",
+    "/api/session-tags": "会话标签目录：写侧曾钉死超管，坐席建不了自己打标签用的分类",
+    "/api/session-tags/*": "单条会话标签的改／删，同上",
+}
+
+
+def forced_shape_problems(tiers, rules, forced=None):
+    """核对 FORCED_CAPABILITY_SHAPES 的两条前提，返回问题名册（空＝都在场）。
+
+    写成独立函数是为了让 --self-check 能拿假档位表把它本身测一遍：这条判据漏了
+    "没进表"或"仍有 identity"任一极，名单就退化成一句注释。
+    """
+    forced = FORCED_CAPABILITY_SHAPES if forced is None else forced
+    problems = []
+    in_table = {p for p, _ in rules}
+    for shape in sorted(forced):
+        if shape not in in_table:
+            problems.append(f"{shape} 没进能力表（生成逻辑漏了强制项）")
+        tiers_of_shape = tiers.get(shape)
+        if tiers_of_shape is None:
+            problems.append(f"{shape} 在 live 路由档位表里没有对应行："
+                            "路径写错了就是这种形状，表里的这一行不裁决任何东西")
+        elif "identity" in tiers_of_shape:
+            problems.append(f"{shape} 仍有 identity 档路由（档位 {sorted(tiers_of_shape)}）："
+                            "它注册在守卫快照之外，菜单授予拦不到它")
+    return problems
 
 
 def classify_fixture(vis_cs, vis_staff, tiers_of_shape,
@@ -949,23 +1448,301 @@ def live_repo_controls(root, globals_):
     return checks, failed
 
 
+def block_split_controls():
+    """BLOCK 两档的判据夹具：每档都正反各打一枪，缺反向就等于"恒红"或"恒绿"。"""
+    total = 0
+    failed = 0
+
+    def check(name, cond, note=""):
+        nonlocal total, failed
+        total += 1
+        if cond:
+            print(f"  ✓ {name}")
+        else:
+            failed += 1
+            print(f"  ✗ {name}{('：' + note) if note else ''}")
+
+    vue_dead = '''<template><div><a href="/api/report/inline">链</a><button @click="onDel" /></div></template>
+<script setup>
+const q = '/api/report/inline'
+function onDel() {}
+</script>
+'''
+    vue_res = '''<template><button @click="onDel">删</button></template>
+<script setup>
+function onDel() {
+  const p = '/api/clues/delete/id'
+}
+</script>
+'''
+    vue_hook = '''<script setup>
+const a = 1
+onMounted(() => {
+  const b = '/api/hook/inner'
+})
+</script>
+'''
+
+    region, spans = mount_spans(vue_dead)
+    hit = [p for p in shape_positions(region, "/api/report/inline")]
+    check("挂载档：`<script setup>` 顶层的接口串算挂载区间",
+          len(hit) == 1 and in_span(spans, hit[0]), f"命中 {len(hit)} 处")
+    vue_only_tpl = '''<template><a href="/api/report/inline">链</a></template>
+<script setup>
+const a = 1
+</script>
+'''
+    check("挂载档不认模板：同一条串只写在 `<template>` 里时不计为调用点"
+          "（认了的话每条行内按钮都会被读成整页死，那道必须为 0 的闸就恒红）",
+          list(shape_positions(script_region(vue_only_tpl), "/api/report/inline")) == [])
+
+    region2, spans2 = mount_spans(vue_res)
+    hit2 = [p for p in shape_positions(region2, "/api/clues/delete/id")]
+    check("残余档：接口串只躺在 `function onDel(){}` 体内 ⇒ 不在挂载区间",
+          len(hit2) == 1 and not in_span(spans2, hit2[0]), f"命中 {len(hit2)} 处")
+
+    region3, spans3 = mount_spans(vue_hook)
+    hit3 = [p for p in shape_positions(region3, "/api/hook/inner")]
+    check("挂载档：onMounted(() => {…}) 实参区间内的接口串算挂载路径",
+          len(hit3) == 1 and in_span(spans3, hit3[0]), f"命中 {len(hit3)} 处")
+
+    api_src = '''export const clueApi = {
+  list() {
+    return http.get('/api/clues')
+  },
+  remove: (id) => http.delete(`/api/clues/delete/${id}`),
+}
+
+function legacyFetch() {
+  return http.get('/api/clues/legacy')
+}
+'''
+    owners = {}
+    for shape in ("/api/clues", "/api/clues/delete/*", "/api/clues/legacy"):
+        pos = list(shape_positions(api_src, shape))
+        owners[shape] = owner_symbol(api_src, pos[0]) if pos else None
+    check("宿主方法名：对象方法简写／属性箭头函数／顶层 function 三种写法都认",
+          owners == {"/api/clues": "list", "/api/clues/delete/*": "remove",
+                     "/api/clues/legacy": "legacyFetch"}, str(owners))
+    check("形状归一与名册同源：`${id}` 的模板串归成 /api/clues/delete/*，"
+          "证据这条路径才量得到真仓库里的调用点",
+          list(shape_positions(api_src, "/api/clues/delete/${id}")) == [])
+
+    # 跨文件那一枪：真仓库今天没有一条整页死（12 条全是按钮），所以"判得出死"这个能力
+    # 没法拿现网证。这里就地造一棵最小前端树（`@/` 的解析口径与真仓库一致），
+    # 同一个形状、同一个宿主方法，只有调用位置不同 ⇒ 挂载调用判死、函数体内调用判残余。
+    # 少了这一枚反向，dead 档可以永远是空集而门照样绿。
+    fake = os.path.join(tempfile.mkdtemp(prefix="rR-blockdead-"), "repo")
+    try:
+        os.makedirs(os.path.join(fake, "user-web", "src", "views"), exist_ok=True)
+        os.makedirs(os.path.join(fake, "user-web", "src", "api"), exist_ok=True)
+        with open(os.path.join(fake, "user-web", "src", "api", "foo.js"),
+                  "w", encoding="utf-8") as f:
+            # 抄真仓库的写法（user-web/src/api/clue.js 就是 `delete: (id) => {` + 下一行 return）：
+            # 宿主判定只认「以花括号收尾的定义行」与「属性函数行」两种形状，把方法体塞进同一行会让
+            # 夹具悄悄走到"认不出宿主"那一侧，那条腿就没在测跨文件判死。
+            f.write("export const fooApi = {\n"
+                    "  list: () => {\n"
+                    "    return http.get('/api/foo/list')\n"
+                    "  },\n"
+                    "  remove: (id) => {\n"
+                    "    return http.delete(`/api/foo/remove/${id}`)\n"
+                    "  },\n"
+                    "}\n")
+        for name, body in (("Mount.vue", "rows.value = await fooApi.remove(1)"),
+                           ("Click.vue", "function onDel() { rows.value = await fooApi.remove(1) }"),
+                           # 同一棵树上再补一对：接口串直接写在页面里（不经 api 模块）。
+                           # 这一对是补漏的：跨文件那条腿从一开始就按挂载区间筛，而字面量那条腿
+                           # 曾经只看"整段 script 里出现过"，真仓库上把删除按钮的串读成了整页死。
+                           ("InlineMount.vue", "const url = '/api/foo/remove/9'"),
+                           ("InlineClick.vue",
+                            "function onDel() {\n  const url = '/api/foo/remove/9'\n  return url\n}")):
+            with open(os.path.join(fake, "user-web", "src", "views", name),
+                      "w", encoding="utf-8") as f:
+                f.write("<template><div /></template>\n<script setup>\n"
+                        "import { fooApi } from '@/api/foo'\n"
+                        f"{body}\n</script>\n")
+        dead_mount, why_mount = block_dead_evidence(
+            fake, "user-web/src/views/Mount.vue", "/api/foo/remove/*")
+        dead_click, why_click = block_dead_evidence(
+            fake, "user-web/src/views/Click.vue", "/api/foo/remove/*")
+        check("跨文件判死：页面在 setup 顶层调用持有该形状的 api 方法 ⇒ 整页死",
+              dead_mount, why_mount)
+        check("跨文件反向：同一个方法只在 `function onDel(){}` 里被调 ⇒ 页内残余",
+              not dead_click, why_click)
+        dead_inline, why_inline = block_dead_evidence(
+            fake, "user-web/src/views/InlineMount.vue", "/api/foo/remove/*")
+        dead_inline_fn, why_inline_fn = block_dead_evidence(
+            fake, "user-web/src/views/InlineClick.vue", "/api/foo/remove/*")
+        check("同文件字面量：写在 setup 顶层的接口串 ⇒ 整页死",
+              dead_inline, why_inline)
+        check("同文件字面量反向：同一条串裹在 `function onDel(){}` 里 ⇒ 页内残余"
+              "（这条就是曾经那个「整段 script 都算」的读法漏掉的一极）",
+              not dead_inline_fn, why_inline_fn)
+    finally:
+        shutil.rmtree(os.path.dirname(fake), ignore_errors=True)
+
+    blocks = [("clueList", "/clue/list", "/api/clues/delete/*", True, True)]
+    dead_rows = [("abExperiment", "/abExperiment/list", "/api/ab-experiments/*/start", False, True)]
+    residual_row = ("clueList", "/clue/list", "/api/clues/delete/*", "行内删除按钮触发，主列表口不受影响")
+    check("基线与名册逐条对上时门放行（这条反向不写，判据可以是恒红）",
+          block_gate(blocks, [], [residual_row], []) == [],
+          str(block_gate(blocks, [], [residual_row], [])))
+    check("名册里冒出一条没进基线的 BLOCK ⇒ 红",
+          any("未评审" in m for m in block_gate(blocks, [], [], [])))
+    check("基线里那条已经不在名册了 ⇒ 红（陈旧条目会让下一批同类被误读成已评审）",
+          any("已不在名册" in m for m in block_gate([], [], [residual_row], [])))
+    check("基线条目没写理由 ⇒ 红",
+          any("缺理由" in m for m in
+              block_gate(blocks, [], [("clueList", "/clue/list", "/api/clues/delete/*", "  ")], [])))
+    check("整页死 ⇒ 红，且这条不许靠写进基线过门",
+          any("整页死" in m for m in block_gate(dead_rows, dead_rows, [], []))
+          and any("不许进基线" in m for m in
+                  block_gate(dead_rows, dead_rows,
+                             [("abExperiment", "/abExperiment/list",
+                               "/api/ab-experiments/*/start", "先记着")], [])))
+    check("基线行格式坏（列数不对）⇒ 出声而不是静默少一条",
+          block_gate([], [], [], ["x.tsv:7 列数 3，应为 4 列"]) != [])
+    return total, failed
+
+
+UNROUTED_FIXTURE_JS = """// 注释里的 http.get('/api/in-a-comment') 不该被当成调用点
+const BASE = '/api/things'
+
+export const xApi = {
+  list: () => {
+    return http.get('/api/things/list')
+  },
+  test: (id) => {
+    return http.post(`${BASE}/${id}/test`)
+  },
+  gone: () => {
+    return http.get('/api/never-registered')
+  },
+  // 拼串这一形盖不住（docstring 里写明的盲区）：http.get(BASE + '/x')
+}
+
+const publicPost = (url, data) => axios.post(url, data)
+
+export function viaWrapper(data) {
+  return publicPost('/api/wrapped/endpoint', data)
+}
+
+export function badHash(id) {
+  if (!id) throw new Error('请先取 GET /api/ghost/hash')
+  return http.delete(`/api/things/${id}`)
+}
+"""
+
+# 假仓库的 live 路由形状集（与守卫档位导出件同一口径：shape_of 归一后的串）
+UNROUTED_FIXTURE_LIVE = [
+    "/api/things/list",
+    "/api/things/*",
+    "/api/things/*/test",
+    "/api/health",
+]
+
+
+def unrouted_api_controls():
+    """UNROUTED 档的夹具控制：每条判据都正反各打一枪。
+
+    写成假树而不靠真仓库读数：这一档在真仓库上是 0 条，一个恒真的判据和一个恒假的判据
+    在真仓库读数里长得一模一样（都是 0），只有夹具能把"接线在场不报"与"失联了不报"分开。
+    """
+    total = 0
+    failed = 0
+
+    def check(name, cond, note=""):
+        nonlocal total, failed
+        total += 1
+        if cond:
+            print(f"  ✓ {name}")
+        else:
+            failed += 1
+            print(f"  ✗ {name}{('：' + note) if note else ''}")
+
+    fake = os.path.join(tempfile.mkdtemp(prefix="rR-unrouted-"), "repo")
+    try:
+        os.makedirs(os.path.join(fake, *UNROUTED_API_DIR_REL.split(os.sep)))
+        api_file = os.path.join(fake, *UNROUTED_API_DIR_REL.split(os.sep), "x.js")
+        with open(api_file, "w", encoding="utf-8") as f:
+            f.write(UNROUTED_FIXTURE_JS)
+
+        calls = api_call_shapes(fake)
+        shapes = {c[2] for c in calls}
+        tiers = {s: {"capability"} for s in UNROUTED_FIXTURE_LIVE}
+        dead, n_calls = unrouted_api_calls(fake, tiers)
+        dead_shapes = {d[2] for d in dead}
+
+        check("调用点抽取覆盖面：直调、模板串、包装函数转发、拼接注释四种都各就各位",
+              n_calls == 5, f"实得 {n_calls} 个调用点：{sorted(shapes)}")
+        check("失联的一枪被点名：live 表里没有 /api/never-registered",
+              "/api/never-registered" in dead_shapes, sorted(dead_shapes))
+        check("包装函数转发的调用点也进名册（按接收者筛就会把这族整体漏掉）",
+              "/api/wrapped/endpoint" in dead_shapes, sorted(dead_shapes))
+        check("通配段不算失联：${id} 折成 * 后能接住 /api/things/*",
+              "/api/things/*" not in dead_shapes, sorted(dead_shapes))
+        check("模块级 BASE 常量折进模板串：${BASE}/${id}/test 接得住而不塌成 /*/test",
+              "/api/things/*/test" in shapes and "/api/things/*/test" not in dead_shapes,
+              f"抽到的形状 {sorted(shapes)}")
+        check("注释里的路径不算调用点（剥注释那一步真有牙）",
+              "/api/in-a-comment" not in shapes, sorted(shapes))
+        check("带空白的文案不算调用点：'请先取 GET /api/ghost/hash' 读成失联就是假红",
+              "/api/ghost/hash" not in shapes, sorted(shapes))
+        check("行号落在调用那一行，读名册的人不用全文找",
+              all(d[1] > 1 for d in dead), str(dead))
+
+        # 极性对之二：接线齐全 ⇒ 名册必须为空。少了这一枪，判据可以是恒红。
+        all_live = {s: {"capability"} for s in shapes}
+        clean, _ = unrouted_api_calls(fake, all_live)
+        check("全部形状都在 live 表里时名册为空（不写这条，判据可以是恒红）",
+              not clean, str(clean))
+
+        # 目录改名/挪走：调用点归零。这一档必须能被看见，否则"0 条失联"是判据没吃饭。
+        gone, n_gone = unrouted_api_calls(os.path.join(fake, "no-such-root"), tiers)
+        check("api 目录读不到时调用点数为 0（交给 main 退 2，不在这里静默放行）",
+              n_gone == 0 and not gone, f"{n_gone} 个调用点")
+    finally:
+        shutil.rmtree(os.path.dirname(fake), ignore_errors=True)
+    return total, failed
+
+
 def self_check():
     print("自检：")
-    rc, total, failed = synthetic_controls()
+    _, total, failed = synthetic_controls()
+    t2, f2 = block_split_controls()
+    t3, f3 = unrouted_api_controls()
+    total += t2 + t3
+    failed += f2 + f3
     print(f"自检：{total} 枚控制，失败 {failed} 枚")
-    return rc, total, failed
+    # rc 从合计的失败数重算，不沿用 synthetic_controls 那一位：BLOCK 两档的控制住在
+    # 另一个函数里，沿用那个 rc 会让"自检打了 ✗、进程照样退 0、名册照样写出"——
+    # 摘掉挂载区间筛子那一刀当场就是这么漏掉的（红字印在日志里，没人接到 rc 上）。
+    return (1 if failed else 0), total, failed
 
 
-def capability_rules(leaks, shared, shape_users):
+def capability_rules(leaks, shared, shape_users, forced=None):
     """把名册折成"接口面 → 拥有它的菜单 key"的能力规则表。
 
-    只收 LEAK 那一类（消费它的所有菜单页都对两档非超管角色藏着）。SHARED 不收：
-    那条形状的另一个消费页本来就是给坐席看的，收口＝先把那页打挂再让人来报障。
+    收两类：
+      - LEAK（消费它的所有菜单页都对两档非超管角色藏着）；
+      - FORCED_CAPABILITY_SHAPES 点名的形状——它们多半落在 SHARED 里，降级会让
+        写侧退回登录档，所以按名单强行收进来，归属取该形状的全部菜单消费点。
+    其余 SHARED 不收：那条形状的另一个消费页本来就是给坐席看的，收口＝先把那页
+    打挂再让人来报障。
     """
+    forced = FORCED_CAPABILITY_SHAPES if forced is None else forced
     by_pattern = {}
     for r in leaks:
         keys = sorted({k for k, _ in shape_users.get(r[2], ())})
         by_pattern[r[2]] = sorted(set(by_pattern.get(r[2], [])) | set(keys))
+    for shape in forced:
+        keys = sorted({k for k, _ in shape_users.get(shape, ())})
+        if not keys:
+            raise SystemExit(
+                f"强制能力形状 {shape} 在前端调用图里没有任何菜单消费点："
+                "进表等于除超管外全员禁调，先把它的页面归属补上再收")
+        by_pattern[shape] = sorted(set(by_pattern.get(shape, [])) | set(keys))
     return [(p, by_pattern[p]) for p in sorted(by_pattern)]
 
 
@@ -982,6 +1759,11 @@ GO_TABLE_HEADER = '''// 能力面 ↔ 菜单 key 对照表：RoutePolicyGuard �
 //  3. 该形状不是登录即执行的壳层调用（store/layout/请求封装），也不是
 //     菜单外路由页（详情页/嵌入页）在用——这两类一旦收口，打到的是
 //     算不出归属角色的请求，只能先修前端归属再说。
+//
+// 另有一类强制项（脚本里的 FORCED_CAPABILITY_SHAPES）：形状按上面口径该降级成
+// SHARED（它的读侧确实被角色可见页面共用），但写侧不该由登录态兜底。这类按名单
+// 强行进表，归属取该形状的全部菜单消费点——能力表不带方法维，只能这样把两侧一起管。
+// 名单与它的两条前提由 --check-go 逐条核对，不靠这段注释自证。
 //
 // 生成命令：python3 scripts/menu-route-role-audit.py --emit-go @@GO_REL@@
 // 事实源：菜单注册表 user-server/internal/model/menu.go + live 路由守卫档位导出 + user-web 调用图。
@@ -1068,6 +1850,8 @@ def main():
     ap.add_argument("--check-go", default=None, metavar="REL",
                     help="只比对已存在的生成件与本次生成结果，漂移就退非零（CI 用）")
     ap.add_argument("--self-check", action="store_true", help="只验判据与解析器，不读仓库")
+    ap.add_argument("--block-baseline", default=None, metavar="PATH",
+                    help="页内残余基线文件（默认 scripts/menu-block-residual.baseline）")
     args = ap.parse_args()
 
     if args.self_check:
@@ -1087,8 +1871,31 @@ def main():
         dump_guards_via_go(root, tsv)
 
     tiers, rows = load_guard_tiers(tsv)
+    # 残余基线在读名册之前就取进来：它既要进 provenance（这份名册是对着哪一版基线判的），
+    # 也要进末尾的对账。取晚一步就是"名册写着基线 md5、其实那会儿还没读基线"。
+    baseline_path = args.block_baseline or os.path.join(root, BLOCK_BASELINE_REL)
+    baseline_rows, baseline_bad = load_block_baseline(baseline_path)
     (menu_nodes, pages, leaves, leaks, blocks, orphans, shared,
      demoted, unknowns, globals_, shape_users) = audit(root, tiers)
+
+    # BLOCK 先拆两档：同一条"菜单给了非超管、接口钉死超管"，挂载就打的是废页，
+    # 按钮才打的是缺一块功能。判定要用在名册、基线和对账三处，所以只算一次。
+    block_dead, block_evidence = [], {}
+    for key, path, shape, vis_cs, vis_staff in blocks:
+        view = pages.get(path)
+        if view is None:
+            block_evidence[(key, path, shape)] = "路由表里查不到该页面 path，挂载区间无从判定"
+            continue
+        dead, why = block_dead_evidence(root, view, shape)
+        block_evidence[(key, path, shape)] = f"{view}：{why}"
+        if dead:
+            block_dead.append((key, path, shape, vis_cs, vis_staff))
+    residual = [b for b in blocks if b not in block_dead]
+    # 对账就地算一次：provenance 里要写下"这份名册是对着哪一版基线、判出几处问题"，
+    # 而读名册的人只看到末尾那句 rc 时，分不清红在名册还是在基线。
+    block_problems = ([] if baseline_rows is None
+                      else block_gate(blocks, block_dead, baseline_rows, baseline_bad))
+    block_problems = block_problems + baseline_bad
 
     # 同一份 LEAK 名册按"这条形状现在拦不拦得住"分两列：形状档位里还有 identity，
     # 说明它至少有一条 live 路由是任何登录角色都能调的（要么没进表，要么进了表却
@@ -1096,14 +1903,28 @@ def main():
     open_leaks = [r for r in leaks if "identity" in r[3]]
     enforced_leaks = [r for r in leaks if "identity" not in r[3]]
 
+    # UNROUTED 档：前端 api 目录在打、live 路由表里查不到那条口。名册必须为空——
+    # 每一条都是"页面一调就 404"，而编译、单测、lint 都不会红，只有这一档跨前后端对账。
+    # 调用点数为 0 不算绿：那说明目录改名或挪走了，读数会静默归零（末尾退 2 拦下）。
+    unrouted, n_api_calls = unrouted_api_calls(root, tiers)
+    # 归零单列退 2，且赶在名册与自检之前：那说明这一档根本没吃饭（目录改名/挪走），
+    # 把它和"0 条失联"混成同一个绿，就等于给静默失效留了个位置。
+    if not n_api_calls:
+        print(f"✗ {UNROUTED_API_DIR_REL} 里一个调用点都没读到："
+              "UNROUTED 档未判定，不能把「没读数」读成「没失联」")
+        return 2
+
     print(f"事实源：路由档位 {len(rows)} 行 · 菜单带 path 节点 {len(menu_nodes)} 个 · "
           f"前端页面 {len(pages)} 条 · 审计到页面归属的菜单节点 {len(leaves)} 个")
     print(f"错配读数：LEAK 共 {len(leaks)} 条 = 未收口 {len(open_leaks)} 条 + "
           f"已由能力表裁决 {len(enforced_leaks)} 条（档位只剩 capability）· "
           f"SHARED（同样是菜单藏着，但接口被别的角色可见页面共用，收口会打坏那页）"
           f"{len(shared)} 条 · "
-          f"BLOCK（菜单给了非超管、接口只让超管调）{len(blocks)} 条 · "
+          f"BLOCK（菜单给了非超管、接口只让超管调）{len(blocks)} 条 = "
+          f"整页死 {len(block_dead)} 条 + 页内残余 {len(residual)} 条 · "
           f"ORPHAN（菜单指向的 path 在前端路由里找不到）{len(orphans)} 条 · "
+          f"UNROUTED（前端 api 目录在打、live 路由表里没有那条口，共 {n_api_calls} 个调用点）"
+          f"{len(unrouted)} 条 · "
           f"GLOBAL（接口被登录即执行的壳层代码调用，收口会打挂整个前端，禁改）"
           f"{len(demoted)} 条 · "
           f"PENDING（接口被菜单外的路由页调用，角色可见性算不出来，先人工判）"
@@ -1135,10 +1956,22 @@ def main():
         f.write("MENU_KEY\tPAGE_PATH\tAPI_SHAPE\tVISIBLE_TO_CS\tVISIBLE_TO_STAFF\n")
         for r in sorted(blocks):
             f.write("\t".join([r[0], r[1], r[2], str(r[3]), str(r[4])]) + "\n")
+    for name, items in (("block-dead.tsv", block_dead), ("block-residual.tsv", residual)):
+        with open(os.path.join(outdir, name), "w", encoding="utf-8") as f:
+            f.write("MENU_KEY\tPAGE_PATH\tAPI_SHAPE\tVISIBLE_TO_CS\t"
+                    "VISIBLE_TO_STAFF\tEVIDENCE\n")
+            for r in sorted(items):
+                f.write("\t".join([r[0], r[1], r[2], str(r[3]), str(r[4]),
+                                   block_evidence[(r[0], r[1], r[2])]]) + "\n")
     with open(os.path.join(outdir, "orphan.tsv"), "w", encoding="utf-8") as f:
         f.write("MENU_KEY\tPAGE_PATH\n")
         for r in sorted(orphans):
             f.write("\t".join(r) + "\n")
+    with open(os.path.join(outdir, "unrouted-api.tsv"), "w", encoding="utf-8") as f:
+        f.write("API_FILE\tLINE\tAPI_SHAPE\n")
+        for rel, line, shape in sorted(unrouted):
+            f.write(f"{rel}\t{line}\t{shape}\n")
+
     with open(os.path.join(outdir, "global-demoted.tsv"), "w", encoding="utf-8") as f:
         f.write("MENU_KEY\tPAGE_PATH\tAPI_SHAPE\tSHELL_ENTRY_FILE\n")
         for r in sorted(demoted):
@@ -1160,8 +1993,13 @@ def main():
             f"读数：档位 {len(rows)} 行 · 菜单 path 节点 {len(menu_nodes)} · 页面 {len(pages)} · "
             f"归属节点 {len(leaves)} · LEAK {len(leaks)}（未收口 {len(open_leaks)}／"
             f"已收口 {len(enforced_leaks)}）· SHARED {len(shared)} · "
-            f"BLOCK {len(blocks)} · ORPHAN {len(orphans)} · GLOBAL {len(demoted)} · "
-            f"PENDING {len(unknowns)}",
+            f"BLOCK {len(blocks)}（整页死 {len(block_dead)}／页内残余 {len(residual)}）· "
+            f"ORPHAN {len(orphans)} · UNROUTED {len(unrouted)}（api 调用点 {n_api_calls} 个）· "
+            f"GLOBAL {len(demoted)} · PENDING {len(unknowns)}",
+            f"残余基线 {os.path.relpath(baseline_path, root)} "
+            f"md5 {file_md5(baseline_path) if os.path.exists(baseline_path) else '（缺文件）'} "
+            f"· 条目 {len(baseline_rows) if baseline_rows is not None else 0} 条 · "
+            f"对账问题 {len(block_problems)} 处",
             f"壳层形状 {len(global_api_shapes(root))} 个 · 菜单外路由页形状另计",
             f"口径自检：{control_total} 枚控制，失败 {control_failed} 枚",
             "限制：可见性按首空表 seed 折算，库里 role_menu_permissions 被人工改过则真值在库里",
@@ -1170,6 +2008,33 @@ def main():
     print(f"名册输出目录：{outdir}")
 
     rules = capability_rules(leaks, shared, shape_users)
+    # 强制项先自证：名单里写错路径（live 表没这行）、或生成逻辑没把它收进表，
+    # 都在出件前出声。identity 档那一极只在 --check-go 判：emit 时档位表还是
+    # 旧表造出来的，收口本来就没发生，判它等于把生成命令自己钉死。
+    problems = forced_shape_problems(tiers, rules)
+    if args.emit_go:
+        problems = [p for p in problems if "identity" not in p]
+    # BLOCK 两档的对账单独一列，不与 forced 混在一个 list 里过滤：
+    # 上面那句 "identity" 过滤针对的是档位口径，而 BLOCK 条目里的接口路径本身可能
+    # 就带 identity 这个词（`/api/identity/…`），混列会把一条真红滤掉。
+    if block_problems:
+        print(f"✗ BLOCK 两档对账失败（{len(block_problems)} 处，基线 "
+              f"{os.path.relpath(baseline_path, root)}）：")
+        for msg in block_problems:
+            print(f"    {msg}")
+    if problems:
+        print(f"✗ 强制能力形状核对失败（{len(problems)} 处）：")
+        for msg in problems:
+            print(f"    {msg}")
+    # UNROUTED 是"必须为 0"档，没有基线可写：一条失联就是页面一调就 404。
+    # 调用点归零那一档在上面已经拦下（退 2），这里只剩"确有失联"一种红。
+    if unrouted:
+        print(f"✗ 前端在打、live 路由表里没有那条口的调用点 {len(unrouted)} 处"
+              f"（名册 {os.path.join(outdir, 'unrouted-api.tsv')}）：")
+        for rel, line, shape in sorted(unrouted)[:40]:
+            print(f"    {rel}:{line} {shape}")
+    if problems or block_problems or unrouted:
+        return 1
     if args.emit_go:
         return emit_or_check_go(root, rules, args.emit_go, check_only=False)
     if args.check_go:

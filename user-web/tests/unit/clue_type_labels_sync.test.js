@@ -4,7 +4,7 @@ import { dirname, join } from 'node:path'
 
 // 线索类型标签表的前后端对账（src/constants/cardPlatform.js ↔ user-server clue.go）。
 //
-// 后端 internal/service/clue.go 的 defaultClueTypes 是这 18 档的唯一事实源
+// 后端 internal/service/clue.go 的 defaultClueTypes 是这张表的唯一事实源
 // （GET /api/clues/type 原样返回它）。前端原先只抄了 4 条，而且抄错位：
 // 前端 1=小红书/2=视频号/3=抖音/4=快手，后端 1=QQ/2=微信/3=电话/4=Telegram。
 // 后果两条，都是用户看得见的：

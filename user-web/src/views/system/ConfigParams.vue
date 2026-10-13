@@ -218,7 +218,9 @@
                 <el-button link type="primary" size="small" :disabled="row.read_only || row.deprecated" @click="openEdit(row)">
                   <el-icon><Edit /></el-icon>编辑
                 </el-button>
-                <el-button link type="warning" size="small" :disabled="isDefault(row) || row.deprecated" :loading="row._resetting" @click="handleResetOne(row)">
+                <!-- 只读项服务端对 ResetToDefault 同样回 ErrParamReadOnly（见 repository.ErrParamReadOnly），
+                     编辑按钮与对话框里的「恢复默认值」早就禁了，这一列是最后一处漏网的入口。 -->
+                <el-button link type="warning" size="small" :disabled="isDefault(row) || row.deprecated || row.read_only" :loading="row._resetting" @click="handleResetOne(row)">
                   <el-icon><RefreshLeft /></el-icon>重置
                 </el-button>
               </template>
@@ -521,7 +523,10 @@ const filteredList = computed(() => {
 })
 
 const groupModifiedCount = computed(() => {
-  return filteredList.value.filter((p) => !p.deprecated && !isDefault(p)).length
+  // 只读项不进计数：后端 BulkResetGroup 对 read_only 和 deprecated 都是「跳过」而不是
+  // 「整组失败」，前端把它们算进去就是骗用户「重置了 2 条」而实际只改了 1 条，
+  // 且那条只读项压根改不动（knowledge.embedding_dimension 是唯一一条）。
+  return filteredList.value.filter((p) => !p.deprecated && !p.read_only && !isDefault(p)).length
 })
 
 async function loadAll() {
@@ -561,7 +566,10 @@ onMounted(() => {
 })
 
 function getGroupModified(groupKey) {
-  return visibleParams.value.filter((p) => p.group === groupKey && !p.deprecated && !isDefault(p)).length
+  // 左侧栏的「已修改 N」是在指「这一组有本页能处理的偏离」，所以只读项不进计数
+  // （它的编辑/重置按钮都是禁的，批量重置也会被后端跳过）；
+  // 行内的「已修改」徽标（见 changed-badge）照常显示，状态本身并没有被藏起来。
+  return visibleParams.value.filter((p) => p.group === groupKey && !p.deprecated && !p.read_only && !isDefault(p)).length
 }
 
 function isDefault(p) {
@@ -777,9 +785,18 @@ function validateEdit() {
       return false
     }
   }
-  if (looksLikeJson(p) && String(editValueStr.value).trim()) {
+  if (looksLikeJson(p)) {
+    // 整份 JSON 的旋钮不许置空。服务端现在按 JSON 语法校验写侧，空串会被拒；
+    // 这一句把它挡在人已经按下「保存」之前，而不是让人收到一条后端红字。
+    // 早一版两侧都不判，坏 JSON 一路写进库，消费方 Unmarshal 失败后静默沿用内置默认——
+    // 页面显示「保存成功」，策略却一个字没变。
+    const raw = String(editValueStr.value).trim()
+    if (!raw) {
+      editError.value = '这份参数是整份 JSON，不能置空（要停用请把它写成合法 JSON，例如关掉对应开关字段）'
+      return false
+    }
     try {
-      JSON.parse(editValueStr.value)
+      JSON.parse(raw)
     } catch (e) {
       editError.value = 'JSON 语法错误：' + (e.message || '解析失败')
       return false

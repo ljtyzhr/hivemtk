@@ -47,7 +47,7 @@
                     <el-icon class="el-icon--upload"><upload-filled /></el-icon>
                     <div class="el-upload__text">将文件拖到此处,或<em>点击上传</em></div>
                     <template #tip>
-                      <div class="el-upload__tip">支持 .csv / .json / .txt,单个文件不超过 20MB</div>
+                      <div class="el-upload__tip">支持 .csv / .json / .txt,单个文件不超过 {{ maxUploadMB }}MB</div>
                     </template>
                   </el-upload>
                 </el-form-item>
@@ -174,6 +174,7 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Upload, View, CircleCheck, UploadFilled } from '@element-plus/icons-vue'
 import { knowledgeMerchantAPI } from '@/api/knowledgeMerchant'
 import { ragProductConfigAPI } from '@/api/ragProductConfig'
+import { rtNum } from '@/utils/runtimeConfig'
 
 const activeTab = ref('upload')
 const uploading = ref(false)
@@ -215,9 +216,21 @@ const handleTabChange = (tab) => {
   lastResult.value = null
 }
 
+// 上限与后端同源（knowledge.merchant_batch_max_file_size，单位字节）。
+//
+// 这一条在前端写死 20MB 的这些年，服务端 BatchImport 那条链路**一个字节上限都没判**
+// （parseBatchFile 直接 io.ReadAll），也就是绕过页面直接调接口就能把任意大的文件喂进内存。
+// 前端那 20MB 从来不是防线，只是给一个没有防线的后端补的假标签。
+//
+// 为什么不复用 knowledge.max_upload_file_size（文档上传，默认 50MB）：那是另一个概念
+// （整篇 PDF/Word 走解析入库），本条是结构化行数据的批量导入，两者的现行上限本来就不等
+// （50 vs 20）。强行并成一条，要么把批量导入静默放宽 2.5 倍，要么把文档上传收紧到 20MB，
+// 两种都是行为变更；各配一条才是各自说各自的数。
+const maxUploadMB = computed(() => Math.round(rtNum('knowledge', 'merchant_batch_max_file_size', 20971520) / 1024 / 1024))
+
 const handleFileChange = (file) => {
-  if (file.size > 20 * 1024 * 1024) {
-    ElMessage.error(i18n.global.t('文件大小不能超过 20MB'))
+  if (file.size > maxUploadMB.value * 1024 * 1024) {
+    ElMessage.error(i18n.global.t('文件大小不能超过{size}MB', { size: maxUploadMB.value }))
     return false
   }
   uploadForm.file = file.raw

@@ -1,0 +1,28 @@
+# BLOCK（菜单给了非超管、接口只让超管调）里"页内残余"这一档的已评审名册。
+#
+# 判据（scripts/menu-route-role-audit.py 的 block_gate）：
+#   整页死     —— 接口串落在页面的挂载区间（`<script setup>` 顶层／`onMounted` 实参区间），
+#                 非超管一进这页就满屏 403。这一档**没有**"先记着"的余地，写进本文件也过不去。
+#   页内残余   —— 只有某个动作（按钮／下拉项）打这个口，页面本身能用。允许存在，
+#                 但每条都要在这里签一句人读过的理由，且理由不能是空的。
+# 名册与本文件逐条对账：名册多一条 ⇒ 红（没人评审过），本文件多一条 ⇒ 红（陈旧条目会把
+# 下一批同类误读成"已评审"）。
+#
+# 四列制表符分隔：MENU_KEY / PAGE_PATH / API_SHAPE / REASON。表头与 # 开头的行不算条目，
+# 列数不是 4 的行直接出声（静默跳过会把"写漏理由"读成"没这条"）。
+#
+# REASON 里的 file:line 是本文件写就那一版的调用点，改页面时请一并改这一列；
+# 形状（`${id}` 归一成 `*`）与名册走同一套归一口径，直接抄名册的第三列即可。
+MENU_KEY	PAGE_PATH	API_SHAPE	REASON
+abExperiment	/abExperiment/list	/api/ab-experiments/*/pause	行内「暂停」按钮才打：List.vue 的 @click="handlePause(row)" 调 pauseExperiment，且该按钮只在 row.status==='running' 时出现；列表／详情／新建口都不含这条，staff 进页能读能建，只有点暂停收 403
+abExperiment	/abExperiment/list	/api/ab-experiments/*/start	行内「恢复」按钮才打：List.vue 的 @click="handleStart(row)"（v-else-if="row.status !== 'completed'"）调 startExperiment；同上，页面加载与读列表不受影响
+abExperiment	/abExperiment/list	/api/ab-experiments/*/stop	本页不调用该口，因此没有 403 面：api/abExperiment.js 里的 stopExperiment 全仓库零调用点（grep stopExperiment 只命中定义那一行），形状只因 List.vue import 了这个共享 api 模块而进闭包
+churnPrediction	/churnPrediction/list	/api/user-segment/rfm/calculate	顶部「运行预测」按钮才打：List.vue 的 @click="runPrediction" → api/churnPrediction.js 的 runChurnPrediction() → 同文件私有的 calculateRFM() POST 该口；页面的预测列表／预警／模型配置读口都是另一批超管之外的路由，进页能看数据
+clueList	/clue/list	/api/clues/delete/*	行内「删除」按钮才打：List.vue 操作列 @click="deleteClue(row)" → clueApi.delete(id)；列表／详情／分配／编辑口不受影响，客服进页照常处理线索。**降档前置条件**：该口按 id 删且服务端不做归属校验，若哪天把它放进能力档（菜单授予即放行），必须先补"只能删自己／本组名下线索"的范围过滤，否则任一持菜单者可删任意线索
+clueStatistics	/clue/statistics	/api/clues/delete/*	本页不调用该口，因此没有 403 面：Statistics.vue 只从 @/api/clue 取 clueApi.statistics()（图表数据），全文件没有 delete 调用点；形状只因共享 api 模块进闭包
+customer360	/customer360/list	/api/integrations/*/sync-customers	本页不调用该口，因此没有 403 面：List.vue 从 @/api/integration.js 只取 getExternalOrdersByCustomer（按客户查外部订单），同步类动作在集成页自己的界面上；api/integration.js 的 syncCustomers 全仓库零调用点（wecomAccount 用的是它自己模块里的同名方法）
+customer360	/customer360/list	/api/integrations/*/sync-products	本页不调用该口，因此没有 403 面：同上，api/integration.js 的 syncProducts 全仓库零调用点，页面闭包只取了按客户查订单那一支
+customer360	/customer360/list	/api/integrations/*/test	本页不调用该口，因此没有 403 面：testIntegration 的调用点在 integration/List.vue（那是超管才可见的菜单页），customer360 页面只 import 了同模块的查订单方法
+leadMining	/lead-mining/index	/api/clues/delete/*	本页不调用该口，因此没有 403 面：Index.vue 只从 @/api/clue 取 clueApi.list()（拉线索列表填挖掘表单），没有 delete 调用点；形状只因共享 api 模块进闭包
+userSegment	/userSegment/list	/api/user-segment/rfm/calculate	本页不调用该口，因此没有 403 面：List.vue 的 import 名单只有 getUserSegments/createUserSegment/updateUserSegment/deleteUserSegment/getSegmentStats/getSegmentUsers，没有 calculateRFM；该口由「流失预测」页的运行预测按钮使用（见 churnPrediction 那条）
+userSegment	/userSegment/list	/api/user-segment/rfm/rule/*	行内「删除」按钮才打：List.vue 的 deleteSegment(row) → deleteUserSegment(id) → DELETE /api/user-segment/rfm/rule/{id}（api/userSegment.js）；分群列表／矩阵／明细读口不受影响，staff 进页能看能用，只有点删除分群收 403
