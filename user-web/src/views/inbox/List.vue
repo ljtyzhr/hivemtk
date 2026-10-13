@@ -11,7 +11,7 @@
             <el-icon><DataAnalysis /></el-icon>
             {{ $t('刷新统计') }}
           </el-button>
-          <el-button type="warning" plain @click="handleReconcile('backfill')">
+          <el-button v-if="userStore.isAdmin" type="warning" plain @click="handleReconcile('backfill')">
             <el-icon><Refresh /></el-icon>
             {{ $t('会话补建') }}
           </el-button>

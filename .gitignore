@@ -194,6 +194,9 @@ build/
 *.webp
 *.ico
 !docs/screenshots/screenshot-*.png
+# 例外：README.md「添加作者微信」一节的微信二维码 docs/wechat-qr.png 必须入库，
+# 否则干净 checkout 里该图 404、md 链接审计（只认 git 索引）当场红
+!docs/wechat-qr.png
 
 # ⚠️ 例外（构建/运行时**必需**的静态资源，必须入库）
 # `*.png` 是未锚定的裸模式，会命中任意层级。以下四类资源缺失会导致产物损坏：

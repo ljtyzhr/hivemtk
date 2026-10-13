@@ -23,6 +23,7 @@ clueStatistics	/clue/statistics	/api/clues/delete/*	本页不调用该口，因�
 customer360	/customer360/list	/api/integrations/*/sync-customers	本页不调用该口，因此没有 403 面：List.vue 从 @/api/integration.js 只取 getExternalOrdersByCustomer（按客户查外部订单），同步类动作在集成页自己的界面上；api/integration.js 的 syncCustomers 全仓库零调用点（wecomAccount 用的是它自己模块里的同名方法）
 customer360	/customer360/list	/api/integrations/*/sync-products	本页不调用该口，因此没有 403 面：同上，api/integration.js 的 syncProducts 全仓库零调用点，页面闭包只取了按客户查订单那一支
 customer360	/customer360/list	/api/integrations/*/test	本页不调用该口，因此没有 403 面：testIntegration 的调用点在 integration/List.vue（那是超管才可见的菜单页），customer360 页面只 import 了同模块的查订单方法
+inbox	/inbox/list	/api/inbox/reconcile	页头「会话补建」按钮才打：List.vue:14 @click="handleReconcile('backfill')"（handler 在 List.vue:632，调用点 List.vue:634）。该口是全库治理动作（跨全部渠道会话补建/修数据），任一坐席能触发就等于能改别人的收件箱数据，故服务端收到 RequireAdmin 档；按钮已加 v-if="userStore.isAdmin"，非超管既看不到也不会点到。列表／统计／分配／消息读口都不含这条，坐席进页照常处理会话
 leadMining	/lead-mining/index	/api/clues/delete/*	本页不调用该口，因此没有 403 面：Index.vue 只从 @/api/clue 取 clueApi.list()（拉线索列表填挖掘表单），没有 delete 调用点；形状只因共享 api 模块进闭包
 userSegment	/userSegment/list	/api/user-segment/rfm/calculate	本页不调用该口，因此没有 403 面：List.vue 的 import 名单只有 getUserSegments/createUserSegment/updateUserSegment/deleteUserSegment/getSegmentStats/getSegmentUsers，没有 calculateRFM；该口由「流失预测」页的运行预测按钮使用（见 churnPrediction 那条）
 userSegment	/userSegment/list	/api/user-segment/rfm/rule/*	行内「删除」按钮才打：List.vue 的 deleteSegment(row) → deleteUserSegment(id) → DELETE /api/user-segment/rfm/rule/{id}（api/userSegment.js）；分群列表／矩阵／明细读口不受影响，staff 进页能看能用，只有点删除分群收 403
