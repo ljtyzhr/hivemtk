@@ -22,7 +22,7 @@ grep -n "svc == nil" internal/service/customer_journey.go
 cd user-server && go test ./test/integration/ -v -count=1
 ```
 
-**结果**：`ok hivemtk-user/test/integration 8.314s` ✅
+**结果**：`ok hivemtk-user/test/integration 4.453s` ✅
 
 ## Test Results
 
