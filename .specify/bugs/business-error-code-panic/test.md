@@ -31,8 +31,8 @@ Slug 解析路径：conversation context（本轮刚跑完 fix，`fix.md` 存在
 | Call-site blast radius | 全仓 `response.Error(<ctx>, <int literal>)` 量纲化计数 | pass | 148 处、取值只有 400/401/404/409/500/503，全在 100–999 内 ⇒ 守卫对既有调用零行为变更 |
 | Lint / format | `gofmt -l internal/pkg/utils/response/`、`go vet ./internal/pkg/utils/response/` | pass | 前者空输出，后者无诊断 |
 | Build | `go build ./...` | pass | 无输出 |
-| Doc gate: 断链 | `python3 scripts/check-md-links-offline.py .` | pass | 扫描 206 md（只认 git 索引），断链 0 |
-| Doc gate: 文本编码 | `python3 scripts/check-text-encoding.py` | pass | `NOT_UTF8=0 FFFD=0 MOJIBAKE=0 STALE=0` |
+| Doc gate: 断链 | `python3 scripts/check-md-links-offline.py .` | pass | 活树轮扫描 206 md、断链 0；合并树轮扫描 **232** md、断链 0（206 + 本轮 `.specify`/`.qoder` 新增 26 份，两次不是同一索引集合） |
+| Doc gate: 文本编码 | `python3 scripts/check-text-encoding.py` | pass（仅活树） | `NOT_UTF8=0 FFFD=0 MOJIBAKE=0 STALE=0`。**该脚本是并行泳道的未跟踪新增**（`?? scripts/check-text-encoding.py`，`git ls-files` 无此路径），故这条读数不在本轮 tip 上；在干净合并克隆里按同路径跑会 rc=2 报文件不存在（已现测），不得读成仓库红 |
 | Doc gate: 一致性 | `bash scripts/check-doc-consistency.sh` | pass | 6/6（含 ADR 编号连续性、27 关键文件存在性） |
 | 架构门 | `bash scripts/check-architecture.sh` | fail → 归因 pass | 活树 rc=1 红在 `[L4] service 取 DB 句柄宽口径与基线不符`（全在 `internal/service/`）；同克隆只叠本轮 4 份文件后 `rc=0` ⇒ 他泳道在途态 |
 | 文档码值对账 | `python3 .specify/bugs/business-error-code-panic/check-doc-code-literals.py` | pass | 登记表 13 数值 / 36 字符串，10 处引用全对得上；三枚反向格各自开火后 `cp` 还原 md5 一致 |

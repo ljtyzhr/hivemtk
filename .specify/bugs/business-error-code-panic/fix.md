@@ -80,6 +80,9 @@ case int:
   不是线上正在崩的调用。
 - `python3 scripts/check-md-links-offline.py .` → 扫描 206 个 md（CI 口径只认 git 索引），断链 0 处。
 - `python3 scripts/check-text-encoding.py` → `NOT_UTF8=0 FFFD(超出基线)=0 MOJIBAKE=0 STALE=0`。
+  **出处标注**：该脚本在活树里是 `??`（并行泳道未跟踪新增，`git ls-files` 无此路径），
+  因此这条读数属于活树，**不属本轮推送的 tip**；合并克隆里按同路径跑会直接 rc=2 报文件不存在
+  （本轮现测即如此），别把它读成仓库红。
 - `bash scripts/check-doc-consistency.sh` → 6/6 通过（含 ADR 编号连续性、27 个关键文件存在性）。
 - `bash scripts/check-architecture.sh`：**活树 rc=1**，红因是
   `[L4] service 取 DB 句柄宽口径与基线不符`（`ai_agent.go 5>4`、`tiktok_card.go`/`inbox_scope.go` 新增 `.GetDB`、
@@ -130,6 +133,23 @@ case int:
 - `make -k audit` → **rc=0**（`✅ 静态审计通过`），含 i18n 覆盖、seam-guard、battery-identity、
   `check-vite-version.sh`（现读到 bridge `^8.3.4`/lock 8.3.4，与 dependabot 的 npm 抬版同源，
   自证行 `扫描package.json=6 含vite的pin=5 判定=GREEN`）。
+- 合并树上的文档门读数与活树不同口径，一并记下以免拿 206 当 tip 值：
+  `python3 scripts/check-md-links-offline.py .` → **扫描 232 个 md、断链 0**。对账：
+  `git ls-files '*.md' | wc -l` 在合并树 = 232（其中 `git ls-files | grep '\.md$'` 只给 227，
+  差的 5 份是 `core.quotepath` 把非 ASCII 文件名连引号一起印出、行尾不再是 `.md`，
+  要用 `comm` 对两份名单才看得见），= 活树那轮的 206 + 本轮新增 26 份
+  （`.specify/**` 13 + `.qoder/skills/**` 13）。活树那轮的 206 测于本轮 md 进索引之前，
+  两个数不是同一集合，别当漂移读。
+  `bash scripts/check-doc-consistency.sh` → rc=0，3 条 ⚠ 全是
+  「关键文件缺失：README.md / LICENSE / NOTICE（查找于 `hivemtk-platform/`）」，
+  属兄弟项目的既存告警、与本树无关，也不抬 rc；
+  `python3 .specify/bugs/business-error-code-panic/check-doc-code-literals.py` → rc=0（10 处码值全对得上）。
+- 本轮新增的 7 份 `.specify/scripts/bash/*.sh` 确实落在两道 shell 门的扫描面上（不是
+  「没被扫到所以绿」）：`check-shellcheck.sh` 的面 = `git ls-files --cached --others
+  --exclude-standard` 里的 `*.sh`/`*.bash`（门头注释第 34 行写明），合并树读数
+  `scanned=166 checked=166 error=0`；`check-bash32-parse.sh` 同一面 166 份、解析器
+  `/bin/bash 3.2.57`（有牙档位=bash 3.x，未走 SKIP）。另单跑
+  `shellcheck -S error .specify/scripts/bash/*.sh` → rc=0 作正控制。
 - `go build ./...` → 无输出；`go vet ./...` → **rc=0**（vet 会编译 `_test.go`，即已提交的测试
   在这套新依赖上全部编得过）。
 - `EMBEDDING_ALLOW_FALLBACK=true POSTGRES_TEST_PASSWORD=<.env 值> go test ./internal/pkg/... -count=1`
