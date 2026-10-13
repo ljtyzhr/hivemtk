@@ -74,9 +74,9 @@ describe('map 工具 - 平台标签', () => {
     expect(getPlatformName('88')).toBe('未知')
   })
 
-  it('getPlatformMap 返回全部 18 档', () => {
+  it('getPlatformMap 返回全部 19 档', () => {
     const map = getPlatformMap()
-    expect(map).toHaveLength(18)
+    expect(map).toHaveLength(19)
     expect(map[0].value).toBe('1')
     expect(map[3].label).toBe('Telegram')
   })
@@ -102,7 +102,7 @@ describe('map 工具 - 状态标签', () => {
 describe('map 工具 - 线索渠道', () => {
   it('getClueMap 与 getPlatformMap 同源，不再另存 6 档抄本', () => {
     const map = getClueMap()
-    expect(map).toHaveLength(18)
+    expect(map).toHaveLength(19)
     expect(map.map((o) => o.value)).toEqual(getPlatformMap().map((o) => o.value))
   })
 
