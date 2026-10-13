@@ -84,6 +84,9 @@ func NewLoginRiskServiceWithRepo(repo repository.LoginRiskRepository) *LoginRisk
 //   - high: 异地登录 / 频繁失败
 //   - critical: 多维度同时触发（如异地 + 频繁失败）
 func (s *LoginRiskService) Evaluate(ctx context.Context, riskCtx *LoginRiskContext) (*LoginRiskResult, error) {
+	if riskCtx == nil {
+		return nil, errors.New("risk context is nil")
+	}
 	if riskCtx.LoginAt.IsZero() {
 		riskCtx.LoginAt = time.Now()
 	}

@@ -399,7 +399,7 @@ func (s *AutoTagger) buildCustomerDataSnapshot(ctx context.Context, customer *mo
 	if len(events) > 0 {
 		lastActiveAt := events[0].OccurredAt
 		for _, event := range events {
-			if event.OccurredAt.After(lastActiveAt) {
+			if event != nil && event.OccurredAt.After(lastActiveAt) {
 				lastActiveAt = event.OccurredAt
 			}
 		}
