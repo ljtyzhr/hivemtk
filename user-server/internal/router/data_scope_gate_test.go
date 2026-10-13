@@ -14,7 +14,9 @@ package router
 // 这道门要证的恰恰是"是行级隔离这一档给的"。
 
 import (
+	"fmt"
 	"net/http"
+	"sort"
 	"strings"
 	"testing"
 
@@ -312,4 +314,129 @@ func TestDataSetGate_LookupProviderReadsRealOwner(t *testing.T) {
 	if _, _, err := svc.LookupOwner(t.Context(), "customer_sessions", "session_id", "user_name", sess); err == nil {
 		t.Error("用未登记的归属列查到了结果：查询源没校验登记表")
 	}
+}
+
+// dataScopeScopedElsewhere 是"这条口按行寻址、但行级归属另有执行点"的名册。
+//
+// 名册不是放行名单：每一条都必须写清**由哪一层、按哪一列**拦。它的三向失效都会被下面
+// 那条腿抓到——写歪的键不在 live 路由上（stale）、后来又被登记进守卫（double）、
+// 或者新出现的按行口既没登记也没进名册（unaccounted）。
+var dataScopeScopedElsewhere = map[string]string{
+	// 客服会话：controller 把登录态组装成 service.SessionScope（非超管只看 agent_id=自己或 0）。
+	"GET /api/customer-sessions/:id":                 "service.CustomerSessionService.GetSessionByIDScoped",
+	"POST /api/customer-sessions/:id/auto-assign":    "service.CustomerSessionService.GetSessionByIDScoped（controller/customer_session_routing.go）",
+	"POST /api/customer-sessions/:id/close":          "service.CustomerSessionService.GetSessionByIDScoped（controller/customer_session.go）",
+	"GET /api/customer-sessions/:id/messages":        "service.CustomerSessionService.GetSessionByIDScoped（controller/customer_session.go）",
+	"POST /api/customer-sessions/:id/messages":       "service.CustomerSessionService.GetSessionByIDStringScoped（controller/customer_session.go）",
+	"POST /api/customer-sessions/:id/rate":           "service.CustomerSessionService.GetSessionByIDScoped（controller/customer_session.go）",
+	"POST /api/customer-sessions/:id/release":        "service.CustomerSessionService.GetSessionByIDScoped（controller/customer_session_takeover.go）",
+	"PUT /api/customer-sessions/:id/status":          "service.CustomerSessionService.GetSessionByIDScoped（controller/customer_session.go）",
+	"POST /api/customer-sessions/:id/switch-handler": "service.CustomerSessionService.GetSessionByIDScoped（controller/customer_session_takeover.go）",
+	"POST /api/customer-sessions/:id/tags":           "service.CustomerSessionService.GetSessionByIDScoped（controller/customer_session.go）",
+	"POST /api/customer-sessions/:id/takeover":       "service.CustomerSessionService.GetSessionByIDScoped（controller/customer_session_takeover.go）",
+	"POST /api/customer-sessions/:id/transfer":       "service.CustomerSessionService.GetSessionByIDScoped（controller/customer_session_routing.go）",
+	// 收件箱：controller 组装 service.InboxScope（非超管只认 assigned_to=自己的 username）。
+	"GET /api/inbox/conversations/:id":                  "service.InboxService.GetByIDScoped",
+	"GET /api/inbox/conversations/:id/messages":         "service.InboxService.GetMessagesByConversationScoped",
+	"DELETE /api/inbox/conversations/:id/messages/:mid": "service.InboxService.DeleteMessageScoped",
+	"POST /api/inbox/conversations/:id/mute":            "service.InboxService.MuteScoped",
+	"POST /api/inbox/conversations/:id/pin":             "service.InboxService.PinScoped",
+	"POST /api/inbox/conversations/:id/read":            "service.InboxService.MarkReadScoped",
+	"POST /api/inbox/conversations/:id/star":            "service.InboxService.StarScoped",
+	"POST /api/inbox/conversations/:id/tags":            "service.InboxService.AddTagScoped",
+	"DELETE /api/inbox/conversations/:id/tags/:tag":     "service.InboxService.RemoveTagScoped",
+	// 这条的参数**就是**归属（查的是"某个坐席手上几会话"），登记表那一格放不下这种形状，
+	// 判据在 controller 里：非超管只允许 staff==自己的 username。
+	"GET /api/inbox/staff/:staff/load": "controller.InboxController.StaffLoad（role!=admin 时 staff 必须等于本人 username）",
+}
+
+// dataScopeElsewhereCap 名册的上界（只减不增的棘轮）：
+// 覆盖率涨了就把对应条目删掉并把这里改小；把它调大等于承认新泄露，需要单独评审。
+const dataScopeElsewhereCap = 22
+
+// TestDataSetGate_CustomerDomainIsAllAccountedFor 客服域按行寻址的口，逐条要么登记进守卫、
+// 要么在名册里有明确执行点，二者必居其一。
+//
+// 这条腿补的是"登记面的缺口"，与前面几条互补：前面几条钉的是"登记了的必须有效"，
+// 而登记本身可能漏——16 行登记对 38 条按行口，中间那 22 条靠 service 层的既有 scope 守，
+// 这个事实只存在于人名里。新加一条 `GET /api/customer-sessions/:id/whatever` 而没人登记时，
+// 全站读起来一切正常，只有这条腿会红。
+func TestDataSetGate_CustomerDomainIsAllAccountedFor(t *testing.T) {
+	chains := liveRouteGuardChains(t)
+	registered := make(map[string]bool, len(model.DataScopeRegistrations()))
+	for _, key := range model.DataScopeRegistrations() {
+		registered[key] = true
+	}
+
+	prefixes := []string{"/api/customer-sessions/", "/api/inbox/"}
+	scanned := 0
+	unaccounted, stale, doubled := []string{}, []string{}, []string{}
+	for key, chain := range chains {
+		parts := strings.SplitN(key, " ", 2)
+		if len(parts) != 2 {
+			t.Fatalf("路由键的形状不是 \"METHOD /path\"：%q", key)
+		}
+		method, path := parts[0], parts[1]
+		var inDomain bool
+		for _, p := range prefixes {
+			if strings.HasPrefix(path, p) {
+				inDomain = true
+				break
+			}
+		}
+		if !inDomain || !strings.Contains(path, ":") {
+			continue
+		}
+		scanned++
+		_, listed := dataScopeScopedElsewhere[key]
+		if registered[key] {
+			if listed {
+				doubled = append(doubled, key)
+			}
+			continue
+		}
+		if listed {
+			// 名册说"另有执行点在 service 层"，可这条口已经是仅超管档了：
+			// 两种口径同时在场时没人知道自己守的是哪一层，必须选一种写清。
+			if tier := routeGuardTier(method, path, chain); tier == tierSuperAdmin {
+				t.Errorf("%s 既在名册里又被升成仅超管档：名册的理由已过期", key)
+			}
+			continue
+		}
+		unaccounted = append(unaccounted,
+			fmt.Sprintf("%s [%s]", key, routeGuardTier(method, path, chain)))
+	}
+
+	// 名册自校对：登记的键必须还在 live 路由上、且确实没被守卫登记（否则名册在骗人）。
+	for key := range dataScopeScopedElsewhere {
+		if _, ok := chains[key]; !ok {
+			stale = append(stale, key)
+		}
+	}
+
+	// 正控制：这条腿真的扫到了这一域。扫到 0 条只可能是路由表或前缀口径坏了，
+	// 那时候上面三个集合全是空的、其余判据一起静默通过。
+	if scanned < 30 {
+		t.Fatalf("客服域按行寻址的口只扫到 %d 条（名册+登记 = %d）：事实源或前缀口径坏了，读数不可用",
+			scanned, len(registered)+len(dataScopeScopedElsewhere))
+	}
+	if len(unaccounted) > 0 {
+		sort.Strings(unaccounted)
+		t.Errorf("有 %d 条按行寻址的客服接口既没登记进守卫、名册里也没有执行点：%v"+
+			"（新增这类口时：能登记就登记，确实另有执行点就把名字和理由写进名册）",
+			len(unaccounted), unaccounted)
+	}
+	if len(stale) > 0 {
+		sort.Strings(stale)
+		t.Errorf("名册里有 %d 条已经不在 live 路由上：%v（接口下线或改名后请把条目一起删掉）", len(stale), stale)
+	}
+	if len(doubled) > 0 {
+		sort.Strings(doubled)
+		t.Errorf("有 %d 条同时被守卫登记又留在名册里：%v（两套口径同时拦同一条口，读数会互相掩盖）", len(doubled), doubled)
+	}
+	if len(dataScopeScopedElsewhere) > dataScopeElsewhereCap {
+		t.Errorf("名册 %d 条，超过上界 %d：把上界调大等于承认新的未覆盖面", len(dataScopeScopedElsewhere), dataScopeElsewhereCap)
+	}
+	t.Logf("客服域按行寻址 %d 条：守卫登记 %d、名册 %d（上界 %d）",
+		scanned, len(registered), len(dataScopeScopedElsewhere), dataScopeElsewhereCap)
 }

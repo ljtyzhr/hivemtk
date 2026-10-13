@@ -373,8 +373,19 @@ func (c *InboxController) DeleteMessage(ctx *gin.Context) {
 }
 
 // StaffLoad 客服负载
+//
+// 这条口读的是"某个坐席手上还有几会话"，属于同事的工作量数据，不是调用者自己的行，
+// 所以行级守卫（DataScopeGuard 按行的归属列判）在这里没有格子：参数本身就是归属。
+// 口径与 InboxScope 同源——非超管只能查自己名下的负载，别人的要 403。
 func (c *InboxController) StaffLoad(ctx *gin.Context) {
 	staff := ctx.Param("staff")
+	if ctx.GetString("role") != model.SystemRoleCodeAdmin {
+		me := ctx.GetString("username")
+		if me == "" || staff != me {
+			response.Error(ctx, http.StatusForbidden, "无权查看他人的负载")
+			return
+		}
+	}
 	load, err := c.svc.StaffLoad(ctx.Request.Context(), staff)
 	if err != nil {
 		response.ErrorFromDB(ctx, err, err.Error())

@@ -142,12 +142,15 @@ func TestDataScopeGuard_NilLookupFailsClosed(t *testing.T) {
 	}
 }
 
-func TestDataScopeGuard_AdminAndGlobalScopeBypass(t *testing.T) {
-	cases := []struct{ name, role, scope string }{
+func TestDataScopeGuard_OnlyAdminSeesEverything(t *testing.T) {
+	// 放开全量的条件**只有角色**：data_scope=all 不再宽化。理由是同域的既有两处行级 scope
+	// （service.SessionScope / service.InboxScope）都只按角色放开，守卫多认一档就会变成
+	// "列表看不到、按 id 读得到"的两套口径，窄的那套被宽的旁路。
+	bypass := []struct{ name, role, scope string }{
 		{"超管", "admin", "all"},
-		{"非超管但 data_scope=all", "customer_service", "all"},
+		{"超管即使 data_scope=self 也全量", "admin", "self"},
 	}
-	for _, c := range cases {
+	for _, c := range bypass {
 		code, body, handled := dsRun(t, dsCall{
 			method: http.MethodGet, path: "/api/customer-sessions/:sess/transcript",
 			register: true, row: dsSessionRow(), role: c.role, scope: c.scope, uid: 7,
@@ -157,6 +160,41 @@ func TestDataScopeGuard_AdminAndGlobalScopeBypass(t *testing.T) {
 			t.Errorf("%s 应全量可见并直达 handler，实得 code=%d handled=%v body=%s",
 				c.name, code, handled, strings.TrimSpace(body))
 		}
+	}
+
+	// 反例：非超管带 data_scope=all，别人的数据必须仍是 403。
+	code, body, handled := dsRun(t, dsCall{
+		method: http.MethodGet, path: "/api/customer-sessions/:sess/transcript",
+		register: true, row: dsSessionRow(), role: "customer_service", scope: "all", uid: 7,
+		lookup: okLookup("8", true, nil),
+	})
+	if handled {
+		t.Error("非超管带 data_scope=all 却读到了别人的会话（宽化没被摘掉）")
+	}
+	if code != http.StatusForbidden || !strings.Contains(body, DataScopeDeniedMessage) {
+		t.Errorf("非超管 data_scope=all 别人的数据应 403+行级隔离文案，实得 %d / %s",
+			code, strings.TrimSpace(body))
+	}
+
+	// 同一档的正例：all 也不该把"自己的数据"一起拦掉（否则上一条反例在"恒拦"里也能骗过）。
+	code, body, handled = dsRun(t, dsCall{
+		method: http.MethodGet, path: "/api/customer-sessions/:sess/transcript",
+		register: true, row: dsSessionRow(), role: "customer_service", scope: "all", uid: 7,
+		lookup: okLookup("7", true, nil),
+	})
+	if !handled || code != http.StatusTeapot {
+		t.Errorf("非超管 data_scope=all 时自己的数据仍应放行，实得 code=%d handled=%v body=%s",
+			code, handled, strings.TrimSpace(body))
+	}
+
+	// 身份读不出（role 为空）时按受限处理：缺登录态不能等于全量可见。
+	code, _, handled = dsRun(t, dsCall{
+		method: http.MethodGet, path: "/api/customer-sessions/:sess/transcript",
+		register: true, row: dsSessionRow(), role: "", scope: "all", uid: 7,
+		lookup: okLookup("999", true, nil),
+	})
+	if handled || code != http.StatusForbidden {
+		t.Errorf("读不出角色却放行别人的数据：code=%d handled=%v", code, handled)
 	}
 }
 

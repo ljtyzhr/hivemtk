@@ -58,12 +58,19 @@ var dataScopeLookup = model.DataScopeFor
 //
 // 判据（按顺序，任何一步拒绝都立刻出声）：
 //  1. 路由没登记 ⇒ 不属本层职责，放行给后续守卫与 handler；
-//  2. 调用者是超管或 data_scope=all ⇒ 全量可见；
+//  2. 调用者是超管 ⇒ 全量可见；其余角色一律按行判归属；
 //  3. 没注入查询源 ⇒ fail-closed（漏装配的后果必须是拦，不是放）；
 //  4. 取定位参数：参数缺失说明登记表与路由形状对不上，按装配错拦并出声；
 //  5. 查归属：DB 错 ⇒ 500；行不存在 ⇒ 404（不区分"没这行"和"不是你的行"给外人看）；
 //  6. 归属为空 ⇒ 未分配池，AllowUnowned 决定放行还是拦；
 //  7. 归属与自己不一致 ⇒ 403。
+//
+// 为什么这里只认角色、不认 data_scope=all：同一批会话接口里有两处**先于本层存在**的行级
+// scope（internal/service/customer_session_scope.go 的 SessionScope、
+// internal/service/inbox_scope.go 的 InboxScope），它们放开全量的条件都只有"角色是超管"。
+// 守卫若额外认 data_scope=all，就会出现"列表看不到别人的会话、按 id 却读得到"——同一域内
+// 两套口径，窄的那套被宽的那套旁路，正是本次要根治的形状。要按部门/团队放宽，得先把
+// 成员关系事实源建回来，并让三处消费点同时改（见下）。
 //
 // data_scope 的 department/team 在本仓**当前无法兑现**：system_users 有 department_id/
 // team_id 两列，但成员关系表 team_users 已被阶段 1 单表化重构 DROP（见
@@ -80,7 +87,7 @@ func DataScopeGuard() gin.HandlerFunc {
 
 		role := utils.GetRole(c)
 		scope := c.GetString("data_scope")
-		if role == model.SystemRoleCodeAdmin || scope == model.DataScopeAll {
+		if role == model.SystemRoleCodeAdmin {
 			c.Next()
 			return
 		}

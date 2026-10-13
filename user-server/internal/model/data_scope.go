@@ -133,7 +133,9 @@ var dataScopeRoutes = map[string]DataScopeRow{
 	// 收件箱按行寻址的那批（详情/消息/打标/置顶/静音/删除消息）已在 service 层过
 	// InboxScope，不再重复登记；这里没有 inbox_conversations 的行不是"漏了"，
 	// 是它们已有执行点。登记表与 live 路由的差集由
-	// internal/router/data_scope_gate_test.go 与 scripts/data-scope-audit.py 双向核对。
+	// internal/router/data_scope_gate_test.go 单向核对：那条腿把客服域每一条按行寻址的口
+	// 分成三类——守卫已登记、名册 dataScopeScopedElsewhere 里写了执行点、两者皆无（红）。
+	// 新增这类口时不要动这里来消红，要么登记一行，要么把它的执行点写进那份名册。
 }
 
 // DataScopeFor 查一条路由的行级隔离登记。

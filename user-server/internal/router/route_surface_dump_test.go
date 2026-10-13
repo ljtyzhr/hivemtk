@@ -83,6 +83,39 @@ func TestDumpLiveRouteTable(t *testing.T) {
 // routeGuardDumpFileEnv 是守卫链导出路径的环境变量名：设为某个文件路径才导出，未设则跳过。
 const routeGuardDumpFileEnv = "ROUTE_GUARD_DUMP_FILE"
 
+// 档位名：非超管能不能走到 handler，只由这四个值区分。
+const (
+	tierAnonymous  = "anonymous"
+	tierIdentity   = "identity"
+	tierCapability = "capability"
+	tierSuperAdmin = "super-admin"
+)
+
+// routeGuardTier 把一条 live 路由的守卫链折成"有效档位"。
+//
+// 判的是**有效**授权而不是"链上出现过哪个守卫名"：RoutePolicyGuard 挂在 auth 组的每一条
+// 链上（router.go 里 auth.Use），但它只在路径命中仅超管表时才真的拦人——按守卫名分档会把
+// 全表读成"仅超管"（实测踩过，正控制当场抓住它）。
+//
+// 能力档（capability）是链上有身份守卫、但拦不拦取决于调用者有没有被授予该形状所属菜单节点
+// 的那一档；它必须是独立一档而不是混进 identity，否则"任何登录角色都能调"的口径会把
+// 能力口一起算成泄露面。
+func routeGuardTier(method, path string, chain []string) string {
+	hasIdentity := chainHasAny(chain, identityGuards)
+	hardAdmin := chainHasGuard(chain, guardRequireAdm) || chainHasGuard(chain, guardAdminAuth)
+	policyAdmin := chainHasGuard(chain, guardPolicy) && middleware.IsAdminOnlyRoute(method, path)
+	switch {
+	case hasIdentity && (hardAdmin || policyAdmin):
+		return tierSuperAdmin
+	case hasIdentity && len(middleware.CapabilityOwnerKeysFor(path)) > 0:
+		return tierCapability
+	case hasIdentity:
+		return tierIdentity
+	default:
+		return tierAnonymous
+	}
+}
+
 // TestDumpLiveRouteGuardChains 把每条 live 路由"链上认得的守卫"导成 TSV，供跨层复算。
 //
 // 为什么要有它：菜单可见性和路由守卫是两份独立写下的授权（model/menu.go 的节点 Roles
@@ -111,27 +144,9 @@ func TestDumpLiveRouteGuardChains(t *testing.T) {
 		if len(parts) != 2 {
 			t.Fatalf("路由键的形状不是 \"METHOD /path\"：%q", key)
 		}
-		// 档位判的是**有效**授权，不是"链上出现过哪个守卫名"。RoutePolicyGuard 挂在
-		// auth 组每一条链上（router.go 里 auth.Use），但它只在路径命中仅超管表时才拦人：
-		// 按守卫名分档会把 1667 条口全读成"仅超管"（实测踩过，正控制当场抓住它）。
-		hasIdentity := chainHasAny(chain, identityGuards)
-		hardAdmin := chainHasGuard(chain, guardRequireAdm) || chainHasGuard(chain, guardAdminAuth)
-		policyAdmin := chainHasGuard(chain, guardPolicy) && middleware.IsAdminOnlyRoute(parts[0], parts[1])
-		// 能力档：链上有守卫、但拦不拦取决于调用者有没有被授予该能力所属的菜单节点。
-		// 导出件里它必须是**独立一档**而不是 identity：菜单/守卫错配的复算把 identity
-		// 读成"任何登录角色都能调"，能力口混在里面会被算成泄露面。
-		capability := hasIdentity && !hardAdmin && !policyAdmin &&
-			len(middleware.CapabilityOwnerKeysFor(parts[1])) > 0
-
-		tier := "anonymous"
-		switch {
-		case hasIdentity && (hardAdmin || policyAdmin):
-			tier = "super-admin"
-		case capability:
-			tier = "capability"
-		case hasIdentity:
-			tier = "identity"
-		}
+		// 档位判的是**有效**授权，不是"链上出现过哪个守卫名"——口径见 routeGuardTier。
+		// 导出件与行级隔离的覆盖率门共用这一个函数：两处各算一遍会分叉。
+		tier := routeGuardTier(parts[0], parts[1], chain)
 
 		found := make([]string, 0, len(superAdminGuards)+len(identityGuards)+1)
 		known := append(append([]string{}, identityGuards...), superAdminGuards...)
