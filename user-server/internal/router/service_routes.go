@@ -159,6 +159,9 @@ func setupMessageRoutes(auth *gin.RouterGroup, db *gorm.DB) {
 	hub.POST("/:id/read", messageHubCtrl.MarkRead)
 
 	inboxIngressCtrl := controller.NewInboxIngressController(service.NewInboxIngressService())
+	// lock-human 的 session_id 走 body 寻址，行级守卫的登记表只认路径参数扫不到它，
+	// 所以在 controller 里补一道服务层 scope；这里把会话服务装配上（漏装即 fail-closed）。
+	inboxIngressCtrl.SetSessionService(service.NewCustomerSessionService())
 	auth.POST("/inbox/lock-human", inboxIngressCtrl.LockHuman)
 	auth.POST("/inbox/unlock-human/:session_id", inboxIngressCtrl.UnlockHuman)
 

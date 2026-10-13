@@ -230,6 +230,13 @@ func (c *InboxController) Assign(ctx *gin.Context) {
 		response.Error(ctx, http.StatusBadRequest, "请求参数错误: "+err.Error())
 		return
 	}
+	// 数据隔离：conversation_id 走 body 寻址，而 DataScopeGuard 的登记表只认路径参数
+	// （METHOD /path 里的 :param），这类口它扫不到。所以这一档必须自己过可见性检查，
+	// 口径与 /inbox/conversations/:id/* 那批口完全一致（非超管只见 assigned_to=本人）。
+	if _, err := c.svc.GetByIDScoped(ctx.Request.Context(), req.ConversationID, inboxScopeFromCtx(ctx)); err != nil {
+		writeScopedError(ctx, err)
+		return
+	}
 	operatorID := ""
 	if v, ok := ctx.Get("user_id"); ok {
 		operatorID, _ = v.(string)
@@ -259,6 +266,12 @@ func (c *InboxController) AutoAssign(ctx *gin.Context) {
 	}
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		response.Error(ctx, http.StatusBadRequest, "请求参数错误: "+err.Error())
+		return
+	}
+	// 数据隔离：同上，conversation_id 走 body 寻址，守卫登记表扫不到，
+	// 自动分配前先过可见性检查，避免坐席把别人的会话抢走或改写归属。
+	if _, err := c.svc.GetByIDScoped(ctx.Request.Context(), req.ConversationID, inboxScopeFromCtx(ctx)); err != nil {
+		writeScopedError(ctx, err)
 		return
 	}
 	operatorID := ""
@@ -319,6 +332,17 @@ func (c *InboxController) ListAssignments(ctx *gin.Context) {
 		if n, err := strconv.ParseUint(v, 10, 32); err == nil {
 			convID = uint(n)
 		}
+	}
+	// 数据隔离：带 conversation_id 时按归属校验（与 /inbox/conversations/:id 同一口径）；
+	// 不带 id 的"全量分配历史"只放超管——非超管拿它等于拿到全体坐席的会话清单与客户信息。
+	if convID != 0 {
+		if _, err := c.svc.GetByIDScoped(ctx.Request.Context(), convID, inboxScopeFromCtx(ctx)); err != nil {
+			writeScopedError(ctx, err)
+			return
+		}
+	} else if ctx.GetString("role") != model.SystemRoleCodeAdmin {
+		response.Error(ctx, http.StatusForbidden, "无权查看全量分配历史")
+		return
 	}
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(ctx.DefaultQuery("page_size", "20"))
@@ -413,12 +437,23 @@ func (c *InboxController) Agents(ctx *gin.Context) {
 // 端点：POST /api/chat/ingress （公开，不需要 JWT）
 // 职责：把外部渠道事件转换为内部消息，落库 + 加锁路由
 type InboxIngressController struct {
-	svc *service.InboxIngressService
+	svc        *service.InboxIngressService
+	sessionSvc *service.CustomerSessionService
 }
 
 // NewInboxIngressController 创建入站控制器
 func NewInboxIngressController(svc *service.InboxIngressService) *InboxIngressController {
 	return &InboxIngressController{svc: svc}
+}
+
+// SetSessionService 注入客服会话服务。
+//
+// lock-human 按 body 里的 session_id 寻址，DataScopeGuard 的登记表只认路径参数、
+// 扫不到它（对称的 unlock-human/:session_id 反而在登记表里被守着，这一侧敞着）。
+// 于是这一档必须在 controller 里自己过一遍服务层 scope，口径与
+// /customer-sessions/:id/* 那批口完全一致。
+func (c *InboxIngressController) SetSessionService(svc *service.CustomerSessionService) {
+	c.sessionSvc = svc
 }
 
 // Ingress 渠道消息统一入口
@@ -444,6 +479,17 @@ func (c *InboxIngressController) LockHuman(ctx *gin.Context) {
 	}
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		response.Error(ctx, http.StatusBadRequest, "请求参数错误: "+err.Error())
+		return
+	}
+	// 数据隔离：未装配会话服务时 fail-closed（与 DataScopeGuard"没装配查询源就 403"同一哲学），
+	// 装配了才按服务层 scope 校验归属——否则任意登录用户能给别人的会话上人工锁，
+	// 把坐席 A 的会话 AI 回复全掐掉（跨租户干扰）。
+	if c.sessionSvc == nil {
+		response.Error(ctx, http.StatusForbidden, "人工接管服务未装配，已按 fail-closed 拒绝")
+		return
+	}
+	if _, err := c.sessionSvc.GetSessionByIDStringScoped(ctx.Request.Context(), req.SessionID, sessionScopeFromCtx(ctx)); err != nil {
+		writeSessionScopedError(ctx, err, "会话不存在")
 		return
 	}
 	if err := c.svc.LockSessionForHuman(ctx.Request.Context(), req.SessionID, req.Reason); err != nil {

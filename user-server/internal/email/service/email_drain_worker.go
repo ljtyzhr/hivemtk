@@ -10,6 +10,7 @@ package email
 import (
 	"context"
 	"errors"
+	"runtime/debug"
 	"sync"
 	"time"
 
@@ -119,7 +120,7 @@ func (w *EmailDrainWorker) RunOnce(ctx context.Context) (err error) {
 	defer func() {
 		if r := recover(); r != nil {
 			err = errors.New("邮件排水轮 panic")
-			logger.Errorf("[email-drain] 本轮 panic 已捕获（进程不受影响）: %v", r)
+			logger.Errorf("[email-drain] 本轮 panic 已捕获（进程不受影响）: %v\n%s", r, debug.Stack())
 		}
 	}()
 	if w.svc == nil {
