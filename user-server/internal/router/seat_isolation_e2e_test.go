@@ -415,3 +415,103 @@ func TestSeatIsolation_InboxStatsScoped(t *testing.T) {
 	}
 	t.Logf("收件箱统计：坐席 B 读到 assigned=%d total=%d（库里三行：A、B、未分配）", mine.Assigned, mine.Total)
 }
+
+// seatReseedConvA 重建一条"分给坐席 A"的收件箱会话，返回它的自增 ID。
+// 与 seatReseedA 同一个理由：控制组本身是写口，跑完会把归属改写（release 置空、
+// close 改状态），不重置的话下一条腿的断言会静默失效。
+func seatReseedConvA(t *testing.T, database *gorm.DB) uint {
+	t.Helper()
+	if err := database.Unscoped().Where("customer_id LIKE ?", "seat-conv-body-%").Delete(&model.InboxConversation{}).Error; err != nil {
+		t.Fatalf("清理旧收件箱测试会话失败: %v", err)
+	}
+	c := &model.InboxConversation{
+		Platform: "web", AccountID: "seat-acct", CustomerID: "seat-conv-body-a",
+		CustomerName: "seat-conv-body-a", Status: "assigned", AssignedTo: "seat-a",
+	}
+	if err := database.Create(c).Error; err != nil {
+		t.Fatalf("重建 A 名下收件箱会话失败: %v", err)
+	}
+	if c.AssignedTo != "seat-a" {
+		t.Fatalf("种子会话归属没写进去：assigned_to=%q", c.AssignedTo)
+	}
+	return c.ID
+}
+
+// TestSeatIsolation_InboxBodyAddressedWritesAreScoped 收件箱域那批**按 body 寻址**的
+// 写口：/inbox/assign、/inbox/assign/auto、/inbox/assignments、/inbox/lock-human。
+//
+// 为什么要单独立一条腿：DataScopeGuard 的登记表键是 "METHOD /ginFullPath"，只认
+// 路径参数（:id 这种），body 里的 conversation_id / session_id 它一个都扫不到。
+// 于是这类口的隔离只能靠 controller 里的服务层 scope 预检——漏一处，
+// 表现就是"坐席 B 能把 A 的会话 close 掉/release 掉/抢走/上人工锁"，
+// 而列表页一切正常。静态腿（名册）更是完全看不见这批口。
+func TestSeatIsolation_InboxBodyAddressedWritesAreScoped(t *testing.T) {
+	engine, database := seatEngine(t)
+	agentA, agentB, admin := seatTokens(t)
+	_, aSID := seatReseedA(t, database)
+
+	// legs 的控制组（本人令牌）要逐条跑，所以"全量分配历史"这条单列：
+	// 它对非超管一律 403，控制组跑它会误判成恒拦。
+	legs := []struct {
+		name   string
+		method string
+		path   func(convID uint) string
+		body   func(convID uint) string
+	}{
+		{"POST /inbox/assign(close)", "POST",
+			func(uint) string { return "/api/inbox/assign" },
+			func(id uint) string { return fmt.Sprintf(`{"conversation_id":%d,"action":"close"}`, id) }},
+		{"POST /inbox/assign/auto", "POST",
+			func(uint) string { return "/api/inbox/assign/auto" },
+			func(id uint) string {
+				return fmt.Sprintf(`{"conversation_id":%d,"candidates":["seat-a","seat-b"]}`, id)
+			}},
+		{"GET /inbox/assignments?conversation_id=", "GET",
+			func(id uint) string { return fmt.Sprintf("/api/inbox/assignments?conversation_id=%d", id) },
+			func(uint) string { return "" }},
+		{"POST /inbox/lock-human", "POST",
+			func(uint) string { return "/api/inbox/lock-human" },
+			func(uint) string { return fmt.Sprintf(`{"session_id":%q,"reason":"steal"}`, aSID) }},
+	}
+
+	for _, l := range legs {
+		// 控制组：本人令牌，同一条口不许被隔离档拦（否则正文的 403 可能只是"恒拦"）。
+		convID := seatReseedConvA(t, database)
+		if code, body := seatCall(t, engine, l.method, l.path(convID), agentA, l.body(convID)); seatForbidden(code, body) {
+			t.Errorf("[%s] 本人的会话被隔离档拦了（恒拦）：%d / %s", l.name, code, strings.TrimSpace(body))
+		}
+
+		// 控制组是写口，跑完归属可能被改写 → 重置后再跑正文。
+		convID = seatReseedConvA(t, database)
+		code, body := seatCall(t, engine, l.method, l.path(convID), agentB, l.body(convID))
+		if !seatForbidden(code, body) {
+			t.Errorf("[%s] 坐席 B 打 A 名下数据没有被行级隔离拦下：%d / %s（越权面仍敞着）",
+				l.name, code, strings.TrimSpace(body))
+			continue
+		}
+		// 403 之外还要看数据没被动：close/release 这类口一旦漏检是会真写库的。
+		var after model.InboxConversation
+		if err := database.Where("customer_id = ?", "seat-conv-body-a").First(&after).Error; err != nil {
+			t.Fatalf("读回 A 的收件箱会话失败: %v", err)
+		}
+		if after.Status != "assigned" {
+			t.Errorf("[%s] 已 403，但 A 的会话状态被改成了 %q（先拦后写）", l.name, after.Status)
+		}
+		if after.AssignedTo != "seat-a" {
+			t.Errorf("[%s] 已 403，但 A 的会话归属被改成了 %q（会话被抢走）", l.name, after.AssignedTo)
+		}
+	}
+
+	// 全量分配历史：非超管一律不许看（它等于全体坐席的会话清单），两种坐席都要拦。
+	for _, tok := range []string{agentA, agentB} {
+		if code, body := seatCall(t, engine, "GET", "/api/inbox/assignments", tok, ""); code != http.StatusForbidden {
+			t.Errorf("非超管读全量分配历史没被拦：%d / %s", code, strings.TrimSpace(body))
+		}
+	}
+
+	// 超管对照组：隔离档不许把超管也关在外面。
+	if code, body := seatCall(t, engine, "GET", "/api/inbox/assignments", admin, ""); code == http.StatusForbidden {
+		t.Errorf("admin 读分配历史被隔离档拦了：%d / %s", code, strings.TrimSpace(body))
+	}
+	t.Logf("收件箱 body 寻址写口 %d 条 + 全量分配历史，B→A 全部 403+%q 且归属/状态未变", len(legs), seatForbiddenMsg)
+}

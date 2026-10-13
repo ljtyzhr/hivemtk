@@ -183,7 +183,10 @@ func setupMessageRoutes(auth *gin.RouterGroup, db *gorm.DB) {
 	auth.DELETE("/inbox/conversations/:id/messages/:mid", inboxCtrl.DeleteMessage)
 	auth.POST("/inbox/assign", inboxCtrl.Assign)
 	auth.POST("/inbox/assign/auto", inboxCtrl.AutoAssign)
-	auth.POST("/inbox/reconcile", inboxCtrl.Reconcile)
+	// 对账治理是全库批量修数据 + 回全量计数，不是坐席工作台动作：收进 admin 组，
+	// 与 message-hub / platform-accounts 那几个全局治理口同一档。
+	inboxAdmin := auth.Group("", middleware.RequireAdminMiddleware())
+	inboxAdmin.POST("/inbox/reconcile", inboxCtrl.Reconcile)
 }
 
 func setupPlatformAccountRoutes(auth *gin.RouterGroup) {
