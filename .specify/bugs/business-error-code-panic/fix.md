@@ -203,11 +203,13 @@ case int:
 - `/speckit-bug-test slug=business-error-code-panic` → `test.md` 已产出，12 + 7 行逐项读数。
 - 按 `CLAUDE.md` 规则1 提交并推双远端：主工作树两笔（`d28a8336` 代码+文档、`4eb0ec7b` spec-kit 工作区
   44 份文件，均只 `git add` 显式路径、`git diff --cached` 逐 hunk 认账，`--stat` 零他人内容）；
-  推送树 = 干净克隆 `/tmp/sk-push/hivemtk` 合并 `upstream/master` 后的 4 笔
-  （merge `5d25d9a3`、门禁收账 `b6d0dcea`、验证回灌 `36107fad`、出处订正 `ccd47d6a`）。
+  推送树 = 干净克隆 `/tmp/sk-push/hivemtk` 合并 `upstream/master` 后的
+  merge `5d25d9a3` + 门禁收账 `b6d0dcea` + 验证回灌 `36107fad` + 出处订正 `ccd47d6a`
+  （及其后仅承载本三件套读数的记录提交）。
   推送前 `git fetch` 现取两远端 tip（`8a00b975` / `15ccabb7`），`git merge-base --is-ancestor`
   两条各判一次 rc=0 ⇒ 两推皆 fast-forward、无 `--force`；推后以 `git ls-remote` 回读
-  `refs/heads/master`，**GitHub 与 Gitee 同为 `ccd47d6acabde56ff9afe41eece72d18fbf2ef08`**。
+  `refs/heads/master`，第一趟两远端同为 `ccd47d6a`，随后回灌读数的那笔再推，两远端仍**同值**
+  （tip 自指值不写死，见 `test.md` 的「推送事实」）。
 
 仍开放（都带明确归属，不是本轮欠账）：
 

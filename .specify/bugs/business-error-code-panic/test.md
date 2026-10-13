@@ -128,6 +128,12 @@ ADR 对账）各自有判据守着，且现证对既有 148 处整数状态码�
 
 推送事实（`git ls-remote <remote> refs/heads/master` 回读，不靠本地记录）：
 GitHub（`git@github.com:xiaofang142/hivemtk.git`）与 Gitee（`git@gitee.com:xhpmayun/hivemtk.git`）
-的 `refs/heads/master` **同为 `ccd47d6acabde56ff9afe41eece72d18fbf2ef08`**，
-合并前的两远端 tip 分别是 `8a00b975`（github，含 12 笔 dependabot）与 `15ccabb7`（gitee）；
-两推前各做一次 `git merge-base --is-ancestor … HEAD` 均 rc=0 ⇒ 皆 fast-forward，全程无 `--force`。
+的 `refs/heads/master` **同值**；两推前各做一次 `git merge-base --is-ancestor <remote>/master HEAD`
+均 rc=0 ⇒ 皆 fast-forward，全程无 `--force`。合并前的两远端 tip 分别是 `8a00b975`
+（github，含 12 笔 dependabot）与 `15ccabb7`（gitee）。本轮内容提交按序：
+`d28a8336`（代码+错误码文档）、`4eb0ec7b`（spec-kit 工作区 44 份）、`5d25d9a3`（merge 上游）、
+`b6d0dcea`（action 运行时门收账）、`36107fad`／`ccd47d6a`（验证读数与出处订正）；
+其后各笔只是承载本三件套读数的记录提交，tip 的自指值不写在这里——
+要用就现读 `git ls-remote upstream refs/heads/master` 与 `git ls-remote gitee refs/heads/master`
+（远端别名按树不同：主工作树是 `upstream`／`gitee-upstream`，本轮的推送克隆是 `upstream`／`gitee`；
+以 URL 认这两个仓库才不受别名影响）。
