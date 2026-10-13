@@ -343,6 +343,13 @@ user-web/deep-test-summary.json
 hardcode-sweep/
 # 临时运行日志（前端桥接运行输出，非源码）
 user-web/_bridge_run.txt
+# 审计/测试生成文档（脚本可重新生成）：API 清单检查表、Playwright UI 审计报告、路由审计清单
+user-web/tests/API_CHECKLIST.md
+user-web/tests/e2e/UI_AUDIT_REPORT.md
+user-web/ROUTE_AUDIT_LIST.md
+# 永动审计循环的状态/报告产物（脚本与循环每轮推进，非源码；PLAN.md 手册除外）
+scripts/audit-loop/STATE.md
+scripts/audit-loop/state.json
 
 # simulate 运行时数据（脚本产物，非源码）
 *.jsonl
