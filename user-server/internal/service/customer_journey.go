@@ -639,6 +639,10 @@ func (c *JourneySleepCron) runOnce(ctx context.Context) (detected []string) {
 			detected = nil
 		}
 	}()
+	if c.svc == nil {
+		logger.Ctx(ctx).Error().Msg("[JourneySleepCron] svc 为 nil，跳过沉睡检测")
+		return nil
+	}
 	return c.svc.AutoDetectSleeping(ctx)
 }
 
