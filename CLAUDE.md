@@ -92,15 +92,25 @@ Router → Controller → Service → Repository → Model
 /swagger/*                  # API 文档
 ```
 
-### 错误码
-```
-# HTTP 标准错误码
-0=成功 400=参数 401=认证 403=权限 404=不存在 409=冲突 500=服务端
+### 错误码（两条通道，不得混用）
 
-# 业务错误码（10000-19999）
-10001=用户不存在 10002=客户不存在 10003=订单不存在
-10010=余额不足 10011=库存不足 10012=权限不足
-```
+**业务码不是 HTTP 状态码。** 把 `10001` 这类业务码当状态码传给 `response.Error`，gin 会
+`panic: invalid WriteHeader code 10001`，该请求拿不到响应体。
+
+| 通道 | 用法 | 码值事实源 |
+|------|------|-----------|
+| 传输语义（HTTP 状态码） | `response.Error(c, utils.ErrorCodeXxx, msg)`；或 `response.Error(c, http.StatusBadRequest, msg)`——int 形参只允许 100–999，越界一律降级为 500 + `UNKNOWN_1000` | `user-server/internal/pkg/utils/error_code.go`（字符串码，形如 `INVALID_PARAM_1001`，登记表内含 HTTP 映射与多语言文案） |
+| 业务语义（码进响应体） | `response.ErrorWithBusinessCode(c, bizerr.CodeXxx, msg)`——HTTP 恒 200，真话在响应体 `code` | `user-server/internal/domain/errors/codes.go`（4 位数字段：4xxx 参数/鉴权、5xxx 内部与平台、6xxx 资产域） |
+
+成功响应固定 `response.Success(c, data, msg)` ⇒ 响应体 `code: 0`（int 零，不是字符串 `"SUCCESS"`）。
+`bizerr.CodeSuccess` 同为 `0`；`utils.ErrorCodeSuccess` 是字符串 `"SUCCESS"`，只出现在 ErrorCode 通道，不用于成功响应体。
+
+- 新增业务码**只在** `internal/domain/errors/codes.go` 登记；本文件不重抄码值清单（此前这里抄过一份
+  代码里并不存在的 `10000-19999` 段，照它写的第一条分支就 panic —— 见 `.specify/bugs/business-error-code-panic/`）。
+- 未在 `errorCodeRegistry` 登记的 `utils.ErrorCode`：状态码兜底成 500、空文案兜底成「未知错误」，
+  但响应体 `code` 仍回显那个没登记的字符串 ⇒ 加码必须同步登记，否则线上只是 500、不报错。
+- 渠道官方错误码（如 `internal/service/channel_error.go` 里的 `100001/10004`）属**上游平台码表**，
+  与上面两条通道无关，不得当作本服务的业务码复用。
 
 ---
 

@@ -1,10 +1,12 @@
 package response
 
 import (
+	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"hivemtk-user/internal/pkg/i18n"
 	"hivemtk-user/internal/pkg/utils"
 
 	"github.com/gin-gonic/gin"
@@ -280,4 +282,129 @@ func TestErrorCodeFromHTTPCode(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestError_BusinessCodeDoesNotPanicWriter 钉住这一族的回归：业务错误码（10001 这类
+// 5 位数）不是合法的 HTTP 状态码，直传 gin 会 panic("invalid WriteHeader code 10001")，
+// 整条请求拿不到响应体。修后必须降级成一条可读的 500。
+func TestError_BusinessCodeDoesNotPanicWriter(t *testing.T) {
+	ctx, w := setupTestContext()
+
+	Error(ctx, 10001, "用户不存在")
+
+	if w.Code != http.StatusInternalServerError {
+		t.Fatalf("越界业务码应降级为 500, got %d", w.Code)
+	}
+	var body Response
+	if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+		t.Fatalf("响应体必须是合法 JSON, err=%v body=%q", err, w.Body.String())
+	}
+	if got, ok := body.Code.(string); !ok || got != string(utils.ErrorCodeUnknown) {
+		t.Errorf("code = %#v, want %q（业务码不得冒充 HTTP 状态码语义）", body.Code, string(utils.ErrorCodeUnknown))
+	}
+}
+
+// TestError_OutOfRangeCodesAllDegraded 覆盖合法 HTTP 域 [100,999] 之外的两侧边界，
+// 含文档旧段（10000-19999）与实际存在的 5 位健康码 50301。
+func TestError_OutOfRangeCodesAllDegraded(t *testing.T) {
+	for _, code := range []int{0, 1, 99, 1000, 5001, 10001, 19999, 50301, -1} {
+		ctx, w := setupTestContext()
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					t.Fatalf("Error(%d) panic: %v", code, r)
+				}
+			}()
+			Error(ctx, code, "x")
+		}()
+		if w.Code != http.StatusInternalServerError {
+			t.Errorf("Error(%d) 应降级为 500, got %d", code, w.Code)
+		}
+	}
+}
+
+// TestError_ValidHTTPStatusUnchanged 是上一枚的极性对：合法域内的状态码必须逐字保持
+// 原行为（加校验不得把正常通道一起改掉）。
+func TestError_ValidHTTPStatusUnchanged(t *testing.T) {
+	for _, code := range []int{http.StatusBadRequest, http.StatusUnauthorized, http.StatusForbidden,
+		http.StatusNotFound, http.StatusConflict, http.StatusUnprocessableEntity,
+		http.StatusTooManyRequests, http.StatusInternalServerError, http.StatusServiceUnavailable,
+		http.StatusGatewayTimeout, 999} {
+		ctx, w := setupTestContext()
+		Error(ctx, code, "x")
+		if w.Code != code {
+			t.Errorf("Error(%d) 状态码应原样透传, got %d", code, w.Code)
+		}
+	}
+}
+
+// TestResponsePath_RequestlessContextDoesNotPanic 钉住写响应这条路的第二个引信：
+// gin 的 GetHeader 会直取 c.Request.Header，而 gin.CreateTestContext 造出的 Context
+// 不带 Request（本仓 104 处测试用它）。localeOf 早先只判 c != nil，于是在
+// 「根本没有请求」的上下文上以段错误收场——本地化失败应当回退中文，而不是打断响应。
+func TestResponsePath_RequestlessContextDoesNotPanic(t *testing.T) {
+	mustBeRequestless := func(ctx *gin.Context) {
+		t.Helper()
+		if ctx.Request != nil {
+			t.Fatalf("夹具前提不成立：该 Context 已带 Request，测不到 nil 分支")
+		}
+	}
+
+	t.Run("Error", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(w)
+		mustBeRequestless(ctx)
+		defer func() {
+			if r := recover(); r != nil {
+				t.Fatalf("Error 在 nil Request 上下文上 panic: %v", r)
+			}
+		}()
+		Error(ctx, http.StatusBadRequest, "参数错误")
+		if w.Code != http.StatusBadRequest {
+			t.Errorf("状态码应原样透传, got %d", w.Code)
+		}
+	})
+
+	t.Run("Success", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(w)
+		mustBeRequestless(ctx)
+		defer func() {
+			if r := recover(); r != nil {
+				t.Fatalf("Success 在 nil Request 上下文上 panic: %v", r)
+			}
+		}()
+		Success(ctx, gin.H{"k": "v"}, "ok")
+		if w.Code != http.StatusOK {
+			t.Errorf("got %d, want 200", w.Code)
+		}
+	})
+
+	t.Run("ErrorWithBusinessCode", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(w)
+		mustBeRequestless(ctx)
+		defer func() {
+			if r := recover(); r != nil {
+				t.Fatalf("ErrorWithBusinessCode 在 nil Request 上下文上 panic: %v", r)
+			}
+		}()
+		ErrorWithBusinessCode(ctx, 6001, "资产不存在")
+		var body Response
+		if err := json.Unmarshal(w.Body.Bytes(), &body); err != nil {
+			t.Fatalf("响应体必须是合法 JSON, err=%v body=%q", err, w.Body.String())
+		}
+		if got, ok := body.Code.(float64); !ok || int(got) != 6001 {
+			t.Errorf("code = %#v, want 6001（业务码走响应体）", body.Code)
+		}
+	})
+
+	t.Run("LocaleOf", func(t *testing.T) {
+		w := httptest.NewRecorder()
+		ctx, _ := gin.CreateTestContext(w)
+		mustBeRequestless(ctx)
+		if got := LocaleOf(ctx); got != i18n.ZH {
+			t.Errorf("LocaleOf = %v, want 缺省中文", got)
+		}
+	})
 }

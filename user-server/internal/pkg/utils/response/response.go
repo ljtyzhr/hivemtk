@@ -26,6 +26,12 @@ func localeOf(c *gin.Context) i18n.Locale {
 				return l
 			}
 		}
+		// gin 的 GetHeader 直取 c.Request.Header，请求位为空时是段错误而不是空串。
+		// 写响应这条路上确实会出现没有 Request 的上下文（测试与手构的 Context），
+		// 而本地化失败的正确后果是回退中文，不是把整条响应打断。
+		if c.Request == nil {
+			return i18n.ZH
+		}
 		if h := c.GetHeader("X-Locale"); h != "" {
 			return i18n.Parse(h)
 		}
@@ -110,6 +116,16 @@ func Error(c *gin.Context, code any, message string, data ...any) {
 			message = config.LocalizedMessage(localeOf(c))
 		}
 	case int:
+		// 业务错误码（如 10001/5001）不是合法的 HTTP 状态码，直传 c.JSON 会打到
+		// gin 的 "invalid WriteHeader code" panic，整条请求拿不到响应体。
+		// 这里降级为 500 并出声，让写错的调用方可诊断，而不是静默断连。
+		// 业务码应当经 ErrorWithBusinessCode 走响应体 code 字段。
+		if v < 100 || v > 999 {
+			logger.Errorf("response.Error received non-HTTP status code %d; business codes must go through ErrorWithBusinessCode", v)
+			httpCode = http.StatusInternalServerError
+			errorCode = utils.ErrorCodeUnknown
+			break
+		}
 		httpCode = v
 		errorCode = errorCodeFromHTTPCode(v)
 	default:
