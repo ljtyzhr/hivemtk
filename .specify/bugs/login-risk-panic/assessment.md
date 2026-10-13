@@ -4,6 +4,7 @@
 - **Date**: 2026-10-13
 - **Source**: `/tmp/fulltest.log` 中 recover 捕获的 nil-pointer panic
 - **Frequency**: 1 次
+- **Verdict**: valid, defensive fix applied
 
 ## 现象
 

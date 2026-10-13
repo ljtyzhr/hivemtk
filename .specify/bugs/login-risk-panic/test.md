@@ -3,6 +3,7 @@
 - **Slug**: `login-risk-panic`
 - **Tested**: 2026-10-13
 - **Fix**: ./fix.md
+- **Result**: verified (defensive)
 - **Status**: verified (defensive)
 
 ## Verification Commands

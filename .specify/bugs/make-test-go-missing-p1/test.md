@@ -3,6 +3,7 @@
 - **Slug**: `make-test-go-missing-p1`
 - **Tested**: 2026-10-13
 - **Fix**: ./fix.md
+- **Result**: verified
 - **Status**: verified
 
 ## Verification Commands
