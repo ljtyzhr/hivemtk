@@ -99,6 +99,7 @@ import { ref, reactive } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
+import { usePermissionStore } from '@/stores/permission'
 import { usersApi } from '@/api/users'
 import i18n from '@/i18n'
 
@@ -106,6 +107,7 @@ const t = i18n.global.t
 
 const router = useRouter()
 const userStore = useUserStore()
+const permissionStore = usePermissionStore()
 const loginFormRef = ref(null)
 const loading = ref(false)
 
@@ -180,6 +182,9 @@ const handleLogin = async () => {
 
       if (token && user) {
         userStore.login(user, token)
+        // RBAC：切换账号时重置旧菜单缓存，避免上一个身份的菜单/路径继续生效（数据与权限隔离）
+        permissionStore.resetMenus()
+        await permissionStore.ensureMenus(true)
         localStorage.setItem('system_initialized', 'true')
         ElMessage.success(t('core.login.success'))
         router.push('/')

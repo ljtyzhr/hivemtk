@@ -145,8 +145,10 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import { Check, Lock } from '@element-plus/icons-vue'
 import { http } from '@/utils/request'
 import { useUserStore } from '@/stores/user'
+import { usePermissionStore } from '@/stores/permission'
 
 const userStore = useUserStore()
+const permissionStore = usePermissionStore()
 void Check; void Lock
 
 const loading = ref(false)
@@ -316,6 +318,7 @@ const onChangePassword = async () => {
     })
     ElMessage.success(i18n.global.t('密码修改成功，即将退出登录'))
     setTimeout(() => {
+      permissionStore.resetMenus()
       userStore.logout()
       window.location.href = '/#/login'
     }, 1200)

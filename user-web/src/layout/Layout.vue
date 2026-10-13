@@ -268,6 +268,8 @@ const handleUserCommand = (command) => {
       break
     case 'logout':
         userStore.logout()
+        // RBAC：清掉上一个身份的菜单缓存，防止残留授权面
+        permissionStore.resetMenus()
         ElMessage.success('已退出登录')
         router.replace('/login')
         break
