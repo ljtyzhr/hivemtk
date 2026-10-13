@@ -110,7 +110,10 @@ return v`
 	if err != nil {
 		return nil, err
 	}
-	vals, _ := res.([]any)
+	vals, ok := res.([]any)
+	if !ok {
+		return nil, fmt.Errorf("cache: unexpected type %T for key %s", res, key)
+	}
 	out := make([]string, 0, len(vals))
 	for _, v := range vals {
 		if s, ok := v.(string); ok {

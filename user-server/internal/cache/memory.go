@@ -130,7 +130,11 @@ func (m *MemoryCache) deleteExpired() {
 	now := time.Now()
 	for ele := m.order.Back(); ele != nil; {
 		prev := ele.Prev()
-		item := ele.Value.(*cacheItem)
+		item, ok := ele.Value.(*cacheItem)
+		if !ok {
+			ele = prev
+			continue
+		}
 		if !item.expiration.IsZero() && item.expiration.Before(now) {
 			m.order.Remove(ele)
 			delete(m.data, item.key)
