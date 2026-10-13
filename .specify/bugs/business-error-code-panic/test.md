@@ -125,3 +125,9 @@ Close the bug — 原始症状经实际复现双向验证已消失，三层修�
 ADR 对账）各自有判据守着，且现证对既有 148 处整数状态码调用零行为变更。验证阶段顺带修掉的
 `localeOf` 无 Request 崩溃是同一族的独立缺陷，已一并落测。若要让「文档码值必须在登记表里」常驻，
 按 spec-kit 另开一轮 specify→tasks，与门禁泳道的 CI 站点改动错峰。
+
+推送事实（`git ls-remote <remote> refs/heads/master` 回读，不靠本地记录）：
+GitHub（`git@github.com:xiaofang142/hivemtk.git`）与 Gitee（`git@gitee.com:xhpmayun/hivemtk.git`）
+的 `refs/heads/master` **同为 `ccd47d6acabde56ff9afe41eece72d18fbf2ef08`**，
+合并前的两远端 tip 分别是 `8a00b975`（github，含 12 笔 dependabot）与 `15ccabb7`（gitee）；
+两推前各做一次 `git merge-base --is-ancestor … HEAD` 均 rc=0 ⇒ 皆 fast-forward，全程无 `--force`。

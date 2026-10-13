@@ -198,6 +198,25 @@ case int:
 
 ## Follow-ups
 
-- `/speckit-bug-test slug=business-error-code-panic`：把上面的本地读数换成可重跑的验证清单。
-- 按 `CLAUDE.md` 规则1 提交并推双远端（`gitee-upstream` / `upstream`），推送前 `git fetch` 核 fast-forward；
-  本工作树与并行泳道共享，只 `git add` 显式路径，且 commit 前逐 hunk 核 `git diff --cached`。
+已完成（本轮内闭环，读数见上两节）：
+
+- `/speckit-bug-test slug=business-error-code-panic` → `test.md` 已产出，12 + 7 行逐项读数。
+- 按 `CLAUDE.md` 规则1 提交并推双远端：主工作树两笔（`d28a8336` 代码+文档、`4eb0ec7b` spec-kit 工作区
+  44 份文件，均只 `git add` 显式路径、`git diff --cached` 逐 hunk 认账，`--stat` 零他人内容）；
+  推送树 = 干净克隆 `/tmp/sk-push/hivemtk` 合并 `upstream/master` 后的 4 笔
+  （merge `5d25d9a3`、门禁收账 `b6d0dcea`、验证回灌 `36107fad`、出处订正 `ccd47d6a`）。
+  推送前 `git fetch` 现取两远端 tip（`8a00b975` / `15ccabb7`），`git merge-base --is-ancestor`
+  两条各判一次 rc=0 ⇒ 两推皆 fast-forward、无 `--force`；推后以 `git ls-remote` 回读
+  `refs/heads/master`，**GitHub 与 Gitee 同为 `ccd47d6acabde56ff9afe41eece72d18fbf2ef08`**。
+
+仍开放（都带明确归属，不是本轮欠账）：
+
+- **并行泳道要合这一笔**：主工作树的 `master` 仍停在 `4eb0ec7b`，而两远端已在 `ccd47d6a`；
+  对方在途未提交的文件里，`.github/workflows/user-server-ci.yml` 与 `scripts/check-action-runtime.py`
+  在 `4eb0ec7b..ccd47d6a` 区间内**都有改动**，因此 `git pull` 会直接拒绝开工
+  （"local changes would be overwritten by merge"）。正解是先把他们那两笔提交掉再合，
+  合完 `check-action-runtime.py` 的 `setup-go@v5` 那条豁免必须删（他们的树里 v5 站点随合并消失）。
+  本轮没有替他们做这一步，也没有把这一行删进他们的工作树副本，理由见 Deviations 4。
+- 「文档码值必须在登记表里」若要升格为常驻门，需同时改 `Makefile` 的 audit 步骤、
+  `user-server-ci.yml` 的两份 `paths` 镜像与 `check-ci-gate-paths.py` 的门站点计数（现 46 处），
+  并按 `/speckit-specify` 单开一轮，与门禁泳道的 CI 改动错峰。
