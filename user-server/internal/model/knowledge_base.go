@@ -1,8 +1,9 @@
 package model
 
 import (
-	"gorm.io/gorm"
 	"time"
+
+	"gorm.io/gorm"
 )
 
 // knowledge_base.go 智能体知识库主表 (智能体 1:N 知识库)

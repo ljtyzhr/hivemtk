@@ -5,8 +5,9 @@ import (
 	"fmt"
 	"strings"
 
-	"gorm.io/gorm"
 	"hivemtk-user/internal/ops/model"
+
+	"gorm.io/gorm"
 )
 
 var filterFieldWhitelist = map[string]map[string]string{

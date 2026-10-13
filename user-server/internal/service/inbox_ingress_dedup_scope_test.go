@@ -32,8 +32,8 @@ func r23Event(nonce, eventID, conv, content string) *model.MessageEvent {
 // TestIngress_ContentDedupKeyCarriesConversation §6-1：入口那把 Redis 键必须带会话维度。
 // 同一发送者在两个会话里发同一句文本是两条真实消息，5 分钟内第二条不得被拦在入库前。
 func TestIngress_ContentDedupKeyCarriesConversation(t *testing.T) {
-	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{})
-	svc := NewInboxIngressServiceWithDB(db, newIsolatedCacheForTest(t))
+	_ = testutil.NewTestDBOrSkip(t, &model.MessageHub{})
+	svc := NewInboxIngressService()
 	ctx := context.Background()
 
 	nonce := fmt.Sprintf("convscope-%d", time.Now().UnixNano())
@@ -70,8 +70,8 @@ func TestIngress_ContentDedupKeyCarriesConversation(t *testing.T) {
 // 同一把键的两头都有腿：窗口内仍拦得住（下界，由 TestHandleIngress_PersistSuccessKeepsContentWindow
 // 代测）与到期后必须放行（上界，本腿）。
 func TestIngress_ContentDedupWindowExpires(t *testing.T) {
-	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{})
-	svc := NewInboxIngressServiceWithDB(db, newIsolatedCacheForTest(t))
+	_ = testutil.NewTestDBOrSkip(t, &model.MessageHub{})
+	svc := NewInboxIngressService()
 	// 注入值必须是**字面量**：本腿的等时长一度写成 `svc.contentDedupWindow()`，于是把
 	// 「注入值不生效」注进那个函数后，腿只是睡得比默认窗口短、断言照样绿（电池 T1 格实测存活=洞）。
 	// 计时器不能取自被检的那把 seam，否则 seam 自己就是自己的判据。
@@ -114,8 +114,8 @@ func TestIngress_ContentDedupWindowExpires(t *testing.T) {
 // 「重复留痕、只压 AI」之后，那条判据在守卫被摘掉时依然成立（行照样落，只是不回），
 // 于是那三条腿对这个守卫失去了牙。本用例直接断言判定本身，摘掉守卫即红。
 func TestIngress_PlatformIDEventsSkipContentDedup(t *testing.T) {
-	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{})
-	svc := NewInboxIngressServiceWithDB(db, newIsolatedCacheForTest(t))
+	_ = testutil.NewTestDBOrSkip(t, &model.MessageHub{})
+	svc := NewInboxIngressService()
 	ctx := context.Background()
 
 	nonce := fmt.Sprintf("platid-%d", time.Now().UnixNano())
@@ -159,7 +159,7 @@ func r23SeedOutbound(t *testing.T, db *gorm.DB, platform, account, conv, content
 // 历史里发过的原话再说一遍，不能被一句「内容一样」静默吞掉。
 func TestPersistBridgeHistory_ContentDedupExpiresAfterWindow(t *testing.T) {
 	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{})
-	svc := NewInboxIngressServiceWithDB(db, newIsolatedCacheForTest(t))
+	svc := NewInboxIngressService()
 	ctx := context.Background()
 
 	const platform = "xiaohongshu"
@@ -190,7 +190,7 @@ func TestPersistBridgeHistory_ContentDedupExpiresAfterWindow(t *testing.T) {
 // DOM 抖动回显仍必须被吞掉，否则把时间界做成「永不命中」。
 func TestPersistBridgeHistory_ContentDedupStillHooksFreshEcho(t *testing.T) {
 	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{})
-	svc := NewInboxIngressServiceWithDB(db, newIsolatedCacheForTest(t))
+	svc := NewInboxIngressService()
 	ctx := context.Background()
 
 	const platform = "xiaohongshu"
@@ -217,7 +217,7 @@ func TestPersistBridgeHistory_ContentDedupStillHooksFreshEcho(t *testing.T) {
 // B 会话里客户说的话，不该被 A 会话的一条同文本出站行吞掉。
 func TestPersistBridgeHistory_ContentDedupScopedToConversation(t *testing.T) {
 	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{})
-	svc := NewInboxIngressServiceWithDB(db, newIsolatedCacheForTest(t))
+	svc := NewInboxIngressService()
 	ctx := context.Background()
 
 	const platform = "xiaohongshu"
@@ -244,7 +244,7 @@ func TestPersistBridgeHistory_ContentDedupScopedToConversation(t *testing.T) {
 // IsDup 拦截的消息必须入库（排障时查得到客户说过什么），但 AI 仍要抑制（同一句不得回两遍）。
 func TestHandleIngress_DupDecisionPersistsWithAISuppressed(t *testing.T) {
 	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{})
-	svc := NewInboxIngressServiceWithDB(db, newIsolatedCacheForTest(t))
+	svc := NewInboxIngressService()
 	ctx := context.Background()
 
 	nonce := fmt.Sprintf("duptrace-%d", time.Now().UnixNano())
@@ -282,7 +282,7 @@ func TestHandleIngress_DupDecisionPersistsWithAISuppressed(t *testing.T) {
 // 批次路径有自己的一份 Blocked 分支，同一条规则必须两边都成立（漏一边＝批里的重复无痕）。
 func TestHandleIngressBatch_DupDecisionPersistsWithAISuppressed(t *testing.T) {
 	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{})
-	svc := NewInboxIngressServiceWithDB(db, newIsolatedCacheForTest(t))
+	svc := NewInboxIngressService()
 	ctx := context.Background()
 
 	nonce := fmt.Sprintf("batchdup-%d", time.Now().UnixNano())
@@ -316,7 +316,7 @@ func TestHandleIngressBatch_DupDecisionPersistsWithAISuppressed(t *testing.T) {
 // 否则 AI 自己的话会被当成客户新消息再次入库并触发。
 func TestHandleIngress_SelfEchoDecisionPersistsNothing(t *testing.T) {
 	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{})
-	svc := NewInboxIngressServiceWithDB(db, newIsolatedCacheForTest(t))
+	svc := NewInboxIngressService()
 	ctx := context.Background()
 
 	const platform = "xiaohongshu"

@@ -6,6 +6,7 @@ import (
 	"hivemtk-user/internal/controller"
 	"hivemtk-user/internal/middleware"
 	dbutil "hivemtk-user/internal/pkg/db"
+	"hivemtk-user/internal/repository"
 	"hivemtk-user/internal/service"
 	"hivemtk-user/internal/service/translation"
 	"hivemtk-user/internal/websocket"
@@ -15,7 +16,7 @@ import (
 )
 
 func setupChatPublicRoutes(public *gin.RouterGroup, db *gorm.DB, orchestrator *service.SmartCSOrchestrator, langResolver *translation.LangConfigResolver) {
-	channelSvc := service.MustNewChatChannelService(db)
+	channelSvc := service.MustNewChatChannelService(repository.NewChatChannelRepositoryWithDB(db))
 	agentBindingSvc := service.NewChannelAgentBindingService()
 	visitorSvc := service.NewVisitorChatService(context.Background(), db, channelSvc, orchestrator, agentBindingSvc)
 
@@ -55,7 +56,7 @@ func setupChatPublicWebSocket(r *gin.Engine, langResolver *translation.LangConfi
 }
 
 func setupChatChannelAdminRoutes(auth *gin.RouterGroup, db *gorm.DB) {
-	channelSvc := service.MustNewChatChannelService(db)
+	channelSvc := service.MustNewChatChannelService(repository.NewChatChannelRepositoryWithDB(db))
 	ctrl := controller.NewChatChannelController(channelSvc)
 
 	auth.GET("/chat-channels", ctrl.List)
@@ -71,7 +72,7 @@ func setupChatChannelAdminRoutes(auth *gin.RouterGroup, db *gorm.DB) {
 }
 
 func setupWeComRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
-	wecomCtrl := controller.NewWeComController(service.NewWeComServiceWithDB(gormDB))
+	wecomCtrl := controller.NewWeComController(service.NewWeComService())
 
 	auth.GET("/wecom/accounts", wecomCtrl.GetAccountList)
 	auth.GET("/wecom/accounts/:id", wecomCtrl.GetAccountByID)

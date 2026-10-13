@@ -30,9 +30,9 @@ func setupWeComServiceTestDB(t *testing.T) *gorm.DB {
 }
 
 // TestNewWeComService 测试创建企业微信服务
-func TestNewWeComServiceWithDB(t *testing.T) {
-	database := setupWeComServiceTestDB(t)
-	service := NewWeComServiceWithDB(database)
+func TestNewWeComService(t *testing.T) {
+	_ = setupWeComServiceTestDB(t)
+	service := NewWeComService()
 	if service == nil {
 		t.Error("Expected non-nil service")
 	}
@@ -41,7 +41,7 @@ func TestNewWeComServiceWithDB(t *testing.T) {
 // TestWeComService_CreateAccount 测试创建企业微信账号
 func TestWeComService_CreateAccount(t *testing.T) {
 	database := setupWeComServiceTestDB(t)
-	service := NewWeComServiceWithDB(database)
+	service := NewWeComService()
 
 	req := &CreateAccountRequest{
 		CorpID:      "test_corp_id",
@@ -77,7 +77,7 @@ func TestWeComService_CreateAccount(t *testing.T) {
 // TestWeComService_GetAccountList 测试获取账号列表
 func TestWeComService_GetAccountList(t *testing.T) {
 	database := setupWeComServiceTestDB(t)
-	service := NewWeComServiceWithDB(database)
+	service := NewWeComService()
 
 	accounts := []*model.WeComAccount{
 		{CorpID: "corp_id_0", CorpSecret: "secret_0", Status: 1},
@@ -102,7 +102,7 @@ func TestWeComService_GetAccountList(t *testing.T) {
 // TestWeComService_GetAccountByID 测试根据 ID 获取账号详情
 func TestWeComService_GetAccountByID(t *testing.T) {
 	database := setupWeComServiceTestDB(t)
-	service := NewWeComServiceWithDB(database)
+	service := NewWeComService()
 
 	account := &model.WeComAccount{
 		CorpID:     "test_corp_id",
@@ -123,8 +123,8 @@ func TestWeComService_GetAccountByID(t *testing.T) {
 
 // TestWeComService_GetAccountByID_NotFound 测试获取不存在的账号
 func TestWeComService_GetAccountByID_NotFound(t *testing.T) {
-	database := setupWeComServiceTestDB(t)
-	service := NewWeComServiceWithDB(database)
+	_ = setupWeComServiceTestDB(t)
+	service := NewWeComService()
 
 	_, err := service.GetAccountByID(context.Background(), 99999)
 	if err == nil {
@@ -135,7 +135,7 @@ func TestWeComService_GetAccountByID_NotFound(t *testing.T) {
 // TestWeComService_UpdateAccount 测试更新账号
 func TestWeComService_UpdateAccount(t *testing.T) {
 	database := setupWeComServiceTestDB(t)
-	service := NewWeComServiceWithDB(database)
+	service := NewWeComService()
 
 	account := &model.WeComAccount{
 		CorpID:     "old_corp_id",
@@ -175,7 +175,7 @@ func TestWeComService_UpdateAccount(t *testing.T) {
 // TestWeComService_DeleteAccount 测试删除账号
 func TestWeComService_DeleteAccount(t *testing.T) {
 	database := setupWeComServiceTestDB(t)
-	service := NewWeComServiceWithDB(database)
+	service := NewWeComService()
 
 	account := &model.WeComAccount{
 		CorpID: "test_corp_id",
@@ -198,7 +198,7 @@ func TestWeComService_DeleteAccount(t *testing.T) {
 // TestWeComService_GetAccessToken_Cached 测试使用缓存的 token
 func TestWeComService_GetAccessToken_Cached(t *testing.T) {
 	database := setupWeComServiceTestDB(t)
-	service := NewWeComServiceWithDB(database)
+	service := NewWeComService()
 
 	expiresTime := time.Now().Add(1 * time.Hour)
 	account := &model.WeComAccount{
@@ -223,7 +223,7 @@ func TestWeComService_GetAccessToken_Cached(t *testing.T) {
 // TestWeComService_GetCustomerList 测试获取客户列表
 func TestWeComService_GetCustomerList(t *testing.T) {
 	database := setupWeComServiceTestDB(t)
-	service := NewWeComServiceWithDB(database)
+	service := NewWeComService()
 
 	for i := 0; i < 5; i++ {
 		customer := &model.WeComCustomer{
@@ -252,7 +252,7 @@ func TestWeComService_GetCustomerList(t *testing.T) {
 // TestWeComService_GetCustomerList_Pagination 测试客户列表分页
 func TestWeComService_GetCustomerList_Pagination(t *testing.T) {
 	database := setupWeComServiceTestDB(t)
-	service := NewWeComServiceWithDB(database)
+	service := NewWeComService()
 
 	for i := 0; i < 10; i++ {
 		customer := &model.WeComCustomer{
@@ -288,7 +288,7 @@ func TestWeComService_GetCustomerList_Pagination(t *testing.T) {
 // TestWeComService_GetGroupList 测试获取客户群列表
 func TestWeComService_GetGroupList(t *testing.T) {
 	database := setupWeComServiceTestDB(t)
-	service := NewWeComServiceWithDB(database)
+	service := NewWeComService()
 
 	for i := 0; i < 3; i++ {
 		group := &model.WeComGroup{
@@ -317,7 +317,7 @@ func TestWeComService_GetGroupList(t *testing.T) {
 // TestWeComService_GetMessageList 测试获取消息列表
 func TestWeComService_GetMessageList(t *testing.T) {
 	database := setupWeComServiceTestDB(t)
-	service := NewWeComServiceWithDB(database)
+	service := NewWeComService()
 
 	for i := 0; i < 5; i++ {
 		message := &model.WeComMessage{
@@ -346,7 +346,7 @@ func TestWeComService_GetMessageList(t *testing.T) {
 // TestWeComService_GetTagList 测试获取标签列表
 func TestWeComService_GetTagList(t *testing.T) {
 	database := setupWeComServiceTestDB(t)
-	service := NewWeComServiceWithDB(database)
+	service := NewWeComService()
 
 	for i := 0; i < 3; i++ {
 		tag := &model.WeComTag{
@@ -370,7 +370,7 @@ func TestWeComService_GetTagList(t *testing.T) {
 // TestWeComService_GetAccessToken_NilAccount 测试 nil 账号获取 token
 func TestWeComService_GetAccessToken_NilAccount(t *testing.T) {
 	database := setupWeComServiceTestDB(t)
-	service := NewWeComServiceWithDB(database)
+	service := NewWeComService()
 	_ = database
 
 	_, err := service.GetAccessToken(context.Background(), nil)
@@ -382,7 +382,7 @@ func TestWeComService_GetAccessToken_NilAccount(t *testing.T) {
 // TestWeComService_SendMessage_NilAccount 测试 nil 账号发送消息
 func TestWeComService_SendMessage_NilAccount(t *testing.T) {
 	database := setupWeComServiceTestDB(t)
-	service := NewWeComServiceWithDB(database)
+	service := NewWeComService()
 	_ = database
 
 	req := &WeComSendMessageRequest{
@@ -399,7 +399,7 @@ func TestWeComService_SendMessage_NilAccount(t *testing.T) {
 // TestWeComService_SendMessage_Text 测试发送文本消息（基础结构验证）
 func TestWeComService_SendMessage_Text(t *testing.T) {
 	database := setupWeComServiceTestDB(t)
-	_ = NewWeComServiceWithDB(database)
+	_ = NewWeComService()
 
 	account := &model.WeComAccount{
 		CorpID:     "test_corp_id",

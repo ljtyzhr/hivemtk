@@ -5,8 +5,6 @@ import (
 
 	"context"
 	"hivemtk-user/internal/repository"
-
-	"gorm.io/gorm"
 )
 
 // SalesPersonaService 销冠能力画像服务
@@ -16,16 +14,7 @@ type SalesPersonaService struct {
 
 // NewSalesPersonaService 创建服务
 func NewSalesPersonaService() *SalesPersonaService {
-	return NewSalesPersonaServiceWithDB(repository.GetDB())
-}
-
-// NewSalesPersonaServiceWithDB 带 DB 的版本（用于测试）
-func NewSalesPersonaServiceWithDB(db *gorm.DB) *SalesPersonaService {
-	var repo *repository.SalesPersonaRepository
-	if db != nil {
-		repo = repository.NewSalesPersonaRepository(db)
-	}
-	return &SalesPersonaService{repo: repo}
+	return &SalesPersonaService{repo: repository.NewSalesPersonaRepository(repository.GetDB())}
 }
 
 // ensureReposFromDB repo 缺失时从全局 DB 懒构造（fail-open，无 DB 时由调用方空值防御兜底）

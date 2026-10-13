@@ -57,7 +57,7 @@ func DefaultParamDefs() []ParamDef {
 
 		{Group: "permission", Key: "role_permissions_json", Name: "角色权限矩阵",
 			Description: "JSON: {角色码: [权限项]}；权限项支持 module.* 通配；admin 恒全权不走此配置",
-			ValueType:   "string", Risk: "danger", DefaultValue: `{"customer_service":["cards.*","shortlinks.*","clues.*","autoreply.*"],"staff":["cards.view","shortlinks.view","clues.view"]}`, Category: "权限"},
+			ValueType:   "json", Risk: "danger", DefaultValue: `{"customer_service":["cards.*","shortlinks.*","clues.*","autoreply.*"],"staff":["cards.view","shortlinks.view","clues.view"]}`, Category: "权限"},
 
 		{Group: "reach", Key: "global_per_user_daily_limit", Name: "单客户全管线日触达上限",
 			Description: "同一客户被全部触达管线共享的每日（CST 自然日）触达上限；0=禁用该层",
@@ -255,8 +255,10 @@ func DefaultParamDefs() []ParamDef {
 			ValueType:   "int", Unit: "人", DefaultValue: "500", Min: strPtr("1"), Max: strPtr("10000"), Step: strPtr("1")},
 
 		{Group: "misc", Key: "upload_max_size_mb", Name: "上传文件大小上限",
-			Description: "单次上传的文件大小上限（MB）。0 表示不覆盖、沿用下游：优先级为 env UPLOAD_MAX_SIZE > 本参数 > 「系统配置」页的兼容列 > 代码兜底 10MB。默认 0 是为了让存量站点保持现状——填 10 会把运维已在系统配置页调好的 200MB 又压回 10MB",
-			ValueType:   "int", Unit: "MB", Risk: "danger", DefaultValue: "0", Min: strPtr("0"), Max: strPtr("512"), Step: strPtr("1")},
+			Description: "单次上传的文件大小上限（MB）。0 表示不覆盖、沿用下游：优先级为 env UPLOAD_MAX_SIZE > 本参数 > 「系统配置」页的兼容列 > 代码兜底 10MB。默认 0 是为了让存量站点保持现状——填 10 会把运维已在系统配置页调好的 200MB 又压回 10MB。覆盖面边界：本参数只被 `internal/controller` 的上传链路读取。素材库那条是另一个切片" +
+				"（`internal/content/controller/material.go`），它读 frontend_ui.material_max_size_mb 且前后端同源，改本参数**不影响**它——" +
+				"当初没把素材口接进本链，是因为这条链的兼容列默认 50MB，接过去等于给一个一直按 10MB 拦的端点静默放宽 5 倍",
+			ValueType: "int", Unit: "MB", Risk: "danger", DefaultValue: "0", Min: strPtr("0"), Max: strPtr("512"), Step: strPtr("1")},
 		{Group: "misc", Key: "visitor_token_ttl", Name: "访客 Token TTL",
 			Description: "未登录访客的身份 Token 有效期（秒）",
 			ValueType:   "duration", DefaultValue: "604800", Min: strPtr("3600"), Max: strPtr("2592000"), Step: strPtr("3600")},
@@ -284,6 +286,14 @@ func DefaultParamDefs() []ParamDef {
 		{Group: "misc", Key: "csv_export_max_rows", Name: "CSV 导出最大行数",
 			Description: "自定义报表 CSV 导出的单行上限（防止 OOM）",
 			ValueType:   "int", Unit: "行", DefaultValue: "30000", Min: strPtr("1000"), Max: strPtr("500000"), Step: strPtr("1000")},
+		{Group: "misc", Key: "batch_import_max_file_mb", Name: "批量导入文件大小上限",
+			Description: "批量导入口（admin POST /api/batch/import，线索/客户 CSV）的单个文件大小上限（MB）。" +
+				"这条**只有后端读**（internal/content/controller/batch_operation.go 的 batchImportMaxUploadSize）：" +
+				"导入页面用的是裸 el-upload，既没有本地拦截也没有尺寸提示，所以不存在「前端放过、后端拦死」的错位，" +
+				"也就不必把值下发给前端多养一份会漂移的副本。" +
+				"调大要连带看 middleware.max_json_body_mb 之外的那道 multipart 缓冲——超出 8MB 缓冲的部分 gin 落临时文件，" +
+				"上限本身不改变内存曲线，只改变一次请求能塞进磁盘/解析器的体积。默认 50 = 接线前写死的那个数",
+			ValueType: "int", Unit: "MB", Risk: "danger", DefaultValue: "50", Min: strPtr("1"), Max: strPtr("512"), Step: strPtr("1")},
 		{Group: "misc", Key: "backup_page_size", Name: "备份列表单页上限",
 			Description: "备份列表单页最多返回多少条（超出按此截断）。注意这是上限不是默认分页大小：默认每页仍是 10 条，由 controller/backup.go 的 defaultBackupPageSize 决定",
 			ValueType:   "int", Unit: "条", DefaultValue: "1000", Min: strPtr("100"), Max: strPtr("100000"), Step: strPtr("100")},
@@ -332,6 +342,28 @@ func DefaultParamDefs() []ParamDef {
 		{Group: "agent_tool", Key: "fail_threshold", Name: "工具熔断阈值",
 			Description: "连续失败多少次后触发熔断",
 			ValueType:   "int", Unit: "次", DefaultValue: "5", Min: strPtr("1"), Max: strPtr("50"), Step: strPtr("1")},
+
+		// 下面五条是 **executor 装饰链上按工具熔断**（tooluse.CircuitBreakerRegistry）的参数，
+		// 与同组 `fail_threshold`（ToolRouter 内部「失败即换同类工具」的短路）不是同一个熔断：
+		// 两者独立计量、互不共享状态，改错对象不会动到想改的那条。
+		// 五条的 DefaultValue 与 tooluse.DefaultCircuitBreakerConfig() 逐项相等，
+		// 所以「接上但没人改过」必须是无行为变更的——这条不变量由
+		// internal/app/tool_circuit_breaker_wiring_test.go 断言。
+		{Group: "agent_tool", Key: "circuit_failure_threshold", Name: "工具执行链熔断阈值",
+			Description: "executor 装饰链按工具熔断的连续失败次数阈值：同一工具连败到此数即转 open 态、进入退避冷却。写大＝坏工具持续被调用、把上游 LLM 的上下文塞满失败噪声；写小＝一次瞬时抖动就把工具摘掉一段时间。仅在环境变量 FF_TOOL_CIRCUIT_BREAKER=shadow|enforce 时才有意义，默认 off 时熔断器根本不构造，本条改了不生效。env TOOL_CIRCUIT_FAILURE_THRESHOLD 优先级高于本条。装配期读一次，改完需重启才生效；装配点 app/tool_circuit_breaker_wiring.go",
+			ValueType:   "int", Unit: "次", Risk: "danger", DefaultValue: "5", Min: strPtr("1"), Max: strPtr("1000"), Step: strPtr("1"), Restart: true},
+		{Group: "agent_tool", Key: "circuit_base_cooldown", Name: "工具执行链熔断基础冷却",
+			Description: "第一次转 open 后的冷却时长（秒），后续按 circuit_backoff_multiplier 指数放大。写大＝坏工具被摘过久，上游 LLM 看到的是「工具不可用」；写小＝刚冷却完就被重试，等于没有熔断。与 circuit_max_cooldown 同时看：本值大于上限时上限会被抬到本值（否则指数退避被反向夹住）。仅在 FF_TOOL_CIRCUIT_BREAKER=shadow|enforce 时才有意义；env TOOL_CIRCUIT_BASE_COOLDOWN 优先。装配期读一次，改完需重启才生效",
+			ValueType:   "duration", DefaultValue: "30", Min: strPtr("1"), Max: strPtr("3600"), Step: strPtr("5"), Restart: true},
+		{Group: "agent_tool", Key: "circuit_max_cooldown", Name: "工具执行链熔断冷却上限",
+			Description: "指数退避的封顶（秒）：第 n 次 open 的冷却 = base × multiplier^(n-1)，超过本值按本值取。写大＝一个长期坏掉的工具可以几分钟不被碰；写小＝退避失去意义，坏工具被反复重试。低于 circuit_base_cooldown 时会被抬到 base 并告警。仅在 FF_TOOL_CIRCUIT_BREAKER=shadow|enforce 时才有意义；env TOOL_CIRCUIT_MAX_COOLDOWN 优先。装配期读一次，改完需重启才生效",
+			ValueType:   "duration", DefaultValue: "300", Min: strPtr("5"), Max: strPtr("86400"), Step: strPtr("5"), Restart: true},
+		{Group: "agent_tool", Key: "circuit_backoff_multiplier", Name: "工具执行链熔断退避倍数",
+			Description: "每多一次 open，冷却时长的放大倍数（1 = 不退避，固定冷却）。写大＝第三次失败起基本不会再碰这个工具；写小＝退避曲线拉平，等同于只配一个固定冷却。小于 1 会被拒并回落代码兜底 2.0（退避反而变短是配错，不是「更保守」）。仅在 FF_TOOL_CIRCUIT_BREAKER=shadow|enforce 时才有意义；env TOOL_CIRCUIT_BACKOFF_MULTIPLIER 优先。装配期读一次，改完需重启才生效",
+			ValueType:   "float", Unit: "倍", DefaultValue: "2.0", Min: strPtr("1"), Max: strPtr("100"), Step: strPtr("0.5"), Restart: true},
+		{Group: "agent_tool", Key: "circuit_half_open_max_attempts", Name: "工具执行链熔断半开配额",
+			Description: "半开态允许放行的试探请求数：冷却到期后转 half_open，放这么多请求出去，全成功即回 closed，出现失败立刻回 open 并重新计时。写大＝坏工具在恢复期被打满（一次放行一批）；写小＝恢复慢，好工具也要多等一个冷却周期。仅在 FF_TOOL_CIRCUIT_BREAKER=shadow|enforce 时才有意义；env TOOL_CIRCUIT_HALF_OPEN_ATTEMPTS 优先。装配期读一次，改完需重启才生效",
+			ValueType:   "int", Unit: "次", DefaultValue: "1", Min: strPtr("1"), Max: strPtr("100"), Step: strPtr("1"), Restart: true},
 
 		{Group: "middleware", Key: "audit_flush_interval", Name: "审计刷盘间隔",
 			Description: "审计中间件批量刷盘到 DB 的时间间隔（秒）",
@@ -424,7 +456,7 @@ func DefaultParamDefs() []ParamDef {
 			ValueType:   "duration", DefaultValue: "3", Min: strPtr("1"), Max: strPtr("60"), Step: strPtr("1")},
 		{Group: "agent_llm", Key: "provider_failover_policy", Name: "LLM 降级策略（整份 JSON）",
 			Description: "按部署覆盖 ProviderFailover 的整份策略：config 里 >0/非空的字段逐项覆盖上面四条 default_* 旋钮；scenarios 是整表替换，少写一个场景不会报错，那个意图改由调度路由给候选。读路径在 internal/aiagent/llm/provider_failover.go 的 LoadPolicy，每 tick 走参数中心 60s 缓存；JSON 非法时整份回落内置默认并打 Warn",
-			ValueType:   "string", Risk: "danger", DefaultValue: `{"config":{"health_check_interval":30,"failure_threshold":5,"circuit_open_duration":60,"degraded_latency_ms":3000,"local_fallback_provider":"default","template_reply":"抱歉，当前服务暂时繁忙，请稍后再试或联系人工客服。","health_check_path":"/health"},"scenarios":{"intent_recognize":["default","deepseek","qwen"],"sop_reply":["default","gpt-4o","glm-4"],"objection":["default","gpt-4o","glm-4"],"friendly_chat":["default","deepseek"],"long_summary":["default","kimi","qwen"],"high_quality":["default","gpt-4o","glm-4"],"low_cost":["default","deepseek"]}}`,
+			ValueType:   "json", Risk: "danger", DefaultValue: `{"config":{"health_check_interval":30,"failure_threshold":5,"circuit_open_duration":60,"degraded_latency_ms":3000,"local_fallback_provider":"default","template_reply":"抱歉，当前服务暂时繁忙，请稍后再试或联系人工客服。","health_check_path":"/health"},"scenarios":{"intent_recognize":["default","deepseek","qwen"],"sop_reply":["default","gpt-4o","glm-4"],"objection":["default","gpt-4o","glm-4"],"friendly_chat":["default","deepseek"],"long_summary":["default","kimi","qwen"],"high_quality":["default","gpt-4o","glm-4"],"low_cost":["default","deepseek"]}}`,
 			Category: "LLM"},
 		{Group: "agent_llm", Key: "default_semantic_threshold", Name: "语义缓存阈值",
 			Description: "FAQ 语义缓存 Tier2 命中相似度阈值（0-1），只在 cache.faq_answer_enabled 为真时有人读。契约只允许调紧：小于 0.95 的值会被构造器抬回 0.95，因此填 0.8 与填 0.95 效果相同",
@@ -432,12 +464,19 @@ func DefaultParamDefs() []ParamDef {
 
 		{Group: "embedding", Key: "global_override", Name: "全局 Embedding 提供商覆盖（整份 JSON）",
 			Description: "整份 JSON：{enabled,base_url,api_key,model}。enabled 为真且 base_url 非空时，EmbeddingService.DefaultConfig 用它顶掉 config.yaml/env 那一层，指向云端 OpenAI 兼容端点；关掉只需把 enabled 写成 false。维度硬约束 1024（pgvector 兼容），非 1024 维模型在调用侧强制回落并告警。api_key 落库前已按 llm_providers 同一套加密，页面上看到的是密文。读路径在 internal/aiagent/llm/embedding_global_config.go，写路径由管理端 PUT /api/llm/embedding-config 走本条（带操作者审计）",
-			ValueType:   "string", Risk: "danger", DefaultValue: `{"enabled":false,"base_url":"","api_key":"","model":""}`,
+			ValueType:   "json", Risk: "danger", DefaultValue: `{"enabled":false,"base_url":"","api_key":"","model":""}`,
 			Category: "LLM"},
 
 		{Group: "knowledge", Key: "max_upload_file_size", Name: "知识库上传大小上限",
-			Description: "知识库文档上传的最大文件大小（字节）",
-			ValueType:   "int", Unit: "字节", Risk: "danger", DefaultValue: "52428800", Min: strPtr("1048576"), Max: strPtr("524288000"), Step: strPtr("1048576")},
+			Description: "知识库文档上传的最大文件大小（字节）。前端 KnowledgeManagement.vue 的本地拦截与提示文案经 " +
+				"GET /api/config/runtime 读同一条（跨组放行），所以改这里会同时改前后端，不再出现「运维调到 100MB、页面照样拦 50MB」",
+			ValueType: "int", Unit: "字节", Risk: "danger", DefaultValue: "52428800", Min: strPtr("1048576"), Max: strPtr("524288000"), Step: strPtr("1048576")},
+		{Group: "knowledge", Key: "merchant_batch_max_file_size", Name: "商户知识批量导入文件大小上限",
+			Description: "商户知识库批量导入（/api/knowledge-merchant/batch/upload）单个文件的字节上限，整个文件会一次读进内存解析。" +
+				"与 max_upload_file_size 不是同一个概念，所以不并成一条：那条管整篇文档上传（默认 50MB），这条管结构化行数据导入（默认 20MB，正是前端 BatchImport.vue 一直在标的数）。" +
+				"接线前这条链路服务端零校验、上限只写在页面上（绕过页面直接调接口就能喂任意大的文件）；现在前后端读同一条（前端经 GET /api/config/runtime 的跨组放行拿到）。" +
+				"改大它会真的把更大的文件读进内存，改小它同时收紧前后端",
+			ValueType: "int", Unit: "字节", Risk: "danger", DefaultValue: "20971520", Min: strPtr("1048576"), Max: strPtr("209715200"), Step: strPtr("1048576")},
 		{Group: "knowledge", Key: "merchant_knowledge_max_len", Name: "商户知识库内容上限",
 			Description: "外部知识库导入单条内容的最大字符数",
 			ValueType:   "int", Unit: "字符", DefaultValue: "2000", Min: strPtr("100"), Max: strPtr("10000"), Step: strPtr("100")},
@@ -780,14 +819,20 @@ func DefaultParamDefs() []ParamDef {
 			Description: "客户会话列表做深链扫描时每页拉取的条数。这是把 N 次请求压成 N/limit 次的旋钮：写大＝请求数少但单页体大；写小＝页数多，接口总耗时上升",
 			ValueType:   "int", Unit: "条", DefaultValue: "500", Min: strPtr("50"), Max: strPtr("5000"), Step: strPtr("50"), Restart: false},
 		{Group: "frontend_ui", Key: "material_max_size_mb", Name: "素材库单文件上限（MB）",
-			Description: "素材库上传弹窗里单文件的大小上限（MB）。这一份是**前端提示用**的副本，与后端 misc.upload_max_size_mb（2a 入库，真正生效）必须一致，否则会出现「前端放过、后端拦死或反之。改这一条时先确认后端那条」",
-			ValueType:   "int", Unit: "MB", Risk: "danger", DefaultValue: "10", Min: strPtr("1"), Max: strPtr("512"), Step: strPtr("1"), Restart: false},
-		{Group: "frontend_ui", Key: "websocket_reconnect_max_wait_ms", Name: "WS 重连最大等待",
-			Description: "前端 WebSocket 重连退避的上限（毫秒）。默认 30s：等更久用户通常已离开页面，等更短则失去给后端的喘息时间。与 frontend_ws.max_reconnect_delay_ms 同源，保留两条是历史形态",
-			ValueType:   "int", Unit: "毫秒", DefaultValue: "30000", Min: strPtr("1000"), Max: strPtr("300000"), Step: strPtr("1000"), Restart: false},
-		{Group: "frontend_ui", Key: "toast_duration_ms", Name: "全局提示停留时长",
-			Description: "全局 toast/消息提示的停留时长（毫秒）。默认 3000：短了用户来不及读完（尤其是较长的错误文案），长了会挡住下面的操作区",
-			ValueType:   "int", Unit: "毫秒", DefaultValue: "3000", Min: strPtr("1000"), Max: strPtr("30000"), Step: strPtr("500"), Restart: false},
+			Description: "素材库上传单文件的大小上限（MB）。前端弹窗的提示与本地拦截（MaterialLibrary.vue 的 beforeUpload）和素材库的后端拦截" +
+				"（internal/content/controller/material.go 的 materialMaxUploadSize）读同一条，报错文案里的数字跟着它走。" +
+				"这条以前只有前端读：后端那句写死的 10MB 不认参数，于是运维调到 20MB 后前端放行、后端拦死，用户只看到一条没有解释的 400。" +
+				"边界：它与通用上传口用的 misc.upload_max_size_mb 是两条不同的链路（那条走 env > 参数 > 兼容列 > 10MB 兜底），互不影响；" +
+				"本条的兜底固定 10MB，读不到库时与接线前的行为逐字一致",
+			ValueType: "int", Unit: "MB", Risk: "danger", DefaultValue: "10", Min: strPtr("1"), Max: strPtr("512"), Step: strPtr("1"), Restart: false},
+		{Group: "frontend_ui", Key: "websocket_reconnect_max_wait_ms", Name: "WS 重连最大等待（已下架）",
+			Description: "【已下架：改了不生效，改动期间请勿依赖】前端 WebSocket 重连退避的上限（毫秒）。默认 30s：等更久用户通常已离开页面，等更短则失去给后端的喘息时间。与 frontend_ws.max_reconnect_delay_ms 同源，保留两条是历史形态",
+			ValueType:   "int", Unit: "毫秒", DefaultValue: "30000", Min: strPtr("1000"), Max: strPtr("300000"), Step: strPtr("1000"), Restart: false,
+			Deprecated: true, DeprecatedReason: "同义重复：坐席/聊天两个 WS 客户端的退避上限都由 frontend_ws.max_reconnect_delay_ms 提供（utils/agentSocket.js、utils/chatSocket.js 各一处 rtDur 读取），本条在前端全树零读取点，页面上改了不生效。要恢复这个旋钮，先让某一类 socket 真的读它，再把另一条合并过来——不要留着两条都能改、只有一条生效的形态"},
+		{Group: "frontend_ui", Key: "toast_duration_ms", Name: "全局提示停留时长（已下架）",
+			Description: "【已下架：改了不生效，改动期间请勿依赖】全局 toast/消息提示的停留时长（毫秒）。默认 3000：短了用户来不及读完（尤其是较长的错误文案），长了会挡住下面的操作区",
+			ValueType:   "int", Unit: "毫秒", DefaultValue: "3000", Min: strPtr("1000"), Max: strPtr("30000"), Step: strPtr("500"), Restart: false,
+			Deprecated: true, DeprecatedReason: "前端没有统一的提示出口：全树 196 个文件各自调 ElMessage，只有 3 处显式传 duration，Element Plus 也没有「消息默认时长」的全局配置项可挂。本条零读取点，页面上改了不生效。要接上得先在 utils/ 里收敛一个提示封装（含 ElMessage.success/error/warning 三形）并把 196 处调用改走它，再登记回本条——这是一次前端改造，不属于参数中心能单独完成的范围"},
 		// ── G1 补登记：门禁反向核对抓出的两条孤儿读取点 ──────────────────
 		// 两条都在注释里写着「可经 X 调整」，但种子里没有这一条 ⇒ 代码每次读都 miss、
 		// 每次都回落 fallback，运维在页面上看不到这个旋钮。这正是 1.8 在
@@ -796,7 +841,7 @@ func DefaultParamDefs() []ParamDef {
 			Description: "Geo 关键词管线每轮送 LLM 做 SEO（生成→评分→验证→探针）的词数上限。写大＝单轮更快清零积压但单轮超时风险高（20 词约消耗 60 分钟预算的一半）；写小＝单轮更快返回但积压清得慢。0 或负值关闭该批次（表现为「SEO批次已关闭」）",
 			ValueType:   "int", Unit: "词", DefaultValue: "20", Min: strPtr("0"), Max: strPtr("500"), Step: strPtr("1"), Restart: false},
 		{Group: "bridge", Key: "sse_max_stream_duration", Name: "bridge SSE 单流最长时长",
-			Description: "单个 bridge SSE 连接从建立到被强制关闭的最长时长（秒）。写大＝长连接存活更久（重连少），代价是服务端持有连接的句柄与缓冲占用更久；写小＝客户端需要更频繁地重连重放 backlog。0 或负值回落兜底",
-			ValueType:   "duration", DefaultValue: "28800", Min: strPtr("60"), Max: strPtr("86400"), Step: strPtr("60"), Restart: false},
+			Description: "单个 bridge SSE 连接从建立到被强制关闭的最长时长（秒）。写大＝长连接存活更久（重连少），代价是服务端持有连接的句柄与缓冲占用更久；写小＝客户端需要更频繁地重连重放 backlog。默认 300＝代码兜底 5 分钟（bridge/sse.go 的 SSEDefaultMaxStreamDuration），与 15s 心跳配套：到期由客户端重连并重放 backlog。0 或负值回落兜底",
+			ValueType:   "duration", DefaultValue: "300", Min: strPtr("60"), Max: strPtr("86400"), Step: strPtr("60"), Restart: false},
 	}
 }

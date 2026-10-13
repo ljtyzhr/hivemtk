@@ -10,6 +10,7 @@ import (
 
 	"hivemtk-user/internal/config"
 	"hivemtk-user/internal/model"
+	dbpkg "hivemtk-user/internal/pkg/db"
 	pkgsecurity "hivemtk-user/internal/pkg/security"
 	"hivemtk-user/internal/pkg/testutil"
 	visitorws "hivemtk-user/internal/websocket"
@@ -26,6 +27,9 @@ func TestReachWebSend_FrontendWebSocket(t *testing.T) {
 		&model.AgentStatus{},
 		&model.AISuggestion{},
 	)
+	// SendWeb 链路经无参构造走全局 GetDB()，必须注入本用例的库。
+	dbpkg.SetTestDB(db)
+	t.Cleanup(func() { dbpkg.SetTestDB(nil) })
 
 	sessionID := "ws-frontend-session-001"
 	visitorID := "ws-frontend-visitor-001"

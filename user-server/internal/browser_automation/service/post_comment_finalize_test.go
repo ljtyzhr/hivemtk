@@ -8,10 +8,11 @@ import (
 	"strings"
 	"testing"
 
-	"gorm.io/datatypes"
 	"hivemtk-user/internal/browser_automation/dto"
 	"hivemtk-user/internal/browser_automation/model"
 	"hivemtk-user/internal/browser_automation/platform"
+
+	"gorm.io/datatypes"
 
 	"hivemtk-user/internal/browser_automation/repository"
 )

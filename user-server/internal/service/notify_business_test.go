@@ -103,7 +103,7 @@ func TestNotifyBusiness_SlotRoundTrip(t *testing.T) {
 func TestNotifyBusiness_NilSlot_ProducerNoop(t *testing.T) {
 	ctx := context.Background()
 	installTestNotifier(t, nil)
-	svc := NewOrderDraftService(nil)
+	svc := NewOrderDraftService()
 
 	d := svc.CreateFromIntent(ctx, &OrderIntent{
 		CustomerID: "c_nil", ProductName: "光子嫩肤", Quantity: 3,
@@ -203,7 +203,7 @@ func TestCreateFromIntent_NotifiesOnlyOnNew(t *testing.T) {
 	rec := &recordingNotifier{}
 	installTestNotifier(t, rec)
 
-	svc := NewOrderDraftService(nil)
+	svc := NewOrderDraftService()
 	intent := &OrderIntent{
 		CustomerID: "c_notify", ProductName: "光子嫩肤", Quantity: 3,
 		UnitPrice: 880, Confidence: 0.9, RawText: "光子嫩肤 3 次 2280 元",
@@ -239,7 +239,7 @@ func TestCreateManual_Notifies(t *testing.T) {
 	rec := &recordingNotifier{}
 	installTestNotifier(t, rec)
 
-	svc := NewOrderDraftService(nil)
+	svc := NewOrderDraftService()
 	d, err := svc.CreateManual(ctx, &CreateDraftRequest{
 		CustomerID: "c_manual", OwnerID: "10086", ProductName: "补水", Quantity: 2, UnitPrice: 199,
 	})

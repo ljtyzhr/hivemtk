@@ -38,8 +38,8 @@ func r23SeedInbound(t *testing.T, svc *InboxIngressService, nonce, platform, con
 // TestIngress_OccurrenceSuffixSkipsContentWindowDedup §8.3-17 的服务端半边（入口层）：
 // 带发生次数后缀的第二条不得再被「同发送者+同内容+窗口内」那把 Redis 键拦下。
 func TestIngress_OccurrenceSuffixSkipsContentWindowDedup(t *testing.T) {
-	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{})
-	svc := NewInboxIngressServiceWithDB(db, newIsolatedCacheForTest(t))
+	_ = testutil.NewTestDBOrSkip(t, &model.MessageHub{})
+	svc := NewInboxIngressService()
 	ctx := context.Background()
 
 	nonce := fmt.Sprintf("occur-%d", time.Now().UnixNano())
@@ -69,8 +69,8 @@ func TestIngress_OccurrenceSuffixSkipsContentWindowDedup(t *testing.T) {
 // 仍是「内容就是唯一身份」的形态，第二条必须继续被内容窗口拦住 —— 否则就是把上游重投的
 // 最后一层兜底也摘掉了。
 func TestIngress_PlainContentHashStillContentDeduped(t *testing.T) {
-	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{})
-	svc := NewInboxIngressServiceWithDB(db, newIsolatedCacheForTest(t))
+	_ = testutil.NewTestDBOrSkip(t, &model.MessageHub{})
+	svc := NewInboxIngressService()
 	ctx := context.Background()
 
 	nonce := fmt.Sprintf("plain-%d", time.Now().UnixNano())
@@ -95,8 +95,8 @@ func TestIngress_PlainContentHashStillContentDeduped(t *testing.T) {
 // TestIngress_NonOccurrenceHashLikeIDSuffixStillContentDeduped 锁「只有 mh:<hash>#n 这一形状」：
 // 别的 id 带 #1 后缀（渠道官方 id 恰好含 # 的形态）不得获得豁免。
 func TestIngress_NonOccurrenceHashLikeIDSuffixStillContentDeduped(t *testing.T) {
-	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{})
-	svc := NewInboxIngressServiceWithDB(db, newIsolatedCacheForTest(t))
+	_ = testutil.NewTestDBOrSkip(t, &model.MessageHub{})
+	svc := NewInboxIngressService()
 	ctx := context.Background()
 
 	nonce := fmt.Sprintf("shape-%d", time.Now().UnixNano())
@@ -119,7 +119,7 @@ func TestIngress_NonOccurrenceHashLikeIDSuffixStillContentDeduped(t *testing.T) 
 // 钩子2.5 的内容哈希嗅探不得吞掉带发生次数后缀的第二条。
 func TestPersistBridgeHistory_OccurrenceSuffixPersistsSecondRow(t *testing.T) {
 	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{})
-	svc := NewInboxIngressServiceWithDB(db, newIsolatedCacheForTest(t))
+	svc := NewInboxIngressService()
 	ctx := context.Background()
 
 	const platform = "xiaohongshu"
@@ -149,7 +149,7 @@ func TestPersistBridgeHistory_OccurrenceSuffixPersistsSecondRow(t *testing.T) {
 // 同一条 `mh:<hash>#1` 帧重发两次，只许有一行 —— 豁免的是内容嗅探，不是 msg_id 精确判等。
 func TestPersistBridgeHistory_OccurrenceSuffixStillExactIdempotent(t *testing.T) {
 	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{})
-	svc := NewInboxIngressServiceWithDB(db, newIsolatedCacheForTest(t))
+	svc := NewInboxIngressService()
 	ctx := context.Background()
 
 	const platform = "xiaohongshu"
@@ -176,7 +176,7 @@ func TestPersistBridgeHistory_OccurrenceSuffixStillExactIdempotent(t *testing.T)
 // 换出「与内容哈希完全不同」的 id 时，钩子2.5 仍是那层兜底，必须继续命中。
 func TestPersistBridgeHistory_ForeignIDStillCaughtByContentHash(t *testing.T) {
 	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{})
-	svc := NewInboxIngressServiceWithDB(db, newIsolatedCacheForTest(t))
+	svc := NewInboxIngressService()
 	ctx := context.Background()
 
 	const platform = "xiaohongshu"

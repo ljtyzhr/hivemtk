@@ -12,6 +12,7 @@ import (
 	"hivemtk-user/internal/model"
 	dbutil "hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/pkg/testutil"
+	"hivemtk-user/internal/repository"
 	"hivemtk-user/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -46,7 +47,7 @@ func newChatTokenTestEngine(t *testing.T) (*gin.Engine, *gorm.DB, string) {
 	dbutil.SetTestDB(database)
 	t.Cleanup(func() { dbutil.SetTestDB(nil) })
 
-	channel, err := service.MustNewChatChannelService(database).GetOrCreateDefaultChannel(context.Background())
+	channel, err := service.MustNewChatChannelService(repository.NewChatChannelRepositoryWithDB(database)).GetOrCreateDefaultChannel(context.Background())
 	if err != nil {
 		t.Fatalf("取默认渠道失败: %v", err)
 	}

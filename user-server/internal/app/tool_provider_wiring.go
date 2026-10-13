@@ -46,7 +46,7 @@ func (p *PrivateMessageToolProvider) Provide(ctx tooluse.ProviderContext) ([]too
 	if ctx.DB == nil {
 		return nil, errProviderDBRequired
 	}
-	sessionSvc := service.NewCustomerSessionServiceWithDB(ctx.DB)
+	sessionSvc := service.NewCustomerSessionService()
 	deps := tooluse.NewPrivateMessageToolDepsWithPort(service.NewSessionPortAdapter(sessionSvc))
 	return tooluse.BuildPrivateMessageTools(deps), nil
 }

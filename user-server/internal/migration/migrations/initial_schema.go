@@ -212,4 +212,5 @@ func RegisterMigrations(registry *migration.MigrationRegistry, db *gorm.DB) {
 	register(NewBrowserOutreachReceiptMigration(db))
 	register(NewFailoverPolicyToConfigParamMigration(db))
 	register(NewEmbeddingGlobalOverrideToConfigParamMigration(db))
+	register(NewMenuGrantCeilingPruneMigration(db))
 }

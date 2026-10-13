@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"fmt"
 	"hivemtk-user/internal/pkg/errhttp"
 	"net/http"
 	"strconv"
@@ -11,6 +12,51 @@ import (
 
 	"github.com/gin-gonic/gin"
 )
+
+// DefaultMaterialMaxSizeMB 是参数中心 frontend_ui.material_max_size_mb 的兜底值。
+//
+// 取 10 = 接线前这里写死的那个数：兜底必须与接线前的实际行为逐字一致，
+// 否则「读不到库」会变成一次静默的行为变更。
+const DefaultMaterialMaxSizeMB = 10
+
+// materialMaxSizeMBProvider 由 internal/app 的参数装配层注入。
+// 形状与 internal/content/service 的 maxFlowDelaySecondsProvider 一致：
+// 本子模块一贯走「装配层注入读取口」，不在 controller 里直接摸全局参数服务。
+var materialMaxSizeMBProvider = func() int { return DefaultMaterialMaxSizeMB }
+
+// SetMaterialMaxSizeMBProvider 注入素材库单文件大小上限（MB）的读取口，仅装配层调用。
+// 传 nil 是「不注入」而不是「复位」（与全仓 setter 同一语义）。
+func SetMaterialMaxSizeMBProvider(fn func() int) {
+	if fn != nil {
+		materialMaxSizeMBProvider = fn
+	}
+}
+
+// materialMaxUploadSize 返回生效中的素材库上传上限（字节与 MB，报错文案要用后者）。
+//
+// 接线前这里写死 10MB，而前端弹窗的提示与本地拦截早就改成读参数中心的
+// frontend_ui.material_max_size_mb 了（MaterialLibrary.vue 的 rtNum）：
+// 运维把上限调到 20MB 后，前端放行 20MB、这里仍按 10MB 拦，用户看到的是一条
+// 没有任何解释的 400——「前端放过、后端拦死」正是那条参数的 Description 里
+// 自己承认的错位。
+//
+// 没有接进 misc.upload_max_size_mb 那条链：后者的兼容列
+// （system_config.max_upload_size_mb，gorm default 50）在存量站点上基本都是 50，
+// 接过去等于把这一个端点的上限从 10MB 静默放宽 5 倍。
+//
+// 读到 <=0 视为「未配置」回落到兜底：这条的 Min 是 1，正常界面配不出 0；
+// 库里真出现 0 只可能是坏数据，此时把上传全打死比按 10MB 放行更难排查。
+// 与 internal/controller/upload.go 的 resolveUploadParamMaxBytes 把 0 当「未读到」同源。
+func materialMaxUploadSize() (int64, int) {
+	mb := materialMaxSizeMBProvider()
+	if mb <= 0 {
+		mb = DefaultMaterialMaxSizeMB
+	}
+	return int64(mb) * 1024 * 1024, mb
+}
+
+// ProbeMaterialMaxUploadSize 暴露读取口当前值，供装配层测试断言接线确实生效。
+func ProbeMaterialMaxUploadSize() (int64, int) { return materialMaxUploadSize() }
 
 type MaterialController struct {
 	service service.MaterialService
@@ -136,8 +182,9 @@ func (c *MaterialController) UploadMaterial(ctx *gin.Context) {
 	}
 	defer func() { _ = file.Close() }()
 
-	if header.Size > 10*1024*1024 {
-		response.Error(ctx, http.StatusBadRequest, "文件大小不能超过10MB")
+	maxBytes, maxMB := materialMaxUploadSize()
+	if header.Size > maxBytes {
+		response.Error(ctx, http.StatusBadRequest, fmt.Sprintf("文件大小不能超过%dMB", maxMB))
 		return
 	}
 

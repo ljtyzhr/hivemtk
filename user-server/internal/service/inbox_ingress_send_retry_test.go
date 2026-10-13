@@ -38,7 +38,8 @@ func TestRecheck_PendingSendRetrySuppressesRegeneration(t *testing.T) {
 
 	mc := cache.NewMemoryCache()
 	defer mc.Close()
-	svc := NewInboxIngressServiceWithDB(db, mc)
+	svc := NewInboxIngressService()
+	svc.cache = mc
 	tr := &fakeAITrigger{}
 	svc.SetAITrigger(tr)
 

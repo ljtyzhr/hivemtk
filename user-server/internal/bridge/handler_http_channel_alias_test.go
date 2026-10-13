@@ -21,7 +21,6 @@ import (
 	"testing"
 
 	"hivemtk-user/internal/model"
-	"hivemtk-user/internal/pkg/testutil"
 	"hivemtk-user/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -87,7 +86,7 @@ func ackOutbox(t *testing.T, h *BridgeIngestHandler, channel, accountID, body st
 // ackLoopDB 建一条规范名入库的待下行，返回 handler 与句柄。
 func ackLoopDB(t *testing.T, msgID, accountID string) (*BridgeIngestHandler, *gorm.DB) {
 	t.Helper()
-	db := testutil.NewTestDB(t, &model.MessageHub{})
+	db := setupBridgeTestDB(t, &model.MessageHub{})
 	if err := db.Exec("DELETE FROM message_hub").Error; err != nil {
 		t.Fatalf("清理失败: %v", err)
 	}
@@ -109,7 +108,7 @@ func ackLoopDB(t *testing.T, msgID, accountID string) (*BridgeIngestHandler, *go
 	}).Error; err != nil {
 		t.Fatalf("seed: %v", err)
 	}
-	svc := service.NewInboxIngressServiceWithDB(db, nil)
+	svc := service.NewInboxIngressService()
 	h := NewBridgeIngestHandlerWithMock(nil, nil)
 	h.ingress = svc
 	return h, db

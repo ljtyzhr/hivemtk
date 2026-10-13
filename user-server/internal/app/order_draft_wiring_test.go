@@ -291,7 +291,7 @@ func TestMirrorStatus_NotReportedForNonShadowStores(t *testing.T) {
 	if _, ok := rt.svc.MirrorStatus(context.Background()); ok {
 		t.Error("db 底座不应报 MirrorStatus")
 	}
-	mem := service.NewOrderDraftService(nil)
+	mem := service.NewOrderDraftService()
 	if _, ok := mem.MirrorStatus(context.Background()); ok {
 		t.Error("内存底座不应报 MirrorStatus")
 	}

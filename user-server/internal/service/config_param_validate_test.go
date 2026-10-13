@@ -108,11 +108,48 @@ func TestValidateValueRejectsBrokenBounds(t *testing.T) {
 	}
 }
 
-// bool / string 不做值域校验，不能因为 switch 没有对应分支就把一切判红。
-func TestValidateValueIgnoresNonNumericTypes(t *testing.T) {
-	for _, vt := range []string{"bool", "string"} {
-		if err := validateValue(vt, "随便什么", sp("1"), sp("2")); err != nil {
-			t.Fatalf("validateValue(%s, ...) = %v, 期望 nil（该类型不参与数值校验）", vt, err)
+// 每个 value_type 都必须有自己的一条判据，switch 对未知类型穷举报错。
+//
+// 这一格原来叫 TestValidateValueIgnoresNonNumericTypes，断言的是「bool / string 不参与校验」——
+// 那正是缺陷本身而不是契约：读取侧 GetBool 用 strconv.ParseBool，解析失败静默回落兜底值，
+// 于是 "随便什么" 能存进一个布尔开关，页面显示「保存成功」、开关却一动不动。
+// 现在 bool 按布尔校验、json 按语法校验、string 明确放行（空串是「显式置空」，
+// getString 命中即返回，不回落兜底），而没在 switch 里出现的类型一律红。
+func TestValidateValueCoversEveryRegisteredType(t *testing.T) {
+	accept := []struct {
+		valueType string
+		value     string
+	}{
+		{"bool", "true"},
+		{"bool", "false"},
+		// ParseBool 的别名与读取侧同口径：认，但 service 写库前会折成 true/false。
+		{"bool", "1"},
+		{"string", "随便什么"},
+		{"string", ""},
+		{"json", `{"a":1}`},
+		{"json", `[]`},
+	}
+	for _, c := range accept {
+		if err := validateValue(c.valueType, c.value, sp("1"), sp("2")); err != nil {
+			t.Errorf("validateValue(%q, %q) = %v，期望通过", c.valueType, c.value, err)
+		}
+	}
+	reject := []struct {
+		valueType string
+		value     string
+	}{
+		{"bool", "随便什么"},
+		{"bool", "yes"},
+		{"json", `{"a":`},
+		{"json", ""},
+		// 登记表里从来没有这个类型：它必须撞上 default 那条穷举判据，
+		// 而不是走进「没有分支＝不校验」。
+		{"decimal", "1.5"},
+		{"", "1"},
+	}
+	for _, c := range reject {
+		if err := validateValue(c.valueType, c.value, nil, nil); err == nil {
+			t.Errorf("validateValue(%q, %q) = nil，期望报错", c.valueType, c.value)
 		}
 	}
 }

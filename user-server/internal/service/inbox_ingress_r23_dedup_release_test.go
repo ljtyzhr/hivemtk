@@ -33,7 +33,7 @@ func r23PoisonedEvent(nonce, eventID, conv, content string) *model.MessageEvent 
 // 重投的第二次（同内容、新 event_id，此时内容窗口是唯一那张网）要照常入库并排队 AI。
 func TestHandleIngress_PersistFailureReleasesContentWindow(t *testing.T) {
 	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{})
-	svc := NewInboxIngressServiceWithDB(db, newIsolatedCacheForTest(t))
+	svc := NewInboxIngressService()
 	ctx := context.Background()
 
 	nonce := fmt.Sprintf("release-%d", time.Now().UnixNano())
@@ -66,8 +66,8 @@ func TestHandleIngress_PersistFailureReleasesContentWindow(t *testing.T) {
 // TestHandleIngressBatch_PersistFailureReleasesContentWindow 批次路径有自己的一份 persist 分支，
 // 同一条规则必须两边都成立（漏一边＝批里失败的那条把后面所有重投都毒掉）。
 func TestHandleIngressBatch_PersistFailureReleasesContentWindow(t *testing.T) {
-	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{})
-	svc := NewInboxIngressServiceWithDB(db, newIsolatedCacheForTest(t))
+	_ = testutil.NewTestDBOrSkip(t, &model.MessageHub{})
+	svc := NewInboxIngressService()
 	ctx := context.Background()
 
 	nonce := fmt.Sprintf("brelease-%d", time.Now().UnixNano())
@@ -111,8 +111,8 @@ func TestHandleIngressBatch_PersistFailureReleasesContentWindow(t *testing.T) {
 // 「每次都删」——落库成功的那条必须留下窗口键，否则上游连发两帧同 event_id 的重投就只剩
 // msg_id 精确判等一层（那是 §6-1 明确不许独扛的一层）。
 func TestHandleIngress_PersistSuccessKeepsContentWindow(t *testing.T) {
-	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{})
-	svc := NewInboxIngressServiceWithDB(db, newIsolatedCacheForTest(t))
+	_ = testutil.NewTestDBOrSkip(t, &model.MessageHub{})
+	svc := NewInboxIngressService()
 	ctx := context.Background()
 
 	nonce := fmt.Sprintf("keep-%d", time.Now().UnixNano())

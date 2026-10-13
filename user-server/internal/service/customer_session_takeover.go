@@ -203,12 +203,12 @@ func (s *CustomerSessionService) UnlockHumanSession(ctx context.Context, session
 }
 
 func (s *CustomerSessionService) lockHumanSession(ctx context.Context, sessionID, reason string) error {
-	svc := NewInboxIngressServiceWithDB(nil, nil)
+	svc := NewInboxIngressService()
 	return svc.LockSessionForHuman(ctx, sessionID, reason)
 }
 
 func (s *CustomerSessionService) unlockHumanSession(ctx context.Context, sessionID string) error {
-	svc := NewInboxIngressServiceWithDB(nil, nil)
+	svc := NewInboxIngressService()
 	return svc.UnlockSessionForHuman(ctx, sessionID)
 }
 

@@ -16,7 +16,19 @@
 
 ---
 
-## 二、部署与运维
+## 二、功能文档 · 操作手册（handbook）
+
+| 文档 | 读者 |
+|------|------|
+| [handbook/README.md](handbook/README.md) | 四册入口索引 |
+| [handbook/FEATURES-FOR-HUMANS.md](handbook/FEATURES-FOR-HUMANS.md) | 功能全集 · 渠道能力 · AI 引擎 · 已知限制（人读） |
+| [handbook/OPERATIONS-FOR-HUMANS.md](handbook/OPERATIONS-FOR-HUMANS.md) | 部署 · 配置 · 日常运营 · 备份恢复（人读） |
+| [handbook/FEATURES-FOR-AI.md](handbook/FEATURES-FOR-AI.md) | 路由表 · 模块地图 · 文件位置 · 数据结构（AI 读） |
+| [handbook/OPERATIONS-FOR-AI.md](handbook/OPERATIONS-FOR-AI.md) | 分层铁律 · 命令 · 门禁 · 新增功能流程（AI 读） |
+
+---
+
+## 三、部署与运维
 
 | 文档 | 描述 |
 |------|------|
@@ -28,7 +40,7 @@
 
 ---
 
-## 三、架构
+## 四、架构
 
 | 文档 | 描述 |
 |------|------|
@@ -38,7 +50,7 @@
 
 ---
 
-## 四、核心功能
+## 五、核心功能
 
 | 文档 | 描述 |
 |------|------|
@@ -50,7 +62,7 @@
 
 ---
 
-## 五、项目规则
+## 六、项目规则
 
 | 文档 | 描述 |
 |------|------|
@@ -58,7 +70,7 @@
 
 ---
 
-## 六、嵌入 SDK 与反向代理
+## 七、嵌入 SDK 与反向代理
 
 | 文档 | 描述 |
 |------|------|
@@ -69,7 +81,7 @@
 
 ---
 
-## 七、相关资源
+## 八、相关资源
 
 - [ADR 决策记录](architecture/adr/) — 架构决策历史
 - [Bridge 运行手册](operations/Bridge_Runbook.md) — Bridge 桥接模块（内部设计稿 docs/bridge/ 按 .gitignore 只留本地，不入库）

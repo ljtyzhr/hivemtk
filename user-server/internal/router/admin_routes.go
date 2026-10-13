@@ -75,7 +75,7 @@ func setupPublicRoutes(public *gin.RouterGroup, liveCodeController *controller.L
 		service.NewKuaishouCardStatsService(db),
 		service.NewXiaohongshuCardStatsService(db),
 		service.NewXianyuCardStatsService(db),
-		service.NewTikTokCardServiceWithDB(db),
+		service.NewTikTokCardService(),
 	)
 	public.GET("/s/:code", redirectCtrl.RedirectShortLink)
 	public.GET("/l/:code", liveCodeController.RedirectLiveCode)

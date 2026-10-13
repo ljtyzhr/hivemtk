@@ -100,7 +100,7 @@ func setupCardStatsRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 		service.NewPlatformKuaishouCardStatsAdapter(service.NewKuaishouCardStatsService(gormDB)),
 		service.NewPlatformXiaohongshuCardStatsAdapter(service.NewXiaohongshuCardStatsService(gormDB)),
 		service.NewPlatformXianyuCardStatsAdapter(service.NewXianyuCardStatsService(gormDB)),
-		service.NewPlatformTiktokCardStatsAdapter(service.NewTikTokCardServiceWithDB(gormDB), gormDB),
+		service.NewPlatformTiktokCardStatsAdapter(service.NewTikTokCardService(), gormDB),
 	)
 	auth.GET("/card-stats/:platform/stats/:id", factory.GetCardStats)
 	auth.GET("/card-stats/:platform/overall", factory.GetOverallStats)

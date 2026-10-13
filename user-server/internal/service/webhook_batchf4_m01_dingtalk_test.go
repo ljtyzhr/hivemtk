@@ -95,7 +95,9 @@ func f4DtSetup(t *testing.T) (*DingTalkAppService, uint, *gorm.DB) {
 	}
 	mc := cache.NewMemoryCache()
 	t.Cleanup(mc.Close)
-	return NewDingTalkAppService(db, &WebhookService{ingressSvc: NewInboxIngressServiceWithDB(db, mc)}), acc.ID, db
+	ingress := NewInboxIngressService()
+	ingress.cache = mc
+	return NewDingTalkAppService(db, &WebhookService{ingressSvc: ingress}), acc.ID, db
 }
 
 // f4DtEnvelope 拼官方回调外壳：公共字段 + msgtype + 该类型的消息体片段。

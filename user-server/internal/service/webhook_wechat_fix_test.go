@@ -131,7 +131,8 @@ func TestRunAIGeneration_ReleasesAILock_OnErrorExit(t *testing.T) {
 	ctx := context.Background()
 	_mc1 := cache.NewMemoryCache()
 	defer _mc1.Close()
-	ingress := NewInboxIngressServiceWithDB(nil, _mc1)
+	ingress := NewInboxIngressService()
+	ingress.cache = _mc1
 
 	svc := &WebhookService{
 		replySem:          make(chan struct{}, 4),
@@ -180,7 +181,8 @@ func TestRunAIGeneration_ReleasesAILock_OnSemaphoreTimeout(t *testing.T) {
 	defer cancel()
 	_mc2 := cache.NewMemoryCache()
 	defer _mc2.Close()
-	ingress := NewInboxIngressServiceWithDB(nil, _mc2)
+	ingress := NewInboxIngressService()
+	ingress.cache = _mc2
 
 	sem := make(chan struct{}, 1)
 	sem <- struct{}{}
@@ -217,10 +219,11 @@ func TestRunAIGeneration_ReleasesAILock_OnSemaphoreTimeout(t *testing.T) {
 // TestInboxIngress_WechatChannel_TriggersAI 验证修复 C：
 // wechat 渠道入站事件必须能通过去重/钩子3 全链路并触发 AI（渠道连通性回归护栏）。
 func TestInboxIngress_WechatChannel_TriggersAI(t *testing.T) {
-	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{})
+	_ = testutil.NewTestDBOrSkip(t, &model.MessageHub{})
 	_mc3 := cache.NewMemoryCache()
 	defer _mc3.Close()
-	ingress := NewInboxIngressServiceWithDB(db, _mc3)
+	ingress := NewInboxIngressService()
+	ingress.cache = _mc3
 	tr := &fakeAITrigger{}
 	ingress.SetAITrigger(tr)
 

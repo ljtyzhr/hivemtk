@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/json"
 	"hivemtk-user/internal/model"
+	dbpkg "hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/service"
 	"net/http"
 	"net/http/httptest"
@@ -16,19 +17,23 @@ import (
 )
 
 func setupTikTokCardTestDB(t *testing.T) *gorm.DB {
-	return testutil.NewTestDB(t,
+	database := testutil.NewTestDB(t,
 		&model.TikTokCard{},
 		&model.TikTokCardActivity{},
 		&model.ShortLink{},
 	)
+	// NewTikTokCardService 无参构造走全局 GetDB()，必须注入本用例的库。
+	dbpkg.SetTestDB(database)
+	t.Cleanup(func() { dbpkg.SetTestDB(nil) })
+	return database
 }
 
 func setupTikTokCardTestRouter(t *testing.T) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	router := gin.New()
-	db := setupTikTokCardTestDB(t)
+	setupTikTokCardTestDB(t)
 	ctrl := &TikTokCardController{
-		svc: service.NewTikTokCardServiceWithDB(db),
+		svc: service.NewTikTokCardService(),
 	}
 	ctrl.RegisterRoutes(router.Group("/api"))
 	return router

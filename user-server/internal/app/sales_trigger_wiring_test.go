@@ -60,7 +60,7 @@ func TestOrderDraftProduceFunc_TriggerTakesOver(t *testing.T) {
 	// 装配口径与生产一致：触发器**恒装配**（SetDraftService/SetTrigger 那两跳在 Init 里
 	// 就落位了），开关只决定它是否接管分发 —— 两者混为一谈就是把"接线"和"开闸"同一件事。
 	newRT := func(enabled bool) *OrderDraftRuntime {
-		svc := service.NewOrderDraftService(nil)
+		svc := service.NewOrderDraftService()
 		extractor := service.NewOrderIntentExtractor()
 		trigger := service.NewSalesActionTrigger(nil, nil, nil, extractor, nil, nil)
 		// 与 InitOrderDraftRuntime 同一跳：触发器建草稿要拿到草稿服务。

@@ -44,18 +44,6 @@ func NewOpenAPIService() *OpenAPIService {
 	}
 }
 
-// NewOpenAPIServiceWithDB 带 DB 的 OpenAPI 服务(用于测试)
-func NewOpenAPIServiceWithDB(gdb *gorm.DB) *OpenAPIService {
-	return &OpenAPIService{
-		srcRepo:   knowledgerepo.NewKnowledgeOpenAPIRepository(gdb),
-		docRepo:   knowledgerepo.NewKnowledgeDocumentRepository(gdb),
-		kbService: knowledgesvc.NewKnowledgeServiceWithDB(gdb),
-		client: &http.Client{
-			Timeout: 60 * time.Second,
-		},
-	}
-}
-
 // CreateSource 创建 OpenAPI 数据源
 func (s *OpenAPIService) CreateSource(ctx context.Context, src *model.KnowledgeOpenAPISource) error {
 	if src.Name == "" {

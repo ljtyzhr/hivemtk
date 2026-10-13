@@ -303,9 +303,14 @@ func TestSettleOrphanOutbound_SettlementRechecksLastSync(t *testing.T) {
 // 传空 value 表示"这一项不存在"，走代码缺省值那条分支。
 func withOrphanConfig(t *testing.T, db *gorm.DB, key, value, valueType string) {
 	t.Helper()
-	// 先查后写，和 seed 路径同形状。不用 upsert：库里 idx_group_key 实际是
-	// UNIQUE (key) 单列（见 DefaultParamDefs 的 key 全局唯一守卫），
-	// ON CONFLICT (param_group, key) 找不到匹配约束，PG 直接 42P10。
+	// 先查后写而不是 upsert，是为了保住 `value == ""` 那一支的语义：本用例要测的是
+	// 「这一项压根不存在 ⇒ 走代码缺省值」，而 `ON CONFLICT ... DO UPDATE` 之前必然先
+	// INSERT 一次，空值分支会造出一行 value='' 的配置，被测的就换成「读到了空串」另一条路了。
+	// （索引形状不是理由：`idx_group_key` 现为 `(param_group, key)` 复合唯一 ——
+	//  测试库由 model tag AutoMigrate 而来，实查 pg_indexes 得
+	//  `CREATE UNIQUE INDEX idx_group_key ... (param_group, key)`；线上库同形，
+	//  由启动期迁移重建过。早先这里写的「实际是 UNIQUE (key) 单列 ⇒ ON CONFLICT 会 42P10」
+	//  是该迁移之前的旧事实，已按现测更正。）
 	var existing model.ConfigParam
 	err := db.Where("param_group = ? AND key = ?", "bridge", key).First(&existing).Error
 	switch {

@@ -5,8 +5,9 @@ import (
 	"errors"
 	"sort"
 
-	"gorm.io/gorm"
 	"hivemtk-user/internal/pkg/db"
+
+	"gorm.io/gorm"
 )
 
 // TraceQueryError 查询失败错误（含 reason 便于上层判定）。

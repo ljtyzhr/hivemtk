@@ -15,7 +15,6 @@ import (
 
 	"github.com/google/uuid"
 	"github.com/redis/go-redis/v9"
-	"gorm.io/gorm"
 )
 
 const (
@@ -153,13 +152,8 @@ func (s *InboxIngressService) SetPendingOutboundProbe(repo *repository.DelayedOu
 }
 
 func NewInboxIngressService() *InboxIngressService {
-	return NewInboxIngressServiceWithDB(dbUtil.GetDB(), nil)
-}
-
-func NewInboxIngressServiceWithDB(db *gorm.DB, c cache.Cache) *InboxIngressService {
-	if c == nil {
-		c = cache.GetGlobalCache()
-	}
+	db := dbUtil.GetDB()
+	// 与原 WithDB 语义一致：全局无 DB 时 repo 留 nil，落库路径 no-op（单测密封验证依赖此行为）。
 	var hubRepo *repository.MessageHubRepository
 	var feedbackRepo *repository.FeedbackRecordRepository
 	var pendingOutbound *repository.DelayedOutboundRepository
@@ -172,7 +166,7 @@ func NewInboxIngressServiceWithDB(db *gorm.DB, c cache.Cache) *InboxIngressServi
 		hubRepo:         hubRepo,
 		feedbackRepo:    feedbackRepo,
 		pendingOutbound: pendingOutbound,
-		cache:           c,
+		cache:           cache.GetGlobalCache(),
 		triggerCh:       make(chan string, 1024),
 	}
 }

@@ -14,6 +14,39 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// DefaultBatchImportMaxSizeMB 是参数中心 misc.batch_import_max_file_mb 的兜底值。
+//
+// 取 50 = 接线前这里写死的那个数：兜底必须与接线前的实际行为逐字一致，
+// 否则「读不到库」会变成一次静默的行为变更。
+const DefaultBatchImportMaxSizeMB = 50
+
+// batchImportMaxSizeMBProvider 由 internal/app 的参数装配层注入。
+// 形状与同包的 materialMaxSizeMBProvider 一致：本子模块不在 controller 里直接摸参数服务。
+var batchImportMaxSizeMBProvider = func() int { return DefaultBatchImportMaxSizeMB }
+
+// SetBatchImportMaxSizeMBProvider 注入批量导入单文件大小上限（MB）的读取口，仅装配层调用。
+// 传 nil 是「不注入」而不是「复位」（与全仓 setter 同一语义）。
+func SetBatchImportMaxSizeMBProvider(fn func() int) {
+	if fn != nil {
+		batchImportMaxSizeMBProvider = fn
+	}
+}
+
+// batchImportMaxUploadSize 返回生效中的批量导入文件上限（字节与 MB，报错文案要用后者）。
+//
+// 读到 <=0 视为「未配置」回落到兜底：这条的 Min 是 1，界面配不出 0；
+// 真按 0 放行判定会让任何带字节的文件都被拒，排查方向从「文件太大」变成「导入全废」。
+func batchImportMaxUploadSize() (int64, int) {
+	mb := batchImportMaxSizeMBProvider()
+	if mb <= 0 {
+		mb = DefaultBatchImportMaxSizeMB
+	}
+	return int64(mb) * 1024 * 1024, mb
+}
+
+// ProbeBatchImportMaxUploadSize 暴露读取口当前值，供装配层测试断言接线确实生效。
+func ProbeBatchImportMaxUploadSize() (int64, int) { return batchImportMaxUploadSize() }
+
 // BatchImportController 批量导入控制器
 type BatchImportController struct {
 	svc *service.BatchOperationService
@@ -51,8 +84,9 @@ func (c *BatchImportController) ImportFile(ctx *gin.Context) {
 		return
 	}
 
-	if fileHeader.Size > 50*1024*1024 {
-		response.Error(ctx, http.StatusBadRequest, "文件大小超过 50MB 限制")
+	maxBytes, maxMB := batchImportMaxUploadSize()
+	if fileHeader.Size > maxBytes {
+		response.Error(ctx, http.StatusBadRequest, fmt.Sprintf("文件大小超过 %dMB 限制", maxMB))
 		return
 	}
 

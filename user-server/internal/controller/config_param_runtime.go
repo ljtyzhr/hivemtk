@@ -46,6 +46,28 @@ var runtimePublicKeys = map[string]struct{}{
 	"pagination.page_default_size": {},
 }
 
+// runtimeCrossGroupKeys 是「所属组不在白名单，但单独把这一个键下发给前端」的显式清单。
+//
+// 为什么要有第三级：把整个 `knowledge` 组放进 runtimePublicGroups 是最省事的做法，
+// 但它会把 30 多条只给服务端消费的阈值（熔断阈值、重试次数、embedding 维度……）
+// 一起摊给任何一个登录用户，而前端真正需要的只有一个「上传大小上限」。
+// 组级白名单挡的就是这种「顺手多给一整组」，所以这里按键逐个放行。
+//
+// 放行的判据是「前端有一个本地拦截在冒充服务端权威」：
+//   - knowledge.max_upload_file_size —— KnowledgeManagement.vue 写死 50MB、
+//     后端读的是这条参数。运维把它调到 100MB 后，前端照样把 60MB 的文件拦在浏览器里，
+//     页面上没有任何地方说这个上限其实可以改。
+//   - knowledge.merchant_batch_max_file_size —— BatchImport.vue 写死 20MB，
+//     而接线前后端那条链路根本不判大小（页面那 20MB 是唯一防线，且能绕过）。
+//     这条的默认值就是 20MB，所以下发之后前端的读数与接线前逐字一致。
+//
+// 这里放的键**不受 groups 过滤**（跨组键本来就按全坐标 `group.key` 寻址，
+// 让调用方先猜到自己该传哪个组名只会多一种拿不到值的形态）。
+var runtimeCrossGroupKeys = map[string]struct{}{
+	"knowledge.max_upload_file_size":         {},
+	"knowledge.merchant_batch_max_file_size": {},
+}
+
 // Runtime GET /api/config/runtime?groups=frontend_ws,pagination
 //
 // 只读运行时配置，供前端一次性拉取后缓存。响应只有 value：
@@ -100,7 +122,46 @@ func (c *ConfigParamController) Runtime(ctx *gin.Context) {
 			}
 		}
 	}
+	for coord, value := range c.crossGroupValues(ctx) {
+		out[coord] = value
+	}
 	ctx.JSON(http.StatusOK, gin.H{"code": 0, "data": out, "message": "ok"})
+}
+
+// crossGroupValues 取 runtimeCrossGroupKeys 里那些「组不在白名单、但键单独放行」的值。
+//
+// 按组聚合后再读：一个组里放行 3 个键也只查一次，免得每加一个跨组键就多一条 SQL。
+// 读失败照旧出声不回退——这一层的缺失前端会落回代码兜底值，与判据 3 同一形态。
+func (c *ConfigParamController) crossGroupValues(ctx *gin.Context) map[string]string {
+	out := make(map[string]string, len(runtimeCrossGroupKeys))
+	if c.svc == nil || len(runtimeCrossGroupKeys) == 0 {
+		return out
+	}
+	want := make(map[string]map[string]struct{}, 2)
+	for coord := range runtimeCrossGroupKeys {
+		g, key, ok := strings.Cut(coord, ".")
+		if !ok {
+			continue
+		}
+		if want[g] == nil {
+			want[g] = make(map[string]struct{}, 4)
+		}
+		want[g][key] = struct{}{}
+	}
+	for g, keys := range want {
+		list, err := c.svc.ListByGroup(ctx.Request.Context(), g, false)
+		if err != nil {
+			logger.Warnf("[ConfigParam] Runtime cross group=%s err=%v", g, err)
+			continue
+		}
+		for i := range list {
+			if _, hit := keys[list[i].Key]; !hit {
+				continue
+			}
+			out[g+"."+list[i].Key] = list[i].Value
+		}
+	}
+	return out
 }
 
 // splitGroups 解析 groups 查询参数：逗号分隔，去空白，去重，保序去空。

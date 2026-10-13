@@ -4,6 +4,7 @@ import (
 	"database/sql"
 	"fmt"
 	"hivemtk-user/internal/config"
+	"hivemtk-user/internal/pkg/dbstate"
 	"os"
 	"strings"
 	"sync"
@@ -81,6 +82,7 @@ func InitDB() {
 
 	dbMu.Lock()
 	DB = db
+	dbstate.Set(db)
 	dbMu.Unlock()
 }
 
@@ -116,13 +118,16 @@ func applyPool(sqlDB *sql.DB, poolConfig config.PoolConfig) {
 }
 
 func GetDB() *gorm.DB {
-	dbMu.RLock()
-	defer dbMu.RUnlock()
-	return DB
+	// 跨包只认 dbstate：testutil.NewTestDB 写它；InitDB 也写它。
+	// 不回落到本包 DB —— 那条回落曾让 NewTestDB cleanup 关掉连接后，
+	// 包级 DB 仍指向已关闭句柄，后续 NilDB 用例拿到 "sql: database is closed"。
+	// 本包 migrate.go 内部仍直读 DB（只在 cmd 启动、连接未关时走一次）。
+	return dbstate.Get()
 }
 
 // SetTestDB 设置测试数据库（仅用于测试）
 func SetTestDB(testDB *gorm.DB) {
+	dbstate.Set(testDB)
 	dbMu.Lock()
 	defer dbMu.Unlock()
 	DB = testDB

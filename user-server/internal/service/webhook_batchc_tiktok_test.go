@@ -171,7 +171,7 @@ func TestDispatchDouyin_LeadRowKeepsPlatform(t *testing.T) {
 func TestTriggerBridgeDMOutreach_EnqueuesUnderOwnChannel(t *testing.T) {
 	setupBridgeWhitelistForTest(t, string(ChannelDouyin), string(ChannelTiktok))
 	db := testutil.NewTestDB(t, &model.MessageHub{})
-	ingress := NewInboxIngressServiceWithDB(db, newIsolatedCacheForTest(t))
+	ingress := NewInboxIngressService()
 	SetGlobalInboxIngressService(ingress)
 	t.Cleanup(func() { SetGlobalInboxIngressService(nil) })
 

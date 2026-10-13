@@ -4,8 +4,9 @@ import (
 	"testing"
 	"time"
 
-	"github.com/stretchr/testify/require"
 	appsvc "hivemtk-user/internal/service"
+
+	"github.com/stretchr/testify/require"
 
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/testutil"

@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"strconv"
@@ -535,8 +536,23 @@ func (s *ConfigParamService) UpdateValue(ctx context.Context, group, key, newVal
 	if err != nil {
 		return err
 	}
+	// 只读在 service 层先判一次：仓储层同样会拦，但它拦下时给的是
+	// 「这一行不存在」那种形状，而这一行明明就在页面上。
+	if p.ReadOnly {
+		return repository.ErrParamReadOnly
+	}
 	if err := validateValue(p.ValueType, newValue, p.Min, p.Max); err != nil {
 		return err
+	}
+	// 布尔一律折成 "true"/"false" 再入库。写侧若放过 "1"/"t"/"TRUE" 这类别名，
+	// 读取侧 ParseBool 认它、页面却按字符串比 'true'（编辑器里开关显示为关、
+	// 表格里显示为 1），配置生效与否和它长什么样分家——这是最难查的一种不一致。
+	if p.ValueType == "bool" {
+		b, err := strconv.ParseBool(newValue)
+		if err != nil {
+			return err
+		}
+		newValue = strconv.FormatBool(b)
 	}
 	if err := s.repo.UpdateValue(ctx, group, key, newValue, actorID); err != nil {
 		return err
@@ -598,13 +614,17 @@ func (s *ConfigParamService) invalidateGroup(group string) {
 
 // validateValue 校验待写入的值是否符合该参数的类型与范围。
 //
-// 两条纪律（都是被真实绕过口教出来的）：
+// 三条纪律（前两条都是被真实绕过口教出来的）：
 //  1. 类型校验**无条件执行**，不因为没配 min/max 就跳过。
 //     否则运维给一个 int 参数写进 "abc"，GetInt 读到解析失败、悄悄回退到编译期兜底值，
 //     页面显示「保存成功」、行为却完全没变——这跟「登记了没人读」是同一种病。
 //  2. 解析失败一律 return error，**没有任何一条分支允许 return nil 蒙混过关**。
 //     （历史缺陷：duration 分支在 time.ParseDuration/ParseFloat 失败时直接 return nil，
 //     等于把 min/max 校验整个关掉，写 "999999999s" 也能存进去。）
+//  3. switch 对 value_type **穷举**，未知类型走 default 报错。
+//     （历史缺陷：bool 与 string 两型根本不在 switch 里，任何值都能存进布尔开关；
+//     今天登记表里有 int/float/duration/bool/json/string 六型，
+//     TestEverySeedValueTypeHasAValidationBranch 把「集合与分支一一对应」钉成判据。）
 //
 // min/max 自身解析失败也报错而不是当 0 处理——库里存了个坏边界是数据问题，
 // 静默当 0 会让所有值都「通过校验」，比报错难查得多。
@@ -681,6 +701,28 @@ func validateValue(valueType, value string, min, max *string) error {
 				return fmt.Errorf("value %fs > max %fs", v, m)
 			}
 		}
+	case "bool":
+		// 判据与读取侧严格同一条：GetBool 用的就是 strconv.ParseBool。
+		// 少这一格时 "banana" 能存进布尔开关，页面显示「保存成功」，
+		// GetBool 解析失败却静默回落兜底值——开关看起来坏了，实际是库里那格脏了。
+		if _, err := strconv.ParseBool(value); err != nil {
+			return fmt.Errorf("value %q not valid bool: %w", value, err)
+		}
+	case "json":
+		// 三条整份 JSON 的旋钮（权限矩阵 / LLM 降级策略 / Embedding 全局覆盖）
+		// 由消费方 json.Unmarshal，坏 JSON 会被静默忽略并沿用内置默认，
+		// 所以语法必须在写侧就拦住，而不是靠前端那个 JSON 按钮。
+		// 报错文案刻意不回显 value：那几份 blob 里带 api_key。
+		if !json.Valid([]byte(value)) {
+			return errors.New("value 不是一段合法的 JSON")
+		}
+	case "string":
+		// 自由文本没有可校验的形态。空串是合法值：读取侧把 "" 当「显式置空」
+		// 而不是「这行没配」（getString 命中即返回，不回落兜底）。
+	default:
+		// 未知类型不许走「什么都不校验」这条路。登记表新增一个 value_type 时
+		// 忘了在这里加分支，后果是那一类参数全都能写任意值且静默生效失败。
+		return fmt.Errorf("unknown value_type %q：新增类型必须同时在 validateValue 里加校验分支", valueType)
 	}
 	return nil
 }

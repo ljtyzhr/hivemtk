@@ -316,14 +316,14 @@ func setupQQFullchain(t *testing.T) *qqFullchainEnv {
 	// 测试复刻该接线：入站消息 → dispatchQQ → webhookSvc.ingressSvc(=bridge ingress)
 	// → persist → triggerAIForEvent → aiTrigger(=webhookSvc).TriggerInboundAI → AI。
 	webhookSvc := service.NewWebhookService(database)
-	bridgeIngress := service.NewInboxIngressServiceWithDB(database, nil)
+	bridgeIngress := service.NewInboxIngressService()
 	bridgeIngress.SetAITrigger(webhookSvc)
-	bridgeIngress.SetInboxService(service.NewInboxServiceWithDB(database))
+	bridgeIngress.SetInboxService(service.NewInboxService())
 	webhookSvc.SetIngressSvc(bridgeIngress)
 	webhookSvc.SetSalesEngine(context.Background(), engine)
 	webhookSvc.SetSmartOrchestrator(context.Background(), orch)
 	// 渠道绑定智能体（生产为全局单例构造；测试注入测试 DB）
-	webhookSvc.SetAgentBindingService(context.Background(), service.NewChannelAgentBindingServiceWithDB(database, service.NewAIAgentServiceWithDB(database)))
+	webhookSvc.SetAgentBindingService(context.Background(), service.NewChannelAgentBindingService())
 
 	// 真 gin 入口：复用生产 WebhookController.RegisterRoutes（含 extractHeaders 白名单、
 	// Op13 短路、响应码映射），确保 controller 层取头逻辑被真实覆盖（P0-1 回归保护）。

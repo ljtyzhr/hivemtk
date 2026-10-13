@@ -11,11 +11,12 @@ import (
 	"testing"
 	"time"
 
-	"gorm.io/datatypes"
-	"gorm.io/gorm"
 	"hivemtk-user/internal/browser_automation/model"
 	"hivemtk-user/internal/browser_automation/repository"
 	"hivemtk-user/internal/pkg/testutil"
+
+	"gorm.io/datatypes"
+	"gorm.io/gorm"
 
 	"github.com/gorilla/websocket"
 )

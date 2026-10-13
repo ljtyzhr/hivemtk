@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"sort"
 
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/utils/logger"
@@ -14,6 +15,8 @@ import (
 // 规则：
 //   - admin 恒返回全量菜单，不落库、不可被分配
 //   - customer_service/staff 按 role_menu_permissions 表过滤
+//   - 表的分配行还要过注册表的角色上界（model.EligibleMenuKeys）：
+//     注册表收归超管的节点，即便老库里留着分配行，读侧也不再放行、写侧直接拒收
 //   - 首次全表为空时按注册表 Roles 词表自动 seed 一次默认分配
 type MenuService struct {
 	repo repository.RoleMenuPermissionRepository
@@ -44,18 +47,17 @@ func (s *MenuService) GetUserMenuTree(ctx context.Context, role string) ([]model
 	if !model.IsValidRole(role) {
 		return nil, fmt.Errorf("角色不存在: %w", ErrInvalidInput)
 	}
-	keys, err := s.ensureSeededAndGetKeys(ctx, role)
+	set, err := s.grantedKeysFor(ctx, role, true)
 	if err != nil {
 		return nil, err
-	}
-	set := make(map[string]struct{}, len(keys))
-	for _, k := range keys {
-		set[k] = struct{}{}
 	}
 	return model.FilterMenuTree(model.SystemMenuTree, set), nil
 }
 
-// GetRoleMenuKeys 某角色已分配的菜单 key 列表（admin 返回全量）
+// GetRoleMenuKeys 某角色**有效**的菜单 key 列表（admin 返回全量）
+//
+// 返回的是"库里分配 ∩ 注册表上界"，与管理端回显、侧栏、能力面守卫同一份口径，
+// 所以界面上勾了却不在上界里的节点不会回显成"已拥有"。
 //
 // 错误：角色非法 → ErrInvalidInput
 func (s *MenuService) GetRoleMenuKeys(ctx context.Context, role string) ([]string, error) {
@@ -65,7 +67,16 @@ func (s *MenuService) GetRoleMenuKeys(ctx context.Context, role string) ([]strin
 	if !model.IsValidRole(role) {
 		return nil, fmt.Errorf("角色不存在: %w", ErrInvalidInput)
 	}
-	return s.ensureSeededAndGetKeys(ctx, role)
+	set, err := s.grantedKeysFor(ctx, role, true)
+	if err != nil {
+		return nil, err
+	}
+	keys := make([]string, 0, len(set))
+	for k := range set {
+		keys = append(keys, k)
+	}
+	sort.Strings(keys)
+	return keys, nil
 }
 
 // UpdateRoleMenuKeys 覆盖式保存某角色的菜单分配
@@ -74,6 +85,8 @@ func (s *MenuService) GetRoleMenuKeys(ctx context.Context, role string) ([]strin
 //   - admin 不可被分配（恒全量）→ ErrInvalidInput
 //   - 角色 code 非法 → ErrInvalidInput
 //   - 任一 menu key 不在注册表 → ErrInvalidInput
+//   - 任一 menu key 不在该角色的注册表上界内 → ErrInvalidInput
+//     （落库会被读侧的上界交集抹掉，那样"保存成功但没生效"最难查，所以在写侧就拒）
 //   - keys 为空 = 清空该角色全部菜单（合法，前端应二次确认）
 func (s *MenuService) UpdateRoleMenuKeys(ctx context.Context, role string, keys []string) error {
 	if role == model.SystemRoleCodeAdmin {
@@ -82,9 +95,13 @@ func (s *MenuService) UpdateRoleMenuKeys(ctx context.Context, role string, keys 
 	if !model.IsValidRole(role) {
 		return fmt.Errorf("角色不存在: %w", ErrInvalidInput)
 	}
+	eligible := model.EligibleMenuKeys(role)
 	for _, k := range keys {
 		if !model.ExistsMenuKey(k) {
 			return fmt.Errorf("菜单不存在: %s: %w", k, ErrInvalidInput)
+		}
+		if _, ok := eligible[k]; !ok {
+			return fmt.Errorf("菜单 %s 是超管专属节点，不能授予角色 %s: %w", k, role, ErrInvalidInput)
 		}
 	}
 	return s.repo.ReplaceRoleKeys(ctx, role, keys)
@@ -92,15 +109,26 @@ func (s *MenuService) UpdateRoleMenuKeys(ctx context.Context, role string, keys 
 
 // GrantProvider 给能力面守卫用的"角色 → 已授予菜单 key 集合"查询。
 //
-// 与 GetRoleMenuKeys 的差别只有两点，两点都是守卫这条链路要的：
-//   - 返回集合而不是切片（守卫是 O(1) 命中判断，每条请求都跑）；
-//   - 首空表**不落库**：守卫跑在读到空表的那一刻，写库不是它的职责，
-//     直接按 DefaultMenuKeys 的出厂分配判，保证首屏菜单和首屏接口档位一致。
-//
 // 非法/空角色返回空集合：能力面按"无授予"拦（向拒的方向收）。
+// admin 返回 nil（守卫对 admin 短路，不走到这里）。
+//
+// 首空表**不落库**：守卫跑在读到空表的那一刻，写库不是它的职责，
+// 直接按 DefaultMenuKeys 的出厂分配判，保证首屏菜单和首屏接口档位一致。
 func (s *MenuService) GrantProvider(ctx context.Context, role string) (map[string]struct{}, error) {
+	return s.grantedKeysFor(ctx, role, false)
+}
+
+// grantedKeysFor 某角色的有效授予集合 = 库里的分配行 ∩ 注册表上界。
+//
+// 侧栏树、分配回显、能力面守卫三处读都收敛到这一个函数：菜单"看不到"与接口
+// "调不动"从此是同一个集合的两次消费，不会再出现一处生效一处漏（菜单藏着、接口放行
+// 就是越权入口；菜单给了、接口拦人是满屏 403）。
+//
+// seedWhenEmpty 只区分一件事：读的是用户界面（可以顺手把首空表填上）还是守卫
+// （只读，不该在请求链路上写库）。两种情况下上界交集都照常生效。
+func (s *MenuService) grantedKeysFor(ctx context.Context, role string, seedWhenEmpty bool) (map[string]struct{}, error) {
 	if role == model.SystemRoleCodeAdmin {
-		return nil, nil // 守卫对 admin 短路，不走到这里
+		return nil, nil
 	}
 	if !model.IsValidRole(role) {
 		return map[string]struct{}{}, nil
@@ -109,35 +137,26 @@ func (s *MenuService) GrantProvider(ctx context.Context, role string) (map[strin
 	if err != nil {
 		return nil, err
 	}
+	var assigned []string
 	if n == 0 {
-		keys := model.DefaultMenuKeys(role)
-		set := make(map[string]struct{}, len(keys))
-		for _, k := range keys {
+		if seedWhenEmpty {
+			s.seedDefaults(ctx)
+		}
+		assigned = model.DefaultMenuKeys(role)
+	} else {
+		assigned, err = s.repo.ListKeysByRole(ctx, role)
+		if err != nil {
+			return nil, err
+		}
+	}
+	eligible := model.EligibleMenuKeys(role)
+	set := make(map[string]struct{}, len(assigned))
+	for _, k := range assigned {
+		if _, ok := eligible[k]; ok {
 			set[k] = struct{}{}
 		}
-		return set, nil
-	}
-	list, err := s.repo.ListKeysByRole(ctx, role)
-	if err != nil {
-		return nil, err
-	}
-	set := make(map[string]struct{}, len(list))
-	for _, k := range list {
-		set[k] = struct{}{}
 	}
 	return set, nil
-}
-
-// ensureSeededAndGetKeys 取角色分配 keys；全表为空时先 seed 一次默认分配
-func (s *MenuService) ensureSeededAndGetKeys(ctx context.Context, role string) ([]string, error) {
-	n, err := s.repo.CountAll(ctx)
-	if err != nil {
-		return nil, err
-	}
-	if n == 0 {
-		s.seedDefaults(ctx)
-	}
-	return s.repo.ListKeysByRole(ctx, role)
 }
 
 // seedDefaults 首空表为 customer_service/staff 写入默认分配（admin 不落库）

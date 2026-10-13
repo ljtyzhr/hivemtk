@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"hivemtk-user/internal/model"
-	"hivemtk-user/internal/pkg/testutil"
 	"hivemtk-user/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -17,11 +16,11 @@ import (
 
 func TestAckOutboundDeliveredDetailed_FailedStatus_P0_3(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	db := testutil.NewTestDB(t, &model.MessageHub{})
+	db := setupBridgeTestDB(t, &model.MessageHub{})
 	if err := db.Exec("DELETE FROM message_hub").Error; err != nil {
 		t.Fatalf("清理失败: %v", err)
 	}
-	svc := service.NewInboxIngressServiceWithDB(db, nil)
+	svc := service.NewInboxIngressService()
 	ctx := context.Background()
 
 	const (
@@ -66,11 +65,11 @@ func TestAckOutboundDeliveredDetailed_FailedStatus_P0_3(t *testing.T) {
 
 func TestAckOutboundDeliveredDetailed_ConversationIDFilter_P0_1(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	db := testutil.NewTestDB(t, &model.MessageHub{})
+	db := setupBridgeTestDB(t, &model.MessageHub{})
 	if err := db.Exec("DELETE FROM message_hub").Error; err != nil {
 		t.Fatalf("清理失败: %v", err)
 	}
-	svc := service.NewInboxIngressServiceWithDB(db, nil)
+	svc := service.NewInboxIngressService()
 	ctx := context.Background()
 
 	const (
@@ -118,11 +117,11 @@ func TestAckOutboundDeliveredDetailed_ConversationIDFilter_P0_1(t *testing.T) {
 
 func TestAckOutboundDeliveredDetailed_NotInScope_P0_8(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	db := testutil.NewTestDB(t, &model.MessageHub{})
+	db := setupBridgeTestDB(t, &model.MessageHub{})
 	if err := db.Exec("DELETE FROM message_hub").Error; err != nil {
 		t.Fatalf("清理失败: %v", err)
 	}
-	svc := service.NewInboxIngressServiceWithDB(db, nil)
+	svc := service.NewInboxIngressService()
 	ctx := context.Background()
 
 	const (
@@ -169,11 +168,11 @@ func TestAckOutboundDeliveredDetailed_NotInScope_P0_8(t *testing.T) {
 
 func TestAckOutboundDeliveredDetailed_ErrorField_P0_2(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	db := testutil.NewTestDB(t, &model.MessageHub{})
+	db := setupBridgeTestDB(t, &model.MessageHub{})
 	if err := db.Exec("DELETE FROM message_hub").Error; err != nil {
 		t.Fatalf("清理失败: %v", err)
 	}
-	svc := service.NewInboxIngressServiceWithDB(db, nil)
+	svc := service.NewInboxIngressService()
 	ctx := context.Background()
 
 	const (
@@ -214,11 +213,11 @@ func TestAckOutboundDeliveredDetailed_ErrorField_P0_2(t *testing.T) {
 
 func TestAckBridgeOutbox_V2Protocol_P0_1(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	db := testutil.NewTestDB(t, &model.MessageHub{})
+	db := setupBridgeTestDB(t, &model.MessageHub{})
 	if err := db.Exec("DELETE FROM message_hub").Error; err != nil {
 		t.Fatalf("清理失败: %v", err)
 	}
-	svc := service.NewInboxIngressServiceWithDB(db, nil)
+	svc := service.NewInboxIngressService()
 	h := NewBridgeIngestHandlerWithMock(nil, nil)
 	h.ingress = svc
 
@@ -282,11 +281,11 @@ func TestAckBridgeOutbox_V2Protocol_P0_1(t *testing.T) {
 
 func TestAckBridgeOutbox_FailedStatus_P0_3(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	db := testutil.NewTestDB(t, &model.MessageHub{})
+	db := setupBridgeTestDB(t, &model.MessageHub{})
 	if err := db.Exec("DELETE FROM message_hub").Error; err != nil {
 		t.Fatalf("清理失败: %v", err)
 	}
-	svc := service.NewInboxIngressServiceWithDB(db, nil)
+	svc := service.NewInboxIngressService()
 	h := NewBridgeIngestHandlerWithMock(nil, nil)
 	h.ingress = svc
 
@@ -334,8 +333,8 @@ func TestAckBridgeOutbox_FailedStatus_P0_3(t *testing.T) {
 
 func TestAckBridgeOutbox_InvalidStatus_P0_3(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	db := testutil.NewTestDB(t, &model.MessageHub{})
-	svc := service.NewInboxIngressServiceWithDB(db, nil)
+	setupBridgeTestDB(t, &model.MessageHub{})
+	svc := service.NewInboxIngressService()
 	h := NewBridgeIngestHandlerWithMock(nil, nil)
 	h.ingress = svc
 	body := `{"msg_ids":["m1"],"status":"weird"}`
@@ -352,8 +351,8 @@ func TestAckBridgeOutbox_InvalidStatus_P0_3(t *testing.T) {
 
 func TestAckOutboundDeliveredDetailed_InvalidStatus(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	db := testutil.NewTestDB(t, &model.MessageHub{})
-	svc := service.NewInboxIngressServiceWithDB(db, nil)
+	setupBridgeTestDB(t, &model.MessageHub{})
+	svc := service.NewInboxIngressService()
 	_, err := svc.AckOutboundDeliveredDetailed(context.Background(), "douyin", "acc", []string{"m1"}, "", "weird", nil)
 	if err == nil {
 		t.Fatalf("期望返回 error（非法 status），实际 nil")
@@ -362,11 +361,11 @@ func TestAckOutboundDeliveredDetailed_InvalidStatus(t *testing.T) {
 
 func TestAckOutboundDeliveredDetailed_CrossAccountProbe_NotInScope_P0_6(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	db := testutil.NewTestDB(t, &model.MessageHub{})
+	db := setupBridgeTestDB(t, &model.MessageHub{})
 	if err := db.Exec("DELETE FROM message_hub").Error; err != nil {
 		t.Fatalf("清理失败: %v", err)
 	}
-	svc := service.NewInboxIngressServiceWithDB(db, nil)
+	svc := service.NewInboxIngressService()
 	ctx := context.Background()
 
 	if err := db.Create(&model.MessageHub{
@@ -407,11 +406,11 @@ func TestAckOutboundDeliveredDetailed_CrossAccountProbe_NotInScope_P0_6(t *testi
 
 func TestAckOutboundDeliveredDetailed_RealNotFound_NoLeak_P0_6(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	db := testutil.NewTestDB(t, &model.MessageHub{})
+	db := setupBridgeTestDB(t, &model.MessageHub{})
 	if err := db.Exec("DELETE FROM message_hub").Error; err != nil {
 		t.Fatalf("清理失败: %v", err)
 	}
-	svc := service.NewInboxIngressServiceWithDB(db, nil)
+	svc := service.NewInboxIngressService()
 	ctx := context.Background()
 
 	res, err := svc.AckOutboundDeliveredDetailed(ctx, "douyin_web", "acc_A", []string{"m_truly_missing"}, "", "delivered", nil)
@@ -431,11 +430,11 @@ func TestAckOutboundDeliveredDetailed_RealNotFound_NoLeak_P0_6(t *testing.T) {
 
 func TestAckBridgeOutbox_CrossAccountProbe_NotInScope_P0_6(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	db := testutil.NewTestDB(t, &model.MessageHub{})
+	db := setupBridgeTestDB(t, &model.MessageHub{})
 	if err := db.Exec("DELETE FROM message_hub").Error; err != nil {
 		t.Fatalf("清理失败: %v", err)
 	}
-	svc := service.NewInboxIngressServiceWithDB(db, nil)
+	svc := service.NewInboxIngressService()
 	h := NewBridgeIngestHandlerWithMock(nil, nil)
 	h.ingress = svc
 

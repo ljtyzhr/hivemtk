@@ -91,7 +91,7 @@ func TestRunAIGeneration_RecoverPanic(t *testing.T) {
 
 // TestInboxIngress_TriggerLogStart 验证 [Inbox] start 日志 + aiTrigger=nil 升级 Error
 func TestInboxIngress_TriggerLogStart(t *testing.T) {
-	svc := NewInboxIngressServiceWithDB(nil, newIsolatedCacheForTest(t))
+	svc := NewInboxIngressService()
 
 	ev := &model.MessageEvent{
 		EventID:        "evt-1",

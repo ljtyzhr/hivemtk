@@ -69,7 +69,7 @@ func TestBridgeChannelOnline_ReportsProbeVerbatim(t *testing.T) {
 func TestOfflineReplay_RunOnce_SkipsChannelsWithoutLiveSubscriber(t *testing.T) {
 	db := testutil.NewTestDB(t, &model.DelayedOutboundReply{}, &model.MessageHub{}, &model.BridgeAccount{})
 	setupBridgeWhitelistForTest(t, "douyin")
-	ingress := NewInboxIngressServiceWithDB(db, newIsolatedCacheForTest(t))
+	ingress := NewInboxIngressService()
 	prev := GlobalInboxIngressService()
 	SetGlobalInboxIngressService(ingress)
 	t.Cleanup(func() { SetGlobalInboxIngressService(prev) })
@@ -103,7 +103,7 @@ func TestOfflineReplay_RunOnce_SkipsChannelsWithoutLiveSubscriber(t *testing.T) 
 func TestOfflineReplay_RunOnce_ReplaysWhenSubscriberLive(t *testing.T) {
 	db := testutil.NewTestDB(t, &model.DelayedOutboundReply{}, &model.MessageHub{}, &model.BridgeAccount{})
 	setupBridgeWhitelistForTest(t, "douyin")
-	ingress := NewInboxIngressServiceWithDB(db, newIsolatedCacheForTest(t))
+	ingress := NewInboxIngressService()
 	prev := GlobalInboxIngressService()
 	SetGlobalInboxIngressService(ingress)
 	t.Cleanup(func() { SetGlobalInboxIngressService(prev) })
@@ -145,7 +145,7 @@ func TestOfflineReplay_RunOnce_ReplaysWhenSubscriberLive(t *testing.T) {
 func TestOfflineReplay_RunOnce_ProbeReadOncePerChannel(t *testing.T) {
 	db := testutil.NewTestDB(t, &model.DelayedOutboundReply{}, &model.MessageHub{}, &model.BridgeAccount{})
 	setupBridgeWhitelistForTest(t, "douyin")
-	ingress := NewInboxIngressServiceWithDB(db, newIsolatedCacheForTest(t))
+	ingress := NewInboxIngressService()
 	prev := GlobalInboxIngressService()
 	SetGlobalInboxIngressService(ingress)
 	t.Cleanup(func() { SetGlobalInboxIngressService(prev) })

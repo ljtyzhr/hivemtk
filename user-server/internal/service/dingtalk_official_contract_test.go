@@ -120,7 +120,8 @@ func setupDingTalkInbound(t *testing.T, acc *model.DingTalkAppAccount) (*DingTal
 	}
 	mc := cache.NewMemoryCache()
 	t.Cleanup(mc.Close)
-	ingress := NewInboxIngressServiceWithDB(db, mc)
+	ingress := NewInboxIngressService()
+	ingress.cache = mc
 	tr := &fakeAITrigger{}
 	ingress.SetAITrigger(tr)
 	return NewDingTalkAppService(db, &WebhookService{ingressSvc: ingress}), tr, acc.ID

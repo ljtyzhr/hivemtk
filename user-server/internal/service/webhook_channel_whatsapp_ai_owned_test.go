@@ -24,7 +24,8 @@ func TestDispatchWhatsApp_IngressDoesNotTriggerAI(t *testing.T) {
 	defer svc.Stop(context.Background())
 
 	mc := newIsolatedCacheForTest(t)
-	ing := NewInboxIngressServiceWithDB(db, mc)
+	ing := NewInboxIngressService()
+	ing.cache = mc
 	tr := &fakeAITrigger{}
 	ing.SetAITrigger(tr)
 	svc.SetIngressSvc(ing)

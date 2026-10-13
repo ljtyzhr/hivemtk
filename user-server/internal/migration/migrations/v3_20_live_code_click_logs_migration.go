@@ -4,9 +4,10 @@ import (
 	"context"
 	"fmt"
 
-	"gorm.io/gorm"
 	"hivemtk-user/internal/migration"
 	"hivemtk-user/internal/model"
+
+	"gorm.io/gorm"
 )
 
 // LiveCodeClickLogsMigration 补齐活码点击审计日志表：

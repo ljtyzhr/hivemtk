@@ -321,7 +321,7 @@ func TestOrderDraftSweepWorker_EndToEndFlipsAndPurgesRealRows(t *testing.T) {
 	repo := repository.NewOrderDraftRepositoryWithDB(database)
 	ctx := context.Background()
 
-	svc := NewOrderDraftServiceWithDB(nil, database)
+	svc := NewOrderDraftServiceWithRepo(&OrderDraftConfig{}, repository.NewOrderDraftRepositoryWithDB(database))
 	if !svc.Durable() {
 		t.Fatal("本用例必须跑在 durable 底座上，否则测的是内存")
 	}

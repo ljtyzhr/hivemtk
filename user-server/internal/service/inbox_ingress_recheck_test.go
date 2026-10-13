@@ -12,13 +12,13 @@ import (
 
 // TestRecheck_NoHubRepo_SafelySkips 验证 hubRepo==nil 时 RecheckUnrepliedAndTrigger 安全跳过不 panic。
 func TestRecheck_NoHubRepo_SafelySkips(t *testing.T) {
-	svc := NewInboxIngressServiceWithDB(nil, newIsolatedCacheForTest(t))
+	svc := NewInboxIngressService()
 	svc.RecheckUnrepliedAndTrigger(context.Background(), "conv1", "sess1")
 }
 
 // TestRecheck_EmptyConvID_SafelySkips 验证 conversationID 为空时安全跳过。
 func TestRecheck_EmptyConvID_SafelySkips(t *testing.T) {
-	svc := NewInboxIngressServiceWithDB(nil, newIsolatedCacheForTest(t))
+	svc := NewInboxIngressService()
 	svc.RecheckUnrepliedAndTrigger(context.Background(), "", "sess1")
 }
 
@@ -41,8 +41,8 @@ func TestRecheck_LastIsOutbound_NoTrigger(t *testing.T) {
 	mc := cache.NewMemoryCache()
 
 	defer mc.Close()
-	defer mc.Close()
-	svc := NewInboxIngressServiceWithDB(db, mc)
+	svc := NewInboxIngressService()
+	svc.cache = mc
 	tr := &fakeAITrigger{}
 	svc.SetAITrigger(tr)
 
@@ -68,8 +68,8 @@ func TestRecheck_LastInboundWithinWindow_TriggersAI(t *testing.T) {
 	mc := cache.NewMemoryCache()
 
 	defer mc.Close()
-	defer mc.Close()
-	svc := NewInboxIngressServiceWithDB(db, mc)
+	svc := NewInboxIngressService()
+	svc.cache = mc
 	tr := &fakeAITrigger{}
 	svc.SetAITrigger(tr)
 
@@ -102,8 +102,8 @@ func TestRecheck_LastInboundOutsideWindow_NoTrigger(t *testing.T) {
 	mc := cache.NewMemoryCache()
 
 	defer mc.Close()
-	defer mc.Close()
-	svc := NewInboxIngressServiceWithDB(db, mc)
+	svc := NewInboxIngressService()
+	svc.cache = mc
 	tr := &fakeAITrigger{}
 	svc.SetAITrigger(tr)
 
@@ -127,8 +127,8 @@ func TestRecheck_AIProcessingFlagExists_NoTrigger(t *testing.T) {
 	mc := cache.NewMemoryCache()
 
 	defer mc.Close()
-	defer mc.Close()
-	svc := NewInboxIngressServiceWithDB(db, mc)
+	svc := NewInboxIngressService()
+	svc.cache = mc
 	tr := &fakeAITrigger{}
 	svc.SetAITrigger(tr)
 
@@ -157,8 +157,8 @@ func TestRecheck_HumanLocked_NoTrigger(t *testing.T) {
 	mc := cache.NewMemoryCache()
 
 	defer mc.Close()
-	defer mc.Close()
-	svc := NewInboxIngressServiceWithDB(db, mc)
+	svc := NewInboxIngressService()
+	svc.cache = mc
 	tr := &fakeAITrigger{}
 	svc.SetAITrigger(tr)
 
@@ -198,8 +198,8 @@ func TestRecheck_FullScenario_OrphanMessage(t *testing.T) {
 	mc := cache.NewMemoryCache()
 
 	defer mc.Close()
-	defer mc.Close()
-	svc := NewInboxIngressServiceWithDB(db, mc)
+	svc := NewInboxIngressService()
+	svc.cache = mc
 	tr := &fakeAITrigger{}
 	svc.SetAITrigger(tr)
 
@@ -290,7 +290,8 @@ func TestRecheck_PersistentSendFailure_BudgetCapped(t *testing.T) {
 
 	mc := cache.NewMemoryCache()
 	defer mc.Close()
-	svc := NewInboxIngressServiceWithDB(db, mc)
+	svc := NewInboxIngressService()
+	svc.cache = mc
 	tr := &fakeAITrigger{}
 	svc.SetAITrigger(tr)
 
@@ -321,7 +322,8 @@ func TestRecheck_NewMessageGetsFreshBudget(t *testing.T) {
 
 	mc := cache.NewMemoryCache()
 	defer mc.Close()
-	svc := NewInboxIngressServiceWithDB(db, mc)
+	svc := NewInboxIngressService()
+	svc.cache = mc
 	tr := &fakeAITrigger{}
 	svc.SetAITrigger(tr)
 
@@ -360,7 +362,7 @@ func TestRecheck_NewMessageGetsFreshBudget(t *testing.T) {
 
 // TestRecheck_ContextCanceled_NoBlock 验证 context 取消时 RecheckUnrepliedAndTrigger 不阻塞。
 func TestRecheck_ContextCanceled_NoBlock(t *testing.T) {
-	svc := NewInboxIngressServiceWithDB(nil, newIsolatedCacheForTest(t))
+	svc := NewInboxIngressService()
 	ctx, cancel := context.WithCancel(context.Background())
 	cancel()
 	done := make(chan struct{})

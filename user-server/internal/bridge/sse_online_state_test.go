@@ -12,7 +12,6 @@ import (
 	"time"
 
 	"hivemtk-user/internal/model"
-	"hivemtk-user/internal/pkg/testutil"
 	"hivemtk-user/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -301,8 +300,8 @@ func TestHandleOutboxSSE_QueryChannelAliasSharesCanonicalKey(t *testing.T) {
 func TestGetBridgeOutbox_RefreshesOnlineSignal(t *testing.T) {
 	fake := useRecordingRepo(t)
 	gin.SetMode(gin.TestMode)
-	db := testutil.NewTestDB(t, &model.MessageHub{})
-	h := NewBridgeIngestHandler(service.NewInboxIngressServiceWithDB(db, nil))
+	setupBridgeTestDB(t, &model.MessageHub{})
+	h := NewBridgeIngestHandler(service.NewInboxIngressService())
 	r := gin.New()
 	r.GET("/api/bridge/outbox", h.GetBridgeOutbox)
 	srv := httptest.NewServer(r)
@@ -331,7 +330,7 @@ func TestGetBridgeOutbox_RefreshesOnlineSignal(t *testing.T) {
 func TestGetBridgeOutbox_AliasChannelClaimsCanonicalOutbound(t *testing.T) {
 	useRecordingRepo(t)
 	gin.SetMode(gin.TestMode)
-	db := testutil.NewTestDB(t, &model.MessageHub{})
+	db := setupBridgeTestDB(t, &model.MessageHub{})
 	hub := &model.MessageHub{
 		Platform: "douyin", AccountID: "acc-aliasclaim", ConversationID: "conv_alias_claim",
 		MsgID: "mh:alias_claim_1", MsgType: "text", Content: "别名轮询该拿到的回复",
@@ -340,7 +339,7 @@ func TestGetBridgeOutbox_AliasChannelClaimsCanonicalOutbound(t *testing.T) {
 	if err := db.Create(hub).Error; err != nil {
 		t.Fatalf("seed: %v", err)
 	}
-	h := NewBridgeIngestHandler(service.NewInboxIngressServiceWithDB(db, nil))
+	h := NewBridgeIngestHandler(service.NewInboxIngressService())
 	r := gin.New()
 	r.GET("/api/bridge/outbox", h.GetBridgeOutbox)
 	srv := httptest.NewServer(r)
@@ -368,8 +367,8 @@ func TestGetBridgeOutbox_KeepsServingWhenRepoMissing(t *testing.T) {
 	t.Cleanup(func() { GlobalBridgeAccountRepo = prev })
 
 	gin.SetMode(gin.TestMode)
-	db := testutil.NewTestDB(t, &model.MessageHub{})
-	h := NewBridgeIngestHandler(service.NewInboxIngressServiceWithDB(db, nil))
+	setupBridgeTestDB(t, &model.MessageHub{})
+	h := NewBridgeIngestHandler(service.NewInboxIngressService())
 	r := gin.New()
 	r.GET("/api/bridge/outbox", h.GetBridgeOutbox)
 	srv := httptest.NewServer(r)

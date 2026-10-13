@@ -1047,7 +1047,7 @@ func TestGenerateSessionID(t *testing.T) {
 func TestAutoCloseStaleSessions_OnlyStaleActiveClosed(t *testing.T) {
 	db := setupCustomerSessionServiceTestDB(t)
 	repo := repository.NewCustomerSessionRepositoryWithDB(db)
-	svc := NewCustomerSessionServiceWithDB(db)
+	svc := NewCustomerSessionService()
 
 	now := time.Now()
 	veryOld := now.Add(-25 * time.Hour)

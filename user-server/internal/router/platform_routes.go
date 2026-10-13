@@ -99,7 +99,7 @@ func setupWechatWebhookRoutes(r *gin.RouterGroup, gormDB *gorm.DB, ingressSvc *s
 
 func setupTiktokRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 	tiktokCardCtrl := controller.NewTikTokCardController(
-		service.NewTikTokCardServiceWithDB(gormDB),
+		service.NewTikTokCardService(),
 	)
 	tiktokCardCtrl.RegisterRoutes(auth)
 }

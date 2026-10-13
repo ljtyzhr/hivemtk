@@ -128,7 +128,7 @@ func InitAgentLifecycles(gormDB *gorm.DB, engine *service.SalesEngine) {
 		sopSvc = service.NewSOPService(gormDB, llm.GetGlobalDispatcher())
 	}
 	rt := NewAgentLifecycleRuntime(
-		service.NewAIAgentServiceWithDB(gormDB),
+		service.NewAIAgentService(),
 		lifecycle.NewPassiveAgentLifecycle(engine),
 		lifecycle.NewActiveAgentLifecycle(sopSvc, repository.NewCustomerRepository()),
 	)

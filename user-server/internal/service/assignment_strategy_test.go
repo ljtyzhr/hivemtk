@@ -25,7 +25,7 @@ func m5Agents() []AgentInfo {
 // TestAssignWithStrategy_RoundRobinRotation round_robin 按 LastAssign 最早优先轮转
 // （注意 A2 虽最忙，但 LastAssign 最早——round_robin 不看负载）
 func TestAssignWithStrategy_RoundRobinRotation(t *testing.T) {
-	svc := NewAssignmentService(nil)
+	svc := NewAssignmentService()
 	d, err := svc.AssignWithStrategy(context.Background(), m5Session(), m5Agents(), "round_robin")
 	if err != nil {
 		t.Fatalf("AssignWithStrategy(round_robin): %v", err)
@@ -40,7 +40,7 @@ func TestAssignWithStrategy_RoundRobinRotation(t *testing.T) {
 
 // TestAssignWithStrategy_RoundRobinSkipsFull 轮转跳过满载/离线坐席
 func TestAssignWithStrategy_RoundRobinSkipsFull(t *testing.T) {
-	svc := NewAssignmentService(nil)
+	svc := NewAssignmentService()
 	candidates := []AgentInfo{
 		{AgentID: 1, Online: true, ActiveSess: 10, Capacity: 10, LastAssign: time.Time{}},
 		{AgentID: 2, Online: true, ActiveSess: 0, Capacity: 5, LastAssign: time.Now()},
@@ -94,7 +94,7 @@ func TestResolveAutoAssignMode_ValidModes(t *testing.T) {
 // TestAssignWithStrategy_DefaultUnchanged 默认策略行为不变（douyin 平台触发 social_media
 // 技能标签 → 策略标记为 skill_match；无坐席具备技能时仍按最闲优先选活跃会话最少者）
 func TestAssignWithStrategy_DefaultUnchanged(t *testing.T) {
-	svc := NewAssignmentService(nil)
+	svc := NewAssignmentService()
 	d, err := svc.AssignWithStrategy(context.Background(), m5Session(), m5Agents(), "")
 	if err != nil {
 		t.Fatalf("AssignWithStrategy(\"\"): %v", err)

@@ -52,7 +52,7 @@ type EmailService struct {
 func NewEmailService(db *gorm.DB) *EmailService {
 	return &EmailService{
 		accRepo: repository.NewEmailAccountRepositoryWithDB(db),
-		hub:     NewMessageHubServiceWithDB(db, nil),
+		hub:     NewMessageHubService(),
 	}
 }
 

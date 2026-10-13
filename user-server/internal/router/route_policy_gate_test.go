@@ -21,6 +21,7 @@ package router
 import (
 	"net/http"
 	"net/http/httptest"
+	"slices"
 	"strings"
 	"testing"
 
@@ -374,7 +375,7 @@ func TestRouteGuardChain_SetupOnlyOnBootstrapWrites(t *testing.T) {
 
 // 行为腿：链上有守卫名字还不够，还得真的拦得住。
 //
-// 三档身份（匿名 / staff / admin）打真实引擎。判据按**响应体文案**而不是状态码：
+// 身份档位（匿名 / staff / customer_service / admin）打真实引擎。判据按**响应体文案**而不是状态码：
 // 状态码会把"守卫拦下"和"handler 自己回 401/403"并成一类，而这条要证的恰恰是前者。
 // admin 腿只断言"不是守卫的那句 403"——handler 在测试库里回什么是它自己的事，
 // 门管的是"这道守卫没有把超管也拦在门外"。
@@ -424,15 +425,24 @@ func gateCall(t *testing.T, engine *gin.Engine, method, path, token string) (int
 	return w.Code, w.Body.String()
 }
 
+// gateRoleToken 按角色签一枚带 data_scope 的令牌：能力档与坐席名单两条行为腿都要
+// staff／customer_service 两档身份，参数只差在角色名，收在一处免得各处手拼出不同形状。
+// admin 仍走 gateTokens 里原来那个不带 scope 的签法（历史上那批用例就是这么装的）。
+func gateRoleToken(t *testing.T, role string) string {
+	t.Helper()
+	token, err := utils.NewJWTUtils(utils.DefaultJWTConfig).
+		GenerateTokenWithScope(7, "gate-"+role, role, "self", 0, 0)
+	if err != nil {
+		t.Fatalf("签 %s 令牌失败: %v", role, err)
+	}
+	return token
+}
+
 func gateTokens(t *testing.T) (staff string, admin string) {
 	t.Helper()
-	jwtu := utils.NewJWTUtils(utils.DefaultJWTConfig)
+	staff = gateRoleToken(t, "staff")
 	var err error
-	staff, err = jwtu.GenerateTokenWithScope(7, "gate-staff", "staff", "self", 0, 0)
-	if err != nil {
-		t.Fatalf("签 staff 令牌失败: %v", err)
-	}
-	admin, err = jwtu.GenerateToken(1, "gate-admin", "admin")
+	admin, err = utils.NewJWTUtils(utils.DefaultJWTConfig).GenerateToken(1, "gate-admin", "admin")
 	if err != nil {
 		t.Fatalf("签 admin 令牌失败: %v", err)
 	}
@@ -640,7 +650,7 @@ func TestRouteGuardChain_CapabilityMenuKeysExist(t *testing.T) {
 func TestRouteGuardChain_CapabilityRoutesCarryGuard(t *testing.T) {
 	chains := liveRouteGuardChains(t)
 	naked, noIdentity := []string{}, []string{}
-	covered := 0
+	covered, anonymous := 0, []string{}
 	for key, chain := range chains {
 		parts := strings.SplitN(key, " ", 2)
 		if len(middleware.CapabilityOwnerKeysFor(parts[1])) == 0 {
@@ -648,6 +658,14 @@ func TestRouteGuardChain_CapabilityRoutesCarryGuard(t *testing.T) {
 		}
 		if middleware.IsAdminOnlyRoute(parts[0], parts[1]) {
 			continue // 由仅超管档裁决，已在上一条腿里排除
+		}
+		if _, ok := anonymousAllowedRoutes[key]; ok {
+			// 能力表是"路径前缀 + 段通配"、没有方法维，通配段会连带吃到同层的公开字面量段：
+			// /api/shortlink/* 同时罩住访客侧公开口 POST /api/shortlink/access。公开口按设计
+			// 不带任何守卫，这条断言对它没有意义（它由匿名清单那条腿双向钉住：一旦被人接上
+			// JWT/守卫，清单对账就红）。这里跳过并点名，别让它变成静默的例外。
+			anonymous = append(anonymous, key)
+			continue
 		}
 		covered++
 		if !chainHasGuard(chain, guardPolicy) {
@@ -668,61 +686,108 @@ func TestRouteGuardChain_CapabilityRoutesCarryGuard(t *testing.T) {
 	if len(noIdentity) > 0 {
 		t.Errorf("有 %d 条能力口链上没有 JWTAuthMiddleware（守卫读不到 role）：%v", len(noIdentity), noIdentity)
 	}
-	t.Logf("能力档裁决 live 路由 %d 条", covered)
+	slices.Sort(anonymous)
+	t.Logf("能力档裁决 live 路由 %d 条；通配连带到的公开口 %d 条（%v，由匿名清单那条腿管）",
+		covered, len(anonymous), anonymous)
 }
 
-// TestRouteGuardChain_CapabilityGrantDrivesAccess 行为腿：判定跟着授予走。
+// TestRouteGuardChain_CapabilityGrantDrivesAccess 行为腿：判定跟着授予走，且授予撞上界。
 //
-// 四步闭环：无授予⇒拦（403 + 能力文案）→ 超管同口⇒不被这档拦 → 给 staff 插一行授予并撤缓存
-// ⇒放行到 handler → 删掉那行⇒回到拦。缺任何一步都能被"恒拦"或"恒放"的守卫骗过去，
-// 所以四步都在，且最后一步兼作清理（不留测试数据）。
+// 七步闭环，缺任何一步都能被"恒拦"或"恒放"的守卫骗过去：
+//
+//	一. 出厂分配不含该能力（staff 打超管专属口）⇒ 拦（403 + 能力文案）；
+//	二. 同一口给超管 ⇒ 不被这档拦；
+//	三. 库里塞一行**注册表不允许 staff 拥有**的授予（systemFeatureFlags）⇒ 仍然拦。
+//	   这一条钉的是"授权上界在守卫这一侧也生效"：分配表只能在注册表之内再收窄，
+//	   脏行／历史遗留行开不出超管专属口；
+//	四. 上界之内的角色（customer_service）在表非空但该角色零行 ⇒ 拦。
+//	   这条同时证明判定读的是表，不是出厂词表——quickReply 就在 cs 的出厂默认里，
+//	   表非空时它不作数；
+//	五. 插一行 (customer_service, quickReply) 并撤缓存 ⇒ 那句 403 必须消失
+//	   （handler 在测试库里回什么不由门管）；
+//	六. 删掉那行 ⇒ 回到拦；
+//	七. 收尾清点：本用例不留任何授予行，否则后续用例读到的"表是否空"口径会被改变。
 func TestRouteGuardChain_CapabilityGrantDrivesAccess(t *testing.T) {
 	engine, database := gateEngineAndDB(t)
 	staff, admin := gateTokens(t)
+	cs := gateRoleToken(t, "customer_service")
 
-	const path = "/api/feature-flags"
-	owners := middleware.CapabilityOwnerKeysFor(path)
-	if len(owners) == 0 {
-		t.Fatalf("%s 不在能力表里，这条行为腿测的是不存在的东西", path)
+	const adminOnlyPath = "/api/feature-flags"
+	adminOnlyOwners := middleware.CapabilityOwnerKeysFor(adminOnlyPath)
+	if len(adminOnlyOwners) == 0 {
+		t.Fatalf("%s 不在能力表里，第三、四步的前置没了", adminOnlyPath)
 	}
-	grantKey := owners[0]
+	adminOnlyKey := adminOnlyOwners[0]
+	if _, ok := model.EligibleMenuKeys("staff")[adminOnlyKey]; ok {
+		t.Fatalf("注册表已把 %s 放开给 staff，第三/四步的前置没了", adminOnlyKey)
+	}
+	const grantPath = "/api/quick-replies"
+	grantKey := "quickReply"
+	if !slices.Contains(middleware.CapabilityOwnerKeysFor(grantPath), grantKey) {
+		t.Fatalf("%s 不在能力表里，这条行为腿测的是不存在的东西", grantPath)
+	}
+	if _, ok := model.EligibleMenuKeys("customer_service")[grantKey]; !ok {
+		t.Fatalf("注册表没把 %s 放开给 customer_service，第五步的前置没了", grantKey)
+	}
 
-	// 一、出厂分配（库里没有 role_menu_permissions 行，按 DefaultMenuKeys 判）不含该能力 ⇒ 拦。
-	code, body := gateCall(t, engine, "GET", path, staff)
+	// 一、出厂分配不含该能力 ⇒ 拦。
+	code, body := gateCall(t, engine, "GET", adminOnlyPath, staff)
 	if code != http.StatusForbidden || !strings.Contains(body, capabilityDeniedMsg) {
 		t.Errorf("未授予时 staff 打 %s 应 403+%q，实得 %d / %s",
-			path, capabilityDeniedMsg, code, strings.TrimSpace(body))
+			adminOnlyPath, capabilityDeniedMsg, code, strings.TrimSpace(body))
 	}
 
 	// 二、超管恒放行（这一档不该把 admin 也关在外面）。
-	code, body = gateCall(t, engine, "GET", path, admin)
+	code, body = gateCall(t, engine, "GET", adminOnlyPath, admin)
 	if code == http.StatusForbidden && strings.Contains(body, capabilityDeniedMsg) {
-		t.Errorf("admin 打 %s 被能力档拦了：%d / %s", path, code, strings.TrimSpace(body))
+		t.Errorf("admin 打 %s 被能力档拦了：%d / %s", adminOnlyPath, code, strings.TrimSpace(body))
 	}
 
-	// 三、授予 ⇒ 守卫那句 403 必须消失（handler 在测试库里回什么不由门管）。
-	if err := database.Create(&model.RoleMenuPermission{RoleCode: "staff", MenuKey: grantKey}).Error; err != nil {
+	// 三、脏授予行不撞上界 ⇒ 依然拦。这行同时把"表是否为空"翻成非空，供第四、五步用。
+	if err := database.Create(&model.RoleMenuPermission{RoleCode: "staff", MenuKey: adminOnlyKey}).Error; err != nil {
+		t.Fatalf("插入越界授予行失败: %v", err)
+	}
+	middleware.InvalidateMenuGrants("")
+	code, body = gateCall(t, engine, "GET", adminOnlyPath, staff)
+	if code != http.StatusForbidden || !strings.Contains(body, capabilityDeniedMsg) {
+		t.Errorf("库里有越界授予行 %s，staff 打 %s 却放行了（上界没参与守卫判定）：%d / %s",
+			adminOnlyKey, adminOnlyPath, code, strings.TrimSpace(body))
+	}
+
+	// 四、表非空、该角色零行 ⇒ 拦（判定读表，不读出厂词表）。
+	code, body = gateCall(t, engine, "GET", grantPath, cs)
+	if code != http.StatusForbidden || !strings.Contains(body, capabilityDeniedMsg) {
+		t.Errorf("customer_service 无授予行时打 %s 应 403+%q，实得 %d / %s",
+			grantPath, capabilityDeniedMsg, code, strings.TrimSpace(body))
+	}
+
+	// 五、授予 ⇒ 守卫那句 403 必须消失。
+	if err := database.Create(&model.RoleMenuPermission{RoleCode: "customer_service", MenuKey: grantKey}).Error; err != nil {
 		t.Fatalf("插入授予行失败: %v", err)
 	}
 	middleware.InvalidateMenuGrants("")
-	code, body = gateCall(t, engine, "GET", path, staff)
+	code, body = gateCall(t, engine, "GET", grantPath, cs)
 	if code == http.StatusForbidden && strings.Contains(body, capabilityDeniedMsg) {
 		t.Errorf("已授予 %s 却仍被能力档拦下（授予没参与判定，或撤缓存没生效）：%d / %s",
 			grantKey, code, strings.TrimSpace(body))
 	}
 
-	// 四、撤授予 ⇒ 回到拦。既是"判定跟着授予走"的另一半，也保证库里不留行。
-	if err := database.Where("role_code = ? AND menu_key = ?", "staff", grantKey).
+	// 六、撤授予 ⇒ 回到拦，兼作"跟着授予走"的另一半。
+	if err := database.Where("role_code = ? AND menu_key = ?", "customer_service", grantKey).
 		Delete(&model.RoleMenuPermission{}).Error; err != nil {
 		t.Fatalf("清理授予行失败: %v", err)
 	}
 	middleware.InvalidateMenuGrants("")
-	code, body = gateCall(t, engine, "GET", path, staff)
+	code, body = gateCall(t, engine, "GET", grantPath, cs)
 	if code != http.StatusForbidden || !strings.Contains(body, capabilityDeniedMsg) {
-		t.Errorf("撤授予后 staff 打 %s 应回到 403+%q，实得 %d / %s",
-			path, capabilityDeniedMsg, code, strings.TrimSpace(body))
+		t.Errorf("撤授予后 customer_service 打 %s 应回到 403+%q，实得 %d / %s",
+			grantPath, capabilityDeniedMsg, code, strings.TrimSpace(body))
 	}
 
+	if err := database.Where("role_code = ? AND menu_key = ?", "staff", adminOnlyKey).
+		Delete(&model.RoleMenuPermission{}).Error; err != nil {
+		t.Fatalf("清理越界授予行失败: %v", err)
+	}
 	var left int64
 	database.Model(&model.RoleMenuPermission{}).Count(&left)
 	if left != 0 {

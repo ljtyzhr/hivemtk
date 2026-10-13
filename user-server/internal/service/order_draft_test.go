@@ -26,7 +26,7 @@ func setupDraftEnv(t *testing.T) (*CustomerJourneyService, *FollowUpService, *AI
 	tagger := NewAITagger()
 	extractor := NewOrderIntentExtractor()
 	stats := NewSalesEventStatsServiceWithRepo(repository.NewSalesEventRepositoryWithDB(database))
-	draftSvc := NewOrderDraftService(nil)
+	draftSvc := NewOrderDraftService()
 	draftSvc.SetJourney(context.Background(), journey)
 	draftSvc.SetStats(context.Background(), stats)
 	draftSvc.SetFollowUp(context.Background(), followup)
@@ -720,7 +720,7 @@ func TestDraft_DefaultQuantity(t *testing.T) {
 
 // TestDraft_NilServiceSafe 草稿服务不被注入时仍安全
 func TestDraft_NilServiceSafe(t *testing.T) {
-	draftSvc := NewOrderDraftService(nil)
+	draftSvc := NewOrderDraftService()
 	draft, err := draftSvc.CreateManual(context.Background(), &CreateDraftRequest{
 		CustomerID: "c1", OwnerID: "s1", ProductName: "P", Quantity: 1, UnitPrice: 100,
 	})

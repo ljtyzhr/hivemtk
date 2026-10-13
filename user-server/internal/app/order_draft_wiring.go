@@ -34,6 +34,7 @@ import (
 	"sync"
 
 	"hivemtk-user/internal/pkg/utils/logger"
+	"hivemtk-user/internal/repository"
 	"hivemtk-user/internal/service"
 
 	"gorm.io/gorm"
@@ -220,7 +221,13 @@ func InitOrderDraftRuntime(db *gorm.DB) *OrderDraftRuntime {
 	var svc *service.OrderDraftService
 	switch mode {
 	case orderDraftOn:
-		svc = service.NewOrderDraftServiceWithDB(cfg, db)
+		// on 档必须持久化：有句柄就走 DB 底座，没句柄退回内存并让 Durable()=false 可被观察到。
+		if db != nil {
+			svc = service.NewOrderDraftServiceWithRepo(cfg, repository.NewOrderDraftRepositoryWithDB(db))
+		} else {
+			logger.Warnf("[order-draft] %s=on 但 db 句柄缺席，退回内存底座（Durable=false）", OrderDraftFlagEnv)
+			svc = service.NewOrderDraftService()
+		}
 	case orderDraftShadow:
 		svc = service.NewOrderDraftServiceShadow(cfg, db)
 	}
@@ -237,7 +244,7 @@ func InitOrderDraftRuntime(db *gorm.DB) *OrderDraftRuntime {
 	// 不存在的订单号 —— 那比直接失败更坏，因为下一步（开票/对账）会打在假号上。
 	// journey/followup 缺席只是"少推一次阶段、少排一次售后回访"，不产假数据。
 	if db != nil {
-		svc.SetOrderService(context.Background(), service.NewOrderServiceWithDB(db))
+		svc.SetOrderService(context.Background(), service.NewOrderService())
 	}
 	journey := service.NewCustomerJourneyService()
 	svc.SetJourney(context.Background(), journey)

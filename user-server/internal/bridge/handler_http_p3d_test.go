@@ -9,7 +9,6 @@ import (
 	"testing"
 
 	"hivemtk-user/internal/model"
-	"hivemtk-user/internal/pkg/testutil"
 	"hivemtk-user/internal/repository"
 	"hivemtk-user/internal/service"
 
@@ -18,11 +17,11 @@ import (
 
 func TestAckBridgeOutbox_DetailedItems_P3D(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	db := testutil.NewTestDB(t, &model.MessageHub{})
+	db := setupBridgeTestDB(t, &model.MessageHub{})
 	if err := db.Exec("DELETE FROM message_hub").Error; err != nil {
 		t.Fatalf("清理失败: %v", err)
 	}
-	svc := service.NewInboxIngressServiceWithDB(db, nil)
+	svc := service.NewInboxIngressService()
 	h := NewBridgeIngestHandlerWithMock(
 		func(ctx context.Context, ev *model.MessageEvent) (*service.InboxIngressResult, error) {
 			return &service.InboxIngressResult{Accepted: true}, nil
@@ -98,11 +97,11 @@ func TestAckBridgeOutbox_DetailedItems_P3D(t *testing.T) {
 
 func TestAckBridgeOutbox_TooManyMsgIDs_P3D(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	db := testutil.NewTestDB(t, &model.MessageHub{})
+	db := setupBridgeTestDB(t, &model.MessageHub{})
 	if err := db.Exec("DELETE FROM message_hub").Error; err != nil {
 		t.Fatalf("清理失败: %v", err)
 	}
-	svc := service.NewInboxIngressServiceWithDB(db, nil)
+	svc := service.NewInboxIngressService()
 	h := NewBridgeIngestHandlerWithMock(nil, nil)
 	h.ingress = svc
 
@@ -127,11 +126,11 @@ func TestAckBridgeOutbox_TooManyMsgIDs_P3D(t *testing.T) {
 }
 
 func TestAckOutboundDeliveredDetailed_CrossSession_P3D(t *testing.T) {
-	db := testutil.NewTestDB(t, &model.MessageHub{})
+	db := setupBridgeTestDB(t, &model.MessageHub{})
 	if err := db.Exec("DELETE FROM message_hub").Error; err != nil {
 		t.Fatalf("清理失败: %v", err)
 	}
-	svc := service.NewInboxIngressServiceWithDB(db, nil)
+	svc := service.NewInboxIngressService()
 	ctx := context.Background()
 	const (
 		channel   = "douyin_web"
@@ -175,7 +174,7 @@ func TestAckOutboundDeliveredDetailed_CrossSession_P3D(t *testing.T) {
 
 // TestGetByMsgIDsInScope_OwnershipIsolation_P3D 验证 GetByMsgIDsInScope 严格按 (platform, account_id) 隔离。
 func TestGetByMsgIDsInScope_OwnershipIsolation_P3D(t *testing.T) {
-	db := testutil.NewTestDB(t, &model.MessageHub{})
+	db := setupBridgeTestDB(t, &model.MessageHub{})
 	if err := db.Exec("DELETE FROM message_hub").Error; err != nil {
 		t.Fatalf("清理失败: %v", err)
 	}
@@ -215,11 +214,11 @@ func TestGetByMsgIDsInScope_OwnershipIsolation_P3D(t *testing.T) {
 
 func TestAckOutboundDeliveredDetailed_ConcurrentDoubleAck_P4(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	db := testutil.NewTestDB(t, &model.MessageHub{})
+	db := setupBridgeTestDB(t, &model.MessageHub{})
 	if err := db.Exec("DELETE FROM message_hub").Error; err != nil {
 		t.Fatalf("清理失败: %v", err)
 	}
-	svc := service.NewInboxIngressServiceWithDB(db, nil)
+	svc := service.NewInboxIngressService()
 	ctx := context.Background()
 	const (
 		channel   = "douyin_web"
@@ -276,24 +275,13 @@ func TestAckOutboundDeliveredDetailed_ConcurrentDoubleAck_P4(t *testing.T) {
 	}
 }
 
-func TestAckOutboundDeliveredDetailed_HubRepoNil_P4(t *testing.T) {
-	svc := service.NewInboxIngressServiceWithDB(nil, nil)
-	r, err := svc.AckOutboundDeliveredDetailed(context.Background(), "douyin", "acc", []string{"m1"}, "", "delivered", nil)
-	if err == nil {
-		t.Fatalf("hubRepo nil 应返回 error，实际 (result=%+v, err=nil)", r)
-	}
-	if r != nil {
-		t.Errorf("hubRepo nil 应返 nil result，实际 %+v", r)
-	}
-}
-
 func TestAckOutboundDeliveredDetailed_DuplicateMsgIDInput_P4(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	db := testutil.NewTestDB(t, &model.MessageHub{})
+	db := setupBridgeTestDB(t, &model.MessageHub{})
 	if err := db.Exec("DELETE FROM message_hub").Error; err != nil {
 		t.Fatalf("清理失败: %v", err)
 	}
-	svc := service.NewInboxIngressServiceWithDB(db, nil)
+	svc := service.NewInboxIngressService()
 	ctx := context.Background()
 	hub := &model.MessageHub{
 		Platform:       "douyin",
@@ -321,7 +309,7 @@ func TestAckOutboundDeliveredDetailed_DuplicateMsgIDInput_P4(t *testing.T) {
 }
 
 func TestGetByMsgIDsInScope_OnlyOutbound_P4(t *testing.T) {
-	db := testutil.NewTestDB(t, &model.MessageHub{})
+	db := setupBridgeTestDB(t, &model.MessageHub{})
 	if err := db.Exec("DELETE FROM message_hub").Error; err != nil {
 		t.Fatalf("清理失败: %v", err)
 	}
@@ -369,11 +357,11 @@ func TestGetByMsgIDsInScope_OnlyOutbound_P4(t *testing.T) {
 // 这一格锁住两件事：整批在任何写入之前被 400 拒掉，且报错文案点名到底是哪个值不认。
 func TestAckBridgeOutbox_V2UnknownStatus_RejectsWholeBatchBeforeWrite_P3D(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	db := testutil.NewTestDB(t, &model.MessageHub{})
+	db := setupBridgeTestDB(t, &model.MessageHub{})
 	if err := db.Exec("DELETE FROM message_hub").Error; err != nil {
 		t.Fatalf("清理失败: %v", err)
 	}
-	svc := service.NewInboxIngressServiceWithDB(db, nil)
+	svc := service.NewInboxIngressService()
 	h := NewBridgeIngestHandlerWithMock(nil, nil)
 	h.ingress = svc
 

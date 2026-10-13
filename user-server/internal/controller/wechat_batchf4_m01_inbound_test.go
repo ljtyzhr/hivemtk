@@ -36,7 +36,7 @@ func f4WxSetup(t *testing.T) (*WechatController, uint, *gorm.DB) {
 	mc := cache.NewMemoryCache()
 	t.Cleanup(mc.Close)
 	ctrl := NewWechatController(service.NewWechatService(database))
-	ctrl.SetIngressSvc(service.NewInboxIngressServiceWithDB(database, mc))
+	ctrl.SetIngressSvc(service.NewInboxIngressService())
 	return ctrl, accID, database
 }
 

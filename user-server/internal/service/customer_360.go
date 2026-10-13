@@ -37,23 +37,6 @@ type Customer360Service struct {
 	aiTagger    *AITagger
 }
 
-func NewCustomer360ServiceWithDB(db *gorm.DB) *Customer360Service {
-	return &Customer360Service{
-		sessionRepo:      repository.NewCustomerSessionRepositoryWithDB(db),
-		messageRepo:      repository.NewSessionMessageRepositoryWithDB(db),
-		clueRepo:         repository.NewClueRepositoryWithDB(db),
-		orderRepo:        repository.NewOrderRepositoryWithDB(db),
-		unifiedMsgRepo:   repository.NewUnifiedMessageRepositoryWithDB(db),
-		unifiedReplyRepo: repository.NewUnifiedReplyRepositoryWithDB(db),
-		customerRepo:     repository.NewCustomerRepository(),
-		eventRepo:        repository.NewCustomerEventRepository(),
-		tagRepo:          repository.NewCustomerTagAssignmentRepository(),
-		insightRepo:      repository.NewCustomerProfileInsightRepositoryWithDB(db),
-		rfmRepo:          repository.NewCustomerRFMRepositoryWithDB(db),
-		aiTagger:         NewAITagger(),
-	}
-}
-
 func NewCustomer360Service() *Customer360Service {
 	return &Customer360Service{
 		sessionRepo:      repository.NewCustomerSessionRepository(),

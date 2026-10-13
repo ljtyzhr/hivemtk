@@ -496,7 +496,7 @@ func (s *WebhookService) wecomAccessToken(ctx context.Context, accountID uint) (
 	if err != nil || acc == nil {
 		return "", fmt.Errorf("wecom account %d not found", accountID)
 	}
-	svc := NewWeComServiceWithDB(s.lazyDB())
+	svc := NewWeComService()
 	return svc.GetAccessToken(ctx, acc)
 }
 

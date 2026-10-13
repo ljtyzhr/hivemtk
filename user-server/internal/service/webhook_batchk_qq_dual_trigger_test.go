@@ -80,7 +80,7 @@ func TestBatchK_QQHandleJobDoesNotDoubleTriggerAI(t *testing.T) {
 	t.Cleanup(func() { ws.Stop(context.Background()) })
 
 	tr := &fakeAITrigger{}
-	ing := NewInboxIngressServiceWithDB(db, newIsolatedCacheForTest(t))
+	ing := NewInboxIngressService()
 	ing.SetAITrigger(tr)
 	ws.SetIngressSvc(ing)
 

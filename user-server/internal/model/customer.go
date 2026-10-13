@@ -4,9 +4,10 @@ import (
 	"encoding/json"
 	"time"
 
+	"hivemtk-user/internal/identity"
+
 	"github.com/google/uuid"
 	"gorm.io/gorm"
-	"hivemtk-user/internal/identity"
 )
 
 const (

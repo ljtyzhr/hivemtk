@@ -9,7 +9,6 @@ import (
 
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/metrics"
-	"hivemtk-user/internal/pkg/testutil"
 	"hivemtk-user/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -133,14 +132,14 @@ func TestOutboxMetrics_ValidationError(t *testing.T) {
 // 依赖真实 PG：seed 2 条 pending，GET outbox 后 OutboxFetched +2。
 func TestOutboxMetrics_Success(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	db := testutil.NewTestDB(t, &model.MessageHub{})
+	db := setupBridgeTestDB(t, &model.MessageHub{})
 	if db == nil {
 		return
 	}
 	if err := db.Exec("DELETE FROM message_hub").Error; err != nil {
 		t.Fatalf("清理失败: %v", err)
 	}
-	svc := service.NewInboxIngressServiceWithDB(db, nil)
+	svc := service.NewInboxIngressService()
 	h := NewBridgeIngestHandlerWithMock(nil, nil)
 	h.ingress = svc
 
@@ -210,14 +209,14 @@ func TestAckMetrics_ValidationError(t *testing.T) {
 // 依赖真实 PG：seed 2 条 pending + 1 条 delivered，批量 ack 3 条 + 1 条不存在。
 func TestAckMetrics_Success(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	db := testutil.NewTestDB(t, &model.MessageHub{})
+	db := setupBridgeTestDB(t, &model.MessageHub{})
 	if db == nil {
 		return
 	}
 	if err := db.Exec("DELETE FROM message_hub").Error; err != nil {
 		t.Fatalf("清理失败: %v", err)
 	}
-	svc := service.NewInboxIngressServiceWithDB(db, nil)
+	svc := service.NewInboxIngressService()
 	h := NewBridgeIngestHandlerWithMock(nil, nil)
 	h.ingress = svc
 

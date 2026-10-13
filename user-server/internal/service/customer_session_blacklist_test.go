@@ -8,6 +8,7 @@ import (
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/pkg/testutil"
+	"hivemtk-user/internal/repository"
 )
 
 func setupBlacklistServiceTestDB(t *testing.T) {
@@ -486,7 +487,7 @@ func TestVisitorOpenSession_BlacklistRejected(t *testing.T) {
 		t.Fatalf("BlacklistUser: %v", err)
 	}
 
-	channelSvc := MustNewChatChannelService(db.GetDB())
+	channelSvc := MustNewChatChannelService(repository.NewChatChannelRepositoryWithDB(db.GetDB()))
 	visitorSvc := NewVisitorChatService(context.Background(), db.GetDB(), channelSvc, nil, nil)
 
 	// 路径1：全新建会话

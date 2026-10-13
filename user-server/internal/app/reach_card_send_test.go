@@ -12,6 +12,7 @@ import (
 
 	"hivemtk-user/internal/cache"
 	"hivemtk-user/internal/model"
+	dbpkg "hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/pkg/testutil"
 	"hivemtk-user/internal/service"
 )
@@ -113,9 +114,12 @@ func createReachShortLink(t *testing.T, db *gorm.DB, id uint, code string, statu
 // isolateBridgeOutbox 把桥接出站底座接到本用例的库上；包级全局必须成对还原。
 func isolateBridgeOutbox(t *testing.T, db *gorm.DB) *service.InboxIngressService {
 	t.Helper()
+	// 无参构造走全局 GetDB()，必须先把本用例的库注入全局，否则会拿到别的用例已关闭的句柄。
+	dbpkg.SetTestDB(db)
+	t.Cleanup(func() { dbpkg.SetTestDB(nil) })
 	mem := cache.NewMemoryCache()
 	t.Cleanup(mem.Close)
-	svc := service.NewInboxIngressServiceWithDB(db, mem)
+	svc := service.NewInboxIngressService()
 	service.SetGlobalInboxIngressService(svc)
 	t.Cleanup(func() { service.SetGlobalInboxIngressService(nil) })
 	return svc

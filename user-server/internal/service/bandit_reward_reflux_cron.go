@@ -8,7 +8,7 @@ import (
 
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/logger"
-	"hivemtk-user/internal/service/feedback_loop"
+	feedbackloop "hivemtk-user/internal/service/feedback_loop"
 )
 
 func (c *FeedbackLoopCron) runBanditRewardReflux(ctx context.Context, db *gorm.DB) {

@@ -20,7 +20,7 @@ func s4Session() *model.CustomerSession {
 
 // TestAssignWithOwner_OwnerOnlineRouted owner 在线且有容量 → 直接定向，忽略 least_busy
 func TestAssignWithOwner_OwnerOnlineRouted(t *testing.T) {
-	svc := NewAssignmentService(nil)
+	svc := NewAssignmentService()
 	d, err := svc.AssignWithOwner(context.Background(), s4Session(), s4Agents(), 1)
 	if err != nil {
 		t.Fatalf("AssignWithOwner: %v", err)
@@ -35,7 +35,7 @@ func TestAssignWithOwner_OwnerOnlineRouted(t *testing.T) {
 
 // TestAssignWithOwner_OfflineOwnerFallsBack owner 离线/满载 → 回退现有算法（least_busy 选 2）
 func TestAssignWithOwner_OfflineOwnerFallsBack(t *testing.T) {
-	svc := NewAssignmentService(nil)
+	svc := NewAssignmentService()
 
 	candidates := []AgentInfo{
 		{AgentID: 1, AgentName: "离线老销售", Online: false, ActiveSess: 0, Capacity: 5},
@@ -64,7 +64,7 @@ func TestAssignWithOwner_OfflineOwnerFallsBack(t *testing.T) {
 
 // TestAssignWithOwner_NoOwnerUnchanged ownerID=0 → 行为与原算法完全一致（向后兼容）
 func TestAssignWithOwner_NoOwnerUnchanged(t *testing.T) {
-	svc := NewAssignmentService(nil)
+	svc := NewAssignmentService()
 	d, err := svc.AssignWithOwner(context.Background(), s4Session(), s4Agents(), 0)
 	if err != nil {
 		t.Fatalf("AssignWithOwner: %v", err)
@@ -79,7 +79,7 @@ func TestAssignWithOwner_NoOwnerUnchanged(t *testing.T) {
 
 // TestAssignWithOwner_AllOfflineStillError 全员离线维持原错误语义
 func TestAssignWithOwner_AllOfflineStillError(t *testing.T) {
-	svc := NewAssignmentService(nil)
+	svc := NewAssignmentService()
 	candidates := []AgentInfo{{AgentID: 1, Online: false}}
 	if _, err := svc.AssignWithOwner(context.Background(), s4Session(), candidates, 1); err == nil {
 		t.Error("全员离线应返回错误")

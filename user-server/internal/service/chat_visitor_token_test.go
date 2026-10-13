@@ -9,6 +9,7 @@ import (
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/pkg/testutil"
+	"hivemtk-user/internal/repository"
 
 	"gorm.io/gorm"
 )
@@ -44,7 +45,7 @@ func newVisitorTokenTestService(t *testing.T) (*VisitorChatService, *gorm.DB) {
 	db.SetTestDB(database)
 	t.Cleanup(func() { db.SetTestDB(nil) })
 
-	channelSvc := MustNewChatChannelService(database)
+	channelSvc := MustNewChatChannelService(repository.NewChatChannelRepositoryWithDB(database))
 	svc := NewVisitorChatService(context.Background(), database, channelSvc, nil, NewChannelAgentBindingService())
 	return svc, database
 }

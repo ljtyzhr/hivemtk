@@ -16,9 +16,9 @@ func newBehaviorFixture(t *testing.T) (*InboxIngressService, cache.Cache) {
 	t.Helper()
 	mc := cache.NewMemoryCache()
 	t.Cleanup(func() { mc.Close() })
-	// db 传 nil：本组用例只碰 cache，不碰 DB；NewInboxIngressServiceWithDB 对
-	// nil db 只把 repo 留空，锁路径不会走到 repo。
-	svc := NewInboxIngressServiceWithDB(nil, mc)
+	// 只碰 cache 不碰 DB：repo 留空，锁路径不会走到 repo；cache 必须注入隔离实例。
+	svc := NewInboxIngressService()
+	svc.cache = mc
 	return svc, mc
 }
 

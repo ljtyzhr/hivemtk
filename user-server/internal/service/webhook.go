@@ -159,7 +159,7 @@ func NewWebhookService(db *gorm.DB) *WebhookService {
 		inboxConvRepo:     inboxConvRepo,
 		unifiedMsgRepo:    unifiedMsgRepo,
 		delayedRepo:       repository.NewDelayedOutboundRepository(db),
-		ingressSvc:        NewInboxIngressServiceWithDB(db, nil),
+		ingressSvc:        NewInboxIngressService(),
 		rlBuckets:         make(map[string]*tokenBucket),
 		workerCount:       webhookWorkerCount(context.Background()),
 		queue:             make(chan *webhookJob, webhookQueueSize(context.Background())),

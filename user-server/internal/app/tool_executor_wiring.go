@@ -99,7 +99,8 @@ var (
 //     串联不叠加吞吐（整体上限取两道中的较小者），但各自独立计量；
 //     若共享同一实例，在 CallerID 与 AgentID 同时为空的退化场景下
 //     两道会退化成同一个 bare toolName 桶而互相争用配额。
-//   - 配置：FailThreshold=5 / CooldownDuration=30s / DefaultToolCost=0.001
+//   - 配置：FailThreshold / CooldownDuration 取参数中心生效值（agent_tool 组），
+//     DefaultToolCost=0.001（该值没有参数中心条目，见 RouterStats.DefaultToolCost）
 func InitGlobalToolRouter() {
 	globalToolRouterOnce.Do(func() {
 		exec := tooluse.GetGlobalExecutor()
@@ -107,16 +108,23 @@ func InitGlobalToolRouter() {
 			logger.Warn("[agent] ⚠️ ToolRouter 跳过初始化：全局 ToolExecutor 未就绪（请检查 InitGlobalToolExecutor 调用顺序）")
 			return
 		}
+		// 这两个值必须走 accessor 而不是写死：NewToolRouter 只在**非正值**时才回落
+		// RouterFailThreshold()/RouterCooldownDuration()，而那两个 accessor 才是
+		// agent_tool.fail_threshold / agent_tool.cooldown_duration 的读取点。
+		// 传字面量 5 / 30s 会让注入的 provider 永远不参与决策（参数改了没反应）。
+		failThreshold := tooluse.RouterFailThreshold()
+		cooldownDuration := tooluse.RouterCooldownDuration()
 		globalToolRouter = tooluse.NewToolRouter(
 			exec,
 			tooluse.NewTokenBucketLimiter(20, 50),
 			tooluse.RouterConfig{
-				FailThreshold:    5,
-				CooldownDuration: 30 * time.Second,
+				FailThreshold:    failThreshold,
+				CooldownDuration: cooldownDuration,
 				DefaultToolCost:  0.001,
 			},
 		)
-		logger.Info("[agent] ✅ 全局 ToolRouter 已初始化（熔断阈值 5 / 冷却 30s / 默认成本 0.001）")
+		logger.Infof("[agent] ✅ 全局 ToolRouter 已初始化（熔断阈值 %d / 冷却 %s（取启动时参数中心生效值）/ 默认成本 0.001）",
+			failThreshold, cooldownDuration)
 	})
 }
 

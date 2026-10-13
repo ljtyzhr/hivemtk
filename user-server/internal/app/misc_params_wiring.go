@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	contentctrl "hivemtk-user/internal/content/controller"
 	"hivemtk-user/internal/controller"
 	"hivemtk-user/internal/middleware"
 	"hivemtk-user/internal/model"
@@ -15,14 +16,16 @@ import (
 	"hivemtk-user/internal/service/translation"
 )
 
-// WireMiscConfigParams 把 misc 组里「代码里已有常量、参数中心已登记」的 16 条接上线，
-// 返回接上的参数键（"group.key"，按注入顺序）。
+// WireMiscConfigParams 把 misc 组里「代码里已有常量、参数中心已登记」的 17 条接上线，
+// 返回接上的参数键（"group.key"，按注入顺序）。条数与 wired 的实际长度由
+// internal/app/misc_params_wiring_test.go 逐条对账（这里写的是同一份账，改一处要改两处）。
 //
-// 为什么集中在一个文件而不是就地塞进各包：这 16 个点位横跨 model / repository /
-// middleware / pkg / ops 这些**不能反过来依赖 service** 的下层包（model 引 service
-// 是跨层，middleware 被 service 引、pkg 是叶子包），就地接线只能靠每个包里各造一个
-// 包级函数变量 + setter，那正是这 16 个点位各自的实现。装配层是唯一能同时看见
-// 上下层的地方，读参数中心的动作就都落在这里，各包只留"读当前值"的函数。
+// 为什么集中在一个文件而不是就地塞进各包：这 17 个点位横跨 model / repository /
+// middleware / pkg / ops / content.controller 这些**不能反过来依赖 service** 的下层包
+// （model 引 service 是跨层，middleware 被 service 引、pkg 是叶子包，
+// internal/content 整个子模块不 import internal/service），
+// 就地接线只能靠每个包里各造一个包级函数变量 + setter，那正是这 17 个点位各自的实现。
+// 装配层是唯一能同时看见上下层的地方，读参数中心的动作就都落在这里，各包只留"读当前值"的函数。
 //
 // 每条的口径统一为：**参数读不到 / 没配 / 配了非法值 → 走该点位原有的代码兜底值**。
 // 兜底值与种子 DefaultValue 逐条相等（见各点位注释），所以"有没有这条参数行"
@@ -34,7 +37,7 @@ import (
 //
 // 为什么每条都把 GetXxx 与键名写在同一行：scripts/check-config-param-readpoints.py
 // 认的就是这个形状（同一行里既有 Get* 又有键名）。把 Get* 藏进一个通用闭包里，
-// 16 条会一起变成"未接线但未声明"——门变红，而人看不出是哪一层出了问题。
+// 这 17 条会一起变成"未接线但未声明"——门变红，而人看不出是哪一层出了问题。
 //
 // 这里不接 ctx 参数：各 provider 是**延迟**被读的（首次请求时），如果捕获装配时的
 // ctx，那通常是个已经取消的请求上下文，所有点位会跟着失效。统一用
@@ -123,6 +126,11 @@ func WireMiscConfigParams() []string {
 		return cp.GetInt(bg, "misc", "backup_page_size", controller.DefaultBackupPageSizeCap)
 	})
 	wired = append(wired, "misc.backup_page_size")
+
+	contentctrl.SetBatchImportMaxSizeMBProvider(func() int {
+		return cp.GetInt(bg, "misc", "batch_import_max_file_mb", contentctrl.DefaultBatchImportMaxSizeMB)
+	})
+	wired = append(wired, "misc.batch_import_max_file_mb")
 
 	return wired
 }

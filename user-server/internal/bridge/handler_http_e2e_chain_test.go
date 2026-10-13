@@ -12,7 +12,6 @@ import (
 	"testing"
 
 	"hivemtk-user/internal/model"
-	"hivemtk-user/internal/pkg/testutil"
 	"hivemtk-user/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -94,7 +93,7 @@ func (f *fakeAIOutboundTrigger) currentTraceID() string {
 // trace_id 贯通、outbound 消息 AI 标记、message_trace 事件完整性。
 func TestBridgeE2EChain_FullLifecycle(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	db := testutil.NewTestDB(t, &model.MessageHub{}, &model.MessageTrace{})
+	db := setupBridgeTestDB(t, &model.MessageHub{}, &model.MessageTrace{})
 
 	db.Exec("DELETE FROM message_hub WHERE conversation_id LIKE 'e2e-chain-%'")
 	db.Exec("DELETE FROM message_trace WHERE conversation_id LIKE 'e2e-chain-%'")
@@ -106,7 +105,7 @@ func TestBridgeE2EChain_FullLifecycle(t *testing.T) {
 		customer  = "e2e-cust-001"
 	)
 
-	ingressSvc := service.NewInboxIngressServiceWithDB(db, nil)
+	ingressSvc := service.NewInboxIngressService()
 	handler := NewBridgeIngestHandler(ingressSvc)
 
 	aiTrigger := newFakeAIOutboundTrigger(db, nil)
@@ -277,7 +276,7 @@ func TestBridgeE2EChain_FullLifecycle(t *testing.T) {
 // 发送两条相同 msg_id 的消息，第二条应 duplicate=true，DB 不应有重复记录。
 func TestBridgeE2EChain_DedupAndDuplicate(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	db := testutil.NewTestDB(t, &model.MessageHub{})
+	db := setupBridgeTestDB(t, &model.MessageHub{})
 	db.Exec("DELETE FROM message_hub WHERE conversation_id LIKE 'e2e-dedup-%'")
 
 	const (
@@ -286,7 +285,7 @@ func TestBridgeE2EChain_DedupAndDuplicate(t *testing.T) {
 		convID    = "e2e-dedup-001"
 	)
 
-	ingressSvc := service.NewInboxIngressServiceWithDB(db, nil)
+	ingressSvc := service.NewInboxIngressService()
 	handler := NewBridgeIngestHandler(ingressSvc)
 
 	body := fmt.Sprintf(`{"v":1,"channel":"%s","account_id":"%s","conversation_id":"%s","messages":[
@@ -338,7 +337,7 @@ func TestBridgeE2EChain_DedupAndDuplicate(t *testing.T) {
 // 此处仅验证每条 inbound 消息都获得了 trace_id。
 func TestBridgeE2EChain_TraceConsistency(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	db := testutil.NewTestDB(t, &model.MessageHub{})
+	db := setupBridgeTestDB(t, &model.MessageHub{})
 	db.Exec("DELETE FROM message_hub WHERE conversation_id LIKE 'e2e-trace-%'")
 
 	const (
@@ -347,7 +346,7 @@ func TestBridgeE2EChain_TraceConsistency(t *testing.T) {
 		convID    = "e2e-trace-001"
 	)
 
-	ingressSvc := service.NewInboxIngressServiceWithDB(db, nil)
+	ingressSvc := service.NewInboxIngressService()
 	handler := NewBridgeIngestHandler(ingressSvc)
 
 	for i := 0; i < 2; i++ {
@@ -390,8 +389,8 @@ func TestBridgeE2EChain_TraceConsistency(t *testing.T) {
 // 不是只看 400/422，要检查错误消息有语义（如 "channel required"、"messages empty"）。
 func TestBridgeE2EChain_ValidationErrors(t *testing.T) {
 	gin.SetMode(gin.TestMode)
-	db := testutil.NewTestDB(t, &model.MessageHub{})
-	ingressSvc := service.NewInboxIngressServiceWithDB(db, nil)
+	setupBridgeTestDB(t, &model.MessageHub{})
+	ingressSvc := service.NewInboxIngressService()
 	handler := NewBridgeIngestHandler(ingressSvc)
 
 	tests := []struct {

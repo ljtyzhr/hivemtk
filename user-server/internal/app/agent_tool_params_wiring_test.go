@@ -2,6 +2,8 @@ package app
 
 import (
 	"context"
+	"os"
+	"strings"
 	"testing"
 	"time"
 
@@ -141,5 +143,62 @@ func TestWireAgentToolConfigParamsWithoutDB(t *testing.T) {
 	}
 	if got, want := tooluse.RouterCooldownDuration(), tooluse.DefaultRouterCooldownDuration; got != want {
 		t.Errorf("无库时 cooldown_duration = %v，期望兜底 %v", got, want)
+	}
+}
+
+// TestToolRouterConstructionReadsAccessors 装配点必须把 accessor 的返回值传进 RouterConfig。
+//
+// 这是一条静态锁，因为「构造时到底取了谁」在行为层面读不出来：RouterConfig 的
+// FailThreshold/CooldownDuration 落进 ToolRouter 的私有字段，GetStats() 不回传它们，
+// 而 accessor 自身的取值行为已由 tooluse 的 seam 用例与本包上面两条用例钉住。
+//
+// 它守的是原病灶：provider 注进去、参数中心页面上也能改，但 `NewToolRouter` 的调用点
+// 传的是字面量 5 / 30 * time.Second，而 NewToolRouter 只在**非正值**时才回落 accessor
+// （tool_router.go:58,61）⇒ 正数字面量把那条回落路堵死，注入永远不参与决策。
+//
+// 判据按行且跳过 `//` 开头的注释行：装配点上方那段解释性注释随时可能写成
+// 「这里必须调 tooluse.RouterFailThreshold()」，整段子串计数就会从 1 变 2 而报假红。
+// 反向验过：往文件里加这样一条注释，本用例仍绿（注释不进计数）；
+// 把 accessor 调用换成字面量，本用例立刻红（A 腿 0 次）。
+func TestToolRouterConstructionReadsAccessors(t *testing.T) {
+	src, err := os.ReadFile("tool_executor_wiring.go")
+	if err != nil {
+		t.Fatalf("读 tool_executor_wiring.go 失败: %v", err)
+	}
+	elems := strings.Split(string(src), "\n")
+	code := make([]string, 0, len(elems))
+	lineNos := make([]int, 0, len(elems))
+	for i, line := range elems {
+		if strings.HasPrefix(strings.TrimSpace(line), "//") {
+			continue
+		}
+		code = append(code, line)
+		lineNos = append(lineNos, i+1)
+	}
+	for _, accessor := range []string{"tooluse.RouterFailThreshold()", "tooluse.RouterCooldownDuration()"} {
+		n := 0
+		for _, line := range code {
+			if strings.Contains(line, accessor) {
+				n++
+			}
+		}
+		if n != 1 {
+			t.Fatalf("%s 在装配点出现 %d 次（期望恰好 1 次）⇒ 要么 RouterConfig 没取参数中心生效值，要么有两处构造点互相覆盖", accessor, n)
+		}
+	}
+	// RouterConfig 的两个字段只能接局部变量，接字面量即判红。
+	for _, tc := range []struct{ field, wantVar string }{
+		{"FailThreshold:", "failThreshold"},
+		{"CooldownDuration:", "cooldownDuration"},
+	} {
+		for i, line := range code {
+			if !strings.Contains(line, tc.field) {
+				continue
+			}
+			if !strings.Contains(line, tc.wantVar) {
+				t.Errorf("第 %d 行把 %s 接到了字面量（该行应只接 %s）：%s",
+					lineNos[i], tc.field, tc.wantVar, strings.TrimSpace(line))
+			}
+		}
 	}
 }

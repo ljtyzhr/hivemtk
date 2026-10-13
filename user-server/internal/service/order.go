@@ -7,8 +7,6 @@ import (
 	"hivemtk-user/internal/model"
 	_type "hivemtk-user/internal/pkg/utils/type"
 	"hivemtk-user/internal/repository"
-
-	"gorm.io/gorm"
 )
 
 type OrderService struct {
@@ -17,11 +15,6 @@ type OrderService struct {
 
 func NewOrderService() *OrderService {
 	return &OrderService{repo: repository.NewOrderRepository()}
-}
-
-// NewOrderServiceWithDB 创建带 DB 的订单服务（用于测试 / 多 DB 场景）
-func NewOrderServiceWithDB(db *gorm.DB) *OrderService {
-	return &OrderService{repo: repository.NewOrderRepositoryWithDB(db)}
 }
 
 func (s *OrderService) CreateOrder(ctx context.Context, order model.Order) (*model.Order, error) {

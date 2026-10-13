@@ -112,8 +112,8 @@ func NewFeishuIntegrationService(db *gorm.DB) *FeishuIntegrationService {
 	}
 	return &FeishuIntegrationService{
 		feishu:        NewFeishuService(db),
-		hub:           NewMessageHubServiceWithDB(db, nil),
-		inbox:         NewInboxServiceWithDB(db),
+		hub:           NewMessageHubService(),
+		inbox:         NewInboxService(),
 		feishuMsgRepo: msgRepo,
 	}
 }
@@ -559,8 +559,8 @@ type TelegramIntegrationService struct {
 func NewTelegramIntegrationService(db *gorm.DB) *TelegramIntegrationService {
 	return &TelegramIntegrationService{
 		tg:    NewTelegramService(db),
-		hub:   NewMessageHubServiceWithDB(db, nil),
-		inbox: NewInboxServiceWithDB(db),
+		hub:   NewMessageHubService(),
+		inbox: NewInboxService(),
 	}
 }
 
@@ -929,8 +929,8 @@ type WhatsAppCloudIntegrationService struct {
 func NewWhatsAppCloudIntegrationService(db *gorm.DB) *WhatsAppCloudIntegrationService {
 	return &WhatsAppCloudIntegrationService{
 		wa:    NewWhatsAppCloudService(db),
-		hub:   NewMessageHubServiceWithDB(db, nil),
-		inbox: NewInboxServiceWithDB(db),
+		hub:   NewMessageHubService(),
+		inbox: NewInboxService(),
 	}
 }
 

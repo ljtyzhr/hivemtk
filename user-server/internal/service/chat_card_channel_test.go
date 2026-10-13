@@ -9,6 +9,7 @@ import (
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/pkg/testutil"
+	"hivemtk-user/internal/repository"
 )
 
 var expectedCardMetas = map[string]struct {
@@ -53,7 +54,7 @@ func TestIsCardChannelRef_RejectsInvalidRefs(t *testing.T) {
 func TestGetOrCreateCardChannel_AllPlatforms(t *testing.T) {
 	database := testutil.NewTestDB(t, &model.ChatChannel{})
 	db.SetTestDB(database)
-	svc := MustNewChatChannelService(database)
+	svc := MustNewChatChannelService(repository.NewChatChannelRepositoryWithDB(database))
 
 	for platform, meta := range expectedCardMetas {
 		t.Run(platform, func(t *testing.T) {
@@ -94,7 +95,7 @@ func TestGetOrCreateCardChannel_AllPlatforms(t *testing.T) {
 func TestGetOrCreateCardChannel_Idempotent(t *testing.T) {
 	database := testutil.NewTestDB(t, &model.ChatChannel{})
 	db.SetTestDB(database)
-	svc := MustNewChatChannelService(database)
+	svc := MustNewChatChannelService(repository.NewChatChannelRepositoryWithDB(database))
 
 	ch1, err := svc.GetOrCreateCardChannel(context.Background(), "douyin")
 	if err != nil {
@@ -118,7 +119,7 @@ func TestGetOrCreateCardChannel_Idempotent(t *testing.T) {
 func TestGetOrCreateCardChannel_RejectsUnknownPlatform(t *testing.T) {
 	database := testutil.NewTestDB(t, &model.ChatChannel{})
 	db.SetTestDB(database)
-	svc := MustNewChatChannelService(database)
+	svc := MustNewChatChannelService(repository.NewChatChannelRepositoryWithDB(database))
 
 	_, err := svc.GetOrCreateCardChannel(context.Background(), "tiktok")
 	if err == nil {
@@ -153,7 +154,7 @@ func TestVisitorChatService_ResolveCardChannel(t *testing.T) {
 		nil, nil, nil, nil, nil, nil,
 	)
 	orch := NewSmartCSOrchestrator(engine, DefaultOrchestratorConfig(), nil)
-	channelSvc := MustNewChatChannelService(database)
+	channelSvc := MustNewChatChannelService(repository.NewChatChannelRepositoryWithDB(database))
 	visitorSvc := NewVisitorChatService(context.Background(), database, channelSvc, orch, nil)
 
 	for platform := range expectedCardMetas {
@@ -218,7 +219,7 @@ func TestVisitorChatService_OpenSessionWithVisitorMeta(t *testing.T) {
 
 	engine := NewSalesEngine(database, nil, nil, nil, nil, nil, nil, nil)
 	orch := NewSmartCSOrchestrator(engine, DefaultOrchestratorConfig(), nil)
-	channelSvc := MustNewChatChannelService(database)
+	channelSvc := MustNewChatChannelService(repository.NewChatChannelRepositoryWithDB(database))
 	visitorSvc := NewVisitorChatService(context.Background(), database, channelSvc, orch, nil)
 
 	cases := []struct {

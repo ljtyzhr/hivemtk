@@ -24,7 +24,7 @@ func setupWorkbenchEnv(t *testing.T) (*CustomerJourneyService, *FollowUpService,
 	stats := NewSalesEventStatsServiceWithRepo(repository.NewSalesEventRepositoryWithDB(memDB))
 	followup.SetStats(context.Background(), stats)
 
-	draft := NewOrderDraftService(nil)
+	draft := NewOrderDraftService()
 	draft.SetJourney(context.Background(), journey)
 	draft.SetStats(context.Background(), stats)
 	draft.SetFollowUp(context.Background(), followup)

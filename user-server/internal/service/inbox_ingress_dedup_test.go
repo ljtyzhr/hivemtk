@@ -15,7 +15,8 @@ func TestInboxIngress_BatchMerge_Scenarios(t *testing.T) {
 	c := cache.NewMemoryCache()
 
 	defer c.Close()
-	svc := NewInboxIngressServiceWithDB(nil, c)
+	svc := NewInboxIngressService()
+	svc.cache = c
 
 	trigger := &fakeAITrigger{}
 	svc.SetAITrigger(trigger)

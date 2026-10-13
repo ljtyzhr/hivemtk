@@ -119,10 +119,10 @@ export default build({
   'Docker + 宿主机部署（推荐）': ['Docker + host deployment (recommended)', 'Docker＋ホストデプロイ（推奨）', 'نشر Docker مع المضيف (موصى به)'],
   'GPU 加速（可选）': ['GPU acceleration (optional)', 'GPU アクセラレーション（任意）', 'تسريع بوحدة الرسوميات (اختياري)'],
   'Gin + WebSocket 长连接 + 业务逻辑': ['Gin + WebSocket long connections + business logic', 'Gin＋WebSocket 常時接続＋ビジネスロジック', 'إطار Gin + اتصالات WebSocket طويلة + منطق الأعمال'],
-  'HiveMTK 共含 94 个业务模块 + 42 个智能体工具，按业务域划分为以下核心模块，每个模块独立路由，按需启用。': [
-    'HiveMTK ships 94 business modules plus 42 agent tools, organized into the following core modules by business domain. Each module is independently routed and enabled on demand.',
+  'HiveMTK 共含 94 个业务模块 + 45 个智能体工具，按业务域划分为以下核心模块，每个模块独立路由，按需启用。': [
+    'HiveMTK ships 94 business modules plus 45 agent tools, organized into the following core modules by business domain. Each module is independently routed and enabled on demand.',
     'HiveMTK は業務モジュール 94 個＋エージェントツール 42 個を搭載し、業務ドメイン別に以下の中核モジュールへ整理されます。各モジュールは独立ルーティングで必要に応じて有効化します。',
-    'يضم HiveMTK 94 وحدة عمل إضافةً إلى 42 أداة للوكلاء، منظمة في الوحدات الأساسية الآتية بحسب نطاق العمل؛ ولكل وحدة مسار مستقل وتفعيل عند الحاجة.',
+    'يضم HiveMTK 94 وحدة عمل إضافةً إلى 45 أداة للوكلاء، منظمة في الوحدات الأساسية الآتية بحسب نطاق العمل؛ ولكل وحدة مسار مستقل وتفعيل عند الحاجة.',
   ],
   'HiveMTK 采用私域独立部署：数据库、推理栈、用户数据全部本地化。当客服官网部署在公网，而 HiveMTK 部署在内网（无公网 IP / NAT / 防火墙后）时，需通过 FRP 让公网请求穿透到内网': [
     'HiveMTK runs as an isolated private-domain deployment: databases, inference stack, and user data all stay local. When your support site lives on the public internet while HiveMTK sits inside a private network (behind NAT/firewall with no public IP), FRP tunnels public requests into the private network.',
@@ -147,9 +147,9 @@ export default build({
   'Q: 自动回复会被平台封号吗？': ['Q: Could auto-reply get my accounts banned?', 'Q: 自動返信でアカウント停止リスクは？', 'س: هل قد يؤدي الرد الآلي لحظر حساباتي؟'],
   'Q: 需要帮助怎么办？': ['Q: Where can I get help?', 'Q: 助けが必要な場合は？', 'س: كيف أحصل على مساعدة؟'],
   'ReAct 自主智能体（42 工具）、意图识别、SOP 编排、异议处理。': [
-    'ReAct autonomous agents (42 tools), intent recognition, SOP orchestration, objection handling.',
-    'ReAct 自律エージェント（42 ツール）、意図認識、SOP オーケストレーション、異議処理。',
-    'وكلاء ReAct ذاتيون (42 أداة)، تمييز النوايا، تنسيق SOP، معالجة الاعتراضات.',
+    'ReAct autonomous agents (45 tools), intent recognition, SOP orchestration, objection handling.',
+    'ReAct 自律エージェント（45 ツール）、意図認識、SOP オーケストレーション、異議処理。',
+    'وكلاء ReAct ذاتيون (45 أداة)، تمييز النوايا، تنسيق SOP، معالجة الاعتراضات.',
   ],
   'Redis 会话 / 队列 / 限流': ['Redis sessions / queues / rate limiting', 'Redis セッション／キュー／レート制限', 'جلسات Redis / طوابير / تحكم بالمعدل'],
   'SMTP 配置、邮件列表、草稿管理、批量发送任务、发送记录追踪。': [

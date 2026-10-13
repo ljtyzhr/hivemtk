@@ -9,8 +9,9 @@ import (
 )
 
 func TestInboxIngress_DeliverOutbound_OutboxLifecycle(t *testing.T) {
-	db := testutil.NewTestDB(t, &model.MessageHub{})
-	svc := NewInboxIngressServiceWithDB(db, newIsolatedCacheForTest(t))
+	// NewTestDB 自动 SetTestDB；无参构造经全局 GetDB 拿到本用例的库。
+	testutil.NewTestDB(t, &model.MessageHub{})
+	svc := NewInboxIngressService()
 
 	const (
 		channel        = "douyin_web"

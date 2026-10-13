@@ -5,8 +5,9 @@ import (
 	"sync/atomic"
 	"time"
 
-	"gorm.io/gorm"
 	"hivemtk-user/internal/pkg/utils/logger"
+
+	"gorm.io/gorm"
 )
 
 // DBTraceSink 把 InMemoryTraceBus 派发的 TraceEvent 异步批量落库到 trace_events 表。

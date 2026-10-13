@@ -7,7 +7,9 @@ import (
 // ConfigParam 动态阈值参数表（替代分散的 const 硬编码）。
 //
 // 设计原则：
-//  1. 单一表通存所有类型（int/float/bool/string/duration），value 存字符串按需解析
+//  1. 单一表通存所有类型（int/float/bool/string/json/duration），value 存字符串按需解析
+//     （value_type 的取值集合由 service.validateValue 穷举把关：新增一个类型却没在
+//     校验里加分支，写侧会直接报「unknown value_type」而不是静默放行）
 //  2. group + key 联合唯一，key 采用点号命名（bridge.polling_max_timeout）
 //  3. default_value 保证每次启动/重置都有合法值
 //  4. min/max/value_type 约束 + UI 渲染提示

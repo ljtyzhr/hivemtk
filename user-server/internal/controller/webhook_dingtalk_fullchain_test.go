@@ -144,8 +144,8 @@ func setupDingTalkFullchain(t *testing.T) *dtFullchainEnv {
 	}
 
 	webhookSvc := service.NewWebhookService(database)
-	ingress := service.NewInboxIngressServiceWithDB(database, nil)
-	ingress.SetInboxService(service.NewInboxServiceWithDB(database))
+	ingress := service.NewInboxIngressService()
+	ingress.SetInboxService(service.NewInboxService())
 	webhookSvc.SetIngressSvc(ingress)
 
 	gin.SetMode(gin.TestMode)

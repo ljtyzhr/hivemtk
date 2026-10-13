@@ -21,7 +21,7 @@ import (
 	"hivemtk-user/internal/dto"
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/utils/logger"
-	"hivemtk-user/internal/service/feedback_loop"
+	feedbackloop "hivemtk-user/internal/service/feedback_loop"
 )
 
 // CollectionRewardHook 回款奖励钩子：Transited 的每次结算触发（paid + partial）。

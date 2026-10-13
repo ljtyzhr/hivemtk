@@ -143,8 +143,8 @@ const (
 func NewQQIntegrationService(db *gorm.DB) *QQIntegrationService {
 	return &QQIntegrationService{
 		qqSvc:     NewQQService(db),
-		hub:       NewMessageHubServiceWithDB(db, nil),
-		inbox:     NewInboxServiceWithDB(db),
+		hub:       NewMessageHubService(),
+		inbox:     NewInboxService(),
 		msgSeqMap: make(map[string]*qqSeqEntry),
 	}
 }

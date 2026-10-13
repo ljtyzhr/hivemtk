@@ -31,10 +31,10 @@ func NewWeComIntegrationService(db *gorm.DB) *WeComIntegrationService {
 	}
 	return &WeComIntegrationService{
 		repo:      repo,
-		hub:       NewMessageHubServiceWithDB(db, nil),
-		inbox:     NewInboxServiceWithDB(db),
+		hub:       NewMessageHubService(),
+		inbox:     NewInboxService(),
 		healthSvc: NewWeComAccountHealthService(db),
-		wecom:     NewWeComServiceWithDB(db),
+		wecom:     NewWeComService(),
 	}
 }
 

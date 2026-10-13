@@ -9,6 +9,7 @@ import (
 
 	"hivemtk-user/internal/aiagent/agent/tooluse"
 	"hivemtk-user/internal/pkg/utils/logger"
+	"hivemtk-user/internal/service"
 )
 
 // W-3 工具熔断接线（新规划任务清单 T-P1-04）
@@ -32,6 +33,11 @@ import (
 // 注意与 ToolRouter 的自带熔断区分：`RouterConfig.FailThreshold=5/Cooldown=30s` 是
 // ToolRouter 内部的**工具切换**用的短路（失败即换同类工具），`/agent/tools/circuit/reset`
 // 重置的是它。本文件挂的是 executor 装饰链上的按工具熔断，两者独立计量、互不共享状态。
+//
+// 阈值来源是三层（resolveToolCircuitConfig）：代码兜底 → 参数中心 agent_tool.circuit_* 五项
+// → 环境变量，后写的赢。模式旗标（三态）刻意**只留环境变量**：一把能决定"要不要拦下请求"的
+// 旗子放进页面，等于把灰度动作的审批从部署侧挪到任何有参数写权限的账号上；
+// 页面上那五条因此都带一句"仅在 FF_TOOL_CIRCUIT_BREAKER=shadow|enforce 时才有意义"。
 
 // 环境变量名集中在此，避免"文档写一个、代码读另一个"。
 const (
@@ -139,8 +145,16 @@ func envDuration(env string, min, max time.Duration) (time.Duration, bool) {
 //
 // AC③（阈值走配置不硬编码）：五项全部可覆盖，未配则沿用 tooluse.DefaultCircuitBreakerConfig()。
 // 每一项单独校验、单独回退——配错一项不应让其余四项跟着失效。
+//
+// 保留"只看 env 这一层"的入口是给单测与排障用的：运维问"这个环境变量到底生效没"时，
+// 需要一个不被参数中心干扰的读法。生产装配走 resolveToolCircuitConfig。
 func toolCircuitConfigFromEnv() tooluse.CircuitBreakerConfig {
-	cfg := tooluse.DefaultCircuitBreakerConfig()
+	return circuitEnvOver(tooluse.DefaultCircuitBreakerConfig())
+}
+
+// circuitEnvOver 在给定基线上叠加环境变量覆盖。
+func circuitEnvOver(base tooluse.CircuitBreakerConfig) tooluse.CircuitBreakerConfig {
+	cfg := base
 	if n, ok := envInt("[tool-circuit]", circuitThresholdEnv, 1, circuitThresholdMax); ok {
 		cfg.FailureThreshold = n
 	}
@@ -154,9 +168,9 @@ func toolCircuitConfigFromEnv() tooluse.CircuitBreakerConfig {
 		f, err := strconv.ParseFloat(raw, 64)
 		switch {
 		case err != nil:
-			logger.Warnf("[tool-circuit] %s=%q 不是数字 ⇒ 沿用默认值", circuitBackoffEnv, raw)
+			logger.Warnf("[tool-circuit] %s=%q 不是数字 ⇒ 沿用下层值", circuitBackoffEnv, raw)
 		case f < 1.0 || f > 100:
-			logger.Warnf("[tool-circuit] %s=%s 超出可用区间 [1,100] ⇒ 沿用默认值", circuitBackoffEnv, raw)
+			logger.Warnf("[tool-circuit] %s=%s 超出可用区间 [1,100] ⇒ 沿用下层值", circuitBackoffEnv, raw)
 		default:
 			cfg.BackoffMultiplier = f
 		}
@@ -164,6 +178,63 @@ func toolCircuitConfigFromEnv() tooluse.CircuitBreakerConfig {
 	if n, ok := envInt("[tool-circuit]", circuitHalfOpenEnv, 1, circuitHalfOpenMaxLimit); ok {
 		cfg.HalfOpenMaxAttempts = n
 	}
+	return clampCircuitCooldowns(cfg)
+}
+
+// circuitParamOver 在给定基线上叠加参数中心 agent_tool 组 circuit_* 五项。
+//
+// 区间校验留在这里而不是只靠写入侧的 validateValue：validateValue 只拦"从页面/接口改"
+// 这一条路，直接改库、或者日后代码收紧了区间而库里还是旧值，读出来的仍是越界值。
+// 而 threshold=0 这一类越界的后果不是"配得不合适"，是"每个请求都被拒"——比不设配置危险得多，
+// 与 envInt 的取舍同一句：越界配置比不设配置更危险。
+//
+// 可判"配了但越界"、不可判"配了但解析失败"：Get* 在两种情况下都返回传进去的 fallback，
+// 所以非法值（比如把时长单位写成 "abc"）会静默落到下层值上、不出告警。这是全仓 Get*
+// 读取口的共同口径，不在这里单开特例。
+func circuitParamOver(base tooluse.CircuitBreakerConfig) tooluse.CircuitBreakerConfig {
+	bg := context.Background()
+	cp := service.GlobalConfigParam()
+	cfg := base
+
+	if v := cp.GetInt(bg, "agent_tool", "circuit_failure_threshold", base.FailureThreshold); v >= 1 && v <= circuitThresholdMax {
+		cfg.FailureThreshold = v
+	} else {
+		logger.Warnf("[tool-circuit] 参数中心 agent_tool.circuit_failure_threshold=%d 超出可用区间 [1,%d] ⇒ 沿用下层值 %d",
+			v, circuitThresholdMax, base.FailureThreshold)
+	}
+	if v := cp.GetDuration(bg, "agent_tool", "circuit_base_cooldown", base.BaseCooldown); v >= time.Millisecond && v <= time.Hour {
+		cfg.BaseCooldown = v
+	} else {
+		logger.Warnf("[tool-circuit] 参数中心 agent_tool.circuit_base_cooldown=%s 超出可用区间 [1ms,1h0m0s] ⇒ 沿用下层值 %s",
+			v, base.BaseCooldown)
+	}
+	if v := cp.GetDuration(bg, "agent_tool", "circuit_max_cooldown", base.MaxCooldown); v >= time.Millisecond && v <= 24*time.Hour {
+		cfg.MaxCooldown = v
+	} else {
+		logger.Warnf("[tool-circuit] 参数中心 agent_tool.circuit_max_cooldown=%s 超出可用区间 [1ms,24h0m0s] ⇒ 沿用下层值 %s",
+			v, base.MaxCooldown)
+	}
+	if v := cp.GetFloat(bg, "agent_tool", "circuit_backoff_multiplier", base.BackoffMultiplier); v >= 1.0 && v <= 100 {
+		cfg.BackoffMultiplier = v
+	} else {
+		logger.Warnf("[tool-circuit] 参数中心 agent_tool.circuit_backoff_multiplier=%g 超出可用区间 [1,100] ⇒ 沿用下层值 %g",
+			v, base.BackoffMultiplier)
+	}
+	if v := cp.GetInt(bg, "agent_tool", "circuit_half_open_max_attempts", base.HalfOpenMaxAttempts); v >= 1 && v <= circuitHalfOpenMaxLimit {
+		cfg.HalfOpenMaxAttempts = v
+	} else {
+		logger.Warnf("[tool-circuit] 参数中心 agent_tool.circuit_half_open_max_attempts=%d 超出可用区间 [1,%d] ⇒ 沿用下层值 %d",
+			v, circuitHalfOpenMaxLimit, base.HalfOpenMaxAttempts)
+	}
+
+	return clampCircuitCooldowns(cfg)
+}
+
+// clampCircuitCooldowns 把退避上限抬到不低于基础冷却。
+//
+// 每一层各自夹一次，而不是只在最外层夹：单层函数（toolCircuitConfigFromEnv /
+// circuitParamOver）也被单测直接调用，夹漏了会让"这一层配错了"的告警读起来像"下层配错了"。
+func clampCircuitCooldowns(cfg tooluse.CircuitBreakerConfig) tooluse.CircuitBreakerConfig {
 	if cfg.MaxCooldown < cfg.BaseCooldown {
 		logger.Warnf("[tool-circuit] max_cooldown(%s) < base_cooldown(%s) ⇒ 退避上限抬到 base，避免指数退避被反向夹住",
 			cfg.MaxCooldown, cfg.BaseCooldown)
@@ -172,10 +243,27 @@ func toolCircuitConfigFromEnv() tooluse.CircuitBreakerConfig {
 	return cfg
 }
 
-// applyToolCircuitBreaker 按环境变量把熔断挂到 executor 配置上，返回生效模式。
+// resolveToolCircuitConfig 按三层优先级装配熔断配置。
+//
+// 顺序是 代码兜底 → 参数中心 → 环境变量，**后写的赢**。环境变量留在最后一层有两个理由：
+// 一是它是既有的、已投产的口子，接到参数中心后面会让"设了 env 却没生效"这种事故新增一种；
+// 二是熔断是行为变更类旋钮，转 enforce 的灰度动作要能在"库里的值被人误改"时仍有一道
+// 部署侧的硬覆盖——旗标（FF_TOOL_CIRCUIT_BREAKER）刻意只留 env，不给页面上"点一下就拦请求"的能力。
+//
+// 参数中心不可用时（没建表、装配早于建表、或单测里没挂全局实例）GlobalConfigParam 返回
+// 无 DB 的 stub，Get* 逐条回落传进去的下层值 ⇒ 结果与"没接参数中心"完全一致。
+func resolveToolCircuitConfig() tooluse.CircuitBreakerConfig {
+	return circuitEnvOver(circuitParamOver(tooluse.DefaultCircuitBreakerConfig()))
+}
+
+// applyToolCircuitBreaker 按"参数中心 + 环境变量"装配出的配置把熔断挂到 executor 上，返回生效模式。
 //
 // 调用方：InitGlobalToolExecutor（建 executor 之前）。off 时显式把字段置回 nil，
 // 这样"关旗 = 与接线前完全一致"是可断言的性质，而不是依赖没人赋值。
+//
+// registry 只在这里构造一次，所以五条旋钮都是"改完需重启才生效"（种子条目上的 Restart
+// 就是这个意思，不是装饰）；快照端点 /agent/tools/circuit 读的是 circuitConfigApplied，
+// 也就是真正挂上去的那一份，不是代码默认值。
 func applyToolCircuitBreaker(config *tooluse.ToolExecutorConfig) toolCircuitMode {
 	mode := parseToolCircuitMode(os.Getenv(circuitFlagEnv))
 	circuitModeValue = string(mode)
@@ -190,7 +278,7 @@ func applyToolCircuitBreaker(config *tooluse.ToolExecutorConfig) toolCircuitMode
 		return mode
 	}
 
-	cfg := toolCircuitConfigFromEnv()
+	cfg := resolveToolCircuitConfig()
 	circuitRegistry = tooluse.NewCircuitBreakerRegistry(cfg)
 	circuitDecisions = tooluse.NewCircuitDecisionCounter()
 	circuitConfigApplied = cfg

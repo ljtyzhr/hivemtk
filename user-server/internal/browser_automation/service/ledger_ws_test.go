@@ -7,10 +7,11 @@ import (
 	"testing"
 	"time"
 
-	"gorm.io/gorm"
 	"hivemtk-user/internal/browser_automation/model"
 	"hivemtk-user/internal/browser_automation/repository"
 	"hivemtk-user/internal/pkg/testutil"
+
+	"gorm.io/gorm"
 )
 
 // 写台账测试。手法与 executor_ws_e2e_test.go 同一档：真 WS 帧 + 真测试库落库，

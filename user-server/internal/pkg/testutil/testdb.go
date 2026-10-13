@@ -22,6 +22,7 @@ import (
 	"time"
 
 	"hivemtk-user/internal/config"
+	"hivemtk-user/internal/pkg/dbstate"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -160,7 +161,13 @@ const (
 // 强依赖真实 DB 的集成/E2E 测试在此场景下整体跳过，不影响纯单元测试。
 // 注意：CI 环境（CI 环境变量非空）下改为 t.Fatalf —— 见函数体内注释。
 //
-// 注意：本辅助不调用 db.SetTestDB，由调用方按需将 DB 注入到全局 db.DB 或 Service。
+// 注意：本辅助在创建成功后会自动 db.SetTestDB(database) 并在 t.Cleanup 里还原为 nil。
+//
+// 2026-10-13 变更（编码规范审计后续）：Service 层构造器已统一改为无参 + 全局
+// dbUtil.GetDB()/repository.GetDB() 注入，不再有 WithDB 变体。若本辅助不注入全局，
+// 每个用例都要手工 SetTestDB，漏一处就是 nil 指针 panic（已实测踩过：service 包
+// 130+ 用例因遗漏而失败）。因此把注入收口到这里；已有手工 SetTestDB 的用例不受影响
+// （重复设置幂等，Cleanup LIFO 先还原手工的 nil 再还原本辅助的 nil）。
 //
 // 参数类型是 testing.TB 而非 *testing.T：benchmark 同样需要测试库。若只接受
 // *testing.T，基准测试就只能自带第 N 套 DSN 拼装（见 internal/repository/
@@ -206,6 +213,20 @@ func NewTestDB(t testing.TB, models ...any) *gorm.DB {
 	if sqlDB, dbErr := database.DB(); dbErr == nil {
 		sqlDB.SetMaxOpenConns(testDBMaxOpenConns)
 		sqlDB.SetMaxIdleConns(testDBMaxIdleConns)
+		// 2026-10-13：整包跑时每用例都 DropTable+AutoMigrate，磁盘/fsync 压力下
+		// CREATE EXTENSION / SET session_replication_role / DDL 可能在 PG 后端卡住数分钟
+		// （实测 TestKuaishouCardService_ShareCard_NotFound 卡在 testdb.go:219 的
+		// SET session_replication_role 上直到 go test 超时）。给 setup 会话设上限，
+		// 让失败以错误形式暴露而不是挂死整包。
+		// 2026-10-13: 多参数 SET(...)=... 在部分驱动/协议下语法报错；拆两条。
+		// 全量套件数百次 DropTable+AutoMigrate 在 fsync 压力下会卡在
+		// SET session_replication_role 等后台语句上数分钟，语句/锁超时兜底。
+		if _, execErr := sqlDB.Exec("SET statement_timeout = '60s'"); execErr != nil {
+			t.Logf("设置测试 statement_timeout 提示: %v", execErr)
+		}
+		if _, execErr := sqlDB.Exec("SET lock_timeout = '15s'"); execErr != nil {
+			t.Logf("设置测试 lock_timeout 提示: %v", execErr)
+		}
 		if _, execErr := sqlDB.Exec("CREATE EXTENSION IF NOT EXISTS vector"); execErr != nil {
 			t.Logf("启用 pgvector 扩展提示（需 postgres 镜像含 vector 包）: %v", execErr)
 		}
@@ -232,6 +253,11 @@ func NewTestDB(t testing.TB, models ...any) *gorm.DB {
 	t.Cleanup(func() {
 		_ = sqlDB.Close()
 	})
+
+	// 注入全局，供无参 Service 构造器（dbUtil.GetDB() / repository.GetDB()）取用。
+	// 写 dbstate 而不是直接 db.SetTestDB：见 dbstate 包注释（import cycle）。
+	dbstate.Set(database)
+	t.Cleanup(func() { dbstate.Set(nil) })
 
 	return database
 }

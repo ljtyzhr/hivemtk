@@ -26,7 +26,7 @@ export const hero = {
   title: ['让 AI 替销售,', '从接待到逼单'],
   gradientIndex: 1,
   description:
-    'HiveMTK 不是又一个 SCRM，而是真正会卖货的私域 AI 操作系统。本地模型 + 本地数据库 + 零出域架构，七端社媒全打透；ReAct 智能体 42 个工具自主谈单，94 个业务模块开箱即用，内置 GEO 引擎让品牌在 AI 搜索中被看见。AGPL-3.0 开源，4 步私有化部署，把销冠能力复制给团队里每一个普通人。',
+    'HiveMTK 不是又一个 SCRM，而是真正会卖货的私域 AI 操作系统。本地模型 + 本地数据库 + 零出域架构，七端社媒全打透；ReAct 智能体 45 个工具自主谈单，94 个业务模块开箱即用，内置 GEO 引擎让品牌在 AI 搜索中被看见。AGPL-3.0 开源，4 步私有化部署，把销冠能力复制给团队里每一个普通人。',
   primaryCta: { text: '立即部署', href: '/deploy' },
   secondaryCta: { text: '了解核心功能', href: '/features' },
   // 历史键名 experienceCta 指向已停服的在线体验站；改为源码入口，占同一个视觉位。
@@ -118,7 +118,7 @@ export const whyHiveMTK = {
       num: '06',
       key: '全自动',
       title: 'ReAct 智能体真自主决策',
-      desc: '不是关键词匹配的伪 AI,是 ReAct 推理-行动循环的真智能体。42 个工具自主编排,从意图识别、异议处理、SOP 跳转、逼单邀约到售后跟进,无需人工干预,失败自动重试 + 熔断降级 + 审计留痕。',
+      desc: '不是关键词匹配的伪 AI,是 ReAct 推理-行动循环的真智能体。45 个工具自主编排,从意图识别、异议处理、SOP 跳转、逼单邀约到售后跟进,无需人工干预,失败自动重试 + 熔断降级 + 审计留痕。',
       metric: '42',
       metricLabel: '自主工具',
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg>',
@@ -142,7 +142,7 @@ export const featuresSection = {
   title: ['不是又一个 SCRM，', '是真正会卖货的 AI'],
   gradientIndex: 1,
   subtitle:
-    'HiveMTK 覆盖从七端多账号聚合、AI 谈单、销冠 SOP、客户 CDP、全渠道触达、GEO 智能优化到数据驾驶舱的完整链路，94 个业务模块 + 42 个智能体工具，让系统真正能替代销冠的重复劳动。',
+    'HiveMTK 覆盖从七端多账号聚合、AI 谈单、销冠 SOP、客户 CDP、全渠道触达、GEO 智能优化到数据驾驶舱的完整链路，94 个业务模块 + 45 个智能体工具，让系统真正能替代销冠的重复劳动。',
   features: [
     {
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><rect x="5" y="2" width="14" height="20" rx="2" ry="2"/><line x1="12" y1="18" x2="12.01" y2="18"/></svg>',

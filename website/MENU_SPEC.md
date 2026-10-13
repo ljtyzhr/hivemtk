@@ -77,7 +77,7 @@
 - **区块头部**（`content.js` → `featuresSection`）：
   - tag：`核心功能`
   - title（两段，`gradientIndex: 1`）：`不是又一个 SCRM，` / `是真正会卖货的 AI`
-  - subtitle：覆盖从七端多账号聚合、AI 谈单、销冠 SOP、客户 CDP、全渠道触达到数据驾驶舱的完整链路，62 个业务模块 + 42 个智能体工具。
+  - subtitle：覆盖从七端多账号聚合、AI 谈单、销冠 SOP、客户 CDP、全渠道触达到数据驾驶舱的完整链路，94 个业务模块 + 45 个智能体工具。
 - **11 项功能卡**（`features`，每项含 `icon` / `title` / `industries` / `pain` / `solution` / `special`）：
 
   | # | 功能名 | 适用行业 |
@@ -209,7 +209,7 @@
   | 5 | `source-deploy` | 源码部署 | 准备运行环境 / 构建后端 `user-server` / 构建前端 `user-web` |
   | 6 | `frp-deploy` | FRP 私域穿透 | 方案 B（nginx终止 TLS + frpc=http）；frps / nginx / frpc 配置；WebSocket 关键参数；docker-compose 集成 |
   | 7 | `config` | 配置说明 | 用户端 `.env` 字段；环境变量优先级（docker-compose `environment` > `config.yaml`） |
-  | 8 | `modules` | 功能模块 | 62 业务模块 + 42 智能体工具，按业务域划分为 25 张模块卡（邮件 / 短信 / 卡片 / 社群 / 短链 / 线索 / 数据分析 / 内容创作 / 系统管理 / 团队协作 / AI Agent / LLM 路由 / 客服会话 / 坐席看板 / 销冠 SOP / 客户 CDP / 标签分层 / 触达运营 / RAG 知识库 / 模型计量 / 资产包市场 / 用户黑名单 / 心跳与安装 / 嵌入式聊天窗 / 数据驾驶舱） |
+  | 8 | `modules` | 功能模块 | 94 业务模块 + 45 智能体工具，按业务域划分为 25 张模块卡（邮件 / 短信 / 卡片 / 社群 / 短链 / 线索 / 数据分析 / 内容创作 / 系统管理 / 团队协作 / AI Agent / LLM 路由 / 客服会话 / 坐席看板 / 销冠 SOP / 客户 CDP / 标签分层 / 触达运营 / RAG 知识库 / 模型计量 / 资产包市场 / 用户黑名单 / 心跳与安装 / 嵌入式聊天窗 / 数据驾驶舱） |
   | 9 | `auto-reply` | 自动回复配置 | Chrome Headless 检查 / 自动回复规则 / 启动与监控；浏览器自动化封号风险提示 |
   | 10 | `rag` | RAG 知识库 | 基于 pgvector；产品管理 / 文档导入（解析 / 分块 / Embedding / 入库）/ 三层决策（规则匹配 → 语义检索 → LLM 生成）/ 知识库维护 |
   | 11 | `troubleshoot` | 故障排查 | 服务无法启动 / 数据库连接失败 / Chrome 自动回复失效 / 前端访问白屏 |

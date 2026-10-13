@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"hivemtk-user/internal/model"
+	dbUtil "hivemtk-user/internal/pkg/db"
 )
 
 // ErrInboxForbidden 非超管访问了未分配给自己的会话（数据权限拦截）
@@ -153,4 +154,33 @@ func (s *InboxService) DeleteMessageScoped(ctx context.Context, conversationID, 
 		return err
 	}
 	return s.DeleteMessage(ctx, conversationID, messageID, source)
+}
+
+// InboxAgent 可分配坐席的脱敏视图：只有分配下拉框要用的四列。
+type InboxAgent struct {
+	ID       uint   `json:"id"`
+	Username string `json:"username"`
+	RealName string `json:"real_name"`
+	Role     string `json:"role"`
+}
+
+// ListAssignableAgents 列出能接手会话的在职坐席（客服／员工两档）。
+//
+// 坐席选择器原先打的是 /api/system/users：那是仅超管口，非超管永远 403，而收件箱工作台
+// 是可以授予坐席的——于是"页面打得开、分配下拉永远空"。这里单独出一条口，只出四列
+// （不含 email/phone/data_scope/口令形态这类只有账号管理页才该看见的东西），
+// 且只出 enabled 且 status=1 的行：停用账号继续出现在候选名单里，等于把会话分配给没人接的坐席。
+func (s *InboxService) ListAssignableAgents(ctx context.Context) ([]InboxAgent, error) {
+	if s.inboxRepo == nil {
+		// 与其余读路径同一套"无库回空"语义（全局句柄未注入时不报错、不查库）。
+		return nil, nil
+	}
+	var agents []InboxAgent
+	err := dbUtil.GetDB().WithContext(ctx).Table("system_users").
+		Select("id", "username", "real_name", "role").
+		Where("role IN ? AND enabled = ? AND status = ?",
+			[]string{model.SystemRoleCodeCustomerService, model.SystemRoleCodeStaff}, true, 1).
+		Order("username").
+		Scan(&agents).Error
+	return agents, err
 }

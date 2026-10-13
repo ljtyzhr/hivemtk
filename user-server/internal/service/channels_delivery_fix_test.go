@@ -212,7 +212,8 @@ func TestDingTalkReceiveMessage_CapturesSessionWebhookAndTriggersAI(t *testing.T
 
 	_mc1 := cache.NewMemoryCache()
 	defer _mc1.Close()
-	ingress := NewInboxIngressServiceWithDB(db, _mc1)
+	ingress := NewInboxIngressService()
+	ingress.cache = _mc1
 	tr := &fakeAITrigger{}
 	ingress.SetAITrigger(tr)
 	webhookSvc := &WebhookService{ingressSvc: ingress}

@@ -112,7 +112,8 @@ func TestRecheck_SystemEventRowDoesNotTriggerAI(t *testing.T) {
 
 	mc := cache.NewMemoryCache()
 	defer mc.Close()
-	svc := NewInboxIngressServiceWithDB(db, mc)
+	svc := NewInboxIngressService()
+	svc.cache = mc
 	tr := &fakeAITrigger{}
 	svc.SetAITrigger(tr)
 
@@ -247,7 +248,8 @@ func TestRecheck_TGGroupChitchatDoesNotLeakThroughFunnel(t *testing.T) {
 
 	mc := cache.NewMemoryCache()
 	defer mc.Close()
-	svc := NewInboxIngressServiceWithDB(db, mc)
+	svc := NewInboxIngressService()
+	svc.cache = mc
 	tr := &fakeAITrigger{}
 	svc.SetAITrigger(tr)
 

@@ -47,7 +47,8 @@ func batchHSetup(t *testing.T) (*DingTalkAppService, *fakeAITrigger, *gorm.DB, u
 	}
 	mc := cache.NewMemoryCache()
 	t.Cleanup(mc.Close)
-	ingress := NewInboxIngressServiceWithDB(db, mc)
+	ingress := NewInboxIngressService()
+	ingress.cache = mc
 	tr := &fakeAITrigger{}
 	ingress.SetAITrigger(tr)
 	return NewDingTalkAppService(db, &WebhookService{ingressSvc: ingress}), tr, db, acc.ID

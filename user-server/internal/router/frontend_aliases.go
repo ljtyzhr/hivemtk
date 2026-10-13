@@ -27,7 +27,7 @@ var aliasRegFailures []string
 
 func setupFrontendAliases(auth *gin.RouterGroup, engine *gin.Engine, gormDB *gorm.DB) {
 	aliasRegFailures = nil
-	aiAgentSvc := service.NewAIAgentServiceWithDB(gormDB)
+	aiAgentSvc := service.NewAIAgentService()
 	// doReg 注册前端兼容别名。
 	//
 	// ⚠️ 2026-09-16：原实现在 recover 中 `_ = r` **静默吞掉**注册失败，导致别名层
@@ -276,7 +276,7 @@ func setupFrontendAliases(auth *gin.RouterGroup, engine *gin.Engine, gormDB *gor
 	}
 
 	tiktokCtrl := controller.NewTikTokCardController(
-		service.NewTikTokCardServiceWithDB(gormDB),
+		service.NewTikTokCardService(),
 	)
 	doReg("GET", "/tiktok-cards", tiktokCtrl.List)
 	doReg("GET", "/tiktok-cards/list", tiktokCtrl.List)

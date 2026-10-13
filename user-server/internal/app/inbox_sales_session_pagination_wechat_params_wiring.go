@@ -13,13 +13,19 @@ import (
 )
 
 // WireInboxSalesSessionPaginationConfigParams 把 config_params 的 inbox_sales 组、
-// session 组与 pagination 组接进八个点位。
+// lead 组、session 组与 pagination 组接进十个点位。
 //
 // 分层口径：aiagent/mcp、content/service、pkg/pagination 三个包都在依赖链更底层，
-// 不能反向 import internal/service，所以注入统一在装配层做；inbox_sales 四条本来就在
-// internal/service 里，注入也放在这里，让「一组接线一个函数」这个约定不被打断。
+// 不能反向 import internal/service，所以注入统一在装配层做；inbox_sales 四条与 lead 两条
+// 本来就在 internal/service 里，注入也放在这里，让「一组接线一个函数」这个约定不被打断。
 //
-// 三条需要额外说明的：
+// 四条需要额外说明的：
+//   - lead 组两条（llm_refine_enabled / industry_profile）的注入必须**独立装**，
+//     不能塞进 unified_miner_lead_threshold 的读取闭包里。曾经的写法是每读一次阈值
+//     才顺手 Set 一次这两个 provider：LLM 复核的开关初始值是包级默认，只有走
+//     DetectUnifiedIntent 的挖掘路径才会把它换成参数中心的值，别的路径（或阈值读取
+//     之前那一次判定）拿到的是「没接参数中心」的行为——这类「接线藏在另一条参数的
+//     读取副作用里」的耦合，读代码的人看不出来，测也测不到。
 //   - session.active_ttl 只在 repository 侧注入一次。service/customer_session.go 的
 //     AutoCloseStaleSessions 直接调 repository.SessionActiveTTL() 取值，两侧天然同源；
 //     曾经 service 侧另有一份 const，两处各读各的，改一边另一边不动的风险已经存在过。
@@ -36,7 +42,7 @@ import (
 func WireInboxSalesSessionPaginationConfigParams() []string {
 	bg := context.Background()
 	cp := appsvc.GlobalConfigParam()
-	wired := make([]string, 0, 8)
+	wired := make([]string, 0, 10)
 
 	appsvc.SetTgLeadOpportunityThresholdProvider(func() int {
 		return cp.GetInt(bg, "inbox_sales", "tg_lead_opportunity_threshold", appsvc.DefaultTgLeadOpportunityThreshold)
@@ -44,13 +50,17 @@ func WireInboxSalesSessionPaginationConfigParams() []string {
 	wired = append(wired, "inbox_sales.tg_lead_opportunity_threshold")
 
 	appsvc.SetUnifiedMinerOpportunityThresholdProvider(func() int {
-		appsvc.SetLeadLLMRefineProviders(
-			func() bool { return cp.GetBool(bg, "lead", "llm_refine_enabled", true) },
-			func() string { return cp.GetString(bg, "lead", "industry_profile", "") },
-		)
 		return cp.GetInt(bg, "inbox_sales", "unified_miner_lead_threshold", appsvc.DefaultUnifiedMinerOpportunityThreshold)
 	})
 	wired = append(wired, "inbox_sales.unified_miner_lead_threshold")
+
+	// 兜底常量与种子 DefaultValue 逐字一致，由 scripts/check-config-param-defaults.py 比对；
+	// 这里不再用 `true` / `""` 字面量，否则「代码默认」与「控制台上看到的那个值」会各走一路。
+	appsvc.SetLeadLLMRefineProviders(
+		func() bool { return cp.GetBool(bg, "lead", "llm_refine_enabled", appsvc.DefaultLeadLLMRefineEnabled) },
+		func() string { return cp.GetString(bg, "lead", "industry_profile", appsvc.DefaultLeadIndustryProfile) },
+	)
+	wired = append(wired, "lead.llm_refine_enabled", "lead.industry_profile")
 
 	appsvc.SetPreviewSampleLimitProvider(func() int {
 		return cp.GetInt(bg, "inbox_sales", "preview_sample_limit", appsvc.DefaultPreviewSampleLimit)

@@ -40,7 +40,7 @@ func draftForSentinel(t *testing.T, svc *OrderDraftService, status DraftStatus, 
 }
 
 func TestOrderDraftSentinels_Confirm(t *testing.T) {
-	svc := NewOrderDraftService(nil)
+	svc := NewOrderDraftService()
 	ctx := context.Background()
 
 	_, err := svc.Confirm(ctx, "draft_absent", "7")
@@ -76,7 +76,7 @@ func TestOrderDraftSentinels_Confirm(t *testing.T) {
 }
 
 func TestOrderDraftSentinels_CancelAndEdit(t *testing.T) {
-	svc := NewOrderDraftService(nil)
+	svc := NewOrderDraftService()
 	ctx := context.Background()
 
 	for _, call := range []struct {
@@ -110,7 +110,7 @@ func TestOrderDraftSentinels_CancelAndEdit(t *testing.T) {
 // 19.99*3 在 float64 里是 59.969999999999995；不夹的话这个尾巴会一路写进
 // NUMERIC(12,2) 列并回给前端，与创建侧（roundMoney）两套口径。
 func TestOrderDraftEditRoundsTotalToCents(t *testing.T) {
-	svc := NewOrderDraftService(nil)
+	svc := NewOrderDraftService()
 	ctx := context.Background()
 	d := draftForSentinel(t, svc, DraftStatusPending, time.Now().Add(time.Hour))
 

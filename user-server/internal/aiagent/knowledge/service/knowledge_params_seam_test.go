@@ -1,6 +1,9 @@
 package service
 
 import (
+	"bytes"
+	"context"
+	"mime/multipart"
 	"strings"
 	"testing"
 
@@ -9,6 +12,7 @@ import (
 
 func resetKnowledgeParamProviders() {
 	maxUploadFileSizeProvider = func() int64 { return DefaultMaxUploadFileSize }
+	merchantBatchMaxFileSizeProvider = func() int64 { return DefaultMerchantBatchMaxFileSize }
 	merchantKnowledgeMaxLenProvider = func() int { return DefaultMerchantKnowledgeMaxLen }
 }
 
@@ -77,4 +81,80 @@ func TestSplitMarkdownRespectsMaxLen(t *testing.T) {
 	for _, it := range items {
 		require.LessOrEqual(t, len([]rune(it.Content)), 50, "切出的每段都不得超过上限")
 	}
+}
+
+func TestMerchantBatchMaxFileSizeSeam(t *testing.T) {
+	resetKnowledgeParamProviders()
+	t.Cleanup(resetKnowledgeParamProviders)
+
+	t.Run("未注入时返回兜底值 20MB", func(t *testing.T) {
+		require.Equal(t, int64(20<<20), MerchantBatchMaxFileSize())
+	})
+
+	t.Run("注入后生效", func(t *testing.T) {
+		SetMerchantBatchMaxFileSizeProvider(func() int64 { return 5 << 20 })
+		require.Equal(t, int64(5<<20), MerchantBatchMaxFileSize())
+	})
+
+	t.Run("注入非法值回落兜底（0 等于把这个口全堵死，而它接线前是全开）", func(t *testing.T) {
+		SetMerchantBatchMaxFileSizeProvider(func() int64 { return 0 })
+		require.Equal(t, DefaultMerchantBatchMaxFileSize, MerchantBatchMaxFileSize())
+	})
+
+	t.Run("setter 传 nil 是空操作而非复位", func(t *testing.T) {
+		SetMerchantBatchMaxFileSizeProvider(func() int64 { return 5 << 20 })
+		SetMerchantBatchMaxFileSizeProvider(nil)
+		require.Equal(t, int64(5<<20), MerchantBatchMaxFileSize())
+	})
+
+	// 与文档上传那条各走各的口：并成一条时这一格会先红（两条默认值不同，20 vs 50）。
+	t.Run("与 max_upload_file_size 是两条独立的上限", func(t *testing.T) {
+		SetMerchantBatchMaxFileSizeProvider(func() int64 { return 5 << 20 })
+		require.Equal(t, int64(5<<20), MerchantBatchMaxFileSize())
+		require.Equal(t, int64(50<<20), MaxUploadFileSize())
+	})
+}
+
+// fakeBatchFile 只用来喂 parseBatchFile：multipart.File 的四个方法里
+// Read/ReadAt/Seek 由内嵌的 bytes.Reader 提供，Close 补一个空的。
+// 用例真正要控制的是 FileHeader.Size（判据读的就是它），不是字节数。
+type fakeBatchFile struct{ *bytes.Reader }
+
+func (fakeBatchFile) Close() error { return nil }
+
+// TestParseBatchFileEnforcesMaxFileSize 行为级断言：上限是从 seam 取的，
+// 不是把 20MB 抄在判断行上。把上限调到 5MB 后，一个 header.Size=6MB 的请求必须被拒，
+// 而且必须**在 io.ReadAll 之前**被拒（接线前这里零校验，整个文件已经被读进内存了）。
+func TestParseBatchFileEnforcesMaxFileSize(t *testing.T) {
+	resetKnowledgeParamProviders()
+	t.Cleanup(resetKnowledgeParamProviders)
+
+	s := &KnowledgeMerchantService{}
+	csvBody := "标题,内容\n第一行,正文\n"
+
+	t.Run("上限以下照常解析（正控制）", func(t *testing.T) {
+		items, err := s.parseBatchFile(context.Background(),
+			fakeBatchFile{bytes.NewReader([]byte(csvBody))},
+			&multipart.FileHeader{Filename: "batch.csv", Size: int64(len(csvBody))}, "csv")
+		require.NoError(t, err)
+		require.Len(t, items, 1)
+	})
+
+	t.Run("超过上限被拒", func(t *testing.T) {
+		SetMerchantBatchMaxFileSizeProvider(func() int64 { return 5 << 20 })
+		items, err := s.parseBatchFile(context.Background(),
+			fakeBatchFile{bytes.NewReader([]byte(csvBody))},
+			&multipart.FileHeader{Filename: "batch.csv", Size: 6 << 20}, "csv")
+		require.ErrorContains(t, err, "文件过大")
+		require.Nil(t, items, "被拒时不许返回半成品")
+		require.NotContains(t, err.Error(), "标题", "报错不许回显文件内容")
+	})
+
+	t.Run("兜底值也拦得住（没注入时按 20MB 判）", func(t *testing.T) {
+		resetKnowledgeParamProviders()
+		_, err := s.parseBatchFile(context.Background(),
+			fakeBatchFile{bytes.NewReader([]byte(csvBody))},
+			&multipart.FileHeader{Filename: "batch.csv", Size: 21 << 20}, "csv")
+		require.ErrorContains(t, err, "上限 20 MB")
+	})
 }

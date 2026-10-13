@@ -541,7 +541,7 @@ RERANK_BASE_URL / RERANK_ENABLED</code></pre>
         <!-- 功能模块 -->
         <section id="modules" class="doc-section">
           <h2>{{ $t('功能模块') }}</h2>
-          <p class="lead">{{ $t('HiveMTK 共含 94 个业务模块 + 42 个智能体工具，按业务域划分为以下核心模块，每个模块独立路由，按需启用。') }}</p>
+          <p class="lead">{{ $t('HiveMTK 共含 94 个业务模块 + 45 个智能体工具，按业务域划分为以下核心模块，每个模块独立路由，按需启用。') }}</p>
 
           <div class="module-grid">
             <div class="module-card">

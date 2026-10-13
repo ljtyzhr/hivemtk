@@ -271,7 +271,7 @@ func TestFallbackNilDB(t *testing.T) {
 //	    实现 persona_evaluator.go 已随 9a5f716c 整体删除，这两条永远不会有读取点；
 //	    等价能力是 humanize（其四档已在 3.1a 接线）。留着只会在参数中心页上
 //	    摆两个永远生效不了的旋钮，诱导后来人去查一个已经删掉的实现。
-const defaultParamDefsWant = 217
+const defaultParamDefsWant = 224
 
 func TestDefaultParamDefsCount(t *testing.T) {
 	defs := DefaultParamDefs()
@@ -332,7 +332,7 @@ func TestDefaultParamDefsEmptyDefaultRatchet(t *testing.T) {
 // 不存在"，读侧一路走代码里的 fallback，运维改不动、也没人报警。
 //
 // 现已闭环：migration v3.47.0 把 idx_group_key 从 `UNIQUE (key)` 重建为
-// `UNIQUE (param_group, key)`，模型标签（Group priority:1 / Key priority:2）与之���致，
+// `UNIQUE (param_group, key)`，模型标签（Group priority:1 / Key priority:2）与之一致，
 // 种子插入失败也不再静默（SeedConfigParams 汇总成 error 返回）。跨 group 同名 key
 // 现在是**合法**的两条参数行，`bridge.max_tokens` 与 `misc.max_tokens` 互不冲突。
 //

@@ -460,7 +460,7 @@ func TestOrderDraftService_Durable_PurgeTerminalBounds(t *testing.T) {
 
 // 无 DB 句柄时必须"退回内存 + 出声"，而不是 panic 也不是假装持久化。
 func TestOrderDraftService_NilDBFallsBackToMemory(t *testing.T) {
-	svc := NewOrderDraftServiceWithDB(nil, nil)
+	svc := NewOrderDraftService()
 	if svc.Durable() {
 		t.Error("nil 句柄时 Durable 应为 false（否则端点会谎报）")
 	}
@@ -783,7 +783,7 @@ func TestOrderDraftService_MissingIsNotError(t *testing.T) {
 	database := testutil.NewTestDB(t, &model.OrderDraft{})
 	db.SetTestDB(database)
 	ctx := context.Background()
-	svc := NewOrderDraftServiceWithDB(nil, database)
+	svc := NewOrderDraftService()
 
 	got, err := svc.GetByID(ctx, "draft_definitely_not_exists")
 	if err != nil {

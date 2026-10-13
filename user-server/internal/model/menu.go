@@ -89,7 +89,7 @@ var SystemMenuTree = []SystemMenuNode{
 				Key: "agentManage", Title: "智能体管理", Icon: "Cpu",
 				Children: []SystemMenuNode{
 					{Key: "aiAgentList", Title: "智能体列表", Icon: "List", Path: "/aiAgent/list"},
-					{Key: "aiAgentCreate", Title: "创建智能体", Icon: "Plus", Path: "/aiAgent/create"},
+					{Key: "aiAgentCreate", Title: "创建智能体", Icon: "Plus", Path: "/aiAgent/create", Roles: []string{"admin", "manager"}},
 				},
 			},
 			{
@@ -106,20 +106,20 @@ var SystemMenuTree = []SystemMenuNode{
 				Children: []SystemMenuNode{
 					{Key: "reachPipeline", Title: "触达 Pipeline", Icon: "Promotion", Path: "/reachPipeline/list", Roles: []string{"admin", "manager"}},
 					{Key: "marketingFlow", Title: "营销流程", Icon: "SetUp", Path: "/marketingFlow/list", Roles: []string{"admin", "manager"}},
-					{Key: "batchOperation", Title: "批量运营", Icon: "Operation", Path: "/batchOperation/list"},
+					{Key: "batchOperation", Title: "批量运营", Icon: "Operation", Path: "/batchOperation/list", Roles: []string{"admin", "manager"}},
 				},
 			},
 			{
 				Key: "agentSupport", Title: "能力支撑", Icon: "Connection",
 				Children: []SystemMenuNode{
-					{Key: "sopAgent", Title: "SOP 智能体", Icon: "Connection", Path: "/sopAgent/list"},
-					{Key: "sopTemplate", Title: "SOP 模板库", Icon: "Tickets", Path: "/sop-template/list"},
-					{Key: "sopTemplateMarket", Title: "SOP 模板市场", Icon: "ShoppingCart", Path: "/sop-template/market"},
+					{Key: "sopAgent", Title: "SOP 智能体", Icon: "Connection", Path: "/sopAgent/list", Roles: []string{"admin", "manager"}},
+					{Key: "sopTemplate", Title: "SOP 模板库", Icon: "Tickets", Path: "/sop-template/list", Roles: []string{"admin", "manager"}},
+					{Key: "sopTemplateMarket", Title: "SOP 模板市场", Icon: "ShoppingCart", Path: "/sop-template/market", Roles: []string{"admin", "manager"}},
 					{Key: "faqKb", Title: "FAQ 知识库", Icon: "Notebook", Path: "/faq/list"},
 					{Key: "knowledgeBase", Title: "知识库管理", Icon: "Files", Path: "/knowledgeBase"},
 					{Key: "scriptTemplate", Title: "销冠话术库", Icon: "ChatLineSquare", Path: "/scriptTemplate/list"},
 					{Key: "scriptTemplateAbStats", Title: "话术 AB 统计", Icon: "DataLine", Path: "/scriptTemplate/ab-stats"},
-					{Key: "aiToolManagement", Title: "AI 工具管理", Icon: "Tools", Path: "/aiAgent/tools"},
+					{Key: "aiToolManagement", Title: "AI 工具管理", Icon: "Tools", Path: "/aiAgent/tools", Roles: []string{"admin", "manager"}},
 				},
 			},
 			{
@@ -159,12 +159,12 @@ var SystemMenuTree = []SystemMenuNode{
 			{
 				Key: "emailReach", Title: "邮件触达", Icon: "Message",
 				Children: []SystemMenuNode{
-					{Key: "emailList", Title: "邮件列表", Icon: "ChatSquare", Path: "/email"},
-					{Key: "emailDrafts", Title: "我的草稿", Icon: "Document", Path: "/email/drafts"},
-					{Key: "emailJobs", Title: "我的任务", Icon: "Document", Path: "/email/jobs"},
-					{Key: "emailSmtp", Title: "邮件账号", Icon: "Setting", Path: "/email/smtp"},
+					{Key: "emailList", Title: "邮件列表", Icon: "ChatSquare", Path: "/email", Roles: []string{"admin", "manager"}},
+					{Key: "emailDrafts", Title: "我的草稿", Icon: "Document", Path: "/email/drafts", Roles: []string{"admin", "manager"}},
+					{Key: "emailJobs", Title: "我的任务", Icon: "Document", Path: "/email/jobs", Roles: []string{"admin", "manager"}},
+					{Key: "emailSmtp", Title: "邮件账号", Icon: "Setting", Path: "/email/smtp", Roles: []string{"admin", "manager"}},
 					{Key: "emailInfo", Title: "邮件代理", Icon: "Setting", Path: "/email/info"},
-					{Key: "emailDeliverability", Title: "送达分析", Icon: "DataAnalysis", Path: "/email/deliverability"},
+					{Key: "emailDeliverability", Title: "送达分析", Icon: "DataAnalysis", Path: "/email/deliverability", Roles: []string{"admin", "manager"}},
 					{Key: "emailGuide", Title: "邮件使用指南", Icon: "Document", Path: "/email/guide"},
 				},
 			},
@@ -180,40 +180,41 @@ var SystemMenuTree = []SystemMenuNode{
 			{
 				Key: "douyin", Title: "抖音", Icon: "VideoPlay",
 				Children: []SystemMenuNode{
-					{Key: "douyinCard", Title: "抖音卡片", Icon: "VideoPlay", Path: "/douyinCard"},
+					{Key: "douyinCard", Title: "抖音卡片", Icon: "VideoPlay", Path: "/douyinCard", Roles: []string{"admin", "manager"}},
 					{Key: "douyinStats", Title: "抖音统计", Icon: "DataAnalysis", Path: "/douyin/stats"},
 				},
 			},
 			{
 				Key: "kuaishou", Title: "快手", Icon: "Bell",
 				Children: []SystemMenuNode{
-					{Key: "kuaishouCard", Title: "快手卡片", Icon: "ChatDotRound", Path: "/kuaishouCard"},
+					{Key: "kuaishouCard", Title: "快手卡片", Icon: "ChatDotRound", Path: "/kuaishouCard", Roles: []string{"admin", "manager"}},
 					{Key: "kuaishouStats", Title: "快手统计", Icon: "DataAnalysis", Path: "/kuaishou/stats"},
 				},
 			},
 			{
 				Key: "xiaohongshu", Title: "小红书", Icon: "Picture",
 				Children: []SystemMenuNode{
-					{Key: "xiaohongshuCard", Title: "小红书卡片", Icon: "Picture", Path: "/xiaohongshuCard"},
+					{Key: "xiaohongshuCard", Title: "小红书卡片", Icon: "Picture", Path: "/xiaohongshuCard", Roles: []string{"admin", "manager"}},
 					{Key: "xiaohongshuStats", Title: "小红书统计", Icon: "DataAnalysis", Path: "/xiaohongshu/stats"},
 				},
 			},
 			{
 				Key: "xianyu", Title: "闲鱼", Icon: "ShoppingBag",
 				Children: []SystemMenuNode{
-					{Key: "xianyuCard", Title: "闲鱼卡片", Icon: "ShoppingBag", Path: "/xianyuCard"},
+					{Key: "xianyuCard", Title: "闲鱼卡片", Icon: "ShoppingBag", Path: "/xianyuCard", Roles: []string{"admin", "manager"}},
 					{Key: "xianyuStats", Title: "闲鱼统计", Icon: "DataAnalysis", Path: "/xianyu/stats"},
 				},
 			},
 			{
 				Key: "tiktok", Title: "TikTok", Icon: "VideoPlay",
 				Children: []SystemMenuNode{
-					{Key: "tiktokList", Title: "TikTok卡片", Icon: "VideoPlay", Path: "/tiktok/list"},
+					{Key: "tiktokList", Title: "TikTok卡片", Icon: "VideoPlay", Path: "/tiktok/list", Roles: []string{"admin", "manager"}},
 					{Key: "tiktokStats", Title: "TikTok统计", Icon: "DataAnalysis", Path: "/tiktok/stats"},
 				},
 			},
 			{
 				Key: "whatsapp", Title: "WhatsApp", Icon: "ChatDotRound",
+				Roles: []string{"admin", "manager"},
 				Children: []SystemMenuNode{
 					{Key: "whatsappAccount", Title: "账号管理", Icon: "Cpu", Path: "/whatsapp/account"},
 					{Key: "whatsappDrafts", Title: "草稿箱", Icon: "Document", Path: "/whatsapp/drafts"},
@@ -225,12 +226,14 @@ var SystemMenuTree = []SystemMenuNode{
 			},
 			{
 				Key: "telegram", Title: "电报社群", Icon: "ChatDotRound",
+				Roles: []string{"admin", "manager"},
 				Children: []SystemMenuNode{
 					{Key: "telegramAccount", Title: "机器人", Icon: "Cpu", Path: "/telegram/account"},
 				},
 			},
 			{
 				Key: "qq", Title: "QQ 机器人", Icon: "ChatDotRound",
+				Roles: []string{"admin", "manager"},
 				Children: []SystemMenuNode{
 					{Key: "qqAccount", Title: "机器人账号", Icon: "Cpu", Path: "/qq/account"},
 				},
@@ -242,15 +245,16 @@ var SystemMenuTree = []SystemMenuNode{
 					{Key: "feishuAccount", Title: "飞书账号", Icon: "Cpu", Path: "/feishu/account"},
 				},
 			},
-			{Key: "community", Title: "社群管理", Icon: "UserFilled", Path: "/community/list"},
+			{Key: "community", Title: "社群管理", Icon: "UserFilled", Path: "/community/list", Roles: []string{"admin", "manager"}},
 			{
 				Key: "shortLink", Title: "短链管理", Icon: "Link",
+				Roles: []string{"admin", "manager"},
 				Children: []SystemMenuNode{
 					{Key: "shortLinkList", Title: "短链列表", Icon: "Link", Path: "/shortLink"},
 					{Key: "shortLinkStats", Title: "短链统计", Icon: "DataAnalysis", Path: "/shortLink/stats"},
 				},
 			},
-			{Key: "livecode", Title: "活码管理", Icon: "Postcard", Path: "/livecode"},
+			{Key: "livecode", Title: "活码管理", Icon: "Postcard", Path: "/livecode", Roles: []string{"admin", "manager"}},
 			{Key: "workflowOrchestrator", Title: "工作流编排", Icon: "Share", Path: "/workflow-orchestrator/list", Roles: []string{"admin", "manager"}},
 		},
 	},
@@ -311,6 +315,7 @@ var SystemMenuTree = []SystemMenuNode{
 			{Key: "feedbackLoopPanel", Title: "反馈闭环", Icon: "Refresh", Path: "/feedbackLoop/panel", Roles: []string{"admin", "manager", "viewer"}},
 			{
 				Key: "browserAutomation", Title: "浏览器自动化", Icon: "Monitor", Path: "/browser-automation/tasks",
+				Roles: []string{"admin", "manager"},
 				Children: []SystemMenuNode{
 					{Key: "baTasks", Title: "任务列表", Icon: "Monitor", Path: "/browser-automation/tasks"},
 					{Key: "baCreate", Title: "新建任务", Icon: "Plus", Path: "/browser-automation/tasks/create"},
@@ -320,6 +325,7 @@ var SystemMenuTree = []SystemMenuNode{
 			},
 			{
 				Key: "geoTools", Title: "GEO 智能优化", Icon: "MagicStick", Path: "/geo-tools/keyword-mining",
+				Roles: []string{"admin", "manager"},
 				Children: []SystemMenuNode{
 					{
 						Key: "geoConfigGroup", Title: "配置", Icon: "Setting",
@@ -423,9 +429,9 @@ var SystemMenuTree = []SystemMenuNode{
 				Children: []SystemMenuNode{
 					{Key: "assetMarket", Title: "资产市场", Icon: "ShoppingCart", Path: "/asset-market"},
 					{Key: "myAssets", Title: "我的资产", Icon: "Files", Path: "/asset-market/my-assets"},
-					{Key: "assetBundleList", Title: "资产包管理", Icon: "List", Path: "/asset-bundle/list"},
-					{Key: "assetBundlePlayground", Title: "开发者 Playground", Icon: "EditPen", Path: "/asset-bundle/playground"},
-					{Key: "assetBundleMerchant", Title: "商户话术包", Icon: "ChatDotRound", Path: "/asset-bundle/merchant-new"},
+					{Key: "assetBundleList", Title: "资产包管理", Icon: "List", Path: "/asset-bundle/list", Roles: []string{"admin", "manager"}},
+					{Key: "assetBundlePlayground", Title: "开发者 Playground", Icon: "EditPen", Path: "/asset-bundle/playground", Roles: []string{"admin", "manager"}},
+					{Key: "assetBundleMerchant", Title: "商户话术包", Icon: "ChatDotRound", Path: "/asset-bundle/merchant-new", Roles: []string{"admin", "manager"}},
 					{Key: "syncLog", Title: "同步日志", Icon: "Refresh", Path: "/asset-market/sync-log"},
 				},
 			},
@@ -467,12 +473,17 @@ func ExistsMenuKey(key string) bool {
 	return walk(SystemMenuTree)
 }
 
-// roleAllowsMenu 把注册表上的旧静态角色词表（manager/sales/viewer…）
-// 折算到后端 3 档角色能否默认看到该节点（用于首空表 seed 推导）。
+// roleAllowsMenu 把注册表上的角色词表（manager/sales/viewer…）折算到后端 3 档角色：
+// 这个角色**有没有资格**拥有该节点。
+//
+// 它是授权的上界，不是初值：库里的 role_menu_permissions 只能在它圈定的范围内再收窄，
+// 不能把注册表留给超管的节点发出去（见 EligibleMenuKeys）。
+// 首空表 seed（DefaultMenuKeys）也用它推导出厂分配。
 //
 //	admin             —— 全部放行（调用方单独处理，这里仅兜底）
 //	customer_service  —— 需命中 customer_service 或 staff（客服视角词表）
 //	staff             —— 需命中 staff 或 viewer（员工视角词表）
+//	其余（含非法角色）—— 一律不合格
 func roleAllowsMenu(role string, roles []string) bool {
 	if len(roles) == 0 {
 		return true
@@ -516,6 +527,33 @@ func DefaultMenuKeys(role string) []string {
 	}
 	walk(SystemMenuTree)
 	return keys
+}
+
+// EligibleMenuKeys 返回注册表允许某角色拥有的 key 集合（授权上界）。
+//
+// 与 DefaultMenuKeys 用同一棵折算口径，差别只在用途：那个只在首空表时推导初始分配，
+// 这个是**每次读**都要过的上界——库里的分配行只能在它之内再收窄。
+// 于是"注册表把某节点留给超管"这句话对老库同样生效，不必先迁数据。
+// 反过来"注册表重新放开一个节点"则**必须**重新授权：库里那些曾经越界的分配行
+// 已由 v3.55.0 的收敛迁移摘掉，改一行 Roles 词表不会把历史授权静默放回来
+// （留着那些行的话，改注册表就等于改权限，而没人点过授权、也就没有操作日志）。
+//
+// 目录节点不合格时，其后代一并剔除（父节点不在侧栏，子路由就不该能被调到）。
+// admin 恒为全树。非法/空角色为空集（调用方向拒的方向收）。
+func EligibleMenuKeys(role string) map[string]struct{} {
+	set := make(map[string]struct{}, 64)
+	var walk func(nodes []SystemMenuNode, parentOK bool)
+	walk = func(nodes []SystemMenuNode, parentOK bool) {
+		for _, n := range nodes {
+			ok := parentOK && roleAllowsMenu(role, n.Roles)
+			if ok {
+				set[n.Key] = struct{}{}
+			}
+			walk(n.Children, ok)
+		}
+	}
+	walk(SystemMenuTree, true)
+	return set
 }
 
 // FilterMenuTree 按 key 集合过滤菜单树：

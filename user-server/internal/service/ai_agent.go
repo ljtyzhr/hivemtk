@@ -10,7 +10,6 @@ import (
 
 	"hivemtk-user/internal/dto"
 	"hivemtk-user/internal/model"
-	dbUtil "hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/repository"
 
 	"gorm.io/gorm"
@@ -35,15 +34,10 @@ type agentCacheEntry struct {
 	expiresAt time.Time
 }
 
-// NewAIAgentService 创建智能体服务(无参,内部用 dbUtil.GetDB())
+// NewAIAgentService 创建智能体服务(无参,内部用 dbUtil.GetDB()
 func NewAIAgentService() *AIAgentService {
-	return NewAIAgentServiceWithDB(dbUtil.GetDB())
-}
-
-// NewAIAgentServiceWithDB 创建带 DB 的智能体服务(显式注入 db,兼容旧调用)
-func NewAIAgentServiceWithDB(db *gorm.DB) *AIAgentService {
 	repo := repository.NewAIAgentRepository()
-	repo.SetDB(context.Background(), db)
+	repo.SetDB(context.Background(), repository.GetDB())
 	return &AIAgentService{
 		repo:     repo,
 		cache:    make(map[uint]*agentCacheEntry),
@@ -262,21 +256,16 @@ type ChannelAgentBindingService struct {
 	agentSvc  *AIAgentService
 }
 
-// NewChannelAgentBindingService 创建渠道绑定服务(无参,内部用 dbUtil.GetDB())
+// NewChannelAgentBindingService 创建渠道绑定服务(无参,内部经 repository.GetDB() 注入全局库)
 func NewChannelAgentBindingService() *ChannelAgentBindingService {
-	return NewChannelAgentBindingServiceWithDB(dbUtil.GetDB(), NewAIAgentService())
-}
-
-// NewChannelAgentBindingServiceWithDB 创建带 DB 的渠道绑定服务(显式注入 db,兼容旧调用)
-func NewChannelAgentBindingServiceWithDB(db *gorm.DB, agentSvc *AIAgentService) *ChannelAgentBindingService {
 	repo := repository.NewChannelAgentBindingRepository()
-	repo.SetDB(context.Background(), db)
+	repo.SetDB(context.Background(), repository.GetDB())
 	agentRepo := repository.NewAIAgentRepository()
-	agentRepo.SetDB(context.Background(), db)
+	agentRepo.SetDB(context.Background(), repository.GetDB())
 	return &ChannelAgentBindingService{
 		repo:      repo,
 		agentRepo: agentRepo,
-		agentSvc:  agentSvc,
+		agentSvc:  NewAIAgentService(),
 	}
 }
 
@@ -457,21 +446,15 @@ type CustomerServiceAgentService struct {
 
 // NewCustomerServiceAgentService 创建客服挂载服务(无参,内部用 dbUtil.GetDB())
 func NewCustomerServiceAgentService() *CustomerServiceAgentService {
-	return NewCustomerServiceAgentServiceWithDB(dbUtil.GetDB(), NewAIAgentService())
-}
-
-// NewCustomerServiceAgentServiceWithDB 创建带 DB 的客服挂载服务(显式注入 db,兼容旧调用)
-func NewCustomerServiceAgentServiceWithDB(db *gorm.DB, agentSvc *AIAgentService) *CustomerServiceAgentService {
 	repo := repository.NewCustomerServiceAgentRepository()
-	repo.SetDB(context.Background(), db)
+	repo.SetDB(context.Background(), repository.GetDB())
 	agentRepo := repository.NewAIAgentRepository()
-	agentRepo.SetDB(context.Background(), db)
-	agentStatusRepo := repository.NewAgentStatusRepositoryWithDB(db)
+	agentRepo.SetDB(context.Background(), repository.GetDB())
 	return &CustomerServiceAgentService{
 		repo:            repo,
 		agentRepo:       agentRepo,
-		agentSvc:        agentSvc,
-		agentStatusRepo: agentStatusRepo,
+		agentSvc:        NewAIAgentService(),
+		agentStatusRepo: repository.NewAgentStatusRepository(),
 	}
 }
 
@@ -479,7 +462,9 @@ func NewCustomerServiceAgentServiceWithDB(db *gorm.DB, agentSvc *AIAgentService)
 //
 // 注意：所有持久化操作走 repo（含 agentStatusRepo）。
 func NewCustomerServiceAgentServiceViaPort(agentSvc *AIAgentService) *CustomerServiceAgentService {
-	return NewCustomerServiceAgentServiceWithDB(dbUtil.GetDB(), agentSvc)
+	return &CustomerServiceAgentService{
+		agentSvc: agentSvc,
+	}
 }
 
 // Create 创建挂载

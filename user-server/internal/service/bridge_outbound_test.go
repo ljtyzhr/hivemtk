@@ -26,8 +26,9 @@ func setupBridgeWhitelistForTest(t *testing.T, channels ...string) {
 
 func TestDeliverBridgeOutbound_DirectToOutbox(t *testing.T) {
 	setupBridgeWhitelistForTest(t, "douyin")
-	db := testutil.NewTestDB(t, &model.MessageHub{})
-	svc := NewInboxIngressServiceWithDB(db, newIsolatedCacheForTest(t))
+	// NewTestDB 自动 SetTestDB；无参构造经全局 GetDB 拿到本用例的库。
+	testutil.NewTestDB(t, &model.MessageHub{})
+	svc := NewInboxIngressService()
 	SetGlobalInboxIngressService(svc)
 	defer SetGlobalInboxIngressService(nil)
 
@@ -87,8 +88,8 @@ func TestDeliverBridgeOutbound_DirectToOutbox(t *testing.T) {
 // 占位账号 `<channel>-unknown` 主动外联时直接拒绝，不污染 outbox 队列。
 func TestDeliverBridgeOutbound_RejectsPlaceholderAccount(t *testing.T) {
 	setupBridgeWhitelistForTest(t, "douyin")
-	db := testutil.NewTestDB(t, &model.MessageHub{})
-	svc := NewInboxIngressServiceWithDB(db, newIsolatedCacheForTest(t))
+	testutil.NewTestDB(t, &model.MessageHub{})
+	svc := NewInboxIngressService()
 	SetGlobalInboxIngressService(svc)
 	defer SetGlobalInboxIngressService(nil)
 
@@ -111,8 +112,8 @@ func TestDeliverBridgeOutbound_RejectsPlaceholderAccount(t *testing.T) {
 
 // TestDeliverBridgeOutbound_RejectsUnsupportedChannel 验证：非白名单渠道直接拒绝。
 func TestDeliverBridgeOutbound_RejectsUnsupportedChannel(t *testing.T) {
-	db := testutil.NewTestDB(t, &model.MessageHub{})
-	svc := NewInboxIngressServiceWithDB(db, newIsolatedCacheForTest(t))
+	testutil.NewTestDB(t, &model.MessageHub{})
+	svc := NewInboxIngressService()
 	SetGlobalInboxIngressService(svc)
 	defer SetGlobalInboxIngressService(nil)
 

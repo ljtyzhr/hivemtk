@@ -15,7 +15,7 @@ import (
 // "msg_id 回环" 用例就是这么漏判的（快手那一轮 accepted=true / duplicate=false）。
 func TestHandleIngress_HumanLock_StillIdempotentByMsgID(t *testing.T) {
 	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{})
-	svc := NewInboxIngressServiceWithDB(db, newIsolatedCacheForTest(t))
+	svc := NewInboxIngressService()
 	ctx := context.Background()
 
 	const (
@@ -66,7 +66,7 @@ func TestHandleIngress_HumanLock_StillIdempotentByMsgID(t *testing.T) {
 // 仍要落库、但不穿透 AI。幂等判定前移不能把这条既有语义一起改掉。
 func TestHandleIngress_HumanLock_NewMessagePersistsWithoutAI(t *testing.T) {
 	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{})
-	svc := NewInboxIngressServiceWithDB(db, newIsolatedCacheForTest(t))
+	svc := NewInboxIngressService()
 	ctx := context.Background()
 
 	const (
@@ -109,7 +109,7 @@ func TestHandleIngress_HumanLock_NewMessagePersistsWithoutAI(t *testing.T) {
 // 走的是这条路径，锁定判定同样不得抢在 msg_id 幂等之前。
 func TestHandleIngressBatch_HumanLock_StillIdempotentByMsgID(t *testing.T) {
 	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{})
-	svc := NewInboxIngressServiceWithDB(db, newIsolatedCacheForTest(t))
+	svc := NewInboxIngressService()
 	ctx := context.Background()
 
 	const (

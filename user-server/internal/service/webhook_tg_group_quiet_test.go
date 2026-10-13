@@ -611,7 +611,7 @@ func TestTGGroupSpeakerVerifiedTransportAtHandleJob(t *testing.T) {
 			}
 
 			// 每格一套隔离缓存：ai_processing 排他标记按会话建键，共用会把后跑的腿静默挡下
-			ing := NewInboxIngressServiceWithDB(db, newIsolatedCacheForTest(t))
+			ing := NewInboxIngressService()
 			ws.SetIngressSvc(ing)
 			ws.SetSalesEngine(context.Background(), &SalesEngine{})
 			if !ws.shouldTriggerAI(context.Background(), ChannelTelegram, "1") {
@@ -692,7 +692,7 @@ func TestTGGroupSpeakerVerifiedTransportAtHandleJob(t *testing.T) {
 		}).Error; err != nil {
 			t.Fatalf("种台账（该群没装门控，台账只是形状）: %v", err)
 		}
-		ing := NewInboxIngressServiceWithDB(db, newIsolatedCacheForTest(t))
+		ing := NewInboxIngressService()
 		ws.SetIngressSvc(ing)
 		ws.SetSalesEngine(context.Background(), &SalesEngine{})
 		if !ws.shouldTriggerAI(context.Background(), ChannelTelegram, "1") {

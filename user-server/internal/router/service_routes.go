@@ -52,20 +52,25 @@ func setupCustomerServiceRoutes(auth *gin.RouterGroup, aiAgentSvc *service.AIAge
 	auth.POST("/agents/:id/offline", agentStatusCtrl.GoOffline)
 	auth.GET("/agents/:id/sessions", agentStatusCtrl.GetAgentSessions)
 
+	// 快捷回复/会话标签是客服工作台的数据面：读侧一直对登录态开放，写侧原先钉在
+	// AdminAuthMiddleware 上，结果是"菜单给了坐席、页面能打开、新增改删全 403"。
+	// 现在写侧交给能力档：这三条口的归属菜单（quickReply / sessionTag）由
+	// menu_capability_routes.go 授权决定——勾了菜单就能改，取消勾选就改不了，
+	// 与侧栏同一份口径，不再由注册处另写一套。
 	quickReplyCtrl := controller.NewQuickReplyController()
 	auth.GET("/quick-replies", quickReplyCtrl.GetReplies)
 	auth.GET("/quick-replies/categories", quickReplyCtrl.GetReplyCategories)
-	quickAdmin := auth.Group("/quick-replies", middleware.AdminAuthMiddleware())
-	quickAdmin.POST("", quickReplyCtrl.CreateReply)
-	quickAdmin.PUT("/:id", quickReplyCtrl.UpdateReply)
-	quickAdmin.DELETE("/:id", quickReplyCtrl.DeleteReply)
+	quickWrite := auth.Group("/quick-replies")
+	quickWrite.POST("", quickReplyCtrl.CreateReply)
+	quickWrite.PUT("/:id", quickReplyCtrl.UpdateReply)
+	quickWrite.DELETE("/:id", quickReplyCtrl.DeleteReply)
 
 	sessionTagCtrl := controller.NewSessionTagController()
 	auth.GET("/session-tags", sessionTagCtrl.GetTags)
-	sessAdmin := auth.Group("/session-tags", middleware.AdminAuthMiddleware())
-	sessAdmin.POST("", sessionTagCtrl.CreateTag)
-	sessAdmin.PUT("/:id", sessionTagCtrl.UpdateTag)
-	sessAdmin.DELETE("/:id", sessionTagCtrl.DeleteTag)
+	tagWrite := auth.Group("/session-tags")
+	tagWrite.POST("", sessionTagCtrl.CreateTag)
+	tagWrite.PUT("/:id", sessionTagCtrl.UpdateTag)
+	tagWrite.DELETE("/:id", sessionTagCtrl.DeleteTag)
 
 	aiSuggestionCtrl := controller.NewAISuggestionController()
 	auth.GET("/ai-suggestions/:session_id", aiSuggestionCtrl.GetSuggestions)
@@ -163,6 +168,7 @@ func setupMessageRoutes(auth *gin.RouterGroup, db *gorm.DB) {
 	auth.GET("/inbox/stats", inboxCtrl.Stats)
 	auth.GET("/inbox/assignments", inboxCtrl.ListAssignments)
 	auth.GET("/inbox/staff/:staff/load", inboxCtrl.StaffLoad)
+	auth.GET("/inbox/agents", inboxCtrl.Agents)
 	auth.GET("/inbox/conversations/:id", inboxCtrl.GetByID)
 	auth.GET("/inbox/conversations/:id/messages", inboxCtrl.GetMessages)
 	auth.POST("/inbox/conversations/:id/read", inboxCtrl.MarkRead)

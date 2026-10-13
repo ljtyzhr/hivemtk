@@ -8,8 +8,9 @@ import (
 	"hivemtk-user/internal/model"
 	_db "hivemtk-user/internal/pkg/db"
 
-	"gorm.io/gorm"
 	"hivemtk-user/internal/pkg/timeutil"
+
+	"gorm.io/gorm"
 )
 
 type CommunityRepository interface {

@@ -142,6 +142,12 @@ func (r *ConfigParamRepository) GetByGroupKey(ctx context.Context, group, key st
 // 这比直接报错糟糕得多，它把一个明确的失败变成了一个需要人去推理的矛盾。
 var ErrParamDeprecated = errors.New("该参数已下架（改了也不生效），如需恢复请先在代码里重新接线")
 
+// ErrParamReadOnly 试图改动一个只读参数（由系统推导或锁死，比如嵌入维度）。
+//
+// 曾经这里返回的是 gorm.ErrRecordNotFound：管理端列表里那一行明明白白存在，
+// 点保存却被告知「记录不存在」，读起来像是页面或索引坏了。哨兵必须说清真正的原因。
+var ErrParamReadOnly = errors.New("该参数为只读，不可在管理端修改（要变更请走代码与迁移）")
+
 // UpdateValue 更新参数值（含 actor 审计）
 func (r *ConfigParamRepository) UpdateValue(ctx context.Context, group, key, newValue string, actorID uint) error {
 	if r == nil || r.db == nil {
@@ -153,7 +159,7 @@ func (r *ConfigParamRepository) UpdateValue(ctx context.Context, group, key, new
 			return err
 		}
 		if p.ReadOnly {
-			return gorm.ErrRecordNotFound
+			return ErrParamReadOnly
 		}
 		if p.Deprecated {
 			return ErrParamDeprecated
@@ -179,6 +185,10 @@ func (r *ConfigParamRepository) UpdateValue(ctx context.Context, group, key, new
 }
 
 // ResetToDefault 重置单条为默认值
+//
+// 只读与下架都要拦：整组重置本来就跳过只读行，单条却不判，
+// 等于留了一条「批量拦得住、逐条能绕过」的旁路。
+func ResetToDefaultMarkerPlaceholder() {}
 func (r *ConfigParamRepository) ResetToDefault(ctx context.Context, group, key string, actorID uint) error {
 	if r == nil || r.db == nil {
 		return ErrConfigParamStoreUnavailable
@@ -187,6 +197,9 @@ func (r *ConfigParamRepository) ResetToDefault(ctx context.Context, group, key s
 		var p model.ConfigParam
 		if err := tx.Where(&model.ConfigParam{Group: group, Key: key}).First(&p).Error; err != nil {
 			return err
+		}
+		if p.ReadOnly {
+			return ErrParamReadOnly
 		}
 		if p.Deprecated {
 			return ErrParamDeprecated

@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	contentctrl "hivemtk-user/internal/content/controller"
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/security"
 	"hivemtk-user/internal/pkg/testutil"
@@ -13,7 +14,7 @@ import (
 	"hivemtk-user/internal/service"
 )
 
-// wantMiscWired 是 misc 组本轮接线的 16 条，逐条写死而不是从 DefaultParamDefs() 过滤。
+// wantMiscWired 是 misc 组本轮接线的 17 条，逐条写死而不是从 DefaultParamDefs() 过滤。
 //
 // 刻意不写成"扫出所有 misc 组的键然后断言接上了"：那样只钉住"接上的都在 misc 组里"，
 // 拼错 key 时这个断言照样成立（错的 key 也算 misc 组），真正漏接的那条反而没人发现。
@@ -35,6 +36,7 @@ var wantMiscWired = []string{
 	"misc.summary_stale_threshold",
 	"misc.agentloop_history_max_candidates",
 	"misc.backup_page_size",
+	"misc.batch_import_max_file_mb",
 }
 
 // newMiscParamFixture 建测试库、灌种子、把参数中心换成"真读库"的实例。
@@ -56,7 +58,7 @@ func newMiscParamFixture(t *testing.T) *service.ConfigParamService {
 	return svc
 }
 
-// TestWireMiscConfigParamsKeys 装配点声明接线的键，必须与上面那 16 条逐条相等。
+// TestWireMiscConfigParamsKeys 装配点声明接线的键，必须与上面那 17 条逐条相等。
 func TestWireMiscConfigParamsKeys(t *testing.T) {
 	got := WireMiscConfigParams()
 	if len(got) != len(wantMiscWired) {
@@ -74,7 +76,7 @@ func TestWireMiscConfigParamsKeys(t *testing.T) {
 	}
 }
 
-// TestWiredKeysExistInSeed 上面那 16 条必须在种子表里真实存在。
+// TestWiredKeysExistInSeed 上面那 17 条必须在种子表里真实存在。
 //
 // 这一格是防"接线代码引用了一个没登记的键"：不存在的键在运行期永远读到兜底值，
 // 页面上又看不见（管理台没有这一行），和当初那 72 条僵尸一模一样的病。
@@ -92,8 +94,8 @@ func TestWiredKeysExistInSeed(t *testing.T) {
 
 // TestWireMiscConfigParamsReachesReaders 装配完之后，参数中心的值必须真的出现在读取点上。
 //
-// 这里只断言四个读取口是导出的（security / model / textutil / repository 的取值函数），
-// 其余 12 条的"注入生效"由各自包内的用例覆盖——那 12 个取值函数刻意不导出，
+// 这里只断言五个读取口是导出的（security / model / textutil / repository / content.controller
+// 的取值函数），其余 12 条的"注入生效"由各自包内的用例覆盖——那 12 个取值函数刻意不导出，
 // 导出来只为了在本文件断言，会把一包内部实现细节抬成公共 API。
 func TestWireMiscConfigParamsReachesReaders(t *testing.T) {
 	svc := newMiscParamFixture(t)
@@ -109,6 +111,10 @@ func TestWireMiscConfigParamsReachesReaders(t *testing.T) {
 		"sms_max_retry":           model.GetSmsMaxRetry(),
 		"text_truncate_max_bytes": textutil.DefaultTruncateMaxBytes(),
 	}
+	beforeBatchMB := func() int {
+		_, mb := contentctrl.ProbeBatchImportMaxUploadSize()
+		return mb
+	}
 
 	if err := svc.UpdateValue(ctx, "misc", "visitor_token_ttl", "3600", 1); err != nil {
 		t.Fatalf("改 visitor_token_ttl 失败：%v", err)
@@ -121,6 +127,10 @@ func TestWireMiscConfigParamsReachesReaders(t *testing.T) {
 	}
 	if err := svc.UpdateValue(ctx, "misc", "text_truncate_max_bytes", "1024", 1); err != nil {
 		t.Fatalf("改 text_truncate_max_bytes 失败：%v", err)
+	}
+	// 与种子上限（512）内的另一个档位：不能与兜底 50 相同，否则这格在"根本没接线"时也绿。
+	if err := svc.UpdateValue(ctx, "misc", "batch_import_max_file_mb", "120", 1); err != nil {
+		t.Fatalf("改 batch_import_max_file_mb 失败：%v", err)
 	}
 
 	WireMiscConfigParams()
@@ -136,6 +146,10 @@ func TestWireMiscConfigParamsReachesReaders(t *testing.T) {
 	}
 	if got, want := textutil.DefaultTruncateMaxBytes(), 1024; got != want {
 		t.Errorf("text_truncate_max_bytes 未被读走：got %v（原 %v）want %v", got, beforeInt["text_truncate_max_bytes"], want)
+	}
+	gotBytes, gotMB := contentctrl.ProbeBatchImportMaxUploadSize()
+	if gotMB != 120 || gotBytes != 120*1024*1024 {
+		t.Errorf("batch_import_max_file_mb 未被读走：got %dMB / %d 字节（原 %dMB）want 120MB", gotMB, gotBytes, beforeBatchMB())
 	}
 }
 
@@ -158,5 +172,10 @@ func TestWireMiscConfigParamsWithoutDB(t *testing.T) {
 	}
 	if got, want := repository.GetPollingLockStaleThreshold(), repository.PollingLockStaleThreshold; got != want {
 		t.Errorf("无库时 polling_lock_stale_threshold = %v，期望兜底 %v", got, want)
+	}
+	gotBytes, gotMB := contentctrl.ProbeBatchImportMaxUploadSize()
+	if gotMB != contentctrl.DefaultBatchImportMaxSizeMB || gotBytes != int64(contentctrl.DefaultBatchImportMaxSizeMB)*1024*1024 {
+		t.Errorf("无库时 batch_import_max_file_mb = %dMB / %d 字节，期望兜底 %dMB",
+			gotMB, gotBytes, contentctrl.DefaultBatchImportMaxSizeMB)
 	}
 }

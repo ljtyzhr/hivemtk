@@ -7,16 +7,19 @@ import (
 
 	"hivemtk-user/internal/cache"
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/pkg/testutil"
 	"hivemtk-user/internal/service"
 )
 
 func newRealPipeline(t *testing.T) (IngressPipeline, *cache.MemoryCache) {
 	t.Helper()
-	db := testutil.NewTestDB(t, &model.MessageHub{})
+	database := testutil.NewTestDB(t, &model.MessageHub{})
+	db.SetTestDB(database)
+	t.Cleanup(func() { db.SetTestDB(nil) })
 	c := cache.NewMemoryCacheWithLimit(1024)
 	t.Cleanup(func() { c.Close() })
-	ingress := service.NewInboxIngressServiceWithDB(db, c)
+	ingress := service.NewInboxIngressService()
 	return NewPipeline(ingress), c
 }
 

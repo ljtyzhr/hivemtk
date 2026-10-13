@@ -22,7 +22,8 @@ func (r *redisNilCache) Get(_ context.Context, _ string) (string, error) {
 // 也必须走「未命中」分支返回 false，不能被当成「Redis 故障」落进 fail-closed/fail-open 降级。
 func TestInboxIngress_HumanLock_RedisNilIsMiss(t *testing.T) {
 	ctx := context.Background()
-	svc := NewInboxIngressServiceWithDB(nil, &redisNilCache{})
+	svc := NewInboxIngressService()
+	svc.cache = &redisNilCache{}
 
 	locked, err := svc.IsSessionHumanLocked(ctx, "sess_nil_miss", "这个问题我要转人工处理")
 	if err != nil {
@@ -37,7 +38,8 @@ func TestInboxIngress_HumanLock_RedisNilIsMiss(t *testing.T) {
 // Redis 读取失败且命中转人工关键词时仍要 fail-closed 判定为人工接管。
 func TestInboxIngress_HumanLock_RealFailureStillFailClosed(t *testing.T) {
 	ctx := context.Background()
-	svc := NewInboxIngressServiceWithDB(nil, &brokenCache{})
+	svc := NewInboxIngressService()
+	svc.cache = &brokenCache{}
 
 	locked, err := svc.IsSessionHumanLocked(ctx, "sess_broken_closed", "这个问题我要转人工处理")
 	if err != nil {
@@ -51,7 +53,8 @@ func TestInboxIngress_HumanLock_RealFailureStillFailClosed(t *testing.T) {
 // TestInboxIngress_HumanLock_RealFailureNoKeywordFailOpen 真故障且未命中关键词 → 放行 AI。
 func TestInboxIngress_HumanLock_RealFailureNoKeywordFailOpen(t *testing.T) {
 	ctx := context.Background()
-	svc := NewInboxIngressServiceWithDB(nil, &brokenCache{})
+	svc := NewInboxIngressService()
+	svc.cache = &brokenCache{}
 
 	locked, err := svc.IsSessionHumanLocked(ctx, "sess_broken_open", "你好，这个产品多少钱")
 	if err != nil {
@@ -67,7 +70,8 @@ func TestInboxIngress_HumanLock_MemoryCacheMissIsMiss(t *testing.T) {
 	ctx := context.Background()
 	mc := cache.NewMemoryCache()
 	defer mc.Close()
-	svc := NewInboxIngressServiceWithDB(nil, mc)
+	svc := NewInboxIngressService()
+	svc.cache = mc
 
 	locked, err := svc.IsSessionHumanLocked(ctx, "sess_mem_miss", "这个问题我要转人工处理")
 	if err != nil {

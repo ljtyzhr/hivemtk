@@ -58,7 +58,8 @@ func newDebounceFixture(t *testing.T, seconds int) (*InboxIngressService, *stubA
 	// 全局缓存,前序测试遗留的排他锁会静默跳过本次触发,导致偶发失败。
 	memCache := cache.NewMemoryCache()
 	t.Cleanup(memCache.Close)
-	svc := NewInboxIngressServiceWithDB(nil, memCache)
+	svc := NewInboxIngressService()
+	svc.cache = memCache
 	stub := &stubAITrigger{}
 	svc.aiTrigger = stub
 	seq := debounceFixtureSeq.Add(1)

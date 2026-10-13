@@ -5,11 +5,10 @@ import (
 	"fmt"
 	"hivemtk-user/internal/dto"
 	"hivemtk-user/internal/model"
+	dbUtil "hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/pkg/timeutil"
 	"hivemtk-user/internal/repository"
 	"time"
-
-	"gorm.io/gorm"
 )
 
 // TikTokCardService TikTok 卡片服务接口
@@ -32,18 +31,11 @@ type tiktokCardService struct {
 }
 
 // NewTikTokCardService 创建 TikTok 卡片服务
-func NewTikTokCardService(repo repository.TikTokCardRepository, shortLinkRepo repository.ShortLinkRepository) TikTokCardService {
+func NewTikTokCardService() TikTokCardService {
+	db := dbUtil.GetDB()
 	return &tiktokCardService{
-		repo:          repo,
-		shortLinkRepo: shortLinkRepo,
-	}
-}
-
-// NewTikTokCardServiceWithDB 通过 *gorm.DB 创建 TikTok 卡片服务(用于测试 / router 装配)
-func NewTikTokCardServiceWithDB(gormDB *gorm.DB) TikTokCardService {
-	return &tiktokCardService{
-		repo:          repository.NewTikTokCardRepository(gormDB),
-		shortLinkRepo: repository.NewShortLinkRepository(gormDB),
+		repo:          repository.NewTikTokCardRepository(db),
+		shortLinkRepo: repository.NewShortLinkRepository(db),
 	}
 }
 

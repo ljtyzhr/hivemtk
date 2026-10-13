@@ -22,8 +22,13 @@ import (
 	"testing"
 	"time"
 
+	"gorm.io/gorm"
+
 	"hivemtk-user/internal/aiagent/agent/tooluse"
+	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/testutil"
 	"hivemtk-user/internal/pkg/utils/logger"
+	"hivemtk-user/internal/service"
 )
 
 // restoreCircuitState 保存/还原包级熔断状态。
@@ -480,4 +485,235 @@ func TestObserveToolCircuitDecisionNilCounterSafe(t *testing.T) {
 		observeToolCircuitDecision(context.Background(), tooluse.CircuitDecision{ToolName: "x", WouldBlock: true, Shadow: true})
 		observeToolCircuitDecision(context.Background(), tooluse.CircuitDecision{ToolName: "x", WouldBlock: false})
 	}()
+}
+
+// ── 参数中心这一层（agent_tool 组 circuit_* 五项）─────────────────────────
+//
+// 上面那批用例只覆盖 env 一层。下面这组覆盖"库里改值 → 装配读到"这条腿，
+// 断言的是 resolveToolCircuitConfig 那条唯一的优先级链：代码兜底 < 参数中心 < 环境变量。
+//
+// 这一层最容易写成的三种假绿，各由一条用例盯着：
+//   ① 写了参数读取函数却没人调用它          → 装配腿（apply → registry.Config()）
+//   ② 种子值与代码兜底不等价（接线即变更）  → 灌完种子后 resolve 必须逐字等于默认
+//   ③ 只测了"读得到"，没测"越界读不进来"    → 直写库绕过写侧校验那一格
+
+// clearCircuitEnv 把五项 env 全部置空：让"只剩参数中心这一层"成为可断言的前提，
+// 而不是碰运气依赖上一测试跑完后环境里剩了什么。
+func clearCircuitEnv(t *testing.T) {
+	t.Helper()
+	for _, k := range []string{
+		circuitThresholdEnv, circuitBaseCooldownEnv, circuitMaxCooldownEnv,
+		circuitBackoffEnv, circuitHalfOpenEnv,
+	} {
+		t.Setenv(k, "")
+	}
+}
+
+// newCircuitParamFixture 建测试库、灌种子，并把参数中心换成"真读库"的实例。
+//
+// 同时返回 *gorm.DB 是为了"绕过写侧 validateValue 直接改库"那一格：
+// 读取侧的区间夹逼如果只能靠页面写入来触发，那它其实从来没被这条判据看过
+// （Min/Max 会先把越界值挡在接口上）。
+//
+// t.Cleanup 还原全局：globalConfigParam 是进程级包级变量，留着带 DB 的实例
+// 会把同包后续用例的 Get* 一并带走。
+func newCircuitParamFixture(t *testing.T) (*gorm.DB, *service.ConfigParamService) {
+	t.Helper()
+	db := testutil.NewTestDBOrSkip(t, &model.ConfigParam{}, &model.ConfigParamAuditLog{})
+	if db == nil {
+		t.Skip("no DB")
+	}
+	if err := service.SeedConfigParams(context.Background(), db); err != nil {
+		t.Fatalf("SeedConfigParams 失败：%v", err)
+	}
+	svc := service.NewConfigParamService(db)
+	service.SetGlobalForTest(svc)
+	t.Cleanup(func() { service.SetGlobalForTest(nil) })
+	return db, svc
+}
+
+func TestResolveToolCircuitConfigWithoutDBMatchesEnvOnly(t *testing.T) {
+	clearCircuitEnv(t)
+	service.SetGlobalForTest(nil)
+	t.Cleanup(func() { service.SetGlobalForTest(nil) })
+
+	// 无库 ⇒ 参数层必须逐条回落代码兜底，而不是返回零值配置
+	// （零值 threshold=0 会让"每个请求都被拒"，比不设配置危险得多）。
+	if got, want := resolveToolCircuitConfig(), tooluse.DefaultCircuitBreakerConfig(); got != want {
+		t.Fatalf("无库时 resolve 必须逐字等于代码兜底：\n got %+v\nwant %+v", got, want)
+	}
+
+	// 配了 env 时，无库的 resolve 与"只看 env"的读法必须一致（参数层不许凭空造值）。
+	t.Setenv(circuitThresholdEnv, "7")
+	t.Setenv(circuitBackoffEnv, "4")
+	if got, want := resolveToolCircuitConfig(), toolCircuitConfigFromEnv(); got != want {
+		t.Errorf("无库时两层结果不一致：resolve=%+v envOnly=%+v", got, want)
+	}
+	if got := resolveToolCircuitConfig().FailureThreshold; got != 7 {
+		t.Errorf("无库时 env 仍应生效，threshold=%d", got)
+	}
+}
+
+func TestCircuitSeedDefaultsEqualCodeDefaults(t *testing.T) {
+	_, svc := newCircuitParamFixture(t)
+	clearCircuitEnv(t)
+	ctx := context.Background()
+
+	// 五条必须真的落库了。用"绝不可能的兜底值"探：行不存在时 Get* 返回兜底，
+	// 行存在时返回库里的合法值——同一个调用能同时判"接错键名"和"seed 没插成功"。
+	probes := []struct {
+		key  string
+		read func(string) int64
+	}{
+		{"circuit_failure_threshold", func(k string) int64 { return int64(svc.GetInt(ctx, "agent_tool", k, -1)) }},
+		{"circuit_base_cooldown", func(k string) int64 { return int64(svc.GetDuration(ctx, "agent_tool", k, -time.Second).Seconds()) }},
+		{"circuit_max_cooldown", func(k string) int64 { return int64(svc.GetDuration(ctx, "agent_tool", k, -time.Second).Seconds()) }},
+		{"circuit_backoff_multiplier", func(k string) int64 { return int64(svc.GetFloat(ctx, "agent_tool", k, -1)) }},
+		{"circuit_half_open_max_attempts", func(k string) int64 { return int64(svc.GetInt(ctx, "agent_tool", k, -1)) }},
+	}
+	for _, p := range probes {
+		if got := p.read(p.key); got <= 0 {
+			t.Errorf("agent_tool.%s 没落库（读到探针兜底 %d）：接了线但库里没这行 = 僵尸键，页面上看不见", p.key, got)
+		}
+	}
+
+	// 关键不变量：种子默认值 == tooluse 代码兜底 ⇒ "接上参数中心但没人改过"是零行为变更。
+	// 这条一旦红，这次改动本身就成了一次没打招呼的灰度。
+	if got, want := resolveToolCircuitConfig(), tooluse.DefaultCircuitBreakerConfig(); got != want {
+		t.Errorf("种子默认值与代码兜底不等价：\n got %+v\nwant %+v", got, want)
+	}
+}
+
+func TestResolveToolCircuitConfigReadsParamsIntoRegistry(t *testing.T) {
+	_, svc := newCircuitParamFixture(t)
+	clearCircuitEnv(t)
+	ctx := context.Background()
+
+	want := tooluse.CircuitBreakerConfig{
+		FailureThreshold: 9, BaseCooldown: 45 * time.Second, MaxCooldown: 900 * time.Second,
+		BackoffMultiplier: 2.5, HalfOpenMaxAttempts: 3,
+	}
+	for _, item := range []struct{ key, value string }{
+		{"circuit_failure_threshold", "9"},
+		{"circuit_base_cooldown", "45"},
+		{"circuit_max_cooldown", "900"},
+		{"circuit_backoff_multiplier", "2.5"},
+		{"circuit_half_open_max_attempts", "3"},
+	} {
+		if err := svc.UpdateValue(ctx, "agent_tool", item.key, item.value, 1); err != nil {
+			t.Fatalf("改 agent_tool.%s=%s 失败：%v", item.key, item.value, err)
+		}
+	}
+
+	if got := resolveToolCircuitConfig(); got != want {
+		t.Fatalf("参数中心的五项没被读走：\n got %+v\nwant %+v", got, want)
+	}
+
+	// 装配腿：只测 resolve 不够——函数写对了但 apply 仍调 env 那份，这条腿照样是死的。
+	restoreCircuitState(t)
+	t.Setenv(circuitFlagEnv, "shadow")
+	var config tooluse.ToolExecutorConfig
+	if mode := applyToolCircuitBreaker(&config); mode != toolCircuitShadow {
+		t.Fatalf("模式 = %s，期望 shadow", mode)
+	}
+	if got := config.CircuitBreaker.Config(); got != want {
+		t.Errorf("挂到 executor 上的 registry 带的不是参数中心的配置：\n got %+v\nwant %+v", got, want)
+	}
+	if _, applied, _, _ := GetToolCircuitSnapshot(); applied != want {
+		t.Errorf("调试快照读到的不是生效配置：%+v", applied)
+	}
+}
+
+func TestResolveToolCircuitConfigEnvBeatsParamsPerItem(t *testing.T) {
+	_, svc := newCircuitParamFixture(t)
+	clearCircuitEnv(t)
+	ctx := context.Background()
+	for _, item := range []struct{ key, value string }{
+		{"circuit_failure_threshold", "9"},
+		{"circuit_half_open_max_attempts", "3"},
+	} {
+		if err := svc.UpdateValue(ctx, "agent_tool", item.key, item.value, 1); err != nil {
+			t.Fatalf("改 agent_tool.%s=%s 失败：%v", item.key, item.value, err)
+		}
+	}
+
+	// env 只压 threshold 一项：其余项必须仍走参数中心（逐层合并，不是整层覆盖）。
+	t.Setenv(circuitThresholdEnv, "11")
+	got := resolveToolCircuitConfig()
+	if got.FailureThreshold != 11 {
+		t.Errorf("env 未压过参数中心：threshold=%d", got.FailureThreshold)
+	}
+	if got.HalfOpenMaxAttempts != 3 {
+		t.Errorf("env 覆盖一项时把参数中心其余项带走了：%+v", got)
+	}
+
+	// env 越界时回落对象是"下层"（参数中心的 9），不是"代码默认 5"：
+	// 否则运维在库里配的合法值会因为一个打错的临时 env 一起丢掉。
+	t.Setenv(circuitThresholdEnv, "0")
+	if got := resolveToolCircuitConfig(); got.FailureThreshold != 9 {
+		t.Errorf("env 越界应回落参数中心的 9，实际 %d", got.FailureThreshold)
+	}
+
+	t.Setenv(circuitThresholdEnv, "")
+	if got := resolveToolCircuitConfig(); got.FailureThreshold != 9 {
+		t.Errorf("撤掉 env 后应回到参数中心的 9，实际 %d", got.FailureThreshold)
+	}
+}
+
+func TestResolveToolCircuitConfigClampsParamLayer(t *testing.T) {
+	_, svc := newCircuitParamFixture(t)
+	clearCircuitEnv(t)
+
+	// base 抬到 600s，max 留在种子默认的 300s ⇒ 上限必须被抬到 base。
+	// 不夹的话 calculateCooldown 里 `cooldown > MaxCooldown 就取 MaxCooldown`，
+	// 指数退避会被反向夹住（第 2 次起算出的 600s 又掉回 300s）。
+	if err := svc.UpdateValue(context.Background(), "agent_tool", "circuit_base_cooldown", "600", 1); err != nil {
+		t.Fatalf("改 circuit_base_cooldown 失败：%v", err)
+	}
+	got := resolveToolCircuitConfig()
+	if got.BaseCooldown != 600*time.Second {
+		t.Fatalf("前置不成立：base 未读到 600s，实际 %s", got.BaseCooldown)
+	}
+	if got.MaxCooldown != 600*time.Second {
+		t.Errorf("max<base 时退避上限应被抬到 base，实际 max=%s base=%s", got.MaxCooldown, got.BaseCooldown)
+	}
+}
+
+func TestCircuitParamOverRejectsOutOfRangeFromDB(t *testing.T) {
+	db, _ := newCircuitParamFixture(t)
+	clearCircuitEnv(t)
+
+	// 直写库、绕开页面写侧的 Min/Max：validateValue 只拦"从接口改"这一条路。
+	// 读取侧不重复夹一遍的话，threshold=0 会原样装进 registry ⇒ 每个工具调用都被拒。
+	for _, item := range []struct{ key, value string }{
+		{"circuit_failure_threshold", "0"},
+		{"circuit_half_open_max_attempts", "1001"},
+		{"circuit_base_cooldown", "999999"},
+	} {
+		if err := db.Table("config_params").
+			Where("param_group = ? AND key = ?", "agent_tool", item.key).
+			Update("param_value", item.value).Error; err != nil {
+			t.Fatalf("直写 agent_tool.%s=%s 失败：%v", item.key, item.value, err)
+		}
+	}
+
+	base := tooluse.DefaultCircuitBreakerConfig()
+	got := circuitParamOver(base)
+	if got.FailureThreshold != base.FailureThreshold {
+		t.Errorf("threshold=0（会让每个请求都被拒）不该被采纳，实际 %+v", got)
+	}
+	if got.HalfOpenMaxAttempts != base.HalfOpenMaxAttempts {
+		t.Errorf("越界 half_open 配额不该被采纳，实际 %+v", got)
+	}
+	if got.BaseCooldown != base.BaseCooldown {
+		t.Errorf("越界 base_cooldown 不该被采纳，实际 %+v", got)
+	}
+	// 逐项独立：三条坏值只丢这三条，第四项仍是库里的合法值（种子 300s = 5m）。
+	if got.MaxCooldown != 5*time.Minute {
+		t.Errorf("其余项被坏值带走了：max_cooldown=%s，期望种子值 5m", got.MaxCooldown)
+	}
+	// 且这里的回落必须是"下层值"而不是零值配置。
+	if got == (tooluse.CircuitBreakerConfig{}) {
+		t.Error("越界时整份配置被清零了")
+	}
 }

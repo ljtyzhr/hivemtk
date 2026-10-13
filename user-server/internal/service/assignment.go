@@ -10,8 +10,6 @@ import (
 
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/repository"
-
-	"gorm.io/gorm"
 )
 
 // AssignmentStrategy 分配策略
@@ -64,7 +62,7 @@ type AssignmentService struct {
 	customerRepo repository.CustomerRepository
 }
 
-func NewAssignmentService(db *gorm.DB) *AssignmentService {
+func NewAssignmentService() *AssignmentService {
 	return &AssignmentService{customerRepo: repository.NewCustomerRepository()}
 }
 

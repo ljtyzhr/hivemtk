@@ -16,6 +16,7 @@ import (
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/pkg/testutil"
+	"hivemtk-user/internal/repository"
 
 	"gorm.io/gorm"
 )
@@ -172,7 +173,7 @@ func setupWebChatE2E(t *testing.T) (*VisitorChatService, *SmartCSOrchestrator, *
 		fakeCustomerLookup{},
 	)
 	orch := NewSmartCSOrchestrator(engine, DefaultOrchestratorConfig(), nil)
-	channelSvc := MustNewChatChannelService(database)
+	channelSvc := MustNewChatChannelService(repository.NewChatChannelRepositoryWithDB(database))
 	visitorSvc := NewVisitorChatService(context.Background(), database, channelSvc, orch, nil)
 	return visitorSvc, orch, rag, database
 }

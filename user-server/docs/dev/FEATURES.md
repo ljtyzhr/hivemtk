@@ -279,15 +279,19 @@
 
 ## 二十、AI Agent 工具注册表
 
-`internal/aiagent/agent/tooluse/` 下注册 42 个原子工具，供 Agent Loop (ReAct) 调用。详见 [../../docs/architecture/agent-tools-inventory.md](../AGENT_TOOLS.md)。
+`internal/aiagent/agent/tooluse/` 下注册 45 个原子工具，供 Agent Loop (ReAct) 调用。详见 [../../docs/architecture/agent-tools-inventory.md](../AGENT_TOOLS.md)。
 
 | 工具类别 | 数量 | 工具列表（节选） |
 | --- | --- | --- |
-| 触达工具（reach） | 20 | 短信发送 / 邮件发送 / 企微消息 / WhatsApp 发送 / Telegram 发送 / 短链生成 / 活码生成 / 卡片生成 / ... |
-| 项目管理（pm） | 3 | 项目查询 / 项目创建 / 项目更新 |
+| 触达工具（reach） | 20 | 短信发送 / 邮件发送 / 企微消息 / 微信消息 / 抖音私信 / 快手私信 / 小红书私信 / 钉钉发送 / Telegram 发送 / WhatsApp 发送 / 飞书发送 / Web 发送 / 卡片发送 / 批量发送 / 定时发送 / 撤回 / 健康检查 / 历史查询 / 模板应用 / 账号列表 |
+| 私信工具（private-message） | 3 | 开启私信会话 / 读取会话 / 发送私信 |
 | 客户工具（customer） | 8 | 客户查询 / 客户创建 / 客户标签 / 客户分层 / 客户 360 / OneID 合并 / 客户旅程 / RFM 评分 |
 | 知识库（knowledge） | 4 | 知识库检索 / 文档导入 / 文档分段 / 向量化 |
 | 业务工具（business） | 6 | 订单查询 / 售后处理 / 投诉处理 / 异议处理 / SOP 触发 / 通知发送 |
+| 浏览器工具（browser） | 3 | 浏览器自动化操作 |
+| 卡片工具（card） | 1 | 卡片展示 |
+
+> 合计 45 个（2026-10-13 按 `Build*Tools()` 返回值实测）。此前的「42 个」少计 browser 3 与 card 1。
 
 工具注册入口: `router.go` 的 `registerAllAgentTools(db)`，由 `initGlobalToolExecutor()` 装配全局 `ToolExecutor`（含限流 / 重试 / 审计 / 计费装饰器链）。
 

@@ -15,7 +15,7 @@ import (
 )
 
 // 本文件覆盖 2026-10-12「阶段六：不留配置债」引入的三件事：
-//  1. 下架（Deprecated）——11 条接不上的旋钮从「过渡态」推进到「终态」；
+//  1. 下架（Deprecated）——13 条接不上的旋钮从「过渡态」推进到「终态」；
 //  2. 组元数据（config_param_groups）——侧栏中文名/排序的事实源从前端搬进库；
 //  3. Unit / Risk——让页面能把「60」翻译成「60 秒」、能把填错会挂的旋钮标出来。
 
@@ -24,9 +24,9 @@ import (
 // 两边不一致时下面 TestRetiredParamsHaveNoDeadMarker 会先红一次。
 const markerToken = "未接线"
 
-// retiredSeedKeys 是 11 条下架项的完整清单，逐条写死而不是从种子里过滤。
+// retiredSeedKeys 是 13 条下架项的完整清单，逐条写死而不是从种子里过滤。
 //
-// 为什么写死：全仓 217 条参数里 Deprecated 只有这 11 条。如果用「把种子里
+// 为什么写死：全仓 217 条参数里 Deprecated 只有这 13 条。如果用「把种子里
 // deprecated 的都算进来」来生成期望值，那有人误把一条正常参数标成下架时，
 // 这条例外会跟着一起"通过"——用例再也发现不了。下架是一次不可逆的产品决定，
 // 值得用字面量钉住。
@@ -42,6 +42,8 @@ var retiredSeedKeys = []struct{ group, key string }{
 	{"agent_tool", "result_cache_ttl"},
 	{"sales", "insight_limit"},
 	{"lock", "ai_lock_ttl"},
+	{"frontend_ui", "websocket_reconnect_max_wait_ms"},
+	{"frontend_ui", "toast_duration_ms"},
 }
 
 func seedDefsIndex() map[string]ParamDef {
@@ -60,9 +62,13 @@ func retiredCoordinates() map[string]bool {
 	return out
 }
 
-// TestRetiredParamsAreExactlyTheElevenOnes 钉住下架清单的边界：
+// TestRetiredSetMatchesTheRetiredList 钉住下架清单的边界：
 // 一条不多（有人新标了一条下架要在这里解释）、一条不少（有人忘了标，门禁读数会漂）。
-func TestRetiredParamsAreExactlyTheElevenOnes(t *testing.T) {
+//
+// 函数名原为 …AreExactlyTheElevenOnes，条数进了名字：10-12 那批从 9 涨到 11、
+// 本轮又涨到 13，每次都得改名才能对上，而改名会打断按名字过滤子集的那类复跑。
+// 判据本身与条数无关（两侧集合互相包含），所以把数字留在 retiredSeedKeys 里就够了。
+func TestRetiredSetMatchesTheRetiredList(t *testing.T) {
 	idx := seedDefsIndex()
 	got := map[string]bool{}
 	for coord, d := range idx {

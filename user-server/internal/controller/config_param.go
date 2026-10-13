@@ -1,8 +1,12 @@
 package controller
 
 import (
+	"bytes"
+	"encoding/json"
+	"fmt"
 	"net/http"
 	"strconv"
+	"strings"
 
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/utils/logger"
@@ -69,25 +73,83 @@ func (c *ConfigParamController) ListGroups(ctx *gin.Context) {
 }
 
 // Update PUT /api/manage/config-params/:group/:key
-// 更新单个参数值（请求体 { "value": "xxx" }）
+// 更新单个参数值（请求体 { "value": <标量> }）
 func (c *ConfigParamController) Update(ctx *gin.Context) {
 	group := ctx.Param("group")
 	key := ctx.Param("key")
 
 	var body struct {
-		Value string `json:"value" binding:"required"`
+		Value json.RawMessage `json:"value" binding:"required"`
 	}
 	if err := ctx.ShouldBindJSON(&body); err != nil {
 		ctx.JSON(http.StatusOK, gin.H{"code": 400, "message": "参数错误: " + err.Error()})
 		return
 	}
+	value, err := decodeScalarValue(body.Value)
+	if err != nil {
+		ctx.JSON(http.StatusOK, gin.H{"code": 400, "message": "参数错误: " + err.Error()})
+		return
+	}
 	actorID := c.currentUserID(ctx)
-	if err := c.svc.UpdateValue(ctx.Request.Context(), group, key, body.Value, actorID); err != nil {
+	if err := c.svc.UpdateValue(ctx.Request.Context(), group, key, value, actorID); err != nil {
 		logger.Warnf("[ConfigParam] Update %s.%s err=%v", group, key, err)
 		ctx.JSON(http.StatusOK, gin.H{"code": 400, "message": err.Error()})
 		return
 	}
 	ctx.JSON(http.StatusOK, gin.H{"code": 0, "message": "ok"})
+}
+
+// decodeScalarValue 把请求体里的 JSON 标量折成参数表要存的那个字符串。
+//
+// 管理端各类型编辑器发出的形状并不统一：el-input-number 发数字（{"value":60}）、
+// el-switch 发布尔（{"value":true}）、文本框发字符串。参数表通存字符串，
+// 所以绑定层必须按类型折算——原来把它绑成 string 字段，等于让 int/float/duration/bool
+// 四类共 212 条参数在页面上一个都改不动，而所有 service 层用例都是直接传字符串调的，
+// 谁都测不到（HTTP 层用例 TestUpdateAcceptsEveryScalarJSONShape 钉住这点）。
+//
+// 数字走 json.Number 取**原始字面量**：折成 float64 再格式化会把 67108864 变成
+// "6.7108864e+07"，那是人眼读不懂的值，也是 int 解析不了的字符串。
+// 对象/数组/null 一律拒绝——把它们静默转成某种文本，等于把「前端发错了」
+// 变成一条看不出问题的库内脏值。
+func decodeScalarValue(raw json.RawMessage) (string, error) {
+	dec := json.NewDecoder(bytes.NewReader(raw))
+	dec.UseNumber()
+	var v any
+	if err := dec.Decode(&v); err != nil {
+		return "", fmt.Errorf("value 不是一段合法的 JSON：%w", err)
+	}
+	switch t := v.(type) {
+	case string:
+		return t, nil
+	case json.Number:
+		return t.String(), nil
+	case bool:
+		if t {
+			return "true", nil
+		}
+		return "false", nil
+	default:
+		return "", fmt.Errorf("value 只接受字符串、数字或布尔，收到的是 %s", firstTokenOf(raw))
+	}
+}
+
+// firstTokenOf 从原始 JSON 里取首个非空白字符，用于把「发错了」说成人话
+// （对象报 JSON 对象、数组报 JSON 数组），而不是把整段载荷抄回响应里。
+func firstTokenOf(raw json.RawMessage) string {
+	s := strings.TrimSpace(string(raw))
+	if s == "" {
+		return "空值"
+	}
+	switch s[0] {
+	case '{':
+		return "一个 JSON 对象"
+	case '[':
+		return "一个 JSON 数组"
+	}
+	if s == "null" {
+		return "null"
+	}
+	return "无法识别的 JSON 值"
 }
 
 // ResetToDefault POST /api/manage/config-params/:group/:key/reset

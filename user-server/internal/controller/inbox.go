@@ -394,6 +394,19 @@ func (c *InboxController) StaffLoad(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"staff": staff, "load": load}, "查询成功")
 }
 
+// Agents 可分配坐席名单（脱敏四列）
+//
+// 收件箱的分配下拉与自动分配候选都从这里取：它随工作台一起授予坐席，
+// 不再让坐席去碰仅超管的用户清单口（那条口回整行账号资料，本就不该给工作台用）。
+func (c *InboxController) Agents(ctx *gin.Context) {
+	agents, err := c.svc.ListAssignableAgents(ctx.Request.Context())
+	if err != nil {
+		response.ErrorFromDB(ctx, err, err.Error())
+		return
+	}
+	response.SuccessWithList(ctx, agents, int64(len(agents)))
+}
+
 // InboxIngressController 渠道接入消息中台控制器
 //
 // 与 InboxController 分开，避免单个文件过大（5xx 行上限）。

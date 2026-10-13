@@ -4,8 +4,9 @@ import (
 	"context"
 	"fmt"
 
-	"gorm.io/gorm"
 	"hivemtk-user/internal/migration"
+
+	"gorm.io/gorm"
 )
 
 // DropCdpAutoReplyMigration 清理 CDP/无头浏览器自动回复功能删除后残留的孤儿 schema：

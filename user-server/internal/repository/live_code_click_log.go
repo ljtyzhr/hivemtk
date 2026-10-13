@@ -6,8 +6,9 @@ import (
 
 	"hivemtk-user/internal/model"
 
-	"gorm.io/gorm"
 	"hivemtk-user/internal/pkg/timeutil"
+
+	"gorm.io/gorm"
 )
 
 // LiveCodeClickLogRepository 活码点击日志仓储接口

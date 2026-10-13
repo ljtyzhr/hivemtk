@@ -48,7 +48,7 @@ func TestUpdateSessionStatus_CancelsOpenHandoffTask(t *testing.T) {
 		t.Fatalf("转人工失败: %v", err)
 	}
 
-	svc := NewCustomerSessionServiceWithDB(database)
+	svc := NewCustomerSessionService()
 	if err := svc.UpdateSessionStatus(ctx, session.ID, model.SessionStatusResolved); err != nil {
 		t.Fatalf("置会话 resolved 失败: %v", err)
 	}
@@ -91,7 +91,7 @@ func TestUpdateSessionStatus_KeepsTerminalTaskAlone(t *testing.T) {
 		t.Fatalf("第二次转人工失败: %v", err)
 	}
 
-	if err := NewCustomerSessionServiceWithDB(database).
+	if err := NewCustomerSessionService().
 		UpdateSessionStatus(ctx, session.ID, model.SessionStatusClosed); err != nil {
 		t.Fatalf("置会话 closed 失败: %v", err)
 	}
@@ -126,7 +126,7 @@ func TestUpdateSessionStatus_WithoutHumanTaskServiceStillSucceeds(t *testing.T) 
 	if n := humanTaskProduceRowCount(t, database, "sess_hook_nil"); n != 1 {
 		t.Fatalf("前置造数不对：%d 行", n)
 	}
-	if err := NewCustomerSessionServiceWithDB(database).
+	if err := NewCustomerSessionService().
 		UpdateSessionStatus(ctx, session.ID, model.SessionStatusResolved); err != nil {
 		t.Fatalf("未装配待办底座时会话关闭失败: %v", err)
 	}
@@ -149,7 +149,7 @@ func TestUpdateSessionStatus_NoOpenTaskIsNotAnError(t *testing.T) {
 	useGlobalHumanTaskSvc(t, newHumanTaskSvc(t, database, &stubHumanTaskCfg{value: 5}))
 
 	session := seedHandoffSession(t, database, "sess_hook_none", "oneid_hook_4")
-	if err := NewCustomerSessionServiceWithDB(database).
+	if err := NewCustomerSessionService().
 		UpdateSessionStatus(ctx, session.ID, model.SessionStatusClosed); err != nil {
 		t.Fatalf("关闭一条从未转人工的会话失败: %v", err)
 	}

@@ -10,6 +10,7 @@ import (
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/utils"
 	mainrepo "hivemtk-user/internal/repository"
+	"hivemtk-user/internal/service"
 
 	"hivemtk-user/internal/aiagent/llm"
 
@@ -77,7 +78,10 @@ func SetupGeoRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 			Account:  contact,
 			Name:     contact,
 			SourceID: chainID,
-			Type:     int64(9),
+			// ClueTypeGeoCapture 当前与 ClueTypeDouyin 同值（都是 9）：GEO 捕获的线索
+			// 因此在列表页显示成「抖音」、评分走抖音档。改值要连同存量 clues.type 一起迁移，
+			// 属数据决策，这里只把裸字面量换成命名常量，不改变行为。
+			Type: service.ClueTypeGeoCapture,
 		}
 		if err := mainClueRepo.Create(ctx, clue); err != nil {
 			return "", err

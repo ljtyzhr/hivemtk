@@ -222,6 +222,13 @@ func main() {
 		logger.Info("[ConfigParam] 上传/body 上限接线 " + strconv.Itoa(len(wired)) + " 条")
 	}
 
+	// frontend_ui 组历史上只有前端读，后端一处不摸；本条是第一个例外——素材库上传口
+	// 原来写死 10MB，运维调大后前端放行、后端拦死。走注入而不是 controller 直连，
+	// 因为 internal/content 整个子模块不 import internal/service。
+	if wired := app.WireFrontendUIConfigParams(); len(wired) > 0 {
+		logger.Info("[ConfigParam] frontend_ui 组接线 " + strconv.Itoa(len(wired)) + " 条")
+	}
+
 	// 阶段二 2c：锁与幂等 TTL。这一组是正确性参数而不是调优项，锁 TTL 写错的
 	// 结果是死锁或重复处理，所以六条都在这里显式注入。放在 SeedConfigParams 的
 	// if/else 之外是为了 seed 失败时各锁仍能托在兜底常量上正常跑。

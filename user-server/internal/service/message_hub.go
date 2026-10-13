@@ -14,7 +14,6 @@ import (
 
 	"hivemtk-user/internal/cache"
 	"hivemtk-user/internal/model"
-	dbUtil "hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
 
@@ -231,31 +230,14 @@ type MessageSubscriber interface {
 
 // NewMessageHubService 创建消息中台服务(无参,内部用 dbUtil.GetDB())
 func NewMessageHubService() *MessageHubService {
-	return NewMessageHubServiceWithDB(dbUtil.GetDB(), nil)
-}
-
-// NewMessageHubServiceWithDB 创建带 DB 的消息中台服务(显式注入 db,兼容旧调用)
-//
-// 五层架构 §三.5：构造函数保留 db *gorm.DB 参数（调用方不变），
-// 内部创建 repository 实例，service 不再持有 db。
-// db 为 nil 时（如部分纯内存场景）repo 字段为 nil，方法调用做无操作短路。
-func NewMessageHubServiceWithDB(db *gorm.DB, c cache.Cache) *MessageHubService {
-	if c == nil {
-		c = cache.GetGlobalCache()
-	}
-	var repo *repository.MessageHubRepository
-	if db != nil {
-		repo = repository.NewMessageHubRepositoryWithDB(db)
-	}
-	s := &MessageHubService{
-		repo:       repo,
-		cache:      c,
+	return &MessageHubService{
+		repo:       repository.NewMessageHubRepository(),
+		cache:      nil,
 		streams:    make(map[string]*hubStream),
 		streamSize: MessageHubDefaultQueueSize,
 		idemTTL:    messageHubIdemTTL(),
 		maxContent: MessageHubDefaultMaxContent,
 	}
-	return s
 }
 
 // WithIdemTTL 设置幂等 TTL

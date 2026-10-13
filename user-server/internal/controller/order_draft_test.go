@@ -124,7 +124,7 @@ func TestOrderDraftController_NotAssembledIs503(t *testing.T) {
 // 确认人/取消人是要写进草稿元数据的归因键；放匿名请求过去等于攒出一批
 // "不知道谁处理的"草稿，而 401 与 400 搞混还会让前端去申诉参数而不是去补登录态。
 func TestOrderDraftController_AllEntrypointsRequireIdentity(t *testing.T) {
-	svc := service.NewOrderDraftService(nil)
+	svc := service.NewOrderDraftService()
 	id := orderDraftSeed(t, svc, "cust-a", "", "云企版", 1999, 1)
 	engine := orderDraftTestEnv(t, svc, "")
 	cases := []struct{ method, path, body string }{
@@ -151,7 +151,7 @@ func TestOrderDraftController_AllEntrypointsRequireIdentity(t *testing.T) {
 // 反过来说，如果这里默认按 operator 过滤，AI 提取出来的那批草稿（owner_id="system"）
 // 会从每个人的列表里消失，只剩 stats 上一个计数 —— 本卡要打通的正是这一步。
 func TestOrderDraftController_ListIsSharedPool(t *testing.T) {
-	svc := service.NewOrderDraftService(nil)
+	svc := service.NewOrderDraftService()
 	orderDraftSeed(t, svc, "cust-a", "7", "云企版", 1999, 1)
 	orderDraftSeed(t, svc, "cust-b", "", "数据中台", 8888, 1) // 空 owner ⇒ 服务层填 "system"
 
@@ -191,7 +191,7 @@ func TestOrderDraftController_ListIsSharedPool(t *testing.T) {
 // TestOrderDraftController_ListTruncated limit 命中上界时 truncated 必须为真。
 // total 只到"本次几条"，没有这个字段前端就会把截断读成"池子里就这两条"。
 func TestOrderDraftController_ListTruncated(t *testing.T) {
-	svc := service.NewOrderDraftService(nil)
+	svc := service.NewOrderDraftService()
 	for _, p := range []string{"产品A", "产品B", "产品C"} {
 		orderDraftSeed(t, svc, "cust-trunc", "7", p, 100, 1)
 	}
@@ -215,7 +215,7 @@ func TestOrderDraftController_ListTruncated(t *testing.T) {
 
 // TestOrderDraftController_ListLimitParam limit 越界与非法值判 400，不做静默纠正。
 func TestOrderDraftController_ListLimitParam(t *testing.T) {
-	svc := service.NewOrderDraftService(nil)
+	svc := service.NewOrderDraftService()
 	orderDraftSeed(t, svc, "cust-a", "7", "云企版", 1999, 1)
 	engine := orderDraftTestEnv(t, svc, "7")
 	for _, raw := range []string{"0", "-3", "abc", "201"} {
@@ -229,7 +229,7 @@ func TestOrderDraftController_ListLimitParam(t *testing.T) {
 // TestOrderDraftController_CustomerViewIncludesTerminal 客户视图含终态草稿，
 // pending 必须为 false（否则已取消的一行会被前端算成待办）。
 func TestOrderDraftController_CustomerViewIncludesTerminal(t *testing.T) {
-	svc := service.NewOrderDraftService(nil)
+	svc := service.NewOrderDraftService()
 	keep := orderDraftSeed(t, svc, "cust-x", "7", "云企版", 1999, 1)
 	other := orderDraftSeed(t, svc, "cust-x", "8", "数据中台", 8888, 2)
 	if err := svc.Cancel(context.Background(), orderDraftSeed(t, svc, "cust-x", "7", "驻场实施", 500, 1),
@@ -262,7 +262,7 @@ func TestOrderDraftController_CustomerViewIncludesTerminal(t *testing.T) {
 }
 
 func TestOrderDraftController_GetNotFoundAndOversizedID(t *testing.T) {
-	svc := service.NewOrderDraftService(nil)
+	svc := service.NewOrderDraftService()
 	engine := orderDraftTestEnv(t, svc, "7")
 
 	rec := orderDraftDo(t, engine, http.MethodGet, "/api/manage/order-drafts/draft_missing", "")
@@ -279,7 +279,7 @@ func TestOrderDraftController_GetNotFoundAndOversizedID(t *testing.T) {
 // TestOrderDraftController_ConfirmProvisionalOrderID 没注入订单服务时确认仍然会翻状态，
 // 但响应必须把"这个订单号是本进程临时生成的"说出口 —— 判据正是本卡开工前那处会被读反的半边。
 func TestOrderDraftController_ConfirmProvisionalOrderID(t *testing.T) {
-	svc := service.NewOrderDraftService(nil)
+	svc := service.NewOrderDraftService()
 	id := orderDraftSeed(t, svc, "cust-a", "7", "云企版", 1999, 2)
 	engine := orderDraftTestEnv(t, svc, "7")
 
@@ -313,7 +313,7 @@ func TestOrderDraftController_ConfirmProvisionalOrderID(t *testing.T) {
 }
 
 func TestOrderDraftController_CancelNeedsReason(t *testing.T) {
-	svc := service.NewOrderDraftService(nil)
+	svc := service.NewOrderDraftService()
 	id := orderDraftSeed(t, svc, "cust-a", "7", "云企版", 1999, 1)
 	engine := orderDraftTestEnv(t, svc, "7")
 
@@ -352,7 +352,7 @@ func TestOrderDraftController_CancelNeedsReason(t *testing.T) {
 }
 
 func TestOrderDraftController_Edit(t *testing.T) {
-	svc := service.NewOrderDraftService(nil)
+	svc := service.NewOrderDraftService()
 	id := orderDraftSeed(t, svc, "cust-a", "7", "云企版", 19.99, 3)
 	engine := orderDraftTestEnv(t, svc, "7")
 
@@ -395,7 +395,7 @@ func TestOrderDraftController_Edit(t *testing.T) {
 // TestOrderDraftController_EditMissingDraftIs404 编辑不存在的草稿 ⇒ 404，
 // 而不是让服务层的 mutateIfPending 落败后回一句 500。
 func TestOrderDraftController_EditMissingDraftIs404(t *testing.T) {
-	svc := service.NewOrderDraftService(nil)
+	svc := service.NewOrderDraftService()
 	engine := orderDraftTestEnv(t, svc, "7")
 	rec := orderDraftDo(t, engine, http.MethodPatch, "/api/manage/order-drafts/draft_absent", `{"quantity":2}`)
 	if rec.Code != http.StatusNotFound {

@@ -47,7 +47,9 @@ func TestN14_RepeatedContentWithDistinctWAMIDsIsNotDropped(t *testing.T) {
 	defer svc.Stop(context.Background())
 	mc := cache.NewMemoryCache()
 	t.Cleanup(mc.Close)
-	svc.SetIngressSvc(NewInboxIngressServiceWithDB(db, mc))
+	ing := NewInboxIngressService()
+	ing.cache = mc
+	svc.SetIngressSvc(ing)
 
 	nonce := fmt.Sprintf("n14-wa-%d", time.Now().UnixNano())
 
@@ -73,13 +75,14 @@ func TestN14_RepeatedContentWithDistinctWAMIDsIsNotDropped(t *testing.T) {
 // TestN14_IDLessEventStillDedupsByContent 反向边界：没有稳定消息 ID 的事件仍要走内容窗口
 // 去重，否则平台重投会双份入库、双份触发 AI。
 func TestN14_IDLessEventStillDedupsByContent(t *testing.T) {
-	db := testutil.NewTestDB(t,
+	_ = testutil.NewTestDB(t,
 		&model.WhatsAppCloudAccount{}, &model.MessageHub{}, &model.InboxConversation{},
 		&model.UnifiedMessage{}, &model.WebhookEvent{}, &model.IntegrationAccount{},
 	)
 	mc := cache.NewMemoryCache()
 	t.Cleanup(mc.Close)
-	ingest := NewInboxIngressServiceWithDB(db, mc)
+	ingest := NewInboxIngressService()
+	ingest.cache = mc
 	nonce := fmt.Sprintf("n14-idless-%d", time.Now().UnixNano())
 
 	ev := func() *model.MessageEvent {
@@ -161,5 +164,7 @@ func n14SetupDingTalk(t *testing.T) (*DingTalkAppService, uint, *gorm.DB) {
 	}
 	mc := cache.NewMemoryCache()
 	t.Cleanup(mc.Close)
-	return NewDingTalkAppService(db, &WebhookService{ingressSvc: NewInboxIngressServiceWithDB(db, mc)}), acc.ID, db
+	ingress := NewInboxIngressService()
+	ingress.cache = mc
+	return NewDingTalkAppService(db, &WebhookService{ingressSvc: ingress}), acc.ID, db
 }

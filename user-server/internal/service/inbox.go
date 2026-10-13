@@ -15,10 +15,9 @@ import (
 
 	"hivemtk-user/internal/model"
 
-	dbUtil "hivemtk-user/internal/pkg/db"
-
 	"hivemtk-user/internal/repository"
 
+	dbUtil "hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"sort"
 
@@ -144,10 +143,8 @@ type InboxService struct {
 }
 
 func NewInboxService() *InboxService {
-	return NewInboxServiceWithDB(dbUtil.GetDB())
-}
-
-func NewInboxServiceWithDB(db *gorm.DB) *InboxService {
+	db := dbUtil.GetDB()
+	// 与原 WithDB 语义一致：全局无 DB 时 repo 留 nil，读路径返回空（单测 NilDB 家族依赖此行为）。
 	var inboxRepo *repository.InboxConversationRepository
 	var assignmentRepo *repository.InboxAssignmentRepository
 	var hubRepo *repository.MessageHubRepository

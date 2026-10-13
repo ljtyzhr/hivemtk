@@ -35,21 +35,19 @@ type ChatChannelService struct {
 
 // NewChatChannelService 构造 ChatChannelService
 //
-// 严格模式：db 为 nil 时返回 error（不再 panic），由调用方决定降级或 fail-fast。
-// 兼容：保留 panic 行为作为最后兜底，避免任何调用方意外解包 nil。
-func NewChatChannelService(db *gorm.DB) (*ChatChannelService, error) {
-	if db == nil {
-		return nil, errors.New("ChatChannelService: db is nil")
+// 严格模式：repo 为 nil 时返回 error（不再 panic），由调用方决定降级或 fail-fast。
+func NewChatChannelService(repo *repository.ChatChannelRepository) (*ChatChannelService, error) {
+	if repo == nil {
+		return nil, errors.New("ChatChannelService: repo is nil")
 	}
-	return &ChatChannelService{repo: repository.NewChatChannelRepositoryWithDB(db)}, nil
+	return &ChatChannelService{repo: repo}, nil
 }
 
-// MustNewChatChannelService 兼容性构造（db 为 nil 时 panic）
+// MustNewChatChannelService 兼容性构造（repo 为 nil 时 panic）
 //
-// 适用于 router/启动阶段（已确保 db 已初始化），保留旧调用形态
-// 避免对所有调用方做侵入式修改。
-func MustNewChatChannelService(db *gorm.DB) *ChatChannelService {
-	svc, err := NewChatChannelService(db)
+// 适用于 router/启动阶段（已确保 repo 已初始化），保留旧调用形态
+func MustNewChatChannelService(repo *repository.ChatChannelRepository) *ChatChannelService {
+	svc, err := NewChatChannelService(repo)
 	if err != nil {
 		panic(err.Error())
 	}

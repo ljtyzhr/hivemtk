@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"hivemtk-user/internal/model"
+	dbpkg "hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/pkg/testutil"
 	"hivemtk-user/internal/websocket"
 )
@@ -19,6 +20,9 @@ func TestReachWebSend_RealEndToEnd(t *testing.T) {
 		&model.AgentStatus{},
 		&model.AISuggestion{},
 	)
+	// SendWeb 链路经无参构造走全局 GetDB()，必须注入本用例的库。
+	dbpkg.SetTestDB(db)
+	t.Cleanup(func() { dbpkg.SetTestDB(nil) })
 
 	sessionID := "real-web-session-001"
 	visitorID := "real-visitor-001"

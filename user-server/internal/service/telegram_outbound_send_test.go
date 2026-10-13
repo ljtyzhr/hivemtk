@@ -39,7 +39,7 @@ func TestTelegramOutboundHubMsgID(t *testing.T) {
 // 保证补触发那一次真实重试的机会不被这条假投递抢走。
 func TestPushTelegramSendFailureTrace(t *testing.T) {
 	db := testutil.NewTestDB(t, &model.MessageHub{}, &model.InboxConversation{})
-	svc := &TelegramIntegrationService{hub: NewMessageHubServiceWithDB(db, nil)}
+	svc := &TelegramIntegrationService{hub: NewMessageHubService()}
 	ctx := context.Background()
 	chatID := int64(8608488936)
 	conv := "8608488936"

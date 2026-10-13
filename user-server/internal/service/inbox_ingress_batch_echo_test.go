@@ -29,7 +29,7 @@ import (
 
 func TestHandleIngressBatch_SelfEchoPersistsNothingAndDupPersists(t *testing.T) {
 	db := testutil.NewTestDBOrSkip(t, &model.MessageHub{})
-	svc := NewInboxIngressServiceWithDB(db, newIsolatedCacheForTest(t))
+	svc := NewInboxIngressService()
 	ctx := context.Background()
 
 	const platform = "xiaohongshu"

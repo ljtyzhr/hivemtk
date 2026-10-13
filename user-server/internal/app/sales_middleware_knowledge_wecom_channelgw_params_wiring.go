@@ -47,6 +47,14 @@ func WireSalesMiddlewareKnowledgeWecomChannelGWConfigParams() []string {
 	})
 	wired = append(wired, "knowledge.max_upload_file_size")
 
+	// 与上一条分列：文档上传（50MB）与商户知识的批量导入（20MB）是两个入口、两种上限，
+	// 并成一条必然要顺手放宽或收紧其中一个。批量导入这条在接线前服务端零校验
+	// （parseBatchFile 直接 io.ReadAll），所以它以前那个"20MB"只活在页面上。
+	knowledgesvc.SetMerchantBatchMaxFileSizeProvider(func() int64 {
+		return int64(cp.GetInt(bg, "knowledge", "merchant_batch_max_file_size", int(knowledgesvc.DefaultMerchantBatchMaxFileSize)))
+	})
+	wired = append(wired, "knowledge.merchant_batch_max_file_size")
+
 	knowledgesvc.SetMerchantKnowledgeMaxLenProvider(func() int {
 		return cp.GetInt(bg, "knowledge", "merchant_knowledge_max_len", knowledgesvc.DefaultMerchantKnowledgeMaxLen)
 	})
