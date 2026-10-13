@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"runtime/debug"
 	"sort"
 	"sync"
 	"time"
@@ -635,7 +636,7 @@ func (c *JourneySleepCron) loop(ctx context.Context) {
 func (c *JourneySleepCron) runOnce(ctx context.Context) (detected []string) {
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Ctx(ctx).Error().Msgf("[JourneySleepCron] 沉睡检测 panic: %v", r)
+			logger.Ctx(ctx).Error().Msgf("[JourneySleepCron] 沉睡检测 panic: %v\nstack: %s", r, debug.Stack())
 			detected = nil
 		}
 	}()

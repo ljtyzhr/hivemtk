@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"net/http"
+	"runtime/debug"
 	"strconv"
 	"strings"
 	"time"
@@ -80,7 +81,7 @@ func (c *AuthController) recordLoginRiskAsync(ctx *gin.Context, username string,
 			if r := recover(); r != nil {
 				// 走统一日志器而不是 stdlib log：stdlib 直接写 stderr，
 				// 任何被打进消息行的可控文本都能凭空劈出一条假日志行。
-				logger.GetLogger().Error().Any("panic", r).Msg("[login-risk] panic recovered")
+				logger.GetLogger().Error().Any("panic", r).Str("stack", string(debug.Stack())).Msg("[login-risk] panic recovered")
 			}
 		}()
 		dctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)

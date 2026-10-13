@@ -7,6 +7,7 @@ import (
 	"hivemtk-user/internal/pkg/timeutil"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
+	"runtime/debug"
 	"time"
 )
 
@@ -77,7 +78,7 @@ func (s *EventTracker) Track(ctx context.Context, dto *EventDTO) error {
 			defer cancel()
 			defer func() {
 				if r := recover(); r != nil {
-					logger.Errorf("event_tracker: AutoTagger.ProcessEvent recovered from panic: %v", r)
+					logger.Errorf("event_tracker: AutoTagger.ProcessEvent recovered from panic: %v\nstack: %s", r, debug.Stack())
 				}
 			}()
 			if err := s.autoTagger.ProcessEvent(asyncCtx, event); err != nil {
