@@ -22,7 +22,7 @@ grep -n "event == nil" internal/service/auto_tagger.go
 cd user-server && go test ./test/integration/ -v -count=1
 ```
 
-**结果**：`ok hivemtk-user/test/integration 8.314s` ✅
+**结果**：`ok hivemtk-user/test/integration 4.453s` ✅
 
 ## Test Results
 
