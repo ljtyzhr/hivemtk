@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"runtime/debug"
 	"time"
 
 	"hivemtk-user/internal/browser_automation/model"
@@ -55,7 +56,7 @@ const ledgerGapNote = "\n写台账未落库、提交点已跨越：本任务未�
 func (f *FeedbackService) OnSessionFinished(ctx context.Context, task *model.BrowserTask, session *model.BrowserSession, finalStatus string, success, total int) {
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Errorf("[BrowserFeedback] panic recovered: %v", r)
+			logger.Errorf("[BrowserFeedback] panic recovered: %v\n%s", r, debug.Stack())
 		}
 	}()
 	writeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), sessionFinalWriteBudget)
@@ -106,7 +107,7 @@ func (f *FeedbackService) OnSessionFinished(ctx context.Context, task *model.Bro
 func (f *FeedbackService) notifyFailure(ctx context.Context, task *model.BrowserTask, session *model.BrowserSession, errMsg string) {
 	defer func() {
 		if r := recover(); r != nil {
-			logger.Errorf("[BrowserFeedback] notify panic recovered: %v", r)
+			logger.Errorf("[BrowserFeedback] notify panic recovered: %v\n%s", r, debug.Stack())
 		}
 	}()
 
