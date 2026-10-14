@@ -92,7 +92,7 @@ jobs:
           npx --yes npm@11 audit --omit=dev --audit-level=high
 
       - name: Upload Pages artifact
-        uses: actions/upload-pages-artifact@v3
+        uses: actions/upload-pages-artifact@v5
         with:
           path: website/dist
 
