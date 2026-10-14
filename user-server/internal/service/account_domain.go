@@ -141,14 +141,17 @@ func (s *ClueService) BatchImportCluesFromDTO(ctx context.Context, reqs []dto.Im
 	}
 
 	if success > 0 {
-		go s.scoreImportedClues(clues)
+		// 评分是导入后的尽力而为补算。仓库在请求上下文里构造，把已取到的库句柄交进协程体：
+		// 在协程体内构造会撞上「测试 cleanup 已把全局句柄置 nil」这一窗，
+		// gorm 在 nil 句柄上直接解引用 ⇒ 整个测试二进制 panic。
+		scoreSvc := NewClueScoreService()
+		go s.scoreImportedClues(scoreSvc, clues)
 	}
 	return success, skipped, nil
 }
 
-func (s *ClueService) scoreImportedClues(clues []*model.Clue) {
+func (s *ClueService) scoreImportedClues(scoreSvc *ClueScoreService, clues []*model.Clue) {
 	ctx := context.Background()
-	scoreSvc := NewClueScoreService()
 	for _, c := range clues {
 		if c == nil {
 			continue
