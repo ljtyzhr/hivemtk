@@ -637,7 +637,7 @@ func (a *IntegrationReachAdapter) recallTelegram(ctx context.Context, hub *model
 	if err != nil {
 		return fmt.Errorf("recallTelegram: 请求失败: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -680,7 +680,7 @@ func (a *IntegrationReachAdapter) recallFeishu(ctx context.Context, hub *model.M
 	if err != nil {
 		return fmt.Errorf("recallFeishu: 请求失败: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -753,7 +753,7 @@ func (a *IntegrationReachAdapter) recallWeCom(ctx context.Context, hub *model.Me
 	if err != nil {
 		return fmt.Errorf("recallWeCom: 请求失败: %w", err)
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	if resp.StatusCode != http.StatusOK {
 		body, _ := io.ReadAll(resp.Body)
@@ -819,7 +819,7 @@ func (a *IntegrationReachAdapter) getFeishuTenantToken(ctx context.Context, acc 
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var tokenResp struct {
 		Code              int    `json:"code"`
@@ -863,7 +863,7 @@ func (a *IntegrationReachAdapter) getWeComAccessToken(ctx context.Context, acc *
 	if err != nil {
 		return "", err
 	}
-	defer resp.Body.Close()
+	defer func() { _ = resp.Body.Close() }()
 
 	var tokenResp struct {
 		ErrCode     int    `json:"errcode"`
