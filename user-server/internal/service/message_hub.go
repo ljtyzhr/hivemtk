@@ -778,3 +778,11 @@ func ListMsgTypes() []string {
 	sort.Strings(out)
 	return out
 }
+
+// UpdateExtra 全量覆盖 hub 行的 extra 字段（用于发送侧回填平台消息 ID 等元数据）。
+func (s *MessageHubService) UpdateExtra(ctx context.Context, id uint, extra map[string]any) error {
+	if s == nil || s.repo == nil {
+		return nil
+	}
+	return s.repo.UpdateExtra(ctx, id, model.JSONMap(extra))
+}

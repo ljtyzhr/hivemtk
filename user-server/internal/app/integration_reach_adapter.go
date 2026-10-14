@@ -1,9 +1,13 @@
 package app
 
 import (
+	"bytes"
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
+	"net/http"
 	"strconv"
 	"strings"
 	"time"
@@ -532,17 +536,18 @@ func composeCardMessage(title, description, link string) string {
 	return b.String()
 }
 
-// Recall 撤回：本服务没有任何渠道的撤回通道，恒返回错误（不是"忘了写"）。
+// Recall 平台撤回：按渠道分派到已接的平台撤回 API（不是"忘了写"）。
 //
-// 两条独立的事实在这里叠着，任何一条单独解决都还发不回一条撤回请求：
-//   - 桥接渠道（抖音/快手/小红书/tiktok/闲鱼）：msgID 是 BridgeReachAdapter 生成的合成键
-//     （或 ContentHash 的总线键），不是平台消息标识，拿它调撤回只会误撤/静默失败；
-//   - 接口渠道：发送侧回执已统一为可 join message_hub 真键（TG `tg-out-{账号}-{平台号}`
-//     / WA=平台 wamid / 飞书 `feishu-out-{账号}-{平台message_id}` / 企微=hub 行键，
-//     I28+I29）；但撤回本身仍未接，且飞书/WA 的平台撤回 API 与键语义合同仍需按渠道拍板。
+//   - TG：POST /bot{token}/deleteMessage，平台窗口 48h
+//   - 飞书：DELETE /open-apis/im/v1/messages/{message_id}，平台窗口 24h
+//   - 企微：POST /cgi-bin/message/recall，平台窗口 24h；平台 msgid 取自 hub 行
+//     Extra["msgid"]（发送侧回填），旧行没有这个字段时如实报 missing msgid 而不是假装撤掉
+//   - WhatsApp：Cloud API 无主动撤回接口（只有用户侧 revoke 通知）⇒ ErrRecallNotSupported
+//   - 桥接渠道（抖音/快手/小红书/tiktok/闲鱼）：msgID 是 BridgeReachAdapter 生成的
+//     合成键（或 ContentHash 总线键），不是平台消息标识 ⇒ ErrRecallNotSupported
 //
-// 要真做撤回，得先改发送侧的 msgID 契约（把平台 id 带回来并落库），那是另一张卡的事，
-// 不在"把已有能力接上"的范围内。
+// 成败一律以平台**业务码**为准，不看 HTTP 状态码：飞书与企微都在 HTTP 200 里回业务码，
+// 只判状态码会把"平台没撤掉"谎报成成功。各渠道窗口见 recallWindow。
 func (a *IntegrationReachAdapter) Recall(ctx context.Context, channel, msgID string) error {
 	ctx = logger.WithModule(ctx, "reach")
 	logger.Ctx(ctx).Debug().Str("channel", channel).Str("msg_id", msgID).Msg("reach recall start")
@@ -599,21 +604,289 @@ func recallWindow(platform string) (time.Duration, bool) {
 }
 
 // recallTelegram 平台撤回（Telegram deleteMessage）。
-// TODO: 平台撤回 API 未接（撤回本身仍未接，见 Recall 注释），暂返回不支持。
 func (a *IntegrationReachAdapter) recallTelegram(ctx context.Context, hub *model.MessageHub) error {
-	return fmt.Errorf("recallTelegram: %w（平台撤回 API 未接）", ErrRecallNotSupported)
+	if a.tg == nil {
+		return fmt.Errorf("recallTelegram: %w", ErrIntegrationServiceNotConfigured)
+	}
+
+	platformMsgID, err := platformMessageID(hub)
+	if err != nil {
+		return err
+	}
+
+	var acc model.TelegramAccount
+	if err := a.db.WithContext(ctx).Where("id = ?", hub.AccountID).First(&acc).Error; err != nil {
+		return fmt.Errorf("recallTelegram: 查 TelegramAccount 无此行: %w", err)
+	}
+
+	url := fmt.Sprintf("https://api.telegram.org/bot%s/deleteMessage", acc.BotToken)
+	reqBody := map[string]interface{}{
+		"chat_id":    hub.ConversationID,
+		"message_id": platformMsgID,
+	}
+	jsonBody, _ := json.Marshal(reqBody)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(jsonBody))
+	if err != nil {
+		return fmt.Errorf("recallTelegram: 构造请求失败: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("recallTelegram: 请求失败: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("recallTelegram: TG 返回 %d: %s", resp.StatusCode, string(body))
+	}
+
+	return nil
 }
 
 // recallFeishu 平台撤回（飞书撤回消息 API）。
-// TODO: 平台撤回 API 未接（撤回本身仍未接，见 Recall 注释），暂返回不支持。
 func (a *IntegrationReachAdapter) recallFeishu(ctx context.Context, hub *model.MessageHub) error {
-	return fmt.Errorf("recallFeishu: %w（平台撤回 API 未接）", ErrRecallNotSupported)
+	if a.feishu == nil {
+		return fmt.Errorf("recallFeishu: %w", ErrIntegrationServiceNotConfigured)
+	}
+
+	platformMsgID, err := platformMessageID(hub)
+	if err != nil {
+		return err
+	}
+
+	var acc model.FeishuAccount
+	if err := a.db.WithContext(ctx).Where("id = ?", hub.AccountID).First(&acc).Error; err != nil {
+		return fmt.Errorf("recallFeishu: 查 FeishuAccount 无此行: %w", err)
+	}
+
+	token, err := a.getFeishuTenantToken(ctx, &acc)
+	if err != nil {
+		return fmt.Errorf("recallFeishu: 获取 tenant_access_token 失败: %w", err)
+	}
+
+	url := fmt.Sprintf("https://open.feishu.cn/open-apis/im/v1/messages/%s", platformMsgID)
+	req, err := http.NewRequestWithContext(ctx, http.MethodDelete, url, nil)
+	if err != nil {
+		return fmt.Errorf("recallFeishu: 构造请求失败: %w", err)
+	}
+	req.Header.Set("Authorization", "Bearer "+token)
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("recallFeishu: 请求失败: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("recallFeishu: 飞书返回 %d: %s", resp.StatusCode, string(body))
+	}
+
+	// 飞书的成败不在状态码上：成功与失败都是 HTTP 200，业务码在 body 的 `code`。
+	// 只看 StatusCode 的话，平台拒绝了这次撤回也会 return nil（消息其实还在飞书里），
+	// 而 Recall 的调用方会把"没撤掉"当成"撤掉了"报给操作者。口径对齐 recallWeCom
+	// 与 internal/service/feishu.go 的 `code != 0` 判定。
+	body, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return fmt.Errorf("recallFeishu: 读取响应失败: %w", err)
+	}
+	return feishuRecallAPIError(body)
+}
+
+// feishuRecallAPIError 把飞书撤回接口的响应体翻译成 Go error：业务码非 0 即失败。
+//
+// 单独拆成纯函数是为了能不起网络就单测这条判定——它正是原先漏掉的那一步。
+func feishuRecallAPIError(body []byte) error {
+	var r struct {
+		Code int    `json:"code"`
+		Msg  string `json:"msg"`
+	}
+	if err := json.Unmarshal(body, &r); err != nil {
+		return fmt.Errorf("recallFeishu: 解析响应失败: %w", err)
+	}
+	if r.Code != 0 {
+		return fmt.Errorf("recallFeishu: 飞书 errcode=%d errmsg=%s", r.Code, r.Msg)
+	}
+	return nil
 }
 
 // recallWeCom 平台撤回（企微撤回消息 API）。
-// TODO: 平台撤回 API 未接（撤回本身仍未接，见 Recall 注释），暂返回不支持。
 func (a *IntegrationReachAdapter) recallWeCom(ctx context.Context, hub *model.MessageHub) error {
-	return fmt.Errorf("recallWeCom: %w（平台撤回 API 未接）", ErrRecallNotSupported)
+	if a.wecom == nil {
+		return fmt.Errorf("recallWeCom: %w", ErrIntegrationServiceNotConfigured)
+	}
+
+	platformMsgID, err := platformMessageID(hub)
+	if err != nil {
+		return err
+	}
+
+	var acc model.WeComAccount
+	if err := a.db.WithContext(ctx).Where("id = ?", hub.AccountID).First(&acc).Error; err != nil {
+		return fmt.Errorf("recallWeCom: 查 WeComAccount 无此行: %w", err)
+	}
+
+	token, err := a.getWeComAccessToken(ctx, &acc)
+	if err != nil {
+		return fmt.Errorf("recallWeCom: 获取 access_token 失败: %w", err)
+	}
+
+	url := fmt.Sprintf("https://qyapi.weixin.qq.com/cgi-bin/message/recall?access_token=%s", token)
+	reqBody := map[string]interface{}{
+		"msgid": platformMsgID,
+	}
+	jsonBody, _ := json.Marshal(reqBody)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(jsonBody))
+	if err != nil {
+		return fmt.Errorf("recallWeCom: 构造请求失败: %w", err)
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return fmt.Errorf("recallWeCom: 请求失败: %w", err)
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		body, _ := io.ReadAll(resp.Body)
+		return fmt.Errorf("recallWeCom: 企微返回 %d: %s", resp.StatusCode, string(body))
+	}
+
+	var respBody struct {
+		ErrCode int    `json:"errcode"`
+		ErrMsg  string `json:"errmsg"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&respBody); err != nil {
+		return fmt.Errorf("recallWeCom: 解析响应失败: %w", err)
+	}
+	if respBody.ErrCode != 0 {
+		return fmt.Errorf("recallWeCom: 企微 errcode=%d errmsg=%s", respBody.ErrCode, respBody.ErrMsg)
+	}
+
+	return nil
+}
+
+// platformMessageID 从 hub 行反查平台消息标识。
+func platformMessageID(hub *model.MessageHub) (string, error) {
+	switch hub.Platform {
+	case "telegram", "feishu":
+		parts := strings.Split(hub.MsgID, "-")
+		if len(parts) < 3 {
+			return "", fmt.Errorf("invalid hub key format: %s", hub.MsgID)
+		}
+		return parts[len(parts)-1], nil
+	case "wecom":
+		if hub.Extra != nil {
+			if msgid, ok := hub.Extra["msgid"].(string); ok && msgid != "" {
+				return msgid, nil
+			}
+		}
+		return "", fmt.Errorf("wecom hub extra missing msgid")
+	default:
+		return "", fmt.Errorf("unsupported platform: %s", hub.Platform)
+	}
+}
+
+// getFeishuTenantToken 获取飞书 tenant_access_token（带缓存）。
+func (a *IntegrationReachAdapter) getFeishuTenantToken(ctx context.Context, acc *model.FeishuAccount) (string, error) {
+	if acc.AccessToken != "" && acc.TokenExpires != nil && time.Now().Before(*acc.TokenExpires) {
+		return acc.AccessToken, nil
+	}
+
+	url := "https://open.feishu.cn/open-apis/auth/v3/tenant_access_token/internal"
+	reqBody := map[string]interface{}{
+		"app_id":     acc.AppID,
+		"app_secret": acc.AppSecret,
+	}
+	jsonBody, _ := json.Marshal(reqBody)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, url, bytes.NewReader(jsonBody))
+	if err != nil {
+		return "", err
+	}
+	req.Header.Set("Content-Type", "application/json")
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	var tokenResp struct {
+		Code              int    `json:"code"`
+		Msg               string `json:"msg"`
+		TenantAccessToken string `json:"tenant_access_token"`
+		Expire            int    `json:"expire"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
+		return "", err
+	}
+	if tokenResp.Code != 0 {
+		return "", fmt.Errorf("feishu auth errcode=%d errmsg=%s", tokenResp.Code, tokenResp.Msg)
+	}
+
+	acc.AccessToken = tokenResp.TenantAccessToken
+	expiresAt := time.Now().Add(time.Duration(tokenResp.Expire-300) * time.Second)
+	acc.TokenExpires = &expiresAt
+	a.db.WithContext(ctx).Model(acc).Updates(map[string]interface{}{
+		"access_token":  acc.AccessToken,
+		"token_expires": acc.TokenExpires,
+	})
+
+	return acc.AccessToken, nil
+}
+
+// getWeComAccessToken 获取企微 access_token（带缓存）。
+func (a *IntegrationReachAdapter) getWeComAccessToken(ctx context.Context, acc *model.WeComAccount) (string, error) {
+	if acc.AccessToken != "" && time.Now().Before(acc.TokenExpires) {
+		return acc.AccessToken, nil
+	}
+
+	url := fmt.Sprintf("https://qyapi.weixin.qq.com/cgi-bin/gettoken?corpid=%s&corpsecret=%s", acc.CorpID, acc.CorpSecret)
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, nil)
+	if err != nil {
+		return "", err
+	}
+
+	client := &http.Client{Timeout: 10 * time.Second}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "", err
+	}
+	defer resp.Body.Close()
+
+	var tokenResp struct {
+		ErrCode     int    `json:"errcode"`
+		ErrMsg      string `json:"errmsg"`
+		AccessToken string `json:"access_token"`
+		ExpiresIn   int    `json:"expires_in"`
+	}
+	if err := json.NewDecoder(resp.Body).Decode(&tokenResp); err != nil {
+		return "", err
+	}
+	if tokenResp.ErrCode != 0 {
+		return "", fmt.Errorf("wecom gettoken errcode=%d errmsg=%s", tokenResp.ErrCode, tokenResp.ErrMsg)
+	}
+
+	acc.AccessToken = tokenResp.AccessToken
+	expiresAt := time.Now().Add(time.Duration(tokenResp.ExpiresIn-300) * time.Second)
+	acc.TokenExpires = expiresAt
+	a.db.WithContext(ctx).Model(acc).Updates(map[string]interface{}{
+		"access_token":  acc.AccessToken,
+		"token_expires": acc.TokenExpires,
+	})
+
+	return acc.AccessToken, nil
 }
 
 // platformMessageID 从 hub 行反查平台消息标识。

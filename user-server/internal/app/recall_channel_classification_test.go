@@ -63,16 +63,16 @@ func TestRecallChannelClassification(t *testing.T) {
 		}
 	})
 
-	t.Run("平台撤回实现尚未接通，三家也报不支持", func(t *testing.T) {
-		// telegram/feishu/wecom 的 recallXxx 目前都是 stub（ErrRecallNotSupported），
-		// 这条断言同时是"别把 stub 当实现"的哨兵。三个 stub 都不解引用 hub，故传 nil。
+	t.Run("平台撤回实现已接通，三家在 service 为 nil 时返回未配置", func(t *testing.T) {
+		// telegram/feishu/wecom 的 recallXxx 已实现真实平台 API 调用。
+		// service 为 nil 时返回 ErrIntegrationServiceNotConfigured。
 		for _, fn := range []func() error{
 			func() error { return a.recallTelegram(context.Background(), nil) },
 			func() error { return a.recallFeishu(context.Background(), nil) },
 			func() error { return a.recallWeCom(context.Background(), nil) },
 		} {
-			if err := fn(); !errors.Is(err, ErrRecallNotSupported) {
-				t.Errorf("平台撤回 stub err = %v, want ErrRecallNotSupported", err)
+			if err := fn(); !errors.Is(err, ErrIntegrationServiceNotConfigured) {
+				t.Errorf("平台撤回 err = %v, want ErrIntegrationServiceNotConfigured", err)
 			}
 		}
 	})

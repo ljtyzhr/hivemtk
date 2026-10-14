@@ -201,3 +201,13 @@ func (r *MessageHubRepository) UpdateMediaURLByMsgID(ctx context.Context, platfo
 		Where("platform = ? AND msg_id = ?", platform, msgID).
 		Update("media_url", mediaURL).Error
 }
+
+// UpdateExtra 全量覆盖 hub 行的 extra 字段（用于发送侧回填平台消息 ID 等元数据）。
+func (r *MessageHubRepository) UpdateExtra(ctx context.Context, id uint, extra model.JSONMap) error {
+	if r == nil || r.db == nil || id == 0 {
+		return nil
+	}
+	return r.db.WithContext(ctx).Model(&model.MessageHub{}).
+		Where("id = ?", id).
+		Update("extra", extra).Error
+}

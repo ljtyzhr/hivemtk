@@ -11,6 +11,7 @@ import (
 	"gorm.io/gorm"
 
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
 )
 
@@ -175,13 +176,19 @@ func (s *WeComIntegrationService) SendMessage(ctx context.Context, req *WeComSen
 		(os.Getenv("IS_TEST_MODE") == "1" && os.Getenv("WECOM_ALLOW_OUTBOUND") != "1")
 	if !disableOutbound {
 		if wa, err := s.repo.GetByID(ctx, req.AccountID); err == nil && wa != nil && wa.CorpID != "" && wa.CorpSecret != "" {
-			if _, serr := s.wecom.SendMessage(ctx, wa, &WeComSendMessageRequest{
+			if msgID, serr := s.wecom.SendMessage(ctx, wa, &WeComSendMessageRequest{
 				ToUser:  req.ExternalUserID,
 				MsgType: req.MsgType,
 				Content: req.Content,
 				MediaID: req.MediaID,
 			}); serr != nil {
 				return hubMsg, fmt.Errorf("wecom outbound api: %w", serr)
+			} else if msgID != "" {
+				// 把企微平台 msgid 写入 hub 行 Extra，供 recallWeCom 撤回时读取。
+				// 旧消息无此字段 → 撤回会返回 "wecom hub extra missing msgid"（预期行为）。
+				if err := s.hub.UpdateExtra(ctx, hubMsg.ID, map[string]any{"msgid": msgID}); err != nil {
+					logger.Warnf("[WeCom] 回填 msgid 到 hub 行失败 hub_id=%d msgid=%s: %v", hubMsg.ID, msgID, err)
+				}
 			}
 		}
 	}
