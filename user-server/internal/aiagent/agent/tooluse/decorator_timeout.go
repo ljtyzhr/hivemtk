@@ -26,7 +26,7 @@ func TimeoutDecorator(duration time.Duration) ToolDecorator {
 				defer func() {
 					if rec := recover(); rec != nil {
 						stack := string(debug.Stack())
-					ch <- ret{ErrorResult(GetToolName(childCtx), fmt.Errorf("%w: %v\n%s", ErrToolPanic, rec, stack)), ErrToolPanic}
+						ch <- ret{ErrorResult(GetToolName(childCtx), fmt.Errorf("%w: %v\n%s", ErrToolPanic, rec, stack)), ErrToolPanic}
 					}
 				}()
 				r, e := next(childCtx, args)

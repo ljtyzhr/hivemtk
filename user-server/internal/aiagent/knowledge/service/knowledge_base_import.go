@@ -8,7 +8,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"runtime/debug"
 	"hivemtk-user/internal/aiagent/knowledge/model"
 	rag_core "hivemtk-user/internal/aiagent/rag/core"
 	ragretrieval "hivemtk-user/internal/aiagent/rag/retrieval"
@@ -19,6 +18,7 @@ import (
 	"mime/multipart"
 	"os"
 	"path/filepath"
+	"runtime/debug"
 	"strings"
 	"time"
 
