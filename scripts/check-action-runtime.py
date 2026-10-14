@@ -64,6 +64,10 @@ RUNTIMES = {
     "actions/upload-artifact@v4": "node20",
     "actions/upload-artifact@v7": "node24",
     "actions/upload-pages-artifact@v3": "composite",
+    # v5 的 runs.using 于 2026-10-14 现读 v5 tag 的 action.yml（runs: using: composite），
+    # 非按"v5 比 v3 新所以大概已迁 node24"推出来：它是 composite，本来就没有 node 运行时，
+    # 抬 major 号不会改变这一格。website-pages.yml 已在合并 upstream/master 时从 v3 抬到 v5。
+    "actions/upload-pages-artifact@v5": "composite",
     "codecov/codecov-action@v4": "node20",
     "codecov/codecov-action@v7": "composite",
     "gitleaks/gitleaks-action@v2": "node20",
