@@ -63,9 +63,9 @@
 
 ### 3.1 安装依赖
 
-版本要求来自 [DEPLOYMENT_GUIDE.md §4.1](../DEPLOYMENT_GUIDE.md)（Go 按 `user-server/go.mod`
-的 `go 1.26.0` / `toolchain go1.26.6`；`user-web/package.json` 没有 `engines` 段，
-Node 版本按文档口径取 18 LTS+）：
+版本要求来自 [DEPLOYMENT_GUIDE.md §4.1](../DEPLOYMENT_GUIDE.md)（Go 以
+`user-server/go.mod` 的 `go` / `toolchain` 两行为准，本文不抄具体数字——抄了就会过期；
+`user-web/package.json` 没有 `engines` 段，Node 版本按文档口径取 18 LTS+）：
 
 | 软件 | 版本 | 用途 | 验证 |
 |------|------|------|------|

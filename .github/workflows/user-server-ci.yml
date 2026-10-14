@@ -178,7 +178,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          go-version: '1.26'
+          go-version: '1.26.9'
           cache: true
           cache-dependency-path: user-server/go.sum
 
@@ -470,7 +470,11 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          go-version: '1.26'
+          # 钉到补丁号而不是 '1.26'：浮动口径由 setup-go 的版本索引解析，本轮 CI 日志里
+          # 解析结果是 go1.26.8；而本轮报出的 12 条 stdlib 通告的 "Fixed in" 正是 go1.26.9，
+          # 差一个补丁号就整批仍判「可达」——这道门禁红，红的却不是本仓代码。
+          # 升档时同步改 user-server/go.mod 的 toolchain，别留两个版本源。
+          go-version: '1.26.9'
           cache: true
           cache-dependency-path: user-server/go.sum
 
@@ -528,7 +532,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          go-version: '1.26'
+          go-version: '1.26.9'
           cache: true
           cache-dependency-path: user-server/go.sum
 
@@ -627,7 +631,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          go-version: '1.26'
+          go-version: '1.26.9'
           cache: true
           cache-dependency-path: user-server/go.sum
 
@@ -704,7 +708,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          go-version: '1.26'
+          go-version: '1.26.9'
           cache: true
           cache-dependency-path: user-server/go.sum
 
@@ -847,7 +851,7 @@ jobs:
       - name: Set up Go
         uses: actions/setup-go@v7
         with:
-          go-version: '1.26'
+          go-version: '1.26.9'
           cache: true
           cache-dependency-path: user-server/go.sum
 
