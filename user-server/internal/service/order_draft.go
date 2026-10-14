@@ -155,19 +155,16 @@ type OrderDraftConfig struct {
 //
 // 默认仍是内存：本卡的 AC③ 要求"现有调用方零改动通过编译"，而存量 25 个用例把
 // 返回的 *OrderDraft 当活对象用（改完字段直接断言列表/过期结果）。要 durable 底座
-// 请显式走 NewOrderDraftServiceWithDB —— 两条路的可观察差异由契约测试钉住。
+// 请显式走 NewOrderDraftServiceWithRepo —— 两条路的可观察差异由契约测试钉住。
 func NewOrderDraftService() *OrderDraftService {
 	return newOrderDraftService(nil, newMemoryDraftStore())
 }
 
-// NewOrderDraftServiceWithDB 用持久化底座创建服务（T-P2-01 的交付物）。
-//
-// 生产装配点当前**不存在**（整条销售草稿竖今天没有构造点，见 T-P2-06），所以本函数
-// 今天只有测试在调 —— 这是事实，不是遗漏：底座先落地、装配另开卡，是为了不在
-// "连对象都没人 new"的代码上叠加"重启不丢"这种可对外宣称的能力。
-//
-
-// NewOrderDraftServiceWithRepo 用指定仓库创建（注入 mock / 复用测试库句柄时用）。
+// NewOrderDraftServiceWithRepo 用持久化底座创建服务（T-P2-01 的交付物）：
+// 底座由注入的仓库决定，注入 mock 或复用测试库句柄也走这一口。
+// 生产装配点在 internal/app/order_draft_wiring.go 的 orderDraftOn 分支
+// （FF_LTC_ORDER_DRAFT_DB 三态里的 on，旗值 durable 也归一到它；db 句柄缺席时它会退回内存），
+// 删掉那一行则草稿只活在内存里、重启即丢。
 func NewOrderDraftServiceWithRepo(cfg *OrderDraftConfig, repo repository.OrderDraftRepository) *OrderDraftService {
 	return newOrderDraftService(cfg, newDBDraftStore(repo))
 }

@@ -80,7 +80,10 @@ BASELINE=(
   #   那条定时路径的调用方，8d 是生产者注入点（它一旦被删，AI 谈单就不再产草稿，
   #   而编译、单测、真机对话全都不会红——只有这一行会红）。
   #   一符号一行是这张表的硬约束（IFS='|' 切列，正则里的或会被拦腰截断）。
-  "8|订单草稿持久化底座的装配入口|func NewOrderDraftServiceWithDB|NewOrderDraftServiceWithDB\(|internal/app cmd/api|wired"
+  #   8a 的锚点随构造器收口改写（`4b2c05d3`：*gorm.DB 参数换成注入 repository）从
+  #   func NewOrderDraftServiceWithDB 换到 func NewOrderDraftServiceWithRepo —— 换锚不是放宽判据：
+  #   这一格守的还是「durable 底座的构造口在、且 internal/app 有人调它」。
+  "8|订单草稿持久化底座的装配入口|func NewOrderDraftServiceWithRepo|NewOrderDraftServiceWithRepo\(|internal/app cmd/api|wired"
   "8|订单草稿运行时装配（FF_LTC_ORDER_DRAFT_DB 三态）|func InitOrderDraftRuntime|InitOrderDraftRuntime\(|internal/app internal/router|wired"
   "8|订单草稿到期/终态清扫的定时调用方|func NewOrderDraftSweepWorker|NewOrderDraftSweepWorker\(|internal/app|wired"
   "8|AI 响应→建草稿的生产者注入点|func \\(o \\*SmartCSOrchestrator\\) SetOrderDraftProducer|SetOrderDraftProducer\(|internal/app|wired"
