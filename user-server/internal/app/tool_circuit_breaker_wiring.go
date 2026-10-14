@@ -148,7 +148,7 @@ func envDuration(env string, min, max time.Duration) (time.Duration, bool) {
 //
 // 保留"只看 env 这一层"的入口是给单测与排障用的：运维问"这个环境变量到底生效没"时，
 // 需要一个不被参数中心干扰的读法。生产装配走 resolveToolCircuitConfig。
-func toolCircuitConfigFromEnv() tooluse.CircuitBreakerConfig {
+func toolCircuitConfigFromEnv() tooluse.CircuitBreakerConfig { //nolint:unused //// 仅被 *_test.go 引用，生产路径未用
 	return circuitEnvOver(tooluse.DefaultCircuitBreakerConfig())
 }
 

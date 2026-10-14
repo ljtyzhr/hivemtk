@@ -316,7 +316,7 @@ func newDBDraftStore(repo repository.OrderDraftRepository) *dbDraftStore {
 //
 // 回退必须出声：静默回内存 = "以为重启后草稿还在、其实没了"，
 // 而这正是本卡开工前整个功能的实际状态（一句话都不说过）。
-func newDraftStoreForDB(db *gorm.DB) draftStore {
+func newDraftStoreForDB(db *gorm.DB) draftStore { //nolint:unused //// 仅被 *_test.go 引用，生产路径未用
 	if db == nil {
 		logger.Warnf("[order-draft] ⚠️ 未拿到 DB 句柄 ⇒ 草稿退回内存态（重启即丢、多副本各看各的）")
 		return newMemoryDraftStore()
