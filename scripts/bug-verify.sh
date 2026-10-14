@@ -62,6 +62,9 @@ usage() {
   --race               go test 加 -race
   --allow-dirty PATH   把这些路径的工作树版本带进克隆（逐个点名）
   --skip-audit         只跑 build/vet，不跑 make -k audit
+  --lint-md            在克隆里跑 markdownlint-cli2（make audit 里没有它，唯一执行点是
+                       CI 的 Markdown Lint 作业 ⇒ 不带这一档，**/*.md 的形状违规会
+                       一路活到 CI 才红）
   --push-plan          额外检查 gitee-upstream / upstream 的 fast-forward（只读）
   --keep               保留干净克隆目录并打印路径
 退出码: 0 全绿 / 1 未通过（判定红或不可直推） / 2 前提不满足（不是通过）
@@ -73,9 +76,15 @@ SLUG=''
 PACKAGES=''
 RACE=0
 SKIP_AUDIT=0
+LINT_MD=0
 PUSH_PLAN=0
 KEEP=0
 DIRTY_LIST=()
+
+# run_step 拼红因 grep 时用的可选前缀模式。默认必须「永不匹配」：空串会让那个
+# 交替表达式变成 `|undefined:|...`，开头的空分支匹配一切，于是任何一档红了都把
+# 日志头三行当红因印出来。
+EXTRA_REASON_RE='ZZZ_NEVER_MATCH_ZZZ'
 
 while [[ $# -gt 0 ]]; do
     case "$1" in
@@ -83,6 +92,7 @@ while [[ $# -gt 0 ]]; do
         --packages)   PACKAGES="${2:-}"; shift 2 ;;
         --race)       RACE=1; shift ;;
         --skip-audit) SKIP_AUDIT=1; shift ;;
+        --lint-md)    LINT_MD=1; shift ;;
         --push-plan)  PUSH_PLAN=1; shift ;;
         --keep)       KEEP=1; shift ;;
         --allow-dirty)
@@ -317,7 +327,7 @@ run_step() {
     else
         # 红因必须当场读出来：只印 rc 等于让人回去翻，而翻的时候往往已经在猜
         local reason
-        reason="$(grep -m3 -E -- 'undefined:|cannot find|Error:|FAIL|panic:|\[ERROR\]' "${log}" | tr '\n' ';')"
+        reason="$(grep -m3 -E -- "${EXTRA_REASON_RE}|undefined:|cannot find|Error:|FAIL|panic:|\[ERROR\]" "${log}" | tr '\n' ';')"
         bad "${name} rc=${rc}" "${reason:-见 ${log}}"
         echo "   日志: ${log}"
         STEP_RC=1
@@ -332,6 +342,16 @@ if [[ "${SKIP_AUDIT}" -eq 1 ]]; then
     warn "跳过 make audit（--skip-audit）：静态门这一档＝没读，报告里不许写成「全套门已过」"
 else
     run_step "make -k audit" 12-audit.log "${WORK}" make -k audit
+fi
+
+# markdownlint 在 make audit 里没有档，唯一执行点是 CI 的 Markdown Lint 作业。
+# 不带 --lint-md 的话，**/*.md 的形状违规会一路活到 CI 才红，所以这档必须能显式点名。
+if [[ "${LINT_MD}" -eq 1 ]]; then
+    # markdownlint 的红因行形如 `MD047/single-trailing-newline`，上面那组通用模式一个都匹配不到，
+    # 不补这个变量的话这一档红了只会印「见 <log>」，违背本脚本「红因当场读出来」的约定。
+    EXTRA_REASON_RE='MD[0-9]{2}/'
+    run_step "markdownlint-cli2 (--lint-md)" 14-markdownlint.log "${WORK}" npx -y markdownlint-cli2
+    EXTRA_REASON_RE='ZZZ_NEVER_MATCH_ZZZ'
 fi
 
 if [[ -n "${PACKAGES}" ]]; then
