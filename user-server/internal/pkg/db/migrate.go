@@ -493,6 +493,12 @@ func AutoMigrate() *gorm.DB {
 		logger.Info(fmt.Sprintf("租户唯一索引规范化完成：处理 %d 个索引", n))
 	}
 
+	// 租户登记表 + 隔离 callback（specs/001-saas-multi-tenant T005/T006）：
+	// 登记表以"模型声明 TenantID"为唯一判据；callback 在 off 模式直通、
+	// on 模式注入/填充/fail-closed。注册幂等（同名替换）。
+	tenancyidx.InitTenantRegistry(DB)
+	RegisterTenantCallbacks(DB)
+
 	postMigrateMessageHubUniqueIndex()
 	postMigrateOpportunityClueUniqueIndex(DB)
 	postMigrateObsDefaultUniqueIndex(DB)

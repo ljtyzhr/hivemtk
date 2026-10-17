@@ -11,6 +11,7 @@ import (
 	"fmt"
 	"regexp"
 	"strings"
+	"sync"
 
 	"gorm.io/gorm"
 )
@@ -252,4 +253,80 @@ func compositeIndexDef(def, table, name string) (string, error) {
 
 	return fmt.Sprintf(`CREATE UNIQUE INDEX %q ON %q (tenant_id, %s)%s`,
 		name, table, cols, where), nil
+}
+
+// ---- 租户表登记表（T006）：唯一事实源 = 数据库内省 ----
+//
+// 凡有 tenant_id 列的 BASE TABLE 即租户表，与 T007 动态加列迁移同构——
+// AutoMigrate 路径与迁移路径最终都落到"表上有无 tenant_id 列"。
+
+var (
+	registryMu sync.RWMutex
+	registry   map[string]bool
+)
+
+// InitTenantRegistry 装配期调用（AutoMigrate 尾部 / 测试夹具）：
+// 内省 current_schema 下全部含 tenant_id 列的 BASE TABLE 构建登记表。
+func InitTenantRegistry(gdb *gorm.DB) {
+	if gdb == nil {
+		return
+	}
+	rows, err := gdb.Raw(`
+		SELECT c.table_name
+		FROM information_schema.columns c
+		JOIN information_schema.tables t
+		  ON t.table_schema = c.table_schema AND t.table_name = c.table_name
+		WHERE c.table_schema = current_schema()
+		  AND c.column_name = 'tenant_id'
+		  AND t.table_type = 'BASE TABLE'
+	`).Rows()
+	if err != nil {
+		return // 内省失败按空登记表处理：on 模式全面 fail-closed，off 模式不受影响
+	}
+	defer func() { _ = rows.Close() }()
+
+	reg := make(map[string]bool)
+	for rows.Next() {
+		var name string
+		if err := rows.Scan(&name); err == nil {
+			reg[name] = true
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return
+	}
+	registryMu.Lock()
+	registry = reg
+	registryMu.Unlock()
+}
+
+// IsTenantTable 表是否在租户登记表内（未初始化按"非租户表"，等价 off 行为）
+func IsTenantTable(table string) bool {
+	if table == "" {
+		return false
+	}
+	registryMu.RLock()
+	defer registryMu.RUnlock()
+	if registry == nil {
+		return false
+	}
+	return registry[table]
+}
+
+// RegistrySnapshot 登记表只读快照（测试对账用）
+func RegistrySnapshot() map[string]bool {
+	registryMu.RLock()
+	defer registryMu.RUnlock()
+	out := make(map[string]bool, len(registry))
+	for k, v := range registry {
+		out[k] = v
+	}
+	return out
+}
+
+// ResetRegistryForTest 测试专用：清空登记表（生产代码禁止调用）
+func ResetRegistryForTest() {
+	registryMu.Lock()
+	registry = nil
+	registryMu.Unlock()
 }

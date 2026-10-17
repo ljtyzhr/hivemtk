@@ -250,6 +250,8 @@ func NewTestDB(t testing.TB, models ...any) *gorm.DB {
 		if _, normErr := tenancyidx.Normalize(database); normErr != nil {
 			t.Fatalf("租户唯一索引规范化失败: %v", normErr)
 		}
+		// 租户登记表（数据库内省：有 tenant_id 列的表），供隔离 callback 判定
+		tenancyidx.InitTenantRegistry(database)
 	}
 
 	sqlDB, err := database.DB()
