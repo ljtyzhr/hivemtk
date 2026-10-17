@@ -157,14 +157,16 @@ func (r *MessageHubRepository) FindConversationIDsMissingInbox(ctx context.Conte
 		return nil, nil
 	}
 	var convIDs []string
-	err := r.db.WithContext(ctx).Raw(`
-		SELECT DISTINCT m.conversation_id
-		FROM message_hub m
-		WHERE m.conversation_id IS NOT NULL AND m.conversation_id <> ''
-		  AND NOT EXISTS (
-			SELECT 1 FROM inbox_conversations i WHERE i.conversation_id = m.conversation_id
-		  )
-	`).Scan(&convIDs).Error
+	missingInbox := r.db.WithContext(ctx).
+		Select("1").
+		Table("inbox_conversations").
+		Where("inbox_conversations.conversation_id = message_hub.conversation_id")
+	err := r.db.WithContext(ctx).
+		Table("message_hub").
+		Distinct().
+		Where("message_hub.conversation_id IS NOT NULL AND message_hub.conversation_id <> ''").
+		Where("NOT EXISTS (?)", missingInbox).
+		Pluck("conversation_id", &convIDs).Error
 	if err != nil {
 		return nil, err
 	}
@@ -198,20 +200,16 @@ func (r *MessageHubRepository) NormalizePollutedConversationIDs(ctx context.Cont
 		"| \\d+分钟前| \\d+小时前| \\d+天前" +
 		"| \\d{4}/\\d{1,2}/\\d{1,2}| \\d{1,2}/\\d{1,2}| \\d{1,2}:\\d{2}" +
 		"| 有新交易评价| 交易成功)$"
-	res := r.db.WithContext(ctx).Exec(`
-		UPDATE message_hub m
-		SET conversation_id = regexp_replace(
-			CASE
-				WHEN m.conversation_id LIKE (m.sender_id || ' %') THEN m.sender_id
-				WHEN m.conversation_id LIKE (m.receiver_id || ' %') THEN m.receiver_id
-				ELSE m.conversation_id
-			END,
-			?, '', 'g'
-		)
-		WHERE m.conversation_id LIKE 'conv:%'
-		  AND (m.conversation_id LIKE (m.sender_id || ' %')
-		    OR m.conversation_id LIKE (m.receiver_id || ' %'))`,
-		tsPat)
+	res := r.db.WithContext(ctx).Model(&model.MessageHub{}).
+		Where("conversation_id LIKE 'conv:%'").
+		Where("conversation_id LIKE (sender_id || ' %') OR conversation_id LIKE (receiver_id || ' %')").
+		Updates(map[string]any{
+			"conversation_id": gorm.Expr(
+				"regexp_replace(CASE "+
+					"WHEN conversation_id LIKE (sender_id || ' %') THEN sender_id "+
+					"WHEN conversation_id LIKE (receiver_id || ' %') THEN receiver_id "+
+					"ELSE conversation_id END, ?, '', 'g')", tsPat),
+		})
 	return res.RowsAffected, res.Error
 }
 
@@ -224,10 +222,10 @@ func (r *MessageHubRepository) NormalizePollutedTraceConversationIDs(ctx context
 		"| \\d+分钟前| \\d+小时前| \\d+天前" +
 		"| \\d{4}/\\d{1,2}/\\d{1,2}| \\d{1,2}/\\d{1,2}| \\d{1,2}:\\d{2}" +
 		"| 有新交易评价| 交易成功)$"
-	res := r.db.WithContext(ctx).Exec(`
-		UPDATE message_trace m
-		SET conversation_id = regexp_replace(m.conversation_id, ?, '', 'g')
-		WHERE m.conversation_id LIKE 'conv:% %'`,
-		tsPat)
+	res := r.db.WithContext(ctx).Table("message_trace").
+		Where("conversation_id LIKE 'conv:% %'").
+		Updates(map[string]any{
+			"conversation_id": gorm.Expr("regexp_replace(conversation_id, ?, '', 'g')", tsPat),
+		})
 	return res.RowsAffected, res.Error
 }

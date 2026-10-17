@@ -194,29 +194,63 @@ func (r *InboxConversationRepository) ReconcileUnread(ctx context.Context) (int6
 	if r == nil || r.db == nil {
 		return 0, nil
 	}
-	res := r.db.WithContext(ctx).Exec(`
-		WITH latest AS (
-			SELECT DISTINCT ON (conversation_id) conversation_id, direction
-			FROM message_hub
-			ORDER BY conversation_id, sent_at DESC
-		)
-		UPDATE inbox_conversations ic
-		SET unread_count = CASE
-		        WHEN l.direction = 'inbound' THEN GREATEST(COALESCE(ic.unread_count, 0), 1)
-		        ELSE 0
-		    END,
-		    status = CASE
-		        WHEN l.direction = 'inbound'
-		            THEN CASE WHEN ic.status IN ('assigned', 'closed') THEN ic.status ELSE 'unread' END
-		        ELSE CASE WHEN ic.status IN ('unread', 'active') THEN 'open' ELSE ic.status END
-		    END
-		FROM latest l
-		WHERE ic.conversation_id = l.conversation_id
-	`)
-	if res.Error != nil {
-		return 0, res.Error
+	// 原为单条 CTE+DISTINCT ON+UPDATE FROM（GORM-only 清偿，specs/001-saas-multi-tenant T012）：
+	// 拆为事务内「取每会话最新方向 → 按方向分组 gorm.Expr 批量更新」，幂等修复语义不变。
+	db := r.db.WithContext(ctx)
+	type latestRow struct {
+		ConversationID string
+		Direction      string
 	}
-	return res.RowsAffected, nil
+	var latest []latestRow
+	if err := db.Table("message_hub").
+		Select("DISTINCT ON (conversation_id) conversation_id, direction").
+		Order("conversation_id, sent_at DESC").
+		Scan(&latest).Error; err != nil {
+		return 0, err
+	}
+	inboundIDs := make([]string, 0, len(latest))
+	outboundIDs := make([]string, 0, len(latest))
+	for _, row := range latest {
+		if row.Direction == "inbound" {
+			inboundIDs = append(inboundIDs, row.ConversationID)
+		} else {
+			outboundIDs = append(outboundIDs, row.ConversationID)
+		}
+	}
+
+	var total int64
+	err := db.Transaction(func(tx *gorm.DB) error {
+		total = 0
+		if len(inboundIDs) > 0 {
+			res := tx.Model(&model.InboxConversation{}).
+				Where("conversation_id IN ?", inboundIDs).
+				Updates(map[string]any{
+					"unread_count": gorm.Expr("GREATEST(COALESCE(unread_count, 0), 1)"),
+					"status":       gorm.Expr("CASE WHEN status IN ('assigned', 'closed') THEN status ELSE 'unread' END"),
+				})
+			if res.Error != nil {
+				return res.Error
+			}
+			total += res.RowsAffected
+		}
+		if len(outboundIDs) > 0 {
+			res := tx.Model(&model.InboxConversation{}).
+				Where("conversation_id IN ?", outboundIDs).
+				Updates(map[string]any{
+					"unread_count": 0,
+					"status":       gorm.Expr("CASE WHEN status IN ('unread', 'active') THEN 'open' ELSE status END"),
+				})
+			if res.Error != nil {
+				return res.Error
+			}
+			total += res.RowsAffected
+		}
+		return nil
+	})
+	if err != nil {
+		return 0, err
+	}
+	return total, nil
 }
 
 // NormalizeStatuses 将历史遗留的非标准状态值归一为四值字典：
@@ -228,11 +262,11 @@ func (r *InboxConversationRepository) NormalizeStatuses(ctx context.Context) (in
 	if r == nil || r.db == nil {
 		return 0, nil
 	}
-	res := r.db.WithContext(ctx).Exec(`
-		UPDATE inbox_conversations
-		SET status = CASE WHEN unread_count > 0 THEN 'unread' ELSE 'open' END
-		WHERE status NOT IN ('unread', 'open', 'assigned', 'closed')
-	`)
+	res := r.db.WithContext(ctx).Model(&model.InboxConversation{}).
+		Where("status NOT IN ?", []string{"unread", "open", "assigned", "closed"}).
+		Updates(map[string]any{
+			"status": gorm.Expr("CASE WHEN unread_count > 0 THEN 'unread' ELSE 'open' END"),
+		})
 	if res.Error != nil {
 		return 0, res.Error
 	}
