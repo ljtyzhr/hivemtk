@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"hivemtk-user/internal/model"
 	"time"
 
 	"gorm.io/gorm"
@@ -94,15 +95,14 @@ func (r *TelegramPollingLockRepository) TryAcquirePollingLock(
 	}
 	staleBefore := time.Now().Add(-GetPollingLockStaleThreshold())
 
-	res := r.db.WithContext(ctx).Exec(
-		`UPDATE telegram_accounts
-		 SET polling_owner = ?, polling_heartbeat_at = ?
-		 WHERE id = ?
-		   AND (polling_owner = '' OR polling_owner IS NULL
-		        OR polling_owner = ?
-		        OR (polling_heartbeat_at IS NOT NULL AND polling_heartbeat_at < ?))`,
-		workerID, time.Now(), accountID, workerID, staleBefore,
-	)
+	res := r.db.WithContext(ctx).Model(&model.TelegramAccount{}).
+		Where("id = ? AND (polling_owner = '' OR polling_owner IS NULL OR polling_owner = ? "+
+			"OR (polling_heartbeat_at IS NOT NULL AND polling_heartbeat_at < ?))",
+			accountID, workerID, staleBefore).
+		UpdateColumns(map[string]any{
+			"polling_owner":        workerID,
+			"polling_heartbeat_at": time.Now(),
+		})
 	if res.Error != nil {
 		return false, PollingLockInfo{}, res.Error
 	}
@@ -129,12 +129,9 @@ func (r *TelegramPollingLockRepository) HeartbeatPollingLock(
 	if r == nil || r.db == nil {
 		return true, ErrPollingLockDBNil
 	}
-	res := r.db.WithContext(ctx).Exec(
-		`UPDATE telegram_accounts
-		 SET polling_heartbeat_at = ?
-		 WHERE id = ? AND polling_owner = ?`,
-		time.Now(), accountID, workerID,
-	)
+	res := r.db.WithContext(ctx).Model(&model.TelegramAccount{}).
+		Where("id = ? AND polling_owner = ?", accountID, workerID).
+		UpdateColumns(map[string]any{"polling_heartbeat_at": time.Now()})
 	if res.Error != nil {
 		return true, res.Error
 	}
@@ -153,12 +150,9 @@ func (r *TelegramPollingLockRepository) ReleasePollingLock(
 	if r == nil || r.db == nil {
 		return ErrPollingLockDBNil
 	}
-	res := r.db.WithContext(ctx).Exec(
-		`UPDATE telegram_accounts
-		 SET polling_owner = '', polling_heartbeat_at = NULL
-		 WHERE id = ? AND polling_owner = ?`,
-		accountID, workerID,
-	)
+	res := r.db.WithContext(ctx).Model(&model.TelegramAccount{}).
+		Where("id = ? AND polling_owner = ?", accountID, workerID).
+		UpdateColumns(map[string]any{"polling_owner": "", "polling_heartbeat_at": nil})
 	if res.Error != nil {
 		return res.Error
 	}

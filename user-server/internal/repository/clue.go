@@ -170,8 +170,13 @@ func (r *clueRepo) GetRecentClueList(ctx context.Context) ([]*model.Clue, error)
 
 func (r *clueRepo) GetClueStatistics(ctx context.Context) ([]map[string]any, error) {
 	var statistics []map[string]any
-	db := r.db.WithContext(ctx)
-	err := db.Raw("SELECT type AS type, COUNT(*) AS total, SUM(CASE WHEN COALESCE(is_verify,0) >= 1 THEN 1 ELSE 0 END) AS verify_total FROM clues WHERE deleted_at IS NULL GROUP BY type ORDER BY type").Scan(&statistics).Error
+	err := r.db.WithContext(ctx).Model(&model.Clue{}).
+		Select("type AS type, COUNT(*) AS total, "+
+			"SUM(CASE WHEN COALESCE(is_verify,0) >= 1 THEN 1 ELSE 0 END) AS verify_total").
+		Where("deleted_at IS NULL").
+		Group("type").
+		Order("type").
+		Scan(&statistics).Error
 	return statistics, err
 }
 

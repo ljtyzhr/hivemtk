@@ -5,6 +5,8 @@
 //   - 唯一事实源：AutoMigrate 后与迁移执行后各调用一次 Normalize，幂等
 //   - 排除主键（*_pkey）与约束型 UNIQUE（可能被 ON CONFLICT 显式引用，留人工审计）
 //   - 原位重建（不改名）：基线索引名保持稳定，GORM AutoMigrate 仅按名判存在不会回退
+//   - 豁免命名约定 global_uniq_*：刻意要求「跨租户全局唯一」的索引（如登录邮箱），
+//     复合化会摧毁该语义，故按前缀排除（T029/T031 开户与邮箱登录通道依赖）
 package tenancyidx
 
 import (

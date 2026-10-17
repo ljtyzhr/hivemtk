@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // AgentCheckpoint 单条记录
@@ -35,11 +36,22 @@ func (r *AgentCheckpointRepository) Save(ctx context.Context, threadID, stage st
 	if threadID == "" || stage == "" {
 		return nil
 	}
-	return r.db.WithContext(ctx).Exec(`
-		INSERT INTO agent_checkpoints (thread_id, stage, state, created_at, updated_at)
-		VALUES (?, ?, ?, NOW(), NOW())
-		ON CONFLICT (tenant_id, thread_id, stage) DO UPDATE SET state = EXCLUDED.state, updated_at = NOW()`,
-		threadID, stage, string(state)).Error
+	now := time.Now()
+	return r.db.WithContext(ctx).Table("agent_checkpoints").
+		Clauses(clause.OnConflict{
+			Columns: []clause.Column{{Name: "tenant_id"}, {Name: "thread_id"}, {Name: "stage"}},
+			DoUpdates: clause.Assignments(map[string]any{
+				"state":      string(state),
+				"updated_at": now,
+			}),
+		}).
+		Create(map[string]any{
+			"thread_id":  threadID,
+			"stage":      stage,
+			"state":      string(state),
+			"created_at": now,
+			"updated_at": now,
+		}).Error
 }
 
 // LoadAllByThread 取该 thread 的全部阶段快照（单线程上限 = 阶段数，量级 5）。

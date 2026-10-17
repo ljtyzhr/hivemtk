@@ -166,15 +166,18 @@ func (r *ChannelOverviewRepository) UpdateCustomerChannelField(ctx context.Conte
 // CountCustomersByID 统计指定主键的客户数（诊断用）
 func (r *ChannelOverviewRepository) CountCustomersByID(ctx context.Context, customerID string) (int64, error) {
 	var n int64
-	err := r.db.WithContext(ctx).Raw(`SELECT COUNT(*) FROM customers WHERE id = ?`, customerID).Scan(&n).Error
+	err := r.db.WithContext(ctx).Model(&model.Customer{}).Where("id = ?", customerID).Count(&n).Error
 	return n, err
 }
 
 // GetCustomerIdentity 读取客户基础身份四字段
 func (r *ChannelOverviewRepository) GetCustomerIdentity(ctx context.Context, customerID string) (*model.Customer, error) {
 	var cust model.Customer
-	row := r.db.WithContext(ctx).Raw(`SELECT unified_id, phone, email, name FROM customers WHERE id = ?`, customerID).Row()
-	if err := row.Scan(&cust.UnifiedID, &cust.Phone, &cust.Email, &cust.Name); err != nil {
+	err := r.db.WithContext(ctx).Model(&model.Customer{}).
+		Select("unified_id, phone, email, name").
+		Where("id = ?", customerID).
+		Scan(&cust).Error
+	if err != nil {
 		return nil, err
 	}
 	return &cust, nil

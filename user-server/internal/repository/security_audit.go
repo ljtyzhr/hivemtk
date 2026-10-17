@@ -102,12 +102,16 @@ func (r *SecurityAuditRepository) GetByID(ctx context.Context, id uint) (*model.
 	return &a, nil
 }
 
-// PingDB 执行 SELECT 1 探活
+// PingDB 探活（sqlDB.PingContext：连接层健康检查，无表语义）
 func (r *SecurityAuditRepository) PingDB(ctx context.Context) error {
 	if r == nil || r.db == nil {
 		return errors.New("security audit repository not initialized")
 	}
-	return r.db.WithContext(ctx).Exec("SELECT 1").Error
+	sqlDB, err := r.db.DB()
+	if err != nil {
+		return err
+	}
+	return sqlDB.PingContext(ctx)
 }
 
 // CountSystemUserByRole 按角色统计 SystemUser 数
