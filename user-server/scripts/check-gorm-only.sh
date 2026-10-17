@@ -5,6 +5,8 @@
 #   - 豁免目录：internal/migration/（DDL 是迁移的合法形态）
 #   - 豁免文件：internal/pkg/db/migrate.go（schema 引导 DDL：CREATE EXTENSION/ALTER/DROP INDEX，
 #     运行于 AutoMigrate 生命周期，与 migration 同类）
+#   - 豁免文件：internal/pkg/tenancyidx/tenancyidx.go（schema 自省/索引规范化 DDL，
+#     运行于 AutoMigrate 与迁移生命周期，SystemTenant 路径，与 migration 同类）
 #   - 豁免目录：internal/pkg/testutil/（测试库基建 DDL，如 CREATE DATABASE，等价 migration 语义）
 #   - 豁免文件：*_test.go（测试夹具，不承载生产隔离语义）
 #
@@ -26,6 +28,7 @@ violations=$(grep -rn --include='*.go' -e '\.Exec(' -e '\.Raw(' internal/ 2>/dev
   | grep -v '^internal/migration/' \
   | grep -v '^internal/pkg/testutil/' \
   | grep -v '^internal/pkg/db/migrate\.go:' \
+  | grep -v '^internal/pkg/tenancyidx/' \
   | grep -v '_test\.go' \
   || true)
 

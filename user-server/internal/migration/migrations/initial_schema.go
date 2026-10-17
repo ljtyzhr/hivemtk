@@ -217,5 +217,6 @@ func RegisterMigrations(registry *migration.MigrationRegistry, db *gorm.DB) {
 	register(NewTenantTableMigration(db))
 	register(NewTenantColumnBatchMigration(db))
 	register(NewTenantUniqueIndexMigration(db))
+	register(NewTenantGlobalEmailUniqueMigration(db))
 	register(NewAggregationWatermarkPKMigration(db))
 }

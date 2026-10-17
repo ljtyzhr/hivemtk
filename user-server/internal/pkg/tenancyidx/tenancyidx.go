@@ -74,6 +74,7 @@ func constraintTargets(db *gorm.DB) ([]uniqConstraint, error) {
 		JOIN pg_namespace n ON n.oid = t.relnamespace
 		WHERE c.contype = 'u'
 		  AND n.nspname = current_schema()
+		  AND c.conname NOT LIKE 'global\_uniq\_%'
 		  AND pg_get_constraintdef(c.oid) NOT LIKE '%tenant_id%'
 		  AND EXISTS (
 			SELECT 1 FROM information_schema.columns col
@@ -158,6 +159,7 @@ func targets(db *gorm.DB) ([]uniqIndex, error) {
 		WHERE i.schemaname = current_schema()
 		  AND i.indexdef LIKE 'CREATE UNIQUE %'
 		  AND i.indexname NOT LIKE '%\_pkey'
+		  AND i.indexname NOT LIKE 'global\_uniq\_%'
 		  AND i.indexdef NOT LIKE '%tenant_id%'
 		  AND NOT EXISTS (
 			SELECT 1 FROM pg_constraint c
