@@ -22,9 +22,9 @@ description: "任务清单：SaaS 多租户与离线单机双形态一体化"
 
 ## Phase 1: Setup（共享基建）
 
-- [ ] T001 新增 `user-server/internal/pkg/tenant/` 包：`WithTenantID/FromContext` ctx 读写、`SystemTenant` 豁免标记、`TENANT_MODE` 解析（off 默认 / on）、`DEFAULT_TENANT_ID=1` 常量；单测覆盖 off/on 解析与 ctx 往返（tenant.go + tenant_test.go）
-- [ ] T002 [P] `.env-example`、`docs/architecture/部署方案_用户端.md` 补 `TENANT_MODE`/`DEFAULT_TENANT_ID` 双形态说明与升级指引
-- [ ] T003 [P] 新增 `user-server/scripts/check-gorm-only.sh`：grep 门禁——`internal/` 下除 `internal/migration/` 外禁 `.Exec(`/`.Raw(`；输出违规文件清单；挂入 `Makefile` 的 `audit` 目标（先可独立运行，此时预期红——债务未清）
+- [x] T001 新增 `user-server/internal/pkg/tenant/` 包：`WithTenantID/FromContext` ctx 读写、`SystemTenant` 豁免标记、`TENANT_MODE` 解析（off 默认 / on）、`DEFAULT_TENANT_ID=1` 常量；单测覆盖 off/on 解析与 ctx 往返（tenant.go + tenant_test.go）
+- [x] T002 [P] `.env-example`、`docs/architecture/部署方案_用户端.md` 补 `TENANT_MODE`/`DEFAULT_TENANT_ID` 双形态说明与升级指引
+- [x] T003 [P] 新增 `user-server/scripts/check-gorm-only.sh`：grep 门禁——`internal/` 下除 `internal/migration/`、`internal/pkg/db/migrate.go`（schema 引导 DDL）、`internal/pkg/testutil/`（测试库基建）与 `*_test.go` 外禁 `.Exec(`/`.Raw(`；输出违规文件清单；挂入 `Makefile` 的 `audit` 目标（先 `--report-only` 观测，此时预期红——债务未清，T015 归零后切 strict）
 
 ---
 
@@ -40,9 +40,9 @@ description: "任务清单：SaaS 多租户与离线单机双形态一体化"
 - [ ] T009 JWT 与租户中间件：`internal/pkg/utils/jwt.go` claims 增加 tenant_id（签发/解析）；新增 `internal/middleware/tenant.go`——on 模式无 claim → 401，off 模式注入默认租户；`internal/router/router.go` auth 组挂载（JWT 之后）
 - [ ] T010 [P] Redis 键租户分域：`internal/pkg/tenant/keys.go` 键构造函数 `t{tenant}:{key}`；替换既有裸拼键点位（jwt_blacklist/jwt_revocation/ratelimit/cache 等逐点替换）；⚠️ off 模式**不加前缀、键形与现状逐字节一致**（存量吊销名单/会话键必须继续命中，否则已吊销 token 在升级窗口复活）；仅 on 模式启用前缀；单测覆盖两形态键形快照
 - [ ] T011 [P] uploads 租户分域：on 模式新上传落 `uploads/tenant_{id}/`；静态服务校验租户归属（跨根目录穿越拒绝）；⚠️ off 模式**读写路径与现状逐字节一致**（存量文件留在根目录直接可达，不做迁移搬移）；on 模式对存量根目录文件按只读兼容回落
-- [ ] T012 GORM-only 清偿·repository 包（~31 文件）：`.Exec(`/`.Raw(` 全部改为 GORM API——upsert 用 `clause.OnConflict`、`FOR UPDATE SKIP LOCKED` 用 `clause.Locking`、`RETURNING` 用 `clause.Returning`、pgvector 操作符用 Where 片段+参数绑定、复杂聚合改多条 GORM 查询+Go 组装；`SELECT 1` 健康检查类改 `db.Raw` 唯一豁免前先确认无表语义并迁入 `internal/migration` 或 pkg 层专用探针；每完成一组跑 `go build ./... && go test ./internal/repository/...`
-- [ ] T013 [P] GORM-only 清偿·aiagent 包（~11 文件）：同 T012 手法；跑 `go test ./internal/aiagent/...`
-- [ ] T014 [P] GORM-only 清偿·geo/pkg/ops/browser_automation/service/router/monitor 包（~14 文件）：同 T012 手法；各包测试通过
+- [ ] T012 GORM-only 清偿·repository 包（61 处）：`.Exec(`/`.Raw(` 全部改为 GORM API——upsert 用 `clause.OnConflict`、`FOR UPDATE SKIP LOCKED` 用 `clause.Locking`、`RETURNING` 用 `clause.Returning`、pgvector 操作符用 Where 片段+参数绑定、复杂聚合改多条 GORM 查询+Go 组装；`SELECT 1` 健康检查类改 `sqlDB.PingContext`；每完成一组跑 `go build ./... && go test ./internal/repository/...`
+- [ ] T013 [P] GORM-only 清偿·aiagent 包（44 处）：同 T012 手法；跑 `go test ./internal/aiagent/...`
+- [ ] T014 [P] GORM-only 清偿·其余包（28 处：monitor 7/ops 6/geo 6/service 3/browser_automation 3/router 2/pkg 1）：同 T012 手法；router/health.go 的 `SELECT 1` 探针改 `sqlDB.PingContext`；各包测试通过
 - [ ] T015 门禁归零验证：`bash user-server/scripts/check-gorm-only.sh` 输出 0 违规；`make audit` 挂载生效（反向验证：临时加一处 `.Raw(` 门禁必红，验证后删除）
 
 **Checkpoint**: 隔离执行者/登记表/迁移/身份/门禁全部就位——story 可开工

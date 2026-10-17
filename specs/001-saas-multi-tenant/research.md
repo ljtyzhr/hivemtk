@@ -16,7 +16,7 @@
 
 - **Decision**: GORM 全局 callback（Query/Create/Update/Delete/Row/Raw 六类 operation 的 pre-hook）按"租户表登记表"自动注入 `WHERE tenant_id=?` / 自动填充写入列；登记表由模型 `TenantID` 字段启动期自动收集，显式 `tenant:"global"` tag 豁免全局表。
 - **Rationale**: 业务代码零改动（满足铁律）；单点执行、单点审计；off 模式 callback 直通等价现状。
-- **配套终态（用户拍板）**: 全仓数据访问 GORM-only——业务包 `.Exec()`/`.Raw()` 历史债务（约 293 处，migration 包 72 处 DDL 豁免）本次彻底清偿为 GORM API（`clause.OnConflict`/`clause.Locking`/`clause.Returning`/Where 片段参数绑定均可原生表达已抽样证实）；CI 门禁脚本永久阻止回归。
+- **配套终态（用户拍板）**: 全仓数据访问 GORM-only——业务包 `.Exec()`/`.Raw()` 历史债务实测 **133 处**（豁免：migration 包 DDL、`internal/pkg/db/migrate.go` schema 引导 DDL、`internal/pkg/testutil/` 测试库基建、`*_test.go`）本次彻底清偿为 GORM API（`clause.OnConflict`/`clause.Locking`/`clause.Returning`/Where 片段参数绑定均可原生表达已抽样证实）；CI 门禁脚本永久阻止回归。
 - **Alternatives rejected**:
   - RawBypass 白名单 helper（允许裸 SQL 携带标记放行）：用户明确否决——门禁放行是债务转移，不是清零。
   - PG RLS（数据库层行级安全）：兜底最强但连接池/事务作用域复杂；列为二期可选加固。
