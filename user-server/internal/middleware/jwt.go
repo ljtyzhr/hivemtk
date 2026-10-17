@@ -79,6 +79,7 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 		c.Set("user_id", claims.UserID)
 		c.Set("username", claims.Username)
 		c.Set("role", claims.Role)
+		c.Set(TenantContextKey, claims.TenantID)
 
 		if claims.Role == "admin" {
 			c.Set("license_id", "system_admin")
@@ -169,6 +170,7 @@ func OptionalAuthMiddleware() gin.HandlerFunc {
 		c.Set("user_id", claims.UserID)
 		c.Set("username", claims.Username)
 		c.Set("role", claims.Role)
+		c.Set(TenantContextKey, claims.TenantID)
 
 		c.Next()
 	}

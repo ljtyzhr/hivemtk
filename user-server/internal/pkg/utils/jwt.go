@@ -6,6 +6,7 @@ import (
 	"strings"
 	"time"
 
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -96,6 +97,9 @@ type CustomClaims struct {
 	DataScope    string `json:"data_scope,omitempty"`
 	DepartmentID uint   `json:"department_id,omitempty"`
 	TeamID       uint   `json:"team_id,omitempty"`
+	// TenantID 租户归属（specs/001-saas-multi-tenant）：历史令牌无此 claim 时为 0，
+	// 由租户中间件按部署形态裁决（off 注入默认租户 / on 拒绝）
+	TenantID uint `json:"tenant_id,omitempty"`
 	jwt.RegisteredClaims
 }
 
@@ -115,7 +119,13 @@ func (j *JWTUtils) GenerateToken(userID uint, username, role string) (string, er
 }
 
 // GenerateTokenWithScope 生成带数据范围的 JWT 令牌（行级权限）
+// 租户归属取默认租户（离线单机语义；SaaS 登录走 GenerateTokenForTenant）
 func (j *JWTUtils) GenerateTokenWithScope(userID uint, username, role, dataScope string, departmentID, teamID uint) (string, error) {
+	return j.GenerateTokenForTenant(userID, username, role, dataScope, departmentID, teamID, tenant.DefaultTenantID)
+}
+
+// GenerateTokenForTenant 生成携带租户归属的 JWT 令牌（specs/001-saas-multi-tenant T009）
+func (j *JWTUtils) GenerateTokenForTenant(userID uint, username, role, dataScope string, departmentID, teamID uint, tenantID uint) (string, error) {
 	claims := CustomClaims{
 		UserID:       userID,
 		Username:     username,
@@ -123,6 +133,7 @@ func (j *JWTUtils) GenerateTokenWithScope(userID uint, username, role, dataScope
 		DataScope:    dataScope,
 		DepartmentID: departmentID,
 		TeamID:       teamID,
+		TenantID:     tenantID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * time.Duration(j.config.ExpiresHours))),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),
@@ -170,6 +181,7 @@ func (j *JWTUtils) RefreshToken(tokenString string) (string, error) {
 		DataScope:    claims.DataScope,
 		DepartmentID: claims.DepartmentID,
 		TeamID:       claims.TeamID,
+		TenantID:     claims.TenantID,
 		RegisteredClaims: jwt.RegisteredClaims{
 			ExpiresAt: jwt.NewNumericDate(time.Now().Add(time.Hour * time.Duration(j.config.ExpiresHours))),
 			IssuedAt:  jwt.NewNumericDate(time.Now()),

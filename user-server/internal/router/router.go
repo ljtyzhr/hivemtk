@@ -378,6 +378,10 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 	auth.POST("/bridge/token/reset", middleware.JWTAuthMiddleware(), middleware.RequireAdminMiddleware(), bridgeTokenCtrl.ResetBridgeToken)
 
 	auth.Use(middleware.JWTAuthMiddleware())
+	// 租户上下文中间件（specs/001-saas-multi-tenant T009）：必须在 JWT 之后——
+	// 消费其写入的 tenant_id claim。off 模式绑定默认租户（等价现状）；
+	// on 模式无有效租户 claim 即 401（fail-closed）。
+	auth.Use(middleware.TenantMiddleware())
 	// 仅超管能力面（备份/恢复/重启、全局配置写、LLM 与 MCP 凭据、功能开关放量、
 	// 代他人重置口令……）集中升档的那一道守卫，判据见 middleware.RoutePolicyGuard。
 	//
