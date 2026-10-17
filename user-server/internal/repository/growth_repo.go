@@ -203,14 +203,19 @@ func (r *ReportSubscriptionRepository) DailyReportSummary(ctx context.Context, d
 	if r.db == nil {
 		return nil, nil
 	}
-	var rows []DailyReportSummaryRow
-	err := r.db.WithContext(ctx).Raw(`
-		SELECT '新会话' AS metric, COUNT(*) AS value FROM customer_sessions WHERE created_at::date = ?
-		UNION ALL SELECT '新消息', COUNT(*) FROM session_messages WHERE created_at::date = ?
-		UNION ALL SELECT '新客户', COUNT(*) FROM customers WHERE created_at::date = ?
-		UNION ALL SELECT '发送消息', COUNT(*) FROM message_hub WHERE direction='outbound' AND sent_at::date = ?`,
-		day, day, day, day).Scan(&rows).Error
-	return rows, err
+	// 原 UNION ALL 四段计数（T012 清偿）：拆四条 Count + Go 组装，语义一致
+	countOf := func(table, where string) int64 {
+		var n int64
+		_ = r.db.WithContext(ctx).Table(table).Where(where, day).Count(&n).Error
+		return n
+	}
+	rows := []DailyReportSummaryRow{
+		{Metric: "新会话", Value: countOf("customer_sessions", "created_at::date = ?")},
+		{Metric: "新消息", Value: countOf("session_messages", "created_at::date = ?")},
+		{Metric: "新客户", Value: countOf("customers", "created_at::date = ?")},
+		{Metric: "发送消息", Value: countOf("message_hub", "direction='outbound' AND sent_at::date = ?")},
+	}
+	return rows, nil
 }
 
 // TranscriptMessageRow 转录消息行

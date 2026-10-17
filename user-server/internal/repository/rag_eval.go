@@ -91,26 +91,24 @@ func (r *RagEvalRepository) CompleteRun(ctx context.Context, runID uint) error {
 		Scan(&result)
 
 	now := time.Now()
-	return r.db.WithContext(ctx).Exec(
-		`UPDATE rag_eval_runs SET
-			status = ?, completed_at = ?,
-			total = ?, hit = ?,
-			avg_recall = ?, avg_precision = ?
-		 WHERE id = ?`,
-		"completed", now,
-		result.Total, result.HitCount,
-		result.AvgRecall, result.AvgPrecision,
-		runID,
-	).Error
+	return r.db.WithContext(ctx).Model(&model.RagEvalRun{}).
+		Where("id = ?", runID).
+		Updates(map[string]any{
+			"status":        "completed",
+			"completed_at":  now,
+			"total":         result.Total,
+			"hit":           result.HitCount,
+			"avg_recall":    result.AvgRecall,
+			"avg_precision": result.AvgPrecision,
+		}).Error
 }
 
 // FailRun 标记运行失败
 func (r *RagEvalRepository) FailRun(ctx context.Context, runID uint, errMsg string) error {
 	now := time.Now()
-	return r.db.WithContext(ctx).Exec(
-		`UPDATE rag_eval_runs SET status = ?, completed_at = ?, error_msg = ? WHERE id = ?`,
-		"failed", now, errMsg, runID,
-	).Error
+	return r.db.WithContext(ctx).Model(&model.RagEvalRun{}).
+		Where("id = ?", runID).
+		Updates(map[string]any{"status": "failed", "completed_at": now, "error_msg": errMsg}).Error
 }
 
 // ListRecentQueryLogs 取最近 RAG 查询日志（去重取样源，供自动评测出题）。

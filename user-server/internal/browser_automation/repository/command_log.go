@@ -78,26 +78,6 @@ const auditRowHashSQL = `encode(sha256(convert_to(concat_ws('|',
 	CASE WHEN ok IS NULL THEN 'n' WHEN ok THEN 't' ELSE 'f' END,
 	(created_at AT TIME ZONE 'UTC')::text), 'utf8')), 'hex')`
 
-// pruneWindowSQL 取「接下来该裁的一批」（按 id 升序 ≤ pruneBatchRows 行），
-// 并在**库内**按 session 聚合出批摘要：payload 单行可到 64 KiB，一批 5000 行
-// 拉到 Go 里再逐行哈希，等于把治理任务变成内存炸弹。
-// 参数依次是 cutoff / id 高水位 / 单批行数。
-const pruneWindowSQL = `SELECT session_id,
-	       count(*)   AS row_count,
-	       min(seq)   AS first_seq,
-	       max(seq)   AS last_seq,
-	       max(id)    AS max_id,
-	       encode(sha256(convert_to(string_agg(row_hash, '' ORDER BY id), 'utf8')), 'hex') AS batch_digest
-	FROM (
-		SELECT id, session_id, seq, ` + auditRowHashSQL + ` AS row_hash
-		FROM browser_command_log
-		WHERE created_at < ? AND id <= ?
-		ORDER BY id
-		LIMIT ?
-	) AS rows_to_prune
-	GROUP BY session_id
-	ORDER BY session_id`
-
 // pruneWindow 是一批裁剪里属于单个 session 的那一段。
 type pruneWindow struct {
 	SessionID   uint
@@ -169,7 +149,19 @@ func (r *browserCommandLogRepo) PruneBefore(ctx context.Context, cutoff time.Tim
 	var batches, digests int
 	for {
 		var window []pruneWindow
-		if err := r.db.WithContext(ctx).Raw(pruneWindowSQL, cutoff, highwater, pruneBatchRows).
+		inner := r.db.WithContext(ctx).
+			Table("browser_command_log").
+			Select("id, session_id, seq, "+auditRowHashSQL+" AS row_hash").
+			Where("created_at < ? AND id <= ?", cutoff, highwater).
+			Order("id").
+			Limit(pruneBatchRows)
+		if err := r.db.WithContext(ctx).
+			Table("(?) AS rows_to_prune", inner).
+			Select("session_id, count(*) AS row_count, min(seq) AS first_seq, max(seq) AS last_seq, " +
+				"max(id) AS max_id, " +
+				"encode(sha256(convert_to(string_agg(row_hash, '' ORDER BY id), 'utf8')), 'hex') AS batch_digest").
+			Group("session_id").
+			Order("session_id").
 			Scan(&window).Error; err != nil {
 			return total, err
 		}

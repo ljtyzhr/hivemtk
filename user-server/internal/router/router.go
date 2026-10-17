@@ -335,6 +335,14 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 		// 与 auth 组里那条旧路径并存，旧路径已标 deprecation。
 		setupOrderWebhookRoutes(public)
 
+		// 租户自助开户（T030）：公开档唯一可写端点，off 模式由 Service 判 4104
+		setupTenantRoutes(public, nil, nil)
+
+		// 功能模块市场：未登录也能逛（public 档只放 浏览/付款指引/监管告知 三类读口，
+		// 下单与查单在 auth 档）。刻意不给它挂模块闸 —— 市场正是买模块的入口，
+		// 拦了就永远买不了。
+		setupModuleRoutes(public, nil, nil)
+
 		hcCtrl := controller.NewHelpCenterController()
 		public.GET("/public/help-center/categories", hcCtrl.Categories)
 		public.GET("/public/help-center/articles", hcCtrl.Articles)
@@ -382,6 +390,8 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 	// 消费其写入的 tenant_id claim。off 模式绑定默认租户（等价现状）；
 	// on 模式无有效租户 claim 即 401（fail-closed）。
 	auth.Use(middleware.TenantMiddleware())
+	// 租户/模块市场鉴权档由本文件下方（auth 组与 systemAdmin 组就绪处）挂载，
+	// 见 setupTenantRoutes(nil, auth, systemAdmin) / setupModuleRoutes(nil, auth, systemAdmin)。
 	// 仅超管能力面（备份/恢复/重启、全局配置写、LLM 与 MCP 凭据、功能开关放量、
 	// 代他人重置口令……）集中升档的那一道守卫，判据见 middleware.RoutePolicyGuard。
 	//
@@ -402,6 +412,24 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 	// 与上面的菜单授予源同一条 fail-closed 口径。
 	middleware.SetOwnerLookup(service.NewDataScopeService().LookupOwner)
 	auth.Use(middleware.DataScopeGuard())
+
+	// ============================================================
+	// 功能模块闸（.specify/002-modular-subscription · FR-5.4）
+	//
+	// 位置必须在**鉴权之后、RoutePolicyGuard 之前**：
+	//   - 在鉴权之后：匿名请求不该从模块闸得到"未开通模块"的答案，
+	//     那会泄露本系统的模块结构；未开通判定只对已登录用户有意义。
+	//   - 在 RoutePolicyGuard 之前：超管是「本系统内权限最高」，不是
+	//     「买了所有模块」。闸放在权限之后，超管就成了绕过付费的后门。
+	//
+	// 本组没有显式 RequireModule(k)：模块归属由路径模式表
+	// （middleware/module_route_patterns.go）判定，逐路由标注会漏挂。
+	// ============================================================
+	moduleGateSvc := service.NewModuleGateService()
+	middleware.SetModuleGateChecker(moduleGateAdapter{gate: moduleGateSvc})
+	moduleGateSvc.InstallWiring(context.Background())
+	auth.Use(middleware.GuardModulePath())
+
 	{
 		// 业务链路监控 /api/monitor/*（health/anomalies/node-health/latency/
 		// lifecycle/traces/trace-tree）—— 返回会话链路与业务指标，必须登录态可见。
@@ -485,6 +513,13 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 		systemAdmin := auth.Group("")
 		systemAdmin.Use(middleware.AdminAuthMiddleware())
 		setupSystemRoutes(systemAdmin)
+
+		// 租户运营端点（T033）：跨租户可见数据 → 硬超管守卫；
+		// 公开档的 register 已在 setupTenantRoutes(public) 注册，此处补登录档与 admin 档
+		setupTenantRoutes(nil, auth, systemAdmin)
+
+		// 功能模块市场（下单/查单/我的模块）与 LLM 余额、套餐
+		setupModuleRoutes(nil, auth, systemAdmin)
 
 		setupSystemUserRoutes(auth)
 

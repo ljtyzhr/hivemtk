@@ -36,8 +36,12 @@ func (r *DelayedOutboundRepository) PickDueForUpdate(ctx context.Context, now ti
 	}
 	var picked []model.DelayedOutboundReply
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Raw(`SELECT * FROM reach_delayed_outbound WHERE status = ? AND send_at <= ? ORDER BY send_at ASC LIMIT ? FOR UPDATE SKIP LOCKED`,
-			"pending", now, limit).Scan(&picked).Error; err != nil {
+		if err := tx.Model(&model.DelayedOutboundReply{}).
+			Where("status = ? AND send_at <= ?", "pending", now).
+			Order("send_at ASC").
+			Limit(limit).
+			Clauses(clause.Locking{Strength: "UPDATE", Options: "SKIP LOCKED"}).
+			Find(&picked).Error; err != nil {
 			return err
 		}
 		if len(picked) == 0 {

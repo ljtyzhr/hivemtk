@@ -43,6 +43,37 @@ const INIT_REDIRECT_MAP = {
   INIT_REQUIRED: '/setup'
 };
 
+// ============================================================================
+// 功能模块闸（.specify/002-modular-subscription · 业务码 4301）
+//
+// 为什么必须在这里拦，而不是让每个页面各判一次：
+// 未开通模块的接口**返回 HTTP 200 + 体内 code 4301**（本仓错误通道约定），
+// 于是它会落进上面 `code === 0` 之外的通用分支 —— 只弹一句 toast。
+// 用户看到的是"操作失败"，而事实是"你没买这个功能"。他既不知道为什么，
+// 也不知道该去哪买 —— 于是多半会反复重试，或者以为系统坏了。
+//
+// 拦在这里的好处是**全站一致**：任何深链、任何页面、任何写法都得到同一句
+// 引导 + 同一个去处。加它只需在业务码表登记一行，不会有页面漏掉。
+// ============================================================================
+const BIZ_CODE_MODULE_NOT_ENABLED = 4301
+
+// MODULE_NOT_ENABLED_REDIRECT 未开通模块时的去处：功能模块市场。
+// 带 next 参数让市场页高亮/预选该模块，省掉用户自己找的一步。
+const MODULE_NOT_ENABLED_REDIRECT = '/module-market'
+
+function handleModuleNotEnabled (data, code) {
+  if (Number(code) !== BIZ_CODE_MODULE_NOT_ENABLED) return false
+  const moduleKey = data && data.data && data.data.module_key
+  const target = moduleKey
+    ? `${MODULE_NOT_ENABLED_REDIRECT}?highlight=${encodeURIComponent(moduleKey)}`
+    : MODULE_NOT_ENABLED_REDIRECT
+  // 不直接跳：用户可能是误点深链（别人发的链接），跳走会丢上下文。
+  // 给 5 秒缓冲 + 可关闭提示，足够他看清原因，也给误点留了退路。
+  showToast(`功能模块「${moduleKey || ''}」未开通，请在功能模块市场订阅后使用`, 'warning')
+  setTimeout(() => redirectTo(target), 3000)
+  return true
+}
+
 let lastToastMsg = '';
 let lastToastTs = 0
 function showToast(message, type = 'error') {
@@ -191,6 +222,11 @@ const addInterceptors = () => {
       }
 
       const msg = extractServerMessage(data, t('http.requestFailed'));
+      // 4301：未开通模块。处理函数已自行提示并安排跳转，这里**不再**弹通用 toast
+      // （两句提示叠在一起只会让人更困惑）。
+      if (handleModuleNotEnabled(data, code)) {
+        return Promise.reject(buildRequestError(msg, response, code))
+      }
       if (!silent) showToast(msg)
       return Promise.reject(buildRequestError(msg, response, code))
     },

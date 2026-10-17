@@ -80,9 +80,13 @@ func HealthCheck(redisClient Pinger, gormDB *gorm.DB) gin.HandlerFunc {
 		dbStatus := "ok"
 		dbErr := ""
 		if database := gormDB; database != nil {
-			if err := database.WithContext(ctx).Exec("SELECT 1").Error; err != nil {
+			if sqlDB, dbErr2 := database.DB(); dbErr2 != nil {
 				dbStatus = "down"
-				dbErr = err.Error()
+				dbErr = dbErr2.Error()
+				overallOK = false
+			} else if err2 := sqlDB.PingContext(ctx); err2 != nil {
+				dbStatus = "down"
+				dbErr = err2.Error()
 				overallOK = false
 			}
 		} else {
@@ -162,7 +166,10 @@ func ReadinessCheck(redisClient Pinger, gormDB *gorm.DB) gin.HandlerFunc {
 			notReadyResponse(c, 50302, "database not initialized")
 			return
 		}
-		if err := gormDB.WithContext(ctx).Exec("SELECT 1").Error; err != nil {
+		if sqlDB, dbErr := gormDB.DB(); dbErr != nil {
+			notReadyResponse(c, 50303, "database: "+dbErr.Error())
+			return
+		} else if err := sqlDB.PingContext(ctx); err != nil {
 			notReadyResponse(c, 50303, "database: "+err.Error())
 			return
 		}

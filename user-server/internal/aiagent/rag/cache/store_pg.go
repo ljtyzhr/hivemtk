@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"hivemtk-user/internal/pkg/utils/logger"
 )
@@ -92,13 +93,11 @@ func (s *PGAnswerCacheStore) GetExact(ctx context.Context, kbID, promptVersion s
 		return nil, errors.New("answer cache store 未初始化")
 	}
 	var row RAGAnswerCache
-	err := s.db.WithContext(ctx).Raw(`
-		SELECT id, kb_id, prompt_version, query_vector::text AS query_vector, answer, created_at, kb_updated_at
-		FROM rag_answer_cache
-		WHERE kb_id = ? AND prompt_version = ? AND query_vector = ?::vector
-		ORDER BY created_at DESC
-		LIMIT 1
-	`, kbID, promptVersion, vecToLiteral(vec)).Scan(&row).Error
+	err := s.db.WithContext(ctx).Table("rag_answer_cache").
+		Select("id, kb_id, prompt_version, query_vector::text AS query_vector, answer, created_at, kb_updated_at").
+		Where("kb_id = ? AND prompt_version = ? AND query_vector = ?::vector", kbID, promptVersion, vecToLiteral(vec)).
+		Order("created_at DESC").Limit(1).
+		Scan(&row).Error
 	if err != nil {
 		return nil, err
 	}
@@ -118,15 +117,14 @@ func (s *PGAnswerCacheStore) GetSemantic(ctx context.Context, kbID, promptVersio
 		RAGAnswerCache
 		Similarity float64 `gorm:"column:similarity"`
 	}
-	err := s.db.WithContext(ctx).Raw(`
-		SELECT id, kb_id, prompt_version, query_vector::text AS query_vector, answer, created_at, kb_updated_at,
-		       1 - (query_vector <=> ?::vector) AS similarity
-		FROM rag_answer_cache
-		WHERE kb_id = ? AND prompt_version = ?
-		  AND 1 - (query_vector <=> ?::vector) >= ?
-		ORDER BY query_vector <=> ?::vector ASC
-		LIMIT 1
-	`, literal, kbID, promptVersion, literal, minSimilarity, literal).Scan(&row).Error
+	err := s.db.WithContext(ctx).Table("rag_answer_cache").
+		Select("id, kb_id, prompt_version, query_vector::text AS query_vector, answer, created_at, kb_updated_at, "+
+			"1 - (query_vector <=> ?::vector) AS similarity", literal).
+		Where("kb_id = ? AND prompt_version = ?", kbID, promptVersion).
+		Where("1 - (query_vector <=> ?::vector) >= ?", literal, minSimilarity).
+		Order(clause.Expr{SQL: "query_vector <=> ?::vector ASC", Vars: []any{literal}}).
+		Limit(1).
+		Scan(&row).Error
 	if err != nil {
 		return nil, err
 	}
@@ -149,10 +147,15 @@ func (s *PGAnswerCacheStore) Put(ctx context.Context, e *Entry) error {
 	if e.KBID == "" || e.PromptVersion == "" || len(e.QueryVector) == 0 || e.Answer == "" {
 		return errors.New("ragcache put: 缺少必填字段")
 	}
-	return s.db.WithContext(ctx).Exec(`
-		INSERT INTO rag_answer_cache (kb_id, prompt_version, query_vector, answer, created_at, kb_updated_at)
-		VALUES (?, ?, ?::vector, ?, NOW(), ?)
-	`, e.KBID, e.PromptVersion, vecToLiteral(e.QueryVector), e.Answer, e.KBUpdatedAt).Error
+	return s.db.WithContext(ctx).Table("rag_answer_cache").
+		Create(map[string]any{
+			"kb_id":          e.KBID,
+			"prompt_version": e.PromptVersion,
+			"query_vector":   gorm.Expr("?::vector", vecToLiteral(e.QueryVector)),
+			"answer":         e.Answer,
+			"created_at":     time.Now(),
+			"kb_updated_at":  e.KBUpdatedAt,
+		}).Error
 }
 
 // Delete 实现按 id 删除
@@ -160,7 +163,9 @@ func (s *PGAnswerCacheStore) Delete(ctx context.Context, id uint64) error {
 	if s == nil || s.db == nil {
 		return errors.New("answer cache store 未初始化")
 	}
-	return s.db.WithContext(ctx).Exec(`DELETE FROM rag_answer_cache WHERE id = ?`, id).Error
+	return s.db.WithContext(ctx).Table("rag_answer_cache").
+		Where("id = ?", id).
+		Delete(nil).Error
 }
 
 func rowToEntry(row *RAGAnswerCache) (*Entry, error) {

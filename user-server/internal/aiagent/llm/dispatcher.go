@@ -35,12 +35,28 @@ const (
 )
 
 type ProviderConfig struct {
-	Name          string   `json:"name"`
-	APIKey        string   `json:"api_key"`
-	BaseURL       string   `json:"base_url"`
-	APIType       string   `json:"api_type"`
-	Model         string   `json:"model"`
-	CostPer1k     float64  `json:"cost_per_1k"`
+	Name    string `json:"name"`
+	APIKey  string `json:"api_key"`
+	BaseURL string `json:"base_url"`
+	APIType string `json:"api_type"`
+	Model   string `json:"model"`
+	// CostPer1k 单一单价（元 / 1k token，**不分输入输出**）。
+	//
+	// 这是 2026-10 之前的口径：一次调用的总价 = totalTokens/1000 × CostPer1k，
+	// 再由 splitCost 按 token 比例劈成"输入部分/输出部分"。那不是分别计价 ——
+	// 它数学上等价于输入输出同价，无法表达"输出单价是输入的 4 倍"这个事实。
+	//
+	// 保留它是为了**兼容**：只填了 CostPer1k 的 provider 仍按老口径计算，
+	// 见 EffectiveInputCostPer1k / EffectiveOutputCostPer1k。
+	CostPer1k float64 `json:"cost_per_1k"`
+	// CostPer1kInput / CostPer1kOutput 分别计价单价（元 / 1k token）。
+	// 任一为 0 时回落到 CostPer1k（见 Effective*）。
+	CostPer1kInput  float64 `json:"cost_per_1k_input,omitempty"`
+	CostPer1kOutput float64 `json:"cost_per_1k_output,omitempty"`
+	// Source provider 来源：self=商户自带 Key（不计费）/ platform=平台垫资（计量）
+	Source string `json:"source,omitempty"`
+	// PlanCode 绑定的平台套餐（一期不用计量字段，二期用）
+	PlanCode      string   `json:"plan_code,omitempty"`
 	AvgLatencyMs  int      `json:"avg_latency_ms"`
 	QualityScore  float64  `json:"quality_score"`
 	MaxRPM        int      `json:"max_rpm"`
@@ -215,6 +231,17 @@ func (d *Dispatcher) Dispatch(ctx context.Context, req DispatchRequest) (*Dispat
 		}
 		if !provider.Enabled {
 			logger.Infof("[LLM] candidate skip scenario=%s provider=%q reason=disabled", req.Scenario, providerName)
+			continue
+		}
+		// 平台垫资 provider 在「平台未配置」时直接跳过候选，让调度走 fallback。
+		//
+		// 不这么做的后果：平台地址没配（离线部署、或平台改域名）时，
+		// 这些 provider 仍然 Enabled，会被选中，然后每次派发都发一次
+		// 注定失败的请求 —— 用户看到的是"AI 一直报错"，
+		// 而真实原因是平台没连上。自带 Key 的 provider 不受任何影响。
+		if provider.IsPlatformProvider() && !IsPlatformProxyConfigured() {
+			logger.Infof("[LLM] candidate skip scenario=%s provider=%q reason=platform_not_configured",
+				req.Scenario, providerName)
 			continue
 		}
 
@@ -637,4 +664,45 @@ func (d *Dispatcher) HasHealthyProvider(scenario DispatchScenario) bool {
 		}
 	}
 	return false
+}
+
+// ProviderSource 取 provider 来源；空值按 self（商户自带 Key）处理。
+//
+// 判空取 self 而不是 platform 的理由：漏填 Source 的 provider 绝大多数是
+// 用户自己在后台加的，让它落到 platform 会凭空产生一笔"欠平台的账"。
+func (p ProviderConfig) ProviderSource() string {
+	if p.Source == "" {
+		return "self"
+	}
+	return p.Source
+}
+
+// IsPlatformProvider 是否平台垫资的 provider（走平台代理 + 计量扣费）
+func (p ProviderConfig) IsPlatformProvider() bool {
+	return p.ProviderSource() == "platform"
+}
+
+// EffectiveInputCostPer1k 生效的输入单价：优先分列单价，回落单一单价
+func (p ProviderConfig) EffectiveInputCostPer1k() float64 {
+	if p.CostPer1kInput > 0 {
+		return p.CostPer1kInput
+	}
+	return p.CostPer1k
+}
+
+// EffectiveOutputCostPer1k 生效的输出单价：优先分列单价，回落单一单价
+func (p ProviderConfig) EffectiveOutputCostPer1k() float64 {
+	if p.CostPer1kOutput > 0 {
+		return p.CostPer1kOutput
+	}
+	return p.CostPer1k
+}
+
+// HasSeparatePricing 是否配置了输入/输出分列单价。
+//
+// 判据是"两个单价是否不同"，不是"是否都填了"：填了两个相同的值在效果上
+// 与只填单一单价等价，报表上也不该把它算成"已启用分别计价"。
+func (p ProviderConfig) HasSeparatePricing() bool {
+	return p.CostPer1kInput > 0 && p.CostPer1kOutput > 0 &&
+		p.EffectiveInputCostPer1k() != p.EffectiveOutputCostPer1k()
 }

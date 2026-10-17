@@ -13,18 +13,31 @@ import "time"
 type LLMProvider struct {
 	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
 
-	ID           uint      `gorm:"primaryKey" json:"id"`
-	Name         string    `gorm:"column:name;uniqueIndex;size:128" json:"name"`
-	DisplayName  string    `gorm:"column:display_name;size:255" json:"display_name"`
-	BaseURL      string    `gorm:"column:base_url;size:512" json:"base_url"`
-	Model        string    `gorm:"column:model;size:128" json:"model"`
-	APIKey       string    `gorm:"column:api_key;type:text" json:"-"`
-	APIType      string    `gorm:"column:api_type;size:32;default:'openai'" json:"api_type"`
-	Enabled      bool      `gorm:"column:enabled;default:false" json:"enabled"`
-	QualityScore float64   `gorm:"column:quality_score;default:0.8" json:"quality_score"`
-	MaxRPM       int       `gorm:"column:max_rpm;default:60" json:"max_rpm"`
-	MaxTPM       int       `gorm:"column:max_tpm;default:0" json:"max_tpm"`
-	CostPer1k    float64   `gorm:"column:cost_per_1k;default:0" json:"cost_per_1k"`
+	ID           uint    `gorm:"primaryKey" json:"id"`
+	Name         string  `gorm:"column:name;uniqueIndex;size:128" json:"name"`
+	DisplayName  string  `gorm:"column:display_name;size:255" json:"display_name"`
+	BaseURL      string  `gorm:"column:base_url;size:512" json:"base_url"`
+	Model        string  `gorm:"column:model;size:128" json:"model"`
+	APIKey       string  `gorm:"column:api_key;type:text" json:"-"`
+	APIType      string  `gorm:"column:api_type;size:32;default:'openai'" json:"api_type"`
+	Enabled      bool    `gorm:"column:enabled;default:false" json:"enabled"`
+	QualityScore float64 `gorm:"column:quality_score;default:0.8" json:"quality_score"`
+	MaxRPM       int     `gorm:"column:max_rpm;default:60" json:"max_rpm"`
+	MaxTPM       int     `gorm:"column:max_tpm;default:0" json:"max_tpm"`
+	// CostPer1k 单一单价（元/1k token），2026-10 之前的口径。保留作回落：
+	// 只填了它而没填下面两列的 provider，两部分按同价计算。
+	CostPer1k float64 `gorm:"column:cost_per_1k;default:0" json:"cost_per_1k"`
+	// CostPer1kInput / CostPer1kOutput 输入输出分列单价。
+	// 需求原文：「输入和输出分别计价以及扣费」—— 只有这两个列并存且不相等时，
+	// 成本口径才是真正的「分别计价」（见 ProviderConfig.HasSeparatePricing）。
+	CostPer1kInput  float64 `gorm:"column:cost_per_1k_input;default:0" json:"cost_per_1k_input"`
+	CostPer1kOutput float64 `gorm:"column:cost_per_1k_output;default:0" json:"cost_per_1k_output"`
+	// Source self=商户自带 Key（不计费）/ platform=平台垫资（走平台代理 + 计量扣费）
+	//
+	// 判空回落 self 而不是 platform：漏填的绝大多数是用户自己加的 provider，
+	// 落成 platform 会凭空记一笔欠平台的账。
+	Source       string    `gorm:"column:source;not null;default:'self';index" json:"source"`
+	PlanCode     string    `gorm:"column:plan_code;type:varchar(32)" json:"plan_code"`
 	AvgLatencyMs int       `gorm:"column:avg_latency_ms;default:0" json:"avg_latency_ms"`
 	NoFC         bool      `gorm:"column:no_fc;default:false" json:"no_fc"`
 	Vendor       string    `gorm:"column:vendor;size:64" json:"vendor"`

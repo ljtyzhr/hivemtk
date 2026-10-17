@@ -34,41 +34,15 @@ func (s *SalesCockpitService) GetCockpit(ctx context.Context) (map[string]any, e
 	ragQueries := s.countWhere(ctx, "rag_query_logs", "created_at >= ?", today)
 	reachSent := s.countWhere(ctx, "reach_jobs", "created_at >= ? AND state IS NOT NULL", today)
 
-	llmRoutes := s.groupQuery(ctx,
-		`SELECT scenario, provider,
-		        COUNT(*) AS calls,
-		        COALESCE(AVG(latency_ms),0) AS avg_latency,
-		        COALESCE(SUM(cost),0)       AS total_cost
-		 FROM llm_routing_logs
-		 WHERE created_at >= ?
-		 GROUP BY scenario, provider
-		 ORDER BY calls DESC
-		 LIMIT 10`, today)
+	llmRoutes := s.repo.LLMRouteStats(ctx, today)
 
-	channelHealth := s.groupQuery(ctx,
-		`SELECT platform, status, COUNT(*) AS cnt
-		 FROM platform_accounts
-		 GROUP BY platform, status
-		 ORDER BY cnt DESC
-		 LIMIT 30`)
+	channelHealth := s.repo.ChannelHealth(ctx)
 
 	// OPT-DB-10：intent_logs 已并入 intent_records（source='fine_grained'）
-	intentDist := s.groupQuery(ctx,
-		`SELECT intent_type AS intent, COUNT(*) AS cnt
-		 FROM intent_records
-		 WHERE created_at >= ? AND source = 'fine_grained'
-		 GROUP BY intent_type
-		 ORDER BY cnt DESC
-		 LIMIT 12`, weekAgo)
+	intentDist := s.repo.IntentDistribution(ctx, weekAgo)
 
 	// topTools 原表 tool_audit_logs 不存在，降级用 message_trace 按 node 分组统计调用次数
-	topTools := s.groupQuery(ctx,
-		`SELECT node AS tool_name, COUNT(*) AS calls
-		 FROM message_trace
-		 WHERE created_at >= ?
-		 GROUP BY node
-		 ORDER BY calls DESC
-		 LIMIT 10`, weekAgo)
+	topTools := s.repo.TopTools(ctx, weekAgo)
 
 	return map[string]any{
 		"react":              map[string]any{"totalRuns": reactRuns},
@@ -84,8 +58,4 @@ func (s *SalesCockpitService) GetCockpit(ctx context.Context) (map[string]any, e
 
 func (s *SalesCockpitService) countWhere(ctx context.Context, table, cond string, args ...any) int64 {
 	return s.repo.CountWhere(ctx, table, cond, args...)
-}
-
-func (s *SalesCockpitService) groupQuery(ctx context.Context, sql string, args ...any) []map[string]any {
-	return s.repo.GroupQuery(ctx, sql, args...)
 }

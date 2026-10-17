@@ -5,6 +5,7 @@ import (
 	"errors"
 	"hivemtk-user/internal/dto"
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/bcrypt"
 	_type "hivemtk-user/internal/pkg/utils/type"
@@ -258,7 +259,12 @@ func (s *userService) Login(ctx context.Context, req *dto.LoginRequest) (*dto.Lo
 	if v, err := strconv.ParseUint(user.ID, 10, 64); err == nil {
 		userIDUint = uint(v)
 	}
-	token, err := jwtUtils.GenerateToken(userIDUint, user.Username, user.Role)
+	// 租户归属取用户行实际 tenant_id（T031）
+	tid := user.TenantID
+	if tid == 0 {
+		tid = tenant.DefaultTenantID
+	}
+	token, err := jwtUtils.GenerateTokenForTenant(userIDUint, user.Username, user.Role, "", 0, 0, tid)
 	if err != nil {
 		return nil, err
 	}

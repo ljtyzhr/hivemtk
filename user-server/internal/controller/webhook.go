@@ -3,6 +3,7 @@ package controller
 import (
 	"context"
 	"crypto/subtle"
+	"log"
 	"net/http"
 	"strconv"
 	"strings"
@@ -10,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"hivemtk-user/internal/middleware"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/response"
 	"hivemtk-user/internal/service"
 	"hivemtk-user/internal/service/translation"
@@ -107,6 +109,20 @@ func (c *WebhookController) Receive(ctx *gin.Context) {
 	}
 
 	reqCtx := middleware.InjectLangToCtx(ctx.Request.Context(), c.langResolver, "", 0)
+
+	// 租户解析链（specs/001-saas-multi-tenant T022）：on 模式下按 (channel, account_id)
+	// 解析归属租户并绑定 ctx；解析失败 fail-closed（404 + 安全告警），绝不落默认租户。
+	// off 模式：数据写入走列默认值 1，等价现状。
+	if tenant.IsMultiTenant() {
+		tid, terr := c.svc.ResolveTenantByChannelAccount(ctx.Request.Context(), channel, accountID)
+		if terr != nil {
+			log.Printf("[SECURITY] webhook 租户解析失败 channel=%s account=%s ip=%s: %v",
+				channel, accountID, ctx.ClientIP(), terr)
+			ctx.JSON(http.StatusNotFound, gin.H{"accepted": false, "reason": "unknown account"})
+			return
+		}
+		reqCtx = tenant.WithTenantID(reqCtx, tid)
+	}
 
 	// QQ 开放平台 Op13 回调地址验证：需同步返回 Ed25519 签名，不走入队流程
 	if channel == service.ChannelQQ {

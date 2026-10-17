@@ -62,6 +62,7 @@ func setupHybridTestDB(t *testing.T) *gorm.DB {
 		// 每次跑都按 model.KnowledgeChunk 的列集反查本 DDL，缺列即红（不靠人记得）。
 		`CREATE TABLE knowledge_chunks (
 			id BIGSERIAL PRIMARY KEY,
+			tenant_id BIGINT NOT NULL DEFAULT 1,
 			document_id BIGINT NOT NULL DEFAULT 0,
 			product_id TEXT,
 			chunk_index INT DEFAULT 0,

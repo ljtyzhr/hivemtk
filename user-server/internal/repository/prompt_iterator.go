@@ -54,12 +54,11 @@ func (r *FeedbackLoopRepository) FetchNegativeSamples(ctx context.Context, sopID
 		return nil, nil
 	}
 	var rows []NegativeSample
-	err := r.db.WithContext(ctx).Raw(`
-		SELECT fe.customer_msg, fe.ai_reply, fe.reward, fe.signal_key
-		FROM feedback_events fe
-		WHERE fe.sop_id = ? AND fe.created_at >= ? AND fe.reward < ?
-		ORDER BY fe.reward ASC LIMIT 20`,
-		sopID, since, rewardThreshold).Scan(&rows).Error
+	err := r.db.WithContext(ctx).Table("feedback_events fe").
+		Select("fe.customer_msg, fe.ai_reply, fe.reward, fe.signal_key").
+		Where("fe.sop_id = ? AND fe.created_at >= ? AND fe.reward < ?", sopID, since, rewardThreshold).
+		Order("fe.reward ASC").Limit(20).
+		Scan(&rows).Error
 	if err != nil {
 		return nil, err
 	}
@@ -74,10 +73,9 @@ func (r *FeedbackLoopRepository) CountNegativeSamples(ctx context.Context, sopID
 		return 0, nil
 	}
 	var count int64
-	err := r.db.WithContext(ctx).Raw(`
-		SELECT COUNT(*) FROM feedback_events fe
-		WHERE fe.sop_id = ? AND fe.created_at >= ? AND fe.reward < ?`,
-		sopID, since, rewardThreshold).Scan(&count).Error
+	err := r.db.WithContext(ctx).Table("feedback_events fe").
+		Where("fe.sop_id = ? AND fe.created_at >= ? AND fe.reward < ?", sopID, since, rewardThreshold).
+		Count(&count).Error
 	if err != nil {
 		return 0, err
 	}

@@ -14,6 +14,7 @@ import (
 	"hivemtk-user/internal/config"
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/sso"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
@@ -167,7 +168,12 @@ func (s *SSOService) HandleCallback(ctx context.Context, provider, code, verifie
 		return nil, err
 	}
 
-	token, err := s.jwtUtils.GenerateToken(user.ID, user.Username, user.Role)
+	// 租户归属取用户行实际 tenant_id（T031：SaaS 模式下 SSO 登录同样需带租户 claim）
+	tid := user.TenantID
+	if tid == 0 {
+		tid = tenant.DefaultTenantID
+	}
+	token, err := s.jwtUtils.GenerateTokenForTenant(user.ID, user.Username, user.Role, "", 0, 0, tid)
 	if err != nil {
 		return nil, fmt.Errorf("sso: 签发本地令牌失败: %w", err)
 	}

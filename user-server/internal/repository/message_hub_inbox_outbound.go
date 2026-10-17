@@ -10,6 +10,7 @@ import (
 	"hivemtk-user/internal/model"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // MaxOutboundPushAttempts 出站行的重推上界（批20d-A3 / §8.3 行 3）。
@@ -37,15 +38,31 @@ func (r *MessageHubRepository) AckOutboundDeliveredBatchReturning(ctx context.Co
 		return nil, 0, nil
 	}
 	updatedIDs = make([]string, 0, len(msgIDs))
-	const q = `UPDATE message_hub
-		SET status = 'delivered', sent_at = now()
-		WHERE platform = ? AND account_id = ? AND direction = 'outbound' AND msg_id IN ? AND status IN ('pending','inflight')
-		RETURNING msg_id`
-	tx := r.db.WithContext(ctx).Raw(q, channel, accountID, msgIDs)
-	if err = tx.Scan(&updatedIDs).Error; err != nil {
+	// 原 UPDATE...RETURNING（GORM-only 清偿 T012）：事务内 FOR UPDATE 取号 + 条件更新，
+	// 行锁保证取号与更新之间状态不被并发改写。
+	err = r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if e := tx.Model(&model.MessageHub{}).
+			Where("platform = ? AND account_id = ? AND direction = 'outbound' AND msg_id IN ? AND status IN ('pending','inflight')", channel, accountID, msgIDs).
+			Clauses(clause.Locking{Strength: "UPDATE"}).
+			Pluck("msg_id", &updatedIDs).Error; e != nil {
+			return e
+		}
+		if len(updatedIDs) == 0 {
+			affectedRows = 0
+			return nil
+		}
+		res := tx.Model(&model.MessageHub{}).
+			Where("platform = ? AND account_id = ? AND msg_id IN ? AND status IN ('pending','inflight')", channel, accountID, updatedIDs).
+			Updates(map[string]any{"status": model.BridgeAckStatusDelivered, "sent_at": time.Now()})
+		if res.Error != nil {
+			return res.Error
+		}
+		affectedRows = res.RowsAffected
+		return nil
+	})
+	if err != nil {
 		return nil, 0, err
 	}
-	affectedRows = int64(len(updatedIDs))
 	return updatedIDs, affectedRows, nil
 }
 
@@ -63,12 +80,15 @@ func (r *MessageHubRepository) exhaustOutbound(ctx context.Context, channel, acc
 	if r == nil || r.db == nil {
 		return nil
 	}
-	return r.db.WithContext(ctx).Exec(`UPDATE message_hub
-		SET status = 'failed', push_error = ?, claimed_at = NULL
-		WHERE platform = ? AND account_id = ? AND direction = 'outbound'
-		  AND push_attempts >= ?
-		  AND (status = 'pending' OR (status = 'inflight' AND claimed_at IS NOT NULL AND claimed_at < ?))`,
-		pushExhaustedError, channel, accountID, MaxOutboundPushAttempts, cutoff).Error
+	return r.db.WithContext(ctx).Model(&model.MessageHub{}).
+		Where("platform = ? AND account_id = ? AND direction = 'outbound' AND push_attempts >= ? "+
+			"AND (status = 'pending' OR (status = 'inflight' AND claimed_at IS NOT NULL AND claimed_at < ?))",
+			channel, accountID, MaxOutboundPushAttempts, cutoff).
+		Updates(map[string]any{
+			"status":     "failed",
+			"push_error": pushExhaustedError,
+			"claimed_at": nil,
+		}).Error
 }
 
 // pushExhaustedError 写在行上的原因。不重复带上界数字：同一行的 push_attempts 就是那个数，
@@ -96,17 +116,45 @@ func (r *MessageHubRepository) ClaimPendingOutbound(ctx context.Context, channel
 	// push_attempts 在这里 +1：一次认领就是一次「交给桥端去发」，无论它后来 ack 没 ack。
 	// 回收那一步（上面）刻意不碰这一列——「这次没送成」不等于「没送过」，
 	// 清零等于每 30s 白送一轮预算，上界就成了摆设。
-	const q = `UPDATE message_hub SET status = 'inflight', claimed_at = now(), push_attempts = push_attempts + 1
-		WHERE id IN (
-			SELECT id FROM message_hub
-			WHERE platform = ? AND account_id = ? AND direction = 'outbound' AND status = 'pending'
-			  AND push_attempts < ?
-			ORDER BY id ASC LIMIT ?
-			FOR UPDATE SKIP LOCKED
-		)
-		RETURNING *`
-	if err := r.db.WithContext(ctx).Raw(q, channel, accountID, MaxOutboundPushAttempts, limit).Scan(&list).Error; err != nil {
+	// 原 UPDATE...WHERE id IN (SELECT...FOR UPDATE SKIP LOCKED) RETURNING *（T012 清偿）：
+	// 拆为事务内「SKIP LOCKED 取行 → 认领更新 → 回读」，锁语义与原子性等价。
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if e := tx.Model(&model.MessageHub{}).
+			Where("platform = ? AND account_id = ? AND direction = 'outbound' AND status = 'pending' AND push_attempts < ?",
+				channel, accountID, MaxOutboundPushAttempts).
+			Order("id ASC").
+			Limit(limit).
+			Clauses(clause.Locking{Strength: "UPDATE", Options: "SKIP LOCKED"}).
+			Find(&list).Error; e != nil {
+			return e
+		}
+		if len(list) == 0 {
+			return nil
+		}
+		ids := make([]uint, 0, len(list))
+		for i := range list {
+			ids = append(ids, list[i].ID)
+		}
+		return tx.Model(&model.MessageHub{}).
+			Where("id IN ?", ids).
+			Updates(map[string]any{
+				"status":        "inflight",
+				"claimed_at":    time.Now(),
+				"push_attempts": gorm.Expr("push_attempts + 1"),
+			}).Error
+	})
+	if err != nil {
 		return nil, err
+	}
+	// RETURNING * 返回的是更新后的行；此处回读保持同一契约
+	if len(list) > 0 {
+		ids := make([]uint, 0, len(list))
+		for i := range list {
+			ids = append(ids, list[i].ID)
+		}
+		if err := r.db.WithContext(ctx).Where("id IN ?", ids).Order("id ASC").Find(&list).Error; err != nil {
+			return nil, err
+		}
 	}
 	return list, nil
 }
@@ -126,15 +174,19 @@ func (r *MessageHubRepository) ClaimOutboundForPush(ctx context.Context, id uint
 		return false, nil
 	}
 	cutoff := time.Now().Add(-claimTimeout)
-	const q = `UPDATE message_hub SET status = 'inflight', claimed_at = now(), push_attempts = push_attempts + 1
-		WHERE id = ? AND direction = 'outbound' AND push_attempts < ?
-		  AND (status = 'pending' OR (status = 'inflight' AND claimed_at IS NOT NULL AND claimed_at < ?))
-		RETURNING id`
-	var ids []uint64
-	if err := r.db.WithContext(ctx).Raw(q, id, MaxOutboundPushAttempts, cutoff).Scan(&ids).Error; err != nil {
-		return false, err
+	res := r.db.WithContext(ctx).Model(&model.MessageHub{}).
+		Where("id = ? AND direction = 'outbound' AND push_attempts < ? "+
+			"AND (status = 'pending' OR (status = 'inflight' AND claimed_at IS NOT NULL AND claimed_at < ?))",
+			id, MaxOutboundPushAttempts, cutoff).
+		Updates(map[string]any{
+			"status":        "inflight",
+			"claimed_at":    time.Now(),
+			"push_attempts": gorm.Expr("push_attempts + 1"),
+		})
+	if res.Error != nil {
+		return false, res.Error
 	}
-	return len(ids) > 0, nil
+	return res.RowsAffected > 0, nil
 }
 
 // FetchOutboundUndelivered 列出「此刻仍欠交付」的出站行（批11 §3.7-2 的重投来源）。
@@ -289,25 +341,37 @@ func (r *MessageHubRepository) AckOutboundDeliveredBatchReturningWithStatus(
 	}
 	updatedIDs = make([]string, 0, len(msgIDs))
 
-	const qBase = `UPDATE message_hub
-		SET status = ?, sent_at = now()
-		WHERE platform = ? AND account_id = ? AND direction = 'outbound'
-		  AND msg_id IN ? AND status IN ('pending','inflight')`
-	q := qBase
-	if conversationID != "" {
-		q = qBase + " AND conversation_id = ?"
-	}
-
-	var tx *gorm.DB
-	if conversationID != "" {
-		tx = r.db.WithContext(ctx).Raw(q+" RETURNING msg_id", terminalStatus, channel, accountID, msgIDs, conversationID)
-	} else {
-		tx = r.db.WithContext(ctx).Raw(q+" RETURNING msg_id", terminalStatus, channel, accountID, msgIDs)
-	}
-	if err = tx.Scan(&updatedIDs).Error; err != nil {
+	// 原 UPDATE...RETURNING（T012 清偿）：事务内 FOR UPDATE 取号 + 条件更新（与无状态版同构）
+	err = r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		sel := tx.Model(&model.MessageHub{}).
+			Where("platform = ? AND account_id = ? AND direction = 'outbound' AND msg_id IN ? AND status IN ('pending','inflight')",
+				channel, accountID, msgIDs)
+		if conversationID != "" {
+			sel = sel.Where("conversation_id = ?", conversationID)
+		}
+		if e := sel.Clauses(clause.Locking{Strength: "UPDATE"}).Pluck("msg_id", &updatedIDs).Error; e != nil {
+			return e
+		}
+		if len(updatedIDs) == 0 {
+			affectedRows = 0
+			return nil
+		}
+		upd := tx.Model(&model.MessageHub{}).
+			Where("platform = ? AND account_id = ? AND msg_id IN ? AND status IN ('pending','inflight')",
+				channel, accountID, updatedIDs)
+		if conversationID != "" {
+			upd = upd.Where("conversation_id = ?", conversationID)
+		}
+		res := upd.Updates(map[string]any{"status": terminalStatus, "sent_at": time.Now()})
+		if res.Error != nil {
+			return res.Error
+		}
+		affectedRows = res.RowsAffected
+		return nil
+	})
+	if err != nil {
 		return nil, 0, err
 	}
-	affectedRows = int64(len(updatedIDs))
 	return updatedIDs, affectedRows, nil
 }
 

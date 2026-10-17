@@ -43,11 +43,12 @@ func (dm *PgDialogManager) CreateSession(ctx context.Context, userID, platform, 
 	}
 
 	cfgJSON, _ := json.Marshal(config)
-	if err := dm.db.WithContext(ctx).Exec(
-		`INSERT INTO rag_sessions (id, user_id, platform, kb_id, status, config, created_at, updated_at)
-		 VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
-		session.ID, userID, platform, kbID, "active", string(cfgJSON), now, now,
-	).Error; err != nil {
+	if err := dm.db.WithContext(ctx).Table("rag_sessions").
+		Create(map[string]any{
+			"id": session.ID, "user_id": userID, "platform": platform,
+			"kb_id": kbID, "status": "active", "config": string(cfgJSON),
+			"created_at": now, "updated_at": now,
+		}).Error; err != nil {
 		return nil, fmt.Errorf("create session: %w", err)
 	}
 
@@ -66,10 +67,10 @@ func (dm *PgDialogManager) GetSession(ctx context.Context, sessionID string) (*S
 		UpdatedAt time.Time
 	}
 
-	if err := dm.db.WithContext(ctx).Raw(
-		`SELECT id, user_id, platform, kb_id, status, config, created_at, updated_at
-		 FROM rag_sessions WHERE id = ?`, sessionID,
-	).Scan(&row).Error; err != nil {
+	if err := dm.db.WithContext(ctx).Table("rag_sessions").
+		Select("id, user_id, platform, kb_id, status, config, created_at, updated_at").
+		Where("id = ?", sessionID).
+		Scan(&row).Error; err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil
 		}
@@ -99,11 +100,12 @@ func (dm *PgDialogManager) GetSession(ctx context.Context, sessionID string) (*S
 
 func (dm *PgDialogManager) AddMessage(ctx context.Context, sessionID string, message Message) error {
 	contentJSON, _ := json.Marshal(message)
-	return dm.db.WithContext(ctx).Exec(
-		`INSERT INTO rag_messages (session_id, message_id, role, content, timestamp)
-		 VALUES (?, ?, ?, ?, ?)`,
-		sessionID, message.ID, string(message.Role), string(contentJSON), message.Timestamp,
-	).Error
+	return dm.db.WithContext(ctx).Table("rag_messages").
+		Create(map[string]any{
+			"session_id": sessionID, "message_id": message.ID,
+			"role": string(message.Role), "content": string(contentJSON),
+			"timestamp": message.Timestamp,
+		}).Error
 }
 
 func (dm *PgDialogManager) GetConversationHistory(ctx context.Context, sessionID string, limit int) (*Conversation, error) {
@@ -111,10 +113,11 @@ func (dm *PgDialogManager) GetConversationHistory(ctx context.Context, sessionID
 		Content string
 	}
 
-	if err := dm.db.WithContext(ctx).Raw(
-		`SELECT content FROM rag_messages WHERE session_id = ?
-		 ORDER BY timestamp DESC LIMIT ?`, sessionID, limit,
-	).Scan(&rows).Error; err != nil {
+	if err := dm.db.WithContext(ctx).Table("rag_messages").
+		Select("content").
+		Where("session_id = ?", sessionID).
+		Order("timestamp DESC").Limit(limit).
+		Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 
@@ -135,26 +138,25 @@ func (dm *PgDialogManager) GetConversationHistory(ctx context.Context, sessionID
 
 func (dm *PgDialogManager) UpdateSessionMetadata(ctx context.Context, sessionID string, metadata map[string]any) error {
 	metaJSON, _ := json.Marshal(metadata)
-	return dm.db.WithContext(ctx).Exec(
-		`UPDATE rag_sessions SET config = json_set(config, '$.metadata', ?), updated_at = ?
-		 WHERE id = ?`, string(metaJSON), time.Now(), sessionID,
-	).Error
+	return dm.db.WithContext(ctx).Table("rag_sessions").
+		Where("id = ?", sessionID).
+		Updates(map[string]any{
+			"config":     gorm.Expr("json_set(config, '$.metadata', ?)", string(metaJSON)),
+			"updated_at": time.Now(),
+		}).Error
 }
 
 func (dm *PgDialogManager) CloseSession(ctx context.Context, sessionID string) error {
-	return dm.db.WithContext(ctx).Exec(
-		`UPDATE rag_sessions SET status = 'closed', updated_at = ? WHERE id = ?`,
-		time.Now(), sessionID,
-	).Error
+	return dm.db.WithContext(ctx).Table("rag_sessions").
+		Where("id = ?", sessionID).
+		Updates(map[string]any{"status": "closed", "updated_at": time.Now()}).Error
 }
 
 func (dm *PgDialogManager) CleanupExpiredSessions(ctx context.Context) error {
 	cutoff := time.Now().Add(-dm.config.DefaultSessionTimeout)
-	return dm.db.WithContext(ctx).Exec(
-		`UPDATE rag_sessions SET status = 'expired', updated_at = ? 
-		 WHERE status = 'active' AND updated_at < ?`,
-		time.Now(), cutoff,
-	).Error
+	return dm.db.WithContext(ctx).Table("rag_sessions").
+		Where("status = 'active' AND updated_at < ?", cutoff).
+		Updates(map[string]any{"status": "expired", "updated_at": time.Now()}).Error
 }
 
 func (dm *PgDialogManager) ListUserSessions(ctx context.Context, userID, platform string, status SessionStatus) ([]Session, error) {
@@ -169,16 +171,13 @@ func (dm *PgDialogManager) ListUserSessions(ctx context.Context, userID, platfor
 		UpdatedAt time.Time
 	}
 
-	query := `SELECT id, user_id, platform, kb_id, status, config, created_at, updated_at
-	          FROM rag_sessions WHERE user_id = ? AND platform = ?`
-	args := []any{userID, platform}
-
+	q := dm.db.WithContext(ctx).Table("rag_sessions").
+		Select("id, user_id, platform, kb_id, status, config, created_at, updated_at").
+		Where("user_id = ? AND platform = ?", userID, platform)
 	if status != "" {
-		query += " AND status = ?"
-		args = append(args, string(status))
+		q = q.Where("status = ?", string(status))
 	}
-
-	if err := dm.db.WithContext(ctx).Raw(query, args...).Scan(&rows).Error; err != nil {
+	if err := q.Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 

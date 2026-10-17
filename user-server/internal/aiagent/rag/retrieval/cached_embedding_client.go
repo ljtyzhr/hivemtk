@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"hivemtk-user/internal/aiagent/llm"
 	"hivemtk-user/internal/pkg/utils/logger"
@@ -213,19 +214,31 @@ func (c *CachedEmbeddingClient) cacheKey(model, text string) string {
 	return fmt.Sprintf("rag:emb:%s:%s", model, sha256Hex(normalizeQuery(text)))
 }
 
+// embeddingCacheTableExists embedding_cache 表存在性检查（链式，T012 清偿：原两处 Raw 收敛）
+func (c *CachedEmbeddingClient) embeddingCacheTableExists(ctx context.Context) bool {
+	if c.db == nil {
+		return false
+	}
+	var exists bool
+	if err := c.db.WithContext(ctx).Table("information_schema.tables").
+		Select("count(*) > 0").
+		Where("table_schema = current_schema() AND table_name = 'embedding_cache'").
+		Scan(&exists).Error; err != nil {
+		return false
+	}
+	return exists
+}
+
 func (c *CachedEmbeddingClient) queryDBCache(ctx context.Context, model, text string, expectDim int) ([]float32, bool) {
-	var tableExists bool
-	if err := c.db.WithContext(ctx).Raw(
-		`SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'embedding_cache')`,
-	).Scan(&tableExists).Error; err != nil || !tableExists {
+	if !c.embeddingCacheTableExists(ctx) {
 		return nil, false
 	}
 	hash := sha256Hex(normalizeQuery(text))
 	var vecStr string
-	err := c.db.WithContext(ctx).Raw(
-		`SELECT embedding::text FROM embedding_cache WHERE text_hash = ? AND model = ? AND (expires_at IS NULL OR expires_at > NOW())`,
-		hash, model,
-	).Scan(&vecStr).Error
+	err := c.db.WithContext(ctx).Table("embedding_cache").
+		Select("embedding::text").
+		Where("text_hash = ? AND model = ? AND (expires_at IS NULL OR expires_at > NOW())", hash, model).
+		Scan(&vecStr).Error
 	if err != nil || vecStr == "" {
 		return nil, false
 	}
@@ -234,36 +247,47 @@ func (c *CachedEmbeddingClient) queryDBCache(ctx context.Context, model, text st
 		return nil, false
 	}
 	c.submit(func() {
-		_ = c.db.WithContext(context.Background()).Exec(
-			`UPDATE embedding_cache SET hit_count = hit_count + 1, last_used_at = NOW() WHERE text_hash = ? AND model = ?`,
-			hash, model,
-		).Error
+		_ = c.db.WithContext(context.Background()).Table("embedding_cache").
+			Where("text_hash = ? AND model = ?", hash, model).
+			Updates(map[string]any{
+				"hit_count":    gorm.Expr("hit_count + 1"),
+				"last_used_at": time.Now(),
+			}).Error
 	})
 	return vec, true
 }
 
 func (c *CachedEmbeddingClient) persistDBCache(ctx context.Context, model, text string, vec []float32) {
-	var tableExists bool
-	if err := c.db.WithContext(ctx).Raw(
-		`SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'embedding_cache')`,
-	).Scan(&tableExists).Error; err != nil || !tableExists {
+	if !c.embeddingCacheTableExists(ctx) {
 		return
 	}
 	hash := sha256Hex(normalizeQuery(text))
 	vecLiteral := vecToPGString(vec)
-	expiresAt := time.Now().Add(c.ttlDB)
-	err := c.db.WithContext(ctx).Exec(`
-		INSERT INTO embedding_cache (text_hash, text_content, model, dimension, embedding, hit_count, last_used_at, expires_at, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?::vector, 0, NOW(), ?, NOW(), NOW())
-		ON CONFLICT (tenant_id, text_hash, model) DO UPDATE SET
-			embedding = EXCLUDED.embedding,
-			dimension = EXCLUDED.dimension,
-			last_used_at = NOW(),
-			expires_at = EXCLUDED.expires_at,
-			updated_at = NOW()
-	`,
-		hash, text, model, len(vec), vecLiteral, expiresAt,
-	).Error
+	now := time.Now()
+	expiresAt := now.Add(c.ttlDB)
+	err := c.db.WithContext(ctx).Table("embedding_cache").
+		Clauses(clause.OnConflict{
+			Columns: []clause.Column{{Name: "tenant_id"}, {Name: "text_hash"}, {Name: "model"}},
+			DoUpdates: clause.Assignments(map[string]any{
+				"embedding":    gorm.Expr("EXCLUDED.embedding"),
+				"dimension":    len(vec),
+				"last_used_at": now,
+				"expires_at":   expiresAt,
+				"updated_at":   now,
+			}),
+		}).
+		Create(map[string]any{
+			"text_hash":    hash,
+			"text_content": text,
+			"model":        model,
+			"dimension":    len(vec),
+			"embedding":    gorm.Expr("?::vector", vecLiteral),
+			"hit_count":    0,
+			"last_used_at": now,
+			"expires_at":   expiresAt,
+			"created_at":   now,
+			"updated_at":   now,
+		}).Error
 	if err != nil {
 		logger.Errorf("cached_embedding: persistDBCache failed, hash=%s: %v", hash, err)
 	}

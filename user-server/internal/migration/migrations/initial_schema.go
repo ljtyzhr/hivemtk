@@ -219,4 +219,6 @@ func RegisterMigrations(registry *migration.MigrationRegistry, db *gorm.DB) {
 	register(NewTenantUniqueIndexMigration(db))
 	register(NewTenantGlobalEmailUniqueMigration(db))
 	register(NewAggregationWatermarkPKMigration(db))
+	// v3.62.0：LLM 输入/输出分列计价与 provider 来源（模块化改造 · 任务五）
+	register(NewLLMSeparatePricingMigration(db))
 }

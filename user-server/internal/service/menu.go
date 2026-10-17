@@ -39,10 +39,23 @@ func (s *MenuService) GetAllMenuTree() []model.SystemMenuNode {
 
 // GetUserMenuTree 当前登录用户可见菜单树
 //
+// 两道闸的顺序不可换（.specify/002-modular-subscription FR-5.5）：
+//
+//	**先模块闸，再角色授权**。
+//
+// 反过来（先角色后模块）会有两个症状：
+//  1. 超管走 `admin` 分支直接返回全树 —— 模块闸被整个跳过，
+//     于是"菜单看得见、点进去才 403"，正是要避免的那种半开状态；
+//  2. 非超管则要先在库里算出角色授权、再按模块裁，多一轮无用功。
+//
 // 错误：角色非法 → ErrInvalidInput
 func (s *MenuService) GetUserMenuTree(ctx context.Context, role string) ([]model.SystemMenuNode, error) {
+	// 第 1 道：模块闸。未装配判定函数时 FilterMenuTreeByModule 原样返回全树
+	// （离线首启 / 单测不注入），保证不会因为"闸没接上"而空菜单。
+	moduleTree := model.FilterMenuTreeByModule(model.SystemMenuTree, model.ModuleEnabledFilter)
+
 	if role == model.SystemRoleCodeAdmin {
-		return model.SystemMenuTree, nil
+		return moduleTree, nil
 	}
 	if !model.IsValidRole(role) {
 		return nil, fmt.Errorf("角色不存在: %w", ErrInvalidInput)
@@ -51,7 +64,12 @@ func (s *MenuService) GetUserMenuTree(ctx context.Context, role string) ([]model
 	if err != nil {
 		return nil, err
 	}
-	return model.FilterMenuTree(model.SystemMenuTree, set), nil
+	// 第 2 道：角色授权。
+	//
+	// 注意这里传 moduleTree 而不是 SystemMenuTree：FilterMenuTree 是按 key
+	// 在**给定树**上剪枝的，若传全树，已被模块闸剪掉的分支会因"子节点仍命中
+	// 角色授权"而复活 —— 于是关掉的模块又被角色授权请回来。
+	return model.FilterMenuTree(moduleTree, set), nil
 }
 
 // GetRoleMenuKeys 某角色**有效**的菜单 key 列表（admin 返回全量）

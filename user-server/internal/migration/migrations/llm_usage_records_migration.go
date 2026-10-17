@@ -54,9 +54,10 @@ func (m *LLMUsageRecordsMigration) Up(ctx context.Context) error {
 
 // Down 回滚
 func (m *LLMUsageRecordsMigration) Down(ctx context.Context) error {
-	if err := m.db.WithContext(ctx).Exec("DROP TABLE IF EXISTS llm_usage_records").Error; err != nil {
-		return fmt.Errorf("删除 llm_usage_records 失败: %w", err)
-	}
+	// 该表同时被 ops/ai_productivity 的聚合查询与后续模块化改造使用，
+	// 共享测试库/存量库场景下它可能先于本迁移存在——Down 只撤销自己新建的对象，
+	// 其余按 declineTableDrop 口径放弃（降级不销毁在用对象）。
+	declineTableDrop(m.Version(), "llm_usage_records")
 	return nil
 }
 

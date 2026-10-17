@@ -169,9 +169,24 @@ func expectedTreeKeys(role string) map[string]struct{} {
 
 // TestRBACMenuGrants_TreeAndCapabilityFollowRoleGrants 见文件头注释。
 func TestRBACMenuGrants_TreeAndCapabilityFollowRoleGrants(t *testing.T) {
-	// seatEngine 建的正是这套表（含 RoleMenuPermission）与真实装配（Setup 里挂上
-	// SetMenuGrantProvider），菜单域复用它比另起一份引擎更接近生产链路。
+	// 隔离模块闸：本题考的是 **RBAC 授权**这一个维度，而菜单树现在还要过
+	// 模块闸（未开通模块的菜单对所有人隐藏，见 service/menu.go 的双闸说明）。
+	// 不清掉它，本用例的断言就会被「模块数据当前是什么」污染 ——
+	// 症状是同一份 RBAC 代码在 CI 上绿、在本地红，而两者只差一个测试执行顺序。
+	//
+	// 注意这里**不是**给模块闸开后门：admin 在生产里同样只看到已开通的模块，
+	// 那是商业模式的落地点（见 TestAdminAlsoSeesModuleGate）。本题只关心
+	// 「在模块闸恒开的前提下，RBAC 的授予是否生效」。
+	// seatEngine 调的正是生产装配入口 Setup()，而 Setup 内部会装配模块闸
+	// （那是它该做的事）。所以「清掉闸」必须发生在 Setup **之后**：
+	// 放在前面会被 Setup 重新装上，等于什么都没做。
+	//
+	// seatEngine 建的正是这套表（含 RoleMenuPermission）与真实装配，菜单域复用它
+	// 比另起一份引擎更接近生产链路。
 	engine, _ := seatEngine(t)
+
+	model.SetModuleEnabledFilter(nil)
+	t.Cleanup(func() { model.SetModuleEnabledFilter(nil) })
 	agentA, _, admin := seatTokens(t)
 
 	jt := utils.NewJWTUtils(utils.DefaultJWTConfig)

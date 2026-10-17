@@ -310,10 +310,13 @@ func (r *KnowledgeChunkRepository) UpdateEmbeddingsBatchWithSource(ctx context.C
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		for i, c := range chunks {
 			vec := vecToPGString(embeddings[i])
-			if err := tx.Exec(
-				"UPDATE knowledge_chunks SET embedding = $1::vector, embed_status = 'indexed', embedding_source = $3 WHERE id = $2",
-				vec, c.ID, source,
-			).Error; err != nil {
+			if err := tx.Table("knowledge_chunks").
+				Where("id = ?", c.ID).
+				Updates(map[string]any{
+					"embedding":        gorm.Expr("?::vector", vec),
+					"embed_status":     "indexed",
+					"embedding_source": source,
+				}).Error; err != nil {
 				return err
 			}
 		}

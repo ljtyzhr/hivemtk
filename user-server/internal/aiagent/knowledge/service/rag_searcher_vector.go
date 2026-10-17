@@ -7,6 +7,8 @@ import (
 	"strings"
 
 	"hivemtk-user/internal/pkg/kbrelease"
+
+	"gorm.io/gorm/clause"
 )
 
 func (s *RagSearcher) vectorSearch(ctx context.Context, productID string, query string, topK int) ([]scored, error) {
@@ -23,33 +25,17 @@ func (s *RagSearcher) vectorSearch(ctx context.Context, productID string, query 
 	vecLiteral := vecToPGString(queryVec)
 
 	var rows []chunkRow
+	q := s.db.WithContext(ctx).Table("knowledge_chunks").
+		Select("id, document_id, content, (1 - (embedding <=> ?::vector))::float8 AS score", vecLiteral).
+		Where("embedding IS NOT NULL AND embedding_source = 'tei'")
 	if productID != "" {
-		sql := `
-			SELECT id, document_id, content,
-			       (1 - (embedding <=> ?::vector))::float8 AS score
-			FROM knowledge_chunks
-			WHERE embedding IS NOT NULL
-			  AND embedding_source = 'tei'
-			  AND product_id = ?` + kbrelease.AndVisible() + `
-			ORDER BY embedding <=> ?::vector
-			LIMIT ?
-		`
-		if err := s.db.WithContext(ctx).Raw(sql, vecLiteral, productID, vecLiteral, topK).Scan(&rows).Error; err != nil {
-			return nil, err
-		}
-	} else {
-		sql := `
-			SELECT id, document_id, content,
-			       (1 - (embedding <=> ?::vector))::float8 AS score
-			FROM knowledge_chunks
-			WHERE embedding IS NOT NULL
-			  AND embedding_source = 'tei'` + kbrelease.AndVisible() + `
-			ORDER BY embedding <=> ?::vector
-			LIMIT ?
-		`
-		if err := s.db.WithContext(ctx).Raw(sql, vecLiteral, vecLiteral, topK).Scan(&rows).Error; err != nil {
-			return nil, err
-		}
+		q = q.Where("product_id = ?"+kbrelease.AndVisible(), productID)
+	} else if vis := kbrelease.AndVisible(); vis != "" {
+		q = q.Where(strings.TrimPrefix(vis, " AND "))
+	}
+	q = q.Order(clause.Expr{SQL: "embedding <=> ?::vector", Vars: []any{vecLiteral}}).Limit(topK)
+	if err := q.Scan(&rows).Error; err != nil {
+		return nil, err
 	}
 	pairs := make([]scored, 0, len(rows))
 	for _, r := range rows {

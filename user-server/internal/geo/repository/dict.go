@@ -3,9 +3,11 @@ package repository
 import (
 	"hivemtk-user/internal/geo/model"
 	_db "hivemtk-user/internal/pkg/db"
+	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // GeoDictRepository GEO 通用配置字典
@@ -97,20 +99,35 @@ func (r *geoDictRepo) Upsert(d *model.GeoDict) error {
 	if err != nil {
 		return err
 	}
-	// 必须用原生 SQL：GORM 的 `default:true` 标签会在零值时直接替换绑定变量
-	// （DryRun 实测：结构体 Active=false 进 VARS 变成 true），Select 也拦不住；
-	// 导致 active=false 永远写不进去（EXCLUDED.active 取到列 DEFAULT true）。
-	// 原生 Exec 显式绑定，false 就是 false。BeforeCreate hook 在 Exec 下不触发，
-	// 故此处显式补 UUID（与 model.BeforeCreate 保持一致）。
+	// 原生 Exec 的历史原因（GORM 结构体 Create 的 default:true 零值吞写）对
+	// map 形态 Create 不成立：map 绑定按值落列，false 就是 false（T012 清偿）。
+	// BeforeCreate 在 Table+Create(map) 下不触发，显式补 UUID（与 model 钩子一致）。
 	if d.ID == "" {
 		d.ID = uuid.NewString()
 	}
-	return db.Exec(`INSERT INTO geo_dicts (id, category, "key", value, remark, active, sort, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
-		ON CONFLICT (tenant_id, category, "key") DO UPDATE SET
-			value = EXCLUDED.value, remark = EXCLUDED.remark, active = EXCLUDED.active,
-			sort = EXCLUDED.sort, updated_at = NOW()`,
-		d.ID, d.Category, d.Key, d.Value, d.Remark, d.Active, d.Sort).Error
+	now := time.Now()
+	return db.Table("geo_dicts").
+		Clauses(clause.OnConflict{
+			Columns: []clause.Column{{Name: "tenant_id"}, {Name: "category"}, {Name: "key"}},
+			DoUpdates: clause.Assignments(map[string]any{
+				"value":      d.Value,
+				"remark":     d.Remark,
+				"active":     d.Active,
+				"sort":       d.Sort,
+				"updated_at": now,
+			}),
+		}).
+		Create(map[string]any{
+			"id":         d.ID,
+			"category":   d.Category,
+			"key":        d.Key,
+			"value":      d.Value,
+			"remark":     d.Remark,
+			"active":     d.Active,
+			"sort":       d.Sort,
+			"created_at": now,
+			"updated_at": now,
+		}).Error
 }
 
 func (r *geoDictRepo) Delete(category, key string) error {

@@ -3,6 +3,7 @@ package cron
 import (
 	"context"
 	"fmt"
+	"hivemtk-user/internal/pkg/tenant"
 	"runtime/debug"
 	"sync"
 	"time"
@@ -83,7 +84,12 @@ func (c *WeComQuotaResetCron) runOnce(ctx context.Context) (n int64, err error) 
 	}()
 	fn := c.executeFn
 	if fn == nil {
-		fn = c.svc.ResetAllDailyQuotas
+		// 企微账号归租户域（T020）：日配额重置按租户扇出
+		fn = func(ctx context.Context) (int64, error) {
+			return tenant.Fanout(ctx, nil, func(ctx context.Context, _ uint) (int64, error) {
+				return c.svc.ResetAllDailyQuotas(ctx)
+			})
+		}
 	}
 	return fn(ctx)
 }

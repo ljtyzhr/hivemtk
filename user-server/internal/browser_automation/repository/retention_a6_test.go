@@ -499,7 +499,18 @@ func a6DigestUnderSessionTZ(t *testing.T, db *gorm.DB, zone string) string {
 	}
 	var window []pruneWindow
 	// 高水位取 int64 上界：本函数只负责「这批内容折出来是什么」，不参与裁剪的批次切分。
-	if err := tx.Raw(pruneWindowSQL, a6Cutoff(), int64(1)<<62, pruneBatchRows).Scan(&window).Error; err != nil {
+	inner := tx.Table("browser_command_log").
+		Select("id, session_id, seq, "+auditRowHashSQL+" AS row_hash").
+		Where("created_at < ? AND id <= ?", a6Cutoff(), int64(1)<<62).
+		Order("id").
+		Limit(pruneBatchRows)
+	if err := tx.Table("(?) AS rows_to_prune", inner).
+		Select("session_id, count(*) AS row_count, min(seq) AS first_seq, max(seq) AS last_seq, " +
+			"max(id) AS max_id, " +
+			"encode(sha256(convert_to(string_agg(row_hash, '' ORDER BY id), 'utf8')), 'hex') AS batch_digest").
+		Group("session_id").
+		Order("session_id").
+		Scan(&window).Error; err != nil {
 		t.Fatalf("复算批摘要失败：%v", err)
 	}
 	for _, w := range window {

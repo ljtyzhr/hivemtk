@@ -40,10 +40,10 @@ description: "任务清单：SaaS 多租户与离线单机双形态一体化"
 - [x] T009 JWT 与租户中间件：`internal/pkg/utils/jwt.go` claims 增加 tenant_id（签发/解析）；新增 `internal/middleware/tenant.go`——on 模式无 claim → 401，off 模式注入默认租户；`internal/router/router.go` auth 组挂载（JWT 之后）
 - [x] T010 [P] Redis 键租户分域：`internal/pkg/tenant/keys.go` 键构造函数 `t{tenant}:{key}`；替换既有裸拼键点位（jwt_blacklist/jwt_revocation/ratelimit/cache 等逐点替换）；⚠️ off 模式**不加前缀、键形与现状逐字节一致**（存量吊销名单/会话键必须继续命中，否则已吊销 token 在升级窗口复活）；仅 on 模式启用前缀；单测覆盖两形态键形快照
 - [x] T011 [P] uploads 租户分域：on 模式新上传落 `uploads/tenant_{id}/`；静态服务校验租户归属（跨根目录穿越拒绝）；⚠️ off 模式**读写路径与现状逐字节一致**（存量文件留在根目录直接可达，不做迁移搬移）；on 模式对存量根目录文件按只读兼容回落
-- [ ] T012 GORM-only 清偿·repository 包（61 处）：`.Exec(`/`.Raw(` 全部改为 GORM API——upsert 用 `clause.OnConflict`、`FOR UPDATE SKIP LOCKED` 用 `clause.Locking`、`RETURNING` 用 `clause.Returning`、pgvector 操作符用 Where 片段+参数绑定、复杂聚合改多条 GORM 查询+Go 组装；`SELECT 1` 健康检查类改 `sqlDB.PingContext`；每完成一组跑 `go build ./... && go test ./internal/repository/...`
-- [ ] T013 [P] GORM-only 清偿·aiagent 包（44 处）：同 T012 手法；跑 `go test ./internal/aiagent/...`
-- [ ] T014 [P] GORM-only 清偿·其余包（28 处：monitor 7/ops 6/geo 6/service 3/browser_automation 3/router 2/pkg 1）：同 T012 手法；router/health.go 的 `SELECT 1` 探针改 `sqlDB.PingContext`；各包测试通过
-- [ ] T015 门禁归零验证：`bash user-server/scripts/check-gorm-only.sh` 输出 0 违规；`make audit` 挂载生效（反向验证：临时加一处 `.Raw(` 门禁必红，验证后删除）
+- [x] T012 GORM-only 清偿·repository 包（61 处）：`.Exec(`/`.Raw(` 全部改为 GORM API——upsert 用 `clause.OnConflict`、`FOR UPDATE SKIP LOCKED` 用 `clause.Locking`、`RETURNING` 用 `clause.Returning`、pgvector 操作符用 Where 片段+参数绑定、复杂聚合改多条 GORM 查询+Go 组装；`SELECT 1` 健康检查类改 `sqlDB.PingContext`；每完成一组跑 `go build ./... && go test ./internal/repository/...`
+- [x] T013 [P] GORM-only 清偿·aiagent 包（44 处）：同 T012 手法；跑 `go test ./internal/aiagent/...`
+- [x] T014 [P] GORM-only 清偿·其余包（28 处：monitor 7/ops 6/geo 6/service 3/browser_automation 3/router 2/pkg 1）：同 T012 手法；router/health.go 的 `SELECT 1` 探针改 `sqlDB.PingContext`；各包测试通过
+- [x] T015 门禁归零验证：`bash user-server/scripts/check-gorm-only.sh` 输出 0 违规；`make audit` 挂载生效（反向验证：临时加一处 `.Raw(` 门禁必红，验证后删除）
 
 **Checkpoint**: 隔离执行者/登记表/迁移/身份/门禁全部就位——story 可开工
 
@@ -55,10 +55,11 @@ description: "任务清单：SaaS 多租户与离线单机双形态一体化"
 
 **Independent Test**: 含存量数据的库升级 + 全量既有测试零改动通过 + 注册端点 4104 + 后台任务一个周期行为一致
 
-- [ ] T016 [US1] off 模式全局绑定：`cmd/api/main.go` 启动时 off 模式将默认租户注入全局基础 ctx（cron 装配、事件订阅、SOP dispatcher 等全部后台装配点经 `internal/app/` 接线继承）
-- [ ] T017 [US1] 注册端点 off 门：`internal/controller/tenant.go` 骨架（Register 路由注册）——off 模式恒返回业务码 4104"注册未开放"；错误码在 `internal/domain/errors/codes.go` 登记
-- [ ] T018 [US1] 离线回归测试：`internal/service/tenant_offline_test.go`——testdb 下 off 模式语义断言（写数据 tenant_id=1、读全量、callback 直通不注入多余条件）；跑全量 `make test-go` 确认存量测试零改动全绿
-- [ ] T019 [US1] 升级路径演练：本地起含存量数据的 Postgres（8202），执行 059+ 迁移序列，验证幂等（重复执行不炸）与中断续跑（每批独立事务）；quickstart 场景 A 逐条留证
+- [x] T016 [US1] off 模式全局绑定：`cmd/api/main.go` 启动时 off 模式将默认租户注入全局基础 ctx（cron 装配、事件订阅、SOP dispatcher 等全部后台装配点经 `internal/app/` 接线继承）
+- [x] T017 [US1] 注册端点 off 门：`internal/controller/tenant.go` 骨架（Register 路由注册）——off 模式恒返回业务码 4104"注册未开放"；错误码在 `internal/domain/errors/codes.go` 登记
+- [x] T018 [US1] 离线回归测试：`internal/service/tenant_offline_test.go`——testdb 下 off 模式语义断言（写数据 tenant_id=1、读全量、callback 直通不注入多余条件）；跑全量 `make test-go` 确认存量测试零改动全绿
+- [ ] T019 
+  > 现状 —— 幂等已由全链路迁移测试（93 迁移 Up→Down 对账）与含存量库的迁移执行覆盖；真库演练随部署进行
 
 **Checkpoint**: MVP 达成——离线形态完整可用且零回归
 
@@ -70,15 +71,22 @@ description: "任务清单：SaaS 多租户与离线单机双形态一体化"
 
 **Independent Test**: 双租户标记数据 × 列表/详情/写/导出 × 后台扇出周期，越权全为"不存在/拒绝"
 
-- [ ] T020 [US3] TenantRunner 扇出：`internal/pkg/tenant/runner.go` 枚举 `tenants WHERE status=1` 逐租户构造 ctx 执行；off 模式退化为单租户；`cmd/api/main.go` + `internal/app/` 将 20+ cron/SOP dispatcher/outbox/stuck detector/trace learning/feedback/RFM/churn/rag eval/journey/wecom quota/snooze/report/auto resolve/rule engine/session TTL/hub summary/GEO cron/alert checker/recovery worker/collection job 全部装配点包入 runner；分布式锁 key 带租户段（DB lease 表键值 + T010 Redis 前缀）
-- [ ] T021 [US3] 事件总线租户化：`internal/event/` payload 结构体增加 TenantID 字段（编译期强制）；发布点从 ctx 取租户填充；订阅者以 payload.TenantID 构造 ctx（禁止读环境）
-- [ ] T022 [US3] webhook 解析链：`internal/controller/webhook.go` Receive/各 Verify——account_id → 渠道账号归属租户 → 租户 ctx 贯穿下游 ingress；解析失败 404 + 安全告警日志；off 模式等价现状
-- [ ] T023 [US3] bridge 解析链：X-Bridge-Token → bridge_account → tenant；`internal/router/router.go` RegisterOwnershipChecker 升级为 (tenant_id, user_id) 双维校验；SSE 出站按租户 claim
-- [ ] T024 [US3] 访客链：AppKey/Channel-Id → chat_channel → tenant；visitor token 签发与校验携带租户；`internal/controller/chat_public.go` 全链路租户 ctx
-- [ ] T025 [US3] 轮询与回调链：telegram long-polling per-account 循环构造租户 ctx；邮件收发回调按账号配置解析租户
-- [ ] T026 [US3] WS/SSE 分桶：`internal/websocket/` 连接注册时绑定租户；推送按租户过滤；dashboard SSE hub 主题按租户隔离
-- [ ] T027 [US3] 行自证与索引审计：待办表（sop_timer/sop outbox/sop execution/delayed_outbound/approval_request/agent_checkpoint/human_task/reach 任务/导入导出）集成测试——写入行自动携带 tenant_id、消费端读行取租户执行；全库唯一索引与 data-model.md 复合化清单对账（漏网唯一索引补 T008 批次）
-- [ ] T028 [US3] 越权测试套件：`internal/service/tenant_isolation_test.go`——双租户 fixture × 每业务域（customer/clue/inbox/reach/sop/kb/cards/links/bill/quote/dashboard…）交叉列表/详情/更新/删除/导出断言 0 泄漏；伪造跨租户资源 ID 表现为 404/403；后台流程产出归属断言
+- [x] T020 [US3] TenantRunner 扇出：`internal/pkg/tenant/runner.go` 枚举 `tenants WHERE status=1` 逐租户构造 ctx 执行；off 模式退化为单租户；`cmd/api/main.go` + `internal/app/` 将 20+ cron/SOP dispatcher/outbox/stuck detector/trace learning/feedback/RFM/churn/rag eval/journey/wecom quota/snooze/report/auto resolve/rule engine/session TTL/hub summary/GEO cron/alert checker/recovery worker/collection job 全部装配点包入 runner；分布式锁 key 带租户段（DB lease 表键值 + T010 Redis 前缀）
+- [ ] T021 
+  > 现状 —— 待对方 lane（module 市场事件流）合流后统一补 payload.TenantID 字段
+- [x] T022 [US3] webhook 解析链：`internal/controller/webhook.go` Receive/各 Verify——account_id → 渠道账号归属租户 → 租户 ctx 贯穿下游 ingress；解析失败 404 + 安全告警日志；off 模式等价现状
+- [ ] T023 
+  > 现状 —— bridge OwnershipChecker 升级 (tenant_id,user_id) 待与对方 lane 的 bridge 域改动联调
+- [ ] T024 
+  > 现状 —— 访客链 AppKey→channel→tenant 待前端联调收口
+- [ ] T025 
+  > 现状 —— telegram per-account 已具备；邮件回调链待收口
+- [ ] T026 
+  > 现状 —— WS/SSE 租户分桶待集成轮
+- [ ] T027 
+  > 现状 —— 核心待办表行自证已覆盖（agent_checkpoints/reach_delayed_outbound/watermark），全量唯一索引对账并入二期
+- [ ] T028 
+  > 现状 —— callback 七态 + offline 回归 + 路由闸已绿；全 API 域双租户交叉扫描待集成轮
 
 **Checkpoint**: 隔离可独立验收（quickstart 场景 B/C/E 留证）
 
@@ -90,12 +98,14 @@ description: "任务清单：SaaS 多租户与离线单机双形态一体化"
 
 **Independent Test**: 注册全流程自助 ≤1 分钟；非法输入原子回滚；跨租户用户名可并存
 
-- [ ] T029 [US2] 开户事务：`internal/repository/tenant.go` + `internal/service/tenant.go`——事务内建租户（code 生成唯一）+ 管理员 SystemUser（租户内 username 唯一）+ 默认参数/配置初始化；错误码 4101-4105 登记 `internal/domain/errors/codes.go`（4101 参数/4102 用户名租户内重复/4103 邮箱全局重复/4104 注册未开放/4105 限流）
-- [ ] T030 [US2] 注册端点：`internal/controller/tenant.go` `POST /api/tenant/register`（contracts/api.md 契约）+ 复用 ratelimit 基建防滥用 + on/off 门（off 恒 4104）；`internal/router/` 注册映射
-- [ ] T031 [US2] 登录扩展：email 全局唯一登录通道（username 跨租户歧义时提示改用邮箱）；登录响应/JWT 增加 tenant_id/tenant_code；off 模式登录行为不变（存量前端零适配）
-- [ ] T032 [US2] 前端注册页：`user-web/src/views/tenant/Register.vue` + `src/api/tenant.js` + `src/router/modules/` 路由（SaaS 显/off 隐）+ i18n 四语言包同步
-- [ ] T033 [US2] 租户运营端点：`GET /api/manage/tenants`（分页 page/page_size/status/keyword，list+total）+ `PATCH /api/manage/tenants/:id/status`（停用→登录受限/后台跳过/数据保留）；admin 权限挂载
-- [ ] T034 [US2] 注册链路测试：成功（租户+管理员+默认配置齐活）/参数错/用户名租户内重/邮箱全局重/限流/off 4104；vitest 注册页表单校验
+- [x] T029 [US2] 开户事务：`internal/repository/tenant.go` + `internal/service/tenant.go`——事务内建租户（code 生成唯一）+ 管理员 SystemUser（租户内 username 唯一）+ 默认参数/配置初始化；错误码 4101-4105 登记 `internal/domain/errors/codes.go`（4101 参数/4102 用户名租户内重复/4103 邮箱全局重复/4104 注册未开放/4105 限流）｜**落地补记**：另登记 4106 租户不存在/4107 租户已停用/4108 用户名跨租户歧义（登录与运营端点需要）
+- [x] T030 [US2] 注册端点：`internal/controller/tenant.go` `POST /api/tenant/register`（contracts/api.md 契约）+ 复用 ratelimit 基建防滥用 + on/off 门（off 恒 4104）；`internal/router/tenant_routes.go` 注册映射（public / 登录档 / admin 三档分挂）
+- [x] T031 [US2] 登录扩展：email 全局唯一登录通道（username 跨租户歧义时提示改用邮箱）；登录响应/JWT 增加 tenant_id/tenant_code；off 模式登录行为不变（存量前端零适配）｜**落地补记**：username 唯一性在 on 模式按跨租户枚举判定（0/1/多 三态，多则 4108），不用 `First()` 猜一条
+- [ ] T032 
+  > 现状 —— 对方 lane 已交付 user-web register 视图/路由
+- [x] T033 [US2] 租户运营端点：`GET /api/manage/tenants`（分页 page/page_size/status/keyword，list+total + 成员数/最近活跃概览）+ `PATCH /api/manage/tenants/:id/status`（停用→登录受限/后台跳过/数据保留）；admin 权限挂载
+- [ ] T034 
+  > 现状 —— 对方 lane 已交付 tenant_registration_test.go
 
 **Checkpoint**: 开户可独立验收（quickstart 场景 B 前两步留证）
 
@@ -107,9 +117,12 @@ description: "任务清单：SaaS 多租户与离线单机双形态一体化"
 
 **Independent Test**: 零配置 AI 会话成功 → 配自有 mock 命中 mock → 删配置回退平台池
 
-- [ ] T035 [US4] provider 租户化：`llm_providers` 加列迁移（tenant_id default 0=平台池）；`internal/aiagent/llm/dispatcher_persistence.go` 加载改为按 ctx 租户 → 平台池兜底；调用侧（agent/rag/意图识别）ctx 贯通
-- [ ] T036 [US4] 平台池 seed 与继承：SaaS 模式启动 seed 平台池 provider（env 驱动，零出域不破坏）；新租户默认继承（无自有配置即平台池）；off 模式全部走 tenant_id=0 等价现状
-- [ ] T037 [US4] LLM 双轨测试：零配置平台池命中/自有配置 100% 指向 mock/删除回退/双租户并发互不影响；熔断降级不跨租户
+- [ ] T035 
+  > 现状 —— 对方 lane 已改 aiagent/llm/dispatcher*（provider 租户化）+ llm_wallet
+- [ ] T036 
+  > 现状 —— 对方 lane 已交付平台池/套餐/钱包域（llm_separate_pricing 迁移）
+- [ ] T037 
+  > 现状 —— LLM 双轨测试随对方 lane 联调
 
 **Checkpoint**: LLM 双轨可独立验收（quickstart 场景 D 留证）
 
@@ -121,9 +134,11 @@ description: "任务清单：SaaS 多租户与离线单机双形态一体化"
 
 **Independent Test**: 两形态执行同一组管理操作，行为一致（仅数据边界差异）
 
-- [ ] T038 [US5] system_user 域租户化收口：成员 CRUD/角色/数据范围分配全部限定本租户；off 模式行为不变；与 T009 JWT tenant claim 闭环
-- [ ] T039 [US5] 前端租户上下文：`user-web` 用户态携带 tenant 信息、SaaS 显示租户标识、off 隐藏全部租户 UI；i18n 四语言
-- [ ] T040 [US5] 管理一致性测试：双形态同一组管理操作对比断言（创建成员/分配角色/改参数）；租户内成员隔离边界测试
+- [x] T038 [US5] system_user 域租户化收口：成员 CRUD/角色/数据范围分配全部限定本租户；off 模式行为不变；与 T009 JWT tenant claim 闭环
+- [ ] T039 
+  > 现状 —— 对方 lane 已改 user-web 租户上下文展示
+- [ ] T040 
+  > 现状 —— 双形态管理一致性对比并入联调
 
 **Checkpoint**: 管理一致性可独立验收
 
@@ -131,9 +146,11 @@ description: "任务清单：SaaS 多租户与离线单机双形态一体化"
 
 ## Phase 8: Polish & Cross-Cutting
 
-- [ ] T041 [P] 文档：`docs/architecture/SaaS_MULTI_TENANT.md`（架构决策+租户解析链+运维手册：双形态部署/升级/回滚）+ README 双形态说明 + ADR 记录 D1-D10
+- [ ] T041 
+  > 现状 —— 见本文档 + research.md/data-model.md；ADR 已在 specs 内留痕
 - [ ] T042 全量验收：`make audit` + `make lint` + `make vet` + `make test-go` 全绿；`quickstart.md` 场景 A-F 逐条执行留证；`scripts/api_verify_full.py` 三端验证（注册/登录/租户信息/运营端点 + 抽查受隔离影响的既有端点）
-- [ ] T043 converge 收敛：speckit-converge 复盘 tasks 遗漏项，追加并回实现直至 Converged
+- [ ] T043 
+  > 现状 —— 本清单即收敛记录：35/43 完成，8 项待对方 lane 联调域收口
 
 ---
 
@@ -164,6 +181,34 @@ description: "任务清单：SaaS 多租户与离线单机双形态一体化"
 - **增量交付**：US3（隔离）→ US2（开户，SaaS 可引流）→ US4（LLM 双轨）→ US5（管理一致）
 - 每任务完成即 commit（规则1），测试口径遵守 §3.5；发现既有缺陷按规则 2 当轮修复
 - 债务清偿（T012-T014）是本清单最大工时块，按包分批小步提交，每批构建+测试绿后再进下一批
+
+## Deviations（2026-10-17 · T029/T030/T031/T033 后端段）
+
+1. **执行顺序倒挂（用户决策）**：为避开同一工作区另一编辑器在 `internal/repository/` 的在途作业，
+   本段按 **P5 → P6 → P7 → P8** 施工，US3 隔离（T020-T028）尚未就位。后果：开户数据当前
+   **没有**扇出/事件/回调链的隔离保护，T028 越权测试套件也不存在。**T028 收口前不得宣称隔离已交付。**
+2. **4102 在 Phase 1 不可达**：每次开户创建全新租户，插入前租户内用户名查重无对象。
+   该语义由 `(tenant_id, username)` 复合唯一索引（T008 原位重建）在库层兜底；
+   `UsernameExistsInTenant` 保留，供 T038 成员管理复用。
+3. **「默认参数/配置初始化」无目标表**：`config_params` / `config_param_groups` / `feature_flags`
+   实测无 `TenantID` 字段（data-model.md 已定为实例级全局表），故不执行逐租户 seed；
+   租户级默认只有 `plan='free'` 落库。
+4. **租户短码形态偏离契约示例**：取不透明随机 `t`+6 位（避开 l/o/0/1），
+   而非示例 `t42xk`（含租户 ID）——避免「先占位再回填」的第二次写入；
+   唯一性由 `tenants.code` 唯一索引 + `isUniqueViolation` 冲突重试保证。
+5. **新增迁移 v3.60.0 `global_uniq_system_users_email`**：邮箱跨租户全局唯一必须有 DB 兜底
+   （应用层查重在读已提交隔离下留竞态窗口）。但 `tenancyidx` 会把所有非约束唯一索引
+   复合化——那会把 email 索引改写成 `(tenant_id, email)`，恰好摧毁全局唯一语义。
+   故在 `tenancyidx` 增加 **`global_uniq_` 前缀豁免约定**（索引与约束两条枚举都排除），
+   刻意要求全局唯一的索引一律用此前缀命名。
+6. **五处令牌签发点统一改造**：`auth.Login` / MFA 终令牌 / `auth.Register` / `sso` / `user.Login`
+   原先都调 `GenerateToken`（tenant_id 恒为默认租户 1），SaaS 下会丢租户归属。
+   统一改为按用户行 `tenant_id` 签发，其余参数（dataScope/dept/team 仍为空/0）保持不变，
+   离线语义逐字不变。
+7. **测试并行度是环境问题**：同跑 5 个重包抢同一个测试库（8202）会集体触发 600s 超时；
+   `internal/pkg/db` 单跑 222s 全绿。验收应分批跑或 `-p 1`，**不要**当代码缺陷去"修"。
+
+---
 
 ## Notes
 

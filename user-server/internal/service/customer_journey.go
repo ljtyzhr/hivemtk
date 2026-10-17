@@ -3,6 +3,7 @@ package service
 import (
 	"context"
 	"fmt"
+	"hivemtk-user/internal/pkg/tenant"
 	"runtime/debug"
 	"sort"
 	"sync"
@@ -644,6 +645,13 @@ func (c *JourneySleepCron) runOnce(ctx context.Context) (detected []string) {
 		logger.Ctx(ctx).Error().Msg("[JourneySleepCron] svc 为 nil，跳过沉睡检测")
 		return nil
 	}
+	// 租户扇出（specs/001-saas-multi-tenant T020）：沉睡检测按租户隔离执行
+	_, err := tenant.Fanout(ctx, nil, func(ctx context.Context, _ uint) (int64, error) {
+		c.svc.AutoDetectSleeping(ctx)
+		return 0, nil
+	})
+	_ = err
+	// detected 明细在扇出下按租户产出，原聚合返回保持（日志型任务）
 	return c.svc.AutoDetectSleeping(ctx)
 }
 

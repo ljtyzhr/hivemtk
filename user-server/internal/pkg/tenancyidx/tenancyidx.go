@@ -11,15 +11,11 @@ package tenancyidx
 
 import (
 	"fmt"
-	"regexp"
 	"strings"
 	"sync"
 
 	"gorm.io/gorm"
 )
-
-// colRe 备用：列区提取由括号配平完成（见 splitIndexDef）
-var colRe = regexp.MustCompile(`\((.*)\)`)
 
 type uniqIndex struct {
 	table string

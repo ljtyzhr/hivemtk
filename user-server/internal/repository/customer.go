@@ -345,9 +345,9 @@ func (r *customerRepository) CountMultiIdentity(ctx context.Context) (int64, err
 		"(CASE WHEN douyin_open_id IS NOT NULL AND douyin_open_id <> '' THEN 1 ELSE 0 END) + " +
 		"(CASE WHEN xiaohongshu_id IS NOT NULL AND xiaohongshu_id <> '' THEN 1 ELSE 0 END)"
 	var n int64
-	if err := dbFromCtx(ctx).Raw(
-		"SELECT COUNT(*) FROM customers WHERE " + expr + " >= 2",
-	).Scan(&n).Error; err != nil {
+	if err := dbFromCtx(ctx).Model(&model.Customer{}).
+		Where(expr + " >= 2").
+		Count(&n).Error; err != nil {
 		return 0, err
 	}
 	return n, nil

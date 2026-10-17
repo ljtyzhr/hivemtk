@@ -43,6 +43,7 @@ type TenantRepository interface {
 	GetByID(ctx context.Context, id uint) (*model.Tenant, error)
 	GetByCode(ctx context.Context, code string) (*model.Tenant, error)
 	UpdateStatus(ctx context.Context, id uint, status int16) error
+	UpdateRegistration(ctx context.Context, id uint, fields map[string]any) error
 	// List 运营清单：分页 + 状态/关键词过滤，每行附活跃度概览
 	List(ctx context.Context, f TenantFilter) ([]TenantWithActivity, int64, error)
 
@@ -87,6 +88,16 @@ func (r *tenantRepo) GetByCode(ctx context.Context, code string) (*model.Tenant,
 func (r *tenantRepo) UpdateStatus(ctx context.Context, id uint, status int16) error {
 	return r.db.WithContext(ctx).Model(&model.Tenant{}).Where("id = ?", id).
 		Update("status", status).Error
+}
+
+// UpdateRegistration 局部更新开户登记字段
+func (r *tenantRepo) UpdateRegistration(ctx context.Context, id uint, fields map[string]any) error {
+	if len(fields) == 0 {
+		return nil
+	}
+	fields["updated_at"] = time.Now()
+	return r.db.WithContext(ctx).Model(&model.Tenant{}).
+		Where("id = ?", id).Updates(fields).Error
 }
 
 func (r *tenantRepo) CreateWithAdmin(ctx context.Context, t *model.Tenant, admin *model.SystemUser) error {

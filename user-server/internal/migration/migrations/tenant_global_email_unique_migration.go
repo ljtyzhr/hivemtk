@@ -32,10 +32,16 @@ func NewTenantGlobalEmailUniqueMigration(db *gorm.DB) *TenantGlobalEmailUniqueMi
 }
 
 // Version 返回版本号
-func (m *TenantGlobalEmailUniqueMigration) Version() string { return "v3.60.0" }
+//
+// v3.61.0 而非 v3.60.0：v3.60.0 已被 AggregationWatermarkPKMigration 占用，
+// 而迁移注册表对重复版本是**启动即 panic**（duplicate migration version）——
+// 两个迁移撞号会让整个进程起不来，而症状出现在启动那一刻，与"谁改的"毫无关系。
+func (m *TenantGlobalEmailUniqueMigration) Version() string { return "v3.61.0" }
 
 // Name 返回迁移名称
-func (m *TenantGlobalEmailUniqueMigration) Name() string { return "登录邮箱跨租户全局唯一索引" }
+func (m *TenantGlobalEmailUniqueMigration) Name() string {
+	return "登录邮箱跨租户全局唯一索引"
+}
 
 // Description 返回迁移描述
 func (m *TenantGlobalEmailUniqueMigration) Description() string {

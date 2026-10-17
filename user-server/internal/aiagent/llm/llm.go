@@ -36,6 +36,22 @@ type LLMConfig struct {
 	Tools            []ToolDefinition
 	ToolChoice       string
 	Messages         []ChatMessage
+
+	// Source provider 来源："" / "self" = 商户自带 Key（直连厂商）；
+	// "platform" = 平台垫资（**不直连**，改走平台代理）。
+	//
+	// 为什么在这里分而不是在 dispatcher 分：dispatcher 只负责选 provider，
+	// 真正发 HTTP 的是 LLMService.callProvider。分在 dispatcher 就得把整条
+	// 报文的构造逻辑复制一份到代理路径上，两份很快会漂移（新增参数时只改一处
+	// 是这类 bug 的标准成因）。
+	Source string
+	// ProviderName provider 标识。代理路径用它寻址平台侧的真实 provider
+	ProviderName string
+	// Scenario / AgentID / UserID / TraceIDID 计量归因上下文，代理路径会带上
+	Scenario string
+	AgentID  string
+	UserID   string
+	TraceID  string
 }
 
 // ToolDefinition OpenAI 兼容的工具定义
@@ -461,6 +477,12 @@ func (s *LLMService) GenerateStructured(ctx context.Context, config *LLMConfig, 
 }
 
 func (s *LLMService) callProvider(ctx context.Context, config *LLMConfig, body []byte) (*chatResponse, error) {
+	// 平台垫资 provider：不直连厂商，改走平台代理（Key 只在平台侧，扣费在平台侧）。
+	// 这一层是整条链路的唯一分叉点，见 llm_platform_proxy.go 的文件头。
+	if config.Source == LLMProviderSourcePlatform {
+		return s.callPlatformProxy(ctx, config, body)
+	}
+
 	baseURL := config.BaseURL
 	if baseURL == "" {
 		switch config.APIType {

@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"fmt"
 	ragcachemodel "hivemtk-user/internal/aiagent/rag/cache"
 	browsermodel "hivemtk-user/internal/browser_automation/model"
@@ -9,6 +10,7 @@ import (
 	"hivemtk-user/internal/model"
 	opsmodel "hivemtk-user/internal/ops/model"
 	"hivemtk-user/internal/pkg/tenancyidx"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"strings"
 	"sync"
@@ -216,6 +218,16 @@ func allModels() []any {
 		&model.FeatureFlag{},
 		&model.FeatureFlagAuditLog{},
 		&model.FeatureFlagEvalLog{},
+		// 功能模块化（specs .specify/002-modular-subscription）：
+		// 租户模块本地镜像 + 同步日志 + 订单镜像。
+		// 漏登记时全新部署建不出这三张表，而模块闸是**启动即读**的：
+		// 读不到就退化成"闸未启用"，表现为已付费模块全量放行 —— 收费模式静默失效。
+		&model.TenantModule{},
+		&model.ModuleSyncLog{},
+		&model.ModuleOrder{},
+		&model.LLMWallet{},
+		&model.LLMWalletTxn{},
+		&model.PlatformLLMUsageRecord{},
 		&model.ObjectionTemplate{},
 		&model.ConversionFunnel{},
 		&model.SalesPersona{},
@@ -498,6 +510,20 @@ func AutoMigrate() *gorm.DB {
 	// on 模式注入/填充/fail-closed。注册幂等（同名替换）。
 	tenancyidx.InitTenantRegistry(DB)
 	RegisterTenantCallbacks(DB)
+
+	// 后台任务扇出的活跃租户枚举器（specs/001-saas-multi-tenant T020）：
+	// 仅枚举正常状态的租户；停用租户的后台任务整体跳过（数据保留）。
+	tenant.SetActiveTenantLoader(func(ctx context.Context) ([]uint, error) {
+		var ids []uint
+		if err := DB.WithContext(ctx).
+			Table("tenants").
+			Where("status = ?", 1).
+			Order("id ASC").
+			Pluck("id", &ids).Error; err != nil {
+			return nil, err
+		}
+		return ids, nil
+	})
 
 	postMigrateMessageHubUniqueIndex()
 	postMigrateOpportunityClueUniqueIndex(DB)

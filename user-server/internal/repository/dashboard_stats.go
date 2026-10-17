@@ -102,43 +102,42 @@ func (r *dashboardStatsRepo) CountSessionsBySingleStatus(ctx context.Context, st
 }
 
 func (r *dashboardStatsRepo) QueryHumanizeDistribution(ctx context.Context, since time.Time) (*HumanizeScoreRow, error) {
-	raw := `
-		SELECT
-			COUNT(*) as total,
-			COUNT(*) FILTER (WHERE score < 0.7) as low,
-			COUNT(*) FILTER (WHERE score >= 0.7 AND score < 0.85) as mid,
-			COUNT(*) FILTER (WHERE score >= 0.85) as high,
-			COALESCE(AVG(score), 0) as avg
-		FROM humanize_scores
-		WHERE created_at > ?`
 	var row HumanizeScoreRow
-	if err := r.db.WithContext(ctx).Raw(raw, since).Scan(&row).Error; err != nil {
+	err := r.db.WithContext(ctx).Table("humanize_scores").
+		Select("COUNT(*) as total, "+
+			"COUNT(*) FILTER (WHERE score < 0.7) as low, "+
+			"COUNT(*) FILTER (WHERE score >= 0.7 AND score < 0.85) as mid, "+
+			"COUNT(*) FILTER (WHERE score >= 0.85) as high, "+
+			"COALESCE(AVG(score), 0) as avg").
+		Where("created_at > ?", since).
+		Scan(&row).Error
+	if err != nil {
 		return nil, err
 	}
 	return &row, nil
 }
 
 func (r *dashboardStatsRepo) QueryJourneyFunnel(ctx context.Context, since time.Time) ([]FunnelStageRow, error) {
-	raw := `
-		SELECT stage, COUNT(*) as count
-		FROM customer_journey
-		WHERE created_at > ?
-		GROUP BY stage`
 	var rows []FunnelStageRow
-	if err := r.db.WithContext(ctx).Raw(raw, since).Scan(&rows).Error; err != nil {
+	err := r.db.WithContext(ctx).Table("customer_journey").
+		Select("stage, COUNT(*) as count").
+		Where("created_at > ?", since).
+		Group("stage").
+		Scan(&rows).Error
+	if err != nil {
 		return nil, err
 	}
 	return rows, nil
 }
 
 func (r *dashboardStatsRepo) QuerySessionFunnel(ctx context.Context, since time.Time) ([]FunnelStatusRow, error) {
-	raw := `
-		SELECT status, COUNT(DISTINCT user_id) as count
-		FROM customer_sessions
-		WHERE created_at > ?
-		GROUP BY status`
 	var rows []FunnelStatusRow
-	if err := r.db.WithContext(ctx).Raw(raw, since).Scan(&rows).Error; err != nil {
+	err := r.db.WithContext(ctx).Table("customer_sessions").
+		Select("status, COUNT(DISTINCT user_id) as count").
+		Where("created_at > ?", since).
+		Group("status").
+		Scan(&rows).Error
+	if err != nil {
 		return nil, err
 	}
 	return rows, nil
@@ -159,20 +158,18 @@ func (r *dashboardStatsRepo) LatestSummaryBucket(ctx context.Context) (*time.Tim
 }
 
 func (r *dashboardStatsRepo) QueryMessageVolumeRaw(ctx context.Context, since time.Time) ([]MessageVolumeRawRow, error) {
-	raw := `
-		SELECT
-			date_trunc('hour', created_at) AS hour_bucket,
-			platform,
-			COUNT(DISTINCT conversation_id) AS session_count,
-			COUNT(*) FILTER (WHERE is_ai_reply) AS ai_count,
-			COUNT(*) FILTER (WHERE direction = 'outbound' AND NOT is_ai_reply) AS human_count,
-			COUNT(*) AS message_count
-		FROM message_hub
-		WHERE created_at >= ?
-		GROUP BY 1, 2
-		ORDER BY 1 ASC`
 	var rows []MessageVolumeRawRow
-	if err := r.db.WithContext(ctx).Raw(raw, since).Scan(&rows).Error; err != nil {
+	err := r.db.WithContext(ctx).Table("message_hub").
+		Select("date_trunc('hour', created_at) AS hour_bucket, platform, "+
+			"COUNT(DISTINCT conversation_id) AS session_count, "+
+			"COUNT(*) FILTER (WHERE is_ai_reply) AS ai_count, "+
+			"COUNT(*) FILTER (WHERE direction = 'outbound' AND NOT is_ai_reply) AS human_count, "+
+			"COUNT(*) AS message_count").
+		Where("created_at >= ?", since).
+		Group("1, 2").
+		Order("1 ASC").
+		Scan(&rows).Error
+	if err != nil {
 		return nil, err
 	}
 	return rows, nil

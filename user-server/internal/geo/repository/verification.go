@@ -69,7 +69,12 @@ func (r *geoVerifyResultRepo) GetList(articleID string, page, limit int) ([]*mod
 
 func (r *geoVerifyResultRepo) GetStatistics() ([]map[string]any, error) {
 	var statistics []map[string]any
-	err := r.db.Raw("SELECT model AS model, COUNT(*) AS total, SUM(CASE WHEN brand_mentioned = true THEN 1 ELSE 0 END) AS mentioned_total FROM geo_verify_results WHERE deleted_at IS NULL GROUP BY model ORDER BY model").Scan(&statistics).Error
+	err := r.db.Table("geo_verify_results").
+		Select("model AS model, COUNT(*) AS total, " +
+			"SUM(CASE WHEN brand_mentioned = true THEN 1 ELSE 0 END) AS mentioned_total").
+		Where("deleted_at IS NULL").
+		Group("model").Order("model").
+		Scan(&statistics).Error
 	return statistics, err
 }
 

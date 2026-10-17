@@ -226,6 +226,24 @@ func providerName(p *ProviderConfig) string {
 	return p.Name
 }
 
+// splitCost 把一次调用的总价拆成「输入部分 / 输出部分」。
+//
+// ============================================================
+// ⚠️ 这不是「输入输出分别计价」
+//
+// 旧实现是：cost = totalTokens/1000 × 单价，然后按 token 比例劈成两半。
+// 数学上它等价于「输入输出同价」—— 你把单价设成任何值都表达不出
+// 「输出贵、输入便宜」这个真实世界的事实。
+//
+// 需求原文：「商户使用平台端 llM 时，实时扣减剩余 token 数，
+// **输入和输出分别计价**以及扣费」。因此计价改在 computeCost 里
+// 按两个单价分别计算，splitCost 只保留给**已经算好的总价**做展示拆分。
+// 它仍被 LogRoutingDecision 的行模型使用（历史数据没有分列单价），
+// 因此不能删，但**不能再用于计费**。
+// ============================================================
+//
+// 保留理由：历史 llm_routing_logs 的 prompt_cost / completion_cost 是按比例
+// 拆出来的，报表要继续能画；新数据走分别计价后两者口径不同，展示层需要能分辨。
 func splitCost(totalCost float64, promptTokens, completionTokens, totalTokens int) (promptCost, completionCost float64) {
 	if totalTokens <= 0 {
 		return totalCost, 0
@@ -234,6 +252,22 @@ func splitCost(totalCost float64, promptTokens, completionTokens, totalTokens in
 	promptCost = totalCost * ratio
 	completionCost = totalCost - promptCost
 	return
+}
+
+// computeCost 按「输入单价 × 输入 token + 输出单价 × 输出 token」计价。
+//
+// 与 splitCost 的区别是这一条才**分别计价**：provider 配了
+// cost_per_1k_input / cost_per_1k_output 时，两部分按各自单价累加；
+// 只配了单一 cost_per_1k 时两者回落成同价（兼容老配置）。
+func computeCost(p ProviderConfig, promptTokens, completionTokens int) (total, inputCost, outputCost float64) {
+	if promptTokens <= 0 && completionTokens <= 0 {
+		return 0, 0, 0
+	}
+	inRate := p.EffectiveInputCostPer1k()
+	outRate := p.EffectiveOutputCostPer1k()
+	inputCost = float64(promptTokens) / 1000.0 * inRate
+	outputCost = float64(completionTokens) / 1000.0 * outRate
+	return inputCost + outputCost, inputCost, outputCost
 }
 
 // LogRoutingDecision 记录一次 dispatch 决策（v3.7.0 重构版）

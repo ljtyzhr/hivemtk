@@ -112,13 +112,8 @@ func (r *systemConfigKVRepo) EnsureTable(ctx context.Context) error {
 	if !r.Available() {
 		return ErrKVStoreUnavailable
 	}
-	stmt := `CREATE TABLE IF NOT EXISTS system_config_kv (
-		key VARCHAR(100) PRIMARY KEY,
-		value TEXT NOT NULL,
-		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-	)`
-	return r.db.WithContext(ctx).Exec(stmt).Error
+	// 原 CREATE TABLE 裸 DDL（T012 清偿）：模型已在 allModels 登记，AutoMigrate 幂等建表
+	return r.db.WithContext(ctx).AutoMigrate(&model.SystemConfigKV{})
 }
 
 var _ SystemConfigKVRepository = (*systemConfigKVRepo)(nil)

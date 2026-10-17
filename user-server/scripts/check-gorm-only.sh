@@ -8,6 +8,10 @@
 #   - 豁免文件：internal/pkg/tenancyidx/tenancyidx.go（schema 自省/索引规范化 DDL，
 #     运行于 AutoMigrate 与迁移生命周期，SystemTenant 路径，与 migration 同类）
 #   - 豁免目录：internal/pkg/testutil/（测试库基建 DDL，如 CREATE DATABASE，等价 migration 语义）
+#   - 豁免文件：internal/aiagent/rag/retrieval/pgvector_session.go（pgvector 会话 GUC/索引 DDL，
+#     GORM 无方言表达，集中单点管理）
+#   - 豁免文件：internal/aiagent/rag/retrieval/pgvector_index_ops.go（HNSW 索引 DDL + GUC 调优，
+#     同上，整文件即 pgvector 运维域）
 #   - 豁免文件：*_test.go（测试夹具，不承载生产隔离语义）
 #
 # 用法：
@@ -25,10 +29,13 @@ if [[ "${1:-}" == "--report-only" ]]; then
 fi
 
 violations=$(grep -rn --include='*.go' -e '\.Exec(' -e '\.Raw(' internal/ 2>/dev/null \
+  | grep -v '\.Raw()\.\|\.Row()\.' \
   | grep -v '^internal/migration/' \
   | grep -v '^internal/pkg/testutil/' \
   | grep -v '^internal/pkg/db/migrate\.go:' \
   | grep -v '^internal/pkg/tenancyidx/' \
+  | grep -v '^internal/aiagent/rag/retrieval/pgvector_session.go:' \
+  | grep -v '^internal/aiagent/rag/retrieval/pgvector_index_ops.go:' \
   | grep -v '_test\.go' \
   || true)
 

@@ -97,21 +97,14 @@ func HealthOverview(ctx context.Context) (*HealthOverviewData, error) {
 		Where("direction = ? AND status = ?", "outbound", "failed").
 		Count(&h.FailedCount)
 
-	if err := d.Raw(`
-		SELECT count(DISTINCT m.conversation_id)
-		FROM message_hub m
-		WHERE m.created_at > now() - interval '7 days'
-		  AND NOT EXISTS (
-			SELECT 1 FROM inbox_conversations ic
-			WHERE ic.platform = m.platform
-			  AND ic.account_id = m.account_id
-			  AND ic.customer_id = CASE
-				WHEN m.is_group AND m.conversation_id <> '' THEN m.conversation_id
-				WHEN m.conversation_id <> '' AND (m.sender_id LIKE (m.conversation_id || ' %') OR m.receiver_id LIKE (m.conversation_id || ' %')) THEN m.conversation_id
-				ELSE (CASE WHEN m.direction = 'inbound' THEN m.sender_id ELSE m.receiver_id END)
-			  END
-		  )
-	`).Scan(&h.SyncGapCount).Error; err != nil {
+	triad := syncGapTriadExpr()
+	missingInbox := d.Select("1").Table("inbox_conversations ic").
+		Where("ic.platform = m.platform AND ic.account_id = m.account_id AND ic.customer_id = " + triad)
+	if err := d.Table("message_hub m").
+		Where("m.created_at > now() - interval '7 days'").
+		Where("NOT EXISTS (?)", missingInbox).
+		Distinct("m.conversation_id").
+		Count(&h.SyncGapCount).Error; err != nil {
 		log.Printf("[monitor] HealthOverview sync_gap query failed: %v", err)
 	}
 
@@ -178,24 +171,17 @@ func Anomalies(ctx context.Context) (*AnomalyGroups, error) {
 		MessageCount   int64
 	}
 	var gaps []gapRow
-	if err := d.Raw(`
-		SELECT m.conversation_id,
-		       (SELECT channel FROM message_trace mt WHERE mt.conversation_id = m.conversation_id ORDER BY id DESC LIMIT 1) AS channel,
-		       count(*) AS message_count
-		FROM message_hub m
-		WHERE m.created_at > now() - interval '7 days'
-		  AND NOT EXISTS (
-			SELECT 1 FROM inbox_conversations ic
-			WHERE ic.platform = m.platform
-			  AND ic.account_id = m.account_id
-		  AND ic.customer_id = CASE
-			WHEN m.is_group AND m.conversation_id <> '' THEN m.conversation_id
-			WHEN m.conversation_id <> '' AND (m.sender_id LIKE (m.conversation_id || ' %') OR m.receiver_id LIKE (m.conversation_id || ' %')) THEN m.conversation_id
-			ELSE (CASE WHEN m.direction = 'inbound' THEN m.sender_id ELSE m.receiver_id END)
-		  END
-		  )
-		GROUP BY m.conversation_id
-	`).Scan(&gaps).Error; err != nil {
+	triad2 := syncGapTriadExpr()
+	missingInbox2 := d.Select("1").Table("inbox_conversations ic").
+		Where("ic.platform = m.platform AND ic.account_id = m.account_id AND ic.customer_id = " + triad2)
+	if err := d.Table("message_hub m").
+		Select("m.conversation_id, "+
+			"(SELECT channel FROM message_trace mt WHERE mt.conversation_id = m.conversation_id ORDER BY id DESC LIMIT 1) AS channel, "+
+			"count(*) AS message_count").
+		Where("m.created_at > now() - interval '7 days'").
+		Where("NOT EXISTS (?)", missingInbox2).
+		Group("m.conversation_id").
+		Scan(&gaps).Error; err != nil {
 		log.Printf("monitor.Anomalies sync_gap: %v", err)
 	}
 	for _, r := range gaps {
@@ -208,25 +194,22 @@ func Anomalies(ctx context.Context) (*AnomalyGroups, error) {
 		AgeMin         float64
 	}
 	var reach, unreachStuck []stuckRow
-	if err := d.Raw(`
-		SELECT h.conversation_id,
-		       (SELECT channel FROM message_trace mt WHERE mt.conversation_id = h.conversation_id ORDER BY id DESC LIMIT 1) AS channel,
-		       EXTRACT(EPOCH FROM (now() - h.sent_at))/60 AS age_min
-		FROM message_hub h
-		JOIN inbox_conversations i ON i.conversation_id = h.conversation_id
-		WHERE h.direction = 'outbound' AND h.status = 'pending' AND h.sent_at < ?
-	`, threshold).Scan(&reach).Error; err != nil {
+	stuckSel := "h.conversation_id, " +
+		"(SELECT channel FROM message_trace mt WHERE mt.conversation_id = h.conversation_id ORDER BY id DESC LIMIT 1) AS channel, " +
+		"EXTRACT(EPOCH FROM (now() - h.sent_at))/60 AS age_min"
+	if err := d.Table("message_hub h").
+		Select(stuckSel).
+		Joins("JOIN inbox_conversations i ON i.conversation_id = h.conversation_id").
+		Where("h.direction = 'outbound' AND h.status = 'pending' AND h.sent_at < ?", threshold).
+		Scan(&reach).Error; err != nil {
 		log.Printf("monitor.Anomalies stuck_reachable: %v", err)
 	}
-	if err := d.Raw(`
-		SELECT h.conversation_id,
-		       (SELECT channel FROM message_trace mt WHERE mt.conversation_id = h.conversation_id ORDER BY id DESC LIMIT 1) AS channel,
-		       EXTRACT(EPOCH FROM (now() - h.sent_at))/60 AS age_min
-		FROM message_hub h
-		LEFT JOIN inbox_conversations i ON i.conversation_id = h.conversation_id
-		WHERE h.direction = 'outbound' AND h.status = 'pending' AND h.sent_at < ?
-		  AND i.conversation_id IS NULL
-	`, threshold).Scan(&unreachStuck).Error; err != nil {
+	if err := d.Table("message_hub h").
+		Select(stuckSel).
+		Joins("LEFT JOIN inbox_conversations i ON i.conversation_id = h.conversation_id").
+		Where("h.direction = 'outbound' AND h.status = 'pending' AND h.sent_at < ?", threshold).
+		Where("i.conversation_id IS NULL").
+		Scan(&unreachStuck).Error; err != nil {
 		log.Printf("monitor.Anomalies stuck_unreachable: %v", err)
 	}
 	for _, r := range reach {
@@ -241,14 +224,10 @@ func Anomalies(ctx context.Context) (*AnomalyGroups, error) {
 	}
 
 	var failed []stuckRow
-	if err := d.Raw(`
-		SELECT h.conversation_id,
-		       (SELECT channel FROM message_trace mt WHERE mt.conversation_id = h.conversation_id ORDER BY id DESC LIMIT 1) AS channel,
-		       EXTRACT(EPOCH FROM (now() - h.sent_at))/60 AS age_min
-		FROM message_hub h
-		WHERE h.direction = 'outbound' AND h.status = 'failed'
-		  AND h.sent_at > now() - interval '7 days'
-	`).Scan(&failed).Error; err != nil {
+	if err := d.Table("message_hub h").
+		Select(stuckSel).
+		Where("h.direction = 'outbound' AND h.status = 'failed' AND h.sent_at > now() - interval '7 days'").
+		Scan(&failed).Error; err != nil {
 		log.Printf("monitor.Anomalies unreachable: %v", err)
 	}
 	for _, r := range failed {
@@ -302,18 +281,15 @@ func NodeHealthByChannel(ctx context.Context) ([]NodeHealth, error) {
 		LastAbnormal sql.NullTime
 	}
 	var rows []aggRow
-	if err := d.Raw(`
-		SELECT channel,
-		       node,
-		       count(*) AS total,
-		       COALESCE(SUM(CASE WHEN status='abnormal' THEN 1 ELSE 0 END),0) AS abnormal,
-		       COALESCE(AVG(duration_ms),0) AS avg_ms,
-		       COALESCE(percentile_cont(0.95) WITHIN GROUP (ORDER BY duration_ms),0) AS p95_ms,
-		       MAX(created_at) FILTER (WHERE status='abnormal') AS last_abnormal
-		FROM message_trace
-		WHERE created_at >= ?
-		GROUP BY channel, node
-	`, since).Scan(&rows).Error; err != nil {
+	if err := d.Table("message_trace").
+		Select("channel, node, count(*) AS total, "+
+			"COALESCE(SUM(CASE WHEN status='abnormal' THEN 1 ELSE 0 END),0) AS abnormal, "+
+			"COALESCE(AVG(duration_ms),0) AS avg_ms, "+
+			"COALESCE(percentile_cont(0.95) WITHIN GROUP (ORDER BY duration_ms),0) AS p95_ms, "+
+			"MAX(created_at) FILTER (WHERE status='abnormal') AS last_abnormal").
+		Where("created_at >= ?", since).
+		Group("channel, node").
+		Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 
@@ -630,15 +606,11 @@ func LifecycleLatencyByChannel(ctx context.Context) ([]LifecycleLatency, error) 
 		DelivAt  time.Time
 	}
 	var pairs []pair
-	if err := d.Raw(`
-		SELECT i.channel, i.created_at AS ingest_at, o.created_at AS deliv_at
-		FROM message_trace i
-		JOIN message_trace o
-		  ON o.trace_id = i.trace_id AND o.node = 'delivered_ack'
-		WHERE i.node = 'ingest'
-		  AND i.created_at > now() - interval '7 days'
-		  AND o.created_at > i.created_at
-	`).Scan(&pairs).Error; err != nil {
+	if err := d.Table("message_trace i").
+		Select("i.channel, i.created_at AS ingest_at, o.created_at AS deliv_at").
+		Joins("JOIN message_trace o ON o.trace_id = i.trace_id AND o.node = 'delivered_ack'").
+		Where("i.node = 'ingest' AND i.created_at > now() - interval '7 days' AND o.created_at > i.created_at").
+		Scan(&pairs).Error; err != nil {
 		return nil, err
 	}
 	byCh := map[string][]int64{}
@@ -685,4 +657,13 @@ func percentile(sorted []int64, p int) int64 {
 		idx = len(sorted) - 1
 	}
 	return sorted[idx]
+}
+
+// syncGapTriadExpr 会话归属三元表达式（monitor 与 repository 各有一份同构 SQL，保持字面一致）
+func syncGapTriadExpr() string {
+	return "(CASE" +
+		" WHEN m.is_group AND m.conversation_id <> '' THEN m.conversation_id" +
+		" WHEN m.conversation_id <> '' AND (m.sender_id LIKE (m.conversation_id || ' %') OR m.receiver_id LIKE (m.conversation_id || ' %')) THEN m.conversation_id" +
+		" ELSE (CASE WHEN m.direction = 'inbound' THEN m.sender_id ELSE m.receiver_id END)" +
+		" END)"
 }

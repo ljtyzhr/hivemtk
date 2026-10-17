@@ -101,6 +101,8 @@ const moduleNames = [
   'followups',
   "kbConnector",
   "mcpCredential",
+  // 功能模块市场 + 商户注册（模块化改造）
+  "moduleMarket",
 ];
 
 const eagerLoadedRoutes = [];
@@ -174,6 +176,9 @@ const pathToModule = {
   'tiktok-card-stats': 'tiktok',
   'asset-market': 'assetMarket',
   'asset-bundle': 'assetBundle',
+  // 功能模块市场（模块化改造）
+  'module-market': 'moduleMarket',
+  'register': 'moduleMarket',
   'confidence': 'tuning',
   'humanize': 'tuning',
   'feedbackLoop': 'tuning',

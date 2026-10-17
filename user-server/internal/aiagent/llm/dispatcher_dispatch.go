@@ -37,6 +37,12 @@ type DispatchRequest struct {
 	CrossLingual    bool             `json:"cross_lingual,omitempty"`
 	GlossaryVersion string           `json:"glossary_version,omitempty"`
 	FanOut          *FanOutConfig    `json:"fanout,omitempty"`
+
+	// AgentID / UserID 计量归因：平台垫资模型按它们在用量明细里归因到具体
+	// 智能体 / 操作人（否则商户只能看到一笔总账，无法回答"谁用掉的"）。
+	// 自带 Key 路径不读这两个字段，所以对存量调用点零影响。
+	AgentID string `json:"agent_id,omitempty"`
+	UserID  string `json:"user_id,omitempty"`
 }
 
 type FanOutConfig struct {
@@ -153,6 +159,14 @@ func (d *Dispatcher) callProvider(ctx context.Context, provider *ProviderConfig,
 		MaxRetries:     3,
 		RequestTimeout: route.MaxLatency / 1000,
 		SystemPrompt:   req.SystemPrompt,
+		// 平台垫资 provider 的分流信息：Source 决定 LLMService 走代理还是直连，
+		// ProviderName 决定代理侧寻址哪个真实 provider，其余是计量归因上下文。
+		Source:       provider.ProviderSource(),
+		ProviderName: provider.Name,
+		Scenario:     string(req.Scenario),
+		TraceID:      traceContextTraceID(ctx),
+		AgentID:      req.AgentID,
+		UserID:       req.UserID,
 	}
 	if req.JSONMode {
 		config.ResponseFormat = "json_object"
@@ -228,16 +242,38 @@ func (d *Dispatcher) callProvider(ctx context.Context, provider *ProviderConfig,
 	promptTokens := result.Usage.PromptTokens
 	completionTokens := result.Usage.CompletionTokens
 	totalTokens := result.Usage.TotalTokens
-	if totalTokens <= 0 {
 
+	// total_tokens 缺失时的分层处理。
+	//
+	// 原实现只看 totalTokens<=0 就**把 prompt/completion 一起覆盖成估算值**，
+	// 于是「厂商只回 prompt+completion、不回 total」这种完全合法的报文
+	// （部分自建网关/中转就是这形状）会把厂商给的真实用量丢掉，
+	// 换成按字符数估算的数 —— 而计费是按这些数算的。
+	// 在预付费场景下这意味着按估算扣费，商户账单与厂商账单对不上。
+	//
+	// 三层判据：
+	//  1. total 有 → 直接用（并按分列补齐 total，保持三者自洽）
+	//  2. total 无但分列有 → **信任分列**，total = 分列之和
+	//  3. 全无 → 才是估算兜底
+	if totalTokens <= 0 && (promptTokens > 0 || completionTokens > 0) {
+		totalTokens = promptTokens + completionTokens
+	}
+	if promptTokens <= 0 && completionTokens <= 0 {
 		promptTokens = estimateTokens(req.Prompt)
 		completionTokens = estimateTokens(result.Content)
 		totalTokens = promptTokens + completionTokens
+	} else if totalTokens <= 0 {
+		totalTokens = promptTokens + completionTokens
 	}
-	cost := float64(totalTokens) / 1000.0 * provider.CostPer1k
+	if totalTokens <= 0 {
+		totalTokens = 1 // 兜底：绝不能是 0，否则下面除以它的地方会得到 NaN
+	}
+	// 计价：按输入/输出分别乘各自单价（computeCost），不再是「总价按比例劈两半」。
+	// 这条是需求「输入和输出分别计价」的落地点，也决定了 llm_routing_logs 里
+	// prompt_cost / completion_cost 两列的口径 —— 旧数据是比例拆分，新数据是真值。
+	cost, promptCost, completionCost := computeCost(*provider, promptTokens, completionTokens)
 	tokenSource := InferTokenSource(result.Usage.TotalTokens, result.Content)
 	estimator := ClassifyEstimator(tokenSource)
-	promptCost, completionCost := splitCost(cost, promptTokens, completionTokens, totalTokens)
 
 	var usage TokenUsage
 	if result.Usage.TotalTokens > 0 {
@@ -266,6 +302,31 @@ func (d *Dispatcher) callProvider(ctx context.Context, provider *ProviderConfig,
 
 	if reactMode {
 		dispatchResult = d.getReActAdapter().AdaptResult(dispatchResult)
+	}
+
+	// 平台垫资 provider：把本次用量回填给上层（落本地明细 + 更新余额镜像）。
+	//
+	// 位置在**成功之后**、react 适配之后：失败调用不计量（厂商没返回内容，
+	// 也没花钱）；而 react 适配不改变 token 数，放在它之后逻辑更直白。
+	//
+	// 这里**不扣费** —— 扣费的权威在平台代理侧（转发时实时扣），本地再扣一次
+	// 就是两本账，重试时会二次扣。详见 service/llm_platform_usage.go 的文件头。
+	if provider.IsPlatformProvider() && dispatchResult != nil {
+		if sink := PlatformUsageSink(); sink != nil {
+			sink(PlatformUsageEvent{
+				Provider:         provider.Name,
+				Model:            provider.Model,
+				PlanCode:         provider.PlanCode,
+				Scenario:         string(req.Scenario),
+				TraceID:          traceID,
+				AgentID:          req.AgentID,
+				UserID:           req.UserID,
+				PromptTokens:     int64(promptTokens),
+				CompletionTokens: int64(completionTokens),
+				InputCostCents:   int64(promptCost * 100),
+				OutputCostCents:  int64(completionCost * 100),
+			})
+		}
 	}
 	return dispatchResult, nil
 }

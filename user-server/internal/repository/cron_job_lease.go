@@ -54,13 +54,10 @@ func (r *CronJobLeaseRepository) Hold(ctx context.Context, jobName, workerID str
 		Create(&model.CronJobLease{JobName: jobName}).Error; err != nil {
 		return false, err
 	}
-	res := r.db.WithContext(ctx).Exec(
-		`UPDATE cron_job_leases
-		    SET owner = ?, heartbeat_at = ?
-		  WHERE job_name = ?
-		    AND (owner = '' OR owner IS NULL OR owner = ? OR heartbeat_at IS NULL
-		         OR heartbeat_at < ?)`,
-		workerID, now, jobName, workerID, now.Add(-cronLeaseStaleAfter))
+	res := r.db.WithContext(ctx).Model(&model.CronJobLease{}).
+		Where("job_name = ? AND (owner = '' OR owner IS NULL OR owner = ? OR heartbeat_at IS NULL OR heartbeat_at < ?)",
+			jobName, workerID, now.Add(-cronLeaseStaleAfter)).
+		UpdateColumns(map[string]any{"owner": workerID, "heartbeat_at": now})
 	if res.Error != nil {
 		return false, res.Error
 	}
@@ -73,9 +70,9 @@ func (r *CronJobLeaseRepository) Release(ctx context.Context, jobName, workerID 
 	if r == nil || r.db == nil {
 		return gorm.ErrInvalidDB
 	}
-	return r.db.WithContext(ctx).Exec(
-		`UPDATE cron_job_leases SET owner = '', heartbeat_at = NULL
-		  WHERE job_name = ? AND owner = ?`, jobName, workerID).Error
+	return r.db.WithContext(ctx).Model(&model.CronJobLease{}).
+		Where("job_name = ? AND owner = ?", jobName, workerID).
+		UpdateColumns(map[string]any{"owner": "", "heartbeat_at": nil}).Error
 }
 
 // Holder 读回当前持有者与心跳（状态端点/排查用）。行不存在时 found=false。

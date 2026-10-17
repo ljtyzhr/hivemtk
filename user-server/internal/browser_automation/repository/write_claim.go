@@ -4,10 +4,12 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
 	"hivemtk-user/internal/browser_automation/model"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // BrowserWriteClaimRepository 不可逆写的存储层独占声明（/ A12）。
@@ -48,10 +50,18 @@ func (r *browserWriteClaimRepo) ClaimWriteSlot(ctx context.Context, taskID, sess
 	if stepRowID == 0 {
 		return nil, fmt.Errorf("写声明键不完整（task=%d hash=%s）：step_row_id=0 的声明永远无法释放", taskID, textHash)
 	}
-	res := r.db.WithContext(ctx).Exec(
-		`INSERT INTO browser_write_claims (task_id, text_hash, step_row_id, session_id, created_at)
-			VALUES (?, ?, ?, ?, now()) ON CONFLICT (tenant_id, task_id, text_hash) DO NOTHING`,
-		taskID, textHash, stepRowID, sessionID)
+	res := r.db.WithContext(ctx).Table("browser_write_claims").
+		Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "tenant_id"}, {Name: "task_id"}, {Name: "text_hash"}},
+			DoNothing: true,
+		}).
+		Create(map[string]any{
+			"task_id":     taskID,
+			"text_hash":   textHash,
+			"step_row_id": stepRowID,
+			"session_id":  sessionID,
+			"created_at":  time.Now(),
+		})
 	if res.Error != nil {
 		return nil, res.Error
 	}
@@ -74,8 +84,9 @@ func (r *browserWriteClaimRepo) ClaimWriteSlot(ctx context.Context, taskID, sess
 }
 
 func (r *browserWriteClaimRepo) ReleaseWriteSlot(ctx context.Context, stepRowID uint, textHash string) (int64, error) {
-	res := r.db.WithContext(ctx).Exec(`DELETE FROM browser_write_claims WHERE step_row_id = ? AND text_hash = ?`,
-		stepRowID, textHash)
+	res := r.db.WithContext(ctx).Table("browser_write_claims").
+		Where("step_row_id = ? AND text_hash = ?", stepRowID, textHash).
+		Delete(nil)
 	if res.Error != nil {
 		return 0, res.Error
 	}

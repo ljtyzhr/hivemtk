@@ -12,6 +12,7 @@ import (
 	"hivemtk-user/internal/pkg/utils/logger"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // IndexTrackerService 收录追踪 + AI 引用验证
@@ -319,14 +320,29 @@ func (s *IndexTrackerService) upsertDailyStats() {
 	// 这一轮会把业务当日的引用数累加到**前一天**的行上。
 	statDate := timeutil.BusinessToday()
 	for _, r := range rows {
-		// upsert：冲突则更新
-		s.db.Exec(`
-			INSERT INTO geo_daily_stats (stat_date, engine, intent, funnel_stage, citation_count, brand_mentioned_count, probe_count)
-			VALUES (?, ?, 'mixed', 'mixed', ?, ?, 0)
-			ON CONFLICT (tenant_id, stat_date, engine, intent, funnel_stage) DO UPDATE SET
-				citation_count = geo_daily_stats.citation_count + EXCLUDED.citation_count,
-				brand_mentioned_count = geo_daily_stats.brand_mentioned_count + EXCLUDED.brand_mentioned_count
-		`, statDate, r.Engine, r.Citations, r.BrandMentions)
+		// upsert：冲突则累计（T012 清偿：OnConflict + gorm.Expr 累加）
+		if err := s.db.Table("geo_daily_stats").
+			Clauses(clause.OnConflict{
+				Columns: []clause.Column{
+					{Name: "tenant_id"}, {Name: "stat_date"}, {Name: "engine"},
+					{Name: "intent"}, {Name: "funnel_stage"},
+				},
+				DoUpdates: clause.Assignments(map[string]any{
+					"citation_count":        gorm.Expr("geo_daily_stats.citation_count + EXCLUDED.citation_count"),
+					"brand_mentioned_count": gorm.Expr("geo_daily_stats.brand_mentioned_count + EXCLUDED.brand_mentioned_count"),
+				}),
+			}).
+			Create(map[string]any{
+				"stat_date":             statDate,
+				"engine":                r.Engine,
+				"intent":                "mixed",
+				"funnel_stage":          "mixed",
+				"citation_count":        r.Citations,
+				"brand_mentioned_count": r.BrandMentions,
+				"probe_count":           0,
+			}).Error; err != nil {
+			logger.Warnf("upsertDailyStats: 引擎 %s 聚合失败: %v", r.Engine, err)
+		}
 	}
 	logger.Warnf("upsertDailyStats: %d 引擎已聚合", len(rows))
 }

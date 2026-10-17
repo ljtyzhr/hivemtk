@@ -66,22 +66,17 @@ func (r *LexicalRetriever) tryTSQuery(ctx context.Context, productID string, que
 	if !ok {
 		return nil, fmt.Errorf("invalid text search config: %s", tsConfig)
 	}
-	sql := fmt.Sprintf(`
-		SELECT id, document_id, content,
-		       ts_rank(%s, plainto_tsquery('%s', ?))::float8 AS score
-		FROM knowledge_chunks
-		WHERE %s @@ plainto_tsquery('%s', ?)
-	`, safeCol, safeConfig, safeCol, safeConfig)
-	args := []any{query}
+	q := r.db.WithContext(ctx).Table("knowledge_chunks").
+		Select(fmt.Sprintf("id, document_id, content, ts_rank(%s, plainto_tsquery('%s', ?))::float8 AS score", safeCol, safeConfig), query).
+		Where(fmt.Sprintf("%s @@ plainto_tsquery('%s', ?)", safeCol, safeConfig), query)
 	if productID != "" {
-		sql += " AND product_id = ?" + kbrelease.AndVisible() + " ORDER BY score DESC LIMIT ?"
-		args = append(args, query, productID, topK)
-	} else {
-		sql += kbrelease.AndVisible() + " ORDER BY score DESC LIMIT ?"
-		args = append(args, query, topK)
+		q = q.Where("product_id = ?"+kbrelease.AndVisible(), productID)
+	} else if vis := kbrelease.AndVisible(); vis != "" {
+		q = q.Where(strings.TrimPrefix(vis, " AND "))
 	}
+	q = q.Order("score DESC").Limit(topK)
 	var rows []chunkScanRow
-	if err := r.db.WithContext(ctx).Raw(sql, args...).Scan(&rows).Error; err != nil {
+	if err := q.Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 	return rowsToChunks(rows), nil
@@ -90,21 +85,17 @@ func (r *LexicalRetriever) tryTSQuery(ctx context.Context, productID string, que
 func (r *LexicalRetriever) ilikeFallback(ctx context.Context, productID string, query string, topK int) ([]Chunk, error) {
 	escaped := strings.NewReplacer("%", "\\%", "_", "\\_").Replace(query)
 	pattern := "%" + escaped + "%"
-	sql := `
-		SELECT id, document_id, content, 1.0::float8 AS score
-		FROM knowledge_chunks
-		WHERE content ILIKE ?
-	`
-	args := []any{pattern}
+	q := r.db.WithContext(ctx).Table("knowledge_chunks").
+		Select("id, document_id, content, 1.0::float8 AS score").
+		Where("content ILIKE ?", pattern)
 	if productID != "" {
-		sql += " AND product_id = ?" + kbrelease.AndVisible() + " ORDER BY id DESC LIMIT ?"
-		args = append(args, productID, topK)
-	} else {
-		sql += kbrelease.AndVisible() + " ORDER BY id DESC LIMIT ?"
-		args = append(args, topK)
+		q = q.Where("product_id = ?"+kbrelease.AndVisible(), productID)
+	} else if vis := kbrelease.AndVisible(); vis != "" {
+		q = q.Where(strings.TrimPrefix(vis, " AND "))
 	}
+	q = q.Order("id DESC").Limit(topK)
 	var rows []chunkScanRow
-	if err := r.db.WithContext(ctx).Raw(sql, args...).Scan(&rows).Error; err != nil {
+	if err := q.Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 	return rowsToChunks(rows), nil

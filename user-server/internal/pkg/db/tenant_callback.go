@@ -65,7 +65,7 @@ func resolveTenantTable(stmt *gorm.Statement) string {
 
 // tenantGuardFail fail-closed：注入失败即报错，绝不放行为全量查询
 func tenantGuardFail(db *gorm.DB, table, reason string) {
-	db.AddError(fmt.Errorf("[tenant] 表 %s 需要租户上下文但 ctx 未绑定（%s）；"+
+	_ = db.AddError(fmt.Errorf("[tenant] 表 %s 需要租户上下文但 ctx 未绑定（%s）；"+
 		"多租户模式下拒绝执行，请经中间件/TenantRunner/行自证提供租户", table, reason))
 }
 
@@ -127,7 +127,7 @@ func fillCreateForTenant(db *gorm.DB) {
 	}
 	if v, zero := field.ValueOf(stmt.Context, stmt.ReflectValue); !zero {
 		if fv, isUint := v.(uint); isUint && fv != 0 && fv != id {
-			db.AddError(fmt.Errorf("[tenant] 写入 tenant_id=%d 与上下文租户 %d 不一致，拒绝跨租户写", fv, id))
+			_ = db.AddError(fmt.Errorf("[tenant] 写入 tenant_id=%d 与上下文租户 %d 不一致，拒绝跨租户写", fv, id))
 			return
 		}
 	}
@@ -184,7 +184,7 @@ func guardRawSQLForTenant(db *gorm.DB) {
 	for _, m := range tenantTableRefRe.FindAllStringSubmatch(sqlText, -1) {
 		name := lastSegment(m[1])
 		if tenancyidx.IsTenantTable(name) {
-			db.AddError(fmt.Errorf("[tenant] 预构建 SQL 引用租户表 %s 被拒绝：数据访问必须走 GORM API"+
+			_ = db.AddError(fmt.Errorf("[tenant] 预构建 SQL 引用租户表 %s 被拒绝：数据访问必须走 GORM API"+
 				"（specs/001-saas-multi-tenant D2 / check-gorm-only 门禁）", name))
 			return
 		}

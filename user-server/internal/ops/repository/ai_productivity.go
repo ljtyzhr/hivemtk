@@ -77,11 +77,12 @@ func (r *AIProductivityRepository) GetAvgResponseTime(ctx context.Context, start
 		Avg float64
 	}
 	var rt rtRow
-	err := r.db.WithContext(ctx).Raw(`SELECT AVG(EXTRACT(EPOCH FROM diff)) AS avg FROM (
-		SELECT created_at - LAG(created_at) OVER (PARTITION BY session_id ORDER BY created_at) AS diff
-		FROM session_messages
-		WHERE created_at BETWEEN ? AND ?
-	) t WHERE diff IS NOT NULL`, startTime, endTime).Scan(&rt).Error
+	err := r.db.WithContext(ctx).
+		Table("(SELECT created_at - LAG(created_at) OVER (PARTITION BY session_id ORDER BY created_at) AS diff "+
+			"FROM session_messages WHERE created_at BETWEEN ? AND ?) t", startTime, endTime).
+		Select("AVG(EXTRACT(EPOCH FROM diff)) AS avg").
+		Where("diff IS NOT NULL").
+		Scan(&rt).Error
 	return rt.Avg, err
 }
 

@@ -312,11 +312,19 @@ func (s *DashboardScreenService) AggregateDashboardData(isAdmin bool) (*Dashboar
 		Cnt int64
 	}
 	var clueDays, orderDays []dayRow
-	if err := gormDB.Raw(`SELECT to_char(to_timestamp(create_time), 'MM-DD') AS day, COUNT(*) AS cnt FROM clues WHERE create_time >= ? GROUP BY day ORDER BY day`, thirtyDaysAgo.Unix()).Scan(&clueDays).Error; err != nil {
+	if err := gormDB.Table("clues").
+		Select("to_char(to_timestamp(create_time), 'MM-DD') AS day, COUNT(*) AS cnt").
+		Where("create_time >= ?", thirtyDaysAgo.Unix()).
+		Group("day").Order("day").
+		Scan(&clueDays).Error; err != nil {
 		return nil, fmt.Errorf("线索趋势查询失败: %w", err)
 	}
 	if gormDB.Migrator().HasTable(&sysmodel.Order{}) {
-		if err := gormDB.Raw(`SELECT to_char(to_timestamp(create_time), 'MM-DD') AS day, COUNT(*) AS cnt FROM "order" WHERE create_time >= ? GROUP BY day ORDER BY day`, thirtyDaysAgo.Unix()).Scan(&orderDays).Error; err != nil {
+		if err := gormDB.Table("\"order\"").
+			Select("to_char(to_timestamp(create_time), 'MM-DD') AS day, COUNT(*) AS cnt").
+			Where("create_time >= ?", thirtyDaysAgo.Unix()).
+			Group("day").Order("day").
+			Scan(&orderDays).Error; err != nil {
 			return nil, fmt.Errorf("成单趋势查询失败: %w", err)
 		}
 	}
@@ -347,7 +355,10 @@ func (s *DashboardScreenService) AggregateDashboardData(isAdmin bool) (*Dashboar
 		Value int64
 	}
 	var chRows []kvRow
-	if err := gormDB.Raw(`SELECT COALESCE(NULLIF(source_id, ''), '未知') AS name, COUNT(*) AS value FROM clues GROUP BY 1 ORDER BY value DESC`).Scan(&chRows).Error; err != nil {
+	if err := gormDB.Table("clues").
+		Select("COALESCE(NULLIF(source_id, ''), '未知') AS name, COUNT(*) AS value").
+		Group("1").Order("value DESC").
+		Scan(&chRows).Error; err != nil {
 		return nil, fmt.Errorf("渠道分布查询失败: %w", err)
 	}
 	for _, r := range chRows {
@@ -361,7 +372,10 @@ func (s *DashboardScreenService) AggregateDashboardData(isAdmin bool) (*Dashboar
 	}
 
 	var regRows []kvRow
-	if err := gormDB.Raw(`SELECT COALESCE(NULLIF(city, ''), '未知') AS name, COUNT(*) AS value FROM clues GROUP BY 1 ORDER BY value DESC`).Scan(&regRows).Error; err != nil {
+	if err := gormDB.Table("clues").
+		Select("COALESCE(NULLIF(city, ''), '未知') AS name, COUNT(*) AS value").
+		Group("1").Order("value DESC").
+		Scan(&regRows).Error; err != nil {
 		return nil, fmt.Errorf("地区分布查询失败: %w", err)
 	}
 	for _, r := range regRows {

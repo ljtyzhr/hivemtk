@@ -119,13 +119,6 @@ type RollbackResult struct {
 // 少写一列就得到 NULL，而 model 上是 time.Time（非指针）—— 读回来那一下会直接报错。
 // 与其把结论交给"AutoMigrate 到底给没给这两列加 NOT NULL"这种会随版本变的事实，
 // 不如由写侧自己说清。
-const ensureRowSQL = `
-INSERT INTO kb_releases (product_id, governed, effective_version, previous_version,
-                         recalled_version, draft_version, allocated_version, changed_by,
-                         created_at, updated_at)
-VALUES (?, false, 0, 0, 0, 0, 0, ?, now(), now())
-ON CONFLICT (tenant_id, product_id) DO NOTHING
-`
 
 // releaseColumns 读一行的列名单（写死而不是 SELECT *：加列时本层要显式跟上，
 // 别让一个 Scan 悄悄少读一列）。
@@ -139,7 +132,23 @@ func (r *KBReleaseRepository) LockRelease(ctx context.Context, tx *gorm.DB, prod
 	if tx == nil {
 		return nil, errors.New("kb_release repository: LockRelease 必须在事务内调用")
 	}
-	if err := tx.WithContext(ctx).Exec(ensureRowSQL, productID, actor).Error; err != nil {
+	if err := tx.WithContext(ctx).Table("kb_releases").
+		Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "tenant_id"}, {Name: "product_id"}},
+			DoNothing: true,
+		}).
+		Create(map[string]any{
+			"product_id":        productID,
+			"governed":          false,
+			"effective_version": 0,
+			"previous_version":  0,
+			"recalled_version":  0,
+			"draft_version":     0,
+			"allocated_version": 0,
+			"changed_by":        actor,
+			"created_at":        time.Now(),
+			"updated_at":        time.Now(),
+		}).Error; err != nil {
 		return nil, fmt.Errorf("kb_releases 建行失败: %w", err)
 	}
 	var rel model.KBRelease
@@ -382,16 +391,8 @@ func (r *KBReleaseRepository) ListAuditBySubject(ctx context.Context, subjectKey
 // embed_status 走库级 DEFAULT 'pending' —— 而**没有任何后台通路扫这一列回填向量**
 // （实测：全仓读点只有 vector_retriever.go:153 的告警计数与文档级筛选），
 // 所以向量侧的补齐由 service 在事务提交后显式做一次，见 service 侧 kbEmbedApplied。
-const chunkInsertSQL = `
-INSERT INTO knowledge_chunks
-	(document_id, product_id, chunk_index, content, char_count, weight,
-	 source_language, embedding_source, kb_version, retired_version, change_id)
-VALUES (?, ?, ?, ?, ?, 1, 'zh', 'tei', ?, 0, ?)
-RETURNING id
-`
 
 // chunkIndexSQL 同一文档内当前最大分段号的下一格（revise 复用旧行的号，让替换段落留在原位）
-const chunkIndexSQL = `SELECT COALESCE(MAX(chunk_index), -1) + 1 FROM knowledge_chunks WHERE document_id = ?`
 
 // chunkTarget 被改/被撤的目标行。
 //
@@ -430,11 +431,28 @@ func (r *KBReleaseRepository) loadChunk(ctx context.Context, tx *gorm.DB, id uin
 // 那时归属要从被替换的那条老行继承，见 Publish 的 revise 分支。
 func (r *KBReleaseRepository) insertChunk(ctx context.Context, tx *gorm.DB, c PublishChange, docID uint64, version, chunkIndex int) (uint64, error) {
 	var id uint64
-	err := tx.WithContext(ctx).Raw(chunkInsertSQL,
-		docID, c.ProductID, chunkIndex, c.Content,
-		len([]rune(c.Content)), version, c.ID,
-	).Scan(&id).Error
-	if err != nil {
+	if err := tx.WithContext(ctx).Table("knowledge_chunks").
+		Create(map[string]any{
+			"document_id":      docID,
+			"product_id":       c.ProductID,
+			"chunk_index":      chunkIndex,
+			"content":          c.Content,
+			"char_count":       len([]rune(c.Content)),
+			"weight":           1,
+			"source_language":  "zh",
+			"embedding_source": "tei",
+			"kb_version":       version,
+			"retired_version":  0,
+			"change_id":        c.ID,
+		}).Error; err != nil {
+		return 0, err
+	}
+	// 原 RETURNING id（T012 清偿）：change_id + 文档内最新一行定位新行
+	if err := tx.WithContext(ctx).Table("knowledge_chunks").
+		Select("id").
+		Where("document_id = ? AND change_id = ?", docID, c.ID).
+		Order("id DESC").Limit(1).
+		Scan(&id).Error; err != nil {
 		return 0, fmt.Errorf("knowledge_chunks 插入失败（change=%s）: %w", c.ID, err)
 	}
 	if id == 0 {
@@ -657,7 +675,10 @@ func (r *KBReleaseRepository) chunkIndexFor(ctx context.Context, tx *gorm.DB, do
 		return n, nil
 	}
 	var idx int
-	if err := tx.WithContext(ctx).Raw(chunkIndexSQL, docID).Scan(&idx).Error; err != nil {
+	if err := tx.WithContext(ctx).Model(&model.KnowledgeChunk{}).
+		Select("COALESCE(MAX(chunk_index), -1) + 1").
+		Where("document_id = ?", docID).
+		Scan(&idx).Error; err != nil {
 		return 0, fmt.Errorf("knowledge_chunks 分段号读取失败（document=%d）: %w", docID, err)
 	}
 	nextIdx[docID] = idx + 1

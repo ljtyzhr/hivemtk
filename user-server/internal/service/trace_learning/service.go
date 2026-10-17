@@ -102,7 +102,8 @@ func (s *Service) evaluateTraceOn(ctx context.Context, db *gorm.DB, traceID stri
 
 	var resultLog *model.TraceEvalLog
 	txErr := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if e := tx.Exec("SELECT pg_advisory_xact_lock(?)", traceLockKey(traceID)).Error; e != nil {
+		var lockHeld bool
+		if e := tx.Select("pg_advisory_xact_lock(?)", traceLockKey(traceID)).Scan(&lockHeld).Error; e != nil {
 			return e
 		}
 
@@ -183,14 +184,17 @@ func (s *Service) RunBatch(ctx context.Context, sinceHours, batchSize int, dryRu
 
 	connErr := s.repo.GetDB().WithContext(ctx).Connection(func(conn *gorm.DB) error {
 		var held bool
-		if e := conn.Raw("SELECT pg_try_advisory_lock(?)", runBatchLockKey).Scan(&held).Error; e != nil {
+		if e := conn.Select("pg_try_advisory_lock(?)", runBatchLockKey).Scan(&held).Error; e != nil {
 			return e
 		}
 		if !held {
 			logger.Infof("[trace_learning] RunBatch 跳过：已有实例在运行")
 			return nil
 		}
-		defer func() { _ = conn.Exec("SELECT pg_advisory_unlock(?)", runBatchLockKey).Error }()
+		defer func() {
+			var unlocked bool
+			_ = conn.Select("pg_advisory_unlock(?)", runBatchLockKey).Scan(&unlocked).Error
+		}()
 
 		stalled := 0
 		for {

@@ -429,19 +429,17 @@ func (s *ChurnPredictionService) aggregateCustomerBehavior(ctx context.Context) 
 		LastPurchaseAt   *time.Time
 		PurchaseCount90d int64
 	}
-	const q = `
-		SELECT
-			customer_id,
-			MAX(occurred_at)                                    AS last_activity_at,
-			COUNT(*) FILTER (WHERE occurred_at >= NOW() - INTERVAL '30 days') AS interactions_30d,
-			MAX(occurred_at) FILTER (WHERE event_type = 'purchase')          AS last_purchase_at,
-			COUNT(*) FILTER (WHERE event_type = 'purchase'
-				AND occurred_at >= NOW() - INTERVAL '90 days')               AS purchase_count_90d
-		FROM customer_events
-		GROUP BY customer_id`
 
 	var rows []row
-	if err := s.db.WithContext(ctx).Raw(q).Scan(&rows).Error; err != nil {
+	if err := s.db.WithContext(ctx).Table("customer_events").
+		Select("customer_id, " +
+			"MAX(occurred_at) AS last_activity_at, " +
+			"COUNT(*) FILTER (WHERE occurred_at >= NOW() - INTERVAL '30 days') AS interactions_30d, " +
+			"MAX(occurred_at) FILTER (WHERE event_type = 'purchase') AS last_purchase_at, " +
+			"COUNT(*) FILTER (WHERE event_type = 'purchase' " +
+			"AND occurred_at >= NOW() - INTERVAL '90 days') AS purchase_count_90d").
+		Group("customer_id").
+		Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 

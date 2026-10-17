@@ -1,0 +1,230 @@
+package middleware
+
+import (
+	"context"
+	"encoding/json"
+	"net/http"
+	"net/http/httptest"
+	"testing"
+
+	"gorm.io/gorm"
+	"hivemtk-user/internal/model"
+
+	"github.com/gin-gonic/gin"
+)
+
+// runThrough 把一个中间件挂到一次性 engine 上跑一遍，返回是否被 Abort。
+//
+// 用真 engine 而不是 CreateTestContext + 手改 handlers：后者要摸 gin 的
+// 未导出字段，跨 gin 版本会碎；真 engine 的行为与生产完全一致，
+// 且顺带验证了「中间件确实 abort 了请求」而不只是「函数返回了某个值」。
+func runThroughPath(mw gin.HandlerFunc, path string) bool {
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	reachedHandler := false
+	r.GET(path, mw, func(c *gin.Context) { reachedHandler = true })
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, path, nil))
+	if reachedHandler {
+		return false
+	}
+	// 兜底：handler 没跑到就是被拦了。无论它用 HTTP 状态还是响应体业务码表达
+	// （本仓 ErrorWithBusinessCode 是 HTTP 恒 200 + 体内 code），"handler 未执行"
+	// 才是与传输层无关的判据 —— 盯状态码会在两种错误通道之间反复误判。
+	if w.Code != http.StatusOK {
+		return true
+	}
+	var body struct {
+		Code int `json:"code"`
+	}
+	_ = json.Unmarshal(w.Body.Bytes(), &body)
+	return body.Code != 0
+}
+
+// 模块闸测试。
+//
+// 这一组用例守的是**收费模式的有效性**，不是"功能能不能用"：
+// 一旦闸失效（未覆盖路径默认放行的那条放行得太多、或三态判错），
+// 表现为"付费模块白送"，而这种 bug 从界面上完全看不出来 ——
+// 用户的模块菜单都在、页面能开、数据都对，只是没付钱。
+// 所以下面的断言里有相当一部分是在钉"**不许放行**"。
+
+// fakeChecker 可编排的闸判定
+type fakeChecker struct {
+	enabled map[string]bool
+}
+
+func (f fakeChecker) IsEnabled(k string) bool { return f.enabled[k] }
+
+func withChecker(t *testing.T, c moduleGateChecker) {
+	t.Helper()
+	SetModuleGateChecker(c)
+	t.Cleanup(func() { SetModuleGateChecker(nil) })
+}
+
+func TestModuleOwnerOf(t *testing.T) {
+	cases := []struct {
+		path string
+		want string
+	}{
+		{"/api/geo/config", "geo"},
+		{"/api/geo/content/optimize", "geo"},
+		{"/api/knowledge/search", "knowledge"},
+		{"/api/customer/oneid/list", "customer"},
+		{"/api/llm/wallet", "llm-cloud"},
+		{"/api/modules/my", "platform-link"},
+	}
+	for _, c := range cases {
+		if got := ModuleOwnerOf(c.path); got != c.want {
+			t.Errorf("ModuleOwnerOf(%q) = %q，期望 %q", c.path, got, c.want)
+		}
+	}
+}
+
+// TestModuleRouteRulesAllReferenceRealModules 表里不能有目录之外的模块 key ——
+// 写错一个 key 意味着那条路径**永远**被判为未开通（闸恒拦），是最隐蔽的一种坏。
+func TestModuleRouteRulesAllReferenceRealModules(t *testing.T) {
+	all := ModuleRouteAll()
+	if len(all) == 0 {
+		t.Fatal("路由模式表为空：模块闸将对所有带标注的路径恒拦")
+	}
+	for _, r := range all {
+		if r.ModuleKey == "" {
+			t.Errorf("模式 %q 没有模块 key", r.Pattern)
+			continue
+		}
+		if cat := model.OwnerModuleCategory(r.ModuleKey); cat == "" {
+			t.Errorf("模式 %q 指向不存在的模块 %q", r.Pattern, r.ModuleKey)
+		}
+	}
+}
+
+// TestModuleRouteRulesPatternsUnique 同一模式不允许出现两次（后者会静默覆盖前者，
+// 而"覆盖"在按顺序匹配时是确定性的，所以重复几乎总是拼错）。
+func TestModuleRouteRulesPatternsUnique(t *testing.T) {
+	seen := map[string]string{}
+	for _, r := range ModuleRouteAll() {
+		if prev, ok := seen[r.Pattern]; ok {
+			t.Errorf("模式 %q 重复：%s 与 %s", r.Pattern, prev, r.ModuleKey)
+		}
+		seen[r.Pattern] = r.ModuleKey
+	}
+}
+
+// TestMatchModuleSegsSemantics 段匹配语义：`*` 吃掉恰好一段，段数必须相等。
+func TestMatchModuleSegsSemantics(t *testing.T) {
+	cases := []struct {
+		pattern, path string
+		want          bool
+	}{
+		// `*` 吃**恰好**一段，且段数必须相等 —— 与 menu_capability_routes.go
+		// 的能力面守卫同一口径（那边是精确路径逐条列出，不靠 * 通配）。
+		{"/api/customer/*", "/api/customer/360", true},
+		{"/api/customer/*", "/api/customer/oneid/list", false}, // 2 段 ≠ 1 段
+		{"/api/customer/*", "/api/customer", false},
+		{"/api/geo/*", "/api/geo/config", true},
+		{"/api/geo/*", "/api/geo/content/optimize", false},
+		{"/api/llm/wallet", "/api/llm/wallet", true},
+		{"/api/llm/wallet", "/api/llm/wallet/txns", false}, // 精确模式不吃前缀
+	}
+	for _, c := range cases {
+		if m := matchModuleSegs(c.pattern, splitModulePath(c.path)); m != c.want {
+			t.Errorf("matchModuleSegs(%q, %q) = %v，期望 %v", c.pattern, c.path, m, c.want)
+		}
+	}
+}
+
+func TestModulePatternUnknownPathIsUncovered(t *testing.T) {
+	for _, p := range []string{
+		"/api/this-does-not-exist",
+		"/api/definitely/not/a/real/route/at/all",
+		"/",
+		"",
+	} {
+		if got := ModuleOwnerOf(p); got != "" {
+			t.Errorf("ModuleOwnerOf(%q) = %q，期望空（未覆盖 → 放行并计入巡检）", p, got)
+		}
+	}
+}
+
+// TestMarketAPIsAreNotGated 市场与下单路径绝不能被闸拦。
+//
+// 这是最容易在"加闸"时顺手拦掉的一组，而拦掉的后果是**用户永远买不了模块**：
+// 他点「订阅」，前端拿到 403 "该功能模块未开通"，而这句话本身就是系统告诉他的。
+func TestMarketAPIsAreNotGated(t *testing.T) {
+	mustNotGate := []string{
+		"/api/module-market/list",
+		"/api/module-market/detail/geo",
+		"/api/module-market/order",
+		"/api/module-market/orders",
+		"/api/module-market/payment-guide",
+		"/api/modules/my",
+		"/api/modules/sync",
+	}
+	for _, p := range mustNotGate {
+		got := ModuleOwnerOf(p)
+		if got == "" {
+			continue // 完全未覆盖：永远放行，最安全
+		}
+		// 基础模块恒 active，闸对它永远放行 —— 归到基础模块与不归等价
+		if model.OwnerModuleCategory(got) == model.ModuleCategoryBase {
+			continue
+		}
+		t.Errorf("购买入口 %q 被归到收费模块 %q：用户没开通就看不到自己买了什么，"+
+			"永远买不了（付费依赖闭环），或订阅了却看不到订单", p, got)
+	}
+}
+
+// TestSelfProvidedLLMIsNotGated 自带 Key 的模型管理不收费。
+func TestSelfProvidedLLMIsNotGated(t *testing.T) {
+	// llmRouting 归 llm-self（免费常开），模型 CRUD 属于自带 Key 路径
+	if got := ModuleOwnerOf("/api/llm/models"); got == "llm-cloud" {
+		t.Error("自带 Key 的模型管理被归到计费模块 llm-cloud：用户没买套餐却用不了自己的 Key")
+	}
+}
+
+// TestUncoveredRoutesTracked ③态：未覆盖路径要被记录下来供巡检
+func TestUncoveredRoutesTracked(t *testing.T) {
+	ResetUncoveredModuleRoutes()
+	withChecker(t, fakeChecker{enabled: map[string]bool{"core": true}})
+
+	runThroughPath(GuardModulePath(), "/api/some/uncovered/path")
+	if len(UncoveredModuleRoutes()) != 1 {
+		t.Fatalf("未覆盖路径应被记入巡检清单，实际 %v", UncoveredModuleRoutes())
+	}
+	ResetUncoveredModuleRoutes()
+}
+
+// TestGateThreeStates 三态语义各一条
+func TestGateThreeStates(t *testing.T) {
+	ResetUncoveredModuleRoutes()
+
+	// ① 未装配判定 → 放行（不能因为闸没接上就让整个系统不可用）
+	withChecker(t, nil)
+	if aborted := runThroughPath(RequireModule("geo"), "/api/geo/config"); aborted {
+		t.Error("未装配判定时模块闸必须放行（否则免费用户也进不来）")
+	}
+
+	// ② 已开通 → 放行
+	withChecker(t, fakeChecker{enabled: map[string]bool{"geo": true}})
+	if aborted := runThroughPath(RequireModule("geo"), "/api/geo/config"); aborted {
+		t.Error("已开通模块不应被拦")
+	}
+
+	// ③ 未开通（含超管——闸不看角色）→ 拦
+	withChecker(t, fakeChecker{enabled: map[string]bool{"core": true}})
+	if aborted := runThroughPath(RequireModule("geo"), "/api/geo/config"); !aborted {
+		t.Error("未开通模块必须被拦：否则付费模块白送，商业化失效")
+	}
+}
+
+// TestGateIgnoresUnannotatedModule 未标注 moduleKey 的路由一律放行
+func TestGateIgnoresUnannotatedModule(t *testing.T) {
+	withChecker(t, fakeChecker{enabled: map[string]bool{}})
+	if aborted := runThroughPath(RequireModule(""), "/api/whatever"); aborted {
+		t.Error("未标注模块的路由应放行（漏挂一处就全站 403 是灾难）")
+	}
+}
+
+var _ = context.Background
+var _ = gorm.ErrRecordNotFound

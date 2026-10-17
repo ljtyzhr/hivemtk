@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"hivemtk-user/internal/pkg/tenant"
 	"sync"
 	"time"
 
@@ -164,7 +165,10 @@ func (c *ChurnScoreCron) loop(ctx context.Context) {
 			timer.Stop()
 			return
 		case <-timer.C:
-			if _, err := c.svc.ComputeAll(ctx); err != nil {
+			if _, err := tenant.Fanout(ctx, nil, func(ctx context.Context, _ uint) (int64, error) {
+				_, err := c.svc.ComputeAll(ctx)
+				return 0, err
+			}); err != nil {
 				logger.Errorf("[ChurnScoreCron] 周批失败: %v", err)
 			}
 		}

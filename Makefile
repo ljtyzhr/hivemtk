@@ -523,8 +523,8 @@ go-cache-trim:
 audit:
 	@echo "── 前后端 API 契约（UNMATCHED 必须为 0，且不得出现通配 key）──"
 	@python3 scripts/audit_api_contract.py --strict
-	@echo "── GORM-only 门禁（业务包禁 Exec/Raw；清偿期观测档，T015 归零后切 strict）──"
-	@bash user-server/scripts/check-gorm-only.sh --report-only
+	@echo "── GORM-only 门禁（业务包禁 Exec/Raw，strict：违规即红）──"
+	@bash user-server/scripts/check-gorm-only.sh
 	@echo "── 跨包端口单一源 ──"
 	@bash scripts/audit-cross-package-ports.sh
 	@echo "── 组件类型声明不得指向已删除的组件 ──"

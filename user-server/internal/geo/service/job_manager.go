@@ -255,9 +255,9 @@ func (m *JobManager) acquireDistributedLock(jobName string, timeout time.Duratio
 	defer cancel()
 
 	var result bool
-	err := m.db.WithContext(ctx).Raw(
-		"SELECT pg_try_advisory_lock(hashtext(?))", jobName,
-	).Scan(&result).Error
+	err := m.db.WithContext(ctx).
+		Select("pg_try_advisory_lock(hashtext(?))", jobName).
+		Scan(&result).Error
 	if err != nil {
 		return false, err
 	}
@@ -273,9 +273,9 @@ func (m *JobManager) releaseDistributedLock(jobName string) {
 	defer cancel()
 	// 解锁返回值无需使用，但 Scan 目标不可为 nil（gorm 会 panic，见 acquireDistributedLock 同构写法）。
 	var discarded bool
-	_ = m.db.WithContext(ctx).Raw(
-		"SELECT pg_advisory_unlock(hashtext(?))", jobName,
-	).Scan(&discarded).Error
+	_ = m.db.WithContext(ctx).
+		Select("pg_advisory_unlock(hashtext(?))", jobName).
+		Scan(&discarded).Error
 }
 
 func (m *JobManager) execute(def geoJobDef, runID uint, trigger string) {

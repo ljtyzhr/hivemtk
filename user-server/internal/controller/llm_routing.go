@@ -7,7 +7,10 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"hivemtk-user/internal/aiagent/llm"
+	bizerr "hivemtk-user/internal/domain/errors"
 	"hivemtk-user/internal/pkg/utils/logger"
+	"hivemtk-user/internal/pkg/utils/response"
 	"hivemtk-user/internal/service"
 )
 
@@ -140,6 +143,13 @@ func (c *LLMRoutingController) TestModel(ctx *gin.Context) {
 	req.Provider = resolved
 	result, err := c.routingService.TestModel(ctx.Request.Context(), req)
 	if err != nil {
+		// 余额不足单独映射：它不是"模型坏了"，处置动作是"去充值"。
+		// 笼统回 500 会让运营以为模型配错了，而商户看到的是"测试失败"。
+		if llm.IsBalanceInsufficient(err) {
+			response.ErrorWithBusinessCode(ctx, bizerr.CodeLLMBalanceInsufficient,
+				"平台模型余额不足，请购买 LLM 套餐后重试", gin.H{})
+			return
+		}
 		ctx.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
 		return
 	}

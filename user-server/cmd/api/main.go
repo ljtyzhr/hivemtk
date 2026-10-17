@@ -30,6 +30,7 @@ import (
 	cronpkg "hivemtk-user/internal/pkg/cron"
 	"hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/pkg/featureflag"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/tracing"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/logger"
@@ -290,6 +291,22 @@ func main() {
 	}
 	llm.InitGlobalDispatcherWithDB(llm.NewDispatcherFromConfig(appCfg), db.GetDB())
 
+	// ── 功能模块化 · 平台垫资模型装配 ──────────────────────────────
+	//
+	// 三件事，顺序有依赖：
+	//  1. 接上用量回填（dispatcher 调用后落本地明细）—— 必须在 LoadProvidersFromDB
+	//     **之前**：首次派发就可能命中平台 provider，那时 sink 还没接上会丢第一条明细。
+	//  2. 拉取平台下发的 provider 元信息（**不含 Key**）。
+	//  3. 再从库里加载 provider —— 顺序反过来会让本次下发的 provider 要等下个周期。
+	//
+	// 平台不可达时全部降级：自带 Key 的 provider 完全不受影响（零出域铁律）。
+	service.InstallPlatformUsageSink()
+	if n, err := service.SyncPlatformProviders(context.Background()); err != nil {
+		logger.Warnf("[llm-provider] 拉取平台 provider 失败（不影响自带 Key 使用）: %v", err)
+	} else if n > 0 {
+		logger.Infof("[llm-provider] 已同步 %d 个平台下发 provider", n)
+	}
+
 	if err := llm.GetGlobalDispatcher().LoadProvidersFromDB(); err != nil {
 		logger.Errorf("[LLM] 从数据库加载 provider 失败：%v", err)
 	} else {
@@ -476,7 +493,9 @@ func main() {
 	logger.Info("[WeComQuotaResetCron] 企微日配额每日重置已装配")
 
 	snoozeCron := cronpkg.NewSnoozeRecoveryCron(func(ctx context.Context) (int64, error) {
-		return service.NewCustomerServicePlusServiceFromGlobal().RecoverSnoozed(ctx)
+		return tenant.Fanout(ctx, db.GetDB(), func(ctx context.Context, _ uint) (int64, error) {
+			return service.NewCustomerServicePlusServiceFromGlobal().RecoverSnoozed(ctx)
+		})
 	})
 	snoozeCron.Start()
 	defer snoozeCron.Stop()
@@ -485,8 +504,10 @@ func main() {
 	reportCron := cronpkg.NewSnoozeRecoveryCron(func(ctx context.Context) (int64, error) {
 		hm := time.Now().Format("15:04")
 		if hm >= "08:00" && hm < "08:30" {
-			n, err := service.NewCustomerServicePlusServiceFromGlobal().SendScheduledReports(ctx)
-			return int64(n), err
+			return tenant.Fanout(ctx, db.GetDB(), func(ctx context.Context, _ uint) (int64, error) {
+				n, err := service.NewCustomerServicePlusServiceFromGlobal().SendScheduledReports(ctx)
+				return int64(n), err
+			})
 		}
 		return 0, nil
 	})
@@ -495,16 +516,20 @@ func main() {
 	logger.Info("[ReportCron] 定时邮件报表已装配")
 
 	autoResolveCron := cronpkg.NewSnoozeRecoveryCron(func(ctx context.Context) (int64, error) {
-		n, err := service.NewSessionChainServiceFromGlobal().RunAutoResolve(ctx)
-		return int64(n), err
+		return tenant.Fanout(ctx, db.GetDB(), func(ctx context.Context, _ uint) (int64, error) {
+			n, err := service.NewSessionChainServiceFromGlobal().RunAutoResolve(ctx)
+			return int64(n), err
+		})
 	})
 	autoResolveCron.Start()
 	defer autoResolveCron.Stop()
 	logger.Info("[AutoResolveCron] 自动解决 SLA 已装配")
 
 	ruleCron := cronpkg.NewSnoozeRecoveryCron(func(ctx context.Context) (int64, error) {
-		n, err := service.NewRuleEngineServiceFromGlobal().ProcessPendingRules(ctx)
-		return int64(n), err
+		return tenant.Fanout(ctx, db.GetDB(), func(ctx context.Context, _ uint) (int64, error) {
+			n, err := service.NewRuleEngineServiceFromGlobal().ProcessPendingRules(ctx)
+			return int64(n), err
+		})
 	})
 	ruleCron.Start()
 	defer ruleCron.Stop()

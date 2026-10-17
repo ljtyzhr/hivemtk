@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"hivemtk-user/internal/pkg/tenant"
 	"sync"
 	"time"
 
@@ -25,9 +26,12 @@ func NewRagEvalCron() *RagEvalCron {
 		stop: make(chan struct{}),
 	}
 	c.runFn = func(ctx context.Context) error {
-		_, err := c.svc.RunAutoEvaluation(ctx, &RagEvalConfig{
-			Name:         "daily_auto_" + time.Now().Format("20060102"),
-			MaxQuestions: 30,
+		_, err := tenant.Fanout(ctx, nil, func(ctx context.Context, _ uint) (int64, error) {
+			_, err := c.svc.RunAutoEvaluation(ctx, &RagEvalConfig{
+				Name:         "daily_auto_" + time.Now().Format("20060102"),
+				MaxQuestions: 30,
+			})
+			return 0, err
 		})
 		return err
 	}

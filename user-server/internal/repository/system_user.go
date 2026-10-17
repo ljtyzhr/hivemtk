@@ -4,12 +4,14 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
 
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/db"
+	"hivemtk-user/internal/pkg/tenant"
 )
 
 // ErrLastAdmin 系统至少需要保留一个 admin 账号
@@ -44,6 +46,13 @@ type SystemUserRepository interface {
 	SetEnabled(ctx context.Context, id uint, enabled bool) error
 	CountEnabledAdmins(ctx context.Context) (int64, error)
 	UpdatePassword(ctx context.Context, id uint, hashedPassword string) error
+
+	// 租户身份解析（specs/001-saas-multi-tenant T031）：登录时租户未知，
+	// 四组方法均显式 SystemScope，结果自带 tenant_id
+	ResolveByEmailGlobal(ctx context.Context, email string) (*model.SystemUser, error)
+	FindByUsernameAnyTenant(ctx context.Context, username string, limit int) ([]*model.SystemUser, error)
+	UsernameExistsInTenant(ctx context.Context, tenantID uint, username string) (bool, error)
+	EmailExistsGlobal(ctx context.Context, email string) (bool, error)
 }
 
 type systemUserRepo struct {
@@ -300,6 +309,76 @@ func (r *systemUserRepo) UpdatePassword(ctx context.Context, id uint, hashedPass
 		return gorm.ErrRecordNotFound
 	}
 	return nil
+}
+
+// ── 租户身份解析（specs/001-saas-multi-tenant T031 登录通道）────────────────
+//
+// 登录发生在「尚未解析出租户」的时刻，因此这四组方法一律显式挂 SystemScope
+// 绕过隔离注入：租户由查询结果自身携带，而不是由 ctx 假定。
+
+// ResolveByEmailGlobal 按邮箱全局解析登录身份（邮箱跨租户全局唯一，contracts/api.md）
+func (r *systemUserRepo) ResolveByEmailGlobal(ctx context.Context, email string) (*model.SystemUser, error) {
+	email = strings.TrimSpace(email)
+	if email == "" {
+		return nil, gorm.ErrRecordNotFound
+	}
+	var u model.SystemUser
+	// 与 global_uniq_system_users_email 索引同归一化口径（lower/btrim）
+	if err := r.db.WithContext(tenant.WithSystemScope(ctx)).Model(&model.SystemUser{}).
+		Where("lower(btrim(email)) = ?", strings.ToLower(email)).
+		First(&u).Error; err != nil {
+		return nil, err
+	}
+	return &u, nil
+}
+
+// FindByUsernameAnyTenant 按用户名取跨租户候选（上限 limit）：
+// 命中 0=不存在，1=唯一可登录，>1=跨租户歧义（应提示改用邮箱，业务码 4108）
+func (r *systemUserRepo) FindByUsernameAnyTenant(ctx context.Context, username string, limit int) ([]*model.SystemUser, error) {
+	username = strings.TrimSpace(username)
+	if username == "" {
+		return nil, nil
+	}
+	if limit <= 0 {
+		limit = 2 // 只需区分 0 / 1 / >1
+	}
+	var out []*model.SystemUser
+	if err := r.db.WithContext(tenant.WithSystemScope(ctx)).Model(&model.SystemUser{}).
+		Where("username = ?", username).
+		Limit(limit).Find(&out).Error; err != nil {
+		return nil, err
+	}
+	return out, nil
+}
+
+// UsernameExistsInTenant 租户内用户名查重（开户 4102 校验；用户名唯一性语义是租户内）
+func (r *systemUserRepo) UsernameExistsInTenant(ctx context.Context, tenantID uint, username string) (bool, error) {
+	username = strings.TrimSpace(username)
+	if username == "" {
+		return false, nil
+	}
+	var count int64
+	if err := r.db.WithContext(tenant.WithSystemScope(ctx)).Model(&model.SystemUser{}).
+		Where("tenant_id = ? AND username = ?", tenantID, username).
+		Count(&count).Error; err != nil {
+		return false, err
+	}
+	return count > 0, nil
+}
+
+// EmailExistsGlobal 邮箱全局查重（开户 4103 校验；邮箱唯一性语义是跨租户全局）
+func (r *systemUserRepo) EmailExistsGlobal(ctx context.Context, email string) (bool, error) {
+	email = strings.TrimSpace(email)
+	if email == "" {
+		return false, nil
+	}
+	var count int64
+	if err := r.db.WithContext(tenant.WithSystemScope(ctx)).Model(&model.SystemUser{}).
+		Where("lower(btrim(email)) = ?", strings.ToLower(email)).
+		Count(&count).Error; err != nil {
+		return false, err
+	}
+	return count > 0, nil
 }
 
 var _ SystemUserRepository = (*systemUserRepo)(nil)

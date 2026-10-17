@@ -7,10 +7,14 @@ import (
 	"strings"
 	"time"
 
+	"hivemtk-user/internal/config"
+	bizerr "hivemtk-user/internal/domain/errors"
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/bcrypt"
 	"hivemtk-user/internal/pkg/utils/logger"
+	"hivemtk-user/internal/platform"
 	"hivemtk-user/internal/repository"
 	"hivemtk-user/internal/system/install"
 
@@ -18,8 +22,16 @@ import (
 )
 
 // LoginRequest 登录请求
+//
+// 登录通道双轨（specs/001-saas-multi-tenant T031，contracts/api.md）：
+//   - username：租户内唯一，跨租户可同名 → on 模式歧义时报 4108 提示改用邮箱
+//   - email：跨租户全局唯一（global_uniq_system_users_email 索引兜底），消解上述歧义
+//
+// 两者必须至少提供一个（binding required_without 双向约束）；
+// 离线模式（TENANT_MODE=off）两条通道语义与历史完全一致。
 type LoginRequest struct {
-	Username string `json:"username" binding:"required"`
+	Username string `json:"username" binding:"required_without=Email"`
+	Email    string `json:"email" binding:"required_without=Username"`
 	Password string `json:"password" binding:"required"`
 }
 
@@ -30,6 +42,9 @@ type LoginResponse struct {
 	Expires   int64               `json:"expires,omitempty"`
 	NeedMFA   bool                `json:"need_mfa,omitempty"`
 	TempToken string              `json:"temp_token,omitempty"`
+	// 租户归属（off 模式省略，存量前端零适配）
+	TenantID   uint   `json:"tenant_id,omitempty"`
+	TenantCode string `json:"tenant_code,omitempty"`
 }
 
 // SystemUserResponse 系统用户响应
@@ -66,6 +81,18 @@ type RegisterRequest struct {
 	Email    string `json:"email" binding:"required,email"`
 	Phone    string `json:"phone,omitempty"`
 	RealName string `json:"real_name,omitempty"`
+
+	// ---- 开户登记（平台监管责任）----
+	// 需求原文：租户开户必须收集「电话，邮箱，公司名称，负责人等」。
+	// 走 /api/auth/register 这条路（单机部署的默认注册入口）时同样必须收 ——
+	// 否则用户从自助注册进来的商户在平台端就是一条查不到人的记录。
+	CompanyName string `json:"company_name"`
+	LicenseNo   string `json:"license_no"`
+	Address     string `json:"address"`
+	// RegulatoryAck 用户已勾选监管告知
+	RegulatoryAck bool `json:"regulatory_ack"`
+	// AgreementVersion 用户同意的协议版本
+	AgreementVersion string `json:"agreement_version"`
 }
 
 // AuthService 认证服务
@@ -97,16 +124,11 @@ func (s *AuthService) JwtUtils(ctx context.Context) *utils.JWTUtils {
 //  4. 用户被禁用直接拒绝（明确反馈）。
 //  5. 密码用 bcrypt 验证。
 //  6. 阶段 1：team_users 已被合并到 system_users，仅查 system_users。
+//  7. SaaS 多租户（T031）：邮箱全局通道优先；用户名跨租户歧义时不猜，报 4108。
 func (s *AuthService) Login(ctx context.Context, req *LoginRequest) (*LoginResponse, error) {
-
-	user, err := s.systemUserRepo.GetByUsername(ctx, req.Username)
-	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		logger.Error(err, "查询用户失败")
-		return nil, errors.New("登录失败，请稍后重试")
-	}
-
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return nil, errors.New("用户名或密码错误")
+	user, err := s.resolveLoginIdentity(ctx, req)
+	if err != nil {
+		return nil, err
 	}
 
 	if user.Status != 1 || !user.Enabled {
@@ -118,6 +140,83 @@ func (s *AuthService) Login(ctx context.Context, req *LoginRequest) (*LoginRespo
 	}
 
 	return s.loginWithUser(ctx, user)
+}
+
+// resolveLoginIdentity 解析登录身份（邮箱优先，其次用户名）
+//
+// 登录发生在租户未知之前，故查询一律走仓储的 SystemScope 变体，
+// 租户由命中的用户行自身携带，绝不由 ctx 假定。
+func (s *AuthService) resolveLoginIdentity(ctx context.Context, req *LoginRequest) (*model.SystemUser, error) {
+	if email := strings.TrimSpace(req.Email); email != "" {
+		user, err := s.systemUserRepo.ResolveByEmailGlobal(ctx, email)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, errors.New("用户名或密码错误")
+			}
+			logger.Error(err, "按邮箱查询用户失败")
+			return nil, errors.New("登录失败，请稍后重试")
+		}
+		return user, nil
+	}
+
+	candidates, err := s.systemUserRepo.FindByUsernameAnyTenant(ctx, req.Username, 2)
+	if err != nil {
+		logger.Error(err, "按用户名查询用户失败")
+		return nil, errors.New("登录失败，请稍后重试")
+	}
+	switch len(candidates) {
+	case 0:
+		return nil, errors.New("用户名或密码错误")
+	case 1:
+		return candidates[0], nil
+	default:
+		// 跨租户同名：用户名无法唯一定位租户，不猜（防登录到错误租户）
+		return nil, bizerr.New(bizerr.CodeTenantAmbiguousUsername,
+			"该用户名在多个租户中存在，请改用邮箱登录")
+	}
+}
+
+// tokenForUser 按用户实际归属租户签发 JWT（specs/001-saas-multi-tenant T031）
+//
+// 与历史 GenerateToken 的唯一差异是 tenantID：dataScope/dept/team 仍传空与 0，
+// 保持既有行级权限语义不变。off 模式用户行 tenant_id 恒为 1（存量回填值），
+// 为 0 的历史行回落到默认租户，避免签出 tenant_id=0 的越权令牌。
+func (s *AuthService) tokenForUser(user *model.SystemUser) (string, error) {
+	tid := user.TenantID
+	if tid == 0 {
+		tid = tenant.DefaultTenantID
+	}
+	return s.jwtUtils.GenerateTokenForTenant(user.ID, user.Username, user.Role, "", 0, 0, tid)
+}
+
+// loginTenant 解析登录用户的租户状态：off 模式不查租户表（存量部署 tenants 可为空）
+//
+// on 模式返回 (code, err)：租户不存在 4106、已停用 4107（登录受限、数据保留）。
+func (s *AuthService) loginTenant(ctx context.Context, user *model.SystemUser) (uint, string, error) {
+	if !tenant.IsMultiTenant() {
+		tid := user.TenantID
+		if tid == 0 {
+			tid = tenant.DefaultTenantID
+		}
+		return tid, "", nil
+	}
+	tid := user.TenantID
+	if tid == 0 {
+		tid = tenant.DefaultTenantID
+	}
+	tenantRepo := repository.NewTenantRepository()
+	t, err := tenantRepo.GetByID(ctx, tid)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return 0, "", bizerr.New(bizerr.CodeTenantNotFound, "租户不存在")
+		}
+		logger.Error(err, "查询租户失败")
+		return 0, "", errors.New("登录失败，请稍后重试")
+	}
+	if !t.IsActive() {
+		return 0, "", bizerr.New(bizerr.CodeTenantSuspended, "租户已停用，请联系平台运营")
+	}
+	return t.ID, t.Code, nil
 }
 
 func (s *AuthService) loginWithUser(ctx context.Context, user *model.SystemUser) (*LoginResponse, error) {
@@ -137,7 +236,13 @@ func (s *AuthService) loginWithUser(ctx context.Context, user *model.SystemUser)
 		}, nil
 	}
 
-	token, err := s.jwtUtils.GenerateToken(user.ID, user.Username, user.Role)
+	// 租户停用拦截放在密码校验之后：未通过认证的调用方不应探测到租户状态
+	tenantID, tenantCode, err := s.loginTenant(ctx, user)
+	if err != nil {
+		return nil, err
+	}
+
+	token, err := s.tokenForUser(user)
 	if err != nil {
 		logger.Error(err, "生成JWT令牌失败")
 		return nil, errors.New("登录失败，请稍后重试")
@@ -153,6 +258,10 @@ func (s *AuthService) loginWithUser(ctx context.Context, user *model.SystemUser)
 		Token:   token,
 		User:    s.toUserResponse(ctx, user),
 		Expires: time.Now().Add(time.Hour * time.Duration(utils.DefaultJWTConfig.ExpiresHours)).Unix(),
+	}
+	if tenant.IsMultiTenant() {
+		response.TenantID = tenantID
+		response.TenantCode = tenantCode
 	}
 
 	return response, nil
@@ -280,6 +389,22 @@ func (s *AuthService) ChangePassword(ctx context.Context, userID uint, req *Chan
 	return nil
 }
 
+// IssueTokenForUserID 按用户 ID 签发携带租户的 JWT（MFA 二次验证等只有 userID 的路径）
+//
+// MFA 临时令牌不携带租户归属，故终令牌在此处按用户行解析，
+// 避免 MFA 登录用户在 SaaS 模式下丢失 tenant_id claim（T031 收口）。
+func (s *AuthService) IssueTokenForUserID(ctx context.Context, userID uint) (string, error) {
+	user, err := s.systemUserRepo.GetByID(tenant.WithSystemScope(ctx), userID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return "", errors.New("用户不存在")
+		}
+		logger.Error(err, "查询用户失败")
+		return "", errors.New("签发令牌失败")
+	}
+	return s.tokenForUser(user)
+}
+
 func (s *AuthService) toUserResponse(ctx context.Context, user *model.SystemUser) *SystemUserResponse {
 	return &SystemUserResponse{
 		ID:          user.ID,
@@ -336,6 +461,11 @@ func (s *AuthService) Register(ctx context.Context, req *RegisterRequest) (*Logi
 		return nil, ErrEmailExists
 	}
 
+	// 开户登记必填校验（与自助开户同一口径）
+	if err := validateSelfRegisterFields(*req); err != nil {
+		return nil, err
+	}
+
 	user := &model.SystemUser{
 		Username: username,
 		Password: password,
@@ -359,7 +489,7 @@ func (s *AuthService) Register(ctx context.Context, req *RegisterRequest) (*Logi
 		}
 	}
 
-	token, err := s.jwtUtils.GenerateToken(user.ID, user.Username, user.Role)
+	token, err := s.tokenForUser(user)
 	if err != nil {
 		logger.Error(err, "Register 生成 JWT 失败: "+username)
 		return nil, errors.New("注册成功但签发令牌失败，请登录")
@@ -369,6 +499,11 @@ func (s *AuthService) Register(ctx context.Context, req *RegisterRequest) (*Logi
 	user.LastLogin = &now
 	if err := s.systemUserRepo.Update(ctx, user); err != nil {
 		logger.Error(err, "Register 更新最后登录时间失败")
+	}
+
+	// 开户登记上报平台（失败不回滚注册，理由见 TenantService.SubmitRegistrationToPlatform）
+	if err := s.submitSelfRegisterToPlatform(ctx, user, *req); err != nil {
+		logger.Warnf("[auth] 自助注册的平台登记上报失败（不影响注册本身）: %v", err)
 	}
 
 	logger.Info("Register 用户注册成功: " + username)
@@ -486,4 +621,69 @@ func (s *AuthService) InitAdmin(ctx context.Context, username, password, email s
 
 	logger.Info("InitAdmin 超管创建成功: " + username)
 	return nil
+}
+
+// ── 自助注册的监管登记 ────────────────────────────────────────────────
+
+// validateSelfRegisterFields 校验自助注册的监管必需项
+//
+// 口径与 TenantService.validateRegulatoryFields 一致，刻意保持同一套判据：
+// 两条注册入口（SaaS 自助开户 / 单机自助注册）如果要求不同，
+// 用户会从"要求低的入口"绕过去，监管登记就形同虚设。
+func validateSelfRegisterFields(req RegisterRequest) error {
+	var missing []string
+	if strings.TrimSpace(req.CompanyName) == "" {
+		missing = append(missing, "公司名称")
+	}
+	if strings.TrimSpace(req.RealName) == "" {
+		missing = append(missing, "负责人姓名")
+	}
+	if strings.TrimSpace(req.Phone) == "" {
+		missing = append(missing, "联系电话")
+	}
+	if strings.TrimSpace(req.Email) == "" {
+		missing = append(missing, "邮箱")
+	}
+	if len(missing) > 0 {
+		return bizerr.New(bizerr.CodeModuleRegistrationIncomplete,
+			"开户信息不完整，缺少："+strings.Join(missing, "、"))
+	}
+	if !tenantPhonePattern.MatchString(strings.TrimSpace(req.Phone)) {
+		return bizerr.New(bizerr.CodeModuleRegistrationIncomplete, "联系电话格式不正确")
+	}
+	if !req.RegulatoryAck {
+		return bizerr.New(bizerr.CodeModuleRegistrationIncomplete,
+			"Please read and confirm the platform regulatory notice first")
+	}
+	return nil
+}
+
+// submitSelfRegisterToPlatform 把自助注册的登记信息上报平台
+//
+// 离线部署（PLATFORM_ENABLED=false）：一个出站请求都不发，只在日志里记一笔。
+// 这样"离线独立部署"与"SaaS 注册"走同一段代码，离线用户不会被卡在注册上，
+// 平台端也就不会收到一堆 `reg_mode=offline` 的空登记。
+func (s *AuthService) submitSelfRegisterToPlatform(ctx context.Context, u *model.SystemUser, req RegisterRequest) error {
+	if !config.PlatformEnabled() {
+		return nil
+	}
+	installID := platform.GetMerchantKey()
+	agreementVersion := strings.TrimSpace(req.AgreementVersion)
+	if agreementVersion == "" {
+		agreementVersion = serviceCurrentAgreementVersion
+	}
+	_, err := platform.NewModuleClient().RegisterTenant(ctx, platform.TenantRegistrationPayload{
+		MerchantKey:      installID,
+		InstallID:        installID,
+		CompanyName:      strings.TrimSpace(req.CompanyName),
+		LegalPerson:      strings.TrimSpace(req.RealName),
+		Phone:            strings.TrimSpace(req.Phone),
+		Email:            u.Email,
+		LicenseNo:        strings.TrimSpace(req.LicenseNo),
+		Address:          strings.TrimSpace(req.Address),
+		RegMode:          model.TenantRegModeSaaS,
+		AgreementVersion: agreementVersion,
+		RegulatoryAck:    true,
+	})
+	return err
 }

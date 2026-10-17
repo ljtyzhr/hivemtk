@@ -20,13 +20,14 @@ func newCheckpointStoreForTest(t *testing.T) (*agentCheckpointStore, *gorm.DB, f
 	t.Helper()
 	db := testutil.NewTestDB(t)
 	if err := db.Exec(`CREATE TABLE IF NOT EXISTS agent_checkpoints (
+		tenant_id BIGINT NOT NULL DEFAULT 1,
 		id BIGSERIAL PRIMARY KEY,
 		thread_id VARCHAR(120) NOT NULL,
 		stage VARCHAR(40) NOT NULL,
 		state JSONB NOT NULL DEFAULT '{}',
 		created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 		updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-		CONSTRAINT uk_agent_ckpt UNIQUE (thread_id, stage)
+		CONSTRAINT uk_agent_ckpt UNIQUE (tenant_id, thread_id, stage)
 	)`).Error; err != nil {
 		t.Skipf("建表失败（环境限制）: %v", err)
 	}

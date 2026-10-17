@@ -378,8 +378,8 @@ func (c *AuthController) VerifyMFALogin(ctx *gin.Context) {
 	}
 	middleware.ClearBruteForceFailure(ctx, "auth.mfa")
 
-	jwtUtils := c.authService.JwtUtils(ctx.Request.Context())
-	token, err := jwtUtils.GenerateToken(userID, username, role)
+	// 终令牌按用户行签发，携带租户归属（T031：MFA 临时令牌不含租户）
+	token, err := c.authService.IssueTokenForUserID(ctx.Request.Context(), userID)
 	if err != nil {
 		response.Error(ctx, http.StatusInternalServerError, "颁发令牌失败")
 		return

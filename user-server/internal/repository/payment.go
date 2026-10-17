@@ -221,15 +221,12 @@ func (r *paymentRepo) SumSettledByBill(ctx context.Context, billID string) (floa
 		// 而 `IN ()` 是 SQL 语法错。报一句人话比让 PG 报语法错便宜。
 		return 0, errors.New("payment repository: 计入结清的状态集为空（model.PaymentStatusesCounted 被改空了？）")
 	}
-	placeholders := strings.TrimSuffix(strings.Repeat("?,", len(statuses)), ",")
-	args := make([]any, 0, len(statuses)+1)
-	args = append(args, strings.TrimSpace(billID))
-	for _, s := range statuses {
-		args = append(args, s)
-	}
 	var sum float64
-	sql := "SELECT COALESCE(ROUND(SUM(amount), 2), 0) FROM payments WHERE bill_id = ? AND status IN (" + placeholders + ")"
-	if err := r.db.WithContext(ctx).Raw(sql, args...).Scan(&sum).Error; err != nil {
+	err := r.db.WithContext(ctx).Table("payments").
+		Select("COALESCE(ROUND(SUM(amount), 2), 0)").
+		Where("bill_id = ? AND status IN ?", strings.TrimSpace(billID), statuses).
+		Scan(&sum).Error
+	if err != nil {
 		return 0, err
 	}
 	return sum, nil

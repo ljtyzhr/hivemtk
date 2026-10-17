@@ -1,0 +1,411 @@
+package service
+
+import (
+	"context"
+	"encoding/json"
+	"sync"
+	"time"
+
+	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/platform"
+	"hivemtk-user/internal/repository"
+
+	"hivemtk-user/internal/config"
+	"hivemtk-user/internal/pkg/utils/logger"
+)
+
+// ============================================================
+// 功能模块闸（模块化改造的核心）
+//
+// ===== 执行顺序（三条，顺序不可换）=====
+//   登录态 → **模块闸** → 角色权限
+//
+// 为什么在角色权限**之前**：超管是「在本系统内权限最高」，不是「买了所有模块」。
+// 闸放在权限之后，超管就会成为绕过付费模块的后门 —— 而这条后门一旦存在，
+// 商业化就没有意义了。
+//
+// ===== 三态语义（B-2 修订）=====
+//   ① 模块数据为空（首启 / 从未同步过）
+//      → **全放行** + WARN 一次。判据：此时若拦，用户会看到空系统且无从自救
+//        （他还没开通过任何东西，但连基础模块都不给用）。
+//   ② 有数据且命中模块 → 过闸
+//   ③ 有数据但未命中任何模块（新增接口忘了标注）
+//      → **放行 + 记 WARN + 进 /api/modules/uncovered-routes 巡检清单**。
+//        这里选「放行」而不是「拦」是刻意的：新功能上线时全站 403 是灾难，
+//        而漏拦最多让某个接口多暴露一点，两害相权的取舍写在 tasks.md B-2。
+//        真正的兜底是 CI 里的覆盖率测试。
+// ============================================================
+
+// ModuleGateService 模块闸
+type ModuleGateService struct {
+	repo repository.TenantModuleRepository
+
+	mu       sync.RWMutex
+	cache    map[string]bool // module_key → enabled
+	loadedAt time.Time
+	// bootstrapped 标记「本地是否有可用的模块数据」
+	bootstrapped bool
+}
+
+// gateCacheTTL 模块状态本地缓存有效期。
+// 取 60s：模块开通是一个「低频但要尽快生效」的操作 —— 平台确认后用户在
+// 一分钟内看到菜单变化是可接受的，而每次请求都查库会让模块闸变成热点。
+const gateCacheTTL = 60 * time.Second
+
+// NewModuleGateService 构造模块闸服务
+func NewModuleGateService() *ModuleGateService {
+	return &ModuleGateService{repo: repository.NewTenantModuleRepository()}
+}
+
+// NewModuleGateServiceWithRepo 带显式仓储（测试注入）
+func NewModuleGateServiceWithRepo(repo repository.TenantModuleRepository) *ModuleGateService {
+	return &ModuleGateService{repo: repo}
+}
+
+// Refresh 从仓储重载模块状态到缓存
+func (s *ModuleGateService) Refresh(ctx context.Context) error {
+	rows, err := s.repo.ListAll(ctx)
+	if err != nil {
+		return err
+	}
+	now := time.Now()
+	m := make(map[string]bool, len(rows))
+	for _, r := range rows {
+		m[r.ModuleKey] = r.IsUsable(now)
+	}
+	s.mu.Lock()
+	s.cache = m
+	s.bootstrapped = len(rows) > 0
+	s.loadedAt = now
+	s.mu.Unlock()
+	return nil
+}
+
+// Invalidate 清缓存（下单成功后 / 手动同步后调用）
+func (s *ModuleGateService) Invalidate() {
+	s.mu.Lock()
+	s.loadedAt = time.Time{}
+	s.mu.Unlock()
+}
+
+// IsEnabled 模块是否已开通。
+//
+// 这是**唯一**的判定入口：菜单过滤、接口闸、cron/工具装配全部走它，
+// 避免出现「菜单过滤用了 A 口径、接口闸用了 B 口径」的不一致。
+func (s *ModuleGateService) IsEnabled(ctx context.Context, moduleKey string) bool {
+	if moduleKey == "" {
+		return true // 未标注的路由：放行（见文件头 ③）
+	}
+	s.mu.RLock()
+	fresh := time.Since(s.loadedAt) < gateCacheTTL
+	m := s.cache
+	boot := s.bootstrapped
+	s.mu.RUnlock()
+
+	if !fresh {
+		if err := s.Refresh(ctx); err != nil {
+			logger.Warnf("[module-gate] 刷新模块状态失败，按上一次缓存判定: %v", err)
+		}
+		s.mu.RLock()
+		m = s.cache
+		boot = s.bootstrapped
+		s.mu.RUnlock()
+	}
+
+	if !boot {
+		// ① 从未同步过：全放行。首次启动 / 离线部署都走这里。
+		return true
+	}
+	v, ok := m[moduleKey]
+	if !ok {
+		// ② 该模块在本地镜像里没有记录 —— 平台还没下发它（或已被撤销）
+		return false
+	}
+	return v
+}
+
+// EnabledKeys 已开通模块 key 列表（菜单过滤用）
+func (s *ModuleGateService) EnabledKeys(ctx context.Context) map[string]struct{} {
+	s.mu.RLock()
+	m := s.cache
+	fresh := time.Since(s.loadedAt) < gateCacheTTL
+	boot := s.bootstrapped
+	s.mu.RUnlock()
+
+	if !fresh {
+		_ = s.Refresh(ctx)
+		s.mu.RLock()
+		m = s.cache
+		boot = s.bootstrapped
+		s.mu.RUnlock()
+	}
+	out := make(map[string]struct{}, len(m))
+	if !boot {
+		// 首启：全部基础模块 + 空收费模块
+		for _, k := range model.BaseModuleKeys() {
+			out[k] = struct{}{}
+		}
+		return out
+	}
+	for k, v := range m {
+		if v {
+			out[k] = struct{}{}
+		}
+	}
+	return out
+}
+
+// ModuleEnabledFunc 返回可注入 model.FilterMenuTreeByModule 的判定函数
+func (s *ModuleGateService) ModuleEnabledFunc() func(string) bool {
+	keys := s.EnabledKeys(context.Background())
+	return func(moduleKey string) bool {
+		if moduleKey == "" {
+			return true
+		}
+		_, ok := keys[moduleKey]
+		return ok
+	}
+}
+
+// InstallWiring 把模块闸接到菜单过滤上（装配期调用一次）
+func (s *ModuleGateService) InstallWiring(ctx context.Context) {
+	model.SetModuleEnabledFilter(s.ModuleEnabledFunc())
+}
+
+// ---------------------------------------------------------- 同步
+
+// ModuleCatalogService 模块下发与市场服务
+type ModuleCatalogService struct {
+	repo  repository.TenantModuleRepository
+	order repository.ModuleOrderRepository
+}
+
+// NewModuleCatalogService 构造
+func NewModuleCatalogService() *ModuleCatalogService {
+	return &ModuleCatalogService{
+		repo:  repository.NewTenantModuleRepository(),
+		order: repository.NewModuleOrderRepository(),
+	}
+}
+
+// NewModuleCatalogServiceWithRepos 带显式仓储（测试注入）
+func NewModuleCatalogServiceWithRepos(repo repository.TenantModuleRepository, orderRepo repository.ModuleOrderRepository) *ModuleCatalogService {
+	return &ModuleCatalogService{repo: repo, order: orderRepo}
+}
+
+// ModuleSyncResult 同步结果
+type ModuleSyncResult struct {
+	ActiveCount int    `json:"active_count"`
+	Source      string `json:"source"` // platform | offline_bootstrap | cache
+	Degraded    bool   `json:"degraded"`
+	Message     string `json:"message"`
+}
+
+// Sync 从平台拉取模块快照并落本地镜像。
+//
+// 离线降级（PLATFORM_ENABLED=false）：
+//   - 本地没有任何模块行 → 灌入**基础模块**（免费常开）
+//   - 本地已有数据 → 原样保留（不降级到"全开"，否则用户会被静默收回已购模块）
+func (s *ModuleCatalogService) Sync(ctx context.Context) (*ModuleSyncResult, error) {
+	start := time.Now()
+
+	if !config.PlatformEnabled() {
+		return s.bootstrapOffline(ctx, start)
+	}
+	snap, err := platform.NewModuleClient().SyncModules(ctx)
+	if err != nil {
+		// 平台不可达：保留上次镜像（不清空），只记 degraded 日志。
+		// 清空会让用户正在用的模块突然消失 —— 那比"数据不准"严重得多。
+		existing, listErr := s.repo.ListAll(ctx)
+		if listErr == nil && len(existing) > 0 {
+			_ = s.repo.CreateLog(ctx, &model.ModuleSyncLog{
+				Action: "sync", Status: "degraded", Source: "platform",
+				ActiveCount: len(existing), ErrorMsg: err.Error(),
+				DurationMs: time.Since(start).Milliseconds(),
+			})
+			return &ModuleSyncResult{
+				ActiveCount: len(existing), Source: "cache", Degraded: true,
+				Message: "平台暂不可达，沿用上次同步的模块状态",
+			}, nil
+		}
+		return s.bootstrapOffline(ctx, start)
+	}
+
+	rows := make([]*model.TenantModule, 0, len(snap.ActiveKeys))
+	now := time.Now()
+	for _, r := range snap.Catalog {
+		if !listHas(snap.ActiveKeys, r.ModuleKey) {
+			continue
+		}
+		menuKeys, _ := json.Marshal(r.MenuKeys)
+		rows = append(rows, &model.TenantModule{
+			ModuleKey:   r.ModuleKey,
+			Status:      model.TenantModuleActive,
+			Source:      sourceOf(r.OwnedStatus),
+			Category:    r.Category,
+			PriceCents:  r.PriceCents,
+			MenuKeys:    string(menuKeys),
+			ActivatedAt: now,
+		})
+	}
+	if err := s.repo.UpsertMany(ctx, rows); err != nil {
+		_ = s.repo.CreateLog(ctx, &model.ModuleSyncLog{
+			Action: "sync", Status: "failed", Source: "platform", ErrorMsg: err.Error(),
+			DurationMs: time.Since(start).Milliseconds(),
+		})
+		return nil, err
+	}
+	// 本地存在但平台已不再下发的模块要显式失效，否则撤销永远不生效
+	existing, err := s.repo.ListAll(ctx)
+	if err == nil {
+		active := map[string]bool{}
+		for _, k := range snap.ActiveKeys {
+			active[k] = true
+		}
+		stale := make([]*model.TenantModule, 0)
+		for _, e := range existing {
+			if !active[e.ModuleKey] && e.Status == model.TenantModuleActive {
+				c := *e
+				c.Status = model.TenantModuleDisabled
+				stale = append(stale, &c)
+			}
+		}
+		if len(stale) > 0 {
+			if err := s.repo.UpsertMany(ctx, stale); err != nil {
+				logger.Warnf("[module] 失效陈旧模块失败: %v", err)
+			}
+		}
+	}
+	_ = s.repo.CreateLog(ctx, &model.ModuleSyncLog{
+		Action: "sync", Status: "success", Source: "platform",
+		ActiveCount: len(snap.ActiveKeys), DurationMs: time.Since(start).Milliseconds(),
+	})
+	// 同步后必须让闸与菜单立刻生效，否则用户要等 60s 缓存过期
+	_ = NewModuleGateService().Refresh(ctx)
+	model.SetModuleEnabledFilter(NewModuleGateService().ModuleEnabledFunc())
+	return &ModuleSyncResult{ActiveCount: len(snap.ActiveKeys), Source: "platform"}, nil
+}
+
+// bootstrapOffline 离线兜底：基础模块全开
+func (s *ModuleCatalogService) bootstrapOffline(ctx context.Context, start time.Time) (*ModuleSyncResult, error) {
+	existing, err := s.repo.ListAll(ctx)
+	if err != nil {
+		return nil, err
+	}
+	if len(existing) > 0 {
+		_ = s.repo.CreateLog(ctx, &model.ModuleSyncLog{
+			Action: "sync", Status: "success", Source: "cache",
+			ActiveCount: len(existing), DurationMs: time.Since(start).Milliseconds(),
+		})
+		return &ModuleSyncResult{ActiveCount: len(existing), Source: "cache"}, nil
+	}
+	now := time.Now()
+	rows := make([]*model.TenantModule, 0, 8)
+	for _, k := range model.BaseModuleKeys() {
+		menuKeys, _ := json.Marshal(model.ModuleMenuBindings[k])
+		rows = append(rows, &model.TenantModule{
+			ModuleKey:   k,
+			Status:      model.TenantModuleActive,
+			Source:      model.TenantModuleSourceDefaultBase,
+			Category:    model.ModuleCategoryBase,
+			MenuKeys:    string(menuKeys),
+			ActivatedAt: now,
+		})
+	}
+	if err := s.repo.UpsertMany(ctx, rows); err != nil {
+		return nil, err
+	}
+	_ = s.repo.CreateLog(ctx, &model.ModuleSyncLog{
+		Action: "offline_bootstrap", Status: "success", Source: "offline_bootstrap",
+		ActiveCount: len(rows), DurationMs: time.Since(start).Milliseconds(),
+	})
+	_ = NewModuleGateService().Refresh(ctx)
+	model.SetModuleEnabledFilter(NewModuleGateService().ModuleEnabledFunc())
+	return &ModuleSyncResult{
+		ActiveCount: len(rows), Source: "offline_bootstrap",
+		Message: "未连接平台，已按基础模块开通全部免费能力",
+	}, nil
+}
+
+func sourceOf(ownedStatus string) string {
+	if ownedStatus == "" {
+		return model.TenantModuleSourceDefaultBase
+	}
+	return model.TenantModuleSourcePurchase
+}
+
+func listHas(list []string, v string) bool {
+	for _, x := range list {
+		if x == v {
+			return true
+		}
+	}
+	return false
+}
+
+// MyModuleView 「我的模块」视图项
+type MyModuleView struct {
+	ModuleKey  string     `json:"module_key"`
+	Name       string     `json:"name"`
+	Category   string     `json:"category"`
+	PriceCents int64      `json:"price_cents"`
+	Icon       string     `json:"icon"`
+	Summary    string     `json:"summary"`
+	DependsOn  []string   `json:"depends_on"`
+	MenuKeys   []string   `json:"menu_keys"`
+	Owned      bool       `json:"owned"`
+	Source     string     `json:"source"`
+	Status     string     `json:"status"`
+	ExpiresAt  *time.Time `json:"expires_at"`
+}
+
+// MyModules 返回「我的模块」：已开通 + 未开通（全部目录）
+//
+// 一次返回两侧，前端「我的模块」页既能显示已购也能引导未购，不必两次请求。
+func (s *ModuleCatalogService) MyModules(ctx context.Context) ([]MyModuleView, error) {
+	rows, err := s.repo.ListAll(ctx)
+	if err != nil {
+		return nil, err
+	}
+	now := time.Now()
+	owned := map[string]*model.TenantModule{}
+	for _, r := range rows {
+		owned[r.ModuleKey] = r
+	}
+
+	// 目录来自编译期注册的 ModuleCatalogMeta（离线也拿得到）
+	out := make([]MyModuleView, 0, len(model.ModuleCatalogMeta))
+	for _, meta := range model.ModuleCatalogMeta {
+		mk := meta.Key
+		v := MyModuleView{
+			ModuleKey:  mk,
+			Name:       meta.Name,
+			Category:   meta.Category,
+			PriceCents: meta.PriceCents,
+			Icon:       meta.Icon,
+			Summary:    meta.Summary,
+			DependsOn:  meta.DependsOn,
+			MenuKeys:   model.ModuleMenuBindings[mk],
+			Owned:      false,
+		}
+		if tm, ok := owned[mk]; ok {
+			v.Owned = tm.IsUsable(now)
+			v.Source = tm.Source
+			v.Status = tm.Status
+			v.ExpiresAt = tm.ExpiresAt
+			if v.PriceCents == 0 {
+				v.PriceCents = tm.PriceCents
+			}
+			if len(tm.MenuKeys) > 2 {
+				v.MenuKeys = repository.MenuKeysOf(tm)
+			}
+		}
+		out = append(out, v)
+	}
+	return out, nil
+}
+
+// SyncLogs 同步日志
+func (s *ModuleCatalogService) SyncLogs(ctx context.Context, limit int) ([]*model.ModuleSyncLog, error) {
+	return s.repo.ListLogs(ctx, limit)
+}

@@ -15,6 +15,7 @@ import (
 	"hivemtk-user/internal/channelbot/telegram"
 	"hivemtk-user/internal/channelbot/whatsapp"
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/dbstate"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
@@ -359,6 +360,32 @@ func webhookInboundRejectReason(channel WebhookChannel) string {
 		return "渠道 " + string(channel) + " 不支持通用 webhook 入站：" + hint
 	}
 	return "渠道 " + string(channel) + " 无入站适配器，通用 webhook 不受理"
+}
+
+// ResolveTenantByChannelAccount 渠道回调的租户解析链（specs/001-saas-multi-tenant T022）。
+//
+// 权威线索 = URL 中的 (channel, account_id)；归属源 = bridge_accounts（渠道账号租户域）。
+// on 模式下解析失败返回错误（控制器按 404 + 安全告警拒绝），绝不落入默认租户。
+func (s *WebhookService) ResolveTenantByChannelAccount(ctx context.Context, channel WebhookChannel, accountID string) (uint, error) {
+	if s == nil {
+		return 0, fmt.Errorf("webhook service 未初始化")
+	}
+	gdb := dbstate.Get()
+	if gdb == nil {
+		return 0, fmt.Errorf("db 未初始化")
+	}
+	var tid uint
+	err := gdb.WithContext(ctx).Table("bridge_accounts").
+		Select("tenant_id").
+		Where("channel = ? AND account_id = ?", string(channel), accountID).
+		Scan(&tid).Error
+	if err != nil {
+		return 0, err
+	}
+	if tid == 0 {
+		return 0, fmt.Errorf("渠道账号未归属任何租户: channel=%s account=%s", channel, accountID)
+	}
+	return tid, nil
 }
 
 func (s *WebhookService) Receive(ctx context.Context, req *ReceiveRequest) (*ReceiveResult, error) {

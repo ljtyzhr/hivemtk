@@ -5,6 +5,7 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"hivemtk-user/internal/model"
 	_db "hivemtk-user/internal/pkg/db"
@@ -245,16 +246,16 @@ func (r *memoryRepository) SaveLongTermMemory(ctx context.Context, item *model.C
 }
 
 func (r *memoryRepository) SearchLongTermMemoriesByVector(ctx context.Context, queryVecStr, customerID string, fetchN int) ([]LongTermMemoryVectorRow, error) {
-	sql := `
-		SELECT id, customer_id, memory_type, content, importance, source, metadata, created_at, expires_at,
-		       1 - (embedding <=> ?::vector) as similarity
-		FROM customer_long_term_memory
-		WHERE customer_id = ? AND (expires_at IS NULL OR expires_at > NOW())
-		ORDER BY embedding <=> ?::vector
-		LIMIT ?
-	`
 	var rows []LongTermMemoryVectorRow
-	if err := r.db.WithContext(ctx).Raw(sql, queryVecStr, customerID, queryVecStr, fetchN).Scan(&rows).Error; err != nil {
+	// pgvector 距离排序（T012 清偿）：Where/Order 经 gorm.Expr 内联，参数仍走绑定
+	err := r.db.WithContext(ctx).Table("customer_long_term_memory").
+		Select("id, customer_id, memory_type, content, importance, source, metadata, created_at, expires_at, "+
+			"1 - (embedding <=> ?::vector) as similarity", queryVecStr).
+		Where("customer_id = ? AND (expires_at IS NULL OR expires_at > NOW())", customerID).
+		Order(clause.Expr{SQL: "embedding <=> ?::vector", Vars: []any{queryVecStr}}).
+		Limit(fetchN).
+		Scan(&rows).Error
+	if err != nil {
 		return nil, err
 	}
 	return rows, nil

@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"time"
 
 	bizerr "hivemtk-user/internal/domain/errors"
 	"hivemtk-user/internal/model"
@@ -188,11 +189,7 @@ func (r *localAssetRepo) SyncDataTx(ctx context.Context, la *model.LocalAsset, d
 		if err := tx.Save(la).Error; err != nil {
 			return err
 		}
-		if err := tx.Exec(`
-			INSERT INTO local_asset_data (local_asset_id, data, updated_at)
-			VALUES (?, ?, NOW())
-			ON CONFLICT (tenant_id, local_asset_id) DO UPDATE SET data = EXCLUDED.data, updated_at = NOW()
-		`, la.ID, data).Error; err != nil {
+		if err := upsertLocalAssetData(tx, la.ID, data); err != nil {
 			return err
 		}
 		return tx.Create(syncLog).Error
@@ -204,12 +201,25 @@ func (r *localAssetRepo) UpdateWithDataTx(ctx context.Context, la *model.LocalAs
 		if err := tx.Save(la).Error; err != nil {
 			return err
 		}
-		return tx.Exec(`
-			INSERT INTO local_asset_data (local_asset_id, data, updated_at)
-			VALUES (?, ?, NOW())
-			ON CONFLICT (tenant_id, local_asset_id) DO UPDATE SET data = EXCLUDED.data, updated_at = NOW()
-		`, la.ID, data).Error
+		return upsertLocalAssetData(tx, la.ID, data)
 	})
+}
+
+// upsertLocalAssetData local_asset_data 幂等写入（T012 清偿：原三处内联裸 upsert 收敛于此）
+func upsertLocalAssetData(tx *gorm.DB, localAssetID int64, data []byte) error {
+	return tx.Table("local_asset_data").
+		Clauses(clause.OnConflict{
+			Columns: []clause.Column{{Name: "tenant_id"}, {Name: "local_asset_id"}},
+			DoUpdates: clause.Assignments(map[string]any{
+				"data":       data,
+				"updated_at": time.Now(),
+			}),
+		}).
+		Create(map[string]any{
+			"local_asset_id": localAssetID,
+			"data":           data,
+			"updated_at":     time.Now(),
+		}).Error
 }
 
 // LocalAssetDataRepository 资产数据仓储
@@ -238,11 +248,7 @@ func (r *localAssetDataRepo) FindByLocalAssetID(ctx context.Context, localAssetI
 }
 
 func (r *localAssetDataRepo) Upsert(ctx context.Context, localAssetID int64, data []byte) error {
-	return r.db.WithContext(ctx).Exec(`
-		INSERT INTO local_asset_data (local_asset_id, data, updated_at)
-		VALUES (?, ?, NOW())
-		ON CONFLICT (tenant_id, local_asset_id) DO UPDATE SET data = EXCLUDED.data, updated_at = NOW()
-	`, localAssetID, data).Error
+	return upsertLocalAssetData(r.db.WithContext(ctx), localAssetID, data)
 }
 
 // LocalAssetSyncLogRepository 本地资产同步日志仓储（与 integration 的 SyncLogRepository 区分，避免重名冲突）

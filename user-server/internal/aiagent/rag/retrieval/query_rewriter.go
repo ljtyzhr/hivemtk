@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"hivemtk-user/internal/pkg/utils/logger"
 )
@@ -180,12 +181,24 @@ func (q *QueryRewriter) Rewrite(ctx context.Context, query string) (*RewrittenQu
 	return rw, nil
 }
 
+// rewriteCacheTableExists 表存在性检查（链式，T012 清偿：原三处 information_schema Raw 收敛于此）
+func (q *QueryRewriter) rewriteCacheTableExists(ctx context.Context) bool {
+	if q.db == nil {
+		return false
+	}
+	var exists bool
+	if err := q.db.WithContext(ctx).Table("information_schema.tables").
+		Select("count(*) > 0").
+		Where("table_schema = current_schema() AND table_name = 'query_rewrite_cache'").
+		Scan(&exists).Error; err != nil {
+		return false
+	}
+	return exists
+}
+
 func (q *QueryRewriter) queryDB(ctx context.Context, hash string) (*RewrittenQuery, error) {
 
-	var tableExists bool
-	if err := q.db.WithContext(ctx).Raw(
-		`SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'query_rewrite_cache')`,
-	).Scan(&tableExists).Error; err != nil || !tableExists {
+	if !q.rewriteCacheTableExists(ctx) {
 		return nil, nil
 	}
 
@@ -194,11 +207,10 @@ func (q *QueryRewriter) queryDB(ctx context.Context, hash string) (*RewrittenQue
 		MultiQueries string `gorm:"column:multi_queries"`
 		RewriteType  string `gorm:"column:rewrite_type"`
 	}
-	err := q.db.WithContext(ctx).Raw(
-		`SELECT hyde_doc, multi_queries, rewrite_type FROM query_rewrite_cache
-		 WHERE query_hash = ? AND (expires_at IS NULL OR expires_at > NOW())`,
-		hash,
-	).Scan(&row).Error
+	err := q.db.WithContext(ctx).Table("query_rewrite_cache").
+		Select("hyde_doc, multi_queries, rewrite_type").
+		Where("query_hash = ? AND (expires_at IS NULL OR expires_at > NOW())", hash).
+		Scan(&row).Error
 	if err != nil {
 		if err == gorm.ErrRecordNotFound {
 			return nil, nil
@@ -225,24 +237,34 @@ func (q *QueryRewriter) persistToDB(ctx context.Context, hash, query string, rw 
 		return
 	}
 
-	var tableExists bool
-	if err := q.db.WithContext(ctx).Raw(
-		`SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'query_rewrite_cache')`,
-	).Scan(&tableExists).Error; err != nil || !tableExists {
+	if !q.rewriteCacheTableExists(ctx) {
 		return
 	}
 	multiJSON, _ := json.Marshal(rw.MultiQueries)
-	err := q.db.WithContext(ctx).Exec(`
-		INSERT INTO query_rewrite_cache (query_hash, original_query, hyde_doc, multi_queries, rewrite_model, rewrite_type, hit_count, last_used_at, expires_at, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, 0, NOW(), NOW() + INTERVAL '30 days', NOW(), NOW())
-		ON CONFLICT (tenant_id, query_hash) DO UPDATE SET
-			hyde_doc = EXCLUDED.hyde_doc,
-			multi_queries = EXCLUDED.multi_queries,
-			rewrite_type = EXCLUDED.rewrite_type,
-			updated_at = NOW()
-	`,
-		hash, query, rw.Rewritten, string(multiJSON), "local", string(rw.UsedStrategy),
-	).Error
+	now := time.Now()
+	expiry := now.AddDate(0, 0, 30)
+	err := q.db.WithContext(ctx).Table("query_rewrite_cache").
+		Clauses(clause.OnConflict{
+			Columns: []clause.Column{{Name: "tenant_id"}, {Name: "query_hash"}},
+			DoUpdates: clause.Assignments(map[string]any{
+				"hyde_doc":      rw.Rewritten,
+				"multi_queries": string(multiJSON),
+				"rewrite_type":  string(rw.UsedStrategy),
+				"updated_at":    now,
+			}),
+		}).
+		Create(map[string]any{
+			"query_hash":     hash,
+			"original_query": query,
+			"hyde_doc":       rw.Rewritten,
+			"multi_queries":  string(multiJSON),
+			"rewrite_model":  "local",
+			"rewrite_type":   string(rw.UsedStrategy),
+			"hit_count":      0,
+			"expires_at":     expiry,
+			"created_at":     now,
+			"updated_at":     now,
+		}).Error
 	if err != nil {
 		logger.Errorf("query_rewriter: persist rewrite cache failed, hash=%s: %v", hash, err)
 	}
@@ -252,14 +274,13 @@ func (q *QueryRewriter) updateCacheStats(ctx context.Context, hash string) {
 	if q.db == nil {
 		return
 	}
-	var tableExists bool
-	if err := q.db.WithContext(ctx).Raw(
-		`SELECT EXISTS (SELECT 1 FROM information_schema.tables WHERE table_name = 'query_rewrite_cache')`,
-	).Scan(&tableExists).Error; err != nil || !tableExists {
+	if !q.rewriteCacheTableExists(ctx) {
 		return
 	}
-	_ = q.db.WithContext(ctx).Exec(
-		`UPDATE query_rewrite_cache SET hit_count = hit_count + 1, last_used_at = NOW() WHERE query_hash = ?`,
-		hash,
-	).Error
+	_ = q.db.WithContext(ctx).Table("query_rewrite_cache").
+		Where("query_hash = ?", hash).
+		Updates(map[string]any{
+			"hit_count":    gorm.Expr("hit_count + 1"),
+			"last_used_at": time.Now(),
+		}).Error
 }

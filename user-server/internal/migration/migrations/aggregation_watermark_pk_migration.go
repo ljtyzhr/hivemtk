@@ -28,7 +28,9 @@ func NewAggregationWatermarkPKMigration(db *gorm.DB) *AggregationWatermarkPKMigr
 func (m *AggregationWatermarkPKMigration) Version() string { return "v3.60.0" }
 
 // Name 返回迁移名称
-func (m *AggregationWatermarkPKMigration) Name() string { return "aggregation_watermarks 主键复合化" }
+func (m *AggregationWatermarkPKMigration) Name() string {
+	return "aggregation_watermarks 主键复合化"
+}
 
 // Description 返回迁移描述
 func (m *AggregationWatermarkPKMigration) Description() string {

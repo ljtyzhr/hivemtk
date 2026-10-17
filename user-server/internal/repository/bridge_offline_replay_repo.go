@@ -179,9 +179,6 @@ const orphanOutboundAgePredicate = `m.direction = 'outbound'
 	  AND m.created_at < now() - (? * interval '1 second')
 	  AND (a.last_sync_at IS NULL OR a.last_sync_at < now() - (? * interval '1 second'))`
 
-const orphanOutboundFrom = `FROM message_hub m
-	  LEFT JOIN bridge_accounts a ON a.channel = m.platform AND a.account_id = m.account_id`
-
 // ListOrphanOutboundGroups 按渠道账号汇总候选孤儿行数（供门控与 dry-run 报数）。
 //
 // 只碰 platforms 里的渠道：直接投递渠道（telegram/feishu/…）的行由写侧结算收口，
@@ -192,9 +189,15 @@ func (r *BridgeOfflineReplayRepository) ListOrphanOutboundGroups(ctx context.Con
 	}
 	secs := int64(ttl.Seconds())
 	var rows []OrphanOutboundGroup
-	err := r.db.WithContext(ctx).Raw(`SELECT m.platform, m.account_id, count(*) AS orphan_rows `+orphanOutboundFrom+
-		` WHERE m.platform IN ? AND `+orphanOutboundAgePredicate+` GROUP BY m.platform, m.account_id ORDER BY orphan_rows DESC, m.platform ASC`,
-		platforms, secs, secs).Scan(&rows).Error
+	err := r.db.WithContext(ctx).
+		Table("message_hub m").
+		Joins("LEFT JOIN bridge_accounts a ON a.channel = m.platform AND a.account_id = m.account_id").
+		Select("m.platform, m.account_id, count(*) AS orphan_rows").
+		Where("m.platform IN ?", platforms).
+		Where(orphanOutboundAgePredicate, secs, secs).
+		Group("m.platform, m.account_id").
+		Order("orphan_rows DESC, m.platform ASC").
+		Scan(&rows).Error
 	return rows, err
 }
 
@@ -224,16 +227,41 @@ func (r *BridgeOfflineReplayRepository) SettleOrphanOutbound(ctx context.Context
 		return 0, nil
 	}
 	secs := int64(ttl.Seconds())
-	// 顺序必须与 SQL 里占位符出现顺序一致：push_error → 两段阈秒 → 成对键 → LIMIT。
-	args := append([]any{reason, secs, secs}, append(pairArgs, limit)...)
+	affected := int64(0)
 	// 依赖 (platform, account_id) 成对匹配：不能拆成两个 IN 列表，那样 A 渠道 + B 账号的
 	// 组合也会被选中，等于跨渠道误烧。
-	q := `UPDATE message_hub SET status = 'failed', push_error = ?, claimed_at = NULL
-		WHERE id IN (
-		  SELECT m.id ` + orphanOutboundFrom + `
-		  WHERE ` + orphanOutboundAgePredicate + `
-		    AND (m.platform, m.account_id) IN (` + strings.Join(pairs, ", ") + `)
-		  ORDER BY m.id LIMIT ?)`
-	res := r.db.WithContext(ctx).Exec(q, args...)
-	return res.RowsAffected, res.Error
+	// 原 UPDATE...WHERE id IN (子查询)（T012 清偿）：事务内同谓词取号再按 id 更新，
+	// 原语句无显式锁子句（外连接可空侧不接受 FOR UPDATE），互斥由 UPDATE 行锁承担。
+	pairConds := make([]string, 0, len(pairs))
+	for range pairs {
+		pairConds = append(pairConds, "(m.platform = ? AND m.account_id = ?)")
+	}
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var ids []uint
+		if err := tx.Table("message_hub m").
+			Joins("LEFT JOIN bridge_accounts a ON a.channel = m.platform AND a.account_id = m.account_id").
+			Where(orphanOutboundAgePredicate, secs, secs).
+			Where("("+strings.Join(pairConds, " OR ")+")", pairArgs...).
+			Order("m.id").
+			Limit(limit).
+			Pluck("m.id", &ids).Error; err != nil {
+			return err
+		}
+		if len(ids) == 0 {
+			return nil
+		}
+		res := tx.Model(&model.MessageHub{}).
+			Where("id IN ?", ids).
+			Updates(map[string]any{
+				"status":     "failed",
+				"push_error": reason,
+				"claimed_at": nil,
+			})
+		if res.Error != nil {
+			return res.Error
+		}
+		affected = res.RowsAffected
+		return nil
+	})
+	return affected, err
 }

@@ -16,6 +16,7 @@ import (
 	"hivemtk-user/internal/pkg/utils/logger"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 func makeRRFKey(docID, chunkID string) string {
@@ -267,11 +268,18 @@ func (h *HybridSearcher) logSearch(query, productID string, topK, vectorCount, b
 				logger.Warnf("[Hybrid] logSearch panic recovered: %v\n%s", r, debug.Stack())
 			}
 		}()
-		sql := `INSERT INTO knowledge_search_logs
-			(query, product_id, top_k, vector_count, bm25_count, fused_count, rerank_count, vector_latency_ms, bm25_latency_ms)
-			VALUES (?, NULLIF(?, '')::bigint, ?, ?, ?, ?, ?, ?, ?)`
-		if err := h.db.WithContext(context.Background()).Exec(sql,
-			query, productID, topK, vectorCount, bm25Count, fusedCount, rerankCount, vectorMs, bm25Ms).Error; err != nil {
+		if err := h.db.WithContext(context.Background()).Table("knowledge_search_logs").
+			Create(map[string]any{
+				"query":             query,
+				"product_id":        gorm.Expr("NULLIF(?::text, '')::bigint", productID),
+				"top_k":             topK,
+				"vector_count":      vectorCount,
+				"bm25_count":        bm25Count,
+				"fused_count":       fusedCount,
+				"rerank_count":      rerankCount,
+				"vector_latency_ms": vectorMs,
+				"bm25_latency_ms":   bm25Ms,
+			}).Error; err != nil {
 			logger.Warnf("[Hybrid] logSearch 写入 knowledge_search_logs 失败: %v", err)
 		}
 	}()
@@ -297,25 +305,20 @@ func (h *HybridSearcher) vectorSearchPG(ctx context.Context, productID string, q
 		return nil, fmt.Errorf("db not configured")
 	}
 	vecStr := vecToPGString(queryVec)
-	sql := `
-		SELECT id, document_id, content, embedding <=> $1::vector AS score
-		FROM knowledge_chunks
-		WHERE embedding IS NOT NULL AND embedding_source = 'tei'
-	`
-	args := []any{vecStr}
+	q := h.db.WithContext(ctx).Table("knowledge_chunks").
+		Select("id, document_id, content, embedding <=> ?::vector AS score", vecStr).
+		Where("embedding IS NOT NULL AND embedding_source = 'tei'")
 	if productID != "" {
-		sql += " AND product_id = $2"
-		args = append(args, productID)
+		q = q.Where("product_id = ?", productID)
 	}
-	// 闸门片段不带任何绑定参数，所以 $N 的编号只由 args 决定：这句必须在算 limitPos
-	// **之前**拼进来也没关系（AndVisible 不追加占位符），拼在后面同样正确。
-	sql += kbrelease.AndVisible()
-	limitPos := len(args) + 1
-	sql += fmt.Sprintf(" ORDER BY score ASC LIMIT $%d", limitPos)
-	args = append(args, topK)
+	// 闸门片段不带绑定参数（AndVisible 不追加占位符），链式追加位置安全
+	if vis := kbrelease.AndVisible(); vis != "" {
+		q = q.Where(strings.TrimPrefix(vis, " AND "))
+	}
+	q = q.Order(clause.Expr{SQL: "embedding <=> ?::vector", Vars: []any{vecStr}}).Limit(topK)
 
 	var rows []chunkScanRow
-	if err := h.db.WithContext(ctx).Raw(sql, args...).Scan(&rows).Error; err != nil {
+	if err := q.Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 	return rowsToChunks(rows), nil
@@ -324,9 +327,12 @@ func (h *HybridSearcher) vectorSearchPG(ctx context.Context, productID string, q
 func (h *HybridSearcher) detectTSVectorConfig() {
 	for _, tsConfig := range []string{"zh_rag", "simple"} {
 		for _, tsvCol := range []string{"contextual_tsv", "content_tsv"} {
-			sql := fmt.Sprintf(`SELECT 1 FROM knowledge_chunks WHERE %s @@ plainto_tsquery('test') LIMIT 1`, tsvCol)
 			var ok int
-			if err := h.db.Raw(sql).Scan(&ok).Error; err == nil {
+			if err := h.db.Table("knowledge_chunks").
+				Select("1").
+				Where(fmt.Sprintf("%s @@ plainto_tsquery('test')", tsvCol)).
+				Limit(1).
+				Scan(&ok).Error; err == nil {
 				h.tsvectorMu.Lock()
 				h.tsvectorCfg = &tsvectorConfig{tsConfig: tsConfig, tsvCol: tsvCol}
 				h.tsvectorMu.Unlock()
@@ -337,22 +343,20 @@ func (h *HybridSearcher) detectTSVectorConfig() {
 }
 
 func (h *HybridSearcher) tsvectorSearch(ctx context.Context, tsConfig, tsvCol, productID, query string, topK int) ([]Chunk, error) {
-	sql := fmt.Sprintf(`
-		SELECT id, document_id, content,
-		       ts_rank(%s, plainto_tsquery(?, ?))::float8 AS score
-		FROM knowledge_chunks
-		WHERE %s @@ plainto_tsquery(?, ?)
-	`, tsvCol, tsvCol)
-	args := []any{tsConfig, query, tsConfig, query}
+	q := h.db.WithContext(ctx).Table("knowledge_chunks").
+		Select(fmt.Sprintf("id, document_id, content, ts_rank(%s, plainto_tsquery(?, ?))::float8 AS score", tsvCol),
+			tsConfig, query).
+		Where(fmt.Sprintf("%s @@ plainto_tsquery(?, ?)", tsvCol), tsConfig, query)
 	if productID != "" {
-		sql += " AND product_id = ?"
-		args = append(args, productID)
+		q = q.Where("product_id = ?", productID)
 	}
-	sql += kbrelease.AndVisible() + " ORDER BY score DESC LIMIT ?"
-	args = append(args, topK)
+	if vis := kbrelease.AndVisible(); vis != "" {
+		q = q.Where(strings.TrimPrefix(vis, " AND "))
+	}
+	q = q.Order("score DESC").Limit(topK)
 
 	var rows []chunkScanRow
-	if err := h.db.WithContext(ctx).Raw(sql, args...).Scan(&rows).Error; err != nil {
+	if err := q.Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 	return rowsToChunks(rows), nil
@@ -394,21 +398,19 @@ func (h *HybridSearcher) keywordSearchPG(ctx context.Context, productID string, 
 func (h *HybridSearcher) keywordSearchPGFallback(ctx context.Context, productID string, query string, topK int) ([]Chunk, error) {
 	escaped := strings.NewReplacer("%", "\\%", "_", "\\_").Replace(query)
 	pattern := "%" + escaped + "%"
-	sql := `
-		SELECT id, document_id, content, 1.0::float8 AS score
-		FROM knowledge_chunks
-		WHERE content ILIKE ?
-	`
-	args := []any{pattern}
+	q := h.db.WithContext(ctx).Table("knowledge_chunks").
+		Select("id, document_id, content, 1.0::float8 AS score").
+		Where("content ILIKE ?", pattern)
 	if productID != "" {
-		sql += " AND product_id = ?"
-		args = append(args, productID)
+		q = q.Where("product_id = ?", productID)
 	}
-	sql += kbrelease.AndVisible() + " ORDER BY id DESC LIMIT ?"
-	args = append(args, topK)
+	if vis := kbrelease.AndVisible(); vis != "" {
+		q = q.Where(strings.TrimPrefix(vis, " AND "))
+	}
+	q = q.Order("id DESC").Limit(topK)
 
 	var rows []chunkScanRow
-	if err := h.db.WithContext(ctx).Raw(sql, args...).Scan(&rows).Error; err != nil {
+	if err := q.Scan(&rows).Error; err != nil {
 		return nil, err
 	}
 	return rowsToChunks(rows), nil

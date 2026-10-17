@@ -104,6 +104,10 @@ func (r *geoKeywordRepo) GetByCluster(cluster string) ([]*model.GeoKeyword, erro
 
 func (r *geoKeywordRepo) GetStatistics() ([]map[string]any, error) {
 	var statistics []map[string]any
-	err := r.db.Raw("SELECT source AS source, COUNT(*) AS total FROM geo_keywords WHERE deleted_at IS NULL GROUP BY source ORDER BY source").Scan(&statistics).Error
+	err := r.db.Table("geo_keywords").
+		Select("source AS source, COUNT(*) AS total").
+		Where("deleted_at IS NULL").
+		Group("source").Order("source").
+		Scan(&statistics).Error
 	return statistics, err
 }

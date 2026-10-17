@@ -2,7 +2,7 @@ package repository
 
 import (
 	"context"
-	"fmt"
+	"hivemtk-user/internal/model"
 	"time"
 
 	"gorm.io/gorm"
@@ -102,27 +102,8 @@ func (r *ragRecallMonitorRepo) ListSnapshots(ctx context.Context, limit int) ([]
 }
 
 func (r *ragRecallMonitorRepo) EnsureSchema(ctx context.Context) error {
-	stmt := fmt.Sprintf(`
-		CREATE TABLE IF NOT EXISTS %s (
-			id BIGSERIAL PRIMARY KEY,
-			window_start TIMESTAMPTZ NOT NULL,
-			window_end TIMESTAMPTZ NOT NULL,
-			total_queries BIGINT NOT NULL DEFAULT 0,
-			top_k_hit_rate NUMERIC(10,6) NOT NULL DEFAULT 0,
-			top_1_hit_rate NUMERIC(10,6) NOT NULL DEFAULT 0,
-			avg_recall NUMERIC(10,6) NOT NULL DEFAULT 0,
-			avg_precision NUMERIC(10,6) NOT NULL DEFAULT 0,
-			avg_similarity NUMERIC(10,6) NOT NULL DEFAULT 0,
-			avg_latency_ms NUMERIC(12,2) NOT NULL DEFAULT 0,
-			p95_latency_ms BIGINT NOT NULL DEFAULT 0,
-			zero_hit_count BIGINT NOT NULL DEFAULT 0,
-			low_recall_count BIGINT NOT NULL DEFAULT 0,
-			payload TEXT NOT NULL DEFAULT '',
-			created_at TIMESTAMPTZ NOT NULL DEFAULT now()
-		);
-		CREATE INDEX IF NOT EXISTS idx_rag_recall_monitor_window ON %s (window_start DESC);
-	`, RagRecallMonitorTableName, RagRecallMonitorTableName)
-	return r.db.WithContext(ctx).Exec(stmt).Error
+	// 原 CREATE TABLE+INDEX 裸 DDL（T012 清偿）：模型已在 allModels 登记，AutoMigrate 幂等建表
+	return r.db.WithContext(ctx).AutoMigrate(&model.RagRecallMonitorSnapshot{})
 }
 
 var _ RagRecallMonitorRepository = (*ragRecallMonitorRepo)(nil)

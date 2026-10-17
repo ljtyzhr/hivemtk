@@ -5,6 +5,9 @@ import (
 	"time"
 
 	"hivemtk-user/internal/model"
+
+	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // ChampionDialogueRow 销冠对话候选行（feedback_signals + feedback_events 聚合快照）
@@ -31,18 +34,16 @@ func (r *FeedbackLoopRepository) FetchChampionDialogueCandidates(ctx context.Con
 		return nil, nil
 	}
 	var rows []ChampionDialogueRow
-	err := r.db.WithContext(ctx).Raw(`
-		SELECT fs.session_id, fs.customer_id,
-		       (SELECT customer_msg FROM feedback_events WHERE session_id = fs.session_id ORDER BY created_at DESC LIMIT 1) AS customer_msg,
-		       (SELECT ai_reply FROM feedback_events WHERE session_id = fs.session_id ORDER BY created_at DESC LIMIT 1) AS ai_reply,
-		       fs.aggregated_reward AS reward, fs.is_champion,
-		       COALESCE(fs.signal_breakdown->>'scenario', ?) AS scenario,
-		       fs.created_at
-		FROM feedback_signals fs
-		WHERE fs.aggregated_reward >= ? AND fs.created_at >= ?
-		ORDER BY fs.aggregated_reward DESC
-		LIMIT ?`,
-		scenario, minReward, since, maxDialogues).Scan(&rows).Error
+	err := r.db.WithContext(ctx).Table("feedback_signals fs").
+		Select("fs.session_id, fs.customer_id, "+
+			"(SELECT customer_msg FROM feedback_events WHERE session_id = fs.session_id ORDER BY created_at DESC LIMIT 1) AS customer_msg, "+
+			"(SELECT ai_reply FROM feedback_events WHERE session_id = fs.session_id ORDER BY created_at DESC LIMIT 1) AS ai_reply, "+
+			"fs.aggregated_reward AS reward, fs.is_champion, "+
+			"COALESCE(fs.signal_breakdown->>'scenario', ?) AS scenario, fs.created_at", scenario).
+		Where("fs.aggregated_reward >= ? AND fs.created_at >= ?", minReward, since).
+		Order("fs.aggregated_reward DESC").
+		Limit(maxDialogues).
+		Scan(&rows).Error
 	if err != nil {
 		return nil, err
 	}
@@ -73,19 +74,33 @@ func (r *FeedbackLoopRepository) PersistChampionDialogue(ctx context.Context, p 
 	if r == nil || r.db == nil {
 		return nil
 	}
-	sql := `
-		INSERT INTO champion_dialogues
-			(dialogue_fingerprint, session_id, customer_id, staff_id, staff_name,
-			 scenario, journey_stage, customer_msg, champion_reply, context_msgs,
-			 embedding, cluster_id, reward, conversion_achieved, extracted_scripts, created_at)
-		VALUES (?, ?, ?, 0, '', ?, '', ?, ?, '{}', ?::vector, ?, ?, ?, '[]', NOW())
-		ON CONFLICT (tenant_id, dialogue_fingerprint) DO UPDATE SET
-			reward = EXCLUDED.reward,
-			conversion_achieved = EXCLUDED.conversion_achieved`
-	return r.db.WithContext(ctx).Exec(sql,
-		p.Fingerprint, p.SessionID, p.CustomerID,
-		p.Scenario, p.CustomerMsg, p.ChampionReply,
-		p.EmbeddingLiteral, p.ClusterID, p.Reward, p.ConversionAchieved).Error
+	// embedding vector 类型以 ?::vector 显式强转（gorm.Expr 内联，参数仍走绑定）
+	return r.db.WithContext(ctx).Table("champion_dialogues").
+		Clauses(clause.OnConflict{
+			Columns: []clause.Column{{Name: "tenant_id"}, {Name: "dialogue_fingerprint"}},
+			DoUpdates: clause.Assignments(map[string]any{
+				"reward":              p.Reward,
+				"conversion_achieved": p.ConversionAchieved,
+			}),
+		}).
+		Create(map[string]any{
+			"dialogue_fingerprint": p.Fingerprint,
+			"session_id":           p.SessionID,
+			"customer_id":          p.CustomerID,
+			"staff_id":             0,
+			"staff_name":           "",
+			"scenario":             p.Scenario,
+			"journey_stage":        "",
+			"customer_msg":         p.CustomerMsg,
+			"champion_reply":       p.ChampionReply,
+			"context_msgs":         "{}",
+			"embedding":            gorm.Expr("?::vector", p.EmbeddingLiteral),
+			"cluster_id":           p.ClusterID,
+			"reward":               p.Reward,
+			"conversion_achieved":  p.ConversionAchieved,
+			"extracted_scripts":    "[]",
+			"created_at":           time.Now(),
+		}).Error
 }
 
 // GetChampionDialogueIDByCluster 反查 cluster_id 对应的最新 champion_dialogue.id
@@ -119,15 +134,22 @@ func (r *FeedbackLoopRepository) InsertScriptTemplate(ctx context.Context, categ
 	if r == nil || r.db == nil {
 		return nil
 	}
-	sql := `
-		INSERT INTO script_templates
-			(category, title, content, tags, rating, is_system, variables,
-			 source, effectiveness_score, trigger_keywords, journey_stage, champion_dialogue_id,
-			 created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, TRUE, '[]',
-		        'champion_extract', ?, ?, ?, ?,
-		        NOW(), NOW())`
-	return r.db.WithContext(ctx).Exec(sql,
-		category, title, content, tags, effectivenessScore,
-		effectivenessScore, tags, journeyStage, championDialogueID).Error
+	now := time.Now()
+	return r.db.WithContext(ctx).Table("script_templates").
+		Create(map[string]any{
+			"category":             category,
+			"title":                title,
+			"content":              content,
+			"tags":                 tags,
+			"rating":               effectivenessScore,
+			"is_system":            true,
+			"variables":            "[]",
+			"source":               "champion_extract",
+			"effectiveness_score":  effectivenessScore,
+			"trigger_keywords":     tags,
+			"journey_stage":        journeyStage,
+			"champion_dialogue_id": championDialogueID,
+			"created_at":           now,
+			"updated_at":           now,
+		}).Error
 }

@@ -70,17 +70,6 @@ func (r *msgHourlySummaryRepo) LoadWatermark(ctx context.Context, source string)
 	return wm.LastEventID, nil
 }
 
-const upsertIncrementSQL = `
-	INSERT INTO msg_hourly_summary
-		(hour_bucket, merchant_id, platform, session_count, ai_count, human_count, message_count, updated_at)
-	VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
-	ON CONFLICT (tenant_id, hour_bucket, merchant_id, platform) DO UPDATE SET
-		session_count = msg_hourly_summary.session_count + EXCLUDED.session_count,
-		ai_count      = msg_hourly_summary.ai_count + EXCLUDED.ai_count,
-		human_count   = msg_hourly_summary.human_count + EXCLUDED.human_count,
-		message_count = msg_hourly_summary.message_count + EXCLUDED.message_count,
-		updated_at    = NOW()`
-
 func (r *msgHourlySummaryRepo) UpsertIncrementBatch(ctx context.Context, source string, newWatermark int64, deltas []MsgHourlyDelta) error {
 	if r.db == nil {
 		return gorm.ErrInvalidDB
@@ -95,10 +84,29 @@ func (r *msgHourlySummaryRepo) UpsertIncrementBatch(ctx context.Context, source 
 	}
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		for _, d := range deltas {
-			if err := tx.Exec(upsertIncrementSQL,
-				d.HourBucket, d.MerchantID, d.Platform,
-				d.SessionCount, d.AICount, d.HumanCount, d.MessageCount,
-			).Error; err != nil {
+			if err := tx.Table("msg_hourly_summary").
+				Clauses(clause.OnConflict{
+					Columns: []clause.Column{
+						{Name: "tenant_id"}, {Name: "hour_bucket"}, {Name: "merchant_id"}, {Name: "platform"},
+					},
+					DoUpdates: clause.Assignments(map[string]any{
+						"session_count": gorm.Expr("msg_hourly_summary.session_count + EXCLUDED.session_count"),
+						"ai_count":      gorm.Expr("msg_hourly_summary.ai_count + EXCLUDED.ai_count"),
+						"human_count":   gorm.Expr("msg_hourly_summary.human_count + EXCLUDED.human_count"),
+						"message_count": gorm.Expr("msg_hourly_summary.message_count + EXCLUDED.message_count"),
+						"updated_at":    time.Now(),
+					}),
+				}).
+				Create(map[string]any{
+					"hour_bucket":   d.HourBucket,
+					"merchant_id":   d.MerchantID,
+					"platform":      d.Platform,
+					"session_count": d.SessionCount,
+					"ai_count":      d.AICount,
+					"human_count":   d.HumanCount,
+					"message_count": d.MessageCount,
+					"updated_at":    time.Now(),
+				}).Error; err != nil {
 				return err
 			}
 		}

@@ -7,9 +7,9 @@ import (
 
 func TestResolveMode(t *testing.T) {
 	cases := []struct {
-		env    string
-		want   Mode
-		known  bool
+		env   string
+		want  Mode
+		known bool
 	}{
 		{"", ModeOff, true},
 		{"off", ModeOff, true},

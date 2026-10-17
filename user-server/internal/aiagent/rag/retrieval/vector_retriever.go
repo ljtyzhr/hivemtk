@@ -4,8 +4,10 @@ import (
 	"context"
 	"fmt"
 	"strconv"
+	"strings"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"hivemtk-user/internal/aiagent/llm"
 	"hivemtk-user/internal/pkg/kbrelease"
@@ -54,24 +56,19 @@ func (r *VectorRetriever) SearchVector(ctx context.Context, kbID string, queryVe
 
 	var rows []chunkScanRow
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Exec(fmt.Sprintf("SET LOCAL hnsw.ef_search = %d", r.efSearch)).Error; err != nil {
-			return fmt.Errorf("set hnsw.ef_search: %w", err)
+		if err := SetLocalHnswEfSearch(tx, r.efSearch); err != nil {
+			return err
 		}
-		sql := `
-			SELECT id, document_id, content,
-			       (1 - (embedding <=> ?::vector))::float8 AS score
-			FROM knowledge_chunks
-			WHERE embedding IS NOT NULL AND embedding_source = 'tei'
-		`
-		args := []any{vecLiteral}
+		q := tx.Table("knowledge_chunks").
+			Select("id, document_id, content, (1 - (embedding <=> ?::vector))::float8 AS score", vecLiteral).
+			Where("embedding IS NOT NULL AND embedding_source = 'tei'")
 		if kbID != "" {
-			sql += " AND product_id = ?" + kbrelease.AndVisible() + " ORDER BY embedding <=> ?::vector LIMIT ?"
-			args = append(args, kbID, vecLiteral, topK)
-		} else {
-			sql += kbrelease.AndVisible() + " ORDER BY embedding <=> ?::vector LIMIT ?"
-			args = append(args, vecLiteral, topK)
+			q = q.Where("product_id = ?"+kbrelease.AndVisible(), kbID)
+		} else if vis := kbrelease.AndVisible(); vis != "" {
+			q = q.Where(strings.TrimPrefix(vis, " AND "))
 		}
-		return tx.Raw(sql, args...).Scan(&rows).Error
+		q = q.Order(clause.Expr{SQL: "embedding <=> ?::vector", Vars: []any{vecLiteral}}).Limit(topK)
+		return q.Scan(&rows).Error
 	})
 	if err != nil {
 		return nil, err
@@ -116,24 +113,19 @@ func (r *VectorRetriever) Retrieve(ctx context.Context, productID string, query 
 
 	var rows []chunkScanRow
 	err = r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Exec(fmt.Sprintf("SET LOCAL hnsw.ef_search = %d", r.efSearch)).Error; err != nil {
-			return fmt.Errorf("set hnsw.ef_search: %w", err)
+		if err := SetLocalHnswEfSearch(tx, r.efSearch); err != nil {
+			return err
 		}
-		sql := `
-			SELECT id, document_id, content,
-			       (1 - (embedding <=> ?::vector))::float8 AS score
-			FROM knowledge_chunks
-			WHERE embedding IS NOT NULL AND embedding_source = 'tei'
-		`
-		args := []any{vecLiteral}
+		q := tx.Table("knowledge_chunks").
+			Select("id, document_id, content, (1 - (embedding <=> ?::vector))::float8 AS score", vecLiteral).
+			Where("embedding IS NOT NULL AND embedding_source = 'tei'")
 		if productID != "" {
-			sql += " AND product_id = ?" + kbrelease.AndVisible() + " ORDER BY embedding <=> ?::vector LIMIT ?"
-			args = append(args, productID, vecLiteral, topK)
-		} else {
-			sql += kbrelease.AndVisible() + " ORDER BY embedding <=> ?::vector LIMIT ?"
-			args = append(args, vecLiteral, topK)
+			q = q.Where("product_id = ?"+kbrelease.AndVisible(), productID)
+		} else if vis := kbrelease.AndVisible(); vis != "" {
+			q = q.Where(strings.TrimPrefix(vis, " AND "))
 		}
-		return tx.Raw(sql, args...).Scan(&rows).Error
+		q = q.Order(clause.Expr{SQL: "embedding <=> ?::vector", Vars: []any{vecLiteral}}).Limit(topK)
+		return q.Scan(&rows).Error
 	})
 	if err != nil {
 		return nil, err
@@ -151,17 +143,13 @@ func (r *VectorRetriever) Retrieve(ctx context.Context, productID string, query 
 }
 
 func (r *VectorRetriever) countUnembeddedChunks(ctx context.Context, productID string) int64 {
-	sql := `
-		SELECT COUNT(*) FROM knowledge_chunks
-		WHERE (embed_status = 'pending' OR embedding IS NULL)
-	`
-	args := []any{}
+	q := r.db.WithContext(ctx).Table("knowledge_chunks").
+		Where("embed_status = 'pending' OR embedding IS NULL")
 	if productID != "" {
-		sql += " AND product_id = ?"
-		args = append(args, productID)
+		q = q.Where("product_id = ?", productID)
 	}
 	var n int64
-	if err := r.db.WithContext(ctx).Raw(sql, args...).Scan(&n).Error; err != nil {
+	if err := q.Count(&n).Error; err != nil {
 		return 0
 	}
 	return n

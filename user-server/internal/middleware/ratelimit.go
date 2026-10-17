@@ -194,6 +194,7 @@ func (rl *RateLimiter) Allow(ctx context.Context, clientKey string) bool {
 // 返回值：
 //   - remaining: 剩余可用令牌数（向下取整）。-1 表示限流器未初始化。
 //   - resetAfter: 桶填满所需秒数（0 表示已满或限流器未初始化）。
+//
 // GetRateLimitStatus 读取配额状态（与 Allow 的键域一致：on 模式按 ctx 租户分域）。
 func GetRateLimitStatus(ctx context.Context, clientKey string) (remaining int, resetAfter float64) {
 	if globalRateLimiter == nil {

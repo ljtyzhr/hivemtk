@@ -6,6 +6,7 @@ import (
 	"sync"
 	"time"
 
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 )
 
@@ -112,7 +113,14 @@ func (c *CustomerRFMCron) computeOnce(ctx context.Context) (count int, err error
 	}()
 	fn := c.computeFn
 	if fn == nil {
-		fn = func(ctx context.Context) (int, error) { return c.svc.ComputeAll(ctx, 0) }
+		fn = func(ctx context.Context) (int, error) {
+			// 租户扇出（specs/001-saas-multi-tenant T020）：RFM 全量重算按租户隔离执行
+			n, err := tenant.Fanout(ctx, nil, func(ctx context.Context, _ uint) (int64, error) {
+				nn, e := c.svc.ComputeAll(ctx, 0)
+				return int64(nn), e
+			})
+			return int(n), err
+		}
 	}
 	return fn(ctx)
 }

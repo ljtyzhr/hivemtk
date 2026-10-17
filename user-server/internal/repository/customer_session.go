@@ -11,6 +11,7 @@ import (
 	_db "hivemtk-user/internal/pkg/db"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // DefaultSessionActiveTTL 客服会话的默认活跃 TTL（参数中心未配置时的兜底）。
@@ -105,19 +106,32 @@ func (r *CustomerSessionRepository) UpsertByOneID(ctx context.Context, platform,
 	if lastMessageAt == nil {
 		lastMessageAt = &now
 	}
-	insertSQL := `
-INSERT INTO customer_sessions
-  (session_id, platform, account_id, user_id, one_id, user_name, status, handler_type,
-   last_message, last_message_at, last_message_by, message_count, ai_reply_count, human_reply_count, avg_response_time, rating, dnc_blocked, created_at, updated_at)
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT (tenant_id, session_id) DO NOTHING
-`
-	err := r.db.WithContext(ctx).Exec(insertSQL,
-		stableID, platform, accountID, userID, oneID, userName,
-		model.SessionStatusPending, model.HandlerTypeAI,
-		lastMessage, lastMessageAt, "user", 0, 0, 0, 0, 0, dncBlocked,
-		&now, &now,
-	).Error
+	err := r.db.WithContext(ctx).Table("customer_sessions").
+		Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "tenant_id"}, {Name: "session_id"}},
+			DoNothing: true,
+		}).
+		Create(map[string]any{
+			"session_id":        stableID,
+			"platform":          platform,
+			"account_id":        accountID,
+			"user_id":           userID,
+			"one_id":            oneID,
+			"user_name":         userName,
+			"status":            model.SessionStatusPending,
+			"handler_type":      model.HandlerTypeAI,
+			"last_message":      lastMessage,
+			"last_message_at":   lastMessageAt,
+			"last_message_by":   "user",
+			"message_count":     0,
+			"ai_reply_count":    0,
+			"human_reply_count": 0,
+			"avg_response_time": 0,
+			"rating":            0,
+			"dnc_blocked":       dncBlocked,
+			"created_at":        &now,
+			"updated_at":        &now,
+		}).Error
 	if err != nil {
 		return "", fmt.Errorf("upsert insert: %w", err)
 	}

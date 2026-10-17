@@ -161,7 +161,7 @@ func (r *backupDataRepo) RestoreTable(ctx context.Context, tableName string, row
 	}
 
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Exec(fmt.Sprintf("DELETE FROM %s", tableName)).Error; err != nil {
+		if err := tx.Table(tableName).Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(nil).Error; err != nil {
 			return fmt.Errorf("清空 %s 失败: %w", tableName, err)
 		}
 		for i, row := range rows {

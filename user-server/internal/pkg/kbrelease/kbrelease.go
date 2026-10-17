@@ -24,11 +24,13 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/utils/logger"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // FlagEnv 读闸门总开关。可用值 off | shadow | on。
@@ -164,10 +166,45 @@ func EnsureDraftStamp(ctx context.Context, db *gorm.DB, productID string) (int, 
 		return cur.Draft, nil
 	}
 	var got int
-	// 分配新桶。ON CONFLICT 依赖 kb_releases.product_id 上的唯一索引（AutoMigrate 建），
-	// 且整句是幂等的：并发两路导入同时走到这里，后者在行锁上排队，醒过来时
-	// CASE 看到的已是前者推进过的 draft>0 ⇒ 两路拿到同一个桶号。
-	if err := db.WithContext(ctx).Exec(AllocateDraftSQL, productID).Error; err != nil {
+	// 分配新桶（T012 清偿）：原 INSERT...SELECT...ON CONFLICT 是 GORM 无法表达的形态，
+	// 改为事务内「FOR UPDATE 锁行 → 读 allocated_version → upsert 推进」，行锁串行化
+	// 保持原并发语义：并发两路导入排队进入，后路读到前路推进后的 draft>0 ⇒ 同桶号。
+	err := db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var allocated int
+		if e := tx.Table("kb_releases").
+			Select("allocated_version").
+			Where("product_id = ?", productID).
+			Clauses(clause.Locking{Strength: "UPDATE"}).
+			Scan(&allocated).Error; e != nil {
+			return e
+		}
+		now := time.Now()
+		next := allocated + 1
+		return tx.Table("kb_releases").
+			Clauses(clause.OnConflict{
+				Columns: []clause.Column{{Name: "tenant_id"}, {Name: "product_id"}},
+				DoUpdates: clause.Assignments(map[string]any{
+					"draft_version": gorm.Expr(
+						"CASE WHEN kb_releases.draft_version > 0 THEN kb_releases.draft_version " +
+							"ELSE kb_releases.allocated_version + 1 END"),
+					"allocated_version": gorm.Expr(
+						"CASE WHEN kb_releases.draft_version > 0 THEN kb_releases.draft_version " +
+							"ELSE kb_releases.allocated_version + 1 END"),
+					"updated_at": now,
+				}),
+			}).
+			Create(map[string]any{
+				"product_id":        productID,
+				"governed":          true,
+				"effective_version": 0,
+				"previous_version":  0,
+				"recalled_version":  allocated,
+				"draft_version":     next,
+				"allocated_version": next,
+				"changed_by":        "system:import",
+			}).Error
+	})
+	if err != nil {
 		return 0, fmt.Errorf("kb_releases 待发布版本分配失败: %w", err)
 	}
 	if err := db.WithContext(ctx).Table("kb_releases").

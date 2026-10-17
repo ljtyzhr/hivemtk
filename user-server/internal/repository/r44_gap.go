@@ -59,9 +59,11 @@ type TableStatsRow struct {
 // TableStats 取前 10 张最大表的规模估算
 func (r *BackupGapRepo) TableStats(ctx context.Context) ([]TableStatsRow, error) {
 	var rows []TableStatsRow
-	err := r.db.WithContext(ctx).Raw(`
-		SELECT relname AS table_name, GREATEST(n_live_tup, 0) AS rows
-		FROM pg_stat_user_tables ORDER BY n_live_tup DESC LIMIT 10`).Scan(&rows).Error
+	err := r.db.WithContext(ctx).
+		Table("pg_stat_user_tables").
+		Select("relname AS table_name, GREATEST(n_live_tup, 0) AS rows").
+		Order("n_live_tup DESC").Limit(10).
+		Scan(&rows).Error
 	return rows, err
 }
 
@@ -92,9 +94,11 @@ func (r *BackupGapRepo) CoreTableStats(ctx context.Context, tables []string) ([]
 	rows := make([]TableStatsRow, 0, len(tables))
 	for _, t := range tables {
 		var stat TableStatsRow
-		if err := r.db.WithContext(ctx).Raw(
-			"SELECT ?::text AS table_name, GREATEST(n_live_tup,0) AS rows FROM pg_stat_user_tables WHERE relname = ?", t, t,
-		).Scan(&stat).Error; err == nil && stat.Table != "" {
+		if err := r.db.WithContext(ctx).
+			Table("pg_stat_user_tables").
+			Select("?::text AS table_name, GREATEST(n_live_tup,0) AS rows", t).
+			Where("relname = ?", t).
+			Scan(&stat).Error; err == nil && stat.Table != "" {
 			rows = append(rows, stat)
 		}
 	}

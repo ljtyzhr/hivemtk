@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"gorm.io/gorm"
 
@@ -160,24 +161,24 @@ func (e *ContextualRetrievalEnhancer) EnhanceDocument(ctx context.Context, docum
 			}
 			if e.embedding != nil && i < len(vectors) {
 				vecLiteral := vecToPGString(vectors[i])
-				if err := e.db.Exec(`
-					UPDATE knowledge_chunks
-					SET contextual_context = ?,
-					    embedding = ?::vector,
-					    embedding_id = ?,
-					    embed_status = 'indexed',
-					    updated_at = NOW()
-					WHERE id = ?
-				`, u.ctx, vecLiteral, fmt.Sprintf("ctx-%d", u.id), u.id).Error; err != nil {
+				if err := e.db.Table("knowledge_chunks").
+					Where("id = ?", u.id).
+					Updates(map[string]any{
+						"contextual_context": u.ctx,
+						"embedding":          gorm.Expr("?::vector", vecLiteral),
+						"embedding_id":       fmt.Sprintf("ctx-%d", u.id),
+						"embed_status":       "indexed",
+						"updated_at":         time.Now(),
+					}).Error; err != nil {
 					logger.Errorf("contextual_retrieval: update knowledge_chunks (with embedding) failed, chunk_id=%d: %v", u.id, err)
 				}
 			} else {
-				if err := e.db.Exec(`
-					UPDATE knowledge_chunks
-					SET contextual_context = ?,
-					    updated_at = NOW()
-					WHERE id = ?
-				`, u.ctx, u.id).Error; err != nil {
+				if err := e.db.Table("knowledge_chunks").
+					Where("id = ?", u.id).
+					Updates(map[string]any{
+						"contextual_context": u.ctx,
+						"updated_at":         time.Now(),
+					}).Error; err != nil {
 					logger.Errorf("contextual_retrieval: update knowledge_chunks (no embedding) failed, chunk_id=%d: %v", u.id, err)
 				}
 			}

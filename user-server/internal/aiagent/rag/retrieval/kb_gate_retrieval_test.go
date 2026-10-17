@@ -24,6 +24,7 @@ import (
 
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/kbrelease"
+	"hivemtk-user/internal/pkg/tenancyidx"
 
 	"gorm.io/gorm"
 )
