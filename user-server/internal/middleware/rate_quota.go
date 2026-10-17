@@ -79,7 +79,8 @@ func recordQuotaTrigger(path, clientIP string) {
 	}
 }
 
-func GetQuotaSnapshots() []quotaUsageSnapshot {
+// GetQuotaSnapshots 读取各路径配额快照（ctx 用于租户键域一致性，T010）
+func GetQuotaSnapshots(ctx context.Context) []quotaUsageSnapshot {
 	result := make([]quotaUsageSnapshot, 0, len(DefaultPathQuota))
 	minute := time.Now().Truncate(time.Minute).Unix()
 	isRedis := cache.GlobalIsRedis()
@@ -110,7 +111,7 @@ func GetQuotaSnapshots() []quotaUsageSnapshot {
 				snap.Triggered = triggered
 			}
 		} else if globalRateLimiter != nil {
-			rem, _ := GetRateLimitStatus("path:" + path)
+			rem, _ := GetRateLimitStatus(ctx, "path:"+path)
 			snap.Remaining = int64(rem)
 		}
 		result = append(result, snap)

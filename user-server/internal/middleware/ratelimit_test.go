@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -146,7 +147,7 @@ func TestGetRateLimitStatus(t *testing.T) {
 
 	InitRateLimiter(DefaultRateLimitConfig)
 
-	remaining, resetAfter := GetRateLimitStatus("test-client")
+	remaining, resetAfter := GetRateLimitStatus(context.Background(), "test-client")
 
 	if remaining < 0 || remaining > DefaultRateLimitConfig.BucketSize {
 		t.Errorf("Expected remaining in [0, %d], got %d", DefaultRateLimitConfig.BucketSize, remaining)
@@ -164,7 +165,7 @@ func TestGetRateLimitStatus(t *testing.T) {
 	for i := 0; i < 30; i++ {
 		limiter.Allow()
 	}
-	remaining2, _ := GetRateLimitStatus("test-client")
+	remaining2, _ := GetRateLimitStatus(context.Background(), "test-client")
 	if remaining2 >= remaining {
 		t.Errorf("After consuming tokens, expected remaining < %d, got %d", remaining, remaining2)
 	}
@@ -172,7 +173,7 @@ func TestGetRateLimitStatus(t *testing.T) {
 	originalGlobal := globalRateLimiter
 	globalRateLimiter = nil
 	defer func() { globalRateLimiter = originalGlobal }()
-	remaining3, resetAfter3 := GetRateLimitStatus("any-client")
+	remaining3, resetAfter3 := GetRateLimitStatus(context.Background(), "any-client")
 	if remaining3 != -1 {
 		t.Errorf("Expected remaining = -1 when limiter not initialized, got %d", remaining3)
 	}

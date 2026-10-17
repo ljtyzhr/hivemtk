@@ -6,6 +6,8 @@ import (
 	"fmt"
 	"time"
 
+	"hivemtk-user/internal/pkg/tenant"
+
 	"github.com/redis/go-redis/v9"
 )
 
@@ -43,24 +45,33 @@ func NewRedisCache(config RedisConfig) (*RedisCache, error) {
 	}, nil
 }
 
+// scopeKey 租户分域入口（T010）：off 模式键形不变；on 模式按 ctx 租户加前缀
+func (r *RedisCache) scopeKey(ctx context.Context, key string) string {
+	return tenant.RedisKey(ctx, key)
+}
+
 // Get 获取缓存
 func (r *RedisCache) Get(ctx context.Context, key string) (string, error) {
+	key = r.scopeKey(ctx, key)
 	return r.client.Get(ctx, key).Result()
 }
 
 // Set 设置缓存
 func (r *RedisCache) Set(ctx context.Context, key string, value any, expiration time.Duration) error {
+	key = r.scopeKey(ctx, key)
 	return r.client.Set(ctx, key, value, expiration).Err()
 }
 
 // SetNX 仅在 key 不存在时设置
 func (r *RedisCache) SetNX(ctx context.Context, key string, value any, expiration time.Duration) (bool, error) {
+	key = r.scopeKey(ctx, key)
 	return r.client.SetNX(ctx, key, value, expiration).Result()
 }
 
 // ReleaseLock 仅当 key 的值等于 token 时原子删除（Lua 脚本），安全释放 SetNX 获取的锁，
 // 避免误删其他持有者的锁。返回 true 表示成功释放。
 func (r *RedisCache) ReleaseLock(ctx context.Context, key, token string) (bool, error) {
+	key = r.scopeKey(ctx, key)
 	script := redis.NewScript(`if redis.call('get', KEYS[1]) == ARGV[1] then return redis.call('del', KEYS[1]) else return 0 end`)
 	n, err := script.Run(ctx, r.client, []string{key}, token).Int64()
 	if err != nil {
@@ -71,6 +82,7 @@ func (r *RedisCache) ReleaseLock(ctx context.Context, key, token string) (bool, 
 
 // LPush 向列表头部推入
 func (r *RedisCache) LPush(ctx context.Context, key string, value any, expiration time.Duration) error {
+	key = r.scopeKey(ctx, key)
 	if err := r.client.LPush(ctx, key, value).Err(); err != nil {
 		return err
 	}
@@ -82,6 +94,7 @@ func (r *RedisCache) LPush(ctx context.Context, key string, value any, expiratio
 
 // RPush 向列表尾部推入
 func (r *RedisCache) RPush(ctx context.Context, key string, value any, expiration time.Duration) error {
+	key = r.scopeKey(ctx, key)
 	if err := r.client.RPush(ctx, key, value).Err(); err != nil {
 		return err
 	}
@@ -93,16 +106,19 @@ func (r *RedisCache) RPush(ctx context.Context, key string, value any, expiratio
 
 // LPop 从列表头部弹出
 func (r *RedisCache) LPop(ctx context.Context, key string) (string, error) {
+	key = r.scopeKey(ctx, key)
 	return r.client.LPop(ctx, key).Result()
 }
 
 // LRange 获取列表区间
 func (r *RedisCache) LRange(ctx context.Context, key string, start, stop int64) ([]string, error) {
+	key = r.scopeKey(ctx, key)
 	return r.client.LRange(ctx, key, start, stop).Result()
 }
 
 // PopAll 原子取出并删除整个 list（Lua 脚本保证 LRange+DEL 之间无窗口）。
 func (r *RedisCache) PopAll(ctx context.Context, key string) ([]string, error) {
+	key = r.scopeKey(ctx, key)
 	const popAllLua = `local v = redis.call('LRANGE', KEYS[1], 0, -1)
 redis.call('DEL', KEYS[1])
 return v`
@@ -125,16 +141,19 @@ return v`
 
 // LLen 列表长度
 func (r *RedisCache) LLen(ctx context.Context, key string) (int64, error) {
+	key = r.scopeKey(ctx, key)
 	return r.client.LLen(ctx, key).Result()
 }
 
 // Delete 删除缓存
 func (r *RedisCache) Delete(ctx context.Context, key string) error {
+	key = r.scopeKey(ctx, key)
 	return r.client.Del(ctx, key).Err()
 }
 
 // Incr 原子自增并返回新值（首次 value=1，expiration>0 时作为 TTL 应用）
 func (r *RedisCache) Incr(ctx context.Context, key string, expiration time.Duration) (int64, error) {
+	key = r.scopeKey(ctx, key)
 	n, err := r.client.Incr(ctx, key).Result()
 	if err != nil {
 		return 0, err
@@ -149,6 +168,7 @@ func (r *RedisCache) Incr(ctx context.Context, key string, expiration time.Durat
 
 // Exists 检查缓存是否存在
 func (r *RedisCache) Exists(ctx context.Context, key string) (bool, error) {
+	key = r.scopeKey(ctx, key)
 	result, err := r.client.Exists(ctx, key).Result()
 	if err != nil {
 		return false, err
@@ -158,6 +178,7 @@ func (r *RedisCache) Exists(ctx context.Context, key string) (bool, error) {
 
 // GetJSON 获取 JSON 缓存并反序列化
 func (r *RedisCache) GetJSON(ctx context.Context, key string, dest any) error {
+	key = r.scopeKey(ctx, key)
 	data, err := r.client.Get(ctx, key).Bytes()
 	if err != nil {
 		return err
@@ -167,6 +188,7 @@ func (r *RedisCache) GetJSON(ctx context.Context, key string, dest any) error {
 
 // SetJSON 设置 JSON 缓存
 func (r *RedisCache) SetJSON(ctx context.Context, key string, value any, expiration time.Duration) error {
+	key = r.scopeKey(ctx, key)
 	data, err := json.Marshal(value)
 	if err != nil {
 		return err

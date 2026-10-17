@@ -28,7 +28,7 @@ type QuotaSnapshot struct {
 // GetRateQuota 获取全局限流配额和当前用量
 // GET /api/system/rate-quota
 func (c *RateQuotaController) GetRateQuota(ctx *gin.Context) {
-	snapshots := middleware.GetQuotaSnapshots()
+	snapshots := middleware.GetQuotaSnapshots(ctx.Request.Context())
 
 	data := gin.H{
 		"global": gin.H{
