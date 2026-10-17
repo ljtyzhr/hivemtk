@@ -7,6 +7,8 @@ import "time"
 // 由扩展连接时（register 帧）自动注册/更新；user_id 记录归属，
 // agent_id 用于 AI 路由（与 channel_agent_bindings 联动）。
 type BridgeAccount struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID          uint       `gorm:"primaryKey;autoIncrement" json:"id"`
 	UserID      uint       `gorm:"index;not null;default:0" json:"user_id"`
 	Channel     string     `gorm:"type:varchar(32);not null;uniqueIndex:uk_bridge_ch_acc" json:"channel"`

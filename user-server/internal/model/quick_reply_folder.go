@@ -4,6 +4,8 @@ import "time"
 
 // QuickReplyFolder 快捷回复文件夹（客服工作台分组侧栏）
 type QuickReplyFolder struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	Name      string    `gorm:"type:varchar(50);not null;uniqueIndex" json:"name"`
 	SortOrder int       `gorm:"default:0" json:"sort_order"`

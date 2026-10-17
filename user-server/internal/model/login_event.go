@@ -30,6 +30,8 @@ func IsValidRiskLevel(r RiskLevel) bool {
 //   - success: true=登录成功 / false=登录失败
 //   - location: IP 解析后的地理位置（国家+省+市）
 type LoginEvent struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID                uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	UserID            uint      `gorm:"index;not null" json:"user_id"`
 	Username          string    `gorm:"type:varchar(50);index" json:"username"`

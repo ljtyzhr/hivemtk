@@ -18,6 +18,8 @@ const (
 // 用户携号转网后，运营商回执的 carrier 字段会变化；本表追踪 carrier 变化以发现
 // "号码已换运营商"，对运营触达策略很重要。
 type SmsNumberPortabilityRecord struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID              int64      `gorm:"primaryKey;autoIncrement" json:"id"`
 	Phone           string     `gorm:"column:phone;size:20;not null;index" json:"phone"`
 	OriginalCarrier SmsCarrier `gorm:"column:original_carrier;size:32" json:"original_carrier"`

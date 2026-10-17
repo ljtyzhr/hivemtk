@@ -28,7 +28,7 @@ import (
 var opportunityWantColumns = []string{
 	"amount", "clue_id", "code", "created_at", "currency", "customer_id",
 	"expected_close_at", "id", "lost_reason", "one_id", "owner_user_id",
-	"stage", "status", "updated_at", "version", "win_probability",
+	"stage", "status", "tenant_id", "updated_at", "version", "win_probability",
 }
 
 func TestOpportunityRegisteredInAllModels(t *testing.T) {
@@ -162,8 +162,9 @@ func TestOpportunityNumericColumnsAreReallyNumeric(t *testing.T) {
 	}
 }
 
-// TestOpportunityHasNoTenantColumnAtDBLevel AC② 的真库判据：X3 禁区。
-func TestOpportunityHasNoTenantColumnAtDBLevel(t *testing.T) {
+// TestOpportunityTenancyAtDBLevel AC② 的真库判据已按 specs/001-saas-multi-tenant 翻转：
+// 规范 tenant_id 列必须在库（行级隔离），私自租户变体仍禁。
+func TestOpportunityTenancyAtDBLevel(t *testing.T) {
 	db := testutil.NewTestDB(t)
 	if db == nil {
 		t.Fatal("测试库不可达")
@@ -171,12 +172,21 @@ func TestOpportunityHasNoTenantColumnAtDBLevel(t *testing.T) {
 	if err := db.AutoMigrate(&model.Opportunity{}); err != nil {
 		t.Fatalf("AutoMigrate 失败: %v", err)
 	}
-	for _, col := range opportunityColumns(t, db) {
-		for _, banned := range []string{"tenant", "org_id", "corp", "workspace", "account_id", "namespace"} {
+	cols := opportunityColumns(t, db)
+	hasTenant := false
+	for _, col := range cols {
+		if col == "tenant_id" {
+			hasTenant = true
+			continue
+		}
+		for _, banned := range []string{"org_id", "corp", "workspace", "namespace"} {
 			if strings.Contains(col, banned) {
-				t.Errorf("库里出现租户列 %q（含 %q）：隔离靠物理分库，加列过滤 = 重开 ADR-014 已 Simplified 的那道口子", col, banned)
+				t.Errorf("库里出现私自租户变体列 %q（含 %q）：租户语义只允许规范 tenant_id", col, banned)
 			}
 		}
+	}
+	if !hasTenant {
+		t.Error("库里缺规范 tenant_id 列：行级隔离要求（specs/001-saas-multi-tenant）")
 	}
 }
 
@@ -225,14 +235,16 @@ func TestOpportunityIndexesOnlyForNamedQueries(t *testing.T) {
 	got := map[string]bool{}
 	for _, i := range indexes {
 		got[i.Cols] = i.Pkey || i.Uniq || true // 列集合都记下来，下面分别判
-		if i.Cols == "code" && !i.Uniq {
-			t.Error("code 上的索引必须唯一：对外编号撞了没人发现")
+		// code 唯一键已按 specs/001-saas-multi-tenant 复合化为 (tenant_id, code)：
+		// 对外编号在租户内唯一，跨租户互不冲突。
+		if i.Cols == "tenant_id+code" && !i.Uniq {
+			t.Error("code 上的索引必须唯一（租户内）：对外编号撞了没人发现")
 		}
 		if i.Cols == "id" && !i.Pkey {
 			t.Error("id 必须是主键")
 		}
 	}
-	for _, want := range []string{"id", "code", "customer_id", "stage", "owner_user_id", "created_at", "clue_id"} {
+	for _, want := range []string{"id", "tenant_id+code", "customer_id", "stage", "owner_user_id", "created_at", "clue_id"} {
 		if !got[want] {
 			t.Errorf("缺少期望索引 %s（T-P4-02/T-P4-04/T-P4-05 的查询下家会退化成全表扫）", want)
 		}

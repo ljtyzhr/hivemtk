@@ -8,6 +8,8 @@ import "time"
 // 不带头的老调用方继续走单值链路——存量部署零破坏。
 // API Key 只存 sha256：管理端签发时明文只出现一次。
 type MCPCredential struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID         uint       `gorm:"primaryKey;autoIncrement" json:"id"`
 	ClientID   string     `gorm:"column:client_id;type:varchar(64);uniqueIndex" json:"client_id"`
 	Name       string     `gorm:"type:varchar(128)" json:"name"`

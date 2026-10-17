@@ -6,6 +6,8 @@ import (
 
 // CustomReport 自定义报表模型
 type CustomReport struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID          uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	Name        string    `gorm:"type:varchar(100);not null" json:"name"`
 	Description string    `gorm:"type:varchar(500)" json:"description"`

@@ -33,7 +33,7 @@ func (r *QuickReplyFolderRepository) List(ctx context.Context) ([]*model.QuickRe
 func (r *QuickReplyFolderRepository) Create(ctx context.Context, name string) (*model.QuickReplyFolder, error) {
 	f := &model.QuickReplyFolder{Name: name, SortOrder: 0}
 	err := r.db.WithContext(ctx).Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "name"}},
+		Columns:   []clause.Column{{Name: "tenant_id"}, {Name: "name"}},
 		DoNothing: true,
 	}).Create(f).Error
 	if err != nil {

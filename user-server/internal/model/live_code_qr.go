@@ -9,6 +9,8 @@ import (
 
 // LiveCodeQR 活码二维码模型
 type LiveCodeQR struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID         string    `json:"id" gorm:"primaryKey;size:36"`
 	LiveCodeID string    `json:"live_code_id" gorm:"size:36;not null"`
 	QRType     string    `json:"qr_type" gorm:"size:50;not null"`

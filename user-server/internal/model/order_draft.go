@@ -16,6 +16,8 @@ import "time"
 // trace_id 定宽 64 被上游透传的长值撑爆，而 CreateInBatches 整批回滚）。
 // 只有取值集合可枚举的列（status/source）才用定宽。
 type OrderDraft struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	// ID 草稿业务主键（service.generateDraftID 产出，形如 draft_<unixnano>_<seq>）。
 	// 用它做主键而不是自增 serial：草稿 ID 会作为 sales_events.draft_id 的外键值
 	// 散在事件流里，换不成稳定的键就没法"重启后仍能关联"（本卡 AC④）。

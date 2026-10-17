@@ -23,6 +23,7 @@ import (
 
 	"hivemtk-user/internal/config"
 	"hivemtk-user/internal/pkg/dbstate"
+	"hivemtk-user/internal/pkg/tenancyidx"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"
@@ -243,6 +244,11 @@ func NewTestDB(t testing.TB, models ...any) *gorm.DB {
 		}
 		if migrateErr := database.AutoMigrate(models...); migrateErr != nil {
 			t.Fatalf("AutoMigrate 失败: %v", migrateErr)
+		}
+		// 租户唯一索引规范化（与 db.AutoMigrate 同一实现）：模型标签建的是单列
+		// 唯一索引，隔离要求 (tenant_id, 原列)——不规范化则复合 ON CONFLICT 失配。
+		if _, normErr := tenancyidx.Normalize(database); normErr != nil {
+			t.Fatalf("租户唯一索引规范化失败: %v", normErr)
 		}
 	}
 

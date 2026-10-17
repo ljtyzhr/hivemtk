@@ -19,6 +19,8 @@ import "time"
 // 刻意**不带** gorm.DeletedAt：软删等于把键位腾出来，而这张表存在的全部理由就是键位不腾。
 // 同理它不参与任何裁剪（一行约 40 字节，与 command_log 不是一个量级，留多久都不心疼）。
 type BrowserWriteClaim struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        uint   `gorm:"primaryKey" json:"id"`
 	TaskID    uint   `gorm:"column:task_id;not null;uniqueIndex:uk_browser_write_claims_task_text,priority:1" json:"task_id"`
 	TextHash  string `gorm:"column:text_hash;size:16;not null;uniqueIndex:uk_browser_write_claims_task_text,priority:2" json:"text_hash"`

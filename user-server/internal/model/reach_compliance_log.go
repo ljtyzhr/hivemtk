@@ -7,6 +7,8 @@ import (
 
 // ReachComplianceLog 合规提醒审计日志（表 reach_compliance_log）
 type ReachComplianceLog struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID          uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	Channel     string    `gorm:"type:varchar(30);index" json:"channel"`
 	RecipientID string    `gorm:"type:varchar(128)" json:"recipient_id"`

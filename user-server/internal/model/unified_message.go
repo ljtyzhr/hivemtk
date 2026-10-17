@@ -51,6 +51,8 @@ const (
 
 // UnifiedMessage 统一消息模型
 type UnifiedMessage struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID           uint          `gorm:"primaryKey;autoIncrement" json:"id"`
 	MessageID    string        `gorm:"type:varchar(50);uniqueIndex;not null" json:"message_id"`
 	Platform     Platform      `gorm:"type:varchar(20);index;not null" json:"platform"`
@@ -78,6 +80,8 @@ func (UnifiedMessage) TableName() string {
 
 // UnifiedReply 统一回复模型
 type UnifiedReply struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID            uint        `gorm:"primaryKey;autoIncrement" json:"id"`
 	ReplyID       string      `gorm:"type:varchar(50);uniqueIndex" json:"reply_id"`
 	MessageID     string      `gorm:"type:varchar(50);index;not null" json:"message_id"`
@@ -116,6 +120,8 @@ const (
 
 // PlatformAccount 平台账号配置
 type PlatformAccount struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID            uint       `gorm:"primaryKey;autoIncrement" json:"id"`
 	Platform      Platform   `gorm:"type:varchar(20);index;not null" json:"platform"`
 	AccountID     string     `gorm:"type:varchar(50)" json:"account_id"`

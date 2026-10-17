@@ -7,6 +7,7 @@ import (
 )
 
 type SLAPolicy struct {
+	TenantID             uint           `gorm:"not null;default:1;index" json:"tenant_id"`
 	ID                   uint           `gorm:"primaryKey;autoIncrement" json:"id"`
 	Name                 string         `gorm:"type:varchar(100);not null" json:"name"`
 	FirstResponseSeconds int            `gorm:"not null" json:"first_response_seconds"`
@@ -23,6 +24,7 @@ func (SLAPolicy) TableName() string { return "sla_policies" }
 
 // SLAViolation SLA 违规记录
 type SLAViolation struct {
+	TenantID      uint           `gorm:"not null;default:1;index" json:"tenant_id"`
 	ID            uint           `gorm:"primaryKey;autoIncrement" json:"id"`
 	PolicyID      uint           `gorm:"not null;index" json:"policy_id"`
 	SessionID     string         `gorm:"type:varchar(120);not null;index" json:"session_id"`

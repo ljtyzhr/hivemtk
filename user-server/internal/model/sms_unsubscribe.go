@@ -15,6 +15,8 @@ import (
 //   - 退订关键词识别：回复 TD / 退订 / T退 / 取消 / N / Q 等关键词自动加入退订名单。
 //   - 重新订阅：用户可通过客服或管理界面重新订阅，删除退订记录即可。
 type SmsUnsubscribe struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID              uint           `gorm:"primarykey" json:"id"`
 	Phone           string         `gorm:"type:varchar(20);uniqueIndex;not null" json:"phone"`
 	Reason          string         `gorm:"type:varchar(255)" json:"reason"`

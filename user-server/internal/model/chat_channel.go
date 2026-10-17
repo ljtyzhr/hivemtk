@@ -18,6 +18,8 @@ const (
 //   - channel 可绑定默认 RAG 产品（智能体）
 //   - 私域部署：所有 channel 归属本实例，无 merchant_id
 type ChatChannel struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID                  uint              `gorm:"primaryKey;autoIncrement" json:"id"`
 	ChannelID           string            `gorm:"type:varchar(50);uniqueIndex;not null" json:"channel_id"`
 	ChannelName         string            `gorm:"type:varchar(100);not null" json:"channel_name"`

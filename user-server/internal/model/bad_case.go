@@ -22,6 +22,8 @@ import (
 // ID 不自增（形如 bc_<unixnano>_<seq>），与 human_tasks / approval_requests 同一取向：
 // 导出成评测集后这个 id 会长期存在于仓库外的文件里，自增号在跨库搬迁与重放时对不上号。
 type BadCase struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID string `gorm:"type:text;primaryKey" json:"id"`
 
 	// Source 这条是**怎么进来的**，值域见 BadCaseSources。

@@ -255,7 +255,7 @@ func (c *CachedEmbeddingClient) persistDBCache(ctx context.Context, model, text 
 	err := c.db.WithContext(ctx).Exec(`
 		INSERT INTO embedding_cache (text_hash, text_content, model, dimension, embedding, hit_count, last_used_at, expires_at, created_at, updated_at)
 		VALUES (?, ?, ?, ?, ?::vector, 0, NOW(), ?, NOW(), NOW())
-		ON CONFLICT (text_hash, model) DO UPDATE SET
+		ON CONFLICT (tenant_id, text_hash, model) DO UPDATE SET
 			embedding = EXCLUDED.embedding,
 			dimension = EXCLUDED.dimension,
 			last_used_at = NOW(),

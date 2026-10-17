@@ -14,6 +14,8 @@ import (
 // 按页面类型 + Schema @type 组织。ContentService.GenerateSchema /
 // ContentCreation 前端页面下拉选择都从这里读。
 type GeoSchemaTemplate struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID       string `gorm:"type:varchar(36);primaryKey" json:"id"`
 	PageType string `gorm:"type:varchar(50);index" json:"page_type"`
 	// 'article' | 'faq' | 'guide' | 'product'

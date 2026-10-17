@@ -24,6 +24,8 @@ import (
 
 // EmailAccount 邮件账号配置（独立表，不依赖既有 schema）
 type EmailAccount struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID         uint      `gorm:"primaryKey" json:"id"`
 	Name       string    `gorm:"type:varchar(100)" json:"name"`
 	Host       string    `gorm:"type:varchar(255);not null" json:"host"`

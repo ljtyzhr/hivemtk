@@ -26,6 +26,8 @@ import "time"
 // 刻意**不带** gorm.DeletedAt：软删的摘要行等于给「抹掉证据」留了一条正规通道。
 // 同理本表不参与任何裁剪——它是这张表存在的全部理由的反面（被裁的那张才需要自证）。
 type BrowserAuditDigest struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        uint `gorm:"primaryKey" json:"id"`
 	SessionID uint `gorm:"column:session_id;not null;uniqueIndex:uk_browser_audit_digests_session_ordinal,priority:1" json:"session_id"`
 
@@ -72,6 +74,8 @@ func (BrowserAuditDigest) TableName() string { return "browser_audit_digests" }
 // 于是「扫描中断」表现为——已提交的那几批各自带着自己的摘要（自洽），只是没有这条汇总行。
 // 汇总行缺席因此是可查的（末条摘要的 created_at 落在两个界之间却无 run 行），不是静默的。
 type BrowserAuditPruneRun struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID     uint      `gorm:"primaryKey" json:"id"`
 	Cutoff time.Time `gorm:"column:cutoff;not null;index" json:"cutoff"`
 

@@ -57,6 +57,8 @@ func DefaultDataScopeForRole(role string) string {
 
 // SystemUser 系统用户模型
 type SystemUser struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID           uint       `json:"id" gorm:"primaryKey"`
 	Username     string     `json:"username" gorm:"size:50;uniqueIndex;not null"`
 	Password     string     `json:"-" gorm:"size:100;not null"`

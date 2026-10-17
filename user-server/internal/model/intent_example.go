@@ -1,6 +1,8 @@
 package model
 
 type IntentExample struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID     uint   `gorm:"primaryKey;autoIncrement" json:"id"`
 	Intent string `gorm:"type:varchar(64);not null;index" json:"intent"`
 	Text   string `gorm:"type:varchar(512);not null;uniqueIndex" json:"text"`

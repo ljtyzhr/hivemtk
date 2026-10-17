@@ -9,6 +9,8 @@ import (
 
 // BrowserTask 浏览器自动化任务主体（寄生式 Chrome Native Messaging）
 type BrowserTask struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID          uint   `gorm:"primaryKey" json:"id"`
 	Name        string `gorm:"column:name;size:256;not null;index" json:"name"`
 	Description string `gorm:"column:description;type:text" json:"description"`

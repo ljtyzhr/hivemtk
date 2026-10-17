@@ -27,6 +27,8 @@ const (
 // 由 DictService 用代码内置缺省值自动播种；之后 DB 即唯一真实来源，
 // 可经 /geo/dicts 管理端接口查看与维护。DB 故障时 fail-open 走缺省值。
 type GeoDict struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID       string `gorm:"type:varchar(36);primaryKey" json:"id"`
 	Category string `gorm:"type:varchar(64);index:idx_dict_cat_key,unique;index" json:"category"`
 	Key      string `gorm:"type:varchar(128);index:idx_dict_cat_key,unique" json:"key"`

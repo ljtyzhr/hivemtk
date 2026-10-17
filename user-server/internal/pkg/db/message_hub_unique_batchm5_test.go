@@ -303,8 +303,11 @@ func TestBatchM_StartupMessageHubIndexShapeAndSecondRunSilent(t *testing.T) {
 			"① 有人顺手加了个不合适的谓词（真回归）；② §5 N-35 的软删修法落地（那就是新契约，" +
 			"本句要改成『必须是 partial 且谓词是 deleted_at IS NULL』，并连带重读 §23.12 第 4 段）")
 	}
-	if cols != "platform,msg_id,conversation_id" {
-		t.Errorf("三元组索引的列 = %q，期望 platform,msg_id,conversation_id（键变了还叫同名，读日志的人看不出来）", cols)
+	// 键已按 specs/001-saas-multi-tenant 升级为租户维度：(tenant_id, platform, msg_id,
+	// conversation_id)。名字不变是有意为之（原位重建，基线名稳定）；键内容升级时
+	// 本断言同步升级——读日志的人从本注释获得对账依据。
+	if cols != "tenant_id,platform,msg_id,conversation_id" {
+		t.Errorf("三元组索引的列 = %q，期望 tenant_id,platform,msg_id,conversation_id（租户维度去重键，specs/001-saas-multi-tenant T008）", cols)
 	}
 
 	log2, p2 := batchM4CaptureStartup(t)

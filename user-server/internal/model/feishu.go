@@ -4,6 +4,8 @@ import "time"
 
 // FeishuAccount 飞书账号（机器人应用）
 type FeishuAccount struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID uint `gorm:"primaryKey;autoIncrement" json:"id"`
 
 	OwnerUserID       uint       `gorm:"default:0;index" json:"owner_user_id"`
@@ -28,6 +30,8 @@ func (FeishuAccount) TableName() string { return "feishu_accounts" }
 
 // FeishuCustomer 飞书客户
 type FeishuCustomer struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID         uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	AccountID  uint      `gorm:"index;not null" json:"account_id"`
 	OpenID     string    `gorm:"type:varchar(200);index;not null" json:"open_id"`
@@ -46,6 +50,8 @@ func (FeishuCustomer) TableName() string { return "feishu_customers" }
 
 // FeishuMessage 飞书消息
 type FeishuMessage struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	AccountID uint      `gorm:"index;not null" json:"account_id"`
 	MsgID     string    `gorm:"type:varchar(100);unique" json:"msg_id"`
@@ -63,6 +69,8 @@ func (FeishuMessage) TableName() string { return "feishu_messages" }
 
 // TelegramAccount Telegram 机器人账号
 type TelegramAccount struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID uint `gorm:"primaryKey;autoIncrement" json:"id"`
 
 	OwnerUserID        uint       `gorm:"default:0;index" json:"owner_user_id"`
@@ -87,6 +95,8 @@ func (TelegramAccount) TableName() string { return "telegram_accounts" }
 
 // WhatsAppCloudAccount WhatsApp Cloud API 商业账号
 type WhatsAppCloudAccount struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID uint `gorm:"primaryKey;autoIncrement" json:"id"`
 
 	OwnerUserID        uint       `gorm:"default:0;index" json:"owner_user_id"`
@@ -113,6 +123,8 @@ func (WhatsAppCloudAccount) TableName() string { return "whatsapp_cloud_accounts
 // 凭证模型：AppID + AppSecret 换 access_token（服务端缓存 7200s），
 // WebhookSecret 为官方 BotSecret（用于 Ed25519 webhook 验签派生）。
 type QQAccount struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID uint `gorm:"primaryKey;autoIncrement" json:"id"`
 
 	OwnerUserID    uint       `gorm:"default:0;index" json:"owner_user_id"`

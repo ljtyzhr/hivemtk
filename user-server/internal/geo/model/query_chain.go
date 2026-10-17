@@ -12,6 +12,8 @@ import (
 // 以 chain_id 聚合同一用户决策会话的多次查询，记录每跳的意图、
 // 品牌位置与被引信源，支撑"针对提问深度与多轮交互信源做反推迭代"。
 type GeoQueryChain struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID            string `gorm:"type:varchar(36);primaryKey" json:"id"`
 	ChainID       string `gorm:"type:varchar(64);index;not null" json:"chain_id"`
 	Seq           int    `gorm:"default:0" json:"seq"`
@@ -40,6 +42,8 @@ func (c *GeoQueryChain) BeforeCreate(tx *gorm.DB) error {
 
 // GeoContentTask 信源缺口补位任务（content_gap_fill 执行器产出）
 type GeoContentTask struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        string         `gorm:"type:varchar(36);primaryKey" json:"id"`
 	Keyword   string         `gorm:"type:varchar(200);index" json:"keyword"`
 	Intent    string         `gorm:"type:varchar(20)" json:"intent"`

@@ -3,6 +3,8 @@ package model
 import "time"
 
 type SSOIdentity struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        uint      `json:"id" gorm:"primaryKey"`
 	Provider  string    `json:"provider" gorm:"size:20;not null;uniqueIndex:idx_sso_provider_subject"`
 	Subject   string    `json:"subject" gorm:"size:255;not null;uniqueIndex:idx_sso_provider_subject"`

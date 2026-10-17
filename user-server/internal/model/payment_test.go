@@ -94,7 +94,7 @@ func TestPaymentCountsTowardSettlement(t *testing.T) {
 func TestPaymentSchemaShape(t *testing.T) {
 	st := reflect.TypeOf(Payment{})
 	wantFields := []string{
-		"ID", "BillID", "Amount", "Currency", "PaidAt",
+		"ID", "TenantID", "BillID", "Amount", "Currency", "PaidAt",
 		"ChannelRef", "Status", "Platform", "OrderID", "CreatedAt", "UpdatedAt",
 	}
 	for _, name := range wantFields {

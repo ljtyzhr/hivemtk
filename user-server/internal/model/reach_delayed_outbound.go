@@ -7,6 +7,8 @@ import (
 
 // DelayedOutboundReply AI 回复延迟出站记录（quiet hours 延迟队列）
 type DelayedOutboundReply struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID             uint       `gorm:"primaryKey;autoIncrement" json:"id"`
 	Platform       string     `gorm:"type:varchar(30);index" json:"platform"`
 	AccountID      string     `gorm:"type:varchar(64)" json:"account_id"`

@@ -19,6 +19,8 @@ const (
 
 // Material 素材模型
 type Material struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID          string            `gorm:"type:varchar(36);primaryKey" json:"id"`
 	Name        string            `gorm:"type:varchar(255);not null" json:"name"`
 	Type        MaterialType      `gorm:"type:varchar(20);not null" json:"type"`
@@ -77,6 +79,8 @@ func (m *Material) GetTypeName() string {
 
 // MaterialCategory 素材分类模型
 type MaterialCategory struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID          string            `gorm:"type:varchar(36);primaryKey" json:"id"`
 	Name        string            `gorm:"type:varchar(100);not null" json:"name"`
 	Type        MaterialType      `gorm:"type:varchar(20);not null" json:"type"`

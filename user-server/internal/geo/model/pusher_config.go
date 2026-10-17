@@ -14,6 +14,8 @@ import (
 // 每个引擎一份配置（百度 token、Google Service Account JSON、
 // IndexNow key 等）。config_json 用 AES-256-GCM 加密后存。
 type GeoPusherConfig struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID          string         `gorm:"type:varchar(36);primaryKey" json:"id"`
 	Platform    string         `gorm:"type:varchar(30);uniqueIndex" json:"platform"`
 	ConfigJSON  datatypes.JSON `gorm:"type:jsonb;not null" json:"config_json"`

@@ -14,6 +14,8 @@ import (
 // FunnelDashboard / IndexTracking 页面读取。
 // engine 字段同时覆盖搜索引擎（baidu/google/bing）和 AI 引擎（doubao/wenxin/kimi/deepseek）。
 type GeoIndexTracking struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        string `gorm:"type:varchar(36);primaryKey" json:"id"`
 	ArticleID string `gorm:"type:varchar(36);index" json:"article_id"`
 	Engine    string `gorm:"type:varchar(30);index" json:"engine"`

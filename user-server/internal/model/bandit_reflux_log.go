@@ -11,6 +11,8 @@ import "time"
 //     （决策 D04"转化去重"防线；同索引也覆盖 complaint/transfer/champion_mark，
 //     语义为"同会话同 SOP 同类信号只采纳首次"）。
 type BanditRefluxLog struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID           uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	EventID      string    `gorm:"type:varchar(64);not null;uniqueIndex:uk_reflux_event" json:"event_id"`
 	ExperimentID string    `gorm:"type:varchar(64);not null;default:'';index:idx_reflux_log_experiment,priority:1" json:"experiment_id"`

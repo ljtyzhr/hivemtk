@@ -6,6 +6,8 @@ import (
 
 // RFMRule RFM 规则模型
 type RFMRule struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	Name      string    `gorm:"type:varchar(100)" json:"name"`
 	RDays1    int       `gorm:"default:7" json:"r_days_1"`
@@ -35,6 +37,8 @@ func (RFMRule) TableName() string {
 
 // UserRFM 用户 RFM 模型
 type UserRFM struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID                uint       `gorm:"primaryKey;autoIncrement" json:"id"`
 	UserID            uint       `gorm:"index;not null" json:"user_id"`
 	RScore            int        `gorm:"default:0" json:"r_score"`

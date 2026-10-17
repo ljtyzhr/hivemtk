@@ -36,6 +36,8 @@ const (
 // 每个 message_id 一条记录，运营商状态报告 webhook 触发更新
 // 用于到达率统计、失败重试、合规审计
 type SmsDeliveryStatus struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID          uint           `gorm:"primarykey" json:"id"`
 	MessageID   string         `gorm:"type:varchar(64);uniqueIndex;not null" json:"messageId"`
 	Phone       string         `gorm:"type:varchar(20);index;not null" json:"phone"`
@@ -102,6 +104,7 @@ func (s *SmsDeliveryStatus) BeforeCreate(tx *gorm.DB) error {
 // delivery_rate = total_delivered / total_sent * 100
 // failure_rate  = total_failed   / total_sent * 100
 type SmsJobMetric struct {
+	TenantID       uint           `gorm:"not null;default:1;index" json:"tenant_id"`
 	ID             uint           `gorm:"primarykey" json:"id"`
 	JobID          string         `gorm:"type:varchar(36);uniqueIndex;not null" json:"jobId"`
 	TotalSent      int64          `gorm:"default:0" json:"totalSent"`

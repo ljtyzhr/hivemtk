@@ -24,7 +24,7 @@ func (r *ChurnScoreRepository) UpsertBatch(ctx context.Context, rows []model.Chu
 		return nil
 	}
 	return r.db.WithContext(ctx).Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "customer_key"}},
+		Columns:   []clause.Column{{Name: "tenant_id"}, {Name: "customer_key"}},
 		DoUpdates: clause.AssignmentColumns([]string{"x", "tx", "t_obs", "p_alive", "expected_purchases_30d", "params", "stats_count", "computed_at", "updated_at"}),
 	}).CreateInBatches(&rows, 500).Error
 }

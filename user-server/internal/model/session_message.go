@@ -4,6 +4,8 @@ import "time"
 
 // SessionMessage 会话消息
 type SessionMessage struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID           uint         `gorm:"primaryKey;autoIncrement" json:"id"`
 	SessionID    string       `gorm:"type:varchar(120);index;not null" json:"session_id"`
 	Content      string       `gorm:"type:text" json:"content"`

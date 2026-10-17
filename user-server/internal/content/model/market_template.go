@@ -6,6 +6,8 @@ import (
 
 // MarketTemplate 模板市场模板
 type MarketTemplate struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID            uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	Name          string    `gorm:"type:varchar(100);not null" json:"name"`
 	Description   string    `gorm:"type:varchar(500)" json:"description"`
@@ -30,6 +32,8 @@ func (MarketTemplate) TableName() string {
 
 // MarketTemplateDownload 模板下载记录
 type MarketTemplateDownload struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID           uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	TemplateID   uint      `gorm:"index;not null" json:"template_id"`
 	TemplateType string    `gorm:"type:varchar(20)" json:"template_type"`

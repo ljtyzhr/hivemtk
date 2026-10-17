@@ -42,6 +42,8 @@ import (
 // LastHitAt: 最近一次命中时间 (: 用于 7 天未命中判定)
 // NegativeHitCount: 用户负反馈次数 (: 用于快速降权)
 type FAQEntry struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID               uint           `gorm:"primaryKey;autoIncrement" json:"id"`
 	Question         string         `gorm:"type:text;not null" json:"question"`
 	Answer           string         `gorm:"type:text;not null" json:"answer"`

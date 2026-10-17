@@ -9,6 +9,7 @@ import "time"
 // 列结构由迁移 v3.22.3（IntentMergeMigration）保证，禁止加入 automigrate 清单，
 // 否则 AutoMigrate 会重建 intent_logs 造成双表回潮。
 type IntentLog struct {
+	TenantID    uint      `gorm:"not null;default:1;index" json:"tenant_id"`
 	ID          uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	CustomerID  string    `gorm:"column:customer_id;type:varchar(64)" json:"customer_id"`
 	SessionID   string    `gorm:"column:session_id;type:varchar(120)" json:"session_id"`

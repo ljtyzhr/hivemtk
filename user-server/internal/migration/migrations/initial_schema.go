@@ -214,4 +214,8 @@ func RegisterMigrations(registry *migration.MigrationRegistry, db *gorm.DB) {
 	register(NewEmbeddingGlobalOverrideToConfigParamMigration(db))
 	register(NewMenuGrantCeilingPruneMigration(db))
 	register(NewClueGeoCaptureTypeSplitMigration(db))
+	register(NewTenantTableMigration(db))
+	register(NewTenantColumnBatchMigration(db))
+	register(NewTenantUniqueIndexMigration(db))
+	register(NewAggregationWatermarkPKMigration(db))
 }

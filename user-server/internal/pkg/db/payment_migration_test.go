@@ -31,7 +31,7 @@ import (
 // paymentWantColumns 卡面列清单在库里的真实列名（升序 = information_schema 的读回顺序）。
 var paymentWantColumns = []string{
 	"amount", "bill_id", "channel_ref", "created_at", "currency", "id",
-	"order_id", "paid_at", "platform", "status", "updated_at",
+	"order_id", "paid_at", "platform", "status", "tenant_id", "updated_at",
 }
 
 func paymentRegisteredModels() []any {
@@ -165,8 +165,10 @@ func TestPaymentChannelRefIsTheIdempotencyKey(t *testing.T) {
 			"标签写成 `unique` 也能建唯一约束，但约束名由 PG 拼，仓储认不到它就分不开\"重投\"与\"别的冲突\"",
 			colsOf(indexes))
 	}
-	if refIdx.Cols != "channel_ref" {
-		t.Errorf("uq_payments_channel_ref 的列集合是 %q，期望 channel_ref（幂等键是渠道流水号，不是我们的行号）", refIdx.Cols)
+	// 幂等键已按 specs/001-saas-multi-tenant 升级为租户维度：
+	// (tenant_id, channel_ref)——同租户内渠道流水号唯一，跨租户互不影响。
+	if refIdx.Cols != "tenant_id+channel_ref" {
+		t.Errorf("uq_payments_channel_ref 的列集合是 %q，期望 tenant_id+channel_ref（幂等键=租户内渠道流水号）", refIdx.Cols)
 	}
 	if !refIdx.Uniq || refIdx.Pkey {
 		t.Errorf("该索引必须唯一且不是主键，实际 uniq=%v pkey=%v", refIdx.Uniq, refIdx.Pkey)

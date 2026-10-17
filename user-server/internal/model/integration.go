@@ -7,6 +7,8 @@ import (
 
 // IntegrationAccount 第三方对接账号
 type IntegrationAccount struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID           uint       `gorm:"primaryKey;autoIncrement" json:"id"`
 	Platform     string     `gorm:"type:varchar(50);index;not null" json:"platform"`
 	AccountName  string     `gorm:"type:varchar(100)" json:"account_name"`
@@ -30,6 +32,8 @@ func (IntegrationAccount) TableName() string {
 
 // SyncLog 同步日志
 type SyncLog struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID           uint       `gorm:"primaryKey;autoIncrement" json:"id"`
 	Platform     string     `gorm:"type:varchar(50);index" json:"platform"`
 	SyncType     string     `gorm:"type:varchar(50)" json:"sync_type"`
@@ -48,6 +52,8 @@ func (SyncLog) TableName() string {
 
 // ExternalCustomer 外部客户（CRM 对接）
 type ExternalCustomer struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID            uint       `gorm:"primaryKey;autoIncrement" json:"id"`
 	Platform      string     `gorm:"type:varchar(50);index:idx_extcust_platform_external,priority:1" json:"platform"`
 	ExternalID    string     `gorm:"type:varchar(100);index:idx_extcust_platform_external,priority:2" json:"external_id"`
@@ -96,6 +102,8 @@ const ExternalOrderLegacyOrderIDIndex = "uni_external_orders_order_id"
 // B 平台沿用 A 平台的订单号 ⇒ duplicate key、表里只 1 行、接口回 500，
 // 也就是一条**签名完全合法**的回调被静默丢掉（G15 第①条）。
 type ExternalOrder struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID uint `gorm:"primaryKey;autoIncrement" json:"id"`
 	// priority:1 显式写：复合键哪一列打头决定的是"按平台捞列表"能不能用上这把索引。
 	Platform string `gorm:"type:varchar(50);uniqueIndex:uq_external_orders_platform_order_id,priority:1;index" json:"platform"`
@@ -196,6 +204,8 @@ func (ExternalOrder) TableName() string {
 
 // ExternalProduct 外部商品（电商对接）
 type ExternalProduct struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID            uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	Platform      string    `gorm:"type:varchar(50);index" json:"platform"`
 	ProductID     string    `gorm:"type:varchar(100);index" json:"product_id"`
@@ -219,6 +229,8 @@ func (ExternalProduct) TableName() string {
 
 // WebhookEvent Webhook 事件
 type WebhookEvent struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID          uint       `gorm:"primaryKey;autoIncrement" json:"id"`
 	Platform    string     `gorm:"type:varchar(50);index" json:"platform"`
 	EventID     string     `gorm:"type:varchar(100);unique" json:"event_id"`

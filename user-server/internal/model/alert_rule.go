@@ -46,6 +46,8 @@ func IsValidAlertChannel(c string) bool {
 //   - targets: 通知目标 JSON（邮箱列表 / 钉钉 webhook / webhook url）
 //   - enabled: 启用开关
 type AlertRule struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID              uint              `json:"id" gorm:"primaryKey"`
 	Name            string            `json:"name" gorm:"size:100;not null;uniqueIndex"`
 	Description     string            `json:"description" gorm:"size:500"`
@@ -81,6 +83,8 @@ type AlertRuleManager struct {
 //
 // 记录每次规则触发的快照，用于审计、恢复通知、查重。
 type AlertHistory struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID           uint              `json:"id" gorm:"primaryKey"`
 	RuleID       uint              `json:"rule_id" gorm:"not null;index"`
 	RuleName     string            `json:"rule_name" gorm:"size:100"`

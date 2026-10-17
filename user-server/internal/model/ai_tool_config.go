@@ -22,6 +22,8 @@ func (c *AIConfig) Scan(value any) error {
 
 // AIToolConfig AI工具配置模型
 type AIToolConfig struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID               int64     `json:"id" gorm:"primaryKey;autoIncrement"`
 	ToolName         string    `json:"tool_name" gorm:"type:varchar(100);uniqueIndex;not null"`
 	Category         string    `json:"category" gorm:"type:varchar(50);not null"`
@@ -41,6 +43,8 @@ func (AIToolConfig) TableName() string {
 
 // AIToolAccountBinding AI工具-账号绑定模型
 type AIToolAccountBinding struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID          int64     `json:"id" gorm:"primaryKey;autoIncrement"`
 	ToolName    string    `json:"tool_name" gorm:"type:varchar(100);not null;uniqueIndex:idx_tool_account"`
 	AccountType string    `json:"account_type" gorm:"type:varchar(50);not null;uniqueIndex:idx_tool_account"`

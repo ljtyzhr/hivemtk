@@ -13,6 +13,8 @@ import (
 // 每次 PushService 向百度/Google/IndexNow 等推送 URL 时落一条记录，
 // 用于配额追踪、失败重试、收录验证关联。
 type GeoPushRecord struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        string `gorm:"type:varchar(36);primaryKey" json:"id"`
 	ArticleID string `gorm:"type:varchar(36);index" json:"article_id"`
 	Platform  string `gorm:"type:varchar(30);index" json:"platform"`

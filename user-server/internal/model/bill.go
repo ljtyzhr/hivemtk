@@ -28,6 +28,8 @@ import "time"
 // 第二张账单插不进去，而插不进去的方向是"少了一张应收"，那正好是财务上最贵的一种错。
 // 所以本表两把键都带：quote_id 是查询维度，quote_row_id 是**版本行的行键**、幂等键。
 type Bill struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	// ID 账单号（形如 b_<unixnano>_<seq>，由 service 层的生成器产出）。
 	//
 	// 刻意不用自增 serial：这把键会被抄进 payments.bill_id（T-P7-02），

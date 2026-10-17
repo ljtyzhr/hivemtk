@@ -6,6 +6,8 @@ import (
 )
 
 type Clue struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID             string `gorm:"type:varchar(36);primary_key" json:"id"`
 	SourceID       string `gorm:"source_id" json:"source_id"`
 	Account        string `gorm:"account" json:"account"`

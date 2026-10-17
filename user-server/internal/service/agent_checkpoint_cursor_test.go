@@ -12,12 +12,13 @@ import (
 
 const checkpointTableDDL = `CREATE TABLE IF NOT EXISTS agent_checkpoints (
 	id BIGSERIAL PRIMARY KEY,
+	tenant_id BIGINT NOT NULL DEFAULT 1,
 	thread_id VARCHAR(120) NOT NULL,
 	stage VARCHAR(40) NOT NULL,
 	state JSONB NOT NULL DEFAULT '{}',
 	created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
 	updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-	CONSTRAINT uk_agent_ckpt UNIQUE (thread_id, stage)
+	CONSTRAINT uk_agent_ckpt UNIQUE (tenant_id, thread_id, stage)
 )`
 
 // FF_LTC_CHECKPOINT 默认关闭；显式真值才开。反向：任何未识别值一律视为关（safe-by-default）。

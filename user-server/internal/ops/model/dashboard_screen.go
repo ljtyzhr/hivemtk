@@ -6,6 +6,8 @@ import (
 
 // DashboardScreen 数据大屏
 type DashboardScreen struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	Name      string    `gorm:"type:varchar(100);not null" json:"name"`
 	Code      string    `gorm:"type:varchar(50);unique" json:"code"`
@@ -26,6 +28,8 @@ func (DashboardScreen) TableName() string {
 
 // DashboardWidget Widget 定义
 type DashboardWidget struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID         uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	ScreenID   uint      `gorm:"index;not null" json:"screen_id"`
 	WidgetType string    `gorm:"type:varchar(50);not null" json:"widget_type"`

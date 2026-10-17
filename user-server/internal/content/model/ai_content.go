@@ -26,6 +26,8 @@ const (
 
 // AIGenerationRecord AI生成记录
 type AIGenerationRecord struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID         uint             `gorm:"primaryKey;autoIncrement" json:"id"`
 	UserID     uint             `gorm:"index;not null" json:"user_id"`
 	Type       AIGenerationType `gorm:"type:varchar(20);not null" json:"type"`
@@ -47,6 +49,8 @@ func (AIGenerationRecord) TableName() string {
 
 // PromptTemplate 提示词模板
 type PromptTemplate struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID          uint             `gorm:"primaryKey;autoIncrement" json:"id"`
 	Name        string           `gorm:"type:varchar(100);not null" json:"name"`
 	Type        AIGenerationType `gorm:"type:varchar(20);not null" json:"type"`

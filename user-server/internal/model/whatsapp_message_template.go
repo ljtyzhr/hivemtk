@@ -9,6 +9,8 @@ import (
 
 // WhatsappMessageTemplate WhatsApp 消息模板
 type WhatsappMessageTemplate struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID          string    `gorm:"type:varchar(64);primaryKey" json:"id"`
 	Name        string    `gorm:"type:varchar(255);not null" json:"name"`
 	Content     string    `gorm:"type:text;not null" json:"content"`

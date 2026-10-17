@@ -17,6 +17,8 @@ import "time"
 //   - Link    可选外链（公告/详情跳转）
 //   - Metadata 预留 JSON 字段，存扩展信息
 type Notification struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        uint       `json:"id" gorm:"primaryKey"`
 	UserID    uint       `json:"user_id" gorm:"index;not null;default:0"`
 	Type      string     `json:"type" gorm:"size:32;index;not null;default:'info'"`

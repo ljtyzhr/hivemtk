@@ -6,6 +6,8 @@ import (
 
 // ShortLinkAccess 短链访问统计模型
 type ShortLinkAccess struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID          uint      `json:"id" gorm:"primaryKey"`
 	ShortLinkID uint      `json:"short_link_id" gorm:"not null;index;comment:短链ID"`
 	IP          string    `json:"ip" gorm:"not null;comment:IP地址"`

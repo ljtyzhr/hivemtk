@@ -74,7 +74,7 @@ const upsertIncrementSQL = `
 	INSERT INTO msg_hourly_summary
 		(hour_bucket, merchant_id, platform, session_count, ai_count, human_count, message_count, updated_at)
 	VALUES (?, ?, ?, ?, ?, ?, ?, NOW())
-	ON CONFLICT (hour_bucket, merchant_id, platform) DO UPDATE SET
+	ON CONFLICT (tenant_id, hour_bucket, merchant_id, platform) DO UPDATE SET
 		session_count = msg_hourly_summary.session_count + EXCLUDED.session_count,
 		ai_count      = msg_hourly_summary.ai_count + EXCLUDED.ai_count,
 		human_count   = msg_hourly_summary.human_count + EXCLUDED.human_count,
@@ -88,7 +88,7 @@ func (r *msgHourlySummaryRepo) UpsertIncrementBatch(ctx context.Context, source 
 	if len(deltas) == 0 {
 		return r.db.WithContext(ctx).Model(&model.AggregationWatermark{}).
 			Clauses(clause.OnConflict{
-				Columns:   []clause.Column{{Name: "source"}},
+				Columns:   []clause.Column{{Name: "tenant_id"}, {Name: "source"}},
 				DoUpdates: clause.Assignments(map[string]any{"last_event_id": newWatermark, "updated_at": time.Now()}),
 			}).
 			Create(&model.AggregationWatermark{Source: source, LastEventID: newWatermark}).Error
@@ -104,7 +104,7 @@ func (r *msgHourlySummaryRepo) UpsertIncrementBatch(ctx context.Context, source 
 		}
 
 		return tx.Clauses(clause.OnConflict{
-			Columns:   []clause.Column{{Name: "source"}},
+			Columns:   []clause.Column{{Name: "tenant_id"}, {Name: "source"}},
 			DoUpdates: clause.Assignments(map[string]any{"last_event_id": newWatermark, "updated_at": time.Now()}),
 		}).Create(&model.AggregationWatermark{Source: source, LastEventID: newWatermark}).Error
 	})

@@ -6,6 +6,8 @@ import (
 
 // APILog API调用日志
 type APILog struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID         uint      `gorm:"primarykey" json:"id"`
 	CreatedAt  time.Time `json:"created_at"`
 	LicenseID  string    `gorm:"type:varchar(36);index;comment:许可证ID" json:"license_id"`
@@ -23,6 +25,8 @@ func (APILog) TableName() string {
 
 // VisitLog 访问日志
 type VisitLog struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        uint      `gorm:"primarykey" json:"id"`
 	CreatedAt time.Time `json:"created_at"`
 	LicenseID string    `gorm:"type:varchar(36);index;comment:许可证ID" json:"license_id"`
@@ -38,6 +42,8 @@ func (VisitLog) TableName() string {
 
 // DailyStats 每日统计
 type DailyStats struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID              uint      `gorm:"primarykey" json:"id"`
 	CreatedAt       time.Time `json:"created_at"`
 	UpdatedAt       time.Time `json:"updated_at"`
@@ -56,6 +62,8 @@ func (DailyStats) TableName() string {
 
 // SystemMetrics 系统指标
 type SystemMetrics struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID                uint      `gorm:"primarykey" json:"id"`
 	CreatedAt         time.Time `json:"created_at"`
 	CPUUsage          float64   `gorm:"comment:CPU使用率" json:"cpu_usage"`

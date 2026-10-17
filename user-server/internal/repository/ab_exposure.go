@@ -10,6 +10,8 @@ import (
 // AbExposure AB 曝光/转化记录（表 ab_exposures）。
 // service 层禁止直接持有 gorm.DB，持久化统一收敛到 repository。
 type AbExposure struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID           uint       `gorm:"primarykey" json:"id"`
 	ExperimentID string     `gorm:"size:64;index:idx_ab_exp_customer,priority:1" json:"experiment_id"`
 	CustomerID   string     `gorm:"size:64;index:idx_ab_exp_customer,priority:2" json:"customer_id"`

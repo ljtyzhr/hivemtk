@@ -6,6 +6,8 @@ import (
 
 // UpgradeTask 升级任务
 type UpgradeTask struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID              uint       `gorm:"primaryKey;autoIncrement" json:"id"`
 	FromVersion     string     `gorm:"type:varchar(50);not null" json:"from_version"`
 	ToVersion       string     `gorm:"type:varchar(50);not null" json:"to_version"`

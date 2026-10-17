@@ -10,6 +10,8 @@ import (
 
 // GeoWorkflow GEO 工作流定义模型（迁移自 AIGEOTOOLS storage.Workflow）
 type GeoWorkflow struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID         string `gorm:"type:varchar(36);primaryKey" json:"id"`
 	Name       string `gorm:"type:varchar(200)" json:"name"`
 	Steps      string `gorm:"type:text" json:"steps"`
@@ -75,6 +77,8 @@ func (m *GeoWorkflow) GetConditions() (map[string]string, error) {
 
 // GeoWorkflowExecution GEO 工作流执行记录模型
 type GeoWorkflowExecution struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID          string     `gorm:"type:varchar(36);primaryKey" json:"id"`
 	WorkflowID  string     `gorm:"type:varchar(36);index" json:"workflow_id"`
 	Status      string     `gorm:"type:varchar(20)" json:"status"`
@@ -101,6 +105,8 @@ func (m *GeoWorkflowExecution) BeforeCreate(tx *gorm.DB) error {
 
 // GeoWorkflowTemplate GEO 工作流模板模型（迁移自 storage.WorkflowTemplate）
 type GeoWorkflowTemplate struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID          string `gorm:"type:varchar(36);primaryKey" json:"id"`
 	Name        string `gorm:"type:varchar(200)" json:"name"`
 	Description string `gorm:"type:text" json:"description"`

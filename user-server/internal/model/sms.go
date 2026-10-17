@@ -8,6 +8,8 @@ import (
 
 // SmsConfig 短信配置模型
 type SmsConfig struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID              uint      `gorm:"primarykey" json:"id"`
 	DefaultProvider string    `gorm:"type:varchar(50);default:'aliyun'" json:"defaultProvider"`
 	RateLimit       int       `gorm:"default:100" json:"rateLimit"`
@@ -19,6 +21,8 @@ type SmsConfig struct {
 
 // SmsAliyunConfig 阿里云短信配置
 type SmsAliyunConfig struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID              uint      `gorm:"primarykey" json:"id"`
 	AccessKeyID     string    `gorm:"type:varchar(100)" json:"accessKeyId"`
 	AccessKeySecret string    `gorm:"type:varchar(100)" json:"accessKeySecret"`
@@ -29,6 +33,8 @@ type SmsAliyunConfig struct {
 
 // SmsTencentConfig 腾讯云短信配置
 type SmsTencentConfig struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        uint      `gorm:"primarykey" json:"id"`
 	SecretID  string    `gorm:"type:varchar(100)" json:"secretId"`
 	SecretKey string    `gorm:"type:varchar(100)" json:"secretKey"`
@@ -40,6 +46,8 @@ type SmsTencentConfig struct {
 
 // SmsHuaweiConfig 华为云短信配置
 type SmsHuaweiConfig struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        uint      `gorm:"primarykey" json:"id"`
 	AppKey    string    `gorm:"type:varchar(100)" json:"appKey"`
 	AppSecret string    `gorm:"type:varchar(100)" json:"appSecret"`
@@ -51,6 +59,8 @@ type SmsHuaweiConfig struct {
 
 // SmsRecord 短信发送记录
 type SmsRecord struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        uint           `gorm:"primarykey" json:"id"`
 	Phone     string         `gorm:"type:varchar(20);index" json:"phone"`
 	Content   string         `gorm:"type:text" json:"content"`
@@ -66,6 +76,8 @@ type SmsRecord struct {
 
 // SmsDraft 短信草稿
 type SmsDraft struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        uint           `gorm:"primarykey" json:"id"`
 	Title     string         `gorm:"type:varchar(100);index" json:"title"`
 	Content   string         `gorm:"type:text" json:"content"`
@@ -76,6 +88,8 @@ type SmsDraft struct {
 
 // SmsJob 短信发送任务
 type SmsJob struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID           uint           `gorm:"primarykey" json:"id"`
 	Name         string         `gorm:"type:varchar(100);index" json:"name"`
 	Total        int            `gorm:"default:0" json:"total"`
@@ -90,6 +104,8 @@ type SmsJob struct {
 
 // SmsJobDetail 短信任务详情
 type SmsJobDetail struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        uint       `gorm:"primarykey" json:"id"`
 	JobID     uint       `gorm:"index" json:"jobId"`
 	Phone     string     `gorm:"type:varchar(20)" json:"phone"`

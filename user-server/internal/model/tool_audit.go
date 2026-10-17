@@ -16,6 +16,8 @@ import "time"
 // MemoryCostTracker 统计的四个量（次数/成功/失败/总耗时）都是本表按 tool_name
 // 聚合的子集，见 repository.ToolAuditRepository.CostAggregates。
 type ToolCallAudit struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID            uint64    `gorm:"primaryKey;autoIncrement" json:"id"`
 	TraceID       string    `gorm:"index;size:64" json:"trace_id"`
 	ToolName      string    `gorm:"index;size:128" json:"tool_name"`

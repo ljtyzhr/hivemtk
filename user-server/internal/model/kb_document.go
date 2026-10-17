@@ -16,6 +16,8 @@ const (
 
 // KBDocument 知识库文档模型
 type KBDocument struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID         uint             `gorm:"primaryKey;autoIncrement" json:"id"`
 	Title      string           `gorm:"size:255;not null" json:"title"`
 	Content    string           `gorm:"type:text" json:"content"`

@@ -50,7 +50,7 @@ func (r *browserWriteClaimRepo) ClaimWriteSlot(ctx context.Context, taskID, sess
 	}
 	res := r.db.WithContext(ctx).Exec(
 		`INSERT INTO browser_write_claims (task_id, text_hash, step_row_id, session_id, created_at)
-			VALUES (?, ?, ?, ?, now()) ON CONFLICT (task_id, text_hash) DO NOTHING`,
+			VALUES (?, ?, ?, ?, now()) ON CONFLICT (tenant_id, task_id, text_hash) DO NOTHING`,
 		taskID, textHash, stepRowID, sessionID)
 	if res.Error != nil {
 		return nil, res.Error

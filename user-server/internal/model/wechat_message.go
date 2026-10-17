@@ -4,6 +4,7 @@ import "time"
 
 // WechatMessage 微信公众号消息记录
 type WechatMessage struct {
+	TenantID   uint      `gorm:"not null;default:1;index" json:"tenant_id"`
 	ID         uint      `gorm:"primaryKey" json:"id"`
 	AccountID  uint      `gorm:"index;not null" json:"account_id"`
 	FromUser   string    `gorm:"type:varchar(128);index" json:"from_user"`

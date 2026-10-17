@@ -47,6 +47,7 @@ func (m *ReachTablesMigration) Up(ctx context.Context) error {
 
 		`CREATE TABLE IF NOT EXISTS reach_compliance_log (
 			id BIGSERIAL PRIMARY KEY,
+			tenant_id BIGINT NOT NULL DEFAULT 1,
 			channel VARCHAR(30) DEFAULT '',
 			recipient_id VARCHAR(128) DEFAULT '',
 			created_at TIMESTAMPTZ
@@ -56,6 +57,7 @@ func (m *ReachTablesMigration) Up(ctx context.Context) error {
 
 		`CREATE TABLE IF NOT EXISTS reach_delayed_outbound (
 			id BIGSERIAL PRIMARY KEY,
+			tenant_id BIGINT NOT NULL DEFAULT 1,
 			platform VARCHAR(30) DEFAULT '',
 			account_id VARCHAR(64) DEFAULT '',
 			conversation_id VARCHAR(128) DEFAULT '',

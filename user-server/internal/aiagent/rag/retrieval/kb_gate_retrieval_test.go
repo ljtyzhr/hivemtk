@@ -86,6 +86,11 @@ func kbGateSetup(t *testing.T) *gorm.DB {
 	if err := db.AutoMigrate(&model.KBRelease{}); err != nil {
 		t.Fatalf("建 kb_releases 失败：%v", err)
 	}
+	// 夹具在 testdb 初始化后自建 kb_releases，须补租户索引规范化
+	// （product_id 唯一索引复合化，匹配 ON CONFLICT (tenant_id, product_id)）。
+	if _, err := tenancyidx.Normalize(db); err != nil {
+		t.Fatalf("kb_releases 租户索引规范化失败：%v", err)
+	}
 	if err := db.Exec(`INSERT INTO kb_releases (product_id, governed, effective_version, changed_by) VALUES (?, true, ?, 'tester')`,
 		kbGateGov, kbGateEffVer).Error; err != nil {
 		t.Fatalf("灌入受管 release 行失败：%v", err)

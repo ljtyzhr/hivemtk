@@ -38,7 +38,7 @@ func (r *AgentCheckpointRepository) Save(ctx context.Context, threadID, stage st
 	return r.db.WithContext(ctx).Exec(`
 		INSERT INTO agent_checkpoints (thread_id, stage, state, created_at, updated_at)
 		VALUES (?, ?, ?, NOW(), NOW())
-		ON CONFLICT (thread_id, stage) DO UPDATE SET state = EXCLUDED.state, updated_at = NOW()`,
+		ON CONFLICT (tenant_id, thread_id, stage) DO UPDATE SET state = EXCLUDED.state, updated_at = NOW()`,
 		threadID, stage, string(state)).Error
 }
 

@@ -4,6 +4,7 @@ import "time"
 
 // WechatAccount 微信公众号账号配置
 type WechatAccount struct {
+	TenantID  uint   `gorm:"not null;default:1;index" json:"tenant_id"`
 	ID        uint   `gorm:"primaryKey" json:"id"`
 	AppID     string `gorm:"type:varchar(64);uniqueIndex;not null" json:"app_id"`
 	AppSecret string `gorm:"type:varchar(128);not null" json:"-"`

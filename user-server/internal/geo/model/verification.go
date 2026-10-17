@@ -9,6 +9,8 @@ import (
 
 // GeoVerifyResult GEO 品牌验证结果模型
 type GeoVerifyResult struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID             string `gorm:"type:varchar(36);primaryKey" json:"id"`
 	ArticleID      string `gorm:"type:varchar(36);index" json:"article_id"`
 	BrandName      string `gorm:"type:varchar(200);index" json:"brand_name"`
@@ -40,6 +42,8 @@ func (m *GeoVerifyResult) BeforeCreate(tx *gorm.DB) error {
 
 // GeoAPICall GEO API 调用记录模型（用于成本统计）
 type GeoAPICall struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID           string  `gorm:"type:varchar(36);primaryKey" json:"id"`
 	Provider     string  `gorm:"type:varchar(50);index" json:"provider"`
 	Model        string  `gorm:"type:varchar(100)" json:"model"`

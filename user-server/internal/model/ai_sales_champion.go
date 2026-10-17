@@ -10,6 +10,8 @@ import (
 
 // MessageHub 消息中台 - 多账号聚合消息
 type MessageHub struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID             uint       `gorm:"primaryKey;autoIncrement" json:"id"`
 	Platform       string     `gorm:"type:varchar(30);not null;index;uniqueIndex:uni_message_hub_platform_msg_conv,priority:1" json:"platform"`
 	MsgID          string     `gorm:"type:varchar(100);uniqueIndex:uni_message_hub_platform_msg_conv,priority:2" json:"msg_id"`
@@ -48,6 +50,8 @@ func (MessageHub) TableName() string { return "message_hub" }
 
 // IntentRecord 销售意图识别记录
 type IntentRecord struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID              uint           `gorm:"primaryKey;autoIncrement" json:"id"`
 	SessionID       string         `gorm:"type:varchar(120);not null;index" json:"session_id"`
 	CustomerID      string         `gorm:"type:varchar(64);index" json:"customer_id"`
@@ -91,6 +95,8 @@ func (IntentRecord) TableName() string { return "intent_records" }
 
 // DialogueMemory 对话长期记忆
 type DialogueMemory struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID                   uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	SessionID            string    `gorm:"type:varchar(120);not null" json:"session_id"`
 	CustomerID           string    `gorm:"type:varchar(64);not null;index" json:"customer_id"`
@@ -117,6 +123,8 @@ func (DialogueMemory) TableName() string { return "dialogue_memories" }
 
 // SOPAgent SOP 智能体
 type SOPAgent struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID             uint           `gorm:"primaryKey;autoIncrement" json:"id"`
 	Name           string         `gorm:"type:varchar(100);not null" json:"name"`
 	Scenario       string         `gorm:"type:varchar(50);not null;index" json:"scenario"`
@@ -142,6 +150,8 @@ func (SOPAgent) TableName() string { return "sop_agents" }
 
 // SOPExecution SOP 执行记录
 type SOPExecution struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID             uint       `gorm:"primaryKey;autoIncrement" json:"id"`
 	SOPID          uint       `gorm:"index;not null" json:"sop_id"`
 	SOPName        string     `gorm:"-" json:"sop_name,omitempty"` // 派生字段：由 SOPID 关联 sop_agents 计算
@@ -174,6 +184,8 @@ func (SOPExecution) TableName() string { return "sop_executions" }
 
 // ReachPipeline 触达 Pipeline
 type ReachPipeline struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID           uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	Name         string    `gorm:"type:varchar(100);not null" json:"name"`
 	Description  string    `gorm:"type:varchar(500)" json:"description"`
@@ -194,6 +206,8 @@ func (ReachPipeline) TableName() string { return "reach_pipelines" }
 
 // ReachJob 触达任务
 type ReachJob struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID           uint       `gorm:"primaryKey;autoIncrement" json:"id"`
 	PipelineID   uint       `gorm:"index;not null" json:"pipeline_id"`
 	Channel      string     `gorm:"type:varchar(30);index" json:"channel"`
@@ -218,6 +232,8 @@ func (ReachJob) TableName() string { return "reach_jobs" }
 
 // WeComAccountHealth 企微账号健康度记录
 type WeComAccountHealth struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID             uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	AccountID      uint      `gorm:"index;not null" json:"account_id"`
 	Platform       string    `gorm:"type:varchar(30);default:'wecom'" json:"platform"`
@@ -239,6 +255,8 @@ func (WeComAccountHealth) TableName() string { return "wecom_account_health" }
 
 // SalesIntentScore 销售意向打分
 type SalesIntentScore struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID                uint       `gorm:"primaryKey;autoIncrement" json:"id"`
 	CustomerID        string     `gorm:"type:varchar(64);not null" json:"customer_id"`
 	TotalScore        float64    `gorm:"type:decimal(5,2);not null" json:"total_score"`
@@ -260,6 +278,8 @@ func (SalesIntentScore) TableName() string { return "sales_intent_scores" }
 
 // ScriptLibrary 销冠话术库
 type ScriptLibrary struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID             uint       `gorm:"primaryKey;autoIncrement" json:"id"`
 	Category       string     `gorm:"type:varchar(50);not null;index" json:"category"`
 	Subcategory    string     `gorm:"type:varchar(50)" json:"subcategory"`
@@ -283,6 +303,8 @@ func (ScriptLibrary) TableName() string { return "script_library" }
 
 // ScriptVersion 话术版本历史（T-6，Langfuse 整数版本模式：历史不可变）
 type ScriptVersion struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	ScriptID  uint      `gorm:"not null;uniqueIndex:idx_script_version,priority:1" json:"script_id"`
 	Version   int       `gorm:"not null;uniqueIndex:idx_script_version,priority:2" json:"version"`
@@ -298,6 +320,8 @@ func (ScriptVersion) TableName() string { return "script_versions" }
 
 // ScriptExposureLog 话术 AB 曝光日志（T-7：分桶+曝光+归因窗转化回写）
 type ScriptExposureLog struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID         uint   `gorm:"primaryKey;autoIncrement" json:"id"`
 	ScriptID   uint   `gorm:"not null;index:idx_exposure_script_ver,priority:1" json:"script_id"`
 	Version    int    `gorm:"not null;default:1;index:idx_exposure_script_ver,priority:2" json:"version"`
@@ -318,6 +342,8 @@ func (ScriptExposureLog) TableName() string { return "script_exposure_logs" }
 
 // ObjectionTemplate 异议处理模板
 type ObjectionTemplate struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID               uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	ObjectionType    string    `gorm:"type:varchar(50);not null;index" json:"objection_type"`
 	ObjectionKeyword string    `gorm:"type:varchar(200);not null" json:"objection_keyword"`
@@ -355,6 +381,8 @@ func (ObjectionTemplate) TableName() string { return "objection_templates" }
 // 字段侧两条口径：`Stage` 存的是 seed 自造的演示字符串，不受上面那份词表约束；
 // `Extra` 里固定带 `seed` 与 `demo_only=true` —— 清库按前者匹配，读的人按后者辨真伪。
 type ConversionFunnel struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID             uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	StatDate       string    `gorm:"type:varchar(20);not null;index" json:"stat_date"`
 	FunnelType     string    `gorm:"type:varchar(50);not null;index" json:"funnel_type"`
@@ -372,6 +400,8 @@ func (ConversionFunnel) TableName() string { return "conversion_funnels" }
 
 // SalesPersona 销冠能力画像
 type SalesPersona struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID                 uint       `gorm:"primaryKey;autoIncrement" json:"id"`
 	SalesID            string     `gorm:"type:varchar(64);not null" json:"sales_id"`
 	SalesName          string     `gorm:"type:varchar(100)" json:"sales_name"`
@@ -397,6 +427,8 @@ func (SalesPersona) TableName() string { return "sales_personas" }
 
 // AISalesLog AI 谈单日志
 type AISalesLog struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID               uint           `gorm:"primaryKey;autoIncrement" json:"id"`
 	SessionID        string         `gorm:"type:varchar(120);not null;index" json:"session_id"`
 	CustomerID       string         `gorm:"type:varchar(64)" json:"customer_id"`
@@ -419,6 +451,8 @@ func (AISalesLog) TableName() string { return "ai_sales_logs" }
 
 // InboxConversation 统一收件箱会话
 type InboxConversation struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID                 uint           `gorm:"primaryKey;autoIncrement" json:"id"`
 	Platform           string         `gorm:"type:varchar(30);not null;uniqueIndex:uk_inbox_conv_channel;index" json:"platform"`
 	AccountID          string         `gorm:"type:varchar(100);not null;uniqueIndex:uk_inbox_conv_channel;index" json:"account_id"`
@@ -450,6 +484,8 @@ func (InboxConversation) TableName() string { return "inbox_conversations" }
 
 // InboxAssignment 统一收件箱分配历史
 type InboxAssignment struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID             uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	ConversationID uint      `gorm:"index;not null" json:"conversation_id"`
 	Platform       string    `gorm:"type:varchar(30);json" json:"platform"`

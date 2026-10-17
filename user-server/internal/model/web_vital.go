@@ -9,6 +9,8 @@ import (
 
 // WebVitalRecord 前端性能指标（Web Vitals: CLS/FID/LCP/FCP/TTFB）
 type WebVitalRecord struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID     uint    `gorm:"primaryKey;autoIncrement" json:"id"`
 	Metric string  `gorm:"type:varchar(16);index;not null" json:"metric"`
 	Value  float64 `json:"value"`
@@ -26,6 +28,8 @@ type WebVitalRecord struct {
 func (WebVitalRecord) TableName() string { return "web_vital_records" }
 
 type RagEvalQuestion struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        uint   `gorm:"primaryKey;autoIncrement" json:"id"`
 	RunID     uint   `gorm:"index" json:"run_id"`
 	ProductID string `gorm:"type:varchar(64);index" json:"product_id"`
@@ -46,6 +50,8 @@ type RagEvalQuestion struct {
 func (RagEvalQuestion) TableName() string { return "rag_eval_questions" }
 
 type RagEvalRun struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID          uint    `gorm:"primaryKey;autoIncrement" json:"id"`
 	Total       int     `json:"total"`
 	Hit         int     `json:"hit"`

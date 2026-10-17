@@ -4,6 +4,8 @@ import "time"
 
 // ConfidenceSignal 5 维置信度信号快照（对应 confidence_signals 表）
 type ConfidenceSignal struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID                   int64     `gorm:"primaryKey;autoIncrement" json:"id"`
 	SignalID             string    `gorm:"column:signal_id;uniqueIndex;size:64;not null" json:"signal_id"`
 	SessionID            string    `gorm:"column:session_id;size:128;not null;index:idx_signals_session,priority:1" json:"session_id"`
@@ -29,6 +31,8 @@ func (ConfidenceSignal) TableName() string { return "confidence_signals" }
 
 // ConfidenceCalibration 温度缩放校准参数历史
 type ConfidenceCalibration struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID            int64     `gorm:"primaryKey;autoIncrement" json:"id"`
 	CalibrationID string    `gorm:"column:calibration_id;uniqueIndex;size:64;not null" json:"calibration_id"`
 	SignalType    string    `gorm:"column:signal_type;size:32;not null;index:idx_calibrations_active,priority:1" json:"signal_type"`
@@ -54,6 +58,8 @@ func (ConfidenceCalibration) TableName() string { return "confidence_calibration
 //
 // 注意：命名为 HandoffDecisionRecord 而非 HandoffDecision 以避免与 service 层的 HandoffDecision 服务类型重名
 type HandoffDecisionRecord struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID                int64      `gorm:"primaryKey;autoIncrement" json:"id"`
 	DecisionID        string     `gorm:"column:decision_id;uniqueIndex;size:64;not null" json:"decision_id"`
 	SessionID         string     `gorm:"column:session_id;size:128;not null;index:idx_handoff_session,priority:1" json:"session_id"`
@@ -81,6 +87,8 @@ func (HandoffDecisionRecord) TableName() string { return "handoff_decisions" }
 
 // ThresholdPolicy 动态阈值策略配置
 type ThresholdPolicy struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID                      int64     `gorm:"primaryKey;autoIncrement" json:"id"`
 	PolicyID                string    `gorm:"column:policy_id;uniqueIndex;size:64;not null" json:"policy_id"`
 	IntentType              string    `gorm:"column:intent_type;size:64;not null;index:idx_policies_intent,priority:1" json:"intent_type"`
@@ -103,6 +111,8 @@ func (ThresholdPolicy) TableName() string { return "threshold_policies" }
 
 // ABTest A/B 测试配置与统计
 type ABTest struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID               int64      `gorm:"primaryKey;autoIncrement" json:"id"`
 	TestID           string     `gorm:"column:test_id;uniqueIndex;size:64;not null" json:"test_id"`
 	TestName         string     `gorm:"column:test_name;size:128;not null" json:"test_name"`
@@ -131,6 +141,8 @@ func (ABTest) TableName() string { return "ab_tests" }
 //
 // 独立时序表，避免 ABTest.ControlStats/TreatmentStats JSONB 字段膨胀
 type ABTestMetric struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID         int64     `gorm:"primaryKey;autoIncrement" json:"id"`
 	TestID     string    `gorm:"column:test_id;size:64;not null;index:idx_abm_test,priority:1" json:"test_id"`
 	Group      string    `gorm:"column:group_name;size:16;not null;index:idx_abm_test,priority:2" json:"group_name"`

@@ -7,6 +7,8 @@ import (
 // GeoJobRun GEO 定时任务运行历史（每次执行一条，append-only）
 // 支撑管理端任务状态/历史展示与失败排查。
 type GeoJobRun struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID         uint       `gorm:"primaryKey" json:"id"`
 	JobName    string     `gorm:"column:job_name;size:64;index" json:"job_name"`
 	Trigger    string     `gorm:"column:trigger;size:16" json:"trigger"`

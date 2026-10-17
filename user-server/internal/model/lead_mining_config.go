@@ -7,6 +7,8 @@ import (
 
 // LeadMiningConfig 线索发掘全局配置（单例，ID 固定为 1）
 type LeadMiningConfig struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID             int64       `gorm:"column:id;primaryKey;autoIncrement:false" json:"id"`
 	Enabled        bool        `gorm:"column:enabled;default:false" json:"enabled"`
 	Keywords       JSONStrings `gorm:"column:keywords;type:text" json:"keywords"`

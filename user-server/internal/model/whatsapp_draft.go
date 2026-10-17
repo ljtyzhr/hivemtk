@@ -8,6 +8,8 @@ import (
 )
 
 type WhatsappDraft struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        uuid.UUID `gorm:"type:char(36);primary_key" json:"id"`
 	Title     string    `gorm:"type:varchar(150);not null" json:"title"`
 	Content   string    `gorm:"type:text;not null" json:"content"`

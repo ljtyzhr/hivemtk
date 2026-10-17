@@ -18,6 +18,7 @@ import (
 // 每项独立计算 1-5 分（5 最佳），加权后聚合为综合 RFM 分（0-100）。
 // 综合分层：champion(8+)/loyal(6-7)/potential(5)/at_risk(3-4)/churn(<=2)
 type CustomerRFM struct {
+	TenantID   uint   `gorm:"not null;default:1;index" json:"tenant_id"`
 	ID         uint64 `gorm:"primaryKey;autoIncrement" json:"id"`
 	CustomerID string `gorm:"type:varchar(64);not null;uniqueIndex" json:"customer_id"`
 	UnifiedID  string `gorm:"type:varchar(128);default:'';index" json:"unified_id"`
@@ -67,6 +68,8 @@ var RFMSegmentDescriptions = map[string]string{
 // RecoveryQueue 流失挽回队列
 // 触达任务，由 1 个或多个渠道触达 + 多个 step 组成
 type RecoveryQueue struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID         uint64 `gorm:"primaryKey;autoIncrement" json:"id"`
 	CustomerID string `gorm:"type:varchar(64);not null;index" json:"customer_id"`
 	UnifiedID  string `gorm:"type:varchar(128);default:'';index" json:"unified_id"`

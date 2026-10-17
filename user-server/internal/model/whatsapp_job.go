@@ -17,6 +17,8 @@ const (
 )
 
 type WhatsappJob struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        uuid.UUID         `gorm:"type:char(36);primary_key" json:"id"`
 	DraftID   uuid.UUID         `gorm:"type:char(36);index" json:"draft_id"`
 	Status    WhatsappJobStatus `gorm:"type:varchar(20);default:'pending'" json:"status"`
@@ -47,6 +49,8 @@ const (
 )
 
 type WhatsappJobDetail struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        uuid.UUID               `gorm:"type:char(36);primary_key" json:"id"`
 	JobID     uuid.UUID               `gorm:"type:char(36);index" json:"job_id"`
 	AccountID uuid.UUID               `gorm:"type:char(36);index" json:"account_id"`

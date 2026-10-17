@@ -29,6 +29,8 @@ var AllSalesChampionDimensions = []SalesChampionDimension{
 // SalesChampionProfileSnapshot 销冠画像快照
 // 每次从对话记录提取能力维度后，生成一份快照持久化
 type SalesChampionProfileSnapshot struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID            uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	StaffID       uint      `gorm:"index" json:"staff_id"`
 	StaffName     string    `gorm:"type:varchar(100)" json:"staff_name"`
@@ -50,6 +52,8 @@ func (SalesChampionProfileSnapshot) TableName() string { return "sales_champion_
 // SOPNodeTransition SOP 节点流转记录
 // 记录每个 SOP 执行中节点之间的流转情况，用于计算节点级转化率
 type SOPNodeTransition struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID              uint           `gorm:"primaryKey;autoIncrement" json:"id"`
 	SOPID           uint           `gorm:"index;not null" json:"sop_id"`
 	ExecutionID     uint           `gorm:"index;not null" json:"execution_id"`
@@ -79,6 +83,8 @@ const (
 // OptimizationSuggestion 优化建议
 // 对低转化节点自动生成的优化建议，供运营/产品审核
 type OptimizationSuggestion struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID             uint           `gorm:"primaryKey;autoIncrement" json:"id"`
 	SOPID          uint           `gorm:"index;not null" json:"sop_id"`
 	SOPName        string         `gorm:"type:varchar(100)" json:"sop_name"`

@@ -34,6 +34,8 @@ import "time"
 //
 // 写入策略：best-effort，任何失败仅告警不阻断主业务。
 type MessageTrace struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID             uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	TraceID        string    `gorm:"type:varchar(64);index:idx_mt_trace" json:"trace_id"`
 	ConversationID string    `gorm:"type:varchar(100);index:idx_mt_conv" json:"conversation_id"`

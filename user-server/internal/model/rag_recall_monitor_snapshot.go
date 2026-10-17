@@ -11,6 +11,8 @@ import "time"
 // 登记后又因本模型列与 DDL 不一致，导致 /api/rag/recall/collect 写入缺列。
 // 现严格对齐 EnsureSchema 的 15 个列。
 type RagRecallMonitorSnapshot struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID             uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	WindowStart    time.Time `gorm:"column:window_start;type:timestamptz" json:"window_start"`
 	WindowEnd      time.Time `gorm:"column:window_end;type:timestamptz" json:"window_end"`

@@ -6,6 +6,8 @@ import (
 
 // LiveCodeQRStat 活码二维码统计模型
 type LiveCodeQRStat struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID         int       `json:"id" gorm:"primaryKey;autoIncrement"`
 	QRCodeID   string    `json:"qr_code_id" gorm:"size:36;not null"`
 	Date       time.Time `json:"date" gorm:"index"`

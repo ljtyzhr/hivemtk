@@ -7,6 +7,8 @@ import "time"
 // 这是客服系统对"订单"唯一允许写入的形态。订单本身的创建/支付/履约由外部电商负责，
 // 客服只在此记录"退款/退货/换货"请求并跟踪其状态（状态由电商通过 Webhook 回写）。
 type AfterSale struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID            uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	Platform      string    `gorm:"type:varchar(50);index" json:"platform"`
 	OrderID       string    `gorm:"type:varchar(100);index" json:"order_id"`

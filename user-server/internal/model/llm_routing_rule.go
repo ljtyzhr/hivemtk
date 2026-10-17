@@ -15,6 +15,8 @@ import "time"
 // 路由以 JSON 整存(route_json)，天然兼容 ScenarioRoute 的嵌套字段(CanaryRoute)与后续扩展，
 // scenario 为全局唯一键，与 dispatcher.DispatchScenario 一一对应。
 type LLMRoutingRule struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        uint      `gorm:"primaryKey" json:"id"`
 	Scenario  string    `gorm:"column:scenario;uniqueIndex;size:64" json:"scenario"`
 	RouteJSON string    `gorm:"column:route_json;type:text" json:"route_json"`

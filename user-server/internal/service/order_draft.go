@@ -33,6 +33,8 @@ const (
 
 // OrderDraft 订单草稿
 type OrderDraft struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID           string         `json:"id"`
 	CustomerID   string         `json:"customer_id"`
 	OneID        string         `json:"one_id,omitempty"`

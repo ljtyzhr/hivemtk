@@ -28,6 +28,8 @@ const (
 
 // CustomerSession 客服会话
 type CustomerSession struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID          uint          `gorm:"primaryKey;autoIncrement" json:"id"`
 	SessionID   string        `gorm:"type:varchar(120);uniqueIndex;not null" json:"session_id"`
 	Platform    Platform      `gorm:"type:varchar(20)" json:"platform"`

@@ -125,7 +125,7 @@ func TestOpportunityCarriesOnlyWinProbability(t *testing.T) {
 func TestOpportunitySchemaShape(t *testing.T) {
 	st := reflect.TypeOf(Opportunity{})
 	wantFields := []string{
-		"ID", "Code", "CustomerID", "OneID", "ClueID",
+		"ID", "TenantID", "Code", "CustomerID", "OneID", "ClueID",
 		"Stage", "Status", "Amount", "Currency", "WinProbability",
 		"OwnerUserID", "ExpectedCloseAt", "LostReason",
 		"Version", "CreatedAt", "UpdatedAt",
@@ -201,15 +201,23 @@ func TestOpportunityAmountAndProbabilityAreNumeric(t *testing.T) {
 // TestOpportunityHasNoTenantColumn AC②：X3 禁区（单商户模式，ADR-014 已 Simplified）。
 //
 // 标签层的判据；真库层那一份在 internal/pkg/db（按 information_schema 再判一次，
-// 防"结构体没有但库里残留"）。
-func TestOpportunityHasNoTenantColumn(t *testing.T) {
+// 防"结构体没有但库里残留"）。租户不变量已按 specs/001-saas-multi-tenant 翻转：
+// 规范 TenantID 必须在，私自租户变体仍禁。
+func TestOpportunityTenancyShape(t *testing.T) {
 	st := reflect.TypeOf(Opportunity{})
-	tenantish := []string{"tenant", "org_id", "corp", "workspace", "account_id", "namespace", "scope"}
+	if _, ok := st.FieldByName("TenantID"); !ok {
+		t.Fatal("行级隔离要求 opportunities 携带规范 TenantID 列（specs/001-saas-multi-tenant）")
+	}
+	tenantish := []string{"org_id", "corp", "workspace", "namespace"}
 	for i := 0; i < st.NumField(); i++ {
-		col := columnName(st.Field(i))
+		f := st.Field(i)
+		if f.Name == "TenantID" {
+			continue
+		}
+		col := columnName(f)
 		for _, banned := range tenantish {
 			if strings.Contains(col, banned) {
-				t.Errorf("列 %q 含租户味道的 %q：X3 禁区，隔离靠物理分库不是列过滤", col, banned)
+				t.Errorf("列 %q 含租户味道的 %q：租户语义只允许规范 tenant_id", col, banned)
 			}
 		}
 	}

@@ -62,6 +62,7 @@ import (
 // 或 shadow 时**恒**用 "v1"（shadow 只把"本会落到哪"写日志），只有 on 才允许换命名空间
 // ⇒ 本卡上线当天对线上缓存零影响，运维抬旗才生效。
 type KnowledgeBase struct {
+	TenantID     uint           `gorm:"not null;default:1;index" json:"tenant_id"`
 	ID           uint           `gorm:"primaryKey;autoIncrement" json:"id"`
 	KBCode       string         `gorm:"type:varchar(64);uniqueIndex;not null" json:"kb_code"`
 	Type         string         `gorm:"type:varchar(16);not null;index" json:"type"`

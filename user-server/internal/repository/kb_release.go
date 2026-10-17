@@ -124,7 +124,7 @@ INSERT INTO kb_releases (product_id, governed, effective_version, previous_versi
                          recalled_version, draft_version, allocated_version, changed_by,
                          created_at, updated_at)
 VALUES (?, false, 0, 0, 0, 0, 0, ?, now(), now())
-ON CONFLICT (product_id) DO NOTHING
+ON CONFLICT (tenant_id, product_id) DO NOTHING
 `
 
 // releaseColumns 读一行的列名单（写死而不是 SELECT *：加列时本层要显式跟上，

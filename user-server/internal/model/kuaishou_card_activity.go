@@ -4,6 +4,8 @@ import "time"
 
 // KuaishouCardActivity 快手卡片活动记录模型
 type KuaishouCardActivity struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID           uint      `json:"id" gorm:"primaryKey"`
 	CardID       uint      `json:"card_id" gorm:"not null;index"`
 	UserID       uint      `json:"user_id" gorm:"index"`

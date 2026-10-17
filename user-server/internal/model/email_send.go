@@ -28,6 +28,8 @@ const (
 
 // EmailSend 已发送邮件模型
 type EmailSend struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID          string         `gorm:"type:varchar(36);primaryKey" json:"id"`
 	To          string         `gorm:"size:255;not null" json:"to"`
 	Subject     string         `gorm:"size:255;not null" json:"subject"`

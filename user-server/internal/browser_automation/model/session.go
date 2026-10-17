@@ -13,6 +13,8 @@ import (
 // 零生产/零消费（title 从未写入、llm_plan 被 browser_llm_plans 表取代、hand 延迟恒 0、
 // console 不采集）——模型字段已删；DB 列按 D6 决策保留待统一清理，不动线上 DDL。
 type BrowserSession struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID          uint       `gorm:"primaryKey" json:"id"`
 	TaskID      uint       `gorm:"column:task_id;index;not null" json:"task_id"`
 	UserID      uint       `gorm:"column:user_id;index;not null" json:"user_id"`

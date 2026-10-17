@@ -6,6 +6,8 @@ import (
 
 // WeComAccount 企业微信账号
 type WeComAccount struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID             uint       `gorm:"primaryKey;autoIncrement" json:"id"`
 	CorpID         string     `gorm:"type:varchar(100);not null" json:"corp_id"`
 	CorpSecret     string     `gorm:"type:varchar(200);not null" json:"corp_secret"`
@@ -46,6 +48,8 @@ func (WeComAccount) TableName() string {
 
 // WeComCustomer 企业微信客户
 type WeComCustomer struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID             uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	AccountID      uint      `gorm:"index" json:"account_id"`
 	ExternalUserID string    `gorm:"type:varchar(100);index;not null" json:"external_user_id"`
@@ -73,6 +77,8 @@ func (WeComCustomer) TableName() string {
 
 // WeComGroup 企业微信客户群
 type WeComGroup struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID          uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	AccountID   uint      `gorm:"index" json:"account_id"`
 	ChatID      string    `gorm:"type:varchar(100);unique;not null" json:"chat_id"`
@@ -94,6 +100,8 @@ func (WeComGroup) TableName() string {
 
 // WeComGroupMember 企业微信客户群成员
 type WeComGroupMember struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	GroupID   uint      `gorm:"index;not null" json:"group_id"`
 	ChatID    string    `gorm:"type:varchar(100);index" json:"chat_id"`
@@ -112,6 +120,8 @@ func (WeComGroupMember) TableName() string {
 
 // WeComMessage 企业微信消息记录
 type WeComMessage struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        uint       `gorm:"primaryKey;autoIncrement" json:"id"`
 	AccountID uint       `gorm:"index" json:"account_id"`
 	MsgID     string     `gorm:"type:varchar(100);unique" json:"msg_id"`
@@ -134,6 +144,8 @@ func (WeComMessage) TableName() string {
 
 // WeComTag 企业微信标签
 type WeComTag struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID            uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	AccountID     uint      `gorm:"index" json:"account_id"`
 	TagID         string    `gorm:"type:varchar(100);not null" json:"tag_id"`

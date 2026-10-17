@@ -12,6 +12,8 @@ import "time"
 //   - knowledge_chunks.weight 是「运行时权重」（被本模块按打分动态调整），
 //     作为检索排名的第二依据（见 RagSearcher.rankRAGChunks）。
 type TraceEvalLog struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID             uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	TraceID        string    `gorm:"type:varchar(64);uniqueIndex:idx_tel_trace" json:"trace_id"`
 	ConversationID string    `gorm:"type:varchar(100);index" json:"conversation_id"`

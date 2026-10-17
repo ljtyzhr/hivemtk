@@ -4,6 +4,8 @@ import "time"
 
 // QuickReply 快捷回复
 type QuickReply struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	Category  string    `gorm:"type:varchar(50);index" json:"category"`
 	Title     string    `gorm:"type:varchar(100);not null" json:"title"`

@@ -6,6 +6,8 @@ import (
 
 // DouyinCard 抖音卡片模型
 type DouyinCard struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID           uint      `json:"id" gorm:"primaryKey"`
 	Title        string    `json:"title" gorm:"size:255;not null"`
 	Description  string    `json:"description" gorm:"size:500"`

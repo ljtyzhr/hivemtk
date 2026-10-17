@@ -11,6 +11,8 @@ import (
 
 // PasswordResetToken 密码重置令牌
 type PasswordResetToken struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID     string `gorm:"type:varchar(36);primaryKey" json:"id"`
 	UserID string `gorm:"type:varchar(36);index;not null" json:"user_id"`
 	// BeforeCreate 生成 uuid+uuid 共 72 字符；原 varchar(64) 装不下，

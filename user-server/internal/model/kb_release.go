@@ -27,6 +27,8 @@ import "time"
 // content 列里，一行都不进 knowledge_chunks —— 这就是 AC①（未审批变更不进线上检索）的
 // 全部实现，不依赖任何读路径的过滤。
 type KBChangeRequest struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	// ID 业务主键（service 生成，形如 kbc_<unixnano>_<seq>，同 approval_requests 的取向）。
 	// 审批侧用它当 subject_id，所以它必须出现在列表/审计/日志里，也因此不需要额外的
 	// 恢复凭证（approval_requests.ResumeToken 那种 json:"-" 的列在本表没有对应需求）。
@@ -140,6 +142,8 @@ func KBChangeTransitionAllowed(from, to string) bool {
 //   - effective_version 是在服快照号（0 = 还没发布过任何一版）：**读路径唯一读的字段**；
 //   - previous_version 只答"回滚回到哪一格"，因此回滚天然只有一步（见 RecalledVersion）。
 type KBRelease struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID uint64 `gorm:"primaryKey;autoIncrement" json:"id"`
 
 	// ProductID 一库一行。唯一索引是 EnsureDraftStamp 那条 ON CONFLICT 的依赖，
@@ -182,6 +186,8 @@ func (KBRelease) TableName() string { return "kb_releases" }
 // 每次改写覆盖），而审计行是只增的事件流。裁决者、发布时间、回滚是谁按的，都只在
 // 这里查得到 —— 也就是说"删掉这张表"等于把 AC③ 一起删掉。
 type KBChangeAuditLog struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID uint64 `gorm:"primaryKey;autoIncrement" json:"id"`
 
 	// SubjectKey 被改对象：`change:<id>` 或 `release:<product_id>`。

@@ -12,6 +12,8 @@ import (
 // 主表 Customer 记录最常用的身份字段（首渠道），其余渠道身份存此表。
 // 自动同步：所有渠道 webhook 入站时自动 Upsert（按 OneID + channel）。
 type CustomerChannel struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID uint `gorm:"primaryKey" json:"id"`
 	// OneID 宽度必须与 customers.unified_id 对齐（varchar(128)）。
 	// 手机号型 OneID = "phone:" + sha256 hex(64) = 70 字符，

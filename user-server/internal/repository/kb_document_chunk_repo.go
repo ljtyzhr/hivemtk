@@ -14,6 +14,8 @@ import (
 
 // KBDocumentChunkRow kb_document_chunks 行
 type KBDocumentChunkRow struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID            uint64    `gorm:"primaryKey;autoIncrement" json:"id"`
 	DocumentID    uint      `gorm:"index;not null" json:"document_id"`
 	ChunkIndex    int       `gorm:"not null;default:0" json:"chunk_index"`

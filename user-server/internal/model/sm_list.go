@@ -8,6 +8,8 @@ import (
 )
 
 type Smlist struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        string    `gorm:"type:varchar(36);primary_key" json:"id"`
 	QQ        string    `gorm:"qq" json:"qq"`
 	Tg        string    `gorm:"tg" json:"tg"`

@@ -6,6 +6,8 @@ import (
 
 // TikTokCard TikTok 卡片模型
 type TikTokCard struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID           uint      `json:"id" gorm:"primaryKey"`
 	Title        string    `json:"title" gorm:"size:255;not null"`
 	Description  string    `json:"description" gorm:"size:500"`
@@ -29,6 +31,8 @@ func (TikTokCard) TableName() string {
 
 // TikTokCardActivity TikTok 卡片活动记录
 type TikTokCardActivity struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID           uint      `json:"id" gorm:"primaryKey"`
 	CardID       uint      `json:"card_id" gorm:"index;not null"`
 	ActivityType string    `json:"activity_type" gorm:"size:20;index"`

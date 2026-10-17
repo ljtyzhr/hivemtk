@@ -29,6 +29,8 @@ const (
 
 // CustomerTag 客户标签模型
 type CustomerTag struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        string      `gorm:"type:varchar(36);primaryKey" json:"id"`
 	Name      string      `gorm:"type:varchar(50);index;not null" json:"name"`
 	Category  TagCategory `gorm:"type:varchar(32);index" json:"category"`

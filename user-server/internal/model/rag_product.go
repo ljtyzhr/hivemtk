@@ -22,6 +22,7 @@ type LLMProviderConfig struct {
 // 列前缀 emb_（由 embeddedPrefix 自动添加），per 知识库覆盖全局 config.yaml inference.embedding
 // 注意：字段的 column 标签须为裸名（api_key 而非 emb_api_key），否则会与 embeddedPrefix 叠加成 emb_emb_api_key
 type EmbeddingProviderConfig struct {
+	TenantID  uint   `gorm:"not null;default:1;index" json:"tenant_id"`
 	APIKey    string `json:"api_key" gorm:"column:api_key"`
 	BaseURL   string `json:"base_url" gorm:"column:base_url"`
 	APIType   string `json:"api_type" gorm:"column:api_type"`
@@ -44,6 +45,8 @@ type RerankProviderConfig struct {
 // RagProduct RAG 产品配置 - RAG V2.0 权威基线
 // 一个产品 = 一个 pgvector 集合 + 完整 LLM/Embedding 参数
 type RagProduct struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID                      string                  `json:"id" gorm:"primaryKey;size:64"`
 	Name                    string                  `json:"name" gorm:"size:255;not null"`
 	Description             string                  `json:"description"`

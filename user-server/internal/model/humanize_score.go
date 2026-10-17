@@ -13,6 +13,8 @@ type HumanizeSampleStrategy string
 // 每次评估（无论 Rule 还是 LLM）写一条记录；
 // 重生成循环中每次评估也写一条记录，用 attempt_count 区分。
 type HumanizeScore struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID                 uint64                 `gorm:"primaryKey;autoIncrement" json:"id"`
 	ScoreID            string                 `gorm:"column:score_id;uniqueIndex;size:64;not null" json:"score_id"`
 	SessionID          string                 `gorm:"column:session_id;size:128;not null;index:idx_humanize_session,priority:1" json:"session_id"`
@@ -50,6 +52,8 @@ func (HumanizeScore) TableName() string { return "humanize_scores" }
 //
 // 与 HumanizeScore 一对多（一次评估 5 条维度记录）
 type HumanizeDimensionRecord struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        uint64    `gorm:"primaryKey;autoIncrement" json:"id"`
 	ScoreID   string    `gorm:"column:score_id;size:64;not null;index:idx_hd_score,priority:1" json:"score_id"`
 	Dimension string    `gorm:"column:dimension;size:32;not null;index:idx_hd_score,priority:2" json:"dimension"`
@@ -66,6 +70,8 @@ func (HumanizeDimensionRecord) TableName() string { return "humanize_dimensions"
 //
 // persona+industry+intent 三元组唯一确定一条启用基线（version 递增）
 type ChampionBaseline struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID              uint64    `gorm:"primaryKey;autoIncrement" json:"id"`
 	Persona         string    `gorm:"column:persona;size:128;not null;index:idx_champion_pii,priority:1" json:"persona"`
 	Industry        string    `gorm:"column:industry;size:64;not null;index:idx_champion_pii,priority:2" json:"industry"`
@@ -91,6 +97,8 @@ func (ChampionBaseline) TableName() string { return "champion_baselines" }
 //
 // TF-IDF 提取的销冠高频短语，用于加权欧氏距离补充信号
 type ChampionPhrase struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID         uint64    `gorm:"primaryKey;autoIncrement" json:"id"`
 	BaselineID uint64    `gorm:"column:baseline_id;not null;index:idx_cp_baseline,priority:1" json:"baseline_id"`
 	Phrase     string    `gorm:"column:phrase;size:64;not null" json:"phrase"`
@@ -111,6 +119,8 @@ func (ChampionPhrase) TableName() string { return "champion_phrases" }
 //   - ABTest 表：A/B 实验配置（流量分配、目标、状态）
 //   - ABTestStat 表：实验统计结果汇总（每组一条记录，含 U/p/d/CI/winner）
 type ABTestStat struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID              uint64    `gorm:"primaryKey;autoIncrement" json:"id"`
 	ExperimentID    string    `gorm:"column:experiment_id;size:64;not null;index:idx_abstat_exp,priority:1" json:"experiment_id"`
 	GroupName       string    `gorm:"column:group_name;size:16;not null;index:idx_abstat_exp,priority:2" json:"group_name"`

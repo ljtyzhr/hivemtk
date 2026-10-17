@@ -11,6 +11,8 @@ import "time"
 //
 // Name 为全局唯一标识，与 dispatcher.ProviderConfig.Name 一一对应。
 type LLMProvider struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID           uint      `gorm:"primaryKey" json:"id"`
 	Name         string    `gorm:"column:name;uniqueIndex;size:128" json:"name"`
 	DisplayName  string    `gorm:"column:display_name;size:255" json:"display_name"`

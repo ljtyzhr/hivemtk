@@ -9,6 +9,8 @@ import (
 
 // BrowserStep 任务内的执行步骤（每次执行产生一条 step 记录，用于回放 + 调试）
 type BrowserStep struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID         uint           `gorm:"primaryKey" json:"id"`
 	SessionID  uint           `gorm:"column:session_id;index;not null" json:"session_id"`
 	TaskID     uint           `gorm:"column:task_id;index;not null" json:"task_id"`

@@ -186,7 +186,7 @@ func (r *DelayedOutboundRepository) CreateMessageHubIdempotent(ctx context.Conte
 		return msg, nil
 	}
 	conflict := clause.OnConflict{
-		Columns:   []clause.Column{{Name: "platform"}, {Name: "msg_id"}, {Name: "conversation_id"}},
+		Columns:   []clause.Column{{Name: "tenant_id"}, {Name: "platform"}, {Name: "msg_id"}, {Name: "conversation_id"}},
 		DoNothing: true,
 	}
 	if err := r.db.WithContext(ctx).Clauses(conflict).Create(msg).Error; err != nil {

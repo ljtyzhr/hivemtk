@@ -30,6 +30,8 @@ import (
 // 但把金额、状态、客户名抄进来，就会有两份会各自漂移的副本（T-P3-02 在 TTL 上
 // 已经为这个形状付过一次代价：两处各写一份到期时刻，先骗到的是流程）。
 type HumanTask struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	// ID 业务主键（service 生成，形如 ht_<unixnano>_<seq>），列表/审计/日志里指代一条待办。
 	// 与 approval_requests.id 同一取向：不自增，免得跨库搬迁与导出时对不上号。
 	ID string `gorm:"type:text;primaryKey" json:"id"`

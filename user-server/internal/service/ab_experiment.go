@@ -54,6 +54,8 @@ type AbVariantSummary struct {
 
 // ABExperiment A/B 实验框架（曝光落库 + 转化回填 + 汇总）
 type ABExperiment struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	exposureRepo *repository.ABExposureRepository
 	ch           chan AbExposure
 	done         chan struct{}

@@ -11,6 +11,8 @@ import (
 // TimeZone（G20/v3.40.0）：IANA 时区名，注册时前缀 CRON_TZ=（robfig v3 原生支持），
 // 空=沿用服务器本地时区（存量行为不变）。
 type BrowserCronTrigger struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        uint       `gorm:"primaryKey" json:"id"`
 	TaskID    uint       `gorm:"column:task_id;uniqueIndex;not null" json:"task_id"`
 	CronExpr  string     `gorm:"column:cron_expr;size:128;not null" json:"cron_expr"`           // "*/5 * * * *"

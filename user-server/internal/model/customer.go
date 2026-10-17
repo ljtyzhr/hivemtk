@@ -30,6 +30,8 @@ const (
 // UnifiedID 生成时按优先级选取一个非空字段作为唯一键。
 // 任何渠道的入站消息都能通过 OneID 反查到客户。
 type Customer struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        string `gorm:"type:varchar(36);primaryKey" json:"id"`
 	UnifiedID string `gorm:"type:varchar(128);uniqueIndex" json:"unified_id"`
 	Name      string `gorm:"type:varchar(100);index" json:"name"`

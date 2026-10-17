@@ -110,7 +110,7 @@ INSERT INTO customer_sessions
   (session_id, platform, account_id, user_id, one_id, user_name, status, handler_type,
    last_message, last_message_at, last_message_by, message_count, ai_reply_count, human_reply_count, avg_response_time, rating, dnc_blocked, created_at, updated_at)
 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-ON CONFLICT (session_id) DO NOTHING
+ON CONFLICT (tenant_id, session_id) DO NOTHING
 `
 	err := r.db.WithContext(ctx).Exec(insertSQL,
 		stableID, platform, accountID, userID, oneID, userName,

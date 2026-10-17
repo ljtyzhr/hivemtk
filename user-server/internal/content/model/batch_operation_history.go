@@ -4,6 +4,8 @@ import "time"
 
 // BatchOperationHistory 批量操作历史记录
 type BatchOperationHistory struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID            uint       `gorm:"primaryKey;autoIncrement" json:"id"`
 	OperationType string     `gorm:"type:varchar(50);not null" json:"operation_type"`
 	DataType      string     `gorm:"type:varchar(50)" json:"data_type"`

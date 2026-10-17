@@ -4,6 +4,8 @@ import "time"
 
 // SessionTag 会话标签
 type SessionTag struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID            uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	Name          string    `gorm:"type:varchar(50);not null" json:"name"`
 	Code          string    `gorm:"type:varchar(50);uniqueIndex" json:"code"`

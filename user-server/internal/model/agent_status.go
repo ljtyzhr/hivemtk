@@ -8,6 +8,8 @@ import (
 
 // AgentStatus 客服状态
 type AgentStatus struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID              uint           `gorm:"primaryKey;autoIncrement" json:"id"`
 	AgentID         uint           `gorm:"uniqueIndex;not null" json:"agent_id"`
 	AgentName       string         `gorm:"type:varchar(100)" json:"agent_name"`

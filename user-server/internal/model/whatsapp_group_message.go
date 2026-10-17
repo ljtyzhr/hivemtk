@@ -9,6 +9,8 @@ import (
 
 // WhatsappGroupMessage WhatsApp 群发消息记录
 type WhatsappGroupMessage struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID         string    `gorm:"type:varchar(36);primaryKey" json:"id"`
 	QueueID    string    `gorm:"type:varchar(64);index" json:"queue_id"`
 	MessageID  string    `gorm:"type:varchar(64);index" json:"message_id"`

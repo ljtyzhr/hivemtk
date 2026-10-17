@@ -19,6 +19,7 @@ const (
 // 每个 (email + job_id) 在一次营销任务中产生多条事件：open / click / unsubscribe / bounce
 // event_id 由服务层生成（UUID），保证 webhook 重放幂等
 type EmailTrackingEvent struct {
+	TenantID  uint           `gorm:"not null;default:1;index" json:"tenant_id"`
 	ID        uint           `gorm:"primarykey" json:"id"`
 	EventID   string         `gorm:"type:varchar(36);uniqueIndex;not null" json:"eventId"`
 	Email     string         `gorm:"type:varchar(255);index;not null" json:"email"`
@@ -50,6 +51,7 @@ func (e *EmailTrackingEvent) BeforeCreate(tx *gorm.DB) error {
 // open_rate  = total_opened / total_sent  * 100（保留 2 位小数）
 // click_rate = total_clicked / total_sent * 100
 type EmailJobMetric struct {
+	TenantID          uint           `gorm:"not null;default:1;index" json:"tenant_id"`
 	ID                uint           `gorm:"primarykey" json:"id"`
 	JobID             string         `gorm:"type:varchar(36);uniqueIndex;not null" json:"jobId"`
 	TotalSent         int64          `gorm:"default:0" json:"totalSent"`

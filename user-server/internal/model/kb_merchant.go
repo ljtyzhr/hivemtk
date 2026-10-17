@@ -7,6 +7,8 @@ import (
 // KnowledgeAPIToken 商户自部署场景：外部系统通过 API Token 推送文档
 // 用于把 RAG 知识库开放给商户自有 CRM/ERP/Helpdesk
 type KnowledgeAPIToken struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID         uint64     `gorm:"primaryKey;autoIncrement" json:"id"`
 	Name       string     `gorm:"size:64;not null" json:"name"`
 	Token      string     `gorm:"size:128;uniqueIndex;not null" json:"-"`
@@ -29,6 +31,8 @@ func (KnowledgeAPIToken) TableName() string {
 
 // KnowledgeFeedback 用户对检索结果的相关性反馈（用于持续学习）
 type KnowledgeFeedback struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID         uint64    `gorm:"primaryKey;autoIncrement" json:"id"`
 	ProductID  string    `gorm:"size:64;index;not null;default:''" json:"product_id"`
 	Query      string    `gorm:"type:text;not null" json:"query"`
@@ -49,6 +53,8 @@ func (KnowledgeFeedback) TableName() string {
 
 // ExternalImportJob 外部系统导入任务（飞书/Notion/钉钉 异步批量）
 type ExternalImportJob struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID          uint64     `gorm:"primaryKey;autoIncrement" json:"id"`
 	JobNo       string     `gorm:"size:32;uniqueIndex" json:"job_no"`
 	ProductID   string     `gorm:"size:64;index;not null" json:"product_id"`

@@ -4,6 +4,8 @@ import "time"
 
 // CSATSurvey 客户满意度调查（对标 libredesk CSAT：会话关闭→触发→评分→回流统计）
 type CSATSurvey struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        uint   `gorm:"primaryKey;autoIncrement" json:"id"`
 	SessionID string `gorm:"type:varchar(120);uniqueIndex;not null" json:"session_id"`
 	// 与 customers.unified_id 对齐为 varchar(128)：手机号型 OneID 长 70 字符

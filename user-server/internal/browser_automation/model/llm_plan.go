@@ -12,6 +12,8 @@ import (
 // v3.40.0（G3/D3）：session_id + kind 列——plan/judge/summary 三类 LLM 消耗全落库，
 // session 级成本账可审计（BRAIN_PRODUCT_SPEC P1-1 收口）。
 type BrowserLLMPlan struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        uint           `gorm:"primaryKey" json:"id"`
 	TaskID    uint           `gorm:"column:task_id;index;not null" json:"task_id"`
 	SessionID uint           `gorm:"column:session_id;index;not null;default:0" json:"session_id"`

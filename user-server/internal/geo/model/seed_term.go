@@ -20,6 +20,8 @@ const (
 // （TechStackAttrs + BusinessLines + 品牌组合）自动播种；之后 DB 即唯一
 // 真实来源，可经 /geo/seed-terms 接口查看与维护。
 type GeoSeedTerm struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID           string `gorm:"type:varchar(36);primaryKey" json:"id"`
 	Term         string `gorm:"type:varchar(200);uniqueIndex;not null" json:"term"`
 	Category     string `gorm:"type:varchar(32);index" json:"category"`

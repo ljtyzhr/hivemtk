@@ -9,6 +9,8 @@ import (
 // GeoAlert GEO 告警记录（负面监控命中 / 异常检测结果）
 // 用于前端告警列表展示 + 通知渠道触发
 type GeoAlert struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        uint           `gorm:"primaryKey" json:"id"`
 	Type      string         `gorm:"column:type;size:64;index" json:"type"`
 	Level     string         `gorm:"column:level;size:16;index" json:"level"`

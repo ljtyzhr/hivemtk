@@ -26,6 +26,8 @@ import (
 //   - Priority:  优先级 (数字越大越优先, 同 intent+stage 多模板时用)
 //   - Confidence: 基准置信度 (0-1)
 type SOPTemplate struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID         uint           `gorm:"primaryKey;autoIncrement" json:"id"`
 	Name       string         `gorm:"type:varchar(100);not null" json:"name"`
 	Intent     string         `gorm:"type:varchar(64);not null;index" json:"intent"`

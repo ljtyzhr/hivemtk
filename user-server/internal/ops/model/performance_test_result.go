@@ -8,6 +8,8 @@ import (
 
 // PerformanceTestResult 性能压测结果
 type PerformanceTestResult struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID            uint             `gorm:"primaryKey;autoIncrement" json:"id"`
 	TestName      string           `gorm:"type:varchar(200);not null" json:"test_name"`
 	TargetURL     string           `gorm:"type:varchar(500);not null" json:"target_url"`

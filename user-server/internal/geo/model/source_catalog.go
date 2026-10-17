@@ -12,6 +12,8 @@ import (
 // （A/B/C/D）。爬虫任务定期刷新 last_checked 时间，LookupSourceLevel 供
 // CrawlerService 查询给定 URL 的信源等级。
 type GeoSourceCatalog struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID          uint           `gorm:"primaryKey" json:"id"`
 	SourceURL   string         `gorm:"column:source_url;size:512;uniqueIndex" json:"source_url"`
 	Domain      string         `gorm:"column:domain;size:256;index" json:"domain"`

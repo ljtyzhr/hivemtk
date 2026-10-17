@@ -13,6 +13,8 @@ import (
 //   - changed_at 由 service 层显式写入（避免 GORM autoUpdateTime 在更新时被覆盖）
 //   - source: change_password / reset_password / init_change / forgot_reset
 type PasswordHistory struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID           uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	UserID       uint      `gorm:"index;not null" json:"user_id"`
 	PasswordHash string    `gorm:"type:varchar(255);not null" json:"-"`

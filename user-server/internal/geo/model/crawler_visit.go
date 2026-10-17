@@ -8,6 +8,8 @@ import (
 
 // GeoCrawlerVisit AI 引擎爬虫访问记录（关键词维度：AI Bot 搜索某关键词时发现并访问页面）
 type GeoCrawlerVisit struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        uint           `gorm:"primaryKey;autoIncrement" json:"id"`
 	Keyword   string         `gorm:"type:varchar(200);index" json:"keyword"`
 	UserAgent string         `gorm:"type:varchar(255)" json:"user_agent"`

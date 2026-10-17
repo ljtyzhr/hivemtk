@@ -9,6 +9,8 @@ import (
 
 // GeoArticle GEO 生成文章模型
 type GeoArticle struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID          string  `gorm:"type:varchar(36);primaryKey" json:"id"`
 	Title       string  `gorm:"type:varchar(500)" json:"title"`
 	Content     string  `gorm:"type:text" json:"content"`
@@ -52,6 +54,8 @@ func (m *GeoArticle) BeforeCreate(tx *gorm.DB) error {
 
 // GeoOptimization GEO 内容优化记录模型
 type GeoOptimization struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID               string  `gorm:"type:varchar(36);primaryKey" json:"id"`
 	ArticleID        string  `gorm:"type:varchar(36);index" json:"article_id"`
 	OriginalContent  string  `gorm:"type:text" json:"original_content"`

@@ -29,6 +29,8 @@ import (
 //   - WallMs:   本次决策 wall time (ms)
 //   - LLMSkipped: 是否跳过 LLM (Layer1 命中 -> true)
 type LayerDecisionLog struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID         uint           `gorm:"primaryKey;autoIncrement" json:"id"`
 	TraceID    string         `gorm:"type:varchar(64);index" json:"trace_id"`
 	SessionID  string         `gorm:"type:varchar(120);index" json:"session_id"`

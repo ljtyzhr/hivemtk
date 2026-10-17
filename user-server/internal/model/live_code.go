@@ -9,6 +9,8 @@ import (
 
 // LiveCode 活码模型
 type LiveCode struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID              string    `json:"id" gorm:"type:varchar(36);primary_key"`
 	Name            string    `json:"name" gorm:"size:100;not null"`
 	ShortLink       string    `json:"short_link" gorm:"size:50;uniqueIndex"`

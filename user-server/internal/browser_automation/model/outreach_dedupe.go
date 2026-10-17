@@ -5,6 +5,7 @@ import "time"
 // BrowserOutreachDedupe 跨任务用户级触达去重行：同一平台同一目标同一动作同一文案只触达一次。
 // 与 write_claims 的任务内 (task_id,text_hash) 键互补（读侧跨任务防重打扰）。
 type BrowserOutreachDedupe struct {
+	TenantID  uint      `gorm:"not null;default:1;index" json:"tenant_id"`
 	ID        uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	Platform  string    `gorm:"column:platform;type:varchar(64);not null;uniqueIndex:uk_outreach_dedupe,priority:1" json:"platform"`
 	TargetURL string    `gorm:"column:target_url;type:text;not null;uniqueIndex:uk_outreach_dedupe,priority:2" json:"target_url"`

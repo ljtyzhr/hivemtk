@@ -61,7 +61,7 @@ func (r *geoSeedTermRepo) UpsertBatch(terms []*model.GeoSeedTerm) (int, error) {
 		deduped = append(deduped, t)
 	}
 	if err := r.db.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "term"}},
+		Columns:   []clause.Column{{Name: "tenant_id"}, {Name: "term"}},
 		DoUpdates: clause.AssignmentColumns([]string{"category", "business_line", "source", "active", "sort", "updated_at"}),
 	}).Create(&deduped).Error; err != nil {
 		return 0, err

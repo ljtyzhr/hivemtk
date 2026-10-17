@@ -1,0 +1,255 @@
+// Package tenancyidx 提供租户唯一索引规范化：把已租户化表上的单列/多列唯一索引
+// 原位重建为 (tenant_id, 原列...)，使业务唯一性升级为租户维度。
+//
+// 设计依据: specs/001-saas-multi-tenant（T008 框架层实现）
+//   - 唯一事实源：AutoMigrate 后与迁移执行后各调用一次 Normalize，幂等
+//   - 排除主键（*_pkey）与约束型 UNIQUE（可能被 ON CONFLICT 显式引用，留人工审计）
+//   - 原位重建（不改名）：基线索引名保持稳定，GORM AutoMigrate 仅按名判存在不会回退
+package tenancyidx
+
+import (
+	"fmt"
+	"regexp"
+	"strings"
+
+	"gorm.io/gorm"
+)
+
+// colRe 备用：列区提取由括号配平完成（见 splitIndexDef）
+var colRe = regexp.MustCompile(`\((.*)\)`)
+
+type uniqIndex struct {
+	table string
+	name  string
+	def   string
+}
+
+// Normalize 幂等重建全部目标唯一索引与约束型 UNIQUE。返回处理数量。
+//
+// 两类目标同等对待（唯一性语义一致）：
+//   - 非约束型唯一索引（GORM uniqueIndex 标签产物）
+//   - 约束型 UNIQUE（pg_constraint contype='u'，可能被 ON CONFLICT 显式引用，
+//     原位重建保约束名，推断不失配）
+func Normalize(db *gorm.DB) (int, error) {
+	if db == nil {
+		return 0, fmt.Errorf("db is nil")
+	}
+	indexes, err := targets(db)
+	if err != nil {
+		return 0, err
+	}
+	for _, idx := range indexes {
+		if err := rebuild(db, idx); err != nil {
+			return 0, fmt.Errorf("索引 %s（表 %s）复合化失败: %w", idx.name, idx.table, err)
+		}
+	}
+	constraints, err := constraintTargets(db)
+	if err != nil {
+		return 0, err
+	}
+	for _, c := range constraints {
+		if err := rebuildConstraint(db, c); err != nil {
+			return 0, fmt.Errorf("约束 %s（表 %s）复合化失败: %w", c.name, c.table, err)
+		}
+	}
+	return len(indexes) + len(constraints), nil
+}
+
+type uniqConstraint struct {
+	table string
+	name  string
+	def   string // pg_get_constraintdef 原文，形如 UNIQUE (a, b)
+}
+
+// constraintTargets 枚举约束型 UNIQUE 重建目标：
+// 已含 tenant_id 列的表上的 contype='u' 约束（def 未含 tenant_id）
+func constraintTargets(db *gorm.DB) ([]uniqConstraint, error) {
+	rows, err := db.Raw(`
+		SELECT t.relname, c.conname, pg_get_constraintdef(c.oid)
+		FROM pg_constraint c
+		JOIN pg_class t ON t.oid = c.conrelid
+		JOIN pg_namespace n ON n.oid = t.relnamespace
+		WHERE c.contype = 'u'
+		  AND n.nspname = current_schema()
+		  AND pg_get_constraintdef(c.oid) NOT LIKE '%tenant_id%'
+		  AND EXISTS (
+			SELECT 1 FROM information_schema.columns col
+			WHERE col.table_schema = n.nspname
+			  AND col.table_name = t.relname
+			  AND col.column_name = 'tenant_id'
+		  )
+		ORDER BY t.relname, c.conname
+	`).Rows()
+	if err != nil {
+		return nil, fmt.Errorf("枚举唯一约束失败: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var out []uniqConstraint
+	for rows.Next() {
+		var c uniqConstraint
+		if err := rows.Scan(&c.table, &c.name, &c.def); err != nil {
+			return nil, fmt.Errorf("扫描约束定义失败: %w", err)
+		}
+		out = append(out, c)
+	}
+	return out, rows.Err()
+}
+
+// rebuildConstraint 约束原位重建：同事务删旧建新（同名），失败整体回滚
+func rebuildConstraint(db *gorm.DB, c uniqConstraint) error {
+	cols, err := constraintCols(c.def)
+	if err != nil {
+		return err
+	}
+	return db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec(fmt.Sprintf(`ALTER TABLE %q DROP CONSTRAINT %q`, c.table, c.name)).Error; err != nil {
+			return fmt.Errorf("删除旧约束失败: %w", err)
+		}
+		ddl := fmt.Sprintf(`ALTER TABLE %q ADD CONSTRAINT %q UNIQUE (tenant_id, %s)`, c.table, c.name, cols)
+		if err := tx.Exec(ddl).Error; err != nil {
+			return fmt.Errorf("创建复合约束失败: %w", err)
+		}
+		return nil
+	})
+}
+
+// constraintCols 从 pg_get_constraintdef 原文提取列清单：
+// 形如 "UNIQUE (a, b)" / "UNIQUE (a, b) WHERE ..."——取第一个配平括号区。
+func constraintCols(def string) (string, error) {
+	start := strings.Index(def, "(")
+	if start < 0 {
+		return "", fmt.Errorf("约束定义缺列区: %s", def)
+	}
+	depth := 0
+	end := -1
+	for i := start; i < len(def); i++ {
+		switch def[i] {
+		case '(':
+			depth++
+		case ')':
+			depth--
+			if depth == 0 {
+				end = i
+			}
+		}
+		if end >= 0 {
+			break
+		}
+	}
+	if end < 0 {
+		return "", fmt.Errorf("约束定义括号不配平: %s", def)
+	}
+	cols := strings.TrimSpace(def[start+1 : end])
+	if cols == "" {
+		return "", fmt.Errorf("约束定义列区为空: %s", def)
+	}
+	return cols, nil
+}
+
+// targets 枚举重建目标：已含 tenant_id 列的表上的非约束型唯一索引（indexdef 未含 tenant_id）
+func targets(db *gorm.DB) ([]uniqIndex, error) {
+	rows, err := db.Raw(`
+		SELECT i.tablename, i.indexname, i.indexdef
+		FROM pg_indexes i
+		WHERE i.schemaname = current_schema()
+		  AND i.indexdef LIKE 'CREATE UNIQUE %'
+		  AND i.indexname NOT LIKE '%\_pkey'
+		  AND i.indexdef NOT LIKE '%tenant_id%'
+		  AND NOT EXISTS (
+			SELECT 1 FROM pg_constraint c
+			WHERE c.conname = i.indexname
+		  )
+		  AND EXISTS (
+			SELECT 1 FROM information_schema.columns col
+			WHERE col.table_schema = i.schemaname
+			  AND col.table_name = i.tablename
+			  AND col.column_name = 'tenant_id'
+		  )
+		ORDER BY i.tablename, i.indexname
+	`).Rows()
+	if err != nil {
+		return nil, fmt.Errorf("枚举唯一索引失败: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	var out []uniqIndex
+	for rows.Next() {
+		var idx uniqIndex
+		if err := rows.Scan(&idx.table, &idx.name, &idx.def); err != nil {
+			return nil, fmt.Errorf("扫描索引定义失败: %w", err)
+		}
+		out = append(out, idx)
+	}
+	return out, rows.Err()
+}
+
+// rebuild 单索引原位重建：同事务删旧建新（同名），失败整体回滚
+func rebuild(db *gorm.DB, idx uniqIndex) error {
+	newDef, err := compositeIndexDef(idx.def, idx.table, idx.name)
+	if err != nil {
+		return fmt.Errorf("解析索引定义失败: %w", err)
+	}
+	return db.Transaction(func(tx *gorm.DB) error {
+		if err := tx.Exec(fmt.Sprintf(`DROP INDEX IF EXISTS %q`, idx.name)).Error; err != nil {
+			return fmt.Errorf("删除旧索引失败: %w", err)
+		}
+		if err := tx.Exec(newDef).Error; err != nil {
+			return fmt.Errorf("创建复合索引失败: %w", err)
+		}
+		return nil
+	})
+}
+
+// compositeIndexDef 依据原 indexdef 构造同名复合定义。
+// 列区定位：USING 之后的第一个 "(" 起做括号配平（兼容列内表达式 lower(x) 等），
+// 平衡收口后的剩余部分若以 WHERE 开头则原样保留（部分索引语义）。
+func compositeIndexDef(def, table, name string) (string, error) {
+	upper := strings.ToUpper(def)
+
+	colStart := strings.Index(upper, "(")
+	if u := strings.Index(upper, " USING "); u >= 0 {
+		if p := strings.Index(upper[u:], "("); p >= 0 {
+			colStart = u + p
+		}
+	}
+	if colStart < 0 {
+		return "", fmt.Errorf("未找到列区起始括号: %s", def)
+	}
+
+	depth := 0
+	colEnd := -1
+	for i := colStart; i < len(def); i++ {
+		switch def[i] {
+		case '(':
+			depth++
+		case ')':
+			depth--
+			if depth == 0 {
+				colEnd = i
+			}
+		}
+		if colEnd >= 0 {
+			break
+		}
+	}
+	if colEnd < 0 {
+		return "", fmt.Errorf("列区括号不配平: %s", def)
+	}
+
+	cols := strings.TrimSpace(def[colStart+1 : colEnd])
+	if cols == "" {
+		return "", fmt.Errorf("列区为空: %s", def)
+	}
+
+	where := ""
+	if rest := strings.TrimSpace(def[colEnd+1:]); rest != "" {
+		if !strings.HasPrefix(strings.ToUpper(rest), "WHERE") {
+			return "", fmt.Errorf("列区后存在无法识别的子句 %q: %s", rest, def)
+		}
+		where = " " + rest
+	}
+
+	return fmt.Sprintf(`CREATE UNIQUE INDEX %q ON %q (tenant_id, %s)%s`,
+		name, table, cols, where), nil
+}

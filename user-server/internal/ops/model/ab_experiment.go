@@ -6,6 +6,8 @@ import (
 
 // ABExperiment A/B 实验
 type ABExperiment struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID           uint       `gorm:"primaryKey;autoIncrement" json:"id"`
 	Name         string     `gorm:"type:varchar(100);not null" json:"name"`
 	Description  string     `gorm:"type:varchar(500)" json:"description"`
@@ -27,6 +29,8 @@ func (ABExperiment) TableName() string {
 
 // ABVariant A/B 实验变体
 type ABVariant struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID              uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	ExperimentID    uint      `gorm:"index;not null" json:"experiment_id"`
 	Name            string    `gorm:"type:varchar(50);not null" json:"name"`
@@ -46,6 +50,8 @@ func (ABVariant) TableName() string {
 
 // ABConversionEvent 转化事件
 type ABConversionEvent struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID           uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	ExperimentID uint      `gorm:"index;not null" json:"experiment_id"`
 	EventName    string    `gorm:"type:varchar(100);not null" json:"event_name"`
@@ -64,6 +70,8 @@ func (ABConversionEvent) TableName() string {
 
 // ABExperimentResult 实验结果统计
 type ABExperimentResult struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID              uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	ExperimentID    uint      `gorm:"uniqueIndex;not null" json:"experiment_id"`
 	VariantID       uint      `gorm:"index;not null" json:"variant_id"`

@@ -8,6 +8,8 @@ import "time"
 // 配置回调地址接收用户发给应用的消息，从而成为可收消息的正式渠道。
 // 回调需经过：URL 验证（GET 验签）+ 消息接收（POST，AES 解密后入消息中台→AI）。
 type DingTalkAppAccount struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID             uint       `gorm:"primaryKey;autoIncrement" json:"id"`
 	AccountName    string     `gorm:"type:varchar(100);not null" json:"account_name"`
 	AppKey         string     `gorm:"type:varchar(200);not null" json:"app_key"`

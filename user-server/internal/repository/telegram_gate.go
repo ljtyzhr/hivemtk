@@ -94,7 +94,7 @@ func (r *TelegramGroupMemberRepository) SetDB(ctx context.Context, db *gorm.DB) 
 // 上一段的提示送达状态不该继承（否则再进群的人永远收不到验证提示）。
 func (r *TelegramGroupMemberRepository) Upsert(ctx context.Context, m *model.TelegramGroupMember) error {
 	return r.db.WithContext(ctx).Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "account_id"}, {Name: "chat_id"}, {Name: "user_id"}},
+		Columns:   []clause.Column{{Name: "tenant_id"}, {Name: "account_id"}, {Name: "chat_id"}, {Name: "user_id"}},
 		DoUpdates: clause.AssignmentColumns([]string{"username", "full_name", "join_status", "join_mode", "verify_token", "expires_at", "welcome_sent_at", "welcome_resends", "updated_at"}),
 	}).Create(m).Error
 }

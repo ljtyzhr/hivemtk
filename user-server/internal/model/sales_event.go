@@ -41,6 +41,8 @@ import "time"
 //	   在一整张只增不改的事件表上加写放大，而没有任何查询方的"预留索引"连有没有用
 //	   都无法验证（R-4 那条僵尸表是同一课）。
 type SalesEvent struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID          uint   `gorm:"primaryKey;autoIncrement" json:"id"`
 	EventType   string `gorm:"type:varchar(30);index" json:"event_type"`
 	OrderID     string `gorm:"type:varchar(64);index" json:"order_id"`

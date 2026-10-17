@@ -112,6 +112,7 @@ func (r *customerTagAssignmentRepository) Upsert(ctx context.Context, assignment
 	}
 	return database.Clauses(clause.OnConflict{
 		Columns: []clause.Column{
+			{Name: "tenant_id"},
 			{Name: "customer_id"},
 			{Name: "tag"},
 		},

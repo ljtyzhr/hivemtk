@@ -8,6 +8,8 @@ import (
 
 // CommunityGroup 社群模型
 type CommunityGroup struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID          string         `gorm:"primaryKey;type:varchar(36)" json:"id"`
 	Name        string         `gorm:"type:varchar(255);not null" json:"name"`
 	Description string         `gorm:"type:text" json:"description"`
@@ -24,6 +26,8 @@ func (CommunityGroup) TableName() string {
 
 // CommunityMember 社群成员模型
 type CommunityMember struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        string    `gorm:"primaryKey;type:varchar(36)" json:"id"`
 	GroupID   string    `gorm:"type:varchar(36);not null;index" json:"group_id"`
 	Name      string    `gorm:"type:varchar(255);not null" json:"name"`
@@ -43,6 +47,8 @@ func (CommunityMember) TableName() string {
 
 // CommunityMessage 社群消息模型
 type CommunityMessage struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID          string    `gorm:"primaryKey;type:varchar(36)" json:"id"`
 	GroupID     string    `gorm:"type:varchar(36);not null;index" json:"group_id"`
 	UserID      string    `gorm:"type:varchar(36);not null;index" json:"user_id"`

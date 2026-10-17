@@ -8,6 +8,8 @@ import (
 
 // FeedbackRecordORM 反馈记录持久化行
 type FeedbackRecordORM struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID             uint           `gorm:"primaryKey;autoIncrement" json:"id"`
 	SessionID      string         `gorm:"type:varchar(120);index" json:"session_id"`
 	CustomerID     string         `gorm:"type:varchar(64);index" json:"customer_id"`

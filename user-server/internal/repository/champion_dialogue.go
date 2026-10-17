@@ -79,7 +79,7 @@ func (r *FeedbackLoopRepository) PersistChampionDialogue(ctx context.Context, p 
 			 scenario, journey_stage, customer_msg, champion_reply, context_msgs,
 			 embedding, cluster_id, reward, conversion_achieved, extracted_scripts, created_at)
 		VALUES (?, ?, ?, 0, '', ?, '', ?, ?, '{}', ?::vector, ?, ?, ?, '[]', NOW())
-		ON CONFLICT (dialogue_fingerprint) DO UPDATE SET
+		ON CONFLICT (tenant_id, dialogue_fingerprint) DO UPDATE SET
 			reward = EXCLUDED.reward,
 			conversion_achieved = EXCLUDED.conversion_achieved`
 	return r.db.WithContext(ctx).Exec(sql,

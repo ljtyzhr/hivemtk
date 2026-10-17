@@ -6,6 +6,8 @@ import (
 
 // ChurnPrediction 流失预测
 type ChurnPrediction struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID                uint       `gorm:"primaryKey;autoIncrement" json:"id"`
 	UserID            string     `gorm:"type:varchar(100);index;not null" json:"user_id"`
 	ChurnScore        float64    `gorm:"type:decimal(10,2)" json:"churn_score"`
@@ -28,6 +30,8 @@ func (ChurnPrediction) TableName() string {
 
 // ChurnWarning 流失预警
 type ChurnWarning struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID           uint       `gorm:"primaryKey;autoIncrement" json:"id"`
 	UserID       string     `gorm:"type:varchar(100);index;not null" json:"user_id"`
 	WarningLevel string     `gorm:"type:varchar(20)" json:"warning_level"`
@@ -49,6 +53,8 @@ func (ChurnWarning) TableName() string {
 
 // ChurnModelConfig 流失模型配置
 type ChurnModelConfig struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID                 uint       `gorm:"primaryKey;autoIncrement" json:"id"`
 	InactiveDaysWeight float64    `gorm:"type:decimal(5,2);default:0.3" json:"inactive_days_weight"`
 	PurchaseFreqWeight float64    `gorm:"type:decimal(5,2);default:0.3" json:"purchase_freq_weight"`
@@ -70,6 +76,8 @@ func (ChurnModelConfig) TableName() string {
 
 // ChurnStatistics 流失统计
 type ChurnStatistics struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID             uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	StatDate       string    `gorm:"type:varchar(20);index;not null" json:"stat_date"`
 	TotalUsers     int       `json:"total_users"`

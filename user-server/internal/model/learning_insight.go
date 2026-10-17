@@ -10,6 +10,8 @@ import "time"
 // 多租户说明：当前为本地单商户部署，MerchantID 为预留列（恒 0），
 // 行业隔离靠 Industry 列（部署时经 trace_learning.Config.Industry 配置）。
 type LearningInsight struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID            uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	MerchantID    uint      `gorm:"not null;default:0;index" json:"merchant_id"`
 	Industry      string    `gorm:"type:varchar(64);index" json:"industry"`

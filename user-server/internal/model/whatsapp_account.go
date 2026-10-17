@@ -16,6 +16,8 @@ const (
 )
 
 type WhatsappAccount struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        uuid.UUID             `gorm:"type:char(36);primary_key" json:"id"`
 	Name      string                `gorm:"type:varchar(100);not null" json:"name"`
 	Remark    string                `gorm:"type:varchar(255)" json:"remark"`

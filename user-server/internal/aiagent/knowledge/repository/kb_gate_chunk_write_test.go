@@ -27,6 +27,7 @@ import (
 	"hivemtk-user/internal/aiagent/knowledge/model"
 	coremodel "hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/kbrelease"
+	"hivemtk-user/internal/pkg/tenancyidx"
 	"hivemtk-user/internal/pkg/testutil"
 	"hivemtk-user/internal/pkg/utils/logger"
 
@@ -50,6 +51,11 @@ func kbRepoSetup(t *testing.T, withReleaseRow bool) *gorm.DB {
 	}
 	if err := database.AutoMigrate(&coremodel.KBRelease{}); err != nil {
 		t.Fatalf("建 kb_releases 失败：%v", err)
+	}
+	// 夹具在 NewTestDB 之后才建 kb_releases，绕过了 testutil 的规范化钩子；
+	// product_id 唯一索引须复合化以匹配 ON CONFLICT (tenant_id, product_id)。
+	if _, err := tenancyidx.Normalize(database); err != nil {
+		t.Fatalf("kb_releases 租户索引规范化失败：%v", err)
 	}
 	if !withReleaseRow {
 		return database

@@ -46,6 +46,8 @@ const (
 
 // MarketingFlow 营销流程
 type MarketingFlow struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID            uint        `gorm:"primaryKey;autoIncrement" json:"id"`
 	Name          string      `gorm:"type:varchar(100);not null" json:"name"`
 	Description   string      `gorm:"type:varchar(500)" json:"description"`
@@ -66,6 +68,8 @@ func (MarketingFlow) TableName() string {
 
 // FlowExecution 流程执行记录
 type FlowExecution struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID            uint       `gorm:"primaryKey;autoIncrement" json:"id"`
 	FlowID        uint       `gorm:"index;not null" json:"flow_id"`
 	TriggerID     string     `gorm:"type:varchar(50);index" json:"trigger_id"`

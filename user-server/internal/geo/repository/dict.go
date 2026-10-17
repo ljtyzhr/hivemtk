@@ -107,7 +107,7 @@ func (r *geoDictRepo) Upsert(d *model.GeoDict) error {
 	}
 	return db.Exec(`INSERT INTO geo_dicts (id, category, "key", value, remark, active, sort, created_at, updated_at)
 		VALUES (?, ?, ?, ?, ?, ?, ?, NOW(), NOW())
-		ON CONFLICT (category, "key") DO UPDATE SET
+		ON CONFLICT (tenant_id, category, "key") DO UPDATE SET
 			value = EXCLUDED.value, remark = EXCLUDED.remark, active = EXCLUDED.active,
 			sort = EXCLUDED.sort, updated_at = NOW()`,
 		d.ID, d.Category, d.Key, d.Value, d.Remark, d.Active, d.Sort).Error

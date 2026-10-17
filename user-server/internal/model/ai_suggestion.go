@@ -4,6 +4,8 @@ import "time"
 
 // AISuggestion AI建议
 type AISuggestion struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID         uint       `gorm:"primaryKey;autoIncrement" json:"id"`
 	SessionID  string     `gorm:"type:varchar(120);index" json:"session_id"`
 	MessageID  uint       `json:"message_id"`

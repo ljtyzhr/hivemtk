@@ -63,7 +63,7 @@ func TestBillStatusVocabulary(t *testing.T) {
 func TestBillSchemaShape(t *testing.T) {
 	st := reflect.TypeOf(Bill{})
 	wantFields := []string{
-		"ID", "QuoteID", "QuoteRowID", "OpportunityID", "Amount",
+		"ID", "TenantID", "QuoteID", "QuoteRowID", "OpportunityID", "Amount",
 		"Currency", "DueAt", "Status", "CreatedAt", "UpdatedAt",
 	}
 	for _, name := range wantFields {
@@ -189,15 +189,24 @@ func TestBillCarriesNoApprovalState(t *testing.T) {
 	}
 }
 
-// TestBillHasNoTenantColumn X3 禁区（单商户，ADR-014 已 Simplified）：隔离靠物理分库不是列过滤。
-func TestBillHasNoTenantColumn(t *testing.T) {
+// TestBillTenancyShape 租户不变量（specs/001-saas-multi-tenant 取代 ADR-014 Simplified）：
+// 行级隔离落地后 bills 必须携带规范 TenantID（默认 1，离线单机等价现状）；
+// 租户语义只允许这一根列，私自发明 org_id/corp/workspace 等变体仍属禁区。
+func TestBillTenancyShape(t *testing.T) {
 	st := reflect.TypeOf(Bill{})
-	tenantish := []string{"tenant", "org_id", "corp", "workspace", "account_id", "namespace", "scope"}
+	if _, ok := st.FieldByName("TenantID"); !ok {
+		t.Fatal("行级隔离要求 bills 携带规范 TenantID 列（specs/001-saas-multi-tenant）")
+	}
+	tenantish := []string{"org_id", "corp", "workspace", "namespace"}
 	for i := 0; i < st.NumField(); i++ {
-		col := columnName(st.Field(i))
+		f := st.Field(i)
+		if f.Name == "TenantID" {
+			continue
+		}
+		col := columnName(f)
 		for _, banned := range tenantish {
 			if strings.Contains(col, banned) {
-				t.Errorf("bills 的列 %q 含租户味道的 %q：X3 禁区", col, banned)
+				t.Errorf("bills 的列 %q 含租户味道的 %q：租户语义只允许规范 tenant_id", col, banned)
 			}
 		}
 	}

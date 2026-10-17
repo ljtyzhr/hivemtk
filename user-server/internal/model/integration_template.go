@@ -13,6 +13,8 @@ import (
 // 字段映射关系：source_field (本地系统) → target_field (外部系统)
 // 通过 type + code 唯一标识一份模板
 type IntegrationTemplate struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID         uint64    `gorm:"primaryKey;autoIncrement" json:"id"`
 	Code       string    `gorm:"type:varchar(64);not null;uniqueIndex" json:"code"`
 	Platform   string    `gorm:"type:varchar(32);not null;index" json:"platform"`

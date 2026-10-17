@@ -30,6 +30,8 @@ const (
 // 一个 AIAgent = 一套完整的 智能体配置（人设 + 知识库 + LLM + SOP + 话术）
 // 可被多渠道账号绑定，也可被多客服座席挂载
 type AIAgent struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID          uint   `gorm:"primaryKey;autoIncrement" json:"id"`
 	AgentCode   string `gorm:"type:varchar(64);uniqueIndex;not null" json:"agent_code"`
 	Name        string `gorm:"type:varchar(128);not null" json:"name"`
@@ -124,6 +126,8 @@ const (
 //   - INDEX(agent_id)                       反查智能体被哪些渠道使用
 //   - uq_channel_account_primary (迁移 035) 强 1对1 部分唯一索引
 type ChannelAgentBinding struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID          uint   `gorm:"primaryKey;autoIncrement" json:"id"`
 	ChannelType string `gorm:"type:varchar(32);not null;index" json:"channel_type"`
 	AccountID   string `gorm:"type:varchar(64);not null;index" json:"account_id"`
@@ -149,6 +153,8 @@ func (ChannelAgentBinding) TableName() string {
 // 同一座席可挂载多个智能体，但只有一个 is_primary=true
 // SmartCSOrchestrator 在处理消息时按 agent_status_id 查询主挂载智能体
 type CustomerServiceAgent struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID            uint `gorm:"primaryKey;autoIncrement" json:"id"`
 	AgentStatusID uint `gorm:"not null;index;uniqueIndex:idx_cs_agent_unique" json:"agent_status_id"`
 	AIAgentID     uint `gorm:"not null;index;uniqueIndex:idx_cs_agent_unique" json:"ai_agent_id"`

@@ -6,6 +6,8 @@ import (
 
 // ScriptTemplate 话术模板
 type ScriptTemplate struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID                 uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	CategoryID         uint      `json:"category_id"`
 	Category           string    `gorm:"type:varchar(50);index" json:"category"`
@@ -35,6 +37,8 @@ func (ScriptTemplate) TableName() string {
 
 // ScriptCategory 话术分类
 type ScriptCategory struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	Name      string    `gorm:"type:varchar(50);not null" json:"name"`
 	ParentID  uint      `json:"parent_id"`
@@ -49,6 +53,8 @@ func (ScriptCategory) TableName() string {
 
 // ScriptRecommend 话术推荐记录
 type ScriptRecommend struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID            uint       `gorm:"primaryKey;autoIncrement" json:"id"`
 	SessionID     string     `gorm:"type:varchar(120);index" json:"session_id"`
 	Message       string     `gorm:"type:text" json:"message"`

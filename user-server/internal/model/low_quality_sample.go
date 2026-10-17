@@ -8,6 +8,8 @@ import (
 type LowQualitySampleType string
 
 type LowQualitySample struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID               uint64               `gorm:"primaryKey;autoIncrement" json:"id"`
 	CustomerID       string               `gorm:"type:varchar(64);index" json:"customer_id"`
 	SessionID        string               `gorm:"type:varchar(120);index" json:"session_id"`

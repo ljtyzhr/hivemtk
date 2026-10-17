@@ -4,6 +4,8 @@ import "time"
 
 // OperationLog 操作日志模型
 type OperationLog struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID         uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	UserID     uint      `gorm:"index;not null" json:"user_id"`
 	Username   string    `gorm:"type:varchar(50)" json:"username"`

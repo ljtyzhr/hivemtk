@@ -60,7 +60,7 @@ func TestQuoteStatusVocabulary(t *testing.T) {
 func TestQuoteSchemaShape(t *testing.T) {
 	st := reflect.TypeOf(Quote{})
 	wantFields := []string{
-		"ID", "QuoteID", "OpportunityID", "Version", "Status", "SourceID",
+		"ID", "TenantID", "QuoteID", "OpportunityID", "Version", "Status", "SourceID",
 		"ValidUntil", "Currency", "CreatedAt", "UpdatedAt",
 	}
 	for _, name := range wantFields {
@@ -172,15 +172,23 @@ func TestQuoteCarriesNoApprovalState(t *testing.T) {
 	}
 }
 
-// TestQuoteHasNoTenantColumn X3 禁区（单商户，ADR-014 已 Simplified）：隔离靠物理分库不是列过滤。
-func TestQuoteHasNoTenantColumn(t *testing.T) {
+// TestQuoteTenancyShape 租户不变量（specs/001-saas-multi-tenant 取代 ADR-014 Simplified）：
+// 行级隔离落地后报价域必须携带规范 TenantID；私自租户变体仍属禁区。
+func TestQuoteTenancyShape(t *testing.T) {
 	for _, st := range []reflect.Type{reflect.TypeOf(Quote{}), reflect.TypeOf(QuoteLineItem{})} {
-		tenantish := []string{"tenant", "org_id", "corp", "workspace", "account_id", "namespace", "scope"}
+		if _, ok := st.FieldByName("TenantID"); !ok {
+			t.Fatalf("%s 缺规范 TenantID 列（specs/001-saas-multi-tenant）", st.Name())
+		}
+		tenantish := []string{"org_id", "corp", "workspace", "namespace"}
 		for i := 0; i < st.NumField(); i++ {
-			col := columnName(st.Field(i))
+			f := st.Field(i)
+			if f.Name == "TenantID" {
+				continue
+			}
+			col := columnName(f)
 			for _, banned := range tenantish {
 				if strings.Contains(col, banned) {
-					t.Errorf("%s 的列 %q 含租户味道的 %q：X3 禁区", st.Name(), col, banned)
+					t.Errorf("%s 的列 %q 含租户味道的 %q：租户语义只允许规范 tenant_id", st.Name(), col, banned)
 				}
 			}
 		}
@@ -246,7 +254,7 @@ func TestQuoteJSONNamesMatchColumns(t *testing.T) {
 func TestQuoteLineItemShape(t *testing.T) {
 	st := reflect.TypeOf(QuoteLineItem{})
 	wantFields := []string{
-		"QuoteRowID", "LineNo", "ProductID", "Title", "Quantity",
+		"QuoteRowID", "TenantID", "LineNo", "ProductID", "Title", "Quantity",
 		"UnitPrice", "DiscountPercent", "Amount", "CreatedAt",
 	}
 	for _, name := range wantFields {

@@ -29,6 +29,8 @@ import (
 //   - 多语言扩展：internal_lang / target_lang / cross_lingual / glossary_version /
 //     cache_hit / quality_score / validation_issues
 type LLMRoutingLog struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID               int64   `gorm:"primaryKey;autoIncrement" json:"id"`
 	TraceID          string  `gorm:"type:varchar(64);column:trace_id" json:"trace_id"`
 	Scenario         string  `gorm:"type:varchar(64);column:scenario;not null" json:"scenario"`

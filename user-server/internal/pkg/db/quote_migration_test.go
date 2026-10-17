@@ -40,12 +40,12 @@ type quoteIndexRow struct {
 // 判成漂移，而用例的价值在于红的时候说的是缺了哪一列。
 var quoteWantColumns = []string{
 	"created_at", "currency", "id", "opportunity_id", "quote_id",
-	"source_id", "status", "updated_at", "valid_until", "version",
+	"source_id", "status", "tenant_id", "updated_at", "valid_until", "version",
 }
 
 var quoteLineWantColumns = []string{
 	"amount", "created_at", "discount_percent", "line_no", "product_id",
-	"quantity", "quote_row_id", "title", "unit_price",
+	"quantity", "quote_row_id", "tenant_id", "title", "unit_price",
 }
 
 func quoteRegisteredModels() []any {
@@ -216,12 +216,14 @@ func TestQuoteCompositeUniqueIndexIsReallyComposite(t *testing.T) {
 	}
 	var composite *quoteIndexRow
 	for k := range indexes {
-		if indexes[k].Cols == "quote_id+version" {
+		// 键已按 specs/001-saas-multi-tenant 复合化为 (tenant_id, quote_id, version)：
+		// "一版一号"在租户内成立，跨租户互不影响。
+		if indexes[k].Cols == "tenant_id+quote_id+version" {
 			composite = &indexes[k]
 		}
 	}
 	if composite == nil {
-		t.Fatalf("quotes 上没有 (quote_id, version) 的复合索引，实得 %v —— "+
+		t.Fatalf("quotes 上没有 (tenant_id, quote_id, version) 的复合索引，实得 %v —— "+
 			"两列的 uniqueIndex 名字写不一致时 GORM 会各建一个单列索引，AC① 就没了", colsOf(indexes))
 	}
 	if !composite.Uniq || composite.Pkey {
@@ -229,8 +231,8 @@ func TestQuoteCompositeUniqueIndexIsReallyComposite(t *testing.T) {
 	}
 	// 单列 quote_id 唯一索引是这条 AC 的反面（"一版一号"），必须不存在。
 	for _, i := range indexes {
-		if i.Cols == "quote_id" && i.Uniq {
-			t.Errorf("quote_id 上另有单列唯一索引 %s：同一报价的第二版就插不进去", i.Name)
+		if i.Cols == "tenant_id+quote_id" && i.Uniq {
+			t.Errorf("quote_id 上另有租户内单列唯一索引 %s：同一报价的第二版就插不进去", i.Name)
 		}
 		if i.Cols == "version" && i.Uniq {
 			t.Errorf("version 上另有单列唯一索引 %s：那等于全站版本号不许重复", i.Name)
@@ -391,8 +393,9 @@ func TestQuoteNumericColumnsAreReallyNumeric(t *testing.T) {
 	}
 }
 
-// TestQuoteHasNoTenantColumnAtDBLevel X3 禁区（单商户，ADR-014 已 Simplified）的真库判据。
-func TestQuoteHasNoTenantColumnAtDBLevel(t *testing.T) {
+// TestQuoteTenancyAtDBLevel X3 真库判据已按 specs/001-saas-multi-tenant 翻转：
+// 规范 tenant_id 必须在库，私自租户变体仍禁。
+func TestQuoteTenancyAtDBLevel(t *testing.T) {
 	db := testutil.NewTestDB(t)
 	if db == nil {
 		t.Fatal("测试库不可达")
@@ -400,14 +403,21 @@ func TestQuoteHasNoTenantColumnAtDBLevel(t *testing.T) {
 	if err := db.AutoMigrate(&model.Quote{}, &model.QuoteLineItem{}); err != nil {
 		t.Fatalf("AutoMigrate 失败: %v", err)
 	}
-	tenantish := []string{"tenant", "org_id", "corp", "workspace", "account_id", "namespace", "scope"}
 	for _, table := range []string{"quotes", "quote_line_items"} {
+		hasTenant := false
 		for _, col := range quoteColumns(t, db, table) {
-			for _, banned := range tenantish {
+			if col == "tenant_id" {
+				hasTenant = true
+				continue
+			}
+			for _, banned := range []string{"org_id", "corp", "workspace", "namespace"} {
 				if strings.Contains(col, banned) {
-					t.Errorf("%s.%s 含租户味道的 %q：X3 禁区", table, col, banned)
+					t.Errorf("%s.%s 含私自租户变体 %q：租户语义只允许规范 tenant_id", table, col, banned)
 				}
 			}
+		}
+		if !hasTenant {
+			t.Errorf("%s 缺规范 tenant_id 列：行级隔离要求（specs/001-saas-multi-tenant）", table)
 		}
 	}
 }

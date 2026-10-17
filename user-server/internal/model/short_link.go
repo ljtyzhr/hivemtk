@@ -6,6 +6,8 @@ import (
 
 // ShortLink 短链模型
 type ShortLink struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID          uint       `json:"id" gorm:"primaryKey"`
 	ShortCode   string     `json:"short_code" gorm:"uniqueIndex;size:20;not null;comment:短码"`
 	OriginalURL string     `json:"original_url" gorm:"size:2048;not null;comment:原始URL"`

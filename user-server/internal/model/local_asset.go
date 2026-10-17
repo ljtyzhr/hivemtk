@@ -19,6 +19,8 @@ const (
 
 // LocalAsset 本地资产主表
 type LocalAsset struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID               int64          `gorm:"primaryKey;autoIncrement" json:"id"`
 	AssetID          string         `gorm:"size:64;uniqueIndex;not null" json:"asset_id"`
 	AssetType        string         `gorm:"size:32;index;not null" json:"asset_type"`
@@ -41,6 +43,8 @@ func (LocalAsset) TableName() string { return "local_assets" }
 
 // LocalAssetData 资产 JSON 数据
 type LocalAssetData struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID           int64           `gorm:"primaryKey;autoIncrement" json:"id"`
 	LocalAssetID int64           `gorm:"uniqueIndex;not null" json:"local_asset_id"`
 	Data         json.RawMessage `gorm:"type:jsonb;not null" json:"data"`
@@ -51,6 +55,8 @@ func (LocalAssetData) TableName() string { return "local_asset_data" }
 
 // LocalAssetSyncLog 同步日志
 type LocalAssetSyncLog struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        int64     `gorm:"primaryKey;autoIncrement" json:"id"`
 	AssetID   string    `gorm:"size:64;index;not null" json:"asset_id"`
 	Action    string    `gorm:"size:32;not null" json:"action"`

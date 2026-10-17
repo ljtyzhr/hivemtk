@@ -8,6 +8,8 @@ import (
 )
 
 type WhatsappSession struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID          uuid.UUID `gorm:"type:char(36);primary_key" json:"id"`
 	AccountID   string    `gorm:"type:varchar(36);index" json:"account_id"`
 	SessionJSON string    `gorm:"type:text" json:"session_json"`

@@ -12,6 +12,8 @@ import "time"
 //   - Reason / Source 记录拉黑原因与来源（坐席手动 / 风控自动）。
 //   - 过期字段 ExpiresAt 支持临时拉黑（time=永久，nil=永久）。
 type UserBlacklist struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID           uint       `gorm:"primaryKey;autoIncrement" json:"id"`
 	UserID       string     `gorm:"type:varchar(50);index;not null" json:"user_id"`
 	Platform     Platform   `gorm:"type:varchar(20);index" json:"platform"`

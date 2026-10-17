@@ -3,6 +3,8 @@ package model
 import "time"
 
 type CustomerSegment struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID          uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	Name        string    `gorm:"type:varchar(100);not null" json:"name"`
 	Description string    `gorm:"type:varchar(500)" json:"description"`
@@ -16,6 +18,8 @@ type CustomerSegment struct {
 func (CustomerSegment) TableName() string { return "customer_segments" }
 
 type Macro struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	Name      string    `gorm:"type:varchar(100);not null;uniqueIndex" json:"name"`
 	Actions   string    `gorm:"type:text;not null" json:"actions"`
@@ -25,6 +29,8 @@ type Macro struct {
 func (Macro) TableName() string { return "macros" }
 
 type SessionAISummary struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	SessionID string    `gorm:"type:varchar(120);uniqueIndex;not null" json:"session_id"`
 	Summary   string    `gorm:"type:text" json:"summary"`
@@ -36,6 +42,8 @@ type SessionAISummary struct {
 func (SessionAISummary) TableName() string { return "session_ai_summaries" }
 
 type WebhookSubscription struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	URL       string    `gorm:"type:varchar(500);not null" json:"url"`
 	Events    string    `gorm:"type:varchar(500);not null" json:"events"`
@@ -47,6 +55,8 @@ type WebhookSubscription struct {
 func (WebhookSubscription) TableName() string { return "webhook_subscriptions" }
 
 type SavedView struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	UserID    uint      `gorm:"index;not null" json:"user_id"`
 	Name      string    `gorm:"type:varchar(100);not null" json:"name"`
@@ -58,6 +68,8 @@ type SavedView struct {
 func (SavedView) TableName() string { return "saved_views" }
 
 type ReportSubscription struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        uint       `gorm:"primaryKey;autoIncrement" json:"id"`
 	Email     string     `gorm:"type:varchar(200);not null;uniqueIndex" json:"email"`
 	Schedule  string     `gorm:"type:varchar(20);default:'daily'" json:"schedule"`
@@ -69,6 +81,8 @@ type ReportSubscription struct {
 func (ReportSubscription) TableName() string { return "report_subscriptions" }
 
 type AutomationRule struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID           uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	Name         string    `gorm:"type:varchar(100);not null" json:"name"`
 	Event        string    `gorm:"type:varchar(40);not null;index" json:"event"`
@@ -85,6 +99,8 @@ type AutomationRule struct {
 func (AutomationRule) TableName() string { return "automation_rules" }
 
 type RulePendingExecution struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	RuleID    uint      `gorm:"index;not null" json:"rule_id"`
 	SessionID string    `gorm:"type:varchar(120);not null" json:"session_id"`

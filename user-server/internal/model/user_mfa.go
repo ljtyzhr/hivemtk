@@ -16,6 +16,8 @@ import (
 //   - backup_codes: 一次性恢复码 JSON 数组（bcrypt 哈希后存储）
 //   - last_used_at: 最近一次 TOTP 验证时间（用于检测重放）
 type UserMFA struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID           uint       `gorm:"primaryKey;autoIncrement" json:"id"`
 	UserID       uint       `gorm:"uniqueIndex;not null" json:"user_id"`
 	MFASecret    string     `gorm:"type:varchar(255);not null" json:"-"`

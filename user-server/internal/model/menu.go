@@ -20,6 +20,8 @@ type SystemMenuNode struct {
 
 // RoleMenuPermission 角色↔菜单分配表（customer_service/staff 两档存行，admin 恒全量不落库）
 type RoleMenuPermission struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        uint      `json:"id" gorm:"primaryKey"`
 	RoleCode  string    `json:"role_code" gorm:"size:32;uniqueIndex:idx_role_menu_unique,priority:1"`
 	MenuKey   string    `json:"menu_key" gorm:"size:64;uniqueIndex:idx_role_menu_unique,priority:2"`

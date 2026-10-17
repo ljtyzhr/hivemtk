@@ -7,6 +7,7 @@ import "time"
 // blocked=true 即熔断——同平台新任务拒绝/排队，人工恢复后清标记。
 // 熔断状态必须落库（Executor 进程级单例禁内存计数）。
 type BrowserProfileHealth struct {
+	TenantID  uint       `gorm:"not null;default:1;index" json:"tenant_id"`
 	ID        uint       `gorm:"primaryKey;autoIncrement" json:"id"`
 	Platform  string     `gorm:"column:platform;type:varchar(64);uniqueIndex;not null" json:"platform"`
 	Blocked   bool       `gorm:"column:blocked;not null;default:false" json:"blocked"`

@@ -196,7 +196,7 @@ INSERT INTO kb_releases AS kr (product_id, governed, effective_version, previous
 SELECT s.product_id, true, 0, 0, 0, s.allocated_version + 1, s.allocated_version + 1, 'system:import'
 FROM kb_releases s
 WHERE s.product_id = ? AND s.governed AND s.draft_version = 0
-ON CONFLICT (product_id) DO UPDATE
+ON CONFLICT (tenant_id, product_id) DO UPDATE
 SET draft_version = CASE WHEN kr.draft_version > 0 THEN kr.draft_version
                          ELSE kr.allocated_version + 1 END,
     allocated_version = CASE WHEN kr.draft_version > 0 THEN kr.allocated_version

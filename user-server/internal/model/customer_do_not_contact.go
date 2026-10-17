@@ -34,6 +34,8 @@ const (
 // 唯一索引 (one_id, channel)：channel 为空串表示全渠道；
 // 同一 (one_id, channel) 重复 Block 幂等（唯一索引冲突跳过）。
 type CustomerDoNotContact struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID uint `gorm:"primarykey" json:"id"`
 	// OneID 客户聚合键（customer.unified_id）
 	OneID string `gorm:"type:varchar(128);uniqueIndex:idx_dnc_one_channel,priority:1;not null" json:"one_id"`

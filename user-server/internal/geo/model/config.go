@@ -9,6 +9,8 @@ import (
 
 // GeoConfig GEO 全局配置模型（单例：固定 ID=1）
 type GeoConfig struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID               string `gorm:"type:varchar(36);primaryKey" json:"id"`
 	BrandName        string `gorm:"type:varchar(200)" json:"brand_name"`
 	BrandDescription string `gorm:"type:text" json:"brand_description"`
@@ -41,6 +43,8 @@ func (m *GeoConfig) BeforeCreate(tx *gorm.DB) error {
 
 // GeoPlatformAccount GEO 平台账号模型
 type GeoPlatformAccount struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID          string `gorm:"type:varchar(36);primaryKey" json:"id"`
 	Platform    string `gorm:"type:varchar(50);index" json:"platform"`
 	AccountID   string `gorm:"type:varchar(200)" json:"account_id"`
@@ -66,6 +70,8 @@ func (m *GeoPlatformAccount) BeforeCreate(tx *gorm.DB) error {
 
 // GeoPublishRecord GEO 发布记录模型
 type GeoPublishRecord struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID           string    `gorm:"type:varchar(36);primaryKey" json:"id"`
 	ArticleID    string    `gorm:"type:varchar(36);index" json:"article_id"`
 	Platform     string    `gorm:"type:varchar(50)" json:"platform"`

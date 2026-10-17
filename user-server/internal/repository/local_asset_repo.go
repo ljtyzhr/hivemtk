@@ -158,7 +158,7 @@ func (r *localAssetRepo) FindActiveAssetIDByType(ctx context.Context, assetType 
 func (r *localAssetRepo) PurchaseAndSyncTx(ctx context.Context, la *model.LocalAsset, data []byte, syncLog *model.LocalAssetSyncLog) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Clauses(clause.OnConflict{
-			Columns: []clause.Column{{Name: "asset_id"}},
+			Columns: []clause.Column{{Name: "tenant_id"}, {Name: "asset_id"}},
 			DoUpdates: clause.AssignmentColumns([]string{
 				"asset_type", "industry", "name", "version", "source",
 				"is_active", "purchase_id", "purchased_at", "synced_at", "deleted_at", "updated_at",
@@ -174,7 +174,7 @@ func (r *localAssetRepo) PurchaseAndSyncTx(ctx context.Context, la *model.LocalA
 		}
 		lad := &model.LocalAssetData{LocalAssetID: la.ID, Data: data, UpdatedAt: la.SyncedAt}
 		if err := tx.Clauses(clause.OnConflict{
-			Columns:   []clause.Column{{Name: "local_asset_id"}},
+			Columns:   []clause.Column{{Name: "tenant_id"}, {Name: "local_asset_id"}},
 			DoUpdates: clause.AssignmentColumns([]string{"data", "updated_at"}),
 		}).Create(lad).Error; err != nil {
 			return bizerr.Wrap(bizerr.CodeInternal, "保存资产数据失败", err)
@@ -191,7 +191,7 @@ func (r *localAssetRepo) SyncDataTx(ctx context.Context, la *model.LocalAsset, d
 		if err := tx.Exec(`
 			INSERT INTO local_asset_data (local_asset_id, data, updated_at)
 			VALUES (?, ?, NOW())
-			ON CONFLICT (local_asset_id) DO UPDATE SET data = EXCLUDED.data, updated_at = NOW()
+			ON CONFLICT (tenant_id, local_asset_id) DO UPDATE SET data = EXCLUDED.data, updated_at = NOW()
 		`, la.ID, data).Error; err != nil {
 			return err
 		}
@@ -207,7 +207,7 @@ func (r *localAssetRepo) UpdateWithDataTx(ctx context.Context, la *model.LocalAs
 		return tx.Exec(`
 			INSERT INTO local_asset_data (local_asset_id, data, updated_at)
 			VALUES (?, ?, NOW())
-			ON CONFLICT (local_asset_id) DO UPDATE SET data = EXCLUDED.data, updated_at = NOW()
+			ON CONFLICT (tenant_id, local_asset_id) DO UPDATE SET data = EXCLUDED.data, updated_at = NOW()
 		`, la.ID, data).Error
 	})
 }
@@ -241,7 +241,7 @@ func (r *localAssetDataRepo) Upsert(ctx context.Context, localAssetID int64, dat
 	return r.db.WithContext(ctx).Exec(`
 		INSERT INTO local_asset_data (local_asset_id, data, updated_at)
 		VALUES (?, ?, NOW())
-		ON CONFLICT (local_asset_id) DO UPDATE SET data = EXCLUDED.data, updated_at = NOW()
+		ON CONFLICT (tenant_id, local_asset_id) DO UPDATE SET data = EXCLUDED.data, updated_at = NOW()
 	`, localAssetID, data).Error
 }
 

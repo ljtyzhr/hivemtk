@@ -26,6 +26,8 @@ const (
 )
 
 type CustomerLongTermMemory struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID         uint64               `gorm:"primaryKey;autoIncrement" json:"id"`
 	CustomerID string               `gorm:"type:varchar(64);not null;index:idx_cltm_customer,priority:1" json:"customer_id"`
 	MemoryType LongTermMemoryType   `gorm:"type:varchar(50);not null;index:idx_cltm_customer,priority:2" json:"memory_type"`

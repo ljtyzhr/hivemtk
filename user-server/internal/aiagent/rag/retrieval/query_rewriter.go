@@ -235,7 +235,7 @@ func (q *QueryRewriter) persistToDB(ctx context.Context, hash, query string, rw 
 	err := q.db.WithContext(ctx).Exec(`
 		INSERT INTO query_rewrite_cache (query_hash, original_query, hyde_doc, multi_queries, rewrite_model, rewrite_type, hit_count, last_used_at, expires_at, created_at, updated_at)
 		VALUES (?, ?, ?, ?, ?, ?, 0, NOW(), NOW() + INTERVAL '30 days', NOW(), NOW())
-		ON CONFLICT (query_hash) DO UPDATE SET
+		ON CONFLICT (tenant_id, query_hash) DO UPDATE SET
 			hyde_doc = EXCLUDED.hyde_doc,
 			multi_queries = EXCLUDED.multi_queries,
 			rewrite_type = EXCLUDED.rewrite_type,

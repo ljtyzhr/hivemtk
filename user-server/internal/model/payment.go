@@ -22,6 +22,8 @@ import "time"
 //
 // 一行 = **渠道断言过的一笔到账**，且它钉死在一张账单上。
 type Payment struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	// ID 回款行号（形如 p_<unixnano>_<seq>，由 service 层的生成器产出）。
 	//
 	// 卡面写的是 payment_id，本列命名随仓内五张同类表统一为 id（bills / quotes /

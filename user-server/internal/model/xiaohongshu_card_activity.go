@@ -6,6 +6,8 @@ import (
 
 // XiaohongshuCardActivity 小红书卡片活动模型
 type XiaohongshuCardActivity struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID           uint      `gorm:"primaryKey" json:"id"`
 	CardID       uint      `gorm:"not null;index" json:"card_id"`
 	UserID       uint      `gorm:"not null;index" json:"user_id"`

@@ -17,6 +17,8 @@ import (
 //  4. 行为参与度（25%）：互动次数、最近活跃、停留时长
 //  5. 时效性（10%）：create_time 距今越近分数越高（24h 内满分，超 30 天归零）
 type ClueScore struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID      uint64 `gorm:"primaryKey;autoIncrement" json:"id"`
 	ClueID  string `gorm:"type:varchar(36);not null;uniqueIndex" json:"clue_id"`
 	Account string `gorm:"type:varchar(255);default:'';index" json:"account"`
@@ -45,6 +47,8 @@ func (ClueScore) TableName() string { return "clue_scores" }
 // ClueEngagementEvent 线索互动事件
 // 用于统计"行为参与度"维度；不强制要求
 type ClueEngagementEvent struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        uint64    `gorm:"primaryKey;autoIncrement" json:"id"`
 	ClueID    string    `gorm:"type:varchar(36);not null;index" json:"clue_id"`
 	EventType string    `gorm:"type:varchar(32);not null" json:"event_type"`

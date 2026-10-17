@@ -64,6 +64,8 @@ const (
 
 // ObjectionTemplate 异议处理模板
 type ObjectionTemplate struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID          uint              `json:"id"`
 	Category    ObjectionCategory `json:"category"`
 	Keywords    []string          `json:"keywords"`

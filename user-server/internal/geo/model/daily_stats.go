@@ -11,6 +11,8 @@ import (
 // 按日期 × 引擎 × 意图 三元组唯一，对 geo_probe_runs 做预聚合。
 // 写入由 ProbeAnalyzer 定时任务完成，读取端直接查此表避免实时大聚合。
 type GeoDailyStat struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID                       uint           `gorm:"primaryKey" json:"id"`
 	Date                     string         `gorm:"column:stat_date;size:10;index:idx_date_engine_intent,uniqueIndex" json:"date"`
 	Engine                   string         `gorm:"column:engine;size:32;index:idx_date_engine_intent,uniqueIndex" json:"engine"`

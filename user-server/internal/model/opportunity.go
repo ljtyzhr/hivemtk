@@ -27,6 +27,8 @@ import "time"
 //   - 指向本仓自生成主键的列（clue_id → clues.id 是 uuid varchar(36)）：取上游真实宽度；
 //   - 取值集合可枚举的列（stage / status）：定宽。
 type Opportunity struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	// ID 商机业务主键（T-P4-05 的构造器产出，形如 opp_<unixnano>_<seq>）。
 	// 刻意不用自增 serial：它会被抄进 sales_events.opportunity_id 与
 	// quote/bill 的 opportunity_id，作为跨表引用必须稳定且多实例不撞。

@@ -10,6 +10,8 @@ import (
 // 每条 = Executor 下发的一个命令帧及其回包/错误，断点续跑=重放（M4 接 DBOS，本表先落事实）。
 // 不提供 Update/Delete：审计与重放都依赖不可变性。
 type BrowserCommandLog struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID         uint           `gorm:"primaryKey" json:"id"`
 	SessionID  uint           `gorm:"column:session_id;index;not null" json:"session_id"`
 	TaskID     uint           `gorm:"column:task_id;index;not null" json:"task_id"`

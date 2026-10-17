@@ -27,6 +27,7 @@ import "time"
 //   - INDEX(kb_type)             按类型过滤
 //   - INDEX(enabled)             过滤禁用绑定
 type AgentKBBinding struct {
+	TenantID  uint      `gorm:"not null;default:1;index" json:"tenant_id"`
 	ID        uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	AgentID   uint      `gorm:"not null;uniqueIndex:idx_agent_kb_unique,priority:1;index" json:"agent_id"`
 	KBID      uint      `gorm:"not null;uniqueIndex:idx_agent_kb_unique,priority:2;index" json:"kb_id"`

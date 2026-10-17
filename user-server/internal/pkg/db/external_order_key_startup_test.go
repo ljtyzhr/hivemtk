@@ -84,8 +84,10 @@ func TestStartupDropsLegacyExternalOrderOrderIDKey(t *testing.T) {
 		t.Fatalf("② 复合唯一索引 %s 不在库里，实得 %v", model.ExternalOrderScopedUniqueIndex,
 			colsOf(tableIndexes(t, db, "external_orders")))
 	}
-	if !comp.Uniq || comp.Cols != "platform+order_id" {
-		t.Errorf("② %s 形状不对：cols=%q uniq=%v，期望 platform+order_id 且唯一", comp.Name, comp.Cols, comp.Uniq)
+	// 键形状已按 specs/001-saas-multi-tenant 升级为租户维度幂等：
+	// (tenant_id, platform, order_id)——同租户内 platform+order_id 唯一，跨租户互不影响。
+	if !comp.Uniq || comp.Cols != "tenant_id+platform+order_id" {
+		t.Errorf("② %s 形状不对：cols=%q uniq=%v，期望 tenant_id+platform+order_id 且唯一", comp.Name, comp.Cols, comp.Uniq)
 	}
 
 	// ③ 坏的那一面没了，好的那一面还在。

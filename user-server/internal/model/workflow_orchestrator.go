@@ -8,6 +8,8 @@ import "time"
 // 一条记录 = 一个工作流的某个版本，definition (JSONB) 存可视化编排图。
 // status: draft / published / archived
 type WorkflowVersion struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID          uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	WorkflowID  string    `gorm:"type:varchar(64);not null;index:idx_workflow_versions_wf_id" json:"workflow_id"`
 	Version     int       `gorm:"not null" json:"version"`
@@ -30,6 +32,8 @@ func (WorkflowVersion) TableName() string { return "workflow_versions" }
 // status: running / completed / failed / terminated
 // context (JSONB): 运行时上下文（变量、循环计数等）
 type WorkflowExecution struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID             uint       `gorm:"primaryKey;autoIncrement" json:"id"`
 	WorkflowID     string     `gorm:"type:varchar(64);not null;index:idx_workflow_executions_wf_id" json:"workflow_id"`
 	Version        int        `gorm:"not null" json:"version"`
@@ -54,6 +58,8 @@ func (WorkflowExecution) TableName() string { return "workflow_executions" }
 // node_type: trigger / action / condition / subflow
 // status: pending / running / completed / failed / skipped
 type WorkflowNodeExecution struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID          uint       `gorm:"primaryKey;autoIncrement" json:"id"`
 	ExecutionID uint       `gorm:"not null;index:idx_wf_node_exec_exec_id" json:"execution_id"`
 	NodeID      string     `gorm:"type:varchar(64);not null;index:idx_wf_node_exec_node_id" json:"node_id"`

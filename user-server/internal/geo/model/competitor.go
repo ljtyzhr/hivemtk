@@ -9,6 +9,8 @@ import (
 
 // GeoCompetitor 竞品网站配置
 type GeoCompetitor struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        uint           `gorm:"primaryKey;autoIncrement" json:"id"`
 	Name      string         `gorm:"type:varchar(100);not null" json:"name"`
 	Domain    string         `gorm:"type:varchar(255);uniqueIndex;not null" json:"domain"`

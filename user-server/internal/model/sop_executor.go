@@ -4,6 +4,8 @@ import "time"
 
 // SOPExecEvent SOP 执行事件流（审计 + 幂等性 + 调试回放）
 type SOPExecEvent struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID           uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	ExecutionID  uint      `gorm:"index;not null" json:"execution_id"`
 	SOPID        uint      `gorm:"not null" json:"sop_id"`
@@ -26,6 +28,8 @@ type SOPExecEvent struct {
 func (SOPExecEvent) TableName() string { return "sop_exec_events" }
 
 type SOPTimer struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID          uint       `gorm:"primaryKey;autoIncrement" json:"id"`
 	ExecutionID uint       `gorm:"index;not null" json:"execution_id"`
 	NodeID      string     `gorm:"type:varchar(50);not null" json:"node_id"`
@@ -49,6 +53,8 @@ func (SOPTimer) TableName() string { return "sop_timers" }
 
 // SOPOutbox SOP Outbox 事件（解耦执行与外部副作用）
 type SOPOutbox struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID          uint       `gorm:"primaryKey;autoIncrement" json:"id"`
 	ExecutionID uint       `gorm:"index;not null" json:"execution_id"`
 	EventType   string     `gorm:"type:varchar(50);not null" json:"event_type"`

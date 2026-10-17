@@ -13,6 +13,8 @@ import (
 //   - implicit  隐式反馈（转化率/回复率/会话时长/转人工）
 //   - champion  销冠标记（is_champion/script_adopt/5 维度评分）
 type FeedbackEvent struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID                uint           `gorm:"primaryKey;autoIncrement" json:"id"`
 	EventID           string         `gorm:"type:varchar(64);uniqueIndex;not null" json:"event_id"`
 	SessionID         string         `gorm:"type:varchar(120);index;not null" json:"session_id"`
@@ -62,6 +64,8 @@ const (
 //
 // 一个 session 多次反馈事件累加为单一 reward 值，供 Bandit / 画像分析消费
 type FeedbackSignal struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID                uint       `gorm:"primaryKey;autoIncrement" json:"id"`
 	SessionID         string     `gorm:"type:varchar(120);uniqueIndex;not null" json:"session_id"`
 	CustomerID        string     `gorm:"type:varchar(64);not null" json:"customer_id"`
@@ -94,6 +98,8 @@ const (
 // 来源：ChampionDialogueAnalyzer 从 feedback_signals 筛选高价值对话聚类后入库
 // 用途：1) 相似场景话术检索（pgvector 余弦相似度） 2) 销冠画像快照生成
 type ChampionDialogue struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID                  uint       `gorm:"primaryKey;autoIncrement" json:"id"`
 	DialogueFingerprint string     `gorm:"type:varchar(64);uniqueIndex;not null" json:"dialogue_fingerprint"`
 	SessionID           string     `gorm:"type:varchar(120);not null" json:"session_id"`
@@ -141,6 +147,8 @@ const (
 // 来源：PromptIterator 基于负反馈样本让 LLM 生成改进版本
 // 用途：1) A/B 测试 variant 池 2) SalesEngine.generateCandidate 加载 system/user prompt
 type PromptCandidate struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID                 uint       `gorm:"primaryKey;autoIncrement" json:"id"`
 	SOPNodeID          string     `gorm:"type:varchar(50);index" json:"sop_node_id"`
 	SOPID              uint       `gorm:"index" json:"sop_id"`
@@ -186,6 +194,8 @@ const (
 // 每个 arm 关联一个 variant（prompt_candidate / sop_variant / script）
 // 维护 Beta(alpha, beta) 后验，由 BanditAllocator 增量更新
 type BanditArm struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID                uint       `gorm:"primaryKey;autoIncrement" json:"id"`
 	ExperimentID      string     `gorm:"type:varchar(64);index;not null" json:"experiment_id"`
 	ExperimentType    string     `gorm:"type:varchar(20);not null" json:"experiment_type"`
@@ -232,6 +242,8 @@ const (
 //
 // 一次 A/B 测试包含多个 arm（variant），由 BanditAllocator 进行流量分配
 type PromptABTest struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID             uint       `gorm:"primaryKey;autoIncrement" json:"id"`
 	ExperimentID   string     `gorm:"type:varchar(64);uniqueIndex;not null" json:"experiment_id"`
 	ExperimentType string     `gorm:"type:varchar(20);not null" json:"experiment_type"`

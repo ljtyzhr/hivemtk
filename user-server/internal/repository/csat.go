@@ -26,7 +26,7 @@ func NewCSATSurveyRepository() *CSATSurveyRepository {
 // UpsertBySession 一会话一调查（幂等创建）
 func (r *CSATSurveyRepository) UpsertBySession(ctx context.Context, s *model.CSATSurvey) (*model.CSATSurvey, error) {
 	err := r.db.WithContext(ctx).Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "session_id"}},
+		Columns:   []clause.Column{{Name: "tenant_id"}, {Name: "session_id"}},
 		DoNothing: true,
 	}).Create(s).Error
 	if err != nil {

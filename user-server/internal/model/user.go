@@ -11,6 +11,8 @@ import (
 )
 
 type User struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID         string               `gorm:"type:varchar(36);primaryKey" json:"id"`
 	Username   string               `gorm:"type:varchar(50);uniqueIndex;not null" json:"username"`
 	Password   string               `gorm:"type:varchar(255);not null" json:"-"`
@@ -50,6 +52,8 @@ func (u *User) BeforeCreate(tx *gorm.DB) error {
 
 // UserTag 用户标签
 type UserTag struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	UserID    string    `gorm:"type:varchar(36);index;not null" json:"user_id"`
 	TagName   string    `gorm:"type:varchar(50);index;not null" json:"tag_name"`

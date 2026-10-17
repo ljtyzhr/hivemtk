@@ -6,6 +6,8 @@ import (
 
 // XiaohongshuCard 小红书卡片模型
 type XiaohongshuCard struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID           uint      `gorm:"primaryKey" json:"id"`
 	Title        string    `gorm:"size:255;not null" json:"title"`
 	Description  string    `gorm:"type:text" json:"description"`

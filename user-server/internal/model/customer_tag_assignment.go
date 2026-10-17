@@ -9,6 +9,8 @@ import (
 
 // CustomerTagAssignment 客户标签归属记录（客户级标签存储：每客户每标签一行，含置信度与添加时间）
 type CustomerTagAssignment struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID         string    `gorm:"type:varchar(36);primaryKey" json:"id"`
 	CustomerID string    `gorm:"type:varchar(64);index:idx_customer_tag_assignment,unique;not null" json:"customer_id"`
 	Tag        string    `gorm:"type:varchar(100);index:idx_customer_tag_assignment,unique;not null" json:"tag"`

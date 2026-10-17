@@ -19,6 +19,7 @@ import (
 // copy_hash 与去重行同键（writeStepKey），保证回执↔去重行可 join：
 // 「有回执无去重行」= 落库失败，「有去重行无回执」= 收口截图或回执写入失败，两者都可见。
 type BrowserOutreachReceipt struct {
+	TenantID     uint   `gorm:"not null;default:1;index" json:"tenant_id"`
 	ID           uint   `gorm:"primaryKey;autoIncrement" json:"id"`
 	TaskID       uint   `gorm:"column:task_id;not null;index" json:"task_id"`
 	SessionID    uint   `gorm:"column:session_id;not null;index" json:"session_id"`

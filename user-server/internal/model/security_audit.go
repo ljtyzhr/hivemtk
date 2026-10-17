@@ -5,6 +5,8 @@ import "time"
 // SecurityAudit 安全审计记录：一次审计任务的结果快照。
 // 前端「系统设置 → 安全审计」列表/详情/立即审计使用。
 type SecurityAudit struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID          uint                `gorm:"primaryKey" json:"id"`
 	AuditName   string              `gorm:"column:audit_name;size:128;not null" json:"audit_name"`
 	RiskLevel   string              `gorm:"column:risk_level;size:32" json:"risk_level"`
@@ -26,6 +28,8 @@ func (SecurityAudit) TableName() string { return "security_audits" }
 
 // SecurityAuditItem 审计项：单次审计中的一个具体检查点结果。
 type SecurityAuditItem struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        uint      `gorm:"primaryKey" json:"id"`
 	AuditID   uint      `gorm:"column:audit_id;index;not null" json:"audit_id"`
 	Name      string    `gorm:"column:name;size:128" json:"name"`

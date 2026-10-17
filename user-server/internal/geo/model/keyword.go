@@ -9,6 +9,8 @@ import (
 
 // GeoKeyword GEO 关键词模型
 type GeoKeyword struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID           string  `gorm:"type:varchar(36);primaryKey" json:"id"`
 	Keyword      string  `gorm:"type:text;not null" json:"keyword"`
 	Category     string  `gorm:"type:varchar(100)" json:"category"`
@@ -50,6 +52,8 @@ func (m *GeoKeyword) BeforeCreate(tx *gorm.DB) error {
 
 // GeoKeywordGroup GEO 关键词分组模型
 type GeoKeywordGroup struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID           string `gorm:"type:varchar(36);primaryKey" json:"id"`
 	Name         string `gorm:"type:varchar(200);not null" json:"name"`
 	Description  string `gorm:"type:text" json:"description"`

@@ -29,6 +29,8 @@ import "time"
 //   - 指向本仓自生成主键的列（quote_id / source_id）：与 quotes.id 同型；
 //   - 取值可枚举的列（status）：定宽 varchar(16)。
 type Quote struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	// ID 版本行的行键（形如 q_<unixnano>_<seq>，由 T-P6-02 的生成器产出）。
 	//
 	// 刻意不用自增 serial：它会被抄进 quote_line_items.quote_row_id，
@@ -120,6 +122,8 @@ func (Quote) TableName() string { return "quotes" }
 // ProductID 是指针（可能没有目录项：手工加的行、下架的老品），
 // Title/单价/数量全是**快照**：目录会改名改价，而报价是事后要重放的凭证。
 type QuoteLineItem struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	// QuoteRowID 指向 quotes.id（版本行，不是 quote_id）。
 	//
 	// 若这里存 quote_id，"v1 的明细"与"v2 的明细"就共用一把键，

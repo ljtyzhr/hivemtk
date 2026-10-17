@@ -35,6 +35,8 @@ const (
 
 // TraceEvent 全链路追踪事件（对应 trace_events 表）
 type TraceEvent struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID           uint64         `json:"id" gorm:"primaryKey;autoIncrement"`
 	TraceID      string         `json:"trace_id" gorm:"type:varchar(64);not null;index"`
 	SpanID       string         `json:"span_id" gorm:"type:varchar(64);not null;uniqueIndex"`

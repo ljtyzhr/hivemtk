@@ -19,6 +19,8 @@ import "time"
 // 被拒**取决于降级方向，这条边界不该由列宽来决定（T-P1-08 在 tool_call_audits 上踩过：
 // trace_id 定宽 64 被上游透传的长值撑爆，CreateInBatches 整批回滚）。
 type ApprovalRequest struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	// ID 业务主键（service 生成，形如 apr_<unixnano>_<seq>）。
 	// 用它在列表/审计/日志里指代一条审批；**不**拿它当恢复凭证（见 ResumeToken）。
 	ID string `gorm:"type:text;primaryKey" json:"id"`

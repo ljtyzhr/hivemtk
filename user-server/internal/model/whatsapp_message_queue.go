@@ -4,6 +4,8 @@ import "time"
 
 // WhatsAppMessageQueue WhatsApp 消息队列中的单条消息记录
 type WhatsAppMessageQueue struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        uint      `gorm:"primaryKey" json:"id"`
 	QueueID   string    `gorm:"type:varchar(64);index" json:"queue_id"`
 	MessageID string    `gorm:"type:varchar(64);index" json:"message_id"`
@@ -22,6 +24,8 @@ func (WhatsAppMessageQueue) TableName() string {
 
 // WhatsAppQueueStatus WhatsApp 消息队列的整体状态
 type WhatsAppQueueStatus struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        uint      `gorm:"primaryKey" json:"id"`
 	QueueID   string    `gorm:"type:varchar(64);uniqueIndex" json:"queue_id"`
 	Total     int       `json:"total"`

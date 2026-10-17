@@ -247,7 +247,7 @@ func upsertFeedbackSignal(tx *gorm.DB, sig FeedbackSignalUpsert) error {
 		Outcome:           model.FeedbackSignalOutcomePending,
 	}
 	if err := tx.Clauses(clause.OnConflict{
-		Columns:   []clause.Column{{Name: "session_id"}},
+		Columns:   []clause.Column{{Name: "tenant_id"}, {Name: "session_id"}},
 		DoNothing: true,
 	}).Create(&newSig).Error; err != nil {
 		return fmt.Errorf("upsert signal insert: %w", err)

@@ -9,6 +9,8 @@ import (
 
 // GeoKnowledgeDocument GEO 品牌知识库文档模型（迁移自 AIGEOTOOLS kb Document）
 type GeoKnowledgeDocument struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID          string `gorm:"type:varchar(36);primaryKey" json:"id"`
 	Title       string `gorm:"type:varchar(500)" json:"title"`
 	Content     string `gorm:"type:text" json:"content"`

@@ -10,6 +10,8 @@ import "time"
 // 逐样本明细压在 Details（JSON），查"哪一轮掉分"读它，不另建明细表
 // （样本数是个位数量级，明细拆表是过度设计）。
 type DialogueEvalRun struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID uint `gorm:"primaryKey;autoIncrement" json:"id"`
 
 	// Name 本次运行名（惯例：gold-baseline-<日期> / gold-degraded-<日期>）。

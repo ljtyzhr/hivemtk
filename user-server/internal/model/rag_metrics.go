@@ -12,6 +12,8 @@ import "time"
 // 延迟计算
 // Top-K / Top-1 命中率、平均相似度（新增于）
 type RagQueryLog struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID              int64     `gorm:"primaryKey;autoIncrement" json:"id"`
 	Query           string    `gorm:"column:query;type:text;not null" json:"query"`
 	QueryHash       string    `gorm:"column:query_hash;size:64;index" json:"query_hash"`
@@ -43,6 +45,8 @@ func (RagQueryLog) TableName() string { return "rag_query_logs" }
 //   - 召回率趋势可视化
 //   - 触发风控预警（recall < 0.3 等）
 type RagMetricsDaily struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID             int64     `gorm:"primaryKey;autoIncrement" json:"id"`
 	WindowStart    time.Time `gorm:"column:window_start;not null;index:idx_rag_metrics_daily_window,priority:1" json:"window_start"`
 	WindowEnd      time.Time `gorm:"column:window_end;not null" json:"window_end"`

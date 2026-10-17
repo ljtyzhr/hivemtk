@@ -16,6 +16,8 @@ const (
 
 // MemoryItem 统一记忆条目（L1/L2/L4 通用）
 type MemoryItem struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID         uint        `gorm:"primaryKey;autoIncrement" json:"id"`
 	Layer      MemoryLayer `gorm:"type:varchar(32);not null;index" json:"layer"`
 	SessionID  string      `gorm:"type:varchar(120);index" json:"session_id"`
@@ -37,6 +39,8 @@ func (MemoryItem) TableName() string { return "memory_items" }
 
 // SOPStateMemory L3 SOP 状态记忆（独立于 sop_executions，按 session 维度）
 type SOPStateMemory struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID          uint           `gorm:"primaryKey;autoIncrement" json:"id"`
 	SessionID   string         `gorm:"type:varchar(120);index" json:"session_id"`
 	CustomerID  string         `gorm:"type:varchar(64);not null;index" json:"customer_id"`
@@ -56,6 +60,8 @@ func (SOPStateMemory) TableName() string { return "sop_state_memories" }
 
 // BusinessMemory L4 业务记忆（订单/咨询/投诉/意向快照）
 type BusinessMemory struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID         uint           `gorm:"primaryKey;autoIncrement" json:"id"`
 	CustomerID string         `gorm:"type:varchar(64);not null;index" json:"customer_id"`
 	MemoryType string         `gorm:"type:varchar(32);not null;index" json:"memory_type"`

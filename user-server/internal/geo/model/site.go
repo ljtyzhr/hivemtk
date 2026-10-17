@@ -13,6 +13,8 @@ import (
 // 每个品牌可以配一个主域名，关联 Hugo 本地路径、Git 仓库、
 // Cloudflare Pages 项目名。SiteDeployService 从这里读配置。
 type GeoSite struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID           string     `gorm:"type:varchar(36);primaryKey" json:"id"`
 	Domain       string     `gorm:"type:varchar(255);uniqueIndex" json:"domain"`
 	Provider     string     `gorm:"type:varchar(50);default:'cloudflare'" json:"provider"`

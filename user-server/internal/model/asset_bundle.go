@@ -92,6 +92,8 @@ func (m *AssetBundleMessages) Scan(src any) error {
 //  5. Scope 区分私有/共享/官方
 //  6. Tags 数组便于多维筛选（行业/语言/品类）
 type AssetBundle struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID                 int64               `gorm:"primaryKey;autoIncrement" json:"id"`
 	AssetID            string              `gorm:"size:64;uniqueIndex;not null" json:"asset_id"`
 	Title              string              `gorm:"size:256;not null" json:"title"`
@@ -121,6 +123,8 @@ func (AssetBundle) TableName() string { return "asset_bundles" }
 
 // AssetBundleVersionLog 资产包版本变更日志
 type AssetBundleVersionLog struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID         int64          `gorm:"primaryKey;autoIncrement" json:"id"`
 	AssetID    string         `gorm:"size:64;index;not null" json:"asset_id"`
 	FromVer    string         `gorm:"size:16" json:"from_ver"`

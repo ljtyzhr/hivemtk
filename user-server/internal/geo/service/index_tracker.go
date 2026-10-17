@@ -323,7 +323,7 @@ func (s *IndexTrackerService) upsertDailyStats() {
 		s.db.Exec(`
 			INSERT INTO geo_daily_stats (stat_date, engine, intent, funnel_stage, citation_count, brand_mentioned_count, probe_count)
 			VALUES (?, ?, 'mixed', 'mixed', ?, ?, 0)
-			ON CONFLICT (stat_date, engine, intent, funnel_stage) DO UPDATE SET
+			ON CONFLICT (tenant_id, stat_date, engine, intent, funnel_stage) DO UPDATE SET
 				citation_count = geo_daily_stats.citation_count + EXCLUDED.citation_count,
 				brand_mentioned_count = geo_daily_stats.brand_mentioned_count + EXCLUDED.brand_mentioned_count
 		`, statDate, r.Engine, r.Citations, r.BrandMentions)

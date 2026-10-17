@@ -28,6 +28,8 @@ func IsValidSecurityAlertStatus(s SecurityAlertStatus) bool {
 //   - notified: 是否已推送通知（站内信 / 邮件 / 短信）
 //   - resolved_at / resolved_by: 处理轨迹
 type SecurityAlert struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID           uint                `gorm:"primaryKey;autoIncrement" json:"id"`
 	UserID       uint                `gorm:"index" json:"user_id"`
 	Username     string              `gorm:"type:varchar(50);index" json:"username"`

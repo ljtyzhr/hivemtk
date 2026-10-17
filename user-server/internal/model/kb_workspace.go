@@ -27,6 +27,8 @@ const (
 
 // KnowledgeDocument 知识库文档(产品维度)
 type KnowledgeDocument struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID            uint64      `gorm:"primaryKey;autoIncrement" json:"id"`
 	ProductID     string      `gorm:"index;not null;default:''" json:"product_id"`
 	SourceType    SourceType  `gorm:"size:16;default:'upload';index" json:"source_type"`
@@ -70,6 +72,8 @@ func (KnowledgeDocument) TableName() string {
 
 // KnowledgeChunk 知识库分段详情
 type KnowledgeChunk struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID              uint64  `gorm:"primaryKey;autoIncrement" json:"id"`
 	DocumentID      uint64  `gorm:"index;not null" json:"document_id"`
 	ProductID       string  `gorm:"index;not null;default:''" json:"product_id"`
@@ -111,6 +115,8 @@ func (KnowledgeChunk) TableName() string {
 
 // KnowledgeImportLog 知识库导入审计日志
 type KnowledgeImportLog struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID          uint64    `gorm:"primaryKey;autoIncrement" json:"id"`
 	ProductID   string    `gorm:"index;not null;default:''" json:"product_id"`
 	DocumentID  *uint64   `gorm:"index" json:"document_id"`
@@ -132,6 +138,8 @@ func (KnowledgeImportLog) TableName() string {
 
 // KnowledgeSearchLog 知识库检索统计日志
 type KnowledgeSearchLog struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID                  uint64    `gorm:"primaryKey;autoIncrement" json:"id"`
 	ProductID           string    `gorm:"index;default:''" json:"product_id"`
 	Query               string    `gorm:"type:text" json:"query"`
@@ -156,6 +164,8 @@ func (KnowledgeSearchLog) TableName() string {
 
 // KnowledgeOpenAPISource 知识库 OpenAPI 数据源
 type KnowledgeOpenAPISource struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID              uint64     `gorm:"primaryKey;autoIncrement" json:"id"`
 	ProductID       string     `gorm:"index;not null;default:''" json:"product_id"`
 	Name            string     `gorm:"size:128;not null" json:"name"`
@@ -183,6 +193,8 @@ func (KnowledgeOpenAPISource) TableName() string {
 }
 
 type HelpCenterTestRecord struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	ProductID string    `gorm:"type:varchar(64);index" json:"product_id"`
 	Query     string    `gorm:"type:varchar(300);not null" json:"query"`

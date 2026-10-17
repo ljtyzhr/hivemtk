@@ -9,6 +9,8 @@ import (
 
 // EmailJobs 邮件任务模型
 type EmailJobs struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID           uuid.UUID      `gorm:"type:char(36);primary_key" json:"id"`
 	Subject      string         `gorm:"size:255;not null" json:"subject"`
 	SendTotal    int64          `gorm:"default:0" json:"send_total"`

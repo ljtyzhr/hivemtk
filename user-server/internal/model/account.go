@@ -8,6 +8,8 @@ import (
 )
 
 type Account struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID               string `gorm:"type:varchar(36);primary_key" json:"id"`
 	TgName           string `gorm:"tg_name" json:"tg_name"`
 	TgBotToken       string `gorm:"tg_bot_token" json:"tg_bot_token"`

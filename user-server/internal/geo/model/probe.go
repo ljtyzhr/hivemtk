@@ -13,6 +13,8 @@ import (
 // 都会落一条此记录，支撑后续品牌提及率、情感倾向、竞品对比的
 // 聚合统计（由 geo_daily_stats 按日期维度二次汇总）。
 type GeoProbeRun struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID                  uint           `gorm:"primaryKey;column:id" json:"id"`
 	Engine              string         `gorm:"column:engine;size:32;index" json:"engine"`
 	Query               string         `gorm:"column:query;size:1024;index" json:"query"`

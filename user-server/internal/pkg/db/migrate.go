@@ -8,6 +8,7 @@ import (
 	geomodel "hivemtk-user/internal/geo/model"
 	"hivemtk-user/internal/model"
 	opsmodel "hivemtk-user/internal/ops/model"
+	"hivemtk-user/internal/pkg/tenancyidx"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"strings"
 	"sync"
@@ -19,6 +20,7 @@ import (
 
 func allModels() []any {
 	return []any{
+		&model.Tenant{},
 		&model.Order{},
 		&model.AfterSale{},
 		&model.User{},
@@ -479,6 +481,16 @@ func AutoMigrate() *gorm.DB {
 		logger.Warn("AutoMigrate 完成，但存在可容忍的迁移漂移（历史约束命名不一致），建议排查并清理遗留历史表，避免长期静默漂移掩盖真实故障")
 	} else {
 		logger.Info("AutoMigrate 完成，无迁移漂移")
+	}
+
+	// 租户唯一索引规范化（specs/001-saas-multi-tenant T008 框架层实现）：
+	// AutoMigrate 按模型标签建的是单列唯一索引，行级隔离要求业务唯一性升级为
+	// (tenant_id, 原列)。此处与迁移 v3.59.0 共用同一实现，幂等可重入；
+	// 失败 fail-closed 拒绝启动——带病唯一约束等于重新打开跨租户冲突面。
+	if n, err := tenancyidx.Normalize(DB); err != nil {
+		panic(fmt.Sprintf("租户唯一索引规范化失败: %v", err))
+	} else if n > 0 {
+		logger.Info(fmt.Sprintf("租户唯一索引规范化完成：处理 %d 个索引", n))
 	}
 
 	postMigrateMessageHubUniqueIndex()

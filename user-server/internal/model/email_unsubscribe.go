@@ -14,6 +14,8 @@ import (
 //   - 模型保留 email 唯一索引，保证同一邮箱仅有一条退订记录；重新订阅时通过
 //     ResubscribeEmail 删除记录（合规要求允许用户重新订阅）。
 type EmailUnsubscribe struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID             uint           `gorm:"primarykey" json:"id"`
 	Email          string         `gorm:"type:varchar(255);uniqueIndex;not null" json:"email"`
 	Reason         string         `gorm:"type:varchar(255)" json:"reason"`

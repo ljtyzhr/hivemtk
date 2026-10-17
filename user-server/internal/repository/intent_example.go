@@ -53,7 +53,7 @@ func (r *IntentExampleRepository) UpsertBatch(ctx context.Context, rows []*model
 	}
 	return r.db.WithContext(ctx).
 		Clauses(clause.OnConflict{
-			Columns:   []clause.Column{{Name: "text"}},
+			Columns:   []clause.Column{{Name: "tenant_id"}, {Name: "text"}},
 			DoUpdates: clause.AssignmentColumns([]string{"intent", "vector"}),
 		}).
 		Create(&rows).Error

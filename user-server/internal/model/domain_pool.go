@@ -14,6 +14,8 @@ import (
 //   - 1-59   严重（连续多次失败、HTTP 非 2xx/3xx、被标记为黑名单）
 //   - 0      不可用（连续失败次数超阈值或被风控）
 type DomainPool struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        int       `json:"id" gorm:"primaryKey;autoIncrement"`
 	Domain    string    `json:"domain" gorm:"size:255;not null;uniqueIndex"`
 	Port      int       `json:"port" gorm:"default:80"`
@@ -52,6 +54,8 @@ func (DomainPool) TableName() string {
 // DomainHealthLog 域名健康度探测日志
 // G 域 ：每次探测生成一条日志，便于事后审计与回溯
 type DomainHealthLog struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        int       `json:"id" gorm:"primaryKey;autoIncrement"`
 	DomainID  int       `json:"domain_id" gorm:"index;not null"`
 	Domain    string    `json:"domain" gorm:"size:255;index"`
@@ -82,6 +86,8 @@ func (DomainHealthLog) TableName() string {
 // DomainBlacklist 平台域名黑名单（内置 + 外部维护）
 // G 域 ：用于域名健康度探测时快速判定当前域名是否被微信/抖音/快手等封禁
 type DomainBlacklist struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID        int        `json:"id" gorm:"primaryKey;autoIncrement"`
 	Domain    string     `json:"domain" gorm:"size:255;not null;uniqueIndex"`
 	Platform  string     `json:"platform" gorm:"size:32;index;default:'all'"`

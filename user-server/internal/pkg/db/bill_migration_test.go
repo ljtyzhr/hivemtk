@@ -28,7 +28,7 @@ import (
 // billWantColumns 卡面列清单在库里的真实列名（升序，理由见 quote 那份注释）。
 var billWantColumns = []string{
 	"amount", "created_at", "currency", "due_at", "id",
-	"opportunity_id", "quote_id", "quote_row_id", "status", "updated_at",
+	"opportunity_id", "quote_id", "quote_row_id", "status", "tenant_id", "updated_at",
 }
 
 func billRegisteredModels() []any {

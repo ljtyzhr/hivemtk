@@ -11,6 +11,8 @@ import "time"
 // 局限说明：IMA OpenAPI 对「笔记类」内容不提供原文导出（仅文件/网页可取），
 // 笔记会被跳过并记录在 last_error 摘要里。
 type ExternalKBConnector struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID              uint       `gorm:"primaryKey;autoIncrement" json:"id"`
 	Type            string     `gorm:"type:varchar(32);not null" json:"type"` // ima | webhttp
 	Name            string     `gorm:"type:varchar(128)" json:"name"`
@@ -28,6 +30,8 @@ func (ExternalKBConnector) TableName() string { return "external_kb_connectors" 
 
 // ExternalKBSyncItem 同步幂等记录：同一文档内容不重复入库。
 type ExternalKBSyncItem struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID          uint      `gorm:"primaryKey;autoIncrement" json:"id"`
 	ConnectorID uint      `gorm:"index:idx_connector_doc,unique;not null" json:"connector_id"`
 	DocKey      string    `gorm:"column:doc_key;type:varchar(191);index:idx_connector_doc,unique;not null" json:"doc_key"`

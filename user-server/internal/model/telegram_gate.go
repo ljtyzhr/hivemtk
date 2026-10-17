@@ -11,6 +11,8 @@ import "time"
 //   - mode=mute_unlock（方案 B）：用户直接进群，Bot 立即 restrictChatMember 全功能禁言，
 //     用户点击群内提示链接到 Bot 私聊 /start 激活后解除禁言。
 type TelegramGroupGate struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID uint `gorm:"primaryKey;autoIncrement" json:"id"`
 
 	AccountID    uint   `gorm:"not null;uniqueIndex:uk_tg_gate_account_chat" json:"account_id"`               // 所属 Bot 账号
@@ -40,6 +42,8 @@ const (
 
 // TelegramGroupMember TG 群成员验证台账
 type TelegramGroupMember struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID uint `gorm:"primaryKey;autoIncrement" json:"id"`
 
 	AccountID uint   `gorm:"not null;uniqueIndex:uk_tg_gate_member,priority:1" json:"account_id"`

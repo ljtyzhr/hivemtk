@@ -9,6 +9,8 @@ import (
 
 // EmailDraft 邮件草稿模型
 type EmailList struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID          uuid.UUID      `gorm:"type:char(36);primary_key" json:"id"`
 	Subject     string         `gorm:"size:255;not null" json:"subject"`
 	Content     string         `gorm:"type:text" json:"content"`

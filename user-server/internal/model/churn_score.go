@@ -7,6 +7,8 @@ import "time"
 // 输入统计量 (x, tx, T) 与输出 (p_alive, expected_purchases_30d) 同行落库，
 // params 快照保证分数可复现。表结构见 migration v3.34.0。
 type ChurnScore struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID                   int64     `gorm:"primaryKey;autoIncrement" json:"id"`
 	CustomerKey          string    `gorm:"type:varchar(120);uniqueIndex:uk_churn_customer" json:"customer_key"`
 	X                    int       `gorm:"not null;default:0" json:"x"`

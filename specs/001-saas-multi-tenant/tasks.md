@@ -32,11 +32,11 @@ description: "任务清单：SaaS 多租户与离线单机双形态一体化"
 
 **⚠️ CRITICAL**: 回调隔离、迁移、身份三件事是全部 story 的地基。
 
-- [ ] T004 租户模型与首迁移：`user-server/internal/model/tenant.go`（Tenant：code varchar(32) uniqueIndex、name varchar(100) not null、status smallint not null default 1（1=正常 2=停用）、plan varchar(32) default 'free'）；`internal/migration/migrations/` 新增 tenants 建表幂等迁移并注册
+- [x] T004 租户模型与首迁移：`user-server/internal/model/tenant.go`（Tenant：code varchar(32) uniqueIndex、name varchar(100) not null、status smallint not null default 1（1=正常 2=停用）、plan varchar(32) default 'free'）；`internal/migration/migrations/` 新增 tenants 建表幂等迁移并注册
 - [ ] T005 GORM 隔离 callback：`user-server/internal/pkg/db/tenant_callback.go` 注册六类 operation（Query/Create/Update/Delete/Row/Raw）pre-hook——从 `Statement.Context` 读租户，按登记表对租户表自动注入 `WHERE tenant_id=?`/写入列自动填充；off 模式直通；on 模式租户表查询缺租户 → fail-closed 报错（含表名日志）；单测：off 直通/on 注入/on 缺租户报错三态（tenant_callback_test.go）
 - [ ] T006 表登记表：`internal/pkg/db/tenant_registry.go` 启动期扫描 model 注册表收集含 `TenantID` 字段的表；`tenant:"global"` tag 豁免清单按 data-model.md 全局表逐表落标（tenants/migration 记录/config_params/config_param_groups/feature_flags/平台心跳/cron_job_leases/telegram_polling_locks/backups/dictionary 等）；单测：登记表与 AutoMigrate 列表交叉校验（新增含 TenantID 模型未登记即 fail）
-- [ ] T007 业务表加列迁移（分批幂等，每批一个迁移文件注册执行，`ADD COLUMN IF NOT EXISTS tenant_id bigint NOT NULL DEFAULT 1`）：批次按 model 文件域分组（auth&system / customer&clue / message&inbox / reach&channel / sop&workflow / knowledge&rag / cards&links / billing&order / stats&monitor 共 9 批）；每批迁移自带回填校验断言
-- [ ] T008 唯一索引复合化迁移（幂等分批）：`system_users(tenant_id,username)`、`short_links(tenant_id,code)`、`live_codes(tenant_id,code)`、`chat_channels(tenant_id,channel_ref)`、`bridge_accounts(tenant_id,account_ref)`、各平台卡表（douyin/xiaohongshu/kuaishou/xianyu/tiktok cards）唯一键复合化；清单外唯一索引在 T027 审计中兜底复查
+- [x] T007 业务表加列迁移（分批幂等，每批一个迁移文件注册执行，`ADD COLUMN IF NOT EXISTS tenant_id bigint NOT NULL DEFAULT 1`）：批次按 model 文件域分组（auth&system / customer&clue / message&inbox / reach&channel / sop&workflow / knowledge&rag / cards&links / billing&order / stats&monitor 共 9 批）；每批迁移自带回填校验断言
+- [x] T008 唯一索引复合化迁移（幂等）：动态重建"已租户化表"上的非约束型唯一索引为 `(tenant_id, 原列...)`（排除 _pkey 与约束型 UNIQUE——后者 T027 人工审计）；**同变更内**必须把既有 `clause.OnConflict{Columns:[...]}` 显式冲突目标（实测量约 12 处，豁免表 config_params/system_config_kv/cron_job_leases 除外）同步补 `tenant_id` 列，否则索引重建后 upsert 运行时报错——保证 master 迁移后即时可运行；清单外唯一索引在 T027 审计中兜底复查
 - [ ] T009 JWT 与租户中间件：`internal/pkg/utils/jwt.go` claims 增加 tenant_id（签发/解析）；新增 `internal/middleware/tenant.go`——on 模式无 claim → 401，off 模式注入默认租户；`internal/router/router.go` auth 组挂载（JWT 之后）
 - [ ] T010 [P] Redis 键租户分域：`internal/pkg/tenant/keys.go` 键构造函数 `t{tenant}:{key}`；替换既有裸拼键点位（jwt_blacklist/jwt_revocation/ratelimit/cache 等逐点替换）；⚠️ off 模式**不加前缀、键形与现状逐字节一致**（存量吊销名单/会话键必须继续命中，否则已吊销 token 在升级窗口复活）；仅 on 模式启用前缀；单测覆盖两形态键形快照
 - [ ] T011 [P] uploads 租户分域：on 模式新上传落 `uploads/tenant_{id}/`；静态服务校验租户归属（跨根目录穿越拒绝）；⚠️ off 模式**读写路径与现状逐字节一致**（存量文件留在根目录直接可达，不做迁移搬移）；on 模式对存量根目录文件按只读兼容回落

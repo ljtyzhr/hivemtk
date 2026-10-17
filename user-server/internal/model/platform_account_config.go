@@ -30,6 +30,8 @@ func (r *ReplyRule) Scan(value any) error {
 }
 
 type PlatformAccountConfig struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID                 string      `json:"id" gorm:"primaryKey;size:64"`
 	AccountID          string      `json:"account_id" gorm:"size:255;not null"`
 	Platform           string      `json:"platform" gorm:"size:50;not null"`

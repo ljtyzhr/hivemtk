@@ -27,6 +27,8 @@ const (
 
 // ObsConfig 对象存储配置模型
 type ObsConfig struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID         string      `gorm:"type:varchar(36);primaryKey" json:"id"`
 	Name       string      `gorm:"type:varchar(100);not null" json:"name"`
 	Provider   ObsProvider `gorm:"type:varchar(20);not null" json:"provider"`

@@ -8,6 +8,8 @@ import (
 )
 
 type Order struct {
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
+
 	ID         string                `gorm:"type:varchar(36);primary_key;not null" json:"id"`
 	Status     _type.OrderStatusType `gorm:"default:0" json:"status"`
 	CreateTime int64                 `gorm:"create_time;autoCreateTime;not null" json:"create_time"`
