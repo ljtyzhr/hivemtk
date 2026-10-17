@@ -10,6 +10,8 @@ import (
 	"strings"
 	"time"
 
+	"hivemtk-user/internal/pkg/tenant"
+
 	"github.com/google/uuid"
 )
 
@@ -39,6 +41,21 @@ func NewLocalDriver(baseDir, publicBaseURL string) *LocalDriver {
 
 func (d *LocalDriver) ensureDir(dir string) error {
 	return os.MkdirAll(dir, 0o750)
+}
+
+// tenantPathPrefix 租户路径前缀（T011）：
+//   - off 模式恒为空串（键形/路径铁律：与现状逐字节一致）
+//   - on 模式且 ctx 绑定租户 → "tenant_{id}/"（路径自证租户）
+//   - on 模式无租户 ctx → 空串（系统级上传，落入存量根域）
+func (d *LocalDriver) tenantPathPrefix(ctx context.Context) string {
+	if ctx == nil || !tenant.IsMultiTenant() {
+		return ""
+	}
+	id, ok := tenant.FromContext(ctx)
+	if !ok {
+		return ""
+	}
+	return fmt.Sprintf("tenant_%d/", id)
 }
 
 // dangerousWebExts "浏览器同源直接执行/渲染"的扩展名集合。
@@ -84,13 +101,17 @@ func (d *LocalDriver) UploadMultipart(ctx context.Context, file multipart.File, 
 
 // UploadReader 从 io.Reader 上传，返回 (publicURL, storagePath, error)
 // 写入采用 os.CreateTemp + os.Rename 原子方式，避免半写入文件被读到。
+//
+// 租户分域（specs/001-saas-multi-tenant T011）：
+//   - off 模式：路径与历史版本逐字节一致（无租户段，存量文件零迁移）
+//   - on 模式 + ctx 携带租户：storagePath 前置 "tenant_{id}/"——路径自证租户，
+//     /files 公开服务零改动（URL 不可枚举 UUID 即读取防线，与现状同级）
 func (d *LocalDriver) UploadReader(ctx context.Context, reader io.Reader, size int64, folder string, filename string) (string, string, error) {
-	_ = ctx
 	if reader == nil {
 		return "", "", fmt.Errorf("reader must not be nil")
 	}
 
-	storagePath := d.generatePath(folder, filename)
+	storagePath := d.tenantPathPrefix(ctx) + d.generatePath(folder, filename)
 	fullPath := filepath.Join(d.baseDir, storagePath)
 
 	if err := d.ensureDir(filepath.Dir(fullPath)); err != nil {

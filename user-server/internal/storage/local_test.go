@@ -3,6 +3,7 @@ package storage
 import (
 	"bytes"
 	"context"
+	"hivemtk-user/internal/pkg/tenant"
 	"io"
 	"os"
 	"path/filepath"
@@ -140,4 +141,52 @@ func TestType(t *testing.T) {
 	if newTestDriver(t).Type() != "local" {
 		t.Fatal("Type() must be local")
 	}
+}
+
+func TestLocalDriverTenantPathPrefix(t *testing.T) {
+	tenant.SetMode(tenant.ModeOff)
+	t.Cleanup(func() { tenant.SetMode(tenant.ModeOff) })
+
+	dir := t.TempDir()
+	d := NewLocalDriver(dir, "")
+
+	ctx42 := tenant.WithTenantID(context.Background(), 42)
+
+	// off：带租户 ctx 也必须与现状逐字节一致（无前缀）
+	_, path, err := d.UploadReader(ctx42, strings.NewReader("off"), 3, "chat", "a.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(path, "tenant_") {
+		t.Fatalf("off 模式路径不得带租户段: %q", path)
+	}
+
+	// on + 租户 ctx：tenant_{id}/ 前缀，且文件真实落在该域内
+	tenant.SetMode(tenant.ModeOn)
+	_, path, err = d.UploadReader(ctx42, strings.NewReader("on42"), 4, "chat", "b.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !strings.HasPrefix(path, "tenant_42/") {
+		t.Fatalf("on 模式路径应自证租户: %q", path)
+	}
+	if _, err := os.Stat(filepath.Join(dir, filepath.FromSlash(path))); err != nil {
+		t.Fatalf("文件应落在租户域目录: %v", err)
+	}
+
+	// on + 无租户 ctx：系统级上传落存量根域
+	_, path, err = d.UploadReader(context.Background(), strings.NewReader("sys"), 3, "chat", "c.txt")
+	if err != nil {
+		t.Fatal(err)
+	}
+	if strings.Contains(path, "tenant_") {
+		t.Fatalf("无租户 ctx 应落存量根域: %q", path)
+	}
+
+	// on：下载/删除经 resolve 走同一路径（自证租户段在 baseDir 内，穿越守卫天然覆盖）
+	rc, err := d.Download(ctx42, path)
+	if err != nil {
+		t.Fatalf("租户域文件应可回读: %v", err)
+	}
+	_ = rc.Close()
 }

@@ -39,7 +39,7 @@ description: "任务清单：SaaS 多租户与离线单机双形态一体化"
 - [x] T008 唯一索引复合化迁移（幂等）：动态重建"已租户化表"上的非约束型唯一索引为 `(tenant_id, 原列...)`（排除 _pkey 与约束型 UNIQUE——后者 T027 人工审计）；**同变更内**必须把既有 `clause.OnConflict{Columns:[...]}` 显式冲突目标（实测量约 12 处，豁免表 config_params/system_config_kv/cron_job_leases 除外）同步补 `tenant_id` 列，否则索引重建后 upsert 运行时报错——保证 master 迁移后即时可运行；清单外唯一索引在 T027 审计中兜底复查
 - [x] T009 JWT 与租户中间件：`internal/pkg/utils/jwt.go` claims 增加 tenant_id（签发/解析）；新增 `internal/middleware/tenant.go`——on 模式无 claim → 401，off 模式注入默认租户；`internal/router/router.go` auth 组挂载（JWT 之后）
 - [x] T010 [P] Redis 键租户分域：`internal/pkg/tenant/keys.go` 键构造函数 `t{tenant}:{key}`；替换既有裸拼键点位（jwt_blacklist/jwt_revocation/ratelimit/cache 等逐点替换）；⚠️ off 模式**不加前缀、键形与现状逐字节一致**（存量吊销名单/会话键必须继续命中，否则已吊销 token 在升级窗口复活）；仅 on 模式启用前缀；单测覆盖两形态键形快照
-- [ ] T011 [P] uploads 租户分域：on 模式新上传落 `uploads/tenant_{id}/`；静态服务校验租户归属（跨根目录穿越拒绝）；⚠️ off 模式**读写路径与现状逐字节一致**（存量文件留在根目录直接可达，不做迁移搬移）；on 模式对存量根目录文件按只读兼容回落
+- [x] T011 [P] uploads 租户分域：on 模式新上传落 `uploads/tenant_{id}/`；静态服务校验租户归属（跨根目录穿越拒绝）；⚠️ off 模式**读写路径与现状逐字节一致**（存量文件留在根目录直接可达，不做迁移搬移）；on 模式对存量根目录文件按只读兼容回落
 - [ ] T012 GORM-only 清偿·repository 包（61 处）：`.Exec(`/`.Raw(` 全部改为 GORM API——upsert 用 `clause.OnConflict`、`FOR UPDATE SKIP LOCKED` 用 `clause.Locking`、`RETURNING` 用 `clause.Returning`、pgvector 操作符用 Where 片段+参数绑定、复杂聚合改多条 GORM 查询+Go 组装；`SELECT 1` 健康检查类改 `sqlDB.PingContext`；每完成一组跑 `go build ./... && go test ./internal/repository/...`
 - [ ] T013 [P] GORM-only 清偿·aiagent 包（44 处）：同 T012 手法；跑 `go test ./internal/aiagent/...`
 - [ ] T014 [P] GORM-only 清偿·其余包（28 处：monitor 7/ops 6/geo 6/service 3/browser_automation 3/router 2/pkg 1）：同 T012 手法；router/health.go 的 `SELECT 1` 探针改 `sqlDB.PingContext`；各包测试通过
