@@ -329,7 +329,80 @@ Router → Controller → Service → Repository → Model
 ```
 
 ---
-
+ 
+## 🏆 规则5：新手引导强制集成——所有新功能必须自动纳入引导体系（最高优先级）
+ 
+**任何新增业务功能（页面、模块、组件），开发完成前必须同步实现对应层级的新手引导**，纳入统一的三层引导体系，零例外。
+ 
+### 5.1 三层引导体系（已实现，位于 `user-web/src/composables/useOnboarding.ts`）
+ 
+| 层级 | 覆盖范围 | 步骤数 | 触发方式 | 存储键 |
+|------|---------|--------|----------|--------|
+| **全局导览** | 品牌/顶部导航/侧边栏/通知/用户菜单/主内容区 | 6 步 | 首次登录自动 + 用户菜单「全局导览」 | `hivemtk_onboarding_completed_global` |
+| **模块导览** | 14 大核心模块（消息中台、统一收件箱、客户中心、AI智能体、主动触达、能力支撑、客服工作台、触达运营、知识中心、数据分析、GEO优化、系统设置、资产包、资产市场） | 各 3-4 步 | 进入模块首页自动 / `useModuleOnboarding(moduleKey)` | `hivemtk_onboarding_completed_module` |
+| **页面导览** | 6 个核心页面（消息中台列表、收件箱列表、客户360列表、智能体列表、触达Pipeline列表、数据大屏列表） | 各 4 步 | 进入具体页面自动 / `usePageOnboarding(pageKey)` | `hivemtk_onboarding_completed_page` |
+ 
+### 5.2 新增功能必须同步实现的引导内容
+ 
+**开发新页面/模块时，必须在同一任务内完成：**
+ 
+1. **模块导览**（新增顶级菜单模块时）：
+   - 在 `useOnboarding.ts` 的 `getModuleTourSteps()` 中添加 `moduleKey` 配置
+   - 定义 3-4 个核心步骤：`element` 选择器、`titleKey`、`descriptionKey`、`side` 位置
+   - 在 `zh.json`/`en.json` 的 `onboarding.module.{moduleKey}` 下添加中英文文案
+ 
+2. **页面导览**（新增核心业务页面时）：
+   - 在 `getPageTourSteps()` 中添加 `pageKey` 配置（格式：`{routeName}`，如 `customer360-list`）
+   - 定义 4 个核心步骤，覆盖：筛选/工具栏 → 列表/主内容 → 详情/交互区 → 操作/配置区
+   - 在 `zh.json`/`en.json` 的 `onboarding.page.{pageKey}` 下添加中英文文案
+ 
+3. **组件级引导**（复杂交互组件）：
+   - 使用 `driver.js` 的 `highlight(element, options)` 方法即时高亮
+   - 适用于：首次使用的复杂表单、向导式流程、新增的交互组件
+ 
+### 5.3 选择器规范（必须遵循）
+ 
+- **全局/模块级**：使用**语义化 class 选择器**（如 `.mh-stats-cards`、`.inbox-filter-bar`），避免脆弱的深层选择器
+- **页面级**：在目标组件根元素添加**唯一标识 class**（如 `<div class="c360-search-box">`）
+- **禁止**：`nth-child`、深层嵌套 `> div > div`、动态生成的 ID
+- **新增页面时**：在主容器添加 `class="{pageKey}-page"`，关键区域添加 `{feature}-{area}` 格式 class
+ 
+### 5.4 i18n 文案规范
+ 
+- **命名空间**：`onboarding.global` / `onboarding.module.{key}` / `onboarding.page.{key}`
+- **结构**：每步包含 `title` + `description`
+- **双语同步**：中英文必须同时添加，描述需包含**功能定位 + 核心操作 + 关键特性**
+- **示例**：
+  ```json
+  "onboarding.module.customer": {
+    "step1": { "title": "客户搜索框", "description": "支持按手机号、邮箱、姓名、OneID、标签多维度检索客户" },
+    "step2": { "title": "客户画像卡片", "description": "360° 全视角：基础属性、行为事件、标签分层、会话记录、订单轨迹" }
+  }
+  ```
+ 
+### 5.5 验收标准（新功能上线前必须通过）
+ 
+- [ ] 模块导览：进入模块首页自动触发，步骤顺序合理，高亮元素准确
+- [ ] 页面导览：进入页面自动触发，4步覆盖「筛选→列表→详情→操作」
+- [ ] 文案完整：中英文 100% 覆盖，无缺失 key
+- [ ] 完成持久化：点击「完成」后 `localStorage` 正确标记，不再重复弹出
+- [ ] 手动重看：用户菜单「全局导览」/ 页面右键菜单可再次触发
+- [ ] 多语言切换：切换语言后引导文案即时生效
+ 
+### 5.6 技术栈锁定
+ 
+- **driver.js (MIT)**：`user-web/package.json` 已锁定版本，**禁止更换库**
+- **组合式 API**：统一使用 `useOnboarding()` / `useModuleOnboarding()` / `usePageOnboarding()`
+- **自动触发**：`App.vue` 首次登录自动启动全局导览，模块/页面级在对应组件 `onMounted` 中调用 `tryStart()`
+ 
+### 5.7 违规后果
+ 
+- **未实现引导的新功能 = 未完成**，不允许提交推送
+- **文案缺失/选择器失效** = 构建时 i18n 检查失败 / 运行时控制台报警，必须修复
+- **复用旧选择器导致高亮偏移** = 必须在新页面添加专用 class，禁止偷懒复用
+ 
+---
+ 
 ## 🏆 工程文档索引
 
 - 工程开发文档总索引见 `docs/DEV_DOCS_INDEX.md`;架构决策记录见 `docs/architecture/adr/`
