@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/logger"
 )
@@ -38,19 +39,31 @@ func (c *Cron) Start(ctx context.Context) {
 			case <-c.stop:
 				return
 			case <-c.ticker.C:
-				res, err := c.svc.RunBatch(ctx, 0, 0, false)
-				if err != nil {
-					logger.Warnf("[trace_learning] cron 批量评估失败: %v", err)
-					continue
+				// 多租户模式下，需以租户扇出方式逐租户执行
+				if tenant.IsMultiTenant() {
+					_, _ = tenant.Fanout(ctx, nil, func(ctx context.Context, _ uint) (int64, error) {
+						c.runBatchTenant(ctx)
+						return 0, nil
+					})
+				} else {
+					c.runBatchTenant(ctx)
 				}
-				n := 0
-				if res != nil {
-					n = res.Processed
-				}
-				logger.Infof("[trace_learning] cron 批量评估完成 processed=%d", n)
 			}
 		}
 	})
+}
+
+func (c *Cron) runBatchTenant(ctx context.Context) {
+	res, err := c.svc.RunBatch(ctx, 0, 0, false)
+	if err != nil {
+		logger.Warnf("[trace_learning] cron 批量评估失败: %v", err)
+		return
+	}
+	n := 0
+	if res != nil {
+		n = res.Processed
+	}
+	logger.Infof("[trace_learning] cron 批量评估完成 processed=%d", n)
 }
 
 // Stop 停止定时任务

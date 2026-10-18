@@ -132,3 +132,27 @@ func FromContext(ctx context.Context) (uint, bool) {
 func ContextWithDefault(ctx context.Context) context.Context {
 	return WithTenantID(ctx, DefaultTenantID)
 }
+
+// detachedCtx 保留父 ctx 的取消与截止时间，但丢弃**全部** value。
+type detachedCtx struct{ context.Context }
+
+// Value 恒 nil：连同 SystemScope 与既有租户绑定一并剥掉。
+func (detachedCtx) Value(any) any { return nil }
+
+// OnlyTenant 构造「只携带指定租户」的 ctx：保留父 ctx 的取消/截止语义，
+// 剥离其余全部 value（含 SystemScope 与既有绑定），再显式绑定 id。
+//
+// 为什么需要它：有些读写必须**钉死**在一个确定的租户上，而调用方 ctx 可能
+// 带着 SystemScope —— 隔离 callback 见到 SystemScope 会放行查询（读到的是
+// 跨租户 union）且跳过 Create 的 tenant_id 填充（写落列默认值 1），两者都会
+// 把别的租户的数据混进本次结果；而直接换 context.Background() 又会丢掉取消
+// 语义（后台任务退出时进行中的读不跟着断）。本 helper 两者都不牺牲。
+//
+// id 无效（0）时按 WithTenantID 原样返回（视为无绑定，on 模式由隔离
+// callback fail-closed 兜底，绝不回落默认租户）。
+func OnlyTenant(ctx context.Context, id uint) context.Context {
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	return WithTenantID(detachedCtx{ctx}, id)
+}

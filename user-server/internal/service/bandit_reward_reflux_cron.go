@@ -6,6 +6,7 @@ import (
 
 	"gorm.io/gorm"
 
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/logger"
 	feedbackloop "hivemtk-user/internal/service/feedback_loop"
@@ -14,6 +15,25 @@ import (
 func (c *FeedbackLoopCron) runBanditRewardReflux(ctx context.Context, db *gorm.DB) {
 	defer c.wg.Done()
 	cursor := time.Now().Add(-time.Hour)
+	for {
+		select {
+		case <-c.stopCh:
+			return
+		case <-time.After(time.Hour):
+		}
+		// 多租户模式下，需以租户扇出方式逐租户执行
+		if tenant.IsMultiTenant() {
+			_, _ = tenant.Fanout(ctx, db, func(ctx context.Context, _ uint) (int64, error) {
+				c.runBanditRewardRefluxTenant(ctx, db, cursor)
+				return 0, nil
+			})
+			return
+		}
+		c.runBanditRewardRefluxTenant(ctx, db, cursor)
+	}
+}
+
+func (c *FeedbackLoopCron) runBanditRewardRefluxTenant(ctx context.Context, db *gorm.DB, cursor time.Time) {
 	reflux := feedbackloop.NewBanditRewardReflux(db, c.components.Bandit)
 	for {
 		select {

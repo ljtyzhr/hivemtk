@@ -8,6 +8,7 @@ import (
 
 	"gorm.io/gorm"
 
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
 )
@@ -77,6 +78,18 @@ func (c *FeedbackLearningCron) trigger(ctx context.Context) {
 		return
 	}
 
+	// 多租户模式下，需以租户扇出方式逐租户执行
+	if tenant.IsMultiTenant() {
+		_, _ = tenant.Fanout(ctx, nil, func(ctx context.Context, _ uint) (int64, error) {
+			c.triggerTenant(ctx)
+			return 0, nil
+		})
+		return
+	}
+	c.triggerTenant(ctx)
+}
+
+func (c *FeedbackLearningCron) triggerTenant(ctx context.Context) {
 	periodEnd := time.Now()
 	periodStart := periodEnd.AddDate(0, 0, -30)
 	if _, err := c.svc.ExtractProfile(ctx, 0, "系统智能体", "ai_champion", periodStart, periodEnd); err != nil {

@@ -8,6 +8,7 @@ import (
 	"gorm.io/gorm"
 
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
@@ -60,26 +61,38 @@ func (c *FeedbackLoopCron) runChampionBaselineMonthly(ctx context.Context, _ *go
 			return
 		case <-time.After(time.Until(next)):
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), utils.CronVeryLongTimeout)
-
-		report, err := c.components.Analyzer.AnalyzePipeline(ctx, time.Now().AddDate(0, -1, 0))
-		if err != nil {
-			logger.Ctx(ctx).Error().Err(err).Msg("[cron] monthly champion analyze pipeline failed")
-		} else {
-			logger.Ctx(ctx).Info().
-				Int("candidates", report.CandidateCount).
-				Int("clusters", report.ClusterCount).
-				Int("persisted", report.PersistedCount).
-				Int("scripts", len(report.ExtractedScripts)).
-				Msg("[cron] monthly champion analyze pipeline done")
+		// 多租户模式下，需以租户扇出方式逐租户执行
+		if tenant.IsMultiTenant() {
+			_, _ = tenant.Fanout(ctx, nil, func(ctx context.Context, _ uint) (int64, error) {
+				c.runChampionBaselineMonthlyTenant(ctx)
+				return 0, nil
+			})
+			return
 		}
-
-		periodEnd := time.Now()
-		periodStart := periodEnd.AddDate(0, -1, 0)
-		rowsAffected := c.refreshChampionBaselineRows(ctx, "default", "default", "all", periodStart, periodEnd)
-		logger.Ctx(ctx).Info().Int64("rows_affected", rowsAffected).Msg("[cron] monthly champion baseline refresh done")
-		cancel()
+		c.runChampionBaselineMonthlyTenant(ctx)
 	}
+}
+
+func (c *FeedbackLoopCron) runChampionBaselineMonthlyTenant(ctx context.Context) {
+	ctx, cancel := context.WithTimeout(ctx, utils.CronVeryLongTimeout)
+	defer cancel()
+
+	report, err := c.components.Analyzer.AnalyzePipeline(ctx, time.Now().AddDate(0, -1, 0))
+	if err != nil {
+		logger.Ctx(ctx).Error().Err(err).Msg("[cron] monthly champion analyze pipeline failed")
+	} else {
+		logger.Ctx(ctx).Info().
+			Int("candidates", report.CandidateCount).
+			Int("clusters", report.ClusterCount).
+			Int("persisted", report.PersistedCount).
+			Int("scripts", len(report.ExtractedScripts)).
+			Msg("[cron] monthly champion analyze pipeline done")
+	}
+
+	periodEnd := time.Now()
+	periodStart := periodEnd.AddDate(0, -1, 0)
+	rowsAffected := c.refreshChampionBaselineRows(ctx, "default", "default", "all", periodStart, periodEnd)
+	logger.Ctx(ctx).Info().Int64("rows_affected", rowsAffected).Msg("[cron] monthly champion baseline refresh done")
 }
 
 func (c *FeedbackLoopCron) refreshChampionBaselineRows(
@@ -147,14 +160,26 @@ func (c *FeedbackLoopCron) runChampionDialogueWeekly(ctx context.Context) {
 			return
 		case <-time.After(time.Until(next)):
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), utils.CronExtraLongTimeout)
-		_, err := c.components.Analyzer.AnalyzePipeline(ctx, time.Now().AddDate(0, 0, -7))
-		if err != nil {
-			logger.Ctx(ctx).Error().Err(err).Msg("[cron] weekly champion dialogue analyze failed")
-		} else {
-			logger.Ctx(ctx).Info().Msg("[cron] weekly champion dialogue analyze done")
+		// 多租户模式下，需以租户扇出方式逐租户执行
+		if tenant.IsMultiTenant() {
+			_, _ = tenant.Fanout(ctx, nil, func(ctx context.Context, _ uint) (int64, error) {
+				c.runChampionDialogueWeeklyTenant(ctx)
+				return 0, nil
+			})
+			return
 		}
-		cancel()
+		c.runChampionDialogueWeeklyTenant(ctx)
+	}
+}
+
+func (c *FeedbackLoopCron) runChampionDialogueWeeklyTenant(ctx context.Context) {
+	ctx, cancel := context.WithTimeout(ctx, utils.CronExtraLongTimeout)
+	defer cancel()
+	_, err := c.components.Analyzer.AnalyzePipeline(ctx, time.Now().AddDate(0, 0, -7))
+	if err != nil {
+		logger.Ctx(ctx).Error().Err(err).Msg("[cron] weekly champion dialogue analyze failed")
+	} else {
+		logger.Ctx(ctx).Info().Msg("[cron] weekly champion dialogue analyze done")
 	}
 }
 
@@ -167,42 +192,51 @@ func (c *FeedbackLoopCron) runPromptIteratorDaily(ctx context.Context) {
 			return
 		case <-time.After(time.Until(next)):
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), utils.CronLongTimeout)
-		if c.components == nil || c.components.Iterator == nil {
-			cancel()
-			continue
+		// 多租户模式下，需以租户扇出方式逐租户执行
+		if tenant.IsMultiTenant() {
+			_, _ = tenant.Fanout(ctx, nil, func(ctx context.Context, _ uint) (int64, error) {
+				c.runPromptIteratorDailyTenant(ctx)
+				return 0, nil
+			})
+			return
 		}
-		if c.sopRepo == nil {
-			cancel()
-			continue
-		}
-		sops, err := c.sopRepo.ListByUseBandit(ctx, true)
-		if err != nil {
-			logger.Ctx(ctx).Error().Err(err).Msg("[cron] prompt iterator: load sops failed")
-			cancel()
-			continue
-		}
-		totalCandidates := 0
-		for _, sop := range sops {
-			nodes := extractSOPNodesFromGraph(sop.SOPGraph)
-			for _, n := range nodes {
-				if n.ID == "" {
-					continue
-				}
-				if !isPromptableNodeType(n.Type) {
-					continue
-				}
-				candidates, err := c.components.Iterator.IterateForNode(ctx, sop.ID, n.ID)
-				if err != nil {
-					logger.Ctx(ctx).Error().Err(err).Uint("sop_id", sop.ID).Str("node_id", n.ID).Msg("[cron] prompt iterator iterate failed")
-					continue
-				}
-				totalCandidates += len(candidates)
-			}
-		}
-		logger.Ctx(ctx).Info().Int("sop_count", len(sops)).Int("candidates", totalCandidates).Msg("[cron] daily prompt iterator done")
-		cancel()
+		c.runPromptIteratorDailyTenant(ctx)
 	}
+}
+
+func (c *FeedbackLoopCron) runPromptIteratorDailyTenant(ctx context.Context) {
+	ctx, cancel := context.WithTimeout(ctx, utils.CronLongTimeout)
+	defer cancel()
+	if c.components == nil || c.components.Iterator == nil {
+		return
+	}
+	if c.sopRepo == nil {
+		return
+	}
+	sops, err := c.sopRepo.ListByUseBandit(ctx, true)
+	if err != nil {
+		logger.Ctx(ctx).Error().Err(err).Msg("[cron] prompt iterator: load sops failed")
+		return
+	}
+	totalCandidates := 0
+	for _, sop := range sops {
+		nodes := extractSOPNodesFromGraph(sop.SOPGraph)
+		for _, n := range nodes {
+			if n.ID == "" {
+				continue
+			}
+			if !isPromptableNodeType(n.Type) {
+				continue
+			}
+			candidates, err := c.components.Iterator.IterateForNode(ctx, sop.ID, n.ID)
+			if err != nil {
+				logger.Ctx(ctx).Error().Err(err).Uint("sop_id", sop.ID).Str("node_id", n.ID).Msg("[cron] prompt iterator iterate failed")
+				continue
+			}
+			totalCandidates += len(candidates)
+		}
+	}
+	logger.Ctx(ctx).Info().Int("sop_count", len(sops)).Int("candidates", totalCandidates).Msg("[cron] daily prompt iterator done")
 }
 
 type sopGraphNode struct {
@@ -271,47 +305,57 @@ func (c *FeedbackLoopCron) runBanditConvergence(ctx context.Context) {
 			return
 		case <-time.After(6 * time.Hour):
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), utils.CronShortTimeout)
-		if c.components == nil || c.components.Bandit == nil {
-			cancel()
+		// 多租户模式下，需以租户扇出方式逐租户执行
+		if tenant.IsMultiTenant() {
+			_, _ = tenant.Fanout(ctx, nil, func(ctx context.Context, _ uint) (int64, error) {
+				c.runBanditConvergenceTenant(ctx)
+				return 0, nil
+			})
+			return
+		}
+		c.runBanditConvergenceTenant(ctx)
+	}
+}
+
+func (c *FeedbackLoopCron) runBanditConvergenceTenant(ctx context.Context) {
+	ctx, cancel := context.WithTimeout(ctx, utils.CronShortTimeout)
+	defer cancel()
+	if c.components == nil || c.components.Bandit == nil {
+		return
+	}
+	var experiments []model.PromptABTest
+	if c.abTestRepo != nil {
+		var err error
+		experiments, err = c.abTestRepo.ListRunningABTests(ctx)
+		if err != nil {
+			logger.Ctx(ctx).Error().Err(err).Msg("[cron] bandit convergence: load experiments failed")
+			return
+		}
+	}
+	converged, promoted := 0, 0
+	for _, exp := range experiments {
+		if exp.ExperimentID == "" {
 			continue
 		}
-		var experiments []model.PromptABTest
+		winnerKey, ok := c.components.Bandit.CheckConvergence(ctx, exp.ExperimentID)
+		if !ok || winnerKey == "" {
+			continue
+		}
+		converged++
+		if err := c.components.Bandit.PromoteArm(ctx, exp.ExperimentID, winnerKey); err != nil {
+			logger.Ctx(ctx).Error().Err(err).Str("experiment_id", exp.ExperimentID).Msg("[cron] bandit promote failed")
+			continue
+		}
+		promoted++
 		if c.abTestRepo != nil {
-			var err error
-			experiments, err = c.abTestRepo.ListRunningABTests(ctx)
-			if err != nil {
-				logger.Ctx(ctx).Error().Err(err).Msg("[cron] bandit convergence: load experiments failed")
-				cancel()
-				continue
-			}
+			utils.WarnErrKV("feedbackloop.cron.promoteAbTest", c.abTestRepo.UpdateABTestByExperimentID(ctx, exp.ExperimentID, map[string]any{
+				"status":       model.PromptABTestStatusCompleted,
+				"winner_arm":   winnerKey,
+				"completed_at": time.Now(),
+			}), "experiment_id", exp.ExperimentID, "winner_arm", winnerKey)
 		}
-		converged, promoted := 0, 0
-		for _, exp := range experiments {
-			if exp.ExperimentID == "" {
-				continue
-			}
-			winnerKey, ok := c.components.Bandit.CheckConvergence(ctx, exp.ExperimentID)
-			if !ok || winnerKey == "" {
-				continue
-			}
-			converged++
-			if err := c.components.Bandit.PromoteArm(ctx, exp.ExperimentID, winnerKey); err != nil {
-				logger.Ctx(ctx).Error().Err(err).Str("experiment_id", exp.ExperimentID).Msg("[cron] bandit promote failed")
-				continue
-			}
-			promoted++
-			if c.abTestRepo != nil {
-				utils.WarnErrKV("feedbackloop.cron.promoteAbTest", c.abTestRepo.UpdateABTestByExperimentID(ctx, exp.ExperimentID, map[string]any{
-					"status":       model.PromptABTestStatusCompleted,
-					"winner_arm":   winnerKey,
-					"completed_at": time.Now(),
-				}), "experiment_id", exp.ExperimentID, "winner_arm", winnerKey)
-			}
-		}
-		logger.Ctx(ctx).Info().Int("total", len(experiments)).Int("converged", converged).Int("promoted", promoted).Msg("[cron] bandit convergence check done")
-		cancel()
 	}
+	logger.Ctx(ctx).Info().Int("total", len(experiments)).Int("converged", converged).Int("promoted", promoted).Msg("[cron] bandit convergence check done")
 }
 
 func (c *FeedbackLoopCron) runOptimizerCycle(ctx context.Context) {
@@ -322,22 +366,34 @@ func (c *FeedbackLoopCron) runOptimizerCycle(ctx context.Context) {
 			return
 		case <-time.After(6 * time.Hour):
 		}
-		if c.components == nil || c.components.Optimizer == nil {
-			continue
+		// 多租户模式下，需以租户扇出方式逐租户执行
+		if tenant.IsMultiTenant() {
+			_, _ = tenant.Fanout(ctx, nil, func(ctx context.Context, _ uint) (int64, error) {
+				c.runOptimizerCycleTenant(ctx)
+				return 0, nil
+			})
+			return
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), utils.CronShortTimeout)
-		report, err := c.components.Optimizer.ProcessPendingSuggestions(ctx)
-		if err != nil {
-			logger.Ctx(ctx).Error().Err(err).Msg("[cron] sop optimizer cycle failed")
-		} else {
-			logger.Ctx(ctx).Info().
-				Int("pending", report.PendingCount).
-				Int("applied", report.AppliedCount).
-				Int("failed", report.FailedCount).
-				Int("rolled_back", report.RolledBackCount).
-				Msg("[cron] sop optimizer cycle done")
-		}
-		cancel()
+		c.runOptimizerCycleTenant(ctx)
+	}
+}
+
+func (c *FeedbackLoopCron) runOptimizerCycleTenant(ctx context.Context) {
+	ctx, cancel := context.WithTimeout(ctx, utils.CronShortTimeout)
+	defer cancel()
+	if c.components == nil || c.components.Optimizer == nil {
+		return
+	}
+	report, err := c.components.Optimizer.ProcessPendingSuggestions(ctx)
+	if err != nil {
+		logger.Ctx(ctx).Error().Err(err).Msg("[cron] sop optimizer cycle failed")
+	} else {
+		logger.Ctx(ctx).Info().
+			Int("pending", report.PendingCount).
+			Int("applied", report.AppliedCount).
+			Int("failed", report.FailedCount).
+			Int("rolled_back", report.RolledBackCount).
+			Msg("[cron] sop optimizer cycle done")
 	}
 }
 
