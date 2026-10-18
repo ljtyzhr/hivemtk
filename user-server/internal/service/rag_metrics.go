@@ -13,6 +13,7 @@ import (
 	"gorm.io/gorm"
 
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
@@ -35,6 +36,14 @@ type RagMetricsService struct {
 	stopCh  chan struct{}
 	wg      sync.WaitGroup
 	started bool
+}
+
+// GetDB 返回底层 DB（用于租户扇出场景）
+func (s *RagMetricsService) GetDB() *gorm.DB {
+	if s.repo == nil {
+		return nil
+	}
+	return s.repo.GetDB(context.Background())
 }
 
 // NewRagMetricsService 创建召回率监控服务
@@ -458,12 +467,19 @@ func (c *RagMetricsCron) run(ctx context.Context) {
 		case <-c.stopCh:
 			return
 		case <-ticker.C:
-			ctx, cancel := context.WithTimeout(context.Background(), utils.DefaultHTTPTimeout)
-			_, err := c.svc.AggregateLastWindow(ctx)
-			if err != nil {
-				logger.Errorf("[RagMetricsCron] aggregate last window failed: %v", err)
+			// 多租户模式下，需以租户扇出方式逐租户执行聚合
+			if tenant.IsMultiTenant() {
+				_, _ = tenant.Fanout(ctx, c.svc.GetDB(), func(ctx context.Context, _ uint) (int64, error) {
+					ctx, cancel := context.WithTimeout(ctx, utils.DefaultHTTPTimeout)
+					_, err := c.svc.AggregateLastWindow(ctx)
+					cancel()
+					return 0, err
+				})
+			} else {
+				ctx, cancel := context.WithTimeout(ctx, utils.DefaultHTTPTimeout)
+				_, _ = c.svc.AggregateLastWindow(ctx)
+				cancel()
 			}
-			cancel()
 		}
 	}
 }

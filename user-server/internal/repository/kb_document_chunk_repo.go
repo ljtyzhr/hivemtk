@@ -80,5 +80,7 @@ func (r *KBDocumentChunkRepository) MarkSuperseded(ctx context.Context, ids []ui
 		return gorm.ErrInvalidDB
 	}
 	return r.db.WithContext(ctx).
-		Exec("UPDATE kb_document_chunks SET status = ? WHERE id IN ?", "superseded", ids).Error
+		Model(&KBDocumentChunkRow{}).
+		Where("id IN ?", ids).
+		UpdateColumn("status", "superseded").Error
 }

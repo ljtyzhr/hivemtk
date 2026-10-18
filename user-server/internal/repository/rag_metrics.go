@@ -33,10 +33,16 @@ type RagMetricsRepository interface {
 	SaveDaily(ctx context.Context, daily *model.RagMetricsDaily) error
 	CreateDaily(ctx context.Context, daily *model.RagMetricsDaily) error
 	FindLatestDailies(ctx context.Context, limit int) ([]model.RagMetricsDaily, error)
+	GetDB(ctx context.Context) *gorm.DB
 }
 
 type ragMetricsRepo struct {
 	db *gorm.DB
+}
+
+// GetDB 返回内部 db（用于租户扇出场景）
+func (r *ragMetricsRepo) GetDB(_ context.Context) *gorm.DB {
+	return r.db
 }
 
 // NewRagMetricsRepository 创建 RAG 召回率监控仓储

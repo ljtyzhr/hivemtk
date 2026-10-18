@@ -6,6 +6,7 @@ import (
 	"time"
 
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
 
@@ -13,16 +14,22 @@ import (
 )
 
 type MessageHubSummaryAggregationService struct {
-	repo repository.MessageHubSummaryRepository
-
+	repo      repository.MessageHubSummaryRepository
 	batchSize int
+	db        *gorm.DB
 }
 
 func NewMessageHubSummaryAggregationService(database *gorm.DB) *MessageHubSummaryAggregationService {
 	return &MessageHubSummaryAggregationService{
 		repo:      repository.NewMessageHubSummaryRepository(database),
 		batchSize: 50000,
+		db:        database,
 	}
+}
+
+// GetDB 返回底层 DB（用于租户扇出场景）
+func (s *MessageHubSummaryAggregationService) GetDB() *gorm.DB {
+	return s.db
 }
 
 // RunOnce 消费自上次水位线以来的全部新消息并累加进 summary 表。
@@ -144,7 +151,14 @@ func (c *hubSummaryAggCron) run(ctx context.Context) {
 		case <-c.stopCh:
 			return
 		case <-ticker.C:
-			c.trigger(ctx)
+			// 多租户模式下，需以租户扇出方式逐租户执行聚合
+			if tenant.IsMultiTenant() {
+				_, _ = tenant.Fanout(ctx, c.svc.GetDB(), func(ctx context.Context, _ uint) (int64, error) {
+					return c.svc.RunOnce(ctx)
+				})
+			} else {
+				c.trigger(ctx)
+			}
 		}
 	}
 }

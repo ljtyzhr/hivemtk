@@ -5,12 +5,16 @@ import (
 	"sync"
 	"time"
 
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
+
+	"gorm.io/gorm"
 )
 
 // SessionTTLCron 会话 TTL 自动关闭定时任务
 type SessionTTLCron struct {
 	sessionSvc *CustomerSessionService
+	db         *gorm.DB
 	stopCh     chan struct{}
 	stopOnce   sync.Once
 	wg         sync.WaitGroup
@@ -27,6 +31,9 @@ func NewSessionTTLCron(sessionSvc *CustomerSessionService) *SessionTTLCron {
 	c := &SessionTTLCron{
 		sessionSvc: sessionSvc,
 		stopCh:     make(chan struct{}),
+	}
+	if sessionSvc.sessionRepo != nil {
+		c.db = sessionSvc.sessionRepo.GetDB(context.Background())
 	}
 	c.wg.Add(1)
 	go c.run(context.Background())
@@ -69,25 +76,26 @@ func (c *SessionTTLCron) run(ctx context.Context) {
 }
 
 func (c *SessionTTLCron) tryTriggerWithDBWait(ctx context.Context) {
-	if c.sessionSvc == nil || c.sessionSvc.sessionRepo == nil {
+	if c.sessionSvc == nil || c.db == nil {
 		return
 	}
-	if db := c.sessionSvc.sessionRepo.GetDB(ctx); db == nil {
+	// 多租户模式下，需以租户扇出方式逐租户执行
+	if tenant.IsMultiTenant() {
+		_, _ = tenant.Fanout(ctx, c.db, func(ctx context.Context, _ uint) (int64, error) {
+			return c.trigger(ctx)
+		})
 		return
 	}
 	c.trigger(ctx)
 }
 
-func (c *SessionTTLCron) trigger(ctx context.Context) {
+func (c *SessionTTLCron) trigger(ctx context.Context) (int64, error) {
 	defer func() {
 		if r := recover(); r != nil {
 			logger.Errorf("[session_ttl_cron] panic: %v", r)
 		}
 	}()
-	_, err := c.sessionSvc.AutoCloseStaleSessions(ctx)
-	if err != nil {
-		logger.Errorf("[session_ttl_cron] auto close failed: %v", err)
-	}
+	return c.sessionSvc.AutoCloseStaleSessions(ctx)
 }
 
 var sessionTTLCron *SessionTTLCron

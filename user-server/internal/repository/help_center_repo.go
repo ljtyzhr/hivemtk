@@ -89,7 +89,9 @@ func (r *HelpCenterRepository) IncArticleViews(ctx context.Context, id uint64) e
 		return gorm.ErrInvalidDB
 	}
 	return r.db.WithContext(ctx).
-		Exec("UPDATE knowledge_documents SET hc_views = hc_views + 1 WHERE id = ?", id).Error
+		Model(&model.KnowledgeDocument{}).
+		Where("id = ?", id).
+		UpdateColumn("hc_views", gorm.Expr("hc_views + 1")).Error
 }
 
 // ListPublicArticles 公开文章列表（分类过滤+标题/切片搜索），返回行+每文档首切片摘要
