@@ -7,13 +7,17 @@ export default [
     // 不是由这里的 meta.title 聚合。所以本文件不需要 meta.group ——
     // 侧栏位置与可见性完全取决于 user-server internal/model/menu.go 里
     // 有没有对应节点（moduleCenterGroup）。
-    meta: { title: '功能模块市场', icon: 'Shop', requiresAuth: true }
+    // 未登录能逛市场（契约：浏览与列表是公开橱窗档，后端 list 也在 public 组）。
+    // 下单/我的模块/订单仍在鉴权档 —— requiresAuth 保留在 my/orders 上。
+    meta: { title: '功能模块市场', icon: 'Shop', requiresAuth: false, public: true }
   },
   {
     path: '/module-market/detail/:key',
     name: 'ModuleMarketDetail',
     component: () => import('@/views/moduleMarket/Detail.vue'),
-    meta: { title: '模块详情', requiresAuth: true, hidden: true }
+    // 详情接口在后端鉴权档（401）：匿名访问时 Detail.vue 渲染内联登录引导，
+    // 而不是被路由守卫挡在门外 —— 能逛到详情本身就是市场获客的一部分。
+    meta: { title: '模块详情', requiresAuth: false, public: true, hidden: true }
   },
   {
     path: '/module-market/my',

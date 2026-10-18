@@ -46,7 +46,7 @@
           <el-form-item prop="username">
             <el-input
               v-model="loginForm.username"
-              placeholder="用户名或邮箱"
+              :placeholder="t('core.login.username')"
               prefix-icon="User"
               size="large"
             />
@@ -156,7 +156,7 @@
 
 <script setup>
 import { ref, reactive } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { usePermissionStore } from '@/stores/permission'
@@ -166,6 +166,7 @@ import i18n from '@/i18n'
 const t = i18n.global.t
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
 const permissionStore = usePermissionStore()
 const loginFormRef = ref(null)
@@ -225,7 +226,14 @@ const finishLogin = async (token, user, resp) => {
   await permissionStore.ensureMenus(true)
   localStorage.setItem('system_initialized', 'true')
   ElMessage.success(t('core.login.success'))
-  router.push('/')
+  // 登录后回跳：?redirect= 只接受站内绝对路径（防开放重定向）。
+  // 市场详情的登录引导、下单拦截都会带 redirect 回来，缺了它用户会被丢去首页。
+  const redirect = route.query.redirect
+  if (typeof redirect === 'string' && redirect.startsWith('/') && !redirect.startsWith('//')) {
+    router.push(redirect)
+  } else {
+    router.push('/')
+  }
 }
 
 // 返回登录：退出 MFA 模式，清掉 temp_token 与验证码，回凭证表单

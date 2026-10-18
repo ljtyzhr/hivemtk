@@ -303,8 +303,9 @@
 
 <script setup>
 import { ref, reactive, computed, onMounted, nextTick } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
+import { useUserStore } from '@/stores/user'
 import {
   listMarketModules, marketModuleDetail, createModuleOrder, priceLabel,
   MODULE_CATEGORY_LABEL
@@ -312,6 +313,8 @@ import {
 
 const CATEGORY_LABEL = MODULE_CATEGORY_LABEL
 const route = useRoute()
+const router = useRouter()
+const userStore = useUserStore()
 
 // highlightKey 来自请求拦截器跳转时带的 ?highlight=<module_key>。
 // 用户点深链撞到 4301 之后被带到这里，指的是"我缺的就是这个"，
@@ -362,6 +365,12 @@ function genClientOrderNo () {
 }
 
 async function openConfirm (m) {
+  // 市场可匿名逛，但下单在鉴权档（401）。与其让人填完联系方式再撞墙，
+  // 不如先带 redirect 去登录 —— 登录后回到本页接着下单。
+  if (!userStore.isLoggedIn) {
+    router.push({ path: '/login', query: { redirect: route.fullPath } })
+    return
+  }
   confirmTarget.value = m
   Object.assign(form, { contact_name: '', contact_phone: '', contact_email: '', remark: '' })
   autoEnabled.value = []

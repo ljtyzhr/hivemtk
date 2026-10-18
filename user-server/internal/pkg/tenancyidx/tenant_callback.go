@@ -2,6 +2,7 @@ package tenancyidx
 
 import (
 	"fmt"
+	"reflect"
 	"regexp"
 	"strings"
 
@@ -9,6 +10,7 @@ import (
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
+	"gorm.io/gorm/schema"
 )
 
 // 租户隔离 GORM callback（specs/001-saas-multi-tenant T005）
@@ -116,24 +118,61 @@ func fillCreateForTenant(db *gorm.DB) {
 		return // 系统操作：交由列默认值（1）
 	}
 	id, ok := tenant.FromContext(ctx)
-	if !ok {
-		table := resolveTenantTable(stmt)
+	table := resolveTenantTable(stmt)
+
+	// 批量 Create(&[]*Model / []Model)：stmt.ReflectValue 是**切片**。
+	// 曾经对整片直接 ValueOf/Set —— reflect 在切片上调 Field 直接 panic
+	//（on 模式 + 有租户绑定 ctx + 批量写租户表 = 进程级崩溃；单行路径不受
+	// 影响，所以长期没暴露）。逐元素执行与单行完全相同的填充/校验语义。
+	rv := stmt.ReflectValue
+	if rv.Kind() == reflect.Slice {
+		for i := 0; i < rv.Len(); i++ {
+			elem := rv.Index(i)
+			for elem.Kind() == reflect.Pointer || elem.Kind() == reflect.Interface {
+				if elem.IsNil() {
+					break
+				}
+				elem = elem.Elem()
+			}
+			if elem.Kind() != reflect.Struct {
+				continue
+			}
+			if !fillOneForTenant(db, field, elem, id, ok, table) {
+				return // 已 AddError：停止处理剩余行（与单行 fail-closed 同后果）
+			}
+		}
+		return
+	}
+	fillOneForTenant(db, field, rv, id, ok, table)
+}
+
+// fillOneForTenant 对**一个结构体行**执行 tenant_id 填充/校验。
+// 返回 true=可继续处理后续行；false=已 fail-closed（db 已挂错误）。
+func fillOneForTenant(db *gorm.DB, field *schema.Field, v reflect.Value, id uint, bound bool, table string) bool {
+	if !bound {
 		// 字段已有显式非零值（行自证写入路径）：放行
-		if v, zero := field.ValueOf(stmt.Context, stmt.ReflectValue); !zero {
-			if fv, isUint := v.(uint); isUint && fv != 0 {
-				return
+		if fv, zero := field.ValueOf(db.Statement.Context, v); !zero {
+			if fvUint, isUint := fv.(uint); isUint && fvUint != 0 {
+				return true
 			}
 		}
 		tenantGuardFail(db, table, "create")
-		return
+		return false
 	}
-	if v, zero := field.ValueOf(stmt.Context, stmt.ReflectValue); !zero {
-		if fv, isUint := v.(uint); isUint && fv != 0 && fv != id {
-			_ = db.AddError(fmt.Errorf("[tenant] 写入 tenant_id=%d 与上下文租户 %d 不一致，拒绝跨租户写", fv, id))
-			return
+	if fv, zero := field.ValueOf(db.Statement.Context, v); !zero {
+		if fvUint, isUint := fv.(uint); isUint && fvUint != 0 && fvUint != id {
+			_ = db.AddError(fmt.Errorf("[tenant] 写入 tenant_id=%d 与上下文租户 %d 不一致，拒绝跨租户写", fvUint, id))
+			return false
 		}
 	}
-	_ = field.Set(stmt.Context, stmt.ReflectValue, id)
+	if !v.CanAddr() {
+		// 不可寻址就填不进去：宁可 fail-closed 报错，也不能静默落列默认值 1
+		//（那会把行写到默认租户 = 串租户）。单行 Create 的 Dest 恒可寻址。
+		tenantGuardFail(db, table, "create：目标行不可寻址，无法填充 tenant_id")
+		return false
+	}
+	_ = field.Set(db.Statement.Context, v, id)
+	return true
 }
 
 // scopeUpdateForTenant / scopeDeleteForTenant：与 query 同一注入语义

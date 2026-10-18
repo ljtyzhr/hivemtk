@@ -31,10 +31,11 @@ import (
 
 // moduleGateChecker 判定函数（装配期由 service.ModuleGateService 注入）
 type moduleGateChecker interface {
-	// IsEnabled ctx 必须是**请求上下文**：on 模式（TENANT_MODE=on）下隔离
-	// callback 从 ctx 取调用方租户来读 tenant_modules 镜像。中间件这里若改用
-	// context.Background()，读会 fail-closed → Refresh 失败 → bootstrapped=false
-	// → IsEnabled 对所有模块返回 true —— 付费闸静默全开（P1）。
+	// IsEnabled ctx 必须是**请求上下文**：闸从 ctx 解析租户（Service 内的
+	// gateTenantOf），按**该租户**的镜像状态判定。中间件这里若改用
+	// context.Background()，on 模式下解析不出调用方 → 回落到默认租户视图 ——
+	// 租户 2+ 的请求会被拿租户 1 的开通集判定（该放的被拦、该拦的被放），
+	// 隔离与付费闸同时失真。
 	IsEnabled(ctx context.Context, moduleKey string) bool
 }
 

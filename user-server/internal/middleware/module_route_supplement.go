@@ -23,10 +23,12 @@ var ModuleRouteSupplement = []ModuleRouteRule{
 	// ---- llm-cloud：平台模型算力（计量型收费模块）----
 	// 为什么不生成：llm-cloud 没有独立菜单页，入口是 LLM 页面的「平台套餐」Tab
 	// 与顶部余额条，能力面表按"菜单页消费的口"收录，收不到它。
+	// （/api/llm/llm-plans 曾在这里，但没有任何路由注册它 —— 前端调的、
+	// 路由挂的都是 /api/llm/plans，死条目已删；下单 /api/llm/recharge 刻意
+	// **不进本表**：它是购买入口，拦了就死锁。）
 	{Pattern: "/api/llm/wallet", ModuleKey: "llm-cloud"},
 	{Pattern: "/api/llm/wallet/*", ModuleKey: "llm-cloud"},
 	{Pattern: "/api/llm/plans", ModuleKey: "llm-cloud"},
-	{Pattern: "/api/llm/llm-plans", ModuleKey: "llm-cloud"},
 
 	// ---- platform-link：模块下发与我的模块 ----
 	// 为什么不生成：纯控制面，无菜单页消费。

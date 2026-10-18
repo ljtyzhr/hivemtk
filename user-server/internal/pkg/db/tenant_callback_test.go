@@ -108,6 +108,49 @@ func TestTenantCallback_OnModeFillAndScope(t *testing.T) {
 	}
 }
 
+// TestTenantCallback_OnModeBatchCreateFill 批量 Create(&[]*Model) 的逐行填充。
+//
+// 回归钉的是一个真实 panic：fillCreateForTenant 曾直接对**切片**形态的
+// stmt.ReflectValue 取 Field —— on 模式 + 有租户绑定 ctx + 批量写租户表
+// = "reflect: call of reflect.Value.Field on slice Value" 进程崩溃。
+// 模块激活（Sync 落点归并批量落下单租户）就是这条路径的真实调用方。
+func TestTenantCallback_OnModeBatchCreateFill(t *testing.T) {
+	database := setupTenantCallbackDB(t)
+	tenant.SetMode(tenant.ModeOn)
+	ctxA := tenant.WithTenantID(context.Background(), 51)
+	ctxB := tenant.WithTenantID(context.Background(), 52)
+
+	// 批量写：每行的 tenant_id 都由绑定 ctx 填充
+	rowsA := []*tenancyProbeModel{{Name: "ba1"}, {Name: "ba2"}}
+	if err := database.WithContext(ctxA).Create(&rowsA).Error; err != nil {
+		t.Fatalf("on 模式批量创建失败: %v", err)
+	}
+	rowsB := []*tenancyProbeModel{{Name: "bb1", TenantID: 52}} // 行自证值与绑定一致
+	if err := database.WithContext(ctxB).Create(&rowsB).Error; err != nil {
+		t.Fatalf("on 模式批量创建（显式一致值）失败: %v", err)
+	}
+	// 混入与绑定不一致的显式值：整批 fail-closed
+	rowsBad := []*tenancyProbeModel{{Name: "bad", TenantID: 99}}
+	if err := database.WithContext(ctxA).Create(&rowsBad).Error; err == nil {
+		t.Fatal("批量写入中 tenant_id 与上下文不一致的行必须 fail-closed")
+	}
+
+	var got []tenancyProbeModel
+	if err := database.WithContext(ctxA).Order("name").Find(&got).Error; err != nil {
+		t.Fatal(err)
+	}
+	if len(got) != 2 || got[0].TenantID != 51 || got[1].TenantID != 51 {
+		t.Fatalf("批量行应全部落租户 51，实际 %+v", got)
+	}
+
+	// 无绑定的批量创建：只要存在零值行就 fail-closed（显式值行的自证放行
+	// 不改变整批报错的结论）
+	rowsUnbound := []*tenancyProbeModel{{Name: "ub1"}, {Name: "ub2", TenantID: 53}}
+	if err := database.WithContext(context.Background()).Create(&rowsUnbound).Error; err == nil {
+		t.Fatal("on 模式无租户绑定的批量创建必须 fail-closed")
+	}
+}
+
 func TestTenantCallback_OnModeFailClosed(t *testing.T) {
 	database := setupTenantCallbackDB(t)
 	tenant.SetMode(tenant.ModeOn)

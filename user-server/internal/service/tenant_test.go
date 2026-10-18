@@ -320,7 +320,7 @@ func TestTenantService_ListTenants(t *testing.T) {
 	setupTenantTestDB(t)
 	ts := NewTenantService()
 
-	for i, mail := range []string{"one@b.com", "two@b.com"} {
+	for i, mail := range []string{"one@b.com", "two@b.com", "three@b.com"} {
 		req := validRegisterReq()
 		req.Email = mail
 		req.Name = fmt.Sprintf("公司%d", i)
@@ -333,13 +333,38 @@ func TestTenantService_ListTenants(t *testing.T) {
 	if err != nil {
 		t.Fatalf("列清单失败: %v", err)
 	}
-	if total != 2 {
-		t.Errorf("期望 2 个租户，实为 %d", total)
+	if total != 3 {
+		t.Errorf("期望 3 个租户，实为 %d", total)
 	}
 	for _, r := range rows {
 		if r.Activity.MemberCount != 1 {
 			t.Errorf("租户 %s 成员数应为 1，实为 %d", r.Code, r.Activity.MemberCount)
 		}
+	}
+
+	// 分页：page_size=1 时 total 恒为全量，rows 只含当页（LIMIT/OFFSET 真生效）
+	rows, total, err = ts.ListTenants(context.Background(), repositoryFilter(2, 1, ""))
+	if err != nil {
+		t.Fatalf("分页列清单失败: %v", err)
+	}
+	if total != 3 || len(rows) != 1 {
+		t.Errorf("第 2 页应 total=3 rows=1，实为 total=%d rows=%d", total, len(rows))
+	}
+	// 越过末页：rows 为空但 total 不丢（前端靠 total 算页数）
+	rows, total, err = ts.ListTenants(context.Background(), repositoryFilter(99, 1, ""))
+	if err != nil {
+		t.Fatalf("越界分页失败: %v", err)
+	}
+	if total != 3 || len(rows) != 0 {
+		t.Errorf("越界页应 total=3 rows=0，实为 total=%d rows=%d", total, len(rows))
+	}
+	// 参数缺省（Page/PageSize=0）：仓储侧钳成有界默认，绝不整表兜底
+	rows, total, err = ts.ListTenants(context.Background(), repositoryFilter(0, 0, ""))
+	if err != nil {
+		t.Fatalf("缺省分页参数失败: %v", err)
+	}
+	if total != 3 || len(rows) == 0 || len(rows) > 20 {
+		t.Errorf("缺省参数应回有界首页，实为 total=%d rows=%d", total, len(rows))
 	}
 
 	// 关键词过滤

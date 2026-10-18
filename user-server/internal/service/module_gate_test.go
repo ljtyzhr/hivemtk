@@ -97,15 +97,50 @@ func rawDB(t *testing.T) *gorm.DB {
 
 // ---------------------------------------------------------- 闸的三态
 
-func TestGateFirstBootAllowsEverything(t *testing.T) {
+// TestModuleGateEmptyBootAllowsOnlyBaseModules 空态（!bootstrapped）→ 只放行基础模块。
+//
+// 这是 B-2 收口后的空态单口径（原来那条 TestGateFirstBootAllowsEverything
+// 断言的是"全放行"，已被证否）：
+//   - 基础 key 放行：空系统仍是**可用的系统**（base-pack），首启/离线引导
+//     落地前不卡人；
+//   - 收费 key 拦：空镜像给到全部付费能力 = 付费闸 fail-open —— on 模式
+//     2+ 租户的空镜像正是踩的这条；
+//   - 空 key 放行：未标注路由（文件头 ③）。
+// 与 EnabledKeys 的空态返回必须逐 key 一致（单口径是 module_catalog.go 的教义）。
+func TestModuleGateEmptyBootAllowsOnlyBaseModules(t *testing.T) {
 	newModuleDB(t)
 	gate, _ := newGate(t)
 	ctx := context.Background()
 
-	// 本地无任何模块数据（首启 / 离线）→ 全部放行
-	for _, k := range model.ModuleCatalogMeta {
-		if !gate.IsEnabled(ctx, k.Key) {
-			t.Errorf("首启（无模块数据）时模块 %s 被拦：用户会看到空系统且无从自救", k.Key)
+	// 前置自证：本地确实没有任何模块数据（首启 / 从未同步 / 空镜像租户）
+	if rows, err := gate.modules().ListAll(ctx); err != nil || len(rows) != 0 {
+		t.Fatalf("前置不成立：应读到 0 行空镜像，实际 rows=%d err=%v", len(rows), err)
+	}
+
+	for _, k := range model.BaseModuleKeys() {
+		if !gate.IsEnabled(ctx, k) {
+			t.Errorf("空态时基础模块 %s 应放行（基础能力不能被空镜像卡死）", k)
+		}
+	}
+	for _, k := range model.PaidModuleKeys() {
+		if gate.IsEnabled(ctx, k) {
+			t.Errorf("空态时收费模块 %s 被放行：付费闸 fail-open（B-2 收口后应拦）", k)
+		}
+	}
+	if !gate.IsEnabled(ctx, "") {
+		t.Error("空 moduleKey（未标注路由）应放行（文件头 ③）")
+	}
+
+	// EnabledKeys 同口径逐 key 对齐
+	keys := gate.EnabledKeys(ctx)
+	for _, k := range model.BaseModuleKeys() {
+		if _, ok := keys[k]; !ok {
+			t.Errorf("空态 EnabledKeys 缺基础模块 %s（与 IsEnabled 口径不一致）", k)
+		}
+	}
+	for _, k := range model.PaidModuleKeys() {
+		if _, ok := keys[k]; ok {
+			t.Errorf("空态 EnabledKeys 泄漏收费模块 %s（与 IsEnabled 口径不一致）", k)
 		}
 	}
 }
@@ -516,12 +551,13 @@ func TestModuleSyncRunnerStopIsClean(t *testing.T) {
 // TestModuleGateOnModeSyncAndTenantScopedRead P1 回归：on 模式闸不许静默全开。
 //
 // 修复前的失效链（两段分别钉住两端）：
-//  ① 同步/引导在请求之外跑（后台 runner、手动同步按钮），ctx 无租户绑定，
-//     ListAll/UpsertMany 被隔离 callback fail-closed → Sync 报错 →
-//     tenant_modules 恒空 → bootstrapped=false → IsEnabled 对**所有**模块
-//     返回 true —— 付费闸整体失效，且界面无任何异样；
-//  ② 请求路径上闸必须能带着租户 ctx 读到镜像（middleware 现在把
-//     c.Request.Context() 递进 adapter）：基础模块放行、未开通收费模块拦截。
+//
+//	① 同步/引导在请求之外跑（后台 runner、手动同步按钮），ctx 无租户绑定，
+//	   ListAll/UpsertMany 被隔离 callback fail-closed → Sync 报错 →
+//	   tenant_modules 恒空 → bootstrapped=false → IsEnabled 对**所有**模块
+//	   返回 true —— 付费闸整体失效，且界面无任何异样；
+//	② 请求路径上闸必须能带着租户 ctx 读到镜像（middleware 现在把
+//	   c.Request.Context() 递进 adapter）：基础模块放行、未开通收费模块拦截。
 //
 // 注意：必须经**带模型**的 NewTestDB 建连接 —— 只有那条路径会注册隔离
 // callback 与租户登记表；不传模型的连接在 on 模式下等于没开隔离，用例会假绿。

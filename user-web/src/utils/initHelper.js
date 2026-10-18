@@ -19,30 +19,17 @@ export const saveApiConfigToFile = async (config) => {
   }
 };
 
+// markInitializationComplete 翻的是**后端**安装锁（POST /api/system/init-complete，
+// 写 install.lock），不是只打本地标记 —— 后端 init-status 的 initialized 就读这把锁。
+// 只写 localStorage 的旧实现会让每个会话的 App.vue 启动都看到 initialized=false，
+// 把所有人反复推进 /setup 向导。403 = 已初始化（SetupOnlyGuard），视为成功；
+// 网络失败同样吞掉 —— 本地标记先行，不能因一次可失败的请求把调用方挡住。
 export const markInitializationComplete = async () => {
   localStorage.setItem(INIT_STATUS_KEY, 'true')
-};
-
-export const createDefaultAdmin = async () => {
   try {
     const { http } = await import('@/utils/request');
-    
-    const response = await http.post('/api/system/create-default-admin');
-    return response
-  } catch (error) {
-    console.error('创建默认管理员账户失败:', error)
-    
-    if (error.response?.data?.msg === '管理员已存在') {
-      return { success: true, message: '管理员已存在' }
-    }
-    if (error.response?.status === 404) {
-      throw new Error('创建默认管理员账户失败: 请求地址不存在', { cause: error })
-    }
-    if (!error.response) {
-      throw new Error('创建默认管理员账户失败: 网络连接失败', { cause: error })
-    }
-    throw new Error('创建默认管理员账户失败: ' + (error.response?.data?.message || error.message), { cause: error })
-  }
+    await http.post('/api/system/init-complete', {}, { _silent: true });
+  } catch { /* 已初始化(403)或网络失败：本地标记已落，不阻断调用方 */ }
 };
 
 export const isInitialized = () => {

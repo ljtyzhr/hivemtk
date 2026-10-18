@@ -186,7 +186,7 @@ async function refreshGrantState (silent = false) {
     } else {
       ElMessage.success(res?.message || `已同步，当前开通 ${res?.active_count ?? 0} 个模块`)
     }
-    await fetch()
+    await fetch(silent)
   } catch (e) {
     if (!silent) ElMessage.error(e?.message || '同步失败')
   } finally {
@@ -212,17 +212,20 @@ function stopPolling () {
   }
 }
 
-async function fetch () {
+// silent 专供 30 秒后台轮询：轮询触发的刷新失败（401/403/超时）没有用户动作
+// 可归因，不该弹 toast —— 两条取数都带 _silent 走静默通道。
+async function fetch (silent = false) {
+  const cfg = silent ? { _silent: true } : undefined
   loading.value = true
   try {
-    const res = await listModuleOrders({ page: page.value, page_size: pageSize.value })
+    const res = await listModuleOrders({ page: page.value, page_size: pageSize.value }, cfg)
     list.value = res?.list || []
     total.value = res?.total || 0
   } finally {
     loading.value = false
   }
   try {
-    const g = await paymentGuide()
+    const g = await paymentGuide(cfg)
     guide.value = g?.payment_guide || ''
   } catch {
     guide.value = ''

@@ -18,8 +18,8 @@ export const listMarketModules = (params, config) =>
 export const marketModuleDetail = (key) =>
   http.get(`/api/module-market/detail/${encodeURIComponent(key)}`);
 
-export const paymentGuide = () =>
-  http.get('/api/module-market/payment-guide');
+export const paymentGuide = (config) =>
+  http.get('/api/module-market/payment-guide', undefined, config);
 
 export const regulatoryNotice = () =>
   http.get('/api/tenant/regulatory-notice');
@@ -29,8 +29,10 @@ export const regulatoryNotice = () =>
 export const createModuleOrder = (data) =>
   http.post('/api/module-market/order', data);
 
-export const listModuleOrders = (params) =>
-  http.get('/api/module-market/orders', params);
+// 第二参 config 透传（如 {_silent:true}）：订单页 30 秒后台轮询里的刷新要静默，
+// 失败不该弹 toast。
+export const listModuleOrders = (params, config) =>
+  http.get('/api/module-market/orders', params, config);
 
 export const moduleOrderDetail = (orderNo) =>
   http.get(`/api/module-market/orders/${encodeURIComponent(orderNo)}`);

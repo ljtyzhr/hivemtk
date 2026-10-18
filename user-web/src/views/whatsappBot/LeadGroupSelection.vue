@@ -128,10 +128,10 @@
       </el-table>
       
       <el-pagination
+        v-if="pagination.total > 0"
         class="pagination"
         :current-page="pagination.currentPage"
         :page-sizes="[10, 20, 50, 100]"
-        v-if="pagination.total > 0"
         :page-size="pagination.pageSize"
         layout="total, sizes, prev, pager, next, jumper"
         :total="pagination.total"

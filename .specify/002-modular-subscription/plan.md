@@ -229,3 +229,11 @@ user-web/src/
 - 不引入第三方支付 SDK（无依赖）。
 - 不做真实邮件/短信发送的支付通知（本期靠运营人工）。
 - 不动 `user-server` 已有的 251 条 `menu_capability_routes` 语义，只在其后追加模块闸。
+
+---
+
+## 勘误（2026-10-18 全链路检查，不改历史正文）
+
+1. **闸空态口径**（关联 §五 风险表与 B-2）：「模块数据为空 → 全放行」已作废，改为只放行 `model.BaseModuleKeys()`（与菜单同口径）；闸缓存由进程单份改为按租户隔离（`map[uint]*gateTenantState`）。详见 tasks.md《2026-10-18 全链路检查决策记录》。
+2. **本地 LLM 钱包**（§文件布局 `llm_wallet_service.go 余额/预扣/扣减/充值镜像`）：本地预扣镜像设计作废——本地钱包为只读镜像（Wallet/Txns/Plans），预检与扣减权威在平台代理侧，见 `docs/architecture/LLM_BILLING_FLOW.md`。
+3. **用户端文件布局若干条目**（module_order.go / llm_provider_client.go / llm_wallet.go 等）：落地时并入 `model/tenant_module.go`、`platform/module_client.go` 等，非独立文件；对应任务已在 tasks.md 标注。

@@ -32,6 +32,7 @@
 
 | 文档 | 描述 |
 |------|------|
+| [RELEASE_PREPARATION.md](RELEASE_PREPARATION.md) | 发布准备：用户端/平台端配置、数据初始化、安装部署逻辑核查 + 上服务器清单 |
 | [operations/MERCHANT_DEPLOYMENT.md](operations/MERCHANT_DEPLOYMENT.md) | 商户部署手册 |
 | [operations/HA_DEPLOYMENT.md](operations/HA_DEPLOYMENT.md) | 高可用部署（单机+备份） |
 | [operations/DR_RECOVERY.md](operations/DR_RECOVERY.md) | 灾难恢复方案 |

@@ -120,24 +120,6 @@ func (c *TenantController) UpdateTenantStatus(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"tenant_id": id, "status": body.Status}, "ok")
 }
 
-// RegulatoryNotice 开户监管告知（未登录可取）
-//
-// 需求原文提到「法律要求的平台端监管责任」与「注意离线独立部署情况」，
-// 因此这个端点在两条路径下都必须可用：
-//   - 平台可达：从平台端取（两端同源，避免文案漂移）
-//   - 离线部署：本地常量兜底，否则离线用户根本没法开户
-//
-// 挂在 public 档而不是 tenant/info 旁边的原因：注册页在登录**之前**就要展示
-// 这段文本并要求勾选，那时用户还没有任何身份凭证。
-func (c *TenantController) RegulatoryNotice(ctx *gin.Context) {
-	view := service.NewTenantService().RegulatoryNotice(ctx.Request.Context())
-	response.Success(ctx, gin.H{
-		"notice":            view.Notice,
-		"agreement_version": view.AgreementVersion,
-		"required_fields":   view.RequiredFields,
-	}, "ok")
-}
-
 // Registration 登记状态（登录后查：是否已上报平台 / 失败原因）
 func (c *TenantController) Registration(ctx *gin.Context) {
 	info, err := c.tenantService.RegistrationInfo(ctx.Request.Context())

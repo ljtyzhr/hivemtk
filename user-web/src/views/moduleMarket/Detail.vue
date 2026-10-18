@@ -186,20 +186,50 @@
         </el-col>
       </el-row>
     </template>
+
+    <!-- 匿名撞上鉴权档详情接口（401/403）时的内联登录引导：
+         拦截器对无令牌请求不清会话、不弹 toast（见 request.js expireSession），
+         页面也不该用一条错误 toast 打发人 —— 给一个明确的去处。 -->
+    <template v-else-if="authRequired">
+      <el-page-header
+        content="模块详情"
+        style="margin-bottom: 16px"
+        @back="$router.back()"
+      />
+      <el-alert
+        type="info"
+        show-icon
+        :closable="false"
+        title="登录后查看完整详情并订阅"
+      >
+        <div class="auth-gate">
+          <span class="muted">市场浏览无需登录；完整说明、依赖清单与订阅入口需要登录后查看。</span>
+          <el-button
+            type="primary"
+            size="small"
+            @click="goLogin"
+          >
+            登录 / 注册
+          </el-button>
+        </div>
+      </el-alert>
+    </template>
   </div>
 </template>
 
 <script setup>
 import { ref, computed, onMounted } from 'vue'
-import { useRoute } from 'vue-router'
+import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getUserMenus } from '@/api/menu'
 import { marketModuleDetail, priceLabel, MODULE_CATEGORY_LABEL } from '@/api/moduleMarket'
 
 const CATEGORY_LABEL = MODULE_CATEGORY_LABEL
 const route = useRoute()
+const router = useRouter()
 const loading = ref(false)
 const detail = ref(null)
+const authRequired = ref(false)
 const platformEnabled = ref(true)
 const menuIndex = ref({})
 
@@ -222,14 +252,25 @@ async function load () {
     // 列表项不含 description / auto_enabled / payable_dependencies，
     // 用列表等于让详情页的「详细说明」与「依赖闭包」两段永远显示占位文案。
     detail.value = await marketModuleDetail(route.params.key)
+    authRequired.value = false
     platformEnabled.value = detail.value?.platform_enabled !== false
   } catch (e) {
     detail.value = null
-    ElMessage.error(e?.message || '加载模块详情失败')
+    // 详情接口在后端鉴权档：匿名 401/403 走内联登录引导，其余照旧报错。
+    if (e?.status === 401 || e?.status === 403) {
+      authRequired.value = true
+    } else {
+      ElMessage.error(e?.message || '加载模块详情失败')
+    }
   } finally {
     loading.value = false
   }
-  await loadMenuIndex()
+  if (!authRequired.value) await loadMenuIndex()
+}
+
+// 带 redirect 去登录：登录后回到当前详情页，而不是被丢去首页。
+const goLogin = () => {
+  router.push({ path: '/login', query: { redirect: route.fullPath } })
 }
 
 // 菜单索引用来把 menu_key 翻成「标题 + 路径」给人看。
@@ -281,4 +322,5 @@ onMounted(load)
 .p-path { font-family: monospace; font-size: 12px; color: var(--el-text-color-secondary); }
 .muted { color: var(--el-text-color-secondary); }
 .small { font-size: 12px; }
+.auth-gate { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 </style>

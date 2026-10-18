@@ -10,12 +10,23 @@ import (
 	"hivemtk-user/internal/service"
 )
 
-// 本文件补齐「功能模块市场」在 user-web 里被直接调用、但不经过闸的那几条：
+// 本文件补齐「功能模块市场」在 user-web 里被直接调用、但路由文件里另有归属的那几条：
 // 付款指引、监管告知、我的 LLM 余额/套餐/充值下单。
 //
 // 它们与 module_market.go 分文件的理由：那一支是"市场浏览与开通"，
-// 这一支是"平台代付能力的账"。LLM 计量是收费模块（llm-cloud），
-// 而查余额与买套餐恰恰**不能**被它自己的闸拦住 —— 见 module_routes.go 的说明。
+// 这一支是"平台代付能力的账"。LLM 计量是收费模块（llm-cloud），查余额与
+// 买套餐**要过闸** —— middleware/module_route_supplement.go 刻意把
+// /api/llm/wallet|wallet/*|plans 归到 llm-cloud（上一版注释写的"不能被闸拦"
+// 与补充表相矛盾，以补充表为准）。
+//
+// 这不会形成死锁，因为激活链路是另一条、且始终开着：
+//
+//	未订阅 → 4301 "去功能模块市场开通" → 市场与下单入口（/api/module-market/*、
+//	POST /api/llm/recharge）**不在闸表里**，任何人都能点 → 下单 → 平台确认
+//	收款 → 激活 llm-cloud → 钱包/套餐接口放行。
+//
+// 也就是说：wallet/plans 是"开通后才看账"的门，而"开通"这扇门从不被 llm-cloud
+// 自己锁住 —— 买完就能看，不买就看到前端空态页（余额 0/无套餐）+4301 引导。
 
 // PaymentGuide GET /api/module-market/payment-guide
 //

@@ -249,6 +249,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { http } from '@/utils/request'
 import { markInitializationComplete } from '@/utils/initHelper'
+import { regulatoryNotice } from '@/api/moduleMarket'
 
 const router = useRouter()
 
@@ -269,9 +270,8 @@ const adminForm = reactive({
   regulatory_ack: false
 })
 
-// 协议版本与后端 serviceCurrentAgreementVersion / 平台端 CurrentAgreementVersion 同值。
-// 它是「用户同意的是哪一版」的唯一凭据，改告知文本时三处一起升版本。
-const REGISTRATION_AGREEMENT_VERSION = '2026-10-17.v1'
+// 版本由后端告知端点下发（GET /api/tenant/regulatory-notice），前端不再持有字面量。
+const notice = ref({ notice: '', agreement_version: '', required_fields: [] })
 const adminRules = {
   username: [
     { required: true, message: t('setup.errUsernameRequired'), trigger: 'blur' },
@@ -341,7 +341,7 @@ const handleCreateAdmin = async () => {
       ElMessage.warning(t('setup.errAgreeRequired'))
       return
     }
-    const resp = await http.post('/api/system/init-admin', {
+    const payload = {
       username: adminForm.username,
       password: adminForm.password,
       company_name: adminForm.company_name,
@@ -351,9 +351,14 @@ const handleCreateAdmin = async () => {
       contact_phone: adminForm.contact_phone,
       email: adminForm.email,
       license_no: adminForm.license_no,
-      regulatory_ack: true,
-      agreement_version: REGISTRATION_AGREEMENT_VERSION
-    }, { _silent: true });
+      regulatory_ack: true
+    }
+    // 告知端点没给到版本（拉取失败/字段为空）时省略该键，
+    // 后端会回落到自己的 canonical 常量。
+    if (notice.value.agreement_version) {
+      payload.agreement_version = notice.value.agreement_version
+    }
+    const resp = await http.post('/api/system/init-admin', payload, { _silent: true });
     if (resp) {
       ElMessage.success(resp.message || '超管创建成功')
       await markInitializationComplete();
@@ -372,6 +377,14 @@ const goToLogin = () => {
 }
 
 onMounted(async () => {
+  // 告知端点是公开口（无需登录）：协议版本的单一来源，拉取失败不阻导向导
+  // —— 提交时省略 agreement_version，后端回落自己的常量。
+  try {
+    const res = await regulatoryNotice()
+    if (res) notice.value = { ...notice.value, ...res }
+  } catch (e) {
+    console.warn('获取监管告知失败:', e)
+  }
   try {
     const status = await http.get('/api/system/init-status')
     if (status && status.state) {

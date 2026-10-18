@@ -70,6 +70,7 @@
             v-if="platformEnabled"
             size="small"
             type="primary"
+            :disabled="!llmCloudOwned"
             @click="planVisible = true"
           >
             购买套餐
@@ -121,10 +122,25 @@
         </el-col>
       </el-row>
       <el-empty
-        v-else
+        v-else-if="llmCloudOwned"
         description="尚未购买平台模型套餐"
         :image-size="60"
       />
+      <!-- 未订阅 llm-cloud：4301 被 _silent 吞掉后这里会是空钱包 ——
+           给一个明确去处，而不是让人对着「尚未购买」发呆。 -->
+      <div
+        v-else
+        class="llm-locked"
+      >
+        <span class="muted">平台模型余额与套餐由 llm-cloud 模块提供。</span>
+        <el-button
+          link
+          type="primary"
+          @click="$router.push('/module-market/detail/llm-cloud')"
+        >
+          订阅 llm-cloud 后可查看余额与套餐 →
+        </el-button>
+      </div>
     </el-card>
 
     <el-card
@@ -473,6 +489,10 @@ const filter = reactive({})
 const owned = computed(() => list.value.filter(m => m.owned))
 const ownedCount = computed(() => owned.value.length)
 const baseCount = computed(() => list.value.filter(m => m.category === 'base').length)
+// 余额/套餐接口挂在 llm-cloud 模块闸后：未订阅时它们静默返回空（_silent 4301）。
+// 「没余额可看」和「根本没资格看」要分开显示 —— 后者得指路去市场。
+const llmCloudOwned = computed(() =>
+  list.value.some(m => m.module_key === 'llm-cloud' && m.owned))
 
 const filtered = computed(() => {
   let out = tab.value === 'owned' ? owned.value : list.value
@@ -592,4 +612,10 @@ onMounted(fetch)
 .name { font-weight: 500; display: flex; align-items: center; gap: 6px; }
 .key { color: var(--el-text-color-secondary); font-size: 12px; font-family: monospace; }
 .muted { color: var(--el-text-color-secondary); font-size: 13px; }
+.llm-locked {
+  display: flex; align-items: center; justify-content: space-between;
+  gap: 12px; flex-wrap: wrap;
+  padding: 8px 12px; border-radius: 6px;
+  background: var(--el-fill-color-light); font-size: 13px;
+}
 </style>

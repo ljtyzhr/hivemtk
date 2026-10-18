@@ -511,14 +511,6 @@ func (s *TenantService) RegistrationInfo(ctx context.Context) (*RegistrationInfo
 	}, nil
 }
 
-// RegulatoryNotice 取监管告知
-//
-// 委托给 ModuleCatalogService：那份已经实现了「平台优先、离线回落本地」的
-// 逻辑，而注册页与功能模块市场要展示**同一份**文本 —— 两处各写一份必然漂移。
-func (s *TenantService) RegulatoryNotice(ctx context.Context) *RegulatoryNoticeView {
-	return NewModuleCatalogService().RegulatoryNotice(ctx)
-}
-
 // currentInstallID 读本部署的安装标识（install.lock）。
 //
 // 读不到时返回空串而不是回落 merchant_key：把两个不同语义的标识混成一个，

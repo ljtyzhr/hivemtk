@@ -182,10 +182,10 @@
           </el-table>
 
           <el-pagination
+            v-if="templatePagination.total > 0"
             class="pagination"
             :current-page="templatePagination.currentPage"
             :page-sizes="[10, 20, 50, 100]"
-            v-if="templatePagination.total > 0"
             :page-size="templatePagination.pageSize"
             layout="total, sizes, prev, pager, next, jumper"
             :total="templatePagination.total"
@@ -261,10 +261,10 @@
           </el-table>
 
           <el-pagination
+            v-if="recordPagination.total > 0"
             class="pagination"
             :current-page="recordPagination.currentPage"
             :page-sizes="[10, 20, 50, 100]"
-            v-if="recordPagination.total > 0"
             :page-size="recordPagination.pageSize"
             layout="total, sizes, prev, pager, next, jumper"
             :total="recordPagination.total"
