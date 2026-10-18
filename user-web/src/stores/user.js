@@ -6,7 +6,9 @@ export const useUserStore = defineStore('user', () => {
     id: '',
     username: '',
     email: '',
-    role: ''
+    role: '',
+    tenant_id: '',
+    tenant_code: ''
   })
   
   const token = ref('')
@@ -22,7 +24,9 @@ export const useUserStore = defineStore('user', () => {
       id: info.id || '',
       username: info.username || '',
       email: info.email || '',
-      role: info.role || ''
+      role: info.role || '',
+      tenant_id: info.tenant_id || '',
+      tenant_code: info.tenant_code || ''
     }
     localStorage.setItem('user_info', JSON.stringify(userInfo.value));
   }
@@ -46,7 +50,9 @@ export const useUserStore = defineStore('user', () => {
       id: '',
       username: '',
       email: '',
-      role: ''
+      role: '',
+      tenant_id: '',
+      tenant_code: ''
     }
     token.value = ''
     localStorage.removeItem('token')
@@ -66,7 +72,9 @@ export const useUserStore = defineStore('user', () => {
           id: parsed.id || '',
           username: parsed.username || '',
           email: parsed.email || '',
-          role: parsed.role || ''
+          role: parsed.role || '',
+          tenant_id: parsed.tenant_id || '',
+          tenant_code: parsed.tenant_code || ''
         }
       } catch (e) {
         localStorage.removeItem('user_info')

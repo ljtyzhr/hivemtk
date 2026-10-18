@@ -97,12 +97,12 @@
           />
         </el-form-item>
         <el-form-item
-          label="负责人"
+          label="负责人/法人"
           prop="real_name"
         >
           <el-input
             v-model="form.real_name"
-            placeholder="负责人姓名"
+            placeholder="负责人/法人姓名"
           />
         </el-form-item>
         <el-form-item
@@ -189,7 +189,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
-import { ElMessage } from 'element-plus'
+import { ElMessage, ElNotification } from 'element-plus'
 import { http } from '@/utils/request'
 import { regulatoryNotice } from '@/api/moduleMarket'
 
@@ -230,7 +230,7 @@ const rules = {
 // 开户登记的必填口径与后端一致（后端是最终把关，前端只是为了少一次往返）
 const regRules = {
   company_name: [{ required: true, message: '请输入公司名称', trigger: 'blur' }],
-  real_name: [{ required: true, message: '请输入负责人姓名', trigger: 'blur' }],
+  real_name: [{ required: true, message: '请输入负责人/法人姓名', trigger: 'blur' }],
   phone: [
     { required: true, message: '请输入联系电话', trigger: 'blur' },
     { pattern: /^[0-9+\-() ]{6,32}$/, message: '电话格式不正确', trigger: 'blur' }
@@ -279,22 +279,42 @@ async function submit () {
 
   submitting.value = true
   try {
-    await http.post('/api/auth/register', {
+    // SaaS 开户：POST /api/tenant/register —— 一并创建租户（不再落到默认租户 1）。
+    // 字段按后端 RegisterTenantRequest 口径：name=租户展示名（复用公司名称）、
+    // legal_person=负责人（表单字段仍叫 real_name）。响应是 {tenant_id, tenant_code, token}，
+    // 没有 user 对象，所以注册后不自动登录，跳回登录页让用户用刚设的凭据登录。
+    const res = await http.post('/api/tenant/register', {
+      name: form.company_name,
       username: form.username,
-      password: form.password,
       email: form.email,
-      phone: form.phone,
-      real_name: form.real_name,
+      password: form.password,
       company_name: form.company_name,
+      legal_person: form.real_name,
+      phone: form.phone,
       license_no: form.license_no,
       address: form.address,
       regulatory_ack: form.regulatory_ack,
       agreement_version: notice.value.agreement_version
     })
-    ElMessage.success('注册成功，请登录')
+    // 租户代码是后续登录/开通子账号的凭据，漏看就麻烦了——用常驻通知而不是 3 秒 toast
+    const tenantCode = res?.tenant_code || res?.data?.tenant_code || ''
+    ElNotification({
+      type: 'success',
+      title: '注册成功！',
+      message: `您的租户代码：${tenantCode || '—'}，请妥善保存（登录与开通子账号时需要）`,
+      duration: 0
+    })
     router.push('/login')
   } catch (e) {
-    ElMessage.error(e?.response?.data?.message || e?.message || '注册失败')
+    // 后端 bizerr 码：4103 邮箱已注册 / 4104 注册已关闭 / 4105 限流。
+    // 文案用机器读数字段分流（bizCode/response.data.code），不靠 message 措辞判分支。
+    const bizCode = String(e?.bizCode ?? e?.response?.data?.code ?? '')
+    const codeMsg = {
+      4103: '该邮箱已注册，请直接登录或更换邮箱',
+      4104: '平台当前已关闭注册，请联系管理员',
+      4105: '注册过于频繁，请稍后再试'
+    }
+    ElMessage.error(codeMsg[bizCode] || e?.response?.data?.message || e?.message || '注册失败')
   } finally {
     submitting.value = false
   }

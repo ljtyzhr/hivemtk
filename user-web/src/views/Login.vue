@@ -51,6 +51,18 @@
             />
           </el-form-item>
 
+          <el-form-item
+            v-if="tenantMode"
+            prop="tenant_code"
+          >
+            <el-input
+              v-model="loginForm.tenant_code"
+              placeholder="租户代码（如：t42xk，可不填）"
+              prefix-icon="OfficeBuilding"
+              size="large"
+            />
+          </el-form-item>
+
           <el-form-item prop="password">
             <el-input
               v-model="loginForm.password"
@@ -122,11 +134,14 @@ const loading = ref(false)
 // （注册已独立成页），留着会让读代码的人以为登录还支持邮箱入口。
 const loginForm = reactive({
   username: '',
-  password: ''
+  password: '',
+  tenant_code: ''
 });
 
 // 自助注册：开关由公开配置 /api/public/config 提供（未登录可取）
 const enableRegister = ref(false)
+// 租户模式：为 true 时登录页展示可选的「租户代码」输入（单租户部署下隐藏）
+const tenantMode = ref(false)
 
 const goRegister = () => {
   router.push({ path: '/register' })
@@ -136,6 +151,7 @@ import { http as httpApi } from '@/utils/request'
 httpApi.get('/api/public/config').then((res) => {
   const data = res?.data ?? res
   enableRegister.value = !!data?.enable_register
+  tenantMode.value = !!data?.tenant_mode
 }).catch(() => { enableRegister.value = false })
 
 const rules = {
@@ -160,14 +176,24 @@ const handleLogin = async () => {
   try {
     loading.value = true
 
-    const response = await usersApi.login(loginForm)
+    // 空租户代码不发给后端：后端把「缺省」视为单租户默认，'' 与未传等价，但省掉字段更干净
+    const payload = { ...loginForm }
+    if (!payload.tenant_code) delete payload.tenant_code
+
+    const response = await usersApi.login(payload)
 
     if (response) {
       const token = response.token || response.Token
       const user = response.user || response.User
 
       if (token && user) {
-        userStore.login(user, token)
+        // 租户模式下登录响应会带 tenant_id/tenant_code（顶层；也可能在 user 内），
+        // 合并后随用户信息一起落库（setUserInfo 对缺省字段兜底为空串）
+        userStore.login({
+          ...user,
+          tenant_id: response.tenant_id ?? user.tenant_id,
+          tenant_code: response.tenant_code ?? user.tenant_code
+        }, token)
         // RBAC：切换账号时重置旧菜单缓存，避免上一个身份的菜单/路径继续生效（数据与权限隔离）
         permissionStore.resetMenus()
         await permissionStore.ensureMenus(true)
