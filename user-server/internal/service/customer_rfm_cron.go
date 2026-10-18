@@ -71,6 +71,13 @@ func (c *CustomerRFMCron) loop(ctx context.Context) {
 			timer.Stop()
 			return
 		case <-timer.C:
+			// 模块闸（FR-5.6，派发时刻判定）：customer 模块在本实例上
+			// 对任一租户可用才跑；""/未映射/DB 错误都会放行（fail-open），
+			// 见 module_runtime_filter.go 文件头。
+			if !AllowWorker(context.Background(), "customer_rfm") {
+				logger.Info("[CustomerRFMCron] customer 模块无任何租户开通，跳过本轮 RFM 调度")
+				continue
+			}
 			c.runWithRetry(ctx)
 		}
 	}

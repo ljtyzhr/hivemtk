@@ -151,6 +151,13 @@ func (s *SOPScheduler) tick(ctx context.Context) {
 	if s.agentRepo == nil || s.execRepo == nil {
 		return
 	}
+	// 模块闸（FR-5.6）：sop_scheduler 在 workerModuleKey 里**未映射**
+	// （归属横跨 customer/inbox/ai-sales，见该表的 NOT mapped 清单），
+	// 当前恒放行 —— 挂在这里的价值是未来要闸只需在表里加一行。
+	if !AllowWorker(context.Background(), "sop_scheduler") {
+		logger.Info("[SOPScheduler] SOP 相关模块无任何租户开通，跳过本轮扫描")
+		return
+	}
 	ctx, cancel := context.WithTimeout(ctx, utils.DefaultHTTPTimeout)
 	defer cancel()
 

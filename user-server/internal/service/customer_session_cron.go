@@ -79,6 +79,12 @@ func (c *SessionTTLCron) tryTriggerWithDBWait(ctx context.Context) {
 	if c.sessionSvc == nil || c.db == nil {
 		return
 	}
+	// 模块闸（FR-5.6，派发时刻判定）：每跳检查一次；customer 模块
+	// 无任何租户开通（或 DB 抖动时反向放行）的语义见 module_runtime_filter.go。
+	if !AllowWorker(context.Background(), "customer_session") {
+		logger.Info("[session_ttl_cron] customer 模块无任何租户开通，跳过本轮会话 TTL 清扫")
+		return
+	}
 	// 多租户模式下，需以租户扇出方式逐租户执行
 	if tenant.IsMultiTenant() {
 		_, _ = tenant.Fanout(ctx, c.db, func(ctx context.Context, _ uint) (int64, error) {

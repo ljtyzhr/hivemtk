@@ -81,7 +81,7 @@
 - [x] **T308** [FR-5.4] `middleware/module_gate.go`：`RequireModule(key)`，未开通 → 4301 + 业务码 `module_not_enabled`；执行顺序在鉴权后、权限前 (完成证据: middleware/module_gate.go:100-127；domain/errors/codes.go:31 CodeModuleNotEnabled=4301)
 - [x] **T309** [FR-5.3] 路由标注：新增 `module_key` 标签机制（按路由组挂 `Use(RequireModule(k))`），**未标注路由默认不过闸但进告警清单** (完成证据: 落地为 B-1 修订的路径模式匹配——middleware/module_route_patterns.go + GuardModulePath(module_gate.go:133) + 巡检端点 router/module_routes.go:59 GET /api/modules/uncovered-routes)
 - [x] **T310** [FR-5.5] `service/menu.go`：菜单树过滤前置模块闸（`FilterMenuTree` 前先按已开通模块裁剪）(完成证据: service/menu.go:60 FilterMenuTreeByModule)
-- [ ] **T311** [FR-5.6] 定时任务 / Agent 工具 / EventBus 订阅按 `IsEnabled` 过滤装配 (状态: 菜单过滤与接口闸已实现；未见定时任务/Agent 工具/EventBus 订阅按 IsEnabled 过滤装配的实现——grep 全仓无命中)
+- [x] **T311** [FR-5.6] 定时任务 / Agent 工具 / EventBus 订阅按 `IsEnabled` 过滤装配 (完成证据: 派发期动态过滤落地 `service/module_runtime_filter.go`——`AnyTenantEnabled` 实例级判定（缓存并集+SystemScope UsableCount，错误 fail-open 与路由闸 fail-closed 刻意相反，文件头②）、`AllowWorker`/`WrapSubscriber`/`FilterToolsByModule`、高置信映射表 `workerModuleKey`（geo×5→GEO、customer_rfm/session→customer、rag_eval→knowledge）与 `toolModuleKey`（browser_*→browser-automation、reach.wecom.send→im-wecom），未映射/合规/运维项永不闸；接线点：customer_rfm_cron:77、customer_session_cron:84、rag_eval_cron:70、sop_scheduler:157、geo job_manager 经 pkg/cron InitCron 注入 SetGeoJobModuleGate、event_bus.go:24 WrapSubscriber、cmd/api agent 订阅 WrapSubscriber(ai-agent)、sales_engine_agentloop.go:73 FilterToolsByModule；测试 `module_runtime_filter_test.go`、`job_manager_module_gate_test.go`、`tenant_module_test.go(UsableCount)`。口径改进：原 spec"过滤装配"改为**派发期过滤**（装配期静态过滤在模块激活后不重启即永久失效），已记入 spec 勘误)
 - [x] **T312** [FR-5.2] `GET /api/modules/my`：已开通模块 + 依赖 + 定价 + 菜单绑定 (完成证据: router/module_routes.go:48 `auth.GET("/modules/my", ctrl.MyModules)`)
 - [x] **T313** 测试：`module_gate_test.go`（超管也过闸 / 缓存 / 失效）· `menu_module_filter_test.go`（208 key 裁剪正确）· `module_sync_test.go`（幂等 / 降级 / 离线）(完成证据: middleware/module_gate_test.go（含 :228 TestGateThreadsRequestContextToChecker）+ service/module_gate_test.go（:110 空态只放基础 / :236 离线 / :272 断网不收回已购 / :393 菜单裁剪）+ model/module_bindings_test.go:233 FilterMenuTreeByModule；未建同名 menu_module_filter_test/module_sync_test，用例并入上述文件)
 
@@ -168,17 +168,17 @@
 - [x] **T805** 离线降级端到端测试（`PLATFORM_ENABLED=false` → 零出站请求 + 基础模块全开 + 付费模块锁住）(完成证据: module_gate_test.go:236 TestOfflineBootstrapOpensBaseModulesOnly + platform/zero_egress_test.go)
 - [x] **T806** 支付回调幂等测试（同一 `callback_id` 两次 → 只处理一次）(完成证据: module_commerce_test.go:744 TestPaymentCallbackIdempotent)
 - [x] **T807** 平台 LLM 端到端测试（下单 → 确认 → 钱包入账 → 调用 → 扣减 → 余额不足阻断）(完成证据: llm_platform_proxy_test.go:251 TestDispatchPlatformProviderEndToEnd + module_commerce_test.go:338 TestMarkPaidOpensModules / :522 TestWalletConcurrentConsumeNeverOverdraw)
-- [ ] **T808** 文档更新：`docs/architecture/MODULAR_MODULES.md` 补"实现后实测"列；`user-server/docs/dev/FEATURES.md §二十四` 更新（"定价方案/注册开户已下线" → 已实现）(状态: MODULAR_MODULES.md 已补「二之二、数据表归属总表」（Q6）；但「实现后实测」列未见，且 FEATURES.md §二十四:361-362 仍写「定价方案 ❌ / 注册开户 ❌ 已下线」——与现实现矛盾，未更新)
+- [x] **T808** 文档更新：`docs/architecture/MODULAR_MODULES.md` 补"实现后实测"列；`user-server/docs/dev/FEATURES.md §二十四` 更新（"定价方案/注册开户已下线" → 已实现）(完成证据: FEATURES.md §二十四 2026-10-19 复核更新——定价方案/注册开户改 ✅ 并附 RegisterTenant/ModuleCatalogMeta/MarkPaid 证据、"多租户隔离已改单租户"行同步修正为 ✅ 双模事实（OTA/授权/版本下载三行核实确系真下线保留 ❌）、页脚日期更新；MODULAR_MODULES.md 新增 §4.5「实现后实测（2026-10-19 复核）」6 行（能力闸/菜单过滤/数据隔离/空态口径/租户缓存/激活归属，每行 grep 核实测试名）+ §八 v1.1 变更行)
 - [x] **T809** 门禁全绿：`make audit` `make lint` `make vet` `make test-go` + `user-web npm run test` + `platform-web npm run build` (完成证据: 本文件五/六轮门禁表——user-server gofmt/build/vet 全绿、platform-server go test 全绿、user-web 632/632、platform-web build 通过；本次对账仅改 .specify 文档未重跑代码门禁)
 
 ---
 
 ## Deviations（跳过项与原因）
 
-> 逐条状态与证据已内联到各任务行（完成证据 / 状态 / 已作废）。仍未完成项：
+> 逐条状态与证据已内联到各任务行（完成证据 / 状态 / 已作废）。原两条未完成项已于 2026-10-19 收口：
 >
-> - **T311**（定时任务/Agent 工具/EventBus 按 IsEnabled 过滤装配）：未实现，全仓 grep 无命中。
-> - **T808**（文档收尾）：FEATURES.md §二十四 仍写「定价方案/注册开户已下线」，与现实现矛盾；MODULAR_MODULES.md「实现后实测」列未补。
+> - **T311**（FR-5.6 运行时过滤）：以派发期动态过滤实现（见任务行证据），"装配期"口径改进已记入 spec 勘误。
+> - **T808**（文档收尾）：FEATURES.md §二十四 复核更新 + MODULAR_MODULES.md §4.5 实测节已补（见任务行证据）。
 >
 > 16 条 `[~]` 任务为方案被后续审计轮替代（文件合并、落点迁移、口径收紧），原因见各条注记。
 
@@ -508,4 +508,4 @@ P8 收敛
 
 ### 本节对账统计
 
-- 全部任务 119 条：**101 条 `[x]`**（附完成证据，均读码核实）、**16 条 `[~]`**（方案被替代，附原因）、**2 条 `[ ]`**（T311、T808 未完成，附状态）。
+- 全部任务 119 条：**103 条 `[x]`**（附完成证据，均读码核实）、**16 条 `[~]`**（方案被替代，附原因）、**0 条 `[ ]`**（2026-10-19 收口：T311、T808 已完成，无未完成项）。

@@ -21,6 +21,11 @@ type TenantModuleRepository interface {
 	UpsertMany(ctx context.Context, rows []*model.TenantModule) error
 	ListAll(ctx context.Context) ([]*model.TenantModule, error)
 	ListActiveKeys(ctx context.Context, now time.Time) ([]string, error)
+	// UsableCount 统计「当前 ctx 作用域内」某模块的可用行数（FR-5.6 运行时模块闸用）。
+	// 跨租户并集语义由调用方挂 SystemScope 达成（任一租户开通判定，见
+	// service.ModuleGateService.AnyTenantEnabled）—— 本方法只负责单次索引计数，
+	// 不解释租户语义。
+	UsableCount(ctx context.Context, moduleKey string, now time.Time) (int64, error)
 	Get(ctx context.Context, moduleKey string) (*model.TenantModule, error)
 	DeleteAll(ctx context.Context) error
 	CreateLog(ctx context.Context, l *model.ModuleSyncLog) error
@@ -146,6 +151,31 @@ func (r *tenantModuleRepo) ListActiveKeys(ctx context.Context, now time.Time) ([
 		}
 	}
 	return out, nil
+}
+
+// UsableCount 统计某模块的可用行数（status=active 且未过期），语义与
+// model.TenantModuleUsable 逐条对齐 —— 两处口径必须一起改（勿只改一侧）。
+//
+// nil-db 守卫：FR-5.6 的后台判定会在测试/装配早期拿到未初始化的连接，
+// 这里宁可报错让上层 fail-open，也不能让 nil *gorm.DB 直接 panic 击穿
+// 定时任务循环（见 service/module_runtime_filter.go 的 fail-open 教义）。
+func (r *tenantModuleRepo) UsableCount(ctx context.Context, moduleKey string, now time.Time) (int64, error) {
+	if moduleKey == "" {
+		return 0, nil
+	}
+	if r == nil || r.db == nil {
+		return 0, errors.New("[module] tenant_modules 仓储未初始化（DB 未就绪）")
+	}
+	var n int64
+	err := r.db.WithContext(ctx).Model(&model.TenantModule{}).
+		Where("module_key = ?", moduleKey).
+		Where("status = ?", model.TenantModuleActive).
+		Where("expires_at IS NULL OR expires_at > ?", now).
+		Count(&n).Error
+	if err != nil {
+		return 0, err
+	}
+	return n, nil
 }
 
 func (r *tenantModuleRepo) Get(ctx context.Context, moduleKey string) (*model.TenantModule, error) {

@@ -135,6 +135,29 @@ func (m *JobManager) SetJobManagerDB(db *gorm.DB) {
 	m.db = db
 }
 
+// jobModuleGate GEO 任务的模块闸：每次 tick 派发前判断「本实例上是否
+// 至少有一个租户开通了对应模块」（FR-5.6 派发时刻动态过滤）。
+//
+// 为什么是注入而不是 geoservice 直接 import internal/service：本包的依赖
+// 面刻意保持在 geo/* + pkg 叶子包（见 JobScheduler 注释里的同类理由），
+// 反向 import internal/service 会把整棵 service 依赖树拖进来。注入点在
+// internal/pkg/cron.InitCron（那里同时 import 了 service 与 geoservice），
+// 与 SetSOPSchedulerScanIntervalProvider 同一装配形态。
+//
+// 默认恒放行：未装配 = 不闸（fail-open，与 service.AllowWorker 对
+// 未映射 worker 的口径一致 —— 宁可多跑一轮，不可静默停摆）。
+var jobModuleGate = func(_ context.Context, _ string) bool { return true }
+
+// SetGeoJobModuleGate 注入任务闸（装配期调用一次；nil 视为不注入）。
+// fn 收到的是 **worker 名**（geoJobDef.Name），模块 key 映射归
+// service.workerModuleKey 管 —— 本包不认模块概念。
+func SetGeoJobModuleGate(fn func(ctx context.Context, workerName string) bool) {
+	if fn == nil {
+		return
+	}
+	jobModuleGate = fn
+}
+
 // SetupGeoJobs 由 cron.InitCron 调用：清理僵尸 running 记录、
 // 读取持久化调度配置并注册全部 GEO 任务。
 func SetupGeoJobs(sched JobScheduler) {
@@ -188,6 +211,13 @@ func (m *JobManager) registerLocked(name, spec string) error {
 		delete(m.entryID, name)
 	}
 	id, err := m.sched.AddTask(spec, func() {
+		// 模块闸（FR-5.6）：**每次派发时**查一次（不是注册时定死）——
+		// 租户随时可能开通/关停 GEO，闸必须跟着开关实时走。未装配/未映射/
+		// DB 错误 → jobModuleGate 内部 fail-open 放行。
+		if !jobModuleGate(context.Background(), name) {
+			logger.Info(fmt.Sprintf("[GEO Jobs] 任务 %s 本轮跳过：GEO 模块无任何租户开通（模块闸）", name))
+			return
+		}
 		if _, err := m.StartJob(name, "cron"); err != nil {
 			logger.Error(err, fmt.Sprintf("[GEO Jobs] 定时触发任务 %s 失败", name))
 		}

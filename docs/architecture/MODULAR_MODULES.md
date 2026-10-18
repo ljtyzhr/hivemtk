@@ -427,6 +427,19 @@ core ◄── customer ◄── inbox
 | `websocket` / `event bus` 订阅 | 全量 | 按模块过滤（模块关了不该收到事件） |
 | `Store` 前端全局 | 无模块态 | Pinia 新增 `useModuleStore`，登出/切换时刷新 |
 
+### 4.5 实现后实测（2026-10-19 复核）
+
+上表"必须改为"的闸类能力落地后，逐项核验（测试名与文件均经 grep 确认存在）：
+
+| 能力 | 实现落点 | 实现后实测 |
+| --- | --- | --- |
+| 能力闸（路由）：未开通拦截 4301 | `middleware/module_gate.go` `GuardModulePath`（`router.go` 在 auth 组统一挂载；4301 = `CodeModuleNotEnabled`） | `internal/router/route_policy_gate_test.go` · `internal/middleware/module_gate_test.go` · `internal/service/module_gate_test.go` 全绿 |
+| 菜单过滤 | `model.FilterMenuTreeByModule` + `service.ModuleEnabledFunc` 注入 | `model/module_bindings_test.go` `TestFilterMenuTreeByModule` · `service/module_gate_test.go` `TestMenuTreeFilteredByClosedModule` |
+| 数据隔离：tenancyidx 回调 fail-closed | `internal/pkg/tenancyidx` `RegisterTenantCallbacks` | `internal/pkg/db/tenant_callback_test.go`（`TestTenantRegistry_*`） |
+| 空态口径：仅放行 `model.BaseModuleKeys()` | `service/module_catalog.go` `IsEnabled` ①（2026-10-18 作废"空态全放行"） | `service/module_gate_test.go` `TestModuleGateEmptyBootAllowsOnlyBaseModules` |
+| 租户隔离缓存 | 闸缓存按租户分份（`map[uint]*gateTenantState`），不共享开通状态 | `service/module_gate_tenant_test.go` `TestModuleGateTwoTenantCacheIsolation` |
+| 激活归属：付费激活绑下单租户 | 模块同步只激活**下单租户**的模块（Fix C） | `service/module_gate_tenant_test.go` `TestModuleSyncActivatesPaidModuleOnOrderingTenant` |
+
 ---
 
 ## 五、取舍记录（有意"不做"的事）
@@ -498,3 +511,4 @@ core ◄── customer ◄── inbox
 | 版本 | 日期 | 变更 |
 | --- | --- | --- |
 | v1.0 | 2026-10-17 | 首版：24 模块（7 基础 + 17 收费）、依赖图、菜单绑定规则、基础能力完备性论证、取舍记录 |
+| v1.1 | 2026-10-19 | §4.5 新增「实现后实测」：能力闸/菜单过滤/数据隔离/空态口径/租户隔离缓存/激活归属 六项核验（T808） |

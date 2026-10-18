@@ -67,6 +67,11 @@ func (e *SalesEngine) runAgentLoop(
 	agentIDStr := fmt.Sprintf("%d", agentIDFromCtx(req))
 	allowed := agentContextToolNames(req)
 
+	// 模块闸（FR-5.6，派发时刻过滤）：按**请求 ctx** 逐工具裁剪会话工具清单。
+	// 只裁 toolModuleKey 里映射过的工具（browser_* / reach.wecom.send），
+	// 其余照常展示；DB 抖动 fail-open 照常展示 —— 见 module_runtime_filter.go。
+	availableTools = FilterToolsByModule(ctx, availableTools)
+
 	if len(allowed) > 0 && e.permissionChecker != nil {
 		e.permissionChecker.SetAgentWhitelist(agentIDStr, allowed)
 	}

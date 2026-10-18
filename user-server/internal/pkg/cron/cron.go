@@ -110,6 +110,10 @@ func InitCron() {
 		panic(err)
 	}
 
+	// GEO 任务的模块闸（FR-5.6）：每次 tick 由 service.AllowWorker 判
+	//「任一租户开通 GEO 才跑」。worker 名 → 模块 key 的映射在
+	// service.workerModuleKey；必须在 SetupGeoJobs 之前注入。
+	geoservice.SetGeoJobModuleGate(service.AllowWorker)
 	geoservice.SetupGeoJobs(mgr)
 	geoservice.GetGeoJobManager().SetJobManagerDB(db.GetDB())
 

@@ -351,16 +351,16 @@
 
 ---
 
-## 二十四、开源版已下线功能
+## 二十四、开源版已下线功能（2026-10-19 复核更新）
 
 以下功能已从开源版移除，不在本清单内：
 
 - ❌ OTA 自动更新
 - ❌ 商户授权 / 授权码校验（本版无授权概念，无授权也可构建与运行资产）
 - ❌ 版本下载
-- ❌ 定价方案
-- ❌ 注册开户
-- ❌ 多租户隔离（已改为单租户私域部署，`merchant_id` 字段可空）
+- ✅ 定价方案 —— 已实现（2026-10-18 审计）：`model/module_bindings.go` `ModuleCatalogMeta` 携带 `PriceCents`/`BillingCycle`，市场列表暴露套餐，模块订单与 LLM 订单均经平台 `MarkPaid` 确认（`service/module_market.go`）
+- ✅ 注册开户 —— 已实现（2026-10-18 审计）：`POST /api/tenant/register`（`service/tenant.go` `RegisterTenant` 原子建租户+管理员，reg_mode=on/off，含监管告知与协议版本）；OFF 模式另有 `POST /api/auth/register`（`service/auth.go` `Register`）
+- ✅ 多租户隔离 —— 已实现（2026-10-19 复核更新）：`TENANT_MODE=on/off` 双模（off=单租户私域部署为默认形态，`merchant_id` 字段仍可空）；on 模式 `system_users.tenant_id` + JWT `tenant_id` claim + `internal/pkg/tenancyidx` GORM 回调自动注入并 fail-closed、登录 tenant_code/邮箱/用户名三通道与 `/api/tenant/register` 原子开户均已上线（回归：`internal/pkg/db/tenant_callback_test.go`、`TestTenantIsolation*`、`TestInitAdminWithRegistrationOnModeBindsTenant`）
 
 ---
 
@@ -381,4 +381,4 @@
 
 ---
 
-最近更新日期: 2026-07-26
+最近更新日期: 2026-10-19

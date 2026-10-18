@@ -27,6 +27,7 @@ import (
 	"hivemtk-user/internal/middleware"
 	"hivemtk-user/internal/migration"
 	"hivemtk-user/internal/migration/migrations"
+	"hivemtk-user/internal/model"
 	cronpkg "hivemtk-user/internal/pkg/cron"
 	"hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/pkg/featureflag"
@@ -669,7 +670,10 @@ func registerEventSubscribers() {
 
 	if os.Getenv("AGENT_RUNTIME_BUS_ENABLED") == "true" {
 		rt := agent_runtime.NewAgentRuntime(nil, nil, nil)
-		agentHandler := agent_runtime.NewEventSubscriber(rt)
+		// 模块闸包装（FR-5.6）：ai-agent 模块在本实例上对任一租户开通才消费
+		// 客户消息事件。注意本订阅默认 env 关闭（见下方 else 注释），包装是
+		// 为"打开它时也在闸内"预备的挂点。
+		agentHandler := service.WrapSubscriber(model.ModuleAIAgent, agent_runtime.NewEventSubscriber(rt))
 		bus.Subscribe(event.TopicCustomerMessageReceived, agentHandler)
 		logger.Info("[event] subscribed: customer.message.received -> agent_runtime (AGENT_RUNTIME_BUS_ENABLED=true)")
 	} else {

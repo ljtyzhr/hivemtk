@@ -65,6 +65,12 @@ func (c *RagEvalCron) loop(_ context.Context) {
 			return
 		case <-time.After(time.Until(next)):
 		}
+		// 模块闸（FR-5.6，派发时刻判定）：knowledge 模块无任何租户开通则
+		// 本轮评测跳过；未映射/DB 错误放行（fail-open）见 module_runtime_filter.go。
+		if !AllowWorker(context.Background(), "rag_eval") {
+			logger.Info("[rag_eval_cron] knowledge 模块无任何租户开通，跳过本轮每日评测")
+			continue
+		}
 		ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 		if err := c.runFn(ctx); err != nil {
 			logger.Ctx(ctx).Error().Err(err).Msg("[rag_eval_cron] daily evaluation failed")

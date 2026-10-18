@@ -227,3 +227,4 @@
 2. **FR-5.3 拦截形态**：实际为 HTTP 200 + 业务码 `4301`（`CodeModuleNotEnabled`，错误走 body 通道），而非 HTTP 403。
 3. **开放问题表「平台关闭时付费模块怎么办？」**：`price=0` 自动开一项同勘误 1，已收紧为只开基础模块。
 4. **闸空态**：任何「首启/离线空态全放行」的表述已作废，现口径为只放行 `model.BaseModuleKeys()`（见 tasks.md 决策记录）。
+5. **FR-5.6 过滤时机**：原文「按 `IsEnabled` 过滤**装配**」改为**派发期动态过滤**——装配期静态过滤在模块激活后不重启即永久失效（订阅/注册无反向摘除口）；现为 tick/订阅/工具展示时刻判定（`service/module_runtime_filter.go`，实例级 `AnyTenantEnabled`，错误 fail-open 与路由闸 fail-closed 刻意相反）。
