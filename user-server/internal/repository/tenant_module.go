@@ -58,7 +58,11 @@ func (r *tenantModuleRepo) UpsertMany(ctx context.Context, rows []*model.TenantM
 		return nil
 	}
 	err := r.db.WithContext(ctx).Clauses(clause.OnConflict{
-		Columns: []clause.Column{{Name: "tenant_slot"}, {Name: "module_key"}},
+		// tenant_id 在前是**仓库租户索引策略的产物**（tenancyidx 把租户表的唯一索引
+		// 复合化为 (tenant_id, 原列)），不是这里能自己决定的形状。
+		// 写成 (module_key) 或 (tenant_slot, module_key) 都会与库里实际的索引
+		// 匹配不上 → 42P10 → 模块下发全量失败 → 闸恒放行。
+		Columns: []clause.Column{{Name: "tenant_id"}, {Name: "module_key"}},
 		DoUpdates: clause.AssignmentColumns([]string{
 			"status", "source", "category", "price_cents", "menu_keys",
 			"activated_at", "expires_at", "updated_at",
@@ -129,7 +133,7 @@ func (r *tenantModuleRepo) ListActiveKeys(ctx context.Context, now time.Time) ([
 	}
 	out := make([]string, 0, len(rows))
 	for _, m := range rows {
-		if m.IsUsable(now) {
+		if model.TenantModuleUsable(m, now) {
 			out = append(out, m.ModuleKey)
 		}
 	}
@@ -199,7 +203,7 @@ func NewModuleOrderRepositoryWithDB(gdb *gorm.DB) ModuleOrderRepository {
 
 func (r *moduleOrderRepo) Upsert(ctx context.Context, o *model.ModuleOrder) error {
 	return r.db.WithContext(ctx).Clauses(clause.OnConflict{
-		Columns: []clause.Column{{Name: "order_no"}},
+		Columns: []clause.Column{{Name: "tenant_id"}, {Name: "order_no"}},
 		DoUpdates: clause.AssignmentColumns([]string{
 			"status", "total_amount_cents", "currency", "items",
 			"payment_guide", "paid_at", "updated_at",

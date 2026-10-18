@@ -14,12 +14,15 @@ import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import i18n from '@/i18n'
 import { elLocaleCode, applyDirection } from '@/i18n/locale'
 import { http } from '@/utils/request'
+import { useOnboardingAutoStart } from '@/composables/useOnboarding'
 
 const elMap = { 'zh-cn': zhCn, en, ja }
 const elLocale = computed(() => elMap[elLocaleCode(i18n.global.locale.value)] || zhCn)
 
 const router = useRouter()
 const t = i18n.global.t
+
+const { tryAutoStart, onTourComplete } = useOnboardingAutoStart()
 
 onMounted(async () => {
   applyDirection(i18n.global.locale.value)
@@ -45,11 +48,21 @@ onMounted(async () => {
         ElMessage.info(t('system.completeInitFirst'))
         router.replace('/setup')
       }
+    } else {
+      // 系统已初始化，尝试自动启动新手引导
+      tryAutoStart()
     }
   } catch (e) {
     console.warn('[App] init-status check failed:', e);
   }
 });
+
+// 监听路由变化，在登录后的页面尝试启动引导
+router.afterEach((to, from) => {
+  if (to.path !== '/login' && to.path !== '/setup' && !to.path.startsWith('/chat/embed')) {
+    tryAutoStart()
+  }
+})
 </script>
 
 <style>

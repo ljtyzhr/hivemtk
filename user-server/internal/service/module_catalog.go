@@ -71,7 +71,7 @@ func (s *ModuleGateService) Refresh(ctx context.Context) error {
 	now := time.Now()
 	m := make(map[string]bool, len(rows))
 	for _, r := range rows {
-		m[r.ModuleKey] = r.IsUsable(now)
+		m[r.ModuleKey] = model.TenantModuleUsable(r, now)
 	}
 	s.mu.Lock()
 	s.cache = m
@@ -404,7 +404,7 @@ func (s *ModuleCatalogService) MyModules(ctx context.Context) ([]MyModuleView, e
 			Owned:      false,
 		}
 		if tm, ok := owned[mk]; ok {
-			v.Owned = tm.IsUsable(now)
+			v.Owned = model.TenantModuleUsable(tm, now)
 			v.Source = tm.Source
 			v.Status = tm.Status
 			v.ExpiresAt = tm.ExpiresAt

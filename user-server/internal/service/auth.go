@@ -214,7 +214,7 @@ func (s *AuthService) loginTenant(ctx context.Context, user *model.SystemUser) (
 		logger.Error(err, "查询租户失败")
 		return 0, "", errors.New("登录失败，请稍后重试")
 	}
-	if !t.IsActive() {
+	if !model.TenantIsActive(t) {
 		return 0, "", bizerr.New(bizerr.CodeTenantSuspended, "租户已停用，请联系平台运营")
 	}
 	return t.ID, t.Code, nil

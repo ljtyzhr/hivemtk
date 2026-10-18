@@ -445,3 +445,35 @@ P8 收敛
 "代码写对了，但它运行在一个比代码老的环境里"。
 
 **判据必须包含"对既有环境成立"，而不只是"对新建环境成立"。**
+
+---
+
+## 六次审核轮（2026-10-18 通信与身份模型专项）
+
+按要求梳理「平台端 ↔ 用户端」的通信、协调、身份与数据归属，产出一份代码级架构文档，
+并在梳理过程中发现并修掉 1 处实质缺陷。
+
+**交付物**：`docs/architecture/PLATFORM_USER_COMMUNICATION.md`
+（5 条通道 × 3 种鉴权、纯拉取模型、身份模型、数据归属矩阵、模块与商户两条完整数据流、
+6 条架构问题清单）
+
+### 本轮发现的缺陷
+
+| # | 缺陷 | 后果 | 修复 |
+| --- | --- | --- | --- |
+| **F1** | `SubmitRegistrationToPlatform` 与 `submitSelfRegisterToPlatform` **都把 `install_id` 填成 `merchant_key`** | 平台端 `tenant_registrations.install_id` 存的是商户密钥，而 `platform_installs` 用的是真 install_id —— **两表没有可连接的键**，"这个部署是谁 / 它在线吗 / 它登记了吗"三个问题在平台上答不出来 | 新增 `currentInstallID()` 从 `install.lock` 读；读不到返回**空串**而非回落 merchant_key（混填比空值更难排查）。由 `TestRegistrationPayloadKeepsTwoIdentitiesDistinct` 钉死 |
+
+### 本轮补充的防误解注释（不改变行为）
+
+| 位置 | 说明 |
+| --- | --- |
+| 平台 `model.Merchant.InstallID` | 标注该列**基本恒空**（写它的唯一路径 `/api/platform/install` 在用户端生产零调用），**不可**当关联键 |
+| 用户 `model.TenantModule` | 标注**平台端有同名表但结构完全不同**，列出两侧列清单与语义差别 |
+
+### 梳理中确认为「现状而非缺陷」的三条
+
+| 项 | 判断 |
+| --- | --- |
+| 纯拉取模型 → 模块开通最长延迟 10 分钟 | 产品取舍，非缺陷。前端付款指引已写明"确认收款后权益自动开通"，用户不会误判失败。缩短周期或加推送是另一个决策 |
+| `/api/platform/install` 零调用 | 保留有价值（"按 install_id upsert 商户"的语义出口），但 `merchants.install_id` 恒空这件事已在列注释写明 |
+| 两端 4 张表同名不同构 | 有意的镜像命名（一眼看出是同一概念的两侧），已在用户端模型注释里互指 |

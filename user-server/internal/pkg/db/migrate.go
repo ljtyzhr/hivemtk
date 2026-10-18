@@ -9,7 +9,6 @@ import (
 	geomodel "hivemtk-user/internal/geo/model"
 	"hivemtk-user/internal/model"
 	opsmodel "hivemtk-user/internal/ops/model"
-	"hivemtk-user/internal/pkg/moduleidx"
 	"hivemtk-user/internal/pkg/tenancyidx"
 	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
@@ -471,6 +470,29 @@ func ensureExtensions() {
 func AutoMigrate() *gorm.DB {
 	ensureExtensions()
 
+	// 清理"形状已漂移"的模块索引（必须在 AutoMigrate **之前**）。
+	//
+	// 为什么需要它：GORM AutoMigrate **只按名字判索引是否存在，不比对列集**。
+	// 一个曾经存在、后来列集变过的索引（同名）会让 AutoMigrate 认为"已经有了"，
+	// 于是永远停留在旧形状上。而 ON CONFLICT 依赖索引的**精确列集** ——
+	// 匹配不上就是 42P10 → 模块下发全量失败 → tenant_modules 恒空 →
+	// 模块闸落在"首启全放行"态 → **付费模块对所有人开放**。
+	//
+	// 为什么不能只靠 tenancyidx.Normalize：它的幂等判据是
+	// `indexdef NOT LIKE '%tenant_id%'` —— 索引一旦含 tenant_id 就被**跳过**。
+	// 所以 (tenant_id, tenant_slot, module_key) 这种"含 tenant_id 但列集不对"的
+	// 形状，它永远不会修。
+	//
+	// 顺序：先删残留 → AutoMigrate 按当前模型重建 → tenancyidx 复合化加 tenant_id。
+	// 三步之后形状才是 (tenant_id, 业务列) 且与 ON CONFLICT 一致。
+	dropDriftedModuleIndexes(DB)
+
+	// tenant_id 列类型归一化（同样必须在 AutoMigrate 之前）。
+	// 详见 tenant_id_normalize.go 的文件头：varchar 的 tenant_id 会让
+	// `WHERE tenant_id = 1` 直接报 "operator does not exist"，而 AutoMigrate
+	// 因 DEFAULT 无法转换而中断整表迁移。
+	normalizeTenantIDColumns(DB)
+
 	tolerated := 0
 	all := append(allModels(), ExtraModels()...)
 	for _, m := range all {
@@ -504,30 +526,6 @@ func AutoMigrate() *gorm.DB {
 		panic(fmt.Sprintf("租户唯一索引规范化失败: %v", err))
 	} else if n > 0 {
 		logger.Info(fmt.Sprintf("租户唯一索引规范化完成：处理 %d 个索引", n))
-	}
-
-	// 功能模块表的唯一索引形状规范化（模块化改造 · 运行时修复）。
-	//
-	// 为什么不能靠 internal/migration 的迁移做：main.go 里
-	// ExecuteUpgrade(ctx, "v1.0.0", "v1.0.0") 的 from/to 相同，
-	// **迁移体系在这个入口下不会执行任何迁移**。把修复写进迁移等于
-	// 写进一个永远不跑的地方 —— 症状是库里索引保持旧形状、
-	// 模块下发同步每次都 42P10，而 migration_records 里却写着 completed。
-	//
-	// 为什么需要它：AutoMigrate **只新增/修改列，不删除形状已变的索引**。
-	// idx_local_tenant_module 的列集在模型演进中变过一次，于是库里留下一条
-	// (tenant_id, tenant_slot, module_key)，而代码按 (tenant_slot, module_key)
-	// 做 ON CONFLICT —— PG 按名字选索引，匹配不上即 42P10。
-	// 后果不是"同步失败"这么轻：同步失败 → tenant_modules 恒空 →
-	// 模块闸落在「首启全放行」态 → 付费模块对所有人开放。
-	//
-	// 与 tenancyidx.Normalize 同一形态（紧跟 AutoMigrate、幂等可重入）。
-	if n, err := moduleidx.Normalize(DB); err != nil {
-		// 不 panic：索引形状不对会让 upsert 失败，但仓储层已加容错兜底
-		// （先查后写）。此处只记 Error，让运维能看见并手工修。
-		logger.Errorf("[module-index] 唯一索引形状规范化失败（模块下发将走慢路径兜底）: %v", err)
-	} else if n > 0 {
-		logger.Infof("[module-index] 唯一索引形状规范化完成：处理 %d 个索引", n)
 	}
 
 	// 租户登记表 + 隔离 callback（specs/001-saas-multi-tenant T005/T006）：
@@ -856,4 +854,102 @@ func ExtraModels() []any {
 	out := make([]any, len(extraModels))
 	copy(out, extraModels)
 	return out
+}
+
+// driftedIndexes 需要清理形状漂移的索引/列。
+//
+// 每条都对应一次真实的模型演进，不是猜的：
+//   - tenant_modules.idx_local_tenant_module 曾建在 (tenant_slot, module_key) 上，
+//     被租户策略复合化成 (tenant_id, tenant_slot, module_key)。而 tenant_slot
+//     是多余的列（多租户维度由 tenant_id 承担）。
+//   - tenant_slot 列同步删除：不再有任何模型声明它，留着只会让下一个读模型的人困惑。
+var driftedIndexes = []struct {
+	table   string
+	index   string
+	columns []string // 允许的形状（业务列 或 tenant_id+业务列）
+	dropCol string   // 需要一并删除的废弃列（空表示无）
+}{
+	{
+		table:   "tenant_modules",
+		index:   "idx_local_tenant_module",
+		columns: []string{"tenant_id, module_key", "module_key"},
+		dropCol: "tenant_slot",
+	},
+}
+
+// dropDriftedModuleIndexes 删除列集与当前模型不符的索引，以及废弃列。
+// 幂等：形状正确时什么都不做。
+func dropDriftedModuleIndexes(db *gorm.DB) {
+	for _, d := range driftedIndexes {
+		if !db.Migrator().HasTable(d.table) {
+			continue
+		}
+		var defs []string
+		if err := db.Raw(`SELECT pg_get_indexdef(indexrelid) FROM pg_index
+			WHERE indrelid = to_regclass(?::text) AND indexrelid::regclass::text = ?`,
+			d.table, d.index).Scan(&defs).Error; err != nil {
+			logger.Warnf("[migrate] 读取索引 %s.%s 失败，跳过清理: %v", d.table, d.index, err)
+			continue
+		}
+		if len(defs) == 0 {
+			continue // 不存在：交给 AutoMigrate 建
+		}
+		actual := indexColumns(defs[0])
+		if allowedShape(actual, d.columns) {
+			// 形状已正确；但仍可能留着废弃列（索引不引用它，策略也不会碰）
+			if d.dropCol != "" {
+				dropColumnIfExists(db, d.table, d.dropCol)
+			}
+			continue
+		}
+		logger.Warnf("[migrate] 索引 %s.%s 列集漂移（实际 %v，期望 %v），删除后由 AutoMigrate 重建",
+			d.table, d.index, actual, d.columns)
+		if err := db.Exec("DROP INDEX IF EXISTS " + d.index).Error; err != nil {
+			logger.Warnf("[migrate] 删除漂移索引 %s 失败: %v", d.index, err)
+			continue
+		}
+		if d.dropCol != "" {
+			dropColumnIfExists(db, d.table, d.dropCol)
+		}
+	}
+}
+
+// indexColumns 从 pg_get_indexdef 提取列清单（取列区括号内、逗号分隔、去空白）
+func indexColumns(def string) string {
+	open := strings.Index(def, "(")
+	close := strings.LastIndex(def, ")")
+	if open < 0 || close <= open {
+		return ""
+	}
+	parts := strings.Split(def[open+1:close], ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if v := strings.TrimSpace(p); v != "" {
+			out = append(out, v)
+		}
+	}
+	return strings.Join(out, ", ")
+}
+
+func allowedShape(actual string, allowed []string) bool {
+	for _, a := range allowed {
+		if actual == a {
+			return true
+		}
+	}
+	return false
+}
+
+func dropColumnIfExists(db *gorm.DB, table, col string) {
+	var n int
+	if err := db.Raw(`SELECT COUNT(*) FROM information_schema.columns
+		WHERE table_schema = current_schema() AND table_name = ? AND column_name = ?`,
+		table, col).Scan(&n).Error; err != nil || n == 0 {
+		return
+	}
+	if err := db.Exec(fmt.Sprintf(`ALTER TABLE %s DROP COLUMN IF EXISTS %s`, table, col)).Error; err != nil {
+		logger.Warnf("[migrate] 删除废弃列 %s.%s 失败: %v", table, col, err)
+		return
+	}
+	logger.Warnf("[migrate] 已删除废弃列 %s.%s（不再被任何模型声明）", table, col)
 }

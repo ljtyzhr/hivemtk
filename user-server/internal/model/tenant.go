@@ -62,8 +62,8 @@ func (t *Tenant) BeforeCreate(tx *gorm.DB) error {
 	return nil
 }
 
-// IsActive 租户是否正常（后台扇出/登录判定用）
-func (t *Tenant) IsActive() bool { return t.Status == TenantStatusActive }
+// TenantIsActive 租户是否正常（后台扇出/登录判定用）
+func TenantIsActive(t *Tenant) bool { return t != nil && t.Status == TenantStatusActive }
 
 // ── 开户登记（平台监管责任）────────────────────────────────────────────
 //

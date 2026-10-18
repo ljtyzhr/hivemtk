@@ -10,7 +10,7 @@ import (
 	"hivemtk-user/internal/aiagent/llm"
 	"hivemtk-user/internal/config"
 	"hivemtk-user/internal/model"
-	"hivemtk-user/internal/pkg/db"
+	dbUtil "hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/platform"
 	"hivemtk-user/internal/repository"
@@ -74,7 +74,7 @@ func recordPlatformUsage(ctx context.Context, u PlatformLLMUsage) {
 		requestID = "no-trace:" + u.Provider + ":" + u.Model + ":" + time.Now().Format("20060102150405.000")
 	}
 	inc, outc := u.CostCents()
-	gormDB := db.GetDB()
+	gormDB := dbUtil.GetDB()
 	if gormDB == nil {
 		logger.Warnf("[llm-usage] db 未就绪，跳过本地用量落库 provider=%s", u.Provider)
 		return
@@ -115,7 +115,7 @@ func syncPlatformProviders(ctx context.Context) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	gormDB := db.GetDB()
+	gormDB := dbUtil.GetDB()
 	if gormDB == nil || len(rows) == 0 {
 		return 0, nil
 	}

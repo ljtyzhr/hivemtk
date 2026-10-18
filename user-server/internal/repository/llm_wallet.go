@@ -39,7 +39,8 @@ func (r *llmWalletRepo) ApplyMirror(ctx context.Context, inputRemaining, outputR
 		SyncedAt:              time.Now(),
 	}
 	return r.db.WithContext(ctx).Clauses(clause.OnConflict{
-		Columns: []clause.Column{{Name: "scope"}},
+		// tenant_id 在前：租户索引策略的产物（见 repository/tenant_module.go 同处注释）
+		Columns: []clause.Column{{Name: "tenant_id"}, {Name: "scope"}},
 		DoUpdates: clause.AssignmentColumns([]string{
 			"input_tokens_remaining", "output_tokens_remaining", "synced_at",
 		}),

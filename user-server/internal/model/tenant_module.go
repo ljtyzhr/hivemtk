@@ -30,17 +30,33 @@ const (
 )
 
 // TenantModule 本地已开通模块镜像（一行 = 一个模块）
+//
+// ⚠️ **平台端有一个同名表，结构完全不同**，排查 SQL 时先确认连的是哪个库：
+//
+//	platform_db.tenant_modules: id, merchant_key, module_key, status, source,
+//	                            order_id, options, activated_at, expires_at, ...
+//	user_db.tenant_modules:     tenant_id, id, module_key, status, source,
+//	                            category, price_cents, menu_keys, ...
+//
+// 语义差别：平台端那张是**权威**（按 merchant_key 归属，带 order_id/options），
+// 本表是**只读镜像**（按 tenant_id 归属，带 category/price_cents/menu_keys
+// 供本地闸判定与展示）。同名是有意的（一眼看出是同一概念的两侧），
+// 但不要把两侧的列混用。
 type TenantModule struct {
 	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
 
-	ID        int64  `gorm:"primaryKey;autoIncrement" json:"id"`
-	ModuleKey string `gorm:"type:varchar(64);uniqueIndex:idx_local_tenant_module,priority:2;not null" json:"module_key"`
-	// TenantSlot 进唯一键是为了将来开 SaaS 多租户时不必改表；当前单一部署恒为 0。
+	ID int64 `gorm:"primaryKey;autoIncrement" json:"id"`
+	// ModuleKey 业务唯一键。**只声明业务列，不加 tenant_id** ——
+	// 仓库的租户索引策略（internal/pkg/tenancyidx）会在 AutoMigrate 之后
+	// 自动把租户表上的唯一索引复合化为 (tenant_id, 原列)。
+	// 在这里自己写 tenant_id 会被该策略跳过（它按 `indexdef LIKE '%tenant_id%'`
+	// 判幂等），于是索引形状与策略的产物不一致，ON CONFLICT 匹配不上 → 42P10。
 	//
-	// 必须用具名字段，不能写 `_ uint`：GORM **忽略匿名字段**，列根本不会建，
-	// 而 ON CONFLICT (tenant_slot, module_key) 仍在引用它 —— 于是每条 upsert
-	// 都报 "column tenant_slot does not exist"，而错误信息完全不指向真实原因。
-	TenantSlot uint `gorm:"column:tenant_slot;uniqueIndex:idx_local_tenant_module,priority:1;not null;default:0"`
+	// 曾用过 `uniqueIndex:idx_local_tenant_module,priority:1` 于一个额外的
+	// tenant_slot 列上，想"为将来多租户预留"。那是多余的：多租户维度由
+	// tenant_id 承担，多加一列只会让唯一键变成 (tenant_id, tenant_slot, module_key)
+	// 而三列复合在语义上与 (tenant_id, module_key) 完全等价。
+	ModuleKey string `gorm:"type:varchar(64);uniqueIndex:idx_local_tenant_module;not null" json:"module_key"`
 
 	Status string `gorm:"type:varchar(16);not null;default:'active';index" json:"status"`
 	Source string `gorm:"type:varchar(16);not null;default:'manual'" json:"source"`
@@ -61,9 +77,9 @@ type TenantModule struct {
 
 func (TenantModule) TableName() string { return "tenant_modules" }
 
-// IsUsable 处于可放行状态
-func (t *TenantModule) IsUsable(now time.Time) bool {
-	if t.Status != TenantModuleActive {
+// TenantModuleUsable 处于可放行状态
+func TenantModuleUsable(t *TenantModule, now time.Time) bool {
+	if t == nil || t.Status != TenantModuleActive {
 		return false
 	}
 	if t.ExpiresAt == nil {
@@ -110,7 +126,8 @@ const (
 type ModuleOrder struct {
 	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
 
-	ID      string `gorm:"type:varchar(36);primaryKey" json:"id"`
+	ID string `gorm:"type:varchar(36);primaryKey" json:"id"`
+	// OrderNo 业务唯一键（同 ModuleKey：只声明业务列，tenant_id 由策略加）
 	OrderNo string `gorm:"type:varchar(32);uniqueIndex;not null" json:"order_no"`
 	// ClientOrderNo 本地生成的幂等键（提交给平台的那一把）
 	ClientOrderNo string `gorm:"type:varchar(64);index;not null" json:"client_order_no"`

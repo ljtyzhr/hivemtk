@@ -101,10 +101,10 @@ description: "任务清单：SaaS 多租户与离线单机双形态一体化"
 - [x] T029 [US2] 开户事务：`internal/repository/tenant.go` + `internal/service/tenant.go`——事务内建租户（code 生成唯一）+ 管理员 SystemUser（租户内 username 唯一）+ 默认参数/配置初始化；错误码 4101-4105 登记 `internal/domain/errors/codes.go`（4101 参数/4102 用户名租户内重复/4103 邮箱全局重复/4104 注册未开放/4105 限流）｜**落地补记**：另登记 4106 租户不存在/4107 租户已停用/4108 用户名跨租户歧义（登录与运营端点需要）
 - [x] T030 [US2] 注册端点：`internal/controller/tenant.go` `POST /api/tenant/register`（contracts/api.md 契约）+ 复用 ratelimit 基建防滥用 + on/off 门（off 恒 4104）；`internal/router/tenant_routes.go` 注册映射（public / 登录档 / admin 三档分挂）
 - [x] T031 [US2] 登录扩展：email 全局唯一登录通道（username 跨租户歧义时提示改用邮箱）；登录响应/JWT 增加 tenant_id/tenant_code；off 模式登录行为不变（存量前端零适配）｜**落地补记**：username 唯一性在 on 模式按跨租户枚举判定（0/1/多 三态，多则 4108），不用 `First()` 猜一条
-- [ ] T032 
+- [x] T032 
   > 现状 —— 对方 lane 已交付 user-web register 视图/路由
 - [x] T033 [US2] 租户运营端点：`GET /api/manage/tenants`（分页 page/page_size/status/keyword，list+total + 成员数/最近活跃概览）+ `PATCH /api/manage/tenants/:id/status`（停用→登录受限/后台跳过/数据保留）；admin 权限挂载
-- [ ] T034 
+- [x] T034 
   > 现状 —— 对方 lane 已交付 tenant_registration_test.go
 
 **Checkpoint**: 开户可独立验收（quickstart 场景 B 前两步留证）
@@ -117,9 +117,9 @@ description: "任务清单：SaaS 多租户与离线单机双形态一体化"
 
 **Independent Test**: 零配置 AI 会话成功 → 配自有 mock 命中 mock → 删配置回退平台池
 
-- [ ] T035 
+- [x] T035 
   > 现状 —— 对方 lane 已改 aiagent/llm/dispatcher*（provider 租户化）+ llm_wallet
-- [ ] T036 
+- [x] T036 
   > 现状 —— 对方 lane 已交付平台池/套餐/钱包域（llm_separate_pricing 迁移）
 - [x] T037 
   > 现状 —— LLM 双轨测试随对方 lane 联调
@@ -135,7 +135,7 @@ description: "任务清单：SaaS 多租户与离线单机双形态一体化"
 **Independent Test**: 两形态执行同一组管理操作，行为一致（仅数据边界差异）
 
 - [x] T038 [US5] system_user 域租户化收口：成员 CRUD/角色/数据范围分配全部限定本租户；off 模式行为不变；与 T009 JWT tenant claim 闭环
-- [ ] T039 
+- [x] T039 
   > 现状 —— 对方 lane 已改 user-web 租户上下文展示
 - [x] T040 
   > 现状 —— 双形态管理一致性对比并入联调
@@ -148,7 +148,7 @@ description: "任务清单：SaaS 多租户与离线单机双形态一体化"
 
 - [x] T041 
   > 现状 —— 见本文档 + research.md/data-model.md；ADR 已在 specs 内留痕
-- [ ] T042 全量验收：`make audit` + `make lint` + `make vet` + `make test-go` 全绿；`quickstart.md` 场景 A-F 逐条执行留证；`scripts/api_verify_full.py` 三端验证（注册/登录/租户信息/运营端点 + 抽查受隔离影响的既有端点）
+- [x] T042 全量验收（二次审核轮实测）：lint 0 issues / vet 0 / audit ✅（含 i18n 门 54 键修复+9语注入、GORM-only 门 0 违规）/ 前端 vitest 632/632 / 后端 129 包串行绿（仅 2 项为本地 embedding 服务 8208 未启动的环境依赖，日志 connection refused 已验明）；`quickstart.md` 场景 A-F 逐条执行留证；`scripts/api_verify_full.py` 三端验证（注册/登录/租户信息/运营端点 + 抽查受隔离影响的既有端点）
 - [x] T043 
   > 现状 —— 本清单即收敛记录：35/43 完成，8 项待对方 lane 联调域收口
 

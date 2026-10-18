@@ -1,12 +1,11 @@
 <template>
   <el-container class="app-shell">
-    
     <MessageNotification />
 
     
     <el-header class="app-header">
       <div class="brand">
-        <span class="brand-mark"></span>
+        <span class="brand-mark" />
         <span class="brand-text">{{ t('system.appName') }}</span>
       </div>
 
@@ -14,8 +13,8 @@
         :default-active="activeTopMenu"
         mode="horizontal"
         :ellipsis="false"
-        @select="handleTopMenuSelect"
         class="top-menu"
+        @select="handleTopMenuSelect"
       >
         <el-menu-item
           v-for="menu in filteredTopMenus"
@@ -28,29 +27,67 @@
       </el-menu>
 
       
-      <div v-if="userStore.isLoggedIn" class="notif-bell" role="button" tabindex="0" aria-label="通知" @click="router.push({ name: 'Notifications' })" @keydown.enter.prevent="router.push({ name: 'Notifications' })" @keydown.space.prevent="router.push({ name: 'Notifications' })">
-        <el-badge :value="unreadCount" :hidden="unreadCount === 0" :max="99">
-          <el-icon :size="20"><Bell /></el-icon>
+      <div
+        v-if="userStore.isLoggedIn"
+        class="notif-bell"
+        role="button"
+        tabindex="0"
+        aria-label="通知"
+        @click="router.push({ name: 'Notifications' })"
+        @keydown.enter.prevent="router.push({ name: 'Notifications' })"
+        @keydown.space.prevent="router.push({ name: 'Notifications' })"
+      >
+        <el-badge
+          :value="unreadCount"
+          :hidden="unreadCount === 0"
+          :max="99"
+        >
+          <el-icon :size="20">
+            <Bell />
+          </el-icon>
         </el-badge>
       </div>
 
-      <div v-if="userStore.isLoggedIn" class="notif-bell geo-alert-bell"
-        role="button" tabindex="0" aria-label="GEO 告警"
+      <div
+        v-if="userStore.isLoggedIn"
+        class="notif-bell geo-alert-bell"
+        role="button"
+        tabindex="0"
+        aria-label="GEO 告警"
+        :title="`GEO 告警：${geoAlertCount} 条未确认`"
         @click="router.push('/geo-tools/alerts')"
         @keydown.enter.prevent="router.push('/geo-tools/alerts')"
         @keydown.space.prevent="router.push('/geo-tools/alerts')"
-        :title="`GEO 告警：${geoAlertCount} 条未确认`">
-        <el-badge :value="geoAlertCount" :hidden="geoAlertCount === 0" :max="99">
-          <el-icon :size="20" color="#e6a23c"><Warning /></el-icon>
+      >
+        <el-badge
+          :value="geoAlertCount"
+          :hidden="geoAlertCount === 0"
+          :max="99"
+        >
+          <el-icon
+            :size="20"
+            color="#e6a23c"
+          >
+            <Warning />
+          </el-icon>
         </el-badge>
       </div>
 
       
-      <div class="user-area" v-if="userStore.isLoggedIn">
+      <div
+        v-if="userStore.isLoggedIn"
+        class="user-area"
+      >
         <LanguageSwitcher />
-        <el-dropdown @command="handleUserCommand" trigger="click">
+        <el-dropdown
+          trigger="click"
+          @command="handleUserCommand"
+        >
           <span class="user-dropdown">
-            <el-avatar :size="30" class="user-avatar">{{ userStore.username?.charAt(0) || 'U' }}</el-avatar>
+            <el-avatar
+              :size="30"
+              class="user-avatar"
+            >{{ userStore.username?.charAt(0) || 'U' }}</el-avatar>
             <span class="user-name">{{ userStore.username }}</span>
             <el-icon class="el-icon--right"><arrow-down /></el-icon>
           </span>
@@ -60,9 +97,18 @@
                 <el-icon><User /></el-icon>{{ t('layout.profile') }}
               </el-dropdown-item>
               <el-dropdown-item command="help-center">
-                <el-icon><QuestionFilled /></el-icon>帮助中心
+                <el-icon><QuestionFilled /></el-icon>{{ t('layout.helpCenter') }}
               </el-dropdown-item>
-              <el-dropdown-item command="logout" divided>
+              <el-dropdown-item
+                command="restart-onboarding"
+                divided
+              >
+                <el-icon><Refresh /></el-icon>{{ t('layout.restartOnboarding') }}
+              </el-dropdown-item>
+              <el-dropdown-item
+                command="logout"
+                divided
+              >
                 <el-icon><SwitchButton /></el-icon>{{ t('layout.logout') }}
               </el-dropdown-item>
             </el-dropdown-menu>
@@ -71,17 +117,31 @@
       </div>
 
       
-      <div class="login-button" v-else role="button" tabindex="0" @click="handleLogin" @keydown.enter.prevent="handleLogin" @keydown.space.prevent="handleLogin">
+      <div
+        v-else
+        class="login-button"
+        role="button"
+        tabindex="0"
+        @click="handleLogin"
+        @keydown.enter.prevent="handleLogin"
+        @keydown.space.prevent="handleLogin"
+      >
         <el-icon><User /></el-icon>
         <span>{{ t('layout.login') }}</span>
       </div>
     </el-header>
 
     <el-container class="app-body">
-      
-      <el-aside :width="sidebarCollapsed ? '64px' : '240px'" v-if="currentTopMenu && currentTopMenu.children" class="app-aside" :class="{ 'is-collapsed': sidebarCollapsed }">
+      <el-aside
+        v-if="currentTopMenu && currentTopMenu.children"
+        :width="sidebarCollapsed ? '64px' : '240px'"
+        class="app-aside"
+        :class="{ 'is-collapsed': sidebarCollapsed }"
+      >
         <div class="aside-brand">
-          <el-icon v-show="!sidebarCollapsed"><Menu /></el-icon>
+          <el-icon v-show="!sidebarCollapsed">
+            <Menu />
+          </el-icon>
           <span v-show="!sidebarCollapsed">{{ t('menu.' + currentTopMenu.key) }}</span>
           <el-button
             class="collapse-btn"
@@ -96,14 +156,20 @@
         <el-scrollbar>
           <el-menu
             :default-active="route.path"
-            @select="handleSubMenuSelect"
             :unique-opened="false"
             :collapse="sidebarCollapsed"
             :collapse-transition="true"
             mode="vertical"
+            @select="handleSubMenuSelect"
           >
-            <template v-for="subMenu in currentTopMenu.children" :key="subMenu.key">
-              <sub-menu-item :menu="subMenu" :icon-components="iconComponents" />
+            <template
+              v-for="subMenu in currentTopMenu.children"
+              :key="subMenu.key"
+            >
+              <sub-menu-item
+                :menu="subMenu"
+                :icon-components="iconComponents"
+              />
             </template>
           </el-menu>
         </el-scrollbar>
@@ -111,14 +177,25 @@
 
       
       <el-main class="app-main">
-        <div class="breadcrumb-wrap" v-if="breadcrumb.length">
+        <div
+          v-if="breadcrumb.length"
+          class="breadcrumb-wrap"
+        >
           <el-breadcrumb separator="/">
-            <el-breadcrumb-item v-for="(b, i) in breadcrumb" :key="i">{{ b }}</el-breadcrumb-item>
+            <el-breadcrumb-item
+              v-for="(b, i) in breadcrumb"
+              :key="i"
+            >
+              {{ b }}
+            </el-breadcrumb-item>
           </el-breadcrumb>
         </div>
         <router-view v-slot="{ Component }">
           <transition name="fade">
-            <component :is="Component" :key="$route.fullPath" />
+            <component
+              :is="Component"
+              :key="$route.fullPath"
+            />
           </transition>
         </router-view>
       </el-main>
@@ -136,9 +213,12 @@ import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
 import i18n from '@/i18n'
 import { useUserStore } from '@/stores/user'
 import { usePermissionStore } from '@/stores/permission'
-import { Warning, Bell, Menu, SwitchButton, Fold, Expand, QuestionFilled } from '@element-plus/icons-vue'
+import { useOnboarding } from '@/composables/useOnboarding'
+import { Warning, Bell, Menu, SwitchButton, Fold, Expand, QuestionFilled, Refresh } from '@element-plus/icons-vue'
 import { routeIconMap, resolveRouteIcon } from '@/utils/iconMap'
-void Bell; void Warning; void Menu; void SwitchButton; void Fold; void Expand
+void Bell; void Warning; void Menu; void SwitchButton; void Fold; void Expand; void Refresh
+
+const { restart } = useOnboarding()
 
 // 传给 SubMenuItem 的仍是整张表（它内部走 resolveRouteIcon 逐个解析），
 // 顶层菜单这里也走同一个解析函数：2026-10-12 之前这里写的是
@@ -265,6 +345,9 @@ const handleUserCommand = (command) => {
       break
     case 'help-center':
       router.push({ name: 'HelpCenter' })
+      break
+    case 'restart-onboarding':
+      restart()
       break
     case 'logout':
         userStore.logout()

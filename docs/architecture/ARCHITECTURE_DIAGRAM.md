@@ -23,7 +23,7 @@ graph TD
 
     A -- "HTTPS / 长轮询" --> H
     B -- "HTTPS" --> H
-    C -- "低频心跳<br/>许可同步" --> H
+    C -- "低频心跳 / 安装统计<br/>模块下发" --> H
 ```
 
 **边界声明**：
@@ -32,7 +32,7 @@ graph TD
 |------|------|------|
 | **访客** | 系统外 | 通过企业官网嵌入 Chat Widget 接入 |
 | **客户员工** | 系统外 | 通过浏览器访问 user-web 管理后台 |
-| **平台端** | 系统外 | 独立仓库 `hivemtk-platform`，仅做许可/产品元数据同步 |
+| **平台端** | 系统外 | 独立仓库 `hivemtk-platform`，仅做心跳/安装统计/模块下发（开源版已移除 License 概念） |
 | **HiveMtk 用户端** | **本系统** | 单租户私域部署，无 `merchant_id` 字段 |
 
 ---
@@ -57,10 +57,10 @@ graph TB
             Redis[Redis 7<br/>port: 8203<br/>Token / 缓存<br/>Docker]
         end
 
-        subgraph 宿主机 llama-server ["宿主机 llama-server 推理栈"]
-            LLM[llama-server :8207<br/>LLM<br/>Qwen2.5-3B-Instruct dev档]
-            Emb[llama-server :8208<br/>Embedding<br/>bge-m3 1024维]
-            Rerank[llama-server :8209<br/>Rerank<br/>bge-reranker-v2-m3]
+        subgraph 宿主机推理栈 ["宿主机推理栈（OpenAI 兼容）"]
+            LLM[LLM :8207 或回环网关 :8787<br/>llama.cpp / 远程网关<br/>模型由 llm_providers 表决定]
+            Emb[Embedding :8208<br/>TEI<br/>bge-m3 1024维]
+            Rerank[Rerank :8209<br/>TEI<br/>bge-reranker-v2-m3]
         end
 
         UserServer --> PG
@@ -82,10 +82,11 @@ graph TB
 |------|-----------|------|------|
 | 8202 | mtk-postgres (Docker) | TCP | 用户端数据库 |
 | 8203 | mtk-redis (Docker) | TCP | 用户端缓存 |
-| 8204 | user-server (宿主机) | HTTP | 对话核心 API + 长轮询 |
-| 8207 | llama-server (宿主机) | HTTP | LLM 推理 (OpenAI 兼容) |
-| 8208 | llama-server (宿主机) | HTTP | Embedding (1024 维) |
-| 8209 | llama-server (宿主机) | HTTP | Rerank |
+| 8204 | user-server (宿主机) | HTTP / WS | 对话核心 API + WebSocket |
+| 8205 | platform-server (宿主机) | HTTP | 平台控制面 API |
+| 8207 | llama.cpp (宿主机) 或回环网关 | HTTP | LLM 推理 (OpenAI 兼容) |
+| 8208 | TEI (宿主机) | HTTP | Embedding (bge-m3, 1024 维) |
+| 8209 | TEI (宿主机) | HTTP | Rerank (bge-reranker-v2-m3) |
 
 > **铁律**：user-server 依赖宿主机 llama.cpp 提供推理，先启动 llama-server 再起 user-server。
 
@@ -97,7 +98,7 @@ graph TB
 | user-web | Vue 3 + Vite + Element Plus | 现代前端栈、构建快 |
 | PostgreSQL | pgvector 官方镜像 | 1024 维向量原生支持 |
 | Redis | redis:7-alpine | 轻量、Token 存储 |
-| 推理栈 | llama.cpp (宿主机进程) | OpenAI 兼容协议、统一二进制 |
+| 推理栈 | llama.cpp（LLM）+ TEI（Embedding/Rerank） | OpenAI 兼容协议、统一接入 |
 
 ---
 
@@ -216,7 +217,7 @@ curl http://localhost:8204/health
 2. **命名禁用清单**：禁止「机器人/助手」等称呼智能体
 3. **`AIAgent.AgentType`**（sales / customer_service / hybrid）仅作内部子类型
 4. **embedding 私域部署强制本地**：使用 llama.cpp + BAAI/bge-m3，维度 1024；禁止静默降级到云端 LLM 厂商 / hash 伪向量
-5. **实时通道**：HTTP 长轮询（`/api/v1/ai/chat/poll`），WebSocket 已弃用
+5. **实时通道**：WebSocket 为现行实时通道——访客端 `WS /api/ws/visitor`（`chat_routes.go:55`）、渠道网关 `WS /api/ws/channel`（`router.go:645`）；另有 `/api/bridge/outbox/sse` 供渠道扩展长连消费出站
 
 ---
 

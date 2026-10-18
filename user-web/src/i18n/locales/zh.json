@@ -79,7 +79,9 @@
     "logout": "退出登录",
     "login": "登录",
     "collapseMenu": "收起菜单",
-    "expandMenu": "展开菜单"
+    "expandMenu": "展开菜单",
+    "helpCenter": "帮助中心",
+    "restartOnboarding": "重新引导"
   },
   "role": {
     "title": "角色管理",
@@ -1927,6 +1929,36 @@
     "errPhoneRequired": "请输入手机号",
     "errPhoneFormat": "电话格式不正确",
     "errAgreeRequired": "请先确认监管责任告知",
-    "errAlreadyInit": "系统已初始化，请直接登录"
+    "errAlreadyInit": "系统已初始化，请直接登录",
+    "onboarding": {
+      "next": "下一步",
+      "prev": "上一步",
+      "done": "完成",
+      "skip": "跳过",
+      "step1": {
+        "title": "品牌标识",
+        "description": "这是系统 Logo，点击可返回首页仪表盘"
+      },
+      "step2": {
+        "title": "顶部导航菜单",
+        "description": "在这里切换主要功能模块：工作台、消息中台、客户中心、AI智能体、触达运营、知识中心、数据分析、系统设置等"
+      },
+      "step3": {
+        "title": "侧边栏菜单",
+        "description": "当前模块下的子功能菜单，支持折叠展开。收起时仅显示图标，节省屏幕空间"
+      },
+      "step4": {
+        "title": "通知中心",
+        "description": "查看系统通知、版本公告、重要提醒。红点表示有未读消息"
+      },
+      "step5": {
+        "title": "用户菜单",
+        "description": "个人资料、帮助中心、退出登录。头像显示用户名首字母"
+      },
+      "step6": {
+        "title": "主内容区",
+        "description": "所有业务页面都在这里渲染。支持面包屑导航、页面切换动画"
+      }
+    }
   }
 }

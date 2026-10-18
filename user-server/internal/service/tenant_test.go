@@ -95,7 +95,7 @@ func TestTenantService_Register_Success(t *testing.T) {
 	if err := db.GetDB().First(&tn, got.TenantID).Error; err != nil {
 		t.Fatalf("租户行未落库: %v", err)
 	}
-	if !tn.IsActive() || tn.Plan != "free" || tn.Name != req.Name {
+	if !model.TenantIsActive(&tn) || tn.Plan != "free" || tn.Name != req.Name {
 		t.Errorf("租户行字段不符: %+v", tn)
 	}
 
