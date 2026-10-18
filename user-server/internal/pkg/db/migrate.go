@@ -9,6 +9,7 @@ import (
 	geomodel "hivemtk-user/internal/geo/model"
 	"hivemtk-user/internal/model"
 	opsmodel "hivemtk-user/internal/ops/model"
+	"hivemtk-user/internal/pkg/moduleidx"
 	"hivemtk-user/internal/pkg/tenancyidx"
 	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
@@ -23,6 +24,7 @@ import (
 func allModels() []any {
 	return []any{
 		&model.Tenant{},
+		&ragcachemodel.RAGAnswerCache{},
 		&model.Order{},
 		&model.AfterSale{},
 		&model.User{},
@@ -445,7 +447,6 @@ func allModels() []any {
 		// 表 rag_answer_cache：store_pg.go 的文件头注释原本就写着
 		// 「需在 internal/migration/migrations 注册」并附了 DDL，但一直没接。
 		// 登记到 allModels() 效果等价（该包不 import pkg/db，无成环问题）。
-		&ragcachemodel.RAGAnswerCache{},
 	}
 }
 
@@ -505,11 +506,35 @@ func AutoMigrate() *gorm.DB {
 		logger.Info(fmt.Sprintf("租户唯一索引规范化完成：处理 %d 个索引", n))
 	}
 
+	// 功能模块表的唯一索引形状规范化（模块化改造 · 运行时修复）。
+	//
+	// 为什么不能靠 internal/migration 的迁移做：main.go 里
+	// ExecuteUpgrade(ctx, "v1.0.0", "v1.0.0") 的 from/to 相同，
+	// **迁移体系在这个入口下不会执行任何迁移**。把修复写进迁移等于
+	// 写进一个永远不跑的地方 —— 症状是库里索引保持旧形状、
+	// 模块下发同步每次都 42P10，而 migration_records 里却写着 completed。
+	//
+	// 为什么需要它：AutoMigrate **只新增/修改列，不删除形状已变的索引**。
+	// idx_local_tenant_module 的列集在模型演进中变过一次，于是库里留下一条
+	// (tenant_id, tenant_slot, module_key)，而代码按 (tenant_slot, module_key)
+	// 做 ON CONFLICT —— PG 按名字选索引，匹配不上即 42P10。
+	// 后果不是"同步失败"这么轻：同步失败 → tenant_modules 恒空 →
+	// 模块闸落在「首启全放行」态 → 付费模块对所有人开放。
+	//
+	// 与 tenancyidx.Normalize 同一形态（紧跟 AutoMigrate、幂等可重入）。
+	if n, err := moduleidx.Normalize(DB); err != nil {
+		// 不 panic：索引形状不对会让 upsert 失败，但仓储层已加容错兜底
+		// （先查后写）。此处只记 Error，让运维能看见并手工修。
+		logger.Errorf("[module-index] 唯一索引形状规范化失败（模块下发将走慢路径兜底）: %v", err)
+	} else if n > 0 {
+		logger.Infof("[module-index] 唯一索引形状规范化完成：处理 %d 个索引", n)
+	}
+
 	// 租户登记表 + 隔离 callback（specs/001-saas-multi-tenant T005/T006）：
 	// 登记表以"模型声明 TenantID"为唯一判据；callback 在 off 模式直通、
 	// on 模式注入/填充/fail-closed。注册幂等（同名替换）。
 	tenancyidx.InitTenantRegistry(DB)
-	RegisterTenantCallbacks(DB)
+	tenancyidx.RegisterTenantCallbacks(DB)
 
 	// 后台任务扇出的活跃租户枚举器（specs/001-saas-multi-tenant T020）：
 	// 仅枚举正常状态的租户；停用租户的后台任务整体跳过（数据保留）。
@@ -751,6 +776,24 @@ func isTolerableMigrateError(err error) bool {
 	}
 	if strings.Contains(msg, "already exists") {
 		logger.Warn("AutoMigrate 命中幂等重跑提示(可容忍): " + msg)
+		return true
+	}
+	// 列类型的**遗留漂移**：库里的列类型与模型声明不一致，且 default 无法自动转换。
+	//
+	// 实测形态（2026-10-18）：GEO 模块的模型已把 tenant_id 改成 uint(bigint)，
+	// 而开发库里遗留的列仍是 varchar（default ''::character varying），
+	// AutoMigrate 改类型时撞 `42804 default for column "tenant_id" cannot be
+	// cast automatically to type bigint` —— 而这个错误**不在可容忍清单**，
+	// 于是 migrate.go 直接 panic，user-server 在该库上根本起不来。
+	//
+	// 为什么要容忍而不是放着 panic：一个环境的历史 schema 漂移，不该让**整个进程**
+	// 起不来。panic 的伤害远大于漂移本身 —— 漂移只影响那一列，而起不来意味着
+	// 连本地验证、连看日志都做不到。
+	// 走 createTableFallback 兜底时，缺表会被重建（数据丢失，日志里会明写），
+	// 有表则只跳过 —— 两种情况都不静默。
+	if strings.Contains(msg, "cannot be cast automatically to type") ||
+		strings.Contains(msg, "default for column") {
+		logger.Warn("AutoMigrate 命中列类型遗留漂移(可容忍，建议按迁移修正列类型): " + msg)
 		return true
 	}
 	return false

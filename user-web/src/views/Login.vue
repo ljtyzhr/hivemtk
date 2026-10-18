@@ -63,25 +63,22 @@
               size="large"
               style="width: 100%"
               :loading="loading"
-              @click="mode === 'login' ? handleLogin() : handleRegister()"
+              @click="handleLogin"
             >
-              {{ mode === 'login' ? t('core.login.submit') : '注 册' }}
+              {{ t('core.login.submit') }}
             </el-button>
           </el-form-item>
 
-          <div v-if="mode === 'register'">
-            <el-form-item prop="email">
-              <el-input v-model="loginForm.email" placeholder="邮箱" prefix-icon="Message" size="large" />
-            </el-form-item>
-          </div>
-
+          <!-- 注册走独立页面（/register）。
+               此前内联在本页的注册表单只收 用户名/密码/邮箱，而开户登记还必须收
+               公司名称/负责人/电话（监管必需项）。两条提交路径同时存在的结果是
+               「从登录页注册的人 100% 被 4304 拒绝，而后端一条错都不报」——
+               属于只改后端不改编排入口必然出现的断链。
+               现在只有一个注册入口，字段口径与后端校验同源。 -->
           <div class="register-switch">
-            <template v-if="mode === 'login'">
-              <el-button v-if="enableRegister" link type="primary" @click="switchMode('register')">没有账号？注册新账号</el-button>
-            </template>
-            <template v-else>
-              <el-button link type="primary" @click="switchMode('login')">已有账号？返回登录</el-button>
-            </template>
+            <el-button v-if="enableRegister" link type="primary" @click="goRegister">
+              没有账号？注册商户账号
+            </el-button>
           </div>
 
         </el-form>
@@ -111,39 +108,18 @@ const permissionStore = usePermissionStore()
 const loginFormRef = ref(null)
 const loading = ref(false)
 
+// 登录只需账号 + 密码。email 字段随内联注册表单一起去掉了
+// （注册已独立成页），留着会让读代码的人以为登录还支持邮箱入口。
 const loginForm = reactive({
   username: '',
-  password: '',
-  email: ''
+  password: ''
 });
 
 // 自助注册：开关由公开配置 /api/public/config 提供（未登录可取）
-const mode = ref('login')
 const enableRegister = ref(false)
-const switchMode = (m) => { mode.value = m }
 
-const handleRegister = async () => {
-  if (!loginFormRef.value) return
-  if (!loginForm.username || !loginForm.password || !loginForm.email) {
-    ElMessage.warning('请填写用户名、邮箱和密码')
-    return
-  }
-  loading.value = true
-  try {
-    const { http } = await import('@/utils/request')
-    await http.post('/api/auth/register', {
-      username: loginForm.username,
-      password: loginForm.password,
-      email: loginForm.email
-    })
-    ElMessage.success('注册成功，请登录')
-    mode.value = 'login'
-  } catch (e) {
-    const msg = e?.response?.data?.message || e?.message || '注册失败'
-    ElMessage.error(msg)
-  } finally {
-    loading.value = false
-  }
+const goRegister = () => {
+  router.push({ path: '/register' })
 }
 
 import { http as httpApi } from '@/utils/request'

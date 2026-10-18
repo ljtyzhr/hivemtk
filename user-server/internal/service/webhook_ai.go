@@ -142,7 +142,7 @@ func (s *WebhookService) triggerSalesEngine(ctx context.Context, channel Webhook
 				sessionID = hubMsg.ConversationID
 			}
 		}
-		agent_runtime.PublishCustomerMessage(string(channel), accountID, customerID, sessionID, p.Content, p.EventID)
+		agent_runtime.PublishCustomerMessage(ctx, string(channel), accountID, customerID, sessionID, p.Content, p.EventID)
 	}
 
 	if s.smartOrchestrator != nil {

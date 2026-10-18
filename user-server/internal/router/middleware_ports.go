@@ -5,7 +5,9 @@ import (
 
 	"hivemtk-user/internal/middleware"
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/repository"
 	"hivemtk-user/internal/service"
+	"hivemtk-user/internal/websocket"
 )
 
 // operationLogSink 审计 sink：经 OperationLogService 落库（Router 不直连 Repository）
@@ -54,10 +56,26 @@ func toChatChannelView(c *model.ChatChannel) *middleware.ChatChannelView {
 		Status:         string(c.Status),
 		Active:         service.ChatChannelIsActive(c),
 		AllowedOrigins: service.ChatChannelAllowedOriginsList(c),
+		TenantID:       c.TenantID,
 	}
 }
 
+// visitorChannelResolverAdapter service.ChatChannelService → websocket 窄接口适配
+type visitorChannelResolverAdapter struct {
+	svc *service.ChatChannelService
+}
+
+func (a visitorChannelResolverAdapter) ResolveByChannelID(ctx context.Context, channelID string) (*websocket.VisitorChannelView, error) {
+	ch, err := a.svc.GetByChannelID(ctx, channelID)
+	if err != nil || ch == nil {
+		return nil, err
+	}
+	return &websocket.VisitorChannelView{ChannelID: ch.ChannelID, TenantID: ch.TenantID}, nil
+}
+
 func injectMiddlewarePorts() {
+	websocket.SetVisitorChannelResolver(visitorChannelResolverAdapter{svc: service.MustNewChatChannelService(repository.NewChatChannelRepository())})
+
 	middleware.SetPermChecker(service.NewPermissionService())
 	middleware.SetAuditSink(operationLogSink{svc: service.NewOperationLogService()})
 }

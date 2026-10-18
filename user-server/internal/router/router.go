@@ -649,16 +649,16 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 
 		bridgeRepo := bridge.NewBridgeAccountRepository(gormDB)
 		bridge.RegisterBridgeAccountRepo(bridgeRepo)
-		bridge.RegisterOwnershipChecker(func(ctx context.Context, userID uint, channel, accountID string) (bool, error) {
+		bridge.RegisterOwnershipChecker(func(ctx context.Context, userID uint, channel, accountID string) (bool, uint, error) {
 			acc, err := bridgeRepo.GetByChannelAccount(ctx, channel, accountID)
 
 			if err != nil {
-				return false, err
+				return false, 0, err
 			}
 			if acc == nil {
-				return false, nil
+				return false, 0, nil
 			}
-			return acc.UserID == userID, nil
+			return acc.UserID == userID, acc.TenantID, nil
 		})
 		bridgeAccountCtrl := controller.NewBridgeAccountController()
 		bridgeAccountCtrl.RegisterRoutes(auth)

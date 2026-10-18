@@ -1,11 +1,10 @@
-package db
+package tenancyidx
 
 import (
 	"fmt"
 	"regexp"
 	"strings"
 
-	"hivemtk-user/internal/pkg/tenancyidx"
 	"hivemtk-user/internal/pkg/tenant"
 
 	"gorm.io/gorm"
@@ -13,6 +12,9 @@ import (
 )
 
 // 租户隔离 GORM callback（specs/001-saas-multi-tenant T005）
+//
+// 实现位于 tenancyidx（其依赖仅 gorm+tenant）：testutil 与 pkg/db 经本包注册，
+// 断开 testutil→db 的 import 环（pkg/db 测试依赖 testutil 的链路会成环）。
 //
 // 隔离的唯一执行者，业务代码零入侵：
 //   - off 模式（TENANT_MODE=off，默认）：全部 callback 直通，SQL 形状与历史版本逐字节等价
@@ -81,7 +83,7 @@ func scopeQueryForTenant(db *gorm.DB) {
 		return
 	}
 	table := resolveTenantTable(stmt)
-	if !tenancyidx.IsTenantTable(table) {
+	if !IsTenantTable(table) {
 		return
 	}
 	ctx := stmt.Context
@@ -148,7 +150,7 @@ func scopeLikeForTenant(db *gorm.DB, op string) {
 		return
 	}
 	table := resolveTenantTable(stmt)
-	if !tenancyidx.IsTenantTable(table) {
+	if !IsTenantTable(table) {
 		return
 	}
 	ctx := stmt.Context
@@ -183,7 +185,7 @@ func guardRawSQLForTenant(db *gorm.DB) {
 	}
 	for _, m := range tenantTableRefRe.FindAllStringSubmatch(sqlText, -1) {
 		name := lastSegment(m[1])
-		if tenancyidx.IsTenantTable(name) {
+		if IsTenantTable(name) {
 			_ = db.AddError(fmt.Errorf("[tenant] 预构建 SQL 引用租户表 %s 被拒绝：数据访问必须走 GORM API"+
 				"（specs/001-saas-multi-tenant D2 / check-gorm-only 门禁）", name))
 			return

@@ -106,7 +106,6 @@ declare module 'vue' {
     KuaishouCardPreview: typeof import('./../components/KuaishouCardPreview.vue')['default']
     LanguageSwitcher: typeof import('./../components/LanguageSwitcher.vue')['default']
     Loading: typeof import('@element-plus/icons-vue')['Loading']
-    Lock: typeof import('@element-plus/icons-vue')['Lock']
     MagicStick: typeof import('@element-plus/icons-vue')['MagicStick']
     MaterialSelectDialog: typeof import('./../components/dialogs/MaterialSelectDialog.vue')['default']
     MessageNotification: typeof import('./../components/MessageNotification.vue')['default']

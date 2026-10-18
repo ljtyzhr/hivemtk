@@ -54,6 +54,10 @@ type ModuleMarketDetail struct {
 	AutoEnabled []string `json:"auto_enabled"`
 	// PayableDependencies 依赖闭包里"必须自己买"的那些（收费）
 	PayableDependencies []string `json:"payable_dependencies"`
+	// PlatformEnabled 平台是否连通。前端据此禁用订阅按钮 ——
+	// 少了它，离线部署时详情页的「去订阅」按钮会照常可点，
+	// 用户点下去才收到一句"平台未连接"，而按钮本身在界面上没有任何异样。
+	PlatformEnabled bool `json:"platform_enabled"`
 }
 
 // MarketList 市场列表。第二个返回值是平台是否连通。
@@ -116,7 +120,8 @@ func (s *ModuleCatalogService) MarketDetail(ctx context.Context, moduleKey strin
 			Free:         meta.Category == model.ModuleCategoryBase,
 			FreeToEnable: meta.Category == model.ModuleCategoryPaid && meta.PriceCents == 0,
 		},
-		MenuKeys: menuKeys,
+		MenuKeys:        menuKeys,
+		PlatformEnabled: config.PlatformEnabled(),
 	}
 	// 依赖闭包拆分：基础/免费会自动开通，收费的要用户自己勾
 	for _, dep := range model.ClosureOfModules(meta.Key) {

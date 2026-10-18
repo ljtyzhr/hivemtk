@@ -241,7 +241,7 @@ func (s *ModuleCatalogService) Sync(ctx context.Context) (*ModuleSyncResult, err
 		rows = append(rows, &model.TenantModule{
 			ModuleKey:   r.ModuleKey,
 			Status:      model.TenantModuleActive,
-			Source:      sourceOf(r.OwnedStatus),
+			Source:      sourceOf(r.OwnedSource, r.Category, r.ModuleKey),
 			Category:    r.Category,
 			PriceCents:  r.PriceCents,
 			MenuKeys:    string(menuKeys),
@@ -327,8 +327,23 @@ func (s *ModuleCatalogService) bootstrapOffline(ctx context.Context, start time.
 	}, nil
 }
 
-func sourceOf(ownedStatus string) string {
-	if ownedStatus == "" {
+// sourceOf 决定本地镜像记录的开通来源。
+//
+// 曾经写成「ownedStatus 非空即 purchase」，而 ownedStatus 传的是**状态**
+// （active/expired/disabled），于是**所有模块都被记成"用户购买"** ——
+// 基础能力（core/customer/inbox…）在「我的模块」页显示成花钱买的，
+// 用户会问"我没买过的东西为什么显示已购买"。
+//
+// 判据改为按平台下发的 OwnedSource 直取；缺省时按模块分类回落：
+// 基础模块 → default_base，收费模块 → purchase（保守：不要凭空说用户买了）。
+func sourceOf(ownedSource, category, moduleKey string) string {
+	if ownedSource != "" {
+		return ownedSource
+	}
+	if category == model.ModuleCategoryBase {
+		return model.TenantModuleSourceDefaultBase
+	}
+	if model.OwnerModuleCategory(moduleKey) == model.ModuleCategoryBase {
 		return model.TenantModuleSourceDefaultBase
 	}
 	return model.TenantModuleSourcePurchase

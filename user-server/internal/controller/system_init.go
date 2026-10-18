@@ -84,12 +84,30 @@ func publicInitStatus(s *install.Status) gin.H {
 
 // InitAdminRequest 创建超管请求
 // 开源版：手机号、邮箱、姓名均为选填（初始化时上报平台，作为商户联系信息）。
+// InitAdminRequest 初始化向导的提交体。
+//
+// Email / RealName / ContactPhone / CompanyName 四项是**开户登记必填**，不是选填：
+// 离线独立部署的用户**不会**走 /api/auth/register，他们只有这一个入口，
+// 这里放行就等于需求「租户开户必须收集电话、邮箱、公司名称、负责人等」
+// 对整个离线人群完全失效（见 tasks.md 三次审核轮 L10）。
+//
+// CompanyName 可退化为「负责人所属组织」：个人自用也要能装，
+// 但不允许**完全为空** —— 一个查不到人的经营主体在监管问询时毫无价值。
 type InitAdminRequest struct {
 	Username     string `json:"username" binding:"required,min=3,max=20"`
 	Password     string `json:"password" binding:"required,min=8"`
-	Email        string `json:"email" binding:"omitempty,email"`
-	RealName     string `json:"real_name"`
-	ContactPhone string `json:"contact_phone"`
+	Email        string `json:"email" binding:"required,email"`
+	RealName     string `json:"real_name" binding:"required,min=2,max=32"`
+	ContactPhone string `json:"contact_phone" binding:"required"`
+	// CompanyName 组织/公司名称；为空时回落为「负责人所属组织」，仍不允许两者皆空
+	CompanyName string `json:"company_name"`
+	// LicenseNo / Address 选填：法律上通常需要，但留空可事后在平台端补录
+	LicenseNo string `json:"license_no"`
+	Address   string `json:"address"`
+	// RegulatoryAck 用户已确认监管责任告知
+	RegulatoryAck bool `json:"regulatory_ack"`
+	// AgreementVersion 用户同意的协议版本（由 /api/public/config 或告知端点给出）
+	AgreementVersion string `json:"agreement_version"`
 }
 
 // InitComplete 公开：完成初始化向导

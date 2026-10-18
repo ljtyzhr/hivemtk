@@ -403,6 +403,7 @@ func (s *SOPService) Execute(ctx context.Context, req *dto.ExecuteRequest) (*mod
 			NodeID:      startNode.ID,
 			Attempt:     0,
 			TraceID:     traceID,
+			TenantID:    exec.TenantID,
 		})
 	}
 	return exec, nil
@@ -445,6 +446,7 @@ func (s *SOPService) Step(ctx context.Context, req *dto.StepRequest) (*model.SOP
 			NodeID:      exec.CurrentNode,
 			Attempt:     0,
 			TraceID:     traceID,
+			TenantID:    exec.TenantID,
 		})
 		return exec, nil
 	}

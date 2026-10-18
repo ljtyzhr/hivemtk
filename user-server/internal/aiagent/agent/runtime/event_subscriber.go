@@ -3,6 +3,7 @@ package agent_runtime
 import (
 	"context"
 	"errors"
+	"hivemtk-user/internal/pkg/tenant"
 	"runtime/debug"
 	"time"
 
@@ -39,12 +40,12 @@ func (s *eventBusEventSubscriber) Handle(evt event.Event) error {
 			if p == nil {
 				return errors.New("event payload is nil")
 			}
-			return s.handleMessage(context.Background(), *p)
+			return s.handleMessage(tenantCtx(context.Background(), *p), *p)
 		}
 		return errors.New("invalid event payload type for " + evt.Topic)
 	}
 
-	return s.handleMessage(context.Background(), payload)
+	return s.handleMessage(tenantCtx(context.Background(), payload), payload)
 }
 
 func (s *eventBusEventSubscriber) handleMessage(ctx context.Context, payload event.CustomerMessagePayload) error {
@@ -90,4 +91,14 @@ func convertFromEventPayload(ep event.CustomerMessagePayload) CustomerMessagePay
 		TraceID:     ep.TraceID,
 		Raw:         ep.Raw,
 	}
+}
+
+// tenantCtx 从事件载荷恢复租户上下文（specs/001-saas-multi-tenant T021 行自证）：
+// 发布点（入站解析链）已绑定租户的 payload 携带 TenantID，订阅侧据此重建；
+// 0 = 历史发布方未填（off 模式等价默认租户语义，由列默认值兜底）。
+func tenantCtx(ctx context.Context, payload event.CustomerMessagePayload) context.Context {
+	if payload.TenantID == 0 {
+		return ctx
+	}
+	return tenant.WithTenantID(ctx, payload.TenantID)
 }

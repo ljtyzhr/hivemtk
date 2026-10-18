@@ -44,6 +44,20 @@ export const syncModules = () =>
 export const moduleSyncLogs = (params) =>
   http.get('/api/modules/sync-logs', params);
 
+// ── 平台模型余额与套餐（需求五）──────────────────────────────────────
+//
+// 这三个此前只在后端存在、前端零调用 —— 计量做了一整套却没有任何人看得见。
+// 「实时扣减」对用户是否可感知，取决于他能不能看到剩余量。
+
+export const llmWallet = () =>
+  http.get('/api/llm/wallet');
+
+export const llmPlans = () =>
+  http.get('/api/llm/plans');
+
+export const createLLMOrder = (data) =>
+  http.post('/api/llm/recharge', data);
+
 // ── 展示辅助 ───────────────────────────────────────────────────────
 
 /** 分 → 元。展示层换算，接口层一律用分（避免两处各自四舍五入一次导致对账差 1 分） */

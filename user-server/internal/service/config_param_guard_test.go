@@ -67,6 +67,11 @@ func TestD12_NoNewLegacyKVDirectQuery(t *testing.T) {
 		"sales_engine.go":            true,
 		"script_ab.go":               true,
 		"tool_integration_config.go": true,
+		// 功能模块的表归属登记表（model/module_tables.go）：它把 270 张表的表名
+		// 逐条列出以做「表 → 模块」归属，必然出现 system_config_kv 字样。
+		// 本守卫是**文本匹配**，无法区分"登记了表名"与"写了裸 SQL 直查"，
+		// 因此这是误报而非违规。真正的 SQL 直查守卫在 repository 层另有其人。
+		"module_tables.go": true,
 	}
 	skipDirs := map[string]bool{
 		"migration": true,

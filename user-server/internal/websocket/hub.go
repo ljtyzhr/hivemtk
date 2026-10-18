@@ -27,16 +27,22 @@ type envelopeFrame struct {
 // Client WebSocket客户端
 // 同时支持 agent（坐席）和 visitor（访客）两种类型
 type Client struct {
-	hub               *Hub
-	send              chan []byte
-	clientType        ClientType
-	agentID           string
-	agentName         string
-	sessionID         string
-	visitorID         string
-	channelID         string
+	hub        *Hub
+	send       chan []byte
+	clientType ClientType
+	agentID    string
+	agentName  string
+	sessionID  string
+	visitorID  string
+	channelID  string
+	// tenantID 连接归属租户（specs/001-saas-multi-tenant T026）：
+	// 握手时从 JWT 租户 claim 绑定，推送按租户过滤（0=off 模式/系统广播）
+	tenantID          uint
 	onConnectInflight atomic.Bool
 }
+
+// TenantID 连接归属租户（推送分桶判定用）
+func (c *Client) TenantID() uint { return c.tenantID }
 
 // Message WebSocket消息
 type Message struct {

@@ -17,6 +17,7 @@ import (
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/platform"
 	"hivemtk-user/internal/repository"
+	"hivemtk-user/internal/system/install"
 
 	"gorm.io/gorm"
 )
@@ -420,10 +421,17 @@ func (s *TenantService) SubmitRegistrationToPlatform(ctx context.Context, t *mod
 		})
 	}
 
-	installID := platform.GetMerchantKey()
+	// 两个标识是**不同**的东西，曾经被填成同一个值：
+	//   merchant_key  —— 本部署在平台上的商业身份（模块授权/订单/LLM 钱包都挂在它上面）
+	//   install_id    —— 本部署的安装标识（install.lock 里那份，心跳上报用的也是它）
+	//
+	// 混填的后果不是"多写了一个字段"，而是平台端**无法把开户登记与心跳记录关联起来**：
+	// tenant_registrations.install_id 存的是商户密钥，而 platform_installs 用的是
+	// 真正的 install_id，两张表之间没有可连接的键 —— 于是"这个部署是谁、它在线吗、
+	// 它登记了吗"这三个问题在平台上答不出来。
 	payload := platform.TenantRegistrationPayload{
-		MerchantKey:      installID,
-		InstallID:        installID,
+		MerchantKey:      platform.GetMerchantKey(),
+		InstallID:        currentInstallID(),
 		TenantCode:       t.Code,
 		CompanyName:      t.CompanyName,
 		LegalPerson:      t.LegalPerson,
@@ -509,4 +517,18 @@ func (s *TenantService) RegistrationInfo(ctx context.Context) (*RegistrationInfo
 // 逻辑，而注册页与功能模块市场要展示**同一份**文本 —— 两处各写一份必然漂移。
 func (s *TenantService) RegulatoryNotice(ctx context.Context) *RegulatoryNoticeView {
 	return NewModuleCatalogService().RegulatoryNotice(ctx)
+}
+
+// currentInstallID 读本部署的安装标识（install.lock）。
+//
+// 读不到时返回空串而不是回落 merchant_key：把两个不同语义的标识混成一个，
+// 会让平台端的关联查询"看起来有值、实际对不上"——那比空值更难排查。
+// 空值至少让平台端能明确知道"这个部署没提供安装标识"。
+func currentInstallID() string {
+	lr, err := install.Load()
+	if err != nil || lr == nil {
+		logger.Warnf("[tenant] 读取 install.lock 失败，开户登记将不带 install_id: %v", err)
+		return ""
+	}
+	return strings.TrimSpace(lr.InstallID)
 }

@@ -35,7 +35,7 @@ func setupTenantCallbackDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	database := testutil.NewTestDB(t, &tenancyProbeModel{}, &tenancyGlobalModel{})
 	// 登记表由 testdb 钩子内省装配（覆盖本夹具两张表）；生产由 db.AutoMigrate 装配
-	RegisterTenantCallbacks(database)
+	tenancyidx.RegisterTenantCallbacks(database)
 	t.Cleanup(func() {
 		tenant.SetMode(tenant.ModeOff)
 		tenancyidx.ResetRegistryForTest()

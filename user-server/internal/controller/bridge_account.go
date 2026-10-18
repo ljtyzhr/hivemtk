@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"hivemtk-user/internal/pkg/tenant"
 	"net/http"
 
 	"hivemtk-user/internal/bridge"
@@ -62,10 +63,13 @@ func (ctrl *BridgeAccountController) SendManual(c *gin.Context) {
 	uidAny, _ := c.Get("user_id")
 	uid, _ := uidAny.(uint)
 	if bridge.GlobalOwnershipChecker != nil {
-		owns, err := bridge.GlobalOwnershipChecker(c.Request.Context(), uid, req.Channel, req.AccountID)
+		owns, accTenant, err := bridge.GlobalOwnershipChecker(c.Request.Context(), uid, req.Channel, req.AccountID)
 		if err != nil {
 			response.Error(c, http.StatusInternalServerError, err.Error())
 			return
+		}
+		if owns && accTenant != 0 {
+			c.Request = c.Request.WithContext(tenant.WithTenantID(c.Request.Context(), accTenant))
 		}
 		if !owns {
 			response.Error(c, http.StatusForbidden, "account not owned by current user")

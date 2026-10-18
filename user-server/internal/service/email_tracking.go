@@ -9,6 +9,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"hivemtk-user/internal/pkg/tenant"
 	"math"
 	"net/url"
 	"os"
@@ -29,12 +30,16 @@ const emailTrackingSecretEnv = "EMAIL_TRACKING_SECRET"
 //
 // 每个收件人 + 每个 job 独立 token，避免泄露后影响其他收件人
 type EmailTrackingClaim struct {
-	Email  string `json:"email"`
-	JobID  string `json:"job_id"`
-	Type   string `json:"type"`
-	Target string `json:"target,omitempty"`
-	Expire int64  `json:"expire"`
-	Nonce  string `json:"nonce"`
+	// TenantID 邮件归属租户（specs/001-saas-multi-tenant T025 行自证）：
+	// 签发时从发送方 ctx 捕获进签名，回调（打开/点击）按它恢复租户上下文；
+	// 0 = off 模式签发（历史 token 兼容，落库走列默认值）
+	TenantID uint   `json:"tenant_id,omitempty"`
+	Email    string `json:"email"`
+	JobID    string `json:"job_id"`
+	Type     string `json:"type"`
+	Target   string `json:"target,omitempty"`
+	Expire   int64  `json:"expire"`
+	Nonce    string `json:"nonce"`
 }
 
 // EmailTrackingService 邮件追踪服务
@@ -75,12 +80,14 @@ func (s *EmailTrackingService) generateToken(ctx context.Context, email, jobID, 
 		return "", errors.New("email 不能为空")
 	}
 	claim := EmailTrackingClaim{
-		Email:  email,
-		JobID:  jobID,
-		Type:   tokenType,
-		Target: target,
-		Expire: time.Now().Add(90 * 24 * time.Hour).Unix(),
-		Nonce:  fmt.Sprintf("track-%s", uuid.NewString()),
+		// 租户随签发入签（T025）：发送路径 ctx 已被租户中间件/解析链绑定
+		TenantID: tenantIDFromCtx(ctx),
+		Email:    email,
+		JobID:    jobID,
+		Type:     tokenType,
+		Target:   target,
+		Expire:   time.Now().Add(90 * 24 * time.Hour).Unix(),
+		Nonce:    fmt.Sprintf("track-%s", uuid.NewString()),
 	}
 	payload, err := json.Marshal(claim)
 	if err != nil {
@@ -134,7 +141,7 @@ func (s *EmailTrackingService) RecordOpenEvent(ctx context.Context, token, ip, u
 	if err != nil {
 		return err
 	}
-	return s.recordEvent(ctx, claim.Email, claim.JobID, model.EmailEventTypeOpen, "", ip, ua)
+	return s.recordEvent(tenant.WithTenantID(ctx, claim.TenantID), claim.Email, claim.JobID, model.EmailEventTypeOpen, "", ip, ua)
 }
 
 // RecordClickEvent 记录点击事件（链接重定向触发）
@@ -144,7 +151,7 @@ func (s *EmailTrackingService) RecordClickEvent(ctx context.Context, token, ip, 
 	if err != nil {
 		return "", err
 	}
-	if err := s.recordEvent(ctx, claim.Email, claim.JobID, model.EmailEventTypeClick, claim.Target, ip, ua); err != nil {
+	if err := s.recordEvent(tenant.WithTenantID(ctx, claim.TenantID), claim.Email, claim.JobID, model.EmailEventTypeClick, claim.Target, ip, ua); err != nil {
 		return "", err
 	}
 	if claim.Target != "" {
@@ -349,4 +356,13 @@ func (s *EmailTrackingService) baseURL(ctx context.Context) string {
 
 func round2(v float64) float64 {
 	return math.Round(v*100) / 100
+}
+
+// tenantIDFromCtx 签发侧租户提取（specs/001-saas-multi-tenant T025；0 = off 模式）
+func tenantIDFromCtx(ctx context.Context) uint {
+	if ctx == nil {
+		return 0
+	}
+	id, _ := tenant.FromContext(ctx)
+	return id
 }

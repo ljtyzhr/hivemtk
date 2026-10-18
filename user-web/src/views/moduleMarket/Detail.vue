@@ -97,7 +97,9 @@
 <script setup>
 import { ref, computed, onMounted } from 'vue'
 import { useRoute } from 'vue-router'
-import { listMarketModules, priceLabel, MODULE_CATEGORY_LABEL } from '@/api/moduleMarket'
+import { ElMessage } from 'element-plus'
+import { getUserMenus } from '@/api/menu'
+import { marketModuleDetail, priceLabel, MODULE_CATEGORY_LABEL } from '@/api/moduleMarket'
 
 const CATEGORY_LABEL = MODULE_CATEGORY_LABEL
 const route = useRoute()
@@ -121,26 +123,36 @@ const menuPages = computed(() => {
 async function load () {
   loading.value = true
   try {
-    const listRes = await listMarketModules({ page: 1, page_size: 200 })
-    platformEnabled.value = listRes?.platform_enabled !== false
-    const items = listRes?.list || []
-    detail.value = items.find(m => m.module_key === route.params.key) || null
-    try {
-      const menus = await fetch('/api/menus')
-      if (menus?.tree) {
-        const flat = {}
-        const walk = ns => ns.forEach(n => {
-          flat[n.key] = { title: n.title, path: n.path }
-          if (n.children) walk(n.children)
-        })
-        walk(menus.tree)
-        menuIndex.value = flat
-      }
-    } catch {
-      menuIndex.value = {}
-    }
+    // 走详情接口而不是从列表里 find：
+    // 列表项不含 description / auto_enabled / payable_dependencies，
+    // 用列表等于让详情页的「详细说明」与「依赖闭包」两段永远显示占位文案。
+    detail.value = await marketModuleDetail(route.params.key)
+    platformEnabled.value = detail.value?.platform_enabled !== false
+  } catch (e) {
+    detail.value = null
+    ElMessage.error(e?.message || '加载模块详情失败')
   } finally {
     loading.value = false
+  }
+  await loadMenuIndex()
+}
+
+// 菜单索引用来把 menu_key 翻成「标题 + 路径」给人看。
+// 必须走 api/menu 的封装而不是裸 fetch('/api/menus')：裸 fetch 不带 Authorization 头，
+// 未登录/令牌未注入时恒 401，而 catch 又是空的 —— 页面不报错，只是「页面清单」
+// 一栏永远只有一串 key。
+async function loadMenuIndex () {
+  try {
+    const res = await getUserMenus()
+    const flat = {}
+    const walk = ns => (ns || []).forEach(n => {
+      flat[n.key] = { title: n.title, path: n.path }
+      if (n.children) walk(n.children)
+    })
+    walk(res?.tree)
+    menuIndex.value = flat
+  } catch {
+    menuIndex.value = {}
   }
 }
 

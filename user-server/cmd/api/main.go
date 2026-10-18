@@ -293,20 +293,21 @@ func main() {
 
 	// ── 功能模块化 · 平台垫资模型装配 ──────────────────────────────
 	//
-	// 三件事，顺序有依赖：
-	//  1. 接上用量回填（dispatcher 调用后落本地明细）—— 必须在 LoadProvidersFromDB
-	//     **之前**：首次派发就可能命中平台 provider，那时 sink 还没接上会丢第一条明细。
-	//  2. 拉取平台下发的 provider 元信息（**不含 Key**）。
-	//  3. 再从库里加载 provider —— 顺序反过来会让本次下发的 provider 要等下个周期。
+	// 平台垫资模型的装配分两段，顺序有硬依赖：
+	//   ① 此处：只接用量回填 sink —— 必须在 LoadProvidersFromDB 之前，
+	//      否则首次派发命中平台 provider 时会丢第一条明细。
+	//   ② 平台配置就绪之后（loadPlatformLLMProviders）：先拉平台下发的 provider
+	//      元信息（**不含 Key**），再从库里加载 provider。
+	//      顺序反过来，本次下发的 provider 要等下一个周期才生效。
 	//
 	// 平台不可达时全部降级：自带 Key 的 provider 完全不受影响（零出域铁律）。
+	// ① 只接 sink（不碰平台）：必须在 LoadProvidersFromDB 之前 ——
+	//    首次派发就可能命中平台 provider，那时 sink 没接上会丢第一条明细。
 	service.InstallPlatformUsageSink()
-	if n, err := service.SyncPlatformProviders(context.Background()); err != nil {
-		logger.Warnf("[llm-provider] 拉取平台 provider 失败（不影响自带 Key 使用）: %v", err)
-	} else if n > 0 {
-		logger.Infof("[llm-provider] 已同步 %d 个平台下发 provider", n)
-	}
 
+	// ② provider 的实际加载延后到平台配置就绪之后（见下方 loadPlatformLLMProviders）。
+	//    曾经就放在这里，于是 config.PlatformCfg 尚为 nil → 请求被拒 →
+	//    平台 provider **永远拉不下来**，日志里只有一行 warn。
 	if err := llm.GetGlobalDispatcher().LoadProvidersFromDB(); err != nil {
 		logger.Errorf("[LLM] 从数据库加载 provider 失败：%v", err)
 	} else {
@@ -343,6 +344,20 @@ func main() {
 			logger.Errorf("平台同步初始化失败：%v", err)
 		}
 		platform.StartHeartbeat(context.Background())
+		// 必须在 LoadPlatform 之后：拉平台 provider 要读 config.PlatformCfg。
+		// 放在 LoadPlatform 之前会得到「平台配置未初始化」，平台 provider 永远拉不到。
+		if n, err := service.SyncPlatformProviders(context.Background()); err != nil {
+			logger.Warnf("[llm-provider] 拉取平台 provider 失败（不影响自带 Key 使用）: %v", err)
+		} else if n > 0 {
+			logger.Infof("[llm-provider] 已同步 %d 个平台下发 provider", n)
+			// 重载一次，让本次下发的 provider 立刻进路由表，
+			// 否则要等 10 分钟的模块同步周期才生效。
+			if err := llm.GetGlobalDispatcher().LoadProvidersFromDB(); err != nil {
+				logger.Warnf("[llm-provider] 重载 provider 失败: %v", err)
+			} else {
+				logger.Info("[llm-provider] 平台 provider 已并入路由表")
+			}
+		}
 	}
 	middleware.InitInstallStatus()
 	logger.Info("[启动] 初始化安装态检查器（只读本地 install.lock，无平台依赖）")
@@ -580,6 +595,16 @@ func main() {
 	// SLO 跟踪器（internal/pkg/sla）：启动期显式登记三条 SLI 并注册指标。
 	// 记录点分布在 service 层（编排器、人工待办），走 sla.Record 直达同一实例。
 	app.InitSLO()
+
+	// ── 功能模块化：模块下发同步（必须在 router.Setup 之前）────
+	//
+	// 顺序有硬依赖：router.Setup 会装上模块闸，而闸的判定读的是
+	// tenant_modules 本地表。这张表只有一个写入方，就是这里的同步。
+	//
+	// 首轮同步是**同步执行**的（见 StartModuleSync 的注释）：闸装上之后、
+	// 首轮同步完成之前存在一个「全放行」窗口，而那恰好是并发最高的启动瞬间。
+	moduleSync := service.StartModuleSync(context.Background())
+	defer moduleSync.Stop()
 
 	router.Setup(r, db.GetDB())
 

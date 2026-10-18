@@ -595,10 +595,18 @@ func TestSystemUserController_CreateDefaultAdmin(t *testing.T) {
 	router := setupGinEngine()
 	router.POST("/admin/init", ctrl.CreateDefaultAdmin)
 
-	createReq := map[string]string{
-		"username": "admin",
-		"password": "Admin@123456",
-		"email":    "admin@test.com",
+	// 补齐开户登记四项：离线部署的唯一入口必须收齐公司/负责人/电话/邮箱，
+	// 否则需求「注意离线独立部署情况，也要收集信息」对整个离线人群失效
+	// （见 tasks.md 四次审核轮 L10）。
+	createReq := map[string]any{
+		"username":          "admin",
+		"password":          "Admin@123456",
+		"email":             "admin@test.com",
+		"company_name":      "某某科技",
+		"real_name":         "张三",
+		"contact_phone":     "13800000000",
+		"regulatory_ack":    true,
+		"agreement_version": "2026-10-17.v1",
 	}
 	body, _ := json.Marshal(createReq)
 

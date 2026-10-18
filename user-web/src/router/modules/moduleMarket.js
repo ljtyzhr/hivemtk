@@ -3,9 +3,10 @@ export default [
     path: '/module-market',
     name: 'ModuleMarket',
     component: () => import('@/views/moduleMarket/Market.vue'),
-    // meta.group 留空：功能模块市场是**顶层入口**，不放进任何顶级分组。
-    // 放进分组等于说"它属于某个已有业务域"—— 而它横跨智能体/触达/IM/分析，
-    // 塞进任何一组都是错的，菜单上会让人以为它只管那一块。
+    // 侧栏由**后端菜单树**驱动（GET /api/menus，见 stores/permission.js），
+    // 不是由这里的 meta.title 聚合。所以本文件不需要 meta.group ——
+    // 侧栏位置与可见性完全取决于 user-server internal/model/menu.go 里
+    // 有没有对应节点（moduleCenterGroup）。
     meta: { title: '功能模块市场', icon: 'Shop', requiresAuth: true }
   },
   {

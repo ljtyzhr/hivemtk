@@ -26,6 +26,9 @@ const (
 //
 // 对应 model.OperationLog 字段，由 OperationLogSubscriber 转换并写入 DB
 type OperationLogPayload struct {
+	// TenantID 事件归属租户（specs/001-saas-multi-tenant T021）：发布点从 ctx 填充，
+	// 订阅者据此恢复租户上下文；0 = 系统级事件（off 模式等价默认租户）
+	TenantID   uint   `json:"tenant_id,omitempty"`
 	UserID     uint   `json:"user_id"`
 	Username   string `json:"username"`
 	Action     string `json:"action"`
@@ -44,6 +47,8 @@ type OperationLogPayload struct {
 //
 // 关联主题:TopicCustomerMessageReceived
 type CustomerMessagePayload struct {
+	// TenantID 事件归属租户（T021 行自证）：消息入站解析链已绑定租户的发布点填充
+	TenantID    uint           `json:"tenant_id,omitempty"`
 	ChannelType string         `json:"channel_type"`
 	AccountID   string         `json:"account_id"`
 	CustomerID  string         `json:"customer_id"`
@@ -60,6 +65,8 @@ type CustomerMessagePayload struct {
 // 关联主题:TopicKnowledgeDocumentChanged
 // 触发时机:KnowledgeDocumentService.Create/Update/Delete 后 publish
 type KnowledgeDocumentChangePayload struct {
+	// TenantID 事件归属租户（T021）：知识库按租户域，订阅者据此恢复上下文
+	TenantID    uint   `json:"tenant_id,omitempty"`
 	WorkspaceID string `json:"workspace_id"`
 	DocumentID  uint   `json:"document_id"`
 	ChangeType  string `json:"change_type"`

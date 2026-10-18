@@ -450,3 +450,64 @@ var (
 	_ = os.Getenv
 	_ = config.PlatformEnabled
 )
+
+// TestStartModuleSyncBootstrapsBaseModules 生产链路的最后一环。
+//
+// 为什么这条必须用真实 runner 而不只是测 Sync()：
+// 事故形态是「Sync 写对了、闸也写对了、两者之间没人连线」——
+// tenant_modules 恒空 → 闸永远处在"首启全放行"态 → 付费模块对所有人开放，
+// 而界面、菜单、API 全都正常。**没有任何单点测试能发现它**：
+// Sync 的用例通过、闸的用例通过、菜单的用例通过。
+// 所以这里钉的是"后台循环真的会跑起来并落数据"这件事本身。
+func TestStartModuleSyncBootstrapsBaseModules(t *testing.T) {
+	newModuleDB(t)
+	t.Setenv("PLATFORM_ENABLED", "false") // 离线：应兜底开通全部基础模块
+
+	r := StartModuleSync(context.Background())
+	defer r.Stop()
+	r.WaitFirstSync()
+
+	keys, _, err := func() ([]string, int64, error) {
+		repo := repository.NewTenantModuleRepositoryWithDB(rawDB(t))
+		rows, err := repo.ListActiveKeys(context.Background(), time.Now())
+		return rows, int64(len(rows)), err
+	}()
+	if err != nil {
+		t.Fatalf("读取本地模块镜像失败: %v", err)
+	}
+	if len(keys) < len(model.BaseModuleKeys()) {
+		t.Fatalf("同步未落数据：期望至少 %d 个基础模块，实际 %d —— "+
+			"这意味着模块闸永远处于「首启全放行」态，付费模块全部白送",
+			len(model.BaseModuleKeys()), len(keys))
+	}
+
+	// 闸此刻必须真的开始拦（这是本条用例真正的判据）
+	gate := NewModuleGateServiceWithRepo(repository.NewTenantModuleRepositoryWithDB(rawDB(t)))
+	gate.Invalidate()
+	if err := gate.Refresh(context.Background()); err != nil {
+		t.Fatal(err)
+	}
+	if gate.IsEnabled(context.Background(), model.ModuleGEO) {
+		t.Error("同步完成后未开通的收费模块仍放行：闸未生效")
+	}
+	if !gate.IsEnabled(context.Background(), model.ModuleCore) {
+		t.Error("同步完成后基础模块应放行")
+	}
+}
+
+// TestModuleSyncRunnerStopIsClean 停得掉（优雅退出与测试依赖它）
+func TestModuleSyncRunnerStopIsClean(t *testing.T) {
+	newModuleDB(t)
+	t.Setenv("PLATFORM_ENABLED", "false")
+	r := StartModuleSync(context.Background())
+	r.WaitFirstSync()
+	done := make(chan struct{})
+	go func() { r.Stop(); close(done) }()
+	select {
+	case <-done:
+	case <-time.After(5 * time.Second):
+		t.Fatal("Stop 未在 5s 内返回：优雅退出会被拖住")
+	}
+	// 二次 Stop 不得 panic
+	r.Stop()
+}

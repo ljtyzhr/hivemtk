@@ -122,9 +122,10 @@ describe('Login.vue：漏填≠登录失败，真失败仍要出声', () => {
     await clickLogin(wrapper)
 
     expect(apiLogin).toHaveBeenCalledTimes(1)
-    // handleLogin 把整个 loginForm 交出去，而 loginForm 自自助注册起是三字段；
-    // 登录态下邮箱输入框不渲染（v-if mode==='register'），所以带出去的是空串。
-    expect(apiLogin.mock.calls[0][0]).toEqual({ username: VALID.username, password: VALID.password, email: '' })
+    // handleLogin 把整个 loginForm 交出去。登录表单只有账号 + 密码两个字段：
+    // 此前内联的注册表单会在登录态带出一个空 email，那是被内联注册拖累出来的
+    // 残留 —— 注册独立成页（/register）后这个字段没有任何用途。
+    expect(apiLogin.mock.calls[0][0]).toEqual({ username: VALID.username, password: VALID.password })
     expect(routerPush).toHaveBeenCalledWith('/')
     expect(errorToasts()).toEqual([])
     expect(successToasts()).toEqual([t('core.login.success')])

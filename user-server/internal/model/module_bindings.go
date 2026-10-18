@@ -229,10 +229,16 @@ var ModuleMenuBindings = map[string][]string{
 		"llmRouting",
 	},
 
-	// ========== platform-link：平台对接（0 现有节点）==========
-	// 功能模块市场 / 我的模块挂在 system 下，但它们本身是**平台侧**入口，
-	// 不按模块闸关闭（关了就没法再买），故不进绑定表；归属 core。
-	ModulePlatformLink: {},
+	// ========== platform-link：平台对接（3 菜单节点）==========
+	// 功能模块市场 / 我的模块 / 模块订单。
+	//
+	// 它们归 platform-link（基础模块，恒开）而不是任何付费模块，理由是
+	// **购买入口不能被购买条件关闭**：关掉某模块的闸，用户就找不到「去开通」的地方，
+	// 而未开通模块的人恰恰最需要这个入口。这与「菜单绑定用于过闸」的常规用法反着来，
+	// 注释写在这里以免后人"顺手修正"成绑到某个付费模块。
+	ModulePlatformLink: {
+		"moduleCenterGroup", "moduleCenter", "myModules", "moduleOrders",
+	},
 
 	// ========== llm-cloud：平台模型算力（0 菜单节点）==========
 	// llm-cloud 没有独立菜单页：它的入口是 LLM 页面的「平台套餐」Tab 与顶部余额条，

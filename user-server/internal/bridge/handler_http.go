@@ -16,6 +16,7 @@ import (
 	"hivemtk-user/internal/channelgw"
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/metrics"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/tracing"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/service"
@@ -435,7 +436,7 @@ func (h *BridgeIngestHandler) HandleHTTPIngest(c *gin.Context) {
 	uidAny, _ := c.Get("user_id")
 	uid, _ := uidAny.(uint)
 	if GlobalOwnershipChecker != nil && uid != 0 {
-		owns, err := GlobalOwnershipChecker(c.Request.Context(), uid, channel, accountID)
+		owns, accTenant, err := GlobalOwnershipChecker(c.Request.Context(), uid, channel, accountID)
 		if err != nil {
 			logger.Ctx(ctx0).Warn().
 				Str("module", "bridge").
@@ -466,6 +467,11 @@ func (h *BridgeIngestHandler) HandleHTTPIngest(c *gin.Context) {
 				Reason: "account not owned by current user",
 			})
 			return
+		}
+		// 租户绑定（specs/001-saas-multi-tenant T023）：账号归属租户随校验透出，
+		// 入站下游（ingress/消息落库）按该租户隔离；0 = off 模式（列默认值兜底）。
+		if accTenant != 0 {
+			c.Request = c.Request.WithContext(tenant.WithTenantID(c.Request.Context(), accTenant))
 		}
 	}
 

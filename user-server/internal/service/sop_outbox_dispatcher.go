@@ -10,6 +10,7 @@ import (
 	"gorm.io/gorm"
 
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
@@ -141,13 +142,22 @@ func (o *SOPOutboxDispatcher) processDueTimers(ctx context.Context) {
 
 	firedCount := 0
 	for _, t := range timers {
-		rowsAffected, err := o.timerRepo.MarkFired(ctx, t.ID, now)
+		// 租户上下文（specs/001-saas-multi-tenant T027 行自证）：timer 行自带
+		// tenant_id（写入时 callback 已填），派发与下游执行按行租户恢复上下文；
+		// off 模式行值恒为默认租户，等价现状。
+		rowTenant := tenant.DefaultTenantID
+		if t.TenantID != 0 {
+			rowTenant = t.TenantID
+		}
+		taskCtx := tenant.WithTenantID(ctx, rowTenant)
+
+		rowsAffected, err := o.timerRepo.MarkFired(taskCtx, t.ID, now)
 		if err != nil {
-			logger.Ctx(ctx).Error().Err(err).
+			logger.Ctx(taskCtx).Error().Err(err).
 				Uint("timer_id", t.ID).
 				Msg("[outbox] mark timer fired failed")
 
-			o.bumpTimerClaimOrDeadLetter(ctx, &t, now)
+			o.bumpTimerClaimOrDeadLetter(taskCtx, &t, now)
 			continue
 		}
 		if rowsAffected == 0 {
@@ -163,6 +173,7 @@ func (o *SOPOutboxDispatcher) processDueTimers(ctx context.Context) {
 			TimerFired:  true,
 			WaitEvent:   t.WaitEvent,
 			WaitPayload: t.Payload,
+			TenantID:    rowTenant,
 		})
 		firedCount++
 

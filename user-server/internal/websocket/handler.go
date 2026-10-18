@@ -3,6 +3,7 @@ package websocket
 import (
 	"context"
 	"encoding/json"
+	"hivemtk-user/internal/pkg/tenant"
 	"net/http"
 	"os"
 	"strconv"
@@ -75,6 +76,24 @@ type WSHandler struct {
 	langResolver *translation.LangConfigResolver
 }
 
+// VisitorChannelView 访客侧渠道视图（websocket 自有，避免包间耦合）
+type VisitorChannelView struct {
+	ChannelID string
+	TenantID  uint
+}
+
+// VisitorChannelResolver 访客侧渠道解析窄接口（specs/001-saas-multi-tenant T024，
+// 装配层由 service.ChatChannelService 适配注入；nil = 未装配，访客连接不绑租户）
+type VisitorChannelResolver interface {
+	ResolveByChannelID(ctx context.Context, channelID string) (*VisitorChannelView, error)
+}
+
+// visitorChannelResolver 包级注入点（visitor handler 使用；装配期 Set 一次）
+var visitorChannelResolver VisitorChannelResolver
+
+// SetVisitorChannelResolver 装配层注入
+func SetVisitorChannelResolver(r VisitorChannelResolver) { visitorChannelResolver = r }
+
 // NewWSHandler 创建 WebSocket 处理器
 func NewWSHandler() *WSHandler {
 	return &WSHandler{
@@ -131,6 +150,10 @@ func (h *WSHandler) HandleWebSocket(c *gin.Context) {
 
 	client := NewWSClient(h.hub, agentIDStr, agentName)
 	client.hub = h.hub
+	// 租户分桶（specs/001-saas-multi-tenant T026）：auth 组已把租户绑进请求 ctx
+	if tid, ok := tenant.FromContext(ctx); ok {
+		client.tenantID = tid
+	}
 
 	h.hub.Register(client)
 

@@ -11,6 +11,7 @@ import (
 
 	"hivemtk-user/internal/dto"
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/tracing"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/logger"
@@ -60,6 +61,11 @@ type dispatchTask struct {
 	NodeID      string
 	Attempt     int
 	TraceID     string
+
+	// TenantID 任务归属租户（specs/001-saas-multi-tenant T027 行自证）：
+	// 派发方从请求 ctx 或 execution 行填充，worker 按它恢复租户上下文；
+	// 0 = 历史调用方未填（off 模式等价现状；on 模式 fail-closed 兜底拦截）。
+	TenantID uint
 
 	SkipWait bool
 
@@ -367,6 +373,9 @@ func (d *SOPExecutionDispatcher) worker(ctx context.Context, id int) {
 		case task := <-d.dispatchQueue:
 
 			taskCtx, cancel := context.WithTimeout(ctx, utils.CronShortTimeout)
+			if task.TenantID != 0 {
+				taskCtx = tenant.WithTenantID(taskCtx, task.TenantID)
+			}
 			d.processTask(taskCtx, id, task)
 			cancel()
 		}

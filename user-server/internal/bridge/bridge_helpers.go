@@ -12,7 +12,10 @@ import (
 //   - 输入：uid (JWT 解析的 user_id), channel, accountID
 //   - 输出：true 表示当前 user 拥有该 bridge 账号
 //   - 由 service 层在初始化时注入（避免 bridge → service 的反向依赖）
-type OwnershipChecker func(ctx context.Context, uid uint, channel, accountID string) (bool, error)
+//
+// OwnershipChecker 归属校验（specs/001-saas-multi-tenant T023 升级）：
+// 返回 (owned, 账号归属租户, err)——租户随校验结果透出，入站据此绑定请求 ctx
+type OwnershipChecker func(ctx context.Context, uid uint, channel, accountID string) (bool, uint, error)
 
 // GlobalOwnershipChecker 全局归属校验（service 层在 init 时注入）
 var GlobalOwnershipChecker OwnershipChecker

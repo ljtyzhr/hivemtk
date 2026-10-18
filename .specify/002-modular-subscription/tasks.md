@@ -288,3 +288,160 @@ P8 收敛
 `internal/service` 的 4 条 `TestSettleOrphan*` / `TestRunOnce_CallsOrphanSettlement`。
 隔离验证：把工作区里他人未提交的 `internal/repository/bridge_offline_replay_repo.go`
 （Raw SQL → GORM query builder 的重构）单独 stash 后，这 4 条全绿 —— 与本次改造无关。
+
+---
+
+## 三次审核轮（2026-10-18 集成断链专项）
+
+审核方式换成**集成视角**：不看单模块对不对，只问「用户从入口到结果的每一步，
+数据是谁写的、路由谁注册的、前端调的那个函数后端有没有、前端有没有真的调它」。
+
+**结论：7 处断链，其中 3 处是「功能等于不存在」。**
+
+| # | 断链 | 严重度 | 用户实际会遇到什么 | 修复 |
+| --- | --- | --- | --- | --- |
+| **L1** | **登录页仍走内联注册表单**，只提交 用户名/密码/邮箱；而后端已把 公司名/负责人/电话/邮箱 定为开户必填 | **功能不存在** | 走登录页注册的**所有人**都被 4304 拒绝，而后端一条错都不报（我只是加了独立注册页，没把入口指过去） | 登录页注册按钮改为跳 `/register`；同步删掉被拖累残留的 `loginForm.email`；更新受影响的既有用例 |
+| **L2** | **模块同步 `Sync()` 生产从未被调度**（只在测试里调用） | **商业模式整体失效** | `tenant_modules` 恒空 → 模块闸永远处在「首启全放行」态 → 付费模块对所有人开放，界面上毫无异样。闸的代码全对、单测全过、而闸没生效 | 新增 `service.StartModuleSync`（首轮**同步**执行 + 10 分钟周期），`main.go` 在 `router.Setup` 之前启动 |
+| **L3** | **功能模块市场在侧栏里没有任何入口**：路由没有 group、菜单注册表里也没有节点 | **功能不存在** | 需求四的核心功能只能手敲 URL 或从报错跳进来 | 菜单树加 `moduleCenterGroup` 三节点（system 顶级直接子位），绑到**基础模块** platform-link；同步 9 语言 i18n |
+| **L4** | `UpdateModel` 不保留 `source` | **破坏性** | 商户在 UI 上把平台模型点一下「停用」，它就降级成 `self`（Key 为空）→ 此后每次调用必 401，而用户只是点了个开关 | Update 一律沿用旧 `source`/`plan_code`/分列单价；Create 强制 `self`（拒绝商户伪造 platform） |
+| **L5** | `/api/llm/wallet`、`/api/llm/plans`、`/api/llm/recharge` **前端零调用** | 高 | 计量做了一整套，却没有任何人看得见余额 —— 「实时扣减」对用户不可感知 | 我的模块页加余额卡片 + 套餐购买弹窗；补 api 层三个函数 |
+| **L6** | `Detail.vue` 用**列表**接口而非详情接口 + 用裸 `fetch('/api/menus')` | 中 | 「详细说明」与依赖闭包两段永远显示占位文案；菜单清单栏永远只有裸 key（裸 fetch 不带 Authorization，恒 401 而 catch 是空的） | 改用 `marketModuleDetail` + `api/menu` 的 `getUserMenus`；后端详情响应补 `platform_enabled` |
+| **L7** | provider 列表 DTO 不含 `source` 与分列单价 | 中 | 前端无法区分「自带 Key 不计费」与「平台垫资按量计费」—— 需求五的核心区分在 UI 上不可见 | DTO 补 7 个字段；LLM 页加「来源」列与输入/输出分列成本列 |
+
+### 连带修掉的存量缺陷
+
+| # | 缺陷 | 处置 |
+| --- | --- | --- |
+| L8 | `internal/websocket/visitor_handler.go` 用了 `tenant.` 但没 import（他人未提交的改动） | 补 import（编译阻断，不改逻辑） |
+| L9 | 平台端 seed 用例把菜单节点总数写死 208 | 改为不写死：真正的判据是「覆盖数 == 文件自报总数 && 重复绑定 == 0」。写死会让「加个菜单节点」变成仪式，迟早被「顺手改数字」绕过 |
+
+### 三轮审核的共同教训（值得写进项目规范）
+
+前两轮我都以「单模块是否正确」为判据，结果连续两轮各漏一处**连线**。
+真正能兜住这类缺陷的只有两种断言：
+
+1. **端到端跨模块用例**（`TestDispatchPlatformProviderEndToEnd`：dispatch → 代理 → 用量回填）
+2. **「这条数据/这个入口是谁写的」断言**
+   - `TestStartModuleSyncBootstrapsBaseModules`：钉住后台循环真的会落数据
+   - `TestModuleMarketAlwaysReachable`：钉住购买入口在菜单注册表里且归属基础模块
+
+单点测试（Sync 对不对、闸拦不拦、路由在不在、页面渲不渲染）**全部可以在
+"两者之间没人连线"的情况下同时变绿** —— 这是本次三处「功能等于不存在」缺陷的共同成因。
+
+### 门禁
+
+| 项 | 结果 |
+| --- | --- |
+| user-server gofmt / go build / go vet（涉我改动包） | 干净 |
+| user-server service（745s）/ controller / repository / pkg/db / migration×2 / model / middleware / aiagent/llm / router / platform / pkg/tenant | **全绿** |
+| platform-server gofmt / go vet / go test ./... | 全绿 |
+| user-web npm run test（632）+ build + i18n 检查 | 全绿 |
+| platform-web npm run build | 通过 |
+
+---
+
+## 四次审核轮（2026-10-18 需求回读复核）
+
+起因：同一份需求第三次送达，说明前三轮交付仍有未覆盖之处。
+本轮做法是**逐字回读需求原文**，把每个动词/名词落到具体实现位置，核对是否真的存在。
+
+| # | 需求原文片段 | 复核结果 |
+| --- | --- | --- |
+| 「注意离线独立部署情况，**也要有负责人初始化**，也要收集信息」 | ❌ **漏做** | 我改的是注册页（`/api/auth/register`）与自助开户；而**离线用户只走 `/setup` 初始化向导**，那里把公司/负责人/电话/邮箱全部标为「选填」，`InitAdminRequest` 也未强制 —— 需求唯一点名的人群，恰恰是唯一绕过监管收集的人群 |
+| 「整理当前所有的功能模块…以及**数据表**」 | ⚠️ **覆盖不足** | 实测 270 张表里 **32 张无主**（`wechat_accounts` / `webhook_events` / `notifications` / `bridge_accounts` 等真实业务表）。表无主的危害不是文档不好看：没人知道它随哪个模块开关，关模块后仍可能被定时任务写入 |
+| 「功能模块市场**要论证合理UI，组织架构**」 | ❌ **缺交付物** | 只交了代码，没交论证文档 |
+| 「完整的流程**看情况论证补全**」 | ❌ **缺交付物** | 同上 |
+| 「菜单组织」 | ⚠️ 部分 | 页面归属完整；但市场入口缺菜单节点（第三轮已补） |
+
+### 本轮修复
+
+| # | 修复 | 测试 |
+| --- | --- | --- |
+| Q1 | `/api/system/init-admin` 四项改必填；新增 `InitAdminWithRegistration`：建超管 + 回填负责人姓名/电话 + 落一条 `reg_mode=offline` 的 `tenants` 登记（`platform_sync=skipped`）。登记失败**不回滚超管**——用户已能登录，为一条留痕把人挡在门外代价更大 | `ValidateOfflineRegistration` 口径测试；`auth_test.go` 夹具补齐四项 |
+| Q2 | `/setup` 向导改为必填公司/负责人/电话/邮箱 + 监管告知勾选 + 完成页展示登记结果 | 前端 632 用例 + build |
+| Q3 | 新增 `internal/model/module_tables.go`：**表 → 模块**归属登记表（304 条），把文档清单变成可执行数据 | `TestEveryModelTableHasModuleOwner`（270/270 零孤儿）、`TestNoTableBelongsToTwoModules`、`TestPaidModuleHasTables` |
+| Q4 | 新增 `docs/architecture/MODULE_MARKET_UI.md`：入口位置四选一论证、四页职责、三档价格口径、依赖闭包两段展示、4301 全站引导、与资产市场的复用/差异 | — |
+| Q5 | 新增 `docs/architecture/LLM_BILLING_FLOW.md`：双轨分工、零出域例外三条件、主时序与二期回调时序、幂等三道防线、分别计价与"按比例拆分"的区别、余额三不变量、错误语义、provider 生命周期 | — |
+| Q6 | `MODULAR_MODULES.md` 补「二之二、数据表归属总表」节 | — |
+
+### 连带
+
+- `config_param_guard_test.go` 的 D12 守卫是**文本匹配**，把表归属登记表里出现的 `system_config_kv` 字样当成裸 SQL 直查。加白名单并注明"这是文本匹配无法区分表名登记与裸 SQL 的误报"。
+
+### 门禁
+
+| 项 | 结果 |
+| --- | --- |
+| user-server gofmt / go build / go vet（涉我改动包） | 干净 |
+| user-server service / controller / repository / migration×2 / model / middleware / aiagent/llm / router / platform / websocket | **全绿** |
+| platform-server gofmt / go test ./... | 全绿 |
+| user-web npm test（632）+ build + i18n | 全绿 |
+| platform-web npm run build | 通过 |
+
+### 四轮的共同教训
+
+前三轮我把"需求"理解成"我打算实现的那几条"，第四轮才发现**需求原文里点名的
+"离线独立部署"路径我根本没碰**，而**"以及数据表"我默认成了文档里写几句**。
+教训：逐字回读需求里**带限定词的从句**（"注意…"、"也要…"、"以及…"），它们标出的
+恰恰是最容易被跳过的范围边界。
+
+---
+
+## 五次审核轮（2026-10-18 真实启动验证）
+
+起因：前四轮都是**静态审查 + 单测**。本轮改为**把系统真跑起来**，端到端打 API。
+结论：**静态审查与单测全部无法覆盖的 6 处缺陷，其中 2 处会让整个收费模式静默失效。**
+
+### 关键方法差异
+
+单测跑在**干净测试库**上（测试自己 DropTable 重建），而真实部署跑在**比代码老的库**上。
+"索引形状漂移""配置加载时序""迁移体系不执行"这三类问题**只在后者出现** ——
+这就是为什么前四轮全绿却仍有致命缺陷。
+
+| # | 缺陷 | 现象 | 根因 | 修复 |
+| --- | --- | --- | --- | --- |
+| **E1** | **平台配置加载时序错误** | `[llm-provider] 拉取平台 provider 失败: 平台配置未初始化` —— 平台 provider 永远拉不到 | 我把 `SyncPlatformProviders` 放在第 303 行，而 `LoadPlatform` 在第 336 行。**代码写在配置就绪之前** | 移到 `LoadPlatform` 之后，并在拿到 provider 后重载一次路由表 |
+| **E2** | **模块下发 42P10，闸恒放行** | `[module-sync] 首轮同步失败: there is no unique or exclusion constraint matching the ON CONFLICT specification`。同步失败 → `tenant_modules` 恒空 → **付费模块对所有人开放** | ① `tenant_modules` 的唯一索引是**旧形状** `(tenant_id, tenant_slot, module_key)`，而代码按 `(tenant_slot, module_key)` 做 ON CONFLICT；② AutoMigrate **不删除形状已变的索引** | 新增 `internal/pkg/moduleidx`：随每次启动幂等规范化索引形状（紧跟 AutoMigrate，与既有 `tenancyidx.Normalize` 同形） |
+| **E3** | **迁移体系根本不执行迁移** | 我写的 `v3.63.0` 迁移在 `migration_records` 里显示 `completed`，但**索引形状一点没变** | `main.go` 调用 `ExecuteUpgrade(ctx, "v1.0.0", "v1.0.0")` —— from/to 相同，不跑任何迁移。写进迁移 = 写进一个永远不跑的地方 | 删除该迁移文件（避免"看着像修了"的假象），修复落到 `moduleidx`；把这条写进 `moduleidx` 的文件头注释 |
+| **E4** | **seed 数据从未真正落地** | `POST /platform/module-catalog/seed` 报 `open seed/module_menu_bindings.json: not a directory`。**平台端从来没有模块目录** | ① `-out ../hivemtk-platform/...` 在 `user-server` 下执行时解析成 `hivemtk/hivemtk-platform/…`（多一层），**而命令照样打印"已生成"**；② 仓库里 `platform-server/seed` 是一个未入库的构建残留**二进制**，同名冲突 | 生成器改为**向上找工作区根**（认 `hivemtk` + `hivemtk-platform` 两个子目录）而不是猜层级，并加**写后存在性断言**；目录改 `config/`；`Seed()` 改**编译期内嵌**（`//go:embed`），磁盘文件降级为可选覆盖 |
+| **E5** | **启动 panic，服务起不来** | `panic: ERROR: default for column "tenant_id" cannot be cast automatically to type bigint` | GEO 模块模型已把 `tenant_id` 改成 `uint`，而遗留库里该列仍是 `varchar`（default `''`）。`42804` 不在可容忍清单 → `migrate.go` 直接 panic | 把该错误加入 `isTolerableMigrateError`。理由：**一个环境的历史 schema 漂移不该让整个进程起不来** —— panic 的伤害远大于漂移本身 |
+| **E6** | **「我的模块」把所有模块记成"用户购买"** | 基础能力（core/customer/inbox…）在页面上显示为用户花钱买的 | `sourceOf(ownedStatus)` 收到的是**状态**（active/expired）而非**来源**，于是恒返回 `purchase` | 平台端下发 `owned_source`；`sourceOf` 按模块分类回落（基础→`default_base`） |
+
+### 端到端验证（真实双服务 + 真实双库）
+
+| 验证项 | 结果 |
+| --- | --- |
+| 平台端 seed 目录 | 24 个模块 / 212 菜单节点 / 0 重复 |
+| 商户 HMAC 下单（geo） | `¥2980` = `298000` 分，状态 `pending_payment` |
+| 0 元模块下单 | 金额 `0`，仍走订单流程（不是"免费直开"） |
+| 平台端确认收款 | `fulfilled`，`modules:["geo"]` |
+| **基础模块自动开通** | 确认前 `tenant_modules` 已有 7 条（`default_base`） |
+| **依赖闭包** | geo 开通时自动带上 `knowledge` 等 |
+| 重复确认收款（幂等） | 返回成功，`payment_records` **仍为 1 条** |
+| 依赖环拒绝 | `409 模块依赖存在环` |
+| 基础模块改价拒绝 | `403 基础模块不可修改` |
+| 撤销被依赖模块 | `409 …仍被已开通的 [asset geo] 依赖` |
+| **用户端模块闸（菜单）** | admin 只看到 **96/212** 节点；geo 菜单在，**ai-sales 菜单全部消失** |
+| **用户端模块闸（接口）** | 未开通的 ai-sales API → **`4301`**；已开通 geo → 落到业务层；基础模块 → `code 0` |
+| **离线开户登记** | 四项必填校验 + `tenants` 行落库（`reg_mode=offline` / `platform_sync=skipped`）+ 超管 `real_name`/`phone` 回填 |
+| 全新安装 AutoMigrate | 6 张新表随基座正常建出 |
+
+### 新增回归测试
+
+- `internal/service/offline_registration_test.go`：离线开户登记（**判据是"租户行真的写出来了"**，不是"校验函数返回 nil"）
+- `internal/pkg/moduleidx`：索引形状规范化（随启动幂等执行）
+
+### 已如实记录的既有问题（不属本任务，未改他人文件）
+
+| 项 | 说明 |
+| --- | --- |
+| `internal/pkg/testutil/testdb.go` 新增 `import db` | 构成环 `model(测试) → testutil → db → model`，阻断 `go test ./internal/model/`。**他人未提交改动**。隔离验证（临时还原该文件）后 `internal/model` 测试通过，已恢复其文件 |
+| 遗留库 GEO 表 `tenant_id` 为 varchar | 历史 schema 漂移，非本任务引入。已通过"容忍 + 不 panic"解除启动阻断 |
+
+### 六轮审核的总教训
+
+前四轮我以"单模块是否正确 + 需求是否逐条覆盖"为判据，全部通过，但**系统仍然跑不通**。
+本轮把服务真拉起来，一次性暴露 6 处 —— 其中 E2/E3 是**同一类问题的两个层次**：
+"代码写对了，但它运行在一个比代码老的环境里"。
+
+**判据必须包含"对既有环境成立"，而不只是"对新建环境成立"。**

@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/subtle"
 	"encoding/json"
+	"hivemtk-user/internal/pkg/tenant"
 	"io"
 	"net/http"
 	"os"
@@ -52,6 +53,13 @@ func AppKeyResolve(resolver ChatChannelResolver) gin.HandlerFunc {
 				c.Set("chat_channel", channel)
 				c.Set("chat_channel_id", channel.ChannelID)
 				c.Set("chat_app_key", appKey)
+				// 访客链租户解析（specs/001-saas-multi-tenant T024）：
+				// channel 行自带租户归属（写入时行自证），此处绑定请求 ctx——
+				// /api/chat/public/* 全链的 GORM 访问自动按租户隔离。
+				// off 模式 channel.TenantID 恒为默认租户 1，等价现状。
+				if channel.TenantID != 0 {
+					c.Request = c.Request.WithContext(tenant.WithTenantID(c.Request.Context(), channel.TenantID))
+				}
 				c.Next()
 				return
 			}

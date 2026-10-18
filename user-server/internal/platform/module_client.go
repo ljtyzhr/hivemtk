@@ -34,6 +34,9 @@ type ModuleCatalogRow struct {
 	MenuKeys     []string          `json:"menu_keys"`
 	Owned        bool              `json:"owned"`
 	OwnedStatus  string            `json:"owned_status,omitempty"`
+	// OwnedSource 开通来源（平台下发）。空值时用户端按模块分类回落，
+	// 不猜成"用户购买" —— 猜错的后果见 service.sourceOf 的注释。
+	OwnedSource string `json:"owned_source,omitempty"`
 }
 
 // ModuleOptionRow 子选项

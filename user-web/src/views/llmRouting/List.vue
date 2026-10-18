@@ -26,6 +26,19 @@
             <el-empty description="暂无模型数据，请新增模型或检查后端接口" />
           </template>
           <el-table-column prop="name" label="模型名称" min-width="140" />
+          <!-- 来源列是需求五的核心区分：自带 Key 不计费、平台垫资按 token 计费。
+               没有这一列用户只能靠猜"这个模型要不要花钱"。 -->
+          <el-table-column label="来源" width="130">
+            <template #default="{ row }">
+              <el-tag size="small" :type="row.source === 'platform' ? 'warning' : 'success'">
+                {{ row.source === 'platform' ? '平台垫资' : '自带 Key' }}
+              </el-tag>
+              <el-tag v-if="row.source === 'platform' && row.source_available === false"
+                      size="small" type="danger" effect="plain" class="ml-4">
+                平台未连接
+              </el-tag>
+            </template>
+          </el-table-column>
           <el-table-column prop="vendor" label="厂商" width="110">
             <template #default="{ row }">
               <el-tag size="small" :type="row.vendor === 'local' ? 'success' : 'info'">
@@ -42,9 +55,19 @@
             </template>
           </el-table-column>
           <el-table-column prop="max_rpm" label="限流(RPM)" width="110" align="center" />
-          <el-table-column prop="cost_per_1k" label="成本(¥/1k)" width="120" align="center">
+          <!-- 成本列分列显示：输入与输出单价本就不同，合成一列会让人
+               以为「成本」是一个与 token 无关的定值。 -->
+          <el-table-column label="成本(¥/1k)" width="170" align="center">
             <template #default="{ row }">
-              <span :class="row.cost_per_1k > 0 ? 'cost-paid' : 'cost-free'">
+              <template v-if="row.separate_pricing">
+                <div :class="row.cost_per_1k_input > 0 ? 'cost-paid' : 'cost-free'">
+                  输入 {{ row.cost_per_1k_input.toFixed(4) }}
+                </div>
+                <div :class="row.cost_per_1k_output > 0 ? 'cost-paid' : 'cost-free'">
+                  输出 {{ row.cost_per_1k_output.toFixed(4) }}
+                </div>
+              </template>
+              <span v-else :class="row.cost_per_1k > 0 ? 'cost-paid' : 'cost-free'">
                 {{ row.cost_per_1k > 0 ? row.cost_per_1k.toFixed(4) : '免费' }}
               </span>
             </template>

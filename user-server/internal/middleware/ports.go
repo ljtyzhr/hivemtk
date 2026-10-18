@@ -72,6 +72,8 @@ type ChatChannelView struct {
 	Status         string
 	Active         bool
 	AllowedOrigins []string
+	// TenantID 渠道归属租户（specs/001-saas-multi-tenant T024 访客链解析源）
+	TenantID uint
 }
 
 // ChatChannelResolver 渠道解析窄接口（装配层由 service.ChatChannelService 适配）

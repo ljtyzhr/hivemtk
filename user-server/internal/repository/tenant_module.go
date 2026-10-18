@@ -6,11 +6,14 @@ import (
 	"errors"
 	"time"
 
+	"strings"
+
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 	"hivemtk-user/internal/model"
 
 	"hivemtk-user/internal/pkg/db"
+	"hivemtk-user/internal/pkg/utils/logger"
 )
 
 // TenantModuleRepository 本地已开通模块镜像仓储
@@ -37,17 +40,80 @@ func NewTenantModuleRepositoryWithDB(gdb *gorm.DB) TenantModuleRepository {
 }
 
 // UpsertMany 幂等落本地镜像
+//
+// 双重保险（第一层是 moduleidx.Normalize 的启动期索引规范化）：
+// ON CONFLICT 失败时退回「先查后写」。
+//
+// 为什么必须有这一层兜底：ON CONFLICT 依赖索引的**精确列集**，而
+// AutoMigrate 不会删除形状已变的索引。任何一次模型演进改了索引列集，
+// 老库就会留下旧形状的同名索引，PG 按名字选它 → 42P10。
+//
+// 而这里失败的后果不是"同步失败"这么轻：同步失败 → tenant_modules 恒空 →
+// 模块闸落在「首启全放行」态 → **付费模块对所有人开放**，界面无任何异样。
+// 也就是说：一个索引形状问题 = 商业模式整体静默失效。
+// 慢路径的正确性不依赖任何索引形状，因此它是最后一道、也是唯一一道
+// 不依赖数据库状态的安全网。
 func (r *tenantModuleRepo) UpsertMany(ctx context.Context, rows []*model.TenantModule) error {
 	if len(rows) == 0 {
 		return nil
 	}
-	return r.db.WithContext(ctx).Clauses(clause.OnConflict{
+	err := r.db.WithContext(ctx).Clauses(clause.OnConflict{
 		Columns: []clause.Column{{Name: "tenant_slot"}, {Name: "module_key"}},
 		DoUpdates: clause.AssignmentColumns([]string{
 			"status", "source", "category", "price_cents", "menu_keys",
 			"activated_at", "expires_at", "updated_at",
 		}),
 	}).Create(&rows).Error
+	if err == nil {
+		return nil
+	}
+	// 42P10 = ON CONFLICT 匹配不上唯一约束 → 走慢路径
+	if !isConflictTargetErr(err) {
+		return err
+	}
+	logger.Warnf("[module] ON CONFLICT 不可用（索引形状与模型不符），退回先查后写: %v", err)
+	return r.upsertSlow(ctx, rows)
+}
+
+// upsertSlow 先查后写的兜底路径（不依赖任何唯一索引）
+func (r *tenantModuleRepo) upsertSlow(ctx context.Context, rows []*model.TenantModule) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		for _, row := range rows {
+			var existing model.TenantModule
+			err := tx.Where("module_key = ?", row.ModuleKey).First(&existing).Error
+			switch {
+			case err == nil:
+				existing.Status = row.Status
+				existing.Source = row.Source
+				existing.Category = row.Category
+				existing.PriceCents = row.PriceCents
+				existing.MenuKeys = row.MenuKeys
+				existing.ActivatedAt = row.ActivatedAt
+				existing.ExpiresAt = row.ExpiresAt
+				existing.UpdatedAt = time.Now()
+				if err := tx.Save(&existing).Error; err != nil {
+					return err
+				}
+			case errors.Is(err, gorm.ErrRecordNotFound):
+				if err := tx.Create(row).Error; err != nil {
+					return err
+				}
+			default:
+				return err
+			}
+		}
+		return nil
+	})
+}
+
+// isConflictTargetErr 判定是否为 ON CONFLICT 目标不匹配（42P10）
+func isConflictTargetErr(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "there is no unique or exclusion constraint") ||
+		strings.Contains(msg, "42p10")
 }
 
 func (r *tenantModuleRepo) ListAll(ctx context.Context) ([]*model.TenantModule, error) {

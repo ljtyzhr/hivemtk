@@ -44,6 +44,24 @@ type LLMProviderInfo struct {
 	NoFC         bool     `json:"no_fc"`
 	Vendor       string   `json:"vendor"`
 	Tags         []string `json:"tags,omitempty"`
+
+	// Source provider 来源：self=自带 Key（不计费）/ platform=平台垫资（按量计费）
+	//
+	// 不暴露 source，前端就没法在模型列表上区分"这个用我自己的 Key，不花钱"与
+	// "这个走平台、按 token 计费"，用户只能靠猜 —— 而这正是需求五的核心区分。
+	// 同一份信息还决定了该不该显示"编辑 API Key"（平台垫资的 Key 不在本地）。
+	Source string `json:"source"`
+	// SourceAvailable platform 通道当前是否可用（未连接平台时为 false）。
+	// 与 Enabled 分开：Enabled 是"用户想不想用"，SourceAvailable 是"用不用得了"。
+	SourceAvailable bool `json:"source_available"`
+	// PlanCode 平台套餐号（source=platform 时有值），用于查余额与明细
+	PlanCode string `json:"plan_code,omitempty"`
+	// 生效后的分列单价（已回落），前端成本看板直接展示这两个值即可，
+	// 不必在前端复算一遍"没配就回落"的规则 —— 两处各算一次迟早对不上。
+	CostPer1kInput  float64 `json:"cost_per_1k_input"`
+	CostPer1kOutput float64 `json:"cost_per_1k_output"`
+	// SeparatePricing 是否真的启用了分别计价（两列都配且不相等）
+	SeparatePricing bool `json:"separate_pricing"`
 }
 
 // UpdateStrategiesRequest 批量更新场景路由请求
@@ -149,6 +167,13 @@ func (s *LLMRoutingService) ListModels(ctx context.Context) []LLMProviderInfo {
 			NoFC:         p.NoFC,
 			Vendor:       vendorOf(p),
 			Tags:         p.Tags,
+
+			Source:          p.ProviderSource(),
+			SourceAvailable: !p.IsPlatformProvider() || llm.IsPlatformProxyConfigured(),
+			PlanCode:        p.PlanCode,
+			CostPer1kInput:  p.EffectiveInputCostPer1k(),
+			CostPer1kOutput: p.EffectiveOutputCostPer1k(),
+			SeparatePricing: p.HasSeparatePricing(),
 		})
 	}
 	return out
@@ -209,19 +234,28 @@ func (s *LLMRoutingService) CreateModel(ctx context.Context, info LLMProviderInf
 		info.MaxRPM = 60
 	}
 	pc := llm.ProviderConfig{
-		Name:         info.Name,
-		DisplayName:  info.DisplayName,
-		BaseURL:      info.BaseURL,
-		Model:        info.Model,
-		APIKey:       info.APIKey,
-		APIType:      "openai",
-		Enabled:      info.Enabled,
-		QualityScore: info.QualityScore,
-		MaxRPM:       info.MaxRPM,
-		CostPer1k:    info.CostPer1k,
-		NoFC:         info.NoFC,
-		Vendor:       info.Vendor,
-		Tags:         info.Tags,
+		Name:            info.Name,
+		DisplayName:     info.DisplayName,
+		BaseURL:         info.BaseURL,
+		Model:           info.Model,
+		APIKey:          info.APIKey,
+		APIType:         "openai",
+		Enabled:         info.Enabled,
+		QualityScore:    info.QualityScore,
+		MaxRPM:          info.MaxRPM,
+		CostPer1k:       info.CostPer1k,
+		CostPer1kInput:  info.CostPer1kInput,
+		CostPer1kOutput: info.CostPer1kOutput,
+		NoFC:            info.NoFC,
+		Vendor:          info.Vendor,
+		Tags:            info.Tags,
+		// 商户建 provider 恒为 self，**忽略入参里的 source**。
+		//
+		// 理由：source=platform 的 provider 是平台下发的、Key 不在商户侧。
+		// 若允许商户通过这个接口声明自己是 platform，它的调用会被路由到平台
+		// 代理，而平台上并没有同名 provider —— 每次调用都 404，且商户完全
+		// 无法从界面上看出是自己声明错了。
+		Source: "self",
 	}
 	s.dispatcher.AddProvider(pc)
 	if err := s.dispatcher.UpsertProviderToDB(pc); err != nil {
@@ -276,9 +310,21 @@ func (s *LLMRoutingService) UpdateModel(ctx context.Context, identifier string, 
 		MaxRPM:       nonZeroInt(info.MaxRPM, old.MaxRPM),
 		// 零值=保留原值：前端开关切换只发 {enabled}，不能把成本/NoFC/tags 打掉
 		CostPer1k: nonZero(info.CostPer1k, old.CostPer1k),
-		NoFC:      info.NoFC || old.NoFC,
-		Vendor:    orDefault(info.Vendor, old.Vendor),
-		Tags:      nonEmptyTags(info.Tags, old.Tags),
+		// 分列单价同样按「零值=保留原值」处理，与 CostPer1k 同一口径
+		CostPer1kInput:  nonZero(info.CostPer1kInput, old.CostPer1kInput),
+		CostPer1kOutput: nonZero(info.CostPer1kOutput, old.CostPer1kOutput),
+		NoFC:            info.NoFC || old.NoFC,
+		Vendor:          orDefault(info.Vendor, old.Vendor),
+		Tags:            nonEmptyTags(info.Tags, old.Tags),
+
+		// **source / planCode 一律沿用旧值，不接受入参覆盖。**
+		//
+		// 这不是保守，是必须的：前端开关切换只发 {enabled: true|false}，
+		// 若这里回落成空串，ProviderSource() 会判成 self —— 一个平台下发、
+		// 本地无 Key 的 provider 就此变成"自带 Key"，此后每次调用必然 401。
+		// 而用户做的事只是点了一下"启用"，界面上没有任何异常提示。
+		Source:   old.Source,
+		PlanCode: old.PlanCode,
 	}
 	s.dispatcher.AddProvider(updated)
 	if err := s.dispatcher.UpsertProviderToDB(updated); err != nil {

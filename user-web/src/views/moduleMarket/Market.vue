@@ -178,17 +178,6 @@ const visible = computed(() => {
 const autoEnabled = ref([])
 const payableDeps = ref([])
 
-async function fetch () {
-  loading.value = true
-  try {
-    const res = await listMarketModules({ page: 1, page_size: 200 })
-    list.value = res?.list || []
-    platformEnabled.value = res?.platform_enabled !== false
-  } finally {
-    loading.value = false
-  }
-}
-
 async function openConfirm (m) {
   confirmTarget.value = m
   Object.assign(form, { contact_name: '', contact_phone: '', contact_email: '', remark: '' })

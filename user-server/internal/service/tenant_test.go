@@ -100,8 +100,10 @@ func TestTenantService_Register_Success(t *testing.T) {
 	}
 
 	// 管理员行归属新租户、密码已哈希
+	// 查询带新租户 ctx（on 模式 system_users 是租户表，callback fail-closed）
+	adminCtx := tenant.WithTenantID(context.Background(), got.TenantID)
 	var admin model.SystemUser
-	if err := db.GetDB().Where("tenant_id = ? AND username = ?", got.TenantID, req.Username).
+	if err := db.GetDB().WithContext(adminCtx).Where("tenant_id = ? AND username = ?", got.TenantID, req.Username).
 		First(&admin).Error; err != nil {
 		t.Fatalf("管理员行未落库: %v", err)
 	}
@@ -282,8 +284,10 @@ func TestTenantService_LoginSuspendedTenant(t *testing.T) {
 	if err := db.GetDB().First(&tn, created.TenantID).Error; err != nil {
 		t.Errorf("租户行应保留: %v", err)
 	}
+	// 查询带新租户 ctx（on 模式 system_users 租户表 fail-closed）
+	suspendCtx := tenant.WithTenantID(context.Background(), created.TenantID)
 	var users int64
-	db.GetDB().Model(&model.SystemUser{}).Where("tenant_id = ?", created.TenantID).Count(&users)
+	db.GetDB().WithContext(suspendCtx).Model(&model.SystemUser{}).Where("tenant_id = ?", created.TenantID).Count(&users)
 	if users != 1 {
 		t.Errorf("管理员数据应保留（1 条），实为 %d", users)
 	}

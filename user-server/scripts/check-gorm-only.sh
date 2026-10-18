@@ -12,6 +12,8 @@
 #     GORM 无方言表达，集中单点管理）
 #   - 豁免文件：internal/aiagent/rag/retrieval/pgvector_index_ops.go（HNSW 索引 DDL + GUC 调优，
 #     同上，整文件即 pgvector 运维域）
+#   - 豁免文件：internal/pkg/moduleidx/moduleidx.go（索引形状修复工具：DROP/CREATE INDEX DDL
+#     与 pg_index 自省，GORM 无方言表达，与 tenancyidx/pgvector_index_ops 同域）
 #   - 豁免文件：*_test.go（测试夹具，不承载生产隔离语义）
 #
 # 用法：
@@ -36,6 +38,7 @@ violations=$(grep -rn --include='*.go' -e '\.Exec(' -e '\.Raw(' internal/ 2>/dev
   | grep -v '^internal/pkg/tenancyidx/' \
   | grep -v '^internal/aiagent/rag/retrieval/pgvector_session.go:' \
   | grep -v '^internal/aiagent/rag/retrieval/pgvector_index_ops.go:' \
+  | grep -v '^internal/pkg/moduleidx/' \
   | grep -v '_test\.go' \
   || true)
 

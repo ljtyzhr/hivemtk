@@ -252,6 +252,9 @@ func NewTestDB(t testing.TB, models ...any) *gorm.DB {
 		}
 		// 租户登记表（数据库内省：有 tenant_id 列的表），供隔离 callback 判定
 		tenancyidx.InitTenantRegistry(database)
+		// 租户隔离 callback（与 db.AutoMigrate 同一实现）：off 模式直通，
+		// 测试内 SetMode(on) 即获得注入语义（T028 越权套件依赖此通路）
+		tenancyidx.RegisterTenantCallbacks(database)
 	}
 
 	sqlDB, err := database.DB()

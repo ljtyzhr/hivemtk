@@ -403,6 +403,7 @@ var SystemMenuTree = []SystemMenuNode{
 					{Key: "systemFeatureFlags", Title: "功能开关", Icon: "Switch", Path: "/system/feature-flags", Roles: []string{"admin"}},
 					{Key: "ltcConfig", Title: "LTC 运营开关", Icon: "Open", Path: "/system/ltc-config", Roles: []string{"admin"}},
 					{Key: "opsOverview", Title: "运维总览", Icon: "Monitor", Path: "/ops-overview", Roles: []string{"admin"}},
+					// 功能模块市场：付费能力的**购买入口**。
 				},
 			},
 			{
@@ -423,6 +424,24 @@ var SystemMenuTree = []SystemMenuNode{
 					{Key: "bridgeToken", Title: "桥接凭证", Icon: "Key", Path: "/bridge/token"},
 					{Key: "operationLog", Title: "操作日志", Icon: "Tickets", Path: "/operationLog/list"},
 					{Key: "securityAudit", Title: "安全审计", Icon: "Lock", Path: "/securityAudit/list"},
+				},
+			},
+			// 功能模块市场：付费能力的**购买入口**。
+			//
+			// 放在 system 顶级下的直接子位（与团队/权限设置/资产包平级），而不是
+			// 塞进 siteConfig —— 后者是「站点配置」，admin-only 且语义上属于
+			// 部署级设置；而「去开通功能」是租户管理员的日常动作，位置越浅越好。
+			//
+			// 为什么**不按付费模块的闸关闭**（详见 module_bindings.go 里 platform-link
+			// 的说明）：它一被关，用户就再也找不到「去开通」的地方 —— 而未开通
+			// 模块的人恰恰最需要这个入口。
+			{
+				Key: "moduleCenterGroup", Title: "功能模块", Icon: "Shop",
+				Roles: []string{"admin", "manager"},
+				Children: []SystemMenuNode{
+					{Key: "moduleCenter", Title: "功能模块市场", Icon: "Shop", Path: "/module-market"},
+					{Key: "myModules", Title: "我的模块", Icon: "FolderOpened", Path: "/module-market/my"},
+					{Key: "moduleOrders", Title: "模块订单", Icon: "Tickets", Path: "/module-market/orders"},
 				},
 			},
 			{

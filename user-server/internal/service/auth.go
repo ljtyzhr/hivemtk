@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	cryptorand "crypto/rand"
 	"errors"
 	"fmt"
 	"strings"
@@ -667,14 +668,17 @@ func (s *AuthService) submitSelfRegisterToPlatform(ctx context.Context, u *model
 	if !config.PlatformEnabled() {
 		return nil
 	}
-	installID := platform.GetMerchantKey()
 	agreementVersion := strings.TrimSpace(req.AgreementVersion)
 	if agreementVersion == "" {
 		agreementVersion = serviceCurrentAgreementVersion
 	}
+	// merchant_key 与 install_id 是两个不同语义的标识，**不可混填**：
+	// 前者是平台上的商业身份（模块授权/订单挂在它上面），
+	// 后者是安装标识（心跳上报与 platform_installs 用的是它）。
+	// 混填会让平台端无法把开户登记与心跳记录关联起来 —— 详见 tenant.go 里同处的注释。
 	_, err := platform.NewModuleClient().RegisterTenant(ctx, platform.TenantRegistrationPayload{
-		MerchantKey:      installID,
-		InstallID:        installID,
+		MerchantKey:      platform.GetMerchantKey(),
+		InstallID:        currentInstallID(),
 		CompanyName:      strings.TrimSpace(req.CompanyName),
 		LegalPerson:      strings.TrimSpace(req.RealName),
 		Phone:            strings.TrimSpace(req.Phone),
@@ -686,4 +690,142 @@ func (s *AuthService) submitSelfRegisterToPlatform(ctx context.Context, u *model
 		RegulatoryAck:    true,
 	})
 	return err
+}
+
+// ============================================================
+// 离线部署的负责人初始化 + 开户登记（任务三 · 三次审核轮 L10）
+//
+// ============================================================
+// 需求原文：「注意离线独立部署情况，**也要有负责人初始化**，也要收集信息」。
+//
+// 这句话此前被漏掉的原因很具体：注册页有公司名/负责人/电话/邮箱（做了），
+// 而离线用户**根本不走注册** —— 他们装完系统看到的是 /setup 初始化向导，
+// 那条路径当时把四项全当选填。结果是：需求里唯一被点名的人群，
+// 恰恰是唯一完全绕过监管信息收集的人群。
+//
+// 处置：
+//  1. InitAdminRequest 的四项改为必填（控制器 binding 已收紧）；
+//  2. InitAdminWithRegistration 建超管时同时写一条 tenants 行（reg_mode=offline），
+//     并把负责人姓名/电话写进超管本人（登录后自己的资料里就能看到，不用另找入口）；
+//  3. platform_sync=skipped —— 离线部署本来就连不上平台，
+//     标成 failed 会让平台端出现一堆无法处理的红单。
+// ============================================================
+
+// ValidateOfflineRegistration 校验离线初始化的开户登记必填项
+//
+// 口径与另两条注册入口一致（SaaS 自助开户 / 单机自助注册）：
+// 公司名（或负责人所属组织）、负责人姓名、电话、邮箱，四项缺一不可。
+func (s *AuthService) ValidateOfflineRegistration(companyName, realName, phone, email string, ack bool) error {
+	var missing []string
+	if strings.TrimSpace(companyName) == "" {
+		missing = append(missing, "公司/组织名称")
+	}
+	if strings.TrimSpace(realName) == "" {
+		missing = append(missing, "负责人姓名")
+	}
+	if strings.TrimSpace(phone) == "" {
+		missing = append(missing, "联系电话")
+	}
+	if strings.TrimSpace(email) == "" {
+		missing = append(missing, "邮箱")
+	}
+	if len(missing) > 0 {
+		return fmt.Errorf("开户信息不完整，缺少：%s", strings.Join(missing, "、"))
+	}
+	if !tenantPhonePattern.MatchString(strings.TrimSpace(phone)) {
+		return errors.New("联系电话格式不正确")
+	}
+	if !ack {
+		return errors.New("请先阅读并确认平台监管责任告知")
+	}
+	return nil
+}
+
+// InitAdminWithRegistration 初始化超管并落一条离线租户登记
+func (s *AuthService) InitAdminWithRegistration(ctx context.Context,
+	username, password, email, realName, phone, companyName, licenseNo, address string,
+	regulatoryAck bool, agreementVersion string) error {
+
+	companyName = strings.TrimSpace(companyName)
+	if companyName == "" {
+		companyName = strings.TrimSpace(realName) + " 的私有部署"
+	}
+	if strings.TrimSpace(agreementVersion) == "" {
+		agreementVersion = serviceCurrentAgreementVersion
+	}
+
+	// 超管本人：负责人姓名与电话落在他自己的资料上（不用另找入口就能看到）
+	if err := s.initAdminCore(ctx, username, password, email, realName, phone); err != nil {
+		return err
+	}
+
+	// 租户登记行：离线部署的唯一监管留痕
+	t := &model.Tenant{
+		Code:             "local-" + shortRandomKey(8),
+		Name:             companyName,
+		Status:           model.TenantStatusActive,
+		Plan:             "free",
+		CompanyName:      companyName,
+		LegalPerson:      strings.TrimSpace(realName),
+		Phone:            strings.TrimSpace(phone),
+		Email:            strings.ToLower(strings.TrimSpace(email)),
+		LicenseNo:        strings.TrimSpace(licenseNo),
+		Address:          strings.TrimSpace(address),
+		RegMode:          model.TenantRegModeOffline,
+		PlatformSync:     model.TenantSyncSkipped,
+		AgreementVersion: agreementVersion,
+		RegulatoryAck:    regulatoryAck,
+	}
+	if err := repository.NewTenantRepository().Create(ctx, t); err != nil {
+		// 登记失败**不回滚超管**：用户已经能登录了，为一条合规留痕
+		// 把人挡在门外，代价远大于收益。留痕缺失是可补的，系统不可用是不可逆的。
+		logger.Errorf("[init-admin] 离线租户登记写入失败（不影响超管创建）：%v", err)
+		return nil
+	}
+	logger.Infof("[init-admin] 离线开户登记完成：company=%s legal_person=%s", t.CompanyName, t.LegalPerson)
+	return nil
+}
+
+// initAdminCore 创建超管（复用 InitAdmin 的全部校验与 install.lock 语义）
+func (s *AuthService) initAdminCore(ctx context.Context, username, password, email, realName, phone string) error {
+	if err := s.InitAdmin(ctx, username, password, email); err != nil {
+		return err
+	}
+	if strings.TrimSpace(realName) == "" && strings.TrimSpace(phone) == "" {
+		return nil
+	}
+	// InitAdmin 已建号，这里补负责人信息：失败只记日志
+	// （账号已可用，为两个可选字段回滚账号是本末倒置）
+	repo := s.systemUserRepo
+	existing, err := repo.GetByUsername(ctx, username)
+	if err != nil || existing == nil {
+		logger.Warnf("[init-admin] 回填负责人信息失败（不影响创建）：%v", err)
+		return nil
+	}
+	if realName != "" {
+		existing.RealName = strings.TrimSpace(realName)
+	}
+	if phone != "" {
+		existing.Phone = strings.TrimSpace(phone)
+	}
+	if err := repo.Update(ctx, existing); err != nil {
+		logger.Warnf("[init-admin] 回填负责人信息失败（不影响创建）：%v", err)
+	}
+	return nil
+}
+
+// shortRandomKey 生成短随机串（离线租户短码用）
+func shortRandomKey(n int) string {
+	const charset = "abcdefghijklmnopqrstuvwxyz0123456789"
+	b := make([]byte, n)
+	if _, err := cryptorand.Read(b); err != nil {
+		for i := range b {
+			b[i] = charset[i%len(charset)]
+		}
+	}
+	out := make([]byte, n)
+	for i, v := range b {
+		out[i] = charset[int(v)%len(charset)]
+	}
+	return string(out)
 }

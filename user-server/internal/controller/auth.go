@@ -9,7 +9,9 @@ import (
 	"strings"
 	"time"
 
+	bizerr "hivemtk-user/internal/domain/errors"
 	"hivemtk-user/internal/middleware"
+	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/pkg/utils/response"
@@ -765,7 +767,18 @@ func (c *AuthController) InitAdmin(ctx *gin.Context) {
 		return
 	}
 
-	if err := c.authService.InitAdmin(ctx.Request.Context(), req.Username, req.Password, req.Email); err != nil {
+	// 监管登记必填校验（与自助注册、自助开户同一口径）
+	if err := c.authService.ValidateOfflineRegistration(req.CompanyName, req.RealName,
+		req.ContactPhone, req.Email, req.RegulatoryAck); err != nil {
+		response.ErrorWithBusinessCode(ctx, bizerr.CodeModuleRegistrationIncomplete,
+			err.Error(), gin.H{})
+		return
+	}
+
+	if err := c.authService.InitAdminWithRegistration(ctx.Request.Context(),
+		req.Username, req.Password, req.Email, req.RealName, req.ContactPhone,
+		req.CompanyName, req.LicenseNo, req.Address,
+		req.RegulatoryAck, req.AgreementVersion); err != nil {
 		if errors.Is(err, service.ErrAdminAlreadyInitialized) {
 			response.Error(ctx, http.StatusForbidden, response.ErrSystemAlreadyInitialized)
 			return
@@ -775,8 +788,12 @@ func (c *AuthController) InitAdmin(ctx *gin.Context) {
 	}
 
 	response.Success(ctx, gin.H{
-		"username": req.Username,
-		"message":  "超管创建成功，请使用此账号登录",
+		"username":      req.Username,
+		"real_name":     req.RealName,
+		"company_name":  req.CompanyName,
+		"reg_mode":      model.TenantRegModeOffline,
+		"platform_sync": model.TenantSyncSkipped,
+		"message":       "超管创建成功，请使用此账号登录",
 	}, "超管初始化完成")
 }
 

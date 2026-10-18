@@ -277,3 +277,46 @@ func TestFilterMenuTreeByModuleNilFilter(t *testing.T) {
 		t.Errorf("未注入判定函数时应返回全树，实际 %d/%d", len(got), len(SystemMenuTree))
 	}
 }
+
+// TestModuleMarketAlwaysReachable 购买入口必须**恒可见**。
+//
+// 事故形态：功能模块市场与"我的模块"没有菜单节点，前端路由也没有 group，
+// 于是整个市场在侧栏里没有任何入口 —— 用户只能手敲 URL 或从报错跳转进来。
+// 需求四的核心功能因此等于不存在，而所有单点测试（路由存在、接口通、
+// 页面能渲染）全部通过：**入口不在它们各自的职责范围内**。
+//
+// 这条用例钉的是「入口存在于菜单注册表，且归属基础模块」两件事。
+func TestModuleMarketAlwaysReachable(t *testing.T) {
+	wantPaths := map[string]string{
+		"moduleCenter": "/module-market",
+		"myModules":    "/module-market/my",
+		"moduleOrders": "/module-market/orders",
+	}
+	paths := map[string]string{}
+	var walk func([]SystemMenuNode)
+	walk = func(ns []SystemMenuNode) {
+		for _, n := range ns {
+			if n.Path != "" {
+				paths[n.Key] = n.Path
+			}
+			walk(n.Children)
+		}
+	}
+	walk(SystemMenuTree)
+
+	for key, wantPath := range wantPaths {
+		got, ok := paths[key]
+		if !ok {
+			t.Errorf("菜单注册表里没有 %s：功能模块市场在侧栏里没有入口，用户找不到", key)
+			continue
+		}
+		if got != wantPath {
+			t.Errorf("%s 的路径是 %q，应为 %q（前端路由与菜单对不上会点进 404）", key, got, wantPath)
+		}
+		// 归属必须是基础模块
+		if owner := OwnerOfMenuKey(key); owner != ModulePlatformLink {
+			t.Errorf("%s 归属模块是 %q，应为 %q（基础模块）：购买入口一旦被某个付费模块的闸关掉，"+
+				"用户就再也找不到去开通的地方", key, owner, ModulePlatformLink)
+		}
+	}
+}

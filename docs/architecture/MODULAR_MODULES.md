@@ -4,7 +4,9 @@
 > **适用范围**：`hivemtk`（用户端）+ `hivemtk-platform`（平台端）
 > **事实源**：
 > - 菜单注册表 `user-server/internal/model/menu.go`（实测 **208 个节点**，本次由 `go run` 导出核对，非抄文档）
-> - 数据模型 `user-server/internal/model/*.go`（实测 **264 张表**）
+> - 数据模型 `user-server/internal/model/*.go`（实测 **270 张表**，归属表见
+>   `internal/model/module_tables.go`，由 `TestEveryModelTableHasModuleOwner`
+>   钉死「一张表都不许无主」）
 > - 路由 `user-server/internal/router/*.go`（37 个非测试路由文件）
 > - 平台端模型 `hivemtk-platform/platform-server/internal/model/*.go`（20 张表）
 
@@ -255,6 +257,47 @@
 | `i18n` | P | 2 | 2 | 1 | 480 |
 
 > 合计菜单节点覆盖 **208/208**（含目录节点），无遗漏、无重叠归属。
+
+---
+
+## 二之二、数据表归属总表（任务一交付：模块 × 页面 × 数据表）
+
+页面归属见 `internal/model/module_bindings.go`（`ModuleMenuBindings`）；
+**数据表归属**见 `internal/model/module_tables.go`（`moduleTableRegistry`）。
+
+两张表都不是文档清单，而是**可执行的数据结构**，各有测试钉死：
+
+| 维度 | 事实源 | 门禁 | 实测覆盖 |
+| --- | --- | --- | --- |
+| 菜单页面 | `ModuleMenuBindings` | `TestModuleMenuBindingsCoverAllMenuKeys` | 212/212 节点，无重复归属 |
+| 数据表 | `moduleTableRegistry` | `TestEveryModelTableHasModuleOwner` | 270/270 表，无孤儿、无重复归属 |
+
+> **为什么表归属必须可校验**：文档里少写几行表名不致命，
+> **表无主才致命** —— 一张无主的表意味着「没人知道它随哪个模块开关」，
+> 关掉某模块后它可能仍被定时任务写入，数据继续增长，即"关了模块不省钱也不干净"。
+> 首次实测时 270 张表里有 **32 张无主**（含 `wechat_accounts` / `webhook_events` /
+> `notifications` / `bridge_accounts` 等真实业务表），现已全部归属。
+
+各模块独占表数量（实测 304 条登记，含部分表跨模块共享语义已去重）：
+
+| 模块 | 表数 | 模块 | 表数 |
+| --- | --- | --- | --- |
+| `core`（基础） | 69 | `reach-link` | 10 |
+| `ai-sales` | 33 | `sales-crm` | 10 |
+| `im-intl` | 22 | `asset`（基础） | 10 |
+| `knowledge`（基础） | 22 | `reach-auto` | 10 |
+| `geo` | 20 | `analytics` | 7 |
+| `customer`（基础） | 18 | `im-wecom` | 7 |
+| `inbox`（基础） | 17 | `reach-sms` / `browser-automation` | 6 / 6 |
+| `reach-social` | 12 | `reach-email` / `experiment` | 6 / 5 |
+| | | `ai-agent` / `approval` | 5 / 4 |
+| | | `llm-cloud` / `i18n` | 3 / 2 |
+
+**空表模块的处置**：`llm-cloud` 与 `browser-automation` 在首版实现里确实没有专属表
+（前者只有镜像、后者只有会话与任务执行记录）。归属仍然先立住（`llm-cloud` 登记
+`llm_wallets` / `llm_wallet_txns` / `platform_llm_usage_records`；`browser-automation`
+登记浏览器配置与任务表），后续补表时往登记表加即可，无需重新论证归属。
+门禁 `TestPaidModuleHasTables` 会持续盯住"收费模块却没有任何表"这一形态。
 
 ---
 

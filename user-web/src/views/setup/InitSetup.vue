@@ -1,45 +1,45 @@
 <template>
   <div class="init-setup-container">
     <div class="setup-header">
-      <h1>{{ $t('系统初始化向导') }}</h1>
-      <p>{{ $t('请按照以下步骤完成系统首次配置') }}</p>
+      <h1>{{ $t('setup.wizardTitle') }}</h1>
+      <p>{{ $t('setup.wizardIntro') }}</p>
     </div>
 
     <div class="progress-container">
       <el-steps :active="currentStep" finish-status="success" align-center>
-        <el-step :title="$t('阅读协议')" description="阅读使用声明" />
-        <el-step :title="$t('创建超管')" description="配置管理员账号" />
-        <el-step :title="$t('完成')" description="进入登录" />
+        <el-step :title="$t('setup.readAgreement')" description="阅读使用声明" />
+        <el-step :title="$t('setup.stepAdmin')" description="配置管理员账号" />
+        <el-step :title="$t('setup.finish')" description="进入登录" />
       </el-steps>
     </div>
 
     <div class="step-content">
       
       <div v-if="currentStep === 0" class="step-item">
-        <h2>{{ $t('软件使用声明') }}</h2>
+        <h2>{{ $t('setup.legalTitle') }}</h2>
         <div class="agreement-content">
-          <p>{{ $t('本软件已全面开源，您可自由使用、部署与二次开发。') }}</p>
+          <p>{{ $t('setup.legalOpenSource') }}</p>
           <ul>
-            <li>{{ $t('本软件仅用于合法用途，不得用于从事任何违法活动') }}</li>
-            <li>{{ $t('用户需自行承担使用本软件所产生的所有法律责任') }}</li>
-            <li>{{ $t('默认完全本地运行：仅当显式开启平台集成（环境变量 PLATFORM_ENABLED=true）时，安装信息（域名/IP/设备指纹/联系方式）才会上报') }}</li>
+            <li>{{ $t('setup.legalLawfulUse') }}</li>
+            <li>{{ $t('setup.legalLiability') }}</li>
+            <li>{{ $t('setup.legalLocalDefault') }}</li>
           </ul>
           <el-checkbox v-model="agreed" style="margin-top: 20px">
-            {{ $t('我已阅读并同意以上使用条款') }}
+            {{ $t('setup.legalAgree') }}
           </el-checkbox>
         </div>
         <div class="step-actions">
           <el-button type="primary" :disabled="!agreed" @click="nextStep">
-            {{ $t('下一步') }}
+            {{ $t('setup.next') }}
           </el-button>
         </div>
       </div>
 
       
       <div v-if="currentStep === 1" class="step-item">
-        <h2>{{ $t('创建超级管理员') }}</h2>
+        <h2>{{ $t('setup.stepAdminFull') }}</h2>
         <p class="step-tip">
-          {{ $t('首次进入系统的用户将被设置为超管，请设置安全的用户名与强密码') }}
+          {{ $t('setup.adminIntro') }}
         </p>
         <el-form
           ref="adminFormRef"
@@ -47,67 +47,89 @@
           :rules="adminRules"
           label-width="110px"
         >
-          <el-form-item :label="$t('超管账号')" prop="username">
+          <el-form-item :label="$t('setup.adminAccount')" prop="username">
             <el-input
               v-model="adminForm.username"
-              :placeholder="$t('3-20 位字母数字下划线')"
+              :placeholder="$t('setup.adminUsernameHint')"
               size="large"
               clearable
             />
           </el-form-item>
-          <el-form-item :label="$t('超管密码')" prop="password">
+          <el-form-item :label="$t('setup.adminPassword')" prop="password">
             <el-input
               v-model="adminForm.password"
               type="password"
               show-password
-              :placeholder="$t('至少 8 位，含大小写字母+数字')"
+              :placeholder="$t('setup.adminPasswordHint2')"
               size="large"
             />
             <div class="field-hint">
-              {{ $t('密码至少 8 位，必须同时包含大写字母、小写字母和数字') }}
+              {{ $t('setup.adminPasswordHint') }}
             </div>
           </el-form-item>
-          <el-form-item :label="$t('确认密码')" prop="confirmPassword">
+          <el-form-item :label="$t('setup.confirmPassword')" prop="confirmPassword">
             <el-input
               v-model="adminForm.confirmPassword"
               type="password"
               show-password
-              :placeholder="$t('请再次输入密码')"
+              :placeholder="$t('setup.errPasswordConfirm')"
               size="large"
             />
           </el-form-item>
 
-          <el-divider content-position="left">{{ $t('联系信息（选填，用于系统通知与问题回访）') }}</el-divider>
+          <!-- 开户登记（监管必需项）。
+               这一步原先把公司/负责人/电话/邮箱全部标为「选填」——
+               而离线部署的用户**只走这一个入口**（他们不会去注册页），
+               于是需求「注意离线独立部署情况，也要收集信息」对整个离线人群失效。
+               现在四项必填：平台端持有的是一个联系得到的经营主体，而不是空白。 -->
+          <el-divider content-position="left">{{ $t('setup.regTitle') }}</el-divider>
 
-          <el-form-item :label="$t('手机号')" prop="contact_phone">
+          <el-form-item :label="$t('setup.regCompany')" prop="company_name">
             <el-input
-              v-model="adminForm.contact_phone"
-              :placeholder="$t('选填，用于问题回访')"
+              v-model="adminForm.company_name"
+              :placeholder="$t('setup.regCompanyHint')"
               size="large"
-              clearable
             />
           </el-form-item>
-          <el-form-item :label="$t('邮箱')" prop="email">
-            <el-input
-              v-model="adminForm.email"
-              :placeholder="$t('选填，用于接收系统通知')"
-              size="large"
-              clearable
-            />
-          </el-form-item>
-          <el-form-item :label="$t('姓名')" prop="real_name">
+          <el-form-item :label="$t('setup.regOwner')" prop="real_name">
             <el-input
               v-model="adminForm.real_name"
-              :placeholder="$t('选填')"
+              :placeholder="$t('setup.regOwnerName')"
+              size="large"
+            />
+          </el-form-item>
+          <el-form-item :label="$t('setup.phone')" prop="contact_phone">
+            <el-input
+              v-model="adminForm.contact_phone"
+              :placeholder="$t('setup.regContactHint')"
+              size="large"
+            />
+          </el-form-item>
+          <el-form-item :label="$t('setup.email')" prop="email">
+            <el-input
+              v-model="adminForm.email"
+              :placeholder="$t('setup.regNoticeHint')"
+              size="large"
+            />
+          </el-form-item>
+          <el-form-item :label="$t('setup.regLicenseCode')" prop="license_no">
+            <el-input
+              v-model="adminForm.license_no"
+              :placeholder="$t('setup.regLicenseHint')"
               size="large"
               clearable
             />
+          </el-form-item>
+          <el-form-item>
+            <el-checkbox v-model="adminForm.regulatory_ack">
+              {{ $t('setup.regAgree') }}
+            </el-checkbox>
           </el-form-item>
         </el-form>
         <div class="step-actions">
-          <el-button @click="prevStep">{{ $t('上一步') }}</el-button>
+          <el-button @click="prevStep">{{ $t('setup.prev') }}</el-button>
           <el-button type="primary" :loading="creatingAdmin" @click="handleCreateAdmin">
-            {{ $t('创建并完成初始化') }}
+            {{ $t('setup.createAdminCta') }}
           </el-button>
         </div>
       </div>
@@ -116,22 +138,31 @@
       <div v-if="currentStep === 2" class="step-item">
         <el-result
           icon="success"
-          :title="$t('系统初始化已完成')"
-          :sub-title="$t('超管账号已创建，现在可以使用超管账号登录系统')"
+          :title="$t('setup.initDone')"
+          :sub-title="$t('setup.adminCreated')"
         >
           <template #extra>
             <el-button type="primary" size="large" @click="goToLogin">
-              {{ $t('前往登录') }}
+              {{ $t('setup.goLogin') }}
             </el-button>
           </template>
         </el-result>
         <el-descriptions :column="1" border style="margin-top: 20px">
-          <el-descriptions-item :label="$t('超管账号')">
+          <el-descriptions-item :label="$t('setup.regCompany')">
+            {{ adminForm.company_name }}
+          </el-descriptions-item>
+          <el-descriptions-item :label="$t('setup.regOwner')">
+            {{ adminForm.real_name }}
+          </el-descriptions-item>
+          <el-descriptions-item :label="$t('setup.regMethod')">
+            {{ $t('setup.regOfflineMode') }}
+          </el-descriptions-item>
+          <el-descriptions-item :label="$t('setup.adminAccount')">
             {{ adminForm.username }}
           </el-descriptions-item>
-          <el-descriptions-item :label="$t('提示')">
+          <el-descriptions-item :label="$t('setup.notice')">
             <el-text type="info">
-              {{ $t('如忘记密码，可在登录后于「个人中心 - 修改密码」重置') }}
+              {{ $t('setup.resetHint') }}
             </el-text>
           </el-descriptions-item>
         </el-descriptions>
@@ -142,6 +173,8 @@
 
 <script setup>
 import i18n from '@/i18n'
+// 脚本级翻译函数：裸 t( 形态对 i18n 门可见（点分键计数），运行时语义不变
+const t = i18n.global.t.bind(i18n.global)
 
 import { ref, reactive, onMounted } from 'vue'
 import { useRouter } from 'vue-router'
@@ -159,22 +192,30 @@ const adminForm = reactive({
   username: '',
   password: '',
   confirmPassword: '',
+  // 开户登记四项：离线部署唯一的合规留痕入口，必填
+  company_name: '',
+  real_name: '',
   contact_phone: '',
   email: '',
-  real_name: ''
+  license_no: '',
+  regulatory_ack: false
 })
+
+// 协议版本与后端 serviceCurrentAgreementVersion / 平台端 CurrentAgreementVersion 同值。
+// 它是「用户同意的是哪一版」的唯一凭据，改告知文本时三处一起升版本。
+const REGISTRATION_AGREEMENT_VERSION = '2026-10-17.v1'
 const adminRules = {
   username: [
-    { required: true, message: i18n.global.t('请输入用户名'), trigger: 'blur' },
+    { required: true, message: t('setup.errUsernameRequired'), trigger: 'blur' },
     {
       pattern: /^[A-Za-z0-9_]{3,20}$/,
-      message: i18n.global.t('用户名必须为 3-20 位字母数字下划线'),
+      message: t('setup.errUsernamePattern'),
       trigger: 'blur'
     }
   ],
   password: [
-    { required: true, message: i18n.global.t('请输入密码'), trigger: 'blur' },
-    { min: 8, max: 64, message: i18n.global.t('密码长度需 8-64 位'), trigger: 'blur' },
+    { required: true, message: t('setup.errPasswordRequired'), trigger: 'blur' },
+    { min: 8, max: 64, message: t('setup.errPasswordLen'), trigger: 'blur' },
     {
       validator: (rule, value, callback) => {
         if (!value) return callback()
@@ -187,7 +228,7 @@ const adminRules = {
     }
   ],
   confirmPassword: [
-    { required: true, message: i18n.global.t('请再次输入密码'), trigger: 'blur' },
+    { required: true, message: t('setup.errPasswordConfirm'), trigger: 'blur' },
     {
       validator: (rule, value, callback) => {
         if (value !== adminForm.password) {
@@ -199,7 +240,18 @@ const adminRules = {
     }
   ],
   email: [
-    { type: 'email', message: i18n.global.t('请输入有效的邮箱地址'), trigger: 'blur' }
+    { required: true, message: t('setup.errEmailRequired'), trigger: 'blur' },
+    { type: 'email', message: t('setup.errEmailInvalid'), trigger: 'blur' }
+  ],
+  company_name: [
+    { required: true, message: t('setup.errCompanyRequired'), trigger: 'blur' }
+  ],
+  real_name: [
+    { required: true, message: t('setup.errOwnerRequired'), trigger: 'blur' }
+  ],
+  contact_phone: [
+    { required: true, message: t('setup.errPhoneRequired'), trigger: 'blur' },
+    { pattern: /^[0-9+\-() ]{6,32}$/, message: t('setup.errPhoneFormat'), trigger: 'blur' }
   ]
 }
 
@@ -217,12 +269,20 @@ const handleCreateAdmin = async () => {
   try {
     await adminFormRef.value.validate()
     creatingAdmin.value = true
+    if (!adminForm.regulatory_ack) {
+      ElMessage.warning(t('setup.errAgreeRequired'))
+      return
+    }
     const resp = await http.post('/api/system/init-admin', {
       username: adminForm.username,
       password: adminForm.password,
+      company_name: adminForm.company_name,
+      legal_person: adminForm.real_name,
       contact_phone: adminForm.contact_phone,
       email: adminForm.email,
-      real_name: adminForm.real_name
+      license_no: adminForm.license_no,
+      regulatory_ack: true,
+      agreement_version: REGISTRATION_AGREEMENT_VERSION
     }, { _silent: true });
     if (resp) {
       ElMessage.success(resp.message || '超管创建成功')
@@ -249,7 +309,7 @@ onMounted(async () => {
         case 'HAS_ADMIN':
         case 'INITIALIZED':
           await markInitializationComplete()
-          ElMessage.info(i18n.global.t('系统已初始化，请直接登录'))
+          ElMessage.info(t('setup.errAlreadyInit'))
           router.push('/login')
           break
         default:

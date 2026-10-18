@@ -1,0 +1,262 @@
+package model
+
+// 表 → 模块 的归属登记表（任务一「功能模块涉及的…数据表」的可校验形态）
+//
+// ============================================================
+// 为什么单独一张表，而不是把表名塞进 module_bindings.go 的注释里
+//
+// 需求原文要求「整理当前所有的功能模块，功能模块涉及的页面**以及数据表**」。
+// 页面归属（ModuleMenuBindings）有测试钉死「208+ 个菜单 key 全覆盖」，
+// 而表归属此前只写在文档里 —— 于是实测 270 张表里有 **32 张是无主的孤儿表**
+// （wechat_accounts / webhook_events / notifications / bridge_accounts …）。
+//
+// 孤儿表的危害不是文档不好看：一张表无主意味着**没人知道它随哪个模块开关**，
+// 关掉某模块后它可能仍在被写入（定时任务/请求路径），数据继续增长 ——
+// 也就是"关了模块不省钱也不干净"。
+//
+// 本表把归属变成**可校验的数据**，并由
+// TestEveryModelTableHasModuleOwner 钉死「一张表都不许漏」。
+// ============================================================
+
+// 平台/系统内部表：不属于任何可售模块，随基座常在。
+//
+// 归 core 而不是"无主"：它们确实有主人（系统基座），只是不可关闭。
+var coreOwnedTables = []string{
+	// 认证 / 账号 / 审计
+	"system_users", "user_mfa", "login_events", "password_history",
+	"password_reset_tokens", "sso_identities", "role_menu_permissions",
+	"security_audits", "security_audit_items", "security_alerts",
+	"operation_logs", "user_blacklist",
+	// 告警规则：阈值/静默/通知策略，属系统基座而非某个业务模块
+	"alert_rules", "alert_histories", "mcp_credentials",
+	"layer_decision_logs", "tool_call_audits", "sync_logs", "saved_views",
+	// 配置 / 字典 / 开关
+	"system_config", "system_config_kv", "config_params", "config_param_groups",
+	"config_param_audit_logs", "dictionaries", "feature_flags",
+	"feature_flag_audit_logs", "feature_flag_eval_logs", "threshold_policies",
+	// 存储 / 素材 / 集成 / 平台账号
+	"obs_config", "platform_accounts", "platform_account_configs",
+	"integration_accounts", "integration_templates", "webhook_events",
+	"webhook_subscriptions", "bridge_accounts", "api_logs",
+	// 租户与模块化本体
+	"tenants", "tenant_modules", "module_sync_logs", "module_orders",
+	"llm_providers", "llm_routing_rules", "llm_routing_logs", "llm_usage_records",
+	// 升级 / 迁移 / 运维
+	"upgrade_tasks", "migration_checkpoints", "migration_records",
+	"backups", "restore_records", "system_metrics", "visit_logs",
+	"aggregation_watermarks", "macros",
+	// 消息基础（所有 IM/工作台共用）
+	"unified_messages", "unified_replies", "message_hub", "message",
+	"session_messages", "message_trace", "msg_hourly_summary",
+	"notifications", "web_vital_records", "help_center_test_records",
+	"cron_job_leases", "account", "user", "order",
+}
+
+// customer 模块独占
+var customerOwnedTables = []string{
+	"customers", "customer_channels", "customer_events", "customer_tags",
+	"customer_tag_assignments", "customer_segments", "customer_rfm",
+	"customer_rfms", "rfm_rules", "customer_do_not_contact", "customer_long_term_memory",
+	"clues", "clue_scores", "clue_engagement_events",
+	"user_tags", "user_rfms", "smlist", "lead_mining_configs",
+}
+
+// inbox 模块独占
+var inboxOwnedTables = []string{
+	"inbox_conversations", "inbox_assignments", "customer_sessions",
+	"session_tags", "session_ai_summaries", "quick_replies", "quick_reply_folders",
+	"agent_statuses", "customer_service_agents", "csat_surveys", "ai_suggestions",
+	"sla_policies", "sla_first_response_at", "sla_escalate_at", "sla_decide_at",
+	"sla_violations", "chat_channels",
+}
+
+// knowledge 模块独占
+var knowledgeOwnedTables = []string{
+	"knowledge_bases", "knowledge_documents", "knowledge_chunks",
+	"knowledge_api_tokens", "knowledge_feedbacks", "knowledge_import_logs",
+	"knowledge_openapi_sources", "knowledge_search_logs", "kb_documents",
+	"kb_releases", "kb_change_audit_logs", "kb_change_requests",
+	"external_kb_connectors", "external_kb_sync_items", "external_import_jobs",
+	"faq_entries", "rag_products", "rag_metrics_daily", "rag_query_logs",
+	"rag_eval_runs", "rag_eval_questions", "rag_recall_monitor_snapshots",
+}
+
+// asset 模块独占
+var assetOwnedTables = []string{
+	"local_assets", "local_asset_data", "local_asset_sync_log",
+	"asset_bundles", "asset_bundle_version_logs", "script_library",
+	"script_versions", "script_exposure_logs", "prompt_ab_tests",
+	"prompt_candidates",
+}
+
+// ai-agent 模块独占
+var aiAgentOwnedTables = []string{
+	"ai_agents", "channel_agent_bindings", "agent_kb_bindings",
+	"ai_tool_configs", "ai_tool_account_bindings",
+}
+
+// ai-sales 模块独占
+var aiSalesOwnedTables = []string{
+	"dialogue_memories", "business_memories", "memory_items",
+	"intent_records", "intent_examples", "sales_intent_scores",
+	"objection_templates", "sales_personas",
+	"sales_champion_profile_snapshots", "champion_baselines",
+	"champion_dialogues", "champion_phrases", "ai_sales_logs",
+	"sop_agents", "sop_templates", "sop_executions", "sop_node_transitions",
+	"sop_state_memories", "sop_timers", "sop_outbox", "sop_exec_events",
+	"confidence_signals", "confidence_calibrations", "humanize_scores",
+	"humanize_dimensions", "feedback_records", "feedback_signals",
+	"feedback_events", "learning_insights", "bandit_reflux_log",
+	"low_quality_samples", "dialogue_eval_runs", "trace_eval_log",
+}
+
+// reach-auto 模块独占
+var reachAutoOwnedTables = []string{
+	"reach_pipelines", "reach_jobs", "reach_delayed_outbound", "reach_compliance_log",
+	"automation_rules", "rule_pending_executions", "optimization_suggestions",
+	// 工作流编排器（workflowOrchestrator 菜单节点同属本模块）
+	"workflow_versions", "workflow_executions", "workflow_node_executions",
+}
+
+// reach-sms / reach-email 模块独占
+var reachSmsOwnedTables = []string{
+	"sms", "sms_unsubscribes", "sms_tracking", "sms_delivery_statuses",
+	"sms_job_metrics", "sms_number_portability_logs",
+}
+
+var reachEmailOwnedTables = []string{
+	"email_list", "email_smtp", "email_jobs", "email_tracking_events",
+	"email_unsubscribes", "email_job_metrics",
+}
+
+// reach-social 模块独占
+var reachSocialOwnedTables = []string{
+	"douyin_cards", "douyin_card_activities", "kuaishou_cards",
+	"kuaishou_card_activities", "xiaohongshu_cards", "xiaohongshu_card_activities",
+	"xianyu_cards", "xianyu_card_activities", "tiktok_cards", "tiktok_card_activities",
+	"wechat_accounts", "wechat_messages",
+}
+
+// reach-link 模块独占
+var reachLinkOwnedTables = []string{
+	"short_links", "short_link_accesses", "live_codes", "live_code_qrs",
+	"live_code_qr_stats", "livecode_click_log", "qr_code_click_log",
+	"domain_pool", "domain_blacklist", "domain_health_log",
+}
+
+// im-wecom 模块独占
+var imWecomOwnedTables = []string{
+	"wecom_accounts", "wecom_account_health", "wecom_groups",
+	"wecom_group_members", "wecom_messages", "wecom_tags", "wecom_customers",
+}
+
+// im-intl 模块独占
+var imIntlOwnedTables = []string{
+	"telegram_accounts", "telegram_group_gates", "telegram_group_members",
+	"qq_accounts", "feishu_accounts", "feishu_customers", "feishu_messages",
+	"dingtalk_app_accounts", "whatsapp_accounts", "whatsapp_sessions",
+	"whatsapp_messages", "whatsapp_drafts", "whatsapp_jobs", "whatsapp_job_details",
+	"whatsapp_message_queues", "whatsapp_queue_statuses", "whatsapp_group_messages",
+	"whatsapp_message_templates", "whatsapp_cloud_accounts",
+	"community_groups", "community_members", "community_messages",
+}
+
+// analytics / experiment 模块独占
+var analyticsOwnedTables = []string{
+	"daily_stats", "conversion_funnels", "report_subscriptions",
+	"customer_journey", "ab_test_metrics", "external_customers",
+	"support_metrics",
+}
+
+var experimentOwnedTables = []string{
+	"ab_tests", "ab_test_stats", "churn_scores", "bandit_arms", "recovery_queue",
+}
+
+// sales-crm 模块独占
+var salesCRMOwnedTables = []string{
+	"opportunities", "quotes", "quote_line_items", "order_drafts",
+	"bills", "payments", "after_sales", "sales_events", "external_orders",
+	"external_products",
+}
+
+// geo 模块独占
+var geoOwnedTables = []string{
+	"geo_brands", "geo_domains", "geo_keywords", "geo_query_chains",
+	"geo_contents", "geo_entities", "geo_relations", "geo_competitors",
+	"geo_crawler_visits", "geo_index_records", "geo_alerts", "geo_reports",
+	"geo_decisions", "geo_publish_jobs", "geo_sites", "geo_push_logs",
+	"geo_verifications", "geo_sov_snapshots", "geo_dict", "geo_tasks",
+}
+
+// approval / i18n / browser-automation 模块独占
+var approvalOwnedTables = []string{
+	"approval_requests", "human_tasks", "bad_cases", "handoff_decisions",
+}
+
+var i18nOwnedTables = []string{"glossaries", "dictionary_transitions"}
+
+// llmCloudOwnedTables 平台模型算力（计量型收费模块）独占
+var llmCloudOwnedTables = []string{
+	"llm_wallets", "llm_wallet_txns", "platform_llm_usage_records",
+}
+
+// browserAutomationOwnedTables 浏览器自动化独占
+//
+// 常驻 Chromium 会话与任务执行记录。没有专属表时它确实"关了什么都不停"，
+// 但那是实现现状而非它不需要数据 —— 后续补表时往这里加即可，归属已经先立住。
+var browserAutomationOwnedTables = []string{
+	"browser_profiles", "browser_tasks", "browser_outreach_dedupe",
+	"browser_outreach_receipts", "browser_audit_prune_runs",
+	"browser_profile_health",
+}
+
+// moduleTableRegistry 模块 → 独占表
+var moduleTableRegistry = map[string][]string{
+	ModuleCore:              coreOwnedTables,
+	ModuleCustomer:          customerOwnedTables,
+	ModuleInbox:             inboxOwnedTables,
+	ModuleKnowledge:         knowledgeOwnedTables,
+	ModuleAsset:             assetOwnedTables,
+	ModuleAIAgent:           aiAgentOwnedTables,
+	ModuleAISales:           aiSalesOwnedTables,
+	ModuleReachAuto:         reachAutoOwnedTables,
+	ModuleReachSMS:          reachSmsOwnedTables,
+	ModuleReachEmail:        reachEmailOwnedTables,
+	ModuleReachSocial:       reachSocialOwnedTables,
+	ModuleReachLink:         reachLinkOwnedTables,
+	ModuleIMWecom:           imWecomOwnedTables,
+	ModuleIMIntl:            imIntlOwnedTables,
+	ModuleAnalytics:         analyticsOwnedTables,
+	ModuleExperiment:        experimentOwnedTables,
+	ModuleSalesCRM:          salesCRMOwnedTables,
+	ModuleGEO:               geoOwnedTables,
+	ModuleApproval:          approvalOwnedTables,
+	ModuleI18N:              i18nOwnedTables,
+	ModuleLLMCloud:          llmCloudOwnedTables,
+	ModuleBrowserAutomation: browserAutomationOwnedTables,
+}
+
+// TableOwners 表 → 模块 反查表（启动时构建）
+var TableOwners = buildTableOwners()
+
+func buildTableOwners() map[string]string {
+	out := make(map[string]string, 512)
+	for mk, tables := range moduleTableRegistry {
+		for _, t := range tables {
+			out[t] = mk
+		}
+	}
+	return out
+}
+
+// OwnerOfTable 返回该表所属模块；无主返回空串。
+func OwnerOfTable(table string) string { return TableOwners[table] }
+
+// TablesOfModule 返回某模块独占的表清单
+func TablesOfModule(moduleKey string) []string {
+	out := append([]string(nil), moduleTableRegistry[moduleKey]...)
+	return out
+}
+
+// TotalRegisteredTables 登记在册的表总数
+func TotalRegisteredTables() int { return len(TableOwners) }

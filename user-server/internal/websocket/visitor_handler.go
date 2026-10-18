@@ -15,6 +15,7 @@ import (
 
 	"hivemtk-user/internal/config"
 	"hivemtk-user/internal/pkg/security"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/service/translation"
 
@@ -181,6 +182,15 @@ func (h *VisitorWSHandler) HandleVisitorWebSocket(c *gin.Context) {
 	}
 
 	client := NewVisitorClient(h.hub, sessionID, visitorID, channelID)
+	// 访客连接租户绑定（specs/001-saas-multi-tenant T024/T026）：
+	// 访客无 JWT，租户经 channel 归属解析（chat_channels.tenant_id 行自证）；
+	// 解析失败/未装配时静默降级为无绑定（0），下游写入由列默认值兜底（off 模式等价现状）。
+	if visitorChannelResolver != nil {
+		if ch, err := visitorChannelResolver.ResolveByChannelID(ctx, channelID); err == nil && ch != nil && ch.TenantID != 0 {
+			client.tenantID = ch.TenantID
+			ctx = tenant.WithTenantID(ctx, ch.TenantID)
+		}
+	}
 	client.hub = h.hub
 	registerVisitorClient(client)
 

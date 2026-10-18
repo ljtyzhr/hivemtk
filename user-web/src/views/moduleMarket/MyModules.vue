@@ -26,6 +26,42 @@
       </el-col>
     </el-row>
 
+    <!-- LLM 余额：需求五要求「实时扣减剩余 token 数」，
+         而"实时扣减"对用户是否可感知，取决于他能不能看到剩余量。
+         后端 /api/llm/wallet 与 /api/llm/plans 早已就位，前端却没有一处调用 ——
+         那等于做了一整套计量却没有任何人看得见。 -->
+    <el-card shadow="never" class="mt-12">
+      <template #header>
+        <div class="card-header">
+          <span>平台模型余额（按 token 预付费，输入/输出分别扣减）</span>
+          <el-button v-if="platformEnabled" size="small" type="primary" @click="planVisible = true">
+            购买套餐
+          </el-button>
+        </div>
+      </template>
+
+      <el-alert v-if="!platformEnabled" type="info" :closable="false"
+        title="平台未连接" description="平台模型余额需连接平台后查看与充值。当前可正常使用自带 API Key 的模型（不计费）。" />
+
+      <el-row v-else-if="wallet.exists" :gutter="16">
+        <el-col :span="8">
+          <div class="bal-label">剩余输入 token</div>
+          <div class="bal-value" :class="{ low: wallet.low }">{{ fmtTokens(wallet.input_tokens_remaining) }}</div>
+        </el-col>
+        <el-col :span="8">
+          <div class="bal-label">剩余输出 token</div>
+          <div class="bal-value" :class="{ low: wallet.low }">{{ fmtTokens(wallet.output_tokens_remaining) }}</div>
+        </el-col>
+        <el-col :span="8">
+          <div class="bal-label">累计消耗（输入 / 输出）</div>
+          <div class="bal-value small">
+            {{ fmtTokens(wallet.total_consumed_input) }} / {{ fmtTokens(wallet.total_consumed_output) }}
+          </div>
+        </el-col>
+      </el-row>
+      <el-empty v-else description="尚未购买平台模型套餐" :image-size="60" />
+    </el-card>
+
     <el-card shadow="never" class="mt-12">
       <template #header>
         <div class="card-header">
@@ -88,6 +124,48 @@
       </el-table>
     </el-card>
 
+    <el-dialog v-model="planVisible" title="平台模型套餐" width="680px">
+      <el-alert type="info" :closable="false" class="mb-12"
+        title="输入与输出分别计价"
+        description="绝大多数厂商的输出单价是输入的数倍。下单后请按付款指引联系平台运营，确认收款后余额自动入账。" />
+      <el-table :data="plans" v-loading="planLoading" size="small">
+        <el-table-column prop="name" label="套餐" min-width="140" />
+        <el-table-column label="额度（输入 / 输出）" min-width="180">
+          <template #default="{ row }">
+            {{ fmtTokens(row.input_tokens) }} / {{ fmtTokens(row.output_tokens) }}
+          </template>
+        </el-table-column>
+        <el-table-column label="单价（分/1k）" width="150">
+          <template #default="{ row }">
+            <div>输入 {{ row.input_price_per_1k_cents }}</div>
+            <div>输出 {{ row.output_price_per_1k_cents }}</div>
+          </template>
+        </el-table-column>
+        <el-table-column label="售价" width="100" align="right">
+          <template #default="{ row }">¥{{ fmtPrice(row.price_cents) }}</template>
+        </el-table-column>
+        <el-table-column label="" width="90">
+          <template #default="{ row }">
+            <el-button link type="primary" @click="buy(row)">购买</el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+    </el-dialog>
+
+    <el-dialog v-model="contactVisible" title="填写联系方式" width="460px">
+      <el-alert type="warning" :closable="false" class="mb-12"
+        title="用于线下付款联系"
+        description="平台运营需要据此联系你完成付款。请填写电话或邮箱。" />
+      <el-form :model="orderForm" label-width="70px">
+        <el-form-item label="电话"><el-input v-model="orderForm.contact_phone" /></el-form-item>
+        <el-form-item label="邮箱"><el-input v-model="orderForm.contact_email" /></el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="contactVisible = false">取消</el-button>
+        <el-button type="primary" :loading="ordering" @click="submitLLMOrder">提交订单</el-button>
+      </template>
+    </el-dialog>
+
     <el-card shadow="never" class="mt-12">
       <template #header><span>同步日志</span></template>
       <el-table :data="logs" size="small" empty-text="暂无">
@@ -118,8 +196,11 @@ import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
   myModules, syncModules, moduleSyncLogs,
-  priceLabel, MODULE_CATEGORY_LABEL, MODULE_SOURCE_LABEL, MODULE_STATUS_LABEL
+  llmWallet, llmPlans, createLLMOrder,
+  priceLabel, fmtPrice, fmtTokens,
+  MODULE_CATEGORY_LABEL, MODULE_SOURCE_LABEL, MODULE_STATUS_LABEL
 } from '@/api/moduleMarket'
+
 
 const CATEGORY_LABEL = MODULE_CATEGORY_LABEL
 const SOURCE_LABEL = MODULE_SOURCE_LABEL
@@ -128,6 +209,14 @@ const STATUS_TAG = { active: 'success', expired: 'warning', disabled: 'info' }
 
 const list = ref([])
 const logs = ref([])
+const wallet = ref({})
+const plans = ref([])
+const planVisible = ref(false)
+const contactVisible = ref(false)
+const planLoading = ref(false)
+const ordering = ref(false)
+const pendingPlan = ref(null)
+const orderForm = reactive({ contact_phone: '', contact_email: '' })
 const loading = ref(false)
 const syncing = ref(false)
 const platformEnabled = ref(true)
@@ -161,8 +250,50 @@ async function fetch () {
     } catch {
       logs.value = []
     }
+    await loadLLM()
   } finally {
     loading.value = false
+  }
+}
+
+async function loadLLM () {
+  if (!platformEnabled.value) return
+  try {
+    wallet.value = (await llmWallet()) || {}
+  } catch { wallet.value = {} }
+  try {
+    plans.value = (await llmPlans())?.list || []
+  } catch { plans.value = [] }
+}
+
+function openPlans () {
+  planVisible.value = true
+  loadLLM()
+}
+
+function buy (plan) {
+  pendingPlan.value = plan
+  contactVisible.value = true
+}
+
+async function submitLLMOrder () {
+  if (!orderForm.contact_phone && !orderForm.contact_email) {
+    ElMessage.warning('请填写电话或邮箱 —— 平台运营需要据此联系你完成付款')
+    return
+  }
+  ordering.value = true
+  try {
+    const res = await createLLMOrder({
+      plan_code: pendingPlan.value?.plan_code,
+      contact_phone: orderForm.contact_phone,
+      contact_email: orderForm.contact_email
+    })
+    contactVisible.value = false
+    ElMessage.success(res?.payment_guide || '订单已提交，请联系平台运营完成付款')
+  } catch (e) {
+    ElMessage.error(e?.message || '下单失败')
+  } finally {
+    ordering.value = false
   }
 }
 
@@ -177,6 +308,7 @@ async function onSync () {
       ElMessage.success(res.message || `已同步，当前开通 ${res?.active_count ?? 0} 个模块`)
     }
     fetch()
+    loadLLM()
   } catch (e) {
     ElMessage.error(e?.message || '同步失败')
   } finally {

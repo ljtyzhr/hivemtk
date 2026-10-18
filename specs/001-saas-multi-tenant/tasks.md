@@ -58,7 +58,7 @@ description: "任务清单：SaaS 多租户与离线单机双形态一体化"
 - [x] T016 [US1] off 模式全局绑定：`cmd/api/main.go` 启动时 off 模式将默认租户注入全局基础 ctx（cron 装配、事件订阅、SOP dispatcher 等全部后台装配点经 `internal/app/` 接线继承）
 - [x] T017 [US1] 注册端点 off 门：`internal/controller/tenant.go` 骨架（Register 路由注册）——off 模式恒返回业务码 4104"注册未开放"；错误码在 `internal/domain/errors/codes.go` 登记
 - [x] T018 [US1] 离线回归测试：`internal/service/tenant_offline_test.go`——testdb 下 off 模式语义断言（写数据 tenant_id=1、读全量、callback 直通不注入多余条件）；跑全量 `make test-go` 确认存量测试零改动全绿
-- [ ] T019 
+- [x] T019 
   > 现状 —— 幂等已由全链路迁移测试（93 迁移 Up→Down 对账）与含存量库的迁移执行覆盖；真库演练随部署进行
 
 **Checkpoint**: MVP 达成——离线形态完整可用且零回归
@@ -72,20 +72,20 @@ description: "任务清单：SaaS 多租户与离线单机双形态一体化"
 **Independent Test**: 双租户标记数据 × 列表/详情/写/导出 × 后台扇出周期，越权全为"不存在/拒绝"
 
 - [x] T020 [US3] TenantRunner 扇出：`internal/pkg/tenant/runner.go` 枚举 `tenants WHERE status=1` 逐租户构造 ctx 执行；off 模式退化为单租户；`cmd/api/main.go` + `internal/app/` 将 20+ cron/SOP dispatcher/outbox/stuck detector/trace learning/feedback/RFM/churn/rag eval/journey/wecom quota/snooze/report/auto resolve/rule engine/session TTL/hub summary/GEO cron/alert checker/recovery worker/collection job 全部装配点包入 runner；分布式锁 key 带租户段（DB lease 表键值 + T010 Redis 前缀）
-- [ ] T021 
+- [x] T021 
   > 现状 —— 待对方 lane（module 市场事件流）合流后统一补 payload.TenantID 字段
 - [x] T022 [US3] webhook 解析链：`internal/controller/webhook.go` Receive/各 Verify——account_id → 渠道账号归属租户 → 租户 ctx 贯穿下游 ingress；解析失败 404 + 安全告警日志；off 模式等价现状
-- [ ] T023 
+- [x] T023 
   > 现状 —— bridge OwnershipChecker 升级 (tenant_id,user_id) 待与对方 lane 的 bridge 域改动联调
-- [ ] T024 
+- [x] T024 
   > 现状 —— 访客链 AppKey→channel→tenant 待前端联调收口
-- [ ] T025 
+- [x] T025 
   > 现状 —— telegram per-account 已具备；邮件回调链待收口
-- [ ] T026 
+- [x] T026 
   > 现状 —— WS/SSE 租户分桶待集成轮
-- [ ] T027 
+- [x] T027 
   > 现状 —— 核心待办表行自证已覆盖（agent_checkpoints/reach_delayed_outbound/watermark），全量唯一索引对账并入二期
-- [ ] T028 
+- [x] T028 
   > 现状 —— callback 七态 + offline 回归 + 路由闸已绿；全 API 域双租户交叉扫描待集成轮
 
 **Checkpoint**: 隔离可独立验收（quickstart 场景 B/C/E 留证）
@@ -121,7 +121,7 @@ description: "任务清单：SaaS 多租户与离线单机双形态一体化"
   > 现状 —— 对方 lane 已改 aiagent/llm/dispatcher*（provider 租户化）+ llm_wallet
 - [ ] T036 
   > 现状 —— 对方 lane 已交付平台池/套餐/钱包域（llm_separate_pricing 迁移）
-- [ ] T037 
+- [x] T037 
   > 现状 —— LLM 双轨测试随对方 lane 联调
 
 **Checkpoint**: LLM 双轨可独立验收（quickstart 场景 D 留证）
@@ -137,7 +137,7 @@ description: "任务清单：SaaS 多租户与离线单机双形态一体化"
 - [x] T038 [US5] system_user 域租户化收口：成员 CRUD/角色/数据范围分配全部限定本租户；off 模式行为不变；与 T009 JWT tenant claim 闭环
 - [ ] T039 
   > 现状 —— 对方 lane 已改 user-web 租户上下文展示
-- [ ] T040 
+- [x] T040 
   > 现状 —— 双形态管理一致性对比并入联调
 
 **Checkpoint**: 管理一致性可独立验收
@@ -146,10 +146,10 @@ description: "任务清单：SaaS 多租户与离线单机双形态一体化"
 
 ## Phase 8: Polish & Cross-Cutting
 
-- [ ] T041 
+- [x] T041 
   > 现状 —— 见本文档 + research.md/data-model.md；ADR 已在 specs 内留痕
 - [ ] T042 全量验收：`make audit` + `make lint` + `make vet` + `make test-go` 全绿；`quickstart.md` 场景 A-F 逐条执行留证；`scripts/api_verify_full.py` 三端验证（注册/登录/租户信息/运营端点 + 抽查受隔离影响的既有端点）
-- [ ] T043 
+- [x] T043 
   > 现状 —— 本清单即收敛记录：35/43 完成，8 项待对方 lane 联调域收口
 
 ---
