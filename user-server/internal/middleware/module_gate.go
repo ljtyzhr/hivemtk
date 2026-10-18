@@ -1,6 +1,7 @@
 package middleware
 
 import (
+	"context"
 	"strings"
 	"sync"
 
@@ -30,7 +31,11 @@ import (
 
 // moduleGateChecker 判定函数（装配期由 service.ModuleGateService 注入）
 type moduleGateChecker interface {
-	IsEnabled(moduleKey string) bool
+	// IsEnabled ctx 必须是**请求上下文**：on 模式（TENANT_MODE=on）下隔离
+	// callback 从 ctx 取调用方租户来读 tenant_modules 镜像。中间件这里若改用
+	// context.Background()，读会 fail-closed → Refresh 失败 → bootstrapped=false
+	// → IsEnabled 对所有模块返回 true —— 付费闸静默全开（P1）。
+	IsEnabled(ctx context.Context, moduleKey string) bool
 }
 
 var (
@@ -95,7 +100,7 @@ func RequireModule(moduleKey string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		// 空 moduleKey = 本路由没归属任何可售模块（系统骨架页）。
 		// 必须**在查判定之前**短路：判据是「调用方忘了填」，
-		// 而 checker.IsEnabled("") 返回 false（本地镜像里当然没有空 key 的模块），
+		// 而 checker.IsEnabled(ctx, "") 返回 false（本地镜像里当然没有空 key 的模块），
 		// 于是漏填一次就等于把这批路由全关掉 —— 而现象是"某几个页面突然 403"，
 		// 排查时根本想不到是这里少传了一个参数。
 		if moduleKey == "" {
@@ -110,7 +115,7 @@ func RequireModule(moduleKey string) gin.HandlerFunc {
 			c.Next()
 			return
 		}
-		if checker.IsEnabled(moduleKey) {
+		if checker.IsEnabled(c.Request.Context(), moduleKey) {
 			c.Next()
 			return
 		}
@@ -137,7 +142,7 @@ func GuardModulePath() gin.HandlerFunc {
 			c.Next()
 			return
 		}
-		if checker.IsEnabled(owner) {
+		if checker.IsEnabled(c.Request.Context(), owner) {
 			c.Next()
 			return
 		}

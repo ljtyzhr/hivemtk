@@ -12,6 +12,7 @@ import (
 	bizerr "hivemtk-user/internal/domain/errors"
 	"hivemtk-user/internal/middleware"
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/pkg/utils/response"
@@ -380,16 +381,21 @@ func (c *AuthController) VerifyMFALogin(ctx *gin.Context) {
 	}
 	middleware.ClearBruteForceFailure(ctx, "auth.mfa")
 
-	// 终令牌按用户行签发，携带租户归属（T031：MFA 临时令牌不含租户）
-	token, err := c.authService.IssueTokenForUserID(ctx.Request.Context(), userID)
+	// 终令牌按用户行签发，携带租户归属（T031：MFA 临时令牌不含租户）；
+	// 租户字段与普通登录响应同口径补齐（此前 MFA 响应缺 tenant_id/tenant_code，
+	// 前端落库的用户信息在 SaaS 模式下丢租户归属）。
+	token, tenantID, tenantCode, err := c.authService.IssueTokenWithTenant(ctx.Request.Context(), userID)
 	if err != nil {
+		if HandleServiceError(ctx, err) {
+			return
+		}
 		response.Error(ctx, http.StatusInternalServerError, "颁发令牌失败")
 		return
 	}
 
 	middleware.MarkMFAVerified(userID)
 
-	response.Success(ctx, gin.H{
+	resp := gin.H{
 		"token":   token,
 		"expires": 86400,
 		"user": gin.H{
@@ -397,7 +403,14 @@ func (c *AuthController) VerifyMFALogin(ctx *gin.Context) {
 			"username": username,
 			"role":     role,
 		},
-	}, "MFA 验证成功，登录完成")
+	}
+	// off 模式 tenants 可为空，租户字段只在 on 模式下发（与 loginWithUser 一致）
+	if tenant.IsMultiTenant() {
+		resp["tenant_id"] = tenantID
+		resp["tenant_code"] = tenantCode
+	}
+
+	response.Success(ctx, resp, "MFA 验证成功，登录完成")
 }
 
 // GetMFAStatus 查询当前用户的 MFA 启用状态

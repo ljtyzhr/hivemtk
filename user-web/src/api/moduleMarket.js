@@ -10,8 +10,10 @@ import { http } from '@/utils/request';
 
 // ── 市场浏览（public 档：未登录也能逛）──────────────────────────────
 
-export const listMarketModules = (params) =>
-  http.get('/api/module-market/list', params);
+// 第二参 config 透传给 http.get（如 {_silent:true}）：MyModules 把它当闸态探针用，
+// 探针失败不该弹 toast。
+export const listMarketModules = (params, config) =>
+  http.get('/api/module-market/list', params, config);
 
 export const marketModuleDetail = (key) =>
   http.get(`/api/module-market/detail/${encodeURIComponent(key)}`);
@@ -38,22 +40,22 @@ export const moduleOrderDetail = (orderNo) =>
 export const myModules = () =>
   http.get('/api/modules/my');
 
-export const syncModules = () =>
-  http.post('/api/modules/sync');
+export const syncModules = (config) =>
+  http.post('/api/modules/sync', undefined, config);
 
-export const moduleSyncLogs = (params) =>
-  http.get('/api/modules/sync-logs', params);
+export const moduleSyncLogs = (params, config) =>
+  http.get('/api/modules/sync-logs', params, config);
 
 // ── 平台模型余额与套餐（需求五）──────────────────────────────────────
 //
 // 这三个此前只在后端存在、前端零调用 —— 计量做了一整套却没有任何人看得见。
 // 「实时扣减」对用户是否可感知，取决于他能不能看到剩余量。
 
-export const llmWallet = () =>
-  http.get('/api/llm/wallet');
+export const llmWallet = (config) =>
+  http.get('/api/llm/wallet', undefined, config);
 
-export const llmPlans = () =>
-  http.get('/api/llm/plans');
+export const llmPlans = (config) =>
+  http.get('/api/llm/plans', undefined, config);
 
 export const createLLMOrder = (data) =>
   http.post('/api/llm/recharge', data);

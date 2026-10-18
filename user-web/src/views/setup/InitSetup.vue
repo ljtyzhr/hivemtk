@@ -345,7 +345,9 @@ const handleCreateAdmin = async () => {
       username: adminForm.username,
       password: adminForm.password,
       company_name: adminForm.company_name,
-      legal_person: adminForm.real_name,
+      // 后端 system_init.go 的 InitAdminInput 绑定的是 real_name（binding:"required"），
+      // 键名写成 legal_person 会让每次提交都被 gin 参数校验打回 400「无效的请求参数」。
+      real_name: adminForm.real_name,
       contact_phone: adminForm.contact_phone,
       email: adminForm.email,
       license_no: adminForm.license_no,

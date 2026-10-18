@@ -61,8 +61,14 @@ const BIZ_CODE_MODULE_NOT_ENABLED = 4301
 // 带 next 参数让市场页高亮/预选该模块，省掉用户自己找的一步。
 const MODULE_NOT_ENABLED_REDIRECT = '/module-market'
 
-function handleModuleNotEnabled (data, code) {
+// silent=true 时（调用方带了 `_silent`，多为后台轮询/页面预取）仍按 4301 拒绝——
+// 调用方自己的 catch 必须照常拿到 bizCode——但**不 toast、不安排跳转**：
+// 这类请求的失败本就该由页面自己吞掉，把它当「用户点错了入口」处理会把人
+// 从正在看的页面上强行拽走（MyModules 拉 llm/wallet 被踢去市场页就是这么来的）。
+// 非 silent 路径一个字都不改：仍是那句引导 toast + 3 秒后跳市场页。
+function handleModuleNotEnabled (data, code, silent) {
   if (Number(code) !== BIZ_CODE_MODULE_NOT_ENABLED) return false
+  if (silent) return true
   const moduleKey = data && data.data && data.data.module_key
   const target = moduleKey
     ? `${MODULE_NOT_ENABLED_REDIRECT}?highlight=${encodeURIComponent(moduleKey)}`
@@ -156,9 +162,94 @@ function expireSession(sentWith) {
   return true
 }
 
+// ============================================================================
+// 令牌主动续期（防 24h 到期硬登出）
+//
+// JWT 有效期 24h，旧实现没有任何刷新路径：用户干着活令牌到期，
+// 下一条请求 401 → 清凭据踢回登录页，进度全丢。现在请求侧主动看一眼
+// exp：剩余寿命不足 15 分钟就先用旧令牌换新（后端 refresh-token 会把旧令牌
+// 拉黑），再发业务请求。刷新必须在令牌仍然有效时发生——过期令牌会被
+// 中间件直接拒绝，15 分钟窗口就是给这条路径留的余量。
+// ============================================================================
+
+// 剩余寿命低于该阈值就触发换发（后端令牌 24h 有效期，15 分钟余量足够覆盖
+// 用户关屏/挂机的短暂停顿，又不会让换发过于频繁）
+const TOKEN_REFRESH_WINDOW_MS = 15 * 60 * 1000
+
+// 单飞锁：并发请求同时发现"快过期"时只发一次 refresh。不锁的后果是后到的
+// 请求带着已被服务端拉黑的旧令牌打出去，401 会把刚换到的新会话连带清掉。
+let refreshPromise = null
+// 刷新失败跳登录的去重位：并发调用方共享同一个失败结果，只跳一次
+let refreshRedirecting = false
+
+// base64url 解码 JWT payload 段拿 exp（秒级 Unix 时间戳）。
+// 不引库：JWT 三段用 . 切开，payload 是 base64url（-_/ 兼容回标准字母表、补 =）。
+// 解析失败一律返回 null——调用方按"读不出 exp"处理（不刷新，交由服务端 401 收口）。
+function parseJwtExp(token) {
+  try {
+    const payload = String(token).split('.')[1]
+    if (!payload) return null
+    const base64 = payload.replace(/-/g, '+').replace(/_/g, '/')
+    const padded = base64 + '='.repeat((4 - (base64.length % 4)) % 4)
+    const decoded = JSON.parse(atob(padded))
+    const exp = decoded && decoded.exp
+    return typeof exp === 'number' ? exp : null
+  } catch {
+    return null
+  }
+}
+
+// ensureFreshToken 确保 localStorage 里的令牌剩余寿命充足，不足则静默换发。
+// 失败语义：清凭据 + 跳登录，但不 toast（请求拦截器里的静默路径不该弹提示，
+// 后续 401 也不再有会话可清）；抛错由调用方决定是否继续。
+function ensureFreshToken() {
+  const token = localStorage.getItem('token')
+  if (!token) return Promise.resolve()
+  const exp = parseJwtExp(token)
+  // 非 JWT / 被篡改读不出 exp：不在这里判死，让请求照常携带，服务端说了算
+  if (exp === null) return Promise.resolve()
+  if (exp * 1000 - Date.now() > TOKEN_REFRESH_WINDOW_MS) return Promise.resolve()
+  if (refreshPromise) return refreshPromise
+
+  refreshPromise = (async () => {
+    try {
+      // 裸 axios 实例：不挂业务拦截器——刷新请求自身绝不能再触发 ensureFreshToken
+      // / 401 清会话，否则换发失败时会与这里的清理逻辑互相嵌套
+      const raw = axios.create({
+        baseURL: request.defaults.baseURL,
+        headers: { 'Content-Type': 'application/json' }
+      })
+      const res = await raw.post('/api/auth/refresh-token', null, {
+        headers: { Authorization: `Bearer ${token}` },
+        _skipRefresh: true
+      })
+      // 响应是信封 {code, data:{token}}，裸实例不拆信封
+      const newToken = res?.data?.data?.token
+      if (!newToken) throw new Error('refresh-token 响应缺少 token')
+      localStorage.setItem('token', newToken)
+    } catch (err) {
+      if (!refreshRedirecting) {
+        refreshRedirecting = true
+        clearAuthAndGoLogin()
+      }
+      throw err
+    } finally {
+      refreshPromise = null
+    }
+  })()
+  return refreshPromise
+}
+
 const addInterceptors = () => {
   request.interceptors.request.use(
-    (config) => {
+    async (config) => {
+      // 主动续期：先确保令牌新鲜再带上。失败（清凭据跳登录已发生）也照常放行，
+      // 让这条请求自然走 401 兜底——刷新失败拦在这里只会掩盖真实错误。
+      if (!config._skipRefresh) {
+        try {
+          await ensureFreshToken()
+        } catch { /* 已静默清凭据并跳登录，请求继续即可 */ }
+      }
       const token = localStorage.getItem('token');
       if (token) {
         config.headers.Authorization = `Bearer ${token}`
@@ -224,7 +315,7 @@ const addInterceptors = () => {
       const msg = extractServerMessage(data, t('http.requestFailed'));
       // 4301：未开通模块。处理函数已自行提示并安排跳转，这里**不再**弹通用 toast
       // （两句提示叠在一起只会让人更困惑）。
-      if (handleModuleNotEnabled(data, code)) {
+      if (handleModuleNotEnabled(data, code, silent)) {
         return Promise.reject(buildRequestError(msg, response, code))
       }
       if (!silent) showToast(msg)

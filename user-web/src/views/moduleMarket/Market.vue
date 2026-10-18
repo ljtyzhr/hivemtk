@@ -347,11 +347,26 @@ const visible = computed(() => {
 const autoEnabled = ref([])
 const payableDeps = ref([])
 
+// 下单幂等键：后端 MarketOrderInput.ClientOrderNo（可选）会拿它去重。
+// 生成时机必须是**开窗时**而不是提交时 —— 提交失败后用户重试要复用同一个键，
+// 才挡得住双击/重试造成的重复平台订单；上一单真发出去之后再开窗才换新键。
+const clientOrderNo = ref('')
+
+function genClientOrderNo () {
+  try {
+    if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
+      return crypto.randomUUID()
+    }
+  } catch { /* 走下面的兜底 */ }
+  return Date.now() + '-' + Math.random().toString(36).slice(2)
+}
+
 async function openConfirm (m) {
   confirmTarget.value = m
   Object.assign(form, { contact_name: '', contact_phone: '', contact_email: '', remark: '' })
   autoEnabled.value = []
   payableDeps.value = []
+  clientOrderNo.value = genClientOrderNo()
   confirmVisible.value = true
   try {
     const d = await marketModuleDetail(m.module_key)
@@ -374,6 +389,7 @@ async function submit () {
     const res = await createModuleOrder({
       module_keys: [confirmTarget.value.module_key],
       options: {},
+      client_order_no: clientOrderNo.value,
       ...form
     })
     confirmVisible.value = false

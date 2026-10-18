@@ -174,10 +174,13 @@ let pollTimer = null
 // refreshGrantState 触发一次模块下发同步并刷新列表。
 // 同步成功后后端会即刻刷新闸的缓存（见 service/module_catalog.go 的 Sync 尾部），
 // 所以这次调用之后菜单与接口权限就是最新的。
-async function refreshGrantState () {
+// silent=true 专供下面的 30 秒后台轮询：轮到 4301（同步口被闸住）或 403 时，
+// _silent 已经拦掉全局 toast 与跳转，这里的业务提示也一并吞掉 ——
+// 后台轮询的失败没有任何用户动作可归因，弹出来只会像系统坏了。
+async function refreshGrantState (silent = false) {
   syncing.value = true
   try {
-    const res = await syncModules()
+    const res = await syncModules(silent ? { _silent: true } : undefined)
     if (res?.degraded) {
       ElMessage.warning(res.message || '平台暂不可达，已沿用上次同步结果')
     } else {
@@ -185,7 +188,7 @@ async function refreshGrantState () {
     }
     await fetch()
   } catch (e) {
-    ElMessage.error(e?.message || '同步失败')
+    if (!silent) ElMessage.error(e?.message || '同步失败')
   } finally {
     syncing.value = false
   }
@@ -198,7 +201,7 @@ function startPolling () {
   stopPolling()
   pollTimer = setInterval(() => {
     if (!hasPending.value) return
-    refreshGrantState()
+    refreshGrantState(true)
   }, 30000)
 }
 

@@ -4,6 +4,7 @@ import (
 	"context"
 	"time"
 
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/logger"
 )
@@ -46,6 +47,12 @@ type moduleSyncRunner struct {
 // 返回的 runner 可被 StopModuleSync 停掉（测试与优雅退出用）。
 func StartModuleSync(parent context.Context) *moduleSyncRunner {
 	ctx, cancel := context.WithCancel(parent)
+	// 同步循环在请求之外（Background 派生），on 模式下租户 callback 会
+	// fail-closed 拒绝读写 tenant_modules → 恒空 → 闸退化成全放行（P1）。
+	// 挂 SystemScope：镜像统一落默认租户（单商户单部署）。
+	// ModuleCatalogService.Sync 内部还会再包一层，重复包裹无害 ——
+	// 两处各自独立成立，将来谁只改了其中一处都不会让另一处回退。
+	ctx = tenant.WithSystemScope(ctx)
 	r := &moduleSyncRunner{
 		cancel:    cancel,
 		done:      make(chan struct{}),

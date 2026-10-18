@@ -37,6 +37,7 @@
         </div>
 
         <el-form
+          v-if="!mfaMode"
           ref="loginFormRef"
           :model="loginForm"
           :rules="rules"
@@ -45,7 +46,7 @@
           <el-form-item prop="username">
             <el-input
               v-model="loginForm.username"
-              :placeholder="t('core.login.username')"
+              placeholder="用户名或邮箱"
               prefix-icon="User"
               size="large"
             />
@@ -105,6 +106,46 @@
           </div>
         </el-form>
 
+        <!-- MFA 第二步：密码校验已通过（后端返回 need_mfa + temp_token），
+             凭证表单整体让位给验证码输入；temp_token 5 分钟有效，过期回登录重来 -->
+        <el-form
+          v-else
+          @keyup.enter="handleMfaVerify"
+        >
+          <el-form-item>
+            <el-input
+              v-model="mfaCode"
+              maxlength="6"
+              inputmode="numeric"
+              placeholder="请输入 6 位验证码"
+              prefix-icon="Key"
+              size="large"
+            />
+          </el-form-item>
+
+          <el-form-item>
+            <el-button
+              type="primary"
+              size="large"
+              style="width: 100%"
+              :loading="loading"
+              @click="handleMfaVerify"
+            >
+              验证并登录
+            </el-button>
+          </el-form-item>
+
+          <div class="register-switch">
+            <el-button
+              link
+              type="primary"
+              @click="backToLogin"
+            >
+              返回登录
+            </el-button>
+          </div>
+        </el-form>
+
         <p class="login-disclaimer">
           {{ t('disclaimer.login') }}
         </p>
@@ -129,6 +170,12 @@ const userStore = useUserStore()
 const permissionStore = usePermissionStore()
 const loginFormRef = ref(null)
 const loading = ref(false)
+
+// MFA 第二步状态机：mfaMode=false 走凭证登录；登录响应带 need_mfa + temp_token 时
+// 切到 mfaMode=true，凭证表单隐藏、只留 6 位验证码输入；「返回登录」清态回凭证模式。
+const mfaMode = ref(false)
+const mfaTempToken = ref('')
+const mfaCode = ref('')
 
 // 登录只需账号 + 密码。email 字段随内联注册表单一起去掉了
 // （注册已独立成页），留着会让读代码的人以为登录还支持邮箱入口。
@@ -163,6 +210,65 @@ const rules = {
   ]
 };
 
+// finishLogin 登录终态的统一收尾（普通登录与 MFA 第二步共用）：
+// 落库用户信息 + 重置菜单缓存 + 跳首页
+const finishLogin = async (token, user, resp) => {
+  // 租户模式下登录响应会带 tenant_id/tenant_code（顶层；也可能在 user 内），
+  // 合并后随用户信息一起落库（setUserInfo 对缺省字段兜底为空串）
+  userStore.login({
+    ...user,
+    tenant_id: resp.tenant_id ?? user.tenant_id,
+    tenant_code: resp.tenant_code ?? user.tenant_code
+  }, token)
+  // RBAC：切换账号时重置旧菜单缓存，避免上一个身份的菜单/路径继续生效（数据与权限隔离）
+  permissionStore.resetMenus()
+  await permissionStore.ensureMenus(true)
+  localStorage.setItem('system_initialized', 'true')
+  ElMessage.success(t('core.login.success'))
+  router.push('/')
+}
+
+// 返回登录：退出 MFA 模式，清掉 temp_token 与验证码，回凭证表单
+const backToLogin = () => {
+  mfaMode.value = false
+  mfaTempToken.value = ''
+  mfaCode.value = ''
+}
+
+// handleMfaVerify MFA 第二步：POST /api/auth/mfa/verify（公开端点，temp_token 换终令牌）
+const handleMfaVerify = async () => {
+  const code = String(mfaCode.value || '').trim()
+  if (!/^\d{6}$/.test(code)) {
+    ElMessage.warning('请输入 6 位数字验证码')
+    return
+  }
+  if (!mfaTempToken.value) {
+    // temp_token 丢失（刷新页面等）：无法继续第二步，回登录重来
+    backToLogin()
+    return
+  }
+
+  try {
+    loading.value = true
+    const response = await usersApi.mfaVerify({ temp_token: mfaTempToken.value, code })
+    const token = response?.token || response?.Token
+    const user = response?.user || response?.User
+    if (!token || !user) {
+      console.error('MFA 验证响应数据异常:', response)
+      ElMessage.error(t('core.login.failServer'))
+      return
+    }
+    await finishLogin(token, user, response)
+  } catch (error) {
+    // 验证码错/临时令牌失效是 HTTP 401：未登录时拦截器的 401 分支不弹 toast
+    // （没有会话可清），错误信息必须在此提示
+    console.error('MFA 验证失败:', error)
+    ElMessage.error(error.message || t('core.login.fail'))
+  } finally {
+    loading.value = false
+  }
+}
+
 const handleLogin = async () => {
   if (!loginFormRef.value) return
 
@@ -180,26 +286,34 @@ const handleLogin = async () => {
     const payload = { ...loginForm }
     if (!payload.tenant_code) delete payload.tenant_code
 
+    // 用户名/邮箱同框：含 @ 视为邮箱通道（email 全局唯一）。跨租户同名登录会被后端
+    // 以 4108 拒绝并要求"改用邮箱登录"——同一输入框按内容分流，用户才能照做。
+    const account = String(payload.username || '').trim()
+    if (account.includes('@')) {
+      delete payload.username
+      payload.email = account
+    } else {
+      payload.username = account
+    }
+
     const response = await usersApi.login(payload)
 
     if (response) {
+      // MFA 用户：后端返回 need_mfa + temp_token（无终令牌）——切到验证码模式走第二步
+      const needMFA = response.need_mfa ?? response.NeedMFA
+      const tempToken = response.temp_token || response.TempToken
+      if (needMFA && tempToken) {
+        mfaTempToken.value = tempToken
+        mfaCode.value = ''
+        mfaMode.value = true
+        return
+      }
+
       const token = response.token || response.Token
       const user = response.user || response.User
 
       if (token && user) {
-        // 租户模式下登录响应会带 tenant_id/tenant_code（顶层；也可能在 user 内），
-        // 合并后随用户信息一起落库（setUserInfo 对缺省字段兜底为空串）
-        userStore.login({
-          ...user,
-          tenant_id: response.tenant_id ?? user.tenant_id,
-          tenant_code: response.tenant_code ?? user.tenant_code
-        }, token)
-        // RBAC：切换账号时重置旧菜单缓存，避免上一个身份的菜单/路径继续生效（数据与权限隔离）
-        permissionStore.resetMenus()
-        await permissionStore.ensureMenus(true)
-        localStorage.setItem('system_initialized', 'true')
-        ElMessage.success(t('core.login.success'))
-        router.push('/')
+        await finishLogin(token, user, response)
       } else {
         console.error('登录响应数据异常:', response)
         ElMessage.error(t('core.login.failServer'))

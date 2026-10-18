@@ -9,6 +9,7 @@ import (
 
 	"gorm.io/gorm"
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 
 	"github.com/gin-gonic/gin"
 )
@@ -54,7 +55,7 @@ type fakeChecker struct {
 	enabled map[string]bool
 }
 
-func (f fakeChecker) IsEnabled(k string) bool { return f.enabled[k] }
+func (f fakeChecker) IsEnabled(_ context.Context, k string) bool { return f.enabled[k] }
 
 func withChecker(t *testing.T, c moduleGateChecker) {
 	t.Helper()
@@ -216,6 +217,50 @@ func TestGateThreeStates(t *testing.T) {
 	if aborted := runThroughPath(RequireModule("geo"), "/api/geo/config"); !aborted {
 		t.Error("未开通模块必须被拦：否则付费模块白送，商业化失效")
 	}
+}
+
+// TestGateThreadsRequestContextToChecker 闸必须把**请求上下文**递给判定器。
+//
+// P1 回归：adapter 曾经在这里换 context.Background()，on 模式下租户镜像读
+// fail-closed → 刷新失败 → bootstrapped=false → IsEnabled 全返回 true =
+// 付费闸静默全开。TenantMiddleware 写进 request ctx 的租户绑定，
+// 必须原封不动抵达 checker —— 这条用例钉的就是这条通路。
+func TestGateThreadsRequestContextToChecker(t *testing.T) {
+	gin.SetMode(gin.TestMode)
+	probe := &ctxProbeChecker{enabled: true}
+	withChecker(t, probe)
+
+	r := gin.New()
+	// 模拟 TenantMiddleware 的写入位置（c.Request.WithContext）：
+	// 置于闸之前，与生产的挂载顺序一致（鉴权/租户中间件 → 模块闸）。
+	r.GET("/api/geo/config", func(c *gin.Context) {
+		c.Request = c.Request.WithContext(tenant.WithTenantID(c.Request.Context(), 7))
+	}, GuardModulePath(), func(c *gin.Context) {})
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/api/geo/config", nil))
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("放行路径应 200，实际 %d", w.Code)
+	}
+	if probe.got == nil {
+		t.Fatal("checker 未被调用，前置不成立")
+	}
+	id, ok := tenant.FromContext(probe.got)
+	if !ok || id != 7 {
+		t.Fatalf("闸递给判定器的 ctx 丢了租户绑定（got ok=%v id=%d，期望 7）——"+
+			"on 模式下这会让镜像读 fail-closed、闸全放行", ok, id)
+	}
+}
+
+// ctxProbeChecker 记录判定器实际收到的 ctx
+type ctxProbeChecker struct {
+	got     context.Context
+	enabled bool
+}
+
+func (c *ctxProbeChecker) IsEnabled(ctx context.Context, _ string) bool {
+	c.got = ctx
+	return c.enabled
 }
 
 // TestGateIgnoresUnannotatedModule 未标注 moduleKey 的路由一律放行

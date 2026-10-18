@@ -441,7 +441,7 @@
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
-  myModules, syncModules, moduleSyncLogs,
+  myModules, syncModules, moduleSyncLogs, listMarketModules,
   llmWallet, llmPlans, createLLMOrder,
   priceLabel, fmtPrice, fmtTokens,
   MODULE_CATEGORY_LABEL, MODULE_SOURCE_LABEL, MODULE_STATUS_LABEL
@@ -488,15 +488,30 @@ const filtered = computed(() => {
 async function fetch () {
   loading.value = true
   try {
+    // 1) 平台闸态：走公开路由 GET /api/module-market/list（无鉴权、不过模块闸），
+    //    它的 platform_enabled 才是权威值 —— 此前这里的 ref(true) 是个假默认，
+    //    离线实例上 false 的真相根本没机会被读到。
+    //    探针本身也 _silent：它是后台预取，失败不该弹 toast 打扰页面。
+    try {
+      const market = await listMarketModules(undefined, { _silent: true })
+      platformEnabled.value = !!market?.platform_enabled
+    } catch {
+      // 拉不到就维持现值；下面的 LLM 调用全带 _silent，最坏也只是不显示余额
+    }
+    // 2) 我的模块列表（本页主数据）
     const res = await myModules()
     list.value = res?.list || []
+    // 3) 同步日志是 ADMIN 专属口，普通用户必 403 —— _silent 让它安静地走
+    //    既有 try/catch，不再每次进页面就弹一句「拒绝访问」。
     try {
-      const l = await moduleSyncLogs({ limit: 20 })
+      const l = await moduleSyncLogs({ limit: 20 }, { _silent: true })
       logs.value = l?.list || []
     } catch {
       logs.value = []
     }
-    await loadLLM()
+    // 4) 只有平台闸开着才拉余额/套餐；llm-cloud 未开通时 4301 由 _silent 拦下，
+    //    不 toast、不跳转，用户留在本页。
+    if (platformEnabled.value) await loadLLM()
   } finally {
     loading.value = false
   }
@@ -505,10 +520,10 @@ async function fetch () {
 async function loadLLM () {
   if (!platformEnabled.value) return
   try {
-    wallet.value = (await llmWallet()) || {}
+    wallet.value = (await llmWallet({ _silent: true })) || {}
   } catch { wallet.value = {} }
   try {
-    plans.value = (await llmPlans())?.list || []
+    plans.value = (await llmPlans({ _silent: true }))?.list || []
   } catch { plans.value = [] }
 }
 
@@ -547,14 +562,15 @@ async function onSync () {
   syncing.value = true
   try {
     const res = await syncModules()
-    platformEnabled.value = res?.platform_enabled !== false
+    // 同步 DTO 是 {active_count, source, degraded, message} —— 里面**没有**
+    // platform_enabled，读它只会得到 undefined 并被误当成「开着」。
+    // 闸态改由下面 fetch() 里的公开列表刷新，并由 fetch() 决定是否拉 LLM。
     if (res?.degraded) {
       ElMessage.warning(res.message || '平台不可达，已沿用上次同步结果')
     } else {
       ElMessage.success(res.message || `已同步，当前开通 ${res?.active_count ?? 0} 个模块`)
     }
     fetch()
-    loadLLM()
   } catch (e) {
     ElMessage.error(e?.message || '同步失败')
   } finally {

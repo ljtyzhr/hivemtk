@@ -456,6 +456,34 @@ func (s *AuthService) IssueTokenForUserID(ctx context.Context, userID uint) (str
 	return s.tokenForUser(user)
 }
 
+// IssueTokenWithTenant 按用户 ID 签发携带租户的 JWT，并回带租户归属（MFA 登录第二步用）
+//
+// IssueTokenForUserID 的扩展：MFA 校验成功后的响应此前只有 token + 精简 user
+// （id/username/role），前端拿不到 tenant_id/tenant_code，与普通登录响应字段不对齐
+// —— SaaS 模式下 MFA 用户登录后落库的租户归属是空的。
+// 租户口径与 loginWithUser 完全一致（复用 loginTenant）：off 模式不查租户表
+// （存量部署 tenants 可为空），on 模式校验租户存在且启用（4106/4107）。
+func (s *AuthService) IssueTokenWithTenant(ctx context.Context, userID uint) (string, uint, string, error) {
+	user, err := s.systemUserRepo.GetByID(tenant.WithSystemScope(ctx), userID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return "", 0, "", errors.New("用户不存在")
+		}
+		logger.Error(err, "查询用户失败")
+		return "", 0, "", errors.New("签发令牌失败")
+	}
+	tenantID, tenantCode, err := s.loginTenant(ctx, user)
+	if err != nil {
+		return "", 0, "", err
+	}
+	token, err := s.tokenForUser(user)
+	if err != nil {
+		logger.Error(err, "生成JWT令牌失败")
+		return "", 0, "", errors.New("签发令牌失败")
+	}
+	return token, tenantID, tenantCode, nil
+}
+
 func (s *AuthService) toUserResponse(ctx context.Context, user *model.SystemUser) *SystemUserResponse {
 	return &SystemUserResponse{
 		ID:          user.ID,
@@ -618,59 +646,100 @@ func (s *AuthService) assertFirstAdminPossible(ctx context.Context) error {
 //   - 超管计数查询失败 → 直接拒绝（fail-closed：宁可安装者重试一次，不放过第二个匿名超管）
 //   - 密码强度不达标 → 复用 service.validatePassword 返回的错误
 //   - username/email 冲突 → 透传 repo 错误
+//
+// 校验与落库拆成 prepareAdminForInit / insertPreparedAdmin 两步（对本方法而言
+// 仍然连续调用，语义与拆分前一致）：on 模式必须在两步之间先落 tenants 行、
+// 拿到新租户 ID 再写超管行，见 InitAdminWithRegistration 的 P0 注释。
 func (s *AuthService) InitAdmin(ctx context.Context, username, password, email string) error {
-	if err := s.assertFirstAdminPossible(ctx); err != nil {
+	user, err := s.prepareAdminForInit(ctx, username, password, email)
+	if err != nil {
 		return err
+	}
+	return s.insertPreparedAdmin(ctx, user)
+}
+
+// initReadOnlyCtx 初始化流程中"全局口径只读 + 落库后回填"所用的 ctx。
+//
+// on 模式的公开初始化入口（router.go 的 public 组没有 TenantMiddleware）ctx 无
+// 租户绑定，直连会被隔离 callback fail-closed。而这里覆盖的几条读写口径本来
+// 就是全局的 —— 超管"全库只能铸一次"、用户名/邮箱唯一性跨租户、回填按刚建号
+// 的用户名定位 —— 挂租户作用域反而会把别的租户的超管/同名账号漏掉。因此 on
+// 模式显式挂 SystemScope（系统入口的唯一豁免通道）；off 模式原样返回，
+// 直通路径逐字节不变。
+func initReadOnlyCtx(ctx context.Context) context.Context {
+	if tenant.IsMultiTenant() {
+		return tenant.WithSystemScope(ctx)
+	}
+	return ctx
+}
+
+// prepareAdminForInit 校验并构造待插入的超管行（不落库、不写 install.lock）
+//
+// 从 InitAdmin 拆出的原因：on 模式要先知道新租户 ID 才能给超管行显式写
+// TenantID，而 tenants 行必须建在**全部校验通过之后** —— 否则一个弱密码请求
+// 就会在 on 模式留下一条永远配不上超管的孤儿登记行。判定顺序与拆分前逐条一致
+// （先断言可建 → 字段校验 → 唯一性），既有桩测试的调用序列不变。
+func (s *AuthService) prepareAdminForInit(ctx context.Context, username, password, email string) (*model.SystemUser, error) {
+	guardCtx := initReadOnlyCtx(ctx)
+	if err := s.assertFirstAdminPossible(guardCtx); err != nil {
+		return nil, err
 	}
 
 	username = strings.TrimSpace(username)
 	email = strings.TrimSpace(email)
 	if username == "" || password == "" {
-		return errors.New("username/password 均不能为空")
+		return nil, errors.New("username/password 均不能为空")
 	}
 
 	if err := validatePassword(password); err != nil {
-		return err
+		return nil, err
 	}
 
 	if email != "" {
 		if err := validateEmail(email); err != nil {
-			return err
+			return nil, err
 		}
 	}
 
 	if err := validateUsername(username); err != nil {
-		return err
+		return nil, err
 	}
 
-	if exists, _ := s.systemUserRepo.UsernameExists(ctx, username, 0); exists {
-		return errors.New("用户名已存在")
+	if exists, _ := s.systemUserRepo.UsernameExists(guardCtx, username, 0); exists {
+		return nil, errors.New("用户名已存在")
 	}
 	if email != "" {
-		if exists, _ := s.systemUserRepo.EmailExists(ctx, email, 0); exists {
-			return errors.New("邮箱已被使用")
+		if exists, _ := s.systemUserRepo.EmailExists(guardCtx, email, 0); exists {
+			return nil, errors.New("邮箱已被使用")
 		}
 	}
 
-	user := &model.SystemUser{
+	return &model.SystemUser{
 		Username: username,
 		Password: password,
 		Email:    email,
 		Role:     model.SystemUserRoleAdmin,
 		Status:   1,
 		Enabled:  true,
-	}
+	}, nil
+}
+
+// insertPreparedAdmin 落超管行并写 install.lock。
+//
+// 顺序不可换：INSERT 必须先成功，"已初始化"标记才有意义 —— 建号失败而 lock
+// 已写，实例会被自己的失败态锁死（只能手删 lock 才能重装）。
+func (s *AuthService) insertPreparedAdmin(ctx context.Context, user *model.SystemUser) error {
 	if err := s.systemUserRepo.Create(ctx, user); err != nil {
 		logger.Error(err, "InitAdmin 创建超管失败")
 		// %w 而不是字符串拼接：错误文案不变，但调用方仍能用 errors.Is 认出底层原因。
 		return fmt.Errorf("创建超管失败: %w", err)
 	}
 
-	if err := install.MarkAdminInitialized(username); err != nil {
+	if err := install.MarkAdminInitialized(user.Username); err != nil {
 		logger.Error(err, "InitAdmin 写 install.lock 失败")
 	}
 
-	logger.Info("InitAdmin 超管创建成功: " + username)
+	logger.Info("InitAdmin 超管创建成功: " + user.Username)
 	return nil
 }
 
@@ -792,6 +861,19 @@ func (s *AuthService) ValidateOfflineRegistration(companyName, realName, phone, 
 }
 
 // InitAdminWithRegistration 初始化超管并落一条离线租户登记
+//
+// on / off 两种形态的落库顺序刻意不同（P0：TENANT_MODE=on 的初始化向导 400 修复）：
+//
+//	on：  全部校验 → 建 tenants 行（拿真实租户 ID）→ 显式 user.TenantID=该 ID
+//	      → INSERT → install.lock → 回填负责人信息。
+//	      public 组没有 TenantMiddleware，此处 ctx 无租户绑定，system_users 的
+//	      INSERT 若不带显式 TenantID 会被 fillCreateForTenant fail-closed 拒绝；
+//	      显式值走"行自证"放行路径 —— 与 SaaS 开户 CreateWithAdmin 同一模式
+//	      （见 repository/tenant.go 的注释）。登记行失败即中止：没有租户归属的
+//	      超管在 on 模式是悬空行，后续所有按租户隔离的写入都落不到它头上。
+//	off：  全部校验 → INSERT → install.lock → 回填 → 建 tenants 行。
+//	      与历史顺序逐条一致；登记失败**不回滚超管**（留痕缺失可补，
+//	      把已能登录的人挡在门外不可逆）。
 func (s *AuthService) InitAdminWithRegistration(ctx context.Context,
 	username, password, email, realName, phone, companyName, licenseNo, address string,
 	regulatoryAck bool, agreementVersion string) error {
@@ -804,8 +886,10 @@ func (s *AuthService) InitAdminWithRegistration(ctx context.Context,
 		agreementVersion = serviceCurrentAgreementVersion
 	}
 
-	// 超管本人：负责人姓名与电话落在他自己的资料上（不用另找入口就能看到）
-	if err := s.initAdminCore(ctx, username, password, email, realName, phone); err != nil {
+	// 先过全部校验再落任何一行：on 模式若先建 tenants 行、之后才发现密码太弱，
+	// 就会留下一条永远配不上超管的孤儿登记行。
+	user, err := s.prepareAdminForInit(ctx, username, password, email)
+	if err != nil {
 		return err
 	}
 
@@ -826,31 +910,59 @@ func (s *AuthService) InitAdminWithRegistration(ctx context.Context,
 		AgreementVersion: agreementVersion,
 		RegulatoryAck:    regulatoryAck,
 	}
-	if err := repository.NewTenantRepository().Create(ctx, t); err != nil {
-		// 登记失败**不回滚超管**：用户已经能登录了，为一条合规留痕
-		// 把人挡在门外，代价远大于收益。留痕缺失是可补的，系统不可用是不可逆的。
-		logger.Errorf("[init-admin] 离线租户登记写入失败（不影响超管创建）：%v", err)
-		return nil
+
+	onMode := tenant.IsMultiTenant()
+	if onMode {
+		// P0：先落租户行拿 ID（tenants 非租户表，任何 ctx 都能写）。
+		// 失败即中止 —— 此刻超管还没建，不存在"抛下无租户超管"的半态。
+		if err := repository.NewTenantRepository().Create(ctx, t); err != nil {
+			return fmt.Errorf("离线租户登记写入失败，已中止超管创建（on 模式超管必须有租户归属）: %w", err)
+		}
+		// 显式归属必须发生在 INSERT 之前：fillCreateForTenant 见到非零值即放行
+		user.TenantID = t.ID
 	}
-	logger.Infof("[init-admin] 离线开户登记完成：company=%s legal_person=%s", t.CompanyName, t.LegalPerson)
+
+	// 超管本人：负责人姓名与电话落在他自己的资料上（不用另找入口就能看到）
+	if err := s.insertPreparedAdmin(ctx, user); err != nil {
+		if onMode {
+			// 校验都过了还写失败 = 库异常。租户行会留在库里（TenantRepository
+			// 没有 Delete 口），重试会再建一条 —— 与"校验期失败"不同，这条
+			// 只在库写入异常时发生，宁可留痕也不静默吞。
+			logger.Errorf("[init-admin] on 模式超管创建失败，已留下先行写入的租户登记行（company=%s）：%v",
+				t.CompanyName, err)
+		}
+		return err
+	}
+	s.backfillInitAdminProfile(ctx, user.Username, realName, phone)
+
+	if !onMode {
+		if err := repository.NewTenantRepository().Create(ctx, t); err != nil {
+			// 登记失败**不回滚超管**：用户已经能登录了，为一条合规留痕
+			// 把人挡在门外，代价远大于收益。留痕缺失是可补的，系统不可用是不可逆的。
+			logger.Errorf("[init-admin] 离线租户登记写入失败（不影响超管创建）：%v", err)
+			return nil
+		}
+	}
+	logger.Infof("[init-admin] 离线开户登记完成（reg_mode=offline, tenant 行 ID=%d, on=%v）：company=%s legal_person=%s",
+		t.ID, onMode, t.CompanyName, t.LegalPerson)
 	return nil
 }
 
-// initAdminCore 创建超管（复用 InitAdmin 的全部校验与 install.lock 语义）
-func (s *AuthService) initAdminCore(ctx context.Context, username, password, email, realName, phone string) error {
-	if err := s.InitAdmin(ctx, username, password, email); err != nil {
-		return err
-	}
+// backfillInitAdminProfile 超管建号后回填负责人姓名/电话：失败只记日志
+//
+// （账号已可用，为两个非关键字段回滚账号是本末倒置）。
+// on 模式挂 SystemScope（initReadOnlyCtx）：回填按刚建号的用户名定位，
+// 口径是全局的，无租户绑定的 ctx 直连会 fail-closed。
+func (s *AuthService) backfillInitAdminProfile(ctx context.Context, username, realName, phone string) {
 	if strings.TrimSpace(realName) == "" && strings.TrimSpace(phone) == "" {
-		return nil
+		return
 	}
-	// InitAdmin 已建号，这里补负责人信息：失败只记日志
-	// （账号已可用，为两个可选字段回滚账号是本末倒置）
 	repo := s.systemUserRepo
-	existing, err := repo.GetByUsername(ctx, username)
+	lookup := initReadOnlyCtx(ctx)
+	existing, err := repo.GetByUsername(lookup, username)
 	if err != nil || existing == nil {
 		logger.Warnf("[init-admin] 回填负责人信息失败（不影响创建）：%v", err)
-		return nil
+		return
 	}
 	if realName != "" {
 		existing.RealName = strings.TrimSpace(realName)
@@ -858,10 +970,9 @@ func (s *AuthService) initAdminCore(ctx context.Context, username, password, ema
 	if phone != "" {
 		existing.Phone = strings.TrimSpace(phone)
 	}
-	if err := repo.Update(ctx, existing); err != nil {
+	if err := repo.Update(lookup, existing); err != nil {
 		logger.Warnf("[init-admin] 回填负责人信息失败（不影响创建）：%v", err)
 	}
-	return nil
 }
 
 // shortRandomKey 生成短随机串（离线租户短码用）

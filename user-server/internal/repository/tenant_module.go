@@ -53,6 +53,14 @@ func NewTenantModuleRepositoryWithDB(gdb *gorm.DB) TenantModuleRepository {
 // 也就是说：一个索引形状问题 = 商业模式整体静默失效。
 // 慢路径的正确性不依赖任何索引形状，因此它是最后一道、也是唯一一道
 // 不依赖数据库状态的安全网。
+//
+// tenant_id 的落值（on 模式核对过的行为，勿凭直觉改）：行来自平台下发载荷，
+// 不带 tenant_id；调用方（ModuleCatalogService.Sync）在 on 模式挂的是
+// SystemScope，隔离 callback 此时不填充 —— 由 GORM 自己补：列带 `default:1`
+// → DefaultValueInterface=1 → 值为零时 GORM 把该默认值写进 INSERT 语句
+// （gorm callbacks/create.go ConvertToCreateValues），行落默认租户 1，
+// 且 ON CONFLICT 的 (tenant_id, module_key) 目标拿到的是同一个值。
+// off 模式走的同一条路径，直通逐字节等价 —— 故这里不需要任何模式分支。
 func (r *tenantModuleRepo) UpsertMany(ctx context.Context, rows []*model.TenantModule) error {
 	if len(rows) == 0 {
 		return nil

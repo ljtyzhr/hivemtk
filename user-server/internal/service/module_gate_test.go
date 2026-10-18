@@ -11,6 +11,7 @@ import (
 	"gorm.io/gorm"
 	"hivemtk-user/internal/config"
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/testutil"
 	"hivemtk-user/internal/repository"
 )
@@ -510,4 +511,80 @@ func TestModuleSyncRunnerStopIsClean(t *testing.T) {
 	}
 	// 二次 Stop 不得 panic
 	r.Stop()
+}
+
+// TestModuleGateOnModeSyncAndTenantScopedRead P1 回归：on 模式闸不许静默全开。
+//
+// 修复前的失效链（两段分别钉住两端）：
+//  ① 同步/引导在请求之外跑（后台 runner、手动同步按钮），ctx 无租户绑定，
+//     ListAll/UpsertMany 被隔离 callback fail-closed → Sync 报错 →
+//     tenant_modules 恒空 → bootstrapped=false → IsEnabled 对**所有**模块
+//     返回 true —— 付费闸整体失效，且界面无任何异样；
+//  ② 请求路径上闸必须能带着租户 ctx 读到镜像（middleware 现在把
+//     c.Request.Context() 递进 adapter）：基础模块放行、未开通收费模块拦截。
+//
+// 注意：必须经**带模型**的 NewTestDB 建连接 —— 只有那条路径会注册隔离
+// callback 与租户登记表；不传模型的连接在 on 模式下等于没开隔离，用例会假绿。
+func TestModuleGateOnModeSyncAndTenantScopedRead(t *testing.T) {
+	withTenantMode(t, tenant.ModeOn)
+	database := testutil.NewTestDB(t, &model.TenantModule{}, &model.ModuleSyncLog{})
+	t.Setenv("PLATFORM_ENABLED", "false") // 离线兜底：不发出站请求，直接灌基础模块
+
+	repo := repository.NewTenantModuleRepositoryWithDB(database)
+	svc := NewModuleCatalogServiceWithRepos(repo, nil)
+
+	// 前置自证：隔离 callback 在本连接上必须真的在拦 —— 否则①②在修复前也全绿（假绿）
+	if _, err := repo.ListAll(context.Background()); err == nil {
+		t.Fatal("无租户绑定的 tenant_modules 读未被 fail-closed：on 模式隔离未生效，本用例测不到 P1")
+	}
+
+	// ① 后台形态的同步：无租户绑定也必须成功（修复前 fail-closed）
+	res, err := svc.Sync(context.Background())
+	if err != nil {
+		t.Fatalf("on 模式离线同步应成功（修复前 fail-closed → 闸全放行）: %v", err)
+	}
+	if res.Source != "offline_bootstrap" {
+		t.Fatalf("来源应为 offline_bootstrap，实际 %q", res.Source)
+	}
+
+	// 镜像行必须落默认租户，否则下一步的租户 ctx 读一条也看不见
+	sysCtx := tenant.WithSystemScope(context.Background())
+	rows, err := repo.ListAll(sysCtx)
+	if err != nil {
+		t.Fatalf("读镜像失败: %v", err)
+	}
+	if len(rows) == 0 {
+		t.Fatal("同步未落镜像行：tenant_modules 恒空 = 闸永远在「首启全放行」态")
+	}
+	for _, r := range rows {
+		if r.TenantID != tenant.DefaultTenantID {
+			t.Fatalf("镜像行 %s 落在 tenant_id=%d，应为默认租户 %d",
+				r.ModuleKey, r.TenantID, tenant.DefaultTenantID)
+		}
+	}
+
+	// ② 请求路径形态：租户 ctx 直连闸（修复前 adapter 用 Background，等价于这里的裸读）
+	gate := NewModuleGateServiceWithRepo(repo)
+	gate.Invalidate()
+	reqCtx := tenant.WithTenantID(context.Background(), tenant.DefaultTenantID)
+	if err := gate.Refresh(reqCtx); err != nil {
+		t.Fatalf("租户 ctx 刷新镜像不应 fail-closed: %v", err)
+	}
+	if !gate.IsEnabled(reqCtx, model.ModuleCore) {
+		t.Error("基础模块应放行")
+	}
+	if gate.IsEnabled(reqCtx, model.ModuleGEO) {
+		t.Error("未开通的收费模块被放行：on 模式闸静默全开（P1 回归）")
+	}
+
+	// 收尾：清镜像行（此刻 mode 仍是 on，无绑定删除会被 fail-closed → 挂 SystemScope）
+	t.Cleanup(func() {
+		for _, m := range []any{&model.TenantModule{}, &model.ModuleSyncLog{}} {
+			if err := database.Session(&gorm.Session{AllowGlobalUpdate: true}).
+				WithContext(tenant.WithSystemScope(context.Background())).
+				Delete(m).Error; err != nil {
+				t.Logf("清理 %T 失败: %v", m, err)
+			}
+		}
+	})
 }

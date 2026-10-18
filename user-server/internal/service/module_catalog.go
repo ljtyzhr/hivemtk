@@ -11,6 +11,7 @@ import (
 	"hivemtk-user/internal/repository"
 
 	"hivemtk-user/internal/config"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 )
 
@@ -114,6 +115,13 @@ func (s *ModuleGateService) IsEnabled(ctx context.Context, moduleKey string) boo
 
 	if !boot {
 		// ① 从未同步过：全放行。首次启动 / 离线部署都走这里。
+		//
+		// on 模式的边界（有意为之，勿"顺手修"）：镜像按租户归属，而平台侧是
+		// 单商户单部署，同步只灌默认租户（tenant_id=1）——租户 2+ 的
+		// tenant_modules 恒空，于是也落进这里（allow-all）。"每个租户各自
+		// bootstrap"是产品决策，不是本次 P1 的范围。
+		// 附注：缓存是进程级单份（gate 只有一份 cache），tenant 2+ 的一次刷新
+		// 会把 bootstrapped 置回 false 直到下一次 TTL 过期 —— 同样属该决策范畴。
 		return true
 	}
 	v, ok := m[moduleKey]
@@ -157,7 +165,11 @@ func (s *ModuleGateService) EnabledKeys(ctx context.Context) map[string]struct{}
 
 // ModuleEnabledFunc 返回可注入 model.FilterMenuTreeByModule 的判定函数
 func (s *ModuleGateService) ModuleEnabledFunc() func(string) bool {
-	keys := s.EnabledKeys(context.Background())
+	// 菜单过滤是进程级快照（全局单口径，不属于任何请求），装配/同步时取一次
+	// 就固化进闭包。on 模式下裸 Background 读租户镜像会 fail-closed —— 过滤器
+	// 拿不到数据 → 整棵菜单按"首启"渲染，且这里没有调用方能感知错误。
+	// 挂 SystemScope 直读；off 模式直通，行为逐字节不变。
+	keys := s.EnabledKeys(tenant.WithSystemScope(context.Background()))
 	return func(moduleKey string) bool {
 		if moduleKey == "" {
 			return true
@@ -209,6 +221,15 @@ type ModuleSyncResult struct {
 func (s *ModuleCatalogService) Sync(ctx context.Context) (*ModuleSyncResult, error) {
 	start := time.Now()
 
+	// 同步/离线引导跑在请求之外（后台 runner、启动期、手动同步按钮），
+	// ctx 无租户绑定 —— on 模式直连会被隔离 callback fail-closed，于是
+	// Refresh/bootstrapped 恒 false → IsEnabled 对所有模块返回 true = 付费闸
+	// 静默全开（P1）。挂 SystemScope：平台侧是单商户单部署，镜像与同步日志
+	// 统一落默认租户（tenant_id 由列默认值/GORM default 填 1，见
+	// repository.UpsertMany 的行为注记）。off 模式 SystemScope 是直通，
+	// SQL 形状逐字节不变。
+	ctx = tenant.WithSystemScope(ctx)
+
 	if !config.PlatformEnabled() {
 		return s.bootstrapOffline(ctx, start)
 	}
@@ -255,6 +276,21 @@ func (s *ModuleCatalogService) Sync(ctx context.Context) (*ModuleSyncResult, err
 		})
 		return nil, err
 	}
+	// 订单状态同步（与模块同一个周期）。
+	//
+	// 为什么必须做：module_orders 此前只在**下单时**写一次，之后永不刷新 ——
+	// 于是平台确认收款后，用户端订单页会**永远显示「待确认收款」**，
+	// 而「我的模块」页却已经显示该模块已开通。两页自相矛盾，
+	// 用户会以为"付款了但没生效"而重复下单。
+	//
+	// 只刷状态、不覆盖 items/payment_guide：那两样是下单时的快照，不可变；
+	// 而状态是唯一会变的东西。这也避免了为刷新去扩展平台端的列表响应。
+	if n, oerr := s.syncOrderStatuses(ctx); oerr != nil {
+		logger.Warnf("[module-sync] 订单状态同步失败（不影响模块下发）: %v", oerr)
+	} else if n > 0 {
+		logger.Infof("[module-sync] 已刷新 %d 条订单状态", n)
+	}
+
 	// 本地存在但平台已不再下发的模块要显式失效，否则撤销永远不生效
 	existing, err := s.repo.ListAll(ctx)
 	if err == nil {
@@ -433,4 +469,55 @@ func (s *ModuleCatalogService) MyModules(ctx context.Context) ([]MyModuleView, e
 // SyncLogs 同步日志
 func (s *ModuleCatalogService) SyncLogs(ctx context.Context, limit int) ([]*model.ModuleSyncLog, error) {
 	return s.repo.ListLogs(ctx, limit)
+}
+
+// syncOrderStatuses 从平台拉取本商户订单列表，刷新本地镜像的**状态**。
+//
+// 只更新 status / paid_at：items 与 payment_guide 是下单时的快照，不可变。
+// 返回更新的条数。
+func (s *ModuleCatalogService) syncOrderStatuses(ctx context.Context) (int, error) {
+	rows, _, err := platform.NewModuleClient().ListOrders(ctx, "", 1, 200)
+	if err != nil {
+		return 0, err
+	}
+	updated := 0
+	now := time.Now()
+	for _, r := range rows {
+		orderNo := mapStr(r, "order_no")
+		status := mapStr(r, "status")
+		if orderNo == "" || status == "" {
+			continue
+		}
+		local, err := s.order.GetByOrderNo(ctx, orderNo)
+		if err != nil || local == nil {
+			continue // 本地没有的订单不新建：列表只以本地已下的单为准
+		}
+		if local.Status == status && local.PaidAt != nil {
+			continue
+		}
+		local.Status = status
+		local.UpdatedAt = now
+		if status == model.ModuleOrderPaid || status == model.ModuleOrderFulfilled {
+			if local.PaidAt == nil {
+				local.PaidAt = &now
+			}
+		}
+		if err := s.order.Upsert(ctx, local); err != nil {
+			logger.Warnf("[module-sync] 刷新订单 %s 状态失败: %v", orderNo, err)
+			continue
+		}
+		updated++
+	}
+	return updated, nil
+}
+
+// mapStr 从平台返回的 map 里安全取字符串字段
+func mapStr(m map[string]any, key string) string {
+	if m == nil {
+		return ""
+	}
+	if v, ok := m[key].(string); ok {
+		return v
+	}
+	return ""
 }
