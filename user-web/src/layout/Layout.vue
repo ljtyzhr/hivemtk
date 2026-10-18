@@ -214,11 +214,11 @@ import i18n from '@/i18n'
 import { useUserStore } from '@/stores/user'
 import { usePermissionStore } from '@/stores/permission'
 import { useOnboarding } from '@/composables/useOnboarding'
-import { Warning, Bell, Menu, SwitchButton, Fold, Expand, QuestionFilled, Refresh } from '@element-plus/icons-vue'
+import { Warning, Bell, Menu, SwitchButton, Fold, Expand, QuestionFilled, Refresh, Compass } from '@element-plus/icons-vue'
 import { routeIconMap, resolveRouteIcon } from '@/utils/iconMap'
-void Bell; void Warning; void Menu; void SwitchButton; void Fold; void Expand; void Refresh
+void Bell; void Warning; void Menu; void SwitchButton; void Fold; void Expand; void Refresh; void Compass
 
-const { restart } = useOnboarding()
+const { startGlobalTour } = useOnboarding()
 
 // 传给 SubMenuItem 的仍是整张表（它内部走 resolveRouteIcon 逐个解析），
 // 顶层菜单这里也走同一个解析函数：2026-10-12 之前这里写的是

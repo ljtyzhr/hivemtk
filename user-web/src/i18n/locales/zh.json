@@ -1935,29 +1935,136 @@
       "prev": "上一步",
       "done": "完成",
       "skip": "跳过",
-      "step1": {
-        "title": "品牌标识",
-        "description": "这是系统 Logo，点击可返回首页仪表盘"
+      "global": {
+        "step1": {
+          "title": "品牌标识",
+          "description": "这是系统 Logo，点击可返回首页仪表盘"
+        },
+        "step2": {
+          "title": "顶部导航菜单",
+          "description": "在这里切换主要功能模块：工作台、消息中台、客户中心、AI智能体、触达运营、知识中心、数据分析、系统设置等"
+        },
+        "step3": {
+          "title": "侧边栏菜单",
+          "description": "当前模块下的子功能菜单，支持折叠展开。收起时仅显示图标，节省屏幕空间"
+        },
+        "step4": {
+          "title": "通知中心",
+          "description": "查看系统通知、版本公告、重要提醒。红点表示有未读消息"
+        },
+        "step5": {
+          "title": "用户菜单",
+          "description": "个人资料、帮助中心、退出登录。头像显示用户名首字母"
+        },
+        "step6": {
+          "title": "主内容区",
+          "description": "所有业务页面都在这里渲染。支持面包屑导航、页面切换动画"
+        }
       },
-      "step2": {
-        "title": "顶部导航菜单",
-        "description": "在这里切换主要功能模块：工作台、消息中台、客户中心、AI智能体、触达运营、知识中心、数据分析、系统设置等"
+      "module": {
+        "messageHub": {
+          "step1": { "title": "消息概览卡片", "description": "实时展示各渠道消息量、未读数、响应时长等核心指标" },
+          "step2": { "title": "渠道标签页", "description": "按渠道分类查看消息：微信、WhatsApp、Telegram、邮件、短信等" },
+          "step3": { "title": "消息列表表格", "description": "所有进入的消息汇总，支持按状态、渠道、时间筛选，点击可查看详情" }
+        },
+        "inbox": {
+          "step1": { "title": "筛选工具栏", "description": "按坐席、渠道、标签、时间范围快速筛选会话" },
+          "step2": { "title": "会话列表", "description": "所有进行中/待接入/已结束的会话，支持搜索客户名称/ID" },
+          "step3": { "title": "聊天面板", "description": "当前会话的消息记录，支持发送文本、图片、文件、快捷回复" },
+          "step4": { "title": "坐席分配下拉", "description": "将会话分配给在线坐席，或转接给 AI 智能体自动接管" }
+        },
+        "customer": {
+          "step1": { "title": "客户搜索框", "description": "支持按手机号、邮箱、姓名、OneID、标签多维度检索客户" },
+          "step2": { "title": "客户画像卡片", "description": "360° 全视角：基础属性、行为事件、标签分层、会话记录、订单轨迹" },
+          "step3": { "title": "详情标签页", "description": "事件流、标签、会话、订单、线索、资产包——多维度穿透查看" },
+          "step4": { "title": "标签编辑器", "description": "为客户打标签、分群，支撑精准触达与 RFM 分层" }
+        },
+        "aiAgent": {
+          "step1": { "title": "智能体列表工具栏", "description": "新建、导入、导出、按类型筛选（销售/客服/混合）" },
+          "step2": { "title": "智能体表格", "description": "查看编码、名称、类型、绑定渠道、状态、最后更新时间" },
+          "step3": { "title": "创建智能体对话框", "description": "配置人设、Prompt、知识库、工具、模型参数、置信度阈值" }
+        },
+        "agentActive": {
+          "step1": { "title": "画布编辑区", "description": "拖拽节点构建触达流程：延时、分支、动作、AI 节点可视化编排" },
+          "step2": { "title": "节点面板", "description": "触发器、动作、条件、AI、延时、子流程——丰富节点类型" },
+          "step3": { "title": "画布工具栏", "description": "缩放、居中、撤销/重做、发布上线、版本管理、导出 JSON" }
+        },
+        "agentSupport": {
+          "step1": { "title": "SOP 列表", "description": "标准化作业程序：场景、步骤、话术、预期结果，支持版本控制" },
+          "step2": { "title": "话术模板库", "description": "销冠实战话术：开场、异议处理、促单、结单，按场景分类" },
+          "step3": { "title": "FAQ 知识库", "description": "高频问答配置，AI 自动匹配回复，支持相似度阈值调优" }
+        },
+        "agentWorkbench": {
+          "step1": { "title": "坐席状态看板", "description": "实时显示在线/忙碌/离线坐席，当前接待数、上限、平均响应时长" },
+          "step2": { "title": "快捷回复面板", "description": "按分类检索话术，一键发送，支持变量插入（客户名、订单号）" },
+          "step3": { "title": "AI 建议面板", "description": "实时推荐回复、知识片段、话术，坐席点击即用，提升效率" }
+        },
+        "reach": {
+          "step1": { "title": "触达渠道标签", "description": "邮件、短信、WhatsApp、抖音、快手、小红书、闲鱼、TikTok 多渠道统一管理" },
+          "step2": { "title": "草稿箱列表", "description": "编辑中/待审核/定时发送的草稿，支持富文本、变量、附件" },
+          "step3": { "title": "任务配置", "description": "设置发送对象、时间、频次、去重规则、AB 测试、送达追踪" }
+        },
+        "knowledge": {
+          "step1": { "title": "文档树导航", "description": "多级目录管理知识库文档，支持拖拽排序、移动、复制" },
+          "step2": { "title": "富文本编辑器", "description": "所见即所得编辑，支持图片、表格、代码块、公式、内链" },
+          "step3": { "title": "检索 Playground", "description": "实时测试向量检索效果，调整 Top-K、相似度阈值、重排序策略" }
+        },
+        "analytics": {
+          "step1": { "title": "大屏画布", "description": "拖拽式仪表盘构建：图表、指标卡、表格、地图、自定义组件" },
+          "step2": { "title": "组件库面板", "description": "预置 20+ 图表类型：折线、柱状、饼图、漏斗、桑基、热力图等" },
+          "step3": { "title": "数据源配置", "description": "绑定 API、SQL、CSV、实时流，字段映射、计算字段、缓存策略" }
+        },
+        "geoTools": {
+          "step1": { "title": "GEO 模块标签", "description": "关键词蒸馏、内容创作、文章优化、多模型验证、数据报表、配置优化" },
+          "step2": { "title": "关键词/内容表格", "description": "搜索量、竞争度、意图分类、SERP 特征、排名追踪、AI 概览引用" },
+          "step3": { "title": "内容编辑器", "description": "AI 辅助写作：大纲生成、正文扩写、SEO 优化、多语言同步、合规审核" }
+        },
+        "system": {
+          "step1": { "title": "系统设置标签页", "description": "站点配置、存储、监控、链路追踪、素材库、使用引导、功能开关" },
+          "step2": { "title": "人员/角色/权限表格", "description": "用户管理、角色分配、菜单授权、数据权限、操作审计、登录日志" },
+          "step3": { "title": "权限配置矩阵", "description": "基于 RBAC 的菜单/按钮/数据权限可视化配置，超管全量、普通角色按需" }
+        },
+        "assetBundle": {
+          "step1": { "title": "资产包列表", "description": "版本化管理：话术包、知识包、工作流包、配置包，支持依赖声明" },
+          "step2": { "title": "开发者 Playground", "description": "在线调试资产包：模拟输入、查看输出、单元测试、性能基准" },
+          "step3": { "title": "商户话术包", "description": "面向商户的标准化交付：安装向导、配置向导、版本升级、回滚" }
+        },
+        "assetMarket": {
+          "step1": { "title": "市场筛选器", "description": "按分类、标签、价格、评分、兼容版本筛选资产包" },
+          "step2": { "title": "资产包网格", "description": "预览封面、简介、版本、作者、下载量、评价，一键安装/试用" },
+          "step3": { "title": "我的资产标签", "description": "已安装/已购买/开发中/待审核，版本更新提醒、一键升级" }
+        }
       },
-      "step3": {
-        "title": "侧边栏菜单",
-        "description": "当前模块下的子功能菜单，支持折叠展开。收起时仅显示图标，节省屏幕空间"
-      },
-      "step4": {
-        "title": "通知中心",
-        "description": "查看系统通知、版本公告、重要提醒。红点表示有未读消息"
-      },
-      "step5": {
-        "title": "用户菜单",
-        "description": "个人资料、帮助中心、退出登录。头像显示用户名首字母"
-      },
-      "step6": {
-        "title": "主内容区",
-        "description": "所有业务页面都在这里渲染。支持面包屑导航、页面切换动画"
+      "page": {
+        "messageHub": {
+          "step1": { "title": "概览统计卡片", "description": "总消息量、未读数、平均响应时长、SLA 达标率——一眼掌握全局" },
+          "step2": { "title": "渠道/状态筛选器", "description": "组合筛选：渠道×状态×时间范围，支持保存常用筛选为视图" },
+          "step3": { "title": "消息详情表格", "description": "发送方、内容预览、状态、耗时、重试次数、错误码——可导出 CSV" },
+          "step4": { "title": "分页器", "description": "每页条数、跳转页码、总条数，大数据量下自动虚拟滚动" }
+        },
+        "inbox": {
+          "step1": { "title": "会话筛选工具栏", "description": "坐席×渠道×标签×状态×时间，支持『我的/全部/未读』快捷视图" },
+          "step2": { "title": "会话列表", "description": "客户头像、姓名、最后消息、未读数、等待时长、坐席、标签" },
+          "step3": { "title": "聊天交互区", "description": "消息气泡、输入框（/快捷回复/@AI建议/附件）、发送状态、已读回执" },
+          "step4": { "title": "坐席分配下拉", "description": "在线坐席实时名单，显示当前负载、技能标签，支持强制接管/转接" }
+        },
+        "customer": {
+          "step1": { "title": "客户检索框", "description": "多字段模糊匹配，支持高级语法：field:value、标签:tag、事件:event" },
+          "step2": { "title": "客户画像卡", "description": "身份标签、RFM 分层、生命周期阶段、意向等级、最近活跃时间" },
+          "step3": { "title": "详情标签页组", "description": "事件流(时间轴)、标签管理、会话记录、订单轨迹、线索跟进、资产包" },
+          "step4": { "title": "标签编辑侧边栏", "description": "系统标签/自定义标签/规则标签三层体系，支持批量打标、标签血缘" }
+        },
+        "aiAgent": {
+          "step1": { "title": "列表操作栏", "description": "新建/导入/导出/克隆/启用/禁用/删除，批量操作更高效" },
+          "step2": { "title": "智能体表格", "description": "编码/名称/类型/模型/知识库/工具/渠道/状态/更新时间，列可自定义" },
+          "step3": { "title": "创建/编辑弹窗", "description": "基础信息、人设 Prompt、模型参数、知识库绑定、工具授权、置信度策略、测试对话" }
+        },
+        "agentActive": {
+          "step1": { "title": "流程画布", "description": "节点间连线自动布局，支持分支汇聚、并行网关、子流程复用" },
+          "step2": { "title": "节点配置面板", "description": "每种节点专属表单：延时(时长/表达式)、分支(条件表达式)、AI(Prompt/工具/回退)" },
+          "step3": { "title": "画布工具栏", "description": "缩放/居中/撤销/重做/对齐/网格/发布/版本/导入导出/预览模式" },
+          "step4": { "title": "迷你地图", "description": "大画布鸟瞰视角，快速定位、拖拽视野，复杂流程不迷路" }
+        }
       }
     }
   }

@@ -144,9 +144,10 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue'
+import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
+import { ElMessage } from 'element-plus'
 import {
-  listModuleOrders, paymentGuide, fmtPrice,
+  listModuleOrders, paymentGuide, syncModules, fmtPrice,
   ORDER_STATUS_LABEL
 } from '@/api/moduleMarket'
 
@@ -164,6 +165,49 @@ const guideVisible = ref(false)
 const currentGuide = ref('')
 const page = ref(1)
 const pageSize = ref(20)
+const syncing = ref(false)
+
+// 有未完成的订单才轮询 —— 没有待确认订单时空转只是白耗请求。
+const hasPending = computed(() => list.value.some(o => o.status === 'pending_payment'))
+let pollTimer = null
+
+// refreshGrantState 触发一次模块下发同步并刷新列表。
+// 同步成功后后端会即刻刷新闸的缓存（见 service/module_catalog.go 的 Sync 尾部），
+// 所以这次调用之后菜单与接口权限就是最新的。
+async function refreshGrantState () {
+  syncing.value = true
+  try {
+    const res = await syncModules()
+    if (res?.degraded) {
+      ElMessage.warning(res.message || '平台暂不可达，已沿用上次同步结果')
+    } else {
+      ElMessage.success(res?.message || `已同步，当前开通 ${res?.active_count ?? 0} 个模块`)
+    }
+    await fetch()
+  } catch (e) {
+    ElMessage.error(e?.message || '同步失败')
+  } finally {
+    syncing.value = false
+  }
+}
+
+// 页面停留在订单页且存在待确认订单时，每 30 秒自动同步一次。
+// 30 秒是权衡：比 10 分钟的后台周期快得多（用户"看着它开通"），
+// 又不至于像 3 秒那样把同步打得太频。
+function startPolling () {
+  stopPolling()
+  pollTimer = setInterval(() => {
+    if (!hasPending.value) return
+    refreshGrantState()
+  }, 30000)
+}
+
+function stopPolling () {
+  if (pollTimer) {
+    clearInterval(pollTimer)
+    pollTimer = null
+  }
+}
 
 async function fetch () {
   loading.value = true
@@ -205,7 +249,12 @@ function waitingText (row) {
   return `已等待 ${Math.floor(hours / 24)} 天`
 }
 
-onMounted(fetch)
+onMounted(async () => {
+  await fetch()
+  startPolling()
+})
+
+onBeforeUnmount(stopPolling)
 </script>
 
 <style scoped>

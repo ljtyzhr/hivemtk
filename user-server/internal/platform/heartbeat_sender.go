@@ -105,6 +105,7 @@ func sendHeartbeat() {
 
 	req := &ReportHeartbeatReq{
 		InstallID:         st.InstallID,
+		MerchantKey:       GetMerchantKey(),
 		Version:           version,
 		HostInfo:          hostInfo,
 		Metrics:           metrics,

@@ -50,6 +50,11 @@ func (s *MenuService) GetAllMenuTree() []model.SystemMenuNode {
 //
 // 错误：角色非法 → ErrInvalidInput
 func (s *MenuService) GetUserMenuTree(ctx context.Context, role string) ([]model.SystemMenuNode, error) {
+	// 兼容 v1 历史值：自助注册/SSO 写入的 role="user" 不在 v3.1 三档内，
+	// 直接拒绝会让这类账号 /api/menus 报「角色不存在」、前端路由守卫拿不到
+	// 菜单树而卡死在默认页。按 role.go 的既定口径归一化为 staff 再走两道闸。
+	role = model.NormalizeRole(role)
+
 	// 第 1 道：模块闸。未装配判定函数时 FilterMenuTreeByModule 原样返回全树
 	// （离线首启 / 单测不注入），保证不会因为"闸没接上"而空菜单。
 	moduleTree := model.FilterMenuTreeByModule(model.SystemMenuTree, model.ModuleEnabledFilter)
@@ -79,6 +84,8 @@ func (s *MenuService) GetUserMenuTree(ctx context.Context, role string) ([]model
 //
 // 错误：角色非法 → ErrInvalidInput
 func (s *MenuService) GetRoleMenuKeys(ctx context.Context, role string) ([]string, error) {
+	// 同 GetUserMenuTree：历史 role="user" 归一化为 staff，避免管理端回显/守卫口径分裂
+	role = model.NormalizeRole(role)
 	if role == model.SystemRoleCodeAdmin {
 		return model.FlattenMenuKeys(model.SystemMenuTree), nil
 	}

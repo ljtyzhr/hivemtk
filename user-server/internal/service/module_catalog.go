@@ -411,7 +411,17 @@ func (s *ModuleCatalogService) MyModules(ctx context.Context) ([]MyModuleView, e
 			if v.PriceCents == 0 {
 				v.PriceCents = tm.PriceCents
 			}
-			if len(tm.MenuKeys) > 2 {
+			// 菜单键**优先用编译期绑定**，本地镜像列只作兜底。
+			//
+			// 镜像里的 menu_keys 是平台下发回来的，而平台那份又是由本仓
+			// cmd/gen-module-bindings 从 ModuleMenuBindings 导出的 ——
+			// 也就是"把编译期常量绕一圈发回来"。用它当权威有两个坏处：
+			//   ① 离线且从未同步成功时它是空的，而编译期绑定始终可用；
+			//   ② 两端版本不一致时（用户端升级了、平台还没重新 seed），
+			//      它会显示过期清单，而本地那份是对的。
+			// 只有 llm-cloud 这类**没有菜单页**的模块，编译期绑定本就为空，
+			// 此时才需要镜像兜底。
+			if len(v.MenuKeys) == 0 {
 				v.MenuKeys = repository.MenuKeysOf(tm)
 			}
 		}

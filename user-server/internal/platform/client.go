@@ -341,7 +341,25 @@ func (c *Client) loadMerchantSecret() error {
 	b, err := os.ReadFile(p)
 	switch {
 	case err == nil:
-		c.SetMerchantSecret(strings.TrimSpace(string(b)))
+		fromFile := strings.TrimSpace(string(b))
+		c.SetMerchantSecret(fromFile)
+		// 文件值与环境变量**不一致时告警**。
+		//
+		// 事故实测（2026-10-18）：环境变量配得完全正确，平台却持续返回
+		// 「签名错误 401」—— 因为文件里留着 2026-09-04 的旧值，而文件在解析链上
+		// **优先于环境变量**，且这个优先级在代码里是隐式的（`if secret != ""` 挡在前）。
+		// 两侧"看起来都配对了"，没有任何一处提示谁赢了。
+		//
+		// 这条告警把隐式优先级变成显式事实：一旦两边都有值且不同，日志里直接点名。
+		// 不改成"env 优先"是因为文件是**每商户独立密钥**的落盘位置（契约 §1），
+		// 语义上比全局 env 更具体 —— 改优先级会反过来让文件失效。
+		if fromFile != "" {
+			if env := strings.TrimSpace(os.Getenv("MERCHANT_API_SECRET")); env != "" && env != fromFile {
+				logger.Warnf("[platform] 签名密钥来源冲突：文件 %s 的值与环境变量 MERCHANT_API_SECRET 不同，"+
+					"**实际生效的是文件值**（文件在解析链上优先）。若平台持续返回「签名错误」，"+
+					"先核对本文件是否残留旧值。", p)
+			}
+		}
 		return nil
 	case errors.Is(err, fs.ErrNotExist):
 		return nil
@@ -467,7 +485,16 @@ func ReportInstallDefault(req *ReportInstallReq) error {
 
 // ReportHeartbeatReq 心跳上报请求（开源版：每 3 分钟上报一次，仅统计用）
 type ReportHeartbeatReq struct {
-	InstallID         string          `json:"install_id"`
+	InstallID string `json:"install_id"`
+	// MerchantKey 本部署的商户标识。
+	//
+	// 带上它的目的是**把平台端两套并行身份连起来**：merchants 按 merchant_key 记
+	// 商业关系，platform_installs 按 install_id 记运维信息，此前两者互不关联
+	// （写 merchants.install_id 的唯一路径 /api/platform/install 在用户端零调用）。
+	//
+	// 用心跳带而不是新增一条上报：心跳是**已经跑通**的通道，加一个字段
+	// 比新开一条链路便宜得多，也不会引入新的失败面。
+	MerchantKey       string          `json:"merchant_key"`
 	Version           string          `json:"version"`
 	HostInfo          json.RawMessage `json:"host_info"`
 	Metrics           json.RawMessage `json:"metrics"`

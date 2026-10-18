@@ -1936,29 +1936,136 @@
       "prev": "Previous",
       "done": "Finish",
       "skip": "Skip",
-      "step1": {
-        "title": "Brand Logo",
-        "description": "This is the system logo. Click to return to the home dashboard."
+      "global": {
+        "step1": {
+          "title": "Brand Logo",
+          "description": "This is the system logo. Click to return to the home dashboard."
+        },
+        "step2": {
+          "title": "Top Navigation Menu",
+          "description": "Switch between main modules: Workspace, Message Hub, Customer Center, AI Agent, Outreach, Knowledge Center, Analytics, System Settings, and more."
+        },
+        "step3": {
+          "title": "Sidebar Menu",
+          "description": "Sub-menus for the current module. Collapse to show icons only and save screen space."
+        },
+        "step4": {
+          "title": "Notification Center",
+          "description": "View system notifications, release announcements, and important alerts. Red dot indicates unread messages."
+        },
+        "step5": {
+          "title": "User Menu",
+          "description": "Profile, Help Center, Logout. Avatar shows the first letter of your username."
+        },
+        "step6": {
+          "title": "Main Content Area",
+          "description": "All business pages render here. Supports breadcrumb navigation and page transition animations."
+        }
       },
-      "step2": {
-        "title": "Top Navigation Menu",
-        "description": "Switch between main modules: Workspace, Message Hub, Customer Center, AI Agent, Outreach, Knowledge Center, Analytics, System Settings, and more."
+      "module": {
+        "messageHub": {
+          "step1": { "title": "Message Overview Cards", "description": "Real-time metrics: total messages, unread count, avg response time, SLA compliance per channel" },
+          "step2": { "title": "Channel Tabs", "description": "Filter messages by channel: WeChat, WhatsApp, Telegram, Email, SMS, and more" },
+          "step3": { "title": "Message List Table", "description": "All incoming messages aggregated. Filter by status, channel, time. Click for details" }
+        },
+        "inbox": {
+          "step1": { "title": "Filter Toolbar", "description": "Quick filter sessions by agent, channel, tag, time range" },
+          "step2": { "title": "Session List", "description": "Active/pending/closed sessions. Search by customer name or ID" },
+          "step3": { "title": "Chat Panel", "description": "Current session messages. Send text, images, files, quick replies" },
+          "step4": { "title": "Agent Assignment", "description": "Assign to online agents or hand off to AI agent for auto-reply" }
+        },
+        "customer": {
+          "step1": { "title": "Customer Search", "description": "Multi-dimensional lookup: phone, email, name, OneID, tags" },
+          "step2": { "title": "360° Profile Card", "description": "Full view: attributes, events, tags, sessions, orders, leads, assets" },
+          "step3": { "title": "Detail Tabs", "description": "Event stream, tags, sessions, orders, leads, assets — deep dive each dimension" },
+          "step4": { "title": "Tag Editor", "description": "Tag customers, build segments for precision outreach and RFM layering" }
+        },
+        "aiAgent": {
+          "step1": { "title": "Agent List Toolbar", "description": "Create, import, export, filter by type (Sales/Support/Hybrid)" },
+          "step2": { "title": "Agent Table", "description": "Code, name, type, bound channels, status, last updated — all at a glance" },
+          "step3": { "title": "Create Agent Dialog", "description": "Configure persona, prompt, knowledge base, tools, model params, confidence threshold" }
+        },
+        "agentActive": {
+          "step1": { "title": "Canvas Editor", "description": "Drag-drop nodes to build outreach flows: delay, branch, action, AI nodes" },
+          "step2": { "title": "Node Palette", "description": "Triggers, actions, conditions, AI, delay, sub-flows — rich node types" },
+          "step3": { "title": "Canvas Toolbar", "description": "Zoom, center, undo/redo, publish, version control, export JSON" }
+        },
+        "agentSupport": {
+          "step1": { "title": "SOP List", "description": "Standard operating procedures: scenario, steps, scripts, expected outcomes, versioned" },
+          "step2": { "title": "Script Template Library", "description": "Top-performer scripts: opening, objection handling, closing, categorized by scenario" },
+          "step3": { "title": "FAQ Knowledge Base", "description": "High-frequency Q&A config. AI auto-matches replies. Tunable similarity threshold" }
+        },
+        "agentWorkbench": {
+          "step1": { "title": "Agent Status Board", "description": "Real-time online/busy/offline agents, current load, capacity, avg response time" },
+          "step2": { "title": "Quick Reply Panel", "description": "Search scripts by category. One-click send. Variable insertion (name, order#)" },
+          "step3": { "title": "AI Suggestion Panel", "description": "Real-time reply suggestions, knowledge snippets, scripts. Click to use. Boost efficiency" }
+        },
+        "reach": {
+          "step1": { "title": "Channel Tabs", "description": "Email, SMS, WhatsApp, Douyin, Kuaishou, Xiaohongshu, Xianyu, TikTok — unified" },
+          "step2": { "title": "Drafts List", "description": "Editing/pending review/scheduled drafts. Rich text, variables, attachments supported" },
+          "step3": { "title": "Job Configuration", "description": "Target audience, schedule, frequency, deduplication, A/B test, delivery tracking" }
+        },
+        "knowledge": {
+          "step1": { "title": "Document Tree", "description": "Multi-level folder management. Drag-drop reorder, move, copy" },
+          "step2": { "title": "Rich Text Editor", "description": "WYSIWYG editing. Images, tables, code blocks, formulas, internal links" },
+          "step3": { "title": "Retrieval Playground", "description": "Live test vector search. Tune Top-K, similarity threshold, rerank strategy" }
+        },
+        "analytics": {
+          "step1": { "title": "Dashboard Canvas", "description": "Drag-drop builder: charts, KPI cards, tables, maps, custom components" },
+          "step2": { "title": "Widget Library", "description": "20+ chart types: line, bar, pie, funnel, sankey, heatmap, and more" },
+          "step3": { "title": "Data Source Config", "description": "Bind API, SQL, CSV, streams. Field mapping, computed fields, cache strategy" }
+        },
+        "geoTools": {
+          "step1": { "title": "GEO Module Tabs", "description": "Keyword mining, content creation, optimization, multi-model verification, reports, config" },
+          "step2": { "title": "Keyword/Content Table", "description": "Search volume, competition, intent, SERP features, rank tracking, AI overview citations" },
+          "step3": { "title": "Content Editor", "description": "AI-assisted writing: outline, expand, SEO optimize, multi-lang sync, compliance check" }
+        },
+        "system": {
+          "step1": { "title": "Settings Tabs", "description": "Site config, storage, monitoring, tracing, asset library, guide, feature flags" },
+          "step2": { "title": "User/Role/Permission Tables", "description": "User mgmt, role assignment, menu auth, data permission, audit logs, login logs" },
+          "step3": { "title": "Permission Matrix", "description": "RBAC-based menu/button/data permission visual config. Admin all, roles on-demand" }
+        },
+        "assetBundle": {
+          "step1": { "title": "Bundle List", "description": "Versioned: script packs, knowledge packs, workflow packs, config packs with deps" },
+          "step2": { "title": "Dev Playground", "description": "Online debug: mock input, view output, unit test, performance benchmark" },
+          "step3": { "title": "Merchant Script Pack", "description": "Standardized delivery: install wizard, config wizard, version upgrade, rollback" }
+        },
+        "assetMarket": {
+          "step1": { "title": "Market Filters", "description": "Filter by category, tag, price, rating, compatible version" },
+          "step2": { "title": "Bundle Grid", "description": "Preview cover, intro, version, author, downloads, reviews. One-click install/try" },
+          "step3": { "title": "My Assets Tab", "description": "Installed/purchased/developing/pending. Update notifications, one-click upgrade" }
+        }
       },
-      "step3": {
-        "title": "Sidebar Menu",
-        "description": "Sub-menus for the current module. Collapse to show icons only and save screen space."
-      },
-      "step4": {
-        "title": "Notification Center",
-        "description": "View system notifications, release announcements, and important alerts. Red dot indicates unread messages."
-      },
-      "step5": {
-        "title": "User Menu",
-        "description": "Profile, Help Center, Logout. Avatar shows the first letter of your username."
-      },
-      "step6": {
-        "title": "Main Content Area",
-        "description": "All business pages render here. Supports breadcrumb navigation and page transition animations."
+      "page": {
+        "messageHub": {
+          "step1": { "title": "Overview KPI Cards", "description": "Total messages, unread, avg response time, SLA rate — instant global view" },
+          "step2": { "title": "Channel/Status Filter", "description": "Combo filter: channel × status × time. Save as custom views" },
+          "step3": { "title": "Message Detail Table", "description": "Sender, preview, status, latency, retries, error code. Export to CSV" },
+          "step4": { "title": "Pagination", "description": "Page size, jump to page, total count. Virtual scroll for large datasets" }
+        },
+        "inbox": {
+          "step1": { "title": "Session Filter Bar", "description": "Agent × channel × tag × status × time. Quick views: Mine/All/Unread" },
+          "step2": { "title": "Session List", "description": "Avatar, name, last msg, unread badge, wait time, agent, tags" },
+          "step3": { "title": "Chat Interaction", "description": "Bubbles, input (/, @AI, attach), send status, read receipt" },
+          "step4": { "title": "Agent Assign Dropdown", "description": "Live agent list with load & skills. Force take-over or transfer" }
+        },
+        "customer": {
+          "step1": { "title": "Customer Search Box", "description": "Multi-field fuzzy match. Advanced syntax: field:value, tag:tag, event:event" },
+          "step2": { "title": "Profile Card", "description": "Identity tags, RFM segment, lifecycle stage, intent level, last active" },
+          "step3": { "title": "Detail Tab Group", "description": "Event timeline, tags, sessions, orders, leads, assets — all dimensions" },
+          "step4": { "title": "Tag Editor Sidebar", "description": "System/custom/rule tags 3-layer. Batch tag, tag lineage" }
+        },
+        "aiAgent": {
+          "step1": { "title": "List Action Bar", "description": "Create/import/export/clone/enable/disable/delete. Batch ops supported" },
+          "step2": { "title": "Agent Table", "description": "Code/name/type/model/KB/tools/channels/status/updated. Columns customizable" },
+          "step3": { "title": "Create/Edit Dialog", "description": "Basic info, persona prompt, model params, KB binding, tools, confidence, test chat" }
+        },
+        "agentActive": {
+          "step1": { "title": "Flow Canvas", "description": "Auto-layout connections. Branch merge, parallel gateway, sub-flow reuse" },
+          "step2": { "title": "Node Config Panel", "description": "Per-node forms: delay(duration/expr), branch(condition), AI(prompt/tools/fallback)" },
+          "step3": { "title": "Canvas Toolbar", "description": "Zoom/center/undo/redo/align/grid/publish/version/import-export/preview" },
+          "step4": { "title": "Minimap", "description": "Bird's-eye view for large flows. Quick navigate, drag viewport, never lost" }
+        }
       }
     }
   }
