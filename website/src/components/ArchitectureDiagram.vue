@@ -43,7 +43,7 @@ const layers = [
   {
     id: 'L4',
     name: '工具注册表',
-    desc: '42 工具 · ToolRouter',
+    desc: '45 工具 · ToolRouter',
     items: [
       { t: 'customer.*', s: '客户' },
       { t: 'knowledge.*', s: '知识' },

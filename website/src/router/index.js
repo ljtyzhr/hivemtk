@@ -10,7 +10,7 @@ const routes = [
     component: () => import('../views/HomePage.vue'),
     meta: {
       title: '首页',
-      description: 'HiveMTK 是把七端社媒、ReAct 自主智能体（42 工具）、零出域数据安全三件事同时做透的私域 AI 营销操作系统。94 个业务模块 + GEO 智能优化，AGPL-3.0 开源，4 步私有化部署。',
+      description: 'HiveMTK 是把七端社媒、ReAct 自主智能体（45 工具）、零出域数据安全三件事同时做透的私域 AI 营销操作系统。94 个业务模块 + GEO 智能优化，AGPL-3.0 开源，4 步私有化部署。',
       keywords: 'HiveMTK,私域AI营销操作系统,七端打透,ReAct智能体,GEO,生成式引擎优化,私有化部署,AGPL-3.0开源,数据不出域,AI自动谈单,销冠SOP,客户CDP',
     },
   },
@@ -46,6 +46,26 @@ const routes = [
       title: '核心功能',
       description: 'HiveMTK 核心功能：七端多账号聚合、AI 自动谈单、销冠 SOP 智能体、客户 CDP、全渠道触达、私域自动化与数据驾驶舱。',
       keywords: 'HiveMTK核心功能,七端多账号聚合,AI自动谈单,销冠SOP智能体,客户CDP,全渠道触达,私域自动化,数据驾驶舱',
+    },
+  },
+  {
+    path: '/modules',
+    name: 'Modules',
+    component: () => import('../views/ModulesPage.vue'),
+    meta: {
+      title: '功能架构',
+      description: 'HiveMTK 功能架构清单：24 个功能模块（7 基础 + 17 增值）× 212 个菜单节点，模块闸、依赖闭包与离线单机 / SaaS 多租户双形态说明，数据与源码一一对应。',
+      keywords: 'HiveMTK功能架构,功能模块清单,24个功能模块,模块闸,依赖闭包,菜单节点,多租户架构,离线单机部署',
+    },
+  },
+  {
+    path: '/pricing',
+    name: 'Pricing',
+    component: () => import('../views/PricingPage.vue'),
+    meta: {
+      title: '按需订阅',
+      description: 'HiveMTK 按需订阅：AGPL-3.0 开源基座免费，7 个基础模块免费常开，17 个增值模块按年订阅（默认定价明码标价），平台模型算力按 token 预付费，支持 SaaS 多租户与离线单机双形态。',
+      keywords: 'HiveMTK订阅,功能模块订阅,增值模块定价,LLM按量计费,平台模型算力,SaaS多租户,按需订阅',
     },
   },
   {

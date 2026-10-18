@@ -113,7 +113,7 @@ function copyWechat() {
           {{ $t('开箱即用') }}
         </h1>
         <p class="section-subtitle">
-          {{ $t('HiveMTK 基于 AGPL-3.0 开源协议，无授权码、无版本下载、无任何收费环节。源码可直接克隆、Docker 一键启动、源码部署灵活定制。') }}
+          {{ $t('HiveMTK 基于 AGPL-3.0 开源协议，无授权码、无版本下载：代码与 7 个基础功能模块免费，17 个增值功能模块可在系统内按需订阅。源码可直接克隆、Docker 一键启动、源码部署灵活定制。') }}
         </p>
         <p class="section-subtitle" style="margin-top: 8px;">
           <span class="sub-clarify">{{ $t('本页仅展示部署方式与命令，所有源码与配置均在 GitHub / Gitee 仓库直接克隆，无中间分发环节。AGPL-3.0 要求修改后的网络服务代码也必须开源。') }}</span>
@@ -186,7 +186,7 @@ function copyWechat() {
         <div class="public-note glass-card">
           <div class="cta-text">
             <h3>{{ $t('AGPL-3.0 开源，零授权门槛') }}</h3>
-            <p>{{ $t('HiveMTK 基于 AGPL-3.0 协议开源，无授权码、无版本下载、无任何收费环节。源码与文档在 GitHub / Gitee 公开托管，可自由 fork、二次开发；请注意 AGPL-3.0 要求修改后的网络服务代码必须同样开源。') }}</p>
+            <p>{{ $t('HiveMTK 基于 AGPL-3.0 协议开源，无授权码、无版本下载：源码全量免费获取，基础功能模块免费常开，增值功能模块按需订阅（详见按需订阅页）。源码与文档在 GitHub / Gitee 公开托管，可自由 fork、二次开发；请注意 AGPL-3.0 要求修改后的网络服务代码必须同样开源。') }}</p>
           </div>
         </div>
       </div>

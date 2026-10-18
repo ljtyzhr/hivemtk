@@ -146,7 +146,7 @@ export default build({
   'Q: 是否支持公有云 SaaS 模式？': ['Q: Is public-cloud SaaS mode supported?', 'Q: パブリッククラウド SaaS モードは対応？', 'س: هل يُدعم وضع SaaS السحابي العام؟'],
   'Q: 自动回复会被平台封号吗？': ['Q: Could auto-reply get my accounts banned?', 'Q: 自動返信でアカウント停止リスクは？', 'س: هل قد يؤدي الرد الآلي لحظر حساباتي؟'],
   'Q: 需要帮助怎么办？': ['Q: Where can I get help?', 'Q: 助けが必要な場合は？', 'س: كيف أحصل على مساعدة؟'],
-  'ReAct 自主智能体（42 工具）、意图识别、SOP 编排、异议处理。': [
+  'ReAct 自主智能体（45 工具）、意图识别、SOP 编排、异议处理。': [
     'ReAct autonomous agents (45 tools), intent recognition, SOP orchestration, objection handling.',
     'ReAct 自律エージェント（45 ツール）、意図認識、SOP オーケストレーション、異議処理。',
     'وكلاء ReAct ذاتيون (45 أداة)، تمييز النوايا، تنسيق SOP، معالجة الاعتراضات.',

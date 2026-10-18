@@ -1,10 +1,12 @@
 # HiveMTK 官网 / 营销落地页（website）— 菜单页面规格清单
 
-> 生成日期：2026-07-24 ｜ 技术栈：Vue 3 + Vue Router(history) + Vite 8 + vue-i18n 9（中 / 英 / 日 / 阿语）
+> 生成日期：2026-07-24 ｜ 最后更新：2026-10-18 ｜ 技术栈：Vue 3 + Vue Router(history) + Vite 8 + vue-i18n 9（中 / 英 / 日 / 阿语）
 >
 > 站点品牌：`HiveMTK · 私域 AI 营销操作系统`（`src/config/content.js` `brand`）。导航配置：`content.js` 的 `nav`；页面文案集中在 `content.js`，改文案无需改组件。
 >
-> 定位：开源免费、私有化部署官网（无试用 / 付费 / 注册字样）。每个路由带 SEO `meta`（title / description / keywords），由 `router/index.js` `afterEach` 动态注入 `<head>`。
+> 定位（2026-10-18 修订，与产品实况对齐）：**AGPL-3.0 开源 + 私有化部署**——代码与 7 个基础功能模块免费；17 个增值功能模块在系统内**按需订阅**（年费 / 按量预付费）；支持离线单机与 SaaS 多租户双形态。官网 CTA 仍只用「立即部署 / 克隆仓库 / 获取源码」，不提供注册入口。事实源见 `TERMINOLOGY.md` 与 `src/i18n/modules/contentExtra6.js`。
+>
+> 每个路由带 SEO `meta`（title / description / keywords），由 `router/index.js` `afterEach` 动态注入 `<head>`。
 
 ---
 
@@ -14,6 +16,8 @@
 | --- | --- | --- | --- |
 | 首页（品牌 Logo `HiveMTK`） | `/` | `views/HomePage.vue` | route |
 | 核心功能 | `/features` | `views/FeaturesPage.vue` | route |
+| 功能架构 | `/modules` | `views/ModulesPage.vue` | route |
+| 按需订阅 | `/pricing` | `views/PricingPage.vue` | route |
 | 工程能力 | `/toolchain` | `views/ToolchainPage.vue` | route |
 | 工作流 | `/workflow` | `views/WorkflowPage.vue` | route |
 | 常见问题 | `/faq` | `views/FaqPage.vue` | route |
@@ -21,7 +25,7 @@
 | 安装文档 | `/docs` | `views/DocsPage.vue` | route |
 | 右侧 CTA「立即部署」 | `/deploy` | `views/DeployPage.vue` | route |
 
-> 导航共 6 项 `nav.links` + 1 项 `nav.cta`，全部为 `type: 'route'`。
+> 导航共 8 项 `nav.links` + 1 项 `nav.cta`，全部为 `type: 'route'`。
 
 ---
 
@@ -64,7 +68,7 @@
 
 #### 首页其余区块
 
-- **FeaturesSection**：11 项核心功能卡（详见 `/features`）
+- **FeaturesSection**：13 项核心功能卡（详见 `/features`）
 - **ArchitectureDiagram**：系统架构示意图（用户端 vs 平台端）
 - **ToolchainSection**：6 项工程能力（详见 `/toolchain`）
 - **WorkflowSection**：6 步工作流（详见 `/workflow`）
@@ -73,12 +77,12 @@
 
 ### 2. 核心功能 `/features` — `views/FeaturesPage.vue`
 
-- 复用 `FeaturesSection` 组件。
+- 复用 `FeaturesSection` 组件 + `WhyHiveMTKSection` + **页尾功能架构 / 按需订阅引流带**（`content.js` → `featuresBand`）。
 - **区块头部**（`content.js` → `featuresSection`）：
   - tag：`核心功能`
   - title（两段，`gradientIndex: 1`）：`不是又一个 SCRM，` / `是真正会卖货的 AI`
   - subtitle：覆盖从七端多账号聚合、AI 谈单、销冠 SOP、客户 CDP、全渠道触达到数据驾驶舱的完整链路，94 个业务模块 + 45 个智能体工具。
-- **11 项功能卡**（`features`，每项含 `icon` / `title` / `industries` / `pain` / `solution` / `special`）：
+- **13 项功能卡**（`features`，每项含 `icon` / `title` / `industries` / `pain` / `solution` / `special`）：
 
   | # | 功能名 | 适用行业 |
   | --- | --- | --- |
@@ -93,6 +97,42 @@
   | 9 | 统一话术与素材中心 | 连锁门店 / 教培机构 / 医美集团 |
   | 10 | 数据驾驶舱 | 集团总部 / 区域代理 / 品牌方 |
   | 11 | 权限控制与合规 | 金融 / 医疗 / 政企 |
+  | 12 | GEO 智能优化引擎 | 出海品牌 / B2B 获客 / 内容营销 |
+  | 13 | Telegram 群增长引擎 | 跨境出海 / 外贸获客 / 加密 Web3 / 社群运营 |
+
+- **页尾引流带**（`featuresBand`）：标题两段 `不止 13 张功能卡，` / `还有模块化的功能架构`；两颗按钮 → `/features` 旁的 `/modules` 与 `/pricing`。
+
+---
+
+### 2a. 功能架构 `/modules` — `views/ModulesPage.vue`（2026-10-18 新增）
+
+> 事实源：`user-server/internal/model/module_bindings.go`（24 模块 × 212 菜单节点），与源码核对日期 2026-10-18。数据定义在 `content.js` → `moduleCatalog` / `modulesPage`。
+
+页面区块（自上而下）：
+
+1. **PageHeader**：kicker `功能架构`；标题两段 `24 个功能模块，` / `212 个菜单节点`。
+2. **指标条**（`modulesPage.stats`）：24 功能模块 / 212 菜单节点 / 45 智能体工具 / 2 部署形态。
+3. **双形态**（`modesTitle` + `modes`）：离线单机（`TENANT_MODE=off`，默认，注册返回 4104、`PLATFORM_ENABLED=false` 行为）与 SaaS 多租户（`TENANT_MODE=on`，注册即开户 + 行级隔离）。
+4. **基础模块**（7 张卡）：系统基座 / 客户中心 / 会话工作台 / 知识库 / 资产与话术 / 自有模型接入 / 平台对接——含摘要、覆盖页面数、依赖。
+5. **增值模块**（17 张卡）：AI 智能体 ¥2,980/年 起至多语言管理 ¥480/年 + 平台模型算力（0 元开通 · 按量预付费）——含摘要、价格、计费周期、覆盖页面数、依赖。
+6. **运行机制**（`mechanics` 4 条）：模块闸（登录态 → 模块闸 → 角色权限，403 + `module_not_enabled`）/ 菜单与任务过滤 / 依赖闭包 / 同步与降级（10 分钟心跳、本地镜像降级）。
+7. **事实源注记**（`sourceNote`）+ 页尾 CTA（→ `/features`、`/pricing`）。
+
+---
+
+### 2b. 按需订阅 `/pricing` — `views/PricingPage.vue`（2026-10-18 新增）
+
+> 事实源：`.specify/002-modular-subscription/spec.md` + `user-server/internal/service/module_market.go` + `model/module_bindings.go`。文案定义在 `content.js` → `pricingPage`。
+
+页面区块（自上而下）：
+
+1. **PageHeader**：kicker `按需订阅`；标题两段 `开源基座免费，` / `增值能力按需订阅`。
+2. **三层模型卡**（`models` 3 张）：开源基座（AGPL-3.0 免费）/ 基础功能模块（7 个免费常开）/ 增值功能模块（17 个按年订阅 + 算力按量）。
+3. **增值模块价目表**（`moduleCatalog` 中 17 个 `paid` 模块）：模块 / 能力 / 订阅价 / 计费（年付 · 按量预付费）/ 覆盖页面。
+4. **订阅流程**（`flow` 5 步，一期口径）：浏览市场 → 选择并确认（依赖闭包弹窗）→ 提交订单（幂等 + 联系方式）→ 线下付款（离线时空态）→ 自动开通。
+5. **模型算力双轨**（`llmTracks` 2 张）：自有模型接入（免费只统计）/ 平台模型算力（0 元开通 · token 预付费 · 输入输出分别计价）+ **离线部署口径**卡。
+6. **SaaS 功能**（`saasTitle` + `saasPoints` 3 卡）：注册即开户 / 数据行级隔离 / 双形态一套代码；说明平台端（可选本地组件）管理面。
+7. **订阅常见问题**（`faqs` 4 条）+ 页尾 CTA（→ `/modules`、`/deploy`）。
 
 ---
 
@@ -143,21 +183,24 @@
   - tag：`常见问题`
   - title（两段，`gradientIndex: 1`）：`你可能关心的` / `几个问题`
   - subtitle：HiveMTK 七端打透 + AI 真自主 + 数据封死在域内，落地私域最常被问到的问题一次说清。
-- **11 条 FAQ**（`faqs`，每条含 `q` / `a`）：
+- **12 条 FAQ**（`faqs`，每条含 `q` / `a`）：
 
   | # | 问题 |
   | --- | --- |
   | 1 | 和传统 SCRM / 企微 SaaS 有什么区别？ |
   | 2 | 支持哪些大模型？ |
-  | 3 | 数据安全如何保障？ |
-  | 4 | 需要技术团队才能部署吗？ |
-  | 5 | 七端是哪七端？ |
-  | 6 | 和现有 CRM / 订单系统能打通吗？ |
-  | 7 | AI 自动回复会不会被平台封号？ |
-  | 8 | 开源协议是什么？商用有什么限制？ |
-  | 9 | 如何开始使用？ |
-  | 10 | 支持多语言 / 出海业务吗？ |
-  | 11 | 后续会持续更新吗？ |
+  | 3 | 什么是 GEO？和 SEO 有什么区别？ |
+  | 4 | 数据安全如何保障？ |
+  | 5 | 需要技术团队才能部署吗？ |
+  | 6 | 七端是哪七端？ |
+  | 7 | 和现有 CRM / 订单系统能打通吗？ |
+  | 8 | AI 自动回复会不会被平台封号？ |
+  | 9 | 开源协议是什么？商用有什么限制？ |
+  | 10 | 如何开始使用？ |
+  | 11 | 支持多语言 / 出海业务吗？ |
+  | 12 | 后续会持续更新吗？ |
+
+  > 订阅相关 4 条问答不在此页，见 `/pricing` 页 `pricingPage.faqs`。
 
 ---
 
@@ -168,7 +211,7 @@
 - **Hero 区域**：
   - 标签：`部署指南`
   - 标题（两段，第二段渐变）：`4 步完成部署` / `开箱即用`
-  - 副标题：基于 AGPL-3.0 开源协议，无授权码、无版本下载、无任何收费环节。
+  - 副标题：基于 AGPL-3.0 开源协议，无授权码、无版本下载：代码与 7 个基础功能模块免费，17 个增值功能模块可在系统内按需订阅。
   - 澄清提示：所有源码与配置均在 GitHub / Gitee 仓库直接克隆，AGPL-3.0 要求修改后的网络服务代码也必须开源。
 - **部署方式卡（3 张，可点选切换 `activeTab`）**：
 
@@ -181,7 +224,7 @@
 - **命令片段区**：Tab 切换 Docker / 源码，展示对应 shell 片段，「复制」按钮写剪贴板。
   - **Docker 片段**：克隆仓库 → `cp .env-example .env` 改密钥 → `make install`（拉起 PG/Redis 容器与推理栈）→ `make dev` 起 user-server → 访问 `http://localhost:8204`；超管账号在首次 `/setup` 向导自设（用 `scripts/bootstrap.sh` 安装时由 `SEED_PASSWORD` 写入，用户名 `admin`）。
   - **源码片段**：克隆仓库 → 后端 `user-server`（Go 1.25，端口 `8204`）→ 前端 `user-web`（Node 18+，`npm run dev` 端口 `8211`，取自 `user-web/vite.config.js`）。
-- **公开提示卡**：AGPL-3.0 开源，零授权门槛。无授权码、无版本下载、无任何收费环节；源码与文档在 GitHub / Gitee 公开托管。
+- **公开提示卡**：AGPL-3.0 开源，零授权门槛——无授权码、无版本下载：源码全量免费，基础功能模块免费常开，增值功能模块按需订阅（详见 `/pricing`）；源码与文档在 GitHub / Gitee 公开托管。
 - **联系作者卡**：展示微信号（`useSiteContact` 动态加载，回退占位「暂未配置」）+「复制微信号」按钮，提供 1v1 部署指导。
 
 ---
@@ -240,7 +283,7 @@
 | --- | --- | --- |
 | 品牌（`footer-brand`） | — | 品牌标记 + `HiveMTK` 文本 + 描述（七端打透 · ReAct 智能体 · 零出域数据安全 · AGPL-3.0 · 4 步私有化部署） |
 | 第 2 列 | `产品功能` | 4 个 `productLinks`：七端多账号聚合 / AI 自动谈单 / 销冠 SOP 智能体 / 客户 CDP（均跳转 `/#features` hash） |
-| 第 3 列 | `快速导航` | 3 个 `resourceLinks`：部署指南（`/deploy`）/ 安装文档（`/docs`）/ 业务流程（`/#workflow` hash） |
+| 第 3 列 | `快速导航` | 8 个 `resourceLinks`：部署指南（`/deploy`）/ 安装文档（`/docs`）/ 业务流程（`/#workflow`）/ 核心功能（`/features`）/ 功能架构（`/modules`）/ 按需订阅（`/pricing`）/ 工程能力（`/toolchain`）/ 常见问题（`/faq`） |
 | 第 4 列 | `开源项目` | 4 个 `openSourceLinks`：AGPL-3.0 开源协议 / 贡献指南 / 更新日志 / 免责声明（均外链 Gitee）+ 「AGPL-3.0 开源，克隆仓库即可私有化部署」提示 + 微信二维码（条件渲染）+ 微信号 + 邮箱 / 电话 / 服务时间（条件渲染） |
 
 ### Footer 开源仓库入口（`footer-repos`）
@@ -264,10 +307,12 @@
 | 路径 | name | 页面 | 视图组件 | 在导航 | SEO title | 备注 |
 | --- | --- | --- | --- | --- | --- | --- |
 | `/` | Home | 首页 | `views/HomePage.vue` | 是（Logo） | 首页 | 5 区块聚合页（Hero + Features + Architecture + Toolchain + Workflow） |
-| `/features` | Features | 核心功能 | `views/FeaturesPage.vue` | 是 | 核心功能 | 11 项功能卡 |
+| `/features` | Features | 核心功能 | `views/FeaturesPage.vue` | 是 | 核心功能 | 13 项功能卡 + 架构/订阅引流带 |
+| `/modules` | Modules | 功能架构 | `views/ModulesPage.vue` | 是 | 功能架构 | 24 模块 × 212 菜单节点清单 + 双形态 + 运行机制 |
+| `/pricing` | Pricing | 按需订阅 | `views/PricingPage.vue` | 是 | 按需订阅 | 三层模型 + 价目表 + 订阅流程 + LLM 双轨 + SaaS 功能 |
 | `/toolchain` | Toolchain | 工程能力 | `views/ToolchainPage.vue` | 是 | 工程能力 | Architecture + 6 项能力卡 |
 | `/workflow` | Workflow | 业务流程 | `views/WorkflowPage.vue` | 是 | 业务流程 | 6 步流程 |
-| `/faq` | Faq | 常见问题 | `views/FaqPage.vue` | 是 | 常见问题 | 11 条 FAQ |
+| `/faq` | Faq | 常见问题 | `views/FaqPage.vue` | 是 | 常见问题 | 12 条 FAQ |
 | `/deploy` | Deploy | 部署指南 | `views/DeployPage.vue` | 是（含 CTA） | 部署指南 | 3 部署方式 + 命令 Tab + 公开提示 + 联系作者 |
 | `/docs` | Docs | 安装使用文档 | `views/DocsPage.vue` | 是 | 安装使用文档 | 12 节长文档 + 锚点侧边栏 |
 | `/download` | — | — | — | 否 | — | 302 重定向到 `/deploy`（历史兼容，开源版无版本下载） |

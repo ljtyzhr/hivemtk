@@ -34,7 +34,7 @@ export const hero = {
   stats: [
     { value: '10+', label: '社媒渠道打透', sub: '抖音/快手/小红书/闲鱼/TikTok/企微/邮件/Telegram/WhatsApp/短信' },
     { value: '5', label: 'Telegram 核心能力', sub: 'Bot 收发 · 群线索挖掘 · 主动 DM 触达 · 群消息分析 · 入群管控' },
-    { value: '42', label: '智能体工具', sub: 'ReAct 自主决策 + 统一工具注册表' },
+    { value: '45', label: '智能体工具', sub: 'ReAct 自主决策 + 统一工具注册表' },
     { value: '94', label: '业务模块', sub: '从线索接入到复购激活全链路' },
   ],
   visualCards: [
@@ -52,7 +52,7 @@ export const hero = {
     {
       num: '02',
       title: '不是玩具 Demo,是能扛生产的工程',
-      desc: '42 工具 + 94 模块 + 全链路 TraceID,每次工具调用经 权限→重试→超时→限流→审计 五重装饰器链防护,为真实业务量设计。',
+      desc: '45 工具 + 94 模块 + 全链路 TraceID,每次工具调用经 权限→重试→超时→限流→审计 五重装饰器链防护,为真实业务量设计。',
     },
     {
       num: '03',
@@ -119,7 +119,7 @@ export const whyHiveMTK = {
       key: '全自动',
       title: 'ReAct 智能体真自主决策',
       desc: '不是关键词匹配的伪 AI,是 ReAct 推理-行动循环的真智能体。45 个工具自主编排,从意图识别、异议处理、SOP 跳转、逼单邀约到售后跟进,无需人工干预,失败自动重试 + 熔断降级 + 审计留痕。',
-      metric: '42',
+      metric: '45',
       metricLabel: '自主工具',
       icon: '<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><circle cx="12" cy="12" r="4"/><line x1="12" y1="2" x2="12" y2="6"/><line x1="12" y1="18" x2="12" y2="22"/><line x1="2" y1="12" x2="6" y2="12"/><line x1="18" y1="12" x2="22" y2="12"/></svg>',
     },
@@ -295,7 +295,7 @@ export const toolchainSection = {
       { role: '接入与渠道层', desc: '13 类通道适配器统一入站，Webhook/WebSocket → InboxIngressService。' },
       { role: '智能体运行时', desc: 'AgentRuntime 事件订阅 + AgentContext 加载 + 消息路由。' },
       { role: '智能体引擎', desc: 'InferenceCycle：感知 → 对齐 → 门禁 → 规划 → 行动 → 复盘。' },
-      { role: '工具注册表', desc: 'ToolRouter 统一路由，42 个注册工具经 权限→重试→超时→限流→审计 装饰器链防护。' },
+      { role: '工具注册表', desc: 'ToolRouter 统一路由，45 个注册工具经 权限→重试→超时→限流→审计 装饰器链防护。' },
       { role: '记忆系统', desc: 'L1 短期 / L2 长期 / L3 SOP / L4 业务 四层记忆，L2 结合 pgvector 语义检索。' },
       { role: 'AI 算力底座', desc: 'Embedding + pgvector + 混合检索 RAG + LLM Dispatcher 调度 + 故障切换。' },
     ],
@@ -463,7 +463,7 @@ export const faqSection = {
   faqs: [
     {
       q: '和传统 SCRM / 企微 SaaS 有什么区别？',
-      a: '多数 SCRM 只是“管理工具”，把记录留痕做得很重，但真正谈单的还是人。HiveMTK 的核心是 ReAct 自主智能体（42 工具）与销冠 SOP——能替销售完成从接待到逼单的大部分动作，把销冠能力复制给团队里每一个普通人。',
+      a: '多数 SCRM 只是“管理工具”，把记录留痕做得很重，但真正谈单的还是人。HiveMTK 的核心是 ReAct 自主智能体（45 工具）与销冠 SOP——能替销售完成从接待到逼单的大部分动作，把销冠能力复制给团队里每一个普通人。',
     },
     {
       q: '支持哪些大模型？',
@@ -520,7 +520,7 @@ export const techSpecs = {
     { label: '部署形态', value: 'Docker / 源码，支持私有化与集群，4 步完成部署' },
     { label: '前端', value: 'Vue 3 + Vite + JavaScript（Element Plus + Pinia）' },
     { label: '后端', value: 'Go 1.25 + 五层架构（Controller→Service→Repository→Model）+ PostgreSQL 15 + Redis 7' },
-    { label: '智能体', value: 'ReAct 自主智能体（42 注册工具）+ 94 业务模块' },
+    { label: '智能体', value: 'ReAct 自主智能体（45 注册工具）+ 94 业务模块' },
     { label: 'RAG 检索', value: 'pgvector HNSW 向量 + BM25 关键词混合召回（RRF 融合）+ bge-reranker-v2-m3 精排' },
     { label: 'GEO 优化', value: '关键词蒸馏 → 内容生成（E-E-A-T / Schema）→ AI 搜索验证 → 12 平台分发闭环' },
     { label: '模型接入', value: 'DeepSeek / 通义千问 / GPT-4o / 智谱 GLM / Kimi / 本地 llama.cpp（Qwen2.5）' },
@@ -534,7 +534,7 @@ export const deploySection = {
   tag: '部署指南',
   title: ['4 步完成部署', '开箱即用'],
   gradientIndex: 1,
-  subtitle: '基于 AGPL-3.0 开源，无授权码、无版本下载、无任何收费环节。make install 一键启动或源码部署，源码与文档均在 GitHub / Gitee 公开托管。',
+  subtitle: '基于 AGPL-3.0 开源，无授权码、无版本下载：代码与 7 个基础功能模块免费，17 个增值功能模块可在系统内按需订阅。make install 一键启动或源码部署，源码与文档均在 GitHub / Gitee 公开托管。',
   cards: [
     { icon: 'package', title: 'Docker 部署', desc: '数据层容器一键启停，推理栈与后端跑在宿主机。', cta: '查看 Docker 部署', link: '/deploy' },
     { icon: 'code', title: '源码仓库', desc: '完整源码，可自由修改、二次开发与贡献。', cta: '前往 Gitee', link: 'https://gitee.com/xhpmayun/hivemtk' },
@@ -559,10 +559,243 @@ export const footer = {
   officialLinks: [],
 }
 
+// —— 功能模块清单（事实源：user-server/internal/model/module_bindings.go）——
+// 24 个模块 = 7 基础（免费常开）+ 17 增值（按需订阅）；menus 为该模块绑定的菜单节点数，
+// 合计 212 个节点，由测试 TestModuleMenuBindingsCoverAllMenuKeys 钉死全覆盖。
+// priceCents 为源码内置默认定价（整数分）；与源码核对日期：2026-10-18。
+export const moduleCatalog = [
+  { key: 'core', name: '系统基座', category: 'base', priceCents: 0, billing: 'base', menus: 27,
+    summary: '账号权限、站点配置、审计与备份，系统可运行的底线', depends: [] },
+  { key: 'customer', name: '客户中心', category: 'base', priceCents: 0, billing: 'base', menus: 13,
+    summary: '线索、客户 360、标签分层、RFM 分群与 OneID 身份归一', depends: ['系统基座'] },
+  { key: 'inbox', name: '会话工作台', category: 'base', priceCents: 0, billing: 'base', menus: 11,
+    summary: '统一收件箱、客服会话、坐席状态与快捷回复', depends: ['系统基座', '客户中心'] },
+  { key: 'knowledge', name: '知识库', category: 'base', priceCents: 0, billing: 'base', menus: 18,
+    summary: '文档入库、分段检索、RAG 评测与对外 API Token', depends: ['系统基座'] },
+  { key: 'asset', name: '资产与话术', category: 'base', priceCents: 0, billing: 'base', menus: 9,
+    summary: '资产市场、资产包 Playground 与销冠话术库', depends: ['系统基座', '知识库'] },
+  { key: 'llm-self', name: '自有模型接入', category: 'base', priceCents: 0, billing: 'base', menus: 1,
+    summary: '用自己的 API Key 接入大模型，用量与成本可视化，不额外计费', depends: ['系统基座'] },
+  { key: 'platform-link', name: '平台对接', category: 'base', priceCents: 0, billing: 'base', menus: 4,
+    summary: '平台心跳、功能模块下发与开通状态同步；离线部署时全部基础能力直接可用', depends: ['系统基座'] },
+
+  { key: 'ai-agent', name: 'AI 智能体', category: 'paid', priceCents: 298000, billing: 'yearly', menus: 5,
+    summary: '7×24 自动应答真实客户消息，可绑定不同模型、知识库与 SOP',
+    depends: ['系统基座', '客户中心', '会话工作台', '知识库', '自有模型接入'] },
+  { key: 'ai-sales', name: 'AI 销冠', category: 'paid', priceCents: 398000, billing: 'yearly', menus: 14,
+    summary: '意图识别、异议应对、销冠画像与 SOP 自动推进成交',
+    depends: ['系统基座', '客户中心', '会话工作台', '自有模型接入', 'AI 智能体'] },
+  { key: 'llm-cloud', name: '平台模型算力', category: 'paid', priceCents: 0, billing: 'metered', menus: 0,
+    summary: '不用自己申请 Key，用平台垫资的大模型；按 token 预付费，输入输出分别计价',
+    depends: ['系统基座', '自有模型接入'] },
+  { key: 'reach-auto', name: '营销自动化', category: 'paid', priceCents: 198000, billing: 'yearly', menus: 6,
+    summary: '线索进来自动跑多轮触达与工作流编排',
+    depends: ['系统基座', '客户中心'] },
+  { key: 'reach-sms', name: '短信触达', category: 'paid', priceCents: 98000, billing: 'yearly', menus: 5,
+    summary: '国内短信发送、任务调度与退订管理',
+    depends: ['系统基座', '客户中心', '营销自动化'] },
+  { key: 'reach-email', name: '邮件触达', category: 'paid', priceCents: 98000, billing: 'yearly', menus: 8,
+    summary: '邮件列表、SMTP、草稿任务与送达率追踪',
+    depends: ['系统基座', '客户中心', '营销自动化'] },
+  { key: 'reach-social', name: '社媒引流卡片', category: 'paid', priceCents: 198000, billing: 'yearly', menus: 15,
+    summary: '抖音 / 快手 / 小红书 / 闲鱼 / TikTok 引流卡片与自动私信回复',
+    depends: ['系统基座', '客户中心', '营销自动化'] },
+  { key: 'reach-link', name: '短链活码', category: 'paid', priceCents: 38000, billing: 'yearly', menus: 5,
+    summary: '可追踪短链、活码投放与域名池健康检测', depends: ['系统基座'] },
+  { key: 'im-wecom', name: '企业微信', category: 'paid', priceCents: 298000, billing: 'yearly', menus: 1,
+    summary: '企微账号托管、客户群运营与健康度风控',
+    depends: ['系统基座', '客户中心', '会话工作台'] },
+  { key: 'im-intl', name: '海外与协作 IM', category: 'paid', priceCents: 198000, billing: 'yearly', menus: 17,
+    summary: 'WhatsApp / Telegram / QQ / 飞书 / 钉钉 / 社群 多通道收发',
+    depends: ['系统基座', '客户中心', '会话工作台'] },
+  { key: 'analytics', name: '数据分析', category: 'paid', priceCents: 98000, billing: 'yearly', menus: 7,
+    summary: '数据大屏、转化漏斗、AI 产能与自定义报表',
+    depends: ['系统基座', '客户中心', '会话工作台'] },
+  { key: 'experiment', name: '实验与预测', category: 'paid', priceCents: 128000, billing: 'yearly', menus: 2,
+    summary: 'A/B 实验（含多臂老虎机）与流失预警',
+    depends: ['系统基座', '客户中心', '数据分析'] },
+  { key: 'browser-automation', name: '浏览器自动化', category: 'paid', priceCents: 168000, billing: 'yearly', menus: 5,
+    summary: '常驻浏览器接管真实客户端做私信与评论',
+    depends: ['系统基座', '客户中心'] },
+  { key: 'geo', name: 'GEO 智能优化', category: 'paid', priceCents: 298000, billing: 'yearly', menus: 30,
+    summary: 'AI 搜索可见性优化：关键词蒸馏、内容生成、收录与 SOV 监控',
+    depends: ['系统基座', '知识库'] },
+  { key: 'sales-crm', name: '销售工作台', category: 'paid', priceCents: 198000, billing: 'yearly', menus: 4,
+    summary: '销售驾驶舱、跟进、商机报价与回款闭环',
+    depends: ['系统基座', '客户中心', 'AI 销冠'] },
+  { key: 'approval', name: '审批与待办', category: 'paid', priceCents: 68000, billing: 'yearly', menus: 2,
+    summary: '待办中心、Bad Case 队列与人工任务分派', depends: ['系统基座'] },
+  { key: 'i18n', name: '多语言管理', category: 'paid', priceCents: 48000, billing: 'yearly', menus: 3,
+    summary: '术语表与多语言监控看板', depends: ['系统基座'] },
+]
+
+// —— /pages 功能架构页文案 ——
+export const modulesPage = {
+  kicker: '功能架构',
+  title: ['24 个功能模块，', '212 个菜单节点'],
+  gradientIndex: 1,
+  subtitle:
+    'HiveMTK 的功能不是堆在一起的：212 个页面节点全部归属到 24 个功能模块，模块决定菜单、接口、定时任务与智能体工具是否放行。7 个基础模块免费常开，17 个增值模块按需开通——以下清单与源码 module_bindings.go 一一对应。',
+  stats: [
+    { value: '24', label: '功能模块', sub: '7 基础 + 17 增值' },
+    { value: '212', label: '菜单节点', sub: '测试钉死全覆盖' },
+    { value: '45', label: '智能体工具', sub: '按模块过滤放行' },
+    { value: '2', label: '部署形态', sub: '离线单机 / SaaS 多租户' },
+  ],
+  modesTitle: ['一套代码，', '两种部署形态'],
+  modesDesc:
+    '开关决定形态，功能对齐：离线单机是默认形态（零出域），SaaS 多租户面向自己运营多租户平台的场景，数据都留在你部署的数据库里。',
+  modes: [
+    {
+      title: '离线单机（默认形态）',
+      tags: ['TENANT_MODE=off', '零出域', '注册入口关闭'],
+      desc: '单租户运行，租户自助注册恒返回 4104；PLATFORM_ENABLED=false 时基础模块全开、0 元模块自动开通、定价大于 0 的增值模块锁定，系统不发出任何平台请求。',
+    },
+    {
+      title: 'SaaS 多租户形态',
+      tags: ['TENANT_MODE=on', '行级数据隔离', '监管登记'],
+      desc: '注册即开户：登记公司名称、负责人、电话、邮箱并完成监管告知勾选；数据隔离由数据访问层统一强制（业务代码零手工隔离逻辑），用户名租户内唯一、邮箱跨租户全局唯一。',
+    },
+  ],
+  baseTitle: ['基础模块 ·', '免费常开'],
+  baseDesc: '7 个基础模块构成系统基座：免费、不可关闭——关掉任何一个，用户都无法完成最小业务闭环。',
+  paidTitle: ['增值模块 ·', '按需订阅'],
+  paidDesc:
+    '17 个增值模块按需开通：年费模块明码标价（源码内置默认定价），平台模型算力 0 元开通、按 token 预付费计量。开通时基础依赖自动补齐，付费依赖须显式勾选。',
+  mechTitle: ['运行机制 ·', '闸写在代码里'],
+  mechanics: [
+    {
+      title: '模块闸',
+      desc: '执行顺序为 登录态 → 模块闸 → 角色权限，超管也过闸；未开通模块的接口返回 403 与业务码 module_not_enabled，不会出现“菜单看得见、点进去才报错”。',
+    },
+    {
+      title: '菜单与任务过滤',
+      desc: '菜单树先按已开通模块裁剪、再按角色授权裁剪；定时任务、智能体工具与事件订阅同样按开通状态过滤，未开通的能力不会在后台空转。',
+    },
+    {
+      title: '依赖闭包',
+      desc: '每个模块声明直接依赖（如 AI 销冠依赖 AI 智能体）；开通时基础依赖自动开通，付费依赖必须显式勾选并在确认弹窗列明，避免意外收费。',
+    },
+    {
+      title: '同步与降级',
+      desc: '开通状态与心跳同频拉取（默认 10 分钟），平台不可达时自动降级用本地镜像，已开通能力不中断。',
+    },
+  ],
+  sourceNote:
+    '清单事实源：user-server/internal/model/module_bindings.go（24 个模块 × 212 个菜单节点），由测试 TestModuleMenuBindingsCoverAllMenuKeys 钉死全覆盖；与源码核对日期 2026-10-18。',
+  ctaModules: { label: '查看核心功能', href: '/features' },
+  ctaPricing: { label: '了解按需订阅', href: '/pricing' },
+}
+
+// —— /pricing 按需订阅页文案 ——
+export const pricingPage = {
+  kicker: '按需订阅',
+  title: ['开源基座免费，', '增值能力按需订阅'],
+  gradientIndex: 1,
+  subtitle:
+    'AGPL-3.0 源码全量免费，7 个基础功能模块永久免费常开；需要更强能力时，在系统内的功能模块市场按需开通 17 个增值模块，模型算力按 token 预付费。不打包套餐、不做功能阉割——订阅的是开通与配额，代码始终全量开源。',
+  models: [
+    {
+      title: '开源基座',
+      price: '免费',
+      note: '无授权码 · 无版本下载',
+      desc: 'AGPL-3.0 全量源码，GitHub / Gitee 直接克隆；私有化部署、二次开发、商用均自由，仅需遵循协议的开源义务。',
+    },
+    {
+      title: '基础功能模块',
+      price: '免费',
+      note: '7 个模块 · 永久常开',
+      desc: '系统基座、客户中心、会话工作台、知识库、资产与话术、自有模型接入、平台对接——免费且不可关闭；自带 API Key 调用大模型只统计用量、不额外计费。',
+    },
+    {
+      title: '增值功能模块',
+      price: '按需订阅',
+      note: '模块级订阅 · 无套餐包',
+      desc: '17 个增值模块明码标价、按年订阅（源码内置默认定价，支持子选项扩展）；平台模型算力 0 元开通、按 token 预付费，输入 / 输出分别计价。',
+    },
+  ],
+  tableTitle: ['增值模块价目表', '（默认定价）'],
+  tableDesc:
+    '以下为源码内置的默认定价（人民币，按整数分存储）；订阅前可在系统内的功能模块市场查看详情、依赖闭包与覆盖页面。',
+  cycleYearly: '年付',
+  cycleMetered: '按量预付费',
+  colModule: '模块',
+  colSummary: '能力',
+  colPrice: '订阅价',
+  colCycle: '计费',
+  colMenus: '覆盖页面',
+  flowTitle: ['订阅流程', '（一期口径）'],
+  flowDesc:
+    '一期未接入在线支付通道：下单后由平台运营人工确认收款，权益自动开通；线上支付回调已预留同一入账入口与幂等键。',
+  flow: [
+    { title: '浏览市场', desc: '系统内功能模块市场未登录即可浏览列表，登录后查看详情、依赖闭包与定价。' },
+    { title: '选择并确认', desc: '勾选目标模块，二次确认弹窗列明自动补齐的基础依赖、需自购的付费依赖与总价。' },
+    { title: '提交订单', desc: '填写联系方式（手机或邮箱）提交，订单号幂等生成，重试不会重复下单。' },
+    { title: '线下付款', desc: '按付款指引联系平台运营完成线下付款；离线部署（未连接平台）时无法下单，市场页显示平台未连接空态。' },
+    { title: '自动开通', desc: '平台确认收款后权益即时生效，用户端随模块同步感知变化，无需重装、无需改代码。' },
+  ],
+  llmTitle: ['模型算力双轨', '自带 Key 或平台垫资'],
+  llmDesc: '大模型接入有两条路：用自己的 Key（免费只统计），或用平台垫付的算力（预付费按量扣减）。',
+  llmTracks: [
+    {
+      title: '自有模型接入（自带 Key）',
+      price: '免费 · 只统计不计费',
+      desc: '用自己的 API Key 接入 DeepSeek / 通义千问 / GPT-4o / 智谱 GLM / Kimi 等，用量与成本可视化；不扣任何钱包，适合已有 Key 或合规要求数据按所配服务流转的场景。',
+    },
+    {
+      title: '平台模型算力（llm-cloud）',
+      price: '0 元开通 · 按 token 预付费',
+      desc: '不用自己申请 Key，用平台垫资的大模型：钱包按输入 / 输出 token 分列记账与实时扣减，余额不足自动阻断或降级到自带 Key，用量明细逐条可查。',
+    },
+  ],
+  offlineTitle: '离线部署口径',
+  offlineDesc:
+    'PLATFORM_ENABLED=false 的离线部署不发出任何出站请求：基础模块全开，0 元的收费模块自动开通，定价大于 0 的增值模块保持关闭并在界面明示；功能模块市场与订单页显示平台未连接空态。',
+  saasTitle: ['SaaS 功能', '（多租户形态）'],
+  saasDesc:
+    '同一份代码支持离线单机（默认）与 SaaS 多租户（TENANT_MODE=on）两种形态：多租户形态下注册即开户、租户间数据行级隔离（数据访问层统一强制）、后台流程按数据自带的租户归属执行；平台端（可选本地组件）提供功能模块目录、租户登记审核、订单确认收款、LLM 套餐钱包与运行监控的管理面。数据始终留在你部署的数据库里——这是你运营的 SaaS，不是把数据交给别人的黑盒。',
+  saasPoints: [
+    { title: '注册即开户', desc: '填写企业 / 团队信息与管理员凭证即可创建独立租户并自动登录，注册限流防滥用、过程原子。' },
+    { title: '数据行级隔离', desc: '隔离在数据访问层统一实施，上下文缺租户时拒绝服务；定时任务、队列、回调等后台流程按数据自带归属执行。' },
+    { title: '双形态一套代码', desc: '单机与多租户功能清单一致（差异仅注册入口与租户运营视图），由一项部署配置切换。' },
+  ],
+  faqsTitle: ['订阅常见问题'],
+  faqs: [
+    {
+      q: '订阅和开源冲突吗？',
+      a: '不冲突。代码按 AGPL-3.0 全量开源，离线部署下你拥有全部源码；订阅收费的对象是增值模块的开通权益与平台垫付的模型算力，不是代码本身——模块化设计里这是“授权位”，不是“代码下载”。',
+    },
+    {
+      q: '离线部署能用增值模块吗？',
+      a: '增值模块的代码同样在开源仓里。离线且不连接平台时，0 元模块自动开通；定价大于 0 的模块默认关闭，连接平台并完成订阅后按开通状态放行。',
+    },
+    {
+      q: '一定要买平台算力吗？',
+      a: '不用。自有模型接入是免费的基础能力，只统计用量；平台模型算力是“不想自己申请 Key”时的可选项，预付费按 token 计量、输入与输出分别计价。',
+    },
+    {
+      q: '一期怎么付款？',
+      a: '订单提交后按付款指引联系平台运营线下付款，平台确认收款后自动开通（重复确认返回 409，不会重复开通）；支付契约已为线上回调预留，后续可接入线上支付通道。',
+    },
+  ],
+  ctaDeploy: { label: '立即部署', href: '/deploy' },
+  ctaModules: { label: '查看功能架构清单', href: '/modules' },
+}
+
+// —— /features 页尾追加引流带 ——
+export const featuresBand = {
+  title: ['不止 13 张功能卡，', '还有模块化的功能架构'],
+  desc: '上述为核心能力切片。完整系统由 24 个功能模块承载（7 基础 + 17 增值），212 个页面节点全部归属模块，菜单、接口、定时任务与智能体工具按开通状态放行；增值模块按需订阅，模型算力按量预付费。',
+  ctaArchitecture: { label: '查看功能架构清单', href: '/modules' },
+  ctaPricing: { label: '了解按需订阅与 SaaS', href: '/pricing' },
+}
+
 export const nav = {
   brand: 'HiveMTK',
   links: [
     { label: '核心功能', href: '/features', type: 'route' },
+    { label: '功能架构', href: '/modules', type: 'route' },
+    { label: '按需订阅', href: '/pricing', type: 'route' },
     { label: '工程能力', href: '/toolchain', type: 'route' },
     { label: '工作流', href: '/workflow', type: 'route' },
     { label: '常见问题', href: '/faq', type: 'route' },

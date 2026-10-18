@@ -11,7 +11,7 @@ const { toolchainSection: section } = useSite()
         <div class="head-meta">
           <span class="tag-line">{{ section.tag }}</span>
           <span class="head-counter">
-            <span class="counter-num">42</span>
+            <span class="counter-num">45</span>
             <span class="counter-label">{{ $t('个智能体工具') }}</span>
           </span>
         </div>

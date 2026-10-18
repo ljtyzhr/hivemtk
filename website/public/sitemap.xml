@@ -24,6 +24,28 @@
     <xhtml:link rel="alternate" hreflang="x-default" href="https://xiaofang142.github.io/hivemtk/features" />
   </url>
   <url>
+    <loc>https://xiaofang142.github.io/hivemtk/modules</loc>
+    <lastmod>2026-10-18</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://xiaofang142.github.io/hivemtk/modules?lang=zh" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://xiaofang142.github.io/hivemtk/modules?lang=en" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://xiaofang142.github.io/hivemtk/modules?lang=ja" />
+    <xhtml:link rel="alternate" hreflang="ar" href="https://xiaofang142.github.io/hivemtk/modules?lang=ar" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://xiaofang142.github.io/hivemtk/modules" />
+  </url>
+  <url>
+    <loc>https://xiaofang142.github.io/hivemtk/pricing</loc>
+    <lastmod>2026-10-18</lastmod>
+    <changefreq>monthly</changefreq>
+    <priority>0.9</priority>
+    <xhtml:link rel="alternate" hreflang="zh" href="https://xiaofang142.github.io/hivemtk/pricing?lang=zh" />
+    <xhtml:link rel="alternate" hreflang="en" href="https://xiaofang142.github.io/hivemtk/pricing?lang=en" />
+    <xhtml:link rel="alternate" hreflang="ja" href="https://xiaofang142.github.io/hivemtk/pricing?lang=ja" />
+    <xhtml:link rel="alternate" hreflang="ar" href="https://xiaofang142.github.io/hivemtk/pricing?lang=ar" />
+    <xhtml:link rel="alternate" hreflang="x-default" href="https://xiaofang142.github.io/hivemtk/pricing" />
+  </url>
+  <url>
     <loc>https://xiaofang142.github.io/hivemtk/toolchain</loc>
     <lastmod>2026-07-24</lastmod>
     <changefreq>monthly</changefreq>

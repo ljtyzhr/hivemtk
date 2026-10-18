@@ -31,6 +31,8 @@ const resourceLinks = [
   { label: '安装文档', href: '/docs' },
   { label: '业务流程', href: '/#workflow' },
   { label: '核心功能', href: '/features' },
+  { label: '功能架构', href: '/modules' },
+  { label: '按需订阅', href: '/pricing' },
   { label: '工程能力', href: '/toolchain' },
   { label: '常见问题', href: '/faq' },
 ]
@@ -51,7 +53,7 @@ const openSourceLinks = [
         <div class="cta-text">
           <span class="cta-kicker">{{ $t('立即开始') }}</span>
           <h2 class="cta-title">{{ $t('克隆仓库,4 步完成私有化部署') }}</h2>
-          <p class="cta-desc">{{ $t('AGPL-3.0 开源,无授权码、无版本下载、无任何收费环节。完整源码均在 GitHub / Gitee 公开托管。') }}</p>
+          <p class="cta-desc">{{ $t('AGPL-3.0 开源,无授权码、无版本下载：代码与基础功能模块免费,增值功能模块可按需订阅。完整源码均在 GitHub / Gitee 公开托管。') }}</p>
         </div>
         <div class="cta-repos">
           <a
