@@ -81,7 +81,7 @@
     "collapseMenu": "收起菜单",
     "expandMenu": "展开菜单",
     "helpCenter": "帮助中心",
-    "restartOnboarding": "重新引导"
+    "globalTour": "全局导览"
   },
   "role": {
     "title": "角色管理",

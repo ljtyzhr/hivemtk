@@ -81,7 +81,7 @@
     "collapseMenu": "Collapse menu",
     "expandMenu": "Expand menu",
     "helpCenter": "Help Center",
-    "restartOnboarding": "Restart Tour"
+    "globalTour": "Global Tour"
   },
   "role": {
     "title": "Role Management",

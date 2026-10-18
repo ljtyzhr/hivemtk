@@ -100,10 +100,10 @@
                 <el-icon><QuestionFilled /></el-icon>{{ t('layout.helpCenter') }}
               </el-dropdown-item>
               <el-dropdown-item
-                command="restart-onboarding"
+                command="global-tour"
                 divided
               >
-                <el-icon><Refresh /></el-icon>{{ t('layout.restartOnboarding') }}
+                <el-icon><Compass /></el-icon>{{ t('layout.globalTour') }}
               </el-dropdown-item>
               <el-dropdown-item
                 command="logout"
@@ -346,8 +346,8 @@ const handleUserCommand = (command) => {
     case 'help-center':
       router.push({ name: 'HelpCenter' })
       break
-    case 'restart-onboarding':
-      restart()
+    case 'global-tour':
+      startGlobalTour()
       break
     case 'logout':
         userStore.logout()
