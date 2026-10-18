@@ -7,9 +7,18 @@
             <div class="card-header">
               <span>拖拽式邮件编辑器（USR-RC-02）MJML 编译</span>
               <div>
-                <el-button @click="previewDesktop">💻 桌面预览</el-button>
-                <el-button @click="previewMobile">📱 移动预览</el-button>
-                <el-button type="primary" @click="save">保存</el-button>
+                <el-button @click="previewDesktop">
+                  💻 桌面预览
+                </el-button>
+                <el-button @click="previewMobile">
+                  📱 移动预览
+                </el-button>
+                <el-button
+                  type="primary"
+                  @click="save"
+                >
+                  保存
+                </el-button>
               </div>
             </div>
           </template>
@@ -31,26 +40,60 @@
               <span>{{ block.label }}</span>
             </div>
           </div>
-          <div class="canvas" role="presentation" @drop="onDrop" @dragover.prevent>
+          <div
+            class="canvas"
+            role="presentation"
+            @drop="onDrop"
+            @dragover.prevent
+          >
             <div
               v-for="(block, i) in blocks_state"
               :key="block.id"
               class="canvas-block"
             >
-              <component :is="resolveBlock(block.type)" v-bind="block" :editable="true" />
-              <el-button-group size="small" class="block-actions">
-                <el-button @click="moveUp(i)" :disabled="i === 0">↑</el-button>
-                <el-button @click="moveDown(i)" :disabled="i === blocks_state.length - 1">↓</el-button>
-                <el-button type="danger" @click="removeBlock(i)">删</el-button>
+              <component
+                :is="resolveBlock(block.type)"
+                v-bind="block"
+                :editable="true"
+              />
+              <el-button-group
+                size="small"
+                class="block-actions"
+              >
+                <el-button
+                  :disabled="i === 0"
+                  @click="moveUp(i)"
+                >
+                  ↑
+                </el-button>
+                <el-button
+                  :disabled="i === blocks_state.length - 1"
+                  @click="moveDown(i)"
+                >
+                  ↓
+                </el-button>
+                <el-button
+                  type="danger"
+                  @click="removeBlock(i)"
+                >
+                  删
+                </el-button>
               </el-button-group>
             </div>
-            <div v-if="blocks_state.length === 0" class="empty">从左侧拖入内容块</div>
+            <div
+              v-if="blocks_state.length === 0"
+              class="empty"
+            >
+              从左侧拖入内容块
+            </div>
           </div>
         </el-card>
       </el-col>
       <el-col :span="8">
         <el-card>
-          <template #header><span>变量 / 主题</span></template>
+          <template #header>
+            <span>变量 / 主题</span>
+          </template>
           <el-form label-width="80px">
             <el-form-item label="主题">
               <el-input v-model="subject" />
@@ -59,24 +102,54 @@
               <el-input v-model="fromName" />
             </el-form-item>
             <el-form-item label="预发列表">
-              <el-tag v-for="(t, i) in testEmails" :key="i" closable @close="testEmails.splice(i, 1)">{{ t }}</el-tag>
-              <el-input v-model="newTestEmail" size="small" @keyup.enter="addTestEmail" placeholder="test@x.com" style="width: 200px" />
+              <el-tag
+                v-for="(t, i) in testEmails"
+                :key="i"
+                closable
+                @close="testEmails.splice(i, 1)"
+              >
+                {{ t }}
+              </el-tag>
+              <el-input
+                v-model="newTestEmail"
+                size="small"
+                placeholder="test@x.com"
+                style="width: 200px"
+                @keyup.enter="addTestEmail"
+              />
             </el-form-item>
             <el-form-item>
-              <el-button @click="sendTest" :loading="sending">发送测试</el-button>
+              <el-button
+                :loading="sending"
+                @click="sendTest"
+              >
+                发送测试
+              </el-button>
             </el-form-item>
           </el-form>
           <el-divider />
           <h4>变量列表</h4>
-          <el-tag v-for="v in builtinVars" :key="v.key" size="small" style="margin: 2px">
+          <el-tag
+            v-for="v in builtinVars"
+            :key="v.key"
+            size="small"
+            style="margin: 2px"
+          >
             {{ v.key }}
           </el-tag>
         </el-card>
       </el-col>
     </el-row>
 
-    <el-dialog v-model="previewVisible" title="预览" width="640px">
-      <div class="preview-frame" v-html="compiledHTML" />
+    <el-dialog
+      v-model="previewVisible"
+      title="预览"
+      width="640px"
+    >
+      <div
+        class="preview-frame"
+        v-html="compiledHTML"
+      />
     </el-dialog>
   </div>
 </template>

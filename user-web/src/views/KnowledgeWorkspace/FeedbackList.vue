@@ -14,77 +14,185 @@
     
     <el-card class="filter-card">
       <div class="filter-bar">
-        <el-select v-model="filter.product_id" placeholder="选择产品" clearable filterable style="width: 200px" @change="loadFeedbacks">
-          <el-option v-for="p in productList" :key="p.id" :label="p.name" :value="p.id" />
+        <el-select
+          v-model="filter.product_id"
+          placeholder="选择产品"
+          clearable
+          filterable
+          style="width: 200px"
+          @change="loadFeedbacks"
+        >
+          <el-option
+            v-for="p in productList"
+            :key="p.id"
+            :label="p.name"
+            :value="p.id"
+          />
         </el-select>
-        <el-select v-model="filter.rating" placeholder="评价" clearable style="width: 130px" @change="loadFeedbacks">
-          <el-option label="相关" :value="1" />
-          <el-option label="一般" :value="0" />
-          <el-option label="不相关" :value="-1" />
+        <el-select
+          v-model="filter.rating"
+          placeholder="评价"
+          clearable
+          style="width: 130px"
+          @change="loadFeedbacks"
+        >
+          <el-option
+            label="相关"
+            :value="1"
+          />
+          <el-option
+            label="一般"
+            :value="0"
+          />
+          <el-option
+            label="不相关"
+            :value="-1"
+          />
         </el-select>
-        <el-input v-model="filter.keyword" placeholder="搜索查询文本" clearable style="width: 240px" @keyup.enter="loadFeedbacks" @clear="loadFeedbacks" />
-        <el-button type="primary" @click="loadFeedbacks">搜索</el-button>
-        <el-button :icon="Refresh" @click="loadFeedbacks">刷新</el-button>
+        <el-input
+          v-model="filter.keyword"
+          placeholder="搜索查询文本"
+          clearable
+          style="width: 240px"
+          @keyup.enter="loadFeedbacks"
+          @clear="loadFeedbacks"
+        />
+        <el-button
+          type="primary"
+          @click="loadFeedbacks"
+        >
+          搜索
+        </el-button>
+        <el-button
+          :icon="Refresh"
+          @click="loadFeedbacks"
+        >
+          刷新
+        </el-button>
       </div>
     </el-card>
 
     
-    <el-row :gutter="16" class="metric-row">
+    <el-row
+      :gutter="16"
+      class="metric-row"
+    >
       <el-col :span="6">
         <el-card class="metric-card">
-          <div class="metric-label">总反馈数</div>
-          <div class="metric-value">{{ stats.total || 0 }}</div>
+          <div class="metric-label">
+            总反馈数
+          </div>
+          <div class="metric-value">
+            {{ stats.total || 0 }}
+          </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card class="metric-card success">
-          <div class="metric-label">相关</div>
-          <div class="metric-value">{{ stats.good || 0 }}</div>
+          <div class="metric-label">
+            相关
+          </div>
+          <div class="metric-value">
+            {{ stats.good || 0 }}
+          </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card class="metric-card warning">
-          <div class="metric-label">一般</div>
-          <div class="metric-value">{{ stats.neutral || 0 }}</div>
+          <div class="metric-label">
+            一般
+          </div>
+          <div class="metric-value">
+            {{ stats.neutral || 0 }}
+          </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card class="metric-card danger">
-          <div class="metric-label">不相关</div>
-          <div class="metric-value">{{ stats.bad || 0 }}</div>
+          <div class="metric-label">
+            不相关
+          </div>
+          <div class="metric-value">
+            {{ stats.bad || 0 }}
+          </div>
         </el-card>
       </el-col>
     </el-row>
 
     
     <el-card>
-      <el-table :data="feedbacks" v-loading="loading" stripe>
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column label="评价" width="100">
+      <el-table
+        v-loading="loading"
+        :data="feedbacks"
+        stripe
+      >
+        <el-table-column
+          prop="id"
+          label="ID"
+          width="80"
+        />
+        <el-table-column
+          label="评价"
+          width="100"
+        >
           <template #default="{ row }">
-            <el-tag :type="getRatingTagType(row.rating)" :class="getRatingClass(row.rating)">
+            <el-tag
+              :type="getRatingTagType(row.rating)"
+              :class="getRatingClass(row.rating)"
+            >
               {{ getRatingLabel(row.rating) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="query" label="查询文本" min-width="200" show-overflow-tooltip />
-        <el-table-column label="关联文档" width="120">
+        <el-table-column
+          prop="query"
+          label="查询文本"
+          min-width="200"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          label="关联文档"
+          width="120"
+        >
           <template #default="{ row }">
             <span v-if="row.document_id">#{{ row.document_id }}</span>
             <span v-else>-</span>
           </template>
         </el-table-column>
-        <el-table-column label="关联分段" width="120">
+        <el-table-column
+          label="关联分段"
+          width="120"
+        >
           <template #default="{ row }">
             <span v-if="row.chunk_id">#{{ row.chunk_id }}</span>
             <span v-else>-</span>
           </template>
         </el-table-column>
-        <el-table-column prop="operator" label="操作员" width="120" />
-        <el-table-column prop="session_id" label="会话" width="120" show-overflow-tooltip />
-        <el-table-column prop="comment" label="备注" min-width="200" show-overflow-tooltip />
-        <el-table-column prop="created_at" label="时间" width="170">
-          <template #default="{ row }">{{ formatDate(row.created_at) }}</template>
+        <el-table-column
+          prop="operator"
+          label="操作员"
+          width="120"
+        />
+        <el-table-column
+          prop="session_id"
+          label="会话"
+          width="120"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          prop="comment"
+          label="备注"
+          min-width="200"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          prop="created_at"
+          label="时间"
+          width="170"
+        >
+          <template #default="{ row }">
+            {{ formatDate(row.created_at) }}
+          </template>
         </el-table-column>
       </el-table>
       <el-pagination
@@ -93,9 +201,9 @@
         :total="pagination.total"
         :page-sizes="[20, 50, 100]"
         layout="total, sizes, prev, pager, next, jumper"
+        style="margin-top: 16px; justify-content: flex-end; display: flex"
         @size-change="loadFeedbacks"
         @current-change="loadFeedbacks"
-        style="margin-top: 16px; justify-content: flex-end; display: flex"
       />
     </el-card>
   </div>

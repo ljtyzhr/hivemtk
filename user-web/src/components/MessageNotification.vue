@@ -1,5 +1,8 @@
 <template>
-  <div v-if="hasNewMessage && !dismissed" class="message-notification">
+  <div
+    v-if="hasNewMessage && !dismissed"
+    class="message-notification"
+  >
     <div class="message-content">
       <div class="message-header">
         <el-icon><Bell /></el-icon>
@@ -9,8 +12,20 @@
         <p>{{ currentMessage.content }}</p>
       </div>
       <div class="message-actions">
-        <el-button type="primary" size="small" @click="markAsRead">{{ $t('知道了') }}</el-button>
-        <el-button type="text" size="small" @click="dismiss">{{ $t('关闭') }}</el-button>
+        <el-button
+          type="primary"
+          size="small"
+          @click="markAsRead"
+        >
+          {{ $t('知道了') }}
+        </el-button>
+        <el-button
+          type="text"
+          size="small"
+          @click="dismiss"
+        >
+          {{ $t('关闭') }}
+        </el-button>
       </div>
     </div>
   </div>

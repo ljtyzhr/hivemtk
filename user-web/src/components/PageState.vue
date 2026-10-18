@@ -7,34 +7,84 @@
     :aria-live="state === 'error' ? 'assertive' : 'polite'"
     :aria-busy="state === 'loading' ? 'true' : 'false'"
   >
-    
     <template v-if="state === 'loading'">
-      <div v-if="loadingIcon === 'spinner'" class="page-state__spinner" :style="spinnerStyle" aria-hidden="true"></div>
-      <el-icon v-else-if="loadingIcon" :size="iconSize" class="is-loading" aria-hidden="true">
+      <div
+        v-if="loadingIcon === 'spinner'"
+        class="page-state__spinner"
+        :style="spinnerStyle"
+        aria-hidden="true"
+      />
+      <el-icon
+        v-else-if="loadingIcon"
+        :size="iconSize"
+        class="is-loading"
+        aria-hidden="true"
+      >
         <component :is="loadingIcon" />
       </el-icon>
-      <p v-if="loadingText" class="page-state__text">{{ loadingText }}</p>
+      <p
+        v-if="loadingText"
+        class="page-state__text"
+      >
+        {{ loadingText }}
+      </p>
     </template>
 
     
     <template v-else-if="state === 'error'">
-      <el-icon v-if="!hideIcon" :size="iconSize" class="page-state__icon page-state__icon--error" aria-hidden="true">
+      <el-icon
+        v-if="!hideIcon"
+        :size="iconSize"
+        class="page-state__icon page-state__icon--error"
+        aria-hidden="true"
+      >
         <CircleCloseFilled />
       </el-icon>
-      <p v-if="errorTitle" class="page-state__title">{{ errorTitle }}</p>
-      <p v-if="errorText" class="page-state__text">{{ errorText }}</p>
-      <el-button v-if="showRetry" type="primary" plain :size="buttonSize" @click="emit('retry')">
+      <p
+        v-if="errorTitle"
+        class="page-state__title"
+      >
+        {{ errorTitle }}
+      </p>
+      <p
+        v-if="errorText"
+        class="page-state__text"
+      >
+        {{ errorText }}
+      </p>
+      <el-button
+        v-if="showRetry"
+        type="primary"
+        plain
+        :size="buttonSize"
+        @click="emit('retry')"
+      >
         {{ retryText || t('重试') }}
       </el-button>
     </template>
 
     
     <template v-else-if="state === 'empty'">
-      <el-icon v-if="!hideIcon && emptyIcon" :size="iconSize" class="page-state__icon page-state__icon--empty" aria-hidden="true">
+      <el-icon
+        v-if="!hideIcon && emptyIcon"
+        :size="iconSize"
+        class="page-state__icon page-state__icon--empty"
+        aria-hidden="true"
+      >
         <component :is="emptyIcon" />
       </el-icon>
-      <p v-if="emptyTitle" class="page-state__title">{{ emptyTitle }}</p>
-      <p v-if="emptyText" class="page-state__text">{{ emptyText }}</p>
+      <p
+        v-if="emptyTitle"
+        class="page-state__title"
+      >
+        {{ emptyTitle }}
+      </p>
+      <p
+        v-if="emptyText"
+        class="page-state__text"
+      >
+        {{ emptyText }}
+      </p>
       <slot name="action" />
     </template>
 

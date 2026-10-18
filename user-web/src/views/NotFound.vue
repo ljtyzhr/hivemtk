@@ -1,15 +1,23 @@
 <template>
   <div class="not-found-container">
     <div class="error-content">
-      <div class="error-code">404</div>
+      <div class="error-code">
+        404
+      </div>
       <div class="error-message">
         <h1>{{ $t('页面不存在') }}</h1>
         <p>您访问的页面好像去了外太空...</p>
-        <el-button type="primary" @click="goBack">
+        <el-button
+          type="primary"
+          @click="goBack"
+        >
           <el-icon><ArrowLeft /></el-icon>
           {{ $t('返回上一页') }}
         </el-button>
-        <el-button type="text" @click="goHome">
+        <el-button
+          type="text"
+          @click="goHome"
+        >
           <el-icon><House /></el-icon>
           {{ $t('回到首页') }}
         </el-button>
@@ -17,9 +25,9 @@
     </div>
     
     
-    <div class="stars"></div>
-    <div class="stars2"></div>
-    <div class="stars3"></div>
+    <div class="stars" />
+    <div class="stars2" />
+    <div class="stars3" />
   </div>
 </template>
 

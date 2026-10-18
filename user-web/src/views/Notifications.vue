@@ -1,17 +1,30 @@
 <template>
   <div class="notifications-page">
-    <el-card class="header-card" shadow="never">
+    <el-card
+      class="header-card"
+      shadow="never"
+    >
       <div class="header-content">
         <div>
           <h2>{{ $t('通知中心') }}</h2>
-          <p class="subtitle">{{ $t('查看来自平台的系统通知、版本公告与重要提醒') }}</p>
+          <p class="subtitle">
+            {{ $t('查看来自平台的系统通知、版本公告与重要提醒') }}
+          </p>
         </div>
         <div class="header-actions">
-          <el-button @click="loadList" :loading="loading">
+          <el-button
+            :loading="loading"
+            @click="loadList"
+          >
             <el-icon><Refresh /></el-icon>
             {{ $t('刷新') }}
           </el-button>
-          <el-button type="primary" :disabled="!hasUnread" :loading="marking" @click="onMarkAllRead">
+          <el-button
+            type="primary"
+            :disabled="!hasUnread"
+            :loading="marking"
+            @click="onMarkAllRead"
+          >
             <el-icon><Check /></el-icon>
             {{ $t('全部标记已读') }}
           </el-button>
@@ -19,29 +32,60 @@
       </div>
     </el-card>
 
-    <el-row :gutter="16" class="stats-row">
+    <el-row
+      :gutter="16"
+      class="stats-row"
+    >
       <el-col :span="6">
-        <el-card shadow="hover" class="stat-card">
-          <div class="stat-value">{{ stats.total || 0 }}</div>
-          <div class="stat-label">{{ $t('总消息') }}</div>
+        <el-card
+          shadow="hover"
+          class="stat-card"
+        >
+          <div class="stat-value">
+            {{ stats.total || 0 }}
+          </div>
+          <div class="stat-label">
+            {{ $t('总消息') }}
+          </div>
         </el-card>
       </el-col>
       <el-col :span="6">
-        <el-card shadow="hover" class="stat-card stat-unread">
-          <div class="stat-value">{{ stats.unread || 0 }}</div>
-          <div class="stat-label">{{ $t('未读') }}</div>
+        <el-card
+          shadow="hover"
+          class="stat-card stat-unread"
+        >
+          <div class="stat-value">
+            {{ stats.unread || 0 }}
+          </div>
+          <div class="stat-label">
+            {{ $t('未读') }}
+          </div>
         </el-card>
       </el-col>
       <el-col :span="6">
-        <el-card shadow="hover" class="stat-card stat-info">
-          <div class="stat-value">{{ (stats.byType || {}).info || 0 }}</div>
-          <div class="stat-label">{{ $t('信息') }}</div>
+        <el-card
+          shadow="hover"
+          class="stat-card stat-info"
+        >
+          <div class="stat-value">
+            {{ (stats.byType || {}).info || 0 }}
+          </div>
+          <div class="stat-label">
+            {{ $t('信息') }}
+          </div>
         </el-card>
       </el-col>
       <el-col :span="6">
-        <el-card shadow="hover" class="stat-card stat-warning">
-          <div class="stat-value">{{ (stats.byType || {}).warning || 0 }}</div>
-          <div class="stat-label">{{ $t('警告') }}</div>
+        <el-card
+          shadow="hover"
+          class="stat-card stat-warning"
+        >
+          <div class="stat-value">
+            {{ (stats.byType || {}).warning || 0 }}
+          </div>
+          <div class="stat-label">
+            {{ $t('警告') }}
+          </div>
         </el-card>
       </el-col>
     </el-row>
@@ -50,18 +94,57 @@
       <template #header>
         <div class="card-header">
           <el-space>
-            <el-select v-model="filter.type" :placeholder="$t('类型')" clearable style="width: 140px" @change="loadList">
-              <el-option :label="$t('全部')" :value="''" />
-              <el-option :label="$t('信息')" value="info" />
-              <el-option :label="$t('警告')" value="warning" />
-              <el-option :label="$t('错误')" value="error" />
-              <el-option :label="$t('成功')" value="success" />
-              <el-option :label="$t('公告')" value="announcement" />
+            <el-select
+              v-model="filter.type"
+              :placeholder="$t('类型')"
+              clearable
+              style="width: 140px"
+              @change="loadList"
+            >
+              <el-option
+                :label="$t('全部')"
+                :value="''"
+              />
+              <el-option
+                :label="$t('信息')"
+                value="info"
+              />
+              <el-option
+                :label="$t('警告')"
+                value="warning"
+              />
+              <el-option
+                :label="$t('错误')"
+                value="error"
+              />
+              <el-option
+                :label="$t('成功')"
+                value="success"
+              />
+              <el-option
+                :label="$t('公告')"
+                value="announcement"
+              />
             </el-select>
-            <el-select v-model="filter.is_read" :placeholder="$t('状态')" clearable style="width: 120px" @change="loadList">
-              <el-option :label="$t('全部')" :value="''" />
-              <el-option :label="$t('未读')" :value="0" />
-              <el-option :label="$t('已读')" :value="1" />
+            <el-select
+              v-model="filter.is_read"
+              :placeholder="$t('状态')"
+              clearable
+              style="width: 120px"
+              @change="loadList"
+            >
+              <el-option
+                :label="$t('全部')"
+                :value="''"
+              />
+              <el-option
+                :label="$t('未读')"
+                :value="0"
+              />
+              <el-option
+                :label="$t('已读')"
+                :value="1"
+              />
             </el-select>
             <el-input
               v-model="filter.keyword"
@@ -75,30 +158,77 @@
         </div>
       </template>
 
-      <el-table :data="list" v-loading="loading" stripe>
-        <el-table-column label="状态" width="70" align="center">
+      <el-table
+        v-loading="loading"
+        :data="list"
+        stripe
+      >
+        <el-table-column
+          label="状态"
+          width="70"
+          align="center"
+        >
           <template #default="{ row }">
-            <el-badge v-if="!row.is_read" is-dot />
-            <el-icon v-else color="#10B981"><Check /></el-icon>
+            <el-badge
+              v-if="!row.is_read"
+              is-dot
+            />
+            <el-icon
+              v-else
+              color="#10B981"
+            >
+              <Check />
+            </el-icon>
           </template>
         </el-table-column>
-        <el-table-column label="类型" width="100" align="center">
+        <el-table-column
+          label="类型"
+          width="100"
+          align="center"
+        >
           <template #default="{ row }">
-            <el-tag :type="typeTagType(row.type)" size="small">
+            <el-tag
+              :type="typeTagType(row.type)"
+              size="small"
+            >
               {{ typeLabel(row.type) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="title" label="标题" min-width="200" show-overflow-tooltip />
-        <el-table-column prop="content" label="内容" min-width="320" show-overflow-tooltip />
-        <el-table-column label="时间" width="180">
+        <el-table-column
+          prop="title"
+          label="标题"
+          min-width="200"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          prop="content"
+          label="内容"
+          min-width="320"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          label="时间"
+          width="180"
+        >
           <template #default="{ row }">
             {{ formatTime(row.created_at || row.createdAt) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="100" fixed="right">
+        <el-table-column
+          label="操作"
+          width="100"
+          fixed="right"
+        >
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="onView(row)">查看</el-button>
+            <el-button
+              link
+              type="primary"
+              size="small"
+              @click="onView(row)"
+            >
+              查看
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -117,23 +247,48 @@
     </el-card>
 
     
-    <el-dialog v-model="viewVisible" :title="current?.title || '通知详情'" width="560px">
-      <div v-if="current" class="detail-content">
-        <el-tag :type="typeTagType(current.type)" size="small">
+    <el-dialog
+      v-model="viewVisible"
+      :title="current?.title || '通知详情'"
+      width="560px"
+    >
+      <div
+        v-if="current"
+        class="detail-content"
+      >
+        <el-tag
+          :type="typeTagType(current.type)"
+          size="small"
+        >
           {{ typeLabel(current.type) }}
         </el-tag>
-        <h3 class="detail-title">{{ current.title }}</h3>
-        <p class="detail-time">{{ formatTime(current.created_at || current.createdAt) }}</p>
-        <div class="detail-body">{{ current.content }}</div>
-        <div v-if="current.link" class="detail-link">
-          <el-link type="primary" :href="current.link" target="_blank">
+        <h3 class="detail-title">
+          {{ current.title }}
+        </h3>
+        <p class="detail-time">
+          {{ formatTime(current.created_at || current.createdAt) }}
+        </p>
+        <div class="detail-body">
+          {{ current.content }}
+        </div>
+        <div
+          v-if="current.link"
+          class="detail-link"
+        >
+          <el-link
+            type="primary"
+            :href="current.link"
+            target="_blank"
+          >
             <el-icon><Link /></el-icon>
             查看详情
           </el-link>
         </div>
       </div>
       <template #footer>
-        <el-button @click="viewVisible = false">关闭</el-button>
+        <el-button @click="viewVisible = false">
+          关闭
+        </el-button>
       </template>
     </el-dialog>
   </div>

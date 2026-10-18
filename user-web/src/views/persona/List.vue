@@ -3,9 +3,14 @@
     <el-card class="header-card">
       <div>
         <h2>{{ $t('销冠能力画像') }}</h2>
-        <p class="subtitle">5 维度能力评估 · 趋势追踪 · 团队对比分析</p>
+        <p class="subtitle">
+          5 维度能力评估 · 趋势追踪 · 团队对比分析
+        </p>
       </div>
-      <el-button type="primary" @click="loadStaffs">
+      <el-button
+        type="primary"
+        @click="loadStaffs"
+      >
         <el-icon><Refresh /></el-icon>
         {{ $t('刷新') }}
       </el-button>
@@ -27,16 +32,28 @@
             </div>
           </template>
           <el-table
-            :data="filteredStaffs"
             v-loading="loadingStaffs"
+            :data="filteredStaffs"
             highlight-current-row
-            @row-click="selectStaff"
             stripe
             height="500"
+            @row-click="selectStaff"
           >
-            <el-table-column prop="id" label="ID" width="80" />
-            <el-table-column prop="name" label="姓名" min-width="120" />
-            <el-table-column label="综合分" width="100" align="center">
+            <el-table-column
+              prop="id"
+              label="ID"
+              width="80"
+            />
+            <el-table-column
+              prop="name"
+              label="姓名"
+              min-width="120"
+            />
+            <el-table-column
+              label="综合分"
+              width="100"
+              align="center"
+            >
               <template #default="{ row }">
                 <el-tag :type="scoreTagType(row.overall_score || row.overallScore)">
                   {{ Math.round(row.overall_score || row.overallScore || 0) }}
@@ -48,19 +65,30 @@
       </el-col>
 
       <el-col :span="16">
-        <el-card v-if="currentStaff" class="detail-card">
+        <el-card
+          v-if="currentStaff"
+          class="detail-card"
+        >
           <template #header>
             <div class="card-header">
               <div>
-                <h3 style="margin: 0">{{ currentStaff.staff_name || currentStaff.name }}</h3>
+                <h3 style="margin: 0">
+                  {{ currentStaff.staff_name || currentStaff.name }}
+                </h3>
                 <span class="subtitle">员工 ID: {{ currentStaff.staff_id || currentStaff.id }}</span>
               </div>
               <el-button-group>
-                <el-button :type="compareMode ? 'primary' : ''" @click="compareMode = !compareMode">
+                <el-button
+                  :type="compareMode ? 'primary' : ''"
+                  @click="compareMode = !compareMode"
+                >
                   <el-icon><DataLine /></el-icon>
                   {{ compareMode ? '退出对比' : '对比模式' }}
                 </el-button>
-                <el-button :disabled="!(currentStaff?.staff_id || currentStaff?.id)" @click="loadReport">
+                <el-button
+                  :disabled="!(currentStaff?.staff_id || currentStaff?.id)"
+                  @click="loadReport"
+                >
                   <el-icon><Refresh /></el-icon>
                   重新生成
                 </el-button>
@@ -68,32 +96,56 @@
             </div>
           </template>
 
-          <div v-if="loadingReport" v-loading="true" class="report-loading"></div>
+          <div
+            v-if="loadingReport"
+            v-loading="true"
+            class="report-loading"
+          />
           <template v-else-if="currentReport">
-            <el-row :gutter="20" class="overview-row">
+            <el-row
+              :gutter="20"
+              class="overview-row"
+            >
               <el-col :span="8">
                 <div class="overview-card">
-                  <div class="overview-label">综合评分</div>
-                  <div class="overview-value" :style="{ color: scoreColorValue(currentReport.overall_score) }">
+                  <div class="overview-label">
+                    综合评分
+                  </div>
+                  <div
+                    class="overview-value"
+                    :style="{ color: scoreColorValue(currentReport.overall_score) }"
+                  >
                     {{ Math.round(currentReport.overall_score || 0) }}
                   </div>
-                  <div class="overview-tip">满分 100</div>
+                  <div class="overview-tip">
+                    满分 100
+                  </div>
                 </div>
               </el-col>
               <el-col :span="8">
                 <div class="overview-card">
-                  <div class="overview-label">评估维度</div>
-                  <div class="overview-value">{{ (currentReport.items || []).length }}</div>
-                  <div class="overview-tip">个能力维度</div>
+                  <div class="overview-label">
+                    评估维度
+                  </div>
+                  <div class="overview-value">
+                    {{ (currentReport.items || []).length }}
+                  </div>
+                  <div class="overview-tip">
+                    个能力维度
+                  </div>
                 </div>
               </el-col>
               <el-col :span="8">
                 <div class="overview-card">
-                  <div class="overview-label">生成时间</div>
+                  <div class="overview-label">
+                    生成时间
+                  </div>
                   <div class="overview-value time-text">
                     {{ formatTime(currentReport.generated_at) }}
                   </div>
-                  <div class="overview-tip">最近一次评估</div>
+                  <div class="overview-tip">
+                    最近一次评估
+                  </div>
                 </div>
               </el-col>
             </el-row>
@@ -101,9 +153,16 @@
             <div class="radar-section">
               <h4>能力雷达图</h4>
               <div class="radar-chart">
-                <svg :viewBox="`0 0 ${svgSize} ${svgSize}`" width="100%" :style="{ maxWidth: svgSize + 'px', margin: '0 auto', display: 'block' }">
+                <svg
+                  :viewBox="`0 0 ${svgSize} ${svgSize}`"
+                  width="100%"
+                  :style="{ maxWidth: svgSize + 'px', margin: '0 auto', display: 'block' }"
+                >
                   
-                  <g v-for="(ring, idx) in [0.2, 0.4, 0.6, 0.8, 1.0]" :key="`ring-${idx}`">
+                  <g
+                    v-for="(ring, idx) in [0.2, 0.4, 0.6, 0.8, 1.0]"
+                    :key="`ring-${idx}`"
+                  >
                     <polygon
                       :points="radarPoints(ring)"
                       fill="none"
@@ -112,7 +171,10 @@
                     />
                   </g>
                   
-                  <g v-for="(item, idx) in currentReport.items || []" :key="`axis-${idx}`">
+                  <g
+                    v-for="(item, idx) in currentReport.items || []"
+                    :key="`axis-${idx}`"
+                  >
                     <line
                       :x1="svgCenter"
                       :y1="svgCenter"
@@ -137,7 +199,10 @@
                     stroke-width="2"
                   />
                   
-                  <g v-for="(item, idx) in currentReport.items || []" :key="`pt-${idx}`">
+                  <g
+                    v-for="(item, idx) in currentReport.items || []"
+                    :key="`pt-${idx}`"
+                  >
                     <circle
                       :cx="scoreX(idx)"
                       :cy="scoreY(idx)"
@@ -151,14 +216,30 @@
 
             <div class="items-section">
               <h4>能力维度详情</h4>
-              <el-table :data="currentReport.items || []" stripe>
-                <el-table-column prop="name" label="能力维度" min-width="140" />
-                <el-table-column prop="tag" label="标签" width="120">
+              <el-table
+                :data="currentReport.items || []"
+                stripe
+              >
+                <el-table-column
+                  prop="name"
+                  label="能力维度"
+                  min-width="140"
+                />
+                <el-table-column
+                  prop="tag"
+                  label="标签"
+                  width="120"
+                >
                   <template #default="{ row }">
-                    <el-tag size="small">{{ row.tag }}</el-tag>
+                    <el-tag size="small">
+                      {{ row.tag }}
+                    </el-tag>
                   </template>
                 </el-table-column>
-                <el-table-column label="得分" width="200">
+                <el-table-column
+                  label="得分"
+                  width="200"
+                >
                   <template #default="{ row }">
                     <el-progress
                       :percentage="Math.round(row.score || 0)"
@@ -167,16 +248,37 @@
                     />
                   </template>
                 </el-table-column>
-                <el-table-column prop="sample" label="样本数" width="100" align="center" />
-                <el-table-column label="趋势" width="100" align="center">
+                <el-table-column
+                  prop="sample"
+                  label="样本数"
+                  width="100"
+                  align="center"
+                />
+                <el-table-column
+                  label="趋势"
+                  width="100"
+                  align="center"
+                >
                   <template #default="{ row }">
-                    <el-tag v-if="row.trend === 'up'" type="success" size="small">
+                    <el-tag
+                      v-if="row.trend === 'up'"
+                      type="success"
+                      size="small"
+                    >
                       <el-icon><CaretTop /></el-icon>{{ getTrendLabel(row.trend) }}
                     </el-tag>
-                    <el-tag v-else-if="row.trend === 'down'" type="danger" size="small">
+                    <el-tag
+                      v-else-if="row.trend === 'down'"
+                      type="danger"
+                      size="small"
+                    >
                       <el-icon><CaretBottom /></el-icon>{{ getTrendLabel(row.trend) }}
                     </el-tag>
-                    <el-tag v-else type="info" size="small">
+                    <el-tag
+                      v-else
+                      type="info"
+                      size="small"
+                    >
                       <el-icon><Minus /></el-icon>{{ getTrendLabel(row.trend) }}
                     </el-tag>
                   </template>
@@ -185,7 +287,10 @@
             </div>
 
             
-            <div v-if="compareMode" class="compare-section">
+            <div
+              v-if="compareMode"
+              class="compare-section"
+            >
               <h4>员工对比</h4>
               <el-select
                 v-model="compareStaffId"
@@ -202,9 +307,19 @@
                   :value="s.id"
                 />
               </el-select>
-              <div v-if="compareReport" class="compare-chart">
-                <svg :viewBox="`0 0 ${svgSize} ${svgSize}`" width="100%" :style="{ maxWidth: svgSize + 'px', margin: '0 auto', display: 'block' }">
-                  <g v-for="(ring, idx) in [0.2, 0.4, 0.6, 0.8, 1.0]" :key="`cring-${idx}`">
+              <div
+                v-if="compareReport"
+                class="compare-chart"
+              >
+                <svg
+                  :viewBox="`0 0 ${svgSize} ${svgSize}`"
+                  width="100%"
+                  :style="{ maxWidth: svgSize + 'px', margin: '0 auto', display: 'block' }"
+                >
+                  <g
+                    v-for="(ring, idx) in [0.2, 0.4, 0.6, 0.8, 1.0]"
+                    :key="`cring-${idx}`"
+                  >
                     <polygon
                       :points="radarPoints(ring)"
                       fill="none"
@@ -212,7 +327,10 @@
                       stroke-width="1"
                     />
                   </g>
-                  <g v-for="(item, idx) in compareReport.items || []" :key="`caxis-${idx}`">
+                  <g
+                    v-for="(item, idx) in compareReport.items || []"
+                    :key="`caxis-${idx}`"
+                  >
                     <line
                       :x1="svgCenter"
                       :y1="svgCenter"
@@ -246,13 +364,22 @@
                   />
                 </svg>
                 <div class="compare-legend">
-                  <span><span class="legend-dot" style="background: #4F46E5"></span>当前员工</span>
-                  <span><span class="legend-dot" style="background: #F59E0B"></span>对比员工</span>
+                  <span><span
+                    class="legend-dot"
+                    style="background: #4F46E5"
+                  />当前员工</span>
+                  <span><span
+                    class="legend-dot"
+                    style="background: #F59E0B"
+                  />对比员工</span>
                 </div>
               </div>
             </div>
           </template>
-          <el-empty v-else description="请选择员工查看画像" />
+          <el-empty
+            v-else
+            description="请选择员工查看画像"
+          />
         </el-card>
         <el-card v-else>
           <el-empty description="请从左侧选择员工" />

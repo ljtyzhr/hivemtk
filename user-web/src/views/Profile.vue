@@ -1,14 +1,21 @@
 <template>
   <div class="profile-page">
-    
-    <el-card class="header-card" shadow="never">
+    <el-card
+      class="header-card"
+      shadow="never"
+    >
       <div class="header-content">
         <div>
           <h2>{{ $t('个人资料') }}</h2>
-          <p class="subtitle">{{ $t('查看与维护当前登录账号的基础信息') }}</p>
+          <p class="subtitle">
+            {{ $t('查看与维护当前登录账号的基础信息') }}
+          </p>
         </div>
         <div class="header-actions">
-          <el-button :loading="loading" @click="loadProfile">
+          <el-button
+            :loading="loading"
+            @click="loadProfile"
+          >
             <el-icon><Refresh /></el-icon>
             {{ $t('刷新') }}
           </el-button>
@@ -16,53 +23,119 @@
       </div>
     </el-card>
 
-    <el-row :gutter="20" v-loading="loading">
-      <el-col :xs="24" :sm="10" :md="8">
-        <el-card class="avatar-card" shadow="never">
+    <el-row
+      v-loading="loading"
+      :gutter="20"
+    >
+      <el-col
+        :xs="24"
+        :sm="10"
+        :md="8"
+      >
+        <el-card
+          class="avatar-card"
+          shadow="never"
+        >
           <div class="avatar-wrap">
-            <el-avatar :size="96" class="avatar">{{ initial }}</el-avatar>
+            <el-avatar
+              :size="96"
+              class="avatar"
+            >
+              {{ initial }}
+            </el-avatar>
             <div class="role-tag">
-              <el-tag :type="roleTagType" effect="dark" size="small">
+              <el-tag
+                :type="roleTagType"
+                effect="dark"
+                size="small"
+              >
                 {{ roleLabel }}
               </el-tag>
             </div>
-            <h3 class="username">{{ form.username || '-' }}</h3>
-            <p class="user-id">ID: {{ form.id || '-' }}</p>
+            <h3 class="username">
+              {{ form.username || '-' }}
+            </h3>
+            <p class="user-id">
+              ID: {{ form.id || '-' }}
+            </p>
           </div>
         </el-card>
       </el-col>
 
-      <el-col :xs="24" :sm="14" :md="16">
+      <el-col
+        :xs="24"
+        :sm="14"
+        :md="16"
+      >
         <el-card shadow="never">
           <template #header>
             <span>{{ $t('基础信息') }}</span>
           </template>
           <el-form
+            ref="formRef"
             :model="form"
             :rules="rules"
-            ref="formRef"
             label-width="100px"
             label-position="right"
           >
-            <el-form-item label="登录账号" prop="username">
-              <el-input v-model="form.username" disabled />
+            <el-form-item
+              label="登录账号"
+              prop="username"
+            >
+              <el-input
+                v-model="form.username"
+                disabled
+              />
             </el-form-item>
-            <el-form-item label="真实姓名" prop="real_name">
-              <el-input v-model="form.real_name" placeholder="请输入真实姓名" maxlength="32" />
+            <el-form-item
+              label="真实姓名"
+              prop="real_name"
+            >
+              <el-input
+                v-model="form.real_name"
+                placeholder="请输入真实姓名"
+                maxlength="32"
+              />
             </el-form-item>
-            <el-form-item label="邮箱" prop="email">
-              <el-input v-model="form.email" placeholder="请输入邮箱" maxlength="64" />
+            <el-form-item
+              label="邮箱"
+              prop="email"
+            >
+              <el-input
+                v-model="form.email"
+                placeholder="请输入邮箱"
+                maxlength="64"
+              />
             </el-form-item>
-            <el-form-item label="手机号" prop="phone">
-              <el-input v-model="form.phone" placeholder="请输入手机号" maxlength="20" />
+            <el-form-item
+              label="手机号"
+              prop="phone"
+            >
+              <el-input
+                v-model="form.phone"
+                placeholder="请输入手机号"
+                maxlength="20"
+              />
             </el-form-item>
             <el-form-item label="角色">
-              <el-tag :type="roleTagType">{{ roleLabel }}</el-tag>
+              <el-tag :type="roleTagType">
+                {{ roleLabel }}
+              </el-tag>
               <span class="readonly-hint">角色由系统根据初始化/分配决定，暂不支持自助修改</span>
             </el-form-item>
             <el-form-item label="状态">
-              <el-tag v-if="form.status === 1" type="success">启用</el-tag>
-              <el-tag v-else type="info">已停用</el-tag>
+              <el-tag
+                v-if="form.status === 1"
+                type="success"
+              >
+                启用
+              </el-tag>
+              <el-tag
+                v-else
+                type="info"
+              >
+                已停用
+              </el-tag>
             </el-form-item>
             <el-form-item label="创建时间">
               <span class="readonly-text">{{ form.created_at || '-' }}</span>
@@ -71,16 +144,25 @@
               <span class="readonly-text">{{ form.last_login_at || '尚未记录' }}</span>
             </el-form-item>
             <el-form-item>
-              <el-button type="primary" :loading="saving" @click="onSave">
+              <el-button
+                type="primary"
+                :loading="saving"
+                @click="onSave"
+              >
                 <el-icon><Check /></el-icon>
                 保存修改
               </el-button>
-              <el-button @click="loadProfile">重置</el-button>
+              <el-button @click="loadProfile">
+                重置
+              </el-button>
             </el-form-item>
           </el-form>
         </el-card>
 
-        <el-card class="password-card" shadow="never">
+        <el-card
+          class="password-card"
+          shadow="never"
+        >
           <template #header>
             <span>修改密码</span>
           </template>
@@ -99,7 +181,10 @@
             label-width="100px"
             label-position="right"
           >
-            <el-form-item label="当前密码" prop="oldPassword">
+            <el-form-item
+              label="当前密码"
+              prop="oldPassword"
+            >
               <el-input
                 v-model="pwdForm.oldPassword"
                 type="password"
@@ -107,7 +192,10 @@
                 placeholder="请输入当前密码"
               />
             </el-form-item>
-            <el-form-item label="新密码" prop="newPassword">
+            <el-form-item
+              label="新密码"
+              prop="newPassword"
+            >
               <el-input
                 v-model="pwdForm.newPassword"
                 type="password"
@@ -115,7 +203,10 @@
                 placeholder="至少 8 位，含大小写字母+数字"
               />
             </el-form-item>
-            <el-form-item label="确认新密码" prop="confirmPassword">
+            <el-form-item
+              label="确认新密码"
+              prop="confirmPassword"
+            >
               <el-input
                 v-model="pwdForm.confirmPassword"
                 type="password"
@@ -125,7 +216,11 @@
               />
             </el-form-item>
             <el-form-item>
-              <el-button type="warning" :loading="pwdSaving" @click="onChangePassword">
+              <el-button
+                type="warning"
+                :loading="pwdSaving"
+                @click="onChangePassword"
+              >
                 <el-icon><Lock /></el-icon>
                 修改密码
               </el-button>

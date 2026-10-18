@@ -3,8 +3,12 @@
     <el-card class="header-card">
       <div class="header-content">
         <div>
-          <h2 class="page-title">{{ t('permission.title') }}</h2>
-          <p class="page-subtitle">{{ t('permission.subtitle') }}</p>
+          <h2 class="page-title">
+            {{ t('permission.title') }}
+          </h2>
+          <p class="page-subtitle">
+            {{ t('permission.subtitle') }}
+          </p>
         </div>
       </div>
     </el-card>
@@ -18,13 +22,16 @@
         </span>
       </template>
       <el-form
+        ref="formRef"
         :model="form"
         :rules="formRules"
-        ref="formRef"
         label-width="140px"
         :inline="false"
       >
-        <el-form-item :label="t('permission.targetUserId')" prop="userId">
+        <el-form-item
+          :label="t('permission.targetUserId')"
+          prop="userId"
+        >
           <el-input
             v-model.number="form.userId"
             type="number"
@@ -42,7 +49,10 @@
             style="--el-switch-on-color: var(--el-color-success); --el-switch-off-color: var(--el-color-danger)"
           />
         </el-form-item>
-        <el-form-item :label="t('permission.newPassword')" prop="password">
+        <el-form-item
+          :label="t('permission.newPassword')"
+          prop="password"
+        >
           <el-input
             v-model="form.password"
             type="password"
@@ -52,7 +62,10 @@
             clearable
           />
         </el-form-item>
-        <el-form-item :label="t('permission.confirmPassword')" prop="confirmPassword">
+        <el-form-item
+          :label="t('permission.confirmPassword')"
+          prop="confirmPassword"
+        >
           <el-input
             v-model="form.confirmPassword"
             type="password"
@@ -75,8 +88,8 @@
             type="warning"
             :loading="submitting.password"
             icon="Key"
-            @click="handleResetPassword"
             style="margin-left: 8px"
+            @click="handleResetPassword"
           >
             {{ t('permission.resetPassword') }}
           </el-button>
@@ -111,8 +124,8 @@
               type="primary"
               link
               :icon="Refresh"
-              @click="refreshLogs"
               style="margin-left: 8px"
+              @click="refreshLogs"
             >
               {{ t('common.refresh') }}
             </el-button>
@@ -120,7 +133,12 @@
         </div>
       </template>
 
-      <el-table :data="logs" v-loading="logsLoading" stripe border>
+      <el-table
+        v-loading="logsLoading"
+        :data="logs"
+        stripe
+        border
+      >
         <el-table-column
           :label="t('permission.actor')"
           prop="user_id"
@@ -132,9 +150,15 @@
           width="160"
           show-overflow-tooltip
         />
-        <el-table-column :label="t('permission.action')" width="180">
+        <el-table-column
+          :label="t('permission.action')"
+          width="180"
+        >
           <template #default="{ row }">
-            <el-tag :type="getActionTagType(row.action)" size="small">
+            <el-tag
+              :type="getActionTagType(row.action)"
+              size="small"
+            >
               {{ row.action }}
             </el-tag>
           </template>
@@ -145,7 +169,10 @@
           min-width="280"
           show-overflow-tooltip
         />
-        <el-table-column :label="t('permission.createdAt')" width="180">
+        <el-table-column
+          :label="t('permission.createdAt')"
+          width="180"
+        >
           <template #default="{ row }">
             {{ formatTime(row.created_at) }}
           </template>
@@ -162,9 +189,9 @@
         :page-sizes="[10, 20, 50, 100]"
         :total="logsPagination.total"
         layout="total, sizes, prev, pager, next, jumper"
+        style="margin-top: 16px; text-align: right"
         @size-change="onSizeChange"
         @current-change="onCurrentChange"
-        style="margin-top: 16px; text-align: right"
       />
     </el-card>
   </div>

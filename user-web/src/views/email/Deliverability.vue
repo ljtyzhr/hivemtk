@@ -1,28 +1,47 @@
 <template>
   <div class="deliverability">
-    <el-row :gutter="16" class="stats-row">
+    <el-row
+      :gutter="16"
+      class="stats-row"
+    >
       <el-col :span="6">
         <el-card class="stat-card">
-          <div class="stat-label">送达率</div>
-          <div class="stat-value">{{ stats.deliveryRate?.toFixed(1) }}%</div>
+          <div class="stat-label">
+            送达率
+          </div>
+          <div class="stat-value">
+            {{ stats.deliveryRate?.toFixed(1) }}%
+          </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card class="stat-card success">
-          <div class="stat-label">打开率</div>
-          <div class="stat-value">{{ stats.openRate?.toFixed(1) }}%</div>
+          <div class="stat-label">
+            打开率
+          </div>
+          <div class="stat-value">
+            {{ stats.openRate?.toFixed(1) }}%
+          </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card class="stat-card warning">
-          <div class="stat-label">软退信</div>
-          <div class="stat-value">{{ stats.softBounce }}</div>
+          <div class="stat-label">
+            软退信
+          </div>
+          <div class="stat-value">
+            {{ stats.softBounce }}
+          </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card class="stat-card danger">
-          <div class="stat-label">硬退信</div>
-          <div class="stat-value">{{ stats.hardBounce }}</div>
+          <div class="stat-label">
+            硬退信
+          </div>
+          <div class="stat-value">
+            {{ stats.hardBounce }}
+          </div>
         </el-card>
       </el-col>
     </el-row>
@@ -31,40 +50,112 @@
       <template #header>
         <div class="card-header">
           <span>域名信誉</span>
-          <el-button size="small" @click="refresh">刷新</el-button>
+          <el-button
+            size="small"
+            @click="refresh"
+          >
+            刷新
+          </el-button>
         </div>
       </template>
-      <el-table :data="domainReputation" v-loading="loading">
-        <el-table-column prop="domain" label="域名" />
-        <el-table-column prop="reputation" label="信誉" width="120">
+      <el-table
+        v-loading="loading"
+        :data="domainReputation"
+      >
+        <el-table-column
+          prop="domain"
+          label="域名"
+        />
+        <el-table-column
+          prop="reputation"
+          label="信誉"
+          width="120"
+        >
           <template #default="{ row }">
-            <el-rate v-model="row.reputation" disabled :max="5" show-score />
+            <el-rate
+              v-model="row.reputation"
+              disabled
+              :max="5"
+              show-score
+            />
           </template>
         </el-table-column>
-        <el-table-column prop="sentLast24h" label="24h 发送" width="120" />
-        <el-table-column prop="delivered" label="已送达" width="100" />
-        <el-table-column prop="bounced" label="退信" width="80" />
-        <el-table-column prop="complained" label="投诉" width="80" />
-        <el-table-column prop="blacklisted" label="黑名单" width="100">
+        <el-table-column
+          prop="sentLast24h"
+          label="24h 发送"
+          width="120"
+        />
+        <el-table-column
+          prop="delivered"
+          label="已送达"
+          width="100"
+        />
+        <el-table-column
+          prop="bounced"
+          label="退信"
+          width="80"
+        />
+        <el-table-column
+          prop="complained"
+          label="投诉"
+          width="80"
+        />
+        <el-table-column
+          prop="blacklisted"
+          label="黑名单"
+          width="100"
+        >
           <template #default="{ row }">
-            <el-tag v-if="row.blacklisted" type="danger" size="small">已列入</el-tag>
-            <el-tag v-else type="success" size="small">正常</el-tag>
+            <el-tag
+              v-if="row.blacklisted"
+              type="danger"
+              size="small"
+            >
+              已列入
+            </el-tag>
+            <el-tag
+              v-else
+              type="success"
+              size="small"
+            >
+              正常
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="120" fixed="right">
+        <el-table-column
+          label="操作"
+          width="120"
+          fixed="right"
+        >
           <template #default="{ row }">
-            <el-button link type="warning" @click="suspendDomain(row)" :disabled="row.blacklisted">
+            <el-button
+              link
+              type="warning"
+              :disabled="row.blacklisted"
+              @click="suspendDomain(row)"
+            >
               暂停使用
             </el-button>
-            <el-button link type="primary" @click="viewDetails(row)">详情</el-button>
+            <el-button
+              link
+              type="primary"
+              @click="viewDetails(row)"
+            >
+              详情
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
     </el-card>
 
     <el-card class="bounce-card">
-      <template #header><span>退信分类（按 ISP）</span></template>
-      <div ref="bounceChartRef" class="chart" />
+      <template #header>
+        <span>退信分类（按 ISP）</span>
+      </template>
+      <div
+        ref="bounceChartRef"
+        class="chart"
+      />
     </el-card>
   </div>
 </template>

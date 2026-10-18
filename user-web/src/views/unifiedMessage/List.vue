@@ -1,11 +1,15 @@
 <template>
   <div class="unified-message-container">
-    
-    <el-card class="header-card" shadow="never">
+    <el-card
+      class="header-card"
+      shadow="never"
+    >
       <div class="page-header">
         <div class="header-text">
           <h2>{{ $t('统一消息') }}</h2>
-          <p class="subtitle">跨渠道消息汇总：收件箱、AI 回复、系统通知、用户对话集中管理与操作</p>
+          <p class="subtitle">
+            跨渠道消息汇总：收件箱、AI 回复、系统通知、用户对话集中管理与操作
+          </p>
         </div>
         <div class="header-actions">
           <el-button @click="fetchMessageList">
@@ -17,11 +21,22 @@
     </el-card>
 
     
-    <el-tabs v-model="activeChannel" class="channel-tabs" @tab-change="handleChannelChange">
-      <el-tab-pane v-for="ch in channelTabs" :key="ch.value" :name="ch.value">
+    <el-tabs
+      v-model="activeChannel"
+      class="channel-tabs"
+      @tab-change="handleChannelChange"
+    >
+      <el-tab-pane
+        v-for="ch in channelTabs"
+        :key="ch.value"
+        :name="ch.value"
+      >
         <template #label>
           <span class="tab-label">
-            <el-icon v-if="ch.icon" class="tab-icon"><component :is="ch.icon" /></el-icon>
+            <el-icon
+              v-if="ch.icon"
+              class="tab-icon"
+            ><component :is="ch.icon" /></el-icon>
             <span>{{ ch.label }}</span>
             <el-badge
               v-if="channelCounts[ch.value] !== undefined"
@@ -36,7 +51,11 @@
 
     
     <div class="search-form">
-      <el-form :inline="true" :model="searchForm" class="search-form-content">
+      <el-form
+        :inline="true"
+        :model="searchForm"
+        class="search-form-content"
+      >
         <el-form-item :label="$t('关键字')">
           <el-input
             v-model="searchForm.keyword"
@@ -47,18 +66,49 @@
           />
         </el-form-item>
         <el-form-item :label="$t('消息类型')">
-          <el-select v-model="searchForm.type" :placeholder="$t('请选择类型')" clearable style="width: 140px">
-            <el-option :label="$t('系统消息')" value="system" />
-            <el-option :label="$t('用户消息')" value="user" />
-            <el-option :label="$t('通知')" value="notification" />
-            <el-option :label="$t('AI 回复')" value="ai" />
+          <el-select
+            v-model="searchForm.type"
+            :placeholder="$t('请选择类型')"
+            clearable
+            style="width: 140px"
+          >
+            <el-option
+              :label="$t('系统消息')"
+              value="system"
+            />
+            <el-option
+              :label="$t('用户消息')"
+              value="user"
+            />
+            <el-option
+              :label="$t('通知')"
+              value="notification"
+            />
+            <el-option
+              :label="$t('AI 回复')"
+              value="ai"
+            />
           </el-select>
         </el-form-item>
         <el-form-item :label="$t('状态')">
-          <el-select v-model="searchForm.status" :placeholder="$t('请选择状态')" clearable style="width: 130px">
-            <el-option :label="$t('未读')" value="unread" />
-            <el-option :label="$t('已读')" value="read" />
-            <el-option :label="$t('处理中')" value="processing" />
+          <el-select
+            v-model="searchForm.status"
+            :placeholder="$t('请选择状态')"
+            clearable
+            style="width: 130px"
+          >
+            <el-option
+              :label="$t('未读')"
+              value="unread"
+            />
+            <el-option
+              :label="$t('已读')"
+              value="read"
+            />
+            <el-option
+              :label="$t('处理中')"
+              value="processing"
+            />
           </el-select>
         </el-form-item>
         <el-form-item :label="$t('时间')">
@@ -73,7 +123,10 @@
           />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="handleSearch">
+          <el-button
+            type="primary"
+            @click="handleSearch"
+          >
             <el-icon><Search /></el-icon>
             {{ $t('搜索') }}
           </el-button>
@@ -87,20 +140,27 @@
 
     
     <el-table
+      v-loading="loading"
       :data="messageList"
       border
       style="width: 100%"
-      v-loading="loading"
       :empty-text="$t('暂无消息')"
     >
-      <el-table-column prop="id" label="ID" width="80" />
+      <el-table-column
+        prop="id"
+        label="ID"
+        width="80"
+      />
       <el-table-column
         prop="message_id"
         :label="$t('消息ID')"
         min-width="180"
         show-overflow-tooltip
       />
-      <el-table-column :label="$t('渠道')" width="110">
+      <el-table-column
+        :label="$t('渠道')"
+        width="110"
+      >
         <template #default="{ row }">
           <el-tag
             :type="getChannelTagType(row.channel || row.platform)"
@@ -111,17 +171,32 @@
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column :label="$t('类型')" width="100">
+      <el-table-column
+        :label="$t('类型')"
+        width="100"
+      >
         <template #default="{ row }">
-          <el-tag :type="getTypeTagType(row.type || row.content_type)" size="small">
+          <el-tag
+            :type="getTypeTagType(row.type || row.content_type)"
+            size="small"
+          >
             {{ getTypeLabel(row.type || row.content_type) }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column :label="$t('内容')" min-width="280" show-overflow-tooltip>
+      <el-table-column
+        :label="$t('内容')"
+        min-width="280"
+        show-overflow-tooltip
+      >
         <template #default="{ row }">
           <div class="content-cell">
-            <el-icon v-if="row.pinned" class="pin-icon"><Top /></el-icon>
+            <el-icon
+              v-if="row.pinned"
+              class="pin-icon"
+            >
+              <Top />
+            </el-icon>
             <span class="content-text">{{ row.content || row.text || '(无内容)' }}</span>
           </div>
         </template>
@@ -138,19 +213,40 @@
         min-width="120"
         show-overflow-tooltip
       />
-      <el-table-column :label="$t('状态')" width="100">
+      <el-table-column
+        :label="$t('状态')"
+        width="100"
+      >
         <template #default="{ row }">
-          <el-tag :type="getStatusTagType(row.status)" size="small">
+          <el-tag
+            :type="getStatusTagType(row.status)"
+            size="small"
+          >
             {{ getStatusLabel(row.status) }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column :label="$t('时间')" min-width="170" show-overflow-tooltip>
-        <template #default="{ row }">{{ formatTime(row.created_at) }}</template>
-      </el-table-column>
-      <el-table-column :label="$t('操作')" width="240" fixed="right">
+      <el-table-column
+        :label="$t('时间')"
+        min-width="170"
+        show-overflow-tooltip
+      >
         <template #default="{ row }">
-          <el-button type="primary" size="small" link @click="handleViewDetail(row)">
+          {{ formatTime(row.created_at) }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        :label="$t('操作')"
+        width="240"
+        fixed="right"
+      >
+        <template #default="{ row }">
+          <el-button
+            type="primary"
+            size="small"
+            link
+            @click="handleViewDetail(row)"
+          >
             <el-icon><View /></el-icon>{{ $t('详情') }}
           </el-button>
           <el-button
@@ -162,10 +258,20 @@
           >
             <el-icon><Check /></el-icon>{{ $t('已读') }}
           </el-button>
-          <el-button type="warning" size="small" link @click="handleResend(row)">
+          <el-button
+            type="warning"
+            size="small"
+            link
+            @click="handleResend(row)"
+          >
             <el-icon><RefreshRight /></el-icon>{{ $t('重发') }}
           </el-button>
-          <el-button type="info" size="small" link @click="handleCopyContent(row)">
+          <el-button
+            type="info"
+            size="small"
+            link
+            @click="handleCopyContent(row)"
+          >
             <el-icon><CopyDocument /></el-icon>{{ $t('复制') }}
           </el-button>
         </template>
@@ -186,7 +292,12 @@
     </div>
 
     
-    <el-dialog v-model="detailDialogVisible" title="消息详情" width="800px" top="5vh">
+    <el-dialog
+      v-model="detailDialogVisible"
+      title="消息详情"
+      width="800px"
+      top="5vh"
+    >
       <div v-loading="detailLoading">
         <el-card class="detail-card">
           <template #header>
@@ -199,17 +310,36 @@
               </el-tag>
             </div>
           </template>
-          <el-descriptions :column="2" border>
-            <el-descriptions-item label="消息ID">{{ currentMessage.id }}</el-descriptions-item>
-            <el-descriptions-item label="消息类型">{{ currentMessage.content_type }}</el-descriptions-item>
-            <el-descriptions-item label="发送者">{{ currentMessage.sender_name }}</el-descriptions-item>
-            <el-descriptions-item label="会话">{{ currentMessage.chat_id }}</el-descriptions-item>
-            <el-descriptions-item label="发送时间">{{ currentMessage.created_at }}</el-descriptions-item>
-            <el-descriptions-item label="更新时间">{{ currentMessage.updated_at }}</el-descriptions-item>
+          <el-descriptions
+            :column="2"
+            border
+          >
+            <el-descriptions-item label="消息ID">
+              {{ currentMessage.id }}
+            </el-descriptions-item>
+            <el-descriptions-item label="消息类型">
+              {{ currentMessage.content_type }}
+            </el-descriptions-item>
+            <el-descriptions-item label="发送者">
+              {{ currentMessage.sender_name }}
+            </el-descriptions-item>
+            <el-descriptions-item label="会话">
+              {{ currentMessage.chat_id }}
+            </el-descriptions-item>
+            <el-descriptions-item label="发送时间">
+              {{ currentMessage.created_at }}
+            </el-descriptions-item>
+            <el-descriptions-item label="更新时间">
+              {{ currentMessage.updated_at }}
+            </el-descriptions-item>
           </el-descriptions>
           <div class="message-content">
-            <div class="content-label">消息内容</div>
-            <div class="content-body">{{ currentMessage.content }}</div>
+            <div class="content-label">
+              消息内容
+            </div>
+            <div class="content-body">
+              {{ currentMessage.content }}
+            </div>
           </div>
         </el-card>
       </div>

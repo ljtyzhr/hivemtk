@@ -3,37 +3,108 @@
     <el-card class="header-card">
       <div>
         <h2>{{ $t('营销流程') }}</h2>
-        <p class="subtitle">{{ $t('可视化编排营销自动化流程') }}</p>
+        <p class="subtitle">
+          {{ $t('可视化编排营销自动化流程') }}
+        </p>
       </div>
-      <el-button type="primary" @click="showCreateDialog">
+      <el-button
+        type="primary"
+        @click="showCreateDialog"
+      >
         <el-icon><Plus /></el-icon>
         {{ $t('新建流程') }}
       </el-button>
     </el-card>
 
     <el-card>
-      <el-table :data="flows" v-loading="loading" stripe>
-        <el-table-column prop="name" :label="$t('流程名称')" min-width="150" />
-        <el-table-column prop="trigger" :label="$t('触发条件')" min-width="150" />
-        <el-table-column prop="stepCount" :label="$t('步骤数')" width="100" />
-        <el-table-column prop="runCount" :label="$t('执行次数')" width="100" />
-        <el-table-column prop="successRate" :label="$t('成功率')" width="120">
+      <el-table
+        v-loading="loading"
+        :data="flows"
+        stripe
+      >
+        <el-table-column
+          prop="name"
+          :label="$t('流程名称')"
+          min-width="150"
+        />
+        <el-table-column
+          prop="trigger"
+          :label="$t('触发条件')"
+          min-width="150"
+        />
+        <el-table-column
+          prop="stepCount"
+          :label="$t('步骤数')"
+          width="100"
+        />
+        <el-table-column
+          prop="runCount"
+          :label="$t('执行次数')"
+          width="100"
+        />
+        <el-table-column
+          prop="successRate"
+          :label="$t('成功率')"
+          width="120"
+        >
           <template #default="{ row }">
-            <el-progress :percentage="row.successRate" :status="row.successRate > 80 ? 'success' : 'warning'" />
+            <el-progress
+              :percentage="row.successRate"
+              :status="row.successRate > 80 ? 'success' : 'warning'"
+            />
           </template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" width="100">
+        <el-table-column
+          prop="status"
+          label="状态"
+          width="100"
+        >
           <template #default="{ row }">
-            <el-switch v-model="row.enabled" @change="toggleFlow(row)" />
+            <el-switch
+              v-model="row.enabled"
+              @change="toggleFlow(row)"
+            />
           </template>
         </el-table-column>
-        <el-table-column prop="updatedAt" label="更新时间" width="180" />
-        <el-table-column label="操作" width="280" fixed="right">
+        <el-table-column
+          prop="updatedAt"
+          label="更新时间"
+          width="180"
+        />
+        <el-table-column
+          label="操作"
+          width="280"
+          fixed="right"
+        >
           <template #default="{ row }">
-            <el-button link type="primary" @click="editFlow(row)">编辑</el-button>
-            <el-button link type="primary" @click="runFlow(row)">执行</el-button>
-            <el-button link type="primary" @click="viewLogs(row)">日志</el-button>
-            <el-button link type="danger" @click="deleteFlow(row)">删除</el-button>
+            <el-button
+              link
+              type="primary"
+              @click="editFlow(row)"
+            >
+              编辑
+            </el-button>
+            <el-button
+              link
+              type="primary"
+              @click="runFlow(row)"
+            >
+              执行
+            </el-button>
+            <el-button
+              link
+              type="primary"
+              @click="viewLogs(row)"
+            >
+              日志
+            </el-button>
+            <el-button
+              link
+              type="danger"
+              @click="deleteFlow(row)"
+            >
+              删除
+            </el-button>
           </template>
         </el-table-column>
         <template #empty>
@@ -42,74 +113,196 @@
       </el-table>
     </el-card>
 
-    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="900px" :close-on-click-modal="false">
-      <el-form :model="form" :rules="formRules" ref="formRef" label-width="100px">
-        <el-form-item label="流程名称" prop="name">
+    <el-dialog
+      v-model="dialogVisible"
+      :title="dialogTitle"
+      width="900px"
+      :close-on-click-modal="false"
+    >
+      <el-form
+        ref="formRef"
+        :model="form"
+        :rules="formRules"
+        label-width="100px"
+      >
+        <el-form-item
+          label="流程名称"
+          prop="name"
+        >
           <el-input v-model="form.name" />
         </el-form-item>
-        <el-form-item label="触发条件" prop="trigger">
-          <el-select v-model="form.trigger" style="width: 100%">
-            <el-option label="用户注册" value="user_register" />
-            <el-option label="新线索" value="new_clue" />
-            <el-option label="定时触发" value="schedule" />
-            <el-option label="手动触发" value="manual" />
+        <el-form-item
+          label="触发条件"
+          prop="trigger"
+        >
+          <el-select
+            v-model="form.trigger"
+            style="width: 100%"
+          >
+            <el-option
+              label="用户注册"
+              value="user_register"
+            />
+            <el-option
+              label="新线索"
+              value="new_clue"
+            />
+            <el-option
+              label="定时触发"
+              value="schedule"
+            />
+            <el-option
+              label="手动触发"
+              value="manual"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="流程步骤">
           <div class="flow-builder">
-            <div v-for="(step, idx) in form.steps" :key="idx" class="flow-step">
+            <div
+              v-for="(step, idx) in form.steps"
+              :key="idx"
+              class="flow-step"
+            >
               <div class="step-header">
                 <el-tag>步骤 {{ idx + 1 }}</el-tag>
-                <el-button link type="danger" @click="removeStep(idx)" v-if="form.steps.length > 1">删除</el-button>
+                <el-button
+                  v-if="form.steps.length > 1"
+                  link
+                  type="danger"
+                  @click="removeStep(idx)"
+                >
+                  删除
+                </el-button>
               </div>
-              <el-form-item label="动作" :label-width="'80px'">
-                <el-select v-model="step.action" style="width: 100%">
-                  <el-option label="发送邮件" value="send_email" />
-                  <el-option label="发送短信" value="send_sms" />
-                  <el-option label="发送WhatsApp" value="send_whatsapp" />
-                  <el-option label="添加标签" value="add_tag" />
-                  <el-option label="分配销售" value="assign_sales" />
-                  <el-option label="等待" value="wait" />
+              <el-form-item
+                label="动作"
+                :label-width="'80px'"
+              >
+                <el-select
+                  v-model="step.action"
+                  style="width: 100%"
+                >
+                  <el-option
+                    label="发送邮件"
+                    value="send_email"
+                  />
+                  <el-option
+                    label="发送短信"
+                    value="send_sms"
+                  />
+                  <el-option
+                    label="发送WhatsApp"
+                    value="send_whatsapp"
+                  />
+                  <el-option
+                    label="添加标签"
+                    value="add_tag"
+                  />
+                  <el-option
+                    label="分配销售"
+                    value="assign_sales"
+                  />
+                  <el-option
+                    label="等待"
+                    value="wait"
+                  />
                 </el-select>
               </el-form-item>
-              <el-form-item label="延迟(小时)" :label-width="'80px'">
-                <el-input-number v-model="step.delay" :min="0" :max="720" />
+              <el-form-item
+                label="延迟(小时)"
+                :label-width="'80px'"
+              >
+                <el-input-number
+                  v-model="step.delay"
+                  :min="0"
+                  :max="720"
+                />
               </el-form-item>
-              <el-form-item label="参数" :label-width="'80px'">
-                <el-input v-model="step.params" type="textarea" :rows="2" placeholder='{"template": "welcome"}' />
+              <el-form-item
+                label="参数"
+                :label-width="'80px'"
+              >
+                <el-input
+                  v-model="step.params"
+                  type="textarea"
+                  :rows="2"
+                  placeholder="{&quot;template&quot;: &quot;welcome&quot;}"
+                />
               </el-form-item>
             </div>
-            <el-button @click="addStep" type="primary" link>添加步骤</el-button>
+            <el-button
+              type="primary"
+              link
+              @click="addStep"
+            >
+              添加步骤
+            </el-button>
           </div>
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="submitForm">确定</el-button>
+        <el-button @click="dialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          @click="submitForm"
+        >
+          确定
+        </el-button>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="logDialogVisible" title="执行日志" width="900px">
+    <el-dialog
+      v-model="logDialogVisible"
+      title="执行日志"
+      width="900px"
+    >
       <div class="log-header">
         <span>流程：{{ currentFlowName }}</span>
         <span>共 {{ executionLogs.length }} 条日志</span>
       </div>
-      <el-table :data="executionLogs" stripe>
-        <el-table-column prop="started_at" label="执行时间" width="180" />
-        <el-table-column prop="status" label="状态" width="100">
+      <el-table
+        :data="executionLogs"
+        stripe
+      >
+        <el-table-column
+          prop="started_at"
+          label="执行时间"
+          width="180"
+        />
+        <el-table-column
+          prop="status"
+          label="状态"
+          width="100"
+        >
           <template #default="{ row }">
-            <el-tag :type="logStatusType(row.status)">{{ logStatusText(row.status) }}</el-tag>
+            <el-tag :type="logStatusType(row.status)">
+              {{ logStatusText(row.status) }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="current_node" label="步骤" min-width="150" />
-        <el-table-column label="耗时" width="120">
+        <el-table-column
+          prop="current_node"
+          label="步骤"
+          min-width="150"
+        />
+        <el-table-column
+          label="耗时"
+          width="120"
+        >
           <template #default="{ row }">
             {{ calcDuration(row.started_at, row.completed_at) }}
           </template>
         </el-table-column>
-        <el-table-column prop="error_message" label="错误信息" min-width="200">
+        <el-table-column
+          prop="error_message"
+          label="错误信息"
+          min-width="200"
+        >
           <template #default="{ row }">
-            <span :style="{ color: row.error_message ? '#EF4444' : '' }">{{ row.error_message}}</span>
+            <span :style="{ color: row.error_message ? '#EF4444' : '' }">{{ row.error_message }}</span>
           </template>
         </el-table-column>
       </el-table>

@@ -1,15 +1,14 @@
 <template>
   <div class="login-container">
-    
     <div class="login-aside">
       <div class="aside-inner">
         <div class="brand">
-          <span class="brand-mark"></span>
+          <span class="brand-mark" />
           <span class="brand-text">{{ t('system.appName') }}</span>
         </div>
 
         <h1 class="aside-title">
-          一个智能体<br />
+          一个智能体<br>
           全域<span class="grad">获客 · 转化 · 复购</span>
         </h1>
         <p class="aside-desc">
@@ -23,7 +22,9 @@
           <li><el-icon><Check /></el-icon>7×24 智能体在线承接，夜间不丢单</li>
         </ul>
 
-        <div class="aside-footer">© 2026 营销智能体套件 · HiveMtk</div>
+        <div class="aside-footer">
+          © 2026 营销智能体套件 · HiveMtk
+        </div>
       </div>
     </div>
 
@@ -35,7 +36,12 @@
           <p>{{ t('system.appName') }}</p>
         </div>
 
-        <el-form :model="loginForm" :rules="rules" ref="loginFormRef" @keyup.enter="handleLogin">
+        <el-form
+          ref="loginFormRef"
+          :model="loginForm"
+          :rules="rules"
+          @keyup.enter="handleLogin"
+        >
           <el-form-item prop="username">
             <el-input
               v-model="loginForm.username"
@@ -76,11 +82,15 @@
                属于只改后端不改编排入口必然出现的断链。
                现在只有一个注册入口，字段口径与后端校验同源。 -->
           <div class="register-switch">
-            <el-button v-if="enableRegister" link type="primary" @click="goRegister">
+            <el-button
+              v-if="enableRegister"
+              link
+              type="primary"
+              @click="goRegister"
+            >
               没有账号？注册商户账号
             </el-button>
           </div>
-
         </el-form>
 
         <p class="login-disclaimer">

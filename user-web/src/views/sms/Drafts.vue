@@ -4,21 +4,70 @@
       <template #header>
         <div class="card-header">
           <span>{{ $t('短信草稿') }}</span>
-          <el-button type="primary" @click="handleCreateDraft" :loading="loading">{{ $t('新建草稿') }}</el-button>
+          <el-button
+            type="primary"
+            :loading="loading"
+            @click="handleCreateDraft"
+          >
+            {{ $t('新建草稿') }}
+          </el-button>
         </div>
       </template>
       
-      <el-table :data="draftList" style="width: 100%" v-loading="loading">
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="title" label="标题" />
-        <el-table-column prop="content" label="内容" show-overflow-tooltip />
-        <el-table-column prop="createdAt" label="创建时间" width="180" />
-        <el-table-column prop="updatedAt" label="更新时间" width="180" />
-        <el-table-column label="操作" width="200">
+      <el-table
+        v-loading="loading"
+        :data="draftList"
+        style="width: 100%"
+      >
+        <el-table-column
+          prop="id"
+          label="ID"
+          width="80"
+        />
+        <el-table-column
+          prop="title"
+          label="标题"
+        />
+        <el-table-column
+          prop="content"
+          label="内容"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          prop="createdAt"
+          label="创建时间"
+          width="180"
+        />
+        <el-table-column
+          prop="updatedAt"
+          label="更新时间"
+          width="180"
+        />
+        <el-table-column
+          label="操作"
+          width="200"
+        >
           <template #default="scope">
-            <el-button size="small" @click="handleEdit(scope.row)">编辑</el-button>
-            <el-button size="small" type="success" @click="handleSend(scope.row)">发送</el-button>
-            <el-button size="small" type="danger" @click="handleDelete(scope.row)">删除</el-button>
+            <el-button
+              size="small"
+              @click="handleEdit(scope.row)"
+            >
+              编辑
+            </el-button>
+            <el-button
+              size="small"
+              type="success"
+              @click="handleSend(scope.row)"
+            >
+              发送
+            </el-button>
+            <el-button
+              size="small"
+              type="danger"
+              @click="handleDelete(scope.row)"
+            >
+              删除
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -37,12 +86,33 @@
     </el-card>
 
     
-    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="500px" :before-close="handleDialogClose">
-      <el-form :model="formData" label-width="80px" :rules="rules" ref="formRef">
-        <el-form-item label="标题" prop="title">
-          <el-input v-model="formData.title" placeholder="请输入草稿标题" maxlength="100" show-word-limit />
+    <el-dialog
+      v-model="dialogVisible"
+      :title="dialogTitle"
+      width="500px"
+      :before-close="handleDialogClose"
+    >
+      <el-form
+        ref="formRef"
+        :model="formData"
+        label-width="80px"
+        :rules="rules"
+      >
+        <el-form-item
+          label="标题"
+          prop="title"
+        >
+          <el-input
+            v-model="formData.title"
+            placeholder="请输入草稿标题"
+            maxlength="100"
+            show-word-limit
+          />
         </el-form-item>
-        <el-form-item label="内容" prop="content">
+        <el-form-item
+          label="内容"
+          prop="content"
+        >
           <el-input
             v-model="formData.content"
             type="textarea"
@@ -56,25 +126,46 @@
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="handleDialogClose">取消</el-button>
-          <el-button type="primary" @click="handleSubmit">确定</el-button>
+          <el-button
+            type="primary"
+            @click="handleSubmit"
+          >确定</el-button>
         </span>
       </template>
     </el-dialog>
 
     
-    <el-dialog v-model="sendDialogVisible" title="发送短信" width="400px">
-      <el-form :model="sendForm" label-width="80px">
+    <el-dialog
+      v-model="sendDialogVisible"
+      title="发送短信"
+      width="400px"
+    >
+      <el-form
+        :model="sendForm"
+        label-width="80px"
+      >
         <el-form-item label="手机号">
-          <el-input v-model="sendForm.phone" placeholder="请输入手机号" maxlength="11" show-word-limit />
+          <el-input
+            v-model="sendForm.phone"
+            placeholder="请输入手机号"
+            maxlength="11"
+            show-word-limit
+          />
         </el-form-item>
         <el-form-item label="内容预览">
-          <div class="content-preview">{{ currentDraft?.content }}</div>
+          <div class="content-preview">
+            {{ currentDraft?.content }}
+          </div>
         </el-form-item>
       </el-form>
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="sendDialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="handleConfirmSend" :loading="sending">确定发送</el-button>
+          <el-button
+            type="primary"
+            :loading="sending"
+            @click="handleConfirmSend"
+          >确定发送</el-button>
         </span>
       </template>
     </el-dialog>

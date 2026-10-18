@@ -3,10 +3,23 @@
     <el-card class="header-card">
       <div>
         <h2>{{ $t('话术 AB 测试') }}</h2>
-        <p class="subtitle">{{ $t('版本管理、曝光转化统计与分流配置') }}</p>
+        <p class="subtitle">
+          {{ $t('版本管理、曝光转化统计与分流配置') }}
+        </p>
       </div>
-      <el-select v-model="scriptId" filterable :placeholder="$t('选择话术')" style="width: 260px" @change="loadAll">
-        <el-option v-for="s in scripts" :key="s.id" :label="s.name || s.title" :value="s.id" />
+      <el-select
+        v-model="scriptId"
+        filterable
+        :placeholder="$t('选择话术')"
+        style="width: 260px"
+        @change="loadAll"
+      >
+        <el-option
+          v-for="s in scripts"
+          :key="s.id"
+          :label="s.name || s.title"
+          :value="s.id"
+        />
       </el-select>
     </el-card>
 
@@ -14,35 +27,87 @@
       <el-row :gutter="16">
         <el-col :span="14">
           <el-card>
-            <template #header><span>{{ $t('版本历史') }}</span></template>
-            <el-table :data="versions" v-loading="loadingVersions" stripe size="small">
-              <el-table-column prop="version" label="版本" width="70" />
-              <el-table-column prop="note" label="说明" min-width="160" show-overflow-tooltip />
-              <el-table-column label="激活" width="80">
+            <template #header>
+              <span>{{ $t('版本历史') }}</span>
+            </template>
+            <el-table
+              v-loading="loadingVersions"
+              :data="versions"
+              stripe
+              size="small"
+            >
+              <el-table-column
+                prop="version"
+                label="版本"
+                width="70"
+              />
+              <el-table-column
+                prop="note"
+                label="说明"
+                min-width="160"
+                show-overflow-tooltip
+              />
+              <el-table-column
+                label="激活"
+                width="80"
+              >
                 <template #default="{ row }">
-                  <el-tag v-if="row.active" type="success" size="small">{{ $t('当前') }}</el-tag>
-                  <el-button v-else link type="primary" size="small" @click="activate(row)">{{ $t('激活') }}</el-button>
+                  <el-tag
+                    v-if="row.active"
+                    type="success"
+                    size="small"
+                  >
+                    {{ $t('当前') }}
+                  </el-tag>
+                  <el-button
+                    v-else
+                    link
+                    type="primary"
+                    size="small"
+                    @click="activate(row)"
+                  >
+                    {{ $t('激活') }}
+                  </el-button>
                 </template>
               </el-table-column>
-              <el-table-column prop="created_at" label="创建时间" width="160" />
+              <el-table-column
+                prop="created_at"
+                label="创建时间"
+                width="160"
+              />
             </el-table>
           </el-card>
         </el-col>
         <el-col :span="10">
           <el-card>
-            <template #header><span>{{ $t('AB 配置') }}</span></template>
+            <template #header>
+              <span>{{ $t('AB 配置') }}</span>
+            </template>
             <el-form label-width="110px">
               <el-form-item :label="$t('启用 AB')">
                 <el-switch v-model="abForm.enabled" />
               </el-form-item>
               <el-form-item :label="$t('A 组流量 %')">
-                <el-input-number v-model="abForm.split_a" :min="0" :max="100" />
+                <el-input-number
+                  v-model="abForm.split_a"
+                  :min="0"
+                  :max="100"
+                />
               </el-form-item>
               <el-form-item :label="$t('归因窗口(小时)')">
-                <el-input-number v-model="abForm.attribution_h" :min="1" :max="720" />
+                <el-input-number
+                  v-model="abForm.attribution_h"
+                  :min="1"
+                  :max="720"
+                />
               </el-form-item>
               <el-form-item>
-                <el-button type="primary" @click="saveConfig">{{ $t('保存配置') }}</el-button>
+                <el-button
+                  type="primary"
+                  @click="saveConfig"
+                >
+                  {{ $t('保存配置') }}
+                </el-button>
               </el-form-item>
             </el-form>
           </el-card>
@@ -50,12 +115,33 @@
       </el-row>
 
       <el-card style="margin-top: 16px">
-        <template #header><span>{{ $t('曝光-转化统计（按版本×分桶）') }}</span></template>
-        <el-table :data="statsVersions" v-loading="loadingStats" stripe>
-          <el-table-column prop="version" label="版本" width="90" />
-          <el-table-column prop="exposures" label="曝光数" width="120" />
-          <el-table-column prop="conversions" label="转化数" width="120" />
-          <el-table-column :label="$t('转化率')" min-width="200">
+        <template #header>
+          <span>{{ $t('曝光-转化统计（按版本×分桶）') }}</span>
+        </template>
+        <el-table
+          v-loading="loadingStats"
+          :data="statsVersions"
+          stripe
+        >
+          <el-table-column
+            prop="version"
+            label="版本"
+            width="90"
+          />
+          <el-table-column
+            prop="exposures"
+            label="曝光数"
+            width="120"
+          />
+          <el-table-column
+            prop="conversions"
+            label="转化数"
+            width="120"
+          />
+          <el-table-column
+            :label="$t('转化率')"
+            min-width="200"
+          >
             <template #default="{ row }">
               <el-progress
                 :percentage="Math.round((row.conversion_rate || 0) * 100)"
@@ -65,10 +151,16 @@
             </template>
           </el-table-column>
         </el-table>
-        <el-empty v-if="!loadingStats && !statsVersions.length" :description="$t('暂无曝光数据，等待话术被使用后自动记录')" />
+        <el-empty
+          v-if="!loadingStats && !statsVersions.length"
+          :description="$t('暂无曝光数据，等待话术被使用后自动记录')"
+        />
       </el-card>
     </template>
-    <el-empty v-else :description="$t('请先选择一个话术')" />
+    <el-empty
+      v-else
+      :description="$t('请先选择一个话术')"
+    />
   </div>
 </template>
 

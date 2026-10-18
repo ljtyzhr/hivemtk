@@ -13,12 +13,30 @@
               end-placeholder="结束日期"
               @change="handleDateChange"
             />
-            <el-select v-model="groupBy" :placeholder="$t('分组方式')" @change="handleGroupByChange">
-              <el-option :label="$t('按天')" value="day" />
-              <el-option :label="$t('按周')" value="week" />
-              <el-option :label="$t('按月')" value="month" />
+            <el-select
+              v-model="groupBy"
+              :placeholder="$t('分组方式')"
+              @change="handleGroupByChange"
+            >
+              <el-option
+                :label="$t('按天')"
+                value="day"
+              />
+              <el-option
+                :label="$t('按周')"
+                value="week"
+              />
+              <el-option
+                :label="$t('按月')"
+                value="month"
+              />
             </el-select>
-            <el-button type="primary" @click="refreshData">{{ $t('刷新') }}</el-button>
+            <el-button
+              type="primary"
+              @click="refreshData"
+            >
+              {{ $t('刷新') }}
+            </el-button>
           </div>
         </div>
       </template>
@@ -29,32 +47,48 @@
           <el-col :span="6">
             <el-card class="stats-card">
               <div class="stats-item">
-                <div class="stats-value">{{ overallStats.totalCards || 0 }}</div>
-                <div class="stats-label">总卡片数</div>
+                <div class="stats-value">
+                  {{ overallStats.totalCards || 0 }}
+                </div>
+                <div class="stats-label">
+                  总卡片数
+                </div>
               </div>
             </el-card>
           </el-col>
           <el-col :span="6">
             <el-card class="stats-card">
               <div class="stats-item">
-                <div class="stats-value">{{ overallStats.activeCards || 0 }}</div>
-                <div class="stats-label">激活卡片数</div>
+                <div class="stats-value">
+                  {{ overallStats.activeCards || 0 }}
+                </div>
+                <div class="stats-label">
+                  激活卡片数
+                </div>
               </div>
             </el-card>
           </el-col>
           <el-col :span="6">
             <el-card class="stats-card">
               <div class="stats-item">
-                <div class="stats-value">{{ formatNumber(overallStats.totalViews) }}</div>
-                <div class="stats-label">总浏览量</div>
+                <div class="stats-value">
+                  {{ formatNumber(overallStats.totalViews) }}
+                </div>
+                <div class="stats-label">
+                  总浏览量
+                </div>
               </div>
             </el-card>
           </el-col>
           <el-col :span="6">
             <el-card class="stats-card">
               <div class="stats-item">
-                <div class="stats-value">{{ formatPercent(overallStats.activeCards, overallStats.totalCards) }}</div>
-                <div class="stats-label">激活率</div>
+                <div class="stats-value">
+                  {{ formatPercent(overallStats.activeCards, overallStats.totalCards) }}
+                </div>
+                <div class="stats-label">
+                  激活率
+                </div>
               </div>
             </el-card>
           </el-col>
@@ -71,7 +105,10 @@
                   <span>访问趋势</span>
                 </div>
               </template>
-              <div ref="visitTrendChartRef" class="chart-container"></div>
+              <div
+                ref="visitTrendChartRef"
+                class="chart-container"
+              />
             </el-card>
           </el-col>
         </el-row>
@@ -87,16 +124,32 @@
                   <span>热门卡片</span>
                 </div>
               </template>
-              <el-table :data="overallStats.popularCards" style="width: 100%">
-                <el-table-column prop="title" label="卡片标题" />
-                <el-table-column prop="viewCount" label="浏览量">
+              <el-table
+                :data="overallStats.popularCards"
+                style="width: 100%"
+              >
+                <el-table-column
+                  prop="title"
+                  label="卡片标题"
+                />
+                <el-table-column
+                  prop="viewCount"
+                  label="浏览量"
+                >
                   <template #default="scope">
                     {{ formatNumber(scope.row.viewCount) }}
                   </template>
                 </el-table-column>
-                <el-table-column label="操作" width="100">
+                <el-table-column
+                  label="操作"
+                  width="100"
+                >
                   <template #default="scope">
-                    <el-button size="small" type="primary" @click="goToCardStats(scope.row.id)">
+                    <el-button
+                      size="small"
+                      type="primary"
+                      @click="goToCardStats(scope.row.id)"
+                    >
                       统计
                     </el-button>
                   </template>
@@ -111,17 +164,32 @@
                   <span>最近活动</span>
                 </div>
               </template>
-              <el-table :data="overallStats.recentActivities" style="width: 100%">
-                <el-table-column prop="cardTitle" label="卡片标题" />
-                <el-table-column prop="action" label="操作">
+              <el-table
+                :data="overallStats.recentActivities"
+                style="width: 100%"
+              >
+                <el-table-column
+                  prop="cardTitle"
+                  label="卡片标题"
+                />
+                <el-table-column
+                  prop="action"
+                  label="操作"
+                >
                   <template #default="scope">
                     <el-tag :type="getActionType(scope.row.action)">
                       {{ getActionText(scope.row.action) }}
                     </el-tag>
                   </template>
                 </el-table-column>
-                <el-table-column prop="username" label="用户" />
-                <el-table-column prop="createdAt" label="时间">
+                <el-table-column
+                  prop="username"
+                  label="用户"
+                />
+                <el-table-column
+                  prop="createdAt"
+                  label="时间"
+                >
                   <template #default="scope">
                     {{ formatTime(scope.row.createdAt) }}
                   </template>

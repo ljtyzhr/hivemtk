@@ -1,12 +1,21 @@
 <template>
   <div class="geo-page">
-
-    
-    <el-card shadow="never" class="form-card">
-      <template #header><span class="card-title">验证配置</span></template>
-      <el-form :model="form" label-width="92px">
+    <el-card
+      shadow="never"
+      class="form-card"
+    >
+      <template #header>
+        <span class="card-title">验证配置</span>
+      </template>
+      <el-form
+        :model="form"
+        label-width="92px"
+      >
         <el-row :gutter="16">
-          <el-col :xs="24" :sm="12">
+          <el-col
+            :xs="24"
+            :sm="12"
+          >
             <el-form-item label="验证文章">
               <el-select
                 v-model="form.article_id"
@@ -25,12 +34,22 @@
               </el-select>
             </el-form-item>
           </el-col>
-          <el-col :xs="24" :sm="12">
+          <el-col
+            :xs="24"
+            :sm="12"
+          >
             <el-form-item label="品牌名称">
-              <el-input v-model="form.brand_name" placeholder="如：hivemtk" clearable />
+              <el-input
+                v-model="form.brand_name"
+                placeholder="如：hivemtk"
+                clearable
+              />
             </el-form-item>
           </el-col>
-          <el-col :xs="24" :sm="12">
+          <el-col
+            :xs="24"
+            :sm="12"
+          >
             <el-form-item label="验证模型">
               <el-select
                 v-model="form.models"
@@ -59,7 +78,11 @@
           />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" :loading="verifying" @click="handleVerify">
+          <el-button
+            type="primary"
+            :loading="verifying"
+            @click="handleVerify"
+          >
             <el-icon><CircleCheck /></el-icon><span>验证</span>
           </el-button>
         </el-form-item>
@@ -67,52 +90,152 @@
     </el-card>
 
     
-    <el-card v-if="results.length" shadow="never" class="result-card">
-      <template #header><span class="card-title">验证结果</span></template>
-      <el-table v-loading="verifying" :data="results" stripe style="width: 100%">
-        <el-table-column prop="model" label="验证模型" width="140" />
-        <el-table-column prop="query" label="问题" min-width="200" show-overflow-tooltip />
-        <el-table-column prop="brand_name" label="品牌" width="120" />
-        <el-table-column prop="brand_mentioned" label="品牌提及" width="100" align="center">
+    <el-card
+      v-if="results.length"
+      shadow="never"
+      class="result-card"
+    >
+      <template #header>
+        <span class="card-title">验证结果</span>
+      </template>
+      <el-table
+        v-loading="verifying"
+        :data="results"
+        stripe
+        style="width: 100%"
+      >
+        <el-table-column
+          prop="model"
+          label="验证模型"
+          width="140"
+        />
+        <el-table-column
+          prop="query"
+          label="问题"
+          min-width="200"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          prop="brand_name"
+          label="品牌"
+          width="120"
+        />
+        <el-table-column
+          prop="brand_mentioned"
+          label="品牌提及"
+          width="100"
+          align="center"
+        >
           <template #default="{ row }">
-            <el-tag :type="row.brand_mentioned ? 'success' : 'info'" size="small">
+            <el-tag
+              :type="row.brand_mentioned ? 'success' : 'info'"
+              size="small"
+            >
               {{ row.brand_mentioned ? '是' : '否' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="mention_count" label="提及次数" width="100" align="right" />
-        <el-table-column prop="sentiment" label="情感" width="90">
+        <el-table-column
+          prop="mention_count"
+          label="提及次数"
+          width="100"
+          align="right"
+        />
+        <el-table-column
+          prop="sentiment"
+          label="情感"
+          width="90"
+        >
           <template #default="{ row }">
-            <el-tag size="small" :type="sentimentType(row.sentiment)">{{ row.sentiment || '—' }}</el-tag>
+            <el-tag
+              size="small"
+              :type="sentimentType(row.sentiment)"
+            >
+              {{ row.sentiment || '—' }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="position" label="提及位置" width="130" />
+        <el-table-column
+          prop="position"
+          label="提及位置"
+          width="130"
+        />
       </el-table>
     </el-card>
 
     
-    <el-card shadow="never" class="negative-card">
+    <el-card
+      shadow="never"
+      class="negative-card"
+    >
       <template #header>
         <div class="card-header">
           <span class="card-title">负面监控</span>
-          <el-tooltip :content="form.brand_name.trim() ? '' : '请先填写品牌名称'" :disabled="!!form.brand_name.trim()" placement="top">
-            <el-button type="warning" :loading="monitoring" :disabled="!form.brand_name.trim()" @click="handleMonitorNegative">
+          <el-tooltip
+            :content="form.brand_name.trim() ? '' : '请先填写品牌名称'"
+            :disabled="!!form.brand_name.trim()"
+            placement="top"
+          >
+            <el-button
+              type="warning"
+              :loading="monitoring"
+              :disabled="!form.brand_name.trim()"
+              @click="handleMonitorNegative"
+            >
               <el-icon><Warning /></el-icon><span>检测负面</span>
             </el-button>
           </el-tooltip>
         </div>
       </template>
-      <el-empty v-if="!negativeResults.length" description="暂无负面监控数据，点击「检测负面」生成" :image-size="60" />
-      <el-table v-else :data="negativeResults" stripe style="width: 100%">
-        <el-table-column prop="query" label="负面查询" min-width="200" show-overflow-tooltip />
-        <el-table-column prop="mention_count" label="提及次数" width="100" align="right" />
-        <el-table-column prop="negative_score" label="负面得分" width="100" align="right" />
-        <el-table-column prop="risk_level" label="风险等级" width="100">
+      <el-empty
+        v-if="!negativeResults.length"
+        description="暂无负面监控数据，点击「检测负面」生成"
+        :image-size="60"
+      />
+      <el-table
+        v-else
+        :data="negativeResults"
+        stripe
+        style="width: 100%"
+      >
+        <el-table-column
+          prop="query"
+          label="负面查询"
+          min-width="200"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          prop="mention_count"
+          label="提及次数"
+          width="100"
+          align="right"
+        />
+        <el-table-column
+          prop="negative_score"
+          label="负面得分"
+          width="100"
+          align="right"
+        />
+        <el-table-column
+          prop="risk_level"
+          label="风险等级"
+          width="100"
+        >
           <template #default="{ row }">
-            <el-tag size="small" :type="riskType(row.risk_level)">{{ row.risk_level || '低' }}</el-tag>
+            <el-tag
+              size="small"
+              :type="riskType(row.risk_level)"
+            >
+              {{ row.risk_level || '低' }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="risk_description" label="风险说明" min-width="220" show-overflow-tooltip />
+        <el-table-column
+          prop="risk_description"
+          label="风险说明"
+          min-width="220"
+          show-overflow-tooltip
+        />
       </el-table>
     </el-card>
   </div>

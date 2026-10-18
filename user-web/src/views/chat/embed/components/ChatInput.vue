@@ -1,18 +1,53 @@
 <template>
   <div class="chat-input">
-    
-    <div v-if="pendingAttachment" class="attachment-preview">
-      <img v-if="pendingAttachment.mediaType === 'image'" :src="pendingAttachment.preview" class="preview-img" alt="附件预览" />
-      <div v-else class="preview-file">
-        <div class="file-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg></div>
+    <div
+      v-if="pendingAttachment"
+      class="attachment-preview"
+    >
+      <img
+        v-if="pendingAttachment.mediaType === 'image'"
+        :src="pendingAttachment.preview"
+        class="preview-img"
+        alt="附件预览"
+      >
+      <div
+        v-else
+        class="preview-file"
+      >
+        <div class="file-icon">
+          <svg
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="1.7"
+            stroke-linecap="round"
+            stroke-linejoin="round"
+          ><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><polyline points="14 2 14 8 20 8" /></svg>
+        </div>
         <div class="file-info">
-          <div class="file-name">{{ pendingAttachment.name }}</div>
-          <div class="file-size">{{ formatSize(pendingAttachment.size) }}</div>
+          <div class="file-name">
+            {{ pendingAttachment.name }}
+          </div>
+          <div class="file-size">
+            {{ formatSize(pendingAttachment.size) }}
+          </div>
         </div>
       </div>
-      <button class="remove-btn" @click="removeAttachment" :aria-label="$t('移除附件')">×</button>
-      <div v-if="uploading" class="upload-progress">
-        <div class="progress-bar" :style="{ width: uploadProgress + '%' }"></div>
+      <button
+        class="remove-btn"
+        :aria-label="$t('移除附件')"
+        @click="removeAttachment"
+      >
+        ×
+      </button>
+      <div
+        v-if="uploading"
+        class="upload-progress"
+      >
+        <div
+          class="progress-bar"
+          :style="{ width: uploadProgress + '%' }"
+        />
         <span class="progress-text">上传中 {{ uploadProgress }}%</span>
       </div>
     </div>
@@ -28,7 +63,7 @@
       :disabled="uploading"
       @input="autoResize"
       @keydown.enter.exact.prevent="onSend"
-    ></textarea>
+    />
 
     <div class="actions">
       <input
@@ -38,16 +73,22 @@
         aria-label="选择附件"
         :accept="acceptString"
         @change="onFileSelected"
-      />
+      >
       <button
         class="action-btn attach"
         :disabled="sending || uploading"
-        @click="triggerFileSelect"
         :title="$t('发送附件')"
         :aria-label="$t('发送附件')"
+        @click="triggerFileSelect"
       >
-        <svg viewBox="0 0 16 16" width="14" height="14" fill="currentColor" aria-hidden="true">
-          <path d="M8.5 1.5a3.5 3.5 0 0 0-4.95 4.95l5.5 5.5a2 2 0 0 0 2.83-2.83l-4.5-4.5a.5.5 0 1 1 .71-.71l4.5 4.5a3 3 0 0 1-4.24 4.24l-5.5-5.5A4.5 4.5 0 0 1 8.5.5l5.5 5.5a.5.5 0 0 1-.7.7L8.5 1.5z"/>
+        <svg
+          viewBox="0 0 16 16"
+          width="14"
+          height="14"
+          fill="currentColor"
+          aria-hidden="true"
+        >
+          <path d="M8.5 1.5a3.5 3.5 0 0 0-4.95 4.95l5.5 5.5a2 2 0 0 0 2.83-2.83l-4.5-4.5a.5.5 0 1 1 .71-.71l4.5 4.5a3 3 0 0 1-4.24 4.24l-5.5-5.5A4.5 4.5 0 0 1 8.5.5l5.5 5.5a.5.5 0 0 1-.7.7L8.5 1.5z" />
         </svg>
       </button>
       <button

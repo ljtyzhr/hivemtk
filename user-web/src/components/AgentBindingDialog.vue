@@ -6,53 +6,128 @@
     :close-on-click-modal="false"
     @open="onOpen"
   >
-    <el-descriptions :column="2" border size="small" class="mb-16">
-      <el-descriptions-item :label="$t('渠道类型')">{{ channelTypeLabel }}</el-descriptions-item>
-      <el-descriptions-item :label="$t('账号ID')">{{ accountId }}</el-descriptions-item>
-      <el-descriptions-item :label="$t('账号名称')">{{ accountLabel || '-' }}</el-descriptions-item>
+    <el-descriptions
+      :column="2"
+      border
+      size="small"
+      class="mb-16"
+    >
+      <el-descriptions-item :label="$t('渠道类型')">
+        {{ channelTypeLabel }}
+      </el-descriptions-item>
+      <el-descriptions-item :label="$t('账号ID')">
+        {{ accountId }}
+      </el-descriptions-item>
+      <el-descriptions-item :label="$t('账号名称')">
+        {{ accountLabel || '-' }}
+      </el-descriptions-item>
       <el-descriptions-item :label="$t('账号状态')">
-        <el-tag :type="accountEnabled ? 'success' : 'info'" size="small">
+        <el-tag
+          :type="accountEnabled ? 'success' : 'info'"
+          size="small"
+        >
           {{ accountEnabled ? '正常' : '停用' }}
         </el-tag>
       </el-descriptions-item>
     </el-descriptions>
 
-    <el-divider content-position="left">{{ $t('当前绑定') }}</el-divider>
+    <el-divider content-position="left">
+      {{ $t('当前绑定') }}
+    </el-divider>
 
-    <el-table :data="bindings" v-loading="loading" stripe size="small" border>
-      <el-table-column prop="id" label="ID" width="60" align="center" />
-      <el-table-column :label="$t('智能体')" min-width="160">
+    <el-table
+      v-loading="loading"
+      :data="bindings"
+      stripe
+      size="small"
+      border
+    >
+      <el-table-column
+        prop="id"
+        label="ID"
+        width="60"
+        align="center"
+      />
+      <el-table-column
+        :label="$t('智能体')"
+        min-width="160"
+      >
         <template #default="{ row }">
           <span>{{ agentNameMap[row.agent_id] || `#${row.agent_id}` }}</span>
         </template>
       </el-table-column>
-      <el-table-column label="主绑定" width="80" align="center">
+      <el-table-column
+        label="主绑定"
+        width="80"
+        align="center"
+      >
         <template #default="{ row }">
-          <el-tag v-if="row.is_primary" type="success" size="small">主</el-tag>
+          <el-tag
+            v-if="row.is_primary"
+            type="success"
+            size="small"
+          >
+            主
+          </el-tag>
           <span v-else>-</span>
         </template>
       </el-table-column>
-      <el-table-column label="启用" width="70" align="center">
+      <el-table-column
+        label="启用"
+        width="70"
+        align="center"
+      >
         <template #default="{ row }">
-          <el-tag :type="row.enabled ? 'success' : 'info'" size="small">
+          <el-tag
+            :type="row.enabled ? 'success' : 'info'"
+            size="small"
+          >
             {{ row.enabled ? '是' : '否' }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="150" align="center">
+      <el-table-column
+        label="操作"
+        width="150"
+        align="center"
+      >
         <template #default="{ row }">
-          <el-button link type="primary" size="small" @click="setPrimary(row)" v-if="!row.is_primary">设为主</el-button>
-          <el-button link type="danger" size="small" @click="removeBinding(row)">解绑</el-button>
+          <el-button
+            v-if="!row.is_primary"
+            link
+            type="primary"
+            size="small"
+            @click="setPrimary(row)"
+          >
+            设为主
+          </el-button>
+          <el-button
+            link
+            type="danger"
+            size="small"
+            @click="removeBinding(row)"
+          >
+            解绑
+          </el-button>
         </template>
       </el-table-column>
       <template #empty>
-        <el-empty description="暂无绑定，请在下方添加" :image-size="60" />
+        <el-empty
+          description="暂无绑定，请在下方添加"
+          :image-size="60"
+        />
       </template>
     </el-table>
 
-    <el-divider content-position="left">添加新绑定</el-divider>
+    <el-divider content-position="left">
+      添加新绑定
+    </el-divider>
 
-    <el-form :model="addForm" label-width="100px" inline>
+    <el-form
+      :model="addForm"
+      label-width="100px"
+      inline
+    >
       <el-form-item label="AI智能体">
         <el-select
           v-model="addForm.agent_id"
@@ -72,7 +147,12 @@
         <el-switch v-model="addForm.is_primary" />
       </el-form-item>
       <el-form-item>
-        <el-button type="primary" :loading="adding" :disabled="!addForm.agent_id" @click="addBinding">
+        <el-button
+          type="primary"
+          :loading="adding"
+          :disabled="!addForm.agent_id"
+          @click="addBinding"
+        >
           <el-icon><Plus /></el-icon>
           添加绑定
         </el-button>
@@ -80,7 +160,9 @@
     </el-form>
 
     <template #footer>
-      <el-button @click="visible = false">关闭</el-button>
+      <el-button @click="visible = false">
+        关闭
+      </el-button>
     </template>
   </el-dialog>
 </template>

@@ -1,7 +1,14 @@
 <template>
-  <div class="module-detail" v-loading="loading">
+  <div
+    v-loading="loading"
+    class="module-detail"
+  >
     <template v-if="detail">
-      <el-page-header :content="detail.name" @back="$router.back()" style="margin-bottom: 16px" />
+      <el-page-header
+        :content="detail.name"
+        style="margin-bottom: 16px"
+        @back="$router.back()"
+      />
 
       <el-row :gutter="16">
         <el-col :span="16">
@@ -11,78 +18,166 @@
               <div>
                 <div class="name">
                   {{ detail.name }}
-                  <el-tag v-if="detail.owned" size="small" type="success" effect="plain">已开通</el-tag>
-                  <el-tag size="small" :type="detail.category === 'base' ? 'success' : 'warning'" effect="plain">
+                  <el-tag
+                    v-if="detail.owned"
+                    size="small"
+                    type="success"
+                    effect="plain"
+                  >
+                    已开通
+                  </el-tag>
+                  <el-tag
+                    size="small"
+                    :type="detail.category === 'base' ? 'success' : 'warning'"
+                    effect="plain"
+                  >
                     {{ CATEGORY_LABEL[detail.category] }}
                   </el-tag>
                 </div>
-                <div class="key">{{ detail.module_key }}</div>
+                <div class="key">
+                  {{ detail.module_key }}
+                </div>
               </div>
             </div>
 
-            <p class="summary">{{ detail.summary }}</p>
-            <p class="desc">{{ detail.description || '该模块暂未提供详细说明。' }}</p>
+            <p class="summary">
+              {{ detail.summary }}
+            </p>
+            <p class="desc">
+              {{ detail.description || '该模块暂未提供详细说明。' }}
+            </p>
 
-            <el-descriptions :column="2" border size="small" class="mt-12">
-              <el-descriptions-item label="价格">{{ priceLabel(detail) }}</el-descriptions-item>
+            <el-descriptions
+              :column="2"
+              border
+              size="small"
+              class="mt-12"
+            >
+              <el-descriptions-item label="价格">
+                {{ priceLabel(detail) }}
+              </el-descriptions-item>
               <el-descriptions-item label="计费周期">
                 {{ detail.billing_cycle === 'metered' ? '按量（token 计量）' : '按年' }}
               </el-descriptions-item>
-              <el-descriptions-item label="包含页面">{{ detail.menu_count }} 个</el-descriptions-item>
-              <el-descriptions-item label="模块标识">{{ detail.module_key }}</el-descriptions-item>
+              <el-descriptions-item label="包含页面">
+                {{ detail.menu_count }} 个
+              </el-descriptions-item>
+              <el-descriptions-item label="模块标识">
+                {{ detail.module_key }}
+              </el-descriptions-item>
             </el-descriptions>
           </el-card>
 
-          <el-card shadow="never" class="mt-12">
-            <template #header><span>包含的页面</span></template>
-            <el-alert v-if="!menuPages.length" type="info" :closable="false"
-              title="该模块暂无独立页面" description="它的能力以接口与配置项的形式提供，开通后在相关页面中生效。" />
-            <div v-else class="pages">
-              <div v-for="p in menuPages" :key="p.key" class="page-row">
+          <el-card
+            shadow="never"
+            class="mt-12"
+          >
+            <template #header>
+              <span>包含的页面</span>
+            </template>
+            <el-alert
+              v-if="!menuPages.length"
+              type="info"
+              :closable="false"
+              title="该模块暂无独立页面"
+              description="它的能力以接口与配置项的形式提供，开通后在相关页面中生效。"
+            />
+            <div
+              v-else
+              class="pages"
+            >
+              <div
+                v-for="p in menuPages"
+                :key="p.key"
+                class="page-row"
+              >
                 <span class="p-key">{{ p.key }}</span>
                 <span class="p-title">{{ p.title }}</span>
                 <span class="p-path">{{ p.path || '（目录节点）' }}</span>
               </div>
             </div>
-            <el-alert type="info" :closable="false" class="mt-12"
+            <el-alert
+              type="info"
+              :closable="false"
+              class="mt-12"
               title="为什么要看页面清单"
-              description="「买了能干什么」是最贵的信息。用户在下单前最想知道的不是价格，而是打开哪个菜单能看到它 —— 列出来能显著降低退单与投诉。" />
+              description="「买了能干什么」是最贵的信息。用户在下单前最想知道的不是价格，而是打开哪个菜单能看到它 —— 列出来能显著降低退单与投诉。"
+            />
           </el-card>
         </el-col>
 
         <el-col :span="8">
           <el-card shadow="never">
-            <template #header><span>订阅</span></template>
-            <div class="big-price" :class="{ free: detail.free || detail.free_to_enable }">
+            <template #header>
+              <span>订阅</span>
+            </template>
+            <div
+              class="big-price"
+              :class="{ free: detail.free || detail.free_to_enable }"
+            >
               {{ priceLabel(detail) }}
             </div>
 
             <template v-if="detail.auto_enabled?.length">
-              <div class="side-label">将自动开通（免费）</div>
-              <el-tag v-for="d in detail.auto_enabled" :key="d" size="small" type="success" effect="plain" class="tag-item">
+              <div class="side-label">
+                将自动开通（免费）
+              </div>
+              <el-tag
+                v-for="d in detail.auto_enabled"
+                :key="d"
+                size="small"
+                type="success"
+                effect="plain"
+                class="tag-item"
+              >
                 {{ d }}
               </el-tag>
             </template>
 
             <template v-if="detail.payable_dependencies?.length">
-              <div class="side-label mt-12">需另行订阅</div>
-              <el-tag v-for="d in detail.payable_dependencies" :key="d" size="small" type="warning" effect="plain" class="tag-item">
+              <div class="side-label mt-12">
+                需另行订阅
+              </div>
+              <el-tag
+                v-for="d in detail.payable_dependencies"
+                :key="d"
+                size="small"
+                type="warning"
+                effect="plain"
+                class="tag-item"
+              >
                 {{ d }}
               </el-tag>
-              <div class="muted small mt-4">付费依赖不会自动开通，需单独订阅。</div>
+              <div class="muted small mt-4">
+                付费依赖不会自动开通，需单独订阅。
+              </div>
             </template>
 
             <el-divider />
             <el-button
               v-if="!detail.owned && detail.category === 'paid'"
-              type="primary" style="width: 100%"
+              type="primary"
+              style="width: 100%"
               :disabled="!platformEnabled"
               @click="$router.push('/module-market')"
             >
               {{ detail.free_to_enable ? '立即开通' : '去订阅' }}
             </el-button>
-            <el-button v-else-if="!detail.owned" style="width: 100%" disabled>已包含在基础能力中</el-button>
-            <el-button v-else type="success" style="width: 100%" disabled>已开通</el-button>
+            <el-button
+              v-else-if="!detail.owned"
+              style="width: 100%"
+              disabled
+            >
+              已包含在基础能力中
+            </el-button>
+            <el-button
+              v-else
+              type="success"
+              style="width: 100%"
+              disabled
+            >
+              已开通
+            </el-button>
 
             <div class="muted small mt-12">
               当前未连接平台，暂不可订阅。基础能力不受影响。

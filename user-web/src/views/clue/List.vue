@@ -1,18 +1,25 @@
 <template>
   <div class="clue-list-page">
-    
-    <el-card class="header-card" shadow="never">
+    <el-card
+      class="header-card"
+      shadow="never"
+    >
       <div class="page-header">
         <div class="header-text">
           <h2>{{ $t('线索列表') }}</h2>
-          <p class="subtitle">多渠道线索统一管理：导入、筛选、分配、跟进与转化分析</p>
+          <p class="subtitle">
+            多渠道线索统一管理：导入、筛选、分配、跟进与转化分析
+          </p>
         </div>
         <div class="header-actions">
           <el-button @click="fetchCluelist">
             <el-icon><Refresh /></el-icon>
             {{ $t('刷新') }}
           </el-button>
-          <el-button type="primary" @click="openImportDialog">
+          <el-button
+            type="primary"
+            @click="openImportDialog"
+          >
             <el-icon><Upload /></el-icon>
             {{ $t('导入线索') }}
           </el-button>
@@ -21,36 +28,95 @@
     </el-card>
 
     
-    <el-row :gutter="16" class="stats-row">
-      <el-col :xs="12" :sm="6">
-        <el-card class="stat-card" shadow="never">
-          <div class="stat-label">线索总数</div>
-          <div class="stat-value">{{ stats.total || cluetotal || 0 }}</div>
+    <el-row
+      :gutter="16"
+      class="stats-row"
+    >
+      <el-col
+        :xs="12"
+        :sm="6"
+      >
+        <el-card
+          class="stat-card"
+          shadow="never"
+        >
+          <div class="stat-label">
+            线索总数
+          </div>
+          <div class="stat-value">
+            {{ stats.total || cluetotal || 0 }}
+          </div>
         </el-card>
       </el-col>
-      <el-col :xs="12" :sm="6">
-        <el-card class="stat-card" shadow="never">
-          <div class="stat-label">已验证</div>
-          <div class="stat-value" style="color: #10B981">{{ stats.verified || 0 }}</div>
+      <el-col
+        :xs="12"
+        :sm="6"
+      >
+        <el-card
+          class="stat-card"
+          shadow="never"
+        >
+          <div class="stat-label">
+            已验证
+          </div>
+          <div
+            class="stat-value"
+            style="color: #10B981"
+          >
+            {{ stats.verified || 0 }}
+          </div>
         </el-card>
       </el-col>
-      <el-col :xs="12" :sm="6">
-        <el-card class="stat-card" shadow="never">
-          <div class="stat-label">未验证</div>
-          <div class="stat-value" style="color: #F59E0B">{{ stats.unverified || 0 }}</div>
+      <el-col
+        :xs="12"
+        :sm="6"
+      >
+        <el-card
+          class="stat-card"
+          shadow="never"
+        >
+          <div class="stat-label">
+            未验证
+          </div>
+          <div
+            class="stat-value"
+            style="color: #F59E0B"
+          >
+            {{ stats.unverified || 0 }}
+          </div>
         </el-card>
       </el-col>
-      <el-col :xs="12" :sm="6">
-        <el-card class="stat-card" shadow="never">
-          <div class="stat-label">今日新增</div>
-          <div class="stat-value" style="color: #4F46E5">{{ stats.today || 0 }}</div>
+      <el-col
+        :xs="12"
+        :sm="6"
+      >
+        <el-card
+          class="stat-card"
+          shadow="never"
+        >
+          <div class="stat-label">
+            今日新增
+          </div>
+          <div
+            class="stat-value"
+            style="color: #4F46E5"
+          >
+            {{ stats.today || 0 }}
+          </div>
         </el-card>
       </el-col>
     </el-row>
 
     
-    <el-card class="filter-card" shadow="never">
-      <el-form :inline="true" :model="filterForm" class="filter-form">
+    <el-card
+      class="filter-card"
+      shadow="never"
+    >
+      <el-form
+        :inline="true"
+        :model="filterForm"
+        class="filter-form"
+      >
         <el-form-item label="关键字">
           <el-input
             v-model="filterForm.keyword"
@@ -61,14 +127,35 @@
           />
         </el-form-item>
         <el-form-item label="线索类型">
-          <el-select v-model="filterForm.type" placeholder="全部类型" clearable style="width: 160px">
-            <el-option v-for="t in clueTypeMap" :key="t.value" :label="t.label" :value="String(t.value)" />
+          <el-select
+            v-model="filterForm.type"
+            placeholder="全部类型"
+            clearable
+            style="width: 160px"
+          >
+            <el-option
+              v-for="t in clueTypeMap"
+              :key="t.value"
+              :label="t.label"
+              :value="String(t.value)"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="验证状态">
-          <el-select v-model="filterForm.verified" placeholder="全部" clearable style="width: 140px">
-            <el-option label="已验证" :value="1" />
-            <el-option label="未验证" :value="0" />
+          <el-select
+            v-model="filterForm.verified"
+            placeholder="全部"
+            clearable
+            style="width: 140px"
+          >
+            <el-option
+              label="已验证"
+              :value="1"
+            />
+            <el-option
+              label="未验证"
+              :value="0"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="时间">
@@ -83,7 +170,10 @@
           />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="handleSearch">
+          <el-button
+            type="primary"
+            @click="handleSearch"
+          >
             <el-icon><Search /></el-icon>搜索
           </el-button>
           <el-button @click="resetSearch">
@@ -94,52 +184,152 @@
     </el-card>
 
     
-    <el-card class="table-card" shadow="never">
+    <el-card
+      class="table-card"
+      shadow="never"
+    >
       <el-table
-        :data="cluelist"
         v-loading="loading"
+        :data="cluelist"
         stripe
         :empty-text="$t('暂无线索数据')"
       >
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="name" label="名称" min-width="140" show-overflow-tooltip />
-        <el-table-column prop="account" label="账号" min-width="160" show-overflow-tooltip />
-        <el-table-column label="类型" min-width="100">
+        <el-table-column
+          prop="id"
+          label="ID"
+          width="80"
+        />
+        <el-table-column
+          prop="name"
+          label="名称"
+          min-width="140"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          prop="account"
+          label="账号"
+          min-width="160"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          label="类型"
+          min-width="100"
+        >
           <template #default="{ row }">
-            <el-tag size="small">{{ getClueType(row.type) }}</el-tag>
+            <el-tag size="small">
+              {{ getClueType(row.type) }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="city" label="城市" min-width="100" show-overflow-tooltip />
-        <el-table-column prop="address" label="地址" min-width="180" show-overflow-tooltip />
-        <el-table-column label="来源" min-width="120" show-overflow-tooltip>
+        <el-table-column
+          prop="city"
+          label="城市"
+          min-width="100"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          prop="address"
+          label="地址"
+          min-width="180"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          label="来源"
+          min-width="120"
+          show-overflow-tooltip
+        >
           <template #default="{ row }">
-            <el-tag :type="getChannelTagType(row.source_id)" effect="plain" size="small">
+            <el-tag
+              :type="getChannelTagType(row.source_id)"
+              effect="plain"
+              size="small"
+            >
               {{ getChannelLabel(row.source_id) || row.source_id || '-' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="验证状态" min-width="100" align="center">
+        <el-table-column
+          label="验证状态"
+          min-width="100"
+          align="center"
+        >
           <template #default="{ row }">
-            <el-tag :type="row.is_verify >= 1 ? 'success' : 'info'" size="small">
+            <el-tag
+              :type="row.is_verify >= 1 ? 'success' : 'info'"
+              size="small"
+            >
               {{ row.is_verify >= 1 ? '已验证' : '未验证' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="create_time" label="创建时间" min-width="170" show-overflow-tooltip>
-          <template #default="{ row }">{{ formatTime(row.create_time) }}</template>
-        </el-table-column>
-        <el-table-column prop="updated_at" label="最后跟进" min-width="170" show-overflow-tooltip>
-          <template #default="{ row }">{{ formatTime(row.updated_at) }}</template>
-        </el-table-column>
-        <el-table-column prop="owner_account" label="跟进人" min-width="120" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.owner_account || '-' }}</template>
-        </el-table-column>
-        <el-table-column label="操作" min-width="200" fixed="right">
+        <el-table-column
+          prop="create_time"
+          label="创建时间"
+          min-width="170"
+          show-overflow-tooltip
+        >
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="viewClue(row)">查看</el-button>
-            <el-button link type="primary" size="small" @click="assignClue(row)">分配</el-button>
-            <el-button link type="warning" size="small" @click="editClue(row)">编辑</el-button>
-            <el-button link type="danger" size="small" @click="deleteClue(row)">删除</el-button>
+            {{ formatTime(row.create_time) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          prop="updated_at"
+          label="最后跟进"
+          min-width="170"
+          show-overflow-tooltip
+        >
+          <template #default="{ row }">
+            {{ formatTime(row.updated_at) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          prop="owner_account"
+          label="跟进人"
+          min-width="120"
+          show-overflow-tooltip
+        >
+          <template #default="{ row }">
+            {{ row.owner_account || '-' }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="操作"
+          min-width="200"
+          fixed="right"
+        >
+          <template #default="{ row }">
+            <el-button
+              link
+              type="primary"
+              size="small"
+              @click="viewClue(row)"
+            >
+              查看
+            </el-button>
+            <el-button
+              link
+              type="primary"
+              size="small"
+              @click="assignClue(row)"
+            >
+              分配
+            </el-button>
+            <el-button
+              link
+              type="warning"
+              size="small"
+              @click="editClue(row)"
+            >
+              编辑
+            </el-button>
+            <el-button
+              link
+              type="danger"
+              size="small"
+              @click="deleteClue(row)"
+            >
+              删除
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -158,44 +348,106 @@
     </el-card>
 
     
-    <el-dialog v-model="importDialogVisible" :title="$t('导入线索')" width="600px">
-      <el-form ref="importFormRef" :model="importForm" label-width="80px">
-        <el-form-item :label="$t('线索类型')" prop="type">
-          <el-select v-model="importForm.type" :placeholder="$t('请选择线索类型')" value-key="value" @change="handleTypeChange" style="width: 100%">
-            <el-option v-for="item in clueTypeMap" :key="String(item.value)" :label="item.label" :value="String(item.value)"></el-option>
+    <el-dialog
+      v-model="importDialogVisible"
+      :title="$t('导入线索')"
+      width="600px"
+    >
+      <el-form
+        ref="importFormRef"
+        :model="importForm"
+        label-width="80px"
+      >
+        <el-form-item
+          :label="$t('线索类型')"
+          prop="type"
+        >
+          <el-select
+            v-model="importForm.type"
+            :placeholder="$t('请选择线索类型')"
+            value-key="value"
+            style="width: 100%"
+            @change="handleTypeChange"
+          >
+            <el-option
+              v-for="item in clueTypeMap"
+              :key="String(item.value)"
+              :label="item.label"
+              :value="String(item.value)"
+            />
           </el-select>
         </el-form-item>
-        <el-form-item :label="$t('线索内容')" prop="content">
+        <el-form-item
+          :label="$t('线索内容')"
+          prop="content"
+        >
           <el-input
-            type="textarea"
             v-model="importForm.content"
+            type="textarea"
             :placeholder="$t('请输入多行线索，每行一条，使用逗号分隔名称、账号、城市和地址（例如：张三,123456,北京,海淀区）')"
             :rows="10"
             class="import-textarea"
             @input="handleTextareaInput"
-          ></el-input>
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="importDialogVisible = false">{{ $t('取消') }}</el-button>
-        <el-button type="primary" @click="submitImport">{{ $t('导入') }}</el-button>
+        <el-button @click="importDialogVisible = false">
+          {{ $t('取消') }}
+        </el-button>
+        <el-button
+          type="primary"
+          @click="submitImport"
+        >
+          {{ $t('导入') }}
+        </el-button>
       </template>
     </el-dialog>
 
     
-    <el-dialog v-model="detailVisible" title="线索详情" width="640px">
-      <el-descriptions v-if="current" :column="2" border>
-        <el-descriptions-item label="ID">{{ current.id }}</el-descriptions-item>
-        <el-descriptions-item label="名称">{{ current.name }}</el-descriptions-item>
-        <el-descriptions-item label="账号">{{ current.account }}</el-descriptions-item>
-        <el-descriptions-item label="类型">{{ getClueType(current.type) }}</el-descriptions-item>
-        <el-descriptions-item label="城市">{{ current.city || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="地址">{{ current.address || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="来源">{{ getChannelLabel(current.source_id) || current.source_id || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="验证">{{ current.is_verify >= 1 ? '已验证' : '未验证' }}</el-descriptions-item>
-        <el-descriptions-item label="创建时间">{{ formatTime(current.create_time) }}</el-descriptions-item>
-        <el-descriptions-item label="最后跟进">{{ formatTime(current.updated_at) }}</el-descriptions-item>
-        <el-descriptions-item label="跟进人">{{ current.owner_account || '-' }}</el-descriptions-item>
+    <el-dialog
+      v-model="detailVisible"
+      title="线索详情"
+      width="640px"
+    >
+      <el-descriptions
+        v-if="current"
+        :column="2"
+        border
+      >
+        <el-descriptions-item label="ID">
+          {{ current.id }}
+        </el-descriptions-item>
+        <el-descriptions-item label="名称">
+          {{ current.name }}
+        </el-descriptions-item>
+        <el-descriptions-item label="账号">
+          {{ current.account }}
+        </el-descriptions-item>
+        <el-descriptions-item label="类型">
+          {{ getClueType(current.type) }}
+        </el-descriptions-item>
+        <el-descriptions-item label="城市">
+          {{ current.city || '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="地址">
+          {{ current.address || '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="来源">
+          {{ getChannelLabel(current.source_id) || current.source_id || '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="验证">
+          {{ current.is_verify >= 1 ? '已验证' : '未验证' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="创建时间">
+          {{ formatTime(current.create_time) }}
+        </el-descriptions-item>
+        <el-descriptions-item label="最后跟进">
+          {{ formatTime(current.updated_at) }}
+        </el-descriptions-item>
+        <el-descriptions-item label="跟进人">
+          {{ current.owner_account || '-' }}
+        </el-descriptions-item>
       </el-descriptions>
     </el-dialog>
   </div>

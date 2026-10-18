@@ -1,150 +1,392 @@
 <template>
   <div class="geo-page">
-
     <div class="p-4">
-    <el-row :gutter="16" class="mb-4">
-      <el-col :span="8">
-        <el-card>
-          <el-statistic title="可用平台" :value="availablePlatforms.length" />
-        </el-card>
-      </el-col>
-      <el-col :span="8">
-        <el-card>
-          <el-statistic title="待发布文章" :value="articles.length" />
-        </el-card>
-      </el-col>
-      <el-col :span="8">
-        <el-card>
-          <el-statistic title="今日发布次数" :value="recordsToday" />
-        </el-card>
-      </el-col>
-    </el-row>
+      <el-row
+        :gutter="16"
+        class="mb-4"
+      >
+        <el-col :span="8">
+          <el-card>
+            <el-statistic
+              title="可用平台"
+              :value="availablePlatforms.length"
+            />
+          </el-card>
+        </el-col>
+        <el-col :span="8">
+          <el-card>
+            <el-statistic
+              title="待发布文章"
+              :value="articles.length"
+            />
+          </el-card>
+        </el-col>
+        <el-col :span="8">
+          <el-card>
+            <el-statistic
+              title="今日发布次数"
+              :value="recordsToday"
+            />
+          </el-card>
+        </el-col>
+      </el-row>
 
     
-    <el-card class="mb-4">
-      <template #header>
-        <div class="flex items-center justify-between">
-          <span class="font-bold">可用平台列表</span>
-          <el-button size="small" type="primary" @click="loadAll">刷新</el-button>
+      <el-card class="mb-4">
+        <template #header>
+          <div class="flex items-center justify-between">
+            <span class="font-bold">可用平台列表</span>
+            <el-button
+              size="small"
+              type="primary"
+              @click="loadAll"
+            >
+              刷新
+            </el-button>
+          </div>
+        </template>
+        <el-table
+          v-loading="platformsLoading"
+          :data="availablePlatforms"
+          size="small"
+        >
+          <el-table-column
+            prop="display_name"
+            label="平台"
+            width="160"
+          >
+            <template #default="{ row }">
+              <a
+                v-if="row.url"
+                :href="row.url"
+                target="_blank"
+                class="platform-link"
+              >{{ row.display_name }}</a>
+              <span v-else>{{ row.display_name }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column
+            prop="name"
+            label="标识"
+            width="160"
+          />
+          <el-table-column
+            label="能力类型"
+            width="110"
+          >
+            <template #default="{ row }">
+              <el-tag
+                v-if="row.capability === 'real_api'"
+                type="success"
+                size="small"
+              >
+                真实 API
+              </el-tag>
+              <el-tag
+                v-else-if="row.capability === 'cookie_gray'"
+                type="warning"
+                size="small"
+              >
+                Cookie
+              </el-tag>
+              <el-tag
+                v-else
+                type="info"
+                size="small"
+              >
+                {{ row.capability || '未知' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="认证方式"
+            width="110"
+          >
+            <template #default="{ row }">
+              <span class="auth-type">{{ authLabel(row.auth_type) }}</span>
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="状态"
+            width="130"
+          >
+            <template #default="{ row }">
+              <el-tag
+                v-if="isConfigured(row.name)"
+                type="success"
+                size="small"
+              >
+                已配置
+              </el-tag>
+              <el-tag
+                v-else
+                type="info"
+                size="small"
+              >
+                未配置 Token
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="说明"
+            min-width="360"
+          >
+            <template #default="{ row }">
+              <span
+                v-if="row.name && row.name.includes('github')"
+                class="hint"
+              >
+                访问 <a
+                  href="https://github.com/settings/tokens"
+                  target="_blank"
+                >https://github.com/settings/tokens</a> 创建 Personal Access Token（classic，勾选 repo 权限），填入环境变量 <code>GITHUB_TOKEN</code>
+              </span>
+              <span
+                v-else-if="row.name === 'medium'"
+                class="hint"
+              >
+                访问 <a
+                  href="https://medium.com/me/settings/security"
+                  target="_blank"
+                >https://medium.com/me/settings/security</a> 手动配置 IntegrationToken（或通过 OAuth 应用授权），填入环境变量 <code>MEDIUM_TOKEN</code>
+              </span>
+              <span
+                v-else-if="row.name === 'wordpress'"
+                class="hint"
+              >
+                WordPress 后台 → 用户 → 应用密码 → 生成专用密码，填入环境变量 <code>WORDPRESS_APPPASS</code>（用户名+密码）
+              </span>
+              <span
+                v-else-if="row.capability === 'real_api'"
+                class="hint"
+              >需配置 API Token 环境变量后可发布</span>
+              <span
+                v-else
+                class="hint"
+              >—</span>
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="操作"
+            width="200"
+          >
+            <template #default="{ row }">
+              <el-button
+                size="small"
+                @click="openAccountDialog(row)"
+              >
+                配置 Token
+              </el-button>
+              <el-button
+                size="small"
+                type="primary"
+                plain
+                :disabled="!isConfigured(row.name)"
+                @click="onTestPublish(row)"
+              >
+                测试发布
+              </el-button>
+            </template>
+          </el-table-column>
+        </el-table>
+        <div
+          v-if="filteredCount === 0"
+          class="empty-hint"
+        >
+          暂无可用平台。需要在后端配置 API Token 后可发布。
         </div>
-      </template>
-      <el-table :data="availablePlatforms" v-loading="platformsLoading" size="small">
-        <el-table-column prop="display_name" label="平台" width="160">
-          <template #default="{ row }">
-            <a v-if="row.url" :href="row.url" target="_blank" class="platform-link">{{ row.display_name }}</a>
-            <span v-else>{{ row.display_name }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column prop="name" label="标识" width="160" />
-        <el-table-column label="能力类型" width="110">
-          <template #default="{ row }">
-            <el-tag v-if="row.capability === 'real_api'" type="success" size="small">真实 API</el-tag>
-            <el-tag v-else-if="row.capability === 'cookie_gray'" type="warning" size="small">Cookie</el-tag>
-            <el-tag v-else type="info" size="small">{{ row.capability || '未知' }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="认证方式" width="110">
-          <template #default="{ row }">
-            <span class="auth-type">{{ authLabel(row.auth_type) }}</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="状态" width="130">
-          <template #default="{ row }">
-            <el-tag v-if="isConfigured(row.name)" type="success" size="small">已配置</el-tag>
-            <el-tag v-else type="info" size="small">未配置 Token</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column label="说明" min-width="360">
-          <template #default="{ row }">
-            <span v-if="row.name && row.name.includes('github')" class="hint">
-              访问 <a href="https://github.com/settings/tokens" target="_blank">https://github.com/settings/tokens</a> 创建 Personal Access Token（classic，勾选 repo 权限），填入环境变量 <code>GITHUB_TOKEN</code>
-            </span>
-            <span v-else-if="row.name === 'medium'" class="hint">
-              访问 <a href="https://medium.com/me/settings/security" target="_blank">https://medium.com/me/settings/security</a> 手动配置 IntegrationToken（或通过 OAuth 应用授权），填入环境变量 <code>MEDIUM_TOKEN</code>
-            </span>
-            <span v-else-if="row.name === 'wordpress'" class="hint">
-              WordPress 后台 → 用户 → 应用密码 → 生成专用密码，填入环境变量 <code>WORDPRESS_APPPASS</code>（用户名+密码）
-            </span>
-            <span v-else-if="row.capability === 'real_api'" class="hint">需配置 API Token 环境变量后可发布</span>
-            <span v-else class="hint">—</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="操作" width="200">
-          <template #default="{ row }">
-            <el-button size="small" @click="openAccountDialog(row)">配置 Token</el-button>
-            <el-button size="small" type="primary" plain :disabled="!isConfigured(row.name)" @click="onTestPublish(row)">测试发布</el-button>
-          </template>
-        </el-table-column>
-      </el-table>
-      <div v-if="filteredCount === 0" class="empty-hint">
-        暂无可用平台。需要在后端配置 API Token 后可发布。
-      </div>
-    </el-card>
+      </el-card>
 
     
-    <el-card class="mb-4">
-      <template #header><span class="font-bold">发布 Pipeline</span></template>
-      <div class="flex items-center gap-4 mb-4 flex-wrap">
-        <el-select v-model="selectedArticle" placeholder="选择文章" size="small" style="width:260px">
-          <el-option v-for="a in articles" :key="a.id" :label="a.title || a.id" :value="a.id" />
-        </el-select>
-        <el-select v-model="selectedPlatforms" multiple placeholder="选择发布平台" size="small" style="min-width:260px">
-          <el-option v-for="p in realApiPlatforms" :key="p.name" :label="p.display_name + ' (真实API)'" :value="p.name" />
-        </el-select>
-        <el-button size="small" type="primary" :disabled="!selectedArticle || !selectedPlatforms.length" :loading="pipelineRunning" @click="runPipeline">执行发布</el-button>
-      </div>
-      <el-table v-if="pipelineStatuses.length" :data="pipelineStatuses" size="small">
-        <el-table-column prop="platform" label="平台" width="160" />
-        <el-table-column prop="status" label="状态" width="120">
-          <template #default="{ row }">
-            <el-tag :type="statusType(row.status)" size="small">{{ row.status }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="message" label="消息" min-width="200" show-overflow-tooltip />
-        <el-table-column prop="url" label="发布链接" min-width="200">
-          <template #default="{ row }">
-            <a v-if="row.url" :href="row.url" target="_blank">{{ row.url }}</a>
-            <span v-else>-</span>
-          </template>
-        </el-table-column>
-      </el-table>
-    </el-card>
+      <el-card class="mb-4">
+        <template #header>
+          <span class="font-bold">发布 Pipeline</span>
+        </template>
+        <div class="flex items-center gap-4 mb-4 flex-wrap">
+          <el-select
+            v-model="selectedArticle"
+            placeholder="选择文章"
+            size="small"
+            style="width:260px"
+          >
+            <el-option
+              v-for="a in articles"
+              :key="a.id"
+              :label="a.title || a.id"
+              :value="a.id"
+            />
+          </el-select>
+          <el-select
+            v-model="selectedPlatforms"
+            multiple
+            placeholder="选择发布平台"
+            size="small"
+            style="min-width:260px"
+          >
+            <el-option
+              v-for="p in realApiPlatforms"
+              :key="p.name"
+              :label="p.display_name + ' (真实API)'"
+              :value="p.name"
+            />
+          </el-select>
+          <el-button
+            size="small"
+            type="primary"
+            :disabled="!selectedArticle || !selectedPlatforms.length"
+            :loading="pipelineRunning"
+            @click="runPipeline"
+          >
+            执行发布
+          </el-button>
+        </div>
+        <el-table
+          v-if="pipelineStatuses.length"
+          :data="pipelineStatuses"
+          size="small"
+        >
+          <el-table-column
+            prop="platform"
+            label="平台"
+            width="160"
+          />
+          <el-table-column
+            prop="status"
+            label="状态"
+            width="120"
+          >
+            <template #default="{ row }">
+              <el-tag
+                :type="statusType(row.status)"
+                size="small"
+              >
+                {{ row.status }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column
+            prop="message"
+            label="消息"
+            min-width="200"
+            show-overflow-tooltip
+          />
+          <el-table-column
+            prop="url"
+            label="发布链接"
+            min-width="200"
+          >
+            <template #default="{ row }">
+              <a
+                v-if="row.url"
+                :href="row.url"
+                target="_blank"
+              >{{ row.url }}</a>
+              <span v-else>-</span>
+            </template>
+          </el-table-column>
+        </el-table>
+      </el-card>
 
     
-    <el-card>
-      <template #header><span class="font-bold">发布记录</span></template>
-      <el-table :data="records" v-loading="recordsLoading" size="small">
-        <el-table-column prop="article_title" label="文章" min-width="160" show-overflow-tooltip />
-        <el-table-column prop="platform" label="平台" width="160" />
-        <el-table-column prop="status" label="状态" width="100">
-          <template #default="{ row }">
-            <el-tag :type="statusType(row.status)" size="small">{{ row.status }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="error" label="错误信息" min-width="200" show-overflow-tooltip />
-        <el-table-column prop="created_at" label="时间" width="180" />
-      </el-table>
-      <div v-if="records.length === 0" class="empty-hint">暂无发布记录</div>
-    </el-card>
+      <el-card>
+        <template #header>
+          <span class="font-bold">发布记录</span>
+        </template>
+        <el-table
+          v-loading="recordsLoading"
+          :data="records"
+          size="small"
+        >
+          <el-table-column
+            prop="article_title"
+            label="文章"
+            min-width="160"
+            show-overflow-tooltip
+          />
+          <el-table-column
+            prop="platform"
+            label="平台"
+            width="160"
+          />
+          <el-table-column
+            prop="status"
+            label="状态"
+            width="100"
+          >
+            <template #default="{ row }">
+              <el-tag
+                :type="statusType(row.status)"
+                size="small"
+              >
+                {{ row.status }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column
+            prop="error"
+            label="错误信息"
+            min-width="200"
+            show-overflow-tooltip
+          />
+          <el-table-column
+            prop="created_at"
+            label="时间"
+            width="180"
+          />
+        </el-table>
+        <div
+          v-if="records.length === 0"
+          class="empty-hint"
+        >
+          暂无发布记录
+        </div>
+      </el-card>
 
     
-    <el-dialog v-model="accountDialogVisible" :title="`配置 ${currentPlatform?.display_name} Token`" width="480px">
-      <el-form :model="accountForm" label-width="120px">
-        <el-form-item label="AppKey / UserID">
-          <el-input v-model="accountForm.app_key" placeholder="填入平台 AppKey 或 UserID" />
-        </el-form-item>
-        <el-form-item label="Secret / Token">
-          <el-input v-model="accountForm.secret" type="password" show-password placeholder="填入 Secret 或 OAuth Token" />
-        </el-form-item>
-        <el-form-item label="额外配置">
-          <el-input v-model="accountForm.extra" type="textarea" :rows="3" placeholder="JSON 格式，可选" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="accountDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="saveAccount">保存</el-button>
-      </template>
-    </el-dialog>
+      <el-dialog
+        v-model="accountDialogVisible"
+        :title="`配置 ${currentPlatform?.display_name} Token`"
+        width="480px"
+      >
+        <el-form
+          :model="accountForm"
+          label-width="120px"
+        >
+          <el-form-item label="AppKey / UserID">
+            <el-input
+              v-model="accountForm.app_key"
+              placeholder="填入平台 AppKey 或 UserID"
+            />
+          </el-form-item>
+          <el-form-item label="Secret / Token">
+            <el-input
+              v-model="accountForm.secret"
+              type="password"
+              show-password
+              placeholder="填入 Secret 或 OAuth Token"
+            />
+          </el-form-item>
+          <el-form-item label="额外配置">
+            <el-input
+              v-model="accountForm.extra"
+              type="textarea"
+              :rows="3"
+              placeholder="JSON 格式，可选"
+            />
+          </el-form-item>
+        </el-form>
+        <template #footer>
+          <el-button @click="accountDialogVisible = false">
+            取消
+          </el-button>
+          <el-button
+            type="primary"
+            @click="saveAccount"
+          >
+            保存
+          </el-button>
+        </template>
+      </el-dialog>
     </div>
   </div>
 </template>

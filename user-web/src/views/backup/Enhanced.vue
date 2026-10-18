@@ -1,28 +1,50 @@
 <template>
   <div class="backup-page">
-    <el-row :gutter="16" class="stats-row">
+    <el-row
+      :gutter="16"
+      class="stats-row"
+    >
       <el-col :span="6">
         <el-card class="stat-card">
-          <div class="stat-label">总备份数</div>
-          <div class="stat-value">{{ stats.total }}</div>
+          <div class="stat-label">
+            总备份数
+          </div>
+          <div class="stat-value">
+            {{ stats.total }}
+          </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card class="stat-card success">
-          <div class="stat-label">最近成功</div>
-          <div class="stat-value">{{ stats.lastSuccess }}</div>
+          <div class="stat-label">
+            最近成功
+          </div>
+          <div class="stat-value">
+            {{ stats.lastSuccess }}
+          </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card class="stat-card warning">
-          <div class="stat-label">总大小</div>
-          <div class="stat-value">{{ formatSize(stats.totalSize) }}</div>
+          <div class="stat-label">
+            总大小
+          </div>
+          <div class="stat-value">
+            {{ formatSize(stats.totalSize) }}
+          </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card class="stat-card primary">
-          <div class="stat-label">下次计划</div>
-          <div class="stat-value" style="font-size: 16px">{{ stats.nextRun }}</div>
+          <div class="stat-label">
+            下次计划
+          </div>
+          <div
+            class="stat-value"
+            style="font-size: 16px"
+          >
+            {{ stats.nextRun }}
+          </div>
         </el-card>
       </el-col>
     </el-row>
@@ -31,25 +53,53 @@
       <template #header>
         <div class="card-header">
           <span>备份策略（USR-SY-02）</span>
-          <el-button type="primary" @click="saveStrategy">保存策略</el-button>
+          <el-button
+            type="primary"
+            @click="saveStrategy"
+          >
+            保存策略
+          </el-button>
         </div>
       </template>
-      <el-form :model="strategy" label-width="120px">
+      <el-form
+        :model="strategy"
+        label-width="120px"
+      >
         <el-form-item label="自动备份">
           <el-switch v-model="strategy.enabled" />
         </el-form-item>
         <el-form-item label="每日">
-          <el-time-picker v-model="strategy.daily" placeholder="02:00" />
+          <el-time-picker
+            v-model="strategy.daily"
+            placeholder="02:00"
+          />
         </el-form-item>
         <el-form-item label="每周">
-          <el-select v-model="strategy.weeklyDay" style="width: 120px">
-            <el-option label="周一" :value="1" />
-            <el-option label="周日" :value="0" />
+          <el-select
+            v-model="strategy.weeklyDay"
+            style="width: 120px"
+          >
+            <el-option
+              label="周一"
+              :value="1"
+            />
+            <el-option
+              label="周日"
+              :value="0"
+            />
           </el-select>
-          <el-time-picker v-model="strategy.weeklyTime" placeholder="03:00" style="margin-left: 8px" />
+          <el-time-picker
+            v-model="strategy.weeklyTime"
+            placeholder="03:00"
+            style="margin-left: 8px"
+          />
         </el-form-item>
         <el-form-item label="保留天数">
-          <el-input-number v-model="strategy.retentionDays" :min="7" :max="365" />
+          <el-input-number
+            v-model="strategy.retentionDays"
+            :min="7"
+            :max="365"
+          />
         </el-form-item>
         <el-form-item label="校验和">
           <el-switch v-model="strategy.checksum" />
@@ -61,42 +111,118 @@
       <template #header>
         <div class="card-header">
           <span>备份列表</span>
-          <el-button type="danger" :loading="backing" @click="createBackup">立即备份</el-button>
+          <el-button
+            type="danger"
+            :loading="backing"
+            @click="createBackup"
+          >
+            立即备份
+          </el-button>
         </div>
       </template>
-      <el-table :data="backups" v-loading="loading">
-        <el-table-column prop="id" label="ID" width="100" />
-        <el-table-column prop="createdAt" label="备份时间" width="170" />
-        <el-table-column prop="size" label="大小" width="100">
-          <template #default="{ row }">{{ formatSize(row.size) }}</template>
-        </el-table-column>
-        <el-table-column prop="checksum" label="SHA256" width="160" />
-        <el-table-column prop="status" label="状态" width="100">
+      <el-table
+        v-loading="loading"
+        :data="backups"
+      >
+        <el-table-column
+          prop="id"
+          label="ID"
+          width="100"
+        />
+        <el-table-column
+          prop="createdAt"
+          label="备份时间"
+          width="170"
+        />
+        <el-table-column
+          prop="size"
+          label="大小"
+          width="100"
+        >
           <template #default="{ row }">
-            <el-tag :type="row.status === 'ok' ? 'success' : 'danger'">{{ row.status }}</el-tag>
+            {{ formatSize(row.size) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column
+          prop="checksum"
+          label="SHA256"
+          width="160"
+        />
+        <el-table-column
+          prop="status"
+          label="状态"
+          width="100"
+        >
           <template #default="{ row }">
-            <el-button link type="primary" @click="showPreview(row)">预览影响</el-button>
-            <el-button link type="warning" @click="restore(row)">恢复</el-button>
-            <el-button link type="danger" @click="remove(row)">删除</el-button>
+            <el-tag :type="row.status === 'ok' ? 'success' : 'danger'">
+              {{ row.status }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="操作"
+          width="200"
+          fixed="right"
+        >
+          <template #default="{ row }">
+            <el-button
+              link
+              type="primary"
+              @click="showPreview(row)"
+            >
+              预览影响
+            </el-button>
+            <el-button
+              link
+              type="warning"
+              @click="restore(row)"
+            >
+              恢复
+            </el-button>
+            <el-button
+              link
+              type="danger"
+              @click="remove(row)"
+            >
+              删除
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
     </el-card>
 
-    <el-dialog v-model="previewVisible" title="恢复影响预览" width="600px">
-      <el-alert type="warning" :closable="false">
+    <el-dialog
+      v-model="previewVisible"
+      title="恢复影响预览"
+      width="600px"
+    >
+      <el-alert
+        type="warning"
+        :closable="false"
+      >
         即将恢复此备份：会影响以下数据（行数估算）
       </el-alert>
       <el-table :data="previewData">
-        <el-table-column prop="table" label="表名" />
-        <el-table-column prop="rows" label="行数估算" width="160" />
+        <el-table-column
+          prop="table"
+          label="表名"
+        />
+        <el-table-column
+          prop="rows"
+          label="行数估算"
+          width="160"
+        />
       </el-table>
       <template #footer>
-        <el-button @click="previewVisible = false">取消</el-button>
-        <el-button type="danger" @click="confirmRestore">确认恢复</el-button>
+        <el-button @click="previewVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="danger"
+          @click="confirmRestore"
+        >
+          确认恢复
+        </el-button>
       </template>
     </el-dialog>
   </div>

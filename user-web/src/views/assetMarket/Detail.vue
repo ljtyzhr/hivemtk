@@ -1,7 +1,16 @@
 <template>
-  <div class="asset-detail" v-loading="loading">
-    <el-page-header @back="$router.back()" content="资产详情" />
-    <el-card v-if="detail" class="mt-16">
+  <div
+    v-loading="loading"
+    class="asset-detail"
+  >
+    <el-page-header
+      content="资产详情"
+      @back="$router.back()"
+    />
+    <el-card
+      v-if="detail"
+      class="mt-16"
+    >
       <template #header>
         <div class="header">
           <div class="header-with-cover">
@@ -13,23 +22,41 @@
               class="cover-big"
             >
               <template #error>
-                <div class="img-error-fallback">{{ $t('图片加载失败') }}</div>
+                <div class="img-error-fallback">
+                  {{ $t('图片加载失败') }}
+                </div>
               </template>
             </el-image>
-            <div v-else class="cover-big-placeholder">{{ (asset.name || '?').slice(0, 1) }}</div>
+            <div
+              v-else
+              class="cover-big-placeholder"
+            >
+              {{ (asset.name || '?').slice(0, 1) }}
+            </div>
             <div class="header-text">
               <h2>{{ asset.name }}</h2>
               <div class="tags">
                 <el-tag>{{ asset.industry }}</el-tag>
-                <el-tag type="info">{{ asset.asset_type }}</el-tag>
-                <el-tag type="success">v{{ asset.latest_version || version?.version }}</el-tag>
+                <el-tag type="info">
+                  {{ asset.asset_type }}
+                </el-tag>
+                <el-tag type="success">
+                  v{{ asset.latest_version || version?.version }}
+                </el-tag>
               </div>
             </div>
           </div>
-          <el-button type="primary" @click="handlePurchase">免费试用</el-button>
+          <el-button
+            type="primary"
+            @click="handlePurchase"
+          >
+            免费试用
+          </el-button>
         </div>
       </template>
-      <p class="desc">{{ asset.description || '暂无描述' }}</p>
+      <p class="desc">
+        {{ asset.description || '暂无描述' }}
+      </p>
       <el-divider>数据预览</el-divider>
       <pre class="json-preview">{{ previewText }}</pre>
     </el-card>

@@ -11,20 +11,40 @@
       </template>
     </el-alert>
 
-    <el-row :gutter="16" style="margin-top: 16px">
-      
+    <el-row
+      :gutter="16"
+      style="margin-top: 16px"
+    >
       <el-col :span="8">
         <el-card>
           <template #header>
             <span>检索参数</span>
           </template>
-          <el-form :model="form" label-width="100px">
-            <el-form-item label="产品" required>
-              <el-select v-model="form.product_id" placeholder="选择产品" style="width: 100%">
-                <el-option v-for="p in productList" :key="p.id" :label="p.name" :value="p.id" />
+          <el-form
+            :model="form"
+            label-width="100px"
+          >
+            <el-form-item
+              label="产品"
+              required
+            >
+              <el-select
+                v-model="form.product_id"
+                placeholder="选择产品"
+                style="width: 100%"
+              >
+                <el-option
+                  v-for="p in productList"
+                  :key="p.id"
+                  :label="p.name"
+                  :value="p.id"
+                />
               </el-select>
             </el-form-item>
-            <el-form-item label="查询文本" required>
+            <el-form-item
+              label="查询文本"
+              required
+            >
               <el-input
                 v-model="form.query"
                 type="textarea"
@@ -33,28 +53,69 @@
               />
             </el-form-item>
             <el-form-item label="Top K">
-              <el-slider v-model="form.top_k" :min="1" :max="50" show-stops :marks="{ 5: '5', 10: '10', 20: '20', 50: '50' }" />
+              <el-slider
+                v-model="form.top_k"
+                :min="1"
+                :max="50"
+                show-stops
+                :marks="{ 5: '5', 10: '10', 20: '20', 50: '50' }"
+              />
             </el-form-item>
             <el-form-item label="相似度阈值">
-              <el-slider v-model="form.similarity_threshold" :min="0" :max="1" :step="0.05" :format-tooltip="(v) => v.toFixed(2)" />
-              <div class="threshold-hint">仅返回相似度 ≥ {{ form.similarity_threshold.toFixed(2) }} 的分段</div>
+              <el-slider
+                v-model="form.similarity_threshold"
+                :min="0"
+                :max="1"
+                :step="0.05"
+                :format-tooltip="(v) => v.toFixed(2)"
+              />
+              <div class="threshold-hint">
+                仅返回相似度 ≥ {{ form.similarity_threshold.toFixed(2) }} 的分段
+              </div>
             </el-form-item>
             <el-form-item label="分类过滤">
-              <el-input v-model="form.filter_category" placeholder="可选,如:售后/产品" clearable />
+              <el-input
+                v-model="form.filter_category"
+                placeholder="可选,如:售后/产品"
+                clearable
+              />
             </el-form-item>
             <el-form-item label="标签过滤">
-              <el-select v-model="form.tags" multiple filterable allow-create placeholder="选择或输入标签" style="width: 100%">
-                <el-option v-for="t in tagOptions" :key="t" :label="t" :value="t" />
+              <el-select
+                v-model="form.tags"
+                multiple
+                filterable
+                allow-create
+                placeholder="选择或输入标签"
+                style="width: 100%"
+              >
+                <el-option
+                  v-for="t in tagOptions"
+                  :key="t"
+                  :label="t"
+                  :value="t"
+                />
               </el-select>
             </el-form-item>
             <el-form-item>
-              <el-button type="primary" :icon="Search" :loading="searching" :disabled="!canSearch" @click="handleSearch" style="width: 100%">
+              <el-button
+                type="primary"
+                :icon="Search"
+                :loading="searching"
+                :disabled="!canSearch"
+                style="width: 100%"
+                @click="handleSearch"
+              >
                 开始检索
               </el-button>
             </el-form-item>
             <el-form-item>
-              <el-checkbox v-model="form.use_three_tier">启用三级缓存</el-checkbox>
-              <el-checkbox v-model="form.use_rerank">启用重排序</el-checkbox>
+              <el-checkbox v-model="form.use_three_tier">
+                启用三级缓存
+              </el-checkbox>
+              <el-checkbox v-model="form.use_rerank">
+                启用重排序
+              </el-checkbox>
             </el-form-item>
           </el-form>
         </el-card>
@@ -70,7 +131,9 @@
               :key="idx"
               class="template-tag"
               @click="form.query = q"
-            >{{ q }}</el-tag>
+            >
+              {{ q }}
+            </el-tag>
           </div>
         </el-card>
       </el-col>
@@ -81,64 +144,163 @@
           <template #header>
             <div class="card-header">
               <span>检索结果</span>
-              <div v-if="result" class="result-stats">
-                <el-tag size="small" type="info">命中 {{ result.total }} 条</el-tag>
+              <div
+                v-if="result"
+                class="result-stats"
+              >
+                <el-tag
+                  size="small"
+                  type="info"
+                >
+                  命中 {{ result.total }} 条
+                </el-tag>
                 <!-- el-tag 的 type 合法值只有 primary/success/info/warning/danger。
                      传空串会触发 "Invalid prop: validation failed for prop type" 告警，
                      并回落到 default(primary) 显示成蓝色，与「未命中缓存」的中性语义不符。 -->
-                <el-tag size="small" :type="result.from_cache ? 'success' : 'info'">
+                <el-tag
+                  size="small"
+                  :type="result.from_cache ? 'success' : 'info'"
+                >
                   {{ result.from_cache ? '命中缓存' : '未命中缓存' }}
                 </el-tag>
-                <el-tag size="small" type="warning">耗时 {{ result.latency_ms }} ms</el-tag>
-                <el-tag size="small">来源 {{ result.source }}</el-tag>
+                <el-tag
+                  size="small"
+                  type="warning"
+                >
+                  耗时 {{ result.latency_ms }} ms
+                </el-tag>
+                <el-tag size="small">
+                  来源 {{ result.source }}
+                </el-tag>
               </div>
             </div>
           </template>
 
           
-          <el-row v-if="result" :gutter="12" class="metric-row">
+          <el-row
+            v-if="result"
+            :gutter="12"
+            class="metric-row"
+          >
             <el-col :span="6">
-              <el-statistic title="最高分" :value="result.max_score" :precision="3" />
+              <el-statistic
+                title="最高分"
+                :value="result.max_score"
+                :precision="3"
+              />
             </el-col>
             <el-col :span="6">
-              <el-statistic title="最低分" :value="result.min_score" :precision="3" />
+              <el-statistic
+                title="最低分"
+                :value="result.min_score"
+                :precision="3"
+              />
             </el-col>
             <el-col :span="6">
-              <el-statistic title="平均分" :value="result.avg_score" :precision="3" />
+              <el-statistic
+                title="平均分"
+                :value="result.avg_score"
+                :precision="3"
+              />
             </el-col>
             <el-col :span="6">
-              <el-statistic title="命中条数" :value="result.total" />
+              <el-statistic
+                title="命中条数"
+                :value="result.total"
+              />
             </el-col>
           </el-row>
 
-          <el-empty v-if="!result" description="点击「开始检索」查看结果" />
-          <div v-else-if="result.chunks.length === 0" class="no-hit">未命中任何分段,可尝试降低相似度阈值</div>
-          <div v-else class="chunks-list">
-            <div v-for="(c, idx) in result.chunks" :key="c.chunk_id" class="chunk-card">
+          <el-empty
+            v-if="!result"
+            description="点击「开始检索」查看结果"
+          />
+          <div
+            v-else-if="result.chunks.length === 0"
+            class="no-hit"
+          >
+            未命中任何分段,可尝试降低相似度阈值
+          </div>
+          <div
+            v-else
+            class="chunks-list"
+          >
+            <div
+              v-for="(c, idx) in result.chunks"
+              :key="c.chunk_id"
+              class="chunk-card"
+            >
               <div class="chunk-header">
                 <div class="chunk-meta">
-                  <el-tag size="small" :type="getScoreType(c.score)">#{{ idx + 1 }} {{ c.score.toFixed(3) }}</el-tag>
-                  <el-tag v-if="c.from_cache" size="small" type="success">缓存</el-tag>
-                  <el-tag size="small" type="info">{{ c.source || 'L2' }}</el-tag>
-                  <el-text size="small" type="info">chunk_id: {{ c.chunk_id }} | doc_id: {{ c.document_id }}</el-text>
+                  <el-tag
+                    size="small"
+                    :type="getScoreType(c.score)"
+                  >
+                    #{{ idx + 1 }} {{ c.score.toFixed(3) }}
+                  </el-tag>
+                  <el-tag
+                    v-if="c.from_cache"
+                    size="small"
+                    type="success"
+                  >
+                    缓存
+                  </el-tag>
+                  <el-tag
+                    size="small"
+                    type="info"
+                  >
+                    {{ c.source || 'L2' }}
+                  </el-tag>
+                  <el-text
+                    size="small"
+                    type="info"
+                  >
+                    chunk_id: {{ c.chunk_id }} | doc_id: {{ c.document_id }}
+                  </el-text>
                 </div>
                 <div class="chunk-actions">
                   <el-button-group>
-                    <el-button size="small" :type="feedbacks[c.chunk_id] === 1 ? 'success' : ''" @click="submitFeedback(c, 1)">
+                    <el-button
+                      size="small"
+                      :type="feedbacks[c.chunk_id] === 1 ? 'success' : ''"
+                      @click="submitFeedback(c, 1)"
+                    >
                       <el-icon><CircleCheck /></el-icon> 相关
                     </el-button>
-                    <el-button size="small" :type="feedbacks[c.chunk_id] === 0 ? 'info' : ''" @click="submitFeedback(c, 0)">
+                    <el-button
+                      size="small"
+                      :type="feedbacks[c.chunk_id] === 0 ? 'info' : ''"
+                      @click="submitFeedback(c, 0)"
+                    >
                       <el-icon><RemoveFilled /></el-icon> 一般
                     </el-button>
-                    <el-button size="small" :type="feedbacks[c.chunk_id] === -1 ? 'danger' : ''" @click="submitFeedback(c, -1)">
+                    <el-button
+                      size="small"
+                      :type="feedbacks[c.chunk_id] === -1 ? 'danger' : ''"
+                      @click="submitFeedback(c, -1)"
+                    >
                       <el-icon><CircleClose /></el-icon> 不相关
                     </el-button>
                   </el-button-group>
-                  <el-button size="small" link type="primary" @click="goChunkEdit(c.document_id, c.chunk_id)">编辑分段</el-button>
+                  <el-button
+                    size="small"
+                    link
+                    type="primary"
+                    @click="goChunkEdit(c.document_id, c.chunk_id)"
+                  >
+                    编辑分段
+                  </el-button>
                 </div>
               </div>
-              <div v-if="c.title" class="chunk-title">{{ c.title }}</div>
-              <div class="chunk-content">{{ c.content }}</div>
+              <div
+                v-if="c.title"
+                class="chunk-title"
+              >
+                {{ c.title }}
+              </div>
+              <div class="chunk-content">
+                {{ c.content }}
+              </div>
               <el-progress
                 v-if="c.score"
                 :percentage="(c.score * 100).toFixed(1)"
@@ -152,17 +314,36 @@
         </el-card>
 
         
-        <el-card v-if="result && result.debug_info" style="margin-top: 16px">
+        <el-card
+          v-if="result && result.debug_info"
+          style="margin-top: 16px"
+        >
           <template #header>
             <span>调试信息</span>
           </template>
-          <el-descriptions :column="2" border size="small">
-            <el-descriptions-item label="产品 ID">{{ result.debug_info.product_id }}</el-descriptions-item>
-            <el-descriptions-item label="Top K">{{ result.debug_info.top_k }}</el-descriptions-item>
-            <el-descriptions-item label="阈值">{{ result.debug_info.threshold }}</el-descriptions-item>
-            <el-descriptions-item label="三级缓存">{{ result.debug_info.use_three_tier ? '开启' : '关闭' }}</el-descriptions-item>
-            <el-descriptions-item label="重排序">{{ result.debug_info.use_rerank ? '开启' : '关闭' }}</el-descriptions-item>
-            <el-descriptions-item label="查询">{{ result.query }}</el-descriptions-item>
+          <el-descriptions
+            :column="2"
+            border
+            size="small"
+          >
+            <el-descriptions-item label="产品 ID">
+              {{ result.debug_info.product_id }}
+            </el-descriptions-item>
+            <el-descriptions-item label="Top K">
+              {{ result.debug_info.top_k }}
+            </el-descriptions-item>
+            <el-descriptions-item label="阈值">
+              {{ result.debug_info.threshold }}
+            </el-descriptions-item>
+            <el-descriptions-item label="三级缓存">
+              {{ result.debug_info.use_three_tier ? '开启' : '关闭' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="重排序">
+              {{ result.debug_info.use_rerank ? '开启' : '关闭' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="查询">
+              {{ result.query }}
+            </el-descriptions-item>
           </el-descriptions>
         </el-card>
       </el-col>

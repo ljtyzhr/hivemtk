@@ -1,6 +1,5 @@
 <template>
   <div class="dictionary-page">
-
     <el-alert
       type="info"
       show-icon
@@ -11,17 +10,34 @@
     />
 
     <el-row :gutter="16">
-      <el-col :xs="24" :md="7" :lg="6">
-        <el-card shadow="hover" class="parent-card">
+      <el-col
+        :xs="24"
+        :md="7"
+        :lg="6"
+      >
+        <el-card
+          shadow="hover"
+          class="parent-card"
+        >
           <template #header>
             <div class="card-header">
               <span>字典域</span>
-              <el-button text size="small" :loading="parentsLoading" @click="loadParents">
+              <el-button
+                text
+                size="small"
+                :loading="parentsLoading"
+                @click="loadParents"
+              >
                 <el-icon><Refresh /></el-icon>
               </el-button>
             </div>
           </template>
-          <div v-if="parents.length === 0 && !parentsLoading" class="empty-hint">后端没有返回任何字典域</div>
+          <div
+            v-if="parents.length === 0 && !parentsLoading"
+            class="empty-hint"
+          >
+            后端没有返回任何字典域
+          </div>
           <div class="parent-list">
             <div
               v-for="p in parents"
@@ -37,7 +53,14 @@
               <div class="parent-item__main">
                 <div class="parent-name">
                   {{ p.label }}
-                  <el-tag v-if="p.seeded" size="small" effect="plain" type="info">代码种子</el-tag>
+                  <el-tag
+                    v-if="p.seeded"
+                    size="small"
+                    effect="plain"
+                    type="info"
+                  >
+                    代码种子
+                  </el-tag>
                 </div>
                 <code class="parent-code">{{ p.code }}</code>
               </div>
@@ -47,34 +70,68 @@
         </el-card>
       </el-col>
 
-      <el-col :xs="24" :md="17" :lg="18">
-        <el-card shadow="hover" class="detail-card">
+      <el-col
+        :xs="24"
+        :md="17"
+        :lg="18"
+      >
+        <el-card
+          shadow="hover"
+          class="detail-card"
+        >
           <template #header>
             <div class="card-header">
               <div class="header-title">
-                <el-tag type="info" effect="plain" class="group-tag">{{ currentParentLabel }}</el-tag>
+                <el-tag
+                  type="info"
+                  effect="plain"
+                  class="group-tag"
+                >
+                  {{ currentParentLabel }}
+                </el-tag>
                 <span class="header-count">{{ items.length }} 项 · {{ transitions.length }} 条跃迁</span>
               </div>
               <div class="header-actions">
-                <el-button :disabled="!currentParent" @click="openItemDialog()">
+                <el-button
+                  :disabled="!currentParent"
+                  @click="openItemDialog()"
+                >
                   <el-icon><Plus /></el-icon>新增字典项
                 </el-button>
-                <el-button :disabled="!currentParent" @click="openTransitionDialog">
+                <el-button
+                  :disabled="!currentParent"
+                  @click="openTransitionDialog"
+                >
                   <el-icon><Connection /></el-icon>编辑跃迁
                 </el-button>
-                <el-button :loading="detailLoading" @click="loadDetail">
+                <el-button
+                  :loading="detailLoading"
+                  @click="loadDetail"
+                >
                   <el-icon><Refresh /></el-icon>刷新
                 </el-button>
               </div>
             </div>
           </template>
 
-          <div v-if="currentParentDesc" class="parent-desc">{{ currentParentDesc }}</div>
+          <div
+            v-if="currentParentDesc"
+            class="parent-desc"
+          >
+            {{ currentParentDesc }}
+          </div>
 
-          <div v-if="!currentParent" class="empty-block">从左侧选一个字典域</div>
+          <div
+            v-if="!currentParent"
+            class="empty-block"
+          >
+            从左侧选一个字典域
+          </div>
 
           <template v-else>
-            <div class="section-title">字典项</div>
+            <div class="section-title">
+              字典项
+            </div>
             <el-table
               v-loading="detailLoading"
               :data="items"
@@ -84,34 +141,100 @@
               style="width: 100%"
               :header-cell-style="{ background: '#fafafa' }"
             >
-              <el-table-column prop="code" label="Code" width="160">
-                <template #default="{ row }"><code class="item-code">{{ row.code }}</code></template>
-              </el-table-column>
-              <el-table-column prop="name" label="名称" width="140" />
-              <el-table-column prop="description" label="说明" min-width="240" show-overflow-tooltip>
-                <template #default="{ row }">{{ row.description || '-' }}</template>
-              </el-table-column>
-              <el-table-column prop="sort_order" label="排序" width="70" align="center" />
-              <el-table-column label="状态" width="130" align="center">
+              <el-table-column
+                prop="code"
+                label="Code"
+                width="160"
+              >
                 <template #default="{ row }">
-                  <el-tag v-if="row.enabled" type="success" size="small" effect="plain">启用</el-tag>
-                  <el-tag v-else type="info" size="small" effect="plain">已停用</el-tag>
-                  <el-tooltip v-if="row.system_locked" content="由代码种子锁定：代码常量是权威的一侧，改名会让两侧分叉" placement="top">
-                    <el-tag type="warning" size="small" effect="dark" class="locked-tag">锁定</el-tag>
+                  <code class="item-code">{{ row.code }}</code>
+                </template>
+              </el-table-column>
+              <el-table-column
+                prop="name"
+                label="名称"
+                width="140"
+              />
+              <el-table-column
+                prop="description"
+                label="说明"
+                min-width="240"
+                show-overflow-tooltip
+              >
+                <template #default="{ row }">
+                  {{ row.description || '-' }}
+                </template>
+              </el-table-column>
+              <el-table-column
+                prop="sort_order"
+                label="排序"
+                width="70"
+                align="center"
+              />
+              <el-table-column
+                label="状态"
+                width="130"
+                align="center"
+              >
+                <template #default="{ row }">
+                  <el-tag
+                    v-if="row.enabled"
+                    type="success"
+                    size="small"
+                    effect="plain"
+                  >
+                    启用
+                  </el-tag>
+                  <el-tag
+                    v-else
+                    type="info"
+                    size="small"
+                    effect="plain"
+                  >
+                    已停用
+                  </el-tag>
+                  <el-tooltip
+                    v-if="row.system_locked"
+                    content="由代码种子锁定：代码常量是权威的一侧，改名会让两侧分叉"
+                    placement="top"
+                  >
+                    <el-tag
+                      type="warning"
+                      size="small"
+                      effect="dark"
+                      class="locked-tag"
+                    >
+                      锁定
+                    </el-tag>
                   </el-tooltip>
                 </template>
               </el-table-column>
-              <el-table-column label="操作" width="120" fixed="right" align="center">
+              <el-table-column
+                label="操作"
+                width="120"
+                fixed="right"
+                align="center"
+              >
                 <template #default="{ row }">
-                  <el-button link type="primary" size="small" @click="openItemDialog(row)">
+                  <el-button
+                    link
+                    type="primary"
+                    size="small"
+                    @click="openItemDialog(row)"
+                  >
                     <el-icon><Edit /></el-icon>编辑
                   </el-button>
                 </template>
               </el-table-column>
             </el-table>
 
-            <div class="section-title section-title--trans">状态跃迁</div>
-            <div v-if="transitions.length === 0" class="empty-block empty-block--sm">
+            <div class="section-title section-title--trans">
+              状态跃迁
+            </div>
+            <div
+              v-if="transitions.length === 0"
+              class="empty-block empty-block--sm"
+            >
               该域没有定义跃迁（纯枚举域，例如只有取值没有流转概念）
             </div>
             <el-table
@@ -123,23 +246,44 @@
               style="width: 100%"
               :header-cell-style="{ background: '#fafafa' }"
             >
-              <el-table-column label="从" min-width="200">
+              <el-table-column
+                label="从"
+                min-width="200"
+              >
                 <template #default="{ row }">
                   <code class="item-code">{{ row.from }}</code>
                   <span class="trans-name">{{ row.fromName }}</span>
                 </template>
               </el-table-column>
-              <el-table-column label="→" width="50" align="center">
-                <template #default><el-icon class="trans-arrow"><Right /></el-icon></template>
+              <el-table-column
+                label="→"
+                width="50"
+                align="center"
+              >
+                <template #default>
+                  <el-icon class="trans-arrow">
+                    <Right />
+                  </el-icon>
+                </template>
               </el-table-column>
-              <el-table-column label="到" min-width="200">
+              <el-table-column
+                label="到"
+                min-width="200"
+              >
                 <template #default="{ row }">
                   <code class="item-code">{{ row.to }}</code>
                   <span class="trans-name">{{ row.toName }}</span>
                 </template>
               </el-table-column>
-              <el-table-column prop="description" label="触发条件" min-width="220" show-overflow-tooltip>
-                <template #default="{ row }">{{ row.description || '-' }}</template>
+              <el-table-column
+                prop="description"
+                label="触发条件"
+                min-width="220"
+                show-overflow-tooltip
+              >
+                <template #default="{ row }">
+                  {{ row.description || '-' }}
+                </template>
               </el-table-column>
             </el-table>
           </template>
@@ -154,24 +298,50 @@
       :close-on-click-modal="false"
       destroy-on-close
     >
-      <el-form label-width="88px" @submit.prevent>
-        <el-form-item label="Code" required>
+      <el-form
+        label-width="88px"
+        @submit.prevent
+      >
+        <el-form-item
+          label="Code"
+          required
+        >
           <el-input
             v-model="itemForm.code"
             placeholder="例如 approved；只能用小写字母、数字、下划线"
             :disabled="!!itemForm.existing && itemForm.existing.system_locked"
           />
-          <div class="form-hint">这是写进数据库存量的值，一旦有数据就不该再改。</div>
+          <div class="form-hint">
+            这是写进数据库存量的值，一旦有数据就不该再改。
+          </div>
         </el-form-item>
-        <el-form-item label="名称" required>
-          <el-input v-model="itemForm.name" placeholder="给用户看的中文名" />
+        <el-form-item
+          label="名称"
+          required
+        >
+          <el-input
+            v-model="itemForm.name"
+            placeholder="给用户看的中文名"
+          />
         </el-form-item>
         <el-form-item label="说明">
-          <el-input v-model="itemForm.description" type="textarea" :rows="3" placeholder="这一项代表什么、在什么情况下出现" />
+          <el-input
+            v-model="itemForm.description"
+            type="textarea"
+            :rows="3"
+            placeholder="这一项代表什么、在什么情况下出现"
+          />
         </el-form-item>
         <el-form-item label="排序">
-          <el-input-number v-model="itemForm.sort_order" :step="1" :min="0" controls-position="right" />
-          <div class="form-hint">数字小的排前面。</div>
+          <el-input-number
+            v-model="itemForm.sort_order"
+            :step="1"
+            :min="0"
+            controls-position="right"
+          />
+          <div class="form-hint">
+            数字小的排前面。
+          </div>
         </el-form-item>
         <el-form-item label="启用">
           <el-switch v-model="itemForm.enabled" />
@@ -181,10 +351,23 @@
           </div>
         </el-form-item>
       </el-form>
-      <div v-if="itemError" class="form-error"><el-icon><WarningFilled /></el-icon> {{ itemError }}</div>
+      <div
+        v-if="itemError"
+        class="form-error"
+      >
+        <el-icon><WarningFilled /></el-icon> {{ itemError }}
+      </div>
       <template #footer>
-        <el-button @click="itemDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="savingItem" @click="submitItem">保存</el-button>
+        <el-button @click="itemDialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="savingItem"
+          @click="submitItem"
+        >
+          保存
+        </el-button>
       </template>
     </el-dialog>
 
@@ -202,44 +385,116 @@
         title="保存是整体替换"
         description="这里提交的是该域的完整跃迁集合，不是增量。后端 ReplaceTransitions 会先清空再写入，所以列表里删掉的行是真的没了。"
       />
-      <el-table :data="transitionDraft" border size="small" style="width:100%; margin-top:12px">
-        <el-table-column label="从" width="190">
+      <el-table
+        :data="transitionDraft"
+        border
+        size="small"
+        style="width:100%; margin-top:12px"
+      >
+        <el-table-column
+          label="从"
+          width="190"
+        >
           <template #default="{ row }">
-            <el-select v-model="row.from_code" filterable placeholder="起点" style="width:100%">
-              <el-option v-for="c in items" :key="c.code" :label="`${c.name} (${c.code})`" :value="c.code" />
+            <el-select
+              v-model="row.from_code"
+              filterable
+              placeholder="起点"
+              style="width:100%"
+            >
+              <el-option
+                v-for="c in items"
+                :key="c.code"
+                :label="`${c.name} (${c.code})`"
+                :value="c.code"
+              />
             </el-select>
           </template>
         </el-table-column>
-        <el-table-column label="→" width="40" align="center">
-          <template #default><el-icon class="trans-arrow"><Right /></el-icon></template>
+        <el-table-column
+          label="→"
+          width="40"
+          align="center"
+        >
+          <template #default>
+            <el-icon class="trans-arrow">
+              <Right />
+            </el-icon>
+          </template>
         </el-table-column>
-        <el-table-column label="到" width="190">
+        <el-table-column
+          label="到"
+          width="190"
+        >
           <template #default="{ row }">
-            <el-select v-model="row.to_code" filterable placeholder="终点" style="width:100%">
-              <el-option v-for="c in items" :key="c.code" :label="`${c.name} (${c.code})`" :value="c.code" />
+            <el-select
+              v-model="row.to_code"
+              filterable
+              placeholder="终点"
+              style="width:100%"
+            >
+              <el-option
+                v-for="c in items"
+                :key="c.code"
+                :label="`${c.name} (${c.code})`"
+                :value="c.code"
+              />
             </el-select>
           </template>
         </el-table-column>
-        <el-table-column label="触发条件" min-width="240">
+        <el-table-column
+          label="触发条件"
+          min-width="240"
+        >
           <template #default="{ row }">
-            <el-input v-model="row.description" placeholder="什么情况下会发生这次流转" />
+            <el-input
+              v-model="row.description"
+              placeholder="什么情况下会发生这次流转"
+            />
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="70" align="center">
+        <el-table-column
+          label="操作"
+          width="70"
+          align="center"
+        >
           <template #default="{ $index }">
-            <el-button link type="danger" size="small" @click="removeTransitionRow($index)">
+            <el-button
+              link
+              type="danger"
+              size="small"
+              @click="removeTransitionRow($index)"
+            >
               <el-icon><Delete /></el-icon>
             </el-button>
           </template>
         </el-table-column>
       </el-table>
       <div class="dialog-actions">
-        <el-button size="small" @click="addTransitionRow"><el-icon><Plus /></el-icon>加一条跃迁</el-button>
+        <el-button
+          size="small"
+          @click="addTransitionRow"
+        >
+          <el-icon><Plus /></el-icon>加一条跃迁
+        </el-button>
       </div>
-      <div v-if="transitionError" class="form-error"><el-icon><WarningFilled /></el-icon> {{ transitionError }}</div>
+      <div
+        v-if="transitionError"
+        class="form-error"
+      >
+        <el-icon><WarningFilled /></el-icon> {{ transitionError }}
+      </div>
       <template #footer>
-        <el-button @click="transitionDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="savingTransitions" @click="submitTransitions">整体替换</el-button>
+        <el-button @click="transitionDialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="savingTransitions"
+          @click="submitTransitions"
+        >
+          整体替换
+        </el-button>
       </template>
     </el-dialog>
   </div>

@@ -5,10 +5,18 @@
         <div class="card-header">
           <span>{{ $t('闲鱼卡片管理') }}</span>
           <div class="header-actions">
-            <el-button type="primary" icon="DataAnalysis" @click="goToStats">
+            <el-button
+              type="primary"
+              icon="DataAnalysis"
+              @click="goToStats"
+            >
               {{ $t('统计分析') }}
             </el-button>
-            <el-button type="primary" icon="Plus" @click="handleAdd">
+            <el-button
+              type="primary"
+              icon="Plus"
+              @click="handleAdd"
+            >
               {{ $t('添加卡片') }}
             </el-button>
           </div>
@@ -16,28 +24,72 @@
       </template>
 
       
-      <el-form :inline="true" :model="searchForm" class="search-form">
+      <el-form
+        :inline="true"
+        :model="searchForm"
+        class="search-form"
+      >
         <el-form-item label="关键词">
-          <el-input v-model="searchForm.keyword" placeholder="标题、描述或标签" clearable />
+          <el-input
+            v-model="searchForm.keyword"
+            placeholder="标题、描述或标签"
+            clearable
+          />
         </el-form-item>
         <el-form-item label="状态">
-          <el-select v-model="searchForm.is_active" placeholder="请选择" clearable>
-            <el-option label="激活" :value="true" />
-            <el-option label="禁用" :value="false" />
+          <el-select
+            v-model="searchForm.is_active"
+            placeholder="请选择"
+            clearable
+          >
+            <el-option
+              label="激活"
+              :value="true"
+            />
+            <el-option
+              label="禁用"
+              :value="false"
+            />
           </el-select>
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="handleSearch">搜索</el-button>
-          <el-button @click="resetSearch">重置</el-button>
+          <el-button
+            type="primary"
+            @click="handleSearch"
+          >
+            搜索
+          </el-button>
+          <el-button @click="resetSearch">
+            重置
+          </el-button>
         </el-form-item>
       </el-form>
 
       
-      <el-table :data="tableData" style="width: 100%" v-loading="loading">
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="title" label="标题" width="180" />
-        <el-table-column prop="description" label="描述" show-overflow-tooltip />
-        <el-table-column label="图片" width="120">
+      <el-table
+        v-loading="loading"
+        :data="tableData"
+        style="width: 100%"
+      >
+        <el-table-column
+          prop="id"
+          label="ID"
+          width="80"
+        />
+        <el-table-column
+          prop="title"
+          label="标题"
+          width="180"
+        />
+        <el-table-column
+          prop="description"
+          label="描述"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          label="图片"
+          width="120"
+        >
           <template #default="scope">
             <el-image
               v-if="scope.row.image_url"
@@ -47,27 +99,71 @@
               fit="cover"
             >
               <template #error>
-                <div class="img-error-fallback">{{ $t('图片加载失败') }}</div>
+                <div class="img-error-fallback">
+                  {{ $t('图片加载失败') }}
+                </div>
               </template>
             </el-image>
           </template>
         </el-table-column>
-        <el-table-column prop="view_count" label="浏览数" width="100" />
-        <el-table-column prop="click_count" label="点击数" width="100" />
-        <el-table-column prop="share_count" label="分享数" width="100" />
-        <el-table-column label="状态" width="80">
+        <el-table-column
+          prop="view_count"
+          label="浏览数"
+          width="100"
+        />
+        <el-table-column
+          prop="click_count"
+          label="点击数"
+          width="100"
+        />
+        <el-table-column
+          prop="share_count"
+          label="分享数"
+          width="100"
+        />
+        <el-table-column
+          label="状态"
+          width="80"
+        >
           <template #default="scope">
             <el-tag :type="scope.row.is_active ? 'success' : 'danger'">
               {{ scope.row.is_active ? '激活' : '禁用' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="280" fixed="right">
+        <el-table-column
+          label="操作"
+          width="280"
+          fixed="right"
+        >
           <template #default="scope">
-            <el-button size="small" @click="handleEdit(scope.row)">编辑</el-button>
-            <el-button size="small" type="danger" @click="handleDelete(scope.row)">删除</el-button>
-            <el-button size="small" type="primary" @click="handleStats(scope.row)">统计</el-button>
-            <el-button size="small" type="info" @click="handleCopyLink(scope.row)">复制链接</el-button>
+            <el-button
+              size="small"
+              @click="handleEdit(scope.row)"
+            >
+              编辑
+            </el-button>
+            <el-button
+              size="small"
+              type="danger"
+              @click="handleDelete(scope.row)"
+            >
+              删除
+            </el-button>
+            <el-button
+              size="small"
+              type="primary"
+              @click="handleStats(scope.row)"
+            >
+              统计
+            </el-button>
+            <el-button
+              size="small"
+              type="info"
+              @click="handleCopyLink(scope.row)"
+            >
+              复制链接
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -93,11 +189,25 @@
       width="600px"
       :close-on-click-modal="false"
     >
-      <el-form ref="formRef" :model="form" :rules="rules" label-width="100px">
-        <el-form-item label="标题" prop="title">
-          <el-input v-model="form.title" placeholder="请输入标题" />
+      <el-form
+        ref="formRef"
+        :model="form"
+        :rules="rules"
+        label-width="100px"
+      >
+        <el-form-item
+          label="标题"
+          prop="title"
+        >
+          <el-input
+            v-model="form.title"
+            placeholder="请输入标题"
+          />
         </el-form-item>
-        <el-form-item label="描述" prop="description">
+        <el-form-item
+          label="描述"
+          prop="description"
+        >
           <el-input
             v-model="form.description"
             type="textarea"
@@ -105,17 +215,34 @@
             placeholder="请输入描述"
           />
         </el-form-item>
-        <el-form-item label="图片" prop="image_url">
-          <el-input v-model="form.image_url" placeholder="请输入图片URL">
+        <el-form-item
+          label="图片"
+          prop="image_url"
+        >
+          <el-input
+            v-model="form.image_url"
+            placeholder="请输入图片URL"
+          >
             <template #append>
-              <el-button @click="selectImage">选择</el-button>
+              <el-button @click="selectImage">
+                选择
+              </el-button>
             </template>
           </el-input>
         </el-form-item>
-        <el-form-item label="跳转链接" prop="redirect_url">
-          <el-input v-model="form.redirect_url" placeholder="请输入跳转链接" />
+        <el-form-item
+          label="跳转链接"
+          prop="redirect_url"
+        >
+          <el-input
+            v-model="form.redirect_url"
+            placeholder="请输入跳转链接"
+          />
         </el-form-item>
-        <el-form-item label="域名池" prop="domain_pool_id">
+        <el-form-item
+          label="域名池"
+          prop="domain_pool_id"
+        >
           <el-select 
             v-model="form.domain_pool_id" 
             placeholder="请选择域名池" 
@@ -133,17 +260,33 @@
             </el-option>
           </el-select>
         </el-form-item>
-        <el-form-item label="标签" prop="tags">
-          <el-input v-model="form.tags" placeholder="请输入标签，多个标签用逗号分隔" />
+        <el-form-item
+          label="标签"
+          prop="tags"
+        >
+          <el-input
+            v-model="form.tags"
+            placeholder="请输入标签，多个标签用逗号分隔"
+          />
         </el-form-item>
-        <el-form-item label="状态" prop="is_active">
-          <el-switch v-model="form.is_active" active-text="激活" inactive-text="禁用" />
+        <el-form-item
+          label="状态"
+          prop="is_active"
+        >
+          <el-switch
+            v-model="form.is_active"
+            active-text="激活"
+            inactive-text="禁用"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="dialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="submitForm">确定</el-button>
+          <el-button
+            type="primary"
+            @click="submitForm"
+          >确定</el-button>
         </span>
       </template>
     </el-dialog>

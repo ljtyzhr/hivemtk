@@ -1,10 +1,12 @@
 <template>
   <div class="message-hub-container">
-    
     <div class="page-header">
       <h2>消息中台 MQ</h2>
       <div class="header-actions">
-        <el-button type="primary" @click="openPushDialog">
+        <el-button
+          type="primary"
+          @click="openPushDialog"
+        >
           <el-icon><Plus /></el-icon>
           {{ $t('推送消息') }}
         </el-button>
@@ -16,55 +18,112 @@
     </div>
 
     
-    <el-row :gutter="16" class="stats-row" v-loading="statsLoading">
+    <el-row
+      v-loading="statsLoading"
+      :gutter="16"
+      class="stats-row"
+    >
       <el-col :span="4">
-        <el-card shadow="hover" class="stat-card">
-          <div class="stat-value">{{ stats.total ?? 0 }}</div>
-          <div class="stat-label">{{ $t('消息总数') }}</div>
+        <el-card
+          shadow="hover"
+          class="stat-card"
+        >
+          <div class="stat-value">
+            {{ stats.total ?? 0 }}
+          </div>
+          <div class="stat-label">
+            {{ $t('消息总数') }}
+          </div>
         </el-card>
       </el-col>
       <el-col :span="4">
-        <el-card shadow="hover" class="stat-card stat-inbound">
-          <div class="stat-value">{{ stats.inbound ?? 0 }}</div>
-          <div class="stat-label">{{ $t('接收消息') }}</div>
+        <el-card
+          shadow="hover"
+          class="stat-card stat-inbound"
+        >
+          <div class="stat-value">
+            {{ stats.inbound ?? 0 }}
+          </div>
+          <div class="stat-label">
+            {{ $t('接收消息') }}
+          </div>
         </el-card>
       </el-col>
       <el-col :span="4">
-        <el-card shadow="hover" class="stat-card stat-outbound">
-          <div class="stat-value">{{ stats.outbound ?? 0 }}</div>
-          <div class="stat-label">{{ $t('发送消息') }}</div>
+        <el-card
+          shadow="hover"
+          class="stat-card stat-outbound"
+        >
+          <div class="stat-value">
+            {{ stats.outbound ?? 0 }}
+          </div>
+          <div class="stat-label">
+            {{ $t('发送消息') }}
+          </div>
         </el-card>
       </el-col>
       <el-col :span="4">
-        <el-card shadow="hover" class="stat-card stat-unread">
-          <div class="stat-value">{{ stats.unread ?? 0 }}</div>
-          <div class="stat-label">{{ $t('未读消息') }}</div>
+        <el-card
+          shadow="hover"
+          class="stat-card stat-unread"
+        >
+          <div class="stat-value">
+            {{ stats.unread ?? 0 }}
+          </div>
+          <div class="stat-label">
+            {{ $t('未读消息') }}
+          </div>
         </el-card>
       </el-col>
       <el-col :span="4">
-        <el-card shadow="hover" class="stat-card stat-recent">
-          <div class="stat-value">{{ stats.recent_24h ?? 0 }}</div>
-          <div class="stat-label">近 24h 新增</div>
+        <el-card
+          shadow="hover"
+          class="stat-card stat-recent"
+        >
+          <div class="stat-value">
+            {{ stats.recent_24h ?? 0 }}
+          </div>
+          <div class="stat-label">
+            近 24h 新增
+          </div>
         </el-card>
       </el-col>
       <el-col :span="4">
-        <el-card shadow="hover" class="stat-card stat-platform">
-          <div class="stat-value">{{ platformCount }}</div>
-          <div class="stat-label">{{ $t('活跃平台数') }}</div>
+        <el-card
+          shadow="hover"
+          class="stat-card stat-platform"
+        >
+          <div class="stat-value">
+            {{ platformCount }}
+          </div>
+          <div class="stat-label">
+            {{ $t('活跃平台数') }}
+          </div>
         </el-card>
       </el-col>
     </el-row>
 
     
-    <el-card v-if="stats.by_platform && Object.keys(stats.by_platform).length" class="platform-card" shadow="never">
+    <el-card
+      v-if="stats.by_platform && Object.keys(stats.by_platform).length"
+      class="platform-card"
+      shadow="never"
+    >
       <template #header>
         <span>{{ $t('平台消息分布') }}</span>
       </template>
       <div class="platform-bars">
-        <div v-for="(count, platform) in mergedByPlatform" :key="platform" class="platform-bar-item">
+        <div
+          v-for="(count, platform) in mergedByPlatform"
+          :key="platform"
+          class="platform-bar-item"
+        >
           <span class="platform-name">{{ platformLabel(platform) }}</span>
           <div class="bar-track">
-            <div class="bar-fill" :style="{ width: barWidth(count) + '%' }"></div>
+            <div
+              class="bar-fill"
+              :style="{ width: barWidth(count) + '%' }"
+            />
           </div>
           <span class="platform-count">{{ count }}</span>
         </div>
@@ -73,49 +132,129 @@
 
     
     <div class="search-form">
-      <el-form :inline="true" :model="searchForm" class="search-form-content">
+      <el-form
+        :inline="true"
+        :model="searchForm"
+        class="search-form-content"
+      >
         <el-form-item label="平台">
-          <el-select v-model="searchForm.platform" placeholder="全部平台" clearable style="width: 140px">
-            <el-option v-for="p in platformOptions" :key="p" :label="platformLabel(p)" :value="p" />
+          <el-select
+            v-model="searchForm.platform"
+            placeholder="全部平台"
+            clearable
+            style="width: 140px"
+          >
+            <el-option
+              v-for="p in platformOptions"
+              :key="p"
+              :label="platformLabel(p)"
+              :value="p"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="账号 ID">
-          <el-input v-model="searchForm.account_id" placeholder="账号 ID" clearable style="width: 160px" />
+          <el-input
+            v-model="searchForm.account_id"
+            placeholder="账号 ID"
+            clearable
+            style="width: 160px"
+          />
         </el-form-item>
         <el-form-item label="会话 ID">
-          <el-input v-model="searchForm.conversation_id" placeholder="会话 ID" clearable style="width: 160px" />
+          <el-input
+            v-model="searchForm.conversation_id"
+            placeholder="会话 ID"
+            clearable
+            style="width: 160px"
+          />
         </el-form-item>
         <el-form-item label="发送者">
-          <el-input v-model="searchForm.sender_id" placeholder="发送者 ID" clearable style="width: 140px" />
+          <el-input
+            v-model="searchForm.sender_id"
+            placeholder="发送者 ID"
+            clearable
+            style="width: 140px"
+          />
         </el-form-item>
         <el-form-item label="方向">
-          <el-select v-model="searchForm.direction" placeholder="全部" clearable style="width: 120px">
-            <el-option label="接收 (inbound)" value="inbound" />
-            <el-option label="发送 (outbound)" value="outbound" />
+          <el-select
+            v-model="searchForm.direction"
+            placeholder="全部"
+            clearable
+            style="width: 120px"
+          >
+            <el-option
+              label="接收 (inbound)"
+              value="inbound"
+            />
+            <el-option
+              label="发送 (outbound)"
+              value="outbound"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="类型">
-          <el-select v-model="searchForm.msg_type" placeholder="全部类型" clearable style="width: 120px">
-            <el-option v-for="t in msgTypeOptions" :key="t" :label="t" :value="t" />
+          <el-select
+            v-model="searchForm.msg_type"
+            placeholder="全部类型"
+            clearable
+            style="width: 120px"
+          >
+            <el-option
+              v-for="t in msgTypeOptions"
+              :key="t"
+              :label="t"
+              :value="t"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="已读">
-          <el-select v-model="searchForm.is_read" placeholder="全部" clearable style="width: 100px">
-            <el-option label="未读" value="false" />
-            <el-option label="已读" value="true" />
+          <el-select
+            v-model="searchForm.is_read"
+            placeholder="全部"
+            clearable
+            style="width: 100px"
+          >
+            <el-option
+              label="未读"
+              value="false"
+            />
+            <el-option
+              label="已读"
+              value="true"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="群消息">
-          <el-select v-model="searchForm.is_group" placeholder="全部" clearable style="width: 100px">
-            <el-option label="群消息" value="true" />
-            <el-option label="单聊" value="false" />
+          <el-select
+            v-model="searchForm.is_group"
+            placeholder="全部"
+            clearable
+            style="width: 100px"
+          >
+            <el-option
+              label="群消息"
+              value="true"
+            />
+            <el-option
+              label="单聊"
+              value="false"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="关键字">
-          <el-input v-model="searchForm.keyword" placeholder="内容关键字" clearable style="width: 160px" />
+          <el-input
+            v-model="searchForm.keyword"
+            placeholder="内容关键字"
+            clearable
+            style="width: 160px"
+          />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="handleSearch">
+          <el-button
+            type="primary"
+            @click="handleSearch"
+          >
             <el-icon><Search /></el-icon>
             搜索
           </el-button>
@@ -128,67 +267,181 @@
     </div>
 
     
-    <el-table :data="messageList" border style="width: 100%" v-loading="loading"
-              @selection-change="handleSelectionChange">
-      <el-table-column type="selection" width="44" />
-      <el-table-column prop="id" label="ID" width="80" />
-      <el-table-column label="平台" width="110">
+    <el-table
+      v-loading="loading"
+      :data="messageList"
+      border
+      style="width: 100%"
+      @selection-change="handleSelectionChange"
+    >
+      <el-table-column
+        type="selection"
+        width="44"
+      />
+      <el-table-column
+        prop="id"
+        label="ID"
+        width="80"
+      />
+      <el-table-column
+        label="平台"
+        width="110"
+      >
         <template #default="{ row }">
-          <el-tag :type="platformTagType(row.platform)" size="small">{{ platformLabel(row.platform) }}</el-tag>
+          <el-tag
+            :type="platformTagType(row.platform)"
+            size="small"
+          >
+            {{ platformLabel(row.platform) }}
+          </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="account_id" label="账号" width="120" show-overflow-tooltip />
-      <el-table-column label="方向" width="80">
+      <el-table-column
+        prop="account_id"
+        label="账号"
+        width="120"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        label="方向"
+        width="80"
+      >
         <template #default="{ row }">
-          <el-tag :type="getDirectionTagType(row.direction)" size="small">
+          <el-tag
+            :type="getDirectionTagType(row.direction)"
+            size="small"
+          >
             {{ getDirectionLabel(row.direction) }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="msg_type" label="类型" width="90">
+      <el-table-column
+        prop="msg_type"
+        label="类型"
+        width="90"
+      >
         <template #default="{ row }">
-          <el-tag :type="getMsgTypeTagType(row.msg_type)" size="small" effect="plain">
+          <el-tag
+            :type="getMsgTypeTagType(row.msg_type)"
+            size="small"
+            effect="plain"
+          >
             {{ getMsgTypeLabel(row.msg_type) }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="sender_name" label="发送方" width="140" show-overflow-tooltip />
-      <el-table-column prop="receiver_name" label="接收方" width="140" show-overflow-tooltip />
-      <el-table-column prop="content" label="内容" min-width="240" show-overflow-tooltip />
-      <el-table-column label="会话" width="120" show-overflow-tooltip>
+      <el-table-column
+        prop="sender_name"
+        label="发送方"
+        width="140"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        prop="receiver_name"
+        label="接收方"
+        width="140"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        prop="content"
+        label="内容"
+        min-width="240"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        label="会话"
+        width="120"
+        show-overflow-tooltip
+      >
         <template #default="{ row }">
           <span>{{ row.conversation_id || '-' }}</span>
-          <el-tag v-if="row.is_group" type="info" size="small" style="margin-left: 4px">群</el-tag>
+          <el-tag
+            v-if="row.is_group"
+            type="info"
+            size="small"
+            style="margin-left: 4px"
+          >
+            群
+          </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="AI" width="70">
+      <el-table-column
+        label="AI"
+        width="70"
+      >
         <template #default="{ row }">
-          <el-tag v-if="row.is_ai_reply" type="danger" size="small">AI</el-tag>
+          <el-tag
+            v-if="row.is_ai_reply"
+            type="danger"
+            size="small"
+          >
+            AI
+          </el-tag>
           <span v-else>-</span>
         </template>
       </el-table-column>
-      <el-table-column label="状态" width="80">
+      <el-table-column
+        label="状态"
+        width="80"
+      >
         <template #default="{ row }">
-          <el-tag :type="row.is_read ? 'info' : 'danger'" size="small">
+          <el-tag
+            :type="row.is_read ? 'info' : 'danger'"
+            size="small"
+          >
             {{ row.is_read ? '已读' : '未读' }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="sent_at" label="发送时间" width="170">
-        <template #default="{ row }">{{ formatTime(row.sent_at) }}</template>
-      </el-table-column>
-      <el-table-column label="操作" width="170" fixed="right">
+      <el-table-column
+        prop="sent_at"
+        label="发送时间"
+        width="170"
+      >
         <template #default="{ row }">
-          <el-button type="primary" size="small" link @click="handleViewDetail(row)">详情</el-button>
-          <el-button v-if="!row.is_read" type="warning" size="small" link @click="handleMarkRead(row)">标记已读</el-button>
+          {{ formatTime(row.sent_at) }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="操作"
+        width="170"
+        fixed="right"
+      >
+        <template #default="{ row }">
+          <el-button
+            type="primary"
+            size="small"
+            link
+            @click="handleViewDetail(row)"
+          >
+            详情
+          </el-button>
+          <el-button
+            v-if="!row.is_read"
+            type="warning"
+            size="small"
+            link
+            @click="handleMarkRead(row)"
+          >
+            标记已读
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
 
     
-    <div class="batch-bar" v-if="selectedRows.length">
+    <div
+      v-if="selectedRows.length"
+      class="batch-bar"
+    >
       <span>已选 {{ selectedRows.length }} 条</span>
-      <el-button size="small" type="primary" @click="handleBatchMarkRead">批量标记已读</el-button>
+      <el-button
+        size="small"
+        type="primary"
+        @click="handleBatchMarkRead"
+      >
+        批量标记已读
+      </el-button>
     </div>
 
     
@@ -205,110 +458,269 @@
     </div>
 
     
-    <el-dialog v-model="pushDialogVisible" title="推送消息到中台" width="720px" top="5vh">
-      <el-form :model="pushForm" :rules="pushRules" ref="pushFormRef" label-width="120px">
-        <el-form-item label="平台" prop="platform">
-          <el-select v-model="pushForm.platform" placeholder="选择平台" style="width: 100%">
-            <el-option v-for="p in platformOptions" :key="p" :label="platformLabel(p)" :value="p" />
+    <el-dialog
+      v-model="pushDialogVisible"
+      title="推送消息到中台"
+      width="720px"
+      top="5vh"
+    >
+      <el-form
+        ref="pushFormRef"
+        :model="pushForm"
+        :rules="pushRules"
+        label-width="120px"
+      >
+        <el-form-item
+          label="平台"
+          prop="platform"
+        >
+          <el-select
+            v-model="pushForm.platform"
+            placeholder="选择平台"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="p in platformOptions"
+              :key="p"
+              :label="platformLabel(p)"
+              :value="p"
+            />
           </el-select>
         </el-form-item>
-        <el-form-item label="账号 ID" prop="account_id">
-          <el-input v-model="pushForm.account_id" placeholder="渠道账号 ID" />
+        <el-form-item
+          label="账号 ID"
+          prop="account_id"
+        >
+          <el-input
+            v-model="pushForm.account_id"
+            placeholder="渠道账号 ID"
+          />
         </el-form-item>
-        <el-form-item label="消息 ID" prop="msg_id">
-          <el-input v-model="pushForm.msg_id" placeholder="渠道原始消息 ID（留空自动生成）" />
+        <el-form-item
+          label="消息 ID"
+          prop="msg_id"
+        >
+          <el-input
+            v-model="pushForm.msg_id"
+            placeholder="渠道原始消息 ID（留空自动生成）"
+          />
         </el-form-item>
-        <el-form-item label="方向" prop="direction">
+        <el-form-item
+          label="方向"
+          prop="direction"
+        >
           <el-radio-group v-model="pushForm.direction">
-            <el-radio value="inbound">接收 (inbound)</el-radio>
-            <el-radio value="outbound">发送 (outbound)</el-radio>
+            <el-radio value="inbound">
+              接收 (inbound)
+            </el-radio>
+            <el-radio value="outbound">
+              发送 (outbound)
+            </el-radio>
           </el-radio-group>
         </el-form-item>
-        <el-form-item label="消息类型" prop="msg_type">
-          <el-select v-model="pushForm.msg_type" placeholder="选择类型" style="width: 100%">
-            <el-option v-for="t in msgTypeOptions" :key="t" :label="t" :value="t" />
+        <el-form-item
+          label="消息类型"
+          prop="msg_type"
+        >
+          <el-select
+            v-model="pushForm.msg_type"
+            placeholder="选择类型"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="t in msgTypeOptions"
+              :key="t"
+              :label="t"
+              :value="t"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="发送方 ID">
-          <el-input v-model="pushForm.sender_id" placeholder="发送方 ID" />
+          <el-input
+            v-model="pushForm.sender_id"
+            placeholder="发送方 ID"
+          />
         </el-form-item>
         <el-form-item label="发送方名称">
-          <el-input v-model="pushForm.sender_name" placeholder="发送方显示名" />
+          <el-input
+            v-model="pushForm.sender_name"
+            placeholder="发送方显示名"
+          />
         </el-form-item>
         <el-form-item label="接收方 ID">
-          <el-input v-model="pushForm.receiver_id" placeholder="接收方 ID" />
+          <el-input
+            v-model="pushForm.receiver_id"
+            placeholder="接收方 ID"
+          />
         </el-form-item>
         <el-form-item label="接收方名称">
-          <el-input v-model="pushForm.receiver_name" placeholder="接收方显示名" />
+          <el-input
+            v-model="pushForm.receiver_name"
+            placeholder="接收方显示名"
+          />
         </el-form-item>
         <el-form-item label="会话 ID">
-          <el-input v-model="pushForm.conversation_id" placeholder="会话 ID（可选）" />
+          <el-input
+            v-model="pushForm.conversation_id"
+            placeholder="会话 ID（可选）"
+          />
         </el-form-item>
-        <el-form-item label="内容" prop="content">
-          <el-input v-model="pushForm.content" type="textarea" :rows="4" placeholder="消息内容" />
+        <el-form-item
+          label="内容"
+          prop="content"
+        >
+          <el-input
+            v-model="pushForm.content"
+            type="textarea"
+            :rows="4"
+            placeholder="消息内容"
+          />
         </el-form-item>
         <el-form-item label="媒体 URL">
-          <el-input v-model="pushForm.media_url" placeholder="图片/文件 URL（可选）" />
+          <el-input
+            v-model="pushForm.media_url"
+            placeholder="图片/文件 URL（可选）"
+          />
         </el-form-item>
         <el-form-item label="群消息">
           <el-switch v-model="pushForm.is_group" />
-          <el-input v-if="pushForm.is_group" v-model="pushForm.group_id" placeholder="群 ID"
-                    style="margin-left: 12px; width: 60%" />
+          <el-input
+            v-if="pushForm.is_group"
+            v-model="pushForm.group_id"
+            placeholder="群 ID"
+            style="margin-left: 12px; width: 60%"
+          />
         </el-form-item>
         <el-form-item label="AI 回复">
           <el-switch v-model="pushForm.is_ai_reply" />
-          <el-input v-if="pushForm.is_ai_reply" v-model="pushForm.ai_agent" placeholder="AI Agent 名称"
-                    style="margin-left: 12px; width: 60%" />
+          <el-input
+            v-if="pushForm.is_ai_reply"
+            v-model="pushForm.ai_agent"
+            placeholder="AI Agent 名称"
+            style="margin-left: 12px; width: 60%"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="pushDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="pushing" @click="submitPush">推送</el-button>
+        <el-button @click="pushDialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="pushing"
+          @click="submitPush"
+        >
+          推送
+        </el-button>
       </template>
     </el-dialog>
 
     
-    <el-dialog v-model="detailDialogVisible" title="消息详情" width="820px" top="5vh">
+    <el-dialog
+      v-model="detailDialogVisible"
+      title="消息详情"
+      width="820px"
+      top="5vh"
+    >
       <div v-loading="detailLoading">
-        <el-descriptions :column="2" border>
-          <el-descriptions-item label="ID">{{ currentMessage.id }}</el-descriptions-item>
-          <el-descriptions-item label="消息 ID">{{ currentMessage.msg_id }}</el-descriptions-item>
-          <el-descriptions-item label="平台">{{ platformLabel(currentMessage.platform) }}</el-descriptions-item>
-          <el-descriptions-item label="账号">{{ currentMessage.account_id }}</el-descriptions-item>
-          <el-descriptions-item label="方向">{{ currentMessage.direction === 'inbound' ? '接收' : '发送' }}</el-descriptions-item>
-          <el-descriptions-item label="类型">{{ currentMessage.msg_type }}</el-descriptions-item>
-          <el-descriptions-item label="发送方">{{ currentMessage.sender_name || currentMessage.sender_id || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="接收方">{{ currentMessage.receiver_name || currentMessage.receiver_id || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="会话 ID">{{ currentMessage.conversation_id || '-' }}</el-descriptions-item>
+        <el-descriptions
+          :column="2"
+          border
+        >
+          <el-descriptions-item label="ID">
+            {{ currentMessage.id }}
+          </el-descriptions-item>
+          <el-descriptions-item label="消息 ID">
+            {{ currentMessage.msg_id }}
+          </el-descriptions-item>
+          <el-descriptions-item label="平台">
+            {{ platformLabel(currentMessage.platform) }}
+          </el-descriptions-item>
+          <el-descriptions-item label="账号">
+            {{ currentMessage.account_id }}
+          </el-descriptions-item>
+          <el-descriptions-item label="方向">
+            {{ currentMessage.direction === 'inbound' ? '接收' : '发送' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="类型">
+            {{ currentMessage.msg_type }}
+          </el-descriptions-item>
+          <el-descriptions-item label="发送方">
+            {{ currentMessage.sender_name || currentMessage.sender_id || '-' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="接收方">
+            {{ currentMessage.receiver_name || currentMessage.receiver_id || '-' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="会话 ID">
+            {{ currentMessage.conversation_id || '-' }}
+          </el-descriptions-item>
           <el-descriptions-item label="群消息">
-            <el-tag v-if="currentMessage.is_group" type="info" size="small">是</el-tag>
+            <el-tag
+              v-if="currentMessage.is_group"
+              type="info"
+              size="small"
+            >
+              是
+            </el-tag>
             <span v-else>否</span>
           </el-descriptions-item>
           <el-descriptions-item label="AI 回复">
-            <el-tag v-if="currentMessage.is_ai_reply" type="danger" size="small">{{ currentMessage.ai_agent || 'AI' }}</el-tag>
+            <el-tag
+              v-if="currentMessage.is_ai_reply"
+              type="danger"
+              size="small"
+            >
+              {{ currentMessage.ai_agent || 'AI' }}
+            </el-tag>
             <span v-else>否</span>
           </el-descriptions-item>
           <el-descriptions-item label="已读">
-            <el-tag :type="currentMessage.is_read ? 'info' : 'danger'" size="small">
+            <el-tag
+              :type="currentMessage.is_read ? 'info' : 'danger'"
+              size="small"
+            >
               {{ currentMessage.is_read ? '已读' : '未读' }}
             </el-tag>
           </el-descriptions-item>
-          <el-descriptions-item label="发送时间">{{ formatTime(currentMessage.sent_at) }}</el-descriptions-item>
-          <el-descriptions-item label="读取时间">{{ formatTime(currentMessage.read_at) }}</el-descriptions-item>
-          <el-descriptions-item label="入库时间">{{ formatTime(currentMessage.created_at) }}</el-descriptions-item>
+          <el-descriptions-item label="发送时间">
+            {{ formatTime(currentMessage.sent_at) }}
+          </el-descriptions-item>
+          <el-descriptions-item label="读取时间">
+            {{ formatTime(currentMessage.read_at) }}
+          </el-descriptions-item>
+          <el-descriptions-item label="入库时间">
+            {{ formatTime(currentMessage.created_at) }}
+          </el-descriptions-item>
         </el-descriptions>
         <div class="detail-content-block">
-          <div class="detail-content-label">消息内容</div>
-          <div class="detail-content-body">{{ currentMessage.content || '(空)' }}</div>
-        </div>
-        <div v-if="currentMessage.media_url" class="detail-content-block">
-          <div class="detail-content-label">媒体 URL</div>
+          <div class="detail-content-label">
+            消息内容
+          </div>
           <div class="detail-content-body">
-            <a :href="currentMessage.media_url" target="_blank">{{ currentMessage.media_url }}</a>
+            {{ currentMessage.content || '(空)' }}
           </div>
         </div>
-        <div v-if="currentMessage.extra && Object.keys(currentMessage.extra).length" class="detail-content-block">
-          <div class="detail-content-label">扩展字段</div>
+        <div
+          v-if="currentMessage.media_url"
+          class="detail-content-block"
+        >
+          <div class="detail-content-label">
+            媒体 URL
+          </div>
+          <div class="detail-content-body">
+            <a
+              :href="currentMessage.media_url"
+              target="_blank"
+            >{{ currentMessage.media_url }}</a>
+          </div>
+        </div>
+        <div
+          v-if="currentMessage.extra && Object.keys(currentMessage.extra).length"
+          class="detail-content-block"
+        >
+          <div class="detail-content-label">
+            扩展字段
+          </div>
           <pre class="detail-content-json">{{ JSON.stringify(currentMessage.extra, null, 2) }}</pre>
         </div>
       </div>

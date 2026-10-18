@@ -1,17 +1,25 @@
 <template>
   <div class="chat-channel-install-page">
-    <el-card class="header-card" shadow="never">
+    <el-card
+      class="header-card"
+      shadow="never"
+    >
       <div class="header-content">
         <div>
           <h2>客服 Widget 安装引导</h2>
-          <p class="subtitle">将客服浮标嵌入到第三方网站 · 复制代码粘贴到目标网站 &lt;/body&gt; 之前</p>
+          <p class="subtitle">
+            将客服浮标嵌入到第三方网站 · 复制代码粘贴到目标网站 &lt;/body&gt; 之前
+          </p>
         </div>
         <div class="header-actions">
           <el-button @click="$router.back()">
             <el-icon><Back /></el-icon>
             {{ $t('返回') }}
           </el-button>
-          <el-button @click="loadChannels" :loading="loading">
+          <el-button
+            :loading="loading"
+            @click="loadChannels"
+          >
             <el-icon><Refresh /></el-icon>
             {{ $t('刷新') }}
           </el-button>
@@ -19,19 +27,35 @@
       </div>
     </el-card>
 
-    <el-row :gutter="20" v-loading="loading">
-      
-      <el-col :xs="24" :md="14">
+    <el-row
+      v-loading="loading"
+      :gutter="20"
+    >
+      <el-col
+        :xs="24"
+        :md="14"
+      >
         <el-card shadow="never">
           <template #header>
             <span>第 1 步：选择渠道</span>
           </template>
-          <el-empty v-if="channels.length === 0" description="暂无可用渠道，请先在 [客服渠道] 创建">
-            <el-button type="primary" @click="$router.push({ name: 'ChatChannelCreate' })">
+          <el-empty
+            v-if="channels.length === 0"
+            description="暂无可用渠道，请先在 [客服渠道] 创建"
+          >
+            <el-button
+              type="primary"
+              @click="$router.push({ name: 'ChatChannelCreate' })"
+            >
               前往创建
             </el-button>
           </el-empty>
-          <el-radio-group v-else v-model="selectedId" class="channel-list" @change="onChannelChange">
+          <el-radio-group
+            v-else
+            v-model="selectedId"
+            class="channel-list"
+            @change="onChannelChange"
+          >
             <el-radio
               v-for="ch in channels"
               :key="ch.channel_id"
@@ -42,8 +66,20 @@
               <div class="channel-info">
                 <div class="channel-name">
                   {{ ch.channel_name }}
-                  <el-tag v-if="ch.status === 'active'" type="success" size="small">启用</el-tag>
-                  <el-tag v-else type="info" size="small">禁用</el-tag>
+                  <el-tag
+                    v-if="ch.status === 'active'"
+                    type="success"
+                    size="small"
+                  >
+                    启用
+                  </el-tag>
+                  <el-tag
+                    v-else
+                    type="info"
+                    size="small"
+                  >
+                    禁用
+                  </el-tag>
                 </div>
                 <div class="channel-meta">
                   AppKey: <code>{{ ch.app_key }}</code>
@@ -53,24 +89,41 @@
           </el-radio-group>
         </el-card>
 
-        <el-card v-if="selected" shadow="never" class="code-card">
+        <el-card
+          v-if="selected"
+          shadow="never"
+          class="code-card"
+        >
           <template #header>
             <div class="code-header">
               <span>第 2 步：复制嵌入代码</span>
-              <el-button link type="primary" @click="copyEmbed">
+              <el-button
+                link
+                type="primary"
+                @click="copyEmbed"
+              >
                 <el-icon><CopyDocument /></el-icon>
                 复制全部
               </el-button>
             </div>
           </template>
-          <el-alert type="info" :closable="false" show-icon style="margin-bottom: 12px">
+          <el-alert
+            type="info"
+            :closable="false"
+            show-icon
+            style="margin-bottom: 12px"
+          >
             将下方代码粘贴到目标网站 <code>&lt;/body&gt;</code> 之前即可生效。
             已开启 AppSecret 鉴权 + 限流 + XSS 过滤。
           </el-alert>
           <pre class="code-block"><code>{{ embedSnippet }}</code></pre>
         </el-card>
 
-        <el-card v-if="selected" shadow="never" class="code-card">
+        <el-card
+          v-if="selected"
+          shadow="never"
+          class="code-card"
+        >
           <template #header>
             <span>第 3 步：白名单 Origin 配置</span>
           </template>
@@ -84,7 +137,11 @@
               />
             </el-form-item>
             <el-form-item>
-              <el-button type="primary" :loading="originSaving" @click="onSaveOrigins">
+              <el-button
+                type="primary"
+                :loading="originSaving"
+                @click="onSaveOrigins"
+              >
                 保存白名单
               </el-button>
               <el-button @click="originInput = originsToText(selected?.allowed_origins)">
@@ -97,23 +154,35 @@
       </el-col>
 
       
-      <el-col :xs="24" :md="10">
-        <el-card shadow="never" class="preview-card">
+      <el-col
+        :xs="24"
+        :md="10"
+      >
+        <el-card
+          shadow="never"
+          class="preview-card"
+        >
           <template #header>
             <span>实时预览</span>
           </template>
           <div class="preview-frame">
             <div class="preview-mock-browser">
               <div class="browser-bar">
-                <span class="dot dot-red"></span>
-                <span class="dot dot-yellow"></span>
-                <span class="dot dot-green"></span>
+                <span class="dot dot-red" />
+                <span class="dot dot-yellow" />
+                <span class="dot dot-green" />
                 <span class="url">https://your-website.com</span>
               </div>
               <div class="browser-content">
-                <p class="mock-line">您的网站内容</p>
-                <p class="mock-line">访客在此浏览...</p>
-                <p class="mock-line">点击右下角浮标发起对话</p>
+                <p class="mock-line">
+                  您的网站内容
+                </p>
+                <p class="mock-line">
+                  访客在此浏览...
+                </p>
+                <p class="mock-line">
+                  点击右下角浮标发起对话
+                </p>
                 
                 <div
                   v-if="selected"
@@ -127,19 +196,37 @@
                   @keydown.enter.prevent="previewOpen = !previewOpen"
                   @keydown.space.prevent="previewOpen = !previewOpen"
                 >
-                  <el-icon :size="24"><ChatDotRound /></el-icon>
+                  <el-icon :size="24">
+                    <ChatDotRound />
+                  </el-icon>
                 </div>
                 
-                <div v-if="previewOpen && selected" class="widget-window" :class="['pos-' + (selected.widget_position || 'bottom-right')]">
-                  <div class="window-header" :style="{ backgroundColor: selected.widget_color || '#4F46E5' }">
+                <div
+                  v-if="previewOpen && selected"
+                  class="widget-window"
+                  :class="['pos-' + (selected.widget_position || 'bottom-right')]"
+                >
+                  <div
+                    class="window-header"
+                    :style="{ backgroundColor: selected.widget_color || '#4F46E5' }"
+                  >
                     <span>{{ selected.welcome_message || '在线客服' }}</span>
-                    <el-icon class="close-btn" @click="previewOpen = false"><Close /></el-icon>
+                    <el-icon
+                      class="close-btn"
+                      @click="previewOpen = false"
+                    >
+                      <Close />
+                    </el-icon>
                   </div>
                   <div class="window-body">
                     <p>您好，请问有什么可以帮您？</p>
                   </div>
                   <div class="window-input">
-                    <el-input v-model="previewInput" placeholder="输入消息..." size="small" />
+                    <el-input
+                      v-model="previewInput"
+                      placeholder="输入消息..."
+                      size="small"
+                    />
                   </div>
                 </div>
               </div>
@@ -147,15 +234,26 @@
           </div>
         </el-card>
 
-        <el-card shadow="never" class="test-card">
+        <el-card
+          shadow="never"
+          class="test-card"
+        >
           <template #header>
             <span>第 4 步：测试连接</span>
           </template>
-          <el-button type="primary" :loading="testing" @click="onTestConnection">
+          <el-button
+            type="primary"
+            :loading="testing"
+            @click="onTestConnection"
+          >
             <el-icon><Connection /></el-icon>
             测试 API 连通性
           </el-button>
-          <div v-if="testResult" class="test-result" :class="{ ok: testResult.ok, fail: !testResult.ok }">
+          <div
+            v-if="testResult"
+            class="test-result"
+            :class="{ ok: testResult.ok, fail: !testResult.ok }"
+          >
             <el-icon><CircleCheck v-if="testResult.ok" /><CircleClose v-else /></el-icon>
             <span>{{ testResult.message }}</span>
           </div>

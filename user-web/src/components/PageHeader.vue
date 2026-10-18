@@ -4,16 +4,37 @@
     :aria-label="ariaLabel || '页面头部'"
   >
     <div class="ph-left">
-      <div class="ph-icon" v-if="icon || $slots.icon" aria-hidden="true">
-        <el-icon v-if="icon"><component :is="icon" /></el-icon>
+      <div
+        v-if="icon || $slots.icon"
+        class="ph-icon"
+        aria-hidden="true"
+      >
+        <el-icon v-if="icon">
+          <component :is="icon" />
+        </el-icon>
         <slot name="icon" />
       </div>
       <div class="ph-text">
-        <h2 class="ph-title" :id="titleId">{{ title }}</h2>
-        <p class="ph-subtitle" v-if="subtitle" :id="subtitleId">{{ subtitle }}</p>
+        <h2
+          :id="titleId"
+          class="ph-title"
+        >
+          {{ title }}
+        </h2>
+        <p
+          v-if="subtitle"
+          :id="subtitleId"
+          class="ph-subtitle"
+        >
+          {{ subtitle }}
+        </p>
       </div>
     </div>
-    <div class="ph-actions" role="group" :aria-label="ariaLabel || '页面操作'">
+    <div
+      class="ph-actions"
+      role="group"
+      :aria-label="ariaLabel || '页面操作'"
+    >
       <slot />
     </div>
   </header>

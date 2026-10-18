@@ -1,17 +1,35 @@
 <template>
   <div class="geo-page">
-
     <el-row :gutter="16">
-      
-      <el-col :xs="24" :lg="10">
-        <el-card shadow="never" class="form-card">
-          <template #header><span class="card-title">生成配置</span></template>
-          <el-form :model="form" label-width="92px" class="gen-form">
+      <el-col
+        :xs="24"
+        :lg="10"
+      >
+        <el-card
+          shadow="never"
+          class="form-card"
+        >
+          <template #header>
+            <span class="card-title">生成配置</span>
+          </template>
+          <el-form
+            :model="form"
+            label-width="92px"
+            class="gen-form"
+          >
             <el-form-item label="关键词">
-              <el-input v-model="form.keyword" placeholder="如：中小企业 CRM 推荐" clearable />
+              <el-input
+                v-model="form.keyword"
+                placeholder="如：中小企业 CRM 推荐"
+                clearable
+              />
             </el-form-item>
             <el-form-item label="品牌名称">
-              <el-input v-model="form.brand_name" placeholder="如：hivemtk" clearable />
+              <el-input
+                v-model="form.brand_name"
+                placeholder="如：hivemtk"
+                clearable
+              />
             </el-form-item>
             <el-form-item label="核心优势">
               <div class="tags-input">
@@ -21,7 +39,9 @@
                   closable
                   class="adv-tag"
                   @close="form.advantages.splice(i, 1)"
-                >{{ tag }}</el-tag>
+                >
+                  {{ tag }}
+                </el-tag>
                 <el-input
                   v-if="advInputVisible"
                   ref="advInputRef"
@@ -31,26 +51,63 @@
                   @keyup.enter="addAdv"
                   @blur="onBlurAddAdv"
                 />
-                <el-button v-else size="small" class="adv-add" @click="showAdvInput">+ 优势</el-button>
+                <el-button
+                  v-else
+                  size="small"
+                  class="adv-add"
+                  @click="showAdvInput"
+                >
+                  + 优势
+                </el-button>
               </div>
             </el-form-item>
             <el-form-item label="生成模型">
-              <el-select v-model="form.model" style="width: 100%">
-                <el-option v-for="m in models" :key="m.value" :label="m.label" :value="m.value" />
+              <el-select
+                v-model="form.model"
+                style="width: 100%"
+              >
+                <el-option
+                  v-for="m in models"
+                  :key="m.value"
+                  :label="m.label"
+                  :value="m.value"
+                />
               </el-select>
             </el-form-item>
             <el-form-item label="字数">
-              <el-input-number v-model="form.word_count" :min="200" :max="3000" :step="100" style="width: 100%" />
+              <el-input-number
+                v-model="form.word_count"
+                :min="200"
+                :max="3000"
+                :step="100"
+                style="width: 100%"
+              />
             </el-form-item>
             <el-form-item label="文风">
-              <el-select v-model="form.style" style="width: 100%">
-                <el-option label="专业严谨" value="professional" />
-                <el-option label="通俗易懂" value="popular" />
-                <el-option label="口语化" value="casual" />
+              <el-select
+                v-model="form.style"
+                style="width: 100%"
+              >
+                <el-option
+                  label="专业严谨"
+                  value="professional"
+                />
+                <el-option
+                  label="通俗易懂"
+                  value="popular"
+                />
+                <el-option
+                  label="口语化"
+                  value="casual"
+                />
               </el-select>
             </el-form-item>
             <el-form-item>
-              <el-button type="primary" :loading="generating" @click="handleGenerate">
+              <el-button
+                type="primary"
+                :loading="generating"
+                @click="handleGenerate"
+              >
                 <el-icon><EditPen /></el-icon>
                 <span>生成内容</span>
               </el-button>
@@ -60,56 +117,119 @@
       </el-col>
 
       
-      <el-col :xs="24" :lg="14">
-        <el-card shadow="never" class="result-card">
+      <el-col
+        :xs="24"
+        :lg="14"
+      >
+        <el-card
+          shadow="never"
+          class="result-card"
+        >
           <template #header>
             <div class="card-header">
               <span class="card-title">生成结果</span>
-              <el-button v-if="generatedContent" text type="primary" @click="copyContent">
+              <el-button
+                v-if="generatedContent"
+                text
+                type="primary"
+                @click="copyContent"
+              >
                 <el-icon><DocumentCopy /></el-icon><span>复制</span>
               </el-button>
             </div>
           </template>
 
-          <div v-loading="generating" class="result-body">
-            <el-empty v-if="!generatedContent && !generating" description="尚未生成内容" />
-            <div v-else class="content-text">{{ generatedContent }}</div>
+          <div
+            v-loading="generating"
+            class="result-body"
+          >
+            <el-empty
+              v-if="!generatedContent && !generating"
+              description="尚未生成内容"
+            />
+            <div
+              v-else
+              class="content-text"
+            >
+              {{ generatedContent }}
+            </div>
           </div>
 
-          <div v-if="generatedContent" class="score-section">
+          <div
+            v-if="generatedContent"
+            class="score-section"
+          >
             <div class="score-actions">
-              <el-button type="success" :loading="scoring" @click="handleScore">
+              <el-button
+                type="success"
+                :loading="scoring"
+                @click="handleScore"
+              >
                 <el-icon><DataAnalysis /></el-icon><span>内容评分</span>
               </el-button>
             </div>
 
-            <el-card v-if="score" shadow="never" class="score-card">
+            <el-card
+              v-if="score"
+              shadow="never"
+              class="score-card"
+            >
               <div class="score-grid">
                 <div class="score-item total">
-                  <div class="score-value">{{ score.scores?.total ?? '—' }}</div>
-                  <div class="score-label">总分</div>
+                  <div class="score-value">
+                    {{ score.scores?.total ?? '—' }}
+                  </div>
+                  <div class="score-label">
+                    总分
+                  </div>
                 </div>
                 <div class="score-item">
-                  <div class="score-value">{{ score.scores?.structure ?? '—' }}</div>
-                  <div class="score-label">结构化</div>
+                  <div class="score-value">
+                    {{ score.scores?.structure ?? '—' }}
+                  </div>
+                  <div class="score-label">
+                    结构化
+                  </div>
                 </div>
                 <div class="score-item">
-                  <div class="score-value">{{ score.scores?.brand_mention ?? '—' }}</div>
-                  <div class="score-label">品牌提及</div>
+                  <div class="score-value">
+                    {{ score.scores?.brand_mention ?? '—' }}
+                  </div>
+                  <div class="score-label">
+                    品牌提及
+                  </div>
                 </div>
                 <div class="score-item">
-                  <div class="score-value">{{ score.scores?.authority ?? '—' }}</div>
-                  <div class="score-label">权威性</div>
+                  <div class="score-value">
+                    {{ score.scores?.authority ?? '—' }}
+                  </div>
+                  <div class="score-label">
+                    权威性
+                  </div>
                 </div>
                 <div class="score-item">
-                  <div class="score-value">{{ score.scores?.citations ?? '—' }}</div>
-                  <div class="score-label">可引用性</div>
+                  <div class="score-value">
+                    {{ score.scores?.citations ?? '—' }}
+                  </div>
+                  <div class="score-label">
+                    可引用性
+                  </div>
                 </div>
               </div>
-              <div v-if="score.improvements?.length" class="score-suggest">
-                <div class="suggest-title">优化建议</div>
+              <div
+                v-if="score.improvements?.length"
+                class="score-suggest"
+              >
+                <div class="suggest-title">
+                  优化建议
+                </div>
                 <ul>
-                  <li v-for="(s, i) in score.improvements" :key="i">{{ s }}</li>
+                  <li
+                    v-for="(s, i) in score.improvements"
+                    :key="i"
+                  >
+                    {{ s }}
+                  </li>
                 </ul>
               </div>
             </el-card>

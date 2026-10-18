@@ -1,19 +1,39 @@
 <template>
   <div class="i18n-dashboard-page">
-    
-    <el-card class="header-card" shadow="never">
+    <el-card
+      class="header-card"
+      shadow="never"
+    >
       <div class="header-content">
         <div>
           <h2>{{ $t('多语言监控') }}</h2>
-          <p class="subtitle">翻译服务运行态总览 · 语言分布 / 缓存命中 / 术语覆盖 / 质量与延迟</p>
+          <p class="subtitle">
+            翻译服务运行态总览 · 语言分布 / 缓存命中 / 术语覆盖 / 质量与延迟
+          </p>
         </div>
         <div class="header-actions">
-          <el-select v-model="days" style="width: 130px" @change="loadAll">
-            <el-option :label="$t('近 7 天')" :value="7" />
-            <el-option :label="$t('近 14 天')" :value="14" />
-            <el-option :label="$t('近 30 天')" :value="30" />
+          <el-select
+            v-model="days"
+            style="width: 130px"
+            @change="loadAll"
+          >
+            <el-option
+              :label="$t('近 7 天')"
+              :value="7"
+            />
+            <el-option
+              :label="$t('近 14 天')"
+              :value="14"
+            />
+            <el-option
+              :label="$t('近 30 天')"
+              :value="30"
+            />
           </el-select>
-          <el-button @click="loadAll" :loading="loading">
+          <el-button
+            :loading="loading"
+            @click="loadAll"
+          >
             <el-icon><Refresh /></el-icon>
             {{ $t('刷新') }}
           </el-button>
@@ -22,72 +42,161 @@
     </el-card>
 
     
-    <el-row :gutter="16" class="kpi-row">
-      <el-col :xs="12" :sm="12" :md="6">
-        <el-card shadow="never" class="kpi-card kpi-blue">
-          <div class="kpi-icon"><el-icon><ChatLineRound /></el-icon></div>
+    <el-row
+      :gutter="16"
+      class="kpi-row"
+    >
+      <el-col
+        :xs="12"
+        :sm="12"
+        :md="6"
+      >
+        <el-card
+          shadow="never"
+          class="kpi-card kpi-blue"
+        >
+          <div class="kpi-icon">
+            <el-icon><ChatLineRound /></el-icon>
+          </div>
           <div class="kpi-body">
-            <div class="kpi-label">{{ $t('总调用量') }}</div>
-            <div class="kpi-value">{{ formatNumber(overview.total_calls) }}</div>
-            <div class="kpi-sub">{{ $t('累计翻译请求数') }}</div>
+            <div class="kpi-label">
+              {{ $t('总调用量') }}
+            </div>
+            <div class="kpi-value">
+              {{ formatNumber(overview.total_calls) }}
+            </div>
+            <div class="kpi-sub">
+              {{ $t('累计翻译请求数') }}
+            </div>
           </div>
         </el-card>
       </el-col>
-      <el-col :xs="12" :sm="12" :md="6">
-        <el-card shadow="never" class="kpi-card kpi-purple">
-          <div class="kpi-icon"><el-icon><Connection /></el-icon></div>
+      <el-col
+        :xs="12"
+        :sm="12"
+        :md="6"
+      >
+        <el-card
+          shadow="never"
+          class="kpi-card kpi-purple"
+        >
+          <div class="kpi-icon">
+            <el-icon><Connection /></el-icon>
+          </div>
           <div class="kpi-body">
-            <div class="kpi-label">{{ $t('跨语言调用占比') }}</div>
-            <div class="kpi-value">{{ crossLingualRatio }}%</div>
-            <div class="kpi-sub">{{ formatNumber(overview.cross_lingual_calls) }} / {{ formatNumber(overview.total_calls) }}</div>
+            <div class="kpi-label">
+              {{ $t('跨语言调用占比') }}
+            </div>
+            <div class="kpi-value">
+              {{ crossLingualRatio }}%
+            </div>
+            <div class="kpi-sub">
+              {{ formatNumber(overview.cross_lingual_calls) }} / {{ formatNumber(overview.total_calls) }}
+            </div>
           </div>
         </el-card>
       </el-col>
-      <el-col :xs="12" :sm="12" :md="6">
-        <el-card shadow="never" class="kpi-card kpi-green">
-          <div class="kpi-icon"><el-icon><Files /></el-icon></div>
+      <el-col
+        :xs="12"
+        :sm="12"
+        :md="6"
+      >
+        <el-card
+          shadow="never"
+          class="kpi-card kpi-green"
+        >
+          <div class="kpi-icon">
+            <el-icon><Files /></el-icon>
+          </div>
           <div class="kpi-body">
-            <div class="kpi-label">{{ $t('缓存命中率') }}</div>
-            <div class="kpi-value">{{ formatPercent(overview.cache_hit_rate) }}%</div>
-            <div class="kpi-sub">{{ $t('回退率') }} {{ formatPercent(overview.fallback_rate) }}%</div>
+            <div class="kpi-label">
+              {{ $t('缓存命中率') }}
+            </div>
+            <div class="kpi-value">
+              {{ formatPercent(overview.cache_hit_rate) }}%
+            </div>
+            <div class="kpi-sub">
+              {{ $t('回退率') }} {{ formatPercent(overview.fallback_rate) }}%
+            </div>
           </div>
         </el-card>
       </el-col>
-      <el-col :xs="12" :sm="12" :md="6">
-        <el-card shadow="never" class="kpi-card kpi-orange">
-          <div class="kpi-icon"><el-icon><TrendCharts /></el-icon></div>
+      <el-col
+        :xs="12"
+        :sm="12"
+        :md="6"
+      >
+        <el-card
+          shadow="never"
+          class="kpi-card kpi-orange"
+        >
+          <div class="kpi-icon">
+            <el-icon><TrendCharts /></el-icon>
+          </div>
           <div class="kpi-body">
-            <div class="kpi-label">{{ $t('平均质量评分') }}</div>
-            <div class="kpi-value">{{ formatScore(overview.avg_quality) }}</div>
-            <div class="kpi-sub">{{ $t('满分 1.0') }}</div>
+            <div class="kpi-label">
+              {{ $t('平均质量评分') }}
+            </div>
+            <div class="kpi-value">
+              {{ formatScore(overview.avg_quality) }}
+            </div>
+            <div class="kpi-sub">
+              {{ $t('满分 1.0') }}
+            </div>
           </div>
         </el-card>
       </el-col>
     </el-row>
 
     
-    <el-row :gutter="16" class="section-row">
-      <el-col :xs="24" :md="14">
-        <el-card shadow="never" class="section-card">
+    <el-row
+      :gutter="16"
+      class="section-row"
+    >
+      <el-col
+        :xs="24"
+        :md="14"
+      >
+        <el-card
+          shadow="never"
+          class="section-card"
+        >
           <template #header>
             <div class="card-title">
               <el-icon><DataLine /></el-icon>
               <span>{{ $t('语言分布（内部 → 目标）') }}</span>
             </div>
           </template>
-          <div v-loading="loading" ref="langDistChart" class="chart-box"></div>
-          <el-empty v-if="!langDist.length && !loading" :description="$t('暂无语言分布数据')" :image-size="60" />
+          <div
+            ref="langDistChart"
+            v-loading="loading"
+            class="chart-box"
+          />
+          <el-empty
+            v-if="!langDist.length && !loading"
+            :description="$t('暂无语言分布数据')"
+            :image-size="60"
+          />
         </el-card>
       </el-col>
-      <el-col :xs="24" :md="10">
-        <el-card shadow="never" class="section-card">
+      <el-col
+        :xs="24"
+        :md="10"
+      >
+        <el-card
+          shadow="never"
+          class="section-card"
+        >
           <template #header>
             <div class="card-title">
               <el-icon><Files /></el-icon>
               <span>{{ $t('缓存命中率') }}</span>
             </div>
           </template>
-          <div v-loading="loading" class="cache-block">
+          <div
+            v-loading="loading"
+            class="cache-block"
+          >
             <div class="cache-stats">
               <div class="cache-item">
                 <span class="cache-label">{{ $t('命中') }}</span>
@@ -108,43 +217,95 @@
               :color="cacheHitColor"
               :format="(p) => `${p}%`"
             />
-            <div class="cache-tip">{{ $t('缓存命中率越高，回源翻译开销越低') }}</div>
+            <div class="cache-tip">
+              {{ $t('缓存命中率越高，回源翻译开销越低') }}
+            </div>
           </div>
         </el-card>
       </el-col>
     </el-row>
 
     
-    <el-row :gutter="16" class="section-row">
-      <el-col :xs="24" :md="14">
-        <el-card shadow="never" class="section-card">
+    <el-row
+      :gutter="16"
+      class="section-row"
+    >
+      <el-col
+        :xs="24"
+        :md="14"
+      >
+        <el-card
+          shadow="never"
+          class="section-card"
+        >
           <template #header>
             <div class="card-title">
               <el-icon><TrendCharts /></el-icon>
               <span>{{ $t('质量评分趋势') }}</span>
             </div>
           </template>
-          <div v-loading="loading" ref="qualityChart" class="chart-box"></div>
-          <el-empty v-if="!qualityTrend.length && !loading" :description="$t('暂无质量数据')" :image-size="60" />
+          <div
+            ref="qualityChart"
+            v-loading="loading"
+            class="chart-box"
+          />
+          <el-empty
+            v-if="!qualityTrend.length && !loading"
+            :description="$t('暂无质量数据')"
+            :image-size="60"
+          />
         </el-card>
       </el-col>
-      <el-col :xs="24" :md="10">
-        <el-card shadow="never" class="section-card">
+      <el-col
+        :xs="24"
+        :md="10"
+      >
+        <el-card
+          shadow="never"
+          class="section-card"
+        >
           <template #header>
             <div class="card-title">
               <el-icon><Collection /></el-icon>
               <span>{{ $t('术语覆盖率') }}</span>
             </div>
           </template>
-          <el-table :data="glossaryCoverage" v-loading="loading" stripe size="small" border>
-            <el-table-column label="目标语言" min-width="120">
+          <el-table
+            v-loading="loading"
+            :data="glossaryCoverage"
+            stripe
+            size="small"
+            border
+          >
+            <el-table-column
+              label="目标语言"
+              min-width="120"
+            >
               <template #default="{ row }">
-                <el-tag size="small" type="success">{{ getLanguageLabel(row.target_lang) }}</el-tag>
+                <el-tag
+                  size="small"
+                  type="success"
+                >
+                  {{ getLanguageLabel(row.target_lang) }}
+                </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="term_count" label="术语总数" width="100" align="center" />
-            <el-table-column prop="active_count" label="启用数" width="90" align="center" />
-            <el-table-column label="覆盖率" min-width="140">
+            <el-table-column
+              prop="term_count"
+              label="术语总数"
+              width="100"
+              align="center"
+            />
+            <el-table-column
+              prop="active_count"
+              label="启用数"
+              width="90"
+              align="center"
+            />
+            <el-table-column
+              label="覆盖率"
+              min-width="140"
+            >
               <template #default="{ row }">
                 <el-progress
                   :percentage="glossaryCovPercent(row)"
@@ -155,7 +316,10 @@
               </template>
             </el-table-column>
             <template #empty>
-              <el-empty :description="$t('暂无术语覆盖数据')" :image-size="50" />
+              <el-empty
+                :description="$t('暂无术语覆盖数据')"
+                :image-size="50"
+              />
             </template>
           </el-table>
         </el-card>
@@ -163,36 +327,75 @@
     </el-row>
 
     
-    <el-card shadow="never" class="section-card">
+    <el-card
+      shadow="never"
+      class="section-card"
+    >
       <template #header>
         <div class="card-title">
           <el-icon><Timer /></el-icon>
           <span>{{ $t('延迟统计（按目标语言，单位 ms）') }}</span>
         </div>
       </template>
-      <el-table :data="latencyStats" v-loading="loading" stripe border>
-        <el-table-column label="目标语言" min-width="140">
+      <el-table
+        v-loading="loading"
+        :data="latencyStats"
+        stripe
+        border
+      >
+        <el-table-column
+          label="目标语言"
+          min-width="140"
+        >
           <template #default="{ row }">
-            <el-tag size="small">{{ getLanguageLabel(row.target_lang) }}</el-tag>
+            <el-tag size="small">
+              {{ getLanguageLabel(row.target_lang) }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="P50" width="120" align="center">
+        <el-table-column
+          label="P50"
+          width="120"
+          align="center"
+        >
           <template #default="{ row }">
             <span class="latency-num">{{ formatMs(row.p50) }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="P95" width="120" align="center">
+        <el-table-column
+          label="P95"
+          width="120"
+          align="center"
+        >
           <template #default="{ row }">
-            <span class="latency-num" :class="latencyClass(row.p95)">{{ formatMs(row.p95) }}</span>
+            <span
+              class="latency-num"
+              :class="latencyClass(row.p95)"
+            >{{ formatMs(row.p95) }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="P99" width="120" align="center">
+        <el-table-column
+          label="P99"
+          width="120"
+          align="center"
+        >
           <template #default="{ row }">
-            <span class="latency-num" :class="latencyClass(row.p99)">{{ formatMs(row.p99) }}</span>
+            <span
+              class="latency-num"
+              :class="latencyClass(row.p99)"
+            >{{ formatMs(row.p99) }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="count" label="样本数" width="120" align="center" />
-        <el-table-column label="P95 分布" min-width="200">
+        <el-table-column
+          prop="count"
+          label="样本数"
+          width="120"
+          align="center"
+        />
+        <el-table-column
+          label="P95 分布"
+          min-width="200"
+        >
           <template #default="{ row }">
             <el-progress
               :percentage="latencyBarPercent(row.p95)"
@@ -203,7 +406,10 @@
           </template>
         </el-table-column>
         <template #empty>
-          <el-empty :description="$t('暂无延迟数据')" :image-size="60" />
+          <el-empty
+            :description="$t('暂无延迟数据')"
+            :image-size="60"
+          />
         </template>
       </el-table>
     </el-card>

@@ -3,44 +3,77 @@
     <el-card class="header-card">
       <div>
         <h2>{{ t('systemUser.title') }}</h2>
-        <p class="subtitle">{{ t('systemUser.headerSubtitle') }}</p>
+        <p class="subtitle">
+          {{ t('systemUser.headerSubtitle') }}
+        </p>
       </div>
-      <el-button type="primary" @click="showCreateDialog">
+      <el-button
+        type="primary"
+        @click="showCreateDialog"
+      >
         <el-icon><Plus /></el-icon>
         {{ t('systemUser.create') }}
       </el-button>
     </el-card>
 
-    <el-row :gutter="20" class="stats-row">
+    <el-row
+      :gutter="20"
+      class="stats-row"
+    >
       <el-col :span="6">
         <el-card>
           <div class="stat-item">
-            <div class="stat-label">{{ t('systemUser.totalAccounts') }}</div>
-            <div class="stat-value">{{ stats.total }}</div>
+            <div class="stat-label">
+              {{ t('systemUser.totalAccounts') }}
+            </div>
+            <div class="stat-value">
+              {{ stats.total }}
+            </div>
           </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card>
           <div class="stat-item">
-            <div class="stat-label">{{ t('systemUser.admins') }}</div>
-            <div class="stat-value" style="color: #EF4444">{{ stats.admins }}</div>
+            <div class="stat-label">
+              {{ t('systemUser.admins') }}
+            </div>
+            <div
+              class="stat-value"
+              style="color: #EF4444"
+            >
+              {{ stats.admins }}
+            </div>
           </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card>
           <div class="stat-item">
-            <div class="stat-label">{{ t('systemUser.agents') }}</div>
-            <div class="stat-value" style="color: #409EFF">{{ stats.agents }}</div>
+            <div class="stat-label">
+              {{ t('systemUser.agents') }}
+            </div>
+            <div
+              class="stat-value"
+              style="color: #409EFF"
+            >
+              {{ stats.agents }}
+            </div>
           </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card>
           <div class="stat-item">
-            <div class="stat-label">{{ t('systemUser.disabledCount') }}</div>
-            <div class="stat-value" style="color: #909399">{{ stats.disabled }}</div>
+            <div class="stat-label">
+              {{ t('systemUser.disabledCount') }}
+            </div>
+            <div
+              class="stat-value"
+              style="color: #909399"
+            >
+              {{ stats.disabled }}
+            </div>
           </div>
         </el-card>
       </el-col>
@@ -76,39 +109,98 @@
         </div>
       </template>
 
-      <PageState v-if="error" state="error" :error-text="error" @retry="refreshData" />
+      <PageState
+        v-if="error"
+        state="error"
+        :error-text="error"
+        @retry="refreshData"
+      />
 
       <el-table
         v-if="!error"
-        :data="filteredUsers"
         v-loading="loading"
+        :data="filteredUsers"
         stripe
         border
       >
-        <el-table-column :label="t('systemUser.username')" prop="username" min-width="120" />
-        <el-table-column :label="t('systemUser.name')" prop="name" width="120" />
-        <el-table-column :label="t('systemUser.email')" prop="email" min-width="180" />
-        <el-table-column :label="t('systemUser.role')" prop="role" width="120">
+        <el-table-column
+          :label="t('systemUser.username')"
+          prop="username"
+          min-width="120"
+        />
+        <el-table-column
+          :label="t('systemUser.name')"
+          prop="name"
+          width="120"
+        />
+        <el-table-column
+          :label="t('systemUser.email')"
+          prop="email"
+          min-width="180"
+        />
+        <el-table-column
+          :label="t('systemUser.role')"
+          prop="role"
+          width="120"
+        >
           <template #default="{ row }">
-            <el-tag :type="getRoleTagType(row.role)">{{ getRoleLabel(row.role) }}</el-tag>
+            <el-tag :type="getRoleTagType(row.role)">
+              {{ getRoleLabel(row.role) }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column :label="t('systemUser.phone')" prop="phone" min-width="120" />
-        <el-table-column :label="t('systemUser.enabled')" prop="status" width="100">
+        <el-table-column
+          :label="t('systemUser.phone')"
+          prop="phone"
+          min-width="120"
+        />
+        <el-table-column
+          :label="t('systemUser.enabled')"
+          prop="status"
+          width="100"
+        >
           <template #default="{ row }">
-            <el-tag :type="getEnabledTagType(row.status)">{{ getEnabledLabel(row.status) }}</el-tag>
+            <el-tag :type="getEnabledTagType(row.status)">
+              {{ getEnabledLabel(row.status) }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column :label="t('systemUser.lastLogin')" prop="last_login_at" width="180">
+        <el-table-column
+          :label="t('systemUser.lastLogin')"
+          prop="last_login_at"
+          width="180"
+        >
           <template #default="{ row }">
             {{ formatTime(row.last_login_at) }}
           </template>
         </el-table-column>
-        <el-table-column :label="t('systemUser.actions')" width="280" fixed="right">
+        <el-table-column
+          :label="t('systemUser.actions')"
+          width="280"
+          fixed="right"
+        >
           <template #default="{ row }">
-            <el-button link type="primary" @click="editUser(row)">{{ t('systemUser.edit') }}</el-button>
-            <el-button link type="warning" @click="resetPassword(row)">{{ t('systemUser.resetPassword') }}</el-button>
-            <el-button link type="danger" @click="deleteUser(row)">{{ t('systemUser.delete') }}</el-button>
+            <el-button
+              link
+              type="primary"
+              @click="editUser(row)"
+            >
+              {{ t('systemUser.edit') }}
+            </el-button>
+            <el-button
+              link
+              type="warning"
+              @click="resetPassword(row)"
+            >
+              {{ t('systemUser.resetPassword') }}
+            </el-button>
+            <el-button
+              link
+              type="danger"
+              @click="deleteUser(row)"
+            >
+              {{ t('systemUser.delete') }}
+            </el-button>
           </template>
         </el-table-column>
         <template #empty>
@@ -123,9 +215,9 @@
         :page-sizes="[10, 20, 50, 100]"
         :total="pagination.total"
         layout="total, sizes, prev, pager, next, jumper"
+        style="margin-top: 16px; text-align: right"
         @size-change="refreshData"
         @current-change="refreshData"
-        style="margin-top: 16px; text-align: right"
       />
     </el-card>
 
@@ -136,18 +228,41 @@
       width="600px"
       @close="resetForm"
     >
-      <el-form :model="form" :rules="formRules" ref="formRef" label-width="100px">
-        <el-form-item :label="t('systemUser.username')" prop="username">
-          <el-input v-model="form.username" :disabled="!!form.id" />
+      <el-form
+        ref="formRef"
+        :model="form"
+        :rules="formRules"
+        label-width="100px"
+      >
+        <el-form-item
+          :label="t('systemUser.username')"
+          prop="username"
+        >
+          <el-input
+            v-model="form.username"
+            :disabled="!!form.id"
+          />
         </el-form-item>
-        <el-form-item :label="t('systemUser.name')" prop="name">
+        <el-form-item
+          :label="t('systemUser.name')"
+          prop="name"
+        >
           <el-input v-model="form.name" />
         </el-form-item>
-        <el-form-item :label="t('systemUser.email')" prop="email">
+        <el-form-item
+          :label="t('systemUser.email')"
+          prop="email"
+        >
           <el-input v-model="form.email" />
         </el-form-item>
-        <el-form-item :label="t('systemUser.role')" prop="role">
-          <el-select v-model="form.role" style="width: 100%">
+        <el-form-item
+          :label="t('systemUser.role')"
+          prop="role"
+        >
+          <el-select
+            v-model="form.role"
+            style="width: 100%"
+          >
             <el-option
               v-for="opt in editableRoleOptions"
               :key="opt.value"
@@ -156,10 +271,17 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item :label="t('systemUser.phone')" prop="phone">
+        <el-form-item
+          :label="t('systemUser.phone')"
+          prop="phone"
+        >
           <el-input v-model="form.phone" />
         </el-form-item>
-        <el-form-item v-if="!form.id" :label="t('systemUser.initialPassword')" prop="password">
+        <el-form-item
+          v-if="!form.id"
+          :label="t('systemUser.initialPassword')"
+          prop="password"
+        >
           <el-input
             v-model="form.password"
             type="password"
@@ -167,16 +289,31 @@
             :placeholder="t('systemUser.initialPasswordPlaceholder')"
           />
         </el-form-item>
-        <el-form-item v-if="form.id" :label="t('systemUser.enabled')">
+        <el-form-item
+          v-if="form.id"
+          :label="t('systemUser.enabled')"
+        >
           <el-radio-group v-model="form.status">
-            <el-radio :value="1">{{ t('systemUser.statusEnabled') }}</el-radio>
-            <el-radio :value="0">{{ t('systemUser.statusDisabled') }}</el-radio>
+            <el-radio :value="1">
+              {{ t('systemUser.statusEnabled') }}
+            </el-radio>
+            <el-radio :value="0">
+              {{ t('systemUser.statusDisabled') }}
+            </el-radio>
           </el-radio-group>
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">{{ t('systemUser.cancel') }}</el-button>
-        <el-button type="primary" :loading="submitting" @click="submitForm">{{ t('systemUser.confirm') }}</el-button>
+        <el-button @click="dialogVisible = false">
+          {{ t('systemUser.cancel') }}
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="submitting"
+          @click="submitForm"
+        >
+          {{ t('systemUser.confirm') }}
+        </el-button>
       </template>
     </el-dialog>
   </div>

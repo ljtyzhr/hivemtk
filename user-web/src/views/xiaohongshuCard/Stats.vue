@@ -1,16 +1,25 @@
 <template>
   <div class="xiaohongshu-stats-container">
-    
-    <el-row :gutter="20" class="stats-cards">
+    <el-row
+      :gutter="20"
+      class="stats-cards"
+    >
       <el-col :span="8">
         <el-card class="stats-card">
           <div class="stats-content">
-            <div class="stats-icon" style="background-color: #4F46E5;">
+            <div
+              class="stats-icon"
+              style="background-color: #4F46E5;"
+            >
               <el-icon><Document /></el-icon>
             </div>
             <div class="stats-info">
-              <div class="stats-value">{{ formatNumber(overallStats.total_cards) }}</div>
-              <div class="stats-label">{{ $t('总卡片数') }}</div>
+              <div class="stats-value">
+                {{ formatNumber(overallStats.total_cards) }}
+              </div>
+              <div class="stats-label">
+                {{ $t('总卡片数') }}
+              </div>
             </div>
           </div>
         </el-card>
@@ -18,12 +27,19 @@
       <el-col :span="8">
         <el-card class="stats-card">
           <div class="stats-content">
-            <div class="stats-icon" style="background-color: #10B981;">
+            <div
+              class="stats-icon"
+              style="background-color: #10B981;"
+            >
               <el-icon><Check /></el-icon>
             </div>
             <div class="stats-info">
-              <div class="stats-value">{{ formatNumber(overallStats.active_cards) }}</div>
-              <div class="stats-label">{{ $t('激活卡片数') }}</div>
+              <div class="stats-value">
+                {{ formatNumber(overallStats.active_cards) }}
+              </div>
+              <div class="stats-label">
+                {{ $t('激活卡片数') }}
+              </div>
             </div>
           </div>
         </el-card>
@@ -31,12 +47,19 @@
       <el-col :span="8">
         <el-card class="stats-card">
           <div class="stats-content">
-            <div class="stats-icon" style="background-color: #F59E0B;">
+            <div
+              class="stats-icon"
+              style="background-color: #F59E0B;"
+            >
               <el-icon><View /></el-icon>
             </div>
             <div class="stats-info">
-              <div class="stats-value">{{ formatNumber(overallStats.total_views) }}</div>
-              <div class="stats-label">{{ $t('总浏览量') }}</div>
+              <div class="stats-value">
+                {{ formatNumber(overallStats.total_views) }}
+              </div>
+              <div class="stats-label">
+                {{ $t('总浏览量') }}
+              </div>
             </div>
           </div>
         </el-card>
@@ -45,7 +68,10 @@
 
     
     <el-card class="filter-card">
-      <el-form :model="filterForm" inline>
+      <el-form
+        :model="filterForm"
+        inline
+      >
         <el-form-item :label="$t('日期范围')">
           <el-date-picker
             v-model="filterForm.dateRange"
@@ -59,44 +85,98 @@
           />
         </el-form-item>
         <el-form-item :label="$t('分组方式')">
-          <el-select v-model="filterForm.groupBy" :placeholder="$t('请选择分组方式')" @change="handleGroupByChange">
-            <el-option :label="$t('按天')" value="day" />
-            <el-option :label="$t('按周')" value="week" />
-            <el-option :label="$t('按月')" value="month" />
+          <el-select
+            v-model="filterForm.groupBy"
+            :placeholder="$t('请选择分组方式')"
+            @change="handleGroupByChange"
+          >
+            <el-option
+              :label="$t('按天')"
+              value="day"
+            />
+            <el-option
+              :label="$t('按周')"
+              value="week"
+            />
+            <el-option
+              :label="$t('按月')"
+              value="month"
+            />
           </el-select>
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="refreshData">{{ $t('刷新数据') }}</el-button>
+          <el-button
+            type="primary"
+            @click="refreshData"
+          >
+            {{ $t('刷新数据') }}
+          </el-button>
         </el-form-item>
       </el-form>
     </el-card>
 
     
-    <el-row :gutter="20" class="chart-row">
+    <el-row
+      :gutter="20"
+      class="chart-row"
+    >
       <el-col :span="24">
         <el-card class="chart-card">
           <div class="chart-header">
             <span>{{ $t('访问趋势') }}</span>
           </div>
-          <div id="viewChart" class="chart-container"></div>
+          <div
+            id="viewChart"
+            class="chart-container"
+          />
         </el-card>
       </el-col>
     </el-row>
 
     
-    <el-row :gutter="20" class="table-row">
+    <el-row
+      :gutter="20"
+      class="table-row"
+    >
       <el-col :span="12">
         <el-card class="table-card">
           <div class="table-header">
             <span>{{ $t('热门卡片') }}</span>
           </div>
-          <el-table :data="overallStats.top_cards" stripe style="width: 100%">
-            <el-table-column prop="title" :label="$t('标题')" min-width="150" show-overflow-tooltip />
-            <el-table-column prop="author" :label="$t('作者')" width="100" />
-            <el-table-column prop="view_count" :label="$t('浏览量')" width="80" />
-            <el-table-column :label="$t('操作')" width="100" fixed="right">
+          <el-table
+            :data="overallStats.top_cards"
+            stripe
+            style="width: 100%"
+          >
+            <el-table-column
+              prop="title"
+              :label="$t('标题')"
+              min-width="150"
+              show-overflow-tooltip
+            />
+            <el-table-column
+              prop="author"
+              :label="$t('作者')"
+              width="100"
+            />
+            <el-table-column
+              prop="view_count"
+              :label="$t('浏览量')"
+              width="80"
+            />
+            <el-table-column
+              :label="$t('操作')"
+              width="100"
+              fixed="right"
+            >
               <template #default="scope">
-                <el-button size="small" type="primary" @click="goToCardStats(scope.row.id)">{{ $t('统计') }}</el-button>
+                <el-button
+                  size="small"
+                  type="primary"
+                  @click="goToCardStats(scope.row.id)"
+                >
+                  {{ $t('统计') }}
+                </el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -107,17 +187,38 @@
           <div class="table-header">
             <span>最近活动</span>
           </div>
-          <el-table :data="overallStats.recent_activities.filter(item => item.action_type === 'view')" stripe style="width: 100%">
-            <el-table-column prop="card_title" label="卡片标题" min-width="150" show-overflow-tooltip />
-            <el-table-column prop="action_type" label="操作类型" width="100">
+          <el-table
+            :data="overallStats.recent_activities.filter(item => item.action_type === 'view')"
+            stripe
+            style="width: 100%"
+          >
+            <el-table-column
+              prop="card_title"
+              label="卡片标题"
+              min-width="150"
+              show-overflow-tooltip
+            />
+            <el-table-column
+              prop="action_type"
+              label="操作类型"
+              width="100"
+            >
               <template #default="scope">
                 <el-tag :type="getActionType(scope.row.action_type)">
                   {{ getActionText(scope.row.action_type) }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="user_ip" label="用户IP" width="120" />
-            <el-table-column prop="created_at" label="时间" width="180">
+            <el-table-column
+              prop="user_ip"
+              label="用户IP"
+              width="120"
+            />
+            <el-table-column
+              prop="created_at"
+              label="时间"
+              width="180"
+            >
               <template #default="scope">
                 {{ formatTime(scope.row.created_at) }}
               </template>

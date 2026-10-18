@@ -3,44 +3,68 @@
     <el-card class="header-card">
       <div>
         <h2>{{ $t('客户事件追踪') }}</h2>
-        <p class="subtitle">{{ $t('追踪客户在系统中的所有行为事件') }}</p>
+        <p class="subtitle">
+          {{ $t('追踪客户在系统中的所有行为事件') }}
+        </p>
       </div>
-      <el-button type="primary" @click="showCreateDialog">
+      <el-button
+        type="primary"
+        @click="showCreateDialog"
+      >
         <el-icon><Plus /></el-icon>
         {{ $t('创建事件') }}
       </el-button>
     </el-card>
 
-    <el-row :gutter="20" class="stats-row">
+    <el-row
+      :gutter="20"
+      class="stats-row"
+    >
       <el-col :span="6">
         <el-card>
           <div class="stat-item">
-            <div class="stat-label">{{ $t('总事件数') }}</div>
-            <div class="stat-value">{{ stats.total }}</div>
+            <div class="stat-label">
+              {{ $t('总事件数') }}
+            </div>
+            <div class="stat-value">
+              {{ stats.total }}
+            </div>
           </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card>
           <div class="stat-item">
-            <div class="stat-label">{{ $t('事件类型') }}</div>
-            <div class="stat-value">{{ stats.typeCount }}</div>
+            <div class="stat-label">
+              {{ $t('事件类型') }}
+            </div>
+            <div class="stat-value">
+              {{ stats.typeCount }}
+            </div>
           </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card>
           <div class="stat-item">
-            <div class="stat-label">{{ $t('事件来源') }}</div>
-            <div class="stat-value">{{ stats.sourceCount }}</div>
+            <div class="stat-label">
+              {{ $t('事件来源') }}
+            </div>
+            <div class="stat-value">
+              {{ stats.sourceCount }}
+            </div>
           </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card>
           <div class="stat-item">
-            <div class="stat-label">{{ $t('事件总量') }}</div>
-            <div class="stat-value">{{ stats.eventTypes }}</div>
+            <div class="stat-label">
+              {{ $t('事件总量') }}
+            </div>
+            <div class="stat-value">
+              {{ stats.eventTypes }}
+            </div>
           </div>
         </el-card>
       </el-col>
@@ -51,33 +75,109 @@
         <div class="card-header">
           <span>{{ $t('事件列表') }}</span>
           <div>
-            <el-select v-model="filterType" :placeholder="$t('事件类型')" clearable style="width: 150px; margin-right: 10px">
-              <el-option :label="$t('浏览')" value="view" />
-              <el-option :label="$t('点击')" value="click" />
-              <el-option :label="$t('注册')" value="register" />
-              <el-option :label="$t('购买')" value="purchase" />
-              <el-option :label="$t('分享')" value="share" />
+            <el-select
+              v-model="filterType"
+              :placeholder="$t('事件类型')"
+              clearable
+              style="width: 150px; margin-right: 10px"
+            >
+              <el-option
+                :label="$t('浏览')"
+                value="view"
+              />
+              <el-option
+                :label="$t('点击')"
+                value="click"
+              />
+              <el-option
+                :label="$t('注册')"
+                value="register"
+              />
+              <el-option
+                :label="$t('购买')"
+                value="purchase"
+              />
+              <el-option
+                :label="$t('分享')"
+                value="share"
+              />
             </el-select>
-            <el-date-picker v-model="dateRange" type="daterange" range-separator="至" start-placeholder="开始" end-placeholder="结束" value-format="YYYY-MM-DD" style="width: 240px" />
+            <el-date-picker
+              v-model="dateRange"
+              type="daterange"
+              range-separator="至"
+              start-placeholder="开始"
+              end-placeholder="结束"
+              value-format="YYYY-MM-DD"
+              style="width: 240px"
+            />
           </div>
         </div>
       </template>
-      <el-table :data="filteredEvents" v-loading="loading" stripe>
-        <el-table-column prop="eventType" label="事件类型" width="120">
+      <el-table
+        v-loading="loading"
+        :data="filteredEvents"
+        stripe
+      >
+        <el-table-column
+          prop="eventType"
+          label="事件类型"
+          width="120"
+        >
           <template #default="{ row }">
-            <el-tag :type="getEventTypeTag(row.eventType)">{{ row.eventType }}</el-tag>
+            <el-tag :type="getEventTypeTag(row.eventType)">
+              {{ row.eventType }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="userId" label="用户ID" width="100" />
-        <el-table-column prop="userName" label="用户" width="120" />
-        <el-table-column prop="action" label="行为" min-width="150" />
-        <el-table-column prop="target" label="目标对象" min-width="150" />
-        <el-table-column prop="source" label="来源" width="100" />
-        <el-table-column prop="ip" label="IP" width="130" />
-        <el-table-column prop="createdAt" label="时间" width="180" />
-        <el-table-column label="操作" width="120" fixed="right">
+        <el-table-column
+          prop="userId"
+          label="用户ID"
+          width="100"
+        />
+        <el-table-column
+          prop="userName"
+          label="用户"
+          width="120"
+        />
+        <el-table-column
+          prop="action"
+          label="行为"
+          min-width="150"
+        />
+        <el-table-column
+          prop="target"
+          label="目标对象"
+          min-width="150"
+        />
+        <el-table-column
+          prop="source"
+          label="来源"
+          width="100"
+        />
+        <el-table-column
+          prop="ip"
+          label="IP"
+          width="130"
+        />
+        <el-table-column
+          prop="createdAt"
+          label="时间"
+          width="180"
+        />
+        <el-table-column
+          label="操作"
+          width="120"
+          fixed="right"
+        >
           <template #default="{ row }">
-            <el-button link type="primary" @click="viewEvent(row)">详情</el-button>
+            <el-button
+              link
+              type="primary"
+              @click="viewEvent(row)"
+            >
+              详情
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -86,62 +186,136 @@
         v-model:page-size="pagination.size"
         :total="pagination.total"
         layout="total, prev, pager, next, jumper"
-        @current-change="loadEvents"
         style="margin-top: 15px; text-align: right"
+        @current-change="loadEvents"
       />
     </el-card>
 
-    <el-dialog v-model="dialogVisible" title="创建自定义事件" width="600px">
-      <el-form :model="form" label-width="100px">
-        <el-form-item label="关联客户" required>
-          <el-select v-model="form.customerId" filterable placeholder="选择客户" style="width: 100%">
-            <el-option v-for="c in customerOptions" :key="c.id" :label="(c.name || c.id) + (c.phone ? ' (' + c.phone + ')' : '')" :value="c.id" />
+    <el-dialog
+      v-model="dialogVisible"
+      title="创建自定义事件"
+      width="600px"
+    >
+      <el-form
+        :model="form"
+        label-width="100px"
+      >
+        <el-form-item
+          label="关联客户"
+          required
+        >
+          <el-select
+            v-model="form.customerId"
+            filterable
+            placeholder="选择客户"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="c in customerOptions"
+              :key="c.id"
+              :label="(c.name || c.id) + (c.phone ? ' (' + c.phone + ')' : '')"
+              :value="c.id"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="事件名称">
           <el-input v-model="form.name" />
         </el-form-item>
         <el-form-item label="事件类型">
-          <el-select v-model="form.eventType" style="width: 100%">
-            <el-option label="浏览" value="view" />
-            <el-option label="点击" value="click" />
-            <el-option label="自定义" value="custom" />
+          <el-select
+            v-model="form.eventType"
+            style="width: 100%"
+          >
+            <el-option
+              label="浏览"
+              value="view"
+            />
+            <el-option
+              label="点击"
+              value="click"
+            />
+            <el-option
+              label="自定义"
+              value="custom"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="触发条件">
-          <el-input v-model="form.trigger" type="textarea" :rows="3" />
+          <el-input
+            v-model="form.trigger"
+            type="textarea"
+            :rows="3"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="submitForm">创建</el-button>
+        <el-button @click="dialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          @click="submitForm"
+        >
+          创建
+        </el-button>
       </template>
     </el-dialog>
 
     
-    <el-dialog v-model="detailDialogVisible" title="事件详情" width="650px" :close-on-click-modal="false">
+    <el-dialog
+      v-model="detailDialogVisible"
+      title="事件详情"
+      width="650px"
+      :close-on-click-modal="false"
+    >
       <template v-if="currentEvent">
-        <el-descriptions :column="2" border>
+        <el-descriptions
+          :column="2"
+          border
+        >
           <el-descriptions-item label="事件类型">
-            <el-tag :type="getEventTypeTag(currentEvent.eventType)">{{ currentEvent.eventType }}</el-tag>
+            <el-tag :type="getEventTypeTag(currentEvent.eventType)">
+              {{ currentEvent.eventType }}
+            </el-tag>
           </el-descriptions-item>
-          <el-descriptions-item label="行为">{{ currentEvent.action }}</el-descriptions-item>
-          <el-descriptions-item label="用户ID">{{ currentEvent.userId }}</el-descriptions-item>
-          <el-descriptions-item label="用户名">{{ currentEvent.userName }}</el-descriptions-item>
-          <el-descriptions-item label="目标对象">{{ currentEvent.target }}</el-descriptions-item>
-          <el-descriptions-item label="来源">{{ currentEvent.source }}</el-descriptions-item>
-          <el-descriptions-item label="IP地址">{{ currentEvent.ip }}</el-descriptions-item>
-          <el-descriptions-item label="时间">{{ currentEvent.createdAt }}</el-descriptions-item>
+          <el-descriptions-item label="行为">
+            {{ currentEvent.action }}
+          </el-descriptions-item>
+          <el-descriptions-item label="用户ID">
+            {{ currentEvent.userId }}
+          </el-descriptions-item>
+          <el-descriptions-item label="用户名">
+            {{ currentEvent.userName }}
+          </el-descriptions-item>
+          <el-descriptions-item label="目标对象">
+            {{ currentEvent.target }}
+          </el-descriptions-item>
+          <el-descriptions-item label="来源">
+            {{ currentEvent.source }}
+          </el-descriptions-item>
+          <el-descriptions-item label="IP地址">
+            {{ currentEvent.ip }}
+          </el-descriptions-item>
+          <el-descriptions-item label="时间">
+            {{ currentEvent.createdAt }}
+          </el-descriptions-item>
         </el-descriptions>
 
-        <el-divider content-position="left">事件数据 (JSON)</el-divider>
+        <el-divider content-position="left">
+          事件数据 (JSON)
+        </el-divider>
         <div class="event-data-json">
           <pre>{{ JSON.stringify(currentEvent, null, 2) }}</pre>
         </div>
 
         <template v-if="currentEvent.properties">
-          <el-divider content-position="left">关联属性</el-divider>
-          <el-descriptions :column="2" border>
+          <el-divider content-position="left">
+            关联属性
+          </el-divider>
+          <el-descriptions
+            :column="2"
+            border
+          >
             <el-descriptions-item
               v-for="(value, key) in currentEvent.properties"
               :key="key"
@@ -153,7 +327,12 @@
         </template>
       </template>
       <template #footer>
-        <el-button type="primary" @click="detailDialogVisible = false">关闭</el-button>
+        <el-button
+          type="primary"
+          @click="detailDialogVisible = false"
+        >
+          关闭
+        </el-button>
       </template>
     </el-dialog>
   </div>

@@ -1,35 +1,54 @@
 <template>
   <div class="faq-editor-page">
-    
-    <el-card class="header-card" shadow="never">
+    <el-card
+      class="header-card"
+      shadow="never"
+    >
       <div class="header-content">
         <div>
           <h2>{{ isEdit ? '编辑 FAQ' : '创建 FAQ' }}</h2>
-          <p class="subtitle" v-if="isEdit">FAQ ID：{{ faqId }} · 修改后保存生效</p>
-          <p class="subtitle" v-else>填写 FAQ 条目，启用后将进入 Layer1 快速匹配库</p>
+          <p
+            v-if="isEdit"
+            class="subtitle"
+          >
+            FAQ ID：{{ faqId }} · 修改后保存生效
+          </p>
+          <p
+            v-else
+            class="subtitle"
+          >
+            填写 FAQ 条目，启用后将进入 Layer1 快速匹配库
+          </p>
         </div>
         <div class="header-actions">
-          <el-button @click="goBack">返回列表</el-button>
+          <el-button @click="goBack">
+            返回列表
+          </el-button>
         </div>
       </div>
     </el-card>
 
     <el-form
       ref="formRef"
+      v-loading="pageLoading"
       :model="form"
       :rules="rules"
       label-width="120px"
-      v-loading="pageLoading"
     >
-      
-      <el-card shadow="never" class="section-card">
+      <el-card
+        shadow="never"
+        class="section-card"
+      >
         <template #header>
           <div class="card-title">
             <el-icon><QuestionFilled /></el-icon>
             FAQ 内容
           </div>
         </template>
-        <el-form-item label="问题" prop="question">
+        <el-form-item
+          label="问题"
+          prop="question"
+        >
           <el-input
             v-model="form.question"
             type="textarea"
@@ -37,7 +56,10 @@
             placeholder="用户可能问的问题，如：你们的发货时间多久？"
           />
         </el-form-item>
-        <el-form-item label="标准答案" prop="answer">
+        <el-form-item
+          label="标准答案"
+          prop="answer"
+        >
           <el-input
             v-model="form.answer"
             type="textarea"
@@ -45,16 +67,32 @@
             placeholder="命中后返回的标准答案"
           />
         </el-form-item>
-        <el-form-item label="关键词" prop="keywords">
+        <el-form-item
+          label="关键词"
+          prop="keywords"
+        >
           <el-input
             v-model="form.keywordsInput"
             placeholder="多个关键词以英文逗号分隔，如：发货, 快递, 时效"
           />
-          <div class="form-tip">用于 Layer1 关键词匹配；多个关键词可提升命中率</div>
+          <div class="form-tip">
+            用于 Layer1 关键词匹配；多个关键词可提升命中率
+          </div>
         </el-form-item>
-        <el-form-item v-if="form.keywords && form.keywords.length" label="预览">
+        <el-form-item
+          v-if="form.keywords && form.keywords.length"
+          label="预览"
+        >
           <div class="keyword-preview">
-            <el-tag v-for="k in form.keywords" :key="k" size="small" type="info" effect="plain" closable @close="removeKeyword(k)">
+            <el-tag
+              v-for="k in form.keywords"
+              :key="k"
+              size="small"
+              type="info"
+              effect="plain"
+              closable
+              @close="removeKeyword(k)"
+            >
               {{ k }}
             </el-tag>
           </div>
@@ -62,7 +100,10 @@
       </el-card>
 
       
-      <el-card shadow="never" class="section-card">
+      <el-card
+        shadow="never"
+        class="section-card"
+      >
         <template #header>
           <div class="card-title">
             <el-icon><CollectionTag /></el-icon>
@@ -80,22 +121,37 @@
                 placeholder="如：logistics / pricing / aftersales"
                 style="width: 100%"
               >
-                <el-option v-for="c in presetCategories" :key="c" :label="c" :value="c" />
+                <el-option
+                  v-for="c in presetCategories"
+                  :key="c"
+                  :label="c"
+                  :value="c"
+                />
               </el-select>
-              <div class="form-tip">支持自定义输入新分类，便于前台筛选</div>
+              <div class="form-tip">
+                支持自定义输入新分类，便于前台筛选
+              </div>
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="关联意图">
-              <el-input v-model="form.intent" placeholder="如：shipping / refund / aftersales" />
-              <div class="form-tip">与意图识别结果对齐，命中后此意图将作为前置答案</div>
+              <el-input
+                v-model="form.intent"
+                placeholder="如：shipping / refund / aftersales"
+              />
+              <div class="form-tip">
+                与意图识别结果对齐，命中后此意图将作为前置答案
+              </div>
             </el-form-item>
           </el-col>
         </el-row>
       </el-card>
 
       
-      <el-card shadow="never" class="section-card">
+      <el-card
+        shadow="never"
+        class="section-card"
+      >
         <template #header>
           <div class="card-title">
             <el-icon><Setting /></el-icon>
@@ -113,13 +169,17 @@
                 show-input
                 :show-input-controls="false"
               />
-              <div class="form-tip">建议 0.7+；与 ConfidenceThreshold 共同决定是否 SkipLLM</div>
+              <div class="form-tip">
+                建议 0.7+；与 ConfidenceThreshold 共同决定是否 SkipLLM
+              </div>
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="启用">
               <el-switch v-model="form.enabled" />
-              <div class="form-tip">禁用后该 FAQ 不参与匹配（已绑定智能体也会忽略）</div>
+              <div class="form-tip">
+                禁用后该 FAQ 不参与匹配（已绑定智能体也会忽略）
+              </div>
             </el-form-item>
           </el-col>
         </el-row>
@@ -127,8 +187,14 @@
 
       
       <div class="footer-actions">
-        <el-button @click="goBack">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="onSave">
+        <el-button @click="goBack">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="onSave"
+        >
           <el-icon><Check /></el-icon>
           {{ isEdit ? '保存更新' : '创建 FAQ' }}
         </el-button>

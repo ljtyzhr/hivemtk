@@ -1,26 +1,50 @@
 <template>
   <div class="chat-channel-form-page">
-    <el-card class="header-card" shadow="never">
+    <el-card
+      class="header-card"
+      shadow="never"
+    >
       <div class="header-content">
         <h2>新建客服 Web Widget 渠道</h2>
-        <el-button @click="goBack">{{ $t('返回') }}</el-button>
+        <el-button @click="goBack">
+          {{ $t('返回') }}
+        </el-button>
       </div>
     </el-card>
 
     <el-card shadow="never">
-      <el-form :model="form" :rules="rules" ref="formRef" label-width="140px" style="max-width: 720px">
-        <el-form-item :label="$t('渠道名称')" prop="channel_name">
-          <el-input v-model="form.channel_name" :placeholder="$t('如：官网首页')" maxlength="100" show-word-limit />
+      <el-form
+        ref="formRef"
+        :model="form"
+        :rules="rules"
+        label-width="140px"
+        style="max-width: 720px"
+      >
+        <el-form-item
+          :label="$t('渠道名称')"
+          prop="channel_name"
+        >
+          <el-input
+            v-model="form.channel_name"
+            :placeholder="$t('如：官网首页')"
+            maxlength="100"
+            show-word-limit
+          />
         </el-form-item>
 
-        <el-form-item :label="$t('允许的 origin')" prop="allowed_origins">
+        <el-form-item
+          :label="$t('允许的 origin')"
+          prop="allowed_origins"
+        >
           <el-input
             v-model="originsText"
             type="textarea"
             :rows="4"
             placeholder="一行一个 origin，如：&#10;https://www.example.com&#10;https://shop.example.com&#10;* 表示允许所有"
           />
-          <div class="form-tip">企业网站域名（前端部署协议+域名+端口）。<code>*</code> 表示允许所有 origin（仅测试用）。</div>
+          <div class="form-tip">
+            企业网站域名（前端部署协议+域名+端口）。<code>*</code> 表示允许所有 origin（仅测试用）。
+          </div>
         </el-form-item>
 
         <el-form-item :label="$t('欢迎语')">
@@ -41,13 +65,21 @@
 
         <el-form-item :label="$t('浮标位置')">
           <el-radio-group v-model="form.widget_position">
-            <el-radio value="bottom-right">{{ $t('右下角') }}</el-radio>
-            <el-radio value="bottom-left">{{ $t('左下角') }}</el-radio>
+            <el-radio value="bottom-right">
+              {{ $t('右下角') }}
+            </el-radio>
+            <el-radio value="bottom-left">
+              {{ $t('左下角') }}
+            </el-radio>
           </el-radio-group>
         </el-form-item>
 
         <el-form-item :label="$t('窗口标题')">
-          <el-input v-model="form.widget_title" :placeholder="$t('在线客服')" maxlength="50" />
+          <el-input
+            v-model="form.widget_title"
+            :placeholder="$t('在线客服')"
+            maxlength="50"
+          />
         </el-form-item>
 
         <el-form-item :label="$t('AI 自动回复')">
@@ -83,15 +115,30 @@
             >
               <div style="display: flex; justify-content: space-between; align-items: center">
                 <span>{{ a.name }}</span>
-                <el-tag size="small" type="info">{{ getAgentTypeLabel(a.agent_type) }}</el-tag>
+                <el-tag
+                  size="small"
+                  type="info"
+                >
+                  {{ getAgentTypeLabel(a.agent_type) }}
+                </el-tag>
               </div>
             </el-option>
           </el-select>
-          <div class="form-tip">直接选择默认智能体，可省去创建后再到【渠道智能体绑定】配置的步骤</div>
+          <div class="form-tip">
+            直接选择默认智能体，可省去创建后再到【渠道智能体绑定】配置的步骤
+          </div>
         </el-form-item>
 
-        <el-form-item :label="$t('目标语言')" prop="target_language">
-          <el-select v-model="form.target_language" :placeholder="$t('请选择目标语言')" clearable style="width: 100%">
+        <el-form-item
+          :label="$t('目标语言')"
+          prop="target_language"
+        >
+          <el-select
+            v-model="form.target_language"
+            :placeholder="$t('请选择目标语言')"
+            clearable
+            style="width: 100%"
+          >
             <el-option
               v-for="lang in targetLanguageOptions"
               :key="lang.value"
@@ -99,12 +146,22 @@
               :value="lang.value"
             />
           </el-select>
-          <div class="form-tip">渠道对外输出语言，覆盖智能体配置。空表示跟随智能体配置。</div>
+          <div class="form-tip">
+            渠道对外输出语言，覆盖智能体配置。空表示跟随智能体配置。
+          </div>
         </el-form-item>
 
         <el-form-item>
-          <el-button type="primary" :loading="saving" @click="onSubmit">{{ $t('创建并获取凭证') }}</el-button>
-          <el-button @click="goBack">{{ $t('取消') }}</el-button>
+          <el-button
+            type="primary"
+            :loading="saving"
+            @click="onSubmit"
+          >
+            {{ $t('创建并获取凭证') }}
+          </el-button>
+          <el-button @click="goBack">
+            {{ $t('取消') }}
+          </el-button>
         </el-form-item>
       </el-form>
     </el-card>
@@ -117,9 +174,17 @@
       :close-on-click-modal="false"
       :close-on-press-escape="false"
     >
-      <el-alert type="warning" :closable="false" style="margin-bottom: 16px">
-        <p style="margin: 0 0 4px"><strong>AppKey 和 AppSecret 仅显示一次！</strong></p>
-        <p style="margin: 0">请立即复制并妥善保存。关闭后只能轮换 AppKey / 重置 AppSecret。</p>
+      <el-alert
+        type="warning"
+        :closable="false"
+        style="margin-bottom: 16px"
+      >
+        <p style="margin: 0 0 4px">
+          <strong>AppKey 和 AppSecret 仅显示一次！</strong>
+        </p>
+        <p style="margin: 0">
+          请立即复制并妥善保存。关闭后只能轮换 AppKey / 重置 AppSecret。
+        </p>
       </el-alert>
 
       <el-form label-width="120px">
@@ -128,13 +193,21 @@
         </el-form-item>
         <el-form-item label="AppKey">
           <code class="cred">{{ createdData?.AppKey }}</code>
-          <el-button link type="primary" @click="copy(createdData?.AppKey)">
+          <el-button
+            link
+            type="primary"
+            @click="copy(createdData?.AppKey)"
+          >
             <el-icon><CopyDocument /></el-icon>{{ $t('复制') }}
           </el-button>
         </el-form-item>
         <el-form-item label="AppSecret">
           <code class="cred secret">{{ createdData?.AppSecret }}</code>
-          <el-button link type="primary" @click="copy(createdData?.AppSecret)">
+          <el-button
+            link
+            type="primary"
+            @click="copy(createdData?.AppSecret)"
+          >
             <el-icon><CopyDocument /></el-icon>{{ $t('复制') }}
           </el-button>
         </el-form-item>
@@ -143,10 +216,20 @@
       <el-divider />
       <h4>{{ $t('集成代码（嵌入到企业网站）') }}</h4>
       <pre class="code-block">{{ embedCode }}</pre>
-      <el-button type="primary" @click="copy(embedCode)">{{ $t('复制集成代码') }}</el-button>
+      <el-button
+        type="primary"
+        @click="copy(embedCode)"
+      >
+        {{ $t('复制集成代码') }}
+      </el-button>
 
       <template #footer>
-        <el-button type="primary" @click="onDone">{{ $t('已完成保存') }}</el-button>
+        <el-button
+          type="primary"
+          @click="onDone"
+        >
+          {{ $t('已完成保存') }}
+        </el-button>
       </template>
     </el-dialog>
   </div>

@@ -4,36 +4,112 @@
       <template #header>
         <div class="card-header">
           <span>钉钉应用账号</span>
-          <el-button type="primary" @click="openCreate">新增账号</el-button>
+          <el-button
+            type="primary"
+            @click="openCreate"
+          >
+            新增账号
+          </el-button>
         </div>
       </template>
 
-      <el-table :data="tableData" v-loading="loading" border stripe>
-        <el-table-column prop="id" label="ID" width="70" />
-        <el-table-column prop="account_name" label="名称" min-width="120" />
-        <el-table-column prop="app_key" label="AppKey" min-width="130" show-overflow-tooltip />
-        <el-table-column prop="agent_id" label="AgentId" min-width="100" show-overflow-tooltip />
-        <el-table-column label="启用收消息" width="100" align="center">
+      <el-table
+        v-loading="loading"
+        :data="tableData"
+        border
+        stripe
+      >
+        <el-table-column
+          prop="id"
+          label="ID"
+          width="70"
+        />
+        <el-table-column
+          prop="account_name"
+          label="名称"
+          min-width="120"
+        />
+        <el-table-column
+          prop="app_key"
+          label="AppKey"
+          min-width="130"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          prop="agent_id"
+          label="AgentId"
+          min-width="100"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          label="启用收消息"
+          width="100"
+          align="center"
+        >
           <template #default="{ row }">
-            <el-tag :type="row.inbound_enabled ? 'success' : 'info'" size="small">
+            <el-tag
+              :type="row.inbound_enabled ? 'success' : 'info'"
+              size="small"
+            >
               {{ row.inbound_enabled ? '已启用' : '未启用' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="绑定AI" min-width="120" show-overflow-tooltip>
+        <el-table-column
+          label="绑定AI"
+          min-width="120"
+          show-overflow-tooltip
+        >
           <template #default="{ row }">
-            <el-tag :type="row.ai_agent_id ? 'success' : 'info'" size="small">
+            <el-tag
+              :type="row.ai_agent_id ? 'success' : 'info'"
+              size="small"
+            >
               {{ row.ai_agent_id || '未绑定' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="320" fixed="right">
+        <el-table-column
+          label="操作"
+          width="320"
+          fixed="right"
+        >
           <template #default="{ row }">
-            <el-button link type="primary" @click="openTest(row)">测试</el-button>
-            <el-button link type="primary" @click="openBind(row)">绑定AI</el-button>
-            <el-button link type="primary" @click="copyCallbackUrl(row)">复制回调URL</el-button>
-            <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
-            <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
+            <el-button
+              link
+              type="primary"
+              @click="openTest(row)"
+            >
+              测试
+            </el-button>
+            <el-button
+              link
+              type="primary"
+              @click="openBind(row)"
+            >
+              绑定AI
+            </el-button>
+            <el-button
+              link
+              type="primary"
+              @click="copyCallbackUrl(row)"
+            >
+              复制回调URL
+            </el-button>
+            <el-button
+              link
+              type="primary"
+              @click="openEdit(row)"
+            >
+              编辑
+            </el-button>
+            <el-button
+              link
+              type="danger"
+              @click="handleDelete(row)"
+            >
+              删除
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -51,49 +127,121 @@
     </el-card>
 
     
-    <el-dialog v-model="dialogVisible" :title="dialogMode === 'edit' ? '编辑钉钉应用账号' : '新增钉钉应用账号'" width="680px">
-      <el-form :model="form" label-width="150px">
-        <el-form-item label="名称" prop="account_name">
-          <el-input v-model="form.account_name" placeholder="账号名称" />
+    <el-dialog
+      v-model="dialogVisible"
+      :title="dialogMode === 'edit' ? '编辑钉钉应用账号' : '新增钉钉应用账号'"
+      width="680px"
+    >
+      <el-form
+        :model="form"
+        label-width="150px"
+      >
+        <el-form-item
+          label="名称"
+          prop="account_name"
+        >
+          <el-input
+            v-model="form.account_name"
+            placeholder="账号名称"
+          />
         </el-form-item>
-        <el-form-item label="AppKey" prop="app_key">
-          <el-input v-model="form.app_key" placeholder="钉钉应用 AppKey" />
+        <el-form-item
+          label="AppKey"
+          prop="app_key"
+        >
+          <el-input
+            v-model="form.app_key"
+            placeholder="钉钉应用 AppKey"
+          />
         </el-form-item>
-        <el-form-item label="AppSecret" prop="app_secret">
-          <el-input v-model="form.app_secret" type="password" show-password placeholder="钉钉应用 AppSecret" />
+        <el-form-item
+          label="AppSecret"
+          prop="app_secret"
+        >
+          <el-input
+            v-model="form.app_secret"
+            type="password"
+            show-password
+            placeholder="钉钉应用 AppSecret"
+          />
         </el-form-item>
-        <el-form-item label="AgentId" prop="agent_id">
-          <el-input v-model="form.agent_id" placeholder="应用 AgentId（可选）" />
+        <el-form-item
+          label="AgentId"
+          prop="agent_id"
+        >
+          <el-input
+            v-model="form.agent_id"
+            placeholder="应用 AgentId（可选）"
+          />
         </el-form-item>
 
-        <el-divider content-position="left">回调（接收客户消息 → 智能体自动回复）</el-divider>
-        <el-form-item label="回调验证 Token" prop="token">
-          <el-input v-model="form.token" placeholder="事件订阅的「签名Token」" />
-          <div class="form-hint">在钉钉「事件订阅」中填写此 Token，用于 GET 验证回调地址。</div>
+        <el-divider content-position="left">
+          回调（接收客户消息 → 智能体自动回复）
+        </el-divider>
+        <el-form-item
+          label="回调验证 Token"
+          prop="token"
+        >
+          <el-input
+            v-model="form.token"
+            placeholder="事件订阅的「签名Token」"
+          />
+          <div class="form-hint">
+            在钉钉「事件订阅」中填写此 Token，用于 GET 验证回调地址。
+          </div>
         </el-form-item>
-        <el-form-item label="数据加密 Key" prop="aes_key">
-          <el-input v-model="form.aes_key" placeholder="回调数据加密密钥（可选；填写后消息体 AES 解密）" />
+        <el-form-item
+          label="数据加密 Key"
+          prop="aes_key"
+        >
+          <el-input
+            v-model="form.aes_key"
+            placeholder="回调数据加密密钥（可选；填写后消息体 AES 解密）"
+          />
         </el-form-item>
-        <el-form-item label="回调 URL" v-if="dialogMode === 'edit'">
-          <el-input :model-value="callbackUrl(form.id)" readonly>
+        <el-form-item
+          v-if="dialogMode === 'edit'"
+          label="回调 URL"
+        >
+          <el-input
+            :model-value="callbackUrl(form.id)"
+            readonly
+          >
             <template #append>
-              <el-button @click="copyText(callbackUrl(form.id))">复制</el-button>
+              <el-button @click="copyText(callbackUrl(form.id))">
+                复制
+              </el-button>
             </template>
           </el-input>
-          <div class="form-hint">将此 URL 配置到钉钉「事件订阅」的「请求地址」栏。</div>
+          <div class="form-hint">
+            将此 URL 配置到钉钉「事件订阅」的「请求地址」栏。
+          </div>
         </el-form-item>
         <el-form-item label="启用收消息">
           <el-switch v-model="form.inbound_enabled" />
           <span class="form-hint-inline">开启后接收客户发给应用的消息</span>
         </el-form-item>
         <el-form-item label="绑定 AI 智能体">
-          <el-input v-model="form.ai_agent_id" placeholder="智能体 ID（可选；留空降级默认引擎）" />
-          <div class="form-hint">也可在列表点击「绑定AI」通过对话框选择。</div>
+          <el-input
+            v-model="form.ai_agent_id"
+            placeholder="智能体 ID（可选；留空降级默认引擎）"
+          />
+          <div class="form-hint">
+            也可在列表点击「绑定AI」通过对话框选择。
+          </div>
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="submit">保存</el-button>
+        <el-button @click="dialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="submit"
+        >
+          保存
+        </el-button>
       </template>
     </el-dialog>
 

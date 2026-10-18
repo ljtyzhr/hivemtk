@@ -3,15 +3,30 @@
     <el-card class="header-card">
       <div>
         <h2>{{ $t('批量操作') }}</h2>
-        <p class="subtitle">{{ $t('批量处理线索、客户、消息等数据') }}</p>
+        <p class="subtitle">
+          {{ $t('批量处理线索、客户、消息等数据') }}
+        </p>
       </div>
     </el-card>
 
     <el-row :gutter="20">
-      <el-col :span="8" v-for="tool in tools" :key="tool.name">
-        <el-card class="tool-card" shadow="hover" @click="openTool(tool)">
+      <el-col
+        v-for="tool in tools"
+        :key="tool.name"
+        :span="8"
+      >
+        <el-card
+          class="tool-card"
+          shadow="hover"
+          @click="openTool(tool)"
+        >
           <div class="tool-icon">
-            <el-icon :size="40" :color="tool.color"><component :is="tool.icon" /></el-icon>
+            <el-icon
+              :size="40"
+              :color="tool.color"
+            >
+              <component :is="tool.icon" />
+            </el-icon>
           </div>
           <h3>{{ tool.name }}</h3>
           <p>{{ tool.description }}</p>
@@ -26,49 +41,135 @@
       <template #header>
         <span>{{ $t('操作历史') }}</span>
       </template>
-      <el-table :data="histories" v-loading="loading" stripe>
-        <el-table-column prop="tool" label="工具" width="150" />
-        <el-table-column prop="target" label="目标" min-width="200" />
-        <el-table-column prop="totalCount" label="总数" width="100" />
-        <el-table-column prop="successCount" label="成功" width="100" />
-        <el-table-column prop="failedCount" label="失败" width="100" />
-        <el-table-column prop="status" label="状态" width="120">
+      <el-table
+        v-loading="loading"
+        :data="histories"
+        stripe
+      >
+        <el-table-column
+          prop="tool"
+          label="工具"
+          width="150"
+        />
+        <el-table-column
+          prop="target"
+          label="目标"
+          min-width="200"
+        />
+        <el-table-column
+          prop="totalCount"
+          label="总数"
+          width="100"
+        />
+        <el-table-column
+          prop="successCount"
+          label="成功"
+          width="100"
+        />
+        <el-table-column
+          prop="failedCount"
+          label="失败"
+          width="100"
+        />
+        <el-table-column
+          prop="status"
+          label="状态"
+          width="120"
+        >
           <template #default="{ row }">
-            <el-tag :type="getStatusType(row.status)">{{ getStatusText(row.status) }}</el-tag>
+            <el-tag :type="getStatusType(row.status)">
+              {{ getStatusText(row.status) }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="createdAt" label="执行时间" width="180" />
-        <el-table-column label="操作" width="150" fixed="right">
+        <el-table-column
+          prop="createdAt"
+          label="执行时间"
+          width="180"
+        />
+        <el-table-column
+          label="操作"
+          width="150"
+          fixed="right"
+        >
           <template #default="{ row }">
-            <el-button link type="primary" @click="viewDetail(row)">详情</el-button>
-            <el-button link type="danger" v-if="row.status === 'running'" @click="cancelTask(row)">取消</el-button>
+            <el-button
+              link
+              type="primary"
+              @click="viewDetail(row)"
+            >
+              详情
+            </el-button>
+            <el-button
+              v-if="row.status === 'running'"
+              link
+              type="danger"
+              @click="cancelTask(row)"
+            >
+              取消
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
     </el-card>
 
-    <el-dialog v-model="dialogVisible" :title="currentTool?.name" width="800px">
-      <el-form :model="form" label-width="120px">
+    <el-dialog
+      v-model="dialogVisible"
+      :title="currentTool?.name"
+      width="800px"
+    >
+      <el-form
+        :model="form"
+        label-width="120px"
+      >
         <el-form-item label="操作类型">
-          <el-input :value="currentTool?.name" disabled />
+          <el-input
+            :value="currentTool?.name"
+            disabled
+          />
         </el-form-item>
         <el-form-item label="数据来源">
           <el-radio-group v-model="form.source">
-            <el-radio label="all">全部</el-radio>
-            <el-radio label="filter">筛选</el-radio>
-            <el-radio label="import">导入</el-radio>
+            <el-radio label="all">
+              全部
+            </el-radio>
+            <el-radio label="filter">
+              筛选
+            </el-radio>
+            <el-radio label="import">
+              导入
+            </el-radio>
           </el-radio-group>
         </el-form-item>
-        <el-form-item label="筛选条件" v-if="form.source === 'filter'">
-          <el-input v-model="form.filter" type="textarea" :rows="3" placeholder='{"status": "active", "created_at": ">2024-01-01"}' />
+        <el-form-item
+          v-if="form.source === 'filter'"
+          label="筛选条件"
+        >
+          <el-input
+            v-model="form.filter"
+            type="textarea"
+            :rows="3"
+            placeholder="{&quot;status&quot;: &quot;active&quot;, &quot;created_at&quot;: &quot;>2024-01-01&quot;}"
+          />
         </el-form-item>
-        <el-form-item label="导入文件" v-if="form.source === 'import'">
-          <el-upload action="/api/batch/import" :show-file-list="false">
+        <el-form-item
+          v-if="form.source === 'import'"
+          label="导入文件"
+        >
+          <el-upload
+            action="/api/batch/import"
+            :show-file-list="false"
+          >
             <el-button>选择文件</el-button>
           </el-upload>
         </el-form-item>
         <el-form-item label="执行参数">
-          <el-input v-model="form.params" type="textarea" :rows="4" placeholder='{"action": "send_message", "template": "welcome"}' />
+          <el-input
+            v-model="form.params"
+            type="textarea"
+            :rows="4"
+            placeholder="{&quot;action&quot;: &quot;send_message&quot;, &quot;template&quot;: &quot;welcome&quot;}"
+          />
         </el-form-item>
         <el-form-item label="是否预览">
           <el-switch v-model="form.dryRun" />
@@ -76,38 +177,71 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button @click="preview">预览</el-button>
-        <el-button type="primary" @click="execute">执行</el-button>
+        <el-button @click="dialogVisible = false">
+          取消
+        </el-button>
+        <el-button @click="preview">
+          预览
+        </el-button>
+        <el-button
+          type="primary"
+          @click="execute"
+        >
+          执行
+        </el-button>
       </template>
     </el-dialog>
 
     
-    <el-dialog v-model="previewVisible" title="批量操作预览" width="900px" :close-on-click-modal="false">
+    <el-dialog
+      v-model="previewVisible"
+      title="批量操作预览"
+      width="900px"
+      :close-on-click-modal="false"
+    >
       <div v-loading="previewLoading">
-        <div class="preview-summary" v-if="!previewLoading">
+        <div
+          v-if="!previewLoading"
+          class="preview-summary"
+        >
           <el-row :gutter="20">
             <el-col :span="8">
-              <el-statistic title="总影响条数" :value="previewSummary.total" />
+              <el-statistic
+                title="总影响条数"
+                :value="previewSummary.total"
+              />
             </el-col>
             <el-col :span="8">
-              <el-statistic title="预计成功" :value="previewSummary.success">
+              <el-statistic
+                title="预计成功"
+                :value="previewSummary.success"
+              >
                 <template #suffix>
-                  <el-icon color="#10B981"><component :is="'Check'" /></el-icon>
+                  <el-icon color="#10B981">
+                    <component :is="'Check'" />
+                  </el-icon>
                 </template>
               </el-statistic>
             </el-col>
             <el-col :span="8">
-              <el-statistic title="预计失败" :value="previewSummary.failed">
+              <el-statistic
+                title="预计失败"
+                :value="previewSummary.failed"
+              >
                 <template #suffix>
-                  <el-icon color="#EF4444"><component :is="'Close'" /></el-icon>
+                  <el-icon color="#EF4444">
+                    <component :is="'Close'" />
+                  </el-icon>
                 </template>
               </el-statistic>
             </el-col>
           </el-row>
         </div>
 
-        <div class="preview-errors" v-if="previewSummary.errors.length > 0">
+        <div
+          v-if="previewSummary.errors.length > 0"
+          class="preview-errors"
+        >
           <h4>警告信息</h4>
           <el-alert
             v-for="(err, idx) in previewSummary.errors"
@@ -120,53 +254,117 @@
           />
         </div>
 
-        <el-table :data="previewData" style="margin-top: 20px" v-if="previewData.length > 0">
-          <el-table-column type="index" label="序号" width="60" />
-          <el-table-column prop="target" label="目标" min-width="200" />
-          <el-table-column prop="action" label="操作" width="150" />
-          <el-table-column prop="status" label="预览状态" width="120">
+        <el-table
+          v-if="previewData.length > 0"
+          :data="previewData"
+          style="margin-top: 20px"
+        >
+          <el-table-column
+            type="index"
+            label="序号"
+            width="60"
+          />
+          <el-table-column
+            prop="target"
+            label="目标"
+            min-width="200"
+          />
+          <el-table-column
+            prop="action"
+            label="操作"
+            width="150"
+          />
+          <el-table-column
+            prop="status"
+            label="预览状态"
+            width="120"
+          >
             <template #default="{ row }">
-              <el-tag :type="getPreviewStatusTagType(row.status)" size="small">
+              <el-tag
+                :type="getPreviewStatusTagType(row.status)"
+                size="small"
+              >
                 {{ getPreviewStatusLabel(row.status) }}
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="message" label="备注" show-overflow-tooltip min-width="200" />
+          <el-table-column
+            prop="message"
+            label="备注"
+            show-overflow-tooltip
+            min-width="200"
+          />
         </el-table>
 
-        <el-empty v-if="!previewLoading && previewData.length === 0" description="暂无预览数据" />
+        <el-empty
+          v-if="!previewLoading && previewData.length === 0"
+          description="暂无预览数据"
+        />
       </div>
 
       <template #footer>
-        <el-button @click="previewVisible = false">关闭</el-button>
-        <el-button type="primary" @click="execute">确认执行</el-button>
+        <el-button @click="previewVisible = false">
+          关闭
+        </el-button>
+        <el-button
+          type="primary"
+          @click="execute"
+        >
+          确认执行
+        </el-button>
       </template>
     </el-dialog>
 
     
-    <el-dialog v-model="detailDialogVisible" title="批量任务执行详情" width="800px">
+    <el-dialog
+      v-model="detailDialogVisible"
+      title="批量任务执行详情"
+      width="800px"
+    >
       <div v-loading="detailLoading">
         <template v-if="taskDetail">
-          <el-descriptions :column="2" border>
-            <el-descriptions-item label="任务ID">{{ taskDetail.id }}</el-descriptions-item>
-            <el-descriptions-item label="工具名称">{{ taskDetail.tool }}</el-descriptions-item>
-            <el-descriptions-item label="目标">{{ taskDetail.target}}</el-descriptions-item>
-            <el-descriptions-item label="状态">
-              <el-tag :type="getStatusType(taskDetail.status)">{{ getStatusText(taskDetail.status) }}</el-tag>
+          <el-descriptions
+            :column="2"
+            border
+          >
+            <el-descriptions-item label="任务ID">
+              {{ taskDetail.id }}
             </el-descriptions-item>
-            <el-descriptions-item label="执行时间">{{ taskDetail.createdAt }}</el-descriptions-item>
-            <el-descriptions-item label="完成时间">{{ taskDetail.finishedAt}}</el-descriptions-item>
-            <el-descriptions-item label="总数量">{{ taskDetail.totalCount }}</el-descriptions-item>
+            <el-descriptions-item label="工具名称">
+              {{ taskDetail.tool }}
+            </el-descriptions-item>
+            <el-descriptions-item label="目标">
+              {{ taskDetail.target }}
+            </el-descriptions-item>
+            <el-descriptions-item label="状态">
+              <el-tag :type="getStatusType(taskDetail.status)">
+                {{ getStatusText(taskDetail.status) }}
+              </el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="执行时间">
+              {{ taskDetail.createdAt }}
+            </el-descriptions-item>
+            <el-descriptions-item label="完成时间">
+              {{ taskDetail.finishedAt }}
+            </el-descriptions-item>
+            <el-descriptions-item label="总数量">
+              {{ taskDetail.totalCount }}
+            </el-descriptions-item>
             <el-descriptions-item label="成功数量">
               <span style="color: #10B981">{{ taskDetail.successCount }}</span>
             </el-descriptions-item>
             <el-descriptions-item label="失败数量">
               <span style="color: #EF4444">{{ taskDetail.failedCount }}</span>
             </el-descriptions-item>
-            <el-descriptions-item label="跳过数量">{{ taskDetail.skippedCount || 0 }}</el-descriptions-item>
+            <el-descriptions-item label="跳过数量">
+              {{ taskDetail.skippedCount || 0 }}
+            </el-descriptions-item>
           </el-descriptions>
 
-          <div v-if="taskDetail.errorMessage" style="margin-top: 20px">
+          <div
+            v-if="taskDetail.errorMessage"
+            style="margin-top: 20px"
+          >
             <h4>错误信息</h4>
             <el-alert
               :title="taskDetail.errorMessage"
@@ -176,20 +374,49 @@
             />
           </div>
 
-          <div v-if="taskDetail.errorDetails && taskDetail.errorDetails.length > 0" style="margin-top: 20px">
+          <div
+            v-if="taskDetail.errorDetails && taskDetail.errorDetails.length > 0"
+            style="margin-top: 20px"
+          >
             <h4>错误详情</h4>
-            <el-table :data="taskDetail.errorDetails" stripe max-height="300">
-              <el-table-column type="index" label="序号" width="60" />
-              <el-table-column prop="target" label="目标" min-width="150" />
-              <el-table-column prop="error" label="错误原因" min-width="250" show-overflow-tooltip />
-              <el-table-column prop="time" label="时间" width="170" />
+            <el-table
+              :data="taskDetail.errorDetails"
+              stripe
+              max-height="300"
+            >
+              <el-table-column
+                type="index"
+                label="序号"
+                width="60"
+              />
+              <el-table-column
+                prop="target"
+                label="目标"
+                min-width="150"
+              />
+              <el-table-column
+                prop="error"
+                label="错误原因"
+                min-width="250"
+                show-overflow-tooltip
+              />
+              <el-table-column
+                prop="time"
+                label="时间"
+                width="170"
+              />
             </el-table>
           </div>
         </template>
-        <el-empty v-if="!detailLoading && !taskDetail" description="暂无任务详情" />
+        <el-empty
+          v-if="!detailLoading && !taskDetail"
+          description="暂无任务详情"
+        />
       </div>
       <template #footer>
-        <el-button @click="detailDialogVisible = false">关闭</el-button>
+        <el-button @click="detailDialogVisible = false">
+          关闭
+        </el-button>
       </template>
     </el-dialog>
   </div>

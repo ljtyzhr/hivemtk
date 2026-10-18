@@ -1,55 +1,166 @@
 <template>
   <div class="automation-hub">
-    
     <el-card class="mb16">
-      <template #header><b>办公时间与离开自动回复</b><el-tag size="small" style="margin-left:8px">{{ oh.enabled ? '已启用' : '未启用' }}</el-tag></template>
-      <el-form label-width="120px" size="small">
+      <template #header>
+        <b>办公时间与离开自动回复</b><el-tag
+          size="small"
+          style="margin-left:8px"
+        >
+          {{ oh.enabled ? '已启用' : '未启用' }}
+        </el-tag>
+      </template>
+      <el-form
+        label-width="120px"
+        size="small"
+      >
         <el-form-item label="启用办公时间">
           <el-switch v-model="oh.enabled" />
         </el-form-item>
         <el-form-item label="工作时段">
-          <div v-for="(r, i) in oh.daily_ranges" :key="i" style="margin-bottom:6px">
-            <el-time-select v-model="r[0]" start="00:00" step="00:30" end="23:30" style="width:110px" />
+          <div
+            v-for="(r, i) in oh.daily_ranges"
+            :key="i"
+            style="margin-bottom:6px"
+          >
+            <el-time-select
+              v-model="r[0]"
+              start="00:00"
+              step="00:30"
+              end="23:30"
+              style="width:110px"
+            />
             <span style="margin:0 6px">至</span>
-            <el-time-select v-model="r[1]" start="00:00" step="00:30" end="23:30" style="width:110px" />
-            <el-button text type="danger" size="small" @click="oh.daily_ranges.splice(i, 1)">删除</el-button>
+            <el-time-select
+              v-model="r[1]"
+              start="00:00"
+              step="00:30"
+              end="23:30"
+              style="width:110px"
+            />
+            <el-button
+              text
+              type="danger"
+              size="small"
+              @click="oh.daily_ranges.splice(i, 1)"
+            >
+              删除
+            </el-button>
           </div>
-          <el-button size="small" @click="oh.daily_ranges.push(['09:00','18:00'])">添加时段</el-button>
+          <el-button
+            size="small"
+            @click="oh.daily_ranges.push(['09:00','18:00'])"
+          >
+            添加时段
+          </el-button>
         </el-form-item>
         <el-form-item label="离开回复">
-          <el-input v-model="oh.away_message" type="textarea" :rows="2" />
+          <el-input
+            v-model="oh.away_message"
+            type="textarea"
+            :rows="2"
+          />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="saveOH">保存策略</el-button>
+          <el-button
+            type="primary"
+            @click="saveOH"
+          >
+            保存策略
+          </el-button>
         </el-form-item>
       </el-form>
     </el-card>
 
     
     <el-card class="mb16">
-      <template #header><b>会话宏（一键多动作）</b></template>
+      <template #header>
+        <b>会话宏（一键多动作）</b>
+      </template>
       <div style="margin-bottom:10px;display:flex;gap:8px">
-        <el-input v-model="newMacro.name" placeholder="宏名称" style="width:200px" size="small" />
-        <el-select v-model="newMacro.type" size="small" style="width:160px" placeholder="动作">
-          <el-option label="加内部备注" value="add_note" />
-          <el-option label="加标签" value="add_tag" />
-          <el-option label="设优先级" value="set_priority" />
-          <el-option label="发消息" value="send_message" />
-          <el-option label="关闭会话" value="close" />
+        <el-input
+          v-model="newMacro.name"
+          placeholder="宏名称"
+          style="width:200px"
+          size="small"
+        />
+        <el-select
+          v-model="newMacro.type"
+          size="small"
+          style="width:160px"
+          placeholder="动作"
+        >
+          <el-option
+            label="加内部备注"
+            value="add_note"
+          />
+          <el-option
+            label="加标签"
+            value="add_tag"
+          />
+          <el-option
+            label="设优先级"
+            value="set_priority"
+          />
+          <el-option
+            label="发消息"
+            value="send_message"
+          />
+          <el-option
+            label="关闭会话"
+            value="close"
+          />
         </el-select>
-        <el-input v-model="newMacro.value" placeholder="动作内容" size="small" style="width:260px" />
-        <el-button type="primary" size="small" @click="addMacro">创建宏</el-button>
+        <el-input
+          v-model="newMacro.value"
+          placeholder="动作内容"
+          size="small"
+          style="width:260px"
+        />
+        <el-button
+          type="primary"
+          size="small"
+          @click="addMacro"
+        >
+          创建宏
+        </el-button>
       </div>
-      <el-table :data="macros" size="small">
-        <el-table-column prop="name" label="名称" min-width="140" />
-        <el-table-column label="动作序列" min-width="300">
+      <el-table
+        :data="macros"
+        size="small"
+      >
+        <el-table-column
+          prop="name"
+          label="名称"
+          min-width="140"
+        />
+        <el-table-column
+          label="动作序列"
+          min-width="300"
+        >
           <template #default="{ row }">
-            <el-tag v-for="(a, i) in parseActions(row.actions)" :key="i" size="small" style="margin-right:4px">{{ a.type }}</el-tag>
+            <el-tag
+              v-for="(a, i) in parseActions(row.actions)"
+              :key="i"
+              size="small"
+              style="margin-right:4px"
+            >
+              {{ a.type }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="80">
+        <el-table-column
+          label="操作"
+          width="80"
+        >
           <template #default="{ row }">
-            <el-button link type="danger" size="small" @click="delMacro(row)">删除</el-button>
+            <el-button
+              link
+              type="danger"
+              size="small"
+              @click="delMacro(row)"
+            >
+              删除
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -57,21 +168,71 @@
 
     
     <el-card class="mb16">
-      <template #header><b>出站 Webhook 订阅</b><span class="hint">事件推送：message.created / session.created / session.closed / all</span></template>
+      <template #header>
+        <b>出站 Webhook 订阅</b><span class="hint">事件推送：message.created / session.created / session.closed / all</span>
+      </template>
       <div style="margin-bottom:10px;display:flex;gap:8px">
-        <el-input v-model="newHook.url" placeholder="https://your-app.com/webhook" size="small" style="width:320px" />
-        <el-input v-model="newHook.events" placeholder="all" size="small" style="width:160px" />
-        <el-button type="primary" size="small" @click="addHook">创建订阅</el-button>
+        <el-input
+          v-model="newHook.url"
+          placeholder="https://your-app.com/webhook"
+          size="small"
+          style="width:320px"
+        />
+        <el-input
+          v-model="newHook.events"
+          placeholder="all"
+          size="small"
+          style="width:160px"
+        />
+        <el-button
+          type="primary"
+          size="small"
+          @click="addHook"
+        >
+          创建订阅
+        </el-button>
       </div>
-      <el-table :data="hooks" size="small">
-        <el-table-column prop="url" label="URL" min-width="240" show-overflow-tooltip />
-        <el-table-column prop="events" label="事件" width="160" />
-        <el-table-column label="状态" width="80">
-          <template #default="{ row }"><el-tag size="small" :type="row.enabled ? 'success' : 'info'">{{ row.enabled ? '启用' : '停用' }}</el-tag></template>
-        </el-table-column>
-        <el-table-column label="操作" width="80">
+      <el-table
+        :data="hooks"
+        size="small"
+      >
+        <el-table-column
+          prop="url"
+          label="URL"
+          min-width="240"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          prop="events"
+          label="事件"
+          width="160"
+        />
+        <el-table-column
+          label="状态"
+          width="80"
+        >
           <template #default="{ row }">
-            <el-button link type="danger" size="small" @click="delHook(row)">删除</el-button>
+            <el-tag
+              size="small"
+              :type="row.enabled ? 'success' : 'info'"
+            >
+              {{ row.enabled ? '启用' : '停用' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="操作"
+          width="80"
+        >
+          <template #default="{ row }">
+            <el-button
+              link
+              type="danger"
+              size="small"
+              @click="delHook(row)"
+            >
+              删除
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -79,24 +240,79 @@
 
     
     <el-card class="mb16">
-      <template #header><b>定时邮件报表</b><el-button size="small" style="float:right" @click="sendNow">立即发送一次</el-button></template>
+      <template #header>
+        <b>定时邮件报表</b><el-button
+          size="small"
+          style="float:right"
+          @click="sendNow"
+        >
+          立即发送一次
+        </el-button>
+      </template>
       <div style="margin-bottom:10px;display:flex;gap:8px">
-        <el-input v-model="newSub.email" placeholder="接收邮箱" size="small" style="width:260px" />
-        <el-select v-model="newSub.schedule" size="small" style="width:120px">
-          <el-option label="每日" value="daily" />
-          <el-option label="每周" value="weekly" />
+        <el-input
+          v-model="newSub.email"
+          placeholder="接收邮箱"
+          size="small"
+          style="width:260px"
+        />
+        <el-select
+          v-model="newSub.schedule"
+          size="small"
+          style="width:120px"
+        >
+          <el-option
+            label="每日"
+            value="daily"
+          />
+          <el-option
+            label="每周"
+            value="weekly"
+          />
         </el-select>
-        <el-button type="primary" size="small" @click="addSub">订阅</el-button>
+        <el-button
+          type="primary"
+          size="small"
+          @click="addSub"
+        >
+          订阅
+        </el-button>
       </div>
-      <el-table :data="subs" size="small">
-        <el-table-column prop="email" label="邮箱" min-width="200" />
-        <el-table-column prop="schedule" label="频率" width="100" />
-        <el-table-column label="最近发送" width="170">
-          <template #default="{ row }">{{ row.last_sent ? String(row.last_sent).replace('T',' ').slice(0,16) : '—' }}</template>
-        </el-table-column>
-        <el-table-column label="操作" width="80">
+      <el-table
+        :data="subs"
+        size="small"
+      >
+        <el-table-column
+          prop="email"
+          label="邮箱"
+          min-width="200"
+        />
+        <el-table-column
+          prop="schedule"
+          label="频率"
+          width="100"
+        />
+        <el-table-column
+          label="最近发送"
+          width="170"
+        >
           <template #default="{ row }">
-            <el-button link type="danger" size="small" @click="delSub(row)">退订</el-button>
+            {{ row.last_sent ? String(row.last_sent).replace('T',' ').slice(0,16) : '—' }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="操作"
+          width="80"
+        >
+          <template #default="{ row }">
+            <el-button
+              link
+              type="danger"
+              size="small"
+              @click="delSub(row)"
+            >
+              退订
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -104,18 +320,74 @@
 
     
     <el-card>
-      <template #header><b>AI 代理绩效</b>
-        <el-radio-group v-model="perfDays" size="small" style="float:right" @change="loadPerf">
-          <el-radio-button :value="7">7天</el-radio-button>
-          <el-radio-button :value="30">30天</el-radio-button>
+      <template #header>
+        <b>AI 代理绩效</b>
+        <el-radio-group
+          v-model="perfDays"
+          size="small"
+          style="float:right"
+          @change="loadPerf"
+        >
+          <el-radio-button :value="7">
+            7天
+          </el-radio-button>
+          <el-radio-button :value="30">
+            30天
+          </el-radio-button>
         </el-radio-group>
       </template>
-      <el-row :gutter="12" v-if="perf">
-        <el-col :span="5"><div class="stat"><div class="v">{{ perf.total_sessions }}</div><div class="l">总会话</div></div></el-col>
-        <el-col :span="5"><div class="stat"><div class="v" style="color:#10b981">{{ perf.auto_rate?.toFixed(1) }}%</div><div class="l">AI 自动化率</div></div></el-col>
-        <el-col :span="5"><div class="stat"><div class="v">{{ perf.llm_calls }}</div><div class="l">LLM 调用</div></div></el-col>
-        <el-col :span="5"><div class="stat"><div class="v">${{ perf.llm_cost?.toFixed(4) }}</div><div class="l">LLM 成本</div></div></el-col>
-        <el-col :span="4"><div class="stat"><div class="v">{{ perf.human_handled }}</div><div class="l">人工接管</div></div></el-col>
+      <el-row
+        v-if="perf"
+        :gutter="12"
+      >
+        <el-col :span="5">
+          <div class="stat">
+            <div class="v">
+              {{ perf.total_sessions }}
+            </div><div class="l">
+              总会话
+            </div>
+          </div>
+        </el-col>
+        <el-col :span="5">
+          <div class="stat">
+            <div
+              class="v"
+              style="color:#10b981"
+            >
+              {{ perf.auto_rate?.toFixed(1) }}%
+            </div><div class="l">
+              AI 自动化率
+            </div>
+          </div>
+        </el-col>
+        <el-col :span="5">
+          <div class="stat">
+            <div class="v">
+              {{ perf.llm_calls }}
+            </div><div class="l">
+              LLM 调用
+            </div>
+          </div>
+        </el-col>
+        <el-col :span="5">
+          <div class="stat">
+            <div class="v">
+              ${{ perf.llm_cost?.toFixed(4) }}
+            </div><div class="l">
+              LLM 成本
+            </div>
+          </div>
+        </el-col>
+        <el-col :span="4">
+          <div class="stat">
+            <div class="v">
+              {{ perf.human_handled }}
+            </div><div class="l">
+              人工接管
+            </div>
+          </div>
+        </el-col>
       </el-row>
     </el-card>
   </div>

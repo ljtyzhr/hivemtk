@@ -4,36 +4,113 @@
       <template #header>
         <div class="card-header">
           <span>{{ $t('短信任务') }}</span>
-          <el-button type="primary" @click="handleCreateJob" :loading="loading">{{ $t('创建任务') }}</el-button>
+          <el-button
+            type="primary"
+            :loading="loading"
+            @click="handleCreateJob"
+          >
+            {{ $t('创建任务') }}
+          </el-button>
         </div>
       </template>
       
-      <el-table :data="jobList" style="width: 100%" v-loading="loading">
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="name" label="任务名称" />
-        <el-table-column prop="total" label="总数" width="100" />
-        <el-table-column prop="sent" label="已发送" width="100" />
-        <el-table-column prop="failed" label="失败数" width="100" />
-        <el-table-column prop="status" label="状态" width="100">
+      <el-table
+        v-loading="loading"
+        :data="jobList"
+        style="width: 100%"
+      >
+        <el-table-column
+          prop="id"
+          label="ID"
+          width="80"
+        />
+        <el-table-column
+          prop="name"
+          label="任务名称"
+        />
+        <el-table-column
+          prop="total"
+          label="总数"
+          width="100"
+        />
+        <el-table-column
+          prop="sent"
+          label="已发送"
+          width="100"
+        />
+        <el-table-column
+          prop="failed"
+          label="失败数"
+          width="100"
+        />
+        <el-table-column
+          prop="status"
+          label="状态"
+          width="100"
+        >
           <template #default="scope">
             <el-tag :type="getStatusType(scope.row.status)">
               {{ getStatusText(scope.row.status) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="scheduleTime" label="计划发送时间" width="180">
+        <el-table-column
+          prop="scheduleTime"
+          label="计划发送时间"
+          width="180"
+        >
           <template #default="scope">
             {{ scope.row.scheduleTime || '-' }}
           </template>
         </el-table-column>
-        <el-table-column prop="createdAt" label="创建时间" width="180" />
-        <el-table-column label="操作" width="250">
+        <el-table-column
+          prop="createdAt"
+          label="创建时间"
+          width="180"
+        />
+        <el-table-column
+          label="操作"
+          width="250"
+        >
           <template #default="scope">
-            <el-button size="small" @click="handleView(scope.row)">查看</el-button>
-            <el-button size="small" type="warning" @click="handlePause(scope.row)" v-if="scope.row.status === 'running'">暂停</el-button>
-            <el-button size="small" type="success" @click="handleResume(scope.row)" v-if="scope.row.status === 'paused'">继续</el-button>
-            <el-button size="small" type="danger" @click="handleStop(scope.row)" v-if="scope.row.status === 'running' || scope.row.status === 'paused'">停止</el-button>
-            <el-button size="small" type="danger" @click="handleDelete(scope.row)" v-if="scope.row.status === 'completed' || scope.row.status === 'failed'">删除</el-button>
+            <el-button
+              size="small"
+              @click="handleView(scope.row)"
+            >
+              查看
+            </el-button>
+            <el-button
+              v-if="scope.row.status === 'running'"
+              size="small"
+              type="warning"
+              @click="handlePause(scope.row)"
+            >
+              暂停
+            </el-button>
+            <el-button
+              v-if="scope.row.status === 'paused'"
+              size="small"
+              type="success"
+              @click="handleResume(scope.row)"
+            >
+              继续
+            </el-button>
+            <el-button
+              v-if="scope.row.status === 'running' || scope.row.status === 'paused'"
+              size="small"
+              type="danger"
+              @click="handleStop(scope.row)"
+            >
+              停止
+            </el-button>
+            <el-button
+              v-if="scope.row.status === 'completed' || scope.row.status === 'failed'"
+              size="small"
+              type="danger"
+              @click="handleDelete(scope.row)"
+            >
+              删除
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -52,14 +129,38 @@
     </el-card>
 
     
-    <el-dialog v-model="dialogVisible" title="创建任务" width="600px" :before-close="handleDialogClose">
-      <el-form :model="formData" label-width="100px" :rules="rules" ref="formRef">
-        <el-form-item label="任务名称" prop="name">
-          <el-input v-model="formData.name" placeholder="请输入任务名称" maxlength="100" show-word-limit />
+    <el-dialog
+      v-model="dialogVisible"
+      title="创建任务"
+      width="600px"
+      :before-close="handleDialogClose"
+    >
+      <el-form
+        ref="formRef"
+        :model="formData"
+        label-width="100px"
+        :rules="rules"
+      >
+        <el-form-item
+          label="任务名称"
+          prop="name"
+        >
+          <el-input
+            v-model="formData.name"
+            placeholder="请输入任务名称"
+            maxlength="100"
+            show-word-limit
+          />
         </el-form-item>
         
-        <el-form-item label="选择草稿" prop="draftId">
-          <el-select v-model="formData.draftId" placeholder="请选择草稿">
+        <el-form-item
+          label="选择草稿"
+          prop="draftId"
+        >
+          <el-select
+            v-model="formData.draftId"
+            placeholder="请选择草稿"
+          >
             <el-option
               v-for="draft in draftOptions"
               :key="draft.id"
@@ -69,11 +170,19 @@
           </el-select>
         </el-form-item>
         
-        <el-form-item label="内容预览" v-if="selectedDraft">
-          <div class="content-preview">{{ selectedDraft.content }}</div>
+        <el-form-item
+          v-if="selectedDraft"
+          label="内容预览"
+        >
+          <div class="content-preview">
+            {{ selectedDraft.content }}
+          </div>
         </el-form-item>
         
-        <el-form-item label="接收人群" prop="phoneList">
+        <el-form-item
+          label="接收人群"
+          prop="phoneList"
+        >
           <div class="phone-input-section">
             <el-input
               v-model="tempPhone"
@@ -82,7 +191,9 @@
               @keyup.enter="addPhone"
             >
               <template #append>
-                <el-button @click="addPhone">添加</el-button>
+                <el-button @click="addPhone">
+                  添加
+                </el-button>
               </template>
             </el-input>
           </div>
@@ -106,21 +217,41 @@
               style="display: none"
               aria-label="选择号码文件"
               @change="handleFileChange"
-            />
+            >
             <!-- 链接态按钮要用独立的 link prop（见 components/AgentBindingDialog.vue:44 等既有写法），
                  type 的合法值是 default/primary/success/warning/info/danger/text/空串，不含 link；
                  写 type="link" 会触发 prop 校验告警并回落到 default，链接外观失效。 -->
-            <el-button link size="small" @click="handleBatchUpload">批量上传</el-button>
+            <el-button
+              link
+              size="small"
+              @click="handleBatchUpload"
+            >
+              批量上传
+            </el-button>
             <span class="tips-text">或从线索库选择</span>
           </div>
         </el-form-item>
         
         <el-form-item label="发送方式">
-          <el-radio v-model="formData.sendType" label="immediate">立即发送</el-radio>
-          <el-radio v-model="formData.sendType" label="schedule">定时发送</el-radio>
+          <el-radio
+            v-model="formData.sendType"
+            label="immediate"
+          >
+            立即发送
+          </el-radio>
+          <el-radio
+            v-model="formData.sendType"
+            label="schedule"
+          >
+            定时发送
+          </el-radio>
         </el-form-item>
         
-        <el-form-item label="定时时间" v-if="formData.sendType === 'schedule'" prop="scheduleTime">
+        <el-form-item
+          v-if="formData.sendType === 'schedule'"
+          label="定时时间"
+          prop="scheduleTime"
+        >
           <el-date-picker
             v-model="formData.scheduleTime"
             type="datetime"
@@ -134,40 +265,84 @@
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="handleDialogClose">取消</el-button>
-          <el-button type="primary" @click="handleSubmit">确定</el-button>
+          <el-button
+            type="primary"
+            @click="handleSubmit"
+          >确定</el-button>
         </span>
       </template>
     </el-dialog>
 
     
-    <el-dialog v-model="detailVisible" title="任务详情" width="700px">
-      <el-descriptions :column="1" border>
-        <el-descriptions-item label="任务名称">{{ currentJob?.name }}</el-descriptions-item>
-        <el-descriptions-item label="总数">{{ currentJob?.total }}</el-descriptions-item>
-        <el-descriptions-item label="已发送">{{ currentJob?.sent }}</el-descriptions-item>
-        <el-descriptions-item label="失败数">{{ currentJob?.failed }}</el-descriptions-item>
+    <el-dialog
+      v-model="detailVisible"
+      title="任务详情"
+      width="700px"
+    >
+      <el-descriptions
+        :column="1"
+        border
+      >
+        <el-descriptions-item label="任务名称">
+          {{ currentJob?.name }}
+        </el-descriptions-item>
+        <el-descriptions-item label="总数">
+          {{ currentJob?.total }}
+        </el-descriptions-item>
+        <el-descriptions-item label="已发送">
+          {{ currentJob?.sent }}
+        </el-descriptions-item>
+        <el-descriptions-item label="失败数">
+          {{ currentJob?.failed }}
+        </el-descriptions-item>
         <el-descriptions-item label="状态">
           <el-tag :type="getStatusType(currentJob?.status)">
             {{ getStatusText(currentJob?.status) }}
           </el-tag>
         </el-descriptions-item>
-        <el-descriptions-item label="计划发送时间">{{ currentJob?.scheduleTime || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="创建时间">{{ currentJob?.createdAt }}</el-descriptions-item>
+        <el-descriptions-item label="计划发送时间">
+          {{ currentJob?.scheduleTime || '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="创建时间">
+          {{ currentJob?.createdAt }}
+        </el-descriptions-item>
       </el-descriptions>
       
-      <div class="job-detail-list" v-if="jobDetails.length > 0">
+      <div
+        v-if="jobDetails.length > 0"
+        class="job-detail-list"
+      >
         <h3>发送记录</h3>
-        <el-table :data="jobDetails" style="width: 100%">
-          <el-table-column prop="phone" label="手机号" width="150" />
-          <el-table-column prop="status" label="状态" width="100">
+        <el-table
+          :data="jobDetails"
+          style="width: 100%"
+        >
+          <el-table-column
+            prop="phone"
+            label="手机号"
+            width="150"
+          />
+          <el-table-column
+            prop="status"
+            label="状态"
+            width="100"
+          >
             <template #default="scope">
               <el-tag :type="getStatusType(scope.row.status)">
                 {{ getStatusText(scope.row.status) }}
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="sendTime" label="发送时间" width="180" />
-          <el-table-column prop="errorMsg" label="错误信息" show-overflow-tooltip />
+          <el-table-column
+            prop="sendTime"
+            label="发送时间"
+            width="180"
+          />
+          <el-table-column
+            prop="errorMsg"
+            label="错误信息"
+            show-overflow-tooltip
+          />
         </el-table>
       </div>
     </el-dialog>

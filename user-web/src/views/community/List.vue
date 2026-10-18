@@ -1,18 +1,26 @@
 <template>
   <div class="community-container">
-    
     <div class="page-header">
       <h2>{{ $t('社群管理') }}</h2>
       <div class="action-buttons">
-        <el-button type="success" @click="handleExport">
+        <el-button
+          type="success"
+          @click="handleExport"
+        >
           <el-icon><Download /></el-icon>
           {{ $t('导出') }}
         </el-button>
-        <el-button type="warning" @click="handleImport">
+        <el-button
+          type="warning"
+          @click="handleImport"
+        >
           <el-icon><Upload /></el-icon>
           {{ $t('导入') }}
         </el-button>
-        <el-button type="primary" @click="handleAdd">
+        <el-button
+          type="primary"
+          @click="handleAdd"
+        >
           <el-icon><Plus /></el-icon>
           {{ $t('新增分组') }}
         </el-button>
@@ -21,18 +29,39 @@
 
     
     <div class="search-form">
-      <el-form :inline="true" :model="searchForm" class="search-form-content">
+      <el-form
+        :inline="true"
+        :model="searchForm"
+        class="search-form-content"
+      >
         <el-form-item :label="$t('分组名称')">
-          <el-input v-model="searchForm.name" :placeholder="$t('请输入分组名称')" clearable />
+          <el-input
+            v-model="searchForm.name"
+            :placeholder="$t('请输入分组名称')"
+            clearable
+          />
         </el-form-item>
         <el-form-item :label="$t('状态')">
-          <el-select v-model="searchForm.status" :placeholder="$t('请选择状态')" clearable>
-            <el-option :label="$t('正常')" value="1" />
-            <el-option :label="$t('禁用')" value="2" />
+          <el-select
+            v-model="searchForm.status"
+            :placeholder="$t('请选择状态')"
+            clearable
+          >
+            <el-option
+              :label="$t('正常')"
+              value="1"
+            />
+            <el-option
+              :label="$t('禁用')"
+              value="2"
+            />
           </el-select>
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="handleSearch">
+          <el-button
+            type="primary"
+            @click="handleSearch"
+          >
             <el-icon><Search /></el-icon>
             {{ $t('搜索') }}
           </el-button>
@@ -45,39 +74,98 @@
     </div>
 
     
-    <el-table :data="groupList" border style="width: 100%" v-loading="loading">
-      <el-table-column prop="id" label="ID" width="80" />
-      <el-table-column prop="name" :label="$t('分组名称')" min-width="150" show-overflow-tooltip />
-      <el-table-column prop="description" :label="$t('描述')" min-width="200" show-overflow-tooltip />
-      <el-table-column prop="member_count" :label="$t('成员数')" width="100" />
-      <el-table-column prop="message_count" :label="$t('消息数')" width="100" />
-      <el-table-column prop="status" :label="$t('状态')" width="100">
+    <el-table
+      v-loading="loading"
+      :data="groupList"
+      border
+      style="width: 100%"
+    >
+      <el-table-column
+        prop="id"
+        label="ID"
+        width="80"
+      />
+      <el-table-column
+        prop="name"
+        :label="$t('分组名称')"
+        min-width="150"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        prop="description"
+        :label="$t('描述')"
+        min-width="200"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        prop="member_count"
+        :label="$t('成员数')"
+        width="100"
+      />
+      <el-table-column
+        prop="message_count"
+        :label="$t('消息数')"
+        width="100"
+      />
+      <el-table-column
+        prop="status"
+        :label="$t('状态')"
+        width="100"
+      >
         <template #default="scope">
           <el-tag :type="scope.row.status === 1 ? 'success' : 'danger'">
             {{ scope.row.status === 1 ? '正常' : '禁用' }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="created_at" label="创建时间" width="180" />
-      <el-table-column label="操作" width="340" fixed="right">
+      <el-table-column
+        prop="created_at"
+        label="创建时间"
+        width="180"
+      />
+      <el-table-column
+        label="操作"
+        width="340"
+        fixed="right"
+      >
         <template #default="scope">
-          <el-button type="primary" size="small" @click="handleEdit(scope.row)">
+          <el-button
+            type="primary"
+            size="small"
+            @click="handleEdit(scope.row)"
+          >
             <el-icon><Edit /></el-icon>
             编辑
           </el-button>
-          <el-button type="info" size="small" @click="handleViewMembers(scope.row)">
+          <el-button
+            type="info"
+            size="small"
+            @click="handleViewMembers(scope.row)"
+          >
             <el-icon><User /></el-icon>
             成员
           </el-button>
-          <el-button type="success" size="small" @click="handleViewMessages(scope.row)">
+          <el-button
+            type="success"
+            size="small"
+            @click="handleViewMessages(scope.row)"
+          >
             <el-icon><ChatDotSquare /></el-icon>
             消息
           </el-button>
-          <el-button type="warning" size="small" @click="handleViewStats(scope.row)">
+          <el-button
+            type="warning"
+            size="small"
+            @click="handleViewStats(scope.row)"
+          >
             <el-icon><DataAnalysis /></el-icon>
             统计
           </el-button>
-          <el-button type="danger" size="small" @click="handleDelete(scope.row)">
+          <el-button
+            type="danger"
+            size="small"
+            @click="handleDelete(scope.row)"
+          >
             <el-icon><Delete /></el-icon>
             删除
           </el-button>
@@ -111,23 +199,48 @@
         :rules="rules"
         label-width="100px"
       >
-        <el-form-item label="分组名称" prop="name">
-          <el-input v-model="form.name" placeholder="请输入分组名称" />
+        <el-form-item
+          label="分组名称"
+          prop="name"
+        >
+          <el-input
+            v-model="form.name"
+            placeholder="请输入分组名称"
+          />
         </el-form-item>
-        <el-form-item label="描述" prop="description">
-          <el-input v-model="form.description" type="textarea" :rows="4" placeholder="请输入分组描述" />
+        <el-form-item
+          label="描述"
+          prop="description"
+        >
+          <el-input
+            v-model="form.description"
+            type="textarea"
+            :rows="4"
+            placeholder="请输入分组描述"
+          />
         </el-form-item>
-        <el-form-item label="状态" prop="status">
+        <el-form-item
+          label="状态"
+          prop="status"
+        >
           <el-radio-group v-model="form.status">
-            <el-radio :label="1">正常</el-radio>
-            <el-radio :label="2">禁用</el-radio>
+            <el-radio :label="1">
+              正常
+            </el-radio>
+            <el-radio :label="2">
+              禁用
+            </el-radio>
           </el-radio-group>
         </el-form-item>
       </el-form>
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="dialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="handleSubmit" :loading="submitting">
+          <el-button
+            type="primary"
+            :loading="submitting"
+            @click="handleSubmit"
+          >
             确定
           </el-button>
         </span>
@@ -141,11 +254,32 @@
       width="800px"
       top="5vh"
     >
-      <el-table :data="memberList" border style="width: 100%" v-loading="membersLoading">
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="nickname" label="昵称" min-width="150" />
-        <el-table-column prop="role" label="角色" width="120" />
-        <el-table-column prop="join_time" label="加入时间" width="180" />
+      <el-table
+        v-loading="membersLoading"
+        :data="memberList"
+        border
+        style="width: 100%"
+      >
+        <el-table-column
+          prop="id"
+          label="ID"
+          width="80"
+        />
+        <el-table-column
+          prop="nickname"
+          label="昵称"
+          min-width="150"
+        />
+        <el-table-column
+          prop="role"
+          label="角色"
+          width="120"
+        />
+        <el-table-column
+          prop="join_time"
+          label="加入时间"
+          width="180"
+        />
       </el-table>
       <div class="pagination-container">
         <el-pagination
@@ -166,12 +300,38 @@
       width="800px"
       top="5vh"
     >
-      <el-table :data="messageList" border style="width: 100%" v-loading="messagesLoading">
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="sender" label="发送者" width="150" />
-        <el-table-column prop="content" label="内容" min-width="200" show-overflow-tooltip />
-        <el-table-column prop="type" label="类型" width="100" />
-        <el-table-column prop="created_at" label="时间" width="180" />
+      <el-table
+        v-loading="messagesLoading"
+        :data="messageList"
+        border
+        style="width: 100%"
+      >
+        <el-table-column
+          prop="id"
+          label="ID"
+          width="80"
+        />
+        <el-table-column
+          prop="sender"
+          label="发送者"
+          width="150"
+        />
+        <el-table-column
+          prop="content"
+          label="内容"
+          min-width="200"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          prop="type"
+          label="类型"
+          width="100"
+        />
+        <el-table-column
+          prop="created_at"
+          label="时间"
+          width="180"
+        />
       </el-table>
       <div class="pagination-container">
         <el-pagination
@@ -191,32 +351,59 @@
       title="社群统计"
       width="700px"
     >
-      <div v-loading="statsLoading" class="stats-content">
+      <div
+        v-loading="statsLoading"
+        class="stats-content"
+      >
         <el-row :gutter="20">
           <el-col :span="8">
             <el-card class="stats-card">
-              <div class="stats-value">{{ currentStats.member_count || 0 }}</div>
-              <div class="stats-label">成员总数</div>
+              <div class="stats-value">
+                {{ currentStats.member_count || 0 }}
+              </div>
+              <div class="stats-label">
+                成员总数
+              </div>
             </el-card>
           </el-col>
           <el-col :span="8">
             <el-card class="stats-card">
-              <div class="stats-value">{{ currentStats.message_count || 0 }}</div>
-              <div class="stats-label">消息总数</div>
+              <div class="stats-value">
+                {{ currentStats.message_count || 0 }}
+              </div>
+              <div class="stats-label">
+                消息总数
+              </div>
             </el-card>
           </el-col>
           <el-col :span="8">
             <el-card class="stats-card">
-              <div class="stats-value">{{ currentStats.active_count || 0 }}</div>
-              <div class="stats-label">今日活跃</div>
+              <div class="stats-value">
+                {{ currentStats.active_count || 0 }}
+              </div>
+              <div class="stats-label">
+                今日活跃
+              </div>
             </el-card>
           </el-col>
         </el-row>
-        <el-descriptions :column="2" border style="margin-top: 20px">
-          <el-descriptions-item label="分组名称">{{ currentGroup.name }}</el-descriptions-item>
-          <el-descriptions-item label="分组ID">{{ currentGroup.id }}</el-descriptions-item>
-          <el-descriptions-item label="创建时间">{{ currentGroup.created_at }}</el-descriptions-item>
-          <el-descriptions-item label="状态">{{ currentGroup.status === 1 ? '正常' : '禁用' }}</el-descriptions-item>
+        <el-descriptions
+          :column="2"
+          border
+          style="margin-top: 20px"
+        >
+          <el-descriptions-item label="分组名称">
+            {{ currentGroup.name }}
+          </el-descriptions-item>
+          <el-descriptions-item label="分组ID">
+            {{ currentGroup.id }}
+          </el-descriptions-item>
+          <el-descriptions-item label="创建时间">
+            {{ currentGroup.created_at }}
+          </el-descriptions-item>
+          <el-descriptions-item label="状态">
+            {{ currentGroup.status === 1 ? '正常' : '禁用' }}
+          </el-descriptions-item>
         </el-descriptions>
       </div>
     </el-dialog>

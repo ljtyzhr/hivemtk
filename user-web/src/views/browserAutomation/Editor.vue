@@ -1,126 +1,388 @@
 <template>
   <div class="page">
     <h2>{{ isEdit ? '编辑任务' : '新建任务' }}</h2>
-    <el-alert v-if="taskLoadError" type="error" :closable="false" show-icon style="max-width: 860px; margin-bottom: 12px">
-      <template #title>这条任务读不到，下面摊开的是空白默认值而不是它的内容：{{ taskLoadError }}</template>
-      <el-button size="small" style="margin-top: 6px" @click="router.push('/browser-automation/tasks')">返回任务列表</el-button>
+    <el-alert
+      v-if="taskLoadError"
+      type="error"
+      :closable="false"
+      show-icon
+      style="max-width: 860px; margin-bottom: 12px"
+    >
+      <template #title>
+        这条任务读不到，下面摊开的是空白默认值而不是它的内容：{{ taskLoadError }}
+      </template>
+      <el-button
+        size="small"
+        style="margin-top: 6px"
+        @click="router.push('/browser-automation/tasks')"
+      >
+        返回任务列表
+      </el-button>
     </el-alert>
-    <el-form :model="form" label-width="120px" style="max-width: 860px">
-      <el-form-item label="名称" required>
-        <el-input v-model="form.name" maxlength="256" />
+    <el-form
+      :model="form"
+      label-width="120px"
+      style="max-width: 860px"
+    >
+      <el-form-item
+        label="名称"
+        required
+      >
+        <el-input
+          v-model="form.name"
+          maxlength="256"
+        />
       </el-form-item>
       <el-form-item label="描述">
-        <el-input v-model="form.description" type="textarea" :rows="2" />
+        <el-input
+          v-model="form.description"
+          type="textarea"
+          :rows="2"
+        />
       </el-form-item>
-      <el-form-item label="平台" required>
-        <el-select v-model="form.platform" style="width: 220px" @change="onPlatformChange">
-          <el-option v-for="p in platforms" :key="p.identifier" :value="p.identifier"
-            :label="platformLabel(p)" :disabled="false" />
+      <el-form-item
+        label="平台"
+        required
+      >
+        <el-select
+          v-model="form.platform"
+          style="width: 220px"
+          @change="onPlatformChange"
+        >
+          <el-option
+            v-for="p in platforms"
+            :key="p.identifier"
+            :value="p.identifier"
+            :label="platformLabel(p)"
+            :disabled="false"
+          />
         </el-select>
-        <span v-if="currentPlatform && !currentPlatform.can_post_comment" class="platform-hint">
+        <span
+          v-if="currentPlatform && !currentPlatform.can_post_comment"
+          class="platform-hint"
+        >
           {{ platformLabel(currentPlatform) }} 暂不支持发评论（接口未公开/待 M3）
         </span>
       </el-form-item>
-      <el-form-item label="起始 URL" required>
-        <el-input v-model="form.url" placeholder="https://..." />
+      <el-form-item
+        label="起始 URL"
+        required
+      >
+        <el-input
+          v-model="form.url"
+          placeholder="https://..."
+        />
       </el-form-item>
       <el-form-item label="任务类型">
-        <el-select v-model="form.task_type" style="width: 200px">
-          <el-option label="单次 (one_shot)" value="one_shot" />
-          <el-option label="循环 (loop)" value="loop" />
-          <el-option label="定时 (cron)" value="cron" />
-          <el-option label="工作流 (workflow)" value="workflow" />
+        <el-select
+          v-model="form.task_type"
+          style="width: 200px"
+        >
+          <el-option
+            label="单次 (one_shot)"
+            value="one_shot"
+          />
+          <el-option
+            label="循环 (loop)"
+            value="loop"
+          />
+          <el-option
+            label="定时 (cron)"
+            value="cron"
+          />
+          <el-option
+            label="工作流 (workflow)"
+            value="workflow"
+          />
         </el-select>
       </el-form-item>
       <el-form-item label="执行模式">
         <el-radio-group v-model="form.brain_mode">
-          <el-radio :value="false">显式步骤编排</el-radio>
-          <el-radio :value="true">Brain 目标驱动（LLM）</el-radio>
+          <el-radio :value="false">
+            显式步骤编排
+          </el-radio>
+          <el-radio :value="true">
+            Brain 目标驱动（LLM）
+          </el-radio>
         </el-radio-group>
       </el-form-item>
-      <el-form-item v-if="form.brain_mode" label="Brain 目标" required>
-        <el-input v-model="form.brain_goal" type="textarea" :rows="3" placeholder="例：打开页面搜索“机械键盘”，记录前 10 个结果的标题与价格" />
+      <el-form-item
+        v-if="form.brain_mode"
+        label="Brain 目标"
+        required
+      >
+        <el-input
+          v-model="form.brain_goal"
+          type="textarea"
+          :rows="3"
+          placeholder="例：打开页面搜索“机械键盘”，记录前 10 个结果的标题与价格"
+        />
       </el-form-item>
 
       <template v-if="!form.brain_mode">
         <el-form-item>
-          <el-button size="small" type="primary" plain @click="applyPreset">平台预设模板</el-button>
+          <el-button
+            size="small"
+            type="primary"
+            plain
+            @click="applyPreset"
+          >
+            平台预设模板
+          </el-button>
           <span class="preset-hint">按当前平台生成读链路编排（标题/作者/评论提取 + 截图），可再手动调整</span>
         </el-form-item>
         <el-form-item label="步骤编排">
           <div class="steps-editor">
-            <div v-for="(step, i) in form.steps" :key="i" class="step-row">
+            <div
+              v-for="(step, i) in form.steps"
+              :key="i"
+              class="step-row"
+            >
               <span class="step-index">{{ i + 1 }}</span>
-              <el-select v-model="step.action" style="width: 160px" placeholder="动作">
-                <el-option v-for="a in actions" :key="a.value" :label="a.label" :value="a.value" />
+              <el-select
+                v-model="step.action"
+                style="width: 160px"
+                placeholder="动作"
+              >
+                <el-option
+                  v-for="a in actions"
+                  :key="a.value"
+                  :label="a.label"
+                  :value="a.value"
+                />
               </el-select>
-              <el-input v-if="['open_tab','click','type','extract','query'].includes(step.action)" v-model="step.target"
-                :placeholder="step.action === 'open_tab' ? 'URL（可选，默认任务 URL）' : 'CSS selector 或 @eN'" style="width: 240px" />
-              <el-input v-if="step.action === 'type'" v-model="step.value" placeholder="输入内容" style="width: 180px" />
-              <el-input v-if="step.action === 'post_comment'" v-model="step.value" placeholder="评论文本" style="width: 220px" />
-              <el-input v-if="step.action === 'wait'" v-model.number="step.ms" placeholder="毫秒" style="width: 100px" />
-              <el-input v-if="step.action === 'wait_for_selector'" v-model="step.selector" placeholder="selector" style="width: 160px" />
-              <el-input v-if="step.action === 'wait_for_selector'" v-model.number="step.timeout_ms" placeholder="超时ms" style="width: 100px" />
-              <el-select v-if="step.action === 'scroll'" v-model="step.direction" style="width: 90px">
-                <el-option v-for="d in ['up','down','left','right']" :key="d" :label="d" :value="d" />
+              <el-input
+                v-if="['open_tab','click','type','extract','query'].includes(step.action)"
+                v-model="step.target"
+                :placeholder="step.action === 'open_tab' ? 'URL（可选，默认任务 URL）' : 'CSS selector 或 @eN'"
+                style="width: 240px"
+              />
+              <el-input
+                v-if="step.action === 'type'"
+                v-model="step.value"
+                placeholder="输入内容"
+                style="width: 180px"
+              />
+              <el-input
+                v-if="step.action === 'post_comment'"
+                v-model="step.value"
+                placeholder="评论文本"
+                style="width: 220px"
+              />
+              <el-input
+                v-if="step.action === 'wait'"
+                v-model.number="step.ms"
+                placeholder="毫秒"
+                style="width: 100px"
+              />
+              <el-input
+                v-if="step.action === 'wait_for_selector'"
+                v-model="step.selector"
+                placeholder="selector"
+                style="width: 160px"
+              />
+              <el-input
+                v-if="step.action === 'wait_for_selector'"
+                v-model.number="step.timeout_ms"
+                placeholder="超时ms"
+                style="width: 100px"
+              />
+              <el-select
+                v-if="step.action === 'scroll'"
+                v-model="step.direction"
+                style="width: 90px"
+              >
+                <el-option
+                  v-for="d in ['up','down','left','right']"
+                  :key="d"
+                  :label="d"
+                  :value="d"
+                />
               </el-select>
-              <el-input v-if="step.action === 'scroll'" v-model.number="step.amount" placeholder="px" style="width: 90px" />
-              <el-select v-if="step.action === 'assert'" v-model="step.assert_kind" style="width: 150px">
-                <el-option label="包含文本" value="contains_text" />
-                <el-option label="元素存在" value="selector_exists" />
+              <el-input
+                v-if="step.action === 'scroll'"
+                v-model.number="step.amount"
+                placeholder="px"
+                style="width: 90px"
+              />
+              <el-select
+                v-if="step.action === 'assert'"
+                v-model="step.assert_kind"
+                style="width: 150px"
+              >
+                <el-option
+                  label="包含文本"
+                  value="contains_text"
+                />
+                <el-option
+                  label="元素存在"
+                  value="selector_exists"
+                />
               </el-select>
-              <el-input v-if="step.action === 'assert'" v-model="step.value" placeholder="断言文本/selector" style="width: 180px" />
-              <el-input v-if="step.action === 'click_near'" v-model="step.anchor" placeholder="锚点 CSS selector" style="width: 160px" />
-              <el-input v-if="step.action === 'click_near'" v-model="step.button_text" placeholder="按钮文本" style="width: 110px" />
-              <el-select v-if="step.action === 'query'" v-model="step.query_kind" style="width: 130px">
-                <el-option label="取文本" value="text" />
-                <el-option label="是否存在" value="exists" />
-                <el-option label="计数" value="count" />
-                <el-option label="取属性" value="attr" />
+              <el-input
+                v-if="step.action === 'assert'"
+                v-model="step.value"
+                placeholder="断言文本/selector"
+                style="width: 180px"
+              />
+              <el-input
+                v-if="step.action === 'click_near'"
+                v-model="step.anchor"
+                placeholder="锚点 CSS selector"
+                style="width: 160px"
+              />
+              <el-input
+                v-if="step.action === 'click_near'"
+                v-model="step.button_text"
+                placeholder="按钮文本"
+                style="width: 110px"
+              />
+              <el-select
+                v-if="step.action === 'query'"
+                v-model="step.query_kind"
+                style="width: 130px"
+              >
+                <el-option
+                  label="取文本"
+                  value="text"
+                />
+                <el-option
+                  label="是否存在"
+                  value="exists"
+                />
+                <el-option
+                  label="计数"
+                  value="count"
+                />
+                <el-option
+                  label="取属性"
+                  value="attr"
+                />
               </el-select>
-              <el-input v-if="step.action === 'query' && step.query_kind === 'attr'" v-model="step.attribute" placeholder="属性名（href/src/value）" style="width: 150px" />
-              <el-checkbox v-model="step.continue_on_error" label="失败继续" />
-              <el-checkbox v-model="step.is_write" label="写操作">
+              <el-input
+                v-if="step.action === 'query' && step.query_kind === 'attr'"
+                v-model="step.attribute"
+                placeholder="属性名（href/src/value）"
+                style="width: 150px"
+              />
+              <el-checkbox
+                v-model="step.continue_on_error"
+                label="失败继续"
+              />
+              <el-checkbox
+                v-model="step.is_write"
+                label="写操作"
+              >
                 <span class="step-write-hint">不可逆（服务端强制禁重试 + 记台账）</span>
               </el-checkbox>
-              <el-input-number v-model="step.retry_count" :min="0" :max="10" size="small" style="width: 90px" />
-              <el-button size="small" type="danger" icon="Delete" circle @click="removeStep(i)" />
+              <el-input-number
+                v-model="step.retry_count"
+                :min="0"
+                :max="10"
+                size="small"
+                style="width: 90px"
+              />
+              <el-button
+                size="small"
+                type="danger"
+                icon="Delete"
+                circle
+                @click="removeStep(i)"
+              />
             </div>
-            <el-button size="small" icon="Plus" @click="addStep">添加步骤</el-button>
+            <el-button
+              size="small"
+              icon="Plus"
+              @click="addStep"
+            >
+              添加步骤
+            </el-button>
           </div>
         </el-form-item>
       </template>
 
-      <el-form-item v-if="form.task_type === 'cron'" label="定时表达式" required>
-        <el-input v-model="form.cron_expr" placeholder="*/5 * * * *（5 段：分 时 日 月 周）" style="width: 260px" />
-        <el-select v-model="form.cron_tz" clearable placeholder="时区（默认服务器本地）" style="width: 200px; margin-left: 12px">
-          <el-option v-for="tz in TIMEZONES" :key="tz" :label="tz" :value="tz" />
+      <el-form-item
+        v-if="form.task_type === 'cron'"
+        label="定时表达式"
+        required
+      >
+        <el-input
+          v-model="form.cron_expr"
+          placeholder="*/5 * * * *（5 段：分 时 日 月 周）"
+          style="width: 260px"
+        />
+        <el-select
+          v-model="form.cron_tz"
+          clearable
+          placeholder="时区（默认服务器本地）"
+          style="width: 200px; margin-left: 12px"
+        >
+          <el-option
+            v-for="tz in TIMEZONES"
+            :key="tz"
+            :label="tz"
+            :value="tz"
+          />
         </el-select>
-        <div class="form-hint" style="margin-left: 0; width: 100%">
-          <template v-if="existingTrigger">已有触发器 #{{ existingTrigger.id }}（{{ existingTrigger.cron_expr }}{{ existingTrigger.enabled ? '' : '，已停用' }}），保存会连着它一起改</template>
-          <template v-else>保存后会自动为这条任务创建触发器；留空则不创建</template>
-          <div v-if="!cronRunnable" class="form-warn">
+        <div
+          class="form-hint"
+          style="margin-left: 0; width: 100%"
+        >
+          <template v-if="existingTrigger">
+            已有触发器 #{{ existingTrigger.id }}（{{ existingTrigger.cron_expr }}{{ existingTrigger.enabled ? '' : '，已停用' }}），保存会连着它一起改
+          </template>
+          <template v-else>
+            保存后会自动为这条任务创建触发器；留空则不创建
+          </template>
+          <div
+            v-if="!cronRunnable"
+            class="form-warn"
+          >
             任务还不是可执行状态（新建默认是草稿）：触发器照常排程，但到点会被执行入口拒掉、不产生会话——发布后才会真跑
           </div>
         </div>
       </el-form-item>
 
       <el-form-item label="循环次数">
-        <el-input-number v-model="form.loop_count" :min="1" :max="1000" />
+        <el-input-number
+          v-model="form.loop_count"
+          :min="1"
+          :max="1000"
+        />
       </el-form-item>
       <el-form-item label="步间间隔(ms)">
-        <el-input-number v-model="form.delay_ms" :min="0" :max="60000" :step="500" />
+        <el-input-number
+          v-model="form.delay_ms"
+          :min="0"
+          :max="60000"
+          :step="500"
+        />
       </el-form-item>
       <el-form-item label="超时(秒)">
-        <el-input-number v-model="form.timeout_sec" :min="10" :max="3600" :step="10" />
+        <el-input-number
+          v-model="form.timeout_sec"
+          :min="10"
+          :max="3600"
+          :step="10"
+        />
       </el-form-item>
 
       <el-form-item label="失败自动重试">
         <el-switch v-model="form.retry_on_fail" />
         <template v-if="form.retry_on_fail">
-          <el-input-number v-model="form.retry_delay_sec" :min="30" :max="86400" :step="30" style="margin-left: 12px" />
+          <el-input-number
+            v-model="form.retry_delay_sec"
+            :min="30"
+            :max="86400"
+            :step="30"
+            style="margin-left: 12px"
+          />
           <span style="margin: 0 8px">秒后重试，最多</span>
-          <el-input-number v-model="form.max_retry_times" :min="1" :max="10" />
+          <el-input-number
+            v-model="form.max_retry_times"
+            :min="1"
+            :max="10"
+          />
           <span style="margin-left: 8px">次</span>
         </template>
       </el-form-item>
@@ -129,29 +391,68 @@
         <el-switch v-model="form.require_confirm" />
         <template v-if="form.require_confirm">
           <span style="margin: 0 8px">最长等待</span>
-          <el-input-number v-model="form.confirm_wait_sec" :min="1" :max="900" :step="30" />
+          <el-input-number
+            v-model="form.confirm_wait_sec"
+            :min="1"
+            :max="900"
+            :step="30"
+          />
           <span class="form-hint">秒（与上方「超时」是两条独立预算：那条管自动化跑多久，这条管等人多久）</span>
         </template>
-        <div class="form-hint" style="margin-left: 0; width: 100%">
+        <div
+          class="form-hint"
+          style="margin-left: 0; width: 100%"
+        >
           开启后不可逆提交点前挂起，需在监控页点「确认放行」才真正发出（超时/中断则中止且不提交）。
           受闸的写步：post_comment、输入后回车发评论、点击发送按钮，以及勾选「写操作」的步骤——
           服务端按平台定位表推导，界面不提示也不改变判定。
         </div>
       </el-form-item>
 
-      <el-form-item v-if="form.task_type === 'workflow'" label="依赖前置任务">
-        <el-select v-model="form.depends_on_task_id" clearable placeholder="选择已发布任务" style="width: 300px">
-          <el-option v-for="t in depOptions" :key="t.id" :label="depLabel(t)" :value="t.id" />
+      <el-form-item
+        v-if="form.task_type === 'workflow'"
+        label="依赖前置任务"
+      >
+        <el-select
+          v-model="form.depends_on_task_id"
+          clearable
+          placeholder="选择已发布任务"
+          style="width: 300px"
+        >
+          <el-option
+            v-for="t in depOptions"
+            :key="t.id"
+            :label="depLabel(t)"
+            :value="t.id"
+          />
         </el-select>
-        <el-select v-if="form.depends_on_task_id" v-model="form.depends_on_mode" style="width: 160px; margin-left: 12px">
-          <el-option label="前置完成 (all_done)" value="all_done" />
-          <el-option label="前置曾成功 (any_success)" value="any_success" />
+        <el-select
+          v-if="form.depends_on_task_id"
+          v-model="form.depends_on_mode"
+          style="width: 160px; margin-left: 12px"
+        >
+          <el-option
+            label="前置完成 (all_done)"
+            value="all_done"
+          />
+          <el-option
+            label="前置曾成功 (any_success)"
+            value="any_success"
+          />
         </el-select>
       </el-form-item>
 
       <el-form-item>
-        <el-button type="primary" :loading="saving" @click="save">保存</el-button>
-        <el-button @click="$router.back()">取消</el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="save"
+        >
+          保存
+        </el-button>
+        <el-button @click="$router.back()">
+          取消
+        </el-button>
       </el-form-item>
     </el-form>
   </div>

@@ -1,14 +1,21 @@
 <template>
   <div class="dialogue-memory-page">
-    
-    <el-card class="header-card" shadow="never">
+    <el-card
+      class="header-card"
+      shadow="never"
+    >
       <div class="header-content">
         <div>
           <h2>{{ $t('对话记忆') }}</h2>
-          <p class="subtitle">短期记忆 + 长期记忆双层架构，为销冠 SOP 智能体提供完整客户上下文</p>
+          <p class="subtitle">
+            短期记忆 + 长期记忆双层架构，为销冠 SOP 智能体提供完整客户上下文
+          </p>
         </div>
         <div class="header-actions">
-          <el-button @click="refreshAll" :loading="loading">
+          <el-button
+            :loading="loading"
+            @click="refreshAll"
+          >
             <el-icon><Refresh /></el-icon>
             {{ $t('刷新') }}
           </el-button>
@@ -17,29 +24,60 @@
     </el-card>
 
     
-    <el-row :gutter="16" class="stats-row">
+    <el-row
+      :gutter="16"
+      class="stats-row"
+    >
       <el-col :span="6">
-        <el-card shadow="hover" class="stat-card">
-          <div class="stat-value">{{ pagination.total }}</div>
-          <div class="stat-label">{{ $t('客户记忆数') }}</div>
+        <el-card
+          shadow="hover"
+          class="stat-card"
+        >
+          <div class="stat-value">
+            {{ pagination.total }}
+          </div>
+          <div class="stat-label">
+            {{ $t('客户记忆数') }}
+          </div>
         </el-card>
       </el-col>
       <el-col :span="6">
-        <el-card shadow="hover" class="stat-card stat-high">
-          <div class="stat-value">{{ intentCount('high') }}</div>
-          <div class="stat-label">{{ $t('高意向客户') }}</div>
+        <el-card
+          shadow="hover"
+          class="stat-card stat-high"
+        >
+          <div class="stat-value">
+            {{ intentCount('high') }}
+          </div>
+          <div class="stat-label">
+            {{ $t('高意向客户') }}
+          </div>
         </el-card>
       </el-col>
       <el-col :span="6">
-        <el-card shadow="hover" class="stat-card stat-medium">
-          <div class="stat-value">{{ intentCount('medium') }}</div>
-          <div class="stat-label">{{ $t('中意向客户') }}</div>
+        <el-card
+          shadow="hover"
+          class="stat-card stat-medium"
+        >
+          <div class="stat-value">
+            {{ intentCount('medium') }}
+          </div>
+          <div class="stat-label">
+            {{ $t('中意向客户') }}
+          </div>
         </el-card>
       </el-col>
       <el-col :span="6">
-        <el-card shadow="hover" class="stat-card stat-objection">
-          <div class="stat-value">{{ totalObjections }}</div>
-          <div class="stat-label">{{ $t('累计异议记录') }}</div>
+        <el-card
+          shadow="hover"
+          class="stat-card stat-objection"
+        >
+          <div class="stat-value">
+            {{ totalObjections }}
+          </div>
+          <div class="stat-label">
+            {{ $t('累计异议记录') }}
+          </div>
         </el-card>
       </el-col>
     </el-row>
@@ -59,12 +97,25 @@
               @keyup.enter="onSearch"
               @clear="onSearch"
             />
-            <el-button size="small" type="primary" @click="onSearch">{{ $t('查询') }}</el-button>
+            <el-button
+              size="small"
+              type="primary"
+              @click="onSearch"
+            >
+              {{ $t('查询') }}
+            </el-button>
           </div>
         </div>
       </template>
-      <el-table :data="memoryList" v-loading="listLoading" stripe>
-        <el-table-column label="客户" min-width="160">
+      <el-table
+        v-loading="listLoading"
+        :data="memoryList"
+        stripe
+      >
+        <el-table-column
+          label="客户"
+          min-width="160"
+        >
           <template #default="{ row }">
             <div class="customer-cell">
               <span class="customer-name">{{ row.customer_name || row.customer_id || '-' }}</span>
@@ -72,41 +123,100 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="购买意向" width="100">
+        <el-table-column
+          label="购买意向"
+          width="100"
+        >
           <template #default="{ row }">
-            <el-tag :type="getIntentType(row.intent_level || row.purchase_intent)" size="small">
+            <el-tag
+              :type="getIntentType(row.intent_level || row.purchase_intent)"
+              size="small"
+            >
               {{ getIntentLabel(row.intent_level || row.purchase_intent) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="消息数" width="90" align="center">
-          <template #default="{ row }">{{ row.message_count || 0 }}</template>
-        </el-table-column>
-        <el-table-column label="异议数" width="90" align="center">
-          <template #default="{ row }">{{ (row.objections || []).length }}</template>
-        </el-table-column>
-        <el-table-column label="关键事实" width="90" align="center">
+        <el-table-column
+          label="消息数"
+          width="90"
+          align="center"
+        >
           <template #default="{ row }">
-            <el-tag size="small" effect="plain">{{ keyFactsCount(row.key_facts) }}</el-tag>
+            {{ row.message_count || 0 }}
           </template>
         </el-table-column>
-        <el-table-column label="SOP 历史" width="90" align="center">
-          <template #default="{ row }">{{ (row.sop_history || []).length }}</template>
-        </el-table-column>
-        <el-table-column label="最后活跃" width="160">
-          <template #default="{ row }">{{ formatTime(row.last_active_at || row.updated_at) }}</template>
-        </el-table-column>
-        <el-table-column label="操作" width="160" fixed="right">
+        <el-table-column
+          label="异议数"
+          width="90"
+          align="center"
+        >
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="viewDetail(row)">查看记忆</el-button>
-            <el-button link type="success" size="small" @click="buildContext(row)">构建上下文</el-button>
+            {{ (row.objections || []).length }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="关键事实"
+          width="90"
+          align="center"
+        >
+          <template #default="{ row }">
+            <el-tag
+              size="small"
+              effect="plain"
+            >
+              {{ keyFactsCount(row.key_facts) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="SOP 历史"
+          width="90"
+          align="center"
+        >
+          <template #default="{ row }">
+            {{ (row.sop_history || []).length }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="最后活跃"
+          width="160"
+        >
+          <template #default="{ row }">
+            {{ formatTime(row.last_active_at || row.updated_at) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="操作"
+          width="160"
+          fixed="right"
+        >
+          <template #default="{ row }">
+            <el-button
+              link
+              type="primary"
+              size="small"
+              @click="viewDetail(row)"
+            >
+              查看记忆
+            </el-button>
+            <el-button
+              link
+              type="success"
+              size="small"
+              @click="buildContext(row)"
+            >
+              构建上下文
+            </el-button>
           </template>
         </el-table-column>
         <template #empty>
           <el-empty description="暂无记忆数据" />
         </template>
       </el-table>
-      <div class="pagination-container" v-if="pagination.total > 0">
+      <div
+        v-if="pagination.total > 0"
+        class="pagination-container"
+      >
         <el-pagination
           v-model:current-page="pagination.page"
           v-model:page-size="pagination.pageSize"
@@ -124,24 +234,50 @@
          Vue 每次渲染都报 "Runtime directive used on component with non-element root node"），
          且它从声明起就从未被赋 true，是死状态。弹窗内的短消息/长期记忆分区各自有
          shortLoading / longLoading 转圈，删掉不影响任何可见行为。 -->
-    <el-dialog v-model="detailVisible" title="客户对话记忆详情" width="920px" top="5vh">
+    <el-dialog
+      v-model="detailVisible"
+      title="客户对话记忆详情"
+      width="920px"
+      top="5vh"
+    >
       <template v-if="currentMemory">
-        
-        <el-descriptions :column="3" border size="small">
-          <el-descriptions-item label="客户 ID">{{ currentMemory.customer_id || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="客户姓名">{{ currentMemory.customer_name || '-' }}</el-descriptions-item>
+        <el-descriptions
+          :column="3"
+          border
+          size="small"
+        >
+          <el-descriptions-item label="客户 ID">
+            {{ currentMemory.customer_id || '-' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="客户姓名">
+            {{ currentMemory.customer_name || '-' }}
+          </el-descriptions-item>
           <el-descriptions-item label="购买意向">
-            <el-tag :type="getIntentType(currentMemory.intent_level || currentMemory.purchase_intent)" size="small">
+            <el-tag
+              :type="getIntentType(currentMemory.intent_level || currentMemory.purchase_intent)"
+              size="small"
+            >
               {{ getIntentLabel(currentMemory.intent_level || currentMemory.purchase_intent) }}
             </el-tag>
           </el-descriptions-item>
-          <el-descriptions-item label="消息数">{{ currentMemory.message_count || 0 }}</el-descriptions-item>
-          <el-descriptions-item label="异议数">{{ (currentMemory.objections || []).length }}</el-descriptions-item>
-          <el-descriptions-item label="最后活跃">{{ formatTime(currentMemory.last_active_at || currentMemory.updated_at) }}</el-descriptions-item>
+          <el-descriptions-item label="消息数">
+            {{ currentMemory.message_count || 0 }}
+          </el-descriptions-item>
+          <el-descriptions-item label="异议数">
+            {{ (currentMemory.objections || []).length }}
+          </el-descriptions-item>
+          <el-descriptions-item label="最后活跃">
+            {{ formatTime(currentMemory.last_active_at || currentMemory.updated_at) }}
+          </el-descriptions-item>
         </el-descriptions>
 
         <div class="context-bar">
-          <el-button type="primary" size="small" :loading="contextLoading" @click="buildContext(currentMemory)">
+          <el-button
+            type="primary"
+            size="small"
+            :loading="contextLoading"
+            @click="buildContext(currentMemory)"
+          >
             <el-icon><Connection /></el-icon> 构建完整上下文
           </el-button>
           <el-input
@@ -155,51 +291,105 @@
           />
         </div>
 
-        <el-tabs v-model="activeTab" class="detail-tabs">
-          
-          <el-tab-pane label="短期记忆" name="short">
-            <div class="message-stream" v-loading="shortLoading">
+        <el-tabs
+          v-model="activeTab"
+          class="detail-tabs"
+        >
+          <el-tab-pane
+            label="短期记忆"
+            name="short"
+          >
+            <div
+              v-loading="shortLoading"
+              class="message-stream"
+            >
               <template v-if="shortMessages.length">
-                <div v-for="(msg, idx) in shortMessages" :key="idx" :class="['message-item', msg.role]">
+                <div
+                  v-for="(msg, idx) in shortMessages"
+                  :key="idx"
+                  :class="['message-item', msg.role]"
+                >
                   <div class="msg-avatar">
-                    <el-tag :type="getRoleType(msg.role)" size="small" effect="dark">
+                    <el-tag
+                      :type="getRoleType(msg.role)"
+                      size="small"
+                      effect="dark"
+                    >
                       {{ getRoleLabel(msg.role) }}
                     </el-tag>
                   </div>
                   <div class="msg-body">
-                    <div class="msg-content">{{ msg.content }}</div>
-                    <div class="msg-time">{{ formatTime(msg.timestamp || msg.created_at) }}</div>
+                    <div class="msg-content">
+                      {{ msg.content }}
+                    </div>
+                    <div class="msg-time">
+                      {{ formatTime(msg.timestamp || msg.created_at) }}
+                    </div>
                   </div>
                 </div>
               </template>
-              <el-empty v-else description="暂无短期记忆消息" :image-size="80" />
+              <el-empty
+                v-else
+                description="暂无短期记忆消息"
+                :image-size="80"
+              />
             </div>
           </el-tab-pane>
 
           
-          <el-tab-pane label="长期记忆" name="long">
+          <el-tab-pane
+            label="长期记忆"
+            name="long"
+          >
             <div v-loading="longLoading">
               <template v-if="longTermText">
-                <el-alert :title="longTermText" type="info" :closable="false" show-icon />
+                <el-alert
+                  :title="longTermText"
+                  type="info"
+                  :closable="false"
+                  show-icon
+                />
               </template>
-              <el-empty v-else description="暂无长期记忆摘要" :image-size="80" />
+              <el-empty
+                v-else
+                description="暂无长期记忆摘要"
+                :image-size="80"
+              />
             </div>
           </el-tab-pane>
 
           
-          <el-tab-pane label="关键事实" name="facts">
+          <el-tab-pane
+            label="关键事实"
+            name="facts"
+          >
             <template v-if="keyFactsList.length">
-              <el-descriptions :column="2" border size="small">
-                <el-descriptions-item v-for="item in keyFactsList" :key="item.key" :label="item.key">
+              <el-descriptions
+                :column="2"
+                border
+                size="small"
+              >
+                <el-descriptions-item
+                  v-for="item in keyFactsList"
+                  :key="item.key"
+                  :label="item.key"
+                >
                   {{ item.value }}
                 </el-descriptions-item>
               </el-descriptions>
             </template>
-            <el-empty v-else description="暂无关键事实" :image-size="80" />
+            <el-empty
+              v-else
+              description="暂无关键事实"
+              :image-size="80"
+            />
           </el-tab-pane>
 
           
-          <el-tab-pane :label="`异议记录 (${(currentMemory.objections || []).length})`" name="objections">
+          <el-tab-pane
+            :label="`异议记录 (${(currentMemory.objections || []).length})`"
+            name="objections"
+          >
             <template v-if="(currentMemory.objections || []).length">
               <el-timeline>
                 <el-timeline-item
@@ -208,34 +398,65 @@
                   :timestamp="formatTime(obj.time || obj.created_at)"
                   placement="top"
                 >
-                  <div class="objection-content">{{ obj.objection || obj.content }}</div>
-                  <div v-if="obj.response" class="objection-response">回复：{{ obj.response }}</div>
+                  <div class="objection-content">
+                    {{ obj.objection || obj.content }}
+                  </div>
+                  <div
+                    v-if="obj.response"
+                    class="objection-response"
+                  >
+                    回复：{{ obj.response }}
+                  </div>
                 </el-timeline-item>
               </el-timeline>
             </template>
-            <el-empty v-else description="暂无异义记录" :image-size="80" />
+            <el-empty
+              v-else
+              description="暂无异义记录"
+              :image-size="80"
+            />
           </el-tab-pane>
 
           
-          <el-tab-pane label="购买意向" name="purchase">
+          <el-tab-pane
+            label="购买意向"
+            name="purchase"
+          >
             <div class="intent-block">
               <div class="intent-current">
                 <span class="label">当前意向等级：</span>
-                <el-tag :type="getIntentType(currentMemory.intent_level || currentMemory.purchase_intent)" size="large">
+                <el-tag
+                  :type="getIntentType(currentMemory.intent_level || currentMemory.purchase_intent)"
+                  size="large"
+                >
                   {{ getIntentLabel(currentMemory.intent_level || currentMemory.purchase_intent) }}
                 </el-tag>
               </div>
-              <el-divider content-position="left">手动调整意向</el-divider>
-              <el-radio-group v-model="intentLevel" @change="updateIntent">
-                <el-radio-button value="high">高意向</el-radio-button>
-                <el-radio-button value="medium">中意向</el-radio-button>
-                <el-radio-button value="low">低意向</el-radio-button>
+              <el-divider content-position="left">
+                手动调整意向
+              </el-divider>
+              <el-radio-group
+                v-model="intentLevel"
+                @change="updateIntent"
+              >
+                <el-radio-button value="high">
+                  高意向
+                </el-radio-button>
+                <el-radio-button value="medium">
+                  中意向
+                </el-radio-button>
+                <el-radio-button value="low">
+                  低意向
+                </el-radio-button>
               </el-radio-group>
             </div>
           </el-tab-pane>
 
           
-          <el-tab-pane :label="`意图轨迹 (${(currentMemory.intent_trail || []).length})`" name="trail">
+          <el-tab-pane
+            :label="`意图轨迹 (${(currentMemory.intent_trail || []).length})`"
+            name="trail"
+          >
             <template v-if="(currentMemory.intent_trail || []).length">
               <div class="intent-trail">
                 <el-tag
@@ -250,24 +471,48 @@
                 </el-tag>
               </div>
             </template>
-            <el-empty v-else description="暂无意图轨迹" :image-size="80" />
+            <el-empty
+              v-else
+              description="暂无意图轨迹"
+              :image-size="80"
+            />
           </el-tab-pane>
 
           
-          <el-tab-pane :label="`SOP 历史 (${(currentMemory.sop_history || []).length})`" name="sop">
+          <el-tab-pane
+            :label="`SOP 历史 (${(currentMemory.sop_history || []).length})`"
+            name="sop"
+          >
             <template v-if="(currentMemory.sop_history || []).length">
               <el-timeline>
-                <el-timeline-item v-for="(s, idx) in currentMemory.sop_history" :key="idx" placement="top">
+                <el-timeline-item
+                  v-for="(s, idx) in currentMemory.sop_history"
+                  :key="idx"
+                  placement="top"
+                >
                   <div class="sop-history-item">
-                    <el-tag type="warning" size="small" effect="plain">SOP: {{ s.sop_id || s.sop_name || '-' }}</el-tag>
+                    <el-tag
+                      type="warning"
+                      size="small"
+                      effect="plain"
+                    >
+                      SOP: {{ s.sop_id || s.sop_name || '-' }}
+                    </el-tag>
                     <span class="sop-node">节点: {{ s.node_id || '-' }}</span>
                     <span class="sop-action">动作: {{ s.action || '-' }}</span>
-                    <span v-if="s.time || s.created_at" class="sop-time">{{ formatTime(s.time || s.created_at) }}</span>
+                    <span
+                      v-if="s.time || s.created_at"
+                      class="sop-time"
+                    >{{ formatTime(s.time || s.created_at) }}</span>
                   </div>
                 </el-timeline-item>
               </el-timeline>
             </template>
-            <el-empty v-else description="暂无 SOP 历史" :image-size="80" />
+            <el-empty
+              v-else
+              description="暂无 SOP 历史"
+              :image-size="80"
+            />
           </el-tab-pane>
         </el-tabs>
       </template>

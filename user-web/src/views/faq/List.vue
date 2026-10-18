@@ -1,14 +1,21 @@
 <template>
   <div class="faq-list-page">
-    
-    <el-card class="header-card" shadow="never">
+    <el-card
+      class="header-card"
+      shadow="never"
+    >
       <div class="header-content">
         <div>
           <h2>FAQ 知识库</h2>
-          <p class="subtitle">Layer1 FAQ 快速匹配知识库：客户消息命中即跳过 LLM 直接返回标准答案</p>
+          <p class="subtitle">
+            Layer1 FAQ 快速匹配知识库：客户消息命中即跳过 LLM 直接返回标准答案
+          </p>
         </div>
         <div class="header-actions">
-          <el-button @click="loadList" :loading="loading">
+          <el-button
+            :loading="loading"
+            @click="loadList"
+          >
             <el-icon><Refresh /></el-icon>
             刷新
           </el-button>
@@ -16,7 +23,10 @@
             <el-icon><Aim /></el-icon>
             匹配测试
           </el-button>
-          <el-button type="primary" @click="goCreate">
+          <el-button
+            type="primary"
+            @click="goCreate"
+          >
             <el-icon><Plus /></el-icon>
             新建 FAQ
           </el-button>
@@ -25,36 +35,75 @@
     </el-card>
 
     
-    <el-row :gutter="20" class="stat-row" v-if="stats">
+    <el-row
+      v-if="stats"
+      :gutter="20"
+      class="stat-row"
+    >
       <el-col :span="6">
-        <el-card shadow="never" class="stat-card">
-          <div class="stat-label">总数</div>
-          <div class="stat-value">{{ stats.total || 0 }}</div>
+        <el-card
+          shadow="never"
+          class="stat-card"
+        >
+          <div class="stat-label">
+            总数
+          </div>
+          <div class="stat-value">
+            {{ stats.total || 0 }}
+          </div>
         </el-card>
       </el-col>
       <el-col :span="6">
-        <el-card shadow="never" class="stat-card">
-          <div class="stat-label">启用</div>
-          <div class="stat-value text-success">{{ stats.enabled || 0 }}</div>
+        <el-card
+          shadow="never"
+          class="stat-card"
+        >
+          <div class="stat-label">
+            启用
+          </div>
+          <div class="stat-value text-success">
+            {{ stats.enabled || 0 }}
+          </div>
         </el-card>
       </el-col>
       <el-col :span="6">
-        <el-card shadow="never" class="stat-card">
-          <div class="stat-label">启用率</div>
-          <div class="stat-value text-primary">{{ enableRate }}</div>
+        <el-card
+          shadow="never"
+          class="stat-card"
+        >
+          <div class="stat-label">
+            启用率
+          </div>
+          <div class="stat-value text-primary">
+            {{ enableRate }}
+          </div>
         </el-card>
       </el-col>
       <el-col :span="6">
-        <el-card shadow="never" class="stat-card">
-          <div class="stat-label">分类数</div>
-          <div class="stat-value text-info">{{ categoryCount }}</div>
+        <el-card
+          shadow="never"
+          class="stat-card"
+        >
+          <div class="stat-label">
+            分类数
+          </div>
+          <div class="stat-value text-info">
+            {{ categoryCount }}
+          </div>
         </el-card>
       </el-col>
     </el-row>
 
     
-    <el-card shadow="never" class="filter-card">
-      <el-form :inline="true" :model="filter" @submit.prevent>
+    <el-card
+      shadow="never"
+      class="filter-card"
+    >
+      <el-form
+        :inline="true"
+        :model="filter"
+        @submit.prevent
+      >
         <el-form-item label="关键词">
           <el-input
             v-model="filter.keyword"
@@ -66,8 +115,19 @@
           />
         </el-form-item>
         <el-form-item label="分类">
-          <el-select v-model="filter.category" placeholder="全部分类" clearable style="width: 160px" @change="onSearch">
-            <el-option v-for="c in categoryOptions" :key="c" :label="c" :value="c" />
+          <el-select
+            v-model="filter.category"
+            placeholder="全部分类"
+            clearable
+            style="width: 160px"
+            @change="onSearch"
+          >
+            <el-option
+              v-for="c in categoryOptions"
+              :key="c"
+              :label="c"
+              :value="c"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="意图">
@@ -81,40 +141,96 @@
           />
         </el-form-item>
         <el-form-item label="状态">
-          <el-select v-model="filter.enabled" placeholder="全部状态" clearable style="width: 130px" @change="onSearch">
-            <el-option label="启用" :value="true" />
-            <el-option label="禁用" :value="false" />
+          <el-select
+            v-model="filter.enabled"
+            placeholder="全部状态"
+            clearable
+            style="width: 130px"
+            @change="onSearch"
+          >
+            <el-option
+              label="启用"
+              :value="true"
+            />
+            <el-option
+              label="禁用"
+              :value="false"
+            />
           </el-select>
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="onSearch">
+          <el-button
+            type="primary"
+            @click="onSearch"
+          >
             <el-icon><Search /></el-icon>
             搜索
           </el-button>
-          <el-button @click="resetFilter">重置</el-button>
+          <el-button @click="resetFilter">
+            重置
+          </el-button>
         </el-form-item>
       </el-form>
     </el-card>
 
     
     <el-card shadow="never">
-      <el-table :data="list" v-loading="loading" stripe border>
-        <el-table-column prop="id" label="ID" width="70" align="center" />
-        <el-table-column label="问题" min-width="280" show-overflow-tooltip>
+      <el-table
+        v-loading="loading"
+        :data="list"
+        stripe
+        border
+      >
+        <el-table-column
+          prop="id"
+          label="ID"
+          width="70"
+          align="center"
+        />
+        <el-table-column
+          label="问题"
+          min-width="280"
+          show-overflow-tooltip
+        >
           <template #default="{ row }">
-            <div class="question-text">{{ row.question }}</div>
-            <div v-if="row.keywords && row.keywords.length" class="keyword-list">
-              <el-tag v-for="k in row.keywords.slice(0, 5)" :key="k" size="small" type="info" effect="plain" class="keyword-tag">
+            <div class="question-text">
+              {{ row.question }}
+            </div>
+            <div
+              v-if="row.keywords && row.keywords.length"
+              class="keyword-list"
+            >
+              <el-tag
+                v-for="k in row.keywords.slice(0, 5)"
+                :key="k"
+                size="small"
+                type="info"
+                effect="plain"
+                class="keyword-tag"
+              >
                 {{ k }}
               </el-tag>
-              <span v-if="row.keywords.length > 5" class="keyword-more">+{{ row.keywords.length - 5 }}</span>
+              <span
+                v-if="row.keywords.length > 5"
+                class="keyword-more"
+              >+{{ row.keywords.length - 5 }}</span>
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="答案预览" min-width="220" show-overflow-tooltip>
-          <template #default="{ row }">{{ truncate(row.answer, 80) }}</template>
+        <el-table-column
+          label="答案预览"
+          min-width="220"
+          show-overflow-tooltip
+        >
+          <template #default="{ row }">
+            {{ truncate(row.answer, 80) }}
+          </template>
         </el-table-column>
-        <el-table-column label="所属知识库" width="180" show-overflow-tooltip>
+        <el-table-column
+          label="所属知识库"
+          width="180"
+          show-overflow-tooltip
+        >
           <template #default="{ row }">
             <el-tag
               v-if="getKBName(row.kb_id)"
@@ -124,22 +240,49 @@
             >
               {{ getKBName(row.kb_id) }}
             </el-tag>
-            <span v-else class="text-muted">未挂载</span>
+            <span
+              v-else
+              class="text-muted"
+            >未挂载</span>
           </template>
         </el-table-column>
-        <el-table-column label="分类" width="120" align="center">
+        <el-table-column
+          label="分类"
+          width="120"
+          align="center"
+        >
           <template #default="{ row }">
-            <el-tag v-if="row.category" size="small" type="info">{{ row.category }}</el-tag>
+            <el-tag
+              v-if="row.category"
+              size="small"
+              type="info"
+            >
+              {{ row.category }}
+            </el-tag>
             <span v-else>-</span>
           </template>
         </el-table-column>
-        <el-table-column label="意图" width="120" align="center">
+        <el-table-column
+          label="意图"
+          width="120"
+          align="center"
+        >
           <template #default="{ row }">
-            <el-tag v-if="row.intent" size="small" type="warning">{{ row.intent }}</el-tag>
+            <el-tag
+              v-if="row.intent"
+              size="small"
+              type="warning"
+            >
+              {{ row.intent }}
+            </el-tag>
             <span v-else>-</span>
           </template>
         </el-table-column>
-        <el-table-column label="置信度" width="100" align="center">
+        <el-table-column
+          label="置信度"
+          width="100"
+          align="center"
+        >
           <template #default="{ row }">
             <el-progress
               :percentage="Math.round((row.confidence || 0) * 100)"
@@ -150,14 +293,25 @@
             />
           </template>
         </el-table-column>
-        <el-table-column label="命中次数" width="100" align="center">
+        <el-table-column
+          label="命中次数"
+          width="100"
+          align="center"
+        >
           <template #default="{ row }">
-            <el-tag size="small" :type="row.hit_count > 0 ? 'success' : 'info'">
+            <el-tag
+              size="small"
+              :type="row.hit_count > 0 ? 'success' : 'info'"
+            >
               {{ row.hit_count || 0 }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="状态" width="90" align="center">
+        <el-table-column
+          label="状态"
+          width="90"
+          align="center"
+        >
           <template #default="{ row }">
             <el-switch
               :model-value="row.enabled !== false"
@@ -166,14 +320,44 @@
             />
           </template>
         </el-table-column>
-        <el-table-column label="更新时间" width="160">
-          <template #default="{ row }">{{ formatTime(row.updated_at) }}</template>
-        </el-table-column>
-        <el-table-column label="操作" width="180" fixed="right">
+        <el-table-column
+          label="更新时间"
+          width="160"
+        >
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="goEdit(row)">编辑</el-button>
-            <el-button link type="primary" size="small" @click="onTestOne(row)">测试</el-button>
-            <el-button link type="danger" size="small" @click="onDelete(row)">删除</el-button>
+            {{ formatTime(row.updated_at) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="操作"
+          width="180"
+          fixed="right"
+        >
+          <template #default="{ row }">
+            <el-button
+              link
+              type="primary"
+              size="small"
+              @click="goEdit(row)"
+            >
+              编辑
+            </el-button>
+            <el-button
+              link
+              type="primary"
+              size="small"
+              @click="onTestOne(row)"
+            >
+              测试
+            </el-button>
+            <el-button
+              link
+              type="danger"
+              size="small"
+              @click="onDelete(row)"
+            >
+              删除
+            </el-button>
           </template>
         </el-table-column>
         <template #empty>
@@ -195,8 +379,16 @@
     </el-card>
 
     
-    <el-dialog v-model="testDialogVisible" title="FAQ 匹配测试" width="640px" top="6vh">
-      <el-form :model="testForm" label-width="80px">
+    <el-dialog
+      v-model="testDialogVisible"
+      title="FAQ 匹配测试"
+      width="640px"
+      top="6vh"
+    >
+      <el-form
+        :model="testForm"
+        label-width="80px"
+      >
         <el-form-item label="测试问题">
           <el-input
             v-model="testForm.msg"
@@ -206,32 +398,76 @@
           />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" :loading="testLoading" @click="runTest">
+          <el-button
+            type="primary"
+            :loading="testLoading"
+            @click="runTest"
+          >
             <el-icon><Aim /></el-icon>
             执行匹配
           </el-button>
         </el-form-item>
       </el-form>
       <template v-if="testResult.length">
-        <el-divider content-position="left">匹配结果</el-divider>
-        <el-table :data="testResult" stripe size="small" border>
-          <el-table-column type="index" label="排名" width="70" align="center" />
-          <el-table-column label="问题" min-width="200" show-overflow-tooltip>
-            <template #default="{ row }">{{ row.entry?.question }}</template>
-          </el-table-column>
-          <el-table-column label="置信度" width="100" align="center">
+        <el-divider content-position="left">
+          匹配结果
+        </el-divider>
+        <el-table
+          :data="testResult"
+          stripe
+          size="small"
+          border
+        >
+          <el-table-column
+            type="index"
+            label="排名"
+            width="70"
+            align="center"
+          />
+          <el-table-column
+            label="问题"
+            min-width="200"
+            show-overflow-tooltip
+          >
             <template #default="{ row }">
-              <el-tag :type="getMatchTagType(row.score)" size="small">{{ (row.score * 100).toFixed(0) }}%</el-tag>
+              {{ row.entry?.question }}
             </template>
           </el-table-column>
-          <el-table-column label="匹配类型" width="120" align="center">
+          <el-table-column
+            label="置信度"
+            width="100"
+            align="center"
+          >
             <template #default="{ row }">
-              <el-tag size="small" type="info">{{ row.match_type || '-' }}</el-tag>
+              <el-tag
+                :type="getMatchTagType(row.score)"
+                size="small"
+              >
+                {{ (row.score * 100).toFixed(0) }}%
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="匹配类型"
+            width="120"
+            align="center"
+          >
+            <template #default="{ row }">
+              <el-tag
+                size="small"
+                type="info"
+              >
+                {{ row.match_type || '-' }}
+              </el-tag>
             </template>
           </el-table-column>
         </el-table>
       </template>
-      <el-empty v-else-if="!testLoading && testTouched" description="无匹配结果" :image-size="60" />
+      <el-empty
+        v-else-if="!testLoading && testTouched"
+        description="无匹配结果"
+        :image-size="60"
+      />
     </el-dialog>
   </div>
 </template>

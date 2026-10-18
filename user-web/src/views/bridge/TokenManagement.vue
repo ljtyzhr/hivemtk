@@ -4,28 +4,57 @@
       <template #header>
         <div class="flex items-center justify-between">
           <span>桥接通道凭证</span>
-          <el-tag :type="status.main_configured ? 'success' : 'danger'" size="small">
+          <el-tag
+            :type="status.main_configured ? 'success' : 'danger'"
+            size="small"
+          >
             {{ status.main_configured ? `已配置(${status.source === 'db' ? '运行时' : '环境变量'})` : '未配置(通道拒绝访问)' }}
           </el-tag>
         </div>
       </template>
 
-      <el-alert v-if="status.prev_configured" type="warning" :closable="false" show-icon class="mb-3"
-        title="灰度窗口中：旧凭据仍可用，请尽快更新各浏览器扩展后再次轮换以移除 PREV" />
+      <el-alert
+        v-if="status.prev_configured"
+        type="warning"
+        :closable="false"
+        show-icon
+        class="mb-3"
+        title="灰度窗口中：旧凭据仍可用，请尽快更新各浏览器扩展后再次轮换以移除 PREV"
+      />
 
-      <el-alert type="info" :closable="false" show-icon class="mb-3"
-        title="扩展端在设置页粘贴 token，请求头携带 X-Bridge-Token；SSE 场景可用 ?bridge_token= 透传" />
+      <el-alert
+        type="info"
+        :closable="false"
+        show-icon
+        class="mb-3"
+        title="扩展端在设置页粘贴 token，请求头携带 X-Bridge-Token；SSE 场景可用 ?bridge_token= 透传"
+      />
 
       <el-form label-width="90px">
         <el-form-item label="新凭证">
-          <el-input v-model="newToken" readonly placeholder="点击「生成新凭证」后此处显示一次明文">
+          <el-input
+            v-model="newToken"
+            readonly
+            placeholder="点击「生成新凭证」后此处显示一次明文"
+          >
             <template #append>
-              <el-button @click="copyToken" :disabled="!newToken">复制</el-button>
+              <el-button
+                :disabled="!newToken"
+                @click="copyToken"
+              >
+                复制
+              </el-button>
             </template>
           </el-input>
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" :loading="resetting" @click="onReset">生成新凭证(轮换)</el-button>
+          <el-button
+            type="primary"
+            :loading="resetting"
+            @click="onReset"
+          >
+            生成新凭证(轮换)
+          </el-button>
           <span class="ml-3 text-xs text-gray-400">轮换后旧凭据进入灰度窗口仍可用；此明文仅显示一次</span>
         </el-form-item>
       </el-form>

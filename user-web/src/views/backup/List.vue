@@ -3,117 +3,248 @@
     <el-card class="header-card">
       <div>
         <h2>{{ $t('数据备份') }}</h2>
-        <p class="subtitle">{{ $t('系统全量备份、自动调度、文件归档管理') }}</p>
+        <p class="subtitle">
+          {{ $t('系统全量备份、自动调度、文件归档管理') }}
+        </p>
       </div>
       <div>
         <el-button @click="loadData">
           <el-icon><Refresh /></el-icon>
           {{ $t('刷新') }}
         </el-button>
-        <el-button type="primary" :loading="creating" @click="openCreateDialog">
+        <el-button
+          type="primary"
+          :loading="creating"
+          @click="openCreateDialog"
+        >
           <el-icon><Plus /></el-icon>
           {{ $t('立即备份') }}
         </el-button>
       </div>
     </el-card>
 
-    <el-row :gutter="20" class="stat-row">
+    <el-row
+      :gutter="20"
+      class="stat-row"
+    >
       <el-col :span="6">
         <el-card>
           <div class="stat-item">
-            <div class="stat-label">{{ $t('备份总数') }}</div>
-            <div class="stat-value">{{ pagination.total }}</div>
+            <div class="stat-label">
+              {{ $t('备份总数') }}
+            </div>
+            <div class="stat-value">
+              {{ pagination.total }}
+            </div>
           </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card>
           <div class="stat-item">
-            <div class="stat-label">{{ $t('已完成') }}</div>
-            <div class="stat-value success">{{ stats.completed }}</div>
+            <div class="stat-label">
+              {{ $t('已完成') }}
+            </div>
+            <div class="stat-value success">
+              {{ stats.completed }}
+            </div>
           </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card>
           <div class="stat-item">
-            <div class="stat-label">{{ $t('进行中') }}</div>
-            <div class="stat-value warning">{{ stats.running }}</div>
+            <div class="stat-label">
+              {{ $t('进行中') }}
+            </div>
+            <div class="stat-value warning">
+              {{ stats.running }}
+            </div>
           </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card>
           <div class="stat-item">
-            <div class="stat-label">{{ $t('失败') }}</div>
-            <div class="stat-value danger">{{ stats.failed }}</div>
+            <div class="stat-label">
+              {{ $t('失败') }}
+            </div>
+            <div class="stat-value danger">
+              {{ stats.failed }}
+            </div>
           </div>
         </el-card>
       </el-col>
     </el-row>
 
-    <el-tabs v-model="activeTab" @tab-change="onTabChange">
-      
-      <el-tab-pane :label="$t('备份记录')" name="backup">
+    <el-tabs
+      v-model="activeTab"
+      @tab-change="onTabChange"
+    >
+      <el-tab-pane
+        :label="$t('备份记录')"
+        name="backup"
+      >
         <el-card>
           <div class="filter-bar">
-            <el-input v-model="searchKeyword" :placeholder="$t('搜索备份名')" clearable style="width: 220px" />
-            <el-select v-model="filterType" :placeholder="$t('备份类型')" clearable style="width: 150px">
-              <el-option :label="$t('全量备份')" value="full" />
-              <el-option :label="$t('增量备份')" value="incremental" />
-              <el-option :label="$t('差异备份')" value="differential" />
+            <el-input
+              v-model="searchKeyword"
+              :placeholder="$t('搜索备份名')"
+              clearable
+              style="width: 220px"
+            />
+            <el-select
+              v-model="filterType"
+              :placeholder="$t('备份类型')"
+              clearable
+              style="width: 150px"
+            >
+              <el-option
+                :label="$t('全量备份')"
+                value="full"
+              />
+              <el-option
+                :label="$t('增量备份')"
+                value="incremental"
+              />
+              <el-option
+                :label="$t('差异备份')"
+                value="differential"
+              />
             </el-select>
-            <el-select v-model="filterStatus" :placeholder="$t('状态')" clearable style="width: 150px">
-              <el-option :label="$t('待执行')" value="pending" />
-              <el-option :label="$t('进行中')" value="running" />
-              <el-option :label="$t('已完成')" value="completed" />
-              <el-option :label="$t('失败')" value="failed" />
+            <el-select
+              v-model="filterStatus"
+              :placeholder="$t('状态')"
+              clearable
+              style="width: 150px"
+            >
+              <el-option
+                :label="$t('待执行')"
+                value="pending"
+              />
+              <el-option
+                :label="$t('进行中')"
+                value="running"
+              />
+              <el-option
+                :label="$t('已完成')"
+                value="completed"
+              />
+              <el-option
+                :label="$t('失败')"
+                value="failed"
+              />
             </el-select>
           </div>
 
-          <el-table :data="filteredBackups" v-loading="loading" stripe>
-            <el-table-column prop="id" label="ID" width="80" />
-            <el-table-column prop="backup_name" :label="$t('备份名称')" min-width="200" show-overflow-tooltip />
-            <el-table-column prop="backup_type" :label="$t('类型')" width="120" align="center">
+          <el-table
+            v-loading="loading"
+            :data="filteredBackups"
+            stripe
+          >
+            <el-table-column
+              prop="id"
+              label="ID"
+              width="80"
+            />
+            <el-table-column
+              prop="backup_name"
+              :label="$t('备份名称')"
+              min-width="200"
+              show-overflow-tooltip
+            />
+            <el-table-column
+              prop="backup_type"
+              :label="$t('类型')"
+              width="120"
+              align="center"
+            >
               <template #default="{ row }">
-                <el-tag :type="getTypeTag(row.backup_type)" size="small">
+                <el-tag
+                  :type="getTypeTag(row.backup_type)"
+                  size="small"
+                >
                   {{ getTypeText(row.backup_type) }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="status" label="状态" width="120" align="center">
+            <el-table-column
+              prop="status"
+              label="状态"
+              width="120"
+              align="center"
+            >
               <template #default="{ row }">
-                <el-tag :type="getStatusType(row.status)" size="small">
+                <el-tag
+                  :type="getStatusType(row.status)"
+                  size="small"
+                >
                   {{ getStatusText(row.status) }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="file_size" label="文件大小" width="120" align="right">
+            <el-table-column
+              prop="file_size"
+              label="文件大小"
+              width="120"
+              align="right"
+            >
               <template #default="{ row }">
                 {{ formatSize(row.file_size) }}
               </template>
             </el-table-column>
-            <el-table-column prop="started_at" label="开始时间" min-width="170">
+            <el-table-column
+              prop="started_at"
+              label="开始时间"
+              min-width="170"
+            >
               <template #default="{ row }">
                 {{ formatTime(row.started_at) }}
               </template>
             </el-table-column>
-            <el-table-column prop="completed_at" label="完成时间" min-width="170">
+            <el-table-column
+              prop="completed_at"
+              label="完成时间"
+              min-width="170"
+            >
               <template #default="{ row }">
                 {{ formatTime(row.completed_at) }}
               </template>
             </el-table-column>
-            <el-table-column prop="error_message" label="错误信息" min-width="180" show-overflow-tooltip />
-            <el-table-column label="操作" width="220" fixed="right">
+            <el-table-column
+              prop="error_message"
+              label="错误信息"
+              min-width="180"
+              show-overflow-tooltip
+            />
+            <el-table-column
+              label="操作"
+              width="220"
+              fixed="right"
+            >
               <template #default="{ row }">
-                <el-button link type="primary" @click="viewDetail(row)">详情</el-button>
+                <el-button
+                  link
+                  type="primary"
+                  @click="viewDetail(row)"
+                >
+                  详情
+                </el-button>
                 <el-button
                   link
                   type="success"
                   :disabled="row.status !== 'completed'"
                   @click="openRestoreDialog(row)"
-                >恢复</el-button>
-                <el-button link type="danger" @click="doDeleteBackup(row)">删除</el-button>
+                >
+                  恢复
+                </el-button>
+                <el-button
+                  link
+                  type="danger"
+                  @click="doDeleteBackup(row)"
+                >
+                  删除
+                </el-button>
               </template>
             </el-table-column>
             <template #empty>
@@ -127,46 +258,115 @@
             :total="pagination.total"
             :page-sizes="[10, 20, 50, 100]"
             layout="total, sizes, prev, pager, next, jumper"
+            style="margin-top: 15px; text-align: right"
             @current-change="loadData"
             @size-change="loadData"
-            style="margin-top: 15px; text-align: right"
           />
         </el-card>
       </el-tab-pane>
 
       
-      <el-tab-pane label="恢复记录" name="restore">
+      <el-tab-pane
+        label="恢复记录"
+        name="restore"
+      >
         <el-card>
           <div class="filter-bar">
-            <el-input v-model="restoreKeyword" placeholder="搜索备份名" clearable style="width: 220px" />
-            <el-select v-model="restoreStatus" placeholder="状态" clearable style="width: 150px">
-              <el-option label="待执行" value="pending" />
-              <el-option label="进行中" value="running" />
-              <el-option label="已完成" value="completed" />
-              <el-option label="失败" value="failed" />
+            <el-input
+              v-model="restoreKeyword"
+              placeholder="搜索备份名"
+              clearable
+              style="width: 220px"
+            />
+            <el-select
+              v-model="restoreStatus"
+              placeholder="状态"
+              clearable
+              style="width: 150px"
+            >
+              <el-option
+                label="待执行"
+                value="pending"
+              />
+              <el-option
+                label="进行中"
+                value="running"
+              />
+              <el-option
+                label="已完成"
+                value="completed"
+              />
+              <el-option
+                label="失败"
+                value="failed"
+              />
             </el-select>
           </div>
 
-          <el-table :data="filteredRestores" v-loading="restoreLoading" stripe>
-            <el-table-column prop="id" label="ID" width="80" />
-            <el-table-column prop="backup_id" label="备份ID" width="100" />
-            <el-table-column prop="backup_name" label="备份名称" min-width="220" show-overflow-tooltip />
-            <el-table-column prop="status" label="状态" width="120" align="center">
+          <el-table
+            v-loading="restoreLoading"
+            :data="filteredRestores"
+            stripe
+          >
+            <el-table-column
+              prop="id"
+              label="ID"
+              width="80"
+            />
+            <el-table-column
+              prop="backup_id"
+              label="备份ID"
+              width="100"
+            />
+            <el-table-column
+              prop="backup_name"
+              label="备份名称"
+              min-width="220"
+              show-overflow-tooltip
+            />
+            <el-table-column
+              prop="status"
+              label="状态"
+              width="120"
+              align="center"
+            >
               <template #default="{ row }">
-                <el-tag :type="getStatusType(row.status)" size="small">
+                <el-tag
+                  :type="getStatusType(row.status)"
+                  size="small"
+                >
                   {{ getStatusText(row.status) }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="restored_at" label="开始时间" min-width="170">
+            <el-table-column
+              prop="restored_at"
+              label="开始时间"
+              min-width="170"
+            >
               <template #default="{ row }">
                 {{ formatTime(row.restored_at) }}
               </template>
             </el-table-column>
-            <el-table-column prop="error_message" label="错误信息" min-width="220" show-overflow-tooltip />
-            <el-table-column label="操作" width="100" fixed="right">
+            <el-table-column
+              prop="error_message"
+              label="错误信息"
+              min-width="220"
+              show-overflow-tooltip
+            />
+            <el-table-column
+              label="操作"
+              width="100"
+              fixed="right"
+            >
               <template #default="{ row }">
-                <el-button link type="primary" @click="viewRestoreDetail(row)">详情</el-button>
+                <el-button
+                  link
+                  type="primary"
+                  @click="viewRestoreDetail(row)"
+                >
+                  详情
+                </el-button>
               </template>
             </el-table-column>
             <template #empty>
@@ -180,72 +380,179 @@
             :total="restorePagination.total"
             :page-sizes="[10, 20, 50, 100]"
             layout="total, sizes, prev, pager, next, jumper"
+            style="margin-top: 15px; text-align: right"
             @current-change="loadRestores"
             @size-change="loadRestores"
-            style="margin-top: 15px; text-align: right"
           />
         </el-card>
       </el-tab-pane>
     </el-tabs>
 
     
-    <el-dialog v-model="createVisible" title="创建备份" width="520px">
-      <el-form :model="createForm" :rules="createRules" ref="createFormRef" label-width="100px">
-        <el-form-item label="备份名称" prop="backup_name">
-          <el-input v-model="createForm.backup_name" placeholder="留空将自动生成" />
+    <el-dialog
+      v-model="createVisible"
+      title="创建备份"
+      width="520px"
+    >
+      <el-form
+        ref="createFormRef"
+        :model="createForm"
+        :rules="createRules"
+        label-width="100px"
+      >
+        <el-form-item
+          label="备份名称"
+          prop="backup_name"
+        >
+          <el-input
+            v-model="createForm.backup_name"
+            placeholder="留空将自动生成"
+          />
         </el-form-item>
-        <el-form-item label="备份类型" prop="backup_type">
-          <el-select v-model="createForm.backup_type" style="width: 100%">
-            <el-option label="全量备份" value="full" />
-            <el-option label="增量备份" value="incremental" />
-            <el-option label="差异备份" value="differential" />
+        <el-form-item
+          label="备份类型"
+          prop="backup_type"
+        >
+          <el-select
+            v-model="createForm.backup_type"
+            style="width: 100%"
+          >
+            <el-option
+              label="全量备份"
+              value="full"
+            />
+            <el-option
+              label="增量备份"
+              value="incremental"
+            />
+            <el-option
+              label="差异备份"
+              value="differential"
+            />
           </el-select>
         </el-form-item>
-        <el-alert type="info" :closable="false" show-icon>
-          <template #title>备份将在后台异步执行，完成后请在列表中查看状态</template>
+        <el-alert
+          type="info"
+          :closable="false"
+          show-icon
+        >
+          <template #title>
+            备份将在后台异步执行，完成后请在列表中查看状态
+          </template>
         </el-alert>
       </el-form>
       <template #footer>
-        <el-button @click="createVisible = false">取消</el-button>
-        <el-button type="primary" :loading="creating" @click="submitCreate">立即备份</el-button>
+        <el-button @click="createVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="creating"
+          @click="submitCreate"
+        >
+          立即备份
+        </el-button>
       </template>
     </el-dialog>
 
     
-    <el-dialog v-model="restoreVisible" title="恢复备份" width="520px">
-      <el-descriptions :column="1" border v-if="restoreTarget">
-        <el-descriptions-item label="备份ID">{{ restoreTarget.id }}</el-descriptions-item>
-        <el-descriptions-item label="备份名称">{{ restoreTarget.backup_name }}</el-descriptions-item>
-        <el-descriptions-item label="备份类型">{{ getTypeText(restoreTarget.backup_type) }}</el-descriptions-item>
-        <el-descriptions-item label="文件大小">{{ formatSize(restoreTarget.file_size) }}</el-descriptions-item>
-        <el-descriptions-item label="完成时间">{{ formatTime(restoreTarget.completed_at) }}</el-descriptions-item>
+    <el-dialog
+      v-model="restoreVisible"
+      title="恢复备份"
+      width="520px"
+    >
+      <el-descriptions
+        v-if="restoreTarget"
+        :column="1"
+        border
+      >
+        <el-descriptions-item label="备份ID">
+          {{ restoreTarget.id }}
+        </el-descriptions-item>
+        <el-descriptions-item label="备份名称">
+          {{ restoreTarget.backup_name }}
+        </el-descriptions-item>
+        <el-descriptions-item label="备份类型">
+          {{ getTypeText(restoreTarget.backup_type) }}
+        </el-descriptions-item>
+        <el-descriptions-item label="文件大小">
+          {{ formatSize(restoreTarget.file_size) }}
+        </el-descriptions-item>
+        <el-descriptions-item label="完成时间">
+          {{ formatTime(restoreTarget.completed_at) }}
+        </el-descriptions-item>
       </el-descriptions>
-      <el-alert type="warning" :closable="false" show-icon style="margin-top: 12px">
-        <template #title>恢复操作将覆盖当前数据库中的对应数据，请确认无误后再执行</template>
+      <el-alert
+        type="warning"
+        :closable="false"
+        show-icon
+        style="margin-top: 12px"
+      >
+        <template #title>
+          恢复操作将覆盖当前数据库中的对应数据，请确认无误后再执行
+        </template>
       </el-alert>
       <template #footer>
-        <el-button @click="restoreVisible = false">取消</el-button>
-        <el-button type="primary" :loading="restoring" @click="submitRestore">确认恢复</el-button>
+        <el-button @click="restoreVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="restoring"
+          @click="submitRestore"
+        >
+          确认恢复
+        </el-button>
       </template>
     </el-dialog>
 
     
-    <el-dialog v-model="detailVisible" title="备份详情" width="600px">
-      <el-descriptions :column="1" border v-if="detailRecord">
-        <el-descriptions-item label="备份ID">{{ detailRecord.id }}</el-descriptions-item>
-        <el-descriptions-item label="备份名称">{{ detailRecord.backup_name }}</el-descriptions-item>
-        <el-descriptions-item label="备份类型">{{ getTypeText(detailRecord.backup_type) }}</el-descriptions-item>
+    <el-dialog
+      v-model="detailVisible"
+      title="备份详情"
+      width="600px"
+    >
+      <el-descriptions
+        v-if="detailRecord"
+        :column="1"
+        border
+      >
+        <el-descriptions-item label="备份ID">
+          {{ detailRecord.id }}
+        </el-descriptions-item>
+        <el-descriptions-item label="备份名称">
+          {{ detailRecord.backup_name }}
+        </el-descriptions-item>
+        <el-descriptions-item label="备份类型">
+          {{ getTypeText(detailRecord.backup_type) }}
+        </el-descriptions-item>
         <el-descriptions-item label="状态">
-          <el-tag :type="getStatusType(detailRecord.status)" size="small">
+          <el-tag
+            :type="getStatusType(detailRecord.status)"
+            size="small"
+          >
             {{ getStatusText(detailRecord.status) }}
           </el-tag>
         </el-descriptions-item>
-        <el-descriptions-item label="文件路径">{{ detailRecord.file_path || '-' }}</el-descriptions-item>
-        <el-descriptions-item label="文件大小">{{ formatSize(detailRecord.file_size) }}</el-descriptions-item>
-        <el-descriptions-item label="创建人">{{ detailRecord.created_by || '系统' }}</el-descriptions-item>
-        <el-descriptions-item label="开始时间">{{ formatTime(detailRecord.started_at) }}</el-descriptions-item>
-        <el-descriptions-item label="完成时间">{{ formatTime(detailRecord.completed_at) }}</el-descriptions-item>
-        <el-descriptions-item v-if="detailRecord.error_message" label="错误信息">
+        <el-descriptions-item label="文件路径">
+          {{ detailRecord.file_path || '-' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="文件大小">
+          {{ formatSize(detailRecord.file_size) }}
+        </el-descriptions-item>
+        <el-descriptions-item label="创建人">
+          {{ detailRecord.created_by || '系统' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="开始时间">
+          {{ formatTime(detailRecord.started_at) }}
+        </el-descriptions-item>
+        <el-descriptions-item label="完成时间">
+          {{ formatTime(detailRecord.completed_at) }}
+        </el-descriptions-item>
+        <el-descriptions-item
+          v-if="detailRecord.error_message"
+          label="错误信息"
+        >
           <span class="error-text">{{ detailRecord.error_message }}</span>
         </el-descriptions-item>
       </el-descriptions>

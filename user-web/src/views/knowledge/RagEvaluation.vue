@@ -1,28 +1,47 @@
 <template>
   <div class="rag-eval">
-    <el-row :gutter="16" class="stats-row">
+    <el-row
+      :gutter="16"
+      class="stats-row"
+    >
       <el-col :span="6">
         <el-card class="stat-card">
-          <div class="stat-label">Recall@5</div>
-          <div class="stat-value">{{ stats.recall5?.toFixed(3) || '—' }}</div>
+          <div class="stat-label">
+            Recall@5
+          </div>
+          <div class="stat-value">
+            {{ stats.recall5?.toFixed(3) || '—' }}
+          </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card class="stat-card">
-          <div class="stat-label">MRR</div>
-          <div class="stat-value">{{ stats.mrr?.toFixed(3) || '—' }}</div>
+          <div class="stat-label">
+            MRR
+          </div>
+          <div class="stat-value">
+            {{ stats.mrr?.toFixed(3) || '—' }}
+          </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card class="stat-card">
-          <div class="stat-label">NDCG@5</div>
-          <div class="stat-value">{{ stats.ndcg5?.toFixed(3) || '—' }}</div>
+          <div class="stat-label">
+            NDCG@5
+          </div>
+          <div class="stat-value">
+            {{ stats.ndcg5?.toFixed(3) || '—' }}
+          </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card class="stat-card">
-          <div class="stat-label">评估集</div>
-          <div class="stat-value">{{ stats.evalSetSize || 0 }}</div>
+          <div class="stat-label">
+            评估集
+          </div>
+          <div class="stat-value">
+            {{ stats.evalSetSize || 0 }}
+          </div>
         </el-card>
       </el-col>
     </el-row>
@@ -32,31 +51,82 @@
         <div class="card-header">
           <span>评估集管理</span>
           <div>
-            <el-upload :auto-upload="false" :on-change="onUpload" accept=".csv,.jsonl">
+            <el-upload
+              :auto-upload="false"
+              :on-change="onUpload"
+              accept=".csv,.jsonl"
+            >
               <el-button>上传评估集（CSV/JSONL）</el-button>
             </el-upload>
-            <el-button type="primary" @click="runEval">运行评估</el-button>
+            <el-button
+              type="primary"
+              @click="runEval"
+            >
+              运行评估
+            </el-button>
           </div>
         </div>
       </template>
-      <el-table :data="recentRuns" v-loading="loading">
-        <el-table-column prop="id" label="Run ID" width="120" />
-        <el-table-column prop="strategy" label="策略" width="160" />
-        <el-table-column prop="recall5" label="Recall@5" width="100" />
-        <el-table-column prop="mrr" label="MRR" width="100" />
-        <el-table-column prop="ndcg5" label="NDCG@5" width="100" />
-        <el-table-column prop="createdAt" label="时间" width="180" />
-        <el-table-column label="操作" width="120" fixed="right">
+      <el-table
+        v-loading="loading"
+        :data="recentRuns"
+      >
+        <el-table-column
+          prop="id"
+          label="Run ID"
+          width="120"
+        />
+        <el-table-column
+          prop="strategy"
+          label="策略"
+          width="160"
+        />
+        <el-table-column
+          prop="recall5"
+          label="Recall@5"
+          width="100"
+        />
+        <el-table-column
+          prop="mrr"
+          label="MRR"
+          width="100"
+        />
+        <el-table-column
+          prop="ndcg5"
+          label="NDCG@5"
+          width="100"
+        />
+        <el-table-column
+          prop="createdAt"
+          label="时间"
+          width="180"
+        />
+        <el-table-column
+          label="操作"
+          width="120"
+          fixed="right"
+        >
           <template #default="{ row }">
-            <el-button link type="primary" @click="compareWith(row)">对比当前</el-button>
+            <el-button
+              link
+              type="primary"
+              @click="compareWith(row)"
+            >
+              对比当前
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
     </el-card>
 
     <el-card class="chart-card">
-      <template #header><span>指标趋势</span></template>
-      <div ref="chartRef" class="chart" />
+      <template #header>
+        <span>指标趋势</span>
+      </template>
+      <div
+        ref="chartRef"
+        class="chart"
+      />
     </el-card>
   </div>
 </template>

@@ -1,33 +1,67 @@
 <template>
   <div class="custom-dashboard">
-    <el-row :gutter="12" class="toolbar">
+    <el-row
+      :gutter="12"
+      class="toolbar"
+    >
       <el-col :span="12">
         <span class="title">自定义看板拖拽（USR-AN-01）</span>
       </el-col>
-      <el-col :span="12" style="text-align: right">
-        <el-button @click="addBlock">+ 添加组件</el-button>
-        <el-button type="primary" @click="save">保存看板</el-button>
+      <el-col
+        :span="12"
+        style="text-align: right"
+      >
+        <el-button @click="addBlock">
+          + 添加组件
+        </el-button>
+        <el-button
+          type="primary"
+          @click="save"
+        >
+          保存看板
+        </el-button>
       </el-col>
     </el-row>
 
     <el-row :gutter="12">
       <el-col :span="6">
         <el-card class="palette">
-          <template #header><span>组件库</span>  <el-dialog v-model="saveDialogVisible" title="保存看板" width="420px">
-    <el-form label-width="80px">
-      <el-form-item label="看板名称">
-        <el-input v-model="saveName" placeholder="请输入看板名称" maxlength="60" @keyup.enter="confirmSave" />
-      </el-form-item>
-      <el-form-item label="公开访问">
-        <el-switch v-model="screenPublic" active-text="公开投屏链接" />
-      </el-form-item>
-    </el-form>
-    <template #footer>
-      <el-button @click="saveDialogVisible = false">取消</el-button>
-      <el-button type="primary" :loading="saving" @click="confirmSave">保存</el-button>
-    </template>
-  </el-dialog>
-</template>
+          <template #header>
+            <span>组件库</span>  <el-dialog
+              v-model="saveDialogVisible"
+              title="保存看板"
+              width="420px"
+            >
+              <el-form label-width="80px">
+                <el-form-item label="看板名称">
+                  <el-input
+                    v-model="saveName"
+                    placeholder="请输入看板名称"
+                    maxlength="60"
+                    @keyup.enter="confirmSave"
+                  />
+                </el-form-item>
+                <el-form-item label="公开访问">
+                  <el-switch
+                    v-model="screenPublic"
+                    active-text="公开投屏链接"
+                  />
+                </el-form-item>
+              </el-form>
+              <template #footer>
+                <el-button @click="saveDialogVisible = false">
+                  取消
+                </el-button>
+                <el-button
+                  type="primary"
+                  :loading="saving"
+                  @click="confirmSave"
+                >
+                  保存
+                </el-button>
+              </template>
+            </el-dialog>
+          </template>
           <div
             v-for="b in blockTypes"
             :key="b.type"
@@ -47,7 +81,12 @@
         </el-card>
       </el-col>
       <el-col :span="18">
-        <div class="canvas" role="presentation" @drop="onDrop" @dragover.prevent>
+        <div
+          class="canvas"
+          role="presentation"
+          @drop="onDrop"
+          @dragover.prevent
+        >
           <div
             v-for="(block, i) in blocks"
             :key="block.id"
@@ -56,34 +95,67 @@
           >
             <div class="block-toolbar">
               <el-button-group size="small">
-                <el-button @click="resize(i)">↔</el-button>
-                <el-button type="danger" @click="removeBlock(i)">×</el-button>
+                <el-button @click="resize(i)">
+                  ↔
+                </el-button>
+                <el-button
+                  type="danger"
+                  @click="removeBlock(i)"
+                >
+                  ×
+                </el-button>
               </el-button-group>
             </div>
-            <component :is="resolveChart(block.type)" :data="block.data" />
-            <div class="block-title">{{ block.title }}</div>
+            <component
+              :is="resolveChart(block.type)"
+              :data="block.data"
+            />
+            <div class="block-title">
+              {{ block.title }}
+            </div>
           </div>
         </div>
       </el-col>
     </el-row>
-  <!-- el-dialog 原先与根 div 平级，使本组件有两个根节点（fragment）。路由层的
+    <!-- el-dialog 原先与根 div 平级，使本组件有两个根节点（fragment）。路由层的
        <Transition> 无法给 fragment 做动画，进页面必报 "Component inside <Transition>
        renders non-element root node that cannot be animated"（实测 17 条）。
        它带 append-to-body（teleport 到 body），所以挪进根 div 内视觉与行为完全不变。 -->
-  <el-dialog v-model="saveDialogVisible" title="保存看板" width="420px" append-to-body>
-    <el-form label-width="80px">
-      <el-form-item label="看板名称">
-        <el-input v-model="saveName" placeholder="请输入看板名称" maxlength="60" @keyup.enter="confirmSave" />
-      </el-form-item>
-      <el-form-item label="公开访问">
-        <el-switch v-model="screenPublic" active-text="公开投屏链接" />
-      </el-form-item>
-    </el-form>
-    <template #footer>
-      <el-button @click="saveDialogVisible = false">取消</el-button>
-      <el-button type="primary" :loading="saving" @click="confirmSave">保存</el-button>
-    </template>
-  </el-dialog>
+    <el-dialog
+      v-model="saveDialogVisible"
+      title="保存看板"
+      width="420px"
+      append-to-body
+    >
+      <el-form label-width="80px">
+        <el-form-item label="看板名称">
+          <el-input
+            v-model="saveName"
+            placeholder="请输入看板名称"
+            maxlength="60"
+            @keyup.enter="confirmSave"
+          />
+        </el-form-item>
+        <el-form-item label="公开访问">
+          <el-switch
+            v-model="screenPublic"
+            active-text="公开投屏链接"
+          />
+        </el-form-item>
+      </el-form>
+      <template #footer>
+        <el-button @click="saveDialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="confirmSave"
+        >
+          保存
+        </el-button>
+      </template>
+    </el-dialog>
   </div>
 </template>
 

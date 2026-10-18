@@ -3,41 +3,86 @@
     <el-card class="page-card">
       <div class="page-header">
         <div>
-          <h2 class="page-title">AI 产能分析</h2>
-          <p class="page-sub">AI 回复占比、响应时长、转化率与 Token 成本概览</p>
+          <h2 class="page-title">
+            AI 产能分析
+          </h2>
+          <p class="page-sub">
+            AI 回复占比、响应时长、转化率与 Token 成本概览
+          </p>
         </div>
-        <el-button type="primary" @click="loadAll">刷新</el-button>
+        <el-button
+          type="primary"
+          @click="loadAll"
+        >
+          刷新
+        </el-button>
       </div>
 
-      <el-row :gutter="16" class="kpi-row">
+      <el-row
+        :gutter="16"
+        class="kpi-row"
+      >
         <el-col :span="6">
-          <el-statistic title="总会话数" :value="rep.total_conversations" />
+          <el-statistic
+            title="总会话数"
+            :value="rep.total_conversations"
+          />
         </el-col>
         <el-col :span="6">
-          <el-statistic title="AI 回复占比" :value="rep.ai_ratio" suffix="%" />
+          <el-statistic
+            title="AI 回复占比"
+            :value="rep.ai_ratio"
+            suffix="%"
+          />
         </el-col>
         <el-col :span="6">
-          <el-statistic title="平均响应时长(秒)" :value="Number(Number(rep.avg_response_time || 0).toFixed(1))" />
+          <el-statistic
+            title="平均响应时长(秒)"
+            :value="Number(Number(rep.avg_response_time || 0).toFixed(1))"
+          />
         </el-col>
         <el-col :span="6">
-          <el-statistic title="转化率" :value="rep.conversion_rate" suffix="%" />
+          <el-statistic
+            title="转化率"
+            :value="rep.conversion_rate"
+            suffix="%"
+          />
         </el-col>
         <el-col :span="6">
-          <el-statistic title="AI 回复数" :value="rep.ai_replies" />
+          <el-statistic
+            title="AI 回复数"
+            :value="rep.ai_replies"
+          />
         </el-col>
         <el-col :span="6">
-          <el-statistic title="人工回复数" :value="rep.human_replies" />
+          <el-statistic
+            title="人工回复数"
+            :value="rep.human_replies"
+          />
         </el-col>
         <el-col :span="6">
-          <el-statistic title="转化数(成单)" :value="rep.total_conversions" />
+          <el-statistic
+            title="转化数(成单)"
+            :value="rep.total_conversions"
+          />
         </el-col>
         <el-col :span="6">
-          <el-statistic title="LLM Token" :value="rep.llm_tokens" />
+          <el-statistic
+            title="LLM Token"
+            :value="rep.llm_tokens"
+          />
         </el-col>
       </el-row>
 
-      <el-card shadow="never" header="近 30 天趋势" class="trend-card">
-        <div ref="trendChart" class="chart-box"></div>
+      <el-card
+        shadow="never"
+        header="近 30 天趋势"
+        class="trend-card"
+      >
+        <div
+          ref="trendChart"
+          class="chart-box"
+        />
       </el-card>
     </el-card>
   </div>

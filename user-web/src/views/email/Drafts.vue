@@ -6,7 +6,10 @@
         <el-button @click="$router.push('/email/drag-editor')">
           <el-icon-edit /> {{ $t('拖拽编辑器') }}
         </el-button>
-        <el-button type="primary" @click="handleCreateDraft">
+        <el-button
+          type="primary"
+          @click="handleCreateDraft"
+        >
           <el-icon-plus /> {{ $t('新建草稿') }}
         </el-button>
       </div>
@@ -20,18 +23,49 @@
       stripe
       @row-dblclick="handleEditDraft"
     >
-      <el-table-column type="selection" width="55" />
-      <el-table-column prop="subject" :label="$t('主题')" min-width="200" />
-      <el-table-column :label="$t('操作')" width="300" fixed="right">
+      <el-table-column
+        type="selection"
+        width="55"
+      />
+      <el-table-column
+        prop="subject"
+        :label="$t('主题')"
+        min-width="200"
+      />
+      <el-table-column
+        :label="$t('操作')"
+        width="300"
+        fixed="right"
+      >
         <template #default="scope">
-          <el-button size="small" @click="handleEditDraft(scope.row)">{{ $t('编辑') }}</el-button>
-          <el-button size="small" type="danger" @click="handleDeleteDraft(scope.row.id)">{{ $t('删除') }}</el-button>
-          <el-button size="small" type="primary" @click="handleSend(scope.row)">{{ $t('发送') }}</el-button> 
+          <el-button
+            size="small"
+            @click="handleEditDraft(scope.row)"
+          >
+            {{ $t('编辑') }}
+          </el-button>
+          <el-button
+            size="small"
+            type="danger"
+            @click="handleDeleteDraft(scope.row.id)"
+          >
+            {{ $t('删除') }}
+          </el-button>
+          <el-button
+            size="small"
+            type="primary"
+            @click="handleSend(scope.row)"
+          >
+            {{ $t('发送') }}
+          </el-button> 
         </template>
       </el-table-column>
     </el-table>
 
-    <div v-else class="empty-drafts">
+    <div
+      v-else
+      class="empty-drafts"
+    >
       <el-empty description="暂无草稿数据" />
     </div>
 
@@ -46,27 +80,40 @@
         支持自定义变量有 {name} {city} {address} {account} 
       </p>
       
-      <el-form ref="draftFormRef" :model="draftForm" :rules="formRules" label-width="80px">
-        <el-form-item label="主题" prop="subject">
-          <el-input v-model="draftForm.subject" placeholder="请输入邮件主题" />
+      <el-form
+        ref="draftFormRef"
+        :model="draftForm"
+        :rules="formRules"
+        label-width="80px"
+      >
+        <el-form-item
+          label="主题"
+          prop="subject"
+        >
+          <el-input
+            v-model="draftForm.subject"
+            placeholder="请输入邮件主题"
+          />
         </el-form-item>
 
         
-        <el-form-item label="内容" prop="content">
-          
+        <el-form-item
+          label="内容"
+          prop="content"
+        >
           <SimpleEditor
             v-model="draftForm.content"
             :disabled="false"
           />
         </el-form-item>
-
-        
-        
       </el-form>
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="dialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="submitDraft">保存草稿</el-button>
+          <el-button
+            type="primary"
+            @click="submitDraft"
+          >保存草稿</el-button>
         </span>
       </template>
     </el-dialog>

@@ -1,92 +1,192 @@
 <template>
   <div class="geo-page p-4">
     <!-- 概览卡片区 -->
-    <el-row :gutter="12" class="mb-4">
-      <el-col :xs="12" :sm="6">
+    <el-row
+      :gutter="12"
+      class="mb-4"
+    >
+      <el-col
+        :xs="12"
+        :sm="6"
+      >
         <el-card shadow="hover">
           <div class="stat-block">
-            <div class="stat-label">AI 可见率（近 {{ days }} 天）</div>
-            <div class="stat-value" :style="{ color: visibilityColor(summary.current_avg) }">
+            <div class="stat-label">
+              AI 可见率（近 {{ days }} 天）
+            </div>
+            <div
+              class="stat-value"
+              :style="{ color: visibilityColor(summary.current_avg) }"
+            >
               {{ pct(summary.current_avg) }}
             </div>
-            <div class="stat-sub" v-if="hasCompare">
+            <div
+              v-if="hasCompare"
+              class="stat-sub"
+            >
               环比
               <span :class="summary.change >= 0 ? 'trend-up' : 'trend-down'">
                 {{ summary.change >= 0 ? '↑' : '↓' }}{{ pct(Math.abs(summary.change)) }}
               </span>
             </div>
-            <div class="stat-sub muted" v-else>数据不足，暂无环比</div>
+            <div
+              v-else
+              class="stat-sub muted"
+            >
+              数据不足，暂无环比
+            </div>
           </div>
         </el-card>
       </el-col>
-      <el-col :xs="12" :sm="6">
+      <el-col
+        :xs="12"
+        :sm="6"
+      >
         <el-card shadow="hover">
           <div class="stat-block">
-            <div class="stat-label">探针总数</div>
-            <div class="stat-value">{{ formatInt(summary.total_probes) }}</div>
-            <div class="stat-sub">品牌命中 {{ formatInt(summary.total_brand_hits) }} 次</div>
+            <div class="stat-label">
+              探针总数
+            </div>
+            <div class="stat-value">
+              {{ formatInt(summary.total_probes) }}
+            </div>
+            <div class="stat-sub">
+              品牌命中 {{ formatInt(summary.total_brand_hits) }} 次
+            </div>
           </div>
         </el-card>
       </el-col>
-      <el-col :xs="12" :sm="6">
+      <el-col
+        :xs="12"
+        :sm="6"
+      >
         <el-card shadow="hover">
           <div class="stat-block">
-            <div class="stat-label">引擎覆盖</div>
-            <div class="stat-value">{{ engines.length }}</div>
-            <div class="stat-sub">最弱引擎：{{ weakestEngine || '—' }}</div>
+            <div class="stat-label">
+              引擎覆盖
+            </div>
+            <div class="stat-value">
+              {{ engines.length }}
+            </div>
+            <div class="stat-sub">
+              最弱引擎：{{ weakestEngine || '—' }}
+            </div>
           </div>
         </el-card>
       </el-col>
-      <el-col :xs="12" :sm="6">
+      <el-col
+        :xs="12"
+        :sm="6"
+      >
         <el-card shadow="hover">
           <div class="stat-block">
-            <div class="stat-label">负面提及</div>
-            <div class="stat-value" :class="totalNegative > 0 ? 'text-danger' : ''">{{ formatInt(totalNegative) }}</div>
-            <div class="stat-sub">0 为安全，&gt;0 需到告警中心排查</div>
+            <div class="stat-label">
+              负面提及
+            </div>
+            <div
+              class="stat-value"
+              :class="totalNegative > 0 ? 'text-danger' : ''"
+            >
+              {{ formatInt(totalNegative) }}
+            </div>
+            <div class="stat-sub">
+              0 为安全，&gt;0 需到告警中心排查
+            </div>
           </div>
         </el-card>
       </el-col>
     </el-row>
 
     <!-- 筛选 + 操作 -->
-    <el-card class="mb-4" shadow="never">
+    <el-card
+      class="mb-4"
+      shadow="never"
+    >
       <div class="flex items-center gap-3 flex-wrap">
-        <el-radio-group v-model="days" @change="loadAll">
-          <el-radio-button :value="7">近 7 天</el-radio-button>
-          <el-radio-button :value="30">近 30 天</el-radio-button>
-          <el-radio-button :value="90">近 90 天</el-radio-button>
+        <el-radio-group
+          v-model="days"
+          @change="loadAll"
+        >
+          <el-radio-button :value="7">
+            近 7 天
+          </el-radio-button>
+          <el-radio-button :value="30">
+            近 30 天
+          </el-radio-button>
+          <el-radio-button :value="90">
+            近 90 天
+          </el-radio-button>
         </el-radio-group>
-        <el-button type="primary" :loading="probing" @click="runProbe" plain>
+        <el-button
+          type="primary"
+          :loading="probing"
+          plain
+          @click="runProbe"
+        >
           <el-icon><VideoPlay /></el-icon><span>立即探测一轮</span>
         </el-button>
-        <el-button @click="loadAll" :loading="loading">刷新</el-button>
+        <el-button
+          :loading="loading"
+          @click="loadAll"
+        >
+          刷新
+        </el-button>
       </div>
     </el-card>
 
     <!-- 可见性趋势折线图 -->
-    <el-card class="mb-4" shadow="never">
+    <el-card
+      class="mb-4"
+      shadow="never"
+    >
       <template #header>
         <span class="font-bold">品牌可见率趋势（品牌被 AI 引擎提及的探针占比）</span>
       </template>
-      <div v-if="!loading && !hasTrendData" class="py-12 text-center text-gray-400">
+      <div
+        v-if="!loading && !hasTrendData"
+        class="py-12 text-center text-gray-400"
+      >
         暂无观测数据。点击上方「立即探测一轮」，或在「多模型验证」页运行验证后回来看趋势。
       </div>
-      <div ref="trendChartRef" v-show="hasTrendData" style="height: 320px"></div>
+      <div
+        v-show="hasTrendData"
+        ref="trendChartRef"
+        style="height: 320px"
+      />
     </el-card>
 
     <!-- 引擎对比 -->
-    <el-card class="mb-4" shadow="never">
+    <el-card
+      class="mb-4"
+      shadow="never"
+    >
       <template #header>
         <span class="font-bold">引擎对比 — 谁看得见你，谁在忽略你</span>
       </template>
-      <el-empty v-if="!loading && engines.length === 0" description="暂无引擎数据" :image-size="60" />
-      <el-table v-else :data="engines" v-loading="loading" size="default">
-        <el-table-column prop="engine" label="引擎" min-width="160">
+      <el-empty
+        v-if="!loading && engines.length === 0"
+        description="暂无引擎数据"
+        :image-size="60"
+      />
+      <el-table
+        v-else
+        v-loading="loading"
+        :data="engines"
+        size="default"
+      >
+        <el-table-column
+          prop="engine"
+          label="引擎"
+          min-width="160"
+        >
           <template #default="{ row }">
             <span class="font-semibold">{{ row.engine }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="可见率" min-width="220">
+        <el-table-column
+          label="可见率"
+          min-width="220"
+        >
           <template #default="{ row }">
             <div class="flex items-center gap-2">
               <el-progress
@@ -99,15 +199,46 @@
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="probe_count" label="探针数" width="100" align="right" sortable />
-        <el-table-column prop="brand_hits" label="品牌命中" width="100" align="right" sortable />
-        <el-table-column label="平均引用" width="100" align="right">
-          <template #default="{ row }">{{ (row.avg_citations || 0).toFixed(2) }}</template>
-        </el-table-column>
-        <el-table-column label="负面" width="90" align="right">
+        <el-table-column
+          prop="probe_count"
+          label="探针数"
+          width="100"
+          align="right"
+          sortable
+        />
+        <el-table-column
+          prop="brand_hits"
+          label="品牌命中"
+          width="100"
+          align="right"
+          sortable
+        />
+        <el-table-column
+          label="平均引用"
+          width="100"
+          align="right"
+        >
           <template #default="{ row }">
-            <el-tag v-if="row.negative_count > 0" type="danger" size="small">{{ row.negative_count }}</el-tag>
-            <span v-else class="text-gray-400">0</span>
+            {{ (row.avg_citations || 0).toFixed(2) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="负面"
+          width="90"
+          align="right"
+        >
+          <template #default="{ row }">
+            <el-tag
+              v-if="row.negative_count > 0"
+              type="danger"
+              size="small"
+            >
+              {{ row.negative_count }}
+            </el-tag>
+            <span
+              v-else
+              class="text-gray-400"
+            >0</span>
           </template>
         </el-table-column>
       </el-table>
@@ -119,37 +250,109 @@
         <div class="flex items-center justify-between">
           <span class="font-bold">探针运行记录（最近 {{ runsLimit }} 条）</span>
           <div class="flex items-center gap-2">
-            <el-select v-model="runsEngine" placeholder="全部引擎" clearable size="small" style="width: 160px" @change="loadRuns">
-              <el-option v-for="e in engines" :key="e.engine" :label="e.engine" :value="e.engine" />
+            <el-select
+              v-model="runsEngine"
+              placeholder="全部引擎"
+              clearable
+              size="small"
+              style="width: 160px"
+              @change="loadRuns"
+            >
+              <el-option
+                v-for="e in engines"
+                :key="e.engine"
+                :label="e.engine"
+                :value="e.engine"
+              />
             </el-select>
-            <el-button size="small" @click="loadRuns" :loading="runsLoading">刷新</el-button>
+            <el-button
+              size="small"
+              :loading="runsLoading"
+              @click="loadRuns"
+            >
+              刷新
+            </el-button>
           </div>
         </div>
       </template>
-      <el-table :data="runs" v-loading="runsLoading" size="small">
-        <el-table-column prop="created_at" label="时间" width="160">
-          <template #default="{ row }">{{ formatTime(row.created_at) }}</template>
-        </el-table-column>
-        <el-table-column prop="engine" label="引擎" width="150">
-          <template #default="{ row }"><el-tag size="small" effect="plain">{{ row.engine }}</el-tag></template>
-        </el-table-column>
-        <el-table-column prop="query" label="探测查询" min-width="180" show-overflow-tooltip />
-        <el-table-column label="品牌" width="90" align="center">
+      <el-table
+        v-loading="runsLoading"
+        :data="runs"
+        size="small"
+      >
+        <el-table-column
+          prop="created_at"
+          label="时间"
+          width="160"
+        >
           <template #default="{ row }">
-            <el-tag :type="row.brand_mentioned ? 'success' : 'info'" size="small">
+            {{ formatTime(row.created_at) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          prop="engine"
+          label="引擎"
+          width="150"
+        >
+          <template #default="{ row }">
+            <el-tag
+              size="small"
+              effect="plain"
+            >
+              {{ row.engine }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column
+          prop="query"
+          label="探测查询"
+          min-width="180"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          label="品牌"
+          width="90"
+          align="center"
+        >
+          <template #default="{ row }">
+            <el-tag
+              :type="row.brand_mentioned ? 'success' : 'info'"
+              size="small"
+            >
               {{ row.brand_mentioned ? '提及' : '未提及' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="情感" width="80" align="center">
+        <el-table-column
+          label="情感"
+          width="80"
+          align="center"
+        >
           <template #default="{ row }">
-            <el-tag size="small" :type="sentimentType(row.sentiment)">{{ sentimentLabel(row.sentiment) }}</el-tag>
+            <el-tag
+              size="small"
+              :type="sentimentType(row.sentiment)"
+            >
+              {{ sentimentLabel(row.sentiment) }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="latency_ms" label="耗时(ms)" width="100" align="right" />
-        <el-table-column label="回答摘要" min-width="240">
+        <el-table-column
+          prop="latency_ms"
+          label="耗时(ms)"
+          width="100"
+          align="right"
+        />
+        <el-table-column
+          label="回答摘要"
+          min-width="240"
+        >
           <template #default="{ row }">
-            <el-tooltip :content="snippet(row.response)" placement="top" :show-after="200">
+            <el-tooltip
+              :content="snippet(row.response)"
+              placement="top"
+              :show-after="200"
+            >
               <span class="text-gray-500 text-xs">{{ snippet(row.response) }}</span>
             </el-tooltip>
           </template>

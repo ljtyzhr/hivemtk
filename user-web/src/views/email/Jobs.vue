@@ -2,23 +2,64 @@
   <div class="dashboard">
     <div class="dashboard-content">
       <div class="recent-tasks">
-        <el-table :data="jobsList" style="width: 100%">
-          <el-table-column prop="subject" :label="$t('主题')" width="200" />
-          <el-table-column prop="email_total" :label="$t('计划条数')" width="120" />
-          <el-table-column prop="send_total" :label="$t('已发送条数')" width="120" />
-          <el-table-column prop="success_total" :label="$t('成功条数')" width="120" />
-          <el-table-column prop="fail_total" :label="$t('失败条数')" width="120" />
-          <el-table-column prop="read_total" :label="$t('已读条数')" width="120" />
-          <el-table-column  :label="$t('未读条数')" width="120" flex="1">
+        <el-table
+          :data="jobsList"
+          style="width: 100%"
+        >
+          <el-table-column
+            prop="subject"
+            :label="$t('主题')"
+            width="200"
+          />
+          <el-table-column
+            prop="email_total"
+            :label="$t('计划条数')"
+            width="120"
+          />
+          <el-table-column
+            prop="send_total"
+            :label="$t('已发送条数')"
+            width="120"
+          />
+          <el-table-column
+            prop="success_total"
+            :label="$t('成功条数')"
+            width="120"
+          />
+          <el-table-column
+            prop="fail_total"
+            :label="$t('失败条数')"
+            width="120"
+          />
+          <el-table-column
+            prop="read_total"
+            :label="$t('已读条数')"
+            width="120"
+          />
+          <el-table-column
+            :label="$t('未读条数')"
+            width="120"
+            flex="1"
+          >
             <template #default="scope">
               {{ scope.row.success_total - scope.row.read_total }}
             </template>
           </el-table-column>
-          <el-table-column prop="created_at" label="创建时间" width="300" flex="1" />
+          <el-table-column
+            prop="created_at"
+            label="创建时间"
+            width="300"
+            flex="1"
+          />
         </el-table>
         <div style="width: 100%;text-align: center; display: flex;">
-          <el-pagination style="margin: 0 auto;" :page-size="jobsLimit" @change="handlePageChange"
-            layout="prev, pager, next"  :total="jobsTotal" />
+          <el-pagination
+            style="margin: 0 auto;"
+            :page-size="jobsLimit"
+            layout="prev, pager, next"
+            :total="jobsTotal"
+            @change="handlePageChange"
+          />
         </div>
       </div>
     </div>

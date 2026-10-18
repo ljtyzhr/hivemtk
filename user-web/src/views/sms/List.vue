@@ -4,21 +4,49 @@
       <template #header>
         <div class="card-header">
           <span>{{ $t('短信列表') }}</span>
-          <el-button type="primary" @click="handleSendSms">{{ $t('发送短信') }}</el-button>
+          <el-button
+            type="primary"
+            @click="handleSendSms"
+          >
+            {{ $t('发送短信') }}
+          </el-button>
         </div>
       </template>
       
       <div class="search-form">
-        <el-form :inline="true" :model="searchForm">
+        <el-form
+          :inline="true"
+          :model="searchForm"
+        >
           <el-form-item label="手机号">
-            <el-input v-model="searchForm.phone" placeholder="请输入手机号" clearable />
+            <el-input
+              v-model="searchForm.phone"
+              placeholder="请输入手机号"
+              clearable
+            />
           </el-form-item>
           <el-form-item label="状态">
-            <el-select v-model="searchForm.status" placeholder="请选择状态" clearable>
-              <el-option label="待发送" value="pending" />
-              <el-option label="发送中" value="sending" />
-              <el-option label="已发送" value="sent" />
-              <el-option label="发送失败" value="failed" />
+            <el-select
+              v-model="searchForm.status"
+              placeholder="请选择状态"
+              clearable
+            >
+              <el-option
+                label="待发送"
+                value="pending"
+              />
+              <el-option
+                label="发送中"
+                value="sending"
+              />
+              <el-option
+                label="已发送"
+                value="sent"
+              />
+              <el-option
+                label="发送失败"
+                value="failed"
+              />
             </el-select>
           </el-form-item>
           <el-form-item label="发送时间">
@@ -32,28 +60,73 @@
             />
           </el-form-item>
           <el-form-item>
-            <el-button type="primary" @click="handleSearch">搜索</el-button>
-            <el-button @click="handleReset">重置</el-button>
+            <el-button
+              type="primary"
+              @click="handleSearch"
+            >
+              搜索
+            </el-button>
+            <el-button @click="handleReset">
+              重置
+            </el-button>
           </el-form-item>
         </el-form>
       </div>
       
-      <el-table :data="smsList" style="width: 100%" v-loading="loading">
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="phone" label="手机号" />
-        <el-table-column prop="content" label="短信内容" show-overflow-tooltip />
-        <el-table-column prop="status" label="状态" width="100">
+      <el-table
+        v-loading="loading"
+        :data="smsList"
+        style="width: 100%"
+      >
+        <el-table-column
+          prop="id"
+          label="ID"
+          width="80"
+        />
+        <el-table-column
+          prop="phone"
+          label="手机号"
+        />
+        <el-table-column
+          prop="content"
+          label="短信内容"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          prop="status"
+          label="状态"
+          width="100"
+        >
           <template #default="scope">
             <el-tag :type="getStatusType(scope.row.status)">
               {{ getStatusText(scope.row.status) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="sendTime" label="发送时间" width="180" />
-        <el-table-column label="操作" width="150">
+        <el-table-column
+          prop="sendTime"
+          label="发送时间"
+          width="180"
+        />
+        <el-table-column
+          label="操作"
+          width="150"
+        >
           <template #default="scope">
-            <el-button size="small" @click="handleView(scope.row)">查看</el-button>
-            <el-button size="small" type="danger" @click="handleResend(scope.row)" v-if="scope.row.status === 'failed'">重发</el-button>
+            <el-button
+              size="small"
+              @click="handleView(scope.row)"
+            >
+              查看
+            </el-button>
+            <el-button
+              v-if="scope.row.status === 'failed'"
+              size="small"
+              type="danger"
+              @click="handleResend(scope.row)"
+            >
+              重发
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -72,18 +145,44 @@
     </el-card>
 
     
-    <el-dialog v-model="sendDialogVisible" title="发送短信" width="500px">
-      <el-form :model="sendForm" label-width="80px">
+    <el-dialog
+      v-model="sendDialogVisible"
+      title="发送短信"
+      width="500px"
+    >
+      <el-form
+        :model="sendForm"
+        label-width="80px"
+      >
         <el-form-item label="手机号">
-          <el-input v-model="sendForm.phone" placeholder="请输入手机号" maxlength="11" />
+          <el-input
+            v-model="sendForm.phone"
+            placeholder="请输入手机号"
+            maxlength="11"
+          />
         </el-form-item>
         <el-form-item label="内容">
-          <el-input v-model="sendForm.content" type="textarea" :rows="5" placeholder="请输入短信内容" maxlength="500" show-word-limit />
+          <el-input
+            v-model="sendForm.content"
+            type="textarea"
+            :rows="5"
+            placeholder="请输入短信内容"
+            maxlength="500"
+            show-word-limit
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="sendDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="sending" @click="submitSendSms">确定发送</el-button>
+        <el-button @click="sendDialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="sending"
+          @click="submitSendSms"
+        >
+          确定发送
+        </el-button>
       </template>
     </el-dialog>
   </div>

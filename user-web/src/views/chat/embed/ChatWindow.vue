@@ -1,5 +1,8 @@
 <template>
-  <div class="chat-window" :class="{ 'fullscreen': fullscreen }">
+  <div
+    class="chat-window"
+    :class="{ 'fullscreen': fullscreen }"
+  >
     <VisitorHeader
       :title="channelTitle"
       :color="widgetColor"
@@ -8,21 +11,46 @@
       @close="onClose"
     />
 
-    <div class="offline-banner" v-if="offlineBannerCount > 0">
-      <span><svg class="offline-ico" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9"/><path d="M13.73 21a2 2 0 0 1-3.46 0"/></svg> {{ $t('您有 {n} 条未读消息', { n: offlineBannerCount }) }}</span>
-      <button @click="showOfflineList = true">{{ $t('查看') }}</button>
+    <div
+      v-if="offlineBannerCount > 0"
+      class="offline-banner"
+    >
+      <span><svg
+        class="offline-ico"
+        viewBox="0 0 24 24"
+        width="16"
+        height="16"
+        fill="none"
+        stroke="currentColor"
+        stroke-width="2"
+        stroke-linecap="round"
+        stroke-linejoin="round"
+      ><path d="M18 8A6 6 0 0 0 6 8c0 7-3 9-3 9h18s-3-2-3-9" /><path d="M13.73 21a2 2 0 0 1-3.46 0" /></svg> {{ $t('您有 {n} 条未读消息', { n: offlineBannerCount }) }}</span>
+      <button @click="showOfflineList = true">
+        {{ $t('查看') }}
+      </button>
     </div>
 
     <!-- 没有未读、但有历史会话时也要给入口：列表数据在挂载时就取回来了
          （loadOfflineSessions），只挂在未读横幅上等于老访客永远点不到"历史会话"。 -->
-    <div class="offline-banner" v-if="offlineBannerCount === 0 && offlineSessions.length > 0">
+    <div
+      v-if="offlineBannerCount === 0 && offlineSessions.length > 0"
+      class="offline-banner"
+    >
       <span>{{ $t('历史会话') }} · {{ offlineSessions.length }}</span>
-      <button @click="showOfflineList = true">{{ $t('查看') }}</button>
+      <button @click="showOfflineList = true">
+        {{ $t('查看') }}
+      </button>
     </div>
 
-    <div class="offline-banner error-banner" v-if="initFailed">
+    <div
+      v-if="initFailed"
+      class="offline-banner error-banner"
+    >
       <span>{{ $t('会话连接失败，请检查网络') }}</span>
-      <button @click="openSession(true)">{{ $t('重试') }}</button>
+      <button @click="openSession(true)">
+        {{ $t('重试') }}
+      </button>
     </div>
 
     <ChatMessages
@@ -40,15 +68,32 @@
     />
 
     
-    <div v-if="showOfflineList" class="modal-mask">
-      <div class="modal-backdrop" role="presentation" @click="showOfflineList = false"></div>
-      <div ref="offlineModalRef" class="modal">
+    <div
+      v-if="showOfflineList"
+      class="modal-mask"
+    >
+      <div
+        class="modal-backdrop"
+        role="presentation"
+        @click="showOfflineList = false"
+      />
+      <div
+        ref="offlineModalRef"
+        class="modal"
+      >
         <div class="modal-header">
           <h3>{{ $t('历史会话') }}</h3>
-          <button @click="showOfflineList = false">×</button>
+          <button @click="showOfflineList = false">
+            ×
+          </button>
         </div>
         <div class="modal-body">
-          <div v-if="offlineSessions.length === 0" class="empty">{{ $t('暂无历史会话') }}</div>
+          <div
+            v-if="offlineSessions.length === 0"
+            class="empty"
+          >
+            {{ $t('暂无历史会话') }}
+          </div>
           <div
             v-for="s in offlineSessions"
             :key="s.id"
@@ -59,20 +104,36 @@
             @keydown.enter.prevent="resumeSession(s)"
             @keydown.space.prevent="resumeSession(s)"
           >
-            <div class="session-time">{{ formatTime(s.created_at) }}</div>
-            <div class="session-preview">{{ s.last_message || '空会话' }}</div>
+            <div class="session-time">
+              {{ formatTime(s.created_at) }}
+            </div>
+            <div class="session-preview">
+              {{ s.last_message || '空会话' }}
+            </div>
           </div>
         </div>
       </div>
     </div>
 
     
-    <div v-if="showRating" class="modal-mask">
-      <div class="modal-backdrop" role="presentation" @click="showRating = false"></div>
-      <div ref="ratingModalRef" class="modal">
+    <div
+      v-if="showRating"
+      class="modal-mask"
+    >
+      <div
+        class="modal-backdrop"
+        role="presentation"
+        @click="showRating = false"
+      />
+      <div
+        ref="ratingModalRef"
+        class="modal"
+      >
         <div class="modal-header">
           <h3>{{ $t('服务评价') }}</h3>
-          <button @click="onClose">×</button>
+          <button @click="onClose">
+            ×
+          </button>
         </div>
         <div class="modal-body">
           <p>{{ $t('请对本次服务进行评价：') }}</p>
@@ -90,9 +151,20 @@
               @keydown.space.prevent="rating = n"
             >★</span>
           </div>
-          <textarea v-model="ratingComment" class="reason-input" rows="3" aria-label="评价备注" :placeholder="$t('选填，您的宝贵建议...')"></textarea>
+          <textarea
+            v-model="ratingComment"
+            class="reason-input"
+            rows="3"
+            aria-label="评价备注"
+            :placeholder="$t('选填，您的宝贵建议...')"
+          />
           <div class="modal-actions">
-            <button class="primary" @click="submitRating">{{ $t('提交') }}</button>
+            <button
+              class="primary"
+              @click="submitRating"
+            >
+              {{ $t('提交') }}
+            </button>
           </div>
         </div>
       </div>

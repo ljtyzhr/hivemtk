@@ -3,10 +3,11 @@
     <el-card class="header-card">
       <div>
         <h2>{{ $t('客户会话管理') }}</h2>
-        <p class="subtitle">统一管理多渠道客户对话 · 集成坐席状态 / 快捷回复 / 标签 / AI 建议 / 三栏看板</p>
+        <p class="subtitle">
+          统一管理多渠道客户对话 · 集成坐席状态 / 快捷回复 / 标签 / AI 建议 / 三栏看板
+        </p>
       </div>
       <div class="header-actions">
-
         <el-select
           v-model="myStatus"
           size="default"
@@ -14,13 +15,13 @@
           @change="handleStatusChange"
         >
           <el-option value="online">
-            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10B981;margin-right:8px;vertical-align:middle;"></span>{{ $t('在线') }}
+            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#10B981;margin-right:8px;vertical-align:middle;" />{{ $t('在线') }}
           </el-option>
           <el-option value="busy">
-            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#F59E0B;margin-right:8px;vertical-align:middle;"></span>{{ $t('忙碌') }}
+            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#F59E0B;margin-right:8px;vertical-align:middle;" />{{ $t('忙碌') }}
           </el-option>
           <el-option value="offline">
-            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#94A3B8;margin-right:8px;vertical-align:middle;"></span>{{ $t('离线') }}
+            <span style="display:inline-block;width:8px;height:8px;border-radius:50%;background:#94A3B8;margin-right:8px;vertical-align:middle;" />{{ $t('离线') }}
           </el-option>
         </el-select>
 
@@ -28,7 +29,10 @@
           <el-icon><Warning /></el-icon>
           黑名单管理
         </el-button>
-        <el-button type="primary" @click="showCreateSession">
+        <el-button
+          type="primary"
+          @click="showCreateSession"
+        >
           <el-icon><Plus /></el-icon>
           {{ $t('新建会话') }}
         </el-button>
@@ -36,21 +40,48 @@
     </el-card>
 
     <div class="main-content">
-
       <div class="session-list">
         <el-card>
           <template #header>
             <div class="card-header">
               <span>{{ $t('会话列表') }}</span>
-              <el-select v-model="filterStatus" size="small" style="width: 120px">
-                <el-option :label="$t('全部')" value="" />
-                <el-option :label="$t('进行中')" value="__active__" />
-                <el-option :label="$t('待处理')" value="pending" />
-                <el-option :label="$t('AI处理')" value="ai_handling" />
-                <el-option :label="$t('人工')" value="human_handling" />
-                <el-option :label="$t('等待')" value="waiting" />
-                <el-option :label="$t('已解决')" value="resolved" />
-                <el-option :label="$t('已关闭')" value="closed" />
+              <el-select
+                v-model="filterStatus"
+                size="small"
+                style="width: 120px"
+              >
+                <el-option
+                  :label="$t('全部')"
+                  value=""
+                />
+                <el-option
+                  :label="$t('进行中')"
+                  value="__active__"
+                />
+                <el-option
+                  :label="$t('待处理')"
+                  value="pending"
+                />
+                <el-option
+                  :label="$t('AI处理')"
+                  value="ai_handling"
+                />
+                <el-option
+                  :label="$t('人工')"
+                  value="human_handling"
+                />
+                <el-option
+                  :label="$t('等待')"
+                  value="waiting"
+                />
+                <el-option
+                  :label="$t('已解决')"
+                  value="resolved"
+                />
+                <el-option
+                  :label="$t('已关闭')"
+                  value="closed"
+                />
               </el-select>
             </div>
           </template>
@@ -65,15 +96,18 @@
             @keydown.enter.prevent="selectSession(session)"
             @keydown.space.prevent="selectSession(session)"
           >
-            <el-avatar :size="40">{{ session.customerName?.charAt(0) }}</el-avatar>
+            <el-avatar :size="40">
+              {{ session.customerName?.charAt(0) }}
+            </el-avatar>
             <div class="session-info">
               <div class="session-top">
                 <span class="name">{{ session.customerName }}</span>
                 <span class="time">{{ formatTime(session.lastTime) }}</span>
               </div>
-              <div class="preview">{{ session.lastMessage }}</div>
+              <div class="preview">
+                {{ session.lastMessage }}
+              </div>
               <div class="session-meta">
-
                 <el-tag
                   :type="session.handlerType === 'human' ? 'success' : 'info'"
                   size="small"
@@ -84,26 +118,39 @@
                   </el-icon>
                   {{ session.handlerType === 'human' ? '人工' : 'AI' }}
                 </el-tag>
-                <el-tag size="small" effect="plain">{{ getChannelLabel(session.channel) }}</el-tag>
+                <el-tag
+                  size="small"
+                  effect="plain"
+                >
+                  {{ getChannelLabel(session.channel) }}
+                </el-tag>
 
                 <el-tag
                   v-if="blacklistedSessionIds.includes(session.id)"
                   size="small"
                   type="danger"
                   effect="dark"
-                >已拉黑</el-tag>
+                >
+                  已拉黑
+                </el-tag>
               </div>
             </div>
-            <el-badge v-if="session.unread" :value="session.unread" />
+            <el-badge
+              v-if="session.unread"
+              :value="session.unread"
+            />
           </div>
-          <el-empty v-if="filteredSessions.length === 0" description="暂无会话" :image-size="80" />
+          <el-empty
+            v-if="filteredSessions.length === 0"
+            description="暂无会话"
+            :image-size="80"
+          />
         </el-card>
       </div>
 
 
       <div class="chat-area">
         <el-card v-if="currentSession">
-
           <template #header>
             <div class="chat-header">
               <div class="customer-info">
@@ -116,7 +163,10 @@
                   effect="dark"
                   class="handler-tag"
                 >
-                  <span class="status-dot" :class="currentHandler" />
+                  <span
+                    class="status-dot"
+                    :class="currentHandler"
+                  />
                   <el-icon style="vertical-align: middle">
                     <component :is="currentHandler === 'human' ? User : MagicStick" />
                   </el-icon>
@@ -131,8 +181,8 @@
                     effect="dark"
                     size="small"
                     closable
-                    @close="removeSessionTag(tag)"
                     style="color: #fff; margin-right: 6px"
+                    @close="removeSessionTag(tag)"
                   >
                     {{ tag.name }}
                   </el-tag>
@@ -155,7 +205,6 @@
                 </div>
               </div>
               <div class="header-actions">
-
                 <el-button
                   v-if="currentHandler === 'ai'"
                   type="success"
@@ -176,17 +225,32 @@
                 >
                   释放回 AI
                 </el-button>
-                <el-button size="small" @click="closeSession">结束会话</el-button>
+                <el-button
+                  size="small"
+                  @click="closeSession"
+                >
+                  结束会话
+                </el-button>
               </div>
             </div>
           </template>
 
 
-          <div v-if="aiSuggestions.length > 0" class="ai-suggestion-bar">
+          <div
+            v-if="aiSuggestions.length > 0"
+            class="ai-suggestion-bar"
+          >
             <div class="ai-bar-title">
-              <el-icon style="color: #4F46E5"><MagicStick /></el-icon>
+              <el-icon style="color: #4F46E5">
+                <MagicStick />
+              </el-icon>
               <span>AI 建议 ({{ aiSuggestions.length }})</span>
-              <el-button link size="small" @click="loadAiSuggestions" style="margin-left: auto">
+              <el-button
+                link
+                size="small"
+                style="margin-left: auto"
+                @click="loadAiSuggestions"
+              >
                 刷新
               </el-button>
             </div>
@@ -201,9 +265,14 @@
                 @keydown.enter.prevent="useAiSuggestion(s)"
                 @keydown.space.prevent="useAiSuggestion(s)"
               >
-                <div class="ai-text">{{ s.suggestion }}</div>
+                <div class="ai-text">
+                  {{ s.suggestion }}
+                </div>
                 <div class="ai-meta">
-                  <el-tag size="small" :type="s.is_used ? 'success' : 'info'">
+                  <el-tag
+                    size="small"
+                    :type="s.is_used ? 'success' : 'info'"
+                  >
                     {{ s.is_used ? '已采纳' : '置信度 ' + Math.round((s.confidence || 0) * 100) + '%' }}
                   </el-tag>
                   <el-button
@@ -212,40 +281,70 @@
                     type="primary"
                     size="small"
                     @click.stop="useAiSuggestion(s)"
-                  >采纳并发送</el-button>
+                  >
+                    采纳并发送
+                  </el-button>
                 </div>
               </div>
             </div>
           </div>
 
-          <div class="messages" ref="messagesRef">
+          <div
+            ref="messagesRef"
+            class="messages"
+          >
             <div
               v-for="msg in messages"
               :key="msg.id"
               class="message"
               :class="{ mine: msg.direction === 'out' }"
             >
-              <el-avatar :size="36" class="avatar">
-                <el-icon v-if="msg.senderType === 'ai'"><MagicStick /></el-icon>
+              <el-avatar
+                :size="36"
+                class="avatar"
+              >
+                <el-icon v-if="msg.senderType === 'ai'">
+                  <MagicStick />
+                </el-icon>
                 <span v-else>{{ msg.from?.charAt(0) }}</span>
               </el-avatar>
               <div class="bubble">
-                <div class="sender-tag" v-if="msg.senderType === 'ai'">AI 助手</div>
-                <div class="sender-tag agent" v-else-if="msg.senderType === 'agent'">{{ msg.from }}</div>
-                <div class="content">{{ msg.content }}</div>
-                <div class="time">{{ msg.createdAt }}</div>
+                <div
+                  v-if="msg.senderType === 'ai'"
+                  class="sender-tag"
+                >
+                  AI 助手
+                </div>
+                <div
+                  v-else-if="msg.senderType === 'agent'"
+                  class="sender-tag agent"
+                >
+                  {{ msg.from }}
+                </div>
+                <div class="content">
+                  {{ msg.content }}
+                </div>
+                <div class="time">
+                  {{ msg.createdAt }}
+                </div>
               </div>
             </div>
           </div>
 
 
           <div class="input-area">
-            <div v-if="quickReplies.length > 0" class="quick-replies-bar">
+            <div
+              v-if="quickReplies.length > 0"
+              class="quick-replies-bar"
+            >
               <el-dropdown
                 trigger="click"
                 @command="insertQuickReply"
               >
-                <el-button size="small" plain>
+                <el-button
+                  size="small"
+                  plain
+                >
                   <el-icon><ChatLineSquare /></el-icon>
                   快捷回复 ({{ quickReplies.length }})
                 </el-button>
@@ -258,10 +357,14 @@
                     >
                       <div class="quick-reply-item">
                         <div class="qr-title">
-                          <el-tag size="small">{{ r.category || '通用' }}</el-tag>
+                          <el-tag size="small">
+                            {{ r.category || '通用' }}
+                          </el-tag>
                           <span>{{ r.title }}</span>
                         </div>
-                        <div class="qr-content">{{ r.content }}</div>
+                        <div class="qr-content">
+                          {{ r.content }}
+                        </div>
                       </div>
                     </el-dropdown-item>
                   </el-dropdown-menu>
@@ -299,7 +402,12 @@
               @keydown.ctrl.enter="sendMessage"
             />
             <div class="input-actions">
-              <el-button @click="insertTemplate" :disabled="currentHandler === 'ai'">话术模板</el-button>
+              <el-button
+                :disabled="currentHandler === 'ai'"
+                @click="insertTemplate"
+              >
+                话术模板
+              </el-button>
               <el-button
                 type="primary"
                 :disabled="!inputMsg.trim() || currentHandler === 'ai'"
@@ -310,16 +418,19 @@
             </div>
           </div>
         </el-card>
-        <el-empty v-else description="请从左侧选择会话" />
+        <el-empty
+          v-else
+          description="请从左侧选择会话"
+        />
       </div>
 
 
       <CustomerProfilePanel
         v-if="currentSession"
+        v-model:sop-stage="sopStage"
         :current-session="currentSession"
         :profile-stats="profileStats"
         :profile-tags="profileTags"
-        v-model:sop-stage="sopStage"
         @refresh="loadCustomerProfile"
         @save-sop-stage="saveSopStage"
         @send-coupon="sendCoupon"

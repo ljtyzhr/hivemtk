@@ -1,15 +1,27 @@
 <template>
   <div class="workflow-execution-page">
-    <el-page-header :content="`执行详情 #${executionId}`" @back="$router.back()" />
+    <el-page-header
+      :content="`执行详情 #${executionId}`"
+      @back="$router.back()"
+    />
 
-    <div v-loading="loading" class="execution-body">
-      
-      <el-row :gutter="16" class="overview-row">
+    <div
+      v-loading="loading"
+      class="execution-body"
+    >
+      <el-row
+        :gutter="16"
+        class="overview-row"
+      >
         <el-col :span="6">
           <el-card>
             <div class="overview-item">
               <span class="label">{{ $t('状态') }}</span>
-              <el-tag :type="statusType(execution.status)" effect="dark" size="large">
+              <el-tag
+                :type="statusType(execution.status)"
+                effect="dark"
+                size="large"
+              >
                 {{ statusText(execution.status) }}
               </el-tag>
             </div>
@@ -20,7 +32,12 @@
             <div class="overview-item">
               <span class="label">{{ $t('工作流') }}</span>
               <span class="value">{{ execution.workflow_id || '-' }}</span>
-              <el-tag size="small" style="margin-left: 8px">{{ execution.version }}v</el-tag>
+              <el-tag
+                size="small"
+                style="margin-left: 8px"
+              >
+                {{ execution.version }}v
+              </el-tag>
             </div>
           </el-card>
         </el-col>
@@ -81,7 +98,10 @@
       </el-card>
 
       
-      <el-card v-if="execution.error" class="error-card">
+      <el-card
+        v-if="execution.error"
+        class="error-card"
+      >
         <template #header>
           <span style="color: var(--el-color-danger)">{{ $t('错误信息') }}</span>
         </template>
@@ -104,27 +124,42 @@
           >
             <div class="node-item">
               <div class="node-header">
-                <el-tag :type="statusType(node.status)" size="small">
+                <el-tag
+                  :type="statusType(node.status)"
+                  size="small"
+                >
                   {{ statusText(node.status) }}
                 </el-tag>
                 <span class="node-name">{{ node.node_id || `节点 ${idx + 1}` }}</span>
                 <span class="node-type">{{ node.node_type }}</span>
-                <span v-if="node.duration_ms" class="node-duration">
+                <span
+                  v-if="node.duration_ms"
+                  class="node-duration"
+                >
                   {{ node.duration_ms }}ms
                 </span>
               </div>
-              <div v-if="node.error_message" class="node-error">
+              <div
+                v-if="node.error_message"
+                class="node-error"
+              >
                 <el-icon><WarningFilled /></el-icon>
                 {{ node.error_message }}
               </div>
-              <div v-if="node.output_data" class="node-output">
+              <div
+                v-if="node.output_data"
+                class="node-output"
+              >
                 <strong>{{ $t('输出') }}:</strong>
                 <pre>{{ formatOutput(node.output_data) }}</pre>
               </div>
             </div>
           </el-timeline-item>
         </el-timeline>
-        <el-empty v-else :description="$t('暂无节点执行记录')" />
+        <el-empty
+          v-else
+          :description="$t('暂无节点执行记录')"
+        />
       </el-card>
     </div>
   </div>

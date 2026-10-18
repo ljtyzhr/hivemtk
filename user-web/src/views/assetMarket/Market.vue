@@ -1,29 +1,70 @@
 <template>
   <div class="asset-market">
-    <el-card class="filter-bar" shadow="never">
+    <el-card
+      class="filter-bar"
+      shadow="never"
+    >
       <el-form inline>
         <el-form-item label="类型">
-          <el-select v-model="filter.asset_type" placeholder="全部" clearable>
-            <el-option label="智能体角色" value="agent_persona" />
-            <el-option label="销冠话术" value="sales_script" />
-            <el-option label="AB 测试方案" value="ab_test_plan" />
-            <el-option label="自动化工作流" value="marketing_workflow" />
-            <el-option label="行业 SOP" value="industry_sop" />
+          <el-select
+            v-model="filter.asset_type"
+            placeholder="全部"
+            clearable
+          >
+            <el-option
+              label="智能体角色"
+              value="agent_persona"
+            />
+            <el-option
+              label="销冠话术"
+              value="sales_script"
+            />
+            <el-option
+              label="AB 测试方案"
+              value="ab_test_plan"
+            />
+            <el-option
+              label="自动化工作流"
+              value="marketing_workflow"
+            />
+            <el-option
+              label="行业 SOP"
+              value="industry_sop"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="行业">
-          <el-select v-model="filter.industry" placeholder="全部" clearable>
-            <el-option v-for="i in industries" :key="i" :label="i" :value="i" />
+          <el-select
+            v-model="filter.industry"
+            placeholder="全部"
+            clearable
+          >
+            <el-option
+              v-for="i in industries"
+              :key="i"
+              :label="i"
+              :value="i"
+            />
           </el-select>
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="fetchList">查询</el-button>
-          <el-button @click="$router.push('/asset-market/my-assets')">我的资产</el-button>
+          <el-button
+            type="primary"
+            @click="fetchList"
+          >
+            查询
+          </el-button>
+          <el-button @click="$router.push('/asset-market/my-assets')">
+            我的资产
+          </el-button>
         </el-form-item>
       </el-form>
     </el-card>
 
-    <div class="asset-grid" v-loading="loading">
+    <div
+      v-loading="loading"
+      class="asset-grid"
+    >
       <el-card
         v-for="a in list"
         :key="a.asset_id"
@@ -32,29 +73,71 @@
         @click="$router.push(`/asset-market/detail/${a.asset_id}`)"
       >
         <div class="cover-wrap">
-          <img v-if="a.cover_url" :src="a.cover_url" class="cover" :alt="a.name || '封面'" />
-          <div v-else class="cover-placeholder">{{ typeLabel(a.asset_type)[0] }}</div>
+          <img
+            v-if="a.cover_url"
+            :src="a.cover_url"
+            class="cover"
+            :alt="a.name || '封面'"
+          >
+          <div
+            v-else
+            class="cover-placeholder"
+          >
+            {{ typeLabel(a.asset_type)[0] }}
+          </div>
         </div>
-        <h3 class="title">{{ a.name }}</h3>
+        <h3 class="title">
+          {{ a.name }}
+        </h3>
         <div class="tags">
-          <el-tag size="small" effect="plain">{{ a.industry }}</el-tag>
-          <el-tag size="small" :type="typeColor(a.asset_type)">{{ typeLabel(a.asset_type) }}</el-tag>
+          <el-tag
+            size="small"
+            effect="plain"
+          >
+            {{ a.industry }}
+          </el-tag>
+          <el-tag
+            size="small"
+            :type="typeColor(a.asset_type)"
+          >
+            {{ typeLabel(a.asset_type) }}
+          </el-tag>
         </div>
-        <p class="desc">{{ a.description || '暂无描述' }}</p>
+        <p class="desc">
+          {{ a.description || '暂无描述' }}
+        </p>
         <div class="footer">
           <div class="meta">
-            <el-rate v-model="a.rating_avg" disabled size="small" />
+            <el-rate
+              v-model="a.rating_avg"
+              disabled
+              size="small"
+            />
             <span class="downloads">↓ {{ a.download_count || 0 }}</span>
           </div>
-          <el-tag v-if="a.purchased" type="success" size="small">已购</el-tag>
-          <el-button v-else type="primary" size="small" @click.stop="handlePurchase(a)">
+          <el-tag
+            v-if="a.purchased"
+            type="success"
+            size="small"
+          >
+            已购
+          </el-tag>
+          <el-button
+            v-else
+            type="primary"
+            size="small"
+            @click.stop="handlePurchase(a)"
+          >
             {{ (a.price > 0) ? `${a.price} 积分购买` : '免费试用' }}
           </el-button>
         </div>
       </el-card>
     </div>
 
-    <el-empty v-if="!loading && list.length === 0" description="暂无资产" />
+    <el-empty
+      v-if="!loading && list.length === 0"
+      description="暂无资产"
+    />
 
     <el-pagination
       v-model:current-page="filter.page"

@@ -4,39 +4,104 @@
       <template #header>
         <div class="card-header">
           <span>🧩 Schema 模板库</span>
-          <el-button type="primary" @click="openDialog()">+ 新增模板</el-button>
+          <el-button
+            type="primary"
+            @click="openDialog()"
+          >
+            + 新增模板
+          </el-button>
         </div>
       </template>
 
-      <el-row :gutter="8" style="margin-bottom:12px">
+      <el-row
+        :gutter="8"
+        style="margin-bottom:12px"
+      >
         <el-col :span="6">
-          <el-select v-model="filterPageType" placeholder="PageType 过滤" clearable style="width:100%" @change="load">
-            <el-option label="article" value="article" />
-            <el-option label="faq" value="faq" />
-            <el-option label="guide" value="guide" />
-            <el-option label="product" value="product" />
+          <el-select
+            v-model="filterPageType"
+            placeholder="PageType 过滤"
+            clearable
+            style="width:100%"
+            @change="load"
+          >
+            <el-option
+              label="article"
+              value="article"
+            />
+            <el-option
+              label="faq"
+              value="faq"
+            />
+            <el-option
+              label="guide"
+              value="guide"
+            />
+            <el-option
+              label="product"
+              value="product"
+            />
           </el-select>
         </el-col>
         <el-col :span="6">
-          <el-select v-model="filterSchemaType" placeholder="SchemaType 过滤" clearable style="width:100%" @change="load">
-            <el-option label="FAQPage" value="FAQPage" />
-            <el-option label="Product" value="Product" />
-            <el-option label="Article" value="Article" />
-            <el-option label="Comparison" value="Comparison" />
-            <el-option label="Organization" value="Organization" />
+          <el-select
+            v-model="filterSchemaType"
+            placeholder="SchemaType 过滤"
+            clearable
+            style="width:100%"
+            @change="load"
+          >
+            <el-option
+              label="FAQPage"
+              value="FAQPage"
+            />
+            <el-option
+              label="Product"
+              value="Product"
+            />
+            <el-option
+              label="Article"
+              value="Article"
+            />
+            <el-option
+              label="Comparison"
+              value="Comparison"
+            />
+            <el-option
+              label="Organization"
+              value="Organization"
+            />
           </el-select>
         </el-col>
       </el-row>
 
-      <el-table :data="list" border stripe size="small">
-        <el-table-column label="PageType" width="100">
+      <el-table
+        :data="list"
+        border
+        stripe
+        size="small"
+      >
+        <el-table-column
+          label="PageType"
+          width="100"
+        >
           <template #default="{ row }">
-            <el-tag size="small">{{ row.page_type }}</el-tag>
+            <el-tag size="small">
+              {{ row.page_type }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="Schema @type" width="140">
+        <el-table-column
+          label="Schema @type"
+          width="140"
+        >
           <template #default="{ row }">
-            <el-tag size="small" type="success">{{ row.schema_type }}</el-tag>
+            <el-tag
+              size="small"
+              type="success"
+            >
+              {{ row.schema_type }}
+            </el-tag>
           </template>
         </el-table-column>
         <el-table-column label="模板 JSON 预览">
@@ -44,15 +109,38 @@
             <code class="preview">{{ jsonPreview(row.template_json) }}</code>
           </template>
         </el-table-column>
-        <el-table-column label="状态" width="80">
+        <el-table-column
+          label="状态"
+          width="80"
+        >
           <template #default="{ row }">
-            <el-tag :type="row.active ? 'success' : 'info'" size="small">{{ row.active ? '启用' : '停用' }}</el-tag>
+            <el-tag
+              :type="row.active ? 'success' : 'info'"
+              size="small"
+            >
+              {{ row.active ? '启用' : '停用' }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="160" fixed="right">
+        <el-table-column
+          label="操作"
+          width="160"
+          fixed="right"
+        >
           <template #default="{ row }">
-            <el-button size="small" @click="openDialog(row)">编辑</el-button>
-            <el-button size="small" type="danger" @click="remove(row)">删除</el-button>
+            <el-button
+              size="small"
+              @click="openDialog(row)"
+            >
+              编辑
+            </el-button>
+            <el-button
+              size="small"
+              type="danger"
+              @click="remove(row)"
+            >
+              删除
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -70,25 +158,58 @@
       </div>
     </el-card>
 
-    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑模板' : '新增模板'" width="640px">
-      <el-form :model="form" label-width="110px">
-        <el-form-item label="PageType" required>
-          <el-select v-model="form.page_type" :disabled="isEdit" style="width:100%">
-            <el-option label="article" value="article" />
-            <el-option label="faq" value="faq" />
-            <el-option label="guide" value="guide" />
-            <el-option label="product" value="product" />
+    <el-dialog
+      v-model="dialogVisible"
+      :title="isEdit ? '编辑模板' : '新增模板'"
+      width="640px"
+    >
+      <el-form
+        :model="form"
+        label-width="110px"
+      >
+        <el-form-item
+          label="PageType"
+          required
+        >
+          <el-select
+            v-model="form.page_type"
+            :disabled="isEdit"
+            style="width:100%"
+          >
+            <el-option
+              label="article"
+              value="article"
+            />
+            <el-option
+              label="faq"
+              value="faq"
+            />
+            <el-option
+              label="guide"
+              value="guide"
+            />
+            <el-option
+              label="product"
+              value="product"
+            />
           </el-select>
         </el-form-item>
-        <el-form-item label="Schema @type" required>
-          <el-input v-model="form.schema_type" placeholder="FAQPage" :disabled="isEdit" />
+        <el-form-item
+          label="Schema @type"
+          required
+        >
+          <el-input
+            v-model="form.schema_type"
+            placeholder="FAQPage"
+            :disabled="isEdit"
+          />
         </el-form-item>
         <el-form-item label="模板 JSON">
           <el-input
             v-model="form.template_json_text"
             type="textarea"
             :rows="10"
-            placeholder='{"@context":"https://schema.org","@type":"FAQPage","mainEntity":[]}'
+            placeholder="{&quot;@context&quot;:&quot;https://schema.org&quot;,&quot;@type&quot;:&quot;FAQPage&quot;,&quot;mainEntity&quot;:[]}"
           />
         </el-form-item>
         <el-form-item label="启用">
@@ -96,8 +217,15 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="save">保存</el-button>
+        <el-button @click="dialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          @click="save"
+        >
+          保存
+        </el-button>
       </template>
     </el-dialog>
   </div>

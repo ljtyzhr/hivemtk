@@ -1,9 +1,13 @@
 <template>
   <div class="geo-page">
-
-    
-    <el-card shadow="never" class="filter-card">
-      <el-form :inline="true" :model="filter">
+    <el-card
+      shadow="never"
+      class="filter-card"
+    >
+      <el-form
+        :inline="true"
+        :model="filter"
+      >
         <el-form-item label="日期范围">
           <el-date-picker
             v-model="dateRange"
@@ -16,7 +20,11 @@
           />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" :loading="loading" @click="loadAll">
+          <el-button
+            type="primary"
+            :loading="loading"
+            @click="loadAll"
+          >
             <el-icon><Search /></el-icon><span>查询</span>
           </el-button>
         </el-form-item>
@@ -24,65 +32,175 @@
     </el-card>
 
     
-    <el-row :gutter="16" class="summary-row">
-      <el-col v-for="s in summaryCards" :key="s.key" :xs="12" :sm="8" :md="4">
-        <el-card shadow="never" class="summary-card" :body-style="{ padding: '16px' }">
-          <div class="summary-label">{{ s.label }}</div>
-          <div class="summary-value" :class="s.cls">{{ s.value }}</div>
+    <el-row
+      :gutter="16"
+      class="summary-row"
+    >
+      <el-col
+        v-for="s in summaryCards"
+        :key="s.key"
+        :xs="12"
+        :sm="8"
+        :md="4"
+      >
+        <el-card
+          shadow="never"
+          class="summary-card"
+          :body-style="{ padding: '16px' }"
+        >
+          <div class="summary-label">
+            {{ s.label }}
+          </div>
+          <div
+            class="summary-value"
+            :class="s.cls"
+          >
+            {{ s.value }}
+          </div>
         </el-card>
       </el-col>
     </el-row>
 
     
-    <el-card shadow="never" class="cost-card">
-      <template #header><span class="card-title">API 成本明细（按 Provider / Model）</span></template>
-      <el-table v-loading="costLoading" :data="costRows" stripe style="width: 100%">
-        <el-table-column prop="provider" label="Provider" width="140" />
-        <el-table-column prop="model" label="Model" min-width="180" show-overflow-tooltip />
-        <el-table-column prop="call_count" label="调用次数" width="110" align="right" />
-        <el-table-column label="输入 Token" width="120" align="right">
-          <template #default="{ row }">{{ formatInt(row.input_tokens) }}</template>
+    <el-card
+      shadow="never"
+      class="cost-card"
+    >
+      <template #header>
+        <span class="card-title">API 成本明细（按 Provider / Model）</span>
+      </template>
+      <el-table
+        v-loading="costLoading"
+        :data="costRows"
+        stripe
+        style="width: 100%"
+      >
+        <el-table-column
+          prop="provider"
+          label="Provider"
+          width="140"
+        />
+        <el-table-column
+          prop="model"
+          label="Model"
+          min-width="180"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          prop="call_count"
+          label="调用次数"
+          width="110"
+          align="right"
+        />
+        <el-table-column
+          label="输入 Token"
+          width="120"
+          align="right"
+        >
+          <template #default="{ row }">
+            {{ formatInt(row.input_tokens) }}
+          </template>
         </el-table-column>
-        <el-table-column label="输出 Token" width="120" align="right">
-          <template #default="{ row }">{{ formatInt(row.output_tokens) }}</template>
+        <el-table-column
+          label="输出 Token"
+          width="120"
+          align="right"
+        >
+          <template #default="{ row }">
+            {{ formatInt(row.output_tokens) }}
+          </template>
         </el-table-column>
-        <el-table-column prop="cost_cny" label="成本(CNY)" width="120" align="right">
-          <template #default="{ row }">¥{{ formatNum(row.cost_cny) }}</template>
+        <el-table-column
+          prop="cost_cny"
+          label="成本(CNY)"
+          width="120"
+          align="right"
+        >
+          <template #default="{ row }">
+            ¥{{ formatNum(row.cost_cny) }}
+          </template>
         </el-table-column>
-        <el-table-column prop="cost_usd" label="成本(USD)" width="120" align="right">
-          <template #default="{ row }">${{ formatNum(row.cost_usd) }}</template>
+        <el-table-column
+          prop="cost_usd"
+          label="成本(USD)"
+          width="120"
+          align="right"
+        >
+          <template #default="{ row }">
+            ${{ formatNum(row.cost_usd) }}
+          </template>
         </el-table-column>
       </el-table>
-      <el-empty v-if="!costRows.length && !costLoading" description="暂无 API 成本数据" :image-size="60" />
+      <el-empty
+        v-if="!costRows.length && !costLoading"
+        description="暂无 API 成本数据"
+        :image-size="60"
+      />
     </el-card>
 
     
-    <el-card shadow="never" class="roi-card">
-      <template #header><span class="card-title">ROI 分析（API 投入统计）</span></template>
+    <el-card
+      shadow="never"
+      class="roi-card"
+    >
+      <template #header>
+        <span class="card-title">ROI 分析（API 投入统计）</span>
+      </template>
       <div v-loading="roiLoading">
-        <el-row :gutter="16" class="roi-row">
-          <el-col :xs="12" :sm="6">
+        <el-row
+          :gutter="16"
+          class="roi-row"
+        >
+          <el-col
+            :xs="12"
+            :sm="6"
+          >
             <div class="roi-item">
-              <div class="roi-label">总调用次数</div>
-              <div class="roi-value">{{ formatInt(roi.total_calls) }}</div>
+              <div class="roi-label">
+                总调用次数
+              </div>
+              <div class="roi-value">
+                {{ formatInt(roi.total_calls) }}
+              </div>
             </div>
           </el-col>
-          <el-col :xs="12" :sm="6">
+          <el-col
+            :xs="12"
+            :sm="6"
+          >
             <div class="roi-item">
-              <div class="roi-label">Token 消耗</div>
-              <div class="roi-value">{{ formatInt((roi.total_input_tokens || 0) + (roi.total_output_tokens || 0)) }}</div>
+              <div class="roi-label">
+                Token 消耗
+              </div>
+              <div class="roi-value">
+                {{ formatInt((roi.total_input_tokens || 0) + (roi.total_output_tokens || 0)) }}
+              </div>
             </div>
           </el-col>
-          <el-col :xs="12" :sm="6">
+          <el-col
+            :xs="12"
+            :sm="6"
+          >
             <div class="roi-item">
-              <div class="roi-label">总投入(CNY)</div>
-              <div class="roi-value">¥{{ formatNum(roi.total_cost_cny) }}</div>
+              <div class="roi-label">
+                总投入(CNY)
+              </div>
+              <div class="roi-value">
+                ¥{{ formatNum(roi.total_cost_cny) }}
+              </div>
             </div>
           </el-col>
-          <el-col :xs="12" :sm="6">
+          <el-col
+            :xs="12"
+            :sm="6"
+          >
             <div class="roi-item highlight">
-              <div class="roi-label">单次均价(USD)</div>
-              <div class="roi-value">${{ formatNum(roi.avg_cost_per_call_usd) }}</div>
+              <div class="roi-label">
+                单次均价(USD)
+              </div>
+              <div class="roi-value">
+                ${{ formatNum(roi.avg_cost_per_call_usd) }}
+              </div>
             </div>
           </el-col>
         </el-row>

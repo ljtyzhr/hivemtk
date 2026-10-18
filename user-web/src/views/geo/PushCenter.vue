@@ -1,17 +1,36 @@
 <template>
   <div class="push-center">
     <el-row :gutter="16">
-      <el-col :span="8" v-for="(status, plat) in quota" :key="plat">
-        <el-card shadow="hover" class="quota-card">
-          <div class="plat-name">{{ plat }}</div>
+      <el-col
+        v-for="(status, plat) in quota"
+        :key="plat"
+        :span="8"
+      >
+        <el-card
+          shadow="hover"
+          class="quota-card"
+        >
+          <div class="plat-name">
+            {{ plat }}
+          </div>
           <el-progress
             v-if="status.remain >= 0"
             :percentage="Math.max(0, 100 - (status.remain / (status.remain + 1) * 100))"
             :status="status.remain > 100 ? 'success' : status.remain > 20 ? 'warning' : 'exception'"
           />
           <div class="plat-detail">
-            <el-tag v-if="status.registered" type="success">已注册</el-tag>
-            <el-tag v-else type="info">未注册</el-tag>
+            <el-tag
+              v-if="status.registered"
+              type="success"
+            >
+              已注册
+            </el-tag>
+            <el-tag
+              v-else
+              type="info"
+            >
+              未注册
+            </el-tag>
             <span v-if="status.remain >= 0">剩余 {{ status.remain }}</span>
             <span v-else>∞ 无限额</span>
           </div>
@@ -19,7 +38,10 @@
       </el-col>
     </el-row>
 
-    <el-card shadow="never" style="margin-top:16px">
+    <el-card
+      shadow="never"
+      style="margin-top:16px"
+    >
       <template #header>
         <div class="card-header">
           <span>⚡ 手动推送</span>
@@ -33,11 +55,23 @@
       />
       <div style="margin-top:8px">
         <el-checkbox-group v-model="selectedPlatforms">
-          <el-checkbox value="baidu">百度</el-checkbox>
-          <el-checkbox value="indexnow">IndexNow (Bing/Yandex/Naver)</el-checkbox>
-          <el-checkbox value="google">Google</el-checkbox>
+          <el-checkbox value="baidu">
+            百度
+          </el-checkbox>
+          <el-checkbox value="indexnow">
+            IndexNow (Bing/Yandex/Naver)
+          </el-checkbox>
+          <el-checkbox value="google">
+            Google
+          </el-checkbox>
         </el-checkbox-group>
-        <el-button type="primary" @click="push" style="margin-left:12px">🚀 推送</el-button>
+        <el-button
+          type="primary"
+          style="margin-left:12px"
+          @click="push"
+        >
+          🚀 推送
+        </el-button>
       </div>
     </el-card>
   </div>

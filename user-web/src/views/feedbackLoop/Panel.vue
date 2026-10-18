@@ -3,48 +3,83 @@
     <el-card class="header-card">
       <div class="header-content">
         <h2>{{ $t('反馈学习闭环') }}</h2>
-        <p class="subtitle">销冠对话聚类 → Prompt 候选迭代 → Multi-Armed Bandit A/B 自适应流量分配</p>
+        <p class="subtitle">
+          销冠对话聚类 → Prompt 候选迭代 → Multi-Armed Bandit A/B 自适应流量分配
+        </p>
       </div>
     </el-card>
 
-    <el-row :gutter="20" class="stats-row">
+    <el-row
+      :gutter="20"
+      class="stats-row"
+    >
       <el-col :span="6">
         <el-card>
           <div class="stat-item">
-            <div class="stat-label">反馈事件（24h）</div>
-            <div class="stat-value">{{ stats.feedbackCount }}</div>
+            <div class="stat-label">
+              反馈事件（24h）
+            </div>
+            <div class="stat-value">
+              {{ stats.feedbackCount }}
+            </div>
           </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card>
           <div class="stat-item">
-            <div class="stat-label">{{ $t('销冠对话') }}</div>
-            <div class="stat-value" style="color: #10B981">{{ stats.dialogueCount }}</div>
+            <div class="stat-label">
+              {{ $t('销冠对话') }}
+            </div>
+            <div
+              class="stat-value"
+              style="color: #10B981"
+            >
+              {{ stats.dialogueCount }}
+            </div>
           </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card>
           <div class="stat-item">
-            <div class="stat-label">Prompt 候选</div>
-            <div class="stat-value" style="color: #4F46E5">{{ stats.candidateCount }}</div>
+            <div class="stat-label">
+              Prompt 候选
+            </div>
+            <div
+              class="stat-value"
+              style="color: #4F46E5"
+            >
+              {{ stats.candidateCount }}
+            </div>
           </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card>
           <div class="stat-item">
-            <div class="stat-label">Bandit 探索中</div>
-            <div class="stat-value" style="color: #F59E0B">{{ stats.banditCount }}</div>
+            <div class="stat-label">
+              Bandit 探索中
+            </div>
+            <div
+              class="stat-value"
+              style="color: #F59E0B"
+            >
+              {{ stats.banditCount }}
+            </div>
           </div>
         </el-card>
       </el-col>
     </el-row>
 
-    <el-tabs v-model="activeTab" class="content-tabs">
-      
-      <el-tab-pane :label="$t('反馈事件')" name="events">
+    <el-tabs
+      v-model="activeTab"
+      class="content-tabs"
+    >
+      <el-tab-pane
+        :label="$t('反馈事件')"
+        name="events"
+      >
         <el-card>
           <template #header>
             <div class="card-header">
@@ -55,43 +90,128 @@
               </el-button>
             </div>
           </template>
-          <el-row :gutter="12" style="margin-bottom: 12px">
+          <el-row
+            :gutter="12"
+            style="margin-bottom: 12px"
+          >
             <el-col :span="6">
-              <el-select v-model="eventTypeFilter" placeholder="事件类型" clearable style="width: 100%">
-                <el-option label="显式反馈" value="explicit" />
-                <el-option label="隐式反馈" value="implicit" />
-                <el-option label="销冠标记" value="champion" />
+              <el-select
+                v-model="eventTypeFilter"
+                placeholder="事件类型"
+                clearable
+                style="width: 100%"
+              >
+                <el-option
+                  label="显式反馈"
+                  value="explicit"
+                />
+                <el-option
+                  label="隐式反馈"
+                  value="implicit"
+                />
+                <el-option
+                  label="销冠标记"
+                  value="champion"
+                />
               </el-select>
             </el-col>
             <el-col :span="6">
-              <el-select v-model="signalKeyFilter" placeholder="信号 key" clearable style="width: 100%">
-                <el-option label="like" value="like" />
-                <el-option label="dislike" value="dislike" />
-                <el-option label="conversion" value="conversion" />
-                <el-option label="reply_rate" value="reply_rate" />
-                <el-option label="duration" value="duration" />
-                <el-option label="transfer" value="transfer" />
-                <el-option label="champion_mark" value="champion_mark" />
+              <el-select
+                v-model="signalKeyFilter"
+                placeholder="信号 key"
+                clearable
+                style="width: 100%"
+              >
+                <el-option
+                  label="like"
+                  value="like"
+                />
+                <el-option
+                  label="dislike"
+                  value="dislike"
+                />
+                <el-option
+                  label="conversion"
+                  value="conversion"
+                />
+                <el-option
+                  label="reply_rate"
+                  value="reply_rate"
+                />
+                <el-option
+                  label="duration"
+                  value="duration"
+                />
+                <el-option
+                  label="transfer"
+                  value="transfer"
+                />
+                <el-option
+                  label="champion_mark"
+                  value="champion_mark"
+                />
               </el-select>
             </el-col>
           </el-row>
-          <el-table :data="events" v-loading="eventsLoading" stripe>
-            <el-table-column prop="id" label="ID" width="80" />
-            <el-table-column prop="event_type" label="类型" width="100">
+          <el-table
+            v-loading="eventsLoading"
+            :data="events"
+            stripe
+          >
+            <el-table-column
+              prop="id"
+              label="ID"
+              width="80"
+            />
+            <el-table-column
+              prop="event_type"
+              label="类型"
+              width="100"
+            >
               <template #default="{ row }">
-                <el-tag :type="eventTypeTagType(row.event_type)">{{ eventTypeLabel(row.event_type) }}</el-tag>
+                <el-tag :type="eventTypeTagType(row.event_type)">
+                  {{ eventTypeLabel(row.event_type) }}
+                </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="signal_key" label="信号" width="100" />
-            <el-table-column prop="session_id" label="会话" width="160" />
-            <el-table-column prop="reward" label="奖励值" width="100">
+            <el-table-column
+              prop="signal_key"
+              label="信号"
+              width="100"
+            />
+            <el-table-column
+              prop="session_id"
+              label="会话"
+              width="160"
+            />
+            <el-table-column
+              prop="reward"
+              label="奖励值"
+              width="100"
+            >
               <template #default="{ row }">
-                <el-tag :type="confTagType(row.reward)">{{ (row.reward || 0).toFixed(3) }}</el-tag>
+                <el-tag :type="confTagType(row.reward)">
+                  {{ (row.reward || 0).toFixed(3) }}
+                </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="ai_reply" label="AI 回复" min-width="280" show-overflow-tooltip />
-            <el-table-column prop="customer_msg" label="客户消息" min-width="200" show-overflow-tooltip />
-            <el-table-column prop="created_at" label="时间" width="170">
+            <el-table-column
+              prop="ai_reply"
+              label="AI 回复"
+              min-width="280"
+              show-overflow-tooltip
+            />
+            <el-table-column
+              prop="customer_msg"
+              label="客户消息"
+              min-width="200"
+              show-overflow-tooltip
+            />
+            <el-table-column
+              prop="created_at"
+              label="时间"
+              width="170"
+            >
               <template #default="{ row }">
                 {{ formatTime(row.created_at) }}
               </template>
@@ -103,39 +223,92 @@
             :total="eventTotal"
             :page-sizes="[20, 50, 100]"
             layout="total, sizes, prev, pager, next"
+            style="margin-top: 16px; text-align: right"
             @current-change="loadEvents"
             @size-change="loadEvents"
-            style="margin-top: 16px; text-align: right"
           />
         </el-card>
       </el-tab-pane>
 
       
-      <el-tab-pane label="销冠对话" name="dialogues">
+      <el-tab-pane
+        label="销冠对话"
+        name="dialogues"
+      >
         <el-card>
           <template #header>
             <div class="card-header">
               <span>销冠高奖励对话（已聚类 + 话术提取）</span>
-              <el-button type="primary" @click="triggerDialogueAnalysis">
+              <el-button
+                type="primary"
+                @click="triggerDialogueAnalysis"
+              >
                 <el-icon><MagicStick /></el-icon>
                 立即触发分析
               </el-button>
             </div>
           </template>
-          <el-table :data="dialogues" v-loading="dialoguesLoading" stripe>
-            <el-table-column prop="id" label="ID" width="80" />
-            <el-table-column prop="scenario" label="场景" width="140" />
-            <el-table-column prop="journey_stage" label="旅程阶段" width="120" />
-            <el-table-column prop="staff_id" label="销冠" width="100" />
-            <el-table-column prop="customer_msg" label="客户消息" min-width="200" show-overflow-tooltip />
-            <el-table-column prop="champion_reply" label="销冠回复" min-width="280" show-overflow-tooltip />
-            <el-table-column prop="reward" label="奖励" width="100">
+          <el-table
+            v-loading="dialoguesLoading"
+            :data="dialogues"
+            stripe
+          >
+            <el-table-column
+              prop="id"
+              label="ID"
+              width="80"
+            />
+            <el-table-column
+              prop="scenario"
+              label="场景"
+              width="140"
+            />
+            <el-table-column
+              prop="journey_stage"
+              label="旅程阶段"
+              width="120"
+            />
+            <el-table-column
+              prop="staff_id"
+              label="销冠"
+              width="100"
+            />
+            <el-table-column
+              prop="customer_msg"
+              label="客户消息"
+              min-width="200"
+              show-overflow-tooltip
+            />
+            <el-table-column
+              prop="champion_reply"
+              label="销冠回复"
+              min-width="280"
+              show-overflow-tooltip
+            />
+            <el-table-column
+              prop="reward"
+              label="奖励"
+              width="100"
+            >
               <template #default="{ row }">
-                <el-tag :type="confTagType(row.reward)" effect="dark">{{ (row.reward || 0).toFixed(3) }}</el-tag>
+                <el-tag
+                  :type="confTagType(row.reward)"
+                  effect="dark"
+                >
+                  {{ (row.reward || 0).toFixed(3) }}
+                </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="cluster_id" label="聚类 ID" width="100" />
-            <el-table-column prop="created_at" label="时间" width="170">
+            <el-table-column
+              prop="cluster_id"
+              label="聚类 ID"
+              width="100"
+            />
+            <el-table-column
+              prop="created_at"
+              label="时间"
+              width="170"
+            >
               <template #default="{ row }">
                 {{ formatTime(row.created_at) }}
               </template>
@@ -147,15 +320,18 @@
             :total="dialogueTotal"
             :page-sizes="[20, 50, 100]"
             layout="total, sizes, prev, pager, next"
+            style="margin-top: 16px; text-align: right"
             @current-change="loadDialogues"
             @size-change="loadDialogues"
-            style="margin-top: 16px; text-align: right"
           />
         </el-card>
       </el-tab-pane>
 
       
-      <el-tab-pane label="Prompt 迭代" name="prompts">
+      <el-tab-pane
+        label="Prompt 迭代"
+        name="prompts"
+      >
         <el-card>
           <template #header>
             <div class="card-header">
@@ -166,27 +342,82 @@
               </el-button>
             </div>
           </template>
-          <el-table :data="prompts" v-loading="promptsLoading" stripe>
-            <el-table-column prop="id" label="ID" width="80" />
-            <el-table-column prop="sop_id" label="SOP" width="80" />
-            <el-table-column prop="sop_node_id" label="节点" width="120" />
-            <el-table-column prop="version" label="版本" width="100" />
-            <el-table-column prop="title" label="标题" min-width="200" show-overflow-tooltip />
-            <el-table-column prop="status" label="状态" width="100">
+          <el-table
+            v-loading="promptsLoading"
+            :data="prompts"
+            stripe
+          >
+            <el-table-column
+              prop="id"
+              label="ID"
+              width="80"
+            />
+            <el-table-column
+              prop="sop_id"
+              label="SOP"
+              width="80"
+            />
+            <el-table-column
+              prop="sop_node_id"
+              label="节点"
+              width="120"
+            />
+            <el-table-column
+              prop="version"
+              label="版本"
+              width="100"
+            />
+            <el-table-column
+              prop="title"
+              label="标题"
+              min-width="200"
+              show-overflow-tooltip
+            />
+            <el-table-column
+              prop="status"
+              label="状态"
+              width="100"
+            >
               <template #default="{ row }">
-                <el-tag :type="promptStatusTagType(row.status)">{{ promptStatusLabel(row.status) }}</el-tag>
+                <el-tag :type="promptStatusTagType(row.status)">
+                  {{ promptStatusLabel(row.status) }}
+                </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="generated_by" label="来源" width="80" />
-            <el-table-column prop="created_at" label="创建时间" width="170">
+            <el-table-column
+              prop="generated_by"
+              label="来源"
+              width="80"
+            />
+            <el-table-column
+              prop="created_at"
+              label="创建时间"
+              width="170"
+            >
               <template #default="{ row }">
                 {{ formatTime(row.created_at) }}
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="180" fixed="right">
+            <el-table-column
+              label="操作"
+              width="180"
+              fixed="right"
+            >
               <template #default="{ row }">
-                <el-button size="small" @click="viewPrompt(row)">查看</el-button>
-                <el-button v-if="row.status === 'draft'" size="small" type="success" @click="approvePrompt(row)">批准</el-button>
+                <el-button
+                  size="small"
+                  @click="viewPrompt(row)"
+                >
+                  查看
+                </el-button>
+                <el-button
+                  v-if="row.status === 'draft'"
+                  size="small"
+                  type="success"
+                  @click="approvePrompt(row)"
+                >
+                  批准
+                </el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -194,7 +425,10 @@
       </el-tab-pane>
 
       
-      <el-tab-pane label="Bandit A/B" name="bandit">
+      <el-tab-pane
+        label="Bandit A/B"
+        name="bandit"
+      >
         <el-card>
           <template #header>
             <div class="card-header">
@@ -205,30 +439,85 @@
               </el-button>
             </div>
           </template>
-          <el-table :data="bandits" v-loading="banditsLoading" stripe>
-            <el-table-column prop="id" label="ID" width="80" />
-            <el-table-column prop="experiment_id" label="实验 ID" width="200" show-overflow-tooltip />
-            <el-table-column prop="arm_key" label="臂" width="100" />
-            <el-table-column prop="status" label="状态" width="100">
+          <el-table
+            v-loading="banditsLoading"
+            :data="bandits"
+            stripe
+          >
+            <el-table-column
+              prop="id"
+              label="ID"
+              width="80"
+            />
+            <el-table-column
+              prop="experiment_id"
+              label="实验 ID"
+              width="200"
+              show-overflow-tooltip
+            />
+            <el-table-column
+              prop="arm_key"
+              label="臂"
+              width="100"
+            />
+            <el-table-column
+              prop="status"
+              label="状态"
+              width="100"
+            >
               <template #default="{ row }">
-                <el-tag :type="banditStatusTagType(row.status)">{{ banditStatusLabel(row.status) }}</el-tag>
+                <el-tag :type="banditStatusTagType(row.status)">
+                  {{ banditStatusLabel(row.status) }}
+                </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="alpha" label="α" width="80">
-              <template #default="{ row }">{{ (row.alpha || 0).toFixed(2) }}</template>
+            <el-table-column
+              prop="alpha"
+              label="α"
+              width="80"
+            >
+              <template #default="{ row }">
+                {{ (row.alpha || 0).toFixed(2) }}
+              </template>
             </el-table-column>
-            <el-table-column prop="beta" label="β" width="80">
-              <template #default="{ row }">{{ (row.beta || 0).toFixed(2) }}</template>
+            <el-table-column
+              prop="beta"
+              label="β"
+              width="80"
+            >
+              <template #default="{ row }">
+                {{ (row.beta || 0).toFixed(2) }}
+              </template>
             </el-table-column>
-            <el-table-column prop="successes" label="成功" width="80" />
-            <el-table-column prop="failures" label="失败" width="80" />
-            <el-table-column prop="trials" label="试验数" width="80" />
-            <el-table-column prop="current_traffic_pct" label="当前流量%" width="110">
+            <el-table-column
+              prop="successes"
+              label="成功"
+              width="80"
+            />
+            <el-table-column
+              prop="failures"
+              label="失败"
+              width="80"
+            />
+            <el-table-column
+              prop="trials"
+              label="试验数"
+              width="80"
+            />
+            <el-table-column
+              prop="current_traffic_pct"
+              label="当前流量%"
+              width="110"
+            >
               <template #default="{ row }">
                 {{ (row.current_traffic_pct || 0).toFixed(1) }}%
               </template>
             </el-table-column>
-            <el-table-column prop="posterior_best_prob" label="P(最优)" width="100">
+            <el-table-column
+              prop="posterior_best_prob"
+              label="P(最优)"
+              width="100"
+            >
               <template #default="{ row }">
                 {{ (row.posterior_best_prob || 0).toFixed(3) }}
               </template>
@@ -239,7 +528,11 @@
     </el-tabs>
 
     
-    <el-dialog v-model="promptDialogVisible" :title="currentPrompt?.title || 'Prompt 详情'" width="780px">
+    <el-dialog
+      v-model="promptDialogVisible"
+      :title="currentPrompt?.title || 'Prompt 详情'"
+      width="780px"
+    >
       <div v-if="currentPrompt">
         <p><strong>版本：</strong>{{ currentPrompt.version }} · <strong>场景：</strong>{{ currentPrompt.scenario }} · <strong>状态：</strong>{{ promptStatusLabel(currentPrompt.status) }}</p>
         <el-divider />

@@ -1,26 +1,68 @@
 <template>
   <div class="app-container trace-monitor">
-    <el-tabs v-model="activeTab" class="trace-tabs">
-      
-      <el-tab-pane label="消息链路明细" name="trace">
-        <el-form :inline="true" class="trace-query" @submit.prevent>
+    <el-tabs
+      v-model="activeTab"
+      class="trace-tabs"
+    >
+      <el-tab-pane
+        label="消息链路明细"
+        name="trace"
+      >
+        <el-form
+          :inline="true"
+          class="trace-query"
+          @submit.prevent
+        >
           <el-form-item label="Trace ID">
-            <el-input v-model.trim="form.trace_id" placeholder="单轮对话 trace_id" clearable style="width: 260px" />
+            <el-input
+              v-model.trim="form.trace_id"
+              placeholder="单轮对话 trace_id"
+              clearable
+              style="width: 260px"
+            />
           </el-form-item>
           <el-form-item label="会话 ID">
-            <el-input v-model.trim="form.conversation_id" placeholder="会话 conversation_id" clearable style="width: 260px" />
+            <el-input
+              v-model.trim="form.conversation_id"
+              placeholder="会话 conversation_id"
+              clearable
+              style="width: 260px"
+            />
           </el-form-item>
           <el-form-item label="消息 ID">
-            <el-input v-model.trim="form.msg_id" placeholder="消息 msg_id（反查）" clearable style="width: 220px" />
+            <el-input
+              v-model.trim="form.msg_id"
+              placeholder="消息 msg_id（反查）"
+              clearable
+              style="width: 220px"
+            />
           </el-form-item>
           <el-form-item label="渠道">
-            <el-select v-model="form.channel" placeholder="全部" clearable style="width: 160px">
-              <el-option v-for="c in channels" :key="c" :label="c" :value="c" />
+            <el-select
+              v-model="form.channel"
+              placeholder="全部"
+              clearable
+              style="width: 160px"
+            >
+              <el-option
+                v-for="c in channels"
+                :key="c"
+                :label="c"
+                :value="c"
+              />
             </el-select>
           </el-form-item>
           <el-form-item>
-            <el-button type="primary" :loading="loadingTree" @click="loadTree">查询</el-button>
-            <el-button @click="resetForm">重置</el-button>
+            <el-button
+              type="primary"
+              :loading="loadingTree"
+              @click="loadTree"
+            >
+              查询
+            </el-button>
+            <el-button @click="resetForm">
+              重置
+            </el-button>
           </el-form-item>
         </el-form>
 
@@ -33,44 +75,99 @@
           class="mb-12"
         />
 
-        <div v-else-if="tree" class="trace-summary mb-12">
-          <el-tag type="info" effect="plain">Trace: {{ tree.trace_id || '—' }}</el-tag>
-          <el-tag type="info" effect="plain">会话: {{ tree.conversation_id || '—' }}</el-tag>
-          <el-tag type="info" effect="plain">渠道: {{ tree.channel || '—' }}</el-tag>
+        <div
+          v-else-if="tree"
+          class="trace-summary mb-12"
+        >
+          <el-tag
+            type="info"
+            effect="plain"
+          >
+            Trace: {{ tree.trace_id || '—' }}
+          </el-tag>
+          <el-tag
+            type="info"
+            effect="plain"
+          >
+            会话: {{ tree.conversation_id || '—' }}
+          </el-tag>
+          <el-tag
+            type="info"
+            effect="plain"
+          >
+            渠道: {{ tree.channel || '—' }}
+          </el-tag>
           <span class="trace-count">共 {{ tree.spans ? tree.spans.length : 0 }} 个 Span</span>
         </div>
 
-        <el-empty v-if="!loadingTree && !tree && !treeError" description="输入 Trace ID / 会话 ID 查询完整链路" />
-        <el-skeleton v-else-if="loadingTree" :rows="8" animated />
+        <el-empty
+          v-if="!loadingTree && !tree && !treeError"
+          description="输入 Trace ID / 会话 ID 查询完整链路"
+        />
+        <el-skeleton
+          v-else-if="loadingTree"
+          :rows="8"
+          animated
+        />
 
-        <div v-else class="trace-tree">
-          <template v-for="(item, idx) in flattened" :key="idx">
-            
+        <div
+          v-else
+          class="trace-tree"
+        >
+          <template
+            v-for="(item, idx) in flattened"
+            :key="idx"
+          >
             <el-card
               v-if="!item._turn && !item._tool"
               class="span-card"
               :class="{ abnormal: isAbnormal(item), agent: item.node === 'ai_dispatch' }"
               shadow="hover"
             >
-              <div class="span-head" role="button" tabindex="0" :aria-expanded="!!expanded[item.id]" @click="toggle(item)" @keydown.enter.prevent="toggle(item)" @keydown.space.prevent="toggle(item)">
+              <div
+                class="span-head"
+                role="button"
+                tabindex="0"
+                :aria-expanded="!!expanded[item.id]"
+                @click="toggle(item)"
+                @keydown.enter.prevent="toggle(item)"
+                @keydown.space.prevent="toggle(item)"
+              >
                 <span class="caret">{{ expanded[item.id] ? '▾' : '▸' }}</span>
                 <span class="span-kind kind-lifecycle">生命周期</span>
                 <span class="span-title">{{ nodeLabel(item.node) }}</span>
                 <span class="span-node">{{ item.node }}</span>
-                <el-tag size="small" :type="statusType(item)">{{ statusText(item) }}</el-tag>
+                <el-tag
+                  size="small"
+                  :type="statusType(item)"
+                >
+                  {{ statusText(item) }}
+                </el-tag>
                 <span class="span-dur">{{ item.duration_ms }} ms</span>
                 <span class="span-time">{{ item.created_at }}</span>
               </div>
-              <div v-show="expanded[item.id]" class="span-body">
-                <el-descriptions :column="1" border size="small">
+              <div
+                v-show="expanded[item.id]"
+                class="span-body"
+              >
+                <el-descriptions
+                  :column="1"
+                  border
+                  size="small"
+                >
                   <el-descriptions-item label="入参">
                     <pre class="code-block">{{ fmt(item.input) }}</pre>
                   </el-descriptions-item>
                   <el-descriptions-item label="出参">
                     <pre class="code-block">{{ fmt(item.output) }}</pre>
                   </el-descriptions-item>
-                  <el-descriptions-item label="预期结果">{{ item.expected || '—' }}</el-descriptions-item>
-                  <el-descriptions-item v-if="item.abnormal || item.error" label="异常">
+                  <el-descriptions-item label="预期结果">
+                    {{ item.expected || '—' }}
+                  </el-descriptions-item>
+                  <el-descriptions-item
+                    v-if="item.abnormal || item.error"
+                    label="异常"
+                  >
                     <span class="err-text">{{ item.error || '异常' }}</span>
                   </el-descriptions-item>
                 </el-descriptions>
@@ -78,25 +175,55 @@
             </el-card>
 
             
-            <el-card v-else-if="item._turn" class="span-card turn-card" shadow="hover">
-              <div class="span-head" role="button" tabindex="0" :aria-expanded="!!expanded[item.turn.id]" @click="toggle(item.turn)" @keydown.enter.prevent="toggle(item.turn)" @keydown.space.prevent="toggle(item.turn)">
+            <el-card
+              v-else-if="item._turn"
+              class="span-card turn-card"
+              shadow="hover"
+            >
+              <div
+                class="span-head"
+                role="button"
+                tabindex="0"
+                :aria-expanded="!!expanded[item.turn.id]"
+                @click="toggle(item.turn)"
+                @keydown.enter.prevent="toggle(item.turn)"
+                @keydown.space.prevent="toggle(item.turn)"
+              >
                 <span class="caret">{{ expanded[item.turn.id] ? '▾' : '▸' }}</span>
                 <span class="span-kind kind-turn">Agent 轮</span>
                 <span class="span-title">第 {{ item.ti }} 轮</span>
-                <span v-if="item.turn.agent_id" class="span-node">{{ item.turn.agent_id }}</span>
-                <el-tag size="small" :type="statusType(item.turn)">{{ statusText(item.turn) }}</el-tag>
+                <span
+                  v-if="item.turn.agent_id"
+                  class="span-node"
+                >{{ item.turn.agent_id }}</span>
+                <el-tag
+                  size="small"
+                  :type="statusType(item.turn)"
+                >
+                  {{ statusText(item.turn) }}
+                </el-tag>
                 <span class="span-dur">{{ item.turn.duration_ms }} ms</span>
                 <span class="span-time">{{ item.turn.created_at }}</span>
               </div>
-              <div v-show="expanded[item.turn.id]" class="span-body">
-                <el-descriptions :column="1" border size="small">
+              <div
+                v-show="expanded[item.turn.id]"
+                class="span-body"
+              >
+                <el-descriptions
+                  :column="1"
+                  border
+                  size="small"
+                >
                   <el-descriptions-item label="入参">
                     <pre class="code-block">{{ fmt(item.turn.input) }}</pre>
                   </el-descriptions-item>
                   <el-descriptions-item label="出参">
                     <pre class="code-block">{{ fmt(item.turn.output) }}</pre>
                   </el-descriptions-item>
-                  <el-descriptions-item v-if="item.turn.abnormal || item.turn.error" label="异常">
+                  <el-descriptions-item
+                    v-if="item.turn.abnormal || item.turn.error"
+                    label="异常"
+                  >
                     <span class="err-text">{{ item.turn.error || '异常' }}</span>
                   </el-descriptions-item>
                 </el-descriptions>
@@ -104,23 +231,39 @@
             </el-card>
 
             
-            <el-card v-else class="span-card tool-card" shadow="never">
+            <el-card
+              v-else
+              class="span-card tool-card"
+              shadow="never"
+            >
               <div class="span-head">
                 <span class="span-kind kind-tool">工具</span>
                 <span class="span-title">{{ item.tool.tool_name }}</span>
-                <el-tag size="small" :type="statusType(item.tool)">{{ statusText(item.tool) }}</el-tag>
+                <el-tag
+                  size="small"
+                  :type="statusType(item.tool)"
+                >
+                  {{ statusText(item.tool) }}
+                </el-tag>
                 <span class="span-dur">{{ item.tool.duration_ms }} ms</span>
                 <span class="span-time">{{ item.tool.created_at }}</span>
               </div>
               <div class="span-body">
-                <el-descriptions :column="1" border size="small">
+                <el-descriptions
+                  :column="1"
+                  border
+                  size="small"
+                >
                   <el-descriptions-item label="入参">
                     <pre class="code-block">{{ fmt(item.tool.input) }}</pre>
                   </el-descriptions-item>
                   <el-descriptions-item label="出参">
                     <pre class="code-block">{{ fmt(item.tool.output) }}</pre>
                   </el-descriptions-item>
-                  <el-descriptions-item v-if="item.tool.abnormal || item.tool.error" label="异常">
+                  <el-descriptions-item
+                    v-if="item.tool.abnormal || item.tool.error"
+                    label="异常"
+                  >
                     <span class="err-text">{{ item.tool.error || '异常' }}</span>
                   </el-descriptions-item>
                 </el-descriptions>
@@ -131,12 +274,29 @@
       </el-tab-pane>
 
       
-      <el-tab-pane label="业务健康概览" name="health">
+      <el-tab-pane
+        label="业务健康概览"
+        name="health"
+      >
         <div class="stat-grid">
-          <el-card v-for="s in healthStats" :key="s.label" shadow="hover" class="stat-card">
-            <div class="stat-label">{{ s.label }}</div>
-            <div class="stat-value" :class="s.cls">{{ s.value }}</div>
-            <div class="stat-unit">{{ s.unit }}</div>
+          <el-card
+            v-for="s in healthStats"
+            :key="s.label"
+            shadow="hover"
+            class="stat-card"
+          >
+            <div class="stat-label">
+              {{ s.label }}
+            </div>
+            <div
+              class="stat-value"
+              :class="s.cls"
+            >
+              {{ s.value }}
+            </div>
+            <div class="stat-unit">
+              {{ s.unit }}
+            </div>
           </el-card>
         </div>
         <el-alert
@@ -149,20 +309,66 @@
       </el-tab-pane>
 
       
-      <el-tab-pane label="节点健康" name="node">
-        <el-alert v-if="nodeWindow" type="info" :closable="false" :title="'统计窗口：' + nodeWindow" class="mb-12" />
-        <el-table :data="nodeRows" border stripe size="small" empty-text="暂无数据">
-          <el-table-column prop="channel" label="渠道" width="160" />
-          <el-table-column prop="node" label="节点" width="200" />
-          <el-table-column prop="total" label="样本数" width="100" />
-          <el-table-column prop="avg_duration_ms" label="平均耗时(ms)" width="130" />
-          <el-table-column prop="p95_duration_ms" label="P95(ms)" width="120" />
-          <el-table-column label="异常率" width="120">
-            <template #default="{ row }">{{ (row.abnormal_rate * 100).toFixed(1) }}%</template>
-          </el-table-column>
-          <el-table-column label="健康" width="100">
+      <el-tab-pane
+        label="节点健康"
+        name="node"
+      >
+        <el-alert
+          v-if="nodeWindow"
+          type="info"
+          :closable="false"
+          :title="'统计窗口：' + nodeWindow"
+          class="mb-12"
+        />
+        <el-table
+          :data="nodeRows"
+          border
+          stripe
+          size="small"
+          empty-text="暂无数据"
+        >
+          <el-table-column
+            prop="channel"
+            label="渠道"
+            width="160"
+          />
+          <el-table-column
+            prop="node"
+            label="节点"
+            width="200"
+          />
+          <el-table-column
+            prop="total"
+            label="样本数"
+            width="100"
+          />
+          <el-table-column
+            prop="avg_duration_ms"
+            label="平均耗时(ms)"
+            width="130"
+          />
+          <el-table-column
+            prop="p95_duration_ms"
+            label="P95(ms)"
+            width="120"
+          />
+          <el-table-column
+            label="异常率"
+            width="120"
+          >
             <template #default="{ row }">
-              <el-tag :type="row.abnormal_rate > 0.3 ? 'danger' : row.abnormal_rate > 0.05 ? 'warning' : 'success'" size="small">
+              {{ (row.abnormal_rate * 100).toFixed(1) }}%
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="健康"
+            width="100"
+          >
+            <template #default="{ row }">
+              <el-tag
+                :type="row.abnormal_rate > 0.3 ? 'danger' : row.abnormal_rate > 0.05 ? 'warning' : 'success'"
+                size="small"
+              >
                 {{ row.abnormal_rate > 0.3 ? '差' : row.abnormal_rate > 0.05 ? '中' : '良' }}
               </el-tag>
             </template>
@@ -171,124 +377,400 @@
       </el-tab-pane>
 
       
-      <el-tab-pane label="端到端时延" name="latency">
-        <el-table :data="latencyRows" border stripe size="small" empty-text="暂无数据">
-          <el-table-column prop="channel" label="渠道" width="180" />
-          <el-table-column prop="p50_ms" label="P50(ms)" width="140" />
-          <el-table-column prop="p95_ms" label="P95(ms)" width="140" />
-          <el-table-column prop="sample_size" label="样本数" width="120" />
+      <el-tab-pane
+        label="端到端时延"
+        name="latency"
+      >
+        <el-table
+          :data="latencyRows"
+          border
+          stripe
+          size="small"
+          empty-text="暂无数据"
+        >
+          <el-table-column
+            prop="channel"
+            label="渠道"
+            width="180"
+          />
+          <el-table-column
+            prop="p50_ms"
+            label="P50(ms)"
+            width="140"
+          />
+          <el-table-column
+            prop="p95_ms"
+            label="P95(ms)"
+            width="140"
+          />
+          <el-table-column
+            prop="sample_size"
+            label="样本数"
+            width="120"
+          />
         </el-table>
       </el-tab-pane>
 
       
-      <el-tab-pane label="会话链路" name="lifecycle">
-        <el-form :inline="true" @submit.prevent>
+      <el-tab-pane
+        label="会话链路"
+        name="lifecycle"
+      >
+        <el-form
+          :inline="true"
+          @submit.prevent
+        >
           <el-form-item label="会话 ID">
-            <el-input v-model.trim="lcForm.conversation_id" placeholder="会话 conversation_id" clearable style="width: 260px" />
+            <el-input
+              v-model.trim="lcForm.conversation_id"
+              placeholder="会话 conversation_id"
+              clearable
+              style="width: 260px"
+            />
           </el-form-item>
           <el-form-item label="Trace ID">
-            <el-input v-model.trim="lcForm.trace_id" placeholder="单轮 trace_id" clearable style="width: 260px" />
+            <el-input
+              v-model.trim="lcForm.trace_id"
+              placeholder="单轮 trace_id"
+              clearable
+              style="width: 260px"
+            />
           </el-form-item>
           <el-form-item>
-            <el-button type="primary" :loading="loadingLc" @click="loadLifecycle">查询</el-button>
+            <el-button
+              type="primary"
+              :loading="loadingLc"
+              @click="loadLifecycle"
+            >
+              查询
+            </el-button>
           </el-form-item>
         </el-form>
-        <el-table :data="lifecycleRows" border stripe size="small" empty-text="暂无数据" class="mt-12">
-          <el-table-column prop="trace_id" label="Trace" width="180" />
-          <el-table-column prop="node" label="节点" width="180" />
-          <el-table-column prop="channel" label="渠道" width="120" />
-          <el-table-column prop="direction" label="方向" width="100" />
-          <el-table-column prop="duration_ms" label="耗时(ms)" width="100" />
-          <el-table-column label="状态" width="100">
+        <el-table
+          :data="lifecycleRows"
+          border
+          stripe
+          size="small"
+          empty-text="暂无数据"
+          class="mt-12"
+        >
+          <el-table-column
+            prop="trace_id"
+            label="Trace"
+            width="180"
+          />
+          <el-table-column
+            prop="node"
+            label="节点"
+            width="180"
+          />
+          <el-table-column
+            prop="channel"
+            label="渠道"
+            width="120"
+          />
+          <el-table-column
+            prop="direction"
+            label="方向"
+            width="100"
+          />
+          <el-table-column
+            prop="duration_ms"
+            label="耗时(ms)"
+            width="100"
+          />
+          <el-table-column
+            label="状态"
+            width="100"
+          >
             <template #default="{ row }">
-              <el-tag :type="row.abnormal ? 'danger' : 'success'" size="small">
+              <el-tag
+                :type="row.abnormal ? 'danger' : 'success'"
+                size="small"
+              >
                 {{ row.abnormal ? '异常' : '正常' }}
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="expected" label="预期" min-width="160" />
-          <el-table-column prop="error" label="异常信息" min-width="160" show-overflow-tooltip />
+          <el-table-column
+            prop="expected"
+            label="预期"
+            min-width="160"
+          />
+          <el-table-column
+            prop="error"
+            label="异常信息"
+            min-width="160"
+            show-overflow-tooltip
+          />
         </el-table>
       </el-tab-pane>
 
       
-      <el-tab-pane label="链路列表" name="traces">
-        <el-table :data="traceRows" border stripe size="small" empty-text="暂无数据">
-          <el-table-column prop="trace_id" label="Trace" width="180" />
-          <el-table-column prop="conversation_id" label="会话" width="180" />
-          <el-table-column prop="channel" label="渠道" width="120" />
-          <el-table-column prop="node_count" label="节点数" width="90" />
-          <el-table-column label="异常数" width="90">
+      <el-tab-pane
+        label="链路列表"
+        name="traces"
+      >
+        <el-table
+          :data="traceRows"
+          border
+          stripe
+          size="small"
+          empty-text="暂无数据"
+        >
+          <el-table-column
+            prop="trace_id"
+            label="Trace"
+            width="180"
+          />
+          <el-table-column
+            prop="conversation_id"
+            label="会话"
+            width="180"
+          />
+          <el-table-column
+            prop="channel"
+            label="渠道"
+            width="120"
+          />
+          <el-table-column
+            prop="node_count"
+            label="节点数"
+            width="90"
+          />
+          <el-table-column
+            label="异常数"
+            width="90"
+          >
             <template #default="{ row }">
-              <el-tag :type="row.abnormal_count > 0 ? 'danger' : 'info'" size="small">{{ row.abnormal_count }}</el-tag>
+              <el-tag
+                :type="row.abnormal_count > 0 ? 'danger' : 'info'"
+                size="small"
+              >
+                {{ row.abnormal_count }}
+              </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="first_at" label="首节点" width="180" />
-          <el-table-column prop="last_at" label="末节点" width="180" />
-          <el-table-column label="操作" width="100" fixed="right">
+          <el-table-column
+            prop="first_at"
+            label="首节点"
+            width="180"
+          />
+          <el-table-column
+            prop="last_at"
+            label="末节点"
+            width="180"
+          />
+          <el-table-column
+            label="操作"
+            width="100"
+            fixed="right"
+          >
             <template #default="{ row }">
-              <el-button type="primary" link @click="openTrace(row)">查看</el-button>
+              <el-button
+                type="primary"
+                link
+                @click="openTrace(row)"
+              >
+                查看
+              </el-button>
             </template>
           </el-table-column>
         </el-table>
       </el-tab-pane>
 
       
-      <el-tab-pane label="异常" name="anomalies">
-        <el-collapse v-if="anomaly" v-model="anomalyActive">
-          <el-collapse-item title="数据缺口（缺同步回执）" name="sync_gap">
-            <el-table :data="anomaly.sync_gap || []" border size="small" empty-text="无">
-              <el-table-column prop="conversation_id" label="会话" width="200" />
-              <el-table-column prop="channel" label="渠道" width="120" />
-              <el-table-column prop="message_count" label="缺口数" width="100" />
+      <el-tab-pane
+        label="异常"
+        name="anomalies"
+      >
+        <el-collapse
+          v-if="anomaly"
+          v-model="anomalyActive"
+        >
+          <el-collapse-item
+            title="数据缺口（缺同步回执）"
+            name="sync_gap"
+          >
+            <el-table
+              :data="anomaly.sync_gap || []"
+              border
+              size="small"
+              empty-text="无"
+            >
+              <el-table-column
+                prop="conversation_id"
+                label="会话"
+                width="200"
+              />
+              <el-table-column
+                prop="channel"
+                label="渠道"
+                width="120"
+              />
+              <el-table-column
+                prop="message_count"
+                label="缺口数"
+                width="100"
+              />
             </el-table>
           </el-collapse-item>
-          <el-collapse-item title="卡住（可直接送达）" name="stuck_reachable">
-            <el-table :data="anomaly.stuck_reachable || []" border size="small" empty-text="无">
-              <el-table-column prop="conversation_id" label="会话" width="200" />
-              <el-table-column prop="channel" label="渠道" width="120" />
-              <el-table-column prop="age_min" label="滞留(分)" width="100" />
+          <el-collapse-item
+            title="卡住（可直接送达）"
+            name="stuck_reachable"
+          >
+            <el-table
+              :data="anomaly.stuck_reachable || []"
+              border
+              size="small"
+              empty-text="无"
+            >
+              <el-table-column
+                prop="conversation_id"
+                label="会话"
+                width="200"
+              />
+              <el-table-column
+                prop="channel"
+                label="渠道"
+                width="120"
+              />
+              <el-table-column
+                prop="age_min"
+                label="滞留(分)"
+                width="100"
+              />
             </el-table>
           </el-collapse-item>
-          <el-collapse-item title="卡住（不可达）" name="stuck_unreachable">
-            <el-table :data="anomaly.stuck_unreachable || []" border size="small" empty-text="无">
-              <el-table-column prop="conversation_id" label="会话" width="200" />
-              <el-table-column prop="channel" label="渠道" width="120" />
-              <el-table-column prop="age_min" label="滞留(分)" width="100" />
+          <el-collapse-item
+            title="卡住（不可达）"
+            name="stuck_unreachable"
+          >
+            <el-table
+              :data="anomaly.stuck_unreachable || []"
+              border
+              size="small"
+              empty-text="无"
+            >
+              <el-table-column
+                prop="conversation_id"
+                label="会话"
+                width="200"
+              />
+              <el-table-column
+                prop="channel"
+                label="渠道"
+                width="120"
+              />
+              <el-table-column
+                prop="age_min"
+                label="滞留(分)"
+                width="100"
+              />
             </el-table>
           </el-collapse-item>
-          <el-collapse-item title="不可达（无激活会话）" name="unreachable">
-            <el-table :data="anomaly.unreachable || []" border size="small" empty-text="无">
-              <el-table-column prop="conversation_id" label="会话" width="200" />
-              <el-table-column prop="channel" label="渠道" width="120" />
+          <el-collapse-item
+            title="不可达（无激活会话）"
+            name="unreachable"
+          >
+            <el-table
+              :data="anomaly.unreachable || []"
+              border
+              size="small"
+              empty-text="无"
+            >
+              <el-table-column
+                prop="conversation_id"
+                label="会话"
+                width="200"
+              />
+              <el-table-column
+                prop="channel"
+                label="渠道"
+                width="120"
+              />
             </el-table>
           </el-collapse-item>
-          <el-collapse-item title="节点异常" name="node_abnormal">
-            <el-table :data="anomaly.node_abnormal || []" border size="small" empty-text="无">
-              <el-table-column prop="channel" label="渠道" width="140" />
-              <el-table-column prop="node" label="节点" width="180" />
-              <el-table-column prop="abnormal_rate" label="异常率" width="120">
-                <template #default="{ row }">{{ (row.abnormal_rate * 100).toFixed(1) }}%</template>
+          <el-collapse-item
+            title="节点异常"
+            name="node_abnormal"
+          >
+            <el-table
+              :data="anomaly.node_abnormal || []"
+              border
+              size="small"
+              empty-text="无"
+            >
+              <el-table-column
+                prop="channel"
+                label="渠道"
+                width="140"
+              />
+              <el-table-column
+                prop="node"
+                label="节点"
+                width="180"
+              />
+              <el-table-column
+                prop="abnormal_rate"
+                label="异常率"
+                width="120"
+              >
+                <template #default="{ row }">
+                  {{ (row.abnormal_rate * 100).toFixed(1) }}%
+                </template>
               </el-table-column>
             </el-table>
           </el-collapse-item>
         </el-collapse>
-        <el-empty v-else description="暂无异常" />
+        <el-empty
+          v-else
+          description="暂无异常"
+        />
       </el-tab-pane>
 
       
-      <el-tab-pane label="自学习 / 知识库权重" name="learn">
+      <el-tab-pane
+        label="自学习 / 知识库权重"
+        name="learn"
+      >
         <div class="learn-toolbar">
-          <el-form :inline="true" @submit.prevent>
+          <el-form
+            :inline="true"
+            @submit.prevent
+          >
             <el-form-item label="扫描窗口(小时)">
-              <el-input-number v-model="evalHours" :min="1" :max="168" :step="12" style="width: 140px" />
+              <el-input-number
+                v-model="evalHours"
+                :min="1"
+                :max="168"
+                :step="12"
+                style="width: 140px"
+              />
             </el-form-item>
             <el-form-item label="单次条数">
-              <el-input-number v-model="evalLimit" :min="1" :max="200" :step="10" style="width: 130px" />
+              <el-input-number
+                v-model="evalLimit"
+                :min="1"
+                :max="200"
+                :step="10"
+                style="width: 130px"
+              />
             </el-form-item>
             <el-form-item>
-              <el-button type="primary" :loading="triggerLoading" @click="triggerEval">手动触发评估</el-button>
-              <el-button :loading="triggerLoading" @click="refreshLearn">刷新</el-button>
+              <el-button
+                type="primary"
+                :loading="triggerLoading"
+                @click="triggerEval"
+              >
+                手动触发评估
+              </el-button>
+              <el-button
+                :loading="triggerLoading"
+                @click="refreshLearn"
+              >
+                刷新
+              </el-button>
             </el-form-item>
           </el-form>
           <el-alert
@@ -301,47 +783,128 @@
           />
         </div>
 
-        <el-divider content-position="left">打分记录（LLM 对每条 trace 完整请求-响应链评分）</el-divider>
-        <el-table :data="evalLogs" border stripe size="small" empty-text="暂无打分记录，点上方「手动触发评估」" class="mt-12">
-          <el-table-column prop="created_at" label="评估时间" width="180" />
-          <el-table-column prop="channel" label="渠道" width="120" />
-          <el-table-column prop="trace_id" label="Trace" width="180" show-overflow-tooltip />
-          <el-table-column label="评分" width="80">
+        <el-divider content-position="left">
+          打分记录（LLM 对每条 trace 完整请求-响应链评分）
+        </el-divider>
+        <el-table
+          :data="evalLogs"
+          border
+          stripe
+          size="small"
+          empty-text="暂无打分记录，点上方「手动触发评估」"
+          class="mt-12"
+        >
+          <el-table-column
+            prop="created_at"
+            label="评估时间"
+            width="180"
+          />
+          <el-table-column
+            prop="channel"
+            label="渠道"
+            width="120"
+          />
+          <el-table-column
+            prop="trace_id"
+            label="Trace"
+            width="180"
+            show-overflow-tooltip
+          />
+          <el-table-column
+            label="评分"
+            width="80"
+          >
             <template #default="{ row }">
-              <el-tag :type="scoreType(row.score)" size="small">{{ row.score }}</el-tag>
+              <el-tag
+                :type="scoreType(row.score)"
+                size="small"
+              >
+                {{ row.score }}
+              </el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="质量" width="80">
+          <el-table-column
+            label="质量"
+            width="80"
+          >
             <template #default="{ row }">
-              <el-tag :type="row.bad ? 'danger' : row.score >= 85 ? 'success' : 'warning'" size="small" effect="plain">
+              <el-tag
+                :type="row.bad ? 'danger' : row.score >= 85 ? 'success' : 'warning'"
+                size="small"
+                effect="plain"
+              >
                 {{ row.bad ? '差' : row.score >= 85 ? '优' : '中' }}
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="维度" min-width="230">
-            <template #default="{ row }">{{ dimText(row.dimensions) }}</template>
+          <el-table-column
+            label="维度"
+            min-width="230"
+          >
+            <template #default="{ row }">
+              {{ dimText(row.dimensions) }}
+            </template>
           </el-table-column>
-          <el-table-column label="原因" prop="reason" min-width="200" show-overflow-tooltip />
-          <el-table-column label="权重调整" width="130">
+          <el-table-column
+            label="原因"
+            prop="reason"
+            min-width="200"
+            show-overflow-tooltip
+          />
+          <el-table-column
+            label="权重调整"
+            width="130"
+          >
             <template #default="{ row }">
               <span v-if="adjustedList(row.adjusted_chunks).length">{{ adjustedList(row.adjusted_chunks).length }} 个 chunk</span>
-              <span v-else class="muted">无</span>
+              <span
+                v-else
+                class="muted"
+              >无</span>
             </template>
           </el-table-column>
         </el-table>
 
-        <el-divider content-position="left">知识库权重排行（运行时权重，偏离 1.0 最大者优先）</el-divider>
-        <el-table :data="weights" border stripe size="small" empty-text="暂无权重偏离（全部为默认 1.0）" class="mt-12">
-          <el-table-column prop="id" label="Chunk ID" width="100" />
-          <el-table-column prop="content" label="内容" min-width="280" show-overflow-tooltip />
-          <el-table-column label="权重" width="120">
+        <el-divider content-position="left">
+          知识库权重排行（运行时权重，偏离 1.0 最大者优先）
+        </el-divider>
+        <el-table
+          :data="weights"
+          border
+          stripe
+          size="small"
+          empty-text="暂无权重偏离（全部为默认 1.0）"
+          class="mt-12"
+        >
+          <el-table-column
+            prop="id"
+            label="Chunk ID"
+            width="100"
+          />
+          <el-table-column
+            prop="content"
+            label="内容"
+            min-width="280"
+            show-overflow-tooltip
+          />
+          <el-table-column
+            label="权重"
+            width="120"
+          >
             <template #default="{ row }">
-              <el-tag :type="row.weight < 1 ? 'danger' : row.weight > 1 ? 'success' : 'info'" size="small">
+              <el-tag
+                :type="row.weight < 1 ? 'danger' : row.weight > 1 ? 'success' : 'info'"
+                size="small"
+              >
                 {{ Number(row.weight).toFixed(2) }}
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="hit_count" label="命中次数" width="100" />
+          <el-table-column
+            prop="hit_count"
+            label="命中次数"
+            width="100"
+          />
         </el-table>
       </el-tab-pane>
     </el-tabs>

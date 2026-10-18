@@ -3,8 +3,15 @@
     <div class="flow-header">
       <h2>{{ title }}</h2>
       <div class="flow-actions">
-        <el-button @click="validateGraph">{{ $t('校验') }}</el-button>
-        <el-button type="primary" @click="onSave">{{ $t('保存') }}</el-button>
+        <el-button @click="validateGraph">
+          {{ $t('校验') }}
+        </el-button>
+        <el-button
+          type="primary"
+          @click="onSave"
+        >
+          {{ $t('保存') }}
+        </el-button>
       </div>
     </div>
     <VueFlow
@@ -16,7 +23,10 @@
       class="flow-canvas"
       @nodes-change="onNodesChange"
     >
-      <Background pattern-color="#E2E8F0" :gap="16" />
+      <Background
+        pattern-color="#E2E8F0"
+        :gap="16"
+      />
       <Controls />
       <MiniMap />
     </VueFlow>

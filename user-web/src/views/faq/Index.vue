@@ -1,45 +1,95 @@
 <template>
   <div class="faq-index-page">
-    <el-card class="header-card" shadow="never">
+    <el-card
+      class="header-card"
+      shadow="never"
+    >
       <div class="header-content">
         <div>
           <h2>FAQ 知识库</h2>
-          <p class="subtitle">Layer1 FAQ 快速匹配 · 命中即跳过 LLM 直接返回标准答案</p>
+          <p class="subtitle">
+            Layer1 FAQ 快速匹配 · 命中即跳过 LLM 直接返回标准答案
+          </p>
         </div>
       </div>
     </el-card>
 
     <el-row :gutter="20">
       <el-col :span="8">
-        <el-card shadow="hover" class="entry-card" @click="$router.push('/faq/list')">
-          <div class="entry-icon"><el-icon><Notebook /></el-icon></div>
-          <div class="entry-title">FAQ 列表</div>
-          <div class="entry-desc">管理 Layer1 FAQ 知识库，支持 CRUD、批量启用、分类筛选</div>
-          <el-button type="primary" plain>
+        <el-card
+          shadow="hover"
+          class="entry-card"
+          @click="$router.push('/faq/list')"
+        >
+          <div class="entry-icon">
+            <el-icon><Notebook /></el-icon>
+          </div>
+          <div class="entry-title">
+            FAQ 列表
+          </div>
+          <div class="entry-desc">
+            管理 Layer1 FAQ 知识库，支持 CRUD、批量启用、分类筛选
+          </div>
+          <el-button
+            type="primary"
+            plain
+          >
             进入
-            <el-icon class="el-icon--right"><ArrowRight /></el-icon>
+            <el-icon class="el-icon--right">
+              <ArrowRight />
+            </el-icon>
           </el-button>
         </el-card>
       </el-col>
       <el-col :span="8">
-        <el-card shadow="hover" class="entry-card">
-          <div class="entry-icon"><el-icon><Aim /></el-icon></div>
-          <div class="entry-title">匹配测试</div>
-          <div class="entry-desc">在 FAQ 列表页可对单条或自定义问句执行 Layer1 关键词匹配验证</div>
-          <el-button type="primary" plain @click="$router.push('/faq/list')">
+        <el-card
+          shadow="hover"
+          class="entry-card"
+        >
+          <div class="entry-icon">
+            <el-icon><Aim /></el-icon>
+          </div>
+          <div class="entry-title">
+            匹配测试
+          </div>
+          <div class="entry-desc">
+            在 FAQ 列表页可对单条或自定义问句执行 Layer1 关键词匹配验证
+          </div>
+          <el-button
+            type="primary"
+            plain
+            @click="$router.push('/faq/list')"
+          >
             打开
-            <el-icon class="el-icon--right"><ArrowRight /></el-icon>
+            <el-icon class="el-icon--right">
+              <ArrowRight />
+            </el-icon>
           </el-button>
         </el-card>
       </el-col>
       <el-col :span="8">
-        <el-card shadow="hover" class="entry-card">
-          <div class="entry-icon"><el-icon><Connection /></el-icon></div>
-          <div class="entry-title">智能体绑定</div>
-          <div class="entry-desc">在 AI 智能体编辑页 → 知识库绑定 → 选择要挂载的 FAQ 范围（可多选）</div>
-          <el-button type="primary" plain @click="$router.push('/aiAgent/list')">
+        <el-card
+          shadow="hover"
+          class="entry-card"
+        >
+          <div class="entry-icon">
+            <el-icon><Connection /></el-icon>
+          </div>
+          <div class="entry-title">
+            智能体绑定
+          </div>
+          <div class="entry-desc">
+            在 AI 智能体编辑页 → 知识库绑定 → 选择要挂载的 FAQ 范围（可多选）
+          </div>
+          <el-button
+            type="primary"
+            plain
+            @click="$router.push('/aiAgent/list')"
+          >
             去绑定
-            <el-icon class="el-icon--right"><ArrowRight /></el-icon>
+            <el-icon class="el-icon--right">
+              <ArrowRight />
+            </el-icon>
           </el-button>
         </el-card>
       </el-col>

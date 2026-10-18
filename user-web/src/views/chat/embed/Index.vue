@@ -10,8 +10,11 @@
       fullscreen
       @close="onClose"
     />
-    <div v-else class="loading-container">
-      <div class="loading-spinner"></div>
+    <div
+      v-else
+      class="loading-container"
+    >
+      <div class="loading-spinner" />
       <p>正在加载...</p>
     </div>
   </div>

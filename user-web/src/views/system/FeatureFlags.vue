@@ -1,16 +1,31 @@
 <template>
   <div class="feature-flags-page">
-    <el-alert type="info" :closable="false" show-icon class="mb-16">
-      <template #title>功能开关 = 这一整块功能对谁开</template>
+    <el-alert
+      type="info"
+      :closable="false"
+      show-icon
+      class="mb-16"
+    >
+      <template #title>
+        功能开关 = 这一整块功能对谁开
+      </template>
       <div class="hint">
-        「阈值拧到几」去 <el-link type="primary" @click="$router.push('/system/config-params')">动态阈值参数</el-link>；
+        「阈值拧到几」去 <el-link
+          type="primary"
+          @click="$router.push('/system/config-params')"
+        >
+          动态阈值参数
+        </el-link>；
         「这块功能要不要开、对多少人开」在这里。开关走 Unleash 风格的 FNV-1a 分桶，
         灰度百分比按 <code>hash(key + context_id) % 100 &lt; 百分比</code> 判定——同一个人反复评估结果稳定，
         但百分比一改，命中的人群集合就整体换一批。
       </div>
     </el-alert>
 
-    <el-card shadow="never" class="mb-16">
+    <el-card
+      shadow="never"
+      class="mb-16"
+    >
       <div class="toolbar">
         <el-input
           v-model="keyword"
@@ -18,44 +33,108 @@
           clearable
           style="width: 280px"
         />
-        <el-select v-model="stateFilter" style="width: 150px">
-          <el-option label="全部状态" value="" />
-          <el-option label="已启用" value="on" />
-          <el-option label="已停用" value="off" />
-          <el-option label="灰度中" value="gray" />
-          <el-option label="疑似闲置" value="stale" />
+        <el-select
+          v-model="stateFilter"
+          style="width: 150px"
+        >
+          <el-option
+            label="全部状态"
+            value=""
+          />
+          <el-option
+            label="已启用"
+            value="on"
+          />
+          <el-option
+            label="已停用"
+            value="off"
+          />
+          <el-option
+            label="灰度中"
+            value="gray"
+          />
+          <el-option
+            label="疑似闲置"
+            value="stale"
+          />
         </el-select>
         <div class="spacer" />
-        <el-button :loading="loading" @click="load">刷新</el-button>
-        <el-button type="primary" @click="openCreate">新建开关</el-button>
+        <el-button
+          :loading="loading"
+          @click="load"
+        >
+          刷新
+        </el-button>
+        <el-button
+          type="primary"
+          @click="openCreate"
+        >
+          新建开关
+        </el-button>
       </div>
 
-      <el-table v-loading="loading" :data="filtered" row-key="id" empty-text="还没有任何功能开关">
-        <el-table-column label="开关" min-width="240">
+      <el-table
+        v-loading="loading"
+        :data="filtered"
+        row-key="id"
+        empty-text="还没有任何功能开关"
+      >
+        <el-table-column
+          label="开关"
+          min-width="240"
+        >
           <template #default="{ row }">
             <div class="flag-key">
               <code>{{ row.key }}</code>
-              <el-tag v-if="row.tags" size="small" type="info" effect="plain">{{ row.tags }}</el-tag>
+              <el-tag
+                v-if="row.tags"
+                size="small"
+                type="info"
+                effect="plain"
+              >
+                {{ row.tags }}
+              </el-tag>
             </div>
-            <div v-if="row.name" class="flag-name">{{ row.name }}</div>
-            <div v-if="row.description" class="flag-desc">{{ row.description }}</div>
+            <div
+              v-if="row.name"
+              class="flag-name"
+            >
+              {{ row.name }}
+            </div>
+            <div
+              v-if="row.description"
+              class="flag-desc"
+            >
+              {{ row.description }}
+            </div>
           </template>
         </el-table-column>
 
-        <el-table-column label="状态" width="130">
+        <el-table-column
+          label="状态"
+          width="130"
+        >
           <template #default="{ row }">
             <el-switch
               :model-value="row.enabled"
               active-text="开"
               @change="(v) => onToggle(row, v)"
             />
-            <el-tag v-if="staleKeys.has(row.key)" size="small" type="warning" class="ml-4">
+            <el-tag
+              v-if="staleKeys.has(row.key)"
+              size="small"
+              type="warning"
+              class="ml-4"
+            >
               疑似闲置
             </el-tag>
           </template>
         </el-table-column>
 
-        <el-table-column label="灰度" width="210">
+        <el-table-column
+          label="灰度"
+          width="210"
+        >
           <template #default="{ row }">
             <el-slider
               :model-value="row.rollout_percentage"
@@ -71,28 +150,67 @@
           </template>
         </el-table-column>
 
-        <el-table-column label="最近被评估" width="160">
+        <el-table-column
+          label="最近被评估"
+          width="160"
+        >
           <template #default="{ row }">
             <span v-if="row.last_evaluated_at">{{ formatTs(row.last_evaluated_at) }}</span>
-            <el-tooltip v-else content="从来没有被任何请求评估过——要么代码里没人读这个 key，要么流量还没走到它" placement="top">
+            <el-tooltip
+              v-else
+              content="从来没有被任何请求评估过——要么代码里没人读这个 key，要么流量还没走到它"
+              placement="top"
+            >
               <span class="never">从未</span>
             </el-tooltip>
           </template>
         </el-table-column>
 
-        <el-table-column label="操作" width="180" fixed="right">
+        <el-table-column
+          label="操作"
+          width="180"
+          fixed="right"
+        >
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="openEdit(row)">编辑</el-button>
-            <el-button link type="primary" size="small" @click="openLogs(row)">日志</el-button>
-            <el-button link type="danger" size="small" @click="onDelete(row)">删除</el-button>
+            <el-button
+              link
+              type="primary"
+              size="small"
+              @click="openEdit(row)"
+            >
+              编辑
+            </el-button>
+            <el-button
+              link
+              type="primary"
+              size="small"
+              @click="openLogs(row)"
+            >
+              日志
+            </el-button>
+            <el-button
+              link
+              type="danger"
+              size="small"
+              @click="onDelete(row)"
+            >
+              删除
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
     </el-card>
 
     <!-- 新建 / 编辑 -->
-    <el-dialog v-model="dialogVisible" :title="form.id ? '编辑开关' : '新建开关'" width="560px">
-      <el-form :model="form" label-width="96px">
+    <el-dialog
+      v-model="dialogVisible"
+      :title="form.id ? '编辑开关' : '新建开关'"
+      width="560px"
+    >
+      <el-form
+        :model="form"
+        label-width="96px"
+      >
         <el-form-item label="Key">
           <el-input
             v-model="form.key"
@@ -105,70 +223,160 @@
           </div>
         </el-form-item>
         <el-form-item label="名称">
-          <el-input v-model="form.name" placeholder="给人看的名字，比如「智能体拟人化回复」" />
+          <el-input
+            v-model="form.name"
+            placeholder="给人看的名字，比如「智能体拟人化回复」"
+          />
         </el-form-item>
         <el-form-item label="说明">
-          <el-input v-model="form.description" type="textarea" :rows="3"
-            placeholder="这个开关控制什么、关掉会有什么影响" />
+          <el-input
+            v-model="form.description"
+            type="textarea"
+            :rows="3"
+            placeholder="这个开关控制什么、关掉会有什么影响"
+          />
         </el-form-item>
         <el-form-item label="标签">
-          <el-input v-model="form.tags" placeholder="逗号分隔，用于筛选，比如 llm,beta" />
+          <el-input
+            v-model="form.tags"
+            placeholder="逗号分隔，用于筛选，比如 llm,beta"
+          />
         </el-form-item>
         <el-form-item label="初始状态">
-          <el-switch v-model="form.enabled" active-text="启用" />
+          <el-switch
+            v-model="form.enabled"
+            active-text="启用"
+          />
           <span class="field-hint inline">
             新建时默认停用更安全：先建后灰度，而不是建完就对 100% 用户生效。
           </span>
         </el-form-item>
         <el-form-item label="灰度百分比">
-          <el-slider v-model="form.rollout_percentage" :min="0" :max="100" :step="5" show-input />
+          <el-slider
+            v-model="form.rollout_percentage"
+            :min="0"
+            :max="100"
+            :step="5"
+            show-input
+          />
         </el-form-item>
         <el-form-item label="Payload">
-          <el-input v-model="form.payload" type="textarea" :rows="3"
-            placeholder="可选。随开关一起下发的配置内容，一般是 JSON" />
+          <el-input
+            v-model="form.payload"
+            type="textarea"
+            :rows="3"
+            placeholder="可选。随开关一起下发的配置内容，一般是 JSON"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="saving" :disabled="!!formError" @click="submit">
+        <el-button @click="dialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          :disabled="!!formError"
+          @click="submit"
+        >
           {{ form.id ? '保存' : '创建' }}
         </el-button>
       </template>
-      <el-alert v-if="formError" type="error" :closable="false" :title="formError" class="mt-8" />
+      <el-alert
+        v-if="formError"
+        type="error"
+        :closable="false"
+        :title="formError"
+        class="mt-8"
+      />
     </el-dialog>
 
     <!-- 变更审计 + 评估日志 -->
-    <el-drawer v-model="logVisible" :title="logFlag ? `${logFlag.key} 的日志` : '日志'" size="560px">
+    <el-drawer
+      v-model="logVisible"
+      :title="logFlag ? `${logFlag.key} 的日志` : '日志'"
+      size="560px"
+    >
       <el-tabs v-model="logTab">
-        <el-tab-pane label="变更审计" name="audit">
-          <el-alert type="warning" :closable="false" class="mb-12"
-            title="开关的每次启用/禁用/调灰度都会留一条审计——出问题时这是唯一能回答「当时到底开没开」的记录" />
+        <el-tab-pane
+          label="变更审计"
+          name="audit"
+        >
+          <el-alert
+            type="warning"
+            :closable="false"
+            class="mb-12"
+            title="开关的每次启用/禁用/调灰度都会留一条审计——出问题时这是唯一能回答「当时到底开没开」的记录"
+          />
           <el-timeline v-if="auditRows.length">
-            <el-timeline-item v-for="a in auditRows" :key="a.id" :timestamp="formatTs(a.created_at)">
+            <el-timeline-item
+              v-for="a in auditRows"
+              :key="a.id"
+              :timestamp="formatTs(a.created_at)"
+            >
               <b>{{ actionText(a.action) }}</b>
-              <div class="log-detail">{{ a.detail }}</div>
+              <div class="log-detail">
+                {{ a.detail }}
+              </div>
             </el-timeline-item>
           </el-timeline>
-          <el-empty v-else description="没有变更记录" />
+          <el-empty
+            v-else
+            description="没有变更记录"
+          />
         </el-tab-pane>
-        <el-tab-pane label="评估记录" name="eval">
-          <el-alert type="info" :closable="false" class="mb-12"
-            title="每条记录是一次 Evaluate 调用。reason=not_found 说明代码里传的 key 在库里不存在" />
-          <el-table v-if="evalRows.length" :data="evalRows" size="small" max-height="520">
-            <el-table-column prop="context_id" label="评估对象" min-width="140" />
-            <el-table-column label="结果" width="80">
+        <el-tab-pane
+          label="评估记录"
+          name="eval"
+        >
+          <el-alert
+            type="info"
+            :closable="false"
+            class="mb-12"
+            title="每条记录是一次 Evaluate 调用。reason=not_found 说明代码里传的 key 在库里不存在"
+          />
+          <el-table
+            v-if="evalRows.length"
+            :data="evalRows"
+            size="small"
+            max-height="520"
+          >
+            <el-table-column
+              prop="context_id"
+              label="评估对象"
+              min-width="140"
+            />
+            <el-table-column
+              label="结果"
+              width="80"
+            >
               <template #default="{ row }">
-                <el-tag :type="row.enabled ? 'success' : 'info'" size="small">
+                <el-tag
+                  :type="row.enabled ? 'success' : 'info'"
+                  size="small"
+                >
                   {{ row.enabled ? '命中' : '未命中' }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="reason" label="原因" width="150" />
-            <el-table-column label="时间" width="150">
-              <template #default="{ row }">{{ formatTs(row.created_at) }}</template>
+            <el-table-column
+              prop="reason"
+              label="原因"
+              width="150"
+            />
+            <el-table-column
+              label="时间"
+              width="150"
+            >
+              <template #default="{ row }">
+                {{ formatTs(row.created_at) }}
+              </template>
             </el-table-column>
           </el-table>
-          <el-empty v-else description="没有评估记录：这个开关还没被任何请求读到过" />
+          <el-empty
+            v-else
+            description="没有评估记录：这个开关还没被任何请求读到过"
+          />
         </el-tab-pane>
       </el-tabs>
     </el-drawer>

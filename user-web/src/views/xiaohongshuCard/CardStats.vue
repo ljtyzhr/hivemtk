@@ -1,6 +1,5 @@
 <template>
   <div class="xiaohongshu-card-stats-container">
-    
     <el-alert
       v-if="cardLoadFailed || statsLoadFailed"
       class="stats-alert"
@@ -14,7 +13,12 @@
     <div class="chat-message-container">
       <div class="chat-message">
         <div class="message-avatar">
-          <el-avatar :size="50" src="">X</el-avatar>
+          <el-avatar
+            :size="50"
+            src=""
+          >
+            X
+          </el-avatar>
         </div>
         <div class="message-content">
           <div class="message-header">
@@ -22,9 +26,16 @@
             <span class="message-time">{{ formatDate(cardInfo.created_at) }}</span>
           </div>
           <div class="message-body">
-            <div class="message-title">{{ cardInfo.title }}</div>
-            <div class="message-description">{{ cardInfo.description }}</div>
-            <div class="message-image" v-if="cardInfo.image_url">
+            <div class="message-title">
+              {{ cardInfo.title }}
+            </div>
+            <div class="message-description">
+              {{ cardInfo.description }}
+            </div>
+            <div
+              v-if="cardInfo.image_url"
+              class="message-image"
+            >
               <el-image
                 v-if="cardInfo.image_url"
                 :src="cardInfo.image_url"
@@ -33,11 +44,16 @@
                 style="width: 100%; height: 200px; border-radius: 8px;"
               >
                 <template #error>
-                  <div class="img-error-fallback">{{ $t('图片加载失败') }}</div>
+                  <div class="img-error-fallback">
+                    {{ $t('图片加载失败') }}
+                  </div>
                 </template>
               </el-image>
             </div>
-            <div class="message-tags" v-if="cardInfo.tags">
+            <div
+              v-if="cardInfo.tags"
+              class="message-tags"
+            >
               <el-tag
                 v-for="tag in cardInfo.tags.split(',')"
                 :key="tag"
@@ -60,16 +76,26 @@
     </div>
 
     
-    <el-row :gutter="20" class="stats-cards">
+    <el-row
+      :gutter="20"
+      class="stats-cards"
+    >
       <el-col :span="8">
         <el-card class="stats-card">
           <div class="stats-content">
-            <div class="stats-icon" style="background-color: #F59E0B;">
+            <div
+              class="stats-icon"
+              style="background-color: #F59E0B;"
+            >
               <el-icon><View /></el-icon>
             </div>
             <div class="stats-info">
-              <div class="stats-value">{{ formatNumber(cardStats.view_count) }}</div>
-              <div class="stats-label">{{ $t('总浏览量') }}</div>
+              <div class="stats-value">
+                {{ formatNumber(cardStats.view_count) }}
+              </div>
+              <div class="stats-label">
+                {{ $t('总浏览量') }}
+              </div>
             </div>
           </div>
         </el-card>
@@ -77,12 +103,19 @@
       <el-col :span="8">
         <el-card class="stats-card">
           <div class="stats-content">
-            <div class="stats-icon" style="background-color: #F59E0B;">
+            <div
+              class="stats-icon"
+              style="background-color: #F59E0B;"
+            >
               <el-icon><TrendCharts /></el-icon>
             </div>
             <div class="stats-info">
-              <div class="stats-value">{{ formatPercent(cardStats.engagement_rate) }}%</div>
-              <div class="stats-label">{{ $t('互动率') }}</div>
+              <div class="stats-value">
+                {{ formatPercent(cardStats.engagement_rate) }}%
+              </div>
+              <div class="stats-label">
+                {{ $t('互动率') }}
+              </div>
             </div>
           </div>
         </el-card>
@@ -90,28 +123,45 @@
       <el-col :span="8">
         <el-card class="stats-card">
           <div class="stats-content">
-            <div class="stats-icon" style="background-color: #10B981;">
+            <div
+              class="stats-icon"
+              style="background-color: #10B981;"
+            >
               <el-icon><User /></el-icon>
             </div>
             <div class="stats-info">
-              <div class="stats-value">{{ formatNumber(cardStats.unique_visitors) }}</div>
-              <div class="stats-label">{{ $t('独立访客数') }}</div>
+              <div class="stats-value">
+                {{ formatNumber(cardStats.unique_visitors) }}
+              </div>
+              <div class="stats-label">
+                {{ $t('独立访客数') }}
+              </div>
             </div>
           </div>
         </el-card>
       </el-col>
     </el-row>
 
-    <el-row :gutter="20" class="stats-cards">
+    <el-row
+      :gutter="20"
+      class="stats-cards"
+    >
       <el-col :span="8">
         <el-card class="stats-card">
           <div class="stats-content">
-            <div class="stats-icon" style="background-color: #EF4444;">
+            <div
+              class="stats-icon"
+              style="background-color: #EF4444;"
+            >
               <el-icon><Clock /></el-icon>
             </div>
             <div class="stats-info">
-              <div class="stats-value">{{ formatNumber(cardStats.avg_view_time) }}s</div>
-              <div class="stats-label">{{ $t('平均浏览时长') }}</div>
+              <div class="stats-value">
+                {{ formatNumber(cardStats.avg_view_time) }}s
+              </div>
+              <div class="stats-label">
+                {{ $t('平均浏览时长') }}
+              </div>
             </div>
           </div>
         </el-card>
@@ -120,7 +170,10 @@
 
     
     <el-card class="filter-card">
-      <el-form :model="filterForm" inline>
+      <el-form
+        :model="filterForm"
+        inline
+      >
         <el-form-item :label="$t('日期范围')">
           <el-date-picker
             v-model="filterForm.dateRange"
@@ -134,26 +187,50 @@
           />
         </el-form-item>
         <el-form-item :label="$t('分组方式')">
-          <el-select v-model="filterForm.groupBy" :placeholder="$t('请选择分组方式')" @change="handleGroupByChange">
-            <el-option :label="$t('按天')" value="day" />
-            <el-option :label="$t('按周')" value="week" />
-            <el-option :label="$t('按月')" value="month" />
+          <el-select
+            v-model="filterForm.groupBy"
+            :placeholder="$t('请选择分组方式')"
+            @change="handleGroupByChange"
+          >
+            <el-option
+              :label="$t('按天')"
+              value="day"
+            />
+            <el-option
+              :label="$t('按周')"
+              value="week"
+            />
+            <el-option
+              :label="$t('按月')"
+              value="month"
+            />
           </el-select>
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="refreshData">{{ $t('刷新数据') }}</el-button>
+          <el-button
+            type="primary"
+            @click="refreshData"
+          >
+            {{ $t('刷新数据') }}
+          </el-button>
         </el-form-item>
       </el-form>
     </el-card>
 
     
-    <el-row :gutter="20" class="chart-row">
+    <el-row
+      :gutter="20"
+      class="chart-row"
+    >
       <el-col :span="24">
         <el-card class="chart-card">
           <div class="chart-header">
             <span>{{ $t('访问趋势') }}</span>
           </div>
-          <div id="viewChart" class="chart-container"></div>
+          <div
+            id="viewChart"
+            class="chart-container"
+          />
         </el-card>
       </el-col>
     </el-row>
@@ -163,12 +240,27 @@
       <div class="activity-header">
         <span>{{ $t('最近活动') }}</span>
       </div>
-      <el-table :data="recentActivities" stripe style="width: 100%" v-loading="loading">
-          <el-table-column prop="date" :label="$t('日期')" width="120">
-            <template #default="scope">{{ formatDay(scope.row.date) }}</template>
-          </el-table-column>
-          <el-table-column prop="view" :label="$t('浏览量')" width="80" />
-        </el-table>
+      <el-table
+        v-loading="loading"
+        :data="recentActivities"
+        stripe
+        style="width: 100%"
+      >
+        <el-table-column
+          prop="date"
+          :label="$t('日期')"
+          width="120"
+        >
+          <template #default="scope">
+            {{ formatDay(scope.row.date) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          prop="view"
+          :label="$t('浏览量')"
+          width="80"
+        />
+      </el-table>
       
       
       <div class="pagination-container">

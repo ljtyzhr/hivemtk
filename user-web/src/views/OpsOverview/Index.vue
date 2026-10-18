@@ -1,67 +1,138 @@
 <template>
   <div class="ops-overview">
-    <PageHeader title="运维总览" subtitle="系统健康度、关键指标、告警一览" />
+    <PageHeader
+      title="运维总览"
+      subtitle="系统健康度、关键指标、告警一览"
+    />
 
     
-    <el-row :gutter="20" class="status-row">
+    <el-row
+      :gutter="20"
+      class="status-row"
+    >
       <el-col :span="6">
         <el-card class="status-card status-ok">
-          <div class="status-label">系统状态</div>
-          <div class="status-value">{{ systemStatus.text }}</div>
-          <div class="status-meta">运行时长 {{ uptime }}</div>
+          <div class="status-label">
+            系统状态
+          </div>
+          <div class="status-value">
+            {{ systemStatus.text }}
+          </div>
+          <div class="status-meta">
+            运行时长 {{ uptime }}
+          </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card class="status-card">
-          <div class="status-label">在线用户</div>
-          <div class="status-value">{{ stats.onlineUsers }}</div>
-          <div class="status-meta">总用户 {{ stats.totalUsers }}</div>
+          <div class="status-label">
+            在线用户
+          </div>
+          <div class="status-value">
+            {{ stats.onlineUsers }}
+          </div>
+          <div class="status-meta">
+            总用户 {{ stats.totalUsers }}
+          </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card class="status-card">
-          <div class="status-label">今日消息</div>
-          <div class="status-value">{{ stats.todayMessages }}</div>
-          <div class="status-meta">环比 {{ stats.messagesDelta }}</div>
+          <div class="status-label">
+            今日消息
+          </div>
+          <div class="status-value">
+            {{ stats.todayMessages }}
+          </div>
+          <div class="status-meta">
+            环比 {{ stats.messagesDelta }}
+          </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card :class="['status-card', alertsCount > 0 ? 'status-warn' : '']">
-          <div class="status-label">未处理告警</div>
-          <div class="status-value">{{ alertsCount }}</div>
-          <div class="status-meta">查看告警中心</div>
+          <div class="status-label">
+            未处理告警
+          </div>
+          <div class="status-value">
+            {{ alertsCount }}
+          </div>
+          <div class="status-meta">
+            查看告警中心
+          </div>
         </el-card>
       </el-col>
     </el-row>
 
     
-    <el-row :gutter="20" class="mt-20">
+    <el-row
+      :gutter="20"
+      class="mt-20"
+    >
       <el-col :span="12">
         <el-card header="11 大系统模块状态">
-          <el-table :data="moduleStatus" stripe>
-            <el-table-column prop="name" label="模块" />
-            <el-table-column prop="status" label="状态">
+          <el-table
+            :data="moduleStatus"
+            stripe
+          >
+            <el-table-column
+              prop="name"
+              label="模块"
+            />
+            <el-table-column
+              prop="status"
+              label="状态"
+            >
               <template #default="{ row }">
                 <el-tag :type="row.status === 'ok' ? 'success' : row.status === 'warn' ? 'warning' : 'danger'">
                   {{ row.status === 'ok' ? '正常' : row.status === 'warn' ? '告警' : '异常' }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="latency" label="延迟 (ms)" />
-            <el-table-column prop="qps" label="QPS" />
-            <el-table-column prop="errorRate" label="错误率" />
+            <el-table-column
+              prop="latency"
+              label="延迟 (ms)"
+            />
+            <el-table-column
+              prop="qps"
+              label="QPS"
+            />
+            <el-table-column
+              prop="errorRate"
+              label="错误率"
+            />
           </el-table>
         </el-card>
       </el-col>
       <el-col :span="12">
         <el-card header="最近 24h 关键操作">
-          <el-table :data="recentOps" stripe max-height="400">
-            <el-table-column prop="time" label="时间" width="100" />
-            <el-table-column prop="user" label="操作人" />
-            <el-table-column prop="action" label="操作" />
-            <el-table-column prop="result" label="结果">
+          <el-table
+            :data="recentOps"
+            stripe
+            max-height="400"
+          >
+            <el-table-column
+              prop="time"
+              label="时间"
+              width="100"
+            />
+            <el-table-column
+              prop="user"
+              label="操作人"
+            />
+            <el-table-column
+              prop="action"
+              label="操作"
+            />
+            <el-table-column
+              prop="result"
+              label="结果"
+            >
               <template #default="{ row }">
-                <el-tag :type="row.result === 'success' ? 'success' : 'danger'" size="small">
+                <el-tag
+                  :type="row.result === 'success' ? 'success' : 'danger'"
+                  size="small"
+                >
                   {{ row.result === 'success' ? '成功' : '失败' }}
                 </el-tag>
               </template>

@@ -1,21 +1,38 @@
 <template>
   <div class="geo-page">
-
     <el-row :gutter="16">
-      
-      <el-col :xs="24" :lg="14">
-        <el-card shadow="never" class="form-card" v-loading="loading">
+      <el-col
+        :xs="24"
+        :lg="14"
+      >
+        <el-card
+          v-loading="loading"
+          shadow="never"
+          class="form-card"
+        >
           <template #header>
             <div class="card-header">
               <span class="card-title">GEO 配置</span>
-              <el-button link type="primary" :loading="saving" @click="handleSave">
+              <el-button
+                link
+                type="primary"
+                :loading="saving"
+                @click="handleSave"
+              >
                 <el-icon><Check /></el-icon><span>保存配置</span>
               </el-button>
             </div>
           </template>
-          <el-form :model="config" label-width="100px">
+          <el-form
+            :model="config"
+            label-width="100px"
+          >
             <el-form-item label="品牌名称">
-              <el-input v-model="config.brand" placeholder="如：hivemtk" clearable />
+              <el-input
+                v-model="config.brand"
+                placeholder="如：hivemtk"
+                clearable
+              />
             </el-form-item>
             <el-form-item label="品牌描述">
               <el-input
@@ -33,7 +50,9 @@
                   closable
                   class="tag-item"
                   @close="config.advantages.splice(i, 1)"
-                >{{ tag }}</el-tag>
+                >
+                  {{ tag }}
+                </el-tag>
                 <el-input
                   v-if="advInputVisible"
                   ref="advInputRef"
@@ -43,7 +62,14 @@
                   @keyup.enter="addTag(config.advantages)"
                   @blur="onBlurAddTag('adv')"
                 />
-                <el-button v-else size="small" class="tag-add" @click="showAdvInput">+ 优势</el-button>
+                <el-button
+                  v-else
+                  size="small"
+                  class="tag-add"
+                  @click="showAdvInput"
+                >
+                  + 优势
+                </el-button>
               </div>
             </el-form-item>
             <el-form-item label="竞品">
@@ -55,7 +81,9 @@
                   type="warning"
                   class="tag-item"
                   @close="config.competitors.splice(i, 1)"
-                >{{ tag }}</el-tag>
+                >
+                  {{ tag }}
+                </el-tag>
                 <el-input
                   v-if="compInputVisible"
                   ref="compInputRef"
@@ -65,12 +93,27 @@
                   @keyup.enter="addTag(config.competitors, 'comp')"
                   @blur="onBlurAddTag('comp')"
                 />
-                <el-button v-else size="small" class="tag-add" @click="showCompInput">+ 竞品</el-button>
+                <el-button
+                  v-else
+                  size="small"
+                  class="tag-add"
+                  @click="showCompInput"
+                >
+                  + 竞品
+                </el-button>
               </div>
             </el-form-item>
             <el-form-item label="默认生成模型">
-              <el-select v-model="config.default_model" style="width: 100%">
-                <el-option v-for="m in modelOptions" :key="m.value" :label="m.label" :value="m.value" />
+              <el-select
+                v-model="config.default_model"
+                style="width: 100%"
+              >
+                <el-option
+                  v-for="m in modelOptions"
+                  :key="m.value"
+                  :label="m.label"
+                  :value="m.value"
+                />
               </el-select>
             </el-form-item>
             <el-form-item label="验证模型">
@@ -81,11 +124,20 @@
                 collapse-tags-tooltip
                 style="width: 100%"
               >
-                <el-option v-for="m in modelOptions" :key="m.value" :label="m.label" :value="m.value" />
+                <el-option
+                  v-for="m in modelOptions"
+                  :key="m.value"
+                  :label="m.label"
+                  :value="m.value"
+                />
               </el-select>
             </el-form-item>
             <el-form-item>
-              <el-button type="success" :loading="optimizing" @click="handleOptimize">
+              <el-button
+                type="success"
+                :loading="optimizing"
+                @click="handleOptimize"
+              >
                 <el-icon><MagicStick /></el-icon><span>优化配置</span>
               </el-button>
             </el-form-item>
@@ -94,18 +146,44 @@
       </el-col>
 
       
-      <el-col :xs="24" :lg="10">
-        <el-card shadow="never" class="suggest-card">
-          <template #header><span class="card-title">优化建议</span></template>
+      <el-col
+        :xs="24"
+        :lg="10"
+      >
+        <el-card
+          shadow="never"
+          class="suggest-card"
+        >
+          <template #header>
+            <span class="card-title">优化建议</span>
+          </template>
           <div v-loading="optimizing">
-            <el-empty v-if="!suggestions.length && !optimizing" description="点击「优化配置」生成建议" :image-size="60" />
-            <div v-else class="suggest-list">
-              <div v-for="(s, i) in suggestions" :key="i" class="suggest-item">
+            <el-empty
+              v-if="!suggestions.length && !optimizing"
+              description="点击「优化配置」生成建议"
+              :image-size="60"
+            />
+            <div
+              v-else
+              class="suggest-list"
+            >
+              <div
+                v-for="(s, i) in suggestions"
+                :key="i"
+                class="suggest-item"
+              >
                 <div class="suggest-item-title">
-                  <el-tag size="small" :type="priorityType(s.priority)">{{ s.priority || '中' }}</el-tag>
+                  <el-tag
+                    size="small"
+                    :type="priorityType(s.priority)"
+                  >
+                    {{ s.priority || '中' }}
+                  </el-tag>
                   <span>{{ s.title }}</span>
                 </div>
-                <div class="suggest-item-desc">{{ s.description }}</div>
+                <div class="suggest-item-desc">
+                  {{ s.description }}
+                </div>
               </div>
             </div>
           </div>

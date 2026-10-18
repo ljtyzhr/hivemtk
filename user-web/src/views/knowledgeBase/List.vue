@@ -1,7 +1,9 @@
 <template>
   <div class="kb-list-page">
-    
-    <el-card class="header-card" shadow="never">
+    <el-card
+      class="header-card"
+      shadow="never"
+    >
       <div class="header-content">
         <div>
           <h2>知识库管理</h2>
@@ -10,11 +12,17 @@
           </p>
         </div>
         <div class="header-actions">
-          <el-button @click="loadList(currentType)" :loading="loading">
+          <el-button
+            :loading="loading"
+            @click="loadList(currentType)"
+          >
             <el-icon><Refresh /></el-icon>
             {{ $t('刷新') }}
           </el-button>
-          <el-button type="primary" @click="goCreate">
+          <el-button
+            type="primary"
+            @click="goCreate"
+          >
             <el-icon><Plus /></el-icon>
             新建知识库
           </el-button>
@@ -23,42 +31,86 @@
     </el-card>
 
     
-    <el-row :gutter="20" class="stat-row" v-if="stats">
+    <el-row
+      v-if="stats"
+      :gutter="20"
+      class="stat-row"
+    >
       <el-col :span="8">
-        <el-card shadow="never" class="stat-card">
-          <div class="stat-label">当前类型总数</div>
-          <div class="stat-value">{{ stats.total ?? 0 }}</div>
+        <el-card
+          shadow="never"
+          class="stat-card"
+        >
+          <div class="stat-label">
+            当前类型总数
+          </div>
+          <div class="stat-value">
+            {{ stats.total ?? 0 }}
+          </div>
         </el-card>
       </el-col>
       <el-col :span="8">
-        <el-card shadow="never" class="stat-card">
-          <div class="stat-label">已启用</div>
-          <div class="stat-value text-success">{{ stats.enabled ?? 0 }}</div>
+        <el-card
+          shadow="never"
+          class="stat-card"
+        >
+          <div class="stat-label">
+            已启用
+          </div>
+          <div class="stat-value text-success">
+            {{ stats.enabled ?? 0 }}
+          </div>
         </el-card>
       </el-col>
       <el-col :span="8">
-        <el-card shadow="never" class="stat-card">
-          <div class="stat-label">关联智能体</div>
-          <div class="stat-value text-primary">{{ totalAgentBindings }}</div>
+        <el-card
+          shadow="never"
+          class="stat-card"
+        >
+          <div class="stat-label">
+            关联智能体
+          </div>
+          <div class="stat-value text-primary">
+            {{ totalAgentBindings }}
+          </div>
         </el-card>
       </el-col>
     </el-row>
 
     
-    <el-card shadow="never" class="filter-card">
-      <el-tabs v-model="currentType" @tab-change="onTabChange">
-        <el-tab-pane label="RAG 文档库" name="rag">
+    <el-card
+      shadow="never"
+      class="filter-card"
+    >
+      <el-tabs
+        v-model="currentType"
+        @tab-change="onTabChange"
+      >
+        <el-tab-pane
+          label="RAG 文档库"
+          name="rag"
+        >
           <span><el-icon><Document /></el-icon> RAG 文档库</span>
         </el-tab-pane>
-        <el-tab-pane label="FAQ 知识库" name="faq">
+        <el-tab-pane
+          label="FAQ 知识库"
+          name="faq"
+        >
           <span><el-icon><Notebook /></el-icon> FAQ 知识库</span>
         </el-tab-pane>
-        <el-tab-pane label="SOP 模板库" name="sop">
+        <el-tab-pane
+          label="SOP 模板库"
+          name="sop"
+        >
           <span><el-icon><Tickets /></el-icon> SOP 模板库</span>
         </el-tab-pane>
       </el-tabs>
 
-      <el-form :inline="true" :model="filter" @submit.prevent>
+      <el-form
+        :inline="true"
+        :model="filter"
+        @submit.prevent
+      >
         <el-form-item :label="$t('关键词')">
           <el-input
             v-model="filter.keyword"
@@ -70,39 +122,96 @@
           />
         </el-form-item>
         <el-form-item :label="$t('状态')">
-          <el-select v-model="filter.status" placeholder="全部状态" clearable style="width: 130px" @change="onSearch">
-            <el-option label="启用" :value="1" />
-            <el-option label="禁用" :value="0" />
+          <el-select
+            v-model="filter.status"
+            placeholder="全部状态"
+            clearable
+            style="width: 130px"
+            @change="onSearch"
+          >
+            <el-option
+              label="启用"
+              :value="1"
+            />
+            <el-option
+              label="禁用"
+              :value="0"
+            />
           </el-select>
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="onSearch">
+          <el-button
+            type="primary"
+            @click="onSearch"
+          >
             <el-icon><Search /></el-icon>
             {{ $t('搜索') }}
           </el-button>
-          <el-button @click="resetFilter">{{ $t('重置') }}</el-button>
+          <el-button @click="resetFilter">
+            {{ $t('重置') }}
+          </el-button>
         </el-form-item>
       </el-form>
     </el-card>
 
     
     <el-card shadow="never">
-      <el-table :data="list" v-loading="loading" stripe border>
-        <el-table-column prop="id" label="ID" width="70" align="center" />
-        <el-table-column prop="kb_code" label="KB编码" width="170" show-overflow-tooltip />
-        <el-table-column label="名称" min-width="180" show-overflow-tooltip>
+      <el-table
+        v-loading="loading"
+        :data="list"
+        stripe
+        border
+      >
+        <el-table-column
+          prop="id"
+          label="ID"
+          width="70"
+          align="center"
+        />
+        <el-table-column
+          prop="kb_code"
+          label="KB编码"
+          width="170"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          label="名称"
+          min-width="180"
+          show-overflow-tooltip
+        >
           <template #default="{ row }">
-            <span class="kb-name" role="button" tabindex="0" :class="{ 'kb-name--clickable': true }" @click="openDetail(row)" @keydown.enter.prevent="openDetail(row)" @keydown.space.prevent="openDetail(row)">
+            <span
+              class="kb-name"
+              role="button"
+              tabindex="0"
+              :class="{ 'kb-name--clickable': true }"
+              @click="openDetail(row)"
+              @keydown.enter.prevent="openDetail(row)"
+              @keydown.space.prevent="openDetail(row)"
+            >
               {{ row.name }}
             </span>
           </template>
         </el-table-column>
-        <el-table-column label="类型" width="120" align="center">
+        <el-table-column
+          label="类型"
+          width="120"
+          align="center"
+        >
           <template #default="{ row }">
-            <el-tag :type="getTypeTagType(row.kb_type)" size="small">{{ getTypeLabel(row.kb_type) }}</el-tag>
+            <el-tag
+              :type="getTypeTagType(row.kb_type)"
+              size="small"
+            >
+              {{ getTypeLabel(row.kb_type) }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="关联智能体" width="120" align="center">
+        <el-table-column
+          label="关联智能体"
+          width="120"
+          align="center"
+        >
           <template #default="{ row }">
             <el-button
               v-if="row.agent_count > 0"
@@ -113,26 +222,65 @@
             >
               {{ row.agent_count }} 个
             </el-button>
-            <span v-else class="text-muted">0</span>
+            <span
+              v-else
+              class="text-muted"
+            >0</span>
           </template>
         </el-table-column>
-        <el-table-column label="状态" width="90" align="center">
+        <el-table-column
+          label="状态"
+          width="90"
+          align="center"
+        >
           <template #default="{ row }">
-            <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">
+            <el-tag
+              :type="row.status === 1 ? 'success' : 'info'"
+              size="small"
+            >
               {{ row.status === 1 ? '启用' : '禁用' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="描述" min-width="200" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.description || '-' }}</template>
-        </el-table-column>
-        <el-table-column label="创建时间" width="160">
-          <template #default="{ row }">{{ formatTime(row.created_at) }}</template>
-        </el-table-column>
-        <el-table-column label="操作" width="240" fixed="right">
+        <el-table-column
+          label="描述"
+          min-width="200"
+          show-overflow-tooltip
+        >
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="openDetail(row)">详情</el-button>
-            <el-button link type="primary" size="small" @click="goEdit(row)">编辑</el-button>
+            {{ row.description || '-' }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="创建时间"
+          width="160"
+        >
+          <template #default="{ row }">
+            {{ formatTime(row.created_at) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="操作"
+          width="240"
+          fixed="right"
+        >
+          <template #default="{ row }">
+            <el-button
+              link
+              type="primary"
+              size="small"
+              @click="openDetail(row)"
+            >
+              详情
+            </el-button>
+            <el-button
+              link
+              type="primary"
+              size="small"
+              @click="goEdit(row)"
+            >
+              编辑
+            </el-button>
             <el-button
               link
               :type="row.status === 1 ? 'warning' : 'success'"
@@ -141,17 +289,32 @@
             >
               {{ row.status === 1 ? '禁用' : '启用' }}
             </el-button>
-            <el-button link type="danger" size="small" @click="onDelete(row)">删除</el-button>
+            <el-button
+              link
+              type="danger"
+              size="small"
+              @click="onDelete(row)"
+            >
+              删除
+            </el-button>
           </template>
         </el-table-column>
         <template #empty>
           <el-empty :description="emptyText">
-            <el-button type="primary" @click="openCreateDialog">新建知识库</el-button>
+            <el-button
+              type="primary"
+              @click="openCreateDialog"
+            >
+              新建知识库
+            </el-button>
           </el-empty>
         </template>
       </el-table>
 
-      <div class="pagination-wrap" v-if="total > 0">
+      <div
+        v-if="total > 0"
+        class="pagination-wrap"
+      >
         <el-pagination
           v-model:current-page="page"
           v-model:page-size="pageSize"
@@ -179,8 +342,15 @@
       width="520px"
       :close-on-click-modal="false"
     >
-      <el-form :model="formData" label-width="90px" @submit.prevent>
-        <el-form-item label="KB编码" required>
+      <el-form
+        :model="formData"
+        label-width="90px"
+        @submit.prevent
+      >
+        <el-form-item
+          label="KB编码"
+          required
+        >
           <el-input
             v-model="formData.kb_code"
             placeholder="如 kb-sales-faq"
@@ -188,15 +358,38 @@
             maxlength="64"
           />
         </el-form-item>
-        <el-form-item label="类型" required>
-          <el-select v-model="formData.type" :disabled="!!formData.id" style="width: 100%">
-            <el-option label="RAG 文档库" value="rag" />
-            <el-option label="FAQ 知识库" value="faq" />
-            <el-option label="SOP 模板库" value="sop" />
+        <el-form-item
+          label="类型"
+          required
+        >
+          <el-select
+            v-model="formData.type"
+            :disabled="!!formData.id"
+            style="width: 100%"
+          >
+            <el-option
+              label="RAG 文档库"
+              value="rag"
+            />
+            <el-option
+              label="FAQ 知识库"
+              value="faq"
+            />
+            <el-option
+              label="SOP 模板库"
+              value="sop"
+            />
           </el-select>
         </el-form-item>
-        <el-form-item label="名称" required>
-          <el-input v-model="formData.name" placeholder="请输入知识库名称" maxlength="128" />
+        <el-form-item
+          label="名称"
+          required
+        >
+          <el-input
+            v-model="formData.name"
+            placeholder="请输入知识库名称"
+            maxlength="128"
+          />
         </el-form-item>
         <el-form-item label="描述">
           <el-input
@@ -209,8 +402,14 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="formVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitting" @click="onSubmitForm">
+        <el-button @click="formVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="submitting"
+          @click="onSubmitForm"
+        >
           {{ formData.id ? '保存' : '创建' }}
         </el-button>
       </template>

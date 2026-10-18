@@ -4,29 +4,68 @@
       <template #header>
         <div class="card-header">
           <span>同步日志</span>
-          <el-button @click="$router.back()">返回</el-button>
+          <el-button @click="$router.back()">
+            返回
+          </el-button>
         </div>
       </template>
       <el-form inline>
         <el-form-item label="资产 ID">
-          <el-input v-model="assetId" clearable placeholder="可选" />
+          <el-input
+            v-model="assetId"
+            clearable
+            placeholder="可选"
+          />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="fetchList">查询</el-button>
+          <el-button
+            type="primary"
+            @click="fetchList"
+          >
+            查询
+          </el-button>
         </el-form-item>
       </el-form>
-      <el-table :data="list" v-loading="loading" stripe>
-        <el-table-column prop="created_at" label="时间" width="180" />
-        <el-table-column prop="asset_id" label="资产" min-width="180" />
-        <el-table-column prop="action" label="操作" width="120" />
-        <el-table-column prop="status" label="状态" width="100">
+      <el-table
+        v-loading="loading"
+        :data="list"
+        stripe
+      >
+        <el-table-column
+          prop="created_at"
+          label="时间"
+          width="180"
+        />
+        <el-table-column
+          prop="asset_id"
+          label="资产"
+          min-width="180"
+        />
+        <el-table-column
+          prop="action"
+          label="操作"
+          width="120"
+        />
+        <el-table-column
+          prop="status"
+          label="状态"
+          width="100"
+        >
           <template #default="{ row }">
-            <el-tag :type="row.status === 'success' ? 'success' : 'danger'" size="small">
+            <el-tag
+              :type="row.status === 'success' ? 'success' : 'danger'"
+              size="small"
+            >
               {{ row.status }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="error_msg" label="错误信息" min-width="200" show-overflow-tooltip />
+        <el-table-column
+          prop="error_msg"
+          label="错误信息"
+          min-width="200"
+          show-overflow-tooltip
+        />
       </el-table>
     </el-card>
   </div>

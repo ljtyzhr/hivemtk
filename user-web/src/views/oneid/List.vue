@@ -4,7 +4,9 @@
       <div class="header-row">
         <div class="header-text">
           <h2>OneID 客户身份管理</h2>
-          <p class="subtitle">多渠道客户身份归一管理：搜索、解析、链接、详情查看</p>
+          <p class="subtitle">
+            多渠道客户身份归一管理：搜索、解析、链接、详情查看
+          </p>
         </div>
         <div class="header-actions">
           <el-input
@@ -14,8 +16,16 @@
             style="width: 320px; margin-right: 12px"
             @keyup.enter="handleSearch"
           />
-          <el-button type="primary" @click="handleSearch">{{ $t('搜索') }}</el-button>
-          <el-button type="success" @click="resolveDialogVisible = true">
+          <el-button
+            type="primary"
+            @click="handleSearch"
+          >
+            {{ $t('搜索') }}
+          </el-button>
+          <el-button
+            type="success"
+            @click="resolveDialogVisible = true"
+          >
             <el-icon><Plus /></el-icon>解析/创建 OneID
           </el-button>
         </div>
@@ -28,81 +38,198 @@
     </el-card>
 
     
-    <el-row :gutter="16" class="stats-row" v-loading="statsLoading">
-      <el-col :xs="12" :sm="6">
-        <el-card class="stat-card" shadow="never">
-          <div class="stat-icon" style="background: rgba(79,70,229,.1); color: #4F46E5">
-            <el-icon :size="22"><UserFilled /></el-icon>
+    <el-row
+      v-loading="statsLoading"
+      :gutter="16"
+      class="stats-row"
+    >
+      <el-col
+        :xs="12"
+        :sm="6"
+      >
+        <el-card
+          class="stat-card"
+          shadow="never"
+        >
+          <div
+            class="stat-icon"
+            style="background: rgba(79,70,229,.1); color: #4F46E5"
+          >
+            <el-icon :size="22">
+              <UserFilled />
+            </el-icon>
           </div>
           <div class="stat-body">
-            <div class="stat-label">OneID 客户总数</div>
-            <div class="stat-value">{{ stats.total || 0 }}</div>
+            <div class="stat-label">
+              OneID 客户总数
+            </div>
+            <div class="stat-value">
+              {{ stats.total || 0 }}
+            </div>
           </div>
         </el-card>
       </el-col>
-      <el-col :xs="12" :sm="6">
-        <el-card class="stat-card" shadow="never">
-          <div class="stat-icon" style="background: rgba(16,185,129,.1); color: #10B981">
-            <el-icon :size="22"><Cellphone /></el-icon>
+      <el-col
+        :xs="12"
+        :sm="6"
+      >
+        <el-card
+          class="stat-card"
+          shadow="never"
+        >
+          <div
+            class="stat-icon"
+            style="background: rgba(16,185,129,.1); color: #10B981"
+          >
+            <el-icon :size="22">
+              <Cellphone />
+            </el-icon>
           </div>
           <div class="stat-body">
-            <div class="stat-label">已关联手机号</div>
-            <div class="stat-value">{{ stats.withPhone || 0 }}</div>
+            <div class="stat-label">
+              已关联手机号
+            </div>
+            <div class="stat-value">
+              {{ stats.withPhone || 0 }}
+            </div>
           </div>
         </el-card>
       </el-col>
-      <el-col :xs="12" :sm="6">
-        <el-card class="stat-card" shadow="never">
-          <div class="stat-icon" style="background: rgba(245,158,11,.1); color: #F59E0B">
-            <el-icon :size="22"><Message /></el-icon>
+      <el-col
+        :xs="12"
+        :sm="6"
+      >
+        <el-card
+          class="stat-card"
+          shadow="never"
+        >
+          <div
+            class="stat-icon"
+            style="background: rgba(245,158,11,.1); color: #F59E0B"
+          >
+            <el-icon :size="22">
+              <Message />
+            </el-icon>
           </div>
           <div class="stat-body">
-            <div class="stat-label">已关联邮箱</div>
-            <div class="stat-value">{{ stats.withEmail || 0 }}</div>
+            <div class="stat-label">
+              已关联邮箱
+            </div>
+            <div class="stat-value">
+              {{ stats.withEmail || 0 }}
+            </div>
           </div>
         </el-card>
       </el-col>
-      <el-col :xs="12" :sm="6">
-        <el-card class="stat-card" shadow="never">
-          <div class="stat-icon" style="background: rgba(99,102,241,.1); color: #6366F1">
-            <el-icon :size="22"><Connection /></el-icon>
+      <el-col
+        :xs="12"
+        :sm="6"
+      >
+        <el-card
+          class="stat-card"
+          shadow="never"
+        >
+          <div
+            class="stat-icon"
+            style="background: rgba(99,102,241,.1); color: #6366F1"
+          >
+            <el-icon :size="22">
+              <Connection />
+            </el-icon>
           </div>
           <div class="stat-body">
-            <div class="stat-label">多身份客户</div>
-            <div class="stat-value">{{ stats.multiIdentity || 0 }}</div>
-            <div class="stat-extra">占比 {{ stats.multiRate || 0 }}%</div>
+            <div class="stat-label">
+              多身份客户
+            </div>
+            <div class="stat-value">
+              {{ stats.multiIdentity || 0 }}
+            </div>
+            <div class="stat-extra">
+              占比 {{ stats.multiRate || 0 }}%
+            </div>
           </div>
         </el-card>
       </el-col>
     </el-row>
 
     <el-card class="table-card">
-      <el-table :data="list" v-loading="loading" stripe>
-        <el-table-column prop="unified_id" label="UnifiedID" min-width="200">
+      <el-table
+        v-loading="loading"
+        :data="list"
+        stripe
+      >
+        <el-table-column
+          prop="unified_id"
+          label="UnifiedID"
+          min-width="200"
+        >
           <template #default="{ row }">
-            <el-tag size="small">{{ row.unified_id }}</el-tag>
+            <el-tag size="small">
+              {{ row.unified_id }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="phone" label="手机号" min-width="140" />
-        <el-table-column prop="email" label="邮箱" min-width="200" />
-        <el-table-column label="渠道身份数" width="120" align="center">
+        <el-table-column
+          prop="phone"
+          label="手机号"
+          min-width="140"
+        />
+        <el-table-column
+          prop="email"
+          label="邮箱"
+          min-width="200"
+        />
+        <el-table-column
+          label="渠道身份数"
+          width="120"
+          align="center"
+        >
           <template #default="{ row }">
             <el-tag :type="getIdentityCount(row) >= 2 ? 'success' : 'info'">
               {{ getIdentityCount(row) }} 个
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="rfm_score" label="RFM 分" width="100" />
-        <el-table-column prop="churn_risk" label="流失风险" width="120">
+        <el-table-column
+          prop="rfm_score"
+          label="RFM 分"
+          width="100"
+        />
+        <el-table-column
+          prop="churn_risk"
+          label="流失风险"
+          width="120"
+        >
           <template #default="{ row }">
-            <el-tag :type="riskType(row.churn_risk)">{{ row.churn_risk }}</el-tag>
+            <el-tag :type="riskType(row.churn_risk)">
+              {{ row.churn_risk }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="created_at" label="创建时间" min-width="180" />
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column
+          prop="created_at"
+          label="创建时间"
+          min-width="180"
+        />
+        <el-table-column
+          label="操作"
+          width="200"
+          fixed="right"
+        >
           <template #default="{ row }">
-            <el-button size="small" @click="showIdentities(row)">查看身份</el-button>
-            <el-button size="small" type="primary" @click="showLink(row)">链接身份</el-button>
+            <el-button
+              size="small"
+              @click="showIdentities(row)"
+            >
+              查看身份
+            </el-button>
+            <el-button
+              size="small"
+              type="primary"
+              @click="showLink(row)"
+            >
+              链接身份
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -111,15 +238,22 @@
         v-model:page-size="pageSize"
         :total="total"
         layout="total, prev, pager, next, jumper"
-        @current-change="loadList"
         style="margin-top: 16px; text-align: right"
+        @current-change="loadList"
       />
     </el-card>
 
     
-    <el-dialog v-model="identitiesDialogVisible" title="客户身份详情" width="640px">
+    <el-dialog
+      v-model="identitiesDialogVisible"
+      title="客户身份详情"
+      width="640px"
+    >
       <div v-if="selectedCustomer">
-        <el-descriptions :column="1" border>
+        <el-descriptions
+          :column="1"
+          border
+        >
           <el-descriptions-item label="UnifiedID">
             <el-tag>{{ selectedCustomer.unified_id }}</el-tag>
           </el-descriptions-item>
@@ -151,13 +285,26 @@
     </el-dialog>
 
     
-    <el-dialog v-model="resolveDialogVisible" title="解析/创建 OneID" width="640px">
-      <el-form :model="resolveForm" label-width="100px">
+    <el-dialog
+      v-model="resolveDialogVisible"
+      title="解析/创建 OneID"
+      width="640px"
+    >
+      <el-form
+        :model="resolveForm"
+        label-width="100px"
+      >
         <el-form-item label="手机号">
-          <el-input v-model="resolveForm.phone" placeholder="例如：+86 138-0013-8000" />
+          <el-input
+            v-model="resolveForm.phone"
+            placeholder="例如：+86 138-0013-8000"
+          />
         </el-form-item>
         <el-form-item label="邮箱">
-          <el-input v-model="resolveForm.email" placeholder="例如：FOO@EXAMPLE.COM" />
+          <el-input
+            v-model="resolveForm.email"
+            placeholder="例如：FOO@EXAMPLE.COM"
+          />
         </el-form-item>
         <el-form-item label="微信 OpenID">
           <el-input v-model="resolveForm.wechat_open_id" />
@@ -167,13 +314,24 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="resolveDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleResolve">解析/创建</el-button>
+        <el-button @click="resolveDialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          @click="handleResolve"
+        >
+          解析/创建
+        </el-button>
       </template>
     </el-dialog>
 
     
-    <el-dialog v-model="linkDialogVisible" title="链接新身份" width="640px">
+    <el-dialog
+      v-model="linkDialogVisible"
+      title="链接新身份"
+      width="640px"
+    >
       <el-alert
         v-if="linkForm.customerId"
         :title="`为客户 ${linkForm.customerId} 链接新身份`"
@@ -181,7 +339,10 @@
         :closable="false"
         style="margin-bottom: 16px"
       />
-      <el-form :model="linkForm" label-width="100px">
+      <el-form
+        :model="linkForm"
+        label-width="100px"
+      >
         <el-form-item label="手机号">
           <el-input v-model="linkForm.phone" />
         </el-form-item>
@@ -196,8 +357,15 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="linkDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleLink">链接</el-button>
+        <el-button @click="linkDialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          @click="handleLink"
+        >
+          链接
+        </el-button>
       </template>
     </el-dialog>
   </div>

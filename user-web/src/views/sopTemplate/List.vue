@@ -1,18 +1,28 @@
 <template>
   <div class="sop-template-list-page">
-    
-    <el-card class="header-card" shadow="never">
+    <el-card
+      class="header-card"
+      shadow="never"
+    >
       <div class="header-content">
         <div>
           <h2>SOP 模板库</h2>
-          <p class="subtitle">Layer1 SOP 模板拼接：按 (意图, 阶段) 命中后使用 Go text/template 渲染回复，跳过 LLM</p>
+          <p class="subtitle">
+            Layer1 SOP 模板拼接：按 (意图, 阶段) 命中后使用 Go text/template 渲染回复，跳过 LLM
+          </p>
         </div>
         <div class="header-actions">
-          <el-button @click="loadList" :loading="loading">
+          <el-button
+            :loading="loading"
+            @click="loadList"
+          >
             <el-icon><Refresh /></el-icon>
             刷新
           </el-button>
-          <el-button type="primary" @click="goCreate">
+          <el-button
+            type="primary"
+            @click="goCreate"
+          >
             <el-icon><Plus /></el-icon>
             新建模板
           </el-button>
@@ -21,8 +31,15 @@
     </el-card>
 
     
-    <el-card shadow="never" class="filter-card">
-      <el-form :inline="true" :model="filter" @submit.prevent>
+    <el-card
+      shadow="never"
+      class="filter-card"
+    >
+      <el-form
+        :inline="true"
+        :model="filter"
+        @submit.prevent
+      >
         <el-form-item label="名称">
           <el-input
             v-model="filter.keyword"
@@ -44,46 +61,112 @@
           />
         </el-form-item>
         <el-form-item label="阶段">
-          <el-select v-model="filter.stage" placeholder="全部阶段" clearable style="width: 160px" @change="onSearch">
-            <el-option v-for="s in stageOptions" :key="s" :label="s" :value="s" />
+          <el-select
+            v-model="filter.stage"
+            placeholder="全部阶段"
+            clearable
+            style="width: 160px"
+            @change="onSearch"
+          >
+            <el-option
+              v-for="s in stageOptions"
+              :key="s"
+              :label="s"
+              :value="s"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="状态">
-          <el-select v-model="filter.enabled" placeholder="全部" clearable style="width: 130px" @change="onSearch">
-            <el-option label="启用" :value="true" />
-            <el-option label="禁用" :value="false" />
+          <el-select
+            v-model="filter.enabled"
+            placeholder="全部"
+            clearable
+            style="width: 130px"
+            @change="onSearch"
+          >
+            <el-option
+              label="启用"
+              :value="true"
+            />
+            <el-option
+              label="禁用"
+              :value="false"
+            />
           </el-select>
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="onSearch">
+          <el-button
+            type="primary"
+            @click="onSearch"
+          >
             <el-icon><Search /></el-icon>
             搜索
           </el-button>
-          <el-button @click="resetFilter">重置</el-button>
+          <el-button @click="resetFilter">
+            重置
+          </el-button>
         </el-form-item>
       </el-form>
     </el-card>
 
     
     <el-card shadow="never">
-      <el-table :data="list" v-loading="loading" stripe border>
-        <el-table-column prop="id" label="ID" width="70" align="center" />
-        <el-table-column label="模板名称" min-width="180" show-overflow-tooltip>
+      <el-table
+        v-loading="loading"
+        :data="list"
+        stripe
+        border
+      >
+        <el-table-column
+          prop="id"
+          label="ID"
+          width="70"
+          align="center"
+        />
+        <el-table-column
+          label="模板名称"
+          min-width="180"
+          show-overflow-tooltip
+        >
           <template #default="{ row }">
-            <div class="tpl-name">{{ row.name }}</div>
+            <div class="tpl-name">
+              {{ row.name }}
+            </div>
           </template>
         </el-table-column>
-        <el-table-column label="意图" width="120" align="center">
+        <el-table-column
+          label="意图"
+          width="120"
+          align="center"
+        >
           <template #default="{ row }">
-            <el-tag size="small" type="warning">{{ row.intent || '-' }}</el-tag>
+            <el-tag
+              size="small"
+              type="warning"
+            >
+              {{ row.intent || '-' }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="阶段" width="100" align="center">
+        <el-table-column
+          label="阶段"
+          width="100"
+          align="center"
+        >
           <template #default="{ row }">
-            <el-tag size="small" type="info">{{ row.stage || '-' }}</el-tag>
+            <el-tag
+              size="small"
+              type="info"
+            >
+              {{ row.stage || '-' }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="所属知识库" width="180" show-overflow-tooltip>
+        <el-table-column
+          label="所属知识库"
+          width="180"
+          show-overflow-tooltip
+        >
           <template #default="{ row }">
             <el-tag
               v-if="getKBName(row.kb_id)"
@@ -93,22 +176,40 @@
             >
               {{ getKBName(row.kb_id) }}
             </el-tag>
-            <span v-else class="text-muted">未挂载</span>
+            <span
+              v-else
+              class="text-muted"
+            >未挂载</span>
           </template>
         </el-table-column>
-        <el-table-column label="模板内容" min-width="240" show-overflow-tooltip>
+        <el-table-column
+          label="模板内容"
+          min-width="240"
+          show-overflow-tooltip
+        >
           <template #default="{ row }">
             <code class="tpl-code">{{ truncate(row.template, 90) }}</code>
           </template>
         </el-table-column>
-        <el-table-column label="优先级" width="80" align="center">
+        <el-table-column
+          label="优先级"
+          width="80"
+          align="center"
+        >
           <template #default="{ row }">
-            <el-tag :type="row.priority >= 50 ? 'success' : row.priority >= 0 ? 'info' : 'warning'" size="small">
+            <el-tag
+              :type="row.priority >= 50 ? 'success' : row.priority >= 0 ? 'info' : 'warning'"
+              size="small"
+            >
               {{ row.priority || 0 }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="置信度" width="100" align="center">
+        <el-table-column
+          label="置信度"
+          width="100"
+          align="center"
+        >
           <template #default="{ row }">
             <el-progress
               :percentage="Math.round((row.confidence || 0) * 100)"
@@ -117,14 +218,25 @@
             />
           </template>
         </el-table-column>
-        <el-table-column label="命中次数" width="100" align="center">
+        <el-table-column
+          label="命中次数"
+          width="100"
+          align="center"
+        >
           <template #default="{ row }">
-            <el-tag size="small" :type="row.hit_count > 0 ? 'success' : 'info'">
+            <el-tag
+              size="small"
+              :type="row.hit_count > 0 ? 'success' : 'info'"
+            >
               {{ row.hit_count || 0 }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="状态" width="90" align="center">
+        <el-table-column
+          label="状态"
+          width="90"
+          align="center"
+        >
           <template #default="{ row }">
             <el-switch
               :model-value="row.enabled !== false"
@@ -133,13 +245,36 @@
             />
           </template>
         </el-table-column>
-        <el-table-column label="更新时间" width="160">
-          <template #default="{ row }">{{ formatTime(row.updated_at) }}</template>
-        </el-table-column>
-        <el-table-column label="操作" width="160" fixed="right">
+        <el-table-column
+          label="更新时间"
+          width="160"
+        >
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="goEdit(row)">编辑</el-button>
-            <el-button link type="danger" size="small" @click="onDelete(row)">删除</el-button>
+            {{ formatTime(row.updated_at) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="操作"
+          width="160"
+          fixed="right"
+        >
+          <template #default="{ row }">
+            <el-button
+              link
+              type="primary"
+              size="small"
+              @click="goEdit(row)"
+            >
+              编辑
+            </el-button>
+            <el-button
+              link
+              type="danger"
+              size="small"
+              @click="onDelete(row)"
+            >
+              删除
+            </el-button>
           </template>
         </el-table-column>
         <template #empty>

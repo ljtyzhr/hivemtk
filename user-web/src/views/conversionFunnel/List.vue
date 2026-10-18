@@ -3,69 +3,160 @@
     <el-card class="page-card">
       <div class="page-header">
         <div>
-          <h2 class="page-title">转化漏斗</h2>
-          <p class="page-sub">访问 → 线索 → 意向 → 会话 → 商机 全链路转化分析</p>
+          <h2 class="page-title">
+            转化漏斗
+          </h2>
+          <p class="page-sub">
+            访问 → 线索 → 意向 → 会话 → 商机 全链路转化分析
+          </p>
         </div>
-        <el-button type="primary" @click="loadAll">刷新</el-button>
+        <el-button
+          type="primary"
+          @click="loadAll"
+        >
+          刷新
+        </el-button>
       </div>
 
-      <el-row :gutter="16" class="summary-row">
+      <el-row
+        :gutter="16"
+        class="summary-row"
+      >
         <el-col :span="6">
-          <el-statistic title="总进入量" :value="summary.totalEnter" />
+          <el-statistic
+            title="总进入量"
+            :value="summary.totalEnter"
+          />
         </el-col>
         <el-col :span="6">
-          <el-statistic title="转化量(会话)" :value="summary.totalConvert" />
+          <el-statistic
+            title="转化量(会话)"
+            :value="summary.totalConvert"
+          />
         </el-col>
         <el-col :span="6">
-          <el-statistic title="端到端转化率" :value="summary.overallRate" suffix="%" />
+          <el-statistic
+            title="端到端转化率"
+            :value="summary.overallRate"
+            suffix="%"
+          />
         </el-col>
         <el-col :span="6">
-          <el-statistic title="平均流失率" :value="summary.avgLossRate" suffix="%" />
+          <el-statistic
+            title="平均流失率"
+            :value="summary.avgLossRate"
+            suffix="%"
+          />
         </el-col>
       </el-row>
 
-      <el-row :gutter="16" class="chart-row">
+      <el-row
+        :gutter="16"
+        class="chart-row"
+      >
         <el-col :span="14">
-          <el-card shadow="never" header="漏斗图">
-            <div ref="funnelChart" class="chart-box"></div>
+          <el-card
+            shadow="never"
+            header="漏斗图"
+          >
+            <div
+              ref="funnelChart"
+              class="chart-box"
+            />
           </el-card>
         </el-col>
         <el-col :span="10">
-          <el-card shadow="never" header="阶段明细">
-            <el-table :data="stageTable" stripe>
-              <el-table-column prop="name" label="阶段" />
-              <el-table-column prop="count" label="数量" />
+          <el-card
+            shadow="never"
+            header="阶段明细"
+          >
+            <el-table
+              :data="stageTable"
+              stripe
+            >
+              <el-table-column
+                prop="name"
+                label="阶段"
+              />
+              <el-table-column
+                prop="count"
+                label="数量"
+              />
               <el-table-column label="阶段转化率">
-                <template #default="{ row }">{{ (row.rate || 0).toFixed(1) }}%</template>
+                <template #default="{ row }">
+                  {{ (row.rate || 0).toFixed(1) }}%
+                </template>
               </el-table-column>
               <el-table-column label="流失率">
-                <template #default="{ row }">{{ (row.dropRate || 0).toFixed(1) }}%</template>
+                <template #default="{ row }">
+                  {{ (row.dropRate || 0).toFixed(1) }}%
+                </template>
               </el-table-column>
             </el-table>
           </el-card>
         </el-col>
       </el-row>
 
-      <el-card shadow="never" header="阶段流失分析" class="loss-card">
+      <el-card
+        shadow="never"
+        header="阶段流失分析"
+        class="loss-card"
+      >
         <el-form inline>
           <el-form-item label="选择阶段">
-            <el-select v-model="selectedStage" placeholder="选择阶段" @change="loadLoss">
-              <el-option v-for="s in stageTable" :key="s.stage" :label="s.name" :value="s.stage" />
+            <el-select
+              v-model="selectedStage"
+              placeholder="选择阶段"
+              @change="loadLoss"
+            >
+              <el-option
+                v-for="s in stageTable"
+                :key="s.stage"
+                :label="s.name"
+                :value="s.stage"
+              />
             </el-select>
           </el-form-item>
-          <el-button type="primary" @click="loadLoss">查询</el-button>
+          <el-button
+            type="primary"
+            @click="loadLoss"
+          >
+            查询
+          </el-button>
         </el-form>
-        <el-descriptions v-if="loss" :column="3" border>
-          <el-descriptions-item label="阶段">{{ loss.name }}</el-descriptions-item>
-          <el-descriptions-item label="数量">{{ loss.count }}</el-descriptions-item>
-          <el-descriptions-item label="阶段转化率">{{ (loss.rate || 0).toFixed(1) }}%</el-descriptions-item>
-          <el-descriptions-item label="平均停留(秒)">{{ loss.avgDuration.toFixed(1) }}</el-descriptions-item>
+        <el-descriptions
+          v-if="loss"
+          :column="3"
+          border
+        >
+          <el-descriptions-item label="阶段">
+            {{ loss.name }}
+          </el-descriptions-item>
+          <el-descriptions-item label="数量">
+            {{ loss.count }}
+          </el-descriptions-item>
+          <el-descriptions-item label="阶段转化率">
+            {{ (loss.rate || 0).toFixed(1) }}%
+          </el-descriptions-item>
+          <el-descriptions-item label="平均停留(秒)">
+            {{ loss.avgDuration.toFixed(1) }}
+          </el-descriptions-item>
         </el-descriptions>
-        <el-table v-if="loss && loss.topSources.length" :data="loss.topSources" stripe class="src-table">
+        <el-table
+          v-if="loss && loss.topSources.length"
+          :data="loss.topSources"
+          stripe
+          class="src-table"
+        >
           <el-table-column label="来源(账号)">
-            <template #default="{ row }">{{ getChannelLabel(row.source) }}</template>
+            <template #default="{ row }">
+              {{ getChannelLabel(row.source) }}
+            </template>
           </el-table-column>
-          <el-table-column prop="count" label="数量" />
+          <el-table-column
+            prop="count"
+            label="数量"
+          />
         </el-table>
       </el-card>
     </el-card>

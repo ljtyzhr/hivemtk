@@ -4,58 +4,160 @@
       <template #header>
         <div class="card-header">
           <span>{{ $t('活码管理') }}</span>
-          <el-button type="primary" @click="handleAdd">{{ $t('新增活码') }}</el-button>
+          <el-button
+            type="primary"
+            @click="handleAdd"
+          >
+            {{ $t('新增活码') }}
+          </el-button>
         </div>
       </template>
       
       
       <div class="search-bar">
-        <el-form :inline="true" :model="searchForm" class="search-form">
+        <el-form
+          :inline="true"
+          :model="searchForm"
+          class="search-form"
+        >
           <el-form-item label="活码名称">
-            <el-input v-model="searchForm.name" placeholder="请输入活码名称" clearable />
+            <el-input
+              v-model="searchForm.name"
+              placeholder="请输入活码名称"
+              clearable
+            />
           </el-form-item>
           <el-form-item label="状态">
-            <el-select v-model="searchForm.status" placeholder="请选择状态" clearable>
-              <el-option label="启用" :value="1" />
-              <el-option label="禁用" :value="0" />
+            <el-select
+              v-model="searchForm.status"
+              placeholder="请选择状态"
+              clearable
+            >
+              <el-option
+                label="启用"
+                :value="1"
+              />
+              <el-option
+                label="禁用"
+                :value="0"
+              />
             </el-select>
           </el-form-item>
           <el-form-item>
-            <el-button type="primary" @click="handleSearch">查询</el-button>
-            <el-button @click="resetSearch">重置</el-button>
+            <el-button
+              type="primary"
+              @click="handleSearch"
+            >
+              查询
+            </el-button>
+            <el-button @click="resetSearch">
+              重置
+            </el-button>
           </el-form-item>
         </el-form>
       </div>
       
       
-      <el-table :data="liveCodeList" style="width: 100%" v-loading="loading">
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="name" label="活码名称" />
-        <el-table-column prop="short_link" label="短链" />
-        <el-table-column prop="full_short_link" label="完整短链" min-width="200">
+      <el-table
+        v-loading="loading"
+        :data="liveCodeList"
+        style="width: 100%"
+      >
+        <el-table-column
+          prop="id"
+          label="ID"
+          width="80"
+        />
+        <el-table-column
+          prop="name"
+          label="活码名称"
+        />
+        <el-table-column
+          prop="short_link"
+          label="短链"
+        />
+        <el-table-column
+          prop="full_short_link"
+          label="完整短链"
+          min-width="200"
+        >
           <template #default="scope">
-            <el-link :href="scope.row.full_short_link" target="_blank" type="primary">
+            <el-link
+              :href="scope.row.full_short_link"
+              target="_blank"
+              type="primary"
+            >
               {{ scope.row.full_short_link }}
             </el-link>
           </template>
         </el-table-column>
-        <el-table-column prop="total_views" label="总访问量" width="100" />
-        <el-table-column prop="today_views" label="今日访问" width="100" />
-        <el-table-column prop="status" label="状态" width="100">
+        <el-table-column
+          prop="total_views"
+          label="总访问量"
+          width="100"
+        />
+        <el-table-column
+          prop="today_views"
+          label="今日访问"
+          width="100"
+        />
+        <el-table-column
+          prop="status"
+          label="状态"
+          width="100"
+        >
           <template #default="scope">
             <el-tag :type="scope.row.status === 1 ? 'success' : 'danger'">
               {{ scope.row.status === 1 ? '启用' : '禁用' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="created_at" label="创建时间" width="180" />
-        <el-table-column label="操作" width="300" fixed="right">
+        <el-table-column
+          prop="created_at"
+          label="创建时间"
+          width="180"
+        />
+        <el-table-column
+          label="操作"
+          width="300"
+          fixed="right"
+        >
           <template #default="scope">
-            <el-button type="primary" size="small" @click="handleEdit(scope.row)">编辑</el-button>
-            <el-button type="success" size="small" @click="handleViewQR(scope.row)">二维码</el-button>
-            <el-button type="info" size="small" @click="handleStats(scope.row)">统计</el-button>
-            <el-button type="warning" size="small" @click="handleShare(scope.row)">分享</el-button>
-            <el-button type="danger" size="small" @click="handleDelete(scope.row)">删除</el-button>
+            <el-button
+              type="primary"
+              size="small"
+              @click="handleEdit(scope.row)"
+            >
+              编辑
+            </el-button>
+            <el-button
+              type="success"
+              size="small"
+              @click="handleViewQR(scope.row)"
+            >
+              二维码
+            </el-button>
+            <el-button
+              type="info"
+              size="small"
+              @click="handleStats(scope.row)"
+            >
+              统计
+            </el-button>
+            <el-button
+              type="warning"
+              size="small"
+              @click="handleShare(scope.row)"
+            >
+              分享
+            </el-button>
+            <el-button
+              type="danger"
+              size="small"
+              @click="handleDelete(scope.row)"
+            >
+              删除
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -87,34 +189,74 @@
         :rules="liveCodeRules"
         label-width="120px"
       >
-        <el-form-item label="活码名称" prop="name">
+        <el-form-item
+          label="活码名称"
+          prop="name"
+        >
           <el-input v-model="liveCodeForm.name" />
         </el-form-item>
-        <el-form-item label="短链" prop="short_link">
+        <el-form-item
+          label="短链"
+          prop="short_link"
+        >
           <el-input v-model="liveCodeForm.short_link" />
         </el-form-item>
-        <el-form-item label="短链域名ID" prop="short_domain_id">
-          <el-input-number v-model="liveCodeForm.short_domain_id" :min="1" />
+        <el-form-item
+          label="短链域名ID"
+          prop="short_domain_id"
+        >
+          <el-input-number
+            v-model="liveCodeForm.short_domain_id"
+            :min="1"
+          />
         </el-form-item>
-        <el-form-item label="入口域名ID" prop="entry_domain_id">
-          <el-input-number v-model="liveCodeForm.entry_domain_id" :min="1" />
+        <el-form-item
+          label="入口域名ID"
+          prop="entry_domain_id"
+        >
+          <el-input-number
+            v-model="liveCodeForm.entry_domain_id"
+            :min="1"
+          />
         </el-form-item>
-        <el-form-item label="落地域名ID" prop="landing_domain_id">
-          <el-input-number v-model="liveCodeForm.landing_domain_id" :min="1" />
+        <el-form-item
+          label="落地域名ID"
+          prop="landing_domain_id"
+        >
+          <el-input-number
+            v-model="liveCodeForm.landing_domain_id"
+            :min="1"
+          />
         </el-form-item>
-        <el-form-item label="图片URL" prop="image_url">
+        <el-form-item
+          label="图片URL"
+          prop="image_url"
+        >
           <el-input v-model="liveCodeForm.image_url" />
         </el-form-item>
-        <el-form-item label="入口URL" prop="entry_url">
+        <el-form-item
+          label="入口URL"
+          prop="entry_url"
+        >
           <el-input v-model="liveCodeForm.entry_url" />
         </el-form-item>
-        <el-form-item label="落地URL" prop="landing_url">
+        <el-form-item
+          label="落地URL"
+          prop="landing_url"
+        >
           <el-input v-model="liveCodeForm.landing_url" />
         </el-form-item>
-        <el-form-item label="状态" prop="status">
+        <el-form-item
+          label="状态"
+          prop="status"
+        >
           <el-radio-group v-model="liveCodeForm.status">
-            <el-radio :label="1">启用</el-radio>
-            <el-radio :label="0">禁用</el-radio>
+            <el-radio :label="1">
+              启用
+            </el-radio>
+            <el-radio :label="0">
+              禁用
+            </el-radio>
           </el-radio-group>
         </el-form-item>
       </el-form>
@@ -122,7 +264,11 @@
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="dialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="handleSubmit" :loading="submitLoading">
+          <el-button
+            type="primary"
+            :loading="submitLoading"
+            @click="handleSubmit"
+          >
             确定
           </el-button>
         </span>
@@ -136,43 +282,72 @@
       width="800px"
     >
       <div class="qr-header">
-        <el-button type="primary" @click="handleAddQR">新增二维码</el-button>
+        <el-button
+          type="primary"
+          @click="handleAddQR"
+        >
+          新增二维码
+        </el-button>
       </div>
       
-      <el-table :data="qrList" style="width: 100%" v-loading="qrLoading">
-          <el-table-column prop="id" label="ID" width="80" />
-          <el-table-column prop="daily_limit" label="每日限制" width="100">
-            <template #default="scope">
-              {{ scope.row.daily_limit }}次
-            </template>
-          </el-table-column>
-          <el-table-column prop="status" label="状态" width="100">
-            <template #default="scope">
-              <el-tag :type="scope.row.status === 1 ? 'success' : 'danger'">
-                {{ scope.row.status === 1 ? '启用' : '禁用' }}
-              </el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column prop="created_at" label="创建时间" width="180" />
-          <el-table-column label="操作" width="200" fixed="right">
-            <template #default="scope">
-              <el-button
-                type="primary"
-                size="small"
-                @click="handleEditQR(scope.row)"
-              >
-                编辑
-              </el-button>
-              <el-button
-                type="danger"
-                size="small"
-                @click="handleDeleteQR(scope.row)"
-              >
-                删除
-              </el-button>
-            </template>
-          </el-table-column>
-        </el-table>
+      <el-table
+        v-loading="qrLoading"
+        :data="qrList"
+        style="width: 100%"
+      >
+        <el-table-column
+          prop="id"
+          label="ID"
+          width="80"
+        />
+        <el-table-column
+          prop="daily_limit"
+          label="每日限制"
+          width="100"
+        >
+          <template #default="scope">
+            {{ scope.row.daily_limit }}次
+          </template>
+        </el-table-column>
+        <el-table-column
+          prop="status"
+          label="状态"
+          width="100"
+        >
+          <template #default="scope">
+            <el-tag :type="scope.row.status === 1 ? 'success' : 'danger'">
+              {{ scope.row.status === 1 ? '启用' : '禁用' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column
+          prop="created_at"
+          label="创建时间"
+          width="180"
+        />
+        <el-table-column
+          label="操作"
+          width="200"
+          fixed="right"
+        >
+          <template #default="scope">
+            <el-button
+              type="primary"
+              size="small"
+              @click="handleEditQR(scope.row)"
+            >
+              编辑
+            </el-button>
+            <el-button
+              type="danger"
+              size="small"
+              @click="handleDeleteQR(scope.row)"
+            >
+              删除
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
       
       <template #footer>
         <span class="dialog-footer">
@@ -194,7 +369,10 @@
         :rules="qrRules"
         label-width="120px"
       >
-        <el-form-item label="每日限制" prop="daily_limit">
+        <el-form-item
+          label="每日限制"
+          prop="daily_limit"
+        >
           <el-input-number 
             v-model="qrForm.daily_limit" 
             :min="50" 
@@ -204,10 +382,17 @@
           />
           <span style="margin-left: 10px;">次</span>
         </el-form-item>
-        <el-form-item label="状态" prop="status">
+        <el-form-item
+          label="状态"
+          prop="status"
+        >
           <el-radio-group v-model="qrForm.status">
-            <el-radio :label="1">启用</el-radio>
-            <el-radio :label="0">禁用</el-radio>
+            <el-radio :label="1">
+              启用
+            </el-radio>
+            <el-radio :label="0">
+              禁用
+            </el-radio>
           </el-radio-group>
         </el-form-item>
       </el-form>
@@ -215,7 +400,11 @@
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="qrFormVisible = false">取消</el-button>
-          <el-button type="primary" @click="handleQRSubmit" :loading="qrSubmitLoading">
+          <el-button
+            type="primary"
+            :loading="qrSubmitLoading"
+            @click="handleQRSubmit"
+          >
             确定
           </el-button>
         </span>
@@ -233,39 +422,61 @@
           <el-col :span="6">
             <el-card class="stats-card">
               <div class="stats-item">
-                <div class="stats-value">{{ statsData.total_views || 0 }}</div>
-                <div class="stats-label">总浏览量</div>
+                <div class="stats-value">
+                  {{ statsData.total_views || 0 }}
+                </div>
+                <div class="stats-label">
+                  总浏览量
+                </div>
               </div>
             </el-card>
           </el-col>
           <el-col :span="6">
             <el-card class="stats-card">
               <div class="stats-item">
-                <div class="stats-value">{{ statsData.today_views || 0 }}</div>
-                <div class="stats-label">今日浏览</div>
+                <div class="stats-value">
+                  {{ statsData.today_views || 0 }}
+                </div>
+                <div class="stats-label">
+                  今日浏览
+                </div>
               </div>
             </el-card>
           </el-col>
           <el-col :span="6">
             <el-card class="stats-card">
               <div class="stats-item">
-                <div class="stats-value">{{ statsData.active_qr_count || 0 }}</div>
-                <div class="stats-label">活跃二维码</div>
+                <div class="stats-value">
+                  {{ statsData.active_qr_count || 0 }}
+                </div>
+                <div class="stats-label">
+                  活跃二维码
+                </div>
               </div>
             </el-card>
           </el-col>
           <el-col :span="6">
             <el-card class="stats-card">
               <div class="stats-item">
-                <div class="stats-value">{{ statsData.total_qr_count || 0 }}</div>
-                <div class="stats-label">总二维码数</div>
+                <div class="stats-value">
+                  {{ statsData.total_qr_count || 0 }}
+                </div>
+                <div class="stats-label">
+                  总二维码数
+                </div>
               </div>
             </el-card>
           </el-col>
         </el-row>
         
-        <div class="chart-container" style="margin-top: 20px;">
-          <div id="statsChart" style="width: 100%; height: 300px;"></div>
+        <div
+          class="chart-container"
+          style="margin-top: 20px;"
+        >
+          <div
+            id="statsChart"
+            style="width: 100%; height: 300px;"
+          />
         </div>
       </div>
       

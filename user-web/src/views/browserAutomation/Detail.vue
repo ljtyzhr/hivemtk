@@ -1,94 +1,259 @@
 <template>
-  <div class="page" v-if="task">
+  <div
+    v-if="task"
+    class="page"
+  >
     <div class="header">
-      <h2>{{ task.name }} <el-tag :type="task.status === 'running' ? 'warning' : 'info'">{{ task.status }}</el-tag></h2>
+      <h2>
+        {{ task.name }} <el-tag :type="task.status === 'running' ? 'warning' : 'info'">
+          {{ task.status }}
+        </el-tag>
+      </h2>
       <div>
-        <el-button type="success" :disabled="task.status === 'running'" @click="onRun">执行</el-button>
-        <el-button v-if="task.status === 'draft'" @click="onPublish">发布</el-button>
-        <el-button @click="$router.push(`/browser-automation/tasks/${task.id}/edit`)">编辑</el-button>
+        <el-button
+          type="success"
+          :disabled="task.status === 'running'"
+          @click="onRun"
+        >
+          执行
+        </el-button>
+        <el-button
+          v-if="task.status === 'draft'"
+          @click="onPublish"
+        >
+          发布
+        </el-button>
+        <el-button @click="$router.push(`/browser-automation/tasks/${task.id}/edit`)">
+          编辑
+        </el-button>
       </div>
     </div>
 
-    <el-descriptions :column="3" border style="margin-top: 12px">
-      <el-descriptions-item label="类型">{{ task.task_type }}</el-descriptions-item>
-      <el-descriptions-item label="模式">{{ task.brain_mode ? 'Brain（LLM）' : '显式步骤' }}</el-descriptions-item>
-      <el-descriptions-item label="URL">
-        <a :href="task.url" target="_blank" rel="noopener">{{ task.url }}</a>
+    <el-descriptions
+      :column="3"
+      border
+      style="margin-top: 12px"
+    >
+      <el-descriptions-item label="类型">
+        {{ task.task_type }}
       </el-descriptions-item>
-      <el-descriptions-item label="循环次数">{{ task.loop_count }}</el-descriptions-item>
-      <el-descriptions-item label="步间间隔">{{ task.delay_ms }}ms</el-descriptions-item>
-      <el-descriptions-item label="超时">{{ task.timeout_sec }}s</el-descriptions-item>
-      <el-descriptions-item label="失败重试">{{ task.retry_on_fail ? `${task.retry_delay_sec}s × ${task.max_retry_times} 次` : '关闭' }}</el-descriptions-item>
-      <el-descriptions-item label="写操作确认">{{ task.require_confirm ? '提交前需人工放行' : '全自动' }}</el-descriptions-item>
-      <el-descriptions-item label="上次执行">{{ task.last_run_at ? new Date(task.last_run_at).toLocaleString('zh-CN') : '—' }}</el-descriptions-item>
-      <el-descriptions-item label="上次结果">{{ task.last_result || '—' }}</el-descriptions-item>
-      <el-descriptions-item v-if="task.error_msg" label="错误" :span="3">
+      <el-descriptions-item label="模式">
+        {{ task.brain_mode ? 'Brain（LLM）' : '显式步骤' }}
+      </el-descriptions-item>
+      <el-descriptions-item label="URL">
+        <a
+          :href="task.url"
+          target="_blank"
+          rel="noopener"
+        >{{ task.url }}</a>
+      </el-descriptions-item>
+      <el-descriptions-item label="循环次数">
+        {{ task.loop_count }}
+      </el-descriptions-item>
+      <el-descriptions-item label="步间间隔">
+        {{ task.delay_ms }}ms
+      </el-descriptions-item>
+      <el-descriptions-item label="超时">
+        {{ task.timeout_sec }}s
+      </el-descriptions-item>
+      <el-descriptions-item label="失败重试">
+        {{ task.retry_on_fail ? `${task.retry_delay_sec}s × ${task.max_retry_times} 次` : '关闭' }}
+      </el-descriptions-item>
+      <el-descriptions-item label="写操作确认">
+        {{ task.require_confirm ? '提交前需人工放行' : '全自动' }}
+      </el-descriptions-item>
+      <el-descriptions-item label="上次执行">
+        {{ task.last_run_at ? new Date(task.last_run_at).toLocaleString('zh-CN') : '—' }}
+      </el-descriptions-item>
+      <el-descriptions-item label="上次结果">
+        {{ task.last_result || '—' }}
+      </el-descriptions-item>
+      <el-descriptions-item
+        v-if="task.error_msg"
+        label="错误"
+        :span="3"
+      >
         <span style="color: #ef4444">{{ task.error_msg }}</span>
       </el-descriptions-item>
     </el-descriptions>
 
-    <el-card v-if="!task.brain_mode" header="步骤编排" style="margin-top: 16px">
+    <el-card
+      v-if="!task.brain_mode"
+      header="步骤编排"
+      style="margin-top: 16px"
+    >
       <el-table :data="task.steps || []">
-        <el-table-column type="index" label="#" width="60" />
-        <el-table-column prop="action" label="动作" width="140" />
-        <el-table-column prop="target" label="目标" min-width="180" />
-        <el-table-column prop="value" label="值" min-width="140" />
+        <el-table-column
+          type="index"
+          label="#"
+          width="60"
+        />
+        <el-table-column
+          prop="action"
+          label="动作"
+          width="140"
+        />
+        <el-table-column
+          prop="target"
+          label="目标"
+          min-width="180"
+        />
+        <el-table-column
+          prop="value"
+          label="值"
+          min-width="140"
+        />
       </el-table>
     </el-card>
 
-    <el-card v-if="task.brain_mode" header="Brain 目标" style="margin-top: 16px">
+    <el-card
+      v-if="task.brain_mode"
+      header="Brain 目标"
+      style="margin-top: 16px"
+    >
       {{ task.brain_goal }}
     </el-card>
 
-    <el-card header="执行历史" style="margin-top: 16px">
+    <el-card
+      header="执行历史"
+      style="margin-top: 16px"
+    >
       <el-table :data="sessions">
-        <el-table-column prop="id" label="Session" width="90">
+        <el-table-column
+          prop="id"
+          label="Session"
+          width="90"
+        >
           <template #default="{ row }">
-            <el-link type="primary" @click="$router.push(`/browser-automation/sessions/${row.id}`)">#{{ row.id }}</el-link>
+            <el-link
+              type="primary"
+              @click="$router.push(`/browser-automation/sessions/${row.id}`)"
+            >
+              #{{ row.id }}
+            </el-link>
           </template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" width="110">
+        <el-table-column
+          prop="status"
+          label="状态"
+          width="110"
+        >
           <template #default="{ row }">
-            <el-tag :type="{ completed: 'success', failed: 'danger', stopped: 'info', active: 'warning' }[row.status] || 'info'">{{ row.status }}</el-tag>
+            <el-tag :type="{ completed: 'success', failed: 'danger', stopped: 'info', active: 'warning' }[row.status] || 'info'">
+              {{ row.status }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="total_steps" label="步骤" width="120">
-          <template #default="{ row }">{{ row.success_steps }}/{{ row.total_steps }} 成功</template>
+        <el-table-column
+          prop="total_steps"
+          label="步骤"
+          width="120"
+        >
+          <template #default="{ row }">
+            {{ row.success_steps }}/{{ row.total_steps }} 成功
+          </template>
         </el-table-column>
-        <el-table-column prop="duration_ms" label="耗时" width="110">
-          <template #default="{ row }">{{ sessionDurationText(row) }}</template>
+        <el-table-column
+          prop="duration_ms"
+          label="耗时"
+          width="110"
+        >
+          <template #default="{ row }">
+            {{ sessionDurationText(row) }}
+          </template>
         </el-table-column>
-        <el-table-column prop="error_msg" label="错误" min-width="200" show-overflow-tooltip />
-        <el-table-column prop="created_at" label="时间" width="170">
-          <template #default="{ row }">{{ new Date(row.created_at).toLocaleString('zh-CN') }}</template>
+        <el-table-column
+          prop="error_msg"
+          label="错误"
+          min-width="200"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          prop="created_at"
+          label="时间"
+          width="170"
+        >
+          <template #default="{ row }">
+            {{ new Date(row.created_at).toLocaleString('zh-CN') }}
+          </template>
         </el-table-column>
       </el-table>
     </el-card>
 
-    <el-card header="触达回执" style="margin-top: 16px">
+    <el-card
+      header="触达回执"
+      style="margin-top: 16px"
+    >
       <template v-if="receipts.length">
         <el-table :data="receipts">
-          <el-table-column prop="created_at" label="时间" width="170">
-            <template #default="{ row }">{{ new Date(row.created_at).toLocaleString('zh-CN') }}</template>
-          </el-table-column>
-          <el-table-column prop="platform" label="平台" width="120" />
-          <el-table-column prop="action" label="动作" width="120" />
-          <el-table-column label="帖子链接" min-width="220" show-overflow-tooltip>
+          <el-table-column
+            prop="created_at"
+            label="时间"
+            width="170"
+          >
             <template #default="{ row }">
-              <a v-if="row.target_url" :href="row.target_url" target="_blank" rel="noopener">{{ row.target_url }}</a>
-              <span v-else style="color: #909399">未取到（页面已跳转或快照失败）</span>
+              {{ new Date(row.created_at).toLocaleString('zh-CN') }}
             </template>
           </el-table-column>
-          <el-table-column prop="copy_snapshot" label="文案快照" min-width="200" show-overflow-tooltip />
-          <el-table-column label="验证" width="120">
+          <el-table-column
+            prop="platform"
+            label="平台"
+            width="120"
+          />
+          <el-table-column
+            prop="action"
+            label="动作"
+            width="120"
+          />
+          <el-table-column
+            label="帖子链接"
+            min-width="220"
+            show-overflow-tooltip
+          >
             <template #default="{ row }">
-              <el-tag :type="row.verified ? 'success' : 'warning'">{{ row.verified ? '已确认发布' : '结果未知' }}</el-tag>
+              <a
+                v-if="row.target_url"
+                :href="row.target_url"
+                target="_blank"
+                rel="noopener"
+              >{{ row.target_url }}</a>
+              <span
+                v-else
+                style="color: #909399"
+              >未取到（页面已跳转或快照失败）</span>
             </template>
           </el-table-column>
-          <el-table-column label="截图" width="100">
+          <el-table-column
+            prop="copy_snapshot"
+            label="文案快照"
+            min-width="200"
+            show-overflow-tooltip
+          />
+          <el-table-column
+            label="验证"
+            width="120"
+          >
             <template #default="{ row }">
-              <a v-if="row.screenshot_url" :href="row.screenshot_url" target="_blank" rel="noopener">查看</a>
-              <span v-else style="color: #909399">—</span>
+              <el-tag :type="row.verified ? 'success' : 'warning'">
+                {{ row.verified ? '已确认发布' : '结果未知' }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="截图"
+            width="100"
+          >
+            <template #default="{ row }">
+              <a
+                v-if="row.screenshot_url"
+                :href="row.screenshot_url"
+                target="_blank"
+                rel="noopener"
+              >查看</a>
+              <span
+                v-else
+                style="color: #909399"
+              >—</span>
             </template>
           </el-table-column>
         </el-table>
@@ -96,51 +261,123 @@
           「结果未知」= 平台侧回查没归因到这条评论，不等于没发出去——请人工核对后再决定是否重跑
         </div>
       </template>
-      <div v-else style="color: #909399">暂无回执。该任务的触达步若已发布，收口时会自动留存截图、帖子链接与文案快照。</div>
+      <div
+        v-else
+        style="color: #909399"
+      >
+        暂无回执。该任务的触达步若已发布，收口时会自动留存截图、帖子链接与文案快照。
+      </div>
     </el-card>
 
-    <el-card v-if="task.task_type === 'cron'" header="定时触发器" style="margin-top: 16px">
+    <el-card
+      v-if="task.task_type === 'cron'"
+      header="定时触发器"
+      style="margin-top: 16px"
+    >
       <template v-if="cron">
         <el-space>
           <span>cron：{{ cron.cron_expr }}</span>
           <el-tag>{{ cron.enabled ? '已启用' : '已停用' }}</el-tag>
-          <el-button size="small" @click="toggleCron">{{ cron.enabled ? '停用' : '启用' }}</el-button>
-          <el-button size="small" type="danger" @click="removeCron">删除</el-button>
+          <el-button
+            size="small"
+            @click="toggleCron"
+          >
+            {{ cron.enabled ? '停用' : '启用' }}
+          </el-button>
+          <el-button
+            size="small"
+            type="danger"
+            @click="removeCron"
+          >
+            删除
+          </el-button>
         </el-space>
-        <div v-if="cronBlocked" class="cron-warn">
+        <div
+          v-if="cronBlocked"
+          class="cron-warn"
+        >
           任务状态 {{ task.status }} 不可执行，到点只会空跑（不产生会话，服务端只写一条告警日志）——需先发布
         </div>
       </template>
       <template v-else>
         <el-space>
-          <el-input v-model="newCronExpr" placeholder="*/5 * * * *（5 段）" style="width: 200px" />
-          <el-select v-model="newCronTz" clearable placeholder="时区（默认服务器）" style="width: 170px; margin-left: 8px">
-            <el-option v-for="tz in ['Asia/Shanghai','Asia/Tokyo','Europe/London','America/New_York','UTC']" :key="tz" :label="tz" :value="tz" />
+          <el-input
+            v-model="newCronExpr"
+            placeholder="*/5 * * * *（5 段）"
+            style="width: 200px"
+          />
+          <el-select
+            v-model="newCronTz"
+            clearable
+            placeholder="时区（默认服务器）"
+            style="width: 170px; margin-left: 8px"
+          >
+            <el-option
+              v-for="tz in ['Asia/Shanghai','Asia/Tokyo','Europe/London','America/New_York','UTC']"
+              :key="tz"
+              :label="tz"
+              :value="tz"
+            />
           </el-select>
-          <el-button type="primary" @click="addCron">添加触发器</el-button>
+          <el-button
+            type="primary"
+            @click="addCron"
+          >
+            添加触发器
+          </el-button>
         </el-space>
       </template>
     </el-card>
 
-    <el-dialog v-model="hostDialog.visible" title="本机 Chrome 未连接" width="520px">
+    <el-dialog
+      v-model="hostDialog.visible"
+      title="本机 Chrome 未连接"
+      width="520px"
+    >
       <HostInstallGuide />
     </el-dialog>
   </div>
 
   <!-- id 来自 URL，用户完全可能带着一条已删任务的链接进来（列表页删掉再后退）。
        旧写法在这时什么都不渲染：白屏既没说读不到、也没给退路。 -->
-  <div v-else-if="loadError" class="page">
-    <el-alert type="error" :closable="false" show-icon>
-      <template #title>这条任务读不到：{{ loadError }}</template>
+  <div
+    v-else-if="loadError"
+    class="page"
+  >
+    <el-alert
+      type="error"
+      :closable="false"
+      show-icon
+    >
+      <template #title>
+        这条任务读不到：{{ loadError }}
+      </template>
       <div class="error-actions">
-        <el-button size="small" type="primary" @click="load">重试</el-button>
-        <el-button size="small" @click="router.push('/browser-automation/tasks')">返回任务列表</el-button>
+        <el-button
+          size="small"
+          type="primary"
+          @click="load"
+        >
+          重试
+        </el-button>
+        <el-button
+          size="small"
+          @click="router.push('/browser-automation/tasks')"
+        >
+          返回任务列表
+        </el-button>
       </div>
     </el-alert>
   </div>
 
-  <div v-else class="page">
-    <el-skeleton :rows="6" animated />
+  <div
+    v-else
+    class="page"
+  >
+    <el-skeleton
+      :rows="6"
+      animated
+    />
   </div>
 </template>
 

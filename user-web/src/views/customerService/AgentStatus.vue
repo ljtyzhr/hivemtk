@@ -3,44 +3,74 @@
     <el-card class="header-card">
       <div>
         <h2>{{ $t('坐席状态') }}</h2>
-        <p class="subtitle">{{ $t('维护客服在线状态、当前会话数与接待上限') }}</p>
+        <p class="subtitle">
+          {{ $t('维护客服在线状态、当前会话数与接待上限') }}
+        </p>
       </div>
-      <el-button type="primary" @click="openCreate">
+      <el-button
+        type="primary"
+        @click="openCreate"
+      >
         <el-icon><Plus /></el-icon>
         {{ $t('新增坐席') }}
       </el-button>
     </el-card>
 
-    <el-row :gutter="20" class="stat-row">
+    <el-row
+      :gutter="20"
+      class="stat-row"
+    >
       <el-col :span="6">
         <el-card>
           <div class="stat-item">
-            <div class="stat-label">{{ $t('坐席总数') }}</div>
-            <div class="stat-value">{{ agents.length }}</div>
+            <div class="stat-label">
+              {{ $t('坐席总数') }}
+            </div>
+            <div class="stat-value">
+              {{ agents.length }}
+            </div>
           </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card>
           <div class="stat-item">
-            <div class="stat-label">{{ $t('在线坐席') }}</div>
-            <div class="stat-value" style="color: #10B981">{{ onlineCount }}</div>
+            <div class="stat-label">
+              {{ $t('在线坐席') }}
+            </div>
+            <div
+              class="stat-value"
+              style="color: #10B981"
+            >
+              {{ onlineCount }}
+            </div>
           </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card>
           <div class="stat-item">
-            <div class="stat-label">{{ $t('当前会话') }}</div>
-            <div class="stat-value">{{ totalSessions }}</div>
+            <div class="stat-label">
+              {{ $t('当前会话') }}
+            </div>
+            <div class="stat-value">
+              {{ totalSessions }}
+            </div>
           </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card>
           <div class="stat-item">
-            <div class="stat-label">{{ $t('离线坐席') }}</div>
-            <div class="stat-value" style="color: #EF4444">{{ agents.length - onlineCount }}</div>
+            <div class="stat-label">
+              {{ $t('离线坐席') }}
+            </div>
+            <div
+              class="stat-value"
+              style="color: #EF4444"
+            >
+              {{ agents.length - onlineCount }}
+            </div>
           </div>
         </el-card>
       </el-col>
@@ -50,94 +80,252 @@
       <template #header>
         <div class="card-header">
           <span>{{ $t('坐席列表') }}</span>
-          <el-input v-model="search" :placeholder="$t('搜索姓名/坐席 ID')" clearable style="width: 240px" />
+          <el-input
+            v-model="search"
+            :placeholder="$t('搜索姓名/坐席 ID')"
+            clearable
+            style="width: 240px"
+          />
         </div>
       </template>
-      <el-table :data="filtered" v-loading="loading" stripe>
-        <el-table-column prop="agent_id" label="坐席 ID" width="120" />
-        <el-table-column prop="agent_name" label="姓名" min-width="120" />
-        <el-table-column prop="status" label="状态" width="100">
+      <el-table
+        v-loading="loading"
+        :data="filtered"
+        stripe
+      >
+        <el-table-column
+          prop="agent_id"
+          label="坐席 ID"
+          width="120"
+        />
+        <el-table-column
+          prop="agent_name"
+          label="姓名"
+          min-width="120"
+        />
+        <el-table-column
+          prop="status"
+          label="状态"
+          width="100"
+        >
           <template #default="{ row }">
-            <el-tag :type="getAgentStatusTagType(row.status)" size="small">
+            <el-tag
+              :type="getAgentStatusTagType(row.status)"
+              size="small"
+            >
               {{ getAgentStatusLabel(row.status) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="active_sessions" label="当前会话" width="100" align="center" />
-        <el-table-column prop="max_sessions" label="接待上限" width="100" align="center" />
-        <el-table-column prop="last_active_at" label="最后活跃" min-width="180">
+        <el-table-column
+          prop="active_sessions"
+          label="当前会话"
+          width="100"
+          align="center"
+        />
+        <el-table-column
+          prop="max_sessions"
+          label="接待上限"
+          width="100"
+          align="center"
+        />
+        <el-table-column
+          prop="last_active_at"
+          label="最后活跃"
+          min-width="180"
+        >
           <template #default="{ row }">
             {{ formatTime(row.last_active_at || row.online_at) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="280" fixed="right">
+        <el-table-column
+          label="操作"
+          width="280"
+          fixed="right"
+        >
           <template #default="{ row }">
-            <el-button v-if="row.status !== 'online'" link type="success" @click="handleGoOnline(row)">上线</el-button>
-            <el-button v-else link type="warning" @click="handleGoOffline(row)">下线</el-button>
-            <el-button link type="primary" @click="openStatusDialog(row)">修改状态</el-button>
-            <el-button link type="info" @click="loadSessions(row)">查看会话</el-button>
+            <el-button
+              v-if="row.status !== 'online'"
+              link
+              type="success"
+              @click="handleGoOnline(row)"
+            >
+              上线
+            </el-button>
+            <el-button
+              v-else
+              link
+              type="warning"
+              @click="handleGoOffline(row)"
+            >
+              下线
+            </el-button>
+            <el-button
+              link
+              type="primary"
+              @click="openStatusDialog(row)"
+            >
+              修改状态
+            </el-button>
+            <el-button
+              link
+              type="info"
+              @click="loadSessions(row)"
+            >
+              查看会话
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
     </el-card>
 
     
-    <el-dialog v-model="createVisible" title="新增坐席" width="420px">
-      <el-form :model="createForm" label-width="100px">
-        <el-form-item label="坐席 ID" required>
-          <el-input-number v-model="createForm.id" :min="1" :step="1" placeholder="唯一坐席 ID (整数)" style="width: 100%" />
+    <el-dialog
+      v-model="createVisible"
+      title="新增坐席"
+      width="420px"
+    >
+      <el-form
+        :model="createForm"
+        label-width="100px"
+      >
+        <el-form-item
+          label="坐席 ID"
+          required
+        >
+          <el-input-number
+            v-model="createForm.id"
+            :min="1"
+            :step="1"
+            placeholder="唯一坐席 ID (整数)"
+            style="width: 100%"
+          />
         </el-form-item>
-        <el-form-item label="姓名" required>
+        <el-form-item
+          label="姓名"
+          required
+        >
           <el-input v-model="createForm.name" />
         </el-form-item>
         <el-form-item label="接待上限">
-          <el-input-number v-model="createForm.max_sessions" :min="1" :max="50" />
+          <el-input-number
+            v-model="createForm.max_sessions"
+            :min="1"
+            :max="50"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="createVisible = false">取消</el-button>
-        <el-button type="primary" @click="submitCreate">保存</el-button>
+        <el-button @click="createVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          @click="submitCreate"
+        >
+          保存
+        </el-button>
       </template>
     </el-dialog>
 
     
-    <el-dialog v-model="statusVisible" title="修改坐席状态" width="380px">
-      <el-form :model="statusForm" label-width="100px">
+    <el-dialog
+      v-model="statusVisible"
+      title="修改坐席状态"
+      width="380px"
+    >
+      <el-form
+        :model="statusForm"
+        label-width="100px"
+      >
         <el-form-item label="状态">
-          <el-select v-model="statusForm.status" style="width: 100%">
-            <el-option label="在线" value="online" />
-            <el-option label="忙碌" value="busy" />
-            <el-option label="离线" value="offline" />
+          <el-select
+            v-model="statusForm.status"
+            style="width: 100%"
+          >
+            <el-option
+              label="在线"
+              value="online"
+            />
+            <el-option
+              label="忙碌"
+              value="busy"
+            />
+            <el-option
+              label="离线"
+              value="offline"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="接待上限">
-          <el-input-number v-model="statusForm.max_sessions" :min="1" :max="50" />
+          <el-input-number
+            v-model="statusForm.max_sessions"
+            :min="1"
+            :max="50"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="statusVisible = false">取消</el-button>
-        <el-button type="primary" @click="submitStatus">保存</el-button>
+        <el-button @click="statusVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          @click="submitStatus"
+        >
+          保存
+        </el-button>
       </template>
     </el-dialog>
 
     
-    <el-dialog v-model="sessionsVisible" :title="`坐席 ${currentAgent.agent_name || currentAgent.agent_id || currentAgent.id} 的会话`" width="640px">
-      <el-table :data="agentSessions" v-loading="sessionsLoading" stripe>
-        <el-table-column prop="id" label="会话 ID" min-width="100" />
-        <el-table-column prop="user_name" label="客户" min-width="120" />
-        <el-table-column label="渠道" width="100">
+    <el-dialog
+      v-model="sessionsVisible"
+      :title="`坐席 ${currentAgent.agent_name || currentAgent.agent_id || currentAgent.id} 的会话`"
+      width="640px"
+    >
+      <el-table
+        v-loading="sessionsLoading"
+        :data="agentSessions"
+        stripe
+      >
+        <el-table-column
+          prop="id"
+          label="会话 ID"
+          min-width="100"
+        />
+        <el-table-column
+          prop="user_name"
+          label="客户"
+          min-width="120"
+        />
+        <el-table-column
+          label="渠道"
+          width="100"
+        >
           <template #default="{ row }">
             {{ getChannelLabel(row.platform) }}
           </template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" width="100">
+        <el-table-column
+          prop="status"
+          label="状态"
+          width="100"
+        >
           <template #default="{ row }">
-            <el-tag :type="getSessionStatusTagType(row.status)" size="small">
+            <el-tag
+              :type="getSessionStatusTagType(row.status)"
+              size="small"
+            >
               {{ getSessionStatusLabel(row.status) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="started_at" label="开始时间" min-width="160">
+        <el-table-column
+          prop="started_at"
+          label="开始时间"
+          min-width="160"
+        >
           <template #default="{ row }">
             {{ formatTime(row.started_at) }}
           </template>

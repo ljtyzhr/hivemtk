@@ -1,37 +1,98 @@
 <template>
   <div class="simple-editor">
     <div class="editor-toolbar">
-      <button @click="execCommand('bold')" :class="{ active: isCommandActive('bold') }" :title="$t('加粗')">
+      <button
+        :class="{ active: isCommandActive('bold') }"
+        :title="$t('加粗')"
+        @click="execCommand('bold')"
+      >
         <strong>B</strong>
       </button>
-      <button @click="execCommand('italic')" :class="{ active: isCommandActive('italic') }" :title="$t('斜体')">
+      <button
+        :class="{ active: isCommandActive('italic') }"
+        :title="$t('斜体')"
+        @click="execCommand('italic')"
+      >
         <em>I</em>
       </button>
-      <button @click="execCommand('underline')" :class="{ active: isCommandActive('underline') }" :title="$t('下划线')">
+      <button
+        :class="{ active: isCommandActive('underline') }"
+        :title="$t('下划线')"
+        @click="execCommand('underline')"
+      >
         <u>U</u>
       </button>
-      <span class="separator"></span>
-      <button @click="execCommand('justifyLeft')" :class="{ active: isCommandActive('justifyLeft') }" :title="$t('左对齐')">
+      <span class="separator" />
+      <button
+        :class="{ active: isCommandActive('justifyLeft') }"
+        :title="$t('左对齐')"
+        @click="execCommand('justifyLeft')"
+      >
         ≡
       </button>
-      <button @click="execCommand('justifyCenter')" :class="{ active: isCommandActive('justifyCenter') }" :title="$t('居中')">
+      <button
+        :class="{ active: isCommandActive('justifyCenter') }"
+        :title="$t('居中')"
+        @click="execCommand('justifyCenter')"
+      >
         ≡
       </button>
-      <button @click="execCommand('justifyRight')" :class="{ active: isCommandActive('justifyRight') }" :title="$t('右对齐')">
+      <button
+        :class="{ active: isCommandActive('justifyRight') }"
+        :title="$t('右对齐')"
+        @click="execCommand('justifyRight')"
+      >
         ≡
       </button>
-      <span class="separator"></span>
-      <button @click="insertLink" :title="$t('插入链接')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>
+      <span class="separator" />
+      <button
+        :title="$t('插入链接')"
+        @click="insertLink"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.7"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        ><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71" /><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71" /></svg>
       </button>
-      <button @click="insertImage" :title="$t('插入图片')">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2" ry="2"/><circle cx="8.5" cy="8.5" r="1.5"/><polyline points="21 15 16 10 5 21"/></svg>
+      <button
+        :title="$t('插入图片')"
+        @click="insertImage"
+      >
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.7"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        ><rect
+          x="3"
+          y="3"
+          width="18"
+          height="18"
+          rx="2"
+          ry="2"
+        /><circle
+          cx="8.5"
+          cy="8.5"
+          r="1.5"
+        /><polyline points="21 15 16 10 5 21" /></svg>
       </button>
-      <span class="separator"></span>
-      <button @click="execCommand('undo')" :title="$t('撤销')">
+      <span class="separator" />
+      <button
+        :title="$t('撤销')"
+        @click="execCommand('undo')"
+      >
         ↶
       </button>
-      <button @click="execCommand('redo')" :title="$t('重做')">
+      <button
+        :title="$t('重做')"
+        @click="execCommand('redo')"
+      >
         ↷
       </button>
     </div>
@@ -45,7 +106,7 @@
       @input="handleInput"
       @keydown="handleKeydown"
       @paste="handlePaste"
-    ></div>
+    />
   </div>
 </template>
 

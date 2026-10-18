@@ -6,7 +6,12 @@
           <span>📤 发布到官网</span>
         </div>
       </template>
-      <el-steps :active="step" finish-status="success" simple style="margin-bottom:24px">
+      <el-steps
+        :active="step"
+        finish-status="success"
+        simple
+        style="margin-bottom:24px"
+      >
         <el-step title="1. 导出 Markdown" />
         <el-step title="2. 触发部署" />
         <el-step title="3. 蜘蛛推送" />
@@ -14,12 +19,27 @@
       </el-steps>
 
       <el-button-group style="margin-bottom:16px">
-        <el-button @click="exportOnly">仅导出</el-button>
-        <el-button @click="deployOnly">仅部署</el-button>
-        <el-button type="primary" @click="fullPipeline">🚀 一键全链路</el-button>
+        <el-button @click="exportOnly">
+          仅导出
+        </el-button>
+        <el-button @click="deployOnly">
+          仅部署
+        </el-button>
+        <el-button
+          type="primary"
+          @click="fullPipeline"
+        >
+          🚀 一键全链路
+        </el-button>
       </el-button-group>
 
-      <el-alert v-if="lastResult" :title="lastResult" type="success" show-icon :closable="false" />
+      <el-alert
+        v-if="lastResult"
+        :title="lastResult"
+        type="success"
+        show-icon
+        :closable="false"
+      />
     </el-card>
   </div>
 </template>

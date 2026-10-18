@@ -1,60 +1,160 @@
 <template>
   <div class="connectors-page">
-    <PageHeader title="外部连接器" subtitle="Notion / 飞书 / 钉钉 / CRM 凭据管理 · 连通测试 · 一键拉取导入知识库" />
+    <PageHeader
+      title="外部连接器"
+      subtitle="Notion / 飞书 / 钉钉 / CRM 凭据管理 · 连通测试 · 一键拉取导入知识库"
+    />
 
     <el-row :gutter="16">
-      <el-col :span="6" v-for="c in connectors" :key="c.source">
-        <el-card shadow="hover" class="connector-card">
+      <el-col
+        v-for="c in connectors"
+        :key="c.source"
+        :span="6"
+      >
+        <el-card
+          shadow="hover"
+          class="connector-card"
+        >
           <div class="card-head">
             <span class="conn-name">{{ c.name }}</span>
-            <el-tag :type="c.enabled ? 'success' : 'info'" size="small">{{ c.enabled ? '已启用' : '未启用' }}</el-tag>
+            <el-tag
+              :type="c.enabled ? 'success' : 'info'"
+              size="small"
+            >
+              {{ c.enabled ? '已启用' : '未启用' }}
+            </el-tag>
           </div>
-          <el-descriptions :column="1" size="small" class="conn-desc">
-            <el-descriptions-item label="凭据">{{ c.configured ? '已配置' : '未配置' }}</el-descriptions-item>
-            <el-descriptions-item v-if="c.last_test_at" label="最近测试">
-              <el-tag :type="c.last_test_ok ? 'success' : 'danger'" size="small">{{ c.last_test_ok ? '通过' : '失败' }}</el-tag>
+          <el-descriptions
+            :column="1"
+            size="small"
+            class="conn-desc"
+          >
+            <el-descriptions-item label="凭据">
+              {{ c.configured ? '已配置' : '未配置' }}
+            </el-descriptions-item>
+            <el-descriptions-item
+              v-if="c.last_test_at"
+              label="最近测试"
+            >
+              <el-tag
+                :type="c.last_test_ok ? 'success' : 'danger'"
+                size="small"
+              >
+                {{ c.last_test_ok ? '通过' : '失败' }}
+              </el-tag>
               <span class="test-msg">{{ c.last_test_msg }}</span>
             </el-descriptions-item>
           </el-descriptions>
 
-          <el-collapse accordion class="cred-form">
+          <el-collapse
+            accordion
+            class="cred-form"
+          >
             <el-collapse-item title="凭据配置">
-              <el-form label-position="top" size="small">
-                <el-form-item v-for="field in credFields(c.source)" :key="field.key" :label="field.label">
-                  <el-input v-model="credForm[c.source][field.key]"
+              <el-form
+                label-position="top"
+                size="small"
+              >
+                <el-form-item
+                  v-for="field in credFields(c.source)"
+                  :key="field.key"
+                  :label="field.label"
+                >
+                  <el-input
+                    v-model="credForm[c.source][field.key]"
                     :placeholder="isMasked(c.source, field.key) ? '已配置（输入新值以更换，留空保持不变）' : field.placeholder"
-                    show-password />
+                    show-password
+                  />
                 </el-form-item>
-                <el-switch v-model="credForm[c.source].enabled" active-text="启用" />
+                <el-switch
+                  v-model="credForm[c.source].enabled"
+                  active-text="启用"
+                />
                 <div class="form-actions">
-                  <el-button size="small" type="primary" @click="saveCred(c.source)">保存凭据</el-button>
-                  <el-button size="small" @click="testConn(c.source)">测试连接</el-button>
+                  <el-button
+                    size="small"
+                    type="primary"
+                    @click="saveCred(c.source)"
+                  >
+                    保存凭据
+                  </el-button>
+                  <el-button
+                    size="small"
+                    @click="testConn(c.source)"
+                  >
+                    测试连接
+                  </el-button>
                 </div>
               </el-form>
             </el-collapse-item>
           </el-collapse>
 
           <div class="pull-box">
-            <el-select v-model="pullKb[c.source]" size="small" placeholder="选择目标知识库" class="kb-select">
-              <el-option v-for="kb in kbList" :key="kb.id" :label="kb.name" :value="String(kb.id)" />
+            <el-select
+              v-model="pullKb[c.source]"
+              size="small"
+              placeholder="选择目标知识库"
+              class="kb-select"
+            >
+              <el-option
+                v-for="kb in kbList"
+                :key="kb.id"
+                :label="kb.name"
+                :value="String(kb.id)"
+              />
             </el-select>
-            <el-button size="small" type="success" :loading="pulling === c.source" :disabled="!c.enabled"
-              @click="pull(c.source)">一键拉取导入</el-button>
+            <el-button
+              size="small"
+              type="success"
+              :loading="pulling === c.source"
+              :disabled="!c.enabled"
+              @click="pull(c.source)"
+            >
+              一键拉取导入
+            </el-button>
           </div>
         </el-card>
       </el-col>
     </el-row>
 
-    <el-card v-if="lastResult" class="result-card">
-      <template #header>最近拉取结果（{{ lastResult.source }}）：成功 {{ lastResult.imported }} / 失败 {{ lastResult.failed }} / 跳过 {{ lastResult.skipped }}</template>
-      <el-table :data="lastResult.details" size="small" max-height="320">
-        <el-table-column prop="title" label="页面" min-width="180" show-overflow-tooltip />
-        <el-table-column prop="status" label="状态" width="100">
+    <el-card
+      v-if="lastResult"
+      class="result-card"
+    >
+      <template #header>
+        最近拉取结果（{{ lastResult.source }}）：成功 {{ lastResult.imported }} / 失败 {{ lastResult.failed }} / 跳过 {{ lastResult.skipped }}
+      </template>
+      <el-table
+        :data="lastResult.details"
+        size="small"
+        max-height="320"
+      >
+        <el-table-column
+          prop="title"
+          label="页面"
+          min-width="180"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          prop="status"
+          label="状态"
+          width="100"
+        >
           <template #default="{ row }">
-            <el-tag :type="row.status === 'imported' ? 'success' : row.status === 'skipped' ? 'info' : 'danger'" size="small">{{ row.status }}</el-tag>
+            <el-tag
+              :type="row.status === 'imported' ? 'success' : row.status === 'skipped' ? 'info' : 'danger'"
+              size="small"
+            >
+              {{ row.status }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="message" label="说明" min-width="200" show-overflow-tooltip />
+        <el-table-column
+          prop="message"
+          label="说明"
+          min-width="200"
+          show-overflow-tooltip
+        />
       </el-table>
     </el-card>
   </div>

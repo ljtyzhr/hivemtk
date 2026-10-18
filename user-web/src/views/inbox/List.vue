@@ -1,33 +1,78 @@
 <template>
   <div class="inbox-page">
-    <el-card class="header-card" shadow="never">
+    <el-card
+      class="header-card"
+      shadow="never"
+    >
       <div class="page-header">
         <div class="header-text">
           <h2>{{ $t('统一收件箱') }}</h2>
-          <p class="subtitle">{{ $t('跨渠道会话工作台：未读跟踪、坐席分配、对话线程集中处理') }}</p>
+          <p class="subtitle">
+            {{ $t('跨渠道会话工作台：未读跟踪、坐席分配、对话线程集中处理') }}
+          </p>
         </div>
         <div class="header-actions">
           <el-button @click="loadStats">
             <el-icon><DataAnalysis /></el-icon>
             {{ $t('刷新统计') }}
           </el-button>
-          <el-button v-if="userStore.isAdmin" type="warning" plain @click="handleReconcile('backfill')">
+          <el-button
+            v-if="userStore.isAdmin"
+            type="warning"
+            plain
+            @click="handleReconcile('backfill')"
+          >
             <el-icon><Refresh /></el-icon>
             {{ $t('会话补建') }}
           </el-button>
-          <el-button type="primary" @click="refreshAll">
+          <el-button
+            type="primary"
+            @click="refreshAll"
+          >
             <el-icon><RefreshRight /></el-icon>
             {{ $t('刷新') }}
           </el-button>
         </div>
       </div>
-      <div class="stats-row" v-if="stats">
-        <el-tag type="info" effect="plain">{{ $t('总') }}: {{ stats.total ?? 0 }}</el-tag>
-        <el-tag type="danger" effect="plain">{{ $t('未读') }}: {{ stats.unread ?? 0 }}</el-tag>
-        <el-tag type="warning" effect="plain">{{ $t('待处理') }}: {{ stats.open ?? 0 }}</el-tag>
-        <el-tag type="primary" effect="plain">{{ $t('已分配') }}: {{ stats.assigned ?? 0 }}</el-tag>
-        <el-tag type="success" effect="plain">{{ $t('已关闭') }}: {{ stats.closed ?? 0 }}</el-tag>
-        <el-tag v-if="(stats.overdue_count || 0) > 0" type="danger" effect="dark">
+      <div
+        v-if="stats"
+        class="stats-row"
+      >
+        <el-tag
+          type="info"
+          effect="plain"
+        >
+          {{ $t('总') }}: {{ stats.total ?? 0 }}
+        </el-tag>
+        <el-tag
+          type="danger"
+          effect="plain"
+        >
+          {{ $t('未读') }}: {{ stats.unread ?? 0 }}
+        </el-tag>
+        <el-tag
+          type="warning"
+          effect="plain"
+        >
+          {{ $t('待处理') }}: {{ stats.open ?? 0 }}
+        </el-tag>
+        <el-tag
+          type="primary"
+          effect="plain"
+        >
+          {{ $t('已分配') }}: {{ stats.assigned ?? 0 }}
+        </el-tag>
+        <el-tag
+          type="success"
+          effect="plain"
+        >
+          {{ $t('已关闭') }}: {{ stats.closed ?? 0 }}
+        </el-tag>
+        <el-tag
+          v-if="(stats.overdue_count || 0) > 0"
+          type="danger"
+          effect="dark"
+        >
           {{ $t('超时未响应') }}: {{ stats.overdue_count }}
         </el-tag>
       </div>
@@ -35,20 +80,65 @@
 
     <div class="workbench">
       <!-- 左：会话列表 -->
-      <el-card class="conv-panel" shadow="never">
+      <el-card
+        class="conv-panel"
+        shadow="never"
+      >
         <div class="conv-filters">
-          <el-select v-model="searchForm.platform" :placeholder="$t('全部平台')" clearable size="default" @change="handleSearch" style="width: 130px">
-            <el-option v-for="c in CHANNEL_OPTIONS" :key="c.value" :label="c.label" :value="c.value" />
+          <el-select
+            v-model="searchForm.platform"
+            :placeholder="$t('全部平台')"
+            clearable
+            size="default"
+            style="width: 130px"
+            @change="handleSearch"
+          >
+            <el-option
+              v-for="c in CHANNEL_OPTIONS"
+              :key="c.value"
+              :label="c.label"
+              :value="c.value"
+            />
           </el-select>
-          <el-select v-model="searchForm.status" :placeholder="$t('全部状态')" clearable @change="handleSearch" style="width: 120px">
-            <el-option :label="$t('未读')" value="unread" />
-            <el-option :label="$t('待处理')" value="open" />
-            <el-option :label="$t('已分配')" value="assigned" />
-            <el-option :label="$t('已关闭')" value="closed" />
+          <el-select
+            v-model="searchForm.status"
+            :placeholder="$t('全部状态')"
+            clearable
+            style="width: 120px"
+            @change="handleSearch"
+          >
+            <el-option
+              :label="$t('未读')"
+              value="unread"
+            />
+            <el-option
+              :label="$t('待处理')"
+              value="open"
+            />
+            <el-option
+              :label="$t('已分配')"
+              value="assigned"
+            />
+            <el-option
+              :label="$t('已关闭')"
+              value="closed"
+            />
           </el-select>
-          <el-select v-model="searchForm.pinned" :placeholder="$t('置顶筛选')" clearable @change="handleSearch" style="width: 120px">
-            <el-option :label="$t('仅置顶')" value="true" />
-            <el-option :label="$t('未置顶')" value="false" />
+          <el-select
+            v-model="searchForm.pinned"
+            :placeholder="$t('置顶筛选')"
+            clearable
+            style="width: 120px"
+            @change="handleSearch"
+          >
+            <el-option
+              :label="$t('仅置顶')"
+              value="true"
+            />
+            <el-option
+              :label="$t('未置顶')"
+              value="false"
+            />
           </el-select>
           <el-input
             v-model="searchForm.keyword"
@@ -58,12 +148,18 @@
             @keyup.enter="handleSearch"
           >
             <template #append>
-              <el-button :icon="Search" @click="handleSearch" />
+              <el-button
+                :icon="Search"
+                @click="handleSearch"
+              />
             </template>
           </el-input>
         </div>
 
-        <div v-loading="loading" class="conv-list">
+        <div
+          v-loading="loading"
+          class="conv-list"
+        >
           <div
             v-for="conv in conversations"
             :key="conv.id"
@@ -77,33 +173,72 @@
           >
             <div class="conv-item-top">
               <span class="conv-name">
-                <el-icon v-if="conv.pinned" class="pin-icon"><Top /></el-icon>
-                <el-icon v-if="conv.muted" class="mute-icon"><Mute /></el-icon>
+                <el-icon
+                  v-if="conv.pinned"
+                  class="pin-icon"
+                ><Top /></el-icon>
+                <el-icon
+                  v-if="conv.muted"
+                  class="mute-icon"
+                ><Mute /></el-icon>
                 {{ conv.customer_name || conv.customer_id || '-' }}
               </span>
               <span class="conv-time">{{ formatTime(conv.last_message_at) }}</span>
             </div>
             <div class="conv-item-mid">
               <span class="conv-preview">{{ conv.last_message_preview || $t('暂无消息') }}</span>
-              <el-badge v-if="conv.unread_count > 0" :value="conv.unread_count" :max="99" class="conv-badge" />
+              <el-badge
+                v-if="conv.unread_count > 0"
+                :value="conv.unread_count"
+                :max="99"
+                class="conv-badge"
+              />
             </div>
             <div class="conv-item-bottom">
-              <el-tag size="small" :type="getChannelTagType(conv.platform) || 'info'">{{ getChannelLabel(conv.platform) || conv.platform }}</el-tag>
-              <el-tag size="small" :type="statusTagType(conv.status)">{{ statusLabel(conv.status) }}</el-tag>
-              <el-tag v-if="conv.assigned_to" size="small" type="primary" effect="plain">
+              <el-tag
+                size="small"
+                :type="getChannelTagType(conv.platform) || 'info'"
+              >
+                {{ getChannelLabel(conv.platform) || conv.platform }}
+              </el-tag>
+              <el-tag
+                size="small"
+                :type="statusTagType(conv.status)"
+              >
+                {{ statusLabel(conv.status) }}
+              </el-tag>
+              <el-tag
+                v-if="conv.assigned_to"
+                size="small"
+                type="primary"
+                effect="plain"
+              >
                 {{ $t('坐席') }}: {{ conv.assigned_to }}
               </el-tag>
-              <el-tag v-for="t in (conv.tags || []).slice(0, 3)" :key="t" size="small" type="warning" effect="plain" closable @close.stop="handleRemoveTag(conv, t)">
+              <el-tag
+                v-for="t in (conv.tags || []).slice(0, 3)"
+                :key="t"
+                size="small"
+                type="warning"
+                effect="plain"
+                closable
+                @close.stop="handleRemoveTag(conv, t)"
+              >
                 {{ t }}
               </el-tag>
               <el-icon
                 v-if="conv.starred"
                 class="star-icon"
                 @click.stop="handleToggleStar(conv)"
-              ><StarFilled /></el-icon>
+              >
+                <StarFilled />
+              </el-icon>
             </div>
           </div>
-          <el-empty v-if="!loading && conversations.length === 0" :description="$t('暂无会话')" />
+          <el-empty
+            v-if="!loading && conversations.length === 0"
+            :description="$t('暂无会话')"
+          />
         </div>
 
         <div class="conv-pagination">
@@ -120,47 +255,124 @@
       </el-card>
 
       <!-- 右：对话线程 -->
-      <el-card class="thread-panel" shadow="never">
+      <el-card
+        class="thread-panel"
+        shadow="never"
+      >
         <template #header>
-          <div class="thread-header" v-if="currentConv">
+          <div
+            v-if="currentConv"
+            class="thread-header"
+          >
             <div class="thread-title">
               <span class="thread-name">{{ currentConv.customer_name || currentConv.customer_id || '-' }}</span>
-              <el-tag size="small" :type="getChannelTagType(currentConv.platform) || 'info'">{{ getChannelLabel(currentConv.platform) || currentConv.platform }}</el-tag>
-              <el-tag size="small" :type="statusTagType(currentConv.status)">{{ statusLabel(currentConv.status) }}</el-tag>
+              <el-tag
+                size="small"
+                :type="getChannelTagType(currentConv.platform) || 'info'"
+              >
+                {{ getChannelLabel(currentConv.platform) || currentConv.platform }}
+              </el-tag>
+              <el-tag
+                size="small"
+                :type="statusTagType(currentConv.status)"
+              >
+                {{ statusLabel(currentConv.status) }}
+              </el-tag>
             </div>
             <div class="thread-actions">
               <el-tooltip :content="currentConv.pinned ? $t('取消置顶') : $t('置顶')">
-                <el-button size="small" :type="currentConv.pinned ? 'primary' : 'default'" :icon="Top" circle @click="handleTogglePin(currentConv)" />
+                <el-button
+                  size="small"
+                  :type="currentConv.pinned ? 'primary' : 'default'"
+                  :icon="Top"
+                  circle
+                  @click="handleTogglePin(currentConv)"
+                />
               </el-tooltip>
               <el-tooltip :content="currentConv.starred ? $t('取消星标') : $t('星标')">
-                <el-button size="small" :type="currentConv.starred ? 'warning' : 'default'" :icon="currentConv.starred ? StarFilled : Star" circle @click="handleToggleStar(currentConv)" />
+                <el-button
+                  size="small"
+                  :type="currentConv.starred ? 'warning' : 'default'"
+                  :icon="currentConv.starred ? StarFilled : Star"
+                  circle
+                  @click="handleToggleStar(currentConv)"
+                />
               </el-tooltip>
               <el-tooltip :content="currentConv.muted ? $t('取消静音') : $t('静音')">
-                <el-button size="small" :type="currentConv.muted ? 'info' : 'default'" :icon="Mute" circle @click="handleToggleMute(currentConv)" />
+                <el-button
+                  size="small"
+                  :type="currentConv.muted ? 'info' : 'default'"
+                  :icon="Mute"
+                  circle
+                  @click="handleToggleMute(currentConv)"
+                />
               </el-tooltip>
-              <el-button size="small" @click="tagDialogVisible = true">{{ $t('标签') }}</el-button>
-              <el-dropdown trigger="click" @command="handleAssignCommand">
-                <el-button size="small" type="primary">
-                  {{ $t('分配') }}<el-icon class="el-icon--right"><ArrowDown /></el-icon>
+              <el-button
+                size="small"
+                @click="tagDialogVisible = true"
+              >
+                {{ $t('标签') }}
+              </el-button>
+              <el-dropdown
+                trigger="click"
+                @command="handleAssignCommand"
+              >
+                <el-button
+                  size="small"
+                  type="primary"
+                >
+                  {{ $t('分配') }}<el-icon class="el-icon--right">
+                    <ArrowDown />
+                  </el-icon>
                 </el-button>
                 <template #dropdown>
                   <el-dropdown-menu>
-                    <el-dropdown-item command="assign">{{ $t('分配给坐席…') }}</el-dropdown-item>
-                    <el-dropdown-item command="auto-least">{{ $t('自动分配（最少负载）') }}</el-dropdown-item>
-                    <el-dropdown-item command="auto-rr">{{ $t('自动分配（轮询）') }}</el-dropdown-item>
-                    <el-dropdown-item divided command="release">{{ $t('释放') }}</el-dropdown-item>
-                    <el-dropdown-item command="close">{{ $t('关闭会话') }}</el-dropdown-item>
-                    <el-dropdown-item command="reopen">{{ $t('重开会话') }}</el-dropdown-item>
-                    <el-dropdown-item divided command="history">{{ $t('分配历史') }}</el-dropdown-item>
+                    <el-dropdown-item command="assign">
+                      {{ $t('分配给坐席…') }}
+                    </el-dropdown-item>
+                    <el-dropdown-item command="auto-least">
+                      {{ $t('自动分配（最少负载）') }}
+                    </el-dropdown-item>
+                    <el-dropdown-item command="auto-rr">
+                      {{ $t('自动分配（轮询）') }}
+                    </el-dropdown-item>
+                    <el-dropdown-item
+                      divided
+                      command="release"
+                    >
+                      {{ $t('释放') }}
+                    </el-dropdown-item>
+                    <el-dropdown-item command="close">
+                      {{ $t('关闭会话') }}
+                    </el-dropdown-item>
+                    <el-dropdown-item command="reopen">
+                      {{ $t('重开会话') }}
+                    </el-dropdown-item>
+                    <el-dropdown-item
+                      divided
+                      command="history"
+                    >
+                      {{ $t('分配历史') }}
+                    </el-dropdown-item>
                   </el-dropdown-menu>
                 </template>
               </el-dropdown>
             </div>
           </div>
-          <div v-else class="thread-header-empty">{{ $t('选择左侧会话查看对话') }}</div>
+          <div
+            v-else
+            class="thread-header-empty"
+          >
+            {{ $t('选择左侧会话查看对话') }}
+          </div>
         </template>
 
-        <div v-if="currentConv" v-loading="threadLoading" class="thread-body" ref="threadBodyRef">
+        <div
+          v-if="currentConv"
+          ref="threadBodyRef"
+          v-loading="threadLoading"
+          class="thread-body"
+        >
           <div
             v-for="msg in threadMessages"
             :key="`${msg.source}-${msg.id}`"
@@ -170,14 +382,34 @@
             <div class="msg-bubble">
               <div class="msg-meta">
                 <span class="msg-sender">{{ msg.sender_name || msg.sender_id || '-' }}</span>
-                <el-tag v-if="msg.is_ai_reply" size="small" type="success" effect="plain">AI</el-tag>
-                <el-tag size="small" :type="msg.source === 'hub' ? 'info' : 'warning'" effect="plain">
+                <el-tag
+                  v-if="msg.is_ai_reply"
+                  size="small"
+                  type="success"
+                  effect="plain"
+                >
+                  AI
+                </el-tag>
+                <el-tag
+                  size="small"
+                  :type="msg.source === 'hub' ? 'info' : 'warning'"
+                  effect="plain"
+                >
                   {{ msg.source === 'hub' ? $t('渠道') : $t('客服') }}
                 </el-tag>
                 <span class="msg-time">{{ formatTime(msg.sent_at || msg.created_at) }}</span>
-                <el-popconfirm :title="$t('确认删除这条消息？')" @confirm="handleDeleteMessage(msg)">
+                <el-popconfirm
+                  :title="$t('确认删除这条消息？')"
+                  @confirm="handleDeleteMessage(msg)"
+                >
                   <template #reference>
-                    <el-button size="small" type="danger" link :icon="Delete" class="msg-del" />
+                    <el-button
+                      size="small"
+                      type="danger"
+                      link
+                      :icon="Delete"
+                      class="msg-del"
+                    />
                   </template>
                 </el-popconfirm>
               </div>
@@ -191,18 +423,31 @@
                   lazy
                 >
                   <template #error>
-                    <div class="img-error-fallback">{{ $t('图片加载失败') }}</div>
+                    <div class="img-error-fallback">
+                      {{ $t('图片加载失败') }}
+                    </div>
                   </template>
                 </el-image>
-                <template v-else>{{ msg.content || '-' }}</template>
+                <template v-else>
+                  {{ msg.content || '-' }}
+                </template>
               </div>
             </div>
           </div>
-          <el-empty v-if="!threadLoading && threadMessages.length === 0" :description="$t('该会话暂无消息')" />
+          <el-empty
+            v-if="!threadLoading && threadMessages.length === 0"
+            :description="$t('该会话暂无消息')"
+          />
         </div>
-        <el-empty v-else :description="$t('选择左侧会话查看对话')" />
+        <el-empty
+          v-else
+          :description="$t('选择左侧会话查看对话')"
+        />
 
-        <div v-if="currentConv" class="thread-pagination">
+        <div
+          v-if="currentConv"
+          class="thread-pagination"
+        >
           <el-pagination
             layout="prev, pager, next, total"
             small
@@ -217,26 +462,59 @@
     </div>
 
     <!-- 分配给坐席对话框 -->
-    <el-dialog v-model="assignDialogVisible" :title="$t('分配会话给坐席')" width="460px">
+    <el-dialog
+      v-model="assignDialogVisible"
+      :title="$t('分配会话给坐席')"
+      width="460px"
+    >
       <el-form label-width="90px">
         <el-form-item :label="$t('坐席')">
-          <el-select v-model="assignForm.to_user_id" filterable :placeholder="$t('选择坐席')" style="width: 100%">
-            <el-option v-for="s in staffOptions" :key="s.username" :label="`${s.real_name || s.username}`" :value="s.username" />
+          <el-select
+            v-model="assignForm.to_user_id"
+            filterable
+            :placeholder="$t('选择坐席')"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="s in staffOptions"
+              :key="s.username"
+              :label="`${s.real_name || s.username}`"
+              :value="s.username"
+            />
           </el-select>
         </el-form-item>
         <el-form-item :label="$t('备注')">
-          <el-input v-model="assignForm.remark" type="textarea" :rows="2" />
+          <el-input
+            v-model="assignForm.remark"
+            type="textarea"
+            :rows="2"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="assignDialogVisible = false">{{ $t('取消') }}</el-button>
-        <el-button type="primary" :loading="assignSubmitting" @click="submitAssign">{{ $t('确定') }}</el-button>
+        <el-button @click="assignDialogVisible = false">
+          {{ $t('取消') }}
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="assignSubmitting"
+          @click="submitAssign"
+        >
+          {{ $t('确定') }}
+        </el-button>
       </template>
     </el-dialog>
 
     <!-- 标签管理对话框 -->
-    <el-dialog v-model="tagDialogVisible" :title="$t('会话标签')" width="420px">
-      <div class="tag-list" v-if="currentConv">
+    <el-dialog
+      v-model="tagDialogVisible"
+      :title="$t('会话标签')"
+      width="420px"
+    >
+      <div
+        v-if="currentConv"
+        class="tag-list"
+      >
         <el-tag
           v-for="t in (currentConv.tags || [])"
           :key="t"
@@ -245,37 +523,94 @@
           effect="plain"
           style="margin: 0 8px 8px 0"
           @close="handleRemoveTag(currentConv, t)"
-        >{{ t }}</el-tag>
-        <span v-if="!(currentConv.tags || []).length" class="tag-empty">{{ $t('暂无标签') }}</span>
+        >
+          {{ t }}
+        </el-tag>
+        <span
+          v-if="!(currentConv.tags || []).length"
+          class="tag-empty"
+        >{{ $t('暂无标签') }}</span>
       </div>
-      <el-input v-model="newTag" :placeholder="$t('输入标签后回车添加')" @keyup.enter="handleAddTag" clearable>
+      <el-input
+        v-model="newTag"
+        :placeholder="$t('输入标签后回车添加')"
+        clearable
+        @keyup.enter="handleAddTag"
+      >
         <template #append>
-          <el-button @click="handleAddTag">{{ $t('添加') }}</el-button>
+          <el-button @click="handleAddTag">
+            {{ $t('添加') }}
+          </el-button>
         </template>
       </el-input>
       <template #footer>
-        <el-button @click="tagDialogVisible = false">{{ $t('关闭') }}</el-button>
+        <el-button @click="tagDialogVisible = false">
+          {{ $t('关闭') }}
+        </el-button>
       </template>
     </el-dialog>
 
     <!-- 分配历史对话框 -->
-    <el-dialog v-model="historyDialogVisible" :title="$t('分配历史')" width="640px">
-      <el-table :data="assignmentHistory" border size="small" v-loading="historyLoading">
-        <el-table-column prop="id" label="ID" width="60" />
-        <el-table-column prop="action" :label="$t('动作')" width="90">
-          <template #default="{ row }">{{ actionLabel(row.action) }}</template>
+    <el-dialog
+      v-model="historyDialogVisible"
+      :title="$t('分配历史')"
+      width="640px"
+    >
+      <el-table
+        v-loading="historyLoading"
+        :data="assignmentHistory"
+        border
+        size="small"
+      >
+        <el-table-column
+          prop="id"
+          label="ID"
+          width="60"
+        />
+        <el-table-column
+          prop="action"
+          :label="$t('动作')"
+          width="90"
+        >
+          <template #default="{ row }">
+            {{ actionLabel(row.action) }}
+          </template>
         </el-table-column>
-        <el-table-column prop="to_type" :label="$t('对象类型')" width="90">
-          <template #default="{ row }">{{ toTypeLabel(row.to_type) }}</template>
+        <el-table-column
+          prop="to_type"
+          :label="$t('对象类型')"
+          width="90"
+        >
+          <template #default="{ row }">
+            {{ toTypeLabel(row.to_type) }}
+          </template>
         </el-table-column>
-        <el-table-column prop="to_user_id" :label="$t('坐席/SOP')" min-width="110">
-          <template #default="{ row }">{{ row.to_user_id || (row.to_sop_id ? `SOP#${row.to_sop_id}` : '-') }}</template>
+        <el-table-column
+          prop="to_user_id"
+          :label="$t('坐席/SOP')"
+          min-width="110"
+        >
+          <template #default="{ row }">
+            {{ row.to_user_id || (row.to_sop_id ? `SOP#${row.to_sop_id}` : '-') }}
+          </template>
         </el-table-column>
-        <el-table-column prop="operator_id" :label="$t('操作人')" min-width="100">
-          <template #default="{ row }">{{ row.operator_id || '-' }}</template>
+        <el-table-column
+          prop="operator_id"
+          :label="$t('操作人')"
+          min-width="100"
+        >
+          <template #default="{ row }">
+            {{ row.operator_id || '-' }}
+          </template>
         </el-table-column>
-        <el-table-column prop="created_at" :label="$t('时间')" min-width="150">
-          <template #default="{ row }">{{ formatTime(row.created_at) }}</template>
+        <el-table-column
+          prop="created_at"
+          :label="$t('时间')"
+          min-width="150"
+        >
+          <template #default="{ row }">
+            {{ formatTime(row.created_at) }}
+          </template>
         </el-table-column>
       </el-table>
     </el-dialog>

@@ -4,32 +4,93 @@
       <template #header>
         <div class="card-header">
           <span>WhatsApp 草稿箱</span>
-          <el-button type="primary" :icon="Plus" @click="openCreate">{{ $t('新建草稿') }}</el-button>
+          <el-button
+            type="primary"
+            :icon="Plus"
+            @click="openCreate"
+          >
+            {{ $t('新建草稿') }}
+          </el-button>
         </div>
       </template>
 
-      <el-form :inline="true" :model="search" class="search-form">
+      <el-form
+        :inline="true"
+        :model="search"
+        class="search-form"
+      >
         <el-form-item label="标题">
-          <el-input v-model="search.title" placeholder="搜索标题" clearable @keyup.enter="load" />
+          <el-input
+            v-model="search.title"
+            placeholder="搜索标题"
+            clearable
+            @keyup.enter="load"
+          />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" :icon="Search" @click="load">搜索</el-button>
+          <el-button
+            type="primary"
+            :icon="Search"
+            @click="load"
+          >
+            搜索
+          </el-button>
         </el-form-item>
       </el-form>
 
-      <el-table :data="drafts" style="width:100%" v-loading="loading" border>
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="title" label="标题" min-width="200" />
-        <el-table-column prop="content" label="内容" min-width="300" show-overflow-tooltip />
-        <el-table-column prop="updated_at" label="更新时间" width="180">
+      <el-table
+        v-loading="loading"
+        :data="drafts"
+        style="width:100%"
+        border
+      >
+        <el-table-column
+          prop="id"
+          label="ID"
+          width="80"
+        />
+        <el-table-column
+          prop="title"
+          label="标题"
+          min-width="200"
+        />
+        <el-table-column
+          prop="content"
+          label="内容"
+          min-width="300"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          prop="updated_at"
+          label="更新时间"
+          width="180"
+        >
           <template #default="scope">
             {{ formatDate(scope.row.updated_at) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200" fixed="right">
+        <el-table-column
+          label="操作"
+          width="200"
+          fixed="right"
+        >
           <template #default="scope">
-            <el-button size="small" type="primary" link @click="openEdit(scope.row)">编辑</el-button>
-            <el-button size="small" type="danger" link @click="confirmDelete(scope.row)">删除</el-button>
+            <el-button
+              size="small"
+              type="primary"
+              link
+              @click="openEdit(scope.row)"
+            >
+              编辑
+            </el-button>
+            <el-button
+              size="small"
+              type="danger"
+              link
+              @click="confirmDelete(scope.row)"
+            >
+              删除
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -48,18 +109,50 @@
     </el-card>
 
     
-    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑草稿' : '新建草稿'" width="600px" @close="resetForm">
-      <el-form ref="formRef" :model="form" :rules="rules" label-width="80px">
-        <el-form-item label="标题" prop="title">
-          <el-input v-model="form.title" placeholder="请输入草稿标题" />
+    <el-dialog
+      v-model="dialogVisible"
+      :title="isEdit ? '编辑草稿' : '新建草稿'"
+      width="600px"
+      @close="resetForm"
+    >
+      <el-form
+        ref="formRef"
+        :model="form"
+        :rules="rules"
+        label-width="80px"
+      >
+        <el-form-item
+          label="标题"
+          prop="title"
+        >
+          <el-input
+            v-model="form.title"
+            placeholder="请输入草稿标题"
+          />
         </el-form-item>
-        <el-form-item label="内容" prop="content">
-          <el-input type="textarea" v-model="form.content" :rows="6" placeholder="请输入草稿内容" />
+        <el-form-item
+          label="内容"
+          prop="content"
+        >
+          <el-input
+            v-model="form.content"
+            type="textarea"
+            :rows="6"
+            placeholder="请输入草稿内容"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="submit">保存</el-button>
+        <el-button @click="dialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="submit"
+        >
+          保存
+        </el-button>
       </template>
     </el-dialog>
   </div>

@@ -14,50 +14,92 @@
       </template>
       
       <el-table 
-        :data="products" 
+        v-loading="loading" 
+        :data="products"
         style="width: 100%"
-        v-loading="loading"
       >
-        <el-table-column prop="name" label="产品名称" width="150"></el-table-column>
-        <el-table-column prop="category" label="类别" width="100">
+        <el-table-column
+          prop="name"
+          label="产品名称"
+          width="150"
+        />
+        <el-table-column
+          prop="category"
+          label="类别"
+          width="100"
+        >
           <template #default="{ row }">
             <el-tag :type="getCategoryTagType(row.category)">
               {{ getCategoryLabel(row.category) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="llm_model" label="LLM模型" width="150"></el-table-column>
-        <el-table-column prop="temperature" label="温度值" width="100">
+        <el-table-column
+          prop="llm_model"
+          label="LLM模型"
+          width="150"
+        />
+        <el-table-column
+          prop="temperature"
+          label="温度值"
+          width="100"
+        >
           <template #default="{ row }">
             {{ row.temperature.toFixed(2) }}
           </template>
         </el-table-column>
-        <el-table-column prop="max_tokens" label="最大Token" width="100">
+        <el-table-column
+          prop="max_tokens"
+          label="最大Token"
+          width="100"
+        >
           <template #default="{ row }">
             {{ row.max_tokens }}
           </template>
         </el-table-column>
-        <el-table-column prop="top_p" label="Top-P" width="100">
+        <el-table-column
+          prop="top_p"
+          label="Top-P"
+          width="100"
+        >
           <template #default="{ row }">
             {{ row.top_p.toFixed(2) }}
           </template>
         </el-table-column>
-        <el-table-column prop="description" label="描述" show-overflow-tooltip></el-table-column>
-        <el-table-column label="状态" width="100">
+        <el-table-column
+          prop="description"
+          label="描述"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          label="状态"
+          width="100"
+        >
           <template #default="{ row }">
             <el-tag :type="row.is_active ? 'success' : 'info'">
               {{ row.is_active ? '激活' : '未激活' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="创建时间" width="180">
+        <el-table-column
+          label="创建时间"
+          width="180"
+        >
           <template #default="{ row }">
             {{ formatDate(row.created_at) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="200">
+        <el-table-column
+          label="操作"
+          width="200"
+        >
           <template #default="{ row }">
-            <el-button size="small" @click="editProduct(row)">编辑</el-button>
+            <el-button
+              size="small"
+              @click="editProduct(row)"
+            >
+              编辑
+            </el-button>
             <el-button 
               size="small" 
               :type="row.is_active ? 'warning' : 'success'"
@@ -65,7 +107,13 @@
             >
               {{ row.is_active ? '停用' : '激活' }}
             </el-button>
-            <el-button size="small" type="danger" @click="deleteProduct(row.id)">删除</el-button>
+            <el-button
+              size="small"
+              type="danger"
+              @click="deleteProduct(row.id)"
+            >
+              删除
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -76,9 +124,9 @@
         :page-sizes="[10, 20, 50, 100]"
         :total="pagination.total"
         layout="total, sizes, prev, pager, next, jumper"
+        style="margin-top: 20px; text-align: right;"
         @size-change="handleSizeChange"
         @current-change="handleCurrentChange"
-        style="margin-top: 20px; text-align: right;"
       />
     </el-card>
     
@@ -90,37 +138,46 @@
       @close="resetForm"
     >
       <el-form 
+        ref="formRef" 
         :model="form" 
-        :rules="rules" 
-        ref="formRef"
+        :rules="rules"
         label-width="100px"
       >
-        <el-form-item label="产品名称" prop="name">
+        <el-form-item
+          label="产品名称"
+          prop="name"
+        >
           <el-input 
             v-model="form.name" 
             placeholder="请输入产品名称"
             :disabled="!!form.id"
-          ></el-input>
+          />
         </el-form-item>
         
-        <el-form-item label="产品类别" prop="category">
+        <el-form-item
+          label="产品类别"
+          prop="category"
+        >
           <el-input 
             v-model="form.category" 
             placeholder="请输入产品类别"
             style="width: 100%;"
-          ></el-input>
+          />
         </el-form-item>
         
         <el-form-item label="LLM模型">
           <el-input 
             v-model="form.llm_model" 
             placeholder="请输入LLM模型名称，如：gpt-3.5-turbo"
-          ></el-input>
+          />
         </el-form-item>
         
         <el-row :gutter="20">
           <el-col :span="12">
-            <el-form-item label="温度值" prop="temperature">
+            <el-form-item
+              label="温度值"
+              prop="temperature"
+            >
               <el-slider
                 v-model="form.temperature"
                 :min="0"
@@ -131,7 +188,10 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="Top-P值" prop="top_p">
+            <el-form-item
+              label="Top-P值"
+              prop="top_p"
+            >
               <el-slider
                 v-model="form.top_p"
                 :min="0"
@@ -145,7 +205,10 @@
         
         <el-row :gutter="20">
           <el-col :span="12">
-            <el-form-item label="最大Token数" prop="max_tokens">
+            <el-form-item
+              label="最大Token数"
+              prop="max_tokens"
+            >
               <el-input-number
                 v-model="form.max_tokens"
                 :min="1"
@@ -155,7 +218,10 @@
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="频率惩罚" prop="frequency_penalty">
+            <el-form-item
+              label="频率惩罚"
+              prop="frequency_penalty"
+            >
               <el-slider
                 v-model="form.frequency_penalty"
                 :min="-2"
@@ -167,7 +233,10 @@
           </el-col>
         </el-row>
         
-        <el-form-item label="存在惩罚" prop="presence_penalty">
+        <el-form-item
+          label="存在惩罚"
+          prop="presence_penalty"
+        >
           <el-slider
             v-model="form.presence_penalty"
             :min="-2"
@@ -177,48 +246,94 @@
           />
         </el-form-item>
         
-        <el-divider content-position="left">推理供应商配置（留空则使用服务器默认）</el-divider>
+        <el-divider content-position="left">
+          推理供应商配置（留空则使用服务器默认）
+        </el-divider>
 
         
-        <el-divider content-position="left">大模型 LLM</el-divider>
+        <el-divider content-position="left">
+          大模型 LLM
+        </el-divider>
         <el-form-item label="API BaseURL">
-          <el-input v-model="form.llm_provider_config.base_url" placeholder="如 https://api.openai.com/v1" />
+          <el-input
+            v-model="form.llm_provider_config.base_url"
+            placeholder="如 https://api.openai.com/v1"
+          />
         </el-form-item>
         <el-form-item label="API Key">
-          <el-input v-model="form.llm_provider_config.api_key" type="password" show-password placeholder="sk-..." />
+          <el-input
+            v-model="form.llm_provider_config.api_key"
+            type="password"
+            show-password
+            placeholder="sk-..."
+          />
         </el-form-item>
         <el-form-item label="模型">
-          <el-input v-model="form.llm_provider_config.model" placeholder="如 gpt-4o / deepseek-chat" />
+          <el-input
+            v-model="form.llm_provider_config.model"
+            placeholder="如 gpt-4o / deepseek-chat"
+          />
         </el-form-item>
 
         
-        <el-divider content-position="left">文本向量 text-embedding</el-divider>
+        <el-divider content-position="left">
+          文本向量 text-embedding
+        </el-divider>
         <el-form-item label="API BaseURL">
-          <el-input v-model="form.embedding_provider_config.base_url" placeholder="如 https://xxx/v1" />
+          <el-input
+            v-model="form.embedding_provider_config.base_url"
+            placeholder="如 https://xxx/v1"
+          />
         </el-form-item>
         <el-form-item label="API Key">
-          <el-input v-model="form.embedding_provider_config.api_key" type="password" show-password placeholder="sk-..." />
+          <el-input
+            v-model="form.embedding_provider_config.api_key"
+            type="password"
+            show-password
+            placeholder="sk-..."
+          />
         </el-form-item>
         <el-form-item label="模型">
-          <el-input v-model="form.embedding_provider_config.model" placeholder="如 text-embedding-3-small" />
+          <el-input
+            v-model="form.embedding_provider_config.model"
+            placeholder="如 text-embedding-3-small"
+          />
         </el-form-item>
         <el-form-item label="维度">
-          <el-input-number v-model="form.embedding_provider_config.dimension" :min="256" :max="4096" :step="128" />
+          <el-input-number
+            v-model="form.embedding_provider_config.dimension"
+            :min="256"
+            :max="4096"
+            :step="128"
+          />
         </el-form-item>
         <el-form-item label="启用">
           <el-switch v-model="form.embedding_provider_config.enabled" />
         </el-form-item>
 
         
-        <el-divider content-position="left">重排 rerank</el-divider>
+        <el-divider content-position="left">
+          重排 rerank
+        </el-divider>
         <el-form-item label="API BaseURL">
-          <el-input v-model="form.rerank_provider_config.base_url" placeholder="如 https://xxx/v1" />
+          <el-input
+            v-model="form.rerank_provider_config.base_url"
+            placeholder="如 https://xxx/v1"
+          />
         </el-form-item>
         <el-form-item label="API Key">
-          <el-input v-model="form.rerank_provider_config.api_key" type="password" show-password placeholder="sk-..." />
+          <el-input
+            v-model="form.rerank_provider_config.api_key"
+            type="password"
+            show-password
+            placeholder="sk-..."
+          />
         </el-form-item>
         <el-form-item label="模型">
-          <el-input v-model="form.rerank_provider_config.model" placeholder="如 rerank-model" />
+          <el-input
+            v-model="form.rerank_provider_config.model"
+            placeholder="如 rerank-model"
+          />
         </el-form-item>
         <el-form-item label="启用">
           <el-switch v-model="form.rerank_provider_config.enabled" />
@@ -230,7 +345,7 @@
             type="textarea"
             :rows="3"
             placeholder="请输入产品描述"
-          ></el-input>
+          />
         </el-form-item>
         
         <el-form-item label="激活状态">
@@ -245,7 +360,10 @@
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="dialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="submitForm">确定</el-button>
+          <el-button
+            type="primary"
+            @click="submitForm"
+          >确定</el-button>
         </span>
       </template>
     </el-dialog>

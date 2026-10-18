@@ -4,37 +4,91 @@
       <template #header>
         <div class="card-header">
           <span>🏠 静态站部署配置</span>
-          <el-button type="primary" @click="openDialog()">+ 新增站点</el-button>
+          <el-button
+            type="primary"
+            @click="openDialog()"
+          >
+            + 新增站点
+          </el-button>
         </div>
       </template>
 
-      <el-table :data="list" border stripe size="small">
-        <el-table-column prop="domain" label="域名" />
-        <el-table-column prop="provider" label="提供商" width="120">
+      <el-table
+        :data="list"
+        border
+        stripe
+        size="small"
+      >
+        <el-table-column
+          prop="domain"
+          label="域名"
+        />
+        <el-table-column
+          prop="provider"
+          label="提供商"
+          width="120"
+        >
           <template #default="{ row }">
-            <el-tag size="small">{{ row.provider || 'cloudflare' }}</el-tag>
+            <el-tag size="small">
+              {{ row.provider || 'cloudflare' }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="hugo_path" label="Hugo 路径" show-overflow-tooltip />
-        <el-table-column prop="git_repo" label="Git 仓库" show-overflow-tooltip />
-        <el-table-column label="健康" width="80">
+        <el-table-column
+          prop="hugo_path"
+          label="Hugo 路径"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          prop="git_repo"
+          label="Git 仓库"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          label="健康"
+          width="80"
+        >
           <template #default="{ row }">
-            <el-tag :type="row.health_score > 80 ? 'success' : row.health_score > 40 ? 'warning' : 'danger'" size="small">
+            <el-tag
+              :type="row.health_score > 80 ? 'success' : row.health_score > 40 ? 'warning' : 'danger'"
+              size="small"
+            >
               {{ row.health_score || 0 }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="状态" width="80">
+        <el-table-column
+          label="状态"
+          width="80"
+        >
           <template #default="{ row }">
-            <el-tag :type="row.active ? 'success' : 'info'" size="small">
+            <el-tag
+              :type="row.active ? 'success' : 'info'"
+              size="small"
+            >
               {{ row.active ? '启用' : '停用' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="180" fixed="right">
+        <el-table-column
+          label="操作"
+          width="180"
+          fixed="right"
+        >
           <template #default="{ row }">
-            <el-button size="small" @click="openDialog(row)">编辑</el-button>
-            <el-button size="small" type="danger" @click="remove(row)">删除</el-button>
+            <el-button
+              size="small"
+              @click="openDialog(row)"
+            >
+              编辑
+            </el-button>
+            <el-button
+              size="small"
+              type="danger"
+              @click="remove(row)"
+            >
+              删除
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -53,35 +107,79 @@
     </el-card>
 
     <!-- Dialog -->
-    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑站点' : '新增站点'" width="560px">
-      <el-form :model="form" label-width="100px">
-        <el-form-item label="域名" required>
-          <el-input v-model="form.domain" placeholder="example.com" />
+    <el-dialog
+      v-model="dialogVisible"
+      :title="isEdit ? '编辑站点' : '新增站点'"
+      width="560px"
+    >
+      <el-form
+        :model="form"
+        label-width="100px"
+      >
+        <el-form-item
+          label="域名"
+          required
+        >
+          <el-input
+            v-model="form.domain"
+            placeholder="example.com"
+          />
         </el-form-item>
         <el-form-item label="提供商">
-          <el-select v-model="form.provider" style="width:100%">
-            <el-option label="Cloudflare Pages" value="cloudflare" />
-            <el-option label="GitHub Pages" value="github" />
-            <el-option label="Vercel" value="vercel" />
-            <el-option label="自托管" value="self" />
+          <el-select
+            v-model="form.provider"
+            style="width:100%"
+          >
+            <el-option
+              label="Cloudflare Pages"
+              value="cloudflare"
+            />
+            <el-option
+              label="GitHub Pages"
+              value="github"
+            />
+            <el-option
+              label="Vercel"
+              value="vercel"
+            />
+            <el-option
+              label="自托管"
+              value="self"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="Hugo 路径">
-          <el-input v-model="form.hugo_path" placeholder="/data/hivemtk-site" />
+          <el-input
+            v-model="form.hugo_path"
+            placeholder="/data/hivemtk-site"
+          />
         </el-form-item>
         <el-form-item label="Git 仓库">
-          <el-input v-model="form.git_repo" placeholder="git@github.com:xxx/xxx.git" />
+          <el-input
+            v-model="form.git_repo"
+            placeholder="git@github.com:xxx/xxx.git"
+          />
         </el-form-item>
         <el-form-item label="部署命令">
-          <el-input v-model="form.deploy_cmd" placeholder="hugo -e production" />
+          <el-input
+            v-model="form.deploy_cmd"
+            placeholder="hugo -e production"
+          />
         </el-form-item>
         <el-form-item label="启用">
           <el-switch v-model="form.active" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="save">保存</el-button>
+        <el-button @click="dialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          @click="save"
+        >
+          保存
+        </el-button>
       </template>
     </el-dialog>
   </div>

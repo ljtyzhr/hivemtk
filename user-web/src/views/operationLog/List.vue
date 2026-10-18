@@ -3,10 +3,14 @@
     <el-card class="header-card">
       <div>
         <h2>{{ $t('操作日志') }}</h2>
-        <p class="subtitle">{{ $t('审计追踪所有用户操作记录') }}</p>
+        <p class="subtitle">
+          {{ $t('审计追踪所有用户操作记录') }}
+        </p>
       </div>
       <div>
-        <el-button @click="$router.push('/operationLog/enhanced')">增强视图</el-button>
+        <el-button @click="$router.push('/operationLog/enhanced')">
+          增强视图
+        </el-button>
         <el-button @click="exportLogs">
           <el-icon><Download /></el-icon>
           {{ $t('导出') }}
@@ -20,53 +24,172 @@
 
     <el-card>
       <div class="filter-bar">
-        <el-input v-model="searchKeyword" :placeholder="$t('搜索操作内容')" clearable style="width: 200px" />
-        <el-select v-model="filterModule" :placeholder="$t('模块')" clearable style="width: 150px">
-          <el-option :label="$t('用户')" value="user" />
-          <el-option :label="$t('线索')" value="clue" />
-          <el-option :label="$t('营销')" value="marketing" />
-          <el-option :label="$t('系统')" value="system" />
+        <el-input
+          v-model="searchKeyword"
+          :placeholder="$t('搜索操作内容')"
+          clearable
+          style="width: 200px"
+        />
+        <el-select
+          v-model="filterModule"
+          :placeholder="$t('模块')"
+          clearable
+          style="width: 150px"
+        >
+          <el-option
+            :label="$t('用户')"
+            value="user"
+          />
+          <el-option
+            :label="$t('线索')"
+            value="clue"
+          />
+          <el-option
+            :label="$t('营销')"
+            value="marketing"
+          />
+          <el-option
+            :label="$t('系统')"
+            value="system"
+          />
         </el-select>
-        <el-select v-model="filterAction" :placeholder="$t('操作类型')" clearable style="width: 150px">
-          <el-option :label="$t('创建')" value="create" />
-          <el-option :label="$t('更新')" value="update" />
-          <el-option :label="$t('删除')" value="delete" />
-          <el-option :label="$t('登录')" value="login" />
-          <el-option :label="$t('登出')" value="logout" />
+        <el-select
+          v-model="filterAction"
+          :placeholder="$t('操作类型')"
+          clearable
+          style="width: 150px"
+        >
+          <el-option
+            :label="$t('创建')"
+            value="create"
+          />
+          <el-option
+            :label="$t('更新')"
+            value="update"
+          />
+          <el-option
+            :label="$t('删除')"
+            value="delete"
+          />
+          <el-option
+            :label="$t('登录')"
+            value="login"
+          />
+          <el-option
+            :label="$t('登出')"
+            value="logout"
+          />
         </el-select>
-        <el-select v-model="filterUser" :placeholder="$t('操作人')" clearable style="width: 150px">
-          <el-option label="admin" value="admin" />
-          <el-option label="manager" value="manager" />
+        <el-select
+          v-model="filterUser"
+          :placeholder="$t('操作人')"
+          clearable
+          style="width: 150px"
+        >
+          <el-option
+            label="admin"
+            value="admin"
+          />
+          <el-option
+            label="manager"
+            value="manager"
+          />
         </el-select>
-        <el-date-picker v-model="dateRange" type="daterange" range-separator="至" start-placeholder="开始" end-placeholder="结束" value-format="YYYY-MM-DD" />
+        <el-date-picker
+          v-model="dateRange"
+          type="daterange"
+          range-separator="至"
+          start-placeholder="开始"
+          end-placeholder="结束"
+          value-format="YYYY-MM-DD"
+        />
       </div>
 
-      <el-table :data="filteredLogs" v-loading="loading" stripe>
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="username" :label="$t('操作人')" width="100" />
-        <el-table-column prop="module" :label="$t('模块')" width="100">
+      <el-table
+        v-loading="loading"
+        :data="filteredLogs"
+        stripe
+      >
+        <el-table-column
+          prop="id"
+          label="ID"
+          width="80"
+        />
+        <el-table-column
+          prop="username"
+          :label="$t('操作人')"
+          width="100"
+        />
+        <el-table-column
+          prop="module"
+          :label="$t('模块')"
+          width="100"
+        >
           <template #default="{ row }">
-            <el-tag size="small">{{ row.module }}</el-tag>
+            <el-tag size="small">
+              {{ row.module }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="action" label="操作" width="100">
+        <el-table-column
+          prop="action"
+          label="操作"
+          width="100"
+        >
           <template #default="{ row }">
-            <el-tag :type="getActionType(row.action)" size="small">{{ getActionText(row.action) }}</el-tag>
+            <el-tag
+              :type="getActionType(row.action)"
+              size="small"
+            >
+              {{ getActionText(row.action) }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="resource" label="目标对象" min-width="150">
+        <el-table-column
+          prop="resource"
+          label="目标对象"
+          min-width="150"
+        >
           <template #default="{ row }">
             <span v-if="row.resource_id">{{ row.resource }} #{{ row.resource_id }}</span>
             <span v-else>{{ row.resource }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="detail" label="操作描述" min-width="250" show-overflow-tooltip />
-        <el-table-column prop="ip" label="IP地址" width="130" />
-        <el-table-column prop="user_agent" label="浏览器" min-width="200" show-overflow-tooltip />
-        <el-table-column prop="created_at" label="时间" width="180" />
-        <el-table-column label="操作" width="100" fixed="right">
+        <el-table-column
+          prop="detail"
+          label="操作描述"
+          min-width="250"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          prop="ip"
+          label="IP地址"
+          width="130"
+        />
+        <el-table-column
+          prop="user_agent"
+          label="浏览器"
+          min-width="200"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          prop="created_at"
+          label="时间"
+          width="180"
+        />
+        <el-table-column
+          label="操作"
+          width="100"
+          fixed="right"
+        >
           <template #default="{ row }">
-            <el-button link type="primary" @click="viewDetail(row)">详情</el-button>
+            <el-button
+              link
+              type="primary"
+              @click="viewDetail(row)"
+            >
+              详情
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -76,30 +199,52 @@
         v-model:page-size="pagination.size"
         :total="pagination.total"
         layout="total, prev, pager, next, jumper"
-        @current-change="loadLogs"
         style="margin-top: 15px; text-align: right"
+        @current-change="loadLogs"
       />
     </el-card>
 
-    <el-dialog v-model="detailVisible" title="日志详情" width="700px">
-      <el-descriptions :column="1" border v-if="currentLog">
-        <el-descriptions-item label="操作人">{{ currentLog.username }}</el-descriptions-item>
-        <el-descriptions-item label="模块">{{ currentLog.module }}</el-descriptions-item>
-        <el-descriptions-item label="操作类型">{{ currentLog.action }}</el-descriptions-item>
+    <el-dialog
+      v-model="detailVisible"
+      title="日志详情"
+      width="700px"
+    >
+      <el-descriptions
+        v-if="currentLog"
+        :column="1"
+        border
+      >
+        <el-descriptions-item label="操作人">
+          {{ currentLog.username }}
+        </el-descriptions-item>
+        <el-descriptions-item label="模块">
+          {{ currentLog.module }}
+        </el-descriptions-item>
+        <el-descriptions-item label="操作类型">
+          {{ currentLog.action }}
+        </el-descriptions-item>
         <el-descriptions-item label="目标对象">
           <span v-if="currentLog.resource_id">{{ currentLog.resource }} #{{ currentLog.resource_id }}</span>
           <span v-else>{{ currentLog.resource }}</span>
         </el-descriptions-item>
-        <el-descriptions-item label="操作描述">{{ currentLog.detail }}</el-descriptions-item>
+        <el-descriptions-item label="操作描述">
+          {{ currentLog.detail }}
+        </el-descriptions-item>
         <el-descriptions-item label="修改前">
           <pre>{{ currentLog.old_value }}</pre>
         </el-descriptions-item>
         <el-descriptions-item label="修改后">
           <pre>{{ currentLog.new_value }}</pre>
         </el-descriptions-item>
-        <el-descriptions-item label="IP地址">{{ currentLog.ip }}</el-descriptions-item>
-        <el-descriptions-item label="浏览器">{{ currentLog.user_agent }}</el-descriptions-item>
-        <el-descriptions-item label="时间">{{ currentLog.created_at }}</el-descriptions-item>
+        <el-descriptions-item label="IP地址">
+          {{ currentLog.ip }}
+        </el-descriptions-item>
+        <el-descriptions-item label="浏览器">
+          {{ currentLog.user_agent }}
+        </el-descriptions-item>
+        <el-descriptions-item label="时间">
+          {{ currentLog.created_at }}
+        </el-descriptions-item>
       </el-descriptions>
     </el-dialog>
   </div>

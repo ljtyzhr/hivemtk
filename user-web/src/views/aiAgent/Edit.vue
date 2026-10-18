@@ -1,16 +1,34 @@
 <template>
   <div class="ai-agent-edit-page">
-    
-    <el-card class="header-card" shadow="never">
+    <el-card
+      class="header-card"
+      shadow="never"
+    >
       <div class="header-content">
         <div>
           <h2>{{ isEdit ? '编辑智能体' : '创建智能体' }}</h2>
-          <p class="subtitle" v-if="isEdit">智能体ID：{{ agentId }} · 修改后保存生效</p>
-          <p class="subtitle" v-else>{{ $t('填写智能体配置，创建后即可绑定到渠道或客服座席') }}</p>
+          <p
+            v-if="isEdit"
+            class="subtitle"
+          >
+            智能体ID：{{ agentId }} · 修改后保存生效
+          </p>
+          <p
+            v-else
+            class="subtitle"
+          >
+            {{ $t('填写智能体配置，创建后即可绑定到渠道或客服座席') }}
+          </p>
         </div>
         <div class="header-actions">
-          <el-button @click="goBack">{{ $t('返回列表') }}</el-button>
-          <el-button type="primary" :loading="testing" @click="openTestDialog">
+          <el-button @click="goBack">
+            {{ $t('返回列表') }}
+          </el-button>
+          <el-button
+            type="primary"
+            :loading="testing"
+            @click="openTestDialog"
+          >
             <el-icon><VideoPlay /></el-icon>
             {{ $t('测试') }}
           </el-button>
@@ -20,43 +38,89 @@
 
     <el-form
       ref="formRef"
+      v-loading="pageLoading"
       :model="form"
       :rules="rules"
       label-width="120px"
-      v-loading="pageLoading"
     >
-      
-      <el-card shadow="never" class="section-card">
+      <el-card
+        shadow="never"
+        class="section-card"
+      >
         <template #header>
-          <div class="card-title"><el-icon><InfoFilled /></el-icon> {{ $t('基本信息') }}</div>
+          <div class="card-title">
+            <el-icon><InfoFilled /></el-icon> {{ $t('基本信息') }}
+          </div>
         </template>
         <el-row :gutter="20">
           <el-col :span="12">
-            <el-form-item label="智能体编码" prop="agent_code">
-              <el-input v-model="form.agent_code" placeholder="如 sales_agent_01，唯一标识" :disabled="isEdit" />
+            <el-form-item
+              label="智能体编码"
+              prop="agent_code"
+            >
+              <el-input
+                v-model="form.agent_code"
+                placeholder="如 sales_agent_01，唯一标识"
+                :disabled="isEdit"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="智能体名称" prop="name">
-              <el-input v-model="form.name" placeholder="请输入智能体名称" />
+            <el-form-item
+              label="智能体名称"
+              prop="name"
+            >
+              <el-input
+                v-model="form.name"
+                placeholder="请输入智能体名称"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="智能体类型" prop="agent_type">
-              <el-select v-model="form.agent_type" style="width: 100%">
-                <el-option label="销售智能体" value="sales" />
-                <el-option label="客服智能体" value="customer_service" />
-                <el-option label="混合智能体" value="hybrid" />
+            <el-form-item
+              label="智能体类型"
+              prop="agent_type"
+            >
+              <el-select
+                v-model="form.agent_type"
+                style="width: 100%"
+              >
+                <el-option
+                  label="销售智能体"
+                  value="sales"
+                />
+                <el-option
+                  label="客服智能体"
+                  value="customer_service"
+                />
+                <el-option
+                  label="混合智能体"
+                  value="hybrid"
+                />
               </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="智能体模式" prop="agent_mode">
-              <el-select v-model="form.agent_mode" style="width: 100%">
-                <el-option label="被动响应（用户问才答）" value="passive" />
-                <el-option label="主动出击（会主动推荐/推送）" value="active" />
+            <el-form-item
+              label="智能体模式"
+              prop="agent_mode"
+            >
+              <el-select
+                v-model="form.agent_mode"
+                style="width: 100%"
+              >
+                <el-option
+                  label="被动响应（用户问才答）"
+                  value="passive"
+                />
+                <el-option
+                  label="主动出击（会主动推荐/推送）"
+                  value="active"
+                />
               </el-select>
-              <div class="form-tip">被动=客服风格只响应提问；主动=销售风格会主动推荐商品/活动/逼单</div>
+              <div class="form-tip">
+                被动=客服风格只响应提问；主动=销售风格会主动推荐商品/活动/逼单
+              </div>
             </el-form-item>
           </el-col>
           <el-col :span="12">
@@ -78,17 +142,29 @@
                   <span style="float: right; color: #8492a6; font-size: 12px">{{ b.industry || '' }}</span>
                 </el-option>
               </el-select>
-              <div class="form-tip">资产包包含该智能体的话术模板、SOP流程、FAQ知识库。创建时绑定，运行时自动注入 system prompt。</div>
+              <div class="form-tip">
+                资产包包含该智能体的话术模板、SOP流程、FAQ知识库。创建时绑定，运行时自动注入 system prompt。
+              </div>
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="头像URL">
-              <el-input v-model="form.avatar" placeholder="头像图片URL" />
+              <el-input
+                v-model="form.avatar"
+                placeholder="头像图片URL"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="内部语言" prop="internal_language">
-              <el-select v-model="form.internal_language" placeholder="请选择内部语言" style="width: 100%">
+            <el-form-item
+              label="内部语言"
+              prop="internal_language"
+            >
+              <el-select
+                v-model="form.internal_language"
+                placeholder="请选择内部语言"
+                style="width: 100%"
+              >
                 <el-option
                   v-for="lang in internalLanguageOptions"
                   :key="lang.value"
@@ -96,12 +172,22 @@
                   :value="lang.value"
                 />
               </el-select>
-              <div class="form-tip">商户维护知识库使用的语言，影响内部工具处理精度。默认中文。</div>
+              <div class="form-tip">
+                商户维护知识库使用的语言，影响内部工具处理精度。默认中文。
+              </div>
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="目标语言" prop="target_language">
-              <el-select v-model="form.target_language" placeholder="请选择目标语言" clearable style="width: 100%">
+            <el-form-item
+              label="目标语言"
+              prop="target_language"
+            >
+              <el-select
+                v-model="form.target_language"
+                placeholder="请选择目标语言"
+                clearable
+                style="width: 100%"
+              >
                 <el-option
                   v-for="lang in targetLanguageOptions"
                   :key="lang.value"
@@ -109,23 +195,38 @@
                   :value="lang.value"
                 />
               </el-select>
-              <div class="form-tip">智能体对外输出语言。空表示跟随内部语言（同语种零开销）。</div>
+              <div class="form-tip">
+                智能体对外输出语言。空表示跟随内部语言（同语种零开销）。
+              </div>
             </el-form-item>
           </el-col>
           <el-col :span="24">
             <el-form-item label="描述">
-              <el-input v-model="form.description" type="textarea" :rows="2" placeholder="智能体用途说明" />
+              <el-input
+                v-model="form.description"
+                type="textarea"
+                :rows="2"
+                placeholder="智能体用途说明"
+              />
             </el-form-item>
           </el-col>
         </el-row>
       </el-card>
 
       
-      <el-card shadow="never" class="section-card">
+      <el-card
+        shadow="never"
+        class="section-card"
+      >
         <template #header>
-          <div class="card-title"><el-icon><UserFilled /></el-icon> 人设配置</div>
+          <div class="card-title">
+            <el-icon><UserFilled /></el-icon> 人设配置
+          </div>
         </template>
-        <el-form-item label="人设描述" prop="persona">
+        <el-form-item
+          label="人设描述"
+          prop="persona"
+        >
           <el-input
             v-model="form.persona"
             type="textarea"
@@ -142,16 +243,29 @@
           />
         </el-form-item>
         <el-form-item label="欢迎语">
-          <el-input v-model="form.greeting" placeholder="会话开始时的欢迎语" />
+          <el-input
+            v-model="form.greeting"
+            placeholder="会话开始时的欢迎语"
+          />
         </el-form-item>
       </el-card>
 
       
-      <el-card shadow="never" class="section-card">
+      <el-card
+        shadow="never"
+        class="section-card"
+      >
         <template #header>
           <div class="card-title">
             <el-icon><Collection /></el-icon> 知识库挂载（树形多选）
-            <el-button link type="primary" size="small" style="margin-left: auto" @click="loadKnowledgeBases" :loading="loadingKB">
+            <el-button
+              link
+              type="primary"
+              size="small"
+              style="margin-left: auto"
+              :loading="loadingKB"
+              @click="loadKnowledgeBases"
+            >
               <el-icon><Refresh /></el-icon> 加载知识库
             </el-button>
           </div>
@@ -243,9 +357,14 @@
       </el-card>
 
       
-      <el-card shadow="never" class="section-card">
+      <el-card
+        shadow="never"
+        class="section-card"
+      >
         <template #header>
-          <div class="card-title"><el-icon><Connection /></el-icon> SOP 挂载</div>
+          <div class="card-title">
+            <el-icon><Connection /></el-icon> SOP 挂载
+          </div>
         </template>
         <el-form-item label="SOP列表">
           <el-select
@@ -267,9 +386,14 @@
       </el-card>
 
       
-      <el-card shadow="never" class="section-card">
+      <el-card
+        shadow="never"
+        class="section-card"
+      >
         <template #header>
-          <div class="card-title"><el-icon><ChatLineSquare /></el-icon> 话术库挂载</div>
+          <div class="card-title">
+            <el-icon><ChatLineSquare /></el-icon> 话术库挂载
+          </div>
         </template>
         <el-form-item label="话术模板">
           <el-select
@@ -291,57 +415,124 @@
       </el-card>
 
       
-      <el-card shadow="never" class="section-card">
+      <el-card
+        shadow="never"
+        class="section-card"
+      >
         <template #header>
-          <div class="card-title"><el-icon><Cpu /></el-icon> LLM 配置</div>
+          <div class="card-title">
+            <el-icon><Cpu /></el-icon> LLM 配置
+          </div>
         </template>
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="LLM模型">
-              <el-select v-model="form.llm_model" style="width: 100%">
-                <el-option label="gpt-4o-mini" value="gpt-4o-mini" />
-                <el-option label="gpt-4o" value="gpt-4o" />
-                <el-option label="gpt-4.1-mini" value="gpt-4.1-mini" />
-                <el-option label="gpt-4.1" value="gpt-4.1" />
-                <el-option label="claude-3-5-sonnet" value="claude-3-5-sonnet" />
-                <el-option label="claude-3-5-haiku" value="claude-3-5-haiku" />
-                <el-option label="deepseek-chat" value="deepseek-chat" />
-                <el-option label="qwen-plus" value="qwen-plus" />
+              <el-select
+                v-model="form.llm_model"
+                style="width: 100%"
+              >
+                <el-option
+                  label="gpt-4o-mini"
+                  value="gpt-4o-mini"
+                />
+                <el-option
+                  label="gpt-4o"
+                  value="gpt-4o"
+                />
+                <el-option
+                  label="gpt-4.1-mini"
+                  value="gpt-4.1-mini"
+                />
+                <el-option
+                  label="gpt-4.1"
+                  value="gpt-4.1"
+                />
+                <el-option
+                  label="claude-3-5-sonnet"
+                  value="claude-3-5-sonnet"
+                />
+                <el-option
+                  label="claude-3-5-haiku"
+                  value="claude-3-5-haiku"
+                />
+                <el-option
+                  label="deepseek-chat"
+                  value="deepseek-chat"
+                />
+                <el-option
+                  label="qwen-plus"
+                  value="qwen-plus"
+                />
               </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="最大Token">
-              <el-input-number v-model="form.max_tokens" :min="100" :max="8192" :step="100" style="width: 100%" />
+              <el-input-number
+                v-model="form.max_tokens"
+                :min="100"
+                :max="8192"
+                :step="100"
+                style="width: 100%"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="温度">
-              <el-slider v-model="form.temperature" :min="0" :max="2" :step="0.1" show-input />
+              <el-slider
+                v-model="form.temperature"
+                :min="0"
+                :max="2"
+                :step="0.1"
+                show-input
+              />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="Top P">
-              <el-slider v-model="form.top_p" :min="0" :max="1" :step="0.05" show-input />
+              <el-slider
+                v-model="form.top_p"
+                :min="0"
+                :max="1"
+                :step="0.05"
+                show-input
+              />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="频率惩罚">
-              <el-slider v-model="form.frequency_penalty" :min="-2" :max="2" :step="0.1" show-input />
+              <el-slider
+                v-model="form.frequency_penalty"
+                :min="-2"
+                :max="2"
+                :step="0.1"
+                show-input
+              />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="存在惩罚">
-              <el-slider v-model="form.presence_penalty" :min="-2" :max="2" :step="0.1" show-input />
+              <el-slider
+                v-model="form.presence_penalty"
+                :min="-2"
+                :max="2"
+                :step="0.1"
+                show-input
+              />
             </el-form-item>
           </el-col>
         </el-row>
       </el-card>
 
       
-      <el-card shadow="never" class="section-card">
+      <el-card
+        shadow="never"
+        class="section-card"
+      >
         <template #header>
-          <div class="card-title"><el-icon><Open /></el-icon> 销售引擎开关</div>
+          <div class="card-title">
+            <el-icon><Open /></el-icon> 销售引擎开关
+          </div>
         </template>
         <el-row :gutter="20">
           <el-col :span="8">
@@ -373,24 +564,47 @@
       </el-card>
 
       
-      <el-card shadow="never" class="section-card">
+      <el-card
+        shadow="never"
+        class="section-card"
+      >
         <template #header>
-          <div class="card-title"><el-icon><Setting /></el-icon> 高级参数</div>
+          <div class="card-title">
+            <el-icon><Setting /></el-icon> 高级参数
+          </div>
         </template>
         <el-row :gutter="20">
           <el-col :span="8">
             <el-form-item label="RAG TopK">
-              <el-input-number v-model="form.rag_top_k" :min="1" :max="20" :step="1" style="width: 100%" />
+              <el-input-number
+                v-model="form.rag_top_k"
+                :min="1"
+                :max="20"
+                :step="1"
+                style="width: 100%"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="8">
             <el-form-item label="置信度阈值">
-              <el-slider v-model="form.confidence_threshold" :min="0" :max="1" :step="0.05" show-input />
+              <el-slider
+                v-model="form.confidence_threshold"
+                :min="0"
+                :max="1"
+                :step="0.05"
+                show-input
+              />
             </el-form-item>
           </el-col>
           <el-col :span="8">
             <el-form-item label="AI连续回复上限">
-              <el-input-number v-model="form.max_ai_consecutive" :min="1" :max="50" :step="1" style="width: 100%" />
+              <el-input-number
+                v-model="form.max_ai_consecutive"
+                :min="1"
+                :max="50"
+                :step="1"
+                style="width: 100%"
+              />
             </el-form-item>
           </el-col>
         </el-row>
@@ -398,8 +612,14 @@
 
       
       <div class="footer-actions">
-        <el-button @click="goBack">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="onSave">
+        <el-button @click="goBack">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="onSave"
+        >
           <el-icon><Check /></el-icon>
           {{ isEdit ? '保存更新' : '创建智能体' }}
         </el-button>
@@ -407,15 +627,32 @@
     </el-form>
 
     
-    <el-dialog v-model="testDialogVisible" title="测试智能体" width="760px" top="6vh">
-      <el-form :model="testForm" label-width="90px">
+    <el-dialog
+      v-model="testDialogVisible"
+      title="测试智能体"
+      width="760px"
+      top="6vh"
+    >
+      <el-form
+        :model="testForm"
+        label-width="90px"
+      >
         <el-form-item label="智能体">
-          <el-input :model-value="form.name || form.agent_code" disabled />
+          <el-input
+            :model-value="form.name || form.agent_code"
+            disabled
+          />
         </el-form-item>
         <el-form-item label="客户ID">
-          <el-input v-model="testForm.customer_id" placeholder="请输入客户ID（可选）" />
+          <el-input
+            v-model="testForm.customer_id"
+            placeholder="请输入客户ID（可选）"
+          />
         </el-form-item>
-        <el-form-item label="消息内容" required>
+        <el-form-item
+          label="消息内容"
+          required
+        >
           <el-input
             v-model="testForm.message"
             type="textarea"
@@ -424,53 +661,131 @@
           />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" :loading="testing" @click="runTest">
+          <el-button
+            type="primary"
+            :loading="testing"
+            @click="runTest"
+          >
             <el-icon><VideoPlay /></el-icon>
             执行测试
           </el-button>
-          <el-button @click="testResult = null">清空结果</el-button>
+          <el-button @click="testResult = null">
+            清空结果
+          </el-button>
         </el-form-item>
       </el-form>
 
       <template v-if="testResult">
-        <el-divider content-position="left">测试结果</el-divider>
-        <el-descriptions :column="2" border size="small">
-          <el-descriptions-item label="回复内容" :span="2">
-            <div class="reply-box">{{ testResult.reply || '-' }}</div>
+        <el-divider content-position="left">
+          测试结果
+        </el-divider>
+        <el-descriptions
+          :column="2"
+          border
+          size="small"
+        >
+          <el-descriptions-item
+            label="回复内容"
+            :span="2"
+          >
+            <div class="reply-box">
+              {{ testResult.reply || '-' }}
+            </div>
           </el-descriptions-item>
-          <el-descriptions-item label="LLM模型">{{ testResult.llm_model || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="耗时(ms)">{{ testResult.latency_ms || 0 }}</el-descriptions-item>
-          <el-descriptions-item label="消耗Token">{{ testResult.cost_tokens || 0 }}</el-descriptions-item>
+          <el-descriptions-item label="LLM模型">
+            {{ testResult.llm_model || '-' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="耗时(ms)">
+            {{ testResult.latency_ms || 0 }}
+          </el-descriptions-item>
+          <el-descriptions-item label="消耗Token">
+            {{ testResult.cost_tokens || 0 }}
+          </el-descriptions-item>
           <el-descriptions-item label="是否转人工">
-            <el-tag :type="testResult.transferred_to_human ? 'warning' : 'success'" size="small">
+            <el-tag
+              :type="testResult.transferred_to_human ? 'warning' : 'success'"
+              size="small"
+            >
               {{ testResult.transferred_to_human ? '是' : '否' }}
             </el-tag>
-            <span v-if="testResult.transfer_reason" class="transfer-reason">（{{ testResult.transfer_reason }}）</span>
+            <span
+              v-if="testResult.transfer_reason"
+              class="transfer-reason"
+            >（{{ testResult.transfer_reason }}）</span>
           </el-descriptions-item>
         </el-descriptions>
 
-        <div class="chain-title">9步链路日志</div>
-        <el-table :data="testResult.steps || []" stripe size="small" border>
-          <el-table-column type="index" label="#" width="50" align="center" />
-          <el-table-column prop="step" label="步骤" min-width="160" show-overflow-tooltip />
-          <el-table-column label="状态" width="90" align="center">
+        <div class="chain-title">
+          9步链路日志
+        </div>
+        <el-table
+          :data="testResult.steps || []"
+          stripe
+          size="small"
+          border
+        >
+          <el-table-column
+            type="index"
+            label="#"
+            width="50"
+            align="center"
+          />
+          <el-table-column
+            prop="step"
+            label="步骤"
+            min-width="160"
+            show-overflow-tooltip
+          />
+          <el-table-column
+            label="状态"
+            width="90"
+            align="center"
+          >
             <template #default="{ row }">
-              <el-tag :type="getStepStatusType(row.status)" size="small">{{ row.status || '-' }}</el-tag>
+              <el-tag
+                :type="getStepStatusType(row.status)"
+                size="small"
+              >
+                {{ row.status || '-' }}
+              </el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="耗时(ms)" width="100" align="center">
-            <template #default="{ row }">{{ row.latency_ms || 0 }}</template>
-          </el-table-column>
-          <el-table-column prop="detail" label="详情" min-width="200" show-overflow-tooltip />
-          <el-table-column prop="error" label="错误" min-width="160" show-overflow-tooltip>
+          <el-table-column
+            label="耗时(ms)"
+            width="100"
+            align="center"
+          >
             <template #default="{ row }">
-              <span v-if="row.error" class="error-text">{{ row.error }}</span>
+              {{ row.latency_ms || 0 }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            prop="detail"
+            label="详情"
+            min-width="200"
+            show-overflow-tooltip
+          />
+          <el-table-column
+            prop="error"
+            label="错误"
+            min-width="160"
+            show-overflow-tooltip
+          >
+            <template #default="{ row }">
+              <span
+                v-if="row.error"
+                class="error-text"
+              >{{ row.error }}</span>
               <span v-else>-</span>
             </template>
           </el-table-column>
         </el-table>
       </template>
-      <el-empty v-else-if="!testing" description="执行测试后显示结果" :image-size="80" />
+      <el-empty
+        v-else-if="!testing"
+        description="执行测试后显示结果"
+        :image-size="80"
+      />
     </el-dialog>
   </div>
 </template>

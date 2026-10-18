@@ -13,12 +13,30 @@
               end-placeholder="结束日期"
               @change="handleDateChange"
             />
-            <el-select v-model="groupBy" :placeholder="$t('分组方式')" @change="handleGroupByChange">
-              <el-option :label="$t('按天')" value="day" />
-              <el-option :label="$t('按周')" value="week" />
-              <el-option :label="$t('按月')" value="month" />
+            <el-select
+              v-model="groupBy"
+              :placeholder="$t('分组方式')"
+              @change="handleGroupByChange"
+            >
+              <el-option
+                :label="$t('按天')"
+                value="day"
+              />
+              <el-option
+                :label="$t('按周')"
+                value="week"
+              />
+              <el-option
+                :label="$t('按月')"
+                value="month"
+              />
             </el-select>
-            <el-button type="primary" @click="refreshData">{{ $t('刷新') }}</el-button>
+            <el-button
+              type="primary"
+              @click="refreshData"
+            >
+              {{ $t('刷新') }}
+            </el-button>
           </div>
         </div>
       </template>
@@ -29,32 +47,48 @@
           <el-col :span="6">
             <el-card class="stats-card">
               <div class="stats-item">
-                <div class="stats-value">{{ overallStats.total_cards || 0 }}</div>
-                <div class="stats-label">总卡片数</div>
+                <div class="stats-value">
+                  {{ overallStats.total_cards || 0 }}
+                </div>
+                <div class="stats-label">
+                  总卡片数
+                </div>
               </div>
             </el-card>
           </el-col>
           <el-col :span="6">
             <el-card class="stats-card">
               <div class="stats-item">
-                <div class="stats-value">{{ overallStats.active_cards || 0 }}</div>
-                <div class="stats-label">激活卡片数</div>
+                <div class="stats-value">
+                  {{ overallStats.active_cards || 0 }}
+                </div>
+                <div class="stats-label">
+                  激活卡片数
+                </div>
               </div>
             </el-card>
           </el-col>
           <el-col :span="6">
             <el-card class="stats-card">
               <div class="stats-item">
-                <div class="stats-value">{{ formatNumber(overallStats.total_views) }}</div>
-                <div class="stats-label">总浏览量</div>
+                <div class="stats-value">
+                  {{ formatNumber(overallStats.total_views) }}
+                </div>
+                <div class="stats-label">
+                  总浏览量
+                </div>
               </div>
             </el-card>
           </el-col>
           <el-col :span="6">
             <el-card class="stats-card">
               <div class="stats-item">
-                <div class="stats-value">{{ formatNumber(overallStats.total_clicks) }}</div>
-                <div class="stats-label">总点击量</div>
+                <div class="stats-value">
+                  {{ formatNumber(overallStats.total_clicks) }}
+                </div>
+                <div class="stats-label">
+                  总点击量
+                </div>
               </div>
             </el-card>
           </el-col>
@@ -66,14 +100,24 @@
         <el-row :gutter="20">
           <el-col :span="12">
             <el-card>
-              <div class="chart-title">浏览量趋势</div>
-              <div ref="viewsChart" class="chart"></div>
+              <div class="chart-title">
+                浏览量趋势
+              </div>
+              <div
+                ref="viewsChart"
+                class="chart"
+              />
             </el-card>
           </el-col>
           <el-col :span="12">
             <el-card>
-              <div class="chart-title">点击量趋势</div>
-              <div ref="clicksChart" class="chart"></div>
+              <div class="chart-title">
+                点击量趋势
+              </div>
+              <div
+                ref="clicksChart"
+                class="chart"
+              />
             </el-card>
           </el-col>
         </el-row>
@@ -82,19 +126,50 @@
       
       <div class="ranking-container">
         <el-card>
-          <div class="card-title">热门卡片排行</div>
-          <el-table :data="cardRanking" style="width: 100%" v-loading="loading">
-            <el-table-column prop="title" label="卡片标题" show-overflow-tooltip />
-            <el-table-column prop="view_count" label="浏览量" width="100" />
-            <el-table-column prop="click_count" label="点击量" width="100" />
-            <el-table-column prop="click_rate" label="点击率" width="100">
+          <div class="card-title">
+            热门卡片排行
+          </div>
+          <el-table
+            v-loading="loading"
+            :data="cardRanking"
+            style="width: 100%"
+          >
+            <el-table-column
+              prop="title"
+              label="卡片标题"
+              show-overflow-tooltip
+            />
+            <el-table-column
+              prop="view_count"
+              label="浏览量"
+              width="100"
+            />
+            <el-table-column
+              prop="click_count"
+              label="点击量"
+              width="100"
+            />
+            <el-table-column
+              prop="click_rate"
+              label="点击率"
+              width="100"
+            >
               <template #default="scope">
                 {{ formatPercent(scope.row.click_rate) }}
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="100">
+            <el-table-column
+              label="操作"
+              width="100"
+            >
               <template #default="scope">
-                <el-button size="small" type="primary" @click="viewCardDetails(scope.row)">详情</el-button>
+                <el-button
+                  size="small"
+                  type="primary"
+                  @click="viewCardDetails(scope.row)"
+                >
+                  详情
+                </el-button>
               </template>
             </el-table-column>
           </el-table>

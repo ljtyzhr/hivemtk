@@ -4,60 +4,132 @@
       <template #header>
         <div class="card-header">
           <span>{{ $t('服务器监控') }}</span>
-          <el-button type="primary" @click="refresh">{{ $t('刷新') }}</el-button>
+          <el-button
+            type="primary"
+            @click="refresh"
+          >
+            {{ $t('刷新') }}
+          </el-button>
         </div>
       </template>
 
       <el-row :gutter="16">
-        <el-col :md="6" :sm="12" :xs="24">
+        <el-col
+          :md="6"
+          :sm="12"
+          :xs="24"
+        >
           <el-card class="metric-card">
-            <div class="metric-title">CPU使用率</div>
-            <div class="metric-value">{{ formatFloat(metrics.cpu_usage) }}%</div>
+            <div class="metric-title">
+              CPU使用率
+            </div>
+            <div class="metric-value">
+              {{ formatFloat(metrics.cpu_usage) }}%
+            </div>
           </el-card>
         </el-col>
-        <el-col :md="6" :sm="12" :xs="24">
+        <el-col
+          :md="6"
+          :sm="12"
+          :xs="24"
+        >
           <el-card class="metric-card">
-            <div class="metric-title">内存使用率</div>
-            <div class="metric-value">{{ formatFloat(metrics.memory_usage) }}%</div>
+            <div class="metric-title">
+              内存使用率
+            </div>
+            <div class="metric-value">
+              {{ formatFloat(metrics.memory_usage) }}%
+            </div>
           </el-card>
         </el-col>
-        <el-col :md="6" :sm="12" :xs="24">
+        <el-col
+          :md="6"
+          :sm="12"
+          :xs="24"
+        >
           <el-card class="metric-card">
-            <div class="metric-title">磁盘使用率</div>
-            <div class="metric-value">{{ formatFloat(metrics.disk_usage) }}%</div>
+            <div class="metric-title">
+              磁盘使用率
+            </div>
+            <div class="metric-value">
+              {{ formatFloat(metrics.disk_usage) }}%
+            </div>
           </el-card>
         </el-col>
-        <el-col :md="6" :sm="12" :xs="24">
+        <el-col
+          :md="6"
+          :sm="12"
+          :xs="24"
+        >
           <el-card class="metric-card">
-            <div class="metric-title">网络速度</div>
-            <div class="metric-value">{{ formatFloat(metrics.network_speed) }} Mbps</div>
+            <div class="metric-title">
+              网络速度
+            </div>
+            <div class="metric-value">
+              {{ formatFloat(metrics.network_speed) }} Mbps
+            </div>
           </el-card>
         </el-col>
       </el-row>
 
-      <el-row :gutter="16" style="margin-top: 16px">
-        <el-col :md="6" :sm="12" :xs="24">
+      <el-row
+        :gutter="16"
+        style="margin-top: 16px"
+      >
+        <el-col
+          :md="6"
+          :sm="12"
+          :xs="24"
+        >
           <el-card class="metric-card">
-            <div class="metric-title">运行时间</div>
-            <div class="metric-value">{{ formatUptime(metrics.uptime) }}</div>
+            <div class="metric-title">
+              运行时间
+            </div>
+            <div class="metric-value">
+              {{ formatUptime(metrics.uptime) }}
+            </div>
           </el-card>
         </el-col>
-        <el-col :md="6" :sm="12" :xs="24">
+        <el-col
+          :md="6"
+          :sm="12"
+          :xs="24"
+        >
           <el-card class="metric-card">
-            <div class="metric-title">服务器时间</div>
-            <div class="metric-value">{{ metrics.server_time }}</div>
+            <div class="metric-title">
+              服务器时间
+            </div>
+            <div class="metric-value">
+              {{ metrics.server_time }}
+            </div>
           </el-card>
         </el-col>
-        <el-col :md="6" :sm="12" :xs="24">
+        <el-col
+          :md="6"
+          :sm="12"
+          :xs="24"
+        >
           <el-card class="metric-card">
-            <div class="metric-title">主机名</div>
-            <div class="metric-value">{{ metrics.hostname }}</div>
+            <div class="metric-title">
+              主机名
+            </div>
+            <div class="metric-value">
+              {{ metrics.hostname }}
+            </div>
           </el-card>
         </el-col>
-        <el-col :md="6" :sm="12" :xs="24">
+        <el-col
+          :md="6"
+          :sm="12"
+          :xs="24"
+        >
           <el-card class="metric-card">
-            <div class="metric-title">Go版本</div>
-            <div class="metric-value">{{ metrics.go_version }}</div>
+            <div class="metric-title">
+              Go版本
+            </div>
+            <div class="metric-value">
+              {{ metrics.go_version }}
+            </div>
           </el-card>
         </el-col>
       </el-row>

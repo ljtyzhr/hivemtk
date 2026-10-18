@@ -3,14 +3,21 @@
     <el-card class="header-card">
       <div class="header-content">
         <h2>LLM 多模型路由</h2>
-        <p class="subtitle">管理多模型接入、场景路由（含灰度）、Fallback 策略与成本统计</p>
+        <p class="subtitle">
+          管理多模型接入、场景路由（含灰度）、Fallback 策略与成本统计
+        </p>
       </div>
       <div class="header-actions">
-        <el-button type="primary" @click="showModelDialog()">
+        <el-button
+          type="primary"
+          @click="showModelDialog()"
+        >
           <el-icon><Plus /></el-icon>
           新增模型
         </el-button>
-        <el-button @click="$router.push('/llmRouting/cost')">成本看板</el-button>
+        <el-button @click="$router.push('/llmRouting/cost')">
+          成本看板
+        </el-button>
         <el-button @click="refreshAll">
           <el-icon><Refresh /></el-icon>
           刷新
@@ -18,46 +25,97 @@
       </div>
     </el-card>
 
-    <el-tabs v-model="activeTab" class="content-tabs">
-      
-      <el-tab-pane label="模型列表" name="models">
-        <el-table :data="models" v-loading="loading.models" stripe>
+    <el-tabs
+      v-model="activeTab"
+      class="content-tabs"
+    >
+      <el-tab-pane
+        label="模型列表"
+        name="models"
+      >
+        <el-table
+          v-loading="loading.models"
+          :data="models"
+          stripe
+        >
           <template #empty>
             <el-empty description="暂无模型数据，请新增模型或检查后端接口" />
           </template>
-          <el-table-column prop="name" label="模型名称" min-width="140" />
+          <el-table-column
+            prop="name"
+            label="模型名称"
+            min-width="140"
+          />
           <!-- 来源列是需求五的核心区分：自带 Key 不计费、平台垫资按 token 计费。
                没有这一列用户只能靠猜"这个模型要不要花钱"。 -->
-          <el-table-column label="来源" width="130">
+          <el-table-column
+            label="来源"
+            width="130"
+          >
             <template #default="{ row }">
-              <el-tag size="small" :type="row.source === 'platform' ? 'warning' : 'success'">
+              <el-tag
+                size="small"
+                :type="row.source === 'platform' ? 'warning' : 'success'"
+              >
                 {{ row.source === 'platform' ? '平台垫资' : '自带 Key' }}
               </el-tag>
-              <el-tag v-if="row.source === 'platform' && row.source_available === false"
-                      size="small" type="danger" effect="plain" class="ml-4">
+              <el-tag
+                v-if="row.source === 'platform' && row.source_available === false"
+                size="small"
+                type="danger"
+                effect="plain"
+                class="ml-4"
+              >
                 平台未连接
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="vendor" label="厂商" width="110">
+          <el-table-column
+            prop="vendor"
+            label="厂商"
+            width="110"
+          >
             <template #default="{ row }">
-              <el-tag size="small" :type="row.vendor === 'local' ? 'success' : 'info'">
+              <el-tag
+                size="small"
+                :type="row.vendor === 'local' ? 'success' : 'info'"
+              >
                 {{ vendorLabel(row.vendor) }}
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="model" label="模型标识" min-width="160" show-overflow-tooltip />
-          <el-table-column label="状态" width="90">
+          <el-table-column
+            prop="model"
+            label="模型标识"
+            min-width="160"
+            show-overflow-tooltip
+          />
+          <el-table-column
+            label="状态"
+            width="90"
+          >
             <template #default="{ row }">
-              <el-tag :type="row.enabled ? 'success' : 'info'" size="small">
+              <el-tag
+                :type="row.enabled ? 'success' : 'info'"
+                size="small"
+              >
                 {{ row.enabled ? '启用' : '禁用' }}
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="max_rpm" label="限流(RPM)" width="110" align="center" />
+          <el-table-column
+            prop="max_rpm"
+            label="限流(RPM)"
+            width="110"
+            align="center"
+          />
           <!-- 成本列分列显示：输入与输出单价本就不同，合成一列会让人
                以为「成本」是一个与 token 无关的定值。 -->
-          <el-table-column label="成本(¥/1k)" width="170" align="center">
+          <el-table-column
+            label="成本(¥/1k)"
+            width="170"
+            align="center"
+          >
             <template #default="{ row }">
               <template v-if="row.separate_pricing">
                 <div :class="row.cost_per_1k_input > 0 ? 'cost-paid' : 'cost-free'">
@@ -67,69 +125,177 @@
                   输出 {{ row.cost_per_1k_output.toFixed(4) }}
                 </div>
               </template>
-              <span v-else :class="row.cost_per_1k > 0 ? 'cost-paid' : 'cost-free'">
+              <span
+                v-else
+                :class="row.cost_per_1k > 0 ? 'cost-paid' : 'cost-free'"
+              >
                 {{ row.cost_per_1k > 0 ? row.cost_per_1k.toFixed(4) : '免费' }}
               </span>
             </template>
           </el-table-column>
-          <el-table-column prop="base_url" label="接入地址" min-width="200" show-overflow-tooltip />
-          <el-table-column label="API Key" width="90">
+          <el-table-column
+            prop="base_url"
+            label="接入地址"
+            min-width="200"
+            show-overflow-tooltip
+          />
+          <el-table-column
+            label="API Key"
+            width="90"
+          >
             <template #default="{ row }">
-              <el-tag v-if="row.api_key_set" type="success" size="small">已设置</el-tag>
-              <el-tag v-else type="info" size="small">未设置</el-tag>
+              <el-tag
+                v-if="row.api_key_set"
+                type="success"
+                size="small"
+              >
+                已设置
+              </el-tag>
+              <el-tag
+                v-else
+                type="info"
+                size="small"
+              >
+                未设置
+              </el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="FC 能力" width="80">
+          <el-table-column
+            label="FC 能力"
+            width="80"
+          >
             <template #default="{ row }">
-              <el-tag v-if="row.no_fc" type="warning" size="small">NoFC</el-tag>
-              <el-tag v-else type="success" size="small">支持</el-tag>
+              <el-tag
+                v-if="row.no_fc"
+                type="warning"
+                size="small"
+              >
+                NoFC
+              </el-tag>
+              <el-tag
+                v-else
+                type="success"
+                size="small"
+              >
+                支持
+              </el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="操作" width="260" fixed="right">
+          <el-table-column
+            label="操作"
+            width="260"
+            fixed="right"
+          >
             <template #default="{ row }">
-              <el-button link type="primary" @click="testModel(row)">测试</el-button>
-              <el-button link type="primary" @click="toggleStatus(row)">
+              <el-button
+                link
+                type="primary"
+                @click="testModel(row)"
+              >
+                测试
+              </el-button>
+              <el-button
+                link
+                type="primary"
+                @click="toggleStatus(row)"
+              >
                 {{ row.enabled ? '禁用' : '启用' }}
               </el-button>
-              <el-button link type="primary" @click="showModelDialog(row)">编辑</el-button>
-              <el-button link type="danger" @click="deleteModel(row)">删除</el-button>
+              <el-button
+                link
+                type="primary"
+                @click="showModelDialog(row)"
+              >
+                编辑
+              </el-button>
+              <el-button
+                link
+                type="danger"
+                @click="deleteModel(row)"
+              >
+                删除
+              </el-button>
             </template>
           </el-table-column>
         </el-table>
       </el-tab-pane>
 
       
-      <el-tab-pane label="场景路由配置" name="routing">
+      <el-tab-pane
+        label="场景路由配置"
+        name="routing"
+      >
         <el-card>
           <template #header>
             <div class="card-header">
               <span>场景 → 模型路由（含灰度发布与版本号）</span>
               <div>
-                <el-button size="small" @click="loadRouting">
+                <el-button
+                  size="small"
+                  @click="loadRouting"
+                >
                   <el-icon><Refresh /></el-icon> 刷新
                 </el-button>
-                <el-button type="primary" size="small" @click="addRoutingRow">
+                <el-button
+                  type="primary"
+                  size="small"
+                  @click="addRoutingRow"
+                >
                   <el-icon><Plus /></el-icon> 新增映射
                 </el-button>
               </div>
             </div>
           </template>
-          <el-table :data="sceneRouting" v-loading="loading.routing" stripe>
+          <el-table
+            v-loading="loading.routing"
+            :data="sceneRouting"
+            stripe
+          >
             <template #empty>
               <el-empty description="暂无路由配置" />
             </template>
-            <el-table-column prop="scenario" label="场景" min-width="160" />
-            <el-table-column prop="provider" label="首选 Provider" min-width="140" />
-            <el-table-column label="Fallback 链" min-width="200">
+            <el-table-column
+              prop="scenario"
+              label="场景"
+              min-width="160"
+            />
+            <el-table-column
+              prop="provider"
+              label="首选 Provider"
+              min-width="140"
+            />
+            <el-table-column
+              label="Fallback 链"
+              min-width="200"
+            >
               <template #default="{ row }">
-                <el-tag v-for="fb in (row.fallbacks || [])" :key="fb" size="small" type="info" style="margin-right: 4px">
+                <el-tag
+                  v-for="fb in (row.fallbacks || [])"
+                  :key="fb"
+                  size="small"
+                  type="info"
+                  style="margin-right: 4px"
+                >
                   {{ fb }}
                 </el-tag>
-                <span v-if="!row.fallbacks?.length" class="text-muted">-</span>
+                <span
+                  v-if="!row.fallbacks?.length"
+                  class="text-muted"
+                >-</span>
               </template>
             </el-table-column>
-            <el-table-column prop="version" label="版本" width="80" align="center" />
-            <el-table-column prop="weight" label="灰度权重(%)" width="110" align="center">
+            <el-table-column
+              prop="version"
+              label="版本"
+              width="80"
+              align="center"
+            />
+            <el-table-column
+              prop="weight"
+              label="灰度权重(%)"
+              width="110"
+              align="center"
+            >
               <template #default="{ row }">
                 <el-progress
                   v-if="row.weight > 0 && row.weight < 100"
@@ -137,16 +303,51 @@
                   :stroke-width="10"
                   :color="canaryColors"
                 />
-                <el-tag v-else-if="row.weight === 100" type="warning" size="small">全量灰度</el-tag>
-                <span v-else class="text-muted">-</span>
+                <el-tag
+                  v-else-if="row.weight === 100"
+                  type="warning"
+                  size="small"
+                >
+                  全量灰度
+                </el-tag>
+                <span
+                  v-else
+                  class="text-muted"
+                >-</span>
               </template>
             </el-table-column>
-            <el-table-column prop="min_quality" label="最低质量" width="100" align="center" />
-            <el-table-column prop="max_latency" label="最大时延(ms)" width="120" align="center" />
-            <el-table-column label="操作" width="160" fixed="right">
+            <el-table-column
+              prop="min_quality"
+              label="最低质量"
+              width="100"
+              align="center"
+            />
+            <el-table-column
+              prop="max_latency"
+              label="最大时延(ms)"
+              width="120"
+              align="center"
+            />
+            <el-table-column
+              label="操作"
+              width="160"
+              fixed="right"
+            >
               <template #default="{ row, $index }">
-                <el-button link type="primary" @click="editRoutingRow(row, $index)">编辑</el-button>
-                <el-button link type="danger" @click="removeRoutingRow($index)">删除</el-button>
+                <el-button
+                  link
+                  type="primary"
+                  @click="editRoutingRow(row, $index)"
+                >
+                  编辑
+                </el-button>
+                <el-button
+                  link
+                  type="danger"
+                  @click="removeRoutingRow($index)"
+                >
+                  删除
+                </el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -154,59 +355,127 @@
       </el-tab-pane>
 
       
-      <el-tab-pane label="Fallback 策略" name="fallback">
+      <el-tab-pane
+        label="Fallback 策略"
+        name="fallback"
+      >
         <el-card v-loading="loading.fallback">
-          <template #header><span>当前生效的 Fallback 降级链（按场景）</span></template>
-          <el-table :data="fallbackRows" stripe>
+          <template #header>
+            <span>当前生效的 Fallback 降级链（按场景）</span>
+          </template>
+          <el-table
+            :data="fallbackRows"
+            stripe
+          >
             <template #empty>
               <el-empty description="暂无 Fallback 配置，请先配置场景路由" />
             </template>
-            <el-table-column prop="scenario" label="场景" min-width="160" />
-            <el-table-column label="主 Provider" min-width="140">
+            <el-table-column
+              prop="scenario"
+              label="场景"
+              min-width="160"
+            />
+            <el-table-column
+              label="主 Provider"
+              min-width="140"
+            >
               <template #default="{ row }">
-                <el-tag type="primary" size="small">{{ row.provider }}</el-tag>
+                <el-tag
+                  type="primary"
+                  size="small"
+                >
+                  {{ row.provider }}
+                </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="Fallback 链（按顺序）" min-width="300">
+            <el-table-column
+              label="Fallback 链（按顺序）"
+              min-width="300"
+            >
               <template #default="{ row }">
                 <template v-if="row.fallbacks?.length">
-                  <el-tag v-for="(fb, i) in row.fallbacks" :key="fb" size="small" type="info" style="margin-right: 4px">
+                  <el-tag
+                    v-for="(fb, i) in row.fallbacks"
+                    :key="fb"
+                    size="small"
+                    type="info"
+                    style="margin-right: 4px"
+                  >
                     {{ i + 1 }}. {{ fb }}
                   </el-tag>
                 </template>
-                <span v-else class="text-muted">无降级</span>
+                <span
+                  v-else
+                  class="text-muted"
+                >无降级</span>
               </template>
             </el-table-column>
-            <el-table-column prop="version" label="版本" width="80" align="center" />
+            <el-table-column
+              prop="version"
+              label="版本"
+              width="80"
+              align="center"
+            />
           </el-table>
         </el-card>
       </el-tab-pane>
 
       
-      <el-tab-pane label="成本统计" name="cost">
-        <el-row :gutter="20" class="stat-row">
+      <el-tab-pane
+        label="成本统计"
+        name="cost"
+      >
+        <el-row
+          :gutter="20"
+          class="stat-row"
+        >
           <el-col :span="6">
             <el-card class="stat-card">
-              <div class="stat-label">总调用次数</div>
-              <div class="stat-value">{{ costStats.total_calls || 0 }}</div>
+              <div class="stat-label">
+                总调用次数
+              </div>
+              <div class="stat-value">
+                {{ costStats.total_calls || 0 }}
+              </div>
             </el-card>
           </el-col>
           <el-col :span="6">
             <el-card class="stat-card">
-              <div class="stat-label">总 Token 数</div>
-              <div class="stat-value" style="color: #4F46E5">{{ formatNumber(costStats.total_tokens) }}</div>
+              <div class="stat-label">
+                总 Token 数
+              </div>
+              <div
+                class="stat-value"
+                style="color: #4F46E5"
+              >
+                {{ formatNumber(costStats.total_tokens) }}
+              </div>
             </el-card>
           </el-col>
           <el-col :span="6">
             <el-card class="stat-card">
-              <div class="stat-label">总成本(¥)</div>
-              <div class="stat-value" style="color: #EF4444">{{ (costStats.monthly_cost || 0).toFixed(4) }}</div>
+              <div class="stat-label">
+                总成本(¥)
+              </div>
+              <div
+                class="stat-value"
+                style="color: #EF4444"
+              >
+                {{ (costStats.monthly_cost || 0).toFixed(4) }}
+              </div>
             </el-card>
           </el-col>
           <el-col :span="6">
             <el-card class="stat-card">
-              <div class="stat-label">启用的模型</div>
-              <div class="stat-value" style="color: #F59E0B">{{ costStats.enabled_models || 0 }} / {{ costStats.active_models || 0 }}</div>
+              <div class="stat-label">
+                启用的模型
+              </div>
+              <div
+                class="stat-value"
+                style="color: #F59E0B"
+              >
+                {{ costStats.enabled_models || 0 }} / {{ costStats.active_models || 0 }}
+              </div>
             </el-card>
           </el-col>
         </el-row>
@@ -214,23 +483,66 @@
           <template #header>
             <div class="card-header">
               <span>各 Provider 用量明细</span>
-              <el-radio-group v-model="costWindow" size="small" @change="loadCost">
-                <el-radio-button label="today">今日</el-radio-button>
-                <el-radio-button label="week">近 7 天</el-radio-button>
-                <el-radio-button label="month">近 30 天</el-radio-button>
-                <el-radio-button label="all">全部</el-radio-button>
+              <el-radio-group
+                v-model="costWindow"
+                size="small"
+                @change="loadCost"
+              >
+                <el-radio-button label="today">
+                  今日
+                </el-radio-button>
+                <el-radio-button label="week">
+                  近 7 天
+                </el-radio-button>
+                <el-radio-button label="month">
+                  近 30 天
+                </el-radio-button>
+                <el-radio-button label="all">
+                  全部
+                </el-radio-button>
               </el-radio-group>
             </div>
           </template>
-          <el-table :data="costStats.by_provider || []" v-loading="loading.cost" stripe>
-            <template #empty><el-empty description="暂无成本数据" /></template>
-            <el-table-column prop="provider" label="Provider" min-width="140" />
-            <el-table-column prop="call_count" label="调用次数" width="120" align="center" />
-            <el-table-column prop="total_tokens" label="Token 用量" width="140" align="center" />
-            <el-table-column prop="total_cost" label="成本(¥)" width="120" align="center">
-              <template #default="{ row }">{{ (row.total_cost || 0).toFixed(4) }}</template>
+          <el-table
+            v-loading="loading.cost"
+            :data="costStats.by_provider || []"
+            stripe
+          >
+            <template #empty>
+              <el-empty description="暂无成本数据" />
+            </template>
+            <el-table-column
+              prop="provider"
+              label="Provider"
+              min-width="140"
+            />
+            <el-table-column
+              prop="call_count"
+              label="调用次数"
+              width="120"
+              align="center"
+            />
+            <el-table-column
+              prop="total_tokens"
+              label="Token 用量"
+              width="140"
+              align="center"
+            />
+            <el-table-column
+              prop="total_cost"
+              label="成本(¥)"
+              width="120"
+              align="center"
+            >
+              <template #default="{ row }">
+                {{ (row.total_cost || 0).toFixed(4) }}
+              </template>
             </el-table-column>
-            <el-table-column label="占比" width="200" align="center">
+            <el-table-column
+              label="占比"
+              width="200"
+              align="center"
+            >
               <template #default="{ row }">
                 <el-progress
                   :percentage="calcRatio(row.total_cost)"
@@ -241,98 +553,231 @@
           </el-table>
         </el-card>
         <el-card style="margin-top: 20px">
-          <template #header><span>按场景用量</span></template>
-          <el-table :data="costStats.by_scenario || []" stripe>
-            <template #empty><el-empty description="暂无场景数据" /></template>
-            <el-table-column prop="scenario" label="场景" min-width="160" />
-            <el-table-column prop="call_count" label="调用次数" width="120" align="center" />
-            <el-table-column prop="total_tokens" label="Token 用量" width="140" align="center" />
-            <el-table-column prop="total_cost" label="成本(¥)" width="120" align="center">
-              <template #default="{ row }">{{ (row.total_cost || 0).toFixed(4) }}</template>
+          <template #header>
+            <span>按场景用量</span>
+          </template>
+          <el-table
+            :data="costStats.by_scenario || []"
+            stripe
+          >
+            <template #empty>
+              <el-empty description="暂无场景数据" />
+            </template>
+            <el-table-column
+              prop="scenario"
+              label="场景"
+              min-width="160"
+            />
+            <el-table-column
+              prop="call_count"
+              label="调用次数"
+              width="120"
+              align="center"
+            />
+            <el-table-column
+              prop="total_tokens"
+              label="Token 用量"
+              width="140"
+              align="center"
+            />
+            <el-table-column
+              prop="total_cost"
+              label="成本(¥)"
+              width="120"
+              align="center"
+            >
+              <template #default="{ row }">
+                {{ (row.total_cost || 0).toFixed(4) }}
+              </template>
             </el-table-column>
           </el-table>
         </el-card>
       </el-tab-pane>
 
       
-      <el-tab-pane label="路由审计" name="audit">
+      <el-tab-pane
+        label="路由审计"
+        name="audit"
+      >
         <el-card>
           <template #header>
             <div class="card-header">
               <span>路由变更审计日志（最近 50 条）</span>
-              <el-button size="small" @click="loadAudit">
+              <el-button
+                size="small"
+                @click="loadAudit"
+              >
                 <el-icon><Refresh /></el-icon> 刷新
               </el-button>
             </div>
           </template>
-          <el-table :data="auditList" v-loading="loading.audit" stripe>
-            <template #empty><el-empty description="暂无审计记录" /></template>
-            <el-table-column label="时间" min-width="180">
-              <template #default="{ row }">{{ formatTime(row.created_at) }}</template>
-            </el-table-column>
-            <el-table-column prop="scenario" label="场景" min-width="140" />
-            <el-table-column prop="version" label="版本" width="80" align="center" />
-            <el-table-column label="变更" min-width="280">
+          <el-table
+            v-loading="loading.audit"
+            :data="auditList"
+            stripe
+          >
+            <template #empty>
+              <el-empty description="暂无审计记录" />
+            </template>
+            <el-table-column
+              label="时间"
+              min-width="180"
+            >
               <template #default="{ row }">
-                <span v-if="row.action === 'update_strategy'">
-                  <el-tag size="small" type="info">{{ row.prev_provider || '无' }}</el-tag>
-                  →
-                  <el-tag size="small" type="success">{{ row.new_provider }}</el-tag>
-                </span>
-                <el-tag v-else-if="row.action === 'create_model'" type="primary" size="small">新增模型</el-tag>
-                <el-tag v-else-if="row.action === 'delete_model'" type="danger" size="small">删除模型</el-tag>
-                <el-tag v-else-if="row.action === 'update_model'" type="warning" size="small">更新模型</el-tag>
-                <el-tag v-else size="small">{{ getRoutingActionLabel(row.action) }}</el-tag>
+                {{ formatTime(row.created_at) }}
               </template>
             </el-table-column>
-            <el-table-column prop="operator" label="操作人" width="120" />
-            <el-table-column prop="trace_id" label="Trace ID" min-width="180" show-overflow-tooltip />
+            <el-table-column
+              prop="scenario"
+              label="场景"
+              min-width="140"
+            />
+            <el-table-column
+              prop="version"
+              label="版本"
+              width="80"
+              align="center"
+            />
+            <el-table-column
+              label="变更"
+              min-width="280"
+            >
+              <template #default="{ row }">
+                <span v-if="row.action === 'update_strategy'">
+                  <el-tag
+                    size="small"
+                    type="info"
+                  >{{ row.prev_provider || '无' }}</el-tag>
+                  →
+                  <el-tag
+                    size="small"
+                    type="success"
+                  >{{ row.new_provider }}</el-tag>
+                </span>
+                <el-tag
+                  v-else-if="row.action === 'create_model'"
+                  type="primary"
+                  size="small"
+                >
+                  新增模型
+                </el-tag>
+                <el-tag
+                  v-else-if="row.action === 'delete_model'"
+                  type="danger"
+                  size="small"
+                >
+                  删除模型
+                </el-tag>
+                <el-tag
+                  v-else-if="row.action === 'update_model'"
+                  type="warning"
+                  size="small"
+                >
+                  更新模型
+                </el-tag>
+                <el-tag
+                  v-else
+                  size="small"
+                >
+                  {{ getRoutingActionLabel(row.action) }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column
+              prop="operator"
+              label="操作人"
+              width="120"
+            />
+            <el-table-column
+              prop="trace_id"
+              label="Trace ID"
+              min-width="180"
+              show-overflow-tooltip
+            />
           </el-table>
         </el-card>
       </el-tab-pane>
 
       
-      <el-tab-pane label="分类统计与出域审计" name="modeltype">
-        <el-row :gutter="20" class="stat-row">
+      <el-tab-pane
+        label="分类统计与出域审计"
+        name="modeltype"
+      >
+        <el-row
+          :gutter="20"
+          class="stat-row"
+        >
           <el-col :span="12">
             <el-card v-loading="loading.modelType">
               <template #header>
                 <div class="card-header">
                   <span>本地 vs 云端 分类统计</span>
-                  <el-radio-group v-model="modelTypeWindow" size="small" @change="loadModelType">
-                    <el-radio-button label="today">今日</el-radio-button>
-                    <el-radio-button label="week">近 7 天</el-radio-button>
-                    <el-radio-button label="month">近 30 天</el-radio-button>
-                    <el-radio-button label="all">全部</el-radio-button>
+                  <el-radio-group
+                    v-model="modelTypeWindow"
+                    size="small"
+                    @change="loadModelType"
+                  >
+                    <el-radio-button label="today">
+                      今日
+                    </el-radio-button>
+                    <el-radio-button label="week">
+                      近 7 天
+                    </el-radio-button>
+                    <el-radio-button label="month">
+                      近 30 天
+                    </el-radio-button>
+                    <el-radio-button label="all">
+                      全部
+                    </el-radio-button>
                   </el-radio-group>
                 </div>
               </template>
               <el-row :gutter="12">
                 <el-col :span="8">
                   <div class="metric-box local">
-                    <div class="metric-label">本地模型调用</div>
-                    <div class="metric-value">{{ getModelTypeCount('local') }}</div>
-                    <div class="metric-sub">¥{{ getModelTypeCost('local').toFixed(4) }}</div>
+                    <div class="metric-label">
+                      本地模型调用
+                    </div>
+                    <div class="metric-value">
+                      {{ getModelTypeCount('local') }}
+                    </div>
+                    <div class="metric-sub">
+                      ¥{{ getModelTypeCost('local').toFixed(4) }}
+                    </div>
                   </div>
                 </el-col>
                 <el-col :span="8">
                   <div class="metric-box cloud">
-                    <div class="metric-label">云端模型调用</div>
-                    <div class="metric-value">{{ getModelTypeCount('cloud') }}</div>
-                    <div class="metric-sub">¥{{ getModelTypeCost('cloud').toFixed(4) }}</div>
+                    <div class="metric-label">
+                      云端模型调用
+                    </div>
+                    <div class="metric-value">
+                      {{ getModelTypeCount('cloud') }}
+                    </div>
+                    <div class="metric-sub">
+                      ¥{{ getModelTypeCost('cloud').toFixed(4) }}
+                    </div>
                   </div>
                 </el-col>
                 <el-col :span="8">
                   <div class="metric-box">
-                    <div class="metric-label">缺失计量（missing）</div>
-                    <div class="metric-value">{{ getModelTypeCount('missing') }}</div>
-                    <div class="metric-sub">{{ getMissingRatio() }}%</div>
+                    <div class="metric-label">
+                      缺失计量（missing）
+                    </div>
+                    <div class="metric-value">
+                      {{ getModelTypeCount('missing') }}
+                    </div>
+                    <div class="metric-sub">
+                      {{ getMissingRatio() }}%
+                    </div>
                   </div>
                 </el-col>
               </el-row>
               <el-divider />
               <div class="self-sufficiency">
-                <div class="metric-label">本地自给率（{{ formatPercent(getSelfSufficiency()) }}%）</div>
+                <div class="metric-label">
+                  本地自给率（{{ formatPercent(getSelfSufficiency()) }}%）
+                </div>
                 <el-progress
                   :percentage="Number(formatPercent(getSelfSufficiency()))"
                   :stroke-width="14"
@@ -346,38 +791,100 @@
               <template #header>
                 <div class="card-header">
                   <span>Provider 健康度（含熔断器）</span>
-                  <el-button size="small" @click="loadHealth">
+                  <el-button
+                    size="small"
+                    @click="loadHealth"
+                  >
                     <el-icon><Refresh /></el-icon> 刷新
                   </el-button>
                 </div>
               </template>
-              <el-table :data="llmHealth.providers || []" stripe size="small">
-                <template #empty><el-empty description="暂无健康数据" /></template>
-                <el-table-column prop="name" label="Provider" min-width="120" />
-                <el-table-column prop="vendor" label="厂商" width="100" />
-                <el-table-column label="状态" width="100" align="center">
+              <el-table
+                :data="llmHealth.providers || []"
+                stripe
+                size="small"
+              >
+                <template #empty>
+                  <el-empty description="暂无健康数据" />
+                </template>
+                <el-table-column
+                  prop="name"
+                  label="Provider"
+                  min-width="120"
+                />
+                <el-table-column
+                  prop="vendor"
+                  label="厂商"
+                  width="100"
+                />
+                <el-table-column
+                  label="状态"
+                  width="100"
+                  align="center"
+                >
                   <template #default="{ row }">
-                    <el-tag v-if="row.healthy" type="success" size="small">健康</el-tag>
-                    <el-tag v-else-if="row.circuit_open" type="danger" size="small">熔断</el-tag>
-                    <el-tag v-else type="warning" size="small">降级</el-tag>
+                    <el-tag
+                      v-if="row.healthy"
+                      type="success"
+                      size="small"
+                    >
+                      健康
+                    </el-tag>
+                    <el-tag
+                      v-else-if="row.circuit_open"
+                      type="danger"
+                      size="small"
+                    >
+                      熔断
+                    </el-tag>
+                    <el-tag
+                      v-else
+                      type="warning"
+                      size="small"
+                    >
+                      降级
+                    </el-tag>
                   </template>
                 </el-table-column>
-                <el-table-column label="错误" width="80" align="center">
-                  <template #default="{ row }">{{ row.error_count || 0 }}</template>
+                <el-table-column
+                  label="错误"
+                  width="80"
+                  align="center"
+                >
+                  <template #default="{ row }">
+                    {{ row.error_count || 0 }}
+                  </template>
                 </el-table-column>
-                <el-table-column prop="avg_latency" label="时延(ms)" width="100" align="center" />
-                <el-table-column label="最后错误" min-width="160" show-overflow-tooltip>
-                  <template #default="{ row }">{{ row.last_error || '-' }}</template>
+                <el-table-column
+                  prop="avg_latency"
+                  label="时延(ms)"
+                  width="100"
+                  align="center"
+                />
+                <el-table-column
+                  label="最后错误"
+                  min-width="160"
+                  show-overflow-tooltip
+                >
+                  <template #default="{ row }">
+                    {{ row.last_error || '-' }}
+                  </template>
                 </el-table-column>
               </el-table>
             </el-card>
           </el-col>
         </el-row>
-        <el-card style="margin-top: 20px" v-loading="loading.egress">
+        <el-card
+          v-loading="loading.egress"
+          style="margin-top: 20px"
+        >
           <template #header>
             <div class="card-header">
               <span>出域告警（应本地但走云端的异常调用）</span>
-              <el-button size="small" @click="loadEgressAlerts">
+              <el-button
+                size="small"
+                @click="loadEgressAlerts"
+              >
                 <el-icon><Refresh /></el-icon> 刷新
               </el-button>
             </div>
@@ -390,20 +897,62 @@
             description="所有应当本地推理的请求均未出域"
             show-icon
           />
-          <el-table v-else :data="egressAlerts" stripe size="small">
-            <el-table-column prop="scenario" label="场景" min-width="120" />
-            <el-table-column prop="provider" label="Provider" min-width="120" />
-            <el-table-column prop="model" label="Model" min-width="140" />
-            <el-table-column prop="base_url" label="出域 URL" min-width="240" show-overflow-tooltip />
-            <el-table-column prop="vendor" label="厂商" width="100" />
-            <el-table-column label="出域次数" width="100" align="center">
-              <template #default="{ row }">{{ row.call_count || 0 }}</template>
+          <el-table
+            v-else
+            :data="egressAlerts"
+            stripe
+            size="small"
+          >
+            <el-table-column
+              prop="scenario"
+              label="场景"
+              min-width="120"
+            />
+            <el-table-column
+              prop="provider"
+              label="Provider"
+              min-width="120"
+            />
+            <el-table-column
+              prop="model"
+              label="Model"
+              min-width="140"
+            />
+            <el-table-column
+              prop="base_url"
+              label="出域 URL"
+              min-width="240"
+              show-overflow-tooltip
+            />
+            <el-table-column
+              prop="vendor"
+              label="厂商"
+              width="100"
+            />
+            <el-table-column
+              label="出域次数"
+              width="100"
+              align="center"
+            >
+              <template #default="{ row }">
+                {{ row.call_count || 0 }}
+              </template>
             </el-table-column>
-            <el-table-column label="首次出现" min-width="180">
-              <template #default="{ row }">{{ formatTime(row.first_seen) }}</template>
+            <el-table-column
+              label="首次出现"
+              min-width="180"
+            >
+              <template #default="{ row }">
+                {{ formatTime(row.first_seen) }}
+              </template>
             </el-table-column>
-            <el-table-column label="最近出现" min-width="180">
-              <template #default="{ row }">{{ formatTime(row.last_seen) }}</template>
+            <el-table-column
+              label="最近出现"
+              min-width="180"
+            >
+              <template #default="{ row }">
+                {{ formatTime(row.last_seen) }}
+              </template>
             </el-table-column>
           </el-table>
         </el-card>
@@ -411,29 +960,80 @@
     </el-tabs>
 
     
-    <el-dialog v-model="modelDialogVisible" :title="modelDialogTitle" width="640px">
-      <el-form :model="modelForm" :rules="modelFormRules" ref="modelFormRef" label-width="100px">
-        <el-form-item label="Provider 名称" prop="name">
-          <el-input v-model="modelForm.name" placeholder="如 deepseek / default" :disabled="!!modelForm._isEdit" />
+    <el-dialog
+      v-model="modelDialogVisible"
+      :title="modelDialogTitle"
+      width="640px"
+    >
+      <el-form
+        ref="modelFormRef"
+        :model="modelForm"
+        :rules="modelFormRules"
+        label-width="100px"
+      >
+        <el-form-item
+          label="Provider 名称"
+          prop="name"
+        >
+          <el-input
+            v-model="modelForm.name"
+            placeholder="如 deepseek / default"
+            :disabled="!!modelForm._isEdit"
+          />
         </el-form-item>
-        <el-form-item label="模型标识" prop="model">
-          <el-input v-model="modelForm.model" placeholder="如 deepseek-chat / Qwen2.5-3B-Instruct" />
+        <el-form-item
+          label="模型标识"
+          prop="model"
+        >
+          <el-input
+            v-model="modelForm.model"
+            placeholder="如 deepseek-chat / Qwen2.5-3B-Instruct"
+          />
         </el-form-item>
-        <el-form-item label="接入地址" prop="base_url">
-          <el-input v-model="modelForm.base_url" placeholder="https://api.deepseek.com/v1 或 http://127.0.0.1:9000/v1" />
+        <el-form-item
+          label="接入地址"
+          prop="base_url"
+        >
+          <el-input
+            v-model="modelForm.base_url"
+            placeholder="https://api.deepseek.com/v1 或 http://127.0.0.1:9000/v1"
+          />
         </el-form-item>
-        <el-form-item label="API Key" prop="api_key">
-          <el-input v-model="modelForm.api_key" type="password" show-password placeholder="留空表示不修改" />
+        <el-form-item
+          label="API Key"
+          prop="api_key"
+        >
+          <el-input
+            v-model="modelForm.api_key"
+            type="password"
+            show-password
+            placeholder="留空表示不修改"
+          />
         </el-form-item>
         <el-form-item label="质量分">
-          <el-input-number v-model="modelForm.quality_score" :min="0" :max="1" :step="0.01" :precision="2" />
+          <el-input-number
+            v-model="modelForm.quality_score"
+            :min="0"
+            :max="1"
+            :step="0.01"
+            :precision="2"
+          />
           <span class="form-tip">0-1，必须 ≥ 场景路由的 min_quality 才被选中</span>
         </el-form-item>
         <el-form-item label="限流(RPM)">
-          <el-input-number v-model="modelForm.max_rpm" :min="0" :step="10" />
+          <el-input-number
+            v-model="modelForm.max_rpm"
+            :min="0"
+            :step="10"
+          />
         </el-form-item>
         <el-form-item label="成本(¥/1k)">
-          <el-input-number v-model="modelForm.cost_per_1k" :min="0" :precision="4" :step="0.001" />
+          <el-input-number
+            v-model="modelForm.cost_per_1k"
+            :min="0"
+            :precision="4"
+            :step="0.001"
+          />
         </el-form-item>
         <el-form-item label="启用">
           <el-switch v-model="modelForm.enabled" />
@@ -444,43 +1044,117 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="modelDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="submitModel">确定</el-button>
+        <el-button @click="modelDialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          @click="submitModel"
+        >
+          确定
+        </el-button>
       </template>
     </el-dialog>
 
     
-    <el-dialog v-model="routingDialogVisible" :title="routingDialogTitle" width="600px">
-      <el-form :model="routingForm" :rules="routingFormRules" ref="routingFormRef" label-width="120px">
-        <el-form-item label="场景" prop="scenario">
-          <el-select v-model="routingForm.scenario" placeholder="选择或输入场景" filterable allow-create style="width: 100%">
-            <el-option v-for="s in scenarioPresets" :key="s" :label="s" :value="s" />
+    <el-dialog
+      v-model="routingDialogVisible"
+      :title="routingDialogTitle"
+      width="600px"
+    >
+      <el-form
+        ref="routingFormRef"
+        :model="routingForm"
+        :rules="routingFormRules"
+        label-width="120px"
+      >
+        <el-form-item
+          label="场景"
+          prop="scenario"
+        >
+          <el-select
+            v-model="routingForm.scenario"
+            placeholder="选择或输入场景"
+            filterable
+            allow-create
+            style="width: 100%"
+          >
+            <el-option
+              v-for="s in scenarioPresets"
+              :key="s"
+              :label="s"
+              :value="s"
+            />
           </el-select>
         </el-form-item>
-        <el-form-item label="首选 Provider" prop="provider">
-          <el-select v-model="routingForm.provider" placeholder="选择模型" style="width: 100%">
-            <el-option v-for="m in models" :key="m.name" :label="`${m.name} (${m.vendor})`" :value="m.name" />
+        <el-form-item
+          label="首选 Provider"
+          prop="provider"
+        >
+          <el-select
+            v-model="routingForm.provider"
+            placeholder="选择模型"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="m in models"
+              :key="m.name"
+              :label="`${m.name} (${m.vendor})`"
+              :value="m.name"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="Fallback 链">
-          <el-select v-model="routingForm.fallbacks" multiple style="width: 100%" placeholder="按顺序选择备选">
-            <el-option v-for="m in models" :key="m.name" :label="m.name" :value="m.name" />
+          <el-select
+            v-model="routingForm.fallbacks"
+            multiple
+            style="width: 100%"
+            placeholder="按顺序选择备选"
+          >
+            <el-option
+              v-for="m in models"
+              :key="m.name"
+              :label="m.name"
+              :value="m.name"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="灰度权重(%)">
-          <el-input-number v-model="routingForm.weight" :min="0" :max="100" :step="5" />
+          <el-input-number
+            v-model="routingForm.weight"
+            :min="0"
+            :max="100"
+            :step="5"
+          />
           <span class="form-tip">0=全量旧路由；100=全量灰度；中间值按权重抽样</span>
         </el-form-item>
         <el-form-item label="最低质量">
-          <el-input-number v-model="routingForm.min_quality" :min="0" :max="1" :step="0.01" :precision="2" />
+          <el-input-number
+            v-model="routingForm.min_quality"
+            :min="0"
+            :max="1"
+            :step="0.01"
+            :precision="2"
+          />
         </el-form-item>
         <el-form-item label="最大时延(ms)">
-          <el-input-number v-model="routingForm.max_latency" :min="0" :step="1000" />
+          <el-input-number
+            v-model="routingForm.max_latency"
+            :min="0"
+            :step="1000"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="routingDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="submitRouting">确定</el-button>
+        <el-button @click="routingDialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          @click="submitRouting"
+        >
+          确定
+        </el-button>
       </template>
     </el-dialog>
   </div>

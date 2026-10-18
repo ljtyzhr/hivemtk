@@ -3,10 +3,15 @@
     <el-card class="header-card">
       <div class="header-content">
         <h2>{{ $t('标签分层') }}</h2>
-        <p class="subtitle">管理用户标签、自动标签规则、RFM 分层策略与标签统计</p>
+        <p class="subtitle">
+          管理用户标签、自动标签规则、RFM 分层策略与标签统计
+        </p>
       </div>
       <div class="header-actions">
-        <el-button type="primary" @click="showTagDialog()">
+        <el-button
+          type="primary"
+          @click="showTagDialog()"
+        >
           <el-icon><Plus /></el-icon>
           {{ $t('新增标签') }}
         </el-button>
@@ -17,108 +22,286 @@
       </div>
     </el-card>
 
-    <el-tabs v-model="activeTab" class="content-tabs">
-      <el-tab-pane :label="$t('标签列表')" name="tags">
+    <el-tabs
+      v-model="activeTab"
+      class="content-tabs"
+    >
+      <el-tab-pane
+        :label="$t('标签列表')"
+        name="tags"
+      >
         <div class="filter-bar">
-          <el-input v-model="tagSearch" :placeholder="$t('搜索标签名称')" clearable style="width: 220px" />
-          <el-select v-model="tagTypeFilter" :placeholder="$t('标签类型')" clearable style="width: 160px">
-            <el-option :label="$t('手动')" value="manual" />
-            <el-option :label="$t('自动')" value="auto" />
-            <el-option :label="$t('系统')" value="system" />
+          <el-input
+            v-model="tagSearch"
+            :placeholder="$t('搜索标签名称')"
+            clearable
+            style="width: 220px"
+          />
+          <el-select
+            v-model="tagTypeFilter"
+            :placeholder="$t('标签类型')"
+            clearable
+            style="width: 160px"
+          >
+            <el-option
+              :label="$t('手动')"
+              value="manual"
+            />
+            <el-option
+              :label="$t('自动')"
+              value="auto"
+            />
+            <el-option
+              :label="$t('系统')"
+              value="system"
+            />
           </el-select>
         </div>
-        <el-table :data="filteredTags" v-loading="loading.tags" stripe>
-          <template #empty><el-empty description="暂无标签数据" /></template>
-          <el-table-column prop="name" label="标签名称" min-width="180" show-overflow-tooltip />
-          <el-table-column label="类型" min-width="90">
+        <el-table
+          v-loading="loading.tags"
+          :data="filteredTags"
+          stripe
+        >
+          <template #empty>
+            <el-empty description="暂无标签数据" />
+          </template>
+          <el-table-column
+            prop="name"
+            label="标签名称"
+            min-width="180"
+            show-overflow-tooltip
+          />
+          <el-table-column
+            label="类型"
+            min-width="90"
+          >
             <template #default="{ row }">
-              <el-tag :type="getTypeColor(row.tag_type || row.type || 'manual')" size="small">
+              <el-tag
+                :type="getTypeColor(row.tag_type || row.type || 'manual')"
+                size="small"
+              >
                 {{ getTypeText(row.tag_type || row.type || 'manual') }}
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="分类" min-width="120" show-overflow-tooltip>
-            <template #default="{ row }">{{ row.group || row.category || '默认' }}</template>
-          </el-table-column>
-          <el-table-column label="用户数" min-width="90" align="center">
-            <template #default="{ row }">{{ row.user_count ?? row.userCount ?? 0 }}</template>
-          </el-table-column>
-          <el-table-column label="状态" min-width="90" align="center">
+          <el-table-column
+            label="分类"
+            min-width="120"
+            show-overflow-tooltip
+          >
             <template #default="{ row }">
-              <el-tag :type="row.is_active ? 'success' : 'info'" size="small">
+              {{ row.group || row.category || '默认' }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="用户数"
+            min-width="90"
+            align="center"
+          >
+            <template #default="{ row }">
+              {{ row.user_count ?? row.userCount ?? 0 }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="状态"
+            min-width="90"
+            align="center"
+          >
+            <template #default="{ row }">
+              <el-tag
+                :type="row.is_active ? 'success' : 'info'"
+                size="small"
+              >
                 {{ row.is_active ? '启用' : '禁用' }}
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="创建时间" min-width="160" show-overflow-tooltip>
-            <template #default="{ row }">{{ formatTime(row.created_at || row.createdAt) }}</template>
-          </el-table-column>
-          <el-table-column label="操作" min-width="160" fixed="right">
+          <el-table-column
+            label="创建时间"
+            min-width="160"
+            show-overflow-tooltip
+          >
             <template #default="{ row }">
-              <el-button link type="primary" size="small" @click="showTagDialog(row)">编辑</el-button>
-              <el-button link type="danger" size="small" @click="deleteTag(row)">删除</el-button>
+              {{ formatTime(row.created_at || row.createdAt) }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="操作"
+            min-width="160"
+            fixed="right"
+          >
+            <template #default="{ row }">
+              <el-button
+                link
+                type="primary"
+                size="small"
+                @click="showTagDialog(row)"
+              >
+                编辑
+              </el-button>
+              <el-button
+                link
+                type="danger"
+                size="small"
+                @click="deleteTag(row)"
+              >
+                删除
+              </el-button>
             </template>
           </el-table-column>
         </el-table>
       </el-tab-pane>
 
-      <el-tab-pane label="自动标签规则" name="rules">
+      <el-tab-pane
+        label="自动标签规则"
+        name="rules"
+      >
         <el-card>
           <template #header>
             <div class="card-header">
               <span>条件 → 标签 自动规则</span>
-              <el-button type="primary" size="small" @click="showRuleDialog()">
+              <el-button
+                type="primary"
+                size="small"
+                @click="showRuleDialog()"
+              >
                 <el-icon><Plus /></el-icon> 新增规则
               </el-button>
             </div>
           </template>
-          <el-table :data="tagRuleList" v-loading="loading.rules" stripe>
-            <template #empty><el-empty description="暂无规则" /></template>
-            <el-table-column prop="name" label="规则名称" min-width="150" />
-            <el-table-column prop="condition" label="触发条件" min-width="260" show-overflow-tooltip />
-            <el-table-column prop="tagName" label="打标签" width="140">
+          <el-table
+            v-loading="loading.rules"
+            :data="tagRuleList"
+            stripe
+          >
+            <template #empty>
+              <el-empty description="暂无规则" />
+            </template>
+            <el-table-column
+              prop="name"
+              label="规则名称"
+              min-width="150"
+            />
+            <el-table-column
+              prop="condition"
+              label="触发条件"
+              min-width="260"
+              show-overflow-tooltip
+            />
+            <el-table-column
+              prop="tagName"
+              label="打标签"
+              width="140"
+            >
               <template #default="{ row }">
-                <el-tag size="small">{{ row.tagName }}</el-tag>
+                <el-tag size="small">
+                  {{ row.tagName }}
+                </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="status" label="状态" width="100">
+            <el-table-column
+              prop="status"
+              label="状态"
+              width="100"
+            >
               <template #default="{ row }">
-                <el-tag :type="getStatusTagType(row.status)" size="small">
+                <el-tag
+                  :type="getStatusTagType(row.status)"
+                  size="small"
+                >
                   {{ getStatusLabel(row.status) }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="matchedCount" label="命中数" width="100" align="center" />
-            <el-table-column label="操作" width="180" fixed="right">
+            <el-table-column
+              prop="matchedCount"
+              label="命中数"
+              width="100"
+              align="center"
+            />
+            <el-table-column
+              label="操作"
+              width="180"
+              fixed="right"
+            >
               <template #default="{ row }">
-                <el-button link type="primary" @click="showRuleDialog(row)">编辑</el-button>
-                <el-button link type="danger" @click="deleteRule(row)">删除</el-button>
+                <el-button
+                  link
+                  type="primary"
+                  @click="showRuleDialog(row)"
+                >
+                  编辑
+                </el-button>
+                <el-button
+                  link
+                  type="danger"
+                  @click="deleteRule(row)"
+                >
+                  删除
+                </el-button>
               </template>
             </el-table-column>
           </el-table>
         </el-card>
       </el-tab-pane>
 
-      <el-tab-pane label="分层策略" name="strategy">
+      <el-tab-pane
+        label="分层策略"
+        name="strategy"
+      >
         <el-card v-loading="loading.strategy">
           <template #header>
             <div class="card-header">
               <span>RFM 分层 → 标签组映射</span>
-              <el-button type="primary" size="small" @click="saveStrategy">保存策略</el-button>
+              <el-button
+                type="primary"
+                size="small"
+                @click="saveStrategy"
+              >
+                保存策略
+              </el-button>
             </div>
           </template>
-          <el-table :data="strategyList" stripe>
-            <template #empty><el-empty description="暂无分层策略" /></template>
-            <el-table-column prop="layer" label="RFM 分层" width="160">
+          <el-table
+            :data="strategyList"
+            stripe
+          >
+            <template #empty>
+              <el-empty description="暂无分层策略" />
+            </template>
+            <el-table-column
+              prop="layer"
+              label="RFM 分层"
+              width="160"
+            >
               <template #default="{ row }">
-                <el-tag :type="getLayerColor(row.layer)">{{ row.layer }}</el-tag>
+                <el-tag :type="getLayerColor(row.layer)">
+                  {{ row.layer }}
+                </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="description" label="分层说明" min-width="200" />
-            <el-table-column label="绑定标签组" min-width="280">
+            <el-table-column
+              prop="description"
+              label="分层说明"
+              min-width="200"
+            />
+            <el-table-column
+              label="绑定标签组"
+              min-width="280"
+            >
               <template #default="{ row }">
-                <el-select v-model="row.tagIds" multiple style="width: 100%" placeholder="选择标签">
-                  <el-option v-for="t in tags" :key="t.id" :label="t.name" :value="t.id" />
+                <el-select
+                  v-model="row.tagIds"
+                  multiple
+                  style="width: 100%"
+                  placeholder="选择标签"
+                >
+                  <el-option
+                    v-for="t in tags"
+                    :key="t.id"
+                    :label="t.name"
+                    :value="t.id"
+                  />
                 </el-select>
               </template>
             </el-table-column>
@@ -126,43 +309,102 @@
         </el-card>
       </el-tab-pane>
 
-      <el-tab-pane label="标签统计" name="stats">
-        <el-row :gutter="20" class="stat-row">
+      <el-tab-pane
+        label="标签统计"
+        name="stats"
+      >
+        <el-row
+          :gutter="20"
+          class="stat-row"
+        >
           <el-col :span="6">
             <el-card class="stat-card">
-              <div class="stat-label">标签总数</div>
-              <div class="stat-value">{{ stats.total || 0 }}</div>
+              <div class="stat-label">
+                标签总数
+              </div>
+              <div class="stat-value">
+                {{ stats.total || 0 }}
+              </div>
             </el-card>
           </el-col>
           <el-col :span="6">
             <el-card class="stat-card">
-              <div class="stat-label">自动标签</div>
-              <div class="stat-value" style="color: #4F46E5">{{ stats.auto || 0 }}</div>
+              <div class="stat-label">
+                自动标签
+              </div>
+              <div
+                class="stat-value"
+                style="color: #4F46E5"
+              >
+                {{ stats.auto || 0 }}
+              </div>
             </el-card>
           </el-col>
           <el-col :span="6">
             <el-card class="stat-card">
-              <div class="stat-label">手动标签</div>
-              <div class="stat-value" style="color: #10B981">{{ stats.manual || 0 }}</div>
+              <div class="stat-label">
+                手动标签
+              </div>
+              <div
+                class="stat-value"
+                style="color: #10B981"
+              >
+                {{ stats.manual || 0 }}
+              </div>
             </el-card>
           </el-col>
           <el-col :span="6">
             <el-card class="stat-card">
-              <div class="stat-label">已命中用户</div>
-              <div class="stat-value" style="color: #F59E0B">{{ stats.matchedUsers || 0 }}</div>
+              <div class="stat-label">
+                已命中用户
+              </div>
+              <div
+                class="stat-value"
+                style="color: #F59E0B"
+              >
+                {{ stats.matchedUsers || 0 }}
+              </div>
             </el-card>
           </el-col>
         </el-row>
         <el-card>
-          <template #header><span>标签使用 Top 10</span></template>
-          <el-table :data="stats.topUsed" v-loading="loading.stats" stripe>
-            <template #empty><el-empty description="暂无统计数据" /></template>
-            <el-table-column type="index" label="排名" width="80" />
-            <el-table-column prop="name" label="标签" min-width="160" />
-            <el-table-column prop="userCount" label="用户数" width="120" align="center" />
-            <el-table-column prop="ratio" label="占比" width="200">
+          <template #header>
+            <span>标签使用 Top 10</span>
+          </template>
+          <el-table
+            v-loading="loading.stats"
+            :data="stats.topUsed"
+            stripe
+          >
+            <template #empty>
+              <el-empty description="暂无统计数据" />
+            </template>
+            <el-table-column
+              type="index"
+              label="排名"
+              width="80"
+            />
+            <el-table-column
+              prop="name"
+              label="标签"
+              min-width="160"
+            />
+            <el-table-column
+              prop="userCount"
+              label="用户数"
+              width="120"
+              align="center"
+            />
+            <el-table-column
+              prop="ratio"
+              label="占比"
+              width="200"
+            >
               <template #default="{ row }">
-                <el-progress :percentage="Number(row.ratio || 0)" :stroke-width="8" />
+                <el-progress
+                  :percentage="Number(row.ratio || 0)"
+                  :stroke-width="8"
+                />
               </template>
             </el-table-column>
           </el-table>
@@ -170,51 +412,145 @@
       </el-tab-pane>
     </el-tabs>
 
-    <el-dialog v-model="tagDialogVisible" :title="tagDialogTitle" width="560px">
-      <el-form :model="tagForm" :rules="tagFormRules" ref="tagFormRef" label-width="100px">
-        <el-form-item label="标签名称" prop="name">
-          <el-input v-model="tagForm.name" placeholder="请输入标签名称" />
+    <el-dialog
+      v-model="tagDialogVisible"
+      :title="tagDialogTitle"
+      width="560px"
+    >
+      <el-form
+        ref="tagFormRef"
+        :model="tagForm"
+        :rules="tagFormRules"
+        label-width="100px"
+      >
+        <el-form-item
+          label="标签名称"
+          prop="name"
+        >
+          <el-input
+            v-model="tagForm.name"
+            placeholder="请输入标签名称"
+          />
         </el-form-item>
-        <el-form-item label="标签类型" prop="type">
-          <el-select v-model="tagForm.type" style="width: 100%">
-            <el-option label="手动" value="manual" />
-            <el-option label="自动" value="auto" />
-            <el-option label="系统" value="system" />
+        <el-form-item
+          label="标签类型"
+          prop="type"
+        >
+          <el-select
+            v-model="tagForm.type"
+            style="width: 100%"
+          >
+            <el-option
+              label="手动"
+              value="manual"
+            />
+            <el-option
+              label="自动"
+              value="auto"
+            />
+            <el-option
+              label="系统"
+              value="system"
+            />
           </el-select>
         </el-form-item>
-        <el-form-item label="分类" prop="category">
-          <el-input v-model="tagForm.category" placeholder="如 价值/行为/偏好" />
+        <el-form-item
+          label="分类"
+          prop="category"
+        >
+          <el-input
+            v-model="tagForm.category"
+            placeholder="如 价值/行为/偏好"
+          />
         </el-form-item>
         <el-form-item label="描述">
-          <el-input v-model="tagForm.description" type="textarea" :rows="3" />
+          <el-input
+            v-model="tagForm.description"
+            type="textarea"
+            :rows="3"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="tagDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="submitTag">确定</el-button>
+        <el-button @click="tagDialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          @click="submitTag"
+        >
+          确定
+        </el-button>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="ruleDialogVisible" :title="ruleDialogTitle" width="640px">
-      <el-form :model="ruleForm" :rules="ruleFormRules" ref="ruleFormRef" label-width="100px">
-        <el-form-item label="规则名称" prop="name">
-          <el-input v-model="ruleForm.name" placeholder="请输入规则名称" />
+    <el-dialog
+      v-model="ruleDialogVisible"
+      :title="ruleDialogTitle"
+      width="640px"
+    >
+      <el-form
+        ref="ruleFormRef"
+        :model="ruleForm"
+        :rules="ruleFormRules"
+        label-width="100px"
+      >
+        <el-form-item
+          label="规则名称"
+          prop="name"
+        >
+          <el-input
+            v-model="ruleForm.name"
+            placeholder="请输入规则名称"
+          />
         </el-form-item>
-        <el-form-item label="触发条件" prop="condition">
-          <el-input v-model="ruleForm.condition" type="textarea" :rows="3" placeholder="如: 消费金额>=1000 AND 最近30天有下单" />
+        <el-form-item
+          label="触发条件"
+          prop="condition"
+        >
+          <el-input
+            v-model="ruleForm.condition"
+            type="textarea"
+            :rows="3"
+            placeholder="如: 消费金额>=1000 AND 最近30天有下单"
+          />
         </el-form-item>
-        <el-form-item label="打标签" prop="tagId">
-          <el-select v-model="ruleForm.tagId" filterable placeholder="选择标签" style="width: 100%">
-            <el-option v-for="t in tags" :key="t.id" :label="t.name" :value="t.id" />
+        <el-form-item
+          label="打标签"
+          prop="tagId"
+        >
+          <el-select
+            v-model="ruleForm.tagId"
+            filterable
+            placeholder="选择标签"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="t in tags"
+              :key="t.id"
+              :label="t.name"
+              :value="t.id"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="状态">
-          <el-switch v-model="ruleForm.status" active-value="enabled" inactive-value="disabled" />
+          <el-switch
+            v-model="ruleForm.status"
+            active-value="enabled"
+            inactive-value="disabled"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="ruleDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="submitRule">确定</el-button>
+        <el-button @click="ruleDialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          @click="submitRule"
+        >
+          确定
+        </el-button>
       </template>
     </el-dialog>
   </div>

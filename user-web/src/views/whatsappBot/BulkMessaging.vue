@@ -8,11 +8,22 @@
       </template>
 
       <el-tabs v-model="activeTab">
-        <el-tab-pane label="发送消息" name="send">
-          <el-form :model="sendForm" :rules="sendRules" ref="sendFormRef" label-width="120px">
+        <el-tab-pane
+          label="发送消息"
+          name="send"
+        >
+          <el-form
+            ref="sendFormRef"
+            :model="sendForm"
+            :rules="sendRules"
+            label-width="120px"
+          >
             <el-row :gutter="20">
               <el-col :span="12">
-                <el-form-item label="消息模板" prop="templateId">
+                <el-form-item
+                  label="消息模板"
+                  prop="templateId"
+                >
                   <el-select 
                     v-model="sendForm.templateId" 
                     placeholder="请选择消息模板"
@@ -29,7 +40,10 @@
                 </el-form-item>
               </el-col>
               <el-col :span="12">
-                <el-form-item label="发送账号" prop="accountId">
+                <el-form-item
+                  label="发送账号"
+                  prop="accountId"
+                >
                   <el-select 
                     v-model="sendForm.accountId" 
                     placeholder="请选择WhatsApp账号"
@@ -46,7 +60,10 @@
               </el-col>
             </el-row>
 
-            <el-form-item label="目标线索" prop="leadIds">
+            <el-form-item
+              label="目标线索"
+              prop="leadIds"
+            >
               <el-transfer
                 v-model="sendForm.leadIds"
                 filterable
@@ -59,8 +76,11 @@
             </el-form-item>
 
             <el-form-item label="消息预览">
-              <el-card shadow="never" class="preview-card">
-                <div v-html="renderedContent"></div>
+              <el-card
+                shadow="never"
+                class="preview-card"
+              >
+                <div v-html="renderedContent" />
               </el-card>
             </el-form-item>
 
@@ -77,104 +97,209 @@
             <el-form-item>
               <el-button 
                 type="primary" 
-                @click="handleSend" 
-                :loading="sending"
+                :loading="sending" 
                 :disabled="!canSend"
+                @click="handleSend"
               >
                 {{ sendForm.scheduleAt ? '计划发送' : '立即发送' }}
               </el-button>
-              <el-button @click="resetForm">重置</el-button>
+              <el-button @click="resetForm">
+                重置
+              </el-button>
             </el-form-item>
           </el-form>
         </el-tab-pane>
 
-        <el-tab-pane label="消息模板" name="templates">
+        <el-tab-pane
+          label="消息模板"
+          name="templates"
+        >
           <div style="margin-bottom: 20px;">
-            <el-button type="primary" @click="showTemplateDialog = true">新建模板</el-button>
+            <el-button
+              type="primary"
+              @click="showTemplateDialog = true"
+            >
+              新建模板
+            </el-button>
           </div>
 
-          <el-table :data="templates" style="width: 100%" v-loading="templateLoading">
-            <el-table-column prop="name" label="模板名称" width="200" />
-            <el-table-column prop="content" label="模板内容" show-overflow-tooltip />
-            <el-table-column prop="category" label="分类" width="120" />
-            <el-table-column prop="isActive" label="状态" width="100">
+          <el-table
+            v-loading="templateLoading"
+            :data="templates"
+            style="width: 100%"
+          >
+            <el-table-column
+              prop="name"
+              label="模板名称"
+              width="200"
+            />
+            <el-table-column
+              prop="content"
+              label="模板内容"
+              show-overflow-tooltip
+            />
+            <el-table-column
+              prop="category"
+              label="分类"
+              width="120"
+            />
+            <el-table-column
+              prop="isActive"
+              label="状态"
+              width="100"
+            >
               <template #default="{ row }">
                 <el-tag :type="row.isActive ? 'success' : 'danger'">
                   {{ row.isActive ? '启用' : '禁用' }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="updatedAt" label="更新时间" width="180" />
-            <el-table-column label="操作" width="200">
+            <el-table-column
+              prop="updatedAt"
+              label="更新时间"
+              width="180"
+            />
+            <el-table-column
+              label="操作"
+              width="200"
+            >
               <template #default="{ row }">
-                <el-button size="small" @click="editTemplate(row)">编辑</el-button>
-                <el-button size="small" type="danger" @click="deleteTemplate(row)">删除</el-button>
+                <el-button
+                  size="small"
+                  @click="editTemplate(row)"
+                >
+                  编辑
+                </el-button>
+                <el-button
+                  size="small"
+                  type="danger"
+                  @click="deleteTemplate(row)"
+                >
+                  删除
+                </el-button>
               </template>
             </el-table-column>
           </el-table>
 
           <el-pagination
             class="pagination"
-            @size-change="handleTemplateSizeChange"
-            @current-change="handleTemplateCurrentChange"
             :current-page="templatePagination.currentPage"
             :page-sizes="[10, 20, 50, 100]"
+            v-if="templatePagination.total > 0"
             :page-size="templatePagination.pageSize"
             layout="total, sizes, prev, pager, next, jumper"
             :total="templatePagination.total"
-            v-if="templatePagination.total > 0"
+            @size-change="handleTemplateSizeChange"
+            @current-change="handleTemplateCurrentChange"
           />
         </el-tab-pane>
 
-        <el-tab-pane label="发送记录" name="records">
-          <el-table :data="sendRecords" style="width: 100%" v-loading="recordLoading">
-            <el-table-column prop="templateName" label="模板名称" width="200" />
-            <el-table-column prop="totalCount" label="总数量" width="100" />
-            <el-table-column prop="sentCount" label="已发送" width="100" />
-            <el-table-column prop="failedCount" label="失败" width="100">
+        <el-tab-pane
+          label="发送记录"
+          name="records"
+        >
+          <el-table
+            v-loading="recordLoading"
+            :data="sendRecords"
+            style="width: 100%"
+          >
+            <el-table-column
+              prop="templateName"
+              label="模板名称"
+              width="200"
+            />
+            <el-table-column
+              prop="totalCount"
+              label="总数量"
+              width="100"
+            />
+            <el-table-column
+              prop="sentCount"
+              label="已发送"
+              width="100"
+            />
+            <el-table-column
+              prop="failedCount"
+              label="失败"
+              width="100"
+            >
               <template #default="{ row }">
                 <el-tag :type="row.failedCount > 0 ? 'danger' : 'success'">
                   {{ row.failedCount }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="status" label="状态" width="120">
+            <el-table-column
+              prop="status"
+              label="状态"
+              width="120"
+            >
               <template #default="{ row }">
                 <el-tag :type="getStatusType(row.status)">
                   {{ getStatusText(row.status) }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="createdAt" label="创建时间" width="180" />
-            <el-table-column label="操作" width="150">
+            <el-table-column
+              prop="createdAt"
+              label="创建时间"
+              width="180"
+            />
+            <el-table-column
+              label="操作"
+              width="150"
+            >
               <template #default="{ row }">
-                <el-button size="small" @click="viewRecordDetails(row)">详情</el-button>
+                <el-button
+                  size="small"
+                  @click="viewRecordDetails(row)"
+                >
+                  详情
+                </el-button>
               </template>
             </el-table-column>
           </el-table>
 
           <el-pagination
             class="pagination"
-            @size-change="handleRecordSizeChange"
-            @current-change="handleRecordCurrentChange"
             :current-page="recordPagination.currentPage"
             :page-sizes="[10, 20, 50, 100]"
+            v-if="recordPagination.total > 0"
             :page-size="recordPagination.pageSize"
             layout="total, sizes, prev, pager, next, jumper"
             :total="recordPagination.total"
-            v-if="recordPagination.total > 0"
+            @size-change="handleRecordSizeChange"
+            @current-change="handleRecordCurrentChange"
           />
         </el-tab-pane>
       </el-tabs>
     </el-card>
 
     
-    <el-dialog :title="templateDialogTitle" v-model="showTemplateDialog" width="60%">
-      <el-form :model="templateForm" :rules="templateRules" ref="templateFormRef" label-width="100px">
-        <el-form-item label="模板名称" prop="name">
-          <el-input v-model="templateForm.name" placeholder="请输入模板名称" />
+    <el-dialog
+      v-model="showTemplateDialog"
+      :title="templateDialogTitle"
+      width="60%"
+    >
+      <el-form
+        ref="templateFormRef"
+        :model="templateForm"
+        :rules="templateRules"
+        label-width="100px"
+      >
+        <el-form-item
+          label="模板名称"
+          prop="name"
+        >
+          <el-input
+            v-model="templateForm.name"
+            placeholder="请输入模板名称"
+          />
         </el-form-item>
-        <el-form-item label="消息内容" prop="content">
+        <el-form-item
+          label="消息内容"
+          prop="content"
+        >
           <el-input 
             v-model="templateForm.content" 
             type="textarea" 
@@ -186,24 +311,49 @@
           <div class="template-help">
             <p><strong>可用变量：</strong></p>
             <ul>
-              <li><code>{{name}}</code> - 姓名</li>
-              <li><code>{{phone}}</code> - 手机号</li>
-              <li><code>{{email}}</code> - 邮箱</li>
-              <li><code>{{company}}</code> - 公司</li>
-              <li><code>{{source}}</code> - 来源</li>
+              <li><code>{{ name }}</code> - 姓名</li>
+              <li><code>{{ phone }}</code> - 手机号</li>
+              <li><code>{{ email }}</code> - 邮箱</li>
+              <li><code>{{ company }}</code> - 公司</li>
+              <li><code>{{ source }}</code> - 来源</li>
             </ul>
           </div>
         </el-form-item>
-        <el-form-item label="分类" prop="category">
-          <el-select v-model="templateForm.category" placeholder="请选择分类">
-            <el-option label="营销推广" value="marketing" />
-            <el-option label="客户服务" value="customer_service" />
-            <el-option label="活动通知" value="notification" />
-            <el-option label="产品介绍" value="product" />
+        <el-form-item
+          label="分类"
+          prop="category"
+        >
+          <el-select
+            v-model="templateForm.category"
+            placeholder="请选择分类"
+          >
+            <el-option
+              label="营销推广"
+              value="marketing"
+            />
+            <el-option
+              label="客户服务"
+              value="customer_service"
+            />
+            <el-option
+              label="活动通知"
+              value="notification"
+            />
+            <el-option
+              label="产品介绍"
+              value="product"
+            />
           </el-select>
         </el-form-item>
-        <el-form-item label="状态" prop="isActive">
-          <el-switch v-model="templateForm.isActive" active-text="启用" inactive-text="禁用" />
+        <el-form-item
+          label="状态"
+          prop="isActive"
+        >
+          <el-switch
+            v-model="templateForm.isActive"
+            active-text="启用"
+            inactive-text="禁用"
+          />
         </el-form-item>
         <el-form-item label="描述">
           <el-input 
@@ -217,7 +367,10 @@
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="showTemplateDialog = false">取消</el-button>
-          <el-button type="primary" @click="saveTemplate">确定</el-button>
+          <el-button
+            type="primary"
+            @click="saveTemplate"
+          >确定</el-button>
         </span>
       </template>
     </el-dialog>

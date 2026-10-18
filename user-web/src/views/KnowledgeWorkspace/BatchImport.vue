@@ -14,27 +14,59 @@
       </template>
     </el-alert>
 
-    <el-row :gutter="16" style="margin-top: 16px">
-      
+    <el-row
+      :gutter="16"
+      style="margin-top: 16px"
+    >
       <el-col :span="14">
         <el-card>
-          <el-tabs v-model="activeTab" @tab-change="handleTabChange">
-            
-            <el-tab-pane label="文件上传" name="upload">
-              <el-form label-width="100px" :model="uploadForm">
-                <el-form-item label="产品" required>
-                  <el-select v-model="uploadForm.product_id" placeholder="选择产品" style="width: 100%" @change="loadPreview">
-                    <el-option v-for="p in productList" :key="p.id" :label="p.name" :value="p.id" />
+          <el-tabs
+            v-model="activeTab"
+            @tab-change="handleTabChange"
+          >
+            <el-tab-pane
+              label="文件上传"
+              name="upload"
+            >
+              <el-form
+                label-width="100px"
+                :model="uploadForm"
+              >
+                <el-form-item
+                  label="产品"
+                  required
+                >
+                  <el-select
+                    v-model="uploadForm.product_id"
+                    placeholder="选择产品"
+                    style="width: 100%"
+                    @change="loadPreview"
+                  >
+                    <el-option
+                      v-for="p in productList"
+                      :key="p.id"
+                      :label="p.name"
+                      :value="p.id"
+                    />
                   </el-select>
                 </el-form-item>
                 <el-form-item label="格式">
                   <el-radio-group v-model="uploadForm.format">
-                    <el-radio-button label="auto">自动识别</el-radio-button>
-                    <el-radio-button label="csv">CSV</el-radio-button>
-                    <el-radio-button label="json">JSON</el-radio-button>
+                    <el-radio-button label="auto">
+                      自动识别
+                    </el-radio-button>
+                    <el-radio-button label="csv">
+                      CSV
+                    </el-radio-button>
+                    <el-radio-button label="json">
+                      JSON
+                    </el-radio-button>
                   </el-radio-group>
                 </el-form-item>
-                <el-form-item label="文件" required>
+                <el-form-item
+                  label="文件"
+                  required
+                >
                   <el-upload
                     ref="uploadRef"
                     :auto-upload="false"
@@ -44,36 +76,75 @@
                     accept=".csv,.json,.txt"
                     drag
                   >
-                    <el-icon class="el-icon--upload"><upload-filled /></el-icon>
-                    <div class="el-upload__text">将文件拖到此处,或<em>点击上传</em></div>
+                    <el-icon class="el-icon--upload">
+                      <upload-filled />
+                    </el-icon>
+                    <div class="el-upload__text">
+                      将文件拖到此处,或<em>点击上传</em>
+                    </div>
                     <template #tip>
-                      <div class="el-upload__tip">支持 .csv / .json / .txt,单个文件不超过 {{ maxUploadMB }}MB</div>
+                      <div class="el-upload__tip">
+                        支持 .csv / .json / .txt,单个文件不超过 {{ maxUploadMB }}MB
+                      </div>
                     </template>
                   </el-upload>
                 </el-form-item>
               </el-form>
-              <el-button type="primary" :icon="View" :disabled="!uploadForm.file" @click="loadPreview" style="margin-top: 8px">预览解析结果</el-button>
+              <el-button
+                type="primary"
+                :icon="View"
+                :disabled="!uploadForm.file"
+                style="margin-top: 8px"
+                @click="loadPreview"
+              >
+                预览解析结果
+              </el-button>
             </el-tab-pane>
 
             
-            <el-tab-pane label="JSON 粘贴" name="paste">
+            <el-tab-pane
+              label="JSON 粘贴"
+              name="paste"
+            >
               <el-form label-width="100px">
-                <el-form-item label="产品" required>
-                  <el-select v-model="pasteForm.product_id" placeholder="选择产品" style="width: 100%">
-                    <el-option v-for="p in productList" :key="p.id" :label="p.name" :value="p.id" />
+                <el-form-item
+                  label="产品"
+                  required
+                >
+                  <el-select
+                    v-model="pasteForm.product_id"
+                    placeholder="选择产品"
+                    style="width: 100%"
+                  >
+                    <el-option
+                      v-for="p in productList"
+                      :key="p.id"
+                      :label="p.name"
+                      :value="p.id"
+                    />
                   </el-select>
                 </el-form-item>
-                <el-form-item label="JSON 内容" required>
+                <el-form-item
+                  label="JSON 内容"
+                  required
+                >
                   <el-input
                     v-model="pasteForm.jsonText"
                     type="textarea"
                     :rows="12"
-                    placeholder='示例:&#10;[&#10;  {"title": "如何退货", "content": "请在订单页面申请", "category": "售后", "tags": ["退货","流程"]},&#10;  {"title": "产品 A 介绍", "content": "..."}&#10;]'
+                    placeholder="示例:&#10;[&#10;  {&quot;title&quot;: &quot;如何退货&quot;, &quot;content&quot;: &quot;请在订单页面申请&quot;, &quot;category&quot;: &quot;售后&quot;, &quot;tags&quot;: [&quot;退货&quot;,&quot;流程&quot;]},&#10;  {&quot;title&quot;: &quot;产品 A 介绍&quot;, &quot;content&quot;: &quot;...&quot;}&#10;]"
                   />
                 </el-form-item>
                 <el-form-item>
-                  <el-button @click="loadPastePreview" :icon="View">解析预览</el-button>
-                  <el-button @click="loadPasteTemplate">载入模板</el-button>
+                  <el-button
+                    :icon="View"
+                    @click="loadPastePreview"
+                  >
+                    解析预览
+                  </el-button>
+                  <el-button @click="loadPasteTemplate">
+                    载入模板
+                  </el-button>
                 </el-form-item>
               </el-form>
             </el-tab-pane>
@@ -87,18 +158,45 @@
           <template #header>
             <div class="card-header">
               <span>解析预览</span>
-              <el-tag v-if="preview.length" type="info">共 {{ preview.length }} 条</el-tag>
+              <el-tag
+                v-if="preview.length"
+                type="info"
+              >
+                共 {{ preview.length }} 条
+              </el-tag>
             </div>
           </template>
-          <el-table :data="preview" max-height="320" size="small" empty-text="先选择产品和文件(或粘贴 JSON),点击「预览解析结果」">
-            <el-table-column prop="title" label="标题" min-width="120" show-overflow-tooltip />
-            <el-table-column prop="category" label="分类" width="80" />
-            <el-table-column label="内容预览" min-width="160" show-overflow-tooltip>
+          <el-table
+            :data="preview"
+            max-height="320"
+            size="small"
+            empty-text="先选择产品和文件(或粘贴 JSON),点击「预览解析结果」"
+          >
+            <el-table-column
+              prop="title"
+              label="标题"
+              min-width="120"
+              show-overflow-tooltip
+            />
+            <el-table-column
+              prop="category"
+              label="分类"
+              width="80"
+            />
+            <el-table-column
+              label="内容预览"
+              min-width="160"
+              show-overflow-tooltip
+            >
               <template #default="{ row }">
                 <span class="content-prev">{{ truncateText(row.content, 60) }}</span>
               </template>
             </el-table-column>
-            <el-table-column label="标签" width="120" show-overflow-tooltip>
+            <el-table-column
+              label="标签"
+              width="120"
+              show-overflow-tooltip
+            >
               <template #default="{ row }">
                 <span v-if="row.tags && row.tags.length">{{ row.tags.join(', ') }}</span>
                 <span v-else>-</span>
@@ -106,7 +204,13 @@
             </el-table-column>
           </el-table>
           <div style="margin-top: 12px; text-align: right">
-            <el-button type="primary" :icon="Upload" :loading="importing" :disabled="!canImport" @click="handleBatchImport">
+            <el-button
+              type="primary"
+              :icon="Upload"
+              :loading="importing"
+              :disabled="!canImport"
+              @click="handleBatchImport"
+            >
               确认导入 ({{ preview.length }})
             </el-button>
           </div>
@@ -115,35 +219,82 @@
     </el-row>
 
     
-    <el-card v-if="lastResult" style="margin-top: 16px">
+    <el-card
+      v-if="lastResult"
+      style="margin-top: 16px"
+    >
       <template #header>
         <div class="card-header">
           <span>
             <el-icon style="vertical-align: middle"><CircleCheck /></el-icon>
             导入完成
-            <el-text type="info" size="small" style="margin-left: 8px">批次号: {{ lastResult.batch_no }}</el-text>
+            <el-text
+              type="info"
+              size="small"
+              style="margin-left: 8px"
+            >批次号: {{ lastResult.batch_no }}</el-text>
           </span>
-          <el-button link type="primary" @click="lastResult = null">关闭</el-button>
+          <el-button
+            link
+            type="primary"
+            @click="lastResult = null"
+          >
+            关闭
+          </el-button>
         </div>
       </template>
       <el-row :gutter="16">
         <el-col :span="6">
-          <el-statistic title="总数" :value="lastResult.total" />
+          <el-statistic
+            title="总数"
+            :value="lastResult.total"
+          />
         </el-col>
         <el-col :span="6">
-          <el-statistic title="成功" :value="lastResult.accepted" :value-style="{ color: '#10B981' }" />
+          <el-statistic
+            title="成功"
+            :value="lastResult.accepted"
+            :value-style="{ color: '#10B981' }"
+          />
         </el-col>
         <el-col :span="6">
-          <el-statistic title="失败" :value="lastResult.rejected" :value-style="{ color: '#EF4444' }" />
+          <el-statistic
+            title="失败"
+            :value="lastResult.rejected"
+            :value-style="{ color: '#EF4444' }"
+          />
         </el-col>
         <el-col :span="6">
-          <el-statistic title="成功率" :value="successRate" suffix="%" :precision="1" />
+          <el-statistic
+            title="成功率"
+            :value="successRate"
+            suffix="%"
+            :precision="1"
+          />
         </el-col>
       </el-row>
-      <el-divider v-if="lastResult.errors && lastResult.errors.length" content-position="left">失败明细</el-divider>
-      <el-table v-if="lastResult.errors && lastResult.errors.length" :data="lastResult.errors" max-height="200" size="small" border>
-        <el-table-column type="index" label="序号" width="60" />
-        <el-table-column prop="value" label="错误信息" />
+      <el-divider
+        v-if="lastResult.errors && lastResult.errors.length"
+        content-position="left"
+      >
+        失败明细
+      </el-divider>
+      <el-table
+        v-if="lastResult.errors && lastResult.errors.length"
+        :data="lastResult.errors"
+        max-height="200"
+        size="small"
+        border
+      >
+        <el-table-column
+          type="index"
+          label="序号"
+          width="60"
+        />
+        <el-table-column
+          prop="value"
+          label="错误信息"
+        />
       </el-table>
     </el-card>
 

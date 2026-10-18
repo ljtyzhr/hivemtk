@@ -1,104 +1,235 @@
 <template>
   <div class="geo-page">
-
     <div class="p-4">
-    <el-row :gutter="16" class="mb-4">
-      <el-col :span="6">
-        <el-card><el-statistic title="实体总数" :value="entities.length" /></el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card><el-statistic title="关系总数" :value="totalRelations" /></el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card><el-statistic title="关系类型" :value="relationTypeCount" /></el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card><el-statistic title="已生成 Schema" :value="schemaGenerated ? 1 : 0" /></el-card>
-      </el-col>
-    </el-row>
+      <el-row
+        :gutter="16"
+        class="mb-4"
+      >
+        <el-col :span="6">
+          <el-card>
+            <el-statistic
+              title="实体总数"
+              :value="entities.length"
+            />
+          </el-card>
+        </el-col>
+        <el-col :span="6">
+          <el-card>
+            <el-statistic
+              title="关系总数"
+              :value="totalRelations"
+            />
+          </el-card>
+        </el-col>
+        <el-col :span="6">
+          <el-card>
+            <el-statistic
+              title="关系类型"
+              :value="relationTypeCount"
+            />
+          </el-card>
+        </el-col>
+        <el-col :span="6">
+          <el-card>
+            <el-statistic
+              title="已生成 Schema"
+              :value="schemaGenerated ? 1 : 0"
+            />
+          </el-card>
+        </el-col>
+      </el-row>
 
-    <el-row :gutter="16" style="min-height:500px">
-      
-      <el-col :span="8">
-        <el-card style="height:100%">
-          <template #header>
-            <div class="flex items-center gap-2">
-              <span class="font-bold">实体列表</span>
-              <el-select v-model="typeFilter" placeholder="按类型筛选" size="small" style="width:120px" clearable>
-                <el-option v-for="t in entityTypes" :key="t" :label="t" :value="t" />
-              </el-select>
-              <el-input v-model="keyword" placeholder="搜索" size="small" style="width:140px" clearable @clear="loadEntities" @keyup.enter="loadEntities" />
-            </div>
-          </template>
-          <el-table :data="entities" v-loading="loading" size="small" highlight-current-row @row-click="onSelectEntity" ref="entityTable">
-            <el-table-column prop="name" label="名称" min-width="140" show-overflow-tooltip />
-            <el-table-column prop="type" label="类型" width="100">
-              <template #default="{ row }">
-                <el-tag size="small">{{ row.type }}</el-tag>
-              </template>
-            </el-table-column>
-          </el-table>
-        </el-card>
-      </el-col>
+      <el-row
+        :gutter="16"
+        style="min-height:500px"
+      >
+        <el-col :span="8">
+          <el-card style="height:100%">
+            <template #header>
+              <div class="flex items-center gap-2">
+                <span class="font-bold">实体列表</span>
+                <el-select
+                  v-model="typeFilter"
+                  placeholder="按类型筛选"
+                  size="small"
+                  style="width:120px"
+                  clearable
+                >
+                  <el-option
+                    v-for="t in entityTypes"
+                    :key="t"
+                    :label="t"
+                    :value="t"
+                  />
+                </el-select>
+                <el-input
+                  v-model="keyword"
+                  placeholder="搜索"
+                  size="small"
+                  style="width:140px"
+                  clearable
+                  @clear="loadEntities"
+                  @keyup.enter="loadEntities"
+                />
+              </div>
+            </template>
+            <el-table
+              ref="entityTable"
+              v-loading="loading"
+              :data="entities"
+              size="small"
+              highlight-current-row
+              @row-click="onSelectEntity"
+            >
+              <el-table-column
+                prop="name"
+                label="名称"
+                min-width="140"
+                show-overflow-tooltip
+              />
+              <el-table-column
+                prop="type"
+                label="类型"
+                width="100"
+              >
+                <template #default="{ row }">
+                  <el-tag size="small">
+                    {{ row.type }}
+                  </el-tag>
+                </template>
+              </el-table-column>
+            </el-table>
+          </el-card>
+        </el-col>
 
       
-      <el-col :span="16">
-        <el-card class="mb-4">
-          <template #header>
-            <div class="flex items-center justify-between">
-              <span class="font-bold">实体关系图{{ currentEntity ? ` · ${currentEntity.name}` : '' }}</span>
-              <el-button size="small" type="primary" :disabled="!currentEntity" @click="onGenerateSchema" :loading="schemaLoading">生成 JSON-LD Schema</el-button>
-            </div>
-          </template>
+        <el-col :span="16">
+          <el-card class="mb-4">
+            <template #header>
+              <div class="flex items-center justify-between">
+                <span class="font-bold">实体关系图{{ currentEntity ? ` · ${currentEntity.name}` : '' }}</span>
+                <el-button
+                  size="small"
+                  type="primary"
+                  :disabled="!currentEntity"
+                  :loading="schemaLoading"
+                  @click="onGenerateSchema"
+                >
+                  生成 JSON-LD Schema
+                </el-button>
+              </div>
+            </template>
           
-          <div ref="graphRef" class="graph-container">
-            <svg :viewBox="`0 0 ${svgSize.w} ${svgSize.h}`" preserveAspectRatio="xMidYMid meet">
+            <div
+              ref="graphRef"
+              class="graph-container"
+            >
+              <svg
+                :viewBox="`0 0 ${svgSize.w} ${svgSize.h}`"
+                preserveAspectRatio="xMidYMid meet"
+              >
               
-              <g v-if="currentEntity">
-                <line v-for="(rel, i) in relations" :key="'l'+i"
-                  :x1="svgSize.w/2" :y1="svgSize.h/2"
-                  :x2="rel.node?.x || 0" :y2="rel.node?.y || 0"
-                  stroke="#c0c4cc" stroke-width="1.5" />
-                <text v-for="(rel, i) in relations" :key="'t'+i"
-                  :x="((svgSize.w/2) + (rel.node?.x || 0)) / 2"
-                  :y="((svgSize.h/2) + (rel.node?.y || 0)) / 2 - 4"
-                  fill="#909399" font-size="11" text-anchor="middle">
-                  {{ rel.relation_type || rel.relationType || '关联' }}
-                </text>
-                
-                <circle :cx="svgSize.w/2" :cy="svgSize.h/2" r="36" fill="#409eff" />
-                <text :x="svgSize.w/2" :y="svgSize.h/2 + 4" text-anchor="middle" fill="#fff" font-size="13" font-weight="600">
-                  {{ currentEntity.name }}
-                </text>
-                
-                <g v-for="(rel, i) in relations" :key="'n'+i">
-                  <circle :cx="rel.node?.x || 0" :cy="rel.node?.y || 0" r="24" fill="#10b981" />
-                  <text :x="rel.node?.x || 0" :y="(rel.node?.y || 0) + 4" text-anchor="middle" fill="#fff" font-size="11">
-                    {{ (rel.target_name || rel.targetName || rel.target_id || '?').slice(0, 6) }}
+                <g v-if="currentEntity">
+                  <line
+                    v-for="(rel, i) in relations"
+                    :key="'l'+i"
+                    :x1="svgSize.w/2"
+                    :y1="svgSize.h/2"
+                    :x2="rel.node?.x || 0"
+                    :y2="rel.node?.y || 0"
+                    stroke="#c0c4cc"
+                    stroke-width="1.5"
+                  />
+                  <text
+                    v-for="(rel, i) in relations"
+                    :key="'t'+i"
+                    :x="((svgSize.w/2) + (rel.node?.x || 0)) / 2"
+                    :y="((svgSize.h/2) + (rel.node?.y || 0)) / 2 - 4"
+                    fill="#909399"
+                    font-size="11"
+                    text-anchor="middle"
+                  >
+                    {{ rel.relation_type || rel.relationType || '关联' }}
                   </text>
+                
+                  <circle
+                    :cx="svgSize.w/2"
+                    :cy="svgSize.h/2"
+                    r="36"
+                    fill="#409eff"
+                  />
+                  <text
+                    :x="svgSize.w/2"
+                    :y="svgSize.h/2 + 4"
+                    text-anchor="middle"
+                    fill="#fff"
+                    font-size="13"
+                    font-weight="600"
+                  >
+                    {{ currentEntity.name }}
+                  </text>
+                
+                  <g
+                    v-for="(rel, i) in relations"
+                    :key="'n'+i"
+                  >
+                    <circle
+                      :cx="rel.node?.x || 0"
+                      :cy="rel.node?.y || 0"
+                      r="24"
+                      fill="#10b981"
+                    />
+                    <text
+                      :x="rel.node?.x || 0"
+                      :y="(rel.node?.y || 0) + 4"
+                      text-anchor="middle"
+                      fill="#fff"
+                      font-size="11"
+                    >
+                      {{ (rel.target_name || rel.targetName || rel.target_id || '?').slice(0, 6) }}
+                    </text>
+                  </g>
                 </g>
-              </g>
-              <text v-else :x="svgSize.w/2" :y="svgSize.h/2" text-anchor="middle" fill="#c0c4cc" font-size="14">
-                请在左侧选择实体以查看关系图
-              </text>
-            </svg>
-          </div>
-        </el-card>
-
-        <el-card>
-          <template #header>
-            <div class="flex items-center justify-between">
-              <span class="font-bold">JSON-LD Schema 预览</span>
-              <el-button size="small" @click="onCopySchema" :disabled="!schema">复制</el-button>
+                <text
+                  v-else
+                  :x="svgSize.w/2"
+                  :y="svgSize.h/2"
+                  text-anchor="middle"
+                  fill="#c0c4cc"
+                  font-size="14"
+                >
+                  请在左侧选择实体以查看关系图
+                </text>
+              </svg>
             </div>
-          </template>
-          <div v-if="!schema" class="py-8 text-center text-gray-400">
-            暂无 JSON-LD Schema，点击上方「生成 JSON-LD Schema」按钮生成
-          </div>
-          <pre v-else class="schema-pre">{{ schema }}</pre>
-        </el-card>
-      </el-col>
-    </el-row>
+          </el-card>
+
+          <el-card>
+            <template #header>
+              <div class="flex items-center justify-between">
+                <span class="font-bold">JSON-LD Schema 预览</span>
+                <el-button
+                  size="small"
+                  :disabled="!schema"
+                  @click="onCopySchema"
+                >
+                  复制
+                </el-button>
+              </div>
+            </template>
+            <div
+              v-if="!schema"
+              class="py-8 text-center text-gray-400"
+            >
+              暂无 JSON-LD Schema，点击上方「生成 JSON-LD Schema」按钮生成
+            </div>
+            <pre
+              v-else
+              class="schema-pre"
+            >{{ schema }}</pre>
+          </el-card>
+        </el-col>
+      </el-row>
     </div>
   </div>
 </template>

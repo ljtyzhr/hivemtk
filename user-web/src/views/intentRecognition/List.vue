@@ -1,11 +1,15 @@
 <template>
   <div class="intent-recognition-page">
-    
-    <el-card class="header-card" shadow="never">
+    <el-card
+      class="header-card"
+      shadow="never"
+    >
       <div class="header-content">
         <div>
           <h2>{{ $t('销售意图识别') }}</h2>
-          <p class="subtitle">基于规则 + LLM 双引擎识别客户对话意图，支撑销冠 SOP 智能体决策</p>
+          <p class="subtitle">
+            基于规则 + LLM 双引擎识别客户对话意图，支撑销冠 SOP 智能体决策
+          </p>
         </div>
         <div class="header-actions">
           <el-tooltip
@@ -23,53 +27,109 @@
               @change="onToggleIntent"
             />
           </el-tooltip>
-          <el-button @click="openKeywordOverride" style="margin-right: 12px">
+          <el-button
+            style="margin-right: 12px"
+            @click="openKeywordOverride"
+          >
             <el-icon><EditPen /></el-icon>
             {{ $t('词表配置') }}
           </el-button>
-          <el-button @click="refreshAll" :loading="loading">
+          <el-button
+            :loading="loading"
+            @click="refreshAll"
+          >
             <el-icon><Refresh /></el-icon>
             {{ $t('刷新') }}
           </el-button>
         </div>
       </div>
-      <div v-if="configMeta.updated_at" class="config-meta">
-        <el-tag size="small" effect="plain" type="info">
+      <div
+        v-if="configMeta.updated_at"
+        class="config-meta"
+      >
+        <el-tag
+          size="small"
+          effect="plain"
+          type="info"
+        >
           最近更新：{{ formatTime(configMeta.updated_at) }} · by {{ configMeta.updated_by || 'system' }}
         </el-tag>
       </div>
     </el-card>
 
     
-    <el-card shadow="never" class="test-card">
+    <el-card
+      shadow="never"
+      class="test-card"
+    >
       <template #header>
         <div class="card-header">
           <span><el-icon><Aim /></el-icon> {{ $t('意图识别测试') }}</span>
-          <el-button link type="primary" @click="fillExample">{{ $t('填入示例') }}</el-button>
+          <el-button
+            link
+            type="primary"
+            @click="fillExample"
+          >
+            {{ $t('填入示例') }}
+          </el-button>
         </div>
       </template>
-      <el-form :model="testForm" label-width="90px">
+      <el-form
+        :model="testForm"
+        label-width="90px"
+      >
         <el-row :gutter="16">
           <el-col :span="12">
             <el-form-item label="客户 ID">
-              <el-input v-model="testForm.customer_id" placeholder="可选，用于客户画像归档" clearable />
+              <el-input
+                v-model="testForm.customer_id"
+                placeholder="可选，用于客户画像归档"
+                clearable
+              />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="平台">
-              <el-select v-model="testForm.platform" placeholder="可选，消息来源平台" clearable style="width: 100%">
-                <el-option label="微信" value="wechat" />
-                <el-option label="抖音" value="douyin" />
-                <el-option label="小红书" value="xiaohongshu" />
-                <el-option label="快手" value="kuaishou" />
-                <el-option label="WhatsApp" value="whatsapp" />
-                <el-option label="Telegram" value="telegram" />
+              <el-select
+                v-model="testForm.platform"
+                placeholder="可选，消息来源平台"
+                clearable
+                style="width: 100%"
+              >
+                <el-option
+                  label="微信"
+                  value="wechat"
+                />
+                <el-option
+                  label="抖音"
+                  value="douyin"
+                />
+                <el-option
+                  label="小红书"
+                  value="xiaohongshu"
+                />
+                <el-option
+                  label="快手"
+                  value="kuaishou"
+                />
+                <el-option
+                  label="WhatsApp"
+                  value="whatsapp"
+                />
+                <el-option
+                  label="Telegram"
+                  value="telegram"
+                />
               </el-select>
             </el-form-item>
           </el-col>
         </el-row>
         <el-form-item label="上下文">
-          <el-input v-model="testForm.context" placeholder="可选，前序对话上下文，帮助提升识别准确率" clearable />
+          <el-input
+            v-model="testForm.context"
+            placeholder="可选，前序对话上下文，帮助提升识别准确率"
+            clearable
+          />
         </el-form-item>
         <el-form-item label="客户消息">
           <el-input
@@ -80,16 +140,31 @@
           />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" :loading="recognizing" @click="runRecognize">
+          <el-button
+            type="primary"
+            :loading="recognizing"
+            @click="runRecognize"
+          >
             <el-icon><Aim /></el-icon> 开始识别
           </el-button>
-          <el-button type="success" :loading="batchLoading" @click="runBatchRecognize">批量识别(按行)</el-button>
+          <el-button
+            type="success"
+            :loading="batchLoading"
+            @click="runBatchRecognize"
+          >
+            批量识别(按行)
+          </el-button>
         </el-form-item>
       </el-form>
 
       <template v-if="recognizeResult">
-        <el-divider content-position="left">识别结果</el-divider>
-        <el-descriptions :column="2" border>
+        <el-divider content-position="left">
+          识别结果
+        </el-divider>
+        <el-descriptions
+          :column="2"
+          border
+        >
           <el-descriptions-item label="意图类型">
             <el-tag :type="getIntentTagType(recognizeResult.intent_type)">
               {{ recognizeResult.intent_name || intentNameMap[recognizeResult.intent_type] || recognizeResult.intent_type || '-' }}
@@ -105,27 +180,48 @@
             />
           </el-descriptions-item>
           <el-descriptions-item label="置信级别">
-            <el-tag :type="getConfidenceTagType(recognizeResult.confidence_level)" size="small" effect="plain">
+            <el-tag
+              :type="getConfidenceTagType(recognizeResult.confidence_level)"
+              size="small"
+              effect="plain"
+            >
               {{ recognizeResult.confidence_level || '-' }}
             </el-tag>
           </el-descriptions-item>
           <el-descriptions-item label="识别方法">
-            <el-tag :type="recognizeResult.method === 'llm' ? 'danger' : 'info'" size="small" effect="plain">
+            <el-tag
+              :type="recognizeResult.method === 'llm' ? 'danger' : 'info'"
+              size="small"
+              effect="plain"
+            >
               {{ recognizeResult.method === 'llm' ? 'LLM 模型' : '规则匹配' }}
             </el-tag>
           </el-descriptions-item>
-          <el-descriptions-item v-if="recognizeResult.platform" label="平台">
+          <el-descriptions-item
+            v-if="recognizeResult.platform"
+            label="平台"
+          >
             {{ recognizeResult.platform }}
           </el-descriptions-item>
-          <el-descriptions-item v-if="recognizeResult.latency_ms" label="耗时">
+          <el-descriptions-item
+            v-if="recognizeResult.latency_ms"
+            label="耗时"
+          >
             {{ recognizeResult.latency_ms }} ms
           </el-descriptions-item>
         </el-descriptions>
 
         <template v-if="recognizeResult.entities && Object.keys(recognizeResult.entities).length">
-          <el-divider content-position="left">提取实体</el-divider>
+          <el-divider content-position="left">
+            提取实体
+          </el-divider>
           <div class="entity-list">
-            <el-tag v-for="(val, key) in recognizeResult.entities" :key="key" effect="plain" class="entity-tag">
+            <el-tag
+              v-for="(val, key) in recognizeResult.entities"
+              :key="key"
+              effect="plain"
+              class="entity-tag"
+            >
               {{ key }}: {{ val }}
             </el-tag>
           </div>
@@ -133,24 +229,55 @@
       </template>
 
       <template v-if="batchResults.length">
-        <el-divider content-position="left">批量识别结果（{{ batchResults.length }} 条）</el-divider>
-        <el-table :data="batchResults" stripe size="small" max-height="320">
-          <el-table-column label="原文本" min-width="200" show-overflow-tooltip>
-            <template #default="{ row }">{{ row.message || row.raw_text }}</template>
-          </el-table-column>
-          <el-table-column label="意图" width="120">
+        <el-divider content-position="left">
+          批量识别结果（{{ batchResults.length }} 条）
+        </el-divider>
+        <el-table
+          :data="batchResults"
+          stripe
+          size="small"
+          max-height="320"
+        >
+          <el-table-column
+            label="原文本"
+            min-width="200"
+            show-overflow-tooltip
+          >
             <template #default="{ row }">
-              <el-tag :type="getIntentTagType(row.intent_type)" size="small">
+              {{ row.message || row.raw_text }}
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="意图"
+            width="120"
+          >
+            <template #default="{ row }">
+              <el-tag
+                :type="getIntentTagType(row.intent_type)"
+                size="small"
+              >
                 {{ row.intent_name || intentNameMap[row.intent_type] || row.intent_type }}
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="置信度" width="100">
-            <template #default="{ row }">{{ Math.round((row.confidence || 0) * 100) }}%</template>
-          </el-table-column>
-          <el-table-column label="方法" width="80">
+          <el-table-column
+            label="置信度"
+            width="100"
+          >
             <template #default="{ row }">
-              <el-tag :type="getMethodTagType(row.method)" size="small" effect="plain">
+              {{ Math.round((row.confidence || 0) * 100) }}%
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="方法"
+            width="80"
+          >
+            <template #default="{ row }">
+              <el-tag
+                :type="getMethodTagType(row.method)"
+                size="small"
+                effect="plain"
+              >
                 {{ getMethodLabel(row.method) }}
               </el-tag>
             </template>
@@ -160,58 +287,114 @@
     </el-card>
 
     
-    <el-row :gutter="16" class="stats-row" v-loading="statsLoading">
+    <el-row
+      v-loading="statsLoading"
+      :gutter="16"
+      class="stats-row"
+    >
       <el-col :span="6">
-        <el-card shadow="hover" class="stat-card">
-          <div class="stat-value">{{ statsData.total || 0 }}</div>
-          <div class="stat-label">总识别数</div>
+        <el-card
+          shadow="hover"
+          class="stat-card"
+        >
+          <div class="stat-value">
+            {{ statsData.total || 0 }}
+          </div>
+          <div class="stat-label">
+            总识别数
+          </div>
         </el-card>
       </el-col>
       <el-col :span="6">
-        <el-card shadow="hover" class="stat-card stat-purchase">
-          <div class="stat-value">{{ statsData.purchase || 0 }}</div>
-          <div class="stat-label">购买意向</div>
+        <el-card
+          shadow="hover"
+          class="stat-card stat-purchase"
+        >
+          <div class="stat-value">
+            {{ statsData.purchase || 0 }}
+          </div>
+          <div class="stat-label">
+            购买意向
+          </div>
         </el-card>
       </el-col>
       <el-col :span="6">
-        <el-card shadow="hover" class="stat-card stat-inquiry">
-          <div class="stat-value">{{ statsData.price_inquiry || 0 }}</div>
-          <div class="stat-label">价格咨询</div>
+        <el-card
+          shadow="hover"
+          class="stat-card stat-inquiry"
+        >
+          <div class="stat-value">
+            {{ statsData.price_inquiry || 0 }}
+          </div>
+          <div class="stat-label">
+            价格咨询
+          </div>
         </el-card>
       </el-col>
       <el-col :span="6">
-        <el-card shadow="hover" class="stat-card stat-objection">
-          <div class="stat-value">{{ objectionTotal }}</div>
-          <div class="stat-label">异议总量</div>
+        <el-card
+          shadow="hover"
+          class="stat-card stat-objection"
+        >
+          <div class="stat-value">
+            {{ objectionTotal }}
+          </div>
+          <div class="stat-label">
+            异议总量
+          </div>
         </el-card>
       </el-col>
     </el-row>
 
     <el-row :gutter="16">
-      
       <el-col :span="10">
         <el-card shadow="never">
           <template #header>
             <div class="card-header">
               <span>意图类型分布</span>
-              <el-button link type="primary" size="small" @click="loadStats">刷新</el-button>
+              <el-button
+                link
+                type="primary"
+                size="small"
+                @click="loadStats"
+              >
+                刷新
+              </el-button>
             </div>
           </template>
-          <div class="intent-distribution" v-loading="statsLoading">
+          <div
+            v-loading="statsLoading"
+            class="intent-distribution"
+          >
             <template v-if="distributionList.length">
-              <div v-for="item in distributionList" :key="item.type" class="distribution-item">
+              <div
+                v-for="item in distributionList"
+                :key="item.type"
+                class="distribution-item"
+              >
                 <span class="dist-name">
-                  <el-tag :type="getIntentTagType(item.type)" size="small" effect="plain">
+                  <el-tag
+                    :type="getIntentTagType(item.type)"
+                    size="small"
+                    effect="plain"
+                  >
                     {{ intentNameMap[item.type] || item.type }}
                   </el-tag>
                 </span>
                 <div class="bar-track">
-                  <div class="bar-fill" :style="{ width: distBarWidth(item.count) + '%', background: getIntentColor(item.type) }"></div>
+                  <div
+                    class="bar-fill"
+                    :style="{ width: distBarWidth(item.count) + '%', background: getIntentColor(item.type) }"
+                  />
                 </div>
                 <span class="dist-count">{{ item.count }}</span>
               </div>
             </template>
-            <el-empty v-else description="暂无统计数据" :image-size="80" />
+            <el-empty
+              v-else
+              description="暂无统计数据"
+              :image-size="80"
+            />
           </div>
         </el-card>
       </el-col>
@@ -223,25 +406,64 @@
             <div class="card-header">
               <span>最近识别记录</span>
               <div class="header-controls">
-                <el-select v-model="filterIntentType" placeholder="意图类型筛选" clearable size="small" style="width: 160px" @change="onFilterChange">
-                  <el-option v-for="d in intentDict" :key="d.type" :label="d.name" :value="d.type" />
+                <el-select
+                  v-model="filterIntentType"
+                  placeholder="意图类型筛选"
+                  clearable
+                  size="small"
+                  style="width: 160px"
+                  @change="onFilterChange"
+                >
+                  <el-option
+                    v-for="d in intentDict"
+                    :key="d.type"
+                    :label="d.name"
+                    :value="d.type"
+                  />
                 </el-select>
-                <el-button size="small" type="primary" @click="loadRecent">查询</el-button>
+                <el-button
+                  size="small"
+                  type="primary"
+                  @click="loadRecent"
+                >
+                  查询
+                </el-button>
               </div>
             </div>
           </template>
-          <el-table :data="recentList" v-loading="recentLoading" stripe size="small" style="width: 100%">
-            <el-table-column label="消息内容" min-width="180" show-overflow-tooltip>
-              <template #default="{ row }">{{ row.message || row.raw_text }}</template>
-            </el-table-column>
-            <el-table-column label="识别意图" width="120">
+          <el-table
+            v-loading="recentLoading"
+            :data="recentList"
+            stripe
+            size="small"
+            style="width: 100%"
+          >
+            <el-table-column
+              label="消息内容"
+              min-width="180"
+              show-overflow-tooltip
+            >
               <template #default="{ row }">
-                <el-tag :type="getIntentTagType(row.intent_type)" size="small">
+                {{ row.message || row.raw_text }}
+              </template>
+            </el-table-column>
+            <el-table-column
+              label="识别意图"
+              width="120"
+            >
+              <template #default="{ row }">
+                <el-tag
+                  :type="getIntentTagType(row.intent_type)"
+                  size="small"
+                >
                   {{ intentNameMap[row.intent_type] || row.intent_type }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="置信度" width="130">
+            <el-table-column
+              label="置信度"
+              width="130"
+            >
               <template #default="{ row }">
                 <el-progress
                   :percentage="Math.round((row.confidence || 0) * 100)"
@@ -251,20 +473,40 @@
                 />
               </template>
             </el-table-column>
-            <el-table-column label="平台" width="90">
+            <el-table-column
+              label="平台"
+              width="90"
+            >
               <template #default="{ row }">
-                <el-tag v-if="row.platform" size="small" effect="plain">{{ getChannelLabel(row.platform) }}</el-tag>
+                <el-tag
+                  v-if="row.platform"
+                  size="small"
+                  effect="plain"
+                >
+                  {{ getChannelLabel(row.platform) }}
+                </el-tag>
                 <span v-else>-</span>
               </template>
             </el-table-column>
-            <el-table-column label="时间" width="150">
-              <template #default="{ row }">{{ formatTime(row.created_at) }}</template>
+            <el-table-column
+              label="时间"
+              width="150"
+            >
+              <template #default="{ row }">
+                {{ formatTime(row.created_at) }}
+              </template>
             </el-table-column>
             <template #empty>
-              <el-empty description="暂无记录" :image-size="80" />
+              <el-empty
+                description="暂无记录"
+                :image-size="80"
+              />
             </template>
           </el-table>
-          <div class="pagination-container" v-if="recentPagination.total > 0">
+          <div
+            v-if="recentPagination.total > 0"
+            class="pagination-container"
+          >
             <el-pagination
               v-model:current-page="recentPagination.page"
               v-model:page-size="recentPagination.pageSize"
@@ -280,34 +522,74 @@
     </el-row>
 
     
-    <el-card shadow="never" class="test-card">
+    <el-card
+      shadow="never"
+      class="test-card"
+    >
       <template #header>
         <div class="card-header">
           <span><el-icon><MagicStick /></el-icon> 精细意图识别（8 大类 + 7 子类）</span>
-          <el-button link type="primary" @click="fillFineExample">{{ $t('填入示例') }}</el-button>
+          <el-button
+            link
+            type="primary"
+            @click="fillFineExample"
+          >
+            {{ $t('填入示例') }}
+          </el-button>
         </div>
       </template>
-      <el-form :model="fineForm" label-width="90px" inline>
+      <el-form
+        :model="fineForm"
+        label-width="90px"
+        inline
+      >
         <el-form-item label="客户消息">
-          <el-input v-model="fineForm.message" type="textarea" :rows="2" placeholder="输入客户消息，如：你们这个产品跟别家有什么区别？" style="width: 460px" />
+          <el-input
+            v-model="fineForm.message"
+            type="textarea"
+            :rows="2"
+            placeholder="输入客户消息，如：你们这个产品跟别家有什么区别？"
+            style="width: 460px"
+          />
         </el-form-item>
         <el-form-item label="客户 ID">
-          <el-input v-model="fineForm.customer_id" placeholder="可选" clearable style="width: 180px" />
+          <el-input
+            v-model="fineForm.customer_id"
+            placeholder="可选"
+            clearable
+            style="width: 180px"
+          />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" :loading="fineLoading" @click="runRecognizeFine">
+          <el-button
+            type="primary"
+            :loading="fineLoading"
+            @click="runRecognizeFine"
+          >
             <el-icon><MagicStick /></el-icon> 精细识别
           </el-button>
         </el-form-item>
       </el-form>
       <template v-if="fineResult">
-        <el-divider content-position="left">精细识别结果</el-divider>
-        <el-descriptions :column="2" border>
+        <el-divider content-position="left">
+          精细识别结果
+        </el-divider>
+        <el-descriptions
+          :column="2"
+          border
+        >
           <el-descriptions-item label="大类">
-            <el-tag type="primary" effect="dark">{{ fineResult.major || '-' }}</el-tag>
+            <el-tag
+              type="primary"
+              effect="dark"
+            >
+              {{ fineResult.major || '-' }}
+            </el-tag>
           </el-descriptions-item>
           <el-descriptions-item label="子类">
-            <el-tag effect="plain">{{ fineResult.minor || '-' }}</el-tag>
+            <el-tag effect="plain">
+              {{ fineResult.minor || '-' }}
+            </el-tag>
           </el-descriptions-item>
           <el-descriptions-item label="置信度">
             <el-progress
@@ -318,17 +600,35 @@
             />
           </el-descriptions-item>
           <el-descriptions-item label="方法">
-            <el-tag :type="getFineMethodType(fineResult.method)" size="small">
+            <el-tag
+              :type="getFineMethodType(fineResult.method)"
+              size="small"
+            >
               {{ getFineMethodLabel(fineResult.method) }}
             </el-tag>
           </el-descriptions-item>
-          <el-descriptions-item v-if="fineResult.llm_model" label="LLM 模型">
-            <el-tag size="small" effect="plain">{{ fineResult.llm_model }}</el-tag>
+          <el-descriptions-item
+            v-if="fineResult.llm_model"
+            label="LLM 模型"
+          >
+            <el-tag
+              size="small"
+              effect="plain"
+            >
+              {{ fineResult.llm_model }}
+            </el-tag>
           </el-descriptions-item>
-          <el-descriptions-item v-if="fineResult.latency_ms" label="耗时">
+          <el-descriptions-item
+            v-if="fineResult.latency_ms"
+            label="耗时"
+          >
             {{ fineResult.latency_ms }} ms
           </el-descriptions-item>
-          <el-descriptions-item v-if="fineResult.reasoning" label="推理说明" :span="2">
+          <el-descriptions-item
+            v-if="fineResult.reasoning"
+            label="推理说明"
+            :span="2"
+          >
             {{ fineResult.reasoning }}
           </el-descriptions-item>
         </el-descriptions>
@@ -336,77 +636,195 @@
     </el-card>
 
     
-    <el-card shadow="never" class="dict-card">
+    <el-card
+      shadow="never"
+      class="dict-card"
+    >
       <template #header>
         <div class="card-header">
           <span>精细意图识别日志（最近 {{ fineLogs.length }} 条）</span>
           <div class="header-controls">
-            <el-select v-model="filterFineMajor" placeholder="大类筛选" clearable size="small" style="width: 160px" @change="loadFineLogs">
-              <el-option v-for="m in fineMajorOptions" :key="m" :label="m" :value="m" />
+            <el-select
+              v-model="filterFineMajor"
+              placeholder="大类筛选"
+              clearable
+              size="small"
+              style="width: 160px"
+              @change="loadFineLogs"
+            >
+              <el-option
+                v-for="m in fineMajorOptions"
+                :key="m"
+                :label="m"
+                :value="m"
+              />
             </el-select>
-            <el-button size="small" type="primary" @click="loadFineLogs">查询</el-button>
+            <el-button
+              size="small"
+              type="primary"
+              @click="loadFineLogs"
+            >
+              查询
+            </el-button>
           </div>
         </div>
       </template>
-      <el-table :data="fineLogs" v-loading="fineLogsLoading" stripe size="small">
-        <el-table-column label="消息内容" min-width="200" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.message || '-' }}</template>
-        </el-table-column>
-        <el-table-column label="大类" width="120">
+      <el-table
+        v-loading="fineLogsLoading"
+        :data="fineLogs"
+        stripe
+        size="small"
+      >
+        <el-table-column
+          label="消息内容"
+          min-width="200"
+          show-overflow-tooltip
+        >
           <template #default="{ row }">
-            <el-tag type="primary" size="small" effect="plain">{{ row.intent_major || '-' }}</el-tag>
+            {{ row.message || '-' }}
           </template>
         </el-table-column>
-        <el-table-column label="子类" width="160" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.intent_minor || '-' }}</template>
-        </el-table-column>
-        <el-table-column label="置信度" width="100">
-          <template #default="{ row }">{{ Math.round((row.confidence || 0) * 100) }}%</template>
-        </el-table-column>
-        <el-table-column label="方法" width="80">
+        <el-table-column
+          label="大类"
+          width="120"
+        >
           <template #default="{ row }">
-            <el-tag :type="getFineMethodType(row.method)" size="small" effect="plain">
+            <el-tag
+              type="primary"
+              size="small"
+              effect="plain"
+            >
+              {{ row.intent_major || '-' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="子类"
+          width="160"
+          show-overflow-tooltip
+        >
+          <template #default="{ row }">
+            {{ row.intent_minor || '-' }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="置信度"
+          width="100"
+        >
+          <template #default="{ row }">
+            {{ Math.round((row.confidence || 0) * 100) }}%
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="方法"
+          width="80"
+        >
+          <template #default="{ row }">
+            <el-tag
+              :type="getFineMethodType(row.method)"
+              size="small"
+              effect="plain"
+            >
               {{ getFineMethodLabel(row.method) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="耗时" width="80">
-          <template #default="{ row }">{{ row.latency_ms || 0 }}ms</template>
+        <el-table-column
+          label="耗时"
+          width="80"
+        >
+          <template #default="{ row }">
+            {{ row.latency_ms || 0 }}ms
+          </template>
         </el-table-column>
-        <el-table-column label="时间" width="150">
-          <template #default="{ row }">{{ formatTime(row.timestamp || row.created_at) }}</template>
+        <el-table-column
+          label="时间"
+          width="150"
+        >
+          <template #default="{ row }">
+            {{ formatTime(row.timestamp || row.created_at) }}
+          </template>
         </el-table-column>
         <template #empty>
-          <el-empty description="暂无精细识别日志" :image-size="80" />
+          <el-empty
+            description="暂无精细识别日志"
+            :image-size="80"
+          />
         </template>
       </el-table>
     </el-card>
 
     
-    <el-card shadow="never" class="dict-card">
+    <el-card
+      shadow="never"
+      class="dict-card"
+    >
       <template #header>
         <div class="card-header">
           <span>意图词典（{{ intentDict.length }} 类）</span>
-          <el-input v-model="dictKeyword" placeholder="搜索意图/关键词" clearable size="small" style="width: 220px" />
+          <el-input
+            v-model="dictKeyword"
+            placeholder="搜索意图/关键词"
+            clearable
+            size="small"
+            style="width: 220px"
+          />
         </div>
       </template>
-      <el-table :data="filteredDict" stripe size="small">
-        <el-table-column label="意图" width="130">
+      <el-table
+        :data="filteredDict"
+        stripe
+        size="small"
+      >
+        <el-table-column
+          label="意图"
+          width="130"
+        >
           <template #default="{ row }">
-            <el-tag :type="getIntentTagType(row.type)" size="small">{{ row.name }}</el-tag>
+            <el-tag
+              :type="getIntentTagType(row.type)"
+              size="small"
+            >
+              {{ row.name }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="type" label="标识" width="180" />
-        <el-table-column prop="description" label="说明" min-width="180" show-overflow-tooltip />
-        <el-table-column label="关键词" min-width="260">
+        <el-table-column
+          prop="type"
+          label="标识"
+          width="180"
+        />
+        <el-table-column
+          prop="description"
+          label="说明"
+          min-width="180"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          label="关键词"
+          min-width="260"
+        >
           <template #default="{ row }">
-            <el-tag v-for="kw in (row.keywords || []).slice(0, 6)" :key="kw" size="small" effect="plain" style="margin: 2px">
+            <el-tag
+              v-for="kw in (row.keywords || []).slice(0, 6)"
+              :key="kw"
+              size="small"
+              effect="plain"
+              style="margin: 2px"
+            >
               {{ kw }}
             </el-tag>
-            <span v-if="(row.keywords || []).length > 6" class="more-tag">等 {{ row.keywords.length }} 个</span>
+            <span
+              v-if="(row.keywords || []).length > 6"
+              class="more-tag"
+            >等 {{ row.keywords.length }} 个</span>
           </template>
         </el-table-column>
-        <el-table-column label="示例" min-width="220" show-overflow-tooltip>
+        <el-table-column
+          label="示例"
+          min-width="220"
+          show-overflow-tooltip
+        >
           <template #default="{ row }">
             {{ (row.examples || []).join(' / ') }}
           </template>
@@ -415,7 +833,11 @@
     </el-card>
 
     <!-- 词表配置对话框 -->
-    <el-dialog v-model="keywordOverrideVisible" title="意图词表配置" width="720px">
+    <el-dialog
+      v-model="keywordOverrideVisible"
+      title="意图词表配置"
+      width="720px"
+    >
       <el-alert
         title="覆盖语义为追加（不删除默认词表），保存即热生效"
         type="info"
@@ -423,14 +845,31 @@
         show-icon
         style="margin-bottom: 16px"
       />
-      <div v-if="keywordOverrideLoading" style="text-align: center; padding: 40px">
-        <el-icon class="is-loading" :size="32"><Loading /></el-icon>
-        <p style="margin-top: 12px; color: #909399">加载中...</p>
+      <div
+        v-if="keywordOverrideLoading"
+        style="text-align: center; padding: 40px"
+      >
+        <el-icon
+          class="is-loading"
+          :size="32"
+        >
+          <Loading />
+        </el-icon>
+        <p style="margin-top: 12px; color: #909399">
+          加载中...
+        </p>
       </div>
       <div v-else>
-        <div v-for="intent in keywordOverrideIntents" :key="intent.type" style="margin-bottom: 20px">
+        <div
+          v-for="intent in keywordOverrideIntents"
+          :key="intent.type"
+          style="margin-bottom: 20px"
+        >
           <div style="display: flex; align-items: center; margin-bottom: 8px">
-            <el-tag :type="getIntentTagType(intent.type)" size="small">
+            <el-tag
+              :type="getIntentTagType(intent.type)"
+              size="small"
+            >
               {{ intent.name }}
             </el-tag>
             <span style="margin-left: 8px; font-size: 12px; color: #909399">({{ intent.type }})</span>
@@ -440,13 +879,18 @@
               v-for="(kw, idx) in (keywordOverrideDraft[intent.type] || [])"
               :key="idx"
               closable
-              @close="removeKeyword(intent.type, idx)"
               size="small"
               effect="plain"
+              @close="removeKeyword(intent.type, idx)"
             >
               {{ kw }}
             </el-tag>
-            <el-tag v-if="!keywordOverrideDraft[intent.type]?.length" type="info" size="small" effect="plain">
+            <el-tag
+              v-if="!keywordOverrideDraft[intent.type]?.length"
+              type="info"
+              size="small"
+              effect="plain"
+            >
               暂无覆盖词
             </el-tag>
           </div>
@@ -458,13 +902,26 @@
               style="flex: 1"
               @keyup.enter="addKeyword(intent.type)"
             />
-            <el-button size="small" @click="addKeyword(intent.type)">添加</el-button>
+            <el-button
+              size="small"
+              @click="addKeyword(intent.type)"
+            >
+              添加
+            </el-button>
           </div>
         </div>
       </div>
       <template #footer>
-        <el-button @click="keywordOverrideVisible = false">取消</el-button>
-        <el-button type="primary" :loading="keywordOverrideSaving" @click="saveKeywordOverride">保存</el-button>
+        <el-button @click="keywordOverrideVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="keywordOverrideSaving"
+          @click="saveKeywordOverride"
+        >
+          保存
+        </el-button>
       </template>
     </el-dialog>
   </div>

@@ -1,28 +1,57 @@
 <template>
   <div class="my-modules">
-    <el-row :gutter="12" class="stats-row">
+    <el-row
+      :gutter="12"
+      class="stats-row"
+    >
       <el-col :span="8">
-        <el-card shadow="never"><div class="stat">
-          <div class="label">已开通</div><div class="value">{{ ownedCount }}</div>
-        </div></el-card>
-      </el-col>
-      <el-col :span="8">
-        <el-card shadow="never"><div class="stat">
-          <div class="label">基础能力</div><div class="value">{{ baseCount }}</div>
-        </div></el-card>
-      </el-col>
-      <el-col :span="8">
-        <el-card shadow="never"><div class="stat">
-          <div class="label">平台连接</div>
-          <div class="value small">
-            <el-tag size="small" :type="platformEnabled ? 'success' : 'info'">
-              {{ platformEnabled ? '已连接' : '未连接' }}
-            </el-tag>
+        <el-card shadow="never">
+          <div class="stat">
+            <div class="label">
+              已开通
+            </div><div class="value">
+              {{ ownedCount }}
+            </div>
           </div>
-          <el-button size="small" text type="primary" :loading="syncing" @click="onSync" class="mt-4">
-            立即同步
-          </el-button>
-        </div></el-card>
+        </el-card>
+      </el-col>
+      <el-col :span="8">
+        <el-card shadow="never">
+          <div class="stat">
+            <div class="label">
+              基础能力
+            </div><div class="value">
+              {{ baseCount }}
+            </div>
+          </div>
+        </el-card>
+      </el-col>
+      <el-col :span="8">
+        <el-card shadow="never">
+          <div class="stat">
+            <div class="label">
+              平台连接
+            </div>
+            <div class="value small">
+              <el-tag
+                size="small"
+                :type="platformEnabled ? 'success' : 'info'"
+              >
+                {{ platformEnabled ? '已连接' : '未连接' }}
+              </el-tag>
+            </div>
+            <el-button
+              size="small"
+              text
+              type="primary"
+              :loading="syncing"
+              class="mt-4"
+              @click="onSync"
+            >
+              立即同步
+            </el-button>
+          </div>
+        </el-card>
       </el-col>
     </el-row>
 
@@ -30,162 +59,379 @@
          而"实时扣减"对用户是否可感知，取决于他能不能看到剩余量。
          后端 /api/llm/wallet 与 /api/llm/plans 早已就位，前端却没有一处调用 ——
          那等于做了一整套计量却没有任何人看得见。 -->
-    <el-card shadow="never" class="mt-12">
+    <el-card
+      shadow="never"
+      class="mt-12"
+    >
       <template #header>
         <div class="card-header">
           <span>平台模型余额（按 token 预付费，输入/输出分别扣减）</span>
-          <el-button v-if="platformEnabled" size="small" type="primary" @click="planVisible = true">
+          <el-button
+            v-if="platformEnabled"
+            size="small"
+            type="primary"
+            @click="planVisible = true"
+          >
             购买套餐
           </el-button>
         </div>
       </template>
 
-      <el-alert v-if="!platformEnabled" type="info" :closable="false"
-        title="平台未连接" description="平台模型余额需连接平台后查看与充值。当前可正常使用自带 API Key 的模型（不计费）。" />
+      <el-alert
+        v-if="!platformEnabled"
+        type="info"
+        :closable="false"
+        title="平台未连接"
+        description="平台模型余额需连接平台后查看与充值。当前可正常使用自带 API Key 的模型（不计费）。"
+      />
 
-      <el-row v-else-if="wallet.exists" :gutter="16">
+      <el-row
+        v-else-if="wallet.exists"
+        :gutter="16"
+      >
         <el-col :span="8">
-          <div class="bal-label">剩余输入 token</div>
-          <div class="bal-value" :class="{ low: wallet.low }">{{ fmtTokens(wallet.input_tokens_remaining) }}</div>
+          <div class="bal-label">
+            剩余输入 token
+          </div>
+          <div
+            class="bal-value"
+            :class="{ low: wallet.low }"
+          >
+            {{ fmtTokens(wallet.input_tokens_remaining) }}
+          </div>
         </el-col>
         <el-col :span="8">
-          <div class="bal-label">剩余输出 token</div>
-          <div class="bal-value" :class="{ low: wallet.low }">{{ fmtTokens(wallet.output_tokens_remaining) }}</div>
+          <div class="bal-label">
+            剩余输出 token
+          </div>
+          <div
+            class="bal-value"
+            :class="{ low: wallet.low }"
+          >
+            {{ fmtTokens(wallet.output_tokens_remaining) }}
+          </div>
         </el-col>
         <el-col :span="8">
-          <div class="bal-label">累计消耗（输入 / 输出）</div>
+          <div class="bal-label">
+            累计消耗（输入 / 输出）
+          </div>
           <div class="bal-value small">
             {{ fmtTokens(wallet.total_consumed_input) }} / {{ fmtTokens(wallet.total_consumed_output) }}
           </div>
         </el-col>
       </el-row>
-      <el-empty v-else description="尚未购买平台模型套餐" :image-size="60" />
+      <el-empty
+        v-else
+        description="尚未购买平台模型套餐"
+        :image-size="60"
+      />
     </el-card>
 
-    <el-card shadow="never" class="mt-12">
+    <el-card
+      shadow="never"
+      class="mt-12"
+    >
       <template #header>
         <div class="card-header">
           <span>我的功能模块</span>
-          <el-radio-group v-model="tab" size="small">
-            <el-radio-button label="owned">已开通 ({{ owned.length }})</el-radio-button>
-            <el-radio-button label="all">全部 ({{ list.length }})</el-radio-button>
+          <el-radio-group
+            v-model="tab"
+            size="small"
+          >
+            <el-radio-button label="owned">
+              已开通 ({{ owned.length }})
+            </el-radio-button>
+            <el-radio-button label="all">
+              全部 ({{ list.length }})
+            </el-radio-button>
           </el-radio-group>
         </div>
       </template>
 
       <el-form inline>
         <el-form-item label="关键词">
-          <el-input v-model="keyword" placeholder="模块名称 / key" clearable style="width: 220px" />
+          <el-input
+            v-model="keyword"
+            placeholder="模块名称 / key"
+            clearable
+            style="width: 220px"
+          />
         </el-form-item>
         <el-form-item>
-          <el-button @click="$router.push('/module-market')">去市场</el-button>
-          <el-button @click="$router.push('/module-market/orders')">我的订单</el-button>
+          <el-button @click="$router.push('/module-market')">
+            去市场
+          </el-button>
+          <el-button @click="$router.push('/module-market/orders')">
+            我的订单
+          </el-button>
         </el-form-item>
       </el-form>
 
-      <el-table :data="filtered" v-loading="loading" stripe>
-        <el-table-column label="模块" min-width="220">
+      <el-table
+        v-loading="loading"
+        :data="filtered"
+        stripe
+      >
+        <el-table-column
+          label="模块"
+          min-width="220"
+        >
           <template #default="{ row }">
             <div class="name">
               {{ row.name }}
-              <el-tag size="small" :type="row.category === 'base' ? 'success' : 'warning'" effect="plain">
+              <el-tag
+                size="small"
+                :type="row.category === 'base' ? 'success' : 'warning'"
+                effect="plain"
+              >
                 {{ CATEGORY_LABEL[row.category] }}
               </el-tag>
-              <el-tag v-if="row.owned" size="small" :type="STATUS_TAG[row.status]">
+              <el-tag
+                v-if="row.owned"
+                size="small"
+                :type="STATUS_TAG[row.status]"
+              >
                 {{ STATUS_LABEL[row.status] || row.status }}
               </el-tag>
             </div>
-            <div class="key">{{ row.module_key }}</div>
+            <div class="key">
+              {{ row.module_key }}
+            </div>
           </template>
         </el-table-column>
-        <el-table-column label="价值" min-width="240">
-          <template #default="{ row }"><span class="muted">{{ row.summary }}</span></template>
-        </el-table-column>
-        <el-table-column label="价格" width="120">
-          <template #default="{ row }">{{ priceLabel(row) }}</template>
-        </el-table-column>
-        <el-table-column label="开通来源" width="140">
+        <el-table-column
+          label="价值"
+          min-width="240"
+        >
           <template #default="{ row }">
-            <el-tag v-if="row.owned" size="small" effect="plain">{{ SOURCE_LABEL[row.source] || row.source }}</el-tag>
-            <span v-else class="muted">—</span>
+            <span class="muted">{{ row.summary }}</span>
           </template>
         </el-table-column>
-        <el-table-column label="页面数" width="90" align="right">
-          <template #default="{ row }">{{ (row.menu_keys || []).length }}</template>
-        </el-table-column>
-        <el-table-column label="到期" width="120">
-          <template #default="{ row }">{{ row.expires_at ? row.expires_at.slice(0, 10) : '—' }}</template>
-        </el-table-column>
-        <el-table-column label="操作" width="110" fixed="right">
+        <el-table-column
+          label="价格"
+          width="120"
+        >
           <template #default="{ row }">
-            <el-button link type="primary" @click="$router.push(`/module-market/detail/${row.module_key}`)">详情</el-button>
+            {{ priceLabel(row) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="开通来源"
+          width="140"
+        >
+          <template #default="{ row }">
+            <el-tag
+              v-if="row.owned"
+              size="small"
+              effect="plain"
+            >
+              {{ SOURCE_LABEL[row.source] || row.source }}
+            </el-tag>
+            <span
+              v-else
+              class="muted"
+            >—</span>
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="页面数"
+          width="90"
+          align="right"
+        >
+          <template #default="{ row }">
+            {{ (row.menu_keys || []).length }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="到期"
+          width="120"
+        >
+          <template #default="{ row }">
+            {{ row.expires_at ? row.expires_at.slice(0, 10) : '—' }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="操作"
+          width="110"
+          fixed="right"
+        >
+          <template #default="{ row }">
+            <el-button
+              link
+              type="primary"
+              @click="$router.push(`/module-market/detail/${row.module_key}`)"
+            >
+              详情
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
     </el-card>
 
-    <el-dialog v-model="planVisible" title="平台模型套餐" width="680px">
-      <el-alert type="info" :closable="false" class="mb-12"
+    <el-dialog
+      v-model="planVisible"
+      title="平台模型套餐"
+      width="680px"
+    >
+      <el-alert
+        type="info"
+        :closable="false"
+        class="mb-12"
         title="输入与输出分别计价"
-        description="绝大多数厂商的输出单价是输入的数倍。下单后请按付款指引联系平台运营，确认收款后余额自动入账。" />
-      <el-table :data="plans" v-loading="planLoading" size="small">
-        <el-table-column prop="name" label="套餐" min-width="140" />
-        <el-table-column label="额度（输入 / 输出）" min-width="180">
+        description="绝大多数厂商的输出单价是输入的数倍。下单后请按付款指引联系平台运营，确认收款后余额自动入账。"
+      />
+      <el-table
+        v-loading="planLoading"
+        :data="plans"
+        size="small"
+      >
+        <el-table-column
+          prop="name"
+          label="套餐"
+          min-width="140"
+        />
+        <el-table-column
+          label="额度（输入 / 输出）"
+          min-width="180"
+        >
           <template #default="{ row }">
             {{ fmtTokens(row.input_tokens) }} / {{ fmtTokens(row.output_tokens) }}
           </template>
         </el-table-column>
-        <el-table-column label="单价（分/1k）" width="150">
+        <el-table-column
+          label="单价（分/1k）"
+          width="150"
+        >
           <template #default="{ row }">
             <div>输入 {{ row.input_price_per_1k_cents }}</div>
             <div>输出 {{ row.output_price_per_1k_cents }}</div>
           </template>
         </el-table-column>
-        <el-table-column label="售价" width="100" align="right">
-          <template #default="{ row }">¥{{ fmtPrice(row.price_cents) }}</template>
-        </el-table-column>
-        <el-table-column label="" width="90">
+        <el-table-column
+          label="售价"
+          width="100"
+          align="right"
+        >
           <template #default="{ row }">
-            <el-button link type="primary" @click="buy(row)">购买</el-button>
+            ¥{{ fmtPrice(row.price_cents) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label=""
+          width="90"
+        >
+          <template #default="{ row }">
+            <el-button
+              link
+              type="primary"
+              @click="buy(row)"
+            >
+              购买
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
     </el-dialog>
 
-    <el-dialog v-model="contactVisible" title="填写联系方式" width="460px">
-      <el-alert type="warning" :closable="false" class="mb-12"
+    <el-dialog
+      v-model="contactVisible"
+      title="填写联系方式"
+      width="460px"
+    >
+      <el-alert
+        type="warning"
+        :closable="false"
+        class="mb-12"
         title="用于线下付款联系"
-        description="平台运营需要据此联系你完成付款。请填写电话或邮箱。" />
-      <el-form :model="orderForm" label-width="70px">
-        <el-form-item label="电话"><el-input v-model="orderForm.contact_phone" /></el-form-item>
-        <el-form-item label="邮箱"><el-input v-model="orderForm.contact_email" /></el-form-item>
+        description="平台运营需要据此联系你完成付款。请填写电话或邮箱。"
+      />
+      <el-form
+        :model="orderForm"
+        label-width="70px"
+      >
+        <el-form-item label="电话">
+          <el-input v-model="orderForm.contact_phone" />
+        </el-form-item>
+        <el-form-item label="邮箱">
+          <el-input v-model="orderForm.contact_email" />
+        </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="contactVisible = false">取消</el-button>
-        <el-button type="primary" :loading="ordering" @click="submitLLMOrder">提交订单</el-button>
+        <el-button @click="contactVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="ordering"
+          @click="submitLLMOrder"
+        >
+          提交订单
+        </el-button>
       </template>
     </el-dialog>
 
-    <el-card shadow="never" class="mt-12">
-      <template #header><span>同步日志</span></template>
-      <el-table :data="logs" size="small" empty-text="暂无">
-        <el-table-column label="时间" width="170">
-          <template #default="{ row }">{{ (row.created_at || '').replace('T', ' ').slice(0, 19) }}</template>
-        </el-table-column>
-        <el-table-column label="动作" prop="action" width="150" />
-        <el-table-column label="状态" width="110">
+    <el-card
+      shadow="never"
+      class="mt-12"
+    >
+      <template #header>
+        <span>同步日志</span>
+      </template>
+      <el-table
+        :data="logs"
+        size="small"
+        empty-text="暂无"
+      >
+        <el-table-column
+          label="时间"
+          width="170"
+        >
           <template #default="{ row }">
-            <el-tag size="small" :type="row.status === 'success' ? 'success' : row.status === 'degraded' ? 'warning' : 'danger'">
+            {{ (row.created_at || '').replace('T', ' ').slice(0, 19) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="动作"
+          prop="action"
+          width="150"
+        />
+        <el-table-column
+          label="状态"
+          width="110"
+        >
+          <template #default="{ row }">
+            <el-tag
+              size="small"
+              :type="row.status === 'success' ? 'success' : row.status === 'degraded' ? 'warning' : 'danger'"
+            >
               {{ row.status === 'success' ? '成功' : row.status === 'degraded' ? '降级' : '失败' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="已开通" prop="active_count" width="90" />
-        <el-table-column label="来源" prop="source" width="160" />
-        <el-table-column label="耗时" width="90">
-          <template #default="{ row }">{{ row.duration_ms }} ms</template>
+        <el-table-column
+          label="已开通"
+          prop="active_count"
+          width="90"
+        />
+        <el-table-column
+          label="来源"
+          prop="source"
+          width="160"
+        />
+        <el-table-column
+          label="耗时"
+          width="90"
+        >
+          <template #default="{ row }">
+            {{ row.duration_ms }} ms
+          </template>
         </el-table-column>
-        <el-table-column label="错误" prop="error_msg" min-width="200" show-overflow-tooltip />
+        <el-table-column
+          label="错误"
+          prop="error_msg"
+          min-width="200"
+          show-overflow-tooltip
+        />
       </el-table>
     </el-card>
   </div>

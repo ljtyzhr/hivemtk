@@ -4,37 +4,118 @@
       <template #header>
         <div class="card-header">
           <span>WhatsApp Cloud 账号</span>
-          <el-button type="primary" @click="openCreate">新增账号</el-button>
+          <el-button
+            type="primary"
+            @click="openCreate"
+          >
+            新增账号
+          </el-button>
         </div>
       </template>
 
-      <el-table :data="tableData" v-loading="loading" border stripe>
-        <el-table-column prop="id" label="ID" width="70" />
-        <el-table-column prop="name" label="名称" min-width="120" />
-        <el-table-column prop="remark" label="备注" min-width="120" show-overflow-tooltip />
-        <el-table-column prop="phone_number_id" label="PhoneNumberID" min-width="130" show-overflow-tooltip />
-        <el-table-column prop="whatsapp_business_id" label="WABA ID" min-width="120" show-overflow-tooltip />
-        <el-table-column label="启用接收" width="90" align="center">
+      <el-table
+        v-loading="loading"
+        :data="tableData"
+        border
+        stripe
+      >
+        <el-table-column
+          prop="id"
+          label="ID"
+          width="70"
+        />
+        <el-table-column
+          prop="name"
+          label="名称"
+          min-width="120"
+        />
+        <el-table-column
+          prop="remark"
+          label="备注"
+          min-width="120"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          prop="phone_number_id"
+          label="PhoneNumberID"
+          min-width="130"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          prop="whatsapp_business_id"
+          label="WABA ID"
+          min-width="120"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          label="启用接收"
+          width="90"
+          align="center"
+        >
           <template #default="{ row }">
-            <el-tag :type="row.webhook_enabled ? 'success' : 'info'" size="small">
+            <el-tag
+              :type="row.webhook_enabled ? 'success' : 'info'"
+              size="small"
+            >
               {{ row.webhook_enabled ? '已启用' : '未启用' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="智能体回复" width="100" align="center">
+        <el-table-column
+          label="智能体回复"
+          width="100"
+          align="center"
+        >
           <template #default="{ row }">
-            <el-tag :type="row.ai_agent_enabled ? 'success' : 'info'" size="small">
+            <el-tag
+              :type="row.ai_agent_enabled ? 'success' : 'info'"
+              size="small"
+            >
               {{ row.ai_agent_enabled ? '已开启' : '未开启' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="320" fixed="right">
+        <el-table-column
+          label="操作"
+          width="320"
+          fixed="right"
+        >
           <template #default="{ row }">
-            <el-button link type="primary" @click="openTestSend(row)">测试发送</el-button>
-            <el-button link type="primary" @click="openBind(row)">绑定AI</el-button>
-            <el-button link type="primary" @click="copyCallbackUrl(row)">复制回调URL</el-button>
-            <el-button link type="primary" @click="openEdit(row)">编辑</el-button>
-            <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
+            <el-button
+              link
+              type="primary"
+              @click="openTestSend(row)"
+            >
+              测试发送
+            </el-button>
+            <el-button
+              link
+              type="primary"
+              @click="openBind(row)"
+            >
+              绑定AI
+            </el-button>
+            <el-button
+              link
+              type="primary"
+              @click="copyCallbackUrl(row)"
+            >
+              复制回调URL
+            </el-button>
+            <el-button
+              link
+              type="primary"
+              @click="openEdit(row)"
+            >
+              编辑
+            </el-button>
+            <el-button
+              link
+              type="danger"
+              @click="handleDelete(row)"
+            >
+              删除
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -52,39 +133,106 @@
     </el-card>
 
     
-    <el-dialog v-model="dialogVisible" :title="dialogMode === 'edit' ? '编辑 WhatsApp Cloud 账号' : '新增 WhatsApp Cloud 账号'" width="640px">
-      <el-form :model="form" label-width="150px">
-        <el-form-item label="名称" prop="name">
-          <el-input v-model="form.name" placeholder="账号名称" />
+    <el-dialog
+      v-model="dialogVisible"
+      :title="dialogMode === 'edit' ? '编辑 WhatsApp Cloud 账号' : '新增 WhatsApp Cloud 账号'"
+      width="640px"
+    >
+      <el-form
+        :model="form"
+        label-width="150px"
+      >
+        <el-form-item
+          label="名称"
+          prop="name"
+        >
+          <el-input
+            v-model="form.name"
+            placeholder="账号名称"
+          />
         </el-form-item>
-        <el-form-item label="备注" prop="remark">
-          <el-input v-model="form.remark" placeholder="备注（可选）" />
+        <el-form-item
+          label="备注"
+          prop="remark"
+        >
+          <el-input
+            v-model="form.remark"
+            placeholder="备注（可选）"
+          />
         </el-form-item>
-        <el-form-item label="PhoneNumberID" prop="phone_number_id">
-          <el-input v-model="form.phone_number_id" placeholder="WhatsApp 电话号码 ID" />
+        <el-form-item
+          label="PhoneNumberID"
+          prop="phone_number_id"
+        >
+          <el-input
+            v-model="form.phone_number_id"
+            placeholder="WhatsApp 电话号码 ID"
+          />
         </el-form-item>
-        <el-form-item label="WABA ID" prop="whatsapp_business_id">
-          <el-input v-model="form.whatsapp_business_id" placeholder="WhatsApp Business Account ID" />
+        <el-form-item
+          label="WABA ID"
+          prop="whatsapp_business_id"
+        >
+          <el-input
+            v-model="form.whatsapp_business_id"
+            placeholder="WhatsApp Business Account ID"
+          />
         </el-form-item>
-        <el-form-item label="Access Token" prop="access_token">
-          <el-input v-model="form.access_token" type="password" show-password placeholder="永久/临时 Access Token" />
+        <el-form-item
+          label="Access Token"
+          prop="access_token"
+        >
+          <el-input
+            v-model="form.access_token"
+            type="password"
+            show-password
+            placeholder="永久/临时 Access Token"
+          />
         </el-form-item>
-        <el-form-item label="App Secret" prop="app_secret">
-          <el-input v-model="form.app_secret" type="password" show-password placeholder="Meta 应用 App Secret" />
+        <el-form-item
+          label="App Secret"
+          prop="app_secret"
+        >
+          <el-input
+            v-model="form.app_secret"
+            type="password"
+            show-password
+            placeholder="Meta 应用 App Secret"
+          />
         </el-form-item>
-        <el-form-item label="Verify Token" prop="verify_token">
-          <el-input v-model="form.verify_token" placeholder="回调验证 Token（自定义，与管理端一致）" />
-          <div class="form-hint">在 Meta「Webhook 配置」中填写此 Token，用于 GET 验证回调地址。</div>
+        <el-form-item
+          label="Verify Token"
+          prop="verify_token"
+        >
+          <el-input
+            v-model="form.verify_token"
+            placeholder="回调验证 Token（自定义，与管理端一致）"
+          />
+          <div class="form-hint">
+            在 Meta「Webhook 配置」中填写此 Token，用于 GET 验证回调地址。
+          </div>
         </el-form-item>
 
-        <el-divider content-position="left">回调（接收客户消息 → 智能体自动回复）</el-divider>
-        <el-form-item label="回调 URL" v-if="dialogMode === 'edit'">
-          <el-input :model-value="callbackUrl(form.id)" readonly>
+        <el-divider content-position="left">
+          回调（接收客户消息 → 智能体自动回复）
+        </el-divider>
+        <el-form-item
+          v-if="dialogMode === 'edit'"
+          label="回调 URL"
+        >
+          <el-input
+            :model-value="callbackUrl(form.id)"
+            readonly
+          >
             <template #append>
-              <el-button @click="copyText(callbackUrl(form.id))">复制</el-button>
+              <el-button @click="copyText(callbackUrl(form.id))">
+                复制
+              </el-button>
             </template>
           </el-input>
-          <div class="form-hint">将此 URL 配置到 Meta「Webhook 配置」的回调 URL 栏。</div>
+          <div class="form-hint">
+            将此 URL 配置到 Meta「Webhook 配置」的回调 URL 栏。
+          </div>
         </el-form-item>
         <el-form-item label="启用接收">
           <el-switch v-model="form.webhook_enabled" />
@@ -96,24 +244,55 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="submit">保存</el-button>
+        <el-button @click="dialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="submit"
+        >
+          保存
+        </el-button>
       </template>
     </el-dialog>
 
     
-    <el-dialog v-model="testVisible" title="测试发送" width="520px">
-      <el-form :model="testForm" label-width="90px">
+    <el-dialog
+      v-model="testVisible"
+      title="测试发送"
+      width="520px"
+    >
+      <el-form
+        :model="testForm"
+        label-width="90px"
+      >
         <el-form-item label="接收号码">
-          <el-input v-model="testForm.to" placeholder="国际格式，如 8613800138000" />
+          <el-input
+            v-model="testForm.to"
+            placeholder="国际格式，如 8613800138000"
+          />
         </el-form-item>
         <el-form-item label="消息内容">
-          <el-input v-model="testForm.content" type="textarea" :rows="3" placeholder="测试消息内容" />
+          <el-input
+            v-model="testForm.content"
+            type="textarea"
+            :rows="3"
+            placeholder="测试消息内容"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="testVisible = false">取消</el-button>
-        <el-button type="primary" :loading="testing" @click="submitTestSend">发送</el-button>
+        <el-button @click="testVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="testing"
+          @click="submitTestSend"
+        >
+          发送
+        </el-button>
       </template>
     </el-dialog>
 

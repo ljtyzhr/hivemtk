@@ -3,7 +3,9 @@
     <el-card class="header-card">
       <div>
         <h2>AI 建议</h2>
-        <p class="subtitle">查看会话的 AI 回复建议、采纳与反馈</p>
+        <p class="subtitle">
+          查看会话的 AI 回复建议、采纳与反馈
+        </p>
       </div>
     </el-card>
 
@@ -18,7 +20,10 @@
               clearable
               @keyup.enter="loadSuggestions"
             />
-            <el-button type="primary" @click="loadSuggestions">
+            <el-button
+              type="primary"
+              @click="loadSuggestions"
+            >
               <el-icon><Search /></el-icon>
               {{ $t('加载') }}
             </el-button>
@@ -26,10 +31,28 @@
         </div>
       </template>
 
-      <el-table :data="suggestions" v-loading="loading" stripe>
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="suggestion" label="AI 建议" min-width="320" show-overflow-tooltip />
-        <el-table-column prop="confidence" label="置信度" width="120" align="center">
+      <el-table
+        v-loading="loading"
+        :data="suggestions"
+        stripe
+      >
+        <el-table-column
+          prop="id"
+          label="ID"
+          width="80"
+        />
+        <el-table-column
+          prop="suggestion"
+          label="AI 建议"
+          min-width="320"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          prop="confidence"
+          label="置信度"
+          width="120"
+          align="center"
+        >
           <template #default="{ row }">
             <el-progress
               :percentage="Math.round((row.confidence || 0) * 100)"
@@ -38,31 +61,65 @@
             />
           </template>
         </el-table-column>
-        <el-table-column prop="source" label="来源" width="120">
+        <el-table-column
+          prop="source"
+          label="来源"
+          width="120"
+        >
           <template #default="{ row }">
-            <el-tag size="small">{{ row.source || 'rule' }}</el-tag>
+            <el-tag size="small">
+              {{ row.source || 'rule' }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="is_used" label="是否已采纳" width="120" align="center">
+        <el-table-column
+          prop="is_used"
+          label="是否已采纳"
+          width="120"
+          align="center"
+        >
           <template #default="{ row }">
-            <el-tag v-if="row.is_used" type="success">已采纳</el-tag>
-            <el-tag v-else type="info">未采纳</el-tag>
+            <el-tag
+              v-if="row.is_used"
+              type="success"
+            >
+              已采纳
+            </el-tag>
+            <el-tag
+              v-else
+              type="info"
+            >
+              未采纳
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="created_at" label="生成时间" min-width="160">
+        <el-table-column
+          prop="created_at"
+          label="生成时间"
+          min-width="160"
+        >
           <template #default="{ row }">
             {{ formatTime(row.created_at) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="120" fixed="right">
+        <el-table-column
+          label="操作"
+          width="120"
+          fixed="right"
+        >
           <template #default="{ row }">
             <el-button
               v-if="!row.is_used"
               link
               type="success"
               @click="handleUse(row)"
-            >采纳</el-button>
-            <span v-else style="color: #909399">已使用</span>
+            >
+              采纳
+            </el-button>
+            <span
+              v-else
+              style="color: #909399"
+            >已使用</span>
           </template>
         </el-table-column>
         <template #empty>

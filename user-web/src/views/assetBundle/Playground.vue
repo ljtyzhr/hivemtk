@@ -1,45 +1,95 @@
 <template>
   <div class="playground">
-    
-    <el-card class="header-card" shadow="never">
+    <el-card
+      class="header-card"
+      shadow="never"
+    >
       <el-row :gutter="20">
         <el-col :span="6">
-          <el-form-item label="资产 ID" label-width="80px">
-            <el-input v-model="bundle.asset_id" placeholder="hive_sales_vape_cn_001" :disabled="isEdit" />
+          <el-form-item
+            label="资产 ID"
+            label-width="80px"
+          >
+            <el-input
+              v-model="bundle.asset_id"
+              placeholder="hive_sales_vape_cn_001"
+              :disabled="isEdit"
+            />
           </el-form-item>
         </el-col>
         <el-col :span="6">
-          <el-form-item label="资产包名称" label-width="90px">
-            <el-input v-model="bundle.title" placeholder="销冠话术包名称" />
+          <el-form-item
+            label="资产包名称"
+            label-width="90px"
+          >
+            <el-input
+              v-model="bundle.title"
+              placeholder="销冠话术包名称"
+            />
           </el-form-item>
         </el-col>
         <el-col :span="4">
-          <el-form-item label="版本" label-width="60px">
-            <el-input v-model="bundle.version" placeholder="1.0.0" />
+          <el-form-item
+            label="版本"
+            label-width="60px"
+          >
+            <el-input
+              v-model="bundle.version"
+              placeholder="1.0.0"
+            />
           </el-form-item>
         </el-col>
         <el-col :span="4">
-          <el-form-item label="行业" label-width="60px">
-            <el-input v-model="bundle.industry" placeholder="跨境电商" />
+          <el-form-item
+            label="行业"
+            label-width="60px"
+          >
+            <el-input
+              v-model="bundle.industry"
+              placeholder="跨境电商"
+            />
           </el-form-item>
         </el-col>
         <el-col :span="4">
           <div class="header-actions">
-            <el-button type="primary" :loading="saving" @click="handleSave">💾 保存</el-button>
-            <el-button v-if="bundle.id" type="success" @click="handlePublish">🚀 发布</el-button>
+            <el-button
+              type="primary"
+              :loading="saving"
+              @click="handleSave"
+            >
+              💾 保存
+            </el-button>
+            <el-button
+              v-if="bundle.id"
+              type="success"
+              @click="handlePublish"
+            >
+              🚀 发布
+            </el-button>
           </div>
         </el-col>
       </el-row>
     </el-card>
 
-    <el-row :gutter="16" class="main-row">
-      
+    <el-row
+      :gutter="16"
+      class="main-row"
+    >
       <el-col :span="14">
-        <el-card class="left-panel" shadow="never">
+        <el-card
+          class="left-panel"
+          shadow="never"
+        >
           <template #header>
             <div class="panel-header">
               <span>📝 左栏：OpenAI 协议标准的消息链流式编排区</span>
-              <el-button type="primary" size="small" @click="addMessage('user')">➕ 添加 Few-Shot 对</el-button>
+              <el-button
+                type="primary"
+                size="small"
+                @click="addMessage('user')"
+              >
+                ➕ 添加 Few-Shot 对
+              </el-button>
             </div>
           </template>
 
@@ -51,32 +101,50 @@
               :class="'role-' + msg.role"
             >
               <div class="message-header">
-                <el-tag :type="roleTagType(msg.role)" size="small">
+                <el-tag
+                  :type="roleTagType(msg.role)"
+                  size="small"
+                >
                   {{ roleLabel(msg.role) }}
                 </el-tag>
-                <span v-if="idx === 0 && msg.role === 'system'" class="hint">（固化首项，商城的灵魂核心）</span>
-                <span v-else-if="msg.role === 'user'" class="hint">（Few-Shot 用户示例）</span>
-                <span v-else-if="msg.role === 'assistant'" class="hint">（Few-Shot AI 回复）</span>
+                <span
+                  v-if="idx === 0 && msg.role === 'system'"
+                  class="hint"
+                >（固化首项，商城的灵魂核心）</span>
+                <span
+                  v-else-if="msg.role === 'user'"
+                  class="hint"
+                >（Few-Shot 用户示例）</span>
+                <span
+                  v-else-if="msg.role === 'assistant'"
+                  class="hint"
+                >（Few-Shot AI 回复）</span>
                 <div class="message-actions">
                   <el-button
                     v-if="idx > 0"
                     size="small"
                     link
                     @click="moveUp(idx)"
-                  >↑</el-button>
+                  >
+                    ↑
+                  </el-button>
                   <el-button
                     v-if="idx < bundle.messages.length - 1"
                     size="small"
                     link
                     @click="moveDown(idx)"
-                  >↓</el-button>
+                  >
+                    ↓
+                  </el-button>
                   <el-button
                     v-if="idx > 0"
                     size="small"
                     type="danger"
                     link
                     @click="removeMessage(idx)"
-                  >删除</el-button>
+                  >
+                    删除
+                  </el-button>
                 </div>
               </div>
               <el-input
@@ -90,16 +158,25 @@
           </div>
 
           <div class="add-pair-row">
-            <el-button @click="addMessage('user')">➕ 添加 user Few-Shot</el-button>
-            <el-button @click="addMessage('assistant')">➕ 添加 assistant Few-Shot</el-button>
-            <el-button @click="addMessage('system')">➕ 添加 system 指令</el-button>
+            <el-button @click="addMessage('user')">
+              ➕ 添加 user Few-Shot
+            </el-button>
+            <el-button @click="addMessage('assistant')">
+              ➕ 添加 assistant Few-Shot
+            </el-button>
+            <el-button @click="addMessage('system')">
+              ➕ 添加 system 指令
+            </el-button>
           </div>
         </el-card>
       </el-col>
 
       
       <el-col :span="10">
-        <el-card class="right-panel" shadow="never">
+        <el-card
+          class="right-panel"
+          shadow="never"
+        >
           <template #header>
             <div class="panel-header">
               <span>🧪 右栏：本地模型沙箱内测与上架</span>
@@ -108,37 +185,70 @@
 
           
           <div class="config-section">
-            <div class="section-title">⚙️ 调试基座配置</div>
-            <el-form label-width="120px" size="small">
+            <div class="section-title">
+              ⚙️ 调试基座配置
+            </div>
+            <el-form
+              label-width="120px"
+              size="small"
+            >
               <el-form-item label="关联本地推理端">
-                <el-input v-model="sandbox.endpoint" placeholder="http://localhost:11434/v1/chat/completions" />
+                <el-input
+                  v-model="sandbox.endpoint"
+                  placeholder="http://localhost:11434/v1/chat/completions"
+                />
               </el-form-item>
               <el-form-item label="模型名">
-                <el-input v-model="sandbox.model" placeholder="qwen2.5:7b" />
+                <el-input
+                  v-model="sandbox.model"
+                  placeholder="qwen2.5:7b"
+                />
               </el-form-item>
               <el-form-item label="测试推理温度">
-                <el-slider v-model="sandbox.temperature" :min="0" :max="1" :step="0.1" show-input />
+                <el-slider
+                  v-model="sandbox.temperature"
+                  :min="0"
+                  :max="1"
+                  :step="0.1"
+                  show-input
+                />
               </el-form-item>
               <el-form-item label="最大 tokens">
-                <el-input-number v-model="sandbox.maxTokens" :min="128" :max="8192" :step="128" />
+                <el-input-number
+                  v-model="sandbox.maxTokens"
+                  :min="128"
+                  :max="8192"
+                  :step="128"
+                />
               </el-form-item>
             </el-form>
           </div>
 
           
           <div class="chat-section">
-            <div class="section-title">🖥️ 沙箱实时多轮对话模拟</div>
-            <div class="chat-history" ref="chatHistoryRef">
+            <div class="section-title">
+              🖥️ 沙箱实时多轮对话模拟
+            </div>
+            <div
+              ref="chatHistoryRef"
+              class="chat-history"
+            >
               <div
                 v-for="(m, i) in sandbox.history"
                 :key="i"
                 class="chat-msg"
                 :class="'chat-' + m.role"
               >
-                <div class="chat-role">{{ roleLabel(m.role) }}</div>
+                <div class="chat-role">
+                  {{ roleLabel(m.role) }}
+                </div>
                 <pre class="chat-content">{{ m.content }}</pre>
               </div>
-              <el-empty v-if="!sandbox.history.length" description="输入测试用户消息开始模拟" :image-size="60" />
+              <el-empty
+                v-if="!sandbox.history.length"
+                description="输入测试用户消息开始模拟"
+                :image-size="60"
+              />
             </div>
             <div class="chat-input-row">
               <el-input
@@ -148,59 +258,100 @@
                 placeholder="输入测试用户消息，例如：发货到德国包清关吗？"
                 @keydown.enter.ctrl="runSandbox"
               />
-              <el-button type="primary" :loading="sandbox.running" @click="runSandbox">
+              <el-button
+                type="primary"
+                :loading="sandbox.running"
+                @click="runSandbox"
+              >
                 ▶️ 运行
               </el-button>
             </div>
           </div>
 
           
-          <div class="intent-section" v-if="sandbox.lastIntent">
-            <div class="section-title">🔍 拦截日志 JSON 预检</div>
+          <div
+            v-if="sandbox.lastIntent"
+            class="intent-section"
+          >
+            <div class="section-title">
+              🔍 拦截日志 JSON 预检
+            </div>
             <div class="intent-status">
               <el-tag :type="sandbox.lastIntent.valid ? 'success' : 'danger'">
                 {{ sandbox.lastIntent.valid ? '🟢 合法格式，成功抓取' : '🔴 非法格式' }}
               </el-tag>
-              <span v-if="sandbox.lastIntent.intent" class="intent-label">
+              <span
+                v-if="sandbox.lastIntent.intent"
+                class="intent-label"
+              >
                 intent: <code>{{ sandbox.lastIntent.intent }}</code>
               </span>
-              <span v-if="sandbox.lastIntent.durationMs != null" class="intent-label">
+              <span
+                v-if="sandbox.lastIntent.durationMs != null"
+                class="intent-label"
+              >
                 耗时: {{ sandbox.lastIntent.durationMs }} ms
               </span>
             </div>
             <pre class="intent-json">{{ sandbox.lastIntent.rawJSON || '(无 JSON 块)' }}</pre>
-            <div v-if="sandbox.lastIntent.capturedData && Object.keys(sandbox.lastIntent.capturedData).length" class="captured-data">
-              <div class="section-subtitle">captured_data:</div>
+            <div
+              v-if="sandbox.lastIntent.capturedData && Object.keys(sandbox.lastIntent.capturedData).length"
+              class="captured-data"
+            >
+              <div class="section-subtitle">
+                captured_data:
+              </div>
               <pre>{{ JSON.stringify(sandbox.lastIntent.capturedData, null, 2) }}</pre>
             </div>
           </div>
 
           
-          <div class="woven-section" v-if="sandbox.wovenMessages && sandbox.wovenMessages.length">
-            <div class="section-title">🧶 织布后的最终 messages 数组（{{ sandbox.wovenMessages.length }} 条）</div>
+          <div
+            v-if="sandbox.wovenMessages && sandbox.wovenMessages.length"
+            class="woven-section"
+          >
+            <div class="section-title">
+              🧶 织布后的最终 messages 数组（{{ sandbox.wovenMessages.length }} 条）
+            </div>
             <pre class="woven-preview">{{ JSON.stringify(sandbox.wovenMessages, null, 2) }}</pre>
           </div>
 
           
           <div class="publish-section">
-            <div class="section-title">{{ platformEnabled ? '💰 生态上架配置' : '📦 本地发布' }}</div>
+            <div class="section-title">
+              {{ platformEnabled ? '💰 生态上架配置' : '📦 本地发布' }}
+            </div>
             <el-form
               v-if="platformEnabled"
               label-width="120px"
               size="small"
             >
               <el-form-item label="商业买断价">
-                <el-input v-model="bundle.price" placeholder="$ 299.00" />
+                <el-input
+                  v-model="bundle.price"
+                  placeholder="$ 299.00"
+                />
               </el-form-item>
               <el-form-item label="作用域">
                 <el-radio-group v-model="bundle.scope">
-                  <el-radio label="private">私有</el-radio>
-                  <el-radio label="shared">共享</el-radio>
-                  <el-radio label="official">官方</el-radio>
+                  <el-radio label="private">
+                    私有
+                  </el-radio>
+                  <el-radio label="shared">
+                    共享
+                  </el-radio>
+                  <el-radio label="official">
+                    官方
+                  </el-radio>
                 </el-radio-group>
               </el-form-item>
             </el-form>
-            <el-button type="primary" plain class="publish-btn" @click="handlePublish">
+            <el-button
+              type="primary"
+              plain
+              class="publish-btn"
+              @click="handlePublish"
+            >
               {{ platformEnabled ? '🚀 审核上架到官方蜂巢商城' : '🚀 发布到本地资产库' }}
               <span class="publish-hint">（自动序列化为标准 messages 数组）</span>
             </el-button>

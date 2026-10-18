@@ -1,17 +1,48 @@
 <template>
-  <div class="rich-card" :class="'card-' + (card.type || 'generic')">
-    <img v-if="card.image_url" :src="card.image_url" class="card-img" alt="" loading="lazy" />
+  <div
+    class="rich-card"
+    :class="'card-' + (card.type || 'generic')"
+  >
+    <img
+      v-if="card.image_url"
+      :src="card.image_url"
+      class="card-img"
+      alt=""
+      loading="lazy"
+    >
     <div class="card-body">
-      <div class="card-title">{{ card.title }}</div>
-      <div v-if="card.subtitle" class="card-subtitle">{{ card.subtitle }}</div>
-      <div v-if="card.description" class="card-desc">{{ card.description }}</div>
-      <div v-if="card.fields && Object.keys(card.fields).length" class="card-fields">
-        <div v-for="(val, key) in card.fields" :key="key" class="card-field">
+      <div class="card-title">
+        {{ card.title }}
+      </div>
+      <div
+        v-if="card.subtitle"
+        class="card-subtitle"
+      >
+        {{ card.subtitle }}
+      </div>
+      <div
+        v-if="card.description"
+        class="card-desc"
+      >
+        {{ card.description }}
+      </div>
+      <div
+        v-if="card.fields && Object.keys(card.fields).length"
+        class="card-fields"
+      >
+        <div
+          v-for="(val, key) in card.fields"
+          :key="key"
+          class="card-field"
+        >
           <span class="card-field-key">{{ key }}</span>
           <span class="card-field-val">{{ val }}</span>
         </div>
       </div>
-      <div v-if="card.buttons && card.buttons.length" class="card-buttons">
+      <div
+        v-if="card.buttons && card.buttons.length"
+        class="card-buttons"
+      >
         <a
           v-for="(btn, i) in card.buttons"
           :key="i"

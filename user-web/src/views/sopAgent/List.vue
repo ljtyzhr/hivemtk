@@ -1,14 +1,21 @@
 <template>
   <div class="sop-agent-page">
-    
-    <el-card class="header-card" shadow="never">
+    <el-card
+      class="header-card"
+      shadow="never"
+    >
       <div class="header-content">
         <div>
           <h2>销冠 SOP 智能体</h2>
-          <p class="subtitle">基于意图识别 + 对话记忆，自动化推进销售 SOP 流程</p>
+          <p class="subtitle">
+            基于意图识别 + 对话记忆，自动化推进销售 SOP 流程
+          </p>
         </div>
         <div class="header-actions">
-          <el-button @click="refreshAll" :loading="loading">
+          <el-button
+            :loading="loading"
+            @click="refreshAll"
+          >
             <el-icon><Refresh /></el-icon>
             {{ $t('刷新') }}
           </el-button>
@@ -16,33 +23,70 @@
       </div>
     </el-card>
 
-    <el-tabs v-model="activeMainTab" class="main-tabs" @tab-change="onMainTabChange">
-      
-      <el-tab-pane :label="$t('SOP 管理')" name="manage">
-        
-        <el-row :gutter="16" class="stats-row" v-loading="statsLoading">
+    <el-tabs
+      v-model="activeMainTab"
+      class="main-tabs"
+      @tab-change="onMainTabChange"
+    >
+      <el-tab-pane
+        :label="$t('SOP 管理')"
+        name="manage"
+      >
+        <el-row
+          v-loading="statsLoading"
+          :gutter="16"
+          class="stats-row"
+        >
           <el-col :span="6">
-            <el-card shadow="hover" class="stat-card">
-              <div class="stat-value">{{ sopStats.total ?? 0 }}</div>
-              <div class="stat-label">SOP 总数</div>
+            <el-card
+              shadow="hover"
+              class="stat-card"
+            >
+              <div class="stat-value">
+                {{ sopStats.total ?? 0 }}
+              </div>
+              <div class="stat-label">
+                SOP 总数
+              </div>
             </el-card>
           </el-col>
           <el-col :span="6">
-            <el-card shadow="hover" class="stat-card stat-active">
-              <div class="stat-value">{{ sopStats.active ?? 0 }}</div>
-              <div class="stat-label">{{ $t('已激活') }}</div>
+            <el-card
+              shadow="hover"
+              class="stat-card stat-active"
+            >
+              <div class="stat-value">
+                {{ sopStats.active ?? 0 }}
+              </div>
+              <div class="stat-label">
+                {{ $t('已激活') }}
+              </div>
             </el-card>
           </el-col>
           <el-col :span="6">
-            <el-card shadow="hover" class="stat-card stat-inactive">
-              <div class="stat-value">{{ sopStats.inactive ?? 0 }}</div>
-              <div class="stat-label">{{ $t('已停用') }}</div>
+            <el-card
+              shadow="hover"
+              class="stat-card stat-inactive"
+            >
+              <div class="stat-value">
+                {{ sopStats.inactive ?? 0 }}
+              </div>
+              <div class="stat-label">
+                {{ $t('已停用') }}
+              </div>
             </el-card>
           </el-col>
           <el-col :span="6">
-            <el-card shadow="hover" class="stat-card stat-running">
-              <div class="stat-value">{{ sopStats.running ?? 0 }}</div>
-              <div class="stat-label">{{ $t('进行中执行') }}</div>
+            <el-card
+              shadow="hover"
+              class="stat-card stat-running"
+            >
+              <div class="stat-value">
+                {{ sopStats.running ?? 0 }}
+              </div>
+              <div class="stat-label">
+                {{ $t('进行中执行') }}
+              </div>
             </el-card>
           </el-col>
         </el-row>
@@ -52,53 +96,173 @@
             <div class="card-header">
               <span>SOP 列表</span>
               <div class="header-controls">
-                <el-input v-model="sopFilter.keyword" :placeholder="$t('搜索 SOP 名称')" clearable size="small" style="width: 180px" @keyup.enter="onSopSearch" @clear="onSopSearch" />
-                <el-select v-model="sopFilter.status" :placeholder="$t('状态')" clearable size="small" style="width: 120px" @change="onSopSearch">
-                  <el-option :label="$t('已激活')" value="active" />
-                  <el-option :label="$t('已停用')" value="inactive" />
-                  <el-option :label="$t('草稿')" value="draft" />
+                <el-input
+                  v-model="sopFilter.keyword"
+                  :placeholder="$t('搜索 SOP 名称')"
+                  clearable
+                  size="small"
+                  style="width: 180px"
+                  @keyup.enter="onSopSearch"
+                  @clear="onSopSearch"
+                />
+                <el-select
+                  v-model="sopFilter.status"
+                  :placeholder="$t('状态')"
+                  clearable
+                  size="small"
+                  style="width: 120px"
+                  @change="onSopSearch"
+                >
+                  <el-option
+                    :label="$t('已激活')"
+                    value="active"
+                  />
+                  <el-option
+                    :label="$t('已停用')"
+                    value="inactive"
+                  />
+                  <el-option
+                    :label="$t('草稿')"
+                    value="draft"
+                  />
                 </el-select>
-                <el-button size="small" type="primary" @click="onSopSearch">{{ $t('查询') }}</el-button>
-                <el-button size="small" type="success" @click="openCreateDialog">
+                <el-button
+                  size="small"
+                  type="primary"
+                  @click="onSopSearch"
+                >
+                  {{ $t('查询') }}
+                </el-button>
+                <el-button
+                  size="small"
+                  type="success"
+                  @click="openCreateDialog"
+                >
                   <el-icon><Plus /></el-icon> 创建 SOP
                 </el-button>
               </div>
             </div>
           </template>
-          <el-table :data="sopList" v-loading="sopLoading" stripe>
-            <el-table-column prop="name" label="名称" min-width="160" show-overflow-tooltip />
-            <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
-            <el-table-column label="状态" width="100">
+          <el-table
+            v-loading="sopLoading"
+            :data="sopList"
+            stripe
+          >
+            <el-table-column
+              prop="name"
+              label="名称"
+              min-width="160"
+              show-overflow-tooltip
+            />
+            <el-table-column
+              prop="description"
+              label="描述"
+              min-width="200"
+              show-overflow-tooltip
+            />
+            <el-table-column
+              label="状态"
+              width="100"
+            >
               <template #default="{ row }">
-                <el-tag :type="getStatusType(row.status)" size="small">{{ getStatusLabel(row.status) }}</el-tag>
+                <el-tag
+                  :type="getStatusType(row.status)"
+                  size="small"
+                >
+                  {{ getStatusLabel(row.status) }}
+                </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="节点数" width="90" align="center">
-              <template #default="{ row }">{{ (row.nodes || []).length || row.node_count || 0 }}</template>
-            </el-table-column>
-            <el-table-column label="触发意图" width="120">
+            <el-table-column
+              label="节点数"
+              width="90"
+              align="center"
+            >
               <template #default="{ row }">
-                <el-tag v-if="row.trigger_intent" size="small" effect="plain">{{ row.trigger_intent }}</el-tag>
+                {{ (row.nodes || []).length || row.node_count || 0 }}
+              </template>
+            </el-table-column>
+            <el-table-column
+              label="触发意图"
+              width="120"
+            >
+              <template #default="{ row }">
+                <el-tag
+                  v-if="row.trigger_intent"
+                  size="small"
+                  effect="plain"
+                >
+                  {{ row.trigger_intent }}
+                </el-tag>
                 <span v-else>-</span>
               </template>
             </el-table-column>
-            <el-table-column label="创建时间" width="160">
-              <template #default="{ row }">{{ formatTime(row.created_at) }}</template>
-            </el-table-column>
-            <el-table-column label="操作" width="220" fixed="right">
+            <el-table-column
+              label="创建时间"
+              width="160"
+            >
               <template #default="{ row }">
-                <el-button link type="primary" size="small" @click="viewSopDetail(row)">详情</el-button>
-                <el-button link type="warning" size="small" @click="openEditDialog(row)">编辑</el-button>
-                <el-button v-if="row.status !== 'active'" link type="success" size="small" @click="toggleStatus(row, 'activate')">激活</el-button>
-                <el-button v-else link type="info" size="small" @click="toggleStatus(row, 'deactivate')">停用</el-button>
-                <el-button link type="danger" size="small" @click="removeSop(row)">删除</el-button>
+                {{ formatTime(row.created_at) }}
+              </template>
+            </el-table-column>
+            <el-table-column
+              label="操作"
+              width="220"
+              fixed="right"
+            >
+              <template #default="{ row }">
+                <el-button
+                  link
+                  type="primary"
+                  size="small"
+                  @click="viewSopDetail(row)"
+                >
+                  详情
+                </el-button>
+                <el-button
+                  link
+                  type="warning"
+                  size="small"
+                  @click="openEditDialog(row)"
+                >
+                  编辑
+                </el-button>
+                <el-button
+                  v-if="row.status !== 'active'"
+                  link
+                  type="success"
+                  size="small"
+                  @click="toggleStatus(row, 'activate')"
+                >
+                  激活
+                </el-button>
+                <el-button
+                  v-else
+                  link
+                  type="info"
+                  size="small"
+                  @click="toggleStatus(row, 'deactivate')"
+                >
+                  停用
+                </el-button>
+                <el-button
+                  link
+                  type="danger"
+                  size="small"
+                  @click="removeSop(row)"
+                >
+                  删除
+                </el-button>
               </template>
             </el-table-column>
             <template #empty>
               <el-empty description="暂无 SOP 数据" />
             </template>
           </el-table>
-          <div class="pagination-container" v-if="sopPagination.total > 0">
+          <div
+            v-if="sopPagination.total > 0"
+            class="pagination-container"
+          >
             <el-pagination
               v-model:current-page="sopPagination.page"
               v-model:page-size="sopPagination.pageSize"
@@ -113,62 +277,181 @@
       </el-tab-pane>
 
       
-      <el-tab-pane label="执行监控" name="executions">
+      <el-tab-pane
+        label="执行监控"
+        name="executions"
+      >
         <el-card shadow="never">
           <template #header>
             <div class="card-header">
               <span>执行记录列表</span>
               <div class="header-controls">
-                <el-input v-model="execFilter.customer_id" placeholder="客户 ID" clearable size="small" style="width: 160px" @keyup.enter="onExecSearch" @clear="onExecSearch" />
-                <el-select v-model="execFilter.status" placeholder="执行状态" clearable size="small" style="width: 140px" @change="onExecSearch">
-                  <el-option label="运行中" value="running" />
-                  <el-option label="已暂停" value="paused" />
-                  <el-option label="已完成" value="completed" />
-                  <el-option label="已取消" value="cancelled" />
-                  <el-option label="失败" value="failed" />
+                <el-input
+                  v-model="execFilter.customer_id"
+                  placeholder="客户 ID"
+                  clearable
+                  size="small"
+                  style="width: 160px"
+                  @keyup.enter="onExecSearch"
+                  @clear="onExecSearch"
+                />
+                <el-select
+                  v-model="execFilter.status"
+                  placeholder="执行状态"
+                  clearable
+                  size="small"
+                  style="width: 140px"
+                  @change="onExecSearch"
+                >
+                  <el-option
+                    label="运行中"
+                    value="running"
+                  />
+                  <el-option
+                    label="已暂停"
+                    value="paused"
+                  />
+                  <el-option
+                    label="已完成"
+                    value="completed"
+                  />
+                  <el-option
+                    label="已取消"
+                    value="cancelled"
+                  />
+                  <el-option
+                    label="失败"
+                    value="failed"
+                  />
                 </el-select>
-                <el-button size="small" type="primary" @click="onExecSearch">查询</el-button>
+                <el-button
+                  size="small"
+                  type="primary"
+                  @click="onExecSearch"
+                >
+                  查询
+                </el-button>
               </div>
             </div>
           </template>
-          <el-table :data="executionList" v-loading="execLoading" stripe>
-            <el-table-column label="客户" min-width="140">
-              <template #default="{ row }">{{ row.customer_id || row.customer_name || '-' }}</template>
-            </el-table-column>
-            <el-table-column label="SOP 名称" min-width="160" show-overflow-tooltip>
-              <template #default="{ row }">{{ row.sop_name || row.sop_id || '-' }}</template>
-            </el-table-column>
-            <el-table-column label="当前节点" width="140">
+          <el-table
+            v-loading="execLoading"
+            :data="executionList"
+            stripe
+          >
+            <el-table-column
+              label="客户"
+              min-width="140"
+            >
               <template #default="{ row }">
-                <el-tag size="small" type="warning">{{ row.current_node || row.current_node_id || '-' }}</el-tag>
+                {{ row.customer_id || row.customer_name || '-' }}
               </template>
             </el-table-column>
-            <el-table-column label="状态" width="100">
+            <el-table-column
+              label="SOP 名称"
+              min-width="160"
+              show-overflow-tooltip
+            >
               <template #default="{ row }">
-                <el-tag :type="getExecStatusType(row.status)" size="small">{{ getExecStatusLabel(row.status) }}</el-tag>
+                {{ row.sop_name || row.sop_id || '-' }}
               </template>
             </el-table-column>
-            <el-table-column label="进度" width="180">
+            <el-table-column
+              label="当前节点"
+              width="140"
+            >
               <template #default="{ row }">
-                <el-progress :percentage="calcProgress(row)" :status="getProgressStatus(row.status)" />
+                <el-tag
+                  size="small"
+                  type="warning"
+                >
+                  {{ row.current_node || row.current_node_id || '-' }}
+                </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="开始时间" width="160">
-              <template #default="{ row }">{{ formatTime(row.started_at || row.created_at) }}</template>
-            </el-table-column>
-            <el-table-column label="操作" width="220" fixed="right">
+            <el-table-column
+              label="状态"
+              width="100"
+            >
               <template #default="{ row }">
-                <el-button link type="primary" size="small" @click="viewExecutionDetail(row)">详情</el-button>
-                <el-button v-if="row.status === 'running'" link type="warning" size="small" @click="pauseExecution(row)">暂停</el-button>
-                <el-button v-if="row.status === 'paused'" link type="success" size="small" @click="resumeExecution(row)">恢复</el-button>
-                <el-button v-if="['running', 'paused'].includes(row.status)" link type="danger" size="small" @click="cancelExecution(row)">取消</el-button>
+                <el-tag
+                  :type="getExecStatusType(row.status)"
+                  size="small"
+                >
+                  {{ getExecStatusLabel(row.status) }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column
+              label="进度"
+              width="180"
+            >
+              <template #default="{ row }">
+                <el-progress
+                  :percentage="calcProgress(row)"
+                  :status="getProgressStatus(row.status)"
+                />
+              </template>
+            </el-table-column>
+            <el-table-column
+              label="开始时间"
+              width="160"
+            >
+              <template #default="{ row }">
+                {{ formatTime(row.started_at || row.created_at) }}
+              </template>
+            </el-table-column>
+            <el-table-column
+              label="操作"
+              width="220"
+              fixed="right"
+            >
+              <template #default="{ row }">
+                <el-button
+                  link
+                  type="primary"
+                  size="small"
+                  @click="viewExecutionDetail(row)"
+                >
+                  详情
+                </el-button>
+                <el-button
+                  v-if="row.status === 'running'"
+                  link
+                  type="warning"
+                  size="small"
+                  @click="pauseExecution(row)"
+                >
+                  暂停
+                </el-button>
+                <el-button
+                  v-if="row.status === 'paused'"
+                  link
+                  type="success"
+                  size="small"
+                  @click="resumeExecution(row)"
+                >
+                  恢复
+                </el-button>
+                <el-button
+                  v-if="['running', 'paused'].includes(row.status)"
+                  link
+                  type="danger"
+                  size="small"
+                  @click="cancelExecution(row)"
+                >
+                  取消
+                </el-button>
               </template>
             </el-table-column>
             <template #empty>
               <el-empty description="暂无执行记录" />
             </template>
           </el-table>
-          <div class="pagination-container" v-if="execPagination.total > 0">
+          <div
+            v-if="execPagination.total > 0"
+            class="pagination-container"
+          >
             <el-pagination
               v-model:current-page="execPagination.page"
               v-model:page-size="execPagination.pageSize"
@@ -183,7 +466,10 @@
       </el-tab-pane>
 
       
-      <el-tab-pane label="意图匹配测试" name="match">
+      <el-tab-pane
+        label="意图匹配测试"
+        name="match"
+      >
         <el-card shadow="never">
           <template #header>
             <div class="card-header">
@@ -201,154 +487,401 @@
               />
             </el-form-item>
             <el-form-item>
-              <el-button type="primary" :loading="matchLoading" @click="runMatch">
+              <el-button
+                type="primary"
+                :loading="matchLoading"
+                @click="runMatch"
+              >
                 <el-icon><Search /></el-icon> 匹配 SOP
               </el-button>
-              <el-button @click="quickFillIntent">填入示例</el-button>
+              <el-button @click="quickFillIntent">
+                填入示例
+              </el-button>
             </el-form-item>
           </el-form>
 
           <template v-if="matchResults.length">
-            <el-divider content-position="left">匹配结果（{{ matchResults.length }} 个）</el-divider>
-            <el-table :data="matchResults" stripe>
-              <el-table-column prop="name" label="SOP 名称" min-width="160" show-overflow-tooltip />
-              <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
-              <el-table-column label="匹配分数" width="160">
+            <el-divider content-position="left">
+              匹配结果（{{ matchResults.length }} 个）
+            </el-divider>
+            <el-table
+              :data="matchResults"
+              stripe
+            >
+              <el-table-column
+                prop="name"
+                label="SOP 名称"
+                min-width="160"
+                show-overflow-tooltip
+              />
+              <el-table-column
+                prop="description"
+                label="描述"
+                min-width="200"
+                show-overflow-tooltip
+              />
+              <el-table-column
+                label="匹配分数"
+                width="160"
+              >
                 <template #default="{ row }">
-                  <el-progress :percentage="Math.round((row.score || row.match_score || 0) * 100)" :stroke-width="14" :text-inside="true" />
+                  <el-progress
+                    :percentage="Math.round((row.score || row.match_score || 0) * 100)"
+                    :stroke-width="14"
+                    :text-inside="true"
+                  />
                 </template>
               </el-table-column>
-              <el-table-column label="状态" width="100">
+              <el-table-column
+                label="状态"
+                width="100"
+              >
                 <template #default="{ row }">
-                  <el-tag :type="getStatusType(row.status)" size="small">{{ getStatusLabel(row.status) }}</el-tag>
+                  <el-tag
+                    :type="getStatusType(row.status)"
+                    size="small"
+                  >
+                    {{ getStatusLabel(row.status) }}
+                  </el-tag>
                 </template>
               </el-table-column>
-              <el-table-column label="节点数" width="90" align="center">
-                <template #default="{ row }">{{ (row.nodes || []).length || row.node_count || 0 }}</template>
-              </el-table-column>
-              <el-table-column label="操作" width="160" fixed="right">
+              <el-table-column
+                label="节点数"
+                width="90"
+                align="center"
+              >
                 <template #default="{ row }">
-                  <el-button link type="primary" size="small" @click="openExecuteDialog(row)">执行</el-button>
-                  <el-button link type="info" size="small" @click="viewSopDetail(row)">详情</el-button>
+                  {{ (row.nodes || []).length || row.node_count || 0 }}
+                </template>
+              </el-table-column>
+              <el-table-column
+                label="操作"
+                width="160"
+                fixed="right"
+              >
+                <template #default="{ row }">
+                  <el-button
+                    link
+                    type="primary"
+                    size="small"
+                    @click="openExecuteDialog(row)"
+                  >
+                    执行
+                  </el-button>
+                  <el-button
+                    link
+                    type="info"
+                    size="small"
+                    @click="viewSopDetail(row)"
+                  >
+                    详情
+                  </el-button>
                 </template>
               </el-table-column>
             </el-table>
           </template>
-          <el-empty v-else-if="!matchLoading && hasSearched" description="未匹配到 SOP" :image-size="80" />
+          <el-empty
+            v-else-if="!matchLoading && hasSearched"
+            description="未匹配到 SOP"
+            :image-size="80"
+          />
         </el-card>
       </el-tab-pane>
     </el-tabs>
 
     
-    <el-dialog v-model="sopDialogVisible" :title="editingSop.id ? '编辑 SOP' : '创建 SOP'" width="720px" top="6vh">
-      <el-form :model="sopForm" label-width="100px">
-        <el-form-item label="SOP 名称" required>
-          <el-input v-model="sopForm.name" placeholder="请输入 SOP 名称" />
+    <el-dialog
+      v-model="sopDialogVisible"
+      :title="editingSop.id ? '编辑 SOP' : '创建 SOP'"
+      width="720px"
+      top="6vh"
+    >
+      <el-form
+        :model="sopForm"
+        label-width="100px"
+      >
+        <el-form-item
+          label="SOP 名称"
+          required
+        >
+          <el-input
+            v-model="sopForm.name"
+            placeholder="请输入 SOP 名称"
+          />
         </el-form-item>
         <el-form-item label="描述">
-          <el-input v-model="sopForm.description" type="textarea" :rows="2" placeholder="SOP 用途说明" />
+          <el-input
+            v-model="sopForm.description"
+            type="textarea"
+            :rows="2"
+            placeholder="SOP 用途说明"
+          />
         </el-form-item>
         <el-form-item label="触发意图">
-          <el-input v-model="sopForm.trigger_intent" placeholder="触发该 SOP 的意图类型，如 price_inquiry" />
+          <el-input
+            v-model="sopForm.trigger_intent"
+            placeholder="触发该 SOP 的意图类型，如 price_inquiry"
+          />
         </el-form-item>
         <el-form-item label="状态">
-          <el-select v-model="sopForm.status" style="width: 100%">
-            <el-option label="草稿" value="draft" />
-            <el-option label="已激活" value="active" />
-            <el-option label="已停用" value="inactive" />
+          <el-select
+            v-model="sopForm.status"
+            style="width: 100%"
+          >
+            <el-option
+              label="草稿"
+              value="draft"
+            />
+            <el-option
+              label="已激活"
+              value="active"
+            />
+            <el-option
+              label="已停用"
+              value="inactive"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="节点配置">
           <div class="nodes-editor">
-            <div v-for="(node, idx) in sopForm.nodes" :key="idx" class="node-item">
-              <el-input v-model="node.id" placeholder="节点 ID" style="width: 110px" />
-              <el-select v-model="node.type" placeholder="节点类型" style="width: 130px" filterable>
-                <el-option v-for="t in sopNodeTypeOptions" :key="t.value" :label="t.label" :value="t.value" />
+            <div
+              v-for="(node, idx) in sopForm.nodes"
+              :key="idx"
+              class="node-item"
+            >
+              <el-input
+                v-model="node.id"
+                placeholder="节点 ID"
+                style="width: 110px"
+              />
+              <el-select
+                v-model="node.type"
+                placeholder="节点类型"
+                style="width: 130px"
+                filterable
+              >
+                <el-option
+                  v-for="t in sopNodeTypeOptions"
+                  :key="t.value"
+                  :label="t.label"
+                  :value="t.value"
+                />
               </el-select>
-              <el-input v-model="node.name" placeholder="节点名称" style="flex: 1" />
-              <el-input v-model="node.action" placeholder="执行动作" style="width: 140px" />
-              <el-button link type="danger" @click="removeNode(idx)">
+              <el-input
+                v-model="node.name"
+                placeholder="节点名称"
+                style="flex: 1"
+              />
+              <el-input
+                v-model="node.action"
+                placeholder="执行动作"
+                style="width: 140px"
+              />
+              <el-button
+                link
+                type="danger"
+                @click="removeNode(idx)"
+              >
                 <el-icon><Delete /></el-icon>
               </el-button>
             </div>
-            <el-button type="primary" link @click="addNode">
+            <el-button
+              type="primary"
+              link
+              @click="addNode"
+            >
               <el-icon><Plus /></el-icon> 添加节点
             </el-button>
           </div>
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="sopDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="saveSop">保存</el-button>
+        <el-button @click="sopDialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="saveSop"
+        >
+          保存
+        </el-button>
       </template>
     </el-dialog>
 
     
-    <el-dialog v-model="sopDetailVisible" title="SOP 详情" width="680px">
+    <el-dialog
+      v-model="sopDetailVisible"
+      title="SOP 详情"
+      width="680px"
+    >
       <template v-if="currentSop">
-        <el-descriptions :column="2" border>
-          <el-descriptions-item label="名称">{{ currentSop.name }}</el-descriptions-item>
-          <el-descriptions-item label="状态">
-            <el-tag :type="getStatusType(currentSop.status)" size="small">{{ getStatusLabel(currentSop.status) }}</el-tag>
+        <el-descriptions
+          :column="2"
+          border
+        >
+          <el-descriptions-item label="名称">
+            {{ currentSop.name }}
           </el-descriptions-item>
-          <el-descriptions-item label="触发意图">{{ currentSop.trigger_intent || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="节点数">{{ (currentSop.nodes || []).length }}</el-descriptions-item>
-          <el-descriptions-item label="描述" :span="2">{{ currentSop.description || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="创建时间" :span="2">{{ formatTime(currentSop.created_at) }}</el-descriptions-item>
-        </el-descriptions>
-        <el-divider content-position="left">节点流转</el-divider>
-        <el-steps :active="(currentSop.nodes || []).length" align-center v-if="(currentSop.nodes || []).length">
-          <el-step v-for="(node, idx) in (currentSop.nodes || [])" :key="idx" :title="node.name || node.id" :description="node.action" />
-        </el-steps>
-        <el-empty v-else description="暂无节点配置" :image-size="80" />
-      </template>
-    </el-dialog>
-
-    
-    <el-dialog v-model="execDetailVisible" title="执行详情" width="760px">
-      <div v-loading="execDetailLoading" style="min-height: 120px">
-      <template v-if="currentExecution">
-        <el-descriptions :column="2" border>
-          <el-descriptions-item label="执行 ID">{{ currentExecution.id || currentExecution.execution_id || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="客户">{{ currentExecution.customer_id || currentExecution.customer_name || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="SOP 名称">{{ currentExecution.sop_name || currentExecution.sop_id || '-' }}</el-descriptions-item>
           <el-descriptions-item label="状态">
-            <el-tag :type="getExecStatusType(currentExecution.status)" size="small">{{ getExecStatusLabel(currentExecution.status) }}</el-tag>
+            <el-tag
+              :type="getStatusType(currentSop.status)"
+              size="small"
+            >
+              {{ getStatusLabel(currentSop.status) }}
+            </el-tag>
           </el-descriptions-item>
-          <el-descriptions-item label="当前节点">{{ currentExecution.current_node || currentExecution.current_node_id || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="开始时间">{{ formatTime(currentExecution.started_at || currentExecution.created_at) }}</el-descriptions-item>
+          <el-descriptions-item label="触发意图">
+            {{ currentSop.trigger_intent || '-' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="节点数">
+            {{ (currentSop.nodes || []).length }}
+          </el-descriptions-item>
+          <el-descriptions-item
+            label="描述"
+            :span="2"
+          >
+            {{ currentSop.description || '-' }}
+          </el-descriptions-item>
+          <el-descriptions-item
+            label="创建时间"
+            :span="2"
+          >
+            {{ formatTime(currentSop.created_at) }}
+          </el-descriptions-item>
         </el-descriptions>
-        <el-divider content-position="left">节点流转状态</el-divider>
-        <el-steps :active="currentNodeIndex" align-center v-if="(currentExecution.nodes || currentExecution.steps || []).length">
+        <el-divider content-position="left">
+          节点流转
+        </el-divider>
+        <el-steps
+          v-if="(currentSop.nodes || []).length"
+          :active="(currentSop.nodes || []).length"
+          align-center
+        >
           <el-step
-            v-for="(node, idx) in (currentExecution.nodes || currentExecution.steps || [])"
+            v-for="(node, idx) in (currentSop.nodes || [])"
             :key="idx"
-            :title="node.name || node.node_id || `节点${idx + 1}`"
-            :description="getNodeStepDesc(node)"
-            :status="getNodeStepStatus(node, idx)"
+            :title="node.name || node.id"
+            :description="node.action"
           />
         </el-steps>
-        <el-empty v-else description="暂无节点流转数据" :image-size="80" />
+        <el-empty
+          v-else
+          description="暂无节点配置"
+          :image-size="80"
+        />
       </template>
+    </el-dialog>
+
+    
+    <el-dialog
+      v-model="execDetailVisible"
+      title="执行详情"
+      width="760px"
+    >
+      <div
+        v-loading="execDetailLoading"
+        style="min-height: 120px"
+      >
+        <template v-if="currentExecution">
+          <el-descriptions
+            :column="2"
+            border
+          >
+            <el-descriptions-item label="执行 ID">
+              {{ currentExecution.id || currentExecution.execution_id || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="客户">
+              {{ currentExecution.customer_id || currentExecution.customer_name || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="SOP 名称">
+              {{ currentExecution.sop_name || currentExecution.sop_id || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="状态">
+              <el-tag
+                :type="getExecStatusType(currentExecution.status)"
+                size="small"
+              >
+                {{ getExecStatusLabel(currentExecution.status) }}
+              </el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="当前节点">
+              {{ currentExecution.current_node || currentExecution.current_node_id || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item label="开始时间">
+              {{ formatTime(currentExecution.started_at || currentExecution.created_at) }}
+            </el-descriptions-item>
+          </el-descriptions>
+          <el-divider content-position="left">
+            节点流转状态
+          </el-divider>
+          <el-steps
+            v-if="(currentExecution.nodes || currentExecution.steps || []).length"
+            :active="currentNodeIndex"
+            align-center
+          >
+            <el-step
+              v-for="(node, idx) in (currentExecution.nodes || currentExecution.steps || [])"
+              :key="idx"
+              :title="node.name || node.node_id || `节点${idx + 1}`"
+              :description="getNodeStepDesc(node)"
+              :status="getNodeStepStatus(node, idx)"
+            />
+          </el-steps>
+          <el-empty
+            v-else
+            description="暂无节点流转数据"
+            :image-size="80"
+          />
+        </template>
       </div>
     </el-dialog>
 
     
-    <el-dialog v-model="executeDialogVisible" title="执行 SOP" width="520px">
-      <el-form :model="executeForm" label-width="100px">
+    <el-dialog
+      v-model="executeDialogVisible"
+      title="执行 SOP"
+      width="520px"
+    >
+      <el-form
+        :model="executeForm"
+        label-width="100px"
+      >
         <el-form-item label="SOP">
-          <el-input :model-value="executeForm.sop_name" disabled />
+          <el-input
+            :model-value="executeForm.sop_name"
+            disabled
+          />
         </el-form-item>
-        <el-form-item label="客户 ID" required>
-          <el-input v-model="executeForm.customer_id" placeholder="请输入客户 ID" />
+        <el-form-item
+          label="客户 ID"
+          required
+        >
+          <el-input
+            v-model="executeForm.customer_id"
+            placeholder="请输入客户 ID"
+          />
         </el-form-item>
         <el-form-item label="上下文">
-          <el-input v-model="executeForm.context" type="textarea" :rows="3" placeholder="可选，执行上下文 JSON" />
+          <el-input
+            v-model="executeForm.context"
+            type="textarea"
+            :rows="3"
+            placeholder="可选，执行上下文 JSON"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="executeDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="executing" @click="confirmExecute">开始执行</el-button>
+        <el-button @click="executeDialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="executing"
+          @click="confirmExecute"
+        >
+          开始执行
+        </el-button>
       </template>
     </el-dialog>
   </div>

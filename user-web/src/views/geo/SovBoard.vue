@@ -1,103 +1,206 @@
 <template>
   <div class="geo-page">
-
     <div class="p-4">
-    <el-row :gutter="16" class="mb-4">
-      <el-col :span="6">
-        <el-card>
-          <el-statistic title="HiveMTK SOV" :value="hiveMTKSov" suffix="%" :precision="2">
-            <template #suffix>
-              <span v-if="hiveMTKSovTrend !== null"
-                :class="hiveMTKSovTrend < 0 ? 'text-red-500' : 'text-green-500'"
-                style="font-size:12px;margin-left:4px">
-                {{ hiveMTKSovTrend >= 0 ? '↑' : '↓' }}{{ Math.abs(hiveMTKSovTrend).toFixed(2) }}%
-              </span>
-              <span v-else class="text-gray-400" style="font-size:12px;margin-left:4px">首期</span>
-            </template>
-          </el-statistic>
-          <div class="text-xs text-gray-400 mt-1">较上一 {{ trendDays }} 天窗口</div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card>
-          <el-statistic title="竞品数（出现/配置）" :value="summary.competitor_count" />
-          <div class="text-xs text-gray-400 mt-1">配置 {{ configuredCompetitors.length }} 个</div>
-        </el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card><el-statistic title="总提及次数" :value="summary.total_mentions" /></el-card>
-      </el-col>
-      <el-col :span="6">
-        <el-card><el-statistic title="品牌提及次数" :value="hiveMTKMentions" /></el-card>
-      </el-col>
-    </el-row>
+      <el-row
+        :gutter="16"
+        class="mb-4"
+      >
+        <el-col :span="6">
+          <el-card>
+            <el-statistic
+              title="HiveMTK SOV"
+              :value="hiveMTKSov"
+              suffix="%"
+              :precision="2"
+            >
+              <template #suffix>
+                <span
+                  v-if="hiveMTKSovTrend !== null"
+                  :class="hiveMTKSovTrend < 0 ? 'text-red-500' : 'text-green-500'"
+                  style="font-size:12px;margin-left:4px"
+                >
+                  {{ hiveMTKSovTrend >= 0 ? '↑' : '↓' }}{{ Math.abs(hiveMTKSovTrend).toFixed(2) }}%
+                </span>
+                <span
+                  v-else
+                  class="text-gray-400"
+                  style="font-size:12px;margin-left:4px"
+                >首期</span>
+              </template>
+            </el-statistic>
+            <div class="text-xs text-gray-400 mt-1">
+              较上一 {{ trendDays }} 天窗口
+            </div>
+          </el-card>
+        </el-col>
+        <el-col :span="6">
+          <el-card>
+            <el-statistic
+              title="竞品数（出现/配置）"
+              :value="summary.competitor_count"
+            />
+            <div class="text-xs text-gray-400 mt-1">
+              配置 {{ configuredCompetitors.length }} 个
+            </div>
+          </el-card>
+        </el-col>
+        <el-col :span="6">
+          <el-card>
+            <el-statistic
+              title="总提及次数"
+              :value="summary.total_mentions"
+            />
+          </el-card>
+        </el-col>
+        <el-col :span="6">
+          <el-card>
+            <el-statistic
+              title="品牌提及次数"
+              :value="hiveMTKMentions"
+            />
+          </el-card>
+        </el-col>
+      </el-row>
 
-    <!-- 竞品覆盖缺口提示 -->
-    <el-alert
-      v-if="uncoveredCompetitors.length"
-      type="warning"
-      :closable="false"
-      class="mb-4"
-      show-icon
-    >
-      <template #title>
-        竞品覆盖缺口：以下竞品在探针记录中零提及（没进 AI 回答，也是你的内容机会点）
-        <el-tag v-for="c in uncoveredCompetitors" :key="c" size="small" class="ml-1">{{ c }}</el-tag>
-      </template>
-    </el-alert>
+      <!-- 竞品覆盖缺口提示 -->
+      <el-alert
+        v-if="uncoveredCompetitors.length"
+        type="warning"
+        :closable="false"
+        class="mb-4"
+        show-icon
+      >
+        <template #title>
+          竞品覆盖缺口：以下竞品在探针记录中零提及（没进 AI 回答，也是你的内容机会点）
+          <el-tag
+            v-for="c in uncoveredCompetitors"
+            :key="c"
+            size="small"
+            class="ml-1"
+          >
+            {{ c }}
+          </el-tag>
+        </template>
+      </el-alert>
 
-    <el-card class="mb-4">
-      <template #header><span class="font-bold">品牌 SOV 对比（AI 引擎声量份额）</span></template>
-      <div v-if="!loading && sovData.length === 0" class="py-12 text-center text-gray-400">
-        暂无 SOV 数据，请先在"多模型验证"页面运行品牌验证，或到「可见性观测」页点「立即探测一轮」
-      </div>
-      <div ref="barChartRef" v-show="sovData.length > 0" style="height:320px"></div>
-    </el-card>
-
-
-    <el-card class="mb-4">
-      <template #header>
-        <div class="flex items-center gap-4">
-          <span class="font-bold">品牌明细</span>
-          <el-button size="small" type="primary" @click="load" :loading="loading">刷新</el-button>
+      <el-card class="mb-4">
+        <template #header>
+          <span class="font-bold">品牌 SOV 对比（AI 引擎声量份额）</span>
+        </template>
+        <div
+          v-if="!loading && sovData.length === 0"
+          class="py-12 text-center text-gray-400"
+        >
+          暂无 SOV 数据，请先在"多模型验证"页面运行品牌验证，或到「可见性观测」页点「立即探测一轮」
         </div>
-      </template>
-      <el-table :data="sovData" v-loading="loading" size="small">
-        <el-table-column label="品牌" min-width="140">
-          <template #default="{ row }">
-            <div class="flex items-center gap-2">
-              <el-tag v-if="row.is_own" type="primary" size="small" effect="dark">OWN</el-tag>
-              <span :class="row.is_own ? 'font-bold text-primary' : ''">{{ row.brand }}</span>
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column prop="mentions" label="提及次数" width="100" sortable />
-        <el-table-column prop="sov_percent" label="SOV(%)" width="110" sortable>
-          <template #default="{ row }">
-            <div class="flex items-center gap-2">
-              <el-progress :percentage="row.sov_percent" :stroke-width="8" :show-text="false"
-                :color="row.is_own ? '#409eff' : (row.sov_percent >= 20 ? '#67c23a' : row.sov_percent >= 10 ? '#e6a23c' : '#f56c6c')"
-                style="flex:1" />
-              <span class="text-xs w-12 text-right">{{ row.sov_percent.toFixed(2) }}%</span>
-            </div>
-          </template>
-        </el-table-column>
-        <el-table-column label="环比" width="110">
-          <template #default="{ row }">
-            <span v-if="rowTrend(row) !== null" :class="rowTrend(row) >= 0 ? 'text-green-600' : 'text-red-500'" class="text-xs font-semibold">
-              {{ rowTrend(row) >= 0 ? '↑' : '↓' }} {{ Math.abs(rowTrend(row)).toFixed(2) }}
-            </span>
-            <span v-else class="text-gray-400 text-xs">—</span>
-          </template>
-        </el-table-column>
-        <el-table-column label="情感倾向" width="100">
-          <template #default="{ row }">
-            <el-tag :type="sentimentTag(row.avg_sentiment)" size="small">{{ sentimentLabel(row.avg_sentiment) }}</el-tag>
-          </template>
-        </el-table-column>
-        <el-table-column prop="total_mentions_all_brands" label="全行业总提及" width="120" />
-      </el-table>
-    </el-card>
+        <div
+          v-show="sovData.length > 0"
+          ref="barChartRef"
+          style="height:320px"
+        />
+      </el-card>
+
+
+      <el-card class="mb-4">
+        <template #header>
+          <div class="flex items-center gap-4">
+            <span class="font-bold">品牌明细</span>
+            <el-button
+              size="small"
+              type="primary"
+              :loading="loading"
+              @click="load"
+            >
+              刷新
+            </el-button>
+          </div>
+        </template>
+        <el-table
+          v-loading="loading"
+          :data="sovData"
+          size="small"
+        >
+          <el-table-column
+            label="品牌"
+            min-width="140"
+          >
+            <template #default="{ row }">
+              <div class="flex items-center gap-2">
+                <el-tag
+                  v-if="row.is_own"
+                  type="primary"
+                  size="small"
+                  effect="dark"
+                >
+                  OWN
+                </el-tag>
+                <span :class="row.is_own ? 'font-bold text-primary' : ''">{{ row.brand }}</span>
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column
+            prop="mentions"
+            label="提及次数"
+            width="100"
+            sortable
+          />
+          <el-table-column
+            prop="sov_percent"
+            label="SOV(%)"
+            width="110"
+            sortable
+          >
+            <template #default="{ row }">
+              <div class="flex items-center gap-2">
+                <el-progress
+                  :percentage="row.sov_percent"
+                  :stroke-width="8"
+                  :show-text="false"
+                  :color="row.is_own ? '#409eff' : (row.sov_percent >= 20 ? '#67c23a' : row.sov_percent >= 10 ? '#e6a23c' : '#f56c6c')"
+                  style="flex:1"
+                />
+                <span class="text-xs w-12 text-right">{{ row.sov_percent.toFixed(2) }}%</span>
+              </div>
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="环比"
+            width="110"
+          >
+            <template #default="{ row }">
+              <span
+                v-if="rowTrend(row) !== null"
+                :class="rowTrend(row) >= 0 ? 'text-green-600' : 'text-red-500'"
+                class="text-xs font-semibold"
+              >
+                {{ rowTrend(row) >= 0 ? '↑' : '↓' }} {{ Math.abs(rowTrend(row)).toFixed(2) }}
+              </span>
+              <span
+                v-else
+                class="text-gray-400 text-xs"
+              >—</span>
+            </template>
+          </el-table-column>
+          <el-table-column
+            label="情感倾向"
+            width="100"
+          >
+            <template #default="{ row }">
+              <el-tag
+                :type="sentimentTag(row.avg_sentiment)"
+                size="small"
+              >
+                {{ sentimentLabel(row.avg_sentiment) }}
+              </el-tag>
+            </template>
+          </el-table-column>
+          <el-table-column
+            prop="total_mentions_all_brands"
+            label="全行业总提及"
+            width="120"
+          />
+        </el-table>
+      </el-card>
     </div>
   </div>
 </template>

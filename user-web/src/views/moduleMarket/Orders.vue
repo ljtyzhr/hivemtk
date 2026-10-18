@@ -4,63 +4,141 @@
       <template #header>
         <div class="card-header">
           <span>我的订单</span>
-          <el-button size="small" @click="fetch">刷新</el-button>
+          <el-button
+            size="small"
+            @click="fetch"
+          >
+            刷新
+          </el-button>
         </div>
       </template>
 
-      <el-alert type="info" show-icon :closable="false" class="mb-12"
+      <el-alert
+        type="info"
+        show-icon
+        :closable="false"
+        class="mb-12"
         title="付款流程"
-        description="提交订单后请按下方指引联系平台运营完成线下付款；运营在后台确认收款后，权益会自动开通，订单状态随之变为「已开通」。" />
+        description="提交订单后请按下方指引联系平台运营完成线下付款；运营在后台确认收款后，权益会自动开通，订单状态随之变为「已开通」。"
+      />
 
-      <div v-if="guide" class="guide">
+      <div
+        v-if="guide"
+        class="guide"
+      >
         <span class="guide-label">付款指引</span>
         <span>{{ guide }}</span>
       </div>
 
-      <el-table :data="list" v-loading="loading" stripe>
-        <el-table-column label="订单号" min-width="190">
-          <template #default="{ row }"><span class="mono">{{ row.order_no }}</span></template>
-        </el-table-column>
-        <el-table-column label="购买内容" min-width="220">
+      <el-table
+        v-loading="loading"
+        :data="list"
+        stripe
+      >
+        <el-table-column
+          label="订单号"
+          min-width="190"
+        >
           <template #default="{ row }">
-            <div v-for="(it, i) in parseItems(row)" :key="i">
+            <span class="mono">{{ row.order_no }}</span>
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="购买内容"
+          min-width="220"
+        >
+          <template #default="{ row }">
+            <div
+              v-for="(it, i) in parseItems(row)"
+              :key="i"
+            >
               {{ it.item_name || it.item_key }}
-              <span v-if="it.amount_cents" class="muted">（¥{{ fmtPrice(it.amount_cents) }}）</span>
+              <span
+                v-if="it.amount_cents"
+                class="muted"
+              >（¥{{ fmtPrice(it.amount_cents) }}）</span>
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="金额" width="110" align="right">
-          <template #default="{ row }">¥{{ fmtPrice(row.total_amount_cents) }}</template>
-        </el-table-column>
-        <el-table-column label="状态" width="130">
+        <el-table-column
+          label="金额"
+          width="110"
+          align="right"
+        >
           <template #default="{ row }">
-            <el-tag size="small" :type="STATUS_TAG[row.status]">
+            ¥{{ fmtPrice(row.total_amount_cents) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="状态"
+          width="130"
+        >
+          <template #default="{ row }">
+            <el-tag
+              size="small"
+              :type="STATUS_TAG[row.status]"
+            >
               {{ STATUS_LABEL[row.status] || row.status }}
             </el-tag>
-            <div v-if="row.status === 'pending_payment' && waitingText(row)" class="wait">
+            <div
+              v-if="row.status === 'pending_payment' && waitingText(row)"
+              class="wait"
+            >
               {{ waitingText(row) }}
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="下单时间" width="170">
-          <template #default="{ row }">{{ (row.created_at || '').replace('T', ' ').slice(0, 19) }}</template>
-        </el-table-column>
-        <el-table-column label="操作" width="120" fixed="right">
+        <el-table-column
+          label="下单时间"
+          width="170"
+        >
           <template #default="{ row }">
-            <el-button v-if="row.payment_guide" link type="primary" @click="openGuide(row)">付款指引</el-button>
+            {{ (row.created_at || '').replace('T', ' ').slice(0, 19) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="操作"
+          width="120"
+          fixed="right"
+        >
+          <template #default="{ row }">
+            <el-button
+              v-if="row.payment_guide"
+              link
+              type="primary"
+              @click="openGuide(row)"
+            >
+              付款指引
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
 
-      <el-pagination class="mt-12"
-        v-model:current-page="page" v-model:page-size="pageSize" :total="total"
-        layout="total, prev, pager, next" @current-change="fetch" />
+      <el-pagination
+        v-model:current-page="page"
+        v-model:page-size="pageSize"
+        class="mt-12"
+        :total="total"
+        layout="total, prev, pager, next"
+        @current-change="fetch"
+      />
     </el-card>
 
-    <el-dialog v-model="guideVisible" title="付款指引" width="480px">
-      <p class="guide-text">{{ currentGuide }}</p>
-      <el-alert v-if="currentGuide" type="warning" :closable="false" title="说明"
-        description="完成付款后，请告知平台运营订单号；运营确认后模块会自动开通，无需重复下单。" />
+    <el-dialog
+      v-model="guideVisible"
+      title="付款指引"
+      width="480px"
+    >
+      <p class="guide-text">
+        {{ currentGuide }}
+      </p>
+      <el-alert
+        v-if="currentGuide"
+        type="warning"
+        :closable="false"
+        title="说明"
+        description="完成付款后，请告知平台运营订单号；运营确认后模块会自动开通，无需重复下单。"
+      />
     </el-dialog>
   </div>
 </template>

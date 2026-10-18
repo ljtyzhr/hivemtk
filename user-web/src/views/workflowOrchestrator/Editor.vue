@@ -1,6 +1,9 @@
 <template>
   <div class="workflow-editor-page">
-    <el-page-header :content="`工作流编辑 - ${workflowId}`" @back="$router.back()" />
+    <el-page-header
+      :content="`工作流编辑 - ${workflowId}`"
+      @back="$router.back()"
+    />
 
     <el-card class="editor-card">
       <template #header>
@@ -24,16 +27,23 @@
               v-if="currentVersion && currentVersion.status === 'draft'"
               type="success"
               @click="publishCurrent"
-              >{{ $t('发布此版本') }}</el-button
             >
-            <el-button type="primary" @click="save">{{ $t('保存') }}</el-button>
-            <el-button @click="saveAsNew">{{ $t('保存为新版本') }}</el-button>
+              {{ $t('发布此版本') }}
+            </el-button>
+            <el-button
+              type="primary"
+              @click="save"
+            >
+              {{ $t('保存') }}
+            </el-button>
+            <el-button @click="saveAsNew">
+              {{ $t('保存为新版本') }}
+            </el-button>
           </div>
         </div>
       </template>
 
       <div class="editor-body">
-        
         <div class="palette">
           <h4>{{ $t('节点类型') }}</h4>
           <div
@@ -53,13 +63,29 @@
 
           <el-divider />
           <h4>{{ $t('添加节点') }}</h4>
-          <el-button type="primary" @click="addNode">{{ $t('添加到画布') }}</el-button>
+          <el-button
+            type="primary"
+            @click="addNode"
+          >
+            {{ $t('添加到画布') }}
+          </el-button>
 
           <el-divider />
 
           <h4>{{ $t('画布操作') }}</h4>
-          <el-button @click="autoLayout" :disabled="nodes.length === 0">{{ $t('自动布局') }}</el-button>
-          <el-button type="danger" plain @click="clearAll">{{ $t('清空画布') }}</el-button>
+          <el-button
+            :disabled="nodes.length === 0"
+            @click="autoLayout"
+          >
+            {{ $t('自动布局') }}
+          </el-button>
+          <el-button
+            type="danger"
+            plain
+            @click="clearAll"
+          >
+            {{ $t('清空画布') }}
+          </el-button>
 
           <el-divider />
           <div class="palette-tip">
@@ -78,7 +104,6 @@
             @pointermove="onPointerMove"
             @pointerup="onPointerUp"
           >
-            
             <svg class="edge-svg">
               <defs>
                 <marker
@@ -90,7 +115,10 @@
                   markerHeight="8"
                   orient="auto-start-reverse"
                 >
-                  <path d="M 0 0 L 10 5 L 0 10 z" fill="#909399" />
+                  <path
+                    d="M 0 0 L 10 5 L 0 10 z"
+                    fill="#909399"
+                  />
                 </marker>
               </defs>
               <path
@@ -137,8 +165,12 @@
               @pointerenter="onNodeEnter(idx)"
               @pointerleave="onNodeLeave(idx)"
             >
-              <div class="node-type-tag">{{ nodeTypeLabel(node.type) }}</div>
-              <div class="node-label">{{ node.label || `节点 ${idx + 1}` }}</div>
+              <div class="node-type-tag">
+                {{ nodeTypeLabel(node.type) }}
+              </div>
+              <div class="node-label">
+                {{ node.label || `节点 ${idx + 1}` }}
+              </div>
               <el-button
                 class="node-delete"
                 type="danger"
@@ -151,12 +183,15 @@
               
               <span
                 class="node-handle handle-out"
-                @pointerdown.stop.prevent="onLinkStart(idx, $event)"
                 :title="$t('拖拽创建连线')"
-              ></span>
+                @pointerdown.stop.prevent="onLinkStart(idx, $event)"
+              />
             </div>
 
-            <el-empty v-if="nodes.length === 0" :description="$t('从左侧选择节点类型，点击添加到画布')" />
+            <el-empty
+              v-if="nodes.length === 0"
+              :description="$t('从左侧选择节点类型，点击添加到画布')"
+            />
           </div>
         </div>
 
@@ -164,33 +199,51 @@
         <div class="properties">
           <h4>{{ $t('节点属性') }}</h4>
           <template v-if="selectedNodeIdx >= 0 && nodes[selectedNodeIdx]">
-            <el-form :model="nodes[selectedNodeIdx]" label-width="90px" size="small">
+            <el-form
+              :model="nodes[selectedNodeIdx]"
+              label-width="90px"
+              size="small"
+            >
               <el-form-item :label="$t('标签')">
                 <el-input v-model="nodes[selectedNodeIdx].label" />
               </el-form-item>
               <el-form-item :label="$t('节点 ID')">
-                <el-input v-model="nodes[selectedNodeIdx].id" disabled />
+                <el-input
+                  v-model="nodes[selectedNodeIdx].id"
+                  disabled
+                />
               </el-form-item>
               <el-form-item :label="$t('类型')">
                 <el-tag>{{ nodeTypeLabel(nodes[selectedNodeIdx].type) }}</el-tag>
               </el-form-item>
               <el-form-item :label="$t('X 坐标')">
-                <el-input-number v-model="nodes[selectedNodeIdx].x" :min="0" :max="800" />
+                <el-input-number
+                  v-model="nodes[selectedNodeIdx].x"
+                  :min="0"
+                  :max="800"
+                />
               </el-form-item>
               <el-form-item :label="$t('Y 坐标')">
-                <el-input-number v-model="nodes[selectedNodeIdx].y" :min="0" :max="500" />
+                <el-input-number
+                  v-model="nodes[selectedNodeIdx].y"
+                  :min="0"
+                  :max="500"
+                />
               </el-form-item>
               <el-form-item :label="$t('配置')">
                 <el-input
                   v-model="nodes[selectedNodeIdx].config_text"
                   type="textarea"
                   :rows="4"
-                  placeholder='{"action": "send_email"}'
+                  placeholder="{&quot;action&quot;: &quot;send_email&quot;}"
                 />
               </el-form-item>
             </el-form>
           </template>
-          <el-empty v-else :description="$t('请选择一个节点')" />
+          <el-empty
+            v-else
+            :description="$t('请选择一个节点')"
+          />
 
           <el-divider />
           <h4>{{ $t('JSON 预览') }}</h4>

@@ -1,22 +1,36 @@
 <template>
   <div class="glossary-list-page">
-    
-    <el-card class="header-card" shadow="never">
+    <el-card
+      class="header-card"
+      shadow="never"
+    >
       <div class="header-content">
         <div>
           <h2>{{ $t('术语表管理') }}</h2>
-          <p class="subtitle">维护品牌词、产品词等术语的多语言译法，配置 preserve 后翻译流程将原样保留</p>
+          <p class="subtitle">
+            维护品牌词、产品词等术语的多语言译法，配置 preserve 后翻译流程将原样保留
+          </p>
         </div>
         <div class="header-actions">
-          <el-button @click="loadList" :loading="loading">
+          <el-button
+            :loading="loading"
+            @click="loadList"
+          >
             <el-icon><Refresh /></el-icon>
             {{ $t('刷新') }}
           </el-button>
-          <el-button type="primary" @click="openCreateDialog">
+          <el-button
+            type="primary"
+            @click="openCreateDialog"
+          >
             <el-icon><Plus /></el-icon>
             {{ $t('新增术语') }}
           </el-button>
-          <el-button type="success" plain @click="openValidateDialog">
+          <el-button
+            type="success"
+            plain
+            @click="openValidateDialog"
+          >
             <el-icon><Search /></el-icon>
             {{ $t('校验预览') }}
           </el-button>
@@ -25,17 +39,47 @@
     </el-card>
 
     
-    <el-card shadow="never" class="filter-card">
-      <el-form :inline="true" :model="filter" @submit.prevent>
+    <el-card
+      shadow="never"
+      class="filter-card"
+    >
+      <el-form
+        :inline="true"
+        :model="filter"
+        @submit.prevent
+      >
         <el-form-item :label="$t('分类')">
-          <el-select v-model="filter.category" :placeholder="$t('全部分类')" clearable style="width: 160px" @change="onSearch">
-            <el-option v-for="opt in categoryOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+          <el-select
+            v-model="filter.category"
+            :placeholder="$t('全部分类')"
+            clearable
+            style="width: 160px"
+            @change="onSearch"
+          >
+            <el-option
+              v-for="opt in categoryOptions"
+              :key="opt.value"
+              :label="opt.label"
+              :value="opt.value"
+            />
           </el-select>
         </el-form-item>
         <el-form-item :label="$t('状态')">
-          <el-select v-model="filter.status" :placeholder="$t('全部状态')" clearable style="width: 140px" @change="onSearch">
-            <el-option :label="$t('启用')" :value="1" />
-            <el-option :label="$t('禁用')" :value="0" />
+          <el-select
+            v-model="filter.status"
+            :placeholder="$t('全部状态')"
+            clearable
+            style="width: 140px"
+            @change="onSearch"
+          >
+            <el-option
+              :label="$t('启用')"
+              :value="1"
+            />
+            <el-option
+              :label="$t('禁用')"
+              :value="0"
+            />
           </el-select>
         </el-form-item>
         <el-form-item :label="$t('关键词')">
@@ -49,34 +93,65 @@
           />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="onSearch">
+          <el-button
+            type="primary"
+            @click="onSearch"
+          >
             <el-icon><Search /></el-icon>
             {{ $t('搜索') }}
           </el-button>
-          <el-button @click="resetFilter">{{ $t('重置') }}</el-button>
+          <el-button @click="resetFilter">
+            {{ $t('重置') }}
+          </el-button>
         </el-form-item>
       </el-form>
     </el-card>
 
     
     <el-card shadow="never">
-      <el-table :data="list" v-loading="loading" stripe border>
-        <el-table-column prop="term_id" label="term_id" min-width="160" show-overflow-tooltip />
-        <el-table-column label="分类" width="120">
+      <el-table
+        v-loading="loading"
+        :data="list"
+        stripe
+        border
+      >
+        <el-table-column
+          prop="term_id"
+          label="term_id"
+          min-width="160"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          label="分类"
+          width="120"
+        >
           <template #default="{ row }">
-            <el-tag :type="getCategoryTagType(row.category)" size="small">
+            <el-tag
+              :type="getCategoryTagType(row.category)"
+              size="small"
+            >
               {{ getCategoryLabel(row.category) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="保留原样" width="100" align="center">
+        <el-table-column
+          label="保留原样"
+          width="100"
+          align="center"
+        >
           <template #default="{ row }">
-            <el-tag :type="row.preserve ? 'warning' : 'info'" size="small">
+            <el-tag
+              :type="row.preserve ? 'warning' : 'info'"
+              size="small"
+            >
               {{ row.preserve ? '是' : '否' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="多语言译法" min-width="280">
+        <el-table-column
+          label="多语言译法"
+          min-width="280"
+        >
           <template #default="{ row }">
             <div class="trans-cell">
               <el-tag
@@ -89,26 +164,60 @@
                 <span class="trans-lang">{{ getLanguageLabel(lang) }}</span>
                 <span class="trans-text">{{ truncateText(text, 20) }}</span>
               </el-tag>
-              <span v-if="!hasTranslations(row.translations)" class="empty-text">-</span>
+              <span
+                v-if="!hasTranslations(row.translations)"
+                class="empty-text"
+              >-</span>
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="pattern" label="匹配正则" min-width="160" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.pattern || '-' }}</template>
-        </el-table-column>
-        <el-table-column label="状态" width="90" align="center">
+        <el-table-column
+          prop="pattern"
+          label="匹配正则"
+          min-width="160"
+          show-overflow-tooltip
+        >
           <template #default="{ row }">
-            <el-tag :type="row.status === 1 ? 'success' : 'info'" size="small">
+            {{ row.pattern || '-' }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="状态"
+          width="90"
+          align="center"
+        >
+          <template #default="{ row }">
+            <el-tag
+              :type="row.status === 1 ? 'success' : 'info'"
+              size="small"
+            >
               {{ row.status === 1 ? '启用' : '禁用' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="created_at" label="创建时间" width="160">
-          <template #default="{ row }">{{ formatTime(row.created_at) }}</template>
-        </el-table-column>
-        <el-table-column label="操作" width="180" fixed="right">
+        <el-table-column
+          prop="created_at"
+          label="创建时间"
+          width="160"
+        >
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="openEditDialog(row)">编辑</el-button>
+            {{ formatTime(row.created_at) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="操作"
+          width="180"
+          fixed="right"
+        >
+          <template #default="{ row }">
+            <el-button
+              link
+              type="primary"
+              size="small"
+              @click="openEditDialog(row)"
+            >
+              编辑
+            </el-button>
             <el-button
               link
               :type="row.status === 1 ? 'warning' : 'success'"
@@ -117,7 +226,14 @@
             >
               {{ row.status === 1 ? '禁用' : '启用' }}
             </el-button>
-            <el-button link type="danger" size="small" @click="onDelete(row)">删除</el-button>
+            <el-button
+              link
+              type="danger"
+              size="small"
+              @click="onDelete(row)"
+            >
+              删除
+            </el-button>
           </template>
         </el-table-column>
         <template #empty>
@@ -126,7 +242,10 @@
       </el-table>
 
       
-      <div class="pagination-wrap" v-if="total > 0">
+      <div
+        v-if="total > 0"
+        class="pagination-wrap"
+      >
         <el-pagination
           v-model:current-page="page"
           v-model:page-size="pageSize"
@@ -148,44 +267,89 @@
       top="6vh"
       :close-on-click-modal="false"
     >
-      <el-form ref="formRef" :model="form" :rules="rules" label-width="110px" v-loading="formLoading">
+      <el-form
+        ref="formRef"
+        v-loading="formLoading"
+        :model="form"
+        :rules="rules"
+        label-width="110px"
+      >
         <el-row :gutter="20">
           <el-col :span="12">
-            <el-form-item label="term_id" prop="term_id">
-              <el-input v-model="form.term_id" placeholder="如 brand_hivemtk，唯一标识" :disabled="isEdit" />
+            <el-form-item
+              label="term_id"
+              prop="term_id"
+            >
+              <el-input
+                v-model="form.term_id"
+                placeholder="如 brand_hivemtk，唯一标识"
+                :disabled="isEdit"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item :label="$t('分类')" prop="category">
-              <el-select v-model="form.category" style="width: 100%" :placeholder="$t('请选择分类')">
-                <el-option v-for="opt in categoryOptions" :key="opt.value" :label="opt.label" :value="opt.value" />
+            <el-form-item
+              :label="$t('分类')"
+              prop="category"
+            >
+              <el-select
+                v-model="form.category"
+                style="width: 100%"
+                :placeholder="$t('请选择分类')"
+              >
+                <el-option
+                  v-for="opt in categoryOptions"
+                  :key="opt.value"
+                  :label="opt.label"
+                  :value="opt.value"
+                />
               </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item :label="$t('保留原样')">
               <el-switch v-model="form.preserve" />
-              <div class="form-tip">开启后该术语在翻译时原样保留，不做译写</div>
+              <div class="form-tip">
+                开启后该术语在翻译时原样保留，不做译写
+              </div>
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item :label="$t('状态')">
-              <el-select v-model="form.status" style="width: 100%">
-                <el-option :label="$t('启用')" :value="1" />
-                <el-option :label="$t('禁用')" :value="0" />
+              <el-select
+                v-model="form.status"
+                style="width: 100%"
+              >
+                <el-option
+                  :label="$t('启用')"
+                  :value="1"
+                />
+                <el-option
+                  :label="$t('禁用')"
+                  :value="0"
+                />
               </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="24">
             <el-form-item :label="$t('匹配正则')">
-              <el-input v-model="form.pattern" placeholder="可选，匹配原文的正则表达式，如 ^(HiveMTK|hivemtk)$" />
-              <div class="form-tip">留空时按 term_id 全词匹配</div>
+              <el-input
+                v-model="form.pattern"
+                placeholder="可选，匹配原文的正则表达式，如 ^(HiveMTK|hivemtk)$"
+              />
+              <div class="form-tip">
+                留空时按 term_id 全词匹配
+              </div>
             </el-form-item>
           </el-col>
           <el-col :span="24">
             <el-form-item :label="$t('多语言译法')">
               <div class="trans-editor">
-                <div v-for="(item, idx) in translationList" :key="idx" class="trans-row">
+                <div
+                  v-for="(item, idx) in translationList"
+                  :key="idx"
+                  class="trans-row"
+                >
                   <el-select
                     v-model="item.lang"
                     :placeholder="$t('选择语言')"
@@ -199,12 +363,26 @@
                       :value="lang.value"
                     />
                   </el-select>
-                  <el-input v-model="item.text" :placeholder="$t('该语言下的译法')" style="flex: 1" />
-                  <el-button link type="danger" size="small" @click="removeTranslation(idx)">
+                  <el-input
+                    v-model="item.text"
+                    :placeholder="$t('该语言下的译法')"
+                    style="flex: 1"
+                  />
+                  <el-button
+                    link
+                    type="danger"
+                    size="small"
+                    @click="removeTranslation(idx)"
+                  >
                     <el-icon><Delete /></el-icon>
                   </el-button>
                 </div>
-                <el-button size="small" type="primary" plain @click="addTranslation">
+                <el-button
+                  size="small"
+                  type="primary"
+                  plain
+                  @click="addTranslation"
+                >
                   <el-icon><Plus /></el-icon>
                   {{ $t('添加译法') }}
                 </el-button>
@@ -214,8 +392,14 @@
         </el-row>
       </el-form>
       <template #footer>
-        <el-button @click="formDialogVisible = false">{{ $t('取消') }}</el-button>
-        <el-button type="primary" :loading="submitting" @click="submitForm">
+        <el-button @click="formDialogVisible = false">
+          {{ $t('取消') }}
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="submitting"
+          @click="submitForm"
+        >
           {{ $t('保存') }}
         </el-button>
       </template>
@@ -229,9 +413,19 @@
       top="6vh"
       :close-on-click-modal="false"
     >
-      <el-form :model="validateForm" label-width="90px">
-        <el-form-item :label="$t('目标语言')" required>
-          <el-select v-model="validateForm.lang" :placeholder="$t('请选择语言')" style="width: 220px">
+      <el-form
+        :model="validateForm"
+        label-width="90px"
+      >
+        <el-form-item
+          :label="$t('目标语言')"
+          required
+        >
+          <el-select
+            v-model="validateForm.lang"
+            :placeholder="$t('请选择语言')"
+            style="width: 220px"
+          >
             <el-option
               v-for="lang in languageOptions"
               :key="lang.value"
@@ -240,7 +434,10 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item :label="$t('待校验文本')" required>
+        <el-form-item
+          :label="$t('待校验文本')"
+          required
+        >
           <el-input
             v-model="validateForm.text"
             type="textarea"
@@ -249,65 +446,151 @@
           />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" :loading="validating" @click="runValidate">
+          <el-button
+            type="primary"
+            :loading="validating"
+            @click="runValidate"
+          >
             <el-icon><Search /></el-icon>
             {{ $t('执行校验') }}
           </el-button>
-          <el-button @click="clearValidateResult">{{ $t('清空') }}</el-button>
+          <el-button @click="clearValidateResult">
+            {{ $t('清空') }}
+          </el-button>
         </el-form-item>
       </el-form>
 
       <template v-if="validateResult">
-        <el-divider content-position="left">{{ $t('校验结果') }}</el-divider>
-        <el-descriptions :column="2" border size="small" class="validate-summary">
+        <el-divider content-position="left">
+          {{ $t('校验结果') }}
+        </el-divider>
+        <el-descriptions
+          :column="2"
+          border
+          size="small"
+          class="validate-summary"
+        >
           <el-descriptions-item :label="$t('命中术语数')">
             {{ validateResult.hit_count ?? (validateResult.hits?.length || 0) }}
           </el-descriptions-item>
           <el-descriptions-item :label="$t('违规项数')">
-            <el-tag :type="validateViolations.length ? 'danger' : 'success'" size="small">
+            <el-tag
+              :type="validateViolations.length ? 'danger' : 'success'"
+              size="small"
+            >
               {{ validateViolations.length }}
             </el-tag>
           </el-descriptions-item>
         </el-descriptions>
 
         <div class="result-section">
-          <div class="result-title">{{ $t('命中的术语') }}</div>
-          <el-table :data="validateHits" stripe size="small" border>
-            <el-table-column prop="term_id" label="term_id" min-width="140" show-overflow-tooltip />
-            <el-table-column prop="matched_text" label="命中片段" min-width="140" show-overflow-tooltip>
-              <template #default="{ row }">{{ row.matched_text || row.match || '-' }}</template>
-            </el-table-column>
-            <el-table-column prop="translation" label="应译为" min-width="160" show-overflow-tooltip>
-              <template #default="{ row }">{{ row.translation || row.translated || '-' }}</template>
-            </el-table-column>
-            <el-table-column label="保留" width="80" align="center">
+          <div class="result-title">
+            {{ $t('命中的术语') }}
+          </div>
+          <el-table
+            :data="validateHits"
+            stripe
+            size="small"
+            border
+          >
+            <el-table-column
+              prop="term_id"
+              label="term_id"
+              min-width="140"
+              show-overflow-tooltip
+            />
+            <el-table-column
+              prop="matched_text"
+              label="命中片段"
+              min-width="140"
+              show-overflow-tooltip
+            >
               <template #default="{ row }">
-                <el-tag v-if="row.preserve" type="warning" size="small">是</el-tag>
+                {{ row.matched_text || row.match || '-' }}
+              </template>
+            </el-table-column>
+            <el-table-column
+              prop="translation"
+              label="应译为"
+              min-width="160"
+              show-overflow-tooltip
+            >
+              <template #default="{ row }">
+                {{ row.translation || row.translated || '-' }}
+              </template>
+            </el-table-column>
+            <el-table-column
+              label="保留"
+              width="80"
+              align="center"
+            >
+              <template #default="{ row }">
+                <el-tag
+                  v-if="row.preserve"
+                  type="warning"
+                  size="small"
+                >
+                  是
+                </el-tag>
                 <span v-else>-</span>
               </template>
             </el-table-column>
             <template #empty>
-              <el-empty description="无命中术语" :image-size="50" />
+              <el-empty
+                description="无命中术语"
+                :image-size="50"
+              />
             </template>
           </el-table>
         </div>
 
-        <div class="result-section" v-if="validateViolations.length">
-          <div class="result-title violation-title">{{ $t('违规项') }}</div>
-          <el-table :data="validateViolations" stripe size="small" border>
-            <el-table-column prop="term_id" label="term_id" min-width="140" show-overflow-tooltip />
-            <el-table-column prop="issue" label="问题描述" min-width="200" show-overflow-tooltip>
+        <div
+          v-if="validateViolations.length"
+          class="result-section"
+        >
+          <div class="result-title violation-title">
+            {{ $t('违规项') }}
+          </div>
+          <el-table
+            :data="validateViolations"
+            stripe
+            size="small"
+            border
+          >
+            <el-table-column
+              prop="term_id"
+              label="term_id"
+              min-width="140"
+              show-overflow-tooltip
+            />
+            <el-table-column
+              prop="issue"
+              label="问题描述"
+              min-width="200"
+              show-overflow-tooltip
+            >
               <template #default="{ row }">
                 <span class="violation-text">{{ row.issue || row.reason || row.message || '-' }}</span>
               </template>
             </el-table-column>
-            <el-table-column prop="snippet" label="文本片段" min-width="200" show-overflow-tooltip>
-              <template #default="{ row }">{{ row.snippet || row.context || '-' }}</template>
+            <el-table-column
+              prop="snippet"
+              label="文本片段"
+              min-width="200"
+              show-overflow-tooltip
+            >
+              <template #default="{ row }">
+                {{ row.snippet || row.context || '-' }}
+              </template>
             </el-table-column>
           </el-table>
         </div>
       </template>
-      <el-empty v-else-if="!validating" :description="$t('执行校验后展示结果')" :image-size="80" />
+      <el-empty
+        v-else-if="!validating"
+        :description="$t('执行校验后展示结果')"
+        :image-size="80"
+      />
     </el-dialog>
   </div>
 </template>

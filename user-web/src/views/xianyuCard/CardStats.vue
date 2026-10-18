@@ -5,7 +5,12 @@
         <div class="card-header">
           <span>{{ $t('闲鱼卡片详情统计') }}</span>
           <div class="header-actions">
-            <el-button @click="goBack" icon="ArrowLeft">{{ $t('返回') }}</el-button>
+            <el-button
+              icon="ArrowLeft"
+              @click="goBack"
+            >
+              {{ $t('返回') }}
+            </el-button>
             <el-date-picker
               v-model="dateRange"
               type="daterange"
@@ -15,12 +20,30 @@
               value-format="YYYY-MM-DD"
               @change="handleDateChange"
             />
-            <el-select v-model="groupBy" :placeholder="$t('分组方式')" @change="handleGroupByChange">
-              <el-option :label="$t('按天')" value="day" />
-              <el-option :label="$t('按周')" value="week" />
-              <el-option :label="$t('按月')" value="month" />
+            <el-select
+              v-model="groupBy"
+              :placeholder="$t('分组方式')"
+              @change="handleGroupByChange"
+            >
+              <el-option
+                :label="$t('按天')"
+                value="day"
+              />
+              <el-option
+                :label="$t('按周')"
+                value="week"
+              />
+              <el-option
+                :label="$t('按月')"
+                value="month"
+              />
             </el-select>
-            <el-button type="primary" @click="refreshData">{{ $t('刷新') }}</el-button>
+            <el-button
+              type="primary"
+              @click="refreshData"
+            >
+              {{ $t('刷新') }}
+            </el-button>
           </div>
         </div>
       </template>
@@ -45,18 +68,34 @@
         description="卡片本身还在，但这一轮的统计没读到。下方的 0 与空图是「没读到」，不是「真的没有」——请点「刷新」重试。"
       />
 
-      <div class="card-info" v-if="cardInfo">
-        <el-descriptions :column="3" border>
-          <el-descriptions-item label="卡片标题">{{ cardInfo.title }}</el-descriptions-item>
-          <el-descriptions-item label="描述">{{ cardInfo.description }}</el-descriptions-item>
+      <div
+        v-if="cardInfo"
+        class="card-info"
+      >
+        <el-descriptions
+          :column="3"
+          border
+        >
+          <el-descriptions-item label="卡片标题">
+            {{ cardInfo.title }}
+          </el-descriptions-item>
+          <el-descriptions-item label="描述">
+            {{ cardInfo.description }}
+          </el-descriptions-item>
           <el-descriptions-item label="状态">
             <el-tag :type="cardInfo.is_active ? 'success' : 'danger'">
               {{ cardInfo.is_active ? '激活' : '禁用' }}
             </el-tag>
           </el-descriptions-item>
-          <el-descriptions-item label="创建时间">{{ cardInfo.created_at }}</el-descriptions-item>
-          <el-descriptions-item label="总浏览量">{{ cardInfo.view_count || 0 }}</el-descriptions-item>
-          <el-descriptions-item label="总点击量">{{ cardInfo.click_count || 0 }}</el-descriptions-item>
+          <el-descriptions-item label="创建时间">
+            {{ cardInfo.created_at }}
+          </el-descriptions-item>
+          <el-descriptions-item label="总浏览量">
+            {{ cardInfo.view_count || 0 }}
+          </el-descriptions-item>
+          <el-descriptions-item label="总点击量">
+            {{ cardInfo.click_count || 0 }}
+          </el-descriptions-item>
         </el-descriptions>
       </div>
 
@@ -66,32 +105,48 @@
           <el-col :span="6">
             <el-card class="stats-card">
               <div class="stats-item">
-                <div class="stats-value">{{ formatNumber(statsData.total_views) }}</div>
-                <div class="stats-label">浏览量</div>
+                <div class="stats-value">
+                  {{ formatNumber(statsData.total_views) }}
+                </div>
+                <div class="stats-label">
+                  浏览量
+                </div>
               </div>
             </el-card>
           </el-col>
           <el-col :span="6">
             <el-card class="stats-card">
               <div class="stats-item">
-                <div class="stats-value">{{ formatNumber(statsData.total_clicks) }}</div>
-                <div class="stats-label">点击量</div>
+                <div class="stats-value">
+                  {{ formatNumber(statsData.total_clicks) }}
+                </div>
+                <div class="stats-label">
+                  点击量
+                </div>
               </div>
             </el-card>
           </el-col>
           <el-col :span="6">
             <el-card class="stats-card">
               <div class="stats-item">
-                <div class="stats-value">{{ formatNumber(statsData.total_shares) }}</div>
-                <div class="stats-label">分享量</div>
+                <div class="stats-value">
+                  {{ formatNumber(statsData.total_shares) }}
+                </div>
+                <div class="stats-label">
+                  分享量
+                </div>
               </div>
             </el-card>
           </el-col>
           <el-col :span="6">
             <el-card class="stats-card">
               <div class="stats-item">
-                <div class="stats-value">{{ formatPercent(statsData.click_rate) }}</div>
-                <div class="stats-label">点击率</div>
+                <div class="stats-value">
+                  {{ formatPercent(statsData.click_rate) }}
+                </div>
+                <div class="stats-label">
+                  点击率
+                </div>
               </div>
             </el-card>
           </el-col>
@@ -103,14 +158,24 @@
         <el-row :gutter="20">
           <el-col :span="12">
             <el-card>
-              <div class="chart-title">浏览量趋势</div>
-              <div ref="viewsChart" class="chart"></div>
+              <div class="chart-title">
+                浏览量趋势
+              </div>
+              <div
+                ref="viewsChart"
+                class="chart"
+              />
             </el-card>
           </el-col>
           <el-col :span="12">
             <el-card>
-              <div class="chart-title">点击量趋势</div>
-              <div ref="clicksChart" class="chart"></div>
+              <div class="chart-title">
+                点击量趋势
+              </div>
+              <div
+                ref="clicksChart"
+                class="chart"
+              />
             </el-card>
           </el-col>
         </el-row>
@@ -119,20 +184,52 @@
       
       <div class="detail-table">
         <el-card>
-          <div class="table-title">详细访问记录</div>
-          <el-table :data="detailData" style="width: 100%" v-loading="loading">
-            <el-table-column prop="date" label="日期" width="120">
-              <template #default="scope">{{ toBusinessDate(scope.row.date) }}</template>
+          <div class="table-title">
+            详细访问记录
+          </div>
+          <el-table
+            v-loading="loading"
+            :data="detailData"
+            style="width: 100%"
+          >
+            <el-table-column
+              prop="date"
+              label="日期"
+              width="120"
+            >
+              <template #default="scope">
+                {{ toBusinessDate(scope.row.date) }}
+              </template>
             </el-table-column>
-            <el-table-column prop="views" label="浏览量" width="100" />
-            <el-table-column prop="clicks" label="点击量" width="100" />
-            <el-table-column prop="shares" label="分享量" width="100" />
-            <el-table-column prop="click_rate" label="点击率" width="100">
+            <el-table-column
+              prop="views"
+              label="浏览量"
+              width="100"
+            />
+            <el-table-column
+              prop="clicks"
+              label="点击量"
+              width="100"
+            />
+            <el-table-column
+              prop="shares"
+              label="分享量"
+              width="100"
+            />
+            <el-table-column
+              prop="click_rate"
+              label="点击率"
+              width="100"
+            >
               <template #default="scope">
                 {{ formatPercent(scope.row.click_rate) }}
               </template>
             </el-table-column>
-            <el-table-column prop="unique_visitors" label="独立访客" width="100" />
+            <el-table-column
+              prop="unique_visitors"
+              label="独立访客"
+              width="100"
+            />
           </el-table>
           
           

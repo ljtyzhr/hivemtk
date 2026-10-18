@@ -8,44 +8,92 @@
       show-icon
       :title="error"
     />
-    <el-row :gutter="16" class="stats-row">
+    <el-row
+      :gutter="16"
+      class="stats-row"
+    >
       <el-col :span="6">
-        <el-card shadow="hover" class="stat-card">
-          <div class="stat-label">CSAT 均分</div>
-          <div class="stat-value">{{ stats.responded > 0 ? stats.avgScore : '—' }}</div>
-          <div class="stat-sub">满分 5 星</div>
+        <el-card
+          shadow="hover"
+          class="stat-card"
+        >
+          <div class="stat-label">
+            CSAT 均分
+          </div>
+          <div class="stat-value">
+            {{ stats.responded > 0 ? stats.avgScore : '—' }}
+          </div>
+          <div class="stat-sub">
+            满分 5 星
+          </div>
         </el-card>
       </el-col>
       <el-col :span="6">
-        <el-card shadow="hover" class="stat-card">
-          <div class="stat-label">好评率</div>
-          <div class="stat-value">{{ stats.responded > 0 ? stats.positiveRate + '%' : '—' }}</div>
-          <div class="stat-sub">4-5 星占比</div>
+        <el-card
+          shadow="hover"
+          class="stat-card"
+        >
+          <div class="stat-label">
+            好评率
+          </div>
+          <div class="stat-value">
+            {{ stats.responded > 0 ? stats.positiveRate + '%' : '—' }}
+          </div>
+          <div class="stat-sub">
+            4-5 星占比
+          </div>
         </el-card>
       </el-col>
       <el-col :span="6">
-        <el-card shadow="hover" class="stat-card">
-          <div class="stat-label">总评分数</div>
-          <div class="stat-value">{{ stats.responded }}</div>
-          <div class="stat-sub">{{ stats.windowLabel }}</div>
+        <el-card
+          shadow="hover"
+          class="stat-card"
+        >
+          <div class="stat-label">
+            总评分数
+          </div>
+          <div class="stat-value">
+            {{ stats.responded }}
+          </div>
+          <div class="stat-sub">
+            {{ stats.windowLabel }}
+          </div>
         </el-card>
       </el-col>
       <el-col :span="6">
-        <el-card shadow="hover" class="stat-card">
-          <div class="stat-label">差评数</div>
-          <div class="stat-value" style="color: #EF4444">{{ stats.negativeCount }}</div>
-          <div class="stat-sub">≤{{ stats.threshold }} 星</div>
+        <el-card
+          shadow="hover"
+          class="stat-card"
+        >
+          <div class="stat-label">
+            差评数
+          </div>
+          <div
+            class="stat-value"
+            style="color: #EF4444"
+          >
+            {{ stats.negativeCount }}
+          </div>
+          <div class="stat-sub">
+            ≤{{ stats.threshold }} 星
+          </div>
         </el-card>
       </el-col>
     </el-row>
 
-    <el-row :gutter="16" class="chart-row">
+    <el-row
+      :gutter="16"
+      class="chart-row"
+    >
       <el-col :span="16">
         <el-card>
           <template #header>
             <span>CSAT 趋势（最近 30 天）</span>
           </template>
-          <div ref="trendChartRef" class="chart" />
+          <div
+            ref="trendChartRef"
+            class="chart"
+          />
         </el-card>
       </el-col>
       <el-col :span="8">
@@ -53,7 +101,10 @@
           <template #header>
             <span>评分分布</span>
           </template>
-          <div ref="distChartRef" class="chart" />
+          <div
+            ref="distChartRef"
+            class="chart"
+          />
         </el-card>
       </el-col>
     </el-row>
@@ -62,26 +113,75 @@
       <template #header>
         <span>差评列表（≤{{ stats.threshold }} 星）</span>
       </template>
-      <el-table :data="negativeList" v-loading="loading">
-        <el-table-column prop="session_id" label="会话 ID" width="240" show-overflow-tooltip />
-        <el-table-column prop="agent_name" label="坐席" width="120">
-          <template #default="{ row }">{{ row.agent_name || '—' }}</template>
-        </el-table-column>
-        <el-table-column prop="user_name" label="客户" width="120">
-          <template #default="{ row }">{{ row.user_name || '—' }}</template>
-        </el-table-column>
-        <el-table-column prop="score" label="评分" width="80">
+      <el-table
+        v-loading="loading"
+        :data="negativeList"
+      >
+        <el-table-column
+          prop="session_id"
+          label="会话 ID"
+          width="240"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          prop="agent_name"
+          label="坐席"
+          width="120"
+        >
           <template #default="{ row }">
-            <el-rate v-model="row.score" disabled :max="5" show-score />
+            {{ row.agent_name || '—' }}
           </template>
         </el-table-column>
-        <el-table-column prop="comment" label="评论" min-width="200" show-overflow-tooltip />
-        <el-table-column label="提交时间" width="180">
-          <template #default="{ row }">{{ formatTime(row.responded_at) }}</template>
-        </el-table-column>
-        <el-table-column label="操作" width="120" fixed="right">
+        <el-table-column
+          prop="user_name"
+          label="客户"
+          width="120"
+        >
           <template #default="{ row }">
-            <el-button link type="primary" @click="viewSession(row)">查看会话</el-button>
+            {{ row.user_name || '—' }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          prop="score"
+          label="评分"
+          width="80"
+        >
+          <template #default="{ row }">
+            <el-rate
+              v-model="row.score"
+              disabled
+              :max="5"
+              show-score
+            />
+          </template>
+        </el-table-column>
+        <el-table-column
+          prop="comment"
+          label="评论"
+          min-width="200"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          label="提交时间"
+          width="180"
+        >
+          <template #default="{ row }">
+            {{ formatTime(row.responded_at) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="操作"
+          width="120"
+          fixed="right"
+        >
+          <template #default="{ row }">
+            <el-button
+              link
+              type="primary"
+              @click="viewSession(row)"
+            >
+              查看会话
+            </el-button>
           </template>
         </el-table-column>
       </el-table>

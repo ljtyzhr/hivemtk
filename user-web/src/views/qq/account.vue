@@ -21,55 +21,151 @@
             @input="handleSearch"
           />
           <div class="action-buttons">
-            <el-button type="primary" @click="handleAdd">{{ $t('添加机器人') }}</el-button>
-            <el-button type="info" :loading="loading" @click="fetchAccounts">
+            <el-button
+              type="primary"
+              @click="handleAdd"
+            >
+              {{ $t('添加机器人') }}
+            </el-button>
+            <el-button
+              type="info"
+              :loading="loading"
+              @click="fetchAccounts"
+            >
               <el-icon><Refresh /></el-icon>
               <span>{{ $t('刷新') }}</span>
             </el-button>
           </div>
         </div>
 
-        <div v-loading="loading" class="account-list">
-          <el-table :data="filteredAccounts" style="width: 100%" border>
-            <el-table-column prop="account_name" :label="$t('账号名称')" min-width="150" />
-            <el-table-column prop="app_id" label="AppID" min-width="140" />
-            <el-table-column prop="app_secret_masked" label="AppSecret" min-width="150" />
-            <el-table-column prop="webhook_url" label="Webhook URL" min-width="230" show-overflow-tooltip />
-            <el-table-column label="Webhook" width="100" align="center">
+        <div
+          v-loading="loading"
+          class="account-list"
+        >
+          <el-table
+            :data="filteredAccounts"
+            style="width: 100%"
+            border
+          >
+            <el-table-column
+              prop="account_name"
+              :label="$t('账号名称')"
+              min-width="150"
+            />
+            <el-table-column
+              prop="app_id"
+              label="AppID"
+              min-width="140"
+            />
+            <el-table-column
+              prop="app_secret_masked"
+              label="AppSecret"
+              min-width="150"
+            />
+            <el-table-column
+              prop="webhook_url"
+              label="Webhook URL"
+              min-width="230"
+              show-overflow-tooltip
+            />
+            <el-table-column
+              label="Webhook"
+              width="100"
+              align="center"
+            >
               <template #default="scope">
-                <el-tag :type="scope.row.webhook_enabled ? 'success' : 'info'" effect="plain">
+                <el-tag
+                  :type="scope.row.webhook_enabled ? 'success' : 'info'"
+                  effect="plain"
+                >
                   {{ scope.row.webhook_enabled ? '已配置' : '未配置' }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="智能体" width="100" align="center">
+            <el-table-column
+              label="智能体"
+              width="100"
+              align="center"
+            >
               <template #default="scope">
-                <el-tag :type="scope.row.ai_agent_enabled ? 'success' : 'info'" effect="plain">
+                <el-tag
+                  :type="scope.row.ai_agent_enabled ? 'success' : 'info'"
+                  effect="plain"
+                >
                   {{ scope.row.ai_agent_enabled ? '已启用' : '未启用' }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="状态" width="90" align="center">
+            <el-table-column
+              label="状态"
+              width="90"
+              align="center"
+            >
               <template #default="scope">
-                <el-tag :type="scope.row.status === 1 ? 'success' : 'danger'" effect="plain">
+                <el-tag
+                  :type="scope.row.status === 1 ? 'success' : 'danger'"
+                  effect="plain"
+                >
                   {{ scope.row.status === 1 ? '正常' : '停用' }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="last_error_msg" label="最近错误" min-width="160" show-overflow-tooltip />
-            <el-table-column label="操作" width="380" fixed="right">
+            <el-table-column
+              prop="last_error_msg"
+              label="最近错误"
+              min-width="160"
+              show-overflow-tooltip
+            />
+            <el-table-column
+              label="操作"
+              width="380"
+              fixed="right"
+            >
               <template #default="scope">
-                <el-button size="small" @click="handleEdit(scope.row)">编辑</el-button>
-                <el-button size="small" type="warning" @click="handleTestSend(scope.row)">测试发送</el-button>
-                <el-button size="small" type="success" :loading="verifyingId === scope.row.id" @click="handleVerifyCallback(scope.row)">自检验签</el-button>
-                <el-button size="small" type="primary" @click="openBindingDialog(scope.row)">绑定AI</el-button>
-                <el-button size="small" type="danger" @click="handleDelete(scope.row)">删除</el-button>
+                <el-button
+                  size="small"
+                  @click="handleEdit(scope.row)"
+                >
+                  编辑
+                </el-button>
+                <el-button
+                  size="small"
+                  type="warning"
+                  @click="handleTestSend(scope.row)"
+                >
+                  测试发送
+                </el-button>
+                <el-button
+                  size="small"
+                  type="success"
+                  :loading="verifyingId === scope.row.id"
+                  @click="handleVerifyCallback(scope.row)"
+                >
+                  自检验签
+                </el-button>
+                <el-button
+                  size="small"
+                  type="primary"
+                  @click="openBindingDialog(scope.row)"
+                >
+                  绑定AI
+                </el-button>
+                <el-button
+                  size="small"
+                  type="danger"
+                  @click="handleDelete(scope.row)"
+                >
+                  删除
+                </el-button>
               </template>
             </el-table-column>
           </el-table>
         </div>
 
-        <div v-if="!loading && filteredAccounts.length === 0" class="empty-data">
+        <div
+          v-if="!loading && filteredAccounts.length === 0"
+          class="empty-data"
+        >
           <el-empty description="暂无 QQ 机器人账号，点击右上角添加" />
         </div>
       </div>
@@ -81,14 +177,34 @@
       width="640px"
       :close-on-click-modal="false"
     >
-      <el-form ref="accountFormRef" :model="accountForm" :rules="rules" label-width="130px">
-        <el-form-item label="账号名称" prop="account_name">
-          <el-input v-model="accountForm.account_name" placeholder="用于识别，例如：售前咨询Bot" />
+      <el-form
+        ref="accountFormRef"
+        :model="accountForm"
+        :rules="rules"
+        label-width="130px"
+      >
+        <el-form-item
+          label="账号名称"
+          prop="account_name"
+        >
+          <el-input
+            v-model="accountForm.account_name"
+            placeholder="用于识别，例如：售前咨询Bot"
+          />
         </el-form-item>
-        <el-form-item label="AppID" prop="app_id">
-          <el-input v-model="accountForm.app_id" placeholder="QQ 开放平台 AppID" />
+        <el-form-item
+          label="AppID"
+          prop="app_id"
+        >
+          <el-input
+            v-model="accountForm.app_id"
+            placeholder="QQ 开放平台 AppID"
+          />
         </el-form-item>
-        <el-form-item label="AppSecret" prop="app_secret">
+        <el-form-item
+          label="AppSecret"
+          prop="app_secret"
+        >
           <el-input
             v-model="accountForm.app_secret"
             :placeholder="dialogType === 'edit' ? '留空则保持原 Secret 不变' : 'QQ 开放平台 AppSecret'"
@@ -96,7 +212,10 @@
             show-password
           />
         </el-form-item>
-        <el-form-item label="BotSecret" prop="webhook_secret">
+        <el-form-item
+          label="BotSecret"
+          prop="webhook_secret"
+        >
           <el-input
             v-model="accountForm.webhook_secret"
             :placeholder="dialogType === 'edit' ? '留空则保持原值不变' : '开放平台管理端 BotSecret，用于 Ed25519 验签'"
@@ -104,69 +223,123 @@
             show-password
           />
         </el-form-item>
-        <el-form-item label="Webhook URL" prop="webhook_url">
+        <el-form-item
+          label="Webhook URL"
+          prop="webhook_url"
+        >
           <el-input
             v-model="accountForm.webhook_url"
             :placeholder="accountForm.webhook_url_suggested ? '' : '未配置 PUBLIC_BASE_URL，请手填（https，端口限 80/443/8080/8443）'"
             :disabled="webhookUrlLocked"
           >
-            <template v-if="accountForm.webhook_url" #append>
-              <el-button @click="copyText(accountForm.webhook_url)">复制</el-button>
+            <template
+              v-if="accountForm.webhook_url"
+              #append
+            >
+              <el-button @click="copyText(accountForm.webhook_url)">
+                复制
+              </el-button>
             </template>
           </el-input>
           <div class="form-hint-block">
-            <el-text type="info" size="small">
+            <el-text
+              type="info"
+              size="small"
+            >
               {{ webhookUrlHint }}
             </el-text>
           </div>
         </el-form-item>
-        <el-form-item label="启用 Webhook" prop="webhook_enabled">
+        <el-form-item
+          label="启用 Webhook"
+          prop="webhook_enabled"
+        >
           <el-switch v-model="accountForm.webhook_enabled" />
           <span class="form-hint">在开放平台管理端配置回调地址后开启</span>
         </el-form-item>
-        <el-form-item label="启用 智能体" prop="ai_agent_enabled">
+        <el-form-item
+          label="启用 智能体"
+          prop="ai_agent_enabled"
+        >
           <el-switch v-model="accountForm.ai_agent_enabled" />
           <span class="form-hint">开启后，QQ 群 @机器人 与单聊消息自动触发智能体回复</span>
         </el-form-item>
-        <el-form-item label="状态" prop="status">
+        <el-form-item
+          label="状态"
+          prop="status"
+        >
           <el-radio-group v-model="accountForm.status">
-            <el-radio :label="1">正常</el-radio>
-            <el-radio :label="2">停用</el-radio>
+            <el-radio :label="1">
+              正常
+            </el-radio>
+            <el-radio :label="2">
+              停用
+            </el-radio>
           </el-radio-group>
         </el-form-item>
       </el-form>
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="dialogVisible = false">取消</el-button>
-          <el-button type="primary" :loading="submitting" @click="submitForm">确认</el-button>
+          <el-button
+            type="primary"
+            :loading="submitting"
+            @click="submitForm"
+          >确认</el-button>
         </span>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="testDialogVisible" title="测试发送消息" width="520px">
-      <el-form :model="testForm" label-width="110px">
+    <el-dialog
+      v-model="testDialogVisible"
+      title="测试发送消息"
+      width="520px"
+    >
+      <el-form
+        :model="testForm"
+        label-width="110px"
+      >
         <el-form-item label="目标类型">
           <el-radio-group v-model="testForm.target_type">
-            <el-radio label="group">群聊</el-radio>
-            <el-radio label="c2c">单聊</el-radio>
+            <el-radio label="group">
+              群聊
+            </el-radio>
+            <el-radio label="c2c">
+              单聊
+            </el-radio>
           </el-radio-group>
         </el-form-item>
         <el-form-item label="目标 OpenID">
-          <el-input v-model="testForm.target_openid" placeholder="群 openid 或用户 openid" />
+          <el-input
+            v-model="testForm.target_openid"
+            placeholder="群 openid 或用户 openid"
+          />
         </el-form-item>
         <el-form-item label="消息内容">
-          <el-input v-model="testForm.text" type="textarea" :rows="3" placeholder="请输入测试消息内容" />
+          <el-input
+            v-model="testForm.text"
+            type="textarea"
+            :rows="3"
+            placeholder="请输入测试消息内容"
+          />
         </el-form-item>
       </el-form>
       <div class="test-hint">
-        <el-text type="info" size="small">
+        <el-text
+          type="info"
+          size="small"
+        >
           注意：QQ 主动消息需对方开启「允许主动发送」且受平台频控；推荐在群里 @机器人 通过被动回复验证链路。
         </el-text>
       </div>
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="testDialogVisible = false">取消</el-button>
-          <el-button type="primary" :loading="testing" @click="submitTestSend">发送</el-button>
+          <el-button
+            type="primary"
+            :loading="testing"
+            @click="submitTestSend"
+          >发送</el-button>
         </span>
       </template>
     </el-dialog>

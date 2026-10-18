@@ -6,16 +6,31 @@
     </div>
 
     <div class="progress-container">
-      <el-steps :active="currentStep" finish-status="success" align-center>
-        <el-step :title="$t('setup.readAgreement')" description="阅读使用声明" />
-        <el-step :title="$t('setup.stepAdmin')" description="配置管理员账号" />
-        <el-step :title="$t('setup.finish')" description="进入登录" />
+      <el-steps
+        :active="currentStep"
+        finish-status="success"
+        align-center
+      >
+        <el-step
+          :title="$t('setup.readAgreement')"
+          description="阅读使用声明"
+        />
+        <el-step
+          :title="$t('setup.stepAdmin')"
+          description="配置管理员账号"
+        />
+        <el-step
+          :title="$t('setup.finish')"
+          description="进入登录"
+        />
       </el-steps>
     </div>
 
     <div class="step-content">
-      
-      <div v-if="currentStep === 0" class="step-item">
+      <div
+        v-if="currentStep === 0"
+        class="step-item"
+      >
         <h2>{{ $t('setup.legalTitle') }}</h2>
         <div class="agreement-content">
           <p>{{ $t('setup.legalOpenSource') }}</p>
@@ -24,19 +39,29 @@
             <li>{{ $t('setup.legalLiability') }}</li>
             <li>{{ $t('setup.legalLocalDefault') }}</li>
           </ul>
-          <el-checkbox v-model="agreed" style="margin-top: 20px">
+          <el-checkbox
+            v-model="agreed"
+            style="margin-top: 20px"
+          >
             {{ $t('setup.legalAgree') }}
           </el-checkbox>
         </div>
         <div class="step-actions">
-          <el-button type="primary" :disabled="!agreed" @click="nextStep">
+          <el-button
+            type="primary"
+            :disabled="!agreed"
+            @click="nextStep"
+          >
             {{ $t('setup.next') }}
           </el-button>
         </div>
       </div>
 
       
-      <div v-if="currentStep === 1" class="step-item">
+      <div
+        v-if="currentStep === 1"
+        class="step-item"
+      >
         <h2>{{ $t('setup.stepAdminFull') }}</h2>
         <p class="step-tip">
           {{ $t('setup.adminIntro') }}
@@ -47,7 +72,10 @@
           :rules="adminRules"
           label-width="110px"
         >
-          <el-form-item :label="$t('setup.adminAccount')" prop="username">
+          <el-form-item
+            :label="$t('setup.adminAccount')"
+            prop="username"
+          >
             <el-input
               v-model="adminForm.username"
               :placeholder="$t('setup.adminUsernameHint')"
@@ -55,7 +83,10 @@
               clearable
             />
           </el-form-item>
-          <el-form-item :label="$t('setup.adminPassword')" prop="password">
+          <el-form-item
+            :label="$t('setup.adminPassword')"
+            prop="password"
+          >
             <el-input
               v-model="adminForm.password"
               type="password"
@@ -67,7 +98,10 @@
               {{ $t('setup.adminPasswordHint') }}
             </div>
           </el-form-item>
-          <el-form-item :label="$t('setup.confirmPassword')" prop="confirmPassword">
+          <el-form-item
+            :label="$t('setup.confirmPassword')"
+            prop="confirmPassword"
+          >
             <el-input
               v-model="adminForm.confirmPassword"
               type="password"
@@ -82,37 +116,54 @@
                而离线部署的用户**只走这一个入口**（他们不会去注册页），
                于是需求「注意离线独立部署情况，也要收集信息」对整个离线人群失效。
                现在四项必填：平台端持有的是一个联系得到的经营主体，而不是空白。 -->
-          <el-divider content-position="left">{{ $t('setup.regTitle') }}</el-divider>
+          <el-divider content-position="left">
+            {{ $t('setup.regTitle') }}
+          </el-divider>
 
-          <el-form-item :label="$t('setup.regCompany')" prop="company_name">
+          <el-form-item
+            :label="$t('setup.regCompany')"
+            prop="company_name"
+          >
             <el-input
               v-model="adminForm.company_name"
               :placeholder="$t('setup.regCompanyHint')"
               size="large"
             />
           </el-form-item>
-          <el-form-item :label="$t('setup.regOwner')" prop="real_name">
+          <el-form-item
+            :label="$t('setup.regOwner')"
+            prop="real_name"
+          >
             <el-input
               v-model="adminForm.real_name"
               :placeholder="$t('setup.regOwnerName')"
               size="large"
             />
           </el-form-item>
-          <el-form-item :label="$t('setup.phone')" prop="contact_phone">
+          <el-form-item
+            :label="$t('setup.phone')"
+            prop="contact_phone"
+          >
             <el-input
               v-model="adminForm.contact_phone"
               :placeholder="$t('setup.regContactHint')"
               size="large"
             />
           </el-form-item>
-          <el-form-item :label="$t('setup.email')" prop="email">
+          <el-form-item
+            :label="$t('setup.email')"
+            prop="email"
+          >
             <el-input
               v-model="adminForm.email"
               :placeholder="$t('setup.regNoticeHint')"
               size="large"
             />
           </el-form-item>
-          <el-form-item :label="$t('setup.regLicenseCode')" prop="license_no">
+          <el-form-item
+            :label="$t('setup.regLicenseCode')"
+            prop="license_no"
+          >
             <el-input
               v-model="adminForm.license_no"
               :placeholder="$t('setup.regLicenseHint')"
@@ -127,27 +178,44 @@
           </el-form-item>
         </el-form>
         <div class="step-actions">
-          <el-button @click="prevStep">{{ $t('setup.prev') }}</el-button>
-          <el-button type="primary" :loading="creatingAdmin" @click="handleCreateAdmin">
+          <el-button @click="prevStep">
+            {{ $t('setup.prev') }}
+          </el-button>
+          <el-button
+            type="primary"
+            :loading="creatingAdmin"
+            @click="handleCreateAdmin"
+          >
             {{ $t('setup.createAdminCta') }}
           </el-button>
         </div>
       </div>
 
       
-      <div v-if="currentStep === 2" class="step-item">
+      <div
+        v-if="currentStep === 2"
+        class="step-item"
+      >
         <el-result
           icon="success"
           :title="$t('setup.initDone')"
           :sub-title="$t('setup.adminCreated')"
         >
           <template #extra>
-            <el-button type="primary" size="large" @click="goToLogin">
+            <el-button
+              type="primary"
+              size="large"
+              @click="goToLogin"
+            >
               {{ $t('setup.goLogin') }}
             </el-button>
           </template>
         </el-result>
-        <el-descriptions :column="1" border style="margin-top: 20px">
+        <el-descriptions
+          :column="1"
+          border
+          style="margin-top: 20px"
+        >
           <el-descriptions-item :label="$t('setup.regCompany')">
             {{ adminForm.company_name }}
           </el-descriptions-item>

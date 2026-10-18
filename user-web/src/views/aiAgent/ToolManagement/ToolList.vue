@@ -1,14 +1,21 @@
 <template>
   <div class="tool-management-page">
-    
-    <el-card class="header-card" shadow="never">
+    <el-card
+      class="header-card"
+      shadow="never"
+    >
       <div class="header-content">
         <div>
           <h2>AI 工具管理</h2>
-          <p class="subtitle">管理 40 个 AI 工具的启用状态和账号绑定</p>
+          <p class="subtitle">
+            管理 40 个 AI 工具的启用状态和账号绑定
+          </p>
         </div>
         <div class="header-actions">
-          <el-button @click="loadTools" :loading="loading">
+          <el-button
+            :loading="loading"
+            @click="loadTools"
+          >
             <el-icon><Refresh /></el-icon>
             刷新
           </el-button>
@@ -17,86 +24,186 @@
     </el-card>
 
     
-    <el-row :gutter="16" class="stats-row">
+    <el-row
+      :gutter="16"
+      class="stats-row"
+    >
       <el-col :span="6">
-        <el-card shadow="never" class="stat-card">
-          <div class="stat-value">{{ stats.total }}</div>
-          <div class="stat-label">工具总数</div>
+        <el-card
+          shadow="never"
+          class="stat-card"
+        >
+          <div class="stat-value">
+            {{ stats.total }}
+          </div>
+          <div class="stat-label">
+            工具总数
+          </div>
         </el-card>
       </el-col>
       <el-col :span="6">
-        <el-card shadow="never" class="stat-card stat-success">
-          <div class="stat-value">{{ stats.enabled }}</div>
-          <div class="stat-label">已启用</div>
+        <el-card
+          shadow="never"
+          class="stat-card stat-success"
+        >
+          <div class="stat-value">
+            {{ stats.enabled }}
+          </div>
+          <div class="stat-label">
+            已启用
+          </div>
         </el-card>
       </el-col>
       <el-col :span="6">
-        <el-card shadow="never" class="stat-card stat-warning">
-          <div class="stat-value">{{ stats.disabled }}</div>
-          <div class="stat-label">已禁用</div>
+        <el-card
+          shadow="never"
+          class="stat-card stat-warning"
+        >
+          <div class="stat-value">
+            {{ stats.disabled }}
+          </div>
+          <div class="stat-label">
+            已禁用
+          </div>
         </el-card>
       </el-col>
       <el-col :span="6">
-        <el-card shadow="never" class="stat-card stat-info">
-          <div class="stat-value">{{ stats.categories }}</div>
-          <div class="stat-label">工具分类</div>
+        <el-card
+          shadow="never"
+          class="stat-card stat-info"
+        >
+          <div class="stat-value">
+            {{ stats.categories }}
+          </div>
+          <div class="stat-label">
+            工具分类
+          </div>
         </el-card>
       </el-col>
     </el-row>
 
     
-    <el-card shadow="never" class="filter-card">
-      <el-form :inline="true" :model="filter">
+    <el-card
+      shadow="never"
+      class="filter-card"
+    >
+      <el-form
+        :inline="true"
+        :model="filter"
+      >
         <el-form-item label="分类">
-          <el-select v-model="filter.category" placeholder="全部分类" clearable @change="loadTools">
-            <el-option label="触达工具" value="reach" />
-            <el-option label="客户工具" value="customer" />
-            <el-option label="知识工具" value="knowledge" />
-            <el-option label="业务工具" value="business" />
-            <el-option label="私信工具" value="private_message" />
+          <el-select
+            v-model="filter.category"
+            placeholder="全部分类"
+            clearable
+            @change="loadTools"
+          >
+            <el-option
+              label="触达工具"
+              value="reach"
+            />
+            <el-option
+              label="客户工具"
+              value="customer"
+            />
+            <el-option
+              label="知识工具"
+              value="knowledge"
+            />
+            <el-option
+              label="业务工具"
+              value="business"
+            />
+            <el-option
+              label="私信工具"
+              value="private_message"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="状态">
-          <el-select v-model="filter.enabled" placeholder="全部状态" clearable @change="loadTools">
-            <el-option label="已启用" :value="true" />
-            <el-option label="已禁用" :value="false" />
+          <el-select
+            v-model="filter.enabled"
+            placeholder="全部状态"
+            clearable
+            @change="loadTools"
+          >
+            <el-option
+              label="已启用"
+              :value="true"
+            />
+            <el-option
+              label="已禁用"
+              :value="false"
+            />
           </el-select>
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="loadTools">搜索</el-button>
-          <el-button @click="resetFilter">重置</el-button>
+          <el-button
+            type="primary"
+            @click="loadTools"
+          >
+            搜索
+          </el-button>
+          <el-button @click="resetFilter">
+            重置
+          </el-button>
         </el-form-item>
       </el-form>
     </el-card>
 
     
     <el-card shadow="never">
-      <el-table :data="tools" v-loading="loading" stripe border>
-        <el-table-column label="工具" min-width="280">
+      <el-table
+        v-loading="loading"
+        :data="tools"
+        stripe
+        border
+      >
+        <el-table-column
+          label="工具"
+          min-width="280"
+        >
           <template #default="{ row }">
             <div class="tool-info">
-              <div class="tool-name">{{ row.tool_name }}</div>
-              <div class="tool-desc">{{ row.config?.description_zh || getCategoryLabel(row.category) }}</div>
+              <div class="tool-name">
+                {{ row.tool_name }}
+              </div>
+              <div class="tool-desc">
+                {{ row.config?.description_zh || getCategoryLabel(row.category) }}
+              </div>
             </div>
           </template>
         </el-table-column>
-        <el-table-column label="分类" width="120">
+        <el-table-column
+          label="分类"
+          width="120"
+        >
           <template #default="{ row }">
-            <el-tag :type="getCategoryTagType(row.category)" size="small">
+            <el-tag
+              :type="getCategoryTagType(row.category)"
+              size="small"
+            >
               {{ getCategoryLabel(row.category) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="状态" width="100" align="center">
+        <el-table-column
+          label="状态"
+          width="100"
+          align="center"
+        >
           <template #default="{ row }">
             <el-switch
               v-model="row.is_enabled"
-              @change="onToggleTool(row)"
               :loading="row._toggling"
+              @change="onToggleTool(row)"
             />
           </template>
         </el-table-column>
-        <el-table-column label="绑定账号" min-width="200">
+        <el-table-column
+          label="绑定账号"
+          min-width="200"
+        >
           <template #default="{ row }">
             <div v-if="row.bound_accounts?.length">
               <el-tag
@@ -107,20 +214,42 @@
                 class="account-tag"
               >
                 {{ account.account_id }}
-                <el-icon v-if="account.is_primary" class="primary-icon"><Star /></el-icon>
+                <el-icon
+                  v-if="account.is_primary"
+                  class="primary-icon"
+                >
+                  <Star />
+                </el-icon>
               </el-tag>
             </div>
             <div v-else-if="needsAccount(row.category)">
-              <el-button link type="primary" size="small" @click="openBindDialog(row)">
+              <el-button
+                link
+                type="primary"
+                size="small"
+                @click="openBindDialog(row)"
+              >
                 绑定账号
               </el-button>
             </div>
-            <span v-else class="text-muted">-</span>
+            <span
+              v-else
+              class="text-muted"
+            >-</span>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="120" fixed="right">
+        <el-table-column
+          label="操作"
+          width="120"
+          fixed="right"
+        >
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="openDetail(row)">
+            <el-button
+              link
+              type="primary"
+              size="small"
+              @click="openDetail(row)"
+            >
               详情
             </el-button>
           </template>
@@ -129,52 +258,120 @@
     </el-card>
 
     
-    <el-dialog v-model="detailVisible" title="工具详情" width="600px">
-      <el-descriptions :column="2" border v-if="currentTool">
-        <el-descriptions-item label="工具名称">{{ currentTool.tool_name }}</el-descriptions-item>
+    <el-dialog
+      v-model="detailVisible"
+      title="工具详情"
+      width="600px"
+    >
+      <el-descriptions
+        v-if="currentTool"
+        :column="2"
+        border
+      >
+        <el-descriptions-item label="工具名称">
+          {{ currentTool.tool_name }}
+        </el-descriptions-item>
         <el-descriptions-item label="分类">
-          <el-tag :type="getCategoryTagType(currentTool.category)" size="small">
+          <el-tag
+            :type="getCategoryTagType(currentTool.category)"
+            size="small"
+          >
             {{ getCategoryLabel(currentTool.category) }}
           </el-tag>
         </el-descriptions-item>
         <el-descriptions-item label="状态">
-          <el-tag :type="currentTool.is_enabled ? 'success' : 'info'" size="small">
+          <el-tag
+            :type="currentTool.is_enabled ? 'success' : 'info'"
+            size="small"
+          >
             {{ currentTool.is_enabled ? '已启用' : '已禁用' }}
           </el-tag>
         </el-descriptions-item>
-        <el-descriptions-item label="显示顺序">{{ currentTool.display_order }}</el-descriptions-item>
-        <el-descriptions-item label="配置" :span="2">
+        <el-descriptions-item label="显示顺序">
+          {{ currentTool.display_order }}
+        </el-descriptions-item>
+        <el-descriptions-item
+          label="配置"
+          :span="2"
+        >
           <pre class="config-json">{{ JSON.stringify(currentTool.config || {}, null, 2) }}</pre>
         </el-descriptions-item>
       </el-descriptions>
     </el-dialog>
 
     
-    <el-dialog v-model="bindDialogVisible" :title="`绑定账号 - ${currentTool?.tool_name}`" width="600px">
-      <el-form :model="bindForm" label-width="100px">
+    <el-dialog
+      v-model="bindDialogVisible"
+      :title="`绑定账号 - ${currentTool?.tool_name}`"
+      width="600px"
+    >
+      <el-form
+        :model="bindForm"
+        label-width="100px"
+      >
         <el-form-item label="账号类型">
-          <el-select v-model="bindForm.account_type" placeholder="选择账号类型">
-            <el-option label="短信" value="sms" />
-            <el-option label="邮件" value="email" />
-            <el-option label="Telegram" value="telegram" />
-            <el-option label="企业微信" value="wecom" />
-            <el-option label="飞书" value="feishu" />
-            <el-option label="WhatsApp" value="whatsapp" />
-            <el-option label="抖音" value="douyin" />
-            <el-option label="快手" value="kuaishou" />
-            <el-option label="小红书" value="xhs" />
+          <el-select
+            v-model="bindForm.account_type"
+            placeholder="选择账号类型"
+          >
+            <el-option
+              label="短信"
+              value="sms"
+            />
+            <el-option
+              label="邮件"
+              value="email"
+            />
+            <el-option
+              label="Telegram"
+              value="telegram"
+            />
+            <el-option
+              label="企业微信"
+              value="wecom"
+            />
+            <el-option
+              label="飞书"
+              value="feishu"
+            />
+            <el-option
+              label="WhatsApp"
+              value="whatsapp"
+            />
+            <el-option
+              label="抖音"
+              value="douyin"
+            />
+            <el-option
+              label="快手"
+              value="kuaishou"
+            />
+            <el-option
+              label="小红书"
+              value="xhs"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="账号ID">
-          <el-input v-model="bindForm.account_id" placeholder="输入账号ID" />
+          <el-input
+            v-model="bindForm.account_id"
+            placeholder="输入账号ID"
+          />
         </el-form-item>
         <el-form-item label="设为主账号">
           <el-switch v-model="bindForm.is_primary" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="bindDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="onBind">确定</el-button>
+        <el-button @click="bindDialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          @click="onBind"
+        >
+          确定
+        </el-button>
       </template>
     </el-dialog>
   </div>

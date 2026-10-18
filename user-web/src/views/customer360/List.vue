@@ -5,20 +5,40 @@
         <template #header>
           <span>{{ $t('客户搜索') }}</span>
         </template>
-        <el-input v-model="searchKeyword" placeholder="搜索客户(姓名/手机/邮箱)" clearable />
+        <el-input
+          v-model="searchKeyword"
+          placeholder="搜索客户(姓名/手机/邮箱)"
+          clearable
+        />
         <el-table
-          :data="pagedCustomers"
           v-loading="loading"
+          :data="pagedCustomers"
           highlight-current-row
-          @row-click="selectCustomer"
           style="margin-top: 15px"
           empty-text="暂无客户"
+          @row-click="selectCustomer"
         >
-          <el-table-column prop="name" label="姓名" min-width="120" show-overflow-tooltip />
-          <el-table-column prop="phone" label="手机号" min-width="140" show-overflow-tooltip />
-          <el-table-column label="来源" min-width="140" show-overflow-tooltip>
-          <template #default="{ row }">{{ getChannelLabel(row.source) || '-' }}</template>
-        </el-table-column>
+          <el-table-column
+            prop="name"
+            label="姓名"
+            min-width="120"
+            show-overflow-tooltip
+          />
+          <el-table-column
+            prop="phone"
+            label="手机号"
+            min-width="140"
+            show-overflow-tooltip
+          />
+          <el-table-column
+            label="来源"
+            min-width="140"
+            show-overflow-tooltip
+          >
+            <template #default="{ row }">
+              {{ getChannelLabel(row.source) || '-' }}
+            </template>
+          </el-table-column>
         </el-table>
         <el-pagination
           v-if="customers.length > pageSize"
@@ -32,50 +52,109 @@
       </el-card>
     </div>
 
-    <div class="right-panel" v-if="current">
+    <div
+      v-if="current"
+      class="right-panel"
+    >
       <el-card class="basic-info">
         <div class="customer-header">
-          <el-avatar :size="60">{{ current.name?.charAt(0) }}</el-avatar>
+          <el-avatar :size="60">
+            {{ current.name?.charAt(0) }}
+          </el-avatar>
           <div class="header-info">
             <h2>{{ current.name }}</h2>
             <div class="tags">
-              <el-tag v-for="tag in current.tags" :key="tag" size="small">{{ tag }}</el-tag>
+              <el-tag
+                v-for="tag in current.tags"
+                :key="tag"
+                size="small"
+              >
+                {{ tag }}
+              </el-tag>
             </div>
           </div>
           <div class="header-actions">
-            <el-button type="primary" @click="contactCustomer">联系客户</el-button>
-            <el-button @click="addTag">添加标签</el-button>
+            <el-button
+              type="primary"
+              @click="contactCustomer"
+            >
+              联系客户
+            </el-button>
+            <el-button @click="addTag">
+              添加标签
+            </el-button>
           </div>
         </div>
 
-        <el-descriptions :column="3" border>
-          <el-descriptions-item label="手机号">{{ current.phone }}</el-descriptions-item>
-          <el-descriptions-item label="邮箱">{{ current.email }}</el-descriptions-item>
-          <el-descriptions-item label="微信号">{{ current.wechat }}</el-descriptions-item>
-          <el-descriptions-item label="来源">{{ getChannelLabel(current.source) }}</el-descriptions-item>
-          <el-descriptions-item label="注册时间">{{ current.createdAt }}</el-descriptions-item>
-          <el-descriptions-item label="最后活跃">{{ current.lastActive }}</el-descriptions-item>
+        <el-descriptions
+          :column="3"
+          border
+        >
+          <el-descriptions-item label="手机号">
+            {{ current.phone }}
+          </el-descriptions-item>
+          <el-descriptions-item label="邮箱">
+            {{ current.email }}
+          </el-descriptions-item>
+          <el-descriptions-item label="微信号">
+            {{ current.wechat }}
+          </el-descriptions-item>
+          <el-descriptions-item label="来源">
+            {{ getChannelLabel(current.source) }}
+          </el-descriptions-item>
+          <el-descriptions-item label="注册时间">
+            {{ current.createdAt }}
+          </el-descriptions-item>
+          <el-descriptions-item label="最后活跃">
+            {{ current.lastActive }}
+          </el-descriptions-item>
           <el-descriptions-item label="客户状态">
-            <el-tag :type="getCustomerStatusTagType(current.status)">{{ getCustomerStatusLabel(current.status) }}</el-tag>
+            <el-tag :type="getCustomerStatusTagType(current.status)">
+              {{ getCustomerStatusLabel(current.status) }}
+            </el-tag>
           </el-descriptions-item>
         </el-descriptions>
       </el-card>
 
-      <el-tabs v-model="activeTab" class="detail-tabs">
-        <el-tab-pane label="基本信息" name="basic">
+      <el-tabs
+        v-model="activeTab"
+        class="detail-tabs"
+      >
+        <el-tab-pane
+          label="基本信息"
+          name="basic"
+        >
           <el-card>
-            <el-descriptions :column="2" border>
-              <el-descriptions-item label="年龄">{{ current.age }}</el-descriptions-item>
-              <el-descriptions-item label="性别">{{ current.gender }}</el-descriptions-item>
-              <el-descriptions-item label="职业">{{ current.occupation }}</el-descriptions-item>
-              <el-descriptions-item label="地区">{{ current.region }}</el-descriptions-item>
-              <el-descriptions-item label="生日">{{ current.birthday }}</el-descriptions-item>
-              <el-descriptions-item label="备注">{{ current.remark }}</el-descriptions-item>
+            <el-descriptions
+              :column="2"
+              border
+            >
+              <el-descriptions-item label="年龄">
+                {{ current.age }}
+              </el-descriptions-item>
+              <el-descriptions-item label="性别">
+                {{ current.gender }}
+              </el-descriptions-item>
+              <el-descriptions-item label="职业">
+                {{ current.occupation }}
+              </el-descriptions-item>
+              <el-descriptions-item label="地区">
+                {{ current.region }}
+              </el-descriptions-item>
+              <el-descriptions-item label="生日">
+                {{ current.birthday }}
+              </el-descriptions-item>
+              <el-descriptions-item label="备注">
+                {{ current.remark }}
+              </el-descriptions-item>
             </el-descriptions>
           </el-card>
         </el-tab-pane>
 
-        <el-tab-pane label="行为轨迹" name="behavior">
+        <el-tab-pane
+          label="行为轨迹"
+          name="behavior"
+        >
           <el-card>
             <el-timeline>
               <el-timeline-item
@@ -91,7 +170,10 @@
           </el-card>
         </el-tab-pane>
 
-        <el-tab-pane label="沟通记录" name="communications">
+        <el-tab-pane
+          label="沟通记录"
+          name="communications"
+        >
           <el-card>
             <el-timeline>
               <el-timeline-item
@@ -107,49 +189,106 @@
           </el-card>
         </el-tab-pane>
 
-        <el-tab-pane label="标签" name="tags">
+        <el-tab-pane
+          label="标签"
+          name="tags"
+        >
           <el-card>
             <el-tag
               v-for="tag in current.tags"
               :key="tag"
               closable
-              @close="removeTag(tag)"
               style="margin: 5px"
-            >{{ tag }}</el-tag>
-            <el-button link type="primary" @click="addTag">+ 添加标签</el-button>
+              @close="removeTag(tag)"
+            >
+              {{ tag }}
+            </el-tag>
+            <el-button
+              link
+              type="primary"
+              @click="addTag"
+            >
+              + 添加标签
+            </el-button>
           </el-card>
         </el-tab-pane>
 
-        <el-tab-pane label="订单记录" name="orders">
+        <el-tab-pane
+          label="订单记录"
+          name="orders"
+        >
           <el-card>
-            <div v-if="!current.phone && !current.name" class="order-tip">
+            <div
+              v-if="!current.phone && !current.name"
+              class="order-tip"
+            >
               该客户缺少手机号/姓名，无法关联外部订单
             </div>
-            <el-table v-else :data="orders" v-loading="ordersLoading" empty-text="暂无订单记录">
-              <el-table-column prop="order_id" label="订单号" width="170" />
-              <el-table-column label="平台" width="100">
+            <el-table
+              v-else
+              v-loading="ordersLoading"
+              :data="orders"
+              empty-text="暂无订单记录"
+            >
+              <el-table-column
+                prop="order_id"
+                label="订单号"
+                width="170"
+              />
+              <el-table-column
+                label="平台"
+                width="100"
+              >
                 <template #default="{ row }">
                   {{ getChannelLabel(row.platform) }}
                 </template>
               </el-table-column>
-              <el-table-column prop="status" label="状态" width="110" />
-              <el-table-column label="金额" width="120">
-                <template #default="{ row }">¥{{ ((row.total_amount || 0) / 100).toFixed(2) }}</template>
+              <el-table-column
+                prop="status"
+                label="状态"
+                width="110"
+              />
+              <el-table-column
+                label="金额"
+                width="120"
+              >
+                <template #default="{ row }">
+                  ¥{{ ((row.total_amount || 0) / 100).toFixed(2) }}
+                </template>
               </el-table-column>
-              <el-table-column prop="pay_time" label="支付时间" width="160" />
-              <el-table-column prop="items" label="商品" min-width="160" show-overflow-tooltip />
+              <el-table-column
+                prop="pay_time"
+                label="支付时间"
+                width="160"
+              />
+              <el-table-column
+                prop="items"
+                label="商品"
+                min-width="160"
+                show-overflow-tooltip
+              />
             </el-table>
           </el-card>
         </el-tab-pane>
       </el-tabs>
     </div>
 
-    <div v-else class="empty-state">
+    <div
+      v-else
+      class="empty-state"
+    >
       <el-empty description="请从左侧选择客户" />
     </div>
 
-    <el-dialog v-model="contactVisible" title="联系客户" width="500px">
-      <el-form :model="contactForm" label-position="top">
+    <el-dialog
+      v-model="contactVisible"
+      title="联系客户"
+      width="500px"
+    >
+      <el-form
+        :model="contactForm"
+        label-position="top"
+      >
         <el-form-item label="客户">
           <span>{{ current?.name }}</span>
         </el-form-item>
@@ -163,8 +302,16 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="contactVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submittingContact" @click="submitContact">发送</el-button>
+        <el-button @click="contactVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="submittingContact"
+          @click="submitContact"
+        >
+          发送
+        </el-button>
       </template>
     </el-dialog>
   </div>

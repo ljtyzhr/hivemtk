@@ -1,68 +1,126 @@
 <template>
   <div class="knowledge-statistics">
-    
     <el-card class="filter-card">
       <div class="filter-bar">
-        <el-select v-model="filter.product_id" :placeholder="$t('选择产品(可选)')" clearable style="width: 220px" @change="loadAll">
-          <el-option v-for="p in productList" :key="p.id" :label="p.name" :value="p.id" />
+        <el-select
+          v-model="filter.product_id"
+          :placeholder="$t('选择产品(可选)')"
+          clearable
+          style="width: 220px"
+          @change="loadAll"
+        >
+          <el-option
+            v-for="p in productList"
+            :key="p.id"
+            :label="p.name"
+            :value="p.id"
+          />
         </el-select>
-        <el-select v-model="filter.days" style="width: 120px" @change="loadAll">
-          <el-option :label="`近 ${filter.days} 天`" :value="filter.days" v-for="d in [7, 30, 90]" :key="d" />
+        <el-select
+          v-model="filter.days"
+          style="width: 120px"
+          @change="loadAll"
+        >
+          <el-option
+            v-for="d in [7, 30, 90]"
+            :key="d"
+            :label="`近 ${filter.days} 天`"
+            :value="filter.days"
+          />
         </el-select>
-        <el-button :icon="Refresh" @click="loadAll">{{ $t('刷新') }}</el-button>
+        <el-button
+          :icon="Refresh"
+          @click="loadAll"
+        >
+          {{ $t('刷新') }}
+        </el-button>
       </div>
     </el-card>
 
     
-    <el-row :gutter="16" class="overview-row">
+    <el-row
+      :gutter="16"
+      class="overview-row"
+    >
       <el-col :span="6">
         <el-card class="metric-card">
-          <div class="metric-icon" style="background: #ecf5ff; color: #4F46E5">
+          <div
+            class="metric-icon"
+            style="background: #ecf5ff; color: #4F46E5"
+          >
             <el-icon><Document /></el-icon>
           </div>
           <div class="metric-info">
-            <div class="metric-value">{{ overview.total_documents || 0 }}</div>
-            <div class="metric-label">{{ $t('文档总数') }}</div>
+            <div class="metric-value">
+              {{ overview.total_documents || 0 }}
+            </div>
+            <div class="metric-label">
+              {{ $t('文档总数') }}
+            </div>
           </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card class="metric-card">
-          <div class="metric-icon" style="background: #f0f9eb; color: #10B981">
+          <div
+            class="metric-icon"
+            style="background: #f0f9eb; color: #10B981"
+          >
             <el-icon><Files /></el-icon>
           </div>
           <div class="metric-info">
-            <div class="metric-value">{{ overview.total_chunks || 0 }}</div>
-            <div class="metric-label">{{ $t('分段总数') }}</div>
+            <div class="metric-value">
+              {{ overview.total_chunks || 0 }}
+            </div>
+            <div class="metric-label">
+              {{ $t('分段总数') }}
+            </div>
           </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card class="metric-card">
-          <div class="metric-icon" style="background: #fdf6ec; color: #F59E0B">
+          <div
+            class="metric-icon"
+            style="background: #fdf6ec; color: #F59E0B"
+          >
             <el-icon><Coin /></el-icon>
           </div>
           <div class="metric-info">
-            <div class="metric-value">{{ formatNumber(overview.total_tokens) }}</div>
-            <div class="metric-label">总 Token</div>
+            <div class="metric-value">
+              {{ formatNumber(overview.total_tokens) }}
+            </div>
+            <div class="metric-label">
+              总 Token
+            </div>
           </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card class="metric-card">
-          <div class="metric-icon" style="background: #fef0f0; color: #EF4444">
+          <div
+            class="metric-icon"
+            style="background: #fef0f0; color: #EF4444"
+          >
             <el-icon><Search /></el-icon>
           </div>
           <div class="metric-info">
-            <div class="metric-value">{{ overview.total_searches || 0 }}</div>
-            <div class="metric-label">{{ $t('总检索次数') }}</div>
+            <div class="metric-value">
+              {{ overview.total_searches || 0 }}
+            </div>
+            <div class="metric-label">
+              {{ $t('总检索次数') }}
+            </div>
           </div>
         </el-card>
       </el-col>
     </el-row>
 
     
-    <el-row :gutter="16" class="chart-row">
+    <el-row
+      :gutter="16"
+      class="chart-row"
+    >
       <el-col :span="12">
         <el-card>
           <template #header>
@@ -70,24 +128,46 @@
           </template>
           <div class="health-block">
             <div class="health-item">
-              <div class="health-num success">{{ overview.index_health?.indexed_docs || 0 }}</div>
-              <div class="health-label">已索引</div>
+              <div class="health-num success">
+                {{ overview.index_health?.indexed_docs || 0 }}
+              </div>
+              <div class="health-label">
+                已索引
+              </div>
             </div>
             <div class="health-item">
-              <div class="health-num warning">{{ overview.index_health?.processing_docs || 0 }}</div>
-              <div class="health-label">处理中</div>
+              <div class="health-num warning">
+                {{ overview.index_health?.processing_docs || 0 }}
+              </div>
+              <div class="health-label">
+                处理中
+              </div>
             </div>
             <div class="health-item">
-              <div class="health-num info">{{ overview.index_health?.pending_docs || 0 }}</div>
-              <div class="health-label">待处理</div>
+              <div class="health-num info">
+                {{ overview.index_health?.pending_docs || 0 }}
+              </div>
+              <div class="health-label">
+                待处理
+              </div>
             </div>
             <div class="health-item">
-              <div class="health-num danger">{{ overview.index_health?.failed_docs || 0 }}</div>
-              <div class="health-label">失败</div>
+              <div class="health-num danger">
+                {{ overview.index_health?.failed_docs || 0 }}
+              </div>
+              <div class="health-label">
+                失败
+              </div>
             </div>
           </div>
-          <el-progress :percentage="Math.round((overview.index_health?.index_rate || 0) * 100)" :stroke-width="14" status="success" />
-          <div class="health-rate">就绪率 {{ formatPercent(overview.index_health?.index_rate) }}</div>
+          <el-progress
+            :percentage="Math.round((overview.index_health?.index_rate || 0) * 100)"
+            :stroke-width="14"
+            status="success"
+          />
+          <div class="health-rate">
+            就绪率 {{ formatPercent(overview.index_health?.index_rate) }}
+          </div>
         </el-card>
       </el-col>
       <el-col :span="12">
@@ -95,9 +175,19 @@
           <template #header>
             <span>来源类型分布</span>
           </template>
-          <div v-for="(count, type) in overview.source_type_breakdown" :key="type" class="source-bar">
-            <div class="source-label">{{ sourceTypeLabel(type) }}</div>
-            <el-progress :percentage="calcPercent(count, overview.total_documents)" :format="() => count" :color="sourceTypeColor(type)" />
+          <div
+            v-for="(count, type) in overview.source_type_breakdown"
+            :key="type"
+            class="source-bar"
+          >
+            <div class="source-label">
+              {{ sourceTypeLabel(type) }}
+            </div>
+            <el-progress
+              :percentage="calcPercent(count, overview.total_documents)"
+              :format="() => count"
+              :color="sourceTypeColor(type)"
+            />
           </div>
         </el-card>
       </el-col>
@@ -108,40 +198,89 @@
       <template #header>
         <div class="card-header">
           <span>文档导入统计</span>
-          <el-radio-group v-model="docStatsTab" size="small">
-            <el-radio-button label="trend">导入趋势</el-radio-button>
-            <el-radio-button label="source">来源分布</el-radio-button>
-            <el-radio-button label="category">分类分布</el-radio-button>
-            <el-radio-button label="top">热门文档</el-radio-button>
+          <el-radio-group
+            v-model="docStatsTab"
+            size="small"
+          >
+            <el-radio-button label="trend">
+              导入趋势
+            </el-radio-button>
+            <el-radio-button label="source">
+              来源分布
+            </el-radio-button>
+            <el-radio-button label="category">
+              分类分布
+            </el-radio-button>
+            <el-radio-button label="top">
+              热门文档
+            </el-radio-button>
           </el-radio-group>
         </div>
       </template>
 
-      <div v-if="docStatsTab === 'trend'" class="trend-chart">
-        <div v-for="item in documentStats.import_trend || []" :key="item.day" class="trend-bar">
-          <div class="trend-day">{{ item.day.substring(5) }}</div>
+      <div
+        v-if="docStatsTab === 'trend'"
+        class="trend-chart"
+      >
+        <div
+          v-for="item in documentStats.import_trend || []"
+          :key="item.day"
+          class="trend-bar"
+        >
+          <div class="trend-day">
+            {{ item.day.substring(5) }}
+          </div>
           <div class="trend-stack">
-            <div class="trend-success" :style="{ height: calcHeight(item.count, maxTrend) + 'px' }" :title="`成功 ${item.count - item.failed}`">
+            <div
+              class="trend-success"
+              :style="{ height: calcHeight(item.count, maxTrend) + 'px' }"
+              :title="`成功 ${item.count - item.failed}`"
+            >
               <span v-if="item.count - item.failed > 0">{{ item.count - item.failed }}</span>
             </div>
-            <div class="trend-failed" :style="{ height: calcHeight(item.failed, maxTrend) + 'px' }" :title="`失败 ${item.failed}`">
+            <div
+              class="trend-failed"
+              :style="{ height: calcHeight(item.failed, maxTrend) + 'px' }"
+              :title="`失败 ${item.failed}`"
+            >
               <span v-if="item.failed > 0">{{ item.failed }}</span>
             </div>
           </div>
         </div>
       </div>
 
-      <div v-else-if="docStatsTab === 'source'" class="pie-list">
-        <div v-for="item in documentStats.source_type_pie || []" :key="item.type" class="pie-row">
+      <div
+        v-else-if="docStatsTab === 'source'"
+        class="pie-list"
+      >
+        <div
+          v-for="item in documentStats.source_type_pie || []"
+          :key="item.type"
+          class="pie-row"
+        >
           <span class="pie-label">{{ sourceTypeLabel(item.type) }}</span>
-          <el-progress :percentage="calcPercent(item.count, overview.total_documents)" :color="sourceTypeColor(item.type)" :format="() => item.count" />
+          <el-progress
+            :percentage="calcPercent(item.count, overview.total_documents)"
+            :color="sourceTypeColor(item.type)"
+            :format="() => item.count"
+          />
         </div>
       </div>
 
-      <div v-else-if="docStatsTab === 'category'" class="pie-list">
-        <div v-for="item in (documentStats.category_pie || []).slice(0, 10)" :key="item.category" class="pie-row">
+      <div
+        v-else-if="docStatsTab === 'category'"
+        class="pie-list"
+      >
+        <div
+          v-for="item in (documentStats.category_pie || []).slice(0, 10)"
+          :key="item.category"
+          class="pie-row"
+        >
           <span class="pie-label">{{ item.category }}</span>
-          <el-progress :percentage="calcPercent(item.count, overview.total_documents)" :format="() => item.count" />
+          <el-progress
+            :percentage="calcPercent(item.count, overview.total_documents)"
+            :format="() => item.count"
+          />
         </div>
       </div>
 
@@ -151,17 +290,29 @@
     </el-card>
 
     
-    <el-row :gutter="16" class="chart-row">
+    <el-row
+      :gutter="16"
+      class="chart-row"
+    >
       <el-col :span="12">
         <el-card>
           <template #header>
             <span>检索趋势</span>
           </template>
           <div class="trend-chart">
-            <div v-for="item in searchStats.search_trend || []" :key="item.day" class="trend-bar">
-              <div class="trend-day">{{ item.day.substring(5) }}</div>
+            <div
+              v-for="item in searchStats.search_trend || []"
+              :key="item.day"
+              class="trend-bar"
+            >
+              <div class="trend-day">
+                {{ item.day.substring(5) }}
+              </div>
               <div class="trend-stack">
-                <div class="trend-success" :style="{ height: calcHeight(item.count, maxSearchTrend) + 'px' }">
+                <div
+                  class="trend-success"
+                  :style="{ height: calcHeight(item.count, maxSearchTrend) + 'px' }"
+                >
                   <span v-if="item.count > 0">{{ item.count }}</span>
                 </div>
               </div>
@@ -175,10 +326,21 @@
             <span>分数分布</span>
           </template>
           <div class="histogram">
-            <div v-for="bucket in searchStats.score_histogram || []" :key="bucket.range" class="hist-bar">
-              <div class="hist-value">{{ bucket.count }}</div>
-              <div class="hist-rect" :style="{ height: calcHeight(bucket.count, maxScore) + 'px' }"></div>
-              <div class="hist-label">{{ bucket.range }}</div>
+            <div
+              v-for="bucket in searchStats.score_histogram || []"
+              :key="bucket.range"
+              class="hist-bar"
+            >
+              <div class="hist-value">
+                {{ bucket.count }}
+              </div>
+              <div
+                class="hist-rect"
+                :style="{ height: calcHeight(bucket.count, maxScore) + 'px' }"
+              />
+              <div class="hist-label">
+                {{ bucket.range }}
+              </div>
             </div>
           </div>
         </el-card>
@@ -186,18 +348,42 @@
     </el-row>
 
     
-    <el-row :gutter="16" class="chart-row">
+    <el-row
+      :gutter="16"
+      class="chart-row"
+    >
       <el-col :span="12">
         <el-card>
           <template #header>
             <span>热点查询 TOP20</span>
           </template>
-          <el-table :data="searchStats.hot_queries || []" size="small" max-height="400">
-            <el-table-column type="index" label="#" width="50" />
-            <el-table-column prop="query" label="查询内容" show-overflow-tooltip />
-            <el-table-column prop="count" label="次数" width="80" />
-            <el-table-column label="命中率" width="100">
-              <template #default="{ row }">{{ formatPercent(row.hit_rate) }}</template>
+          <el-table
+            :data="searchStats.hot_queries || []"
+            size="small"
+            max-height="400"
+          >
+            <el-table-column
+              type="index"
+              label="#"
+              width="50"
+            />
+            <el-table-column
+              prop="query"
+              label="查询内容"
+              show-overflow-tooltip
+            />
+            <el-table-column
+              prop="count"
+              label="次数"
+              width="80"
+            />
+            <el-table-column
+              label="命中率"
+              width="100"
+            >
+              <template #default="{ row }">
+                {{ formatPercent(row.hit_rate) }}
+              </template>
             </el-table-column>
           </el-table>
         </el-card>
@@ -207,15 +393,34 @@
           <template #header>
             <span>检索质量</span>
           </template>
-          <el-descriptions :column="2" border>
-            <el-descriptions-item label="总检索数">{{ searchStats.quality_stats?.total_searches || 0 }}</el-descriptions-item>
-            <el-descriptions-item label="命中数">{{ searchStats.quality_stats?.hit_count || 0 }}</el-descriptions-item>
-            <el-descriptions-item label="无结果数">{{ searchStats.quality_stats?.no_result_count || 0 }}</el-descriptions-item>
-            <el-descriptions-item label="命中率">{{ formatPercent(searchStats.quality_stats?.hit_rate) }}</el-descriptions-item>
-            <el-descriptions-item label="平均分">{{ (searchStats.quality_stats?.avg_score || 0).toFixed(3) }}</el-descriptions-item>
-            <el-descriptions-item label="最高分">{{ (searchStats.quality_stats?.max_score || 0).toFixed(3) }}</el-descriptions-item>
-            <el-descriptions-item label="最低分">{{ (searchStats.quality_stats?.min_score || 0).toFixed(3) }}</el-descriptions-item>
-            <el-descriptions-item label="平均耗时">{{ (searchStats.quality_stats?.avg_latency_ms || 0).toFixed(0) }} ms</el-descriptions-item>
+          <el-descriptions
+            :column="2"
+            border
+          >
+            <el-descriptions-item label="总检索数">
+              {{ searchStats.quality_stats?.total_searches || 0 }}
+            </el-descriptions-item>
+            <el-descriptions-item label="命中数">
+              {{ searchStats.quality_stats?.hit_count || 0 }}
+            </el-descriptions-item>
+            <el-descriptions-item label="无结果数">
+              {{ searchStats.quality_stats?.no_result_count || 0 }}
+            </el-descriptions-item>
+            <el-descriptions-item label="命中率">
+              {{ formatPercent(searchStats.quality_stats?.hit_rate) }}
+            </el-descriptions-item>
+            <el-descriptions-item label="平均分">
+              {{ (searchStats.quality_stats?.avg_score || 0).toFixed(3) }}
+            </el-descriptions-item>
+            <el-descriptions-item label="最高分">
+              {{ (searchStats.quality_stats?.max_score || 0).toFixed(3) }}
+            </el-descriptions-item>
+            <el-descriptions-item label="最低分">
+              {{ (searchStats.quality_stats?.min_score || 0).toFixed(3) }}
+            </el-descriptions-item>
+            <el-descriptions-item label="平均耗时">
+              {{ (searchStats.quality_stats?.avg_latency_ms || 0).toFixed(0) }} ms
+            </el-descriptions-item>
           </el-descriptions>
         </el-card>
       </el-col>
@@ -232,31 +437,81 @@
           </div>
         </div>
       </template>
-      <el-table :data="importStats.recent_logs || []" size="small" max-height="400">
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="source_type" label="来源" width="100">
+      <el-table
+        :data="importStats.recent_logs || []"
+        size="small"
+        max-height="400"
+      >
+        <el-table-column
+          prop="id"
+          label="ID"
+          width="80"
+        />
+        <el-table-column
+          prop="source_type"
+          label="来源"
+          width="100"
+        >
           <template #default="{ row }">
-            <el-tag size="small">{{ sourceTypeLabel(row.source_type) }}</el-tag>
+            <el-tag size="small">
+              {{ sourceTypeLabel(row.source_type) }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="batch_no" label="批次号" width="160" show-overflow-tooltip />
-        <el-table-column prop="operator" label="操作人" width="100" />
-        <el-table-column prop="status" label="状态" width="100">
+        <el-table-column
+          prop="batch_no"
+          label="批次号"
+          width="160"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          prop="operator"
+          label="操作人"
+          width="100"
+        />
+        <el-table-column
+          prop="status"
+          label="状态"
+          width="100"
+        >
           <template #default="{ row }">
-            <el-tag :type="getPassFailStatusTagType(row.status)" size="small">
+            <el-tag
+              :type="getPassFailStatusTagType(row.status)"
+              size="small"
+            >
               {{ getPassFailStatusLabel(row.status) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="duration_ms" label="耗时(ms)" width="100" />
-        <el-table-column prop="error_detail" label="错误信息" show-overflow-tooltip>
+        <el-table-column
+          prop="duration_ms"
+          label="耗时(ms)"
+          width="100"
+        />
+        <el-table-column
+          prop="error_detail"
+          label="错误信息"
+          show-overflow-tooltip
+        >
           <template #default="{ row }">
-            <el-text v-if="row.error_detail" type="danger" size="small">{{ row.error_detail }}</el-text>
+            <el-text
+              v-if="row.error_detail"
+              type="danger"
+              size="small"
+            >
+              {{ row.error_detail }}
+            </el-text>
             <span v-else>-</span>
           </template>
         </el-table-column>
-        <el-table-column prop="created_at" label="时间" width="170">
-          <template #default="{ row }">{{ formatDate(row.created_at) }}</template>
+        <el-table-column
+          prop="created_at"
+          label="时间"
+          width="170"
+        >
+          <template #default="{ row }">
+            {{ formatDate(row.created_at) }}
+          </template>
         </el-table-column>
       </el-table>
     </el-card>
@@ -266,29 +521,48 @@
       <template #header>
         <span>OpenAPI 数据源同步状态</span>
       </template>
-      <el-row :gutter="16" class="openapi-stats">
+      <el-row
+        :gutter="16"
+        class="openapi-stats"
+      >
         <el-col :span="6">
           <div class="openapi-stat-item">
-            <div class="openapi-num">{{ openapiStats.total_sources || 0 }}</div>
-            <div class="openapi-label">数据源总数</div>
+            <div class="openapi-num">
+              {{ openapiStats.total_sources || 0 }}
+            </div>
+            <div class="openapi-label">
+              数据源总数
+            </div>
           </div>
         </el-col>
         <el-col :span="6">
           <div class="openapi-stat-item">
-            <div class="openapi-num success">{{ openapiStats.enabled_sources || 0 }}</div>
-            <div class="openapi-label">已启用</div>
+            <div class="openapi-num success">
+              {{ openapiStats.enabled_sources || 0 }}
+            </div>
+            <div class="openapi-label">
+              已启用
+            </div>
           </div>
         </el-col>
         <el-col :span="6">
           <div class="openapi-stat-item">
-            <div class="openapi-num danger">{{ openapiStats.failed_sources || 0 }}</div>
-            <div class="openapi-label">同步失败</div>
+            <div class="openapi-num danger">
+              {{ openapiStats.failed_sources || 0 }}
+            </div>
+            <div class="openapi-label">
+              同步失败
+            </div>
           </div>
         </el-col>
         <el-col :span="6">
           <div class="openapi-stat-item">
-            <div class="openapi-num primary">{{ formatNumber(openapiStats.total_synced) }}</div>
-            <div class="openapi-label">累计同步</div>
+            <div class="openapi-num primary">
+              {{ formatNumber(openapiStats.total_synced) }}
+            </div>
+            <div class="openapi-label">
+              累计同步
+            </div>
           </div>
         </el-col>
       </el-row>

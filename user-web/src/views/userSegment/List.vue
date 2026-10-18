@@ -3,10 +3,15 @@
     <el-card class="header-card">
       <div class="header-content">
         <h2>用户分群 (RFM)</h2>
-        <p class="subtitle">基于 RFM 模型对用户进行分群，识别高价值客户</p>
+        <p class="subtitle">
+          基于 RFM 模型对用户进行分群，识别高价值客户
+        </p>
       </div>
       <div class="header-actions">
-        <el-button type="primary" @click="showCreateDialog">
+        <el-button
+          type="primary"
+          @click="showCreateDialog"
+        >
           <el-icon><Plus /></el-icon>
           {{ $t('创建分群') }}
         </el-button>
@@ -22,29 +27,69 @@
     </el-card>
 
     
-    <el-row :gutter="20" class="overview-row">
-      <el-col :xs="12" :sm="6">
+    <el-row
+      :gutter="20"
+      class="overview-row"
+    >
+      <el-col
+        :xs="12"
+        :sm="6"
+      >
         <el-card class="stat-card">
-          <div class="stat-label">{{ $t('总用户数') }}</div>
-          <div class="stat-value">{{ stats.totalUsers ?? stats.total ?? 0 }}</div>
+          <div class="stat-label">
+            {{ $t('总用户数') }}
+          </div>
+          <div class="stat-value">
+            {{ stats.totalUsers ?? stats.total ?? 0 }}
+          </div>
         </el-card>
       </el-col>
-      <el-col :xs="12" :sm="6">
+      <el-col
+        :xs="12"
+        :sm="6"
+      >
         <el-card class="stat-card">
-          <div class="stat-label">{{ $t('高价值客户') }}</div>
-          <div class="stat-value" style="color: #10B981">{{ stats.highValue ?? stats.high_value ?? 0 }}</div>
+          <div class="stat-label">
+            {{ $t('高价值客户') }}
+          </div>
+          <div
+            class="stat-value"
+            style="color: #10B981"
+          >
+            {{ stats.highValue ?? stats.high_value ?? 0 }}
+          </div>
         </el-card>
       </el-col>
-      <el-col :xs="12" :sm="6">
+      <el-col
+        :xs="12"
+        :sm="6"
+      >
         <el-card class="stat-card">
-          <div class="stat-label">{{ $t('活跃客户') }}</div>
-          <div class="stat-value" style="color: #4F46E5">{{ stats.active ?? stats.active_count ?? 0 }}</div>
+          <div class="stat-label">
+            {{ $t('活跃客户') }}
+          </div>
+          <div
+            class="stat-value"
+            style="color: #4F46E5"
+          >
+            {{ stats.active ?? stats.active_count ?? 0 }}
+          </div>
         </el-card>
       </el-col>
-      <el-col :xs="12" :sm="6">
+      <el-col
+        :xs="12"
+        :sm="6"
+      >
         <el-card class="stat-card">
-          <div class="stat-label">{{ $t('流失风险') }}</div>
-          <div class="stat-value" style="color: #EF4444">{{ stats.churnRisk ?? stats.churn_risk ?? 0 }}</div>
+          <div class="stat-label">
+            {{ $t('流失风险') }}
+          </div>
+          <div
+            class="stat-value"
+            style="color: #EF4444"
+          >
+            {{ stats.churnRisk ?? stats.churn_risk ?? 0 }}
+          </div>
         </el-card>
       </el-col>
     </el-row>
@@ -58,7 +103,7 @@
         <table>
           <thead>
             <tr>
-              <th></th>
+              <th />
               <th>高 F (频繁)</th>
               <th>中 F</th>
               <th>低 F (久远)</th>
@@ -67,47 +112,110 @@
           <tbody>
             <tr>
               <th>高 M (高额)</th>
-              <td class="cell high-value" @click="onCellClick('high_value')">
-                <div class="cell-name">重要价值客户</div>
-                <div class="cell-count">{{ matrixCounts.high_value || 0 }} 人</div>
+              <td
+                class="cell high-value"
+                @click="onCellClick('high_value')"
+              >
+                <div class="cell-name">
+                  重要价值客户
+                </div>
+                <div class="cell-count">
+                  {{ matrixCounts.high_value || 0 }} 人
+                </div>
               </td>
-              <td class="cell good" @click="onCellClick('important_develop')">
-                <div class="cell-name">重要发展客户</div>
-                <div class="cell-count">{{ matrixCounts.important_develop || 0 }} 人</div>
+              <td
+                class="cell good"
+                @click="onCellClick('important_develop')"
+              >
+                <div class="cell-name">
+                  重要发展客户
+                </div>
+                <div class="cell-count">
+                  {{ matrixCounts.important_develop || 0 }} 人
+                </div>
               </td>
-              <td class="cell warn" @click="onCellClick('important_keep')">
-                <div class="cell-name">重要保持客户</div>
-                <div class="cell-count">{{ matrixCounts.important_keep || 0 }} 人</div>
+              <td
+                class="cell warn"
+                @click="onCellClick('important_keep')"
+              >
+                <div class="cell-name">
+                  重要保持客户
+                </div>
+                <div class="cell-count">
+                  {{ matrixCounts.important_keep || 0 }} 人
+                </div>
               </td>
             </tr>
             <tr>
               <th>中 M</th>
-              <td class="cell good" @click="onCellClick('general_value')">
-                <div class="cell-name">一般价值客户</div>
-                <div class="cell-count">{{ matrixCounts.general_value || 0 }} 人</div>
+              <td
+                class="cell good"
+                @click="onCellClick('general_value')"
+              >
+                <div class="cell-name">
+                  一般价值客户
+                </div>
+                <div class="cell-count">
+                  {{ matrixCounts.general_value || 0 }} 人
+                </div>
               </td>
-              <td class="cell normal" @click="onCellClick('general_develop')">
-                <div class="cell-name">一般发展客户</div>
-                <div class="cell-count">{{ matrixCounts.general_develop || 0 }} 人</div>
+              <td
+                class="cell normal"
+                @click="onCellClick('general_develop')"
+              >
+                <div class="cell-name">
+                  一般发展客户
+                </div>
+                <div class="cell-count">
+                  {{ matrixCounts.general_develop || 0 }} 人
+                </div>
               </td>
-              <td class="cell warn" @click="onCellClick('general_keep')">
-                <div class="cell-name">一般保持客户</div>
-                <div class="cell-count">{{ matrixCounts.general_keep || 0 }} 人</div>
+              <td
+                class="cell warn"
+                @click="onCellClick('general_keep')"
+              >
+                <div class="cell-name">
+                  一般保持客户
+                </div>
+                <div class="cell-count">
+                  {{ matrixCounts.general_keep || 0 }} 人
+                </div>
               </td>
             </tr>
             <tr>
               <th>低 M (低额)</th>
-              <td class="cell normal" @click="onCellClick('potential_value')">
-                <div class="cell-name">潜在价值客户</div>
-                <div class="cell-count">{{ matrixCounts.potential_value || 0 }} 人</div>
+              <td
+                class="cell normal"
+                @click="onCellClick('potential_value')"
+              >
+                <div class="cell-name">
+                  潜在价值客户
+                </div>
+                <div class="cell-count">
+                  {{ matrixCounts.potential_value || 0 }} 人
+                </div>
               </td>
-              <td class="cell warn" @click="onCellClick('potential_develop')">
-                <div class="cell-name">潜在发展客户</div>
-                <div class="cell-count">{{ matrixCounts.potential_develop || 0 }} 人</div>
+              <td
+                class="cell warn"
+                @click="onCellClick('potential_develop')"
+              >
+                <div class="cell-name">
+                  潜在发展客户
+                </div>
+                <div class="cell-count">
+                  {{ matrixCounts.potential_develop || 0 }} 人
+                </div>
               </td>
-              <td class="cell low-value" @click="onCellClick('churn')">
-                <div class="cell-name">流失客户</div>
-                <div class="cell-count">{{ matrixCounts.churn || 0 }} 人</div>
+              <td
+                class="cell low-value"
+                @click="onCellClick('churn')"
+              >
+                <div class="cell-name">
+                  流失客户
+                </div>
+                <div class="cell-count">
+                  {{ matrixCounts.churn || 0 }} 人
+                </div>
               </td>
             </tr>
           </tbody>
@@ -128,54 +236,162 @@
           />
         </div>
       </template>
-      <el-table :data="filteredSegments" v-loading="loading" stripe>
-        <el-table-column prop="name" label="分群名称" min-width="150" />
-        <el-table-column prop="type" label="分群类型" width="120">
+      <el-table
+        v-loading="loading"
+        :data="filteredSegments"
+        stripe
+      >
+        <el-table-column
+          prop="name"
+          label="分群名称"
+          min-width="150"
+        />
+        <el-table-column
+          prop="type"
+          label="分群类型"
+          width="120"
+        >
           <template #default="{ row }">
-            <el-tag :type="getTypeTagType(row.type)">{{ getTypeLabel(row.type) }}</el-tag>
+            <el-tag :type="getTypeTagType(row.type)">
+              {{ getTypeLabel(row.type) }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="userCount" label="用户数" width="100" />
-        <el-table-column prop="criteria" label="分群规则" min-width="250" />
-        <el-table-column prop="createdAt" label="创建时间" width="180" />
-        <el-table-column prop="status" label="状态" width="100">
+        <el-table-column
+          prop="userCount"
+          label="用户数"
+          width="100"
+        />
+        <el-table-column
+          prop="criteria"
+          label="分群规则"
+          min-width="250"
+        />
+        <el-table-column
+          prop="createdAt"
+          label="创建时间"
+          width="180"
+        />
+        <el-table-column
+          prop="status"
+          label="状态"
+          width="100"
+        >
           <template #default="{ row }">
-            <el-tag :type="getStatusTagType(row.status)">{{ getStatusLabel(row.status) }}</el-tag>
+            <el-tag :type="getStatusTagType(row.status)">
+              {{ getStatusLabel(row.status) }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="250" fixed="right">
+        <el-table-column
+          label="操作"
+          width="250"
+          fixed="right"
+        >
           <template #default="{ row }">
-            <el-button link type="primary" @click="viewUsers(row)">查看用户</el-button>
-            <el-button link type="primary" @click="editSegment(row)">编辑</el-button>
-            <el-button link type="danger" @click="deleteSegment(row)">删除</el-button>
+            <el-button
+              link
+              type="primary"
+              @click="viewUsers(row)"
+            >
+              查看用户
+            </el-button>
+            <el-button
+              link
+              type="primary"
+              @click="editSegment(row)"
+            >
+              编辑
+            </el-button>
+            <el-button
+              link
+              type="danger"
+              @click="deleteSegment(row)"
+            >
+              删除
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
     </el-card>
 
     
-    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="700px">
-      <el-form :model="form" :rules="formRules" ref="formRef" label-width="100px">
-        <el-form-item label="分群名称" prop="name">
-          <el-input v-model="form.name" placeholder="请输入分群名称" />
+    <el-dialog
+      v-model="dialogVisible"
+      :title="dialogTitle"
+      width="700px"
+    >
+      <el-form
+        ref="formRef"
+        :model="form"
+        :rules="formRules"
+        label-width="100px"
+      >
+        <el-form-item
+          label="分群名称"
+          prop="name"
+        >
+          <el-input
+            v-model="form.name"
+            placeholder="请输入分群名称"
+          />
         </el-form-item>
-        <el-form-item label="分群类型" prop="type">
-          <el-select v-model="form.type" placeholder="请选择分群类型" style="width: 100%">
-            <el-option label="RFM 自动" value="RFM" />
-            <el-option label="自定义" value="CUSTOM" />
-            <el-option label="行为标签" value="BEHAVIOR" />
+        <el-form-item
+          label="分群类型"
+          prop="type"
+        >
+          <el-select
+            v-model="form.type"
+            placeholder="请选择分群类型"
+            style="width: 100%"
+          >
+            <el-option
+              label="RFM 自动"
+              value="RFM"
+            />
+            <el-option
+              label="自定义"
+              value="CUSTOM"
+            />
+            <el-option
+              label="行为标签"
+              value="BEHAVIOR"
+            />
           </el-select>
         </el-form-item>
-        <el-form-item label="R 范围(天数)" v-if="form.type === 'RFM'">
-          <el-input-number v-model="form.rDays" :min="1" :max="365" />
+        <el-form-item
+          v-if="form.type === 'RFM'"
+          label="R 范围(天数)"
+        >
+          <el-input-number
+            v-model="form.rDays"
+            :min="1"
+            :max="365"
+          />
         </el-form-item>
-        <el-form-item label="F 次数" v-if="form.type === 'RFM'">
-          <el-input-number v-model="form.fCount" :min="1" :max="100" />
+        <el-form-item
+          v-if="form.type === 'RFM'"
+          label="F 次数"
+        >
+          <el-input-number
+            v-model="form.fCount"
+            :min="1"
+            :max="100"
+          />
         </el-form-item>
-        <el-form-item label="M 金额" v-if="form.type === 'RFM'">
-          <el-input-number v-model="form.mAmount" :min="0" />
+        <el-form-item
+          v-if="form.type === 'RFM'"
+          label="M 金额"
+        >
+          <el-input-number
+            v-model="form.mAmount"
+            :min="0"
+          />
         </el-form-item>
-        <el-form-item label="分群规则" prop="criteria">
+        <el-form-item
+          label="分群规则"
+          prop="criteria"
+        >
           <el-input
             v-model="form.criteria"
             type="textarea"
@@ -184,12 +400,23 @@
           />
         </el-form-item>
         <el-form-item label="备注">
-          <el-input v-model="form.remark" type="textarea" :rows="2" />
+          <el-input
+            v-model="form.remark"
+            type="textarea"
+            :rows="2"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="submitForm">确定</el-button>
+        <el-button @click="dialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          @click="submitForm"
+        >
+          确定
+        </el-button>
       </template>
     </el-dialog>
 
@@ -199,28 +426,86 @@
       :title="'分群 ' + (currentSegment?.name) + ' 的用户列表'"
       width="900px"
     >
-      <el-table :data="segmentUsers" v-loading="viewUsersLoading" stripe max-height="500">
-        <el-table-column prop="id" label="用户ID" width="80" />
-        <el-table-column prop="name" label="用户名" min-width="120" />
-        <el-table-column prop="email" label="邮箱" min-width="180" />
-        <el-table-column prop="phone" label="手机号" width="140" />
-        <el-table-column prop="rScore" label="R 评分" width="80" align="center" />
-        <el-table-column prop="fScore" label="F 评分" width="80" align="center" />
-        <el-table-column prop="mScore" label="M 评分" width="80" align="center" />
-        <el-table-column prop="segmentLabel" label="分群标签" width="120">
+      <el-table
+        v-loading="viewUsersLoading"
+        :data="segmentUsers"
+        stripe
+        max-height="500"
+      >
+        <el-table-column
+          prop="id"
+          label="用户ID"
+          width="80"
+        />
+        <el-table-column
+          prop="name"
+          label="用户名"
+          min-width="120"
+        />
+        <el-table-column
+          prop="email"
+          label="邮箱"
+          min-width="180"
+        />
+        <el-table-column
+          prop="phone"
+          label="手机号"
+          width="140"
+        />
+        <el-table-column
+          prop="rScore"
+          label="R 评分"
+          width="80"
+          align="center"
+        />
+        <el-table-column
+          prop="fScore"
+          label="F 评分"
+          width="80"
+          align="center"
+        />
+        <el-table-column
+          prop="mScore"
+          label="M 评分"
+          width="80"
+          align="center"
+        />
+        <el-table-column
+          prop="segmentLabel"
+          label="分群标签"
+          width="120"
+        >
           <template #default="{ row: user }">
-            <el-tag type="primary">{{ user.segmentLabel}}</el-tag>
+            <el-tag type="primary">
+              {{ user.segmentLabel }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="lastOrderTime" label="最近消费时间" width="170" />
-        <el-table-column label="操作" width="100" fixed="right">
+        <el-table-column
+          prop="lastOrderTime"
+          label="最近消费时间"
+          width="170"
+        />
+        <el-table-column
+          label="操作"
+          width="100"
+          fixed="right"
+        >
           <template #default="{ row: user }">
-            <el-button link type="primary" @click="viewUserDetail(user)">详情</el-button>
+            <el-button
+              link
+              type="primary"
+              @click="viewUserDetail(user)"
+            >
+              详情
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
       <template #footer>
-        <el-button @click="viewUsersDialogVisible = false">关闭</el-button>
+        <el-button @click="viewUsersDialogVisible = false">
+          关闭
+        </el-button>
       </template>
     </el-dialog>
   </div>

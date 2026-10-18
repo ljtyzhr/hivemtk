@@ -1,47 +1,106 @@
 <template>
   <div class="config-params-page">
-
-    <el-row :gutter="16" class="stat-row">
-      <el-col :xs="12" :sm="6">
-        <el-card shadow="hover" class="stat-card">
+    <el-row
+      :gutter="16"
+      class="stat-row"
+    >
+      <el-col
+        :xs="12"
+        :sm="6"
+      >
+        <el-card
+          shadow="hover"
+          class="stat-card"
+        >
           <div class="stat-inner">
-            <div class="stat-icon stat-icon--total"><el-icon :size="24"><Setting /></el-icon></div>
+            <div class="stat-icon stat-icon--total">
+              <el-icon :size="24">
+                <Setting />
+              </el-icon>
+            </div>
             <div class="stat-body">
-              <div class="stat-value">{{ stats.total }}</div>
-              <div class="stat-label">总参数</div>
+              <div class="stat-value">
+                {{ stats.total }}
+              </div>
+              <div class="stat-label">
+                总参数
+              </div>
             </div>
           </div>
         </el-card>
       </el-col>
-      <el-col :xs="12" :sm="6">
-        <el-card shadow="hover" class="stat-card">
+      <el-col
+        :xs="12"
+        :sm="6"
+      >
+        <el-card
+          shadow="hover"
+          class="stat-card"
+        >
           <div class="stat-inner">
-            <div class="stat-icon stat-icon--group"><el-icon :size="24"><Files /></el-icon></div>
+            <div class="stat-icon stat-icon--group">
+              <el-icon :size="24">
+                <Files />
+              </el-icon>
+            </div>
             <div class="stat-body">
-              <div class="stat-value">{{ stats.groupCount }}</div>
-              <div class="stat-label">分组数</div>
+              <div class="stat-value">
+                {{ stats.groupCount }}
+              </div>
+              <div class="stat-label">
+                分组数
+              </div>
             </div>
           </div>
         </el-card>
       </el-col>
-      <el-col :xs="12" :sm="6">
-        <el-card shadow="hover" class="stat-card">
+      <el-col
+        :xs="12"
+        :sm="6"
+      >
+        <el-card
+          shadow="hover"
+          class="stat-card"
+        >
           <div class="stat-inner">
-            <div class="stat-icon stat-icon--modified"><el-icon :size="24"><Warning /></el-icon></div>
+            <div class="stat-icon stat-icon--modified">
+              <el-icon :size="24">
+                <Warning />
+              </el-icon>
+            </div>
             <div class="stat-body">
-              <div class="stat-value">{{ stats.modified }}</div>
-              <div class="stat-label">已修改</div>
+              <div class="stat-value">
+                {{ stats.modified }}
+              </div>
+              <div class="stat-label">
+                已修改
+              </div>
             </div>
           </div>
         </el-card>
       </el-col>
-      <el-col :xs="12" :sm="6">
-        <el-card shadow="hover" class="stat-card" :class="{ 'stat-card--danger': stats.danger > 0 }">
+      <el-col
+        :xs="12"
+        :sm="6"
+      >
+        <el-card
+          shadow="hover"
+          class="stat-card"
+          :class="{ 'stat-card--danger': stats.danger > 0 }"
+        >
           <div class="stat-inner">
-            <div class="stat-icon stat-icon--danger"><el-icon :size="24"><WarningFilled /></el-icon></div>
+            <div class="stat-icon stat-icon--danger">
+              <el-icon :size="24">
+                <WarningFilled />
+              </el-icon>
+            </div>
             <div class="stat-body">
-              <div class="stat-value">{{ stats.danger }}</div>
-              <div class="stat-label">高危参数</div>
+              <div class="stat-value">
+                {{ stats.danger }}
+              </div>
+              <div class="stat-label">
+                高危参数
+              </div>
             </div>
           </div>
         </el-card>
@@ -49,14 +108,27 @@
     </el-row>
 
 
-    <el-row :gutter="16" class="main-row">
-
-      <el-col :xs="24" :md="5" :lg="4">
-        <el-card shadow="hover" class="group-card">
+    <el-row
+      :gutter="16"
+      class="main-row"
+    >
+      <el-col
+        :xs="24"
+        :md="5"
+        :lg="4"
+      >
+        <el-card
+          shadow="hover"
+          class="group-card"
+        >
           <template #header>
             <div class="card-header">
               <span>参数分组</span>
-              <el-button text size="small" @click="loadAll">
+              <el-button
+                text
+                size="small"
+                @click="loadAll"
+              >
                 <el-icon><Refresh /></el-icon>
               </el-button>
             </div>
@@ -74,31 +146,62 @@
               @keydown.space.prevent="switchGroup(g.key)"
             >
               <div class="group-item__main">
-                <el-icon class="group-icon"><Collection /></el-icon>
-                <div class="group-name">{{ g.label }}</div>
+                <el-icon class="group-icon">
+                  <Collection />
+                </el-icon>
+                <div class="group-name">
+                  {{ g.label }}
+                </div>
               </div>
               <div class="group-item__count">
                 <span class="group-count">{{ g.count }}</span>
-                <span v-if="getGroupModified(g.key) > 0" class="group-mod">
+                <span
+                  v-if="getGroupModified(g.key) > 0"
+                  class="group-mod"
+                >
                   {{ getGroupModified(g.key) }}
                 </span>
               </div>
             </div>
           </div>
-          <div v-if="groups.length === 0" class="group-empty">后端未返回任何分组元数据</div>
+          <div
+            v-if="groups.length === 0"
+            class="group-empty"
+          >
+            后端未返回任何分组元数据
+          </div>
         </el-card>
       </el-col>
 
 
-      <el-col :xs="24" :md="19" :lg="20">
-        <el-card shadow="hover" class="table-card">
+      <el-col
+        :xs="24"
+        :md="19"
+        :lg="20"
+      >
+        <el-card
+          shadow="hover"
+          class="table-card"
+        >
           <template #header>
             <div class="card-header">
               <div class="header-title">
-                <el-tag type="info" effect="plain" class="group-tag">{{ currentGroupLabel }}</el-tag>
+                <el-tag
+                  type="info"
+                  effect="plain"
+                  class="group-tag"
+                >
+                  {{ currentGroupLabel }}
+                </el-tag>
                 <span class="header-count">共 {{ filteredList.length }} 条</span>
-                <el-tooltip v-if="currentGroupDesc" :content="currentGroupDesc" placement="top">
-                  <el-icon class="header-help"><Document /></el-icon>
+                <el-tooltip
+                  v-if="currentGroupDesc"
+                  :content="currentGroupDesc"
+                  placement="top"
+                >
+                  <el-icon class="header-help">
+                    <Document />
+                  </el-icon>
                 </el-tooltip>
               </div>
               <div class="header-actions">
@@ -109,19 +212,41 @@
                   size="default"
                   style="width: 240px"
                 >
-                  <template #prefix><el-icon><Search /></el-icon></template>
+                  <template #prefix>
+                    <el-icon><Search /></el-icon>
+                  </template>
                 </el-input>
-                <el-radio-group v-model="searchScope" size="default">
-                  <el-radio-button value="group">本组</el-radio-button>
-                  <el-radio-button value="all">全部组</el-radio-button>
+                <el-radio-group
+                  v-model="searchScope"
+                  size="default"
+                >
+                  <el-radio-button value="group">
+                    本组
+                  </el-radio-button>
+                  <el-radio-button value="all">
+                    全部组
+                  </el-radio-button>
                 </el-radio-group>
-                <el-tooltip content="默认不列出已下架参数：那些旋钮在代码里没有消费点，改了不生效" placement="top">
-                  <el-switch v-model="showRetired" active-text="显示已下架" />
+                <el-tooltip
+                  content="默认不列出已下架参数：那些旋钮在代码里没有消费点，改了不生效"
+                  placement="top"
+                >
+                  <el-switch
+                    v-model="showRetired"
+                    active-text="显示已下架"
+                  />
                 </el-tooltip>
-                <el-button :disabled="groupModifiedCount === 0" :loading="resettingGroup" @click="handleBulkReset">
+                <el-button
+                  :disabled="groupModifiedCount === 0"
+                  :loading="resettingGroup"
+                  @click="handleBulkReset"
+                >
                   <el-icon><RefreshLeft /></el-icon>
                   重置整组
-                  <span v-if="groupModifiedCount > 0" class="reset-badge">{{ groupModifiedCount }}</span>
+                  <span
+                    v-if="groupModifiedCount > 0"
+                    class="reset-badge"
+                  >{{ groupModifiedCount }}</span>
                 </el-button>
                 <el-button @click="openAuditDrawer">
                   <el-icon><Document /></el-icon>
@@ -150,77 +275,212 @@
             :header-cell-style="{ background: '#fafafa' }"
             :row-class-name="rowClassName"
           >
-            <el-table-column v-if="isGlobalSearch" prop="group" label="分组" width="120" show-overflow-tooltip>
+            <el-table-column
+              v-if="isGlobalSearch"
+              prop="group"
+              label="分组"
+              width="120"
+              show-overflow-tooltip
+            >
               <template #default="{ row }">
-                <el-tag size="small" effect="plain" type="info">{{ groupLabel(row.group) }}</el-tag>
+                <el-tag
+                  size="small"
+                  effect="plain"
+                  type="info"
+                >
+                  {{ groupLabel(row.group) }}
+                </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="key" label="Key" width="210" show-overflow-tooltip>
+            <el-table-column
+              prop="key"
+              label="Key"
+              width="210"
+              show-overflow-tooltip
+            >
               <template #default="{ row }">
                 <code class="param-key">{{ row.key }}</code>
               </template>
             </el-table-column>
-            <el-table-column prop="name" label="名称" min-width="150" show-overflow-tooltip>
+            <el-table-column
+              prop="name"
+              label="名称"
+              min-width="150"
+              show-overflow-tooltip
+            >
               <template #default="{ row }">
                 <div class="name-cell">
                   <span class="name-text">{{ stripSuffix(row.name) }}</span>
-                  <el-tooltip v-if="row.deprecated" :content="retiredTip(row)" placement="top">
-                    <el-tag type="danger" size="small" effect="dark">已下架</el-tag>
+                  <el-tooltip
+                    v-if="row.deprecated"
+                    :content="retiredTip(row)"
+                    placement="top"
+                  >
+                    <el-tag
+                      type="danger"
+                      size="small"
+                      effect="dark"
+                    >
+                      已下架
+                    </el-tag>
                   </el-tooltip>
-                  <el-tooltip v-else-if="row.risk === 'danger'" content="高危：填错可能直接让功能不可用，保存前会二次确认" placement="top">
-                    <el-tag type="danger" size="small" effect="plain">高危</el-tag>
+                  <el-tooltip
+                    v-else-if="row.risk === 'danger'"
+                    content="高危：填错可能直接让功能不可用，保存前会二次确认"
+                    placement="top"
+                  >
+                    <el-tag
+                      type="danger"
+                      size="small"
+                      effect="plain"
+                    >
+                      高危
+                    </el-tag>
                   </el-tooltip>
-                  <el-tooltip v-else-if="row.risk === 'warning'" content="敏感：填错不报错，但会静默改变业务行为" placement="top">
-                    <el-tag type="warning" size="small" effect="plain">敏感</el-tag>
+                  <el-tooltip
+                    v-else-if="row.risk === 'warning'"
+                    content="敏感：填错不报错，但会静默改变业务行为"
+                    placement="top"
+                  >
+                    <el-tag
+                      type="warning"
+                      size="small"
+                      effect="plain"
+                    >
+                      敏感
+                    </el-tag>
                   </el-tooltip>
-                  <el-tooltip v-if="row.restart" content="装配期读取：改完需要重启服务才对已建立的连接/账号生效" placement="top">
-                    <el-tag type="warning" size="small" effect="plain">需重启</el-tag>
+                  <el-tooltip
+                    v-if="row.restart"
+                    content="装配期读取：改完需要重启服务才对已建立的连接/账号生效"
+                    placement="top"
+                  >
+                    <el-tag
+                      type="warning"
+                      size="small"
+                      effect="plain"
+                    >
+                      需重启
+                    </el-tag>
                   </el-tooltip>
-                  <el-tag v-if="row.read_only" type="info" size="small" effect="plain">只读</el-tag>
+                  <el-tag
+                    v-if="row.read_only"
+                    type="info"
+                    size="small"
+                    effect="plain"
+                  >
+                    只读
+                  </el-tag>
                 </div>
               </template>
             </el-table-column>
-            <el-table-column label="描述" min-width="200" show-overflow-tooltip>
+            <el-table-column
+              label="描述"
+              min-width="200"
+              show-overflow-tooltip
+            >
               <template #default="{ row }">
                 <span v-if="!row.deprecated">{{ row.description || '-' }}</span>
-                <span v-else class="retired-reason">{{ row.deprecated_reason || '未记录下架原因' }}</span>
+                <span
+                  v-else
+                  class="retired-reason"
+                >{{ row.deprecated_reason || '未记录下架原因' }}</span>
               </template>
             </el-table-column>
-            <el-table-column label="类型" width="86" align="center">
+            <el-table-column
+              label="类型"
+              width="86"
+              align="center"
+            >
               <template #default="{ row }">
-                <el-tag :type="typeTagColor(row.value_type)" size="small">{{ row.value_type }}</el-tag>
+                <el-tag
+                  :type="typeTagColor(row.value_type)"
+                  size="small"
+                >
+                  {{ row.value_type }}
+                </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="当前值" min-width="170" show-overflow-tooltip>
+            <el-table-column
+              label="当前值"
+              min-width="170"
+              show-overflow-tooltip
+            >
               <template #default="{ row }">
                 <div class="val-cell">
-                  <span class="val-current" :class="{ 'val-changed': !isDefault(row) }">
+                  <span
+                    class="val-current"
+                    :class="{ 'val-changed': !isDefault(row) }"
+                  >
                     {{ formatValue(row, row.value) }}
                   </span>
-                  <span v-if="unitSuffix(row)" class="unit-inline">{{ unitSuffix(row) }}</span>
-                  <el-tag v-if="!isDefault(row)" type="warning" size="small" effect="plain" class="changed-badge">已修改</el-tag>
+                  <span
+                    v-if="unitSuffix(row)"
+                    class="unit-inline"
+                  >{{ unitSuffix(row) }}</span>
+                  <el-tag
+                    v-if="!isDefault(row)"
+                    type="warning"
+                    size="small"
+                    effect="plain"
+                    class="changed-badge"
+                  >
+                    已修改
+                  </el-tag>
                 </div>
               </template>
             </el-table-column>
-            <el-table-column label="默认值" min-width="130" show-overflow-tooltip>
+            <el-table-column
+              label="默认值"
+              min-width="130"
+              show-overflow-tooltip
+            >
               <template #default="{ row }">
                 <span class="val-default">{{ formatValue(row, row.default_value) }}</span>
               </template>
             </el-table-column>
-            <el-table-column label="范围" width="150" show-overflow-tooltip>
+            <el-table-column
+              label="范围"
+              width="150"
+              show-overflow-tooltip
+            >
               <template #default="{ row }">
-                <span v-if="hasRange(row)" class="range-cell">{{ rangeText(row) }}</span>
-                <span v-else class="muted">-</span>
+                <span
+                  v-if="hasRange(row)"
+                  class="range-cell"
+                >{{ rangeText(row) }}</span>
+                <span
+                  v-else
+                  class="muted"
+                >-</span>
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="150" fixed="right" align="center">
+            <el-table-column
+              label="操作"
+              width="150"
+              fixed="right"
+              align="center"
+            >
               <template #default="{ row }">
-                <el-button link type="primary" size="small" :disabled="row.read_only || row.deprecated" @click="openEdit(row)">
+                <el-button
+                  link
+                  type="primary"
+                  size="small"
+                  :disabled="row.read_only || row.deprecated"
+                  @click="openEdit(row)"
+                >
                   <el-icon><Edit /></el-icon>编辑
                 </el-button>
                 <!-- 只读项服务端对 ResetToDefault 同样回 ErrParamReadOnly（见 repository.ErrParamReadOnly），
                      编辑按钮与对话框里的「恢复默认值」早就禁了，这一列是最后一处漏网的入口。 -->
-                <el-button link type="warning" size="small" :disabled="isDefault(row) || row.deprecated || row.read_only" :loading="row._resetting" @click="handleResetOne(row)">
+                <el-button
+                  link
+                  type="warning"
+                  size="small"
+                  :disabled="isDefault(row) || row.deprecated || row.read_only"
+                  :loading="row._resetting"
+                  @click="handleResetOne(row)"
+                >
                   <el-icon><RefreshLeft /></el-icon>重置
                 </el-button>
               </template>
@@ -238,7 +498,10 @@
       :close-on-click-modal="false"
       destroy-on-close
     >
-      <div v-if="editing" class="edit-body">
+      <div
+        v-if="editing"
+        class="edit-body"
+      >
         <el-alert
           v-if="editing.deprecated"
           type="error"
@@ -268,33 +531,78 @@
           title="敏感参数：填错不会报错，但会静默改变业务行为。"
         />
 
-        <el-descriptions :column="2" border size="small" class="edit-desc">
-          <el-descriptions-item label="分组">{{ groupLabel(editing.group) }}</el-descriptions-item>
+        <el-descriptions
+          :column="2"
+          border
+          size="small"
+          class="edit-desc"
+        >
+          <el-descriptions-item label="分组">
+            {{ groupLabel(editing.group) }}
+          </el-descriptions-item>
           <el-descriptions-item label="类型">
-            <el-tag :type="typeTagColor(editing.value_type)" size="small">{{ editing.value_type }}</el-tag>
+            <el-tag
+              :type="typeTagColor(editing.value_type)"
+              size="small"
+            >
+              {{ editing.value_type }}
+            </el-tag>
           </el-descriptions-item>
-          <el-descriptions-item label="名称" :span="2">{{ stripSuffix(editing.name) }}</el-descriptions-item>
-          <el-descriptions-item label="描述" :span="2">{{ editing.description || '-' }}</el-descriptions-item>
-          <el-descriptions-item label="默认值">{{ formatValue(editing, editing.default_value) }}</el-descriptions-item>
+          <el-descriptions-item
+            label="名称"
+            :span="2"
+          >
+            {{ stripSuffix(editing.name) }}
+          </el-descriptions-item>
+          <el-descriptions-item
+            label="描述"
+            :span="2"
+          >
+            {{ editing.description || '-' }}
+          </el-descriptions-item>
+          <el-descriptions-item label="默认值">
+            {{ formatValue(editing, editing.default_value) }}
+          </el-descriptions-item>
           <el-descriptions-item label="只读">
-            <el-tag :type="editing.read_only ? 'info' : 'success'" size="small">{{ editing.read_only ? '是' : '否' }}</el-tag>
+            <el-tag
+              :type="editing.read_only ? 'info' : 'success'"
+              size="small"
+            >
+              {{ editing.read_only ? '是' : '否' }}
+            </el-tag>
           </el-descriptions-item>
-          <el-descriptions-item v-if="hasRange(editing)" label="可填范围" :span="2">{{ rangeText(editing) }}</el-descriptions-item>
+          <el-descriptions-item
+            v-if="hasRange(editing)"
+            label="可填范围"
+            :span="2"
+          >
+            {{ rangeText(editing) }}
+          </el-descriptions-item>
         </el-descriptions>
 
         <div class="edit-field">
           <div class="edit-field__label">
             新值
-            <span v-if="isDefault(editing)" class="muted">（与默认值一致）</span>
+            <span
+              v-if="isDefault(editing)"
+              class="muted"
+            >（与默认值一致）</span>
           </div>
 
           <template v-if="isBoolType(editing.value_type)">
-            <el-switch v-model="editValueBool" :active-value="true" :inactive-value="false" />
+            <el-switch
+              v-model="editValueBool"
+              :active-value="true"
+              :inactive-value="false"
+            />
             <span class="muted switch-hint">{{ editValueBool ? 'true' : 'false' }}</span>
           </template>
 
           <template v-else-if="isNumericType(editing.value_type)">
-            <div v-if="hasSlider(editing)" class="slider-wrap">
+            <div
+              v-if="hasSlider(editing)"
+              class="slider-wrap"
+            >
               <el-slider
                 v-model="editValueNum"
                 :min="numBound(editing.min) ?? 0"
@@ -313,7 +621,10 @@
                 size="default"
                 style="width:140px"
               />
-              <span v-if="unitSuffix(editing)" class="unit-label">{{ unitSuffix(editing) }}</span>
+              <span
+                v-if="unitSuffix(editing)"
+                class="unit-label"
+              >{{ unitSuffix(editing) }}</span>
             </div>
             <el-input-number
               v-else
@@ -326,10 +637,18 @@
               size="default"
               style="width:100%"
             />
-            <div v-if="editing.value_type === 'duration'" class="edit-hint">
+            <div
+              v-if="editing.value_type === 'duration'"
+              class="edit-hint"
+            >
               单位是秒。填 {{ editValueNum }} 秒 ≈ <strong>{{ formatDuration(editValueNum) }}</strong>
             </div>
-            <div v-else-if="unitSuffix(editing)" class="edit-hint">单位：{{ unitSuffix(editing) }}</div>
+            <div
+              v-else-if="unitSuffix(editing)"
+              class="edit-hint"
+            >
+              单位：{{ unitSuffix(editing) }}
+            </div>
           </template>
 
           <template v-else>
@@ -339,8 +658,14 @@
               :rows="isTextareaType(editing) ? 6 : 3"
               :placeholder="`默认值：${editing.default_value ?? ''}`"
             />
-            <div v-if="looksLikeJson(editing)" class="json-tools">
-              <el-button size="small" @click="formatEditJson">
+            <div
+              v-if="looksLikeJson(editing)"
+              class="json-tools"
+            >
+              <el-button
+                size="small"
+                @click="formatEditJson"
+              >
                 <el-icon><Document /></el-icon>格式化 JSON
               </el-button>
               <span class="muted">默认值是一段 JSON，保存前会校验语法</span>
@@ -348,11 +673,18 @@
           </template>
         </div>
 
-        <div v-if="editError" class="edit-error"><el-icon><WarningFilled /></el-icon> {{ editError }}</div>
+        <div
+          v-if="editError"
+          class="edit-error"
+        >
+          <el-icon><WarningFilled /></el-icon> {{ editError }}
+        </div>
       </div>
 
       <template #footer>
-        <el-button @click="editDialogVisible = false">取消</el-button>
+        <el-button @click="editDialogVisible = false">
+          取消
+        </el-button>
         <el-button
           v-if="editing && !isDefault(editing) && !editing.read_only && !editing.deprecated"
           :loading="resettingOne"
@@ -372,13 +704,32 @@
     </el-dialog>
 
 
-    <el-drawer v-model="auditDrawerVisible" title="变更审计日志" size="640px">
+    <el-drawer
+      v-model="auditDrawerVisible"
+      title="变更审计日志"
+      size="640px"
+    >
       <template v-if="auditLoading">
-        <div class="drawer-loading"><el-icon class="is-loading" :size="28"><Loading /></el-icon></div>
+        <div class="drawer-loading">
+          <el-icon
+            class="is-loading"
+            :size="28"
+          >
+            <Loading />
+          </el-icon>
+        </div>
       </template>
       <template v-else>
-        <div v-if="auditList.length === 0" class="drawer-empty">暂无变更记录</div>
-        <el-timeline v-else class="audit-timeline">
+        <div
+          v-if="auditList.length === 0"
+          class="drawer-empty"
+        >
+          暂无变更记录
+        </div>
+        <el-timeline
+          v-else
+          class="audit-timeline"
+        >
           <el-timeline-item
             v-for="(item, idx) in auditList"
             :key="idx"
@@ -387,13 +738,20 @@
           >
             <div class="audit-item">
               <div class="audit-item__head">
-                <el-tag size="small" effect="plain">{{ item.param_group || '-' }}</el-tag>
+                <el-tag
+                  size="small"
+                  effect="plain"
+                >
+                  {{ item.param_group || '-' }}
+                </el-tag>
                 <code class="audit-key">{{ item.param_key }}</code>
                 <span class="audit-user">{{ item.actor_id ? `用户 #${item.actor_id}` : '-' }}</span>
               </div>
               <div class="audit-item__diff">
                 <span class="val-default">{{ String(item.old_value ?? '') || '(空)' }}</span>
-                <el-icon class="audit-arrow"><ArrowRight /></el-icon>
+                <el-icon class="audit-arrow">
+                  <ArrowRight />
+                </el-icon>
                 <span class="val-current val-changed">{{ String(item.new_value ?? '') || '(空)' }}</span>
               </div>
             </div>
@@ -401,7 +759,10 @@
         </el-timeline>
       </template>
       <template #footer>
-        <el-button @click="loadAuditLogs" :loading="auditLoading">
+        <el-button
+          :loading="auditLoading"
+          @click="loadAuditLogs"
+        >
           <el-icon><Refresh /></el-icon>刷新
         </el-button>
       </template>

@@ -1,35 +1,124 @@
 <template>
   <div class="page">
     <div class="toolbar">
-      <el-button type="primary" icon="Plus" @click="$router.push('/browser-automation/tasks/create')">新建任务</el-button>
-      <el-select v-model="query.status" placeholder="状态" clearable style="width: 140px" @change="onFilterChange">
-        <el-option v-for="s in statusOptions" :key="s.value" :label="s.label" :value="s.value" />
+      <el-button
+        type="primary"
+        icon="Plus"
+        @click="$router.push('/browser-automation/tasks/create')"
+      >
+        新建任务
+      </el-button>
+      <el-select
+        v-model="query.status"
+        placeholder="状态"
+        clearable
+        style="width: 140px"
+        @change="onFilterChange"
+      >
+        <el-option
+          v-for="s in statusOptions"
+          :key="s.value"
+          :label="s.label"
+          :value="s.value"
+        />
       </el-select>
     </div>
 
-    <el-table :data="list" v-loading="loading">
-      <el-table-column prop="id" label="ID" width="70" />
-      <el-table-column prop="name" label="名称" min-width="160" />
-      <el-table-column prop="task_type" label="类型" width="100" />
-      <el-table-column prop="status" label="状态" width="100">
+    <el-table
+      v-loading="loading"
+      :data="list"
+    >
+      <el-table-column
+        prop="id"
+        label="ID"
+        width="70"
+      />
+      <el-table-column
+        prop="name"
+        label="名称"
+        min-width="160"
+      />
+      <el-table-column
+        prop="task_type"
+        label="类型"
+        width="100"
+      />
+      <el-table-column
+        prop="status"
+        label="状态"
+        width="100"
+      >
         <template #default="{ row }">
-          <el-tag :type="statusTagType(row.status)">{{ row.status }}</el-tag>
+          <el-tag :type="statusTagType(row.status)">
+            {{ row.status }}
+          </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="brain_mode" label="模式" width="90">
-        <template #default="{ row }">{{ row.brain_mode ? 'Brain' : '步骤' }}</template>
-      </el-table-column>
-      <el-table-column prop="last_run_at" label="上次执行" width="170">
-        <template #default="{ row }">{{ row.last_run_at ? formatTime(row.last_run_at) : '—' }}</template>
-      </el-table-column>
-      <el-table-column label="操作" width="330" fixed="right">
+      <el-table-column
+        prop="brain_mode"
+        label="模式"
+        width="90"
+      >
         <template #default="{ row }">
-          <el-button size="small" type="success" :disabled="row.status === 'running'" @click="onRun(row)">执行</el-button>
-          <el-button size="small" v-if="row.status === 'draft'" @click="onPublish(row)">发布</el-button>
-          <el-button size="small" v-if="row.status === 'running'" @click="onPause(row)">暂停</el-button>
-          <el-button size="small" @click="$router.push(`/browser-automation/tasks/${row.id}`)">详情</el-button>
-          <el-button size="small" @click="$router.push(`/browser-automation/tasks/${row.id}/edit`)">编辑</el-button>
-          <el-button size="small" type="danger" @click="onDelete(row)">删除</el-button>
+          {{ row.brain_mode ? 'Brain' : '步骤' }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        prop="last_run_at"
+        label="上次执行"
+        width="170"
+      >
+        <template #default="{ row }">
+          {{ row.last_run_at ? formatTime(row.last_run_at) : '—' }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="操作"
+        width="330"
+        fixed="right"
+      >
+        <template #default="{ row }">
+          <el-button
+            size="small"
+            type="success"
+            :disabled="row.status === 'running'"
+            @click="onRun(row)"
+          >
+            执行
+          </el-button>
+          <el-button
+            v-if="row.status === 'draft'"
+            size="small"
+            @click="onPublish(row)"
+          >
+            发布
+          </el-button>
+          <el-button
+            v-if="row.status === 'running'"
+            size="small"
+            @click="onPause(row)"
+          >
+            暂停
+          </el-button>
+          <el-button
+            size="small"
+            @click="$router.push(`/browser-automation/tasks/${row.id}`)"
+          >
+            详情
+          </el-button>
+          <el-button
+            size="small"
+            @click="$router.push(`/browser-automation/tasks/${row.id}/edit`)"
+          >
+            编辑
+          </el-button>
+          <el-button
+            size="small"
+            type="danger"
+            @click="onDelete(row)"
+          >
+            删除
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
@@ -44,7 +133,11 @@
     />
 
     <!-- 无 Host 引导弹窗（8001）：与详情页、Host 状态页同一份步骤 -->
-    <el-dialog v-model="hostDialog.visible" title="本机 Chrome 未连接" width="520px">
+    <el-dialog
+      v-model="hostDialog.visible"
+      title="本机 Chrome 未连接"
+      width="520px"
+    >
       <HostInstallGuide />
     </el-dialog>
   </div>

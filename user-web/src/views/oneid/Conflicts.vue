@@ -5,8 +5,21 @@
         <div class="card-header">
           <span>身份冲突解决</span>
           <div class="header-actions">
-            <el-tag v-if="pendingCount > 0" type="danger" effect="dark">待处理 {{ pendingCount }}</el-tag>
-            <el-button type="primary" size="small" :loading="loading" @click="fetchData">刷新</el-button>
+            <el-tag
+              v-if="pendingCount > 0"
+              type="danger"
+              effect="dark"
+            >
+              待处理 {{ pendingCount }}
+            </el-tag>
+            <el-button
+              type="primary"
+              size="small"
+              :loading="loading"
+              @click="fetchData"
+            >
+              刷新
+            </el-button>
           </div>
         </div>
       </template>
@@ -29,13 +42,26 @@
         empty-text="暂无身份冲突"
         style="width: 100%"
       >
-        <el-table-column prop="identity_type" label="冲突类型" width="130">
+        <el-table-column
+          prop="identity_type"
+          label="冲突类型"
+          width="130"
+        >
           <template #default="{ row }">
-            <el-tag :type="typeTag(row.identity_type)">{{ channelLabel(row.identity_type) }}</el-tag>
+            <el-tag :type="typeTag(row.identity_type)">
+              {{ channelLabel(row.identity_type) }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="identity_value" label="标识值" min-width="160" />
-        <el-table-column label="涉及客户" min-width="200">
+        <el-table-column
+          prop="identity_value"
+          label="标识值"
+          min-width="160"
+        />
+        <el-table-column
+          label="涉及客户"
+          min-width="200"
+        >
           <template #default="{ row }">
             <el-tag
               v-for="(cid, idx) in row.customer_ids"
@@ -49,17 +75,31 @@
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" width="110">
+        <el-table-column
+          prop="status"
+          label="状态"
+          width="110"
+        >
           <template #default="{ row }">
             <el-tag :type="row.status === 'resolved' ? 'success' : 'danger'">
               {{ row.status === 'resolved' ? '已解决' : '待处理' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="created_at" label="发现时间" width="170">
-          <template #default="{ row }">{{ formatTime(row.created_at) }}</template>
+        <el-table-column
+          prop="created_at"
+          label="发现时间"
+          width="170"
+        >
+          <template #default="{ row }">
+            {{ formatTime(row.created_at) }}
+          </template>
         </el-table-column>
-        <el-table-column label="操作" width="240" fixed="right">
+        <el-table-column
+          label="操作"
+          width="240"
+          fixed="right"
+        >
           <template #default="{ row }">
             <el-button
               v-if="row.status !== 'resolved'"
@@ -67,33 +107,65 @@
               size="small"
               :loading="row._merging"
               @click="handleMerge(row)"
-            >合并到主档案</el-button>
+            >
+              合并到主档案
+            </el-button>
             <el-button
               v-if="row.status !== 'resolved'"
               type="info"
               size="small"
               :loading="row._ignoring"
               @click="handleIgnore(row)"
-            >保留分离</el-button>
+            >
+              保留分离
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
 
       
-      <el-dialog v-model="mergeDialog" title="确认合并客户" width="520px">
+      <el-dialog
+        v-model="mergeDialog"
+        title="确认合并客户"
+        width="520px"
+      >
         <div v-if="selected">
           <p>冲突标识：<b>{{ channelLabel(selected.identity_type) }}</b> = <b>{{ selected.identity_value }}</b></p>
           <p>将执行：把以下从属客户合并进主档案（主档案 OneID 不变，会话与事件迁移过去）</p>
-          <el-table :data="mergeRows" border size="small">
-            <el-table-column prop="role" label="角色" width="90" />
-            <el-table-column prop="id" label="客户 ID" />
+          <el-table
+            :data="mergeRows"
+            border
+            size="small"
+          >
+            <el-table-column
+              prop="role"
+              label="角色"
+              width="90"
+            />
+            <el-table-column
+              prop="id"
+              label="客户 ID"
+            />
           </el-table>
-          <el-alert type="info" :closable="false" style="margin-top: 12px"
-            >合并为不可逆操作，从属客户将被物理删除。</el-alert>
+          <el-alert
+            type="info"
+            :closable="false"
+            style="margin-top: 12px"
+          >
+            合并为不可逆操作，从属客户将被物理删除。
+          </el-alert>
         </div>
         <template #footer>
-          <el-button @click="mergeDialog = false">取消</el-button>
-          <el-button type="danger" :loading="submitting" @click="confirmMerge">确认合并</el-button>
+          <el-button @click="mergeDialog = false">
+            取消
+          </el-button>
+          <el-button
+            type="danger"
+            :loading="submitting"
+            @click="confirmMerge"
+          >
+            确认合并
+          </el-button>
         </template>
       </el-dialog>
     </el-card>

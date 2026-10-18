@@ -12,55 +12,123 @@
       </template>
     </el-alert>
 
-    <el-row :gutter="16" style="margin-top: 16px">
-      
+    <el-row
+      :gutter="16"
+      style="margin-top: 16px"
+    >
       <el-col :span="14">
         <el-card>
           <template #header>
             <div class="card-header">
               <span>导入测试</span>
-              <el-tag :type="testMode ? 'warning' : 'success'" size="small">
+              <el-tag
+                :type="testMode ? 'warning' : 'success'"
+                size="small"
+              >
                 {{ testMode ? '同步模式' : '异步模式' }}
               </el-tag>
             </div>
           </template>
-          <el-form :model="form" label-width="100px">
+          <el-form
+            :model="form"
+            label-width="100px"
+          >
             <el-form-item label="数据源">
-              <el-radio-group v-model="form.source" @change="handleSourceChange">
-                <el-radio-button label="custom">通用 JSON</el-radio-button>
-                <el-radio-button label="feishu">飞书</el-radio-button>
-                <el-radio-button label="notion">Notion</el-radio-button>
-                <el-radio-button label="dingtalk">钉钉</el-radio-button>
+              <el-radio-group
+                v-model="form.source"
+                @change="handleSourceChange"
+              >
+                <el-radio-button label="custom">
+                  通用 JSON
+                </el-radio-button>
+                <el-radio-button label="feishu">
+                  飞书
+                </el-radio-button>
+                <el-radio-button label="notion">
+                  Notion
+                </el-radio-button>
+                <el-radio-button label="dingtalk">
+                  钉钉
+                </el-radio-button>
               </el-radio-group>
             </el-form-item>
-            <el-form-item label="产品" required>
-              <el-select v-model="form.product_id" placeholder="选择产品" style="width: 100%">
-                <el-option v-for="p in productList" :key="p.id" :label="p.name" :value="p.id" />
+            <el-form-item
+              label="产品"
+              required
+            >
+              <el-select
+                v-model="form.product_id"
+                placeholder="选择产品"
+                style="width: 100%"
+              >
+                <el-option
+                  v-for="p in productList"
+                  :key="p.id"
+                  :label="p.name"
+                  :value="p.id"
+                />
               </el-select>
             </el-form-item>
-            <el-form-item v-if="form.source === 'feishu'" label="飞书 DocID">
-              <el-input v-model="form.feishu_doc_id" placeholder="如:doccnXYZ123" />
+            <el-form-item
+              v-if="form.source === 'feishu'"
+              label="飞书 DocID"
+            >
+              <el-input
+                v-model="form.feishu_doc_id"
+                placeholder="如:doccnXYZ123"
+              />
             </el-form-item>
-            <el-form-item v-if="form.source === 'notion'" label="Notion PageID">
-              <el-input v-model="form.notion_page_id" placeholder="Notion 页面 ID" />
+            <el-form-item
+              v-if="form.source === 'notion'"
+              label="Notion PageID"
+            >
+              <el-input
+                v-model="form.notion_page_id"
+                placeholder="Notion 页面 ID"
+              />
             </el-form-item>
-            <el-form-item v-if="form.source === 'dingtalk'" label="钉钉 DocID">
-              <el-input v-model="form.dingtalk_doc_id" placeholder="钉钉文档 ID" />
+            <el-form-item
+              v-if="form.source === 'dingtalk'"
+              label="钉钉 DocID"
+            >
+              <el-input
+                v-model="form.dingtalk_doc_id"
+                placeholder="钉钉文档 ID"
+              />
             </el-form-item>
-            <el-form-item v-if="form.source === 'custom'" label="文档数据" required>
+            <el-form-item
+              v-if="form.source === 'custom'"
+              label="文档数据"
+              required
+            >
               <el-input
                 v-model="form.itemsJson"
                 type="textarea"
                 :rows="10"
-                placeholder='JSON 数组,例如:&#10;[{"title": "FAQ1", "content": "...", "category": "售后", "tags": ["退款"]}]'
+                placeholder="JSON 数组,例如:&#10;[{&quot;title&quot;: &quot;FAQ1&quot;, &quot;content&quot;: &quot;...&quot;, &quot;category&quot;: &quot;售后&quot;, &quot;tags&quot;: [&quot;退款&quot;]}]"
               />
             </el-form-item>
             <el-form-item>
-              <el-checkbox v-model="testMode">同步返回(否则异步)</el-checkbox>
-              <el-button :icon="Document" @click="loadTemplate" style="margin-left: 8px">载入模板</el-button>
+              <el-checkbox v-model="testMode">
+                同步返回(否则异步)
+              </el-checkbox>
+              <el-button
+                :icon="Document"
+                style="margin-left: 8px"
+                @click="loadTemplate"
+              >
+                载入模板
+              </el-button>
             </el-form-item>
             <el-form-item>
-              <el-button type="primary" :icon="Promotion" :loading="importing" :disabled="!canSubmit" @click="handleImport" style="width: 100%">
+              <el-button
+                type="primary"
+                :icon="Promotion"
+                :loading="importing"
+                :disabled="!canSubmit"
+                style="width: 100%"
+                @click="handleImport"
+              >
                 提交导入
               </el-button>
             </el-form-item>
@@ -68,30 +136,67 @@
         </el-card>
 
         
-        <el-card v-if="lastResponse" style="margin-top: 16px">
+        <el-card
+          v-if="lastResponse"
+          style="margin-top: 16px"
+        >
           <template #header>
             <div class="card-header">
               <span>提交结果</span>
-              <el-button link @click="lastResponse = null">关闭</el-button>
+              <el-button
+                link
+                @click="lastResponse = null"
+              >
+                关闭
+              </el-button>
             </div>
           </template>
-          <el-descriptions :column="2" border size="small">
-            <el-descriptions-item label="任务号">{{ lastResponse.job_no }}</el-descriptions-item>
-            <el-descriptions-item label="状态">
-              <el-tag :type="statusType(lastResponse.status)">{{ statusLabel(lastResponse.status) }}</el-tag>
+          <el-descriptions
+            :column="2"
+            border
+            size="small"
+          >
+            <el-descriptions-item label="任务号">
+              {{ lastResponse.job_no }}
             </el-descriptions-item>
-            <el-descriptions-item label="总数">{{ lastResponse.total }}</el-descriptions-item>
-            <el-descriptions-item label="成功">{{ lastResponse.accepted }}</el-descriptions-item>
-            <el-descriptions-item label="失败">{{ lastResponse.failed_items }}</el-descriptions-item>
+            <el-descriptions-item label="状态">
+              <el-tag :type="statusType(lastResponse.status)">
+                {{ statusLabel(lastResponse.status) }}
+              </el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="总数">
+              {{ lastResponse.total }}
+            </el-descriptions-item>
+            <el-descriptions-item label="成功">
+              {{ lastResponse.accepted }}
+            </el-descriptions-item>
+            <el-descriptions-item label="失败">
+              {{ lastResponse.failed_items }}
+            </el-descriptions-item>
             <el-descriptions-item label="异步">
-              <el-tag :type="lastResponse.async ? 'warning' : 'success'" size="small">
+              <el-tag
+                :type="lastResponse.async ? 'warning' : 'success'"
+                size="small"
+              >
                 {{ lastResponse.async ? '异步处理中' : '同步完成' }}
               </el-tag>
             </el-descriptions-item>
           </el-descriptions>
-          <div v-if="lastResponse.document_ids && lastResponse.document_ids.length" style="margin-top: 12px">
-            <el-text size="small">成功文档 ID:</el-text>
-            <el-tag v-for="id in lastResponse.document_ids" :key="id" size="small" style="margin-left: 4px">#{{ id }}</el-tag>
+          <div
+            v-if="lastResponse.document_ids && lastResponse.document_ids.length"
+            style="margin-top: 12px"
+          >
+            <el-text size="small">
+              成功文档 ID:
+            </el-text>
+            <el-tag
+              v-for="id in lastResponse.document_ids"
+              :key="id"
+              size="small"
+              style="margin-left: 4px"
+            >
+              #{{ id }}
+            </el-tag>
           </div>
           <el-alert
             v-if="lastResponse.errors && lastResponse.errors.length"
@@ -99,9 +204,16 @@
             :closable="false"
             style="margin-top: 12px"
           >
-            <template #title>失败明细 ({{ lastResponse.errors.length }})</template>
+            <template #title>
+              失败明细 ({{ lastResponse.errors.length }})
+            </template>
             <ul style="margin: 0; padding-left: 20px">
-              <li v-for="(e, idx) in lastResponse.errors" :key="idx">{{ e }}</li>
+              <li
+                v-for="(e, idx) in lastResponse.errors"
+                :key="idx"
+              >
+                {{ e }}
+              </li>
             </ul>
           </el-alert>
         </el-card>
@@ -123,7 +235,12 @@
               />
             </el-form-item>
             <el-form-item>
-              <el-text size="small" type="info">外部系统通过 <code>X-Knowledge-Token</code> Header 鉴权</el-text>
+              <el-text
+                size="small"
+                type="info"
+              >
+                外部系统通过 <code>X-Knowledge-Token</code> Header 鉴权
+              </el-text>
             </el-form-item>
           </el-form>
         </el-card>
@@ -132,34 +249,87 @@
           <template #header>
             <div class="card-header">
               <span>历史任务</span>
-              <el-button link :icon="Refresh" @click="loadJobs">刷新</el-button>
+              <el-button
+                link
+                :icon="Refresh"
+                @click="loadJobs"
+              >
+                刷新
+              </el-button>
             </div>
           </template>
-          <el-select v-model="jobFilterProduct" placeholder="按产品筛选" clearable style="width: 100%; margin-bottom: 8px" @change="loadJobs">
-            <el-option v-for="p in productList" :key="p.id" :label="p.name" :value="p.id" />
+          <el-select
+            v-model="jobFilterProduct"
+            placeholder="按产品筛选"
+            clearable
+            style="width: 100%; margin-bottom: 8px"
+            @change="loadJobs"
+          >
+            <el-option
+              v-for="p in productList"
+              :key="p.id"
+              :label="p.name"
+              :value="p.id"
+            />
           </el-select>
-          <el-table :data="jobs" v-loading="jobsLoading" max-height="380" size="small">
-            <el-table-column prop="job_no" label="任务号" width="160" />
-            <el-table-column prop="source" label="来源" width="80">
+          <el-table
+            v-loading="jobsLoading"
+            :data="jobs"
+            max-height="380"
+            size="small"
+          >
+            <el-table-column
+              prop="job_no"
+              label="任务号"
+              width="160"
+            />
+            <el-table-column
+              prop="source"
+              label="来源"
+              width="80"
+            >
               <template #default="{ row }">
-                <el-tag size="small">{{ row.source }}</el-tag>
+                <el-tag size="small">
+                  {{ row.source }}
+                </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="状态" width="90">
+            <el-table-column
+              label="状态"
+              width="90"
+            >
               <template #default="{ row }">
-                <el-tag :type="statusType(row.status)" size="small">{{ statusLabel(row.status) }}</el-tag>
+                <el-tag
+                  :type="statusType(row.status)"
+                  size="small"
+                >
+                  {{ statusLabel(row.status) }}
+                </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="total_items" label="总数" width="60" />
-            <el-table-column label="成功/失败" width="100">
+            <el-table-column
+              prop="total_items"
+              label="总数"
+              width="60"
+            />
+            <el-table-column
+              label="成功/失败"
+              width="100"
+            >
               <template #default="{ row }">
                 <span style="color: #10B981">{{ row.done_items || 0 }}</span>
                 /
                 <span style="color: #EF4444">{{ row.failed_items || 0 }}</span>
               </template>
             </el-table-column>
-            <el-table-column prop="created_at" label="时间" width="150">
-              <template #default="{ row }">{{ formatDate(row.created_at) }}</template>
+            <el-table-column
+              prop="created_at"
+              label="时间"
+              width="150"
+            >
+              <template #default="{ row }">
+                {{ formatDate(row.created_at) }}
+              </template>
             </el-table-column>
           </el-table>
         </el-card>

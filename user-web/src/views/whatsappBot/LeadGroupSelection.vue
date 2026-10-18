@@ -8,9 +8,18 @@
       </template>
 
       
-      <el-form :model="filterForm" inline label-width="80px" style="margin-bottom: 20px;">
+      <el-form
+        :model="filterForm"
+        inline
+        label-width="80px"
+        style="margin-bottom: 20px;"
+      >
         <el-form-item label="状态">
-          <el-select v-model="filterForm.status" placeholder="选择线索状态" clearable>
+          <el-select
+            v-model="filterForm.status"
+            placeholder="选择线索状态"
+            clearable
+          >
             <el-option
               v-for="opt in leadStatusOptions"
               :key="opt.value"
@@ -21,44 +30,95 @@
         </el-form-item>
         
         <el-form-item label="来源">
-          <el-input v-model="filterForm.source" placeholder="线索来源" clearable />
+          <el-input
+            v-model="filterForm.source"
+            placeholder="线索来源"
+            clearable
+          />
         </el-form-item>
         
         <el-form-item label="最低评分">
-          <el-slider v-model="filterForm.minScore" :min="0" :max="100" show-input />
+          <el-slider
+            v-model="filterForm.minScore"
+            :min="0"
+            :max="100"
+            show-input
+          />
         </el-form-item>
         
         <el-form-item label="搜索">
-          <el-input v-model="filterForm.search" placeholder="姓名或电话" clearable />
+          <el-input
+            v-model="filterForm.search"
+            placeholder="姓名或电话"
+            clearable
+          />
         </el-form-item>
         
         <el-form-item>
-          <el-button type="primary" @click="applyFilters">筛选</el-button>
-          <el-button @click="resetFilters">重置</el-button>
+          <el-button
+            type="primary"
+            @click="applyFilters"
+          >
+            筛选
+          </el-button>
+          <el-button @click="resetFilters">
+            重置
+          </el-button>
         </el-form-item>
       </el-form>
 
       
       <el-table 
+        v-loading="loading" 
         :data="leads" 
-        style="width: 100%; margin-top: 20px;" 
-        v-loading="loading"
+        style="width: 100%; margin-top: 20px;"
         @selection-change="handleSelectionChange"
       >
-        <el-table-column type="selection" width="55" />
-        <el-table-column prop="name" label="姓名" width="120" />
-        <el-table-column prop="phone" label="手机号" width="150" />
-        <el-table-column prop="email" label="邮箱" width="200" />
-        <el-table-column prop="company" label="公司" width="150" />
-        <el-table-column prop="source" label="来源" width="100" />
-        <el-table-column prop="score" label="质量评分" width="100">
+        <el-table-column
+          type="selection"
+          width="55"
+        />
+        <el-table-column
+          prop="name"
+          label="姓名"
+          width="120"
+        />
+        <el-table-column
+          prop="phone"
+          label="手机号"
+          width="150"
+        />
+        <el-table-column
+          prop="email"
+          label="邮箱"
+          width="200"
+        />
+        <el-table-column
+          prop="company"
+          label="公司"
+          width="150"
+        />
+        <el-table-column
+          prop="source"
+          label="来源"
+          width="100"
+        />
+        <el-table-column
+          prop="score"
+          label="质量评分"
+          width="100"
+        >
           <template #default="{ row }">
             <el-tag :type="getScoreType(row.score)">
               {{ row.score }}分
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" width="100">
+        <el-table-column
+          prop="status"
+          label="状态"
+          width="100"
+        >
           <template #default="{ row }">
             <el-tag :type="getStatusType(row.status)">
               {{ getStatusText(row.status) }}
@@ -69,32 +129,63 @@
       
       <el-pagination
         class="pagination"
-        @size-change="handleSizeChange"
-        @current-change="handleCurrentChange"
         :current-page="pagination.currentPage"
         :page-sizes="[10, 20, 50, 100]"
+        v-if="pagination.total > 0"
         :page-size="pagination.pageSize"
         layout="total, sizes, prev, pager, next, jumper"
         :total="pagination.total"
-        v-if="pagination.total > 0"
+        @size-change="handleSizeChange"
+        @current-change="handleCurrentChange"
       />
     </el-card>
 
     
-    <el-card style="margin-top: 20px;" v-if="selectedLeads.length > 0">
+    <el-card
+      v-if="selectedLeads.length > 0"
+      style="margin-top: 20px;"
+    >
       <template #header>
         <div class="card-header">
           <span>已选择 {{ selectedLeads.length }} 个联系人</span>
-          <el-button type="primary" @click="proceedToMessaging">下一步：群发消息</el-button>
+          <el-button
+            type="primary"
+            @click="proceedToMessaging"
+          >
+            下一步：群发消息
+          </el-button>
         </div>
       </template>
       
-      <el-table :data="selectedLeads" style="width: 100%;">
-        <el-table-column prop="name" label="姓名" width="120" />
-        <el-table-column prop="phone" label="手机号" width="150" />
-        <el-table-column prop="email" label="邮箱" width="200" />
-        <el-table-column prop="company" label="公司" width="150" />
-        <el-table-column prop="score" label="质量评分" width="100">
+      <el-table
+        :data="selectedLeads"
+        style="width: 100%;"
+      >
+        <el-table-column
+          prop="name"
+          label="姓名"
+          width="120"
+        />
+        <el-table-column
+          prop="phone"
+          label="手机号"
+          width="150"
+        />
+        <el-table-column
+          prop="email"
+          label="邮箱"
+          width="200"
+        />
+        <el-table-column
+          prop="company"
+          label="公司"
+          width="150"
+        />
+        <el-table-column
+          prop="score"
+          label="质量评分"
+          width="100"
+        >
           <template #default="{ row }">
             <el-tag :type="getScoreType(row.score)">
               {{ row.score }}分

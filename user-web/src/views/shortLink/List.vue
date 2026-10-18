@@ -1,10 +1,12 @@
 <template>
   <div class="short-link-container">
-    
     <div class="page-header">
       <h2>{{ $t('短链管理') }}</h2>
       <div class="action-buttons">
-        <el-button type="primary" @click="handleAdd">
+        <el-button
+          type="primary"
+          @click="handleAdd"
+        >
           <el-icon><Plus /></el-icon>
           {{ $t('添加短链') }}
         </el-button>
@@ -13,21 +15,46 @@
 
     
     <div class="search-form">
-      <el-form :inline="true" :model="searchForm" class="search-form-content">
+      <el-form
+        :inline="true"
+        :model="searchForm"
+        class="search-form-content"
+      >
         <el-form-item :label="$t('短码')">
-          <el-input v-model="searchForm.short_code" :placeholder="$t('请输入短码')" clearable />
+          <el-input
+            v-model="searchForm.short_code"
+            :placeholder="$t('请输入短码')"
+            clearable
+          />
         </el-form-item>
         <el-form-item :label="$t('原始URL')">
-          <el-input v-model="searchForm.original_url" :placeholder="$t('请输入原始URL')" clearable />
+          <el-input
+            v-model="searchForm.original_url"
+            :placeholder="$t('请输入原始URL')"
+            clearable
+          />
         </el-form-item>
         <el-form-item :label="$t('状态')">
-          <el-select v-model="searchForm.status" :placeholder="$t('请选择状态')" clearable>
-            <el-option :label="$t('正常')" value="1" />
-            <el-option :label="$t('禁用')" value="2" />
+          <el-select
+            v-model="searchForm.status"
+            :placeholder="$t('请选择状态')"
+            clearable
+          >
+            <el-option
+              :label="$t('正常')"
+              value="1"
+            />
+            <el-option
+              :label="$t('禁用')"
+              value="2"
+            />
           </el-select>
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="handleSearch">
+          <el-button
+            type="primary"
+            @click="handleSearch"
+          >
             <el-icon><Search /></el-icon>
             {{ $t('搜索') }}
           </el-button>
@@ -40,41 +67,111 @@
     </div>
 
     
-    <PageState v-if="error" state="error" :error-text="error" @retry="fetchShortLinkList" />
-    <el-table v-if="!error" :data="shortLinkList" border style="width: 100%" v-loading="loading">
-      <el-table-column prop="id" label="ID" width="80" />
-      <el-table-column prop="short_code" :label="$t('短码')" width="120" />
-      <el-table-column prop="original_url" :label="$t('原始URL')" min-width="200" show-overflow-tooltip />
-      <el-table-column prop="title" :label="$t('标题')" min-width="150" show-overflow-tooltip />
-      <el-table-column prop="description" :label="$t('描述')" min-width="150" show-overflow-tooltip />
-      <el-table-column prop="click_count" :label="$t('点击次数')" width="100" />
-      <el-table-column prop="status_str" :label="$t('状态')" width="100">
+    <PageState
+      v-if="error"
+      state="error"
+      :error-text="error"
+      @retry="fetchShortLinkList"
+    />
+    <el-table
+      v-if="!error"
+      v-loading="loading"
+      :data="shortLinkList"
+      border
+      style="width: 100%"
+    >
+      <el-table-column
+        prop="id"
+        label="ID"
+        width="80"
+      />
+      <el-table-column
+        prop="short_code"
+        :label="$t('短码')"
+        width="120"
+      />
+      <el-table-column
+        prop="original_url"
+        :label="$t('原始URL')"
+        min-width="200"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        prop="title"
+        :label="$t('标题')"
+        min-width="150"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        prop="description"
+        :label="$t('描述')"
+        min-width="150"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        prop="click_count"
+        :label="$t('点击次数')"
+        width="100"
+      />
+      <el-table-column
+        prop="status_str"
+        :label="$t('状态')"
+        width="100"
+      >
         <template #default="scope">
           <el-tag :type="getStatusType(scope.row)">
             {{ scope.row.status_str }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="expire_time" label="过期时间" width="180">
+      <el-table-column
+        prop="expire_time"
+        label="过期时间"
+        width="180"
+      >
         <template #default="scope">
           {{ scope.row.expire_time || '永不过期' }}
         </template>
       </el-table-column>
-      <el-table-column prop="created_at" label="创建时间" width="180" />
-      <el-table-column label="操作" width="300" fixed="right">
+      <el-table-column
+        prop="created_at"
+        label="创建时间"
+        width="180"
+      />
+      <el-table-column
+        label="操作"
+        width="300"
+        fixed="right"
+      >
         <template #default="scope">
-          <el-button type="primary" size="small" @click="handleEdit(scope.row)">
+          <el-button
+            type="primary"
+            size="small"
+            @click="handleEdit(scope.row)"
+          >
             编辑
           </el-button>
-          <el-button type="info" size="small" @click="handleStats(scope.row)">
+          <el-button
+            type="info"
+            size="small"
+            @click="handleStats(scope.row)"
+          >
             <el-icon><DataAnalysis /></el-icon>
             统计
           </el-button>
-          <el-button type="success" size="small" @click="handleShare(scope.row)">
+          <el-button
+            type="success"
+            size="small"
+            @click="handleShare(scope.row)"
+          >
             <el-icon><Share /></el-icon>
             分享
           </el-button>
-          <el-button type="danger" size="small" @click="handleDelete(scope.row)">
+          <el-button
+            type="danger"
+            size="small"
+            @click="handleDelete(scope.row)"
+          >
             删除
           </el-button>
         </template>
@@ -110,26 +207,67 @@
         :rules="rules"
         label-width="80px"
       >
-        <el-form-item label="短码" prop="short_code">
-          <el-input v-model="form.short_code" placeholder="请输入短码">
+        <el-form-item
+          label="短码"
+          prop="short_code"
+        >
+          <el-input
+            v-model="form.short_code"
+            placeholder="请输入短码"
+          >
             <template #append>
-              <el-button @click="generateShortCode" :loading="generating">生成</el-button>
+              <el-button
+                :loading="generating"
+                @click="generateShortCode"
+              >
+                生成
+              </el-button>
             </template>
           </el-input>
         </el-form-item>
-        <el-form-item label="原始URL" prop="original_url">
-          <el-input v-model="form.original_url" placeholder="请输入原始URL" />
+        <el-form-item
+          label="原始URL"
+          prop="original_url"
+        >
+          <el-input
+            v-model="form.original_url"
+            placeholder="请输入原始URL"
+          />
         </el-form-item>
-        <el-form-item label="标题" prop="title">
-          <el-input v-model="form.title" placeholder="请输入标题" />
+        <el-form-item
+          label="标题"
+          prop="title"
+        >
+          <el-input
+            v-model="form.title"
+            placeholder="请输入标题"
+          />
         </el-form-item>
-        <el-form-item label="描述" prop="description">
-          <el-input v-model="form.description" type="textarea" placeholder="请输入描述" />
+        <el-form-item
+          label="描述"
+          prop="description"
+        >
+          <el-input
+            v-model="form.description"
+            type="textarea"
+            placeholder="请输入描述"
+          />
         </el-form-item>
-        <el-form-item label="访问密码" prop="password">
-          <el-input v-model="form.password" type="password" placeholder="留空则无需密码" show-password />
+        <el-form-item
+          label="访问密码"
+          prop="password"
+        >
+          <el-input
+            v-model="form.password"
+            type="password"
+            placeholder="留空则无需密码"
+            show-password
+          />
         </el-form-item>
-        <el-form-item label="过期时间" prop="expire_time">
+        <el-form-item
+          label="过期时间"
+          prop="expire_time"
+        >
           <el-date-picker
             v-model="form.expire_time"
             type="datetime"
@@ -138,17 +276,34 @@
             value-format="YYYY-MM-DD HH:mm:ss"
           />
         </el-form-item>
-        <el-form-item label="状态" prop="status" v-if="isEdit">
-          <el-select v-model="form.status" placeholder="请选择状态">
-            <el-option label="正常" :value="1" />
-            <el-option label="禁用" :value="2" />
+        <el-form-item
+          v-if="isEdit"
+          label="状态"
+          prop="status"
+        >
+          <el-select
+            v-model="form.status"
+            placeholder="请选择状态"
+          >
+            <el-option
+              label="正常"
+              :value="1"
+            />
+            <el-option
+              label="禁用"
+              :value="2"
+            />
           </el-select>
         </el-form-item>
       </el-form>
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="dialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="handleSubmit" :loading="submitting">
+          <el-button
+            type="primary"
+            :loading="submitting"
+            @click="handleSubmit"
+          >
             确定
           </el-button>
         </span>
@@ -162,38 +317,57 @@
       width="80%"
       top="5vh"
     >
-      <div v-loading="statsLoading" class="stats-content">
+      <div
+        v-loading="statsLoading"
+        class="stats-content"
+      >
         <div class="stats-summary">
           <el-row :gutter="20">
             <el-col :span="6">
               <el-card class="stats-card">
                 <div class="stats-item">
-                  <div class="stats-value">{{ currentStats.total_clicks || 0 }}</div>
-                  <div class="stats-label">累计访问人数</div>
+                  <div class="stats-value">
+                    {{ currentStats.total_clicks || 0 }}
+                  </div>
+                  <div class="stats-label">
+                    累计访问人数
+                  </div>
                 </div>
               </el-card>
             </el-col>
             <el-col :span="6">
               <el-card class="stats-card">
                 <div class="stats-item">
-                  <div class="stats-value">{{ currentStats.today_clicks || 0 }}</div>
-                  <div class="stats-label">今日访问人数</div>
+                  <div class="stats-value">
+                    {{ currentStats.today_clicks || 0 }}
+                  </div>
+                  <div class="stats-label">
+                    今日访问人数
+                  </div>
                 </div>
               </el-card>
             </el-col>
             <el-col :span="6">
               <el-card class="stats-card">
                 <div class="stats-item">
-                  <div class="stats-value">{{ currentStats.yesterday_clicks || 0 }}</div>
-                  <div class="stats-label">昨日访问人数</div>
+                  <div class="stats-value">
+                    {{ currentStats.yesterday_clicks || 0 }}
+                  </div>
+                  <div class="stats-label">
+                    昨日访问人数
+                  </div>
                 </div>
               </el-card>
             </el-col>
             <el-col :span="6">
               <el-card class="stats-card">
                 <div class="stats-item">
-                  <div class="stats-value">{{ currentStats.avg_daily_clicks || 0 }}</div>
-                  <div class="stats-label">日均访问人数</div>
+                  <div class="stats-value">
+                    {{ currentStats.avg_daily_clicks || 0 }}
+                  </div>
+                  <div class="stats-label">
+                    日均访问人数
+                  </div>
                 </div>
               </el-card>
             </el-col>
@@ -204,14 +378,24 @@
           <el-row :gutter="20">
             <el-col :span="16">
               <el-card>
-                <div class="chart-title">七日访问趋势</div>
-                <div ref="trendChartRef" class="chart-container"></div>
+                <div class="chart-title">
+                  七日访问趋势
+                </div>
+                <div
+                  ref="trendChartRef"
+                  class="chart-container"
+                />
               </el-card>
             </el-col>
             <el-col :span="8">
               <el-card>
-                <div class="chart-title">设备类型分布</div>
-                <div ref="deviceChartRef" class="chart-container"></div>
+                <div class="chart-title">
+                  设备类型分布
+                </div>
+                <div
+                  ref="deviceChartRef"
+                  class="chart-container"
+                />
               </el-card>
             </el-col>
           </el-row>
@@ -225,19 +409,36 @@
       title="分享短链"
       width="500px"
     >
-      <div v-loading="shareLoading" class="share-content">
+      <div
+        v-loading="shareLoading"
+        class="share-content"
+      >
         <el-form label-width="80px">
           <el-form-item label="短链地址">
-            <el-input v-model="shareData.short_url" readonly>
+            <el-input
+              v-model="shareData.short_url"
+              readonly
+            >
               <template #append>
-                <el-button @click="copyToClipboard(shareData.short_url)">复制</el-button>
+                <el-button @click="copyToClipboard(shareData.short_url)">
+                  复制
+                </el-button>
               </template>
             </el-input>
           </el-form-item>
           <el-form-item label="二维码">
             <div class="qr-code-container">
-              <img v-if="shareData.qr_code" :src="shareData.qr_code" alt="二维码" />
-              <div v-else class="qr-code-placeholder">二维码生成中...</div>
+              <img
+                v-if="shareData.qr_code"
+                :src="shareData.qr_code"
+                alt="二维码"
+              >
+              <div
+                v-else
+                class="qr-code-placeholder"
+              >
+                二维码生成中...
+              </div>
             </div>
           </el-form-item>
         </el-form>

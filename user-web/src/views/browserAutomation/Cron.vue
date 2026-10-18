@@ -1,48 +1,114 @@
 <template>
   <div class="page">
     <div class="toolbar">
-      <h2 style="margin: 0">定时触发器</h2>
+      <h2 style="margin: 0">
+        定时触发器
+      </h2>
       <el-space>
-        <el-button type="primary" icon="Plus" @click="openCreate">新建触发器</el-button>
-        <el-button @click="$router.push('/browser-automation/tasks/create')">新建 cron 任务</el-button>
+        <el-button
+          type="primary"
+          icon="Plus"
+          @click="openCreate"
+        >
+          新建触发器
+        </el-button>
+        <el-button @click="$router.push('/browser-automation/tasks/create')">
+          新建 cron 任务
+        </el-button>
       </el-space>
     </div>
 
-    <el-table :data="list" v-loading="loading">
-      <el-table-column prop="id" label="ID" width="70" />
-      <el-table-column prop="task_id" label="任务" min-width="230">
+    <el-table
+      v-loading="loading"
+      :data="list"
+    >
+      <el-table-column
+        prop="id"
+        label="ID"
+        width="70"
+      />
+      <el-table-column
+        prop="task_id"
+        label="任务"
+        min-width="230"
+      >
         <template #default="{ row }">
-          <el-link type="primary" @click="$router.push(`/browser-automation/tasks/${row.task_id}`)">#{{ row.task_id }} {{ taskName(row.task_id) }}</el-link>
+          <el-link
+            type="primary"
+            @click="$router.push(`/browser-automation/tasks/${row.task_id}`)"
+          >
+            #{{ row.task_id }} {{ taskName(row.task_id) }}
+          </el-link>
           <template v-if="carrierKnown(row.task_id)">
-            <el-tag size="small" :type="statusTagType(taskStatus(row.task_id))" class="task-tag">
+            <el-tag
+              size="small"
+              :type="statusTagType(taskStatus(row.task_id))"
+              class="task-tag"
+            >
               {{ taskStatus(row.task_id) }}
             </el-tag>
-            <div v-if="row.enabled && !taskRunnable(row.task_id)" class="task-warn">
+            <div
+              v-if="row.enabled && !taskRunnable(row.task_id)"
+              class="task-warn"
+            >
               任务状态 {{ taskStatus(row.task_id) }} 不可执行，到点只会空跑（不产生会话）——需先发布
             </div>
           </template>
           <template v-else>
-            <el-tag type="danger" size="small" class="task-tag">宿主缺失</el-tag>
+            <el-tag
+              type="danger"
+              size="small"
+              class="task-tag"
+            >
+              宿主缺失
+            </el-tag>
             <div class="task-warn">
               这条触发器的任务已不在任务列表里（可能已被删除）。它到点执行不了，请删除本条
             </div>
           </template>
         </template>
       </el-table-column>
-      <el-table-column prop="cron_expr" label="表达式" width="160" />
-      <el-table-column prop="time_zone" label="时区" width="140">
-        <template #default="{ row }">{{ row.time_zone || '服务器本地' }}</template>
-      </el-table-column>
-      <el-table-column prop="enabled" label="状态" width="100">
+      <el-table-column
+        prop="cron_expr"
+        label="表达式"
+        width="160"
+      />
+      <el-table-column
+        prop="time_zone"
+        label="时区"
+        width="140"
+      >
         <template #default="{ row }">
-          <el-tag :type="row.enabled ? 'success' : 'info'">{{ row.enabled ? '已启用' : '已停用' }}</el-tag>
+          {{ row.time_zone || '服务器本地' }}
         </template>
       </el-table-column>
-      <el-table-column prop="next_run_at" label="下次触发" width="220">
+      <el-table-column
+        prop="enabled"
+        label="状态"
+        width="100"
+      >
         <template #default="{ row }">
-          <template v-if="!row.enabled">—（已停用，不会触发）</template>
+          <el-tag :type="row.enabled ? 'success' : 'info'">
+            {{ row.enabled ? '已启用' : '已停用' }}
+          </el-tag>
+        </template>
+      </el-table-column>
+      <el-table-column
+        prop="next_run_at"
+        label="下次触发"
+        width="220"
+      >
+        <template #default="{ row }">
+          <template v-if="!row.enabled">
+            —（已停用，不会触发）
+          </template>
           <template v-else-if="!row.next_run_at">
-            <el-tag type="danger" size="small">未排程</el-tag>
+            <el-tag
+              type="danger"
+              size="small"
+            >
+              未排程
+            </el-tag>
             <span class="next-hint">启用中却算不出下次触发时间，这条不会跑——请重新保存表达式</span>
           </template>
           <template v-else>
@@ -51,14 +117,40 @@
           </template>
         </template>
       </el-table-column>
-      <el-table-column prop="last_run_at" label="上次触发" width="170">
-        <template #default="{ row }">{{ row.last_run_at ? formatTime(row.last_run_at) : '—' }}</template>
-      </el-table-column>
-      <el-table-column label="操作" width="280" fixed="right">
+      <el-table-column
+        prop="last_run_at"
+        label="上次触发"
+        width="170"
+      >
         <template #default="{ row }">
-          <el-button size="small" @click="toggle(row)">{{ row.enabled ? '停用' : '启用' }}</el-button>
-          <el-button size="small" @click="openEdit(row)">编辑</el-button>
-          <el-button size="small" type="danger" @click="remove(row)">删除</el-button>
+          {{ row.last_run_at ? formatTime(row.last_run_at) : '—' }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="操作"
+        width="280"
+        fixed="right"
+      >
+        <template #default="{ row }">
+          <el-button
+            size="small"
+            @click="toggle(row)"
+          >
+            {{ row.enabled ? '停用' : '启用' }}
+          </el-button>
+          <el-button
+            size="small"
+            @click="openEdit(row)"
+          >
+            编辑
+          </el-button>
+          <el-button
+            size="small"
+            type="danger"
+            @click="remove(row)"
+          >
+            删除
+          </el-button>
         </template>
       </el-table-column>
       <template #empty>
@@ -68,36 +160,96 @@
       </template>
     </el-table>
 
-    <el-dialog v-model="dialog.visible" :title="dialog.id ? '编辑触发器' : '新建触发器'" width="520px">
-      <el-form :model="dialog" label-width="100px">
-        <el-form-item label="任务" required>
-          <el-select v-model="dialog.task_id" :disabled="!!dialog.id" placeholder="选择 cron 类型任务" style="width: 100%">
-            <el-option v-for="t in cronTasks" :key="t.id" :label="`#${t.id} ${t.name}`" :value="t.id" />
+    <el-dialog
+      v-model="dialog.visible"
+      :title="dialog.id ? '编辑触发器' : '新建触发器'"
+      width="520px"
+    >
+      <el-form
+        :model="dialog"
+        label-width="100px"
+      >
+        <el-form-item
+          label="任务"
+          required
+        >
+          <el-select
+            v-model="dialog.task_id"
+            :disabled="!!dialog.id"
+            placeholder="选择 cron 类型任务"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="t in cronTasks"
+              :key="t.id"
+              :label="`#${t.id} ${t.name}`"
+              :value="t.id"
+            />
           </el-select>
-          <div v-if="!dialog.id && !cronTasks.length" class="form-hint">
+          <div
+            v-if="!dialog.id && !cronTasks.length"
+            class="form-hint"
+          >
             没有可选任务：先把某条任务的类型改成「定时 (cron)」并发布
           </div>
-          <div v-else-if="!dialog.id" class="form-hint">已排除现有触发器占用的任务（一条任务只能挂一个触发器）</div>
-          <div v-if="dialog.task_id && !taskRunnable(dialog.task_id)" class="form-warn">
+          <div
+            v-else-if="!dialog.id"
+            class="form-hint"
+          >
+            已排除现有触发器占用的任务（一条任务只能挂一个触发器）
+          </div>
+          <div
+            v-if="dialog.task_id && !taskRunnable(dialog.task_id)"
+            class="form-warn"
+          >
             已选任务状态为 {{ taskStatus(dialog.task_id) }}：触发器会照常排程，但到点会被执行入口拒掉、不产生会话——请先发布该任务
           </div>
         </el-form-item>
-        <el-form-item label="cron 表达式" required>
-          <el-input v-model="dialog.cron_expr" placeholder="*/5 * * * *（5 段：分 时 日 月 周）" />
-          <div class="form-hint">也接受 6 段（秒 分 时 日 月 周）。写错会直接拒，不会挂一个不跑的排程</div>
+        <el-form-item
+          label="cron 表达式"
+          required
+        >
+          <el-input
+            v-model="dialog.cron_expr"
+            placeholder="*/5 * * * *（5 段：分 时 日 月 周）"
+          />
+          <div class="form-hint">
+            也接受 6 段（秒 分 时 日 月 周）。写错会直接拒，不会挂一个不跑的排程
+          </div>
         </el-form-item>
         <el-form-item label="时区">
-          <el-select v-model="dialog.time_zone" clearable placeholder="留空=服务器本地" style="width: 100%">
-            <el-option v-for="tz in TIMEZONES" :key="tz" :label="tz" :value="tz" />
+          <el-select
+            v-model="dialog.time_zone"
+            clearable
+            placeholder="留空=服务器本地"
+            style="width: 100%"
+          >
+            <el-option
+              v-for="tz in TIMEZONES"
+              :key="tz"
+              :label="tz"
+              :value="tz"
+            />
           </el-select>
         </el-form-item>
-        <el-form-item v-if="!dialog.id" label="立即启用">
+        <el-form-item
+          v-if="!dialog.id"
+          label="立即启用"
+        >
           <el-switch v-model="dialog.enabled" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialog.visible = false">取消</el-button>
-        <el-button type="primary" :loading="dialog.saving" @click="submit">保存</el-button>
+        <el-button @click="dialog.visible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="dialog.saving"
+          @click="submit"
+        >
+          保存
+        </el-button>
       </template>
     </el-dialog>
   </div>

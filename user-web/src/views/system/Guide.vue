@@ -5,25 +5,60 @@
         <span>{{ $t('系统使用指南') }}</span>
       </template>
 
-      <el-steps :active="activeStep" finish-status="success" align-center>
-        <el-step title="初始化系统" description="完成账户注册与商户初始化" />
-        <el-step title="配置存储" description="配置 OBS/MinIO 等对象存储" />
-        <el-step title="添加素材" description="上传产品图片、视频等营销素材" />
-        <el-step title="创建卡片" description="在抖音/快手/小红书等平台创建营销卡片" />
-        <el-step title="开始营销" description="启动自动回复/RAG 智能体/邮件营销" />
+      <el-steps
+        :active="activeStep"
+        finish-status="success"
+        align-center
+      >
+        <el-step
+          title="初始化系统"
+          description="完成账户注册与商户初始化"
+        />
+        <el-step
+          title="配置存储"
+          description="配置 OBS/MinIO 等对象存储"
+        />
+        <el-step
+          title="添加素材"
+          description="上传产品图片、视频等营销素材"
+        />
+        <el-step
+          title="创建卡片"
+          description="在抖音/快手/小红书等平台创建营销卡片"
+        />
+        <el-step
+          title="开始营销"
+          description="启动自动回复/RAG 智能体/邮件营销"
+        />
       </el-steps>
 
       <el-divider />
 
       <el-row :gutter="20">
-        <el-col :span="12" v-for="step in steps" :key="step.title">
-          <el-card shadow="hover" class="step-card">
+        <el-col
+          v-for="step in steps"
+          :key="step.title"
+          :span="12"
+        >
+          <el-card
+            shadow="hover"
+            class="step-card"
+          >
             <h3>{{ step.title }}</h3>
             <p>{{ step.description }}</p>
             <ul>
-              <li v-for="(item, i) in step.details" :key="i">{{ item }}</li>
+              <li
+                v-for="(item, i) in step.details"
+                :key="i"
+              >
+                {{ item }}
+              </li>
             </ul>
-            <el-button type="primary" link @click="goTo(step.path)">
+            <el-button
+              type="primary"
+              link
+              @click="goTo(step.path)"
+            >
               前往操作 <el-icon><ArrowRight /></el-icon>
             </el-button>
           </el-card>

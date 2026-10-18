@@ -7,52 +7,115 @@
             <div class="card-header">
               <span>规则组合（拖拽构建）</span>
               <el-button-group>
-                <el-button @click="addNode('and')">+ AND 节点</el-button>
-                <el-button @click="addNode('or')">+ OR 节点</el-button>
-                <el-button @click="addNode('condition')">+ 条件</el-button>
+                <el-button @click="addNode('and')">
+                  + AND 节点
+                </el-button>
+                <el-button @click="addNode('or')">
+                  + OR 节点
+                </el-button>
+                <el-button @click="addNode('condition')">
+                  + 条件
+                </el-button>
               </el-button-group>
             </div>
           </template>
           <div class="rule-tree">
-            <RuleNode v-for="(node, i) in rules" :key="i" :node="node" :level="0" @update="(n) => rules[i] = n" @remove="removeNode(i)" />
+            <RuleNode
+              v-for="(node, i) in rules"
+              :key="i"
+              :node="node"
+              :level="0"
+              @update="(n) => rules[i] = n"
+              @remove="removeNode(i)"
+            />
           </div>
           <div class="sql-preview">
             <h4>SQL 预览</h4>
             <pre>{{ sqlPreview }}</pre>
-            <el-statistic :value="sqlCount" title="将命中客户数" />
+            <el-statistic
+              :value="sqlCount"
+              title="将命中客户数"
+            />
           </div>
         </el-card>
       </el-col>
       <el-col :span="8">
         <el-card>
-          <template #header><span>触发器</span></template>
-          <el-form :model="trigger" label-width="80px">
+          <template #header>
+            <span>触发器</span>
+          </template>
+          <el-form
+            :model="trigger"
+            label-width="80px"
+          >
             <el-form-item label="触发方式">
               <el-radio-group v-model="trigger.type">
-                <el-radio label="manual">手动</el-radio>
-                <el-radio label="schedule">定时</el-radio>
-                <el-radio label="event">事件触发</el-radio>
+                <el-radio label="manual">
+                  手动
+                </el-radio>
+                <el-radio label="schedule">
+                  定时
+                </el-radio>
+                <el-radio label="event">
+                  事件触发
+                </el-radio>
               </el-radio-group>
             </el-form-item>
-            <el-form-item v-if="trigger.type === 'schedule'" label="Cron">
-              <el-input v-model="trigger.cron" placeholder="0 0 9 * * ?" />
+            <el-form-item
+              v-if="trigger.type === 'schedule'"
+              label="Cron"
+            >
+              <el-input
+                v-model="trigger.cron"
+                placeholder="0 0 9 * * ?"
+              />
             </el-form-item>
-            <el-form-item v-if="trigger.type === 'event'" label="事件">
+            <el-form-item
+              v-if="trigger.type === 'event'"
+              label="事件"
+            >
               <el-select v-model="trigger.event">
-                <el-option label="新客户进入" value="customer.created" />
-                <el-option label="订单完成" value="order.completed" />
-                <el-option label="高价值行为" value="behavior.high_value" />
+                <el-option
+                  label="新客户进入"
+                  value="customer.created"
+                />
+                <el-option
+                  label="订单完成"
+                  value="order.completed"
+                />
+                <el-option
+                  label="高价值行为"
+                  value="behavior.high_value"
+                />
               </el-select>
             </el-form-item>
             <el-form-item label="同步到">
-              <el-select v-model="trigger.sink" multiple>
-                <el-option label="触达 Pipeline" value="reach" />
-                <el-option label="客服队列" value="cs" />
-                <el-option label="群发任务" value="bulk" />
+              <el-select
+                v-model="trigger.sink"
+                multiple
+              >
+                <el-option
+                  label="触达 Pipeline"
+                  value="reach"
+                />
+                <el-option
+                  label="客服队列"
+                  value="cs"
+                />
+                <el-option
+                  label="群发任务"
+                  value="bulk"
+                />
               </el-select>
             </el-form-item>
           </el-form>
-          <el-button type="primary" style="width: 100%" @click="save">保存分群</el-button>
+          <el-button
+            type="primary"
+            style="width: 100%"
+            @click="save"
+          >
+            保存分群
+          </el-button>
         </el-card>
       </el-col>
     </el-row>

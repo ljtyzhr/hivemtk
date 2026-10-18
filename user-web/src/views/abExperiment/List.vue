@@ -1,187 +1,492 @@
 <template>
   <div class="ab-experiment">
     <el-card class="filter-container">
-      <div class="stats-row" v-if="stats">
+      <div
+        v-if="stats"
+        class="stats-row"
+      >
         <div class="stat-card">
-          <div class="stat-value">{{ stats.running }}</div>
-          <div class="stat-label">{{ t('ab.running') }}</div>
+          <div class="stat-value">
+            {{ stats.running }}
+          </div>
+          <div class="stat-label">
+            {{ t('ab.running') }}
+          </div>
         </div>
         <div class="stat-card">
-          <div class="stat-value">{{ stats.completed }}</div>
-          <div class="stat-label">{{ t('ab.completed') }}</div>
+          <div class="stat-value">
+            {{ stats.completed }}
+          </div>
+          <div class="stat-label">
+            {{ t('ab.completed') }}
+          </div>
         </div>
         <div class="stat-card">
-          <div class="stat-value">{{ stats.winner }}</div>
-          <div class="stat-label">{{ t('ab.winner') }}</div>
+          <div class="stat-value">
+            {{ stats.winner }}
+          </div>
+          <div class="stat-label">
+            {{ t('ab.winner') }}
+          </div>
         </div>
         <div class="stat-card">
-          <div class="stat-value">{{ stats.totalUsers }}</div>
-          <div class="stat-label">{{ t('ab.totalUsers') }}</div>
+          <div class="stat-value">
+            {{ stats.totalUsers }}
+          </div>
+          <div class="stat-label">
+            {{ t('ab.totalUsers') }}
+          </div>
         </div>
       </div>
 
-      <el-form :inline="true" class="filter-form">
+      <el-form
+        :inline="true"
+        class="filter-form"
+      >
         <el-form-item :label="t('ab.status')">
-          <el-select v-model="statusFilter" :placeholder="t('common.all')" clearable style="width: 140px">
-            <el-option label="Draft" value="draft" />
-            <el-option label="Running" value="running" />
-            <el-option label="Paused" value="paused" />
-            <el-option label="Completed" value="completed" />
+          <el-select
+            v-model="statusFilter"
+            :placeholder="t('common.all')"
+            clearable
+            style="width: 140px"
+          >
+            <el-option
+              label="Draft"
+              value="draft"
+            />
+            <el-option
+              label="Running"
+              value="running"
+            />
+            <el-option
+              label="Paused"
+              value="paused"
+            />
+            <el-option
+              label="Completed"
+              value="completed"
+            />
           </el-select>
         </el-form-item>
         <el-form-item :label="t('ab.experimentName')">
-          <el-input v-model="searchKeyword" :placeholder="t('ab.experimentNamePlaceholder')" clearable style="width: 200px" />
+          <el-input
+            v-model="searchKeyword"
+            :placeholder="t('ab.experimentNamePlaceholder')"
+            clearable
+            style="width: 200px"
+          />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="handleSearch">{{ t('common.search') }}</el-button>
-          <el-button @click="handleReset">{{ t('common.reset') }}</el-button>
-          <el-button @click="refreshData">{{ t('common.refresh') }}</el-button>
-          <el-button type="success" @click="showCreateDialog">{{ t('ab.newExperiment') }}</el-button>
+          <el-button
+            type="primary"
+            @click="handleSearch"
+          >
+            {{ t('common.search') }}
+          </el-button>
+          <el-button @click="handleReset">
+            {{ t('common.reset') }}
+          </el-button>
+          <el-button @click="refreshData">
+            {{ t('common.refresh') }}
+          </el-button>
+          <el-button
+            type="success"
+            @click="showCreateDialog"
+          >
+            {{ t('ab.newExperiment') }}
+          </el-button>
         </el-form-item>
       </el-form>
     </el-card>
 
     <el-card>
-      <el-table :data="filteredExperiments" v-loading="loading" stripe>
-        <el-table-column prop="name" :label="t('ab.experimentName')" min-width="160" />
-        <el-table-column :label="t('ab.sourceType')" min-width="160">
+      <el-table
+        v-loading="loading"
+        :data="filteredExperiments"
+        stripe
+      >
+        <el-table-column
+          prop="name"
+          :label="t('ab.experimentName')"
+          min-width="160"
+        />
+        <el-table-column
+          :label="t('ab.sourceType')"
+          min-width="160"
+        >
           <template #default="{ row }">
             <span>{{ row.source_type || '-' }}</span>
-            <span v-if="row.source_id" class="source-id">#{{ row.source_id }}</span>
+            <span
+              v-if="row.source_id"
+              class="source-id"
+            >#{{ row.source_id }}</span>
           </template>
         </el-table-column>
-        <el-table-column :label="t('ab.trafficSplit')" width="120">
-          <template #default="{ row }">{{ row.traffic_split || 0 }}%</template>
-        </el-table-column>
-        <el-table-column :label="t('ab.status')" width="120">
+        <el-table-column
+          :label="t('ab.trafficSplit')"
+          width="120"
+        >
           <template #default="{ row }">
-            <el-tag :type="statusTagType(row.status)">{{ statusLabel(row.status) }}</el-tag>
+            {{ row.traffic_split || 0 }}%
           </template>
         </el-table-column>
-        <el-table-column :label="t('ab.startDate')" width="120">
-          <template #default="{ row }">{{ fmtDate(row.start_date) }}</template>
-        </el-table-column>
-        <el-table-column :label="t('ab.endDate')" width="120">
-          <template #default="{ row }">{{ fmtDate(row.end_date) }}</template>
-        </el-table-column>
-        <el-table-column :label="t('ab.operation')" width="240" fixed="right">
+        <el-table-column
+          :label="t('ab.status')"
+          width="120"
+        >
           <template #default="{ row }">
-            <el-button size="small" @click="showDetail(row)">{{ t('ab.detail') }}</el-button>
-            <el-button size="small" type="primary" @click="showEditDialog(row)">{{ t('ab.edit') }}</el-button>
+            <el-tag :type="statusTagType(row.status)">
+              {{ statusLabel(row.status) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column
+          :label="t('ab.startDate')"
+          width="120"
+        >
+          <template #default="{ row }">
+            {{ fmtDate(row.start_date) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          :label="t('ab.endDate')"
+          width="120"
+        >
+          <template #default="{ row }">
+            {{ fmtDate(row.end_date) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          :label="t('ab.operation')"
+          width="240"
+          fixed="right"
+        >
+          <template #default="{ row }">
+            <el-button
+              size="small"
+              @click="showDetail(row)"
+            >
+              {{ t('ab.detail') }}
+            </el-button>
+            <el-button
+              size="small"
+              type="primary"
+              @click="showEditDialog(row)"
+            >
+              {{ t('ab.edit') }}
+            </el-button>
             <el-button
               v-if="row.status === 'running'"
               size="small"
               type="warning"
               @click="handlePause(row)"
-            >{{ t('ab.pause') }}</el-button>
+            >
+              {{ t('ab.pause') }}
+            </el-button>
             <el-button
               v-else-if="row.status !== 'completed'"
               size="small"
               type="success"
               @click="handleStart(row)"
-            >{{ t('ab.resume') }}</el-button>
-            <el-button size="small" type="danger" @click="handleDelete(row)">{{ t('ab.delete') }}</el-button>
+            >
+              {{ t('ab.resume') }}
+            </el-button>
+            <el-button
+              size="small"
+              type="danger"
+              @click="handleDelete(row)"
+            >
+              {{ t('ab.delete') }}
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
     </el-card>
 
     
-    <el-dialog :title="editingId ? t('ab.edit') : t('ab.create')" v-model="createDialogVisible" width="720px">
-      <el-form :model="createForm" label-width="120px">
-        <el-form-item :label="t('ab.experimentName')" required>
-          <el-input v-model="createForm.name" :placeholder="t('ab.experimentNamePlaceholder')" />
+    <el-dialog
+      v-model="createDialogVisible"
+      :title="editingId ? t('ab.edit') : t('ab.create')"
+      width="720px"
+    >
+      <el-form
+        :model="createForm"
+        label-width="120px"
+      >
+        <el-form-item
+          :label="t('ab.experimentName')"
+          required
+        >
+          <el-input
+            v-model="createForm.name"
+            :placeholder="t('ab.experimentNamePlaceholder')"
+          />
         </el-form-item>
-        <el-form-item :label="t('ab.sourceType')" required>
-          <el-select v-model="createForm.source_type" :placeholder="t('ab.sourceTypePlaceholder')" style="width: 100%">
-            <el-option :label="t('ab.sourceTypePage')" value="page" />
-            <el-option :label="t('ab.sourceTypeComponent')" value="component" />
-            <el-option :label="t('ab.sourceTypeMessage')" value="message" />
-            <el-option :label="t('ab.sourceTypeOther')" value="other" />
+        <el-form-item
+          :label="t('ab.sourceType')"
+          required
+        >
+          <el-select
+            v-model="createForm.source_type"
+            :placeholder="t('ab.sourceTypePlaceholder')"
+            style="width: 100%"
+          >
+            <el-option
+              :label="t('ab.sourceTypePage')"
+              value="page"
+            />
+            <el-option
+              :label="t('ab.sourceTypeComponent')"
+              value="component"
+            />
+            <el-option
+              :label="t('ab.sourceTypeMessage')"
+              value="message"
+            />
+            <el-option
+              :label="t('ab.sourceTypeOther')"
+              value="other"
+            />
           </el-select>
         </el-form-item>
-        <el-form-item :label="t('ab.sourceId')" required>
-          <el-input v-model="createForm.source_id" :placeholder="t('ab.sourceIdPlaceholder')" />
+        <el-form-item
+          :label="t('ab.sourceId')"
+          required
+        >
+          <el-input
+            v-model="createForm.source_id"
+            :placeholder="t('ab.sourceIdPlaceholder')"
+          />
         </el-form-item>
         <el-form-item :label="t('ab.description')">
-          <el-input v-model="createForm.description" type="textarea" :rows="2" :placeholder="t('ab.descriptionPlaceholder')" />
+          <el-input
+            v-model="createForm.description"
+            type="textarea"
+            :rows="2"
+            :placeholder="t('ab.descriptionPlaceholder')"
+          />
         </el-form-item>
         <el-form-item :label="t('ab.trafficSplit')">
-          <el-slider v-model="createForm.traffic_split" :min="0" :max="100" show-input style="width: 100%" />
+          <el-slider
+            v-model="createForm.traffic_split"
+            :min="0"
+            :max="100"
+            show-input
+            style="width: 100%"
+          />
         </el-form-item>
         <el-form-item :label="t('ab.startDate')">
-          <el-date-picker v-model="createForm.start_date" type="date" :placeholder="t('ab.startDate')" value-format="YYYY-MM-DD" />
+          <el-date-picker
+            v-model="createForm.start_date"
+            type="date"
+            :placeholder="t('ab.startDate')"
+            value-format="YYYY-MM-DD"
+          />
         </el-form-item>
         <el-form-item :label="t('ab.endDate')">
-          <el-date-picker v-model="createForm.end_date" type="date" :placeholder="t('ab.endDate')" value-format="YYYY-MM-DD" />
+          <el-date-picker
+            v-model="createForm.end_date"
+            type="date"
+            :placeholder="t('ab.endDate')"
+            value-format="YYYY-MM-DD"
+          />
         </el-form-item>
         <el-form-item :label="t('ab.addVariant')">
           <div class="variants">
-            <div v-for="(v, idx) in createForm.variants" :key="idx" class="variant-row">
-              <el-input v-model="v.name" :placeholder="t('ab.variantName')" style="width: 140px" />
-              <el-checkbox v-model="v.is_control">{{ t('ab.isControl') }}</el-checkbox>
-              <el-input-number v-model="v.weight" :min="0" :max="100" :placeholder="t('ab.weight')" />
-              <el-button type="danger" text @click="removeVariant(idx)">{{ t('ab.removeVariant') }}</el-button>
+            <div
+              v-for="(v, idx) in createForm.variants"
+              :key="idx"
+              class="variant-row"
+            >
+              <el-input
+                v-model="v.name"
+                :placeholder="t('ab.variantName')"
+                style="width: 140px"
+              />
+              <el-checkbox v-model="v.is_control">
+                {{ t('ab.isControl') }}
+              </el-checkbox>
+              <el-input-number
+                v-model="v.weight"
+                :min="0"
+                :max="100"
+                :placeholder="t('ab.weight')"
+              />
+              <el-button
+                type="danger"
+                text
+                @click="removeVariant(idx)"
+              >
+                {{ t('ab.removeVariant') }}
+              </el-button>
             </div>
-            <el-button @click="addVariant">{{ t('ab.addVariant') }}</el-button>
+            <el-button @click="addVariant">
+              {{ t('ab.addVariant') }}
+            </el-button>
           </div>
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="createDialogVisible = false">{{ t('common.cancel') }}</el-button>
-        <el-button type="primary" :loading="submitting" @click="submitForm">{{ t('common.confirm') }}</el-button>
+        <el-button @click="createDialogVisible = false">
+          {{ t('common.cancel') }}
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="submitting"
+          @click="submitForm"
+        >
+          {{ t('common.confirm') }}
+        </el-button>
       </template>
     </el-dialog>
 
     
-    <el-dialog :title="t('ab.detail')" v-model="detailDialogVisible" width="760px">
+    <el-dialog
+      v-model="detailDialogVisible"
+      :title="t('ab.detail')"
+      width="760px"
+    >
       <template v-if="detailData">
-        <el-descriptions :column="2" border>
-          <el-descriptions-item :label="t('ab.experimentName')">{{ detailData.name }}</el-descriptions-item>
-          <el-descriptions-item :label="t('ab.status')">
-            <el-tag :type="statusTagType(detailData.status)">{{ statusLabel(detailData.status) }}</el-tag>
+        <el-descriptions
+          :column="2"
+          border
+        >
+          <el-descriptions-item :label="t('ab.experimentName')">
+            {{ detailData.name }}
           </el-descriptions-item>
-          <el-descriptions-item :label="t('ab.sourceType')">{{ detailData.source_type }}</el-descriptions-item>
-          <el-descriptions-item :label="t('ab.sourceId')">{{ detailData.source_id }}</el-descriptions-item>
-          <el-descriptions-item :label="t('ab.trafficSplit')">{{ detailData.traffic_split || 0 }}%</el-descriptions-item>
-          <el-descriptions-item :label="t('ab.startDate')">{{ fmtDate(detailData.start_date) }}</el-descriptions-item>
-          <el-descriptions-item :label="t('ab.endDate')">{{ fmtDate(detailData.end_date) }}</el-descriptions-item>
-          <el-descriptions-item :label="t('ab.description')">{{ detailData.description || '-' }}</el-descriptions-item>
+          <el-descriptions-item :label="t('ab.status')">
+            <el-tag :type="statusTagType(detailData.status)">
+              {{ statusLabel(detailData.status) }}
+            </el-tag>
+          </el-descriptions-item>
+          <el-descriptions-item :label="t('ab.sourceType')">
+            {{ detailData.source_type }}
+          </el-descriptions-item>
+          <el-descriptions-item :label="t('ab.sourceId')">
+            {{ detailData.source_id }}
+          </el-descriptions-item>
+          <el-descriptions-item :label="t('ab.trafficSplit')">
+            {{ detailData.traffic_split || 0 }}%
+          </el-descriptions-item>
+          <el-descriptions-item :label="t('ab.startDate')">
+            {{ fmtDate(detailData.start_date) }}
+          </el-descriptions-item>
+          <el-descriptions-item :label="t('ab.endDate')">
+            {{ fmtDate(detailData.end_date) }}
+          </el-descriptions-item>
+          <el-descriptions-item :label="t('ab.description')">
+            {{ detailData.description || '-' }}
+          </el-descriptions-item>
         </el-descriptions>
 
-        <div class="results-title">{{ t('ab.results') }}</div>
-        <el-table :data="results" v-loading="resultsLoading" stripe empty-text="No data">
-          <el-table-column prop="variant_name" :label="t('ab.resultVariant')" />
-          <el-table-column prop="traffic_count" :label="t('ab.resultTraffic')" />
-          <el-table-column prop="conversion_count" :label="t('ab.resultConversion')" />
+        <div class="results-title">
+          {{ t('ab.results') }}
+        </div>
+        <el-table
+          v-loading="resultsLoading"
+          :data="results"
+          stripe
+          empty-text="No data"
+        >
+          <el-table-column
+            prop="variant_name"
+            :label="t('ab.resultVariant')"
+          />
+          <el-table-column
+            prop="traffic_count"
+            :label="t('ab.resultTraffic')"
+          />
+          <el-table-column
+            prop="conversion_count"
+            :label="t('ab.resultConversion')"
+          />
           <el-table-column :label="t('ab.resultRate')">
-            <template #default="{ row }">{{ (row.conversion_rate || 0).toFixed(2) }}%</template>
+            <template #default="{ row }">
+              {{ (row.conversion_rate || 0).toFixed(2) }}%
+            </template>
           </el-table-column>
           <el-table-column :label="t('ab.winner')">
             <template #default="{ row }">
-              <el-tag v-if="row.is_winner" type="success">Winner</el-tag>
+              <el-tag
+                v-if="row.is_winner"
+                type="success"
+              >
+                Winner
+              </el-tag>
               <span v-else>-</span>
             </template>
           </el-table-column>
         </el-table>
 
-        <div class="results-title">{{ t('ab.advanced') }}</div>
-        <div class="adv-actions">
-          <el-button size="small" :loading="advLoading === 'stats'" @click="loadAdv('stats')">{{ t('ab.advStats') }}</el-button>
-          <el-button size="small" :loading="advLoading === 'bayes'" @click="loadAdv('bayes')">{{ t('ab.advBayes') }}</el-button>
-          <el-button size="small" :loading="advLoading === 'seq'" @click="loadAdv('seq')">{{ t('ab.advSequential') }}</el-button>
-          <el-button size="small" :loading="advLoading === 'cuped'" @click="loadAdv('cuped')">{{ t('ab.advCuped') }}</el-button>
-          <el-button size="small" :loading="advLoading === 'diag'" @click="loadAdv('diag')">{{ t('ab.advDiagnostics') }}</el-button>
+        <div class="results-title">
+          {{ t('ab.advanced') }}
         </div>
-        <div v-if="advError" class="adv-error">{{ t('ab.advFailed') }}：{{ advError }}</div>
-        <el-descriptions v-if="advResult" :column="1" border size="small" class="adv-result">
-          <el-descriptions-item v-for="(val, key) in advResult" :key="key" :label="String(key)">
+        <div class="adv-actions">
+          <el-button
+            size="small"
+            :loading="advLoading === 'stats'"
+            @click="loadAdv('stats')"
+          >
+            {{ t('ab.advStats') }}
+          </el-button>
+          <el-button
+            size="small"
+            :loading="advLoading === 'bayes'"
+            @click="loadAdv('bayes')"
+          >
+            {{ t('ab.advBayes') }}
+          </el-button>
+          <el-button
+            size="small"
+            :loading="advLoading === 'seq'"
+            @click="loadAdv('seq')"
+          >
+            {{ t('ab.advSequential') }}
+          </el-button>
+          <el-button
+            size="small"
+            :loading="advLoading === 'cuped'"
+            @click="loadAdv('cuped')"
+          >
+            {{ t('ab.advCuped') }}
+          </el-button>
+          <el-button
+            size="small"
+            :loading="advLoading === 'diag'"
+            @click="loadAdv('diag')"
+          >
+            {{ t('ab.advDiagnostics') }}
+          </el-button>
+        </div>
+        <div
+          v-if="advError"
+          class="adv-error"
+        >
+          {{ t('ab.advFailed') }}：{{ advError }}
+        </div>
+        <el-descriptions
+          v-if="advResult"
+          :column="1"
+          border
+          size="small"
+          class="adv-result"
+        >
+          <el-descriptions-item
+            v-for="(val, key) in advResult"
+            :key="key"
+            :label="String(key)"
+          >
             <span v-if="val === null || val === undefined || val === ''">-</span>
             <span v-else-if="typeof val === 'object'">{{ JSON.stringify(val) }}</span>
             <span v-else>{{ val }}</span>
           </el-descriptions-item>
         </el-descriptions>
-        <div v-else-if="!advLoading" class="adv-empty">{{ t('ab.advEmpty') }}</div>
+        <div
+          v-else-if="!advLoading"
+          class="adv-empty"
+        >
+          {{ t('ab.advEmpty') }}
+        </div>
       </template>
     </el-dialog>
   </div>

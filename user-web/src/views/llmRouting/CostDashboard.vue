@@ -1,28 +1,47 @@
 <template>
   <div class="llm-cost">
-    <el-row :gutter="16" class="stats-row">
+    <el-row
+      :gutter="16"
+      class="stats-row"
+    >
       <el-col :span="6">
         <el-card class="stat-card">
-          <div class="stat-label">总成本（30 天）</div>
-          <div class="stat-value">¥{{ Number(stats.total_cost || 0).toFixed(2) }}</div>
+          <div class="stat-label">
+            总成本（30 天）
+          </div>
+          <div class="stat-value">
+            ¥{{ Number(stats.total_cost || 0).toFixed(2) }}
+          </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card class="stat-card">
-          <div class="stat-label">总 Token</div>
-          <div class="stat-value">{{ formatNumber(stats.total_tokens) }}</div>
+          <div class="stat-label">
+            总 Token
+          </div>
+          <div class="stat-value">
+            {{ formatNumber(stats.total_tokens) }}
+          </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card class="stat-card warning">
-          <div class="stat-label">失败调用</div>
-          <div class="stat-value">{{ stats.total_failed || 0 }}</div>
+          <div class="stat-label">
+            失败调用
+          </div>
+          <div class="stat-value">
+            {{ stats.total_failed || 0 }}
+          </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card class="stat-card success">
-          <div class="stat-label">调用成功率</div>
-          <div class="stat-value">{{ stats.total_calls ? Math.round(stats.total_success / stats.total_calls * 100) : 0 }}%</div>
+          <div class="stat-label">
+            调用成功率
+          </div>
+          <div class="stat-value">
+            {{ stats.total_calls ? Math.round(stats.total_success / stats.total_calls * 100) : 0 }}%
+          </div>
         </el-card>
       </el-col>
     </el-row>
@@ -30,14 +49,24 @@
     <el-row :gutter="16">
       <el-col :span="16">
         <el-card>
-          <template #header><span>成本趋势（30 天）</span></template>
-          <div ref="trendRef" class="chart" />
+          <template #header>
+            <span>成本趋势（30 天）</span>
+          </template>
+          <div
+            ref="trendRef"
+            class="chart"
+          />
         </el-card>
       </el-col>
       <el-col :span="8">
         <el-card>
-          <template #header><span>模型分布</span></template>
-          <div ref="distRef" class="chart" />
+          <template #header>
+            <span>模型分布</span>
+          </template>
+          <div
+            ref="distRef"
+            class="chart"
+          />
         </el-card>
       </el-col>
     </el-row>
@@ -46,21 +75,52 @@
       <template #header>
         <div class="card-header">
           <span>场景维度</span>
-          <el-radio-group v-model="breakdown" size="small">
-            <el-radio-button label="scenario">按场景</el-radio-button>
-            <el-radio-button label="model">按模型</el-radio-button>
-            <el-radio-button label="agent">按智能体</el-radio-button>
+          <el-radio-group
+            v-model="breakdown"
+            size="small"
+          >
+            <el-radio-button label="scenario">
+              按场景
+            </el-radio-button>
+            <el-radio-button label="model">
+              按模型
+            </el-radio-button>
+            <el-radio-button label="agent">
+              按智能体
+            </el-radio-button>
           </el-radio-group>
         </div>
       </template>
-      <el-table :data="breakdownData" v-loading="loading">
-        <el-table-column prop="name" :label="breakdownName" />
-        <el-table-column prop="call_count" label="调用次数" width="120" />
-        <el-table-column prop="total_tokens" label="Token" width="120">
-          <template #default="{ row }">{{ formatNumber(row.total_tokens) }}</template>
+      <el-table
+        v-loading="loading"
+        :data="breakdownData"
+      >
+        <el-table-column
+          prop="name"
+          :label="breakdownName"
+        />
+        <el-table-column
+          prop="call_count"
+          label="调用次数"
+          width="120"
+        />
+        <el-table-column
+          prop="total_tokens"
+          label="Token"
+          width="120"
+        >
+          <template #default="{ row }">
+            {{ formatNumber(row.total_tokens) }}
+          </template>
         </el-table-column>
-        <el-table-column prop="total_cost" label="成本(¥)" width="120">
-          <template #default="{ row }">{{ Number(row.total_cost || 0).toFixed(4) }}</template>
+        <el-table-column
+          prop="total_cost"
+          label="成本(¥)"
+          width="120"
+        >
+          <template #default="{ row }">
+            {{ Number(row.total_cost || 0).toFixed(4) }}
+          </template>
         </el-table-column>
       </el-table>
     </el-card>

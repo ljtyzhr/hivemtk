@@ -3,50 +3,75 @@
     <el-card class="header-card">
       <div>
         <h2>{{ $t('安全审计') }}</h2>
-        <p class="subtitle">{{ $t('系统安全检查、风险评估、异常告警追踪') }}</p>
+        <p class="subtitle">
+          {{ $t('系统安全检查、风险评估、异常告警追踪') }}
+        </p>
       </div>
       <div>
         <el-button @click="loadData">
           <el-icon><Refresh /></el-icon>
           {{ $t('刷新') }}
         </el-button>
-        <el-button type="primary" :loading="running" @click="runAudit">
+        <el-button
+          type="primary"
+          :loading="running"
+          @click="runAudit"
+        >
           <el-icon><VideoPlay /></el-icon>
           {{ $t('立即审计') }}
         </el-button>
       </div>
     </el-card>
 
-    <el-row :gutter="20" class="stat-row">
+    <el-row
+      :gutter="20"
+      class="stat-row"
+    >
       <el-col :span="6">
         <el-card>
           <div class="stat-item">
-            <div class="stat-label">{{ $t('审计总数') }}</div>
-            <div class="stat-value">{{ pagination.total }}</div>
+            <div class="stat-label">
+              {{ $t('审计总数') }}
+            </div>
+            <div class="stat-value">
+              {{ pagination.total }}
+            </div>
           </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card>
           <div class="stat-item">
-            <div class="stat-label">{{ $t('高风险') }}</div>
-            <div class="stat-value danger">{{ stats.high }}</div>
+            <div class="stat-label">
+              {{ $t('高风险') }}
+            </div>
+            <div class="stat-value danger">
+              {{ stats.high }}
+            </div>
           </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card>
           <div class="stat-item">
-            <div class="stat-label">{{ $t('中风险') }}</div>
-            <div class="stat-value warning">{{ stats.medium }}</div>
+            <div class="stat-label">
+              {{ $t('中风险') }}
+            </div>
+            <div class="stat-value warning">
+              {{ stats.medium }}
+            </div>
           </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card>
           <div class="stat-item">
-            <div class="stat-label">{{ $t('低风险') }}</div>
-            <div class="stat-value success">{{ stats.low }}</div>
+            <div class="stat-label">
+              {{ $t('低风险') }}
+            </div>
+            <div class="stat-value success">
+              {{ stats.low }}
+            </div>
           </div>
         </el-card>
       </el-col>
@@ -54,12 +79,34 @@
 
     <el-card>
       <div class="filter-bar">
-        <el-input v-model="searchKeyword" :placeholder="$t('搜索审计名称')" clearable style="width: 220px" />
-        <el-select v-model="filterRisk" :placeholder="$t('风险等级')" clearable style="width: 150px">
-          <el-option :label="$t('高风险')" value="high" />
-          <el-option :label="$t('中风险')" value="medium" />
-          <el-option :label="$t('低风险')" value="low" />
-          <el-option :label="$t('无风险')" value="none" />
+        <el-input
+          v-model="searchKeyword"
+          :placeholder="$t('搜索审计名称')"
+          clearable
+          style="width: 220px"
+        />
+        <el-select
+          v-model="filterRisk"
+          :placeholder="$t('风险等级')"
+          clearable
+          style="width: 150px"
+        >
+          <el-option
+            :label="$t('高风险')"
+            value="high"
+          />
+          <el-option
+            :label="$t('中风险')"
+            value="medium"
+          />
+          <el-option
+            :label="$t('低风险')"
+            value="low"
+          />
+          <el-option
+            :label="$t('无风险')"
+            value="none"
+          />
         </el-select>
         <el-date-picker
           v-model="dateRange"
@@ -75,50 +122,114 @@
         </el-button>
       </div>
 
-      <el-table :data="filteredAudits" v-loading="loading" stripe>
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column prop="audit_name" :label="$t('审计名称')" min-width="180" show-overflow-tooltip />
-        <el-table-column prop="risk_level" :label="$t('风险等级')" width="110" align="center">
+      <el-table
+        v-loading="loading"
+        :data="filteredAudits"
+        stripe
+      >
+        <el-table-column
+          prop="id"
+          label="ID"
+          width="80"
+        />
+        <el-table-column
+          prop="audit_name"
+          :label="$t('审计名称')"
+          min-width="180"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          prop="risk_level"
+          :label="$t('风险等级')"
+          width="110"
+          align="center"
+        >
           <template #default="{ row }">
-            <el-tag :type="getRiskType(row.risk_level)" size="small">
+            <el-tag
+              :type="getRiskType(row.risk_level)"
+              size="small"
+            >
               {{ getRiskText(row.risk_level) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="total_checks" label="检查项" width="100" align="center" />
-        <el-table-column prop="passed" label="通过" width="90" align="center">
+        <el-table-column
+          prop="total_checks"
+          label="检查项"
+          width="100"
+          align="center"
+        />
+        <el-table-column
+          prop="passed"
+          label="通过"
+          width="90"
+          align="center"
+        >
           <template #default="{ row }">
             <span class="pass-count">{{ row.passed || 0 }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="failed" label="失败" width="90" align="center">
+        <el-table-column
+          prop="failed"
+          label="失败"
+          width="90"
+          align="center"
+        >
           <template #default="{ row }">
             <span class="fail-count">{{ row.failed || 0 }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="warnings" label="警告" width="90" align="center">
+        <el-table-column
+          prop="warnings"
+          label="警告"
+          width="90"
+          align="center"
+        >
           <template #default="{ row }">
             <span class="warn-count">{{ row.warnings || 0 }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="score" label="评分" width="100" align="center">
+        <el-table-column
+          prop="score"
+          label="评分"
+          width="100"
+          align="center"
+        >
           <template #default="{ row }">
             <span :class="getScoreClass(row.score)">{{ row.score ?? '-' }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="started_at" label="开始时间" min-width="170">
+        <el-table-column
+          prop="started_at"
+          label="开始时间"
+          min-width="170"
+        >
           <template #default="{ row }">
             {{ formatTime(row.started_at) }}
           </template>
         </el-table-column>
-        <el-table-column prop="finished_at" label="完成时间" min-width="170">
+        <el-table-column
+          prop="finished_at"
+          label="完成时间"
+          min-width="170"
+        >
           <template #default="{ row }">
             {{ formatTime(row.finished_at) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="100" fixed="right">
+        <el-table-column
+          label="操作"
+          width="100"
+          fixed="right"
+        >
           <template #default="{ row }">
-            <el-button link type="primary" @click="viewDetail(row)">详情</el-button>
+            <el-button
+              link
+              type="primary"
+              @click="viewDetail(row)"
+            >
+              详情
+            </el-button>
           </template>
         </el-table-column>
         <template #empty>
@@ -132,55 +243,111 @@
         :total="pagination.total"
         :page-sizes="[10, 20, 50, 100]"
         layout="total, sizes, prev, pager, next, jumper"
+        style="margin-top: 15px; text-align: right"
         @current-change="loadData"
         @size-change="loadData"
-        style="margin-top: 15px; text-align: right"
       />
     </el-card>
 
     
-    <el-dialog v-model="detailVisible" title="审计详情" width="780px">
+    <el-dialog
+      v-model="detailVisible"
+      title="审计详情"
+      width="780px"
+    >
       <div v-if="detailRecord">
-        <el-descriptions :column="2" border>
-          <el-descriptions-item label="审计ID">{{ detailRecord.id }}</el-descriptions-item>
-          <el-descriptions-item label="审计名称">{{ detailRecord.audit_name }}</el-descriptions-item>
+        <el-descriptions
+          :column="2"
+          border
+        >
+          <el-descriptions-item label="审计ID">
+            {{ detailRecord.id }}
+          </el-descriptions-item>
+          <el-descriptions-item label="审计名称">
+            {{ detailRecord.audit_name }}
+          </el-descriptions-item>
           <el-descriptions-item label="风险等级">
-            <el-tag :type="getRiskType(detailRecord.risk_level)" size="small">
+            <el-tag
+              :type="getRiskType(detailRecord.risk_level)"
+              size="small"
+            >
               {{ getRiskText(detailRecord.risk_level) }}
             </el-tag>
           </el-descriptions-item>
           <el-descriptions-item label="评分">
             <span :class="getScoreClass(detailRecord.score)">{{ detailRecord.score ?? '-' }}</span>
           </el-descriptions-item>
-          <el-descriptions-item label="检查项数">{{ detailRecord.total_checks || 0 }}</el-descriptions-item>
+          <el-descriptions-item label="检查项数">
+            {{ detailRecord.total_checks || 0 }}
+          </el-descriptions-item>
           <el-descriptions-item label="通过/失败/警告">
             <span class="pass-count">{{ detailRecord.passed || 0 }}</span> /
             <span class="fail-count">{{ detailRecord.failed || 0 }}</span> /
             <span class="warn-count">{{ detailRecord.warnings || 0 }}</span>
           </el-descriptions-item>
-          <el-descriptions-item label="开始时间">{{ formatTime(detailRecord.started_at) }}</el-descriptions-item>
-          <el-descriptions-item label="完成时间">{{ formatTime(detailRecord.finished_at) }}</el-descriptions-item>
+          <el-descriptions-item label="开始时间">
+            {{ formatTime(detailRecord.started_at) }}
+          </el-descriptions-item>
+          <el-descriptions-item label="完成时间">
+            {{ formatTime(detailRecord.finished_at) }}
+          </el-descriptions-item>
         </el-descriptions>
 
-        <h3 class="section-title">检查项明细</h3>
-        <el-table :data="detailItems" v-loading="detailLoading" max-height="360" border>
-          <el-table-column prop="name" label="检查项" min-width="180" />
-          <el-table-column prop="category" label="类别" width="120" />
-          <el-table-column prop="level" label="级别" width="100" align="center">
+        <h3 class="section-title">
+          检查项明细
+        </h3>
+        <el-table
+          v-loading="detailLoading"
+          :data="detailItems"
+          max-height="360"
+          border
+        >
+          <el-table-column
+            prop="name"
+            label="检查项"
+            min-width="180"
+          />
+          <el-table-column
+            prop="category"
+            label="类别"
+            width="120"
+          />
+          <el-table-column
+            prop="level"
+            label="级别"
+            width="100"
+            align="center"
+          >
             <template #default="{ row }">
-              <el-tag :type="getRiskType(row.level)" size="small">
+              <el-tag
+                :type="getRiskType(row.level)"
+                size="small"
+              >
                 {{ getRiskText(row.level) }}
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="result" label="结果" width="100" align="center">
+          <el-table-column
+            prop="result"
+            label="结果"
+            width="100"
+            align="center"
+          >
             <template #default="{ row }">
-              <el-tag :type="getResultType(row.result)" size="small">
+              <el-tag
+                :type="getResultType(row.result)"
+                size="small"
+              >
                 {{ getResultText(row.result) }}
               </el-tag>
             </template>
           </el-table-column>
-          <el-table-column prop="message" label="说明" min-width="220" show-overflow-tooltip />
+          <el-table-column
+            prop="message"
+            label="说明"
+            min-width="220"
+            show-overflow-tooltip
+          />
         </el-table>
       </div>
     </el-dialog>

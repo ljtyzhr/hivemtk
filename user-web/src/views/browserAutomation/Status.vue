@@ -3,40 +3,108 @@
     <h2>NM Host 状态</h2>
 
     <el-card style="margin-top: 12px">
-      <el-space direction="vertical" alignment="flex-start" :size="12" style="width: 100%">
+      <el-space
+        direction="vertical"
+        alignment="flex-start"
+        :size="12"
+        style="width: 100%"
+      >
         <el-space>
-          <el-button :loading="loading" @click="load">刷新</el-button>
-          <el-button type="warning" @click="onResetToken">重置 Host Token</el-button>
+          <el-button
+            :loading="loading"
+            @click="load"
+          >
+            刷新
+          </el-button>
+          <el-button
+            type="warning"
+            @click="onResetToken"
+          >
+            重置 Host Token
+          </el-button>
         </el-space>
 
-        <el-alert v-if="!loading && hosts.length === 0" type="warning" :closable="false" show-icon
-          title="当前没有 Host 连上服务端">
+        <el-alert
+          v-if="!loading && hosts.length === 0"
+          type="warning"
+          :closable="false"
+          show-icon
+          title="当前没有 Host 连上服务端"
+        >
           <p>安装步骤：</p>
           <HostInstallGuide />
         </el-alert>
 
-        <div v-if="hosts.length" class="summary">
+        <div
+          v-if="hosts.length"
+          class="summary"
+        >
           连接 {{ summary.count }} 台 · 可服务 {{ summary.servableCount }} 台 · 最近成功回包 {{ summary.lastOkText }}
         </div>
 
-        <el-table v-if="hosts.length" :data="hosts" border>
-          <el-table-column prop="user_id" label="用户 ID" width="120" />
-          <el-table-column prop="version" label="Host 版本" width="120" />
-          <el-table-column prop="pid" label="进程 PID" width="120" />
-          <el-table-column label="状态" width="130">
+        <el-table
+          v-if="hosts.length"
+          :data="hosts"
+          border
+        >
+          <el-table-column
+            prop="user_id"
+            label="用户 ID"
+            width="120"
+          />
+          <el-table-column
+            prop="version"
+            label="Host 版本"
+            width="120"
+          />
+          <el-table-column
+            prop="pid"
+            label="进程 PID"
+            width="120"
+          />
+          <el-table-column
+            label="状态"
+            width="130"
+          >
             <template #default="{ row }">
-              <el-tag v-if="row.online && row.servable" type="success">可服务</el-tag>
-              <el-tag v-else-if="row.online" type="danger">不可服务</el-tag>
-              <el-tag v-else type="info">已断开</el-tag>
+              <el-tag
+                v-if="row.online && row.servable"
+                type="success"
+              >
+                可服务
+              </el-tag>
+              <el-tag
+                v-else-if="row.online"
+                type="danger"
+              >
+                不可服务
+              </el-tag>
+              <el-tag
+                v-else
+                type="info"
+              >
+                已断开
+              </el-tag>
             </template>
           </el-table-column>
-          <el-table-column label="最近成功" min-width="180">
+          <el-table-column
+            label="最近成功"
+            min-width="180"
+          >
             <template #default="{ row }">
               <span v-if="row.last_cmd_ok_at">{{ formatTime(row.last_cmd_ok_at) }}</span>
-              <el-text v-else type="warning">从未回包</el-text>
+              <el-text
+                v-else
+                type="warning"
+              >
+                从未回包
+              </el-text>
             </template>
           </el-table-column>
-          <el-table-column label="判据" min-width="220">
+          <el-table-column
+            label="判据"
+            min-width="220"
+          >
             <template #default="{ row }">
               <span v-if="!row.online">WS 连接已断，需刷新扩展或检查 Host 进程</span>
               <span v-else-if="!row.servable">连接与注册帧在场，但服务端没拿到过一次命令回包 —— 点执行会报「Host 未连接」</span>

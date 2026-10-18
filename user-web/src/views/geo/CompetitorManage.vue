@@ -4,83 +4,227 @@
       <template #header>
         <div class="flex items-center justify-between">
           <span class="font-bold">竞品管理</span>
-          <el-button type="primary" size="small" @click="openCreate">+ 新增竞品</el-button>
+          <el-button
+            type="primary"
+            size="small"
+            @click="openCreate"
+          >
+            + 新增竞品
+          </el-button>
         </div>
       </template>
 
-      <el-table :data="list" v-loading="loading" size="default" stripe>
-        <el-table-column prop="id" label="ID" width="60" />
-        <el-table-column prop="name" label="名称" width="140" />
-        <el-table-column prop="domain" label="域名" width="220">
+      <el-table
+        v-loading="loading"
+        :data="list"
+        size="default"
+        stripe
+      >
+        <el-table-column
+          prop="id"
+          label="ID"
+          width="60"
+        />
+        <el-table-column
+          prop="name"
+          label="名称"
+          width="140"
+        />
+        <el-table-column
+          prop="domain"
+          label="域名"
+          width="220"
+        >
           <template #default="{ row }">
-            <a :href="'https://' + row.domain" target="_blank" class="font-mono text-blue-600">{{ row.domain }}</a>
+            <a
+              :href="'https://' + row.domain"
+              target="_blank"
+              class="font-mono text-blue-600"
+            >{{ row.domain }}</a>
           </template>
         </el-table-column>
-        <el-table-column label="爬取路径" min-width="240">
+        <el-table-column
+          label="爬取路径"
+          min-width="240"
+        >
           <template #default="{ row }">
             <div class="flex flex-wrap gap-1">
-              <el-tag v-for="p in (row.paths || [])" :key="p" size="small" effect="plain">{{ p }}</el-tag>
+              <el-tag
+                v-for="p in (row.paths || [])"
+                :key="p"
+                size="small"
+                effect="plain"
+              >
+                {{ p }}
+              </el-tag>
             </div>
           </template>
         </el-table-column>
-        <el-table-column prop="category" label="分类" width="100">
+        <el-table-column
+          prop="category"
+          label="分类"
+          width="100"
+        >
           <template #default="{ row }">
-            <el-tag size="small" :type="categoryTag(row.category)">{{ categoryLabel(row.category) }}</el-tag>
+            <el-tag
+              size="small"
+              :type="categoryTag(row.category)"
+            >
+              {{ categoryLabel(row.category) }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="priority" label="优先级" width="80" sortable />
-        <el-table-column prop="status" label="状态" width="90">
+        <el-table-column
+          prop="priority"
+          label="优先级"
+          width="80"
+          sortable
+        />
+        <el-table-column
+          prop="status"
+          label="状态"
+          width="90"
+        >
           <template #default="{ row }">
-            <el-tag size="small" :type="row.status === 'active' ? 'success' : 'info'">{{ row.status }}</el-tag>
+            <el-tag
+              size="small"
+              :type="row.status === 'active' ? 'success' : 'info'"
+            >
+              {{ row.status }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="180">
+        <el-table-column
+          label="操作"
+          width="180"
+        >
           <template #default="{ row }">
-            <el-button size="small" @click="openEdit(row)">编辑</el-button>
-            <el-button size="small" type="danger" plain @click="onDelete(row)">删除</el-button>
+            <el-button
+              size="small"
+              @click="openEdit(row)"
+            >
+              编辑
+            </el-button>
+            <el-button
+              size="small"
+              type="danger"
+              plain
+              @click="onDelete(row)"
+            >
+              删除
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
     </el-card>
 
     
-    <el-dialog v-model="dialogVisible" :title="editing ? '编辑竞品' : '新增竞品'" width="520px" destroy-on-close>
-      <el-form :model="form" label-width="90px" size="default">
+    <el-dialog
+      v-model="dialogVisible"
+      :title="editing ? '编辑竞品' : '新增竞品'"
+      width="520px"
+      destroy-on-close
+    >
+      <el-form
+        :model="form"
+        label-width="90px"
+        size="default"
+      >
         <el-form-item label="名称">
-          <el-input v-model="form.name" placeholder="如 微伴助手" />
+          <el-input
+            v-model="form.name"
+            placeholder="如 微伴助手"
+          />
         </el-form-item>
         <el-form-item label="域名">
-          <el-input v-model="form.domain" placeholder="如 weibanzhushou.com" :disabled="!!editing" />
+          <el-input
+            v-model="form.domain"
+            placeholder="如 weibanzhushou.com"
+            :disabled="!!editing"
+          />
         </el-form-item>
         <el-form-item label="爬取路径">
           <div>
-            <el-tag v-for="(p, i) in form.paths" :key="i" closable @close="form.paths.splice(i, 1)" size="default" style="margin-right:4px;margin-bottom:4px">
+            <el-tag
+              v-for="(p, i) in form.paths"
+              :key="i"
+              closable
+              size="default"
+              style="margin-right:4px;margin-bottom:4px"
+              @close="form.paths.splice(i, 1)"
+            >
               {{ p }}
             </el-tag>
-            <el-input v-if="newPath" v-model="newPath" size="small" style="width:120px" @keyup.enter="addPath" />
-            <el-button v-else size="small" plain @click="newPath = '/'">+ 添加路径</el-button>
+            <el-input
+              v-if="newPath"
+              v-model="newPath"
+              size="small"
+              style="width:120px"
+              @keyup.enter="addPath"
+            />
+            <el-button
+              v-else
+              size="small"
+              plain
+              @click="newPath = '/'"
+            >
+              + 添加路径
+            </el-button>
           </div>
         </el-form-item>
         <el-form-item label="分类">
           <el-select v-model="form.category">
-            <el-option label="直接竞品" value="direct" />
-            <el-option label="海外巨头" value="global" />
-            <el-option label="间接竞品" value="indirect" />
+            <el-option
+              label="直接竞品"
+              value="direct"
+            />
+            <el-option
+              label="海外巨头"
+              value="global"
+            />
+            <el-option
+              label="间接竞品"
+              value="indirect"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="优先级">
-          <el-slider v-model="form.priority" :min="1" :max="10" show-input style="width:240px" />
+          <el-slider
+            v-model="form.priority"
+            :min="1"
+            :max="10"
+            show-input
+            style="width:240px"
+          />
         </el-form-item>
         <el-form-item label="状态">
-          <el-switch v-model="form.status" active-value="active" inactive-value="paused" active-text="active" inactive-text="paused" />
+          <el-switch
+            v-model="form.status"
+            active-value="active"
+            inactive-value="paused"
+            active-text="active"
+            inactive-text="paused"
+          />
         </el-form-item>
         <el-form-item label="备注">
-          <el-input v-model="form.notes" type="textarea" :rows="2" />
+          <el-input
+            v-model="form.notes"
+            type="textarea"
+            :rows="2"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="onSave">保存</el-button>
+        <el-button @click="dialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="onSave"
+        >
+          保存
+        </el-button>
       </template>
     </el-dialog>
   </div>

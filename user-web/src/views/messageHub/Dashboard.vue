@@ -1,36 +1,69 @@
 <template>
   <div class="message-hub-page">
-    <el-alert v-if="loadError" class="load-error" type="warning" :closable="false" show-icon>
+    <el-alert
+      v-if="loadError"
+      class="load-error"
+      type="warning"
+      :closable="false"
+      show-icon
+    >
       {{ loadError }}
     </el-alert>
 
-    <el-row :gutter="16" class="stats-row">
+    <el-row
+      :gutter="16"
+      class="stats-row"
+    >
       <el-col :span="6">
         <el-card class="stat-card">
-          <div class="stat-label">总吞吐</div>
-          <div class="stat-value">{{ stats.total }}</div>
-          <div class="stat-sub">{{ rangeLabel }}</div>
+          <div class="stat-label">
+            总吞吐
+          </div>
+          <div class="stat-value">
+            {{ stats.total }}
+          </div>
+          <div class="stat-sub">
+            {{ rangeLabel }}
+          </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card class="stat-card success">
-          <div class="stat-label">发送</div>
-          <div class="stat-value">{{ stats.outbound }}</div>
-          <div class="stat-sub">outbound 方向（同窗口）</div>
+          <div class="stat-label">
+            发送
+          </div>
+          <div class="stat-value">
+            {{ stats.outbound }}
+          </div>
+          <div class="stat-sub">
+            outbound 方向（同窗口）
+          </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card class="stat-card warning">
-          <div class="stat-label">接收</div>
-          <div class="stat-value">{{ stats.inbound }}</div>
-          <div class="stat-sub">inbound 方向（同窗口）</div>
+          <div class="stat-label">
+            接收
+          </div>
+          <div class="stat-value">
+            {{ stats.inbound }}
+          </div>
+          <div class="stat-sub">
+            inbound 方向（同窗口）
+          </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card class="stat-card danger">
-          <div class="stat-label">未读</div>
-          <div class="stat-value">{{ stats.unread }}</div>
-          <div class="stat-sub">同窗口内未读，非全量积压</div>
+          <div class="stat-label">
+            未读
+          </div>
+          <div class="stat-value">
+            {{ stats.unread }}
+          </div>
+          <div class="stat-sub">
+            同窗口内未读，非全量积压
+          </div>
         </el-card>
       </el-col>
     </el-row>
@@ -44,8 +77,16 @@
               <span class="card-header-extra">近 24 小时累计 {{ stats.recent_24h }} 条</span>
             </div>
           </template>
-          <div v-show="hasPlatformRows" ref="chartRef" class="chart" />
-          <el-empty v-if="!hasPlatformRows" :description="emptyChartHint" :image-size="60" />
+          <div
+            v-show="hasPlatformRows"
+            ref="chartRef"
+            class="chart"
+          />
+          <el-empty
+            v-if="!hasPlatformRows"
+            :description="emptyChartHint"
+            :image-size="60"
+          />
         </el-card>
       </el-col>
       <el-col :span="8">
@@ -53,10 +94,26 @@
           <template #header>
             <span>方向与消息类型（{{ rangeLabel }}）</span>
           </template>
-          <el-table :data="distributionRows" class="dist-table" size="small">
-            <el-table-column prop="dim" label="维度" width="90" />
-            <el-table-column prop="label" label="取值" />
-            <el-table-column prop="count" label="条数" width="80" align="right" />
+          <el-table
+            :data="distributionRows"
+            class="dist-table"
+            size="small"
+          >
+            <el-table-column
+              prop="dim"
+              label="维度"
+              width="90"
+            />
+            <el-table-column
+              prop="label"
+              label="取值"
+            />
+            <el-table-column
+              prop="count"
+              label="条数"
+              width="80"
+              align="right"
+            />
           </el-table>
         </el-card>
       </el-col>
@@ -77,21 +134,68 @@
           </el-button>
         </div>
       </template>
-      <el-table :data="dlqList" v-loading="loading" size="small">
-        <el-table-column prop="id" label="ID" width="80" />
-        <el-table-column label="渠道" width="120">
-          <template #default="{ row }">{{ getChannelLabel(row.platform) }}</template>
-        </el-table-column>
-        <el-table-column label="方向" width="100">
-          <template #default="{ row }">{{ directionLabel(row.direction) }}</template>
-        </el-table-column>
-        <el-table-column prop="retries" label="重试次数" width="100" />
-        <el-table-column prop="error" label="错误" min-width="180" show-overflow-tooltip />
-        <el-table-column prop="failedAt" label="失败时间" width="180" />
-        <el-table-column label="操作" width="120" fixed="right">
+      <el-table
+        v-loading="loading"
+        :data="dlqList"
+        size="small"
+      >
+        <el-table-column
+          prop="id"
+          label="ID"
+          width="80"
+        />
+        <el-table-column
+          label="渠道"
+          width="120"
+        >
           <template #default="{ row }">
-            <el-button link type="primary" @click="retryOne(row)">重试</el-button>
-            <el-button link type="danger" @click="dropOne(row)">丢弃</el-button>
+            {{ getChannelLabel(row.platform) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          label="方向"
+          width="100"
+        >
+          <template #default="{ row }">
+            {{ directionLabel(row.direction) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          prop="retries"
+          label="重试次数"
+          width="100"
+        />
+        <el-table-column
+          prop="error"
+          label="错误"
+          min-width="180"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          prop="failedAt"
+          label="失败时间"
+          width="180"
+        />
+        <el-table-column
+          label="操作"
+          width="120"
+          fixed="right"
+        >
+          <template #default="{ row }">
+            <el-button
+              link
+              type="primary"
+              @click="retryOne(row)"
+            >
+              重试
+            </el-button>
+            <el-button
+              link
+              type="danger"
+              @click="dropOne(row)"
+            >
+              丢弃
+            </el-button>
           </template>
         </el-table-column>
       </el-table>

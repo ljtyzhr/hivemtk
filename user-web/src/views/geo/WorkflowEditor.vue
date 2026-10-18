@@ -1,191 +1,457 @@
 <template>
   <div class="geo-page">
-
-    <div class="p-4" style="display:flex; gap:16px; min-height:calc(100vh - 180px)">
-    
-    <el-card style="width:260px; flex-shrink:0">
-      <template #header>
-        <div class="flex items-center justify-between">
-          <span class="font-bold">Workflow 模板</span>
-          <el-button size="small" type="primary" @click="onNewWorkflow">新建</el-button>
-        </div>
-      </template>
-      <div class="space-y-2">
-        <div
-          v-for="w in workflows"
-          :key="w.id || w.name"
-          class="workflow-item"
-          role="button"
-          tabindex="0"
-          :class="{ active: currentWorkflow && (currentWorkflow.id === w.id || currentWorkflow.name === w.name) }"
-          @click="selectWorkflow(w)"
-          @keydown.enter.prevent="selectWorkflow(w)"
-          @keydown.space.prevent="selectWorkflow(w)"
-        >
-          <div class="font-medium">{{ w.name }}</div>
-          <div class="text-xs text-gray-500">{{ w.description || `${(w.steps || []).length} 个步骤` }}</div>
-        </div>
-      </div>
-    </el-card>
-
-    
-    <div style="flex:1; display:flex; flex-direction:column; gap:16px">
-      
-      <el-card style="flex:1">
+    <div
+      class="p-4"
+      style="display:flex; gap:16px; min-height:calc(100vh - 180px)"
+    >
+      <el-card style="width:260px; flex-shrink:0">
         <template #header>
           <div class="flex items-center justify-between">
-            <div class="flex items-center gap-3">
-              <span class="font-bold">工作流：{{ currentWorkflow?.name || '未选择' }}</span>
-              <el-input v-model="wfName" placeholder="工作流名称" size="small" style="width:200px" v-if="currentWorkflow" />
-            </div>
-            <div class="flex items-center gap-2">
-              <el-button size="small" @click="onSaveWorkflow" :disabled="!currentWorkflow">保存</el-button>
-              <el-button size="small" type="danger" plain @click="onDeleteWorkflow" :disabled="!currentWorkflow?.id">删除</el-button>
-              <el-button size="small" type="primary" @click="onRunNow" :disabled="!currentWorkflow" :loading="running">Run Now</el-button>
-            </div>
+            <span class="font-bold">Workflow 模板</span>
+            <el-button
+              size="small"
+              type="primary"
+              @click="onNewWorkflow"
+            >
+              新建
+            </el-button>
           </div>
         </template>
-
-        
-        <div class="steps-container">
+        <div class="space-y-2">
           <div
-            v-for="(step, idx) in steps"
-            :key="idx"
-            class="step-block"
-            :class="'step-' + step.type"
+            v-for="w in workflows"
+            :key="w.id || w.name"
+            class="workflow-item"
+            role="button"
+            tabindex="0"
+            :class="{ active: currentWorkflow && (currentWorkflow.id === w.id || currentWorkflow.name === w.name) }"
+            @click="selectWorkflow(w)"
+            @keydown.enter.prevent="selectWorkflow(w)"
+            @keydown.space.prevent="selectWorkflow(w)"
           >
-            <div class="step-index">{{ idx + 1 }}</div>
-            <div class="step-body">
-              <div class="step-title">
-                <el-tag v-if="stepMeta(step.type, 'kind') === 'control'" size="small" type="info" effect="plain" style="margin-right:6px">{{ stepMeta(step.type, 'label') }}</el-tag>
-                <!-- 兜底不能用空串：stepMeta 对 STEP_TYPES 之外的陈旧 step.type 返回 undefined，
-                     `undefined || ''` 会把空串传给 el-tag 的 type，触发 prop 校验告警并回落到
-                     default(primary)。合法集合为 primary/success/info/warning/danger，中性用 info。 -->
-                <el-tag v-else size="small" :type="stepMeta(step.type, 'color') || 'info'" effect="light" style="margin-right:6px">{{ stepMeta(step.type, 'label') }}</el-tag>
-                <el-input v-model="step.name" size="small" placeholder="步骤名称" style="width:200px" />
-              </div>
-              <div class="step-config">
-                
-                <template v-if="step.type === 'trigger'">
-                  <el-tag size="small" type="info">工作流入口节点，接收触发事件</el-tag>
-                </template>
-                <template v-else-if="step.type === 'end'">
-                  <el-tag size="small" type="info">工作流结束节点，输出最终结果</el-tag>
-                </template>
-                <template v-else-if="step.type === 'decision'">
-                  <div class="flex gap-2 items-center">
-                    <el-input v-model="step.condition" size="small" placeholder="条件表达式，如 意向识别==high" style="flex:1" />
-                    <el-input v-model="step.jump_to" size="small" placeholder="跳转至步骤名" style="width:160px" />
-                  </div>
-                </template>
-                <template v-else-if="step.type === 'action'">
-                  <el-tag size="small" type="info">通用动作节点 — 如需实际执行，请改为具体执行器类型</el-tag>
-                </template>
-
-                
-                <template v-else-if="step.type === 'content_generate'">
-                  <div class="flex gap-2 flex-wrap">
-                    <el-input v-model="step.topic" size="small" placeholder="文章主题" style="flex:1;min-width:140px" />
-                    <el-input v-model="step.keyword" size="small" placeholder="目标关键词" style="width:160px" />
-                    <el-input v-model="step.brand" size="small" placeholder="品牌名" style="width:140px" />
-                    <el-input v-model="step.platform" size="small" placeholder="发布平台" style="width:140px" />
-                  </div>
-                  <el-input v-model="step.advantages" size="small" placeholder="核心卖点，逗号分隔" class="mt-2" />
-                </template>
-                <template v-else-if="step.type === 'content_score'">
-                  <div class="flex gap-2 items-center">
-                    <span class="text-xs text-gray-500">最低分数：</span>
-                    <el-input-number v-model="step.min_score" :min="0" :max="100" size="small" style="width:100px" />
-                    <el-input v-model="step.brand" size="small" placeholder="品牌名" style="width:160px" />
-                  </div>
-                </template>
-                <template v-else-if="step.type === 'eeat_enhance'">
-                  <el-input v-model="step.brand" size="small" placeholder="品牌名" style="width:200px" />
-                  <span class="text-xs text-gray-500 ml-2">自动从上一步结果提取内容进行 EEAT 增强</span>
-                </template>
-                <template v-else-if="step.type === 'fact_density_enhance'">
-                  <div class="flex gap-2 items-center">
-                    <span class="text-xs text-gray-500">目标密度：</span>
-                    <el-slider v-model="step.target_density" :min="0.1" :max="1.0" :step="0.05" style="flex:1" />
-                  </div>
-                </template>
-                <template v-else-if="step.type === 'verify'">
-                  <div class="flex gap-2 flex-wrap">
-                    <el-input v-model="step.brand" size="small" placeholder="要验证的品牌" style="width:180px" />
-                  </div>
-                  <div class="text-xs text-gray-500 mt-1">使用多轮 LLM 查询验证品牌在搜索结果中的提及率</div>
-                </template>
-                <template v-else-if="step.type === 'query_probe'">
-                  <div class="flex gap-2 flex-wrap">
-                    <el-input v-model="step.keyword" size="small" placeholder="探针关键词" style="flex:1;min-width:160px" />
-                    <el-select v-model="step.engine" size="small" placeholder="引擎" style="width:140px">
-                      <el-option label="Qwen" value="qwen" />
-                      <el-option label="DeepSeek" value="deepseek" />
-                      <el-option label="SenseNova" value="sensenova" />
-                      <el-option label="Doubao" value="doubao" />
-                    </el-select>
-                  </div>
-                </template>
-                <template v-else-if="step.type === 'source_attribution'">
-                  <el-tag size="small" type="info">自动分析上一步内容的信源来源并标注</el-tag>
-                </template>
-                <template v-else-if="step.type === 'content_gap_fill'">
-                  <el-input v-model="step.keyword" size="small" placeholder="补全目标关键词" style="width:240px" />
-                </template>
-                <template v-else-if="step.type === 'capture_lead'">
-                  <el-tag size="small" type="info">自动从搜索/对话中捕获潜在客户线索</el-tag>
-                </template>
-                <template v-else>
-                  <div class="text-xs text-gray-400">未知步骤类型：{{ step.type }}</div>
-                </template>
-              </div>
+            <div class="font-medium">
+              {{ w.name }}
             </div>
-            <div class="step-actions">
-              <el-button size="small" circle @click="moveStep(idx, -1)" :disabled="idx === 0">↑</el-button>
-              <el-button size="small" circle @click="moveStep(idx, 1)" :disabled="idx === steps.length - 1">↓</el-button>
-              <el-button size="small" circle type="danger" plain @click="removeStep(idx)">×</el-button>
-            </div>
-          </div>
-
-          <div class="mt-4">
-            <div class="text-xs text-gray-500 mb-1">控制节点：</div>
-            <div class="flex gap-2 flex-wrap mb-2">
-              <template v-for="(t, k) in STEP_TYPES" :key="'c-'+k">
-                <el-button v-if="t.kind==='control'" size="small" plain @click="addStep(k)">+ {{ t.label }}</el-button>
-              </template>
-            </div>
-            <div class="text-xs text-gray-500 mb-1">执行器节点：</div>
-            <div class="flex gap-2 flex-wrap">
-              <template v-for="(t, k) in STEP_TYPES" :key="'e-'+k">
-                <el-button v-if="t.kind==='executor'" size="small" plain @click="addStep(k)">+ {{ t.label }}</el-button>
-              </template>
+            <div class="text-xs text-gray-500">
+              {{ w.description || `${(w.steps || []).length} 个步骤` }}
             </div>
           </div>
         </div>
       </el-card>
 
+    
+      <div style="flex:1; display:flex; flex-direction:column; gap:16px">
+        <el-card style="flex:1">
+          <template #header>
+            <div class="flex items-center justify-between">
+              <div class="flex items-center gap-3">
+                <span class="font-bold">工作流：{{ currentWorkflow?.name || '未选择' }}</span>
+                <el-input
+                  v-if="currentWorkflow"
+                  v-model="wfName"
+                  placeholder="工作流名称"
+                  size="small"
+                  style="width:200px"
+                />
+              </div>
+              <div class="flex items-center gap-2">
+                <el-button
+                  size="small"
+                  :disabled="!currentWorkflow"
+                  @click="onSaveWorkflow"
+                >
+                  保存
+                </el-button>
+                <el-button
+                  size="small"
+                  type="danger"
+                  plain
+                  :disabled="!currentWorkflow?.id"
+                  @click="onDeleteWorkflow"
+                >
+                  删除
+                </el-button>
+                <el-button
+                  size="small"
+                  type="primary"
+                  :disabled="!currentWorkflow"
+                  :loading="running"
+                  @click="onRunNow"
+                >
+                  Run Now
+                </el-button>
+              </div>
+            </div>
+          </template>
+
+        
+          <div class="steps-container">
+            <div
+              v-for="(step, idx) in steps"
+              :key="idx"
+              class="step-block"
+              :class="'step-' + step.type"
+            >
+              <div class="step-index">
+                {{ idx + 1 }}
+              </div>
+              <div class="step-body">
+                <div class="step-title">
+                  <el-tag
+                    v-if="stepMeta(step.type, 'kind') === 'control'"
+                    size="small"
+                    type="info"
+                    effect="plain"
+                    style="margin-right:6px"
+                  >
+                    {{ stepMeta(step.type, 'label') }}
+                  </el-tag>
+                  <!-- 兜底不能用空串：stepMeta 对 STEP_TYPES 之外的陈旧 step.type 返回 undefined，
+                     `undefined || ''` 会把空串传给 el-tag 的 type，触发 prop 校验告警并回落到
+                     default(primary)。合法集合为 primary/success/info/warning/danger，中性用 info。 -->
+                  <el-tag
+                    v-else
+                    size="small"
+                    :type="stepMeta(step.type, 'color') || 'info'"
+                    effect="light"
+                    style="margin-right:6px"
+                  >
+                    {{ stepMeta(step.type, 'label') }}
+                  </el-tag>
+                  <el-input
+                    v-model="step.name"
+                    size="small"
+                    placeholder="步骤名称"
+                    style="width:200px"
+                  />
+                </div>
+                <div class="step-config">
+                  <template v-if="step.type === 'trigger'">
+                    <el-tag
+                      size="small"
+                      type="info"
+                    >
+                      工作流入口节点，接收触发事件
+                    </el-tag>
+                  </template>
+                  <template v-else-if="step.type === 'end'">
+                    <el-tag
+                      size="small"
+                      type="info"
+                    >
+                      工作流结束节点，输出最终结果
+                    </el-tag>
+                  </template>
+                  <template v-else-if="step.type === 'decision'">
+                    <div class="flex gap-2 items-center">
+                      <el-input
+                        v-model="step.condition"
+                        size="small"
+                        placeholder="条件表达式，如 意向识别==high"
+                        style="flex:1"
+                      />
+                      <el-input
+                        v-model="step.jump_to"
+                        size="small"
+                        placeholder="跳转至步骤名"
+                        style="width:160px"
+                      />
+                    </div>
+                  </template>
+                  <template v-else-if="step.type === 'action'">
+                    <el-tag
+                      size="small"
+                      type="info"
+                    >
+                      通用动作节点 — 如需实际执行，请改为具体执行器类型
+                    </el-tag>
+                  </template>
+
+                
+                  <template v-else-if="step.type === 'content_generate'">
+                    <div class="flex gap-2 flex-wrap">
+                      <el-input
+                        v-model="step.topic"
+                        size="small"
+                        placeholder="文章主题"
+                        style="flex:1;min-width:140px"
+                      />
+                      <el-input
+                        v-model="step.keyword"
+                        size="small"
+                        placeholder="目标关键词"
+                        style="width:160px"
+                      />
+                      <el-input
+                        v-model="step.brand"
+                        size="small"
+                        placeholder="品牌名"
+                        style="width:140px"
+                      />
+                      <el-input
+                        v-model="step.platform"
+                        size="small"
+                        placeholder="发布平台"
+                        style="width:140px"
+                      />
+                    </div>
+                    <el-input
+                      v-model="step.advantages"
+                      size="small"
+                      placeholder="核心卖点，逗号分隔"
+                      class="mt-2"
+                    />
+                  </template>
+                  <template v-else-if="step.type === 'content_score'">
+                    <div class="flex gap-2 items-center">
+                      <span class="text-xs text-gray-500">最低分数：</span>
+                      <el-input-number
+                        v-model="step.min_score"
+                        :min="0"
+                        :max="100"
+                        size="small"
+                        style="width:100px"
+                      />
+                      <el-input
+                        v-model="step.brand"
+                        size="small"
+                        placeholder="品牌名"
+                        style="width:160px"
+                      />
+                    </div>
+                  </template>
+                  <template v-else-if="step.type === 'eeat_enhance'">
+                    <el-input
+                      v-model="step.brand"
+                      size="small"
+                      placeholder="品牌名"
+                      style="width:200px"
+                    />
+                    <span class="text-xs text-gray-500 ml-2">自动从上一步结果提取内容进行 EEAT 增强</span>
+                  </template>
+                  <template v-else-if="step.type === 'fact_density_enhance'">
+                    <div class="flex gap-2 items-center">
+                      <span class="text-xs text-gray-500">目标密度：</span>
+                      <el-slider
+                        v-model="step.target_density"
+                        :min="0.1"
+                        :max="1.0"
+                        :step="0.05"
+                        style="flex:1"
+                      />
+                    </div>
+                  </template>
+                  <template v-else-if="step.type === 'verify'">
+                    <div class="flex gap-2 flex-wrap">
+                      <el-input
+                        v-model="step.brand"
+                        size="small"
+                        placeholder="要验证的品牌"
+                        style="width:180px"
+                      />
+                    </div>
+                    <div class="text-xs text-gray-500 mt-1">
+                      使用多轮 LLM 查询验证品牌在搜索结果中的提及率
+                    </div>
+                  </template>
+                  <template v-else-if="step.type === 'query_probe'">
+                    <div class="flex gap-2 flex-wrap">
+                      <el-input
+                        v-model="step.keyword"
+                        size="small"
+                        placeholder="探针关键词"
+                        style="flex:1;min-width:160px"
+                      />
+                      <el-select
+                        v-model="step.engine"
+                        size="small"
+                        placeholder="引擎"
+                        style="width:140px"
+                      >
+                        <el-option
+                          label="Qwen"
+                          value="qwen"
+                        />
+                        <el-option
+                          label="DeepSeek"
+                          value="deepseek"
+                        />
+                        <el-option
+                          label="SenseNova"
+                          value="sensenova"
+                        />
+                        <el-option
+                          label="Doubao"
+                          value="doubao"
+                        />
+                      </el-select>
+                    </div>
+                  </template>
+                  <template v-else-if="step.type === 'source_attribution'">
+                    <el-tag
+                      size="small"
+                      type="info"
+                    >
+                      自动分析上一步内容的信源来源并标注
+                    </el-tag>
+                  </template>
+                  <template v-else-if="step.type === 'content_gap_fill'">
+                    <el-input
+                      v-model="step.keyword"
+                      size="small"
+                      placeholder="补全目标关键词"
+                      style="width:240px"
+                    />
+                  </template>
+                  <template v-else-if="step.type === 'capture_lead'">
+                    <el-tag
+                      size="small"
+                      type="info"
+                    >
+                      自动从搜索/对话中捕获潜在客户线索
+                    </el-tag>
+                  </template>
+                  <template v-else>
+                    <div class="text-xs text-gray-400">
+                      未知步骤类型：{{ step.type }}
+                    </div>
+                  </template>
+                </div>
+              </div>
+              <div class="step-actions">
+                <el-button
+                  size="small"
+                  circle
+                  :disabled="idx === 0"
+                  @click="moveStep(idx, -1)"
+                >
+                  ↑
+                </el-button>
+                <el-button
+                  size="small"
+                  circle
+                  :disabled="idx === steps.length - 1"
+                  @click="moveStep(idx, 1)"
+                >
+                  ↓
+                </el-button>
+                <el-button
+                  size="small"
+                  circle
+                  type="danger"
+                  plain
+                  @click="removeStep(idx)"
+                >
+                  ×
+                </el-button>
+              </div>
+            </div>
+
+            <div class="mt-4">
+              <div class="text-xs text-gray-500 mb-1">
+                控制节点：
+              </div>
+              <div class="flex gap-2 flex-wrap mb-2">
+                <template
+                  v-for="(t, k) in STEP_TYPES"
+                  :key="'c-'+k"
+                >
+                  <el-button
+                    v-if="t.kind==='control'"
+                    size="small"
+                    plain
+                    @click="addStep(k)"
+                  >
+                    + {{ t.label }}
+                  </el-button>
+                </template>
+              </div>
+              <div class="text-xs text-gray-500 mb-1">
+                执行器节点：
+              </div>
+              <div class="flex gap-2 flex-wrap">
+                <template
+                  v-for="(t, k) in STEP_TYPES"
+                  :key="'e-'+k"
+                >
+                  <el-button
+                    v-if="t.kind==='executor'"
+                    size="small"
+                    plain
+                    @click="addStep(k)"
+                  >
+                    + {{ t.label }}
+                  </el-button>
+                </template>
+              </div>
+            </div>
+          </div>
+        </el-card>
+
       
-      <el-card>
-        <template #header><span class="font-bold">执行监控</span></template>
-        <el-table :data="executions" v-loading="execLoading" size="small">
-          <el-table-column prop="id" label="ID" width="80" />
-          <el-table-column prop="workflow_name" label="Workflow" width="160" />
-          <el-table-column prop="status" label="状态" width="120">
-            <template #default="{ row }">
-              <el-tag :type="execStatusType(row.status)" size="small">{{ row.status }}</el-tag>
-            </template>
-          </el-table-column>
-          <el-table-column prop="current_step" label="当前步骤" width="140" />
-          <el-table-column prop="progress" label="进度" width="160">
-            <template #default="{ row }">
-              <el-progress :percentage="row.progress || 0" size="small" />
-            </template>
-          </el-table-column>
-          <el-table-column prop="started_at" label="开始时间" width="180" />
-          <el-table-column prop="finished_at" label="结束时间" width="180" />
-        </el-table>
-      </el-card>
-    </div>
+        <el-card>
+          <template #header>
+            <span class="font-bold">执行监控</span>
+          </template>
+          <el-table
+            v-loading="execLoading"
+            :data="executions"
+            size="small"
+          >
+            <el-table-column
+              prop="id"
+              label="ID"
+              width="80"
+            />
+            <el-table-column
+              prop="workflow_name"
+              label="Workflow"
+              width="160"
+            />
+            <el-table-column
+              prop="status"
+              label="状态"
+              width="120"
+            >
+              <template #default="{ row }">
+                <el-tag
+                  :type="execStatusType(row.status)"
+                  size="small"
+                >
+                  {{ row.status }}
+                </el-tag>
+              </template>
+            </el-table-column>
+            <el-table-column
+              prop="current_step"
+              label="当前步骤"
+              width="140"
+            />
+            <el-table-column
+              prop="progress"
+              label="进度"
+              width="160"
+            >
+              <template #default="{ row }">
+                <el-progress
+                  :percentage="row.progress || 0"
+                  size="small"
+                />
+              </template>
+            </el-table-column>
+            <el-table-column
+              prop="started_at"
+              label="开始时间"
+              width="180"
+            />
+            <el-table-column
+              prop="finished_at"
+              label="结束时间"
+              width="180"
+            />
+          </el-table>
+        </el-card>
+      </div>
     </div>
   </div>
 </template>

@@ -4,20 +4,45 @@
       <h1>{{ $t('营销数据大屏') }}</h1>
       <div class="header-info">
         <span class="time">{{ currentTime }}</span>
-        <el-button type="primary" @click="$router.push('/dashboardScreen/builder')">大屏构建</el-button>
-        <el-button type="primary" @click="toggleFullscreen">
+        <el-button
+          type="primary"
+          @click="$router.push('/dashboardScreen/builder')"
+        >
+          大屏构建
+        </el-button>
+        <el-button
+          type="primary"
+          @click="toggleFullscreen"
+        >
           <el-icon><FullScreen /></el-icon>
           {{ isFullscreen ? '退出全屏' : '全屏' }}
         </el-button>
       </div>
     </div>
 
-    <el-row :gutter="15" class="kpi-row">
-      <el-col :span="4" v-for="kpi in kpis" :key="kpi.label">
-        <div class="kpi-card" :style="{ background: kpi.color }">
-          <div class="kpi-label">{{ kpi.label }}</div>
-          <div class="kpi-value">{{ kpi.value }}</div>
-          <div class="kpi-trend" :class="{ up: kpi.trend > 0, down: kpi.trend < 0 }">
+    <el-row
+      :gutter="15"
+      class="kpi-row"
+    >
+      <el-col
+        v-for="kpi in kpis"
+        :key="kpi.label"
+        :span="4"
+      >
+        <div
+          class="kpi-card"
+          :style="{ background: kpi.color }"
+        >
+          <div class="kpi-label">
+            {{ kpi.label }}
+          </div>
+          <div class="kpi-value">
+            {{ kpi.value }}
+          </div>
+          <div
+            class="kpi-trend"
+            :class="{ up: kpi.trend > 0, down: kpi.trend < 0 }"
+          >
             <span v-if="kpi.trend > 0">▲ {{ kpi.trend }}%</span>
             <span v-else-if="kpi.trend < 0">▼ {{ Math.abs(kpi.trend) }}%</span>
             <span v-else>-</span>
@@ -27,13 +52,19 @@
       </el-col>
     </el-row>
 
-    <el-row :gutter="15" class="charts-row">
+    <el-row
+      :gutter="15"
+      class="charts-row"
+    >
       <el-col :span="12">
         <el-card class="chart-card">
           <template #header>
             <span>营销趋势 (近30天)</span>
           </template>
-          <div ref="trendChartRef" class="chart-container"></div>
+          <div
+            ref="trendChartRef"
+            class="chart-container"
+          />
         </el-card>
       </el-col>
       <el-col :span="12">
@@ -41,18 +72,27 @@
           <template #header>
             <span>渠道分布</span>
           </template>
-          <div ref="channelChartRef" class="chart-container"></div>
+          <div
+            ref="channelChartRef"
+            class="chart-container"
+          />
         </el-card>
       </el-col>
     </el-row>
 
-    <el-row :gutter="15" class="charts-row">
+    <el-row
+      :gutter="15"
+      class="charts-row"
+    >
       <el-col :span="8">
         <el-card class="chart-card">
           <template #header>
             <span>用户来源 TOP5</span>
           </template>
-          <div ref="sourceChartRef" class="chart-container"></div>
+          <div
+            ref="sourceChartRef"
+            class="chart-container"
+          />
         </el-card>
       </el-col>
       <el-col :span="8">
@@ -60,7 +100,10 @@
           <template #header>
             <span>漏斗分析</span>
           </template>
-          <div ref="funnelChartRef" class="chart-container"></div>
+          <div
+            ref="funnelChartRef"
+            class="chart-container"
+          />
         </el-card>
       </el-col>
       <el-col :span="8">
@@ -69,8 +112,14 @@
             <span>实时活动</span>
           </template>
           <div class="realtime-list">
-            <div v-for="(item, idx) in realtimeActivities" :key="idx" class="activity-item">
-              <el-icon :color="item.color"><component :is="item.icon" /></el-icon>
+            <div
+              v-for="(item, idx) in realtimeActivities"
+              :key="idx"
+              class="activity-item"
+            >
+              <el-icon :color="item.color">
+                <component :is="item.icon" />
+              </el-icon>
               <span class="text">{{ item.text }}</span>
               <span class="time">{{ item.time }}</span>
             </div>
@@ -79,13 +128,19 @@
       </el-col>
     </el-row>
 
-    <el-row :gutter="15" class="charts-row">
+    <el-row
+      :gutter="15"
+      class="charts-row"
+    >
       <el-col :span="12">
         <el-card class="chart-card">
           <template #header>
             <span>地区分布</span>
           </template>
-          <div ref="mapChartRef" class="chart-container"></div>
+          <div
+            ref="mapChartRef"
+            class="chart-container"
+          />
         </el-card>
       </el-col>
       <el-col :span="12">
@@ -93,7 +148,10 @@
           <template #header>
             <span>转化率对比</span>
           </template>
-          <div ref="conversionChartRef" class="chart-container"></div>
+          <div
+            ref="conversionChartRef"
+            class="chart-container"
+          />
         </el-card>
       </el-col>
     </el-row>

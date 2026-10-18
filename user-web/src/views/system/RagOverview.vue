@@ -12,24 +12,36 @@
           <el-col :span="8">
             <el-card class="stat-card">
               <div class="stat-item">
-                <div class="stat-number">{{ stats.totalProducts }}</div>
-                <div class="stat-label">RAG产品数量</div>
+                <div class="stat-number">
+                  {{ stats.totalProducts }}
+                </div>
+                <div class="stat-label">
+                  RAG产品数量
+                </div>
               </div>
             </el-card>
           </el-col>
           <el-col :span="8">
             <el-card class="stat-card">
               <div class="stat-item">
-                <div class="stat-number">{{ stats.activeProducts }}</div>
-                <div class="stat-label">活跃产品</div>
+                <div class="stat-number">
+                  {{ stats.activeProducts }}
+                </div>
+                <div class="stat-label">
+                  活跃产品
+                </div>
               </div>
             </el-card>
           </el-col>
           <el-col :span="8">
             <el-card class="stat-card">
               <div class="stat-item">
-                <div class="stat-number">{{ stats.activatedAccounts }}</div>
-                <div class="stat-label">已启用账号</div>
+                <div class="stat-number">
+                  {{ stats.activatedAccounts }}
+                </div>
+                <div class="stat-label">
+                  已启用账号
+                </div>
               </div>
             </el-card>
           </el-col>
@@ -41,34 +53,62 @@
           <h3>快速操作</h3>
           <el-row :gutter="20">
             <el-col :span="6">
-              <el-card class="action-card" @click="goToConfig">
+              <el-card
+                class="action-card"
+                @click="goToConfig"
+              >
                 <div class="action-item">
-                  <el-icon class="action-icon"><Setting /></el-icon>
-                  <div class="action-label">配置RAG产品</div>
+                  <el-icon class="action-icon">
+                    <Setting />
+                  </el-icon>
+                  <div class="action-label">
+                    配置RAG产品
+                  </div>
                 </div>
               </el-card>
             </el-col>
             <el-col :span="6">
-              <el-card class="action-card" @click="goToAccountConfig">
+              <el-card
+                class="action-card"
+                @click="goToAccountConfig"
+              >
                 <div class="action-item">
-                  <el-icon class="action-icon"><User /></el-icon>
-                  <div class="action-label">账号配置</div>
+                  <el-icon class="action-icon">
+                    <User />
+                  </el-icon>
+                  <div class="action-label">
+                    账号配置
+                  </div>
                 </div>
               </el-card>
             </el-col>
             <el-col :span="6">
-              <el-card class="action-card" @click="goToAccountConfig">
+              <el-card
+                class="action-card"
+                @click="goToAccountConfig"
+              >
                 <div class="action-item">
-                  <el-icon class="action-icon"><ChatDotRound /></el-icon>
-                  <div class="action-label">自动回复设置</div>
+                  <el-icon class="action-icon">
+                    <ChatDotRound />
+                  </el-icon>
+                  <div class="action-label">
+                    自动回复设置
+                  </div>
                 </div>
               </el-card>
             </el-col>
             <el-col :span="6">
-              <el-card class="action-card" @click="goToDocs">
+              <el-card
+                class="action-card"
+                @click="goToDocs"
+              >
                 <div class="action-item">
-                  <el-icon class="action-icon"><Document /></el-icon>
-                  <div class="action-label">帮助文档</div>
+                  <el-icon class="action-icon">
+                    <Document />
+                  </el-icon>
+                  <div class="action-label">
+                    帮助文档
+                  </div>
                 </div>
               </el-card>
             </el-col>
@@ -79,13 +119,33 @@
 
         <div class="recent-activity">
           <h3>最近活动</h3>
-          <el-table :data="activities" style="width: 100%">
-            <el-table-column prop="time" label="时间" width="180" />
-            <el-table-column prop="action" label="操作" />
-            <el-table-column prop="user" label="用户" width="120" />
-            <el-table-column prop="status" label="状态" width="100">
+          <el-table
+            :data="activities"
+            style="width: 100%"
+          >
+            <el-table-column
+              prop="time"
+              label="时间"
+              width="180"
+            />
+            <el-table-column
+              prop="action"
+              label="操作"
+            />
+            <el-table-column
+              prop="user"
+              label="用户"
+              width="120"
+            />
+            <el-table-column
+              prop="status"
+              label="状态"
+              width="100"
+            >
               <template #default="{ row }">
-                <el-tag :type="getStatusTagType(row.status)">{{ getStatusLabel(row.status) }}</el-tag>
+                <el-tag :type="getStatusTagType(row.status)">
+                  {{ getStatusLabel(row.status) }}
+                </el-tag>
               </template>
             </el-table-column>
           </el-table>
@@ -94,10 +154,18 @@
     </el-card>
 
     
-    <el-dialog v-model="helpDialogVisible" title="RAG 帮助文档" width="780px" :close-on-click-modal="false">
+    <el-dialog
+      v-model="helpDialogVisible"
+      title="RAG 帮助文档"
+      width="780px"
+      :close-on-click-modal="false"
+    >
       <div class="help-doc-content">
         <el-collapse v-model="activeHelpSections">
-          <el-collapse-item title="什么是 RAG？" name="1">
+          <el-collapse-item
+            title="什么是 RAG？"
+            name="1"
+          >
             <div class="help-section">
               <p>RAG（Retrieval-Augmented Generation，检索增强生成）是一种结合信息检索与文本生成的 AI 技术。通过将大语言模型（LLM）与外部知识库连接，RAG 能够在生成回复时动态检索相关文档，从而提供更准确、更及时的回答。</p>
               <p><strong>核心优势：</strong></p>
@@ -110,7 +178,10 @@
             </div>
           </el-collapse-item>
 
-          <el-collapse-item title="如何配置 RAG 产品？" name="2">
+          <el-collapse-item
+            title="如何配置 RAG 产品？"
+            name="2"
+          >
             <div class="help-section">
               <p><strong>步骤一：</strong>进入「系统设置」→「RAG 配置」页面，或点击概览页的「配置RAG产品」卡片。</p>
               <p><strong>步骤二：</strong>点击「新增产品」，填写以下信息：</p>
@@ -125,7 +196,10 @@
             </div>
           </el-collapse-item>
 
-          <el-collapse-item title="如何搭建知识库？" name="3">
+          <el-collapse-item
+            title="如何搭建知识库？"
+            name="3"
+          >
             <div class="help-section">
               <p><strong>步骤一：</strong>进入「知识库管理」页面。</p>
               <p><strong>步骤二：</strong>上传文档或直接输入文本内容。支持的格式包括：</p>
@@ -148,7 +222,10 @@
             </div>
           </el-collapse-item>
 
-          <el-collapse-item title="如何接入平台账号？" name="4">
+          <el-collapse-item
+            title="如何接入平台账号？"
+            name="4"
+          >
             <div class="help-section">
               <p><strong>步骤一：</strong>进入「账号配置」页面。</p>
               <p><strong>步骤二：</strong>点击「新增账号」，选择平台类型（如抖音、微信、网站等）。</p>
@@ -163,7 +240,10 @@
             </div>
           </el-collapse-item>
 
-          <el-collapse-item title="常见问题排查" name="5">
+          <el-collapse-item
+            title="常见问题排查"
+            name="5"
+          >
             <div class="help-section">
               <p><strong>1. RAG 回复不准确怎么办？</strong></p>
               <p>检查知识库文档是否覆盖了相关问题；优化文档内容结构和质量；调整模型温度参数降低随机性。</p>
@@ -184,7 +264,12 @@
         </el-collapse>
       </div>
       <template #footer>
-        <el-button type="primary" @click="helpDialogVisible = false">关闭</el-button>
+        <el-button
+          type="primary"
+          @click="helpDialogVisible = false"
+        >
+          关闭
+        </el-button>
       </template>
     </el-dialog>
   </div>

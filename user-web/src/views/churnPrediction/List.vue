@@ -3,10 +3,16 @@
     <el-card class="header-card">
       <div class="header-content">
         <h2>流失预测</h2>
-        <p class="subtitle">基于机器学习预测用户流失风险，提前干预</p>
+        <p class="subtitle">
+          基于机器学习预测用户流失风险，提前干预
+        </p>
       </div>
       <div>
-        <el-button type="primary" :loading="predicting" @click="runPrediction">
+        <el-button
+          type="primary"
+          :loading="predicting"
+          @click="runPrediction"
+        >
           <el-icon><Operation /></el-icon>
           运行预测
         </el-button>
@@ -18,38 +24,71 @@
     </el-card>
 
     <el-tabs v-model="activeTab">
-      
-      <el-tab-pane label="预测列表" name="predictions">
-        <el-row :gutter="20" class="stats-row">
+      <el-tab-pane
+        label="预测列表"
+        name="predictions"
+      >
+        <el-row
+          :gutter="20"
+          class="stats-row"
+        >
           <el-col :span="6">
             <el-card>
               <div class="stat-item">
-                <div class="stat-label">高风险用户</div>
-                <div class="stat-value" style="color: #EF4444">{{ stats.highRisk }}</div>
+                <div class="stat-label">
+                  高风险用户
+                </div>
+                <div
+                  class="stat-value"
+                  style="color: #EF4444"
+                >
+                  {{ stats.highRisk }}
+                </div>
               </div>
             </el-card>
           </el-col>
           <el-col :span="6">
             <el-card>
               <div class="stat-item">
-                <div class="stat-label">中风险用户</div>
-                <div class="stat-value" style="color: #F59E0B">{{ stats.mediumRisk }}</div>
+                <div class="stat-label">
+                  中风险用户
+                </div>
+                <div
+                  class="stat-value"
+                  style="color: #F59E0B"
+                >
+                  {{ stats.mediumRisk }}
+                </div>
               </div>
             </el-card>
           </el-col>
           <el-col :span="6">
             <el-card>
               <div class="stat-item">
-                <div class="stat-label">低风险用户</div>
-                <div class="stat-value" style="color: #10B981">{{ stats.lowRisk }}</div>
+                <div class="stat-label">
+                  低风险用户
+                </div>
+                <div
+                  class="stat-value"
+                  style="color: #10B981"
+                >
+                  {{ stats.lowRisk }}
+                </div>
               </div>
             </el-card>
           </el-col>
           <el-col :span="6">
             <el-card>
               <div class="stat-item">
-                <div class="stat-label">极高风险用户</div>
-                <div class="stat-value" style="color: #B91C1C">{{ stats.criticalRisk }}</div>
+                <div class="stat-label">
+                  极高风险用户
+                </div>
+                <div
+                  class="stat-value"
+                  style="color: #B91C1C"
+                >
+                  {{ stats.criticalRisk }}
+                </div>
               </div>
             </el-card>
           </el-col>
@@ -59,28 +98,83 @@
           <template #header>
             <div class="card-header">
               <span>高风险用户列表</span>
-              <el-input v-model="searchKeyword" placeholder="搜索用户ID" clearable style="width: 200px" />
+              <el-input
+                v-model="searchKeyword"
+                placeholder="搜索用户ID"
+                clearable
+                style="width: 200px"
+              />
             </div>
           </template>
-          <el-table :data="filteredUsers" v-loading="loadingPred" stripe>
-            <el-table-column prop="user_id" label="用户ID" width="120" />
-            <el-table-column prop="churn_score" label="风险评分" width="160">
+          <el-table
+            v-loading="loadingPred"
+            :data="filteredUsers"
+            stripe
+          >
+            <el-table-column
+              prop="user_id"
+              label="用户ID"
+              width="120"
+            />
+            <el-table-column
+              prop="churn_score"
+              label="风险评分"
+              width="160"
+            >
               <template #default="{ row }">
-                <el-progress :percentage="Math.round(row.churn_score || 0)" :color="getRiskColor(row.churn_score)" />
+                <el-progress
+                  :percentage="Math.round(row.churn_score || 0)"
+                  :color="getRiskColor(row.churn_score)"
+                />
               </template>
             </el-table-column>
-            <el-table-column prop="churn_risk" label="风险等级" width="100">
+            <el-table-column
+              prop="churn_risk"
+              label="风险等级"
+              width="100"
+            >
               <template #default="{ row }">
-                <el-tag :type="getRiskLevelType(row.churn_risk)">{{ row.churn_risk }}</el-tag>
+                <el-tag :type="getRiskLevelType(row.churn_risk)">
+                  {{ row.churn_risk }}
+                </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="last_activity_at" label="最后活跃" min-width="180" />
-            <el-table-column prop="predicted_at" label="预测时间" min-width="180" />
-            <el-table-column prop="risk_factors" label="流失原因" min-width="200" show-overflow-tooltip />
-            <el-table-column label="操作" width="180" fixed="right">
+            <el-table-column
+              prop="last_activity_at"
+              label="最后活跃"
+              min-width="180"
+            />
+            <el-table-column
+              prop="predicted_at"
+              label="预测时间"
+              min-width="180"
+            />
+            <el-table-column
+              prop="risk_factors"
+              label="流失原因"
+              min-width="200"
+              show-overflow-tooltip
+            />
+            <el-table-column
+              label="操作"
+              width="180"
+              fixed="right"
+            >
               <template #default="{ row }">
-                <el-button link type="primary" @click="viewUserDetail(row)">详情</el-button>
-                <el-button link type="success" @click="intervene(row)">干预</el-button>
+                <el-button
+                  link
+                  type="primary"
+                  @click="viewUserDetail(row)"
+                >
+                  详情
+                </el-button>
+                <el-button
+                  link
+                  type="success"
+                  @click="intervene(row)"
+                >
+                  干预
+                </el-button>
               </template>
             </el-table-column>
             <template #empty>
@@ -91,31 +185,77 @@
       </el-tab-pane>
 
       
-      <el-tab-pane label="预警列表" name="warnings">
+      <el-tab-pane
+        label="预警列表"
+        name="warnings"
+      >
         <el-card>
-          <el-table :data="warnings" v-loading="loadingWarn" stripe>
-            <el-table-column prop="user_id" label="用户ID" width="120" />
-            <el-table-column prop="warning_level" label="预警等级" width="100">
+          <el-table
+            v-loading="loadingWarn"
+            :data="warnings"
+            stripe
+          >
+            <el-table-column
+              prop="user_id"
+              label="用户ID"
+              width="120"
+            />
+            <el-table-column
+              prop="warning_level"
+              label="预警等级"
+              width="100"
+            >
               <template #default="{ row }">
-                <el-tag :type="warnLevelType(row.warning_level)">{{ row.warning_level }}</el-tag>
+                <el-tag :type="warnLevelType(row.warning_level)">
+                  {{ row.warning_level }}
+                </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="warning_type" label="类型" width="140" />
-            <el-table-column prop="description" label="描述" min-width="200" show-overflow-tooltip />
-            <el-table-column prop="suggestion" label="建议措施" min-width="200" show-overflow-tooltip />
-            <el-table-column label="状态" width="100">
+            <el-table-column
+              prop="warning_type"
+              label="类型"
+              width="140"
+            />
+            <el-table-column
+              prop="description"
+              label="描述"
+              min-width="200"
+              show-overflow-tooltip
+            />
+            <el-table-column
+              prop="suggestion"
+              label="建议措施"
+              min-width="200"
+              show-overflow-tooltip
+            />
+            <el-table-column
+              label="状态"
+              width="100"
+            >
               <template #default="{ row }">
                 <el-tag :type="row.is_handled ? 'success' : 'danger'">
                   {{ row.is_handled ? '已处理' : '未处理' }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="120" fixed="right">
+            <el-table-column
+              label="操作"
+              width="120"
+              fixed="right"
+            >
               <template #default="{ row }">
-                <el-button v-if="!row.is_handled" size="small" type="primary" @click="handleWarning(row)">
+                <el-button
+                  v-if="!row.is_handled"
+                  size="small"
+                  type="primary"
+                  @click="handleWarning(row)"
+                >
                   标记已处理
                 </el-button>
-                <span v-else class="handled-text">已处理</span>
+                <span
+                  v-else
+                  class="handled-text"
+                >已处理</span>
               </template>
             </el-table-column>
             <template #empty>
@@ -126,37 +266,90 @@
       </el-tab-pane>
 
       
-      <el-tab-pane label="模型配置" name="config">
+      <el-tab-pane
+        label="模型配置"
+        name="config"
+      >
         <el-card>
-          <el-form :model="configForm" label-width="170px" style="max-width: 640px">
-            <el-divider content-position="left">权重配置</el-divider>
+          <el-form
+            :model="configForm"
+            label-width="170px"
+            style="max-width: 640px"
+          >
+            <el-divider content-position="left">
+              权重配置
+            </el-divider>
             <el-form-item label="未活跃天数权重">
-              <el-input-number v-model="configForm.inactive_days_weight" :step="0.05" :min="0" :max="1" />
+              <el-input-number
+                v-model="configForm.inactive_days_weight"
+                :step="0.05"
+                :min="0"
+                :max="1"
+              />
             </el-form-item>
             <el-form-item label="购买频率权重">
-              <el-input-number v-model="configForm.purchase_freq_weight" :step="0.05" :min="0" :max="1" />
+              <el-input-number
+                v-model="configForm.purchase_freq_weight"
+                :step="0.05"
+                :min="0"
+                :max="1"
+              />
             </el-form-item>
             <el-form-item label="订单金额权重">
-              <el-input-number v-model="configForm.order_value_weight" :step="0.05" :min="0" :max="1" />
+              <el-input-number
+                v-model="configForm.order_value_weight"
+                :step="0.05"
+                :min="0"
+                :max="1"
+              />
             </el-form-item>
             <el-form-item label="互动频率权重">
-              <el-input-number v-model="configForm.engagement_weight" :step="0.05" :min="0" :max="1" />
+              <el-input-number
+                v-model="configForm.engagement_weight"
+                :step="0.05"
+                :min="0"
+                :max="1"
+              />
             </el-form-item>
-            <el-divider content-position="left">阈值配置</el-divider>
+            <el-divider content-position="left">
+              阈值配置
+            </el-divider>
             <el-form-item label="未活跃阈值(天)">
-              <el-input-number v-model="configForm.inactive_threshold" :min="1" :max="365" />
+              <el-input-number
+                v-model="configForm.inactive_threshold"
+                :min="1"
+                :max="365"
+              />
             </el-form-item>
             <el-form-item label="未购买阈值(天)">
-              <el-input-number v-model="configForm.purchase_threshold" :min="1" :max="365" />
+              <el-input-number
+                v-model="configForm.purchase_threshold"
+                :min="1"
+                :max="365"
+              />
             </el-form-item>
             <el-form-item label="高风险分数">
-              <el-input-number v-model="configForm.high_risk_score" :min="0" :max="100" />
+              <el-input-number
+                v-model="configForm.high_risk_score"
+                :min="0"
+                :max="100"
+              />
             </el-form-item>
             <el-form-item label="极高风险分数">
-              <el-input-number v-model="configForm.critical_risk_score" :min="0" :max="100" />
+              <el-input-number
+                v-model="configForm.critical_risk_score"
+                :min="0"
+                :max="100"
+              />
             </el-form-item>
             <el-form-item>
-              <el-button type="primary" :loading="savingConfig" @click="saveConfig">保存配置</el-button>
+              <el-button
+                type="primary"
+                :loading="savingConfig"
+                @click="saveConfig"
+              >
+                保存配置
+              </el-button>
             </el-form-item>
           </el-form>
         </el-card>
@@ -164,23 +357,57 @@
     </el-tabs>
 
     
-    <el-dialog v-model="interveneDialogVisible" title="流失干预" width="500px">
-      <el-form :model="interveneForm" label-width="100px">
+    <el-dialog
+      v-model="interveneDialogVisible"
+      title="流失干预"
+      width="500px"
+    >
+      <el-form
+        :model="interveneForm"
+        label-width="100px"
+      >
         <el-form-item label="干预方式">
-          <el-select v-model="interveneForm.method" style="width: 100%">
-            <el-option label="发送优惠" value="coupon" />
-            <el-option label="发送关怀短信" value="sms" />
-            <el-option label="人工跟进" value="manual" />
-            <el-option label="推送通知" value="push" />
+          <el-select
+            v-model="interveneForm.method"
+            style="width: 100%"
+          >
+            <el-option
+              label="发送优惠"
+              value="coupon"
+            />
+            <el-option
+              label="发送关怀短信"
+              value="sms"
+            />
+            <el-option
+              label="人工跟进"
+              value="manual"
+            />
+            <el-option
+              label="推送通知"
+              value="push"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="干预内容">
-          <el-input v-model="interveneForm.content" type="textarea" :rows="4" />
+          <el-input
+            v-model="interveneForm.content"
+            type="textarea"
+            :rows="4"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="interveneDialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submittingIntervene" @click="confirmIntervene">确认干预</el-button>
+        <el-button @click="interveneDialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="submittingIntervene"
+          @click="confirmIntervene"
+        >
+          确认干预
+        </el-button>
       </template>
     </el-dialog>
 
@@ -189,19 +416,39 @@
          元素，Vue 会打 "Runtime directive used on component with non-element root node.
          The directives will not function as intended."，指令也实际不生效。挂到弹窗体内
          的普通 div 上才是 Element Plus 的正确用法。 -->
-    <el-dialog v-model="detailVisible" title="用户流失风险详情" width="700px">
-      <div v-loading="detailLoading" style="min-height: 80px">
+    <el-dialog
+      v-model="detailVisible"
+      title="用户流失风险详情"
+      width="700px"
+    >
+      <div
+        v-loading="detailLoading"
+        style="min-height: 80px"
+      >
         <template v-if="currentUser">
-          <el-descriptions :column="2" border>
-            <el-descriptions-item label="用户ID">{{ currentUser.user_id }}</el-descriptions-item>
-            <el-descriptions-item label="风险等级">
-              <el-tag :type="getRiskLevelType(currentUser.churn_risk)">{{ currentUser.churn_risk }}</el-tag>
+          <el-descriptions
+            :column="2"
+            border
+          >
+            <el-descriptions-item label="用户ID">
+              {{ currentUser.user_id }}
             </el-descriptions-item>
-            <el-descriptions-item label="最后活跃">{{ currentUser.last_activity_at }}</el-descriptions-item>
-            <el-descriptions-item label="预测时间">{{ currentUser.predicted_at }}</el-descriptions-item>
+            <el-descriptions-item label="风险等级">
+              <el-tag :type="getRiskLevelType(currentUser.churn_risk)">
+                {{ currentUser.churn_risk }}
+              </el-tag>
+            </el-descriptions-item>
+            <el-descriptions-item label="最后活跃">
+              {{ currentUser.last_activity_at }}
+            </el-descriptions-item>
+            <el-descriptions-item label="预测时间">
+              {{ currentUser.predicted_at }}
+            </el-descriptions-item>
           </el-descriptions>
 
-          <el-divider content-position="left">风险评分</el-divider>
+          <el-divider content-position="left">
+            风险评分
+          </el-divider>
           <div style="padding: 0 20px">
             <el-progress
               :percentage="Math.round(currentUser.churn_score || 0)"
@@ -210,7 +457,9 @@
             />
           </div>
 
-          <el-divider content-position="left">流失原因分析</el-divider>
+          <el-divider content-position="left">
+            流失原因分析
+          </el-divider>
           <el-alert
             v-if="currentUser.risk_factors"
             :title="currentUser.risk_factors"
@@ -220,17 +469,39 @@
           />
 
           <template v-if="currentUser.riskFactors && currentUser.riskFactors.length">
-            <el-divider content-position="left">风险因素</el-divider>
-            <el-table :data="currentUser.riskFactors" border size="small">
-              <el-table-column prop="factor" label="因素" min-width="180" />
-              <el-table-column prop="impact" label="影响程度" width="120">
+            <el-divider content-position="left">
+              风险因素
+            </el-divider>
+            <el-table
+              :data="currentUser.riskFactors"
+              border
+              size="small"
+            >
+              <el-table-column
+                prop="factor"
+                label="因素"
+                min-width="180"
+              />
+              <el-table-column
+                prop="impact"
+                label="影响程度"
+                width="120"
+              >
                 <template #default="{ row: r }">
-                  <el-tag :type="r.impact === '高' ? 'danger' : r.impact === '中' ? 'warning' : 'info'" size="small">
+                  <el-tag
+                    :type="r.impact === '高' ? 'danger' : r.impact === '中' ? 'warning' : 'info'"
+                    size="small"
+                  >
                     {{ r.impact }}
                   </el-tag>
                 </template>
               </el-table-column>
-              <el-table-column prop="description" label="说明" min-width="200" show-overflow-tooltip />
+              <el-table-column
+                prop="description"
+                label="说明"
+                min-width="200"
+                show-overflow-tooltip
+              />
             </el-table>
           </template>
         </template>

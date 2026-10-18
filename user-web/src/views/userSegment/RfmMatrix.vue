@@ -1,28 +1,47 @@
 <template>
   <div class="rfm-matrix">
-    <el-row :gutter="16" class="stats-row">
+    <el-row
+      :gutter="16"
+      class="stats-row"
+    >
       <el-col :span="6">
         <el-card class="stat-card">
-          <div class="stat-label">总用户</div>
-          <div class="stat-value">{{ stats.total }}</div>
+          <div class="stat-label">
+            总用户
+          </div>
+          <div class="stat-value">
+            {{ stats.total }}
+          </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card class="stat-card success">
-          <div class="stat-label">高价值</div>
-          <div class="stat-value">{{ stats.highValue }}</div>
+          <div class="stat-label">
+            高价值
+          </div>
+          <div class="stat-value">
+            {{ stats.highValue }}
+          </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card class="stat-card primary">
-          <div class="stat-label">活跃</div>
-          <div class="stat-value">{{ stats.active }}</div>
+          <div class="stat-label">
+            活跃
+          </div>
+          <div class="stat-value">
+            {{ stats.active }}
+          </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card class="stat-card danger">
-          <div class="stat-label">流失风险</div>
-          <div class="stat-value">{{ stats.churnRisk }}</div>
+          <div class="stat-label">
+            流失风险
+          </div>
+          <div class="stat-value">
+            {{ stats.churnRisk }}
+          </div>
         </el-card>
       </el-col>
     </el-row>
@@ -32,23 +51,75 @@
         <div class="card-header">
           <span>RFM 矩阵（Recency × Frequency）</span>
           <el-button-group>
-            <el-button @click="exportToReach">导出到触达</el-button>
-            <el-button type="primary" @click="saveSegment">保存为分群</el-button>
+            <el-button @click="exportToReach">
+              导出到触达
+            </el-button>
+            <el-button
+              type="primary"
+              @click="saveSegment"
+            >
+              保存为分群
+            </el-button>
           </el-button-group>
         </div>
       </template>
-      <div ref="matrixRef" class="matrix" />
-      <el-table :data="segments" class="segments-table">
-        <el-table-column prop="name" label="分群名称" />
-        <el-table-column prop="recency" label="R" width="80" />
-        <el-table-column prop="frequency" label="F" width="80" />
-        <el-table-column prop="monetary" label="M" width="100" />
-        <el-table-column prop="count" label="人数" width="100" />
-        <el-table-column prop="revenue" label="GMV" width="120" />
-        <el-table-column label="操作" width="160" fixed="right">
+      <div
+        ref="matrixRef"
+        class="matrix"
+      />
+      <el-table
+        :data="segments"
+        class="segments-table"
+      >
+        <el-table-column
+          prop="name"
+          label="分群名称"
+        />
+        <el-table-column
+          prop="recency"
+          label="R"
+          width="80"
+        />
+        <el-table-column
+          prop="frequency"
+          label="F"
+          width="80"
+        />
+        <el-table-column
+          prop="monetary"
+          label="M"
+          width="100"
+        />
+        <el-table-column
+          prop="count"
+          label="人数"
+          width="100"
+        />
+        <el-table-column
+          prop="revenue"
+          label="GMV"
+          width="120"
+        />
+        <el-table-column
+          label="操作"
+          width="160"
+          fixed="right"
+        >
           <template #default="{ row }">
-            <el-button link type="primary" @click="viewDetail(row)">详情</el-button>
-            <el-button link type="primary" @click="reachSegment(row)">触达</el-button>
+            <el-button
+              link
+              type="primary"
+              @click="viewDetail(row)"
+            >
+              详情
+            </el-button>
+            <el-button
+              link
+              type="primary"
+              @click="reachSegment(row)"
+            >
+              触达
+            </el-button>
           </template>
         </el-table-column>
       </el-table>

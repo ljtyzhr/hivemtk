@@ -8,19 +8,22 @@
       </template>
       
       <el-form 
+        ref="formRef" 
         :model="form" 
-        :rules="rules" 
-        ref="formRef"
+        :rules="rules"
         label-width="120px"
       >
         <el-row :gutter="20">
           <el-col :span="12">
-            <el-form-item label="平台" prop="platform">
+            <el-form-item
+              label="平台"
+              prop="platform"
+            >
               <el-select
                 v-model="form.platform"
                 placeholder="选择平台"
-                @change="onPlatformChange"
                 style="width: 100%;"
+                @change="onPlatformChange"
               >
                 <el-option
                   v-for="opt in cardPlatformOptions"
@@ -33,11 +36,14 @@
           </el-col>
           
           <el-col :span="12">
-            <el-form-item label="账号ID" prop="account_id">
+            <el-form-item
+              label="账号ID"
+              prop="account_id"
+            >
               <el-input 
                 v-model="form.account_id" 
                 placeholder="输入平台账号ID"
-              ></el-input>
+              />
             </el-form-item>
           </el-col>
         </el-row>
@@ -77,7 +83,7 @@
                 :min="1" 
                 :max="10000"
                 style="width: 100%;"
-              ></el-input-number>
+              />
             </el-form-item>
           </el-col>
         </el-row>
@@ -131,14 +137,14 @@
                     v-model.number="rule.priority" 
                     placeholder="优先级"
                     type="number"
-                  ></el-input>
+                  />
                 </el-col>
                 
                 <el-col :span="12">
                   <el-input 
                     v-model="rule.keywords_str" 
                     placeholder="关键词(逗号分隔)"
-                  ></el-input>
+                  />
                 </el-col>
                 
                 <el-col :span="6">
@@ -155,7 +161,7 @@
                 type="textarea"
                 :rows="2"
                 style="margin-top: 10px;"
-              ></el-input>
+              />
             </el-card>
           </div>
         </el-form-item>
@@ -167,7 +173,9 @@
           >
             保存配置
           </el-button>
-          <el-button @click="resetForm">重置</el-button>
+          <el-button @click="resetForm">
+            重置
+          </el-button>
         </el-form-item>
       </el-form>
     </el-card>

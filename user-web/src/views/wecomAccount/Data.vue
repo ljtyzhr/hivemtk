@@ -17,60 +17,153 @@
             :value="a.account.id"
           />
         </el-select>
-        <el-button type="primary" :icon="Refresh" :loading="loadingAny" @click="refreshAll">刷新数据</el-button>
+        <el-button
+          type="primary"
+          :icon="Refresh"
+          :loading="loadingAny"
+          @click="refreshAll"
+        >
+          刷新数据
+        </el-button>
         <span class="tip">客户「发消息」将用所选账号从企业微信外部联系人通道下发</span>
       </div>
 
       
       <div class="summary-row">
         <div class="summary-card">
-          <div class="summary-value">{{ total.customers || 0 }}</div>
-          <div class="summary-label">客户总数</div>
+          <div class="summary-value">
+            {{ total.customers || 0 }}
+          </div>
+          <div class="summary-label">
+            客户总数
+          </div>
         </div>
         <div class="summary-card">
-          <div class="summary-value">{{ total.groups || 0 }}</div>
-          <div class="summary-label">客户群总数</div>
+          <div class="summary-value">
+            {{ total.groups || 0 }}
+          </div>
+          <div class="summary-label">
+            客户群总数
+          </div>
         </div>
         <div class="summary-card">
-          <div class="summary-value">{{ total.messages || 0 }}</div>
-          <div class="summary-label">消息总数</div>
+          <div class="summary-value">
+            {{ total.messages || 0 }}
+          </div>
+          <div class="summary-label">
+            消息总数
+          </div>
         </div>
       </div>
 
       
       <div class="chart-grid">
-        <el-card shadow="hover" class="chart-card">
-          <div ref="sourceChart" class="chart-box"></div>
+        <el-card
+          shadow="hover"
+          class="chart-card"
+        >
+          <div
+            ref="sourceChart"
+            class="chart-box"
+          />
         </el-card>
-        <el-card shadow="hover" class="chart-card">
-          <div ref="groupSizeChart" class="chart-box"></div>
+        <el-card
+          shadow="hover"
+          class="chart-card"
+        >
+          <div
+            ref="groupSizeChart"
+            class="chart-box"
+          />
         </el-card>
-        <el-card shadow="hover" class="chart-card chart-card-wide">
-          <div ref="msgTrendChart" class="chart-box chart-box-wide"></div>
+        <el-card
+          shadow="hover"
+          class="chart-card chart-card-wide"
+        >
+          <div
+            ref="msgTrendChart"
+            class="chart-box chart-box-wide"
+          />
         </el-card>
       </div>
 
-      <el-tabs v-model="activeTab" @tab-change="onTabChange">
-        
-        <el-tab-pane label="客户" name="customers">
-          <el-table :data="customers" v-loading="loading.customers" border stripe size="small">
-            <el-table-column prop="avatar" label="头像" width="60">
+      <el-tabs
+        v-model="activeTab"
+        @tab-change="onTabChange"
+      >
+        <el-tab-pane
+          label="客户"
+          name="customers"
+        >
+          <el-table
+            v-loading="loading.customers"
+            :data="customers"
+            border
+            stripe
+            size="small"
+          >
+            <el-table-column
+              prop="avatar"
+              label="头像"
+              width="60"
+            >
               <template #default="{ row }">
-                <el-avatar v-if="row.avatar" :src="row.avatar" size="small" />
+                <el-avatar
+                  v-if="row.avatar"
+                  :src="row.avatar"
+                  size="small"
+                />
                 <span v-else>{{ row.name?.charAt(0) || '?' }}</span>
               </template>
             </el-table-column>
-            <el-table-column prop="name" label="名称" min-width="120" />
-            <el-table-column label="类型" width="90">
-              <template #default="{ row }">{{ row.type === 1 ? '企业' : '个人' }}</template>
-            </el-table-column>
-            <el-table-column prop="corp_name" label="企业" min-width="120" />
-            <el-table-column prop="position" label="职位" min-width="100" />
-            <el-table-column prop="external_userid" label="外部ID" min-width="160" show-overflow-tooltip />
-            <el-table-column prop="remark" label="备注" min-width="100" show-overflow-tooltip />
-            <el-table-column label="操作" width="100" fixed="right">
+            <el-table-column
+              prop="name"
+              label="名称"
+              min-width="120"
+            />
+            <el-table-column
+              label="类型"
+              width="90"
+            >
               <template #default="{ row }">
-                <el-button size="small" type="primary" @click="openSendTo(row.external_userid)">发消息</el-button>
+                {{ row.type === 1 ? '企业' : '个人' }}
+              </template>
+            </el-table-column>
+            <el-table-column
+              prop="corp_name"
+              label="企业"
+              min-width="120"
+            />
+            <el-table-column
+              prop="position"
+              label="职位"
+              min-width="100"
+            />
+            <el-table-column
+              prop="external_userid"
+              label="外部ID"
+              min-width="160"
+              show-overflow-tooltip
+            />
+            <el-table-column
+              prop="remark"
+              label="备注"
+              min-width="100"
+              show-overflow-tooltip
+            />
+            <el-table-column
+              label="操作"
+              width="100"
+              fixed="right"
+            >
+              <template #default="{ row }">
+                <el-button
+                  size="small"
+                  type="primary"
+                  @click="openSendTo(row.external_userid)"
+                >
+                  发消息
+                </el-button>
               </template>
             </el-table-column>
           </el-table>
@@ -86,14 +179,45 @@
         </el-tab-pane>
 
         
-        <el-tab-pane label="客户群" name="groups">
-          <el-table :data="groups" v-loading="loading.groups" border stripe size="small">
-            <el-table-column prop="name" label="群名" min-width="160" />
-            <el-table-column prop="owner" label="群主" min-width="120" />
-            <el-table-column prop="member_count" label="成员数" width="90" />
-            <el-table-column prop="chat_id" label="群ID" min-width="160" show-overflow-tooltip />
-            <el-table-column label="创建时间" width="160">
-              <template #default="{ row }">{{ row.created_at ? formatTime(row.created_at) : '-' }}</template>
+        <el-tab-pane
+          label="客户群"
+          name="groups"
+        >
+          <el-table
+            v-loading="loading.groups"
+            :data="groups"
+            border
+            stripe
+            size="small"
+          >
+            <el-table-column
+              prop="name"
+              label="群名"
+              min-width="160"
+            />
+            <el-table-column
+              prop="owner"
+              label="群主"
+              min-width="120"
+            />
+            <el-table-column
+              prop="member_count"
+              label="成员数"
+              width="90"
+            />
+            <el-table-column
+              prop="chat_id"
+              label="群ID"
+              min-width="160"
+              show-overflow-tooltip
+            />
+            <el-table-column
+              label="创建时间"
+              width="160"
+            >
+              <template #default="{ row }">
+                {{ row.created_at ? formatTime(row.created_at) : '-' }}
+              </template>
             </el-table-column>
           </el-table>
           <el-pagination
@@ -108,32 +232,82 @@
         </el-tab-pane>
 
         
-        <el-tab-pane label="标签" name="tags">
-          <el-table :data="tags" v-loading="loading.tags" border stripe size="small">
-            <el-table-column prop="tag_name" label="标签名" min-width="160" />
-            <el-table-column prop="tag_id" label="标签ID" min-width="140" />
+        <el-tab-pane
+          label="标签"
+          name="tags"
+        >
+          <el-table
+            v-loading="loading.tags"
+            :data="tags"
+            border
+            stripe
+            size="small"
+          >
+            <el-table-column
+              prop="tag_name"
+              label="标签名"
+              min-width="160"
+            />
+            <el-table-column
+              prop="tag_id"
+              label="标签ID"
+              min-width="140"
+            />
           </el-table>
         </el-tab-pane>
 
         
-        <el-tab-pane label="消息记录" name="messages">
-          <el-table :data="messages" v-loading="loading.messages" border stripe size="small">
-            <el-table-column prop="to_user" label="接收人" min-width="160" show-overflow-tooltip />
-            <el-table-column prop="msg_type" label="类型" width="90" />
-            <el-table-column label="内容" min-width="200" show-overflow-tooltip>
+        <el-tab-pane
+          label="消息记录"
+          name="messages"
+        >
+          <el-table
+            v-loading="loading.messages"
+            :data="messages"
+            border
+            stripe
+            size="small"
+          >
+            <el-table-column
+              prop="to_user"
+              label="接收人"
+              min-width="160"
+              show-overflow-tooltip
+            />
+            <el-table-column
+              prop="msg_type"
+              label="类型"
+              width="90"
+            />
+            <el-table-column
+              label="内容"
+              min-width="200"
+              show-overflow-tooltip
+            >
               <template #default="{ row }">
                 {{ previewContent(row) }}
               </template>
             </el-table-column>
-            <el-table-column label="状态" width="100">
+            <el-table-column
+              label="状态"
+              width="100"
+            >
               <template #default="{ row }">
-                <el-tag :type="row.status === 1 ? 'success' : 'danger'" size="small">
+                <el-tag
+                  :type="row.status === 1 ? 'success' : 'danger'"
+                  size="small"
+                >
                   {{ row.status === 1 ? '成功' : '失败' }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="发送时间" width="160">
-              <template #default="{ row }">{{ row.created_at ? formatTime(row.created_at) : '-' }}</template>
+            <el-table-column
+              label="发送时间"
+              width="160"
+            >
+              <template #default="{ row }">
+                {{ row.created_at ? formatTime(row.created_at) : '-' }}
+              </template>
             </el-table-column>
           </el-table>
           <el-pagination
@@ -150,7 +324,11 @@
     </el-card>
 
     
-    <WeComSendDialog v-model:visible="sendVisible" :account-id="selectedAccountId" :external-userid="sendExternalUserID" />
+    <WeComSendDialog
+      v-model:visible="sendVisible"
+      :account-id="selectedAccountId"
+      :external-userid="sendExternalUserID"
+    />
   </div>
 </template>
 

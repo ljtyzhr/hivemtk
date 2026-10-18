@@ -12,59 +12,153 @@
       </template>
     </el-alert>
 
-    <el-row :gutter="16" style="margin-top: 16px">
-      
+    <el-row
+      :gutter="16"
+      style="margin-top: 16px"
+    >
       <el-col :span="16">
         <el-card>
           <template #header>
             <div class="card-header">
               <span>Token 列表</span>
               <div>
-                <el-select v-model="filterProductId" placeholder="按产品筛选" clearable style="width: 180px" @change="loadTokens">
-                  <el-option v-for="p in productList" :key="p.id" :label="p.name" :value="p.id" />
+                <el-select
+                  v-model="filterProductId"
+                  placeholder="按产品筛选"
+                  clearable
+                  style="width: 180px"
+                  @change="loadTokens"
+                >
+                  <el-option
+                    v-for="p in productList"
+                    :key="p.id"
+                    :label="p.name"
+                    :value="p.id"
+                  />
                 </el-select>
-                <el-button :icon="Refresh" @click="loadTokens" style="margin-left: 8px">刷新</el-button>
+                <el-button
+                  :icon="Refresh"
+                  style="margin-left: 8px"
+                  @click="loadTokens"
+                >
+                  刷新
+                </el-button>
               </div>
             </div>
           </template>
-          <el-table :data="tokens" v-loading="loading" stripe>
-            <el-table-column prop="id" label="ID" width="80" />
-            <el-table-column prop="name" label="名称" min-width="140" show-overflow-tooltip />
-            <el-table-column label="产品" width="160" show-overflow-tooltip>
+          <el-table
+            v-loading="loading"
+            :data="tokens"
+            stripe
+          >
+            <el-table-column
+              prop="id"
+              label="ID"
+              width="80"
+            />
+            <el-table-column
+              prop="name"
+              label="名称"
+              min-width="140"
+              show-overflow-tooltip
+            />
+            <el-table-column
+              label="产品"
+              width="160"
+              show-overflow-tooltip
+            >
               <template #default="{ row }">
                 {{ getProductName(row.product_id) }}
               </template>
             </el-table-column>
-            <el-table-column label="权限" width="160">
+            <el-table-column
+              label="权限"
+              width="160"
+            >
               <template #default="{ row }">
-                <el-tag v-for="s in parseScopes(row.scopes)" :key="s" size="small" style="margin-right: 4px">
+                <el-tag
+                  v-for="s in parseScopes(row.scopes)"
+                  :key="s"
+                  size="small"
+                  style="margin-right: 4px"
+                >
                   {{ scopeLabel(s) }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="状态" width="100">
+            <el-table-column
+              label="状态"
+              width="100"
+            >
               <template #default="{ row }">
-                <el-tag v-if="row.enabled === 1" type="success">启用</el-tag>
-                <el-tag v-else type="danger">已吊销</el-tag>
+                <el-tag
+                  v-if="row.enabled === 1"
+                  type="success"
+                >
+                  启用
+                </el-tag>
+                <el-tag
+                  v-else
+                  type="danger"
+                >
+                  已吊销
+                </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="使用统计" width="140">
+            <el-table-column
+              label="使用统计"
+              width="140"
+            >
               <template #default="{ row }">
                 <div>调用 {{ row.use_count || 0 }} 次</div>
-                <el-text v-if="row.last_used_at" size="small" type="info">最后: {{ formatDate(row.last_used_at) }}</el-text>
+                <el-text
+                  v-if="row.last_used_at"
+                  size="small"
+                  type="info"
+                >
+                  最后: {{ formatDate(row.last_used_at) }}
+                </el-text>
               </template>
             </el-table-column>
-            <el-table-column label="过期时间" width="170">
+            <el-table-column
+              label="过期时间"
+              width="170"
+            >
               <template #default="{ row }">
                 <span v-if="row.expires_at">{{ formatDate(row.expires_at) }}</span>
-                <span v-else style="color: #909399">永不过期</span>
+                <span
+                  v-else
+                  style="color: #909399"
+                >永不过期</span>
               </template>
             </el-table-column>
-            <el-table-column prop="created_by" label="创建人" width="100" />
-            <el-table-column label="操作" width="140" fixed="right">
+            <el-table-column
+              prop="created_by"
+              label="创建人"
+              width="100"
+            />
+            <el-table-column
+              label="操作"
+              width="140"
+              fixed="right"
+            >
               <template #default="{ row }">
-                <el-button v-if="row.enabled === 1" link type="danger" size="small" @click="handleRevoke(row)">吊销</el-button>
-                <el-text v-else type="info" size="small">已吊销</el-text>
+                <el-button
+                  v-if="row.enabled === 1"
+                  link
+                  type="danger"
+                  size="small"
+                  @click="handleRevoke(row)"
+                >
+                  吊销
+                </el-button>
+                <el-text
+                  v-else
+                  type="info"
+                  size="small"
+                >
+                  已吊销
+                </el-text>
               </template>
             </el-table-column>
           </el-table>
@@ -77,21 +171,50 @@
           <template #header>
             <span>创建 Token</span>
           </template>
-          <el-form :model="form" :rules="rules" ref="formRef" label-width="100px">
-            <el-form-item label="名称" prop="name">
-              <el-input v-model="form.name" placeholder="如:CRM 推送" />
+          <el-form
+            ref="formRef"
+            :model="form"
+            :rules="rules"
+            label-width="100px"
+          >
+            <el-form-item
+              label="名称"
+              prop="name"
+            >
+              <el-input
+                v-model="form.name"
+                placeholder="如:CRM 推送"
+              />
             </el-form-item>
-            <el-form-item label="产品" prop="product_id">
-              <el-select v-model="form.product_id" placeholder="选择产品" style="width: 100%">
-                <el-option v-for="p in productList" :key="p.id" :label="p.name" :value="p.id" />
+            <el-form-item
+              label="产品"
+              prop="product_id"
+            >
+              <el-select
+                v-model="form.product_id"
+                placeholder="选择产品"
+                style="width: 100%"
+              >
+                <el-option
+                  v-for="p in productList"
+                  :key="p.id"
+                  :label="p.name"
+                  :value="p.id"
+                />
               </el-select>
             </el-form-item>
             <el-form-item label="权限">
               <el-checkbox-group v-model="form.scopes">
-                <el-checkbox label="read">只读</el-checkbox>
-                <el-checkbox label="write">可写</el-checkbox>
+                <el-checkbox label="read">
+                  只读
+                </el-checkbox>
+                <el-checkbox label="write">
+                  可写
+                </el-checkbox>
               </el-checkbox-group>
-              <div class="form-hint">不勾选则默认 read + write</div>
+              <div class="form-hint">
+                不勾选则默认 read + write
+              </div>
             </el-form-item>
             <el-form-item label="过期时间">
               <el-date-picker
@@ -104,7 +227,14 @@
               />
             </el-form-item>
             <el-form-item>
-              <el-button type="primary" :loading="creating" @click="handleCreate" style="width: 100%">创建</el-button>
+              <el-button
+                type="primary"
+                :loading="creating"
+                style="width: 100%"
+                @click="handleCreate"
+              >
+                创建
+              </el-button>
             </el-form-item>
           </el-form>
         </el-card>
@@ -139,13 +269,25 @@ curl -X POST \
     </el-row>
 
     
-    <el-dialog v-model="showTokenDialog" title="Token 已创建" width="640px" :close-on-click-modal="false">
-      <el-alert type="success" :closable="false" show-icon>
+    <el-dialog
+      v-model="showTokenDialog"
+      title="Token 已创建"
+      width="640px"
+      :close-on-click-modal="false"
+    >
+      <el-alert
+        type="success"
+        :closable="false"
+        show-icon
+      >
         <template #default>
           请立即复制并保存明文 Token,关闭后无法再次查看。
         </template>
       </el-alert>
-      <el-form label-width="80px" style="margin-top: 16px">
+      <el-form
+        label-width="80px"
+        style="margin-top: 16px"
+      >
         <el-form-item label="名称">
           <el-text>{{ createdToken.name }}</el-text>
         </el-form-item>
@@ -153,15 +295,28 @@ curl -X POST \
           <el-text>{{ getProductName(createdToken.product_id) }}</el-text>
         </el-form-item>
         <el-form-item label="Token">
-          <el-input v-model="createdToken.token_plain" readonly>
+          <el-input
+            v-model="createdToken.token_plain"
+            readonly
+          >
             <template #append>
-              <el-button :icon="CopyDocument" @click="copyToken">复制</el-button>
+              <el-button
+                :icon="CopyDocument"
+                @click="copyToken"
+              >
+                复制
+              </el-button>
             </template>
           </el-input>
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button type="primary" @click="showTokenDialog = false">我已保存,关闭</el-button>
+        <el-button
+          type="primary"
+          @click="showTokenDialog = false"
+        >
+          我已保存,关闭
+        </el-button>
       </template>
     </el-dialog>
   </div>

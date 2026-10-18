@@ -1,33 +1,81 @@
 <template>
   <div class="guide-container">
-    <h1 class="guide-title">{{ $t('邮件营销使用指南') }}</h1>
+    <h1 class="guide-title">
+      {{ $t('邮件营销使用指南') }}
+    </h1>
     <div class="guide-intro">
       <p>欢迎使用邮件营销服务！本指南将引导您完成从 SMTP 配置到邮件发送的完整流程。</p>
     </div>
 
-    <el-steps :active="activeStep" finish-status="success" align-center class="steps-container">
-      <el-step :title="$t('配置 SMTP')" description="配置发件邮箱" />
-      <el-step :title="$t('创建收件人列表')" description="导入收件人" />
-      <el-step :title="$t('编写邮件草稿')" description="准备邮件内容" />
-      <el-step :title="$t('发送任务')" description="启动发送并查看进度" />
+    <el-steps
+      :active="activeStep"
+      finish-status="success"
+      align-center
+      class="steps-container"
+    >
+      <el-step
+        :title="$t('配置 SMTP')"
+        description="配置发件邮箱"
+      />
+      <el-step
+        :title="$t('创建收件人列表')"
+        description="导入收件人"
+      />
+      <el-step
+        :title="$t('编写邮件草稿')"
+        description="准备邮件内容"
+      />
+      <el-step
+        :title="$t('发送任务')"
+        description="启动发送并查看进度"
+      />
     </el-steps>
 
-    <el-row :gutter="20" class="step-cards">
-      <el-col :span="6" v-for="(item, idx) in steps" :key="idx">
-        <el-card shadow="hover" class="step-card" :class="{ active: activeStep === idx }" @click="activeStep = idx">
+    <el-row
+      :gutter="20"
+      class="step-cards"
+    >
+      <el-col
+        v-for="(item, idx) in steps"
+        :key="idx"
+        :span="6"
+      >
+        <el-card
+          shadow="hover"
+          class="step-card"
+          :class="{ active: activeStep === idx }"
+          @click="activeStep = idx"
+        >
           <h3>{{ item.title }}</h3>
-          <p class="desc">{{ item.description }}</p>
+          <p class="desc">
+            {{ item.description }}
+          </p>
           <ul>
-            <li v-for="(d, i) in item.details" :key="i">{{ d }}</li>
+            <li
+              v-for="(d, i) in item.details"
+              :key="i"
+            >
+              {{ d }}
+            </li>
           </ul>
-          <el-button type="primary" link @click.stop="goTo(item.path)">
+          <el-button
+            type="primary"
+            link
+            @click.stop="goTo(item.path)"
+          >
             {{ $t('前往操作') }} <el-icon><ArrowRight /></el-icon>
           </el-button>
         </el-card>
       </el-col>
     </el-row>
 
-    <el-alert :title="$t('常见问题')" type="info" :closable="false" show-icon class="faq">
+    <el-alert
+      :title="$t('常见问题')"
+      type="info"
+      :closable="false"
+      show-icon
+      class="faq"
+    >
       <p><strong>Q: SMTP 验证失败？</strong> 请检查发件人邮箱、授权码是否正确，并确认邮箱已开启 SMTP 服务。</p>
       <p><strong>Q: 邮件进入垃圾箱？</strong> {{ $t('建议使用企业域名邮箱，避免营销话术，并合理设置发送频率。') }}</p>
       <p><strong>Q: 发送速度太慢？</strong> {{ $t('适当增加任务并发数，但需避免触发反垃圾邮件规则。') }}</p>

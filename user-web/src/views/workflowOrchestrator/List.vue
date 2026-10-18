@@ -3,10 +3,15 @@
     <el-card class="header-card">
       <div class="header-left">
         <h2>{{ $t('工作流编排') }}</h2>
-        <p class="subtitle">{{ $t('可视化编排业务工作流，支持触发器、条件分支和子流程') }}</p>
+        <p class="subtitle">
+          {{ $t('可视化编排业务工作流，支持触发器、条件分支和子流程') }}
+        </p>
       </div>
       <div class="header-right">
-        <el-button type="primary" @click="showCreateDialog">
+        <el-button
+          type="primary"
+          @click="showCreateDialog"
+        >
           <el-icon><Plus /></el-icon>
           {{ $t('新建工作流') }}
         </el-button>
@@ -24,49 +29,129 @@
           @clear="onFilterChange"
           @keyup.enter="onFilterChange"
         />
-        <el-select v-model="filterStatus" :placeholder="$t('状态')" clearable style="width: 140px" @change="onFilterChange">
-          <el-option label="草稿" value="draft" />
-          <el-option label="已发布" value="published" />
-          <el-option label="已归档" value="archived" />
+        <el-select
+          v-model="filterStatus"
+          :placeholder="$t('状态')"
+          clearable
+          style="width: 140px"
+          @change="onFilterChange"
+        >
+          <el-option
+            label="草稿"
+            value="draft"
+          />
+          <el-option
+            label="已发布"
+            value="published"
+          />
+          <el-option
+            label="已归档"
+            value="archived"
+          />
         </el-select>
-        <el-button type="primary" :icon="Search" @click="onFilterChange">{{ $t('查询') }}</el-button>
+        <el-button
+          type="primary"
+          :icon="Search"
+          @click="onFilterChange"
+        >
+          {{ $t('查询') }}
+        </el-button>
       </div>
 
-      <el-table :data="filteredFlows" v-loading="loading" stripe>
-        <el-table-column prop="workflow_id" :label="$t('工作流 ID')" min-width="160" />
-        <el-table-column prop="version" :label="$t('版本')" width="80" align="center">
+      <el-table
+        v-loading="loading"
+        :data="filteredFlows"
+        stripe
+      >
+        <el-table-column
+          prop="workflow_id"
+          :label="$t('工作流 ID')"
+          min-width="160"
+        />
+        <el-table-column
+          prop="version"
+          :label="$t('版本')"
+          width="80"
+          align="center"
+        >
           <template #default="{ row }">
-            <el-tag size="small">{{ row.version }}v</el-tag>
+            <el-tag size="small">
+              {{ row.version }}v
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="name" :label="$t('名称')" min-width="180" />
-        <el-table-column prop="status" :label="$t('状态')" width="110" align="center">
+        <el-table-column
+          prop="name"
+          :label="$t('名称')"
+          min-width="180"
+        />
+        <el-table-column
+          prop="status"
+          :label="$t('状态')"
+          width="110"
+          align="center"
+        >
           <template #default="{ row }">
-            <el-tag :type="statusType(row.status)" effect="dark">{{ statusText(row.status) }}</el-tag>
+            <el-tag
+              :type="statusType(row.status)"
+              effect="dark"
+            >
+              {{ statusText(row.status) }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="updated_at" :label="$t('更新时间')" width="180">
-          <template #default="{ row }">{{ formatTime(row.updated_at) }}</template>
-        </el-table-column>
-        <el-table-column :label="$t('操作')" width="380" fixed="right">
+        <el-table-column
+          prop="updated_at"
+          :label="$t('更新时间')"
+          width="180"
+        >
           <template #default="{ row }">
-            <el-button link type="primary" @click="openEditor(row)">{{ $t('编辑') }}</el-button>
+            {{ formatTime(row.updated_at) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          :label="$t('操作')"
+          width="380"
+          fixed="right"
+        >
+          <template #default="{ row }">
+            <el-button
+              link
+              type="primary"
+              @click="openEditor(row)"
+            >
+              {{ $t('编辑') }}
+            </el-button>
             <el-button
               v-if="row.status === 'draft'"
               link
               type="success"
               @click="handlePublish(row)"
-              >{{ $t('发布') }}</el-button
             >
+              {{ $t('发布') }}
+            </el-button>
             <el-button
               v-if="row.status === 'published'"
               link
               type="warning"
               @click="handleArchive(row)"
-              >{{ $t('归档') }}</el-button
             >
-            <el-button link type="info" @click="handleExecute(row)">{{ $t('执行') }}</el-button>
-            <el-button link type="danger" @click="handleDelete(row)">{{ $t('删除') }}</el-button>
+              {{ $t('归档') }}
+            </el-button>
+            <el-button
+              link
+              type="info"
+              @click="handleExecute(row)"
+            >
+              {{ $t('执行') }}
+            </el-button>
+            <el-button
+              link
+              type="danger"
+              @click="handleDelete(row)"
+            >
+              {{ $t('删除') }}
+            </el-button>
           </template>
         </el-table-column>
         <template #empty>
@@ -88,29 +173,72 @@
     </el-card>
 
     
-    <el-dialog v-model="dialogVisible" :title="$t('新建工作流')" width="600px" :close-on-click-modal="false">
-      <el-form :model="form" :rules="formRules" ref="formRef" label-width="120px">
-        <el-form-item label="工作流 ID" prop="workflow_id">
-          <el-input v-model="form.workflow_id" :placeholder="$t('唯一标识，例如 order_approval')" />
+    <el-dialog
+      v-model="dialogVisible"
+      :title="$t('新建工作流')"
+      width="600px"
+      :close-on-click-modal="false"
+    >
+      <el-form
+        ref="formRef"
+        :model="form"
+        :rules="formRules"
+        label-width="120px"
+      >
+        <el-form-item
+          label="工作流 ID"
+          prop="workflow_id"
+        >
+          <el-input
+            v-model="form.workflow_id"
+            :placeholder="$t('唯一标识，例如 order_approval')"
+          />
         </el-form-item>
-        <el-form-item :label="$t('名称')" prop="name">
-          <el-input v-model="form.name" :placeholder="$t('工作流名称')" />
+        <el-form-item
+          :label="$t('名称')"
+          prop="name"
+        >
+          <el-input
+            v-model="form.name"
+            :placeholder="$t('工作流名称')"
+          />
         </el-form-item>
         <el-form-item :label="$t('描述')">
-          <el-input v-model="form.description" type="textarea" :rows="2" />
+          <el-input
+            v-model="form.description"
+            type="textarea"
+            :rows="2"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">{{ $t('取消') }}</el-button>
-        <el-button type="primary" @click="submitCreate">{{ $t('创建') }}</el-button>
+        <el-button @click="dialogVisible = false">
+          {{ $t('取消') }}
+        </el-button>
+        <el-button
+          type="primary"
+          @click="submitCreate"
+        >
+          {{ $t('创建') }}
+        </el-button>
       </template>
     </el-dialog>
 
     
-    <el-dialog v-model="executeDialogVisible" :title="$t('执行工作流')" width="560px">
-      <el-form :model="executeForm" label-width="120px">
+    <el-dialog
+      v-model="executeDialogVisible"
+      :title="$t('执行工作流')"
+      width="560px"
+    >
+      <el-form
+        :model="executeForm"
+        label-width="120px"
+      >
         <el-form-item :label="$t('工作流 ID')">
-          <el-input v-model="executeForm.workflow_id" disabled />
+          <el-input
+            v-model="executeForm.workflow_id"
+            disabled
+          />
         </el-form-item>
         <el-form-item :label="$t('触发参数')">
           <el-input
@@ -120,15 +248,29 @@
             :placeholder="$t('JSON 格式，例如 {&quot;order_id&quot;: 123}')"
           />
         </el-form-item>
-        <el-form-item v-if="lastExecution" :label="$t('最近状态')">
-          <el-tag :type="execStatusType(lastExecution.status)" effect="dark">
+        <el-form-item
+          v-if="lastExecution"
+          :label="$t('最近状态')"
+        >
+          <el-tag
+            :type="execStatusType(lastExecution.status)"
+            effect="dark"
+          >
             {{ execStatusText(lastExecution.status) }}
           </el-tag>
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="executeDialogVisible = false">{{ $t('取消') }}</el-button>
-        <el-button type="primary" :loading="executing" @click="doExecute">{{ $t('执行') }}</el-button>
+        <el-button @click="executeDialogVisible = false">
+          {{ $t('取消') }}
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="executing"
+          @click="doExecute"
+        >
+          {{ $t('执行') }}
+        </el-button>
       </template>
     </el-dialog>
   </div>

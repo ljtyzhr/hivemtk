@@ -3,10 +3,17 @@
     <el-card class="header-card">
       <div class="header-content">
         <div>
-          <h2 class="page-title">{{ t('role.title') }}</h2>
-          <p class="page-subtitle">{{ t('role.subtitle') }}</p>
+          <h2 class="page-title">
+            {{ t('role.title') }}
+          </h2>
+          <p class="page-subtitle">
+            {{ t('role.subtitle') }}
+          </p>
         </div>
-        <el-tag type="info" size="large">
+        <el-tag
+          type="info"
+          size="large"
+        >
           <el-icon><Lock /></el-icon>
           {{ t('role.systemRole') }}
         </el-tag>
@@ -20,22 +27,39 @@
       @retry="loadRoles"
     />
 
-    <el-row v-else :gutter="20" v-loading="loading">
+    <el-row
+      v-else
+      v-loading="loading"
+      :gutter="20"
+    >
       <el-col
         v-for="role in roles"
         :key="role.code"
         :span="8"
       >
-        <el-card class="role-card" shadow="hover">
+        <el-card
+          class="role-card"
+          shadow="hover"
+        >
           <div class="role-card-header">
-            <el-tag :type="role.tag_type || 'primary'" size="large">
+            <el-tag
+              :type="role.tag_type || 'primary'"
+              size="large"
+            >
               {{ role.name }}
             </el-tag>
-            <el-tooltip :content="t('role.cannotEditRole')" placement="top">
-              <el-icon class="lock-icon"><Lock /></el-icon>
+            <el-tooltip
+              :content="t('role.cannotEditRole')"
+              placement="top"
+            >
+              <el-icon class="lock-icon">
+                <Lock />
+              </el-icon>
             </el-tooltip>
           </div>
-          <p class="role-desc">{{ role.description }}</p>
+          <p class="role-desc">
+            {{ role.description }}
+          </p>
           <div class="role-meta">
             <span class="member-count">
               <el-icon><User /></el-icon>
@@ -97,7 +121,10 @@
           min-width="180"
           show-overflow-tooltip
         />
-        <el-table-column :label="t('role.status')" width="100">
+        <el-table-column
+          :label="t('role.status')"
+          width="100"
+        >
           <template #default="{ row }">
             <el-tag :type="row.enabled ? 'success' : 'info'">
               {{ row.enabled ? t('role.enabled') : t('role.disabled') }}
@@ -115,9 +142,9 @@
         :page-sizes="[10, 20, 50]"
         :total="membersPagination.total"
         layout="total, sizes, prev, pager, next"
+        style="margin-top: 12px; text-align: right"
         @size-change="onMembersSizeChange"
         @current-change="onMembersCurrentChange"
-        style="margin-top: 12px; text-align: right"
       />
     </el-dialog>
 
@@ -154,7 +181,9 @@
         style="max-height: 420px; overflow: auto"
       />
       <template #footer>
-        <el-button @click="menuDialogVisible = false">{{ t('common.cancel', '取消') }}</el-button>
+        <el-button @click="menuDialogVisible = false">
+          {{ t('common.cancel', '取消') }}
+        </el-button>
         <el-button
           type="primary"
           :loading="menuSaving"

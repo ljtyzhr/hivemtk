@@ -3,152 +3,396 @@
     <div class="header">
       <h2>执行监控 #{{ sessionId }}</h2>
       <el-space>
-        <el-tag v-if="session" :type="{ completed: 'success', failed: 'danger', stopped: 'info', active: 'warning' }[session.status] || 'info'">
+        <el-tag
+          v-if="session"
+          :type="{ completed: 'success', failed: 'danger', stopped: 'info', active: 'warning' }[session.status] || 'info'"
+        >
           {{ session.status }}
         </el-tag>
-        <el-tag v-if="session?.confirm_pending" type="warning">待人工确认（写操作已挂起）</el-tag>
-        <el-button v-if="session && ['created','active'].includes(session.status)" type="danger" @click="onStop">停止</el-button>
-        <el-button v-if="session?.confirm_pending" type="primary" :loading="confirming" :disabled="!gate?.payload_hash" @click="onConfirm">确认放行</el-button>
-        <el-button v-if="session" @click="onExport">导出审计包</el-button>
+        <el-tag
+          v-if="session?.confirm_pending"
+          type="warning"
+        >
+          待人工确认（写操作已挂起）
+        </el-tag>
+        <el-button
+          v-if="session && ['created','active'].includes(session.status)"
+          type="danger"
+          @click="onStop"
+        >
+          停止
+        </el-button>
+        <el-button
+          v-if="session?.confirm_pending"
+          type="primary"
+          :loading="confirming"
+          :disabled="!gate?.payload_hash"
+          @click="onConfirm"
+        >
+          确认放行
+        </el-button>
+        <el-button
+          v-if="session"
+          @click="onExport"
+        >
+          导出审计包
+        </el-button>
       </el-space>
     </div>
 
-    <el-alert v-if="loadError" type="error" :closable="false" show-icon style="margin-top: 12px">
+    <el-alert
+      v-if="loadError"
+      type="error"
+      :closable="false"
+      show-icon
+      style="margin-top: 12px"
+    >
       <template #title>
         {{ session ? '最新状态读取失败，下方是刷新前的残留内容' : '这条会话读不到，本页没有在监控任何东西' }}：{{ loadError }}
       </template>
       <el-space style="margin-top: 6px">
-        <el-button size="small" type="primary" @click="retryLoad">重试</el-button>
-        <el-button size="small" @click="goTasks">返回任务列表</el-button>
+        <el-button
+          size="small"
+          type="primary"
+          @click="retryLoad"
+        >
+          重试
+        </el-button>
+        <el-button
+          size="small"
+          @click="goTasks"
+        >
+          返回任务列表
+        </el-button>
       </el-space>
     </el-alert>
 
-    <el-card v-if="gate" header="待确认的写操作（放行的仅此一份内容）" style="margin-top: 12px">
-      <el-descriptions :column="2" border>
-        <el-descriptions-item label="步骤序号">第 {{ gate?.step_index }} 步</el-descriptions-item>
-        <el-descriptions-item label="挂起到期">{{ formatTime(gate?.expires_at) }}</el-descriptions-item>
-        <el-descriptions-item label="将要提交的内容" :span="2">
+    <el-card
+      v-if="gate"
+      header="待确认的写操作（放行的仅此一份内容）"
+      style="margin-top: 12px"
+    >
+      <el-descriptions
+        :column="2"
+        border
+      >
+        <el-descriptions-item label="步骤序号">
+          第 {{ gate?.step_index }} 步
+        </el-descriptions-item>
+        <el-descriptions-item label="挂起到期">
+          {{ formatTime(gate?.expires_at) }}
+        </el-descriptions-item>
+        <el-descriptions-item
+          label="将要提交的内容"
+          :span="2"
+        >
           <span style="white-space: pre-wrap">{{ gate?.preview || '（无预览）' }}</span>
         </el-descriptions-item>
       </el-descriptions>
     </el-card>
 
-    <el-card v-if="session" style="margin-top: 12px">
-      <el-descriptions :column="4" border>
-        <el-descriptions-item label="耗时">{{ sessionDurationText(session) }}</el-descriptions-item>
-        <el-descriptions-item label="成功率">{{ session.total_steps ? `${session.success_steps}/${session.total_steps}` : '—' }}</el-descriptions-item>
-        <el-descriptions-item label="开始时间">{{ session.started_at ? new Date(session.started_at).toLocaleString('zh-CN') : '—' }}</el-descriptions-item>
-        <el-descriptions-item v-if="session.error_msg" label="错误" :span="4">
+    <el-card
+      v-if="session"
+      style="margin-top: 12px"
+    >
+      <el-descriptions
+        :column="4"
+        border
+      >
+        <el-descriptions-item label="耗时">
+          {{ sessionDurationText(session) }}
+        </el-descriptions-item>
+        <el-descriptions-item label="成功率">
+          {{ session.total_steps ? `${session.success_steps}/${session.total_steps}` : '—' }}
+        </el-descriptions-item>
+        <el-descriptions-item label="开始时间">
+          {{ session.started_at ? new Date(session.started_at).toLocaleString('zh-CN') : '—' }}
+        </el-descriptions-item>
+        <el-descriptions-item
+          v-if="session.error_msg"
+          label="错误"
+          :span="4"
+        >
           <span style="color: #ef4444">{{ session.error_msg }}</span>
         </el-descriptions-item>
       </el-descriptions>
     </el-card>
 
-    <el-card v-if="session?.llm_summary" header="LLM 总结" style="margin-top: 12px">
+    <el-card
+      v-if="session?.llm_summary"
+      header="LLM 总结"
+      style="margin-top: 12px"
+    >
       {{ session.llm_summary }}
     </el-card>
 
-    <el-card v-if="hasExtracted" header="提取数据（各次 extract 的合并结果，键=编排里的选择器名）" style="margin-top: 12px">
-      <div v-for="item in dataEntries(session.extracted_data)" :key="item.key" class="detail-item">
+    <el-card
+      v-if="hasExtracted"
+      header="提取数据（各次 extract 的合并结果，键=编排里的选择器名）"
+      style="margin-top: 12px"
+    >
+      <div
+        v-for="item in dataEntries(session.extracted_data)"
+        :key="item.key"
+        class="detail-item"
+      >
         <span class="detail-key">{{ item.key }}</span>
-        <pre v-if="item.kind === 'block'" class="detail-block">{{ item.text }}</pre>
-        <span v-else class="detail-inline">{{ item.text }}</span>
+        <pre
+          v-if="item.kind === 'block'"
+          class="detail-block"
+        >{{ item.text }}</pre>
+        <span
+          v-else
+          class="detail-inline"
+        >{{ item.text }}</span>
       </div>
     </el-card>
 
-    <el-card v-if="session" header="步骤执行" style="margin-top: 12px">
-      <el-table :data="steps" v-loading="loading">
+    <el-card
+      v-if="session"
+      header="步骤执行"
+      style="margin-top: 12px"
+    >
+      <el-table
+        v-loading="loading"
+        :data="steps"
+      >
         <el-table-column type="expand">
           <template #default="{ row }">
             <div class="step-detail">
-              <div v-if="row.submit_state" class="submit-ledger">
+              <div
+                v-if="row.submit_state"
+                class="submit-ledger"
+              >
                 <span class="detail-key">写操作台账</span>
-                <el-tag size="small" :type="SUBMIT_COPY[row.submit_state]?.type || 'info'">{{ row.submit_state }}</el-tag>
+                <el-tag
+                  size="small"
+                  :type="SUBMIT_COPY[row.submit_state]?.type || 'info'"
+                >
+                  {{ row.submit_state }}
+                </el-tag>
                 <span class="detail-inline">{{ SUBMIT_COPY[row.submit_state]?.text || '未知提交态（服务端未给结论，按未提交对待）' }}</span>
-                <span v-if="row.text_hash" class="detail-hash">正文指纹 {{ row.text_hash }}</span>
+                <span
+                  v-if="row.text_hash"
+                  class="detail-hash"
+                >正文指纹 {{ row.text_hash }}</span>
               </div>
-              <div v-for="g in stepDataGroups(row)" :key="g.title" class="detail-group">
-                <div class="detail-title">{{ g.title }}</div>
-                <div v-for="item in g.entries" :key="item.key" class="detail-item">
+              <div
+                v-for="g in stepDataGroups(row)"
+                :key="g.title"
+                class="detail-group"
+              >
+                <div class="detail-title">
+                  {{ g.title }}
+                </div>
+                <div
+                  v-for="item in g.entries"
+                  :key="item.key"
+                  class="detail-item"
+                >
                   <span class="detail-key">{{ item.key }}</span>
-                  <pre v-if="item.kind === 'block'" class="detail-block">{{ item.text }}</pre>
-                  <span v-else class="detail-inline">{{ item.text }}</span>
+                  <pre
+                    v-if="item.kind === 'block'"
+                    class="detail-block"
+                  >{{ item.text }}</pre>
+                  <span
+                    v-else
+                    class="detail-inline"
+                  >{{ item.text }}</span>
                 </div>
               </div>
-              <div v-if="!row.submit_state && !stepDataGroups(row).length" class="detail-empty">
+              <div
+                v-if="!row.submit_state && !stepDataGroups(row).length"
+                class="detail-empty"
+              >
                 这一步没有回包数据（动作只改变页面状态，不返回内容）
               </div>
             </div>
           </template>
         </el-table-column>
-        <el-table-column type="index" label="#" width="60" />
-        <el-table-column prop="action" label="动作" width="130">
+        <el-table-column
+          type="index"
+          label="#"
+          width="60"
+        />
+        <el-table-column
+          prop="action"
+          label="动作"
+          width="130"
+        >
           <template #default="{ row }">
             <span>{{ row.action }}</span>
-            <el-tag v-if="row.is_write" size="small" type="warning" class="write-tag">写</el-tag>
+            <el-tag
+              v-if="row.is_write"
+              size="small"
+              type="warning"
+              class="write-tag"
+            >
+              写
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="target" label="目标" min-width="160" show-overflow-tooltip />
-        <el-table-column label="值" min-width="140" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.value || '—' }}</template>
+        <el-table-column
+          prop="target"
+          label="目标"
+          min-width="160"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          label="值"
+          min-width="140"
+          show-overflow-tooltip
+        >
+          <template #default="{ row }">
+            {{ row.value || '—' }}
+          </template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" width="110">
+        <el-table-column
+          prop="status"
+          label="状态"
+          width="110"
+        >
           <template #default="{ row }">
             <el-tag :type="{ success: 'success', failed: 'danger', running: 'warning', skipped: 'info', pending: 'info' }[row.status] || 'info'">
               {{ row.status }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="duration_ms" label="耗时" width="100">
-          <template #default="{ row }">{{ durationText(row.duration_ms) }}</template>
+        <el-table-column
+          prop="duration_ms"
+          label="耗时"
+          width="100"
+        >
+          <template #default="{ row }">
+            {{ durationText(row.duration_ms) }}
+          </template>
         </el-table-column>
-        <el-table-column prop="error_msg" label="错误" min-width="200" show-overflow-tooltip />
+        <el-table-column
+          prop="error_msg"
+          label="错误"
+          min-width="200"
+          show-overflow-tooltip
+        />
       </el-table>
     </el-card>
 
-    <el-card v-if="session" style="margin-top: 12px">
+    <el-card
+      v-if="session"
+      style="margin-top: 12px"
+    >
       <template #header>
         <div style="display:flex;justify-content:space-between;align-items:center">
           <span>命令流（append-only 审计：command 下发 / event 回包 / judge 验收；✓=该帧结论成立、✗=不成立、—=此帧不携带结论）</span>
-          <el-select v-model="logDirection" size="small" style="width: 110px" @change="loadLogs">
-            <el-option label="全部" value="" />
-            <el-option label="command" value="command" />
-            <el-option label="event" value="event" />
-            <el-option label="judge" value="judge" />
+          <el-select
+            v-model="logDirection"
+            size="small"
+            style="width: 110px"
+            @change="loadLogs"
+          >
+            <el-option
+              label="全部"
+              value=""
+            />
+            <el-option
+              label="command"
+              value="command"
+            />
+            <el-option
+              label="event"
+              value="event"
+            />
+            <el-option
+              label="judge"
+              value="judge"
+            />
           </el-select>
         </div>
       </template>
-      <el-table :data="logs" size="small" max-height="420">
-        <el-table-column prop="seq" label="seq" width="60" />
-        <el-table-column prop="direction" label="方向" width="90">
+      <el-table
+        :data="logs"
+        size="small"
+        max-height="420"
+      >
+        <el-table-column
+          prop="seq"
+          label="seq"
+          width="60"
+        />
+        <el-table-column
+          prop="direction"
+          label="方向"
+          width="90"
+        >
           <template #default="{ row }">
-            <el-tag size="small" :type="{ command: '', event: 'success', judge: 'warning' }[row.direction] || 'info'">{{ row.direction }}</el-tag>
+            <el-tag
+              size="small"
+              :type="{ command: '', event: 'success', judge: 'warning' }[row.direction] || 'info'"
+            >
+              {{ row.direction }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="action" label="动作" width="130" />
-        <el-table-column prop="ok" label="帧结论" width="80">
-          <template #default="{ row }">{{ outcomeMark(row.ok) }}</template>
+        <el-table-column
+          prop="action"
+          label="动作"
+          width="130"
+        />
+        <el-table-column
+          prop="ok"
+          label="帧结论"
+          width="80"
+        >
+          <template #default="{ row }">
+            {{ outcomeMark(row.ok) }}
+          </template>
         </el-table-column>
-        <el-table-column prop="duration_ms" label="耗时" width="80">
-          <template #default="{ row }">{{ durationText(row.duration_ms) }}</template>
+        <el-table-column
+          prop="duration_ms"
+          label="耗时"
+          width="80"
+        >
+          <template #default="{ row }">
+            {{ durationText(row.duration_ms) }}
+          </template>
         </el-table-column>
-        <el-table-column label="payload" min-width="260" show-overflow-tooltip>
-          <template #default="{ row }"><span style="font-family: monospace; font-size: 12px">{{ payloadPreview(row.payload) }}</span></template>
+        <el-table-column
+          label="payload"
+          min-width="260"
+          show-overflow-tooltip
+        >
+          <template #default="{ row }">
+            <span style="font-family: monospace; font-size: 12px">{{ payloadPreview(row.payload) }}</span>
+          </template>
         </el-table-column>
       </el-table>
     </el-card>
 
-    <el-card v-if="session?.snapshot" style="margin-top: 12px">
+    <el-card
+      v-if="session?.snapshot"
+      style="margin-top: 12px"
+    >
       <template #header>
         <div style="display:flex;justify-content:space-between;align-items:center">
           <span>页面快照（可访问性树文本，{{ session.snapshot.length }} 字符——定位失败时拿它对照真实结构）</span>
-          <el-button size="small" @click="snapshotOpen = !snapshotOpen">{{ snapshotOpen ? '收起' : '展开全部' }}</el-button>
+          <el-button
+            size="small"
+            @click="snapshotOpen = !snapshotOpen"
+          >
+            {{ snapshotOpen ? '收起' : '展开全部' }}
+          </el-button>
         </div>
       </template>
-      <pre class="detail-block" :class="{ collapsed: !snapshotOpen }">{{ session.snapshot }}</pre>
+      <pre
+        class="detail-block"
+        :class="{ collapsed: !snapshotOpen }"
+      >{{ session.snapshot }}</pre>
     </el-card>
 
-    <el-card v-if="session?.final_screenshot_url" header="最终截图" style="margin-top: 12px">
+    <el-card
+      v-if="session?.final_screenshot_url"
+      header="最终截图"
+      style="margin-top: 12px"
+    >
       <el-image
         :src="session.final_screenshot_url"
         fit="contain"

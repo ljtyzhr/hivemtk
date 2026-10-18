@@ -3,10 +3,16 @@
     <el-card class="header-card">
       <div>
         <h2>{{ $t('客户旅程大屏') }}</h2>
-        <p class="subtitle">9 阶段实时监控 · 转化漏斗可视化 · 沉睡客户自动检测</p>
+        <p class="subtitle">
+          9 阶段实时监控 · 转化漏斗可视化 · 沉睡客户自动检测
+        </p>
       </div>
       <div class="header-actions">
-        <el-tag size="large" type="info" effect="plain">
+        <el-tag
+          size="large"
+          type="info"
+          effect="plain"
+        >
           最后更新: {{ lastUpdate }}
         </el-tag>
         <el-switch
@@ -15,47 +21,79 @@
           inactive-text="手动"
           @change="toggleAutoRefresh"
         />
-        <el-button type="primary" :icon="Refresh" @click="loadOverview" :loading="loading">
+        <el-button
+          type="primary"
+          :icon="Refresh"
+          :loading="loading"
+          @click="loadOverview"
+        >
           {{ $t('刷新') }}
         </el-button>
       </div>
     </el-card>
 
     
-    <el-row :gutter="20" class="stat-row">
+    <el-row
+      :gutter="20"
+      class="stat-row"
+    >
       <el-col :span="6">
         <el-card class="stat-card stat-blue">
-          <div class="stat-icon"><el-icon><User /></el-icon></div>
+          <div class="stat-icon">
+            <el-icon><User /></el-icon>
+          </div>
           <div class="stat-content">
-            <div class="stat-label">{{ $t('客户总数') }}</div>
-            <div class="stat-value">{{ overview?.total_customers || 0 }}</div>
+            <div class="stat-label">
+              {{ $t('客户总数') }}
+            </div>
+            <div class="stat-value">
+              {{ overview?.total_customers || 0 }}
+            </div>
           </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card class="stat-card stat-green">
-          <div class="stat-icon"><el-icon><CircleCheck /></el-icon></div>
+          <div class="stat-icon">
+            <el-icon><CircleCheck /></el-icon>
+          </div>
           <div class="stat-content">
-            <div class="stat-label">{{ $t('成交客户') }}</div>
-            <div class="stat-value">{{ wonCount }}</div>
+            <div class="stat-label">
+              {{ $t('成交客户') }}
+            </div>
+            <div class="stat-value">
+              {{ wonCount }}
+            </div>
           </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card class="stat-card stat-orange">
-          <div class="stat-icon"><el-icon><Sunny /></el-icon></div>
+          <div class="stat-icon">
+            <el-icon><Sunny /></el-icon>
+          </div>
           <div class="stat-content">
-            <div class="stat-label">{{ $t('意向客户') }}</div>
-            <div class="stat-value">{{ interestedCount }}</div>
+            <div class="stat-label">
+              {{ $t('意向客户') }}
+            </div>
+            <div class="stat-value">
+              {{ interestedCount }}
+            </div>
           </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card class="stat-card stat-red">
-          <div class="stat-icon"><el-icon><Moon /></el-icon></div>
+          <div class="stat-icon">
+            <el-icon><Moon /></el-icon>
+          </div>
           <div class="stat-content">
-            <div class="stat-label">{{ $t('沉睡客户') }}</div>
-            <div class="stat-value">{{ sleepingCount }}</div>
+            <div class="stat-label">
+              {{ $t('沉睡客户') }}
+            </div>
+            <div class="stat-value">
+              {{ sleepingCount }}
+            </div>
           </div>
         </el-card>
       </el-col>
@@ -73,7 +111,10 @@
         </div>
       </template>
 
-      <div v-loading="loading" class="funnel-container">
+      <div
+        v-loading="loading"
+        class="funnel-container"
+      >
         <div
           v-for="(stage, idx) in stageList"
           :key="stage.stage"
@@ -86,19 +127,31 @@
           @keydown.space.prevent="selectStage(stage)"
         >
           <div class="funnel-stage-content">
-            <div class="funnel-stage-label">{{ stage.label }}</div>
-            <div class="funnel-stage-count">{{ stage.count }} 人</div>
+            <div class="funnel-stage-label">
+              {{ stage.label }}
+            </div>
+            <div class="funnel-stage-count">
+              {{ stage.count }} 人
+            </div>
             <div class="funnel-stage-rate">
               {{ stage.rate.toFixed(1) }}% · 平均停留 {{ stage.avg_stay_hours.toFixed(0) }}h
             </div>
           </div>
-          <div v-if="idx < stageList.length - 1" class="funnel-arrow">↓</div>
+          <div
+            v-if="idx < stageList.length - 1"
+            class="funnel-arrow"
+          >
+            ↓
+          </div>
         </div>
       </div>
     </el-card>
 
     
-    <el-row :gutter="20" class="detail-row">
+    <el-row
+      :gutter="20"
+      class="detail-row"
+    >
       <el-col :span="12">
         <el-card class="detail-card">
           <template #header>
@@ -106,21 +159,62 @@
               <span>阶段配置</span>
             </div>
           </template>
-          <el-table :data="stagesMeta" stripe max-height="400">
-            <el-table-column prop="label" label="阶段" width="100" />
-            <el-table-column prop="description" label="说明" min-width="160" show-overflow-tooltip />
-            <el-table-column prop="default_followup" label="默认跟进" width="120" />
-            <el-table-column prop="owner_role" label="负责角色" width="100" align="center">
+          <el-table
+            :data="stagesMeta"
+            stripe
+            max-height="400"
+          >
+            <el-table-column
+              prop="label"
+              label="阶段"
+              width="100"
+            />
+            <el-table-column
+              prop="description"
+              label="说明"
+              min-width="160"
+              show-overflow-tooltip
+            />
+            <el-table-column
+              prop="default_followup"
+              label="默认跟进"
+              width="120"
+            />
+            <el-table-column
+              prop="owner_role"
+              label="负责角色"
+              width="100"
+              align="center"
+            >
               <template #default="{ row }">
-                <el-tag size="small" :type="getRoleTagType(row.owner_role)">
+                <el-tag
+                  size="small"
+                  :type="getRoleTagType(row.owner_role)"
+                >
                   {{ getRoleLabel(row.owner_role) }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="AI 接管" width="80" align="center">
+            <el-table-column
+              label="AI 接管"
+              width="80"
+              align="center"
+            >
               <template #default="{ row }">
-                <el-tag v-if="row.allow_ai_handle" type="success" size="small">允许</el-tag>
-                <el-tag v-else type="info" size="small">仅人工</el-tag>
+                <el-tag
+                  v-if="row.allow_ai_handle"
+                  type="success"
+                  size="small"
+                >
+                  允许
+                </el-tag>
+                <el-tag
+                  v-else
+                  type="info"
+                  size="small"
+                >
+                  仅人工
+                </el-tag>
               </template>
             </el-table-column>
           </el-table>
@@ -135,10 +229,26 @@
             </div>
           </template>
           <div v-loading="loading">
-            <el-table :data="overview?.stages || []" stripe max-height="400">
-              <el-table-column prop="label" label="阶段" min-width="120" />
-              <el-table-column prop="count" label="客户数" width="100" align="center" />
-              <el-table-column label="占比" width="200">
+            <el-table
+              :data="overview?.stages || []"
+              stripe
+              max-height="400"
+            >
+              <el-table-column
+                prop="label"
+                label="阶段"
+                min-width="120"
+              />
+              <el-table-column
+                prop="count"
+                label="客户数"
+                width="100"
+                align="center"
+              />
+              <el-table-column
+                label="占比"
+                width="200"
+              >
                 <template #default="{ row }">
                   <el-progress
                     :percentage="Math.round(row.rate)"
@@ -147,7 +257,11 @@
                   />
                 </template>
               </el-table-column>
-              <el-table-column label="平均停留" width="120" align="center">
+              <el-table-column
+                label="平均停留"
+                width="120"
+                align="center"
+              >
                 <template #default="{ row }">
                   {{ row.avg_stay_hours.toFixed(0) }}h
                 </template>
@@ -183,20 +297,39 @@
               <span class="event-arrow">
                 <el-tag size="small">{{ event.from_stage }}</el-tag>
                 <el-icon><Right /></el-icon>
-                <el-tag size="small" type="success">{{ event.to_stage }}</el-tag>
+                <el-tag
+                  size="small"
+                  type="success"
+                >{{ event.to_stage }}</el-tag>
               </span>
               <span class="event-reason">{{ event.reason || '无原因' }}</span>
               <span class="event-source">来源: {{ getSourceLabel(event.source || 'manual') }}</span>
             </div>
           </el-card>
         </el-timeline-item>
-        <el-empty v-if="recentEvents.length === 0" description="暂无事件" />
+        <el-empty
+          v-if="recentEvents.length === 0"
+          description="暂无事件"
+        />
       </el-timeline>
     </el-card>
 
-    <el-dialog v-model="stageDialog" :title="`${selectedStageLabel} · 客户明细`" width="600px">
-      <el-table v-loading="stageLoading" :data="stageCustomers" stripe max-height="420" empty-text="该阶段暂无客户">
-        <el-table-column prop="customer_id" label="客户ID" />
+    <el-dialog
+      v-model="stageDialog"
+      :title="`${selectedStageLabel} · 客户明细`"
+      width="600px"
+    >
+      <el-table
+        v-loading="stageLoading"
+        :data="stageCustomers"
+        stripe
+        max-height="420"
+        empty-text="该阶段暂无客户"
+      >
+        <el-table-column
+          prop="customer_id"
+          label="客户ID"
+        />
       </el-table>
     </el-dialog>
   </div>

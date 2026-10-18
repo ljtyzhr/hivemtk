@@ -1,5 +1,4 @@
 <template>
-  
   <el-sub-menu
     v-if="menu.children && menu.children.length > 0"
     :index="menu.key || menu.path"
@@ -11,13 +10,23 @@
     </template>
 
     
-    <template v-for="item in menu.children" :key="item.path || item.key">
-      <sub-menu-item :menu="item" :icon-components="props.iconComponents" />
+    <template
+      v-for="item in menu.children"
+      :key="item.path || item.key"
+    >
+      <sub-menu-item
+        :menu="item"
+        :icon-components="props.iconComponents"
+      />
     </template>
   </el-sub-menu>
 
   
-  <el-menu-item v-else :index="menu.path" @click="handleMenuClick(menu)">
+  <el-menu-item
+    v-else
+    :index="menu.path"
+    @click="handleMenuClick(menu)"
+  >
     <el-icon><component :is="resolveRouteIcon(menu.icon || 'Document')" /></el-icon>
     <span>{{ t('menu.' + menu.key) }}</span>
   </el-menu-item>

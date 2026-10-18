@@ -3,9 +3,14 @@
     <el-card class="header-card">
       <div>
         <h2>{{ $t('话术模板') }}</h2>
-        <p class="subtitle">{{ $t('管理营销话术、销售话术模板') }}</p>
+        <p class="subtitle">
+          {{ $t('管理营销话术、销售话术模板') }}
+        </p>
       </div>
-      <el-button type="primary" @click="showCreateDialog">
+      <el-button
+        type="primary"
+        @click="showCreateDialog"
+      >
         <el-icon><Plus /></el-icon>
         {{ $t('新增话术') }}
       </el-button>
@@ -16,76 +21,228 @@
         <div class="card-header">
           <span>{{ $t('话术列表') }}</span>
           <div>
-            <el-select v-model="filterScenario" :placeholder="$t('场景')" clearable style="width: 130px; margin-right: 10px">
-              <el-option :label="$t('开场白')" value="opening" />
-              <el-option :label="$t('跟进')" value="follow" />
-              <el-option :label="$t('异议处理')" value="objection" />
-              <el-option :label="$t('促成成交')" value="closing" />
+            <el-select
+              v-model="filterScenario"
+              :placeholder="$t('场景')"
+              clearable
+              style="width: 130px; margin-right: 10px"
+            >
+              <el-option
+                :label="$t('开场白')"
+                value="opening"
+              />
+              <el-option
+                :label="$t('跟进')"
+                value="follow"
+              />
+              <el-option
+                :label="$t('异议处理')"
+                value="objection"
+              />
+              <el-option
+                :label="$t('促成成交')"
+                value="closing"
+              />
             </el-select>
-            <el-input v-model="searchKeyword" :placeholder="$t('搜索话术')" clearable style="width: 200px" />
+            <el-input
+              v-model="searchKeyword"
+              :placeholder="$t('搜索话术')"
+              clearable
+              style="width: 200px"
+            />
           </div>
         </div>
       </template>
-      <el-table :data="filteredScripts" v-loading="loading" stripe>
-        <el-table-column prop="title" label="标题" min-width="180" />
-        <el-table-column prop="scenario" label="场景" width="100">
+      <el-table
+        v-loading="loading"
+        :data="filteredScripts"
+        stripe
+      >
+        <el-table-column
+          prop="title"
+          label="标题"
+          min-width="180"
+        />
+        <el-table-column
+          prop="scenario"
+          label="场景"
+          width="100"
+        >
           <template #default="{ row }">
             <el-tag>{{ getScenarioText(row.scenario) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="content" label="内容" min-width="300" show-overflow-tooltip />
-        <el-table-column prop="useCount" label="使用次数" width="100" />
-        <el-table-column prop="effectiveness" label="效果评分" width="120">
+        <el-table-column
+          prop="content"
+          label="内容"
+          min-width="300"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          prop="useCount"
+          label="使用次数"
+          width="100"
+        />
+        <el-table-column
+          prop="effectiveness"
+          label="效果评分"
+          width="120"
+        >
           <template #default="{ row }">
-            <el-rate v-model="row.effectiveness" disabled size="small" />
+            <el-rate
+              v-model="row.effectiveness"
+              disabled
+              size="small"
+            />
           </template>
         </el-table-column>
-        <el-table-column prop="updatedAt" label="更新时间" width="180" />
-        <el-table-column label="操作" width="250" fixed="right">
+        <el-table-column
+          prop="updatedAt"
+          label="更新时间"
+          width="180"
+        />
+        <el-table-column
+          label="操作"
+          width="250"
+          fixed="right"
+        >
           <template #default="{ row }">
-            <el-button link type="primary" @click="useScript(row)">使用</el-button>
-            <el-button link type="primary" @click="editScript(row)">编辑</el-button>
-            <el-button link type="primary" @click="copyScript(row)">复制</el-button>
-            <el-button link type="danger" @click="deleteScript(row)">删除</el-button>
+            <el-button
+              link
+              type="primary"
+              @click="useScript(row)"
+            >
+              使用
+            </el-button>
+            <el-button
+              link
+              type="primary"
+              @click="editScript(row)"
+            >
+              编辑
+            </el-button>
+            <el-button
+              link
+              type="primary"
+              @click="copyScript(row)"
+            >
+              复制
+            </el-button>
+            <el-button
+              link
+              type="danger"
+              @click="deleteScript(row)"
+            >
+              删除
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
     </el-card>
 
-    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="700px">
-      <el-form :model="form" :rules="formRules" ref="formRef" label-width="100px">
-        <el-form-item label="话术标题" prop="title">
+    <el-dialog
+      v-model="dialogVisible"
+      :title="dialogTitle"
+      width="700px"
+    >
+      <el-form
+        ref="formRef"
+        :model="form"
+        :rules="formRules"
+        label-width="100px"
+      >
+        <el-form-item
+          label="话术标题"
+          prop="title"
+        >
           <el-input v-model="form.title" />
         </el-form-item>
-        <el-form-item label="使用场景" prop="scenario">
-          <el-select v-model="form.scenario" style="width: 100%">
-            <el-option label="开场白" value="opening" />
-            <el-option label="跟进" value="follow" />
-            <el-option label="异议处理" value="objection" />
-            <el-option label="促成成交" value="closing" />
+        <el-form-item
+          label="使用场景"
+          prop="scenario"
+        >
+          <el-select
+            v-model="form.scenario"
+            style="width: 100%"
+          >
+            <el-option
+              label="开场白"
+              value="opening"
+            />
+            <el-option
+              label="跟进"
+              value="follow"
+            />
+            <el-option
+              label="异议处理"
+              value="objection"
+            />
+            <el-option
+              label="促成成交"
+              value="closing"
+            />
           </el-select>
         </el-form-item>
-        <el-form-item label="话术分类" prop="category">
-          <el-select v-model="form.category" placeholder="请选择或输入分类" filterable allow-create default-first-option style="width: 100%">
-            <el-option v-for="cat in categories" :key="cat.id" :label="cat.name" :value="cat.name" />
+        <el-form-item
+          label="话术分类"
+          prop="category"
+        >
+          <el-select
+            v-model="form.category"
+            placeholder="请选择或输入分类"
+            filterable
+            allow-create
+            default-first-option
+            style="width: 100%"
+          >
+            <el-option
+              v-for="cat in categories"
+              :key="cat.id"
+              :label="cat.name"
+              :value="cat.name"
+            />
           </el-select>
         </el-form-item>
-        <el-form-item label="话术内容" prop="content">
-          <el-input v-model="form.content" type="textarea" :rows="6" />
+        <el-form-item
+          label="话术内容"
+          prop="content"
+        >
+          <el-input
+            v-model="form.content"
+            type="textarea"
+            :rows="6"
+          />
         </el-form-item>
         <el-form-item label="变量">
-          <el-input v-model="form.variables" placeholder="多个变量用逗号分隔，如: 客户姓名,产品名" />
+          <el-input
+            v-model="form.variables"
+            placeholder="多个变量用逗号分隔，如: 客户姓名,产品名"
+          />
         </el-form-item>
         <el-form-item label="标签">
-          <el-input v-model="form.tags" placeholder="多个标签用逗号分隔" />
+          <el-input
+            v-model="form.tags"
+            placeholder="多个标签用逗号分隔"
+          />
         </el-form-item>
         <el-form-item label="备注">
-          <el-input v-model="form.remark" type="textarea" :rows="2" />
+          <el-input
+            v-model="form.remark"
+            type="textarea"
+            :rows="2"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="submitForm">确定</el-button>
+        <el-button @click="dialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          @click="submitForm"
+        >
+          确定
+        </el-button>
       </template>
     </el-dialog>
   </div>

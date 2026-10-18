@@ -4,31 +4,70 @@
       <template #header>
         <div class="card-header">
           <span>🎯 漏斗总览 · 全链路 SEO × GEO</span>
-          <el-button type="primary" size="small" @click="load">刷新</el-button>
+          <el-button
+            type="primary"
+            size="small"
+            @click="load"
+          >
+            刷新
+          </el-button>
         </div>
       </template>
 
-      <div v-if="loading">加载中...</div>
-      <el-empty v-else-if="!stats" description="暂无数据，先去做关键词蒸馏和文章生成吧" />
+      <div v-if="loading">
+        加载中...
+      </div>
+      <el-empty
+        v-else-if="!stats"
+        description="暂无数据，先去做关键词蒸馏和文章生成吧"
+      />
 
       <template v-else>
         <!-- 双漏斗 -->
-        <el-row :gutter="16" class="funnel-row">
-          <el-col v-for="(val, key) in funnel" :key="key" :span="4">
-            <div class="funnel-step" :style="{ background: gradientColor(key) }">
-              <div class="step-num">{{ val || 0 }}</div>
-              <div class="step-label">{{ labelMap[key] }}</div>
+        <el-row
+          :gutter="16"
+          class="funnel-row"
+        >
+          <el-col
+            v-for="(val, key) in funnel"
+            :key="key"
+            :span="4"
+          >
+            <div
+              class="funnel-step"
+              :style="{ background: gradientColor(key) }"
+            >
+              <div class="step-num">
+                {{ val || 0 }}
+              </div>
+              <div class="step-label">
+                {{ labelMap[key] }}
+              </div>
             </div>
           </el-col>
         </el-row>
 
         <!-- 引擎对比 -->
-        <el-row :gutter="16" class="stats-row">
+        <el-row
+          :gutter="16"
+          class="stats-row"
+        >
           <el-col :span="12">
             <h4>📈 搜索引擎收录</h4>
-            <el-table :data="engineIndexed" size="small" border>
-              <el-table-column prop="engine" label="引擎" width="120" />
-              <el-table-column prop="count" label="收录数" />
+            <el-table
+              :data="engineIndexed"
+              size="small"
+              border
+            >
+              <el-table-column
+                prop="engine"
+                label="引擎"
+                width="120"
+              />
+              <el-table-column
+                prop="count"
+                label="收录数"
+              />
               <el-table-column label="收录率">
                 <template #default="{ row }">
                   <el-progress :percentage="rate(row.count)" />
@@ -38,9 +77,20 @@
           </el-col>
           <el-col :span="12">
             <h4>🤖 AI 引擎引用</h4>
-            <el-table :data="engineCited" size="small" border>
-              <el-table-column prop="engine" label="引擎" width="120" />
-              <el-table-column prop="count" label="引用数" />
+            <el-table
+              :data="engineCited"
+              size="small"
+              border
+            >
+              <el-table-column
+                prop="engine"
+                label="引擎"
+                width="120"
+              />
+              <el-table-column
+                prop="count"
+                label="引用数"
+              />
               <el-table-column label="引用率">
                 <template #default="{ row }">
                   <el-progress :percentage="rate(row.count)" />
@@ -51,9 +101,21 @@
         </el-row>
 
         <!-- 转化率 -->
-        <el-row :gutter="16" class="rate-row">
-          <el-col v-for="(val, key) in stats.conversion_rates" :key="key" :span="8">
-            <el-statistic :title="labelMap[key]" :value="val" :precision="1" suffix="%" />
+        <el-row
+          :gutter="16"
+          class="rate-row"
+        >
+          <el-col
+            v-for="(val, key) in stats.conversion_rates"
+            :key="key"
+            :span="8"
+          >
+            <el-statistic
+              :title="labelMap[key]"
+              :value="val"
+              :precision="1"
+              suffix="%"
+            />
           </el-col>
         </el-row>
       </template>

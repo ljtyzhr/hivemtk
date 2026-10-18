@@ -1,11 +1,23 @@
 <template>
   <div class="merchant-editor">
-    
-    <el-card class="status-bar" shadow="never">
+    <el-card
+      class="status-bar"
+      shadow="never"
+    >
       <div class="status-row">
         <div class="status-left">
-          <el-icon v-if="form.status === 'active'" class="status-icon active"><Monitor /></el-icon>
-          <el-icon v-else class="status-icon paused"><VideoPause /></el-icon>
+          <el-icon
+            v-if="form.status === 'active'"
+            class="status-icon active"
+          >
+            <Monitor />
+          </el-icon>
+          <el-icon
+            v-else
+            class="status-icon paused"
+          >
+            <VideoPause />
+          </el-icon>
           <div class="status-text">
             <div class="status-title">
               <span v-if="form.status === 'active'">🤖 托管中（AI 正在使用该话术包服务独立站和 WhatsApp）</span>
@@ -31,16 +43,28 @@
           >
             ▶️ 恢复托管
           </el-button>
-          <el-button type="primary" :loading="saving" @click="handleSave">
+          <el-button
+            type="primary"
+            :loading="saving"
+            @click="handleSave"
+          >
             💾 保存配置并立刻热更新到商户本地 AI 引擎
           </el-button>
         </div>
       </div>
     </el-card>
 
-    <el-form ref="formRef" :model="form" label-width="160px" class="form-body" v-loading="loading">
-      
-      <el-card class="section" shadow="never">
+    <el-form
+      ref="formRef"
+      v-loading="loading"
+      :model="form"
+      label-width="160px"
+      class="form-body"
+    >
+      <el-card
+        class="section"
+        shadow="never"
+      >
         <template #header>
           <div class="section-header">
             <el-icon><Goods /></el-icon>
@@ -65,56 +89,90 @@
                   class="cover-preview"
                 >
                   <template #error>
-                    <div class="img-error-fallback">{{ $t('图片加载失败') }}</div>
+                    <div class="img-error-fallback">
+                      {{ $t('图片加载失败') }}
+                    </div>
                   </template>
                 </el-image>
-                <el-icon v-else class="cover-uploader-icon"><Plus /></el-icon>
+                <el-icon
+                  v-else
+                  class="cover-uploader-icon"
+                >
+                  <Plus />
+                </el-icon>
               </el-upload>
-              <div class="cover-tip">点击上传封面图</div>
+              <div class="cover-tip">
+                点击上传封面图
+              </div>
             </el-form-item>
           </el-col>
           <el-col :span="18">
             <el-form-item label="资产包名称">
-              <el-input v-model="form.title" placeholder="例如：跨境成人用品私域销冠自动留资话术包" />
+              <el-input
+                v-model="form.title"
+                placeholder="例如：跨境成人用品私域销冠自动留资话术包"
+              />
             </el-form-item>
             <el-form-item label="资产 ID">
-              <el-input v-model="form.asset_id" placeholder="例如：hive_sales_vape_cn_001（保存后不可修改）" :disabled="isEdit" />
+              <el-input
+                v-model="form.asset_id"
+                placeholder="例如：hive_sales_vape_cn_001（保存后不可修改）"
+                :disabled="isEdit"
+              />
             </el-form-item>
           </el-col>
         </el-row>
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="当前店铺促销活动名称">
-              <el-input v-model="form.campaign_name" placeholder="例如：双十一全球年终大促" />
+              <el-input
+                v-model="form.campaign_name"
+                placeholder="例如：双十一全球年终大促"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="6">
             <el-form-item label="官方全场优惠券比例">
-              <el-input v-model="form.discount_pct" placeholder="例如：15%" />
+              <el-input
+                v-model="form.discount_pct"
+                placeholder="例如：15%"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="6">
             <el-form-item label="客服联系方式">
-              <el-input v-model="form.support_contact" placeholder="例如：WhatsApp +49 176123456" />
+              <el-input
+                v-model="form.support_contact"
+                placeholder="例如：WhatsApp +49 176123456"
+              />
             </el-form-item>
           </el-col>
         </el-row>
         <el-row :gutter="20">
           <el-col :span="12">
             <el-form-item label="核心品牌/店铺名称">
-              <el-input v-model="form.shop_name" placeholder="例如：HiveVape 国际独立商城" />
+              <el-input
+                v-model="form.shop_name"
+                placeholder="例如：HiveVape 国际独立商城"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="开发者（署名）">
-              <el-input v-model="form.author" placeholder="例如：出海精英_阿杰" />
+              <el-input
+                v-model="form.author"
+                placeholder="例如：出海精英_阿杰"
+              />
             </el-form-item>
           </el-col>
         </el-row>
       </el-card>
 
       
-      <el-card class="section" shadow="never">
+      <el-card
+        class="section"
+        shadow="never"
+      >
         <template #header>
           <div class="section-header">
             <el-icon><Lock /></el-icon>
@@ -125,43 +183,83 @@
         <el-row :gutter="20">
           <el-col :span="8">
             <el-form-item label="🔴 危机感触发行">
-              <el-select v-model="form.crisis_threshold" placeholder="选择阈值">
-                <el-option label="危机感 ≥ 2 分时，强制触发转人工门禁" value="2" />
-                <el-option label="危机感 ≥ 3 分时，强制触发转人工门禁" value="3" />
-                <el-option label="危机感 ≥ 4 分时，强制触发转人工门禁（推荐）" value="4" />
-                <el-option label="危机感 ≥ 5 分时，强制触发转人工门禁" value="5" />
+              <el-select
+                v-model="form.crisis_threshold"
+                placeholder="选择阈值"
+              >
+                <el-option
+                  label="危机感 ≥ 2 分时，强制触发转人工门禁"
+                  value="2"
+                />
+                <el-option
+                  label="危机感 ≥ 3 分时，强制触发转人工门禁"
+                  value="3"
+                />
+                <el-option
+                  label="危机感 ≥ 4 分时，强制触发转人工门禁（推荐）"
+                  value="4"
+                />
+                <el-option
+                  label="危机感 ≥ 5 分时，强制触发转人工门禁"
+                  value="5"
+                />
               </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="8">
             <el-form-item label="🟢 语气词口语化修饰度">
-              <el-select v-model="form.tone_level" placeholder="选择等级">
-                <el-option label="低（专业克制，避免情绪化）" value="low" />
-                <el-option label="中等（适度增加哈/哦/🥰）" value="medium" />
-                <el-option label="高（情绪词频繁，真人感强）" value="high" />
+              <el-select
+                v-model="form.tone_level"
+                placeholder="选择等级"
+              >
+                <el-option
+                  label="低（专业克制，避免情绪化）"
+                  value="low"
+                />
+                <el-option
+                  label="中等（适度增加哈/哦/🥰）"
+                  value="medium"
+                />
+                <el-option
+                  label="高（情绪词频繁，真人感强）"
+                  value="high"
+                />
               </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="8">
             <el-form-item label="🔵 反审查自由度尺度">
               <el-radio-group v-model="form.censorship_level">
-                <el-radio label="strict">严苛合规</el-radio>
-                <el-radio label="unlock">100% 完全解锁</el-radio>
+                <el-radio label="strict">
+                  严苛合规
+                </el-radio>
+                <el-radio label="unlock">
+                  100% 完全解锁
+                </el-radio>
               </el-radio-group>
             </el-form-item>
           </el-col>
         </el-row>
         <el-form-item label="启用结算意图">
           <el-checkbox-group v-model="form.enabled_intents">
-            <el-checkbox label="faq">普通咨询 (faq)</el-checkbox>
-            <el-checkbox label="lead_capture">留资意向 (lead_capture)</el-checkbox>
-            <el-checkbox label="human_transfer">转人工 (human_transfer)</el-checkbox>
+            <el-checkbox label="faq">
+              普通咨询 (faq)
+            </el-checkbox>
+            <el-checkbox label="lead_capture">
+              留资意向 (lead_capture)
+            </el-checkbox>
+            <el-checkbox label="human_transfer">
+              转人工 (human_transfer)
+            </el-checkbox>
           </el-checkbox-group>
         </el-form-item>
       </el-card>
 
       
-      <el-card class="section" shadow="never">
+      <el-card
+        class="section"
+        shadow="never"
+      >
         <template #header>
           <div class="section-header">
             <el-icon><ChatDotRound /></el-icon>
@@ -178,10 +276,19 @@
           >
             <div class="qa-card-header">
               <span class="qa-card-title">▼ 行业经典答疑卡片 {{ idx + 1 }}</span>
-              <el-button type="danger" link @click="removeQACard(card.id)">删除</el-button>
+              <el-button
+                type="danger"
+                link
+                @click="removeQACard(card.id)"
+              >
+                删除
+              </el-button>
             </div>
             <el-form-item label="触发场景描述">
-              <el-input v-model="card.trigger" placeholder="例如：关于物流与清关" />
+              <el-input
+                v-model="card.trigger"
+                placeholder="例如：关于物流与清关"
+              />
             </el-form-item>
             <el-form-item label="客户提问示例">
               <el-input
@@ -201,13 +308,21 @@
             </el-form-item>
           </el-card>
         </div>
-        <el-button type="primary" plain class="add-card-btn" @click="addQACard">
+        <el-button
+          type="primary"
+          plain
+          class="add-card-btn"
+          @click="addQACard"
+        >
           ➕ 新增商户自家店铺专属的提问应答卡片
         </el-button>
       </el-card>
 
       
-      <el-card class="section" shadow="never">
+      <el-card
+        class="section"
+        shadow="never"
+      >
         <template #header>
           <div class="section-header">
             <el-icon><Grid /></el-icon>
@@ -219,15 +334,24 @@
           <el-col :span="8">
             <el-form-item label="触发意图结算类型">
               <el-radio-group v-model="form.card_config.intent_type">
-                <el-radio label="button_card">按钮跳转卡片</el-radio>
-                <el-radio label="coupon">优惠券发放表单</el-radio>
-                <el-radio label="handoff">转人工提示</el-radio>
+                <el-radio label="button_card">
+                  按钮跳转卡片
+                </el-radio>
+                <el-radio label="coupon">
+                  优惠券发放表单
+                </el-radio>
+                <el-radio label="handoff">
+                  转人工提示
+                </el-radio>
               </el-radio-group>
             </el-form-item>
           </el-col>
           <el-col :span="16">
             <el-form-item label="绑定商品主图">
-              <el-input v-model="form.card_config.product_image" placeholder="例如：https://example.com/product.jpg" />
+              <el-input
+                v-model="form.card_config.product_image"
+                placeholder="例如：https://example.com/product.jpg"
+              />
             </el-form-item>
           </el-col>
         </el-row>
@@ -242,45 +366,93 @@
             <el-row :gutter="10">
               <el-col :span="8">
                 <el-form-item label="按钮标题">
-                  <el-input v-model="btn.title" placeholder="例如：🛒 独立站直接购买" />
+                  <el-input
+                    v-model="btn.title"
+                    placeholder="例如：🛒 独立站直接购买"
+                  />
                 </el-form-item>
               </el-col>
               <el-col :span="6">
                 <el-form-item label="触发动作">
                   <el-select v-model="btn.action">
-                    <el-option label="跳转 URL" value="open_url" />
-                    <el-option label="触发本地工具 API" value="call_api" />
+                    <el-option
+                      label="跳转 URL"
+                      value="open_url"
+                    />
+                    <el-option
+                      label="触发本地工具 API"
+                      value="call_api"
+                    />
                   </el-select>
                 </el-form-item>
               </el-col>
               <el-col :span="8">
-                <el-form-item v-if="btn.action === 'open_url'" label="跳转 URL">
-                  <el-input v-model="btn.url" placeholder="https://shopify.com/..." />
+                <el-form-item
+                  v-if="btn.action === 'open_url'"
+                  label="跳转 URL"
+                >
+                  <el-input
+                    v-model="btn.url"
+                    placeholder="https://shopify.com/..."
+                  />
                 </el-form-item>
-                <el-form-item v-else label="本地工具名">
-                  <el-input v-model="btn.api_name" placeholder="例如：reach.send_coupon" />
+                <el-form-item
+                  v-else
+                  label="本地工具名"
+                >
+                  <el-input
+                    v-model="btn.api_name"
+                    placeholder="例如：reach.send_coupon"
+                  />
                 </el-form-item>
               </el-col>
               <el-col :span="2">
-                <el-button type="danger" link @click="removeButton(idx)">删除</el-button>
+                <el-button
+                  type="danger"
+                  link
+                  @click="removeButton(idx)"
+                >
+                  删除
+                </el-button>
               </el-col>
             </el-row>
-            <el-form-item v-if="btn.action === 'call_api'" label="工具参数 (JSON)">
-              <el-input v-model="btn.api_args" placeholder='例如：{"coupon_id":"SUMMER15"}' />
+            <el-form-item
+              v-if="btn.action === 'call_api'"
+              label="工具参数 (JSON)"
+            >
+              <el-input
+                v-model="btn.api_args"
+                placeholder="例如：{&quot;coupon_id&quot;:&quot;SUMMER15&quot;}"
+              />
             </el-form-item>
           </el-card>
         </div>
-        <el-button type="primary" plain class="add-card-btn" @click="addButton">
+        <el-button
+          type="primary"
+          plain
+          class="add-card-btn"
+          @click="addButton"
+        >
           ➕ 新增动作按钮
         </el-button>
       </el-card>
 
       
       <div class="footer-actions">
-        <el-button type="primary" size="large" :loading="saving" @click="handleSave">
+        <el-button
+          type="primary"
+          size="large"
+          :loading="saving"
+          @click="handleSave"
+        >
           💾 保存配置并立刻热更新到商户本地 AI 引擎
         </el-button>
-        <el-button size="large" @click="$router.push('/asset-bundle/list')">返回列表</el-button>
+        <el-button
+          size="large"
+          @click="$router.push('/asset-bundle/list')"
+        >
+          返回列表
+        </el-button>
       </div>
     </el-form>
   </div>

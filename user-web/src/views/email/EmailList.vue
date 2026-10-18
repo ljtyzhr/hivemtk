@@ -3,44 +3,95 @@
     <div class="page-header">
       <h1>{{ $t('邮件列表') }}</h1>
       <div class="toolbar">
-        <el-button type="primary" @click="openSend">{{ $t('发送邮件') }}</el-button>
-        <el-button @click="fetchEmailList">{{ $t('刷新') }}</el-button>
+        <el-button
+          type="primary"
+          @click="openSend"
+        >
+          {{ $t('发送邮件') }}
+        </el-button>
+        <el-button @click="fetchEmailList">
+          {{ $t('刷新') }}
+        </el-button>
       </div>
     </div>
     
     <div class="table-container">
-      <el-table :data="emailList" style="width: 100%" v-loading="loading">
-        <el-table-column prop="subject" :label="$t('主题')" width="200" />
-        <el-table-column prop="to" :label="$t('收件人')" width="150" />
-        <el-table-column prop="from" :label="$t('发件人')" width="150" />
-        <el-table-column :label="$t('是否发送')" width="100">
+      <el-table
+        v-loading="loading"
+        :data="emailList"
+        style="width: 100%"
+      >
+        <el-table-column
+          prop="subject"
+          :label="$t('主题')"
+          width="200"
+        />
+        <el-table-column
+          prop="to"
+          :label="$t('收件人')"
+          width="150"
+        />
+        <el-table-column
+          prop="from"
+          :label="$t('发件人')"
+          width="150"
+        />
+        <el-table-column
+          :label="$t('是否发送')"
+          width="100"
+        >
           <template #default="scope">
             <el-tag :type="scope.row.is_send > 0 ? 'success' : 'info'">
               {{ scope.row.is_send > 0 ? '是' : '否' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="发送时间" width="150">
+        <el-table-column
+          label="发送时间"
+          width="150"
+        >
           <template #default="scope">
             {{ scope.row.is_send > 0 ? scope.row.send_time : '-' }}
           </template>
         </el-table-column>
-        <el-table-column label="是否阅读" width="100">
+        <el-table-column
+          label="是否阅读"
+          width="100"
+        >
           <template #default="scope">
             <el-tag :type="scope.row.is_read > 0 ? 'success' : 'info'">
               {{ scope.row.is_read > 0 ? '是' : '否' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="阅读时间" width="150">
+        <el-table-column
+          label="阅读时间"
+          width="150"
+        >
           <template #default="scope">
             {{ scope.row.is_read > 0 ? scope.row.read_time : '-' }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="160" fixed="right">
+        <el-table-column
+          label="操作"
+          width="160"
+          fixed="right"
+        >
           <template #default="scope">
-            <el-button link type="primary" @click="openTrace(scope.row)">{{ $t('查看追踪') }}</el-button>
-            <el-button link type="danger" @click="handleDelete(scope.row)">{{ $t('删除') }}</el-button>
+            <el-button
+              link
+              type="primary"
+              @click="openTrace(scope.row)"
+            >
+              {{ $t('查看追踪') }}
+            </el-button>
+            <el-button
+              link
+              type="danger"
+              @click="handleDelete(scope.row)"
+            >
+              {{ $t('删除') }}
+            </el-button>
           </template>
         </el-table-column>
         <template #empty>
@@ -53,42 +104,89 @@
           v-model:current-page="emailPage"
           :page-size="emailLimit"
           :total="emailTotal"
-          @current-change="handlePageChange"
           layout="prev, pager, next"
+          @current-change="handlePageChange"
         />
       </div>
     </div>
 
     
-    <el-dialog v-model="sendVisible" :title="$t('发送邮件')" width="640px">
-      <el-form :model="sendForm" label-width="80px">
+    <el-dialog
+      v-model="sendVisible"
+      :title="$t('发送邮件')"
+      width="640px"
+    >
+      <el-form
+        :model="sendForm"
+        label-width="80px"
+      >
         <el-form-item :label="$t('主题')">
-          <el-input v-model="sendForm.subject" :placeholder="$t('主题')" />
+          <el-input
+            v-model="sendForm.subject"
+            :placeholder="$t('主题')"
+          />
         </el-form-item>
         <el-form-item label="内容">
-          <el-input v-model="sendForm.content" type="textarea" :rows="6" placeholder="邮件内容" />
+          <el-input
+            v-model="sendForm.content"
+            type="textarea"
+            :rows="6"
+            placeholder="邮件内容"
+          />
         </el-form-item>
         <el-form-item label="附件">
-          <el-input v-model="attachmentsText" type="textarea" :rows="2" placeholder="附件URL，多个用逗号或换行分隔" />
+          <el-input
+            v-model="attachmentsText"
+            type="textarea"
+            :rows="2"
+            placeholder="附件URL，多个用逗号或换行分隔"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="sendVisible = false">{{ $t('取消') }}</el-button>
-        <el-button type="primary" :loading="submitting" @click="submitSend">{{ $t('确定') }}</el-button>
+        <el-button @click="sendVisible = false">
+          {{ $t('取消') }}
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="submitting"
+          @click="submitSend"
+        >
+          {{ $t('确定') }}
+        </el-button>
       </template>
     </el-dialog>
 
     
-    <el-dialog v-model="traceVisible" :title="$t('追踪信息')" width="640px">
+    <el-dialog
+      v-model="traceVisible"
+      :title="$t('追踪信息')"
+      width="640px"
+    >
       <div v-loading="traceLoading">
         <div v-if="traceData && traceData.length">
-          <el-table :data="traceData" border>
-            <el-table-column prop="email" label="收件人" />
-            <el-table-column prop="eventType" label="状态" />
-            <el-table-column prop="timestamp" label="时间" />
+          <el-table
+            :data="traceData"
+            border
+          >
+            <el-table-column
+              prop="email"
+              label="收件人"
+            />
+            <el-table-column
+              prop="eventType"
+              label="状态"
+            />
+            <el-table-column
+              prop="timestamp"
+              label="时间"
+            />
           </el-table>
         </div>
-        <el-empty v-else description="暂无追踪数据" />
+        <el-empty
+          v-else
+          description="暂无追踪数据"
+        />
       </div>
     </el-dialog>
   </div>

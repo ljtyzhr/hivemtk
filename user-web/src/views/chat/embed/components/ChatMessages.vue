@@ -1,42 +1,95 @@
 <template>
-  <div class="chat-messages" ref="listRef">
-    <div v-if="loading" class="loading">加载中...</div>
-    <div v-else-if="messages.length === 0" class="empty">
+  <div
+    ref="listRef"
+    class="chat-messages"
+  >
+    <div
+      v-if="loading"
+      class="loading"
+    >
+      加载中...
+    </div>
+    <div
+      v-else-if="messages.length === 0"
+      class="empty"
+    >
       <div class="empty-icon">
-        <svg viewBox="0 0 24 24" width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round"><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z"/></svg>
+        <svg
+          viewBox="0 0 24 24"
+          width="48"
+          height="48"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="1.6"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+        ><path d="M21 11.5a8.38 8.38 0 0 1-.9 3.8 8.5 8.5 0 0 1-7.6 4.7 8.38 8.38 0 0 1-3.8-.9L3 21l1.9-5.7a8.38 8.38 0 0 1-.9-3.8 8.5 8.5 0 0 1 4.7-7.6 8.38 8.38 0 0 1 3.8-.9h.5a8.48 8.48 0 0 1 8 8v.5z" /></svg>
       </div>
       <p>{{ $t('开始对话吧') }}</p>
     </div>
 
     <template v-else>
-      <div v-for="(msg, idx) in messages" :key="msg.id || idx" class="message-row" :class="messageClass(msg)">
-        
-        <div v-if="msg.content_type === 'card' && msg.card" class="bubble-wrap card-wrap">
-          <RichCard :card="msg.card" @action="onCardAction" />
+      <div
+        v-for="(msg, idx) in messages"
+        :key="msg.id || idx"
+        class="message-row"
+        :class="messageClass(msg)"
+      >
+        <div
+          v-if="msg.content_type === 'card' && msg.card"
+          class="bubble-wrap card-wrap"
+        >
+          <RichCard
+            :card="msg.card"
+            @action="onCardAction"
+          />
         </div>
         <template v-else>
-          <div class="avatar" v-if="msg.sender_type !== 'system'" :style="avatarStyle(msg)">
+          <div
+            v-if="msg.sender_type !== 'system'"
+            class="avatar"
+            :style="avatarStyle(msg)"
+          >
             <span class="avatar-text">{{ avatarText(msg) }}</span>
           </div>
           <div class="bubble-wrap">
-            <div v-if="showName(msg)" class="sender-name">{{ displayName(msg) }}</div>
-            <div class="bubble" :class="bubbleClass(msg)">
-              <div class="bubble-content" v-html="formatContent(msg.content)"></div>
+            <div
+              v-if="showName(msg)"
+              class="sender-name"
+            >
+              {{ displayName(msg) }}
             </div>
-            <div class="time">{{ formatTime(msg.created_at) }}</div>
+            <div
+              class="bubble"
+              :class="bubbleClass(msg)"
+            >
+              <div
+                class="bubble-content"
+                v-html="formatContent(msg.content)"
+              />
+            </div>
+            <div class="time">
+              {{ formatTime(msg.created_at) }}
+            </div>
           </div>
         </template>
       </div>
 
-      <div v-if="typing" class="message-row left">
-        <div class="avatar" :style="avatarStyle({ sender_type: 'ai' })">
+      <div
+        v-if="typing"
+        class="message-row left"
+      >
+        <div
+          class="avatar"
+          :style="avatarStyle({ sender_type: 'ai' })"
+        >
           <!-- 32px 圆头像只放一个字符，和上面 avatarText(msg) 的口径一致；
                整词 $t('客服') 在非中文语种是 "Customer Service"，会从圆里铺到气泡上。 -->
           <span class="avatar-text">{{ $t('客服').slice(0, 1) }}</span>
         </div>
         <div class="bubble-wrap">
           <div class="bubble typing">
-            <span class="dot"></span><span class="dot"></span><span class="dot"></span>
+            <span class="dot" /><span class="dot" /><span class="dot" />
           </div>
         </div>
       </div>

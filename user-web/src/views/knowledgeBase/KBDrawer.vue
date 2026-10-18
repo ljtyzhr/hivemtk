@@ -1,39 +1,69 @@
 <template>
   <el-drawer
     :model-value="modelValue"
-    @update:model-value="$emit('update:modelValue', $event)"
     :title="drawerTitle"
     size="720px"
     direction="rtl"
     :destroy-on-close="false"
+    @update:model-value="$emit('update:modelValue', $event)"
   >
-    <div v-loading="loading" class="kb-drawer">
+    <div
+      v-loading="loading"
+      class="kb-drawer"
+    >
       <template v-if="kbData">
-        
-        <el-card shadow="never" class="section">
+        <el-card
+          shadow="never"
+          class="section"
+        >
           <template #header>
             <div class="section-header">
               <el-icon><InfoFilled /></el-icon>
               <span>基本信息</span>
             </div>
           </template>
-          <el-descriptions :column="2" border>
-            <el-descriptions-item label="ID">{{ kbData.id }}</el-descriptions-item>
-            <el-descriptions-item label="KB编码">{{ kbData.kb_code || '-' }}</el-descriptions-item>
-            <el-descriptions-item label="名称" :span="2">
+          <el-descriptions
+            :column="2"
+            border
+          >
+            <el-descriptions-item label="ID">
+              {{ kbData.id }}
+            </el-descriptions-item>
+            <el-descriptions-item label="KB编码">
+              {{ kbData.kb_code || '-' }}
+            </el-descriptions-item>
+            <el-descriptions-item
+              label="名称"
+              :span="2"
+            >
               {{ kbData.name }}
             </el-descriptions-item>
-            <el-descriptions-item label="类型" :span="1">
-              <el-tag :type="getTypeTagType(kbData.kb_type)" size="small">
+            <el-descriptions-item
+              label="类型"
+              :span="1"
+            >
+              <el-tag
+                :type="getTypeTagType(kbData.kb_type)"
+                size="small"
+              >
                 {{ getTypeLabel(kbData.kb_type) }}
               </el-tag>
             </el-descriptions-item>
-            <el-descriptions-item label="状态" :span="1">
-              <el-tag :type="kbData.status === 1 ? 'success' : 'info'" size="small">
+            <el-descriptions-item
+              label="状态"
+              :span="1"
+            >
+              <el-tag
+                :type="kbData.status === 1 ? 'success' : 'info'"
+                size="small"
+              >
                 {{ kbData.status === 1 ? '启用' : '禁用' }}
               </el-tag>
             </el-descriptions-item>
-            <el-descriptions-item label="描述" :span="2">
+            <el-descriptions-item
+              label="描述"
+              :span="2"
+            >
               {{ kbData.description || '-' }}
             </el-descriptions-item>
             <el-descriptions-item label="创建时间">
@@ -46,7 +76,10 @@
         </el-card>
 
         
-        <el-card shadow="never" class="section">
+        <el-card
+          shadow="never"
+          class="section"
+        >
           <template #header>
             <div class="section-header">
               <el-icon><DataLine /></el-icon>
@@ -56,29 +89,48 @@
           <el-row :gutter="16">
             <el-col :span="8">
               <div class="mini-stat">
-                <div class="mini-stat-label">{{ statsLabel.item }}</div>
-                <div class="mini-stat-value">{{ stats.item_count ?? '—' }}</div>
-                <div class="mini-stat-hint">未接入</div>
+                <div class="mini-stat-label">
+                  {{ statsLabel.item }}
+                </div>
+                <div class="mini-stat-value">
+                  {{ stats.item_count ?? '—' }}
+                </div>
+                <div class="mini-stat-hint">
+                  未接入
+                </div>
               </div>
             </el-col>
             <el-col :span="8">
               <div class="mini-stat">
-                <div class="mini-stat-label">关联智能体</div>
-                <div class="mini-stat-value text-primary">{{ stats.agent_count }}</div>
+                <div class="mini-stat-label">
+                  关联智能体
+                </div>
+                <div class="mini-stat-value text-primary">
+                  {{ stats.agent_count }}
+                </div>
               </div>
             </el-col>
             <el-col :span="8">
               <div class="mini-stat">
-                <div class="mini-stat-label">总命中次数</div>
-                <div class="mini-stat-value text-success">{{ stats.hit_count ?? '—' }}</div>
-                <div class="mini-stat-hint">未接入</div>
+                <div class="mini-stat-label">
+                  总命中次数
+                </div>
+                <div class="mini-stat-value text-success">
+                  {{ stats.hit_count ?? '—' }}
+                </div>
+                <div class="mini-stat-hint">
+                  未接入
+                </div>
               </div>
             </el-col>
           </el-row>
         </el-card>
 
         
-        <el-card shadow="never" class="section">
+        <el-card
+          shadow="never"
+          class="section"
+        >
           <template #header>
             <div class="section-header">
               <el-icon><Connection /></el-icon>
@@ -88,8 +140,8 @@
                 link
                 size="small"
                 :loading="loadingAgents"
-                @click="loadAgentBindings"
                 style="margin-left: auto"
+                @click="loadAgentBindings"
               >
                 <el-icon><Refresh /></el-icon>刷新
               </el-button>
@@ -100,31 +152,78 @@
             description="暂未被任何智能体挂载"
             :image-size="80"
           />
-          <el-table v-else :data="agentBindings" stripe size="small" border>
-            <el-table-column prop="id" label="ID" width="70" align="center" />
-            <el-table-column label="智能体名称" min-width="160" show-overflow-tooltip>
+          <el-table
+            v-else
+            :data="agentBindings"
+            stripe
+            size="small"
+            border
+          >
+            <el-table-column
+              prop="id"
+              label="ID"
+              width="70"
+              align="center"
+            />
+            <el-table-column
+              label="智能体名称"
+              min-width="160"
+              show-overflow-tooltip
+            >
               <template #default="{ row }">
-                <span class="agent-link" role="button" tabindex="0" @click="goEditAgent(row)" @keydown.enter.prevent="goEditAgent(row)" @keydown.space.prevent="goEditAgent(row)">
+                <span
+                  class="agent-link"
+                  role="button"
+                  tabindex="0"
+                  @click="goEditAgent(row)"
+                  @keydown.enter.prevent="goEditAgent(row)"
+                  @keydown.space.prevent="goEditAgent(row)"
+                >
                   {{ row.name || row.agent_name || '-' }}
                 </span>
               </template>
             </el-table-column>
-            <el-table-column label="编码" width="140" show-overflow-tooltip>
+            <el-table-column
+              label="编码"
+              width="140"
+              show-overflow-tooltip
+            >
               <template #default="{ row }">
                 {{ row.agent_code || row.code || '-' }}
               </template>
             </el-table-column>
-            <el-table-column label="类型" width="110" align="center">
+            <el-table-column
+              label="类型"
+              width="110"
+              align="center"
+            >
               <template #default="{ row }">
-                <el-tag size="small">{{ row.agent_type || row.type || '-' }}</el-tag>
+                <el-tag size="small">
+                  {{ row.agent_type || row.type || '-' }}
+                </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="绑定时间" width="160">
-              <template #default="{ row }">{{ formatTime(row.created_at || row.bind_at) }}</template>
-            </el-table-column>
-            <el-table-column label="操作" width="100" align="center" fixed="right">
+            <el-table-column
+              label="绑定时间"
+              width="160"
+            >
               <template #default="{ row }">
-                <el-button link type="primary" size="small" @click="goEditAgent(row)">
+                {{ formatTime(row.created_at || row.bind_at) }}
+              </template>
+            </el-table-column>
+            <el-table-column
+              label="操作"
+              width="100"
+              align="center"
+              fixed="right"
+            >
+              <template #default="{ row }">
+                <el-button
+                  link
+                  type="primary"
+                  size="small"
+                  @click="goEditAgent(row)"
+                >
                   查看
                 </el-button>
               </template>
@@ -133,7 +232,10 @@
         </el-card>
 
         
-        <el-card shadow="never" class="section">
+        <el-card
+          shadow="never"
+          class="section"
+        >
           <template #header>
             <div class="section-header">
               <el-icon><List /></el-icon>
@@ -145,7 +247,14 @@
             description="暂无子项"
             :image-size="80"
           />
-          <el-table v-else :data="itemsPreview" stripe size="small" border max-height="320">
+          <el-table
+            v-else
+            :data="itemsPreview"
+            stripe
+            size="small"
+            border
+            max-height="320"
+          >
             <el-table-column
               v-for="col in itemColumns"
               :key="col.prop"
@@ -158,15 +267,20 @@
           </el-table>
         </el-card>
       </template>
-      <el-empty v-else description="未选择知识库" />
+      <el-empty
+        v-else
+        description="未选择知识库"
+      />
     </div>
 
     <template #footer>
-      <el-button @click="$emit('update:modelValue', false)">关闭</el-button>
+      <el-button @click="$emit('update:modelValue', false)">
+        关闭
+      </el-button>
       <el-button
+        v-if="kbData?.id"
         type="primary"
         @click="goEdit"
-        v-if="kbData?.id"
       >
         <el-icon><Edit /></el-icon>编辑知识库
       </el-button>

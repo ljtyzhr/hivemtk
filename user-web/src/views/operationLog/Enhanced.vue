@@ -5,50 +5,149 @@
         <div class="card-header">
           <span>操作日志（USR-SY-01）</span>
           <div>
-            <el-button :icon="Download" @click="exportLogs">导出</el-button>
-            <el-button :icon="Refresh" @click="load">刷新</el-button>
+            <el-button
+              :icon="Download"
+              @click="exportLogs"
+            >
+              导出
+            </el-button>
+            <el-button
+              :icon="Refresh"
+              @click="load"
+            >
+              刷新
+            </el-button>
           </div>
         </div>
       </template>
-      <el-form :inline="true" :model="filters" class="filters">
+      <el-form
+        :inline="true"
+        :model="filters"
+        class="filters"
+      >
         <el-form-item label="操作人">
-          <el-input v-model="filters.user" placeholder="用户名" clearable style="width: 160px" />
+          <el-input
+            v-model="filters.user"
+            placeholder="用户名"
+            clearable
+            style="width: 160px"
+          />
         </el-form-item>
         <el-form-item label="操作类型">
-          <el-select v-model="filters.action" clearable style="width: 160px">
-            <el-option label="创建" value="create" />
-            <el-option label="更新" value="update" />
-            <el-option label="删除" value="delete" />
-            <el-option label="登录" value="login" />
+          <el-select
+            v-model="filters.action"
+            clearable
+            style="width: 160px"
+          >
+            <el-option
+              label="创建"
+              value="create"
+            />
+            <el-option
+              label="更新"
+              value="update"
+            />
+            <el-option
+              label="删除"
+              value="delete"
+            />
+            <el-option
+              label="登录"
+              value="login"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="时间">
-          <el-date-picker v-model="filters.dateRange" type="daterange" />
+          <el-date-picker
+            v-model="filters.dateRange"
+            type="daterange"
+          />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="load">查询</el-button>
+          <el-button
+            type="primary"
+            @click="load"
+          >
+            查询
+          </el-button>
         </el-form-item>
       </el-form>
 
-      <el-table :data="logs" v-loading="loading">
-        <el-table-column prop="createdAt" label="时间" width="170" />
-        <el-table-column prop="user" label="操作人" width="100" />
-        <el-table-column prop="action" label="动作" width="100">
+      <el-table
+        v-loading="loading"
+        :data="logs"
+      >
+        <el-table-column
+          prop="createdAt"
+          label="时间"
+          width="170"
+        />
+        <el-table-column
+          prop="user"
+          label="操作人"
+          width="100"
+        />
+        <el-table-column
+          prop="action"
+          label="动作"
+          width="100"
+        >
           <template #default="{ row }">
-            <el-tag :type="actionType(row.action)" size="small">{{ row.action }}</el-tag>
+            <el-tag
+              :type="actionType(row.action)"
+              size="small"
+            >
+              {{ row.action }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="resource" label="资源" width="160" />
-        <el-table-column prop="summary" label="摘要" min-width="200" show-overflow-tooltip />
-        <el-table-column label="变更对比" width="120">
+        <el-table-column
+          prop="resource"
+          label="资源"
+          width="160"
+        />
+        <el-table-column
+          prop="summary"
+          label="摘要"
+          min-width="200"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          label="变更对比"
+          width="120"
+        >
           <template #default="{ row }">
-            <el-button v-if="row.diff" link type="primary" @click="showDiff(row)">查看 Diff</el-button>
+            <el-button
+              v-if="row.diff"
+              link
+              type="primary"
+              @click="showDiff(row)"
+            >
+              查看 Diff
+            </el-button>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="160" fixed="right">
+        <el-table-column
+          label="操作"
+          width="160"
+          fixed="right"
+        >
           <template #default="{ row }">
-            <el-button link type="warning" :disabled="!row.rollbackable" @click="rollback(row)">回滚</el-button>
-            <el-button link type="primary" @click="viewDetail(row)">详情</el-button>
+            <el-button
+              link
+              type="warning"
+              :disabled="!row.rollbackable"
+              @click="rollback(row)"
+            >
+              回滚
+            </el-button>
+            <el-button
+              link
+              type="primary"
+              @click="viewDetail(row)"
+            >
+              详情
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -63,14 +162,26 @@
     </el-card>
 
     
-    <el-dialog v-model="diffVisible" title="变更对比" width="800px">
+    <el-dialog
+      v-model="diffVisible"
+      title="变更对比"
+      width="800px"
+    >
       <el-table :data="diffData">
-        <el-table-column prop="field" label="字段" width="160" />
+        <el-table-column
+          prop="field"
+          label="字段"
+          width="160"
+        />
         <el-table-column label="变更前">
-          <template #default="{ row }"><code>{{ row.before }}</code></template>
+          <template #default="{ row }">
+            <code>{{ row.before }}</code>
+          </template>
         </el-table-column>
         <el-table-column label="变更后">
-          <template #default="{ row }"><code style="color: #10B981">{{ row.after }}</code></template>
+          <template #default="{ row }">
+            <code style="color: #10B981">{{ row.after }}</code>
+          </template>
         </el-table-column>
       </el-table>
     </el-dialog>

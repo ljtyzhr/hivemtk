@@ -1,7 +1,10 @@
 <template>
   <div class="seo-infra">
     <el-tabs v-model="tab">
-      <el-tab-pane label="llms.txt v2" name="llms">
+      <el-tab-pane
+        label="llms.txt v2"
+        name="llms"
+      >
         <div style="display:flex;gap:16px">
           <div style="flex:1">
             <h4>预览</h4>
@@ -20,11 +23,22 @@
           </div>
         </div>
       </el-tab-pane>
-      <el-tab-pane label="robots.txt" name="robots">
+      <el-tab-pane
+        label="robots.txt"
+        name="robots"
+      >
         <pre class="code">{{ robotsPreview }}</pre>
       </el-tab-pane>
-      <el-tab-pane label="sitemap.xml" name="sitemap">
-        <el-button @click="genSitemap" style="margin-bottom:8px">生成</el-button>
+      <el-tab-pane
+        label="sitemap.xml"
+        name="sitemap"
+      >
+        <el-button
+          style="margin-bottom:8px"
+          @click="genSitemap"
+        >
+          生成
+        </el-button>
         <pre class="code">{{ sitemapPreview }}</pre>
       </el-tab-pane>
     </el-tabs>

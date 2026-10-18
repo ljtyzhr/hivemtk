@@ -5,18 +5,38 @@
         <div class="card-header">
           <span>{{ $t('素材库管理') }}</span>
           <div class="header-actions">
-            <el-button type="primary" @click="handleUpload">{{ $t('上传素材') }}</el-button>
-            <el-button type="success" @click="handleCreateCategory">{{ $t('新建分类') }}</el-button>
+            <el-button
+              type="primary"
+              @click="handleUpload"
+            >
+              {{ $t('上传素材') }}
+            </el-button>
+            <el-button
+              type="success"
+              @click="handleCreateCategory"
+            >
+              {{ $t('新建分类') }}
+            </el-button>
           </div>
         </div>
       </template>
 
       
       <div class="search-bar">
-        <el-form :inline="true" :model="searchForm">
+        <el-form
+          :inline="true"
+          :model="searchForm"
+        >
           <el-form-item label="分类">
-            <el-select v-model="searchForm.categoryId" placeholder="全部分类" clearable>
-              <el-option label="全部分类" value="" />
+            <el-select
+              v-model="searchForm.categoryId"
+              placeholder="全部分类"
+              clearable
+            >
+              <el-option
+                label="全部分类"
+                value=""
+              />
               <el-option
                 v-for="category in categories"
                 :key="category.id"
@@ -26,26 +46,59 @@
             </el-select>
           </el-form-item>
           <el-form-item label="类型">
-            <el-select v-model="searchForm.type" placeholder="全部类型" clearable>
-              <el-option label="全部类型" value="" />
-              <el-option label="图片" value="image" />
-              <el-option label="视频" value="video" />
-              <el-option label="音频" value="audio" />
-              <el-option label="文档" value="document" />
+            <el-select
+              v-model="searchForm.type"
+              placeholder="全部类型"
+              clearable
+            >
+              <el-option
+                label="全部类型"
+                value=""
+              />
+              <el-option
+                label="图片"
+                value="image"
+              />
+              <el-option
+                label="视频"
+                value="video"
+              />
+              <el-option
+                label="音频"
+                value="audio"
+              />
+              <el-option
+                label="文档"
+                value="document"
+              />
             </el-select>
           </el-form-item>
           <el-form-item label="关键词">
-            <el-input v-model="searchForm.keyword" placeholder="请输入素材名称" clearable />
+            <el-input
+              v-model="searchForm.keyword"
+              placeholder="请输入素材名称"
+              clearable
+            />
           </el-form-item>
           <el-form-item>
-            <el-button type="primary" @click="handleSearch">搜索</el-button>
-            <el-button @click="handleReset">重置</el-button>
+            <el-button
+              type="primary"
+              @click="handleSearch"
+            >
+              搜索
+            </el-button>
+            <el-button @click="handleReset">
+              重置
+            </el-button>
           </el-form-item>
         </el-form>
       </div>
 
       
-      <div class="material-grid" v-loading="loading">
+      <div
+        v-loading="loading"
+        class="material-grid"
+      >
         <div
           v-for="material in materialList"
           :key="material.id"
@@ -62,8 +115,11 @@
               :src="material.url"
               :alt="material.name"
               @error="handleImageError"
-            />
-            <div v-else class="material-icon">
+            >
+            <div
+              v-else
+              class="material-icon"
+            >
               <el-icon :size="48">
                 <Document v-if="material.type === 'document'" />
                 <VideoPlay v-else-if="material.type === 'video'" />
@@ -72,12 +128,26 @@
               </el-icon>
             </div>
             <div class="material-actions">
-              <el-button type="primary" link @click.stop="handleCopyUrl(material.url)">复制链接</el-button>
-              <el-button type="danger" link @click.stop="handleDelete(material)">删除</el-button>
+              <el-button
+                type="primary"
+                link
+                @click.stop="handleCopyUrl(material.url)"
+              >
+                复制链接
+              </el-button>
+              <el-button
+                type="danger"
+                link
+                @click.stop="handleDelete(material)"
+              >
+                删除
+              </el-button>
             </div>
           </div>
           <div class="material-info">
-            <div class="material-name">{{ material.name }}</div>
+            <div class="material-name">
+              {{ material.name }}
+            </div>
             <div class="material-meta">
               <span>{{ formatFileSize(material.size) }}</span>
               <span>{{ getTypeLabel(material.type) }}</span>
@@ -103,14 +173,24 @@
 
     
     <el-dialog
-      title="上传素材"
       v-model="uploadDialogVisible"
+      title="上传素材"
       width="600px"
       @close="handleUploadClose"
     >
-      <el-form ref="uploadFormRef" :model="uploadForm" label-width="100px">
-        <el-form-item label="选择分类" prop="categoryId">
-          <el-select v-model="uploadForm.categoryId" placeholder="请选择分类">
+      <el-form
+        ref="uploadFormRef"
+        :model="uploadForm"
+        label-width="100px"
+      >
+        <el-form-item
+          label="选择分类"
+          prop="categoryId"
+        >
+          <el-select
+            v-model="uploadForm.categoryId"
+            placeholder="请选择分类"
+          >
             <el-option
               v-for="category in categories"
               :key="category.id"
@@ -131,7 +211,9 @@
             :before-upload="beforeUpload"
             accept="image/*,video/*,audio/*,.pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx"
           >
-            <el-icon class="el-icon--upload"><upload-filled /></el-icon>
+            <el-icon class="el-icon--upload">
+              <upload-filled />
+            </el-icon>
             <div class="el-upload__text">
               拖拽文件到此处或 <em>点击上传</em>
             </div>
@@ -145,15 +227,22 @@
       </el-form>
 
       <template #footer>
-        <el-button @click="uploadDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleUploadSubmit">开始上传</el-button>
+        <el-button @click="uploadDialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          @click="handleUploadSubmit"
+        >
+          开始上传
+        </el-button>
       </template>
     </el-dialog>
 
     
     <el-dialog
-      title="分类管理"
       v-model="categoryDialogVisible"
+      title="分类管理"
       width="500px"
     >
       <div class="category-list">
@@ -164,24 +253,55 @@
         >
           <span>{{ category.name }}</span>
           <div class="category-actions">
-            <el-button type="primary" link @click="handleEditCategory(category)">编辑</el-button>
-            <el-button type="danger" link @click="handleDeleteCategory(category)">删除</el-button>
+            <el-button
+              type="primary"
+              link
+              @click="handleEditCategory(category)"
+            >
+              编辑
+            </el-button>
+            <el-button
+              type="danger"
+              link
+              @click="handleDeleteCategory(category)"
+            >
+              删除
+            </el-button>
           </div>
         </div>
       </div>
 
-      <div class="category-form" v-if="showCategoryForm">
+      <div
+        v-if="showCategoryForm"
+        class="category-form"
+      >
         <el-input
           v-model="categoryForm.name"
           placeholder="请输入分类名称"
           style="width: 200px; margin-right: 10px"
         />
-        <el-button type="primary" @click="handleSaveCategory">保存</el-button>
-        <el-button @click="handleCancelCategory">取消</el-button>
+        <el-button
+          type="primary"
+          @click="handleSaveCategory"
+        >
+          保存
+        </el-button>
+        <el-button @click="handleCancelCategory">
+          取消
+        </el-button>
       </div>
 
-      <div class="category-add" v-else>
-        <el-button type="primary" link @click="handleAddCategory">+ 新增分类</el-button>
+      <div
+        v-else
+        class="category-add"
+      >
+        <el-button
+          type="primary"
+          link
+          @click="handleAddCategory"
+        >
+          + 新增分类
+        </el-button>
       </div>
     </el-dialog>
   </div>

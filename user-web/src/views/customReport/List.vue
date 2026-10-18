@@ -3,120 +3,352 @@
     <el-card class="header-card">
       <div>
         <h2>{{ $t('自定义报表') }}</h2>
-        <p class="subtitle">{{ $t('自定义维度、指标生成专属业务报表') }}</p>
+        <p class="subtitle">
+          {{ $t('自定义维度、指标生成专属业务报表') }}
+        </p>
       </div>
-      <el-button type="primary" @click="showCreateDialog">
+      <el-button
+        type="primary"
+        @click="showCreateDialog"
+      >
         <el-icon><Plus /></el-icon>
         {{ $t('新建报表') }}
       </el-button>
     </el-card>
 
     <el-card>
-      <el-table :data="reports" v-loading="loading" stripe>
-        <el-table-column prop="name" :label="$t('报表名称')" min-width="180" />
-        <el-table-column prop="data_source" label="数据源" width="120">
+      <el-table
+        v-loading="loading"
+        :data="reports"
+        stripe
+      >
+        <el-table-column
+          prop="name"
+          :label="$t('报表名称')"
+          min-width="180"
+        />
+        <el-table-column
+          prop="data_source"
+          label="数据源"
+          width="120"
+        >
           <template #default="{ row }">
             <el-tag>{{ dataSourceLabel(row.data_source) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="chart_type" label="图表类型" width="110">
+        <el-table-column
+          prop="chart_type"
+          label="图表类型"
+          width="110"
+        >
           <template #default="{ row }">
-            <el-tag type="info">{{ chartTypeLabel(row.chart_type) }}</el-tag>
+            <el-tag type="info">
+              {{ chartTypeLabel(row.chart_type) }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="维度" min-width="200">
+        <el-table-column
+          label="维度"
+          min-width="200"
+        >
           <template #default="{ row }">
-            <el-tag v-for="d in parseDimensions(row.dimensions)" :key="d.field" class="tag-item" size="small">{{ d.label }}</el-tag>
-            <span v-if="!parseDimensions(row.dimensions).length" class="muted">-</span>
+            <el-tag
+              v-for="d in parseDimensions(row.dimensions)"
+              :key="d.field"
+              class="tag-item"
+              size="small"
+            >
+              {{ d.label }}
+            </el-tag>
+            <span
+              v-if="!parseDimensions(row.dimensions).length"
+              class="muted"
+            >-</span>
           </template>
         </el-table-column>
-        <el-table-column label="指标" min-width="200">
+        <el-table-column
+          label="指标"
+          min-width="200"
+        >
           <template #default="{ row }">
-            <el-tag v-for="m in parseMetrics(row.metrics)" :key="m.field" class="tag-item" size="small" type="warning">{{ m.label }}</el-tag>
-            <span v-if="!parseMetrics(row.metrics).length" class="muted">-</span>
+            <el-tag
+              v-for="m in parseMetrics(row.metrics)"
+              :key="m.field"
+              class="tag-item"
+              size="small"
+              type="warning"
+            >
+              {{ m.label }}
+            </el-tag>
+            <span
+              v-if="!parseMetrics(row.metrics).length"
+              class="muted"
+            >-</span>
           </template>
         </el-table-column>
-        <el-table-column prop="created_by" label="创建人" width="90" />
-        <el-table-column prop="created_at" label="创建时间" min-width="170" />
-        <el-table-column label="操作" width="300" fixed="right">
+        <el-table-column
+          prop="created_by"
+          label="创建人"
+          width="90"
+        />
+        <el-table-column
+          prop="created_at"
+          label="创建时间"
+          min-width="170"
+        />
+        <el-table-column
+          label="操作"
+          width="300"
+          fixed="right"
+        >
           <template #default="{ row }">
-            <el-button link type="primary" @click="viewReport(row)">查看</el-button>
-            <el-button link type="primary" @click="exportReport(row)">导出</el-button>
-            <el-button link type="primary" @click="editReport(row)">编辑</el-button>
-            <el-button link type="danger" @click="deleteReport(row)">删除</el-button>
+            <el-button
+              link
+              type="primary"
+              @click="viewReport(row)"
+            >
+              查看
+            </el-button>
+            <el-button
+              link
+              type="primary"
+              @click="exportReport(row)"
+            >
+              导出
+            </el-button>
+            <el-button
+              link
+              type="primary"
+              @click="editReport(row)"
+            >
+              编辑
+            </el-button>
+            <el-button
+              link
+              type="danger"
+              @click="deleteReport(row)"
+            >
+              删除
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
     </el-card>
 
-    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="820px">
-      <el-form :model="form" :rules="formRules" ref="formRef" label-width="110px">
-        <el-form-item label="报表名称" prop="name">
-          <el-input v-model="form.name" placeholder="请输入报表名称" />
+    <el-dialog
+      v-model="dialogVisible"
+      :title="dialogTitle"
+      width="820px"
+    >
+      <el-form
+        ref="formRef"
+        :model="form"
+        :rules="formRules"
+        label-width="110px"
+      >
+        <el-form-item
+          label="报表名称"
+          prop="name"
+        >
+          <el-input
+            v-model="form.name"
+            placeholder="请输入报表名称"
+          />
         </el-form-item>
-        <el-form-item label="数据源" prop="dataSource">
-          <el-select v-model="form.dataSource" style="width: 100%">
-            <el-option label="会话数据" value="sessions" />
-            <el-option label="消息数据" value="messages" />
-            <el-option label="订单数据" value="orders" />
-            <el-option label="线索数据" value="clues" />
-            <el-option label="用户数据" value="users" />
-            <el-option label="RFM 数据" value="rfm" />
-            <el-option label="客服数据" value="agents" />
+        <el-form-item
+          label="数据源"
+          prop="dataSource"
+        >
+          <el-select
+            v-model="form.dataSource"
+            style="width: 100%"
+          >
+            <el-option
+              label="会话数据"
+              value="sessions"
+            />
+            <el-option
+              label="消息数据"
+              value="messages"
+            />
+            <el-option
+              label="订单数据"
+              value="orders"
+            />
+            <el-option
+              label="线索数据"
+              value="clues"
+            />
+            <el-option
+              label="用户数据"
+              value="users"
+            />
+            <el-option
+              label="RFM 数据"
+              value="rfm"
+            />
+            <el-option
+              label="客服数据"
+              value="agents"
+            />
           </el-select>
         </el-form-item>
-        <el-form-item label="图表类型" prop="chartType">
-          <el-select v-model="form.chartType" style="width: 100%">
-            <el-option label="表格" value="table" />
-            <el-option label="折线图" value="line" />
-            <el-option label="柱状图" value="bar" />
-            <el-option label="饼图" value="pie" />
-            <el-option label="面积图" value="area" />
-            <el-option label="卡片" value="card" />
+        <el-form-item
+          label="图表类型"
+          prop="chartType"
+        >
+          <el-select
+            v-model="form.chartType"
+            style="width: 100%"
+          >
+            <el-option
+              label="表格"
+              value="table"
+            />
+            <el-option
+              label="折线图"
+              value="line"
+            />
+            <el-option
+              label="柱状图"
+              value="bar"
+            />
+            <el-option
+              label="饼图"
+              value="pie"
+            />
+            <el-option
+              label="面积图"
+              value="area"
+            />
+            <el-option
+              label="卡片"
+              value="card"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="维度(多选)">
-          <el-select v-model="form.dimensions" multiple style="width: 100%" placeholder="请选择维度">
-            <el-option v-for="d in DIM_OPTIONS" :key="d.value" :label="d.label" :value="d.value" />
+          <el-select
+            v-model="form.dimensions"
+            multiple
+            style="width: 100%"
+            placeholder="请选择维度"
+          >
+            <el-option
+              v-for="d in DIM_OPTIONS"
+              :key="d.value"
+              :label="d.label"
+              :value="d.value"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="指标(多选)">
-          <el-select v-model="form.metrics" multiple style="width: 100%" placeholder="请选择指标">
-            <el-option v-for="m in METRIC_OPTIONS" :key="m.value" :label="m.label" :value="m.value" />
+          <el-select
+            v-model="form.metrics"
+            multiple
+            style="width: 100%"
+            placeholder="请选择指标"
+          >
+            <el-option
+              v-for="m in METRIC_OPTIONS"
+              :key="m.value"
+              :label="m.label"
+              :value="m.value"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="筛选条件">
           <div class="filters">
-            <div v-for="(f, idx) in form.filters" :key="idx" class="filter-row">
-              <el-input v-model="f.field" placeholder="字段" style="width: 140px" />
-              <el-select v-model="f.operator" style="width: 110px">
-                <el-option label="等于" value="eq" />
-                <el-option label="不等于" value="ne" />
-                <el-option label="大于" value="gt" />
-                <el-option label="小于" value="lt" />
-                <el-option label="包含" value="like" />
+            <div
+              v-for="(f, idx) in form.filters"
+              :key="idx"
+              class="filter-row"
+            >
+              <el-input
+                v-model="f.field"
+                placeholder="字段"
+                style="width: 140px"
+              />
+              <el-select
+                v-model="f.operator"
+                style="width: 110px"
+              >
+                <el-option
+                  label="等于"
+                  value="eq"
+                />
+                <el-option
+                  label="不等于"
+                  value="ne"
+                />
+                <el-option
+                  label="大于"
+                  value="gt"
+                />
+                <el-option
+                  label="小于"
+                  value="lt"
+                />
+                <el-option
+                  label="包含"
+                  value="like"
+                />
               </el-select>
-              <el-input v-model="f.value" placeholder="值" style="width: 140px" />
-              <el-button type="danger" text @click="removeFilter(idx)">移除</el-button>
+              <el-input
+                v-model="f.value"
+                placeholder="值"
+                style="width: 140px"
+              />
+              <el-button
+                type="danger"
+                text
+                @click="removeFilter(idx)"
+              >
+                移除
+              </el-button>
             </div>
-            <el-button @click="addFilter">+ 添加筛选</el-button>
+            <el-button @click="addFilter">
+              + 添加筛选
+            </el-button>
           </div>
         </el-form-item>
         <el-form-item label="备注">
-          <el-input v-model="form.description" type="textarea" :rows="2" />
+          <el-input
+            v-model="form.description"
+            type="textarea"
+            :rows="2"
+          />
         </el-form-item>
         <el-form-item label="公开">
           <el-switch v-model="form.isPublic" />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitting" @click="submitForm">确定</el-button>
+        <el-button @click="dialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="submitting"
+          @click="submitForm"
+        >
+          确定
+        </el-button>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="viewDialogVisible" :title="`查看报表: ${currentReportName}`" width="1000px">
-      <el-table :data="reportData" v-loading="viewLoading" stripe border max-height="500px">
+    <el-dialog
+      v-model="viewDialogVisible"
+      :title="`查看报表: ${currentReportName}`"
+      width="1000px"
+    >
+      <el-table
+        v-loading="viewLoading"
+        :data="reportData"
+        stripe
+        border
+        max-height="500px"
+      >
         <el-table-column
           v-for="col in reportColumns"
           :key="col.key"
@@ -130,7 +362,9 @@
         </template>
       </el-table>
       <template #footer>
-        <el-button @click="viewDialogVisible = false">关闭</el-button>
+        <el-button @click="viewDialogVisible = false">
+          关闭
+        </el-button>
       </template>
     </el-dialog>
   </div>

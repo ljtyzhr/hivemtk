@@ -3,60 +3,107 @@
     <el-card class="header-card">
       <div>
         <h2>{{ $t('集成管理') }}</h2>
-        <p class="subtitle">管理第三方系统集成和 API 对接</p>
+        <p class="subtitle">
+          管理第三方系统集成和 API 对接
+        </p>
       </div>
-      <el-button type="primary" @click="showCreateDialog">
+      <el-button
+        type="primary"
+        @click="showCreateDialog"
+      >
         <el-icon><Plus /></el-icon>
         {{ $t('添加集成') }}
       </el-button>
     </el-card>
 
-    <el-row :gutter="20" class="stats-row">
+    <el-row
+      :gutter="20"
+      class="stats-row"
+    >
       <el-col :span="6">
         <el-card>
           <div class="stat-item">
-            <div class="stat-label">{{ $t('已启用') }}</div>
-            <div class="stat-value" style="color: #10B981">{{ stats.enabled }}</div>
+            <div class="stat-label">
+              {{ $t('已启用') }}
+            </div>
+            <div
+              class="stat-value"
+              style="color: #10B981"
+            >
+              {{ stats.enabled }}
+            </div>
           </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card>
           <div class="stat-item">
-            <div class="stat-label">{{ $t('已禁用') }}</div>
-            <div class="stat-value" style="color: #909399">{{ stats.disabled }}</div>
+            <div class="stat-label">
+              {{ $t('已禁用') }}
+            </div>
+            <div
+              class="stat-value"
+              style="color: #909399"
+            >
+              {{ stats.disabled }}
+            </div>
           </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card>
           <div class="stat-item">
-            <div class="stat-label">{{ $t('对接平台数') }}</div>
-            <div class="stat-value">{{ stats.platforms }}</div>
+            <div class="stat-label">
+              {{ $t('对接平台数') }}
+            </div>
+            <div class="stat-value">
+              {{ stats.platforms }}
+            </div>
           </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card>
           <div class="stat-item">
-            <div class="stat-label">{{ $t('账号总数') }}</div>
-            <div class="stat-value">{{ stats.total }}</div>
+            <div class="stat-label">
+              {{ $t('账号总数') }}
+            </div>
+            <div class="stat-value">
+              {{ stats.total }}
+            </div>
           </div>
         </el-card>
       </el-col>
     </el-row>
 
     <el-card>
-      <el-table :data="integrations" v-loading="loading" stripe>
-        <el-table-column :label="$t('集成名称')" min-width="170">
-          <template #default="{ row }">{{ displayName(row) }}</template>
+      <el-table
+        v-loading="loading"
+        :data="integrations"
+        stripe
+      >
+        <el-table-column
+          :label="$t('集成名称')"
+          min-width="170"
+        >
+          <template #default="{ row }">
+            {{ displayName(row) }}
+          </template>
         </el-table-column>
-        <el-table-column prop="platform" :label="$t('平台')" width="150">
+        <el-table-column
+          prop="platform"
+          :label="$t('平台')"
+          width="150"
+        >
           <template #default="{ row }">
             <el-tag>{{ platformLabel(row.platform) }}</el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="status" :label="$t('状态')" width="110">
+        <el-table-column
+          prop="status"
+          :label="$t('状态')"
+          width="110"
+        >
           <template #default="{ row }">
             <el-switch
               :model-value="row.status"
@@ -67,18 +114,59 @@
             />
           </template>
         </el-table-column>
-        <el-table-column prop="webhook_url" :label="$t('回调地址')" min-width="220" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.webhook_url || '-' }}</template>
-        </el-table-column>
-        <el-table-column prop="last_sync_at" :label="$t('最后同步')" width="180">
-          <template #default="{ row }">{{ formatTime(row.last_sync_at) }}</template>
-        </el-table-column>
-        <el-table-column :label="$t('操作')" width="260" fixed="right">
+        <el-table-column
+          prop="webhook_url"
+          :label="$t('回调地址')"
+          min-width="220"
+          show-overflow-tooltip
+        >
           <template #default="{ row }">
-            <el-button link type="primary" @click="testConnection(row)">{{ $t('测试') }}</el-button>
-            <el-button link type="primary" @click="viewLogs(row)">{{ $t('日志') }}</el-button>
-            <el-button link type="primary" @click="editIntegration(row)">{{ $t('配置') }}</el-button>
-            <el-button link type="danger" @click="deleteIntegration(row)">{{ $t('删除') }}</el-button>
+            {{ row.webhook_url || '-' }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          prop="last_sync_at"
+          :label="$t('最后同步')"
+          width="180"
+        >
+          <template #default="{ row }">
+            {{ formatTime(row.last_sync_at) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          :label="$t('操作')"
+          width="260"
+          fixed="right"
+        >
+          <template #default="{ row }">
+            <el-button
+              link
+              type="primary"
+              @click="testConnection(row)"
+            >
+              {{ $t('测试') }}
+            </el-button>
+            <el-button
+              link
+              type="primary"
+              @click="viewLogs(row)"
+            >
+              {{ $t('日志') }}
+            </el-button>
+            <el-button
+              link
+              type="primary"
+              @click="editIntegration(row)"
+            >
+              {{ $t('配置') }}
+            </el-button>
+            <el-button
+              link
+              type="danger"
+              @click="deleteIntegration(row)"
+            >
+              {{ $t('删除') }}
+            </el-button>
           </template>
         </el-table-column>
         <template #empty>
@@ -87,10 +175,26 @@
       </el-table>
     </el-card>
 
-    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="700px">
-      <el-form :model="form" :rules="formRules" ref="formRef" label-width="120px">
-        <el-form-item :label="$t('对接平台')" prop="platform">
-          <el-select v-model="form.platform" :disabled="isEdit" style="width: 100%">
+    <el-dialog
+      v-model="dialogVisible"
+      :title="dialogTitle"
+      width="700px"
+    >
+      <el-form
+        ref="formRef"
+        :model="form"
+        :rules="formRules"
+        label-width="120px"
+      >
+        <el-form-item
+          :label="$t('对接平台')"
+          prop="platform"
+        >
+          <el-select
+            v-model="form.platform"
+            :disabled="isEdit"
+            style="width: 100%"
+          >
             <el-option
               v-for="option in platformOptions"
               :key="option.value"
@@ -99,13 +203,25 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item :label="$t('账号名称')" prop="account_name">
-          <el-input v-model="form.account_name" :placeholder="$t('用于在列表里识别这个账号')" />
+        <el-form-item
+          :label="$t('账号名称')"
+          prop="account_name"
+        >
+          <el-input
+            v-model="form.account_name"
+            :placeholder="$t('用于在列表里识别这个账号')"
+          />
         </el-form-item>
-        <el-form-item :label="$t('API Key')" prop="api_key">
+        <el-form-item
+          :label="$t('API Key')"
+          prop="api_key"
+        >
           <el-input v-model="form.api_key" />
         </el-form-item>
-        <el-form-item :label="$t('API Secret')" prop="api_secret">
+        <el-form-item
+          :label="$t('API Secret')"
+          prop="api_secret"
+        >
           <el-input
             v-model="form.api_secret"
             type="password"
@@ -113,40 +229,115 @@
             :placeholder="isEdit ? $t('留空则保留原密钥') : ''"
           />
         </el-form-item>
-        <el-form-item :label="$t('回调地址')" prop="webhook_url">
-          <el-input v-model="form.webhook_url" placeholder="https://..." />
+        <el-form-item
+          :label="$t('回调地址')"
+          prop="webhook_url"
+        >
+          <el-input
+            v-model="form.webhook_url"
+            placeholder="https://..."
+          />
         </el-form-item>
-        <el-form-item :label="$t('扩展配置 (JSON)')" prop="config">
-          <el-input v-model="form.config" type="textarea" :rows="4" placeholder='{"sync_products": true}' />
+        <el-form-item
+          :label="$t('扩展配置 (JSON)')"
+          prop="config"
+        >
+          <el-input
+            v-model="form.config"
+            type="textarea"
+            :rows="4"
+            placeholder="{&quot;sync_products&quot;: true}"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">{{ $t('取消') }}</el-button>
-        <el-button type="primary" :loading="submitting" @click="submitForm">{{ $t('保存') }}</el-button>
+        <el-button @click="dialogVisible = false">
+          {{ $t('取消') }}
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="submitting"
+          @click="submitForm"
+        >
+          {{ $t('保存') }}
+        </el-button>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="logsDialogVisible" :title="logsDialogTitle" width="900px">
-      <el-table :data="logs" v-loading="logsLoading" stripe border max-height="500px">
-        <el-table-column prop="sync_type" :label="$t('同步类型')" width="120" />
-        <el-table-column prop="status" :label="$t('状态')" width="100">
+    <el-dialog
+      v-model="logsDialogVisible"
+      :title="logsDialogTitle"
+      width="900px"
+    >
+      <el-table
+        v-loading="logsLoading"
+        :data="logs"
+        stripe
+        border
+        max-height="500px"
+      >
+        <el-table-column
+          prop="sync_type"
+          :label="$t('同步类型')"
+          width="120"
+        />
+        <el-table-column
+          prop="status"
+          :label="$t('状态')"
+          width="100"
+        >
           <template #default="{ row: logRow }">
-            <el-tag :type="syncStatusTag(logRow.status)">{{ syncStatusLabel(logRow.status) }}</el-tag>
+            <el-tag :type="syncStatusTag(logRow.status)">
+              {{ syncStatusLabel(logRow.status) }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="record_count" :label="$t('记录数')" width="90" />
-        <el-table-column prop="start_time" :label="$t('开始时间')" width="180">
-          <template #default="{ row: logRow }">{{ formatTime(logRow.start_time) }}</template>
-        </el-table-column>
-        <el-table-column prop="end_time" :label="$t('结束时间')" width="180">
-          <template #default="{ row: logRow }">{{ formatTime(logRow.end_time) }}</template>
-        </el-table-column>
-        <el-table-column prop="error_message" :label="$t('错误信息')" min-width="200" show-overflow-tooltip>
-          <template #default="{ row: logRow }">{{ logRow.error_message || '-' }}</template>
-        </el-table-column>
-        <el-table-column :label="$t('操作')" width="80" fixed="right">
+        <el-table-column
+          prop="record_count"
+          :label="$t('记录数')"
+          width="90"
+        />
+        <el-table-column
+          prop="start_time"
+          :label="$t('开始时间')"
+          width="180"
+        >
           <template #default="{ row: logRow }">
-            <el-button link type="primary" @click="showLogDetail(logRow)">{{ $t('详情') }}</el-button>
+            {{ formatTime(logRow.start_time) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          prop="end_time"
+          :label="$t('结束时间')"
+          width="180"
+        >
+          <template #default="{ row: logRow }">
+            {{ formatTime(logRow.end_time) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          prop="error_message"
+          :label="$t('错误信息')"
+          min-width="200"
+          show-overflow-tooltip
+        >
+          <template #default="{ row: logRow }">
+            {{ logRow.error_message || '-' }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          :label="$t('操作')"
+          width="80"
+          fixed="right"
+        >
+          <template #default="{ row: logRow }">
+            <el-button
+              link
+              type="primary"
+              @click="showLogDetail(logRow)"
+            >
+              {{ $t('详情') }}
+            </el-button>
           </template>
         </el-table-column>
         <template #empty>
@@ -154,24 +345,49 @@
         </template>
       </el-table>
       <template #footer>
-        <el-button @click="logsDialogVisible = false">{{ $t('关闭') }}</el-button>
+        <el-button @click="logsDialogVisible = false">
+          {{ $t('关闭') }}
+        </el-button>
       </template>
     </el-dialog>
 
-    <el-dialog v-model="logDetailVisible" :title="$t('日志详情')" width="600px">
-      <el-descriptions :column="1" border>
-        <el-descriptions-item :label="$t('平台')">{{ currentLogDetail?.platform }}</el-descriptions-item>
-        <el-descriptions-item :label="$t('同步类型')">{{ currentLogDetail?.sync_type }}</el-descriptions-item>
-        <el-descriptions-item :label="$t('状态')">
-          <el-tag :type="syncStatusTag(currentLogDetail?.status)">{{ syncStatusLabel(currentLogDetail?.status) }}</el-tag>
+    <el-dialog
+      v-model="logDetailVisible"
+      :title="$t('日志详情')"
+      width="600px"
+    >
+      <el-descriptions
+        :column="1"
+        border
+      >
+        <el-descriptions-item :label="$t('平台')">
+          {{ currentLogDetail?.platform }}
         </el-descriptions-item>
-        <el-descriptions-item :label="$t('记录数')">{{ currentLogDetail?.record_count ?? 0 }}</el-descriptions-item>
-        <el-descriptions-item :label="$t('开始时间')">{{ formatTime(currentLogDetail?.start_time) }}</el-descriptions-item>
-        <el-descriptions-item :label="$t('结束时间')">{{ formatTime(currentLogDetail?.end_time) }}</el-descriptions-item>
-        <el-descriptions-item :label="$t('错误信息')">{{ currentLogDetail?.error_message || '-' }}</el-descriptions-item>
+        <el-descriptions-item :label="$t('同步类型')">
+          {{ currentLogDetail?.sync_type }}
+        </el-descriptions-item>
+        <el-descriptions-item :label="$t('状态')">
+          <el-tag :type="syncStatusTag(currentLogDetail?.status)">
+            {{ syncStatusLabel(currentLogDetail?.status) }}
+          </el-tag>
+        </el-descriptions-item>
+        <el-descriptions-item :label="$t('记录数')">
+          {{ currentLogDetail?.record_count ?? 0 }}
+        </el-descriptions-item>
+        <el-descriptions-item :label="$t('开始时间')">
+          {{ formatTime(currentLogDetail?.start_time) }}
+        </el-descriptions-item>
+        <el-descriptions-item :label="$t('结束时间')">
+          {{ formatTime(currentLogDetail?.end_time) }}
+        </el-descriptions-item>
+        <el-descriptions-item :label="$t('错误信息')">
+          {{ currentLogDetail?.error_message || '-' }}
+        </el-descriptions-item>
       </el-descriptions>
       <template #footer>
-        <el-button @click="logDetailVisible = false">{{ $t('关闭') }}</el-button>
+        <el-button @click="logDetailVisible = false">
+          {{ $t('关闭') }}
+        </el-button>
       </template>
     </el-dialog>
   </div>

@@ -1,10 +1,12 @@
 <template>
   <div class="short-link-stats-container">
-    
     <div class="page-header">
       <h2>{{ $t('短链统计') }}</h2>
       <div class="action-buttons">
-        <el-button type="primary" @click="handleAllStats">
+        <el-button
+          type="primary"
+          @click="handleAllStats"
+        >
           <el-icon><DataAnalysis /></el-icon>
           {{ $t('总体统计') }}
         </el-button>
@@ -13,15 +15,30 @@
 
     
     <div class="search-form">
-      <el-form :inline="true" :model="searchForm" class="search-form-content">
+      <el-form
+        :inline="true"
+        :model="searchForm"
+        class="search-form-content"
+      >
         <el-form-item :label="$t('短码')">
-          <el-input v-model="searchForm.short_code" :placeholder="$t('请输入短码')" clearable />
+          <el-input
+            v-model="searchForm.short_code"
+            :placeholder="$t('请输入短码')"
+            clearable
+          />
         </el-form-item>
         <el-form-item :label="$t('原始URL')">
-          <el-input v-model="searchForm.original_url" :placeholder="$t('请输入原始URL')" clearable />
+          <el-input
+            v-model="searchForm.original_url"
+            :placeholder="$t('请输入原始URL')"
+            clearable
+          />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="handleSearch">
+          <el-button
+            type="primary"
+            @click="handleSearch"
+          >
             <el-icon><Search /></el-icon>
             {{ $t('搜索') }}
           </el-button>
@@ -34,26 +51,69 @@
     </div>
 
     
-    <el-table :data="shortLinkList" border style="width: 100%" v-loading="loading">
-      <el-table-column prop="id" label="ID" width="80" />
-      <el-table-column prop="short_code" :label="$t('短码')" width="120" />
-      <el-table-column prop="original_url" :label="$t('原始URL')" min-width="200" show-overflow-tooltip />
-      <el-table-column prop="title" :label="$t('标题')" min-width="150" show-overflow-tooltip />
-      <el-table-column prop="click_count" :label="$t('累计点击次数')" width="120" />
-      <el-table-column prop="status_str" :label="$t('状态')" width="100">
+    <el-table
+      v-loading="loading"
+      :data="shortLinkList"
+      border
+      style="width: 100%"
+    >
+      <el-table-column
+        prop="id"
+        label="ID"
+        width="80"
+      />
+      <el-table-column
+        prop="short_code"
+        :label="$t('短码')"
+        width="120"
+      />
+      <el-table-column
+        prop="original_url"
+        :label="$t('原始URL')"
+        min-width="200"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        prop="title"
+        :label="$t('标题')"
+        min-width="150"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        prop="click_count"
+        :label="$t('累计点击次数')"
+        width="120"
+      />
+      <el-table-column
+        prop="status_str"
+        :label="$t('状态')"
+        width="100"
+      >
         <template #default="scope">
           <el-tag :type="getStatusType(scope.row)">
             {{ scope.row.status_str }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="200" fixed="right">
+      <el-table-column
+        label="操作"
+        width="200"
+        fixed="right"
+      >
         <template #default="scope">
-          <el-button type="primary" size="small" @click="handleStats(scope.row)">
+          <el-button
+            type="primary"
+            size="small"
+            @click="handleStats(scope.row)"
+          >
             <el-icon><DataAnalysis /></el-icon>
             统计
           </el-button>
-          <el-button type="success" size="small" @click="handleShare(scope.row)">
+          <el-button
+            type="success"
+            size="small"
+            @click="handleShare(scope.row)"
+          >
             <el-icon><Share /></el-icon>
             分享
           </el-button>
@@ -81,38 +141,57 @@
       width="80%"
       top="5vh"
     >
-      <div v-loading="statsLoading" class="stats-content">
+      <div
+        v-loading="statsLoading"
+        class="stats-content"
+      >
         <div class="stats-summary">
           <el-row :gutter="20">
             <el-col :span="6">
               <el-card class="stats-card">
                 <div class="stats-item">
-                  <div class="stats-value">{{ currentStats.total_clicks || 0 }}</div>
-                  <div class="stats-label">累计访问人数</div>
+                  <div class="stats-value">
+                    {{ currentStats.total_clicks || 0 }}
+                  </div>
+                  <div class="stats-label">
+                    累计访问人数
+                  </div>
                 </div>
               </el-card>
             </el-col>
             <el-col :span="6">
               <el-card class="stats-card">
                 <div class="stats-item">
-                  <div class="stats-value">{{ currentStats.today_clicks || 0 }}</div>
-                  <div class="stats-label">今日访问人数</div>
+                  <div class="stats-value">
+                    {{ currentStats.today_clicks || 0 }}
+                  </div>
+                  <div class="stats-label">
+                    今日访问人数
+                  </div>
                 </div>
               </el-card>
             </el-col>
             <el-col :span="6">
               <el-card class="stats-card">
                 <div class="stats-item">
-                  <div class="stats-value">{{ currentStats.yesterday_clicks || 0 }}</div>
-                  <div class="stats-label">昨日访问人数</div>
+                  <div class="stats-value">
+                    {{ currentStats.yesterday_clicks || 0 }}
+                  </div>
+                  <div class="stats-label">
+                    昨日访问人数
+                  </div>
                 </div>
               </el-card>
             </el-col>
             <el-col :span="6">
               <el-card class="stats-card">
                 <div class="stats-item">
-                  <div class="stats-value">{{ currentStats.avg_daily_clicks || 0 }}</div>
-                  <div class="stats-label">日均访问人数</div>
+                  <div class="stats-value">
+                    {{ currentStats.avg_daily_clicks || 0 }}
+                  </div>
+                  <div class="stats-label">
+                    日均访问人数
+                  </div>
                 </div>
               </el-card>
             </el-col>
@@ -123,14 +202,24 @@
           <el-row :gutter="20">
             <el-col :span="16">
               <el-card>
-                <div class="chart-title">七日访问趋势</div>
-                <div ref="trendChartRef" class="chart-container"></div>
+                <div class="chart-title">
+                  七日访问趋势
+                </div>
+                <div
+                  ref="trendChartRef"
+                  class="chart-container"
+                />
               </el-card>
             </el-col>
             <el-col :span="8">
               <el-card>
-                <div class="chart-title">设备类型分布</div>
-                <div ref="deviceChartRef" class="chart-container"></div>
+                <div class="chart-title">
+                  设备类型分布
+                </div>
+                <div
+                  ref="deviceChartRef"
+                  class="chart-container"
+                />
               </el-card>
             </el-col>
           </el-row>
@@ -145,38 +234,57 @@
       width="80%"
       top="5vh"
     >
-      <div v-loading="allStatsLoading" class="stats-content">
+      <div
+        v-loading="allStatsLoading"
+        class="stats-content"
+      >
         <div class="stats-summary">
           <el-row :gutter="20">
             <el-col :span="6">
               <el-card class="stats-card">
                 <div class="stats-item">
-                  <div class="stats-value">{{ allStats.total_clicks || 0 }}</div>
-                  <div class="stats-label">累计访问人数</div>
+                  <div class="stats-value">
+                    {{ allStats.total_clicks || 0 }}
+                  </div>
+                  <div class="stats-label">
+                    累计访问人数
+                  </div>
                 </div>
               </el-card>
             </el-col>
             <el-col :span="6">
               <el-card class="stats-card">
                 <div class="stats-item">
-                  <div class="stats-value">{{ allStats.today_clicks || 0 }}</div>
-                  <div class="stats-label">今日访问人数</div>
+                  <div class="stats-value">
+                    {{ allStats.today_clicks || 0 }}
+                  </div>
+                  <div class="stats-label">
+                    今日访问人数
+                  </div>
                 </div>
               </el-card>
             </el-col>
             <el-col :span="6">
               <el-card class="stats-card">
                 <div class="stats-item">
-                  <div class="stats-value">{{ allStats.total_links || 0 }}</div>
-                  <div class="stats-label">短链总数</div>
+                  <div class="stats-value">
+                    {{ allStats.total_links || 0 }}
+                  </div>
+                  <div class="stats-label">
+                    短链总数
+                  </div>
                 </div>
               </el-card>
             </el-col>
             <el-col :span="6">
               <el-card class="stats-card">
                 <div class="stats-item">
-                  <div class="stats-value">{{ allStats.active_links || 0 }}</div>
-                  <div class="stats-label">活跃短链数</div>
+                  <div class="stats-value">
+                    {{ allStats.active_links || 0 }}
+                  </div>
+                  <div class="stats-label">
+                    活跃短链数
+                  </div>
                 </div>
               </el-card>
             </el-col>
@@ -187,14 +295,24 @@
           <el-row :gutter="20">
             <el-col :span="16">
               <el-card>
-                <div class="chart-title">七日访问趋势</div>
-                <div ref="allTrendChartRef" class="chart-container"></div>
+                <div class="chart-title">
+                  七日访问趋势
+                </div>
+                <div
+                  ref="allTrendChartRef"
+                  class="chart-container"
+                />
               </el-card>
             </el-col>
             <el-col :span="8">
               <el-card>
-                <div class="chart-title">设备类型分布</div>
-                <div ref="allDeviceChartRef" class="chart-container"></div>
+                <div class="chart-title">
+                  设备类型分布
+                </div>
+                <div
+                  ref="allDeviceChartRef"
+                  class="chart-container"
+                />
               </el-card>
             </el-col>
           </el-row>
@@ -208,19 +326,36 @@
       title="分享短链"
       width="500px"
     >
-      <div v-loading="shareLoading" class="share-content">
+      <div
+        v-loading="shareLoading"
+        class="share-content"
+      >
         <el-form label-width="80px">
           <el-form-item label="短链地址">
-            <el-input v-model="shareData.short_url" readonly>
+            <el-input
+              v-model="shareData.short_url"
+              readonly
+            >
               <template #append>
-                <el-button @click="copyToClipboard(shareData.short_url)">复制</el-button>
+                <el-button @click="copyToClipboard(shareData.short_url)">
+                  复制
+                </el-button>
               </template>
             </el-input>
           </el-form-item>
           <el-form-item label="二维码">
             <div class="qr-code-container">
-              <img v-if="shareData.qr_code" :src="shareData.qr_code" alt="二维码" />
-              <div v-else class="qr-code-placeholder">二维码生成中...</div>
+              <img
+                v-if="shareData.qr_code"
+                :src="shareData.qr_code"
+                alt="二维码"
+              >
+              <div
+                v-else
+                class="qr-code-placeholder"
+              >
+                二维码生成中...
+              </div>
             </div>
           </el-form-item>
         </el-form>

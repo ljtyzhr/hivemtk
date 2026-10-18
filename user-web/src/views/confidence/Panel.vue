@@ -3,107 +3,205 @@
     <el-card class="header-card">
       <div class="header-content">
         <h2>{{ $t('置信度运营面板') }}</h2>
-        <p class="subtitle">{{ $t('查看置信度信号聚合分布、动态阈值策略、转人工规则') }}</p>
+        <p class="subtitle">
+          {{ $t('查看置信度信号聚合分布、动态阈值策略、转人工规则') }}
+        </p>
       </div>
     </el-card>
 
-    <el-row :gutter="20" class="stats-row">
+    <el-row
+      :gutter="20"
+      class="stats-row"
+    >
       <el-col :span="6">
         <el-card>
           <div class="stat-item">
-            <div class="stat-label">信号总数（24h）</div>
-            <div class="stat-value">{{ stats.totalSignals }}</div>
+            <div class="stat-label">
+              信号总数（24h）
+            </div>
+            <div class="stat-value">
+              {{ stats.totalSignals }}
+            </div>
           </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card>
           <div class="stat-item">
-            <div class="stat-label">{{ $t('平均置信度') }}</div>
-            <div class="stat-value" :style="{ color: avgConfColor }">{{ stats.avgConfidence }}</div>
+            <div class="stat-label">
+              {{ $t('平均置信度') }}
+            </div>
+            <div
+              class="stat-value"
+              :style="{ color: avgConfColor }"
+            >
+              {{ stats.avgConfidence }}
+            </div>
           </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card>
           <div class="stat-item">
-            <div class="stat-label">{{ $t('转人工触发') }}</div>
-            <div class="stat-value" style="color: #F59E0B">{{ stats.transferCount }}</div>
+            <div class="stat-label">
+              {{ $t('转人工触发') }}
+            </div>
+            <div
+              class="stat-value"
+              style="color: #F59E0B"
+            >
+              {{ stats.transferCount }}
+            </div>
           </div>
         </el-card>
       </el-col>
       <el-col :span="6">
         <el-card>
           <div class="stat-item">
-            <div class="stat-label">{{ $t('高置信自动回复') }}</div>
-            <div class="stat-value" style="color: #10B981">{{ stats.autoReplyCount }}</div>
+            <div class="stat-label">
+              {{ $t('高置信自动回复') }}
+            </div>
+            <div
+              class="stat-value"
+              style="color: #10B981"
+            >
+              {{ stats.autoReplyCount }}
+            </div>
           </div>
         </el-card>
       </el-col>
     </el-row>
 
-    <el-tabs v-model="activeTab" class="content-tabs">
-      
-      <el-tab-pane :label="$t('置信度信号')" name="signals">
+    <el-tabs
+      v-model="activeTab"
+      class="content-tabs"
+    >
+      <el-tab-pane
+        :label="$t('置信度信号')"
+        name="signals"
+      >
         <el-card>
           <template #header>
             <div class="card-header">
               <span>信号流（最近 100 条）</span>
               <div>
-                <el-input v-model="signalSearch" :placeholder="$t('搜索 session_id')" clearable style="width: 200px" @change="loadSignals" />
-                <el-button @click="loadSignals" style="margin-left: 10px">
+                <el-input
+                  v-model="signalSearch"
+                  :placeholder="$t('搜索 session_id')"
+                  clearable
+                  style="width: 200px"
+                  @change="loadSignals"
+                />
+                <el-button
+                  style="margin-left: 10px"
+                  @click="loadSignals"
+                >
                   <el-icon><Refresh /></el-icon>
                   {{ $t('刷新') }}
                 </el-button>
               </div>
             </div>
           </template>
-          <el-table :data="signals" v-loading="signalsLoading" stripe>
-            <el-table-column prop="id" label="ID" width="80" />
-            <el-table-column prop="session_id" label="会话 ID" width="160" />
-            <el-table-column prop="intent_conf" label="意图置信" width="100">
+          <el-table
+            v-loading="signalsLoading"
+            :data="signals"
+            stripe
+          >
+            <el-table-column
+              prop="id"
+              label="ID"
+              width="80"
+            />
+            <el-table-column
+              prop="session_id"
+              label="会话 ID"
+              width="160"
+            />
+            <el-table-column
+              prop="intent_conf"
+              label="意图置信"
+              width="100"
+            >
               <template #default="{ row }">
-                <el-tag :type="confTagType(row.intent_conf)">{{ (row.intent_conf || 0).toFixed(3) }}</el-tag>
+                <el-tag :type="confTagType(row.intent_conf)">
+                  {{ (row.intent_conf || 0).toFixed(3) }}
+                </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="entity_comp" label="实体完整度" width="100">
+            <el-table-column
+              prop="entity_comp"
+              label="实体完整度"
+              width="100"
+            >
               <template #default="{ row }">
                 {{ (row.entity_comp || 0).toFixed(3) }}
               </template>
             </el-table-column>
-            <el-table-column prop="ctx_relev" label="上下文相关" width="100">
+            <el-table-column
+              prop="ctx_relev"
+              label="上下文相关"
+              width="100"
+            >
               <template #default="{ row }">
                 {{ (row.ctx_relev || 0).toFixed(3) }}
               </template>
             </el-table-column>
-            <el-table-column prop="rag_qual" label="RAG 质量" width="100">
+            <el-table-column
+              prop="rag_qual"
+              label="RAG 质量"
+              width="100"
+            >
               <template #default="{ row }">
                 {{ (row.rag_qual || 0).toFixed(3) }}
               </template>
             </el-table-column>
-            <el-table-column prop="llm_entropy" label="LLM 熵" width="100">
+            <el-table-column
+              prop="llm_entropy"
+              label="LLM 熵"
+              width="100"
+            >
               <template #default="{ row }">
                 {{ (row.llm_entropy || 0).toFixed(3) }}
               </template>
             </el-table-column>
-            <el-table-column prop="aggregated_score" label="综合置信度" width="110">
+            <el-table-column
+              prop="aggregated_score"
+              label="综合置信度"
+              width="110"
+            >
               <template #default="{ row }">
-                <el-tag :type="confTagType(row.aggregated_score)" effect="dark">
+                <el-tag
+                  :type="confTagType(row.aggregated_score)"
+                  effect="dark"
+                >
                   {{ (row.aggregated_score || 0).toFixed(3) }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="threshold" label="动态阈值" width="100">
+            <el-table-column
+              prop="threshold"
+              label="动态阈值"
+              width="100"
+            >
               <template #default="{ row }">
                 {{ (row.threshold || 0).toFixed(3) }}
               </template>
             </el-table-column>
-            <el-table-column label="决策" width="100">
+            <el-table-column
+              label="决策"
+              width="100"
+            >
               <template #default="{ row }">
-                <el-tag :type="decisionTagType(row.decision)">{{ decisionLabel(row.decision) }}</el-tag>
+                <el-tag :type="decisionTagType(row.decision)">
+                  {{ decisionLabel(row.decision) }}
+                </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="calculated_at" label="计算时间" width="170">
+            <el-table-column
+              prop="calculated_at"
+              label="计算时间"
+              width="170"
+            >
               <template #default="{ row }">
                 {{ formatTime(row.calculated_at) }}
               </template>
@@ -116,15 +214,18 @@
             :total="signalTotal"
             :page-sizes="[20, 50, 100]"
             layout="total, sizes, prev, pager, next"
+            style="margin-top: 16px; text-align: right"
             @current-change="loadSignals"
             @size-change="loadSignals"
-            style="margin-top: 16px; text-align: right"
           />
         </el-card>
       </el-tab-pane>
 
       
-      <el-tab-pane label="置信度校准" name="calibrations">
+      <el-tab-pane
+        label="置信度校准"
+        name="calibrations"
+      >
         <el-card>
           <template #header>
             <div class="card-header">
@@ -135,23 +236,51 @@
               </el-button>
             </div>
           </template>
-          <el-table :data="calibrations" v-loading="calibrationsLoading" stripe>
-            <el-table-column prop="id" label="ID" width="80" />
-            <el-table-column prop="scenario" label="场景" width="160" />
-            <el-table-column prop="temperature" label="温度参数" width="120">
+          <el-table
+            v-loading="calibrationsLoading"
+            :data="calibrations"
+            stripe
+          >
+            <el-table-column
+              prop="id"
+              label="ID"
+              width="80"
+            />
+            <el-table-column
+              prop="scenario"
+              label="场景"
+              width="160"
+            />
+            <el-table-column
+              prop="temperature"
+              label="温度参数"
+              width="120"
+            >
               <template #default="{ row }">
                 {{ (row.temperature || 0).toFixed(4) }}
               </template>
             </el-table-column>
-            <el-table-column prop="ece" label="ECE（期望校准误差）" width="180">
+            <el-table-column
+              prop="ece"
+              label="ECE（期望校准误差）"
+              width="180"
+            >
               <template #default="{ row }">
                 <el-tag :type="row.ece < 0.05 ? 'success' : row.ece < 0.1 ? 'warning' : 'danger'">
                   {{ (row.ece || 0).toFixed(4) }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column prop="sample_count" label="样本数" width="100" />
-            <el-table-column prop="calculated_at" label="计算时间" width="170">
+            <el-table-column
+              prop="sample_count"
+              label="样本数"
+              width="100"
+            />
+            <el-table-column
+              prop="calculated_at"
+              label="计算时间"
+              width="170"
+            >
               <template #default="{ row }">
                 {{ formatTime(row.calculated_at) }}
               </template>
@@ -161,45 +290,98 @@
       </el-tab-pane>
 
       
-      <el-tab-pane label="转人工阈值策略" name="policies">
+      <el-tab-pane
+        label="转人工阈值策略"
+        name="policies"
+      >
         <el-card>
           <template #header>
             <div class="card-header">
               <span>转人工规则（base / customer_level / timeslot / agent_availability 四因子动态阈值）</span>
-              <el-button type="primary" @click="showPolicyDialog()">
+              <el-button
+                type="primary"
+                @click="showPolicyDialog()"
+              >
                 <el-icon><Plus /></el-icon>
                 新建策略
               </el-button>
             </div>
           </template>
-          <el-table :data="policies" v-loading="policiesLoading" stripe>
-            <el-table-column prop="id" label="ID" width="80" />
-            <el-table-column prop="name" label="策略名" />
-            <el-table-column prop="scenario" label="适用场景" width="160" />
-            <el-table-column prop="base_threshold" label="基础阈值" width="100">
+          <el-table
+            v-loading="policiesLoading"
+            :data="policies"
+            stripe
+          >
+            <el-table-column
+              prop="id"
+              label="ID"
+              width="80"
+            />
+            <el-table-column
+              prop="name"
+              label="策略名"
+            />
+            <el-table-column
+              prop="scenario"
+              label="适用场景"
+              width="160"
+            />
+            <el-table-column
+              prop="base_threshold"
+              label="基础阈值"
+              width="100"
+            >
               <template #default="{ row }">
                 {{ (row.base_threshold || 0).toFixed(3) }}
               </template>
             </el-table-column>
-            <el-table-column prop="vip_threshold" label="VIP 阈值" width="100">
+            <el-table-column
+              prop="vip_threshold"
+              label="VIP 阈值"
+              width="100"
+            >
               <template #default="{ row }">
                 {{ (row.vip_threshold || 0).toFixed(3) }}
               </template>
             </el-table-column>
-            <el-table-column prop="transfer_low" label="远低转人工" width="100">
+            <el-table-column
+              prop="transfer_low"
+              label="远低转人工"
+              width="100"
+            >
               <template #default="{ row }">
                 {{ (row.transfer_low || 0).toFixed(3) }}
               </template>
             </el-table-column>
-            <el-table-column prop="is_active" label="启用" width="80">
+            <el-table-column
+              prop="is_active"
+              label="启用"
+              width="80"
+            >
               <template #default="{ row }">
-                <el-switch :model-value="row.is_active" disabled />
+                <el-switch
+                  :model-value="row.is_active"
+                  disabled
+                />
               </template>
             </el-table-column>
-            <el-table-column label="操作" width="160" fixed="right">
+            <el-table-column
+              label="操作"
+              width="160"
+              fixed="right"
+            >
               <template #default="{ row }">
-                <el-button size="small" @click="showPolicyDialog(row)">编辑</el-button>
-                <el-button size="small" type="primary" @click="togglePolicy(row)">
+                <el-button
+                  size="small"
+                  @click="showPolicyDialog(row)"
+                >
+                  编辑
+                </el-button>
+                <el-button
+                  size="small"
+                  type="primary"
+                  @click="togglePolicy(row)"
+                >
                   {{ row.is_active ? '禁用' : '启用' }}
                 </el-button>
               </template>
@@ -210,42 +392,100 @@
     </el-tabs>
 
     
-    <el-dialog v-model="policyDialogVisible" :title="editingPolicy.id ? '编辑阈值策略' : '新建阈值策略'" width="640px">
-      <el-form :model="editingPolicy" label-width="120px">
-        <el-form-item label="策略名" required>
-          <el-input v-model="editingPolicy.name" placeholder="例如：电商_高客单价场景" />
+    <el-dialog
+      v-model="policyDialogVisible"
+      :title="editingPolicy.id ? '编辑阈值策略' : '新建阈值策略'"
+      width="640px"
+    >
+      <el-form
+        :model="editingPolicy"
+        label-width="120px"
+      >
+        <el-form-item
+          label="策略名"
+          required
+        >
+          <el-input
+            v-model="editingPolicy.name"
+            placeholder="例如：电商_高客单价场景"
+          />
         </el-form-item>
         <el-form-item label="适用场景">
-          <el-select v-model="editingPolicy.scenario" placeholder="选择场景" style="width: 100%">
-            <el-option label="电商高客单" value="ecommerce_high_value" />
-            <el-option label="电商低客单" value="ecommerce_low_value" />
-            <el-option label="SaaS 销售" value="saas_sales" />
-            <el-option label="客服咨询" value="customer_service" />
-            <el-option label="全场景" value="all" />
+          <el-select
+            v-model="editingPolicy.scenario"
+            placeholder="选择场景"
+            style="width: 100%"
+          >
+            <el-option
+              label="电商高客单"
+              value="ecommerce_high_value"
+            />
+            <el-option
+              label="电商低客单"
+              value="ecommerce_low_value"
+            />
+            <el-option
+              label="SaaS 销售"
+              value="saas_sales"
+            />
+            <el-option
+              label="客服咨询"
+              value="customer_service"
+            />
+            <el-option
+              label="全场景"
+              value="all"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="基础阈值">
-          <el-input-number v-model="editingPolicy.base_threshold" :min="0" :max="1" :step="0.01" />
+          <el-input-number
+            v-model="editingPolicy.base_threshold"
+            :min="0"
+            :max="1"
+            :step="0.01"
+          />
           <span class="form-tip">默认 0.7，置信度低于此值触发 LLM 兜底</span>
         </el-form-item>
         <el-form-item label="VIP 阈值">
-          <el-input-number v-model="editingPolicy.vip_threshold" :min="0" :max="1" :step="0.01" />
+          <el-input-number
+            v-model="editingPolicy.vip_threshold"
+            :min="0"
+            :max="1"
+            :step="0.01"
+          />
           <span class="form-tip">VIP 客户阈值更高（更倾向转人工）</span>
         </el-form-item>
         <el-form-item label="远低转人工">
-          <el-input-number v-model="editingPolicy.transfer_low" :min="0" :max="1" :step="0.01" />
+          <el-input-number
+            v-model="editingPolicy.transfer_low"
+            :min="0"
+            :max="1"
+            :step="0.01"
+          />
           <span class="form-tip">低于此值直接转人工，不进 LLM 兜底</span>
         </el-form-item>
         <el-form-item label="启用">
           <el-switch v-model="editingPolicy.is_active" />
         </el-form-item>
         <el-form-item label="备注">
-          <el-input v-model="editingPolicy.remark" type="textarea" :rows="2" />
+          <el-input
+            v-model="editingPolicy.remark"
+            type="textarea"
+            :rows="2"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="policyDialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="savePolicy">保存</el-button>
+        <el-button @click="policyDialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          @click="savePolicy"
+        >
+          保存
+        </el-button>
       </template>
     </el-dialog>
   </div>

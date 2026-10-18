@@ -1,14 +1,34 @@
 <template>
   <div class="email-providers-container">
-    <el-table :data="filteredProviders" border stripe style="width: 100%">
-      <el-table-column prop="name" :label="$t('名称')" width="120" fixed />
-      <el-table-column prop="vendor" :label="$t('厂家')" width="120" />
-      <el-table-column :label="$t('SMTP 服务器')" width="180">
+    <el-table
+      :data="filteredProviders"
+      border
+      stripe
+      style="width: 100%"
+    >
+      <el-table-column
+        prop="name"
+        :label="$t('名称')"
+        width="120"
+        fixed
+      />
+      <el-table-column
+        prop="vendor"
+        :label="$t('厂家')"
+        width="120"
+      />
+      <el-table-column
+        :label="$t('SMTP 服务器')"
+        width="180"
+      >
         <template #default="{ row }">
           <el-tag>{{ row.smtp }}</el-tag>
         </template>
       </el-table-column>
-      <el-table-column label="端口" width="120">
+      <el-table-column
+        label="端口"
+        width="120"
+      >
         <template #default="{ row }">
           <div class="port-badges">
             <el-tag
@@ -21,17 +41,30 @@
           </div>
         </template>
       </el-table-column>
-      <el-table-column label="认证要求" min-width="220">
+      <el-table-column
+        label="认证要求"
+        min-width="220"
+      >
         <template #default="{ row }">
           <div class="auth-notes">
-            <el-popover placement="top" width="300" trigger="hover">
+            <el-popover
+              placement="top"
+              width="300"
+              trigger="hover"
+            >
               <template #reference>
-                <el-icon :size="18" style="margin-right: 8px">
+                <el-icon
+                  :size="18"
+                  style="margin-right: 8px"
+                >
                   <InfoFilled />
                 </el-icon>
               </template>
               <div class="popover-content">
-                <p v-for="(note, idx) in row.authNotes" :key="idx">
+                <p
+                  v-for="(note, idx) in row.authNotes"
+                  :key="idx"
+                >
                   {{ note }}
                 </p>
               </div>
@@ -40,16 +73,31 @@
           </div>
         </template>
       </el-table-column>
-      <el-table-column label="注册地址" min-width="200">
+      <el-table-column
+        label="注册地址"
+        min-width="200"
+      >
         <template #default="{ row }">
-          <el-link type="primary" :href="row.registerUrl" target="_blank">
+          <el-link
+            type="primary"
+            :href="row.registerUrl"
+            target="_blank"
+          >
             {{ row.registerUrl }}
           </el-link>
         </template>
       </el-table-column>
-      <el-table-column label="操作" width="120" fixed="right">
+      <el-table-column
+        label="操作"
+        width="120"
+        fixed="right"
+      >
         <template #default="{ row }">
-          <el-button type="primary" size="small" @click="goRegister(row)">
+          <el-button
+            type="primary"
+            size="small"
+            @click="goRegister(row)"
+          >
             前往注册
           </el-button>
         </template>

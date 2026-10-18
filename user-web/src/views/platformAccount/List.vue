@@ -1,14 +1,19 @@
 <template>
   <div class="platform-account-container">
-    
     <div class="page-header">
       <h2>{{ $t('平台账号管理') }}</h2>
       <div class="action-buttons">
-        <el-button type="info" @click="handleViewPlatforms">
+        <el-button
+          type="info"
+          @click="handleViewPlatforms"
+        >
           <el-icon><Platform /></el-icon>
           {{ $t('支持平台') }}
         </el-button>
-        <el-button type="primary" @click="handleAdd">
+        <el-button
+          type="primary"
+          @click="handleAdd"
+        >
           <el-icon><Plus /></el-icon>
           {{ $t('新增账号') }}
         </el-button>
@@ -17,9 +22,17 @@
 
     
     <div class="search-form">
-      <el-form :inline="true" :model="searchForm" class="search-form-content">
+      <el-form
+        :inline="true"
+        :model="searchForm"
+        class="search-form-content"
+      >
         <el-form-item :label="$t('平台')">
-          <el-select v-model="searchForm.platform" :placeholder="$t('请选择平台')" clearable>
+          <el-select
+            v-model="searchForm.platform"
+            :placeholder="$t('请选择平台')"
+            clearable
+          >
             <el-option
               v-for="platform in platformOptions"
               :key="platform.value"
@@ -29,17 +42,37 @@
           </el-select>
         </el-form-item>
         <el-form-item :label="$t('账号')">
-          <el-input v-model="searchForm.account" :placeholder="$t('请输入账号')" clearable />
+          <el-input
+            v-model="searchForm.account"
+            :placeholder="$t('请输入账号')"
+            clearable
+          />
         </el-form-item>
         <el-form-item :label="$t('状态')">
-          <el-select v-model="searchForm.status" :placeholder="$t('请选择状态')" clearable>
-            <el-option :label="$t('正常')" value="1" />
-            <el-option :label="$t('异常')" value="2" />
-            <el-option :label="$t('未登录')" value="3" />
+          <el-select
+            v-model="searchForm.status"
+            :placeholder="$t('请选择状态')"
+            clearable
+          >
+            <el-option
+              :label="$t('正常')"
+              value="1"
+            />
+            <el-option
+              :label="$t('异常')"
+              value="2"
+            />
+            <el-option
+              :label="$t('未登录')"
+              value="3"
+            />
           </el-select>
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="handleSearch">
+          <el-button
+            type="primary"
+            @click="handleSearch"
+          >
             <el-icon><Search /></el-icon>
             {{ $t('搜索') }}
           </el-button>
@@ -52,14 +85,43 @@
     </div>
 
     
-    <el-table :data="accountList" border style="width: 100%" v-loading="loading">
-      <el-table-column prop="id" label="ID" width="80" />
-      <el-table-column prop="platform" :label="$t('平台')" width="120">
-        <template #default="scope">{{ platformLabel(scope.row.platform) }}</template>
+    <el-table
+      v-loading="loading"
+      :data="accountList"
+      border
+      style="width: 100%"
+    >
+      <el-table-column
+        prop="id"
+        label="ID"
+        width="80"
+      />
+      <el-table-column
+        prop="platform"
+        :label="$t('平台')"
+        width="120"
+      >
+        <template #default="scope">
+          {{ platformLabel(scope.row.platform) }}
+        </template>
       </el-table-column>
-      <el-table-column prop="account_name" :label="$t('账号名称')" min-width="150" show-overflow-tooltip />
-      <el-table-column prop="account_id" :label="$t('账号ID')" min-width="150" show-overflow-tooltip />
-      <el-table-column prop="status" :label="$t('状态')" width="100">
+      <el-table-column
+        prop="account_name"
+        :label="$t('账号名称')"
+        min-width="150"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        prop="account_id"
+        :label="$t('账号ID')"
+        min-width="150"
+        show-overflow-tooltip
+      />
+      <el-table-column
+        prop="status"
+        :label="$t('状态')"
+        width="100"
+      >
         <template #default="scope">
           <el-tag :type="getStatusType(scope.row.status)">
             {{ getStatusText(scope.row.status) }}
@@ -69,27 +131,59 @@
       <!-- 接口模型里没有 last_login_at 这个字段（键只有 last_sync_at/expires_at/created_at/updated_at），
            原先这列绑的是不存在的名字 ⇒ 整列恒空白，标题还写着「最后登录」。
            改成数据里真有的最后同步时间，并把标题改成与之相符。 -->
-      <el-table-column prop="last_sync_at" label="最后同步" width="180">
-        <template #default="scope">{{ formatDateTime(scope.row.last_sync_at) }}</template>
-      </el-table-column>
-      <el-table-column prop="created_at" label="创建时间" width="180">
-        <template #default="scope">{{ formatDateTime(scope.row.created_at) }}</template>
-      </el-table-column>
-      <el-table-column label="操作" width="280" fixed="right">
+      <el-table-column
+        prop="last_sync_at"
+        label="最后同步"
+        width="180"
+      >
         <template #default="scope">
-          <el-button type="primary" size="small" @click="handleEdit(scope.row)">
+          {{ formatDateTime(scope.row.last_sync_at) }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        prop="created_at"
+        label="创建时间"
+        width="180"
+      >
+        <template #default="scope">
+          {{ formatDateTime(scope.row.created_at) }}
+        </template>
+      </el-table-column>
+      <el-table-column
+        label="操作"
+        width="280"
+        fixed="right"
+      >
+        <template #default="scope">
+          <el-button
+            type="primary"
+            size="small"
+            @click="handleEdit(scope.row)"
+          >
             <el-icon><Edit /></el-icon>
             编辑
           </el-button>
-          <el-button type="success" size="small" @click="handleLogin(scope.row)">
+          <el-button
+            type="success"
+            size="small"
+            @click="handleLogin(scope.row)"
+          >
             <el-icon><SwitchButton /></el-icon>
             登录
           </el-button>
-          <el-button type="info" size="small" @click="handleCheckStatus(scope.row)">
+          <el-button
+            type="info"
+            size="small"
+            @click="handleCheckStatus(scope.row)"
+          >
             <el-icon><Check /></el-icon>
             检查
           </el-button>
-          <el-button type="danger" size="small" @click="handleDelete(scope.row)">
+          <el-button
+            type="danger"
+            size="small"
+            @click="handleDelete(scope.row)"
+          >
             <el-icon><Delete /></el-icon>
             删除
           </el-button>
@@ -123,8 +217,15 @@
         :rules="rules"
         label-width="100px"
       >
-        <el-form-item label="平台" prop="platform">
-          <el-select v-model="form.platform" placeholder="请选择平台" style="width: 100%">
+        <el-form-item
+          label="平台"
+          prop="platform"
+        >
+          <el-select
+            v-model="form.platform"
+            placeholder="请选择平台"
+            style="width: 100%"
+          >
             <el-option
               v-for="platform in platformOptions"
               :key="platform.value"
@@ -133,13 +234,28 @@
             />
           </el-select>
         </el-form-item>
-        <el-form-item label="账号名称" prop="account_name">
-          <el-input v-model="form.account_name" placeholder="请输入账号名称" />
+        <el-form-item
+          label="账号名称"
+          prop="account_name"
+        >
+          <el-input
+            v-model="form.account_name"
+            placeholder="请输入账号名称"
+          />
         </el-form-item>
-        <el-form-item label="账号ID" prop="account_id">
-          <el-input v-model="form.account_id" placeholder="请输入账号ID" />
+        <el-form-item
+          label="账号ID"
+          prop="account_id"
+        >
+          <el-input
+            v-model="form.account_id"
+            placeholder="请输入账号ID"
+          />
         </el-form-item>
-        <el-form-item label="登录凭证" prop="credentials">
+        <el-form-item
+          label="登录凭证"
+          prop="credentials"
+        >
           <el-input
             v-model="form.credentials"
             type="textarea"
@@ -147,18 +263,31 @@
             placeholder="请输入登录凭证信息（JSON格式）"
           />
         </el-form-item>
-        <el-form-item label="状态" prop="status">
+        <el-form-item
+          label="状态"
+          prop="status"
+        >
           <el-radio-group v-model="form.status">
-            <el-radio :label="1">正常</el-radio>
-            <el-radio :label="2">异常</el-radio>
-            <el-radio :label="3">未登录</el-radio>
+            <el-radio :label="1">
+              正常
+            </el-radio>
+            <el-radio :label="2">
+              异常
+            </el-radio>
+            <el-radio :label="3">
+              未登录
+            </el-radio>
           </el-radio-group>
         </el-form-item>
       </el-form>
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="dialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="handleSubmit" :loading="submitting">
+          <el-button
+            type="primary"
+            :loading="submitting"
+            @click="handleSubmit"
+          >
             确定
           </el-button>
         </span>
@@ -172,10 +301,27 @@
       width="600px"
     >
       <div v-loading="platformsLoading">
-        <el-table :data="platformList" border style="width: 100%">
-          <el-table-column prop="code" label="平台代码" width="150" />
-          <el-table-column prop="name" label="平台名称" min-width="150" />
-          <el-table-column prop="description" label="说明" min-width="200" show-overflow-tooltip />
+        <el-table
+          :data="platformList"
+          border
+          style="width: 100%"
+        >
+          <el-table-column
+            prop="code"
+            label="平台代码"
+            width="150"
+          />
+          <el-table-column
+            prop="name"
+            label="平台名称"
+            min-width="150"
+          />
+          <el-table-column
+            prop="description"
+            label="说明"
+            min-width="200"
+            show-overflow-tooltip
+          />
         </el-table>
       </div>
     </el-dialog>
@@ -188,7 +334,10 @@
       @close="handleLoginDialogClose"
     >
       <div v-loading="loginLoading">
-        <el-form :model="loginForm" label-width="100px">
+        <el-form
+          :model="loginForm"
+          label-width="100px"
+        >
           <el-form-item label="账号">
             <span>{{ currentAccount.account_name }}</span>
           </el-form-item>
@@ -196,14 +345,21 @@
             <span>{{ currentAccount.platform }}</span>
           </el-form-item>
           <el-form-item label="验证码">
-            <el-input v-model="loginForm.code" placeholder="如需验证码请输入" />
+            <el-input
+              v-model="loginForm.code"
+              placeholder="如需验证码请输入"
+            />
           </el-form-item>
         </el-form>
       </div>
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="loginDialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="submitLogin" :loading="loginLoading">
+          <el-button
+            type="primary"
+            :loading="loginLoading"
+            @click="submitLogin"
+          >
             确认登录
           </el-button>
         </span>
@@ -217,16 +373,27 @@
       width="500px"
     >
       <div v-loading="statusLoading">
-        <el-descriptions :column="1" border>
-          <el-descriptions-item label="账号">{{ currentAccount.account_name }}</el-descriptions-item>
-          <el-descriptions-item label="平台">{{ currentAccount.platform }}</el-descriptions-item>
+        <el-descriptions
+          :column="1"
+          border
+        >
+          <el-descriptions-item label="账号">
+            {{ currentAccount.account_name }}
+          </el-descriptions-item>
+          <el-descriptions-item label="平台">
+            {{ currentAccount.platform }}
+          </el-descriptions-item>
           <el-descriptions-item label="状态">
             <el-tag :type="getStatusType(statusResult.status)">
               {{ getStatusText(statusResult.status) }}
             </el-tag>
           </el-descriptions-item>
-          <el-descriptions-item label="检测时间">{{ statusResult.checked_at }}</el-descriptions-item>
-          <el-descriptions-item label="说明">{{ statusResult.message || '-' }}</el-descriptions-item>
+          <el-descriptions-item label="检测时间">
+            {{ statusResult.checked_at }}
+          </el-descriptions-item>
+          <el-descriptions-item label="说明">
+            {{ statusResult.message || '-' }}
+          </el-descriptions-item>
         </el-descriptions>
       </div>
     </el-dialog>

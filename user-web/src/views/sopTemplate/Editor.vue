@@ -1,28 +1,44 @@
 <template>
   <div class="sop-template-editor-page">
-    
-    <el-card class="header-card" shadow="never">
+    <el-card
+      class="header-card"
+      shadow="never"
+    >
       <div class="header-content">
         <div>
           <h2>{{ isEdit ? '编辑 SOP 模板' : '创建 SOP 模板' }}</h2>
-          <p class="subtitle" v-if="isEdit">模板 ID：{{ templateId }} · 修改后保存生效</p>
-          <p class="subtitle" v-else>填写 SOP 模板，按 (意图, 阶段) 命中后使用 Go text/template 渲染回复</p>
+          <p
+            v-if="isEdit"
+            class="subtitle"
+          >
+            模板 ID：{{ templateId }} · 修改后保存生效
+          </p>
+          <p
+            v-else
+            class="subtitle"
+          >
+            填写 SOP 模板，按 (意图, 阶段) 命中后使用 Go text/template 渲染回复
+          </p>
         </div>
         <div class="header-actions">
-          <el-button @click="goBack">返回列表</el-button>
+          <el-button @click="goBack">
+            返回列表
+          </el-button>
         </div>
       </div>
     </el-card>
 
     <el-form
       ref="formRef"
+      v-loading="pageLoading"
       :model="form"
       :rules="rules"
       label-width="120px"
-      v-loading="pageLoading"
     >
-      
-      <el-card shadow="never" class="section-card">
+      <el-card
+        shadow="never"
+        class="section-card"
+      >
         <template #header>
           <div class="card-title">
             <el-icon><Tickets /></el-icon>
@@ -31,12 +47,21 @@
         </template>
         <el-row :gutter="20">
           <el-col :span="12">
-            <el-form-item label="模板名称" prop="name">
-              <el-input v-model="form.name" placeholder="如：发货时效问候模板" />
+            <el-form-item
+              label="模板名称"
+              prop="name"
+            >
+              <el-input
+                v-model="form.name"
+                placeholder="如：发货时效问候模板"
+              />
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="意图" prop="intent">
+            <el-form-item
+              label="意图"
+              prop="intent"
+            >
               <el-select
                 v-model="form.intent"
                 filterable
@@ -45,35 +70,66 @@
                 placeholder="如: shipping, refund"
                 style="width: 100%"
               >
-                <el-option v-for="i in presetIntents" :key="i" :label="i" :value="i" />
+                <el-option
+                  v-for="i in presetIntents"
+                  :key="i"
+                  :label="i"
+                  :value="i"
+                />
               </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="12">
-            <el-form-item label="阶段" prop="stage">
-              <el-select v-model="form.stage" placeholder="选择 SOP 阶段" style="width: 100%">
-                <el-option v-for="s in stageOptions" :key="s.value" :label="s.label" :value="s.value" />
+            <el-form-item
+              label="阶段"
+              prop="stage"
+            >
+              <el-select
+                v-model="form.stage"
+                placeholder="选择 SOP 阶段"
+                style="width: 100%"
+              >
+                <el-option
+                  v-for="s in stageOptions"
+                  :key="s.value"
+                  :label="s.label"
+                  :value="s.value"
+                />
               </el-select>
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="优先级">
-              <el-input-number v-model="form.priority" :min="-100" :max="100" :step="1" style="width: 100%" />
-              <div class="form-tip">数字越大越优先；同 (intent, stage) 多模板时按此排序</div>
+              <el-input-number
+                v-model="form.priority"
+                :min="-100"
+                :max="100"
+                :step="1"
+                style="width: 100%"
+              />
+              <div class="form-tip">
+                数字越大越优先；同 (intent, stage) 多模板时按此排序
+              </div>
             </el-form-item>
           </el-col>
         </el-row>
       </el-card>
 
       
-      <el-card shadow="never" class="section-card">
+      <el-card
+        shadow="never"
+        class="section-card"
+      >
         <template #header>
           <div class="card-title">
             <el-icon><Document /></el-icon>
             模板内容（Go text/template）
           </div>
         </template>
-        <el-form-item label="模板文本" prop="template">
+        <el-form-item
+          label="模板文本"
+          prop="template"
+        >
           <el-input
             v-model="form.template"
             type="textarea"
@@ -89,14 +145,32 @@
             v-model="form.vars"
             type="textarea"
             :rows="3"
-            placeholder='JSON 格式：{"var_name": {"desc": "描述", "example": "示例"}}'
+            placeholder="JSON 格式：{&quot;var_name&quot;: {&quot;desc&quot;: &quot;描述&quot;, &quot;example&quot;: &quot;示例&quot;}}"
           />
-          <div class="form-tip">仅用于编辑器内提示；不影响运行时渲染</div>
+          <div class="form-tip">
+            仅用于编辑器内提示；不影响运行时渲染
+          </div>
         </el-form-item>
-        <el-form-item v-if="varsList.length" label="可用变量">
+        <el-form-item
+          v-if="varsList.length"
+          label="可用变量"
+        >
           <div class="var-preview">
-            <el-tag v-for="v in varsList" :key="v.key" size="small" type="info" effect="plain" class="var-tag">
-              <span class="var-name" v-pre>{{.</span><span class="var-name">{{ v.key }}</span><span class="var-name" v-pre>}}</span>
+            <el-tag
+              v-for="v in varsList"
+              :key="v.key"
+              size="small"
+              type="info"
+              effect="plain"
+              class="var-tag"
+            >
+              <span
+                v-pre
+                class="var-name"
+              >{{.</span><span class="var-name">{{ v.key }}</span><span
+                v-pre
+                class="var-name"
+              >}}</span>
               <span class="var-desc">{{ v.desc || v.example || v.key }}</span>
             </el-tag>
           </div>
@@ -104,7 +178,10 @@
       </el-card>
 
       
-      <el-card shadow="never" class="section-card">
+      <el-card
+        shadow="never"
+        class="section-card"
+      >
         <template #header>
           <div class="card-title">
             <el-icon><Setting /></el-icon>
@@ -122,13 +199,17 @@
                 show-input
                 :show-input-controls="false"
               />
-              <div class="form-tip">建议 0.7+；&gt;=0.7 时 SOP 命中会跳过 LLM</div>
+              <div class="form-tip">
+                建议 0.7+；&gt;=0.7 时 SOP 命中会跳过 LLM
+              </div>
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="启用">
               <el-switch v-model="form.enabled" />
-              <div class="form-tip">禁用后该模板不参与匹配（已绑定智能体也会忽略）</div>
+              <div class="form-tip">
+                禁用后该模板不参与匹配（已绑定智能体也会忽略）
+              </div>
             </el-form-item>
           </el-col>
         </el-row>
@@ -136,8 +217,14 @@
 
       
       <div class="footer-actions">
-        <el-button @click="goBack">取消</el-button>
-        <el-button type="primary" :loading="saving" @click="onSave">
+        <el-button @click="goBack">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="saving"
+          @click="onSave"
+        >
           <el-icon><Check /></el-icon>
           {{ isEdit ? '保存更新' : '创建模板' }}
         </el-button>

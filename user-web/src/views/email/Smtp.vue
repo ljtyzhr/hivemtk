@@ -1,52 +1,154 @@
 <template>
   <div class="email-settings">
     <div class="toolbar">
-      <el-button type="primary" @click="handleAdd">
+      <el-button
+        type="primary"
+        @click="handleAdd"
+      >
         <el-icon-plus /> {{ $t('新增邮件代理') }}
       </el-button>
     </div>
 
     
-    <el-table :data="tableData" border stripe style="width: 100%">
-      <el-table-column prop="name" :label="$t('代理名称')" width="300" />
-      <el-table-column prop="server" :label="$t('服务器地址')" width="200" />
-      <el-table-column prop="port" :label="$t('端口')" width="100" />
-      <el-table-column prop="limit" :label="$t('代理日限制')" width="100" />
-      <el-table-column prop="password" :label="$t('密码')" />
-      <el-table-column prop="username" :label="$t('用户名')" />
-      <el-table-column :label="$t('操作')" width="200" align="center">
+    <el-table
+      :data="tableData"
+      border
+      stripe
+      style="width: 100%"
+    >
+      <el-table-column
+        prop="name"
+        :label="$t('代理名称')"
+        width="300"
+      />
+      <el-table-column
+        prop="server"
+        :label="$t('服务器地址')"
+        width="200"
+      />
+      <el-table-column
+        prop="port"
+        :label="$t('端口')"
+        width="100"
+      />
+      <el-table-column
+        prop="limit"
+        :label="$t('代理日限制')"
+        width="100"
+      />
+      <el-table-column
+        prop="password"
+        :label="$t('密码')"
+      />
+      <el-table-column
+        prop="username"
+        :label="$t('用户名')"
+      />
+      <el-table-column
+        :label="$t('操作')"
+        width="200"
+        align="center"
+      >
         <template #default="scope">
-          <el-button size="small" @click="handleEdit(scope.row)">{{ $t('编辑') }}</el-button>
-          <el-button size="small" type="danger" @click="handleDelete(scope.row.id)">{{ $t('删除') }}</el-button>
+          <el-button
+            size="small"
+            @click="handleEdit(scope.row)"
+          >
+            {{ $t('编辑') }}
+          </el-button>
+          <el-button
+            size="small"
+            type="danger"
+            @click="handleDelete(scope.row.id)"
+          >
+            {{ $t('删除') }}
+          </el-button>
         </template>
       </el-table-column>
     </el-table>
 
     
-    <el-dialog v-model="dialogVisible" :title="dialogTitle" width="600px">
-      <el-form ref="formRef" :model="form" :rules="rules" label-width="120px">
-        <el-form-item label="代理名称" prop="name">
-          <el-input v-model="form.name" placeholder="请输入代理名称" />
+    <el-dialog
+      v-model="dialogVisible"
+      :title="dialogTitle"
+      width="600px"
+    >
+      <el-form
+        ref="formRef"
+        :model="form"
+        :rules="rules"
+        label-width="120px"
+      >
+        <el-form-item
+          label="代理名称"
+          prop="name"
+        >
+          <el-input
+            v-model="form.name"
+            placeholder="请输入代理名称"
+          />
         </el-form-item>
-        <el-form-item label="服务器地址" prop="server">
-          <el-input v-model="form.server" placeholder="请输入SMTP服务器地址" />
+        <el-form-item
+          label="服务器地址"
+          prop="server"
+        >
+          <el-input
+            v-model="form.server"
+            placeholder="请输入SMTP服务器地址"
+          />
         </el-form-item>
-        <el-form-item label="端口" prop="port">
-          <el-input v-model.number="form.port" placeholder="请输入端口号" type="number" />
+        <el-form-item
+          label="端口"
+          prop="port"
+        >
+          <el-input
+            v-model.number="form.port"
+            placeholder="请输入端口号"
+            type="number"
+          />
         </el-form-item>
-        <el-form-item label="用户名" prop="username">
-          <el-input v-model="form.username" placeholder="请输入用户名" />
+        <el-form-item
+          label="用户名"
+          prop="username"
+        >
+          <el-input
+            v-model="form.username"
+            placeholder="请输入用户名"
+          />
         </el-form-item>
-        <el-form-item label="密码" prop="password">
-          <el-input v-model="form.password" placeholder="请输入密码" type="password" show-password autocomplete="new-password" />
+        <el-form-item
+          label="密码"
+          prop="password"
+        >
+          <el-input
+            v-model="form.password"
+            placeholder="请输入密码"
+            type="password"
+            show-password
+            autocomplete="new-password"
+          />
         </el-form-item>
-        <el-form-item label="代理日限制" prop="limit">
-          <el-input v-model="form.limit" placeholder="请输入代理日限制" type="number" />
+        <el-form-item
+          label="代理日限制"
+          prop="limit"
+        >
+          <el-input
+            v-model="form.limit"
+            placeholder="请输入代理日限制"
+            type="number"
+          />
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="submitForm">确定</el-button>
+        <el-button @click="dialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          @click="submitForm"
+        >
+          确定
+        </el-button>
       </template>
     </el-dialog>
   </div>

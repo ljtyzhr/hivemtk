@@ -2,29 +2,77 @@
   <div class="page">
     <el-card>
       <template #header>
-        <div class="card-header">WhatsApp 账号管理</div>
+        <div class="card-header">
+          WhatsApp 账号管理
+        </div>
       </template>
-      <el-form :inline="true" @submit.prevent>
+      <el-form
+        :inline="true"
+        @submit.prevent
+      >
         <el-form-item label="名称">
-          <el-input v-model="form.name" placeholder="账号名称" />
+          <el-input
+            v-model="form.name"
+            placeholder="账号名称"
+          />
         </el-form-item>
         <el-form-item label="备注">
-          <el-input v-model="form.remark" placeholder="备注" />
+          <el-input
+            v-model="form.remark"
+            placeholder="备注"
+          />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="createAccount">添加账号</el-button>
+          <el-button
+            type="primary"
+            @click="createAccount"
+          >
+            添加账号
+          </el-button>
         </el-form-item>
       </el-form>
 
-      <el-table :data="accounts" style="width:100%" v-loading="loading">
-        <el-table-column prop="name" label="名称" />
-        <el-table-column prop="remark" label="备注" />
-        <el-table-column prop="status" label="状态" />
-        <el-table-column label="操作" width="340">
+      <el-table
+        v-loading="loading"
+        :data="accounts"
+        style="width:100%"
+      >
+        <el-table-column
+          prop="name"
+          label="名称"
+        />
+        <el-table-column
+          prop="remark"
+          label="备注"
+        />
+        <el-table-column
+          prop="status"
+          label="状态"
+        />
+        <el-table-column
+          label="操作"
+          width="340"
+        >
           <template #default="{ row }">
-            <el-button size="small" @click="startLogin(row)">登录</el-button>
-            <el-button size="small" @click="refreshStatus(row)">状态</el-button>
-            <el-button size="small" type="primary" @click="openBindingDialog(row)">绑定AI</el-button>
+            <el-button
+              size="small"
+              @click="startLogin(row)"
+            >
+              登录
+            </el-button>
+            <el-button
+              size="small"
+              @click="refreshStatus(row)"
+            >
+              状态
+            </el-button>
+            <el-button
+              size="small"
+              type="primary"
+              @click="openBindingDialog(row)"
+            >
+              绑定AI
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -39,11 +87,25 @@
       :account-enabled="true"
     />
 
-    <el-dialog v-model="qrDialog" title="扫码登录" width="360px">
-      <div v-if="qrCode" class="qr-box">
-        <img :src="qrImageSrc" alt="QR" width="300" height="300" />
+    <el-dialog
+      v-model="qrDialog"
+      title="扫码登录"
+      width="360px"
+    >
+      <div
+        v-if="qrCode"
+        class="qr-box"
+      >
+        <img
+          :src="qrImageSrc"
+          alt="QR"
+          width="300"
+          height="300"
+        >
       </div>
-      <div v-else>等待二维码生成...</div>
+      <div v-else>
+        等待二维码生成...
+      </div>
     </el-dialog>
   </div>
 </template>

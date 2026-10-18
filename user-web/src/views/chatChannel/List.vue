@@ -1,18 +1,28 @@
 <template>
   <div class="chat-channel-list-page">
-    
-    <el-card class="header-card" shadow="never">
+    <el-card
+      class="header-card"
+      shadow="never"
+    >
       <div class="header-content">
         <div>
           <h2>客服 Web Widget 渠道</h2>
-          <p class="subtitle">管理嵌入到企业网站的客服浮标入口，每个渠道对应一个 AppKey + 一组白名单 origin</p>
+          <p class="subtitle">
+            管理嵌入到企业网站的客服浮标入口，每个渠道对应一个 AppKey + 一组白名单 origin
+          </p>
         </div>
         <div class="header-actions">
-          <el-button @click="loadList" :loading="loading">
+          <el-button
+            :loading="loading"
+            @click="loadList"
+          >
             <el-icon><Refresh /></el-icon>
             {{ $t('刷新') }}
           </el-button>
-          <el-button type="primary" @click="goCreate">
+          <el-button
+            type="primary"
+            @click="goCreate"
+          >
             <el-icon><Plus /></el-icon>
             {{ $t('新建渠道') }}
           </el-button>
@@ -21,8 +31,15 @@
     </el-card>
 
     
-    <el-card shadow="never" class="filter-card">
-      <el-form :inline="true" :model="filter" @submit.prevent>
+    <el-card
+      shadow="never"
+      class="filter-card"
+    >
+      <el-form
+        :inline="true"
+        :model="filter"
+        @submit.prevent
+      >
         <el-form-item :label="$t('关键词')">
           <el-input
             v-model="filter.keyword"
@@ -34,78 +51,205 @@
           />
         </el-form-item>
         <el-form-item :label="$t('状态')">
-          <el-select v-model="filter.status" :placeholder="$t('全部')" clearable style="width: 140px" @change="onSearch">
-            <el-option :label="$t('启用')" value="active" />
-            <el-option :label="$t('禁用')" value="disabled" />
+          <el-select
+            v-model="filter.status"
+            :placeholder="$t('全部')"
+            clearable
+            style="width: 140px"
+            @change="onSearch"
+          >
+            <el-option
+              :label="$t('启用')"
+              value="active"
+            />
+            <el-option
+              :label="$t('禁用')"
+              value="disabled"
+            />
           </el-select>
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="onSearch">
+          <el-button
+            type="primary"
+            @click="onSearch"
+          >
             <el-icon><Search /></el-icon>
             {{ $t('搜索') }}
           </el-button>
-          <el-button @click="resetFilter">{{ $t('重置') }}</el-button>
+          <el-button @click="resetFilter">
+            {{ $t('重置') }}
+          </el-button>
         </el-form-item>
       </el-form>
     </el-card>
 
     
     <el-card shadow="never">
-      <el-table :data="list" v-loading="loading" stripe border>
-        <el-table-column prop="id" label="ID" width="70" align="center" />
-        <el-table-column prop="channel_name" :label="$t('渠道名称')" min-width="160" show-overflow-tooltip />
-        <el-table-column label="AppKey" min-width="240">
+      <el-table
+        v-loading="loading"
+        :data="list"
+        stripe
+        border
+      >
+        <el-table-column
+          prop="id"
+          label="ID"
+          width="70"
+          align="center"
+        />
+        <el-table-column
+          prop="channel_name"
+          :label="$t('渠道名称')"
+          min-width="160"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          label="AppKey"
+          min-width="240"
+        >
           <template #default="{ row }">
             <code class="appkey">{{ row.app_key }}</code>
-            <el-button link type="primary" size="small" @click="copy(row.app_key)">
+            <el-button
+              link
+              type="primary"
+              size="small"
+              @click="copy(row.app_key)"
+            >
               <el-icon><CopyDocument /></el-icon>
             </el-button>
           </template>
         </el-table-column>
-        <el-table-column label="状态" width="100" align="center">
+        <el-table-column
+          label="状态"
+          width="100"
+          align="center"
+        >
           <template #default="{ row }">
-            <el-tag :type="getStatusTagType(row.status)" size="small">
+            <el-tag
+              :type="getStatusTagType(row.status)"
+              size="small"
+            >
               {{ getStatusLabel(row.status) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="浮标" width="160">
+        <el-table-column
+          label="浮标"
+          width="160"
+        >
           <template #default="{ row }">
-            <div class="widget-preview" :style="{ backgroundColor: row.widget_color }">
+            <div
+              class="widget-preview"
+              :style="{ backgroundColor: row.widget_color }"
+            >
               <el-icon><ChatLineRound /></el-icon>
             </div>
             <span class="widget-pos">{{ row.widget_position }}</span>
           </template>
         </el-table-column>
-        <el-table-column prop="visitor_count" label="访客" width="80" align="center" />
-        <el-table-column prop="session_count" label="会话" width="80" align="center" />
-        <el-table-column label="目标语言" width="120" align="center">
+        <el-table-column
+          prop="visitor_count"
+          label="访客"
+          width="80"
+          align="center"
+        />
+        <el-table-column
+          prop="session_count"
+          label="会话"
+          width="80"
+          align="center"
+        />
+        <el-table-column
+          label="目标语言"
+          width="120"
+          align="center"
+        >
           <template #default="{ row }">
-            <el-tag v-if="row.target_language" size="small">{{ getLanguageLabel(row.target_language) }}</el-tag>
-            <span v-else class="lang-follow">跟随智能体</span>
+            <el-tag
+              v-if="row.target_language"
+              size="small"
+            >
+              {{ getLanguageLabel(row.target_language) }}
+            </el-tag>
+            <span
+              v-else
+              class="lang-follow"
+            >跟随智能体</span>
           </template>
         </el-table-column>
-        <el-table-column prop="created_at" label="创建时间" width="180">
+        <el-table-column
+          prop="created_at"
+          label="创建时间"
+          width="180"
+        >
           <template #default="{ row }">
             {{ formatTime(row.created_at) }}
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="320" fixed="right">
+        <el-table-column
+          label="操作"
+          width="320"
+          fixed="right"
+        >
           <template #default="{ row }">
-            <el-button link type="primary" size="small" @click="goEdit(row)">编辑</el-button>
-            <el-button link type="primary" size="small" @click="router.push({ name: 'ChatChannelInstallGuide', params: { id: row.channel_id } })">安装引导</el-button>
-            <el-button link type="primary" size="small" @click="onRotateKey(row)">轮换 Key</el-button>
-            <el-button link type="warning" size="small" @click="onResetSecret(row)">重置 Secret</el-button>
-            <el-button v-if="row.status === 'disabled'" link type="success" size="small" @click="onEnable(row)">启用</el-button>
-            <el-button v-else link type="danger" size="small" @click="onDisable(row)">禁用</el-button>
+            <el-button
+              link
+              type="primary"
+              size="small"
+              @click="goEdit(row)"
+            >
+              编辑
+            </el-button>
+            <el-button
+              link
+              type="primary"
+              size="small"
+              @click="router.push({ name: 'ChatChannelInstallGuide', params: { id: row.channel_id } })"
+            >
+              安装引导
+            </el-button>
+            <el-button
+              link
+              type="primary"
+              size="small"
+              @click="onRotateKey(row)"
+            >
+              轮换 Key
+            </el-button>
+            <el-button
+              link
+              type="warning"
+              size="small"
+              @click="onResetSecret(row)"
+            >
+              重置 Secret
+            </el-button>
+            <el-button
+              v-if="row.status === 'disabled'"
+              link
+              type="success"
+              size="small"
+              @click="onEnable(row)"
+            >
+              启用
+            </el-button>
+            <el-button
+              v-else
+              link
+              type="danger"
+              size="small"
+              @click="onDisable(row)"
+            >
+              禁用
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
 
       <el-pagination
-        class="pagination"
         v-model:current-page="page"
         v-model:page-size="pageSize"
+        class="pagination"
         :page-sizes="[10, 20, 50, 100]"
         :total="total"
         layout="total, sizes, prev, pager, next, jumper"

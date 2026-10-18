@@ -10,35 +10,82 @@
       description="功能模块订阅需要连接平台后开通。当前部署可正常使用全部基础能力（客户中心、会话工作台、知识库、资产与话术、自有模型接入）。"
     />
 
-    <el-card shadow="never" class="mb-12">
+    <el-card
+      shadow="never"
+      class="mb-12"
+    >
       <el-form inline>
         <el-form-item label="分类">
-          <el-select v-model="filter.category" clearable placeholder="全部" style="width: 140px" @change="fetch">
-            <el-option v-for="(label, k) in CATEGORY_LABEL" :key="k" :label="label" :value="k" />
+          <el-select
+            v-model="filter.category"
+            clearable
+            placeholder="全部"
+            style="width: 140px"
+            @change="fetch"
+          >
+            <el-option
+              v-for="(label, k) in CATEGORY_LABEL"
+              :key="k"
+              :label="label"
+              :value="k"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="状态">
-          <el-select v-model="filter.onlyUnowned" style="width: 140px" @change="fetch">
-            <el-option label="全部模块" :value="false" />
-            <el-option label="仅未开通" :value="true" />
+          <el-select
+            v-model="filter.onlyUnowned"
+            style="width: 140px"
+            @change="fetch"
+          >
+            <el-option
+              label="全部模块"
+              :value="false"
+            />
+            <el-option
+              label="仅未开通"
+              :value="true"
+            />
           </el-select>
         </el-form-item>
         <el-form-item>
-          <el-input v-model="filter.keyword" placeholder="模块名称 / 关键词" clearable style="width: 220px" @keyup.enter="fetch" />
+          <el-input
+            v-model="filter.keyword"
+            placeholder="模块名称 / 关键词"
+            clearable
+            style="width: 220px"
+            @keyup.enter="fetch"
+          />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" :loading="loading" @click="fetch">查询</el-button>
-          <el-button @click="fetch">刷新</el-button>
-          <el-button @click="$router.push('/module-market/my')">我的模块</el-button>
-          <el-button @click="$router.push('/module-market/orders')">我的订单</el-button>
+          <el-button
+            type="primary"
+            :loading="loading"
+            @click="fetch"
+          >
+            查询
+          </el-button>
+          <el-button @click="fetch">
+            刷新
+          </el-button>
+          <el-button @click="$router.push('/module-market/my')">
+            我的模块
+          </el-button>
+          <el-button @click="$router.push('/module-market/orders')">
+            我的订单
+          </el-button>
         </el-form-item>
       </el-form>
     </el-card>
 
-    <div class="grid" v-loading="loading">
+    <div
+      v-loading="loading"
+      class="grid"
+    >
       <el-card
-        v-for="m in visible" :key="m.module_key"
-        class="mod-card" shadow="hover"
+        v-for="m in visible"
+        :key="m.module_key"
+        class="mod-card"
+        shadow="hover"
         :class="{ highlight: m.module_key === highlightKey }"
       >
         <div class="head">
@@ -48,46 +95,106 @@
           <div class="titles">
             <div class="name">
               {{ m.name }}
-              <el-tag v-if="m.owned" size="small" type="success" effect="plain">已开通</el-tag>
-              <el-tag v-else-if="m.category === 'base'" size="small" type="success">免费</el-tag>
-              <el-tag v-else-if="m.free_to_enable" size="small" type="warning" effect="plain">免费开通</el-tag>
+              <el-tag
+                v-if="m.owned"
+                size="small"
+                type="success"
+                effect="plain"
+              >
+                已开通
+              </el-tag>
+              <el-tag
+                v-else-if="m.category === 'base'"
+                size="small"
+                type="success"
+              >
+                免费
+              </el-tag>
+              <el-tag
+                v-else-if="m.free_to_enable"
+                size="small"
+                type="warning"
+                effect="plain"
+              >
+                免费开通
+              </el-tag>
             </div>
-            <div class="key">{{ m.module_key }}</div>
+            <div class="key">
+              {{ m.module_key }}
+            </div>
           </div>
         </div>
 
-        <p class="summary">{{ m.summary || '暂无描述' }}</p>
+        <p class="summary">
+          {{ m.summary || '暂无描述' }}
+        </p>
 
         <div class="meta">
-          <span class="price" :class="{ free: m.free || m.free_to_enable }">{{ priceLabel(m) }}</span>
+          <span
+            class="price"
+            :class="{ free: m.free || m.free_to_enable }"
+          >{{ priceLabel(m) }}</span>
           <span class="pages">含 {{ m.menu_count }} 个页面</span>
         </div>
 
-        <div v-if="m.depends_on && m.depends_on.length" class="deps">
+        <div
+          v-if="m.depends_on && m.depends_on.length"
+          class="deps"
+        >
           <span class="deps-label">依赖</span>
-          <el-tag v-for="d in m.depends_on" :key="d" size="small" effect="plain" class="dep">{{ d }}</el-tag>
+          <el-tag
+            v-for="d in m.depends_on"
+            :key="d"
+            size="small"
+            effect="plain"
+            class="dep"
+          >
+            {{ d }}
+          </el-tag>
         </div>
 
         <div class="actions">
-          <el-button size="small" @click="$router.push(`/module-market/detail/${m.module_key}`)">查看详情</el-button>
+          <el-button
+            size="small"
+            @click="$router.push(`/module-market/detail/${m.module_key}`)"
+          >
+            查看详情
+          </el-button>
           <el-button
             v-if="!m.owned && m.category === 'paid'"
-            type="primary" size="small"
+            type="primary"
+            size="small"
             :disabled="!platformEnabled"
             @click="openConfirm(m)"
           >
             {{ m.free_to_enable ? '开通' : '订阅' }}
           </el-button>
-          <el-button v-else-if="!m.owned" size="small" disabled>已包含</el-button>
+          <el-button
+            v-else-if="!m.owned"
+            size="small"
+            disabled
+          >
+            已包含
+          </el-button>
         </div>
       </el-card>
     </div>
 
-    <el-empty v-if="!loading && visible.length === 0" description="没有匹配的功能模块" />
+    <el-empty
+      v-if="!loading && visible.length === 0"
+      description="没有匹配的功能模块"
+    />
 
     <!-- 订阅二次确认：必须列出依赖闭包与总价 -->
-    <el-dialog v-model="confirmVisible" title="确认订阅" width="560px">
-      <div v-if="confirmTarget" class="confirm-body">
+    <el-dialog
+      v-model="confirmVisible"
+      title="确认订阅"
+      width="560px"
+    >
+      <div
+        v-if="confirmTarget"
+        class="confirm-body"
+      >
         <div class="row">
           <span class="k">模块</span>
           <span class="v">{{ confirmTarget.name }}</span>
@@ -97,36 +204,98 @@
           <span class="v price">{{ priceLabel(confirmTarget) }}</span>
         </div>
 
-        <el-divider content-position="left">将自动开通（基础能力，无需付费）</el-divider>
-        <div v-if="autoEnabled.length" class="chips">
-          <el-tag v-for="d in autoEnabled" :key="d" size="small" type="success" effect="plain">{{ d }}</el-tag>
+        <el-divider content-position="left">
+          将自动开通（基础能力，无需付费）
+        </el-divider>
+        <div
+          v-if="autoEnabled.length"
+          class="chips"
+        >
+          <el-tag
+            v-for="d in autoEnabled"
+            :key="d"
+            size="small"
+            type="success"
+            effect="plain"
+          >
+            {{ d }}
+          </el-tag>
         </div>
-        <div v-else class="muted small">无</div>
+        <div
+          v-else
+          class="muted small"
+        >
+          无
+        </div>
 
         <template v-if="payableDeps.length">
-          <el-divider content-position="left">需另行订阅（不会自动开通）</el-divider>
+          <el-divider content-position="left">
+            需另行订阅（不会自动开通）
+          </el-divider>
           <div class="chips">
-            <el-tag v-for="d in payableDeps" :key="d" size="small" type="warning" effect="plain">{{ d }}</el-tag>
+            <el-tag
+              v-for="d in payableDeps"
+              :key="d"
+              size="small"
+              type="warning"
+              effect="plain"
+            >
+              {{ d }}
+            </el-tag>
           </div>
-          <el-alert type="info" :closable="false" class="mt-8"
-            title="这些依赖不会被自动开通" />
+          <el-alert
+            type="info"
+            :closable="false"
+            class="mt-8"
+            title="这些依赖不会被自动开通"
+          />
         </template>
 
-        <el-divider content-position="left">联系方式（用于线下付款）</el-divider>
-        <el-form :model="form" label-width="80px" class="mt-8">
-          <el-form-item label="称呼"><el-input v-model="form.contact_name" placeholder="选填" /></el-form-item>
+        <el-divider content-position="left">
+          联系方式（用于线下付款）
+        </el-divider>
+        <el-form
+          :model="form"
+          label-width="80px"
+          class="mt-8"
+        >
+          <el-form-item label="称呼">
+            <el-input
+              v-model="form.contact_name"
+              placeholder="选填"
+            />
+          </el-form-item>
           <el-form-item label="电话">
-            <el-input v-model="form.contact_phone" placeholder="必填或填写邮箱" />
+            <el-input
+              v-model="form.contact_phone"
+              placeholder="必填或填写邮箱"
+            />
           </el-form-item>
           <el-form-item label="邮箱">
-            <el-input v-model="form.contact_email" placeholder="必填或填写电话" />
+            <el-input
+              v-model="form.contact_email"
+              placeholder="必填或填写电话"
+            />
           </el-form-item>
-          <el-form-item label="备注"><el-input v-model="form.remark" placeholder="选填" /></el-form-item>
+          <el-form-item label="备注">
+            <el-input
+              v-model="form.remark"
+              placeholder="选填"
+            />
+          </el-form-item>
         </el-form>
       </div>
       <template #footer>
-        <el-button @click="confirmVisible = false">取消</el-button>
-        <el-button type="primary" :loading="submitting" @click="submit">提交订单</el-button>
+        <el-button @click="confirmVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          :loading="submitting"
+          @click="submit"
+        >
+          提交订单
+        </el-button>
       </template>
     </el-dialog>
   </div>

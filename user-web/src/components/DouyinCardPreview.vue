@@ -2,14 +2,18 @@
   <div class="douyin-card-preview">
     <div class="preview-header">
       <h3>{{ $t('抖音卡片预览') }}</h3>
-      <el-switch v-model="isPreviewMode" @change="handleModeChange" />
+      <el-switch
+        v-model="isPreviewMode"
+        @change="handleModeChange"
+      />
     </div>
     
-    <div class="preview-container" :class="{ 'preview-mode': isPreviewMode }">
-      
+    <div
+      class="preview-container"
+      :class="{ 'preview-mode': isPreviewMode }"
+    >
       <div class="phone-container">
         <div class="phone-frame">
-          
           <div class="phone-status-bar">
             <div class="status-left">
               <span class="time">9:41</span>
@@ -26,12 +30,13 @@
           
           
           <div class="chat-container">
-            
             <div class="message-container">
               <div class="message-bubble">
                 <div class="card-content">
-                  
-                  <div class="card-image" v-if="cardData.image_url">
+                  <div
+                    v-if="cardData.image_url"
+                    class="card-image"
+                  >
                     <el-image 
                       :src="cardData.image_url" 
                       fit="cover"
@@ -48,11 +53,20 @@
                   
                   
                   <div class="card-text">
+                    <div
+                      v-if="cardData.title"
+                      class="card-title"
+                    >
+                      {{ cardData.title }}
+                    </div>
                     
-                    <div class="card-title" v-if="cardData.title">{{ cardData.title }}</div>
                     
-                    
-                    <div class="card-description" v-if="cardData.description">{{ cardData.description }}</div>
+                    <div
+                      v-if="cardData.description"
+                      class="card-description"
+                    >
+                      {{ cardData.description }}
+                    </div>
                   </div>
                 </div>
               </div>

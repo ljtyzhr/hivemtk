@@ -1,20 +1,37 @@
 <template>
   <div class="geo-page">
-
-    
-    <el-card shadow="never" class="input-card">
-      <template #header><span class="card-title">优化输入</span></template>
-      <el-form :model="form" label-width="92px">
+    <el-card
+      shadow="never"
+      class="input-card"
+    >
+      <template #header>
+        <span class="card-title">优化输入</span>
+      </template>
+      <el-form
+        :model="form"
+        label-width="92px"
+      >
         <el-row :gutter="16">
-          <el-col :xs="24" :sm="12">
+          <el-col
+            :xs="24"
+            :sm="12"
+          >
             <el-form-item label="文章来源">
               <el-radio-group v-model="form.source">
-                <el-radio value="textarea">粘贴文本</el-radio>
-                <el-radio value="article">从历史文章选择</el-radio>
+                <el-radio value="textarea">
+                  粘贴文本
+                </el-radio>
+                <el-radio value="article">
+                  从历史文章选择
+                </el-radio>
               </el-radio-group>
             </el-form-item>
           </el-col>
-          <el-col v-if="form.source === 'article'" :xs="24" :sm="12">
+          <el-col
+            v-if="form.source === 'article'"
+            :xs="24"
+            :sm="12"
+          >
             <el-form-item label="历史文章">
               <el-select
                 v-model="form.article_id"
@@ -33,13 +50,23 @@
               </el-select>
             </el-form-item>
           </el-col>
-          <el-col :xs="24" :sm="12">
+          <el-col
+            :xs="24"
+            :sm="12"
+          >
             <el-form-item label="品牌名称">
-              <el-input v-model="form.brand_name" placeholder="如：hivemtk" clearable />
+              <el-input
+                v-model="form.brand_name"
+                placeholder="如：hivemtk"
+                clearable
+              />
             </el-form-item>
           </el-col>
         </el-row>
-        <el-form-item v-if="form.source === 'textarea'" label="文章内容">
+        <el-form-item
+          v-if="form.source === 'textarea'"
+          label="文章内容"
+        >
           <el-input
             v-model="form.content"
             type="textarea"
@@ -48,10 +75,18 @@
           />
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" :loading="optimizing" @click="handleOptimize">
+          <el-button
+            type="primary"
+            :loading="optimizing"
+            @click="handleOptimize"
+          >
             <el-icon><MagicStick /></el-icon><span>优化内容</span>
           </el-button>
-          <el-button :loading="scoringBefore" :disabled="!originalContent" @click="handleScore('before')">
+          <el-button
+            :loading="scoringBefore"
+            :disabled="!originalContent"
+            @click="handleScore('before')"
+          >
             优化前评分
           </el-button>
         </el-form-item>
@@ -59,31 +94,63 @@
     </el-card>
 
     
-    <el-card v-if="optimizedContent || originalContent" shadow="never" class="compare-card">
+    <el-card
+      v-if="optimizedContent || originalContent"
+      shadow="never"
+      class="compare-card"
+    >
       <template #header>
         <div class="card-header">
           <span class="card-title">优化前后对比</span>
           <div class="score-bar">
-            <el-tag type="info">优化前：{{ scoreBefore?.total ?? '—' }}</el-tag>
-            <el-icon class="arrow"><Right /></el-icon>
-            <el-tag type="success">优化后：{{ scoreAfter?.total ?? '—' }}</el-tag>
+            <el-tag type="info">
+              优化前：{{ scoreBefore?.total ?? '—' }}
+            </el-tag>
+            <el-icon class="arrow">
+              <Right />
+            </el-icon>
+            <el-tag type="success">
+              优化后：{{ scoreAfter?.total ?? '—' }}
+            </el-tag>
           </div>
         </div>
       </template>
       <el-row :gutter="16">
-        <el-col :xs="24" :md="12">
+        <el-col
+          :xs="24"
+          :md="12"
+        >
           <div class="compare-col">
-            <div class="col-title">原文</div>
-            <div class="compare-text original">{{ originalContent || '—' }}</div>
+            <div class="col-title">
+              原文
+            </div>
+            <div class="compare-text original">
+              {{ originalContent || '—' }}
+            </div>
           </div>
         </el-col>
-        <el-col :xs="24" :md="12">
+        <el-col
+          :xs="24"
+          :md="12"
+        >
           <div class="compare-col">
             <div class="col-title">
               优化后
-              <el-button v-if="optimizedContent" link type="primary" @click="copyOptimized">复制</el-button>
+              <el-button
+                v-if="optimizedContent"
+                link
+                type="primary"
+                @click="copyOptimized"
+              >
+                复制
+              </el-button>
             </div>
-            <div v-loading="optimizing" class="compare-text optimized">{{ optimizedContent || '—' }}</div>
+            <div
+              v-loading="optimizing"
+              class="compare-text optimized"
+            >
+              {{ optimizedContent || '—' }}
+            </div>
           </div>
         </el-col>
       </el-row>
@@ -91,13 +158,31 @@
       <div class="suggest-section">
         <div class="suggest-title">
           优化建议
-          <el-button v-if="optimizedContent" size="small" type="success" :loading="scoringAfter" @click="handleScore('after')">
+          <el-button
+            v-if="optimizedContent"
+            size="small"
+            type="success"
+            :loading="scoringAfter"
+            @click="handleScore('after')"
+          >
             优化后评分
           </el-button>
         </div>
-        <el-empty v-if="!suggestions.length" description="暂无优化建议" :image-size="60" />
-        <ul v-else class="suggest-list">
-          <li v-for="(s, i) in suggestions" :key="i">{{ s }}</li>
+        <el-empty
+          v-if="!suggestions.length"
+          description="暂无优化建议"
+          :image-size="60"
+        />
+        <ul
+          v-else
+          class="suggest-list"
+        >
+          <li
+            v-for="(s, i) in suggestions"
+            :key="i"
+          >
+            {{ s }}
+          </li>
         </ul>
       </div>
     </el-card>

@@ -14,7 +14,7 @@ import { vi } from 'vitest';
 
 /** 把函数重建到全局作用域（丢掉闭包），模拟页面侧拿到的那份代码。 */
 export function deserializedAsPage(fn) {
-  // eslint-disable-next-line no-new-func
+   
   return new Function(`return (${fn.toString()})`)();
 }
 

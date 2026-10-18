@@ -1,11 +1,20 @@
 <template>
   <div class="geo-page">
-
-    
-    <el-card shadow="never" class="search-card">
-      <el-form :model="query" label-width="92px" class="search-form">
+    <el-card
+      shadow="never"
+      class="search-card"
+    >
+      <el-form
+        :model="query"
+        label-width="92px"
+        class="search-form"
+      >
         <el-row :gutter="16">
-          <el-col :xs="24" :sm="12" :md="8">
+          <el-col
+            :xs="24"
+            :sm="12"
+            :md="8"
+          >
             <el-form-item label="种子词">
               <el-input
                 v-model="query.seed_words"
@@ -16,41 +25,89 @@
               />
             </el-form-item>
           </el-col>
-          <el-col :xs="24" :sm="12" :md="8">
+          <el-col
+            :xs="24"
+            :sm="12"
+            :md="8"
+          >
             <el-form-item label="挖掘模式">
-              <el-select v-model="query.mode" style="width: 100%">
-                <el-option label="AI 生成（LLM）" value="llm" />
-                <el-option label="托词组合（词库）" value="combination" />
-                <el-option label="混合模式" value="mixed" />
+              <el-select
+                v-model="query.mode"
+                style="width: 100%"
+              >
+                <el-option
+                  label="AI 生成（LLM）"
+                  value="llm"
+                />
+                <el-option
+                  label="托词组合（词库）"
+                  value="combination"
+                />
+                <el-option
+                  label="混合模式"
+                  value="mixed"
+                />
               </el-select>
             </el-form-item>
           </el-col>
-          <el-col :xs="24" :sm="12" :md="4" class="action-col">
-            <el-button type="primary" :loading="mining" @click="handleMine">
+          <el-col
+            :xs="24"
+            :sm="12"
+            :md="4"
+            class="action-col"
+          >
+            <el-button
+              type="primary"
+              :loading="mining"
+              @click="handleMine"
+            >
               <el-icon><Search /></el-icon>
               <span>挖掘关键词</span>
             </el-button>
           </el-col>
         </el-row>
         <el-row :gutter="16">
-          <el-col :xs="24" :md="14">
+          <el-col
+            :xs="24"
+            :md="14"
+          >
             <el-form-item label="下拉词引擎">
               <el-checkbox-group v-model="query.engines">
-                <el-checkbox value="baidu">百度</el-checkbox>
-                <el-checkbox value="bing">Bing</el-checkbox>
-                <el-checkbox value="google">Google</el-checkbox>
-                <el-checkbox value="360">360</el-checkbox>
-                <el-checkbox value="sogou">搜狗</el-checkbox>
+                <el-checkbox value="baidu">
+                  百度
+                </el-checkbox>
+                <el-checkbox value="bing">
+                  Bing
+                </el-checkbox>
+                <el-checkbox value="google">
+                  Google
+                </el-checkbox>
+                <el-checkbox value="360">
+                  360
+                </el-checkbox>
+                <el-checkbox value="sogou">
+                  搜狗
+                </el-checkbox>
               </el-checkbox-group>
             </el-form-item>
           </el-col>
-          <el-col :xs="24" :sm="12" :md="5">
+          <el-col
+            :xs="24"
+            :sm="12"
+            :md="5"
+          >
             <div class="pipeline-actions">
-              <el-button :loading="suggesting" @click="handleCrawlSuggest">
+              <el-button
+                :loading="suggesting"
+                @click="handleCrawlSuggest"
+              >
                 <el-icon><Download /></el-icon>
                 <span>抓取下拉词</span>
               </el-button>
-              <el-button :loading="longtailing" @click="handleLongtail">
+              <el-button
+                :loading="longtailing"
+                @click="handleLongtail"
+              >
                 <el-icon><MagicStick /></el-icon>
                 <span>组合长尾词</span>
               </el-button>
@@ -61,63 +118,143 @@
     </el-card>
 
     
-    <el-card shadow="never" class="funnel-card">
+    <el-card
+      shadow="never"
+      class="funnel-card"
+    >
       <template #header>
         <div class="card-header">
           <span>关键词四层漏斗</span>
-          <el-button link type="primary" :loading="funnelLoading" @click="loadFunnel">刷新</el-button>
+          <el-button
+            link
+            type="primary"
+            :loading="funnelLoading"
+            @click="loadFunnel"
+          >
+            刷新
+          </el-button>
         </div>
       </template>
       <el-row :gutter="16">
-        <el-col :xs="24" :md="14">
+        <el-col
+          :xs="24"
+          :md="14"
+        >
           <div class="funnel-layers">
-            <div v-for="layer in funnelLayers" :key="layer.key" class="funnel-row">
+            <div
+              v-for="layer in funnelLayers"
+              :key="layer.key"
+              class="funnel-row"
+            >
               <span class="funnel-label">{{ layer.label }}</span>
               <div class="funnel-bar-wrap">
-                <div class="funnel-bar" :style="{ width: layer.percent + '%', background: layer.color }" />
+                <div
+                  class="funnel-bar"
+                  :style="{ width: layer.percent + '%', background: layer.color }"
+                />
               </div>
               <span class="funnel-count">{{ layer.count }}</span>
             </div>
           </div>
           <div class="funnel-meta">
             <span>总计 <b>{{ funnel.total || 0 }}</b></span>
-            <span v-for="stage in funnelStageList" :key="stage.name" class="funnel-stage-tag">
+            <span
+              v-for="stage in funnelStageList"
+              :key="stage.name"
+              class="funnel-stage-tag"
+            >
               {{ stageLabel(stage.name) }}: {{ stage.count }}
             </span>
           </div>
         </el-col>
-        <el-col :xs="24" :md="10">
+        <el-col
+          :xs="24"
+          :md="10"
+        >
           <div class="funnel-side">
-            <div class="funnel-side-title">下拉词引擎覆盖</div>
-            <div v-if="engineList.length" class="tag-wrap">
-              <el-tag v-for="e in engineList" :key="e.name" size="small" effect="light">
+            <div class="funnel-side-title">
+              下拉词引擎覆盖
+            </div>
+            <div
+              v-if="engineList.length"
+              class="tag-wrap"
+            >
+              <el-tag
+                v-for="e in engineList"
+                :key="e.name"
+                size="small"
+                effect="light"
+              >
                 {{ engineLabel(e.name) }} · {{ e.count }}
               </el-tag>
             </div>
-            <el-empty v-else description="暂无下拉词数据" :image-size="48" />
-            <div class="funnel-side-title" style="margin-top: 12px">搜索意图分布</div>
-            <div v-if="intentList.length" class="tag-wrap">
-              <el-tag v-for="i in intentList" :key="i.name" size="small" type="success" effect="plain">
+            <el-empty
+              v-else
+              description="暂无下拉词数据"
+              :image-size="48"
+            />
+            <div
+              class="funnel-side-title"
+              style="margin-top: 12px"
+            >
+              搜索意图分布
+            </div>
+            <div
+              v-if="intentList.length"
+              class="tag-wrap"
+            >
+              <el-tag
+                v-for="i in intentList"
+                :key="i.name"
+                size="small"
+                type="success"
+                effect="plain"
+              >
                 {{ intentLabel(i.name) }} · {{ i.count }}
               </el-tag>
             </div>
-            <el-empty v-else description="暂无意图分类" :image-size="48" />
+            <el-empty
+              v-else
+              description="暂无意图分类"
+              :image-size="48"
+            />
           </div>
         </el-col>
       </el-row>
     </el-card>
 
     
-    <el-card shadow="never" class="table-card">
+    <el-card
+      shadow="never"
+      class="table-card"
+    >
       <template #header>
         <div class="card-header">
           <span>关键词列表</span>
           <div class="header-actions">
-            <el-select v-model="listQuery.layer" placeholder="全部层级" clearable style="width: 130px" @change="handleLayerChange">
-              <el-option label="种子词" value="seed" />
-              <el-option label="关联词" value="related" />
-              <el-option label="下拉词" value="suggest" />
-              <el-option label="长尾词" value="longtail" />
+            <el-select
+              v-model="listQuery.layer"
+              placeholder="全部层级"
+              clearable
+              style="width: 130px"
+              @change="handleLayerChange"
+            >
+              <el-option
+                label="种子词"
+                value="seed"
+              />
+              <el-option
+                label="关联词"
+                value="related"
+              />
+              <el-option
+                label="下拉词"
+                value="suggest"
+              />
+              <el-option
+                label="长尾词"
+                value="longtail"
+              />
             </el-select>
             <el-input
               v-model="listQuery.search"
@@ -127,30 +264,85 @@
               @keyup.enter="loadList"
               @clear="loadList"
             />
-            <el-button @click="loadList">查询</el-button>
+            <el-button @click="loadList">
+              查询
+            </el-button>
           </div>
         </div>
       </template>
 
-      <el-table v-loading="loading" :data="tableData" stripe style="width: 100%">
-        <el-table-column type="selection" width="44" />
-        <el-table-column prop="keyword" label="关键词" min-width="180" show-overflow-tooltip />
-        <el-table-column prop="layer" label="层级" width="90">
+      <el-table
+        v-loading="loading"
+        :data="tableData"
+        stripe
+        style="width: 100%"
+      >
+        <el-table-column
+          type="selection"
+          width="44"
+        />
+        <el-table-column
+          prop="keyword"
+          label="关键词"
+          min-width="180"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          prop="layer"
+          label="层级"
+          width="90"
+        >
           <template #default="{ row }">
-            <el-tag size="small" :type="layerTagType(row.layer)">{{ layerLabel(row.layer) }}</el-tag>
+            <el-tag
+              size="small"
+              :type="layerTagType(row.layer)"
+            >
+              {{ layerLabel(row.layer) }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="parent_keyword" label="所属种子" width="130" show-overflow-tooltip>
-          <template #default="{ row }">{{ row.parent_keyword || '—' }}</template>
-        </el-table-column>
-        <el-table-column prop="category" label="类别" width="110" show-overflow-tooltip />
-        <el-table-column prop="source" label="来源" width="100">
+        <el-table-column
+          prop="parent_keyword"
+          label="所属种子"
+          width="130"
+          show-overflow-tooltip
+        >
           <template #default="{ row }">
-            <el-tag size="small" :type="sourceTagType(row.source)">{{ row.source || '—' }}</el-tag>
+            {{ row.parent_keyword || '—' }}
           </template>
         </el-table-column>
-        <el-table-column prop="search_volume" label="搜索量" width="90" align="right" />
-        <el-table-column prop="difficulty" label="难度" width="80" align="center">
+        <el-table-column
+          prop="category"
+          label="类别"
+          width="110"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          prop="source"
+          label="来源"
+          width="100"
+        >
+          <template #default="{ row }">
+            <el-tag
+              size="small"
+              :type="sourceTagType(row.source)"
+            >
+              {{ row.source || '—' }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column
+          prop="search_volume"
+          label="搜索量"
+          width="90"
+          align="right"
+        />
+        <el-table-column
+          prop="difficulty"
+          label="难度"
+          width="80"
+          align="center"
+        >
           <template #default="{ row }">
             <el-progress
               v-if="row.difficulty != null"
@@ -161,29 +353,74 @@
             <span v-else>—</span>
           </template>
         </el-table-column>
-        <el-table-column prop="query_intent" label="意图" width="90">
+        <el-table-column
+          prop="query_intent"
+          label="意图"
+          width="90"
+        >
           <template #default="{ row }">
-            <el-tag size="small" effect="plain">{{ intentLabel(row.query_intent || row.intent) || '—' }}</el-tag>
+            <el-tag
+              size="small"
+              effect="plain"
+            >
+              {{ intentLabel(row.query_intent || row.intent) || '—' }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="suggest_count" label="引擎覆盖" width="90" align="center">
+        <el-table-column
+          prop="suggest_count"
+          label="引擎覆盖"
+          width="90"
+          align="center"
+        >
           <template #default="{ row }">
             <span v-if="row.suggest_count > 0">{{ row.suggest_count }} 个引擎</span>
             <span v-else>—</span>
           </template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" width="80">
+        <el-table-column
+          prop="status"
+          label="状态"
+          width="80"
+        >
           <template #default="{ row }">
-            <el-tag size="small" :type="row.status === '已优化' ? 'success' : 'info'">
+            <el-tag
+              size="small"
+              :type="row.status === '已优化' ? 'success' : 'info'"
+            >
               {{ row.status || '待处理' }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="220" fixed="right">
+        <el-table-column
+          label="操作"
+          width="220"
+          fixed="right"
+        >
           <template #default="{ row }">
-            <el-button link type="primary" :loading="row._expanding" @click="handleExpand(row)">语义扩展</el-button>
-            <el-button link type="primary" :loading="row._clustering" @click="handleCluster(row)">话题聚类</el-button>
-            <el-button link type="danger" @click="handleDelete(row)">删除</el-button>
+            <el-button
+              link
+              type="primary"
+              :loading="row._expanding"
+              @click="handleExpand(row)"
+            >
+              语义扩展
+            </el-button>
+            <el-button
+              link
+              type="primary"
+              :loading="row._clustering"
+              @click="handleCluster(row)"
+            >
+              话题聚类
+            </el-button>
+            <el-button
+              link
+              type="danger"
+              @click="handleDelete(row)"
+            >
+              删除
+            </el-button>
           </template>
         </el-table-column>
       </el-table>

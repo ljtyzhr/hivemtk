@@ -1,14 +1,21 @@
 <template>
   <div class="sop-market-page">
-    
-    <el-card class="header-card" shadow="never">
+    <el-card
+      class="header-card"
+      shadow="never"
+    >
       <div class="header-content">
         <div>
           <h2>SOP 模板市场</h2>
-          <p class="subtitle">浏览、搜索、一键导入预置 SOP 模板，覆盖 5 大业务场景</p>
+          <p class="subtitle">
+            浏览、搜索、一键导入预置 SOP 模板，覆盖 5 大业务场景
+          </p>
         </div>
         <div class="header-stats">
-          <el-tag type="info" size="large">
+          <el-tag
+            type="info"
+            size="large"
+          >
             <el-icon><Collection /></el-icon>
             共 {{ builtInTemplates.length }} 个内置模板
           </el-tag>
@@ -17,8 +24,15 @@
     </el-card>
 
     
-    <el-card shadow="never" class="filter-card">
-      <el-form :inline="true" :model="filter" @submit.prevent>
+    <el-card
+      shadow="never"
+      class="filter-card"
+    >
+      <el-form
+        :inline="true"
+        :model="filter"
+        @submit.prevent
+      >
         <el-form-item label="关键词">
           <el-input
             v-model="filter.keyword"
@@ -46,17 +60,25 @@
           </el-select>
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="onSearch">
+          <el-button
+            type="primary"
+            @click="onSearch"
+          >
             <el-icon><Search /></el-icon>
             搜索
           </el-button>
-          <el-button @click="resetFilter">重置</el-button>
+          <el-button @click="resetFilter">
+            重置
+          </el-button>
         </el-form-item>
       </el-form>
     </el-card>
 
     
-    <div class="template-grid" v-loading="loading">
+    <div
+      v-loading="loading"
+      class="template-grid"
+    >
       <el-empty
         v-if="!loading && filteredTemplates.length === 0"
         description="未找到匹配的模板"
@@ -68,18 +90,30 @@
         shadow="hover"
       >
         <div class="tpl-card-header">
-          <div class="tpl-icon" :style="{ background: tpl.color }">
-            <el-icon :size="24"><component :is="tpl.icon" /></el-icon>
+          <div
+            class="tpl-icon"
+            :style="{ background: tpl.color }"
+          >
+            <el-icon :size="24">
+              <component :is="tpl.icon" />
+            </el-icon>
           </div>
           <div class="tpl-title-area">
-            <h3 class="tpl-title">{{ tpl.name }}</h3>
-            <el-tag :type="getCategoryTagType(tpl.category)" size="small">
+            <h3 class="tpl-title">
+              {{ tpl.name }}
+            </h3>
+            <el-tag
+              :type="getCategoryTagType(tpl.category)"
+              size="small"
+            >
               {{ getCategoryLabel(tpl.category) }}
             </el-tag>
           </div>
         </div>
 
-        <p class="tpl-desc">{{ tpl.description }}</p>
+        <p class="tpl-desc">
+          {{ tpl.description }}
+        </p>
 
         <div class="tpl-scenarios">
           <span class="scenario-label">适用场景：</span>
@@ -98,16 +132,28 @@
         <div class="tpl-stats">
           <div class="stat-item">
             <span class="stat-label">意图</span>
-            <el-tag size="small" type="warning">{{ tpl.intent }}</el-tag>
+            <el-tag
+              size="small"
+              type="warning"
+            >
+              {{ tpl.intent }}
+            </el-tag>
           </div>
           <div class="stat-item">
             <span class="stat-label">阶段</span>
-            <el-tag size="small" type="info">{{ tpl.stage }}</el-tag>
+            <el-tag
+              size="small"
+              type="info"
+            >
+              {{ tpl.stage }}
+            </el-tag>
           </div>
         </div>
 
         <div class="tpl-preview">
-          <div class="preview-label">模板预览：</div>
+          <div class="preview-label">
+            模板预览：
+          </div>
           <pre class="preview-content">{{ truncate(tpl.template, 140) }}</pre>
         </div>
 
@@ -152,33 +198,58 @@
       :close-on-click-modal="false"
     >
       <template v-if="currentTpl">
-        <el-descriptions :column="2" border>
-          <el-descriptions-item label="模板编码">{{ currentTpl.code }}</el-descriptions-item>
+        <el-descriptions
+          :column="2"
+          border
+        >
+          <el-descriptions-item label="模板编码">
+            {{ currentTpl.code }}
+          </el-descriptions-item>
           <el-descriptions-item label="业务场景">
             {{ getCategoryLabel(currentTpl.category) }}
           </el-descriptions-item>
-          <el-descriptions-item label="意图标签">{{ currentTpl.intent }}</el-descriptions-item>
-          <el-descriptions-item label="对话阶段">{{ currentTpl.stage }}</el-descriptions-item>
-          <el-descriptions-item label="优先级">{{ currentTpl.priority }}</el-descriptions-item>
-          <el-descriptions-item label="最低置信度">{{ (currentTpl.confidence * 100).toFixed(0) }}%</el-descriptions-item>
-          <el-descriptions-item label="描述" :span="2">
+          <el-descriptions-item label="意图标签">
+            {{ currentTpl.intent }}
+          </el-descriptions-item>
+          <el-descriptions-item label="对话阶段">
+            {{ currentTpl.stage }}
+          </el-descriptions-item>
+          <el-descriptions-item label="优先级">
+            {{ currentTpl.priority }}
+          </el-descriptions-item>
+          <el-descriptions-item label="最低置信度">
+            {{ (currentTpl.confidence * 100).toFixed(0) }}%
+          </el-descriptions-item>
+          <el-descriptions-item
+            label="描述"
+            :span="2"
+          >
             {{ currentTpl.description }}
           </el-descriptions-item>
         </el-descriptions>
 
-        <h4 style="margin-top: 16px">模板内容：</h4>
+        <h4 style="margin-top: 16px">
+          模板内容：
+        </h4>
         <pre class="full-template">{{ currentTpl.template }}</pre>
 
-        <h4 style="margin-top: 16px">变量说明：</h4>
+        <h4 style="margin-top: 16px">
+          变量说明：
+        </h4>
         <ul class="vars-list">
-          <li v-for="(v, idx) in currentTpl.vars" :key="idx">
-            <code v-text="'{{' + v.name + '}}'"></code> - {{ v.desc }}
+          <li
+            v-for="(v, idx) in currentTpl.vars"
+            :key="idx"
+          >
+            <code v-text="'{{' + v.name + '}}'" /> - {{ v.desc }}
           </li>
         </ul>
       </template>
 
       <template #footer>
-        <el-button @click="detailVisible = false">关闭</el-button>
+        <el-button @click="detailVisible = false">
+          关闭
+        </el-button>
         <el-button
           v-if="currentTpl && !currentTpl.imported"
           type="primary"

@@ -4,23 +4,49 @@
       <template #header>
         <div class="card-header">
           <span>🔑 蜘蛛推送配置（5 引擎）</span>
-          <el-button type="primary" @click="openDialog()">+ 新增平台</el-button>
+          <el-button
+            type="primary"
+            @click="openDialog()"
+          >
+            + 新增平台
+          </el-button>
         </div>
       </template>
 
-      <el-alert type="info" :closable="false" style="margin-bottom:12px">
+      <el-alert
+        type="info"
+        :closable="false"
+        style="margin-bottom:12px"
+      >
         <template #title>
           凭据用 AES-256-GCM 加密后存 JSONB。百度：token + site；Google：多个 Service Account；IndexNow：host + key（无限额）
         </template>
       </el-alert>
 
-      <el-table :data="list" border stripe size="small">
-        <el-table-column prop="platform" label="引擎" width="120">
+      <el-table
+        :data="list"
+        border
+        stripe
+        size="small"
+      >
+        <el-table-column
+          prop="platform"
+          label="引擎"
+          width="120"
+        >
           <template #default="{ row }">
-            <el-tag size="small" :type="platformTag(row.platform)">{{ row.platform }}</el-tag>
+            <el-tag
+              size="small"
+              :type="platformTag(row.platform)"
+            >
+              {{ row.platform }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="日配额" width="160">
+        <el-table-column
+          label="日配额"
+          width="160"
+        >
           <template #default="{ row }">
             <el-progress
               :percentage="row.daily_limit > 0 ? Math.min(100, Math.round((row.used_today / row.daily_limit) * 100)) : 0"
@@ -29,16 +55,43 @@
             />
           </template>
         </el-table-column>
-        <el-table-column label="状态" width="100">
+        <el-table-column
+          label="状态"
+          width="100"
+        >
           <template #default="{ row }">
-            <el-tag :type="row.active ? 'success' : 'info'" size="small">{{ row.active ? '启用' : '停用' }}</el-tag>
+            <el-tag
+              :type="row.active ? 'success' : 'info'"
+              size="small"
+            >
+              {{ row.active ? '启用' : '停用' }}
+            </el-tag>
           </template>
         </el-table-column>
-        <el-table-column prop="updated_at" label="更新时间" width="180" />
-        <el-table-column label="操作" width="180" fixed="right">
+        <el-table-column
+          prop="updated_at"
+          label="更新时间"
+          width="180"
+        />
+        <el-table-column
+          label="操作"
+          width="180"
+          fixed="right"
+        >
           <template #default="{ row }">
-            <el-button size="small" @click="openDialog(row)">编辑</el-button>
-            <el-button size="small" type="danger" @click="remove(row)">删除</el-button>
+            <el-button
+              size="small"
+              @click="openDialog(row)"
+            >
+              编辑
+            </el-button>
+            <el-button
+              size="small"
+              type="danger"
+              @click="remove(row)"
+            >
+              删除
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -57,15 +110,44 @@
     </el-card>
 
     <!-- Dialog -->
-    <el-dialog v-model="dialogVisible" :title="isEdit ? '编辑平台' : '新增平台'" width="560px">
-      <el-form :model="form" label-width="100px">
-        <el-form-item label="平台" required>
-          <el-select v-model="form.platform" :disabled="isEdit" style="width:100%">
-            <el-option label="百度 (主动推送)" value="baidu" />
-            <el-option label="Google (Indexing API)" value="google" />
-            <el-option label="IndexNow (Bing/Yandex/Naver)" value="indexnow" />
-            <el-option label="头条 (sitemap)" value="toutiao" />
-            <el-option label="神马 (sitemap)" value="shenma" />
+    <el-dialog
+      v-model="dialogVisible"
+      :title="isEdit ? '编辑平台' : '新增平台'"
+      width="560px"
+    >
+      <el-form
+        :model="form"
+        label-width="100px"
+      >
+        <el-form-item
+          label="平台"
+          required
+        >
+          <el-select
+            v-model="form.platform"
+            :disabled="isEdit"
+            style="width:100%"
+          >
+            <el-option
+              label="百度 (主动推送)"
+              value="baidu"
+            />
+            <el-option
+              label="Google (Indexing API)"
+              value="google"
+            />
+            <el-option
+              label="IndexNow (Bing/Yandex/Naver)"
+              value="indexnow"
+            />
+            <el-option
+              label="头条 (sitemap)"
+              value="toutiao"
+            />
+            <el-option
+              label="神马 (sitemap)"
+              value="shenma"
+            />
           </el-select>
         </el-form-item>
         <el-form-item label="配置 JSON">
@@ -73,11 +155,15 @@
             v-model="form.config_json_text"
             type="textarea"
             :rows="5"
-            placeholder='{"site":"example.com","token":"xxx"}'
+            placeholder="{&quot;site&quot;:&quot;example.com&quot;,&quot;token&quot;:&quot;xxx&quot;}"
           />
         </el-form-item>
         <el-form-item label="日配额">
-          <el-input-number v-model="form.daily_limit" :min="0" :max="100000" />
+          <el-input-number
+            v-model="form.daily_limit"
+            :min="0"
+            :max="100000"
+          />
           <span style="margin-left:8px;color:#999">0 = 无限额</span>
         </el-form-item>
         <el-form-item label="启用">
@@ -85,8 +171,15 @@
         </el-form-item>
       </el-form>
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="save">保存</el-button>
+        <el-button @click="dialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          @click="save"
+        >
+          保存
+        </el-button>
       </template>
     </el-dialog>
   </div>

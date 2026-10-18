@@ -4,7 +4,13 @@
       <template #header>
         <div class="profile-header">
           <span><el-icon><UserFilled /></el-icon> 客户 360°</span>
-          <el-button link size="small" @click="$emit('refresh')">刷新</el-button>
+          <el-button
+            link
+            size="small"
+            @click="$emit('refresh')"
+          >
+            刷新
+          </el-button>
         </div>
       </template>
 
@@ -38,8 +44,15 @@
 
 
       <div class="profile-section">
-        <div class="section-title">长期画像</div>
-        <div v-if="profileTags.length === 0" class="empty-hint">暂无画像标签</div>
+        <div class="section-title">
+          长期画像
+        </div>
+        <div
+          v-if="profileTags.length === 0"
+          class="empty-hint"
+        >
+          暂无画像标签
+        </div>
         <div class="tag-cloud">
           <el-tag
             v-for="t in profileTags"
@@ -55,12 +68,27 @@
 
 
       <div class="profile-section">
-        <div class="section-title">当前 SOP 阶段</div>
-        <el-radio-group :model-value="sopStage" size="small" style="display: flex; flex-direction: column; gap: 6px" @update:model-value="$emit('update:sopStage', $event)">
-          <el-radio value="presale">售前询价</el-radio>
-          <el-radio value="lead">引导留资</el-radio>
-          <el-radio value="aftersale">售后查单</el-radio>
-          <el-radio value="refund">投诉退款</el-radio>
+        <div class="section-title">
+          当前 SOP 阶段
+        </div>
+        <el-radio-group
+          :model-value="sopStage"
+          size="small"
+          style="display: flex; flex-direction: column; gap: 6px"
+          @update:model-value="$emit('update:sopStage', $event)"
+        >
+          <el-radio value="presale">
+            售前询价
+          </el-radio>
+          <el-radio value="lead">
+            引导留资
+          </el-radio>
+          <el-radio value="aftersale">
+            售后查单
+          </el-radio>
+          <el-radio value="refund">
+            投诉退款
+          </el-radio>
         </el-radio-group>
         <el-button
           size="small"
@@ -75,30 +103,59 @@
 
 
       <div class="profile-section">
-        <div class="section-title">快捷操作</div>
+        <div class="section-title">
+          快捷操作
+        </div>
         <el-button-group style="width: 100%; display: grid; grid-template-columns: 1fr 1fr; gap: 6px">
-          <el-button size="small" @click="$emit('send-coupon')">
+          <el-button
+            size="small"
+            @click="$emit('send-coupon')"
+          >
             <el-icon><Ticket /></el-icon> 发券
           </el-button>
-          <el-button size="small" @click="$emit('send-product-card')">
+          <el-button
+            size="small"
+            @click="$emit('send-product-card')"
+          >
             <el-icon><Goods /></el-icon> 发商品卡
           </el-button>
-          <el-button size="small" @click="$emit('blacklist')">
+          <el-button
+            size="small"
+            @click="$emit('blacklist')"
+          >
             <el-icon><CircleClose /></el-icon> 拉黑
           </el-button>
-          <el-button size="small" type="danger" @click="$emit('close-session')">
+          <el-button
+            size="small"
+            type="danger"
+            @click="$emit('close-session')"
+          >
             <el-icon><SwitchButton /></el-icon> 结束
           </el-button>
-          <el-button size="small" type="primary" plain @click="$emit('ai-summary')">
+          <el-button
+            size="small"
+            type="primary"
+            plain
+            @click="$emit('ai-summary')"
+          >
             <el-icon><MagicStick /></el-icon> AI摘要
           </el-button>
-          <el-button size="small" @click="$emit('export-transcript')">
+          <el-button
+            size="small"
+            @click="$emit('export-transcript')"
+          >
             <el-icon><Download /></el-icon> 转录
           </el-button>
-          <el-button size="small" @click="$emit('snooze')">
+          <el-button
+            size="small"
+            @click="$emit('snooze')"
+          >
             <el-icon><Clock /></el-icon> 暂缓2h
           </el-button>
-          <el-button size="small" @click="$emit('set-priority')">
+          <el-button
+            size="small"
+            @click="$emit('set-priority')"
+          >
             <el-icon><Top /></el-icon> 优先级
           </el-button>
         </el-button-group>

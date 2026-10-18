@@ -5,7 +5,9 @@
         <div class="card-header">
           <span>抖音卡片统计 - {{ cardInfo.title ?? (cardLoadFailed ? $t('加载失败') : '加载中...') }}</span>
           <div class="header-actions">
-            <el-button @click="goBack">{{ $t('返回') }}</el-button>
+            <el-button @click="goBack">
+              {{ $t('返回') }}
+            </el-button>
             <el-date-picker
               v-model="dateRange"
               type="daterange"
@@ -14,12 +16,30 @@
               end-placeholder="结束日期"
               @change="handleDateChange"
             />
-            <el-select v-model="groupBy" :placeholder="$t('分组方式')" @change="handleGroupByChange">
-              <el-option :label="$t('按天')" value="day" />
-              <el-option :label="$t('按周')" value="week" />
-              <el-option :label="$t('按月')" value="month" />
+            <el-select
+              v-model="groupBy"
+              :placeholder="$t('分组方式')"
+              @change="handleGroupByChange"
+            >
+              <el-option
+                :label="$t('按天')"
+                value="day"
+              />
+              <el-option
+                :label="$t('按周')"
+                value="week"
+              />
+              <el-option
+                :label="$t('按月')"
+                value="month"
+              />
             </el-select>
-            <el-button type="primary" @click="refreshData">{{ $t('刷新') }}</el-button>
+            <el-button
+              type="primary"
+              @click="refreshData"
+            >
+              {{ $t('刷新') }}
+            </el-button>
           </div>
         </div>
       </template>
@@ -35,7 +55,10 @@
       />
 
       
-      <div class="card-info-section" v-if="cardInfo.id">
+      <div
+        v-if="cardInfo.id"
+        class="card-info-section"
+      >
         <el-row :gutter="20">
           <el-col :span="6">
             <el-image
@@ -46,21 +69,37 @@
               fit="cover"
             >
               <template #error>
-                <div class="img-error-fallback">{{ $t('图片加载失败') }}</div>
+                <div class="img-error-fallback">
+                  {{ $t('图片加载失败') }}
+                </div>
               </template>
             </el-image>
           </el-col>
           <el-col :span="18">
-            <el-descriptions :column="2" border>
-              <el-descriptions-item label="卡片ID">{{ cardInfo.id }}</el-descriptions-item>
-              <el-descriptions-item label="标题">{{ cardInfo.title }}</el-descriptions-item>
+            <el-descriptions
+              :column="2"
+              border
+            >
+              <el-descriptions-item label="卡片ID">
+                {{ cardInfo.id }}
+              </el-descriptions-item>
+              <el-descriptions-item label="标题">
+                {{ cardInfo.title }}
+              </el-descriptions-item>
               <el-descriptions-item label="状态">
                 <el-tag :type="cardInfo.is_active ? 'success' : 'danger'">
                   {{ cardInfo.is_active ? '激活' : '禁用' }}
                 </el-tag>
               </el-descriptions-item>
-              <el-descriptions-item label="创建时间">{{ cardInfo.created_at }}</el-descriptions-item>
-              <el-descriptions-item label="描述" :span="2">{{ cardInfo.description }}</el-descriptions-item>
+              <el-descriptions-item label="创建时间">
+                {{ cardInfo.created_at }}
+              </el-descriptions-item>
+              <el-descriptions-item
+                label="描述"
+                :span="2"
+              >
+                {{ cardInfo.description }}
+              </el-descriptions-item>
             </el-descriptions>
           </el-col>
         </el-row>
@@ -72,8 +111,12 @@
           <el-col :span="24">
             <el-card class="stats-card">
               <div class="stats-item">
-                <div class="stats-value">{{ formatNumber(cardStats.viewCount) }}</div>
-                <div class="stats-label">总浏览量</div>
+                <div class="stats-value">
+                  {{ formatNumber(cardStats.viewCount) }}
+                </div>
+                <div class="stats-label">
+                  总浏览量
+                </div>
               </div>
             </el-card>
           </el-col>
@@ -90,7 +133,10 @@
                   <span>访问趋势</span>
                 </div>
               </template>
-              <div ref="visitTrendChart" class="chart-container"></div>
+              <div
+                ref="visitTrendChart"
+                class="chart-container"
+              />
             </el-card>
           </el-col>
         </el-row>
@@ -106,17 +152,32 @@
                   <span>最近活动</span>
                 </div>
               </template>
-              <el-table :data="(cardStats.recentActivity || []).filter(item => item.action === 'view')" style="width: 100%">
-                <el-table-column prop="username" label="用户" />
-                <el-table-column prop="action" label="操作">
+              <el-table
+                :data="(cardStats.recentActivity || []).filter(item => item.action === 'view')"
+                style="width: 100%"
+              >
+                <el-table-column
+                  prop="username"
+                  label="用户"
+                />
+                <el-table-column
+                  prop="action"
+                  label="操作"
+                >
                   <template #default="scope">
                     <el-tag :type="getActionType(scope.row.action)">
                       {{ getActionText(scope.row.action) }}
                     </el-tag>
                   </template>
                 </el-table-column>
-                <el-table-column prop="ipAddress" label="IP地址" />
-                <el-table-column prop="createdAt" label="时间">
+                <el-table-column
+                  prop="ipAddress"
+                  label="IP地址"
+                />
+                <el-table-column
+                  prop="createdAt"
+                  label="时间"
+                >
                   <template #default="scope">
                     {{ formatDate(scope.row.createdAt) }}
                   </template>

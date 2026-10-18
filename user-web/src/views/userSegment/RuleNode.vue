@@ -1,18 +1,51 @@
 <template>
-  <div class="rule-node" :style="{ marginLeft: level ? '16px' : '0' }">
+  <div
+    class="rule-node"
+    :style="{ marginLeft: level ? '16px' : '0' }"
+  >
     <!-- and / or 分组节点：可继续嵌套子节点 -->
-    <div v-if="node.type === 'and' || node.type === 'or'" class="rule-group">
-      <el-tag :type="node.type === 'and' ? 'primary' : 'warning'" size="small">
+    <div
+      v-if="node.type === 'and' || node.type === 'or'"
+      class="rule-group"
+    >
+      <el-tag
+        :type="node.type === 'and' ? 'primary' : 'warning'"
+        size="small"
+      >
         {{ node.type.toUpperCase() }}
       </el-tag>
-      <el-button size="small" @click="addChild('and')">+ AND</el-button>
-      <el-button size="small" @click="addChild('or')">+ OR</el-button>
-      <el-button size="small" @click="addChild('condition')">+ 条件</el-button>
-      <el-button size="small" type="danger" @click="$emit('remove')">删除</el-button>
+      <el-button
+        size="small"
+        @click="addChild('and')"
+      >
+        + AND
+      </el-button>
+      <el-button
+        size="small"
+        @click="addChild('or')"
+      >
+        + OR
+      </el-button>
+      <el-button
+        size="small"
+        @click="addChild('condition')"
+      >
+        + 条件
+      </el-button>
+      <el-button
+        size="small"
+        type="danger"
+        @click="$emit('remove')"
+      >
+        删除
+      </el-button>
     </div>
 
     <!-- 叶子条件节点：field op value 三元组，缺 field 时 compileNode 会返回 null -->
-    <div v-else class="rule-condition">
+    <div
+      v-else
+      class="rule-condition"
+    >
       <el-input
         :model-value="node.field"
         placeholder="字段，如 lifetime_value"
@@ -20,8 +53,18 @@
         size="small"
         @update:model-value="patch('field', $event)"
       />
-      <el-select :model-value="node.op" style="width: 90px" size="small" @update:model-value="patch('op', $event)">
-        <el-option v-for="o in OPS" :key="o" :label="o" :value="o" />
+      <el-select
+        :model-value="node.op"
+        style="width: 90px"
+        size="small"
+        @update:model-value="patch('op', $event)"
+      >
+        <el-option
+          v-for="o in OPS"
+          :key="o"
+          :label="o"
+          :value="o"
+        />
       </el-select>
       <el-input
         :model-value="node.value"
@@ -30,10 +73,19 @@
         size="small"
         @update:model-value="patch('value', $event)"
       />
-      <el-button size="small" type="danger" @click="$emit('remove')">删除</el-button>
+      <el-button
+        size="small"
+        type="danger"
+        @click="$emit('remove')"
+      >
+        删除
+      </el-button>
     </div>
 
-    <div v-if="node.type === 'and' || node.type === 'or'" class="rule-children">
+    <div
+      v-if="node.type === 'and' || node.type === 'or'"
+      class="rule-children"
+    >
       <!-- 递归渲染子节点：node 数据结构由 Builder.vue 的 addNode/compileNode 定义 -->
       <RuleNode
         v-for="(child, i) in children"
@@ -43,7 +95,11 @@
         @update="patchChild(i, $event)"
         @remove="removeChild(i)"
       />
-      <el-empty v-if="!children.length" description="暂无子条件" :image-size="40" />
+      <el-empty
+        v-if="!children.length"
+        description="暂无子条件"
+        :image-size="40"
+      />
     </div>
   </div>
 </template>

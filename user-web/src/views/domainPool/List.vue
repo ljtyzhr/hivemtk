@@ -1,14 +1,20 @@
 <template>
   <div class="domain-pool-container">
-    
     <div class="page-header">
       <h2>{{ $t('域名池管理') }}</h2>
       <div class="action-buttons">
-        <el-button type="primary" @click="handleAdd">
+        <el-button
+          type="primary"
+          @click="handleAdd"
+        >
           <el-icon><Plus /></el-icon>
           {{ $t('添加域名') }}
         </el-button>
-        <el-button type="success" @click="handleCheckAll" :loading="checkingAll">
+        <el-button
+          type="success"
+          :loading="checkingAll"
+          @click="handleCheckAll"
+        >
           <el-icon><Refresh /></el-icon>
           {{ $t('检查所有域名') }}
         </el-button>
@@ -17,18 +23,39 @@
 
     
     <div class="search-form">
-      <el-form :inline="true" :model="searchForm" class="search-form-content">
+      <el-form
+        :inline="true"
+        :model="searchForm"
+        class="search-form-content"
+      >
         <el-form-item :label="$t('域名')">
-          <el-input v-model="searchForm.domain" :placeholder="$t('请输入域名')" clearable />
+          <el-input
+            v-model="searchForm.domain"
+            :placeholder="$t('请输入域名')"
+            clearable
+          />
         </el-form-item>
         <el-form-item :label="$t('状态')">
-          <el-select v-model="searchForm.status" :placeholder="$t('请选择状态')" clearable>
-            <el-option :label="$t('正常')" value="1" />
-            <el-option :label="$t('不可访问')" value="2" />
+          <el-select
+            v-model="searchForm.status"
+            :placeholder="$t('请选择状态')"
+            clearable
+          >
+            <el-option
+              :label="$t('正常')"
+              value="1"
+            />
+            <el-option
+              :label="$t('不可访问')"
+              value="2"
+            />
           </el-select>
         </el-form-item>
         <el-form-item>
-          <el-button type="primary" @click="handleSearch">
+          <el-button
+            type="primary"
+            @click="handleSearch"
+          >
             <el-icon><Search /></el-icon>
             {{ $t('搜索') }}
           </el-button>
@@ -41,29 +68,79 @@
     </div>
 
     
-    <el-table :data="domainList" border style="width: 100%" v-loading="loading">
-      <el-table-column prop="id" label="ID" width="80" />
-      <el-table-column prop="domain" :label="$t('域名')" min-width="200" />
-      <el-table-column prop="port" :label="$t('端口')" width="100" />
-      <el-table-column prop="purpose" :label="$t('用途备注')" min-width="150" />
-      <el-table-column prop="status_str" :label="$t('状态')" width="100">
+    <el-table
+      v-loading="loading"
+      :data="domainList"
+      border
+      style="width: 100%"
+    >
+      <el-table-column
+        prop="id"
+        label="ID"
+        width="80"
+      />
+      <el-table-column
+        prop="domain"
+        :label="$t('域名')"
+        min-width="200"
+      />
+      <el-table-column
+        prop="port"
+        :label="$t('端口')"
+        width="100"
+      />
+      <el-table-column
+        prop="purpose"
+        :label="$t('用途备注')"
+        min-width="150"
+      />
+      <el-table-column
+        prop="status_str"
+        :label="$t('状态')"
+        width="100"
+      >
         <template #default="scope">
           <el-tag :type="scope.row.status === 1 ? 'success' : 'danger'">
             {{ scope.row.status_str }}
           </el-tag>
         </template>
       </el-table-column>
-      <el-table-column prop="last_check" label="最后检查时间" width="180" />
-      <el-table-column prop="created_at" label="创建时间" width="180" />
-      <el-table-column label="操作" width="200" fixed="right">
+      <el-table-column
+        prop="last_check"
+        label="最后检查时间"
+        width="180"
+      />
+      <el-table-column
+        prop="created_at"
+        label="创建时间"
+        width="180"
+      />
+      <el-table-column
+        label="操作"
+        width="200"
+        fixed="right"
+      >
         <template #default="scope">
-          <el-button type="primary" size="small" @click="handleEdit(scope.row)">
+          <el-button
+            type="primary"
+            size="small"
+            @click="handleEdit(scope.row)"
+          >
             编辑
           </el-button>
-          <el-button type="success" size="small" @click="handleCheck(scope.row)" :loading="scope.row.checking">
+          <el-button
+            type="success"
+            size="small"
+            :loading="scope.row.checking"
+            @click="handleCheck(scope.row)"
+          >
             检查
           </el-button>
-          <el-button type="danger" size="small" @click="handleDelete(scope.row)">
+          <el-button
+            type="danger"
+            size="small"
+            @click="handleDelete(scope.row)"
+          >
             删除
           </el-button>
         </template>
@@ -96,26 +173,64 @@
         :rules="rules"
         label-width="80px"
       >
-        <el-form-item label="域名" prop="domain">
-          <el-input v-model="form.domain" placeholder="请输入域名" />
+        <el-form-item
+          label="域名"
+          prop="domain"
+        >
+          <el-input
+            v-model="form.domain"
+            placeholder="请输入域名"
+          />
         </el-form-item>
-        <el-form-item label="端口" prop="port">
-          <el-input-number v-model="form.port" :min="1" :max="65535" placeholder="请输入端口" />
+        <el-form-item
+          label="端口"
+          prop="port"
+        >
+          <el-input-number
+            v-model="form.port"
+            :min="1"
+            :max="65535"
+            placeholder="请输入端口"
+          />
         </el-form-item>
-        <el-form-item label="用途备注" prop="purpose">
-          <el-input v-model="form.purpose" type="textarea" placeholder="请输入用途备注" />
+        <el-form-item
+          label="用途备注"
+          prop="purpose"
+        >
+          <el-input
+            v-model="form.purpose"
+            type="textarea"
+            placeholder="请输入用途备注"
+          />
         </el-form-item>
-        <el-form-item label="状态" prop="status" v-if="isEdit">
-          <el-select v-model="form.status" placeholder="请选择状态">
-            <el-option label="正常" :value="1" />
-            <el-option label="不可访问" :value="2" />
+        <el-form-item
+          v-if="isEdit"
+          label="状态"
+          prop="status"
+        >
+          <el-select
+            v-model="form.status"
+            placeholder="请选择状态"
+          >
+            <el-option
+              label="正常"
+              :value="1"
+            />
+            <el-option
+              label="不可访问"
+              :value="2"
+            />
           </el-select>
         </el-form-item>
       </el-form>
       <template #footer>
         <span class="dialog-footer">
           <el-button @click="dialogVisible = false">取消</el-button>
-          <el-button type="primary" @click="handleSubmit" :loading="submitting">
+          <el-button
+            type="primary"
+            :loading="submitting"
+            @click="handleSubmit"
+          >
             确定
           </el-button>
         </span>

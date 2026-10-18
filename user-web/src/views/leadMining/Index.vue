@@ -1,9 +1,16 @@
 <template>
   <div class="lead-mining-page">
     <el-tabs v-model="activeTab">
-      <el-tab-pane label="发掘设置" name="setting">
+      <el-tab-pane
+        label="发掘设置"
+        name="setting"
+      >
         <el-card shadow="never">
-          <el-form :model="form" label-width="120px" class="setting-form">
+          <el-form
+            :model="form"
+            label-width="120px"
+            class="setting-form"
+          >
             <el-form-item label="启用发掘">
               <el-switch v-model="form.enabled" />
               <span class="hint">关闭后不再对消息做线索判断（已发掘线索保留）</span>
@@ -11,9 +18,17 @@
 
             <el-form-item label="监测渠道">
               <el-checkbox-group v-model="form.channels">
-                <el-checkbox v-for="c in channelOptions" :key="c.value" :label="c.value">{{ c.label }}</el-checkbox>
+                <el-checkbox
+                  v-for="c in channelOptions"
+                  :key="c.value"
+                  :label="c.value"
+                >
+                  {{ c.label }}
+                </el-checkbox>
               </el-checkbox-group>
-              <div class="hint">不勾选任何渠道 = 监测全部渠道（含 TG 群聊 / 抖音群聊的每条消息）</div>
+              <div class="hint">
+                不勾选任何渠道 = 监测全部渠道（含 TG 群聊 / 抖音群聊的每条消息）
+              </div>
             </el-form-item>
 
             <el-form-item label="关键词">
@@ -23,7 +38,9 @@
                 :rows="3"
                 placeholder="多个关键词用逗号或换行分隔，例如：报价, 购买, 代理, 合作"
               />
-              <div class="hint">命中任一关键词将提升线索意向分（仅供 LLM 参考，非唯一标准）</div>
+              <div class="hint">
+                命中任一关键词将提升线索意向分（仅供 LLM 参考，非唯一标准）
+              </div>
             </el-form-item>
 
             <el-form-item label="线索标签">
@@ -45,23 +62,43 @@
             </el-form-item>
 
             <el-form-item label="意向分阈值">
-              <el-input-number v-model="form.min_intent_score" :min="0" :max="100" :step="5" />
+              <el-input-number
+                v-model="form.min_intent_score"
+                :min="0"
+                :max="100"
+                :step="5"
+              />
               <span class="hint">LLM 给出的意向分 ≥ 该值才记入线索库存</span>
             </el-form-item>
 
             <el-form-item label="指定模型">
-              <el-input v-model="form.model" placeholder="留空使用默认推理模型" style="max-width: 320px" />
+              <el-input
+                v-model="form.model"
+                placeholder="留空使用默认推理模型"
+                style="max-width: 320px"
+              />
             </el-form-item>
 
             <el-form-item>
-              <el-button type="primary" :loading="saving" @click="onSave">保存设置</el-button>
-              <el-button @click="onReset">重置</el-button>
+              <el-button
+                type="primary"
+                :loading="saving"
+                @click="onSave"
+              >
+                保存设置
+              </el-button>
+              <el-button @click="onReset">
+                重置
+              </el-button>
             </el-form-item>
           </el-form>
         </el-card>
       </el-tab-pane>
 
-      <el-tab-pane label="线索库" name="leads">
+      <el-tab-pane
+        label="线索库"
+        name="leads"
+      >
         <el-card shadow="never">
           <div class="toolbar">
             <el-input
@@ -71,27 +108,67 @@
               style="width: 240px"
               @input="loadLeads"
             />
-            <el-button type="primary" @click="loadLeads">刷新</el-button>
+            <el-button
+              type="primary"
+              @click="loadLeads"
+            >
+              刷新
+            </el-button>
           </div>
-          <el-table :data="leads" v-loading="loading" stripe style="margin-top: 12px">
-            <el-table-column prop="name" label="名称" min-width="160" />
-            <el-table-column prop="desc" label="线索摘要" min-width="320" show-overflow-tooltip />
-            <el-table-column label="意向分" width="100">
+          <el-table
+            v-loading="loading"
+            :data="leads"
+            stripe
+            style="margin-top: 12px"
+          >
+            <el-table-column
+              prop="name"
+              label="名称"
+              min-width="160"
+            />
+            <el-table-column
+              prop="desc"
+              label="线索摘要"
+              min-width="320"
+              show-overflow-tooltip
+            />
+            <el-table-column
+              label="意向分"
+              width="100"
+            >
               <template #default="{ row }">
                 <el-tag :type="row.intent_score >= 70 ? 'danger' : (row.intent_score >= 40 ? 'warning' : 'info')">
                   {{ row.intent_score }}
                 </el-tag>
               </template>
             </el-table-column>
-            <el-table-column label="商机" width="90">
+            <el-table-column
+              label="商机"
+              width="90"
+            >
               <template #default="{ row }">
-                <el-tag v-if="row.is_opportunity === 1 || row.is_opportunity === true" type="success">高意向</el-tag>
+                <el-tag
+                  v-if="row.is_opportunity === 1 || row.is_opportunity === true"
+                  type="success"
+                >
+                  高意向
+                </el-tag>
                 <span v-else>-</span>
               </template>
             </el-table-column>
-            <el-table-column prop="one_id" label="客户标识" min-width="160" show-overflow-tooltip />
-            <el-table-column label="发现时间" width="170">
-              <template #default="{ row }">{{ formatTime(row.create_time) }}</template>
+            <el-table-column
+              prop="one_id"
+              label="客户标识"
+              min-width="160"
+              show-overflow-tooltip
+            />
+            <el-table-column
+              label="发现时间"
+              width="170"
+            >
+              <template #default="{ row }">
+                {{ formatTime(row.create_time) }}
+              </template>
             </el-table-column>
           </el-table>
           <el-pagination
@@ -99,8 +176,8 @@
             layout="prev, pager, next"
             :total="total"
             :page-size="pageSize"
-            @current-change="onPage"
             style="margin-top: 12px"
+            @current-change="onPage"
           />
         </el-card>
       </el-tab-pane>

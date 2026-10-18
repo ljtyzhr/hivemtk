@@ -4,81 +4,151 @@
       <template #header>
         <div class="card-header">
           <span>{{ $t('短信配置') }}</span>
-          <el-button type="primary" @click="handleSave" :loading="loading">{{ $t('保存配置') }}</el-button>
+          <el-button
+            type="primary"
+            :loading="loading"
+            @click="handleSave"
+          >
+            {{ $t('保存配置') }}
+          </el-button>
         </div>
       </template>
       
-      <el-form :model="smsConfig" label-width="120px" v-loading="loading">
+      <el-form
+        v-loading="loading"
+        :model="smsConfig"
+        label-width="120px"
+      >
         <el-form-item label="默认短信平台">
-          <el-select v-model="smsConfig.defaultProvider" placeholder="请选择默认短信平台">
-            <el-option label="阿里云短信" value="aliyun" />
-            <el-option label="腾讯云短信" value="tencent" />
-            <el-option label="华为云短信" value="huawei" />
+          <el-select
+            v-model="smsConfig.defaultProvider"
+            placeholder="请选择默认短信平台"
+          >
+            <el-option
+              label="阿里云短信"
+              value="aliyun"
+            />
+            <el-option
+              label="腾讯云短信"
+              value="tencent"
+            />
+            <el-option
+              label="华为云短信"
+              value="huawei"
+            />
           </el-select>
         </el-form-item>
         
         <el-form-item label="发送频率限制">
-          <el-input-number v-model="smsConfig.rateLimit" :min="1" :max="1000" />
+          <el-input-number
+            v-model="smsConfig.rateLimit"
+            :min="1"
+            :max="1000"
+          />
           <span style="margin-left: 10px;">条/分钟</span>
         </el-form-item>
         
         <el-form-item label="每日发送限制">
-          <el-input-number v-model="smsConfig.dailyLimit" :min="100" :max="100000" />
+          <el-input-number
+            v-model="smsConfig.dailyLimit"
+            :min="100"
+            :max="100000"
+          />
           <span style="margin-left: 10px;">条/天</span>
         </el-form-item>
         
         <el-form-item label="失败重试次数">
-          <el-input-number v-model="smsConfig.retryTimes" :min="0" :max="5" />
+          <el-input-number
+            v-model="smsConfig.retryTimes"
+            :min="0"
+            :max="5"
+          />
         </el-form-item>
         
         <el-divider>阿里云短信配置</el-divider>
         
         <el-form-item label="AccessKey ID">
-          <el-input v-model="smsConfig.aliyun.accessKeyId" placeholder="请输入AccessKey ID" />
+          <el-input
+            v-model="smsConfig.aliyun.accessKeyId"
+            placeholder="请输入AccessKey ID"
+          />
         </el-form-item>
         
         <el-form-item label="AccessKey Secret">
-          <el-input v-model="smsConfig.aliyun.accessKeySecret" placeholder="请输入AccessKey Secret" type="password" />
+          <el-input
+            v-model="smsConfig.aliyun.accessKeySecret"
+            placeholder="请输入AccessKey Secret"
+            type="password"
+          />
         </el-form-item>
         
         <el-form-item label="短信签名">
-          <el-input v-model="smsConfig.aliyun.signName" placeholder="请输入短信签名" />
+          <el-input
+            v-model="smsConfig.aliyun.signName"
+            placeholder="请输入短信签名"
+          />
         </el-form-item>
         
         <el-divider>腾讯云短信配置</el-divider>
         
         <el-form-item label="SecretId">
-          <el-input v-model="smsConfig.tencent.secretId" placeholder="请输入SecretId" />
+          <el-input
+            v-model="smsConfig.tencent.secretId"
+            placeholder="请输入SecretId"
+          />
         </el-form-item>
         
         <el-form-item label="SecretKey">
-          <el-input v-model="smsConfig.tencent.secretKey" placeholder="请输入SecretKey" type="password" />
+          <el-input
+            v-model="smsConfig.tencent.secretKey"
+            placeholder="请输入SecretKey"
+            type="password"
+          />
         </el-form-item>
         
         <el-form-item label="短信应用ID">
-          <el-input v-model="smsConfig.tencent.appId" placeholder="请输入短信应用ID" />
+          <el-input
+            v-model="smsConfig.tencent.appId"
+            placeholder="请输入短信应用ID"
+          />
         </el-form-item>
         
         <el-form-item label="短信签名">
-          <el-input v-model="smsConfig.tencent.signName" placeholder="请输入短信签名" />
+          <el-input
+            v-model="smsConfig.tencent.signName"
+            placeholder="请输入短信签名"
+          />
         </el-form-item>
         
         <el-divider>华为云短信配置</el-divider>
         
         <el-form-item label="APP Key">
-          <el-input v-model="smsConfig.huawei.appKey" placeholder="请输入APP Key" />
+          <el-input
+            v-model="smsConfig.huawei.appKey"
+            placeholder="请输入APP Key"
+          />
         </el-form-item>
         
         <el-form-item label="APP Secret">
-          <el-input v-model="smsConfig.huawei.appSecret" placeholder="请输入APP Secret" type="password" />
+          <el-input
+            v-model="smsConfig.huawei.appSecret"
+            placeholder="请输入APP Secret"
+            type="password"
+          />
         </el-form-item>
         
         <el-form-item label="通道号">
-          <el-input v-model="smsConfig.huawei.sender" placeholder="请输入通道号" />
+          <el-input
+            v-model="smsConfig.huawei.sender"
+            placeholder="请输入通道号"
+          />
         </el-form-item>
         
         <el-form-item label="短信签名">
-          <el-input v-model="smsConfig.huawei.signature" placeholder="请输入短信签名" />
+          <el-input
+            v-model="smsConfig.huawei.signature"
+            placeholder="请输入短信签名"
+          />
         </el-form-item>
       </el-form>
     </el-card>

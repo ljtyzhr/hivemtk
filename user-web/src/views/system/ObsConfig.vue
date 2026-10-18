@@ -4,20 +4,40 @@
       <template #header>
         <div class="card-header">
           <span>{{ $t('云存储配置') }}</span>
-          <el-button type="primary" @click="handleCreate">{{ $t('新增配置') }}</el-button>
+          <el-button
+            type="primary"
+            @click="handleCreate"
+          >
+            {{ $t('新增配置') }}
+          </el-button>
         </div>
       </template>
 
-      <el-table :data="configList" v-loading="loading" border>
-        <el-table-column prop="name" label="配置名称" width="150" />
-        <el-table-column prop="provider" label="服务商" width="120">
+      <el-table
+        v-loading="loading"
+        :data="configList"
+        border
+      >
+        <el-table-column
+          prop="name"
+          label="配置名称"
+          width="150"
+        />
+        <el-table-column
+          prop="provider"
+          label="服务商"
+          width="120"
+        >
           <template #default="{ row }">
             <el-tag :type="getProviderType(row.provider)">
               {{ getProviderLabel(row.provider) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="存储位置" min-width="240">
+        <el-table-column
+          label="存储位置"
+          min-width="240"
+        >
           <template #default="{ row }">
             <span v-if="row.provider === 'local'">
               {{ row.endpoint || './uploads' }}
@@ -27,38 +47,80 @@
             </span>
           </template>
         </el-table-column>
-        <el-table-column prop="domain" label="访问前缀" min-width="180">
+        <el-table-column
+          prop="domain"
+          label="访问前缀"
+          min-width="180"
+        >
           <template #default="{ row }">
             <span v-if="row.domain">{{ row.domain }}</span>
-            <span v-else class="muted">-</span>
+            <span
+              v-else
+              class="muted"
+            >-</span>
           </template>
         </el-table-column>
-        <el-table-column prop="is_default" label="默认" width="80">
+        <el-table-column
+          prop="is_default"
+          label="默认"
+          width="80"
+        >
           <template #default="{ row }">
-            <el-tag v-if="row.is_default" type="success">是</el-tag>
+            <el-tag
+              v-if="row.is_default"
+              type="success"
+            >
+              是
+            </el-tag>
             <span v-else>否</span>
           </template>
         </el-table-column>
-        <el-table-column prop="status" label="状态" width="100">
+        <el-table-column
+          prop="status"
+          label="状态"
+          width="100"
+        >
           <template #default="{ row }">
             <el-tag :type="getStatusTagType(row.status)">
               {{ getStatusLabel(row.status) }}
             </el-tag>
           </template>
         </el-table-column>
-        <el-table-column label="操作" width="220" fixed="right">
+        <el-table-column
+          label="操作"
+          width="220"
+          fixed="right"
+        >
           <template #default="{ row }">
-            <el-button type="primary" link @click="handleTest(row)">测试</el-button>
-            <el-button type="primary" link @click="handleEdit(row)">编辑</el-button>
             <el-button
+              type="primary"
+              link
+              @click="handleTest(row)"
+            >
+              测试
+            </el-button>
+            <el-button
+              type="primary"
+              link
+              @click="handleEdit(row)"
+            >
+              编辑
+            </el-button>
+            <el-button
+              v-if="!row.is_default"
               type="success"
               link
               @click="handleSetDefault(row)"
-              v-if="!row.is_default"
             >
               设为默认
             </el-button>
-            <el-button type="danger" link @click="handleDelete(row)">删除</el-button>
+            <el-button
+              type="danger"
+              link
+              @click="handleDelete(row)"
+            >
+              删除
+            </el-button>
           </template>
         </el-table-column>
       </el-table>
@@ -66,8 +128,8 @@
 
     
     <el-dialog
-      :title="dialogTitle"
       v-model="dialogVisible"
+      :title="dialogTitle"
       width="640px"
       @close="handleDialogClose"
     >
@@ -77,100 +139,213 @@
         :rules="dynamicRules"
         label-width="130px"
       >
-        <el-form-item label="配置名称" prop="name">
-          <el-input v-model="formData.name" placeholder="请输入配置名称" />
+        <el-form-item
+          label="配置名称"
+          prop="name"
+        >
+          <el-input
+            v-model="formData.name"
+            placeholder="请输入配置名称"
+          />
         </el-form-item>
 
-        <el-form-item label="服务商" prop="provider">
-          <el-select v-model="formData.provider" placeholder="请选择服务商" @change="handleProviderChange" style="width:100%">
-            <el-option label="本地存储" value="local" />
-            <el-option label="阿里云OSS" value="aliyun" />
-            <el-option label="七牛云" value="qiniu" />
-            <el-option label="腾讯云COS" value="tencent" />
-            <el-option label="AWS S3" value="aws" />
+        <el-form-item
+          label="服务商"
+          prop="provider"
+        >
+          <el-select
+            v-model="formData.provider"
+            placeholder="请选择服务商"
+            style="width:100%"
+            @change="handleProviderChange"
+          >
+            <el-option
+              label="本地存储"
+              value="local"
+            />
+            <el-option
+              label="阿里云OSS"
+              value="aliyun"
+            />
+            <el-option
+              label="七牛云"
+              value="qiniu"
+            />
+            <el-option
+              label="腾讯云COS"
+              value="tencent"
+            />
+            <el-option
+              label="AWS S3"
+              value="aws"
+            />
           </el-select>
         </el-form-item>
 
         
         <template v-if="formData.provider !== 'local'">
-          <el-form-item label="Access Key" prop="access_key">
-            <el-input v-model="formData.access_key" placeholder="请输入 Access Key" show-password />
+          <el-form-item
+            label="Access Key"
+            prop="access_key"
+          >
+            <el-input
+              v-model="formData.access_key"
+              placeholder="请输入 Access Key"
+              show-password
+            />
           </el-form-item>
 
-          <el-form-item label="Secret Key" prop="secret_key">
-            <el-input v-model="formData.secret_key" type="password" placeholder="请输入 Secret Key" show-password />
+          <el-form-item
+            label="Secret Key"
+            prop="secret_key"
+          >
+            <el-input
+              v-model="formData.secret_key"
+              type="password"
+              placeholder="请输入 Secret Key"
+              show-password
+            />
           </el-form-item>
 
-          <el-form-item label="存储桶" prop="bucket">
-            <el-input v-model="formData.bucket" placeholder="请输入存储桶名称" />
+          <el-form-item
+            label="存储桶"
+            prop="bucket"
+          >
+            <el-input
+              v-model="formData.bucket"
+              placeholder="请输入存储桶名称"
+            />
           </el-form-item>
 
-          <el-form-item label="存储区域" prop="region" v-if="formData.provider === 'aws'">
-            <el-input v-model="formData.region" placeholder="如：ap-southeast-1" />
+          <el-form-item
+            v-if="formData.provider === 'aws'"
+            label="存储区域"
+            prop="region"
+          >
+            <el-input
+              v-model="formData.region"
+              placeholder="如：ap-southeast-1"
+            />
           </el-form-item>
         </template>
 
         
-        <el-form-item :label="endpointLabel" prop="endpoint">
-          <el-input v-model="formData.endpoint" :placeholder="endpointPlaceholder" />
-          <div class="form-tip" v-if="formData.provider === 'local'">
+        <el-form-item
+          :label="endpointLabel"
+          prop="endpoint"
+        >
+          <el-input
+            v-model="formData.endpoint"
+            :placeholder="endpointPlaceholder"
+          />
+          <div
+            v-if="formData.provider === 'local'"
+            class="form-tip"
+          >
             本地存储目录，默认 ./uploads（相对程序运行目录）
           </div>
-          <div class="form-tip" v-else-if="formData.provider === 'aliyun'">
+          <div
+            v-else-if="formData.provider === 'aliyun'"
+            class="form-tip"
+          >
             https://xxx.oss-cn-hangzhou.aliyuncs.com
           </div>
-          <div class="form-tip" v-else-if="formData.provider === 'qiniu'">
+          <div
+            v-else-if="formData.provider === 'qiniu'"
+            class="form-tip"
+          >
             http://xxx.bkt.clouddn.com
           </div>
-          <div class="form-tip" v-else-if="formData.provider === 'tencent'">
+          <div
+            v-else-if="formData.provider === 'tencent'"
+            class="form-tip"
+          >
             https://xxx.cos.ap-guangzhou.myqcloud.com
           </div>
-          <div class="form-tip" v-else-if="formData.provider === 'aws'">
+          <div
+            v-else-if="formData.provider === 'aws'"
+            class="form-tip"
+          >
             https://s3.ap-southeast-1.amazonaws.com
           </div>
         </el-form-item>
 
         
         <el-form-item :label="domainLabel">
-          <el-input v-model="formData.domain" :placeholder="domainPlaceholder" />
-          <div class="form-tip" v-if="formData.provider === 'local'">
+          <el-input
+            v-model="formData.domain"
+            :placeholder="domainPlaceholder"
+          />
+          <div
+            v-if="formData.provider === 'local'"
+            class="form-tip"
+          >
             本地文件对外访问的 URL 前缀，默认 /files
           </div>
-          <div class="form-tip" v-else>
+          <div
+            v-else
+            class="form-tip"
+          >
             可选：自定义 CDN 加速域名（留空则使用 endpoint 访问）
           </div>
         </el-form-item>
 
         <el-form-item label="路径前缀">
-          <el-input v-model="formData.path_prefix" placeholder="可选：统一添加的路径前缀" />
+          <el-input
+            v-model="formData.path_prefix"
+            placeholder="可选：统一添加的路径前缀"
+          />
         </el-form-item>
 
         <el-row :gutter="16">
           <el-col :span="12">
             <el-form-item label="单文件上限">
-              <el-input-number v-model="formData.max_size" :min="10240" :step="10485760" />
-              <div class="form-tip">字节，默认 100MB</div>
+              <el-input-number
+                v-model="formData.max_size"
+                :min="10240"
+                :step="10485760"
+              />
+              <div class="form-tip">
+                字节，默认 100MB
+              </div>
             </el-form-item>
           </el-col>
           <el-col :span="12">
             <el-form-item label="文件数量上限">
-              <el-input-number v-model="formData.max_count" :min="1" :step="100" />
-              <div class="form-tip">默认 1000 个</div>
+              <el-input-number
+                v-model="formData.max_count"
+                :min="1"
+                :step="100"
+              />
+              <div class="form-tip">
+                默认 1000 个
+              </div>
             </el-form-item>
           </el-col>
         </el-row>
 
         <el-form-item label="状态">
           <el-radio-group v-model="formData.status">
-            <el-radio label="active">启用</el-radio>
-            <el-radio label="inactive">禁用</el-radio>
+            <el-radio label="active">
+              启用
+            </el-radio>
+            <el-radio label="inactive">
+              禁用
+            </el-radio>
           </el-radio-group>
         </el-form-item>
       </el-form>
 
       <template #footer>
-        <el-button @click="dialogVisible = false">取消</el-button>
-        <el-button type="primary" @click="handleSubmit">确定</el-button>
+        <el-button @click="dialogVisible = false">
+          取消
+        </el-button>
+        <el-button
+          type="primary"
+          @click="handleSubmit"
+        >
+          确定
+        </el-button>
       </template>
     </el-dialog>
   </div>

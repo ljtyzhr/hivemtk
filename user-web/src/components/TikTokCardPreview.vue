@@ -4,18 +4,31 @@
       <div class="card-header">
         <div class="avatar" />
         <div class="user-info">
-          <div class="username">@{{ cardData.username || 'username' }}</div>
-          <div class="time">{{ cardData.time || '2小时前' }}</div>
+          <div class="username">
+            @{{ cardData.username || 'username' }}
+          </div>
+          <div class="time">
+            {{ cardData.time || '2小时前' }}
+          </div>
         </div>
-        <div class="more-icon">⋯</div>
+        <div class="more-icon">
+          ⋯
+        </div>
       </div>
       
       <div class="card-content">
         <h3>{{ cardData.title || '标题' }}</h3>
         <p>{{ cardData.content || '这里是内容预览...' }}</p>
         
-        <div class="media-container" v-if="cardData.media">
-          <img :src="cardData.media" alt="Media" class="media" />
+        <div
+          v-if="cardData.media"
+          class="media-container"
+        >
+          <img
+            :src="cardData.media"
+            alt="Media"
+            class="media"
+          >
         </div>
       </div>
       
@@ -25,7 +38,9 @@
           <span>{{ cardData.likes || 0 }}</span>
         </div>
         <div class="action">
-          <el-icon class="icon"><ChatDotRound /></el-icon>
+          <el-icon class="icon">
+            <ChatDotRound />
+          </el-icon>
           <span>{{ cardData.comments || 0 }}</span>
         </div>
         <div class="action">
