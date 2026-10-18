@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/response"
 	"hivemtk-user/internal/service"
 
@@ -21,19 +22,23 @@ import (
 // PublicConfig 未登录可取的最小站点配置
 //
 // @Summary      公开站点配置
-// @Description  仅暴露站点名与注册开关，不含任何敏感字段
+// @Description  仅暴露站点名、注册开关与租户模式，不含任何敏感字段
 // @Tags         Auth
 // @Produce      json
 // @Router       /api/public/config [get]
 func (c *AuthController) PublicConfig(ctx *gin.Context) {
+	// tenant_mode 与系统配置无关，两个分支都带上：前端据此决定是否渲染
+	// 租户短码登录框（on 模式才显示），且读配置失败也不影响该判定。
+	tenantMode := tenant.IsMultiTenant()
 	cfg, err := service.NewSystemConfigService().GetConfig(ctx.Request.Context())
 	if err != nil {
 		// 读失败按保守值返回：站点名空、注册关闭——前端隐藏入口而非误开放
-		response.Success(ctx, gin.H{"site_name": "", "enable_register": false}, "ok")
+		response.Success(ctx, gin.H{"site_name": "", "enable_register": false, "tenant_mode": tenantMode}, "ok")
 		return
 	}
 	response.Success(ctx, gin.H{
 		"site_name":       cfg.Name,
 		"enable_register": cfg.EnableRegister,
+		"tenant_mode":     tenantMode,
 	}, "ok")
 }

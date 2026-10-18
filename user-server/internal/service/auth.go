@@ -31,9 +31,10 @@ import (
 // 两者必须至少提供一个（binding required_without 双向约束）；
 // 离线模式（TENANT_MODE=off）两条通道语义与历史完全一致。
 type LoginRequest struct {
-	Username string `json:"username" binding:"required_without=Email"`
-	Email    string `json:"email" binding:"required_without=Username"`
-	Password string `json:"password" binding:"required"`
+	Username   string `json:"username" binding:"required_without=Email"`
+	Email      string `json:"email" binding:"required_without=Username"`
+	Password   string `json:"password" binding:"required"`
+	TenantCode string `json:"tenant_code,omitempty"` // 租户短码（on 模式可选，提供则按租户 scope 查用户名）
 }
 
 // LoginResponse 登录响应
@@ -143,11 +144,53 @@ func (s *AuthService) Login(ctx context.Context, req *LoginRequest) (*LoginRespo
 	return s.loginWithUser(ctx, user)
 }
 
-// resolveLoginIdentity 解析登录身份（邮箱优先，其次用户名）
+// resolveLoginIdentity 解析登录身份（tenant_code 定向通道优先，其次邮箱，最后用户名）
 //
 // 登录发生在租户未知之前，故查询一律走仓储的 SystemScope 变体，
 // 租户由命中的用户行自身携带，绝不由 ctx 假定。
 func (s *AuthService) resolveLoginIdentity(ctx context.Context, req *LoginRequest) (*model.SystemUser, error) {
+	// tenant_code 定向登录通道（on 模式，契约 contracts/api.md）：
+	// 显式给出租户短码时优先于无方向通道，短码本身不是秘密（非防枚举对象），
+	// 用户名/密码仍是。短码不存在 → 4106（与其他租户错误码同一暴露口径）。
+	if code := strings.TrimSpace(req.TenantCode); code != "" && tenant.IsMultiTenant() {
+		t, err := repository.NewTenantRepository().GetByCode(ctx, code)
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, bizerr.New(bizerr.CodeTenantNotFound, "租户不存在或代码错误")
+			}
+			logger.Error(err, "按短码查询租户失败")
+			return nil, errors.New("登录失败，请稍后重试")
+		}
+
+		// 邮箱通道：先做全局解析（邮箱跨租户全局唯一），再校验归属租户；
+		// 归属不符一律回"用户名或密码错误"，不暴露"该邮箱属于另一租户"。
+		if email := strings.TrimSpace(req.Email); email != "" {
+			user, err := s.systemUserRepo.ResolveByEmailGlobal(ctx, email)
+			if err != nil {
+				if errors.Is(err, gorm.ErrRecordNotFound) {
+					return nil, errors.New("用户名或密码错误")
+				}
+				logger.Error(err, "按邮箱查询用户失败")
+				return nil, errors.New("登录失败，请稍后重试")
+			}
+			if user.TenantID != t.ID {
+				return nil, errors.New("用户名或密码错误")
+			}
+			return user, nil
+		}
+
+		// 用户名通道：租户内唯一即可定位，无跨租户歧义问题（4108 不适用）
+		user, err := s.systemUserRepo.FindByUsernameInTenant(ctx, t.ID, strings.TrimSpace(req.Username))
+		if err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return nil, errors.New("用户名或密码错误")
+			}
+			logger.Error(err, "按租户内用户名查询用户失败")
+			return nil, errors.New("登录失败，请稍后重试")
+		}
+		return user, nil
+	}
+
 	if email := strings.TrimSpace(req.Email); email != "" {
 		user, err := s.systemUserRepo.ResolveByEmailGlobal(ctx, email)
 		if err != nil {
@@ -298,8 +341,15 @@ func (s *AuthService) RefreshToken(ctx context.Context, tokenString string) (str
 		return "", errors.New("用户已被禁用")
 	}
 
-	newToken, err := s.jwtUtils.GenerateTokenWithScope(
-		user.ID, user.Username, user.Role, user.DataScope, user.DepartmentID, user.TeamID)
+	// 刷新必须保留用户的真实租户：GenerateTokenWithScope 硬编码默认租户（tenant_id=1），
+	// 会让非默认租户用户在刷新后"掉进"1 号租户（越权读默认租户数据）。
+	// 与登录签发（tokenForUser）同口径：0 值历史行回落默认租户，避免签出 tenant_id=0。
+	tid := user.TenantID
+	if tid == 0 {
+		tid = tenant.DefaultTenantID
+	}
+	newToken, err := s.jwtUtils.GenerateTokenForTenant(
+		user.ID, user.Username, user.Role, user.DataScope, user.DepartmentID, user.TeamID, tid)
 	if err != nil {
 		logger.Error(err, "刷新令牌签发失败")
 		return "", errors.New("刷新令牌失败，请稍后重试")

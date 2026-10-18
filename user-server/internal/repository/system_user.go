@@ -51,6 +51,8 @@ type SystemUserRepository interface {
 	// 四组方法均显式 SystemScope，结果自带 tenant_id
 	ResolveByEmailGlobal(ctx context.Context, email string) (*model.SystemUser, error)
 	FindByUsernameAnyTenant(ctx context.Context, username string, limit int) ([]*model.SystemUser, error)
+	// FindByUsernameInTenant 按租户内用户名解析登录身份（tenant_code 定向登录通道）
+	FindByUsernameInTenant(ctx context.Context, tenantID uint, username string) (*model.SystemUser, error)
 	UsernameExistsInTenant(ctx context.Context, tenantID uint, username string) (bool, error)
 	EmailExistsGlobal(ctx context.Context, email string) (bool, error)
 }
@@ -349,6 +351,25 @@ func (r *systemUserRepo) FindByUsernameAnyTenant(ctx context.Context, username s
 		return nil, err
 	}
 	return out, nil
+}
+
+// FindByUsernameInTenant 按租户内用户名解析登录身份（tenant_code 定向登录通道）
+//
+// 用户名唯一性语义是租户内，故 tenant_id + username 即可唯一定位；
+// 与同组方法一致显式挂 SystemScope：登录时租户上下文尚未建立，由查询条件显式限定。
+// 未命中返回 gorm.ErrRecordNotFound（调用方映射为防枚举文案）。
+func (r *systemUserRepo) FindByUsernameInTenant(ctx context.Context, tenantID uint, username string) (*model.SystemUser, error) {
+	username = strings.TrimSpace(username)
+	if username == "" || tenantID == 0 {
+		return nil, gorm.ErrRecordNotFound
+	}
+	var u model.SystemUser
+	if err := r.db.WithContext(tenant.WithSystemScope(ctx)).Model(&model.SystemUser{}).
+		Where("tenant_id = ? AND username = ?", tenantID, username).
+		First(&u).Error; err != nil {
+		return nil, err
+	}
+	return &u, nil
 }
 
 // UsernameExistsInTenant 租户内用户名查重（开户 4102 校验；用户名唯一性语义是租户内）
