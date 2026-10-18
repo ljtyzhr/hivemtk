@@ -75,6 +75,48 @@ function cycleKey(m) {
       </div>
     </section>
 
+    <!-- 平价路线 -->
+    <section class="price-section">
+      <div class="container">
+        <header class="sec-head">
+          <h2 class="sec-title">
+            <template v-for="(line, i) in page.budgetTitle" :key="i">
+              <span v-if="i === 1" class="ink-mark">{{ $t(line) }}</span>
+              <template v-else>{{ $t(line) }}</template>
+            </template>
+          </h2>
+          <p class="sec-desc">{{ $t(page.budgetDesc) }}</p>
+        </header>
+        <div class="budget-grid">
+          <article
+            v-for="(path, i) in page.budgetPaths"
+            :key="path.name"
+            class="budget-card"
+            :class="{ 'budget-card-mid': i === 1 }"
+          >
+            <div class="budget-head">
+              <span class="budget-tier">{{ String(i + 1).padStart(2, '0') }}</span>
+              <h3 class="budget-name">{{ $t(path.name) }}</h3>
+              <span class="budget-sub">{{ $t(path.subtitle) }}</span>
+            </div>
+            <div class="budget-price">{{ $t(path.price) }}</div>
+            <div class="budget-price-note">{{ $t(path.priceNote) }}</div>
+            <ul class="budget-includes">
+              <li v-for="(item, j) in path.includes" :key="j">{{ $t(item) }}</li>
+            </ul>
+            <p class="budget-scene">{{ $t(path.scene) }}</p>
+          </article>
+        </div>
+        <div class="budget-points">
+          <article v-for="pt in page.budgetPoints" :key="pt.title" class="budget-point">
+            <h4 class="point-title">{{ $t(pt.title) }}</h4>
+            <p class="point-desc">{{ $t(pt.desc) }}</p>
+          </article>
+        </div>
+        <p class="budget-note">{{ $t(page.budgetNote) }}</p>
+      </div>
+    </section>
+
     <!-- 订阅流程 -->
     <section class="price-section">
       <div class="container">
@@ -319,6 +361,131 @@ function cycleKey(m) {
   text-align: right;
 }
 
+/* —— 平价路线 —— */
+.budget-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 20px;
+}
+.budget-card {
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 26px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+.budget-card-mid {
+  border-color: var(--primary);
+  box-shadow: 0 6px 24px rgba(200, 57, 47, 0.1);
+}
+.budget-head {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+.budget-tier {
+  font-family: var(--font-display);
+  font-size: 1.2rem;
+  font-weight: 900;
+  color: var(--primary);
+  letter-spacing: -0.03em;
+}
+.budget-name {
+  font-family: var(--font-display);
+  font-size: 1.1rem;
+  font-weight: 800;
+  color: var(--text);
+}
+.budget-sub {
+  font-size: 0.76rem;
+  color: var(--text-muted);
+  width: 100%;
+}
+.budget-price {
+  font-family: var(--font-display);
+  font-size: 1.6rem;
+  font-weight: 900;
+  color: var(--primary);
+  letter-spacing: -0.02em;
+  font-variant-numeric: tabular-nums;
+}
+.budget-price-note {
+  font-size: 0.76rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  margin-bottom: 6px;
+}
+.budget-includes {
+  list-style: none;
+  margin: 0;
+  padding: 12px 0 0;
+  border-top: 1px dashed var(--border);
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  flex: 1;
+}
+.budget-includes li {
+  position: relative;
+  padding-left: 16px;
+  font-size: 0.86rem;
+  color: var(--text-soft);
+  line-height: 1.62;
+}
+.budget-includes li::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 8px;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--primary);
+}
+.budget-scene {
+  font-size: 0.8rem;
+  font-weight: 600;
+  color: var(--text-muted);
+  padding-top: 10px;
+  border-top: 1px solid var(--border);
+}
+.budget-points {
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 14px;
+  margin-top: 20px;
+}
+.budget-point {
+  background: var(--bg-subtle);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  padding: 18px 20px;
+}
+.point-title {
+  font-family: var(--font-display);
+  font-size: 0.98rem;
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+.point-desc {
+  font-size: 0.86rem;
+  color: var(--text-soft);
+  line-height: 1.68;
+}
+.budget-note {
+  margin-top: 18px;
+  font-family: var(--font-mono);
+  font-size: 0.74rem;
+  color: var(--text-dim);
+  line-height: 1.7;
+  border-left: 3px solid var(--border-strong);
+  padding-left: 14px;
+}
+
 /* —— 订阅流程 —— */
 .flow-list {
   list-style: none;
@@ -477,7 +644,11 @@ function cycleKey(m) {
 
 @media (max-width: 992px) {
   .models-grid,
-  .saas-grid {
+  .saas-grid,
+  .budget-grid {
+    grid-template-columns: 1fr;
+  }
+  .budget-points {
     grid-template-columns: 1fr;
   }
   .flow-list {
