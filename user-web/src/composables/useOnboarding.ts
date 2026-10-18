@@ -325,7 +325,7 @@ export function useOnboarding() {
     localStorage.removeItem(ONBOARDING_TOUR_TYPE_KEY)
   }
 
-  function createDriver(steps: OnboardingStep[]): ReturnType<typeof Driver> {
+  function createDriver(steps: OnboardingStep[], onComplete?: () => void): ReturnType<typeof Driver> {
     if (driverInstance) {
       driverInstance.destroy()
     }
@@ -352,13 +352,19 @@ export function useOnboarding() {
       onDeselected: (step) => {
         step.onDeselected?.()
       },
-      onReset: () => {
-        reset(currentTourType)
-      },
       onDestroyed: () => {
         driverInstance = null
       },
     })
+
+    // 监听完成事件（最后一步点击"完成"按钮）
+    if (onComplete) {
+      const originalDoneClick = steps[steps.length - 1]?.popover?.onNextClick
+      steps[steps.length - 1].popover.onNextClick = () => {
+        onComplete()
+        originalDoneClick?.()
+      }
+    }
 
     return driverInstance
   }
@@ -367,7 +373,7 @@ export function useOnboarding() {
     if (!userStore.isLoggedIn) return
     currentTourType = 'global'
     const steps = getGlobalNavSteps(t)
-    const driver = createDriver(steps)
+    const driver = createDriver(steps, () => markCompleted('global'))
     driver.drive()
   }
 
@@ -379,7 +385,7 @@ export function useOnboarding() {
       console.warn(`[Onboarding] No tour config for module: ${moduleKey}`)
       return
     }
-    const driver = createDriver(steps)
+    const driver = createDriver(steps, () => markCompleted('module'))
     driver.drive()
   }
 
@@ -391,7 +397,7 @@ export function useOnboarding() {
       console.warn(`[Onboarding] No tour config for page: ${pageKey}`)
       return
     }
-    const driver = createDriver(steps)
+    const driver = createDriver(steps, () => markCompleted('page'))
     driver.drive()
   }
 

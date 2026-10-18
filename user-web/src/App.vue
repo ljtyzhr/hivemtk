@@ -22,7 +22,7 @@ const elLocale = computed(() => elMap[elLocaleCode(i18n.global.locale.value)] ||
 const router = useRouter()
 const t = i18n.global.t
 
-const { tryAutoStart, onTourComplete } = useOnboardingAutoStart()
+const { tryAutoStart } = useOnboardingAutoStart()
 
 onMounted(async () => {
   applyDirection(i18n.global.locale.value)
@@ -49,18 +49,11 @@ onMounted(async () => {
         router.replace('/setup')
       }
     } else {
-      // 系统已初始化，尝试自动启动新手引导
+      // 系统已初始化，尝试自动启动新手引导（仅首次登录）
       tryAutoStart()
     }
   } catch (e) {
     console.warn('[App] init-status check failed:', e);
-  }
-});
-
-// 监听路由变化，在登录后的页面尝试启动引导
-router.afterEach((to, from) => {
-  if (to.path !== '/login' && to.path !== '/setup' && !to.path.startsWith('/chat/embed')) {
-    tryAutoStart()
   }
 })
 </script>
