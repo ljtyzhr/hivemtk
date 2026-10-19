@@ -27,9 +27,9 @@ type PlatformConfig struct {
 	CloudURL string `yaml:"cloud_url" json:"cloud_url"`
 }
 
-// DefaultCloudURL 云端版对外地址占位常量（003 spec R1）。
-// 上线前替换为正式域名 —— 全仓只此一处（平台配置 cloud_url 可覆盖）。
-const DefaultCloudURL = "https://saas.hivemtk.cn"
+// DefaultCloudURL 云端版对外地址（003 spec R1）。
+// 已替换为正式域名（work 子域 = 用户端应用入口）—— 全仓只此一处（平台配置 cloud_url / env PLATFORM_CLOUD_URL 可覆盖）。
+const DefaultCloudURL = "https://work.xapptool.cn"
 
 // CloudURL 云端版地址：已装配平台配置 > 环境变量 PLATFORM_CLOUD_URL > 占位常量。
 //

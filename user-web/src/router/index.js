@@ -1,6 +1,6 @@
 import { createRouter, createWebHashHistory } from 'vue-router'
 import Layout from '@/layout/Layout.vue'
-import { isInitialized } from '@/utils/initHelper'
+import { ensureBootstrap } from '@/utils/bootstrapState'
 import { useUserStore } from '@/stores/user'
 import { usePermissionStore } from '@/stores/permission'
 import { ElMessage } from 'element-plus'
@@ -261,11 +261,18 @@ router.beforeEach(async (to, from, next) => {
   const isPublic = to.meta?.public === true || isPublicPath
 
   if (!isPublic) {
-    if (!isInitialized()) {
+    // 首次进入非公开路由时，先等引导状态拉齐（只等这一次，之后走缓存 promise，
+    // 不会逐次网络往返）：initialized 以后端 init-status 为准，而非 localStorage ——
+    // 干净浏览器首次访问时 localStorage 为空，仅凭它会把所有人误推进 /setup。
+    const { initialized } = await ensureBootstrap()
+    if (!initialized) {
       next('/setup')
       return
     }
     const userStore = useUserStore()
+    // 系统已初始化：直接去登录页，绝不把“已初始化实例”的干净浏览器访客单机
+    // 送进 /setup 安装向导。SaaS(tenant_mode=on) 多租户实例尤其如此——那里没有
+    // “单机首次安装”场景，注册入口在登录页（Login.vue 的 enable_register 开关）。
     if (!userStore.isLoggedIn) {
       next('/login')
       return

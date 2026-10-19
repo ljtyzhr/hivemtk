@@ -13,7 +13,7 @@ import ja from 'element-plus/es/locale/lang/ja'
 import zhCn from 'element-plus/es/locale/lang/zh-cn'
 import i18n from '@/i18n'
 import { elLocaleCode, applyDirection } from '@/i18n/locale'
-import { http } from '@/utils/request'
+import { ensureBootstrap } from '@/utils/bootstrapState'
 import { useOnboardingAutoStart } from '@/composables/useOnboarding'
 
 const elMap = { 'zh-cn': zhCn, en, ja }
@@ -27,15 +27,10 @@ const { tryAutoStart } = useOnboardingAutoStart()
 onMounted(async () => {
   applyDirection(i18n.global.locale.value)
   try {
-    const resp = await http.get('/api/system/init-status');
-    const status = resp?.data || resp
-    if (!status) return
-
-    if (status.initialized) {
-      localStorage.setItem('system_initialized', 'true')
-    } else {
-      localStorage.removeItem('system_initialized')
-    }
+    // 与路由守卫共用同一份引导状态（ensureBootstrap 内部去重，不会二次拉取）。
+    // 未初始化时的 localStorage 落盘由 bootstrapState 负责；这里只保留“未初始化且
+    // 不在公开页”时的提示 + 跳转，以及“已初始化”时自动启动新手引导的副作用。
+    const { initialized } = await ensureBootstrap()
 
     const currentPath = router.currentRoute.value.path
 
@@ -43,7 +38,7 @@ onMounted(async () => {
       currentPath.startsWith('/chat/embed') ||
       currentPath === '/setup' ||
       currentPath === '/login';
-    if (!status.initialized) {
+    if (!initialized) {
       if (!isPublicEmbedPath) {
         ElMessage.info(t('system.completeInitFirst'))
         router.replace('/setup')
@@ -53,7 +48,7 @@ onMounted(async () => {
       tryAutoStart()
     }
   } catch (e) {
-    console.warn('[App] init-status check failed:', e);
+    console.warn('[App] bootstrap check failed:', e);
   }
 })
 </script>
