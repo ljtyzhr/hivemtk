@@ -396,11 +396,17 @@ func main() {
 
 	migrationRegistry := migration.NewMigrationRegistry()
 	migrationSvc := migration.NewMigrationServiceDefault(migrationRegistry, migrations.RegisterMigrations)
-	if task, err := migrationSvc.ExecuteUpgrade(context.Background(), "v1.0.0", "v1.0.0"); err != nil {
+	// 启动期迁移是平台级操作：没有 HTTP 请求 ctx 可绑，TENANT_MODE=on 时 upgrade_tasks
+	// 的裸 Create / WaitForTask 的裸查询会被隔离 callback fail-closed（生产日志实证：
+	// "[migration] ExecuteUpgrade 启动失败：[tenant] 表 upgrade_tasks 需要租户上下文但 ctx 未绑定（create）"）。
+	// 走 tenant.WithSystemScope 这条平台级豁免通道（与 migration/备份/健康检查同类），
+	// 不放宽任何带请求 ctx 的 HTTP 路径（controller/migration.go 传的是 request ctx）。
+	migrationCtx := tenant.WithSystemScope(context.Background())
+	if task, err := migrationSvc.ExecuteUpgrade(migrationCtx, "v1.0.0", "v1.0.0"); err != nil {
 		logger.Errorf("[migration] ExecuteUpgrade 启动失败：%v", err)
 	} else if task != nil {
 		logger.Infof("[migration] 启动同步等待迁移完成（task_id=%d）", task.ID)
-		if err := migrationSvc.WaitForTask(context.Background(), task.ID, 60*time.Second); err != nil {
+		if err := migrationSvc.WaitForTask(migrationCtx, task.ID, 60*time.Second); err != nil {
 			logger.Errorf("[migration] 同步等待迁移超时或失败：%v", err)
 		} else {
 			logger.Info("[migration] 同步迁移完成，audit 表已就绪")

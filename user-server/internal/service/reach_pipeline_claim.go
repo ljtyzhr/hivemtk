@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 )
 
@@ -199,6 +200,15 @@ func (s *ReachPipelineService) dispatchLoop(ctx context.Context, interval time.D
 }
 
 func (s *ReachPipelineService) dispatchDueJobs(ctx context.Context) {
+	// 平台级后台调度循环：reach_jobs / reach_pipelines 是租户表，TENANT_MODE=on 时
+	// 无租户 ctx 的 ResetStuckJobs（update）、ListDueJobs（query）、ClaimJob 与
+	// executeJobCore 的状态落库都会被隔离 callback fail-closed（生产日志实证：
+	// "[reach_dispatcher] 恢复 stuck 任务失败: [tenant] 表 reach_jobs 需要租户上下文但
+	// ctx 未绑定（update）"、"拉取到期任务失败: ...（query）"）。调度器由
+	// StartDispatcher(context.Background(), ...) 启动，没有 HTTP 请求 ctx 可绑，走
+	// tenant.WithSystemScope 这条平台级豁免通道；不放宽任何带请求 ctx 的 HTTP 路径
+	//（ExecuteJob 走的是 request ctx，不经本函数）。
+	ctx = tenant.WithSystemScope(ctx)
 	if _, err := s.repo.ResetStuckJobs(ctx, 10*time.Minute); err != nil {
 		logger.Errorf("[reach_dispatcher] 恢复 stuck 任务失败: %v", err)
 	}

@@ -5,6 +5,7 @@ import (
 	"os"
 
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/storage"
 
@@ -22,8 +23,16 @@ func InitDefaultStorageIfEmpty(gdb *gorm.DB) {
 		return
 	}
 
+	// 平台级启动期操作：obs_config 是租户表，TENANT_MODE=on 时无租户 ctx 的 count
+	//（query）与下面的 seed Create 会被隔离 callback fail-closed（生产日志实证：
+	// "[OBS] InitDefaultStorageIfEmpty: count failed: [tenant] 表 obs_config 需要租户
+	// 上下文但 ctx 未绑定（query）"）。启动期 seed 没有 HTTP 请求 ctx 可绑，走
+	// tenant.WithSystemScope 这条平台级豁免通道；行上显式钉 TenantID=1（与
+	// migration 的 default ai_agent 种子同规范，单租户生产数据口径）。
+	sysCtx := tenant.WithSystemScope(context.Background())
+
 	var count int64
-	if err := gdb.Model(&model.ObsConfig{}).Count(&count).Error; err != nil {
+	if err := gdb.WithContext(sysCtx).Model(&model.ObsConfig{}).Count(&count).Error; err != nil {
 		logger.Warnf("[OBS] InitDefaultStorageIfEmpty: count failed: %v", err)
 		return
 	}
@@ -35,6 +44,7 @@ func InitDefaultStorageIfEmpty(gdb *gorm.DB) {
 	baseDir, publicURL, _ := storage.LocalSource()
 
 	cfg := &model.ObsConfig{
+		TenantID:  tenant.DefaultTenantID,
 		ID:        uuid.New().String(),
 		Name:      "默认本地存储",
 		Provider:  model.ObsProviderLocal,
@@ -49,7 +59,7 @@ func InitDefaultStorageIfEmpty(gdb *gorm.DB) {
 		Bucket:    "",
 	}
 
-	if err := gdb.WithContext(context.Background()).Create(cfg).Error; err != nil {
+	if err := gdb.WithContext(sysCtx).Create(cfg).Error; err != nil {
 		logger.Errorf("[OBS] InitDefaultStorageIfEmpty: seed failed: %v", err)
 		return
 	}

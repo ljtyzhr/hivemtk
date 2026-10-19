@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"hivemtk-user/internal/model"
 	dbUtil "hivemtk-user/internal/pkg/db"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
 	"time"
@@ -93,7 +94,12 @@ func (s *MigrationService) WaitForTask(ctx context.Context, taskID uint, timeout
 }
 
 func (s *MigrationService) executeUpgradeAsync(parentCtx context.Context, taskID uint, fromVersion, toVersion string) {
-	bgCtx := context.Background()
+	// 后台升级 goroutine 是平台级操作：它脱离请求 ctx（原先固定 context.Background()），
+	// TENANT_MODE=on 时 upgrade_tasks 状态落库、migration_records 读写与 migration.Up 的
+	// 租户表访问没有租户可绑，会被隔离 callback fail-closed —— 任务状态永远停在 pending，
+	// WaitForTask 超时。走 tenant.WithSystemScope 豁免通道（与启动期调用点同源；
+	// HTTP 触发的升级同样经这条后台链路，其请求 ctx 本就被这里丢弃，故不改变请求路径语义）。
+	bgCtx := tenant.WithSystemScope(context.Background())
 
 	if e := s.taskRepo.UpdateStatus(bgCtx, taskID, "running", 0, 0, "开始升级", ""); e != nil {
 		logger.Warnf("[Migration] 任务状态落库失败 taskID=%d: %v", taskID, e)

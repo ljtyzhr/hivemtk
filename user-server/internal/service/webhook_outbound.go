@@ -28,6 +28,7 @@ import (
 	"hivemtk-user/internal/model"
 
 	_db "hivemtk-user/internal/pkg/db"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/logger"
 
@@ -251,6 +252,15 @@ func (s *WebhookService) dispatchDueDelayedOutbound(ctx context.Context) {
 	if s.delayedRepo == nil {
 		return
 	}
+	// 平台级后台派发循环：reach_delayed_outbound 是租户表，TENANT_MODE=on 时无租户
+	// ctx 的 ExpireStale（update）、CountStuckSending（query）、PickDueForUpdate/
+	// PluckDueIDs/MarkSendingIfPending 与 replayDelayedOutbound 的落库都会被隔离
+	// callback fail-closed（生产日志实证："[H-3] 延迟出站 TTL 判过期失败，本轮跳过判期但
+	// 不阻断重放: [tenant] 表 reach_delayed_outbound 需要租户上下文但 ctx 未绑定（update）"、
+	// "sending 悬挂行观测查询失败: ...（query）"）。消费者由 context.Background() 启动
+	//（startDelayedOutboundDispatch），没有 HTTP 请求 ctx 可绑，走 tenant.WithSystemScope
+	// 这条平台级豁免通道；不放宽任何带请求 ctx 的路径（本函数无 HTTP 调用方）。
+	ctx = tenant.WithSystemScope(ctx)
 	now := time.Now()
 	if n, err := s.delayedRepo.ExpireStale(ctx, now.Add(-delayedOutboundTTL)); err != nil {
 		logger.Ctx(ctx).Warn().Err(err).Msg("[H-3] 延迟出站 TTL 判过期失败，本轮跳过判期但不阻断重放")

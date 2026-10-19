@@ -30,18 +30,18 @@ func NewAgentStatusRepositoryWithDB(db *gorm.DB) *AgentStatusRepository {
 
 // Create 创建客服状态
 func (r *AgentStatusRepository) Create(ctx context.Context, status *model.AgentStatus) error {
-	return r.db.Create(status).Error
+	return r.db.WithContext(ctx).Create(status).Error
 }
 
 // Update 更新客服状态
 func (r *AgentStatusRepository) Update(ctx context.Context, status *model.AgentStatus) error {
-	return r.db.Save(status).Error
+	return r.db.WithContext(ctx).Save(status).Error
 }
 
 // GetByAgentID 根据客服ID获取状态
 func (r *AgentStatusRepository) GetByAgentID(ctx context.Context, agentID uint) (*model.AgentStatus, error) {
 	var status model.AgentStatus
-	err := r.db.Where("agent_id = ?", agentID).First(&status).Error
+	err := r.db.WithContext(ctx).Where("agent_id = ?", agentID).First(&status).Error
 	if err != nil {
 		return nil, err
 	}
@@ -52,7 +52,7 @@ func (r *AgentStatusRepository) GetByAgentID(ctx context.Context, agentID uint) 
 func (r *AgentStatusRepository) GetOnlineAgents(ctx context.Context) ([]*model.AgentStatus, error) {
 	var agents []*model.AgentStatus
 	cutoff := time.Now().Add(-5 * time.Minute)
-	err := r.db.Where("status IN ? AND active_sessions < max_sessions AND last_active_at > ?",
+	err := r.db.WithContext(ctx).Where("status IN ? AND active_sessions < max_sessions AND last_active_at > ?",
 		[]string{"online", "busy"}, cutoff).
 		Order("active_sessions ASC").Find(&agents).Error
 	return agents, err
@@ -61,7 +61,9 @@ func (r *AgentStatusRepository) GetOnlineAgents(ctx context.Context) ([]*model.A
 // ListAllAgents 列出全部客服（不分在线/离线），用于客服监管控制台
 func (r *AgentStatusRepository) ListAllAgents(ctx context.Context) ([]*model.AgentStatus, error) {
 	var agents []*model.AgentStatus
-	err := r.db.Order("agent_id ASC").Find(&agents).Error
+	// 必须 WithContext：on 模式 tenancyidx 从 ctx 取租户注入过滤，
+	// 丢 ctx 会触发 fail-closed 5000（003 生产联调发现）
+	err := r.db.WithContext(ctx).Order("agent_id ASC").Find(&agents).Error
 	return agents, err
 }
 
@@ -75,12 +77,12 @@ func (r *AgentStatusRepository) UpdateStatus(ctx context.Context, agentID uint, 
 		updates["offline_at"] = &now
 	}
 	updates["last_active_at"] = &now
-	return r.db.Model(&model.AgentStatus{}).Where("agent_id = ?", agentID).Updates(updates).Error
+	return r.db.WithContext(ctx).Model(&model.AgentStatus{}).Where("agent_id = ?", agentID).Updates(updates).Error
 }
 
 // IncrementActiveSessions 增加活跃会话数
 func (r *AgentStatusRepository) IncrementActiveSessions(ctx context.Context, agentID uint) error {
-	return r.db.Model(&model.AgentStatus{}).Where("agent_id = ?", agentID).
+	return r.db.WithContext(ctx).Model(&model.AgentStatus{}).Where("agent_id = ?", agentID).
 		Updates(map[string]any{
 			"active_sessions": gorm.Expr("active_sessions + 1"),
 			"today_sessions":  gorm.Expr("today_sessions + 1"),
@@ -89,13 +91,13 @@ func (r *AgentStatusRepository) IncrementActiveSessions(ctx context.Context, age
 
 // DecrementActiveSessions 减少活跃会话数
 func (r *AgentStatusRepository) DecrementActiveSessions(ctx context.Context, agentID uint) error {
-	return r.db.Model(&model.AgentStatus{}).Where("agent_id = ? AND active_sessions > 0", agentID).
+	return r.db.WithContext(ctx).Model(&model.AgentStatus{}).Where("agent_id = ? AND active_sessions > 0", agentID).
 		Update("active_sessions", gorm.Expr("active_sessions - 1")).Error
 }
 
 // IncrementTodayMessages 增加今日消息数
 func (r *AgentStatusRepository) IncrementTodayMessages(ctx context.Context, agentID uint) error {
-	return r.db.Model(&model.AgentStatus{}).Where("agent_id = ?", agentID).
+	return r.db.WithContext(ctx).Model(&model.AgentStatus{}).Where("agent_id = ?", agentID).
 		Update("today_messages", gorm.Expr("today_messages + 1")).Error
 }
 

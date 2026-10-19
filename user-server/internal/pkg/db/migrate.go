@@ -645,6 +645,12 @@ func postMigrateObsDefaultUniqueIndex(db *gorm.DB) {
 	if db == nil {
 		return
 	}
+	// 平台级启动期操作：obs_config 是租户表，TENANT_MODE=on 时 post-migrate 的裸
+	// Count（query）与下面那段清重 UPDATE（预构建 SQL）会被隔离 callback fail-closed
+	//（生产日志实证："post-migrate: 统计 obs_config 默认行失败(跳过唯一索引): [tenant] 表
+	// obs_config 需要租户上下文但 ctx 未绑定（query）"）。这里没有 HTTP 请求 ctx 可绑，
+	// 走 tenant.WithSystemScope 这条平台级豁免通道（与 migration/备份/健康检查同类）。
+	db = db.WithContext(tenant.WithSystemScope(context.Background()))
 	var dups int64
 	if err := db.Table("obs_config").Where("is_default = ?", true).Count(&dups).Error; err != nil {
 		logger.Warn(fmt.Sprintf("post-migrate: 统计 obs_config 默认行失败(跳过唯一索引): %v", err))
@@ -688,16 +694,24 @@ func postMigrateDropLegacyPlaintextResetTokens(db *gorm.DB) {
 	if db == nil {
 		return
 	}
-	const legacyWhere = "char_length(token) <> 64"
+	// 平台级启动期操作：password_reset_tokens 是租户表，TENANT_MODE=on 时这里的裸
+	// Raw/Exec 会被 check-gorm-only 运行时闸 fail-closed（生产日志实证：
+	// "[tenant] 预构建 SQL 引用租户表 password_reset_tokens 被拒绝：数据访问必须走 GORM API"
+	// + 紧随的 "post-migrate: 统计明文密码重置令牌失败(跳过作废)"）。
+	// 改写为 GORM API 查询 + tenant.WithSystemScope 平台级豁免；统计与作废语义保持不变：
+	// Unscoped 绕过软删过滤（原裸 SQL 不看 deleted_at），Delete 也走 Unscoped 物理硬删
+	//（模型带 DeletedAt，普通 GORM Delete 只打软删标记，原文仍在表里等于没修）。
+	sysDB := db.WithContext(tenant.WithSystemScope(context.Background()))
+	const legacyWhere = "char_length(token) <> ?"
 	var legacy int64
-	if err := db.Raw("SELECT count(*) FROM password_reset_tokens WHERE " + legacyWhere).Scan(&legacy).Error; err != nil {
+	if err := sysDB.Unscoped().Model(&model.PasswordResetToken{}).Where(legacyWhere, 64).Count(&legacy).Error; err != nil {
 		logger.Warn(fmt.Sprintf("post-migrate: 统计明文密码重置令牌失败(跳过作废): %v", err))
 		return
 	}
 	if legacy == 0 {
 		return
 	}
-	res := db.Exec("DELETE FROM password_reset_tokens WHERE " + legacyWhere)
+	res := sysDB.Unscoped().Where(legacyWhere, 64).Delete(&model.PasswordResetToken{})
 	if res.Error != nil {
 		logger.Warn(fmt.Sprintf("post-migrate: 作废旧版明文密码重置令牌失败: %v", res.Error))
 		return
