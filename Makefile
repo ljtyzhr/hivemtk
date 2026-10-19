@@ -11,6 +11,12 @@
 .PHONY: laya-models laya-up laya-down laya-warmup laya-test laya-logs
 .PHONY: dev dev-install dev-stop dev-all dev-down dev-clean dev-help
 
+# 旧容器时代幽灵目标：只有 .PHONY 声明、没有规则——敲了会打 "Nothing to be done"
+# 假成功。给每个加显式失败规则，让人立刻知道该用什么。
+up down restart logs ps build:
+	@echo "❌ 无此目标（旧容器时代遗留）。数据层用 make db-up/db-down/db-logs；应用为宿主机进程"
+	@exit 1
+
 # 默认目标
 help:
 	@echo "==================================="
@@ -122,7 +128,7 @@ db-ps:
 
 db-backup:
 	docker compose exec -T mtk-postgres \
-		pg_dump -U $${POSTGRES_USER:-admin} $${USER_DB_NAME:-user_db} > backup_$$(date +%Y%m%d_%H%M%S).sql
+		pg_dump -U $${POSTGRES_USER:-admin} -p 8202 $${USER_DB_NAME:-user_db} > backup_$$(date +%Y%m%d_%H%M%S).sql
 	@echo "✅ 备份完成"
 
 db-restore:
@@ -130,8 +136,9 @@ db-restore:
 		echo "用法: make db-restore FILE=backup_20260101_120000.sql"; \
 		exit 1; \
 	fi
+	@test -f "$(FILE)" || { echo "文件不存在: $(FILE)"; exit 1; }
 	docker compose exec -T mtk-postgres \
-		psql -U $${POSTGRES_USER:-admin} -d $${USER_DB_NAME:-user_db} < $(FILE)
+		psql -U $${POSTGRES_USER:-admin} -p 8202 -v ON_ERROR_STOP=1 -d $${USER_DB_NAME:-user_db} < $(FILE)
 	@echo "✅ 恢复完成"
 
 # =============================================================================

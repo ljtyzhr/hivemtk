@@ -37,7 +37,9 @@
 #                      出站 HMAC 签名消费，平台端关态（离线部署默认）下整条链路不装配，
 #                      没有它 seed 与 user-server 都照常跑，故不再拦安装。
 #   USER_SERVER_PORT   可选，默认 8204
-#   PG_PORT            可选，默认 8232
+#   PG_PORT            可选，默认 8202（链：USER_POSTGRES_HOST_PORT > DB_PORT > 8202，
+#                      与 compose 的宿主映射端口同源；历史上这里写死 8232，那是
+#                      宿主机直连 Dev 档的覆盖值，Docker 数据层默认档是 8202）
 #   ADMIN_USERNAME     可选，默认 admin
 #   ADMIN_PASSWORD / SEED_PASSWORD
 #                      可选，默认 Seed@123456 —— 这个默认值随开源仓库公开，
@@ -59,8 +61,21 @@ SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 PROJECT_DIR="$(cd "$SCRIPT_DIR/.." && pwd)"
 USER_SERVER_DIR="$PROJECT_DIR/user-server"
 
+# 仓库根有 .env 就先加载（set -a 全量导出）：POSTGRES_PASSWORD / JWT 等键都从它来。
+# 历史上本脚本要求用户自己先 `set -a && . ./.env && set +a` 再跑，漏了这步必挂在下面的
+# POSTGRES_PASSWORD 预检；现在脚本自己兜住（与 deploy-user.sh 启动段同语义）。
+# 必须放在下面各 ${VAR:-默认} 赋值之前，.env 的值才能压过脚本默认值。
+if [ -f "$PROJECT_DIR/.env" ]; then
+    set -a
+    . "$PROJECT_DIR/.env"
+    set +a
+fi
+
 USER_SERVER_PORT="${USER_SERVER_PORT:-8204}"
-PG_PORT="${PG_PORT:-8232}"
+# 端口链与 scripts/post_deploy_check.sh 同一条：先看 .env 的 USER_POSTGRES_HOST_PORT
+# （compose 宿主映射端口，默认 8202），再退 DB_PORT，最后才落 8202。
+# 旧值写死 8232 是宿主机直连 Dev 档的覆盖值，会让默认 Docker 档的等待/校验连错端口。
+PG_PORT="${PG_PORT:-${USER_POSTGRES_HOST_PORT:-${DB_PORT:-8202}}}"
 PG_HOST="${PG_HOST:-127.0.0.1}"
 ADMIN_USERNAME="${ADMIN_USERNAME:-admin}"
 # 口令只有一个事实源：SEED_PASSWORD（未设时取 ADMIN_PASSWORD，再未设时是公开默认值）。
@@ -126,18 +141,24 @@ esac
 
 export PGHOST="$PG_HOST"
 export PGPORT="$PG_PORT"
-export PGUSER="admin"
+# 库名/用户与 .env 同源（不再写字面量；与 scripts/post_deploy_check.sh 同一口径）
+export PGUSER="${POSTGRES_USER:-admin}"
 export PGPASSWORD="$POSTGRES_PASSWORD"
-export PGDATABASE="user_db"
+export PGDATABASE="${USER_DB_NAME:-user_db}"
 
 # 1) 等待 user-server 健康
+# 判定不能只看 HTTP 200：/health 的降级分支仍是 200 但 body 带 "status":"degraded"（假绿）。
+# 口径与 scripts/deploy-user.sh probe_ok / post_deploy_check.sh 第 1 步一致：
+# 响应体含 "status":"ok" 且不含 degraded 才算就绪。
 log "等待 user-server 健康（http://127.0.0.1:${USER_SERVER_PORT}/health）..."
 for i in {1..60}; do
-    if curl -fsS "http://127.0.0.1:${USER_SERVER_PORT}/health" >/dev/null 2>&1; then
+    _hc_body=$(curl -fsS "http://127.0.0.1:${USER_SERVER_PORT}/health" 2>/dev/null || true)
+    if printf '%s' "$_hc_body" | grep -Eq '"status"[[:space:]]*:[[:space:]]*"ok"' \
+        && ! printf '%s' "$_hc_body" | grep -Eq '"status"[[:space:]]*:[[:space:]]*"degraded"'; then
         log "user-server 已就绪"
         break
     fi
-    [ $i -eq 60 ] && { err "user-server 健康检查超时"; exit 1; }
+    [ $i -eq 60 ] && { err "user-server 健康检查超时（60 次内未拿到 \"status\":\"ok\" 的 /health 响应）"; exit 1; }
     sleep 2
 done
 

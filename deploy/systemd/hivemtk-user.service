@@ -1,0 +1,35 @@
+# =============================================================
+# HiveMtk 用户端 user-server —— systemd 守护 unit 模板
+#
+# 安装方式（unit 名按站点自定，下面的文件名只是建议名）：
+#   cp deploy/systemd/hivemtk-user.service /etc/systemd/system/hivemtk-user.service
+#   systemctl daemon-reload
+#   systemctl enable --now hivemtk-user.service
+#   journalctl -u hivemtk-user.service -f      # 日志走 stdout → journald（无 nohup 重定向文件）
+#   systemctl restart hivemtk-user.service     # 重启（scripts/deploy-user.sh 检测到本 unit
+#                                              #  已 enable 时会自动走这条，跳过 nohup 段）
+#
+# 「unit 名按站点自定」口径与 docs/operations/Bridge_Runbook.md §1.4 一致：
+# systemd 生产部署时 unit 名以站点自己的部署为准，本仓只提供模板。
+#
+# 路径按站点调整：WorkingDirectory 是部署目录（含 bin/、logs/、config.yaml 读取基准），
+# ExecStart 里 source 的 .env 是**部署根** .env —— 与 scripts/deploy-user.sh nohup 路径
+# 同语义（DB 口令 / JWT / PORT 等都从部署根 .env 来）。
+# =============================================================
+[Unit]
+Description=HiveMtk user-server
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+# 部署目录（含 bin/ 与 logs/）——按站点改
+WorkingDirectory=/www/wwwroot/hivemtk/user-server
+# 与 deploy-user.sh 的 nohup 启动同语义：source 部署根 .env 后 exec 二进制；
+# 监听地址/端口由 .env 的 SERVER_HOST / PORT 决定（resolveListenAddr）。
+ExecStart=/bin/bash -c 'set -a; source /www/wwwroot/hivemtk/.env; set +a; exec ./bin/user-server'
+Restart=always
+RestartSec=3
+
+[Install]
+WantedBy=multi-user.target

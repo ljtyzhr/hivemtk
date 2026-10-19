@@ -22,8 +22,10 @@ BASE="${BASE:-http://127.0.0.1:8204}"
 set -a; . ./.env; set +a       # PG 口令与端口都要这里的值（.env 里的实际键名见下一行）
 
 # 端口：.env 里 USER_POSTGRES_HOST_PORT=8232 已把 compose 的 8202 默认覆盖掉（口径见文档 §1.2），
-# 所以这里先读它、再退 DB_PORT、最后才是 8232；写在 . 之前会被 .env 覆盖，等于白设。
-PGPORT="${PGPORT:-${USER_POSTGRES_HOST_PORT:-${DB_PORT:-8232}}}"
+# 所以这里先读它、再退 DB_PORT、最后才是 8202；写在 . 之前会被 .env 覆盖，等于白设。
+# 最后一档必须与 scripts/bootstrap.sh:68 的链同值（三段式同源）：旧值写死 8232 是宿主机
+# 直连 Dev 档的覆盖值，会让默认 Docker 档（8202）的验收连错端口。
+PGPORT="${PGPORT:-${USER_POSTGRES_HOST_PORT:-${DB_PORT:-8202}}}"
 
 # admin 口令：必须跟 seed 写入时用的是同一条链，顺序照抄不许自己排 ——
 # scripts/bootstrap.sh:63 是 SEED_PASSWORD > ADMIN_PASSWORD > 公开默认值（下一行再把结果回灌给
@@ -44,21 +46,37 @@ fi
 
 echo "=== 部署后验收（PG 口 ${PGPORT} / API ${BASE}）==="
 
-# 1. 健康检查：/health 探 DB+Redis，任一不可用即 503 ⇒ curl -f 会红
+# 1. 健康检查：/health 探 DB+Redis。不能只看 HTTP 状态码：/health 的降级分支走
+#    response.ErrorWithBusinessCode，HTTP 仍是 200、body 带 "status":"degraded"（假绿）。
+#    判定=响应体含 "status":"ok" 且不含 degraded（口径与 scripts/deploy-user.sh probe_ok 一致）。
 echo "[1/5] 健康检查..."
-curl -sf "$BASE/health" >/dev/null || { echo "❌ 健康检查失败：$BASE/health 不是 200（先核 user-server 进程与 DB/Redis）" && exit 1; }
+HEALTH_BODY=$(curl -sS "$BASE/health" 2>/dev/null || true)
+if ! printf '%s' "$HEALTH_BODY" | grep -Eq '"status"[[:space:]]*:[[:space:]]*"ok"'; then
+  echo "❌ 健康检查失败：$BASE/health 无 \"status\":\"ok\"（先核 user-server 进程与 DB/Redis；响应：$(printf '%s' "$HEALTH_BODY" | head -c 200)）"
+  exit 1
+fi
+if printf '%s' "$HEALTH_BODY" | grep -Eq '"status"[[:space:]]*:[[:space:]]*"degraded"'; then
+  echo "❌ 健康检查降级：$BASE/health 返回 degraded（HTTP 200 但依赖不全，见响应体 checks）"
+  exit 1
+fi
+
+# 部署版本指纹（deploy-user.sh 发布成功后写入；缺失时不阻断验收）
+if [ -f user-server/.deploy-version ]; then
+  echo "📋 部署版本：$(cat user-server/.deploy-version)"
+fi
 
 # 2. 表结构验证
 #    这三格取值都是 `VAR=$(...)`：命令本身失败（psql 连不上 / curl 连不上）在 set -e 下会
 #    直接静默退出，屏幕上没有红因 ⇒ 每格都挂一个"取值失败"分支，把"环境不通"与"判据不过"分开。
 echo "[2/5] 数据库表验证..."
-TABLES=$(PGPASSWORD="$POSTGRES_PASSWORD" psql -h 127.0.0.1 -p "$PGPORT" -U admin -d user_db -tAc "SELECT count(*) FROM information_schema.tables WHERE table_name IN ('knowledge_bases', 'agent_kb_bindings');") \
+# 库名/用户不再写字面量：与 .env 的 POSTGRES_USER / USER_DB_NAME 同源（.env 已在文件头 source）
+TABLES=$(PGPASSWORD="$POSTGRES_PASSWORD" psql -h 127.0.0.1 -p "$PGPORT" -U "${POSTGRES_USER:-admin}" -d "${USER_DB_NAME:-user_db}" -tAc "SELECT count(*) FROM information_schema.tables WHERE table_name IN ('knowledge_bases', 'agent_kb_bindings');") \
   || { echo "❌ psql 取数失败：连不上 127.0.0.1:${PGPORT} 或口令不对（先核 ${PGPORT} 上有没有 PG 在听）"; exit 1; }
 [ "$TABLES" -eq 2 ] || { echo "❌ 缺少表 (期望 2, 实际 $TABLES)" && exit 1; }
 
 # 3. 索引验证（下界取 10 的依据＝本机活库实测 12 条，两表各 6，全名单见文档 §2.4）
 echo "[3/5] 索引验证..."
-INDEXES=$(PGPASSWORD="$POSTGRES_PASSWORD" psql -h 127.0.0.1 -p "$PGPORT" -U admin -d user_db -tAc "SELECT count(*) FROM pg_indexes WHERE tablename IN ('knowledge_bases', 'agent_kb_bindings');") \
+INDEXES=$(PGPASSWORD="$POSTGRES_PASSWORD" psql -h 127.0.0.1 -p "$PGPORT" -U "${POSTGRES_USER:-admin}" -d "${USER_DB_NAME:-user_db}" -tAc "SELECT count(*) FROM pg_indexes WHERE tablename IN ('knowledge_bases', 'agent_kb_bindings');") \
   || { echo "❌ psql 取数失败：连不上 127.0.0.1:${PGPORT} 或口令不对"; exit 1; }
 [ "$INDEXES" -ge 10 ] || { echo "❌ 索引数过少 (期望 ≥10, 实际 $INDEXES)" && exit 1; }
 

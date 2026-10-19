@@ -262,16 +262,22 @@ cd "$REMOTE_DEPLOY_DIR" && set -a && source .env && set +a && cd platform-server
 
 ### 5.7 已知坑速查
 
-1. `.env` 全部 gitignore → 发布手工带；`.env-example` 缺 `MASTER_KEY`/`SEED_PASSWORD`。
-2. `make up/down/restart` 等旧目标**无规则**，退出 0 但什么都不做。
+1. `.env` 全部 gitignore → 发布手工带；`.env-example` 缺 `MASTER_KEY`/`SEED_PASSWORD`（已补进 .env-example）。
+2. `make up/down/restart` 等旧目标**无规则**，退出 0 但什么都不做（已改：敲了显式 exit 1 并提示用 db-up/db-down/db-logs）。
 3. `config.yaml security.jwt_secret` 与 `.env JWT_EXPIRE` **无代码读取点**，配了无效。
 4. 编号 SQL（002~058）**Go 不自动执行**；建表主通道是 AutoMigrate + 首次 init SQL。
-5. 无 systemd / 无生效 nginx / 无 CI 部署——守护与反代站点自建（仓内只有模板）。
+5. 无 systemd / 无生效 nginx / 无 CI 部署——守护与反代站点自建（仓内只有模板；已新增 deploy/systemd/* 模板）。
 6. 旧云端已退役，`DEPLOY_HOST` 无默认值。
 7. `FIELD_ENCRYPTION_KEY` 不可直接轮换；超管口令有 DB 触发器守卫，必须用 `rotate-admin-password.sh`。
 8. `ONEID_SALT` 必须在有客户数据前定，改值存量全错位。
 9. user-server 实际会托管 `../user-web/dist`（`embed_static_routes.go`），与 `DEPLOYMENT_GUIDE.md` §5"不含静态托管段"**存在文档漂移**。
 10. 平台端 `platform-ci.yml` 从未执行（Gitee 仓、GitHub workflow），**别把绿勾当质量门**。
+11. 健康检查假绿 → 已改硬失败（SKIP_HEALTHCHECK 逃生）。
+12. 备份不可用 → 已修 make db-backup/-restore 且发布前自动备份。
+13. pkill 误杀 → 两端已防护。
+14. 无守护 → 新增 deploy/systemd/* 模板。
+15. MASTER_KEY/SEED_PASSWORD 缺失 → 已补进 .env-example。
+16. 跨仓漂移：scripts/check-cross-repo-drift.sh。
 
 ---
 

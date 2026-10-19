@@ -132,6 +132,8 @@ docs/superpowers/specs/ledger/logs/*
 
 # ---------- 运行时产物（PID / 进程日志）----------
 .runtime/
+# 发布版本指纹（deploy-user.sh 发布成功后写入，post_deploy_check.sh 读取展示）
+user-server/.deploy-version
 
 # ---------- 编辑器 / IDE ----------
 .vscode/
@@ -271,6 +273,8 @@ docker-compose.override.yml
 *.backup
 *.bak.*
 backups/
+# make db-backup 产出的 SQL 备份（同目录散落，不入库）
+backup_*.sql
 
 # ---------- 编译产物（通用）----------
 main

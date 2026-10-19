@@ -174,10 +174,11 @@ make web-build     # cd user-web && npm install && npm run build
 make sdk-build     # 可选：构建 embed-sdk 网页挂件
 
 # 启动后端（前台运行便于首次观察日志）
-cd user-server && ./bin/user-server
+cd user-server && set -a; source ../.env; set +a; ./bin/user-server
+# 或使用 deploy/systemd/hivemtk-user.service 模板注册守护进程
 ```
 
-前端构建产物（`user-web/dist`）部署到 Nginx 或任意静态服务器即可，user-server 当前配置中不含静态托管段。
+前端构建产物（`user-web/dist`）可由 user-server 直接托管（`embed_static_routes.go`，路径 `../user-web/dist`），也可部署到 Nginx 或任意静态服务器。
 
 ### 第 6 步：验证
 
