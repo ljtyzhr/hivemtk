@@ -8,17 +8,27 @@ import (
 	"gorm.io/gorm/clause"
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/db"
+	"hivemtk-user/internal/pkg/tenant"
 )
 
-// TenantSubscriptionMirrorRepository 订阅镜像仓储（部署级单行）。
+// TenantSubscriptionMirrorRepository 订阅镜像仓储（每租户一行，id=tenant_id）。
 //
-// 表无 tenant_id（003 修订 #4：sync 跑 SystemScope，带 tenant_id 必踩默认
-// 租户串写坑）—— 读写直接走 DB，不经租户隔离 callback 的过滤列改写。
+// 多租户修正（003 生产联调）：001 迁移给全表加了 tenant_id 且 tenancyidx 注入
+// 生效 —— 旧行锚 id=1 在第二个租户出现后读写全错。行锚改为 ctx 租户 id，
+// off 模式回落 DefaultTenantID=1 与旧版逐字节一致。
 type TenantSubscriptionMirrorRepository interface {
-	// Get 读单行；无行返回 (nil, nil)（fail-open 判定的输入）。
+	// Get 读当前租户单行；无行返回 (nil, nil)（fail-open 判定的输入）。
 	Get(ctx context.Context) (*model.TenantSubscriptionMirror, error)
-	// Upsert 幂等写单行（按 id=1 ON CONFLICT 更新）。
+	// Upsert 幂等写当前租户单行（按 id=tenant_id ON CONFLICT 更新）。
 	Upsert(ctx context.Context, row *model.TenantSubscriptionMirror) error
+}
+
+// mirrorTid 行锚租户：ctx 绑定优先，无绑定（off 模式 / SystemScope）回落默认租户。
+func mirrorTid(ctx context.Context) uint {
+	if id, ok := tenant.FromContext(ctx); ok && id > 0 {
+		return id
+	}
+	return tenant.DefaultTenantID
 }
 
 type tenantSubscriptionMirrorRepo struct{ db *gorm.DB }
@@ -38,7 +48,7 @@ func (r *tenantSubscriptionMirrorRepo) Get(ctx context.Context) (*model.TenantSu
 		return nil, errors.New("db is nil")
 	}
 	var row model.TenantSubscriptionMirror
-	err := r.db.WithContext(ctx).Where("id = ?", model.MirrorRowID).First(&row).Error
+	err := r.db.WithContext(ctx).Where("id = ?", mirrorTid(ctx)).First(&row).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
 	}
@@ -55,7 +65,9 @@ func (r *tenantSubscriptionMirrorRepo) Upsert(ctx context.Context, row *model.Te
 	if row == nil {
 		return errors.New("row is nil")
 	}
-	row.ID = model.MirrorRowID
+	tid := mirrorTid(ctx)
+	row.ID = tid
+	row.TenantID = tid
 	return r.db.WithContext(ctx).Clauses(clause.OnConflict{
 		Columns: []clause.Column{{Name: "id"}},
 		DoUpdates: clause.AssignmentColumns([]string{

@@ -50,7 +50,6 @@ func (s *SubscriptionMirrorService) SaveFromSnapshot(ctx context.Context, sub *p
 	}
 	now := time.Now()
 	row := &model.TenantSubscriptionMirror{
-		ID:         model.MirrorRowID,
 		Status:     sub.Status,
 		PriceCents: sub.PriceCents,
 		FetchedAt:  now,

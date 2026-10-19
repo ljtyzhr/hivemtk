@@ -100,8 +100,14 @@ inference:
     allow_fallback: false
   rerank:
     mode: local
-    base_url: "http://127.0.0.1:8209/v1"
-    model: "bge-reranker-v2-m3"
+    # base_url/model 可用环境变量覆盖（${VAR:default} 语法，config 加载时 expandEnvWithDefault 展开）：
+    #   RERANK_BASE_URL / RERANK_MODEL；api_key 走 env RERANK_API_KEY，protocol 走 env RERANK_PROTOCOL
+    #   （dashscope 原生 text-rerank 端点示例：
+    #    RERANK_PROTOCOL=dashscope
+    #    RERANK_BASE_URL=https://dashscope.aliyuncs.com/api/v1/services/rerank/text-rerank/text-rerank
+    #    RERANK_MODEL=qwen3-rerank  RERANK_API_KEY=sk-...）。
+    base_url: "${RERANK_BASE_URL:http://127.0.0.1:8209/v1}"
+    model: "${RERANK_MODEL:bge-reranker-v2-m3}"
     enabled: true
   llm:
     # 2026-09-10：本地 llama-server(8207) 已下线省资源，LLM 统一走 freeapi 线上网关。

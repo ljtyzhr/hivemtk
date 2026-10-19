@@ -23,12 +23,20 @@ const (
 	SubscriptionStatusExpired = "expired" // 已到期（业务面锁定）
 )
 
-// TenantSubscriptionMirror 订阅镜像（部署级单行，主键恒为 1）
+// TenantSubscriptionMirror 订阅镜像（每租户一行，id = tenant_id）。
+//
+// 多租户修正（003 生产联调）：001 迁移给全表都加了 tenant_id 列且 tenancyidx
+// 对本表生效注入 —— 旧"部署级单行 id=1"设计在第二个租户出现时读写全错
+// （写撞主键、读 WHERE id=1 AND tenant_id=N 恒空）。改为 id=tenant_id 每租户
+// 一行；off 模式回落 DefaultTenantID=1，行为与旧版一致。
 type TenantSubscriptionMirror struct {
-	// ID 恒为 1：单行表的行锚，Upsert 按它 ON CONFLICT。
+	// ID 行锚 = tenant_id（on 模式），off 模式恒 1。
 	// 不加 default tag：显式迁移 DDL 已带 DEFAULT 1，模型再声明会与
 	// AutoMigrate 撞出 "multiple default values"（42601）。
 	ID uint `gorm:"primaryKey" json:"id"`
+
+	// TenantID 所属租户（001 迁移已加列；显式建模让读写与 tenancyidx 注入同值）
+	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
 
 	// Status trial|active|expired —— **缓存列**，权威 = CurrentStatus() 惰性判定
 	Status string `gorm:"type:varchar(16);not null;default:''" json:"status"`
@@ -48,9 +56,6 @@ type TenantSubscriptionMirror struct {
 }
 
 func (TenantSubscriptionMirror) TableName() string { return "tenant_subscription_mirror" }
-
-// MirrorRowID 单行表的行锚
-const MirrorRowID uint = 1
 
 // HasPeriodData 镜像是否携带任何可用于判定的到期数据。
 // false = 从未同步到订阅段（fail-open 放行，修订 #2 唯一的 fail-open 情形）。

@@ -12,8 +12,8 @@ import (
 	"hivemtk-user/internal/config"
 	bizerr "hivemtk-user/internal/domain/errors"
 	"hivemtk-user/internal/model"
-	"hivemtk-user/internal/platform"
 	"hivemtk-user/internal/pkg/tenant"
+	"hivemtk-user/internal/platform"
 	"hivemtk-user/internal/repository"
 )
 

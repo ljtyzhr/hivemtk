@@ -55,7 +55,14 @@ func embeddingStatus() (string, string) {
 	host := u.Hostname()
 	port := u.Port()
 	if port == "" {
-		port = "8208"
+		// URL 未显式带端口时按 scheme 取默认端口（https→443、http→80），
+		// 不能再硬编码 8208——否则云端 embedding URL（如 https://dashscope.aliyuncs.com/...）
+		// 会被误探 8208 端口而误报 down。本地配置都带显式端口（:8208），行为不受影响。
+		if u.Scheme == "https" {
+			port = "443"
+		} else {
+			port = "80"
+		}
 	}
 	conn, err := net.DialTimeout("tcp", net.JoinHostPort(host, port), 2*time.Second)
 	if err != nil {

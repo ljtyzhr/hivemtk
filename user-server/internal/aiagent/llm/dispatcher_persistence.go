@@ -1,12 +1,14 @@
 package llm
 
 import (
+	"context"
 	"encoding/json"
 	"strings"
 	"time"
 
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/db"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/secrets"
 
@@ -20,14 +22,26 @@ func providerDB() *gorm.DB {
 	return db.GetDB()
 }
 
+// systemScopeCtx 返回平台级操作的 ctx。
+//
+// 启动期/后台加载 provider 注册表与路由表没有 HTTP 请求上下文可绑，
+// TENANT_MODE=on 时隔离 callback 会 fail-closed 拒绝（"需要租户上下文但 ctx 未绑定"）。
+// 这类「装配层加载」与 migration/备份/健康检查同类，走 tenant.WithSystemScope
+// 这条唯一豁免通道；不放宽任何带请求 ctx 的 HTTP 路径的隔离。
+func systemScopeCtx() context.Context {
+	return tenant.WithSystemScope(context.Background())
+}
+
 func (d *Dispatcher) LoadProvidersFromDB() error {
 	g := providerDB()
 	if g == nil {
 		logger.Warnf("[LLM] LoadProvidersFromDB: db 未就绪，跳过从库加载 provider")
 		return nil
 	}
+	// 启动期读路径：无租户 ctx，system scope 豁免（详见 systemScopeCtx 注释）
+	sysCtx := systemScopeCtx()
 	var rows []model.LLMProvider
-	if err := g.Order("sort_order ASC, id ASC").Find(&rows).Error; err != nil {
+	if err := g.WithContext(sysCtx).Order("sort_order ASC, id ASC").Find(&rows).Error; err != nil {
 		return err
 	}
 
@@ -36,7 +50,8 @@ func (d *Dispatcher) LoadProvidersFromDB() error {
 		for i := range rows {
 			if rows[i].APIKey != "" && !secrets.IsCiphertextFormat(rows[i].APIKey) {
 				rows[i].APIKey = encryptAPIKeyForStorage(rows[i].APIKey)
-				if err := g.Model(&model.LLMProvider{}).Where("id = ?", rows[i].ID).
+				// 存量加密迁移同样是启动期后台写（不来自 HTTP 请求），同走 system scope
+				if err := g.WithContext(sysCtx).Model(&model.LLMProvider{}).Where("id = ?", rows[i].ID).
 					Update("api_key", rows[i].APIKey).Error; err == nil {
 					migrated++
 				} else {
@@ -101,7 +116,8 @@ func (d *Dispatcher) LoadRoutesFromDB() error {
 		return nil
 	}
 	var rows []model.LLMRoutingRule
-	if err := g.Find(&rows).Error; err != nil {
+	// 启动期读路径：与 LoadProvidersFromDB 同理，system scope 豁免
+	if err := g.WithContext(systemScopeCtx()).Find(&rows).Error; err != nil {
 		logger.Errorf("[LLM] LoadRoutesFromDB 查询失败: %v", err)
 		return err
 	}

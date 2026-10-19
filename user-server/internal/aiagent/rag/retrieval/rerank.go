@@ -43,6 +43,9 @@ type RerankConfig struct {
 	Enabled    bool
 	Timeout    int
 	MaxRetries int
+	// Protocol 重排协议：空或 "openai" = OpenAI 兼容 /v1/rerank（现状）；
+	// "dashscope" = DashScope 原生 text-rerank 端点（BaseURL 即完整端点路径，不做 /v1 补齐）
+	Protocol string
 }
 
 // LocalReranker 基于本地推理服务的重排实现（OpenAI 兼容 /v1/rerank）
@@ -110,6 +113,7 @@ func DefaultRerankConfig() *RerankConfig {
 	baseURL := fileCfg.BaseURL
 	model := fileCfg.Model
 	apiKey := fileCfg.APIKey
+	protocol := fileCfg.Protocol
 	enabled := true
 	if baseURL != "" && !fileCfg.Enabled {
 		enabled = false
@@ -121,6 +125,10 @@ func DefaultRerankConfig() *RerankConfig {
 	if model == "" {
 		model = os.Getenv("RERANK_MODEL")
 	}
+	if protocol == "" {
+		protocol = os.Getenv("RERANK_PROTOCOL")
+	}
+	protocol = strings.ToLower(strings.TrimSpace(protocol))
 	if v := strings.ToLower(strings.TrimSpace(os.Getenv("RERANK_ENABLED"))); v == "false" || v == "0" || v == "no" {
 		enabled = false
 	}
@@ -147,6 +155,7 @@ func DefaultRerankConfig() *RerankConfig {
 		Enabled:    enabled,
 		Timeout:    timeout,
 		MaxRetries: 2,
+		Protocol:   protocol,
 	}
 }
 
@@ -165,6 +174,58 @@ type rerankResponse struct {
 	Error *struct {
 		Message string `json:"message"`
 	} `json:"error,omitempty"`
+}
+
+// dashscopeProtocol 标识 DashScope 原生 text-rerank 协议（qwen3-rerank 等）
+const dashscopeProtocol = "dashscope"
+
+// isDashscopeProtocol 判断是否走 DashScope 原生协议（空 / openai 均为 OpenAI 兼容现状）
+func isDashscopeProtocol(protocol string) bool {
+	return strings.ToLower(strings.TrimSpace(protocol)) == dashscopeProtocol
+}
+
+// dashscopeRequest DashScope 原生请求体：
+// POST {base_url}/api/v1/services/rerank/text-rerank/text-rerank
+// {"model":"...","input":{"query":"...","documents":[...]},"parameters":{"return_documents":false}}
+type dashscopeRequest struct {
+	Model      string              `json:"model"`
+	Input      dashscopeInput      `json:"input"`
+	Parameters dashscopeParameters `json:"parameters"`
+}
+
+type dashscopeInput struct {
+	Query     string   `json:"query"`
+	Documents []string `json:"documents"`
+}
+
+type dashscopeParameters struct {
+	ReturnDocuments bool `json:"return_documents"`
+}
+
+// dashscopeResponse DashScope 原生响应体：
+// {"output":{"results":[{"index":0,"relevance_score":0.98}]},"code":"","message":""}
+type dashscopeResponse struct {
+	Output struct {
+		Results []struct {
+			Index          int     `json:"index"`
+			RelevanceScore float64 `json:"relevance_score"`
+		} `json:"results"`
+	} `json:"output"`
+	Code    string `json:"code"`
+	Message string `json:"message"`
+}
+
+// toRerankResponse 把 DashScope 原生响应转换成既有 rerankResponse 形状，
+// 使 mapRerankResults / normalizeRerankScores / rerankScoreFloor 等下游逻辑完全复用。
+// DashScope 分数为 0~1 概率域，normalizeRerankScores 会原样通过（无需特判）。
+//
+// 注：Results 元素是与 rerankResponse 中完全相同的匿名结构体
+// （字段名/类型/顺序/json tag 一致），类型相同故可直接赋值。
+func (ds *dashscopeResponse) toRerankResponse(model string) *rerankResponse {
+	return &rerankResponse{
+		Model:   model,
+		Results: ds.Output.Results,
+	}
 }
 
 // Rerank 调用本地推理服务（TEI 或 llama.cpp）的 /rerank 对候选文档重排
@@ -186,10 +247,19 @@ func (r *LocalReranker) Rerank(ctx context.Context, query string, docs []RerankD
 	}
 
 	baseURL := strings.TrimRight(cfg.BaseURL, "/")
-	if !strings.HasSuffix(baseURL, "/v1") && !strings.HasSuffix(baseURL, "/v1/") {
-		baseURL = baseURL + "/v1"
+	var endpoint string
+	if isDashscopeProtocol(cfg.Protocol) {
+		// DashScope 原生协议：base_url 即完整端点路径
+		// （如 https://dashscope.aliyuncs.com/api/v1/services/rerank/text-rerank/text-rerank），
+		// 不做 /v1 补齐、不再拼 /rerank。
+		endpoint = baseURL
+	} else {
+		// OpenAI 兼容 /v1/rerank：自动补齐 /v1（与 embedding_service.go 一致）
+		if !strings.HasSuffix(baseURL, "/v1") && !strings.HasSuffix(baseURL, "/v1/") {
+			baseURL = baseURL + "/v1"
+		}
+		endpoint = baseURL + "/rerank"
 	}
-	endpoint := baseURL + "/rerank"
 	timeout := time.Duration(cfg.Timeout) * time.Second
 	if timeout <= 0 {
 		timeout = 30 * time.Second
@@ -221,7 +291,18 @@ func (r *LocalReranker) Rerank(ctx context.Context, query string, docs []RerankD
 }
 
 func (r *LocalReranker) callOnce(ctx context.Context, endpoint string, timeout time.Duration, cfg *RerankConfig, query string, texts []string) (*rerankResponse, error) {
-	body, err := json.Marshal(rerankRequest{Model: cfg.Model, Query: query, Documents: texts})
+	dashscope := isDashscopeProtocol(cfg.Protocol)
+	var body []byte
+	var err error
+	if dashscope {
+		body, err = json.Marshal(dashscopeRequest{
+			Model:      cfg.Model,
+			Input:      dashscopeInput{Query: query, Documents: texts},
+			Parameters: dashscopeParameters{ReturnDocuments: false},
+		})
+	} else {
+		body, err = json.Marshal(rerankRequest{Model: cfg.Model, Query: query, Documents: texts})
+	}
 	if err != nil {
 		return nil, fmt.Errorf("marshal rerank request: %w", err)
 	}
@@ -232,6 +313,7 @@ func (r *LocalReranker) callOnce(ctx context.Context, endpoint string, timeout t
 		return nil, err
 	}
 	req.Header.Set("Content-Type", "application/json")
+	// 鉴权两种协议一致：Authorization: Bearer <key>
 	if strings.TrimSpace(cfg.APIKey) != "" {
 		req.Header.Set("Authorization", "Bearer "+cfg.APIKey)
 	}
@@ -248,6 +330,17 @@ func (r *LocalReranker) callOnce(ctx context.Context, endpoint string, timeout t
 	}
 	if resp.StatusCode != http.StatusOK {
 		return nil, fmt.Errorf("rerank API error status=%d body=%s", resp.StatusCode, string(respBody))
+	}
+
+	if dashscope {
+		var ds dashscopeResponse
+		if err := json.Unmarshal(respBody, &ds); err != nil {
+			return nil, fmt.Errorf("decode dashscope rerank response: %w (body=%s)", err, string(respBody))
+		}
+		if strings.TrimSpace(ds.Code) != "" {
+			return nil, fmt.Errorf("dashscope rerank API error code=%s message=%s", ds.Code, ds.Message)
+		}
+		return ds.toRerankResponse(cfg.Model), nil
 	}
 
 	var rr rerankResponse

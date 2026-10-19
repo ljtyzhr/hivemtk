@@ -207,6 +207,10 @@ type InferenceRerankConfig struct {
 	Model   string        `yaml:"model" json:"model"`
 	Enabled bool          `yaml:"enabled" json:"enabled"`
 	APIKey  string        `yaml:"api_key" json:"api_key"`
+	// Protocol 重排协议：空或 "openai" = OpenAI 兼容 /v1/rerank（现状）；
+	// "dashscope" = DashScope 原生 text-rerank 端点
+	// （POST {base_url}/api/v1/services/rerank/text-rerank/text-rerank，base_url 即完整端点路径）。
+	Protocol string `yaml:"protocol" json:"protocol"`
 }
 
 // InferenceLLMConfig 大语言模型配置
