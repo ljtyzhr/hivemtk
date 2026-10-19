@@ -125,7 +125,7 @@ func (s *KeywordService) MineKeywords(ctx context.Context, seedWords []string, m
 				break
 			}
 		}
-		if err := s.keywordRepo.Create(geoKW); err != nil {
+		if err := s.keywordRepo.Create(ctx, geoKW); err != nil {
 			failed++
 			continue
 		}
@@ -347,7 +347,7 @@ func (s *KeywordService) SemanticExpand(ctx context.Context, keywords []string, 
 				break
 			}
 		}
-		if err := s.keywordRepo.Create(geoKW); err != nil {
+		if err := s.keywordRepo.Create(ctx, geoKW); err != nil {
 			failed++
 			continue
 		}
@@ -432,7 +432,7 @@ func (s *KeywordService) TopicCluster(ctx context.Context, keywords []string, br
 		if name == "" || len(kws) == 0 {
 			continue
 		}
-		if _, uErr := s.keywordGroupRepo.UpsertByName(name, kws); uErr != nil {
+		if _, uErr := s.keywordGroupRepo.UpsertByName(ctx, name, kws); uErr != nil {
 			logger.Errorf("[GEO Keyword] 聚类分组持久化失败 name=%s err=%v", name, uErr)
 		}
 	}
@@ -481,12 +481,12 @@ func ruleBasedCluster(keywords []string) map[string][]string {
 
 // GetKeywordList 获取关键词列表（分页），layer 为漏斗层级过滤（seed/related/suggest/longtail）
 func (s *KeywordService) GetKeywordList(ctx context.Context, page, limit int, search, source, layer string) ([]*model.GeoKeyword, int64, error) {
-	return s.keywordRepo.GetList(search, "", source, "", "", layer, page, limit)
+	return s.keywordRepo.GetList(ctx, search, "", source, "", "", layer, page, limit)
 }
 
 // DeleteKeyword 删除关键词
 func (s *KeywordService) DeleteKeyword(ctx context.Context, id string) error {
-	return s.keywordRepo.Delete(id)
+	return s.keywordRepo.Delete(ctx, id)
 }
 
 func (s *KeywordService) recordAPICall(ctx context.Context, resp *LLMResult, purpose string) {
@@ -504,7 +504,7 @@ func (s *KeywordService) recordAPICall(ctx context.Context, resp *LLMResult, pur
 		Purpose:      purpose,
 		Status:       "success",
 	}
-	_ = s.apiCallRepo.Create(call)
+	_ = s.apiCallRepo.Create(ctx, call)
 }
 
 var jsonArrayRegex = regexp.MustCompile(`\[[\s\S]*\]`)

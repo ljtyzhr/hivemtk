@@ -110,20 +110,20 @@ func TestJobManager_UnknownJob(t *testing.T) {
 func TestJobManager_UpdateSchedule(t *testing.T) {
 	m, sched := newTestJobManager(t)
 
-	if err := m.UpdateSchedule(JobSOVRefresh, "0 30 2 * * *"); err == nil {
+	if err := m.UpdateSchedule(context.Background(), JobSOVRefresh, "0 30 2 * * *"); err == nil {
 		t.Fatal("调度器未初始化时应报错")
 	}
 
 	m.setup = true
 	m.sched = sched
-	if err := m.UpdateSchedule(JobSOVRefresh, "0 30 2 * * *"); err != nil {
+	if err := m.UpdateSchedule(context.Background(), JobSOVRefresh, "0 30 2 * * *"); err != nil {
 		t.Fatalf("UpdateSchedule failed: %v", err)
 	}
 	if m.specs[JobSOVRefresh] != "0 30 2 * * *" {
 		t.Fatalf("spec 未生效: %s", m.specs[JobSOVRefresh])
 	}
 
-	cfg, err := m.cfgRepo.Get()
+	cfg, err := m.cfgRepo.Get(context.Background())
 	if err != nil {
 		t.Fatalf("读取配置失败: %v", err)
 	}
@@ -131,11 +131,11 @@ func TestJobManager_UpdateSchedule(t *testing.T) {
 		t.Fatalf("CronSpecs 未持久化: %q", cfg.CronSpecs)
 	}
 
-	if err := m.UpdateSchedule(JobSOVRefresh, "invalid spec"); err == nil {
+	if err := m.UpdateSchedule(context.Background(), JobSOVRefresh, "invalid spec"); err == nil {
 		t.Fatal("非法 cron 表达式应报错")
 	}
 
-	if err := m.UpdateSchedule("not_exist", "0 30 2 * * *"); err == nil {
+	if err := m.UpdateSchedule(context.Background(), "not_exist", "0 30 2 * * *"); err == nil {
 		t.Fatal("未知任务应报错")
 	}
 }

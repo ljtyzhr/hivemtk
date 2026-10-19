@@ -40,13 +40,13 @@ func (s *KBService) Save(ctx context.Context, req *dto.SaveKnowledgeDocumentRequ
 	}
 
 	if req.ID != "" {
-		existing, err := s.docRepo.GetByID(req.ID)
+		existing, err := s.docRepo.GetByID(ctx, req.ID)
 		if err == nil {
 			existing.Title = req.Title
 			existing.Content = req.Content
 			existing.DocType = req.DocType
 			existing.Metadata = metadataJSON
-			if err := s.docRepo.Update(existing); err != nil {
+			if err := s.docRepo.Update(ctx, existing); err != nil {
 				return nil, err
 			}
 			return existing, nil
@@ -61,7 +61,7 @@ func (s *KBService) Save(ctx context.Context, req *dto.SaveKnowledgeDocumentRequ
 		DocType:  req.DocType,
 		Metadata: metadataJSON,
 	}
-	if err := s.docRepo.Create(doc); err != nil {
+	if err := s.docRepo.Create(ctx, doc); err != nil {
 		return nil, err
 	}
 	return doc, nil
@@ -69,17 +69,17 @@ func (s *KBService) Save(ctx context.Context, req *dto.SaveKnowledgeDocumentRequ
 
 // Get 获取文档详情
 func (s *KBService) Get(ctx context.Context, id string) (*model.GeoKnowledgeDocument, error) {
-	return s.docRepo.GetByID(id)
+	return s.docRepo.GetByID(ctx, id)
 }
 
 // List 文档列表
 func (s *KBService) List(ctx context.Context) ([]*model.GeoKnowledgeDocument, error) {
-	return s.docRepo.GetList()
+	return s.docRepo.GetList(ctx)
 }
 
 // Delete 删除文档
 func (s *KBService) Delete(ctx context.Context, id string) error {
-	return s.docRepo.Delete(id)
+	return s.docRepo.Delete(ctx, id)
 }
 
 // Search 关键词检索（标题命中 0.6 + 内容命中 0.4，迁移自 AIGEOTOOLS keyword fallback 路径）
@@ -87,7 +87,7 @@ func (s *KBService) Search(ctx context.Context, q string, limit int) ([]*dto.KBS
 	if limit <= 0 {
 		limit = 10
 	}
-	docs, err := s.docRepo.GetList()
+	docs, err := s.docRepo.GetList(ctx)
 	if err != nil {
 		return nil, err
 	}

@@ -34,16 +34,16 @@ func NewSmsUnsubscribeRepository(db *gorm.DB) SmsUnsubscribeRepository {
 }
 
 func (r *smsUnsubscribeRepo) Create(ctx context.Context, record *model.SmsUnsubscribe) error {
-	return r.db.Create(record).Error
+	return r.db.WithContext(ctx).Create(record).Error
 }
 
 func (r *smsUnsubscribeRepo) Update(ctx context.Context, record *model.SmsUnsubscribe) error {
-	return r.db.Save(record).Error
+	return r.db.WithContext(ctx).Save(record).Error
 }
 
 func (r *smsUnsubscribeRepo) GetByPhone(ctx context.Context, phone string) (*model.SmsUnsubscribe, error) {
 	var record model.SmsUnsubscribe
-	err := r.db.Where("phone = ?", phone).First(&record).Error
+	err := r.db.WithContext(ctx).Where("phone = ?", phone).First(&record).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -55,7 +55,7 @@ func (r *smsUnsubscribeRepo) GetByPhone(ctx context.Context, phone string) (*mod
 
 func (r *smsUnsubscribeRepo) ExistsByPhone(ctx context.Context, phone string) (bool, error) {
 	var count int64
-	err := r.db.Model(&model.SmsUnsubscribe{}).Where("phone = ?", phone).Count(&count).Error
+	err := r.db.WithContext(ctx).Model(&model.SmsUnsubscribe{}).Where("phone = ?", phone).Count(&count).Error
 	if err != nil {
 		return false, err
 	}
@@ -63,14 +63,14 @@ func (r *smsUnsubscribeRepo) ExistsByPhone(ctx context.Context, phone string) (b
 }
 
 func (r *smsUnsubscribeRepo) DeleteByPhone(ctx context.Context, phone string) error {
-	return r.db.Where("phone = ?", phone).Delete(&model.SmsUnsubscribe{}).Error
+	return r.db.WithContext(ctx).Where("phone = ?", phone).Delete(&model.SmsUnsubscribe{}).Error
 }
 
 func (r *smsUnsubscribeRepo) List(ctx context.Context, page, limit int, keyword string) ([]*model.SmsUnsubscribe, int64, error) {
 	var records []*model.SmsUnsubscribe
 	var total int64
 
-	query := r.db.Model(&model.SmsUnsubscribe{})
+	query := r.db.WithContext(ctx).Model(&model.SmsUnsubscribe{})
 	if keyword != "" {
 		like := "%" + keyword + "%"
 		query = query.Where("phone LIKE ? OR reason LIKE ? OR keyword_matched LIKE ?", like, like, like)
@@ -89,7 +89,7 @@ func (r *smsUnsubscribeRepo) List(ctx context.Context, page, limit int, keyword 
 
 func (r *smsUnsubscribeRepo) ListAll(ctx context.Context) ([]*model.SmsUnsubscribe, error) {
 	var records []*model.SmsUnsubscribe
-	if err := r.db.Order("unsubscribed_at DESC").Find(&records).Error; err != nil {
+	if err := r.db.WithContext(ctx).Order("unsubscribed_at DESC").Find(&records).Error; err != nil {
 		return nil, err
 	}
 	return records, nil

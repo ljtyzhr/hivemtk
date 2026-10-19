@@ -38,8 +38,11 @@ func (r *GlossaryRepository) SetDB(_ context.Context, db *gorm.DB) {
 }
 
 // GetDB 返回内部 db（用于测试与子事务透传）。
-func (r *GlossaryRepository) GetDB(_ context.Context) *gorm.DB {
-	return r.db
+func (r *GlossaryRepository) GetDB(ctx context.Context) *gorm.DB {
+	if r.db == nil {
+		return nil
+	}
+	return r.db.WithContext(ctx)
 }
 
 // Create 创建术语。

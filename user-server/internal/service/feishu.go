@@ -26,6 +26,7 @@ import (
 	"hivemtk-user/internal/channelbot/whatsapp"
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/httpclient"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/tgbot"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/logger"
@@ -493,14 +494,18 @@ func (s *TelegramService) CreateAccount(ctx context.Context, acc *model.Telegram
 				now := time.Now()
 				acc.LastErrorAt = &now
 				acc.LastErrorMsg = err.Error()
-				_ = s.accRepo.Update(context.Background(), acc)
+				// 行自证（specs/001-saas-multi-tenant T027）：本协程是 HTTP 建号请求的收尾，
+				// 脱离了请求 ctx，但账号行刚创建、acc.TenantID 已由 on 模式隔离 callback 填好
+				//（off 模式为 0 → WithTenantID 原样返回，行为与历史版本等价）。裸
+				// context.Background() 在 TENANT_MODE=on 下这次 Update 会被 fail-closed 拒绝。
+				_ = s.accRepo.Update(tenant.WithTenantID(context.Background(), acc.TenantID), acc)
 			} else {
 				logger.Infof("[TG] 账号 %d(%s) 异步 setWebhook 成功: %s", acc.ID, acc.AccountName, acc.WebhookURL)
 				now := time.Now()
 				acc.LastSyncAt = &now
 				acc.LastErrorAt = nil
 				acc.LastErrorMsg = ""
-				_ = s.accRepo.Update(context.Background(), acc)
+				_ = s.accRepo.Update(tenant.WithTenantID(context.Background(), acc.TenantID), acc)
 			}
 		})
 	} else {

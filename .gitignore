@@ -1,94 +1,53 @@
-# ============================================================
-# 用户端 (HiveMtk) - .gitignore
-# 私域独立部署仓库（2026-07-21 拆分）
-# ============================================================
 
-# ---------- 依赖 ----------
-node_modules/
-vendor/
 __pycache__/
-*.pyc
-*.pyo
-
-# ---------- 环境配置（含敏感信息）----------
-.env
-.env.local
-.env.*.local
-*.env
-# 说明：.env 为本地真实配置（忽略）；.env-example 为示例模板，纳入版本追踪。
-# 例外：推理栈模型定义文件（非敏感配置，需纳入版本追踪）
-!scripts/inference-host/models.env
-
-# ---------- 日志 ----------
-logs/
-*.log
-npm-debug.log*
-yarn-debug.log*
-yarn-error.log*
-.workbuddy-ai/*
-# 例外：审计变异电池的逐格取证产物要能在仓库里找回（读数见 CHANNEL_INTEGRATION_AUDIT_2026-09 §23.19 第 1-补 段）。
-# 四条一组的写法是 gitignore 语义逼出来的：① 父目录被 `logs/` 排除时，对其内任何 `!` 规则都不生效，
-# 所以先放行 `logs` 本身；② 一放行，该树下**别的泳道/别的轮次**的目录（共享树现数 18 个，含 .txt/.md/bak/*.orig 残本）
-# 会一起变成可跟踪 ⇒ 再用 `logs/*` 把直接子项整体挡回；③ 逐个放行本泳道自己的轮次（**一对两轮次目录行，一放行一轮**；
-# 轮数这里刻意不写死：它随每批新轮次涨，写死必漂——本行原写"当前 10 轮"，而放行清单加到 `CIwiring` 时磁盘已是 11 轮，
-# 那个 10 就是这么过期的。要现数就 `grep -c '^!docs.*logs/[^*]*/$' .gitignore`，与 `ls docs/.../ledger/logs | wc -l` 对齐。
-# 加行仍按老规矩：新轮次由跑它的那一批自己加两行，本批不代签别人）；
-# ④ 最后按 `*.log` 放行格产物（白名单是"轮次目录"而不是后缀：这些目录内的非 .log 也会入库）。
-# 运行时日志（仓库任意其他 logs/ 目录与其他位置的 *.log）不受这四条影响。
+!**/dist/.gitkeep
+!docs/screenshots/screenshot-*.png
 !docs/superpowers/specs/ledger/logs/
-docs/superpowers/specs/ledger/logs/*
-!docs/superpowers/specs/ledger/logs/R30/
-!docs/superpowers/specs/ledger/logs/R30/**/*.log
-!docs/superpowers/specs/ledger/logs/R28/
-!docs/superpowers/specs/ledger/logs/R28/**/*.log
+!docs/superpowers/specs/ledger/logs/AiTrigger/
+!docs/superpowers/specs/ledger/logs/AiTrigger/**/*.log
+!docs/superpowers/specs/ledger/logs/b-phase/
+!docs/superpowers/specs/ledger/logs/b-phase/**/*.log
 !docs/superpowers/specs/ledger/logs/B16ledger/
 !docs/superpowers/specs/ledger/logs/B16ledger/**/*.log
 !docs/superpowers/specs/ledger/logs/B16ledgerB/
 !docs/superpowers/specs/ledger/logs/B16ledgerB/**/*.log
 !docs/superpowers/specs/ledger/logs/B16ledgerC/
 !docs/superpowers/specs/ledger/logs/B16ledgerC/**/*.log
+!docs/superpowers/specs/ledger/logs/B17action/
+!docs/superpowers/specs/ledger/logs/B17action/**/*.log
+!docs/superpowers/specs/ledger/logs/B24sendverify/
+!docs/superpowers/specs/ledger/logs/B24sendverify/**/*.log
+!docs/superpowers/specs/ledger/logs/c-phase/
+!docs/superpowers/specs/ledger/logs/c-phase/**/*.log
+!docs/superpowers/specs/ledger/logs/calib/
+!docs/superpowers/specs/ledger/logs/calib/**/*.log
+!docs/superpowers/specs/ledger/logs/calib2/
+!docs/superpowers/specs/ledger/logs/calib2/**/*.log
+!docs/superpowers/specs/ledger/logs/CapAB/
+!docs/superpowers/specs/ledger/logs/CapAB/**/*.log
+!docs/superpowers/specs/ledger/logs/CIwiring/
+!docs/superpowers/specs/ledger/logs/CIwiring/**/*.log
+!docs/superpowers/specs/ledger/logs/DBPool/
+!docs/superpowers/specs/ledger/logs/DBPool/**/*.log
+!docs/superpowers/specs/ledger/logs/dentproof-anchor/
+!docs/superpowers/specs/ledger/logs/dentproof-anchor/**/*.log
+!docs/superpowers/specs/ledger/logs/MenuRouteAudit/
+!docs/superpowers/specs/ledger/logs/MenuRouteAudit/**/*.log
+!docs/superpowers/specs/ledger/logs/MenuRouteAudit/**/*.tsv
 !docs/superpowers/specs/ledger/logs/P503/
 !docs/superpowers/specs/ledger/logs/P503/**/*.log
 !docs/superpowers/specs/ledger/logs/P701/
 !docs/superpowers/specs/ledger/logs/P701/**/*.log
-!docs/superpowers/specs/ledger/logs/B17action/
-!docs/superpowers/specs/ledger/logs/B17action/**/*.log
-!docs/superpowers/specs/ledger/logs/R22/
-!docs/superpowers/specs/ledger/logs/R22/**/*.log
 !docs/superpowers/specs/ledger/logs/P702hook/
 !docs/superpowers/specs/ledger/logs/P702hook/**/*.log
-# P803 是上一张卡（T-P8-03）的常驻电池取证目录：登记时漏了这两行，它的 8 个轮次目录 237 份
-# 读数全在库外（`git check-ignore -v` 命中 `logs/*` 那一行）⇒ 本批代签补上。两棵目录都逐文件
-# 现数过：非 .log 文件 0 个 ⇒ 按"轮次目录"放行不会把残本一起带进库。
+!docs/superpowers/specs/ledger/logs/P703/
+!docs/superpowers/specs/ledger/logs/P703/**/*.log
 !docs/superpowers/specs/ledger/logs/P803/
 !docs/superpowers/specs/ledger/logs/P803/**/*.log
 !docs/superpowers/specs/ledger/logs/P902/
 !docs/superpowers/specs/ledger/logs/P902/**/*.log
-!docs/superpowers/specs/ledger/logs/CIwiring/
-!docs/superpowers/specs/ledger/logs/CIwiring/**/*.log
-!docs/superpowers/specs/ledger/logs/CapAB/
-!docs/superpowers/specs/ledger/logs/CapAB/**/*.log
-# mut_db_poolcfg.py（§23.22 第 6 段③ 的常驻化）的取证轮次：一对两行，与 `ls logs/` 现数对齐
-!docs/superpowers/specs/ledger/logs/DBPool/
-!docs/superpowers/specs/ledger/logs/DBPool/**/*.log
-# mut_webhook_ai_trigger.py（AI 触发归属四刀电池）的取证轮次
-!docs/superpowers/specs/ledger/logs/AiTrigger/
-!docs/superpowers/specs/ledger/logs/AiTrigger/**/*.log
-# mut_collection_p703.py 的取证轮次：这一族的产物此前从未落进仓库树（只在 /tmp 里随轮次蒸发）
-!docs/superpowers/specs/ledger/logs/P703/
-!docs/superpowers/specs/ledger/logs/P703/**/*.log
-# check-secret-containment.py `--transcripts` 那一面的读数（只印键名与次数，真值不入屏不入档）
-!docs/superpowers/specs/ledger/logs/Transcript/
-!docs/superpowers/specs/ledger/logs/Transcript/**/*.log
-# mut_tg_gate_policy.py（ADR-016 社群门控三项口径）的取证轮次：一对两行，与 `ls logs/` 现数对齐
-!docs/superpowers/specs/ledger/logs/TGGATE/
-!docs/superpowers/specs/ledger/logs/TGGATE/**/*.log
-
-# 本泳道（浏览器写台账批18–24 / 消息中枢 R22–R23 / 二次审核协议）自己的 21 个轮次，
-# 按同一规矩成对放行（一行放目录、一行只放该目录下的 .log）；不写整目录反选，
-# 因为那会把树里别人的轮次与 .orig/.bak 残本一起变成可跟踪。
-!docs/superpowers/specs/ledger/logs/B24sendverify/
-!docs/superpowers/specs/ledger/logs/B24sendverify/**/*.log
+!docs/superpowers/specs/ledger/logs/P903/
+!docs/superpowers/specs/ledger/logs/P903/**/*.log
 !docs/superpowers/specs/ledger/logs/R22-closefinal/
 !docs/superpowers/specs/ledger/logs/R22-closefinal/**/*.log
 !docs/superpowers/specs/ledger/logs/R22-lanes/
@@ -99,6 +58,8 @@ docs/superpowers/specs/ledger/logs/*
 !docs/superpowers/specs/ledger/logs/R22-protocol/**/*.log
 !docs/superpowers/specs/ledger/logs/R22-teeth/
 !docs/superpowers/specs/ledger/logs/R22-teeth/**/*.log
+!docs/superpowers/specs/ledger/logs/R22/
+!docs/superpowers/specs/ledger/logs/R22/**/*.log
 !docs/superpowers/specs/ledger/logs/R22closeout/
 !docs/superpowers/specs/ledger/logs/R22closeout/**/*.log
 !docs/superpowers/specs/ledger/logs/R22dedupkey/
@@ -117,314 +78,320 @@ docs/superpowers/specs/ledger/logs/*
 !docs/superpowers/specs/ledger/logs/R26media/**/*.log
 !docs/superpowers/specs/ledger/logs/R27media/
 !docs/superpowers/specs/ledger/logs/R27media/**/*.log
-!docs/superpowers/specs/ledger/logs/b-phase/
-!docs/superpowers/specs/ledger/logs/b-phase/**/*.log
-!docs/superpowers/specs/ledger/logs/c-phase/
-!docs/superpowers/specs/ledger/logs/c-phase/**/*.log
-!docs/superpowers/specs/ledger/logs/calib/
-!docs/superpowers/specs/ledger/logs/calib/**/*.log
-!docs/superpowers/specs/ledger/logs/calib2/
-!docs/superpowers/specs/ledger/logs/calib2/**/*.log
-!docs/superpowers/specs/ledger/logs/dentproof-anchor/
-!docs/superpowers/specs/ledger/logs/dentproof-anchor/**/*.log
+!docs/superpowers/specs/ledger/logs/R28/
+!docs/superpowers/specs/ledger/logs/R28/**/*.log
+!docs/superpowers/specs/ledger/logs/R30/
+!docs/superpowers/specs/ledger/logs/R30/**/*.log
+!docs/superpowers/specs/ledger/logs/RouteSurface/
+!docs/superpowers/specs/ledger/logs/RouteSurface/**/*.log
+!docs/superpowers/specs/ledger/logs/RouteTriage/
+!docs/superpowers/specs/ledger/logs/RouteTriage/**/*.log
+!docs/superpowers/specs/ledger/logs/RouteTriage/**/*.tsv
+!docs/superpowers/specs/ledger/logs/TGGATE/
+!docs/superpowers/specs/ledger/logs/TGGATE/**/*.log
+!docs/superpowers/specs/ledger/logs/Transcript/
+!docs/superpowers/specs/ledger/logs/Transcript/**/*.log
 !docs/superpowers/specs/ledger/logs/wiring-anchor/
 !docs/superpowers/specs/ledger/logs/wiring-anchor/**/*.log
-
-# ---------- 运行时产物（PID / 进程日志）----------
-.runtime/
-# 发布版本指纹（deploy-user.sh 发布成功后写入，post_deploy_check.sh 读取展示）
-user-server/.deploy-version
-
-# ---------- 编辑器 / IDE ----------
-.vscode/
-.idea/
-.claude/
-.trae/
-.sisyphus/
-.codebuddy/
-.codeartsdoer/
-.opencode/
-.arts/
-.freebuff/
-.planning/
-.playwright-cli/
-*.swp
-*.swo
-*~
-
-# ---------- 操作系统 ----------
-.DS_Store
-Thumbs.db
-._*
-.Spotlight-V100
-.Trashes
-ehthumbs.db
-
-# ---------- 构建产物 ----------
-# dist 目录内容忽略，但保留 .gitkeep 占位
-**/dist/*
-!**/dist/.gitkeep
-build/
-*.exe
-*.app
-# Go 服务二进制
-/user-server/cmd/api/api
-/user-server/cmd/*/api
-/user-server/api
-/user-server/merchant_server
-/user-server/marketing
-/user-server/perf
-/user-server/routeinspect
-/user-server/user-server
-/user-server/reset-admin
-/user-server/main-bin
-/user-server/tmp/
-/user-server/embedding-server
-/user-server/bin/
-/user-server/internal/plugin/main/*.so
-/user-server/internal/*.so
-
-# i18n 生成缓存
-*.fill_cache.json
-
-# 图片资源（体积大，不纳入版本追踪；本地保留即可）
-# 例外：README 展示截图 docs/screenshots/screenshot-*.png 必须入库
-*.png
-*.jpg
-*.jpeg
-*.gif
-*.webp
-*.ico
-!docs/screenshots/screenshot-*.png
-# 例外：README.md「添加作者微信」一节的微信二维码 docs/wechat-qr.png 必须入库，
-# 否则干净 checkout 里该图 404、md 链接审计（只认 git 索引）当场红
 !docs/wechat-qr.png
-
-# ⚠️ 例外（构建/运行时**必需**的静态资源，必须入库）
-# `*.png` 是未锚定的裸模式，会命中任意层级。以下四类资源缺失会导致产物损坏：
-#   1. public/logo.png —— index.html 的 favicon 与 manifest.webmanifest 的 PWA 图标
-#   2. bridge/assets/icons/*.png —— Chrome 扩展 manifest.json 的 icons/action 图标，
-#      缺失时扩展无法加载（浏览器直接报 manifest 校验失败）
-#   3. browser_automation/assets/icons/*.png —— 同上，另一扩展
-#   4. website/public/wechat.jpg —— 官网页脚微信二维码（FooterSection.vue 的 :src）。
-#      它在旧仓（hivemtk-platform/website）里同样是 `*.jpg` 命中的未跟踪文件，只在
-#      部署机上存在；迁入本仓后若不豁免，CI 的 git checkout 拿不到它，
-#      website/deploy.sh 会在「dist/wechat.jpg 缺失」这一步当场红。
-!user-web/public/logo.png
+!scripts/inference-host/models.env
+!user-server/.air.toml
 !user-web/bridge/assets/*.png
 !user-web/bridge/assets/icons/*.png
 !user-web/browser_automation/assets/icons/*.png
+!user-web/public/logo.png
 !website/public/wechat.jpg
-
-# 说明：user-web/src/assets/logo.png 与 public/logo.png 字节完全相同（MD5 一致）
-# 且全仓无任何引用，属冗余副本，按上述「大图不入库」策略继续忽略。
-# 离线包构建产物
-dist-offline/
-
-# ---------- 测试覆盖 ----------
-coverage/
-*.cover
-*.cover.out
-*.out
-*.test
-*.prof
-playwright-report/
-playwright-report-api/
-test-results/
-
-# ---------- 临时文件 ----------
-tmp/
-# 各会话的取证落点与影子克隆根名（`check-vite-version.sh` 的 prune 名单、
-# `route-consumer-triage.py` 的忽略集合里都已经有它，只有本表漏了）：未跟踪又未忽略
-# ⇒ `git ls-files --exclude-standard` 把它捞进 shellcheck 门的面
-# （2026-10-12 实测：一枚 SC1071 让 `make audit` 整链退 2），也会被 `git add -A` 带进仓。
-.tmp_files/
-temp/
-uploads/
-downloads/
+._*
+.air.toml
+.arts/
+.claude/
+.codeartsdoer/
+.codebuddy/
 .data/
+.DS_Store
+.env
+.env.*.local
+.env.geo.local
+.env.local
+.freebuff/
+.idea/
+.opencode/
+.planning/
+.playwright-cli/
+.research/
 .round
 .round.*
-# Vite 转译 vite.config.js 时产生的临时文件（正常会被自动删除，
-# 异常退出时会残留；内容含开发者本机绝对路径，禁止入库）
-*.timestamp-*.mjs
-
-# ---------- 数据库 / 持久化数据 ----------
-*.db
-data/
-# PG 数据绑定挂载目录（docker-compose ./pg_data）
-pg_data/
-# 模型文件（./models/ 实际不提交，仅 README 与 .gitkeep）
-models/
-
-# ---------- Docker ----------
-docker-compose.override.yml
-# 说明：docker-compose.yml 为宿主机部署版编排（仅数据层 PG+Redis），纳入版本追踪。
-#       真实密钥通过 .env（被忽略）注入，编排文件不保留敏感配置。
-
-# ---------- 证书和密钥 ----------
-*.pem
-*.key
-*.crt
-*.p12
-
-# ---------- 备份与缓存 ----------
-*.bak
+.runtime/
+.sisyphus/
+.Spotlight-V100
+.tmp_files/
+.trae/
+.Trashes
+.vscode/
+.workbuddy-ai/*
+*-research.md
+*.app
 *.backup
+*.bak
 *.bak.*
-backups/
-# make db-backup 产出的 SQL 备份（同目录散落，不入库）
-backup_*.sql
-
-# ---------- 编译产物（通用）----------
-main
+*.bin
+*.cover
+*.cover.out
+*.crt
+*.db
 *.dll
-*.so
 *.dylib
-# 打包 / 发布产物（由 CI 或本地构建生成，不纳入版本追踪）
-*.zip
+*.env
+*.exe
+*.fill_cache.json
+*.gguf
+*.gif
+*.ico
+*.jpeg
+*.jpg
+*.jsonl
+*.key
+*.log
+*.mlx
+*.out
+*.p12
+*.pem
+*.png
+*.prof
+*.pt
+*.pyc
+*.pyo
+*.safetensors
+*.so
+*.swo
+*.swp
 *.tar.gz
-
+*.test
+*.timestamp-*.mjs
+*.webp
+*.zip
+**/dist/*
+*~
+/api-inventory.md
+/embed-sdk/dist/
+/user-server/api
+/user-server/bin/
+/user-server/cmd/*/api
+/user-server/cmd/api/api
+/user-server/embedding-server
+/user-server/internal/*.so
+/user-server/internal/plugin/main/*.so
+/user-server/main-bin
+/user-server/marketing
+/user-server/merchant_server
+/user-server/perf
+/user-server/reset-admin
+/user-server/routeinspect
+/user-server/tmp/
+/user-server/user-server
+#       真实密钥通过 .env（被忽略）注入，编排文件不保留敏感配置。
+#      website/deploy.sh 会在「dist/wechat.jpg 缺失」这一步当场红。
+#      部署机上存在；迁入本仓后若不豁免，CI 的 git checkout 拿不到它，
+#      缺失时扩展无法加载（浏览器直接报 manifest 校验失败）
+#      它在旧仓（hivemtk-platform/website）里同样是 `*.jpg` 命中的未跟踪文件，只在
+#     留它只为写明本族放行的后缀面，并防今后有人给仓库根加一条宽后缀规则。
+#   · `**/*.log` **必需**——仓库根第 24 行的 `*.log` 会命中 `00-provenance.log`；
+#   · `**/*.tsv` 是**多余的**——只留目录行时 .tsv 已不被忽略（没有任何规则匹配 .tsv），
+#   · 目录行**必需**——只删它，上面 `docs/.../logs/*` 就把整棵轮次树挡回；
+#   1. public/logo.png —— index.html 的 favicon 与 manifest.webmanifest 的 PWA 图标
+#   2. bridge/assets/icons/*.png —— Chrome 扩展 manifest.json 的 icons/action 图标，
+#   3. browser_automation/assets/icons/*.png —— 同上，另一扩展
+#   4. website/public/wechat.jpg —— 官网页脚微信二维码（FooterSection.vue 的 :src）。
+# ⇒ `git ls-files --exclude-standard` 把它捞进 shellcheck 门的面
+# ⚠️ 例外（构建/运行时**必需**的静态资源，必须入库）
+# ④ 最后按 `*.log` 放行格产物（白名单是"轮次目录"而不是后缀：这些目录内的非 .log 也会入库）。
+# ---------- Docker ----------
+# ---------- Go 编译产物（禁止入库）----------
+# ---------- 备份与缓存 ----------
+# ---------- 编辑器 / IDE ----------
+# ---------- 编译产物（62MB 已 commit 过，GitHub warning）----------
+# ---------- 编译产物（通用）----------
+# ---------- 操作系统 ----------
+# ---------- 测试覆盖 ----------
+# ---------- 构建产物 ----------
+# ---------- 环境配置（含敏感信息）----------
+# ---------- 开发工具配置 ----------
+# ---------- 临时 restore 目录 ----------
+# ---------- 临时文件 ----------
+# ---------- 模型数据文件（>1GB，不应进 git）----------
+# ---------- 内部/敏感文档：不对外公开，仅本地留存于仓库外 internal-docs/ ----------
+# ---------- 嵌入 SDK 构建产物 ----------
+# ---------- 取证日志里"整包全量输出"的显式排除（4 条模式，覆盖 9 份文件 / 22MB） ----------
+# ---------- 日志 ----------
+# ---------- 生成产物（机器生成，不应纳入版本追踪）----------
+# ---------- 数据库 / 持久化数据 ----------
 # ---------- 一次性调试产物 ----------
-debug-*.html
-reset-*.html
+# ---------- 依赖 ----------
+# ---------- 运行时产物（PID / 进程日志）----------
+# ---------- 运行时授权文件 ----------
+# ---------- 证书和密钥 ----------
+# `*.png` 是未锚定的裸模式，会命中任意层级。以下四类资源缺失会导致产物损坏：
+# `route-consumer-triage.py` 的忽略集合里都已经有它，只有本表漏了）：未跟踪又未忽略
+# ============================================================
+# （2026-10-12 实测：一枚 SC1071 让 `make audit` 整链退 2），也会被 `git add -A` 带进仓。
+# check-secret-containment.py `--transcripts` 那一面的读数（只印键名与次数，真值不入屏不入档）
+# deep-test-*.mjs、interact-human.mjs、page-route-audit/audit-routes.mjs、playwright
+# dist 目录内容忽略，但保留 .gitkeep 占位
+# Go 服务二进制
+# i18n 生成缓存
+# make db-backup 产出的 SQL 备份（同目录散落，不入库）
+# MenuRouteAudit：静态取证器 `scripts/menu-route-role-audit.py`（菜单×live 路由档位×前端调用图三方对账）
+# mut_collection_p703.py 的取证轮次：这一族的产物此前从未落进仓库树（只在 /tmp 里随轮次蒸发）
+# mut_db_poolcfg.py（§23.22 第 6 段③ 的常驻化）的取证轮次：一对两行，与 `ls logs/` 现数对齐
+# mut_journey_stage_index_p903.sh（T-P9-03 阶段索引五刀电池）的取证轮次：一对两行。
+# mut_route_surface.py（路由声明面守卫的反向注码电池，12 格 G1–G12）的取证轮次：一对两行。
+# mut_tg_gate_policy.py（ADR-016 社群门控三项口径）的取证轮次：一对两行，与 `ls logs/` 现数对齐
+# mut_webhook_ai_trigger.py（AI 触发归属四刀电池）的取证轮次
+# P803 是上一张卡（T-P8-03）的常驻电池取证目录：登记时漏了这两行，它的 8 个轮次目录 237 份
+# PG 数据绑定挂载目录（docker-compose ./pg_data）
+# Playwright 登录态快照（含 cookies/localStorage，敏感）
+# route-consumer-triage.py（僵尸接口四档取证器）的名单轮次：目录行＋两条后缀行。
+# scripts/api-inventory.sh 的快照产物（CI 以 artifact 上传，非源码，2026-09-16 补）
+# simulate 运行时数据（脚本产物，非源码）
+# storage-state 等），CI 不读取，任何环境 clone 后重新跑脚本即可再生。
+# Vite 转译 vite.config.js 时产生的临时文件（正常会被自动删除，
+# 按同一规矩成对放行（一行放目录、一行只放该目录下的 .log）；不写整目录反选，
+# 本泳道（浏览器写台账批18–24 / 消息中枢 R22–R23 / 二次审核协议）自己的 21 个轮次，
+# 产物是 4 份 .tsv 名册＋1 份事实源 .tsv＋1 份 `00-provenance.log` 字节身份行。
+# 打包 / 发布产物（由 CI 或本地构建生成，不纳入版本追踪）
+# 的轮次产物。`check-battery-identity.py` 的 A5 要求"非电池名单里登记的族必须在树里有轮次目录"，
+# 读数全在库外（`git check-ignore -v` 命中 `logs/*` 那一行）⇒ 本批代签补上。两棵目录都逐文件
+# 而 A3 要求目录行与 `**/*.log` 行成对——只登记不入库＝豁免在 CI 上过期（2026-10-12 实测红过一枚）。
+# 而是按引用面现算：`git grep -l -F <basename> -- '*.md'` 对这 9 份全部 0 命中，
+# 发布版本指纹（deploy-user.sh 发布成功后写入，post_deploy_check.sh 读取展示）
+# 反例守卫：calib/merge/go-test-host-packages.log（3333K）被引用 1 次 ⇒ 不在排除名单里，照常入库。
+# 否则干净 checkout 里该图 404、md 链接审计（只认 git 索引）当场红
+# 覆盖面按四个面对齐：接口注解面 G1 幽灵路径/G2 归属错位/G3 参数段写法/G6 扫描根空转/G8 摘归属比对，
+# 该文件此前从未被追踪，本文档的承诺对干净 checkout 不成立。
+# 各会话的取证落点与影子克隆根名（`check-vite-version.sh` 的 prune 名单、
+# 共享同一份」，且 `make dev` 走 `cd user-server && air` 依赖它（缺文件时 air 退化为
+# 含内部需求/设计逻辑/审计结论/真实客户数据，禁止进入公开仓库。
+# 会一起变成可跟踪 ⇒ 再用 `logs/*` 把直接子项整体挡回；③ 逐个放行本泳道自己的轮次（**一对两轮次目录行，一放行一轮**；
+# 即没有任何一条台账行指向它们；同名的 lint-user-web.log 六份是合并门禁逐次重跑的
+# 加行仍按老规矩：新轮次由跑它的那一批自己加两行，本批不代签别人）；
+# 近重复全量输出（每份 2592K），只保留判读行所在的轮次即可复算。
+# 离线包构建产物
+# 例外：README 展示截图 docs/screenshots/screenshot-*.png 必须入库
+# 例外：README.md「添加作者微信」一节的微信二维码 docs/wechat-qr.png 必须入库，
+# 例外：user-server/.air.toml 必须入仓 —— HOT_RELOAD.md §三 明写「已入仓，所有开发者
+# 例外：审计变异电池的逐格取证产物要能在仓库里找回（读数见 CHANNEL_INTEGRATION_AUDIT_2026-09 §23.19 第 1-补 段）。
+# 例外：推理栈模型定义文件（非敏感配置，需纳入版本追踪）
+# 临时运行日志（前端桥接运行输出，非源码）
+# 轮数这里刻意不写死：它随每批新轮次涨，写死必漂——本行原写"当前 10 轮"，而放行清单加到 `CIwiring` 时磁盘已是 11 轮，
+# 冒烟清单面 G4 死行/G5 覆盖棘轮/G7 dist 前提，落地页模板面 G9 引用未注册/G10 豁免反向棘轮/G11 键拼错自曝/G12 整面离门。
+# 每一行的必要性都实测过（四向现测，判据＝`git check-ignore -v` 命中哪一条）：
+# 模型文件（./models/ 实际不提交，仅 README 与 .gitkeep）
+# 那个 10 就是这么过期的。要现数就 `grep -c '^!docs.*logs/[^*]*/$' .gitignore`，与 `ls docs/.../ledger/logs | wc -l` 对齐。
+# 内置默认：不 source ../.env、不监听 .yaml/.html）。2026-09-20 第二十二轮实测：
+# 判据不是"按大小裁剪"（那种做法会让"台账引用了哪份日志"在克隆里随机失效），
+# 判据：这些均是测试/审计脚本运行时写出的数据文件（audit-runner.mjs、
+# 前端测试 / UI 扫描生成的产物与缓存（由脚本重新生成）
+# 前端审计直方产物（脚本重新生成；与 docs/audit/ 同口径，不进公开仓库）
+# 且全仓无任何引用，属冗余副本，按上述「大图不入库」策略继续忽略。
+# 审计/测试生成文档（脚本可重新生成）：API 清单检查表、Playwright UI 审计报告、路由审计清单
+# 说明：.env 为本地真实配置（忽略）；.env-example 为示例模板，纳入版本追踪。
+# 说明：docker-compose.yml 为宿主机部署版编排（仅数据层 PG+Redis），纳入版本追踪。
+# 说明：user-web/src/assets/logo.png 与 public/logo.png 字节完全相同（MD5 一致）
+# 私域独立部署仓库（2026-07-21 拆分）
+# 四条一组的写法是 gitignore 语义逼出来的：① 父目录被 `logs/` 排除时，对其内任何 `!` 规则都不生效，
+# 所以先放行 `logs` 本身；② 一放行，该树下**别的泳道/别的轮次**的目录（共享树现数 18 个，含 .txt/.md/bak/*.orig 残本）
+# 图片资源（体积大，不纳入版本追踪；本地保留即可）
+# 现数过：非 .log 文件 0 个 ⇒ 按"轮次目录"放行不会把残本一起带进库。
+# 现数口径同上方「四条一组」那段：以 !docs...logs/<轮次>/ 形状的行数
+# 现数口径同上方「四条一组」那段：以 !docs...logs/<轮次>/ 形状的行数与 logs/ 下的轮次目录数对齐。
+# 页面级端到端审计脚手架运行时产物（由脚本重新生成，非源码）
+# 异常退出时会残留；内容含开发者本机绝对路径，禁止入库）
+# 因为那会把树里别人的轮次与 .orig/.bak 残本一起变成可跟踪。
+# 硬编码扫描报告（hardcode-sweep 产物，脚本重新生成，非源码）
+# 永动审计循环的状态/报告产物（脚本与循环每轮推进，非源码；PLAN.md 手册除外）
+# 用户端 (HiveMtk) - .gitignore
+# 与 logs/ 下的轮次目录数对齐（本批加行后两侧同增 1；电池跑完才有目录，先加行的窗口内差 1 属预期）。
+# 与 logs/ 下的轮次目录数对齐（电池跑完才有目录，先加行的窗口内差 1 属预期）。
+# 运行时日志（仓库任意其他 logs/ 目录与其他位置的 *.log）不受这四条影响。
+# 自动生成的代码/接口清单文档（由脚本重新生成）
+backup_*.sql
+backups/
+build/
 clear-*.html
-fix-api-config*.html
+coverage/
+customer-service/
+data/
+debug-*.html
 debug-*.js
 debug-*.sh
+dist-offline/
+docker-compose.override.yml
+docs/audit/
+docs/bridge/
+docs/superpowers/specs/ledger/logs/*
+docs/superpowers/specs/ledger/logs/R22-closefinal/merge-run*/lint-user-web.log
+docs/superpowers/specs/ledger/logs/R22-closefinal/merge/lint-user-web.log
+docs/superpowers/specs/ledger/logs/R22-lanes/service-channelgw-gate-full.log
+docs/superpowers/specs/ledger/logs/R22-lanes/service-full-mut-batchecho.log
+docs/superpowers/specs/ledger/logs/R22-phaseE/merge/lint-user-web.log
+downloads/
+ehthumbs.db
+fix-api-config*.html
+hardcode-sweep/
+install.lock
+internal-docs/
+logs/
+main
+merchant.key
+models/
+mtk-serve
+node_modules/
+npm-debug.log*
+pg_data/
+playwright-report-api/
+playwright-report/
+reset-*.html
+scripts/audit-loop/state.json
+scripts/audit-loop/STATE.md
+temp/
 test_all_apis*.sh
 test-all-apis*.sh
-
-# ---------- 临时 restore 目录 ----------
+test-results/
+Thumbs.db
+tmp/
+uploads/
+user-server/.ctxscan.txt
+user-server/.deploy-version
+user-server/docs/audit/
+user-server/geo-run
 user-server/internal/service/restore_tmp/
-
-# ---------- 运行时授权文件 ----------
-merchant.key
-install.lock
-
-# ---------- 嵌入 SDK 构建产物 ----------
-/embed-sdk/dist/
-
-# ---------- 开发工具配置 ----------
-.air.toml
-# 例外：user-server/.air.toml 必须入仓 —— HOT_RELOAD.md §三 明写「已入仓，所有开发者
-# 共享同一份」，且 `make dev` 走 `cd user-server && air` 依赖它（缺文件时 air 退化为
-# 内置默认：不 source ../.env、不监听 .yaml/.html）。2026-09-20 第二十二轮实测：
-# 该文件此前从未被追踪，本文档的承诺对干净 checkout 不成立。
-!user-server/.air.toml
-
-# ---------- 生成产物（机器生成，不应纳入版本追踪）----------
-# 自动生成的代码/接口清单文档（由脚本重新生成）
 user-server/NEW_FUNCTIONS_INVENTORY.md
-# scripts/api-inventory.sh 的快照产物（CI 以 artifact 上传，非源码，2026-09-16 补）
-/api-inventory.md
-# 前端测试 / UI 扫描生成的产物与缓存（由脚本重新生成）
-user-web/tests/API_TEST_RESULTS.json
-user-web/tests/API_INVENTORY.json
-user-web/tests/.api_id_cache.json
+user-server/nm-host
+user-web/_bridge_run.txt
+user-web/*-report.json
+user-web/deep-test-summary.json
 user-web/docs/ui-inventory/inventory.json
-# 页面级端到端审计脚手架运行时产物（由脚本重新生成，非源码）
-# 判据：这些均是测试/审计脚本运行时写出的数据文件（audit-runner.mjs、
-# deep-test-*.mjs、interact-human.mjs、page-route-audit/audit-routes.mjs、playwright
-# storage-state 等），CI 不读取，任何环境 clone 后重新跑脚本即可再生。
-user-web/tests/audit/reports/
-user-web/tests/audit/deep-reports/
+user-web/ROUTE_AUDIT_LIST.md
+user-web/tests/.api_id_cache.json
+user-web/tests/.auth/
+user-web/tests/API_CHECKLIST.md
+user-web/tests/API_INVENTORY.json
+user-web/tests/API_TEST_RESULTS.json
 user-web/tests/audit/backend_routes.json
-user-web/tests/audit/pages.json
+user-web/tests/audit/deep-reports/
 user-web/tests/audit/pages_api.json
+user-web/tests/audit/pages.json
+user-web/tests/audit/reports/
 user-web/tests/audit/smoke_get.json
-user-web/tests/e2e/audit/reach/
 user-web/tests/e2e/audit/aiAgent/
 user-web/tests/e2e/audit/customer/
 user-web/tests/e2e/audit/dataAnalysis/
 user-web/tests/e2e/audit/knowledge/
+user-web/tests/e2e/audit/reach/
+user-web/tests/e2e/audit/summary.json
 user-web/tests/e2e/audit/system/
 user-web/tests/e2e/audit/workspace/
-user-web/tests/e2e/audit/summary.json
-# Playwright 登录态快照（含 cookies/localStorage，敏感）
-user-web/tests/.auth/
-# 前端审计直方产物（脚本重新生成；与 docs/audit/ 同口径，不进公开仓库）
-user-web/*-report.json
-user-web/deep-test-summary.json
-# 硬编码扫描报告（hardcode-sweep 产物，脚本重新生成，非源码）
-hardcode-sweep/
-# 临时运行日志（前端桥接运行输出，非源码）
-user-web/_bridge_run.txt
-# 审计/测试生成文档（脚本可重新生成）：API 清单检查表、Playwright UI 审计报告、路由审计清单
-user-web/tests/API_CHECKLIST.md
 user-web/tests/e2e/UI_AUDIT_REPORT.md
-user-web/ROUTE_AUDIT_LIST.md
-# 永动审计循环的状态/报告产物（脚本与循环每轮推进，非源码；PLAN.md 手册除外）
-scripts/audit-loop/STATE.md
-scripts/audit-loop/state.json
-
-# simulate 运行时数据（脚本产物，非源码）
-*.jsonl
-
-# ---------- 内部/敏感文档：不对外公开，仅本地留存于仓库外 internal-docs/ ----------
-# 含内部需求/设计逻辑/审计结论/真实客户数据，禁止进入公开仓库。
-customer-service/
-docs/audit/
-docs/bridge/
-user-server/docs/audit/
-.research/
-*-research.md
-internal-docs/
-.env.geo.local
-user-server/geo-run
-
-# ---------- 编译产物（62MB 已 commit 过，GitHub warning）----------
-mtk-serve
-*.exe
-
-# ---------- 模型数据文件（>1GB，不应进 git）----------
-*.gguf
-*.mlx
-*.safetensors
-*.bin
-*.pt
-
-# ---------- Go 编译产物（禁止入库）----------
-user-server/nm-host
-
-
-# ---------- 取证日志里"整包全量输出"的显式排除（4 条模式，覆盖 9 份文件 / 22MB） ----------
-# 判据不是"按大小裁剪"（那种做法会让"台账引用了哪份日志"在克隆里随机失效），
-# 而是按引用面现算：`git grep -l -F <basename> -- '*.md'` 对这 9 份全部 0 命中，
-# 即没有任何一条台账行指向它们；同名的 lint-user-web.log 六份是合并门禁逐次重跑的
-# 近重复全量输出（每份 2592K），只保留判读行所在的轮次即可复算。
-# 反例守卫：calib/merge/go-test-host-packages.log（3333K）被引用 1 次 ⇒ 不在排除名单里，照常入库。
-docs/superpowers/specs/ledger/logs/R22-closefinal/merge/lint-user-web.log
-docs/superpowers/specs/ledger/logs/R22-closefinal/merge-run*/lint-user-web.log
-docs/superpowers/specs/ledger/logs/R22-phaseE/merge/lint-user-web.log
-docs/superpowers/specs/ledger/logs/R22-lanes/service-channelgw-gate-full.log
-docs/superpowers/specs/ledger/logs/R22-lanes/service-full-mut-batchecho.log
-# mut_journey_stage_index_p903.sh（T-P9-03 阶段索引五刀电池）的取证轮次：一对两行。
-# 现数口径同上方「四条一组」那段：以 !docs...logs/<轮次>/ 形状的行数
-# 与 logs/ 下的轮次目录数对齐（本批加行后两侧同增 1；电池跑完才有目录，先加行的窗口内差 1 属预期）。
-!docs/superpowers/specs/ledger/logs/P903/
-!docs/superpowers/specs/ledger/logs/P903/**/*.log
-# mut_route_surface.py（路由声明面守卫的反向注码电池，12 格 G1–G12）的取证轮次：一对两行。
-# 覆盖面按四个面对齐：接口注解面 G1 幽灵路径/G2 归属错位/G3 参数段写法/G6 扫描根空转/G8 摘归属比对，
-# 冒烟清单面 G4 死行/G5 覆盖棘轮/G7 dist 前提，落地页模板面 G9 引用未注册/G10 豁免反向棘轮/G11 键拼错自曝/G12 整面离门。
-# 现数口径同上方「四条一组」那段：以 !docs...logs/<轮次>/ 形状的行数
-# 与 logs/ 下的轮次目录数对齐（电池跑完才有目录，先加行的窗口内差 1 属预期）。
-!docs/superpowers/specs/ledger/logs/RouteSurface/
-!docs/superpowers/specs/ledger/logs/RouteSurface/**/*.log
-# route-consumer-triage.py（僵尸接口四档取证器）的名单轮次：目录行＋两条后缀行。
-# 产物是 4 份 .tsv 名册＋1 份事实源 .tsv＋1 份 `00-provenance.log` 字节身份行。
-# 每一行的必要性都实测过（四向现测，判据＝`git check-ignore -v` 命中哪一条）：
-#   · 目录行**必需**——只删它，上面 `docs/.../logs/*` 就把整棵轮次树挡回；
-#   · `**/*.log` **必需**——仓库根第 24 行的 `*.log` 会命中 `00-provenance.log`；
-#   · `**/*.tsv` 是**多余的**——只留目录行时 .tsv 已不被忽略（没有任何规则匹配 .tsv），
-#     留它只为写明本族放行的后缀面，并防今后有人给仓库根加一条宽后缀规则。
-# 现数口径同上方「四条一组」那段：以 !docs...logs/<轮次>/ 形状的行数与 logs/ 下的轮次目录数对齐。
-!docs/superpowers/specs/ledger/logs/RouteTriage/
-!docs/superpowers/specs/ledger/logs/RouteTriage/**/*.tsv
-!docs/superpowers/specs/ledger/logs/RouteTriage/**/*.log
-# MenuRouteAudit：静态取证器 `scripts/menu-route-role-audit.py`（菜单×live 路由档位×前端调用图三方对账）
-# 的轮次产物。`check-battery-identity.py` 的 A5 要求"非电池名单里登记的族必须在树里有轮次目录"，
-# 而 A3 要求目录行与 `**/*.log` 行成对——只登记不入库＝豁免在 CI 上过期（2026-10-12 实测红过一枚）。
-!docs/superpowers/specs/ledger/logs/MenuRouteAudit/
-!docs/superpowers/specs/ledger/logs/MenuRouteAudit/**/*.tsv
-!docs/superpowers/specs/ledger/logs/MenuRouteAudit/**/*.log
+vendor/
+yarn-debug.log*
+yarn-error.log*

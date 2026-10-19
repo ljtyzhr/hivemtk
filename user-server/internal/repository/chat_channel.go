@@ -33,7 +33,10 @@ func NewChatChannelRepositoryWithDB(db *gorm.DB) *ChatChannelRepository {
 
 // GetDB 返回当前仓库绑定的 DB（兼容历史 service.db 用法，仅用于构造期）
 func (r *ChatChannelRepository) GetDB(ctx context.Context) *gorm.DB {
-	return r.db
+	if r.db == nil {
+		return nil
+	}
+	return r.db.WithContext(ctx)
 }
 
 // SetDB 注入 db（用于测试 / 多 DB 切换）

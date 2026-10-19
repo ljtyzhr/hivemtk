@@ -33,7 +33,7 @@ func NewKeywordEnhanceService(kr repository.GeoKeywordRepository, vr repository.
 // AnalyzeHistoricalPerformance 分析历史验证数据中的关键词表现
 func (s *KeywordEnhanceService) AnalyzeHistoricalPerformance(ctx context.Context, brandName string) (*dto.KeywordEnhanceResponse, error) {
 
-	results, err := s.verifyRepo.GetByBrandName(brandName)
+	results, err := s.verifyRepo.GetByBrandName(ctx, brandName)
 	if err != nil || len(results) == 0 {
 		return &dto.KeywordEnhanceResponse{
 			HasData: false,
@@ -168,7 +168,7 @@ func classifyIntent(keyword string) string {
 
 // EnhanceKeywordWithData 用历史数据增强现有关键词
 func (s *KeywordEnhanceService) EnhanceKeywordWithData(ctx context.Context, keywords []string, brandName string) ([]*model.GeoKeyword, error) {
-	results, err := s.verifyRepo.GetByBrandName(brandName)
+	results, err := s.verifyRepo.GetByBrandName(ctx, brandName)
 	if err != nil || len(results) == 0 {
 		return nil, nil
 	}
@@ -199,7 +199,7 @@ func (s *KeywordEnhanceService) EnhanceKeywordWithData(ctx context.Context, keyw
 		if rate, ok := mentionMap[kw]; ok {
 			geoKW.SearchVolume = int(rate * 100)
 		}
-		if err := s.keywordRepo.Create(geoKW); err != nil {
+		if err := s.keywordRepo.Create(ctx, geoKW); err != nil {
 			failed++
 			continue
 		}

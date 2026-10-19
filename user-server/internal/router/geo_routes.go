@@ -8,6 +8,7 @@ import (
 	geoservice "hivemtk-user/internal/geo/service"
 	"hivemtk-user/internal/middleware"
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils"
 	mainrepo "hivemtk-user/internal/repository"
 	"hivemtk-user/internal/service"
@@ -108,7 +109,10 @@ func SetupGeoRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 	keCtrl := geoctrl.NewKeywordEnhanceController(keSvc)
 
 	// ⬇️ GEO v2 新增 Service + Controller
-	probes := geoservice.NewEngineProbesFromDB(gormDB)
+	// 探针装配是平台级全局动作（llm_providers/geo_config 装配期读取，进程内共享）：
+	// 构造期没有 HTTP 请求 ctx 可绑，TENANT_MODE=on 下裸 ctx 会被隔离 callback
+	// fail-closed ⇒ 探针清单恒空。走 tenant.WithSystemScope 平台级豁免通道。
+	probes := geoservice.NewEngineProbesFromDB(tenant.WithSystemScope(context.Background()), gormDB)
 	kwMiningSvc := geoservice.NewKeywordMiningService(keywordRepo, gormDB, llmAdapter)
 	pushSvc := geoservice.NewPushService(gormDB)
 	siteSvc := geoservice.NewSiteDeployService(gormDB, pushSvc)

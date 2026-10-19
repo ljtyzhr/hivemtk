@@ -15,6 +15,7 @@ import (
 	"hivemtk-user/internal/channelbot/telegram"
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/httpclient"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
 
@@ -816,7 +817,30 @@ func (s *TelegramGateService) retimeGateWindow(ctx context.Context, m *model.Tel
 
 // SweepExpired TTL 到期处置：方案 A declineChatJoinRequest；方案 B 移出群（仍可再次入群）并落 kicked。
 //
-// 方案 B 的判据有两层，两层都只在"别惩罚没被告知的人"这一条上收紧：
+// 后台任务租户扇出（specs/001-saas-multi-tenant T020）：TENANT_MODE=on 时
+// telegram_group_members / telegram_group_gates 都是租户表，清扫器由 startGateSweeperAt 用
+// context.Background() 起、没有 HTTP 请求 ctx 可绑，无租户 ctx 的 ListExpired（query）会被
+// 隔离 callback fail-closed 拒绝（生产日志实证："[TG-Gate] TTL 清扫失败: [tenant] 表
+// telegram_group_members 需要租户上下文但 ctx 未绑定（query）"）—— 症状是超时成员永远不被处置。
+//
+// 修法是 Fanout 而不是 system scope：这一格**对真人动手**（踢群 / 拒绝入群申请 / 补发验证提示），
+// RecoverStalled 还会按 ctx 取 bot 客户端（telegram_accounts 读）并回写台账 —— system scope
+// 虽能放行查询，但这些读会摊成跨租户全量（拿别的租户的 bot 去踢自己的群），新建/回写也会失真。
+// 逐活跃租户注入 ctx = 行归属谁就以谁的身份动谁的群；off 模式退化为单默认租户（等价历史行为）。
+// 跨进程租约（cron_job_leases，无 tenant_id 列、进程级互斥）留在扇出之外，见 sweepOnce。
+func (s *TelegramGateService) SweepExpired(ctx context.Context, limit int) (int, error) {
+	if !s.wired() {
+		return 0, nil
+	}
+	swept, err := tenant.Fanout(ctx, nil, func(tctx context.Context, _ uint) (int64, error) {
+		return s.sweepTenantExpired(tctx, limit)
+	})
+	return int(swept), err
+}
+
+// sweepTenantExpired 单租户的到期处置（SweepExpired 的扇出回调体），返回本租户处置数。
+//
+// 处置判据（方案 B 两层，两层都只在"别惩罚没被告知的人"这一条上收紧）：
 //  1. welcome_sent_at 为空 —— 验证提示从没送达（入群时发送失败、补发又到上限），
 //     这个人超时不是他的过错，不处置，继续由补偿循环维持禁言与计时；
 //  2. 提示送达过、verify_ttl_min 的窗口也确实过去了 —— 再宽限一个 TTL 才移人。
@@ -826,17 +850,14 @@ func (s *TelegramGateService) retimeGateWindow(ctx context.Context, m *model.Tel
 //
 // 台账重读失败时本轮直接跳过：处置判据（是否送达、何时到期）只能来自重读出来的那一行，
 // 读不出来就不拿二手数据对真人动手。
-func (s *TelegramGateService) SweepExpired(ctx context.Context, limit int) (int, error) {
-	if !s.wired() {
-		return 0, nil
-	}
+func (s *TelegramGateService) sweepTenantExpired(ctx context.Context, limit int) (int64, error) {
 	s.RecoverStalled(ctx, 50) // 补偿：提示从未送达的禁言成员
 	now := time.Now()
 	expired, err := s.memberRepo.ListExpired(ctx, now, limit)
 	if err != nil {
 		return 0, err
 	}
-	swept := 0
+	swept := int64(0)
 	for _, member := range expired {
 		// 处置前按主键重读：成员可能刚在过期那一瞬被 /start 放行，也可能送达状态刚变。
 		// 重读要认主键——处置对象就是这一行，而 verify_token 是会被重新入群改写的业务列，

@@ -34,16 +34,16 @@ func NewEmailUnsubscribeRepository(db *gorm.DB) EmailUnsubscribeRepository {
 }
 
 func (r *emailUnsubscribeRepo) Create(ctx context.Context, record *model.EmailUnsubscribe) error {
-	return r.db.Create(record).Error
+	return r.db.WithContext(ctx).Create(record).Error
 }
 
 func (r *emailUnsubscribeRepo) Update(ctx context.Context, record *model.EmailUnsubscribe) error {
-	return r.db.Save(record).Error
+	return r.db.WithContext(ctx).Save(record).Error
 }
 
 func (r *emailUnsubscribeRepo) GetByEmail(ctx context.Context, email string) (*model.EmailUnsubscribe, error) {
 	var record model.EmailUnsubscribe
-	err := r.db.Where("email = ?", email).First(&record).Error
+	err := r.db.WithContext(ctx).Where("email = ?", email).First(&record).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -55,7 +55,7 @@ func (r *emailUnsubscribeRepo) GetByEmail(ctx context.Context, email string) (*m
 
 func (r *emailUnsubscribeRepo) ExistsByEmail(ctx context.Context, email string) (bool, error) {
 	var count int64
-	err := r.db.Model(&model.EmailUnsubscribe{}).Where("email = ?", email).Count(&count).Error
+	err := r.db.WithContext(ctx).Model(&model.EmailUnsubscribe{}).Where("email = ?", email).Count(&count).Error
 	if err != nil {
 		return false, err
 	}
@@ -63,14 +63,14 @@ func (r *emailUnsubscribeRepo) ExistsByEmail(ctx context.Context, email string) 
 }
 
 func (r *emailUnsubscribeRepo) DeleteByEmail(ctx context.Context, email string) error {
-	return r.db.Where("email = ?", email).Delete(&model.EmailUnsubscribe{}).Error
+	return r.db.WithContext(ctx).Where("email = ?", email).Delete(&model.EmailUnsubscribe{}).Error
 }
 
 func (r *emailUnsubscribeRepo) List(ctx context.Context, page, limit int, keyword string) ([]*model.EmailUnsubscribe, int64, error) {
 	var records []*model.EmailUnsubscribe
 	var total int64
 
-	query := r.db.Model(&model.EmailUnsubscribe{})
+	query := r.db.WithContext(ctx).Model(&model.EmailUnsubscribe{})
 	if keyword != "" {
 		like := "%" + keyword + "%"
 		query = query.Where("email LIKE ? OR reason LIKE ?", like, like)
@@ -89,7 +89,7 @@ func (r *emailUnsubscribeRepo) List(ctx context.Context, page, limit int, keywor
 
 func (r *emailUnsubscribeRepo) ListAll(ctx context.Context) ([]*model.EmailUnsubscribe, error) {
 	var records []*model.EmailUnsubscribe
-	if err := r.db.Order("unsubscribed_at DESC").Find(&records).Error; err != nil {
+	if err := r.db.WithContext(ctx).Order("unsubscribed_at DESC").Find(&records).Error; err != nil {
 		return nil, err
 	}
 	return records, nil

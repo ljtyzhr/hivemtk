@@ -13,6 +13,7 @@ import (
 	"hivemtk-user/internal/config"
 	"hivemtk-user/internal/geo/model"
 	"hivemtk-user/internal/geo/repository"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 )
 
@@ -277,7 +278,7 @@ func (s *MonitorCrawlerService) loadKeywords(ctx context.Context) []string {
 	if s.keywordRepo == nil {
 		return nil
 	}
-	list, _, err := s.keywordRepo.GetList("", "", "", "", "active", "", 0, 50)
+	list, _, err := s.keywordRepo.GetList(ctx, "", "", "", "", "active", "", 0, 50)
 	if err != nil {
 		return nil
 	}
@@ -383,8 +384,13 @@ func CrawlerMonitorCron() {
 }
 
 // CrawlerMonitorCronSync 同步执行爬虫（手动触发入口，返回写入数和错误）
+// 判读：RunCrawlerCron 读 geo_keywords/geo_competitors、写 geo_crawler_visits
+// （均带 tenant_id）⇒ 触达租户表。手动触发同样没有可绑的请求租户，裸
+// context.WithTimeout(Background) 在 TENANT_MODE=on 下会被隔离 callback
+// fail-closed，故先包 tenant.WithSystemScope 再挂超时（与 cron 派发的
+// crawlerMonitorJob 同口径；off 模式 SystemScope 直通，SQL 不变）。
 func CrawlerMonitorCronSync() (int, error) {
-	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
+	ctx, cancel := context.WithTimeout(tenant.WithSystemScope(context.Background()), 10*time.Minute)
 	defer cancel()
 	return CrawlerMonitorCronWithContext(ctx)
 }

@@ -91,11 +91,11 @@ func (s *ContentService) GenerateContent(ctx context.Context, lang, keyword, bra
 			Model:     "heuristic_fallback",
 			WordCount: len([]rune(content)),
 		}
-		if err := s.articleRepo.Create(article); err != nil {
+		if err := s.articleRepo.Create(ctx, article); err != nil {
 			return nil, fmt.Errorf("保存文章失败: %w", err)
 		}
 		if s.kbRepo != nil {
-			_ = s.kbRepo.Create(&model.GeoKnowledgeDocument{
+			_ = s.kbRepo.Create(ctx, &model.GeoKnowledgeDocument{
 				Title:       article.Title,
 				Content:     article.Content,
 				DocType:     "generated",
@@ -115,12 +115,12 @@ func (s *ContentService) GenerateContent(ctx context.Context, lang, keyword, bra
 		Model:     resp.Model,
 		WordCount: wordCount,
 	}
-	if err := s.articleRepo.Create(article); err != nil {
+	if err := s.articleRepo.Create(ctx, article); err != nil {
 		return nil, fmt.Errorf("保存文章失败: %w", err)
 	}
 
 	if s.kbRepo != nil {
-		if err := s.kbRepo.Create(&model.GeoKnowledgeDocument{
+		if err := s.kbRepo.Create(ctx, &model.GeoKnowledgeDocument{
 			Title:       article.Title,
 			Content:     article.Content,
 			DocType:     "generated",
@@ -151,7 +151,7 @@ func (s *ContentService) OptimizeContent(ctx context.Context, articleID, content
 			OptimizedContent: content,
 			Model:            "heuristic_fallback",
 		}
-		if err := s.optimizationRepo.Create(optimization); err != nil {
+		if err := s.optimizationRepo.Create(ctx, optimization); err != nil {
 			return nil, fmt.Errorf("保存优化记录失败: %w", err)
 		}
 		return optimization, nil
@@ -164,7 +164,7 @@ func (s *ContentService) OptimizeContent(ctx context.Context, articleID, content
 		OptimizedContent: extractOptimizedContent(resp.Content),
 		Model:            resp.Model,
 	}
-	if err := s.optimizationRepo.Create(optimization); err != nil {
+	if err := s.optimizationRepo.Create(ctx, optimization); err != nil {
 		return nil, fmt.Errorf("保存优化记录失败: %w", err)
 	}
 	return optimization, nil
@@ -187,7 +187,7 @@ func (s *ContentService) ScoreContent(ctx context.Context, articleID, content, b
 		logger.Warn("[GEO Content] LLM 不可用，降级为启发式内容评分")
 		result := heuristicScoreContent(content, brandName, keyword)
 		if articleID != "" && s.articleRepo != nil {
-			if article, gErr := s.articleRepo.GetByID(articleID); gErr == nil && article != nil {
+			if article, gErr := s.articleRepo.GetByID(ctx, articleID); gErr == nil && article != nil {
 				if scores, ok := result["scores"].(map[string]any); ok {
 					if total, ok2 := scores["total"].(float64); ok2 {
 						article.Score = total
@@ -196,7 +196,7 @@ func (s *ContentService) ScoreContent(ctx context.Context, articleID, content, b
 				if detail, jErr := json.Marshal(result); jErr == nil {
 					article.ScoreDetail = string(detail)
 				}
-				_ = s.articleRepo.Update(article)
+				_ = s.articleRepo.Update(ctx, article)
 			}
 		}
 		return result, nil
@@ -206,7 +206,7 @@ func (s *ContentService) ScoreContent(ctx context.Context, articleID, content, b
 	result := parseScoreResult(resp.Content)
 
 	if articleID != "" && s.articleRepo != nil {
-		article, gErr := s.articleRepo.GetByID(articleID)
+		article, gErr := s.articleRepo.GetByID(ctx, articleID)
 		if gErr == nil && article != nil {
 			if scores, ok := result["scores"].(map[string]any); ok {
 				if total, ok2 := scores["total"].(float64); ok2 {
@@ -216,7 +216,7 @@ func (s *ContentService) ScoreContent(ctx context.Context, articleID, content, b
 			if detail, jErr := json.Marshal(result); jErr == nil {
 				article.ScoreDetail = string(detail)
 			}
-			if uErr := s.articleRepo.Update(article); uErr != nil {
+			if uErr := s.articleRepo.Update(ctx, article); uErr != nil {
 				logger.Error(uErr, "[GEO Content] 评分持久化失败")
 			}
 		}
@@ -278,9 +278,9 @@ func (s *ContentService) EnhanceEEAT(ctx context.Context, articleID, content, br
 			"model":    "template_v1",
 		}
 		if articleID != "" && s.articleRepo != nil {
-			if article, gErr := s.articleRepo.GetByID(articleID); gErr == nil && article != nil {
+			if article, gErr := s.articleRepo.GetByID(ctx, articleID); gErr == nil && article != nil {
 				article.WordCount = len([]rune(content))
-				_ = s.articleRepo.Update(article)
+				_ = s.articleRepo.Update(ctx, article)
 			}
 		}
 		return result, nil
@@ -295,11 +295,11 @@ func (s *ContentService) EnhanceEEAT(ctx context.Context, articleID, content, br
 	}
 
 	if articleID != "" && s.articleRepo != nil {
-		article, gErr := s.articleRepo.GetByID(articleID)
+		article, gErr := s.articleRepo.GetByID(ctx, articleID)
 		if gErr == nil && article != nil {
 			article.Content = resp.Content
 			article.WordCount = len([]rune(resp.Content))
-			if uErr := s.articleRepo.Update(article); uErr != nil {
+			if uErr := s.articleRepo.Update(ctx, article); uErr != nil {
 				logger.Error(uErr, "[GEO Content] EEAT 增强持久化失败")
 			}
 		}
@@ -326,10 +326,10 @@ func (s *ContentService) GenerateSchema(ctx context.Context, articleID, brandNam
 			"model":       "template_v1",
 		}
 		if articleID != "" && s.articleRepo != nil {
-			if article, gErr := s.articleRepo.GetByID(articleID); gErr == nil && article != nil {
+			if article, gErr := s.articleRepo.GetByID(ctx, articleID); gErr == nil && article != nil {
 				if ld, jErr := json.Marshal(schema); jErr == nil {
 					article.JSONLD = string(ld)
-					_ = s.articleRepo.Update(article)
+					_ = s.articleRepo.Update(ctx, article)
 				}
 			}
 		}
@@ -355,11 +355,11 @@ func (s *ContentService) GenerateSchema(ctx context.Context, articleID, brandNam
 	schema["model"] = resp.Model
 
 	if articleID != "" && s.articleRepo != nil {
-		article, gErr := s.articleRepo.GetByID(articleID)
+		article, gErr := s.articleRepo.GetByID(ctx, articleID)
 		if gErr == nil && article != nil {
 			if ld, jErr := json.Marshal(schema); jErr == nil {
 				article.JSONLD = string(ld)
-				if uErr := s.articleRepo.Update(article); uErr != nil {
+				if uErr := s.articleRepo.Update(ctx, article); uErr != nil {
 					logger.Error(uErr, "[GEO Content] Schema 持久化失败")
 				}
 			}
@@ -474,12 +474,12 @@ func heuristicUniquenessCheck(content string) map[string]any {
 
 // GetArticleList 获取文章列表
 func (s *ContentService) GetArticleList(ctx context.Context, page, limit int) ([]*model.GeoArticle, int64, error) {
-	return s.articleRepo.GetList("", "", page, limit)
+	return s.articleRepo.GetList(ctx, "", "", page, limit)
 }
 
 // GetArticleByID 根据 ID 获取文章
 func (s *ContentService) GetArticleByID(ctx context.Context, id string) (*model.GeoArticle, error) {
-	return s.articleRepo.GetByID(id)
+	return s.articleRepo.GetByID(ctx, id)
 }
 
 func heuristicScoreContent(content, brandName, keyword string) map[string]any {
@@ -589,5 +589,5 @@ func (s *ContentService) recordAPICall(ctx context.Context, resp *LLMResult, ope
 		Purpose:      operation,
 		Status:       "success",
 	}
-	_ = s.apiCallRepo.Create(call)
+	_ = s.apiCallRepo.Create(ctx, call)
 }

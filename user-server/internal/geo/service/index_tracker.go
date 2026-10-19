@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"hivemtk-user/internal/geo/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/timeutil"
 	"hivemtk-user/internal/pkg/utils/logger"
 
@@ -70,7 +71,7 @@ type TrackRow struct {
 // VerifyArticleFull 单篇全链路验证：真实调用 AI 搜索探针，检测文章 URL 是否被引用
 func (s *IndexTrackerService) VerifyArticleFull(ctx context.Context, articleID string) (*ArticleStanding, error) {
 	var article model.GeoArticle
-	if err := s.db.First(&article, "id = ?", articleID).Error; err != nil {
+	if err := s.db.WithContext(ctx).First(&article, "id = ?", articleID).Error; err != nil {
 		return nil, err
 	}
 
@@ -125,7 +126,7 @@ func (s *IndexTrackerService) VerifyArticleFull(ctx context.Context, articleID s
 				"last_checked":  now,
 				"updated_at":    now,
 			}
-			res := s.db.Model(&model.GeoIndexTracking{}).
+			res := s.db.WithContext(ctx).Model(&model.GeoIndexTracking{}).
 				Where("article_id = ? AND engine = ?", article.ID, oc.engine).
 				Updates(updates)
 			if res.Error != nil {
@@ -142,14 +143,14 @@ func (s *IndexTrackerService) VerifyArticleFull(ctx context.Context, articleID s
 					AICiteCount: oc.cited,
 					LastChecked: &now,
 				}
-				_ = s.db.Create(&tracking).Error
+				_ = s.db.WithContext(ctx).Create(&tracking).Error
 			}
 		}
 	}
 
 	// 站位评分以 DB 最终状态为准，避免内存零值误判
 	var tracked []model.GeoIndexTracking
-	s.db.Where("article_id = ?", article.ID).Find(&tracked)
+	s.db.WithContext(ctx).Where("article_id = ?", article.ID).Find(&tracked)
 	as.Trackings = tracked
 	as.TotalEngines = len(tracked)
 	for _, t := range tracked {
@@ -168,7 +169,9 @@ func (s *IndexTrackerService) activeProbes() []SearchProbe {
 	if len(s.probes) > 0 {
 		return s.probes
 	}
-	s.probes = NewEngineProbesFromDB(s.db)
+	// 探针装配是平台级全局动作（同 search_probe.NewEngineProbes）：system scope
+	// 豁免，不按请求租户过滤引擎清单。
+	s.probes = NewEngineProbesFromDB(tenant.WithSystemScope(context.Background()), s.db)
 	return s.probes
 }
 
@@ -218,15 +221,15 @@ func (s *IndexTrackerService) FunnelStats(ctx context.Context) (*FunnelStats, er
 
 	// 关键词数（按 layer）
 	var seedCnt, longtailCnt int64
-	s.db.Model(&model.GeoKeyword{}).Where("layer = 'seed' AND status = 'active'").Count(&seedCnt)
-	s.db.Model(&model.GeoKeyword{}).Where("layer = 'longtail' AND status = 'active'").Count(&longtailCnt)
+	s.db.WithContext(ctx).Model(&model.GeoKeyword{}).Where("layer = 'seed' AND status = 'active'").Count(&seedCnt)
+	s.db.WithContext(ctx).Model(&model.GeoKeyword{}).Where("layer = 'longtail' AND status = 'active'").Count(&longtailCnt)
 	fs.SeedCount = int(seedCnt)
 	fs.LongtailCount = int(longtailCnt)
 
 	// 文章数
 	var artCnt, depCnt int64
-	s.db.Model(&model.GeoArticle{}).Count(&artCnt)
-	s.db.Model(&model.GeoArticle{}).Where("deployed_at IS NOT NULL").Count(&depCnt)
+	s.db.WithContext(ctx).Model(&model.GeoArticle{}).Count(&artCnt)
+	s.db.WithContext(ctx).Model(&model.GeoArticle{}).Where("deployed_at IS NOT NULL").Count(&depCnt)
 	fs.ArticleCount = int(artCnt)
 	fs.DeployedCount = int(depCnt)
 
@@ -236,7 +239,7 @@ func (s *IndexTrackerService) FunnelStats(ctx context.Context) (*FunnelStats, er
 		Cnt    int64  `gorm:"column:cnt"`
 	}
 	var eRows []eCount
-	s.db.Model(&model.GeoIndexTracking{}).
+	s.db.WithContext(ctx).Model(&model.GeoIndexTracking{}).
 		Select("engine, COUNT(*) as cnt").
 		Where("indexed = true").
 		Group("engine").
@@ -246,7 +249,7 @@ func (s *IndexTrackerService) FunnelStats(ctx context.Context) (*FunnelStats, er
 	}
 
 	// 按引擎统计 AI 引用
-	s.db.Model(&model.GeoIndexTracking{}).
+	s.db.WithContext(ctx).Model(&model.GeoIndexTracking{}).
 		Select("engine, COUNT(*) as cnt").
 		Where("ai_cited = true").
 		Group("engine").
@@ -265,7 +268,7 @@ func (s *IndexTrackerService) FunnelStats(ctx context.Context) (*FunnelStats, er
 
 	// 追踪明细（最近 100 条，供前端列表展示）
 	var trackings []TrackRow
-	s.db.Model(&model.GeoIndexTracking{}).
+	s.db.WithContext(ctx).Model(&model.GeoIndexTracking{}).
 		Order("updated_at DESC").
 		Limit(100).
 		Scan(&trackings)
@@ -278,7 +281,7 @@ func (s *IndexTrackerService) FunnelStats(ctx context.Context) (*FunnelStats, er
 // 扫描已部署且超过 24h 未验证的文章 → 全链路验证 → Upsert geo_daily_stats
 func (s *IndexTrackerService) AutoVerifyCron(ctx context.Context) error {
 	var articles []model.GeoArticle
-	s.db.Where("deployed_at IS NOT NULL AND site_url != ''").
+	s.db.WithContext(ctx).Where("deployed_at IS NOT NULL AND site_url != ''").
 		Where(`NOT EXISTS (
 			SELECT 1 FROM geo_index_trackings t
 			WHERE t.article_id = geo_articles.id AND t.updated_at > ?
@@ -296,13 +299,13 @@ func (s *IndexTrackerService) AutoVerifyCron(ctx context.Context) error {
 	}
 
 	// Upsert geo_daily_stats（聚合写入）
-	s.upsertDailyStats()
+	s.upsertDailyStats(ctx)
 
 	return nil
 }
 
 // upsertDailyStats 把 index_tracking 聚合到 daily_stats
-func (s *IndexTrackerService) upsertDailyStats() {
+func (s *IndexTrackerService) upsertDailyStats(ctx context.Context) {
 	// 简化版：按 engine 聚合 citation_count
 	type agg struct {
 		Engine        string `gorm:"column:engine"`
@@ -310,7 +313,7 @@ func (s *IndexTrackerService) upsertDailyStats() {
 		BrandMentions int64  `gorm:"column:brand_mentions"`
 	}
 	var rows []agg
-	s.db.Model(&model.GeoIndexTracking{}).
+	s.db.WithContext(ctx).Model(&model.GeoIndexTracking{}).
 		Select("engine, COUNT(*) as citations, 0 as brand_mentions").
 		Where("ai_cited = true").
 		Group("engine").
@@ -321,7 +324,7 @@ func (s *IndexTrackerService) upsertDailyStats() {
 	statDate := timeutil.BusinessToday()
 	for _, r := range rows {
 		// upsert：冲突则累计（T012 清偿：OnConflict + gorm.Expr 累加）
-		if err := s.db.Table("geo_daily_stats").
+		if err := s.db.WithContext(ctx).Table("geo_daily_stats").
 			Clauses(clause.OnConflict{
 				Columns: []clause.Column{
 					{Name: "tenant_id"}, {Name: "stat_date"}, {Name: "engine"},

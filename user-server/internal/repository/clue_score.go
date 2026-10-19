@@ -38,22 +38,22 @@ func (r *clueScoreRepo) Upsert(ctx context.Context, score *model.ClueScore) erro
 		return errors.New("clue_id 不能为空")
 	}
 	var existing model.ClueScore
-	err := r.db.Where("clue_id = ?", score.ClueID).First(&existing).Error
+	err := r.db.WithContext(ctx).Where("clue_id = ?", score.ClueID).First(&existing).Error
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return err
 	}
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return r.db.Create(score).Error
+		return r.db.WithContext(ctx).Create(score).Error
 	}
 	score.ID = existing.ID
 	score.CreatedAt = existing.CreatedAt
 	score.ScoredAt = time.Now()
-	return r.db.Save(score).Error
+	return r.db.WithContext(ctx).Save(score).Error
 }
 
 func (r *clueScoreRepo) GetByClueID(ctx context.Context, clueID string) (*model.ClueScore, error) {
 	var score model.ClueScore
-	if err := r.db.Where("clue_id = ?", clueID).First(&score).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("clue_id = ?", clueID).First(&score).Error; err != nil {
 		return nil, err
 	}
 	return &score, nil
@@ -68,7 +68,7 @@ func (r *clueScoreRepo) ListByGrade(ctx context.Context, grade string, page, pag
 	}
 	var scores []*model.ClueScore
 	var total int64
-	q := r.db.Model(&model.ClueScore{})
+	q := r.db.WithContext(ctx).Model(&model.ClueScore{})
 	if grade != "" {
 		q = q.Where("grade = ?", grade)
 	}
@@ -87,14 +87,14 @@ func (r *clueScoreRepo) ListTopByScore(ctx context.Context, limit int) ([]*model
 		limit = 20
 	}
 	var scores []*model.ClueScore
-	if err := r.db.Order("total_score DESC, scored_at DESC").Limit(limit).Find(&scores).Error; err != nil {
+	if err := r.db.WithContext(ctx).Order("total_score DESC, scored_at DESC").Limit(limit).Find(&scores).Error; err != nil {
 		return nil, err
 	}
 	return scores, nil
 }
 
 func (r *clueScoreRepo) DeleteByClueID(ctx context.Context, clueID string) error {
-	return r.db.Where("clue_id = ?", clueID).Delete(&model.ClueScore{}).Error
+	return r.db.WithContext(ctx).Where("clue_id = ?", clueID).Delete(&model.ClueScore{}).Error
 }
 
 // ClueEngagementRepository 线索互动事件仓库
@@ -122,12 +122,12 @@ func (r *clueEngagementRepo) Create(ctx context.Context, evt *model.ClueEngageme
 	if evt.ClueID == "" {
 		return errors.New("clue_id 不能为空")
 	}
-	return r.db.Create(evt).Error
+	return r.db.WithContext(ctx).Create(evt).Error
 }
 
 func (r *clueEngagementRepo) CountByClueID(ctx context.Context, clueID string, since time.Time) (int64, error) {
 	var count int64
-	err := r.db.Model(&model.ClueEngagementEvent{}).
+	err := r.db.WithContext(ctx).Model(&model.ClueEngagementEvent{}).
 		Where("clue_id = ? AND created_at >= ?", clueID, since).Count(&count).Error
 	return count, err
 }
@@ -178,7 +178,7 @@ func (r *clueEngagementRepo) CountByType(ctx context.Context, clueID string) (ma
 		Cnt       int64
 	}
 	var rows []resultRow
-	if err := r.db.Model(&model.ClueEngagementEvent{}).
+	if err := r.db.WithContext(ctx).Model(&model.ClueEngagementEvent{}).
 		Select("event_type, COUNT(*) as cnt").
 		Where("clue_id = ?", clueID).
 		Group("event_type").Scan(&rows).Error; err != nil {
@@ -196,6 +196,6 @@ func (r *clueEngagementRepo) LastByClueID(ctx context.Context, clueID string, li
 		limit = 10
 	}
 	var evts []*model.ClueEngagementEvent
-	err := r.db.Where("clue_id = ?", clueID).Order("created_at DESC").Limit(limit).Find(&evts).Error
+	err := r.db.WithContext(ctx).Where("clue_id = ?", clueID).Order("created_at DESC").Limit(limit).Find(&evts).Error
 	return evts, err
 }

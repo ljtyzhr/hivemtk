@@ -64,7 +64,7 @@ func (c *JobController) UpdateSchedule(ctx *gin.Context) {
 	if !response.BindJSON(ctx, &body) {
 		return
 	}
-	if err := c.jm.UpdateSchedule(ctx.Param("name"), body.Spec); err != nil {
+	if err := c.jm.UpdateSchedule(ctx.Request.Context(), ctx.Param("name"), body.Spec); err != nil {
 		response.Error(ctx, http.StatusBadRequest, err.Error())
 		return
 	}

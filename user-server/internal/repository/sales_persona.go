@@ -28,11 +28,11 @@ func (r *SalesPersonaRepository) AvgHumanResponseSec(ctx context.Context) (float
 		return 0, nil
 	}
 	var avg float64
-	sub := r.db.Table("session_messages").
+	sub := r.db.WithContext(ctx).Table("session_messages").
 		Select("created_at - LAG(created_at) OVER (PARTITION BY session_id ORDER BY created_at) AS diff").
 		Where("sender_type = ?", "human").
 		Where("created_at >= ?", time.Now().AddDate(0, 0, -30))
-	err := r.db.Table("(?) AS t", sub).
+	err := r.db.WithContext(ctx).Table("(?) AS t", sub).
 		Select("COALESCE(AVG(EXTRACT(EPOCH FROM diff)), 0)").
 		Scan(&avg).Error
 	if err != nil {
@@ -46,13 +46,13 @@ func (r *SalesPersonaRepository) SessionOrderCount(ctx context.Context, staffID 
 	if r == nil || r.db == nil {
 		return 0, 0, nil
 	}
-	if err = r.db.Table("customer_sessions").
+	if err = r.db.WithContext(ctx).Table("customer_sessions").
 		Select("COUNT(*) as sessions").
 		Where("agent_id = ? AND created_at >= ?", staffID, time.Now().AddDate(0, 0, -30)).
 		Scan(&sessions).Error; err != nil {
 		return 0, 0, err
 	}
-	if err = r.db.Table("order").
+	if err = r.db.WithContext(ctx).Table("order").
 		Select("COUNT(*) as orders").
 		Where("create_time >= ?", time.Now().AddDate(0, 0, -30).Unix()).
 		Scan(&orders).Error; err != nil {
@@ -67,7 +67,7 @@ func (r *SalesPersonaRepository) CountSopExecutionsByStaff(ctx context.Context, 
 		return 0, nil
 	}
 	var count int64
-	if err := r.db.Table("sop_executions AS se").
+	if err := r.db.WithContext(ctx).Table("sop_executions AS se").
 		Joins("JOIN customer_sessions AS cs ON se.session_id = cs.session_id").
 		Where("cs.agent_id = ?", staffID).
 		Count(&count).Error; err != nil {
@@ -82,7 +82,7 @@ func (r *SalesPersonaRepository) CountRagQueryLogsByUser(ctx context.Context, st
 		return 0, nil
 	}
 	var count int64
-	if err := r.db.Table("rag_sessions").
+	if err := r.db.WithContext(ctx).Table("rag_sessions").
 		Where("user_id = ?", staffID).
 		Count(&count).Error; err != nil {
 		return 0, err
@@ -96,7 +96,7 @@ func (r *SalesPersonaRepository) CountObjectionRecordsByStaff(ctx context.Contex
 		return 0, nil
 	}
 	var count int64
-	if err := r.db.Table("sop_exec_events AS se").
+	if err := r.db.WithContext(ctx).Table("sop_exec_events AS se").
 		Joins("JOIN sop_executions AS sx ON se.execution_id = sx.id").
 		Joins("JOIN customer_sessions AS cs ON sx.session_id = cs.session_id").
 		Where("se.node_type = ?", "objection").
@@ -119,7 +119,7 @@ func (r *SalesPersonaRepository) SatisfactionByStaff(ctx context.Context, staffI
 		return &SatisfactionStats{}, nil
 	}
 	var stats SatisfactionStats
-	if err := r.db.Model(&model.CustomerSession{}).
+	if err := r.db.WithContext(ctx).Model(&model.CustomerSession{}).
 		Select("AVG(rating) as avg, COUNT(rating) as count").
 		Where("agent_id = ? AND rating > 0", staffID).
 		Scan(&stats).Error; err != nil {
@@ -140,12 +140,12 @@ func (r *SalesPersonaRepository) SessionCloseByStaff(ctx context.Context, staffI
 		return &SessionCloseStats{}, nil
 	}
 	var stats SessionCloseStats
-	if err := r.db.Model(&model.CustomerSession{}).
+	if err := r.db.WithContext(ctx).Model(&model.CustomerSession{}).
 		Where("agent_id = ?", staffID).
 		Count(&stats.Total).Error; err != nil {
 		return &SessionCloseStats{}, err
 	}
-	if err := r.db.Model(&model.CustomerSession{}).
+	if err := r.db.WithContext(ctx).Model(&model.CustomerSession{}).
 		Where("agent_id = ? AND status = ?", staffID, "closed").
 		Count(&stats.Closed).Error; err != nil {
 		return &SessionCloseStats{}, err
@@ -165,7 +165,7 @@ func (r *SalesPersonaRepository) ListTopStaffsBySession(ctx context.Context) ([]
 		return nil, nil
 	}
 	var rows []StaffSessionCount
-	err := r.db.Model(&model.CustomerSession{}).
+	err := r.db.WithContext(ctx).Model(&model.CustomerSession{}).
 		Select("agent_id, COUNT(*) as count").
 		Where("agent_id > 0").
 		Group("agent_id").

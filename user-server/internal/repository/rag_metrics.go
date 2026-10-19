@@ -41,8 +41,11 @@ type ragMetricsRepo struct {
 }
 
 // GetDB 返回内部 db（用于租户扇出场景）
-func (r *ragMetricsRepo) GetDB(_ context.Context) *gorm.DB {
-	return r.db
+func (r *ragMetricsRepo) GetDB(ctx context.Context) *gorm.DB {
+	if r.db == nil {
+		return nil
+	}
+	return r.db.WithContext(ctx)
 }
 
 // NewRagMetricsRepository 创建 RAG 召回率监控仓储

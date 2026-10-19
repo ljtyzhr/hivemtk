@@ -232,7 +232,7 @@ func topKeys(m map[string]int, n int) []string {
 func (s *CitationService) loadClassifyContext(ctx context.Context) (string, []string) {
 	var own string
 	var comp []string
-	if cfg, err := s.configRepo.Get(); err == nil && cfg != nil {
+	if cfg, err := s.configRepo.Get(ctx); err == nil && cfg != nil {
 		own = ExtractDomain(cfg.Domain)
 		for _, c := range strings.Split(cfg.Competitors, ",") {
 			if d := ExtractDomain(strings.TrimSpace(c)); d != "" {

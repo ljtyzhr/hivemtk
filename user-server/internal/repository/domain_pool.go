@@ -43,10 +43,14 @@ func NewDomainPoolRepositoryWithDB(db *gorm.DB) DomainPoolRepository {
 }
 
 func (r *domainPoolRepository) dbOrDefault(ctx context.Context) *gorm.DB {
-	if r.db != nil {
-		return r.db
+	db := r.db
+	if db == nil {
+		db = _db.GetDB()
 	}
-	return _db.GetDB()
+	if db == nil {
+		return nil
+	}
+	return db.WithContext(ctx)
 }
 
 func (r *domainPoolRepository) Create(ctx context.Context, domainPool *model.DomainPool) error {
@@ -193,7 +197,7 @@ func (r *DomainHealthLogRepository) Create(ctx context.Context, log *model.Domai
 	if log.CheckedAt.IsZero() {
 		log.CheckedAt = time.Now()
 	}
-	return r.db.Create(log).Error
+	return r.db.WithContext(ctx).Create(log).Error
 }
 
 // ListByDomain 查询指定域名的最近 N 条日志
@@ -202,7 +206,7 @@ func (r *DomainHealthLogRepository) ListByDomain(ctx context.Context, domainID i
 		limit = 50
 	}
 	var rows []*model.DomainHealthLog
-	err := r.db.Where("domain_id = ?", domainID).Order("checked_at DESC").Limit(limit).Find(&rows).Error
+	err := r.db.WithContext(ctx).Where("domain_id = ?", domainID).Order("checked_at DESC").Limit(limit).Find(&rows).Error
 	return rows, err
 }
 
@@ -225,7 +229,7 @@ func (r *DomainBlacklistRepository) IsBlacklisted(ctx context.Context, domain st
 		return false, nil, nil
 	}
 	var row model.DomainBlacklist
-	err := r.db.Where("domain = ? AND active = ?", domain, true).First(&row).Error
+	err := r.db.WithContext(ctx).Where("domain = ? AND active = ?", domain, true).First(&row).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return false, nil, nil
@@ -251,7 +255,7 @@ func (r *DomainBlacklistRepository) Add(ctx context.Context, domain, platform, r
 	}
 
 	var existing model.DomainBlacklist
-	err := r.db.Where("domain = ?", domain).First(&existing).Error
+	err := r.db.WithContext(ctx).Where("domain = ?", domain).First(&existing).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			row := &model.DomainBlacklist{
@@ -262,7 +266,7 @@ func (r *DomainBlacklistRepository) Add(ctx context.Context, domain, platform, r
 				ExpiresAt: expiresAt,
 				Active:    true,
 			}
-			return r.db.Create(row).Error
+			return r.db.WithContext(ctx).Create(row).Error
 		}
 		return err
 	}
@@ -273,12 +277,12 @@ func (r *DomainBlacklistRepository) Add(ctx context.Context, domain, platform, r
 		"expires_at": expiresAt,
 		"active":     true,
 	}
-	return r.db.Model(&model.DomainBlacklist{}).Where("id = ?", existing.ID).Updates(updates).Error
+	return r.db.WithContext(ctx).Model(&model.DomainBlacklist{}).Where("id = ?", existing.ID).Updates(updates).Error
 }
 
 // Remove 移除黑名单
 func (r *DomainBlacklistRepository) Remove(ctx context.Context, domain string) error {
-	return r.db.Model(&model.DomainBlacklist{}).Where("domain = ?", domain).Update("active", false).Error
+	return r.db.WithContext(ctx).Model(&model.DomainBlacklist{}).Where("domain = ?", domain).Update("active", false).Error
 }
 
 // List 分页查询
@@ -291,10 +295,10 @@ func (r *DomainBlacklistRepository) List(ctx context.Context, page, pageSize int
 	}
 	var rows []*model.DomainBlacklist
 	var total int64
-	if err := r.db.Model(&model.DomainBlacklist{}).Count(&total).Error; err != nil {
+	if err := r.db.WithContext(ctx).Model(&model.DomainBlacklist{}).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	if err := r.db.Order("created_at DESC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&rows).Error; err != nil {
+	if err := r.db.WithContext(ctx).Order("created_at DESC").Offset((page - 1) * pageSize).Limit(pageSize).Find(&rows).Error; err != nil {
 		return nil, 0, err
 	}
 	return rows, total, nil

@@ -37,7 +37,7 @@ func NewSalesEventRepositoryWithDB(db *gorm.DB) SalesEventRepository {
 }
 
 func (r *salesEventRepo) Create(ctx context.Context, ev *model.SalesEvent) error {
-	return r.db.Create(ev).Error
+	return r.db.WithContext(ctx).Create(ev).Error
 }
 
 func (r *salesEventRepo) ListByOpportunityID(ctx context.Context, opportunityID string) ([]*model.SalesEvent, error) {

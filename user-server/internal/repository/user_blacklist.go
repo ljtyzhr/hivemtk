@@ -35,7 +35,7 @@ func (r *UserBlacklistRepository) Add(ctx context.Context, b *model.UserBlacklis
 	}
 
 	var existing model.UserBlacklist
-	err := r.db.Where("user_id = ? AND platform = ? AND active = ?", b.UserID, b.Platform, true).First(&existing).Error
+	err := r.db.WithContext(ctx).Where("user_id = ? AND platform = ? AND active = ?", b.UserID, b.Platform, true).First(&existing).Error
 	if err == nil {
 		existing.Reason = b.Reason
 		existing.Source = b.Source
@@ -44,9 +44,9 @@ func (r *UserBlacklistRepository) Add(ctx context.Context, b *model.UserBlacklis
 		existing.SessionID = b.SessionID
 		existing.ExpiresAt = b.ExpiresAt
 		existing.UpdatedAt = time.Now()
-		return r.db.Save(&existing).Error
+		return r.db.WithContext(ctx).Save(&existing).Error
 	}
-	return r.db.Create(b).Error
+	return r.db.WithContext(ctx).Create(b).Error
 }
 
 // IsBlacklisted 判断用户是否在黑名单中（active + 未过期）
@@ -55,7 +55,7 @@ func (r *UserBlacklistRepository) IsBlacklisted(ctx context.Context, userID stri
 		return false, nil
 	}
 	var row model.UserBlacklist
-	err := r.db.Where("user_id = ? AND platform = ? AND active = ?", userID, platform, true).First(&row).Error
+	err := r.db.WithContext(ctx).Where("user_id = ? AND platform = ? AND active = ?", userID, platform, true).First(&row).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return false, nil
@@ -63,7 +63,7 @@ func (r *UserBlacklistRepository) IsBlacklisted(ctx context.Context, userID stri
 		return false, err
 	}
 	if isExpired(&row) {
-		_ = r.db.Model(&row).Update("active", false).Error
+		_ = r.db.WithContext(ctx).Model(&row).Update("active", false).Error
 		return false, nil
 	}
 	return true, nil
@@ -71,7 +71,7 @@ func (r *UserBlacklistRepository) IsBlacklisted(ctx context.Context, userID stri
 
 // Remove 取消拉黑（软删除：active=false）
 func (r *UserBlacklistRepository) Remove(ctx context.Context, userID string, platform model.Platform) error {
-	return r.db.Model(&model.UserBlacklist{}).
+	return r.db.WithContext(ctx).Model(&model.UserBlacklist{}).
 		Where("user_id = ? AND platform = ? AND active = ?", userID, platform, true).
 		Update("active", false).Error
 }
@@ -88,7 +88,7 @@ func (r *UserBlacklistRepository) ListActive(ctx context.Context, page, pageSize
 		rows  []*model.UserBlacklist
 		total int64
 	)
-	q := r.db.Model(&model.UserBlacklist{}).Where("active = ?", true)
+	q := r.db.WithContext(ctx).Model(&model.UserBlacklist{}).Where("active = ?", true)
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}

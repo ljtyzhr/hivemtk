@@ -97,6 +97,7 @@ func TestPlatformService_ListPlatforms(t *testing.T) {
 }
 
 func TestPlatformService_SaveAccount(t *testing.T) {
+	ctx := context.Background()
 	db := geoTestDB(t)
 
 	svc := NewPlatformService(newGeoAccountRepo(db), newGeoRecordRepo(db), newGeoArticleRepo(db))
@@ -130,7 +131,7 @@ func TestPlatformService_SaveAccount(t *testing.T) {
 		t.Fatal("credentials must never leak into response")
 	}
 
-	stored, err := newGeoAccountRepo(db).GetByPlatformAndName("github_readme", "testuser")
+	stored, err := newGeoAccountRepo(db).GetByPlatformAndName(ctx, "github_readme", "testuser")
 	if err != nil {
 		t.Fatalf("GetByPlatformAndName failed: %v", err)
 	}

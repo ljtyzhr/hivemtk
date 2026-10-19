@@ -13,6 +13,7 @@ import (
 
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/metrics"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
 )
@@ -84,7 +85,15 @@ func (c *AlertChecker) loop() {
 	ticker := time.NewTicker(c.interval)
 	defer ticker.Stop()
 
-	if _, err := c.checkOnce(context.Background()); err != nil {
+	// 平台级监控循环：规则拉取（ListEnabled query）、指标快照比对、告警历史与
+	// last_triggered_at 记账全在后台 goroutine（main.go Start() 派生），无 HTTP
+	// 请求 ctx 可绑；TENANT_MODE=on 时被隔离 callback fail-closed（生产日志实证：
+	// "[AlertChecker] 拉取规则失败/首轮检查失败/周期检查失败"）。指标是进程全局量、
+	// 通知渠道由 env 注入（ALERT_EMAIL_RECIPIENTS/ALERT_WEBHOOK_URL，平台运维级），
+	// 整轮检查走 tenant.WithSystemScope 入口统一包（与 reach_pipeline_claim.go /
+	// webhook_outbound.go 同口径）；CheckOnce 虽导出但无 HTTP 调用方，不放宽请求路径。
+	ctx := tenant.WithSystemScope(context.Background())
+	if _, err := c.checkOnce(ctx); err != nil {
 		logger.Warnf("[AlertChecker] 首轮检查失败: %v", err)
 	}
 	for {
@@ -92,7 +101,7 @@ func (c *AlertChecker) loop() {
 		case <-c.stop:
 			return
 		case <-ticker.C:
-			if _, err := c.checkOnce(context.Background()); err != nil {
+			if _, err := c.checkOnce(ctx); err != nil {
 				logger.Warnf("[AlertChecker] 周期检查失败: %v", err)
 			}
 		}

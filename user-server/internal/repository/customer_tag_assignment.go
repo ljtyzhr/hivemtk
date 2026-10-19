@@ -44,15 +44,19 @@ func assignmentDB() (*gorm.DB, error) {
 }
 
 // database 取本实例应使用的句柄：注入了用注入的，否则回落到全局。
-func (r *customerTagAssignmentRepository) database() (*gorm.DB, error) {
+func (r *customerTagAssignmentRepository) database(ctx context.Context) (*gorm.DB, error) {
 	if r.db != nil {
-		return r.db, nil
+		return r.db.WithContext(ctx), nil
 	}
-	return assignmentDB()
+	database, err := assignmentDB()
+	if err != nil {
+		return nil, err
+	}
+	return database.WithContext(ctx), nil
 }
 
 func (r *customerTagAssignmentRepository) GetByCustomerAndTag(ctx context.Context, customerID, tag string) (*model.CustomerTagAssignment, error) {
-	database, err := r.database()
+	database, err := r.database(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -67,7 +71,7 @@ func (r *customerTagAssignmentRepository) GetByCustomerAndTag(ctx context.Contex
 }
 
 func (r *customerTagAssignmentRepository) ListByCustomerID(ctx context.Context, customerID string) ([]*model.CustomerTagAssignment, error) {
-	database, err := r.database()
+	database, err := r.database(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -82,7 +86,7 @@ func (r *customerTagAssignmentRepository) ListByCustomerID(ctx context.Context, 
 }
 
 func (r *customerTagAssignmentRepository) Create(ctx context.Context, assignment *model.CustomerTagAssignment) error {
-	database, err := r.database()
+	database, err := r.database(ctx)
 	if err != nil {
 		return err
 	}
@@ -90,7 +94,7 @@ func (r *customerTagAssignmentRepository) Create(ctx context.Context, assignment
 }
 
 func (r *customerTagAssignmentRepository) Update(ctx context.Context, assignment *model.CustomerTagAssignment) error {
-	database, err := r.database()
+	database, err := r.database(ctx)
 	if err != nil {
 		return err
 	}
@@ -98,7 +102,7 @@ func (r *customerTagAssignmentRepository) Update(ctx context.Context, assignment
 }
 
 func (r *customerTagAssignmentRepository) DeleteByCustomerAndTag(ctx context.Context, customerID, tag string) error {
-	database, err := r.database()
+	database, err := r.database(ctx)
 	if err != nil {
 		return err
 	}
@@ -106,7 +110,7 @@ func (r *customerTagAssignmentRepository) DeleteByCustomerAndTag(ctx context.Con
 }
 
 func (r *customerTagAssignmentRepository) Upsert(ctx context.Context, assignment *model.CustomerTagAssignment) error {
-	database, err := r.database()
+	database, err := r.database(ctx)
 	if err != nil {
 		return err
 	}
@@ -130,7 +134,7 @@ func (r *customerTagAssignmentRepository) Upsert(ctx context.Context, assignment
 // total 是"打过该标的总行数"，与 ids 是否被 limit 截断无关 —— 调用方要据此区分
 // "这个标签根本没人打"（total=0）和"有人但一轮取不完"（len(ids)<total）。
 func (r *customerTagAssignmentRepository) ListCustomerIDsByTag(ctx context.Context, tag string, limit int) ([]string, int64, error) {
-	database, err := r.database()
+	database, err := r.database(ctx)
 	if err != nil {
 		return nil, 0, err
 	}

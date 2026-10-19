@@ -45,12 +45,12 @@ func NewObsConfigRepositoryWithDB(db *gorm.DB) ObsConfigRepository {
 }
 
 func (r *obsConfigRepo) Create(ctx context.Context, config *model.ObsConfig) error {
-	return r.db.Create(config).Error
+	return r.db.WithContext(ctx).Create(config).Error
 }
 
 func (r *obsConfigRepo) GetByID(ctx context.Context, id string) (*model.ObsConfig, error) {
 	var config model.ObsConfig
-	err := r.db.Where("id = ?", id).First(&config).Error
+	err := r.db.WithContext(ctx).Where("id = ?", id).First(&config).Error
 	return &config, err
 }
 
@@ -59,7 +59,7 @@ func (r *obsConfigRepo) GetList(ctx context.Context, page int, limit int, provid
 	var total int64
 	offset := (page - 1) * limit
 
-	query := r.db.Model(&model.ObsConfig{})
+	query := r.db.WithContext(ctx).Model(&model.ObsConfig{})
 
 	if provider != "" {
 		query = query.Where("provider = ?", provider)
@@ -93,7 +93,7 @@ func (r *obsConfigRepo) Update(ctx context.Context, config *model.ObsConfig) err
 	if config == nil || config.ID == "" {
 		return gorm.ErrRecordNotFound
 	}
-	res := r.db.Model(&model.ObsConfig{}).Where("id = ?", config.ID).
+	res := r.db.WithContext(ctx).Model(&model.ObsConfig{}).Where("id = ?", config.ID).
 		Updates(map[string]any{
 			"name":        config.Name,
 			"provider":    config.Provider,
@@ -129,7 +129,7 @@ func (r *obsConfigRepo) Update(ctx context.Context, config *model.ObsConfig) err
 //
 // 需要"连默认行一起删"（清库/重建）时必须显式另开入口，不许顺手放宽这里。
 func (r *obsConfigRepo) DeleteNonDefault(ctx context.Context, id string) error {
-	res := r.db.Where("id = ? AND is_default = ?", id, false).Delete(&model.ObsConfig{})
+	res := r.db.WithContext(ctx).Where("id = ? AND is_default = ?", id, false).Delete(&model.ObsConfig{})
 	if res.Error != nil {
 		return res.Error
 	}
@@ -141,7 +141,7 @@ func (r *obsConfigRepo) DeleteNonDefault(ctx context.Context, id string) error {
 
 func (r *obsConfigRepo) GetDefault(ctx context.Context) (*model.ObsConfig, error) {
 	var config model.ObsConfig
-	err := r.db.Where("is_default = ? AND status = ?", true, model.ObsStatusActive).
+	err := r.db.WithContext(ctx).Where("is_default = ? AND status = ?", true, model.ObsStatusActive).
 		Order("created_at ASC").
 		First(&config).Error
 	return &config, err
@@ -158,7 +158,7 @@ func (r *obsConfigRepo) GetDefault(ctx context.Context) (*model.ObsConfig, error
 // 目标行不存在时必须报错并回滚：旧实现把 ClearDefault 先提交了，第二句影响 0 行
 // 仍返回 nil，库里留下"零条默认"，全站上传与媒体转存从此再没有自愈路径。
 func (r *obsConfigRepo) SetDefault(ctx context.Context, id string) error {
-	return r.db.Transaction(func(tx *gorm.DB) error {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Model(&model.ObsConfig{}).
 			Where("is_default = ? AND id <> ?", true, id).
 			Update("is_default", false).Error; err != nil {
@@ -185,7 +185,7 @@ func (r *obsConfigRepo) SetDefault(ctx context.Context, id string) error {
 // 用 UpdateColumns 而不是 Updates：后者会让 GORM 顺手刷 updated_at，
 // 而"又传了一个文件"不是配置被改过，不该顶掉管理页上的"最后修改时间"。
 func (r *obsConfigRepo) IncrementUsage(ctx context.Context, id string, size int64) error {
-	res := r.db.Model(&model.ObsConfig{}).Where("id = ?", id).
+	res := r.db.WithContext(ctx).Model(&model.ObsConfig{}).Where("id = ?", id).
 		UpdateColumns(map[string]any{
 			"file_count": gorm.Expr("file_count + 1"),
 			"total_size": gorm.Expr("total_size + ?", size),
@@ -200,17 +200,17 @@ func (r *obsConfigRepo) IncrementUsage(ctx context.Context, id string, size int6
 }
 
 func (r *obsConfigRepo) UpdateStatus(ctx context.Context, id string, status model.ObsStatus) error {
-	return r.db.Model(&model.ObsConfig{}).Where("id = ?", id).Update("status", status).Error
+	return r.db.WithContext(ctx).Model(&model.ObsConfig{}).Where("id = ?", id).Update("status", status).Error
 }
 
 func (r *obsConfigRepo) CountByStatus(ctx context.Context, status model.ObsStatus) (int64, error) {
 	var count int64
-	err := r.db.Model(&model.ObsConfig{}).Where("status = ?", status).Count(&count).Error
+	err := r.db.WithContext(ctx).Model(&model.ObsConfig{}).Where("status = ?", status).Count(&count).Error
 	return count, err
 }
 
 func (r *obsConfigRepo) Count(ctx context.Context) (int64, error) {
 	var count int64
-	err := r.db.Model(&model.ObsConfig{}).Count(&count).Error
+	err := r.db.WithContext(ctx).Model(&model.ObsConfig{}).Count(&count).Error
 	return count, err
 }

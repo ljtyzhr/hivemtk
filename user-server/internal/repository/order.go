@@ -41,18 +41,18 @@ func NewOrderRepositoryWithDB(db *gorm.DB) OrderRepository {
 }
 
 func (r *orderRepo) Create(ctx context.Context, order *model.Order) error {
-	return r.db.Create(order).Error
+	return r.db.WithContext(ctx).Create(order).Error
 }
 
 func (r *orderRepo) GetByID(ctx context.Context, id uint) (*model.Order, error) {
 	var order model.Order
-	err := r.db.First(&order, id).Error
+	err := r.db.WithContext(ctx).First(&order, id).Error
 	return &order, err
 }
 
 func (r *orderRepo) GetByStringID(ctx context.Context, id string) (*model.Order, error) {
 	var order model.Order
-	err := r.db.Where("id = ?", id).First(&order).Error
+	err := r.db.WithContext(ctx).Where("id = ?", id).First(&order).Error
 	if err != nil {
 		return nil, err
 	}
@@ -62,27 +62,27 @@ func (r *orderRepo) GetByStringID(ctx context.Context, id string) (*model.Order,
 func (r *orderRepo) GetOrderList(ctx context.Context, page int, limit int) ([]*model.Order, int64, error) {
 	var orders []*model.Order
 	var total int64
-	err := r.db.Offset((page - 1) * limit).Limit(limit).Find(&orders).Count(&total).Error
+	err := r.db.WithContext(ctx).Offset((page - 1) * limit).Limit(limit).Find(&orders).Count(&total).Error
 	return orders, total, err
 }
 
 func (r *orderRepo) Delete(ctx context.Context, id string) error {
-	return r.db.Where("id = ?", id).Delete(&model.Order{}).Error
+	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&model.Order{}).Error
 }
 
 func (r *orderRepo) GetGetLastOrder(ctx context.Context, account_ID string, tgID int64) (*model.Order, error) {
 	var order model.Order
-	err := r.db.Where("account_id = ? and tg_id = ?", account_ID, tgID).Order("create_time desc").First(&order).Error
+	err := r.db.WithContext(ctx).Where("account_id = ? and tg_id = ?", account_ID, tgID).Order("create_time desc").First(&order).Error
 	return &order, err
 }
 func (r *orderRepo) UpdateOrderStatusById(ctx context.Context, id string, status _type.OrderStatusType) error {
 	var order model.Order
-	err := r.db.First(&order, "id = ?", id).Error
+	err := r.db.WithContext(ctx).First(&order, "id = ?", id).Error
 	if err != nil {
 		return err
 	}
 	order.Status = _type.OrderStatusType(status)
-	err = r.db.Save(&order).Error
+	err = r.db.WithContext(ctx).Save(&order).Error
 	return err
 }
 
@@ -91,19 +91,19 @@ func (r *orderRepo) GetRecentOrderList(ctx context.Context) ([]*model.Order, err
 
 	var start_time = time.Now().Add(-time.Minute * 5).Unix()
 	var end_time = time.Now().Unix()
-	err := r.db.Where("status = ? and create_time > ? and create_time < ?", _type.OrderStatusPending, start_time, end_time).Order("create_time desc").Find(&orders).Error
+	err := r.db.WithContext(ctx).Where("status = ? and create_time > ? and create_time < ?", _type.OrderStatusPending, start_time, end_time).Order("create_time desc").Find(&orders).Error
 	return orders, err
 }
 
 func (r *orderRepo) GetByTgID(ctx context.Context, tgID int64) ([]*model.Order, error) {
 	var orders []*model.Order
-	err := r.db.Where("tg_id = ?", tgID).Order("create_time desc").Find(&orders).Error
+	err := r.db.WithContext(ctx).Where("tg_id = ?", tgID).Order("create_time desc").Find(&orders).Error
 	return orders, err
 }
 
 func (r *orderRepo) GetDistinctPaidTgIDs(ctx context.Context) ([]int64, error) {
 	var tgIDs []int64
-	err := r.db.Model(&model.Order{}).
+	err := r.db.WithContext(ctx).Model(&model.Order{}).
 		Where("status = ?", _type.OrderStatusSuccess).
 		Distinct("tg_id").
 		Pluck("tg_id", &tgIDs).Error
@@ -111,7 +111,7 @@ func (r *orderRepo) GetDistinctPaidTgIDs(ctx context.Context) ([]int64, error) {
 }
 
 func (r *orderRepo) Update(ctx context.Context, order *model.Order) error {
-	return r.db.Save(order).Error
+	return r.db.WithContext(ctx).Save(order).Error
 }
 
 func (r *orderRepo) ListByAccountIDs(ctx context.Context, accountIDs []string) ([]*model.Order, error) {

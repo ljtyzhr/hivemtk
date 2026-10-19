@@ -43,7 +43,7 @@ func NewDouyinCardRepository(db *gorm.DB) DouyinCardRepository {
 }
 
 func (r *douyinCardRepository) Create(ctx context.Context, card *model.DouyinCard) (*model.DouyinCard, error) {
-	if err := r.db.Create(card).Error; err != nil {
+	if err := r.db.WithContext(ctx).Create(card).Error; err != nil {
 		return nil, err
 	}
 	return card, nil
@@ -52,11 +52,11 @@ func (r *douyinCardRepository) Create(ctx context.Context, card *model.DouyinCar
 func (r *douyinCardRepository) Update(ctx context.Context, card *model.DouyinCard) (*model.DouyinCard, error) {
 	logger.Infof("更新抖音卡片，ID: %d, ShortLinkID: %d", card.ID, card.ShortLinkID)
 
-	if err := r.db.Model(&model.DouyinCard{}).Where("id = ?", card.ID).Update("short_link_id", card.ShortLinkID).Error; err != nil {
+	if err := r.db.WithContext(ctx).Model(&model.DouyinCard{}).Where("id = ?", card.ID).Update("short_link_id", card.ShortLinkID).Error; err != nil {
 		return nil, fmt.Errorf("更新short_link_id失败: %v", err)
 	}
 
-	if err := r.db.Model(&model.DouyinCard{}).Where("id = ?", card.ID).Updates(map[string]any{
+	if err := r.db.WithContext(ctx).Model(&model.DouyinCard{}).Where("id = ?", card.ID).Updates(map[string]any{
 		"title":          card.Title,
 		"description":    card.Description,
 		"image_url":      card.ImageURL,
@@ -72,7 +72,7 @@ func (r *douyinCardRepository) Update(ctx context.Context, card *model.DouyinCar
 	logger.Infof("更新抖音卡片成功")
 
 	var updatedCard model.DouyinCard
-	if err := r.db.First(&updatedCard, card.ID).Error; err != nil {
+	if err := r.db.WithContext(ctx).First(&updatedCard, card.ID).Error; err != nil {
 		return nil, err
 	}
 
@@ -80,12 +80,12 @@ func (r *douyinCardRepository) Update(ctx context.Context, card *model.DouyinCar
 }
 
 func (r *douyinCardRepository) Delete(ctx context.Context, id uint) error {
-	return r.db.Delete(&model.DouyinCard{}, id).Error
+	return r.db.WithContext(ctx).Delete(&model.DouyinCard{}, id).Error
 }
 
 func (r *douyinCardRepository) GetByID(ctx context.Context, id uint) (*model.DouyinCard, error) {
 	var card model.DouyinCard
-	if err := r.db.First(&card, id).Error; err != nil {
+	if err := r.db.WithContext(ctx).First(&card, id).Error; err != nil {
 		return nil, err
 	}
 	return &card, nil
@@ -95,7 +95,7 @@ func (r *douyinCardRepository) GetList(ctx context.Context, req CardListFilter) 
 	var cards []model.DouyinCard
 	var total int64
 
-	query := r.db.Model(&model.DouyinCard{})
+	query := r.db.WithContext(ctx).Model(&model.DouyinCard{})
 
 	if req.Keyword != "" {
 		query = query.Where("title LIKE ? OR description LIKE ? OR tags LIKE ?",
@@ -124,12 +124,12 @@ func (r *douyinCardRepository) GetList(ctx context.Context, req CardListFilter) 
 
 func (r *douyinCardRepository) IncrementViewCount(ctx context.Context, id uint) (*model.DouyinCard, error) {
 	var card model.DouyinCard
-	if err := r.db.First(&card, id).Error; err != nil {
+	if err := r.db.WithContext(ctx).First(&card, id).Error; err != nil {
 		return nil, err
 	}
 
 	card.ViewCount++
-	if err := r.db.Save(&card).Error; err != nil {
+	if err := r.db.WithContext(ctx).Save(&card).Error; err != nil {
 		return nil, err
 	}
 
@@ -137,14 +137,14 @@ func (r *douyinCardRepository) IncrementViewCount(ctx context.Context, id uint) 
 }
 
 func (r *douyinCardRepository) IncrementLikeCount(ctx context.Context, id uint) error {
-	return r.db.Model(&model.DouyinCard{}).Where("id = ?", id).Update("like_count", gorm.Expr("like_count + ?", 1)).Error
+	return r.db.WithContext(ctx).Model(&model.DouyinCard{}).Where("id = ?", id).Update("like_count", gorm.Expr("like_count + ?", 1)).Error
 }
 
 func (r *douyinCardRepository) IncrementShareCount(ctx context.Context, id uint) error {
 
 	var card model.DouyinCard
-	if err := r.db.First(&card, id).Error; err != nil {
+	if err := r.db.WithContext(ctx).First(&card, id).Error; err != nil {
 		return err
 	}
-	return r.db.Model(&model.DouyinCard{}).Where("id = ?", id).Update("share_count", gorm.Expr("share_count + ?", 1)).Error
+	return r.db.WithContext(ctx).Model(&model.DouyinCard{}).Where("id = ?", id).Update("share_count", gorm.Expr("share_count + ?", 1)).Error
 }

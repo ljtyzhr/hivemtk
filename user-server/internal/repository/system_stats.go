@@ -43,7 +43,7 @@ func NewSystemStatsRepository() SystemStatsRepository {
 
 func (r *systemStatsRepo) CountSystemUsers(ctx context.Context) (int64, error) {
 	var n int64
-	if err := r.db.Model(&model.SystemUser{}).Count(&n).Error; err != nil {
+	if err := r.db.WithContext(ctx).Model(&model.SystemUser{}).Count(&n).Error; err != nil {
 		return 0, err
 	}
 	return n, nil
@@ -51,7 +51,7 @@ func (r *systemStatsRepo) CountSystemUsers(ctx context.Context) (int64, error) {
 
 func (r *systemStatsRepo) CountSystemUsersByRole(ctx context.Context, role string) (int64, error) {
 	var n int64
-	if err := r.db.Model(&model.SystemUser{}).Where("role = ?", role).Count(&n).Error; err != nil {
+	if err := r.db.WithContext(ctx).Model(&model.SystemUser{}).Where("role = ?", role).Count(&n).Error; err != nil {
 		return 0, err
 	}
 	return n, nil
@@ -59,7 +59,7 @@ func (r *systemStatsRepo) CountSystemUsersByRole(ctx context.Context, role strin
 
 func (r *systemStatsRepo) CountActiveSystemUsers(ctx context.Context, sinceUnix int64) (int64, error) {
 	var n int64
-	if err := r.db.Model(&model.SystemUser{}).Where("updated_at >= to_timestamp(?)", sinceUnix).Count(&n).Error; err != nil {
+	if err := r.db.WithContext(ctx).Model(&model.SystemUser{}).Where("updated_at >= to_timestamp(?)", sinceUnix).Count(&n).Error; err != nil {
 		return 0, err
 	}
 	return n, nil
@@ -67,7 +67,7 @@ func (r *systemStatsRepo) CountActiveSystemUsers(ctx context.Context, sinceUnix 
 
 func (r *systemStatsRepo) CountOrders(ctx context.Context) (int64, error) {
 	var n int64
-	if err := r.db.Model(&model.Order{}).Count(&n).Error; err != nil {
+	if err := r.db.WithContext(ctx).Model(&model.Order{}).Count(&n).Error; err != nil {
 		return 0, err
 	}
 	return n, nil
@@ -78,7 +78,7 @@ func (r *systemStatsRepo) CountCards(ctx context.Context) (int64, error) {
 	cardTables := []string{"douyin_cards", "kuaishou_cards", "xiaohongshu_cards", "xianyu_cards"}
 	for _, table := range cardTables {
 		var c int64
-		if err := r.db.Table(table).Count(&c).Error; err != nil {
+		if err := r.db.WithContext(ctx).Table(table).Count(&c).Error; err != nil {
 			continue
 		}
 		total += c
@@ -88,7 +88,7 @@ func (r *systemStatsRepo) CountCards(ctx context.Context) (int64, error) {
 
 func (r *systemStatsRepo) CountShortLinks(ctx context.Context) (int64, error) {
 	var n int64
-	if err := r.db.Model(&model.ShortLink{}).Count(&n).Error; err != nil {
+	if err := r.db.WithContext(ctx).Model(&model.ShortLink{}).Count(&n).Error; err != nil {
 		return 0, err
 	}
 	return n, nil
@@ -96,7 +96,7 @@ func (r *systemStatsRepo) CountShortLinks(ctx context.Context) (int64, error) {
 
 func (r *systemStatsRepo) CountTodayVisits(ctx context.Context, sinceUnix int64) (int64, error) {
 	var n int64
-	if err := r.db.Model(&model.VisitLog{}).Where("created_at >= to_timestamp(?)", sinceUnix).Count(&n).Error; err != nil {
+	if err := r.db.WithContext(ctx).Model(&model.VisitLog{}).Where("created_at >= to_timestamp(?)", sinceUnix).Count(&n).Error; err != nil {
 		return 0, err
 	}
 	return n, nil
@@ -104,7 +104,7 @@ func (r *systemStatsRepo) CountTodayVisits(ctx context.Context, sinceUnix int64)
 
 func (r *systemStatsRepo) CountEmailLists(ctx context.Context) (int64, error) {
 	var n int64
-	if err := r.db.Model(&model.EmailList{}).Count(&n).Error; err != nil {
+	if err := r.db.WithContext(ctx).Model(&model.EmailList{}).Count(&n).Error; err != nil {
 		return 0, err
 	}
 	return n, nil
@@ -112,7 +112,7 @@ func (r *systemStatsRepo) CountEmailLists(ctx context.Context) (int64, error) {
 
 func (r *systemStatsRepo) CountEmailJobs(ctx context.Context) (int64, error) {
 	var n int64
-	if err := r.db.Model(&model.EmailJobs{}).Count(&n).Error; err != nil {
+	if err := r.db.WithContext(ctx).Model(&model.EmailJobs{}).Count(&n).Error; err != nil {
 		return 0, err
 	}
 	return n, nil
@@ -120,7 +120,7 @@ func (r *systemStatsRepo) CountEmailJobs(ctx context.Context) (int64, error) {
 
 func (r *systemStatsRepo) CountMaterials(ctx context.Context) (int64, error) {
 	var n int64
-	if err := r.db.Table("materials").Count(&n).Error; err != nil {
+	if err := r.db.WithContext(ctx).Table("materials").Count(&n).Error; err != nil {
 		return 0, err
 	}
 	return n, nil
@@ -128,7 +128,7 @@ func (r *systemStatsRepo) CountMaterials(ctx context.Context) (int64, error) {
 
 func (r *systemStatsRepo) ListRecentSystemMetrics(ctx context.Context, limit int) ([]model.SystemMetrics, error) {
 	var list []model.SystemMetrics
-	if err := r.db.Limit(limit).Order("created_at DESC").Find(&list).Error; err != nil {
+	if err := r.db.WithContext(ctx).Limit(limit).Order("created_at DESC").Find(&list).Error; err != nil {
 		return []model.SystemMetrics{}, err
 	}
 	return list, nil

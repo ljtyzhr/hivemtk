@@ -35,20 +35,20 @@ func NewLiveCodeQRRepository(db *gorm.DB) LiveCodeQRRepository {
 }
 
 func (r *liveCodeQRRepository) Create(ctx context.Context, qrCode *model.LiveCodeQR) error {
-	return r.db.Create(qrCode).Error
+	return r.db.WithContext(ctx).Create(qrCode).Error
 }
 
 func (r *liveCodeQRRepository) Update(ctx context.Context, qrCode *model.LiveCodeQR) error {
-	return r.db.Save(qrCode).Error
+	return r.db.WithContext(ctx).Save(qrCode).Error
 }
 
 func (r *liveCodeQRRepository) Delete(ctx context.Context, id string) error {
-	return r.db.Where("id = ?", id).Delete(&model.LiveCodeQR{}).Error
+	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&model.LiveCodeQR{}).Error
 }
 
 func (r *liveCodeQRRepository) GetByID(ctx context.Context, id string) (*model.LiveCodeQR, error) {
 	var qrCode model.LiveCodeQR
-	err := r.db.Where("id = ?", id).First(&qrCode).Error
+	err := r.db.WithContext(ctx).Where("id = ?", id).First(&qrCode).Error
 	if err != nil {
 		return nil, err
 	}
@@ -57,7 +57,7 @@ func (r *liveCodeQRRepository) GetByID(ctx context.Context, id string) (*model.L
 
 func (r *liveCodeQRRepository) GetByLiveCodeID(ctx context.Context, liveCodeID string) ([]*model.LiveCodeQR, error) {
 	var qrCodes []*model.LiveCodeQR
-	err := r.db.Where("live_code_id = ?", liveCodeID).Order("created_at DESC").Find(&qrCodes).Error
+	err := r.db.WithContext(ctx).Where("live_code_id = ?", liveCodeID).Order("created_at DESC").Find(&qrCodes).Error
 	if err != nil {
 		return nil, err
 	}
@@ -66,7 +66,7 @@ func (r *liveCodeQRRepository) GetByLiveCodeID(ctx context.Context, liveCodeID s
 
 func (r *liveCodeQRRepository) GetAvailableQR(ctx context.Context, liveCodeID string) (*model.LiveCodeQR, error) {
 	var qrCode model.LiveCodeQR
-	err := r.db.Where("live_code_id = ? AND status = ?", liveCodeID, 1).
+	err := r.db.WithContext(ctx).Where("live_code_id = ? AND status = ?", liveCodeID, 1).
 		Order("created_at DESC").
 		First(&qrCode).Error
 	if err != nil {
@@ -76,12 +76,12 @@ func (r *liveCodeQRRepository) GetAvailableQR(ctx context.Context, liveCodeID st
 }
 
 func (r *liveCodeQRRepository) CreateStat(ctx context.Context, stat *model.LiveCodeQRStat) error {
-	return r.db.Create(stat).Error
+	return r.db.WithContext(ctx).Create(stat).Error
 }
 
 func (r *liveCodeQRRepository) GetStats(ctx context.Context, qrID string) ([]*model.LiveCodeQRStat, error) {
 	var stats []*model.LiveCodeQRStat
-	err := r.db.Where("qr_code_id = ?", qrID).Order("date DESC").Find(&stats).Error
+	err := r.db.WithContext(ctx).Where("qr_code_id = ?", qrID).Order("date DESC").Find(&stats).Error
 	if err != nil {
 		return nil, err
 	}
@@ -96,29 +96,29 @@ func beginOfToday() time.Time {
 func (r *liveCodeQRRepository) IncrementViewStat(ctx context.Context, qrID string) error {
 	today := beginOfToday()
 	var stat model.LiveCodeQRStat
-	err := r.db.Where("qr_code_id = ? AND date = ?", qrID, today).First(&stat).Error
+	err := r.db.WithContext(ctx).Where("qr_code_id = ? AND date = ?", qrID, today).First(&stat).Error
 	if err == gorm.ErrRecordNotFound {
 		stat = model.LiveCodeQRStat{QRCodeID: qrID, Date: today, ViewCount: 1, ClickCount: 0}
-		return r.db.Create(&stat).Error
+		return r.db.WithContext(ctx).Create(&stat).Error
 	}
 	if err != nil {
 		return err
 	}
-	return r.db.Model(&stat).UpdateColumn("view_count", gorm.Expr("view_count + 1")).Error
+	return r.db.WithContext(ctx).Model(&stat).UpdateColumn("view_count", gorm.Expr("view_count + 1")).Error
 }
 
 func (r *liveCodeQRRepository) IncrementClickStat(ctx context.Context, qrID string) error {
 	today := beginOfToday()
 	var stat model.LiveCodeQRStat
-	err := r.db.Where("qr_code_id = ? AND date = ?", qrID, today).First(&stat).Error
+	err := r.db.WithContext(ctx).Where("qr_code_id = ? AND date = ?", qrID, today).First(&stat).Error
 	if err == gorm.ErrRecordNotFound {
 		stat = model.LiveCodeQRStat{QRCodeID: qrID, Date: today, ViewCount: 0, ClickCount: 1}
-		return r.db.Create(&stat).Error
+		return r.db.WithContext(ctx).Create(&stat).Error
 	}
 	if err != nil {
 		return err
 	}
-	return r.db.Model(&stat).UpdateColumn("click_count", gorm.Expr("click_count + 1")).Error
+	return r.db.WithContext(ctx).Model(&stat).UpdateColumn("click_count", gorm.Expr("click_count + 1")).Error
 }
 
 func (r *liveCodeQRRepository) SumStats(ctx context.Context, qrID string) (int64, int64, error) {

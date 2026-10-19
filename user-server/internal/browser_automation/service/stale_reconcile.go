@@ -7,6 +7,7 @@ import (
 
 	"hivemtk-user/internal/browser_automation/model"
 	"hivemtk-user/internal/browser_automation/repository"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 )
 
@@ -67,6 +68,12 @@ func StartStaleTaskReconcile(ctx context.Context, taskRepo repository.BrowserTas
 // reconcileStaleTasks 一轮对账，返回回填生效的任务数（导出点留给测试直接驱动，不起 goroutine）。
 func reconcileStaleTasks(ctx context.Context, taskRepo repository.BrowserTaskRepository,
 	sessRepo repository.BrowserSessionRepository) int {
+	// 平台级对账扫描：FindStaleRunningAll 不按用户过滤，收敛的是**全租户**的砖化
+	// running 任务；后台 goroutine 无请求 ctx，TENANT_MODE=on 时裸 ctx 会被隔离
+	// callback fail-closed（生产日志实证："[BrowserReconcile] 扫描 running 任务失败"）。
+	// 走 tenant.WithSystemScope 平台级豁免通道；回填写（FailStaleUnfinished/
+	// ReconcileRunResult）同为对账收敛，一并在此 scope 内（与 reach 调度器同口径）。
+	ctx = tenant.WithSystemScope(ctx)
 	tasks, err := taskRepo.FindStaleRunningAll(ctx, staleScanFloorAge, staleScanLimit)
 	if err != nil {
 		logger.Warnf("[BrowserReconcile] 扫描 running 任务失败: %v", err)

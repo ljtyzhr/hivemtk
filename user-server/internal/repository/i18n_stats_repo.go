@@ -80,8 +80,11 @@ func (r *i18nStatsRepo) SetDB(_ context.Context, db *gorm.DB) {
 	}
 }
 
-func (r *i18nStatsRepo) GetDB(_ context.Context) *gorm.DB {
-	return r.db
+func (r *i18nStatsRepo) GetDB(ctx context.Context) *gorm.DB {
+	if r.db == nil {
+		return nil
+	}
+	return r.db.WithContext(ctx)
 }
 
 func (r *i18nStatsRepo) LangDistribution(ctx context.Context, since time.Time) ([]LangDistRow, error) {

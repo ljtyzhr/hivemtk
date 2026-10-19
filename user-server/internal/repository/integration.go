@@ -39,19 +39,19 @@ func SetIntegrationAccountRepoDB(r *IntegrationAccountRepository, db *gorm.DB) {
 
 // Create 创建对接账号
 func (r *IntegrationAccountRepository) Create(ctx context.Context, account *model.IntegrationAccount) error {
-	return r.db.Create(account).Error
+	return r.db.WithContext(ctx).Create(account).Error
 }
 
 // GetByID 根据 ID 获取对接账号
 func (r *IntegrationAccountRepository) GetByID(ctx context.Context, id uint) (*model.IntegrationAccount, error) {
 	var account model.IntegrationAccount
-	err := r.db.First(&account, id).Error
+	err := r.db.WithContext(ctx).First(&account, id).Error
 	return &account, err
 }
 
 func (r *IntegrationAccountRepository) GetByPlatformAndAccount(ctx context.Context, platform, accountID string) (*model.IntegrationAccount, error) {
 	var account model.IntegrationAccount
-	q := r.db.Where("platform = ?", platform)
+	q := r.db.WithContext(ctx).Where("platform = ?", platform)
 	if accountID != "" {
 		q = q.Where("account_id = ?", accountID)
 	}
@@ -62,25 +62,25 @@ func (r *IntegrationAccountRepository) GetByPlatformAndAccount(ctx context.Conte
 // GetByPlatform 获取某平台的对接账号(单租户)
 func (r *IntegrationAccountRepository) GetByPlatform(ctx context.Context, platform string) (*model.IntegrationAccount, error) {
 	var account model.IntegrationAccount
-	err := r.db.Where("platform = ?", platform).First(&account).Error
+	err := r.db.WithContext(ctx).Where("platform = ?", platform).First(&account).Error
 	return &account, err
 }
 
 // GetAll 获取所有对接账号(单租户)
 func (r *IntegrationAccountRepository) GetAll(ctx context.Context) ([]*model.IntegrationAccount, error) {
 	var accounts []*model.IntegrationAccount
-	err := r.db.Find(&accounts).Error
+	err := r.db.WithContext(ctx).Find(&accounts).Error
 	return accounts, err
 }
 
 // Update 更新对接账号
 func (r *IntegrationAccountRepository) Update(ctx context.Context, account *model.IntegrationAccount) error {
-	return r.db.Save(account).Error
+	return r.db.WithContext(ctx).Save(account).Error
 }
 
 // UpdateToken 更新访问令牌
 func (r *IntegrationAccountRepository) UpdateToken(ctx context.Context, id uint, token string, expires *time.Time) error {
-	return r.db.Model(&model.IntegrationAccount{}).Where("id = ?", id).
+	return r.db.WithContext(ctx).Model(&model.IntegrationAccount{}).Where("id = ?", id).
 		Updates(map[string]any{
 			"access_token":  token,
 			"token_expires": expires,
@@ -89,13 +89,13 @@ func (r *IntegrationAccountRepository) UpdateToken(ctx context.Context, id uint,
 
 // Delete 删除对接账号
 func (r *IntegrationAccountRepository) Delete(ctx context.Context, id uint) error {
-	return r.db.Delete(&model.IntegrationAccount{}, id).Error
+	return r.db.WithContext(ctx).Delete(&model.IntegrationAccount{}, id).Error
 }
 
 // UpdateSyncTime 更新同步时间
 func (r *IntegrationAccountRepository) UpdateSyncTime(ctx context.Context, id uint) error {
 	now := time.Now()
-	return r.db.Model(&model.IntegrationAccount{}).Where("id = ?", id).
+	return r.db.WithContext(ctx).Model(&model.IntegrationAccount{}).Where("id = ?", id).
 		Updates(map[string]any{
 			"last_sync_at": now,
 		}).Error
@@ -115,13 +115,13 @@ func NewSyncLogRepository() *SyncLogRepository {
 
 // Create 创建同步日志
 func (r *SyncLogRepository) Create(ctx context.Context, log *model.SyncLog) error {
-	return r.db.Create(log).Error
+	return r.db.WithContext(ctx).Create(log).Error
 }
 
 // GetByID 根据 ID 获取同步日志
 func (r *SyncLogRepository) GetByID(ctx context.Context, id uint) (*model.SyncLog, error) {
 	var log model.SyncLog
-	err := r.db.First(&log, id).Error
+	err := r.db.WithContext(ctx).First(&log, id).Error
 	return &log, err
 }
 
@@ -130,10 +130,10 @@ func (r *SyncLogRepository) GetAll(ctx context.Context, page, pageSize int) ([]*
 	var logs []*model.SyncLog
 	var total int64
 
-	if err := r.db.Model(&model.SyncLog{}).Count(&total).Error; err != nil {
+	if err := r.db.WithContext(ctx).Model(&model.SyncLog{}).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	err := r.db.Order("created_at DESC").
+	err := r.db.WithContext(ctx).Order("created_at DESC").
 		Offset((page - 1) * pageSize).
 		Limit(pageSize).
 		Find(&logs).Error
@@ -143,7 +143,7 @@ func (r *SyncLogRepository) GetAll(ctx context.Context, page, pageSize int) ([]*
 
 // Update 更新同步日志
 func (r *SyncLogRepository) Update(ctx context.Context, log *model.SyncLog) error {
-	return r.db.Save(log).Error
+	return r.db.WithContext(ctx).Save(log).Error
 }
 
 // UpdateStatus 更新同步状态
@@ -155,7 +155,7 @@ func (r *SyncLogRepository) UpdateStatus(ctx context.Context, id uint, status in
 	}
 	now := time.Now()
 	updates["end_time"] = now
-	return r.db.Model(&model.SyncLog{}).Where("id = ?", id).Updates(updates).Error
+	return r.db.WithContext(ctx).Model(&model.SyncLog{}).Where("id = ?", id).Updates(updates).Error
 }
 
 // ExternalCustomerRepository 外部客户仓库
@@ -172,20 +172,20 @@ func NewExternalCustomerRepository() *ExternalCustomerRepository {
 
 // Create 创建外部客户
 func (r *ExternalCustomerRepository) Create(ctx context.Context, customer *model.ExternalCustomer) error {
-	return r.db.Create(customer).Error
+	return r.db.WithContext(ctx).Create(customer).Error
 }
 
 // GetByID 根据 ID 获取外部客户
 func (r *ExternalCustomerRepository) GetByID(ctx context.Context, id uint) (*model.ExternalCustomer, error) {
 	var customer model.ExternalCustomer
-	err := r.db.First(&customer, id).Error
+	err := r.db.WithContext(ctx).First(&customer, id).Error
 	return &customer, err
 }
 
 // GetByExternalID 根据外部 ID 获取外部客户
 func (r *ExternalCustomerRepository) GetByExternalID(ctx context.Context, platform, externalID string) (*model.ExternalCustomer, error) {
 	var customer model.ExternalCustomer
-	err := r.db.Where("platform = ? AND external_id = ?", platform, externalID).First(&customer).Error
+	err := r.db.WithContext(ctx).Where("platform = ? AND external_id = ?", platform, externalID).First(&customer).Error
 	return &customer, err
 }
 
@@ -194,10 +194,10 @@ func (r *ExternalCustomerRepository) GetAll(ctx context.Context, page, pageSize 
 	var customers []*model.ExternalCustomer
 	var total int64
 
-	if err := r.db.Model(&model.ExternalCustomer{}).Count(&total).Error; err != nil {
+	if err := r.db.WithContext(ctx).Model(&model.ExternalCustomer{}).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	err := r.db.Order("created_at DESC").
+	err := r.db.WithContext(ctx).Order("created_at DESC").
 		Offset((page - 1) * pageSize).
 		Limit(pageSize).
 		Find(&customers).Error
@@ -210,10 +210,10 @@ func (r *ExternalCustomerRepository) GetByPlatform(ctx context.Context, platform
 	var customers []*model.ExternalCustomer
 	var total int64
 
-	if err := r.db.Model(&model.ExternalCustomer{}).Where("platform = ?", platform).Count(&total).Error; err != nil {
+	if err := r.db.WithContext(ctx).Model(&model.ExternalCustomer{}).Where("platform = ?", platform).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	err := r.db.Where("platform = ?", platform).
+	err := r.db.WithContext(ctx).Where("platform = ?", platform).
 		Order("created_at DESC").
 		Offset((page - 1) * pageSize).
 		Limit(pageSize).
@@ -224,12 +224,12 @@ func (r *ExternalCustomerRepository) GetByPlatform(ctx context.Context, platform
 
 // Update 更新外部客户
 func (r *ExternalCustomerRepository) Update(ctx context.Context, customer *model.ExternalCustomer) error {
-	return r.db.Save(customer).Error
+	return r.db.WithContext(ctx).Save(customer).Error
 }
 
 // Delete 删除外部客户
 func (r *ExternalCustomerRepository) Delete(ctx context.Context, id uint) error {
-	return r.db.Delete(&model.ExternalCustomer{}, id).Error
+	return r.db.WithContext(ctx).Delete(&model.ExternalCustomer{}, id).Error
 }
 
 // ExternalOrderRepository 外部订单仓库
@@ -246,13 +246,13 @@ func NewExternalOrderRepository() *ExternalOrderRepository {
 
 // Create 创建外部订单
 func (r *ExternalOrderRepository) Create(ctx context.Context, order *model.ExternalOrder) error {
-	return r.db.Create(order).Error
+	return r.db.WithContext(ctx).Create(order).Error
 }
 
 // GetByID 根据 ID 获取外部订单
 func (r *ExternalOrderRepository) GetByID(ctx context.Context, id uint) (*model.ExternalOrder, error) {
 	var order model.ExternalOrder
-	err := r.db.First(&order, id).Error
+	err := r.db.WithContext(ctx).First(&order, id).Error
 	return &order, err
 }
 
@@ -280,10 +280,10 @@ func (r *ExternalOrderRepository) GetAll(ctx context.Context, page, pageSize int
 	var orders []*model.ExternalOrder
 	var total int64
 
-	if err := r.db.Model(&model.ExternalOrder{}).Count(&total).Error; err != nil {
+	if err := r.db.WithContext(ctx).Model(&model.ExternalOrder{}).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	err := r.db.Order("created_at DESC").
+	err := r.db.WithContext(ctx).Order("created_at DESC").
 		Offset((page - 1) * pageSize).
 		Limit(pageSize).
 		Find(&orders).Error
@@ -296,10 +296,10 @@ func (r *ExternalOrderRepository) GetByPlatform(ctx context.Context, platform st
 	var orders []*model.ExternalOrder
 	var total int64
 
-	if err := r.db.Model(&model.ExternalOrder{}).Where("platform = ?", platform).Count(&total).Error; err != nil {
+	if err := r.db.WithContext(ctx).Model(&model.ExternalOrder{}).Where("platform = ?", platform).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	err := r.db.Where("platform = ?", platform).
+	err := r.db.WithContext(ctx).Where("platform = ?", platform).
 		Order("created_at DESC").
 		Offset((page - 1) * pageSize).
 		Limit(pageSize).
@@ -310,12 +310,12 @@ func (r *ExternalOrderRepository) GetByPlatform(ctx context.Context, platform st
 
 // Update 更新外部订单
 func (r *ExternalOrderRepository) Update(ctx context.Context, order *model.ExternalOrder) error {
-	return r.db.Save(order).Error
+	return r.db.WithContext(ctx).Save(order).Error
 }
 
 // Delete 删除外部订单
 func (r *ExternalOrderRepository) Delete(ctx context.Context, id uint) error {
-	return r.db.Delete(&model.ExternalOrder{}, id).Error
+	return r.db.WithContext(ctx).Delete(&model.ExternalOrder{}, id).Error
 }
 
 // GetByCustomer 按客户手机/姓名查询近期外部订单（客服 360 视图 / 答单上下文用）。
@@ -325,7 +325,7 @@ func (r *ExternalOrderRepository) GetByCustomer(ctx context.Context, phone, name
 	if phone == "" && name == "" {
 		return orders, nil
 	}
-	q := r.db.Model(&model.ExternalOrder{})
+	q := r.db.WithContext(ctx).Model(&model.ExternalOrder{})
 	if phone != "" {
 		q = q.Where("user_phone = ?", phone)
 	}
@@ -350,20 +350,20 @@ func NewExternalProductRepository() *ExternalProductRepository {
 
 // Create 创建外部商品
 func (r *ExternalProductRepository) Create(ctx context.Context, product *model.ExternalProduct) error {
-	return r.db.Create(product).Error
+	return r.db.WithContext(ctx).Create(product).Error
 }
 
 // GetByID 根据 ID 获取外部商品
 func (r *ExternalProductRepository) GetByID(ctx context.Context, id uint) (*model.ExternalProduct, error) {
 	var product model.ExternalProduct
-	err := r.db.First(&product, id).Error
+	err := r.db.WithContext(ctx).First(&product, id).Error
 	return &product, err
 }
 
 // GetByProductID 根据外部商品 ID 获取外部商品
 func (r *ExternalProductRepository) GetByProductID(ctx context.Context, platform, productID string) (*model.ExternalProduct, error) {
 	var product model.ExternalProduct
-	err := r.db.Where("platform = ? AND product_id = ?", platform, productID).First(&product).Error
+	err := r.db.WithContext(ctx).Where("platform = ? AND product_id = ?", platform, productID).First(&product).Error
 	return &product, err
 }
 
@@ -372,10 +372,10 @@ func (r *ExternalProductRepository) GetAll(ctx context.Context, page, pageSize i
 	var products []*model.ExternalProduct
 	var total int64
 
-	if err := r.db.Model(&model.ExternalProduct{}).Count(&total).Error; err != nil {
+	if err := r.db.WithContext(ctx).Model(&model.ExternalProduct{}).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	err := r.db.Order("created_at DESC").
+	err := r.db.WithContext(ctx).Order("created_at DESC").
 		Offset((page - 1) * pageSize).
 		Limit(pageSize).
 		Find(&products).Error
@@ -385,12 +385,12 @@ func (r *ExternalProductRepository) GetAll(ctx context.Context, page, pageSize i
 
 // Update 更新外部商品
 func (r *ExternalProductRepository) Update(ctx context.Context, product *model.ExternalProduct) error {
-	return r.db.Save(product).Error
+	return r.db.WithContext(ctx).Save(product).Error
 }
 
 // Delete 删除外部商品
 func (r *ExternalProductRepository) Delete(ctx context.Context, id uint) error {
-	return r.db.Delete(&model.ExternalProduct{}, id).Error
+	return r.db.WithContext(ctx).Delete(&model.ExternalProduct{}, id).Error
 }
 
 // WebhookEventRepository Webhook 事件仓库
@@ -424,7 +424,7 @@ func (r *WebhookEventRepository) Create(ctx context.Context, event *model.Webhoo
 	if r == nil || r.db == nil {
 		return nil
 	}
-	return r.db.Create(event).Error
+	return r.db.WithContext(ctx).Create(event).Error
 }
 
 // GetByID 根据 ID 获取 Webhook 事件
@@ -433,7 +433,7 @@ func (r *WebhookEventRepository) GetByID(ctx context.Context, id uint) (*model.W
 		return nil, nil
 	}
 	var event model.WebhookEvent
-	err := r.db.First(&event, id).Error
+	err := r.db.WithContext(ctx).First(&event, id).Error
 	return &event, err
 }
 
@@ -443,7 +443,7 @@ func (r *WebhookEventRepository) GetByEventID(ctx context.Context, eventID strin
 		return nil, nil
 	}
 	var event model.WebhookEvent
-	err := r.db.Where("event_id = ?", eventID).First(&event).Error
+	err := r.db.WithContext(ctx).Where("event_id = ?", eventID).First(&event).Error
 	return &event, err
 }
 
@@ -453,7 +453,7 @@ func (r *WebhookEventRepository) GetUnprocessed(ctx context.Context, platform st
 		return nil, nil
 	}
 	var events []*model.WebhookEvent
-	err := r.db.Where("platform = ? AND processed = ?", platform, false).
+	err := r.db.WithContext(ctx).Where("platform = ? AND processed = ?", platform, false).
 		Order("created_at ASC").
 		Limit(limit).
 		Find(&events).Error
@@ -465,7 +465,7 @@ func (r *WebhookEventRepository) Update(ctx context.Context, event *model.Webhoo
 	if r == nil || r.db == nil {
 		return nil
 	}
-	return r.db.Save(event).Error
+	return r.db.WithContext(ctx).Save(event).Error
 }
 
 // MarkProcessed 标记 Webhook 事件为已处理
@@ -474,7 +474,7 @@ func (r *WebhookEventRepository) MarkProcessed(ctx context.Context, id uint) err
 		return nil
 	}
 	now := time.Now()
-	return r.db.Model(&model.WebhookEvent{}).Where("id = ?", id).
+	return r.db.WithContext(ctx).Model(&model.WebhookEvent{}).Where("id = ?", id).
 		Updates(map[string]any{
 			"processed":    true,
 			"processed_at": now,
@@ -487,7 +487,7 @@ func (r *WebhookEventRepository) CountUnprocessed(ctx context.Context) (int64, e
 		return 0, nil
 	}
 	var c int64
-	err := r.db.Model(&model.WebhookEvent{}).Where("processed = ?", false).Count(&c).Error
+	err := r.db.WithContext(ctx).Model(&model.WebhookEvent{}).Where("processed = ?", false).Count(&c).Error
 	return c, err
 }
 

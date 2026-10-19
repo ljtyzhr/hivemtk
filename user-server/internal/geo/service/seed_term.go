@@ -23,24 +23,24 @@ func NewSeedTermService(repo repository.GeoSeedTermRepository) *SeedTermService 
 
 // ListTerms 管理端查看全部启用词条
 func (s *SeedTermService) ListTerms(ctx context.Context) ([]*model.GeoSeedTerm, error) {
-	return s.repo.ListActive()
+	return s.repo.ListActive(ctx)
 }
 
 // ReseedDefaults 幂等重播缺省包（新增缺省词会上架，已有词条不删除）
 func (s *SeedTermService) ReseedDefaults(ctx context.Context) (int, error) {
-	return s.repo.UpsertBatch(buildDefaultSeedRows())
+	return s.repo.UpsertBatch(ctx, buildDefaultSeedRows())
 }
 
 // LoadSeedMatrix 加载种子矩阵：DB 优先，空表自动播种，DB 故障回硬编码。
 // 返回与 BuildBusinessSeedMatrix 同构（seeds 去重保序 + seed→业务线映射）。
 func (s *SeedTermService) LoadSeedMatrix(ctx context.Context) ([]string, map[string]string) {
-	rows, err := s.repo.ListActive()
+	rows, err := s.repo.ListActive(ctx)
 	if err != nil {
 		logger.Warnf("[GEO seed_term] 种子词表读取失败，fail-open 用硬编码缺省: %v", err)
 		return BuildBusinessSeedMatrix()
 	}
 	if len(rows) == 0 {
-		if n, sErr := s.repo.UpsertBatch(buildDefaultSeedRows()); sErr != nil {
+		if n, sErr := s.repo.UpsertBatch(ctx, buildDefaultSeedRows()); sErr != nil {
 			logger.Warnf("[GEO seed_term] 缺省播种失败，用内存缺省继续: %v", sErr)
 		} else {
 			logger.Infof("[GEO seed_term] 空表自动播种 %d 词条", n)

@@ -37,22 +37,22 @@ func (r *customerRFMRepo) Upsert(ctx context.Context, rfm *model.CustomerRFM) er
 		return errors.New("customer_id 不能为空")
 	}
 	var existing model.CustomerRFM
-	err := r.db.Where("customer_id = ?", rfm.CustomerID).First(&existing).Error
+	err := r.db.WithContext(ctx).Where("customer_id = ?", rfm.CustomerID).First(&existing).Error
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return err
 	}
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return r.db.Create(rfm).Error
+		return r.db.WithContext(ctx).Create(rfm).Error
 	}
 	rfm.ID = existing.ID
 	rfm.CreatedAt = existing.CreatedAt
 	rfm.ComputedAt = time.Now()
-	return r.db.Save(rfm).Error
+	return r.db.WithContext(ctx).Save(rfm).Error
 }
 
 func (r *customerRFMRepo) GetByCustomerID(ctx context.Context, customerID string) (*model.CustomerRFM, error) {
 	var rfm model.CustomerRFM
-	if err := r.db.Where("customer_id = ?", customerID).First(&rfm).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("customer_id = ?", customerID).First(&rfm).Error; err != nil {
 		return nil, err
 	}
 	return &rfm, nil
@@ -67,7 +67,7 @@ func (r *customerRFMRepo) ListBySegment(ctx context.Context, segment string, pag
 	}
 	var rfms []*model.CustomerRFM
 	var total int64
-	q := r.db.Model(&model.CustomerRFM{})
+	q := r.db.WithContext(ctx).Model(&model.CustomerRFM{})
 	if segment != "" {
 		q = q.Where("segment = ?", segment)
 	}
@@ -86,7 +86,7 @@ func (r *customerRFMRepo) ListChurnCandidates(ctx context.Context, threshold int
 		limit = 50
 	}
 	var rfms []*model.CustomerRFM
-	err := r.db.Where("churn_risk_level = ? AND churn_score >= ?", "high", threshold).
+	err := r.db.WithContext(ctx).Where("churn_risk_level = ? AND churn_score >= ?", "high", threshold).
 		Order("churn_score DESC, recency_days DESC").
 		Limit(limit).Find(&rfms).Error
 	return rfms, err
@@ -98,7 +98,7 @@ func (r *customerRFMRepo) CountBySegment(ctx context.Context) (map[string]int64,
 		Cnt     int64
 	}
 	var rows []row
-	if err := r.db.Model(&model.CustomerRFM{}).
+	if err := r.db.WithContext(ctx).Model(&model.CustomerRFM{}).
 		Select("segment, COUNT(*) as cnt").Group("segment").Scan(&rows).Error; err != nil {
 		return nil, err
 	}
@@ -110,7 +110,7 @@ func (r *customerRFMRepo) CountBySegment(ctx context.Context) (map[string]int64,
 }
 
 func (r *customerRFMRepo) DeleteByCustomerID(ctx context.Context, customerID string) error {
-	return r.db.Where("customer_id = ?", customerID).Delete(&model.CustomerRFM{}).Error
+	return r.db.WithContext(ctx).Where("customer_id = ?", customerID).Delete(&model.CustomerRFM{}).Error
 }
 
 // RecoveryQueueRepository 流失挽回队列仓库
@@ -147,19 +147,19 @@ func (r *recoveryQueueRepo) Create(ctx context.Context, item *model.RecoveryQueu
 	if err == nil && existing != nil {
 		return errors.New("客户已在挽回队列中")
 	}
-	return r.db.Create(item).Error
+	return r.db.WithContext(ctx).Create(item).Error
 }
 
 func (r *recoveryQueueRepo) Update(ctx context.Context, item *model.RecoveryQueue) error {
 	if item.ID == 0 {
 		return errors.New("id 不能为空")
 	}
-	return r.db.Save(item).Error
+	return r.db.WithContext(ctx).Save(item).Error
 }
 
 func (r *recoveryQueueRepo) GetByID(ctx context.Context, id uint64) (*model.RecoveryQueue, error) {
 	var item model.RecoveryQueue
-	if err := r.db.First(&item, id).Error; err != nil {
+	if err := r.db.WithContext(ctx).First(&item, id).Error; err != nil {
 		return nil, err
 	}
 	return &item, nil
@@ -167,7 +167,7 @@ func (r *recoveryQueueRepo) GetByID(ctx context.Context, id uint64) (*model.Reco
 
 func (r *recoveryQueueRepo) GetActiveByCustomerID(ctx context.Context, customerID string) (*model.RecoveryQueue, error) {
 	var item model.RecoveryQueue
-	if err := r.db.Where("customer_id = ? AND stage IN ?", customerID,
+	if err := r.db.WithContext(ctx).Where("customer_id = ? AND stage IN ?", customerID,
 		[]string{model.RecoveryStageQueued, model.RecoveryStageRunning}).First(&item).Error; err != nil {
 		return nil, err
 	}
@@ -183,7 +183,7 @@ func (r *recoveryQueueRepo) ListByStage(ctx context.Context, stage string, page,
 	}
 	var items []*model.RecoveryQueue
 	var total int64
-	q := r.db.Model(&model.RecoveryQueue{})
+	q := r.db.WithContext(ctx).Model(&model.RecoveryQueue{})
 	if stage != "" {
 		q = q.Where("stage = ?", stage)
 	}
@@ -202,7 +202,7 @@ func (r *recoveryQueueRepo) ListReadyForAttempt(ctx context.Context, now time.Ti
 		limit = 50
 	}
 	var items []*model.RecoveryQueue
-	err := r.db.Where("stage = ? AND attempts < max_attempts AND (next_attempt_at IS NULL OR next_attempt_at <= ?)",
+	err := r.db.WithContext(ctx).Where("stage = ? AND attempts < max_attempts AND (next_attempt_at IS NULL OR next_attempt_at <= ?)",
 		model.RecoveryStageQueued, now).
 		Order("priority ASC, next_attempt_at ASC NULLS FIRST").
 		Limit(limit).Find(&items).Error
@@ -219,11 +219,11 @@ func (r *recoveryQueueRepo) MarkAttempt(ctx context.Context, id uint64, channel,
 	if nextAt != nil {
 		updates["next_attempt_at"] = *nextAt
 	}
-	return r.db.Model(&model.RecoveryQueue{}).Where("id = ?", id).Updates(updates).Error
+	return r.db.WithContext(ctx).Model(&model.RecoveryQueue{}).Where("id = ?", id).Updates(updates).Error
 }
 
 func (r *recoveryQueueRepo) MarkStage(ctx context.Context, id uint64, stage string) error {
-	return r.db.Model(&model.RecoveryQueue{}).Where("id = ?", id).Update("stage", stage).Error
+	return r.db.WithContext(ctx).Model(&model.RecoveryQueue{}).Where("id = ?", id).Update("stage", stage).Error
 }
 
 func (r *recoveryQueueRepo) CountByStage(ctx context.Context) (map[string]int64, error) {
@@ -232,7 +232,7 @@ func (r *recoveryQueueRepo) CountByStage(ctx context.Context) (map[string]int64,
 		Cnt   int64
 	}
 	var rows []row
-	if err := r.db.Model(&model.RecoveryQueue{}).
+	if err := r.db.WithContext(ctx).Model(&model.RecoveryQueue{}).
 		Select("stage, COUNT(*) as cnt").Group("stage").Scan(&rows).Error; err != nil {
 		return nil, err
 	}
@@ -244,5 +244,5 @@ func (r *recoveryQueueRepo) CountByStage(ctx context.Context) (map[string]int64,
 }
 
 func (r *recoveryQueueRepo) Delete(ctx context.Context, id uint64) error {
-	return r.db.Delete(&model.RecoveryQueue{}, id).Error
+	return r.db.WithContext(ctx).Delete(&model.RecoveryQueue{}, id).Error
 }

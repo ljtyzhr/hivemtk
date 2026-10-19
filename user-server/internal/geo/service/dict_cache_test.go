@@ -28,18 +28,18 @@ func newStubDictRepo() *stubDictRepo {
 
 func (r *stubDictRepo) ck(category, key string) string { return category + "\x00" + key }
 
-func (r *stubDictRepo) Get(category, key string) (*model.GeoDict, error) {
-	return r.GetAny(category, key)
+func (r *stubDictRepo) Get(ctx context.Context, category, key string) (*model.GeoDict, error) {
+	return r.GetAny(ctx, category, key)
 }
 
-func (r *stubDictRepo) GetAny(category, key string) (*model.GeoDict, error) {
+func (r *stubDictRepo) GetAny(_ context.Context, category, key string) (*model.GeoDict, error) {
 	if d, ok := r.rows[r.ck(category, key)]; ok {
 		return d, nil
 	}
 	return nil, gorm.ErrRecordNotFound
 }
 
-func (r *stubDictRepo) ListByCategory(category string) ([]*model.GeoDict, error) {
+func (r *stubDictRepo) ListByCategory(_ context.Context, category string) ([]*model.GeoDict, error) {
 	var list []*model.GeoDict
 	for _, d := range r.rows {
 		if d.Category == category {
@@ -49,18 +49,18 @@ func (r *stubDictRepo) ListByCategory(category string) ([]*model.GeoDict, error)
 	return list, nil
 }
 
-func (r *stubDictRepo) Upsert(d *model.GeoDict) error {
+func (r *stubDictRepo) Upsert(_ context.Context, d *model.GeoDict) error {
 	cp := *d
 	r.rows[r.ck(d.Category, d.Key)] = &cp
 	return nil
 }
 
-func (r *stubDictRepo) Delete(category, key string) error {
+func (r *stubDictRepo) Delete(_ context.Context, category, key string) error {
 	delete(r.rows, r.ck(category, key))
 	return nil
 }
 
-func (r *stubDictRepo) CountByCategory(category string) (int64, error) {
+func (r *stubDictRepo) CountByCategory(_ context.Context, category string) (int64, error) {
 	var n int64
 	for _, d := range r.rows {
 		if d.Category == category {
@@ -110,9 +110,9 @@ func newStubDictRepoWrapped(r *stubDictRepo) *countingDictRepo {
 	return &countingDictRepo{stubDictRepo: r}
 }
 
-func (c *countingDictRepo) GetAny(category, key string) (*model.GeoDict, error) {
+func (c *countingDictRepo) GetAny(ctx context.Context, category, key string) (*model.GeoDict, error) {
 	c.getAnyCalls++
-	return c.stubDictRepo.GetAny(category, key)
+	return c.stubDictRepo.GetAny(ctx, category, key)
 }
 
 func TestDictSetForcesReaderToReloadFromRepo(t *testing.T) {

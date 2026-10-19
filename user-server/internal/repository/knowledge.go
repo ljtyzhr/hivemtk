@@ -33,7 +33,7 @@ func NewKnowledgeRepositoryWithDB(db *gorm.DB) *KnowledgeRepository {
 func (r *KnowledgeRepository) Search(ctx context.Context, query string, topK int) ([]*model.KnowledgeHit, error) {
 	var hits []*model.KnowledgeHit
 
-	err := r.db.Table("knowledge_articles").
+	err := r.db.WithContext(ctx).Table("knowledge_articles").
 		Select("id, title, content, 1.0 as score, 'article' as source, category_id").
 		Where("title LIKE ? OR content LIKE ?", "%"+query+"%", "%"+query+"%").
 		Order("score DESC").

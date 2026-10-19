@@ -67,7 +67,7 @@ type extractResponse struct {
 // 3. 将实体批量写入 geo_entities；
 // 4. 按实体名→ID 回查，写入 geo_entity_relations。
 func (s *EntityExtractorService) ExtractFromDocument(ctx context.Context, docID string) error {
-	doc, err := s.kbRepo.GetByID(docID)
+	doc, err := s.kbRepo.GetByID(ctx, docID)
 	if err != nil {
 		return fmt.Errorf("加载知识库文档失败: %w", err)
 	}

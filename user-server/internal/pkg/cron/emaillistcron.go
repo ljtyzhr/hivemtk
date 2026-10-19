@@ -6,6 +6,7 @@ import (
 	email "hivemtk-user/internal/email/service"
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/mail"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
 	"hivemtk-user/internal/service"
@@ -69,6 +70,17 @@ var bulkPixelWarnOnce sync.Once
 var bulkLinkWarnOnce sync.Once
 
 // EmailListCron 群发排水：一分钟一波、每波最多 10 行。
+//
+// 后台任务租户扇出（specs/001-saas-multi-tenant T020）：TENANT_MODE=on 时 email_list 是
+// 租户表，cron 由进程自己起（cron.go 的节拍），没有 HTTP 请求 ctx 可绑，无租户 ctx 的
+// GetUnsentEmailList（query）会被隔离 callback fail-closed 拒绝（生产日志实证：
+// "获取未发送的email列表失败 [tenant] 表 email_list 需要租户上下文但 ctx 未绑定（query）"）。
+//
+// 修法是 Fanout 而不是 system scope：拉列表之后的 deliverEmailListRow 是**逐租户的业务动作**
+// —— 退订判定（email_unsubscribe）、按记录选 SMTP（email_smtp）、行状态回写与 job 计数都要
+// 按行所属租户生效；system scope 虽能放行查询，但这些读会摊成跨租户全量（A 租户的退订名单
+// 挡住 B 的收件人），新建/回写也会失真。Fanout 逐活跃租户注入 ctx，off 模式退化为单默认
+// 租户（等价历史行为），与 sop_scheduler.tick / churn_score_job 同一形态。
 func EmailListCron() {
 	defer func() {
 		if r := recover(); r != nil {
@@ -76,11 +88,6 @@ func EmailListCron() {
 		}
 	}()
 	emailListService := email.NewEmailListService()
-	emailListList, err := emailListService.GetUnsentEmailList(context.Background(), 10)
-	if err != nil {
-		logger.Info(fmt.Sprintf("获取未发送的email列表失败 %s", err.Error()))
-		return
-	}
 
 	deps := emailRowDeps{
 		smtp:        email.NewEmailSmtpService(),
@@ -93,9 +100,21 @@ func EmailListCron() {
 		attachments: mail.LocalAttachments(storage.LocalAttachmentSource()),
 	}
 
-	for _, emailList := range emailListList {
-		deliverEmailListRow(context.Background(), emailList, deps)
-	}
+	// 取列表与逐行投递都放进扇出回调：回调 ctx 按活跃租户注入，查询与回写自动获得隔离。
+	// 取列表失败仍在回调内按原话出声（Fanout 只在全部租户都失败时才把错误汇总回外层，
+	// 单租户失败若不就地出声就会被它吞掉）；外层不重复报，避免同一轮刷两条。
+	_, _ = tenant.Fanout(context.Background(), nil, func(ctx context.Context, _ uint) (int64, error) {
+		emailListList, err := emailListService.GetUnsentEmailList(ctx, 10)
+		if err != nil {
+			logger.Info(fmt.Sprintf("获取未发送的email列表失败 %s", err.Error()))
+			return 0, err
+		}
+
+		for _, emailList := range emailListList {
+			deliverEmailListRow(ctx, emailList, deps)
+		}
+		return int64(len(emailListList)), nil
+	})
 }
 
 // deliverEmailListRow 把一行待群发的地址投出去，并把结果写回行与 job 计数。

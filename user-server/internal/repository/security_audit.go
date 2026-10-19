@@ -29,7 +29,10 @@ func (r *SecurityAuditRepository) SetDB(ctx context.Context, db *gorm.DB) {
 
 // GetDB 获取 db（内部 / service 层 withDB 使用）
 func (r *SecurityAuditRepository) GetDB(ctx context.Context) *gorm.DB {
-	return r.db
+	if r.db == nil {
+		return nil
+	}
+	return r.db.WithContext(ctx)
 }
 
 // Create 写入一条审计记录

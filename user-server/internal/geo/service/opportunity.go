@@ -124,7 +124,7 @@ func (s *OpportunityService) List(ctx context.Context) ([]Opportunity, error) {
 	in := OpportunityInputs{}
 	ownBrand := "HiveMTK"
 	if s.configRepo != nil {
-		if cfg, err := s.configRepo.Get(); err == nil {
+		if cfg, err := s.configRepo.Get(ctx); err == nil {
 			if bn := strings.TrimSpace(cfg.BrandName); bn != "" {
 				ownBrand = bn
 			}
@@ -158,7 +158,7 @@ func (s *OpportunityService) List(ctx context.Context) ([]Opportunity, error) {
 		}
 	}
 	if s.articleRepo != nil {
-		if rows, _, err := s.articleRepo.GetList("", "", 1, 20); err == nil {
+		if rows, _, err := s.articleRepo.GetList(ctx, "", "", 1, 20); err == nil {
 			for _, a := range rows {
 				if a.Score > 0 && a.Score < 60 {
 					in.LowScoreArticles = append(in.LowScoreArticles, runeTruncate(a.Title, 60))

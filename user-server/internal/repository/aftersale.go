@@ -31,18 +31,18 @@ func (r *AfterSaleRepository) SetDB(ctx context.Context, db *gorm.DB) {
 
 // Create 创建售后单
 func (r *AfterSaleRepository) Create(ctx context.Context, as *model.AfterSale) error {
-	return r.db.Create(as).Error
+	return r.db.WithContext(ctx).Create(as).Error
 }
 
 // Update 更新售后单（电商回写状态时用）
 func (r *AfterSaleRepository) Update(ctx context.Context, as *model.AfterSale) error {
-	return r.db.Save(as).Error
+	return r.db.WithContext(ctx).Save(as).Error
 }
 
 // GetByID 按 ID 获取售后单
 func (r *AfterSaleRepository) GetByID(ctx context.Context, id uint) (*model.AfterSale, error) {
 	var as model.AfterSale
-	if err := r.db.First(&as, id).Error; err != nil {
+	if err := r.db.WithContext(ctx).First(&as, id).Error; err != nil {
 		return nil, err
 	}
 	return &as, nil
@@ -51,7 +51,7 @@ func (r *AfterSaleRepository) GetByID(ctx context.Context, id uint) (*model.Afte
 // ListByOrder 按 平台+订单号 列出售后单
 func (r *AfterSaleRepository) ListByOrder(ctx context.Context, platform, orderID string) ([]model.AfterSale, error) {
 	var list []model.AfterSale
-	err := r.db.Where("platform = ? AND order_id = ?", platform, orderID).
+	err := r.db.WithContext(ctx).Where("platform = ? AND order_id = ?", platform, orderID).
 		Order("id DESC").Find(&list).Error
 	return list, err
 }
@@ -59,7 +59,7 @@ func (r *AfterSaleRepository) ListByOrder(ctx context.Context, platform, orderID
 // ListByCustomer 按客户手机列出售后单
 func (r *AfterSaleRepository) ListByCustomer(ctx context.Context, phone string) ([]model.AfterSale, error) {
 	var list []model.AfterSale
-	q := r.db.Model(&model.AfterSale{})
+	q := r.db.WithContext(ctx).Model(&model.AfterSale{})
 	if phone != "" {
 		q = q.Where("customer_phone = ?", phone)
 	}

@@ -10,6 +10,7 @@ import (
 	"hivemtk-user/internal/browser_automation/model"
 	"hivemtk-user/internal/browser_automation/repository"
 	pkgcron "hivemtk-user/internal/pkg/cron"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 
 	cronv3 "github.com/robfig/cron/v3"
@@ -190,11 +191,17 @@ func (s *CronService) registerWithUser(tr *model.BrowserCronTrigger, userID uint
 	entry, err := mgr.AddTask(toSixField(tr.CronExpr, tr.TimeZone), func() {
 		ctx, cancel := context.WithTimeout(context.Background(), cronTriggerOpTimeout)
 		defer cancel()
-		// 触发时再次校验 enabled（Disable 与 fire 竞态窗口）
-		cur, err := s.cronRepo.GetByTaskID(ctx, taskID)
+		// 触发时再次校验 enabled（Disable 与 fire 竞态窗口）。
+		// 调度器回调无请求 ctx：先以 system scope 跨租户取触发器行（browser_cron_triggers
+		// 是租户表，裸 Background 会被 fail-closed——RestoreAll 修好后触发段是同一残留
+		// 的下一站，不修则恢复出来的条目醒来即静默空转）；取到行后把业务段（记账 +
+		// RunTask 写 browser_sessions/browser_tasks）钉回触发器归属租户
+		// ——system scope 下写业务表会落默认租户，必须回钉。
+		cur, err := s.cronRepo.GetByTaskID(tenant.WithSystemScope(ctx), taskID)
 		if err != nil || cur == nil || !cur.Enabled {
 			return
 		}
+		ctx = tenant.OnlyTenant(ctx, cur.TenantID)
 		now := time.Now()
 		// last=本次触发时刻，next=本次之后的下一次（按 trigger 主键 cur.ID 更新）
 		_ = s.cronRepo.UpdateTimes(ctx, cur.ID, nextRunAt(cur.CronExpr, cur.TimeZone, now), &now)
@@ -226,6 +233,13 @@ func (s *CronService) unregister(taskID uint) {
 
 // RestoreAll 进程启动后恢复已启用触发器（taskID → userID 反查）
 func (s *CronService) RestoreAll(ctx context.Context) {
+	// 平台级启动恢复：ListAllEnabled 扫的是**全租户**已启用触发器，bootstrap 由
+	// context.Background() 起 goroutine，TENANT_MODE=on 时被隔离 callback fail-closed
+	// （生产日志实证："[BrowserCron] 恢复触发器失败"）。走 tenant.WithSystemScope
+	// 豁免通道；恢复段的 applySchedule→storeNextRun（UpdateTimes）同为调度记账，
+	// 一并在此 scope 内。HTTP 路径（Create/Update/SetEnabled/Delete）不经本函数，
+	// 隔离不放宽。
+	ctx = tenant.WithSystemScope(ctx)
 	list, err := s.cronRepo.ListAllEnabled(ctx)
 	if err != nil {
 		logger.Warnf("[BrowserCron] 恢复触发器失败: %v", err)

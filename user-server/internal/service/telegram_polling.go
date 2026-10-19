@@ -15,6 +15,7 @@ import (
 	"hivemtk-user/internal/config"
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/httpclient"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/tgbot"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/logger"
@@ -37,6 +38,13 @@ type telegramPollingState struct {
 	cancel   context.CancelFunc
 	done     chan struct{}
 	lockHeld bool
+	// tenantID 账号行归属租户（specs/001-saas-multi-tenant T027 行自证）。
+	// 锁的三条 UPDATE 打的是租户表 telegram_accounts（有 tenant_id 列），而关停
+	// 路径（stopTelegramPollingLocked / StopTelegramPolling / StopAll）手里往往
+	// 只剩 accountID —— 关停时靠这里恢复租户 ctx，否则 TENANT_MODE=on 下释放锁
+	// 被隔离 callback fail-closed 拒绝，重启后要等 60s 心跳陈旧窗口才能再抢占。
+	// 0 = 未登记（off 模式或测试构造）：WithTenantID 原样返回，行为与历史版本等价。
+	tenantID uint
 }
 
 var (
@@ -80,7 +88,9 @@ func StopAllTelegramPolling() {
 	}
 	for _, sw := range states {
 		if sw.state != nil && sw.state.lockHeld {
-			if rerr := ReleasePollingLock(context.Background(), nil, sw.id); rerr != nil {
+			// 行自证（T027）：释放锁 UPDATE 打租户表 telegram_accounts，停全部路径
+			// 只有 accountID，租户靠 state.tenantID 恢复；裸背景 ctx 在 on 模式 fail-closed。
+			if rerr := ReleasePollingLock(tenant.WithTenantID(context.Background(), sw.state.tenantID), nil, sw.id); rerr != nil {
 				logger.Warnf("[TG-Polling] 账号 %d 释放锁失败: %v", sw.id, rerr)
 			}
 		}
@@ -101,7 +111,13 @@ func StartTelegramPolling(acc *model.TelegramAccount) {
 	}
 	stopTelegramPollingLocked(acc.ID)
 
-	acquired, owner, lastHB, lockErr := TryAcquirePollingLock(context.Background(), nil, acc.ID)
+	// 行自证（specs/001-saas-multi-tenant T027）：抢占锁是一条 telegram_accounts 的
+	// UPDATE，而 telegram_accounts 带 tenant_id 列 —— 账号行就在手上，直接按行租户
+	// 恢复 ctx。裸 context.Background() 在 TENANT_MODE=on 下会被隔离 callback
+	// fail-closed 拒绝（表现为抢锁失败 ⇒ polling 永不启动）。off 模式 acc.TenantID
+	// 常为 0，WithTenantID 原样返回，行为与历史版本等价。
+	lockCtx := tenant.WithTenantID(context.Background(), acc.TenantID)
+	acquired, owner, lastHB, lockErr := TryAcquirePollingLock(lockCtx, nil, acc.ID)
 	if lockErr != nil {
 		logger.Warnf("[TG-Polling] 账号 %d(%s) 抢占锁失败: %v", acc.ID, acc.AccountName, lockErr)
 		return
@@ -116,8 +132,11 @@ func StartTelegramPolling(acc *model.TelegramAccount) {
 	}
 	logger.Infof("[TG-Polling] 账号 %d(%s) 分布式锁抢占成功 (worker=%s)", acc.ID, acc.AccountName, GetPollingWorkerID())
 
-	ctx, cancel := context.WithCancel(context.Background())
-	state := &telegramPollingState{cancel: cancel, done: make(chan struct{}), lockHeld: true}
+	// worker ctx 顺带钉上账号行租户：心跳协程（HeartbeatPollingLock）同样是对
+	// telegram_accounts 的 UPDATE，随 ctx 继承租户，on 模式下才不会每 30s fail-closed
+	//（心跳一直失败 ⇒ 锁永不续约 ⇒ 60s 后被别的实例抢走 ⇒ 409 Conflict）。
+	ctx, cancel := context.WithCancel(tenant.WithTenantID(context.Background(), acc.TenantID))
+	state := &telegramPollingState{cancel: cancel, done: make(chan struct{}), lockHeld: true, tenantID: acc.TenantID}
 	telegramPollingMu.Lock()
 	telegramPollingStates[acc.ID] = state
 	telegramPollingMu.Unlock()
@@ -147,7 +166,9 @@ func stopTelegramPollingLocked(accountID uint) {
 		<-s.done
 	}
 	if s.lockHeld {
-		if rerr := ReleasePollingLock(context.Background(), nil, accountID); rerr != nil {
+		// 行自证（T027）：关停路径手里只有 accountID，租户从登记的 worker 状态恢复
+		//（与 StopAllTelegramPolling 同一形态）；裸背景 ctx 在 on 模式释放会被 fail-closed。
+		if rerr := ReleasePollingLock(tenant.WithTenantID(context.Background(), s.tenantID), nil, accountID); rerr != nil {
 			logger.Warnf("[TG-Polling] 账号 %d 释放锁失败: %v", accountID, rerr)
 		} else {
 			logger.Infof("[TG-Polling] 账号 %d 分布式锁已释放", accountID)
@@ -173,7 +194,9 @@ func StopTelegramPolling(accountID uint) {
 		<-s.done
 	}
 	if s.lockHeld {
-		if rerr := ReleasePollingLock(context.Background(), nil, accountID); rerr != nil {
+		// 行自证（T027）：关停路径手里只有 accountID，租户从登记的 worker 状态恢复
+		//（与 StopAllTelegramPolling 同一形态）；裸背景 ctx 在 on 模式释放会被 fail-closed。
+		if rerr := ReleasePollingLock(tenant.WithTenantID(context.Background(), s.tenantID), nil, accountID); rerr != nil {
 			logger.Warnf("[TG-Polling] 账号 %d 释放锁失败: %v", accountID, rerr)
 		} else {
 			logger.Infof("[TG-Polling] 账号 %d 分布式锁已释放", accountID)
@@ -220,7 +243,14 @@ func IsTelegramPollingEnabled() bool {
 //
 // 核心原则：DB 事实 > env 变量 > 默认值。账号既然配了 webhook，就绝不抢它。
 func EnsureTelegramMode(svc *TelegramService) {
-	accs, err := svc.ListAccounts(context.Background())
+	// 平台级启动期判定（与 ReconcileTelegramWebhooks 同一次对账的收尾）：判据是**全实例**
+	// 有没有账号配了 webhook，必须看到所有租户的账号，不按租户活跃度过滤 —— 走
+	// tenant.WithSystemScope 平台级豁免通道（无 HTTP 请求 ctx 可绑；TENANT_MODE=on 时
+	// telegram_accounts 是租户表，无租户 ctx 的列举会被 fail-closed 拒绝）。本函数只读账号行
+	// 做模式判定，不写库，没有"按 ctx 填租户"的形状。调用方传了 ctx 也以本函数自建的平台
+	// ctx 为准：判定语义本就是跨租户的，绑成某个租户反而会漏看别家的 webhook 配置。
+	ctx := tenant.WithSystemScope(context.Background())
+	accs, err := svc.ListAccounts(ctx)
 	if err != nil {
 		logger.Warnf("[TG-Mode] 列举 Telegram 账号失败: %v", err)
 		return

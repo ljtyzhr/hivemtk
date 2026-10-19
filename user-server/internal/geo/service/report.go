@@ -38,25 +38,25 @@ func NewReportService(
 func (s *ReportService) GetReport(ctx context.Context, startDate, endDate string) (*dto.ReportResponse, error) {
 	report := &dto.ReportResponse{}
 
-	_, totalArticles, err := s.articleRepo.GetList("", "", 1, 1)
+	_, totalArticles, err := s.articleRepo.GetList(ctx, "", "", 1, 1)
 	if err != nil {
 		return nil, fmt.Errorf("获取文章总数失败: %w", err)
 	}
 	report.TotalArticles = totalArticles
 
-	_, totalKeywords, err := s.keywordRepo.GetList("", "", "", "", "", "", 1, 1)
+	_, totalKeywords, err := s.keywordRepo.GetList(ctx, "", "", "", "", "", "", 1, 1)
 	if err != nil {
 		return nil, fmt.Errorf("获取关键词总数失败: %w", err)
 	}
 	report.TotalKeywords = totalKeywords
 
-	_, totalOptimizations, err := s.optimizationRepo.GetList("", 1, 1)
+	_, totalOptimizations, err := s.optimizationRepo.GetList(ctx, "", 1, 1)
 	if err != nil {
 		return nil, fmt.Errorf("获取优化记录总数失败: %w", err)
 	}
 	report.TotalOptimizations = totalOptimizations
 
-	costStats, err := s.apiCallRepo.GetCostStatistics(startDate, endDate)
+	costStats, err := s.apiCallRepo.GetCostStatistics(ctx, startDate, endDate)
 	if err != nil {
 		return nil, fmt.Errorf("获取 API 成本统计失败: %w", err)
 	}
@@ -72,7 +72,7 @@ func (s *ReportService) GetReport(ctx context.Context, startDate, endDate string
 	report.TotalCostCNY = totalCostCNY
 	report.TotalAPICalls = totalAPICalls
 
-	verifyStats, err := s.verifyRepo.GetStatistics()
+	verifyStats, err := s.verifyRepo.GetStatistics(ctx)
 	if err == nil {
 		var totalVerifications int64
 		for _, stat := range verifyStats {
@@ -86,7 +86,7 @@ func (s *ReportService) GetReport(ctx context.Context, startDate, endDate string
 
 // GetROI 获取 ROI 分析（按 provider/model 过滤）
 func (s *ReportService) GetROI(ctx context.Context, provider, modelName, startDate, endDate string) (map[string]any, error) {
-	costStats, err := s.apiCallRepo.GetCostStatistics(startDate, endDate)
+	costStats, err := s.apiCallRepo.GetCostStatistics(ctx, startDate, endDate)
 	if err != nil {
 		return nil, fmt.Errorf("获取成本统计失败: %w", err)
 	}
@@ -148,7 +148,7 @@ func (s *ReportService) GetROI(ctx context.Context, provider, modelName, startDa
 
 // GetAPICosts 获取 API 调用成本明细
 func (s *ReportService) GetAPICosts(ctx context.Context) ([]dto.APICostItem, error) {
-	stats, err := s.apiCallRepo.GetCostStatistics("", "")
+	stats, err := s.apiCallRepo.GetCostStatistics(ctx, "", "")
 	if err != nil {
 		return nil, fmt.Errorf("获取 API 成本失败: %w", err)
 	}

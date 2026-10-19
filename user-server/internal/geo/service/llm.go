@@ -175,6 +175,8 @@ func EstimateCostUSD(modelName string, inputTokens, outputTokens int) (float64, 
 	return cost, cost * usdCnyRate
 }
 
+// geoMaxTokensPerCall 判读：config_params 是实例级参数中心（表无 tenant_id、
+// 不在租户登记表），裸 context.Background() 不触达租户表，故保持不动。
 func geoMaxTokensPerCall() int {
 	return service.GlobalConfigParam().GetInt(context.Background(), "agent_llm", "geo_max_tokens_per_call", 4000)
 }

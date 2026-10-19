@@ -35,7 +35,7 @@ func (r *FeishuAccountRepository) GetDB() *gorm.DB {
 
 // Create 创建飞书账号
 func (r *FeishuAccountRepository) Create(ctx context.Context, acc *model.FeishuAccount) error {
-	return r.db.Create(acc).Error
+	return r.db.WithContext(ctx).Create(acc).Error
 }
 
 // GetByID 根据 ID 获取
@@ -44,7 +44,7 @@ func (r *FeishuAccountRepository) GetByID(ctx context.Context, id uint) (*model.
 	if r.db == nil { // DB 未装配：nil 语义收口在 repo 边界（对齐 kb_document_chunk_repo），service 不摸全局句柄
 		return nil, gorm.ErrInvalidDB
 	}
-	if err := r.db.First(&acc, id).Error; err != nil {
+	if err := r.db.WithContext(ctx).First(&acc, id).Error; err != nil {
 		return nil, err
 	}
 	return &acc, nil
@@ -53,7 +53,7 @@ func (r *FeishuAccountRepository) GetByID(ctx context.Context, id uint) (*model.
 // GetByAppID 根据 AppID 获取
 func (r *FeishuAccountRepository) GetByAppID(ctx context.Context, appID string) (*model.FeishuAccount, error) {
 	var acc model.FeishuAccount
-	if err := r.db.Where("app_id = ?", appID).First(&acc).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("app_id = ?", appID).First(&acc).Error; err != nil {
 		return nil, err
 	}
 	return &acc, nil
@@ -62,7 +62,7 @@ func (r *FeishuAccountRepository) GetByAppID(ctx context.Context, appID string) 
 // GetEnabled 获取所有启用的账号
 func (r *FeishuAccountRepository) GetEnabled(ctx context.Context) ([]*model.FeishuAccount, error) {
 	var accs []*model.FeishuAccount
-	if err := r.db.Where("webhook_enabled = ? AND status = ?", true, 1).Find(&accs).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("webhook_enabled = ? AND status = ?", true, 1).Find(&accs).Error; err != nil {
 		return nil, err
 	}
 	return accs, nil
@@ -71,7 +71,7 @@ func (r *FeishuAccountRepository) GetEnabled(ctx context.Context) ([]*model.Feis
 // GetAll 获取所有飞书账号
 func (r *FeishuAccountRepository) GetAll(ctx context.Context) ([]*model.FeishuAccount, error) {
 	var accs []*model.FeishuAccount
-	if err := r.db.Order("id DESC").Find(&accs).Error; err != nil {
+	if err := r.db.WithContext(ctx).Order("id DESC").Find(&accs).Error; err != nil {
 		return nil, err
 	}
 	return accs, nil
@@ -79,12 +79,12 @@ func (r *FeishuAccountRepository) GetAll(ctx context.Context) ([]*model.FeishuAc
 
 // Update 更新飞书账号
 func (r *FeishuAccountRepository) Update(ctx context.Context, acc *model.FeishuAccount) error {
-	return r.db.Save(acc).Error
+	return r.db.WithContext(ctx).Save(acc).Error
 }
 
 // Delete 删除飞书账号
 func (r *FeishuAccountRepository) Delete(ctx context.Context, id uint) error {
-	return r.db.Delete(&model.FeishuAccount{}, id).Error
+	return r.db.WithContext(ctx).Delete(&model.FeishuAccount{}, id).Error
 }
 
 // UpdateToken 更新访问令牌
@@ -95,7 +95,7 @@ func (r *FeishuAccountRepository) UpdateToken(ctx context.Context, id uint, toke
 	if expires != nil {
 		updates["token_expires"] = expires
 	}
-	return r.db.Model(&model.FeishuAccount{}).Where("id = ?", id).Updates(updates).Error
+	return r.db.WithContext(ctx).Model(&model.FeishuAccount{}).Where("id = ?", id).Updates(updates).Error
 }
 
 // FeishuCustomerRepository 飞书客户仓库
@@ -110,11 +110,11 @@ func (r *FeishuCustomerRepository) SetDB(ctx context.Context, db *gorm.DB) {
 }
 
 func (r *FeishuCustomerRepository) Create(ctx context.Context, c *model.FeishuCustomer) error {
-	return r.db.Create(c).Error
+	return r.db.WithContext(ctx).Create(c).Error
 }
 
 func (r *FeishuCustomerRepository) Update(ctx context.Context, c *model.FeishuCustomer) error {
-	return r.db.Save(c).Error
+	return r.db.WithContext(ctx).Save(c).Error
 }
 
 // FeishuMessageRepository 飞书消息仓库
@@ -133,12 +133,12 @@ func (r *FeishuMessageRepository) SetDB(ctx context.Context, db *gorm.DB) {
 }
 
 func (r *FeishuMessageRepository) Create(ctx context.Context, m *model.FeishuMessage) error {
-	return r.db.Create(m).Error
+	return r.db.WithContext(ctx).Create(m).Error
 }
 
 func (r *FeishuMessageRepository) GetByMsgID(ctx context.Context, msgID string) (*model.FeishuMessage, error) {
 	var m model.FeishuMessage
-	if err := r.db.Where("msg_id = ?", msgID).First(&m).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("msg_id = ?", msgID).First(&m).Error; err != nil {
 		return nil, err
 	}
 	return &m, nil
@@ -169,8 +169,16 @@ func (r *TelegramAccountRepository) SetDB(ctx context.Context, db *gorm.DB) {
 	}
 }
 
+// TelegramAccountRepository Telegram 账号仓库。
+//
+// 每条查询/写入都必须 WithContext(ctx)：on 模式（TENANT_MODE=on）的隔离 callback 从
+// stmt.Context 取租户身份，忽略 ctx 等于恒用无租户 ctx ⇒ telegram_accounts 的读写全部被
+// fail-closed 拒绝（生产日志实证："[TG-Bootstrap] 列举 Telegram 账号失败: [tenant] 表
+// telegram_accounts 需要租户上下文但 ctx 未绑定（query）"）。ctx 由调用方给：HTTP 路径传
+// 请求 ctx（中间件已绑租户），启动期对账/平台级扫描传 tenant.WithSystemScope(ctx)。
+// 与下方 QQAccountRepository 同一口径。
 func (r *TelegramAccountRepository) Create(ctx context.Context, acc *model.TelegramAccount) error {
-	return r.db.Create(acc).Error
+	return r.db.WithContext(ctx).Create(acc).Error
 }
 
 func (r *TelegramAccountRepository) GetByID(ctx context.Context, id uint) (*model.TelegramAccount, error) {
@@ -178,7 +186,7 @@ func (r *TelegramAccountRepository) GetByID(ctx context.Context, id uint) (*mode
 	if r.db == nil { // DB 未装配：nil 语义在 repo 边界收口（对齐 kb_document_chunk_repo），service 不摸全局句柄
 		return nil, gorm.ErrInvalidDB
 	}
-	if err := r.db.First(&acc, id).Error; err != nil {
+	if err := r.db.WithContext(ctx).First(&acc, id).Error; err != nil {
 		return nil, err
 	}
 	return &acc, nil
@@ -186,7 +194,7 @@ func (r *TelegramAccountRepository) GetByID(ctx context.Context, id uint) (*mode
 
 func (r *TelegramAccountRepository) GetEnabled(ctx context.Context) ([]*model.TelegramAccount, error) {
 	var accs []*model.TelegramAccount
-	if err := r.db.Where("webhook_enabled = ? AND status = ?", true, 1).Find(&accs).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("webhook_enabled = ? AND status = ?", true, 1).Find(&accs).Error; err != nil {
 		return nil, err
 	}
 	return accs, nil
@@ -194,18 +202,18 @@ func (r *TelegramAccountRepository) GetEnabled(ctx context.Context) ([]*model.Te
 
 func (r *TelegramAccountRepository) GetAll(ctx context.Context) ([]*model.TelegramAccount, error) {
 	var accs []*model.TelegramAccount
-	if err := r.db.Order("id DESC").Find(&accs).Error; err != nil {
+	if err := r.db.WithContext(ctx).Order("id DESC").Find(&accs).Error; err != nil {
 		return nil, err
 	}
 	return accs, nil
 }
 
 func (r *TelegramAccountRepository) Update(ctx context.Context, acc *model.TelegramAccount) error {
-	return r.db.Save(acc).Error
+	return r.db.WithContext(ctx).Save(acc).Error
 }
 
 func (r *TelegramAccountRepository) Delete(ctx context.Context, id uint) error {
-	return r.db.Delete(&model.TelegramAccount{}, id).Error
+	return r.db.WithContext(ctx).Delete(&model.TelegramAccount{}, id).Error
 }
 
 // WhatsAppCloudAccountRepository WhatsApp Cloud API 账号仓库
@@ -224,12 +232,12 @@ func (r *WhatsAppCloudAccountRepository) SetDB(ctx context.Context, db *gorm.DB)
 }
 
 func (r *WhatsAppCloudAccountRepository) Create(ctx context.Context, acc *model.WhatsAppCloudAccount) error {
-	return r.db.Create(acc).Error
+	return r.db.WithContext(ctx).Create(acc).Error
 }
 
 func (r *WhatsAppCloudAccountRepository) GetByID(ctx context.Context, id uint) (*model.WhatsAppCloudAccount, error) {
 	var acc model.WhatsAppCloudAccount
-	if err := r.db.First(&acc, id).Error; err != nil {
+	if err := r.db.WithContext(ctx).First(&acc, id).Error; err != nil {
 		return nil, err
 	}
 	return &acc, nil
@@ -237,7 +245,7 @@ func (r *WhatsAppCloudAccountRepository) GetByID(ctx context.Context, id uint) (
 
 func (r *WhatsAppCloudAccountRepository) GetByPhoneNumberID(ctx context.Context, phoneID string) (*model.WhatsAppCloudAccount, error) {
 	var acc model.WhatsAppCloudAccount
-	if err := r.db.Where("phone_number_id = ?", phoneID).First(&acc).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("phone_number_id = ?", phoneID).First(&acc).Error; err != nil {
 		return nil, err
 	}
 	return &acc, nil
@@ -245,7 +253,7 @@ func (r *WhatsAppCloudAccountRepository) GetByPhoneNumberID(ctx context.Context,
 
 func (r *WhatsAppCloudAccountRepository) GetEnabled(ctx context.Context) ([]*model.WhatsAppCloudAccount, error) {
 	var accs []*model.WhatsAppCloudAccount
-	if err := r.db.Where("webhook_enabled = ? AND status = ?", true, 1).Find(&accs).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("webhook_enabled = ? AND status = ?", true, 1).Find(&accs).Error; err != nil {
 		return nil, err
 	}
 	return accs, nil
@@ -253,18 +261,18 @@ func (r *WhatsAppCloudAccountRepository) GetEnabled(ctx context.Context) ([]*mod
 
 func (r *WhatsAppCloudAccountRepository) GetAll(ctx context.Context) ([]*model.WhatsAppCloudAccount, error) {
 	var accs []*model.WhatsAppCloudAccount
-	if err := r.db.Order("id DESC").Find(&accs).Error; err != nil {
+	if err := r.db.WithContext(ctx).Order("id DESC").Find(&accs).Error; err != nil {
 		return nil, err
 	}
 	return accs, nil
 }
 
 func (r *WhatsAppCloudAccountRepository) Update(ctx context.Context, acc *model.WhatsAppCloudAccount) error {
-	return r.db.Save(acc).Error
+	return r.db.WithContext(ctx).Save(acc).Error
 }
 
 func (r *WhatsAppCloudAccountRepository) Delete(ctx context.Context, id uint) error {
-	return r.db.Delete(&model.WhatsAppCloudAccount{}, id).Error
+	return r.db.WithContext(ctx).Delete(&model.WhatsAppCloudAccount{}, id).Error
 }
 
 // GetFirstEnabled 取第一个启用的飞书账号（webhook_enabled=true 且 status=1）

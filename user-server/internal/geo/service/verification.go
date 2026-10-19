@@ -90,7 +90,7 @@ func (s *VerificationService) VerifyArticle(ctx context.Context, req dto.VerifyR
 		}
 		extraParsed := parseVerifyResponse(extraResp.Content)
 		s.recordAPICall(ctx, extraResp, "verify_search_multi")
-		_ = s.verifyRepo.Create(&model.GeoVerifyResult{
+		_ = s.verifyRepo.Create(ctx, &model.GeoVerifyResult{
 			ArticleID:      req.ArticleID,
 			BrandName:      req.BrandName,
 			Model:          extraModel,
@@ -120,7 +120,7 @@ func (s *VerificationService) VerifyArticle(ctx context.Context, req dto.VerifyR
 		Sentiment:      parsed.Sentiment,
 		Position:       strings.Join(parsed.MentionPositions, "; "),
 	}
-	if err := s.verifyRepo.Create(result); err != nil {
+	if err := s.verifyRepo.Create(ctx, result); err != nil {
 		return nil, fmt.Errorf("保存验证结果失败: %w", err)
 	}
 
@@ -248,7 +248,7 @@ func (s *VerificationService) MonitorNegative(ctx context.Context, brandName str
 			Sentiment:      classifyNegativeSentiment(q.IsNegative, q.NegativeScore),
 			Position:       q.RiskLevel,
 		}
-		_ = s.verifyRepo.Create(result)
+		_ = s.verifyRepo.Create(ctx, result)
 
 		if s.taskRepo != nil && result.Sentiment == "negative" {
 			_ = s.taskRepo.Create(ctx, &model.GeoContentTask{
@@ -348,7 +348,7 @@ func negativeResultToMap(r *negativeMonitorResult, modelName string) map[string]
 
 // GetVerifyResults 获取文章的验证结果列表
 func (s *VerificationService) GetVerifyResults(ctx context.Context, articleID string) ([]*model.GeoVerifyResult, error) {
-	return s.verifyRepo.GetByArticleID(articleID)
+	return s.verifyRepo.GetByArticleID(ctx, articleID)
 }
 
 func (s *VerificationService) recordAPICall(ctx context.Context, resp *LLMResult, purpose string) {
@@ -366,7 +366,7 @@ func (s *VerificationService) recordAPICall(ctx context.Context, resp *LLMResult
 		Purpose:      purpose,
 		Status:       "success",
 	}
-	_ = s.apiCallRepo.Create(call)
+	_ = s.apiCallRepo.Create(ctx, call)
 }
 
 // SetChainRepo 显式注入思维链仓储

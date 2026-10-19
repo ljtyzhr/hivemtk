@@ -62,7 +62,7 @@ func (r *smsDeliveryRepo) LoadLatestPortability(ctx context.Context, limit int) 
 		return []model.SmsNumberPortabilityRecord{}, nil
 	}
 	rows := []model.SmsNumberPortabilityRecord{}
-	if err := r.db.Order("detected_at DESC").Limit(limit).Find(&rows).Error; err != nil {
+	if err := r.db.WithContext(ctx).Order("detected_at DESC").Limit(limit).Find(&rows).Error; err != nil {
 		return nil, err
 	}
 	return rows, nil

@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"errors"
 
 	"hivemtk-user/internal/geo/model"
@@ -10,9 +11,13 @@ import (
 )
 
 // GeoConfigRepository GEO 全局配置仓储接口（单例：固定首行）
+//
+// geo_config 带 tenant_id 列、在租户登记表内：TENANT_MODE=on 下查询必须由
+// ctx 携带租户（或系统豁免），否则隔离 callback fail-closed。因此方法一律收
+// ctx 首参并 db.WithContext(ctx)，不再隐式 context.Background()。
 type GeoConfigRepository interface {
-	Get() (*model.GeoConfig, error)
-	Update(config *model.GeoConfig) error
+	Get(ctx context.Context) (*model.GeoConfig, error)
+	Update(ctx context.Context, config *model.GeoConfig) error
 }
 
 type geoConfigRepo struct {
@@ -28,34 +33,35 @@ func NewGeoConfigRepositoryWithDB(db *gorm.DB) GeoConfigRepository {
 	return &geoConfigRepo{db: db}
 }
 
-func (r *geoConfigRepo) Get() (*model.GeoConfig, error) {
+func (r *geoConfigRepo) Get(ctx context.Context) (*model.GeoConfig, error) {
 	var config model.GeoConfig
-	err := r.db.First(&config).Error
+	err := r.db.WithContext(ctx).First(&config).Error
 	return &config, err
 }
 
-func (r *geoConfigRepo) Update(config *model.GeoConfig) error {
+func (r *geoConfigRepo) Update(ctx context.Context, config *model.GeoConfig) error {
+	db := r.db.WithContext(ctx)
 	var existing model.GeoConfig
-	err := r.db.First(&existing).Error
+	err := db.First(&existing).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return r.db.Create(config).Error
+			return db.Create(config).Error
 		}
 		return err
 	}
 	config.ID = existing.ID
-	return r.db.Save(config).Error
+	return db.Save(config).Error
 }
 
 // GeoPlatformAccountRepository GEO 平台账号仓储接口
 type GeoPlatformAccountRepository interface {
-	Create(account *model.GeoPlatformAccount) error
-	GetByID(id string) (*model.GeoPlatformAccount, error)
-	GetByPlatformAndName(platform, accountName string) (*model.GeoPlatformAccount, error)
-	GetLatestByPlatform(platform string) (*model.GeoPlatformAccount, error)
-	GetList(platform string, page, limit int) ([]*model.GeoPlatformAccount, int64, error)
-	Delete(id string) error
-	Update(account *model.GeoPlatformAccount) error
+	Create(ctx context.Context, account *model.GeoPlatformAccount) error
+	GetByID(ctx context.Context, id string) (*model.GeoPlatformAccount, error)
+	GetByPlatformAndName(ctx context.Context, platform, accountName string) (*model.GeoPlatformAccount, error)
+	GetLatestByPlatform(ctx context.Context, platform string) (*model.GeoPlatformAccount, error)
+	GetList(ctx context.Context, platform string, page, limit int) ([]*model.GeoPlatformAccount, int64, error)
+	Delete(ctx context.Context, id string) error
+	Update(ctx context.Context, account *model.GeoPlatformAccount) error
 }
 
 type geoPlatformAccountRepo struct {
@@ -67,36 +73,36 @@ func NewGeoPlatformAccountRepositoryWithDB(db *gorm.DB) GeoPlatformAccountReposi
 	return &geoPlatformAccountRepo{db: db}
 }
 
-func (r *geoPlatformAccountRepo) Create(account *model.GeoPlatformAccount) error {
-	return r.db.Create(account).Error
+func (r *geoPlatformAccountRepo) Create(ctx context.Context, account *model.GeoPlatformAccount) error {
+	return r.db.WithContext(ctx).Create(account).Error
 }
 
-func (r *geoPlatformAccountRepo) GetByID(id string) (*model.GeoPlatformAccount, error) {
+func (r *geoPlatformAccountRepo) GetByID(ctx context.Context, id string) (*model.GeoPlatformAccount, error) {
 	var account model.GeoPlatformAccount
-	err := r.db.Where("id = ?", id).First(&account).Error
+	err := r.db.WithContext(ctx).Where("id = ?", id).First(&account).Error
 	return &account, err
 }
 
-func (r *geoPlatformAccountRepo) GetByPlatformAndName(platform, accountName string) (*model.GeoPlatformAccount, error) {
+func (r *geoPlatformAccountRepo) GetByPlatformAndName(ctx context.Context, platform, accountName string) (*model.GeoPlatformAccount, error) {
 	var account model.GeoPlatformAccount
-	err := r.db.Where("platform = ? AND account_name = ?", platform, accountName).First(&account).Error
+	err := r.db.WithContext(ctx).Where("platform = ? AND account_name = ?", platform, accountName).First(&account).Error
 	return &account, err
 }
 
-func (r *geoPlatformAccountRepo) GetLatestByPlatform(platform string) (*model.GeoPlatformAccount, error) {
+func (r *geoPlatformAccountRepo) GetLatestByPlatform(ctx context.Context, platform string) (*model.GeoPlatformAccount, error) {
 	var account model.GeoPlatformAccount
-	err := r.db.Where("platform = ?", platform).
+	err := r.db.WithContext(ctx).Where("platform = ?", platform).
 		Order("updated_at DESC, created_at DESC, id DESC").
 		First(&account).Error
 	return &account, err
 }
 
-func (r *geoPlatformAccountRepo) GetList(platform string, page, limit int) ([]*model.GeoPlatformAccount, int64, error) {
+func (r *geoPlatformAccountRepo) GetList(ctx context.Context, platform string, page, limit int) ([]*model.GeoPlatformAccount, int64, error) {
 	var accounts []*model.GeoPlatformAccount
 	var total int64
 	offset := (page - 1) * limit
 
-	query := r.db.Model(&model.GeoPlatformAccount{})
+	query := r.db.WithContext(ctx).Model(&model.GeoPlatformAccount{})
 
 	if platform != "" {
 		query = query.Where("platform = ?", platform)
@@ -111,20 +117,20 @@ func (r *geoPlatformAccountRepo) GetList(platform string, page, limit int) ([]*m
 	return accounts, total, err
 }
 
-func (r *geoPlatformAccountRepo) Delete(id string) error {
-	return r.db.Where("id = ?", id).Delete(&model.GeoPlatformAccount{}).Error
+func (r *geoPlatformAccountRepo) Delete(ctx context.Context, id string) error {
+	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&model.GeoPlatformAccount{}).Error
 }
 
-func (r *geoPlatformAccountRepo) Update(account *model.GeoPlatformAccount) error {
-	return r.db.Save(account).Error
+func (r *geoPlatformAccountRepo) Update(ctx context.Context, account *model.GeoPlatformAccount) error {
+	return r.db.WithContext(ctx).Save(account).Error
 }
 
 // GeoPublishRecordRepository GEO 发布记录仓储接口
 type GeoPublishRecordRepository interface {
-	Create(record *model.GeoPublishRecord) error
-	GetByID(id string) (*model.GeoPublishRecord, error)
-	GetList(articleID, platform string, page, limit int) ([]*model.GeoPublishRecord, int64, error)
-	Update(record *model.GeoPublishRecord) error
+	Create(ctx context.Context, record *model.GeoPublishRecord) error
+	GetByID(ctx context.Context, id string) (*model.GeoPublishRecord, error)
+	GetList(ctx context.Context, articleID, platform string, page, limit int) ([]*model.GeoPublishRecord, int64, error)
+	Update(ctx context.Context, record *model.GeoPublishRecord) error
 }
 
 type geoPublishRecordRepo struct {
@@ -136,22 +142,22 @@ func NewGeoPublishRecordRepositoryWithDB(db *gorm.DB) GeoPublishRecordRepository
 	return &geoPublishRecordRepo{db: db}
 }
 
-func (r *geoPublishRecordRepo) Create(record *model.GeoPublishRecord) error {
-	return r.db.Create(record).Error
+func (r *geoPublishRecordRepo) Create(ctx context.Context, record *model.GeoPublishRecord) error {
+	return r.db.WithContext(ctx).Create(record).Error
 }
 
-func (r *geoPublishRecordRepo) GetByID(id string) (*model.GeoPublishRecord, error) {
+func (r *geoPublishRecordRepo) GetByID(ctx context.Context, id string) (*model.GeoPublishRecord, error) {
 	var record model.GeoPublishRecord
-	err := r.db.Where("id = ?", id).First(&record).Error
+	err := r.db.WithContext(ctx).Where("id = ?", id).First(&record).Error
 	return &record, err
 }
 
-func (r *geoPublishRecordRepo) GetList(articleID, platform string, page, limit int) ([]*model.GeoPublishRecord, int64, error) {
+func (r *geoPublishRecordRepo) GetList(ctx context.Context, articleID, platform string, page, limit int) ([]*model.GeoPublishRecord, int64, error) {
 	var records []*model.GeoPublishRecord
 	var total int64
 	offset := (page - 1) * limit
 
-	query := r.db.Model(&model.GeoPublishRecord{})
+	query := r.db.WithContext(ctx).Model(&model.GeoPublishRecord{})
 
 	if articleID != "" {
 		query = query.Where("article_id = ?", articleID)
@@ -169,6 +175,6 @@ func (r *geoPublishRecordRepo) GetList(articleID, platform string, page, limit i
 	return records, total, err
 }
 
-func (r *geoPublishRecordRepo) Update(record *model.GeoPublishRecord) error {
-	return r.db.Save(record).Error
+func (r *geoPublishRecordRepo) Update(ctx context.Context, record *model.GeoPublishRecord) error {
+	return r.db.WithContext(ctx).Save(record).Error
 }

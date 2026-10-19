@@ -91,7 +91,7 @@ func NewPlatformService(
 func (s *PlatformService) ListPlatforms(ctx context.Context) []dto.PlatformInfo {
 	defs := defaultPlatforms()
 
-	activeAccounts, _, err := s.accountRepo.GetList("", 1, 100)
+	activeAccounts, _, err := s.accountRepo.GetList(ctx, "", 1, 100)
 	hasAccount := make(map[string]bool)
 	if err == nil {
 		for _, a := range activeAccounts {
@@ -157,7 +157,7 @@ func (s *PlatformService) SaveAccount(ctx context.Context, req *dto.SavePlatform
 		configJSON = encryptCredentials(string(b))
 	}
 
-	existing, err := s.accountRepo.GetByPlatformAndName(req.Platform, req.AccountName)
+	existing, err := s.accountRepo.GetByPlatformAndName(ctx, req.Platform, req.AccountName)
 	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, err
 	}
@@ -169,7 +169,7 @@ func (s *PlatformService) SaveAccount(ctx context.Context, req *dto.SavePlatform
 		if req.AccountID != "" {
 			existing.AccountID = req.AccountID
 		}
-		if err := s.accountRepo.Update(existing); err != nil {
+		if err := s.accountRepo.Update(ctx, existing); err != nil {
 			return nil, err
 		}
 		return toAccountResponse(existing), nil
@@ -182,7 +182,7 @@ func (s *PlatformService) SaveAccount(ctx context.Context, req *dto.SavePlatform
 		Status:      status,
 		Config:      configJSON,
 	}
-	if err := s.accountRepo.Create(account); err != nil {
+	if err := s.accountRepo.Create(ctx, account); err != nil {
 		return nil, err
 	}
 	return toAccountResponse(account), nil
@@ -215,9 +215,9 @@ func decryptCredentials(stored string) string {
 	return plain
 }
 
-func (s *PlatformService) latestAccountCredentials(platforms ...string) map[string]string {
+func (s *PlatformService) latestAccountCredentials(ctx context.Context, platforms ...string) map[string]string {
 	for _, p := range platforms {
-		acc, err := s.accountRepo.GetLatestByPlatform(p)
+		acc, err := s.accountRepo.GetLatestByPlatform(ctx, p)
 		if err != nil || acc == nil || acc.Config == "" {
 			continue
 		}
@@ -253,7 +253,7 @@ func (s *PlatformService) ListAccounts(ctx context.Context, platform string, pag
 	if limit < 1 || limit > 100 {
 		limit = 20
 	}
-	accounts, total, err := s.accountRepo.GetList(platform, page, limit)
+	accounts, total, err := s.accountRepo.GetList(ctx, platform, page, limit)
 	if err != nil {
 		return nil, 0, err
 	}
@@ -266,13 +266,13 @@ func (s *PlatformService) ListAccounts(ctx context.Context, platform string, pag
 
 // DeleteAccount 删除平台账号
 func (s *PlatformService) DeleteAccount(ctx context.Context, id string) error {
-	return s.accountRepo.Delete(id)
+	return s.accountRepo.Delete(ctx, id)
 }
 
 // Publish 发布文章到平台（迁移自 Publish + publishGitHub）
 func (s *PlatformService) Publish(ctx context.Context, req *dto.PublishRequest) (*dto.PublishResponse, error) {
 
-	article, err := s.articleRepo.GetByID(req.ArticleID)
+	article, err := s.articleRepo.GetByID(ctx, req.ArticleID)
 	if err != nil {
 		return nil, fmt.Errorf("文章不存在: %w", err)
 	}
@@ -312,7 +312,7 @@ func (s *PlatformService) Publish(ctx context.Context, req *dto.PublishRequest) 
 		Platform:  req.Platform,
 		Status:    PublishStatusPending,
 	}
-	if err := s.recordRepo.Create(record); err != nil {
+	if err := s.recordRepo.Create(ctx, record); err != nil {
 		return nil, err
 	}
 	url := ""
@@ -339,7 +339,7 @@ func (s *PlatformService) publishGitHub(
 		credPlatforms = []string{"github_readme", "github_blog"}
 	}
 	token := ""
-	if creds := s.latestAccountCredentials(credPlatforms...); creds != nil {
+	if creds := s.latestAccountCredentials(ctx, credPlatforms...); creds != nil {
 		token = creds["access_token"]
 		if token == "" {
 			token = creds["api_key"]
@@ -413,14 +413,14 @@ func (s *PlatformService) publishGitHub(
 
 	resp, err := s.httpClient.Do(putReq)
 	if err != nil {
-		s.saveFailedRecord(article.ID, req.Platform, err.Error())
+		s.saveFailedRecord(ctx, article.ID, req.Platform, err.Error())
 		return nil, fmt.Errorf("GitHub 请求失败: %w", err)
 	}
 	defer func() { _ = resp.Body.Close() }()
 	respBody, _ := io.ReadAll(resp.Body)
 	if resp.StatusCode >= 400 {
 		msg := strings.TrimSpace(string(respBody))
-		s.saveFailedRecord(article.ID, req.Platform, msg)
+		s.saveFailedRecord(ctx, article.ID, req.Platform, msg)
 		return nil, fmt.Errorf("GitHub API %d: %s", resp.StatusCode, msg)
 	}
 
@@ -430,7 +430,7 @@ func (s *PlatformService) publishGitHub(
 		} `json:"content"`
 	}
 	if err := json.Unmarshal(respBody, &r); err != nil {
-		s.saveFailedRecord(article.ID, req.Platform, "解析 GitHub 响应失败: "+err.Error())
+		s.saveFailedRecord(ctx, article.ID, req.Platform, "解析 GitHub 响应失败: "+err.Error())
 		return nil, fmt.Errorf("解析 GitHub 响应失败: %w", err)
 	}
 
@@ -441,7 +441,7 @@ func (s *PlatformService) publishGitHub(
 		PublishedURL: r.Content.HTMLURL,
 		PublishedAt:  time.Now(),
 	}
-	if err := s.recordRepo.Create(record); err != nil {
+	if err := s.recordRepo.Create(ctx, record); err != nil {
 		return nil, err
 	}
 	return &dto.PublishResponse{
@@ -451,8 +451,8 @@ func (s *PlatformService) publishGitHub(
 	}, nil
 }
 
-func (s *PlatformService) saveFailedRecord(articleID, platform, errMsg string) {
-	_ = s.recordRepo.Create(&model.GeoPublishRecord{
+func (s *PlatformService) saveFailedRecord(ctx context.Context, articleID, platform, errMsg string) {
+	_ = s.recordRepo.Create(ctx, &model.GeoPublishRecord{
 		ArticleID: articleID,
 		Platform:  platform,
 		Status:    PublishStatusFailed,
@@ -467,5 +467,5 @@ func (s *PlatformService) ListPublishRecords(ctx context.Context, articleID, pla
 	if limit < 1 || limit > 100 {
 		limit = 20
 	}
-	return s.recordRepo.GetList(articleID, platform, page, limit)
+	return s.recordRepo.GetList(ctx, articleID, platform, page, limit)
 }

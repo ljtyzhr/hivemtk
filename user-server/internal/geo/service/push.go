@@ -20,6 +20,7 @@ import (
 	"time"
 
 	"hivemtk-user/internal/geo/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/timeutil"
 	"hivemtk-user/internal/pkg/utils/logger"
 
@@ -557,9 +558,12 @@ func (s *PushService) rollQuotaDay() {
 }
 
 // persistQuota 将内存配额写回 geo_pusher_configs（UsedToday/LastResetAt）
-func (s *PushService) persistQuota(platform string) {
+//
+// geo_pusher_configs 带 tenant_id、在租户登记表内：隔离 callback 只看 GORM
+// 语句的 ctx，调用方（PushURLs/PushManual）透传请求 ctx，否则 on 模式 fail-closed。
+func (s *PushService) persistQuota(ctx context.Context, platform string) {
 	used := s.quota.Used(platform)
-	s.db.Model(&model.GeoPusherConfig{}).
+	s.db.WithContext(ctx).Model(&model.GeoPusherConfig{}).
 		Where("platform = ?", platform).
 		Updates(map[string]any{
 			"used_today":    used,
@@ -568,9 +572,15 @@ func (s *PushService) persistQuota(platform string) {
 		})
 }
 
+// registerFromDB 启动期从 DB 装配推送引擎（NewPushService 构造路径）。
+//
+// 构造期没有 HTTP 请求 ctx 可绑，而 geo_pusher_configs 是租户表：TENANT_MODE=on
+// 下裸 ctx 的 Find 会被隔离 callback fail-closed（装配结果为空 ⇒ 推送引擎全灭）。
+// 走 tenant.WithSystemScope 平台级豁免通道（与 migration/健康检查同口径）。
 func (s *PushService) registerFromDB() {
+	ctx := tenant.WithSystemScope(context.Background())
 	var configs []model.GeoPusherConfig
-	if err := s.db.Find(&configs).Error; err != nil {
+	if err := s.db.WithContext(ctx).Find(&configs).Error; err != nil {
 		return
 	}
 	today := timeutil.BusinessToday()
@@ -649,7 +659,7 @@ func (s *PushService) PushURLs(ctx context.Context, urls []string) error {
 		return nil
 	}
 
-	tx := s.db.Begin()
+	tx := s.db.WithContext(ctx).Begin()
 	s.rollQuotaDay()
 	for platform, pusher := range s.pushers {
 		if !s.quota.Allow(platform, len(urls)) {
@@ -683,7 +693,7 @@ func (s *PushService) PushURLs(ctx context.Context, urls []string) error {
 		}
 
 		s.quota.Consume(platform, success)
-		s.persistQuota(platform)
+		s.persistQuota(ctx, platform)
 		logger.Warnf("[%s] 推送 %d URL 成功=%d 失败=%d", platform, len(urls), success, fail)
 	}
 	return tx.Commit().Error
@@ -716,10 +726,10 @@ func (s *PushService) PushManual(ctx context.Context, urls []string, platforms [
 				rec.FailCount = 1
 			}
 			records = append(records, rec)
-			_ = s.db.Create(rec).Error
+			_ = s.db.WithContext(ctx).Create(rec).Error
 		}
 		s.quota.Consume(plat, success)
-		s.persistQuota(plat)
+		s.persistQuota(ctx, plat)
 	}
 	return records, nil
 }
@@ -741,7 +751,7 @@ func (s *PushService) QuotaStatus() map[string]any {
 // GenerateAndSubmitSitemap 全量 sitemap 生成（定时调用）
 func (s *PushService) GenerateAndSubmitSitemap(ctx context.Context) (string, error) {
 	var articles []model.GeoArticle
-	if err := s.db.Where("deployed_at IS NOT NULL AND site_url != ''").Find(&articles).Error; err != nil {
+	if err := s.db.WithContext(ctx).Where("deployed_at IS NOT NULL AND site_url != ''").Find(&articles).Error; err != nil {
 		return "", err
 	}
 

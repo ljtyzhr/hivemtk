@@ -34,26 +34,26 @@ func NewKuaishouCardRepository(db *gorm.DB) KuaishouCardRepository {
 }
 
 func (r *kuaishouCardRepository) Create(ctx context.Context, card *model.KuaishouCard) (*model.KuaishouCard, error) {
-	if err := r.db.Create(card).Error; err != nil {
+	if err := r.db.WithContext(ctx).Create(card).Error; err != nil {
 		return nil, err
 	}
 	return card, nil
 }
 
 func (r *kuaishouCardRepository) Update(ctx context.Context, card *model.KuaishouCard) (*model.KuaishouCard, error) {
-	if err := r.db.Save(card).Error; err != nil {
+	if err := r.db.WithContext(ctx).Save(card).Error; err != nil {
 		return nil, err
 	}
 	return card, nil
 }
 
 func (r *kuaishouCardRepository) Delete(ctx context.Context, id uint) error {
-	return r.db.Delete(&model.KuaishouCard{}, id).Error
+	return r.db.WithContext(ctx).Delete(&model.KuaishouCard{}, id).Error
 }
 
 func (r *kuaishouCardRepository) GetByID(ctx context.Context, id uint) (*model.KuaishouCard, error) {
 	var card model.KuaishouCard
-	if err := r.db.First(&card, id).Error; err != nil {
+	if err := r.db.WithContext(ctx).First(&card, id).Error; err != nil {
 		return nil, err
 	}
 	return &card, nil
@@ -63,7 +63,7 @@ func (r *kuaishouCardRepository) GetList(ctx context.Context, req CardListFilter
 	var cards []model.KuaishouCard
 	var total int64
 
-	query := r.db.Model(&model.KuaishouCard{})
+	query := r.db.WithContext(ctx).Model(&model.KuaishouCard{})
 
 	if req.Keyword != "" {
 		query = query.Where("title LIKE ? OR tags LIKE ?", "%"+req.Keyword+"%", "%"+req.Keyword+"%")
@@ -86,7 +86,7 @@ func (r *kuaishouCardRepository) GetList(ctx context.Context, req CardListFilter
 
 func (r *kuaishouCardRepository) IncrementViewCount(ctx context.Context, id uint) (*model.KuaishouCard, error) {
 	var card model.KuaishouCard
-	if err := r.db.Model(&card).Where("id = ?", id).UpdateColumn("view_count", gorm.Expr("view_count + 1")).Error; err != nil {
+	if err := r.db.WithContext(ctx).Model(&card).Where("id = ?", id).UpdateColumn("view_count", gorm.Expr("view_count + 1")).Error; err != nil {
 		return nil, err
 	}
 	return r.GetByID(ctx, id)
@@ -95,20 +95,20 @@ func (r *kuaishouCardRepository) IncrementViewCount(ctx context.Context, id uint
 func (r *kuaishouCardRepository) IncrementLikeCount(ctx context.Context, id uint) error {
 
 	var card model.KuaishouCard
-	if err := r.db.First(&card, id).Error; err != nil {
+	if err := r.db.WithContext(ctx).First(&card, id).Error; err != nil {
 		return err
 	}
-	return r.db.Model(&model.KuaishouCard{}).Where("id = ?", id).UpdateColumn("like_count", gorm.Expr("like_count + 1")).Error
+	return r.db.WithContext(ctx).Model(&model.KuaishouCard{}).Where("id = ?", id).UpdateColumn("like_count", gorm.Expr("like_count + 1")).Error
 }
 
 func (r *kuaishouCardRepository) IncrementShareCount(ctx context.Context, id uint) error {
-	return r.db.Model(&model.KuaishouCard{}).Where("id = ?", id).UpdateColumn("share_count", gorm.Expr("share_count + 1")).Error
+	return r.db.WithContext(ctx).Model(&model.KuaishouCard{}).Where("id = ?", id).UpdateColumn("share_count", gorm.Expr("share_count + 1")).Error
 }
 
 func (r *kuaishouCardRepository) CreateActivity(ctx context.Context, activity *model.KuaishouCardActivity) error {
-	return r.db.Create(activity).Error
+	return r.db.WithContext(ctx).Create(activity).Error
 }
 
 func (r *kuaishouCardRepository) UpdateShortLinkID(ctx context.Context, id uint, shortLinkID *uint) error {
-	return r.db.Model(&model.KuaishouCard{}).Where("id = ?", id).Update("short_link_id", shortLinkID).Error
+	return r.db.WithContext(ctx).Model(&model.KuaishouCard{}).Where("id = ?", id).Update("short_link_id", shortLinkID).Error
 }

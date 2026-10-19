@@ -54,7 +54,10 @@ type CustomerSessionRepository struct {
 
 // GetDB 返回数据库连接
 func (r *CustomerSessionRepository) GetDB(ctx context.Context) *gorm.DB {
-	return r.db
+	if r.db == nil {
+		return nil
+	}
+	return r.db.WithContext(ctx)
 }
 
 // NewCustomerSessionRepository 创建客服会话仓库实例
@@ -73,18 +76,18 @@ func NewCustomerSessionRepositoryWithDB(db *gorm.DB) *CustomerSessionRepository 
 
 // Create 创建会话
 func (r *CustomerSessionRepository) Create(ctx context.Context, session *model.CustomerSession) error {
-	return r.db.Create(session).Error
+	return r.db.WithContext(ctx).Create(session).Error
 }
 
 // Update 更新会话
 func (r *CustomerSessionRepository) Update(ctx context.Context, session *model.CustomerSession) error {
-	return r.db.Save(session).Error
+	return r.db.WithContext(ctx).Save(session).Error
 }
 
 // GetByID 根据ID获取会话
 func (r *CustomerSessionRepository) GetByID(ctx context.Context, id uint) (*model.CustomerSession, error) {
 	var session model.CustomerSession
-	err := r.db.First(&session, id).Error
+	err := r.db.WithContext(ctx).First(&session, id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -94,7 +97,7 @@ func (r *CustomerSessionRepository) GetByID(ctx context.Context, id uint) (*mode
 // GetByIDString 根据字符串类型主键获取会话（用于稳定 session_id 派生场景）
 func (r *CustomerSessionRepository) GetByIDString(ctx context.Context, id string) (*model.CustomerSession, error) {
 	var session model.CustomerSession
-	if err := r.db.Where("session_id = ?", id).First(&session).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("session_id = ?", id).First(&session).Error; err != nil {
 		return nil, err
 	}
 	return &session, nil
@@ -141,7 +144,7 @@ func (r *CustomerSessionRepository) UpsertByOneID(ctx context.Context, platform,
 // GetBySessionID 根据SessionID获取会话
 func (r *CustomerSessionRepository) GetBySessionID(ctx context.Context, sessionID string) (*model.CustomerSession, error) {
 	var session model.CustomerSession
-	err := r.db.Where("session_id = ?", sessionID).First(&session).Error
+	err := r.db.WithContext(ctx).Where("session_id = ?", sessionID).First(&session).Error
 	if err != nil {
 		return nil, err
 	}
@@ -152,7 +155,7 @@ func (r *CustomerSessionRepository) GetByMerchant(ctx context.Context, status mo
 	var sessions []*model.CustomerSession
 	var total int64
 
-	query := r.db.Model(&model.CustomerSession{}).Where("1 = 1")
+	query := r.db.WithContext(ctx).Model(&model.CustomerSession{}).Where("1 = 1")
 	if status != "" {
 		query = query.Where("status = ?", status)
 	}
@@ -176,7 +179,7 @@ func (r *CustomerSessionRepository) GetByMerchantForAgent(ctx context.Context, s
 	var sessions []*model.CustomerSession
 	var total int64
 
-	query := r.db.Model(&model.CustomerSession{}).Where("(agent_id = 0 OR agent_id = ?)", agentID)
+	query := r.db.WithContext(ctx).Model(&model.CustomerSession{}).Where("(agent_id = 0 OR agent_id = ?)", agentID)
 	if status != "" {
 		query = query.Where("status = ?", status)
 	}
@@ -314,7 +317,7 @@ func (r *CustomerSessionRepository) ListByUserIDsBatch(ctx context.Context, user
 // GetPendingSessions 获取等待处理的会话
 func (r *CustomerSessionRepository) GetPendingSessions(ctx context.Context) ([]*model.CustomerSession, error) {
 	var sessions []*model.CustomerSession
-	q := r.db.Where("status IN ?", []model.SessionStatus{
+	q := r.db.WithContext(ctx).Where("status IN ?", []model.SessionStatus{
 		model.SessionStatusPending,
 		model.SessionStatusAIHandling,
 	}).Order("priority DESC, last_message_at ASC")
@@ -327,7 +330,7 @@ func (r *CustomerSessionRepository) GetPendingSessions(ctx context.Context) ([]*
 // GetAgentSessions 获取客服的活跃会话
 func (r *CustomerSessionRepository) GetAgentSessions(ctx context.Context, agentID uint) ([]*model.CustomerSession, error) {
 	var sessions []*model.CustomerSession
-	err := r.db.Where("agent_id = ? AND status IN ?", agentID, []model.SessionStatus{
+	err := r.db.WithContext(ctx).Where("agent_id = ? AND status IN ?", agentID, []model.SessionStatus{
 		model.SessionStatusHumanHandling,
 		model.SessionStatusWaiting,
 	}).Order("last_message_at DESC").Find(&sessions).Error
@@ -347,7 +350,7 @@ func (r *CustomerSessionRepository) GetActiveByUserID(ctx context.Context, userI
 	}
 	cutoff := time.Now().Add(-SessionActiveTTL())
 	var session model.CustomerSession
-	err := r.db.Where("user_id = ? AND status IN ?", userID, []model.SessionStatus{
+	err := r.db.WithContext(ctx).Where("user_id = ? AND status IN ?", userID, []model.SessionStatus{
 		model.SessionStatusPending,
 		model.SessionStatusAIHandling,
 		model.SessionStatusWaiting,
@@ -370,7 +373,7 @@ func (r *CustomerSessionRepository) GetActiveByUserIDWithin(ctx context.Context,
 	}
 	cutoff := time.Now().Add(-within)
 	var session model.CustomerSession
-	err := r.db.Where("user_id = ? AND status IN ?", userID, []model.SessionStatus{
+	err := r.db.WithContext(ctx).Where("user_id = ? AND status IN ?", userID, []model.SessionStatus{
 		model.SessionStatusPending,
 		model.SessionStatusAIHandling,
 		model.SessionStatusWaiting,
@@ -396,7 +399,7 @@ func (r *CustomerSessionRepository) GetActiveByOneID(ctx context.Context, oneID 
 	}
 	cutoff := time.Now().Add(-SessionActiveTTL())
 	var session model.CustomerSession
-	err := r.db.Where("one_id = ? AND status IN ?", oneID, []model.SessionStatus{
+	err := r.db.WithContext(ctx).Where("one_id = ? AND status IN ?", oneID, []model.SessionStatus{
 		model.SessionStatusPending,
 		model.SessionStatusAIHandling,
 		model.SessionStatusWaiting,
@@ -419,7 +422,7 @@ func (r *CustomerSessionRepository) GetActiveByOneID(ctx context.Context, oneID 
 func (r *CustomerSessionRepository) ListStaleActiveSessions(ctx context.Context, within time.Duration, limit int) ([]*model.CustomerSession, error) {
 	cutoff := time.Now().Add(-within)
 	var sessions []*model.CustomerSession
-	err := r.db.Where("status IN ?", []model.SessionStatus{
+	err := r.db.WithContext(ctx).Where("status IN ?", []model.SessionStatus{
 		model.SessionStatusPending,
 		model.SessionStatusAIHandling,
 		model.SessionStatusWaiting,
@@ -507,12 +510,12 @@ func (r *CustomerSessionRepository) UpdateStatus(ctx context.Context, id uint, s
 		now := time.Now()
 		updates["closed_at"] = &now
 	}
-	return r.db.Model(&model.CustomerSession{}).Where("id = ?", id).Updates(updates).Error
+	return r.db.WithContext(ctx).Model(&model.CustomerSession{}).Where("id = ?", id).Updates(updates).Error
 }
 
 // AssignAgent 分配客服
 func (r *CustomerSessionRepository) AssignAgent(ctx context.Context, id uint, agentID uint, agentName string) error {
-	return r.db.Model(&model.CustomerSession{}).Where("id = ?", id).Updates(map[string]any{
+	return r.db.WithContext(ctx).Model(&model.CustomerSession{}).Where("id = ?", id).Updates(map[string]any{
 		"agent_id":     agentID,
 		"agent_name":   agentName,
 		"handler_type": model.HandlerTypeHuman,
@@ -523,7 +526,7 @@ func (r *CustomerSessionRepository) AssignAgent(ctx context.Context, id uint, ag
 // UpdateLastMessage 更新最后消息
 func (r *CustomerSessionRepository) UpdateLastMessage(ctx context.Context, id uint, message string, messageBy string) error {
 	now := time.Now()
-	return r.db.Model(&model.CustomerSession{}).Where("id = ?", id).Updates(map[string]any{
+	return r.db.WithContext(ctx).Model(&model.CustomerSession{}).Where("id = ?", id).Updates(map[string]any{
 		"last_message":    message,
 		"last_message_at": &now,
 		"last_message_by": messageBy,
@@ -540,7 +543,7 @@ func (r *CustomerSessionRepository) UpdateLastMessageBySessionID(ctx context.Con
 		return errors.New("session_id is empty")
 	}
 	now := time.Now()
-	return r.db.Model(&model.CustomerSession{}).Where("session_id = ?", sessionID).Updates(map[string]any{
+	return r.db.WithContext(ctx).Model(&model.CustomerSession{}).Where("session_id = ?", sessionID).Updates(map[string]any{
 		"last_message":    message,
 		"last_message_at": &now,
 		"last_message_by": messageBy,
@@ -549,20 +552,20 @@ func (r *CustomerSessionRepository) UpdateLastMessageBySessionID(ctx context.Con
 
 // IncrementAIReplyCount 增加AI回复计数
 func (r *CustomerSessionRepository) IncrementAIReplyCount(ctx context.Context, id uint) error {
-	return r.db.Model(&model.CustomerSession{}).Where("id = ?", id).
+	return r.db.WithContext(ctx).Model(&model.CustomerSession{}).Where("id = ?", id).
 		Update("ai_reply_count", gorm.Expr("ai_reply_count + 1")).Error
 }
 
 // IncrementHumanReplyCount 增加人工回复计数
 func (r *CustomerSessionRepository) IncrementHumanReplyCount(ctx context.Context, id uint) error {
-	return r.db.Model(&model.CustomerSession{}).Where("id = ?", id).
+	return r.db.WithContext(ctx).Model(&model.CustomerSession{}).Where("id = ?", id).
 		Update("human_reply_count", gorm.Expr("human_reply_count + 1")).Error
 }
 
 // UpdateFirstHumanReplyAt D20：转人工 episode 终点打点（幂等语义由调用方保证：
 // 仅在 handoff_at 非空且 first_human_reply_at 为空时调用；此处条件更新双保险防并发覆盖）
 func (r *CustomerSessionRepository) UpdateFirstHumanReplyAt(ctx context.Context, id uint, at time.Time) error {
-	return r.db.Model(&model.CustomerSession{}).
+	return r.db.WithContext(ctx).Model(&model.CustomerSession{}).
 		Where("id = ? AND handoff_at IS NOT NULL AND first_human_reply_at IS NULL", id).
 		Update("first_human_reply_at", at).Error
 }

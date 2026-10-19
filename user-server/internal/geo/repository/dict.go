@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"hivemtk-user/internal/geo/model"
 	_db "hivemtk-user/internal/pkg/db"
 	"time"
@@ -13,17 +14,17 @@ import (
 // GeoDictRepository GEO 通用配置字典
 type GeoDictRepository interface {
 	// Get 按类目+键取单条（仅启用）
-	Get(category, key string) (*model.GeoDict, error)
+	Get(ctx context.Context, category, key string) (*model.GeoDict, error)
 	// GetAny 按类目+键取单条（含停用，用于区分“缺行”与“已停用”，避免停用被自动播种复活）
-	GetAny(category, key string) (*model.GeoDict, error)
+	GetAny(ctx context.Context, category, key string) (*model.GeoDict, error)
 	// ListByCategory 按类目列出全部启用条目（sort 升序）
-	ListByCategory(category string) ([]*model.GeoDict, error)
+	ListByCategory(ctx context.Context, category string) ([]*model.GeoDict, error)
 	// Upsert 按 (category,key) 幂等写入
-	Upsert(d *model.GeoDict) error
+	Upsert(ctx context.Context, d *model.GeoDict) error
 	// Delete 按类目+键删除
-	Delete(category, key string) error
+	Delete(ctx context.Context, category, key string) error
 	// CountByCategory 统计类目下条目数
-	CountByCategory(category string) (int64, error)
+	CountByCategory(ctx context.Context, category string) (int64, error)
 }
 
 type geoDictRepo struct {
@@ -44,7 +45,7 @@ func NewGeoDictRepositoryWithDB(db *gorm.DB) GeoDictRepository {
 // 尚未就绪）则按调用时点重取全局，容忍 globalDict 首次触达早于 DB 初始化；
 // 两者皆空返回 ErrInvalidDB，让上层 DictService 走既定的 fail-open 回缺省
 // 而不是 panic（DictService.DictJSON 文档承诺"DB 故障 fail-open"）。
-func (r *geoDictRepo) dbh() (*gorm.DB, error) {
+func (r *geoDictRepo) dbh(ctx context.Context) (*gorm.DB, error) {
 	db := r.db
 	if db == nil {
 		db = _db.GetDB()
@@ -52,11 +53,11 @@ func (r *geoDictRepo) dbh() (*gorm.DB, error) {
 	if db == nil {
 		return nil, gorm.ErrInvalidDB
 	}
-	return db, nil
+	return db.WithContext(ctx), nil
 }
 
-func (r *geoDictRepo) Get(category, key string) (*model.GeoDict, error) {
-	db, err := r.dbh()
+func (r *geoDictRepo) Get(ctx context.Context, category, key string) (*model.GeoDict, error) {
+	db, err := r.dbh(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -67,8 +68,8 @@ func (r *geoDictRepo) Get(category, key string) (*model.GeoDict, error) {
 	return &d, nil
 }
 
-func (r *geoDictRepo) GetAny(category, key string) (*model.GeoDict, error) {
-	db, err := r.dbh()
+func (r *geoDictRepo) GetAny(ctx context.Context, category, key string) (*model.GeoDict, error) {
+	db, err := r.dbh(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -79,8 +80,8 @@ func (r *geoDictRepo) GetAny(category, key string) (*model.GeoDict, error) {
 	return &d, nil
 }
 
-func (r *geoDictRepo) ListByCategory(category string) ([]*model.GeoDict, error) {
-	db, err := r.dbh()
+func (r *geoDictRepo) ListByCategory(ctx context.Context, category string) ([]*model.GeoDict, error) {
+	db, err := r.dbh(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -91,11 +92,11 @@ func (r *geoDictRepo) ListByCategory(category string) ([]*model.GeoDict, error) 
 	return list, nil
 }
 
-func (r *geoDictRepo) Upsert(d *model.GeoDict) error {
+func (r *geoDictRepo) Upsert(ctx context.Context, d *model.GeoDict) error {
 	if d == nil {
 		return nil
 	}
-	db, err := r.dbh()
+	db, err := r.dbh(ctx)
 	if err != nil {
 		return err
 	}
@@ -130,16 +131,16 @@ func (r *geoDictRepo) Upsert(d *model.GeoDict) error {
 		}).Error
 }
 
-func (r *geoDictRepo) Delete(category, key string) error {
-	db, err := r.dbh()
+func (r *geoDictRepo) Delete(ctx context.Context, category, key string) error {
+	db, err := r.dbh(ctx)
 	if err != nil {
 		return err
 	}
 	return db.Where("category = ? AND \"key\" = ?", category, key).Delete(&model.GeoDict{}).Error
 }
 
-func (r *geoDictRepo) CountByCategory(category string) (int64, error) {
-	db, err := r.dbh()
+func (r *geoDictRepo) CountByCategory(ctx context.Context, category string) (int64, error) {
+	db, err := r.dbh(ctx)
 	if err != nil {
 		return 0, err
 	}

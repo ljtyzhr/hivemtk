@@ -9,6 +9,7 @@ import (
 
 	"hivemtk-user/internal/geo/model"
 	"hivemtk-user/internal/geo/repository"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/timeutil"
 	"hivemtk-user/internal/pkg/utils/logger"
 )
@@ -22,6 +23,15 @@ func runeTruncate(s string, n int) string {
 }
 
 func sovRefreshJob(ctx context.Context) (string, error) {
+	// 判读：触达租户表 —— geo_keywords（采样）、geo_probe_runs（逐词探针落行）、
+	// geo_daily_stats（聚合写入）。本 job 由 cron 派发、没有可绑的请求租户，
+	// TENANT_MODE=on 下裸 ctx 的 GORM 调用被隔离 callback fail-closed（生产日志形态：
+	// "[tenant] 表 X 需要租户上下文但 ctx 未绑定"）⇒ 整轮空跑。入口补平台级
+	// tenant.WithSystemScope，与 job_manager.go StartJob/execute 的运行记录同口径；
+	// WithValue 保留 execute 已挂好的超时与取消。口径取"全平台采样聚合"（运维观测），
+	// 不按租户拆分。
+	ctx = tenant.WithSystemScope(ctx)
+
 	keywordRepo := repository.NewGeoKeywordRepository()
 	probeRepo := repository.NewGeoProbeRunRepository()
 	probes := NewEngineProbes()
@@ -30,7 +40,7 @@ func sovRefreshJob(ctx context.Context) (string, error) {
 	const sovKeywordSample = 60
 	var allKW []string
 	page, limit := 1, sovKeywordSample
-	list, _, err := keywordRepo.GetList("", "", "", "", "", "", page, limit)
+	list, _, err := keywordRepo.GetList(ctx, "", "", "", "", "", "", page, limit)
 	if err != nil {
 		return "", fmt.Errorf("拉取关键词失败(页=%d): %w", page, err)
 	}
@@ -171,10 +181,15 @@ func loadNegativeKeywords(config *model.GeoConfig) []string {
 }
 
 func negativeMonitorJob(ctx context.Context) (string, error) {
+	// 判读：触达租户表 —— geo_config（读品牌名/负面词）、geo_probe_runs（探针落行）、
+	// geo_alerts（命中写告警）。同 sov_refresh：cron 派发无租户绑定，入口补平台级
+	// system scope 避免 TENANT_MODE=on 下 fail-closed 空跑。
+	ctx = tenant.WithSystemScope(ctx)
+
 	cfgRepo := repository.NewGeoConfigRepository()
 	probeRepo := repository.NewGeoProbeRunRepository()
 	alertRepo := repository.NewGeoAlertRepository()
-	config, err := cfgRepo.Get()
+	config, err := cfgRepo.Get(ctx)
 	if err != nil {
 		return "", fmt.Errorf("读取 GeoConfig 失败: %w", err)
 	}
@@ -244,6 +259,10 @@ func negativeMonitorJob(ctx context.Context) (string, error) {
 }
 
 func sourceCatalogSyncJob(ctx context.Context) (string, error) {
+	// 判读：触达租户表 geo_source_catalog（读种子 URL + 回写 last_checked）。
+	// 同其它 cron job：入口补平台级 system scope，on 模式下不 fail-closed。
+	ctx = tenant.WithSystemScope(ctx)
+
 	sourceRepo := repository.NewGeoSourceCatalogRepository()
 	crawlerSvc := NewCrawlerService(sourceRepo)
 
@@ -273,6 +292,11 @@ func sourceCatalogSyncJob(ctx context.Context) (string, error) {
 }
 
 func crawlerMonitorJob(ctx context.Context) (string, error) {
+	// 判读：CrawlerMonitorCronWithContext 读 geo_keywords/geo_competitors、写
+	// geo_crawler_visits（均带 tenant_id）⇒ 触达租户表。cron 派发无租户绑定，
+	// 入口补平台级 system scope（与其余 GEO job 同口径）。
+	ctx = tenant.WithSystemScope(ctx)
+
 	n, err := CrawlerMonitorCronWithContext(ctx)
 	if err != nil {
 		return "", err

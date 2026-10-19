@@ -69,7 +69,10 @@ func (r *TelegramPollingLockRepository) SetDB(ctx context.Context, db *gorm.DB) 
 
 // GetDB 返回仓库绑定的 DB（兼容历史 service.db 用法，仅用于构造期）
 func (r *TelegramPollingLockRepository) GetDB(ctx context.Context) *gorm.DB {
-	return r.db
+	if r.db == nil {
+		return nil
+	}
+	return r.db.WithContext(ctx)
 }
 
 // TryAcquirePollingLock 原子抢占 Telegram 账号的 polling 锁

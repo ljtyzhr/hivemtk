@@ -597,6 +597,10 @@ func (d *SOPExecutionDispatcher) handleNodeSuccess(ctx context.Context, exec *mo
 		NodeID:      nextNodeID,
 		Attempt:     0,
 		TraceID:     task.TraceID,
+		// 行自证（specs/001-saas-multi-tenant T027）：worker 靠 task.TenantID 恢复租户
+		// ctx 再 load 下一跳 execution；漏填在 TENANT_MODE=on 下第二步起必被隔离
+		// callback fail-closed 吞掉（先例 sop.go Start/Step 的 TenantID: exec.TenantID）。
+		TenantID: exec.TenantID,
 	})
 
 	logger.Ctx(ctx).Info().
@@ -666,6 +670,9 @@ func (d *SOPExecutionDispatcher) handleNodeFailure(ctx context.Context, exec *mo
 					NodeID:      node.ID,
 					Attempt:     task.Attempt + 1,
 					TraceID:     task.TraceID,
+					// 行自证（T027）：重试定时器是脱离 worker ctx 的 goroutine，唤醒任务
+					// 必须自带租户，否则 on 模式下这次重试 load execution 会被 fail-closed 吞掉。
+					TenantID: exec.TenantID,
 				})
 			case <-d.stopCh:
 				retryTimer.Stop()
@@ -786,7 +793,10 @@ func (d *SOPExecutionDispatcher) tryCompensate(_ context.Context, exec *model.SO
 	}
 
 	utils.SafeGo(context.Background(), "sop_dispatcher.compensate", func(ctx context.Context) {
-		bgCtx, cancel := context.WithTimeout(context.Background(), utils.CronShortTimeout)
+		// 行自证（T027）：补偿协程脱离 worker ctx 自起，下面 GetByID / loadGraph /
+		// mgr.Run 全打租户表；无租户绑定的 context.Background() 在 TENANT_MODE=on 下
+		// 被隔离 callback fail-closed，补偿会静默变成 no plan（先例同文件 tenant.WithTenantID）。
+		bgCtx, cancel := context.WithTimeout(tenant.WithTenantID(context.Background(), exec.TenantID), utils.CronShortTimeout)
 		defer cancel()
 
 		var executed []compensationTraceEntry

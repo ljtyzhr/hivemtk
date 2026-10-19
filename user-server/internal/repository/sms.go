@@ -56,7 +56,7 @@ func NewSmsRepository() SmsRepository {
 
 func (r *smsRepository) GetConfig(ctx context.Context) (*model.SmsConfig, error) {
 	var config model.SmsConfig
-	err := r.db.First(&config).Error
+	err := r.db.WithContext(ctx).First(&config).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return &model.SmsConfig{
@@ -73,20 +73,20 @@ func (r *smsRepository) GetConfig(ctx context.Context) (*model.SmsConfig, error)
 
 func (r *smsRepository) SaveConfig(ctx context.Context, config *model.SmsConfig) error {
 	var existing model.SmsConfig
-	err := r.db.First(&existing).Error
+	err := r.db.WithContext(ctx).First(&existing).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return r.db.Create(config).Error
+			return r.db.WithContext(ctx).Create(config).Error
 		}
 		return err
 	}
 	config.ID = existing.ID
-	return r.db.Save(config).Error
+	return r.db.WithContext(ctx).Save(config).Error
 }
 
 func (r *smsRepository) GetAliyunConfig(ctx context.Context) (*model.SmsAliyunConfig, error) {
 	var config model.SmsAliyunConfig
-	err := r.db.First(&config).Error
+	err := r.db.WithContext(ctx).First(&config).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return &model.SmsAliyunConfig{}, nil
@@ -98,20 +98,20 @@ func (r *smsRepository) GetAliyunConfig(ctx context.Context) (*model.SmsAliyunCo
 
 func (r *smsRepository) SaveAliyunConfig(ctx context.Context, config *model.SmsAliyunConfig) error {
 	var existing model.SmsAliyunConfig
-	err := r.db.First(&existing).Error
+	err := r.db.WithContext(ctx).First(&existing).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return r.db.Create(config).Error
+			return r.db.WithContext(ctx).Create(config).Error
 		}
 		return err
 	}
 	config.ID = existing.ID
-	return r.db.Save(config).Error
+	return r.db.WithContext(ctx).Save(config).Error
 }
 
 func (r *smsRepository) GetTencentConfig(ctx context.Context) (*model.SmsTencentConfig, error) {
 	var config model.SmsTencentConfig
-	err := r.db.First(&config).Error
+	err := r.db.WithContext(ctx).First(&config).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return &model.SmsTencentConfig{}, nil
@@ -123,20 +123,20 @@ func (r *smsRepository) GetTencentConfig(ctx context.Context) (*model.SmsTencent
 
 func (r *smsRepository) SaveTencentConfig(ctx context.Context, config *model.SmsTencentConfig) error {
 	var existing model.SmsTencentConfig
-	err := r.db.First(&existing).Error
+	err := r.db.WithContext(ctx).First(&existing).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return r.db.Create(config).Error
+			return r.db.WithContext(ctx).Create(config).Error
 		}
 		return err
 	}
 	config.ID = existing.ID
-	return r.db.Save(config).Error
+	return r.db.WithContext(ctx).Save(config).Error
 }
 
 func (r *smsRepository) GetHuaweiConfig(ctx context.Context) (*model.SmsHuaweiConfig, error) {
 	var config model.SmsHuaweiConfig
-	err := r.db.First(&config).Error
+	err := r.db.WithContext(ctx).First(&config).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return &model.SmsHuaweiConfig{}, nil
@@ -148,22 +148,22 @@ func (r *smsRepository) GetHuaweiConfig(ctx context.Context) (*model.SmsHuaweiCo
 
 func (r *smsRepository) SaveHuaweiConfig(ctx context.Context, config *model.SmsHuaweiConfig) error {
 	var existing model.SmsHuaweiConfig
-	err := r.db.First(&existing).Error
+	err := r.db.WithContext(ctx).First(&existing).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return r.db.Create(config).Error
+			return r.db.WithContext(ctx).Create(config).Error
 		}
 		return err
 	}
 	config.ID = existing.ID
-	return r.db.Save(config).Error
+	return r.db.WithContext(ctx).Save(config).Error
 }
 
 func (r *smsRepository) GetSmsList(ctx context.Context, page, limit int, phone, status, startDate, endDate string) ([]*model.SmsRecord, int64, error) {
 	var records []*model.SmsRecord
 	var total int64
 
-	query := r.db.Model(&model.SmsRecord{})
+	query := r.db.WithContext(ctx).Model(&model.SmsRecord{})
 
 	if phone != "" {
 		query = query.Where("phone = ?", phone)
@@ -193,23 +193,23 @@ func (r *smsRepository) GetSmsList(ctx context.Context, page, limit int, phone, 
 
 func (r *smsRepository) GetSmsByID(ctx context.Context, id uint) (*model.SmsRecord, error) {
 	var record model.SmsRecord
-	err := r.db.First(&record, id).Error
+	err := r.db.WithContext(ctx).First(&record, id).Error
 	return &record, err
 }
 
 func (r *smsRepository) CreateSmsRecord(ctx context.Context, record *model.SmsRecord) error {
-	return r.db.Create(record).Error
+	return r.db.WithContext(ctx).Create(record).Error
 }
 
 func (r *smsRepository) UpdateSmsRecord(ctx context.Context, record *model.SmsRecord) error {
-	return r.db.Save(record).Error
+	return r.db.WithContext(ctx).Save(record).Error
 }
 
 func (r *smsRepository) GetDraftList(ctx context.Context, page, limit int, title string) ([]*model.SmsDraft, int64, error) {
 	var drafts []*model.SmsDraft
 	var total int64
 
-	query := r.db.Model(&model.SmsDraft{})
+	query := r.db.WithContext(ctx).Model(&model.SmsDraft{})
 
 	if title != "" {
 		query = query.Where("title LIKE ?", "%"+title+"%")
@@ -229,27 +229,27 @@ func (r *smsRepository) GetDraftList(ctx context.Context, page, limit int, title
 
 func (r *smsRepository) GetDraftByID(ctx context.Context, id uint) (*model.SmsDraft, error) {
 	var draft model.SmsDraft
-	err := r.db.First(&draft, id).Error
+	err := r.db.WithContext(ctx).First(&draft, id).Error
 	return &draft, err
 }
 
 func (r *smsRepository) CreateDraft(ctx context.Context, draft *model.SmsDraft) error {
-	return r.db.Create(draft).Error
+	return r.db.WithContext(ctx).Create(draft).Error
 }
 
 func (r *smsRepository) UpdateDraft(ctx context.Context, draft *model.SmsDraft) error {
-	return r.db.Save(draft).Error
+	return r.db.WithContext(ctx).Save(draft).Error
 }
 
 func (r *smsRepository) DeleteDraft(ctx context.Context, id uint) error {
-	return r.db.Delete(&model.SmsDraft{}, id).Error
+	return r.db.WithContext(ctx).Delete(&model.SmsDraft{}, id).Error
 }
 
 func (r *smsRepository) GetJobList(ctx context.Context, page, limit int, status, name string) ([]*model.SmsJob, int64, error) {
 	var jobs []*model.SmsJob
 	var total int64
 
-	query := r.db.Model(&model.SmsJob{})
+	query := r.db.WithContext(ctx).Model(&model.SmsJob{})
 
 	if status != "" {
 		query = query.Where("status = ?", status)
@@ -272,35 +272,35 @@ func (r *smsRepository) GetJobList(ctx context.Context, page, limit int, status,
 
 func (r *smsRepository) GetJobByID(ctx context.Context, id uint) (*model.SmsJob, error) {
 	var job model.SmsJob
-	err := r.db.First(&job, id).Error
+	err := r.db.WithContext(ctx).First(&job, id).Error
 	return &job, err
 }
 
 func (r *smsRepository) CreateJob(ctx context.Context, job *model.SmsJob) error {
-	return r.db.Create(job).Error
+	return r.db.WithContext(ctx).Create(job).Error
 }
 
 func (r *smsRepository) UpdateJob(ctx context.Context, job *model.SmsJob) error {
-	return r.db.Save(job).Error
+	return r.db.WithContext(ctx).Save(job).Error
 }
 
 func (r *smsRepository) DeleteJob(ctx context.Context, id uint) error {
-	return r.db.Delete(&model.SmsJob{}, id).Error
+	return r.db.WithContext(ctx).Delete(&model.SmsJob{}, id).Error
 }
 
 func (r *smsRepository) DeleteJobDetails(ctx context.Context, jobID uint) error {
-	return r.db.Where("job_id = ?", jobID).Delete(&model.SmsJobDetail{}).Error
+	return r.db.WithContext(ctx).Where("job_id = ?", jobID).Delete(&model.SmsJobDetail{}).Error
 }
 
 func (r *smsRepository) CreateJobDetails(ctx context.Context, details []*model.SmsJobDetail) error {
-	return r.db.CreateInBatches(details, 100).Error
+	return r.db.WithContext(ctx).CreateInBatches(details, 100).Error
 }
 
 func (r *smsRepository) GetJobDetails(ctx context.Context, jobID uint, page, limit int) ([]*model.SmsJobDetail, int64, error) {
 	var details []*model.SmsJobDetail
 	var total int64
 
-	query := r.db.Model(&model.SmsJobDetail{}).Where("job_id = ?", jobID)
+	query := r.db.WithContext(ctx).Model(&model.SmsJobDetail{}).Where("job_id = ?", jobID)
 
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err

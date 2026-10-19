@@ -57,7 +57,7 @@ func (s *DictService) GetString(ctx context.Context, category, key, fallback str
 			return str
 		}
 	}
-	d, err := s.repo.GetAny(category, key)
+	d, err := s.repo.GetAny(ctx, category, key)
 	if err == nil && d != nil {
 		if !d.Active {
 			// 已停用：回缺省但不播种（否则停用会被复活）；Set 重启会清缓存
@@ -71,7 +71,7 @@ func (s *DictService) GetString(ctx context.Context, category, key, fallback str
 		return fallback
 	}
 	// 缺行：播种缺省值（幂等 upsert，失败不阻塞）
-	_ = s.repo.Upsert(&model.GeoDict{Category: category, Key: key, Value: fallback, Active: true})
+	_ = s.repo.Upsert(ctx, &model.GeoDict{Category: category, Key: key, Value: fallback, Active: true})
 	dictCache.Store(ck, fallback)
 	return fallback
 }
@@ -91,7 +91,7 @@ func (s *DictService) GetJSON(ctx context.Context, category, key, fallback strin
 // Set 写入字典值并失效缓存（管理端维护入口）。失效的是包级共享缓存，
 // 因此任何实例（含业务读路径的单例）的下一跳都会重新读库。
 func (s *DictService) Set(ctx context.Context, category, key, value, remark string, active bool, sort int) error {
-	if err := s.repo.Upsert(&model.GeoDict{
+	if err := s.repo.Upsert(ctx, &model.GeoDict{
 		Category: category, Key: key, Value: value,
 		Remark: remark, Active: active, Sort: sort,
 	}); err != nil {
@@ -103,12 +103,12 @@ func (s *DictService) Set(ctx context.Context, category, key, value, remark stri
 
 // List 按类目列出条目（管理端查看入口）
 func (s *DictService) List(ctx context.Context, category string) ([]*model.GeoDict, error) {
-	return s.repo.ListByCategory(category)
+	return s.repo.ListByCategory(ctx, category)
 }
 
 // Delete 删除条目并失效缓存
 func (s *DictService) Delete(ctx context.Context, category, key string) error {
-	if err := s.repo.Delete(category, key); err != nil {
+	if err := s.repo.Delete(ctx, category, key); err != nil {
 		return err
 	}
 	dictCache.Delete(dictCacheKey(category, key))
@@ -116,6 +116,9 @@ func (s *DictService) Delete(ctx context.Context, category, key string) error {
 }
 
 // DictValue 包级便捷函数：各 Service 零 DI 成本读取字典（DB 优先 + 自动播种 + fail-open）。
+// 判读：这里传的 context.Background() 到不了隔离 callback —— GeoDictRepository 的
+// GetAny/Upsert 没有 ctx 形参（隐式 Background 下发），所以本行不是租户触点，
+// 本轮不动；"geo_dicts 是租户表而仓储层无 ctx" 属仓储层残留，另行处理。
 func DictValue(category, key, fallback string) string {
 	return globalDict().GetString(context.Background(), category, key, fallback)
 }

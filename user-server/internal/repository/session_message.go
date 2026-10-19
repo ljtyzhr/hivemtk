@@ -36,7 +36,7 @@ func (r *SessionMessageRepository) GetDB() *gorm.DB {
 
 // Create 创建消息
 func (r *SessionMessageRepository) Create(ctx context.Context, message *model.SessionMessage) error {
-	return r.db.Create(message).Error
+	return r.db.WithContext(ctx).Create(message).Error
 }
 
 // FindRecentDuplicate 查找最近 N 秒内同 (session, content, sender_type, sender_id) 的消息
@@ -45,7 +45,7 @@ func (r *SessionMessageRepository) Create(ctx context.Context, message *model.Se
 func (r *SessionMessageRepository) FindRecentDuplicate(ctx context.Context, sessionID, senderType, senderID, content string, window time.Duration) (*model.SessionMessage, error) {
 	var existing model.SessionMessage
 	threshold := time.Now().Add(-window)
-	err := r.db.Where("session_id = ? AND sender_type = ? AND sender_id = ? AND content = ? AND created_at >= ?",
+	err := r.db.WithContext(ctx).Where("session_id = ? AND sender_type = ? AND sender_id = ? AND content = ? AND created_at >= ?",
 		sessionID, senderType, senderID, content, threshold).
 		Order("id DESC").
 		First(&existing).Error
@@ -60,7 +60,7 @@ func (r *SessionMessageRepository) GetBySessionID(ctx context.Context, sessionID
 	var messages []*model.SessionMessage
 	var total int64
 
-	query := r.db.Model(&model.SessionMessage{}).Where("session_id = ?", sessionID)
+	query := r.db.WithContext(ctx).Model(&model.SessionMessage{}).Where("session_id = ?", sessionID)
 
 	err := query.Count(&total).Error
 	if err != nil {
@@ -124,7 +124,7 @@ func (r *SessionMessageRepository) ListBySessionIDsBatch(ctx context.Context, se
 // MarkAsRead 标记消息已读
 func (r *SessionMessageRepository) MarkAsRead(ctx context.Context, sessionID string, beforeTime time.Time) error {
 	now := time.Now()
-	return r.db.Model(&model.SessionMessage{}).
+	return r.db.WithContext(ctx).Model(&model.SessionMessage{}).
 		Where("session_id = ? AND is_read = ? AND created_at <= ?", sessionID, false, beforeTime).
 		Updates(map[string]any{
 			"is_read": true,
@@ -135,7 +135,7 @@ func (r *SessionMessageRepository) MarkAsRead(ctx context.Context, sessionID str
 // GetUnreadCount 获取未读消息数
 func (r *SessionMessageRepository) GetUnreadCount(ctx context.Context, sessionID string, senderType string) int64 {
 	var count int64
-	r.db.Model(&model.SessionMessage{}).
+	r.db.WithContext(ctx).Model(&model.SessionMessage{}).
 		Where("session_id = ? AND sender_type = ? AND is_read = ?", sessionID, senderType, false).
 		Count(&count)
 	return count

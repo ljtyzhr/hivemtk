@@ -62,7 +62,7 @@ func (c *SiteController) FullPipeline(ctx *gin.Context) {
 func (c *SiteController) LlmsTxtPreview(ctx *gin.Context) {
 	domain := ctx.DefaultQuery("domain", "example.com")
 	brand := "Brand"
-	if cfg, err := c.configRepo.Get(); err == nil && cfg != nil {
+	if cfg, err := c.configRepo.Get(ctx.Request.Context()); err == nil && cfg != nil {
 		if b := strings.TrimSpace(cfg.BrandName); b != "" {
 			brand = b
 		}

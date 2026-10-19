@@ -33,16 +33,16 @@ func NewShortLinkAccessRepository(db *gorm.DB) ShortLinkAccessRepository {
 }
 
 func (r *shortLinkAccessRepository) Create(ctx context.Context, access *model.ShortLinkAccess) error {
-	return r.db.Create(access).Error
+	return r.db.WithContext(ctx).Create(access).Error
 }
 
 func (r *shortLinkAccessRepository) DeleteByShortLinkID(ctx context.Context, shortLinkID uint) error {
-	return r.db.Where("short_link_id = ?", shortLinkID).Delete(&model.ShortLinkAccess{}).Error
+	return r.db.WithContext(ctx).Where("short_link_id = ?", shortLinkID).Delete(&model.ShortLinkAccess{}).Error
 }
 
 func (r *shortLinkAccessRepository) GetByID(ctx context.Context, id uint) (*model.ShortLinkAccess, error) {
 	var access model.ShortLinkAccess
-	err := r.db.First(&access, id).Error
+	err := r.db.WithContext(ctx).First(&access, id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +53,7 @@ func (r *shortLinkAccessRepository) GetByShortLinkID(ctx context.Context, shortL
 	var accesses []*model.ShortLinkAccess
 	var total int64
 
-	query := r.db.Model(&model.ShortLinkAccess{}).Where("short_link_id = ?", shortLinkID)
+	query := r.db.WithContext(ctx).Model(&model.ShortLinkAccess{}).Where("short_link_id = ?", shortLinkID)
 
 	err := query.Count(&total).Error
 	if err != nil {
@@ -74,7 +74,7 @@ func (r *shortLinkAccessRepository) GetStatsByShortLinkID(ctx context.Context, s
 		TotalCount int64 `json:"total_count"`
 	}
 
-	query := r.db.Model(&model.ShortLinkAccess{}).Where("short_link_id = ?", shortLinkID)
+	query := r.db.WithContext(ctx).Model(&model.ShortLinkAccess{}).Where("short_link_id = ?", shortLinkID)
 
 	if !startDate.IsZero() {
 		query = query.Where("DATE(access_time) >= ?", timeutil.BusinessDate(startDate))
@@ -92,7 +92,7 @@ func (r *shortLinkAccessRepository) GetStatsByShortLinkID(ctx context.Context, s
 	today := timeutil.BusinessDate(time.Now())
 
 	var todayCount int64
-	err = r.db.Model(&model.ShortLinkAccess{}).
+	err = r.db.WithContext(ctx).Model(&model.ShortLinkAccess{}).
 		Where("short_link_id = ? AND DATE(access_time) = ?", shortLinkID, today).
 		Count(&todayCount).Error
 	if err != nil {
@@ -105,7 +105,7 @@ func (r *shortLinkAccessRepository) GetStatsByShortLinkID(ctx context.Context, s
 }
 
 func (r *shortLinkAccessRepository) GetDailyStatsByShortLinkID(ctx context.Context, shortLinkID uint, startDate, endDate time.Time) ([]map[string]any, error) {
-	query := r.db.Model(&model.ShortLinkAccess{}).
+	query := r.db.WithContext(ctx).Model(&model.ShortLinkAccess{}).
 		Select("DATE(access_time) as date, COUNT(*) as count").
 		Where("short_link_id = ?", shortLinkID)
 
@@ -123,7 +123,7 @@ func (r *shortLinkAccessRepository) GetDailyStatsByShortLinkID(ctx context.Conte
 }
 
 func (r *shortLinkAccessRepository) GetDeviceTypeStatsByShortLinkID(ctx context.Context, shortLinkID uint, startDate, endDate time.Time) ([]map[string]any, error) {
-	query := r.db.Model(&model.ShortLinkAccess{}).
+	query := r.db.WithContext(ctx).Model(&model.ShortLinkAccess{}).
 		Select("device_type, COUNT(*) as count").
 		Where("short_link_id = ?", shortLinkID)
 
@@ -141,7 +141,7 @@ func (r *shortLinkAccessRepository) GetDeviceTypeStatsByShortLinkID(ctx context.
 }
 
 func (r *shortLinkAccessRepository) GetAllDailyStats(ctx context.Context, startDate, endDate time.Time) ([]map[string]any, error) {
-	query := r.db.Model(&model.ShortLinkAccess{}).
+	query := r.db.WithContext(ctx).Model(&model.ShortLinkAccess{}).
 		Select("DATE(access_time) as date, COUNT(*) as count")
 
 	if !startDate.IsZero() {
@@ -158,7 +158,7 @@ func (r *shortLinkAccessRepository) GetAllDailyStats(ctx context.Context, startD
 }
 
 func (r *shortLinkAccessRepository) GetAllDeviceTypeStats(ctx context.Context, startDate, endDate time.Time) ([]map[string]any, error) {
-	query := r.db.Model(&model.ShortLinkAccess{}).
+	query := r.db.WithContext(ctx).Model(&model.ShortLinkAccess{}).
 		Select("device_type, COUNT(*) as count")
 
 	if !startDate.IsZero() {
@@ -175,7 +175,7 @@ func (r *shortLinkAccessRepository) GetAllDeviceTypeStats(ctx context.Context, s
 }
 
 func (r *shortLinkAccessRepository) GetAllShortLinksBasicStats(ctx context.Context, startDate, endDate time.Time) ([]map[string]any, error) {
-	query := r.db.Table("short_links sl").
+	query := r.db.WithContext(ctx).Table("short_links sl").
 		Select("sl.id, sl.short_code, sl.original_url AS title, COUNT(sla.id) as access_count").
 		Joins("LEFT JOIN short_link_accesses sla ON sl.id = sla.short_link_id")
 

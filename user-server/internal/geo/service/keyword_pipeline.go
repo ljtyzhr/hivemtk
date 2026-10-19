@@ -9,6 +9,7 @@ import (
 	"hivemtk-user/internal/geo/model"
 	"hivemtk-user/internal/geo/repository"
 	pkgdb "hivemtk-user/internal/pkg/db"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 	baseservice "hivemtk-user/internal/service"
 
@@ -43,6 +44,14 @@ func geoPipelineBatchPerRun(ctx context.Context) int {
 //  8. 有界 SEO：取 N 个无文章长尾/下拉词 → GenerateContent → ScoreContent →
 //     VerifyArticle（含探针 + 多模型对比），逐词容错，N 可配 geo_pipeline_batch_per_run
 func keywordPipelineJob(ctx context.Context) (string, error) {
+	// 判读：触达租户表 —— geo_seed_terms（种子矩阵）、geo_keywords（落库/回填/拉取
+	// 待 SEO 词）、geo_articles 等下游写入。cron 派发无租户绑定，TENANT_MODE=on 下
+	// 裸 ctx 会被隔离 callback fail-closed ⇒ 整轮空跑，故入口补平台级
+	// tenant.WithSystemScope（与 scheduler.go 各 job、job_manager.go 运行记录同口径）。
+	// 例外：SEO 批次是逐词业务执行且行带 tenant_id，那一段改用行自证（见
+	// runPipelineSEOBatch 里的 OnlyTenant），不跟着 system scope 走。
+	ctx = tenant.WithSystemScope(ctx)
+
 	keywordRepo := repository.NewGeoKeywordRepository()
 	gormDB := pkgdb.GetDB()
 	llmAdapter := NewLLMAdapter()
@@ -140,7 +149,7 @@ func runPipelineSEOBatch(ctx context.Context, gormDB *gorm.DB, llmAdapter *LLMAd
 
 	// 品牌配置：无品牌则跳过 SEO（只做挖掘落库），避免生成无主内容
 	cfgRepo := repository.NewGeoConfigRepository()
-	cfg, err := cfgRepo.Get()
+	cfg, err := cfgRepo.Get(ctx)
 	if err != nil || cfg == nil || strings.TrimSpace(cfg.BrandName) == "" {
 		return 0, 0, "（未配置品牌名，跳过SEO批次）"
 	}
@@ -196,7 +205,13 @@ func runPipelineSEOBatch(ctx context.Context, gormDB *gorm.DB, llmAdapter *LLMAd
 		if kw == "" {
 			continue
 		}
-		if serr := seoOneWord(ctx, contentSvc, verifySvc, lang, kw, brand, advs, models); serr != nil {
+		// 行自证（多租户）：待 SEO 行带 tenant_id，生成/评分/验证落的行必须回到该
+		// 行自己的租户。OnlyTenant 剥掉入口的 system scope 再钉回行租户——不剥的话
+		// fillCreateForTenant 先见 SystemScope 就跳过填充，新建行一律落列默认值 1
+		//（= 串租户）。行 tenant_id=0（历史空值）时 OnlyTenant 原样返回、无绑定，
+		// 由隔离 callback 兜底；off 模式下整条链路直通，SQL 形状不变。
+		wordCtx := tenant.OnlyTenant(ctx, pending[i].TenantID)
+		if serr := seoOneWord(wordCtx, contentSvc, verifySvc, lang, kw, brand, advs, models); serr != nil {
 			fail++
 			logger.Warnf("[GEO Job keyword_pipeline] SEO词 %q 失败: %v", kw, serr)
 			continue

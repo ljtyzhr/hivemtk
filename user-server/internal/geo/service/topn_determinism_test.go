@@ -120,17 +120,17 @@ type stubVerifyRepo struct{ rows []*model.GeoVerifyResult }
 func (r *stubVerifyRepo) ListAllForSOV(_ context.Context, _ string) ([]*model.GeoVerifyResult, error) {
 	return r.rows, nil
 }
-func (r *stubVerifyRepo) Create(_ *model.GeoVerifyResult) error { return nil }
-func (r *stubVerifyRepo) GetByArticleID(_ string) ([]*model.GeoVerifyResult, error) {
+func (r *stubVerifyRepo) Create(_ context.Context, _ *model.GeoVerifyResult) error { return nil }
+func (r *stubVerifyRepo) GetByArticleID(_ context.Context, _ string) ([]*model.GeoVerifyResult, error) {
 	return nil, nil
 }
-func (r *stubVerifyRepo) GetByBrandName(_ string) ([]*model.GeoVerifyResult, error) {
+func (r *stubVerifyRepo) GetByBrandName(_ context.Context, _ string) ([]*model.GeoVerifyResult, error) {
 	return r.rows, nil
 }
-func (r *stubVerifyRepo) GetList(_ string, _, _ int) ([]*model.GeoVerifyResult, int64, error) {
+func (r *stubVerifyRepo) GetList(_ context.Context, _ string, _, _ int) ([]*model.GeoVerifyResult, int64, error) {
 	return nil, 0, nil
 }
-func (r *stubVerifyRepo) GetStatistics() ([]map[string]any, error) { return nil, nil }
+func (r *stubVerifyRepo) GetStatistics(_ context.Context) ([]map[string]any, error) { return nil, nil }
 
 func TestHighValueKeywords_TieBrokenByName(t *testing.T) {
 	// 25 个词各出现 1 次且都被提及 ⇒ HighValueScore 全等（10.0）。

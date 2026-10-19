@@ -31,7 +31,7 @@ func NewShortLinkRepository(db *gorm.DB) ShortLinkRepository {
 
 func (r *shortLinkRepository) Create(ctx context.Context, shortLink *model.ShortLink) error {
 	logger.Infof("创建短链，ShortCode: %s, OriginalURL: %s", shortLink.ShortCode, shortLink.OriginalURL)
-	err := r.db.Create(shortLink).Error
+	err := r.db.WithContext(ctx).Create(shortLink).Error
 	if err != nil {
 		logger.Errorf("创建短链失败: %v", err)
 		return err
@@ -41,16 +41,16 @@ func (r *shortLinkRepository) Create(ctx context.Context, shortLink *model.Short
 }
 
 func (r *shortLinkRepository) Update(ctx context.Context, shortLink *model.ShortLink) error {
-	return r.db.Save(shortLink).Error
+	return r.db.WithContext(ctx).Save(shortLink).Error
 }
 
 func (r *shortLinkRepository) Delete(ctx context.Context, id uint) error {
-	return r.db.Delete(&model.ShortLink{}, id).Error
+	return r.db.WithContext(ctx).Delete(&model.ShortLink{}, id).Error
 }
 
 func (r *shortLinkRepository) GetByID(ctx context.Context, id uint) (*model.ShortLink, error) {
 	var shortLink model.ShortLink
-	err := r.db.First(&shortLink, id).Error
+	err := r.db.WithContext(ctx).First(&shortLink, id).Error
 	if err != nil {
 		return nil, err
 	}
@@ -59,7 +59,7 @@ func (r *shortLinkRepository) GetByID(ctx context.Context, id uint) (*model.Shor
 
 func (r *shortLinkRepository) GetByShortCode(ctx context.Context, shortCode string) (*model.ShortLink, error) {
 	var shortLink model.ShortLink
-	err := r.db.Where("short_code = ?", shortCode).First(&shortLink).Error
+	err := r.db.WithContext(ctx).Where("short_code = ?", shortCode).First(&shortLink).Error
 	if err != nil {
 		return nil, err
 	}
@@ -70,7 +70,7 @@ func (r *shortLinkRepository) GetList(ctx context.Context, page, pageSize int, s
 	var shortLinks []*model.ShortLink
 	var total int64
 
-	query := r.db.Model(&model.ShortLink{})
+	query := r.db.WithContext(ctx).Model(&model.ShortLink{})
 
 	if shortCode != "" {
 		query = query.Where("short_code LIKE ?", "%"+shortCode+"%")
@@ -98,10 +98,10 @@ func (r *shortLinkRepository) GetList(ctx context.Context, page, pageSize int, s
 
 func (r *shortLinkRepository) GetTotalCount(ctx context.Context) (int64, error) {
 	var count int64
-	err := r.db.Model(&model.ShortLink{}).Count(&count).Error
+	err := r.db.WithContext(ctx).Model(&model.ShortLink{}).Count(&count).Error
 	return count, err
 }
 
 func (r *shortLinkRepository) IncreaseClickCount(ctx context.Context, id uint) error {
-	return r.db.Model(&model.ShortLink{}).Where("id = ?", id).UpdateColumn("click_count", gorm.Expr("click_count + ?", 1)).Error
+	return r.db.WithContext(ctx).Model(&model.ShortLink{}).Where("id = ?", id).UpdateColumn("click_count", gorm.Expr("click_count + ?", 1)).Error
 }

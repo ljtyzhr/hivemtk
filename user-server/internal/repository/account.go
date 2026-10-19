@@ -35,20 +35,20 @@ func NewAccountRepositoryWithDB(db *gorm.DB) AccountRepository {
 }
 
 func (r *accountRepo) Create(ctx context.Context, account *model.Account) error {
-	return r.db.Create(account).Error
+	return r.db.WithContext(ctx).Create(account).Error
 }
 
 func (r *accountRepo) Update(ctx context.Context, account *model.Account) error {
-	return r.db.Save(account).Error
+	return r.db.WithContext(ctx).Save(account).Error
 }
 
 func (r *accountRepo) Delete(ctx context.Context, id string) error {
-	return r.db.Where("id = ?", id).Delete(&model.Account{}).Error
+	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&model.Account{}).Error
 }
 
 func (r *accountRepo) GetByID(ctx context.Context, id string) (*model.Account, error) {
 	var account model.Account
-	err := r.db.First(&account, "id = ?", id).Error
+	err := r.db.WithContext(ctx).First(&account, "id = ?", id).Error
 	return &account, err
 }
 
@@ -68,23 +68,23 @@ func (r *accountRepo) First(ctx context.Context) (*model.Account, error) {
 
 func (r *accountRepo) UpdateAccountStatusById(ctx context.Context, id string, status _type.AccountStatusType, msg string) error {
 	var account model.Account
-	err := r.db.First(&account, "id = ?", id).Error
+	err := r.db.WithContext(ctx).First(&account, "id = ?", id).Error
 	if err != nil {
 		return err
 	}
 	account.Status = _type.AccountStatusType(status)
 	account.Msg = msg
-	err = r.db.Save(&account).Error
+	err = r.db.WithContext(ctx).Save(&account).Error
 	return err
 }
 
 func (r *accountRepo) UpdateAccountTgNameById(ctx context.Context, id string, TgName string) error {
 	var account model.Account
-	err := r.db.First(&account, "id = ?", id).Error
+	err := r.db.WithContext(ctx).First(&account, "id = ?", id).Error
 	if err != nil {
 		return err
 	}
 	account.TgName = TgName
-	err = r.db.Save(&account).Error
+	err = r.db.WithContext(ctx).Save(&account).Error
 	return err
 }

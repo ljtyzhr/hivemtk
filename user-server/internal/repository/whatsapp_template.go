@@ -32,18 +32,18 @@ func (r *WhatsappTemplateRepository) SetDB(ctx context.Context, db *gorm.DB) {
 
 // Create 创建模板
 func (r *WhatsappTemplateRepository) Create(ctx context.Context, template *model.WhatsappMessageTemplate) error {
-	return r.db.Create(template).Error
+	return r.db.WithContext(ctx).Create(template).Error
 }
 
 // Save 保存模板（全字段更新）
 func (r *WhatsappTemplateRepository) Save(ctx context.Context, template *model.WhatsappMessageTemplate) error {
-	return r.db.Save(template).Error
+	return r.db.WithContext(ctx).Save(template).Error
 }
 
 // GetByID 按 ID 获取模板
 func (r *WhatsappTemplateRepository) GetByID(ctx context.Context, id string) (*model.WhatsappMessageTemplate, error) {
 	var template model.WhatsappMessageTemplate
-	err := r.db.Where("id = ?", id).First(&template).Error
+	err := r.db.WithContext(ctx).Where("id = ?", id).First(&template).Error
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +53,7 @@ func (r *WhatsappTemplateRepository) GetByID(ctx context.Context, id string) (*m
 // ListByFilters 按条件列出模板
 func (r *WhatsappTemplateRepository) ListByFilters(ctx context.Context, category string, isActive *bool) ([]*model.WhatsappMessageTemplate, error) {
 	var templates []*model.WhatsappMessageTemplate
-	query := r.db.Model(&model.WhatsappMessageTemplate{})
+	query := r.db.WithContext(ctx).Model(&model.WhatsappMessageTemplate{})
 	if category != "" {
 		query = query.Where("category = ?", category)
 	}
@@ -68,6 +68,6 @@ func (r *WhatsappTemplateRepository) ListByFilters(ctx context.Context, category
 
 // DeleteByID 按 ID 删除模板，返回受影响行数
 func (r *WhatsappTemplateRepository) DeleteByID(ctx context.Context, id string) (int64, error) {
-	result := r.db.Where("id = ?", id).Delete(&model.WhatsappMessageTemplate{})
+	result := r.db.WithContext(ctx).Where("id = ?", id).Delete(&model.WhatsappMessageTemplate{})
 	return result.RowsAffected, result.Error
 }

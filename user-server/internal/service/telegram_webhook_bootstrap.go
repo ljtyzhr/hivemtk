@@ -11,6 +11,7 @@ import (
 
 	"hivemtk-user/internal/config"
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/tgbot"
 	"hivemtk-user/internal/pkg/utils/logger"
 )
@@ -124,7 +125,21 @@ func ReconcileTelegramWebhooks(svc *TelegramService) {
 	if svc == nil {
 		return
 	}
-	accs, err := svc.ListAccounts(context.Background())
+	// 平台级启动期对账（specs/001-saas-multi-tenant）：本函数要为**全实例所有租户的**
+	// Telegram 账号重新注册/清理 webhook —— 含未激活租户名下的账号（平台对账不按租户
+	// 活跃度过滤），没有 HTTP 请求 ctx 可绑；TENANT_MODE=on 时 telegram_accounts 是租户表，
+	// 无租户 ctx 的 ListAccounts（query）/UpdateAccount（update）会被隔离 callback fail-closed
+	// 拒绝（生产日志实证："[TG-Bootstrap] 列举 Telegram 账号失败: [tenant] 表 telegram_accounts
+	// 需要租户上下文但 ctx 未绑定（query）"）。走 tenant.WithSystemScope 这条平台级豁免通道
+	//（与 migration / 启动期健康对账同源，见 dispatcher_persistence.systemScopeCtx）。
+	//
+	// 这里**不是** Fanout：本路径没有会按 ctx 注入租户的写 —— 全量读出来的账号行自带
+	// tenant_id，回写是按行主键的 Save（行自证），既不新建行、也不做任何跨模块业务落库，
+	// 因此不存在"system scope 把执行写进默认租户 1"的形状；反过来 Fanout 只覆盖活跃租户，
+	// 会让停用租户的 bot 停在陈旧 webhook 上（Telegram 侧还记着旧 URL）。
+	// 不放宽任何带请求 ctx 的 HTTP 路径（CreateAccount/GetAccount 仍走请求 ctx）。
+	ctx := tenant.WithSystemScope(context.Background())
+	accs, err := svc.ListAccounts(ctx)
 	if err != nil {
 		logger.Warnf("[TG-Bootstrap] 列举 Telegram 账号失败: %v", err)
 		return
@@ -139,7 +154,7 @@ func ReconcileTelegramWebhooks(svc *TelegramService) {
 				now := time.Now()
 				acc.LastErrorAt = &now
 				acc.LastErrorMsg = "webhook URL 校验失败: " + vErr.Error()
-				_ = svc.UpdateAccount(context.Background(), acc)
+				_ = svc.UpdateAccount(ctx, acc)
 				logger.Warnf("[TG-Bootstrap] 账号 %d(%s) webhook URL 校验失败: %v (url=%s)", acc.ID, acc.AccountName, vErr, resolved)
 				continue
 			}
@@ -148,7 +163,7 @@ func ReconcileTelegramWebhooks(svc *TelegramService) {
 			}
 			if acc.WebhookSecret == "" {
 				acc.WebhookSecret = GenTGWebhookSecret()
-				if err := svc.UpdateAccount(context.Background(), acc); err != nil {
+				if err := svc.UpdateAccount(ctx, acc); err != nil {
 					logger.Warnf("[TG-Bootstrap] 账号 %d(%s) 保存自动生成 secret 失败: %v", acc.ID, acc.AccountName, err)
 				}
 			}
@@ -161,7 +176,7 @@ func ReconcileTelegramWebhooks(svc *TelegramService) {
 			if acc.BotUsername == "" {
 				if uname, gerr := tgbot.GetBotUsername(acc.BotToken); gerr == nil && uname != "" {
 					acc.BotUsername = uname
-					if err := svc.UpdateAccount(context.Background(), acc); err != nil {
+					if err := svc.UpdateAccount(ctx, acc); err != nil {
 						logger.Warnf("[TG-Bootstrap] 账号 %d(%s) 保存 bot_username 失败(可忽略): %v", acc.ID, acc.AccountName, err)
 					}
 				}

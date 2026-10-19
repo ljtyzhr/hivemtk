@@ -81,7 +81,7 @@ func (r *InboxConversationRepository) SetDB(ctx context.Context, db *gorm.DB) {
 // FindByPlatformAccountCustomer 按平台/账号/客户查找会话
 func (r *InboxConversationRepository) FindByPlatformAccountCustomer(ctx context.Context, platform, accountID, customerID string) (*model.InboxConversation, error) {
 	var conv model.InboxConversation
-	err := r.db.Where("platform = ? AND account_id = ? AND customer_id = ?",
+	err := r.db.WithContext(ctx).Where("platform = ? AND account_id = ? AND customer_id = ?",
 		platform, accountID, customerID).First(&conv).Error
 	if err != nil {
 		return nil, err
@@ -95,7 +95,7 @@ func (r *InboxConversationRepository) CreateOrUpdateByChannel(ctx context.Contex
 	if r == nil || r.db == nil {
 		return nil
 	}
-	err := r.db.Create(conv).Error
+	err := r.db.WithContext(ctx).Create(conv).Error
 	if err == nil {
 		return nil
 	}
@@ -120,7 +120,7 @@ func (r *InboxConversationRepository) Create(ctx context.Context, conv *model.In
 	if r == nil || r.db == nil {
 		return nil
 	}
-	return r.db.Create(conv).Error
+	return r.db.WithContext(ctx).Create(conv).Error
 }
 
 // defaultPreviewMaxLen 消息预览最大字符数的代码兜底值，与参数中心
@@ -151,7 +151,7 @@ func (r *InboxConversationRepository) UpdateLastMessage(ctx context.Context, id 
 	if limit := previewMaxLen(); len(lastMessage) > limit {
 		lastMessage = lastMessage[:limit]
 	}
-	return r.db.Model(&model.InboxConversation{}).Where("id = ?", id).
+	return r.db.WithContext(ctx).Model(&model.InboxConversation{}).Where("id = ?", id).
 		Updates(map[string]any{
 			"last_message_preview": lastMessage,
 			"last_message_at":      lastMessageAt,
@@ -162,20 +162,20 @@ func (r *InboxConversationRepository) UpdateLastMessage(ctx context.Context, id 
 // GetByID 按 ID 获取会话
 func (r *InboxConversationRepository) GetByID(ctx context.Context, id uint) (*model.InboxConversation, error) {
 	var conv model.InboxConversation
-	err := r.db.First(&conv, id).Error
+	err := r.db.WithContext(ctx).First(&conv, id).Error
 	return &conv, err
 }
 
 // Update 更新会话
 func (r *InboxConversationRepository) Update(ctx context.Context, conv *model.InboxConversation) error {
-	return r.db.Save(conv).Error
+	return r.db.WithContext(ctx).Save(conv).Error
 }
 
 // ListByAccount 按账号列出会话
 func (r *InboxConversationRepository) ListByAccount(ctx context.Context, platform, accountID string, page, pageSize int) ([]*model.InboxConversation, int64, error) {
 	var items []*model.InboxConversation
 	var total int64
-	query := r.db.Model(&model.InboxConversation{}).
+	query := r.db.WithContext(ctx).Model(&model.InboxConversation{}).
 		Where("platform = ? AND account_id = ?", platform, accountID)
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err

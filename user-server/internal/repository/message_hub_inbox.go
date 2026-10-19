@@ -36,7 +36,7 @@ func (r *MessageHubRepository) Create(ctx context.Context, hub *model.MessageHub
 	if r == nil || r.db == nil {
 		return nil
 	}
-	return r.db.Create(hub).Error
+	return r.db.WithContext(ctx).Create(hub).Error
 }
 
 func (r *MessageHubRepository) ListRecentInboundBySender(ctx context.Context, platform, senderID string, limit int) ([]model.MessageHub, error) {
@@ -57,13 +57,13 @@ func (r *MessageHubRepository) ListRecentInboundBySender(ctx context.Context, pl
 
 func (r *MessageHubRepository) GetByID(ctx context.Context, id uint) (*model.MessageHub, error) {
 	var hub model.MessageHub
-	err := r.db.First(&hub, id).Error
+	err := r.db.WithContext(ctx).First(&hub, id).Error
 	return &hub, err
 }
 
 func (r *MessageHubRepository) GetByMsgID(ctx context.Context, msgID string) (*model.MessageHub, error) {
 	var hub model.MessageHub
-	err := r.db.Where("msg_id = ?", msgID).First(&hub).Error
+	err := r.db.WithContext(ctx).Where("msg_id = ?", msgID).First(&hub).Error
 	return &hub, err
 }
 
@@ -117,7 +117,7 @@ func (r *MessageHubRepository) GetByPlatformContentNormalized(ctx context.Contex
 func (r *MessageHubRepository) ListByConversation(ctx context.Context, conversationID string, page, pageSize int) ([]*model.MessageHub, int64, error) {
 	var items []*model.MessageHub
 	var total int64
-	query := r.db.Model(&model.MessageHub{}).Where("conversation_id = ?", conversationID)
+	query := r.db.WithContext(ctx).Model(&model.MessageHub{}).Where("conversation_id = ?", conversationID)
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
@@ -135,7 +135,7 @@ func (r *MessageHubRepository) ListByConversation(ctx context.Context, conversat
 }
 
 func (r *MessageHubRepository) Update(ctx context.Context, hub *model.MessageHub) error {
-	return r.db.Save(hub).Error
+	return r.db.WithContext(ctx).Save(hub).Error
 }
 
 func (r *MessageHubRepository) Delete(ctx context.Context, id uint) error {

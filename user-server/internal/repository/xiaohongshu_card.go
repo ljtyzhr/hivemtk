@@ -31,26 +31,26 @@ func NewXiaohongshuCardRepository(db *gorm.DB) XiaohongshuCardRepository {
 }
 
 func (r *xiaohongshuCardRepository) Create(ctx context.Context, card *model.XiaohongshuCard) (*model.XiaohongshuCard, error) {
-	if err := r.db.Create(card).Error; err != nil {
+	if err := r.db.WithContext(ctx).Create(card).Error; err != nil {
 		return nil, err
 	}
 	return card, nil
 }
 
 func (r *xiaohongshuCardRepository) Update(ctx context.Context, card *model.XiaohongshuCard) (*model.XiaohongshuCard, error) {
-	if err := r.db.Save(card).Error; err != nil {
+	if err := r.db.WithContext(ctx).Save(card).Error; err != nil {
 		return nil, err
 	}
 	return card, nil
 }
 
 func (r *xiaohongshuCardRepository) Delete(ctx context.Context, id uint) error {
-	return r.db.Delete(&model.XiaohongshuCard{}, id).Error
+	return r.db.WithContext(ctx).Delete(&model.XiaohongshuCard{}, id).Error
 }
 
 func (r *xiaohongshuCardRepository) GetByID(ctx context.Context, id uint) (*model.XiaohongshuCard, error) {
 	var card model.XiaohongshuCard
-	if err := r.db.First(&card, id).Error; err != nil {
+	if err := r.db.WithContext(ctx).First(&card, id).Error; err != nil {
 		return nil, err
 	}
 	return &card, nil
@@ -60,7 +60,7 @@ func (r *xiaohongshuCardRepository) GetList(ctx context.Context, req CardListFil
 	var cards []model.XiaohongshuCard
 	var total int64
 
-	query := r.db.Model(&model.XiaohongshuCard{})
+	query := r.db.WithContext(ctx).Model(&model.XiaohongshuCard{})
 
 	if req.Keyword != "" {
 		query = query.Where("title LIKE ? OR description LIKE ? OR tags LIKE ?",
@@ -89,15 +89,15 @@ func (r *xiaohongshuCardRepository) GetList(ctx context.Context, req CardListFil
 
 func (r *xiaohongshuCardRepository) IncrementViewCount(ctx context.Context, id uint) (*model.XiaohongshuCard, error) {
 	var card model.XiaohongshuCard
-	if err := r.db.First(&card, id).Error; err != nil {
+	if err := r.db.WithContext(ctx).First(&card, id).Error; err != nil {
 		return nil, err
 	}
 
-	if err := r.db.Model(&card).Update("view_count", gorm.Expr("view_count + 1")).Error; err != nil {
+	if err := r.db.WithContext(ctx).Model(&card).Update("view_count", gorm.Expr("view_count + 1")).Error; err != nil {
 		return nil, err
 	}
 
-	if err := r.db.First(&card, id).Error; err != nil {
+	if err := r.db.WithContext(ctx).First(&card, id).Error; err != nil {
 		return nil, err
 	}
 
@@ -105,9 +105,9 @@ func (r *xiaohongshuCardRepository) IncrementViewCount(ctx context.Context, id u
 }
 
 func (r *xiaohongshuCardRepository) CreateActivity(ctx context.Context, activity *model.XiaohongshuCardActivity) error {
-	return r.db.Create(activity).Error
+	return r.db.WithContext(ctx).Create(activity).Error
 }
 
 func (r *xiaohongshuCardRepository) UpdateShortLinkID(ctx context.Context, id uint, shortLinkID *uint) error {
-	return r.db.Model(&model.XiaohongshuCard{}).Where("id = ?", id).Update("short_link_id", shortLinkID).Error
+	return r.db.WithContext(ctx).Model(&model.XiaohongshuCard{}).Where("id = ?", id).Update("short_link_id", shortLinkID).Error
 }

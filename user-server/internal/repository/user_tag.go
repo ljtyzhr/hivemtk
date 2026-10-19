@@ -48,7 +48,7 @@ func (r *userTagRepo) AddTag(ctx context.Context, userID, tagName string) error 
 		UserID:  userID,
 		TagName: tagName,
 	}
-	return r.db.Create(tag).Error
+	return r.db.WithContext(ctx).Create(tag).Error
 }
 
 func (r *userTagRepo) AddTags(ctx context.Context, userID string, tagNames []string) error {
@@ -80,11 +80,11 @@ func (r *userTagRepo) AddTags(ctx context.Context, userID string, tagNames []str
 		return nil
 	}
 
-	return r.db.Create(&newTags).Error
+	return r.db.WithContext(ctx).Create(&newTags).Error
 }
 
 func (r *userTagRepo) RemoveTag(ctx context.Context, userID, tagName string) error {
-	return r.db.Where("user_id = ? AND tag_name = ?", userID, tagName).
+	return r.db.WithContext(ctx).Where("user_id = ? AND tag_name = ?", userID, tagName).
 		Delete(&model.UserTag{}).Error
 }
 
@@ -93,13 +93,13 @@ func (r *userTagRepo) RemoveTags(ctx context.Context, userID string, tagNames []
 		return nil
 	}
 
-	return r.db.Where("user_id = ? AND tag_name IN ?", userID, tagNames).
+	return r.db.WithContext(ctx).Where("user_id = ? AND tag_name IN ?", userID, tagNames).
 		Delete(&model.UserTag{}).Error
 }
 
 func (r *userTagRepo) GetTagsByUser(ctx context.Context, userID string) ([]string, error) {
 	var tags []model.UserTag
-	err := r.db.Where("user_id = ?", userID).
+	err := r.db.WithContext(ctx).Where("user_id = ?", userID).
 		Find(&tags).Error
 	if err != nil {
 		return nil, err
@@ -114,7 +114,7 @@ func (r *userTagRepo) GetTagsByUser(ctx context.Context, userID string) ([]strin
 
 func (r *userTagRepo) GetUsersByTag(ctx context.Context, tagName string) ([]string, error) {
 	var tags []model.UserTag
-	err := r.db.Where("tag_name = ?", tagName).
+	err := r.db.WithContext(ctx).Where("tag_name = ?", tagName).
 		Find(&tags).Error
 	if err != nil {
 		return nil, err
@@ -128,18 +128,18 @@ func (r *userTagRepo) GetUsersByTag(ctx context.Context, tagName string) ([]stri
 }
 
 func (r *userTagRepo) DeleteTagsByUser(ctx context.Context, userID string) error {
-	return r.db.Where("user_id = ?", userID).
+	return r.db.WithContext(ctx).Where("user_id = ?", userID).
 		Delete(&model.UserTag{}).Error
 }
 
 func (r *userTagRepo) DeleteTagsByName(ctx context.Context, tagName string) error {
-	return r.db.Where("tag_name = ?", tagName).
+	return r.db.WithContext(ctx).Where("tag_name = ?", tagName).
 		Delete(&model.UserTag{}).Error
 }
 
 func (r *userTagRepo) HasTag(ctx context.Context, userID, tagName string) (bool, error) {
 	var count int64
-	err := r.db.Model(&model.UserTag{}).
+	err := r.db.WithContext(ctx).Model(&model.UserTag{}).
 		Where("user_id = ? AND tag_name = ?", userID, tagName).
 		Count(&count).Error
 	return count > 0, err

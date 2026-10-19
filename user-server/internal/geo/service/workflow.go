@@ -120,7 +120,7 @@ func (s *WorkflowService) Create(ctx context.Context, req *dto.SaveWorkflowReque
 	if err := wf.SetConditions(req.Conditions); err != nil {
 		return nil, err
 	}
-	if err := s.wfRepo.Create(wf); err != nil {
+	if err := s.wfRepo.Create(ctx, wf); err != nil {
 		return nil, err
 	}
 	return s.toWorkflowResponse(wf)
@@ -128,7 +128,7 @@ func (s *WorkflowService) Create(ctx context.Context, req *dto.SaveWorkflowReque
 
 // Update 更新工作流
 func (s *WorkflowService) Update(ctx context.Context, id string, req *dto.SaveWorkflowRequest) (*dto.WorkflowResponse, error) {
-	wf, err := s.wfRepo.GetByID(id)
+	wf, err := s.wfRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, fmt.Errorf("工作流不存在: %w", err)
 	}
@@ -141,7 +141,7 @@ func (s *WorkflowService) Update(ctx context.Context, id string, req *dto.SaveWo
 	if err := wf.SetConditions(req.Conditions); err != nil {
 		return nil, err
 	}
-	if err := s.wfRepo.Update(wf); err != nil {
+	if err := s.wfRepo.Update(ctx, wf); err != nil {
 		return nil, err
 	}
 	return s.toWorkflowResponse(wf)
@@ -149,12 +149,12 @@ func (s *WorkflowService) Update(ctx context.Context, id string, req *dto.SaveWo
 
 // Delete 删除工作流
 func (s *WorkflowService) Delete(ctx context.Context, id string) error {
-	return s.wfRepo.Delete(id)
+	return s.wfRepo.Delete(ctx, id)
 }
 
 // Get 获取工作流
 func (s *WorkflowService) Get(ctx context.Context, id string) (*dto.WorkflowResponse, error) {
-	wf, err := s.wfRepo.GetByID(id)
+	wf, err := s.wfRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -163,7 +163,7 @@ func (s *WorkflowService) Get(ctx context.Context, id string) (*dto.WorkflowResp
 
 // List 工作流列表
 func (s *WorkflowService) List(ctx context.Context) ([]*dto.WorkflowResponse, error) {
-	wfs, err := s.wfRepo.GetList()
+	wfs, err := s.wfRepo.GetList(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -180,7 +180,7 @@ func (s *WorkflowService) List(ctx context.Context) ([]*dto.WorkflowResponse, er
 
 // ListExecutions 获取执行记录
 func (s *WorkflowService) ListExecutions(ctx context.Context, workflowID string) ([]*model.GeoWorkflowExecution, error) {
-	return s.execRepo.GetByWorkflowID(workflowID)
+	return s.execRepo.GetByWorkflowID(ctx, workflowID)
 }
 
 // CreateTemplate 创建模板
@@ -191,7 +191,7 @@ func (s *WorkflowService) CreateTemplate(ctx context.Context, req *dto.SaveWorkf
 	}
 	steps, _ := json.Marshal(req.Steps)
 	tpl.Steps = string(steps)
-	if err := s.tplRepo.Create(tpl); err != nil {
+	if err := s.tplRepo.Create(ctx, tpl); err != nil {
 		return nil, err
 	}
 	return s.toTemplateResponse(tpl)
@@ -199,7 +199,7 @@ func (s *WorkflowService) CreateTemplate(ctx context.Context, req *dto.SaveWorkf
 
 // ListTemplates 模板列表
 func (s *WorkflowService) ListTemplates(ctx context.Context) ([]*dto.WorkflowTemplateResponse, error) {
-	tpls, err := s.tplRepo.GetList()
+	tpls, err := s.tplRepo.GetList(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -238,7 +238,7 @@ func (s *WorkflowService) toTemplateResponse(tpl *model.GeoWorkflowTemplate) (*d
 
 // Run 执行工作流（核心引擎：条件判断 + 步骤执行 + jump 跳转）
 func (s *WorkflowService) Run(ctx context.Context, id string) (*dto.RunWorkflowResponse, error) {
-	wf, err := s.wfRepo.GetByID(id)
+	wf, err := s.wfRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -252,7 +252,7 @@ func (s *WorkflowService) Run(ctx context.Context, id string) (*dto.RunWorkflowR
 		Status:     "running",
 		StartedAt:  time.Now(),
 	}
-	if err := s.execRepo.Create(exec); err != nil {
+	if err := s.execRepo.Create(ctx, exec); err != nil {
 		return nil, err
 	}
 
@@ -265,7 +265,7 @@ func (s *WorkflowService) Run(ctx context.Context, id string) (*dto.RunWorkflowR
 				exec.Error = "工作流执行异常中断"
 			}
 		}
-		if err := s.execRepo.Update(exec); err != nil {
+		if err := s.execRepo.Update(ctx, exec); err != nil {
 			logger.Errorf("工作流执行记录落库失败 exec_id=%s: %v", exec.ID, err)
 		}
 	}()

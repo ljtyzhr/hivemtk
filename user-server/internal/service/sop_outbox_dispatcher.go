@@ -127,6 +127,28 @@ func (o *SOPOutboxDispatcher) processDueTimers(ctx context.Context) {
 	defer cancel()
 	ctx = logger.WithModule(ctx, "sop_outbox")
 
+	// 后台任务租户扇出（specs/001-saas-multi-tenant T020）。
+	//
+	// 选 Fanout 而不是 WithSystemScope 的理由：这一 tick 不是"纯平台级扫描"。
+	// FindDueForUpdate 只是取到期行，但后续每一行都要 MarkFired 改 sop_timers、
+	// DispatchOrLog 把任务推进 sop_executions / 发消息（sweep 还会 Create
+	// sop_exec_events）—— 全是带租户业务语义的写动作。system scope 只豁免查询：
+	// Create 会落列默认值 1，于是租户 N 的 timer 点火后事件/执行被串写到默认租户。
+	// Fanout 逐活跃租户注入 ctx ⇒ 查询自动带 WHERE tenant_id=N（只看本租户的行）、
+	// 点火与派发也拿到已绑定租户的 ctx，不产生任何跨租户读写；off 模式退化为单
+	// 默认租户（等价历史行为）。与 sop_scheduler.tick / churn_score_job 同一形态。
+	// 行上 sop_timers.tenant_id（T027 行自证）在下面仍再兜一层（timerRowTenant）。
+	if _, err := tenant.Fanout(ctx, nil, func(tctx context.Context, _ uint) (int64, error) {
+		o.processDueTimersForTenant(tctx)
+		return 0, nil
+	}); err != nil {
+		logger.Ctx(ctx).Error().Err(err).Msg("[outbox] 租户扇出执行失败")
+	}
+}
+
+// processDueTimersForTenant 单租户视角的到期 timer 处理（由 Fanout 调用，
+// 入口 ctx 必定已绑定租户；off 模式绑定默认租户，回调直通）。
+func (o *SOPOutboxDispatcher) processDueTimersForTenant(ctx context.Context) {
 	now := time.Now()
 	timers, err := o.timerRepo.FindDueForUpdate(ctx, now, o.batchSize)
 	if err != nil {
@@ -143,12 +165,11 @@ func (o *SOPOutboxDispatcher) processDueTimers(ctx context.Context) {
 	firedCount := 0
 	for _, t := range timers {
 		// 租户上下文（specs/001-saas-multi-tenant T027 行自证）：timer 行自带
-		// tenant_id（写入时 callback 已填），派发与下游执行按行租户恢复上下文；
+		// tenant_id（写入时 callback 已填），派发与下游执行按行租户恢复上下文。
+		// Fanout 已注入的 ctx 与行租户必然一致，这里再取一次是双保险：
+		// 即便行值与扇出租户对不上，也只会落成"0 行受影响→跳过"，绝不跨租户写。
 		// off 模式行值恒为默认租户，等价现状。
-		rowTenant := tenant.DefaultTenantID
-		if t.TenantID != 0 {
-			rowTenant = t.TenantID
-		}
+		rowTenant := timerRowTenant(&t)
 		taskCtx := tenant.WithTenantID(ctx, rowTenant)
 
 		rowsAffected, err := o.timerRepo.MarkFired(taskCtx, t.ID, now)
@@ -256,6 +277,9 @@ func (o *SOPOutboxDispatcher) sweepPendingTimers(ctx context.Context, now time.T
 				Attempt:     0,
 				SkipWait:    true,
 				TraceID:     fmt.Sprintf("maxwait-%d", t.ID),
+				// 行自证（T027）：跳过等待同样是业务派发，worker 靠它恢复租户
+				// ctx；漏填在 on 模式下会让这次唤醒被 fail-closed 吞掉。
+				TenantID: timerRowTenant(t),
 			})
 		}
 	}
@@ -329,6 +353,18 @@ func (o *SOPOutboxDispatcher) writeTimerSkippedEvent(ctx context.Context, t *mod
 			Str("node_id", t.NodeID).
 			Msg("[outbox] write skipped event failed")
 	}
+}
+
+// timerRowTenant 取 timer 行归属租户（T027 行自证），0 视为未填回落默认租户。
+//
+// 为什么必须回填进 dispatchTask.TenantID：队列 worker 只认 task.TenantID 来
+// 恢复租户上下文（sop_dispatcher.worker），漏填 ⇒ on 模式下 loadExecution 被
+// 隔离 callback fail-closed 吞掉，唤醒任务永远推不动。
+func timerRowTenant(t *model.SOPTimer) uint {
+	if t != nil && t.TenantID != 0 {
+		return t.TenantID
+	}
+	return tenant.DefaultTenantID
 }
 
 func timerClaimCount(t *model.SOPTimer) int {
@@ -496,6 +532,26 @@ func (d *SOPStuckDetector) scanStuckExecutions(ctx context.Context) {
 	defer cancel()
 	ctx = logger.WithModule(ctx, "sop_stuck_detector")
 
+	// 后台任务租户扇出（specs/001-saas-multi-tenant T020）。
+	//
+	// 选 Fanout 而不是 WithSystemScope 的理由：FindStuck 后半段是**业务动作** ——
+	// 判定卡死后 DispatchOrLog 会重新执行当前节点，写 sop_executions /
+	// sop_exec_events，还可能发消息。system scope 只豁免查询，派发链下游的 Create
+	// 会落列默认值 1，把租户 N 的恢复写到默认租户（串租户）。Fanout 逐活跃租户注入
+	// ctx ⇒ 查询自动带 WHERE tenant_id=N、派发也带着租户上下文；off 模式退化为单
+	// 默认租户，等价历史行为。与 sop_scheduler.tick / churn_score_job 同一形态。
+	// 行上 sop_executions.tenant_id（T027 行自证）在循环里再兜一层。
+	if _, err := tenant.Fanout(ctx, nil, func(tctx context.Context, _ uint) (int64, error) {
+		d.scanStuckExecutionsForTenant(tctx)
+		return 0, nil
+	}); err != nil {
+		logger.Ctx(ctx).Error().Err(err).Msg("[stuck] 租户扇出执行失败")
+	}
+}
+
+// scanStuckExecutionsForTenant 单租户视角的卡死扫描（由 Fanout 调用，
+// 入口 ctx 必定已绑定租户；off 模式绑定默认租户，回调直通）。
+func (d *SOPStuckDetector) scanStuckExecutionsForTenant(ctx context.Context) {
 	now := time.Now()
 	idleThreshold := now.Add(-d.maxIdleTime)
 	execThreshold := now.Add(-d.maxExecTime)
@@ -512,12 +568,21 @@ func (d *SOPStuckDetector) scanStuckExecutions(ctx context.Context) {
 
 	recoveredCount := 0
 	for _, exec := range execs {
+		// 行自证（specs/001-saas-multi-tenant T027）：sop_executions 行自带
+		// tenant_id，后续计数与派发按行租户恢复上下文。Fanout 已注入的 ctx 与
+		// 行租户必然一致，这里再取一次是双保险——对不上时也只会变成"计数 0 行/
+		// 派发后 load 不到行"，绝不跨租户读写。off 模式行值恒为默认租户。
+		rowTenant := tenant.DefaultTenantID
+		if exec.TenantID != 0 {
+			rowTenant = exec.TenantID
+		}
+		execCtx := tenant.WithTenantID(ctx, rowTenant)
 
 		d.recoveredMu.Lock()
 		recoveredAt, found := d.recentlyRecovered[exec.ID]
 		if found && time.Since(recoveredAt) < d.recoveredCooldown {
 			d.recoveredMu.Unlock()
-			logger.Ctx(ctx).Debug().
+			logger.Ctx(execCtx).Debug().
 				Uint("execution_id", exec.ID).
 				Time("recovered_at", recoveredAt).
 				Msg("[stuck] skip recently recovered execution")
@@ -527,9 +592,9 @@ func (d *SOPStuckDetector) scanStuckExecutions(ctx context.Context) {
 		d.recentlyRecovered[exec.ID] = time.Now()
 		d.recoveredMu.Unlock()
 
-		pendingTimerCount, err := d.timerRepo.CountPendingByExecutionID(ctx, exec.ID)
+		pendingTimerCount, err := d.timerRepo.CountPendingByExecutionID(execCtx, exec.ID)
 		if err != nil {
-			logger.Ctx(ctx).Warn().Err(err).
+			logger.Ctx(execCtx).Warn().Err(err).
 				Uint("execution_id", exec.ID).
 				Msg("[stuck] count pending timers failed, skip")
 			continue
@@ -538,9 +603,9 @@ func (d *SOPStuckDetector) scanStuckExecutions(ctx context.Context) {
 			continue
 		}
 
-		recentEventCount, err := d.eventRepo.CountRecentByExecutionID(ctx, exec.ID, idleThreshold)
+		recentEventCount, err := d.eventRepo.CountRecentByExecutionID(execCtx, exec.ID, idleThreshold)
 		if err != nil {
-			logger.Ctx(ctx).Warn().Err(err).
+			logger.Ctx(execCtx).Warn().Err(err).
 				Uint("execution_id", exec.ID).
 				Msg("[stuck] count recent events failed, skip")
 			continue
@@ -549,7 +614,7 @@ func (d *SOPStuckDetector) scanStuckExecutions(ctx context.Context) {
 			continue
 		}
 
-		logger.Ctx(ctx).Warn().
+		logger.Ctx(execCtx).Warn().
 			Uint("execution_id", exec.ID).
 			Str("current_node", exec.CurrentNode).
 			Time("started_at", exec.StartedAt).
@@ -562,6 +627,10 @@ func (d *SOPStuckDetector) scanStuckExecutions(ctx context.Context) {
 				NodeID:      exec.CurrentNode,
 				Attempt:     0,
 				TraceID:     traceID,
+				// 行自证（T027）：恢复派发是业务动作，队列 worker 只认
+				// task.TenantID 恢复租户 ctx；漏填在 on 模式下 load execution
+				// 会被隔离 callback fail-closed 吞掉，卡死恢复永远失败。
+				TenantID: rowTenant,
 			})
 			recoveredCount++
 		}

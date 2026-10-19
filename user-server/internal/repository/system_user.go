@@ -179,9 +179,16 @@ func (r *systemUserRepo) EmailExists(ctx context.Context, email string, excludeI
 	return count > 0, nil
 }
 
+// GetFirstAdminUsername 取系统中第一个超管用户名（按创建时间升序）
+//
+// 仅服务于 install 状态探针（install.SetAdminProbe → probeDBAdmin 以
+// context.Background() 周期探测）：探测是平台级安装态判断，不属于任何租户，
+// TENANT_MODE=on 时无租户 ctx 的查询会被隔离 callback fail-closed（生产日志
+// 实证："查询首个超管失败"）。与 ResolveByEmailGlobal/FindByUsernameAnyTenant
+// 同口径显式挂 SystemScope（登录/安装态解析皆为「租户由查询结果携带」场景）。
 func (r *systemUserRepo) GetFirstAdminUsername(ctx context.Context) (string, error) {
 	var u model.SystemUser
-	if err := r.db.WithContext(ctx).Where("role = ?", "admin").Order("id ASC").First(&u).Error; err != nil {
+	if err := r.db.WithContext(tenant.WithSystemScope(ctx)).Where("role = ?", "admin").Order("id ASC").First(&u).Error; err != nil {
 		return "", err
 	}
 	return u.Username, nil

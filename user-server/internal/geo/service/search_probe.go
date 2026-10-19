@@ -16,6 +16,7 @@ import (
 	"hivemtk-user/internal/geo/repository"
 	hivemodel "hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/db"
+	"hivemtk-user/internal/pkg/tenant"
 
 	"gorm.io/gorm"
 )
@@ -166,7 +167,12 @@ func extractCitationsFromText(text string) []Citation {
 // 优先级：DB 中 enabled=true 的 provider 在前，本地 LLM 兜底在后。
 // 环境变量仅作为补充（兼容老部署），不再硬编码任何 endpoint/model。
 func NewEngineProbes() []SearchProbe {
-	return NewEngineProbesFromDB(db.GetDB())
+	// 判读：llm_providers（探针引擎配置）与 geo_config（品牌提示词）都在租户登记表内，
+	// 但探针装配是**平台级全局**动作（进程内共享一份引擎清单，与请求租户无关）：
+	// 传请求 ctx 会把装配结果按租户过滤成空清单，传裸 Background 又会被隔离
+	// callback fail-closed（search_probe.go:190 生产日志形态）。装配期统一走
+	// tenant.WithSystemScope 平台级豁免通道（与 geo_routes 装配、cron job 同口径）。
+	return NewEngineProbesFromDB(tenant.WithSystemScope(context.Background()), db.GetDB())
 }
 
 // NewEngineProbesFromDB 从 llm_providers 表装配探针引擎。
@@ -177,7 +183,7 @@ func NewEngineProbes() []SearchProbe {
 // 注意：探针引擎只使用云端 provider（排除 localhost / 127.0.0.1 本地 LLM），
 // 避免本地 LLM 速度慢、质量低影响 GEO 验证准确性。本地 LLM 仅在 LLMAdapter
 // 的 fallback 链中作为兜底。
-func NewEngineProbesFromDB(g *gorm.DB) []SearchProbe {
+func NewEngineProbesFromDB(ctx context.Context, g *gorm.DB) []SearchProbe {
 	probes := []SearchProbe{}
 	seen := make(map[string]bool)
 
@@ -187,7 +193,7 @@ func NewEngineProbesFromDB(g *gorm.DB) []SearchProbe {
 			BrandName        string
 			BrandDescription string
 		}
-		if err := g.Table("geo_config").Select("brand_name", "brand_description").First(&cfg).Error; err == nil {
+		if err := g.WithContext(ctx).Table("geo_config").Select("brand_name", "brand_description").First(&cfg).Error; err == nil {
 			if cfg.BrandName != "" && cfg.BrandDescription != "" {
 				brandHint = cfg.BrandName + "：" + cfg.BrandDescription
 			} else if cfg.BrandName != "" {
@@ -198,7 +204,7 @@ func NewEngineProbesFromDB(g *gorm.DB) []SearchProbe {
 
 	if g != nil {
 		var rows []hivemodel.LLMProvider
-		if err := g.Where("enabled = ?", true).Order("sort_order ASC").Find(&rows).Error; err == nil {
+		if err := g.WithContext(ctx).Where("enabled = ?", true).Order("sort_order ASC").Find(&rows).Error; err == nil {
 			for _, row := range rows {
 				if row.BaseURL == "" || row.Model == "" {
 					continue
@@ -494,7 +500,7 @@ func availableEngineNames(probes []SearchProbe) string {
 
 func (s *ProbeService) getBrandName(ctx context.Context) string {
 	cfgRepo := repository.NewGeoConfigRepository()
-	cfg, err := cfgRepo.Get()
+	cfg, err := cfgRepo.Get(ctx)
 	if err != nil || cfg.BrandName == "" {
 		return ""
 	}

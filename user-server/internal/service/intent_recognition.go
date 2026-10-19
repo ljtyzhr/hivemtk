@@ -15,6 +15,7 @@ import (
 	"hivemtk-user/internal/aiagent/llm"
 	"hivemtk-user/internal/dto"
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
@@ -142,7 +143,13 @@ const intentEmbeddingGap = 0.05
 const intentTopKExamples = 3
 
 func (s *IntentRecognizer) precomputeAnchors() {
-	ctx := context.Background()
+	// 启动期全局预热（SetEmbeddingService 异步触发）：DefaultIntents 内置示例的
+	// 向量锚点不归属任何租户，intent_examples 是租户表，TENANT_MODE=on 时无租户
+	// ctx 的 UpsertBatch（create）/ListAll（query）被隔离 callback fail-closed
+	//（生产日志实证："[Intent] 示例向量落库失败（下次启动将重算）"）。走
+	// tenant.WithSystemScope 平台级豁免通道；行上显式钉 TenantID=DefaultTenantID
+	//（与 init_storage.go seed 同规范：平台级预热数据归默认租户，自证放行）。
+	ctx := tenant.WithSystemScope(context.Background())
 	if s.loadAnchorsFromDB(ctx) {
 		return
 	}
@@ -156,7 +163,7 @@ func (s *IntentRecognizer) precomputeAnchors() {
 				continue
 			}
 			vecs[def.Type] = append(vecs[def.Type], v)
-			dbRows = append(dbRows, &model.IntentExample{Intent: def.Type, Text: ex, Vector: vecToPGLiteral(v)})
+			dbRows = append(dbRows, &model.IntentExample{TenantID: tenant.DefaultTenantID, Intent: def.Type, Text: ex, Vector: vecToPGLiteral(v)})
 		}
 	}
 	s.anchorMu.Lock()

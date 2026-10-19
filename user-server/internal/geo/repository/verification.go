@@ -11,11 +11,11 @@ import (
 // GeoVerifyResultRepository GEO 验证结果仓储接口
 type GeoVerifyResultRepository interface {
 	ListAllForSOV(ctx context.Context, intent string) ([]*model.GeoVerifyResult, error)
-	Create(result *model.GeoVerifyResult) error
-	GetByArticleID(articleID string) ([]*model.GeoVerifyResult, error)
-	GetByBrandName(brandName string) ([]*model.GeoVerifyResult, error)
-	GetList(articleID string, page, limit int) ([]*model.GeoVerifyResult, int64, error)
-	GetStatistics() ([]map[string]any, error)
+	Create(ctx context.Context, result *model.GeoVerifyResult) error
+	GetByArticleID(ctx context.Context, articleID string) ([]*model.GeoVerifyResult, error)
+	GetByBrandName(ctx context.Context, brandName string) ([]*model.GeoVerifyResult, error)
+	GetList(ctx context.Context, articleID string, page, limit int) ([]*model.GeoVerifyResult, int64, error)
+	GetStatistics(ctx context.Context) ([]map[string]any, error)
 }
 
 type geoVerifyResultRepo struct {
@@ -31,28 +31,28 @@ func NewGeoVerifyResultRepositoryWithDB(db *gorm.DB) GeoVerifyResultRepository {
 	return &geoVerifyResultRepo{db: db}
 }
 
-func (r *geoVerifyResultRepo) Create(result *model.GeoVerifyResult) error {
-	return r.db.Create(result).Error
+func (r *geoVerifyResultRepo) Create(ctx context.Context, result *model.GeoVerifyResult) error {
+	return r.db.WithContext(ctx).Create(result).Error
 }
 
-func (r *geoVerifyResultRepo) GetByArticleID(articleID string) ([]*model.GeoVerifyResult, error) {
+func (r *geoVerifyResultRepo) GetByArticleID(ctx context.Context, articleID string) ([]*model.GeoVerifyResult, error) {
 	var results []*model.GeoVerifyResult
-	err := r.db.Where("article_id = ?", articleID).Order("created_at DESC").Find(&results).Error
+	err := r.db.WithContext(ctx).Where("article_id = ?", articleID).Order("created_at DESC").Find(&results).Error
 	return results, err
 }
 
-func (r *geoVerifyResultRepo) GetByBrandName(brandName string) ([]*model.GeoVerifyResult, error) {
+func (r *geoVerifyResultRepo) GetByBrandName(ctx context.Context, brandName string) ([]*model.GeoVerifyResult, error) {
 	var results []*model.GeoVerifyResult
-	err := r.db.Where("brand_name = ?", brandName).Order("created_at DESC").Find(&results).Error
+	err := r.db.WithContext(ctx).Where("brand_name = ?", brandName).Order("created_at DESC").Find(&results).Error
 	return results, err
 }
 
-func (r *geoVerifyResultRepo) GetList(articleID string, page, limit int) ([]*model.GeoVerifyResult, int64, error) {
+func (r *geoVerifyResultRepo) GetList(ctx context.Context, articleID string, page, limit int) ([]*model.GeoVerifyResult, int64, error) {
 	var results []*model.GeoVerifyResult
 	var total int64
 	offset := (page - 1) * limit
 
-	query := r.db.Model(&model.GeoVerifyResult{})
+	query := r.db.WithContext(ctx).Model(&model.GeoVerifyResult{})
 
 	if articleID != "" {
 		query = query.Where("article_id = ?", articleID)
@@ -67,9 +67,9 @@ func (r *geoVerifyResultRepo) GetList(articleID string, page, limit int) ([]*mod
 	return results, total, err
 }
 
-func (r *geoVerifyResultRepo) GetStatistics() ([]map[string]any, error) {
+func (r *geoVerifyResultRepo) GetStatistics(ctx context.Context) ([]map[string]any, error) {
 	var statistics []map[string]any
-	err := r.db.Table("geo_verify_results").
+	err := r.db.WithContext(ctx).Table("geo_verify_results").
 		Select("model AS model, COUNT(*) AS total, " +
 			"SUM(CASE WHEN brand_mentioned = true THEN 1 ELSE 0 END) AS mentioned_total").
 		Where("deleted_at IS NULL").
@@ -80,10 +80,10 @@ func (r *geoVerifyResultRepo) GetStatistics() ([]map[string]any, error) {
 
 // GeoAPICallRepository GEO API 调用记录仓储接口
 type GeoAPICallRepository interface {
-	Create(call *model.GeoAPICall) error
-	GetList(provider, modelName string, page, limit int) ([]*model.GeoAPICall, int64, error)
-	GetCostStatistics(startDate, endDate string) ([]map[string]any, error)
-	GetByProvider(provider string) ([]*model.GeoAPICall, error)
+	Create(ctx context.Context, call *model.GeoAPICall) error
+	GetList(ctx context.Context, provider, modelName string, page, limit int) ([]*model.GeoAPICall, int64, error)
+	GetCostStatistics(ctx context.Context, startDate, endDate string) ([]map[string]any, error)
+	GetByProvider(ctx context.Context, provider string) ([]*model.GeoAPICall, error)
 }
 
 type geoAPICallRepo struct {
@@ -99,16 +99,16 @@ func NewGeoAPICallRepositoryWithDB(db *gorm.DB) GeoAPICallRepository {
 	return &geoAPICallRepo{db: db}
 }
 
-func (r *geoAPICallRepo) Create(call *model.GeoAPICall) error {
-	return r.db.Create(call).Error
+func (r *geoAPICallRepo) Create(ctx context.Context, call *model.GeoAPICall) error {
+	return r.db.WithContext(ctx).Create(call).Error
 }
 
-func (r *geoAPICallRepo) GetList(provider, modelName string, page, limit int) ([]*model.GeoAPICall, int64, error) {
+func (r *geoAPICallRepo) GetList(ctx context.Context, provider, modelName string, page, limit int) ([]*model.GeoAPICall, int64, error) {
 	var calls []*model.GeoAPICall
 	var total int64
 	offset := (page - 1) * limit
 
-	query := r.db.Model(&model.GeoAPICall{})
+	query := r.db.WithContext(ctx).Model(&model.GeoAPICall{})
 
 	if provider != "" {
 		query = query.Where("provider = ?", provider)
@@ -126,10 +126,10 @@ func (r *geoAPICallRepo) GetList(provider, modelName string, page, limit int) ([
 	return calls, total, err
 }
 
-func (r *geoAPICallRepo) GetCostStatistics(startDate, endDate string) ([]map[string]any, error) {
+func (r *geoAPICallRepo) GetCostStatistics(ctx context.Context, startDate, endDate string) ([]map[string]any, error) {
 	var statistics []map[string]any
 
-	query := r.db.Model(&model.GeoAPICall{}).
+	query := r.db.WithContext(ctx).Model(&model.GeoAPICall{}).
 		Select("provider, model, COUNT(*) AS call_count, COALESCE(SUM(input_tokens),0) AS input_tokens, COALESCE(SUM(output_tokens),0) AS output_tokens, COALESCE(SUM(cost_usd),0) AS cost_usd, COALESCE(SUM(cost_cny),0) AS cost_cny").
 		Group("provider, model").
 		Order("provider, model")
@@ -145,9 +145,9 @@ func (r *geoAPICallRepo) GetCostStatistics(startDate, endDate string) ([]map[str
 	return statistics, err
 }
 
-func (r *geoAPICallRepo) GetByProvider(provider string) ([]*model.GeoAPICall, error) {
+func (r *geoAPICallRepo) GetByProvider(ctx context.Context, provider string) ([]*model.GeoAPICall, error) {
 	var calls []*model.GeoAPICall
-	err := r.db.Where("provider = ?", provider).Order("created_at DESC").Find(&calls).Error
+	err := r.db.WithContext(ctx).Where("provider = ?", provider).Order("created_at DESC").Find(&calls).Error
 	return calls, err
 }
 

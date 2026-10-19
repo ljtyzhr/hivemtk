@@ -167,7 +167,7 @@ type PublishResult struct {
 // Publish 并发发布一篇文章到多个平台
 // 使用 worker pool + PublishRecord 持久化，单平台失败不阻断其它平台
 func (p *PublishPipeline) Publish(ctx context.Context, req PublishRequest) ([]PublishResult, error) {
-	article, err := p.articleRepo.GetByID(req.ArticleID)
+	article, err := p.articleRepo.GetByID(ctx, req.ArticleID)
 	if err != nil {
 		return nil, fmt.Errorf("article %s: %w", req.ArticleID, err)
 	}
@@ -217,7 +217,7 @@ func (p *PublishPipeline) publishOne(ctx context.Context, article *model.GeoArti
 	adapter := p.adapters[0]
 	content := adapter(article, platform)
 
-	account, err := p.accountRepo.GetLatestByPlatform(platform)
+	account, err := p.accountRepo.GetLatestByPlatform(ctx, platform)
 	if err != nil {
 		return PublishResult{Platform: platform, Status: "failed", Message: fmt.Sprintf("account: %v", err)}
 	}
@@ -239,7 +239,7 @@ func (p *PublishPipeline) publishOne(ctx context.Context, article *model.GeoArti
 	} else if simulated {
 		rec.Status = "pending"
 	}
-	_ = p.publishRecordRepo.Create(rec)
+	_ = p.publishRecordRepo.Create(ctx, rec)
 
 	if pubErr != nil {
 		return PublishResult{Platform: platform, AccountID: account.ID, Status: "failed", Message: pubErr.Error()}
@@ -248,8 +248,8 @@ func (p *PublishPipeline) publishOne(ctx context.Context, article *model.GeoArti
 }
 
 // GetPublishRecords 查询某文章/平台的发布历史（透传）
-func (p *PublishPipeline) GetPublishRecords(articleID, platform string, page, limit int) ([]*model.GeoPublishRecord, int64, error) {
-	return p.publishRecordRepo.GetList(articleID, platform, page, limit)
+func (p *PublishPipeline) GetPublishRecords(ctx context.Context, articleID, platform string, page, limit int) ([]*model.GeoPublishRecord, int64, error) {
+	return p.publishRecordRepo.GetList(ctx, articleID, platform, page, limit)
 }
 
 // ListRegisteredPlatforms 返回已注册的发布器平台名

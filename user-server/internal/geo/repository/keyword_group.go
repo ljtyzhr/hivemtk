@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"encoding/json"
 	"hivemtk-user/internal/geo/model"
 	_db "hivemtk-user/internal/pkg/db"
@@ -11,10 +12,10 @@ import (
 // GeoKeywordGroupRepository GEO 关键词分组（话题聚类结果）
 type GeoKeywordGroupRepository interface {
 	// UpsertByName 按分组名 upsert（同品牌聚类覆盖更新）
-	UpsertByName(name string, keywords []string) (*model.GeoKeywordGroup, error)
-	GetByID(id string) (*model.GeoKeywordGroup, error)
-	List() ([]*model.GeoKeywordGroup, error)
-	Delete(id string) error
+	UpsertByName(ctx context.Context, name string, keywords []string) (*model.GeoKeywordGroup, error)
+	GetByID(ctx context.Context, id string) (*model.GeoKeywordGroup, error)
+	List(ctx context.Context) ([]*model.GeoKeywordGroup, error)
+	Delete(ctx context.Context, id string) error
 }
 
 type geoKeywordGroupRepo struct {
@@ -31,16 +32,16 @@ func NewGeoKeywordGroupRepositoryWithDB(db *gorm.DB) GeoKeywordGroupRepository {
 	return &geoKeywordGroupRepo{db: db}
 }
 
-func (r *geoKeywordGroupRepo) UpsertByName(name string, keywords []string) (*model.GeoKeywordGroup, error) {
+func (r *geoKeywordGroupRepo) UpsertByName(ctx context.Context, name string, keywords []string) (*model.GeoKeywordGroup, error) {
 	kwJSON, _ := json.Marshal(keywords)
 	kwStr := string(kwJSON)
 
 	var existing model.GeoKeywordGroup
-	err := r.db.Where("name = ?", name).First(&existing).Error
+	err := r.db.WithContext(ctx).Where("name = ?", name).First(&existing).Error
 	if err == nil {
 		existing.KeywordList = kwStr
 		existing.KeywordCount = len(keywords)
-		if uErr := r.db.Save(&existing).Error; uErr != nil {
+		if uErr := r.db.WithContext(ctx).Save(&existing).Error; uErr != nil {
 			return nil, uErr
 		}
 		return &existing, nil
@@ -53,28 +54,28 @@ func (r *geoKeywordGroupRepo) UpsertByName(name string, keywords []string) (*mod
 		KeywordList:  kwStr,
 		KeywordCount: len(keywords),
 	}
-	if cErr := r.db.Create(g).Error; cErr != nil {
+	if cErr := r.db.WithContext(ctx).Create(g).Error; cErr != nil {
 		return nil, cErr
 	}
 	return g, nil
 }
 
-func (r *geoKeywordGroupRepo) GetByID(id string) (*model.GeoKeywordGroup, error) {
+func (r *geoKeywordGroupRepo) GetByID(ctx context.Context, id string) (*model.GeoKeywordGroup, error) {
 	var g model.GeoKeywordGroup
-	if err := r.db.Where("id = ?", id).First(&g).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("id = ?", id).First(&g).Error; err != nil {
 		return nil, err
 	}
 	return &g, nil
 }
 
-func (r *geoKeywordGroupRepo) List() ([]*model.GeoKeywordGroup, error) {
+func (r *geoKeywordGroupRepo) List(ctx context.Context) ([]*model.GeoKeywordGroup, error) {
 	var groups []*model.GeoKeywordGroup
-	if err := r.db.Order("updated_at DESC").Find(&groups).Error; err != nil {
+	if err := r.db.WithContext(ctx).Order("updated_at DESC").Find(&groups).Error; err != nil {
 		return nil, err
 	}
 	return groups, nil
 }
 
-func (r *geoKeywordGroupRepo) Delete(id string) error {
-	return r.db.Delete(&model.GeoKeywordGroup{}, "id = ?", id).Error
+func (r *geoKeywordGroupRepo) Delete(ctx context.Context, id string) error {
+	return r.db.WithContext(ctx).Delete(&model.GeoKeywordGroup{}, "id = ?", id).Error
 }

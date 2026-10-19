@@ -30,27 +30,27 @@ func NewSmlistRepository(db ...*gorm.DB) SmlistRepository {
 }
 
 func (r *smlistRepo) Create(ctx context.Context, smlist *model.Smlist) error {
-	return r.db.Create(smlist).Error
+	return r.db.WithContext(ctx).Create(smlist).Error
 }
 
 func (r *smlistRepo) GetByID(ctx context.Context, id string) (*model.Smlist, error) {
 	var smlist model.Smlist
-	err := r.db.Where("id = ?", id).First(&smlist).Error
+	err := r.db.WithContext(ctx).Where("id = ?", id).First(&smlist).Error
 	return &smlist, err
 }
 
 func (r *smlistRepo) GetSmlistList(ctx context.Context, page int, limit int) ([]*model.Smlist, int64, error) {
 	var smlists []*model.Smlist
 	var total int64
-	r.db.Model(&model.Smlist{}).Count(&total)
-	err := r.db.Offset((page - 1) * limit).Limit(limit).Find(&smlists).Error
+	r.db.WithContext(ctx).Model(&model.Smlist{}).Count(&total)
+	err := r.db.WithContext(ctx).Offset((page - 1) * limit).Limit(limit).Find(&smlists).Error
 	return smlists, total, err
 }
 
 func (r *smlistRepo) GetSmlistAllList(ctx context.Context) ([]*model.Smlist, int64, error) {
 	var smlists []*model.Smlist
 	var total int64
-	r.db.Model(&model.Smlist{}).Count(&total)
+	r.db.WithContext(ctx).Model(&model.Smlist{}).Count(&total)
 	// 无界兜底:默认 200,短信列表表增长后防全表载入;已达上限时调用方需分页重取
 	q := applyListLimit(r.db, 200)
 	err := q.Find(&smlists).Error
@@ -58,12 +58,12 @@ func (r *smlistRepo) GetSmlistAllList(ctx context.Context) ([]*model.Smlist, int
 }
 
 func (r *smlistRepo) Delete(ctx context.Context, id string) error {
-	return r.db.Where("id = ?", id).Delete(&model.Smlist{}).Error
+	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&model.Smlist{}).Error
 }
 
 func (r *smlistRepo) GetRecentSmlistList(ctx context.Context) ([]*model.Smlist, error) {
 	var smlists []*model.Smlist
 	startTime := time.Now().Add(-time.Hour * 48)
-	err := r.db.Where("created_at > ?", startTime).Order("created_at desc").Find(&smlists).Error
+	err := r.db.WithContext(ctx).Where("created_at > ?", startTime).Order("created_at desc").Find(&smlists).Error
 	return smlists, err
 }

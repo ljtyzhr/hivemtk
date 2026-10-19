@@ -30,7 +30,10 @@ func (r *IntentRecordRepository) SetDB(ctx context.Context, db *gorm.DB) {
 }
 
 func (r *IntentRecordRepository) GetDB(ctx context.Context) *gorm.DB {
-	return r.db
+	if r.db == nil {
+		return nil
+	}
+	return r.db.WithContext(ctx)
 }
 
 // Create 创建意图识别记录

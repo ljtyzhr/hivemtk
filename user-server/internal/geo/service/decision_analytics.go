@@ -72,7 +72,7 @@ func (s *GeoDecisionAnalyticsService) GetShareOfVoiceBetween(ctx context.Context
 
 	brandList := []string{}
 	if s.configRepo != nil {
-		cfg, err := s.configRepo.Get()
+		cfg, err := s.configRepo.Get(ctx)
 		if err == nil {
 			if bn := strings.TrimSpace(cfg.BrandName); bn != "" {
 				brandList = append(brandList, bn)
@@ -175,7 +175,7 @@ func (s *GeoDecisionAnalyticsService) selfBrandSOV(ctx context.Context) float64 
 	if s.configRepo == nil || s.probeRepo == nil {
 		return 0
 	}
-	cfg, err := s.configRepo.Get()
+	cfg, err := s.configRepo.Get(ctx)
 	if err != nil || cfg == nil {
 		return 0
 	}
@@ -460,5 +460,5 @@ func (s *GeoDecisionAnalyticsService) recordAPICall(ctx context.Context, resp *L
 		Purpose:      purpose,
 		Status:       "success",
 	}
-	_ = s.apiCallRepo.Create(call)
+	_ = s.apiCallRepo.Create(ctx, call)
 }

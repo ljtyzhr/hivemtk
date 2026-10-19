@@ -24,22 +24,22 @@ func NewMessageRepository() MessageRepository {
 }
 
 func (r *messageRepo) Create(ctx context.Context, message *model.Message) error {
-	return r.db.Create(message).Error
+	return r.db.WithContext(ctx).Create(message).Error
 }
 
 func (r *messageRepo) GetByID(ctx context.Context, id uint) (*model.Message, error) {
 	var message model.Message
-	err := r.db.First(&message, id).Error
+	err := r.db.WithContext(ctx).First(&message, id).Error
 	return &message, err
 }
 
 func (r *messageRepo) GetMessageList(ctx context.Context, page int, limit int) ([]*model.Message, int64, error) {
 	var messages []*model.Message
 	var total int64
-	err := r.db.Offset((page - 1) * limit).Limit(limit).Find(&messages).Count(&total).Error
+	err := r.db.WithContext(ctx).Offset((page - 1) * limit).Limit(limit).Find(&messages).Count(&total).Error
 	return messages, total, err
 }
 
 func (r *messageRepo) Delete(ctx context.Context, id string) error {
-	return r.db.Where("id = ?", id).Delete(&model.Message{}).Error
+	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&model.Message{}).Error
 }

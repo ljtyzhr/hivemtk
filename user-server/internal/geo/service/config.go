@@ -27,7 +27,7 @@ func NewConfigService(cr repository.GeoConfigRepository, adapter *LLMAdapter) *C
 // GetConfig 获取 GEO 配置
 // 首次使用（库中无配置）时返回默认配置而非 404，保证前端初始化体验
 func (s *ConfigService) GetConfig(ctx context.Context) (*model.GeoConfig, error) {
-	config, err := s.configRepo.Get()
+	config, err := s.configRepo.Get(ctx)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return &model.GeoConfig{Language: "zh"}, nil
@@ -40,7 +40,7 @@ func (s *ConfigService) GetConfig(ctx context.Context) (*model.GeoConfig, error)
 // UpdateConfig 更新 GEO 配置（合并更新，保留未提供的字段）
 // negativeKeywords 为 nil 时保留现有负面监控种子词配置
 func (s *ConfigService) UpdateConfig(ctx context.Context, brand, brandDescription, advantages string, competitors []string, domain, defaultModel string, verifyModels []string, negativeKeywords []string) error {
-	existing, err := s.configRepo.Get()
+	existing, err := s.configRepo.Get(ctx)
 	if err != nil {
 		existing = &model.GeoConfig{Language: "zh"}
 	}
@@ -71,7 +71,7 @@ func (s *ConfigService) UpdateConfig(ctx context.Context, brand, brandDescriptio
 	if existing.Language == "" {
 		existing.Language = "zh"
 	}
-	return s.configRepo.Update(existing)
+	return s.configRepo.Update(ctx, existing)
 }
 
 type configOptimizeResult struct {

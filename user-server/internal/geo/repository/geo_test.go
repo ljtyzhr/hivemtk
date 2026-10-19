@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"testing"
 
 	"hivemtk-user/internal/geo/model"
@@ -28,18 +29,19 @@ func setupGeoTestDB(t *testing.T) *gorm.DB {
 }
 
 func TestGeoKeywordRepository(t *testing.T) {
+	ctx := context.Background()
 	db := setupGeoTestDB(t)
 	repo := NewGeoKeywordRepositoryWithDB(db)
 
 	kw := &model.GeoKeyword{Source: "ai", Keyword: "GEO优化", SearchVolume: 1000, Difficulty: 5.5}
-	if err := repo.Create(kw); err != nil {
+	if err := repo.Create(ctx, kw); err != nil {
 		t.Fatalf("Create keyword failed: %v", err)
 	}
 	if kw.ID == "" {
 		t.Fatal("keyword ID should be auto-generated")
 	}
 
-	list, total, err := repo.GetList("", "", "", "", "", "", 1, 10)
+	list, total, err := repo.GetList(ctx, "", "", "", "", "", "", 1, 10)
 	if err != nil {
 		t.Fatalf("GetList failed: %v", err)
 	}
@@ -50,25 +52,26 @@ func TestGeoKeywordRepository(t *testing.T) {
 		t.Fatal("expected non-empty list")
 	}
 
-	if err := repo.Delete(kw.ID); err != nil {
+	if err := repo.Delete(ctx, kw.ID); err != nil {
 		t.Fatalf("Delete failed: %v", err)
 	}
-	_, total, _ = repo.GetList("", "", "", "", "", "", 1, 10)
+	_, total, _ = repo.GetList(ctx, "", "", "", "", "", "", 1, 10)
 	if total != 0 {
 		t.Fatalf("expected 0 after delete, got %d", total)
 	}
 }
 
 func TestGeoArticleRepository(t *testing.T) {
+	ctx := context.Background()
 	db := setupGeoTestDB(t)
 	repo := NewGeoArticleRepositoryWithDB(db)
 
 	article := &model.GeoArticle{Title: "GEO测试文章", Content: "测试内容", Keyword: "GEO", Status: "draft"}
-	if err := repo.Create(article); err != nil {
+	if err := repo.Create(ctx, article); err != nil {
 		t.Fatalf("Create article failed: %v", err)
 	}
 
-	got, err := repo.GetByID(article.ID)
+	got, err := repo.GetByID(ctx, article.ID)
 	if err != nil {
 		t.Fatalf("GetByID failed: %v", err)
 	}
@@ -76,7 +79,7 @@ func TestGeoArticleRepository(t *testing.T) {
 		t.Fatalf("expected title 'GEO测试文章', got '%s'", got.Title)
 	}
 
-	_, total, err := repo.GetList("", "", 1, 10)
+	_, total, err := repo.GetList(ctx, "", "", 1, 10)
 	if err != nil {
 		t.Fatalf("GetList failed: %v", err)
 	}
@@ -86,15 +89,16 @@ func TestGeoArticleRepository(t *testing.T) {
 }
 
 func TestGeoPlatformAccountRepository(t *testing.T) {
+	ctx := context.Background()
 	db := setupGeoTestDB(t)
 	repo := NewGeoPlatformAccountRepositoryWithDB(db)
 
 	account := &model.GeoPlatformAccount{Platform: "github_readme", AccountName: "test-user", Status: "active"}
-	if err := repo.Create(account); err != nil {
+	if err := repo.Create(ctx, account); err != nil {
 		t.Fatalf("Create account failed: %v", err)
 	}
 
-	_, total, err := repo.GetList("github_readme", 1, 10)
+	_, total, err := repo.GetList(ctx, "github_readme", 1, 10)
 	if err != nil {
 		t.Fatalf("GetList failed: %v", err)
 	}
@@ -102,21 +106,22 @@ func TestGeoPlatformAccountRepository(t *testing.T) {
 		t.Fatalf("expected at least 1 account, got %d", total)
 	}
 
-	if err := repo.Delete(account.ID); err != nil {
+	if err := repo.Delete(ctx, account.ID); err != nil {
 		t.Fatalf("Delete failed: %v", err)
 	}
 }
 
 func TestGeoKnowledgeDocumentRepository(t *testing.T) {
+	ctx := context.Background()
 	db := setupGeoTestDB(t)
 	repo := NewGeoKnowledgeDocumentRepositoryWithDB(db)
 
 	doc := &model.GeoKnowledgeDocument{Title: "品牌FAQ", Content: "Q:什么是GEO？A:生成式引擎优化", DocType: "faq"}
-	if err := repo.Create(doc); err != nil {
+	if err := repo.Create(ctx, doc); err != nil {
 		t.Fatalf("Create doc failed: %v", err)
 	}
 
-	list, err := repo.GetList()
+	list, err := repo.GetList(ctx)
 	if err != nil {
 		t.Fatalf("GetList failed: %v", err)
 	}
@@ -124,22 +129,23 @@ func TestGeoKnowledgeDocumentRepository(t *testing.T) {
 		t.Fatalf("expected at least 1 doc, got %d", len(list))
 	}
 
-	if err := repo.Delete(doc.ID); err != nil {
+	if err := repo.Delete(ctx, doc.ID); err != nil {
 		t.Fatalf("Delete failed: %v", err)
 	}
 }
 
 func TestGeoWorkflowRepository(t *testing.T) {
+	ctx := context.Background()
 	db := setupGeoTestDB(t)
 	repo := NewGeoWorkflowRepositoryWithDB(db)
 
 	wf := &model.GeoWorkflow{Name: "内容生产工作流", Enabled: true}
 	wf.SetSteps([]map[string]interface{}{{"name": "step1", "type": "content_generate"}})
-	if err := repo.Create(wf); err != nil {
+	if err := repo.Create(ctx, wf); err != nil {
 		t.Fatalf("Create workflow failed: %v", err)
 	}
 
-	got, err := repo.GetByID(wf.ID)
+	got, err := repo.GetByID(ctx, wf.ID)
 	if err != nil {
 		t.Fatalf("GetByID failed: %v", err)
 	}
@@ -147,7 +153,7 @@ func TestGeoWorkflowRepository(t *testing.T) {
 		t.Fatalf("expected name '内容生产工作流', got '%s'", got.Name)
 	}
 
-	list, err := repo.GetList()
+	list, err := repo.GetList(ctx)
 	if err != nil {
 		t.Fatalf("GetList failed: %v", err)
 	}

@@ -13,6 +13,7 @@ import (
 
 	"hivemtk-user/internal/geo/model"
 	"hivemtk-user/internal/geo/repository"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 
 	"github.com/robfig/cron/v3"
@@ -165,14 +166,19 @@ func SetupGeoJobs(sched JobScheduler) {
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	if err := m.runRepo.FailStaleRunning(context.Background()); err != nil {
+	// 平台级启动兜底：geo_job_runs 是租户表，进程重启后残留的 running 记录要跨
+	// 全租户清理；本函数由 cron.InitCron 启动期调用，context.Background() 无租户
+	// 绑定，TENANT_MODE=on 时 FailStaleRunning（update）被隔离 callback fail-closed
+	//（生产日志实证："[GEO Jobs] 清理僵尸运行记录失败"）。走 tenant.WithSystemScope
+	// 平台级豁免通道（与 migration/健康检查同类）。
+	if err := m.runRepo.FailStaleRunning(tenant.WithSystemScope(context.Background())); err != nil {
 		logger.Warn(fmt.Sprintf("[GEO Jobs] 清理僵尸运行记录失败: %v", err))
 	}
 
 	m.sched = sched
 	m.setup = true
 
-	persisted := m.loadPersistedSpecs()
+	persisted := m.loadPersistedSpecs(tenant.WithSystemScope(context.Background()))
 	for _, d := range geoJobDefs {
 		spec := d.DefaultSpec
 		if s, ok := persisted[d.Name]; ok && m.validSpec(s) == nil {
@@ -186,8 +192,12 @@ func SetupGeoJobs(sched JobScheduler) {
 	logger.Info("[GEO Jobs] 定时任务已注册：sov_refresh/negative_monitor/source_sync/crawler_monitor（调度可经 /geo/jobs API 调整）")
 }
 
-func (m *JobManager) loadPersistedSpecs() map[string]string {
-	cfg, err := m.cfgRepo.Get()
+// loadPersistedSpecs 读 GeoConfig.CronSpecs（geo_config 是租户表）。
+// 启动期由 SetupGeoJobs 调，没有请求租户可绑：调用方传
+// tenant.WithSystemScope(context.Background()) 平台级豁免（与同函数里的
+// FailStaleRunning 同口径），on 模式下读全租户 union、off 模式直通。
+func (m *JobManager) loadPersistedSpecs(ctx context.Context) map[string]string {
+	cfg, err := m.cfgRepo.Get(ctx)
 	if err != nil || strings.TrimSpace(cfg.CronSpecs) == "" {
 		return nil
 	}
@@ -268,8 +278,16 @@ func (m *JobManager) StartJob(name, trigger string) (bool, error) {
 		Status:    "running",
 		StartedAt: time.Now(),
 	}
+	// 平台级豁免（与 SetupGeoJobs 清僵尸同口径）：geo_job_runs 是租户表，而 StartJob
+	// 由 cron tick（registerLocked 里的 context.Background()）与管理端 Trigger 两条路
+	// 进来，都没有可绑的请求租户 —— TENANT_MODE=on 下裸 ctx 的 Create 会被隔离
+	// callback fail-closed（生产日志形态：「任务 X 写入运行记录失败」⇒ 历史整片缺失）。
+	// 运行记录是 append-only 运维记账，不归属任何单一租户，走 tenant.WithSystemScope
+	// 平台级豁免通道（与 migration/备份/健康检查同类）；off 模式 SystemScope 直通，
+	// SQL 形状与历史版本等价。
+	runCtx := tenant.WithSystemScope(context.Background())
 	var runID uint
-	if err := m.runRepo.Create(context.Background(), run); err != nil {
+	if err := m.runRepo.Create(runCtx, run); err != nil {
 		logger.Error(err, fmt.Sprintf("[GEO Jobs] 任务 %s 写入运行记录失败（本次不记录历史）", name))
 	} else {
 		runID = run.ID
@@ -280,6 +298,8 @@ func (m *JobManager) StartJob(name, trigger string) (bool, error) {
 }
 
 // acquireDistributedLock 尝试获取分布式锁（基于数据库行锁）
+// 判读：pg_try_advisory_lock 是会话级锁，SQL 无 FROM/UPDATE 租户表引用，
+// 不触达任何租户表 —— 裸 Background 不构成隔离 callback 触点，故保持不动。
 func (m *JobManager) acquireDistributedLock(jobName string, timeout time.Duration) (bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
@@ -295,6 +315,7 @@ func (m *JobManager) acquireDistributedLock(jobName string, timeout time.Duratio
 }
 
 // releaseDistributedLock 释放分布式锁
+// 判读同 acquireDistributedLock：pg_advisory_unlock 不触达租户表，裸 Background 保持不动。
 func (m *JobManager) releaseDistributedLock(jobName string) {
 	if m.db == nil {
 		return
@@ -316,6 +337,17 @@ func (m *JobManager) execute(def geoJobDef, runID uint, trigger string) {
 	ctx, cancel := context.WithTimeout(context.Background(), def.Timeout)
 	defer cancel()
 
+	// 运行记录写入（Finish 与过期清理 DeleteBefore）与 StartJob 的 Create 同口径：
+	// geo_job_runs 是 append-only 运维记账，本协程由 cron tick 自起、没有可绑的请求
+	// 租户，TENANT_MODE=on 下裸 context.Background() 会被隔离 callback fail-closed
+	//（对齐 SetupGeoJobs 清僵尸的 tenant.WithSystemScope 平台级豁免通道）。
+	// 注意这个 system scope 只包运行记录写入，不外溢给下面的 def.Fn(ctx)——
+	// 业务任务体自己负责按行/按系统口径恢复租户（本轮已落地：触达租户表的 job
+	// 在入口自行 tenant.WithSystemScope，见 scheduler.go 与 keyword_pipeline.go；
+	// keyword_pipeline 的 SEO 批次再按行 tenant.OnlyTenant 自证）。
+	// off 模式 SystemScope 直通，SQL 不变。
+	runCtx := tenant.WithSystemScope(context.Background())
+
 	status, summary, errMsg := "success", "", ""
 	func() {
 		defer func() {
@@ -336,20 +368,23 @@ func (m *JobManager) execute(def geoJobDef, runID uint, trigger string) {
 
 	duration := time.Since(start).Milliseconds()
 	if runID > 0 {
-		if err := m.runRepo.Finish(context.Background(), runID, status, runeTruncate(summary, 2000), runeTruncate(errMsg, 2000), duration); err != nil {
+		if err := m.runRepo.Finish(runCtx, runID, status, runeTruncate(summary, 2000), runeTruncate(errMsg, 2000), duration); err != nil {
 			logger.Error(err, fmt.Sprintf("[GEO Jobs] 任务 %s 回写运行记录失败", def.Name))
 		}
 	}
 	logger.Info(fmt.Sprintf("[GEO Jobs] 任务 %s 完成（trigger=%s status=%s 用时=%dms）%s",
 		def.Name, trigger, status, duration, summary))
 
-	if err := m.runRepo.DeleteBefore(context.Background(), time.Now().Add(-geoJobRunRetention)); err != nil {
+	if err := m.runRepo.DeleteBefore(runCtx, time.Now().Add(-geoJobRunRetention)); err != nil {
 		logger.Warn(fmt.Sprintf("[GEO Jobs] 清理过期运行记录失败: %v", err))
 	}
 }
 
 // UpdateSchedule 调整任务 cron 表达式并持久化到 GeoConfig.CronSpecs
-func (m *JobManager) UpdateSchedule(name, spec string) error {
+//
+// ctx 由管理端 HTTP handler 透传请求 ctx（geo_config 是租户表，on 模式下读写
+// 需要租户绑定）；本方法只透传不改语义。
+func (m *JobManager) UpdateSchedule(ctx context.Context, name, spec string) error {
 	def, ok := m.defByName(name)
 	if !ok {
 		return fmt.Errorf("未知任务: %s", name)
@@ -369,13 +404,13 @@ func (m *JobManager) UpdateSchedule(name, spec string) error {
 	m.specs[name] = spec
 
 	persisted := map[string]string{}
-	if cfg, err := m.cfgRepo.Get(); err == nil && strings.TrimSpace(cfg.CronSpecs) != "" {
+	if cfg, err := m.cfgRepo.Get(ctx); err == nil && strings.TrimSpace(cfg.CronSpecs) != "" {
 		_ = json.Unmarshal([]byte(cfg.CronSpecs), &persisted)
 	}
 	persisted[name] = spec
 	blob, _ := json.Marshal(persisted)
 
-	cfg, err := m.cfgRepo.Get()
+	cfg, err := m.cfgRepo.Get(ctx)
 	if err != nil {
 		if !errors.Is(err, gorm.ErrRecordNotFound) {
 			logger.Warn(fmt.Sprintf("[GEO Jobs] 读取配置持久化调度失败: %v", err))
@@ -384,7 +419,7 @@ func (m *JobManager) UpdateSchedule(name, spec string) error {
 		cfg = &model.GeoConfig{Language: "zh"}
 	}
 	cfg.CronSpecs = string(blob)
-	if err := m.cfgRepo.Update(cfg); err != nil {
+	if err := m.cfgRepo.Update(ctx, cfg); err != nil {
 		logger.Warn(fmt.Sprintf("[GEO Jobs] 持久化调度配置失败（本次会话内已生效，重启后回退默认）: %v", err))
 	}
 	logger.Info(fmt.Sprintf("[GEO Jobs] 任务 %s 调度已更新为 %q（默认 %q）", def.Name, spec, def.DefaultSpec))

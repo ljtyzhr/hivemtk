@@ -42,7 +42,7 @@ func (r *emailTrackingRepo) CreateEvent(ctx context.Context, event *model.EmailT
 	if r == nil || r.db == nil {
 		return errors.New("email tracking repository 未初始化（db is nil）")
 	}
-	return r.db.Create(event).Error
+	return r.db.WithContext(ctx).Create(event).Error
 }
 
 func (r *emailTrackingRepo) EventExists(ctx context.Context, eventID string) (bool, error) {
@@ -50,7 +50,7 @@ func (r *emailTrackingRepo) EventExists(ctx context.Context, eventID string) (bo
 		return false, errors.New("email tracking repository 未初始化（db is nil）")
 	}
 	var count int64
-	err := r.db.Model(&model.EmailTrackingEvent{}).Where("event_id = ?", eventID).Count(&count).Error
+	err := r.db.WithContext(ctx).Model(&model.EmailTrackingEvent{}).Where("event_id = ?", eventID).Count(&count).Error
 	if err != nil {
 		return false, err
 	}
@@ -64,7 +64,7 @@ func (r *emailTrackingRepo) ListEventsByJob(ctx context.Context, jobID string, p
 	var events []*model.EmailTrackingEvent
 	var total int64
 
-	query := r.db.Model(&model.EmailTrackingEvent{}).Where("job_id = ?", jobID)
+	query := r.db.WithContext(ctx).Model(&model.EmailTrackingEvent{}).Where("job_id = ?", jobID)
 	if err := query.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
@@ -81,7 +81,7 @@ func (r *emailTrackingRepo) CountEventsByJob(ctx context.Context, jobID, eventTy
 		return 0, errors.New("email tracking repository 未初始化（db is nil）")
 	}
 	var count int64
-	query := r.db.Model(&model.EmailTrackingEvent{}).Where("job_id = ?", jobID)
+	query := r.db.WithContext(ctx).Model(&model.EmailTrackingEvent{}).Where("job_id = ?", jobID)
 	if eventType != "" {
 		query = query.Where("event_type = ?", eventType)
 	}
@@ -94,7 +94,7 @@ func (r *emailTrackingRepo) CountUniqueEmailsByJob(ctx context.Context, jobID, e
 		return 0, errors.New("email tracking repository 未初始化（db is nil）")
 	}
 	var count int64
-	err := r.db.Model(&model.EmailTrackingEvent{}).
+	err := r.db.WithContext(ctx).Model(&model.EmailTrackingEvent{}).
 		Where("job_id = ? AND event_type = ?", jobID, eventType).
 		Distinct("email").Count(&count).Error
 	return count, err
@@ -105,7 +105,7 @@ func (r *emailTrackingRepo) ListEventsByRange(ctx context.Context, start, end ti
 		return nil, errors.New("email tracking repository 未初始化（db is nil）")
 	}
 	var events []*model.EmailTrackingEvent
-	err := r.db.Where("timestamp BETWEEN ? AND ?", start, end).Find(&events).Error
+	err := r.db.WithContext(ctx).Where("timestamp BETWEEN ? AND ?", start, end).Find(&events).Error
 	return events, err
 }
 
@@ -114,7 +114,7 @@ func (r *emailTrackingRepo) CountEventsByRange(ctx context.Context, start, end t
 		return 0, errors.New("email tracking repository 未初始化（db is nil）")
 	}
 	var count int64
-	query := r.db.Model(&model.EmailTrackingEvent{}).Where("timestamp BETWEEN ? AND ?", start, end)
+	query := r.db.WithContext(ctx).Model(&model.EmailTrackingEvent{}).Where("timestamp BETWEEN ? AND ?", start, end)
 	if eventType != "" {
 		query = query.Where("event_type = ?", eventType)
 	}
@@ -127,7 +127,7 @@ func (r *emailTrackingRepo) GetJobMetric(ctx context.Context, jobID string) (*mo
 		return nil, errors.New("email tracking repository 未初始化（db is nil）")
 	}
 	var metric model.EmailJobMetric
-	err := r.db.Where("job_id = ?", jobID).First(&metric).Error
+	err := r.db.WithContext(ctx).Where("job_id = ?", jobID).First(&metric).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
@@ -147,9 +147,9 @@ func (r *emailTrackingRepo) UpsertJobMetric(ctx context.Context, metric *model.E
 	}
 	if existing != nil {
 		metric.ID = existing.ID
-		return r.db.Save(metric).Error
+		return r.db.WithContext(ctx).Save(metric).Error
 	}
-	return r.db.Create(metric).Error
+	return r.db.WithContext(ctx).Create(metric).Error
 }
 
 func (r *emailTrackingRepo) ListJobMetricsByRange(ctx context.Context, start, end time.Time) ([]*model.EmailJobMetric, error) {
@@ -157,6 +157,6 @@ func (r *emailTrackingRepo) ListJobMetricsByRange(ctx context.Context, start, en
 		return nil, errors.New("email tracking repository 未初始化（db is nil）")
 	}
 	var metrics []*model.EmailJobMetric
-	err := r.db.Where("updated_at BETWEEN ? AND ?", start, end).Find(&metrics).Error
+	err := r.db.WithContext(ctx).Where("updated_at BETWEEN ? AND ?", start, end).Find(&metrics).Error
 	return metrics, err
 }

@@ -38,26 +38,26 @@ func NewTikTokCardRepository(db *gorm.DB) TikTokCardRepository {
 }
 
 func (r *tiktokCardRepository) Create(ctx context.Context, card *model.TikTokCard) (*model.TikTokCard, error) {
-	if err := r.db.Create(card).Error; err != nil {
+	if err := r.db.WithContext(ctx).Create(card).Error; err != nil {
 		return nil, err
 	}
 	return card, nil
 }
 
 func (r *tiktokCardRepository) Update(ctx context.Context, card *model.TikTokCard) (*model.TikTokCard, error) {
-	if err := r.db.Save(card).Error; err != nil {
+	if err := r.db.WithContext(ctx).Save(card).Error; err != nil {
 		return nil, err
 	}
 	return card, nil
 }
 
 func (r *tiktokCardRepository) Delete(ctx context.Context, id uint) error {
-	return r.db.Where("id = ?", id).Delete(&model.TikTokCard{}).Error
+	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&model.TikTokCard{}).Error
 }
 
 func (r *tiktokCardRepository) GetByID(ctx context.Context, id uint) (*model.TikTokCard, error) {
 	var card model.TikTokCard
-	if err := r.db.Where("id = ?", id).First(&card).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("id = ?", id).First(&card).Error; err != nil {
 		return nil, err
 	}
 	return &card, nil
@@ -67,7 +67,7 @@ func (r *tiktokCardRepository) GetList(ctx context.Context, req CardListFilter) 
 	var cards []model.TikTokCard
 	var total int64
 
-	query := r.db.Model(&model.TikTokCard{})
+	query := r.db.WithContext(ctx).Model(&model.TikTokCard{})
 
 	if req.Keyword != "" {
 		like := "%" + req.Keyword + "%"
@@ -98,42 +98,42 @@ func (r *tiktokCardRepository) GetList(ctx context.Context, req CardListFilter) 
 }
 
 func (r *tiktokCardRepository) IncrementViewCount(ctx context.Context, id uint) error {
-	return r.db.Model(&model.TikTokCard{}).
+	return r.db.WithContext(ctx).Model(&model.TikTokCard{}).
 		Where("id = ?", id).
 		UpdateColumn("view_count", gorm.Expr("view_count + 1")).Error
 }
 
 func (r *tiktokCardRepository) IncrementLikeCount(ctx context.Context, id uint) error {
-	return r.db.Model(&model.TikTokCard{}).
+	return r.db.WithContext(ctx).Model(&model.TikTokCard{}).
 		Where("id = ?", id).
 		UpdateColumn("like_count", gorm.Expr("like_count + 1")).Error
 }
 
 func (r *tiktokCardRepository) IncrementShareCount(ctx context.Context, id uint) error {
-	return r.db.Model(&model.TikTokCard{}).
+	return r.db.WithContext(ctx).Model(&model.TikTokCard{}).
 		Where("id = ?", id).
 		UpdateColumn("share_count", gorm.Expr("share_count + 1")).Error
 }
 
 func (r *tiktokCardRepository) CreateActivity(ctx context.Context, activity *model.TikTokCardActivity) error {
-	return r.db.Create(activity).Error
+	return r.db.WithContext(ctx).Create(activity).Error
 }
 
 func (r *tiktokCardRepository) GetOverallStats(ctx context.Context) (int64, int64, int64, []model.TikTokCard, error) {
 	var totalCards, activeCards, totalViews int64
 
-	if err := r.db.Model(&model.TikTokCard{}).Count(&totalCards).Error; err != nil {
+	if err := r.db.WithContext(ctx).Model(&model.TikTokCard{}).Count(&totalCards).Error; err != nil {
 		return 0, 0, 0, nil, err
 	}
-	if err := r.db.Model(&model.TikTokCard{}).Where("is_active = ?", true).Count(&activeCards).Error; err != nil {
+	if err := r.db.WithContext(ctx).Model(&model.TikTokCard{}).Where("is_active = ?", true).Count(&activeCards).Error; err != nil {
 		return 0, 0, 0, nil, err
 	}
-	if err := r.db.Model(&model.TikTokCard{}).Select("COALESCE(SUM(view_count), 0)").Row().Scan(&totalViews); err != nil {
+	if err := r.db.WithContext(ctx).Model(&model.TikTokCard{}).Select("COALESCE(SUM(view_count), 0)").Row().Scan(&totalViews); err != nil {
 		return 0, 0, 0, nil, err
 	}
 
 	var popular []model.TikTokCard
-	if err := r.db.Order("view_count DESC").Limit(5).Find(&popular).Error; err != nil {
+	if err := r.db.WithContext(ctx).Order("view_count DESC").Limit(5).Find(&popular).Error; err != nil {
 		return 0, 0, 0, nil, err
 	}
 
@@ -142,7 +142,7 @@ func (r *tiktokCardRepository) GetOverallStats(ctx context.Context) (int64, int6
 
 func (r *tiktokCardRepository) GetCardStats(ctx context.Context, id uint, days int) (*model.TikTokCard, []model.TikTokCardActivity, error) {
 	var card model.TikTokCard
-	if err := r.db.Where("id = ?", id).First(&card).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("id = ?", id).First(&card).Error; err != nil {
 		return nil, nil, err
 	}
 	var activities []model.TikTokCardActivity
@@ -150,7 +150,7 @@ func (r *tiktokCardRepository) GetCardStats(ctx context.Context, id uint, days i
 		days = 7
 	}
 	since := time.Now().AddDate(0, 0, -days)
-	if err := r.db.Where("card_id = ? AND created_at >= ?", id, since).Order("created_at DESC").Limit(50).Find(&activities).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("card_id = ? AND created_at >= ?", id, since).Order("created_at DESC").Limit(50).Find(&activities).Error; err != nil {
 		return nil, nil, err
 	}
 	return &card, activities, nil
@@ -158,7 +158,7 @@ func (r *tiktokCardRepository) GetCardStats(ctx context.Context, id uint, days i
 
 func (r *tiktokCardRepository) ListAll(ctx context.Context) ([]model.TikTokCard, error) {
 	var cards []model.TikTokCard
-	if err := r.db.Find(&cards).Error; err != nil {
+	if err := r.db.WithContext(ctx).Find(&cards).Error; err != nil {
 		return nil, err
 	}
 	return cards, nil
@@ -166,7 +166,7 @@ func (r *tiktokCardRepository) ListAll(ctx context.Context) ([]model.TikTokCard,
 
 func (r *tiktokCardRepository) CountDailyView(ctx context.Context, day string) (int64, error) {
 	var n int64
-	if err := r.db.Model(&model.TikTokCardActivity{}).
+	if err := r.db.WithContext(ctx).Model(&model.TikTokCardActivity{}).
 		Where("activity_type = ? AND DATE(created_at) = ?", "view", day).
 		Count(&n).Error; err != nil {
 		return 0, err
@@ -176,7 +176,7 @@ func (r *tiktokCardRepository) CountDailyView(ctx context.Context, day string) (
 
 func (r *tiktokCardRepository) CountCardDailyView(ctx context.Context, cardID uint, day string) (int64, error) {
 	var n int64
-	if err := r.db.Model(&model.TikTokCardActivity{}).
+	if err := r.db.WithContext(ctx).Model(&model.TikTokCardActivity{}).
 		Where("card_id = ? AND activity_type = ? AND DATE(created_at) = ?", cardID, "view", day).
 		Count(&n).Error; err != nil {
 		return 0, err
@@ -186,7 +186,7 @@ func (r *tiktokCardRepository) CountCardDailyView(ctx context.Context, cardID ui
 
 func (r *tiktokCardRepository) ListRecentActivities(ctx context.Context, limit int) ([]model.TikTokCardActivity, error) {
 	var list []model.TikTokCardActivity
-	if err := r.db.Order("created_at DESC").Limit(limit).Find(&list).Error; err != nil {
+	if err := r.db.WithContext(ctx).Order("created_at DESC").Limit(limit).Find(&list).Error; err != nil {
 		return nil, err
 	}
 	return list, nil

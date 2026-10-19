@@ -47,7 +47,7 @@ func (r *MessageHubRepository) CreateWithInboxTx(
 
 func (r *MessageHubRepository) MarkReadByID(ctx context.Context, id uint) error {
 	now := time.Now()
-	return r.db.Model(&model.MessageHub{}).Where("id = ?", id).
+	return r.db.WithContext(ctx).Model(&model.MessageHub{}).Where("id = ?", id).
 		Updates(map[string]any{
 			"is_read": true,
 			"read_at": now,

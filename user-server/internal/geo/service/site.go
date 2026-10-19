@@ -152,7 +152,7 @@ Sitemap: /sitemap.xml
 func (s *SiteDeployService) ExportToHugo(ctx context.Context) (int, error) {
 	// 读配置
 	var siteCfg model.GeoSite
-	if err := s.db.Where("active = true").First(&siteCfg).Error; err != nil {
+	if err := s.db.WithContext(ctx).Where("active = true").First(&siteCfg).Error; err != nil {
 		return 0, fmt.Errorf("geo_site 未配置: %w", err)
 	}
 	if siteCfg.HugoPath == "" {
@@ -170,7 +170,7 @@ func (s *SiteDeployService) ExportToHugo(ctx context.Context) (int, error) {
 
 	// 读已发布文章
 	var articles []model.GeoArticle
-	if err := s.db.Where("status = ?", "published").Find(&articles).Error; err != nil {
+	if err := s.db.WithContext(ctx).Where("status = ?", "published").Find(&articles).Error; err != nil {
 		return 0, err
 	}
 
@@ -209,7 +209,7 @@ func (s *SiteDeployService) ExportToHugo(ctx context.Context) (int, error) {
 		sitePath := fmt.Sprintf("/article/%s.html", slug)
 		mdRelPath := fmt.Sprintf("/posts/%s.md", slug)
 		now := time.Now()
-		s.db.Model(&a).Updates(map[string]any{
+		s.db.WithContext(ctx).Model(&a).Updates(map[string]any{
 			"site_url":      siteURL,
 			"site_path":     sitePath,
 			"markdown_path": mdRelPath,
@@ -262,7 +262,7 @@ func (s *SiteDeployService) buildSitemapXML(domain string, articles []model.GeoA
 // TriggerDeploy 触发部署（git add → commit → push → GitHub Actions → Cloudflare）
 func (s *SiteDeployService) TriggerDeploy(ctx context.Context) (string, error) {
 	var siteCfg model.GeoSite
-	if err := s.db.Where("active = true").First(&siteCfg).Error; err != nil {
+	if err := s.db.WithContext(ctx).Where("active = true").First(&siteCfg).Error; err != nil {
 		return "", err
 	}
 
@@ -282,13 +282,13 @@ func (s *SiteDeployService) TriggerDeploy(ctx context.Context) (string, error) {
 	}
 
 	now := time.Now()
-	s.db.Model(&siteCfg).Update("last_deploy_at", now)
+	s.db.WithContext(ctx).Model(&siteCfg).Update("last_deploy_at", now)
 
 	// 触发蜘蛛推送（异步，不等部署完成）
 	// 用 >= 而不是 =，避免时间戳精度导致漏查
 	triggerFrom := now.Add(-30 * time.Second)
 	var articles []model.GeoArticle
-	s.db.Where("deployed_at >= ?", triggerFrom).Find(&articles)
+	s.db.WithContext(ctx).Where("deployed_at >= ?", triggerFrom).Find(&articles)
 	urls := make([]string, 0, len(articles))
 	for _, a := range articles {
 		if a.SiteURL != "" {
@@ -297,6 +297,9 @@ func (s *SiteDeployService) TriggerDeploy(ctx context.Context) (string, error) {
 	}
 	if len(urls) > 0 && s.pushSvc != nil {
 		go func() {
+			// 判读：这里的 ctx 只喂 pusher.Push 的外部 HTTP 推送引擎；geo_push_records
+			// 的写走 s.db.Begin() 起的 tx、不消费本 ctx，所以裸 Background 不是隔离
+			// callback 的触点，本轮不动（tx 侧无 ctx 属仓储层结构问题，另行处理）。
 			_ = s.pushSvc.PushURLs(context.Background(), urls)
 		}()
 	}

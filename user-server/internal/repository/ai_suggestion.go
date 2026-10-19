@@ -28,20 +28,20 @@ func NewAISuggestionRepositoryWithDB(db *gorm.DB) *AISuggestionRepository {
 
 // Create 创建AI建议
 func (r *AISuggestionRepository) Create(ctx context.Context, suggestion *model.AISuggestion) error {
-	return r.db.Create(suggestion).Error
+	return r.db.WithContext(ctx).Create(suggestion).Error
 }
 
 // GetBySessionID 获取会话的AI建议列表
 func (r *AISuggestionRepository) GetBySessionID(ctx context.Context, sessionID string) ([]*model.AISuggestion, error) {
 	var suggestions []*model.AISuggestion
-	err := r.db.Where("session_id = ?", sessionID).Order("created_at DESC").Limit(10).Find(&suggestions).Error
+	err := r.db.WithContext(ctx).Where("session_id = ?", sessionID).Order("created_at DESC").Limit(10).Find(&suggestions).Error
 	return suggestions, err
 }
 
 // MarkAsUsed 标记建议已使用
 func (r *AISuggestionRepository) MarkAsUsed(ctx context.Context, id uint, agentID uint) error {
 	now := time.Now()
-	return r.db.Model(&model.AISuggestion{}).Where("id = ?", id).Updates(map[string]any{
+	return r.db.WithContext(ctx).Model(&model.AISuggestion{}).Where("id = ?", id).Updates(map[string]any{
 		"is_used": true,
 		"used_by": agentID,
 		"used_at": &now,

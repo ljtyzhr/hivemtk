@@ -14,6 +14,7 @@ import (
 	"hivemtk-user/internal/dto"
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/mail"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
 	"hivemtk-user/internal/service"
@@ -227,6 +228,19 @@ func (s *EmailSendService) SendEmail(ctx context.Context, req dto.SendEmailReque
 //
 // 三个步骤各自的失败都不阻断本轮剩下的事，但一律出声：这一格静默失败的原症状就是
 // "邮件永远停在待发送、一行错误都没有"，不能再把它换成另一句没人看见的话。
+//
+// 后台任务租户扇出（specs/001-saas-multi-tenant T020）：TENANT_MODE=on 时 email_sends 是
+// 租户表，排水 worker 由 context.Background() 起的节拍调用、没有 HTTP 请求 ctx 可绑，
+// 无租户 ctx 的 ClaimDueForUpdate（query）、ReclaimStaleSending/ExpireStalePending
+// （update）都会被隔离 callback fail-closed 拒绝（生产日志实证："[email-drain] 本轮排水失败 ⇒
+// 未认领的邮件留待下一轮: [tenant] 表 email_sends 需要租户上下文但 ctx 未绑定（query）"）。
+//
+// 修法是 Fanout 而不是 system scope：认领→投递是**逐租户的业务动作**，deliverClaimed 往下
+// 要按 ctx 取退订名单（email_unsubscribe）、按 SmtpID 取发信配置（email_smtp）、再回写行状态
+// —— system scope 虽能放行查询，但这些读会摊成跨租户全量（A 租户的退订名单挡住 B 的信），
+// 新建行还会落到列默认租户 1（写错租户）。Fanout 逐活跃租户注入 ctx（Query 加
+// WHERE tenant_id=N、Create 填 N），off 模式退化为单默认租户，等价历史行为 ——
+// 与 sop_scheduler.tick / churn_score_job 同一形态。
 func (s *EmailSendService) ProcessPendingEmails(ctx context.Context) error {
 	deliver := s.deliveryFn()
 	if deliver == nil {
@@ -234,30 +248,35 @@ func (s *EmailSendService) ProcessPendingEmails(ctx context.Context) error {
 	}
 	now := time.Now()
 
-	if n, err := s.repo.ReclaimStaleSending(ctx, now.Add(-EmailSendingStaleAfter)); err != nil {
-		logger.Errorf("[email-drain] 投递中途崩溃的 sending 行回捞失败 ⇒ 这些邮件本轮不重投：%v", err)
-	} else if n > 0 {
-		// 重投是 at-least-once：崩溃点若在 SMTP 已递交之后，收件人会收到重复邮件。
-		// 这个代价换的是"不会有一封邮件永久卡在 sending"，必须留一行能查到的说明。
-		logger.Warnf("[email-drain] 回捞 %d 封认领后未投递完的邮件并重投（收件人可能收到重复邮件）", n)
-	}
-	if n, err := s.repo.ExpireStalePending(ctx, now.Add(-EmailPendingTTL)); err != nil {
-		logger.Errorf("[email-drain] 超龄 pending 判过期失败 ⇒ 这些行会在队列里越积越多：%v", err)
-	} else if n > 0 {
-		logger.Warnf("[email-drain] %d 封排期邮件已超过 %s 的龄上限 ⇒ 判过期不补发（进程停机期间的排期不会突然群发）",
-			n, EmailPendingTTL)
-	}
+	_, err := tenant.Fanout(ctx, nil, func(ctx context.Context, _ uint) (int64, error) {
+		if n, err := s.repo.ReclaimStaleSending(ctx, now.Add(-EmailSendingStaleAfter)); err != nil {
+			logger.Errorf("[email-drain] 投递中途崩溃的 sending 行回捞失败 ⇒ 这些邮件本轮不重投：%v", err)
+		} else if n > 0 {
+			// 重投是 at-least-once：崩溃点若在 SMTP 已递交之后，收件人会收到重复邮件。
+			// 这个代价换的是"不会有一封邮件永久卡在 sending"，必须留一行能查到的说明。
+			logger.Warnf("[email-drain] 回捞 %d 封认领后未投递完的邮件并重投（收件人可能收到重复邮件）", n)
+		}
+		if n, err := s.repo.ExpireStalePending(ctx, now.Add(-EmailPendingTTL)); err != nil {
+			logger.Errorf("[email-drain] 超龄 pending 判过期失败 ⇒ 这些行会在队列里越积越多：%v", err)
+		} else if n > 0 {
+			logger.Warnf("[email-drain] %d 封排期邮件已超过 %s 的龄上限 ⇒ 判过期不补发（进程停机期间的排期不会突然群发）",
+				n, EmailPendingTTL)
+		}
 
-	pendingEmails, err := s.repo.ClaimDueForUpdate(ctx, now, emailDrainBatch)
-	if err != nil {
-		return err
-	}
+		pendingEmails, err := s.repo.ClaimDueForUpdate(ctx, now, emailDrainBatch)
+		if err != nil {
+			// 认领失败必须透给调用方（worker 的"本轮排水失败"日志与
+			// TestEmailDrainWorker_RunOnceSurfacesRepoFailure 都压在这一条上）；
+			// Fanout 负责跨租户汇总：全失败时原样返回（错误已按租户包裹）。
+			return 0, err
+		}
 
-	for _, email := range pendingEmails {
-		s.deliverClaimed(ctx, email, deliver)
-	}
-
-	return nil
+		for _, email := range pendingEmails {
+			s.deliverClaimed(ctx, email, deliver)
+		}
+		return int64(len(pendingEmails)), nil
+	})
+	return err
 }
 
 // deliverClaimed 投递这一封已被本轮独占认领的邮件，并把结果写回状态。

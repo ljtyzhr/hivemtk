@@ -847,7 +847,7 @@ func (s *KeywordMiningService) SaveMiningResults(ctx context.Context, seeds []st
 	}
 
 	var existing []model.GeoKeyword
-	if err := s.db.Model(&model.GeoKeyword{}).
+	if err := s.db.WithContext(ctx).Model(&model.GeoKeyword{}).
 		Where("keyword IN ?", texts).
 		Find(&existing).Error; err != nil {
 		return 0, err
@@ -883,7 +883,7 @@ func (s *KeywordMiningService) SaveMiningResults(ctx context.Context, seeds []st
 		})
 	}
 	if len(seedRows) > 0 {
-		if err := s.kwRepo.BatchCreate(seedRows); err != nil {
+		if err := s.kwRepo.BatchCreate(ctx, seedRows); err != nil {
 			return 0, err
 		}
 		for _, row := range seedRows {
@@ -891,7 +891,7 @@ func (s *KeywordMiningService) SaveMiningResults(ctx context.Context, seeds []st
 		}
 	}
 	if len(staleSeedIDs) > 0 {
-		if err := s.db.Model(&model.GeoKeyword{}).Where("id IN ?", staleSeedIDs).
+		if err := s.db.WithContext(ctx).Model(&model.GeoKeyword{}).Where("id IN ?", staleSeedIDs).
 			Updates(map[string]any{"last_mined_at": now, "updated_at": now}).Error; err != nil {
 			return 0, err
 		}
@@ -945,13 +945,13 @@ func (s *KeywordMiningService) SaveMiningResults(ctx context.Context, seeds []st
 
 	saved := 0
 	if len(toCreate) > 0 {
-		if err := s.kwRepo.BatchCreate(toCreate); err != nil {
+		if err := s.kwRepo.BatchCreate(ctx, toCreate); err != nil {
 			return saved, err
 		}
 		saved += len(toCreate)
 	}
 	for _, ex := range toSave {
-		if err := s.db.Model(&model.GeoKeyword{}).Where("id = ?", ex.ID).Updates(map[string]any{
+		if err := s.db.WithContext(ctx).Model(&model.GeoKeyword{}).Where("id = ?", ex.ID).Updates(map[string]any{
 			"layer":           ex.Layer,
 			"parent_id":       ex.ParentID,
 			"parent_keyword":  ex.ParentKeyword,
@@ -1038,7 +1038,7 @@ func (s *KeywordMiningService) BuildFunnel(ctx context.Context) (*KeywordFunnel,
 		Cnt   int64  `gorm:"column:cnt"`
 	}
 	var rows []row
-	if err := s.db.Model(&model.GeoKeyword{}).
+	if err := s.db.WithContext(ctx).Model(&model.GeoKeyword{}).
 		Select("COALESCE(layer,'seed') as layer, COUNT(*) as cnt").
 		Where("status = ?", "active").
 		Group("COALESCE(layer,'seed')").
@@ -1061,7 +1061,7 @@ func (s *KeywordMiningService) BuildFunnel(ctx context.Context) (*KeywordFunnel,
 
 	// 按 query_intent 分组
 	var irows []row
-	if err := s.db.Model(&model.GeoKeyword{}).
+	if err := s.db.WithContext(ctx).Model(&model.GeoKeyword{}).
 		Select("COALESCE(query_intent,'unknown') as layer, COUNT(*) as cnt").
 		Where("status = ?", "active").
 		Group("COALESCE(query_intent,'unknown')").
@@ -1074,7 +1074,7 @@ func (s *KeywordMiningService) BuildFunnel(ctx context.Context) (*KeywordFunnel,
 
 	// 按 funnel_stage 分组
 	var srows []row
-	if err := s.db.Model(&model.GeoKeyword{}).
+	if err := s.db.WithContext(ctx).Model(&model.GeoKeyword{}).
 		Select("COALESCE(funnel_stage,'unknown') as layer, COUNT(*) as cnt").
 		Where("status = ?", "active").
 		Group("COALESCE(funnel_stage,'unknown')").
@@ -1089,7 +1089,7 @@ func (s *KeywordMiningService) BuildFunnel(ctx context.Context) (*KeywordFunnel,
 	var engRows []struct {
 		Engines string `gorm:"column:engines"`
 	}
-	if err := s.db.Model(&model.GeoKeyword{}).
+	if err := s.db.WithContext(ctx).Model(&model.GeoKeyword{}).
 		Select("suggest_engines as engines").
 		Where("status = ? AND layer = ? AND suggest_engines <> ''", "active", "suggest").
 		Scan(&engRows).Error; err != nil {

@@ -17,8 +17,10 @@ type stubConfigRepo struct {
 	err error
 }
 
-func (r *stubConfigRepo) Get() (*model.GeoConfig, error)  { return r.cfg, r.err }
-func (r *stubConfigRepo) Update(_ *model.GeoConfig) error { return nil }
+func (r *stubConfigRepo) Get(_ context.Context) (*model.GeoConfig, error) { return r.cfg, r.err }
+func (r *stubConfigRepo) Update(_ context.Context, _ *model.GeoConfig) error {
+	return nil
+}
 
 // stubProbeRepo 只喂 ListRecent（avg_sov 走零窗口 → ListRecent），
 // 其余方法返回零值，被调用即暴露"口径漂移"。

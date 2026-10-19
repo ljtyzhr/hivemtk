@@ -10,6 +10,7 @@ import (
 
 	"hivemtk-user/internal/cache"
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
@@ -39,7 +40,11 @@ type webhookRecoveryScanner struct {
 
 	stopCh chan struct{}
 
-	lastID uint64
+	// lastIDByTenant 各租户自己的 id 游标（防头部反复失败的事件占满批次窗口饿死后续积压）。
+	//
+	// 必须按租户分账：扇出之后拿租户 A 的 id 去当租户 B 的下界，会把 B 更早的积压整段跳过，
+	// 而"跳过"在恢复扫描器这里的形态是**这批事件永远不重放**（游标只有在批次不满时才归零）。
+	lastIDByTenant map[uint]uint64
 }
 
 func newWebhookRecoveryScanner(svc *WebhookService) *webhookRecoveryScanner {
@@ -56,14 +61,15 @@ func newWebhookRecoveryScanner(svc *WebhookService) *webhookRecoveryScanner {
 		repository.SetWebhookEventRepoDB(eventRepo, db)
 	}
 	return &webhookRecoveryScanner{
-		svc:       svc,
-		eventRepo: eventRepo,
-		handleFn:  svc.handleJob,
-		interval:  webhookEnvSeconds("WEBHOOK_RECOVERY_INTERVAL_SECONDS", webhookRecoveryIntervalDefault),
-		cooldown:  webhookEnvSeconds("WEBHOOK_RECOVERY_COOLDOWN_SECONDS", webhookRecoveryCooldownDefault),
-		batchSize: webhookEnvInt("WEBHOOK_RECOVERY_BATCH", webhookRecoveryBatchDefault),
-		enabled:   os.Getenv("WEBHOOK_RECOVERY_ENABLED") != "false",
-		stopCh:    make(chan struct{}),
+		svc:            svc,
+		eventRepo:      eventRepo,
+		handleFn:       svc.handleJob,
+		interval:       webhookEnvSeconds("WEBHOOK_RECOVERY_INTERVAL_SECONDS", webhookRecoveryIntervalDefault),
+		cooldown:       webhookEnvSeconds("WEBHOOK_RECOVERY_COOLDOWN_SECONDS", webhookRecoveryCooldownDefault),
+		batchSize:      webhookEnvInt("WEBHOOK_RECOVERY_BATCH", webhookRecoveryBatchDefault),
+		enabled:        os.Getenv("WEBHOOK_RECOVERY_ENABLED") != "false",
+		stopCh:         make(chan struct{}),
+		lastIDByTenant: map[uint]uint64{},
 	}
 }
 
@@ -106,24 +112,58 @@ func (s *WebhookService) startRecoveryScanner() {
 	})
 }
 
+// scanOnce 扫一轮：**按租户扇出**（specs/001-saas-multi-tenant T020）。
+//
+// 为什么必须 Fanout 而不是 system scope：TENANT_MODE=on 时 webhook_events 是租户表，扫描器由
+// startRecoveryScanner 用 context.Background() 起、没有 HTTP 请求 ctx 可绑，无租户 ctx 的
+// ListStaleUnprocessedAfter（query）会被隔离 callback fail-closed 拒绝（生产日志实证：
+// "[WebhookRecovery] scan query failed: [tenant] 表 webhook_events 需要租户上下文但 ctx
+// 未绑定（query）"）—— 症状是积压事件一轮都不重放。
+//
+// 扫描放行只是半件事：往下 replay → handleJob 是**跨模块执行路径**（落 unified_messages、
+// 触发 AI、回写事件行），全靠 ctx 注入租户。走 system scope 虽能取到全量行，但执行链的
+// Create 会被 fillCreateForTenant 放行到列默认租户 1（串写默认租户），Query 也会摊成跨租户
+// 全量 —— 与 sop_scheduler.tick 同一结论：执行链吃 ctx 租户 ⇒ 逐租户注入（Fanout）。
+// off 模式退化为单默认租户，等价历史行为。
 func (sc *webhookRecoveryScanner) scanOnce(ctx context.Context) int {
 	if sc.eventRepo == nil {
 		return 0
 	}
-	cutoff := time.Now().Add(-sc.cooldown)
-	events, err := sc.eventRepo.ListStaleUnprocessedAfter(ctx, cutoff, sc.lastID, sc.batchSize)
+	total, err := tenant.Fanout(ctx, nil, func(tctx context.Context, tenantID uint) (int64, error) {
+		return sc.scanTenant(tctx, tenantID), nil
+	})
 	if err != nil {
-		logger.Ctx(ctx).Warn().Err(err).Msg("[WebhookRecovery] scan query failed")
+		// 只有 Fanout 的结构性失败会走到这里（活跃租户枚举器未装配 / ctx 已取消）：
+		// 照样出声 —— 这一格静默的形态就是"积压事件再也不重放，且一行日志都没有"。
+		logger.Ctx(ctx).Warn().Err(err).Msg("[WebhookRecovery] scan fanout failed")
+		return 0
+	}
+	return int(total)
+}
+
+// scanTenant 单租户的一轮扫描（scanOnce 的扇出回调体），返回本租户重放成功的事件数。
+//
+// 查询失败就地出声并返回 0：Fanout 只在**全部**租户都失败时才把错误汇总回外层，
+// 单租户失败若不就地报，就会被它吞掉 —— 原实现那句 "[WebhookRecovery] scan query failed"
+// 因此原样保留（多带一枚 tenant_id，好定位是哪个租户的积压没动）。
+func (sc *webhookRecoveryScanner) scanTenant(ctx context.Context, tenantID uint) int64 {
+	if sc.lastIDByTenant == nil { // 防手工构造的 scanner（测试替身）踩 nil map 写
+		sc.lastIDByTenant = map[uint]uint64{}
+	}
+	cutoff := time.Now().Add(-sc.cooldown)
+	events, err := sc.eventRepo.ListStaleUnprocessedAfter(ctx, cutoff, sc.lastIDByTenant[tenantID], sc.batchSize)
+	if err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Uint("tenant_id", tenantID).Msg("[WebhookRecovery] scan query failed")
 		return 0
 	}
 	if len(events) == 0 {
-		sc.lastID = 0
+		sc.lastIDByTenant[tenantID] = 0
 		return 0
 	}
 	if len(events) < sc.batchSize {
-		sc.lastID = 0
+		sc.lastIDByTenant[tenantID] = 0
 	} else {
-		sc.lastID = uint64(events[len(events)-1].ID)
+		sc.lastIDByTenant[tenantID] = uint64(events[len(events)-1].ID)
 	}
 	replayed := 0
 	for _, evt := range events {
@@ -138,9 +178,9 @@ func (sc *webhookRecoveryScanner) scanOnce(ctx context.Context) int {
 		replayed++
 	}
 	if replayed > 0 {
-		logger.Infof("[WebhookRecovery] replayed %d/%d stale events", replayed, len(events))
+		logger.Infof("[WebhookRecovery] replayed %d/%d stale events (tenant=%d)", replayed, len(events), tenantID)
 	}
-	return replayed
+	return int64(replayed)
 }
 
 func (sc *webhookRecoveryScanner) claim(ctx context.Context, evt *model.WebhookEvent) (string, bool) {

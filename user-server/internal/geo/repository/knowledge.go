@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"hivemtk-user/internal/geo/model"
 	_db "hivemtk-user/internal/pkg/db"
 
@@ -9,11 +10,11 @@ import (
 
 // GeoKnowledgeDocumentRepository GEO 知识库文档仓储接口
 type GeoKnowledgeDocumentRepository interface {
-	Create(doc *model.GeoKnowledgeDocument) error
-	Update(doc *model.GeoKnowledgeDocument) error
-	GetByID(id string) (*model.GeoKnowledgeDocument, error)
-	GetList() ([]*model.GeoKnowledgeDocument, error)
-	Delete(id string) error
+	Create(ctx context.Context, doc *model.GeoKnowledgeDocument) error
+	Update(ctx context.Context, doc *model.GeoKnowledgeDocument) error
+	GetByID(ctx context.Context, id string) (*model.GeoKnowledgeDocument, error)
+	GetList(ctx context.Context) ([]*model.GeoKnowledgeDocument, error)
+	Delete(ctx context.Context, id string) error
 }
 
 type geoKnowledgeDocRepo struct {
@@ -29,26 +30,26 @@ func NewGeoKnowledgeDocumentRepositoryWithDB(db *gorm.DB) GeoKnowledgeDocumentRe
 	return &geoKnowledgeDocRepo{db: db}
 }
 
-func (r *geoKnowledgeDocRepo) Create(doc *model.GeoKnowledgeDocument) error {
-	return r.db.Create(doc).Error
+func (r *geoKnowledgeDocRepo) Create(ctx context.Context, doc *model.GeoKnowledgeDocument) error {
+	return r.db.WithContext(ctx).Create(doc).Error
 }
 
-func (r *geoKnowledgeDocRepo) Update(doc *model.GeoKnowledgeDocument) error {
-	return r.db.Save(doc).Error
+func (r *geoKnowledgeDocRepo) Update(ctx context.Context, doc *model.GeoKnowledgeDocument) error {
+	return r.db.WithContext(ctx).Save(doc).Error
 }
 
-func (r *geoKnowledgeDocRepo) GetByID(id string) (*model.GeoKnowledgeDocument, error) {
+func (r *geoKnowledgeDocRepo) GetByID(ctx context.Context, id string) (*model.GeoKnowledgeDocument, error) {
 	var doc model.GeoKnowledgeDocument
-	err := r.db.Where("id = ?", id).First(&doc).Error
+	err := r.db.WithContext(ctx).Where("id = ?", id).First(&doc).Error
 	return &doc, err
 }
 
-func (r *geoKnowledgeDocRepo) GetList() ([]*model.GeoKnowledgeDocument, error) {
+func (r *geoKnowledgeDocRepo) GetList(ctx context.Context) ([]*model.GeoKnowledgeDocument, error) {
 	var docs []*model.GeoKnowledgeDocument
-	err := r.db.Order("created_at DESC").Find(&docs).Error
+	err := r.db.WithContext(ctx).Order("created_at DESC").Find(&docs).Error
 	return docs, err
 }
 
-func (r *geoKnowledgeDocRepo) Delete(id string) error {
-	return r.db.Where("id = ?", id).Delete(&model.GeoKnowledgeDocument{}).Error
+func (r *geoKnowledgeDocRepo) Delete(ctx context.Context, id string) error {
+	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&model.GeoKnowledgeDocument{}).Error
 }
