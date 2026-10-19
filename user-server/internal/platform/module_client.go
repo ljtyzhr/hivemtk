@@ -229,11 +229,11 @@ type CreateOrderInput struct {
 	ContactPhone  string                     `json:"contact_phone"`
 	ContactEmail  string                     `json:"contact_email"`
 	Remark        string                     `json:"remark"`
-	// TenantCode 当前租户短码（平台端按 (merchant_key, tenant_code) 归属订阅行）。
-	// 订阅类订单（order_type=subscription，用户端续费 Renew）必带；模块/LLM 等
-	// 其余类型暂不强填（空值 omitempty 不上行，平台走旧行为兜底）——平台端
-	// 本轮只改订阅段，非订阅单统一带上属于越契约改动。取不到租户归属时为空，
-	// 平台对空值同样按旧行为兜底，不报错。
+	// TenantCode 当前租户短码（平台端按 (merchant_key, tenant_code) 归属订单行）。
+	// 订阅类订单（order_type=subscription，用户端续费 Renew）与 LLM 套餐订单
+	// （order_type=llm）必带；模块等其余类型暂不强填（空值 omitempty 不上行，
+	// 平台走旧行为兜底）。取不到租户归属时为空，平台对空值同样按旧行为兜底，
+	// 不报错。
 	TenantCode string `json:"tenant_code,omitempty"`
 }
 
@@ -275,20 +275,26 @@ func (c *ModuleClient) GetOrder(ctx context.Context, orderNo string) (map[string
 
 // ---------------------------------------------------------- LLM 计费
 
-// Wallet 拉取平台 LLM 余额
+// Wallet 拉取平台 LLM 余额。
+//
+// 带 ?tenant_code=<当前租户 code>：平台端钱包已按 (merchant_key, tenant_code)
+// 每租户一行，不带 code 平台不知道展示哪一段。空串（取不到租户归属）照发
+// （?tenant_code=）、平台按旧行为兜底 —— 取不到 code 绝不允许报错。
 func (c *ModuleClient) Wallet(ctx context.Context) (*PlatformLLMWallet, error) {
 	var w PlatformLLMWallet
-	if err := c.do("GET", "/merchant-api/llm/wallet", nil, &w); err != nil {
+	path := "/merchant-api/llm/wallet?tenant_code=" + url.QueryEscape(TenantCodeFromContext(ctx))
+	if err := c.do("GET", path, nil, &w); err != nil {
 		return nil, err
 	}
 	return &w, nil
 }
 
-// WalletTxns 拉取钱包流水
+// WalletTxns 拉取钱包流水（tenant_code 口径同 Wallet）
 func (c *ModuleClient) WalletTxns(ctx context.Context, page, pageSize int) ([]map[string]any, int64, error) {
 	q := url.Values{}
 	q.Set("page", fmt.Sprintf("%d", page))
 	q.Set("page_size", fmt.Sprintf("%d", pageSize))
+	q.Set("tenant_code", TenantCodeFromContext(ctx))
 	var out struct {
 		List  []map[string]any `json:"list"`
 		Total int64            `json:"total"`

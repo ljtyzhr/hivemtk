@@ -36,14 +36,17 @@ import (
 
 // PlatformLLMUsage 一次调用的用量（由 dispatcher 在收尾时回填）
 type PlatformLLMUsage struct {
-	MerchantKey      string
-	Provider         string
-	Model            string
-	PlanCode         string
-	Scenario         string
-	TraceID          string
-	AgentID          string
-	UserID           string
+	MerchantKey string
+	Provider    string
+	Model       string
+	PlanCode    string
+	Scenario    string
+	TraceID     string
+	AgentID     string
+	UserID      string
+	// TenantCode 本次调用归属的租户短码（与代理调用 query 的 tenant_code 同源，
+	// 供明细字段完整性/排障定位用）。镜像表已按 tenant_id 归属，本轮不加列。
+	TenantCode       string
 	PromptTokens     int64
 	CompletionTokens int64
 	InputPricePer1k  float64
@@ -76,7 +79,7 @@ func recordPlatformUsage(ctx context.Context, u PlatformLLMUsage) {
 	inc, outc := u.CostCents()
 	gormDB := dbUtil.GetDB()
 	if gormDB == nil {
-		logger.Warnf("[llm-usage] db 未就绪，跳过本地用量落库 provider=%s", u.Provider)
+		logger.Warnf("[llm-usage] db 未就绪，跳过本地用量落库 provider=%s tenant=%s", u.Provider, u.TenantCode)
 		return
 	}
 	rec := &model.PlatformLLMUsageRecord{
@@ -97,7 +100,8 @@ func recordPlatformUsage(ctx context.Context, u PlatformLLMUsage) {
 	}
 	// 幂等：trace_id 撞唯一索引就跳过（重试/重放不重复记账）
 	if err := gormDB.WithContext(ctx).Clauses(clause.OnConflict{DoNothing: true}).Create(rec).Error; err != nil {
-		logger.Warnf("[llm-usage] 本地用量落库失败 provider=%s trace=%s: %v", u.Provider, u.TraceID, err)
+		logger.Warnf("[llm-usage] 本地用量落库失败 provider=%s tenant=%s trace=%s: %v",
+			u.Provider, u.TenantCode, u.TraceID, err)
 		return
 	}
 }
@@ -183,6 +187,7 @@ func InstallPlatformUsageSink() {
 			TraceID:          e.TraceID,
 			AgentID:          e.AgentID,
 			UserID:           e.UserID,
+			TenantCode:       e.TenantCode,
 			PromptTokens:     e.PromptTokens,
 			CompletionTokens: e.CompletionTokens,
 		})

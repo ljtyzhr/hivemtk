@@ -87,8 +87,20 @@ func (c *AssetMarketClient) GetAssetDetail(ctx context.Context, assetID string) 
 	return resp, nil
 }
 
+// Purchase 购买资产。
+//
+// body 带 tenant_code：平台端购买记录按 (merchant_key, tenant_code) 每租户
+// 一行归属。空值 omitempty 不上行 = 旧行为字节级不变（取不到租户归属时平台
+// 走旧行为兜底），绝不允许因为取不到 code 就不发请求/报错。
 func (c *AssetMarketClient) Purchase(ctx context.Context, assetID string) error {
-	return c.doData("POST", "/merchant-api/asset-market/purchase", map[string]string{"asset_id": assetID}, nil)
+	in := struct {
+		AssetID    string `json:"asset_id"`
+		TenantCode string `json:"tenant_code,omitempty"`
+	}{
+		AssetID:    assetID,
+		TenantCode: TenantCodeFromContext(ctx),
+	}
+	return c.doData("POST", "/merchant-api/asset-market/purchase", in, nil)
 }
 
 func (c *AssetMarketClient) PullData(ctx context.Context, assetID string) (*AssetPayload, error) {

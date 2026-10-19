@@ -59,6 +59,9 @@ func (s *LLMWalletService) Wallet(ctx context.Context) (*WalletView, error) {
 		}
 		return &WalletView{PlatformEnabled: false}, nil
 	}
+	// tenant_code 由 ModuleClient.Wallet 从 ctx 解析（口径同 currentTenantCode）：
+	// 平台钱包按 (merchant_key, tenant_code) 每租户一行，这里展示的余额就是
+	// 本租户自己的那一段。
 	pw, err := platform.NewModuleClient().Wallet(ctx)
 	if err != nil {
 		return nil, bizerr.Wrap(bizerr.CodeModulePlatformUnavail, "查询 LLM 余额失败（平台不可达）", err)
@@ -123,6 +126,7 @@ func (s *LLMWalletService) Txns(ctx context.Context, page, pageSize int) ([]TxnV
 	if !config.PlatformEnabled() {
 		return []TxnView{}, 0, nil
 	}
+	// tenant_code 口径同 Wallet（ModuleClient 内部从 ctx 解析，本租户流水）
 	rows, total, err := platform.NewModuleClient().WalletTxns(ctx, page, pageSize)
 	if err != nil {
 		return nil, 0, bizerr.Wrap(bizerr.CodeModulePlatformUnavail, "查询 LLM 流水失败", err)
@@ -186,6 +190,10 @@ func (s *LLMWalletService) CreateOrder(ctx context.Context, in LLMOrderInput) (*
 		ContactPhone:  in.ContactPhone,
 		ContactEmail:  in.ContactEmail,
 		Remark:        in.Remark,
+		// 平台端 LLM 订单按 (merchant_key, tenant_code) 归属每租户一行：
+		// 本套餐入的是**本租户**的钱包。取不到租户归属时为空（omitempty 不上行），
+		// 平台按旧行为兜底。
+		TenantCode: currentTenantCode(ctx),
 	})
 	if err != nil {
 		return nil, bizerr.Wrap(bizerr.CodeModulePlatformUnavail, "提交订单失败（平台不可达）", err)

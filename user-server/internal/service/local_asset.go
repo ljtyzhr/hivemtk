@@ -96,6 +96,8 @@ func (s *LocalAssetService) PurchaseAndSync(ctx context.Context, platformAssetID
 		return bizerr.New(bizerr.CodeAssetDup, "资产已存在,请直接点击「同步到最新版本」")
 	}
 
+	// tenant_code 由 AssetMarketClient.Purchase 从 ctx 解析（口径同
+	// currentTenantCode）：平台购买记录按 (merchant_key, tenant_code) 每租户一行。
 	if err := s.platformClient.Purchase(ctx, platformAssetID); err != nil {
 
 		return bizerr.New(bizerr.CodePlatformUnavail, purchaseFailMsg(err))
