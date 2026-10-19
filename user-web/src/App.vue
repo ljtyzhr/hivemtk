@@ -34,10 +34,13 @@ onMounted(async () => {
 
     const currentPath = router.currentRoute.value.path
 
+    // /register 也在豁免名单：SaaS 上深链 #/register 直达注册页时，引导检查失败
+    // 不该把它 replace 成 /setup（注册页本来就在初始化流程之外）。
     const isPublicEmbedPath =
       currentPath.startsWith('/chat/embed') ||
       currentPath === '/setup' ||
-      currentPath === '/login';
+      currentPath === '/login' ||
+      currentPath === '/register';
     if (!initialized) {
       if (!isPublicEmbedPath) {
         ElMessage.info(t('system.completeInitFirst'))

@@ -257,8 +257,18 @@ router.beforeEach(async (to, from, next) => {
     }
   }
 
-  const isPublicPath = to.path === '/setup' || to.path === '/login' || to.path.startsWith('/chat/embed');
-  const isPublic = to.meta?.public === true || isPublicPath
+  // /register 必须在白名单里：它是懒加载路由（moduleMarket 模块），首次导航时
+  // 下面 ensureRouteLoaded 刚 addRoute 的 meta 还没解析进 to.meta，不兜底会被
+  // 误判成非公开路由，干净浏览器点「注册商户账号」直接被推进 /setup 或 /login。
+  const isPublicPath = to.path === '/setup' || to.path === '/login' || to.path === '/register' || to.path.startsWith('/chat/embed');
+  // 不能只信 to.meta：vue-router 4 的 to 在本次导航开始时已解析完毕，ensureRouteLoaded
+  // 动态 addRoute 的 meta（如 /register 的 public:true）不会回填到这个 to 上。
+  // addRoute 之后从 router.getRoutes() 重读真实注册的 meta 再判一次。
+  let isPublic = to.meta?.public === true || isPublicPath
+  if (!isPublic) {
+    const registered = router.getRoutes().find((r) => r.path === to.path)
+    if (registered?.meta?.public === true) isPublic = true
+  }
 
   if (!isPublic) {
     // 首次进入非公开路由时，先等引导状态拉齐（只等这一次，之后走缓存 promise，

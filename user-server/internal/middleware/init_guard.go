@@ -3,6 +3,7 @@ package middleware
 import (
 	"net/http"
 
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/pkg/utils/response"
 	"hivemtk-user/internal/system/install"
@@ -37,6 +38,15 @@ func InitGuard() gin.HandlerFunc {
 			return
 		}
 
+		// SaaS（tenant_mode=on）实例没有"单机未安装"概念：租户走 /register 自助开户，
+		// install.lock 只服务离线单机 setup 向导。口径与 controller/system_init.go
+		// GetInitStatus 一致——on 模式恒已初始化，否则 docker 直部的 SaaS 实例
+		// （从未跑过 setup）所有非白名单接口会被打回 INIT_REQUIRED，前端全部推进 /setup。
+		if tenant.IsMultiTenant() {
+			c.Next()
+			return
+		}
+
 		if !status.Initialized {
 			logger.Info("InitGuard: 未初始化 path=" + path)
 			c.AbortWithStatusJSON(200, gin.H{
@@ -64,7 +74,10 @@ func InitGuard() gin.HandlerFunc {
 // 收尾核对，两道门叠在一起，缺任一侧都不会留下匿名建号窗口。
 func SetupOnlyGuard() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if install.GetStatus().Initialized {
+		// 与 InitGuard 同口径：on 模式恒"已初始化"（多租户没有单机 setup 场景），
+		// 这里也必须直接拒绝 init-admin，否则 SaaS 实例上这条白名单路由
+		// 会绕过"装完即封"变成匿名铸超管的窗口。
+		if tenant.IsMultiTenant() || install.GetStatus().Initialized {
 			logger.Info("SetupOnlyGuard: 系统已初始化，拒绝重复创建超管 path=" + c.FullPath())
 			response.Error(c, http.StatusForbidden, response.ErrSystemAlreadyInitialized)
 			c.Abort()

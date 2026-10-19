@@ -54,6 +54,7 @@
 
           <el-form-item
             v-if="tenantMode"
+            ref="tenantCodeItemRef"
             prop="tenant_code"
           >
             <el-input
@@ -155,7 +156,7 @@
 </template>
 
 <script setup>
-import { ref, reactive } from 'vue'
+import { ref, reactive, nextTick } from 'vue'
 import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
@@ -170,6 +171,8 @@ const route = useRoute()
 const userStore = useUserStore()
 const permissionStore = usePermissionStore()
 const loginFormRef = ref(null)
+// 4108（用户名跨租户歧义）时用来把焦点送进租户代码框的锚点
+const tenantCodeItemRef = ref(null)
 const loading = ref(false)
 
 // MFA 第二步状态机：mfaMode=false 走凭证登录；登录响应带 need_mfa + temp_token 时
@@ -332,7 +335,20 @@ const handleLogin = async () => {
     }
     } catch (error) {
     console.error('登录失败:', error)
-    ElMessage.error(error.message || t('core.login.fail'))
+    // 4108 CodeTenantAmbiguousUsername：跨租户同名用户无法唯一定位租户，后端要求
+    // 改用邮箱或带租户代码——用户体感是「租户代码必选」，这里把文案改成可操作指引，
+    // 并把焦点送进租户代码框（不改视觉体系，只 focus）。
+    const bizCode = String(error?.bizCode ?? error?.response?.data?.code ?? '')
+    if (bizCode === '4108') {
+      ElMessage.error('该用户名在多个租户下重复：请输入上方租户代码，或直接用注册邮箱登录')
+      if (tenantMode.value) {
+        nextTick(() => {
+          tenantCodeItemRef.value?.$el?.querySelector('input')?.focus()
+        })
+      }
+    } else {
+      ElMessage.error(error.message || t('core.login.fail'))
+    }
   } finally {
     loading.value = false
   }

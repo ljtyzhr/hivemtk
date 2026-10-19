@@ -192,8 +192,12 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElNotification } from 'element-plus'
 import { http } from '@/utils/request'
 import { regulatoryNotice } from '@/api/moduleMarket'
+import { useUserStore } from '@/stores/user'
+import { usePermissionStore } from '@/stores/permission'
 
 const router = useRouter()
+const userStore = useUserStore()
+const permissionStore = usePermissionStore()
 const formRef = ref()
 const step = ref(0)
 const submitting = ref(false)
@@ -284,7 +288,7 @@ async function submit () {
     // SaaS 开户：POST /api/tenant/register —— 一并创建租户（不再落到默认租户 1）。
     // 字段按后端 RegisterTenantRequest 口径：name=租户展示名（复用公司名称）、
     // legal_person=负责人（表单字段仍叫 real_name）。响应是 {tenant_id, tenant_code, token}，
-    // 没有 user 对象，所以注册后不自动登录，跳回登录页让用户用刚设的凭据登录。
+    // token 为开户管理员的终令牌：拿到就直接落库自动登录，缺失才回登录页。
     const res = await http.post('/api/tenant/register', {
       name: form.company_name,
       username: form.username,
@@ -306,7 +310,22 @@ async function submit () {
       message: `您的租户代码：${tenantCode || '—'}，请妥善保存（登录与开通子账号时需要）`,
       duration: 0
     })
-    router.push('/login')
+    const token = res?.token || res?.data?.token || ''
+    if (token) {
+      // 后端没有返回 user 对象，最小用户信息用表单 + 响应拼出来（role 取开户默认 admin）；
+      // 登录终态收尾与 Login.vue finishLogin 对齐：落库 + 重置菜单缓存，然后回首页。
+      userStore.login({
+        username: form.username,
+        email: form.email,
+        role: 'admin',
+        tenant_id: res?.tenant_id ?? res?.data?.tenant_id ?? '',
+        tenant_code: tenantCode
+      }, token)
+      permissionStore.resetMenus()
+      router.push('/')
+    } else {
+      router.push('/login')
+    }
   } catch (e) {
     // 后端 bizerr 码：4103 邮箱已注册 / 4104 注册已关闭 / 4105 限流。
     // 文案用机器读数字段分流（bizCode/response.data.code），不靠 message 措辞判分支。
