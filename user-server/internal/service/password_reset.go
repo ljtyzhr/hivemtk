@@ -159,7 +159,9 @@ func getFrontendBaseURL() string {
 	if url := os.Getenv("FRONTEND_URL"); url != "" {
 		return url
 	}
-	return "http://localhost:3000"
+	// env > 参数 > 代码兜底（R2 参数化）。默认与接线前的 http://localhost:3000 一致。
+	// 读取点形状：GetString( 与 group/key 字面量同一行，满足读取点门禁。
+	return GlobalConfigParam().GetString(context.Background(), "urls", "frontend_url", "http://localhost:3000")
 }
 
 // PasswordResetTokenIsValid 令牌是否有效（未过期且未使用）

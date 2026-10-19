@@ -129,14 +129,14 @@ func (p *defaultSendPipeline) checkQuietHours(ctx context.Context, req *ReachSen
 	if p.config.QuietHoursClock != nil {
 		now = p.config.QuietHoursClock()
 	}
-	if !inQuietHoursWindow(now, quietHoursStartHour, quietHoursEndHour) {
+	if !inQuietHoursWindow(now, reachQuietHoursStart(ctx), reachQuietHoursEnd(ctx)) {
 		return false
 	}
 	deferrer := p.config.QuietHoursDeferrer
 	if deferrer == nil {
 		deferrer = GetGlobalQuietHoursQueue()
 	}
-	sendAt := nextQuietHoursRelease(now, nextDayFirstSendHour)
+	sendAt := nextQuietHoursRelease(now, reachQuietHoursEnd(ctx))
 	if err := deferrer.Defer(ctx, req, sendAt); err != nil {
 		logger.Errorf("[R-4] quiet hours 延迟入队失败，按拒绝处理 channel=%s recipient=%s: %v",
 			req.Channel, req.RecipientID, err)

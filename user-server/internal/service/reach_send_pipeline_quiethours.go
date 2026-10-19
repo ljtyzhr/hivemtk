@@ -24,12 +24,34 @@ func GetGlobalQuietHoursQueue() *MemoryQuietHoursQueue {
 
 var globalQuietHoursQueue *MemoryQuietHoursQueue
 
+// 默认窗口常量（R2 参数化后的代码兜底值）。种子 reach.quiet_hours_start/_end 的
+// DefaultValue 与这里逐项相等，行为零变更。reach 管线（触达）与 webhook AI 回复免打扰
+// （webhook_outbound.go 的 aiReplyQuiet*）是两条不同管道，各有一组键，禁止合并。
 const (
 	quietHoursStartHour = 22
 	quietHoursEndHour   = 8
 
 	nextDayFirstSendHour = quietHoursEndHour
 )
+
+// reachQuietHoursStart / reachQuietHoursEnd 每请求读参数中心（60s TTL 缓存），
+// 越界（<0 或 >23）回落代码默认。读取点形状：GetInt( 与 group/key 字面量同一行，
+// 满足 check-config-param-readpoints.py 门禁。scope=全局（config_params 无租户维）。
+func reachQuietHoursStart(ctx context.Context) int {
+	v := GlobalConfigParam().GetInt(ctx, "reach", "quiet_hours_start", quietHoursStartHour)
+	if v < 0 || v > 23 {
+		return quietHoursStartHour
+	}
+	return v
+}
+
+func reachQuietHoursEnd(ctx context.Context) int {
+	v := GlobalConfigParam().GetInt(ctx, "reach", "quiet_hours_end", quietHoursEndHour)
+	if v < 0 || v > 23 {
+		return quietHoursEndHour
+	}
+	return v
+}
 
 func inQuietHoursWindow(t time.Time, startHour, endHour int) bool {
 	h := t.In(cstZone).Hour()

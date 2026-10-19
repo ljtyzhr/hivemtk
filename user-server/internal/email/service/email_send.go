@@ -13,6 +13,7 @@ import (
 
 	"hivemtk-user/internal/dto"
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/crypto"
 	"hivemtk-user/internal/pkg/mail"
 	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
@@ -311,6 +312,8 @@ func (s *EmailSendService) deliverClaimed(ctx context.Context, email *model.Emai
 func (s *EmailSendService) sendActualEmail(ctx context.Context, email *model.EmailSend) error {
 
 	var smtpConfig *model.EmailSmtp
+	// 显式 SmtpID：这封信被明确指到某个 SMTP 账号（页面/业务写死的选择），优先级最高，
+	// 不参与下面「默认通道」的 env > DB 链（改它等于推翻一次刻意的选择）。
 	if email.SmtpID != "" {
 		cfg, err := s.smtpRepo.GetByID(ctx, email.SmtpID)
 		if err == nil && cfg != nil && cfg.Server != "" && cfg.Username != "" {
@@ -320,14 +323,21 @@ func (s *EmailSendService) sendActualEmail(ctx context.Context, email *model.Ema
 		}
 	}
 
+	// 默认通道（R2 路径 A 接线）：env > DB > 无。
+	// env 保留为部署层应急开关；DB 是「运营在 /email/smtp 页面配的账号」，
+	// 接上之后运营改页面即驱动发送、免重启。表空/全不可用时 resolveSmtpFromDB 返 nil，
+	// 回落下面的报错分支，行为与接线前（无 env 即报错）一致。
 	if smtpConfig == nil {
 		smtpConfig = resolveSmtpFromEnv()
 	}
+	if smtpConfig == nil {
+		smtpConfig = s.resolveSmtpFromDB(ctx)
+	}
 
 	if smtpConfig == nil {
-		logger.Errorf("邮件发送失败 [%s]: 无任何可用 SMTP 配置（SmtpID=%q 且未配置 EMAIL_163_*/QQ_EMAIL_*/SMTP_* 环境变量）",
+		logger.Errorf("邮件发送失败 [%s]: 无任何可用 SMTP 配置（SmtpID=%q 且未配置 EMAIL_163_*/QQ_EMAIL_*/SMTP_* 环境变量，email_smtp 表也无可用行）",
 			email.ID, email.SmtpID)
-		return fmt.Errorf("邮件发送失败：未找到可用的 SMTP 配置（请配置 SmtpID 或 EMAIL_163_*/QQ_EMAIL_*/SMTP_* 环境变量）")
+		return fmt.Errorf("邮件发送失败：未找到可用的 SMTP 配置（请配置 SmtpID、EMAIL_163_*/QQ_EMAIL_*/SMTP_* 环境变量，或在邮件账号页新增一条 SMTP）")
 	}
 
 	m := s.buildEmailMessage(ctx, smtpConfig, email)
@@ -335,6 +345,36 @@ func (s *EmailSendService) sendActualEmail(ctx context.Context, email *model.Ema
 	d := gomail.NewDialer(smtpConfig.Server, smtpConfig.Port, smtpConfig.Username, smtpConfig.Password)
 
 	return d.DialAndSend(m)
+}
+
+// resolveSmtpFromDB 从 email_smtp 表挑一个可用 SMTP 作为默认发信通道（R2 路径 A 接线）。
+//
+// 为什么补这一层：/email/smtp 页面把 SMTP 持久化进 email_smtp 表，但发信侧原先只在
+// 「email.SmtpID 显式指定」时读表；一旦某封信没带 SmtpID 且 env 未配，即便表里躺着
+// 运营配好的账号也直接报错。接上之后：显式 SmtpID > env > 本函数（DB）> 报错。
+//
+// 密码落库时已按 crypto.Encrypt 加密（见 EmailSmtpService.CreateEmailSmtp），这里发送前
+// 解回明文；解不动（FIELD_ENCRYPTION_KEY 换过 / 明文遗留行）就沿用原值，与
+// GetRandEmailSmtp 同一口径（decrypt 成功且非空才替换）。挑第一个 Server/Username 都
+// 非空的行；表空或全不可用返回 nil，让调用方回落报错。
+func (s *EmailSendService) resolveSmtpFromDB(ctx context.Context) *model.EmailSmtp {
+	if s.smtpRepo == nil {
+		return nil
+	}
+	list, err := s.smtpRepo.GetEmailSmtpList(ctx)
+	if err != nil || len(list) == 0 {
+		return nil
+	}
+	for _, cfg := range list {
+		if cfg == nil || cfg.Server == "" || cfg.Username == "" {
+			continue
+		}
+		if dec, derr := crypto.Decrypt(cfg.Password); derr == nil && dec != "" {
+			cfg.Password = dec
+		}
+		return cfg
+	}
+	return nil
 }
 
 // buildEmailMessage 组装一封外发的信：头、正文、附件。

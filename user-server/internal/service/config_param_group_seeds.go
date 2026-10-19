@@ -58,7 +58,9 @@ func DefaultParamGroupDefs() []ParamGroupDef {
 		{Group: "geo", Label: "可见性统计", Description: "地域关键词与可见性统计窗口", SortOrder: 250},
 		{Group: "pagination", Label: "分页", Description: "分页与游标分页每批条数", SortOrder: 260},
 		{Group: "middleware", Label: "中间件", Description: "请求体上限、审计刷盘、MFA 宽限", SortOrder: 270},
+		{Group: "ratelimit", Label: "限流", Description: "全局限流与访客双维限流的速率与桶容量", SortOrder: 272},
 		{Group: "misc", Label: "其它", Description: "跨域的零散旋钮（访客令牌、上传上限、心跳等）", SortOrder: 280},
+		{Group: "urls", Label: "对外链接", Description: "前端/云端/官网基址（发信与展示用的对外 URL）", SortOrder: 282},
 		{Group: "smart_cs", Label: "智能客服", Description: "智能客服编排的阈值与开关", SortOrder: 290},
 	}
 }

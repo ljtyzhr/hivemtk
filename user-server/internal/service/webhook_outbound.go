@@ -57,11 +57,33 @@ const (
 // DelayedOutboundReply 别名（模型已收敛到 model 层，表 reach_delayed_outbound）
 type DelayedOutboundReply = model.DelayedOutboundReply
 
+// aiReplyQuietHoursStart / aiReplyQuietHoursEnd 每请求读参数中心（60s TTL 缓存），
+// 越界（<0 或 >23）回落代码默认。读取点形状：GetInt( 与 group/key 字面量同一行，
+// 满足 check-config-param-readpoints.py 门禁。scope=全局（config_params 无租户维）。
+// 与 reach.quiet_hours_*（触达管线）是两条不同管道，各一组键，禁止合并。
+func aiReplyQuietHoursStart(ctx context.Context) int {
+	v := GlobalConfigParam().GetInt(ctx, "webhook", "ai_quiet_hours_start", aiReplyQuietStartHour)
+	if v < 0 || v > 23 {
+		return aiReplyQuietStartHour
+	}
+	return v
+}
+
+func aiReplyQuietHoursEnd(ctx context.Context) int {
+	v := GlobalConfigParam().GetInt(ctx, "webhook", "ai_quiet_hours_end", aiReplyQuietEndHour)
+	if v < 0 || v > 23 {
+		return aiReplyQuietEndHour
+	}
+	return v
+}
+
 func isAIReplyQuietHours(t time.Time) bool {
 	if os.Getenv("DISABLE_AI_QUIET_HOURS") != "" {
 		return false
 	}
-	return inQuietHoursWindow(t, aiReplyQuietStartHour, aiReplyQuietEndHour)
+	// 判定在异步排水/重投链上被调用，无请求 ctx 可用，走 context.Background()。
+	// 参数中心 60s TTL 缓存，故不会每条消息打库。
+	return inQuietHoursWindow(t, aiReplyQuietHoursStart(context.Background()), aiReplyQuietHoursEnd(context.Background()))
 }
 
 // aiReplyQuietHoursFn 免打扰判定的可换点（测试装替身，生产走 isAIReplyQuietHours）。
@@ -111,7 +133,7 @@ func (s *WebhookService) enqueueDelayedOutbound(ctx context.Context, channel Web
 		Content:        content,
 		Cards:          delayedCardsPayload(cards),
 		ConversationID: convIDOrEmpty(hubMsg),
-		SendAt:         nextQuietHoursRelease(time.Now(), aiReplyQuietEndHour),
+		SendAt:         nextQuietHoursRelease(time.Now(), aiReplyQuietHoursEnd(ctx)),
 		Status:         model.DelayedStatusPending,
 		Kind:           model.DelayedKindQuietHours,
 	}
@@ -175,7 +197,7 @@ func nextSendRetryAt(now time.Time, attempts int, ce *ChannelError) time.Time {
 	// 免打扰时段内重投等于在深夜打扰客户，和首发同规则顺延到窗口开放。
 	// 取一次再调用：不在持锁期间跑可换出去的策略（见 loadAIReplyQuietHoursFn）。
 	if loadAIReplyQuietHoursFn()(at) {
-		at = nextQuietHoursRelease(at, aiReplyQuietEndHour)
+		at = nextQuietHoursRelease(at, aiReplyQuietHoursEnd(context.Background()))
 	}
 	return at
 }

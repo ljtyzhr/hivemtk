@@ -1485,3 +1485,51 @@ Name 没有加「（只读）」后缀：UI 已有独立徽标，`stripSuffix()`
 | 文档门 | `check-md-links-offline.py` 断链 0（扫描 201 个 md）；`check-doc-consistency.sh` 27 个关键文件全通过 |
 
 前端全量这次是**与另一个全量 vitest 会话并发**跑的（即机器有明显 CPU 争抢），仍然 611/611 全绿——这是 §6.10 那个串行开关的实证，不是空闲下的侥幸绿。
+
+#### R0 已落地（2026-10-20）：纯减配零行为变更——死配置删除 + 部署种子行 + 文档对齐
+
+调研与批次设计见 `docs/CONFIG_INVENTORY_20261020.md`（2026-10-20 双栈+部署层全量清单，判定框架=来源层 × 生效时机双轴）。
+
+1. **user 仓删死键 `JWT_EXPIRE`**：删除前取证——Go 读取点 0；`website/src` 命中 2 处均为 DocsPage.vue 静态示例文案；env-coverage 基线 0 命中（⇒ 不触发 STALE）。删 `.env-example`、根 `.env`、`RELEASE_PREPARATION.md` 2 处提及、DocsPage.vue 2 处文案。**一行 Go 未动**：有效期仍硬编码 24h。
+2. **platform 仓删两处死配置**（`config_viper.go` 净 −38 行）：a) `smtp.*` 段（结构体/字段/6 条 SetDefault，消费方 0，yaml 本就无此段）；b) `WatchConfig()`（调用方 0，连带 fsnotify/logger import，`go mod tidy` 后 fsnotify 转 indirect）。热重载从未接线，配置变更仍需重启，与删除前行为一致。
+3. **deploy**：`env_kv_block` platform 分支新增 `PLATFORM_PUBLIC_URL=$PLATFORM_API_URL`（deploy.conf:28 派生；服务器 `.env:28` 已手工存在同值，本地幂等模拟 diff 为空）；README 密钥清单补 `MASTER_KEY`（5→6）并同步 §4 幂等 sed 字段清单。
+4. **顺带修复预存在门禁红**：`check-env-coverage.py` 的 `UNDOCUMENTED RERANK_PROTOCOL`（读取点由 `67c2f18f` 引入但未文档化）——`.env-example` 补 `RERANK_PROTOCOL=` 与协议分支注释。
+
+验证：user 三道参数门 rc=0（211 wired / UNDECLARED 0 / STALE 0）+ doc-consistency / md-links rc=0；platform md-links / no-xapptool / build / vet / gofmt 全 rc=0；deploy `bash -n` ×2；`PLATFORM_PUBLIC_URL` 幂等模拟无差异。明确没做：platform 仓自带的另一份死 `JWT_EXPIRE`（`.env:9`/`.env.example:36`/`发布流程.md:75`，消费方 0）留待后续；未提交未部署由管理者统一执行。
+
+#### 平台端 R1 已落地（2026-10-20）：platform-server 参数中心 + 7 条种子 + 管理页
+
+移植自 user-server 生产实现（seed 语义只补缺/只刷定义列/永不碰 value、60s TTL 缓存+负缓存+写失效、审计 AES 加密、三道门禁），适配平台端五层结构与既有 admin JWT 组。
+
+| group.key | 默认 | 代码点位 | 生效时机 |
+| --- | --- | --- | --- |
+| `heartbeat.offline_ttl_minutes` | 5 | `platform-server/internal/service/async_process.go:70`（读点挪进每分钟扫描闭包） | 热 · ≤1min + 缓存 60s |
+| `ratelimit.login_rps` / `login_burst` | 5 / 10 | `internal/middleware/ratelimit.go:180-181`（`NewLoginRateLimiter`） | 构造期 · Restart=true |
+| `ratelimit.global_rps` / `global_burst` | 20 / 200 | `internal/middleware/ratelimit.go:198-199`（`NewGlobalRateLimiter`，装配点 `router.go:36`） | 构造期 · Restart=true |
+| `upload.max_size_mb` | 10 | `internal/controller/upload_controller.go:57`（env `UPLOAD_MAX_SIZE` 保留最高优先级应急） | 热 · 每次上传请求 |
+| `middleware.max_json_body_mb` | 8 | `internal/middleware/body_limit.go:48`（env 含 0=关闭的应急语义） | 装配期 · Restart=true |
+
+**两条判断**：① 建表走 AutoMigrate（`db.go` `migrateModels`，`config_params`+`config_param_audit_logs`，唯一键 `(param_group,key)` 由 uniqueIndex 生成）⇒ 不新增 SQL/配置文件，不触发 deploy.sh rsync 与 Dockerfile COPY 两处同步；`config_params` 是逐行独立旋钮的 KV 参数中心，非「部署级单行表」反模式。② `config.HeartbeatOfflineTTLMinutes=5` 提成常量，viper 缺省/`<=0` 保护/种子 DefaultValue 三处同源，defaults 门 7/7 可比对。
+
+**契约**：`GET /platform/config-params(?group=)` + `PUT /platform/config-params/:group/:key`（400+可读 message；`data.items`/`data` 返回形）。**前端**（platform-web，静态路由菜单「系统 › 系统参数」`/platform/config-params`）：按组 Tabs+计数角标、生效时机徽标（立即/需重启）、按 valueType 渲染编辑控件+min/max/JSON 校验、保存后回读服务端真实状态、readOnly 禁用；dev 默认契约 Mock（`VITE_CONFIG_PARAMS_MOCK=false` 切真实），生产构建恒走真实接口。
+
+验证：三道移植门 rc=0（读取点 7 wired、默认值 7 可比对 0 mismatch），**破坏验证**（临时移除 `upload.max_size_mb` 读点 → readpoints rc=1 UNDECLARED + defaults rc=2 棘轮失守 → 还原双绿）；`go test ./... -p 1` 除既有 `TestMonitoringService_GetBusinessMetrics`（seed 未来铺 vs 期望过去铺，只在每日 00:00–00:59 窗口红，与本批无关）外全绿；新增 11 个用例（seed 幂等/缓存 TTL/GET·PUT 契约/审计加密/路由挂载+无令牌 401）；platform-web `vite build` 通过（ConfigParams chunk 15.38 kB）。未做：Swagger 再生成、门禁挂 CI、AuditLogs/ResetToDefault 端点（仓储层已具备，契约未含）。
+
+#### R2 用户端第一批已落地（2026-10-20）：ratelimit(6) + 免打扰(4) + urls(3) 共 13 条 + SMTP 路径 A
+
+| group.key | 默认 | 代码点位 | 生效时机 |
+| --- | --- | --- | --- |
+| `ratelimit.global_rps` / `global_bucket` | **1000 / 20000** | `router/router.go:215` | 装配期 · Restart=true |
+| `ratelimit.visitor_per_ip_rps` / `_bucket` | 20 / 40 | `router/chat_routes.go:26` | 装配期 · Restart=true |
+| `ratelimit.visitor_per_channel_rps` / `_bucket` | 100 / 200 | 同上 | 装配期 · Restart=true |
+| `reach.quiet_hours_start` / `_end` | 22 / 8 | `service/reach_send_pipeline_quiethours.go` 读口 | 每请求（60s TTL） |
+| `webhook.ai_quiet_hours_start` / `_end` | 23 / 7 | `service/webhook_outbound.go` 读口 | 每请求 |
+| `urls.frontend_url` | `http://localhost:3000` | `service/password_reset.go` `getFrontendBaseURL` | 每请求 |
+| `urls.cloud_url` | `https://work.xapptool.cn` | `config/platform.go` provider seam（`app/url_params_wiring.go` 注入） | 每请求 |
+| `urls.geo_site_base_url` | `https://xiaofang142.github.io/hivemtk` | `config/website.go` provider seam | 每请求 |
+
+**三条判断**：① 全局限流默认取**生产值 1000/20000**（`DefaultRateLimitConfig` 的 10/100 仅测试兜底，生产被 `router.go:215` 显式覆盖）——守「默认值=当前生产行为」，避免参数化把线上限流收紧 100 倍；② 免打扰两管道（触达 22-8 / AI 回复 23-7）**分键不合并**，0-23 越界回落代码默认，`nextDayFirstSend` 恒等于 end；③ config 不能反向 import service，两条 config 侧 URL 走 provider seam。
+
+**SMTP 路径 A（DB 化零新增表）**：勘察确认 `/email/smtp` 页面 → `email_smtp` 专表已持久化（密码 AES-GCM 落库、DTO 脱敏）；发信侧 `email/service/email_send.go` 默认通道补 DB 臂：**显式 SmtpID > env > `resolveSmtpFromDB`（首条完整行，crypto.Decrypt）> 报错**——纯增量，只填原先「无 SmtpID 且无 env 即报错」的空档，env 存量部署行为不变，运营页面配好即驱动发送、免重启。
+
+验证：readpoints wired 211→224（UNDECLARED/STALE 0）、defaults comparable 186→197、keystyle 37 组 0 违规，三门 rc=0；gofmt/vet/build clean；`go test -p 1` 五包全 ok（service 668s，含免打扰解析/URL 三级优先/限流默认=生产值/SMTP 优先级新用例）。env 一个未删（`DISABLE_AI_QUIET_HOURS`/`FRONTEND_URL`/`PLATFORM_CLOUD_URL`/`GEO_SITE_BASE_URL` 全保留最高优先级应急）。明确未做：路径级配额 map、`FF_*`、`days=30` 报表窗口、备用邮箱通道。

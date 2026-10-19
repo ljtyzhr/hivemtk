@@ -227,6 +227,9 @@ func TestWebhookGroupSeedsMatchConstantDefaults(t *testing.T) {
 		WebhookWorkerCountParam:      {"4", 0},
 		WebhookQueueSizeParam:        {"512", 0},
 		WebhookReplyConcurrencyParam: {"32", 0},
+		// R2 新增：AI 回复免打扰窗口（每请求读，默认 23-7，与接线前硬编码一致）。
+		"ai_quiet_hours_start": {"23", 0},
+		"ai_quiet_hours_end":   {"7", 0},
 	}
 	defs := DefaultParamDefs()
 	index := make(map[string]ParamDef, len(want))
@@ -265,6 +268,9 @@ func TestWebhookConstructionTimeParamsAreMarkedRestart(t *testing.T) {
 		WebhookWorkerCountParam:      true,
 		WebhookQueueSizeParam:        true,
 		WebhookReplyConcurrencyParam: true,
+		// R2 新增：AI 回复免打扰窗口是每请求读（参数中心 60s TTL 缓存），Restart=false。
+		"ai_quiet_hours_start": false,
+		"ai_quiet_hours_end":   false,
 	}
 	seen := 0
 	for _, d := range DefaultParamDefs() {

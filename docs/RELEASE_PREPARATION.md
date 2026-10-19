@@ -38,7 +38,7 @@
 ### 1.2 加载顺序（优先级）
 
 1. **`.env` 注入**：`cmd/api/main.go:111` `utils.LoadDotEnv(".env")` —— **路径相对进程 CWD**，不覆盖已有环境变量。即：在 `user-server/` 目录起进程时读到的是 `user-server/.env`；**根 `.env` 必须由启动 shell 注入**（`scripts/deploy-user.sh:213` 的做法：`set -a && source .env && set +a` 后再启动）。
-2. **JWT 密钥**：`internal/pkg/utils/jwt.go` `loadJWTSecret()` → `USER_JWT_SECRET` > `JWT_SECRET`，缺失或 <32 字符直接 **panic**。⚠️ `config.yaml:43 security.jwt_secret` **没有任何 Go 代码读取**（已核实），配了也不生效；JWT 有效期硬编码 24h，`.env` 的 `JWT_EXPIRE` **无读取点**。
+2. **JWT 密钥**：`internal/pkg/utils/jwt.go` `loadJWTSecret()` → `USER_JWT_SECRET` > `JWT_SECRET`，缺失或 <32 字符直接 **panic**。⚠️ `config.yaml:43 security.jwt_secret` **没有任何 Go 代码读取**（已核实），配了也不生效；JWT 有效期硬编码 24h，`JWT_EXPIRE` **无读取点**（R0 批次已从 `.env` / `.env-example` 删除，代码无任何变化）。
 3. **`config.yaml` 查找**：`internal/config/server.go` `loadAppConfigOnce()` 顺序 `config.yaml` → `../config.yaml` → `user-server/config.yaml` → `<exeDir>/config.yaml` → `<exeDir>/../config.yaml`；全失败回落 Docker 网络默认（`postgres-user:8202`）。
 4. **占位符插值**：`${VAR:default}` 语法；**总优先级：环境变量 > config.yaml > 代码默认值**（例外：`PUBLIC_BASE_URL` env > yaml > `X-Forwarded-*` > Host；proxy：yaml > `HTTP(S)_PROXY` env > 直连）。
 5. **密钥文件通道**：`HIVEMTK_SECRETS_DIR`（默认 `/run/secrets`）注入 env；**`MASTER_KEY` 缺失时非 dev 姿态直接 `os.Exit(1)`**。dev 判定：`APP_ENV` > `MODE` > `GIN_MODE=debug`。
@@ -264,7 +264,7 @@ cd "$REMOTE_DEPLOY_DIR" && set -a && source .env && set +a && cd platform-server
 
 1. `.env` 全部 gitignore → 发布手工带；`.env-example` 缺 `MASTER_KEY`/`SEED_PASSWORD`（已补进 .env-example）。
 2. `make up/down/restart` 等旧目标**无规则**，退出 0 但什么都不做（已改：敲了显式 exit 1 并提示用 db-up/db-down/db-logs）。
-3. `config.yaml security.jwt_secret` 与 `.env JWT_EXPIRE` **无代码读取点**，配了无效。
+3. `config.yaml security.jwt_secret` **无代码读取点**，配了无效；`.env` 的 `JWT_EXPIRE` 同样无读取点，R0 批次已删该键（现只剩文档页示例文案）。
 4. 编号 SQL（002~058）**Go 不自动执行**；建表主通道是 AutoMigrate + 首次 init SQL。
 5. 无 systemd / 无生效 nginx / 无 CI 部署——守护与反代站点自建（仓内只有模板；已新增 deploy/systemd/* 模板）。
 6. 旧云端已退役，`DEPLOY_HOST` 无默认值。

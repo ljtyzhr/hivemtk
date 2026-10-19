@@ -369,7 +369,6 @@ USER_SERVER_PORT=8204
 
 # {{ $t('JWT / 安全密钥（务必修改为随机串）') }}
 JWT_SECRET=ChangeMe_To_32Char_Random_JWT_Secret_Key_For_Production
-JWT_EXPIRE=24h
 
 # {{ $t('平台端（可选本地组件，默认关闭；只有开启时才读取下面三项）') }}
 PLATFORM_ENABLED=false
@@ -522,7 +521,7 @@ PORT=8204
 USER_SERVER_PORT=8204
 
 # {{ $t('安全') }}
-JWT_SECRET / JWT_EXPIRE=24h
+JWT_SECRET
 
 # {{ $t('平台端（默认关闭；PLATFORM_ENABLED=false 时下面几项都不生效）') }}
 PLATFORM_ENABLED=false

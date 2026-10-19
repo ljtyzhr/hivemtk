@@ -31,7 +31,22 @@ type PlatformConfig struct {
 // 已替换为正式域名（work 子域 = 用户端应用入口）—— 全仓只此一处（平台配置 cloud_url / env PLATFORM_CLOUD_URL 可覆盖）。
 const DefaultCloudURL = "https://work.xapptool.cn"
 
-// CloudURL 云端版地址：已装配平台配置 > 环境变量 PLATFORM_CLOUD_URL > 占位常量。
+// cloudURLProvider 是 urls.cloud_url 参数中心取值口（R2 参数化）。
+// 默认返回空串 = 未装配，CloudURL() 会继续回落到 env/常量，等价于接线前行为。
+//
+// 做成 provider 而不是在这里调 config_param service：config 不能反向依赖 service
+// （service 层 import 了 config，反向会成环），装配点在 internal/app/url_params_wiring.go。
+var cloudURLProvider = func() string { return "" }
+
+// SetCloudURLProvider 注入 urls.cloud_url 参数中心取值口。传 nil 是空操作而不是复位
+// （与本仓其余 seam 一致，防止装配顺序出错把兜底顶掉）。
+func SetCloudURLProvider(fn func() string) {
+	if fn != nil {
+		cloudURLProvider = fn
+	}
+}
+
+// CloudURL 云端版地址：已装配平台配置 > 环境变量 PLATFORM_CLOUD_URL > 参数中心 urls.cloud_url > 占位常量。
 //
 // 刻意与 PlatformURL 不同：PlatformURL 关闭态恒空（"没有平台可连"是合法值），
 // 而云端地址是 public config 的展示字段，任何形态都要给前端一个可渲染的值
@@ -41,6 +56,9 @@ func CloudURL() string {
 		return strings.TrimSpace(PlatformCfg.CloudURL)
 	}
 	if v := strings.TrimSpace(os.Getenv("PLATFORM_CLOUD_URL")); v != "" {
+		return v
+	}
+	if v := strings.TrimSpace(cloudURLProvider()); v != "" {
 		return v
 	}
 	return DefaultCloudURL

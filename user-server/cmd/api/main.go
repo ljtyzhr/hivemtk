@@ -264,6 +264,13 @@ func main() {
 		logger.Info("[ConfigParam] Embedding 全局覆盖接线 " + strconv.Itoa(len(wired)) + " 条")
 	}
 
+	// urls 组两条（R2）：cloud_url / geo_site_base_url 的读取点在 internal/config
+	// （config 不能反向 import service），只能由装配层注入 provider。frontend_url
+	// 走 service 直连范式，不在这里。
+	if wired := app.WireURLsConfigParams(); len(wired) > 0 {
+		logger.Info("[ConfigParam] urls 组接线 " + strconv.Itoa(len(wired)) + " 条")
+	}
+
 	service.InitDefaultStorageIfEmpty(db.GetDB())
 	service.BindAssetLoaderRepository(db.GetDB())
 

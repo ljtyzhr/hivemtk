@@ -271,7 +271,7 @@ func TestFallbackNilDB(t *testing.T) {
 //	    实现 persona_evaluator.go 已随 9a5f716c 整体删除，这两条永远不会有读取点；
 //	    等价能力是 humanize（其四档已在 3.1a 接线）。留着只会在参数中心页上
 //	    摆两个永远生效不了的旋钮，诱导后来人去查一个已经删掉的实现。
-const defaultParamDefsWant = 224
+const defaultParamDefsWant = 237
 
 func TestDefaultParamDefsCount(t *testing.T) {
 	defs := DefaultParamDefs()

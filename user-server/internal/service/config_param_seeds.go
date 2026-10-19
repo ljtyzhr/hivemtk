@@ -843,5 +843,68 @@ func DefaultParamDefs() []ParamDef {
 		{Group: "bridge", Key: "sse_max_stream_duration", Name: "bridge SSE 单流最长时长",
 			Description: "单个 bridge SSE 连接从建立到被强制关闭的最长时长（秒）。写大＝长连接存活更久（重连少），代价是服务端持有连接的句柄与缓冲占用更久；写小＝客户端需要更频繁地重连重放 backlog。默认 300＝代码兜底 5 分钟（bridge/sse.go 的 SSEDefaultMaxStreamDuration），与 15s 心跳配套：到期由客户端重连并重放 backlog。0 或负值回落兜底",
 			ValueType:   "duration", DefaultValue: "300", Min: strPtr("60"), Max: strPtr("86400"), Step: strPtr("60"), Restart: false},
+
+		// ── ratelimit 组：全局限流 + 访客双维限流（R2 用户端第一批）──────
+		// 读取点在 internal/router（router.go / chat_routes.go），两处都 import service，
+		// 走直连范式。都是**装配期读一次**（router.Setup 跑一次把值塞进限流器构造），
+		// 故全标 Restart=true。
+		// 注意：全局两条的默认值取的是 router.go:215 生产实际传入的 1000/20000，
+		// 而不是 ratelimit.go DefaultRateLimitConfig 里的 10/100 —— 后者只是「无参调用
+		// RateLimitMiddleware()」时的兜底（仅测试走这条路），生产恒被 router 显式覆盖。
+		// 参数化锚在生产读取点上，故默认值必须等于生产值 1000/20000 才是行为零变更。
+		{Group: "ratelimit", Key: "global_rps", Name: "全局限流 RPS",
+			Description: "全局限流器每秒放行的请求数（按 IP/APIKey 令牌桶速率，Redis 模式换算成每分钟上限）。装配点 router.go 装配期读一次，改完需重启。写小会把正常流量挡在门外，写大等于放开。注意默认 1000 取自 router 生产值；ratelimit.go 的 DefaultRateLimitConfig(10) 仅测试无参调用时兜底，生产不走它",
+			ValueType:   "int", Unit: "次/秒", Risk: "danger", DefaultValue: "1000", Min: strPtr("1"), Max: strPtr("1000000"), Step: strPtr("10"), Restart: true},
+		{Group: "ratelimit", Key: "global_bucket", Name: "全局限流桶容量",
+			Description: "全局限流器令牌桶容量（允许的瞬时突发量）。装配期读一次，改完需重启。写小＝突发被削平成 429，写大＝一次洪峰全放行。默认 20000 取自 router 生产值",
+			ValueType:   "int", Risk: "danger", DefaultValue: "20000", Min: strPtr("1"), Max: strPtr("10000000"), Step: strPtr("100"), Restart: true},
+		{Group: "ratelimit", Key: "visitor_per_ip_rps", Name: "访客单 IP RPS",
+			Description: "公开聊天接口（/chat/public）按来源 IP 限流的每秒请求数。装配期读一次，改完需重启。写小会误伤 NAT/办公室出口共用 IP 的多名正常访客，写大削弱防爬能力",
+			ValueType:   "int", Unit: "次/秒", Risk: "warning", DefaultValue: "20", Min: strPtr("1"), Max: strPtr("10000"), Step: strPtr("1"), Restart: true},
+		{Group: "ratelimit", Key: "visitor_per_ip_bucket", Name: "访客单 IP 桶容量",
+			Description: "访客单 IP 令牌桶容量（允许的瞬时突发量）。装配期读一次，改完需重启。默认 40（2×RPS）",
+			ValueType:   "int", Risk: "warning", DefaultValue: "40", Min: strPtr("1"), Max: strPtr("100000"), Step: strPtr("1"), Restart: true},
+		{Group: "ratelimit", Key: "visitor_per_channel_rps", Name: "访客单渠道 RPS",
+			Description: "公开聊天接口按渠道（channel app_key）限流的每秒请求数，防脚本滥用单个渠道。装配期读一次，改完需重启。写小会让热门渠道的正常并发被误伤",
+			ValueType:   "int", Unit: "次/秒", Risk: "warning", DefaultValue: "100", Min: strPtr("1"), Max: strPtr("100000"), Step: strPtr("1"), Restart: true},
+		{Group: "ratelimit", Key: "visitor_per_channel_bucket", Name: "访客单渠道桶容量",
+			Description: "访客单渠道令牌桶容量（允许的瞬时突发量）。装配期读一次，改完需重启。默认 200（2×RPS）",
+			ValueType:   "int", Risk: "warning", DefaultValue: "200", Min: strPtr("1"), Max: strPtr("1000000"), Step: strPtr("10"), Restart: true},
+
+		// ── 免打扰窗口：两条独立管道、四条键，禁止合并（R2）──────────────
+		// reach 组管「全渠道触达管线」的静默时段（原 reach_send_pipeline_quiethours.go
+		// 硬编码 22-8）；webhook 组管「AI 回复」的免打扰（原 webhook_outbound.go 硬编码 23-7）。
+		// 两处是不同管道、允许不同值，故拆成两组键，Description 写明分工。
+		// 形态取分键 int + 跨键校验：每键 0-23 范围校验，越界回落代码默认；每请求读
+		// （参数中心 60s TTL 缓存），改完下一条消息生效，故 Restart=false。
+		// nextDayFirstSend 恒等于 end（代码里 nextDayFirstSendHour = end），不单独设键。
+		{Group: "reach", Key: "quiet_hours_start", Name: "触达免打扰开始小时",
+			Description: "全渠道触达管线（R-4 静默时段）每天进入免打扰的起始小时（CST，0-23）。scope=全局（config_params 无租户维）。默认 22 与接线前硬编码一致。越界（<0 或 >23）回落代码默认 22。与 webhook.ai_quiet_hours_* 是两条不同管道，禁止合并",
+			ValueType:   "int", Unit: "点", Risk: "warning", DefaultValue: "22", Min: strPtr("0"), Max: strPtr("23"), Restart: false},
+		{Group: "reach", Key: "quiet_hours_end", Name: "触达免打扰结束小时",
+			Description: "全渠道触达管线免打扰窗口的结束小时（CST，0-23），同时是次日首发小时（nextDayFirstSend 恒等于它）。scope=全局。默认 8 与接线前硬编码一致。start>end 表示跨午夜窗口（如 22-8）。越界回落代码默认 8",
+			ValueType:   "int", Unit: "点", Risk: "warning", DefaultValue: "8", Min: strPtr("0"), Max: strPtr("23"), Restart: false},
+		{Group: "webhook", Key: "ai_quiet_hours_start", Name: "AI 回复免打扰开始小时",
+			Description: "AI 回复出站（webhook_outbound）每天免打扰的起始小时（CST，0-23），命中后回复延迟到次日 end 点投递。scope=全局。默认 23 与接线前硬编码一致。env DISABLE_AI_QUIET_HOURS 仍可整体关掉免打扰。与 reach.quiet_hours_* 是两条不同管道，禁止合并",
+			ValueType:   "int", Unit: "点", Risk: "warning", DefaultValue: "23", Min: strPtr("0"), Max: strPtr("23"), Restart: false},
+		{Group: "webhook", Key: "ai_quiet_hours_end", Name: "AI 回复免打扰结束小时",
+			Description: "AI 回复出站免打扰窗口的结束小时（CST，0-23），即重投/首发顺延到的小时。scope=全局。默认 7 与接线前硬编码一致。start>end 表示跨午夜窗口（如 23-7）。越界回落代码默认 7",
+			ValueType:   "int", Unit: "点", Risk: "warning", DefaultValue: "7", Min: strPtr("0"), Max: strPtr("23"), Restart: false},
+
+		// ── urls 组：对外链接三件（R2）────────────────────────────────
+		// 都是 env > 参数 > 代码常量 的三级读取（env 保留为应急）。读取口走参数中心
+		// 60s TTL 缓存（GetString 经 getString），不会每请求打库。
+		// frontend_url 读取点在 service/password_reset.go（直连）；cloud_url /
+		// geo_site_base_url 读取点在 internal/config（config 不能反向 import service，
+		// 走 provider 注入，装配点 app/url_params_wiring.go）。
+		{Group: "urls", Key: "frontend_url", Name: "前端站点基址",
+			Description: "密码重置邮件里拼接 reset 链接用的前端站点基址。优先级 env FRONTEND_URL > 本参数 > 代码兜底 http://localhost:3000。scope=全局。读取点 service/password_reset.go 的 getFrontendBaseURL（发信时读，非高频）。默认与接线前代码兜底一致",
+			ValueType:   "string", DefaultValue: "http://localhost:3000", Restart: false},
+		{Group: "urls", Key: "cloud_url", Name: "云端版对外地址",
+			Description: "public config 里展示给前端的云端版对外地址。优先级 平台配置 cloud_url > env PLATFORM_CLOUD_URL > 本参数 > 代码常量 https://work.xapptool.cn。scope=全局。读取点 internal/config/platform.go 的 CloudURL()（provider 注入，60s TTL 缓存）。默认与代码常量一致；参数缺省（空）时回落常量，行为零变更",
+			ValueType:   "string", DefaultValue: "https://work.xapptool.cn", Restart: false},
+		{Group: "urls", Key: "geo_site_base_url", Name: "官网基址",
+			Description: "官网基址（拼接站内路径、判断是否本站 URL）。优先级 env GEO_SITE_BASE_URL > 本参数 > 代码常量 https://xiaofang142.github.io/hivemtk。scope=全局。读取点 internal/config/website.go 的 WebsiteBaseURL()（provider 注入，60s TTL 缓存）。默认与代码常量一致；参数缺省（空）时回落常量，行为零变更",
+			ValueType:   "string", DefaultValue: "https://xiaofang142.github.io/hivemtk", Restart: false},
 	}
 }

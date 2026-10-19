@@ -212,9 +212,12 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 		r.GET("/__debug__/routes", middleware.JWTAuthMiddleware(), middleware.AdminAuthMiddleware(), controller.DebugRoutesHandler(r))
 	}
 
+	// 全局限流两条（R2 参数化）：装配期读一次塞进限流器构造，改完需重启才生效
+	// （种子 ratelimit.global_* 标 Restart=true）。走直连范式——本包已 import service。
+	// 默认值 1000/20000 即接线前 router 写死的生产值，行为零变更。
 	r.Use(middleware.RateLimitMiddleware(middleware.RateLimitConfig{
-		RPS:        1000,
-		BucketSize: 20000,
+		RPS:        float64(service.GlobalConfigParam().GetInt(context.Background(), "ratelimit", "global_rps", 1000)),
+		BucketSize: service.GlobalConfigParam().GetInt(context.Background(), "ratelimit", "global_bucket", 20000),
 		Enabled:    true,
 		ExemptPaths: []string{
 			"/api/bridge/ingest",

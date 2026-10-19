@@ -23,7 +23,17 @@ func setupChatPublicRoutes(public *gin.RouterGroup, db *gorm.DB, orchestrator *s
 	chatPublic := public.Group("/chat/public")
 	chatPublic.Use(middleware.AppKeyResolve(chatChannelResolver{svc: channelSvc}))
 	chatPublic.Use(middleware.LangResolverMiddleware(langResolver))
-	chatPublic.Use(middleware.VisitorRateLimitMiddleware())
+	// 访客双维限流四条（R2 参数化）：装配期读一次塞进限流器构造，改完需重启才生效
+	// （种子 ratelimit.visitor_* 标 Restart=true）。走直连范式——本包已 import service。
+	// 默认值 20/40/100/200 即接线前 DefaultVisitorRateLimitConfig 的值，行为零变更。
+	rlCP := service.GlobalConfigParam()
+	chatPublic.Use(middleware.VisitorRateLimitMiddleware(middleware.VisitorRateLimitConfig{
+		PerIPRPS:         float64(rlCP.GetInt(context.Background(), "ratelimit", "visitor_per_ip_rps", 20)),
+		PerIPBucket:      rlCP.GetInt(context.Background(), "ratelimit", "visitor_per_ip_bucket", 40),
+		PerChannelRPS:    float64(rlCP.GetInt(context.Background(), "ratelimit", "visitor_per_channel_rps", 100)),
+		PerChannelBucket: rlCP.GetInt(context.Background(), "ratelimit", "visitor_per_channel_bucket", 200),
+		Enabled:          true,
+	}))
 
 	chatPublic.Use(middleware.SanitizeMiddleware())
 
