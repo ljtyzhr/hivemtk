@@ -49,7 +49,7 @@ func (c *TenantController) Register(ctx *gin.Context) {
 		response.Error(ctx, http.StatusBadRequest, response.ErrInvalidParams, err.Error())
 		return
 	}
-	resp, err := c.tenantService.RegisterTenant(ctx.Request.Context(), req, ctx.ClientIP())
+	resp, err := c.tenantService.RegisterTenant(ctx.Request.Context(), req, ctx.ClientIP(), ctx.Request.UserAgent())
 	if err != nil {
 		tenantFail(ctx, err)
 		return

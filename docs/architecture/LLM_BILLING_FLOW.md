@@ -78,14 +78,14 @@
         └─ 本地：recordPlatformUsage（镜像，不二次扣费）
 ```
 
-### 2.2 二期：接真实支付
+### 2.2 二期：接真实支付（**003 已落地**，ADR-M9）
 
 唯一变化是**入账来源**，其余全部复用：
 
 ```text
-渠道异步回调 POST /platform/payments/notify/{channel}
+渠道异步回调 POST|GET /public/payments/notify/{channel}   ← 003 修订 #10：挪公开组
   ├─ InsertCallbackIfAbsent(callback_id)   ← 唯一索引，重复回调被挡
-  ├─ 验签（二期实现；一期恒 false 并返回 501）
+  ├─ 验签 md5(排序拼参 + key) + 金额分比对（003 已实现，不再是 501 占位）
   └─ MarkPaid(order_no, PaymentNotice{ source: channel_notify })
        ↑ 与线下确认**同一个函数**
 ```
@@ -214,15 +214,22 @@ EffectiveOutputCostPer1k() = cost_per_1k_output > 0 ? cost_per_1k_output : cost_
 
 ---
 
-## 七、一期不做与预留
+## 七、一期不做与预留（003 更新：2026-10-19）
 
-| 项 | 一期 | 预留 |
+> **勘误**：本表原「支付通道 ❌ 人工确认（回调 501 占位）」「按月订阅 ❌」两行是 **002 一期口径**，
+> 已被 **003 SaaS 计费二期**覆盖——本期已接入**易支付**（先 `EPAY_MOCK` 后真人验收，见 **ADR-M9**，
+> `.specify/003-saas-billing-v2/plan.md`）并上线**订阅制**（15 天体验期 + 149 元/月仅按月，
+> 见 **ADR-M8**）。回调端点不再是 501：`POST|GET /public/payments/notify/:channel` 公开组验签入账
+> （ADR-M9 修订 #10/#11/#13）。下表已按 003 现状改写。
+
+| 项 | 现状（003 起） | 预留 / 说明 |
 | --- | --- | --- |
-| 支付通道 | ❌ 人工确认 | 回调端点 501 占位 + 幂等表 + `MarkPaid` 复用 |
+| 支付通道 | ✅ **易支付已接入**（ADR-M9）：验签 → 金额分比对 → `MarkPaidForChannel` → `MarkPaid` → fulfill | `EPAY_MOCK=true` 为行为基线；上线前按 `docs/operations/EPAY_LIVE_CHECKLIST.md` 真人验收；线下人工确认保留为回落通道，共用 `MarkPaid` 唯一入账口（ADR-M3） |
 | 退款 | ❌ | `WalletTxnRefund` + `order.cancel/reject` 已具备 |
 | 多次充值叠加 | ✅ 天然支持 | — |
-| 优惠券 / 试用 | ❌ | — |
-| 按月订阅 | ❌（只有年费/计量） | `billing_cycle` 枚举已含 `metered` |
+| 优惠券 / 按年订阅 / 套餐捆绑 | ❌ | 003 非目标，明确不做 |
+| 体验期（试用） | ✅ **新商户 15 天**（ADR-M8） | 天数 `SUBSCRIPTION_TRIAL_DAYS` 后台可配，默认 15 |
+| 按月订阅 | ✅ **149 元/月，仅按月**（ADR-M8） | `billing_cycle` 枚举已扩 `monthly` / `once`；到期惰性判定，无 cron |
 
 ---
 

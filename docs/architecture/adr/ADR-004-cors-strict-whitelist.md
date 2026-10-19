@@ -11,6 +11,8 @@
 | **实施 PR** | #42（白名单重构）、#312（私域移除）|
 | **已部署环境** | SaaS 多租户模式（已撤销），本地/私域部署不启用 |
 
+> **勘误（2026-10-19）**：上表「SaaS 多租户模式（已撤销）」为旧口径——多租户已是正式形态（见 `specs/001-saas-multi-tenant`），并由 `.specify/003-saas-billing-v2` 继续演进为云端 SaaS 订阅计费；本 ADR 的 Deprecated 状态与 CORS 决策本身不受影响，仅该背景陈述以上述两份文档为准。
+
 ## 背景
 
 `cors.go` 历史实现反射任意 Origin + 始终携带 `Access-Control-Allow-Credentials: true`，

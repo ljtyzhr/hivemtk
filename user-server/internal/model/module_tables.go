@@ -40,6 +40,7 @@ var coreOwnedTables = []string{
 	"webhook_subscriptions", "bridge_accounts", "api_logs",
 	// 租户与模块化本体
 	"tenants", "tenant_modules", "module_sync_logs", "module_orders",
+	"tenant_subscription_mirror",
 	"llm_providers", "llm_routing_rules", "llm_routing_logs", "llm_usage_records",
 	// 升级 / 迁移 / 运维
 	"upgrade_tasks", "migration_checkpoints", "migration_records",

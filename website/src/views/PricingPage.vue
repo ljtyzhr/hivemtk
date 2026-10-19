@@ -6,10 +6,13 @@ const paidModules = moduleCatalog.filter((m) => m.category === 'paid')
 
 function priceText(m) {
   if (m.billing === 'metered') return '¥0'
+  if (m.priceCents === 0) return '免费'
   return '¥' + (m.priceCents / 100).toLocaleString('en-US')
 }
 function cycleKey(m) {
-  return m.billing === 'metered' ? page.cycleMetered : page.cycleYearly
+  if (m.billing === 'metered') return page.cycleMetered
+  if (m.billing === 'once') return page.cycleOnce
+  return m.priceCents === 0 ? '' : page.cycleYearly
 }
 </script>
 
@@ -22,6 +25,22 @@ function cycleKey(m) {
       :subtitle="page.subtitle"
       :breadcrumbs="[{ label: '首页', href: '/' }, { label: '按需订阅' }]"
     />
+
+    <!-- 云端版引导条（T024 四入口之一，复用 page-cta-band 现有样式） -->
+    <div class="container">
+      <div class="page-cta-band">
+        <p class="sec-desc">{{ $t(page.cloudBand.desc) }}</p>
+        <a
+          :href="page.cloudBand.href"
+          target="_blank"
+          rel="noopener noreferrer"
+          class="btn btn-primary"
+        >
+          <span>{{ $t(page.cloudBand.label) }}</span>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+        </a>
+      </div>
+    </div>
 
     <!-- 三层模型 -->
     <section class="price-section">
@@ -66,7 +85,7 @@ function cycleKey(m) {
                 <td class="cell-name">{{ $t(m.name) }}</td>
                 <td class="cell-summary">{{ $t(m.summary) }}</td>
                 <td class="cell-price">{{ priceText(m) }}</td>
-                <td class="cell-cycle"><span class="cycle-chip">{{ $t(cycleKey(m)) }}</span></td>
+                <td class="cell-cycle"><span v-if="cycleKey(m)" class="cycle-chip">{{ $t(cycleKey(m)) }}</span></td>
                 <td class="cell-menus">{{ m.menus }}</td>
               </tr>
             </tbody>
@@ -75,7 +94,7 @@ function cycleKey(m) {
       </div>
     </section>
 
-    <!-- 平价路线 -->
+    <!-- 计费口径（三条花费路线） -->
     <section class="price-section">
       <div class="container">
         <header class="sec-head">
@@ -361,7 +380,7 @@ function cycleKey(m) {
   text-align: right;
 }
 
-/* —— 平价路线 —— */
+/* —— 计费口径 —— */
 .budget-grid {
   display: grid;
   grid-template-columns: repeat(3, 1fr);

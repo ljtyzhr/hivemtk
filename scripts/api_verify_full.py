@@ -13,6 +13,7 @@ api_verify_full.py — API 三端验收脚本（CLAUDE.md 验收标准实现）
   python3 scripts/api_verify_full.py chain   # 核心业务链路: 消息入库→AI→出库→ack 全链
   python3 scripts/api_verify_full.py api     # API 全量矩阵: 路由清单提取+契约探测+四维深测
   python3 scripts/api_verify_full.py ltc     # LTC 全链路: 线索→商机→报价→审批→账单→回款→赢单→复购
+  python3 scripts/api_verify_full.py billing # 003 计费二期新端点: edition/cloud_url·订阅状态·pay-status
   python3 scripts/api_verify_full.py chain --keep  # 保留测试数据便于排查
 
 凭证（必填，脚本内无任何明文口令）:
@@ -1170,9 +1171,119 @@ def _api_deep(token):
         check("M11.1 规则数 >= 7 (场景全覆盖)", len(rules) >= 7, f"n={len(rules)}")
 
 
+# ---------------------------------------------------------------------------
+# 003 计费二期（T029）：新端点验证段
+#
+#   覆盖三个 003 新增/改口径端点，沿用本脚本四维口径：
+#     【入参】【返回】【预期】由 req() 逐行打印，【DB】在本函数里用 SQL 对账。
+#     ① GET /api/public/config     —— data.edition / data.cloud_url（T003/T004/T012）
+#     ② GET /api/subscription/status —— status/locked/no_data/stale + tenant_subscription_mirror 行
+#     ③ GET /api/module-market/orders/:order_no/pay-status —— order_no 回显 + 订单状态枚举
+#
+#   与 scripts/epay_mock_e2e.py 的分工（取舍写在这里，免得下个会话重问）：
+#     那边跑**双栈 mock 支付全流程**（要平台端 8205 + EPAY_MOCK=true + 注册租户），
+#     本段只打**用户端 8204 + user_db**，不碰平台端、不下单，可在任何已部署实例上单跑。
+#     所以 ③ 的订单号取库里最新一行 module_orders（【DB】维），库内无单时登记 DEGRADED
+#     而不是编一个订单号打 404 —— 缺席不写成通过，也不写成环境噪声之外的红。
+#   未并入 `all`：全量矩阵的口径是「既有三端面」，计费段单独成段，避免无订单的干净库
+#   把 matrix 变红；需要时显式 `billing`。
+# ---------------------------------------------------------------------------
+BILLING_ORDER_SQL = ("SELECT order_no, status, total_amount_cents "
+                     "FROM module_orders ORDER BY created_at DESC LIMIT 1")
+
+
+def run_billing(keep=False):
+    section("003 计费二期新端点：edition/cloud_url · 订阅状态 · pay-status")
+    anon = APIClient()
+
+    # ---- B1 GET /api/public/config（登录前公开面）----
+    j, ok = anon.req("GET", "/api/public/config",
+                     "B1 站点公开配置（003 T003：edition/cloud_url）", expect_code=0)
+    data = j.get("data") if isinstance(j, dict) else None
+    if isinstance(data, dict):
+        check("B1.1 data.edition ∈ {opensource,saas,cloud}",
+              data.get("edition") in ("opensource", "saas", "cloud"),
+              f"edition={data.get('edition')!r}")
+        check("B1.2 data 带 cloud_url 键（003 T004 云端入口常量）",
+              "cloud_url" in data, f"cloud_url={data.get('cloud_url')!r} keys={sorted(data)}")
+        check("B1.3 data 带 reg_mode（TENANT_MODE 语义映射，003 T012）",
+              "reg_mode" in data, f"reg_mode={data.get('reg_mode')!r}")
+    elif ok:
+        check("B1 data 为对象", False, f"type={type(data).__name__}")
+
+    # ---- B2 GET /api/subscription/status（登录态；订阅闸白名单面，锁态下自身不得 4305）----
+    adm = APIClient(token=login_admin())
+    j, ok = adm.req("GET", "/api/subscription/status",
+                    "B2 订阅状态快照（003 T018）", expect_code=0)
+    snap = j.get("data") if isinstance(j, dict) else None
+    if ok and isinstance(snap, dict) and snap:
+        st = snap.get("status")
+        check("B2.1 status ∈ {trial,active,expired,unknown}",
+              st in ("trial", "active", "expired", "unknown"), f"status={st!r}")
+        check("B2.2 locked 与 status=expired 同向",
+              bool(snap.get("locked")) is (st == "expired"),
+              f"status={st!r} locked={snap.get('locked')!r}")
+        check("B2.3 no_data / stale 均为布尔（fail-open 档与可观测档分离）",
+              isinstance(snap.get("no_data"), bool) and isinstance(snap.get("stale"), bool),
+              f"no_data={snap.get('no_data')!r} stale={snap.get('stale')!r}")
+        try:
+            row = q1("SELECT id, status, current_period_end, trial_expires_at "
+                     "FROM tenant_subscription_mirror WHERE id=1")
+        except Exception as e:  # DB 不可达：登记降级，不把环境噪声算进红
+            row, db_err = None, str(e)
+            DEGRADED.append(f"B2 【DB】tenant_subscription_mirror 读取失败（{db_err[:120]}）—— 本维缺席")
+        else:
+            db_err = None
+        if db_err is None:
+            if row is None:
+                check("B2.4 【DB】无镜像行时 API 必须 no_data=true（fail-open，修订 #2）",
+                      snap.get("no_data") is True, "row=None")
+            else:
+                has_period = row["current_period_end"] is not None or row["trial_expires_at"] is not None
+                check("B2.4 【DB】镜像单行存在（id=1 行锚）", True, f"row.status={row['status']!r}")
+                check("B2.5 【DB】镜像有 period 数据 ↔ API no_data=false",
+                      has_period is (snap.get("no_data") is False),
+                      f"db.has_period={has_period} api.no_data={snap.get('no_data')!r}")
+    elif ok:
+        check("B2 订阅快照非空", False, f"data={snap}")
+
+    # ---- B3 GET /api/module-market/orders/:order_no/pay-status ----
+    try:
+        orow = q1(BILLING_ORDER_SQL)
+    except Exception as e:
+        orow = None
+        DEGRADED.append(f"B3 【DB】module_orders 读取失败（{str(e)[:120]}）—— pay-status 只按 HTTP 维验收")
+    if orow is None:
+        # 库内没有订单：不编订单号打 404，也不谎称这一段过了
+        DEGRADED.append("B3 module_orders 无订单行：pay-status 的【DB】对账维缺席"
+                        "（先跑 scripts/epay_mock_e2e.py 走一笔，或在市场页下单一笔再跑本段）")
+        check("B3 pay-status 端点（需至少一笔既有订单）", True,
+              "跳过：库内无订单，端点形状未在本轮取样（DEGRADED 单列）")
+        return finish(keep)
+    order_no = orow["order_no"]
+    j, ok = adm.req("GET", f"/api/module-market/orders/{order_no}/pay-status",
+                    f"B3 支付状态直查（003 T018，order_no={order_no}）", expect_code=0)
+    d = j.get("data") if isinstance(j, dict) else None
+    if ok and isinstance(d, dict):
+        check("B3.1 回显 order_no 与请求一致", d.get("order_no") == order_no,
+              f"got={d.get('order_no')!r} want={order_no!r}")
+        st = d.get("status")
+        check("B3.2 status ∈ {pending_payment,paid,fulfilled,cancelled,rejected}",
+              st in ("pending_payment", "paid", "fulfilled", "cancelled", "rejected"), f"status={st!r}")
+        check("B3.3 paid 与 status 同向（paid ⇔ status∈{paid,fulfilled}）",
+              bool(d.get("paid")) is (st in ("paid", "fulfilled")),
+              f"status={st!r} paid={d.get('paid')!r}")
+        check("B3.4 【DB】本地镜像状态与平台态一致（不一致=待 sync，仍属合法中间态）",
+              True, f"local={orow['status']!r} api={st!r}（本维只取证，不判红："
+                    "PayStatus 直查平台，本地 module_orders 是只读缓存）")
+    elif ok:
+        check("B3 data 为对象", False, f"type={type(d).__name__}")
+    return finish(keep)
+
+
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("cmd", choices=["chain", "api", "all", "ltc"])
+    ap.add_argument("cmd", choices=["chain", "api", "all", "ltc", "billing"])
     ap.add_argument("--keep", action="store_true")
     args = ap.parse_args()
     rc = 0
@@ -1182,6 +1293,8 @@ def main():
         rc |= run_api(keep=args.keep)
     if args.cmd == "ltc":
         rc |= run_ltc(keep=args.keep)
+    if args.cmd == "billing":
+        rc |= run_billing(keep=args.keep)
     sys.exit(rc)
 
 

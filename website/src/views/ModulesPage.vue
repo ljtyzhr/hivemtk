@@ -8,12 +8,14 @@ const paidModules = moduleCatalog.filter((m) => m.category === 'paid')
 function priceText(m) {
   if (m.billing === 'base') return ''
   if (m.billing === 'metered') return '¥0'
+  if (m.priceCents === 0) return '免费'
   return '¥' + (m.priceCents / 100).toLocaleString('en-US')
 }
 function cycleText(m) {
   if (m.billing === 'base') return ''
   if (m.billing === 'metered') return page.cycleMetered
-  return page.cycleYearly
+  if (m.billing === 'once') return page.cycleOnce
+  return m.priceCents === 0 ? '' : page.cycleYearly
 }
 </script>
 

@@ -112,10 +112,8 @@
           </el-form-item>
 
           <!-- 开户登记（监管必需项）。
-               这一步原先把公司/负责人/电话/邮箱全部标为「选填」——
-               而离线部署的用户**只走这一个入口**（他们不会去注册页），
-               于是需求「注意离线独立部署情况，也要收集信息」对整个离线人群失效。
-               现在四项必填：平台端持有的是一个联系得到的经营主体，而不是空白。 -->
+               003 T012 起必填集收敛为：公司/负责人/电话/**地址**；
+               邮箱与信用代码降为选填（地址顶替邮箱的必填位）。 -->
           <el-divider content-position="left">
             {{ $t('setup.regTitle') }}
           </el-divider>
@@ -150,14 +148,27 @@
               size="large"
             />
           </el-form-item>
+          <!-- 地址：003 T012 起为开户登记必填项（顶替邮箱的必填位） -->
+          <el-form-item
+            :label="$t('setup.regAddress')"
+            prop="address"
+          >
+            <el-input
+              v-model="adminForm.address"
+              :placeholder="$t('setup.regAddressHint')"
+              size="large"
+            />
+          </el-form-item>
+          <!-- 邮箱/信用代码：003 T012 起降为选填 -->
           <el-form-item
             :label="$t('setup.email')"
             prop="email"
           >
             <el-input
               v-model="adminForm.email"
-              :placeholder="$t('setup.regNoticeHint')"
+              :placeholder="$t('setup.regEmailOptionalHint')"
               size="large"
+              clearable
             />
           </el-form-item>
           <el-form-item
@@ -261,10 +272,11 @@ const adminForm = reactive({
   username: '',
   password: '',
   confirmPassword: '',
-  // 开户登记四项：离线部署唯一的合规留痕入口，必填
+  // 开户登记：公司/负责人/电话/地址四项必填（003 T012），邮箱/信用代码选填
   company_name: '',
   real_name: '',
   contact_phone: '',
+  address: '',
   email: '',
   license_no: '',
   regulatory_ack: false
@@ -307,9 +319,18 @@ const adminRules = {
       trigger: 'blur'
     }
   ],
+  // 邮箱 003 T012 起降为选填：仅在填写时校验格式（type email 对空串会误报）
   email: [
-    { required: true, message: t('setup.errEmailRequired'), trigger: 'blur' },
-    { type: 'email', message: t('setup.errEmailInvalid'), trigger: 'blur' }
+    {
+      validator: (rule, value, callback) => {
+        if (!value) return callback()
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(value)) {
+          return callback(new Error(t('setup.errEmailInvalid')))
+        }
+        callback()
+      },
+      trigger: 'blur'
+    }
   ],
   company_name: [
     { required: true, message: t('setup.errCompanyRequired'), trigger: 'blur' }
@@ -320,6 +341,10 @@ const adminRules = {
   contact_phone: [
     { required: true, message: t('setup.errPhoneRequired'), trigger: 'blur' },
     { pattern: /^[0-9+\-() ]{6,32}$/, message: t('setup.errPhoneFormat'), trigger: 'blur' }
+  ],
+  // 地址：003 T012 起为开户登记必填项
+  address: [
+    { required: true, message: t('setup.errAddressRequired'), trigger: 'blur' }
   ]
 }
 
@@ -349,6 +374,8 @@ const handleCreateAdmin = async () => {
       // 键名写成 legal_person 会让每次提交都被 gin 参数校验打回 400「无效的请求参数」。
       real_name: adminForm.real_name,
       contact_phone: adminForm.contact_phone,
+      // 003 T012：地址必填，邮箱/信用代码选填（空串后端按选填放行）
+      address: adminForm.address,
       email: adminForm.email,
       license_no: adminForm.license_no,
       regulatory_ack: true

@@ -1,6 +1,6 @@
 # 功能模块化 · 模块清单论证（任务一交付物）
 
-> **状态**：v1.0 · 2026-10-17
+> **状态**：v1.2 · 2026-10-19（定价与离线口径按 003 计费二期勘误，见 §3.5）
 > **适用范围**：`hivemtk`（用户端）+ `hivemtk-platform`（平台端）
 > **事实源**：
 > - 菜单注册表 `user-server/internal/model/menu.go`（实测 **208 个节点**，本次由 `go run` 导出核对，非抄文档）
@@ -23,8 +23,8 @@
 | 模块粒度 | 按「**菜单子树 + 数据表簇 + 独立业务闭环**」三合一切，不按代码目录切 |
 | 授权模型 | `module_key` 挂在菜单节点上；用户端菜单 = **平台已开通模块 ∩ 角色菜单授权** |
 | 依赖模型 | `module_dependencies` 有向图，**开通时按依赖闭包自动补齐**（不开 AI 智能体却要它？自动带上依赖） |
-| 收费形态 | 一期**只有功能模块订阅**；LLM 是**计量型订阅**（token 钱包），资产包沿用积分制 |
-| 支付形态 | 一期**线下人工确认**；订单/回调/签名**按线上支付契约建模**，只留状态位不接通道 |
+| 收费形态 | **003 起**：23 个功能模块 **0 元**（注册即赠开通）+ 浏览器自动化 **¥99 买断**（`once`）+ 软件订阅 **149 元/月（仅按月，15 天体验期）**；LLM 仍是**计量型订阅**（token 钱包），资产包沿用积分制（详见 §3.5） |
+| 支付形态 | **003 起**：已接入**易支付**（先 `EPAY_MOCK` 后真人，ADR-M9），线下人工确认保留为回落通道，两者共用 `MarkPaid` **唯一入账口**（ADR-M3）；订单/回调/签名仍按线上支付契约建模 |
 
 ---
 
@@ -142,6 +142,11 @@
 ### L1 · 收费模块（17 个）
 
 > **定价单位**：一期统一用**元/年**（`price_cents` 存分，避免浮点）。
+>
+> ⚠️ **勘误（003 · 2026-10-19）**：下表「建议定价（元/年）」是 **002 时期的建议值，已不构成售卖口径**——
+> 现行目录里除 `browser-automation` 外全部 `price_cents=0`（免费开通），浏览器自动化为 **¥99 买断
+> （`billing=once`）**，软件订阅 **149 元/月仅按月**；价格的运行时权威在**平台端目录**，编译期常量仅作种子。
+> 新口径与覆盖声明见 **§3.5**。
 > `price_cents = 0` 表示**需开通但不收费**（官方赠送/内测/长期免费模块走这条路）。
 
 | # | key | 名称 | 菜单归属 | 依赖 | 核心表簇 | 建议定价（元/年） | 一句话价值 |
@@ -355,6 +360,27 @@
 
 > **关键承诺（必须写进 spec 与平台 UI）**：**所有模块代码都在开源仓，收费的是"授权与配额"，不是"能不能看到/编译/运行代码"**。离线独立部署用户仍拥有全部代码，平台关闭时基础模块全开（见 3.3 + §4.2）。
 
+### 3.5 定价口径（003 覆盖声明 · 2026-10-19）
+
+> **显式勘误**：本节为**现行定价口径**，显式**覆盖** 002 时期「收费模块按年订阅、16 个收费模块全量线年度合计 999 元/年」的旧决策（当时对外话术称"平价年费路线"，并被 002 写进 spec 标注"不可改"）。
+> 覆盖依据：`.specify/003-saas-billing-v2/spec.md` 开头的覆盖关系声明与 2026-10-19 用户裁决。
+> **任何按 002 年度收费口径回滚本文档、官网文案或目录种子的改动，一律视为错误。**
+
+| 项 | 现行口径（003） |
+| --- | --- |
+| 功能模块（24 个中的 **23 个**） | **全部 0 元**（`price_cents=0`）：注册/初始化自动赠予开通（`FreeToEnable`，走完整订单+确认链落 `active`）；7 个 base 模块仍免费常开 |
+| 浏览器自动化 `browser-automation` | **¥99 买断**（9900 分，`BillingCycle=once`，不写 `ExpiresAt`）——由 002 时期的旧建议 **1680 元/年 改为 ¥99 买断**（**2026-10-19 用户裁决**）；平台端可单独控制开关 |
+| 软件订阅 | **149 元/月，仅按月**（平台级订阅商品，价格后台可配；`billing_cycle=monthly`，按 30 天计，见 ADR-M8） |
+| 体验期 | 新商户注册即 **15 天体验期**（`SUBSCRIPTION_TRIAL_DAYS` 默认 15，体验期等同订阅有效） |
+| LLM token | 输入/输出**分列**计量（token 钱包），仅运营配置，本期零代码 |
+| 支付 | 易支付（先 `EPAY_MOCK` 后真人验收，ADR-M9）+ 线下人工确认回落，共用 `MarkPaid` 唯一入账口（ADR-M3） |
+
+**FR-5.7 离线口径勘误（两轮覆盖后现行）**：
+
+1. 002 spec 原文「离线：基础模块全开；`price=0` 付费模块自动开；`price>0` 保持关闭」——`price=0` 那半句一度被判"未实现也不再实现"；
+2. 002 收口口径收紧为「离线**只开基础模块**，空态仅放行 `model.BaseModuleKeys()`」（§4.5 表中该行即指此旧口径）；
+3. **003 再次覆盖为现行口径**：离线（`PLATFORM_ENABLED=false`）启动时由 `offlineGiftModuleRows()` 把 **23 个 0 元模块以 `source=gift` 落 `tenant_modules` 行**（`EnabledKeys` = 24 − 1 = **23**），**`browser-automation` 保持锁定**——本地无支付通道 → 不可购不可用，**不做授权码旁路**（2026-10-19 用户裁决，与云端一致锁定）。存量离线部署升级时在 bootstrap 路径幂等补行（reconcile）。
+
 ---
 
 ## 四、耦合关系论证
@@ -436,7 +462,7 @@ core ◄── customer ◄── inbox
 | 能力闸（路由）：未开通拦截 4301 | `middleware/module_gate.go` `GuardModulePath`（`router.go` 在 auth 组统一挂载；4301 = `CodeModuleNotEnabled`） | `internal/router/route_policy_gate_test.go` · `internal/middleware/module_gate_test.go` · `internal/service/module_gate_test.go` 全绿 |
 | 菜单过滤 | `model.FilterMenuTreeByModule` + `service.ModuleEnabledFunc` 注入 | `model/module_bindings_test.go` `TestFilterMenuTreeByModule` · `service/module_gate_test.go` `TestMenuTreeFilteredByClosedModule` |
 | 数据隔离：tenancyidx 回调 fail-closed | `internal/pkg/tenancyidx` `RegisterTenantCallbacks` | `internal/pkg/db/tenant_callback_test.go`（`TestTenantRegistry_*`） |
-| 空态口径：仅放行 `model.BaseModuleKeys()` | `service/module_catalog.go` `IsEnabled` ①（2026-10-18 作废"空态全放行"） | `service/module_gate_test.go` `TestModuleGateEmptyBootAllowsOnlyBaseModules` |
+| 空态口径（**002 旧口径，已被 003 覆盖**）：仅放行 `model.BaseModuleKeys()` | `service/module_catalog.go` `IsEnabled` ①（2026-10-18 作废"空态全放行"）；**003 起离线改为 `offlineGiftModuleRows()` 开 23 个 gift 模块并锁 `browser-automation`，见 §3.5** | `service/module_gate_test.go` `TestModuleGateEmptyBootAllowsOnlyBaseModules` |
 | 租户隔离缓存 | 闸缓存按租户分份（`map[uint]*gateTenantState`），不共享开通状态 | `service/module_gate_tenant_test.go` `TestModuleGateTwoTenantCacheIsolation` |
 | 激活归属：付费激活绑下单租户 | 模块同步只激活**下单租户**的模块（Fix C） | `service/module_gate_tenant_test.go` `TestModuleSyncActivatesPaidModuleOnOrderingTenant` |
 
@@ -463,6 +489,8 @@ core ◄── customer ◄── inbox
 ### 5.5 平台关闭时不静默放行付费模块
 
 **理由**：这是商业模式的唯一漏洞。"离线也能用全套功能"会让整套定价失效。处置：`price=0` 的付费模块自动开（这是我们自己定的价），`price>0` 的明确锁住并在 UI 写清"需连接平台开通"。
+
+> **003 更新**：本条即现行离线口径的判据来源——002 一度收紧为「只开基础模块」，003 恢复本条并落成 `offlineGiftModuleRows()`（23 个 0 元 gift 模块开、`browser-automation` 锁），见 §3.5「FR-5.7 离线口径勘误」。
 
 ---
 
@@ -512,3 +540,4 @@ core ◄── customer ◄── inbox
 | --- | --- | --- |
 | v1.0 | 2026-10-17 | 首版：24 模块（7 基础 + 17 收费）、依赖图、菜单绑定规则、基础能力完备性论证、取舍记录 |
 | v1.1 | 2026-10-19 | §4.5 新增「实现后实测」：能力闸/菜单过滤/数据隔离/空态口径/租户隔离缓存/激活归属 六项核验（T808） |
+| v1.2 | 2026-10-19 | **003 计费二期定价与离线口径勘误**（T002）：新增 §3.5 覆盖声明——23 模块 0 元 + 浏览器自动化 ¥99 买断（旧建议 1680 元/年 → ¥99，用户裁决）+ 软件订阅 149 元/月仅按月 + 15 天体验期，显式覆盖 002 年度合计式收费旧决策；FR-5.7 离线口径改为「23 个 gift 模块开 + `browser-automation` 锁」（替代「只开 `BaseModuleKeys`」）；§零 结论表收费/支付两行同步 003 |

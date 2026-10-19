@@ -106,6 +106,7 @@ func rawDB(t *testing.T) *gorm.DB {
 //   - 收费 key 拦：空镜像给到全部付费能力 = 付费闸 fail-open —— on 模式
 //     2+ 租户的空镜像正是踩的这条；
 //   - 空 key 放行：未标注路由（文件头 ③）。
+//
 // 与 EnabledKeys 的空态返回必须逐 key 一致（单口径是 module_catalog.go 的教义）。
 func TestModuleGateEmptyBootAllowsOnlyBaseModules(t *testing.T) {
 	newModuleDB(t)
@@ -233,7 +234,21 @@ func TestGateExpiredModuleBlocked(t *testing.T) {
 
 // ---------------------------------------------------------- 离线降级
 
-func TestOfflineBootstrapOpensBaseModulesOnly(t *testing.T) {
+// giftPaidKeys 期望的离线赠送付费 key（0 元且非浏览器自动化）。
+func giftPaidKeys() []string {
+	out := make([]string, 0, 16)
+	for _, m := range model.ModuleCatalogMeta {
+		if m.Category == model.ModuleCategoryPaid && m.Key != model.ModuleBrowserAutomation && m.PriceCents == 0 {
+			out = append(out, m.Key)
+		}
+	}
+	return out
+}
+
+// TestOfflineBootstrapOpensGiftModules 离线首启：基础模块 + 0 元赠送模块全开，
+// 唯一锁定的是 browser-automation（¥99 买断，本地无支付通道，003 R3 用户裁决）。
+// 验收口径：EnabledKeys = 23（24 - 浏览器自动化）。
+func TestOfflineBootstrapOpensGiftModules(t *testing.T) {
 	newModuleDB(t)
 	// 关掉平台
 	t.Setenv("PLATFORM_ENABLED", "false")
@@ -250,8 +265,10 @@ func TestOfflineBootstrapOpensBaseModulesOnly(t *testing.T) {
 	if res.Source != "offline_bootstrap" {
 		t.Errorf("来源应为 offline_bootstrap，实际 %q", res.Source)
 	}
-	if res.ActiveCount != len(model.BaseModuleKeys()) {
-		t.Errorf("离线应开通全部 %d 个基础模块，实际 %d", len(model.BaseModuleKeys()), res.ActiveCount)
+	wantCount := len(model.BaseModuleKeys()) + len(giftPaidKeys())
+	if res.ActiveCount != wantCount {
+		t.Errorf("离线应开通 %d 个模块（基础 %d + 0 元赠送 %d），实际 %d",
+			wantCount, len(model.BaseModuleKeys()), len(giftPaidKeys()), res.ActiveCount)
 	}
 
 	gate := NewModuleGateServiceWithRepo(repository.NewTenantModuleRepositoryWithDB(rawDB(t)))
@@ -262,10 +279,102 @@ func TestOfflineBootstrapOpensBaseModulesOnly(t *testing.T) {
 			t.Errorf("离线部署时基础模块 %s 应放行（免费用户必须可用）", k)
 		}
 	}
-	for _, k := range model.PaidModuleKeys() {
-		if gate.IsEnabled(ctx, k) {
-			t.Errorf("离线部署时收费模块 %s 被放行：定价被绕过", k)
+	for _, k := range giftPaidKeys() {
+		if !gate.IsEnabled(ctx, k) {
+			t.Errorf("离线部署时 0 元赠送模块 %s 应放行（003 全免费口径）", k)
 		}
+	}
+	if gate.IsEnabled(ctx, model.ModuleBrowserAutomation) {
+		t.Error("离线部署时 browser-automation 应锁定（¥99 买断，本地无支付通道）")
+	}
+	// EnabledKeys = 23 = 24 - browser-automation
+	keys := gate.EnabledKeys(ctx)
+	if len(keys) != len(model.ModuleCatalogMeta)-1 {
+		t.Errorf("离线 EnabledKeys 应为 %d（24 - 浏览器自动化），实际 %d: %v",
+			len(model.ModuleCatalogMeta)-1, len(keys), keys)
+	}
+	if hasKey(keys, model.ModuleBrowserAutomation) {
+		t.Error("EnabledKeys 不应含 browser-automation")
+	}
+}
+
+// TestOfflineBootstrapUpgradesExistingDeployment 存量部署升级路径（003 T006 验收）。
+//
+// 旧版本离线只灌 7 个基础模块；升级后 bootstrapOffline 的 early-return 分支
+// 必须幂等补齐缺失的 0 元赠送行，并刷新菜单快照 —— 否则新增 16 组菜单永远
+// 不出现（审查修订 #17 点名的缺陷）。
+func TestOfflineBootstrapUpgradesExistingDeployment(t *testing.T) {
+	newModuleDB(t)
+	t.Setenv("PLATFORM_ENABLED", "false")
+
+	repo := repository.NewTenantModuleRepositoryWithDB(rawDB(t))
+	ctx := context.Background()
+	// 模拟旧版本存量部署：只有基础模块行 + 一张历史已购单（geo）
+	if err := repo.UpsertMany(ctx, baseModuleRows()); err != nil {
+		t.Fatal(err)
+	}
+	now := time.Now()
+	if err := repo.UpsertMany(ctx, []*model.TenantModule{
+		{ModuleKey: model.ModuleGEO, Status: model.TenantModuleActive,
+			Source: model.TenantModuleSourcePurchase, PriceCents: 9900, ActivatedAt: now},
+	}); err != nil {
+		t.Fatal(err)
+	}
+
+	svc := NewModuleCatalogServiceWithRepos(repo, nil)
+	// 第一轮：补齐缺失赠送行（geo 已有行 → 不动，含其 purchase 来源与价格）
+	if _, err := svc.Sync(ctx); err != nil {
+		t.Fatal(err)
+	}
+	rows, err := repo.ListAll(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	wantTotal := len(model.BaseModuleKeys()) + len(giftPaidKeys())
+	if len(rows) != wantTotal {
+		t.Errorf("升级后应有 %d 行（基础 + 赠送），实际 %d", wantTotal, len(rows))
+	}
+	byKey := map[string]*model.TenantModule{}
+	for _, r := range rows {
+		byKey[r.ModuleKey] = r
+	}
+	if geo := byKey[model.ModuleGEO]; geo == nil || geo.Source != model.TenantModuleSourcePurchase || geo.PriceCents != 9900 {
+		t.Errorf("已购 geo 行不应被赠送 reconcile 覆盖（降级），实际 %+v", geo)
+	}
+	if ba, ok := byKey[model.ModuleBrowserAutomation]; ok {
+		t.Errorf("离线升级不应给 browser-automation 落赠送行，实际 %+v", ba)
+	}
+
+	// 第二轮：幂等 —— 行数不变、来源不变
+	if _, err := svc.Sync(ctx); err != nil {
+		t.Fatal(err)
+	}
+	rows2, err := repo.ListAll(ctx)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if len(rows2) != len(rows) {
+		t.Errorf("二次 Sync 破坏幂等：行数 %d → %d", len(rows), len(rows2))
+	}
+
+	// 菜单树对账：新增 16 组的 menu_keys 必须出现在过滤结果里，买断模块不出现
+	gate := NewModuleGateServiceWithRepo(repo)
+	gate.Invalidate()
+	gate.Refresh(ctx)
+	model.SetModuleEnabledFilter(gate.ModuleEnabledFunc())
+	t.Cleanup(func() { model.SetModuleEnabledFilter(nil) })
+	tree := model.FilterMenuTreeByModule(model.SystemMenuTree, model.ModuleEnabledFilter)
+	for _, k := range []string{
+		"aiAgent", "geoTools", "smsReach", "emailReach", "douyin",
+		"shortLink", "wecomAccount", "telegram", "dashboardScreen", "abExperiment",
+		"salesCockpit", "approvalTask", "i18nManage",
+	} {
+		if findMenuKey(tree, k) < 0 {
+			t.Errorf("升级补齐后菜单节点 %s 仍缺失（菜单快照未按赠送集刷新）", k)
+		}
+	}
+	if findMenuKey(tree, "browserAutomation") >= 0 {
+		t.Error("browser-automation 未开通，其菜单节点不应出现在菜单树里")
 	}
 }
 
@@ -320,14 +429,33 @@ func TestMarketListMarksBaseAsFreeAndPaidAsPayable(t *testing.T) {
 	if !byKey[model.ModuleCore].Free {
 		t.Error("core 应标记为 free")
 	}
+	// 003 重定价：geo 是付费类目但定价 0 元 → FreeToEnable（需开通、不收钱）
 	if byKey[model.ModuleGEO].Free {
-		t.Error("geo 是收费模块，不应标记 free")
+		t.Error("geo 是付费类目模块，不应标记 free")
 	}
-	if byKey[model.ModuleGEO].FreeToEnable {
-		t.Error("geo 有价，不应标记 free_to_enable")
+	if !byKey[model.ModuleGEO].FreeToEnable {
+		t.Error("geo 定价 0 元（003 全免费口径）：应标记 free_to_enable")
 	}
 	if !byKey[model.ModuleLLMCloud].FreeToEnable {
 		t.Error("llm-cloud 定价为 0：应标记「需开通但不收钱」")
+	}
+	// 唯一有价模块：browser-automation ¥99 买断（003 R3）
+	ba := byKey[model.ModuleBrowserAutomation]
+	if ba.FreeToEnable {
+		t.Error("browser-automation 有价（¥99 买断），不应标记 free_to_enable")
+	}
+	if ba.PriceCents != 9900 || ba.BillingCycle != model.BillingCycleOnce {
+		t.Errorf("browser-automation 应为 9900 分 / once，实际 %d / %q", ba.PriceCents, ba.BillingCycle)
+	}
+	// 种子口径：24 模块中恰 1 个 price>0（003 T005 验收）
+	priced := 0
+	for _, m := range list {
+		if m.PriceCents > 0 {
+			priced++
+		}
+	}
+	if priced != 1 {
+		t.Errorf("应恰有 1 个有价模块（browser-automation），实际 %d 个", priced)
 	}
 }
 
@@ -461,10 +589,14 @@ func TestRegulatoryNoticeFallbackWhenPlatformDisabled(t *testing.T) {
 	for _, f := range n.RequiredFields {
 		need[f] = true
 	}
-	for _, must := range []string{"company_name", "legal_person", "phone", "email"} {
+	// 003 T012：必填集收敛为 公司/负责人/电话/地址（邮箱降选填）
+	for _, must := range []string{"company_name", "legal_person", "phone", "address"} {
 		if !need[must] {
-			t.Errorf("必填项清单缺 %s（需求原文明确要求这四项）", must)
+			t.Errorf("必填项清单缺 %s（003 T012 收敛后的四项必填）", must)
 		}
+	}
+	if need["email"] {
+		t.Error("邮箱已降为选填（003 T012），不应再出现在必填清单里")
 	}
 }
 
@@ -517,14 +649,16 @@ func TestStartModuleSyncBootstrapsBaseModules(t *testing.T) {
 			len(model.BaseModuleKeys()), len(keys))
 	}
 
-	// 闸此刻必须真的开始拦（这是本条用例真正的判据）
+	// 闸此刻必须真的开始拦（这是本条用例真正的判据）。
+	// 判据模块换为 browser-automation：003 重定价后 geo 是 0 元赠送模块，
+	// 离线会随赠送集落地；唯一离线仍锁定的付费模块是 ¥99 买断的浏览器自动化。
 	gate := NewModuleGateServiceWithRepo(repository.NewTenantModuleRepositoryWithDB(rawDB(t)))
 	gate.Invalidate()
 	if err := gate.Refresh(context.Background()); err != nil {
 		t.Fatal(err)
 	}
-	if gate.IsEnabled(context.Background(), model.ModuleGEO) {
-		t.Error("同步完成后未开通的收费模块仍放行：闸未生效")
+	if gate.IsEnabled(context.Background(), model.ModuleBrowserAutomation) {
+		t.Error("同步完成后未开通的 browser-automation 仍放行：闸未生效")
 	}
 	if !gate.IsEnabled(context.Background(), model.ModuleCore) {
 		t.Error("同步完成后基础模块应放行")
@@ -609,8 +743,10 @@ func TestModuleGateOnModeSyncAndTenantScopedRead(t *testing.T) {
 	if !gate.IsEnabled(reqCtx, model.ModuleCore) {
 		t.Error("基础模块应放行")
 	}
-	if gate.IsEnabled(reqCtx, model.ModuleGEO) {
-		t.Error("未开通的收费模块被放行：on 模式闸静默全开（P1 回归）")
+	// 判据模块为 browser-automation：003 重定价后 geo 是 0 元赠送模块，
+	// 离线随赠送集落地；唯一离线仍锁定的付费模块是 ¥99 买断的浏览器自动化。
+	if gate.IsEnabled(reqCtx, model.ModuleBrowserAutomation) {
+		t.Error("未开通的 browser-automation 被放行：on 模式闸静默全开（P1 回归）")
 	}
 
 	// 收尾：清镜像行（此刻 mode 仍是 on，无绑定删除会被 fail-closed → 挂 SystemScope）

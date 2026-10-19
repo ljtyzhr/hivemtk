@@ -47,6 +47,7 @@ func clearModuleTablesOnMode(t *testing.T, database *gorm.DB) {
 // 自己租户的行灌进同一份缓存，被下一个请求覆盖；在 gateCacheTTL（60s）内，
 // 租户 B 会被拿租户 A 的开通集判定（付费闸对 B 静默失效或反向误拦）。
 // 这里用三个租户钉住三个面：
+//
 //	A（默认租户，有 geo）/ B（有 reach-link）→ 双向交替判定，谁都不许串；
 //	C（空镜像）→ base-only 判定（B-2 空态口径），且不许被 A/B 的行"带活"。
 //
@@ -143,9 +144,94 @@ func hasKey(m map[string]struct{}, k string) bool {
 // 租户 2 付的，能力是租户 1 拿的。
 //
 // 本用例走**真实链路**（桩平台：目录下发 + 订单状态确认），断言三件事：
-//	1. reach-link 行只落在 tenant_id=2，且带 1 条不落 tenant_id=1；
-//	2. 租户 2 同时拿到基础模块行（否则 boot=true 后基础能力会被判关）；
-//	3. 闸判定：租户 2 见激活、租户 1 不见（同一实例交替读，缓存不许串）。
+//  1. reach-link 行只落在 tenant_id=2，且带 1 条不落 tenant_id=1；
+//  2. 租户 2 同时拿到基础模块行（否则 boot=true 后基础能力会被判关）；
+//  3. 闸判定：租户 2 见激活、租户 1 不见（同一实例交替读，缓存不许串）。
+//
+// TestModuleSyncExemptsGiftRowsFromStaleDisable 0 元赠送行不参与 stale 判定。
+//
+// 事故形态（003 oracle P1-3）：平台对 0 元模块的 owned 下发口径未两端定死时，
+// 平台没把某 0 元模块算进 active_keys（存量商户升级前、离线期落的 gift 行），
+// 下一轮同步的 stale-disable 会把免费能力整批误关 —— 而这些行从未被购买，
+// 用户也无法通过任何界面恢复。
+//
+// 钉住两件事：gift 来源的 active 行不被失效；purchase 来源的行照常失效
+// （撤销通道本身不能被这个豁免弄丢）。
+func TestModuleSyncExemptsGiftRowsFromStaleDisable(t *testing.T) {
+	withTenantMode(t, tenant.ModeOn)
+	t.Setenv("PLATFORM_ENABLED", "true")
+	t.Setenv("PLATFORM_MERCHANT_KEY", "MKE2E")
+
+	// ---- 桩平台：只下发基础包（geo/approval 不在 active_keys 里）----
+	catalog := make([]map[string]any, 0, len(model.BaseModuleKeys()))
+	for _, k := range model.BaseModuleKeys() {
+		catalog = append(catalog, map[string]any{
+			"module_key": k, "name": k, "category": "base",
+			"owned": true, "owned_status": "active", "owned_source": "default_base",
+			"menu_keys": model.ModuleMenuBindings[k],
+		})
+	}
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/merchant-api/modules/sync":
+			_ = json.NewEncoder(w).Encode(map[string]any{"code": 200, "msg": "", "data": map[string]any{
+				"merchant_key": "MKE2E",
+				"active_keys":  model.BaseModuleKeys(),
+				"menu_keys":    []string{},
+				"catalog":      catalog,
+			}})
+		case "/merchant-api/orders":
+			_ = json.NewEncoder(w).Encode(map[string]any{"code": 200, "msg": "", "data": map[string]any{
+				"total": 0, "list": []map[string]any{},
+			}})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	prev := config.PlatformCfg
+	config.PlatformCfg = &config.PlatformConfig{APIURL: srv.URL, Secret: "test-secret"}
+	t.Cleanup(func() { config.PlatformCfg = prev })
+
+	database := testutil.NewTestDB(t, &model.TenantModule{}, &model.ModuleSyncLog{}, &model.ModuleOrder{})
+	clearModuleTablesOnMode(t, database)
+
+	repo := repository.NewTenantModuleRepositoryWithDB(database)
+	orderRepo := repository.NewModuleOrderRepositoryWithDB(database)
+	sysCtx := tenant.WithSystemScope(context.Background())
+	now := time.Now()
+	if err := repo.UpsertMany(sysCtx, []*model.TenantModule{
+		{ModuleKey: model.ModuleGEO, Status: model.TenantModuleActive,
+			Source: model.TenantModuleSourceGift, ActivatedAt: now},
+		{ModuleKey: model.ModuleApproval, Status: model.TenantModuleActive,
+			Source: model.TenantModuleSourcePurchase, ActivatedAt: now},
+	}); err != nil {
+		t.Fatalf("写入 gift/purchase 行: %v", err)
+	}
+
+	svc := NewModuleCatalogServiceWithRepos(repo, orderRepo)
+	if _, err := svc.Sync(context.Background()); err != nil {
+		t.Fatalf("Sync 失败: %v", err)
+	}
+
+	geo, err := repo.Get(sysCtx, model.ModuleGEO)
+	if err != nil || geo == nil {
+		t.Fatalf("读 geo 行失败: geo=%v err=%v", geo, err)
+	}
+	if geo.Status != model.TenantModuleActive {
+		t.Errorf("gift 行被 stale-disable 误伤：geo 状态应保持 active，实际 %q", geo.Status)
+	}
+	ap, err := repo.Get(sysCtx, model.ModuleApproval)
+	if err != nil || ap == nil {
+		t.Fatalf("读 approval 行失败: ap=%v err=%v", ap, err)
+	}
+	if ap.Status != model.TenantModuleDisabled {
+		t.Errorf("purchase 行应照常被 stale-disable：approval 状态应为 disabled，实际 %q", ap.Status)
+	}
+}
+
 func TestModuleSyncActivatesPaidModuleOnOrderingTenant(t *testing.T) {
 	withTenantMode(t, tenant.ModeOn)
 	t.Setenv("PLATFORM_ENABLED", "true")

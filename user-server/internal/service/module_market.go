@@ -62,28 +62,29 @@ type ModuleMarketDetail struct {
 
 // MarketList 市场列表。第二个返回值是平台是否连通。
 func (s *ModuleCatalogService) MarketList(ctx context.Context) ([]ModuleMarketItem, bool, error) {
-	owned, err := s.ownedMap(ctx)
+	owned, err := s.ownedRows(ctx)
 	if err != nil {
 		return nil, false, err
 	}
 	out := make([]ModuleMarketItem, 0, len(model.ModuleCatalogMeta))
 	for _, meta := range model.ModuleCatalogMeta {
 		menuKeys := model.ModuleMenuBindings[meta.Key]
-		st, has := owned[meta.Key]
+		row := owned[meta.Key]
+		price := marketPriceOf(meta.PriceCents, row)
 		item := ModuleMarketItem{
 			ModuleKey:    meta.Key,
 			Name:         meta.Name,
 			Category:     meta.Category,
-			PriceCents:   meta.PriceCents,
+			PriceCents:   price,
 			BillingCycle: meta.BillingCycle,
 			Icon:         meta.Icon,
 			Summary:      meta.Summary,
 			DependsOn:    meta.DependsOn,
 			MenuCount:    len(menuKeys),
-			Owned:        has && st == model.TenantModuleActive,
-			OwnedStatus:  st,
+			Owned:        row != nil && row.Status == model.TenantModuleActive,
+			OwnedStatus:  ownedStatusOf(row),
 			Free:         meta.Category == model.ModuleCategoryBase,
-			FreeToEnable: meta.Category == model.ModuleCategoryPaid && meta.PriceCents == 0,
+			FreeToEnable: meta.Category == model.ModuleCategoryPaid && price == 0,
 		}
 		out = append(out, item)
 	}
@@ -102,23 +103,24 @@ func (s *ModuleCatalogService) MarketDetail(ctx context.Context, moduleKey strin
 	if meta == nil {
 		return nil, ErrModuleNotInCatalog
 	}
-	owned, err := s.ownedMap(ctx)
+	owned, err := s.ownedRows(ctx)
 	if err != nil {
 		return nil, err
 	}
-	st, has := owned[moduleKey]
+	row := owned[moduleKey]
+	price := marketPriceOf(meta.PriceCents, row)
 	menuKeys := model.ModuleMenuBindings[moduleKey]
 
 	d := &ModuleMarketDetail{
 		ModuleMarketItem: ModuleMarketItem{
 			ModuleKey: moduleKey, Name: meta.Name, Category: meta.Category,
-			PriceCents: meta.PriceCents, BillingCycle: meta.BillingCycle,
+			PriceCents: price, BillingCycle: meta.BillingCycle,
 			Icon: meta.Icon, Summary: meta.Summary, DependsOn: meta.DependsOn,
 			MenuCount:    len(menuKeys),
-			Owned:        has && st == model.TenantModuleActive,
-			OwnedStatus:  st,
+			Owned:        row != nil && row.Status == model.TenantModuleActive,
+			OwnedStatus:  ownedStatusOf(row),
 			Free:         meta.Category == model.ModuleCategoryBase,
-			FreeToEnable: meta.Category == model.ModuleCategoryPaid && meta.PriceCents == 0,
+			FreeToEnable: meta.Category == model.ModuleCategoryPaid && price == 0,
 		},
 		MenuKeys:        menuKeys,
 		PlatformEnabled: config.PlatformEnabled(),
@@ -137,14 +139,37 @@ func (s *ModuleCatalogService) MarketDetail(ctx context.Context, moduleKey strin
 	return d, nil
 }
 
-func (s *ModuleCatalogService) ownedMap(ctx context.Context) (map[string]string, error) {
+// marketPriceOf 市场定价口径（003 T007）：sync 镜像优先，本地常量兜底。
+//
+// 平台端是运行时定价权威（003 spec R3/Q4）：镜像行里的 PriceCents 是最近
+// 一轮同步落下的目录快照，平台改价后经 sync 即在市场页生效；没有镜像行的
+// 模块（从未同步 / 未拥有）回落编译期种子价 —— 与平台种子同源，不会出现
+// "两边两个价"。镜像价为 0 也以镜像为准：平台把模块改成免费是合法运营
+// 动作，不该被本地兜底价顶回去。
+func marketPriceOf(metaPrice int64, row *model.TenantModule) int64 {
+	if row != nil {
+		return row.PriceCents
+	}
+	return metaPrice
+}
+
+// ownedStatusOf 镜像行状态（无行返回空串）
+func ownedStatusOf(row *model.TenantModule) string {
+	if row == nil {
+		return ""
+	}
+	return row.Status
+}
+
+// ownedRows 本地镜像：module_key → 行（含状态与目录快照价格）
+func (s *ModuleCatalogService) ownedRows(ctx context.Context) (map[string]*model.TenantModule, error) {
 	rows, err := s.repo.ListAll(ctx)
 	if err != nil {
 		return nil, err
 	}
-	m := make(map[string]string, len(rows))
+	m := make(map[string]*model.TenantModule, len(rows))
 	for _, r := range rows {
-		m[r.ModuleKey] = r.Status
+		m[r.ModuleKey] = r
 	}
 	return m, nil
 }
@@ -171,6 +196,9 @@ type MarketOrderResult struct {
 	Items        []platform.ModuleOrderItem `json:"items"`
 	PaymentGuide string                     `json:"payment_guide"`
 	Duplicate    bool                       `json:"duplicate"`
+	// Payment 平台下发的支付参数段（003 T018：epay pay_url/params/method）。
+	// 平台未配置通道/关渠道 → 空，前端回落线下付款指引（零代码回滚路径）。
+	Payment *platform.OrderPayment `json:"payment,omitempty"`
 	// PlatformEnabled=false 时本地只留了一单，运营看到它再补同步
 	PlatformEnabled bool `json:"platform_enabled"`
 }
@@ -180,6 +208,12 @@ type MarketOrderResult struct {
 // 一期无支付通道，本方法**不做任何扣费、不做任何开通** —— 只建单 + 提示联系本人。
 // 开通发生在平台端确认收款之后（服务端 MarkPaid → tenant_modules），
 // 用户端只通过模块同步感知到变化。
+//
+// 联系人约束（003 T018 / ADR-M9 #6 放宽）：**线下路径**（无 payment 段返回、
+// 走 payment_guide 引导）仍强制留联系方式；**在线支付路径**（平台返回
+// payment.pay_url）不强制 —— 在线支付不需要先加好友，拦联系方式只会把
+// 已经扫码付款的人挡在门外。判定只能在平台响应之后：下单前不知道平台会
+// 走哪条路（渠道开关在平台端）。
 func (s *ModuleCatalogService) CreateOrder(ctx context.Context, in MarketOrderInput) (*MarketOrderResult, error) {
 	if !config.PlatformEnabled() {
 		return nil, ErrPlatformUnavailable
@@ -187,10 +221,7 @@ func (s *ModuleCatalogService) CreateOrder(ctx context.Context, in MarketOrderIn
 	if len(in.ModuleKeys) == 0 {
 		return nil, bizerr.New(bizerr.CodeParamInvalid, "请选择要开通的模块")
 	}
-	if strings.TrimSpace(in.ContactPhone) == "" && strings.TrimSpace(in.ContactEmail) == "" {
-		// 需求原文：提交订单后买方联系本人。这条联系不上就等于流程断在这里。
-		return nil, ErrNoContactForPayment
-	}
+	hasContact := strings.TrimSpace(in.ContactPhone) != "" || strings.TrimSpace(in.ContactEmail) != ""
 	clientNo := strings.TrimSpace(in.ClientOrderNo)
 	if clientNo == "" {
 		clientNo = newClientOrderNo()
@@ -220,6 +251,15 @@ func (s *ModuleCatalogService) CreateOrder(ctx context.Context, in MarketOrderIn
 		return nil, bizerr.Wrap(bizerr.CodePlatformUnavail, "提交订单失败（平台不可达）", err)
 	}
 
+	// ---- 联系人约束（仅线下路径强制）----
+	// 平台返回 payment 段 = 在线支付路径 → 放行；没有 = 线下引导 → 必须留联系人。
+	if res.Payment == nil && !hasContact {
+		// 平台单已建但本地不留：缺联系方式的单运营联系不上买家，等于流程断在这里。
+		// 让用户补联系方式后用同一 client_order_no 重试（幂等命中既有单），
+		// 比留一张孤儿单更干净。
+		return nil, ErrNoContactForPayment
+	}
+
 	items, _ := json.Marshal(res.Items)
 	guide := res.PaymentGuide
 	if strings.TrimSpace(guide) == "" {
@@ -242,7 +282,8 @@ func (s *ModuleCatalogService) CreateOrder(ctx context.Context, in MarketOrderIn
 	}
 	return &MarketOrderResult{
 		OrderNo: res.OrderNo, Status: res.Status, TotalCents: res.TotalCents,
-		Items: res.Items, PaymentGuide: guide, PlatformEnabled: true,
+		Items: res.Items, PaymentGuide: guide, Payment: res.Payment,
+		PlatformEnabled: true,
 	}, nil
 }
 

@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 	bizerr "hivemtk-user/internal/domain/errors"
 	"hivemtk-user/internal/middleware"
+	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/pkg/utils/response"
 	"hivemtk-user/internal/service"
@@ -132,6 +133,23 @@ func (c *ModuleMarketController) OrderDetail(ctx *gin.Context) {
 		return
 	}
 	response.Success(ctx, o, "ok")
+}
+
+// PayStatus GET /api/module-market/orders/:order_no/pay-status
+//
+// 支付确认后前端轮询它（比 10 分钟 sync 快）。直查平台走既有 merchant-api
+// HMAC 通道，不加新鉴权面（003 T018）。
+func (c *ModuleMarketController) PayStatus(ctx *gin.Context) {
+	status, err := c.svc().PayStatus(ctx.Request.Context(), ctx.Param("order_no"))
+	if err != nil {
+		moduleMarketFail(ctx, err)
+		return
+	}
+	response.Success(ctx, gin.H{
+		"order_no": ctx.Param("order_no"),
+		"status":   status,
+		"paid":     status == model.ModuleOrderPaid || status == model.ModuleOrderFulfilled,
+	}, "ok")
 }
 
 // MyModules GET /api/modules/my

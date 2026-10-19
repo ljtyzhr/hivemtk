@@ -122,15 +122,25 @@ docker compose up -d user-server
 │  用户名: [admin_____________]              │
 │  密码:   [_________________]                │
 │  确认密码: [_________________]              │
-│  姓名:   [_________________]                │
-│  邮箱:   [_________________]                │
-│  手机:   [_________________]                │
+│                                            │
+│  开户登记（003 起）                          │
+│  公司/组织名称: [_________________*]        │
+│  负责人姓名:   [_________________*]         │
+│  联系电话:     [_________________*]         │
+│  联系地址:     [_________________*]         │
+│  邮箱:         [_________________]（选填）   │
+│  执照号:       [_________________]（选填）   │
+│  ☑ 已阅读并确认平台监管责任告知                │
 │                                            │
 │  [   创建账号   ]                           │
 └────────────────────────────────────────────┘
 ```
 
-> 无需任何授权码：手机号、邮箱、姓名均为选填，仅在平台集成开启（`PLATFORM_ENABLED=true`）时作为商户联系信息上报本地 platform-server。
+> **字段口径（003 · T011/T012 两端同批收敛）**：
+> - **必填**：用户名、密码（含确认）、**公司/组织名称、负责人姓名、联系电话、联系地址**，外加监管告知勾选（`regulatory_ack`）；
+> - **选填**：邮箱、执照号（`license_no`）——原「邮箱必填」已降级，地址顶替其必填位（地址是电话失联时仅剩的定位线索）；
+> - 校验单点：`service.AuthService.ValidateOfflineRegistration`（`/setup` 初始化、SaaS 开户、单机自助注册三条入口同一口径）；
+> - 无需任何授权码（开源版已移除 License 流程）；平台集成开启（`PLATFORM_ENABLED=true`）时上述登记信息上报本地 platform-server。
 
 ### 3.3 创建超管账号
 
@@ -141,19 +151,29 @@ docker compose up -d user-server
   "username": "admin",
   "password": "YourStrongPassword!",
   "email": "admin@example.com",
-  "real_name": "超级管理员",
-  "contact_phone": "13800138000"
+  "real_name": "张三",
+  "contact_phone": "13800138000",
+  "company_name": "示例科技有限公司",
+  "address": "上海市浦东新区示例路 1 号",
+  "license_no": "",
+  "regulatory_ack": true,
+  "agreement_version": "v1"
 }
 ```
 
-服务端流程（`service.AuthService.InitAdmin`）：
+> `company_name` / `real_name` / `contact_phone` / `address` **缺一不可**（缺项返回 400，错误体列出缺哪几项）；
+> `email` / `license_no` 可空；`regulatory_ack=false` 拒绝。
 
-1. 加载 install.lock
-2. 校验用户名唯一性（DB 查询）
-3. 强密码校验（≥ 8 字符）
-4. bcrypt 哈希密码，写入 `system_users` 表
-5. **同步 install.lock**：写入 `admin_username` + `initialized=true`
-6. 返回成功，state 推进到 `INITIALIZED`
+服务端流程（`service.AuthService.InitAdminWithRegistration`，即 `InitAdmin` 的登记版）：
+
+1. 全量校验（强密码 + 用户名唯一 + `ValidateOfflineRegistration` 必填矩阵）
+2. 落 `tenants` 租户登记行（`reg_mode` 按 `TENANT_MODE` 实际取值：on → `saas`，off → `offline`；003 T012 修复了历史硬编码 `offline`）
+   - **静默合规采集（003 T010）**：同写 `init_ip`（客户端 IP）、`init_ua`（UA 的 sha256 hex，不存明文）、`init_device_fingerprint`（由 UA+IP 派生，复用 `pkg/utils/fingerprint`）——**服务端视角采集，无任何用户可见提示，前端不参与**
+3. bcrypt 哈希密码，写入 `system_users`（on 模式显式绑定租户 ID 后再 INSERT）
+4. **同步 install.lock**：写入 `admin_username` + `initialized=true`
+5. 回填超管资料（负责人姓名/电话）
+6. **开户赠送（003 T013）**：`provisionTenantStarterKit(tenantID)` —— 克隆 1 个租户级智能体（全局 `default_sales` 的副本）+ 创建 1 个起步资产包（内置模板 `starter-bundle`：欢迎语/常见问答/话术）；幂等键 `tenant_id + template_key`，**失败仅 Warn 不阻断初始化**（赠送可后补，开户不可逆），on/off 两态都执行
+7. 返回成功，state 推进到 `INITIALIZED`
 
 ### 3.4 完成初始化
 
@@ -178,7 +198,7 @@ http://<your-server-ip>:8204/login
 完成上述步骤后：
 
 - 系统正式可用
-- 所有功能（AI / RAG / 客服 / 营销）全开放，不存在按授权解锁的功能开关
+- 功能模块按 003 定价口径开放：**23 个 0 元模块初始化即赠予开通**，唯一收费项 **浏览器自动化（¥99 买断）** 在离线形态下保持锁定（本地无支付通道 → 不可购不可用，不做授权码旁路）——见 `docs/architecture/MODULAR_MODULES.md` §3.5
 - 平台集成关闭（默认）时不向任何地址上报；开启后心跳也是 best-effort：失败仅 Warn，不影响本地业务
 
 ---
@@ -294,4 +314,5 @@ http://<your-server-ip>:8204/login
 
 - 部署手册：[MERCHANT_DEPLOYMENT.md](MERCHANT_DEPLOYMENT.md)
 - 部署方案：[../architecture/部署方案_用户端.md](../architecture/部署方案_用户端.md)
+- 上线前真人支付验收：[EPAY_LIVE_CHECKLIST.md](EPAY_LIVE_CHECKLIST.md)（003 · T032）
 - 平台端 / 用户端分工：`hivemtk-platform/docs/architecture/部署方案_平台端与用户端.md`（跨仓库路径：属 hivemtk-platform 仓，本仓 checkout 内不可点）

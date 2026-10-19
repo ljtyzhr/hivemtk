@@ -252,7 +252,7 @@
         </template>
 
         <el-divider content-position="left">
-          联系方式（用于线下付款）
+          联系方式（线下付款必填其一；在线支付可不填）
         </el-divider>
         <el-form
           :model="form"
@@ -268,13 +268,13 @@
           <el-form-item label="电话">
             <el-input
               v-model="form.contact_phone"
-              placeholder="必填或填写邮箱"
+              placeholder="线下付款必填其一（在线支付可不填）"
             />
           </el-form-item>
           <el-form-item label="邮箱">
             <el-input
               v-model="form.contact_email"
-              placeholder="必填或填写电话"
+              placeholder="线下付款必填其一（在线支付可不填）"
             />
           </el-form-item>
           <el-form-item label="备注">
@@ -298,6 +298,16 @@
         </el-button>
       </template>
     </el-dialog>
+
+    <!-- 收银台（003 T019）：有 payment 段 → 跳转支付 + 轮询；无 → 线下指引 -->
+    <CashierDialog
+      v-model="cashierVisible"
+      :order-no="cashierOrderNo"
+      :payment="cashierPayment"
+      :guide="cashierGuide"
+      :amount-cents="cashierAmountCents"
+      @paid="onCashierPaid"
+    />
   </div>
 </template>
 
@@ -310,6 +320,7 @@ import {
   listMarketModules, marketModuleDetail, createModuleOrder, priceLabel,
   MODULE_CATEGORY_LABEL
 } from '@/api/moduleMarket'
+import CashierDialog from '@/components/CashierDialog.vue'
 
 const CATEGORY_LABEL = MODULE_CATEGORY_LABEL
 const route = useRoute()
@@ -355,6 +366,13 @@ const payableDeps = ref([])
 // 才挡得住双击/重试造成的重复平台订单；上一单真发出去之后再开窗才换新键。
 const clientOrderNo = ref('')
 
+// 收银台状态（003 T019）
+const cashierVisible = ref(false)
+const cashierOrderNo = ref('')
+const cashierPayment = ref(null)
+const cashierGuide = ref('')
+const cashierAmountCents = ref(0)
+
 function genClientOrderNo () {
   try {
     if (typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function') {
@@ -389,9 +407,11 @@ async function openConfirm (m) {
 }
 
 async function submit () {
+  // 联系方式不再前端硬拦（003 T018）：在线支付不强制、线下路径由后端
+  // 按 payment 段有无判定（ErrNoContactForPayment 仅线下路径触发）。
+  // 前端只在两者皆空时给一次软提醒，不阻断提交。
   if (!form.contact_phone && !form.contact_email) {
-    ElMessage.warning('请填写电话或邮箱 —— 平台运营需要据此联系你完成线下付款')
-    return
+    ElMessage.info('若走线下付款，平台运营需要电话或邮箱联系你；在线支付可直接提交')
   }
   submitting.value = true
   try {
@@ -402,13 +422,28 @@ async function submit () {
       ...form
     })
     confirmVisible.value = false
-    ElMessageBoxAlert(res?.payment_guide)
+    // 003 T019：有 payment 段（在线支付）→ 弹收银台；无 → 线下指引 toast
+    if (res?.payment?.pay_url) {
+      cashierOrderNo.value = res.order_no
+      cashierPayment.value = res.payment
+      cashierGuide.value = res?.payment_guide || ''
+      cashierAmountCents.value = Number(res?.total_amount_cents || 0)
+      cashierVisible.value = true
+    } else {
+      ElMessageBoxAlert(res?.payment_guide)
+    }
     fetch()
   } catch (e) {
     ElMessage.error(e?.message || '下单失败')
   } finally {
     submitting.value = false
   }
+}
+
+// 收银台支付确认：提示 + 刷市场（已购标记变化）
+function onCashierPaid () {
+  ElMessage.success('支付成功！模块开通中，稍后自动刷新（也可手动刷新页面查看）。')
+  fetch()
 }
 
 function ElMessageBoxAlert (guide) {

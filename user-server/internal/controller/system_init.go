@@ -86,24 +86,26 @@ func publicInitStatus(s *install.Status) gin.H {
 // 开源版：手机号、邮箱、姓名均为选填（初始化时上报平台，作为商户联系信息）。
 // InitAdminRequest 初始化向导的提交体。
 //
-// Email / RealName / ContactPhone / CompanyName 四项是**开户登记必填**，不是选填：
-// 离线独立部署的用户**不会**走 /api/auth/register，他们只有这一个入口，
-// 这里放行就等于需求「租户开户必须收集电话、邮箱、公司名称、负责人等」
-// 对整个离线人群完全失效（见 tasks.md 三次审核轮 L10）。
+// 开户登记必填集（003 T012 收敛）：CompanyName / RealName / ContactPhone /
+// **Address** 四项缺一不可，Email / LicenseNo 选填（Address 顶替邮箱的必填位：
+// 电话失联时地址是唯一剩下的定位线索）。必填判定在
+// service.ValidateOfflineRegistration，不在 binding 层 —— gin binding 的
+// 400 文案给不出「缺少：X、Y」的完整清单。
 //
 // CompanyName 可退化为「负责人所属组织」：个人自用也要能装，
 // 但不允许**完全为空** —— 一个查不到人的经营主体在监管问询时毫无价值。
 type InitAdminRequest struct {
 	Username     string `json:"username" binding:"required,min=3,max=20"`
 	Password     string `json:"password" binding:"required,min=8"`
-	Email        string `json:"email" binding:"required,email"`
+	Email        string `json:"email" binding:"omitempty,email"`
 	RealName     string `json:"real_name" binding:"required,min=2,max=32"`
 	ContactPhone string `json:"contact_phone" binding:"required"`
 	// CompanyName 组织/公司名称；为空时回落为「负责人所属组织」，仍不允许两者皆空
 	CompanyName string `json:"company_name"`
-	// LicenseNo / Address 选填：法律上通常需要，但留空可事后在平台端补录
+	// LicenseNo 选填：法律上通常需要，但留空可事后在平台端补录
 	LicenseNo string `json:"license_no"`
-	Address   string `json:"address"`
+	// Address 开户登记必填（003 T012）
+	Address string `json:"address"`
 	// RegulatoryAck 用户已确认监管责任告知
 	RegulatoryAck bool `json:"regulatory_ack"`
 	// AgreementVersion 用户同意的协议版本（由 /api/public/config 或告知端点给出）

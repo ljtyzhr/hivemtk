@@ -34,6 +34,8 @@
 |------|------|
 | [RELEASE_PREPARATION.md](RELEASE_PREPARATION.md) | 发布准备：用户端/平台端配置、数据初始化、安装部署逻辑核查 + 上服务器清单 |
 | [operations/MERCHANT_DEPLOYMENT.md](operations/MERCHANT_DEPLOYMENT.md) | 商户部署手册 |
+| [operations/MERCHANT_INITIALIZATION_FLOW.md](operations/MERCHANT_INITIALIZATION_FLOW.md) | 首次启动初始化流程（/setup 开户字段、静默合规采集、开户赠送） |
+| [operations/EPAY_LIVE_CHECKLIST.md](operations/EPAY_LIVE_CHECKLIST.md) | 易支付上线前真人支付验收清单（003 · T032） |
 | [operations/HA_DEPLOYMENT.md](operations/HA_DEPLOYMENT.md) | 高可用部署（单机+备份） |
 | [operations/DR_RECOVERY.md](operations/DR_RECOVERY.md) | 灾难恢复方案 |
 | [operations/SLA_SLO.md](operations/SLA_SLO.md) | 服务等级承诺 |
@@ -90,4 +92,16 @@
 
 ---
 
-*最后更新: 2026-08-27 · 三份主文档已按源码完成事实校准；AI 功能清单基线已收编入仓库*
+## 九、规格与施工文档（specify / specs，唯一施工源）
+
+| 文档 | 说明 |
+|------|------|
+| [../specs/001-saas-multi-tenant/](../specs/001-saas-multi-tenant/) | 001 多租户底座（TENANT_MODE 双形态、tenancy、契约） |
+| [../.specify/002-modular-subscription/](../.specify/002-modular-subscription/) | 002 模块订阅一期（模块闸、订单状态机、MarkPaid 唯一入账口、LLM 双轨计费） |
+| [../.specify/003-saas-billing-v2/](../.specify/003-saas-billing-v2/) | 003 SaaS 计费二期：订阅 + 易支付 + 初始化赠送 + 官网云端入口（`plan.md` 含 ADR-M8/M9 与「审查修订」） |
+
+> 覆盖关系：003 **显式覆盖** 002 的两处口径——「本阶段不接任何真实支付通道」→ 接入易支付；「收费模块按年订阅、全量线年度合计 999 元/年」→「23 模块 0 元 + 浏览器自动化 ¥99 买断 + 软件订阅 149 元/月」。002 的架构资产全部沿用。
+
+---
+
+*最后更新: 2026-10-19 · 补录 002/003 规格与施工文档、003 运维文档（初始化流程勘误 / 易支付上线验收清单）；三份主文档与 AI 功能清单基线口径不变*

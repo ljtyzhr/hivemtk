@@ -64,6 +64,16 @@ const (
 	ModuleCategoryPaid = "paid"
 )
 
+// BillingCycle 计费周期（与平台端 model.BillingCycle 同名同义）。
+// 平台端枚举必须与本表同批扩展，否则 gen-module-bindings 重生成的种子
+// 会在平台端枚举校验处被拒（003 T004）。
+const (
+	BillingCycleYearly  = "yearly"  // 年费
+	BillingCycleMetered = "metered" // 计量（token 钱包，按量扣减）
+	BillingCycleMonthly = "monthly" // 月订阅（软件订阅 ¥149/月，003 R3）
+	BillingCycleOnce    = "once"    // 买断（永不写 ExpiresAt，003 R3）
+)
+
 // ModuleMeta 模块元数据（名称/分类/默认定价/描述）。展示文案以 i18n 为准，
 // 这里的 Summary 是「平台端市场卡片 + 用户端市场卡片」共用的兜底文案。
 type ModuleMeta struct {
@@ -71,7 +81,7 @@ type ModuleMeta struct {
 	Name         string
 	Category     string
 	PriceCents   int64
-	BillingCycle string // yearly | metered
+	BillingCycle string // BillingCycleYearly | BillingCycleMetered | BillingCycleMonthly | BillingCycleOnce
 	Icon         string
 	Summary      string
 	DependsOn    []string
@@ -79,8 +89,13 @@ type ModuleMeta struct {
 
 // ModuleCatalogMeta 24 个模块的元数据。顺序即平台端市场默认排序。
 //
-// 定价口径（2026-10-18 平价路线调整）：16 个年费模块按用户感知价值排序定价，
-// 合计 ¥999/年（全开封顶在 ¥1,000 以内）；llm-cloud 保持 0 元开通 + 按量预付费。
+// 定价口径（2026-10-19 计费二期重定价，显式覆盖 2026-10-18「平价路线」旧口径）：
+// 功能模块几乎全部免费 —— 除浏览器自动化外的 16 个付费类目模块 price_cents=0
+// （需开通但不收钱，FreeToEnable，注册/初始化自动赠予）；唯一例外是
+// 浏览器自动化 ¥99 买断（9900 分 / BillingCycleOnce，不设 ExpiresAt，
+// 本地无支付通道 → 保持不可购不可用）；llm-cloud 保持 0 元开通 + metered
+// 按量预付费。平台端为运行时定价权威，改价经模块同步下发（MarketList/
+// MarketDetail 读镜像优先），本表只是编译期种子与离线兜底。
 // 改价后必须同步：运行 go run ./cmd/gen-module-bindings 重生成平台端 seed
 // （config/ 与 internal/service/ 两份），并更新 website/src/config/content.js。
 var ModuleCatalogMeta = []ModuleMeta{
@@ -101,45 +116,46 @@ var ModuleCatalogMeta = []ModuleMeta{
 		Summary: "平台心跳、功能模块下发与开通状态同步；离线部署时全部基础能力直接可用", DependsOn: []string{ModuleCore}},
 
 	// ---- 收费模块（17）----
-	{Key: ModuleAIAgent, Name: "AI 智能体", Category: ModuleCategoryPaid, PriceCents: 12800, BillingCycle: "yearly", Icon: "ChatDotRound",
+	{Key: ModuleAIAgent, Name: "AI 智能体", Category: ModuleCategoryPaid, PriceCents: 0, BillingCycle: BillingCycleYearly, Icon: "ChatDotRound",
 		Summary:   "7×24 自动应答真实客户消息，可绑定不同模型、知识库与 SOP",
 		DependsOn: []string{ModuleCore, ModuleCustomer, ModuleInbox, ModuleKnowledge, ModuleLLMSelf}},
-	{Key: ModuleAISales, Name: "AI 销冠", Category: ModuleCategoryPaid, PriceCents: 19900, BillingCycle: "yearly", Icon: "Trophy",
+	{Key: ModuleAISales, Name: "AI 销冠", Category: ModuleCategoryPaid, PriceCents: 0, BillingCycle: BillingCycleYearly, Icon: "Trophy",
 		Summary:   "意图识别、异议应对、销冠画像与 SOP 自动推进成交",
 		DependsOn: []string{ModuleCore, ModuleCustomer, ModuleInbox, ModuleLLMSelf, ModuleAIAgent}},
-	{Key: ModuleLLMCloud, Name: "平台模型算力", Category: ModuleCategoryPaid, PriceCents: 0, BillingCycle: "metered", Icon: "Cpu",
+	{Key: ModuleLLMCloud, Name: "平台模型算力", Category: ModuleCategoryPaid, PriceCents: 0, BillingCycle: BillingCycleMetered, Icon: "Cpu",
 		Summary:   "不用自己申请 Key，用平台垫资的大模型；按 token 预付费，输入输出分别计价",
 		DependsOn: []string{ModuleCore, ModuleLLMSelf}},
-	{Key: ModuleReachAuto, Name: "营销自动化", Category: ModuleCategoryPaid, PriceCents: 6900, BillingCycle: "yearly", Icon: "Operation",
+	{Key: ModuleReachAuto, Name: "营销自动化", Category: ModuleCategoryPaid, PriceCents: 0, BillingCycle: BillingCycleYearly, Icon: "Operation",
 		Summary: "线索进来自动跑多轮触达与工作流编排", DependsOn: []string{ModuleCore, ModuleCustomer}},
-	{Key: ModuleReachSMS, Name: "短信触达", Category: ModuleCategoryPaid, PriceCents: 2900, BillingCycle: "yearly", Icon: "ChatDotSquare",
+	{Key: ModuleReachSMS, Name: "短信触达", Category: ModuleCategoryPaid, PriceCents: 0, BillingCycle: BillingCycleYearly, Icon: "ChatDotSquare",
 		Summary: "国内短信发送、任务调度与退订管理", DependsOn: []string{ModuleCore, ModuleCustomer, ModuleReachAuto}},
-	{Key: ModuleReachEmail, Name: "邮件触达", Category: ModuleCategoryPaid, PriceCents: 2900, BillingCycle: "yearly", Icon: "Message",
+	{Key: ModuleReachEmail, Name: "邮件触达", Category: ModuleCategoryPaid, PriceCents: 0, BillingCycle: BillingCycleYearly, Icon: "Message",
 		Summary: "邮件列表、SMTP、草稿任务与送达率追踪", DependsOn: []string{ModuleCore, ModuleCustomer, ModuleReachAuto}},
-	{Key: ModuleReachSocial, Name: "社媒引流卡片", Category: ModuleCategoryPaid, PriceCents: 6900, BillingCycle: "yearly", Icon: "VideoPlay",
+	{Key: ModuleReachSocial, Name: "社媒引流卡片", Category: ModuleCategoryPaid, PriceCents: 0, BillingCycle: BillingCycleYearly, Icon: "VideoPlay",
 		Summary:   "抖音 / 快手 / 小红书 / 闲鱼 / TikTok 引流卡片与自动私信回复",
 		DependsOn: []string{ModuleCore, ModuleCustomer, ModuleReachAuto}},
-	{Key: ModuleReachLink, Name: "短链活码", Category: ModuleCategoryPaid, PriceCents: 900, BillingCycle: "yearly", Icon: "Link",
+	{Key: ModuleReachLink, Name: "短链活码", Category: ModuleCategoryPaid, PriceCents: 0, BillingCycle: BillingCycleYearly, Icon: "Link",
 		Summary: "可追踪短链、活码投放与域名池健康检测", DependsOn: []string{ModuleCore}},
-	{Key: ModuleIMWecom, Name: "企业微信", Category: ModuleCategoryPaid, PriceCents: 9900, BillingCycle: "yearly", Icon: "Promotion",
+	{Key: ModuleIMWecom, Name: "企业微信", Category: ModuleCategoryPaid, PriceCents: 0, BillingCycle: BillingCycleYearly, Icon: "Promotion",
 		Summary: "企微账号托管、客户群运营与健康度风控", DependsOn: []string{ModuleCore, ModuleCustomer, ModuleInbox}},
-	{Key: ModuleIMIntl, Name: "海外与协作 IM", Category: ModuleCategoryPaid, PriceCents: 5900, BillingCycle: "yearly", Icon: "ChatDotRound",
+	{Key: ModuleIMIntl, Name: "海外与协作 IM", Category: ModuleCategoryPaid, PriceCents: 0, BillingCycle: BillingCycleYearly, Icon: "ChatDotRound",
 		Summary:   "WhatsApp / Telegram / QQ / 飞书 / 钉钉 / 社群 多通道收发",
 		DependsOn: []string{ModuleCore, ModuleCustomer, ModuleInbox}},
-	{Key: ModuleAnalytics, Name: "数据分析", Category: ModuleCategoryPaid, PriceCents: 2900, BillingCycle: "yearly", Icon: "DataAnalysis",
+	{Key: ModuleAnalytics, Name: "数据分析", Category: ModuleCategoryPaid, PriceCents: 0, BillingCycle: BillingCycleYearly, Icon: "DataAnalysis",
 		Summary: "数据大屏、转化漏斗、AI 产能与自定义报表", DependsOn: []string{ModuleCore, ModuleCustomer, ModuleInbox}},
-	{Key: ModuleExperiment, Name: "实验与预测", Category: ModuleCategoryPaid, PriceCents: 3900, BillingCycle: "yearly", Icon: "TrendCharts",
+	{Key: ModuleExperiment, Name: "实验与预测", Category: ModuleCategoryPaid, PriceCents: 0, BillingCycle: BillingCycleYearly, Icon: "TrendCharts",
 		Summary: "A/B 实验（含多臂老虎机）与流失预警", DependsOn: []string{ModuleCore, ModuleCustomer, ModuleAnalytics}},
-	{Key: ModuleBrowserAutomation, Name: "浏览器自动化", Category: ModuleCategoryPaid, PriceCents: 4900, BillingCycle: "yearly", Icon: "Cpu",
+	// 浏览器自动化是唯一有价模块：¥99 买断（003 R3 用户裁决）。离线同锁。
+	{Key: ModuleBrowserAutomation, Name: "浏览器自动化", Category: ModuleCategoryPaid, PriceCents: 9900, BillingCycle: BillingCycleOnce, Icon: "Cpu",
 		Summary: "常驻浏览器接管真实客户端做私信与评论", DependsOn: []string{ModuleCore, ModuleCustomer}},
-	{Key: ModuleGEO, Name: "GEO 智能优化", Category: ModuleCategoryPaid, PriceCents: 9900, BillingCycle: "yearly", Icon: "MagicStick",
+	{Key: ModuleGEO, Name: "GEO 智能优化", Category: ModuleCategoryPaid, PriceCents: 0, BillingCycle: BillingCycleYearly, Icon: "MagicStick",
 		Summary:   "AI 搜索可见性优化：关键词蒸馏、内容生成、收录与 SOV 监控",
 		DependsOn: []string{ModuleCore, ModuleKnowledge}},
-	{Key: ModuleSalesCRM, Name: "销售工作台", Category: ModuleCategoryPaid, PriceCents: 5900, BillingCycle: "yearly", Icon: "Notebook",
+	{Key: ModuleSalesCRM, Name: "销售工作台", Category: ModuleCategoryPaid, PriceCents: 0, BillingCycle: BillingCycleYearly, Icon: "Notebook",
 		Summary: "销售驾驶舱、跟进、商机报价与回款闭环", DependsOn: []string{ModuleCore, ModuleCustomer, ModuleAISales}},
-	{Key: ModuleApproval, Name: "审批与待办", Category: ModuleCategoryPaid, PriceCents: 1900, BillingCycle: "yearly", Icon: "Tickets",
+	{Key: ModuleApproval, Name: "审批与待办", Category: ModuleCategoryPaid, PriceCents: 0, BillingCycle: BillingCycleYearly, Icon: "Tickets",
 		Summary: "待办中心、Bad Case 队列与人工任务分派", DependsOn: []string{ModuleCore}},
-	{Key: ModuleI18N, Name: "多语言管理", Category: ModuleCategoryPaid, PriceCents: 1500, BillingCycle: "yearly", Icon: "Coin",
+	{Key: ModuleI18N, Name: "多语言管理", Category: ModuleCategoryPaid, PriceCents: 0, BillingCycle: BillingCycleYearly, Icon: "Coin",
 		Summary: "术语表与多语言监控看板", DependsOn: []string{ModuleCore}},
 }
 

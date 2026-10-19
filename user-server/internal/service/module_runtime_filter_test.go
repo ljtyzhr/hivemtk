@@ -312,9 +312,13 @@ func TestRuntimeGateOfflineEquivalenceWithIsEnabled(t *testing.T) {
 	if !AllowWorker(ctx, "customer_rfm") || !AllowWorker(ctx, "customer_session") || !AllowWorker(ctx, "rag_eval") {
 		t.Error("bootstrapOffline 落地后 customer/knowledge cron 应放行")
 	}
-	// GEO 是收费模块且未开通 → 关联 worker 拦
-	if AllowWorker(ctx, "sov_refresh") {
-		t.Error("未开通的收费模块 geo 关联 worker 应被拦")
+	// geo 是 0 元赠送模块（003 重定价）→ bootstrapOffline 落地后其 worker 放行
+	if !AllowWorker(ctx, "sov_refresh") {
+		t.Error("0 元赠送模块 geo 落地后其关联 worker 应放行")
+	}
+	// browser-automation 仍锁定（¥99 买断，离线不可购）→ 关联能力拦
+	if AllowWorker(ctx, model.ModuleBrowserAutomation) {
+		t.Error("未开通的 browser-automation 关联 worker 应被拦")
 	}
 }
 

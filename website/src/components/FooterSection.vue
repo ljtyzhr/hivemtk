@@ -1,5 +1,6 @@
 <script setup>
 import { useSiteContact } from '../composables/useSiteContact.js'
+import { CLOUD_URL } from '../config/content.js'
 
 const { wechatId, wechatQrURL, email, phone, serviceHours } = useSiteContact()
 
@@ -35,6 +36,8 @@ const resourceLinks = [
   { label: '按需订阅', href: '/pricing' },
   { label: '工程能力', href: '/toolchain' },
   { label: '常见问题', href: '/faq' },
+  // 云端版（SaaS 多租户形态）入口：单点常量 CLOUD_URL，外链
+  { label: '云端版在线使用', href: CLOUD_URL, external: true },
 ]
 
 // HiveMTK 开源资料入口(AGPL-3.0 协议、贡献指南、免责声明)
@@ -53,7 +56,7 @@ const openSourceLinks = [
         <div class="cta-text">
           <span class="cta-kicker">{{ $t('立即开始') }}</span>
           <h2 class="cta-title">{{ $t('克隆仓库,4 步完成私有化部署') }}</h2>
-          <p class="cta-desc">{{ $t('AGPL-3.0 开源,无授权码、无版本下载：代码与基础功能模块免费,增值功能模块可按需订阅。完整源码均在 GitHub / Gitee 公开托管。') }}</p>
+          <p class="cta-desc">{{ $t('AGPL-3.0 开源,无授权码、无版本下载：代码与全部功能模块免费开放,仅浏览器自动化 ¥99 买断,云端版软件订阅 149 元/月。完整源码均在 GitHub / Gitee 公开托管。') }}</p>
         </div>
         <div class="cta-repos">
           <a
@@ -111,7 +114,13 @@ const openSourceLinks = [
         <h4 class="footer-col-title">{{ $t('快速导航') }}</h4>
         <ul>
           <li v-for="link in resourceLinks" :key="link.label">
-            <router-link :to="link.href">{{ $t(link.label) }}</router-link>
+            <a
+              v-if="link.external"
+              :href="link.href"
+              target="_blank"
+              rel="noopener noreferrer"
+            >{{ $t(link.label) }}</a>
+            <router-link v-else :to="link.href">{{ $t(link.label) }}</router-link>
           </li>
         </ul>
       </div>

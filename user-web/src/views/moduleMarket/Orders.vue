@@ -214,12 +214,27 @@ function stopPolling () {
 
 // silent 专供 30 秒后台轮询：轮询触发的刷新失败（401/403/超时）没有用户动作
 // 可归因，不该弹 toast —— 两条取数都带 _silent 走静默通道。
+//
+// 003 T019：刷新时对比上一轮状态，pending_payment → paid/fulfilled 的迁移
+// 弹「支付完成 + 模块激活」提示（用户盯着订单页等的就是这一刻）。
+let prevStatuses = {}
+
 async function fetch (silent = false) {
   const cfg = silent ? { _silent: true } : undefined
   loading.value = true
   try {
     const res = await listModuleOrders({ page: page.value, page_size: pageSize.value }, cfg)
-    list.value = res?.list || []
+    const next = res?.list || []
+    // 状态迁移检测：上一轮 pending、这一轮 paid/fulfilled → 支付完成
+    for (const o of next) {
+      const prev = prevStatuses[o.order_no]
+      if (prev === 'pending_payment' && (o.status === 'paid' || o.status === 'fulfilled')) {
+        ElMessage.success(`订单 ${o.order_no} 支付完成，模块正在开通 —— 可在「我的模块」查看。`)
+      }
+    }
+    prevStatuses = {}
+    for (const o of next) prevStatuses[o.order_no] = o.status
+    list.value = next
     total.value = res?.total || 0
   } finally {
     loading.value = false

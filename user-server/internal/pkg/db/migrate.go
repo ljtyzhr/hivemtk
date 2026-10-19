@@ -226,6 +226,9 @@ func allModels() []any {
 		&model.TenantModule{},
 		&model.ModuleSyncLog{},
 		&model.ModuleOrder{},
+		// 订阅镜像（003 T022）：部署级单行，无 tenant_id。显式迁移 v3.64.0
+		// 是生产口径，这里登记供 AutoMigrate 兜底（全新部署先于迁移跑时建表）。
+		&model.TenantSubscriptionMirror{},
 		&model.LLMWallet{},
 		&model.LLMWalletTxn{},
 		&model.PlatformLLMUsageRecord{},

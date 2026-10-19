@@ -19,6 +19,7 @@
 
 1. **基类嵌入**：所有表统一嵌入 `BaseModel`，提供 id/created_at/updated_at/deleted_at
 2. **单租户**：项目为本地/私域单租户部署，无 `merchant_id` 字段（依据见主规范 [DATABASE_SCHEMA_DEEP_DIVE.md](../DATABASE_SCHEMA_DEEP_DIVE.md) §3.1/§3.2；旧引用 ADR-003 已作废且编号不复用）
+   > **勘误（2026-10-19）**：「单租户」为旧口径——多租户/租户模型已由 `specs/001-saas-multi-tenant` 确立，`.specify/003-saas-billing-v2` 进一步引入 `tenant_subscriptions` / `subscription_grants` 等租户计费表；本条仅保留其字段命名与基类约定部分，租户维度以上述两份文档为准。
 3. **软删除**：使用 gorm 的 `gorm.DeletedAt`，禁止硬删除（除审计日志）
 4. **字段命名**：
    - 时间：`xxx_at`（如 `created_at`、`published_at`）

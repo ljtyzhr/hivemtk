@@ -9,6 +9,18 @@
 
 ### 新增 (Added)
 
+#### 003 · SaaS 计费二期（2026-10-19，`.specify/003-saas-billing-v2`）
+
+- **定价改版（显式覆盖 002 年度收费口径）**：功能模块 **23 个全部 0 元**（注册/初始化自动赠予开通，`FreeToEnable`），**浏览器自动化 ¥99 买断**（`billing_cycle=once`，9900 分、不写 `ExpiresAt`，由旧建议 1680 元/年 改为 ¥99，2026-10-19 用户裁决），软件订阅 **149 元/月仅按月**，新商户 **15 天体验期**（`SUBSCRIPTION_TRIAL_DAYS` 默认 15）
+- **订阅制**：镜像表 `tenant_subscription_mirror`（sync 写入）+ `SubscriptionGuard` 中间件按 `current_period_end`/`trial_expires_at` **惰性本地判定**（与平台可达性无关，无 cron）；平台端 `tenant_subscriptions` / `subscription_grants` 经 sync 下发 `subscription` 段
+- **易支付（用户端侧）**：下单返回 `payment` 段（`pay_url`/二维码）+ 收银台轮询（3s×40 封顶）+ `GET /api/module-market/orders/:no/pay-status` 直查；在线支付不再强制线下联系人（线下路径保持）
+- **续费墙**：`expired` 整站业务锁定，业务码 **4305**（`CodeSubscriptionExpired`）→ 续费墙页 + 顶栏横幅；白名单含登录/public config/模块市场/订阅与支付查询，**客户面（widget/chat/bridge/webhook）显式不锁**
+- **初始化赠送**：`provisionTenantStarterKit` 幂等克隆 1 个租户级智能体（`default_sales` 副本）+ 1 个起步资产包（`starter-bundle`），失败仅 Warn 不阻断开户（on/off 两态）
+- **静默合规采集**：`/setup` 与注册落 `init_ip` / `init_ua`（sha256）/ `init_device_fingerprint`，无用户可见提示；初始化字段收敛为**公司/负责人/电话/地址必填**，邮箱与执照号改选填
+- **离线闸口径调整**：`bootstrapOffline` 走 `offlineGiftModuleRows()`——开 **23 个 0 元 gift 模块**、**锁浏览器自动化**（替代 002「只开 `BaseModuleKeys`」），存量升级幂等补行
+- **官网云端版入口**：`content.js` 单点常量 `CLOUD_URL`（`https://saas.hivemtk.cn` 占位，上线前替换）→ hero/navbar/pricing CTA/footer 四入口；`PLATFORM_CLOUD_URL` 环境变量可覆盖；`website/TERMINOLOGY.md` 「云端版」转正
+- **文档收口**：`MODULAR_MODULES.md` §3.5 覆盖声明与 FR-5.7 离线勘误、`LLM_BILLING_FLOW.md` §七 支付/订阅现状、ADR-004/005 旧口径勘误、新增 `docs/operations/EPAY_LIVE_CHECKLIST.md`（上线前真人支付验收清单）、两仓 `docs/INDEX.md` 补录 002/003
+
 #### 永动审计循环 R1–R72 (2026-09-08/12，六圈 72 轮，21 发现 21 修复)
 - 机制：`scripts/audit-loop/`（PLAN.md 12 角度手册 + state.json 机器状态 + STATE.md 报告），ZCode 自动化每 30 分钟一轮，发现问题当轮修复、每轮提交推送
 - **R1 security**：删除 email_tracking/email_unsubscribe 死代码默认 HMAC 密钥常量

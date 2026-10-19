@@ -221,4 +221,8 @@ func RegisterMigrations(registry *migration.MigrationRegistry, db *gorm.DB) {
 	register(NewAggregationWatermarkPKMigration(db))
 	// v3.62.0：LLM 输入/输出分列计价与 provider 来源（模块化改造 · 任务五）
 	register(NewLLMSeparatePricingMigration(db))
+	// v3.63.0：tenants 静默合规采集三列（003 计费二期 T010）
+	register(NewTenantInitComplianceColumnsMigration(db))
+	// v3.64.0：订阅镜像表（003 计费二期 T022）
+	register(NewTenantSubscriptionMirrorMigration(db))
 }

@@ -15,7 +15,17 @@ type ModuleSnapshot struct {
 	ActiveKeys  []string           `json:"active_keys"`
 	MenuKeys    []string           `json:"menu_keys"`
 	Catalog     []ModuleCatalogRow `json:"catalog"`
-	SyncedAt    string             `json:"synced_at"`
+	// Subscription 订阅段（003 T021 · ADR-M8 #5）：用户端据此写镜像并本地锁/放行。
+	Subscription *SubscriptionSnapshot `json:"subscription,omitempty"`
+	SyncedAt     string                `json:"synced_at"`
+}
+
+// SubscriptionSnapshot 平台下发的订阅段（status/current_period_end/trial_expires_at/price 快照）
+type SubscriptionSnapshot struct {
+	Status           string `json:"status"`                       // trial | active | expired
+	CurrentPeriodEnd string `json:"current_period_end,omitempty"` // RFC3339 UTC
+	TrialExpiresAt   string `json:"trial_expires_at,omitempty"`   // RFC3339 UTC
+	PriceCents       int64  `json:"price_cents"`
 }
 
 // ModuleCatalogRow 目录里的一行
@@ -63,6 +73,15 @@ type ModuleOrderItem struct {
 	Snapshot       string `json:"snapshot"`
 }
 
+// OrderPayment 平台下单响应里的支付参数段（epay：pay_url/params/method/mock）
+type OrderPayment struct {
+	GatewayURL string            `json:"gateway_url"`
+	PayURL     string            `json:"pay_url"`
+	Params     map[string]string `json:"params"`
+	Method     string            `json:"method"` // GET=跳转, POST=表单
+	Mock       bool              `json:"mock"`
+}
+
 // ModuleOrderResult 下单结果
 type ModuleOrderResult struct {
 	OrderNo      string            `json:"order_no"`
@@ -71,6 +90,9 @@ type ModuleOrderResult struct {
 	Items        []ModuleOrderItem `json:"items"`
 	PaymentGuide string            `json:"payment_guide"`
 	Duplicate    bool              `json:"duplicate"`
+	// Payment 支付参数段（003 T018）：epay 通道就绪时平台下发；否则为空 →
+	// 用户端回落线下付款指引（平台关渠道 enabled 的零代码回滚路径）。
+	Payment *OrderPayment `json:"payment,omitempty"`
 }
 
 // PlatformLLMWallet 平台 LLM 余额（商户视角）
@@ -121,6 +143,11 @@ type TenantRegistrationPayload struct {
 	RegMode          string `json:"reg_mode"`
 	AgreementVersion string `json:"agreement_version"`
 	RegulatoryAck    bool   `json:"regulatory_ack"`
+
+	// 003 T010 静默合规采集（UA 存 sha256 hex；平台端 tenant_registrations 同步落列）
+	InitIP                string `json:"init_ip,omitempty"`
+	InitUA                string `json:"init_ua,omitempty"`
+	InitDeviceFingerprint string `json:"init_device_fingerprint,omitempty"`
 }
 
 // ModuleClient 功能模块 / 订单 / LLM 计费 的商户端客户端

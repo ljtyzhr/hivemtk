@@ -1,6 +1,8 @@
 <template>
   <el-container class="app-shell">
     <MessageNotification />
+    <!-- 订阅横幅（003 T023）：trial 剩 N 天提醒 / expired 红条，仅 saas 版渲染 -->
+    <SubscriptionBanner />
 
     
     <el-header class="app-header">
@@ -209,6 +211,7 @@ import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import SubMenuItem from '@/components/SubMenuItem.vue'
 import MessageNotification from '@/components/MessageNotification.vue'
+import SubscriptionBanner from '@/components/SubscriptionBanner.vue'
 import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
 import i18n from '@/i18n'
 import { useUserStore } from '@/stores/user'

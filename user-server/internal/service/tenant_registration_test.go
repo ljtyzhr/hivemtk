@@ -23,6 +23,7 @@ func validRegReq() RegisterTenantRequest {
 		CompanyName:      "某某科技有限公司",
 		LegalPerson:      "张三",
 		Phone:            "13800000000",
+		Address:          "杭州市西湖区XX路1号",
 		RegulatoryAck:    true,
 		AgreementVersion: "2026-10-17.v1",
 	}
@@ -35,7 +36,7 @@ func TestValidateRegulatoryFields_AcceptsComplete(t *testing.T) {
 }
 
 func TestValidateRegulatoryFields_RequiresFour(t *testing.T) {
-	// 需求原文逐项点名：公司名称、负责人、电话、邮箱
+	// 003 T012 收敛后的四项：公司名称、负责人、电话、**地址**（邮箱降选填）
 	cases := []struct {
 		name    string
 		mutate  func(*RegisterTenantRequest)
@@ -44,7 +45,7 @@ func TestValidateRegulatoryFields_RequiresFour(t *testing.T) {
 		{"缺公司名称", func(r *RegisterTenantRequest) { r.CompanyName = ""; r.Name = "" }, "公司名称"},
 		{"缺负责人", func(r *RegisterTenantRequest) { r.LegalPerson = "" }, "负责人"},
 		{"缺电话", func(r *RegisterTenantRequest) { r.Phone = "" }, "电话"},
-		{"缺邮箱", func(r *RegisterTenantRequest) { r.Email = "" }, "邮箱"},
+		{"缺地址", func(r *RegisterTenantRequest) { r.Address = "" }, "地址"},
 	}
 	for _, c := range cases {
 		t.Run(c.name, func(t *testing.T) {
@@ -62,6 +63,17 @@ func TestValidateRegulatoryFields_RequiresFour(t *testing.T) {
 				t.Errorf("错误信息应点明缺 %s，实际 %q", c.wantMsg, err.Error())
 			}
 		})
+	}
+}
+
+// TestValidateRegulatoryFields_EmailOptional 邮箱降选填（003 T012）：
+// 空邮箱不得再被监管校验拦截（登录通道由 username 承担；
+// system_users.email 的全局唯一索引是部分索引，已排除空值）。
+func TestValidateRegulatoryFields_EmailOptional(t *testing.T) {
+	req := validRegReq()
+	req.Email = ""
+	if err := validateRegulatoryFields(req); err != nil {
+		t.Fatalf("邮箱选填后空邮箱应通过监管校验: %v", err)
 	}
 }
 
@@ -98,7 +110,8 @@ func validSelfReg() RegisterRequest {
 	return RegisterRequest{
 		Username: "user01", Password: "Passw0rd!2026",
 		Email: "user@example.com", Phone: "13900000000", RealName: "李四",
-		CompanyName: "乙公司", RegulatoryAck: true,
+		CompanyName: "乙公司", Address: "上海市浦东新区XX路2号",
+		RegulatoryAck:    true,
 		AgreementVersion: "2026-10-17.v1",
 	}
 }
@@ -107,6 +120,8 @@ func TestValidateSelfRegisterFields_RequiresSameFour(t *testing.T) {
 	if err := validateSelfRegisterFields(validSelfReg()); err != nil {
 		t.Fatalf("完整自助注册应通过: %v", err)
 	}
+	// 003 T012：与另两条入口同一必填集 —— 公司/负责人/电话/**地址**；
+	// 邮箱不再算监管必填（本入口仍作登录凭据，由 binding 层约束）
 	cases := []struct {
 		name   string
 		mutate func(*RegisterRequest)
@@ -114,7 +129,7 @@ func TestValidateSelfRegisterFields_RequiresSameFour(t *testing.T) {
 		{"缺公司名称", func(r *RegisterRequest) { r.CompanyName = "" }},
 		{"缺负责人", func(r *RegisterRequest) { r.RealName = "" }},
 		{"缺电话", func(r *RegisterRequest) { r.Phone = "" }},
-		{"缺邮箱", func(r *RegisterRequest) { r.Email = "" }},
+		{"缺地址", func(r *RegisterRequest) { r.Address = "" }},
 		{"未确认告知", func(r *RegisterRequest) { r.RegulatoryAck = false }},
 	}
 	for _, c := range cases {
@@ -147,7 +162,7 @@ func TestRegulatoryNoticeAvailableOffline(t *testing.T) {
 	for _, f := range n.RequiredFields {
 		need[f] = true
 	}
-	for _, must := range []string{"company_name", "legal_person", "phone", "email"} {
+	for _, must := range []string{"company_name", "legal_person", "phone", "address"} {
 		if !need[must] {
 			t.Errorf("必填清单缺 %s", must)
 		}

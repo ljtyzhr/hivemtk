@@ -57,6 +57,49 @@ const INIT_REDIRECT_MAP = {
 // ============================================================================
 const BIZ_CODE_MODULE_NOT_ENABLED = 4301
 
+// ============================================================================
+// 订阅到期（003 T023 · 业务码 4305）
+//
+// 与 4301 的两条关键差别：
+//   ① **不受 silent 短路影响**：订阅到期是全局状态，不是"某个页面点错了"——
+//      后台轮询撞到 4305 同样要把用户带去续费墙（silent 只免 toast）。
+//   ② 跳转走 sessionStorage 防抖 10s：expired 态下全站接口都会 4305，
+//      不防抖就是同一秒内几十次 location 赋值 + toast。
+// 4305/4301 跳转互斥节流（修订 #3）：两者共用同一个节流键，10s 内
+// 只允许一次跳转发生 —— 墙页与市场页依赖请求集不得互相触发对方业务码。
+// ============================================================================
+const BIZ_CODE_SUBSCRIPTION_EXPIRED = 4305
+const SUBSCRIPTION_WALL_REDIRECT = '/subscription-wall'
+const SUB_WALL_THROTTLE_KEY = 'biz_redirect_throttle'
+const SUB_WALL_THROTTLE_MS = 10000
+
+// redirectThrottled 10s 内已有任何业务码跳转发生（4301/4305 互斥节流）
+function redirectThrottled () {
+  try {
+    const raw = sessionStorage.getItem(SUB_WALL_THROTTLE_KEY)
+    if (!raw) return false
+    const at = Number(raw)
+    if (Date.now() - at < SUB_WALL_THROTTLE_MS) return true
+    return false
+  } catch { return false }
+}
+
+function markRedirected () {
+  try { sessionStorage.setItem(SUB_WALL_THROTTLE_KEY, String(Date.now())) } catch { /* 隐私模式下静默 */ }
+}
+
+function handleSubscriptionExpired (data, code) {
+  if (Number(code) !== BIZ_CODE_SUBSCRIPTION_EXPIRED) return false
+  // toast 照弹（看得见原因），但跳转受 10s 节流 —— 不看 silent：
+  // 全局状态一律跳墙，silent 只影响"要不要打断当前页面的静默轮询提示"。
+  showToast(data?.message || '订阅已到期，业务功能已暂停，请续费后继续使用', 'warning')
+  if (!redirectThrottled()) {
+    markRedirected()
+    setTimeout(() => redirectTo(SUBSCRIPTION_WALL_REDIRECT), 800)
+  }
+  return true
+}
+
 // MODULE_NOT_ENABLED_REDIRECT 未开通模块时的去处：功能模块市场。
 // 带 next 参数让市场页高亮/预选该模块，省掉用户自己找的一步。
 const MODULE_NOT_ENABLED_REDIRECT = '/module-market'
@@ -76,7 +119,11 @@ function handleModuleNotEnabled (data, code, silent) {
   // 不直接跳：用户可能是误点深链（别人发的链接），跳走会丢上下文。
   // 给 5 秒缓冲 + 可关闭提示，足够他看清原因，也给误点留了退路。
   showToast(`功能模块「${moduleKey || ''}」未开通，请在功能模块市场订阅后使用`, 'warning')
-  setTimeout(() => redirectTo(target), 3000)
+  // 与 4305 跳转互斥节流（003 修订 #3）：10s 内已发生过业务码跳转就不再跳
+  if (!redirectThrottled()) {
+    markRedirected()
+    setTimeout(() => redirectTo(target), 3000)
+  }
   return true
 }
 
@@ -313,6 +360,11 @@ const addInterceptors = () => {
       }
 
       const msg = extractServerMessage(data, t('http.requestFailed'));
+      // 4305：订阅已到期。处理函数不受 silent 短路（全局状态一律跳墙），
+      // 且与 4301 跳转互斥节流 —— 先于 4301 判定。
+      if (handleSubscriptionExpired(data, code)) {
+        return Promise.reject(buildRequestError(msg, response, code))
+      }
       // 4301：未开通模块。处理函数已自行提示并安排跳转，这里**不再**弹通用 toast
       // （两句提示叠在一起只会让人更困惑）。
       if (handleModuleNotEnabled(data, code, silent)) {

@@ -7,6 +7,7 @@ import (
 	"hivemtk-user/internal/config"
 	"hivemtk-user/internal/migration"
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 
 	"gorm.io/gorm"
@@ -52,9 +53,17 @@ func (m *AIAgentSchemaMigration) Up(ctx context.Context) error {
 	}
 
 	var count int64
-	m.db.Model(&model.AIAgent{}).Count(&count)
+	// 种子写入挂 SystemScope（003 T014 复核）：迁移在 on 模式跑时无租户绑定，
+	// 裸查/裸写 ai_agents 会被隔离 callback fail-closed（count 恒 0、Create 报错
+	// 仅 Warn）——fresh on 安装从此没有 default_sales 种子，T013 的租户级克隆
+	// 也就无源可克。SystemScope 是系统域写入的豁免通道；行上显式 TenantID=1。
+	sysCtx := tenant.WithSystemScope(ctx)
+	if err := m.db.WithContext(sysCtx).Model(&model.AIAgent{}).Count(&count).Error; err != nil {
+		logger.Errorf("[migration] count default ai_agent warning: %v", err)
+	}
 	if count == 0 {
 		defaultAgent := &model.AIAgent{
+			TenantID:    1,
 			AgentCode:   "default_sales",
 			Name:        "默认销售智能体",
 			Description: "系统初始化时创建的默认销售智能体，可编辑或删除",
@@ -63,7 +72,7 @@ func (m *AIAgentSchemaMigration) Up(ctx context.Context) error {
 			LLMModel:    config.DefaultLLMModel(),
 			Status:      1,
 		}
-		if err := m.db.Create(defaultAgent).Error; err != nil {
+		if err := m.db.WithContext(sysCtx).Create(defaultAgent).Error; err != nil {
 			logger.Errorf("[migration] create default ai_agent warning: %v", err)
 		}
 	}

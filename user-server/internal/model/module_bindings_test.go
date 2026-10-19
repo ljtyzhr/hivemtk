@@ -130,6 +130,37 @@ func TestModuleCatalogMetaConsistent(t *testing.T) {
 	}
 }
 
+// TestModuleCatalogBillingCyclesValid 目录里的计费周期必须是已知枚举，且
+// 定价口径符合 003 R3：恰 1 个有价模块（browser-automation 9900/once）。
+func TestModuleCatalogBillingCyclesValid(t *testing.T) {
+	valid := map[string]bool{
+		BillingCycleYearly: true, BillingCycleMetered: true,
+		BillingCycleMonthly: true, BillingCycleOnce: true,
+	}
+	for _, m := range ModuleCatalogMeta {
+		if m.Category == ModuleCategoryBase {
+			continue // 基础模块无计费
+		}
+		if !valid[m.BillingCycle] {
+			t.Errorf("%s 计费周期 %q 不在已知枚举里（yearly/metered/monthly/once）", m.Key, m.BillingCycle)
+		}
+	}
+	priced := 0
+	for _, m := range ModuleCatalogMeta {
+		if m.PriceCents <= 0 {
+			continue
+		}
+		priced++
+		if m.Key != ModuleBrowserAutomation || m.PriceCents != 9900 || m.BillingCycle != BillingCycleOnce {
+			t.Errorf("唯一有价模块应是 browser-automation（9900/once），实际 %s %d/%q",
+				m.Key, m.PriceCents, m.BillingCycle)
+		}
+	}
+	if priced != 1 {
+		t.Errorf("003 定价口径：应恰有 1 个有价模块，实际 %d", priced)
+	}
+}
+
 // TestModuleDependencyGraphAcyclic 依赖图必须无环，且依赖项都必须存在。
 //
 // 环会让开通时的闭包计算死循环 —— 而开通是一个运营手点一次的动作，

@@ -41,33 +41,37 @@ func TestOfflineRegistrationWritesTenantRow(t *testing.T) {
 	ctx := context.Background()
 	svc := NewAuthService()
 
-	// 1) 四项缺一必被拒
+	// 1) 四项必填（003 T012：公司/负责人/电话/**地址**）缺一必被拒；邮箱已降选填
 	cases := []struct {
-		name, company, person, phone, email string
-		ack                                 bool
+		name, company, person, phone, address string
+		ack                                   bool
 	}{
-		{"缺公司名", "", "李四", "13900001111", "b@e.com", true},
-		{"缺负责人", "某某科技", "", "13900001111", "b@e.com", true},
-		{"缺电话", "某某科技", "李四", "", "b@e.com", true},
-		{"缺邮箱", "某某科技", "李四", "13900001111", "", true},
-		{"未确认告知", "某某科技", "李四", "13900001111", "b@e.com", false},
+		{"缺公司名", "", "李四", "13900001111", "杭州市西湖区XX路1号", true},
+		{"缺负责人", "某某科技", "", "13900001111", "杭州市西湖区XX路1号", true},
+		{"缺电话", "某某科技", "李四", "", "杭州市西湖区XX路1号", true},
+		{"缺地址", "某某科技", "李四", "13900001111", "", true},
+		{"未确认告知", "某某科技", "李四", "13900001111", "杭州市西湖区XX路1号", false},
 	}
 	for _, c := range cases {
-		if err := svc.ValidateOfflineRegistration(c.company, c.person, c.phone, c.email, c.ack); err == nil {
+		if err := svc.ValidateOfflineRegistration(c.company, c.person, c.phone, "", c.address, c.ack); err == nil {
 			t.Errorf("%s 应被拒", c.name)
 		}
 	}
 
-	// 2) 完整信息应通过校验
-	if err := svc.ValidateOfflineRegistration("某某科技有限公司", "李四", "13900001111", "boss@example.com", true); err != nil {
+	// 2) 完整信息应通过校验；邮箱选填 —— 无邮箱也必须放行
+	if err := svc.ValidateOfflineRegistration("某某科技有限公司", "李四", "13900001111", "boss@example.com", "杭州市西湖区XX路1号", true); err != nil {
 		t.Fatalf("完整信息应通过: %v", err)
+	}
+	if err := svc.ValidateOfflineRegistration("某某科技有限公司", "李四", "13900001111", "", "杭州市西湖区XX路1号", true); err != nil {
+		t.Fatalf("邮箱选填后无邮箱应通过: %v", err)
 	}
 
 	// 3) 真正调用初始化，断言租户行落库
 	err := svc.InitAdminWithRegistration(ctx,
 		"offline_admin", "Admin@123456", "boss@example.com",
 		"李四", "13900001111", "某某科技有限公司",
-		"91330100MA2XXXXX1A", "杭州市", true, "2026-10-17.v1")
+		"91330100MA2XXXXX1A", "杭州市", true, "2026-10-17.v1",
+		"203.0.113.9", "TestAgent/1.0")
 	if err != nil {
 		t.Fatalf("离线初始化失败: %v", err)
 	}
@@ -84,6 +88,19 @@ func TestOfflineRegistrationWritesTenantRow(t *testing.T) {
 	}
 	if tn.RegMode != model.TenantRegModeOffline {
 		t.Errorf("reg_mode 应为 offline，实际 %q", tn.RegMode)
+	}
+	// 003 T010：静默合规采集三列必须落库（UA 存 sha256 hex，不存原文）
+	if tn.InitIP != "203.0.113.9" {
+		t.Errorf("init_ip 应为 203.0.113.9，实际 %q", tn.InitIP)
+	}
+	if tn.InitUA == "" || tn.InitUA == "TestAgent/1.0" {
+		t.Errorf("init_ua 应为 UA 的 sha256 hex（非空且不等于原文），实际 %q", tn.InitUA)
+	}
+	if len(tn.InitUA) != 64 {
+		t.Errorf("init_ua 应为 sha256 hex（64 字符），实际 %d 字符", len(tn.InitUA))
+	}
+	if tn.InitDeviceFingerprint == "" {
+		t.Error("init_device_fingerprint 不应为空")
 	}
 	if tn.PlatformSync != model.TenantSyncSkipped {
 		t.Errorf("离线部署的 platform_sync 应为 skipped（不是 failed —— "+

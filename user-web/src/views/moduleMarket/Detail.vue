@@ -57,7 +57,7 @@
                 {{ priceLabel(detail) }}
               </el-descriptions-item>
               <el-descriptions-item label="计费周期">
-                {{ detail.billing_cycle === 'metered' ? '按量（token 计量）' : '按年' }}
+                {{ billingCycleLabel(detail.billing_cycle) }}
               </el-descriptions-item>
               <el-descriptions-item label="包含页面">
                 {{ detail.menu_count }} 个
@@ -222,7 +222,7 @@ import { ref, computed, onMounted } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { getUserMenus } from '@/api/menu'
-import { marketModuleDetail, priceLabel, MODULE_CATEGORY_LABEL } from '@/api/moduleMarket'
+import { marketModuleDetail, priceLabel, billingCycleLabel, MODULE_CATEGORY_LABEL } from '@/api/moduleMarket'
 
 const CATEGORY_LABEL = MODULE_CATEGORY_LABEL
 const route = useRoute()

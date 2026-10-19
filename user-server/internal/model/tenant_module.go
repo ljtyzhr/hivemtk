@@ -27,6 +27,11 @@ const (
 	TenantModuleSourceDependency  = "dependency"
 	TenantModuleSourceManual      = "manual"
 	TenantModuleSourceDefaultBase = "default_base"
+	// TenantModuleSourceGift 0 元模块初始化赠送（003 R3）。
+	// 离线 bootstrapOffline 落地的就是这批（base + 全部 0 元付费模块，
+	// browser-automation 除外）；平台端对 0 元模块的赠送下发也用同名来源。
+	// 该来源在 Sync 的 stale 判定里豁免（见 service.Sync 的失效分支注释）。
+	TenantModuleSourceGift = "gift"
 )
 
 // TenantModule 本地已开通模块镜像（一行 = 一个模块）

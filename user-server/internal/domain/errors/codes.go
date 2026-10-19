@@ -39,6 +39,12 @@ const (
 	CodeModulePlatformUnavail = 4303
 	// CodeModuleRegistrationIncomplete 4304 开户登记信息不完整（缺公司名/负责人/电话/邮箱）
 	CodeModuleRegistrationIncomplete = 4304
+	// CodeSubscriptionExpired 4305 订阅已到期（订阅闸拦截，003 修订 #3）
+	//
+	// 为什么不是 4302：4302 已被 CodeModuleNotFound 占用。本码的处置是
+	// 「去续费墙」，与 4301「去模块市场」是两个不同的去处 —— 前端
+	// INIT_REDIRECT 互斥节流按码分流，混用会让续费墙和市场页互相打架。
+	CodeSubscriptionExpired = 4305
 )
 
 // 租户/开户业务码（specs/001-saas-multi-tenant T029/T030 contracts/api.md）

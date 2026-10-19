@@ -43,9 +43,9 @@ func withTenantMode(t *testing.T, m tenant.Mode) {
 }
 
 func validRegisterReq() RegisterTenantRequest {
-	// 监管登记四项（公司名/负责人/电话/邮箱）是开户必填 —— 见
-	// validateRegulatoryFields。这里补齐是因为需求要求「租户开户必须收集，
-	// 电话，邮箱，公司名称，负责人等」；**不是**为了让测试变绿而放宽校验。
+	// 监管登记四项（公司名/负责人/电话/**地址**）是开户必填 —— 见
+	// validateRegulatoryFields。这里补齐是因为需求要求「租户开户必须收集」，
+	// **不是**为了让测试变绿而放宽校验。邮箱已降选填（003 T012）。
 	return RegisterTenantRequest{
 		Name:     "某某科技",
 		Username: "admin",
@@ -55,6 +55,7 @@ func validRegisterReq() RegisterTenantRequest {
 		CompanyName:      "某某科技",
 		LegalPerson:      "张三",
 		Phone:            "13800000000",
+		Address:          "杭州市西湖区XX路1号",
 		RegulatoryAck:    true,
 		AgreementVersion: "2026-10-17.v1",
 	}
@@ -76,7 +77,7 @@ func TestTenantService_Register_Success(t *testing.T) {
 	svc := NewTenantService()
 
 	req := validRegisterReq()
-	got, err := svc.RegisterTenant(context.Background(), req, "10.0.0.1")
+	got, err := svc.RegisterTenant(context.Background(), req, "10.0.0.1", "TestUA/1.0")
 	if err != nil {
 		t.Fatalf("开户失败: %v", err)
 	}
@@ -97,6 +98,16 @@ func TestTenantService_Register_Success(t *testing.T) {
 	}
 	if !model.TenantIsActive(&tn) || tn.Plan != "free" || tn.Name != req.Name {
 		t.Errorf("租户行字段不符: %+v", tn)
+	}
+	// 003 T010：静默合规采集三列随开户落库（UA 存 sha256 hex）
+	if tn.InitIP != "10.0.0.1" {
+		t.Errorf("init_ip 应为 10.0.0.1，实际 %q", tn.InitIP)
+	}
+	if tn.InitUA == "" || len(tn.InitUA) != 64 {
+		t.Errorf("init_ua 应为 sha256 hex（64 字符），实际 %q", tn.InitUA)
+	}
+	if tn.InitDeviceFingerprint == "" {
+		t.Error("init_device_fingerprint 不应为空")
 	}
 
 	// 管理员行归属新租户、密码已哈希
@@ -142,7 +153,7 @@ func TestTenantService_Register_ParamInvalid(t *testing.T) {
 		t.Run(name, func(t *testing.T) {
 			req := validRegisterReq()
 			mutate(&req)
-			_, err := svc.RegisterTenant(context.Background(), req, "10.0.0.2")
+			_, err := svc.RegisterTenant(context.Background(), req, "10.0.0.2", "TestUA/1.0")
 			if code := mustBizCode(t, err); code != bizerr.CodeTenantParamInvalid {
 				t.Errorf("期望 4101，实为 %d", code)
 			}
@@ -156,13 +167,13 @@ func TestTenantService_Register_EmailTakenGlobally(t *testing.T) {
 	setupTenantTestDB(t)
 	svc := NewTenantService()
 
-	if _, err := svc.RegisterTenant(context.Background(), validRegisterReq(), "10.0.0.3"); err != nil {
+	if _, err := svc.RegisterTenant(context.Background(), validRegisterReq(), "10.0.0.3", "TestUA/1.0"); err != nil {
 		t.Fatalf("首次开户失败: %v", err)
 	}
 	second := validRegisterReq()
 	second.Name = "另一家公司"
 	second.Username = "admin2"
-	_, err := svc.RegisterTenant(context.Background(), second, "10.0.0.3")
+	_, err := svc.RegisterTenant(context.Background(), second, "10.0.0.3", "TestUA/1.0")
 	if code := mustBizCode(t, err); code != bizerr.CodeTenantEmailTaken {
 		t.Errorf("期望 4103（邮箱全局重），实为 %d", code)
 	}
@@ -174,7 +185,7 @@ func TestTenantService_Register_OfflineModeClosed(t *testing.T) {
 	setupTenantTestDB(t)
 	svc := NewTenantService()
 
-	_, err := svc.RegisterTenant(context.Background(), validRegisterReq(), "10.0.0.4")
+	_, err := svc.RegisterTenant(context.Background(), validRegisterReq(), "10.0.0.4", "TestUA/1.0")
 	if code := mustBizCode(t, err); code != bizerr.CodeTenantRegisterClosed {
 		t.Errorf("期望 4104，实为 %d", code)
 	}
@@ -191,7 +202,7 @@ func TestTenantService_Register_RateLimited(t *testing.T) {
 	for i := 0; i < registerBurst+2; i++ {
 		req := validRegisterReq()
 		req.Email = fmt.Sprintf("dup%d@b.com", i)
-		_, err := svc.RegisterTenant(context.Background(), req, clientKey)
+		_, err := svc.RegisterTenant(context.Background(), req, clientKey, "TestUA/1.0")
 		if err == nil {
 			continue
 		}
@@ -212,7 +223,7 @@ func TestTenantService_LoginByEmail(t *testing.T) {
 	ts := NewTenantService()
 
 	req := validRegisterReq()
-	created, err := ts.RegisterTenant(context.Background(), req, "10.0.0.6")
+	created, err := ts.RegisterTenant(context.Background(), req, "10.0.0.6", "TestUA/1.0")
 	if err != nil {
 		t.Fatalf("开户失败: %v", err)
 	}
@@ -245,7 +256,7 @@ func TestTenantService_LoginAmbiguousUsername(t *testing.T) {
 		req := validRegisterReq()
 		req.Email = mail
 		req.Name = fmt.Sprintf("公司%d", i)
-		if _, err := ts.RegisterTenant(context.Background(), req, fmt.Sprintf("10.0.0.%d", 10+i)); err != nil {
+		if _, err := ts.RegisterTenant(context.Background(), req, fmt.Sprintf("10.0.0.%d", 10+i), "TestUA/1.0"); err != nil {
 			t.Fatalf("开户失败(%s): %v", mail, err)
 		}
 	}
@@ -264,7 +275,7 @@ func TestTenantService_LoginSuspendedTenant(t *testing.T) {
 	ts := NewTenantService()
 
 	req := validRegisterReq()
-	created, err := ts.RegisterTenant(context.Background(), req, "10.0.0.7")
+	created, err := ts.RegisterTenant(context.Background(), req, "10.0.0.7", "TestUA/1.0")
 	if err != nil {
 		t.Fatalf("开户失败: %v", err)
 	}
@@ -300,7 +311,7 @@ func TestTenantService_GetTenantInfo(t *testing.T) {
 	ts := NewTenantService()
 
 	req := validRegisterReq()
-	created, err := ts.RegisterTenant(context.Background(), req, "10.0.0.8")
+	created, err := ts.RegisterTenant(context.Background(), req, "10.0.0.8", "TestUA/1.0")
 	if err != nil {
 		t.Fatalf("开户失败: %v", err)
 	}
@@ -324,7 +335,7 @@ func TestTenantService_ListTenants(t *testing.T) {
 		req := validRegisterReq()
 		req.Email = mail
 		req.Name = fmt.Sprintf("公司%d", i)
-		if _, err := ts.RegisterTenant(context.Background(), req, fmt.Sprintf("10.0.1.%d", i+1)); err != nil {
+		if _, err := ts.RegisterTenant(context.Background(), req, fmt.Sprintf("10.0.1.%d", i+1), "TestUA/1.0"); err != nil {
 			t.Fatalf("开户失败: %v", err)
 		}
 	}

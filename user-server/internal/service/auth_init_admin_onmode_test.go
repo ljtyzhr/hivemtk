@@ -44,7 +44,8 @@ func TestInitAdminWithRegistrationOnModeBindsTenant(t *testing.T) {
 	if err := svc.InitAdminWithRegistration(ctx,
 		"onmode_admin", "Admin@123456", "onmode@example.com",
 		"张三", "13800000000", "某某科技有限公司",
-		"91330100MA2XXXXX1A", "杭州市", true, "2026-10-17.v1"); err != nil {
+		"91330100MA2XXXXX1A", "杭州市", true, "2026-10-17.v1",
+		"198.51.100.7", "OnModeTest/1.0"); err != nil {
 		t.Fatalf("on 模式初始化应成功（修复前此处 fail-closed，控制层 400）: %v", err)
 	}
 
@@ -66,8 +67,13 @@ func TestInitAdminWithRegistrationOnModeBindsTenant(t *testing.T) {
 		t.Fatalf("admin.TenantID=%d 找不到对应 tenants 行（应等于初始化时新建的那条登记行）: %v",
 			admin.TenantID, err)
 	}
-	if tn.RegMode != model.TenantRegModeOffline || tn.CompanyName != "某某科技有限公司" {
-		t.Errorf("租户登记行内容不符: reg_mode=%q company=%q", tn.RegMode, tn.CompanyName)
+	// 003 T012：on 模式的 /setup 初始化是云端 SaaS 形态开户，reg_mode 实报 saas
+	if tn.RegMode != model.TenantRegModeSaaS || tn.CompanyName != "某某科技有限公司" {
+		t.Errorf("租户登记行内容不符: reg_mode=%q company=%q（on 模式应为 saas）", tn.RegMode, tn.CompanyName)
+	}
+	// 003 T010：静默采集列在 on 模式初始化路径同样落库
+	if tn.InitIP != "198.51.100.7" || tn.InitUA == "" || tn.InitDeviceFingerprint == "" {
+		t.Errorf("静默采集三列未落库: init_ip=%q init_ua=%q fp=%q", tn.InitIP, tn.InitUA, tn.InitDeviceFingerprint)
 	}
 
 	// 顺序重构不得重复建登记行：本次初始化恰好一条

@@ -179,6 +179,8 @@ const pathToModule = {
   // 功能模块市场（模块化改造）
   'module-market': 'moduleMarket',
   'register': 'moduleMarket',
+  // 续费墙（003 T023）：4305 跳转目标，路由注册在 moduleMarket 模块内
+  'subscription-wall': 'moduleMarket',
   'confidence': 'tuning',
   'humanize': 'tuning',
   'feedbackLoop': 'tuning',

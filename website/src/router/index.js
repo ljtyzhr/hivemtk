@@ -30,7 +30,7 @@ const routes = [
     component: () => import('../views/DeployPage.vue'),
     meta: {
       title: '部署指南',
-      description: 'HiveMTK 开源项目部署指南：Docker 一键部署、源码部署、FRP 私域穿透配置。基于 AGPL-3.0 开源，4 步完成部署。',
+      description: 'HiveMTK 开源项目部署指南：Docker 部署、源码部署、FRP 私域穿透配置。基于 AGPL-3.0 开源，4 步完成部署。',
       keywords: 'HiveMTK部署,Docker部署,源码部署,私有化部署,FRP私域穿透,AGPL-3.0开源,4步部署',
     },
   },
@@ -64,8 +64,8 @@ const routes = [
     component: () => import('../views/PricingPage.vue'),
     meta: {
       title: '按需订阅',
-      description: 'HiveMTK 按需订阅：AGPL-3.0 开源基座免费，7 个基础模块免费常开，17 个增值模块按年订阅（默认定价明码标价），平台模型算力按 token 预付费，支持 SaaS 多租户与离线单机双形态。',
-      keywords: 'HiveMTK订阅,功能模块订阅,增值模块定价,LLM按量计费,平台模型算力,SaaS多租户,按需订阅',
+      description: 'HiveMTK 按需订阅：AGPL-3.0 开源基座与 24 个功能模块免费开放（原 16 个付费模块免年费），仅浏览器自动化 ¥99 买断；云端版软件订阅 149 元/月、新商户 15 天体验期，平台模型算力按输入 / 输出 token 预付费，支持 SaaS 多租户与离线单机双形态。',
+      keywords: 'HiveMTK订阅,功能模块免费,浏览器自动化买断,云端版订阅,LLM按量计费,平台模型算力,SaaS多租户,按需订阅',
     },
   },
   {

@@ -780,9 +780,9 @@ func (c *AuthController) InitAdmin(ctx *gin.Context) {
 		return
 	}
 
-	// 监管登记必填校验（与自助注册、自助开户同一口径）
+	// 监管登记必填校验（与自助注册、自助开户同一口径；003 T012：地址必填、邮箱选填）
 	if err := c.authService.ValidateOfflineRegistration(req.CompanyName, req.RealName,
-		req.ContactPhone, req.Email, req.RegulatoryAck); err != nil {
+		req.ContactPhone, req.Email, req.Address, req.RegulatoryAck); err != nil {
 		response.ErrorWithBusinessCode(ctx, bizerr.CodeModuleRegistrationIncomplete,
 			err.Error(), gin.H{})
 		return
@@ -791,7 +791,9 @@ func (c *AuthController) InitAdmin(ctx *gin.Context) {
 	if err := c.authService.InitAdminWithRegistration(ctx.Request.Context(),
 		req.Username, req.Password, req.Email, req.RealName, req.ContactPhone,
 		req.CompanyName, req.LicenseNo, req.Address,
-		req.RegulatoryAck, req.AgreementVersion); err != nil {
+		req.RegulatoryAck, req.AgreementVersion,
+		// 003 T010 静默合规采集：服务端视角取 ClientIP/UA，前端无感知
+		ctx.ClientIP(), ctx.Request.UserAgent()); err != nil {
 		if errors.Is(err, service.ErrAdminAlreadyInitialized) {
 			response.Error(ctx, http.StatusForbidden, response.ErrSystemAlreadyInitialized)
 			return
@@ -800,11 +802,17 @@ func (c *AuthController) InitAdmin(ctx *gin.Context) {
 		return
 	}
 
+	// reg_mode 按 TENANT_MODE 实际返回（003 T012）：硬编码 offline 会让
+	// 云端 SaaS 实例（TENANT_MODE=on）的初始化在响应里自称"离线部署"。
+	regMode := model.TenantRegModeOffline
+	if tenant.IsMultiTenant() {
+		regMode = model.TenantRegModeSaaS
+	}
 	response.Success(ctx, gin.H{
 		"username":      req.Username,
 		"real_name":     req.RealName,
 		"company_name":  req.CompanyName,
-		"reg_mode":      model.TenantRegModeOffline,
+		"reg_mode":      regMode,
 		"platform_sync": model.TenantSyncSkipped,
 		"message":       "超管创建成功，请使用此账号登录",
 	}, "超管初始化完成")

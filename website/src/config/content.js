@@ -1,4 +1,7 @@
 
+// 云端版（SaaS 多租户形态）对外入口：全站单点常量，上线前替换为真实域名
+export const CLOUD_URL = 'https://saas.hivemtk.cn'
+
 export const brand = {
   name: 'HiveMTK',
   fullName: 'HiveMTK · 私域 AI 营销操作系统',
@@ -31,6 +34,8 @@ export const hero = {
   secondaryCta: { text: '了解核心功能', href: '/features' },
   // 历史键名 experienceCta 指向已停服的在线体验站；改为源码入口，占同一个视觉位。
   sourceCta: { text: '查看源码', href: 'https://github.com/xiaofang142/hivemtk' },
+  // 云端版在线使用入口（单点常量 CLOUD_URL），复用 sourceCta 同级样式类
+  cloudCta: { text: '云端版在线使用', href: CLOUD_URL },
   stats: [
     { value: '10+', label: '社媒渠道打透', sub: '抖音/快手/小红书/闲鱼/TikTok/企微/邮件/Telegram/WhatsApp/短信' },
     { value: '5', label: 'Telegram 核心能力', sub: 'Bot 收发 · 群线索挖掘 · 主动 DM 触达 · 群消息分析 · 入群管控' },
@@ -479,7 +484,7 @@ export const faqSection = {
     },
     {
       q: '需要技术团队才能部署吗？',
-      a: '提供 Docker 一键部署与源码部署，按文档 4 步即可完成部署；如需深度定制或集群部署，我们也提供实施支持。',
+      a: '提供 Docker 部署与源码部署，按文档 4 步即可完成部署；如需深度定制或集群部署，我们也提供实施支持。',
     },
     {
       q: '七端是哪七端？',
@@ -534,7 +539,7 @@ export const deploySection = {
   tag: '部署指南',
   title: ['4 步完成部署', '开箱即用'],
   gradientIndex: 1,
-  subtitle: '基于 AGPL-3.0 开源，无授权码、无版本下载：代码与 7 个基础功能模块免费，17 个增值功能模块可在系统内按需订阅。make install 一键启动或源码部署，源码与文档均在 GitHub / Gitee 公开托管。',
+  subtitle: '基于 AGPL-3.0 开源，无授权码、无版本下载：代码与全部功能模块免费开放（原 16 个付费模块免年费），仅浏览器自动化 ¥99 买断；云端版软件订阅 149 元/月，新商户 15 天体验期。make install 起服务或源码部署，源码与文档均在 GitHub / Gitee 公开托管。',
   cards: [
     { icon: 'package', title: 'Docker 部署', desc: '数据层容器一键启停，推理栈与后端跑在宿主机。', cta: '查看 Docker 部署', link: '/deploy' },
     { icon: 'code', title: '源码仓库', desc: '完整源码，可自由修改、二次开发与贡献。', cta: '前往 Gitee', link: 'https://gitee.com/xhpmayun/hivemtk' },
@@ -560,9 +565,10 @@ export const footer = {
 }
 
 // —— 功能模块清单（事实源：user-server/internal/model/module_bindings.go）——
-// 24 个模块 = 7 基础（免费常开）+ 17 增值（按需订阅）；menus 为该模块绑定的菜单节点数，
+// 24 个模块 = 7 基础（免费常开）+ 17 增值（按需开通）；menus 为该模块绑定的菜单节点数，
 // 合计 212 个节点，由测试 TestModuleMenuBindingsCoverAllMenuKeys 钉死全覆盖。
-// priceCents 为源码内置默认定价（整数分）；与源码核对日期：2026-10-18。
+// priceCents 为源码内置默认定价（整数分）；与源码核对日期：2026-10-19
+// （003 计费二期重定价：除浏览器自动化 ¥99 买断外，增值模块全部 0 元）。
 export const moduleCatalog = [
   { key: 'core', name: '系统基座', category: 'base', priceCents: 0, billing: 'base', menus: 27,
     summary: '账号权限、站点配置、审计与备份，系统可运行的底线', depends: [] },
@@ -579,53 +585,53 @@ export const moduleCatalog = [
   { key: 'platform-link', name: '平台对接', category: 'base', priceCents: 0, billing: 'base', menus: 4,
     summary: '平台心跳、功能模块下发与开通状态同步；离线部署时全部基础能力直接可用', depends: ['系统基座'] },
 
-  { key: 'ai-agent', name: 'AI 智能体', category: 'paid', priceCents: 12800, billing: 'yearly', menus: 5,
+  { key: 'ai-agent', name: 'AI 智能体', category: 'paid', priceCents: 0, billing: 'yearly', menus: 5,
     summary: '7×24 自动应答真实客户消息，可绑定不同模型、知识库与 SOP',
     depends: ['系统基座', '客户中心', '会话工作台', '知识库', '自有模型接入'] },
-  { key: 'ai-sales', name: 'AI 销冠', category: 'paid', priceCents: 19900, billing: 'yearly', menus: 14,
+  { key: 'ai-sales', name: 'AI 销冠', category: 'paid', priceCents: 0, billing: 'yearly', menus: 14,
     summary: '意图识别、异议应对、销冠画像与 SOP 自动推进成交',
     depends: ['系统基座', '客户中心', '会话工作台', '自有模型接入', 'AI 智能体'] },
   { key: 'llm-cloud', name: '平台模型算力', category: 'paid', priceCents: 0, billing: 'metered', menus: 0,
     summary: '不用自己申请 Key，用平台垫资的大模型；按 token 预付费，输入输出分别计价',
     depends: ['系统基座', '自有模型接入'] },
-  { key: 'reach-auto', name: '营销自动化', category: 'paid', priceCents: 6900, billing: 'yearly', menus: 6,
+  { key: 'reach-auto', name: '营销自动化', category: 'paid', priceCents: 0, billing: 'yearly', menus: 6,
     summary: '线索进来自动跑多轮触达与工作流编排',
     depends: ['系统基座', '客户中心'] },
-  { key: 'reach-sms', name: '短信触达', category: 'paid', priceCents: 2900, billing: 'yearly', menus: 5,
+  { key: 'reach-sms', name: '短信触达', category: 'paid', priceCents: 0, billing: 'yearly', menus: 5,
     summary: '国内短信发送、任务调度与退订管理',
     depends: ['系统基座', '客户中心', '营销自动化'] },
-  { key: 'reach-email', name: '邮件触达', category: 'paid', priceCents: 2900, billing: 'yearly', menus: 8,
+  { key: 'reach-email', name: '邮件触达', category: 'paid', priceCents: 0, billing: 'yearly', menus: 8,
     summary: '邮件列表、SMTP、草稿任务与送达率追踪',
     depends: ['系统基座', '客户中心', '营销自动化'] },
-  { key: 'reach-social', name: '社媒引流卡片', category: 'paid', priceCents: 6900, billing: 'yearly', menus: 15,
+  { key: 'reach-social', name: '社媒引流卡片', category: 'paid', priceCents: 0, billing: 'yearly', menus: 15,
     summary: '抖音 / 快手 / 小红书 / 闲鱼 / TikTok 引流卡片与自动私信回复',
     depends: ['系统基座', '客户中心', '营销自动化'] },
-  { key: 'reach-link', name: '短链活码', category: 'paid', priceCents: 900, billing: 'yearly', menus: 5,
+  { key: 'reach-link', name: '短链活码', category: 'paid', priceCents: 0, billing: 'yearly', menus: 5,
     summary: '可追踪短链、活码投放与域名池健康检测', depends: ['系统基座'] },
-  { key: 'im-wecom', name: '企业微信', category: 'paid', priceCents: 9900, billing: 'yearly', menus: 1,
+  { key: 'im-wecom', name: '企业微信', category: 'paid', priceCents: 0, billing: 'yearly', menus: 1,
     summary: '企微账号托管、客户群运营与健康度风控',
     depends: ['系统基座', '客户中心', '会话工作台'] },
-  { key: 'im-intl', name: '海外与协作 IM', category: 'paid', priceCents: 5900, billing: 'yearly', menus: 17,
+  { key: 'im-intl', name: '海外与协作 IM', category: 'paid', priceCents: 0, billing: 'yearly', menus: 17,
     summary: 'WhatsApp / Telegram / QQ / 飞书 / 钉钉 / 社群 多通道收发',
     depends: ['系统基座', '客户中心', '会话工作台'] },
-  { key: 'analytics', name: '数据分析', category: 'paid', priceCents: 2900, billing: 'yearly', menus: 7,
+  { key: 'analytics', name: '数据分析', category: 'paid', priceCents: 0, billing: 'yearly', menus: 7,
     summary: '数据大屏、转化漏斗、AI 产能与自定义报表',
     depends: ['系统基座', '客户中心', '会话工作台'] },
-  { key: 'experiment', name: '实验与预测', category: 'paid', priceCents: 3900, billing: 'yearly', menus: 2,
+  { key: 'experiment', name: '实验与预测', category: 'paid', priceCents: 0, billing: 'yearly', menus: 2,
     summary: 'A/B 实验（含多臂老虎机）与流失预警',
     depends: ['系统基座', '客户中心', '数据分析'] },
-  { key: 'browser-automation', name: '浏览器自动化', category: 'paid', priceCents: 4900, billing: 'yearly', menus: 5,
+  { key: 'browser-automation', name: '浏览器自动化', category: 'paid', priceCents: 9900, billing: 'once', menus: 5,
     summary: '常驻浏览器接管真实客户端做私信与评论',
     depends: ['系统基座', '客户中心'] },
-  { key: 'geo', name: 'GEO 智能优化', category: 'paid', priceCents: 9900, billing: 'yearly', menus: 30,
+  { key: 'geo', name: 'GEO 智能优化', category: 'paid', priceCents: 0, billing: 'yearly', menus: 30,
     summary: 'AI 搜索可见性优化：关键词蒸馏、内容生成、收录与 SOV 监控',
     depends: ['系统基座', '知识库'] },
-  { key: 'sales-crm', name: '销售工作台', category: 'paid', priceCents: 5900, billing: 'yearly', menus: 4,
+  { key: 'sales-crm', name: '销售工作台', category: 'paid', priceCents: 0, billing: 'yearly', menus: 4,
     summary: '销售驾驶舱、跟进、商机报价与回款闭环',
     depends: ['系统基座', '客户中心', 'AI 销冠'] },
-  { key: 'approval', name: '审批与待办', category: 'paid', priceCents: 1900, billing: 'yearly', menus: 2,
+  { key: 'approval', name: '审批与待办', category: 'paid', priceCents: 0, billing: 'yearly', menus: 2,
     summary: '待办中心、Bad Case 队列与人工任务分派', depends: ['系统基座'] },
-  { key: 'i18n', name: '多语言管理', category: 'paid', priceCents: 1500, billing: 'yearly', menus: 3,
+  { key: 'i18n', name: '多语言管理', category: 'paid', priceCents: 0, billing: 'yearly', menus: 3,
     summary: '术语表与多语言监控看板', depends: ['系统基座'] },
 ]
 
@@ -635,7 +641,7 @@ export const modulesPage = {
   title: ['24 个功能模块，', '212 个菜单节点'],
   gradientIndex: 1,
   subtitle:
-    'HiveMTK 的功能不是堆在一起的：212 个页面节点全部归属到 24 个功能模块，模块决定菜单、接口、定时任务与智能体工具是否放行。7 个基础模块免费常开，17 个增值模块按需开通——以下清单与源码 module_bindings.go 一一对应。',
+    'HiveMTK 的功能不是堆在一起的：212 个页面节点全部归属到 24 个功能模块，模块决定菜单、接口、定时任务与智能体工具是否放行。7 个基础模块免费常开；16 个原付费模块已免年费、0 元开放，唯一有价的是浏览器自动化 ¥99 买断——以下清单与源码 module_bindings.go 一一对应。',
   stats: [
     { value: '24', label: '功能模块', sub: '7 基础 + 17 增值' },
     { value: '212', label: '菜单节点', sub: '测试钉死全覆盖' },
@@ -659,9 +665,12 @@ export const modulesPage = {
   ],
   baseTitle: ['基础模块 ·', '免费常开'],
   baseDesc: '7 个基础模块构成系统基座：免费、不可关闭——关掉任何一个，用户都无法完成最小业务闭环。',
-  paidTitle: ['增值模块 ·', '按需订阅'],
+  paidTitle: ['增值模块 ·', '按需开通'],
   paidDesc:
-    '17 个增值模块按需开通：年费模块明码标价（源码内置默认定价），平台模型算力 0 元开通、按 token 预付费计量。开通时基础依赖自动补齐，付费依赖须显式勾选。',
+    '17 个增值模块按需开通：2026-10-19 重定价后，原 16 个年费模块已免年费、0 元自动开通（平台模型算力仍为 0 元开通、按输入 / 输出 token 预付费计量），唯一保留价格的是浏览器自动化 ¥99 买断。开通时基础依赖自动补齐，付费依赖须显式勾选。',
+  cycleYearly: '年付',
+  cycleMetered: '按量预付费',
+  cycleOnce: '买断',
   mechTitle: ['运行机制 ·', '闸写在代码里'],
   mechanics: [
     {
@@ -682,7 +691,7 @@ export const modulesPage = {
     },
   ],
   sourceNote:
-    '清单事实源：user-server/internal/model/module_bindings.go（24 个模块 × 212 个菜单节点），由测试 TestModuleMenuBindingsCoverAllMenuKeys 钉死全覆盖；与源码核对日期 2026-10-18。',
+    '清单事实源：user-server/internal/model/module_bindings.go（24 个模块 × 212 个菜单节点），由测试 TestModuleMenuBindingsCoverAllMenuKeys 钉死全覆盖；与源码核对日期 2026-10-19（003 计费二期重定价：24 模块恰 1 个有价）。',
   ctaModules: { label: '查看核心功能', href: '/features' },
   ctaPricing: { label: '了解按需订阅', href: '/pricing' },
 }
@@ -690,10 +699,16 @@ export const modulesPage = {
 // —— /pricing 按需订阅页文案 ——
 export const pricingPage = {
   kicker: '按需订阅',
-  title: ['开源基座免费，', '增值能力按需订阅'],
+  title: ['功能模块全部免费，', '浏览器自动化 ¥99 买断'],
   gradientIndex: 1,
   subtitle:
-    'AGPL-3.0 源码全量免费，7 个基础功能模块永久免费常开；需要更强能力时，在系统内的功能模块市场按需开通 17 个增值模块，模型算力按 token 预付费。不打包套餐、不做功能阉割——订阅的是开通与配额，代码始终全量开源。',
+    'AGPL-3.0 源码全量免费；24 个功能模块中 23 个 0 元开放——原 16 个付费模块免年费，唯一有价的是浏览器自动化 ¥99 买断。云端版软件订阅 149 元/月，新商户 15 天体验期；模型算力按输入 / 输出 token 分列计费。不打包套餐、不做功能阉割，代码始终全量开源。',
+  // —— 页顶云端引导条（T024 四入口之一，复用 page-cta-band 现有样式）——
+  cloudBand: {
+    desc: '不想自运维？云端版（SaaS 多租户形态）在线使用：功能模块全部免费，软件订阅 149 元/月，新商户注册即 15 天体验期。',
+    label: '云端版在线使用',
+    href: CLOUD_URL,
+  },
   models: [
     {
       title: '开源基座',
@@ -709,83 +724,84 @@ export const pricingPage = {
     },
     {
       title: '增值功能模块',
-      price: '按需订阅',
-      note: '模块级订阅 · 无套餐包',
-      desc: '17 个增值模块明码标价、按年订阅（源码内置默认定价，支持子选项扩展）；平台模型算力 0 元开通、按 token 预付费，输入 / 输出分别计价。',
+      price: '免费',
+      note: '24 个中 23 个 0 元 · 无套餐包',
+      desc: '原 16 个付费模块免年费、0 元自动开通；唯一有价模块是浏览器自动化 ¥99 买断（一次性，永不续费）；平台模型算力 0 元开通、按输入 / 输出 token 预付费。',
     },
   ],
   tableTitle: ['增值模块价目表', '（默认定价）'],
   tableDesc:
-    '以下为源码内置的默认定价（人民币，按整数分存储）；订阅前可在系统内的功能模块市场查看详情、依赖闭包与覆盖页面。',
+    '以下为源码内置的默认定价（人民币，按整数分存储）：23 个功能模块为 0 元，唯一有价模块是浏览器自动化 ¥99 买断（once，不设到期日）；订阅前可在系统内的功能模块市场查看详情、依赖闭包与覆盖页面。',
   cycleYearly: '年付',
   cycleMetered: '按量预付费',
+  cycleOnce: '买断',
   colModule: '模块',
   colSummary: '能力',
   colPrice: '订阅价',
   colCycle: '计费',
   colMenus: '覆盖页面',
-  // —— 平价路线（金额全部为源码默认定价的算术求和，非套餐价）——
-  budgetTitle: ['平价路线 ·', '先跑起来，再按需要长大'],
+  // —— 计费口径（003 计费二期重定价后的三条花费路线，金额为默认定价，非套餐价）——
+  budgetTitle: ['计费口径 ·', '功能模块全部免费'],
   budgetDesc:
-    '按模块单买、不打包套餐：基座与代码永久免费，最小花钱路线只要 ¥128/年，16 个年费模块全开合计 ¥999/年（封顶在 ¥1,000 以内）。以下三条路线的金额均为源码默认定价的算术求和，不是套餐价，也没有必须一次买齐的门槛。',
+    '2026-10-19 重定价：功能模块全部免费开放——原 16 个付费模块免年费，24 个模块中 23 个 0 元；唯一有价模块是浏览器自动化 ¥99 买断；软件订阅云端版 149 元/月，新商户 15 天体验期；LLM 按输入 / 输出 token 分列计费。以下三条路线的金额均为源码与平台的默认定价，不是套餐价，也没有必须一次买齐的门槛。',
   budgetPaths: [
     {
-      name: '¥0 起步线',
-      subtitle: '离线自托管',
+      name: '¥0 私有化线',
+      subtitle: '离线单机 · 开源免费',
       price: '¥0',
-      priceNote: '订阅成本为零',
+      priceNote: '功能模块全部免费',
       includes: [
-        'AGPL-3.0 全量源码 + 7 个基础模块免费常开，不可下线、不可改价',
-        '自带 API Key 接入大模型只统计不计费，或直接跑本地推理栈',
-        '0 元模块（如平台模型算力开通位）自动开通，付费模块锁定并明示',
+        'AGPL-3.0 全量源码 + 23 个功能模块 0 元自动开通（含原 16 个付费模块免年费）',
+        '自带 API Key 只统计不计费，或直接跑本地推理栈，模型成本为零',
+        '浏览器自动化（¥99 买断）在离线部署下保持锁定——本地无支付通道，不做授权码旁路',
       ],
-      scene: '适合：技术型团队 / 想先跑通流程再决定订阅',
+      scene: '适合：技术型团队 / 数据零出域要求',
     },
     {
-      name: '¥128/年 轻量 AI 线',
-      subtitle: '先把 7×24 自动承接跑起来',
-      price: '¥128/年',
-      priceNote: 'AI 智能体单模块',
+      name: '149 元/月 云端版',
+      subtitle: '云端版在线使用 · 按月订阅',
+      price: '149 元/月',
+      priceNote: '新商户 15 天体验期',
       includes: [
-        'AI 智能体：其依赖全为免费基础模块，无付费依赖补齐',
-        '可选 +短链活码 ¥9/年，合计 ¥137/年',
-        '模型 Token 成本仍自控：自带 Key 或平台算力按量预付费',
+        '新商户注册即 15 天体验期，体验期内等同订阅有效，全功能可试',
+        '按月续费顺延；到期整站业务锁定（登录、模块市场、续费与支付查询仍可用），续费即恢复、数据不删',
+        '云端版内功能模块全部免费开放，软件订阅按月计费、价格后台可配',
       ],
-      scene: '适合：中小私域团队 / 高客单咨询承接',
+      scene: '适合：不想自运维 / 想先试用再决定的团队',
     },
     {
-      name: '¥999/年 全量线',
-      subtitle: '16 个年费模块全开',
-      price: '¥999/年',
-      priceNote: '16 个年费模块算术合计',
+      name: '¥99 浏览器自动化',
+      subtitle: '一次性买断 · 永不续费',
+      price: '¥99',
+      priceNote: 'once · 不设到期日',
       includes: [
-        '含 AI 销冠双件套（AI 智能体 + AI 销冠 ¥327/年）、GEO ¥99/年 等全部年费模块',
-        '平台模型算力 0 元开通，按 token 预付费另计（不计入年费合计）',
-        '中间档可参考销冠双件套 ¥327/年，按业务阶段逐档升配',
+        '常驻浏览器接管真实客户端做私信与评论，一次付费永久可用，不写到期日',
+        '24 个功能模块里唯一有价的一个，在系统内功能模块市场明码标价开通',
+        '模型 Token 成本仍自控：自带 Key 免费，或平台算力按输入 / 输出分列预付费',
       ],
-      scene: '适合：多门店 / 集团 / 区域代理全域能力',
+      scene: '适合：需要真人登录态自动化的运营团队',
     },
   ],
   budgetPoints: [
     {
-      title: '基座永远免费',
-      desc: '代码 AGPL-3.0 全量开源，7 个基础模块免费且不可下线、不可改价（平台端对基础模块的写操作一律拒绝）——订阅体系动不了你的底线能力。',
+      title: '功能模块全部免费',
+      desc: '24 个模块中 23 个 0 元：7 个基础模块免费常开，原 16 个付费模块已免年费、注册或初始化即自动赠予开通；平台端保留改价开关，当前定价一律为零。',
     },
     {
-      title: '单买不捆绑',
-      desc: '按模块订阅、不做套餐包（设计决策已明文写入 spec）；依赖闭包只自动补齐免费基础模块，付费依赖必须显式勾选并在确认弹窗列明总价。',
+      title: '买断的只有浏览器自动化',
+      desc: '唯一有价模块一次性 ¥99（billing=once），开通后不写 ExpiresAt、永不续费；离线部署因无支付通道保持锁定，云端版在模块市场下单即开通。',
+    },
+    {
+      title: '软件订阅仅按月',
+      desc: '云端版软件订阅 149 元/月，新商户 15 天体验期；到期进入整站业务锁定，白名单保留登录、模块市场、续费与支付查询，续费即恢复，数据不删不迁。',
     },
     {
       title: '模型成本自控',
       desc: '自带 Key 只统计不计费；平台算力预付费、输入与输出分别计价、余额不足自动阻断或降级——Token 账单可预估、可封顶。',
     },
-    {
-      title: '二开不加钱',
-      desc: '订阅的是开通权益与配额，不是代码：源码全量可改，AGPL-3.0 下保持修改后的网络服务开源即可，二次开发不产生额外授权费。',
-    },
   ],
   budgetNote:
-    '口径：金额取自源码内置默认定价（user-server/internal/model/module_bindings.go，2026-10-18 核对）；全量线为 16 个年费模块的算术求和（非套餐价），平台模型算力按量预付费不含在内。',
+    '口径：模块价取自源码内置默认定价（user-server/internal/model/module_bindings.go，2026-10-19 核对，003 计费二期重定价）——24 个模块恰 1 个有价（browser-automation 9900 分 / once）；软件订阅 149 元/月为平台级商品、价格后台可配；LLM 输入 / 输出分列定价为运营配置项。',
   flowTitle: ['订阅流程', '（一期口径）'],
   flowDesc:
     '一期未接入在线支付通道：下单后由平台运营人工确认收款，权益自动开通；线上支付回调已预留同一入账入口与幂等键。',
@@ -812,7 +828,7 @@ export const pricingPage = {
   ],
   offlineTitle: '离线部署口径',
   offlineDesc:
-    'PLATFORM_ENABLED=false 的离线部署不发出任何出站请求：基础模块全开，0 元的收费模块自动开通，定价大于 0 的增值模块保持关闭并在界面明示；功能模块市场与订单页显示平台未连接空态。',
+    'PLATFORM_ENABLED=false 的离线部署不发出任何出站请求：23 个 0 元功能模块全部自动开通，唯一有价的浏览器自动化保持关闭并在界面明示——本地无支付通道，不做授权码旁路；功能模块市场与订单页显示平台未连接空态。',
   saasTitle: ['SaaS 功能', '（多租户形态）'],
   saasDesc:
     '同一份代码支持离线单机（默认）与 SaaS 多租户（TENANT_MODE=on）两种形态：多租户形态下注册即开户、租户间数据行级隔离（数据访问层统一强制）、后台流程按数据自带的租户归属执行；平台端（可选本地组件）提供功能模块目录、租户登记审核、订单确认收款、LLM 套餐钱包与运行监控的管理面。数据始终留在你部署的数据库里——这是你运营的 SaaS，不是把数据交给别人的黑盒。',
@@ -825,11 +841,11 @@ export const pricingPage = {
   faqs: [
     {
       q: '订阅和开源冲突吗？',
-      a: '不冲突。代码按 AGPL-3.0 全量开源，离线部署下你拥有全部源码；订阅收费的对象是增值模块的开通权益与平台垫付的模型算力，不是代码本身——模块化设计里这是“授权位”，不是“代码下载”。',
+      a: '不冲突。代码按 AGPL-3.0 全量开源，离线部署下你拥有全部源码，功能模块全部免费开放；收费只发生在三处——浏览器自动化 ¥99 买断、云端版软件订阅 149 元/月、平台垫付的模型算力（按输入 / 输出 token 预付费）。模块化设计里这些是「开通位」，不是「代码下载」。',
     },
     {
       q: '离线部署能用增值模块吗？',
-      a: '增值模块的代码同样在开源仓里。离线且不连接平台时，0 元模块自动开通；定价大于 0 的模块默认关闭，连接平台并完成订阅后按开通状态放行。',
+      a: '增值模块的代码同样在开源仓里。离线且不连接平台时，23 个 0 元模块自动开通；唯一有价的浏览器自动化（¥99 买断）默认关闭，本地无支付通道、不做授权码旁路，连接云端版后在模块市场下单即开通。',
     },
     {
       q: '一定要买平台算力吗？',
@@ -841,7 +857,7 @@ export const pricingPage = {
     },
     {
       q: '预算有限，最小可用的花钱路线是什么？',
-      a: '先走 ¥0 起步线：离线部署 + 7 个基础模块 + 自带 API Key，订阅成本为零；需要 7×24 自动承接时，单买 AI 智能体 ¥128/年 即可（其依赖全为免费基础模块，无付费依赖补齐）。16 个年费模块全开合计也只有 ¥999/年，其余模块随业务逐个开通，没有必须一次买齐的门槛。',
+      a: '先走 ¥0 线：离线部署 + 全部功能模块免费（24 个中 23 个 0 元，含原 16 个付费模块免年费）+ 自带 API Key，成本为零；需要云端在线使用时，云端版软件订阅 149 元/月（新商户 15 天体验期）；需要常驻浏览器自动化时，单买 ¥99 买断、一次付费永不续费。模型 Token 仍按输入 / 输出自控。',
     },
   ],
   ctaDeploy: { label: '立即部署', href: '/deploy' },
@@ -851,7 +867,7 @@ export const pricingPage = {
 // —— /features 页尾追加引流带 ——
 export const featuresBand = {
   title: ['不止 13 张功能卡，', '还有模块化的功能架构'],
-  desc: '上述为核心能力切片。完整系统由 24 个功能模块承载（7 基础 + 17 增值），212 个页面节点全部归属模块，菜单、接口、定时任务与智能体工具按开通状态放行；增值模块按需订阅，模型算力按量预付费。',
+  desc: '上述为核心能力切片。完整系统由 24 个功能模块承载（7 基础 + 17 增值），212 个页面节点全部归属模块，菜单、接口、定时任务与智能体工具按开通状态放行；原 16 个付费模块已免年费、功能模块全部免费开放，仅浏览器自动化 ¥99 买断，云端版软件订阅 149 元/月，模型算力按输入 / 输出 token 计费。',
   ctaArchitecture: { label: '查看功能架构清单', href: '/modules' },
   ctaPricing: { label: '了解按需订阅与 SaaS', href: '/pricing' },
 }
@@ -862,6 +878,7 @@ export const nav = {
     { label: '核心功能', href: '/features', type: 'route' },
     { label: '功能架构', href: '/modules', type: 'route' },
     { label: '按需订阅', href: '/pricing', type: 'route' },
+    { label: '云端版', href: CLOUD_URL, type: 'external' },
     { label: '工程能力', href: '/toolchain', type: 'route' },
     { label: '工作流', href: '/workflow', type: 'route' },
     { label: '常见问题', href: '/faq', type: 'route' },

@@ -40,17 +40,25 @@ func setupModuleRoutes(public, auth, admin *gin.RouterGroup) {
 	}
 
 	if auth != nil {
-		// plainAuth：下单、查单、我的模块、手动同步
+		// plainAuth：下单、查单、支付状态直查、我的模块、手动同步
 		auth.GET("/module-market/detail/:key", ctrl.Detail)
 		auth.POST("/module-market/order", ctrl.CreateOrder)
 		auth.GET("/module-market/orders", ctrl.Orders)
 		auth.GET("/module-market/orders/:order_no", ctrl.OrderDetail)
+		// 支付状态直查（003 T018）：比 10 分钟 sync 快，收银台轮询用
+		auth.GET("/module-market/orders/:order_no/pay-status", ctrl.PayStatus)
 		auth.GET("/modules/my", ctrl.MyModules)
 		auth.POST("/modules/sync", ctrl.Sync)
 		auth.GET("/llm/wallet", ctrl.LLMWallet)
 		auth.GET("/llm/plans", ctrl.LLMPlans)
 		auth.GET("/llm/wallet/txns", ctrl.LLMWalletTxns)
 		auth.POST("/llm/recharge", ctrl.CreateLLMOrder)
+
+		// 订阅状态与续费（003 T018/T022）。两条都在订阅闸白名单内
+		// （/api/subscription/*），墙页依赖它们 —— 自身不得 4305（oracle P1-12）。
+		subCtrl := controller.NewSubscriptionController()
+		auth.GET("/subscription/status", subCtrl.Status)
+		auth.POST("/subscription/renew", subCtrl.Renew)
 	}
 
 	if admin != nil {

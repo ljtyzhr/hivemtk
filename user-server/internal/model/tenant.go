@@ -40,6 +40,15 @@ type Tenant struct {
 	LicenseNo string `gorm:"type:varchar(64)" json:"license_no"`
 	Address   string `gorm:"type:varchar(255)" json:"address"`
 
+	// ---- 静默合规采集（003 T010）----
+	// 采集自注册/初始化请求，服务端视角静默落库；json:"-" —— 合规留痕数据，
+	// 绝不出现在任何用户可见响应（public config / 租户自助接口 / 运营清单视图
+	// 经 TenantWithActivity 内嵌本 struct，不加屏蔽会把 IP 指纹带出去）。
+	// InitUA 存 sha256 hex 而非原文：短字段留痕不需要原始 UA。
+	InitIP                string `gorm:"type:varchar(64);default:''" json:"-"`
+	InitUA                string `gorm:"type:varchar(128);default:''" json:"-"`
+	InitDeviceFingerprint string `gorm:"type:varchar(128);default:''" json:"-"`
+
 	RegMode          string `gorm:"type:varchar(16);not null;default:'saas'" json:"reg_mode"`
 	PlatformSync     string `gorm:"type:varchar(16);not null;default:'pending';index" json:"platform_sync"`
 	PlatformSyncErr  string `gorm:"type:text" json:"platform_sync_error"`

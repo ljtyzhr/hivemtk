@@ -15,6 +15,7 @@ import (
 	geomodel "hivemtk-user/internal/geo/model"
 	"hivemtk-user/internal/middleware"
 	"hivemtk-user/internal/monitor"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/tracing"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
@@ -428,6 +429,13 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 	moduleGateSvc := service.NewModuleGateService()
 	middleware.SetModuleGateChecker(moduleGateAdapter{gate: moduleGateSvc})
 	moduleGateSvc.InstallWiring(context.Background())
+	// 订阅闸（003 T022）：与模块闸同位置挂接（鉴权后、角色权限前）。
+	// 仅 on 模式装配 —— 离线单机没有订阅概念（middleware 内部还有一次
+	// IsMultiTenant 纵深判定，误挂也不会锁死离线用户）。
+	middleware.SetSubscriptionLockChecker(subscriptionGateAdapter{svc: service.NewSubscriptionMirrorService()})
+	if tenant.IsMultiTenant() {
+		auth.Use(middleware.GuardSubscriptionPath())
+	}
 	auth.Use(middleware.GuardModulePath())
 
 	{

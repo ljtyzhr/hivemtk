@@ -354,8 +354,10 @@ type ModuleSyncResult struct {
 // Sync 从平台拉取模块快照并落本地镜像。
 //
 // 离线降级（PLATFORM_ENABLED=false）：
-//   - 本地没有任何模块行 → 灌入**基础模块**（免费常开）
-//   - 本地已有数据 → 原样保留（不降级到"全开"，否则用户会被静默收回已购模块）
+//   - 本地没有任何模块行 → 灌入赠送集（基础模块 + 全部 0 元付费模块，
+//     browser-automation 除外，见 offlineGiftModuleRows）
+//   - 本地已有数据 → 幂等补齐缺失的赠送行（存量部署升级路径），已有行原样
+//     保留（不降级到"全开"，否则用户会被静默收回已购模块）
 func (s *ModuleCatalogService) Sync(ctx context.Context) (*ModuleSyncResult, error) {
 	start := time.Now()
 
@@ -406,6 +408,15 @@ func (s *ModuleCatalogService) Sync(ctx context.Context) (*ModuleSyncResult, err
 		logger.Warnf("[module-sync] 订单状态同步失败（不影响模块下发）: %v", oerr)
 	} else if n > 0 {
 		logger.Infof("[module-sync] 已刷新 %d 条订单状态", n)
+	}
+
+	// ---- 订阅镜像（003 T022 · ADR-M8 修订 #4）----
+	// 部署级单行，sync 在 SystemScope 写（镜像表无 tenant_id，不受租户串写影响）。
+	// 平台段缺失（老平台/读失败）不写：保留最后已知态（fail-open 的数据来源）。
+	if snap.Subscription != nil {
+		if err := NewSubscriptionMirrorService().SaveFromSnapshot(ctx, snap.Subscription); err != nil {
+			logger.Warnf("[module-sync] 订阅镜像写入失败（不影响模块下发）: %v", err)
+		}
 	}
 
 	rows := make([]*model.TenantModule, 0, len(snap.ActiveKeys))
@@ -488,6 +499,15 @@ func (s *ModuleCatalogService) Sync(ctx context.Context) (*ModuleSyncResult, err
 		stale := make([]*model.TenantModule, 0)
 		for _, e := range existing {
 			if !active[e.ModuleKey] && e.Status == model.TenantModuleActive {
+				// gift 行豁免（003 审查修订 #17 / oracle P1-3）：平台对 0 元
+				// 模块的 owned 下发口径尚未两端定死 —— 平台没把某 0 元模块算进
+				// active_keys 时（例如存量商户升级前、离线期落的 gift 行），
+				// 这里的 stale 判定会把免费能力整批误关。gift 来源不参与
+				// stale：撤销免费模块请走平台 owned/owned_status 口径下发，
+				// 不要依赖"不在下发名单里"。
+				if e.Source == model.TenantModuleSourceGift {
+					continue
+				}
 				c := *e
 				c.Status = model.TenantModuleDisabled
 				stale = append(stale, &c)
@@ -581,8 +601,12 @@ func orderModuleKeys(o *model.ModuleOrder) []string {
 }
 
 // baseTenantModuleRows 基础模块行（免费常开）。
-// bootstrapOffline 与「给非默认租户首次落行」共用 —— 保证"有行的租户
-// 必然有基础行"，与空态放行 BaseModuleKeys 是同一批 key。
+// 「给非默认租户首次落行」用 —— 保证"有行的租户必然有基础行"，
+// 与空态放行 BaseModuleKeys 是同一批 key。
+//
+// ⚠️ **不要**把离线赠送逻辑合并进来（003 审查修订 #17）：本函数同时被
+// on 模式的落点归并分支使用，塞进 0 元付费模块会让云端租户凭空拿到
+// 全部免费模块、随同步开关震荡。离线口径见 offlineGiftModuleRows。
 func baseTenantModuleRows(now time.Time) []*model.TenantModule {
 	rows := make([]*model.TenantModule, 0, 8)
 	for _, k := range model.BaseModuleKeys() {
@@ -599,20 +623,73 @@ func baseTenantModuleRows(now time.Time) []*model.TenantModule {
 	return rows
 }
 
-// bootstrapOffline 离线兜底：基础模块全开
+// offlineGiftModuleRows 离线赠送行：基础模块 + 全部 0 元付费模块
+// （browser-automation 除外——¥99 买断，本地无支付通道 → 保持不可购不可用，
+// 用户裁决见 003 spec R3）。
+//
+// 与 baseTenantModuleRows 的分工见后者注释：本函数**只**服务 bootstrapOffline。
+// 0 元付费模块必须显式落行（source=gift），否则闸的空态/有行判定只认
+// BaseModuleKeys，菜单 16 组不会出现（002 勘误里 allow-all 作废踩过的坑）。
+func offlineGiftModuleRows(now time.Time) []*model.TenantModule {
+	rows := baseTenantModuleRows(now)
+	for _, m := range model.ModuleCatalogMeta {
+		if m.Category != model.ModuleCategoryPaid || m.Key == model.ModuleBrowserAutomation {
+			continue
+		}
+		if m.PriceCents != 0 {
+			continue // 目录将来恢复收费的模块自动退出赠送集（改价即可）
+		}
+		menuKeys, _ := json.Marshal(model.ModuleMenuBindings[m.Key])
+		rows = append(rows, &model.TenantModule{
+			ModuleKey:   m.Key,
+			Status:      model.TenantModuleActive,
+			Source:      model.TenantModuleSourceGift,
+			Category:    m.Category,
+			PriceCents:  m.PriceCents,
+			MenuKeys:    string(menuKeys),
+			ActivatedAt: now,
+		})
+	}
+	return rows
+}
+
+// bootstrapOffline 离线兜底：基础模块 + 0 元赠送模块全开（browser-automation 锁定）
 func (s *ModuleCatalogService) bootstrapOffline(ctx context.Context, start time.Time) (*ModuleSyncResult, error) {
 	existing, err := s.repo.ListAll(ctx)
 	if err != nil {
 		return nil, err
 	}
 	if len(existing) > 0 {
+		// 存量部署升级路径（003 审查修订 #17）：镜像非空 ≠ 赠送集已齐 ——
+		// 旧版本只灌了 7 个基础模块，升级后必须**幂等补齐**缺失的 0 元赠送行，
+		// 否则新增的 16 组菜单永远不会出现；同时刷新闸与菜单快照，否则要等
+		// 60s 缓存 TTL 或下一次同步才生效。已有行一律不动（含已购/已禁用行：
+		// 不降级、不复活）。
+		now := time.Now()
+		have := make(map[string]struct{}, len(existing))
+		for _, e := range existing {
+			have[e.ModuleKey] = struct{}{}
+		}
+		missing := make([]*model.TenantModule, 0)
+		for _, r := range offlineGiftModuleRows(now) {
+			if _, ok := have[r.ModuleKey]; !ok {
+				missing = append(missing, r)
+			}
+		}
+		if len(missing) > 0 {
+			if err := s.repo.UpsertMany(ctx, missing); err != nil {
+				return nil, err
+			}
+		}
+		total := len(existing) + len(missing)
 		_ = s.repo.CreateLog(ctx, &model.ModuleSyncLog{
 			Action: "sync", Status: "success", Source: "cache",
-			ActiveCount: len(existing), DurationMs: time.Since(start).Milliseconds(),
+			ActiveCount: total, DurationMs: time.Since(start).Milliseconds(),
 		})
-		return &ModuleSyncResult{ActiveCount: len(existing), Source: "cache"}, nil
+		refreshProcessGate(ctx)
+		return &ModuleSyncResult{ActiveCount: total, Source: "cache"}, nil
 	}
-	rows := baseTenantModuleRows(time.Now())
+	rows := offlineGiftModuleRows(time.Now())
 	if err := s.repo.UpsertMany(ctx, rows); err != nil {
 		return nil, err
 	}
@@ -623,7 +700,7 @@ func (s *ModuleCatalogService) bootstrapOffline(ctx context.Context, start time.
 	refreshProcessGate(ctx)
 	return &ModuleSyncResult{
 		ActiveCount: len(rows), Source: "offline_bootstrap",
-		Message: "未连接平台，已按基础模块开通全部免费能力",
+		Message: "未连接平台，已按目录开通全部免费能力（浏览器自动化除外）",
 	}, nil
 }
 
@@ -660,18 +737,22 @@ func listHas(list []string, v string) bool {
 
 // MyModuleView 「我的模块」视图项
 type MyModuleView struct {
-	ModuleKey  string     `json:"module_key"`
-	Name       string     `json:"name"`
-	Category   string     `json:"category"`
-	PriceCents int64      `json:"price_cents"`
-	Icon       string     `json:"icon"`
-	Summary    string     `json:"summary"`
-	DependsOn  []string   `json:"depends_on"`
-	MenuKeys   []string   `json:"menu_keys"`
-	Owned      bool       `json:"owned"`
-	Source     string     `json:"source"`
-	Status     string     `json:"status"`
-	ExpiresAt  *time.Time `json:"expires_at"`
+	ModuleKey  string `json:"module_key"`
+	Name       string `json:"name"`
+	Category   string `json:"category"`
+	PriceCents int64  `json:"price_cents"`
+	// BillingCycle 计费周期（once=买断/monthly/yearly/metered）。
+	// 003 T019：缺它时 priceLabel 走不到「买断」分支，¥99 买断的模块
+	// 会被标成「¥99 / 年」。
+	BillingCycle string     `json:"billing_cycle"`
+	Icon         string     `json:"icon"`
+	Summary      string     `json:"summary"`
+	DependsOn    []string   `json:"depends_on"`
+	MenuKeys     []string   `json:"menu_keys"`
+	Owned        bool       `json:"owned"`
+	Source       string     `json:"source"`
+	Status       string     `json:"status"`
+	ExpiresAt    *time.Time `json:"expires_at"`
 }
 
 // MyModules 返回「我的模块」：已开通 + 未开通（全部目录）
@@ -693,15 +774,16 @@ func (s *ModuleCatalogService) MyModules(ctx context.Context) ([]MyModuleView, e
 	for _, meta := range model.ModuleCatalogMeta {
 		mk := meta.Key
 		v := MyModuleView{
-			ModuleKey:  mk,
-			Name:       meta.Name,
-			Category:   meta.Category,
-			PriceCents: meta.PriceCents,
-			Icon:       meta.Icon,
-			Summary:    meta.Summary,
-			DependsOn:  meta.DependsOn,
-			MenuKeys:   model.ModuleMenuBindings[mk],
-			Owned:      false,
+			ModuleKey:    mk,
+			Name:         meta.Name,
+			Category:     meta.Category,
+			PriceCents:   meta.PriceCents,
+			BillingCycle: meta.BillingCycle,
+			Icon:         meta.Icon,
+			Summary:      meta.Summary,
+			DependsOn:    meta.DependsOn,
+			MenuKeys:     model.ModuleMenuBindings[mk],
+			Owned:        false,
 		}
 		if tm, ok := owned[mk]; ok {
 			v.Owned = model.TenantModuleUsable(tm, now)

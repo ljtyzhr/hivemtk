@@ -32,6 +32,14 @@ export default [
     meta: { title: '我的订单', icon: 'Tickets', requiresAuth: true }
   },
   {
+    // 续费墙（003 T023）：4305 跳转目标。依赖接口集全在订阅闸白名单内，
+    // 本页自身不会 4305（防死循环，oracle P1-12）。
+    path: '/subscription-wall',
+    name: 'SubscriptionWall',
+    component: () => import('@/views/subscription/Wall.vue'),
+    meta: { title: '订阅续费', requiresAuth: true, hideLayout: true }
+  },
+  {
     path: '/register',
     name: 'Register',
     component: () => import('@/views/register/Register.vue'),

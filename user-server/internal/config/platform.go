@@ -21,6 +21,29 @@ type PlatformConfig struct {
 	AdminPassword       string `yaml:"admin_password" json:"admin_password"`
 	LogReportInterval   int    `yaml:"log_report_interval" json:"log_report_interval"`
 	LicenseSyncInterval int    `yaml:"license_sync_interval" json:"license_sync_interval"`
+	// CloudURL 云端版对外地址（可选，003 T003）。留空回落 DefaultCloudURL；
+	// 不参与 LoadPlatform 的必填校验 —— 它只影响 public config 的展示字段，
+	// 缺配置不该阻断启动。
+	CloudURL string `yaml:"cloud_url" json:"cloud_url"`
+}
+
+// DefaultCloudURL 云端版对外地址占位常量（003 spec R1）。
+// 上线前替换为正式域名 —— 全仓只此一处（平台配置 cloud_url 可覆盖）。
+const DefaultCloudURL = "https://saas.hivemtk.cn"
+
+// CloudURL 云端版地址：已装配平台配置 > 环境变量 PLATFORM_CLOUD_URL > 占位常量。
+//
+// 刻意与 PlatformURL 不同：PlatformURL 关闭态恒空（"没有平台可连"是合法值），
+// 而云端地址是 public config 的展示字段，任何形态都要给前端一个可渲染的值
+// —— 离线（PLATFORM_ENABLED=false）回落占位常量而非空串。
+func CloudURL() string {
+	if PlatformCfg != nil && strings.TrimSpace(PlatformCfg.CloudURL) != "" {
+		return strings.TrimSpace(PlatformCfg.CloudURL)
+	}
+	if v := strings.TrimSpace(os.Getenv("PLATFORM_CLOUD_URL")); v != "" {
+		return v
+	}
+	return DefaultCloudURL
 }
 
 // PlatformCfg 全局平台配置（运行时唯一实例）

@@ -14,6 +14,7 @@ import (
 	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/bcrypt"
+	"hivemtk-user/internal/pkg/utils/fingerprint"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/platform"
 	"hivemtk-user/internal/repository"
@@ -750,6 +751,10 @@ func (s *AuthService) insertPreparedAdmin(ctx context.Context, user *model.Syste
 // 口径与 TenantService.validateRegulatoryFields 一致，刻意保持同一套判据：
 // 两条注册入口（SaaS 自助开户 / 单机自助注册）如果要求不同，
 // 用户会从"要求低的入口"绕过去，监管登记就形同虚设。
+//
+// 003 T012 口径收敛：公司/负责人/电话/**地址** 四项必填，邮箱/执照号选填
+// （邮箱在本入口仍是登录凭据（binding required），这里只是不再把它算进
+// 监管必填集；"联系不到人"的缺口由地址补上——电话失联时地址是唯一线索）。
 func validateSelfRegisterFields(req RegisterRequest) error {
 	var missing []string
 	if strings.TrimSpace(req.CompanyName) == "" {
@@ -761,8 +766,8 @@ func validateSelfRegisterFields(req RegisterRequest) error {
 	if strings.TrimSpace(req.Phone) == "" {
 		missing = append(missing, "联系电话")
 	}
-	if strings.TrimSpace(req.Email) == "" {
-		missing = append(missing, "邮箱")
+	if strings.TrimSpace(req.Address) == "" {
+		missing = append(missing, "联系地址")
 	}
 	if len(missing) > 0 {
 		return bizerr.New(bizerr.CodeModuleRegistrationIncomplete,
@@ -832,9 +837,10 @@ func (s *AuthService) submitSelfRegisterToPlatform(ctx context.Context, u *model
 
 // ValidateOfflineRegistration 校验离线初始化的开户登记必填项
 //
-// 口径与另两条注册入口一致（SaaS 自助开户 / 单机自助注册）：
-// 公司名（或负责人所属组织）、负责人姓名、电话、邮箱，四项缺一不可。
-func (s *AuthService) ValidateOfflineRegistration(companyName, realName, phone, email string, ack bool) error {
+// 口径与另两条注册入口一致（SaaS 自助开户 / 单机自助注册），003 T012 收敛为：
+// 公司名（或负责人所属组织）、负责人姓名、电话、**地址** 四项缺一不可；
+// 邮箱/执照号选填（地址是电话失联时唯一剩下的定位线索，顶替邮箱的必填位）。
+func (s *AuthService) ValidateOfflineRegistration(companyName, realName, phone, email, address string, ack bool) error {
 	var missing []string
 	if strings.TrimSpace(companyName) == "" {
 		missing = append(missing, "公司/组织名称")
@@ -845,8 +851,8 @@ func (s *AuthService) ValidateOfflineRegistration(companyName, realName, phone, 
 	if strings.TrimSpace(phone) == "" {
 		missing = append(missing, "联系电话")
 	}
-	if strings.TrimSpace(email) == "" {
-		missing = append(missing, "邮箱")
+	if strings.TrimSpace(address) == "" {
+		missing = append(missing, "联系地址")
 	}
 	if len(missing) > 0 {
 		return fmt.Errorf("开户信息不完整，缺少：%s", strings.Join(missing, "、"))
@@ -874,9 +880,12 @@ func (s *AuthService) ValidateOfflineRegistration(companyName, realName, phone, 
 //	off：  全部校验 → INSERT → install.lock → 回填 → 建 tenants 行。
 //	      与历史顺序逐条一致；登记失败**不回滚超管**（留痕缺失可补，
 //	      把已能登录的人挡在门外不可逆）。
+//
+// clientIP/userAgent：003 T010 静默合规采集 —— 服务端视角落 tenants 三列
+// （init_ip / init_ua(sha256) / init_device_fingerprint），不做用户可见提示。
 func (s *AuthService) InitAdminWithRegistration(ctx context.Context,
 	username, password, email, realName, phone, companyName, licenseNo, address string,
-	regulatoryAck bool, agreementVersion string) error {
+	regulatoryAck bool, agreementVersion, clientIP, userAgent string) error {
 
 	companyName = strings.TrimSpace(companyName)
 	if companyName == "" {
@@ -895,24 +904,32 @@ func (s *AuthService) InitAdminWithRegistration(ctx context.Context,
 
 	// 租户登记行：离线部署的唯一监管留痕
 	t := &model.Tenant{
-		Code:             "local-" + shortRandomKey(8),
-		Name:             companyName,
-		Status:           model.TenantStatusActive,
-		Plan:             "free",
-		CompanyName:      companyName,
-		LegalPerson:      strings.TrimSpace(realName),
-		Phone:            strings.TrimSpace(phone),
-		Email:            strings.ToLower(strings.TrimSpace(email)),
-		LicenseNo:        strings.TrimSpace(licenseNo),
-		Address:          strings.TrimSpace(address),
+		Code:        "local-" + shortRandomKey(8),
+		Name:        companyName,
+		Status:      model.TenantStatusActive,
+		Plan:        "free",
+		CompanyName: companyName,
+		LegalPerson: strings.TrimSpace(realName),
+		Phone:       strings.TrimSpace(phone),
+		Email:       strings.ToLower(strings.TrimSpace(email)),
+		LicenseNo:   strings.TrimSpace(licenseNo),
+		Address:     strings.TrimSpace(address),
+		// reg_mode 按 TENANT_MODE 实际返回（003 T012）：on 模式的 /setup 初始化
+		// 是云端 SaaS 形态的开户，不再是"离线独立部署"——硬编码 offline 会让
+		// 平台端把云端首租户误记成离线商户。
 		RegMode:          model.TenantRegModeOffline,
 		PlatformSync:     model.TenantSyncSkipped,
 		AgreementVersion: agreementVersion,
 		RegulatoryAck:    regulatoryAck,
 	}
+	// 003 T010 静默合规采集：UA 只存 sha256 hex，指纹由 UA+IP 派生
+	t.InitIP = strings.TrimSpace(clientIP)
+	t.InitUA = fingerprint.HashHex(userAgent)
+	t.InitDeviceFingerprint = fingerprint.FromClient(userAgent, clientIP)
 
 	onMode := tenant.IsMultiTenant()
 	if onMode {
+		t.RegMode = model.TenantRegModeSaaS
 		// P0：先落租户行拿 ID（tenants 非租户表，任何 ctx 都能写）。
 		// 失败即中止 —— 此刻超管还没建，不存在"抛下无租户超管"的半态。
 		if err := repository.NewTenantRepository().Create(ctx, t); err != nil {
@@ -943,8 +960,13 @@ func (s *AuthService) InitAdminWithRegistration(ctx context.Context,
 			return nil
 		}
 	}
-	logger.Infof("[init-admin] 离线开户登记完成（reg_mode=offline, tenant 行 ID=%d, on=%v）：company=%s legal_person=%s",
-		t.ID, onMode, t.CompanyName, t.LegalPerson)
+	logger.Infof("[init-admin] 开户登记完成（reg_mode=%s, tenant 行 ID=%d, on=%v）：company=%s legal_person=%s",
+		t.RegMode, t.ID, onMode, t.CompanyName, t.LegalPerson)
+
+	// 003 T013 开户赠送：失败仅 Warn 不阻断初始化（赠送可后补，开户不可逆）
+	if t.ID != 0 {
+		provisionTenantStarterKit(ctx, t.ID)
+	}
 	return nil
 }
 

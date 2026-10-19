@@ -120,10 +120,10 @@
             placeholder="选填，建议填写以便后续快速核验"
           />
         </el-form-item>
-        <el-form-item label="通信地址">
+        <el-form-item label="通信地址" prop="address">
           <el-input
             v-model="form.address"
-            placeholder="选填"
+            placeholder="必填，用于监管问询联系"
           />
         </el-form-item>
       </el-form>
@@ -227,14 +227,16 @@ const rules = {
   ]
 }
 
-// 开户登记的必填口径与后端一致（后端是最终把关，前端只是为了少一次往返）
+// 开户登记的必填口径与后端一致（后端是最终把关，前端只是为了少一次往返）。
+// 003 T012：地址升必填，邮箱/执照号选填（邮箱在第 1 步仍作登录凭据必填）。
 const regRules = {
   company_name: [{ required: true, message: '请输入公司名称', trigger: 'blur' }],
   real_name: [{ required: true, message: '请输入负责人/法人姓名', trigger: 'blur' }],
   phone: [
     { required: true, message: '请输入联系电话', trigger: 'blur' },
     { pattern: /^[0-9+\-() ]{6,32}$/, message: '电话格式不正确', trigger: 'blur' }
-  ]
+  ],
+  address: [{ required: true, message: '请输入通信地址', trigger: 'blur' }]
 }
 
 async function next () {
@@ -246,7 +248,7 @@ async function next () {
     if (!ok) return
   }
   if (step.value === 1) {
-    const ok = await validateGroup(formRef, ['company_name', 'real_name', 'phone'])
+    const ok = await validateGroup(formRef, ['company_name', 'real_name', 'phone', 'address'])
     if (!ok) return
   }
   step.value++
@@ -268,7 +270,7 @@ async function submit () {
   }
   const ok = await validateGroup(formRef, [
     'username', 'password', 'confirmPassword', 'email',
-    'company_name', 'real_name', 'phone'
+    'company_name', 'real_name', 'phone', 'address'
   ])
   if (!ok) {
     // 出错时把第一个错的步骤翻出来：用户点「完成注册」却什么都没发生是最差的体验

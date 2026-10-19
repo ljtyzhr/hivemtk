@@ -35,7 +35,9 @@ const LocalRegulatoryNotice = "本平台为软件产品服务方，不参与商�
 	"商户应自行确保其经营活动合法合规，并对使用本平台产生的行为承担全部责任。" +
 	"平台将按法律法规要求配合监管问询。"
 
-var localRequiredFields = []string{"company_name", "legal_person", "phone", "email"}
+// localRequiredFields 开户登记必填集（003 T012 收敛）：地址顶替邮箱的必填位。
+// 与 validateRegulatoryFields / ValidateOfflineRegistration 同一套判据。
+var localRequiredFields = []string{"company_name", "legal_person", "phone", "address"}
 
 // RegulatoryNotice 取监管告知。优先平台（两端同源），失败回落本地常量。
 func (s *ModuleCatalogService) RegulatoryNotice(ctx context.Context) *RegulatoryNoticeView {

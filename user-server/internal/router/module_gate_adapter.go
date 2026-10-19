@@ -25,4 +25,15 @@ func (a moduleGateAdapter) IsEnabled(ctx context.Context, moduleKey string) bool
 	return a.gate.IsEnabled(ctx, moduleKey)
 }
 
+// subscriptionGateAdapter 把订阅镜像服务接到中间件的窄接口上。
+// ctx 直通：判定读的是部署级单行镜像，不依赖租户解析，但保持与模块闸
+// 同一条「任何一层换成 context.Background() 都是错」的纪律。
+type subscriptionGateAdapter struct {
+	svc *service.SubscriptionMirrorService
+}
+
+func (a subscriptionGateAdapter) IsLocked(ctx context.Context) bool {
+	return a.svc.IsLocked(ctx)
+}
+
 var _ = middleware.ModuleOwnerOf

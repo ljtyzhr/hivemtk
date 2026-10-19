@@ -14,6 +14,7 @@ import (
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils"
+	"hivemtk-user/internal/pkg/utils/fingerprint"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/platform"
 	"hivemtk-user/internal/repository"
@@ -90,7 +91,9 @@ func NewTenantService() *TenantService {
 //
 // 事务边界在 Repository.CreateWithAdmin（两个 INSERT 同事务）；
 // 本层负责全部业务判断：开放模式、参数、重复校验、短码生成、令牌签发。
-func (s *TenantService) RegisterTenant(ctx context.Context, req RegisterTenantRequest, clientKey string) (*RegisterTenantResponse, error) {
+//
+// clientKey/userAgent：003 T010 静默合规采集（ClientIP + UA → tenants 三列）。
+func (s *TenantService) RegisterTenant(ctx context.Context, req RegisterTenantRequest, clientKey, userAgent string) (*RegisterTenantResponse, error) {
 	if !tenant.IsMultiTenant() {
 		return nil, bizerr.New(bizerr.CodeTenantRegisterClosed, "当前为离线部署模式，注册未开放")
 	}
@@ -120,13 +123,16 @@ func (s *TenantService) RegisterTenant(ctx context.Context, req RegisterTenantRe
 		agreementVersion = serviceCurrentAgreementVersion
 	}
 
-	// 邮箱全局唯一（跨租户亦不可并存）——登录通道依赖此语义
-	exists, err := s.userRepo.EmailExistsGlobal(ctx, email)
-	if err != nil {
-		return nil, bizerr.Wrap(bizerr.CodeInternal, "校验邮箱失败", err)
-	}
-	if exists {
-		return nil, bizerr.New(bizerr.CodeTenantEmailTaken, "该邮箱已被注册")
+	// 邮箱全局唯一（跨租户亦不可并存）——登录通道依赖此语义。
+	// 003 T012：邮箱降选填，空邮箱跳过查重（部分唯一索引同样排除空值）。
+	if email != "" {
+		exists, err := s.userRepo.EmailExistsGlobal(ctx, email)
+		if err != nil {
+			return nil, bizerr.Wrap(bizerr.CodeInternal, "校验邮箱失败", err)
+		}
+		if exists {
+			return nil, bizerr.New(bizerr.CodeTenantEmailTaken, "该邮箱已被注册")
+		}
 	}
 
 	var lastErr error
@@ -148,6 +154,10 @@ func (s *TenantService) RegisterTenant(ctx context.Context, req RegisterTenantRe
 			RegulatoryAck:    true,
 			PlatformSync:     model.TenantSyncPending,
 		}
+		// 003 T010 静默合规采集：UA 只存 sha256 hex，指纹由 UA+IP 派生
+		t.InitIP = strings.TrimSpace(clientKey)
+		t.InitUA = fingerprint.HashHex(userAgent)
+		t.InitDeviceFingerprint = fingerprint.FromClient(userAgent, clientKey)
 		// 每次尝试重建：admin 在 Create 时被 BeforeCreate 钩子原地哈希，
 		// 复用同一实例会导致第二次插入存进 bcrypt(bcrypt(明文))。
 		// 密码按明文入参，加密职责归模型钩子（与 AuthService.Register 同一口径）。
@@ -181,6 +191,9 @@ func (s *TenantService) RegisterTenant(ctx context.Context, req RegisterTenantRe
 		if err := s.SubmitRegistrationToPlatform(ctx, t, admin); err != nil {
 			logger.Warnf("[tenant] 开户登记上报失败（已回滚为 pending/failed）: %v", err)
 		}
+
+		// 003 T013 开户赠送：失败仅 Warn 不阻断注册（赠送可后补，开户不可逆）
+		provisionTenantStarterKit(ctx, t.ID)
 
 		return &RegisterTenantResponse{
 			TenantID:   t.ID,
@@ -258,8 +271,12 @@ func validateRegisterReq(req RegisterTenantRequest) error {
 			return bizerr.New(bizerr.CodeTenantParamInvalid, "用户名只能包含字母、数字、下划线、点与短横线")
 		}
 	}
-	if !strings.Contains(email, "@") || len(email) > 100 {
-		return bizerr.New(bizerr.CodeTenantParamInvalid, "邮箱格式不正确")
+	// 003 T012：邮箱降选填（登录仍有 username 通道；系统邮箱唯一索引为部分
+	// 索引，已排除空值，见 tenant_global_email_unique_migration）。
+	if email != "" {
+		if !strings.Contains(email, "@") || len(email) > 100 {
+			return bizerr.New(bizerr.CodeTenantParamInvalid, "邮箱格式不正确")
+		}
 	}
 	if l := len(req.Password); l < 8 || l > 64 {
 		return bizerr.New(bizerr.CodeTenantParamInvalid, "密码长度需为 8-64 个字符")
@@ -361,7 +378,9 @@ const serviceCurrentAgreementVersion = "2026-10-17.v1"
 
 // validateRegulatoryFields 校验开户登记的监管必需项
 //
-// 判据（需求原文）：公司名称、负责人、电话、邮箱四项缺一不予开户。
+// 003 T012 收敛后的判据：公司名称、负责人、电话、**地址** 四项缺一不予开户；
+// 邮箱/执照号选填（地址顶替邮箱的必填位——电话失联时它是唯一剩下的定位线索；
+// 邮箱此前是必填但与登录邮箱语义纠缠，降选填后由地址补上合规缺口）。
 // 少任何一项，平台端持有的就是一条**联系不到人**的经营主体登记 ——
 // 在需要配合监管问询时，这样的记录没有价值。
 func validateRegulatoryFields(req RegisterTenantRequest) error {
@@ -375,9 +394,8 @@ func validateRegulatoryFields(req RegisterTenantRequest) error {
 	if strings.TrimSpace(req.Phone) == "" {
 		missing = append(missing, "联系电话")
 	}
-	// 邮箱复用登录邮箱（req.Email 已在原校验里非空）
-	if strings.TrimSpace(req.Email) == "" {
-		missing = append(missing, "邮箱")
+	if strings.TrimSpace(req.Address) == "" {
+		missing = append(missing, "联系地址")
 	}
 	if len(missing) > 0 {
 		return bizerr.New(bizerr.CodeModuleRegistrationIncomplete,
@@ -442,6 +460,10 @@ func (s *TenantService) SubmitRegistrationToPlatform(ctx context.Context, t *mod
 		RegMode:          t.RegMode,
 		AgreementVersion: t.AgreementVersion,
 		RegulatoryAck:    t.RegulatoryAck,
+		// 003 T010 静默合规采集随登记上报（平台端 tenant_registrations 同步落列）
+		InitIP:                t.InitIP,
+		InitUA:                t.InitUA,
+		InitDeviceFingerprint: t.InitDeviceFingerprint,
 	}
 	if _, err := platform.NewModuleClient().RegisterTenant(ctx, payload); err != nil {
 		// 失败不阻断注册：只标记 + 记日志，运营可在平台端手工补录

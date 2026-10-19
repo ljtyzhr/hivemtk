@@ -69,16 +69,23 @@ watch(locale, () => refreshCurrentLangLabel())
       </router-link>
 
       <div class="nav-links" :class="{ 'nav-open': mobileOpen }" :id="mobileMenuId">
-        <router-link
-          v-for="link in nav.links"
-          :key="link.href"
-          :to="link.href"
-          class="nav-link"
-          :class="{ 'nav-link-active': route.path === link.href }"
-          @click="mobileOpen = false"
-        >
-          {{ link.label }}
-        </router-link>
+        <template v-for="link in nav.links" :key="link.href">
+          <a
+            v-if="link.type === 'external'"
+            :href="link.href"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="nav-link"
+            @click="mobileOpen = false"
+          >{{ link.label }}</a>
+          <router-link
+            v-else
+            :to="link.href"
+            class="nav-link"
+            :class="{ 'nav-link-active': route.path === link.href }"
+            @click="mobileOpen = false"
+          >{{ link.label }}</router-link>
+        </template>
 
         <div class="nav-actions-mobile">
           <router-link to="/deploy" class="btn btn-primary nav-cta-mobile" @click="mobileOpen = false">

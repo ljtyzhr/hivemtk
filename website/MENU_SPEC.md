@@ -1,10 +1,10 @@
 # HiveMTK 官网 / 营销落地页（website）— 菜单页面规格清单
 
-> 生成日期：2026-07-24 ｜ 最后更新：2026-10-18 ｜ 技术栈：Vue 3 + Vue Router(history) + Vite 8 + vue-i18n 9（中 / 英 / 日 / 阿语）
+> 生成日期：2026-07-24 ｜ 最后更新：2026-10-19 ｜ 技术栈：Vue 3 + Vue Router(history) + Vite 8 + vue-i18n 9（中 / 英 / 日 / 阿语）
 >
 > 站点品牌：`HiveMTK · 私域 AI 营销操作系统`（`src/config/content.js` `brand`）。导航配置：`content.js` 的 `nav`；页面文案集中在 `content.js`，改文案无需改组件。
 >
-> 定位（2026-10-18 修订，与产品实况对齐）：**AGPL-3.0 开源 + 私有化部署**——代码与 7 个基础功能模块免费；17 个增值功能模块在系统内**按需订阅**（年费 / 按量预付费）；支持离线单机与 SaaS 多租户双形态。官网 CTA 仍只用「立即部署 / 克隆仓库 / 获取源码」，不提供注册入口。事实源见 `TERMINOLOGY.md` 与 `src/i18n/modules/contentExtra6.js`。
+> 定位（2026-10-19 修订，003 计费二期覆盖 002）：**AGPL-3.0 开源 + 私有化部署**——代码与**全部功能模块免费开放**（含原 16 个付费模块免年费），仅浏览器自动化 **¥99 买断**；**云端版软件订阅 149 元/月**（新商户 15 天体验期），模型算力按输入 / 输出 token 预付费；支持离线单机与云端版（SaaS 多租户）双形态，云端版入口统一走 `content.js` 的 `CLOUD_URL` 单点常量。官网 CTA 用「立即部署 / 克隆仓库 / 获取源码 / 云端版在线使用」，不提供注册入口。事实源见 `TERMINOLOGY.md` 与 `src/i18n/modules/contentExtra6.js`。
 >
 > 每个路由带 SEO `meta`（title / description / keywords），由 `router/index.js` `afterEach` 动态注入 `<head>`。
 
@@ -18,6 +18,7 @@
 | 核心功能 | `/features` | `views/FeaturesPage.vue` | route |
 | 功能架构 | `/modules` | `views/ModulesPage.vue` | route |
 | 按需订阅 | `/pricing` | `views/PricingPage.vue` | route |
+| 云端版 | `CLOUD_URL`（`https://saas.hivemtk.cn` 占位） | 外链云端 SaaS | external |
 | 工程能力 | `/toolchain` | `views/ToolchainPage.vue` | route |
 | 工作流 | `/workflow` | `views/WorkflowPage.vue` | route |
 | 常见问题 | `/faq` | `views/FaqPage.vue` | route |
@@ -25,7 +26,7 @@
 | 安装文档 | `/docs` | `views/DocsPage.vue` | route |
 | 右侧 CTA「立即部署」 | `/deploy` | `views/DeployPage.vue` | route |
 
-> 导航共 8 项 `nav.links` + 1 项 `nav.cta`，全部为 `type: 'route'`。
+> 导航共 9 项 `nav.links`（8 项 `type: 'route'` + 1 项 `type: 'external'`「云端版」）+ 1 项 `nav.cta`。`Navbar.vue` 对 `external` 用原生 `<a target="_blank">` 渲染，其余仍走 `router-link`。
 
 ---
 
@@ -52,7 +53,8 @@
   - 完整文案：**七端打透 · AI 真自主 · 数据封死在域内**
 - **副描述**：HiveMTK 是把七端社媒（抖音 / 快手 / 小红书 / 闲鱼 / TikTok / 企微 / 邮件）、ReAct 自主智能体（42 工具）、零出域数据安全三件事同时做透的私域营销操作系统。
 - **主 CTA**：「立即部署」→ `/deploy`
-- **次 CTA**：「了解核心功能」→ `/features`
+- **云端版 CTA**（2026-10-19 · T024 新增）：「云端版在线使用」→ `hero.cloudCta.href = CLOUD_URL` 外链，复用 `btn btn-outline`（与「查看源码」`sourceCta` 同级样式，不新造样式）
+- **次 CTA**：「了解核心功能」→ `/features`（另有「查看源码」`sourceCta` → GitHub）
 - **4 个数据指标**（`stats`）：
   | 值 | 标签 |
   | --- | --- |
@@ -106,7 +108,7 @@
 
 ### 2a. 功能架构 `/modules` — `views/ModulesPage.vue`（2026-10-18 新增）
 
-> 事实源：`user-server/internal/model/module_bindings.go`（24 模块 × 212 菜单节点），与源码核对日期 2026-10-18。数据定义在 `content.js` → `moduleCatalog` / `modulesPage`。
+> 事实源：`user-server/internal/model/module_bindings.go`（24 模块 × 212 菜单节点），与源码核对日期 2026-10-19（003 重定价）。数据定义在 `content.js` → `moduleCatalog` / `modulesPage`。
 
 页面区块（自上而下）：
 
@@ -114,7 +116,7 @@
 2. **指标条**（`modulesPage.stats`）：24 功能模块 / 212 菜单节点 / 45 智能体工具 / 2 部署形态。
 3. **双形态**（`modesTitle` + `modes`）：离线单机（`TENANT_MODE=off`，默认，注册返回 4104、`PLATFORM_ENABLED=false` 行为）与 SaaS 多租户（`TENANT_MODE=on`，注册即开户 + 行级隔离）。
 4. **基础模块**（7 张卡）：系统基座 / 客户中心 / 会话工作台 / 知识库 / 资产与话术 / 自有模型接入 / 平台对接——含摘要、覆盖页面数、依赖。
-5. **增值模块**（17 张卡）：AI 销冠 ¥199/年 至 短链活码 ¥9/年 + 平台模型算力（0 元开通 · 按量预付费）——含摘要、价格、计费周期、覆盖页面数、依赖；16 个年费模块合计 ¥999/年（平价路线，2026-10-18 调整）。
+5. **增值模块**（17 张卡）：2026-10-19（003 · T005）重定价后——15 个 0 元年费位显示 `免费`、不带计费 chip，平台模型算力 `¥0` + 按量预付费，**浏览器自动化 `¥99` + `买断`（`billing=once`）**；含摘要、价格、计费周期、覆盖页面数、依赖。原「16 个年费模块合计」的平价路线叙述已随 003 覆盖下线。
 6. **运行机制**（`mechanics` 4 条）：模块闸（登录态 → 模块闸 → 角色权限，403 + `module_not_enabled`）/ 菜单与任务过滤 / 依赖闭包 / 同步与降级（10 分钟心跳、本地镜像降级）。
 7. **事实源注记**（`sourceNote`）+ 页尾 CTA（→ `/features`、`/pricing`）。
 
@@ -122,22 +124,23 @@
 
 ### 2b. 按需订阅 `/pricing` — `views/PricingPage.vue`（2026-10-18 新增）
 
-> 事实源：`.specify/002-modular-subscription/spec.md` + `user-server/internal/service/module_market.go` + `model/module_bindings.go`。文案定义在 `content.js` → `pricingPage`。
+> 事实源：`.specify/003-saas-billing-v2/spec.md`（覆盖 002）+ `user-server/internal/service/module_market.go` + `model/module_bindings.go`。文案定义在 `content.js` → `pricingPage`。
 
 页面区块（自上而下）：
 
-1. **PageHeader**：kicker `按需订阅`；标题两段 `开源基座免费，` / `增值能力按需订阅`。
-2. **三层模型卡**（`models` 3 张）：开源基座（AGPL-3.0 免费）/ 基础功能模块（7 个免费常开）/ 增值功能模块（17 个按年订阅 + 算力按量）。
-3. **增值模块价目表**（`moduleCatalog` 中 17 个 `paid` 模块）：模块 / 能力 / 订阅价 / 计费（年付 · 按量预付费）/ 覆盖页面。
-4. **平价路线**（`budgetTitle` + `budgetPaths` 3 条 + `budgetPoints` 4 条 + `budgetNote`，2026-10-18 新增）：
-   - ¥0 起步线：离线 + 7 基础模块 + 自带 Key，订阅成本为零；
-   - ¥128/年 轻量 AI 线：AI 智能体单模块（依赖全为免费基础模块，无付费依赖补齐），可选 +短链活码 ¥9/年 → ¥137/年；
-   - ¥999/年 全量线：16 个年费模块算术合计（非套餐价，封顶在 ¥1,000 以内），平台算力按量另计；中间档销冠双件套 ¥327/年。
-   - 论证 4 条：基座永远免费 / 单买不捆绑 / 模型成本自控 / 二开不加钱；`budgetNote` 注明金额口径与核对日期。
-5. **订阅流程**（`flow` 5 步，一期口径）：浏览市场 → 选择并确认（依赖闭包弹窗）→ 提交订单（幂等 + 联系方式）→ 线下付款（离线时空态）→ 自动开通。
-6. **模型算力双轨**（`llmTracks` 2 张）：自有模型接入（免费只统计）/ 平台模型算力（0 元开通 · token 预付费 · 输入输出分别计价）+ **离线部署口径**卡。
-7. **SaaS 功能**（`saasTitle` + `saasPoints` 3 卡）：注册即开户 / 数据行级隔离 / 双形态一套代码；说明平台端（可选本地组件）管理面。
-8. **订阅常见问题**（`faqs` 5 条，含预算有限最小路线问答）+ 页尾 CTA（→ `/modules`、`/deploy`）。
+1. **云端引导条**（2026-10-19 · T024 新增，页顶）：PageHeader 之下用现有 `page-cta-band` 容器 + `sec-desc` 文案 + `btn btn-primary` 外链 `cloudBand.href = CLOUD_URL`，不新造 CSS。
+2. **PageHeader**：kicker `按需订阅`；标题两段 `功能模块全部免费，` / `浏览器自动化 ¥99 买断`。
+3. **三层模型卡**（`models` 3 张）：开源基座（AGPL-3.0 免费）/ 基础功能模块（7 个免费常开）/ 增值功能模块（`免费`，note `24 个中 23 个 0 元 · 无套餐包`，desc 指明唯一有价的是浏览器自动化 ¥99 买断 + 算力按输入输出预付费）。
+4. **增值模块价目表**（`moduleCatalog` 中 17 个 `paid` 模块）：模块 / 能力 / 订阅价（`¥99` / `¥0` / `免费`）/ 计费（`年付` · `按量预付费` · `买断`；0 元年费位不渲染 chip）/ 覆盖页面。
+5. **计费口径**（`budgetTitle` + `budgetPaths` 3 条 + `budgetPoints` 4 条 + `budgetNote`，003 重定价后替换原「平价路线」）：
+   - ¥0 私有化线：离线单机 + 23 个 0 元模块 + 自带 Key，成本为零（浏览器自动化离线锁定）；
+   - 149 元/月 云端版：软件订阅按月、新商户 15 天体验期、到期整站业务锁定续费即恢复；
+   - ¥99 浏览器自动化：一次性买断 · 永不续费（`once` 不设到期日）。
+   - 论证 4 条：功能模块全部免费 / 买断的只有浏览器自动化 / 软件订阅仅按月 / 模型成本自控；`budgetNote` 注明金额口径与 2026-10-19 核对日期。
+6. **订阅流程**（`flow` 5 步，一期口径）：浏览市场 → 选择并确认（依赖闭包弹窗）→ 提交订单（幂等 + 联系方式）→ 线下付款（离线时空态）→ 自动开通。
+7. **模型算力双轨**（`llmTracks` 2 张）：自有模型接入（免费只统计）/ 平台模型算力（0 元开通 · token 预付费 · 输入输出分别计价）+ **离线部署口径**卡。
+8. **SaaS 功能**（`saasTitle` + `saasPoints` 3 卡）：注册即开户 / 数据行级隔离 / 双形态一套代码；说明平台端（可选本地组件）管理面。
+9. **订阅常见问题**（`faqs` 5 条，含预算有限最小路线问答）+ 页尾 CTA（→ `/modules`、`/deploy`）。
 
 ---
 
@@ -216,7 +219,7 @@
 - **Hero 区域**：
   - 标签：`部署指南`
   - 标题（两段，第二段渐变）：`4 步完成部署` / `开箱即用`
-  - 副标题：基于 AGPL-3.0 开源协议，无授权码、无版本下载：代码与 7 个基础功能模块免费，17 个增值功能模块可在系统内按需订阅。
+  - 副标题：基于 AGPL-3.0 开源协议，无授权码、无版本下载：代码与全部功能模块免费开放，仅浏览器自动化 ¥99 买断，云端版软件订阅 149 元/月（新商户 15 天体验期）。
   - 澄清提示：所有源码与配置均在 GitHub / Gitee 仓库直接克隆，AGPL-3.0 要求修改后的网络服务代码也必须开源。
 - **部署方式卡（3 张，可点选切换 `activeTab`）**：
 
@@ -229,7 +232,7 @@
 - **命令片段区**：Tab 切换 Docker / 源码，展示对应 shell 片段，「复制」按钮写剪贴板。
   - **Docker 片段**：克隆仓库 → `cp .env-example .env` 改密钥 → `make install`（拉起 PG/Redis 容器与推理栈）→ `make dev` 起 user-server → 访问 `http://localhost:8204`；超管账号在首次 `/setup` 向导自设（用 `scripts/bootstrap.sh` 安装时由 `SEED_PASSWORD` 写入，用户名 `admin`）。
   - **源码片段**：克隆仓库 → 后端 `user-server`（Go 1.25，端口 `8204`）→ 前端 `user-web`（Node 18+，`npm run dev` 端口 `8211`，取自 `user-web/vite.config.js`）。
-- **公开提示卡**：AGPL-3.0 开源，零授权门槛——无授权码、无版本下载：源码全量免费，基础功能模块免费常开，增值功能模块按需订阅（详见 `/pricing`）；源码与文档在 GitHub / Gitee 公开托管。
+- **公开提示卡**：AGPL-3.0 开源，零授权门槛——无授权码、无版本下载：源码全量免费，功能模块全部免费开放（原 16 个付费模块免年费），仅浏览器自动化 ¥99 买断、云端版软件订阅 149 元/月（详见 `/pricing`）；源码与文档在 GitHub / Gitee 公开托管。
 - **联系作者卡**：展示微信号（`useSiteContact` 动态加载，回退占位「暂未配置」）+「复制微信号」按钮，提供 1v1 部署指导。
 
 ---
@@ -288,7 +291,7 @@
 | --- | --- | --- |
 | 品牌（`footer-brand`） | — | 品牌标记 + `HiveMTK` 文本 + 描述（七端打透 · ReAct 智能体 · 零出域数据安全 · AGPL-3.0 · 4 步私有化部署） |
 | 第 2 列 | `产品功能` | 4 个 `productLinks`：七端多账号聚合 / AI 自动谈单 / 销冠 SOP 智能体 / 客户 CDP（均跳转 `/#features` hash） |
-| 第 3 列 | `快速导航` | 8 个 `resourceLinks`：部署指南（`/deploy`）/ 安装文档（`/docs`）/ 业务流程（`/#workflow`）/ 核心功能（`/features`）/ 功能架构（`/modules`）/ 按需订阅（`/pricing`）/ 工程能力（`/toolchain`）/ 常见问题（`/faq`） |
+| 第 3 列 | `快速导航` | 9 个 `resourceLinks`：部署指南（`/deploy`）/ 安装文档（`/docs`）/ 业务流程（`/#workflow`）/ 核心功能（`/features`）/ 功能架构（`/modules`）/ 按需订阅（`/pricing`）/ 工程能力（`/toolchain`）/ 常见问题（`/faq`）/ **云端版在线使用**（`CLOUD_URL` 外链，2026-10-19 · T024 新增，`link.external` 走原生 `<a>`） |
 | 第 4 列 | `开源项目` | 4 个 `openSourceLinks`：AGPL-3.0 开源协议 / 贡献指南 / 更新日志 / 免责声明（均外链 Gitee）+ 「AGPL-3.0 开源，克隆仓库即可私有化部署」提示 + 微信二维码（条件渲染）+ 微信号 + 邮箱 / 电话 / 服务时间（条件渲染） |
 
 ### Footer 开源仓库入口（`footer-repos`）
