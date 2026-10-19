@@ -1,6 +1,6 @@
 
-// 云端版（SaaS 多租户形态）对外入口：全站单点常量，上线前替换为真实域名
-export const CLOUD_URL = 'https://saas.hivemtk.cn'
+// 云端版（SaaS 多租户形态）对外入口：全站单点常量（= 用户端应用 work 子域）
+export const CLOUD_URL = 'https://work.xapptool.cn'
 
 export const brand = {
   name: 'HiveMTK',

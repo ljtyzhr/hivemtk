@@ -8,7 +8,7 @@ HiveMTK · 私域 AI 营销操作系统的官方网站。基于 Vue 3 + Vite + v
 - **构建工具**: Vite 8
 - **路由**: Vue Router 4
 - **国际化**: vue-i18n 9（中 / 英 / 日 / 阿语）
-- **部署**: GitHub Pages（`https://xiaofang142.github.io/hivemtk/`）
+- **部署**: 商业生产 `https://xapptool.cn`（仓库外 `deploy/` 脚本发布）；开源镜像 GitHub Pages（`https://xiaofang142.github.io/hivemtk/`）
 
 本站是**纯静态站**：运行期对任何后端零依赖，不含 API 调用、iframe 客服浮标或登录态。
 
@@ -77,6 +77,17 @@ npm run build
 `dist/404.html`（Pages 无 rewrite，未知路径返回 404 状态码 + 该页，SPA 靠 `/:pathMatch(.*)*` 接管路由）
 和按路由铺开的 `<route>/index.html`（让深链拿到真 200）。
 
+## 部署去向（两套并存）
+
+| | 商业生产 | 开源镜像 |
+|---|---|---|
+| 地址 | `https://xapptool.cn` | `https://xiaofang142.github.io/hivemtk/` |
+| base | 根域 `/`（构建时 `--base=/` 覆盖 `SITE_BASE`） | 子路径 `/hivemtk/`（源码 `SITE_BASE`） |
+| 发布 | 仓库外 `deploy/deploy.sh website`：构建 → 把 dist 里 `xiaofang142.github.io/hivemtk/` 整体替换为 `https://xapptool.cn` → rsync 到服务器 `/www/wwwroot/hivemtk/website` | `.github/workflows/website-pages.yml` CI |
+| 服务器 | `101.35.252.112`（宝塔反代，见 `deploy/README.md`） | GitHub 托管 |
+
+> 源码保留 `github.io` + `/hivemtk/` 是**有意为之**：Pages 镜像需要它；生产 deploy 构建时才替换成 `xapptool.cn`。不要在源码里把它们改成生产域名，否则会打断 Pages CI。完整域名全集见 `deploy/README.md` 第 5 节。
+
 ## 发布（GitHub Pages）
 
 构建入口只有一个脚本，CI 与本地跑同一条命令：
@@ -102,7 +113,7 @@ gh api -X POST repos/xiaofang142/hivemtk/pages -f build_type=workflow
 因此仓库内不存在 `.env.example` / `.env.development` / `.env.production`，也不需要。
 
 - 翻译词典：`src/i18n/modules/`（完整性由 `check_i18n.mjs` 校验，`MISSING_UNIQ=0` 才算绿）
-- SEO：`index.html` 的 canonical/hreflang/JSON-LD、`public/robots.txt`、`public/sitemap.xml`（host 统一为 Pages 地址）
+- SEO：`index.html` 的 canonical/hreflang/JSON-LD、`public/robots.txt`、`public/sitemap.xml`（源码 host 为 Pages 地址；生产 deploy 构建时统一替换为 `https://xapptool.cn`）
 
 ## 内容配置
 
@@ -133,5 +144,5 @@ gh api -X POST repos/xiaofang142/hivemtk/pages -f build_type=workflow
 本站源码是 **hivemtk 仓库的 `website/` 目录**（不是独立仓库），Pages 站点由该仓库的 GitHub 端发布：
 
 - **主仓库（Gitee）**: [hivemtk](https://gitee.com/xhpmayun/hivemtk)
-- **发布源（GitHub）**: [xiaofang142/hivemtk](https://github.com/xiaofang142/hivemtk) → `https://xiaofang142.github.io/hivemtk/`
+- **发布源（GitHub）**: [xiaofang142/hivemtk](https://github.com/xiaofang142/hivemtk) → `https://xiaofang142.github.io/hivemtk/`（开源镜像）；商业生产 `https://xapptool.cn` 由仓库外 `deploy/` 脚本发布
 - **平台端仓库（可选组件）**: [hivemtk-platform](https://gitee.com/xhpmayun/hivemtk-platform) —— 用户端默认 `PLATFORM_ENABLED=false`，不部署平台端也能完整运行

@@ -331,7 +331,7 @@ sitemap.xml 覆盖 7 个核心路由（`/`、`/features`、`/toolchain`、`/work
 
 ## 七、部署架构
 
-官网为**纯静态 SPA**，唯一发布目标是 GitHub Pages：`https://xiaofang142.github.io/hivemtk/`。
+官网为**纯静态 SPA**，有两套发布目标：开源镜像 GitHub Pages（`https://xiaofang142.github.io/hivemtk/`，下方流程图所示）+ 商业生产 `https://xapptool.cn`（由仓库外 `deploy/deploy.sh website` 发布：`vite build --base=/` 覆盖子路径、把 dist 里 github.io 历史串整体替换为 xapptool.cn 后 rsync 上服务器）。源码保留 `github.io` + `/hivemtk/` 供 Pages 镜像，生产在构建期改写，详见 `website/README.md`「部署去向」。
 前身是自建服务器上那台到期不续费的站点（原 `Dockerfile` / nginx配置 / rsync 发布链随之下线，仓库内已无这些文件）。
 
 ```mermaid

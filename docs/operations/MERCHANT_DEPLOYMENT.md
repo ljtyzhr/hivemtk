@@ -311,7 +311,7 @@ curl -s ${PLATFORM_API_HOST:-$PLATFORM_API_URL}/health
 
 ## 十一、技术支持
 
-- 官网：https://xiaofang142.github.io/hivemtk/
+- 官网：https://xapptool.cn
 - 文档：本目录 `docs/INDEX.md`
 - 邮箱：`jideilvluoqun@gmail.com`
 - 开源仓库：

@@ -20,7 +20,7 @@ One workspace for every social channel. One AI agent for every customer conversa
 [![Gitee](https://img.shields.io/badge/Gitee-xhpmayun%2Fhivemtk-C71D23?logo=gitee)](https://gitee.com/xhpmayun/hivemtk)
 [![GitHub](https://img.shields.io/badge/GitHub-xiaofang142%2Fhivemtk-181717?logo=github)](https://github.com/xiaofang142/hivemtk)
 
-[📖 中文文档](README.md) · [🌐 Website](https://xiaofang142.github.io/hivemtk/) · [📦 Feature Modules](docs/marketing-features/README.md)
+[📖 中文文档](README.md) · [🌐 Website](https://xapptool.cn) · [📦 Feature Modules](docs/marketing-features/README.md)
 
 </div>
 
