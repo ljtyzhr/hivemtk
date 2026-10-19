@@ -1885,7 +1885,6 @@
     "legalOpenSource": "本软件已全面开源，您可自由使用、部署与二次开发。",
     "legalLawfulUse": "本软件仅用于合法用途，不得用于从事任何违法活动",
     "legalLiability": "用户需自行承担使用本软件所产生的所有法律责任",
-    "legalLocalDefault": "默认完全本地运行：仅当显式开启平台集成（环境变量 PLATFORM_ENABLED=true）时，安装信息（域名/IP/设备指纹/联系方式）才会上报",
     "legalAgree": "我已阅读并同意以上使用条款",
     "next": "下一步",
     "stepAdminFull": "创建超级管理员",

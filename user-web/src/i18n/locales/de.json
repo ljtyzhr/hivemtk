@@ -1885,7 +1885,6 @@
     "legalOpenSource": "Diese Software ist vollständig quelloffen; Sie dürfen sie frei nutzen, bereitstellen und anpassen",
     "legalLawfulUse": "Diese Software darf nur für rechtmäßige Zwecke verwendet werden und darf nicht für illegale Aktivitäten genutzt werden",
     "legalLiability": "Der Nutzer trägt alle rechtlichen Verantwortlichkeiten aus der Nutzung dieser Software",
-    "legalLocalDefault": "Standardmäßig vollständig lokal: Installationsinformationen (Domain/IP/Gerätefingerprint/Kontakt) werden nur bei ausdrücklich aktivierter Plattformintegration gemeldet (PLATFORM_ENABLED=true)",
     "legalAgree": "Ich habe die obigen Bedingungen gelesen und stimme zu",
     "next": "Weiter",
     "stepAdminFull": "Superadministrator erstellen",

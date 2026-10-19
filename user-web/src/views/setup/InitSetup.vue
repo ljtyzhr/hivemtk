@@ -37,7 +37,6 @@
           <ul>
             <li>{{ $t('setup.legalLawfulUse') }}</li>
             <li>{{ $t('setup.legalLiability') }}</li>
-            <li>{{ $t('setup.legalLocalDefault') }}</li>
           </ul>
           <el-checkbox
             v-model="agreed"
