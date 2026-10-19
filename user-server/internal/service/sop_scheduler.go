@@ -14,6 +14,7 @@ import (
 
 	"hivemtk-user/internal/dto"
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/repository"
 )
 
@@ -161,11 +162,25 @@ func (s *SOPScheduler) tick(ctx context.Context) {
 	ctx, cancel := context.WithTimeout(ctx, utils.DefaultHTTPTimeout)
 	defer cancel()
 
-	s.cleanupStuckExecutions(ctx)
-
-	s.dispatchAutoSOPs(ctx)
-
-	s.dispatchScheduledSOPs(ctx)
+	// 后台任务租户扇出（specs/001-saas-multi-tenant T020）。
+	//
+	// 为什么必须走 Fanout 而不是 system scope：tick 的三个子调用最终会落到
+	// tryExecute→svc.Execute —— 这是**跨模块执行路径**，会真正为客户创建/写入
+	// SOP 执行记录。system scope（tenant.WithSystemScope）虽能绕过 fail-closed 放行
+	// 查询，但 fillCreateForTenant 对 system scope 直接放行给列默认值 1，于是本该
+	// 归属租户 N 的执行会被串写到默认租户（写错租户）。Fanout 则在 on 模式下逐活跃
+	// 租户注入 ctx（Query 加 WHERE tenant_id=N、Create 填 N），off 模式退化为单默认
+	// 租户（等价历史行为）—— 与 churn_score_job / session_ttl_cron 同一形态。
+	//
+	// 上面的 AllowWorker 闸是**模块级、租户无关**判定，保持在扇出之外不随租户变。
+	if _, err := tenant.Fanout(ctx, nil, func(ctx context.Context, _ uint) (int64, error) {
+		s.cleanupStuckExecutions(ctx)
+		s.dispatchAutoSOPs(ctx)
+		s.dispatchScheduledSOPs(ctx)
+		return 0, nil
+	}); err != nil {
+		logger.Errorf("[SOPScheduler] 租户扇出执行失败: %v", err)
+	}
 }
 
 func (s *SOPScheduler) cleanupStuckExecutions(ctx context.Context) {

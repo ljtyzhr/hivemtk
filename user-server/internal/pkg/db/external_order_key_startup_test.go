@@ -26,6 +26,7 @@ import (
 	"gorm.io/gorm"
 
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenancyidx"
 	"hivemtk-user/internal/pkg/testutil"
 )
 
@@ -51,6 +52,17 @@ func TestStartupDropsLegacyExternalOrderOrderIDKey(t *testing.T) {
 
 	if err := db.AutoMigrate(&model.ExternalOrder{}); err != nil {
 		t.Fatalf("按新模型建表失败: %v", err)
+	}
+	// 镜像生产 AutoMigrate 的真实顺序（internal/pkg/db/migrate.go）：
+	// 建表（AutoMigrate）→ 租户唯一索引复合化 Normalize（:528）→ post-migrate 钩子（:560）。
+	// 钩子自己的 DDL 是 `ON external_orders (platform, order_id)`，**不含 tenant_id**；
+	// 把它升格成 (tenant_id, platform, order_id) 的是 Normalize —— 钩子之后那句
+	// `CREATE UNIQUE INDEX IF NOT EXISTS` 因同名已存在而变成 no-op，最终形状由 Normalize 定。
+	// 本用例原先只跑钩子不跑 Normalize，于是读到的是钩子的中间形状 (platform, order_id)，
+	// 与断言的租户维度幂等键 (tenant_id, platform, order_id) 对不上 —— 补上 Normalize
+	// 即复现生产终态（specs/001-saas-multi-tenant T008；Normalize 语义未改，仅测试补齐步骤）。
+	if _, err := tenancyidx.Normalize(db); err != nil {
+		t.Fatalf("租户唯一索引复合化失败: %v", err)
 	}
 	// 造**改键之前**的现场：单列唯一索引，名字就是 GORM 当年按默认规则拼出来的那个。
 	if err := db.Exec("CREATE UNIQUE INDEX " + model.ExternalOrderLegacyOrderIDIndex +
