@@ -113,6 +113,13 @@ func main() {
 
 	logger.InitLogger(config.GetLoggingConfig())
 
+	// TENANT_MODE 装配（001 多租户双形态）：必须在 db.InitDB/router.Setup 之前生效——
+	// 十二个 callback/中间件/登录通道全部读 tenant.IsMultiTenant()，
+	// 漏掉本调用则进程永远停在默认 off，环境变量静默失效（003 活体联调发现的装配缺口）。
+	if mode := tenant.InitFromEnv(); mode == tenant.ModeOn {
+		logger.Info("[tenant] TENANT_MODE=on：SaaS 多租户形态已启用")
+	}
+
 	featureflag.DefaultManager()
 	logger.Info("User Server Starting")
 	logger.Infof("IS_TEST_MODE env: %s", os.Getenv("IS_TEST_MODE"))

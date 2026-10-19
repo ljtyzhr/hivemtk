@@ -435,7 +435,7 @@ func (s *TenantService) SubmitRegistrationToPlatform(ctx context.Context, t *mod
 		// 离线部署：不发任何出站请求，只把状态标成 skipped
 		return s.tenantRepo.UpdateRegistration(ctx, t.ID, map[string]any{
 			"platform_sync":       model.TenantSyncSkipped,
-			"platform_sync_error": "",
+			"platform_sync_err": "",
 		})
 	}
 
@@ -469,14 +469,14 @@ func (s *TenantService) SubmitRegistrationToPlatform(ctx context.Context, t *mod
 		// 失败不阻断注册：只标记 + 记日志，运营可在平台端手工补录
 		_ = s.tenantRepo.UpdateRegistration(ctx, t.ID, map[string]any{
 			"platform_sync":       model.TenantSyncFailed,
-			"platform_sync_error": err.Error(),
+			"platform_sync_err": err.Error(),
 		})
 		logger.Warnf("[tenant] 开户登记上报平台失败（不影响注册本身）tenant=%s: %v", t.Code, err)
 		return nil
 	}
 	return s.tenantRepo.UpdateRegistration(ctx, t.ID, map[string]any{
 		"platform_sync":       model.TenantSyncSynced,
-		"platform_sync_error": "",
+		"platform_sync_err": "",
 	})
 }
 

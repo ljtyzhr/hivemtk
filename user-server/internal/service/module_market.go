@@ -13,6 +13,7 @@ import (
 	bizerr "hivemtk-user/internal/domain/errors"
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/platform"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/repository"
 )
 
@@ -161,8 +162,16 @@ func ownedStatusOf(row *model.TenantModule) string {
 	return row.Status
 }
 
-// ownedRows 本地镜像：module_key → 行（含状态与目录快照价格）
+// ownedRows 本地镜像：module_key → 行（含状态与目录快照价格）。
+// 匿名可逛语义（003 活体联调修复）：模块市场列表/详情是公开橱窗（MODULE_MARKET_UI），
+// on 模式下未登录访问无租户上下文——此时不查库、直接返回空映射（owned 全 false），
+// 否则 tenancyidx fail-closed 会把匿名橱窗打成 5000。已登录路径照常按租户过滤。
 func (s *ModuleCatalogService) ownedRows(ctx context.Context) (map[string]*model.TenantModule, error) {
+	if tenant.IsMultiTenant() {
+		if _, ok := tenant.FromContext(ctx); !ok {
+			return map[string]*model.TenantModule{}, nil
+		}
+	}
 	rows, err := s.repo.ListAll(ctx)
 	if err != nil {
 		return nil, err
@@ -226,8 +235,9 @@ func (s *ModuleCatalogService) CreateOrder(ctx context.Context, in MarketOrderIn
 	if clientNo == "" {
 		clientNo = newClientOrderNo()
 	}
-	// 幂等：同 client_order_no 已存在则直接返回既有单
-	if existing, err := s.order.GetByClientOrderNo(ctx, clientNo); err == nil {
+	// 幂等：同 client_order_no 已存在则直接返回既有单。
+	// 注意仓储未找到时返回 (nil, nil)——只判 err 会对首单空指针 panic（003 活体联调发现）。
+	if existing, err := s.order.GetByClientOrderNo(ctx, clientNo); err == nil && existing != nil {
 		return &MarketOrderResult{
 			OrderNo: existing.OrderNo, Status: existing.Status,
 			TotalCents:   existing.TotalAmountCents,

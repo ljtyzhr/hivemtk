@@ -97,7 +97,8 @@ PLAT_BASE = os.environ.get("EPAY_E2E_PLAT_BASE", "http://127.0.0.1:8205").rstrip
 PLAT_USER = os.environ.get("EPAY_E2E_PLATFORM_USER", "admin")
 PLAT_PASS = os.environ.get("EPAY_E2E_PLATFORM_PASS", "")
 PSQL = shlex.split(os.environ.get(
-    "EPAY_E2E_PSQL", "docker exec -i mtk-postgres psql"))
+    # 注意：mtk-postgres 容器内 postgres 监听 8202（socket=.s.PGSQL.8202），不是默认 5432。
+    "EPAY_E2E_PSQL", "docker exec -i mtk-postgres psql -p 8202"))
 PG_USER = os.environ.get("EPAY_E2E_PG_USER", os.environ.get("POSTGRES_USER", "admin"))
 PG_DB = os.environ.get("EPAY_E2E_PG_DB", os.environ.get("USER_DB_NAME", "user_db"))
 MODULE_KEY = os.environ.get("EPAY_E2E_MODULE_KEY", "browser-automation")
@@ -579,11 +580,12 @@ def s3_order(user: Client, rep: Report, token: str, run: str):
 
 def s4_pay_and_activate(user: Client, plat: Client, rep: Report, token, plat_token, order_no):
     rep.step("S4 平台 mock confirm → 轮询 pay-status → sync → /api/modules/my 已激活")
-    st, payload, _ = plat.post(f"/platform/payments/mock/confirm/{order_no}",
-                               desc="mock 收银台确认支付", token=plat_token)
-    ok = st == 200 and (payload == "success" or (isinstance(payload, dict) and code_of(payload) in (0, 200)))
+    st, payload, text = plat.post(f"/platform/payments/mock/confirm/{order_no}",
+                                  desc="mock 收银台确认支付", token=plat_token)
+    ok = st == 200 and ((text or "").strip() == "success" or payload == "success" or
+                        (isinstance(payload, dict) and code_of(payload) in (0, 200)))
     rep.assert_("S4.1 mock confirm 成功（纯文本 success，与真实回调同一条 processNotify）",
-                ok, f"HTTP={st} resp={str(payload)[:120]}")
+                ok, f"HTTP={st} resp={str(payload or text)[:120]}")
 
     status, paid = None, None
     for i in range(30):
@@ -682,16 +684,20 @@ def s6_renew(user: Client, plat: Client, rep: Report, token, plat_token, dry: bo
                     bool(pay.get("pay_url")) and pay.get("pay_url").endswith(
                         f"/platform/payments/mock/confirm/{sub_no}"),
                     f"pay_url={pay.get('pay_url')!r}")
-        st, payload, _ = plat.post(f"/platform/payments/mock/confirm/{sub_no}",
-                                   desc="mock 确认续费单", token=plat_token)
+        st, payload, text = plat.post(f"/platform/payments/mock/confirm/{sub_no}",
+                                      desc="mock 确认续费单", token=plat_token)
         rep.assert_("S6.3 mock confirm 续费单成功",
-                    st == 200 and (payload == "success" or (isinstance(payload, dict) and code_of(payload) in (0, 200))),
-                    f"HTTP={st} resp={str(payload)[:120]}")
+                    st == 200 and ((text or "").strip() == "success" or payload == "success" or
+                                   (isinstance(payload, dict) and code_of(payload) in (0, 200))),
+                    f"HTTP={st} resp={str(payload or text)[:120]}")
         st, payload, _ = plat.get(f"/platform/orders/{sub_no}", desc="平台订单终态", token=plat_token)
+        # 平台端响应形状为 {"code":200,"data":{"order":{...}}}，status 在 data.order 下
+        ord_status = data_of(payload).get("status")
+        if ord_status is None and isinstance(data_of(payload).get("order"), dict):
+            ord_status = data_of(payload)["order"].get("status")
         rep.assert_("S6.4 平台订单 paid/fulfilled",
-                    st == 200 and code_of(payload) == 200 and
-                    data_of(payload).get("status") in ("paid", "fulfilled"),
-                    f"HTTP={st} status={data_of(payload).get('status')!r}")
+                    st == 200 and code_of(payload) == 200 and ord_status in ("paid", "fulfilled"),
+                    f"HTTP={st} status={ord_status!r}")
 
     st, payload, _ = user.post("/api/modules/sync", desc="sync（刷新订阅镜像）", token=token)
     rep.assert_("S6.5 POST /api/modules/sync code=0",
