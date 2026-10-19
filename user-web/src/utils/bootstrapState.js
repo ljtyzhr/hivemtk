@@ -51,12 +51,16 @@ async function fetchTenantMode() {
 
 // 幂等：首次调用发起一次性并行拉取，之后复用缓存的共享 Promise。
 // 返回 { initialized, tenantMode }。永不 reject。
+//
+// tenantMode=true 时 initialized 强制为 true：SaaS 多租户实例没有"单机首次
+// 安装"场景（后端 init-status 同口径），哪怕 init-status 请求失败/滞后，
+// 干净浏览器首屏也应是 /login（注册入口）而非 /setup 安装向导。
 export function ensureBootstrap() {
   if (bootstrapPromise) return bootstrapPromise
   bootstrapPromise = Promise.all([fetchInitStatus(), fetchTenantMode()])
     .then(([initialized, tenantMode]) => {
-      state.initialized = initialized
       state.tenantMode = tenantMode
+      state.initialized = tenantMode ? true : initialized
       return { ...state }
     })
     .catch(() => ({ ...state }))

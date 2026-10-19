@@ -4,6 +4,7 @@ import (
 	"net/http"
 
 	"hivemtk-user/internal/middleware"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/response"
 	"hivemtk-user/internal/system/install"
 
@@ -40,6 +41,20 @@ func NewSystemInitController() *SystemInitController {
 // @Success 200 {object} map[string]interface{} "系统初始化状态"
 // @Router /api/system/init-status [get]
 func (c *SystemInitController) GetInitStatus(ctx *gin.Context) {
+	// SaaS（tenant_mode=on）实例没有"单机未安装"概念：租户经 /register 自助
+	// 开户，install.lock 只服务离线单机的 setup 向导。docker 直部的 SaaS
+	// 实例从未跑过 setup，若按 lock 判定会永远 NOT_INSTALLED → 干净浏览器
+	// 首访被路由守卫全部推进 /setup 而不是登录页（003 生产联调老问题）。
+	// 权威口径改为：on 模式恒已初始化。
+	if tenant.IsMultiTenant() {
+		response.Success(ctx, gin.H{
+			"state":       "INITIALIZED",
+			"initialized": true,
+			"has_admin":   true,
+			"version":     "unknown",
+		}, "ok")
+		return
+	}
 	checker := middleware.GetInstallStatus()
 	if checker == nil {
 		response.Success(ctx, gin.H{
