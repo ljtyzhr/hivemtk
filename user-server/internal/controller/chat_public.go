@@ -18,6 +18,7 @@ import (
 
 	"hivemtk-user/internal/config"
 	"hivemtk-user/internal/middleware"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/pkg/utils/response"
@@ -83,7 +84,9 @@ func (ctrl *ChatPublicController) GetChannelInfoByAppKey(c *gin.Context) {
 		response.Error(c, http.StatusBadRequest, "app_key 不能为空")
 		return
 	}
-	channel, err := ctrl.channelSvc.GetByAppKey(c.Request.Context(), appKey)
+	// SystemScope：chat_channels 是租户表，但 app_key 解析是建立租户上下文的
+	// 引导步骤（channel 行自带 tenant_id），公开路由此时无租户 ctx。
+	channel, err := ctrl.channelSvc.GetByAppKey(tenant.WithSystemScope(c.Request.Context()), appKey)
 	if err != nil {
 		response.NotFoundError(c, "渠道")
 		return

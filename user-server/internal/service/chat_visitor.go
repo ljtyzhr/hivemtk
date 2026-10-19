@@ -16,6 +16,7 @@ import (
 	"hivemtk-user/internal/config"
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/security"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
 	"hivemtk-user/internal/websocket"
@@ -150,25 +151,28 @@ func ValidateVisitorToken(token, channelID, visitorID, sessionID string) error {
 }
 
 func (s *VisitorChatService) resolveChannel(ctx context.Context, channelRef string) (*model.ChatChannel, error) {
+	// SystemScope：chat_channels 是租户表，但 channel 解析是建立租户上下文的
+	// 引导步骤（channel 行自带 tenant_id），公开路由此时无租户 ctx。
+	sysCtx := tenant.WithSystemScope(ctx)
 	ref := strings.TrimSpace(channelRef)
 	if ref == "" {
-		return s.channelSvc.GetOrCreateDefaultChannel(ctx)
+		return s.channelSvc.GetOrCreateDefaultChannel(sysCtx)
 	}
-	if channel, err := s.channelSvc.GetByChannelID(ctx, ref); err == nil {
+	if channel, err := s.channelSvc.GetByChannelID(sysCtx, ref); err == nil {
 		return channel, nil
 	} else if !strings.Contains(err.Error(), "渠道不存在") && !strings.Contains(err.Error(), "channel_id 不能为空") {
 		return nil, err
 	}
-	if channel, err := s.channelSvc.GetByAppKey(ctx, ref); err == nil {
+	if channel, err := s.channelSvc.GetByAppKey(sysCtx, ref); err == nil {
 		return channel, nil
 	} else if !strings.Contains(err.Error(), "AppKey 无效") {
 		return nil, err
 	}
 	if ref == "default" {
-		return s.channelSvc.GetOrCreateDefaultChannel(ctx)
+		return s.channelSvc.GetOrCreateDefaultChannel(sysCtx)
 	}
 	if platform, ok := IsCardChannelRef(ref); ok {
-		return s.channelSvc.GetOrCreateCardChannel(ctx, platform)
+		return s.channelSvc.GetOrCreateCardChannel(sysCtx, platform)
 	}
 	return nil, fmt.Errorf("渠道不存在: %s", ref)
 }

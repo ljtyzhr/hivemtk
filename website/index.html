@@ -115,5 +115,26 @@
   <body>
     <div id="app"></div>
     <script type="module" src="/src/main.js"></script>
+    <!-- HiveMTK 客服浮标（右下角）— 连接 work.xapptool.cn 的 web 渠道智能体 -->
+    <script>
+      (function() {
+        var s = document.createElement('script');
+        s.src = 'https://work.xapptool.cn/embed-sdk-dist/marketing-chat-widget.iife.js';
+        s.async = true;
+        s.onload = function() {
+          if (typeof MarketingChatWidget !== 'undefined') {
+            new MarketingChatWidget({
+              appKey: 'ak_79Zw7HWzR5wNUnNn6QMnkw8B',
+              apiBaseURL: 'https://workapi.xapptool.cn',
+              title: 'HiveMTK 在线客服',
+              welcome: '您好！我是 HiveMTK 智能客服，请问有什么可以帮您？',
+              color: '#1989fa',
+              position: 'bottom-right'
+            });
+          }
+        };
+        document.head.appendChild(s);
+      })();
+    </script>
   </body>
 </html>
