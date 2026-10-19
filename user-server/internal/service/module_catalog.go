@@ -324,6 +324,28 @@ func refreshProcessGate(ctx context.Context) {
 
 // ---------------------------------------------------------- 同步
 
+// currentTenantCode 解析当前上下文租户的短码（平台交互用：sync query /
+// 订阅订单 body）。口径：
+//   - ctx 无租户绑定（后台 runner、裸 Background）→ 空串；
+//   - off 模式（TenantMiddleware 绑默认租户但 tenants 表无行 / on 模式查不到
+//     该 id 的行）→ 空串；
+//   - 查库失败 → 空串（短码是给平台的归属提示，取不到就走平台旧行为兜底，
+//     绝不允许把同步/下单整条链路打挂）。
+//
+// tenants 表是全局表（无 tenant_id 列、不进隔离登记表），所以挂 SystemScope
+// 的 sync ctx 也能直查，不受隔离 callback fail-closed 影响。
+func currentTenantCode(ctx context.Context) string {
+	id, ok := tenant.FromContext(ctx)
+	if !ok {
+		return ""
+	}
+	t, err := repository.NewTenantRepository().GetByID(tenant.WithSystemScope(ctx), id)
+	if err != nil || t == nil {
+		return ""
+	}
+	return t.Code
+}
+
 // ModuleCatalogService 模块下发与市场服务
 type ModuleCatalogService struct {
 	repo  repository.TenantModuleRepository
@@ -374,7 +396,10 @@ func (s *ModuleCatalogService) Sync(ctx context.Context) (*ModuleSyncResult, err
 	if !config.PlatformEnabled() {
 		return s.bootstrapOffline(ctx, start)
 	}
-	snap, err := platform.NewModuleClient().SyncModules(ctx)
+	// 请求上带当前租户 code：平台端订阅按 (merchant_key, tenant_code) 每租户
+	// 一段下发。取不到（后台 runner 无租户绑定 / off 模式无租户行 / 查库失败）
+	// 传空串 —— 平台对空值走旧行为兜底，这里绝不让同步失败。
+	snap, err := platform.NewModuleClient().SyncModules(ctx, currentTenantCode(ctx))
 	if err != nil {
 		// 平台不可达：保留上次镜像（不清空），只记 degraded 日志。
 		// 清空会让用户正在用的模块突然消失 —— 那比"数据不准"严重得多。

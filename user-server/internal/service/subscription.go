@@ -185,10 +185,14 @@ func (s *SubscriptionMirrorService) Renew(ctx context.Context, clientOrderNo, co
 	res, err := pc.CreateOrder(ctx, platform.CreateOrderInput{
 		ClientOrderNo: clientNo,
 		OrderType:     "subscription",
-		ContactName:   contactName,
-		ContactPhone:  contactPhone,
-		ContactEmail:  contactEmail,
-		Remark:        remark,
+		// 平台端订阅按 (merchant_key, tenant_code) 每租户一行：续费单必须带
+		// 本租户 code，平台才知道给哪一行顺延。取不到（off 模式无租户行 /
+		// ctx 无绑定）传空 —— 平台对空值走旧行为兜底，不报错。
+		TenantCode:   currentTenantCode(ctx),
+		ContactName:  contactName,
+		ContactPhone: contactPhone,
+		ContactEmail: contactEmail,
+		Remark:       remark,
 	})
 	if err != nil {
 		return nil, bizerr.Wrap(bizerr.CodePlatformUnavail, "续费下单失败（平台不可达）", err)

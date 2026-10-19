@@ -183,10 +183,16 @@ func (c *ModuleClient) do(method, path string, req any, out any) error {
 	return json.Unmarshal(env.Data, out)
 }
 
-// SyncModules 拉取模块下发快照
-func (c *ModuleClient) SyncModules(ctx context.Context) (*ModuleSnapshot, error) {
+// SyncModules 拉取模块下发快照。
+//
+// tenantCode 为当前租户短码：平台端订阅已按 (merchant_key, tenant_code) 每租户
+// 一段下发，不带 code 平台不知道返回哪一段。空串 = 取不到租户归属（后台任务
+// 无绑定 / off 模式无租户行），此时请求照发（?tenant_code=）、平台按旧行为
+// 兜底 —— 取不到 code 绝不允许报错。
+func (c *ModuleClient) SyncModules(ctx context.Context, tenantCode string) (*ModuleSnapshot, error) {
 	var snap ModuleSnapshot
-	if err := c.do("GET", "/merchant-api/modules/sync", nil, &snap); err != nil {
+	path := "/merchant-api/modules/sync?tenant_code=" + url.QueryEscape(tenantCode)
+	if err := c.do("GET", path, nil, &snap); err != nil {
 		return nil, err
 	}
 	return &snap, nil
@@ -223,6 +229,12 @@ type CreateOrderInput struct {
 	ContactPhone  string                     `json:"contact_phone"`
 	ContactEmail  string                     `json:"contact_email"`
 	Remark        string                     `json:"remark"`
+	// TenantCode 当前租户短码（平台端按 (merchant_key, tenant_code) 归属订阅行）。
+	// 订阅类订单（order_type=subscription，用户端续费 Renew）必带；模块/LLM 等
+	// 其余类型暂不强填（空值 omitempty 不上行，平台走旧行为兜底）——平台端
+	// 本轮只改订阅段，非订阅单统一带上属于越契约改动。取不到租户归属时为空，
+	// 平台对空值同样按旧行为兜底，不报错。
+	TenantCode string `json:"tenant_code,omitempty"`
 }
 
 // CreateOrder 提交订单
