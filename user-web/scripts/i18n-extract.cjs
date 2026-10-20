@@ -120,7 +120,13 @@ function main() {
   const usedKeys = new Set();
   for (const f of vueFiles) {
     const ks = extractKeysFromVue(f);
-    for (const k of ks) usedKeys.add(k);
+    for (const k of ks) {
+      // 拼接前缀伪键：t('menu.' + menu.key) 这类动态拼接被正则抽成 'menu.'，
+      // 运行时真正取的是 'menu.<key>'，前缀本身永远查不到词条，
+      // 当作未使用跳过，免得每个语种恒报 1 条假缺失。
+      if (k.endsWith('.')) continue;
+      usedKeys.add(k);
+    }
   }
   console.log(`      共提取到 ${usedKeys.size} 个被调用的 key\n`);
 

@@ -81,6 +81,7 @@
     "login": "Log in",
     "collapseMenu": "Collapse menu",
     "expandMenu": "Expand menu",
+    "helpCenter": "Centro de ayuda",
     "globalTour": "Recorrido general"
   },
   "role": {
@@ -776,6 +777,8 @@
   "外部系统文档接入": "External system document access",
   "异步任务": "Asynchronous Tasks",
   "同步模式": "Synchronization",
+  "退款流程": "Proceso de reembolso",
+  "用户可在订单页面提交退款申请,审核通过后 3-5 个工作日原路退回。": "Los usuarios pueden solicitar un reembolso en la página del pedido. Una vez aprobado, el importe se devuelve al medio de pago original en 3-5 días hábiles.",
   "保修政策": "Warranty policy",
   "产品自购买之日起 12 个月内提供免费保修服务。": "The product is warranted free of charge for a period of 12 months from the date of purchase.",
   "请填写完整信息": "Please fill in the full information",
@@ -2256,6 +2259,20 @@
           "step4": {
             "title": "Minimapa",
             "description": "Vista general para flujos grandes. Navegación rápida y arrastre del área de visualización, nunca se pierde"
+          }
+        },
+        "analytics": {
+          "step1": {
+            "title": "Diseño del lienzo",
+            "description": "Organice widgets en la pantalla con arrastrar y soltar. Las guías de alineación y deshacer/rehacer mantienen el diseño ordenado"
+          },
+          "step2": {
+            "title": "Panel de la biblioteca de widgets",
+            "description": "Elija entre gráficos, tarjetas KPI, tablas y bloques de contenido y arrástrelos al lienzo"
+          },
+          "step3": {
+            "title": "Vinculación de la fuente de datos",
+            "description": "Asigne cada widget a una API, una consulta SQL o un archivo CSV. Mapee los campos una vez y actualice según el programa"
           }
         }
       }

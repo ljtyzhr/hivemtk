@@ -81,6 +81,7 @@
     "login": "Log in",
     "collapseMenu": "Collapse menu",
     "expandMenu": "Expand menu",
+    "helpCenter": "Centre d'aide",
     "globalTour": "Visite générale"
   },
   "role": {
@@ -776,6 +777,8 @@
   "外部系统文档接入": "External system document access",
   "异步任务": "Asynchronous Tasks",
   "同步模式": "Synchronization",
+  "退款流程": "Processus de remboursement",
+  "用户可在订单页面提交退款申请,审核通过后 3-5 个工作日原路退回。": "Les utilisateurs peuvent demander un remboursement sur la page de commande. Une fois approuvé, le montant est recrédité sur le moyen de paiement d'origine sous 3 à 5 jours ouvrés.",
   "保修政策": "Warranty policy",
   "产品自购买之日起 12 个月内提供免费保修服务。": "The product is warranted free of charge for a period of 12 months from the date of purchase.",
   "请填写完整信息": "Please fill in the full information",
@@ -2256,6 +2259,20 @@
           "step4": {
             "title": "Mini-carte",
             "description": "Vue d'ensemble pour les grands flux. Navigation rapide et déplacement de la zone de vue, plus jamais perdu"
+          }
+        },
+        "analytics": {
+          "step1": {
+            "title": "Disposition du canevas",
+            "description": "Organisez les widgets à l'écran par glisser-déposer. Les guides d'alignement et annuler/rétablir gardent une mise en page nette"
+          },
+          "step2": {
+            "title": "Panneau de la bibliothèque de widgets",
+            "description": "Choisissez parmi graphiques, cartes KPI, tableaux et blocs de contenu, puis déposez-les sur le canevas"
+          },
+          "step3": {
+            "title": "Liaison de la source de données",
+            "description": "Associez chaque widget à une API, une requête SQL ou un fichier CSV. Mappez les champs une fois et actualisez selon la planification"
           }
         }
       }

@@ -81,6 +81,7 @@
     "login": "Log in",
     "collapseMenu": "Collapse menu",
     "expandMenu": "Expand menu",
+    "helpCenter": "Hilfe-Center",
     "globalTour": "Globale Tour"
   },
   "role": {
@@ -776,6 +777,8 @@
   "外部系统文档接入": "External system document access",
   "异步任务": "Asynchronous Tasks",
   "同步模式": "Synchronization",
+  "退款流程": "Rückerstattungsprozess",
+  "用户可在订单页面提交退款申请,审核通过后 3-5 个工作日原路退回。": "Nutzer können auf der Bestellseite eine Rückerstattung beantragen. Nach Freigabe wird der Betrag innerhalb von 3-5 Werktagen auf das ursprüngliche Zahlungsmittel zurückerstattet.",
   "保修政策": "Warranty policy",
   "产品自购买之日起 12 个月内提供免费保修服务。": "The product is warranted free of charge for a period of 12 months from the date of purchase.",
   "请填写完整信息": "Please fill in the full information",
@@ -2256,6 +2259,20 @@
           "step4": {
             "title": "Minikarte",
             "description": "Überblick für große Flows. Schnelle Navigation und Verschieben des Viewports — nie die Orientierung verlieren"
+          }
+        },
+        "analytics": {
+          "step1": {
+            "title": "Canvas-Layout",
+            "description": "Widgets per Drag-and-drop auf dem Screen anordnen. Hilfslinien und Rückgängig/Wiederholen halten das Layout ordentlich"
+          },
+          "step2": {
+            "title": "Widget-Bibliothek",
+            "description": "Aus Diagrammen, KPI-Karten, Tabellen und Medienblöcken wählen und auf den Canvas ziehen"
+          },
+          "step3": {
+            "title": "Datenquellen-Bindung",
+            "description": "Jedes Widget an eine API, SQL-Abfrage oder CSV-Datei binden. Felder einmal zuordnen und nach Plan aktualisieren"
           }
         }
       }
