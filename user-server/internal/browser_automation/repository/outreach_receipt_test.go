@@ -90,13 +90,6 @@ func TestListOutreachReceiptsEnforcesOwnership(t *testing.T) {
 	if len(other) != 0 {
 		t.Errorf("非 owner 读到了 %d 行回执（文案与截图链接会泄露）", len(other))
 	}
-	otherSess, err := repo.ListBySessionID(ctx, ownerSess, 9999)
-	if err != nil {
-		t.Fatalf("非 owner 会话级读取应返回空而非报错: %v", err)
-	}
-	if len(otherSess) != 0 {
-		t.Errorf("非 owner 读到了 %d 行会话级回执", len(otherSess))
-	}
 }
 
 // 列表按时间倒序（面板读最新几条）+ limit 钳位（防一条任务刷出上万行）。

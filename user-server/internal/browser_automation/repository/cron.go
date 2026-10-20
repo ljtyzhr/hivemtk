@@ -89,8 +89,14 @@ func (r *browserCronTriggerRepo) UpdateTimes(ctx context.Context, id uint, nextR
 		Updates(map[string]any{"next_run_at": nextRunAt, "last_run_at": lastRunAt}).Error
 }
 
+// Delete 硬删，不是软删：(tenant_id, task_id) 上的唯一键位必须由删除释放。
+//
+// 软删的行仍占着键位，而 service 的重名预检查（GetByTaskID）带 deleted_at IS NULL，
+// 读不到那行于是放行，紧接着 INSERT 撞约束 ⇒ 用户「删掉再建一个」（改时间的常规走法）
+// 必然拿到 500。触发行没有任何历史读家（审计在 browser_command_log / browser_steps），
+// 留一个占位的死行只换来故障。
 func (r *browserCronTriggerRepo) Delete(ctx context.Context, id, userID uint) error {
-	res := r.db.WithContext(ctx).
+	res := r.db.WithContext(ctx).Unscoped().
 		Joins("JOIN browser_tasks ON browser_tasks.id = browser_cron_triggers.task_id AND browser_tasks.user_id = ?", userID).
 		Where("browser_cron_triggers.id = ?", id).
 		Delete(&model.BrowserCronTrigger{})
@@ -105,7 +111,8 @@ func (r *browserCronTriggerRepo) Delete(ctx context.Context, id, userID uint) er
 
 // DeleteByTaskID 不判 RowsAffected：调用方问的是「这条任务的定时器别再响」，
 // 「它本来就没有触发器」是同一种期望结果，不是错误。
+// 同样硬删（键位理由见 Delete）。
 func (r *browserCronTriggerRepo) DeleteByTaskID(ctx context.Context, taskID uint) error {
-	return r.db.WithContext(ctx).Where("task_id = ?", taskID).
+	return r.db.WithContext(ctx).Unscoped().Where("task_id = ?", taskID).
 		Delete(&model.BrowserCronTrigger{}).Error
 }

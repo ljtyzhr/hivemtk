@@ -9,9 +9,10 @@ import (
 // BrowserOutreachReceipt 触达回执（Chunk5：验收交付物 = 截图 + 帖子链接 + 文案快照）。
 //
 // 与 browser_outreach_dedupe 分表而不是合表，是三处形状差异逼出来的：
-//  1. 去重表的唯一键是四元组（platform/target/action/copy_hash），RecordOutreachSend 用
-//     OnConflict{DoNothing} 幂等吞重复插入——回执表用它会让「内容已发出但列表里没有回执」
-//     这两件事无法区分，而回执的用途正是回答「到底发出去了没有」。
+//  1. 去重表的唯一键是租户内的四元组（tenant_id + platform/target/action/copy_hash，
+//     前导列由 tenancyidx.Normalize 在 AutoMigrate 后补进键位），RecordOutreachSend 用
+//     OnConflict{DoNothing} 幂等吞重复插入——回执表照搬会让「内容已发出但列表里没有回执」
+//     与「这步根本没执行过」无法区分，而回执的用途正是回答这个区分。
 //  2. 去重行是闸门输入（能不能发），回执行是闸门输出（发了什么）。一行一旦被当闸门读，
 //     「没有行」就不能等同于「没发过」。
 //  3. 回执要按帖子链接/文案被人检索与统计，extracted_data 的 JSONB 追加数组做不到。

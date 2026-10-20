@@ -200,10 +200,11 @@ func (s *SessionService) Stop(ctx context.Context, sessionID, userID uint, reaso
 // ---- I5 审计导出（一次请求归并 session 全量审计事实，可离线归档）----
 
 // SessionExportRow LLM 记录导出行（snapshot 大文本不带：G19 后本就可能为空且导出体积敏感；
-// 成本账/归因全字段保留，要快照原文走 llm_plans 查询端点或 command_log event 帧）
+// 成本账/归因全字段保留。快照原文只有库里那一份，`browser_llm_plans` 没有对外的查询端点，
+// 要 replay 输入必须走 DB——别按「导出里没有」推断这件事没有发生）
 type SessionExportRow struct {
 	ID        uint      `json:"id"`
-	Kind      string    `json:"kind"` // plan / judge / summary
+	Kind      string    `json:"kind"` // plan / judge / summary / jev_choice
 	Goal      string    `json:"goal"`
 	Steps     []byte    `json:"steps,omitempty"`
 	Reasoning string    `json:"reasoning,omitempty"`

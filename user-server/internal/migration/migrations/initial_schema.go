@@ -229,4 +229,7 @@ func RegisterMigrations(registry *migration.MigrationRegistry, db *gorm.DB) {
 	register(NewPlatformKVTenantSplitMigration(db))
 	// v3.66.0：站点配置一租户一行；功能开关唯一键降为租户内
 	register(NewTenantSiteConfigAndFeatureFlagMigration(db))
+	// v3.67.0：摘除浏览器定时触发器的软删残留行（它们占着 (tenant_id, task_id) 唯一键位，
+	// 让同一任务再也挂不上新触发器）
+	register(NewBrowserCronTriggerTombstonePruneMigration(db))
 }

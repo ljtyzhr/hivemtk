@@ -8,7 +8,6 @@ import (
 	"gorm.io/gorm/clause"
 
 	"hivemtk-user/internal/browser_automation/model"
-	_db "hivemtk-user/internal/pkg/db"
 )
 
 // BrowserOutreachDedupeRepository 跨任务触达去重仓储。
@@ -23,12 +22,12 @@ type browserOutreachDedupeRepository struct {
 	db *gorm.DB
 }
 
-// NewBrowserOutreachDedupeRepository 默认仓储。
-func NewBrowserOutreachDedupeRepository() BrowserOutreachDedupeRepository {
-	return &browserOutreachDedupeRepository{db: _db.GetDB()}
-}
-
-// NewBrowserOutreachDedupeRepositoryWithDB 测试注入仓储。
+// NewBrowserOutreachDedupeRepositoryWithDB 装配注入（路由与测试共用这一条构造口）。
+//
+// 曾经另有一条无参的 `NewBrowserOutreachDedupeRepository()`，内部取 `_db.GetDB()` 全局句柄：
+// 零调用方（本域装配在 `router/browser_automation_routes.go:36` 显式传 gormDB），
+// 留着等于在本该纯注入的仓储面上再开一条「谁都能不接 ctx/db 直接摸库」的后门，
+// 与「DI 在装配层」这条铁律相反 —— 已删（#7 四关 4.4）。
 func NewBrowserOutreachDedupeRepositoryWithDB(db *gorm.DB) BrowserOutreachDedupeRepository {
 	return &browserOutreachDedupeRepository{db: db}
 }

@@ -9,13 +9,14 @@ import (
 	"gorm.io/gorm"
 )
 
-// BrowserProfileHealthRepository 单主 Profile 平台健康仓储
+// BrowserProfileHealthRepository 单主 Profile 平台健康仓储。
+// 三个方法都只在**本租户内**按平台定位那一行（租户遮挡在隔离 callback，见模型头注释）。
 type BrowserProfileHealthRepository interface {
-	// GetByPlatform 按平台取健康行；无行返回 gorm.ErrRecordNotFound
+	// GetByPlatform 按平台取本租户的健康行；无行返回 gorm.ErrRecordNotFound
 	GetByPlatform(ctx context.Context, platform string) (*model.BrowserProfileHealth, error)
-	// MarkBlocked 标记封号（幂等：无行则建，有行则刷新 blocked/reason/blocked_at）
+	// MarkBlocked 标记封号（本租户内幂等：无行则建，有行则刷新 blocked/reason/blocked_at）
 	MarkBlocked(ctx context.Context, platform, reason string) error
-	// MarkRecovered 人工恢复：清 Blocked/BlockedAt（不清行）
+	// MarkRecovered 人工恢复：清本租户该平台的 Blocked/BlockedAt（不清行）
 	MarkRecovered(ctx context.Context, platform string) error
 }
 

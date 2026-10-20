@@ -275,7 +275,7 @@ func (s *BrainService) planOnce(ctx context.Context, dispatcher *llm.Dispatcher,
 	row := &model.BrowserLLMPlan{
 		TaskID:    taskID,
 		SessionID: sessionID, // D3/G3：session 归属（成本账按会话聚合）
-		Kind:      "plan",    // D3/G3：plan/judge/summary 三分类
+		Kind:      "plan",    // D3/G3：plan/judge/summary/jev_choice 四分类
 		Goal:      goal,
 		Snapshot:  truncate(snapshot, 64*1024),
 		Steps:     datatypes.JSON(steps),
