@@ -54,11 +54,17 @@ type TenantRepository interface {
 	// admin.TenantID 由调用方显式给出（开户事务内新租户 ID 尚不可知，
 	// 故不走 callback 上下文填充路径，见 fillCreateForTenant 的显式值放行）。
 	CreateWithAdmin(ctx context.Context, t *model.Tenant, admin *model.SystemUser) error
+	// GetDB 供起步赠送等系统域直写场景取句柄（service 不得全局摸 db.GetDB，
+	// 经仓储转发是唯一合规通道；架构门 L4）。
+	GetDB() *gorm.DB
 }
 
 type tenantRepo struct {
 	db *gorm.DB
 }
+
+// GetDB 返回底层连接（架构门 L4：service 取句柄经仓储，不走全局单例）。
+func (r *tenantRepo) GetDB() *gorm.DB { return r.db }
 
 // NewTenantRepository 构造
 func NewTenantRepository() TenantRepository {

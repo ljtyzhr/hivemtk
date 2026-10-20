@@ -16,7 +16,6 @@ import (
 	"hivemtk-user/internal/pkg/httpclient"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/logger"
-	"hivemtk-user/internal/repository"
 )
 
 // 公众号入站媒体（M-01）。

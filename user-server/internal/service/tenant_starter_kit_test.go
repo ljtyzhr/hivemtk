@@ -50,7 +50,7 @@ func TestProvisionTenantStarterKit_CreatesAndIdempotent(t *testing.T) {
 	}
 
 	const tenantID = uint(42)
-	provisionTenantStarterKit(ctx, tenantID)
+	provisionTenantStarterKit(ctx, tenantID, database)
 
 	// 智能体：租户 42 有一份副本
 	var agents []model.AIAgent
@@ -81,8 +81,8 @@ func TestProvisionTenantStarterKit_CreatesAndIdempotent(t *testing.T) {
 	}
 
 	// 幂等：重复调用不重复创建
-	provisionTenantStarterKit(ctx, tenantID)
-	provisionTenantStarterKit(ctx, tenantID)
+	provisionTenantStarterKit(ctx, tenantID, database)
+	provisionTenantStarterKit(ctx, tenantID, database)
 
 	var agentCount, bundleCount int64
 	if err := database.WithContext(sysCtx).Model(&model.AIAgent{}).
@@ -118,8 +118,8 @@ func TestTenantIsolation_StarterKitAssets(t *testing.T) {
 		t.Fatalf("种下全局 default_sales 失败: %v", err)
 	}
 
-	provisionTenantStarterKit(ctx, 61)
-	provisionTenantStarterKit(ctx, 62)
+	provisionTenantStarterKit(ctx, 61, database)
+	provisionTenantStarterKit(ctx, 62, database)
 
 	// 本租户可见自己的副本
 	ctx61 := tenant.WithTenantID(ctx, 61)
@@ -175,11 +175,11 @@ func TestTenantIsolation_StarterKitAssets(t *testing.T) {
 // TestProvisionTenantStarterKit_NoSeedStillSafe 种子缺失时不阻断（失败仅 Warn）
 func TestProvisionTenantStarterKit_NoSeedStillSafe(t *testing.T) {
 	withTenantMode(t, tenant.ModeOn)
-	setupStarterKitTestDB(t)
+	database := setupStarterKitTestDB(t)
 	ctx := context.Background()
 
 	// 不种 default_sales：provisioning 必须静默跳过克隆且不 panic
-	provisionTenantStarterKit(ctx, 71)
+	provisionTenantStarterKit(ctx, 71, database)
 
 	sysCtx := tenant.WithSystemScope(ctx)
 	var agentCount, bundleCount int64

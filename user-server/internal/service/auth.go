@@ -965,7 +965,7 @@ func (s *AuthService) InitAdminWithRegistration(ctx context.Context,
 
 	// 003 T013 开户赠送：失败仅 Warn 不阻断初始化（赠送可后补，开户不可逆）
 	if t.ID != 0 {
-		provisionTenantStarterKit(ctx, t.ID)
+		provisionTenantStarterKit(ctx, t.ID, repository.NewTenantRepository().GetDB())
 	}
 	return nil
 }
