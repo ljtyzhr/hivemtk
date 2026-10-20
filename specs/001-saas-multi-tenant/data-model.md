@@ -48,12 +48,14 @@ ALTER TABLE {t} ADD COLUMN IF NOT EXISTS tenant_id bigint NOT NULL DEFAULT 1;
 
 首期盘点（tasks 阶段逐表确认后固化）：
 
+> **2026-10-20 订正（读这张表前必看）**：下面这张表有两处已经不代表现状。① `tenant:"global"` Tag 这个豁免机制**从未实现**——代码里唯一的判据是「表上有没有 `tenant_id` 列」（`internal/pkg/tenancyidx` 做数据库内省，没有第二份豁免清单；`global_uniq_*` 只是「刻意跨租户唯一」的**索引命名约定**，不是表豁免）；漏加列的表在内省里就是非租户表、全量放行，所以归属要在模型 Tag 与迁移两处对账。② `feature_flags` 与 `system_config` 已在 R5 租户化（迁移 v3.66.0，唯一键降为 `(tenant_id, key)`），不再属全局表。表的判据口径见 `docs/architecture/SaaS_MULTI_TENANT.md` §三.2/§三.5。
+
 | 表 | 豁免理由 |
 |----|---------|
 | tenants | 租户实体本身 |
 | migration 记录/audit 表 | 系统级 |
-| config_params / config_param_groups | 实例级调优参数，首期保持实例级 |
-| feature_flags | 实例级功能开关 |
+| config_params / config_param_groups | 实例级调优参数的**定义与平台默认值**（R5 补：租户取值另存 `tenant_config_params`，本表仍是实例级目录，逐租户复制定义反而会造出「漏补行的租户读到代码兜底值」） |
+| feature_flags | ~~实例级功能开关~~ **已由 R5 租户化**（v3.66.0），此行保留只为记录首期判断 |
 | platform 心跳/商户标识元数据 | 平台协议（可选模块） |
 | cron_job_leases / telegram_polling_locks | 进程协调（键内已含租户分域） |
 | backups / system 相关 | 系统操作（SystemTenant） |

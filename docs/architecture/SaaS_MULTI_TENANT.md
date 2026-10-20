@@ -35,9 +35,26 @@
 ## 三、隔离机制（框架层，业务代码零手工隔离）
 
 1. **GORM callback**（`pkg/db/tenant_callback.go`，六类 operation）：on 模式自动注入 `WHERE tenant_id=?` / Create 自动填充 / 跨租户写拒绝 / Raw-Exec 守卫；off 直通。
-2. **登记表**（`pkg/tenancyidx`，数据库内省）：有 tenant_id 列的表即租户表；全局表（tenants/参数中心/功能开关/租约等）显式豁免清单。
+2. **登记表**（`pkg/tenancyidx`，数据库内省）：**唯一判据是「表上有没有 tenant_id 列」**，没有第二份豁免清单——漏加列的表在内省里就是非租户表、全量放行。所以「这张表是不是租户表」要在模型 Tag 与迁移两处对账，而不是在某个清单里登记一次。配置类六张表的归属见 §三.5。
 3. **唯一性租户化**：`tenancyidx.Normalize` 原位复合化全部非约束型唯一索引与约束型 UNIQUE 为 `(tenant_id, 原列...)`；挂 AutoMigrate 尾部 + testdb 钩子。
-4. **GORM-only 门禁**（`scripts/check-gorm-only.sh`）：业务包 `.Exec(`/`.Raw(` 归零（133 处历史债务已清偿）；migration DDL / db.migrate / testutil / pgvector 运维单点豁免；`make audit` strict 挡回归。
+4. **GORM-only 门禁**（`user-server/scripts/check-gorm-only.sh`，由 `Makefile` 的 audit 链以 strict 调用）：业务包 `.Exec(`/`.Raw(` 归零（133 处历史债务已清偿）；豁免以「DDL 生命周期同类」为单位整文件或整目录放行（migration 目录、schema 引导与归一化、自省类、pgvector 运维、测试夹具），**清单与每条例外的理由写在脚本头部注释里**，本文件不复制第二份。
+
+### 三.5 配置数据的租户归属（R5，2026-10-20）
+
+SaaS 化后"配置"不是一张表的事：同一份配置值可能属于平台、也可能属于商户。下面这张表是**当前形状的逐表现测**（判据=模型 Tag 里有没有 `TenantID`），改任何一张表都要回来更新它——内判登记表只看列，列加错方向等于整张表跨租户放行。
+
+| 表 | 归属 | 说明 |
+|---|---|---|
+| `config_params` | 平台（实例级） | 参数中心的**定义目录 + 平台默认值**，无 tenant_id：种子随版本增删，逐租户复制定义会让"漏一个租户"读成代码兜底值 |
+| `config_param_audit_logs` | 平台 | 平台默认值的变更审计 |
+| `tenant_config_params` | 租户 | 只存「这个租户改过哪几键」，未覆盖的键回落 `config_params.value`；唯一键 `(tenant_id, param_group, param_key)` |
+| `tenant_config_param_audit_logs` | 租户 | 同上，带 tenant_id |
+| `system_config` | 租户 | 站点运营配置（站点名/注册开关/上传上限），`uni_system_config_tenant` 一租户一行 |
+| `system_config_kv` | 租户 | 主键复合化为 `(tenant_id, key)`（迁移 v3.65.0）；租户业务配置与凭证包（`agent.tool_integrations`、`sso.providers`） |
+| `platform_config_kv` | 平台 | 从 `system_config_kv` 拆出的平台接入令牌（桥接/MCP/回调验签/宿主令牌），key 单列主键、实例一份 |
+| `feature_flags` + 两张日志表 | 租户 | 旧的 `key` 单列唯一索引必须删掉才允许跨租户同名开关（迁移 v3.66.0） |
+
+**凭证类不落参数中心**：`tenant_config_params.param_value` 是明文列（只有审计行走 `dbencrypt`），把 client_secret/API key 写进去等于新增一个明文凭证面。凭证走 `system_config_kv` + `internal/secrets`（`enc:v1:` AES-GCM，MASTER_KEY），先例是 `agent.tool_integrations`，本轮新增的是 `sso.providers`（见 `docs/CONFIG_DB_DRIVEN_PLAN.md` §10 R5-4）。
 
 ## 四、后台任务租户化
 

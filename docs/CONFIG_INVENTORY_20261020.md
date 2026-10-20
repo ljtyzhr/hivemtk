@@ -65,16 +65,22 @@
 | URL 常量 | `platform.go:32`(`work.xapptool.cn`) `ports.go:45-75`(推理栈端口) | — | 易（前缀已有 env 覆盖） |
 | 分账比例 | — | **不存在**（无分账代码） | 不适用 |
 
-### 1.4 已 DB 驱动（现状基线，新增键前必查这六处）
+### 1.4 已 DB 驱动（现状基线，新增键前必查这十处）
 
 | 机制 | 表 | 时机 | 覆盖 |
 |---|---|---|---|
-| **参数中心** | `config_params`（35 组 224 种子，60s TTL+负缓存，14 处 wiring 注入**闭包** provider） | 启动 seed + 请求期 `Get*` | 阈值/上限/超时/TTL/开关；`Restart=true` 标记装配期项 |
+| **参数中心·平台定义与默认值** | `config_params` + `config_param_groups`（**38 组 240 条种子 / 227 个读取点**，2026-10-20 现测；60s TTL+负缓存） | 启动 seed + 请求期 `Get*` | 阈值/上限/超时/TTL/开关；`Restart=true` 标记装配期项。此表只存**定义与平台默认值**（实例级目录，逐租户复制定义反而会造出「漏补行的租户读到代码兜底值」） |
+| **参数中心·租户覆盖**（R5 新增） | `tenant_config_params` + `tenant_config_param_audit_logs` | 请求期，缓存键 `t{tenantID}\|group.key`（无租户时才是 `group.key`） | 只存「本租户改过的键」；未覆盖的键回落平台默认；写与「回默认」都只动覆盖行，租户管理员改不动平台默认值。审计新旧值 dbencrypt 加密 |
 | LLM 路由 | `llm_providers` `llm_routing_rules` | 启动 + 平台下发重载 | 覆盖 `inference.llm` |
 | 业务字典 | `dictionaries`/`dictionary_transitions` | 请求期 | 状态机、GEO 定价（标量 vs 枚举分工） |
-| 通用 KV | `system_config_kv` | 请求期 | password_policy、bridge token、工具集成 JSON |
+| **平台接入 KV**（R5 拆出） | `platform_config_kv`（`key` 单列主键，实例一份） | 请求期 | 对端只认一个接入点的凭证：桥采集合令牌（含 prev）、`mcp_token`、订单回调验签密钥、浏览器宿主令牌、embedding 全局项、`security.rules`、`backup.strategy` |
+| 通用 KV（R5 租户化） | `system_config_kv`，主键由 `(key)` 复合化为 `(tenant_id, key)`（迁移 v3.65.0，存量归默认租户） | 请求期 | password_policy、工具集成 JSON、**`sso.providers`（OIDC 身份源，`client_secret` 字段级 `enc:v1:` AES-GCM）** |
+| 站点配置（R5 租户化） | `system_config`，一租户一行（`uni_system_config_tenant`，迁移 v3.66.0） | 请求期 | 站点名、注册开关、上传上限等商户自己的运营口径 |
+| 功能开关（R5 租户化） | `feature_flags` + 两张开关日志表，唯一键 `key` → `(tenant_id, key)`（v3.66.0，旧的单列唯一索引必须由迁移删除） | 请求期 | 灰度与 kill switch 每租户独立决策 |
 | 模块/订阅镜像 | `tenant_modules`、`tenant_subscription_mirror` | 平台周期同步 | 定价、开通、订阅锁（**每租户一行，行锚 tenant_id**） |
 | 前端下发 | `config_params(frontend_ws/ui/pagination)` → `GET /api/config/runtime` | 请求期 | 前端轮询/心跳/上传上限（常量兜底） |
+
+**归属判据只有一条**：表上有没有 `tenant_id` 列（`internal/pkg/tenancyidx` 数据库内省，没有第二份豁免清单）。所以「这张表算不算租户表」要在模型 Tag 与迁移**两处**对账——漏一处就是全量放行。凭证类不落参数中心（参数中心的 value 列是明文，只有审计行加密），走 `system_config_kv` + `internal/secrets`。落地明细见 `CONFIG_DB_DRIVEN_PLAN.md` §10 的 R5 段。
 
 **读取链路**：env → `.env`(不覆盖已有) → `config.yaml` 展开 → DB 就绪 → `SeedConfigParams`(只刷定义列不碰 value) → 12 批 wiring 注入闭包 → secrets → LLM 装载 → platform.yaml → router.Setup（Restart 项在此读一次）。运行期四类并存：启动冻住的包级 var / 请求期直读 env / 参数中心(60s TTL) / FF_* 两套。
 

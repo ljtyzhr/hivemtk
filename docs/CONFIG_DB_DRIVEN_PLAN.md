@@ -1587,3 +1587,52 @@ Name 没有加「（只读）」后缀：UI 已有独立徽标，`stripSuffix()`
 3. 删除 `internal/config/config_viper.go` 零调用死代码 `GetViper` / `WriteConfig` / `Init`（viper 热重载从未接线）。
 
 验证：三道门禁 rc=0（seed 9→12、wired 12、可比对 12、命名违规 0，棘轮基线 9→12）；反向摘掉提现读点 → readpoints rc=1 `UNDECLARED asset_market.max_withdrawal_amount`、defaults rc=2 棘轮 11<12，复原后双绿（md5 回读一致）；`go build ./...` / `go vet ./...` clean；`go test ./internal/controller/ ./internal/config/ ./internal/service/ -p 1` 全 ok（8.2s / 0.3s / 33.5s），新增 `TestAssetMarketCapsFollowConfigParam`（DB 上限调到 100/1 后，150 元提现与 2 条批量均被拒，证明不是只改静态形状）与 `TestLLMProxyTimeoutFollowsConfigParam`（DB 30s 同时进入 `service.timeout` 与 `http.Client.Timeout`，无 DB 回落 120s）；platform-web `vite build` 通过（ConfigParams chunk 19.02 kB）。Swagger `docs.go` 未再生成（该文件正被并行泳道修改，注解已更新，下次 `swag init` 即同步）。
+
+#### R5 已落地（2026-10-20）：配置数据全量租户化——参数覆盖表、KV 分域、站点/开关/URL/SSO
+
+前提口径（管理者 2026-10-20 定的判据）：**除平台级配置外，一切商户可调的东西都要落库且按租户隔离**。留在平台域的只有三类——① 实例级接入凭证（桥采集合令牌、MCP 入口令牌、订单回调验签密钥、浏览器宿主令牌、embedding 全局开关：对端只认一个回调地址/一份全局配额，按租户复制会造出多个互不认账的接入点）；② 平台目录与定义（`config_params` 的声明列、`config_param_groups`：定义是发布物，不是取值）；③ 启动引导配置（`log.*`、DB 连接串：必须在库可用之前生效）。其余一律进租户域，且**写入路径必须按 `tenant_id` 落行**——只在读侧加 WHERE 而写侧填不出 tenant_id，等于给下一个租户覆盖上一个人的数据留门。
+
+租户隔离本身不在本批重做：登记表以内省为唯一判据（表上有无 `tenant_id` 列，见 `docs/architecture/SaaS_MULTI_TENANT.md` §三.2/§三.5），所以本批每落一张新表，判据自动生效，业务代码零手工隔离。
+
+**1. R5-1 参数中心租户覆盖表**（`tenant_config_params` + `tenant_config_param_audit_logs`，模型 `internal/model/config_param_tenant.go`、仓储 `internal/repository/config_param_tenant.go`、服务 `internal/service/config_param.go`）
+
+| 面 | 做法 | 点位 |
+| --- | --- | --- |
+| 为什么不直接给 `config_params` 加 `tenant_id` | 种子随版本增删，逐租户复制全量定义＝每次升级要给每个租户补行、下架标记也要逐租户同步；漏一个租户，该租户读到的是**代码兜底值**而不是平台默认值。覆盖表把「定义」与「取值」分开，租户只承担自己改过的那几行 | `model/config_param_tenant.go:11` 注释 |
+| 读 | scope 由 `tenantParamScope(ctx)` 决定：off 模式无租户、on 模式取 ctx 绑定的租户；未绑定租户的 ctx 读平台默认值。缓存键 `group.key`（无租户）/ `t{tenantID}\|group.key`（有租户），租户之间永不共享一条缓存项 | `service/config_param.go:443`、`:457`、`:460` |
+| 读（列表面） | `List`/`ListByGroup` 拿到平台定义后过 `applyTenantOverrides`，把本租户覆盖值并进去再返回——管理页看到的就是「本租户实际生效值」，不是平台默认值 | `:585` |
+| 写 | on 模式 `UpdateValue` 只写 `tenant_config_params`，**绝不改 `config_params.value`**（平台默认值是所有租户的回落线，租户管理员改不动它）；off 模式保持原行为写平台行 | `:618` |
+| 回默认 | `ResetToDefault` 在 on 模式是**删除本租户覆盖行**，不是把平台默认值抄回本租户一行——抄回来等于把「未覆盖」和「显式等于默认」两种状态并成一种，以后平台调默认值就不跟随了 | `:708` |
+| 审计 | 独立表 `tenant_config_param_audit_logs`（不复用平台审计表：否则 A 租户运维打开审计页会看到 B 租户改了什么）；改前/改后值走 `encryptAuditValues`（dbencrypt）加密落库，因为部分参数的值里就是 API Key；批量清组逐行记审计 | `repository/config_param_tenant.go:94`、`model/config_param_tenant.go:31` |
+| 缓存失效 | 写/删后立即 `invalidateTenant` / `invalidateTenantGroup`，其余租户的缓存项不动 | `service/config_param.go:805`、`:825` |
+
+HTTP 面形状不变（`GET/PUT/POST /api/manage/config-params*` 六条，`internal/router/config_param_routes.go:27-32`），变的是**语义**：同一批端点在 on 模式下按调用方租户读写覆盖行。
+
+**2. R5-2 KV、站点配置与功能开关租户化**（显式迁移 v3.65.0 / v3.66.0，注册点 `internal/migration/migrations/initial_schema.go`）
+
+- **v3.65.0 `system_config_kv` 租户分域 + 平台键拆分**：建 `platform_config_kv`（`key` 单列主键，实例一份）→ 把平台键存量行复制过去（`ON CONFLICT DO NOTHING` 不覆盖新值）→ `system_config_kv` 补 `tenant_id` 并把主键 `(key)` 复合化为 `(tenant_id, key)`（存量归默认租户 1）→ 删除已迁走的平台键行，保证单一事实源。平台键名单是 **SQL 字面量**而不是引用 Go 常量（`v3_65_0_platform_kv_tenant_split_migration.go:60` 的 `platformKVKeyWhere`）：键名是持久化格式，迁移必须对「代码后来改名」免疫。`password_policy` **不在**名单内——密码策略由各租户 admin 维护，属租户级安全设置。
+- **v3.66.0 站点配置一租户一行 + 功能开关唯一键降为租户内**：`system_config` / `feature_flags` / 两张开关日志表补 `tenant_id`（存量归默认租户）；`system_config` 去重后建 `uni_system_config_tenant`；`feature_flags` **删除旧的 `key` 单列唯一索引**、建 `(tenant_id, key)` 复合唯一。删旧索引必须由迁移做：AutoMigrate 只加列/建索引，不删既有唯一约束，留着它，第二个租户创建同名开关必撞约束。
+- **为什么主键/索引不能指望 AutoMigrate**（两条迁移的共同前提，实测 gorm v1.31）：既有主键约束不会被改写，模型 Tag 只对新库生效。所以每张存量表都要「模型 Tag + 显式迁移」两处对账——这正是 §三.2 里「漏加列的表在内省里就是非租户表、全量放行」那条判据的代价。
+- 模型 Tag 同步点：`model/system_config.go:10`、`model/feature_flag.go:16-17`（日志表 `:35`、`:49`）、`model/system_config_kv.go:15-16`、新增 `model/platform_config_kv.go`。
+- 平台域豁免名单在 `internal/migration/migrations/tenant_column_batch_migration.go` 新增四条：`config_params` / `config_param_groups` / `config_param_audit_logs` / `platform_config_kv`（定义目录 + 平台接入凭证）；`tenant_config_params` / `tenant_config_param_audit_logs` 不在名单内＝按内省自动进租户域。
+
+**3. R5-3 `urls` 组三条基址改 ctx 感知 + 新增 `public_base_url`**
+
+| group.key | 默认 | 代码点位 | 生效时机 |
+| --- | --- | --- | --- |
+| `urls.cloud_url` | `https://work.xapptool.cn` | `internal/app/url_params_wiring.go:29` → `config.CloudURLFor(ctx)`（`config/platform.go:58`） | 每请求（60s TTL 缓存） |
+| `urls.geo_site_base_url` | `https://xiaofang142.github.io/hivemtk` | `url_params_wiring.go:34` → `config.WebsiteBaseURLFor(ctx)`（`config/website.go:30`） | 每请求 |
+| `urls.public_base_url`（**本轮新增**） | `""`（空＝沿用部署配置，行为零变更） | `url_params_wiring.go:39` → `config.GetPublicBaseURLFor(ctx)`（`config/server.go:430`） | 每请求 |
+
+优先级逐条写进种子 Description：`cloud_url`＝平台配置 > env `PLATFORM_CLOUD_URL` > 本参数 > 代码常量；`geo_site_base_url`＝env `GEO_SITE_BASE_URL` > 本参数 > 常量；`public_base_url`＝env `PUBLIC_BASE_URL` > `config.yaml external.public_base_url` > 本参数 > 空（调用方回退请求 Host）。`public_base_url` 是渠道 webhook 回调地址与短链绝对化的入口，SaaS 下每个商户的回调域名本该不同，默认留空保证存量部署不变。
+
+**provider 签名从 `func() string` 改成 `func(ctx) string` 的理由**：参数中心读取本身已按租户分域（R5-1），provider 不吃 ctx 就等于把租户覆盖值重新拍回平台默认值——接口是 ctx 敏感的，装配闭包就必须透传 ctx。三个无 ctx 的遗留壳（`CloudURL()` / `WebsiteBaseURL()` / `GetPublicBaseURL()`，分别在 `platform.go:72` / `website.go:41` / `server.go:444`）保留，但消费面已收窄到**确实属平台作用域**的四处：`cmd/geo-run/main.go:145` 与 `internal/service/telegram_polling.go:233/284/286`（进程启动期的模式判定，早于任何租户 ctx）。
+
+**4. R5-4 SSO 身份源租户自助配置**（`internal/service/sso_tenant.go` 新增、`sso.go` 改造、`controller/sso.go`、`router/sso_routes.go`）
+
+- **存储位置**：`system_config_kv` 键 `sso.providers`（PK 已含 `tenant_id`，R5-2 之后天然每租户一行）。**不落参数中心**——参数中心的 value 列是明文（只有审计行加密），而 OIDC `client_secret` 是凭证；凭证类走 `system_config_kv` + `internal/secrets` 的 `enc:v1:` AES-GCM，与既有先例 `agent.tool_integrations` 同族。
+- **加密粒度＝字段级**：只 `client_secret` 加密，issuer/client_id/scopes 等明文存（可比对、可诊断）；`secrets.Ready()` 为假（实例没配 MASTER_KEY）时按明文容错读，不把存量凭证锁死（`sso_tenant.go:75` `decodeTenantSSOProviders`）。
+- **校验**：provider 名 `^[A-Za-z0-9][A-Za-z0-9_-]{0,31}$`（`sso_tenant.go:29`）；端点强制 https，仅 loopback 主机允许 http 以便本地联调（`validateSSOEndpoint:190` + `isLoopbackHost:214`）。
+- **不回显密钥**：读接口一律 `***` 掩码（`MaskTenantSSOClientSecrets:257`，copy-on-write 不改原切片）；写接口用 `PreserveMaskedClientSecrets:229` 三态合并——提交 `***`＝沿用库里同名 provider 的旧密钥（查不到则报错，不静默新建空密钥），提交空串＝清除，提交其他值＝按新值写入。管理页因此从不需要把密钥读回来再提交一次。
+- **按租户解析适配器**：`adaptersFor(ctx)`（`sso.go:195`）读 KV→校验→建适配器→按租户缓存，缓存以原始 JSON 串不等价为失效条件；KV 未装配 / ctx 未绑定租户 / 原始值是坏 JSON / 校验后零适配器，四种情况都**回落到平台级 `sso.adapters`**（回落的是「平台配置的 IdP」，不是「无鉴权」）。对外只有 ctx 版本：`EnabledFor` / `AdapterFor` / `ListProvidersFor`（`:237`/`:245`/`:252`），旧的无 ctx `Enabled()` / `Adapter()` / `ListProviders()` 已删除——留着它们就等于给下一次漏传 ctx 留一个能编译的口子。管理面 `TenantProviders` / `SaveTenantProviders`（`:270`/`:281`）保存后 `forgetTenant` 立即失效本租户缓存。
+- **端点**：`GET`/`PUT /api/sso/config` 挂在 auth（`middleware.TenantMiddleware()` 绑租户，`router.go:413`）+ `systemAdmin`（`AdminAuthMiddleware()`，`router.go:542`）之后（`sso_routes.go:25-27`）；公开面 `GET /api/sso/providers`、`GET /api/sso/login/:provider`、`GET /api/sso/callback/:provider` 按请求上下文解析租户（`sso_routes.go:14-17`）。控制器只保留 ctx 版本，`SSOService` 在 `router.go:339` 构造一次、注入公开面（`:345`）与管理面（`:559`），避免两份实例各持一套租户缓存。回调重定向目标改走 `config.GetPublicBaseURLFor(requestCtx)`，租户各配自己的公网基址后回调不再钉在部署级 env 上。
