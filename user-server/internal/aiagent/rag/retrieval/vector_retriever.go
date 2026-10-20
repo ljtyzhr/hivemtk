@@ -7,10 +7,10 @@ import (
 	"strings"
 
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 
 	"hivemtk-user/internal/aiagent/llm"
 	"hivemtk-user/internal/pkg/kbrelease"
+	"hivemtk-user/internal/pkg/pgvector"
 	"hivemtk-user/internal/pkg/utils/logger"
 )
 
@@ -67,7 +67,7 @@ func (r *VectorRetriever) SearchVector(ctx context.Context, kbID string, queryVe
 		} else if vis := kbrelease.AndVisible(); vis != "" {
 			q = q.Where(strings.TrimPrefix(vis, " AND "))
 		}
-		q = q.Order(clause.Expr{SQL: "embedding <=> ?::vector", Vars: []any{vecLiteral}}).Limit(topK)
+		q = q.Order(pgvector.OrderByEmbeddingDistance(vecLiteral)).Limit(topK)
 		return q.Scan(&rows).Error
 	})
 	if err != nil {
@@ -124,7 +124,7 @@ func (r *VectorRetriever) Retrieve(ctx context.Context, productID string, query 
 		} else if vis := kbrelease.AndVisible(); vis != "" {
 			q = q.Where(strings.TrimPrefix(vis, " AND "))
 		}
-		q = q.Order(clause.Expr{SQL: "embedding <=> ?::vector", Vars: []any{vecLiteral}}).Limit(topK)
+		q = q.Order(pgvector.OrderByEmbeddingDistance(vecLiteral)).Limit(topK)
 		return q.Scan(&rows).Error
 	})
 	if err != nil {

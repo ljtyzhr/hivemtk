@@ -1,20 +1,21 @@
 {
   "_readme": "G6 i18n 棘轮基线，只许涨不许跌。刷新前先确认这次是「补齐了词条 / 把中文直传改成点分键」而不是「把还在用的文案删掉了」。",
-  "resolved_ratio": 19.83,
-  "t_call_keys": 923,
-  "dotted_keys": 183,
-  "raw_t_calls": 740,
-  "locale_orphans": 1453,
-  "base_locale_entries": 1844,
+  "_口径说明_2026_10_20": "本基线在 2026-10-20 重新测过一次：扫描器的「被引用集合」此前漏认两类消费形态（i18n.global.t() 736 处调用、titleKey/roleName. 这类字面量键），且只把点分键算作「被引用」，于是 4a60d3af 补进来的287 条正在被消费的中文字面量键被误判成孤儿、门判红。修正后重测：locale_orphans 1833→0（真清干净了 555 条死词条），raw_t_calls 740→1167（不是新增，是那 736 处i18n.global.t() 本来就在、只是从前看不见）。本次刷新的是**测量口径**，不是放过新增。",
+  "resolved_ratio": 21.2,
+  "t_call_keys": 1481,
+  "dotted_keys": 314,
+  "raw_t_calls": 1167,
+  "locale_orphans": 0,
+  "base_locale_entries": 1798,
   "locale_counts": {
-    "ar": 1854,
-    "de": 1846,
-    "en": 1845,
-    "es": 1846,
-    "fr": 1846,
-    "ja": 1854,
-    "pt": 1846,
-    "ru": 1846,
-    "zh": 1844
+    "ar": 1798,
+    "de": 1798,
+    "en": 1798,
+    "es": 1798,
+    "fr": 1798,
+    "ja": 1798,
+    "pt": 1798,
+    "ru": 1798,
+    "zh": 1798
   }
 }

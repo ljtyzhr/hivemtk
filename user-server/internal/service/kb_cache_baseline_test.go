@@ -19,7 +19,7 @@ import (
 )
 
 func TestKBCacheBaseline_TodayKeyShapeRoundTrips(t *testing.T) {
-	database := testutil.NewTestDB(t, &model.KnowledgeBase{}, &ragcache.RAGAnswerCache{})
+	database := testutil.NewTestDB(t, &model.KnowledgeBase{}, &model.RAGAnswerCache{})
 	ctx := context.Background()
 
 	// 只用两棵树都有的列建一行 KB，避免依赖本卡新增字段。

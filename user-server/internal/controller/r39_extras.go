@@ -36,7 +36,7 @@ func (c *MarketingFlowSyncController) SyncABResults(ctx *gin.Context) {
 		return
 	}
 	sourceID := strconv.FormatUint(id, 10)
-	experiment, err := c.abService.GetExperimentBySourceID(sourceID)
+	experiment, err := c.abService.GetExperimentBySourceID(ctx.Request.Context(), sourceID)
 	if err != nil {
 		if utils.IsRecordNotFound(err) {
 			response.Success(ctx, gin.H{"synced": false, "results": []any{}}, "流程未绑定实验")
@@ -45,11 +45,11 @@ func (c *MarketingFlowSyncController) SyncABResults(ctx *gin.Context) {
 		response.Error(ctx, http.StatusInternalServerError, err.Error())
 		return
 	}
-	if err := c.abService.CalculateResults(experiment.ID); err != nil {
+	if err := c.abService.CalculateResults(ctx.Request.Context(), experiment.ID); err != nil {
 		response.Error(ctx, http.StatusInternalServerError, "实验结果计算失败: "+err.Error())
 		return
 	}
-	results, err := c.abService.GetExperimentResults(experiment.ID)
+	results, err := c.abService.GetExperimentResults(ctx.Request.Context(), experiment.ID)
 	if err != nil {
 		response.Error(ctx, http.StatusInternalServerError, err.Error())
 		return

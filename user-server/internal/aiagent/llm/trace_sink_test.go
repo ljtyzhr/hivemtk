@@ -6,6 +6,7 @@ import (
 	"testing"
 	"time"
 
+	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/testutil"
 )
 
@@ -18,10 +19,10 @@ func TestDBTraceSink_OnEvent_NonBlocking(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		for i := 0; i < DefaultDBSinkBufferSize+100; i++ {
-			sink.OnEvent(TraceEvent{
+			sink.OnEvent(model.TraceEvent{
 				TraceID:    "t1",
 				SpanID:     "s1",
-				Kind:       TraceSpanKindLog,
+				Kind:       model.TraceSpanKindLog,
 				Service:    "test",
 				DurationMs: 0,
 				Status:     "ok",
@@ -44,7 +45,7 @@ func TestDBTraceSink_Stats(t *testing.T) {
 	if ins != 0 || drp != 0 {
 		t.Errorf("expected zero stats, got ins=%d drp=%d", ins, drp)
 	}
-	sink.OnEvent(TraceEvent{SpanID: "s1", TraceID: "t1", Service: "x", Operation: "y", Kind: TraceSpanKindLog, Timestamp: time.Now()})
+	sink.OnEvent(model.TraceEvent{SpanID: "s1", TraceID: "t1", Service: "x", Operation: "y", Kind: model.TraceSpanKindLog, Timestamp: time.Now()})
 }
 
 // TestDBTraceSink_StopIdempotent 验证 Stop 幂等
@@ -57,7 +58,7 @@ func TestDBTraceSink_StopIdempotent(t *testing.T) {
 
 // TestQueryTrace_NotFound 验证 trace 不存在时返回 ErrTraceNotFound
 func TestQueryTrace_NotFound(t *testing.T) {
-	db := testutil.NewTestDB(t, &TraceEvent{})
+	db := testutil.NewTestDB(t, &model.TraceEvent{})
 	t.Cleanup(func() {
 		_ = db
 	})
@@ -86,7 +87,7 @@ func TestQueryTrace_EmptyTraceID(t *testing.T) {
 
 // TestListRecentTraces_LimitClamp 验证 limit 边界归一
 func TestListRecentTraces_LimitClamp(t *testing.T) {
-	db := testutil.NewTestDB(t, &TraceEvent{})
+	db := testutil.NewTestDB(t, &model.TraceEvent{})
 	origDB := traceDBOverride
 	traceDBOverride = func() any { return db }
 	t.Cleanup(func() { traceDBOverride = origDB })
@@ -103,7 +104,7 @@ func TestListRecentTraces_LimitClamp(t *testing.T) {
 
 // TestDBTraceSink_FlushInsertsToTable 端到端：发布 → 订阅者落库 → QueryTrace 读出
 func TestDBTraceSink_FlushInsertsToTable(t *testing.T) {
-	db := testutil.NewTestDB(t, &TraceEvent{})
+	db := testutil.NewTestDB(t, &model.TraceEvent{})
 
 	origDB := traceDBOverride
 	traceDBOverride = func() any { return db }
@@ -155,7 +156,7 @@ func TestDBTraceSink_FlushInsertsToTable(t *testing.T) {
 
 // TestDBTraceSink_AsyncInsert 验证：发布 → 启动 sink → 等批量落库 → 读到
 func TestDBTraceSink_AsyncInsert(t *testing.T) {
-	db := testutil.NewTestDB(t, &TraceEvent{})
+	db := testutil.NewTestDB(t, &model.TraceEvent{})
 	origDB := traceDBOverride
 	traceDBOverride = func() any { return db }
 	t.Cleanup(func() { traceDBOverride = origDB })
@@ -170,10 +171,10 @@ func TestDBTraceSink_AsyncInsert(t *testing.T) {
 		wg.Add(1)
 		go func(idx int) {
 			defer wg.Done()
-			sink.OnEvent(TraceEvent{
+			sink.OnEvent(model.TraceEvent{
 				TraceID:    traceID,
 				SpanID:     "sp-" + time.Now().Format("150405.000000") + "-" + string(rune('0'+idx)),
-				Kind:       TraceSpanKindLLMCall,
+				Kind:       model.TraceSpanKindLLMCall,
 				Service:    "llm",
 				Operation:  "chat",
 				DurationMs: int64(idx * 10),

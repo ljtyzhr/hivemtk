@@ -84,6 +84,7 @@ type ABExperimentResult struct {
 	AverageValue    int64     `gorm:"type:bigint;default:0" json:"average_value"`
 	ConfidenceLevel float64   `json:"confidence_level"`
 	IsWinner        bool      `json:"is_winner"`
+	CreatedAt       time.Time `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt       time.Time `gorm:"autoUpdateTime" json:"updated_at"`
 }
 

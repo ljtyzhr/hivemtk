@@ -8,6 +8,7 @@ import (
 	"testing"
 	"time"
 
+	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/testutil"
 	"hivemtk-user/internal/pkg/utils/logger"
 )
@@ -64,34 +65,7 @@ func TestChildSpanNil(t *testing.T) {
 	}
 }
 
-// 5. SetMetadata / GetMetadata
-func TestTraceContextMetadata(t *testing.T) {
-	tc := NewTraceContext("", "")
-	tc.SetMetadata("provider", "deepseek")
-	tc.SetMetadata("tokens", 100)
-	if v, ok := tc.GetMetadata("provider"); !ok || v != "deepseek" {
-		t.Errorf("expected deepseek, got %v ok=%v", v, ok)
-	}
-	if v, ok := tc.GetMetadata("tokens"); !ok || v != 100 {
-		t.Errorf("expected 100, got %v ok=%v", v, ok)
-	}
-	if _, ok := tc.GetMetadata("non-exist"); ok {
-		t.Error("expected not ok for non-exist")
-	}
-}
-
-// 6. Metadata 返回副本
-func TestTraceContextMetadataCopy(t *testing.T) {
-	tc := NewTraceContext("", "")
-	tc.SetMetadata("k1", "v1")
-	m := tc.Metadata()
-	m["k1"] = "modified"
-	if v, _ := tc.GetMetadata("k1"); v != "v1" {
-		t.Errorf("expected v1 (copy), got %v", v)
-	}
-}
-
-// 7. InjectContext 注入 trace_id
+// 5. InjectContext 注入 trace_id
 func TestTraceContextInjectContext(t *testing.T) {
 	tc := NewTraceContext("trace-abc", "")
 	ctx := tc.InjectContext(context.Background())
@@ -123,32 +97,25 @@ func TestTraceContextNilSafe(t *testing.T) {
 	}
 }
 
-// 10. TraceEvent 表名
-func TestTraceEventTableName(t *testing.T) {
-	if (TraceEvent{}).TableName() != "trace_events" {
-		t.Error("expected trace_events")
-	}
-}
-
-// 11. InMemoryTraceBus Publish / Subscribe
+// 9. InMemoryTraceBus Publish / Subscribe
 func TestInMemoryTraceBusPublish(t *testing.T) {
 	bus := NewInMemoryTraceBus()
 	defer bus.Stop()
 	var got atomic.Int32
 	var mu sync.Mutex
-	var received TraceEvent
+	var received model.TraceEvent
 	bus.Subscribe(&testSubscriber{
-		fn: func(e TraceEvent) {
+		fn: func(e model.TraceEvent) {
 			mu.Lock()
 			defer mu.Unlock()
 			received = e
 			got.Add(1)
 		},
 	})
-	bus.Publish(TraceEvent{
+	bus.Publish(model.TraceEvent{
 		TraceID:   "trace-1",
 		SpanID:    "span-1",
-		Kind:      TraceSpanKindLLMCall,
+		Kind:      model.TraceSpanKindLLMCall,
 		Operation: "chat_completion",
 		Timestamp: time.Now(),
 	})
@@ -169,10 +136,10 @@ func TestInMemoryTraceBusMultiSubscribers(t *testing.T) {
 	bus := NewInMemoryTraceBus()
 	defer bus.Stop()
 	var count atomic.Int32
-	sub := &testSubscriber{fn: func(e TraceEvent) { count.Add(1) }}
+	sub := &testSubscriber{fn: func(e model.TraceEvent) { count.Add(1) }}
 	bus.Subscribe(sub)
 	bus.Subscribe(sub)
-	bus.Publish(TraceEvent{TraceID: "t1", SpanID: "s1", Timestamp: time.Now()})
+	bus.Publish(model.TraceEvent{TraceID: "t1", SpanID: "s1", Timestamp: time.Now()})
 	deadline := time.Now().Add(500 * time.Millisecond)
 	for time.Now().Before(deadline) && count.Load() < 2 {
 		time.Sleep(10 * time.Millisecond)
@@ -200,7 +167,7 @@ func TestInMemoryTraceBusStop(t *testing.T) {
 func TestInMemoryTraceBusStopPublish(t *testing.T) {
 	bus := NewInMemoryTraceBus()
 	bus.Stop()
-	bus.Publish(TraceEvent{TraceID: "t1", SpanID: "s1"})
+	bus.Publish(model.TraceEvent{TraceID: "t1", SpanID: "s1"})
 }
 
 // 16. PublishTraceEvent 自动补全字段
@@ -215,17 +182,17 @@ func TestPublishTraceEventAutoFill(t *testing.T) {
 	defer func() { globalTraceBus = oldBus }()
 	var got atomic.Int32
 	var mu sync.Mutex
-	var received TraceEvent
+	var received model.TraceEvent
 	bus.Subscribe(&testSubscriber{
-		fn: func(e TraceEvent) {
+		fn: func(e model.TraceEvent) {
 			mu.Lock()
 			defer mu.Unlock()
 			received = e
 			got.Add(1)
 		},
 	})
-	PublishTraceEvent(TraceEvent{
-		Kind:      TraceSpanKindDBOp,
+	PublishTraceEvent(model.TraceEvent{
+		Kind:      model.TraceSpanKindDBOp,
 		Operation: "SELECT",
 	})
 	deadline := time.Now().Add(500 * time.Millisecond)
@@ -258,9 +225,9 @@ func TestPublishLLMCall(t *testing.T) {
 	defer func() { globalTraceBus = oldBus }()
 	var got atomic.Int32
 	var mu sync.Mutex
-	var received TraceEvent
+	var received model.TraceEvent
 	bus.Subscribe(&testSubscriber{
-		fn: func(e TraceEvent) {
+		fn: func(e model.TraceEvent) {
 			mu.Lock()
 			defer mu.Unlock()
 			received = e
@@ -275,7 +242,7 @@ func TestPublishLLMCall(t *testing.T) {
 	if got.Load() != 1 {
 		t.Fatalf("expected 1 event, got %d", got.Load())
 	}
-	if received.Kind != TraceSpanKindLLMCall {
+	if received.Kind != model.TraceSpanKindLLMCall {
 		t.Errorf("expected llm_call, got %s", received.Kind)
 	}
 	if received.Operation != "chat_completion" {
@@ -297,81 +264,7 @@ func TestPublishLLMCall(t *testing.T) {
 	}
 }
 
-// 18. PublishToolCall 发布工具调用事件
-func TestPublishToolCall(t *testing.T) {
-	bus := NewInMemoryTraceBus()
-	defer bus.Stop()
-	// 先把 Once 走完再注入：PublishTraceEvent 走 GetGlobalTraceBus()，
-	// 若 Once 还没执行，它会在闭包里覆盖掉这里刚设置的 bus，订阅者就永远收不到事件。
-	InitGlobalTraceBus()
-	oldBus := globalTraceBus
-	globalTraceBus = bus
-	defer func() { globalTraceBus = oldBus }()
-	var got atomic.Int32
-	var mu sync.Mutex
-	var received TraceEvent
-	bus.Subscribe(&testSubscriber{
-		fn: func(e TraceEvent) {
-			mu.Lock()
-			defer mu.Unlock()
-			received = e
-			got.Add(1)
-		},
-	})
-	PublishToolCall(0, "trace-1", "span-1", "", "send_email", 200, "ok", nil)
-	deadline := time.Now().Add(500 * time.Millisecond)
-	for time.Now().Before(deadline) && got.Load() == 0 {
-		time.Sleep(10 * time.Millisecond)
-	}
-	if got.Load() != 1 {
-		t.Fatalf("expected 1 event, got %d", got.Load())
-	}
-	if received.Kind != TraceSpanKindToolCall {
-		t.Errorf("expected tool_call, got %s", received.Kind)
-	}
-	if received.Operation != "send_email" {
-		t.Errorf("expected send_email, got %s", received.Operation)
-	}
-}
-
-// 19. PublishDBOp 发布 DB 操作事件
-func TestPublishDBOp(t *testing.T) {
-	bus := NewInMemoryTraceBus()
-	defer bus.Stop()
-	// 先把 Once 走完再注入：PublishTraceEvent 走 GetGlobalTraceBus()，
-	// 若 Once 还没执行，它会在闭包里覆盖掉这里刚设置的 bus，订阅者就永远收不到事件。
-	InitGlobalTraceBus()
-	oldBus := globalTraceBus
-	globalTraceBus = bus
-	defer func() { globalTraceBus = oldBus }()
-	var got atomic.Int32
-	var mu sync.Mutex
-	var received TraceEvent
-	bus.Subscribe(&testSubscriber{
-		fn: func(e TraceEvent) {
-			mu.Lock()
-			defer mu.Unlock()
-			received = e
-			got.Add(1)
-		},
-	})
-	PublishDBOp(0, "trace-1", "span-1", "", "SELECT customers", 50, "ok", map[string]any{"rows": 10})
-	deadline := time.Now().Add(500 * time.Millisecond)
-	for time.Now().Before(deadline) && got.Load() == 0 {
-		time.Sleep(10 * time.Millisecond)
-	}
-	if got.Load() != 1 {
-		t.Fatalf("expected 1 event, got %d", got.Load())
-	}
-	if received.Kind != TraceSpanKindDBOp {
-		t.Errorf("expected db_op, got %s", received.Kind)
-	}
-	if received.Metadata["rows"] != 10 {
-		t.Errorf("expected 10 rows, got %v", received.Metadata["rows"])
-	}
-}
-
-// 20. MarshalMetadata / UnmarshalMetadata
+// 18. MarshalMetadata / UnmarshalMetadata
 func TestMarshalUnmarshalMetadata(t *testing.T) {
 	m := map[string]any{"k1": "v1", "k2": 42}
 	s := MarshalMetadata(m)
@@ -430,28 +323,28 @@ func TestGenerateTraceIDUnique(t *testing.T) {
 	}
 }
 
-// 26. TraceContext 并发安全 metadata
-func TestTraceContextConcurrentMetadata(t *testing.T) {
+// 26. TraceContext 并发安全（SetSpanIDFor 与读路径共用同一把锁）
+func TestTraceContextConcurrentSpanID(t *testing.T) {
 	tc := NewTraceContext("", "")
 	var wg sync.WaitGroup
 	for i := 0; i < 100; i++ {
 		wg.Add(1)
 		go func(i int) {
 			defer wg.Done()
-			tc.SetMetadata(string(rune('a'+i%26)), i)
-			_, _ = tc.GetMetadata("k")
+			tc.SetSpanIDFor(fmt.Sprintf("span-%d", i))
+			_ = tc.SpanID()
 		}(i)
 	}
 	wg.Wait()
 }
 
-// 27. TraceEvent DB 持久化（端到端）
+// 27. model.TraceEvent DB 持久化（端到端）
 func TestTraceEventPersist(t *testing.T) {
-	db := testutil.NewTestDB(t, &TraceEvent{})
-	event := TraceEvent{
+	db := testutil.NewTestDB(t, &model.TraceEvent{})
+	event := model.TraceEvent{
 		TraceID:    "trace-persist-1",
 		SpanID:     "span-persist-1",
-		Kind:       TraceSpanKindLLMCall,
+		Kind:       model.TraceSpanKindLLMCall,
 		Service:    "llm",
 		Operation:  "chat_completion",
 		DurationMs: 100,
@@ -462,7 +355,7 @@ func TestTraceEventPersist(t *testing.T) {
 	if err := db.Create(&event).Error; err != nil {
 		t.Fatalf("create failed: %v", err)
 	}
-	var got TraceEvent
+	var got model.TraceEvent
 	if err := db.Where("span_id = ?", "span-persist-1").First(&got).Error; err != nil {
 		t.Fatalf("query failed: %v", err)
 	}
@@ -474,15 +367,15 @@ func TestTraceEventPersist(t *testing.T) {
 	}
 }
 
-// 28. TraceEvent 按 trace_id 查询
+// 28. model.TraceEvent 按 trace_id 查询
 func TestTraceEventQueryByTraceID(t *testing.T) {
-	db := testutil.NewTestDB(t, &TraceEvent{})
+	db := testutil.NewTestDB(t, &model.TraceEvent{})
 	traceID := "trace-multi"
 	for i := 0; i < 3; i++ {
-		event := TraceEvent{
+		event := model.TraceEvent{
 			TraceID:   traceID,
 			SpanID:    "span-" + string(rune('a'+i)),
-			Kind:      TraceSpanKindLLMCall,
+			Kind:      model.TraceSpanKindLLMCall,
 			Service:   "llm",
 			Operation: "chat_completion",
 			Status:    "ok",
@@ -492,7 +385,7 @@ func TestTraceEventQueryByTraceID(t *testing.T) {
 			t.Fatalf("create failed: %v", err)
 		}
 	}
-	var events []TraceEvent
+	var events []model.TraceEvent
 	if err := db.Where("trace_id = ?", traceID).Order("timestamp ASC").Find(&events).Error; err != nil {
 		t.Fatalf("query failed: %v", err)
 	}
@@ -534,9 +427,9 @@ func TestGetGlobalTraceBusConcurrentFirstPublish(t *testing.T) {
 	for i := 0; i < n; i++ {
 		go func(i int) {
 			defer wg.Done()
-			PublishTraceEvent(TraceEvent{
+			PublishTraceEvent(model.TraceEvent{
 				TraceID: fmt.Sprintf("%032x", i+1),
-				Kind:    TraceSpanKindLog,
+				Kind:    model.TraceSpanKindLog,
 				Service: "race-guard",
 			})
 		}(i)
@@ -549,10 +442,10 @@ func TestGetGlobalTraceBusConcurrentFirstPublish(t *testing.T) {
 }
 
 type testSubscriber struct {
-	fn func(event TraceEvent)
+	fn func(event model.TraceEvent)
 }
 
-func (s *testSubscriber) OnEvent(event TraceEvent) {
+func (s *testSubscriber) OnEvent(event model.TraceEvent) {
 	if s.fn != nil {
 		s.fn(event)
 	}

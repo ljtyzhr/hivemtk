@@ -272,10 +272,21 @@ func TestTenantService_LoginAmbiguousUsername(t *testing.T) {
 }
 
 // TestTenantService_LoginSuspendedTenant 租户停用后登录受限 → 4107，数据保留
+//
+// 先开一个首租户再开被测租户：首租户＝平台运营方租户，不允许停用
+// （防护与其回归见 service.UpdateTenantStatus / tenant_first_tenant_protection_test.go），
+// 直接停用第一个租户会撞上那道防护，测的就不是「停用受限」而是「停用被拒」了。
 func TestTenantService_LoginSuspendedTenant(t *testing.T) {
 	withTenantMode(t, tenant.ModeOn)
 	setupTenantTestDB(t)
 	ts := NewTenantService()
+
+	operatorReq := validRegisterReq()
+	operatorReq.Email = "operator@b.com"
+	operatorReq.Name = "平台运营方"
+	if _, err := ts.RegisterTenant(context.Background(), operatorReq, "10.0.0.6", "TestUA/1.0"); err != nil {
+		t.Fatalf("首租户（平台运营方）开户失败: %v", err)
+	}
 
 	req := validRegisterReq()
 	created, err := ts.RegisterTenant(context.Background(), req, "10.0.0.7", "TestUA/1.0")

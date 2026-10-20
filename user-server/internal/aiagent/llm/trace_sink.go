@@ -6,6 +6,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 
@@ -24,7 +25,7 @@ import (
 //   - 零依赖耦合：不依赖任何业务包；可独立注入 main.go 启动序列。
 type DBTraceSink struct {
 	db     *gorm.DB
-	buffer chan TraceEvent
+	buffer chan model.TraceEvent
 
 	stopCh   chan struct{}
 	stopOnce sync.Once
@@ -80,7 +81,7 @@ func DBSinkBufferSize() int {
 func NewDBTraceSink(db *gorm.DB) *DBTraceSink {
 	return &DBTraceSink{
 		db:     db,
-		buffer: make(chan TraceEvent, DBSinkBufferSize()),
+		buffer: make(chan model.TraceEvent, DBSinkBufferSize()),
 		stopCh: make(chan struct{}),
 		doneCh: make(chan struct{}),
 	}
@@ -98,7 +99,7 @@ func (s *DBTraceSink) Start() {
 }
 
 // OnEvent 实现 TraceEventSubscriber。非阻塞：缓冲满则丢弃并计数。
-func (s *DBTraceSink) OnEvent(event TraceEvent) {
+func (s *DBTraceSink) OnEvent(event model.TraceEvent) {
 	if event.Timestamp.IsZero() {
 		event.Timestamp = time.Now()
 	}
@@ -133,7 +134,7 @@ func (s *DBTraceSink) flushLoop() {
 	ticker := time.NewTicker(dbSinkFlushPeriod)
 	defer ticker.Stop()
 
-	batch := make([]TraceEvent, 0, dbSinkBatchSize)
+	batch := make([]model.TraceEvent, 0, dbSinkBatchSize)
 	flush := func() {
 		if len(batch) == 0 {
 			return
@@ -197,7 +198,7 @@ func (s *DBTraceSink) flushLoop() {
 	}
 }
 
-func traceEventToRow(e TraceEvent) map[string]any {
+func traceEventToRow(e model.TraceEvent) map[string]any {
 	row := map[string]any{
 		"trace_id":    e.TraceID,
 		"span_id":     e.SpanID,

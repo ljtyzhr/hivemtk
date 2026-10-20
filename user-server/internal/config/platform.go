@@ -82,12 +82,42 @@ var PlatformCfg *PlatformConfig
 //
 // 判真的方向刻意保守：只有明确真值才开，拼错/空/陌生值一律关。
 // 因为"意外开启"= 朝一个可能已下线的地址发请求，"意外关闭"= 少一个可选功能。
+//
+// 拼错**不报错**（与 TENANT_MODE 不同，这是有意的）：
+//   - TENANT_MODE 拼错 ⇒ SaaS 部署的所有租户数据被写进默认租户 1 ⇒ 数据损坏，
+//     所以那边是"拒绝启动"（tenant.InitFromEnv）。
+//   - PLATFORM_ENABLED 拼错 ⇒ 只是少一个可选功能（资产市场/模块下发/心跳），
+//     业务数据完好 ⇒ 那边是"保守关闭"。
+//
+// 但**沉默关闭**有个真实危害：运维看到日志写"PLATFORM_ENABLED 未设置"就以为
+// 平台没接、开始查别的方向，而真相是"你拼错了开关"。
+// ⇒ 这里只回 bool（判真方向不变），把"是拼错还是没设"的区分交给
+// ResolvePlatformEnabled，由调用方在启动日志里如实说。
 func PlatformEnabled() bool {
-	switch strings.ToLower(strings.TrimSpace(os.Getenv("PLATFORM_ENABLED"))) {
+	enabled, _ := ResolvePlatformEnabled(os.Getenv("PLATFORM_ENABLED"))
+	return enabled
+}
+
+// ResolvePlatformEnabled 解析 PLATFORM_ENABLED 环境变量值。
+// 返回 (是否开启, 取值是否已知)：
+//   - 空串/未设置 → false+true（明确关闭）
+//   - true/1/on/yes → true+true
+//   - false/0/off/no → false+true
+//   - 其他值 → false+**false**（拼错：保守关闭，但让调用方能说清真相）
+//
+// 大小写不敏感，容忍首尾空白。
+func ResolvePlatformEnabled(env string) (bool, bool) {
+	v := strings.ToLower(strings.TrimSpace(env))
+	switch v {
+	case "":
+		return false, true
 	case "true", "1", "on", "yes":
-		return true
+		return true, true
+	case "false", "0", "off", "no":
+		return false, true
+	default:
+		return false, false
 	}
-	return false
 }
 
 // PlatformURL 解析平台对外地址：关闭态恒为空串；开启态取 已装配配置 > 环境变量 > 空串。

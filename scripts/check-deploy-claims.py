@@ -136,6 +136,39 @@ GLOB_FACE: list[tuple[Path, tuple[str, ...]]] = [
 IGNORE_MARK = "deploy-claim:historical"
 
 MAKE_TOKEN = re.compile(r"\bmake\s+([a-z][a-z0-9_-]*)")
+
+
+def make_token_is_prose(line: str, tail_start: int) -> bool:
+    """这个 `make <token>` 是英文散文的动词，不是待敲的命令。
+
+    为什么需要这一层：`MAKE_TOKEN` 只认「make + 小写词」的形状，于是英文句子里的
+    动词 `make` 也会被抽成命令。实测踩坑：官网英文词条
+    "Offline deployments with PLATFORM_ENABLED=false **make no** outbound requests: …"
+    ——`no` 被当成 make target，而 Makefile 里查无此名 ⇒ 门把一句正确的英文判红
+    （2026-10-20 实测，`website/src/i18n/modules/contentExtra6.js:95`）。
+
+    判据：**命令里的 target 终结命令**，它后面跟的是分隔符（反引号、标点、换行、
+    行尾）或非拉丁文字；英文散文里的 `make <词>` 后面还跟着**另一个小写单词**
+    （"make no outbound requests"、"make up your mind"）。
+    故：token 之后（跨过空格）若紧跟一个小写 ASCII 字母 ⇒ 判为散文，不报。
+
+    口径边界（按本仓「门禁口径盲区」的规矩写明）：
+      - 只在"该 token 不是真 target"这条分支上生效；真 target 本来就不报，
+        少走一次判据不影响任何检测结果。
+      - **代价**：英文散文里不带反引号的坏口径（"run make bogus and restart"）
+        会漏报。仓里的对外口径一律把命令放反引号（实测 370 个 make 令牌里 135 个
+        在反引号内，其余在中文句子里跟的是非拉丁文字），所以这条边界不咬合真实口径。
+      - 实测抑制面：全扫描面只有 9 个 token 命中"后接小写单词"，其中**只有 1 个**
+        是当前会被报出来的（就是上面那条假红），其余 8 个都是真 target
+        （inference-host-logs / install / dev / user-build）——即本判据零真实漏报。
+    """
+    i = tail_start
+    while i < len(line) and line[i] in " \t":
+        i += 1
+    if i >= len(line):
+        return False
+    ch = line[i]
+    return ch.isascii() and ch.islower()
 # 容器/卷/网络名一律 mtk[-_]xxx；下划线那一档是卷（mtk_user_pg_data），
 # 只认连字符会把"数据卷 mtk_user_logs"这类假名字整个放过。
 MTK_NAME = re.compile(r"\bmtk[-_][A-Za-z0-9][A-Za-z0-9_-]*\b")
@@ -645,9 +678,10 @@ def main() -> int:
             continue
         line = render(raw)
         rel = path.relative_to(REPO_ROOT)
-        for tok in MAKE_TOKEN.findall(line):
+        for mo in MAKE_TOKEN.finditer(line):
+            tok = mo.group(1)
             make_hits += 1
-            if tok not in targets:
+            if tok not in targets and not make_token_is_prose(line, mo.end()):
                 why = ("只在 .PHONY 挂名（`make -n` 实测退 0、只印 Nothing to be done ⇒ 客户以为起来了）"
                        if tok in phony_only else "Makefile 里查无此名（`make` 直接 rc=2 报错）")
                 red.append(f"{rel}:{no} 教人敲 `make {tok}` —— {why}")

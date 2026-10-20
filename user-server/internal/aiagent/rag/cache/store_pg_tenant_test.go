@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/testutil"
 )
@@ -15,7 +16,7 @@ func TestPGAnswerCacheStore_TenantIsolation(t *testing.T) {
 	tenant.SetMode(tenant.ModeOn)
 	t.Cleanup(func() { tenant.SetMode(tenant.ModeOff) })
 
-	db := testutil.NewTestDB(t, &RAGAnswerCache{})
+	db := testutil.NewTestDB(t, &model.RAGAnswerCache{})
 	store := NewPGAnswerCacheStore(db)
 
 	vec := make([]float32, 1024)
@@ -66,5 +67,56 @@ func TestPGAnswerCacheStore_TenantIsolation(t *testing.T) {
 	// on 模式无租户绑定必须 fail-closed，不得退化为全表可见
 	if _, err := store.GetExact(context.Background(), "kb-tenant", "v1", vec); err == nil {
 		t.Fatal("无租户 ctx 的查询未被拒绝")
+	}
+}
+
+// Delete 走 Table()+Delete(nil) 形态，隔离 callback 必须照样注入 tenant_id 谓词：
+// 只按 id 删会让 A 租户的缓存行被任意其他租户（拿到 id 的那一方）删掉。
+func TestPGAnswerCacheStore_DeleteIsTenantScoped(t *testing.T) {
+	tenant.SetMode(tenant.ModeOn)
+	t.Cleanup(func() { tenant.SetMode(tenant.ModeOff) })
+
+	db := testutil.NewTestDB(t, &model.RAGAnswerCache{})
+	store := NewPGAnswerCacheStore(db)
+
+	vec := make([]float32, 1024)
+	for i := range vec {
+		vec[i] = 0.002
+	}
+	ctxA := tenant.WithTenantID(context.Background(), 31)
+	ctxB := tenant.WithTenantID(context.Background(), 32)
+
+	if err := store.Put(ctxA, &Entry{
+		KBID: "kb-del", PromptVersion: "v1", QueryVector: vec,
+		Answer: "answer-A", KBUpdatedAt: time.Now().Add(-time.Minute),
+	}); err != nil {
+		t.Fatalf("Put: %v", err)
+	}
+	rowA, err := store.GetExact(ctxA, "kb-del", "v1", vec)
+	if err != nil || rowA == nil {
+		t.Fatalf("A 写入后读不到: err=%v row=%+v", err, rowA)
+	}
+
+	if err := store.Delete(ctxB, rowA.ID); err != nil {
+		t.Fatalf("跨租户 Delete 应被租户谓词吸收为 0 行而不是报错: %v", err)
+	}
+	if got, err := store.GetExact(ctxA, "kb-del", "v1", vec); err != nil || got == nil {
+		t.Fatalf("B 把 A 的缓存行删掉了: err=%v got=%+v", err, got)
+	}
+
+	if err := store.Delete(context.Background(), rowA.ID); err == nil {
+		t.Fatal("无租户 ctx 的删除未被拒绝")
+	}
+	if got, err := store.GetExact(ctxA, "kb-del", "v1", vec); err != nil || got == nil {
+		t.Fatalf("fail-closed 删除后 A 的行应当仍在: err=%v got=%+v", err, got)
+	}
+
+	if err := store.Delete(ctxA, rowA.ID); err != nil {
+		t.Fatalf("本租户 Delete: %v", err)
+	}
+	if got, err := store.GetExact(ctxA, "kb-del", "v1", vec); err != nil {
+		t.Fatalf("GetExact after delete: %v", err)
+	} else if got != nil {
+		t.Fatalf("A 删除后仍能读到: %+v", got)
 	}
 }

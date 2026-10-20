@@ -31,7 +31,7 @@ func (c *ABExperimentController) CreateExperiment(ctx *gin.Context) {
 		return
 	}
 
-	experiment, err := c.abService.CreateExperiment(&req)
+	experiment, err := c.abService.CreateExperiment(ctx.Request.Context(), &req)
 	if errhttp.HandleDBError(ctx, err, "创建实验") {
 		return
 	}
@@ -48,7 +48,7 @@ func (c *ABExperimentController) GetExperiment(ctx *gin.Context) {
 		return
 	}
 
-	experiment, err := c.abService.GetExperiment(uint(id))
+	experiment, err := c.abService.GetExperiment(ctx.Request.Context(), uint(id))
 	if err != nil {
 		response.Error(ctx, http.StatusNotFound, err.Error())
 		return
@@ -63,7 +63,7 @@ func (c *ABExperimentController) GetExperimentList(ctx *gin.Context) {
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(ctx.DefaultQuery("page_size", "10"))
 
-	experiments, total, err := c.abService.GetExperimentList(page, pageSize)
+	experiments, total, err := c.abService.GetExperimentList(ctx.Request.Context(), page, pageSize)
 	if err != nil {
 		response.Error(ctx, http.StatusInternalServerError, err.Error())
 		return
@@ -92,7 +92,7 @@ func (c *ABExperimentController) UpdateExperiment(ctx *gin.Context) {
 		return
 	}
 
-	experiment, err := c.abService.UpdateExperiment(uint(id), &req)
+	experiment, err := c.abService.UpdateExperiment(ctx.Request.Context(), uint(id), &req)
 	if errhttp.HandleDBError(ctx, err, "更新实验") {
 		return
 	}
@@ -109,7 +109,7 @@ func (c *ABExperimentController) DeleteExperiment(ctx *gin.Context) {
 		return
 	}
 
-	if errhttp.HandleDBError(ctx, c.abService.DeleteExperiment(uint(id)), "删除实验") {
+	if errhttp.HandleDBError(ctx, c.abService.DeleteExperiment(ctx.Request.Context(), uint(id)), "删除实验") {
 		return
 	}
 
@@ -125,7 +125,7 @@ func (c *ABExperimentController) StartExperiment(ctx *gin.Context) {
 		return
 	}
 
-	if errhttp.HandleDBError(ctx, c.abService.StartExperiment(uint(id)), "启动实验") {
+	if errhttp.HandleDBError(ctx, c.abService.StartExperiment(ctx.Request.Context(), uint(id)), "启动实验") {
 		return
 	}
 
@@ -141,7 +141,7 @@ func (c *ABExperimentController) PauseExperiment(ctx *gin.Context) {
 		return
 	}
 
-	if errhttp.HandleDBError(ctx, c.abService.PauseExperiment(uint(id)), "暂停实验") {
+	if errhttp.HandleDBError(ctx, c.abService.PauseExperiment(ctx.Request.Context(), uint(id)), "暂停实验") {
 		return
 	}
 
@@ -157,7 +157,7 @@ func (c *ABExperimentController) StopExperiment(ctx *gin.Context) {
 		return
 	}
 
-	if errhttp.HandleDBError(ctx, c.abService.StopExperiment(uint(id)), "停止实验") {
+	if errhttp.HandleDBError(ctx, c.abService.StopExperiment(ctx.Request.Context(), uint(id)), "停止实验") {
 		return
 	}
 
@@ -173,7 +173,7 @@ func (c *ABExperimentController) GetExperimentResults(ctx *gin.Context) {
 		return
 	}
 
-	results, err := c.abService.GetExperimentResults(uint(id))
+	results, err := c.abService.GetExperimentResults(ctx.Request.Context(), uint(id))
 	if errhttp.HandleDBError(ctx, err, "获取实验结果") {
 		return
 	}
@@ -193,7 +193,7 @@ func (c *ABExperimentController) GetConversionEvents(ctx *gin.Context) {
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(ctx.DefaultQuery("page_size", "10"))
 
-	events, total, err := c.abService.GetConversionEvents(uint(id), page, pageSize)
+	events, total, err := c.abService.GetConversionEvents(ctx.Request.Context(), uint(id), page, pageSize)
 	if err != nil {
 		response.Error(ctx, http.StatusInternalServerError, err.Error())
 		return
@@ -218,9 +218,9 @@ func (c *ABExperimentController) GetAdvancedStats(ctx *gin.Context) {
 	var out map[string]any
 	switch method {
 	case "bayesian":
-		out, err = c.abService.GetBayesianTest(uint(id))
+		out, err = c.abService.GetBayesianTest(ctx.Request.Context(), uint(id))
 	default:
-		out, err = c.abService.GetAdvancedStats(uint(id))
+		out, err = c.abService.GetAdvancedStats(ctx.Request.Context(), uint(id))
 	}
 	if errhttp.HandleDBError(ctx, err, "查询实验统计") {
 		return
@@ -235,7 +235,7 @@ func (c *ABExperimentController) GetExperimentDiagnostics(ctx *gin.Context) {
 		response.Error(ctx, http.StatusBadRequest, "无效的实验 ID")
 		return
 	}
-	out, err := c.abService.GetDiagnostics(uint(id))
+	out, err := c.abService.GetDiagnostics(ctx.Request.Context(), uint(id))
 	if errhttp.HandleDBError(ctx, err, "查询实验诊断") {
 		return
 	}
@@ -249,7 +249,7 @@ func (c *ABExperimentController) GetExperimentCUPED(ctx *gin.Context) {
 		response.Error(ctx, http.StatusBadRequest, "无效的实验 ID")
 		return
 	}
-	out, err := c.abService.GetCUPED(uint(id))
+	out, err := c.abService.GetCUPED(ctx.Request.Context(), uint(id))
 	if errhttp.HandleDBError(ctx, err, "查询 CUPED") {
 		return
 	}
@@ -267,7 +267,7 @@ func (c *ABExperimentController) PostSequentialTest(ctx *gin.Context) {
 		Alpha float64 `json:"alpha"`
 	}
 	_ = ctx.ShouldBindJSON(&req)
-	out, err := c.abService.GetSequentialTest(uint(id), req.Alpha)
+	out, err := c.abService.GetSequentialTest(ctx.Request.Context(), uint(id), req.Alpha)
 	if errhttp.HandleDBError(ctx, err, "序贯检验") {
 		return
 	}
@@ -281,7 +281,7 @@ func (c *ABExperimentController) PostBayesianTest(ctx *gin.Context) {
 		response.Error(ctx, http.StatusBadRequest, "无效的实验 ID")
 		return
 	}
-	out, err := c.abService.GetBayesianTest(uint(id))
+	out, err := c.abService.GetBayesianTest(ctx.Request.Context(), uint(id))
 	if errhttp.HandleDBError(ctx, err, "贝叶斯检验") {
 		return
 	}
@@ -295,7 +295,7 @@ func (c *ABExperimentController) GetResultsWithReach(ctx *gin.Context) {
 		response.Error(ctx, http.StatusBadRequest, "无效的实验 ID")
 		return
 	}
-	out, err := c.abService.GetResultsWithReach(uint(id))
+	out, err := c.abService.GetResultsWithReach(ctx.Request.Context(), uint(id))
 	if errhttp.HandleDBError(ctx, err, "查询触达聚合结果") {
 		return
 	}

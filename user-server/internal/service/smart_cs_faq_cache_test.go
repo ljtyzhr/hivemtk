@@ -85,7 +85,7 @@ func TestSetFAQAnswerCache_InjectsBothHalves(t *testing.T) {
 // 置信度阈值取 0.5：精确层命中的相似度按定义是 1（见 rag/cache/service.go 里那条注释），
 // 这一格同时也是那个口径的现场证据 —— 精确命中若交回 0，这里就会变成"没命中"。
 func TestLookupFAQAnswerCache_ExactHitServesCachedAnswer(t *testing.T) {
-	database := testutil.NewTestDB(t, &model.KnowledgeBase{}, &ragcache.RAGAnswerCache{})
+	database := testutil.NewTestDB(t, &model.KnowledgeBase{}, &model.RAGAnswerCache{})
 	ctx := context.Background()
 	kbIDStr := newFAQCacheKB(t, database, "kb-faq-cache-mount")
 
@@ -122,7 +122,7 @@ func TestLookupFAQAnswerCache_ExactHitServesCachedAnswer(t *testing.T) {
 // TestLookupFAQAnswerCache_SimilarityBelowConfidenceFallsThrough 语义层命中但相似度低于
 // 编排器置信度阈值时，缓存不得成为"免检通道"：交回未命中，让正常降级链继续跑。
 func TestLookupFAQAnswerCache_SimilarityBelowConfidenceFallsThrough(t *testing.T) {
-	database := testutil.NewTestDB(t, &model.KnowledgeBase{}, &ragcache.RAGAnswerCache{})
+	database := testutil.NewTestDB(t, &model.KnowledgeBase{}, &model.RAGAnswerCache{})
 	ctx := context.Background()
 	kbIDStr := newFAQCacheKB(t, database, "kb-faq-cache-falls-through")
 

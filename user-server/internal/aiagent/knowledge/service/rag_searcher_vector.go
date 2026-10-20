@@ -7,8 +7,7 @@ import (
 	"strings"
 
 	"hivemtk-user/internal/pkg/kbrelease"
-
-	"gorm.io/gorm/clause"
+	"hivemtk-user/internal/pkg/pgvector"
 )
 
 func (s *RagSearcher) vectorSearch(ctx context.Context, productID string, query string, topK int) ([]scored, error) {
@@ -33,7 +32,7 @@ func (s *RagSearcher) vectorSearch(ctx context.Context, productID string, query 
 	} else if vis := kbrelease.AndVisible(); vis != "" {
 		q = q.Where(strings.TrimPrefix(vis, " AND "))
 	}
-	q = q.Order(clause.Expr{SQL: "embedding <=> ?::vector", Vars: []any{vecLiteral}}).Limit(topK)
+	q = q.Order(pgvector.OrderByEmbeddingDistance(vecLiteral)).Limit(topK)
 	if err := q.Scan(&rows).Error; err != nil {
 		return nil, err
 	}

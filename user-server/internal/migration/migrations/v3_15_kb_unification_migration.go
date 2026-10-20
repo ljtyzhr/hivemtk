@@ -174,10 +174,13 @@ func (m *KBUnificationMigration) Down(ctx context.Context) error {
 	declineColumnDrop(m.Version(), "knowledge_documents.agent_id", "sop_templates.agent_id",
 		"faq_entries.agent_id")
 
-	stmts := []string{
-		`DROP TABLE IF EXISTS agent_kb_bindings`,
-		`DROP TABLE IF EXISTS knowledge_bases`,
-	}
+	// agent_kb_bindings / knowledge_bases 已登记为 GORM 模型
+	//（&model.AgentKBBinding{} / &model.KnowledgeBase{}，见 internal/pkg/db/migrate.go 的 allModels），
+	// 建表事实源是 AutoMigrate ⇒ 本迁移的 Up 里的 CREATE TABLE IF NOT EXISTS 是空操作，
+	// 这两张表不是本迁移建的，Down 不得销毁它们（知识库与绑定数据丢失不可恢复）。
+	declineTableDrop(m.Version(), "agent_kb_bindings", "knowledge_bases")
+
+	stmts := []string{}
 	for _, s := range stmts {
 		if err := m.db.WithContext(ctx).Exec(s).Error; err != nil {
 			return fmt.Errorf("v3.15 回滚失败: %w (SQL: %s)", err, s)

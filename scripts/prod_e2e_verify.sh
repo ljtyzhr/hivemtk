@@ -30,7 +30,7 @@ for v in QA_EPAY_KEY QA_PLATFORM_ADMIN_USER QA_PLATFORM_ADMIN_PASSWORD; do
   if [ -z "${!v:-}" ]; then missing="$missing $v"; fi
 done
 if [ -n "$missing" ]; then
-  echo "缺少环境变量:$missing（脚本不内置口令；参见文件头部说明）" >&2
+  echo "缺少环境变量:${missing}（脚本不内置口令；参见文件头部说明）" >&2
   exit 2
 fi
 EPAY_KEY="$QA_EPAY_KEY"

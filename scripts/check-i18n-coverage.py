@@ -25,6 +25,23 @@
    其中 `menu.*` 那批不算：它们的消费方是拼接键 `t('menu.' + key)`（见
    `backend_menu_keys`），静态扫描看不见但页面确实在用，按后端注册表逐条豁免。
 
+消费路径必须穷举，否则门在惩罚做对的人
+----------------------------------------
+`LOCALE_ORPHAN` 判的是「词条库里没有消费方的词条」。但"消费方"不止 `t('字面量')`
+这一种形态，真实代码里至少还有三类在运行时确实被 t() 消费、静态扫描却看不见：
+
+  - **对象属性里存键、渲染时再消费**：`useOnboarding.ts` 的
+    `titleKey: 'setup.onboarding.module.<key>.step1.title'`（全族 setup.onboarding.*）。
+  - **字符串拼接的键前缀**：`user-web/src/constants/role.js` 的 `'roleName.' + v`、
+    `constants/enabled.js` 的三元 `'enabledLabel.enabled' : 'enabledLabel.disabled'`。
+  - **键名来自后端注册表**：`menu.*`（见 `backend_menu_keys`）。
+
+2026-10-20 实测踩坑：`4a60d3af` 修了「8 种非中文界面吐裸中文键」这个**真实缺陷**
+（往 9 个语言包补进 287 条中文字面量键，那批键正被 `t('中文')` 消费）。
+本门旧口径只把**点分**键算进"被引用"，于是这批正在使用的词条被判成孤儿，
+`locale_orphans` 从 1453 涨到 1833，把门判红——惩罚的正是做对的人。
+故本门的"被引用集合"必须穷举消费路径（见 `collect_literal_key_refs`）。
+
 三条棘轮（rc=1）
 ----------------
   - `RESOLVED_RATIO`  真 i18n 键占比 = 可解析点分键 / 全部 t() 键。
@@ -65,6 +82,7 @@ for _i, _a in enumerate(sys.argv):
 
 BASELINE_REL = Path("scripts") / "i18n-coverage-baseline.json"
 LOCALES_DIR = Path("user-web") / "src" / "i18n" / "locales"
+WEB_ROOT = Path("user-web")
 WEB_SRC = Path("user-web") / "src"
 GO_I18N_DIR = Path("user-server") / "internal" / "pkg" / "i18n"
 #: 后端菜单权威注册表（`var SystemMenuTree`）——`menu.*` 词条的真实消费方。
@@ -79,11 +97,29 @@ BASE_LOCALE = "zh"
 #:
 #: 前导否定 (?<![A-Za-z0-9_.]) 排掉 `foo.t(...)` / `point.t(...)` 这类同名方法；
 #: 排除 `.` 即可，不要把 `$` 排进去——`$` 正是我们要匹配的形态。
-T_CALL = re.compile(r"(?<![A-Za-z0-9_.])\$?t\(\s*'([^']*)'")
+#:
+#: **还必须认 `i18n.global.t('...')` / `i18n.t('...')`**：2026-10-20 实测本仓
+#: 有 736 处调用走这个形态，是**最主要**的消费方式；而上面那条前导否定恰好把
+#: 「接收者带点」的形态一并排掉了（`i18n.global` 的 `t` 前面正是 `.`），
+#: 于是这 736 处整类不可见。后果：词条库里的键被判成"无人引用"（假红），
+#: 而真正该被盯住的中文直传（`i18n.global.t('中文')`）反倒不被计数。
+#: 排除同名方法的责任交给「接收者必须字面是 i18n / i18n.global」这一条。
+T_CALL = re.compile(
+    r"(?<![A-Za-z0-9_.])\$?t\(\s*'([^']*)'"
+    r"|\bi18n(?:\.global)?\s*\.\s*\$?t\(\s*'([^']*)'"
+)
 #: 真 i18n key 的形状：至少两段、每段只含字母数字下划线
 DOTTED_KEY = re.compile(r"^[A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)+$")
+#: 键前缀形状：以 '.' 结尾、点前至少一段（排除 '.' / '...' 这类噪声字面量）
+PREFIX_KEY = re.compile(r"^[A-Za-z0-9_]+(?:\.[A-Za-z0-9_]+)*\.$")
+#: 引号字面量（单引号或双引号），用于抓「不是 t() 实参、但确实是 i18n 键」的写法
+QUOTED = re.compile(r"'([^'\n]*)'|\"([^\"\n]*)\"")
 
 SKIP_DIRS = {"node_modules", "dist", "coverage", ".git", ".nuxt"}
+#: 参与「字面量键」扫描的文件后缀——覆盖前端全部源码与用例。
+#: 不含 .md：文档里的示例键不是消费方。
+TEXT_SUFFIXES = {".vue", ".js", ".ts", ".jsx", ".tsx", ".mjs", ".cjs", ".html", ".json"}
+
 
 
 def fail(msg: str, code: int = 2):
@@ -155,8 +191,62 @@ def collect_t_call_keys() -> set[str]:
         except OSError:
             continue
         for m in T_CALL.finditer(t):
-            out.add(m.group(1))
+            key = m.group(1) if m.group(1) is not None else m.group(2)
+            # 伪键：`t('menu.' + key)` 这类拼接式调用会被正则截出前缀（'menu.'）。
+            # 它不是一条真键（真键不以 '.' 结尾），拼接键由 prefix 展开单独处理。
+            # **但 '...' 结尾是真键**（如 t('正在为您转接人工客服，请稍候...')）——
+            # 判据必须与前端提取器 i18n-extract.cjs 同款，否则这条真键会被误杀，
+            # 词条被当成死重量删掉，运行时回落成裸中文。
+            if key and not (key.endswith(".") and not key.endswith("...")):
+                out.add(key)
     return out
+
+
+def collect_literal_key_refs() -> tuple[set[str], set[str]]:
+    """扫出「以字面量形态出现」的 i18n 键引用。
+
+    为什么必须多这一层：T_CALL 只认 `t('字面量')` 的直接实参，而真实代码里
+    至少还有三类拼法在运行时确实被 t() 消费、静态扫描却看不见：
+
+      - **对象属性里存键、渲染时再消费**：`useOnboarding.ts` 的
+        `titleKey: 'setup.onboarding.module.<key>.step1.title'`（整族 setup.onboarding.*）。
+      - **字符串拼接的键前缀**：`user-web/src/constants/role.js` 的 `'roleName.' + v`、
+        `constants/enabled.js` 的三元 `'enabledLabel.enabled' : 'enabledLabel.disabled'`。
+      - **键名来自后端注册表**：`menu.*`（见 `backend_menu_keys`）。
+
+    漏掉它们的后果不是"数字难看"，是**门在惩罚做对的人**——见文件头
+    「消费路径必须穷举」一节。
+
+    口径：返回 (整键集合, 键前缀集合)。
+      - 整键：源码里出现过的、且与词条库某条 leaf **完全相等**的引号字面量；
+      - 前缀：以 '.' 结尾的引号字面量（'roleName.'），由调用方展开成该前缀下的全部词条。
+
+    必须是**完全相等**而不是子串包含：`ab.start` 是 `ab.startDate` 的子串，
+    用包含判会把 `ab.start` 这条真死词条误判成在用。
+
+    扫描面：user-web/ 下全部文本文件（排除 node_modules/dist/coverage/.git 与
+    语言包自身），含 tests/ —— 用例里断言过的键同样算"在用"。
+    """
+    base = REPO_ROOT / WEB_ROOT
+    if not base.is_dir():
+        fail(f"前端工程目录不存在: {base}")
+    literals: set[str] = set()
+    for p in base.rglob("*"):
+        if not p.is_file() or p.suffix not in TEXT_SUFFIXES:
+            continue
+        if any(seg in p.parts for seg in SKIP_DIRS):
+            continue
+        if p.parent == REPO_ROOT / LOCALES_DIR:
+            continue
+        try:
+            t = p.read_text(encoding="utf-8", errors="replace")
+        except OSError:
+            continue
+        for m in QUOTED.finditer(t):
+            literals.add(m.group(1) if m.group(1) is not None else m.group(2))
+    exact = {lit for lit in literals if DOTTED_KEY.match(lit)}
+    prefixes = {lit for lit in literals if PREFIX_KEY.match(lit)}
+    return exact, prefixes
 
 
 def go_msgid_counts() -> dict[str, int]:
@@ -201,7 +291,16 @@ def main() -> int:
     resolved = dotted & base_keys
     resolved_ratio = round(len(resolved) * 100.0 / len(t_keys), 2) if t_keys else 0.0
 
-    orphan_locale = sorted(base_keys - dotted - backend_menu_keys())
+    # 词条库里"有消费方"的集合：四条消费路径全算（口径见文件头）。
+    #   1) t('字面量') 的直接实参（含中文字面量键——4a60d3af 补的那 287 条正在被消费）
+    #   2) 后端菜单注册表下发的 menu.*
+    #   3) 源码里以引号字面量出现的整键（titleKey/descriptionKey 这类"先存后消费"）
+    #   4) 源码里以引号字面量出现的键前缀（'roleName.' 拼接）
+    lit_exact, lit_prefixes = collect_literal_key_refs()
+    prefix_expanded = {k for k in base_keys
+                        if any(k.startswith(p) for p in lit_prefixes)}
+    referenced = t_keys | backend_menu_keys() | lit_exact | prefix_expanded
+    orphan_locale = sorted(base_keys - referenced)
     missing_locale = sorted(
         lc for lc in locales if lc != BASE_LOCALE and len(keys_per_locale[lc]) < len(base_keys))
 
@@ -212,6 +311,9 @@ def main() -> int:
     print(f"读数: 真 i18n 键={len(dotted)}（其中解析不到词条库的={len(unresolvable)}）  "
           f"中文字面量直传={len(raw)}  词条库无人引用={len(orphan_locale)}")
     print(f"      resolved_ratio={resolved_ratio}%  go_msgid={sum(go_counts.values())}")
+    print(f"      消费路径分解: t()直参命中词条={len(t_keys & base_keys)} / "
+          f"后端菜单注册表={len(backend_menu_keys() & base_keys)} / "
+          f"字面量整键={len(lit_exact & base_keys)} / 键前缀展开={len(prefix_expanded)}")
 
     if unresolvable:
         print(f"  UNRESOLVABLE: {len(unresolvable)} 个点分键在 {BASE_LOCALE}.json 里没有对应词条，"
@@ -232,6 +334,15 @@ def main() -> int:
         "_readme": "G6 i18n 棘轮基线，只许涨不许跌。刷新前先确认这次是"
                    "「补齐了词条 / 把中文直传改成点分键」而不是"
                    "「把还在用的文案删掉了」。",
+        "_口径说明_2026_10_20": "本基线在 2026-10-20 重新测过一次：扫描器的"
+                              "「被引用集合」此前漏认两类消费形态（i18n.global.t() "
+                              "736 处调用、titleKey/roleName. 这类字面量键），"
+                              "且只把点分键算作「被引用」，于是 4a60d3af 补进来的"
+                              "287 条正在被消费的中文字面量键被误判成孤儿、门判红。"
+                              "修正后重测：locale_orphans 1833→0（真清干净了 555 条"
+                              "死词条），raw_t_calls 740→1167（不是新增，是那 736 处"
+                              "i18n.global.t() 本来就在、只是从前看不见）。"
+                              "本次刷新的是**测量口径**，不是放过新增。",
         "resolved_ratio": resolved_ratio,
         "t_call_keys": len(t_keys),
         "dotted_keys": len(dotted),

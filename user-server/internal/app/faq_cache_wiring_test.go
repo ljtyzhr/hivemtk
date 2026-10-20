@@ -23,7 +23,7 @@ import (
 // 同包后续用例的 Get* 一并带走（它们期望的是"没建过参数表 ⇒ 恒回落"那个形状）。
 func newFAQCacheFixture(t *testing.T) (*service.ConfigParamService, *gorm.DB) {
 	t.Helper()
-	database := testutil.NewTestDB(t, &model.ConfigParam{}, &model.ConfigParamAuditLog{}, &ragcache.RAGAnswerCache{})
+	database := testutil.NewTestDB(t, &model.ConfigParam{}, &model.ConfigParamAuditLog{}, &model.RAGAnswerCache{})
 	if err := service.SeedConfigParams(context.Background(), database); err != nil {
 		t.Fatalf("SeedConfigParams 失败：%v", err)
 	}

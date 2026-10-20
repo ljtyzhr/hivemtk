@@ -34,7 +34,7 @@
 
 ## 三、隔离机制（框架层，业务代码零手工隔离）
 
-1. **GORM callback**（`pkg/db/tenant_callback.go`，六类 operation）：on 模式自动注入 `WHERE tenant_id=?` / Create 自动填充 / 跨租户写拒绝 / Raw-Exec 守卫；off 直通。
+1. **GORM callback**（`pkg/tenancyidx/tenant_callback.go`，六类 operation）：on 模式自动注入 `WHERE tenant_id=?` / Create 自动填充 / 跨租户写拒绝 / Raw-Exec 守卫；off 直通。
 2. **登记表**（`pkg/tenancyidx`，数据库内省）：**唯一判据是「表上有没有 tenant_id 列」**，没有第二份豁免清单——漏加列的表在内省里就是非租户表、全量放行。所以「这张表是不是租户表」要在模型 Tag 与迁移两处对账，而不是在某个清单里登记一次。配置类六张表的归属见 §三.5。
 3. **唯一性租户化**：`tenancyidx.Normalize` 原位复合化全部非约束型唯一索引与约束型 UNIQUE 为 `(tenant_id, 原列...)`；挂 AutoMigrate 尾部 + testdb 钩子。
 4. **GORM-only 门禁**（`user-server/scripts/check-gorm-only.sh`，由 `Makefile` 的 audit 链以 strict 调用）：业务包 `.Exec(`/`.Raw(` 归零（133 处历史债务已清偿）；豁免以「DDL 生命周期同类」为单位整文件或整目录放行（migration 目录、schema 引导与归一化、自省类、pgvector 运维、测试夹具），**清单与每条例外的理由写在脚本头部注释里**，本文件不复制第二份。

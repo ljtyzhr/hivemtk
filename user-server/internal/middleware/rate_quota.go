@@ -237,7 +237,7 @@ func (m *pathQuotaLimiterManager) cleanup() {
 	}
 }
 
-func (m *pathQuotaLimiterManager) stop() {
+func (m *pathQuotaLimiterManager) stop() { //nolint:unused //// 仅被 *_test.go 引用，生产路径未用
 	close(m.stopChan)
 }
 

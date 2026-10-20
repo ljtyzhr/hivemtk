@@ -3,7 +3,6 @@ package db
 import (
 	"context"
 	"fmt"
-	ragcachemodel "hivemtk-user/internal/aiagent/rag/cache"
 	browsermodel "hivemtk-user/internal/browser_automation/model"
 	contentmodel "hivemtk-user/internal/content/model"
 	geomodel "hivemtk-user/internal/geo/model"
@@ -23,7 +22,6 @@ import (
 func allModels() []any {
 	return []any{
 		&model.Tenant{},
-		&ragcachemodel.RAGAnswerCache{},
 		&model.Order{},
 		&model.AfterSale{},
 		&model.User{},
@@ -36,6 +34,21 @@ func allModels() []any {
 		&model.EmailList{},
 		&model.EmailJobs{},
 		&model.EmailSend{},
+		// EmailTrackingEvent（表 email_tracking_events）：邮件追踪事件
+		// （open / click / unsubscribe / bounce）。生产写路径三条：
+		// service/email_tracking.go:200、service/email_open_tracker.go:200 与 :268
+		// （后两条在**公开的追踪像素**回调路径上——每封邮件的打开/点击都走这里）。
+		// 此前未登记建表 ⇒ 全新部署没有这两张表 ⇒ 追踪事件写不进去
+		// ⇒ 打开率/点击率恒为 0，而调用处只把 error 往上抛给一个没人看的 webhook。
+		// event_id 的 uniqueIndex 经 tenancyidx.Normalize 复合化为
+		// (tenant_id, event_id)——幂等键是租户内的。
+		&model.EmailTrackingEvent{},
+		// EmailJobMetric（表 email_job_metrics）：每个邮件任务一行的指标汇总
+		// （发送/打开/点击/退信/退订计数 + 打开率/点击率），生产写路径是
+		// service/email_tracking.go:322 的 UpsertJobMetric。同一组缺失建表登记：
+		// 没有这张表，任务列表里的打开率/点击率两列永远读成 0（不是「没打开过」，
+		// 是「表不存在」）。job_id 的 uniqueIndex 同样复合化为 (tenant_id, job_id)。
+		&model.EmailJobMetric{},
 		&model.SystemConfig{},
 		&model.DomainPool{},
 		&model.DomainBlacklist{},
@@ -112,6 +125,18 @@ func allModels() []any {
 		&model.WeComGroupMember{},
 		&model.WeComMessage{},
 		&model.WeComTag{},
+		// WechatAccount（表 wechat_accounts）/ WechatMessage（表 wechat_messages）：
+		// 微信公众号接入（公众号账号管理 + 消息收发）。
+		// 生产链路完整：router/platform_routes.go:84 与 router/router.go:738
+		// （/api/webhook/wechat/:account_id）→ controller/wechat.go（12 个端点）
+		// → service/wechat.go → repository/wechat_account_repo.go。
+		// 此前未登记建表，且没有任何迁移创建这两张表（迁移目录里搜不到
+		// wechat）⇒ 全新部署上整个微信公众号接入全部 500：
+		// relation "wechat_accounts" does not exist。
+		// 登记后由 AutoMigrate 建表；app_id / msg_id 的 uniqueIndex 经
+		// tenancyidx.Normalize 复合化为 (tenant_id, app_id) / (tenant_id, msg_id)。
+		&model.WechatAccount{},
+		&model.WechatMessage{},
 		&model.TelegramAccount{},
 		&model.QQAccount{},
 		&model.TelegramGroupGate{},
@@ -142,6 +167,17 @@ func allModels() []any {
 		&opsmodel.ChurnStatistics{},
 		&model.RFMRule{},
 		&model.UserRFM{},
+		// CustomerRFM（表 customer_rfm）：客户 RFM 分层记录，生产写路径是
+		// service/customer_rfm.go 的两处 rfmRepo.Upsert（207/295 行），另有
+		// service/customer_rfm_cron.go 的 RFM 周期重算。
+		// 此前未登记建表 ⇒ 全新部署没有这张表 ⇒ RFM 分层整体不落库
+		// （RFM 规则命中、流失候选名单都读成空），而 Upsert 的错误在 cron 里
+		// 只记一行日志 ⇒ 客户分层看起来「没数据」，实际是「表不存在」。
+		// 登记后 AutoMigrate 建表；customer_id 的单列 uniqueIndex 经
+		// tenancyidx.Normalize 复合化为 (tenant_id, customer_id)——一个客户在每个
+		// 租户内一条 RFM 行。表名是单数 customer_rfm（模型里显式 TableName），
+		// module_tables.go 里同时登记的 "customer_rfms" 是历史复数写法。
+		&model.CustomerRFM{},
 		&model.IntegrationAccount{},
 		&model.SyncLog{},
 		&model.ExternalCustomer{},
@@ -245,8 +281,33 @@ func allModels() []any {
 		&knowledgemodel.KnowledgeAPIToken{},
 		&knowledgemodel.KnowledgeFeedback{},
 		&knowledgemodel.ExternalImportJob{},
+		// KnowledgeBase（表 knowledge_bases）：知识库**主表**，有完整五层链路
+		// （controller/knowledge_base.go 12 个端点 → service/knowledge_base.go
+		// → repository/knowledge_base.go → 本 model），还有一条**跨域生产读路径**：
+		// RAG 答案缓存的 pgKBMetaReader.GetKBUpdatedAt（internal/aiagent/rag/cache/
+		// store_pg.go:46）按表名查 knowledge_bases.updated_at，命中前用它判缓存新鲜度。
+		// 此前**从未登记建表**：开发库里的 knowledge_bases 是 v3.15 知识库统一迁移
+		// 留下的历史残留，而本仓生产建表只跑 AutoMigrate ⇒ 全新部署没有这张表 ⇒
+		// 答案缓存每次命中前都报 relation does not exist（service.go:108 直接返回 err），
+		// 缓存整层不可用；而知识库管理端的增删改查全部撞同一张不存在的表。
+		// 登记后 AutoMigrate 建表；UNIQUE(kb_code) 经 tenancyidx.Normalize 复合化为
+		// (tenant_id, kb_code)——kb_code 是租户内唯一，不是全实例唯一。
+		&model.KnowledgeBase{},
+		// RAGAnswerCache（表 rag_answer_cache）：语义答案缓存行，读写方只在
+		// internal/aiagent/rag/cache/store_pg.go；唯一命名空间是 (kb_id, prompt_version)。
+		&model.RAGAnswerCache{},
 		&model.AIAgent{},
 		&model.ChannelAgentBinding{},
+		// AgentKBBinding（表 agent_kb_bindings）：智能体 ↔ 知识库 多对多绑定，
+		// 有两条生产写入路径——service.AgentKBBindingService.Bind / BatchBind，
+		// 以及 repository.KnowledgeBaseRepository.CreateWithBinding（建私有知识库时
+		// 在同一事务里写 kb 行 + 绑定行）。此前**从未登记建表**：开发库里的
+		// agent_kb_bindings 是 v3.15 那次知识库统一迁移留下的历史残留，而本仓生产
+		// 建表只跑 AutoMigrate（启动期 ExecuteUpgrade 固定空跑）⇒ 全新部署根本没有
+		// 这张表 ⇒ Bind 报 relation does not exist，私有知识库创建整个事务回滚。
+		// 登记后 AutoMigrate 建表，tenancyidx.Normalize 把 UNIQUE(agent_id, kb_id)
+		// 复合化为 (tenant_id, agent_id, kb_id)——业务唯一性是租户内的。
+		&model.AgentKBBinding{},
 		&model.CustomerServiceAgent{},
 		&model.LLMProvider{},
 		&model.LLMRoutingRule{},
@@ -270,6 +331,17 @@ func allModels() []any {
 		&model.SmsNumberPortabilityRecord{},
 		&model.RagQueryLog{},
 		&model.RagRecallMonitorSnapshot{},
+		// Glossary（表 glossaries）：多语言术语表（保护 SKU/价格/品牌名不被 LLM 翻译）。
+		// 生产链路完整：router/system_routes.go 装配 → controller/glossary.go
+		// （6 个端点）→ service/translation/glossary.go → repository/glossary_repo.go。
+		// 另有跨域消费方：app/sales_engine_factory.go 把它注入 SalesEngine 的
+		// GlossaryRenderer + OutputCalibrator（LLM 输出后置校准）。
+		// 此前未登记建表 ⇒ 全新部署没有这张表 ⇒ 术语管理端全挂，且 Calibrate
+		// 每次都拿到 list active failed。
+		// 登记后 AutoMigrate 建表；本轮同时给这张表补了 tenant_id（术语是租户
+		// 业务数据），TermID 的 uniqueIndex 经 tenancyidx.Normalize 复合化为
+		// (tenant_id, term_id)——同一个 term_id 在不同租户各有一条。
+		&model.Glossary{},
 		&model.FeedbackRecordORM{},
 		&model.LeadMiningConfig{},
 		&model.SecurityAudit{},
@@ -327,10 +399,11 @@ func allModels() []any {
 		// 又被 `_ =` 丢掉 → 表现为"功能静默失效"。
 		//
 		// 以下 29 个已逐个核对：均有 repository/存储层的 Create/Save 写入路径。
-		// 另有两个因 import 成环无法写在此处，改用 RegisterExtraModels 登记：
+		// 另有一个因 import 成环无法写在此处，改用 RegisterExtraModels 登记：
 		//   - KBDocumentChunkRow（internal/repository，见该文件 init）
-		//   - TraceEvent        （internal/aiagent/llm，见该文件 init）
 		// -------------------------------------------------------------------
+		// trace_events 由 DBTraceSink 异步批量落库，中间件在每请求发布 span 事件。
+		&model.TraceEvent{},
 		&model.AggregationWatermark{},
 		// msg_hourly_summary 由 message_hub 聚合 cron 写入（repository 原子 upsert）。
 		// 此前只出现在测试夹具里，全新部署缺表 ⇒ 聚合永远写不进去。
@@ -446,6 +519,36 @@ func allModels() []any {
 		// 表现为治理任务天天告警，而不是历史无声消失。
 		&browsermodel.BrowserAuditDigest{},
 		&browsermodel.BrowserAuditPruneRun{},
+		// BrowserOutreachDedupe（表 browser_outreach_dedupe）：跨任务用户级触达去重行
+		// （同平台同目标同动作同文案只触达一次），生产写路径是
+		// browser_automation/service/outreach_dedupe.go:113 的 recordOutreachDedupeSend。
+		// 此前**从未登记建表**：开发库里那张表是测试夹具（testutil.NewTestDB 直接
+		// AutoMigrate 这个 model）留下的，而本仓生产建表只跑 AutoMigrate ⇒ 全新部署
+		// 没有这张表 ⇒ 落去重行时 relation does not exist，而那一处**只 Warn 不判红**
+		// （outreach_dedupe.go:121「内容已发布，仅记日志」）⇒ 跨任务去重整层静默失效，
+		// 用户被重复触达，且日志里只有一行 warn。读侧 FindOutreachHit 同样查不到表。
+		// 登记后 AutoMigrate 建表；uk_outreach_dedupe 经 tenancyidx.Normalize 复合化为
+		// (tenant_id, platform, target_url, action, copy_hash)——去重是租户内的。
+		&browsermodel.BrowserOutreachDedupe{},
+		// BrowserOutreachReceipt（表 browser_outreach_receipts）：触达回执
+		// （截图 + 帖子链接 + 文案快照），生产写路径是
+		// browser_automation/service/outreach_receipt.go:159 的 RecordOutreachReceipt。
+		// 与去重表同一条理由：此前未登记建表 ⇒ 全新部署没有这张表 ⇒ 回执行写不进去，
+		// 而那一处同样只 Warn 不判红（outreach_receipt.go:160）⇒ 「到底发出去了没有」
+		// 这件事在全新部署上永远查不到行，而日志里只有一行 warn。
+		// 它同时是去重行的对账面（模型文件头第 19-20 行）：「有去重行无回执」=
+		// 收口截图或回执写入失败，两边都可见——而这张表不存在时这个对账面整个不存在。
+		&browsermodel.BrowserOutreachReceipt{},
+		// BrowserProfileHealth（表 browser_profile_health）：单主 Profile 的平台级
+		// 熔断行（blocked=true 即同平台新任务拒绝/排队，人工恢复清标记）。生产写路径
+		// 两条：service/profile_fuse.go:25 的 MarkBlocked（熔断）与
+		// service/task.go:517 的 MarkRecovered（人工恢复）。
+		// 此前未登记建表 ⇒ 全新部署没有这张表 ⇒ 熔断状态落不下去
+		// （熔断是风控闸，落不下去等于闸门永远不关）；而熔断状态**必须**落库，
+		// 模型文件头第 8 行明说「Executor 进程级单例禁内存计数」。
+		// 登记后 AutoMigrate 建表；platform 的单列 uniqueIndex 经 tenancyidx.Normalize
+		// 复合化为 (tenant_id, platform)——「每平台一行」是**每租户每平台**一行。
+		&browsermodel.BrowserProfileHealth{},
 		&browsermodel.BrowserCommandLog{},
 		&browsermodel.BrowserCronTrigger{},
 		&browsermodel.BrowserLLMPlan{},
@@ -459,10 +562,6 @@ func allModels() []any {
 		// （本泳道口径：**新表**由标签直建、**存量表加列**走版本化迁移，后者见 v3.43.0 的
 		// browser_steps 三列——两者不是同一条路，别拿这句去省存量表的 DDL 文件）。
 		&browsermodel.BrowserWriteClaim{},
-
-		// 表 rag_answer_cache：store_pg.go 的文件头注释原本就写着
-		// 「需在 internal/migration/migrations 注册」并附了 DDL，但一直没接。
-		// 登记到 allModels() 效果等价（该包不 import pkg/db，无成环问题）。
 	}
 }
 

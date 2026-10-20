@@ -16,7 +16,6 @@ import (
 	"testing"
 	"time"
 
-	ragcache "hivemtk-user/internal/aiagent/rag/cache"
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/testutil"
 	"hivemtk-user/internal/service"
@@ -29,7 +28,7 @@ func newKBHandlerRouter(t *testing.T) (*gin.Engine, *gorm.DB, uint) {
 	t.Helper()
 	gin.SetMode(gin.TestMode)
 	// rag_answer_cache 也要建：KBVersionInfo 会数各命名空间的行数，缺表就是 500。
-	database := testutil.NewTestDB(t, &model.KnowledgeBase{}, &model.AgentKBBinding{}, &ragcache.RAGAnswerCache{})
+	database := testutil.NewTestDB(t, &model.KnowledgeBase{}, &model.AgentKBBinding{}, &model.RAGAnswerCache{})
 	ctrl := &KnowledgeBaseController{svc: service.NewKnowledgeBaseService(database)}
 	router := gin.New()
 	// 与 router/service_routes.go 同一前缀挂法（/api/knowledge-bases）。

@@ -17,41 +17,25 @@ import (
 	"hivemtk-user/internal/pkg/utils/logger"
 )
 
-// ============================================================
 // 功能模块闸（模块化改造的核心）
 //
-// ===== 执行顺序（三条，顺序不可换）=====
-//   登录态 → **模块闸** → 角色权限
+// 执行顺序（三条，顺序不可换）：登录态 → 模块闸 → 角色权限。
+// 闸必须在角色权限之前：超管是「本系统内权限最高」，不是「买了所有模块」；
+// 闸放在权限之后，超管就成了绕过付费模块的后门。
 //
-// 为什么在角色权限**之前**：超管是「在本系统内权限最高」，不是「买了所有模块」。
-// 闸放在权限之后，超管就会成为绕过付费模块的后门 —— 而这条后门一旦存在，
-// 商业化就没有意义了。
+// 租户语义：镜像行按 tenant_id 归属，闸是进程级共享的，缓存必须是
+// map[租户]状态；一次判定只读、只刷新当前 ctx 解析出的那一个租户。
 //
-// ===== 租户语义（per-tenant 缓存，勿改回全局单份）=====
-//  镜像行按 tenant_id 归属，而闸是进程级共享的：缓存必须是
-//   map[租户]状态，一次判定只读、只刷新**当前 ctx 解析出的那一个租户**。
-//  曾经是「全局一份 cache + 全局一个 bootstrapped」，于是每个请求都把
-//   自己租户的行灌进同一份缓存、被下一个请求覆盖 —— 租户 2 的请求会被
-//   拿租户 1 的开通集判定（反之亦然），在 gateCacheTTL 内串着判。
-//
-// ===== 三态语义（B-2 修订 + 空态收口为单口径）=====
-//   ① 该租户的模块数据为空（首启 / 从未同步 / on 模式 2+ 租户的空镜像）
-//      → **只放行基础模块**（model.BaseModuleKeys），收费模块拦。
-//        判据与边界写在 IsEnabled 的 ① 注释里；与 EnabledKeys 的空态
-//        返回严格同一口径（单口径是本文件的教义）。
-//   ② 有数据且命中模块 → 过闸（按行 usable 判定）
-//   ③ 标注缺失（新增接口忘了归模块）
-//      → **放行 + 记 WARN + 进 /api/modules/uncovered-routes 巡检清单**。
-//        这态发生在**路由层**：路径没进模式表 → ModuleOwnerOf 返回 ""
-//        → 根本不会带着非空 key 进到 IsEnabled（见 middleware/module_gate.go）。
-//        这里选「放行」而不是「拦」是刻意的：新功能上线时全站 403 是灾难，
-//        而漏拦最多让某个接口多暴露一点，两害相权的取舍写在 tasks.md B-2。
-//        真正的兜底是 CI 里的覆盖率测试。
-// ============================================================
+// 三态语义：
+//   ① 该租户模块数据为空 → 只放行基础模块（model.BaseModuleKeys），收费模块拦。
+//   ② 有数据且命中模块 → 过闸（按行 usable 判定）。
+//   ③ 标注缺失（新增接口忘了归模块）→ 放行 + 记 WARN。
+//      该态发生在路由层：路径没进模式表时 ModuleOwnerOf 返回 ""，
+//      不会带着非空 key 进到 IsEnabled（见 middleware/module_gate.go）。
+//      选「放行」而非「拦」：新功能上线时全站 403 是灾难，漏拦最多让某个接口多暴露。
 
 // gateTenantState 单个租户的闸状态快照。
-// 约定：加载后**整体替换、只读共享** —— 任何方法都不原地改 m，
-// 读方在锁内拿到的是一份稳定视图（锁外读 map 不会与写方交错）。
+// 约定：加载后整体替换、只读共享 —— 任何方法都不原地改 m。
 type gateTenantState struct {
 	m            map[string]bool // module_key → usable
 	bootstrapped bool            // 该租户镜像是否有过行（len(rows)>0）
@@ -60,9 +44,9 @@ type gateTenantState struct {
 
 // ModuleGateService 模块闸（进程级单例，见 NewModuleGateService）
 type ModuleGateService struct {
-	// repo 显式仓储（测试注入）。nil 表示**按次**从全局 DB 现取：
+	// repo 显式仓储（测试注入）。nil 表示按次从全局 DB 现取：
 	// 单例的寿命比单个测试用例长，构造期定格会把用例结束时被还原/关闭的
-	// 连接钉死在单例上（测试进程里每个用例都会换库）。
+	// 连接钉死在单例上。
 	repo repository.TenantModuleRepository
 
 	mu      sync.RWMutex
@@ -70,8 +54,8 @@ type ModuleGateService struct {
 }
 
 // gateCacheTTL 模块状态本地缓存有效期（按租户条目各自计时）。
-// 取 60s：模块开通是一个「低频但要尽快生效」的操作 —— 平台确认后用户在
-// 一分钟内看到菜单变化是可接受的，而每次请求都查库会让模块闸变成热点。
+// 取 60s：模块开通是低频但要尽快生效的操作，一分钟内看到菜单变化可接受，
+// 而每次请求都查库会让模块闸变成热点。
 const gateCacheTTL = 60 * time.Second
 
 // baseModuleKeySet 基础模块集（免费常开）的判定快照。
@@ -95,13 +79,11 @@ var (
 	processGate     *ModuleGateService
 )
 
-// NewModuleGateService 返回**进程单例**的模块闸。
+// NewModuleGateService 返回进程单例的模块闸。
 //
-// 为什么是单例（勿改回"每次 new 一份"）：闸被 middleware（接口闸）、菜单过滤、
-// 同步收尾三处共用，缓存与失效必须是同一份。曾经每次调用各建实例，于是
-// Sync 收尾那句「同步后必须让闸与菜单立刻生效」刷的是一个没人读的实例 ——
-// 真正被 middleware 持有的那份照旧服务旧缓存直到 TTL 过期；Invalidate 同理
-// 打不中目标。测试请用 NewModuleGateServiceWithRepo（每例全新、缓存隔离）。
+// 为什么是单例（勿改回「每次 new 一份」）：闸被 middleware（接口闸）、菜单过滤、
+// 同步收尾三处共用，缓存与失效必须是同一份，否则 Invalidate 打不中目标。
+// 测试请用 NewModuleGateServiceWithRepo（每例全新、缓存隔离）。
 func NewModuleGateService() *ModuleGateService {
 	processGateOnce.Do(func() {
 		processGate = &ModuleGateService{}
@@ -124,15 +106,13 @@ func (s *ModuleGateService) modules() repository.TenantModuleRepository {
 
 // gateTenantOf 解析本次判定所属的租户。
 //
-// 口径（与 tenancyidx 隔离 callback 的注入语义对齐）：
-//   - SystemScope → DefaultTenantID：系统作用域没有"调用方租户"，镜像与
-//     同步统一落默认租户（单商户单部署），菜单快照（ModuleEnabledFunc）
-//     也走这条 —— 注意 SystemScope 可能叠加在已有绑定上（手动同步按钮的
-//     请求 ctx），此时仍按默认租户视图读，不看绑定；
+// 口径：
+//   - SystemScope → DefaultTenantID：系统作用域没有「调用方租户」，镜像与
+//     同步统一落默认租户，菜单快照（ModuleEnabledFunc）也走这条；
 //   - 已绑定（TenantMiddleware 写进请求 ctx 的租户）→ 就是它；
-//   - 未绑定（裸 Background、装配早期）→ DefaultTenantID：off 模式即唯一
-//     租户；on 模式下这是"没有调用方身份"时最保守的可读视图 —— 绝不能
-//     兜成全量 union，那会把别的租户的开通状态判给当前请求。
+//   - 未绑定（裸 Background、装配早期）→ DefaultTenantID。on 模式下这是
+//     「没有调用方身份」时最保守的可读视图 —— 绝不能兜成全量 union，
+//     那会把别的租户的开通状态判给当前请求。
 func gateTenantOf(ctx context.Context) uint {
 	if tenant.IsSystemScope(ctx) {
 		return tenant.DefaultTenantID
@@ -145,11 +125,9 @@ func gateTenantOf(ctx context.Context) uint {
 
 // gateReadCtx 构造「只读该租户镜像」的读 ctx。
 //
-// 与今日注入行为的关系：调用方 ctx 已绑定同一租户时**原样透传**（SQL 形状
-// 与修复前逐字节一致，请求取消/日志值也一并保留）；其余情形（SystemScope /
-// 无绑定 / 绑了别的租户）一律换成钉死 tid 的干净 ctx —— SystemScope 会让
-// scopeQueryForTenant 直接放行，读到的是**跨租户 union**，拿它当"某一个
-// 租户的视图"正是本次要修的串租户来源之一（菜单快照曾这样读）。
+// 调用方 ctx 已绑定同一租户时原样透传；其余情形（SystemScope / 无绑定 /
+// 绑了别的租户）一律换成钉死 tid 的干净 ctx —— SystemScope 会让
+// scopeQueryForTenant 直接放行，读到的是跨租户 union。
 func gateReadCtx(ctx context.Context, tid uint) context.Context {
 	if !tenant.IsSystemScope(ctx) {
 		if id, ok := tenant.FromContext(ctx); ok && id == tid {
@@ -159,9 +137,8 @@ func gateReadCtx(ctx context.Context, tid uint) context.Context {
 	return tenant.OnlyTenant(ctx, tid)
 }
 
-// Refresh 从仓储重载**当前 ctx 所属租户**的状态到缓存。
-// 其它租户的条目不受影响；全清用 Invalidate（同步/激活收尾用后者，
-// 因为新行可能落在任意租户上）。
+// Refresh 从仓储重载当前 ctx 所属租户的状态到缓存。
+// 其它租户的条目不受影响；全清用 Invalidate。
 func (s *ModuleGateService) Refresh(ctx context.Context) error {
 	return s.refreshTenant(ctx, gateTenantOf(ctx))
 }
@@ -187,9 +164,8 @@ func (s *ModuleGateService) refreshTenant(ctx context.Context, tid uint) error {
 	return nil
 }
 
-// Invalidate 清掉**全部租户**的缓存条目（同步/激活收尾、下单后调用）。
-// 只清单租户是不够的：激活的落点是**下单租户**，可能不是默认租户 ——
-// 留下的那条陈旧条目会一直服务到它自己的 TTL 过期。
+// Invalidate 清掉全部租户的缓存条目（同步/激活收尾、下单后调用）。
+// 只清单租户是不够的：激活的落点是下单租户，可能不是默认租户。
 func (s *ModuleGateService) Invalidate() {
 	s.mu.Lock()
 	s.tenants = nil
@@ -198,7 +174,7 @@ func (s *ModuleGateService) Invalidate() {
 
 // loadState 取当前 ctx 所属租户的状态快照；缺失或超过 gateCacheTTL 则刷新。
 // 刷新失败沿用上一次快照（判定不因一次 DB 抖动翻转）；从未成功加载过则按
-// 空租户态返回（①：基础模块放行、收费拦 —— fail-closed，绝不"放行一切"）。
+// 空租户态返回（①：基础模块放行、收费拦 —— fail-closed）。
 func (s *ModuleGateService) loadState(ctx context.Context) gateTenantState {
 	tid := gateTenantOf(ctx)
 	s.mu.RLock()
@@ -221,8 +197,8 @@ func (s *ModuleGateService) loadState(ctx context.Context) gateTenantState {
 
 // IsEnabled 模块是否已开通。
 //
-// 这是**唯一**的判定入口：菜单过滤、接口闸、cron/工具装配全部走它，
-// 避免出现「菜单过滤用了 A 口径、接口闸用了 B 口径」的不一致。
+// 唯一的判定入口：菜单过滤、接口闸、cron/工具装配全部走它，
+// 避免「菜单过滤用了 A 口径、接口闸用了 B 口径」的不一致。
 func (s *ModuleGateService) IsEnabled(ctx context.Context, moduleKey string) bool {
 	if moduleKey == "" {
 		return true // 未标注的路由：放行（见文件头 ③）
@@ -230,30 +206,19 @@ func (s *ModuleGateService) IsEnabled(ctx context.Context, moduleKey string) boo
 	st := s.loadState(ctx)
 	if !st.bootstrapped {
 		// ① 该租户镜像为空（首启 / 从未同步 / on 模式 2+ 租户的空镜像）：
-		//    **只放行基础模块**，其余一律拦。与 EnabledKeys 空态同口径。
+		//    只放行基础模块，其余一律拦。与 EnabledKeys 空态同口径。
 		//
-		// 口径变更记录（原为"全放行"，B-2 收口）：上一版在这里写着"租户 2+
-		// 恒空落进 allow-all 是产品决策" —— 那实际掩盖了两个问题：
-		//   (a) 全放行 = 未付费租户拿到**全部**付费能力，付费闸对这些租户
-		//       静默失效（界面无任何异样，正是本文件开头点名的失效形态）；
-		//   (b) 它与 EnabledKeys 的空态返回（只给 BaseModuleKeys）自相
-		//       矛盾 —— 同一条件两个口径，违背本文件的单口径教义。
-		// 收口后各场景：
-		//   on 模式空镜像租户 → 拿到**可用的基础系统**（base-pack），
-		//       收费模块 4301 → 市场 → 下单，收款确认后激活的是**自己租户**
-		//       的行（Sync 的落点归并，见 purchaseTenants）；
-		//   全新安装 → 首轮同步在 router.Setup 之前同步执行（cmd/api），同步
-		//       前的空窗里基础能力照常可用、收费能力锁住，与 bootstrapOffline
-		//       灌"基础模块=免费常开"是同一条产品线；
-		//   off 模式**可观察差异**：同步完成之前的付费 key 由放行改为拦截。
-		//       判据：离线没有付费概念，bootstrapOffline 落地的就是 base
-		//       （全免费），落地后行为与旧版逐字节一致；"还没数据"时放行
-		//       收费能力是 fail-open，宁可 fail-closed（该窗口在生产里几乎
-		//       不可见 —— 首轮同步先于路由装配）。
-		//   附核对：platform-link 属基础模块（ModuleCategoryBase），/api/modules/my
-		//       与市场购买链路在空态下依然可用；市场列表/下单本就不挂闸。
-		//       故**不需要** gateAlwaysAllowed 之类的旁路集合 —— 空态允许集
-		//       就是 BaseModuleKeys（bootstrapOffline 灌的那批，免费常开）。
+		// on 模式空镜像租户拿到可用的基础系统（base-pack），收费模块 4301
+		//    → 市场 → 下单，收款确认后激活的是自己租户的行（见 purchaseTenants）。
+		// 全新安装：首轮同步在 router.Setup 之前执行，同步前的空窗里基础
+		//    能力可用、收费能力锁住，与 bootstrapOffline 灌「基础模块=免费常开」
+		//    是同一条产品线。
+		// off 模式：离线没有付费概念，bootstrapOffline 落地的是 base（全免费）。
+		//
+		// 附核对：platform-link 属基础模块（ModuleCategoryBase），/api/modules/my
+		//    与市场购买链路在空态下依然可用；市场列表/下单本就不挂闸。
+		//    故不需要 gateAlwaysAllowed 之类的旁路集合 —— 空态允许集
+		//    就是 BaseModuleKeys。
 		return isBaseModuleKey(moduleKey)
 	}
 	v, ok := st.m[moduleKey]
@@ -285,12 +250,11 @@ func (s *ModuleGateService) EnabledKeys(ctx context.Context) map[string]struct{}
 
 // ModuleEnabledFunc 返回可注入 model.FilterMenuTreeByModule 的判定函数
 func (s *ModuleGateService) ModuleEnabledFunc() func(string) bool {
-	// 菜单过滤是**进程级单快照**（全局单口径，不属于任何请求），装配/同步时
-	// 取一次就固化进闭包。SystemScope 显式表达"系统快照"意图：读按
-	// gateTenantOf 解析为 DefaultTenantID 视图（不再 union 全租户 —— 曾经的
-	// SystemScope 裸读会把所有租户的行混成一锅）。off 模式直通，行为不变。
+	// 菜单过滤是进程级单快照（全局单口径，不属于任何请求），装配/同步时
+	// 取一次就固化进闭包。SystemScope 显式表达「系统快照」意图：读按
+	// gateTenantOf 解析为 DefaultTenantID 视图。off 模式直通，行为不变。
 	//
-	// on 模式下菜单按**默认租户**的开通集渲染是有意为之（进程级共享）：按
+	// on 模式下菜单按默认租户的开通集渲染是有意为之（进程级共享）：按
 	// 租户分裂菜单要同时动会话/缓存/权限三处的假设，不在本闸范围；接口闸
 	// （IsEnabled）才是逐请求按租户判的 —— 菜单与接口短暂不一致时以接口
 	// 4301 为准，购买入口（市场/我的模块）不受菜单裁剪影响。
@@ -309,10 +273,10 @@ func (s *ModuleGateService) InstallWiring(ctx context.Context) {
 	model.SetModuleEnabledFilter(s.ModuleEnabledFunc())
 }
 
-// refreshProcessGate 同步/离线引导落地后让闸与菜单**立刻**生效。
+// refreshProcessGate 同步/离线引导落地后让闸与菜单立刻生效。
 //
 // Invalidate 是全租户清：本轮可能激活了下单租户的行（落点=订单归属租户），
-// 只刷默认租户会把激活租户的陈旧条目留到 TTL 过期 ——用户下单成功却要等
+// 只刷默认租户会把激活租户的陈旧条目留到 TTL 过期 —— 用户下单成功却要等
 // 60s 才开通。之后把默认租户重灌一遍，菜单快照直接拿这份新状态。
 func refreshProcessGate(ctx context.Context) {
 	g := NewModuleGateService()
@@ -392,11 +356,10 @@ func (s *ModuleCatalogService) Sync(ctx context.Context) (*ModuleSyncResult, err
 
 	// 同步/离线引导跑在请求之外（后台 runner、启动期、手动同步按钮），ctx 可能
 	// 无租户绑定 —— on 模式直连会被隔离 callback fail-closed，Sync 整体报错、
-	// 镜像永不落地（P1 形态：已购模块永远激活不了，闸停在空态）。挂
-	// SystemScope：平台侧是单商户单部署，目录镜像与同步日志统一落默认租户
-	// （tenant_id 由列默认值/GORM default 填 1，见 repository.UpsertMany 的
-	// 行为注记）。**唯一例外是收费模块的落点** —— 有本地下单记录的按下单
-	// 租户分流（见落点归并/purchaseTenants），否则租户 2 买的东西会激活到
+	// 镜像永不落地（已购模块永远激活不了，闸停在空态）。挂 SystemScope：平台侧
+	// 是单商户单部署，目录镜像与同步日志统一落默认租户（tenant_id 由列默认值/
+	// GORM default 填 1）。**唯一例外是收费模块的落点** —— 有本地下单记录的按
+	// 下单租户分流（见落点归并/purchaseTenants），否则租户 2 买的东西会激活到
 	// 租户 1。off 模式 SystemScope 是直通，SQL 形状逐字节不变。
 	ctx = tenant.WithSystemScope(ctx)
 
@@ -409,7 +372,7 @@ func (s *ModuleCatalogService) Sync(ctx context.Context) (*ModuleSyncResult, err
 	snap, err := platform.NewModuleClient().SyncModules(ctx, currentTenantCode(ctx))
 	if err != nil {
 		// 平台不可达：保留上次镜像（不清空），只记 degraded 日志。
-		// 清空会让用户正在用的模块突然消失 —— 那比"数据不准"严重得多。
+		// 清空会让用户正在用的模块突然消失 —— 那比「数据不准」严重得多。
 		existing, listErr := s.repo.ListAll(ctx)
 		if listErr == nil && len(existing) > 0 {
 			_ = s.repo.CreateLog(ctx, &model.ModuleSyncLog{
@@ -429,10 +392,9 @@ func (s *ModuleCatalogService) Sync(ctx context.Context) (*ModuleSyncResult, err
 	// 归并要用「已收款」的最新状态决定付费模块落到哪个租户 —— 顺序反了，
 	// 平台本轮刚确认的那单会按旧状态（pending）错过激活。
 	//
-	// 为什么必须做：module_orders 此前只在**下单时**写一次，之后永不刷新 ——
-	// 于是平台确认收款后，用户端订单页会**永远显示「待确认收款」**，
-	// 而「我的模块」页却已经显示该模块已开通。两页自相矛盾，
-	// 用户会以为"付款了但没生效"而重复下单。
+	// module_orders 只在**下单时**写一次，之后不刷新 —— 平台确认收款后，
+	// 用户端订单页会**永远显示「待确认收款」**，而「我的模块」页却已经显示
+	// 该模块已开通。两页自相矛盾，用户会以为「付款了但没生效」而重复下单。
 	//
 	// 只刷状态、不覆盖 items/payment_guide：那两样是下单时的快照，不可变；
 	// 而状态是唯一会变的东西。这也避免了为刷新去扩展平台端的列表响应。
@@ -442,7 +404,7 @@ func (s *ModuleCatalogService) Sync(ctx context.Context) (*ModuleSyncResult, err
 		logger.Infof("[module-sync] 已刷新 %d 条订单状态", n)
 	}
 
-	// ---- 订阅镜像（003 T022 · ADR-M8 修订 #4）----
+	// ---- 订阅镜像 ----
 	// 部署级单行，sync 在 SystemScope 写（镜像表无 tenant_id，不受租户串写影响）。
 	// 平台段缺失（老平台/读失败）不写：保留最后已知态（fail-open 的数据来源）。
 	if snap.Subscription != nil {
@@ -475,8 +437,7 @@ func (s *ModuleCatalogService) Sync(ctx context.Context) (*ModuleSyncResult, err
 	// 只有 merchant 视角，订单在用户端带着 tenant_id。若把目录行统一塞进
 	// SystemScope 写（列默认值 1），租户 2 买的东西会激活到租户 1 —— 租户 2
 	// 永远打不开、租户 1 反而白得。对不上本地订单的行（平台种子、迁移前的
-	// 历史单）落默认租户，与旧行为一致；off 模式订单全部归默认租户 →
-	// 单组直通，行为逐字节不变。
+	// 历史单）落默认租户；off 模式订单全部归默认租户。
 	targets := s.purchaseTenants(ctx)
 	groups := make(map[uint][]*model.TenantModule, 2)
 	for _, row := range rows {
@@ -492,9 +453,9 @@ func (s *ModuleCatalogService) Sync(ctx context.Context) (*ModuleSyncResult, err
 		groups[tid] = append(groups[tid], row)
 	}
 	// 发起同步的租户即使一笔订单都没有，也必须是本轮落行的对象：新注册商户
-	// 正是这种形态（本地没有任何订单）。旧逻辑只给「有已付款订单」的租户建
-	// 分组，于是它拿到 0 行 —— 闸按空镜像只放行基础包，平台已按 owned 下发的
-	// 0 元模块也被判关（线上表现：除基础外的页面一律 4301、菜单只剩骨架）。
+	// 正是这种形态（本地没有任何订单）。否则它拿到 0 行 —— 闸按空镜像只放行
+	// 基础包，平台已按 owned 下发的 0 元模块也被判关（线上表现：除基础外的
+	// 页面一律 4301、菜单只剩骨架）。
 	if reqTenantBound && reqTenantID != tenant.DefaultTenantID {
 		if _, ok := groups[reqTenantID]; !ok {
 			groups[reqTenantID] = nil
@@ -569,12 +530,11 @@ func (s *ModuleCatalogService) Sync(ctx context.Context) (*ModuleSyncResult, err
 		stale := make([]*model.TenantModule, 0)
 		for _, e := range existing {
 			if !active[e.ModuleKey] && e.Status == model.TenantModuleActive {
-				// gift 行豁免（003 审查修订 #17 / oracle P1-3）：平台对 0 元
-				// 模块的 owned 下发口径尚未两端定死 —— 平台没把某 0 元模块算进
-				// active_keys 时（例如存量商户升级前、离线期落的 gift 行），
-				// 这里的 stale 判定会把免费能力整批误关。gift 来源不参与
-				// stale：撤销免费模块请走平台 owned/owned_status 口径下发，
-				// 不要依赖"不在下发名单里"。
+				// gift 行豁免：平台对 0 元模块的 owned 下发口径尚未两端定死 ——
+				// 平台没把某 0 元模块算进 active_keys 时（例如存量商户升级前、
+				// 离线期落的 gift 行），这里的 stale 判定会把免费能力整批误关。
+				// gift 来源不参与 stale：撤销免费模块请走平台 owned/owned_status
+				// 口径下发，不要依赖「不在下发名单里」。
 				if e.Source == model.TenantModuleSourceGift {
 					continue
 				}
@@ -606,7 +566,7 @@ func (s *ModuleCatalogService) Sync(ctx context.Context) (*ModuleSyncResult, err
 // created_at DESC 分页，首见即最新（后翻页只补尚未覆盖的 key）。
 //
 // 读挂 SystemScope（Sync 的 ctx）→ 跨租户全量，这正是这里需要的：要给
-// **任意租户**的订单找落点。读失败按"无订单"处理 → 全部落默认租户，
+// **任意租户**的订单找落点。读失败按「无订单」处理 → 全部落默认租户，
 // 即旧行为（宁可退化到已知行为，也不能让同步整体失败）。
 func (s *ModuleCatalogService) purchaseTenants(ctx context.Context) map[string]uint {
 	out := make(map[string]uint)
@@ -671,12 +631,12 @@ func orderModuleKeys(o *model.ModuleOrder) []string {
 }
 
 // baseTenantModuleRows 基础模块行（免费常开）。
-// 「给非默认租户首次落行」用 —— 保证"有行的租户必然有基础行"，
+// 「给非默认租户首次落行」用 —— 保证「有行的租户必然有基础行」，
 // 与空态放行 BaseModuleKeys 是同一批 key。
 //
-// ⚠️ **不要**把离线赠送逻辑合并进来（003 审查修订 #17）：本函数同时被
-// on 模式的落点归并分支使用，塞进 0 元付费模块会让云端租户凭空拿到
-// 全部免费模块、随同步开关震荡。离线口径见 offlineGiftModuleRows。
+// **不要**把离线赠送逻辑合并进来：本函数同时被 on 模式的落点归并分支使用，
+// 塞进 0 元付费模块会让云端租户凭空拿到全部免费模块、随同步开关震荡。
+// 离线口径见 offlineGiftModuleRows。
 func baseTenantModuleRows(now time.Time) []*model.TenantModule {
 	rows := make([]*model.TenantModule, 0, 8)
 	for _, k := range model.BaseModuleKeys() {
@@ -694,12 +654,11 @@ func baseTenantModuleRows(now time.Time) []*model.TenantModule {
 }
 
 // offlineGiftModuleRows 离线赠送行：基础模块 + 全部 0 元付费模块
-// （browser-automation 除外——¥99 买断，本地无支付通道 → 保持不可购不可用，
-// 用户裁决见 003 spec R3）。
+// （browser-automation 除外——¥99 买断，本地无支付通道 → 保持不可购不可用）。
 //
 // 与 baseTenantModuleRows 的分工见后者注释：本函数**只**服务 bootstrapOffline。
 // 0 元付费模块必须显式落行（source=gift），否则闸的空态/有行判定只认
-// BaseModuleKeys，菜单 16 组不会出现（002 勘误里 allow-all 作废踩过的坑）。
+// BaseModuleKeys，菜单 16 组不会出现。
 func offlineGiftModuleRows(now time.Time) []*model.TenantModule {
 	rows := baseTenantModuleRows(now)
 	for _, m := range model.ModuleCatalogMeta {
@@ -730,11 +689,10 @@ func (s *ModuleCatalogService) bootstrapOffline(ctx context.Context, start time.
 		return nil, err
 	}
 	if len(existing) > 0 {
-		// 存量部署升级路径（003 审查修订 #17）：镜像非空 ≠ 赠送集已齐 ——
-		// 旧版本只灌了 7 个基础模块，升级后必须**幂等补齐**缺失的 0 元赠送行，
-		// 否则新增的 16 组菜单永远不会出现；同时刷新闸与菜单快照，否则要等
-		// 60s 缓存 TTL 或下一次同步才生效。已有行一律不动（含已购/已禁用行：
-		// 不降级、不复活）。
+		// 存量部署升级路径：镜像非空 ≠ 赠送集已齐 —— 升级后必须**幂等补齐**
+		// 缺失的 0 元赠送行，否则新增的 16 组菜单永远不会出现；同时刷新闸与
+		// 菜单快照，否则要等 60s 缓存 TTL 或下一次同步才生效。
+		// 已有行一律不动（含已购/已禁用行：不降级、不复活）。
 		now := time.Now()
 		have := make(map[string]struct{}, len(existing))
 		for _, e := range existing {
@@ -802,12 +760,7 @@ func ProvisionTenantModules(ctx context.Context, tenantID uint) {
 
 // sourceOf 决定本地镜像记录的开通来源。
 //
-// 曾经写成「ownedStatus 非空即 purchase」，而 ownedStatus 传的是**状态**
-// （active/expired/disabled），于是**所有模块都被记成"用户购买"** ——
-// 基础能力（core/customer/inbox…）在「我的模块」页显示成花钱买的，
-// 用户会问"我没买过的东西为什么显示已购买"。
-//
-// 判据改为按平台下发的 OwnedSource 直取；缺省时按模块分类回落：
+// 判据按平台下发的 OwnedSource 直取；缺省时按模块分类回落：
 // 基础模块 → default_base，收费模块 → purchase（保守：不要凭空说用户买了）。
 func sourceOf(ownedSource, category, moduleKey string) string {
 	if ownedSource != "" {
@@ -838,8 +791,7 @@ type MyModuleView struct {
 	Category   string `json:"category"`
 	PriceCents int64  `json:"price_cents"`
 	// BillingCycle 计费周期（once=买断/monthly/yearly/metered）。
-	// 003 T019：缺它时 priceLabel 走不到「买断」分支，¥99 买断的模块
-	// 会被标成「¥99 / 年」。
+	// 缺它时 priceLabel 走不到「买断」分支，¥99 买断的模块会被标成「¥99 / 年」。
 	BillingCycle string     `json:"billing_cycle"`
 	Icon         string     `json:"icon"`
 	Summary      string     `json:"summary"`
@@ -893,7 +845,7 @@ func (s *ModuleCatalogService) MyModules(ctx context.Context) ([]MyModuleView, e
 			//
 			// 镜像里的 menu_keys 是平台下发回来的，而平台那份又是由本仓
 			// cmd/gen-module-bindings 从 ModuleMenuBindings 导出的 ——
-			// 也就是"把编译期常量绕一圈发回来"。用它当权威有两个坏处：
+			// 也就是「把编译期常量绕一圈发回来」。用它当权威有两个坏处：
 			//   ① 离线且从未同步成功时它是空的，而编译期绑定始终可用；
 			//   ② 两端版本不一致时（用户端升级了、平台还没重新 seed），
 			//      它会显示过期清单，而本地那份是对的。

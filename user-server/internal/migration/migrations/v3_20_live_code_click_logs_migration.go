@@ -11,11 +11,12 @@ import (
 )
 
 // LiveCodeClickLogsMigration 补齐活码点击审计日志表：
-//   - live_code_click_logs：活码维度逐条点击日志（IP / UA / Referrer），用于安全审计与溯源。
-//   - qr_code_click_logs：二维码维度逐条点击日志。
+//   - livecode_click_log：活码维度逐条点击日志（IP / UA / Referrer），用于安全审计与溯源。
+//   - qr_code_click_log：二维码维度逐条点击日志。
 //
 // 两张表此前仅有 GORM 模型与仓储，从未在任何迁移中创建，导致审计日志无法落库。
 // 使用 AutoMigrate 幂等创建，已部署库与全新库均安全。
+// 表名取自 model 的 TableName()（AutoMigrate 尊重它），不另起名。
 type LiveCodeClickLogsMigration struct {
 	db *gorm.DB
 }
@@ -34,7 +35,7 @@ func (m *LiveCodeClickLogsMigration) Name() string {
 }
 
 func (m *LiveCodeClickLogsMigration) Description() string {
-	return "AutoMigrate live_code_click_logs / qr_code_click_logs 两张审计日志表"
+	return "AutoMigrate livecode_click_log / qr_code_click_log 两张审计日志表"
 }
 
 func (m *LiveCodeClickLogsMigration) Up(ctx context.Context) error {

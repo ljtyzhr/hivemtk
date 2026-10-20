@@ -30,8 +30,6 @@ var globalQuietHoursQueue *MemoryQuietHoursQueue
 const (
 	quietHoursStartHour = 22
 	quietHoursEndHour   = 8
-
-	nextDayFirstSendHour = quietHoursEndHour
 )
 
 // reachQuietHoursStart / reachQuietHoursEnd 每请求读参数中心（60s TTL 缓存），

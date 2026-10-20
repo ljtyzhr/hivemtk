@@ -41,7 +41,8 @@ import (
 //
 // 版本口径（G-1 / T-P2-05）——"版本"这三列到底管什么、不管什么：
 //
-// a) 生效面只有 rag_answer_cache 一层。该表唯一索引键是 (kb_id, prompt_version)，
+// a) 生效面只有 rag_answer_cache 一层。该表的命名空间键是 (kb_id, prompt_version)
+// （库上无唯一约束，同名空间按答案逐条积累，读取按 created_at DESC 取最新一条），
 // 而 prompt_version 在挂载前是常量字面量 "v1"（service/smart_cs_orchestrator.go
 // 的 faqPromptVersion），全仓无第二个写入值。本列的作用就是把那个常量变成可路由的
 // 命名空间；除此之外**不改变任何检索结果**：knowledge_chunks 按 product_id 归属、

@@ -211,11 +211,15 @@ func (m *ComplianceDEMigration) createSmsJobMetrics(ctx context.Context) error {
 
 // Down 执行降级（删除 6 张表）
 func (m *ComplianceDEMigration) Down(ctx context.Context) error {
-	declineTableDrop(m.Version(), "sms_delivery_statuses", "sms_unsubscribes", "email_unsubscribes")
+	// email_job_metrics / email_tracking_events 已登记为 GORM 模型（internal/pkg/db/migrate.go 的
+	// allModels 里是 &model.EmailJobMetric{} 与 &model.EmailTrackingEvent{}），
+	// 建表事实源是 AutoMigrate，本迁移的 Up 里的 CREATE TABLE IF NOT EXISTS 在 AutoMigrate
+	// 之后是空操作 ⇒ 这两张表不是本迁移建的，Down 不得销毁它们（删掉即数据丢失）。
+	// sms_job_metrics 没有模型持有，仍属本迁移自建对象，继续删除。
+	declineTableDrop(m.Version(), "sms_delivery_statuses", "sms_unsubscribes", "email_unsubscribes",
+		"email_job_metrics", "email_tracking_events")
 	stmts := []string{
 		`DROP TABLE IF EXISTS sms_job_metrics`,
-		`DROP TABLE IF EXISTS email_job_metrics`,
-		`DROP TABLE IF EXISTS email_tracking_events`,
 	}
 	return execAllComplianceDE(ctx, m.db, stmts)
 }

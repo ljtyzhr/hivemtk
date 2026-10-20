@@ -5,10 +5,10 @@ import (
 	"time"
 
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 
 	"hivemtk-user/internal/model"
 	_db "hivemtk-user/internal/pkg/db"
+	"hivemtk-user/internal/pkg/pgvector"
 )
 
 // LongTermMemoryVectorRow pgvector 召回 SQL 扫描行
@@ -252,7 +252,7 @@ func (r *memoryRepository) SearchLongTermMemoriesByVector(ctx context.Context, q
 		Select("id, customer_id, memory_type, content, importance, source, metadata, created_at, expires_at, "+
 			"1 - (embedding <=> ?::vector) as similarity", queryVecStr).
 		Where("customer_id = ? AND (expires_at IS NULL OR expires_at > NOW())", customerID).
-		Order(clause.Expr{SQL: "embedding <=> ?::vector", Vars: []any{queryVecStr}}).
+		Order(pgvector.OrderByEmbeddingDistance(queryVecStr)).
 		Limit(fetchN).
 		Scan(&rows).Error
 	if err != nil {

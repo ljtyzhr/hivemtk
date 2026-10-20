@@ -116,8 +116,20 @@ func main() {
 	// TENANT_MODE 装配（001 多租户双形态）：必须在 db.InitDB/router.Setup 之前生效——
 	// 十二个 callback/中间件/登录通道全部读 tenant.IsMultiTenant()，
 	// 漏掉本调用则进程永远停在默认 off，环境变量静默失效（003 活体联调发现的装配缺口）。
-	if mode := tenant.InitFromEnv(); mode == tenant.ModeOn {
+	//
+	// TENANT_MODE 拼错（既不是 off/on 也不是空）时 InitFromEnv 返回 error 并保持 off：
+	// 此时**必须拒绝启动**，不能把 error 丢掉继续跑。丢掉的后果是 SaaS 部署静默降级成
+	// 单机形态——所有租户的数据被写进默认租户(tenant_id=1)，而进程全程不报任何错，
+	// 故障要到跨租户串数据时才暴露，那时已经写坏了一整批行。
+	// 失败即退出（fail-closed），与 tenancyidx「缺注册表就红」同一口径。
+	mode, err := tenant.InitFromEnv()
+	if err != nil {
+		log.Fatalf("[tenant] TENANT_MODE 装配失败，拒绝启动：%v", err)
+	}
+	if mode == tenant.ModeOn {
 		logger.Info("[tenant] TENANT_MODE=on：SaaS 多租户形态已启用")
+	} else {
+		logger.Info("[tenant] TENANT_MODE=off：离线单机形态已启用")
 	}
 
 	featureflag.DefaultManager()
@@ -351,9 +363,23 @@ func main() {
 
 	// 平台集成是可选本地组件：PLATFORM_ENABLED 未开启时整条链路不装配
 	// （不读配置、不注册商户、不心跳、不发一个请求），本地资产与运行链路不受影响。
+	//
+	// 关态分两种，日志必须分开说：未设置（正常的纯本地部署）与**拼错**。
+	// 拼错时若也报"未设置"，运维就会以为平台没接、往别的方向查——
+	// 而真相是"开关名写错了"，那才是唯一能解释"我明明配了却不生效"的原因。
+	//
+	// 守卫的判真仍以 config.PlatformEnabled() 为准（判真方向朝"关"是刻意设计，
+	// 见 internal/config/platform.go）；这里额外用 ResolvePlatformEnabled 区分
+	// "未设置"与"拼错"，只为把话说准，不改判真结果。
 	if !config.PlatformEnabled() {
-		logger.Info("[启动] 平台集成关闭（PLATFORM_ENABLED 未设置）：不加载平台配置、不注册商户、不心跳；" +
-			"资产市场与平台上报类端点返回空数据，本地资产构建与运行不受影响")
+		if _, known := config.ResolvePlatformEnabled(os.Getenv("PLATFORM_ENABLED")); known {
+			logger.Info("[启动] 平台集成关闭（PLATFORM_ENABLED 未开启）：不加载平台配置、不注册商户、不心跳；" +
+				"资产市场与平台上报类端点返回空数据，本地资产构建与运行不受影响")
+		} else {
+			logger.Warnf("[启动] 平台集成关闭：PLATFORM_ENABLED=%q 不是已知值（true/false/1/0/on/off/yes/no），"+
+				"已按关闭处理。需要联平台请改成 true —— 拼错会让商户注册、资产市场、模块下发全部静默失效。",
+				os.Getenv("PLATFORM_ENABLED"))
+		}
 	} else {
 		if err := config.LoadPlatform("config/platform.yaml"); err != nil {
 			logger.Errorf("平台配置加载失败（PlatformCfg 未初始化，商户上报/资产市场将不可用）：%v", err)

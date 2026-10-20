@@ -25,6 +25,13 @@ func setupTestControllerDB(t *testing.T) *gorm.DB {
 		&model.DouyinCard{},
 		&model.ShortLink{},
 		&model.DomainPool{},
+		// 登录链路会读 MFA 状态与密码策略：任一查询失败即 fail-closed 拒登，
+		// 缺表会让用例红在 42P01 而不是红在认证逻辑上。
+		&model.UserMFA{},
+		&model.PasswordHistory{},
+		&model.SystemConfigKV{},
+		// 登录风险检测异步写登录事件，缺表会把真实失败淹没在 42P01 噪声里。
+		&model.LoginEvent{},
 	)
 	db.SetTestDB(database)
 	return database

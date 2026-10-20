@@ -538,8 +538,17 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 		// 在任意一条报价上开出一张应收。
 		setupBillRoutes(auth)
 
+		// systemAdmin 组 = **平台运营方**专用档。
+		//
+		// 守卫不是 AdminAuthMiddleware（只判 role=="admin"）——SaaS 模式下
+		// 租户 admin 也是 admin，两者不可区分，租户 admin 会因此拿到跨租户
+		// 与实例级权限（看到/停用别的租户、重启实例、拉备份）。
+		// 平台运营方 = 本实例**首个租户**的管理员（tenants 表 ID 最小）；
+		// off 模式（离线单机）恒放行，行为与历史版本逐字节一致。
+		// 详见 middleware.PlatformOperatorMiddleware 与
+		// .specify/bugs/cross-tenant-admin-privilege-escalation/。
 		systemAdmin := auth.Group("")
-		systemAdmin.Use(middleware.AdminAuthMiddleware())
+		systemAdmin.Use(middleware.PlatformOperatorMiddleware())
 		setupSystemRoutes(systemAdmin)
 
 		// 租户运营端点（T033）：跨租户可见数据 → 硬超管守卫；

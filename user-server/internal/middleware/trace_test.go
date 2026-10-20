@@ -11,15 +11,16 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"hivemtk-user/internal/aiagent/llm"
+	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/traceparent"
 )
 
 // collectSubscriber 把总线事件转成 channel，供测试按 trace_id 取回。
 type collectSubscriber struct {
-	ch chan llm.TraceEvent
+	ch chan model.TraceEvent
 }
 
-func (s *collectSubscriber) OnEvent(event llm.TraceEvent) {
+func (s *collectSubscriber) OnEvent(event model.TraceEvent) {
 	select {
 	case s.ch <- event:
 	default:
@@ -40,7 +41,7 @@ func TestTraceMiddlewarePerRequestEventFields(t *testing.T) {
 	const n = 32
 
 	bus := llm.InitGlobalTraceBus()
-	events := make(chan llm.TraceEvent, 512)
+	events := make(chan model.TraceEvent, 512)
 	bus.Subscribe(&collectSubscriber{ch: events})
 
 	engine := gin.New()
@@ -83,7 +84,7 @@ func TestTraceMiddlewarePerRequestEventFields(t *testing.T) {
 	}
 	wg.Wait()
 
-	got := make(map[string]llm.TraceEvent, n)
+	got := make(map[string]model.TraceEvent, n)
 	deadline := time.After(3 * time.Second)
 	for len(got) < n {
 		select {

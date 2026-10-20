@@ -42,6 +42,9 @@ type TenantRepository interface {
 	Create(ctx context.Context, t *model.Tenant) error
 	GetByID(ctx context.Context, id uint) (*model.Tenant, error)
 	GetByCode(ctx context.Context, code string) (*model.Tenant, error)
+	// GetFirstTenant 取本实例最早建立的租户（ID 最小）＝平台运营方租户。
+	// tenants 是全局表，不受隔离 callback 约束。
+	GetFirstTenant(ctx context.Context) (*model.Tenant, error)
 	UpdateStatus(ctx context.Context, id uint, status int16) error
 	UpdateRegistration(ctx context.Context, id uint, fields map[string]any) error
 	// List 运营清单：分页 + 状态/关键词过滤，每行附活跃度概览
@@ -86,6 +89,26 @@ func (r *tenantRepo) GetByID(ctx context.Context, id uint) (*model.Tenant, error
 func (r *tenantRepo) GetByCode(ctx context.Context, code string) (*model.Tenant, error) {
 	var t model.Tenant
 	if err := r.db.WithContext(ctx).Where("code = ?", code).First(&t).Error; err != nil {
+		return nil, err
+	}
+	return &t, nil
+}
+
+// GetFirstTenant 取本实例最早建立的租户（ID 最小）。
+//
+// 用途：判定「平台运营方」——SaaS 模式下首个租户就是平台自己开的那个，
+// 它的管理员是唯一有权看全部租户、停用租户、做实例级操作的角色。
+//
+// 判据用 ID 最小而不是 code 前缀：租户是只增不删的（停用是软删，不改 ID），
+// ID 最小 ⇒ 恒定不变 ⇒ 判据稳定；而 code 前缀（"local-" / "t"）是生成策略的
+// 副产品，改了生成规则就会漂移。
+//
+// tenants 是全局表（无 tenant_id 列），不受隔离 callback 约束；
+// 这里刻意不挂 SystemScope —— 调用方传入的 ctx 若带租户绑定也不影响结果，
+// 因为查的是全局表第一行。
+func (r *tenantRepo) GetFirstTenant(ctx context.Context) (*model.Tenant, error) {
+	var t model.Tenant
+	if err := r.db.WithContext(ctx).Order("id ASC").First(&t).Error; err != nil {
 		return nil, err
 	}
 	return &t, nil

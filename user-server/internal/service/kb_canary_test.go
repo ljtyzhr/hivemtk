@@ -191,7 +191,7 @@ func TestKBCanary_PercentBoundsGateTheRoute(t *testing.T) {
 func setupKBCanaryDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	// rag_answer_cache 也建：版本命名空间的物理载体就是这张表，不打库就等于没验 AC②。
-	return testutil.NewTestDB(t, &model.KnowledgeBase{}, &ragcache.RAGAnswerCache{})
+	return testutil.NewTestDB(t, &model.KnowledgeBase{}, &model.RAGAnswerCache{})
 }
 
 // newKBForCacheTest 建一行 KB 并返回其十进制 ID 字符串（ragcache 的 kb_id 口径）。

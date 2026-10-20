@@ -537,8 +537,6 @@ func (h *SSEHandler) HandleOutboxSSE(c *gin.Context) {
 		lastEventID = c.Query("last_event_id")
 	}
 
-	ctxReq := c.Request.Context()
-
 	// 入参校验必须发生在 WriteHeader 之前：这条流一旦发出 200，就只能一直发注释帧，
 	// 事后既补不上状态码也送不出错误体。ingest/outbox/ack 三个入口对同样的缺参各回 400，
 	// 只有这里曾把缺 channel、空 account_id、以及 wechat 这类「格式对但桥接不承载」的渠道
@@ -569,7 +567,7 @@ func (h *SSEHandler) HandleOutboxSSE(c *gin.Context) {
 		writeBridgeTenantError(c, terr)
 		return
 	}
-	ctxReq = reqCtx
+	ctxReq := reqCtx
 
 	heartbeatInterval := h.heartbeatInterval
 	if heartbeatInterval == SSEDefaultHeartbeatInterval {

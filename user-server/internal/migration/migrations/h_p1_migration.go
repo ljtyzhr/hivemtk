@@ -165,10 +165,11 @@ func (m *HP1Migration) createRecoveryQueue(ctx context.Context) error {
 
 // Down 回滚
 func (m *HP1Migration) Down(ctx context.Context) error {
-	declineTableDrop(m.Version(), "recovery_queue", "clue_engagement_events", "clue_scores")
-	stmts := []string{
-		`DROP TABLE IF EXISTS customer_rfm`,
-	}
+	// customer_rfm 已登记为 GORM 模型（&model.CustomerRFM{}，见 internal/pkg/db/migrate.go 的 allModels），
+	// 建表事实源是 AutoMigrate ⇒ 本迁移的 Up 里的 CREATE TABLE IF NOT EXISTS 是空操作，
+	// 这张表不是本迁移建的，Down 不得销毁它（RFM 分层数据丢失不可恢复）。
+	declineTableDrop(m.Version(), "recovery_queue", "clue_engagement_events", "clue_scores", "customer_rfm")
+	stmts := []string{}
 	return execAllMP1(ctx, m.db, stmts)
 }
 

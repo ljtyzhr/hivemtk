@@ -50,6 +50,9 @@ func newOrderWebhookEngine(t *testing.T) (*gin.Engine, *gorm.DB) {
 	// （实测第一版就是在这里报 relation "system_config_kv" does not exist）。
 	database := testutil.NewTestDB(t,
 		&model.SystemConfigKV{},
+		// 回调密钥已随平台/租户 KV 拆分迁到 platform_config_kv：
+		// 中间件读的是平台表，缺它会让合法签名一律 503。
+		&model.PlatformConfigKV{},
 		&model.ExternalOrder{},
 		&model.WebhookEvent{},
 	)
@@ -71,12 +74,13 @@ func uniquePlatform(t *testing.T) string {
 func seedWebhookSecret(t *testing.T, database *gorm.DB, platform, secret string) {
 	t.Helper()
 	key := middleware.WebhookSecretKeyFor(platform)
-	row := model.SystemConfigKV{Key: key, Value: secret, CreatedAt: time.Now(), UpdatedAt: time.Now()}
+	// 种到平台表：中间件验签走 PlatformConfigKVRepository，写租户表等于没配。
+	row := model.PlatformConfigKV{Key: key, Value: secret, CreatedAt: time.Now(), UpdatedAt: time.Now()}
 	if err := database.Create(&row).Error; err != nil {
 		t.Fatalf("写入 %s 失败：%v", key, err)
 	}
 	t.Cleanup(func() {
-		_ = database.Where("key = ?", key).Delete(&model.SystemConfigKV{}).Error
+		_ = database.Where("key = ?", key).Delete(&model.PlatformConfigKV{}).Error
 	})
 }
 
@@ -370,7 +374,9 @@ func TestOrderWebhook_LegacyPathAnouncesDeprecationAndPointsToLiveRoute(t *testi
 // 缺键语义钉死，免得一侧改动导致"明明配了却报未配置"。
 func TestOrderWebhook_KVSecretKeyContract(t *testing.T) {
 	_, database := newOrderWebhookEngine(t)
-	repo := repository.NewSystemConfigKVRepository()
+	// 回调密钥属平台级配置：读写都必须落 platform_config_kv，
+	// 用租户级仓储断言会把已完成的拆分重新打破。
+	repo := repository.NewPlatformConfigKVRepository()
 	if !repo.Available() {
 		t.Fatal("kv 仓储不可用 ⇒ 全局 DB 未注入，中间件在生产也会拿不到密钥")
 	}
@@ -381,6 +387,7 @@ func TestOrderWebhook_KVSecretKeyContract(t *testing.T) {
 		t.Errorf("密钥键名格式漂移：%q（期望 order_webhook_secret_<platform>）", got)
 	}
 	t.Cleanup(func() {
+		_ = database.Where("key = ?", key).Delete(&model.PlatformConfigKV{}).Error
 		_ = database.Where("key = ?", key).Delete(&model.SystemConfigKV{}).Error
 	})
 
@@ -390,6 +397,11 @@ func TestOrderWebhook_KVSecretKeyContract(t *testing.T) {
 	got, err := repo.Get(context.Background(), key)
 	if err != nil || got != "kv-side-secret" {
 		t.Fatalf("kv 读写不对：%q %v", got, err)
+	}
+	// 表归属钉死：同一个键在租户表必须读不到，否则拆分随时可被写回旧表。
+	tenantRepo := repository.NewSystemConfigKVRepository()
+	if tenantHit, err := tenantRepo.Get(context.Background(), key); err != nil || tenantHit != "" {
+		t.Errorf("平台键泄漏到租户表：%q %v", tenantHit, err)
 	}
 	// 缺键必须回空串而不是 error：中间件靠这条区分"没配"（503+对方可见）与"读故障"（503+本侧日志）。
 	missing, err := repo.Get(context.Background(), key+"-never-set")

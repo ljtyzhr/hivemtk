@@ -10,6 +10,7 @@ import (
 	"hivemtk-user/internal/cache"
 	"hivemtk-user/internal/model"
 	i18npkg "hivemtk-user/internal/pkg/i18n"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 
 	"gorm.io/gorm"
@@ -52,7 +53,43 @@ type glossaryTranslation struct {
 
 const glossaryCacheTTL = time.Hour
 
-const glossaryCacheKeyPrefix = "glossary:lang:"
+// glossaryCacheKeyPrefix 术语缓存键前缀。
+//
+// 键里必须带租户维度：术语是租户业务数据（品牌/SKU/价格保护词），
+// 同一个 lang 在两个租户下是两套不同的映射表。键不带租户 = 租户 A 的术语视图
+// 被喂给租户 B 的 LLM 输出校准。
+const glossaryCacheKeyPrefix = "glossary:"
+
+// glossaryCacheKey 拼出「租户 + 目标语言」维度的缓存键。
+//
+// ctx 里没有租户绑定时回落默认租户 1（离线单机形态的唯一租户）；
+// 在线形态下真正的隔离由隔离 callback 在**读库那一步** fail-closed 把关——
+// 这里的回落只决定缓存键的命名空间，不决定能不能读到数据。
+func glossaryCacheKey(ctx context.Context, lang string) string {
+	tid, ok := tenant.FromContext(ctx)
+	if !ok {
+		tid = tenant.DefaultTenantID
+	}
+	return fmt.Sprintf("%s%d:lang:%s", glossaryCacheKeyPrefix, tid, lang)
+}
+
+// glossaryCacheKeysOfTenant 列出该租户在全部受支持语言下的缓存键。
+//
+// 用于「本租户术语变了 ⇒ 只失效本租户本模块的缓存」。
+// 这里**不能**用 cache.Clear：Redis 后端的 Clear 是 FLUSHDB
+// （internal/cache/redis.go:201），一次调用会把整个 Redis 库清空——
+// 别的租户、别的模块（会话、限流、权限）的缓存一起没了。
+// 一个租户管理员保存一条术语，却把整台实例的缓存掀了。
+func glossaryCacheKeysOfTenant(ctx context.Context) []string {
+	keys := make([]string, 0, len(i18npkg.SupportedLanguages)+1)
+	for lang := range i18npkg.SupportedLanguages {
+		keys = append(keys, glossaryCacheKey(ctx, lang))
+	}
+	// NormalizeLang 的兜底目标是 "zh"，上面枚举里已含 zh；这里再补一次当前
+	// 语言归一化后的结果，覆盖「枚举表将来加了语种但归一化另有分支」的情况。
+	keys = append(keys, glossaryCacheKey(ctx, i18npkg.NormalizeLang("")))
+	return keys
+}
 
 // GlossaryService 术语表服务。
 type GlossaryService struct {
@@ -160,26 +197,30 @@ func (s *GlossaryService) Render(ctx context.Context, lang string) string {
 
 // InvalidateCache 失效指定语言的术语缓存。
 //
-// 术语 CRUD 后由调用方主动调用。lang 为 "*" 或空时清空全部 glossary 缓存
-// （依赖 cache.Clear，对 Redis 后端慎用 — 会清空整个 db）。
+// lang 为 "*" 或空时清空**本租户**的术语缓存（逐个语言键删）。
+// 不用 cache.Clear 的理由见 glossaryCacheKeysOfTenant 的注释：
+// Redis 后端的 Clear 是 FLUSHDB，会掀掉整台实例所有租户所有模块的缓存。
 func (s *GlossaryService) InvalidateCache(ctx context.Context, lang string) {
 	lang = i18npkg.NormalizeLang(lang)
 	if lang == "" || lang == "*" {
-		if err := s.cache.Clear(ctx); err != nil {
-			logger.Warnf("glossary: clear cache failed: %v", err)
-		}
+		s.InvalidateAll(ctx)
 		return
 	}
-	key := glossaryCacheKeyPrefix + lang
+	key := glossaryCacheKey(ctx, lang)
 	if err := s.cache.Delete(ctx, key); err != nil {
 		logger.Warnf("glossary: invalidate cache key=%s failed: %v", key, err)
 	}
 }
 
-// InvalidateAll 失效全部 glossary 缓存（用于术语批量导入等场景）。
+// InvalidateAll 失效**本租户**的全部术语缓存（用于术语批量导入等场景）。
+//
+// 逐键删本租户在所有受支持语言下的术语缓存键；**不**调 cache.Clear：
+// Redis 后端的 Clear = FLUSHDB，租户之间、模块之间会互相清场。
 func (s *GlossaryService) InvalidateAll(ctx context.Context) {
-	if err := s.cache.Clear(ctx); err != nil {
-		logger.Warnf("glossary: clear all cache failed: %v", err)
+	for _, key := range glossaryCacheKeysOfTenant(ctx) {
+		if err := s.cache.Delete(ctx, key); err != nil {
+			logger.Warnf("glossary: invalidate all cache key=%s failed: %v", key, err)
+		}
 	}
 }
 
@@ -256,7 +297,7 @@ func (s *GlossaryService) ListByCategory(ctx context.Context, category string) (
 }
 
 func (s *GlossaryService) loadFromCache(ctx context.Context, lang string) (*GlossaryView, bool) {
-	key := glossaryCacheKeyPrefix + lang
+	key := glossaryCacheKey(ctx, lang)
 	var view GlossaryView
 	if err := s.cache.GetJSON(ctx, key, &view); err != nil {
 		logger.Debugf("glossary: cache get key=%s err=%v", key, err)
@@ -272,7 +313,7 @@ func (s *GlossaryService) saveToCache(ctx context.Context, view *GlossaryView) {
 	if view == nil {
 		return
 	}
-	key := glossaryCacheKeyPrefix + view.Lang
+	key := glossaryCacheKey(ctx, view.Lang)
 	if err := s.cache.SetJSON(ctx, key, view, glossaryCacheTTL); err != nil {
 		logger.Warnf("glossary: cache set key=%s err=%v", key, err)
 	}

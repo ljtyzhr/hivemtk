@@ -34,6 +34,8 @@ var coreOwnedTables = []string{
 	"system_config", "system_config_kv", "config_params", "config_param_groups",
 	"config_param_audit_logs", "dictionaries", "feature_flags",
 	"feature_flag_audit_logs", "feature_flag_eval_logs", "threshold_policies",
+	// R5 租户化的三张：租户覆盖值与它的审计流、平台面 KV（跨租户，随基座常在）
+	"tenant_config_params", "tenant_config_param_audit_logs", "platform_config_kv",
 	// 存储 / 素材 / 集成 / 平台账号
 	"obs_config", "platform_accounts", "platform_account_configs",
 	"integration_accounts", "integration_templates", "webhook_events",
@@ -42,6 +44,7 @@ var coreOwnedTables = []string{
 	"tenants", "tenant_modules", "module_sync_logs", "module_orders",
 	"tenant_subscription_mirror",
 	"llm_providers", "llm_routing_rules", "llm_routing_logs", "llm_usage_records",
+	"trace_events",
 	// 升级 / 迁移 / 运维
 	"upgrade_tasks", "migration_checkpoints", "migration_records",
 	"backups", "restore_records", "system_metrics", "visit_logs",
@@ -80,6 +83,7 @@ var knowledgeOwnedTables = []string{
 	"external_kb_connectors", "external_kb_sync_items", "external_import_jobs",
 	"faq_entries", "rag_products", "rag_metrics_daily", "rag_query_logs",
 	"rag_eval_runs", "rag_eval_questions", "rag_recall_monitor_snapshots",
+	"rag_answer_cache",
 }
 
 // asset 模块独占

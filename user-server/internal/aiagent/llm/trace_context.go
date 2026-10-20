@@ -12,46 +12,9 @@ import (
 
 	"github.com/google/uuid"
 
-	_db "hivemtk-user/internal/pkg/db"
+	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/utils/logger"
 )
-
-// 2026-09-16 审计 DB-07：TraceEvent 此前从未登记建表，
-// 而 trace_sink.go 有 `s.db.Table("trace_events").Create(rows)` 写入。
-//
-// 为什么写在这里而不是 internal/pkg/db/migrate.go：本包 import 了 internal/pkg/db，
-// 反向 import 会成环，故走 RegisterExtraModels。
-func init() { _db.RegisterExtraModels(&TraceEvent{}) }
-
-// TraceSpanKind Span 类型
-type TraceSpanKind string
-
-const (
-	TraceSpanKindLLMCall  TraceSpanKind = "llm_call"
-	TraceSpanKindToolCall TraceSpanKind = "tool_call"
-	TraceSpanKindDBOp     TraceSpanKind = "db_op"
-	TraceSpanKindLog      TraceSpanKind = "log"
-)
-
-// TraceEvent 全链路追踪事件（对应 trace_events 表）
-type TraceEvent struct {
-	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
-
-	ID           uint64         `json:"id" gorm:"primaryKey;autoIncrement"`
-	TraceID      string         `json:"trace_id" gorm:"type:varchar(64);not null;index"`
-	SpanID       string         `json:"span_id" gorm:"type:varchar(64);not null;uniqueIndex"`
-	ParentSpanID string         `json:"parent_span_id,omitempty" gorm:"type:varchar(64);index"`
-	Kind         TraceSpanKind  `json:"kind" gorm:"type:varchar(32);not null;index"`
-	Service      string         `json:"service" gorm:"type:varchar(64);not null"`
-	Operation    string         `json:"operation" gorm:"type:varchar(128);not null"`
-	DurationMs   int64          `json:"duration_ms" gorm:"default:0"`
-	Status       string         `json:"status" gorm:"type:varchar(16);default:'ok'"`
-	Metadata     map[string]any `json:"metadata,omitempty" gorm:"type:text;serializer:json"`
-	Timestamp    time.Time      `json:"timestamp" gorm:"index"`
-}
-
-// TableName GORM 表名
-func (TraceEvent) TableName() string { return "trace_events" }
 
 // TraceContext 全链路追踪上下文
 type TraceContext struct {
@@ -59,7 +22,6 @@ type TraceContext struct {
 	spanID       string
 	parentSpanID string
 	mu           sync.RWMutex
-	metadata     map[string]any
 }
 
 // NewTraceContext 创建新的追踪上下文
@@ -72,7 +34,6 @@ func NewTraceContext(traceID, parentSpanID string) *TraceContext {
 		traceID:      traceID,
 		spanID:       generateSpanID(),
 		parentSpanID: parentSpanID,
-		metadata:     make(map[string]any),
 	}
 }
 
@@ -89,6 +50,8 @@ func (tc *TraceContext) SpanID() string {
 	if tc == nil {
 		return ""
 	}
+	tc.mu.RLock()
+	defer tc.mu.RUnlock()
 	return tc.spanID
 }
 
@@ -98,41 +61,6 @@ func (tc *TraceContext) ParentSpanID() string {
 		return ""
 	}
 	return tc.parentSpanID
-}
-
-// SetMetadata 设置元数据
-func (tc *TraceContext) SetMetadata(key string, value any) {
-	if tc == nil {
-		return
-	}
-	tc.mu.Lock()
-	defer tc.mu.Unlock()
-	tc.metadata[key] = value
-}
-
-// GetMetadata 获取元数据
-func (tc *TraceContext) GetMetadata(key string) (any, bool) {
-	if tc == nil {
-		return nil, false
-	}
-	tc.mu.RLock()
-	defer tc.mu.RUnlock()
-	v, ok := tc.metadata[key]
-	return v, ok
-}
-
-// Metadata 返回元数据副本
-func (tc *TraceContext) Metadata() map[string]any {
-	if tc == nil {
-		return nil
-	}
-	tc.mu.RLock()
-	defer tc.mu.RUnlock()
-	out := make(map[string]any, len(tc.metadata))
-	for k, v := range tc.metadata {
-		out[k] = v
-	}
-	return out
 }
 
 // SetSpanIDFor 显式设置本 span_id（用于 trace middleware 注入 W3C 子 span）。
@@ -163,11 +91,14 @@ func (tc *TraceContext) ChildSpan() *TraceContext {
 	if tc == nil {
 		return NewTraceContext("", "")
 	}
+	tc.mu.RLock()
+	parent := tc.spanID
+	traceID := tc.traceID
+	tc.mu.RUnlock()
 	return &TraceContext{
-		traceID:      tc.traceID,
+		traceID:      traceID,
 		spanID:       generateSpanID(),
-		parentSpanID: tc.spanID,
-		metadata:     make(map[string]any),
+		parentSpanID: parent,
 	}
 }
 
@@ -200,12 +131,12 @@ func generateSpanID() string {
 
 // TraceEventPublisher 追踪事件发布器接口
 type TraceEventPublisher interface {
-	Publish(event TraceEvent)
+	Publish(event model.TraceEvent)
 }
 
 // TraceEventSubscriber 追踪事件订阅器接口
 type TraceEventSubscriber interface {
-	OnEvent(event TraceEvent)
+	OnEvent(event model.TraceEvent)
 }
 
 // InMemoryTraceBus 进程内追踪事件总线（默认实现）
@@ -213,14 +144,14 @@ type TraceEventSubscriber interface {
 type InMemoryTraceBus struct {
 	mu          sync.RWMutex
 	subscribers []TraceEventSubscriber
-	eventQueue  chan TraceEvent
+	eventQueue  chan model.TraceEvent
 	stopped     atomic.Bool
 }
 
 // NewInMemoryTraceBus 创建进程内追踪事件总线
 func NewInMemoryTraceBus() *InMemoryTraceBus {
 	bus := &InMemoryTraceBus{
-		eventQueue: make(chan TraceEvent, 1024),
+		eventQueue: make(chan model.TraceEvent, 1024),
 	}
 	go bus.dispatch()
 	return bus
@@ -237,7 +168,7 @@ func (b *InMemoryTraceBus) Subscribe(sub TraceEventSubscriber) {
 }
 
 // Publish 发布事件（非阻塞，缓冲区满时丢弃）
-func (b *InMemoryTraceBus) Publish(event TraceEvent) {
+func (b *InMemoryTraceBus) Publish(event model.TraceEvent) {
 	if b.stopped.Load() {
 		return
 	}
@@ -274,11 +205,6 @@ func (b *InMemoryTraceBus) dispatch() {
 	}
 }
 
-// TraceRecorder 追踪事件记录器接口
-type TraceRecorder interface {
-	Record(event TraceEvent) error
-}
-
 var (
 	globalTraceBus     *InMemoryTraceBus
 	globalTraceBusOnce sync.Once
@@ -307,7 +233,7 @@ func GetGlobalTraceBus() *InMemoryTraceBus {
 
 // PublishTraceEvent 发布追踪事件（便捷方法）
 // 自动设置 timestamp；trace_id/span_id 缺失时自动生成
-func PublishTraceEvent(event TraceEvent) {
+func PublishTraceEvent(event model.TraceEvent) {
 	if event.TraceID == "" {
 		event.TraceID = generateTraceID()
 	}
@@ -324,53 +250,21 @@ func PublishTraceEvent(event TraceEvent) {
 }
 
 // PublishLLMCall 发布 LLM 调用事件
-func PublishLLMCall(tenantID uint, traceID, spanID, parentSpanID, provider, model string, durationMs int64, status string, metadata map[string]any) {
-	PublishTraceEvent(TraceEvent{
+func PublishLLMCall(tenantID uint, traceID, spanID, parentSpanID, provider, modelName string, durationMs int64, status string, metadata map[string]any) {
+	PublishTraceEvent(model.TraceEvent{
 		TenantID:     tenantID,
 		TraceID:      traceID,
 		SpanID:       spanID,
 		ParentSpanID: parentSpanID,
-		Kind:         TraceSpanKindLLMCall,
+		Kind:         model.TraceSpanKindLLMCall,
 		Service:      "llm",
 		Operation:    "chat_completion",
 		DurationMs:   durationMs,
 		Status:       status,
 		Metadata: mergeMetadata(metadata, map[string]any{
 			"provider": provider,
-			"model":    model,
+			"model":    modelName,
 		}),
-	})
-}
-
-// PublishToolCall 发布工具调用事件
-func PublishToolCall(tenantID uint, traceID, spanID, parentSpanID, toolName string, durationMs int64, status string, metadata map[string]any) {
-	PublishTraceEvent(TraceEvent{
-		TenantID:     tenantID,
-		TraceID:      traceID,
-		SpanID:       spanID,
-		ParentSpanID: parentSpanID,
-		Kind:         TraceSpanKindToolCall,
-		Service:      "tool",
-		Operation:    toolName,
-		DurationMs:   durationMs,
-		Status:       status,
-		Metadata:     metadata,
-	})
-}
-
-// PublishDBOp 发布 DB 操作事件
-func PublishDBOp(tenantID uint, traceID, spanID, parentSpanID, operation string, durationMs int64, status string, metadata map[string]any) {
-	PublishTraceEvent(TraceEvent{
-		TenantID:     tenantID,
-		TraceID:      traceID,
-		SpanID:       spanID,
-		ParentSpanID: parentSpanID,
-		Kind:         TraceSpanKindDBOp,
-		Service:      "db",
-		Operation:    operation,
-		DurationMs:   durationMs,
-		Status:       status,
-		Metadata:     metadata,
 	})
 }
 

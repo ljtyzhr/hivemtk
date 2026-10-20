@@ -7,8 +7,9 @@ import (
 	"time"
 
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 
+	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/pgvector"
 	"hivemtk-user/internal/pkg/utils/logger"
 )
 
@@ -56,23 +57,8 @@ func (r *pgKBMetaReader) GetKBUpdatedAt(ctx context.Context, kbID string) (time.
 	return updated, nil
 }
 
-// PGAnswerCacheStore 基于 GORM + pgvector 的存储实现（表 rag_answer_cache）
-//
-// 迁移注册需求（本文件不改动 migrate.go，需在 internal/migration/migrations 注册）：
-//
-//	CREATE EXTENSION IF NOT EXISTS vector;  -- 项目已有（knowledge_vector_migration）
-//	CREATE TABLE IF NOT EXISTS rag_answer_cache (
-//	    id             BIGSERIAL PRIMARY KEY,
-//	    tenant_id      BIGINT       NOT NULL DEFAULT 1,
-//	    kb_id          VARCHAR(64)  NOT NULL,
-//	    prompt_version VARCHAR(64)  NOT NULL,
-//	    query_vector   vector(1024) NOT NULL,
-//	    answer         TEXT         NOT NULL,
-//	    created_at     TIMESTAMPTZ  NOT NULL DEFAULT NOW(),
-//	    kb_updated_at  TIMESTAMPTZ  NOT NULL
-//	);
-//	CREATE INDEX IF NOT EXISTS idx_rag_answer_cache_kb_prompt
-//	    ON rag_answer_cache (tenant_id, kb_id, prompt_version);
+// PGAnswerCacheStore 基于 GORM + pgvector 的存储实现（表 rag_answer_cache，
+// 建表走 internal/pkg/db.allModels()）
 type PGAnswerCacheStore struct {
 	db *gorm.DB
 }
@@ -93,7 +79,7 @@ func (s *PGAnswerCacheStore) GetExact(ctx context.Context, kbID, promptVersion s
 	if s == nil || s.db == nil {
 		return nil, errors.New("answer cache store 未初始化")
 	}
-	var row RAGAnswerCache
+	var row model.RAGAnswerCache
 	err := s.db.WithContext(ctx).Table("rag_answer_cache").
 		Select("id, kb_id, prompt_version, query_vector::text AS query_vector, answer, created_at, kb_updated_at").
 		Where("kb_id = ? AND prompt_version = ? AND query_vector = ?::vector", kbID, promptVersion, vecToLiteral(vec)).
@@ -115,7 +101,7 @@ func (s *PGAnswerCacheStore) GetSemantic(ctx context.Context, kbID, promptVersio
 	}
 	literal := vecToLiteral(vec)
 	var row struct {
-		RAGAnswerCache
+		model.RAGAnswerCache
 		Similarity float64 `gorm:"column:similarity"`
 	}
 	err := s.db.WithContext(ctx).Table("rag_answer_cache").
@@ -123,7 +109,7 @@ func (s *PGAnswerCacheStore) GetSemantic(ctx context.Context, kbID, promptVersio
 			"1 - (query_vector <=> ?::vector) AS similarity", literal).
 		Where("kb_id = ? AND prompt_version = ?", kbID, promptVersion).
 		Where("1 - (query_vector <=> ?::vector) >= ?", literal, minSimilarity).
-		Order(clause.Expr{SQL: "query_vector <=> ?::vector ASC", Vars: []any{literal}}).
+		Order(pgvector.OrderByQueryVectorDistance(literal)).
 		Limit(1).
 		Scan(&row).Error
 	if err != nil {
@@ -169,7 +155,7 @@ func (s *PGAnswerCacheStore) Delete(ctx context.Context, id uint64) error {
 		Delete(nil).Error
 }
 
-func rowToEntry(row *RAGAnswerCache) (*Entry, error) {
+func rowToEntry(row *model.RAGAnswerCache) (*Entry, error) {
 	vec, err := parseVectorLiteral(row.QueryVector)
 	if err != nil {
 		return nil, fmt.Errorf("解析 query_vector 失败: %w", err)

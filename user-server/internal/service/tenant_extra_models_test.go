@@ -5,7 +5,6 @@ import (
 	"sync"
 	"testing"
 
-	"hivemtk-user/internal/aiagent/llm"
 	"hivemtk-user/internal/model"
 	_db "hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/repository"
@@ -21,7 +20,6 @@ func TestExtraModelsRegisteredAndTenantScoped(t *testing.T) {
 	want := map[string]any{
 		"ab_exposures":           &repository.AbExposure{},
 		"kb_document_chunks":     &repository.KBDocumentChunkRow{},
-		"trace_events":           &llm.TraceEvent{},
 		"email_accounts":         &EmailAccount{},
 		"reach_compliance_log":   &model.ReachComplianceLog{},
 		"reach_delayed_outbound": &model.DelayedOutboundReply{},

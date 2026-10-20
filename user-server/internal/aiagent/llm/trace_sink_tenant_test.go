@@ -5,6 +5,7 @@ import (
 	"testing"
 	"time"
 
+	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/testutil"
 )
@@ -17,7 +18,7 @@ import (
 //
 // 无归属事件（公开路由）必须 fail-closed，不得借默认租户蒙混落库。
 func TestDBTraceSinkPersistsTenantScopedEvents(t *testing.T) {
-	d := testutil.NewTestDB(t, &TraceEvent{})
+	d := testutil.NewTestDB(t, &model.TraceEvent{})
 	tenant.SetMode(tenant.ModeOn)
 	t.Cleanup(func() { tenant.SetMode(tenant.ModeOff) })
 
@@ -25,13 +26,13 @@ func TestDBTraceSinkPersistsTenantScopedEvents(t *testing.T) {
 	sink.Start()
 
 	now := time.Now()
-	sink.OnEvent(TraceEvent{TenantID: 2, TraceID: "tr-t2", SpanID: "sp-t2", Kind: TraceSpanKindLLMCall, Service: "llm", Operation: "chat_completion", Status: "ok", Timestamp: now})
-	sink.OnEvent(TraceEvent{TenantID: 3, TraceID: "tr-t3", SpanID: "sp-t3", Kind: TraceSpanKindToolCall, Service: "tool", Operation: "send_email", Status: "ok", Timestamp: now})
-	sink.OnEvent(TraceEvent{TraceID: "tr-unbound", SpanID: "sp-unbound", Kind: TraceSpanKindLog, Service: "http", Operation: "GET /health", Status: "ok", Timestamp: now})
+	sink.OnEvent(model.TraceEvent{TenantID: 2, TraceID: "tr-t2", SpanID: "sp-t2", Kind: model.TraceSpanKindLLMCall, Service: "llm", Operation: "chat_completion", Status: "ok", Timestamp: now})
+	sink.OnEvent(model.TraceEvent{TenantID: 3, TraceID: "tr-t3", SpanID: "sp-t3", Kind: model.TraceSpanKindToolCall, Service: "tool", Operation: "send_email", Status: "ok", Timestamp: now})
+	sink.OnEvent(model.TraceEvent{TraceID: "tr-unbound", SpanID: "sp-unbound", Kind: model.TraceSpanKindLog, Service: "http", Operation: "GET /health", Status: "ok", Timestamp: now})
 
 	sink.Stop()
 
-	var got []TraceEvent
+	var got []model.TraceEvent
 	if err := d.WithContext(tenant.WithSystemScope(context.Background())).
 		Where("span_id IN ?", []string{"sp-t2", "sp-t3", "sp-unbound"}).
 		Order("span_id").Find(&got).Error; err != nil {

@@ -53,26 +53,26 @@ type parsedStep struct {
 }
 
 // brainPlanner Executor 对 Brain 层的全部依赖（从具体 *BrainService 改接缝）。
-// 动机不是解耦好看：*BrainService 让整条 executeBrain 循环在单测里无法驱动（plan 必然打真 LLM），
+// *BrainService 会让整条 executeBrain 循环在单测里无法驱动（plan 必然打真 LLM），
 // 于是「闸门是否在落库前生效」这类事实只能停在谓词层。有了这一层，测试可以塞进脚本化 plan，
 // 其余部件（真 WS、真 DB、真步循环）全部照旧。
 type brainPlanner interface {
 	GeneratePlanReflect(ctx context.Context, taskID, sessionID uint, goal, platformID, snapshot string, st *reflectState) (stepsJSON []byte, done bool, err error)
 	LastPlanTokens() int
-	LastPlanModel() string // Chunk4：审计帧每步的 llm_model（空串=该步没走 LLM，调用方不写该字段）
+	LastPlanModel() string // 审计帧每步的 llm_model（空串=该步没走 LLM，调用方不写该字段）
 	LastAuxTokens() int
 	JudgeDone(ctx context.Context, taskID, sessionID uint, goal, evidence string) (approve bool, reason string)
 	SummarizeSession(ctx context.Context, taskID, sessionID uint, goal string, success, total int, extracts string) string
 }
 
 // Executor 执行引擎：steps 解释 + Hand 调用 + Session 流转 + 停止/超时控制。
-// 状态收口原则：session/step 状态只由 Executor 写（替代 v1 的 AfterFunc 直改状态）。
+// 状态收口原则：session/step 状态只由 Executor 写。
 type Executor struct {
 	hand        *Hand
 	sessionRepo repository.BrowserSessionRepository
 	stepRepo    repository.BrowserStepRepository
 	cmdLogRepo  repository.BrowserCommandLogRepository
-	// writeClaimRepo 不可逆写的存储层独占声明。它**不**是台账的缓存或兜底——
+	// writeClaimRepo 不可逆写的存储层独占声明。它不是台账的缓存或兜底——
 	// 台账（stepRepo）回答「历史上发生过尝试没有」，本仓储回答「此刻谁有权去跨提交点」，
 	// 后者只能由一条 INSERT 的原子性给出，所以 Executor 上不放任何内存态。
 	// nil（未接线）在写步上是 fail-close，见 claimWriteSlot。
@@ -81,40 +81,38 @@ type Executor struct {
 	feedback       *FeedbackService
 
 	// jevClient JEV 步决策客户端（nil=按环境变量即时构造；默认关闭，见 jev.go）。
-	// 测试经 SetJevClient 注入 fake server 指向的客户端。
 	jevClient *JevClient
 
-	// outreachReceiptRepo 触达回执仓储（Chunk5：验收交付物 = 截图 + 帖子链接 + 文案快照）。
+	// outreachReceiptRepo 触达回执仓储。
 	// nil=未接线（回执全空，执行不受影响）——回执是增强层，落不落得住都不改「已发布」这个事实。
 	outreachReceiptRepo repository.BrowserOutreachReceiptRepository
 
-	// pendingReceipts sessionID → 待落回执行（Chunk5 收口期挂起，见 outreach_receipt.go）。
+	// pendingReceipts sessionID → 待落回执行。
 	// 只在「本会话已经发过触达」这一罕见路径上有内容，纯只读任务恒为空。
 	receiptMu       sync.Mutex
 	pendingReceipts map[uint][]*receiptPending
 
-	// profileHealthRepo 主 Profile 健康熔断仓储（Chunk2：单主 Profile 健康监护）。
+	// profileHealthRepo 主 Profile 健康熔断仓储（单主 Profile 健康监护）。
 	// nil=未接线（熔断写入跳过，执行不受影响）——熔断是增强不是门禁。
 	profileHealthRepo repository.BrowserProfileHealthRepository
 
-	// outreachDedupeRepo 跨任务触达去重仓储（Chunk3：同一平台同一目标同一动作同一文案只触达一次）。
+	// outreachDedupeRepo 跨任务触达去重仓储（同一平台同一目标同一动作同一文案只触达一次）。
 	// nil=未接线（去重检查跳过，执行不受影响）——去重是防扰民层，真安全网是写声明与台账。
 	outreachDedupeRepo repository.BrowserOutreachDedupeRepository
 
-	// taskRepo 任务仓储（Chunk4：活动触达条数预算的原子扣减落在这里）。
-	// nil=未接线 ⇒ **不扣减也不拦停**（fail-open），与存量行为一致。
+	// taskRepo 任务仓储（活动触达条数预算的原子扣减落在这里）。
+	// nil=未接线 ⇒ 不扣减也不拦停（fail-open），与存量行为一致。
 	// 之所以敢 fail-open：预算的失败形态是「多打扰了几次」，而双发的失败形态是「用户被重复骚扰
-	// 且无法撤回」。预算若因接线缺失而把整条触达线锁死，那是更大的事故；真要收紧预算强度，
-	// 该在 TaskService 启动门做（见 task.go 的 profileHealth 启动门范式）。
+	// 且无法撤回」。预算若因接线缺失而把整条触达线锁死，那是更大的事故。
 	taskRepo repository.BrowserTaskRepository
 
-	// relocateLLM A1 自愈 LLM 接缝（默认 defaultRelocateLLM；测试替换免真机 LLM）
+	// relocateLLM 自愈 LLM 接缝（默认 defaultRelocateLLM；测试替换免真机 LLM）
 	relocateLLM func(ctx context.Context, systemPrompt, prompt string) (relocateOutcome, error)
 
 	stopMu       sync.Mutex
 	stopRegistry map[uint]chan struct{} // sessionID → stopCh
 
-	// confirmRegistry D7：sessionID → 待放行闸门（仅在写步提交点前挂起时存在）。
+	// confirmRegistry sessionID → 待放行闸门（仅在写步提交点前挂起时存在）。
 	// 与 stopRegistry 同构但生命周期不同：stop 通道随 session 全程注册，确认通道只在等待期存在
 	// ——「存在即挂起」使 ConfirmPending 无需额外状态位。
 	// 存的不再是裸通道而是闸门自身——「等谁批、批的是哪份载荷、什么时候到期」
@@ -127,15 +125,11 @@ type Executor struct {
 	//   ledgerGaps:   "taskID|text_hash" → 提交尝试点已跨越但库里没落成，跨会话保留到进程结束
 	//                 （自动重试是同进程换新 session 跑同一任务，会话级降级挡不住它）。
 	// 两张表都只在「台账写失败」这条罕见路径上增长，各自有界（gaps 见 ledgerGapCap）。
-	// gaps 不跨重启 ⇒ 反馈层挂重试前必须查它一次（B2，接线见 NewExecutor）。
+	// gaps 不跨重启 ⇒ 反馈层挂重试前必须查它一次（接线见 NewExecutor）。
 	ledgerMu       sync.Mutex
 	ledgerBroken   map[uint]string
 	ledgerGaps     map[string]bool
 	ledgerGapOrder []string
-
-	// R-A4（2026-09-19）：原 lastStepResult 字段已删——Executor 是进程级单例、
-	// 多 session 并发触达，字段传值既是数据竞态又会跨 session 串包；
-	// 回包改由 dispatchStep 返回值沿调用栈传递。
 }
 
 func NewExecutor(hand *Hand, sessionRepo repository.BrowserSessionRepository, stepRepo repository.BrowserStepRepository, brain *BrainService, feedback *FeedbackService) *Executor {
@@ -161,8 +155,7 @@ func NewExecutor(hand *Hand, sessionRepo repository.BrowserSessionRepository, st
 	e.feedback = feedback
 	if feedback != nil {
 		// 单点接线：缺口表长在 Executor 上、挂自动重试的动作在 FeedbackService 上，
-		// 两边互相看不见。接在构造处而不是某个调用点——漏接线时「不重试」的抑制会整条静默消失，
-		// 与A11 那条「把错误就地吞掉等于闸门不存在」是同一个失效形态。
+		// 两边互相看不见。接在构造处而不是某个调用点——漏接线时「不重试」的抑制会整条静默消失。
 		feedback.SetLedgerGapProvider(e.HasCrossedLedgerGap)
 	}
 	return e
@@ -170,10 +163,8 @@ func NewExecutor(hand *Hand, sessionRepo repository.BrowserSessionRepository, st
 
 // finishStep 步行终态落库（唯一写入口）。
 //
-// 为什么不能沿用执行 ctx：超时/中止腿上 ctx 此刻必然已 Done，用它的 UPDATE 会被 DB 驱动取消，
-// 于是这一行永远停在 running——「写步失败是可见、可人工重跑的」这条承诺就地失效，
-// 运维在面板上看不到「这一步为什么被拦」，只剩一条日志。R25 只对 session/task 行做了这个
-// 处理（sessionFinalWriteBudget），步行是同一缺陷的第三半。
+// 不能沿用执行 ctx：超时/中止腿上 ctx 此刻必然已 Done，用它的 UPDATE 会被 DB 驱动取消，
+// 于是这一行永远停在 running——「写步失败是可见、可人工重跑的」这条承诺就地失效。
 // 失败必须上报（旧写法是 `_ =`）：session/task 行有 stale_reconcile 兜底收敛，步行没有。
 func (e *Executor) finishStep(ctx context.Context, stepRowID uint, status string, result []byte, durationMs int64, msg string) {
 	writeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), stepFinalWriteBudget)
@@ -189,7 +180,7 @@ func (e *Executor) SetCommandLogRepository(r repository.BrowserCommandLogReposit
 }
 
 // SetWriteClaimRepository 存储层写声明闸门注入。
-// 与上面的日志注入**相反**，这里 nil 不是「可选」而是「闸门没接好」：写步会一律拒绝下发
+// 与日志注入**相反**，这里 nil 不是「可选」而是「闸门没接好」：写步会一律拒绝下发
 // （见 claimWriteSlot）。宁可把任务跑成一屏红步，也不开一条没有独占裁决的写路径——
 // 少接一行装配是可见的、可当天补的，一次双发是不可见、撤不回的。
 func (e *Executor) SetWriteClaimRepository(r repository.BrowserWriteClaimRepository) {
@@ -211,15 +202,15 @@ func (e *Executor) SetOutreachDedupeRepository(r repository.BrowserOutreachDedup
 	e.outreachDedupeRepo = r
 }
 
-// SetTaskRepository 任务仓储注入（Chunk4：活动触达条数预算扣减；nil 时不扣减）。
+// SetTaskRepository 任务仓储注入（活动触达条数预算扣减；nil 时不扣减）。
 func (e *Executor) SetTaskRepository(r repository.BrowserTaskRepository) {
 	e.taskRepo = r
 }
 
-// appendCommandLog append-only 命令-事件日志（P8）。失败仅告警不阻断执行：
+// appendCommandLog append-only 命令-事件日志。失败仅告警不阻断执行：
 // 日志是审计增强，不能反过来拖垮业务执行路径。
 // seq 由调用方传入（session 局部计数）——Executor 是多 session 共享单例，
-// 共享计数器在并发 session 下是 data race 且 seq 跨 session 交错（P0-2 修复）。
+// 共享计数器在并发 session 下是 data race 且 seq 跨 session 交错。
 // ok 是这一帧自带的结论，三态（见 model.BrowserCommandLog.Ok）：nil=此帧不携带结论，
 // 下发帧恒为 nil——下发那一刻「成/败」都还没发生，填任何一个值都是替读者编一个结论。
 func (e *Executor) appendCommandLog(ctx context.Context, sessionID, taskID, stepID uint, seq int, direction, action string, payload any, durationMs int64, ok *bool) {
@@ -247,7 +238,7 @@ func verdict(v bool) *bool { return &v }
 // auditEventPayload 写步回包进审计流前的收口：丢掉 evidence 键。
 // comment_verify 的回包含「页面上命中那条评论的文本节选」（primitives.js evidenceOf），
 // 而命中项就是我们自己发出去的正文——写进 browser_steps.result / extracted_data 是追溯面板
-// 要的凭据，写进 append-only 命令流则是把用户内容带进 I5 离线导出件。审计流要的是结论
+// 要的凭据，写进 append-only 命令流则是把用户内容带进离线导出件。审计流要的是结论
 // （已受理/已确认/未确认），内容证据另有其位。
 func auditEventPayload(result []byte) []byte {
 	if len(result) == 0 {
@@ -328,8 +319,7 @@ type PendingConfirmGate struct {
 }
 
 // confirmGate 一次挂起的全部事实。载荷哈希在写下时定死、闸门存续期间不许改——
-// 「批的是哪份载荷」有唯一答案，比对才有意义（A5 的反面教材：LangGraph interrupt 对
-// resume 值完全不校验，等于任何一次放行都可为任何一份载荷背书）。
+// 「批的是哪份载荷」有唯一答案，比对才有意义。
 type confirmGate struct {
 	ch          chan struct{}
 	sessionID   uint
@@ -342,7 +332,7 @@ type confirmGate struct {
 	budget time.Duration
 
 	// mismatchAttempts 拿错载荷来要的放行次数。放行不撤闸门，所以这个数只能由闸门自己记，
-	// 事后无从重建；judge 帧收口时把它一起落下去（A9：拒过谁来，和批没批同样值得审计）。
+	// 事后无从重建；judge 帧收口时把它一起落下去（拒过谁来，和批没批同样值得审计）。
 	mu               sync.Mutex
 	mismatchAttempts int
 }
@@ -418,8 +408,7 @@ func (e *Executor) PendingGate(sessionID uint) (PendingConfirmGate, bool) {
 }
 
 // registerConfirmGate 登记一次挂起并返回它——与 unregister 配对，且「同一 session 只可能有一个
-// 在等的闸门」由这里唯一裁决（后到者覆盖：闸门是每用户 1 个 running session 的串行面，
-// 真出现覆盖说明上游串行闸已失效，覆盖本身留在那条旧通道的最终归宿里，不额外报错）。
+// 在等的闸门」由这里唯一裁决（后到者覆盖：闸门是每用户 1 个 running session 的串行面）。
 func (e *Executor) registerConfirmGate(g *confirmGate) *confirmGate {
 	e.confirmMu.Lock()
 	e.confirmRegistry[g.sessionID] = g
@@ -427,7 +416,7 @@ func (e *Executor) registerConfirmGate(g *confirmGate) *confirmGate {
 	return g
 }
 
-// confirmOutcome D7 闸门三种出路（F4：终态语义必须可区分——「操作者主动不提交」和
+// confirmOutcome 闸门三种出路（终态语义必须可区分——「操作者主动不提交」和
 // 「确认超时」在审计面同形记 failed，等于把一次正常的人工否决统计成系统故障）。
 type confirmOutcome uint
 
@@ -440,17 +429,16 @@ const (
 // errConfirmAbortedByStop 挂起期间被 stop 中止的步错误原文。不复用「用户手动中断」那句
 // 原文：步与审计面要写清「停在确认闸门、评论从未提交」，终态收口再按此常量精确认出
 // 「这次失败的起因就是用户中断」→ 记 stopped。
-// 起 post_comment 与派生写步（type+回车 / click 发送按钮）共用此原文——F4 的精确匹配
+// 起 post_comment 与派生写步（type+回车 / click 发送按钮）共用此原文——精确匹配
 // 只认这一条，措辞按步分叉就会把「闸门处中止」重新掉回 failed。
 const errConfirmAbortedByStop = "写步等待人工确认期间被用户中止，评论未提交"
 
-// waitForConfirm 挂起等人工放行，自带独立计时器（解耦：不再让 execCtx.Done 兼职确认超时）。
+// waitForConfirm 挂起等人工放行，自带独立计时器（不再让 execCtx.Done 兼职确认超时）。
 // 前置：闸门已由 registerConfirmGate 挂上注册表——**登记早于落帧、落帧早于等待**，
 // 反过来排会在「帧已写、注册表还空着」的窗口里把一次真放行答成「没有待确认的提交点」。
 // 返回值第二项是**哪条预算到头**的原文（「确认等待 600s」还是「任务执行预算掐断」）——
 // 两者在审计面上必须可区分，否则人就会去调 timeout_sec 而真正该调的是 confirm_wait_sec。
-// 调用点在不可逆提交点之前，非 confirmGranted 分支从未点击过任何按钮——失败可安全重下发，
-// 不违「单次提交禁重试」红线（那是「已提交且结局未知」的专属纪律）。
+// 调用点在不可逆提交点之前，非 confirmGranted 分支从未点击过任何按钮——失败可安全重下发。
 // stopChFor 未注册时返回 nil，select 对 nil 通道分支永不就绪，与 ctx.Done 并存安全。
 func (e *Executor) waitForConfirm(ctx context.Context, gate *confirmGate) (confirmOutcome, string) {
 	defer func() {
@@ -481,7 +469,7 @@ func (e *Executor) waitForConfirm(ctx context.Context, gate *confirmGate) (confi
 	}
 }
 
-// gateDecision 把闸门出路翻成审计面上的词（F4 的对偶：终态能分辨「谁否决了这次提交」，
+// gateDecision 把闸门出路翻成审计面上的词（终态能分辨「谁否决了这次提交」，
 // 帧也必须分辨——granted/stopped/timeout 三词在 command_log 里各占一类，不许合并）。
 func gateDecision(out confirmOutcome) string {
 	switch out {
@@ -494,11 +482,11 @@ func gateDecision(out confirmOutcome) string {
 	}
 }
 
-// d7PreviewRunes 待批内容预览的截断长度：闸门读侧要让人「看见自己批的是什么」（A5 的前提），
+// d7PreviewRunes 待批内容预览的截断长度：闸门读侧要让人「看见自己批的是什么」，
 // 但一个 8000 字的长评论不该整段塞进弹窗——预览是给人核对用的，不是正文的第二份副本。
 const d7PreviewRunes = 200
 
-// D7 闸门的两类审计帧动作名。写侧在这里、读侧在 session.go 的 gateElsewhere——
+// 闸门的两类审计帧动作名。写侧在这里、读侧在 session.go 的 gateElsewhere——
 // 两处各写一遍字面量，就会有一个拼错的常量悄悄把跨进程查证变成死代码（帧一直在落，没人查得到）。
 const (
 	gateWaitFrame    = "d7_wait"    // event：闸门开过、批的是这份载荷、到这个时候
@@ -513,24 +501,24 @@ const (
 //   - event 帧 = accepted：Host 回执到手且无错。
 //   - judge 帧 write_confirm = confirmed：服务端收紧回查裁出的结论（state 带 verified /
 //     unattributed）。它是审计流里唯一有资格回答「评论发出去了吗」的一帧，
-//     且只带载荷哈希——正文证据在 extracted_data 与步结果里，不进离线导出件（I5）。
+//     且只带载荷哈希——正文证据在 extracted_data 与步结果里，不进离线导出件。
 const (
 	commentSendAction = "comment_send"
 	writeConfirmFrame = "write_confirm"
 )
 
-// awaitConfirmGate D7 闸门的唯一入口（A5 绑载荷 + A9 留痕 + A10 可跨进程查证）。
+// awaitConfirmGate 闸门的唯一入口（绑载荷 + 留痕 + 可跨进程查证）。
 // 三件事必须同生同死，所以不做成调用方各自记得加的三步——漏一步的形状与漏一个闸门同构：
 //   - 等待之前落 d7_wait 帧（登记之后）：这是「闸门确实开过、批的是这份载荷、到什么时候」的唯一落盘凭据。
-//     进程内 map 在重启/多副本下什么都不是（A10 立项理由），而帧在库里。
-//   - 载荷只带哈希不带正文：I5 审计导出会把 payload 原样带进离线件，评论正文不该住在那儿。
+//     进程内 map 在重启/多副本下什么都不是，而帧在库里。
+//   - 载荷只带哈希不带正文：审计导出会把 payload 原样带进离线件，评论正文不该住在那儿。
 //   - 出路收口时落 d7_confirm 帧（judge 类）：连「没人批、超时了」都要留一行，
 //     否则审计面上「用户拒了」与「用户没来」又折成一句。
 func (e *Executor) awaitConfirmGate(ctx context.Context, task *model.BrowserTask,
 	session *model.BrowserSession, stepID uint, stepIndex int, preview, payloadHash string,
 	seq *int, wait time.Duration) (confirmOutcome, string) {
 	// 绑一份「空载荷」的闸门等于没绑：任何人都能以「我也批了这份」放行。调用方的键来自
-	// writeStepKey（永不为空，见 ledger_b16b_test.go ④-b），这里只把那条前提变成硬前置——
+	// writeStepKey（永不为空），这里只把那条前提变成硬前置——
 	// 前提哪天被绕过，是编排 bug，该炸在原地而不是悄悄开一扇匿名放行口。
 	if payloadHash == "" {
 		panic("awaitConfirmGate: 空载荷哈希不得开闸门")
@@ -573,7 +561,7 @@ func sendErrText(err error) string {
 	return err.Error()
 }
 
-// cleanupSessionTab 会话收口时关闭自身 tab（F10）。脱离执行 ctx 的取消状态（超时/中止腿的
+// cleanupSessionTab 会话收口时关闭自身 tab。脱离执行 ctx 的取消状态（超时/中止腿的
 // ctx 此刻必然已 Done，用它发命令等于注定失败），幂等——tab 已被 close_tab 步或用户关掉时
 // 扩展侧吞掉异常返回 ok。回收失败只降级为日志与审计行，绝不改判终态。
 func (e *Executor) cleanupSessionTab(baseCtx context.Context, task *model.BrowserTask,
@@ -595,7 +583,7 @@ func (e *Executor) cleanupSessionTab(baseCtx context.Context, task *model.Browse
 	}
 }
 
-// isInjectTimeout R26-2：识别扩展侧竞速错误（*_inject_timeout_*ms，见 primitives.js raceTimeout）。
+// isInjectTimeout 识别扩展侧竞速错误（*_inject_timeout_*ms，见 primitives.js raceTimeout）。
 // 语义=注入从未在页面执行→该命令零副作用，与「执行了但失败」「WS 超时结果未知」三分归一。
 func isInjectTimeout(err error) bool {
 	return err != nil && strings.Contains(err.Error(), "_inject_timeout_")
@@ -619,8 +607,6 @@ func isSendGateReject(err error) bool {
 // 漏判的代价是实打实的双发闸误伤：若把它当「结果未知」，台账落 unattributed，
 // 该文本从此进拦阻集合（write_ledger.go guardResubmit 连 unattributed 一起拦），
 // 用户看清页面重跑时会被告知「已有提交尝试」——而实际一次都没发出去。
-// 真机依据：session627-629 的 comment_prep/comment_send 曾整段卡死，修复后 deadline 首次
-// 成为可达路径，这个归类必须同时落到位，否则修好挂死反而锁死文本。
 func isNeverDispatched(err error) bool {
 	if err == nil {
 		return false
@@ -636,7 +622,7 @@ func (e *Executor) ExecuteSession(ctx context.Context, task *model.BrowserTask, 
 	stopCh := e.registerStop(session.ID)
 	defer e.unregisterStop(session.ID)
 	defer e.clearLedgerBroken(session.ID)
-	// Chunk5 回执兜底清理：正常路径上 captureSessionReceipts 自己摘掉这条 entry，
+	// 回执兜底清理：正常路径上 captureSessionReceipts 自己摘掉这条 entry，
 	// 这条 defer 只在「会话中途 panic / 提前退出、收口没跑到」时兜底。
 	// 不加它，Executor 是进程级单例，泄漏的 pendingReceipts 会随异常会话单调增长且永不回收——
 	// 而这类泄漏的特征是「进程跑得越久越慢」，事后从日志里根本看不出来是哪次会话留下的。
@@ -647,7 +633,7 @@ func (e *Executor) ExecuteSession(ctx context.Context, task *model.BrowserTask, 
 
 	var success, failed int
 	sessionFailed := ""
-	cmdSeq := 0 // session 局部命令日志计数（P0-2：跨 session 隔离，避免共享计数器 data race）
+	cmdSeq := 0 // session 局部命令日志计数（跨 session 隔离，避免共享计数器 data race）
 
 	if task.BrainMode {
 		// Brain 模式：LLM 每轮看快照出 plan → 执行 → done 判定（loop_count 不适用）

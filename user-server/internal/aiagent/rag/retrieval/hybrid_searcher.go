@@ -13,11 +13,11 @@ import (
 
 	"hivemtk-user/internal/aiagent/llm"
 	"hivemtk-user/internal/pkg/kbrelease"
+	"hivemtk-user/internal/pkg/pgvector"
 	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 func makeRRFKey(docID, chunkID string) string {
@@ -317,7 +317,7 @@ func (h *HybridSearcher) vectorSearchPG(ctx context.Context, productID string, q
 	if vis := kbrelease.AndVisible(); vis != "" {
 		q = q.Where(strings.TrimPrefix(vis, " AND "))
 	}
-	q = q.Order(clause.Expr{SQL: "embedding <=> ?::vector", Vars: []any{vecStr}}).Limit(topK)
+	q = q.Order(pgvector.OrderByEmbeddingDistance(vecStr)).Limit(topK)
 
 	var rows []chunkScanRow
 	if err := q.Scan(&rows).Error; err != nil {

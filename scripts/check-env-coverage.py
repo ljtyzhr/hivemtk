@@ -24,6 +24,12 @@
     `os.Getenv(NAME)`（本卡为"文案与读取处不漂移"引入的常量写法，见 CONST_ASSIGN）；
     用变量拼装或运行时算出的键名不在本门视野内；
   - 只扫 `*_test.go` 之外的文件（测试夹具不算运维配置面）；
+  - **被 .gitignore 命中的文件不扫**：它们不是交付物（不随构建出货、不进仓库），
+    判它们"未文档化的 env 键"是把本地草稿当生产代码。实测踩坑（2026-10-20）：
+    本地调试脚手架 `user-server/tmp/probe/fresh/main.go`（已被 `user-server/.gitignore`
+    的 `tmp/` 命中）读 `PROBE_DSN`/`PROBE_DB`/`PROBE_ADMIN_DSN`，把本门判红——
+    而这三个键在**交付物里根本不存在**。判定用 git 自己的忽略语义（`git check-ignore`），
+    不用手写目录黑名单（会漂）。
   - "出现在文档面"只做整词存在性检查，不核对文档描述与代码语义是否一致（那是人工审查面）；
     旗子登记表按 `FF_` 前缀收紧，否则文档里一句"看 MODE"就能替一个叫 `MODE` 的必配项作证。
 
@@ -35,6 +41,7 @@
 from __future__ import annotations
 
 import re
+import subprocess
 import sys
 from pathlib import Path
 
@@ -105,8 +112,36 @@ def is_documented(surfaces: list[tuple[str, str | None, set[str]]], key: str) ->
     )
 
 
+def git_ignored(paths: list[Path]) -> set[Path]:
+    """挑出被 .gitignore 命中的路径（用 git 自己的忽略语义，不手写目录黑名单）。
+
+    这些文件不是交付物：既不进仓库、也不随构建出货。把它们当生产代码判红，
+    是在惩罚本地草稿（实测：user-server/tmp/probe/fresh/main.go 读 PROBE_* 三个键）。
+    git 不可用时返回空集 ⇒ 退回旧行为（多扫一些总比漏扫好）。
+    """
+    if not paths:
+        return set()
+    try:
+        proc = subprocess.run(
+            ["git", "check-ignore", "--stdin"],
+            input="\n".join(str(p) for p in paths),
+            capture_output=True,
+            text=True,
+            cwd=REPO_ROOT,
+            check=False,
+        )
+    except OSError:
+        return set()
+    ignored = {line.strip() for line in proc.stdout.splitlines() if line.strip()}
+    return {p for p in paths if str(p) in ignored}
+
+
 def collect_reads() -> tuple[dict[str, list[str]], int]:
     files = [p for p in sorted(SCAN_ROOT.rglob("*.go")) if not p.name.endswith(TEST_FILE_SUFFIX)]
+    # 一次算完：放在推导式的条件里会每个元素都起一次 git 子进程（1943 个文件 ⇒ 1943 次进程），
+    # 门会从秒级变成分钟级。
+    ignored = git_ignored(files)
+    files = [p for p in files if p not in ignored]
     sources = {p: read(p) for p in files}
     helpers = find_env_helpers(sources)
     # Go 的 const 是包级的，跨文件引用同包常量很常见 ⇒ 常量表按目录（=包）建，不按单文件

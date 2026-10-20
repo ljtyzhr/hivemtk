@@ -7,7 +7,6 @@ import (
 	knowledgesvc "hivemtk-user/internal/aiagent/knowledge/service"
 	"hivemtk-user/internal/aiagent/llm"
 	"hivemtk-user/internal/bridge"
-	"hivemtk-user/internal/cache"
 	contentservice "hivemtk-user/internal/content/service"
 	"hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/pkg/utils/logger"
@@ -91,7 +90,16 @@ func BuildSalesEngine(gormDB *gorm.DB) *service.SalesEngine {
 		logger.Info("[agent] ✅ SalesEngine 已注入工具权限检查器（按 Agent 白名单执行期放行）")
 	}
 
-	glossarySvc := translation.NewGlossaryService(repository.NewGlossaryRepositoryWithDB(db.GetDB()), cache.NewMemoryCache())
+	// 术语表缓存走**全局缓存**（cache 传 nil ⇒ NewGlossaryService 回退
+	// cache.GetGlobalCache()），与 router/system_routes.go 里那个 controller
+	// 侧的实例用同一个后端。
+	//
+	// 为什么不能自己 new 一个内存缓存：术语 CRUD 之后由 controller 侧那个实例
+	// 失效缓存，而真正读缓存的是这里的 SalesEngine（LLM 输出后置校准）。
+	// 两边不同后端 ⇒ 管理端改完术语，LLM 那条链仍读旧值，且没有任何报错。
+	// 另一个理由是租户维度：缓存键现在带租户号，而租户号来自请求 ctx，
+	// 两侧必须共用同一份键空间才能互相失效。
+	glossarySvc := translation.NewGlossaryService(repository.NewGlossaryRepositoryWithDB(db.GetDB()), nil)
 	engine.SetGlossaryRenderer(glossarySvc)
 	engine.SetOutputCalibrator(glossarySvc)
 	logger.Info("[agent] ✅ SalesEngine 已注入回复语言链路（术语表 + 后置校准）")

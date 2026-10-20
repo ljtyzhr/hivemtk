@@ -92,7 +92,9 @@ func (c *SessionTTLCron) tryTriggerWithDBWait(ctx context.Context) {
 		})
 		return
 	}
-	c.trigger(ctx)
+	if _, err := c.trigger(ctx); err != nil {
+		logger.Errorf("[session_ttl_cron] 会话 TTL 清扫失败: %v", err)
+	}
 }
 
 func (c *SessionTTLCron) trigger(ctx context.Context) (int64, error) {

@@ -268,6 +268,16 @@ func (s *TenantService) UpdateTenantStatus(ctx context.Context, id uint, status 
 		}
 		return bizerr.Wrap(bizerr.CodeInternal, "获取租户失败", err)
 	}
+	// 首租户 = 平台运营方租户（tenants 表 ID 最小，见 middleware.PlatformOperatorMiddleware）。
+	// 停用它 ⇒ 平台运营方自己被锁在门外（登录受限 ⇒ 读不到自己的租户 ⇒
+	// 恢复不了），且没有任何人能再停用/启用它 —— 死锁。
+	// 所以在**状态变更**这一层就挡住，而不是等登录失败后再救。
+	if status != model.TenantStatusActive {
+		if first, err := s.tenantRepo.GetFirstTenant(ctx); err == nil && first != nil && first.ID == id {
+			return bizerr.New(bizerr.CodeTenantParamInvalid,
+				"首个租户是平台运营方租户，不允许停用（如需停用请先新建运营租户并移交）")
+		}
+	}
 	if err := s.tenantRepo.UpdateStatus(ctx, id, status); err != nil {
 		return bizerr.Wrap(bizerr.CodeInternal, "更新租户状态失败", err)
 	}

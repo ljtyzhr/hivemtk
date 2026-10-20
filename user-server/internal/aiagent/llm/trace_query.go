@@ -179,7 +179,10 @@ func ListRecentTraces(ctx context.Context, limit int) ([]TraceSummary, error) {
 	for _, id := range ids {
 		traceIDs = append(traceIDs, id.TraceID)
 	}
-	statsMap := fetchTraceSummaryStats(d, traceIDs)
+	statsMap, err := fetchTraceSummaryStats(ctx, d, traceIDs)
+	if err != nil {
+		return nil, err
+	}
 
 	for _, id := range ids {
 		stats := statsMap[id.TraceID]
@@ -200,9 +203,9 @@ type traceSummaryStats struct {
 	serviceCount int
 }
 
-func fetchTraceSummaryStats(d *gorm.DB, traceIDs []string) map[string]traceSummaryStats {
+func fetchTraceSummaryStats(ctx context.Context, d *gorm.DB, traceIDs []string) (map[string]traceSummaryStats, error) {
 	if len(traceIDs) == 0 {
-		return map[string]traceSummaryStats{}
+		return map[string]traceSummaryStats{}, nil
 	}
 
 	var rows []struct {
@@ -210,13 +213,12 @@ func fetchTraceSummaryStats(d *gorm.DB, traceIDs []string) map[string]traceSumma
 		Kind    string `gorm:"column:kind"`
 		Service string `gorm:"column:service"`
 	}
-	if err := d.Table("trace_events").
+	if err := d.WithContext(ctx).Table("trace_events").
 		Select("trace_id, kind, service").
 		Where("trace_id IN ?", traceIDs).
 		Group("trace_id, kind, service").
 		Scan(&rows).Error; err != nil {
-
-		return map[string]traceSummaryStats{}
+		return nil, &TraceQueryError{Reason: "trace summary stats", Err: err}
 	}
 	result := make(map[string]traceSummaryStats, len(traceIDs))
 	for _, r := range rows {
@@ -228,7 +230,7 @@ func fetchTraceSummaryStats(d *gorm.DB, traceIDs []string) map[string]traceSumma
 		stats.serviceCount++
 		result[r.TraceID] = stats
 	}
-	return result
+	return result, nil
 }
 
 func fetchTraceRows(ctx context.Context, d *gorm.DB, traceID string) ([]map[string]any, error) {

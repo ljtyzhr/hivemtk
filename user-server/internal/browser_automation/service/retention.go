@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"hivemtk-user/internal/browser_automation/repository"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 )
 
@@ -90,19 +91,30 @@ func retentionEnabled(cmdLogRepo repository.BrowserCommandLogRepository, planRep
 // 单独成函数是因为「来源到底有没有传给 PruneBefore」这一格必须可断言——goroutine + 1h ticker
 // 里的接线测不到，而它正是这条修复的落点（少传一处，库里就只剩 cutoff 没有来源，
 // 与修复前的形状逐字节相同，且没有任何一行会红）。
+//
+// 两次裁剪各自过 `tenant.Fanout`：调用方给的 ctx 是 `context.Background()`
+// （router/browser_automation_routes.go 的装配 goroutine），不绑租户。saas 形态下
+// 隔离 callback 对未绑租户的请求 fail-closed 报错 ⇒ 每小时一行 Warn、一行都不裁，
+// 治理任务在云上静默停摆；裁剪的事实（命令日志、摘要行、留痕行）本就按 tenant_id 分片，
+// 逐活跃租户执行才是正解（off 形态退化为单默认租户，等价于修复前）。
+// 两次调用分开扇出而不是并成一个回调：一处失败不该带走另一处。
 func pruneAuditOnce(ctx context.Context, cmdLogRepo repository.BrowserCommandLogRepository, planRepo repository.BrowserLLMPlanRepository) {
 	days, source := auditRetention()
 	if days <= 0 {
 		return // 运行中被改成 0：本轮起不再裁剪（口径同启动时的那道门）
 	}
 	cutoff := time.Now().AddDate(0, 0, -days)
-	deleted, err := cmdLogRepo.PruneBefore(ctx, cutoff, source)
+	deleted, err := tenant.Fanout(ctx, nil, func(tctx context.Context, _ uint) (int64, error) {
+		return cmdLogRepo.PruneBefore(tctx, cutoff, source)
+	})
 	if err != nil {
 		logger.Warnf("[BrowserRetention] command_log 裁剪失败: %v", err)
 	} else if deleted > 0 {
 		logger.Infof("[BrowserRetention] command_log 裁剪 %d 行（界=%s）", deleted, source)
 	}
-	cleared, err := planRepo.PruneSnapshotText(ctx, cutoff)
+	cleared, err := tenant.Fanout(ctx, nil, func(tctx context.Context, _ uint) (int64, error) {
+		return planRepo.PruneSnapshotText(tctx, cutoff)
+	})
 	if err != nil {
 		logger.Warnf("[BrowserRetention] llm_plans 快照裁剪失败: %v", err)
 	} else if cleared > 0 {

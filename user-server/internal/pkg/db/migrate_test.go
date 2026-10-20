@@ -8,7 +8,6 @@ import (
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/testutil"
 
-	ragcachemodel "hivemtk-user/internal/aiagent/rag/cache"
 	browsermodel "hivemtk-user/internal/browser_automation/model"
 )
 
@@ -102,7 +101,7 @@ func TestAllModels_CoversModelsWithWritePaths(t *testing.T) {
 		&browsermodel.BrowserStep{},
 		&browsermodel.BrowserTask{},
 
-		&ragcachemodel.RAGAnswerCache{},
+		&model.RAGAnswerCache{},
 	}
 
 	registered := make(map[string]bool, 512)

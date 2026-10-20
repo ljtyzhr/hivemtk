@@ -161,13 +161,19 @@ func (m *MP1Migration) seedDefaultFailoverPolicy(ctx context.Context) error {
 }
 
 // Down 回滚
+//
+// 三张表全部**放弃删**：本项目的建表事实源是 GORM AutoMigrate
+// （internal/pkg/db/migrate.go），这三张表都被模型声明并持有
+// （trace_events 由 model.TraceEvent 持有、intent_logs 与 provider_health 同理），
+// 迁移的 Down 无法区分"这是我 Up 建的"和"这是模型在用的"——
+// 而 `POST /api/migration/rollback` 一次调用就会把后者一并销毁。
+//
+// 代价不对称：多留一张表不破坏任何功能（升级路径靠 IF NOT EXISTS 幂等），
+// 删掉在用表则当前进程永不补回（AutoMigrate 只在启动时跑）＝数据丢失。
+// 与其余 21 个迁移同口径，见 down_drop_policy.go。
 func (m *MP1Migration) Down(ctx context.Context) error {
-	stmts := []string{
-		`DROP TABLE IF EXISTS trace_events`,
-		`DROP TABLE IF EXISTS intent_logs`,
-		`DROP TABLE IF EXISTS provider_health`,
-	}
-	return execAllMP1(ctx, m.db, stmts)
+	declineTableDrop(m.Version(), "trace_events", "intent_logs", "provider_health")
+	return nil
 }
 
 func execAllMP1(ctx context.Context, db *gorm.DB, stmts []string) error {

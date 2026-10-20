@@ -1,10 +1,12 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"hivemtk-user/internal/ops/model"
 	"hivemtk-user/internal/ops/repository"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"math"
 	"sync"
@@ -52,7 +54,7 @@ type VariantConfig struct {
 }
 
 // CreateExperiment 创建实验
-func (s *ABExperimentService) CreateExperiment(req *CreateExperimentRequest) (*model.ABExperiment, error) {
+func (s *ABExperimentService) CreateExperiment(ctx context.Context, req *CreateExperimentRequest) (*model.ABExperiment, error) {
 	experiment := &model.ABExperiment{
 		Name:         req.Name,
 		Description:  req.Description,
@@ -62,7 +64,7 @@ func (s *ABExperimentService) CreateExperiment(req *CreateExperimentRequest) (*m
 		Status:       "draft",
 	}
 
-	if err := s.experimentRepo.Create(experiment); err != nil {
+	if err := s.experimentRepo.Create(ctx, experiment); err != nil {
 		return nil, err
 	}
 
@@ -78,7 +80,7 @@ func (s *ABExperimentService) CreateExperiment(req *CreateExperimentRequest) (*m
 		if i == 0 {
 			variant.IsControl = true
 		}
-		if err := s.variantRepo.Create(variant); err != nil {
+		if err := s.variantRepo.Create(ctx, variant); err != nil {
 			return nil, err
 		}
 	}
@@ -87,23 +89,23 @@ func (s *ABExperimentService) CreateExperiment(req *CreateExperimentRequest) (*m
 }
 
 // GetExperiment 获取实验详情
-func (s *ABExperimentService) GetExperiment(id uint) (*model.ABExperiment, error) {
-	return s.experimentRepo.GetByID(id)
+func (s *ABExperimentService) GetExperiment(ctx context.Context, id uint) (*model.ABExperiment, error) {
+	return s.experimentRepo.GetByID(ctx, id)
 }
 
 // GetExperimentBySourceID 根据 sourceID 获取最新实验（不限状态）
-func (s *ABExperimentService) GetExperimentBySourceID(sourceID string) (*model.ABExperiment, error) {
-	return s.experimentRepo.GetLatestBySourceID(sourceID)
+func (s *ABExperimentService) GetExperimentBySourceID(ctx context.Context, sourceID string) (*model.ABExperiment, error) {
+	return s.experimentRepo.GetLatestBySourceID(ctx, sourceID)
 }
 
 // GetExperimentList 获取实验列表
-func (s *ABExperimentService) GetExperimentList(page, pageSize int) ([]*model.ABExperiment, int64, error) {
-	return s.experimentRepo.GetAll(page, pageSize)
+func (s *ABExperimentService) GetExperimentList(ctx context.Context, page, pageSize int) ([]*model.ABExperiment, int64, error) {
+	return s.experimentRepo.GetAll(ctx, page, pageSize)
 }
 
 // UpdateExperiment 更新实验
-func (s *ABExperimentService) UpdateExperiment(id uint, req *CreateExperimentRequest) (*model.ABExperiment, error) {
-	experiment, err := s.experimentRepo.GetByID(id)
+func (s *ABExperimentService) UpdateExperiment(ctx context.Context, id uint, req *CreateExperimentRequest) (*model.ABExperiment, error) {
+	experiment, err := s.experimentRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -114,11 +116,11 @@ func (s *ABExperimentService) UpdateExperiment(id uint, req *CreateExperimentReq
 	experiment.SourceID = req.SourceID
 	experiment.TrafficSplit = req.TrafficSplit
 
-	if err := s.experimentRepo.Update(experiment); err != nil {
+	if err := s.experimentRepo.Update(ctx, experiment); err != nil {
 		return nil, err
 	}
 
-	if err := s.variantRepo.DeleteByExperiment(id); err != nil {
+	if err := s.variantRepo.DeleteByExperiment(ctx, id); err != nil {
 		return nil, err
 	}
 	for i, v := range req.Variants {
@@ -133,7 +135,7 @@ func (s *ABExperimentService) UpdateExperiment(id uint, req *CreateExperimentReq
 		if i == 0 {
 			variant.IsControl = true
 		}
-		if err := s.variantRepo.Create(variant); err != nil {
+		if err := s.variantRepo.Create(ctx, variant); err != nil {
 			return nil, err
 		}
 	}
@@ -142,38 +144,38 @@ func (s *ABExperimentService) UpdateExperiment(id uint, req *CreateExperimentReq
 }
 
 // DeleteExperiment 删除实验
-func (s *ABExperimentService) DeleteExperiment(id uint) error {
-	if err := s.variantRepo.DeleteByExperiment(id); err != nil {
+func (s *ABExperimentService) DeleteExperiment(ctx context.Context, id uint) error {
+	if err := s.variantRepo.DeleteByExperiment(ctx, id); err != nil {
 		return err
 	}
-	return s.experimentRepo.Delete(id)
+	return s.experimentRepo.Delete(ctx, id)
 }
 
 // StartExperiment 启动实验
-func (s *ABExperimentService) StartExperiment(id uint) error {
-	return s.experimentRepo.UpdateStatus(id, "running")
+func (s *ABExperimentService) StartExperiment(ctx context.Context, id uint) error {
+	return s.experimentRepo.UpdateStatus(ctx, id, "running")
 }
 
 // PauseExperiment 暂停实验
-func (s *ABExperimentService) PauseExperiment(id uint) error {
-	return s.experimentRepo.UpdateStatus(id, "paused")
+func (s *ABExperimentService) PauseExperiment(ctx context.Context, id uint) error {
+	return s.experimentRepo.UpdateStatus(ctx, id, "paused")
 }
 
 // StopExperiment 停止实验
-func (s *ABExperimentService) StopExperiment(id uint) error {
-	if err := s.experimentRepo.UpdateStatus(id, "completed"); err != nil {
+func (s *ABExperimentService) StopExperiment(ctx context.Context, id uint) error {
+	if err := s.experimentRepo.UpdateStatus(ctx, id, "completed"); err != nil {
 		return err
 	}
-	return s.CalculateResults(id)
+	return s.CalculateResults(ctx, id)
 }
 
 // GetVariant 获取变体（用于流量分配）
-func (s *ABExperimentService) GetVariant(sourceID string) (*model.ABVariant, error) {
-	variant, err := s.getVariantFromDB(sourceID)
+func (s *ABExperimentService) GetVariant(ctx context.Context, sourceID string) (*model.ABVariant, error) {
+	variant, err := s.getVariantFromDB(ctx, sourceID)
 	if err != nil {
 
 		s.cacheMutex.RLock()
-		cached, ok := s.variantCache[s.hashSourceID(sourceID)]
+		cached, ok := s.variantCache[s.variantCacheKey(ctx, sourceID)]
 		s.cacheMutex.RUnlock()
 		if ok {
 			return cached, nil
@@ -191,13 +193,20 @@ func (s *ABExperimentService) hashSourceID(sourceID string) uint {
 	return hash % 1000000
 }
 
-func (s *ABExperimentService) getVariantFromDB(sourceID string) (*model.ABVariant, error) {
-	experiment, err := s.experimentRepo.GetRunningBySourceID(sourceID)
+// variantCacheKey 变体缓存键：租户 + 来源。缓存是进程级共享的，
+// 不带租户会跨租户串数据；读写两侧必须用同一把钥匙，否则缓存恒不命中。
+func (s *ABExperimentService) variantCacheKey(ctx context.Context, sourceID string) uint {
+	tenantID, _ := tenant.FromContext(ctx)
+	return tenantID*1000000000 + s.hashSourceID(sourceID)
+}
+
+func (s *ABExperimentService) getVariantFromDB(ctx context.Context, sourceID string) (*model.ABVariant, error) {
+	experiment, err := s.experimentRepo.GetRunningBySourceID(ctx, sourceID)
 	if err != nil {
 		return nil, errors.New("no running experiment for this source")
 	}
 
-	variants, err := s.variantRepo.GetByExperiment(experiment.ID)
+	variants, err := s.variantRepo.GetByExperiment(ctx, experiment.ID)
 	if err != nil || len(variants) == 0 {
 		return nil, errors.New("no variants found for experiment")
 	}
@@ -226,12 +235,12 @@ func (s *ABExperimentService) getVariantFromDB(sourceID string) (*model.ABVarian
 		}
 		cumulative += w
 		if pick < cumulative {
-			if err := s.variantRepo.IncrementTraffic(v.ID); err != nil {
+			if err := s.variantRepo.IncrementTraffic(ctx, v.ID); err != nil {
 				logger.Warnf("[ABExperiment] 流量计数失败 variantID=%d: %v", v.ID, err)
 			}
 
 			s.cacheMutex.Lock()
-			s.variantCache[s.hashSourceID(sourceID)+uint(experiment.ID)*1000000] = v
+			s.variantCache[s.variantCacheKey(ctx, sourceID)] = v
 			s.cacheMutex.Unlock()
 
 			return v, nil
@@ -243,7 +252,7 @@ func (s *ABExperimentService) getVariantFromDB(sourceID string) (*model.ABVarian
 
 // RecordConversion 记录转化事件
 // eventValue 单位：分（int64），如购买金额 99.99 元应传 9999
-func (s *ABExperimentService) RecordConversion(experimentID, variantID uint, eventName, eventType string, eventValue int64, userID string, metadata map[string]any) error {
+func (s *ABExperimentService) RecordConversion(ctx context.Context, experimentID, variantID uint, eventName, eventType string, eventValue int64, userID string, metadata map[string]any) error {
 	metadataJSON, _ := json.Marshal(metadata)
 	event := &model.ABConversionEvent{
 		ExperimentID: experimentID,
@@ -254,16 +263,16 @@ func (s *ABExperimentService) RecordConversion(experimentID, variantID uint, eve
 		VariantID:    variantID,
 		Metadata:     string(metadataJSON),
 	}
-	if err := s.conversionRepo.Create(event); err != nil {
+	if err := s.conversionRepo.Create(ctx, event); err != nil {
 		return err
 	}
 
-	return s.variantRepo.IncrementConversion(variantID)
+	return s.variantRepo.IncrementConversion(ctx, variantID)
 }
 
 // CalculateResults 计算实验结果
-func (s *ABExperimentService) CalculateResults(experimentID uint) error {
-	variants, err := s.variantRepo.GetByExperiment(experimentID)
+func (s *ABExperimentService) CalculateResults(ctx context.Context, experimentID uint) error {
+	variants, err := s.variantRepo.GetByExperiment(ctx, experimentID)
 	if err != nil {
 		return err
 	}
@@ -287,16 +296,16 @@ func (s *ABExperimentService) CalculateResults(experimentID uint) error {
 			ConversionRate:  conversionRate,
 		}
 
-		if err := s.resultRepo.Upsert(result); err != nil {
+		if err := s.resultRepo.Upsert(ctx, result); err != nil {
 			return err
 		}
 	}
 
-	return s.calculateWinner(experimentID)
+	return s.calculateWinner(ctx, experimentID)
 }
 
-func (s *ABExperimentService) calculateWinner(experimentID uint) error {
-	results, err := s.resultRepo.GetByExperiment(experimentID)
+func (s *ABExperimentService) calculateWinner(ctx context.Context, experimentID uint) error {
+	results, err := s.resultRepo.GetByExperiment(ctx, experimentID)
 	if err != nil {
 		return err
 	}
@@ -314,13 +323,13 @@ func (s *ABExperimentService) calculateWinner(experimentID uint) error {
 			winner = r
 		}
 		r.ConfidenceLevel = s.calculateConfidence(r)
-		if err := s.resultRepo.Upsert(r); err != nil {
+		if err := s.resultRepo.Upsert(ctx, r); err != nil {
 			logger.Warnf("[ABExperiment] 结果统计落库失败 variantID=%d: %v", r.VariantID, err)
 		}
 	}
 
 	if winner != nil {
-		return s.resultRepo.UpdateWinner(experimentID, winner.VariantID)
+		return s.resultRepo.UpdateWinner(ctx, experimentID, winner.VariantID)
 	}
 
 	return nil
@@ -348,17 +357,17 @@ func (s *ABExperimentService) calculateConfidence(result *model.ABExperimentResu
 }
 
 // GetExperimentResults 获取实验结果
-func (s *ABExperimentService) GetExperimentResults(experimentID uint) ([]*model.ABExperimentResult, error) {
-	return s.resultRepo.GetByExperiment(experimentID)
+func (s *ABExperimentService) GetExperimentResults(ctx context.Context, experimentID uint) ([]*model.ABExperimentResult, error) {
+	return s.resultRepo.GetByExperiment(ctx, experimentID)
 }
 
 // GetConversionEvents 获取转化事件列表
-func (s *ABExperimentService) GetConversionEvents(experimentID uint, page, pageSize int) ([]*model.ABConversionEvent, int64, error) {
-	return s.conversionRepo.GetByExperiment(experimentID, page, pageSize)
+func (s *ABExperimentService) GetConversionEvents(ctx context.Context, experimentID uint, page, pageSize int) ([]*model.ABConversionEvent, int64, error) {
+	return s.conversionRepo.GetByExperiment(ctx, experimentID, page, pageSize)
 }
 
-func (s *ABExperimentService) variantCountsFromRepo(experimentID uint) ([]VariantCounts, error) {
-	variants, err := s.variantRepo.GetByExperiment(experimentID)
+func (s *ABExperimentService) variantCountsFromRepo(ctx context.Context, experimentID uint) ([]VariantCounts, error) {
+	variants, err := s.variantRepo.GetByExperiment(ctx, experimentID)
 	if err != nil {
 		return nil, err
 	}
@@ -376,8 +385,8 @@ func (s *ABExperimentService) variantCountsFromRepo(experimentID uint) ([]Varian
 }
 
 // GetAdvancedStats 频率派 z 检验结果（method=frequentist）
-func (s *ABExperimentService) GetAdvancedStats(experimentID uint) (map[string]any, error) {
-	counts, err := s.variantCountsFromRepo(experimentID)
+func (s *ABExperimentService) GetAdvancedStats(ctx context.Context, experimentID uint) (map[string]any, error) {
+	counts, err := s.variantCountsFromRepo(ctx, experimentID)
 	if err != nil {
 		return nil, err
 	}
@@ -388,8 +397,8 @@ func (s *ABExperimentService) GetAdvancedStats(experimentID uint) (map[string]an
 }
 
 // GetBayesianTest 贝叶斯胜率
-func (s *ABExperimentService) GetBayesianTest(experimentID uint) (map[string]any, error) {
-	counts, err := s.variantCountsFromRepo(experimentID)
+func (s *ABExperimentService) GetBayesianTest(ctx context.Context, experimentID uint) (map[string]any, error) {
+	counts, err := s.variantCountsFromRepo(ctx, experimentID)
 	if err != nil {
 		return nil, err
 	}
@@ -400,8 +409,8 @@ func (s *ABExperimentService) GetBayesianTest(experimentID uint) (map[string]any
 }
 
 // GetSequentialTest SPRT 序贯检验
-func (s *ABExperimentService) GetSequentialTest(experimentID uint, alpha float64) (map[string]any, error) {
-	counts, err := s.variantCountsFromRepo(experimentID)
+func (s *ABExperimentService) GetSequentialTest(ctx context.Context, experimentID uint, alpha float64) (map[string]any, error) {
+	counts, err := s.variantCountsFromRepo(ctx, experimentID)
 	if err != nil {
 		return nil, err
 	}
@@ -410,18 +419,18 @@ func (s *ABExperimentService) GetSequentialTest(experimentID uint, alpha float64
 }
 
 // GetDiagnostics SRM + 最小样本 + 多曝光诊断
-func (s *ABExperimentService) GetDiagnostics(experimentID uint) (map[string]any, error) {
-	counts, err := s.variantCountsFromRepo(experimentID)
+func (s *ABExperimentService) GetDiagnostics(ctx context.Context, experimentID uint) (map[string]any, error) {
+	counts, err := s.variantCountsFromRepo(ctx, experimentID)
 	if err != nil {
 		return nil, err
 	}
-	multi := s.countMultiExposeUsers(experimentID)
+	multi := s.countMultiExposeUsers(ctx, experimentID)
 	d := Diagnostics(counts, multi)
 	return map[string]any{"diagnostics": d}, nil
 }
 
-func (s *ABExperimentService) countMultiExposeUsers(experimentID uint) int {
-	events, _, err := s.conversionRepo.GetByExperiment(experimentID, 1, 5000)
+func (s *ABExperimentService) countMultiExposeUsers(ctx context.Context, experimentID uint) int {
+	events, _, err := s.conversionRepo.GetByExperiment(ctx, experimentID, 1, 5000)
 	if err != nil {
 		return 0
 	}
@@ -445,12 +454,12 @@ func (s *ABExperimentService) countMultiExposeUsers(experimentID uint) int {
 }
 
 // GetCUPED CUPED 方差缩减（协变量=实验前事件计数；无数据退化）
-func (s *ABExperimentService) GetCUPED(experimentID uint) (map[string]any, error) {
-	counts, err := s.variantCountsFromRepo(experimentID)
+func (s *ABExperimentService) GetCUPED(ctx context.Context, experimentID uint) (map[string]any, error) {
+	counts, err := s.variantCountsFromRepo(ctx, experimentID)
 	if err != nil {
 		return nil, err
 	}
-	users, err := s.cupedUserMetrics(experimentID)
+	users, err := s.cupedUserMetrics(ctx, experimentID)
 	if err != nil {
 		users = nil
 	}
@@ -458,12 +467,12 @@ func (s *ABExperimentService) GetCUPED(experimentID uint) (map[string]any, error
 	return map[string]any{"cuped": res}, nil
 }
 
-func (s *ABExperimentService) cupedUserMetrics(experimentID uint) ([]cupedUserMetric, error) {
-	exp, err := s.experimentRepo.GetByID(experimentID)
+func (s *ABExperimentService) cupedUserMetrics(ctx context.Context, experimentID uint) ([]cupedUserMetric, error) {
+	exp, err := s.experimentRepo.GetByID(ctx, experimentID)
 	if err != nil {
 		return nil, err
 	}
-	events, _, err := s.conversionRepo.GetByExperiment(experimentID, 1, 5000)
+	events, _, err := s.conversionRepo.GetByExperiment(ctx, experimentID, 1, 5000)
 	if err != nil {
 		return nil, err
 	}
@@ -495,12 +504,12 @@ func (s *ABExperimentService) cupedUserMetrics(experimentID uint) ([]cupedUserMe
 }
 
 // GetResultsWithReach 结果 + 触达维度聚合（reach 回流：按事件类型分桶）
-func (s *ABExperimentService) GetResultsWithReach(experimentID uint) (map[string]any, error) {
-	results, err := s.resultRepo.GetByExperiment(experimentID)
+func (s *ABExperimentService) GetResultsWithReach(ctx context.Context, experimentID uint) (map[string]any, error) {
+	results, err := s.resultRepo.GetByExperiment(ctx, experimentID)
 	if err != nil {
 		return nil, err
 	}
-	events, _, err := s.conversionRepo.GetByExperiment(experimentID, 1, 5000)
+	events, _, err := s.conversionRepo.GetByExperiment(ctx, experimentID, 1, 5000)
 	if err != nil {
 		return nil, err
 	}

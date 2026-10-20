@@ -11,11 +11,10 @@ import "time"
 //   - mcp_token（MCP 工具入口）
 //   - order_webhook_secret_<platform>（各电商平台回调验签）
 //   - browser_host_token（浏览器自动化宿主）
-//   - password_policy（登录口令强度，登录前无租户可判定）
 //   - security.rules（平台安全基线；safeprompt 词典为进程级全局状态）
 //   - backup.strategy（整库备份运维策略）
 //
-// 不在此列的密码策略（password_policy）属租户级安全设置，留在 system_config_kv。
+// 口令强度策略（password_policy）属租户级安全设置，留在 system_config_kv。
 //
 // 键仍全局唯一（key 主键）：平台配置对全实例只有一份。
 type PlatformConfigKV struct {

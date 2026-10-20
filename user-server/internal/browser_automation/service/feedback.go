@@ -12,6 +12,7 @@ import (
 	emailsvc "hivemtk-user/internal/email/service"
 	_db "hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/pkg/mail"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 )
 
@@ -201,7 +202,24 @@ func (f *FeedbackService) StartRetryScanner(ctx context.Context) {
 	}()
 }
 
+// scanDueRetries 认领并触发一轮到期重试。
+//
+// 整轮走 `tenant.Fanout`：生产入口是 bootstrap goroutine 的 `context.Background()`
+// （router/browser_automation_routes.go → StartRetryScanner），而 `browser_tasks` 是租户表。
+// 裸 ctx 直连 ⇒ on 模式被隔离 callback fail-closed，每分钟只剩一行「重试扫描失败」，
+// 自动重试整条功能在 saas 形态静默停摆；就算放行，认领后 `runRetry` → `RunTask` 要写
+// browser_sessions / browser_command_log，那些行的 tenant_id 也从 ctx 取 —— 裸 ctx 下
+// 不是「挂到默认租户」而是整条链路当场失败。扇出之后每个租户各自认领、各自的 ctx 往下传。
+// 与仓内其余后台任务同口径（Fanout 在 off 模式退化为单默认租户，行为等价于改造前）。
 func (f *FeedbackService) scanDueRetries(ctx context.Context) {
+	if _, err := tenant.Fanout(ctx, nil, func(tctx context.Context, _ uint) (int64, error) {
+		return f.scanDueRetriesForTenant(tctx)
+	}); err != nil {
+		logger.Warnf("[BrowserFeedback] 重试扫描失败: %v", err)
+	}
+}
+
+func (f *FeedbackService) scanDueRetriesForTenant(ctx context.Context) (int64, error) {
 	// 归属门：Host 连接是进程内状态，挂起重试是库内共享队列。本进程没有该用户的
 	// 连接却认领了它的重试，只会以「browser host 未连接」烧掉一次 MaxRetryTimes 额度
 	// （真机实测 task=377 session=429）。provider 未装配时不过滤——宁可退化成改造前
@@ -211,13 +229,12 @@ func (f *FeedbackService) scanDueRetries(ctx context.Context) {
 		owners = f.hostUsersFn()
 		if len(owners) == 0 {
 			logger.Infof("[BrowserFeedback] 本轮重试扫描跳过：本机无 Host 连接（挂起重试留给持有连接的实例认领）")
-			return
+			return 0, nil
 		}
 	}
 	due, err := f.taskRepo.ClaimDueRetries(ctx, time.Now(), 10, owners)
 	if err != nil {
-		logger.Warnf("[BrowserFeedback] 重试扫描失败: %v", err)
-		return
+		return 0, err
 	}
 	for _, t := range due {
 		newCount := t.RetryCount + 1
@@ -226,6 +243,7 @@ func (f *FeedbackService) scanDueRetries(ctx context.Context) {
 			logger.Warnf("[BrowserFeedback] 重试触发失败 task=%d: %v", t.ID, err)
 		}
 	}
+	return int64(len(due)), nil
 }
 
 // runRetry 由 TaskService 注入的重试执行器（避免 import cycle，见 SetRetryRunner）

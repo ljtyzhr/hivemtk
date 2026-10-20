@@ -37,6 +37,13 @@ type GlossaryStatus string
 // 私域独立部署：无 merchant_id
 // 五层架构：仅定义数据结构，业务逻辑在 Service 层
 type Glossary struct {
+	// TenantID 租户列。术语内容（品牌名/SKU/价格保护词）是**租户业务数据**，
+	// 不是平台级配置：SaaS 模式下两个租户各用各的品牌，同一张全局术语表会让
+	// 租户 A 的品牌词被套进租户 B 的回复里（Calibrate 走的是 LLM 输出后置校准，
+	// 错一次就是客户看到别家品牌名）。所以这张表按租户隔离。
+	// 表上有没有 tenant_id 列就是租户表的唯一判据（internal/pkg/tenancyidx），
+	// 漏了这一列 = 整张表对所有租户全量放行。
+	TenantID     uint           `gorm:"not null;default:1;index" json:"tenant_id"`
 	ID           int64          `gorm:"primaryKey;autoIncrement" json:"id"`
 	TermID       string         `gorm:"type:varchar(64);uniqueIndex:idx_term_id;not null" json:"term_id"`
 	Category     string         `gorm:"type:varchar(32);index" json:"category"`

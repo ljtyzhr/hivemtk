@@ -887,7 +887,7 @@ func DefaultParamDefs() []ParamDef {
 		// 两处是不同管道、允许不同值，故拆成两组键，Description 写明分工。
 		// 形态取分键 int + 跨键校验：每键 0-23 范围校验，越界回落代码默认；每请求读
 		// （参数中心 60s TTL 缓存），改完下一条消息生效，故 Restart=false。
-		// nextDayFirstSend 恒等于 end（代码里 nextDayFirstSendHour = end），不单独设键。
+		// nextDayFirstSend 恒等于 end（同一参数），不单独设键。
 		{Group: "reach", Key: "quiet_hours_start", Name: "触达免打扰开始小时",
 			Description: "全渠道触达管线（R-4 静默时段）每天进入免打扰的起始小时（CST，0-23）。scope=全局（config_params 无租户维）。默认 22 与接线前硬编码一致。越界（<0 或 >23）回落代码默认 22。与 webhook.ai_quiet_hours_* 是两条不同管道，禁止合并",
 			ValueType:   "int", Unit: "点", Risk: "warning", DefaultValue: "22", Min: strPtr("0"), Max: strPtr("23"), Restart: false},

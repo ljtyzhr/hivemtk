@@ -88,9 +88,12 @@ func (m *MultilingualI18nMigration) Down(ctx context.Context) error {
 		"chat_channels.target_language",
 		"ai_agents.target_language", "ai_agents.internal_language")
 
-	stmts := []string{
-		`DROP TABLE IF EXISTS glossaries`,
-	}
+	// glossaries 已登记为 GORM 模型（&model.Glossary{}，见 internal/pkg/db/migrate.go 的 allModels），
+	// 建表事实源是 AutoMigrate ⇒ 本迁移的 Up 里的 CREATE TABLE IF NOT EXISTS 是空操作，
+	// 这张表不是本迁移建的，Down 不得销毁它（术语表内容丢失不可恢复）。
+	declineTableDrop(m.Version(), "glossaries")
+
+	stmts := []string{}
 	for _, s := range stmts {
 		if err := m.db.WithContext(ctx).Exec(s).Error; err != nil {
 			return fmt.Errorf("multilingual_i18n 回滚失败 (%s): %w", truncate(s, 60), err)

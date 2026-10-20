@@ -262,6 +262,19 @@ func fillCreateForTenant(db *gorm.DB) {
 		}
 		return
 	}
+	// INSERT 必须真的带上 tenant_id 列。
+	//
+	// 为什么必须查：Omit("tenant_id") / Select("name") 这类写法会让 GORM 的
+	// ConvertToCreateValues **不把 tenant_id 放进 INSERT**（Selects 非空即 restricted，
+	// 只有 selectedColumns 里为 true 的列进 SQL）。于是回调填进内存的值根本没进 SQL，
+	// 行落**列默认值 1** —— 也就是默认租户：on 模式下这是一次静默的跨租户写。
+	// 实测（2026-10-20 对抗探针）：INSERT INTO "tenancy_probe" ("name") VALUES ($1)，
+	// 行 tenant_id=1，而发起方 ctx 租户是 91。
+	if isTenant && !tenantIDWillBeInserted(stmt) {
+		tenantGuardFail(db, table, "create：本次 INSERT 不含 tenant_id 列（Omit/Select 掉了），"+
+			"行会落列默认值 1（默认租户）= 跨租户写，拒绝执行")
+		return
+	}
 
 	// 批量 Create(&[]*Model / []Model)：stmt.ReflectValue 是**切片**。
 	// 曾经对整片直接 ValueOf/Set —— reflect 在切片上调 Field 直接 panic
@@ -324,6 +337,12 @@ func derefKind(v reflect.Value) reflect.Kind {
 // fillMapCreateForTenant 为 map[string]interface{}（或切片）逐行填充/校验 tenant_id。
 // 直接改写 map 本身：GORM ConvertToCreateValues 读的是同一份 Dest。
 func fillMapCreateForTenant(db *gorm.DB, stmt *gorm.Statement, table string, id uint, bound bool) {
+	// 与结构体路径同一道闸：Omit/Select 掉 tenant_id 时 INSERT 缺列 ⇒ 行落默认租户。
+	if !tenantIDWillBeInserted(stmt) {
+		tenantGuardFail(db, table, "create：本次 INSERT 不含 tenant_id 列（Omit/Select 掉了），"+
+			"行会落列默认值 1（默认租户）= 跨租户写，拒绝执行")
+		return
+	}
 	rv := stmt.ReflectValue
 	switch rv.Kind() {
 	case reflect.Map:
@@ -556,11 +575,91 @@ func scopeTenantJoins(stmt *gorm.Statement, bound bool, id uint) error {
 			if q == "" {
 				return fmt.Errorf("[tenant] JOIN 租户表 %s 无法解析别名", ref.table)
 			}
-			j.Name += fmt.Sprintf(` AND %s.%s = ?`, quoteIdent(q), quoteIdent("tenant_id"))
-			j.Conds = append(j.Conds, id)
+			// 条件必须落进 **ON 子句**。
+			//
+			// 为什么不能简单追加到 join 串末尾：join 串自带 WHERE 时（"JOIN x ON … WHERE …"），
+			// 追加的 AND 会落进 WHERE 侧 ⇒ LEFT JOIN 退化成 INNER JOIN ⇒ 未匹配的父行被挤掉。
+			// 实测（2026-10-20 对抗探针）修前 SQL：
+			//   … LEFT JOIN tenancy_probe AS tp ON tp.id = g.id + 1000
+			//     WHERE g.id = 1 AND "tp"."tenant_id" = $1
+			// 期望：租户条件在 ON 里，父行保留（0 行 = 语义被破坏）。
+			//
+			// 租户 id 是 ctx 里的 uint（不是外部输入），直接内联成整数字面量：
+			// 免去"往 join 串中间插占位符 ⇒ 破坏 ? 与 args 的位置对应"这个坑
+			// （GORM 的 NamedExpr 按位置绑定 Vars，插中间就得同步挪 args，计错一位就静默绑错值）。
+			j.Name = insertJoinOnCondition(j.Name,
+				fmt.Sprintf(` AND %s.%s = %d`, quoteIdent(q), quoteIdent("tenant_id"), id))
 		}
 	}
 	return nil
+}
+
+// insertJoinOnCondition 把 cond 插进 join 串的 **ON 子句**：
+// 若 join 串自带顶层 WHERE，则插在 WHERE 之前；否则追加到末尾。
+//
+// 只认顶层（括号深度 0、且不在字符串字面量里）的 WHERE：
+// "JOIN x ON (a = b) WHERE c" 里的括号先配平，WHERE 仍在深度 0；
+// "JOIN x ON a = 'WHERE'" 里的引号内文本不算关键字。
+func insertJoinOnCondition(joinSQL, cond string) string {
+	idx := topLevelKeywordIndex(joinSQL, "where")
+	if idx < 0 {
+		return joinSQL + cond
+	}
+	// 补一个空格：cond 以数字结尾，直接接 "WHERE" 会拼成 "91WHERE"（PG 语法错）。
+	return joinSQL[:idx] + cond + " " + joinSQL[idx:]
+}
+
+// topLevelKeywordIndex 找 SQL 串里第一个顶层关键字（大小写不敏感、单词边界）。
+// 顶层 = 括号深度 0 且不在 '...' / "..." 字面量里。找不到返回 -1。
+func topLevelKeywordIndex(sqlText, keyword string) int {
+	depth := 0
+	var quote byte
+	for i := 0; i < len(sqlText); i++ {
+		ch := sqlText[i]
+		if quote != 0 {
+			if ch == quote {
+				quote = 0
+			}
+			continue
+		}
+		switch ch {
+		case '\'', '"':
+			quote = ch
+			continue
+		case '(':
+			depth++
+			continue
+		case ')':
+			if depth > 0 {
+				depth--
+			}
+			continue
+		}
+		if depth != 0 {
+			continue
+		}
+		if i+len(keyword) > len(sqlText) {
+			break
+		}
+		if !strings.EqualFold(sqlText[i:i+len(keyword)], keyword) {
+			continue
+		}
+		// 单词边界：前一个字符不是标识符字符，后一个字符也不是
+		if i > 0 && isIdentChar(sqlText[i-1]) {
+			continue
+		}
+		if i+len(keyword) < len(sqlText) && isIdentChar(sqlText[i+len(keyword)]) {
+			continue
+		}
+		return i
+	}
+	return -1
+}
+
+// isIdentChar 标识符字符（字母数字下划线 $）
+func isIdentChar(ch byte) bool {
+	return ch == '_' || ch == '$' ||
+		(ch >= 'a' && ch <= 'z') || (ch >= 'A' && ch <= 'Z') || (ch >= '0' && ch <= '9')
 }
 
 // associationTable 解析 Joins("A.B") 关系链的最终表名
@@ -578,6 +677,33 @@ func associationTable(s *schema.Schema, name string) (string, bool) {
 
 func quoteIdent(name string) string {
 	return `"` + strings.ReplaceAll(name, `"`, `""`) + `"`
+}
+
+// tenantIDWillBeInserted 判断本次 INSERT 是否真的带上 tenant_id 列。
+//
+// GORM 的 ConvertToCreateValues 规则（gorm v1.31.2 statement.go:715）：
+//   - Selects 为空 ⇒ 不受限，所有模型列都进 INSERT
+//   - Selects 非空且含 "*" ⇒ 不受限，所有模型列都进 INSERT
+//   - Selects 非空且不含 "*"（restricted）⇒ 只有 selectedColumns 里为 true 的列进 INSERT
+//   - Omits 里的列一律 false ⇒ 不进 INSERT
+//
+// 于是 Omit("tenant_id") / Select("name") 会让 INSERT **缺 tenant_id 列**：
+// 回调填进内存的值根本没进 SQL，行落**列默认值 1**（默认租户）——
+// on 模式下这是一次静默的跨租户写（实测：INSERT INTO "tenancy_probe" ("name") VALUES ($1)，
+// 行 tenant_id=1，而发起方 ctx 租户是 91）。
+func tenantIDWillBeInserted(stmt *gorm.Statement) bool {
+	if stmt == nil {
+		return false
+	}
+	selected, restricted := stmt.SelectAndOmitColumns(true, false)
+	v, ok := selected["tenant_id"]
+	// 与 GORM ConvertToCreateValues 的入选判据同式：(ok && v) || (!ok && !restricted)
+	//   - ok && v      ⇒ 显式选中且未被 Omit ⇒ 进 INSERT
+	//   - !ok && !restricted ⇒ 没进 selectedColumns 且无 Selects 限制 ⇒ 进 INSERT
+	//   - Omit 掉的列会以 v=false 落在 map 里 ⇒ ok=true ⇒ 不进 INSERT
+	//   （注意：Selects 为空时 restricted=false，但 Omit 仍然生效——别用
+	//     "restricted 为假 ⇒ 一定有列" 这种捷径，Omit-only 情形会被漏掉。）
+	return (ok && v) || (!ok && !restricted)
 }
 
 // guardUpdateTenantAssignments 更新不得改写 tenant_id：
@@ -600,9 +726,28 @@ func guardUpdateTenantAssignments(stmt *gorm.Statement, id uint) error {
 		}
 		if rv.IsValid() && rv.Kind() == reflect.Struct {
 			if field := stmt.Schema.LookUpField("tenant_id"); field != nil {
-				if v, zero := field.ValueOf(stmt.Context, rv); !zero {
+				v, zero := field.ValueOf(stmt.Context, rv)
+				// 本次 SET 到底会不会写 tenant_id 列？GORM ConvertToAssignments 的规则：
+				//   selected["tenant_id"]==true ⇒ **一定写**（Selects 含 "*" 时零值也照写，
+				//   这就是 Save 的行为）——于是值必须等于上下文租户，零值也不放过；
+				//   未选中且不受限（Selects 为空）⇒ 仅当值非零才写 ⇒ 沿用"非零必须等于租户"。
+				// 旧实现只判了"非零且不等于租户"，于是 Save 一个没加载过的结构体
+				// （TenantID 零值）会把行的 tenant_id 覆写成 0 —— 行掉出本租户。
+				// 实测（2026-10-20 对抗探针）：
+				//   UPDATE "tenancy_probe" SET "tenant_id"=$1,"name"=$2 WHERE ... AND "id" = $4
+				// $1 = 0，守卫未拦。
+				selected, restricted := stmt.SelectAndOmitColumns(false, true)
+				alwaysWritten, inMap := selected["tenant_id"]
+				switch {
+				case inMap && alwaysWritten:
 					if err := reject(v); err != nil {
 						return err
+					}
+				case !inMap && !restricted:
+					if !zero {
+						if err := reject(v); err != nil {
+							return err
+						}
 					}
 				}
 			}
