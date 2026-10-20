@@ -20,7 +20,9 @@ const REACH_DIRS = [
   'community', 'shortLink', 'livecode',
 ]
 
-const keyRe = /(?:\$t|t|i18n\.global\.t)\(\s*['"]([^'"]+)['"]\s*\)/g
+// 与 scripts/i18n-extract.cjs 的 T_REGEX 同一套匹配语义：\bt 前缀排除 http.get('/api/…')、
+// .split(',')、.split('T') 这类伪命中（旧版裸 't' 会把它们当成 t('…') 调用，恒报 8 条假缺口）。
+const keyRe = /(?:\$t|\bt\s*|i18n\.global\.t)\s*\(\s*['"]([^'"]+)['"]/g
 
 function walk(dir) {
   const out = []

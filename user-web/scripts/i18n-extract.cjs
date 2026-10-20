@@ -67,7 +67,11 @@ function walk(dir, out = []) {
 // 提取 $t('xxx') / $t("xxx") / t('xxx') / t("xxx")
 // 支持带参数: $t('key', { ... })  $t('key', n, { ... })
 // key 限制: 字母/数字/点/下划线/中划线 (vue-i18n 合法字符), 首字符必须为字母/下划线
-const T_REGEX = /(?:\$t|\bt\s*)\(\s*['"]([A-Za-z_][A-Za-z0-9_.-]*)['"]/g;
+// 放宽键名字符类：本仓存在大量以中文字面量直呼的键（如 $t('短链管理')、t('术语表管理')），
+// 旧的 [A-Za-z_] 首字符限定把它们整类排除在提取之外 —— i18n:check 显示 0 缺失，运行时却在
+// 8 个非中文界面吐裸键（287 个键吃过这个哑巴亏）。改为匹配除引号外的任意键名，
+// 并保留 \bt 前缀语义（http.get('/api/…')、.split('T') 这类误报靠它排除）。
+const T_REGEX = /(?:\$t|\bt\s*)\(\s*['"]([^'"]+)['"]/g;
 function extractKeysFromVue(file) {
   const txt = fs.readFileSync(file, 'utf8');
   const keys = new Set();
@@ -124,7 +128,8 @@ function main() {
       // 拼接前缀伪键：t('menu.' + menu.key) 这类动态拼接被正则抽成 'menu.'，
       // 运行时真正取的是 'menu.<key>'，前缀本身永远查不到词条，
       // 当作未使用跳过，免得每个语种恒报 1 条假缺失。
-      if (k.endsWith('.')) continue;
+      // 注意保留 '...' 结尾的真键（如 t('创建成功！正在后台自动配置 Bot...')）。
+      if (k.endsWith('.') && !k.endsWith('...')) continue;
       usedKeys.add(k);
     }
   }

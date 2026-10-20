@@ -129,6 +129,11 @@ async function openAgentOptions(dialog) {
 }
 
 beforeEach(() => {
+  // 本用例按中文文案定位控件（'分配'、'分配给坐席…'、'分配会话给坐席'）。
+  // jsdom 的 navigator.language 是 en-US，@/i18n 启动时因此落在 en；这些键在 en 里
+  // 现在有正式译文（Assign / Assign to agent…），早先"缺键裸吐中文、恰好能匹配"的
+  // 巧合不再成立。钉住 zh：这几个键 zh 取值即键名本身，断言与环境语言解耦。
+  i18n.global.locale.value = 'zh'
   vi.clearAllMocks()
   mocks.calls.length = 0
   ctx.agents = [
