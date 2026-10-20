@@ -15,6 +15,12 @@ import (
 func setupAuthServiceTestDB(t *testing.T) *gorm.DB {
 	database := testutil.NewTestDB(t,
 		&model.SystemUser{},
+		// 登录链上的 MFA 状态查询是 fail-closed 的（查不出状态一律拒登，不把
+		// 「查询失败」当成「未启用」而绕过二次验证）。因此这三张表必须在夹具里：
+		// 漏建时「表不存在」会被读成「登录被安全策略拒绝」，用例红得看不出根因是缺表。
+		&model.UserMFA{},
+		&model.PasswordHistory{},
+		&model.SystemConfigKV{},
 	)
 	db.SetTestDB(database)
 	return database

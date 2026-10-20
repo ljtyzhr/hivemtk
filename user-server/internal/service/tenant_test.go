@@ -29,7 +29,10 @@ func repositoryFilter(page, pageSize int, keyword string) repository.TenantFilte
 
 func setupTenantTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
-	database := testutil.NewTestDB(t, &model.Tenant{}, &model.SystemUser{})
+	database := testutil.NewTestDB(t, &model.Tenant{}, &model.SystemUser{},
+		// 这里的用例要走完邮箱登录，而 MFA 状态查询 fail-closed：表不在就是拒登。
+		&model.UserMFA{},
+	)
 	db.SetTestDB(database)
 	return database
 }
