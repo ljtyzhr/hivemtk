@@ -7,15 +7,18 @@
 # 守什么：
 #   1. `scripts/check-async-global-read.py` —— 协程体里不许裸读包级注入点（R27，`521e4f80`：
 #      飞书那条跨用例 DATA RACE 就是这一类，CI 的 `-race` 作业撞上了、本地三趟撞不上）；
-#   2. `scripts/check-seam-guard.py` —— 注册表里那 17 个"被异步链经默认实现读到的全局"，
+#   2. `scripts/check-seam-guard.py` —— 注册表里登记的每一个"被异步链经默认实现读到的全局"
+#      （行数由 `scripts/seam-guard.registry` 决定，门自己打印），
 #      每一次读写都必须走自己那对 accessor、在那把锁底下（R28，`734118d9`）。
-# 两道门都不需要编译、不碰数据库：本机实测扫 2781 个 .go 文件 ⇒ async 门 3s、seam 门 5s。
+# 两道门都不需要编译、不碰数据库：本机实测各在秒级（async 门约 3s、seam 门约 4s；扫描对象是整棵
+# Go 树的 .go 文件，数量由树本身决定，门会把它打印出来）。
 #
 # 触发面为什么写 `user-server/**/*.go` 而不是只写脚本自己：门的输入是**整棵 Go 树**，
 # 只登记脚本路径会让"新加一处绕门访问"那一类提交根本不重跑这道门。
 #
 # 与 `-race` 作业的分工：CI 的 `Unit tests -race (user-server service)` 作业跑
-# `user-server/internal/service/seam_guard_race_test.go` 那 16 条腿，证"门里真上锁"；
+# `user-server/internal/service/seam_guard_race_test.go` 那批腿（一家 accessor 一条，与注册表同行数），
+# 证"门里真上锁"；
 # 本作业证"没绕门"。摘掉任一扇门里的锁 ⇒ 两边同时红（牙齿：`python3 scripts/mut_seam_guard_r28.py`）。
 name: Seam Guard
 

@@ -62,9 +62,11 @@ echo "[1/10] Controller 反向依赖检查..."
 
 # 1.1 controller 不应直接 import repository
 # 允许例外: *_test.go 文件可以 import repository 用于测试构造(Go 标准模式)
+# repo 分支必须带右边界:"internal/repo" 是 "internal/reporting" 的前缀，
+# 不锚定会把 reporting 组（controller 合法依赖）整批判成分层违规。
 CONTROLLER_NON_TEST_FILES=$(find "$TARGET/internal/controller" -name "*.go" ! -name "*_test.go" 2>/dev/null)
 if [ -n "$CONTROLLER_NON_TEST_FILES" ]; then
-  if grep -rn "hivemtk-user/internal/repository\|hivemtk-user/internal/repo" $CONTROLLER_NON_TEST_FILES 2>/dev/null; then
+  if grep -rnE 'hivemtk-user/internal/repository|hivemtk-user/internal/repo([^A-Za-z0-9_]|$)' $CONTROLLER_NON_TEST_FILES 2>/dev/null; then
     log_fail "[L3] controller 直接引用 repository,违反分层(_test.go 文件例外)"
   else
     log_pass "[L3] controller 未直接引用 repository"
@@ -275,8 +277,8 @@ fi
 echo ""
 echo "[5/10] DTO 反向依赖检查..."
 
-# 5.1 dto 不应引用 service / repository
-if grep -rn "hivemtk-user/internal/service\|hivemtk-user/internal/repository\|hivemtk-user/internal/repo" "$TARGET/internal/dto/" 2>/dev/null; then
+# 5.1 dto 不应引用 service / repository（repo 分支同 1.1：不锚定会误伤 reporting）
+if grep -rnE 'hivemtk-user/internal/service|hivemtk-user/internal/repository|hivemtk-user/internal/repo([^A-Za-z0-9_]|$)' "$TARGET/internal/dto/" 2>/dev/null; then
   log_fail "[DTO] dto 引用 service/repository,违反分层"
 else
   log_pass "[DTO] dto 未引用 service/repository"

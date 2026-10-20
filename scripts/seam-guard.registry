@@ -23,6 +23,11 @@ dyMediaRetryBackoff	internal/service/douyin_media.go	dySeamMu	loadDyMediaRetryBa
 humanTaskNowFn	internal/service/human_task.go	humanTaskSeamMu	loadHumanTaskNowFn	internal/service/seam_guard_setters_test.go:storeHumanTaskNowFn
 pollingLockRepo	internal/service/telegram_polling_lock.go	pollingLockMu	getPollingLockRepo	internal/service/seam_guard_setters_test.go:resetPollingLockRepoForTest
 pollingLockRepoOnce	internal/service/telegram_polling_lock.go	pollingLockMu	getPollingLockRepo	internal/service/seam_guard_setters_test.go:resetPollingLockRepoForTest
+# pollingWorkerID 与 pollingWorkerIDOnce 同上：同一条惰性解析链的两块内存，一把锁、一对 accessor。
+# 这两行不在上面那份上界枚举里，是补登的：本文件的第 3 条判据只核"登记过的这些没被绕过去"，
+# 而这两处曾按"没有登记"的形状活着——用例直写全局、产码第一次读就被惰性解析覆盖回去。
+pollingWorkerID	internal/service/telegram_polling_lock.go	pollingWorkerMu	GetPollingWorkerID	internal/service/seam_guard_setters_test.go:resetPollingWorkerIDForTest
+pollingWorkerIDOnce	internal/service/telegram_polling_lock.go	pollingWorkerMu	GetPollingWorkerID	internal/service/seam_guard_setters_test.go:resetPollingWorkerIDForTest
 qqAttachmentURLGuard	internal/service/qq_media.go	qqSeamMu	loadQQAttachmentURLGuard	internal/service/seam_guard_setters_test.go:storeQQAttachmentURLGuard
 qqMaxMediaBytes	internal/service/qq_media.go	qqSeamMu	loadQQMaxMediaBytes	internal/service/seam_guard_setters_test.go:storeQQMaxMediaBytes
 tgAPIBaseOverride	internal/service/telegram_media.go	tgSeamMu	loadTGAPIBase	internal/service/seam_guard_setters_test.go:storeTGAPIBase

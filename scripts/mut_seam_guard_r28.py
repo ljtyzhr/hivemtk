@@ -1,17 +1,17 @@
 #!/usr/bin/env python3
 """R28 牙齿电池：证明「seam accessor 门 + `-race` 腿」两样都真会红，且红是**窄**的。
 
-要断的东西有三件：
+要断的东西有三件（**格子数与腿数都由注册表推导**，不写死：新增一家只加注册表一行＋一条腿，本驱动自动多一格）：
   1. **门有牙**（族 A，逐格、不需编译）：把某个全局那对 accessor 的锁逐行摘掉 ⇒ `check-seam-guard.py`
-     必须退 rc=1 且点名那个全局。16 格逐格摘、逐格还原、逐格比 md5。
-  2. **腿有牙，且红不溢出**（族 B，一次编译）：只摘 `tgMaxMediaBytes` 一家的锁 ⇒ 跑全部 16 条腿，
-     必须**恰好** `TelegramMaxBytesIsLocked` 一条 FAIL、其余 15 条 PASS，且**每一条**竞争块都只归属到
+     必须退 rc=1 且点名那个全局。逐格摘、逐格还原、逐格比 md5。
+  2. **腿有牙，且红不溢出**（族 B，一次编译）：只摘 `tgMaxMediaBytes` 一家的锁 ⇒ 跑全部腿，
+     必须**恰好** `TelegramMaxBytesIsLocked` 一条 FAIL、其余各条 PASS，且**每一条**竞争块都只归属到
      这一条腿（用例是串行的，竞争块里印的就是当时在跑的 `TestSeamGuard_Xxx` 栈 ⇒ 归属即归因），
      且共锁邻居 `TelegramAPIBaseIsLocked` 必须在 PASS 名单里。
      挑它做窄格有讲究：`tgAPIBaseOverride` 与它**共用一把** `tgSeamMu` ⇒ 同锁的邻居仍然绿，
      这才叫"摘这一家的锁只红这一家"，而不是"锁一摘全家红"那种没分辨力的证据。
-  3. **每条腿都不是摆设**（族 C，一次编译）：16 家的锁**一次性全摘**（内存里叠完再写盘）⇒
-     每条腿都必须 FAIL、0 条 PASS，且 16 个归属腿名单与登记腿名单**逐一对上**、无未归属块、
+  3. **每条腿都不是摆设**（族 C，一次编译）：全部登记家的锁**一次性全摘**（内存里叠完再写盘）⇒
+     每条腿都必须 FAIL、0 条 PASS，且归属腿名单与登记腿名单**逐一对上**、无未归属块、
      每条腿至少一条竞争块的栈里点到它自己那家的**产码文件名**。
      窄格证"不会假红"，全摘格证"没有漏网的腿"——两界合起来才是完整证据。
 
@@ -32,13 +32,14 @@
 那是把判据改松去迁就变异，不算证据。真正的修法是把证据找回来：跑腿时对**被测包**关内联
 （见 `race_legs`），读侧那一帧就回到注册表 `file` 列那个产码文件里，锚点比原来更强（两侧都在）。
 
-为什么不在这里做"逐格 -race"：那要 16 趟整包 `-race` 编译，第一版真这么跑，到第 6 格
+为什么不在这里做"逐格 -race"：那要为每家 accessor 各跑一趟整包 `-race` 编译（登记几家就几趟）。
+第一版真这么跑，16 家跑到第 6 格
 （`r28_seam_battery_20260922-211058/06-unlocked-dingtalkOpenAPIBase-gate.log` 是 0 字节的那一份）
 就把这台共享机器的数据盘写到 100%、只剩 1.7 GB 而中断 —— 而盘满带来的红全是假红。
 拆法：把"逐格"的力气花在**不需要编译**的门判据上，编译只做一次窄、一次全。
 
 口径（照本仓电池的既有规矩）：
-  - 控制组**现测**：开刀前先跑一遍 16 条腿拿名单，不写死数字（共享树下别人加用例会让写死的计数漂）；
+  - 控制组**现测**：开刀前先跑一遍全部腿拿名单，不写死数字（共享树下别人加用例会让写死的计数漂）；
   - 变异只在内存里算，写盘一次，跑完立刻按 md5 还原比对；还原表由 apply() 自动登记；
   - 一格的红必须是「带 DATA RACE 且栈里点到本格那条腿 + 本家产码文件」的红：只 FAIL 不报竞争 ⇒ SURVIVED/BROKEN，不算证据；
   - 编译坏 ⇒ BUILD-BROKEN，修变异不修期望；
@@ -103,9 +104,11 @@ LEG = {
     "humanTaskNowFn": "TestSeamGuard_HumanTaskNowFnIsLocked",
     "IntentEnabled": "TestSeamGuard_IntentEnabledIsLocked",
     "pollingLockRepo": "TestSeamGuard_PollingLockRepoIsLocked",
+    "pollingWorkerID": "TestSeamGuard_PollingWorkerIDIsLocked",
 }
 # pollingLockRepoOnce 与 pollingLockRepo 同一把锁、同一对 accessor，摘一次即同时覆盖 ⇒ 不单列一格。
-MERGED_WITH = {"pollingLockRepoOnce": "pollingLockRepo"}
+# pollingWorkerIDOnce 同理（同一处惰性解析的两块内存）。
+MERGED_WITH = {"pollingLockRepoOnce": "pollingLockRepo", "pollingWorkerIDOnce": "pollingWorkerID"}
 NARROW = "tgMaxMediaBytes"
 
 

@@ -5,6 +5,9 @@
 #   - 豁免目录：internal/migration/（DDL 是迁移的合法形态）
 #   - 豁免文件：internal/pkg/db/migrate.go（schema 引导 DDL：CREATE EXTENSION/ALTER/DROP INDEX，
 #     运行于 AutoMigrate 生命周期，与 migration 同类）
+#   - 豁免文件：internal/pkg/db/tenant_id_normalize.go（AutoMigrate 前置的 tenant_id 列类型
+#     归一化：information_schema 自省 + ALTER TABLE … USING，GORM 无方言表达；
+#     与 migrate.go 同一生命周期，表名拼进 DDL 前按 tenantTableIdentRe 校验）
 #   - 豁免文件：internal/pkg/tenancyidx/tenancyidx.go（schema 自省/索引规范化 DDL，
 #     运行于 AutoMigrate 与迁移生命周期，SystemTenant 路径，与 migration 同类）
 #   - 豁免目录：internal/pkg/testutil/（测试库基建 DDL，如 CREATE DATABASE，等价 migration 语义）
@@ -35,6 +38,7 @@ violations=$(grep -rn --include='*.go' -e '\.Exec(' -e '\.Raw(' internal/ 2>/dev
   | grep -v '^internal/migration/' \
   | grep -v '^internal/pkg/testutil/' \
   | grep -v '^internal/pkg/db/migrate\.go:' \
+  | grep -v '^internal/pkg/db/tenant_id_normalize\.go:' \
   | grep -v '^internal/pkg/tenancyidx/' \
   | grep -v '^internal/aiagent/rag/retrieval/pgvector_session.go:' \
   | grep -v '^internal/aiagent/rag/retrieval/pgvector_index_ops.go:' \
