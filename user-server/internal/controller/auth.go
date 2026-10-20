@@ -79,6 +79,10 @@ func (c *AuthController) recordLoginRiskAsync(ctx *gin.Context, username string,
 		LoginAt:   time.Now(),
 		Reason:    reason,
 	}
+	// 协程里只剩 Background ctx，on 模式下 login_events/security_alerts 的
+	// 隔离闸按 tenant_id fail-closed 会拒绝全部读写（登录风控整链静默失效）。
+	// 必须在请求还活着时先把租户绑定摘出来，进协程再挂回去。
+	tid, hasTenant := tenant.FromContext(ctx.Request.Context())
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
@@ -89,6 +93,9 @@ func (c *AuthController) recordLoginRiskAsync(ctx *gin.Context, username string,
 		}()
 		dctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
 		defer cancel()
+		if hasTenant {
+			dctx = tenant.OnlyTenant(dctx, tid)
+		}
 		detector := service.NewAnomalyLoginDetector()
 		if _, err := detector.DetectAndAlert(dctx, lctx); err != nil {
 			logger.GetLogger().Warn().Err(err).
