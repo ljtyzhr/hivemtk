@@ -116,12 +116,7 @@ func main() {
 	// TENANT_MODE 装配（001 多租户双形态）：必须在 db.InitDB/router.Setup 之前生效——
 	// 十二个 callback/中间件/登录通道全部读 tenant.IsMultiTenant()，
 	// 漏掉本调用则进程永远停在默认 off，环境变量静默失效（003 活体联调发现的装配缺口）。
-	// 未知值必须拒绝启动：拼错的开关会让 SaaS 静默以单机形态共享默认租户。
-	tenantMode, tenantErr := tenant.InitFromEnv()
-	if tenantErr != nil {
-		log.Fatalf("[tenant] %v", tenantErr)
-	}
-	if tenantMode == tenant.ModeOn {
+	if mode := tenant.InitFromEnv(); mode == tenant.ModeOn {
 		logger.Info("[tenant] TENANT_MODE=on：SaaS 多租户形态已启用")
 	}
 

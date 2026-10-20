@@ -18,7 +18,8 @@ type ParamGroupDef struct {
 	SortOrder   int
 }
 
-// DefaultParamGroupDefs 返回全部分组定义（35 组，与种子里的组一一对应）。
+// DefaultParamGroupDefs 返回全部分组定义（与种子里的组一一对应；条数以本函数
+// 实际返回为准，历史注释曾停留在 35 与真实数量脱节过）。
 //
 // 与 DefaultParamDefs 的关系：本表管「组怎么显示」，那张表管「组里有哪些旋钮」。
 // 两者都必须有对方提到的每一个组名 —— 少一边就是一处漂移，由
@@ -59,6 +60,7 @@ func DefaultParamGroupDefs() []ParamGroupDef {
 		{Group: "pagination", Label: "分页", Description: "分页与游标分页每批条数", SortOrder: 260},
 		{Group: "middleware", Label: "中间件", Description: "请求体上限、审计刷盘、MFA 宽限", SortOrder: 270},
 		{Group: "ratelimit", Label: "限流", Description: "全局限流与访客双维限流的速率与桶容量", SortOrder: 272},
+		{Group: "reporting", Label: "报表统计", Description: "报表与列表的默认时间窗口天数", SortOrder: 274},
 		{Group: "misc", Label: "其它", Description: "跨域的零散旋钮（访客令牌、上传上限、心跳等）", SortOrder: 280},
 		{Group: "urls", Label: "对外链接", Description: "前端/云端/官网基址（发信与展示用的对外 URL）", SortOrder: 282},
 		{Group: "smart_cs", Label: "智能客服", Description: "智能客服编排的阈值与开关", SortOrder: 290},
