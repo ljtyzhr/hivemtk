@@ -36,8 +36,9 @@ type WechatService struct {
 	repo         *repository.WechatAccountRepository
 	mu           sync.RWMutex
 	tokenClients map[uint]*wechatTokenClient
-	// db 只用于入站媒体转存后回填 message_hub.media_url（M-01）。
-	db *gorm.DB
+	// 入站媒体回填用的 hub 仓储：构造期由 db 建好存句柄，service 不持 DB
+	//（架构门 L4：service 不得直接持 db；wechat_inbound_media.go 的回填改用它）。
+	hubRepo *repository.MessageHubRepository
 }
 
 type wechatTokenClient struct {
@@ -53,7 +54,7 @@ func NewWechatService(db *gorm.DB) *WechatService {
 	return &WechatService{
 		repo:         repository.NewWechatAccountRepository(db),
 		tokenClients: make(map[uint]*wechatTokenClient),
-		db:           db,
+		hubRepo:      repository.NewMessageHubRepositoryWithDB(db),
 	}
 }
 

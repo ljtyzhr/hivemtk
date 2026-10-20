@@ -127,10 +127,10 @@ func putIfNonEmpty(dst map[string]any, key, val string) {
 // msg_id（= EventID，形如 wx-<account>-<MsgId>）回填 media_url。
 // 失败仅告警：占位符正文与渠道原生 media_id 已经落库，媒体不可用不该拖注入站链路。
 func (s *WechatService) PersistInboundMediaAsync(ctx context.Context, accountID uint, hubMsgID, mediaID string) {
-	if s.db == nil || mediaID == "" || hubMsgID == "" {
+	if s.hubRepo == nil || mediaID == "" || hubMsgID == "" {
 		return
 	}
-	hubRepo := repository.NewMessageHubRepositoryWithDB(s.db)
+	hubRepo := s.hubRepo
 	// SafeGoDetached 而不是 SafeGo：调用方 handleIncomingMessage 用的是 30s 超时 ctx 并 defer cancel()，
 	// 方法一返回就取消，沿用会让转存在起跑线上被杀掉（用例传 Background() 时看不出来）。
 	// 包级注入点进协程前先快照成本地值：上一条用例残留的协程若直读包级变量，会和下一条用例装替身的写撞成 DATA RACE。
