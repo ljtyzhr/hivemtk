@@ -8,6 +8,7 @@ import (
 
 	contentsvc "hivemtk-user/internal/content/service"
 	"hivemtk-user/internal/dto"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/repository"
 )
 
@@ -31,7 +32,7 @@ func initSmsService() (SmsService, error) {
 	return smsSvcInstance, smsSvcInitErr
 }
 
-func lazySendSms(phone, content string) error {
+func lazySendSms(parent context.Context, phone, content string) error {
 	if phone == "" {
 		return errors.New("phone 不能为空")
 	}
@@ -44,7 +45,8 @@ func lazySendSms(phone, content string) error {
 		return fmt.Errorf("初始化短信服务失败：%w", err)
 	}
 
-	ctx := context.Background()
+	// 发短信要读本租户的渠道配置并落 sms_records：解绑流程取消，但租户不能丢。
+	ctx := tenant.BackgroundWithTenant(parent)
 
 	req := &dto.SmsSendRequest{
 		Phone:   phone,

@@ -58,6 +58,7 @@ func DefaultParamGroupDefs() []ParamGroupDef {
 		{Group: "telemetry", Label: "遥测", Description: "指标采集窗口、去重与开关轮询", SortOrder: 240},
 		{Group: "geo", Label: "可见性统计", Description: "地域关键词与可见性统计窗口", SortOrder: 250},
 		{Group: "pagination", Label: "分页", Description: "分页与游标分页每批条数", SortOrder: 260},
+		{Group: "reporting", Label: "报表窗口", Description: "报表与趋势查询的默认时间窗（天）", SortOrder: 262},
 		{Group: "middleware", Label: "中间件", Description: "请求体上限、审计刷盘、MFA 宽限", SortOrder: 270},
 		{Group: "ratelimit", Label: "限流", Description: "全局限流与访客双维限流的速率与桶容量", SortOrder: 272},
 		{Group: "reporting", Label: "报表统计", Description: "报表与列表的默认时间窗口天数", SortOrder: 274},

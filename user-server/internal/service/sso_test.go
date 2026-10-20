@@ -180,10 +180,13 @@ func TestNewSSOService_SkipsProvidersWithoutClientID(t *testing.T) {
 		},
 	}
 	svc := NewSSOServiceWithRepos(cfg, repository.NewSystemUserRepository(), repository.NewSSOIdentityRepository(database))
-	if _, ok := svc.Adapter("feishu"); ok {
+	// 无 KV 的服务实例 + 未绑定租户的 ctx = 平台 config.yaml 那一档，
+	// 这三条断言量的就是"租户化之后平台档还在"。
+	bg := context.Background()
+	if _, ok := svc.AdapterFor(bg, "feishu"); ok {
 		t.Error("provider without client_id should not be enabled")
 	}
-	if _, ok := svc.Adapter("dingtalk"); !ok {
+	if _, ok := svc.AdapterFor(bg, "dingtalk"); !ok {
 		t.Error("provider with client_id should be enabled")
 	}
 }
@@ -194,12 +197,12 @@ func TestSSOService_EnabledFlag(t *testing.T) {
 	defer db.SetTestDB(nil)
 
 	off := NewSSOServiceWithRepos(config.SSOConfig{Enabled: false}, repository.NewSystemUserRepository(), repository.NewSSOIdentityRepository(database))
-	if off.Enabled() {
-		t.Error("Expected Enabled() == false")
+	if off.EnabledFor(context.Background()) {
+		t.Error("Expected EnabledFor() == false")
 	}
 	on := NewSSOServiceWithRepos(config.SSOConfig{Enabled: true}, repository.NewSystemUserRepository(), repository.NewSSOIdentityRepository(database))
-	if !on.Enabled() {
-		t.Error("Expected Enabled() == true")
+	if !on.EnabledFor(context.Background()) {
+		t.Error("Expected EnabledFor() == true")
 	}
 }
 
@@ -430,7 +433,7 @@ func TestSSOService_ListProviders(t *testing.T) {
 		},
 	}
 	svc := NewSSOServiceWithRepos(cfg, repository.NewSystemUserRepository(), repository.NewSSOIdentityRepository(database))
-	list := svc.ListProviders()
+	list := svc.ListProvidersFor(context.Background())
 	if len(list) != 2 {
 		t.Fatalf("expected 2 providers, got %d", len(list))
 	}

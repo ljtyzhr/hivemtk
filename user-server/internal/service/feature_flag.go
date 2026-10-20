@@ -18,6 +18,7 @@ import (
 	"time"
 
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/repository"
 )
 
@@ -206,7 +207,7 @@ func (s *FeatureFlagService) Evaluate(ctx context.Context, key string, attribute
 	res := &FlagEvaluateResult{Key: key, Enabled: false, Reason: "not_found"}
 	f, err := s.repo.GetByKey(ctx, key)
 	if err != nil {
-		s.logEvalAsync(key, attributes, res)
+		s.logEvalAsync(ctx, key, attributes, res)
 		return res
 	}
 	contextID := contextIDFromAttributes(attributes)
@@ -230,7 +231,7 @@ func (s *FeatureFlagService) Evaluate(ctx context.Context, key string, attribute
 		res.Value = jsonRawValue(f.Payload)
 	}
 	_ = s.repo.TouchEvaluated(ctx, f.ID)
-	s.logEvalAsync(key, attributes, res)
+	s.logEvalAsync(ctx, key, attributes, res)
 	return res
 }
 
@@ -291,7 +292,7 @@ func (s *FeatureFlagService) auditAsync(ctx context.Context, f *model.FeatureFla
 	}()
 }
 
-func (s *FeatureFlagService) logEvalAsync(key string, attributes map[string]any, res *FlagEvaluateResult) {
+func (s *FeatureFlagService) logEvalAsync(ctx context.Context, key string, attributes map[string]any, res *FlagEvaluateResult) {
 	e := &model.FeatureFlagEvalLog{
 		FlagKey:   key,
 		ContextID: contextIDFromAttributes(attributes),
@@ -301,13 +302,17 @@ func (s *FeatureFlagService) logEvalAsync(key string, attributes map[string]any,
 	if res.Value != nil {
 		e.Value = fmt.Sprintf("%v", res.Value)
 	}
+	// 请求 ctx 随响应结束而取消，但租户归属必须带进协程：裸 Background 在
+	// on 模式下会被隔离 callback fail-closed，曝光日志整批静默丢失；
+	// off 模式显式绑定默认租户（语义与历史一致）。
+	detached := tenant.BackgroundWithTenant(ctx)
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
 				log.Printf("[panic-recover] %T: %v\n%s", r, r, string(debug.Stack()))
 			}
 		}()
-		if err := s.repo.CreateEvalLog(context.Background(), e); err != nil {
+		if err := s.repo.CreateEvalLog(detached, e); err != nil {
 			slog.Warn("[FeatureFlag] 评估日志写入失败", "key", key, "err", err)
 		}
 	}()

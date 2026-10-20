@@ -1,9 +1,12 @@
 package repository
 
 import (
+	"context"
+
 	contentmodel "hivemtk-user/internal/content/model"
 	"hivemtk-user/internal/ops/model"
 	_db "hivemtk-user/internal/pkg/db"
+	"hivemtk-user/internal/pkg/tenant"
 
 	"gorm.io/gorm"
 )
@@ -55,6 +58,36 @@ func (r *DashboardScreenRepository) GetByCode(code string) (*model.DashboardScre
 	return &screen, err
 }
 
+// GetPublicByCodeCtx 匿名公开访问：code 由分享链接携带，先系统作用域反查
+// 唯一租户，再钉死在该租户内读取并自增浏览量。同码多租户时拒猜（返回未找到）。
+func (r *DashboardScreenRepository) GetPublicByCodeCtx(ctx context.Context, code string) (*model.DashboardScreen, error) {
+	var ids []uint
+	if err := r.db.WithContext(tenant.WithSystemScope(ctx)).
+		Model(&model.DashboardScreen{}).
+		Distinct("tenant_id").
+		Where("code = ? AND is_public = ?", code, true).
+		Limit(2).
+		Pluck("tenant_id", &ids).Error; err != nil {
+		return nil, err
+	}
+	if len(ids) != 1 || ids[0] == 0 {
+		return nil, gorm.ErrRecordNotFound
+	}
+	tctx := tenant.OnlyTenant(ctx, ids[0])
+	var screen model.DashboardScreen
+	if err := r.db.WithContext(tctx).
+		Where("code = ? AND is_public = ?", code, true).
+		First(&screen).Error; err != nil {
+		return nil, err
+	}
+	if err := r.db.WithContext(tctx).Model(&model.DashboardScreen{}).
+		Where("id = ?", screen.ID).
+		Update("view_count", gorm.Expr("view_count + 1")).Error; err != nil {
+		return nil, err
+	}
+	return &screen, nil
+}
+
 // Update 更新大屏
 func (r *DashboardScreenRepository) Update(screen *model.DashboardScreen) error {
 	return r.db.Save(screen).Error
@@ -91,6 +124,13 @@ func (r *DashboardWidgetRepository) Create(widget *model.DashboardWidget) error 
 func (r *DashboardWidgetRepository) GetByScreenID(screenID uint) ([]*model.DashboardWidget, error) {
 	var widgets []*model.DashboardWidget
 	err := r.db.Where("screen_id = ?", screenID).Order("sort_order, y, x").Find(&widgets).Error
+	return widgets, err
+}
+
+// GetByScreenIDCtx 公开访问路径的 widgets 读取（必须带已绑定租户的 ctx）
+func (r *DashboardWidgetRepository) GetByScreenIDCtx(ctx context.Context, screenID uint) ([]*model.DashboardWidget, error) {
+	var widgets []*model.DashboardWidget
+	err := r.db.WithContext(ctx).Where("screen_id = ?", screenID).Order("sort_order, y, x").Find(&widgets).Error
 	return widgets, err
 }
 

@@ -150,7 +150,7 @@ func (c *CustomerRFMCron) alertFinalFailure(ctx context.Context, attempts int, e
 	}
 	logger.Ctx(ctx).Error().Err(err).Int("attempts", attempts).
 		Msg("[CustomerRFMCron] RFM 全量计算重试耗尽，触发告警")
-	PublishSSEEvent(SSETopicSystemAlerts, "cron_failed", map[string]any{
+	PublishSSEEvent(ctx, SSETopicSystemAlerts, "cron_failed", map[string]any{
 		"job":      "customer_rfm_compute_all",
 		"attempts": attempts,
 		"error":    err.Error(),

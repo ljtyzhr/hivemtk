@@ -10,6 +10,7 @@ import (
 	"hivemtk-user/internal/cache"
 	"hivemtk-user/internal/config"
 	"hivemtk-user/internal/pkg/db"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 )
 
@@ -178,7 +179,8 @@ func NewInMemoryCache() *InMemoryCache {
 }
 
 // Get 获取缓存项
-func (c *InMemoryCache) Get(key string) (any, bool) {
+func (c *InMemoryCache) Get(ctx context.Context, key string) (any, bool) {
+	key = tenant.RedisKey(ctx, key)
 	c.mutex.RLock()
 	defer c.mutex.RUnlock()
 
@@ -195,7 +197,8 @@ func (c *InMemoryCache) Get(key string) (any, bool) {
 }
 
 // Set 设置缓存项
-func (c *InMemoryCache) Set(key string, value any, ttl time.Duration) {
+func (c *InMemoryCache) Set(ctx context.Context, key string, value any, ttl time.Duration) {
+	key = tenant.RedisKey(ctx, key)
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 
@@ -206,7 +209,8 @@ func (c *InMemoryCache) Set(key string, value any, ttl time.Duration) {
 }
 
 // Delete 删除缓存项
-func (c *InMemoryCache) Delete(key string) {
+func (c *InMemoryCache) Delete(ctx context.Context, key string) {
+	key = tenant.RedisKey(ctx, key)
 	c.mutex.Lock()
 	defer c.mutex.Unlock()
 

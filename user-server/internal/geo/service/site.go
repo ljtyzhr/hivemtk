@@ -10,6 +10,7 @@ import (
 	"time"
 
 	"hivemtk-user/internal/geo/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 
 	"gorm.io/gorm"
@@ -296,11 +297,19 @@ func (s *SiteDeployService) TriggerDeploy(ctx context.Context) (string, error) {
 		}
 	}
 	if len(urls) > 0 && s.pushSvc != nil {
+		// 行自证（多租户，二审 P1-9）：站点部署推送是**租户业务** —— 推送记录
+		//（geo_push_records，经 PushURLs 的 tx）与配额回写（geo_pusher_configs，
+		// persistQuota）都是租户表且已改为消费 ctx。本 goroutine 脱离请求生命周期、
+		// 拿不到请求 ctx，用**站点行自己的 TenantID** 钉住（siteCfg 由上面带租户的
+		// 请求 ctx 读出，行值可信）。此前这里用裸 context.Background()：on 模式下
+		// 推送记录 Create / 配额 Update 全被隔离 callback fail-closed ⇒ 记账与配额
+		// 静默全丢（推送本身照发，事后完全无账可查）。
+		pushCtx := tenant.WithTenantID(context.Background(), siteCfg.TenantID)
 		go func() {
-			// 判读：这里的 ctx 只喂 pusher.Push 的外部 HTTP 推送引擎；geo_push_records
-			// 的写走 s.db.Begin() 起的 tx、不消费本 ctx，所以裸 Background 不是隔离
-			// callback 的触点，本轮不动（tx 侧无 ctx 属仓储层结构问题，另行处理）。
-			_ = s.pushSvc.PushURLs(context.Background(), urls)
+			// 推送失败必须出声：这里在 goroutine 里，丢弃错误等于零日志。
+			if err := s.pushSvc.PushURLs(pushCtx, urls); err != nil {
+				logger.Warnf("部署后蜘蛛推送失败: %v", err)
+			}
 		}()
 	}
 

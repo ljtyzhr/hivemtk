@@ -31,21 +31,25 @@ func TestResolveMode(t *testing.T) {
 
 func TestInitFromEnv(t *testing.T) {
 	t.Setenv(EnvMode, "on")
-	if got := InitFromEnv(); got != ModeOn {
-		t.Fatalf("InitFromEnv with on = %v, want %v", got, ModeOn)
+	if got, err := InitFromEnv(); err != nil || got != ModeOn {
+		t.Fatalf("InitFromEnv with on = (%v,%v), want (%v,nil)", got, err, ModeOn)
 	}
 	if !IsMultiTenant() {
 		t.Fatal("IsMultiTenant should be true after on init")
 	}
 
+	// 未知值必须报错并保持 off：静默降级会让 SaaS 以单机形态读写同一租户
 	t.Setenv(EnvMode, "bogus")
-	if got := InitFromEnv(); got != ModeOff {
-		t.Fatalf("unknown value must fail-safe to off, got %v", got)
+	if got, err := InitFromEnv(); err == nil || got != ModeOff {
+		t.Fatalf("unknown value must fail with off mode, got (%v,%v)", got, err)
+	}
+	if IsMultiTenant() {
+		t.Fatal("unknown value must not enable multi-tenant mode")
 	}
 
 	t.Setenv(EnvMode, "")
-	if got := InitFromEnv(); got != ModeOff {
-		t.Fatalf("empty env must default to off, got %v", got)
+	if got, err := InitFromEnv(); err != nil || got != ModeOff {
+		t.Fatalf("empty env must default to off, got (%v,%v)", got, err)
 	}
 	if IsMultiTenant() {
 		t.Fatal("IsMultiTenant should be false in off mode")

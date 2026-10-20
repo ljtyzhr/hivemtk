@@ -251,7 +251,9 @@ func NewTestDB(t testing.TB, models ...any) *gorm.DB {
 			t.Fatalf("租户唯一索引规范化失败: %v", normErr)
 		}
 		// 租户登记表（数据库内省：有 tenant_id 列的表），供隔离 callback 判定
-		tenancyidx.InitTenantRegistry(database)
+		if regErr := tenancyidx.InitTenantRegistry(database); regErr != nil {
+			t.Fatalf("租户登记表装配失败: %v", regErr)
+		}
 		// 租户隔离 callback（与 db.AutoMigrate 同一实现）：off 模式直通，
 		// 测试内 SetMode(on) 即获得注入语义（T028 越权套件依赖此通路）
 		tenancyidx.RegisterTenantCallbacks(database)

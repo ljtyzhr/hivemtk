@@ -16,6 +16,8 @@ import (
 	"gorm.io/gorm"
 
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/dbstate"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/repository"
 )
 
@@ -240,6 +242,42 @@ func (s *ChatChannelService) HardDelete(ctx context.Context, channelID string) e
 	return s.repo.HardDeleteByChannelID(ctx, channelID)
 }
 
+// guardSystemScopeChannelKey 系统作用域下的业务键歧义守卫。
+//
+// 渠道行是公开访客链唯一的租户线索，所以"按业务键取渠道"这一步必须用系统作用域
+// （请求此时还没有租户）。但 T008 把 chat_channels 的业务唯一索引复合化成
+// (tenant_id, channel_id) / (tenant_id, app_key) 之后，同一个 ref 可以在 A、B 两个
+// 租户各有一行——`default` 是每租户自动建的，`{platform}_card_app_key` 是固定字面量，
+// 两者注定重复。此时 `First()` 取到哪一行由数据库返回顺序决定，等于把访客随机指派
+// 给某个租户：他的会话、消息和 AI 回复全部落进另一个租户的收件箱。
+//
+// 判据只取"命中行分属几个租户"，多于一个就拒（ErrAmbiguousTenantKey 系）。
+// 没有命中行时放行——让后续的 record-not-found 分支给出它原有的错误。
+// 已绑定租户的 ctx 不需要这一道：隔离 callback 会把读取限死在本租户。
+func guardSystemScopeChannelKey(ctx context.Context, column, value string) error {
+	if !tenant.IsSystemScope(ctx) {
+		return nil
+	}
+	gdb := dbstate.Get()
+	if gdb == nil {
+		return nil // 无库：随后的读取自己失败，这里不额外造错误
+	}
+	_, err := tenant.SingleTenantByKey(ctx, gdb, "chat_channels", column+" = ?", value)
+	return err
+}
+
+// ChannelReadScope 选取读取渠道行的作用域：ctx 已绑定租户就沿用绑定，
+// 未绑定才用系统作用域（判据见 guardSystemScopeChannelKey）。
+// 渠道解析是建立租户上下文的引导步骤，公开入口在绑定前后都可能读到这里，
+// 因此作用域选择只有这一处事实源——调用方不许自己包 WithSystemScope，
+// 那会把中间件已经定好的归属重新摊成跨租户并集。
+func ChannelReadScope(ctx context.Context) context.Context {
+	if tid, bound := tenant.FromContext(ctx); bound && tid != 0 {
+		return ctx
+	}
+	return tenant.WithSystemScope(ctx)
+}
+
 // GetByChannelID 根据 channel_id 查询
 func (s *ChatChannelService) GetByChannelID(ctx context.Context, channelID string) (*model.ChatChannel, error) {
 	if strings.TrimSpace(channelID) == "" {
@@ -249,6 +287,9 @@ func (s *ChatChannelService) GetByChannelID(ctx context.Context, channelID strin
 		if ch, err2 := s.repo.GetByID(ctx, uint(id)); err2 == nil && ch != nil {
 			return ch, nil
 		}
+	}
+	if err := guardSystemScopeChannelKey(ctx, "channel_id", channelID); err != nil {
+		return nil, err
 	}
 	ch, err := s.repo.GetByChannelID(ctx, channelID)
 	if err != nil {
@@ -265,6 +306,9 @@ func (s *ChatChannelService) GetByAppKey(ctx context.Context, appKey string) (*m
 	if strings.TrimSpace(appKey) == "" {
 		return nil, errors.New("app_key 不能为空")
 	}
+	if err := guardSystemScopeChannelKey(ctx, "app_key", appKey); err != nil {
+		return nil, err
+	}
 	channel, err := s.repo.GetByAppKey(ctx, appKey)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -275,18 +319,43 @@ func (s *ChatChannelService) GetByAppKey(ctx context.Context, appKey string) (*m
 	return channel, nil
 }
 
+// channelOwnerTenantForCreate 自动建渠道前必须有确定的归属租户。
+//
+// 为什么这条判据必须存在：SystemScope 下隔离 callback 会跳过 Create 的 tenant_id 填充，
+// 行于是落到列默认值 1 —— 每个租户首次接入时自动建的 default/卡片渠道全部建到租户 1
+// 名下，访客的会话与 AI 回复从此住在别人的租户里。宁可拒绝服务，也不替访客猜一个租户。
+//
+// off 模式恒返回默认租户 1，与列默认值同值 ⇒ 单租户部署行为零变更。
+func channelOwnerTenantForCreate(ctx context.Context) (uint, bool) {
+	if !tenant.IsMultiTenant() {
+		return tenant.DefaultTenantID, true
+	}
+	if tid, bound := tenant.FromContext(ctx); bound && tid != 0 {
+		return tid, true
+	}
+	return 0, false
+}
+
 // GetOrCreateDefaultChannel 获取或自动创建默认渠道（私域部署用）
 //
 // 私域部署模式：用户首次嵌入客服 widget 时，如果 DB 没有 default 渠道，
 // 自动创建一个（无需任何配置），保证访客首次接入即可工作。
 // 后续用户可以在管理后台修改 default 渠道的配置。
+//
+// 多租户（on 模式）下"自动创建"只有在 ctx 已绑定租户时才成立——渠道行本身就是租户
+// 线索，没有线索就没有归属（判据见 channelOwnerTenantForCreate）。
 func (s *ChatChannelService) GetOrCreateDefaultChannel(ctx context.Context) (*model.ChatChannel, error) {
 	const defaultID = "default"
+	ownerTenant, knownTenant := channelOwnerTenantForCreate(ctx)
 	channel, err := s.GetByChannelID(ctx, defaultID)
 	if err == nil {
 		return channel, nil
 	}
+	if !knownTenant {
+		return nil, fmt.Errorf("默认渠道不存在且当前请求未指明租户归属，拒绝自动创建: %w", err)
+	}
 	channel = &model.ChatChannel{
+		TenantID:            ownerTenant,
 		ChannelID:           defaultID,
 		ChannelName:         "默认渠道",
 		AppKey:              "",
@@ -342,14 +411,25 @@ func (s *ChatChannelService) GetOrCreateCardChannel(ctx context.Context, platfor
 		return nil, fmt.Errorf("不支持的卡片平台: %s", platform)
 	}
 	channelID := platform + "_card"
+	ownerTenant, knownTenant := channelOwnerTenantForCreate(ctx)
 	channel, err := s.GetByChannelID(ctx, channelID)
 	if err == nil {
 		return channel, nil
 	}
+	if !knownTenant {
+		return nil, fmt.Errorf("卡片渠道 %s 不存在且当前请求未指明租户归属，拒绝自动创建: %w", channelID, err)
+	}
+	appKey := platform + "_card_app_key"
+	if tenant.IsMultiTenant() {
+		// on 模式下 app_key 只在租户内唯一：保留固定字面量会让 N 个租户的卡片渠道
+		// 共用同一枚键，按 app_key 解析（访客链的回退分支）从此无法自证归属。
+		appKey = fmt.Sprintf("%s_card_app_key_t%d", platform, ownerTenant)
+	}
 	channel = &model.ChatChannel{
+		TenantID:            ownerTenant,
 		ChannelID:           channelID,
 		ChannelName:         meta.PlatformLabel + "卡片客服",
-		AppKey:              platform + "_card_app_key",
+		AppKey:              appKey,
 		AppSecretHash:       "",
 		AllowedOrigins:      "*",
 		WelcomeMessage:      "您好，欢迎咨询！请描述您的问题，AI 助手将为您服务。",

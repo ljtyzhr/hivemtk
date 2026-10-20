@@ -18,7 +18,6 @@ import (
 
 	"hivemtk-user/internal/config"
 	"hivemtk-user/internal/middleware"
-	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/pkg/utils/response"
@@ -84,9 +83,11 @@ func (ctrl *ChatPublicController) GetChannelInfoByAppKey(c *gin.Context) {
 		response.Error(c, http.StatusBadRequest, "app_key 不能为空")
 		return
 	}
-	// SystemScope：chat_channels 是租户表，但 app_key 解析是建立租户上下文的
-	// 引导步骤（channel 行自带 tenant_id），公开路由此时无租户 ctx。
-	channel, err := ctrl.channelSvc.GetByAppKey(tenant.WithSystemScope(c.Request.Context()), appKey)
+	// 作用域由 service 侧统一选取：中间件已按渠道行/app_key 声明绑过租户时沿用绑定，
+	// 没绑过才退到系统作用域读（chat_channels 是租户表，渠道行自带 tenant_id，这里
+	// 是建立租户上下文的引导步骤）。自己包 WithSystemScope 等于把已定好的归属重新
+	// 摊成跨租户并集——同名 app_key 会读到别人的渠道。
+	channel, err := ctrl.channelSvc.GetByAppKey(service.ChannelReadScope(c.Request.Context()), appKey)
 	if err != nil {
 		response.NotFoundError(c, "渠道")
 		return

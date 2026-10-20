@@ -85,14 +85,15 @@ func (c *AlertChecker) loop() {
 	ticker := time.NewTicker(c.interval)
 	defer ticker.Stop()
 
-	// 平台级监控循环：规则拉取（ListEnabled query）、指标快照比对、告警历史与
-	// last_triggered_at 记账全在后台 goroutine（main.go Start() 派生），无 HTTP
-	// 请求 ctx 可绑；TENANT_MODE=on 时被隔离 callback fail-closed（生产日志实证：
-	// "[AlertChecker] 拉取规则失败/首轮检查失败/周期检查失败"）。指标是进程全局量、
-	// 通知渠道由 env 注入（ALERT_EMAIL_RECIPIENTS/ALERT_WEBHOOK_URL，平台运维级），
-	// 整轮检查走 tenant.WithSystemScope 入口统一包（与 reach_pipeline_claim.go /
-	// webhook_outbound.go 同口径）；CheckOnce 虽导出但无 HTTP 调用方，不放宽请求路径。
-	ctx := tenant.WithSystemScope(context.Background())
+	// 平台级监控循环（specs/001-saas-multi-tenant T020）：后台 goroutine 起步，
+	// 没有 HTTP 请求 ctx 可绑，而 alert_rules / alert_histories 都是租户表 ——
+	// TENANT_MODE=on 下裸 ctx 会被隔离 callback fail-closed（生产日志实证：
+	// "[AlertChecker] 拉取规则失败/首轮检查失败/周期检查失败"）。修法是 Fanout
+	//（checkOnce 内）而不是 system scope：规则拉取/触发记账是**逐租户**的业务
+	// 动作，system scope 会把规则读成跨租户 union、历史 Create 落列默认租户 1。
+	// CheckOnce 虽导出但无 HTTP 调用方；其透传语义保留：ctx 已带租户时 checkOnce
+	// 不扇出、只查该租户。
+	ctx := context.Background()
 	if _, err := c.checkOnce(ctx); err != nil {
 		logger.Warnf("[AlertChecker] 首轮检查失败: %v", err)
 	}
@@ -108,23 +109,19 @@ func (c *AlertChecker) loop() {
 	}
 }
 
-// CheckOnce 单次执行（暴露给定时任务/手动触发）
+// CheckOnce 单次执行（暴露给定时任务/手动触发）。
+// 透传语义：ctx 已绑定租户 ⇒ 只查该租户（不扇出）；无租户绑定 ⇒ on 模式经
+// Fanout 逐活跃租户执行、off 模式退化单默认租户。
 func (c *AlertChecker) CheckOnce(ctx context.Context) (int, error) {
 	return c.checkOnce(ctx)
 }
 
 func (c *AlertChecker) checkOnce(ctx context.Context) (int, error) {
-	rules, err := c.ruleRepo.ListEnabled(ctx)
-	if err != nil {
-		logger.Error(err, "[AlertChecker] 拉取规则失败")
-		return 0, err
-	}
-	if len(rules) == 0 {
-		return 0, nil
-	}
 	if c.provider == nil {
 		return 0, fmt.Errorf("MetricProvider 未注入")
 	}
+	// 指标快照是**进程全局量**（metricsProvider 忽略 ctx）：在扇出之外取一次、
+	// 逐租户回调复用，避免 N 个租户重复采集同一份快照。
 	snapshots, err := c.provider.Snapshot(ctx)
 	if err != nil {
 		logger.Error(err, "[AlertChecker] 拉取指标失败")
@@ -133,6 +130,35 @@ func (c *AlertChecker) checkOnce(ctx context.Context) (int, error) {
 	snapMap := make(map[string]float64, len(snapshots))
 	for _, s := range snapshots {
 		snapMap[s.Name] = s.Value
+	}
+
+	// ctx 已带租户（请求路径/手动触发）：不扇出，单租户执行——ListEnabled/fire
+	// 全链路在该 ctx 下自然只读写本租户。
+	if _, ok := tenant.FromContext(ctx); ok {
+		return c.checkOnceForTenant(ctx, snapMap)
+	}
+
+	// 无租户绑定：逐活跃租户各查各的规则、各写各的历史。fanout.go 只在
+	// "全部租户失败"时返回错误；单租户失败由 Fanout 记 warn 日志后继续。
+	total, err := tenant.Fanout(ctx, nil, func(tctx context.Context, _ uint) (int64, error) {
+		n, err := c.checkOnceForTenant(tctx, snapMap)
+		return int64(n), err
+	})
+	if err != nil {
+		return 0, err
+	}
+	return int(total), nil
+}
+
+// checkOnceForTenant 在**单租户** ctx 下执行一轮规则检查（触发即写本租户历史）。
+func (c *AlertChecker) checkOnceForTenant(ctx context.Context, snapMap map[string]float64) (int, error) {
+	rules, err := c.ruleRepo.ListEnabled(ctx)
+	if err != nil {
+		logger.Error(err, "[AlertChecker] 拉取规则失败")
+		return 0, err
+	}
+	if len(rules) == 0 {
+		return 0, nil
 	}
 
 	fired := 0

@@ -10,9 +10,12 @@
 package tenancyidx
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"sync"
+
+	"hivemtk-user/internal/pkg/tenant"
 
 	"gorm.io/gorm"
 )
@@ -33,6 +36,9 @@ func Normalize(db *gorm.DB) (int, error) {
 	if db == nil {
 		return 0, fmt.Errorf("db is nil")
 	}
+	// 索引规范化是装配期系统操作：显式系统作用域，避免已被注册的隔离 callback
+	// 把 pg_catalog 内省/ALTER TABLE 当成业务 SQL 拒绝（on 模式幂等重入场景）。
+	db = db.WithContext(tenant.WithSystemScope(dbContext(db)))
 	indexes, err := targets(db)
 	if err != nil {
 		return 0, err
@@ -267,11 +273,13 @@ var (
 
 // InitTenantRegistry 装配期调用（AutoMigrate 尾部 / 测试夹具）：
 // 内省 current_schema 下全部含 tenant_id 列的 BASE TABLE 构建登记表。
-func InitTenantRegistry(gdb *gorm.DB) {
+// 内省失败返回 error——调用方在 on 模式必须拒绝启动，绝不能留 nil 登记表
+// （nil 意味着任何表都判成"非租户表"= 全量放行）。
+func InitTenantRegistry(gdb *gorm.DB) error {
 	if gdb == nil {
-		return
+		return fmt.Errorf("db is nil")
 	}
-	rows, err := gdb.Raw(`
+	rows, err := gdb.WithContext(tenant.WithSystemScope(dbContext(gdb))).Raw(`
 		SELECT c.table_name
 		FROM information_schema.columns c
 		JOIN information_schema.tables t
@@ -281,26 +289,43 @@ func InitTenantRegistry(gdb *gorm.DB) {
 		  AND t.table_type = 'BASE TABLE'
 	`).Rows()
 	if err != nil {
-		return // 内省失败按空登记表处理：on 模式全面 fail-closed，off 模式不受影响
+		return fmt.Errorf("内省租户表登记失败: %w", err)
 	}
 	defer func() { _ = rows.Close() }()
 
 	reg := make(map[string]bool)
 	for rows.Next() {
 		var name string
-		if err := rows.Scan(&name); err == nil {
-			reg[name] = true
+		if err := rows.Scan(&name); err != nil {
+			return fmt.Errorf("扫描租户表名失败: %w", err)
 		}
+		reg[name] = true
 	}
 	if err := rows.Err(); err != nil {
-		return
+		return fmt.Errorf("遍历租户表名失败: %w", err)
 	}
 	registryMu.Lock()
 	registry = reg
 	registryMu.Unlock()
+	return nil
 }
 
-// IsTenantTable 表是否在租户登记表内（未初始化按"非租户表"，等价 off 行为）
+func dbContext(db *gorm.DB) context.Context {
+	if db.Statement != nil && db.Statement.Context != nil {
+		return db.Statement.Context
+	}
+	return context.Background()
+}
+
+// RegistryReady 租户登记表是否已装配（on 模式的 fail-closed 前置）
+func RegistryReady() bool {
+	registryMu.RLock()
+	defer registryMu.RUnlock()
+	return registry != nil
+}
+
+// IsTenantTable 表是否在租户登记表内（未初始化按"非租户表"，等价 off 行为；
+// on 模式是否允许执行由 callback 的 RegistryReady 前置另行裁决）
 func IsTenantTable(table string) bool {
 	if table == "" {
 		return false

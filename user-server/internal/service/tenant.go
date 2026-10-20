@@ -193,7 +193,8 @@ func (s *TenantService) RegisterTenant(ctx context.Context, req RegisterTenantRe
 		}
 
 		// 003 T013 开户赠送：失败仅 Warn 不阻断注册（赠送可后补，开户不可逆）
-		provisionTenantStarterKit(ctx, t.ID, s.tenantRepo.GetDB())
+		provisionTenantStarterKit(ctx, t.ID, t.Name, s.tenantRepo.GetDB())
+		ProvisionTenantModules(ctx, t.ID)
 
 		return &RegisterTenantResponse{
 			TenantID:   t.ID,
@@ -223,6 +224,28 @@ func (s *TenantService) GetTenantInfo(ctx context.Context) (*TenantInfo, error) 
 		Name:       t.Name,
 		Status:     t.Status,
 	}, nil
+}
+
+// ResolvePublicTenantID 公开入口按短码解析租户（站点配置/自助注册的归属）
+//
+// 公开入口没有登录态，租户只能由请求显式携带的短码确定。查询挂 SystemScope
+// （租户由命中的行自身携带）；停用租户按不存在对待，避免给公开页泄露账号状态。
+func (s *TenantService) ResolvePublicTenantID(ctx context.Context, code string) (uint, error) {
+	code = strings.TrimSpace(code)
+	if code == "" {
+		return 0, bizerr.New(bizerr.CodeTenantParamInvalid, "缺少租户短码")
+	}
+	t, err := s.tenantRepo.GetByCode(tenant.WithSystemScope(ctx), code)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return 0, bizerr.New(bizerr.CodeTenantNotFound, "租户不存在或代码错误")
+		}
+		return 0, bizerr.Wrap(bizerr.CodeInternal, "解析租户失败", err)
+	}
+	if !model.TenantIsActive(t) {
+		return 0, bizerr.New(bizerr.CodeTenantNotFound, "租户不存在或代码错误")
+	}
+	return t.ID, nil
 }
 
 // ListTenants 平台运营清单（分页 + 状态/关键词过滤）

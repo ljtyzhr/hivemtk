@@ -14,6 +14,7 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -52,7 +53,7 @@ func TestFallbackVersionResolvesDBHandleSynchronously(t *testing.T) {
 	for i := 0; i < rounds; i++ {
 		// 不存在的模板 id（大主键，避开别的用例的自增段）：MaxScriptVersion 查不到 ⇒
 		// versionCache 不被写 ⇒ 每一轮都真的派出一次异步刷新。
-		fallbackVersionOf(uint(9_000_000 + i))
+		fallbackVersionOf(context.Background(), uint(9_000_000+i))
 		db.SetTestDB(cur)
 	}
 }

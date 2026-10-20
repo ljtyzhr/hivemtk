@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"net/http"
 	"net/url"
 	"os"
@@ -403,23 +404,44 @@ type ExternalConfig struct {
 	PublicBaseURL string `yaml:"public_base_url" json:"public_base_url"`
 }
 
-// GetPublicBaseURL 解析公网基座 URL（用于自动推导渠道 webhook 回调地址）
+// publicBaseURLProvider 是 urls.public_base_url 参数中心取值口（R5-3）。
+// 默认返回空串 = 未装配，GetPublicBaseURLFor() 继续回落 env / config.yaml / 空串。
+//
+// 做成 provider 而不是在这里调 config_param service：config 不能反向依赖 service
+// （service 层 import 了 config，反向会成环），装配点在 internal/app/url_params_wiring.go。
+var publicBaseURLProvider = func(ctx context.Context) string { return "" }
+
+// SetPublicBaseURLProvider 注入 urls.public_base_url 参数中心取值口。传 nil 是空操作而不是复位。
+func SetPublicBaseURLProvider(fn func(ctx context.Context) string) {
+	if fn != nil {
+		publicBaseURLProvider = fn
+	}
+}
+
+// GetPublicBaseURLFor 解析公网基座 URL（用于自动推导渠道 webhook 回调地址）
 //
 // 解析顺序：
 //  1. 环境变量 PUBLIC_BASE_URL（部署期单点覆盖）
 //  2. config.yaml external.public_base_url
-//  3. 返回空字符串 → 调用方回退到 X-Forwarded-* 头 / 请求 Host
+//  3. 参数中心 urls.public_base_url（按 ctx 解析租户覆盖，未绑定租户读平台默认）
+//  4. 返回空字符串 → 调用方回退到 X-Forwarded-* 头 / 请求 Host
 //
 // 返回值已去除尾部斜杠，scheme 强制 https（若用户误填 http+端口 自动升级，避免 Telegram 拒收）。
-func GetPublicBaseURL() string {
+func GetPublicBaseURLFor(ctx context.Context) string {
 	if v := strings.TrimSpace(os.Getenv("PUBLIC_BASE_URL")); v != "" {
 		return NormalizePublicBaseURL(v)
 	}
 	if cfg := GetAppConfig().External.PublicBaseURL; cfg != "" {
 		return NormalizePublicBaseURL(cfg)
 	}
+	if v := strings.TrimSpace(publicBaseURLProvider(ctx)); v != "" {
+		return NormalizePublicBaseURL(v)
+	}
 	return ""
 }
+
+// GetPublicBaseURL 无 ctx 形态：平台级调用（无租户归属）等价于未绑定租户读取。
+func GetPublicBaseURL() string { return GetPublicBaseURLFor(context.Background()) }
 
 // NormalizePublicBaseURL 规范化公网基座 URL：
 //   - 去除尾部斜杠
@@ -511,7 +533,9 @@ func GetServerBaseURL() string {
 	data, err := os.ReadFile("config.yaml")
 	if err == nil {
 		var cfg platformAPIYAML
-		if yaml.Unmarshal(data, &cfg) == nil && cfg.PlatformAPI.BaseURL != "" {
+		// config.yaml 里写的是 `${PLATFORM_API_URL:http://127.0.0.1:8205}`；
+		// 不先展开就直接 Unmarshal，拿到的是字面占位符，会被拼进跟踪/退订链接。
+		if yaml.Unmarshal([]byte(expandEnvWithDefault(string(data))), &cfg) == nil && cfg.PlatformAPI.BaseURL != "" {
 			return cfg.PlatformAPI.BaseURL
 		}
 	}
@@ -526,9 +550,8 @@ func GetServerBaseURL() string {
 // 由 merchant_init 流程在部署阶段确保 config.yaml 已生成。
 //
 // 实现说明：
-//   - 启动期 LoadAppConfig() 会把 yaml 解析结果缓存到 package-level 变量
-//   - 测试场景可通过 SetAppConfig 注入自定义配置
-//   - 未 Load 也未 Set 时按需懒加载（不修改全局状态）
+//   - 未注入时按需懒加载：读取 config.yaml 并展开 ${VAR:default}，不修改全局状态
+//   - 测试场景可通过 SetAppConfig 注入自定义配置（用 nil 重置）
 func GetAppConfig() AppConfig {
 	if appConfig != nil {
 		return *appConfig
@@ -538,7 +561,7 @@ func GetAppConfig() AppConfig {
 
 // SetAppConfig 注入应用配置（测试场景专用）
 //
-// 生产代码请勿调用——会被启动期 LoadAppConfig() 的真实加载结果覆盖。
+// 生产代码请勿调用——它会把注入值一直保留到下一次 SetAppConfig(nil)。
 // 仅用于单测替换配置，验证 GetPublicBaseURL 等函数对配置的读取行为。
 func SetAppConfig(cfg *AppConfig) {
 	if cfg == nil {

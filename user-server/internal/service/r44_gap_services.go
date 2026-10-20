@@ -13,6 +13,7 @@ import (
 	"time"
 
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/reporting"
 	"hivemtk-user/internal/repository"
@@ -195,13 +196,12 @@ func (s *RagEvalGapService) UploadCSV(ctx context.Context, r io.Reader, productI
 	return n, nil
 }
 
-func (s *RagEvalGapService) RunAsync(productID string) (*model.RagEvalRun, error) {
+func (s *RagEvalGapService) RunAsync(parent context.Context, productID string) (*model.RagEvalRun, error) {
 	if s == nil || s.gapRepo == nil {
 		return nil, fmt.Errorf("service or repository is nil")
 	}
-	ctx := context.Background()
 	run := &model.RagEvalRun{Total: -1}
-	if err := s.gapRepo.CreateRun(ctx, run); err != nil {
+	if err := s.gapRepo.CreateRun(parent, run); err != nil {
 		return nil, err
 	}
 	go func(runID uint, pid string) {
@@ -210,7 +210,7 @@ func (s *RagEvalGapService) RunAsync(productID string) (*model.RagEvalRun, error
 				log.Printf("[panic-recover] %T: %v\n%s", r, r, string(debug.Stack()))
 			}
 		}()
-		ctx, cancel := context.WithTimeout(context.Background(), utils.CronMediumTimeout)
+		ctx, cancel := context.WithTimeout(tenant.BackgroundWithTenant(parent), utils.CronMediumTimeout)
 		defer cancel()
 		res, err := s.computeRun(ctx, pid)
 		if err != nil {

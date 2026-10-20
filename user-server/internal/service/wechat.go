@@ -19,6 +19,8 @@ import (
 	"time"
 
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/dbstate"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
 
@@ -72,6 +74,22 @@ func (s *WechatService) GetAccount(ctx context.Context, id uint) (*model.WechatA
 		return nil, fmt.Errorf("wechat: db not initialized")
 	}
 	return s.repo.GetByID(ctx, id)
+}
+
+// ResolveAccountTenant 由公众号账号行自证归属租户（公网回调入口用）。
+//
+// 判据取"命中行分属几个租户"：URL 里的 account_id 是 wechat_accounts 的主键，
+// 主键在 T008 之后仍全库唯一 ⇒ 最多一行，命中即权威；查不到返回 0（未归属）。
+// 用系统作用域反查是因为回调本身没有租户上下文——这正是它要解析的东西。
+func (s *WechatService) ResolveAccountTenant(ctx context.Context, id uint) (uint, error) {
+	if s == nil {
+		return 0, fmt.Errorf("wechat service 未初始化")
+	}
+	gdb := dbstate.Get()
+	if gdb == nil {
+		return 0, fmt.Errorf("wechat: db 未初始化")
+	}
+	return tenant.SingleTenantByKey(ctx, gdb, "wechat_accounts", "id = ?", id)
 }
 
 // GetFirstActiveAccount 查找第一个 active 公众号账号（用于智能选渠道兜底）

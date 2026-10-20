@@ -49,6 +49,17 @@ type ConfigParam struct {
 	UpdatedBy        uint       `json:"updated_by"`
 	CreatedAt        time.Time  `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt        time.Time  `gorm:"autoUpdateTime" json:"updated_at"`
+
+	// TenantScope／TenantScopeReason 不是库里的列，而是每次读出时按代码现算的结论：
+	// 「这个键能不能按租户改」取决于读取点有没有把请求的租户带进参数中心，
+	// 事实源在 internal/service/config_param_tenant_scope.go。
+	//
+	// 做成列会让库里能声明一个代码并不具备的能力——运维填了 platform 而读点其实带 ctx，
+	// 或反过来填了 inherit 而读点用的是 context.Background()，两处各说各话且谁都不报错。
+	// 与管理端已有的 ReadOnly／Restart 那类「这行诚实说明自己」的列同一个思路，
+	// 只是这一条的答案在代码里，不在数据里。
+	TenantScope       string `gorm:"-" json:"tenant_scope"`
+	TenantScopeReason string `gorm:"-" json:"tenant_scope_reason,omitempty"`
 }
 
 func (ConfigParam) TableName() string { return "config_params" }

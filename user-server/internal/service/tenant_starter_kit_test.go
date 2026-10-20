@@ -23,7 +23,7 @@ func setupStarterKitTestDB(t *testing.T) *gorm.DB {
 	t.Helper()
 	database := testutil.NewTestDB(t,
 		&model.Tenant{}, &model.SystemUser{}, &model.AIAgent{}, &model.AssetBundle{},
-		&model.TenantModule{}, &model.ModuleSyncLog{}, &model.ModuleOrder{},
+		&model.SystemConfig{}, &model.TenantModule{}, &model.ModuleSyncLog{}, &model.ModuleOrder{},
 	)
 	db.SetTestDB(database)
 	return database
@@ -50,7 +50,16 @@ func TestProvisionTenantStarterKit_CreatesAndIdempotent(t *testing.T) {
 	}
 
 	const tenantID = uint(42)
-	provisionTenantStarterKit(ctx, tenantID, database)
+	provisionTenantStarterKit(ctx, tenantID, "测试租户", database)
+
+	// 站点配置：每个租户一行，站点名取自开户名称（不再继承全局默认行）
+	var siteCfg model.SystemConfig
+	if err := database.WithContext(tenant.WithTenantID(ctx, tenantID)).First(&siteCfg).Error; err != nil {
+		t.Fatalf("租户 %d 站点配置应已建行: %v", tenantID, err)
+	}
+	if siteCfg.TenantID != tenantID || siteCfg.Name != "测试租户" {
+		t.Errorf("站点配置归属/名称异常: tenant_id=%d name=%q", siteCfg.TenantID, siteCfg.Name)
+	}
 
 	// 智能体：租户 42 有一份副本
 	var agents []model.AIAgent
@@ -81,8 +90,8 @@ func TestProvisionTenantStarterKit_CreatesAndIdempotent(t *testing.T) {
 	}
 
 	// 幂等：重复调用不重复创建
-	provisionTenantStarterKit(ctx, tenantID, database)
-	provisionTenantStarterKit(ctx, tenantID, database)
+	provisionTenantStarterKit(ctx, tenantID, "测试租户", database)
+	provisionTenantStarterKit(ctx, tenantID, "测试租户", database)
 
 	var agentCount, bundleCount int64
 	if err := database.WithContext(sysCtx).Model(&model.AIAgent{}).
@@ -118,8 +127,8 @@ func TestTenantIsolation_StarterKitAssets(t *testing.T) {
 		t.Fatalf("种下全局 default_sales 失败: %v", err)
 	}
 
-	provisionTenantStarterKit(ctx, 61, database)
-	provisionTenantStarterKit(ctx, 62, database)
+	provisionTenantStarterKit(ctx, 61, "租户61", database)
+	provisionTenantStarterKit(ctx, 62, "租户62", database)
 
 	// 本租户可见自己的副本
 	ctx61 := tenant.WithTenantID(ctx, 61)
@@ -179,7 +188,7 @@ func TestProvisionTenantStarterKit_NoSeedStillSafe(t *testing.T) {
 	ctx := context.Background()
 
 	// 不种 default_sales：provisioning 必须静默跳过克隆且不 panic
-	provisionTenantStarterKit(ctx, 71, database)
+	provisionTenantStarterKit(ctx, 71, "租户71", database)
 
 	sysCtx := tenant.WithSystemScope(ctx)
 	var agentCount, bundleCount int64

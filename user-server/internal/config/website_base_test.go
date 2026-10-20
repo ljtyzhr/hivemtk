@@ -6,6 +6,9 @@ import "testing"
 //
 // 带 '/' 会让拼接出 "//features"，不带边界判断会让 "/hivemtk" 命中 "/hivemtkevil"。
 func TestWebsiteBaseURLOverrideAndTrim(t *testing.T) {
+	// provider 复位：本用例断的是「没有覆盖来源时取默认基址」，前一条用例装的
+	// 租户 provider 若泄漏下来，读到的就是它而不是默认值。
+	withEmptyURLProviders(t)
 	t.Setenv("GEO_SITE_BASE_URL", "")
 	if got := WebsiteBaseURL(); got != DefaultWebsiteBaseURL {
 		t.Fatalf("未设置覆盖变量时应取默认基址，实际=%q", got)

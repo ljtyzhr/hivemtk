@@ -48,7 +48,7 @@ func (c *SSEDashboardController) Stream(ctx *gin.Context) {
 
 	clientID := uuid.NewString()
 	clientIP := ctx.ClientIP()
-	client := service.NewSSEClient(clientID, clientIP, topics)
+	client := service.NewSSEClient(ctx.Request.Context(), clientID, clientIP, topics)
 
 	if err := c.hub.Register(ctx.Request.Context(), client); err != nil {
 		response.Error(ctx, http.StatusTooManyRequests, fmt.Sprintf("register failed: %v", err))

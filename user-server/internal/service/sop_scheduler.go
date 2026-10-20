@@ -159,7 +159,12 @@ func (s *SOPScheduler) tick(ctx context.Context) {
 		logger.Info("[SOPScheduler] SOP 相关模块无任何租户开通，跳过本轮扫描")
 		return
 	}
-	ctx, cancel := context.WithTimeout(ctx, utils.DefaultHTTPTimeout)
+	// 超时预算：**每租户一份 30s**，不是整个 Fanout 共享一份（二审 P2-5）。
+	// 旧实现 `WithTimeout(DefaultHTTPTimeout)` 包在扇出外面 ⇒ 12 个租户共享 30s：
+	// 先跑的租户耗光预算后，后面的租户一进回调就被 ctx.Done() 打断（扫到的人
+	// 越多饿死越严重）。外层只保留可取消语义（Stop/退出时整体收束），超时移进
+	// 每租户回调内。
+	ctx, cancel := context.WithCancel(ctx)
 	defer cancel()
 
 	// 后台任务租户扇出（specs/001-saas-multi-tenant T020）。
@@ -174,6 +179,8 @@ func (s *SOPScheduler) tick(ctx context.Context) {
 	//
 	// 上面的 AllowWorker 闸是**模块级、租户无关**判定，保持在扇出之外不随租户变。
 	if _, err := tenant.Fanout(ctx, nil, func(ctx context.Context, _ uint) (int64, error) {
+		ctx, cancel := context.WithTimeout(ctx, utils.DefaultHTTPTimeout)
+		defer cancel()
 		s.cleanupStuckExecutions(ctx)
 		s.dispatchAutoSOPs(ctx)
 		s.dispatchScheduledSOPs(ctx)

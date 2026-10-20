@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"hivemtk-user/internal/aiagent/knowledge/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/logger"
 )
@@ -90,7 +91,9 @@ func (s *KnowledgeMerchantService) ValidateToken(ctx context.Context, plain stri
 	}
 	s.ensureReposFromDB()
 	hashed := hashToken(plain)
-	tok, err := s.tokenRepo.FindByToken(ctx, hashed)
+	// token 摘要索引是全局唯一的引导键：调用方是公开入口，ctx 里还没有租户；
+	// 必须系统作用域反查，拿到 token 行自带的 tenant_id 后再绑定业务上下文。
+	tok, err := s.tokenRepo.FindByToken(tenant.WithSystemScope(ctx), hashed)
 	if err != nil {
 		return nil, fmt.Errorf("%w: token 无效或不存在", utils.ErrUnauthorized)
 	}
@@ -100,17 +103,23 @@ func (s *KnowledgeMerchantService) ValidateToken(ctx context.Context, plain stri
 	if tok.ExpiresAt != nil && tok.ExpiresAt.Before(time.Now()) {
 		return nil, fmt.Errorf("%w: token 已过期", utils.ErrUnauthorized)
 	}
-	tokID := tok.ID
-	go func(id uint64) {
+	tokID, tokTenant := tok.ID, tok.TenantID
+	go func(id uint64, tenantID uint) {
 		defer func() {
 			if r := recover(); r != nil {
 				logger.Errorf("knowledge_merchant: async IncrementUsage recovered from panic: %v\n%s", r, debug.Stack())
 			}
 		}()
-		if err := s.tokenRepo.IncrementUsage(context.Background(), id); err != nil {
+		bg := context.Background()
+		if tenantID != 0 {
+			bg = tenant.WithTenantID(bg, tenantID)
+		} else if !tenant.IsMultiTenant() {
+			bg = tenant.ContextWithDefault(bg)
+		}
+		if err := s.tokenRepo.IncrementUsage(bg, id); err != nil {
 			logger.Errorf("knowledge_merchant: async IncrementUsage failed, token_id=%d: %v", id, err)
 		}
-	}(tokID)
+	}(tokID, tokTenant)
 	return tok, nil
 }
 

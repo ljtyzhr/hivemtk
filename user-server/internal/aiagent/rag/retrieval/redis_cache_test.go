@@ -1,6 +1,7 @@
 package ragretrieval
 
 import (
+	"context"
 	"testing"
 	"time"
 
@@ -17,9 +18,9 @@ func TestRedisBackedCacheSearchResultRoundTrip(t *testing.T) {
 	in := []SearchResult{
 		{DocumentID: "1", Content: "hello", Score: 0.9, Metadata: map[string]any{"k": "v"}},
 	}
-	c.Set("k1", in, time.Minute)
+	c.Set(context.Background(), "k1", in, time.Minute)
 
-	got, ok := c.Get("k1")
+	got, ok := c.Get(context.Background(), "k1")
 	if !ok {
 		t.Fatal("expected cache hit")
 	}
@@ -34,12 +35,12 @@ func TestRedisBackedCacheSearchResultRoundTrip(t *testing.T) {
 		t.Fatalf("metadata lost: %+v", out[0].Metadata)
 	}
 
-	if _, ok := c.Get("missing"); ok {
+	if _, ok := c.Get(context.Background(), "missing"); ok {
 		t.Fatal("expected miss for missing key")
 	}
 
-	c.Delete("k1")
-	if _, ok := c.Get("k1"); ok {
+	c.Delete(context.Background(), "k1")
+	if _, ok := c.Get(context.Background(), "k1"); ok {
 		t.Fatal("expected miss after delete")
 	}
 }

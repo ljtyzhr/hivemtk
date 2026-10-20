@@ -16,6 +16,7 @@ import (
 	knowledgesvc "hivemtk-user/internal/aiagent/knowledge/service"
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/db"
+	"hivemtk-user/internal/pkg/tenant"
 )
 
 // KnowledgeToolDeps 知识工具依赖
@@ -210,7 +211,7 @@ func (t *RagSearchTool) Execute(ctx context.Context, args map[string]any) (ToolR
 
 	if t.deps.ChunkRepo != nil {
 		go func(chunks []knowledgesvc.MerchantRAGChunk) {
-			bgCtx := context.Background()
+			bgCtx := tenant.BackgroundWithTenant(ctx)
 			ids := make([]uint64, 0, len(chunks))
 			for _, c := range chunks {
 				ids = append(ids, c.ID)

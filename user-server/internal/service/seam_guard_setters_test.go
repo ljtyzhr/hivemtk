@@ -97,6 +97,24 @@ func resetPollingLockRepoForTest(repo *repository.TelegramPollingLockRepository)
 	}
 }
 
+// resetPollingWorkerIDForTest 测试装桩：锁内一次完成「换 worker ID + 让下一次取用看到它」。
+//
+// 与上一扇同样的换指针形状，但 Do 体只负责把注入值落定、不去解析本机 host:pid：用例要的正是
+// 「这个进程叫 host-A:11111」，而留一个未消耗的 Once 会让第一次读把它覆盖回真实身份。
+// 返回还原函数（把值与指针一起换回装桩前那一对，于是"还没解析过"这个状态也能被还原）。
+func resetPollingWorkerIDForTest(id string) func() {
+	pollingWorkerMu.Lock()
+	defer pollingWorkerMu.Unlock()
+	prev, prevOnce := pollingWorkerID, pollingWorkerIDOnce
+	pollingWorkerIDOnce = &sync.Once{}
+	pollingWorkerIDOnce.Do(func() { pollingWorkerID = id })
+	return func() {
+		pollingWorkerMu.Lock()
+		defer pollingWorkerMu.Unlock()
+		pollingWorkerID, pollingWorkerIDOnce = prev, prevOnce
+	}
+}
+
 func storeAIReplyQuietHoursFn(fn func(time.Time) bool) {
 	aiReplyQuietHoursMu.Lock()
 	defer aiReplyQuietHoursMu.Unlock()

@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/bcrypt"
 	"hivemtk-user/internal/pkg/utils/logger"
@@ -52,7 +53,7 @@ func (s *PasswordResetService) RequestPasswordReset(ctx context.Context, req *Re
 	if s.tokenRepo == nil {
 		return errors.New("password reset service not initialized")
 	}
-	user, err := s.tokenRepo.GetUserByEmail(ctx, req.Email)
+	ctx, user, err := s.resolveResetUser(ctx, req.Email)
 	if err != nil {
 		logger.Ctx(ctx).Warn().Str("email", req.Email).Msg("password reset requested for non-existent email")
 		return nil
@@ -80,7 +81,7 @@ func (s *PasswordResetService) RequestPasswordReset(ctx context.Context, req *Re
 		Str("token_id", resetToken.ID).
 		Msg("password reset token created")
 
-	resetURL := fmt.Sprintf("%s/reset-password?token=%s", getFrontendBaseURL(), resetToken.RawToken)
+	resetURL := fmt.Sprintf("%s/reset-password?token=%s", getFrontendBaseURL(ctx), resetToken.RawToken)
 	subject := "重置您的 HiveMTK 密码"
 	body := fmt.Sprintf("您请求了密码重置。请点击以下链接完成重置：\n%s\n\n链接将在 24 小时后失效。", resetURL)
 
@@ -97,13 +98,43 @@ func (s *PasswordResetService) RequestPasswordReset(ctx context.Context, req *Re
 	return nil
 }
 
+// resolveResetUser 解析找回口令请求的用户与租户。
+//
+// 已绑定租户的调用方（后台/测试）按本租户查；匿名入口没有租户线索，
+// on 模式先经系统作用域按全局唯一邮箱定位，再 OnlyTenant 钉死归属。
+// 定位不到与"邮箱不存在"同一返回：对外仍是模糊提示，不泄露账号是否存在。
+func (s *PasswordResetService) resolveResetUser(ctx context.Context, email string) (context.Context, *model.SystemUser, error) {
+	if _, bound := tenant.FromContext(ctx); bound {
+		user, err := s.tokenRepo.GetUserByEmail(ctx, email)
+		return ctx, user, err
+	}
+	if !tenant.IsMultiTenant() {
+		ctx = tenant.ContextWithDefault(ctx)
+		user, err := s.tokenRepo.GetUserByEmail(ctx, email)
+		return ctx, user, err
+	}
+	user, err := s.tokenRepo.GetUserByEmailAnyTenant(ctx, email)
+	if err != nil {
+		return ctx, nil, err
+	}
+	return tenant.OnlyTenant(ctx, user.TenantID), user, nil
+}
+
 func (s *PasswordResetService) ValidateResetToken(ctx context.Context, tokenStr string) (*model.PasswordResetToken, error) {
 	if s.tokenRepo == nil {
 		return nil, errors.New("password reset service not initialized")
 	}
 	// 库里那列存的是明文的 SHA-256 ⇒ 查之前先哈希。
 	// 反过来说：拿得到库（备份、只读副本、SQL 日志）的人也重放不了链接。
-	token, err := s.tokenRepo.GetByToken(ctx, model.HashPasswordResetToken(tokenStr))
+	hashed := model.HashPasswordResetToken(tokenStr)
+	var token *model.PasswordResetToken
+	var err error
+	if _, bound := tenant.FromContext(ctx); bound || !tenant.IsMultiTenant() {
+		token, err = s.tokenRepo.GetByToken(ctx, hashed)
+	} else {
+		// 匿名重置入口：令牌行自身携带 tenant_id，按系统作用域定位后由调用方绑定
+		token, err = s.tokenRepo.GetByTokenAnyTenant(ctx, hashed)
+	}
 	if err != nil {
 		return nil, ErrInvalidResetToken
 	}
@@ -118,6 +149,9 @@ func (s *PasswordResetService) ResetPassword(ctx context.Context, req *ResetPass
 	if err != nil {
 		return err
 	}
+	// 后续所有读写（口令策略、令牌标记、system_users 更新、会话吊销）都必须
+	// 落在令牌所属租户：匿名请求 ctx 本来无绑定，on 模式下否则 fail-closed。
+	ctx = tenant.OnlyTenant(ctx, token.TenantID)
 	// 初始超管（id=1）密码受系统级保护，不允许通过邮件重置流程修改
 	if token.UserID == strconv.FormatUint(uint64(initialAdminID), 10) {
 		return ErrInitialAdminProtected
@@ -155,13 +189,17 @@ func (s *PasswordResetService) CleanupExpiredTokens(ctx context.Context) error {
 	return nil
 }
 
-func getFrontendBaseURL() string {
+// getFrontendBaseURL 解析前端站点基址：env > 参数中心 urls.frontend_url > 代码兜底。
+//
+// ctx 必须带重置用户所属租户（RequestPasswordReset 经 resolveResetUser 绑定）：
+// SaaS 模式按租户读覆盖值；无绑定（off 模式或平台级调用）时读平台默认值。
+func getFrontendBaseURL(ctx context.Context) string {
 	if url := os.Getenv("FRONTEND_URL"); url != "" {
 		return url
 	}
 	// env > 参数 > 代码兜底（R2 参数化）。默认与接线前的 http://localhost:3000 一致。
 	// 读取点形状：GetString( 与 group/key 字面量同一行，满足读取点门禁。
-	return GlobalConfigParam().GetString(context.Background(), "urls", "frontend_url", "http://localhost:3000")
+	return GlobalConfigParam().GetString(ctx, "urls", "frontend_url", "http://localhost:3000")
 }
 
 // PasswordResetTokenIsValid 令牌是否有效（未过期且未使用）

@@ -9,6 +9,7 @@ import (
 
 	"hivemtk-user/internal/dto"
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
 )
@@ -170,7 +171,7 @@ func (a *ConfidenceAggregator) Aggregate(ctx context.Context, in *dto.SignalColl
 }
 
 func (a *ConfidenceAggregator) saveSignalAsync(
-	_ context.Context,
+	ctx context.Context,
 	in *dto.SignalCollectionInput,
 	dec *dto.ConfidenceDecision,
 	sig *dto.FiveSignals,
@@ -206,7 +207,7 @@ func (a *ConfidenceAggregator) saveSignalAsync(
 				logger.Errorf("confidence_aggregator: async signalRepo.Create recovered from panic: %v\n%s", r, debug.Stack())
 			}
 		}()
-		if err := a.signalRepo.Create(context.Background(), record); err != nil {
+		if err := a.signalRepo.Create(tenant.BackgroundWithTenant(ctx), record); err != nil {
 			logger.Errorf("confidence_aggregator: async signalRepo.Create failed: %v", err)
 		}
 	}()

@@ -225,4 +225,8 @@ func RegisterMigrations(registry *migration.MigrationRegistry, db *gorm.DB) {
 	register(NewTenantInitComplianceColumnsMigration(db))
 	// v3.64.0：订阅镜像表（003 计费二期 T022）
 	register(NewTenantSubscriptionMirrorMigration(db))
+	// v3.65.0：system_config_kv 租户分域（平台键迁至 platform_config_kv，主键复合化）
+	register(NewPlatformKVTenantSplitMigration(db))
+	// v3.66.0：站点配置一租户一行；功能开关唯一键降为租户内
+	register(NewTenantSiteConfigAndFeatureFlagMigration(db))
 }

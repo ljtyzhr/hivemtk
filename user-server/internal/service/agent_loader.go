@@ -41,7 +41,7 @@ func NewAgentLoader() *AgentLoader {
 
 // LoadPersona 优先 DB，失败回退代码默认
 func (l *AgentLoader) LoadPersona(ctx context.Context, personaID string) (*AgentPersona, error) {
-	if data, found := LoadAssetFromDB("agent_persona", personaID); found {
+	if data, found := LoadAssetFromDB(ctx, "agent_persona", personaID); found {
 		var p AgentPersona
 		if err := json.Unmarshal(data, &p); err == nil {
 			p.ID = personaID
@@ -57,7 +57,7 @@ func (l *AgentLoader) LoadPersona(ctx context.Context, personaID string) (*Agent
 // ListAllPersonas DB ∪ 代码默认
 func (l *AgentLoader) ListAllPersonas(ctx context.Context) ([]*AgentPersona, error) {
 	var result []*AgentPersona
-	rows, _ := ListAssetsFromDB("agent_persona")
+	rows, _ := ListAssetsFromDB(ctx, "agent_persona")
 	seen := map[string]bool{}
 	for _, r := range rows {
 		var p AgentPersona

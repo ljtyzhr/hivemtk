@@ -6,6 +6,8 @@ import (
 	"math"
 	"testing"
 	"time"
+
+	"hivemtk-user/internal/pkg/tenant"
 )
 
 type constantVectorizer struct {
@@ -263,17 +265,17 @@ func NewMockCache() *MockCache {
 	}
 }
 
-func (m *MockCache) Get(key string) (any, bool) {
-	val, ok := m.data[key]
+func (m *MockCache) Get(ctx context.Context, key string) (any, bool) {
+	val, ok := m.data[tenant.RedisKey(ctx, key)]
 	return val, ok
 }
 
-func (m *MockCache) Set(key string, value any, ttl time.Duration) {
-	m.data[key] = value
+func (m *MockCache) Set(ctx context.Context, key string, value any, ttl time.Duration) {
+	m.data[tenant.RedisKey(ctx, key)] = value
 }
 
-func (m *MockCache) Delete(key string) {
-	delete(m.data, key)
+func (m *MockCache) Delete(ctx context.Context, key string) {
+	delete(m.data, tenant.RedisKey(ctx, key))
 }
 
 // TestRagRetrievalServiceImpl_NewRagRetrievalService 测试创建服务
@@ -441,7 +443,7 @@ func TestRagRetrievalServiceImpl_Search(t *testing.T) {
 
 	params := SearchParams{TopK: 5, SimilarityThreshold: 0.3}
 
-	cache.Delete("search:search_kb:人工智能:{5 0.3 map[] 0}")
+	cache.Delete(ctx, "search:search_kb:人工智能:{5 0.3 map[] 0}")
 
 	queryVec, _ := vectorizer.EmbedText("人工智能")
 	t.Logf("Query vector (first 10): %v", queryVec[:10])

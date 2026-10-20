@@ -1,0 +1,166 @@
+package bridge
+
+import (
+	"context"
+	"errors"
+	"fmt"
+	"net/http"
+	"strings"
+
+	"github.com/gin-gonic/gin"
+
+	"hivemtk-user/internal/pkg/dbstate"
+	"hivemtk-user/internal/pkg/tenant"
+	"hivemtk-user/internal/service"
+)
+
+// 桥接扩展只带一枚实例级凭证（X-Bridge-Token，判据见 middleware.BridgeIngressGuard）：
+// 它证明"这台机器允许上报"，不证明"这一条会话属于哪个租户"。on 模式下归属只能由
+// 上报的 (channel, account_id) 自证（specs/001-saas-multi-tenant T023）：
+//
+//	① bridge_accounts 里该账号行只属于一个租户 ⇒ 绑它（日常流量的唯一形态）；
+//	② 账号还没注册过（首次上报）或同一 (channel, account_id) 在两个租户各有一行
+//	   ⇒ 只认显式 tenant_code(query) / X-Tenant-Code，由短码解析；
+//	③ 两条线索都没有 ⇒ 拒绝。
+//
+// 判不清就拒绝，而不是"不绑定继续跑"：bridge_accounts、message_hub、conversations
+// 全是租户表，无绑定时写入被隔离 callback 判错，而账号注册那条是异步的、错误只记
+// 一行 "non-fatal" 日志，ingest 照样回 200 —— 扩展看见成功，客户消息一条都没落库。
+// 在入口一次判清，换来一条能照着改的 4xx。
+//
+// off 模式整段跳过并保持"不绑定"：隔离 callback 在 off 下直通，历史行为逐字节等价。
+
+// 桥接入口的租户判定失败形态，各自对应一条可扩展的处置动作。
+var (
+	// ErrBridgeTenantUnresolved 账号还没注册过且没带 tenant_code ⇒ 首次注册缺归属
+	ErrBridgeTenantUnresolved = errors.New("该渠道账号尚未归属任何租户，首次上报请携带 tenant_code")
+	// ErrBridgeTenantAmbiguous 同一 (channel, account_id) 在多个租户各有一行
+	ErrBridgeTenantAmbiguous = errors.New("该渠道账号同时存在于多个租户，请携带 tenant_code 指明归属")
+	// ErrBridgeTenantCodeInvalid 带了 tenant_code 但解析不到有效租户
+	ErrBridgeTenantCodeInvalid = errors.New("tenant_code 无效")
+)
+
+// bridgeTenantHintFromRequest 读显式租户短码（query 优先，其次请求头）。
+//
+// 只从 *http.Request 读：gin 与 channelgw 的 WS 握手都拿得到它，
+// 短码的两个存放位置因此只有一处定义。
+func bridgeTenantHintFromRequest(r *http.Request) string {
+	if r == nil {
+		return ""
+	}
+	code := strings.TrimSpace(r.URL.Query().Get("tenant_code"))
+	if code == "" {
+		code = strings.TrimSpace(r.Header.Get("X-Tenant-Code"))
+	}
+	return code
+}
+
+// resolveBridgeTenant 纯解析：只吃 ctx，不写 ResponseWriter、不改 Request，
+// HTTP 入口与 WS 传输共用同一份判定。
+//
+// changed=false 表示"没有新绑定"（off 模式直通、或上游中间件已经绑好），
+// 此时调用方保留原 ctx 即可，不该去改写 Request。
+func resolveBridgeTenant(rctx context.Context, channel, accountID, codeHint string) (context.Context, bool, error) {
+	if !tenant.IsMultiTenant() {
+		return rctx, false, nil
+	}
+	if id, bound := tenant.FromContext(rctx); bound && id != 0 {
+		return rctx, false, nil
+	}
+
+	tid, lookupErr := bridgeAccountTenant(rctx, channel, accountID)
+	if lookupErr == nil && tid != 0 {
+		// OnlyTenant 而非 WithTenantID：归属由账号行/短码自证后必须钉死，
+		// 上游若带 SystemScope，隔离 callback 会放行跨租户读并跳过写入填列。
+		return tenant.OnlyTenant(rctx, tid), true, nil
+	}
+	if lookupErr != nil && !errors.Is(lookupErr, tenant.ErrAmbiguousTenantKey) {
+		// 反查本身坏了：不能当成"没有归属"放行，也不能瞎猜一个租户。
+		return rctx, false, lookupErr
+	}
+	if codeHint == "" {
+		if errors.Is(lookupErr, tenant.ErrAmbiguousTenantKey) {
+			return rctx, false, ErrBridgeTenantAmbiguous
+		}
+		return rctx, false, ErrBridgeTenantUnresolved
+	}
+	id, err := service.NewTenantService().ResolvePublicTenantID(rctx, codeHint)
+	if err != nil {
+		return rctx, false, fmt.Errorf("%w: %v", ErrBridgeTenantCodeInvalid, err)
+	}
+	return tenant.OnlyTenant(rctx, id), true, nil
+}
+
+// bindBridgeTenant 解析 (channel, accountID) 的归属租户并绑定进请求上下文。
+//
+// 返回的 ctx 与就地改写后的 c.Request 携带同一个租户：handler 里既有"用返回值"的
+// 链路，也有直接取 c.Request.Context() 的链路（异步账号注册、SSE 心跳刷新），
+// 两处必须看到同一个租户，否则会出现"消息落进 A、在线位刷到 B"。
+//
+// channel 必须是 NormalizeBridgeChannel 之后的规范名：bridge_accounts 只存规范渠道，
+// 别名（douyin_web）会让自证查不到行，把已注册的账号误判成首次注册。
+func bindBridgeTenant(c *gin.Context, channel, accountID string) (context.Context, error) {
+	rctx := c.Request.Context()
+	bound, changed, err := resolveBridgeTenant(rctx, channel, accountID, bridgeTenantHintFromRequest(c.Request))
+	if err != nil {
+		return rctx, err
+	}
+	if changed {
+		c.Request = c.Request.WithContext(bound)
+	}
+	return bound, nil
+}
+
+// BridgeTenantForRequest 是渠道网关 WS 传输的租户绑定入口（由 router 注入，
+// 判据见 channelgw.WSTransport.TenantBinder）。
+//
+// WS 的 channel/account_id 来自 register 帧而不是 URL 路径，所以自证只能在读到
+// register 帧之后做；首次注册（库里还没有账号行）的租户短码走握手 URL：
+// `?tenant_code=xxx` 或握手请求头 `X-Tenant-Code`。
+func BridgeTenantForRequest(r *http.Request, channel, accountID string) (context.Context, error) {
+	bound, _, err := resolveBridgeTenant(r.Context(), channel, accountID, bridgeTenantHintFromRequest(r))
+	if err != nil {
+		return nil, err
+	}
+	return bound, nil
+}
+
+// bridgeAccountTenant 在系统作用域下反查账号行的归属租户。
+//
+// 走 dbstate 全局句柄而不是 GlobalBridgeAccountRepo：那个接口是"账号状态读写"的
+// 契约（测试里有多枚桩实现），往里塞一个租户反查方法会把桩一起改掉；而这条查询
+// 本来就要求跨租户可见，与仓库的租户语义无关。
+func bridgeAccountTenant(ctx context.Context, channel, accountID string) (uint, error) {
+	gdb := dbstate.Get()
+	if gdb == nil {
+		return 0, errors.New("bridge 租户自证：db 未初始化")
+	}
+	if channel == "" || accountID == "" {
+		return 0, nil
+	}
+	return tenant.SingleTenantByKey(ctx, gdb, "bridge_accounts",
+		"channel = ? AND account_id = ?", channel, accountID)
+}
+
+// bridgeTenantHTTPStatus 租户判定失败 → 状态码：404 是"照着提示补 tenant_code 就能重试"，
+// 500 是反查自身故障（重试帮不上忙，需要人看日志）。
+func bridgeTenantHTTPStatus(err error) int {
+	switch {
+	case errors.Is(err, ErrBridgeTenantUnresolved),
+		errors.Is(err, ErrBridgeTenantAmbiguous),
+		errors.Is(err, ErrBridgeTenantCodeInvalid):
+		return http.StatusNotFound
+	default:
+		return http.StatusInternalServerError
+	}
+}
+
+// writeBridgeTenantError 统一出口（outbox / ack / sse 三个入口共用同一份错误体形状）。
+func writeBridgeTenantError(c *gin.Context, err error) {
+	status := bridgeTenantHTTPStatus(err)
+	reason := err.Error()
+	if status != http.StatusNotFound {
+		reason = "tenant lookup failed: " + err.Error()
+	}
+	c.JSON(status, gin.H{"status": "error", "code": "tenant_unresolved", "message": reason})
+}

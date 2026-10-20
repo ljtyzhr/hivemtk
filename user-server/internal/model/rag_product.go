@@ -40,6 +40,11 @@ type RerankProviderConfig struct {
 	APIType string `json:"api_type" gorm:"column:api_type"`
 	Model   string `json:"model" gorm:"column:model"`
 	Enabled bool   `json:"enabled" gorm:"column:enabled;default:true"`
+	// Protocol 重排协议（列 rerank_protocol）：空 = 按 base_url 特征推断
+	// （ragretrieval.InferRerankProtocol）；"openai" = OpenAI 兼容；
+	// "dashscope" = DashScope 原生 text-rerank。
+	// 商户侧配 DashScope 时显式传 "dashscope"，否则兼容模式端点易 404（P2-3）。
+	Protocol string `json:"protocol" gorm:"column:protocol"`
 }
 
 // RagProduct RAG 产品配置 - RAG V2.0 权威基线

@@ -172,8 +172,7 @@ type ReachPipelineService struct {
 	rateCache cache.Cache
 
 	perUserLimitMu      sync.Mutex
-	perUserLimitVal     int
-	perUserLimitLoadAt  time.Time
+	perUserLimitCache   map[uint]perUserLimitEntry
 	kvRepoOnce          sync.Once
 	kvRepo              repository.SystemConfigKVRepository
 	redisDegradedWarned sync.Map

@@ -120,8 +120,8 @@ var keywordToLandings = map[string][]string{
 
 // landingURLs 把关键词翻译成要爬的绝对 URL；没配过关键词的兜底是官网首页。
 // 落地映射 DB 优先（geo_dicts/keyword_landings.map），兜底内置 keywordToLandings。
-func landingURLs(kw string) []string {
-	base := config.WebsiteBaseURL()
+func landingURLs(ctx context.Context, kw string) []string {
+	base := config.WebsiteBaseURLFor(ctx)
 	paths, ok := activeKeywordLandings()[kw]
 	if !ok {
 		paths = []string{"/"}
@@ -193,7 +193,7 @@ func (s *MonitorCrawlerService) RunCrawlerCron(ctx context.Context) (int, error)
 
 	for _, kw := range kws {
 
-		for _, u := range landingURLs(kw) {
+		for _, u := range landingURLs(ctx, kw) {
 			tasks = append(tasks, task{Keyword: kw, URL: u, IsHiveMTK: true})
 		}
 
@@ -384,15 +384,23 @@ func CrawlerMonitorCron() {
 }
 
 // CrawlerMonitorCronSync 同步执行爬虫（手动触发入口，返回写入数和错误）
-// 判读：RunCrawlerCron 读 geo_keywords/geo_competitors、写 geo_crawler_visits
-// （均带 tenant_id）⇒ 触达租户表。手动触发同样没有可绑的请求租户，裸
-// context.WithTimeout(Background) 在 TENANT_MODE=on 下会被隔离 callback
-// fail-closed，故先包 tenant.WithSystemScope 再挂超时（与 cron 派发的
-// crawlerMonitorJob 同口径；off 模式 SystemScope 直通，SQL 不变）。
+// 判读（二审 P1-2）：RunCrawlerCron 读 geo_keywords/geo_competitors（逐租户词表
+// 与竞品清单）、写 geo_crawler_visits（均带 tenant_id）⇒ 触达租户表。调用方
+// （report 控制器 RunCrawler）在 goroutine 里调用、请求已返回，没有可绑的请求
+// 租户 ⇒ 用 tenant.Fanout 逐活跃租户执行（off 模式退化单默认租户），而不是
+// system scope —— 那会把词表/竞品读成跨租户 union、访问记录落列默认租户 1。
+// 与经 JobManager 的 crawlerMonitorJob 是两条平行路径，互不嵌套、不会双重扇出。
 func CrawlerMonitorCronSync() (int, error) {
-	ctx, cancel := context.WithTimeout(tenant.WithSystemScope(context.Background()), 10*time.Minute)
+	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)
 	defer cancel()
-	return CrawlerMonitorCronWithContext(ctx)
+	n, err := tenant.Fanout(ctx, nil, func(tctx context.Context, _ uint) (int64, error) {
+		written, werr := CrawlerMonitorCronWithContext(tctx)
+		return int64(written), werr
+	})
+	if err != nil {
+		return 0, err
+	}
+	return int(n), nil
 }
 
 func CrawlerMonitorCronWithContext(ctx context.Context) (int, error) {

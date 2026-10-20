@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/pkg/utils/pagination"
@@ -198,9 +199,10 @@ func (gmc *GroupMessagingController) SelectGroupAndSendMessage(c *gin.Context) {
 			response.Error(c, http.StatusConflict, "已有群发队列在处理中，请稍后再试", "已有群发队列在处理中，请稍后再试")
 			return
 		}
-		utils.SafeGo(context.Background(), "whatsapp.group_messaging", func(ctx context.Context) {
+		bgCtx := tenant.BackgroundWithTenant(c.Request.Context())
+		utils.SafeGo(bgCtx, "whatsapp.group_messaging", func(ctx context.Context) {
 			defer gmc.queueRunning.Store(false)
-			gmc.processMessageQueue(queueID)
+			gmc.processMessageQueue(ctx, queueID)
 		})
 	}
 
@@ -236,17 +238,17 @@ func (gmc *GroupMessagingController) personalizeMessage(templateContent string, 
 	return result.String()
 }
 
-func (gmc *GroupMessagingController) processMessageQueue(queueID string) {
-	messages := gmc.messageQueue.GetQueue(context.Background(), queueID)
+func (gmc *GroupMessagingController) processMessageQueue(ctx context.Context, queueID string) {
+	messages := gmc.messageQueue.GetQueue(ctx, queueID)
 
 	for i, message := range messages {
 		if i > 0 {
 			time.Sleep(1 * time.Second)
 		}
 
-		success := gmc.sendMessageToWhatsApp(message)
+		success := gmc.sendMessageToWhatsApp(ctx, message)
 
-		gmc.messageQueue.UpdateStatus(context.Background(), queueID, message.ID, success)
+		gmc.messageQueue.UpdateStatus(ctx, queueID, message.ID, success)
 
 		if !success {
 			gmc.recordSendFailure(message)
@@ -254,16 +256,16 @@ func (gmc *GroupMessagingController) processMessageQueue(queueID string) {
 	}
 }
 
-func (gmc *GroupMessagingController) sendMessageToWhatsApp(message model.QueuedMessage) bool {
+func (gmc *GroupMessagingController) sendMessageToWhatsApp(ctx context.Context, message model.QueuedMessage) bool {
 	if gmc.whatsappService == nil {
 		logger.Errorf("WhatsApp 服务未初始化")
 		return false
 	}
 
-	accounts, err := gmc.whatsappService.ListAccounts(context.Background())
+	accounts, err := gmc.whatsappService.ListAccounts(ctx)
 	if err != nil || len(accounts) == 0 {
 		logger.Errorf("获取WhatsApp账号失败或无可用账号: %v", err)
-		gmc.persistSendFailure(message, "无可用账号")
+		gmc.persistSendFailure(ctx, message, "无可用账号")
 		return false
 	}
 
@@ -278,25 +280,25 @@ func (gmc *GroupMessagingController) sendMessageToWhatsApp(message model.QueuedM
 		account = accounts[0]
 	}
 
-	hasSession, _ := gmc.whatsappService.LoginStatus(context.Background(), account.ID)
+	hasSession, _ := gmc.whatsappService.LoginStatus(ctx, account.ID)
 	if !hasSession {
-		_, loginErr := gmc.whatsappService.StartLogin(context.Background(), account.ID, 30*time.Second)
+		_, loginErr := gmc.whatsappService.StartLogin(ctx, account.ID, 30*time.Second)
 		if loginErr != nil {
 			logger.Errorf("启动 WhatsApp 登录失败: %v", loginErr)
-			gmc.persistSendFailure(message, "账号未登录: "+loginErr.Error())
+			gmc.persistSendFailure(ctx, message, "账号未登录: "+loginErr.Error())
 			return false
 		}
-		gmc.persistSendFailure(message, "账号尚未扫码登录，消息已入队待补发")
+		gmc.persistSendFailure(ctx, message, "账号尚未扫码登录，消息已入队待补发")
 		return false
 	}
 
 	toJid := formatWhatsAppJID(message.PhoneNumber)
-	if _, err := gmc.whatsappService.SendTextMessage(context.Background(), account.ID, toJid, message.Content); err != nil {
+	if _, err := gmc.whatsappService.SendTextMessage(ctx, account.ID, toJid, message.Content); err != nil {
 		logger.Errorf("发送 WhatsApp 消息失败: %v", err)
-		gmc.persistSendFailure(message, err.Error())
+		gmc.persistSendFailure(ctx, message, err.Error())
 		return false
 	}
-	gmc.persistSendSuccess(message)
+	gmc.persistSendSuccess(ctx, message)
 	return true
 }
 
@@ -307,12 +309,12 @@ func formatWhatsAppJID(phone string) string {
 	return fmt.Sprintf("%s@s.whatsapp.net", phone)
 }
 
-func (gmc *GroupMessagingController) persistSendSuccess(message model.QueuedMessage) {
-	gmc.messageQueue.RecordGroupMessage(context.Background(), message, "sent", "")
+func (gmc *GroupMessagingController) persistSendSuccess(ctx context.Context, message model.QueuedMessage) {
+	gmc.messageQueue.RecordGroupMessage(ctx, message, "sent", "")
 }
 
-func (gmc *GroupMessagingController) persistSendFailure(message model.QueuedMessage, reason string) {
-	gmc.messageQueue.RecordGroupMessage(context.Background(), message, "failed", reason)
+func (gmc *GroupMessagingController) persistSendFailure(ctx context.Context, message model.QueuedMessage, reason string) {
+	gmc.messageQueue.RecordGroupMessage(ctx, message, "failed", reason)
 }
 
 func (gmc *GroupMessagingController) recordSendFailure(message model.QueuedMessage) {
@@ -574,9 +576,10 @@ func (gmc *GroupMessagingController) BulkSend(c *gin.Context) {
 		response.Error(c, http.StatusConflict, "已有群发队列在处理中，请稍后再试", "已有群发队列在处理中，请稍后再试")
 		return
 	}
-	utils.SafeGo(context.Background(), "whatsapp.bulk_send", func(ctx context.Context) {
+	bgCtx := tenant.BackgroundWithTenant(c.Request.Context())
+	utils.SafeGo(bgCtx, "whatsapp.bulk_send", func(ctx context.Context) {
 		defer gmc.queueRunning.Store(false)
-		gmc.processMessageQueue(queueID)
+		gmc.processMessageQueue(ctx, queueID)
 	})
 
 	response.Success(c, gin.H{

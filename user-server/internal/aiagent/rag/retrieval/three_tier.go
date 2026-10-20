@@ -120,7 +120,7 @@ func (s *RAGThreeTierService) Search(ctx context.Context, kbID, query string, to
 
 	if l1Enabled {
 		key := s.cacheKey(kbID, query, topK)
-		if v, ok := s.cache.Get(key); ok {
+		if v, ok := s.cache.Get(ctx, key); ok {
 			res, ok := v.(*TierSearchResult)
 			if !ok {
 				goto l2_fallback
@@ -140,7 +140,7 @@ l2_fallback:
 		chunks, score, err := s.searchTier(ctx, s.indexer, kbID, query, topK)
 		if err == nil && len(chunks) > 0 {
 			res := s.makeResult(query, chunks, TierL2WarmIndex, score, start)
-			s.cachePut(s.cacheKey(kbID, query, topK), res, l1Enabled)
+			s.cachePut(ctx, s.cacheKey(kbID, query, topK), res, l1Enabled)
 			s.mu.Lock()
 			s.stats.L2Hits++
 			s.updateAvg(res.LatencyMs)
@@ -156,7 +156,7 @@ l2_fallback:
 		chunks, score, err := s.searchTier(ctx, s.coldIndex, kbID, query, topK)
 		if err == nil && len(chunks) > 0 {
 			res := s.makeResult(query, chunks, TierL3ColdIndex, score, start)
-			s.cachePut(s.cacheKey(kbID, query, topK), res, l1Enabled)
+			s.cachePut(ctx, s.cacheKey(kbID, query, topK), res, l1Enabled)
 			s.mu.Lock()
 			s.stats.L3Hits++
 			s.updateAvg(res.LatencyMs)
@@ -232,11 +232,11 @@ func (s *RAGThreeTierService) cacheKey(kbID, query string, topK int) string {
 	return hex.EncodeToString(h[:16])
 }
 
-func (s *RAGThreeTierService) cachePut(key string, val *TierSearchResult, l1Enabled bool) {
+func (s *RAGThreeTierService) cachePut(ctx context.Context, key string, val *TierSearchResult, l1Enabled bool) {
 	if !l1Enabled {
 		return
 	}
-	s.cache.Set(key, val, 30*time.Minute)
+	s.cache.Set(ctx, key, val, 30*time.Minute)
 }
 
 func (s *RAGThreeTierService) updateAvg(ms int64) {

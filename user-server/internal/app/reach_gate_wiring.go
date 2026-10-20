@@ -36,6 +36,7 @@ import (
 
 	"hivemtk-user/internal/approval"
 	"hivemtk-user/internal/pkg/featureflag"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/service"
 )
@@ -128,8 +129,10 @@ func ReachRolloutCouplingNote(snap ReachGateSnapshot) string {
 //
 // 与判定路径同源但不共用：这里出错只影响读数，所以直接读全局实例（读不到 ⇒ degraded
 // 默认档），不也不引入"快照把服务拽去连库"这种新故障面。
-func reachRolloutReadout() (mode string, entries int, degraded bool) {
-	cfg := service.GlobalLTCConfig().Config(context.Background())
+// ctx 决定读哪个租户的 ltc.config：放量档位是租户级配置，不能拿进程默认租户的值
+// 回显给运维端点。
+func reachRolloutReadout(ctx context.Context) (mode string, entries int, degraded bool) {
+	cfg := service.GlobalLTCConfig().Config(ctx)
 	return string(cfg.ReachRollout.Mode), len(cfg.ReachRollout.Whitelist), cfg.Degraded
 }
 
@@ -402,9 +405,15 @@ func AttachReachGate(svc *service.ProactiveReachService) bool {
 
 	// 装配期把"库里档位 vs 旗子"的错位喊一次：运营改档位不需要重启，改旗子需要，
 	// 两者只有同时到位才真的拦。这里只喊不判：判定每请求都重读，装配期这份只用于留痕。
-	assemblySnap, _ := GetReachGateSnapshot()
-	if note := ReachRolloutCouplingNote(assemblySnap); note != "" {
-		logger.Warnf("[reach-gate] ⚠️ %s", note)
+	// 多租户下档位按租户各自读取，装配期没有请求租户 —— 此时读到的 degraded 是
+	// "不知道租户"，不是存储故障，不能据此喊"闸门一条都不放"。
+	if tenant.IsMultiTenant() {
+		logger.Infof("[reach-gate] 多租户模式：放量档位按租户读取，装配期不做全局错位判断")
+	} else {
+		assemblySnap, _ := GetReachGateSnapshot()
+		if note := ReachRolloutCouplingNote(assemblySnap); note != "" {
+			logger.Warnf("[reach-gate] ⚠️ %s", note)
+		}
 	}
 
 	flagOn := featureflag.Get(approval.FlagKey).Bool()
@@ -452,7 +461,13 @@ func LogReachGateSkippedAssemblyPoint(site string) {
 }
 
 // GetReachGateSnapshot 返回外发闸门的接线状态与观察期累计，供运维端点读取。
+// 装配期没有请求租户，放量档位读进程默认租户（off 模式即唯一租户）。
 func GetReachGateSnapshot() (ReachGateSnapshot, *approval.DecisionCounter) {
+	return GetReachGateSnapshotFor(context.Background())
+}
+
+// GetReachGateSnapshotFor 用请求 ctx 组装快照：租户级放量档位必须读当前租户那一份。
+func GetReachGateSnapshotFor(ctx context.Context) (ReachGateSnapshot, *approval.DecisionCounter) {
 	// 三份全局一次读齐：它们由可重复调用的装配点写，逐个裸读会把"上一份的模式"与
 	// "这一份的计数器"拼成运维端点上的一格。
 	reachGateMu.RLock()
@@ -478,6 +493,6 @@ func GetReachGateSnapshot() (ReachGateSnapshot, *approval.DecisionCounter) {
 	if !snap.Wired && mode != approvalGateOff && approvalCheckerRef == nil {
 		snap.DependencyUnmet = true
 	}
-	snap.RolloutMode, snap.RolloutWhitelistEntries, snap.RolloutDegraded = reachRolloutReadout()
+	snap.RolloutMode, snap.RolloutWhitelistEntries, snap.RolloutDegraded = reachRolloutReadout(ctx)
 	return snap, counter
 }

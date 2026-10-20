@@ -33,7 +33,9 @@ func withSeams(t *testing.T, kv map[string]string, bridgeCreds []string) {
 func newMCPProbe() *gin.Engine {
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
-	r.POST("/api/mcp", MCPGuard(), func(c *gin.Context) { c.Status(http.StatusOK) })
+	// 解析器传 nil：这些用例只测「配了哪一种凭证」，且全程 off 模式——
+	// on 模式下的租户绑定另有专组用例（mcp_guard_tenant_test.go）。
+	r.POST("/api/mcp", MCPGuard(nil), func(c *gin.Context) { c.Status(http.StatusOK) })
 	return r
 }
 

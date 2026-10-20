@@ -32,7 +32,7 @@ func NewABTestLoader() *ABTestLoader {
 }
 
 func (l *ABTestLoader) LoadPlan(ctx context.Context, planID string) (*ABTestPlan, error) {
-	if data, found := LoadAssetFromDB("ab_test_plan", planID); found {
+	if data, found := LoadAssetFromDB(ctx, "ab_test_plan", planID); found {
 		var p ABTestPlan
 		if err := json.Unmarshal(data, &p); err == nil {
 			p.ID = planID

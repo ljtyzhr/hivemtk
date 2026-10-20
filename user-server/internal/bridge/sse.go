@@ -561,6 +561,15 @@ func (h *SSEHandler) HandleOutboxSSE(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"status": "error", "message": "unsupported bridge channel"})
 		return
 	}
+	// 绑定必须排在 WriteHeader 之前：这条流一旦发出 200 就再补不上状态码。
+	// 流里的每一次心跳刷新在线位、每一次补拉待投都吃这个 ctx，
+	// on 模式下没绑租户等于一条"看着连着、什么都收不到"的僵尸流。
+	reqCtx, terr := bindBridgeTenant(c, channel, accountID)
+	if terr != nil {
+		writeBridgeTenantError(c, terr)
+		return
+	}
+	ctxReq = reqCtx
 
 	heartbeatInterval := h.heartbeatInterval
 	if heartbeatInterval == SSEDefaultHeartbeatInterval {

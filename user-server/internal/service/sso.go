@@ -9,6 +9,7 @@ import (
 	"net/http"
 	"sort"
 	"strings"
+	"sync"
 	"time"
 
 	"hivemtk-user/internal/config"
@@ -49,50 +50,75 @@ type SSOLoginResult struct {
 }
 
 // SSOService 企业 SSO 登录服务
+//
+// 两套适配器并存（R5-4，SaaS 多租户）：
+//   - adapters：从平台 config.yaml 的 sso 段构建，是"平台统一 IdP"那一档，也是
+//     租户没自配时的回落；
+//   - tenantCache：按租户缓存自配的 IdP（system_config_kv 的 sso.providers）。
+//
+// 之所以两份而不是合并成一份：登录页与回调都必须按**发起方所属租户**取 IdP，
+// 用平台那一份去校验 A 租户的 ID Token 等于拿 A 的授权码去验 B 的签名。
 type SSOService struct {
 	enabled      bool
 	jwtUtils     *utils.JWTUtils
 	userRepo     repository.SystemUserRepository
 	identityRepo repository.SSOIdentityRepository
 	adapters     map[string]sso.Adapter
+
+	kv         repository.SystemConfigKVRepository
+	httpClient *http.Client
+
+	tenantMu    sync.RWMutex
+	tenantCache map[uint]*tenantSSOEntry
+}
+
+// tenantSSOEntry 一个租户已构建好的适配器集合 + 构建时用的那份 JSON 原文。
+//
+// 拿原文比对做失效判据：KV 没有变更事件，而每次读都是一条 SELECT；
+// 原文没变就复用，变了（含明文→密文的透明升级）才重建。
+type tenantSSOEntry struct {
+	raw      string
+	adapters map[string]sso.Adapter
 }
 
 // NewSSOService 从全局配置构建 SSO 服务（生产入口）
 func NewSSOService(db *gorm.DB) *SSOService {
-	return NewSSOServiceWithRepos(
+	svc := NewSSOServiceWithRepos(
 		config.GetAppConfig().SSO,
 		repository.NewSystemUserRepository(),
 		repository.NewSSOIdentityRepository(db),
 	)
+	svc.kv = repository.NewSystemConfigKVRepositoryWithDB(db)
+	return svc
 }
 
 // NewSSOServiceWithRepos 注入依赖构建（便于测试）
+//
+// 不带 KV：只认平台 config.yaml 那一档。租户自配那一份要由装配层用
+// NewSSOServiceWithKV 显式接上，测试里传 nil 就是在测回落行为。
 func NewSSOServiceWithRepos(cfg config.SSOConfig, userRepo repository.SystemUserRepository, identityRepo repository.SSOIdentityRepository) *SSOService {
+	return NewSSOServiceWithKV(cfg, userRepo, identityRepo, nil)
+}
+
+// NewSSOServiceWithKV 注入租户 KV 仓储构建（R5-4 生产/测试入口）。
+func NewSSOServiceWithKV(cfg config.SSOConfig, userRepo repository.SystemUserRepository, identityRepo repository.SSOIdentityRepository, kv repository.SystemConfigKVRepository) *SSOService {
 	svc := &SSOService{
 		enabled:      cfg.Enabled,
 		jwtUtils:     utils.NewJWTUtils(utils.DefaultJWTConfig),
 		userRepo:     userRepo,
 		identityRepo: identityRepo,
 		adapters:     map[string]sso.Adapter{},
+		kv:           kv,
+		tenantCache:  map[uint]*tenantSSOEntry{},
 	}
-	for name, pcfg := range cfg.Providers {
+	// 按名字排序再建：map 遍历顺序随机，出错时"哪个 provider 先报错"会跟着抖，
+	// 而运维是拿日志比对来定位那一行坏配置的。
+	for _, name := range sortedProviderNames(cfg.Providers) {
+		pcfg := cfg.Providers[name]
 		if pcfg.ClientID == "" {
 			continue
 		}
-		oidcCfg := sso.OIDCConfig{
-			Issuer:                pcfg.Issuer,
-			ClientID:              pcfg.ClientID,
-			ClientSecret:          pcfg.ClientSecret,
-			RedirectURL:           pcfg.RedirectURL,
-			AutoProvision:         pcfg.AutoProvision,
-			DefaultRole:           pcfg.DefaultRole,
-			Scopes:                pcfg.Scopes,
-			AuthorizationEndpoint: pcfg.AuthorizationEndpoint,
-			TokenEndpoint:         pcfg.TokenEndpoint,
-			UserInfoEndpoint:      pcfg.UserInfoEndpoint,
-			JWKSURI:               pcfg.JWKSURI,
-		}
-		adapter, err := sso.NewAdapter(name, oidcCfg)
+		adapter, err := sso.NewAdapter(name, oidcConfigFrom(pcfg))
 		if err != nil {
 			logger.Errorf("[SSO] 构建 provider %q 适配器失败: %v", name, err)
 			continue
@@ -102,26 +128,131 @@ func NewSSOServiceWithRepos(cfg config.SSOConfig, userRepo repository.SystemUser
 	return svc
 }
 
-// Enabled 返回 SSO 是否启用
-func (s *SSOService) Enabled() bool { return s.enabled }
-
-// Adapter 获取指定 provider 的适配器
-func (s *SSOService) Adapter(provider string) (sso.Adapter, bool) {
-	a, ok := s.adapters[provider]
-	return a, ok
+func sortedProviderNames(m map[string]config.SSOProviderConfig) []string {
+	names := make([]string, 0, len(m))
+	for n := range m {
+		names = append(names, n)
+	}
+	sort.Strings(names)
+	return names
 }
 
-// SetProviderHTTPClient 注入 HTTP 客户端到所有 provider（测试用 mock；生产不调用）
-func (s *SSOService) SetProviderHTTPClient(client *http.Client) {
-	for _, a := range s.adapters {
-		a.OIDC().SetHTTPClient(client)
+func oidcConfigFrom(pcfg config.SSOProviderConfig) sso.OIDCConfig {
+	return sso.OIDCConfig{
+		Issuer:                pcfg.Issuer,
+		ClientID:              pcfg.ClientID,
+		ClientSecret:          pcfg.ClientSecret,
+		RedirectURL:           pcfg.RedirectURL,
+		AutoProvision:         pcfg.AutoProvision,
+		DefaultRole:           pcfg.DefaultRole,
+		Scopes:                pcfg.Scopes,
+		AuthorizationEndpoint: pcfg.AuthorizationEndpoint,
+		TokenEndpoint:         pcfg.TokenEndpoint,
+		UserInfoEndpoint:      pcfg.UserInfoEndpoint,
+		JWKSURI:               pcfg.JWKSURI,
 	}
 }
 
-// ListProviders 列出已启用的 SSO 提供方（稳定排序）
-func (s *SSOService) ListProviders() []ProviderInfo {
-	out := make([]ProviderInfo, 0, len(s.adapters))
-	for name, a := range s.adapters {
+// buildAdapters 把一组 IdP 配置编译成适配器；单个 provider 构建失败只跳过它，
+// 不让整个租户的登录页因为一行坏配置而全挂。
+func (s *SSOService) buildAdapters(providers []TenantSSOProvider) map[string]sso.Adapter {
+	out := make(map[string]sso.Adapter, len(providers))
+	for _, p := range providers {
+		if strings.TrimSpace(p.ClientID) == "" {
+			continue
+		}
+		adapter, err := sso.NewAdapter(p.Name, sso.OIDCConfig{
+			Issuer:                p.Issuer,
+			ClientID:              p.ClientID,
+			ClientSecret:          p.ClientSecret,
+			RedirectURL:           p.RedirectURL,
+			AutoProvision:         p.AutoProvision,
+			DefaultRole:           p.DefaultRole,
+			Scopes:                p.Scopes,
+			AuthorizationEndpoint: p.AuthorizationEndpoint,
+			TokenEndpoint:         p.TokenEndpoint,
+			UserInfoEndpoint:      p.UserInfoEndpoint,
+			JWKSURI:               p.JWKSURI,
+		})
+		if err != nil {
+			logger.Errorf("[SSO] 构建租户 provider %q 适配器失败: %v", p.Name, err)
+			continue
+		}
+		if s.httpClient != nil {
+			adapter.OIDC().SetHTTPClient(s.httpClient)
+		}
+		out[p.Name] = adapter
+	}
+	return out
+}
+
+// adaptersFor 返回 ctx 所属租户可用的适配器集合，第二个返回值表示它是否来自租户自配。
+//
+// 回落顺序：租户 KV 有值且能建出至少一个适配器 → 用它；KV 没装配/没绑租户/
+// 读失败/JSON 坏了/一条都建不出来 → 平台 config.yaml 那一份。
+// "坏 JSON 回落平台"是有意的：把登录页打死只会让人去查数据库，而查数据库的人
+// 不知道页面为什么白；日志里留一条 WARN 足够定位。
+func (s *SSOService) adaptersFor(ctx context.Context) (map[string]sso.Adapter, bool) {
+	if s.kv == nil {
+		return s.adapters, false
+	}
+	raw, err := s.kv.Get(ctx, kvSSOProviders)
+	if err != nil {
+		if !errors.Is(err, repository.ErrKVTenantContextMissing) && !errors.Is(err, repository.ErrKVStoreUnavailable) {
+			logger.Warnf("[SSO] 读租户 IdP 配置失败，回落平台配置: %v", err)
+		}
+		return s.adapters, false
+	}
+	if strings.TrimSpace(raw) == "" {
+		return s.adapters, false
+	}
+	tid, ok := tenant.FromContext(ctx)
+	if !ok {
+		tid = tenant.DefaultTenantID
+	}
+
+	s.tenantMu.RLock()
+	entry := s.tenantCache[tid]
+	s.tenantMu.RUnlock()
+	if entry != nil && entry.raw == raw {
+		return entry.adapters, len(entry.adapters) > 0
+	}
+
+	providers, derr := decodeTenantSSOProviders(raw)
+	if derr != nil {
+		logger.Warnf("[SSO] 租户 %d 的 IdP 配置解析失败，回落平台配置: %v", tid, derr)
+		return s.adapters, false
+	}
+	adapters := s.buildAdapters(providers)
+	s.tenantMu.Lock()
+	s.tenantCache[tid] = &tenantSSOEntry{raw: raw, adapters: adapters}
+	s.tenantMu.Unlock()
+	if len(adapters) == 0 {
+		return s.adapters, false
+	}
+	return adapters, true
+}
+
+// EnabledFor 该租户是否可用企业登录：自配了 IdP 即视为开，否则看平台开关。
+func (s *SSOService) EnabledFor(ctx context.Context) bool {
+	if _, fromTenant := s.adaptersFor(ctx); fromTenant {
+		return true
+	}
+	return s.enabled
+}
+
+// AdapterFor 取该租户可用的指定 provider 适配器。
+func (s *SSOService) AdapterFor(ctx context.Context, provider string) (sso.Adapter, bool) {
+	adapters, _ := s.adaptersFor(ctx)
+	a, ok := adapters[provider]
+	return a, ok
+}
+
+// ListProvidersFor 列出该租户可见的已启用登录方式（稳定排序）。
+func (s *SSOService) ListProvidersFor(ctx context.Context) []ProviderInfo {
+	adapters, _ := s.adaptersFor(ctx)
+	out := make([]ProviderInfo, 0, len(adapters))
+	for name, a := range adapters {
 		out = append(out, ProviderInfo{
 			Name:        name,
 			DisplayName: a.DisplayName(),
@@ -132,16 +263,75 @@ func (s *SSOService) ListProviders() []ProviderInfo {
 	return out
 }
 
+// TenantProviders 读本租户自配的 IdP 原文（admin 回显口用，调用方负责打码）。
+//
+// 用 s.kv 而不是包级构造函数：句柄在建服务时已经定了，读的时候再取全局句柄
+// 会出现"登录页读 A 库、参数页读 B 库"这种只在多库部署才暴露的错。
+func (s *SSOService) TenantProviders(ctx context.Context) ([]TenantSSOProvider, error) {
+	if s.kv == nil {
+		return nil, repository.ErrKVStoreUnavailable
+	}
+	return loadTenantSSOProvidersWithRepo(ctx, s.kv)
+}
+
+// SaveTenantProviders 写入本租户的 IdP 配置并让缓存立刻换代。
+//
+// 缓存按 KV 原文比对失效，写完不主动清也能在下一次读时重建；但"改完刷新页面没变"
+// 是这个功能最难自查的一种坏，所以写侧显式删掉该租户那一格。
+func (s *SSOService) SaveTenantProviders(ctx context.Context, providers []TenantSSOProvider) error {
+	if s.kv == nil {
+		return repository.ErrKVStoreUnavailable
+	}
+	err := saveTenantSSOProvidersWithRepo(ctx, s.kv, providers)
+	s.forgetTenant(ctx)
+	return err
+}
+
+func (s *SSOService) forgetTenant(ctx context.Context) {
+	tid, ok := tenant.FromContext(ctx)
+	if !ok {
+		tid = tenant.DefaultTenantID
+	}
+	s.tenantMu.Lock()
+	delete(s.tenantCache, tid)
+	s.tenantMu.Unlock()
+}
+
+// SetProviderHTTPClient 注入 HTTP 客户端到所有 provider（测试用 mock；生产不调用）。
+//
+// 存到字段上再套给已建好的适配器：租户适配器是**懒构建**的，只遍历现有 map 的话，
+// 测试里注入的 mock 客户端永远套不到租户那一档，OIDC 发现会去打真网络。
+func (s *SSOService) SetProviderHTTPClient(client *http.Client) {
+	s.tenantMu.Lock()
+	s.httpClient = client
+	cached := make([]map[string]sso.Adapter, 0, len(s.tenantCache))
+	for _, entry := range s.tenantCache {
+		cached = append(cached, entry.adapters)
+	}
+	s.tenantMu.Unlock()
+	for _, a := range s.adapters {
+		a.OIDC().SetHTTPClient(client)
+	}
+	for _, m := range cached {
+		for _, a := range m {
+			a.OIDC().SetHTTPClient(client)
+		}
+	}
+}
+
 // HandleCallback 处理 IdP 回调：
 //  1. 交换授权码 → token
 //  2. 验证 ID Token（签名 / issuer / audience / exp）
 //  3. 归一化 claims → 关联本地用户（或自动创建）
 //  4. 签发本地 JWT
+//
+// ctx 必须已绑定发起方所属租户（controller 在匿名入口用 tenant_code 解析过）：
+// IdP 配置、身份绑定、用户行读写都按这个租户走，换租户等于换一套签名密钥。
 func (s *SSOService) HandleCallback(ctx context.Context, provider, code, verifier string) (*SSOLoginResult, error) {
-	if !s.enabled {
+	if !s.EnabledFor(ctx) {
 		return nil, ErrSSONotEnabled
 	}
-	adapter, ok := s.adapters[provider]
+	adapter, ok := s.AdapterFor(ctx, provider)
 	if !ok {
 		return nil, ErrSSOProviderNotFound
 	}
@@ -163,7 +353,7 @@ func (s *SSOService) HandleCallback(ctx context.Context, provider, code, verifie
 		return nil, errors.New("sso: 无法从 ID Token 解析主体标识")
 	}
 
-	user, isNew, err := s.resolveUser(ctx, nu)
+	user, isNew, err := s.resolveUser(ctx, adapter, nu)
 	if err != nil {
 		return nil, err
 	}
@@ -193,7 +383,12 @@ func (s *SSOService) HandleCallback(ctx context.Context, provider, code, verifie
 	}, nil
 }
 
-func (s *SSOService) resolveUser(ctx context.Context, nu *sso.NormalizedUser) (*model.SystemUser, bool, error) {
+// resolveUser 把 IdP 主体映射到本地用户。
+//
+// adapter 由调用方按租户解析后传进来，不再回查 s.adapters：那张表只有平台
+// config.yaml 那一档，租户自配的 provider 名在里面查不到，`[...]` 直接取下标
+// 会拿到零值接口并在 .OIDC() 上 panic —— 表现是租户一登录就 500。
+func (s *SSOService) resolveUser(ctx context.Context, adapter sso.Adapter, nu *sso.NormalizedUser) (*model.SystemUser, bool, error) {
 	identity, err := s.identityRepo.GetByProviderSubject(ctx, nu.Provider, nu.Subject)
 	if err == nil {
 		user, err := s.userRepo.GetByID(ctx, identity.UserID)
@@ -209,7 +404,7 @@ func (s *SSOService) resolveUser(ctx context.Context, nu *sso.NormalizedUser) (*
 		return nil, false, fmt.Errorf("sso: 查询身份绑定失败: %w", err)
 	}
 
-	cfg := s.adapters[nu.Provider].OIDC().Config()
+	cfg := adapter.OIDC().Config()
 	if cfg.AutoProvision {
 		user, err := s.provisionUser(ctx, nu, cfg)
 		if err != nil {

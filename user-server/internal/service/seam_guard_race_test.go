@@ -14,8 +14,8 @@
 // TestConcurrentGetDBAndSetTestDBAreRaceFree 的教训）：否则"第一次读要看到还没被写过的值"是
 // 断言自己造的时序，红的是腿不是锁。
 //
-// 摘掉某一家 accessor 的锁 ⇒ 静态门逐格红（16 格，见电池族 A）。`-race` 侧的证据是**一窄一全两格**
-// 而不是逐格跑：第一版真按 16 格各跑一趟 `-race`，跑到第 6 格就把这台共享机器的数据盘写到 100%
+// 摘掉某一家 accessor 的锁 ⇒ 静态门逐格红（格数由注册表推导，见电池族 A）。`-race` 侧的证据是**一窄一全两格**
+// 而不是逐格跑：第一版真按登记家数各跑一趟 `-race`，跑到第 6 格就把这台共享机器的数据盘写到 100%
 // （只剩 1.7 GB）而中断，所以改成"摘一家看会不会外溢 + 全摘看有没有空腿"两格收口。
 // 只摘 `tgMaxMediaBytes` 时**只有**它那条腿
 // 报 DATA RACE、共锁邻居 `TelegramAPIBase` 仍绿；把 16 家全摘时 16 条腿各自报 DATA RACE，
@@ -298,6 +298,18 @@ func TestSeamGuard_PollingLockRepoIsLocked(t *testing.T) {
 		func() {
 			if got := getPollingLockRepo(); got != probe {
 				t.Error("取到的不是探针 repo")
+			}
+		})
+}
+
+func TestSeamGuard_PollingWorkerIDIsLocked(t *testing.T) {
+	const probe = "host-probe:1"
+	t.Cleanup(resetPollingWorkerIDForTest(probe))
+	hammerSeam(t, "pollingWorkerID/pollingWorkerIDOnce",
+		func() { resetPollingWorkerIDForTest(probe)() },
+		func() {
+			if got := GetPollingWorkerID(); got != probe {
+				t.Errorf("GetPollingWorkerID = %q, want 探针值（写方只写这一个值）", got)
 			}
 		})
 }

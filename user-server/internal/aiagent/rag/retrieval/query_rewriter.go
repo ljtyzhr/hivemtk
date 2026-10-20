@@ -10,6 +10,7 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 )
 
@@ -109,7 +110,7 @@ func (q *QueryRewriter) Rewrite(ctx context.Context, query string) (*RewrittenQu
 			if err := json.Unmarshal([]byte(cached), &rw); err == nil {
 				rw.CacheHit = true
 				rw.Original = query
-				go q.updateCacheStats(context.Background(), hash)
+				go q.updateCacheStats(tenant.BackgroundWithTenant(ctx), hash)
 				return &rw, nil
 			}
 		}
@@ -175,7 +176,7 @@ func (q *QueryRewriter) Rewrite(ctx context.Context, query string) (*RewrittenQu
 		}
 	}
 	if q.db != nil {
-		go q.persistToDB(context.Background(), hash, query, rw)
+		go q.persistToDB(tenant.BackgroundWithTenant(ctx), hash, query, rw)
 	}
 
 	return rw, nil

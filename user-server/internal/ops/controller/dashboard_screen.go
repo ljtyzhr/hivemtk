@@ -151,13 +151,14 @@ func (c *DashboardScreenController) DeleteScreen(ctx *gin.Context) {
 func (c *DashboardScreenController) PublicViewScreen(ctx *gin.Context) {
 	code := ctx.Param("code")
 
-	screen, err := c.screenService.GetPublicScreen(code)
+	requestCtx := ctx.Request.Context()
+	screen, err := c.screenService.GetPublicScreenCtx(requestCtx, code)
 	if err != nil {
 		response.Error(ctx, http.StatusNotFound, err.Error())
 		return
 	}
 
-	widgets, _ := c.screenService.GetScreenWidgets(screen.ID)
+	widgets, _ := c.screenService.GetScreenWidgetsCtx(requestCtx, screen.ID)
 
 	response.Success(ctx, gin.H{
 		"screen":  screen,

@@ -5,6 +5,8 @@ import (
 	"crypto/sha256"
 	"crypto/subtle"
 	"encoding/hex"
+	"errors"
+	"fmt"
 	"os"
 	"strings"
 	"sync"
@@ -12,9 +14,11 @@ import (
 
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/db"
+	"hivemtk-user/internal/pkg/tenant"
 
 	"github.com/gin-gonic/gin"
 
+	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/pkg/utils/response"
 	"hivemtk-user/internal/repository"
 )
@@ -25,7 +29,7 @@ import (
 // 测试替换后必须成对还原（同包用例共享进程）。
 var (
 	mcpTokenLookup = func(ctx context.Context, key string) (string, error) {
-		return repository.NewSystemConfigKVRepository().Get(ctx, key)
+		return repository.NewPlatformConfigKVRepository().Get(ctx, key)
 	}
 	bridgeCredentialCandidates = bridgeTokenCandidates
 )
@@ -69,7 +73,18 @@ func mcpDedicatedCandidates(ctx context.Context) []string {
 //     从哪个头进来都换不到工具调用权限；
 //     没配专用凭证时**回落到桥接凭证**（等价于拆分前的行为，存量部署不会当场 401）；
 //   - 两者都没有：fail-closed 503，且绝不读 BRIDGE_INGEST_AUTH=off。
-func MCPGuard() gin.HandlerFunc {
+//
+// 租户归属（on 模式必需，两条链各自自证，互不覆写）：
+//   - 凭证对：mcp_credentials 是租户表，签发时落在签发者所在租户 ⇒ 由 client_id
+//     反查归属；命中行分属多个租户（T008 之后 client_id 只在租户内唯一）⇒ 拒。
+//   - 单值凭证：KV/env 里那枚是**实例级**密钥，本身不含租户语义 ⇒ 调用方必须显式
+//     带 tenant_code（查询参数或 X-Tenant-Code 头）。缺码或解析不出就 403：
+//     工具调用会写客户数据、发消息，"整台实例共用一把钥匙"推不出"落在哪个租户"。
+//
+// resolveTenant 由装配层注入（本包不能 import service：service 已 import middleware，
+// 反向依赖会成环）。注入为 nil 时 on 模式下的单值链路一律 403——缺的是判据，
+// 不是"跳过这道检查"。
+func MCPGuard(resolveTenant TenantCodeResolver) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		ctx := c.Request.Context()
 
@@ -81,11 +96,14 @@ func MCPGuard() gin.HandlerFunc {
 				c.Abort()
 				return
 			}
-			if !verifyMCPCredentialPair(ctx, clientID, apiKey) {
+			tenantID, ok := verifyMCPCredentialPair(ctx, clientID, apiKey)
+			if !ok {
 				response.Error(c, 401, "Client ID 或 API Key 无效（或已停用）")
 				c.Abort()
 				return
 			}
+			// OnlyTenant：凭证行自带的租户是权威归属，不接受请求头/查询参数覆写。
+			c.Request = c.Request.WithContext(tenant.OnlyTenant(c.Request.Context(), tenantID))
 			c.Next()
 			return
 		}
@@ -113,6 +131,15 @@ func MCPGuard() gin.HandlerFunc {
 		}
 		for _, want := range candidates {
 			if subtle.ConstantTimeCompare([]byte(got), []byte(want)) == 1 {
+				tid, err := sharedTokenTenantID(c, resolveTenant)
+				if err != nil {
+					response.Error(c, 403, "MCP 单值凭证需要明确的租户线索: "+err.Error())
+					c.Abort()
+					return
+				}
+				if tid != 0 {
+					c.Request = c.Request.WithContext(tenant.OnlyTenant(c.Request.Context(), tid))
+				}
 				c.Next()
 				return
 			}
@@ -147,63 +174,129 @@ var (
 	mcpCredLastTouch sync.Map // clientID -> time.Time（last_used 回写节流，1 次/分钟）
 )
 
+// mcpCredCacheEntry 一条 client_id 的校验结论，**含归属租户**。
+//
+// 缓存键只有 client_id（不带租户）：T008 之后 mcp_credentials 的唯一索引是
+// (tenant_id, client_id)，同一枚 client_id 可能在两个租户各有一行。判据取自
+// SingleTenantByKey——歧义即拒（entry 落成 enabled=false），所以缓存里出现的
+// tenantID 一定是"当时全库唯一归属"。
+//
+// 残留的只是新鲜度：租户 1 先建行 ⇒ 缓存记下 (1, H1)；租户 2 随后建同名
+// client_id 时管理端会 InvalidateMCPCredentialCache 清表；即便没清，拿 H1 比
+// 租户 2 的密钥只会**拒**（不会把租户 1 的身份发给了租户 2），最坏是 TTL 内的
+// 一次误拒。宁可误拒，不可误绑。
 type mcpCredCacheEntry struct {
-	hash    string
-	enabled bool
-	expires time.Time
+	tenantID uint
+	hash     string
+	enabled  bool
+	expires  time.Time
 }
 
-// verifyMCPCredentialPair 校验凭证对：client_id 查缓存/库，sha256 恒时比较。
+// lookupMCPCredentialPair 反查凭证行：先自证归属租户，再在**该租户**作用域里取哈希。
+//
+// 为什么不能一把 `First()` 取到就算：不带租户绑定的请求 ctx 在 on 模式下会被隔离
+// callback 直接拒（凭证链全量 401），而用 SystemScope 取整行再把 ctx 绑过去，等于
+// "先跨租户捞，再挑一行"——同键多租户时取到哪一行由数据库顺序决定。两步走把
+// "谁的凭证"和"用哪行的哈希"分开，中间那道判据就是歧义必须拒。
+func lookupMCPCredentialPair(ctx context.Context, clientID string) (mcpCredCacheEntry, error) {
+	g := db.GetDB()
+	if g == nil {
+		return mcpCredCacheEntry{}, errors.New("db 未初始化")
+	}
+	tid, err := tenant.SingleTenantByKey(ctx, g, "mcp_credentials", "client_id = ? AND enabled = ?", clientID, true)
+	if err != nil {
+		return mcpCredCacheEntry{}, err
+	}
+	if tid == 0 {
+		return mcpCredCacheEntry{}, fmt.Errorf("凭证不存在或已停用: %s", clientID)
+	}
+	var cred model.MCPCredential
+	if err := g.WithContext(tenant.OnlyTenant(ctx, tid)).
+		Where("client_id = ? AND enabled = ?", clientID, true).
+		First(&cred).Error; err != nil {
+		return mcpCredCacheEntry{}, err
+	}
+	return mcpCredCacheEntry{tenantID: cred.TenantID, hash: cred.APIKeyHash, enabled: cred.Enabled}, nil
+}
+
+// verifyMCPCredentialPair 校验凭证对，返回凭证所属租户（0=不通过）。
 // 校验通过节流回写 last_used_at（每凭证至多 1 次/分钟，避免写风暴）。
-func verifyMCPCredentialPair(ctx context.Context, clientID, apiKey string) bool {
+func verifyMCPCredentialPair(ctx context.Context, clientID, apiKey string) (uint, bool) {
 	now := time.Now()
 	mcpCredMu.RLock()
 	entry, ok := mcpCredCache[clientID]
 	mcpCredMu.RUnlock()
 	if !ok || now.After(entry.expires) {
-		g := db.GetDB()
-		if g == nil {
-			return false
+		got, err := lookupMCPCredentialPair(ctx, clientID)
+		if err != nil {
+			logger.Warnf("[MCP] 凭证反查失败 client=%s: %v", clientID, err)
+			got = mcpCredCacheEntry{enabled: false}
 		}
-		var cred model.MCPCredential
-		if err := g.WithContext(ctx).
-			Where("client_id = ? AND enabled = ?", clientID, true).
-			First(&cred).Error; err != nil {
-			mcpCredMu.Lock()
-			if mcpCredCache == nil {
-				mcpCredCache = map[string]mcpCredCacheEntry{}
-			}
-			mcpCredCache[clientID] = mcpCredCacheEntry{expires: now.Add(mcpCredCacheTTL), enabled: false}
-			mcpCredMu.Unlock()
-			return false
-		}
+		got.expires = now.Add(mcpCredCacheTTL)
 		mcpCredMu.Lock()
 		if mcpCredCache == nil {
 			mcpCredCache = map[string]mcpCredCacheEntry{}
 		}
-		mcpCredCache[clientID] = mcpCredCacheEntry{hash: cred.APIKeyHash, enabled: cred.Enabled, expires: now.Add(mcpCredCacheTTL)}
+		mcpCredCache[clientID] = got
 		mcpCredMu.Unlock()
-		entry = mcpCredCache[clientID]
+		entry = got
 	}
-	if !entry.enabled {
-		return false
+	if !entry.enabled || entry.tenantID == 0 {
+		return 0, false
 	}
 	sum := sha256.Sum256([]byte(apiKey))
 	if subtle.ConstantTimeCompare([]byte(hex.EncodeToString(sum[:])), []byte(entry.hash)) != 1 {
-		return false
+		return 0, false
 	}
-	// last_used_at 回写节流：命中缓存前提下每凭证 1 次/分钟
+	// last_used_at 回写节流：命中缓存前提下每凭证 1 次/分钟。
+	// 写必须带凭证自己的租户：不带绑定在 on 模式被隔离 callback 拒（回写永远失败，
+	// 而失败又被 Delete 吞掉，管理端看到的"最近使用"从此不动）；带 SystemScope 则会
+	// 把别的租户同名 client_id 那行一起更新时间戳。
 	if last, seen := mcpCredLastTouch.Load(clientID); !seen || now.Sub(last.(time.Time)) > time.Minute {
 		mcpCredLastTouch.Store(clientID, now)
 		if g := db.GetDB(); g != nil {
-			if err := g.WithContext(ctx).Model(&model.MCPCredential{}).
+			err := g.WithContext(tenant.OnlyTenant(ctx, entry.tenantID)).Model(&model.MCPCredential{}).
 				Where("client_id = ?", clientID).
-				Update("last_used_at", now).Error; err != nil {
+				Update("last_used_at", now).Error
+			if err != nil {
 				mcpCredLastTouch.Delete(clientID)
 			}
 		}
 	}
-	return true
+	return entry.tenantID, true
+}
+
+// =============================================================================
+// 租户归属线索（单值凭证链路）
+// =============================================================================
+
+// sharedTokenTenantID 为单值凭证链路解析归属租户；返回 0 表示"无需绑定"（off 模式）。
+//
+// 实例级密钥（KV mcp_token / env MCP_TOKEN / 桥接回落）不含租户语义，所以 on 模式下
+// 必须显式带 tenant_code 且能解析成启用中的租户。解析器缺失（装配层没注入）同样按
+// "判据不在场"处理——不是"跳过这道检查"。
+func sharedTokenTenantID(c *gin.Context, resolveTenant TenantCodeResolver) (uint, error) {
+	if !tenant.IsMultiTenant() {
+		return 0, nil
+	}
+	if id, bound := tenant.FromContext(c.Request.Context()); bound && id != 0 {
+		return 0, nil // 上游已绑定（例如测试装配或别的中间件先绑），不重复解析
+	}
+	if resolveTenant == nil {
+		return 0, errors.New("服务端未配置租户解析器")
+	}
+	code := tenantHintFromRequest(c)
+	if code == "" {
+		return 0, errors.New("缺少 tenant_code 查询参数或 X-Tenant-Code 请求头")
+	}
+	id, err := resolveTenant(c.Request.Context(), code)
+	if err != nil {
+		return 0, err
+	}
+	if id == 0 {
+		return 0, errors.New("租户短码解析结果为空")
+	}
+	return id, nil
 }
 
 // InvalidateMCPCredentialCache 管理端增删改凭证后调用，立刻生效。

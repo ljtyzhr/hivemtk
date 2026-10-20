@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"net/http"
@@ -10,6 +11,7 @@ import (
 
 	"hivemtk-user/internal/config"
 	"hivemtk-user/internal/pkg/sso"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/response"
 	"hivemtk-user/internal/service"
 
@@ -35,39 +37,77 @@ func SetSSOCookieTTLProvider(fn func() time.Duration) {
 }
 
 // SSOController 企业 SSO 登录控制器
+//
+// 没有 frontend 字段：回调后要跳的地址在 SaaS 下是**每个租户各自的公网基址**
+// （urls.public_base_url），构造期拍平成一份会让 B 租户的用户被 302 到 A 的站点。
 type SSOController struct {
 	ssoService *service.SSOService
-	frontend   string
 }
 
 // NewSSOController 创建 SSO 控制器（生产入口，注入已构建的 SSO 服务）
 func NewSSOController(ssoService *service.SSOService) *SSOController {
-	return &SSOController{
-		ssoService: ssoService,
-		frontend:   config.GetPublicBaseURL(),
-	}
+	return &SSOController{ssoService: ssoService}
 }
 
-// ListProviders 列出已启用的 SSO 登录方式
+// providerScope 匿名入口按 tenant_code 选出租户作用域。
+//
+// 解不出来（没带码、码不存在）时用未绑定租户的 ctx，读到的是平台 config.yaml
+// 那一档 IdP —— 登录页这时展示平台统一入口，而不是报错：带错短码的人多半还在
+// 输租户名，让页面白掉只会把一个拼写问题变成一次故障报修。
+func (c *SSOController) providerScope(ctx *gin.Context) context.Context {
+	code := strings.TrimSpace(ctx.Query("tenant_code"))
+	if code == "" {
+		code = strings.TrimSpace(ctx.GetHeader("X-Tenant-Code"))
+	}
+	if code == "" {
+		return ctx.Request.Context()
+	}
+	bound, err := resolvePublicTenantCtx(ctx, code)
+	if err != nil {
+		return ctx.Request.Context()
+	}
+	return bound
+}
+
+// ListProviders 列出该租户已启用的 SSO 登录方式
 func (c *SSOController) ListProviders(ctx *gin.Context) {
-	if !c.ssoService.Enabled() {
+	scope := c.providerScope(ctx)
+	if !c.ssoService.EnabledFor(scope) {
 		response.Success(ctx, gin.H{"enabled": false, "providers": []service.ProviderInfo{}}, "未启用企业登录")
 		return
 	}
 	response.Success(ctx, gin.H{
 		"enabled":   true,
-		"providers": c.ssoService.ListProviders(),
+		"providers": c.ssoService.ListProvidersFor(scope),
 	}, "获取登录方式成功")
 }
 
 // Login 发起 SSO 登录：生成 state + nonce + PKCE verifier，重定向到 IdP
 func (c *SSOController) Login(ctx *gin.Context) {
-	if !c.ssoService.Enabled() {
+	provider := ctx.Param("provider")
+
+	// 先定租户再取适配器：IdP 配置在 SaaS 下是按租户解析的，反过来写会用平台那一份
+	// 生成授权请求、却用租户那一份校验回调，两边 issuer/client_id 不同 → 每次登录
+	// 都在 token 交换处失败。
+	tenantCode := strings.TrimSpace(ctx.Query("tenant_code"))
+	requestCtx := ctx.Request.Context()
+	if tenant.IsMultiTenant() {
+		if tenantCode == "" {
+			response.Error(ctx, http.StatusBadRequest, "多租户模式需携带 tenant_code")
+			return
+		}
+		bound, err := resolvePublicTenantCtx(ctx, tenantCode)
+		if err != nil {
+			response.Error(ctx, http.StatusBadRequest, "无法确定租户："+err.Error())
+			return
+		}
+		requestCtx = bound
+	}
+	if !c.ssoService.EnabledFor(requestCtx) {
 		response.Error(ctx, http.StatusForbidden, service.ErrSSONotEnabled.Error())
 		return
 	}
-	provider := ctx.Param("provider")
-	adapter, ok := c.ssoService.Adapter(provider)
+	adapter, ok := c.ssoService.AdapterFor(requestCtx, provider)
 	if !ok {
 		response.Error(ctx, http.StatusNotFound, "未找到该登录方式")
 		return
@@ -80,9 +120,12 @@ func (c *SSOController) Login(ctx *gin.Context) {
 	setSSOCookie(ctx, "sso_state", state)
 	setSSOCookie(ctx, "sso_nonce", nonce)
 	setSSOCookie(ctx, "sso_verifier", verifier)
+	if tenantCode != "" {
+		setSSOCookie(ctx, "sso_tenant", tenantCode)
+	}
 
 	oidc := adapter.OIDC()
-	if err := oidc.EnsureFresh(ctx.Request.Context()); err != nil {
+	if err := oidc.EnsureFresh(requestCtx); err != nil {
 		clearSSOCookies(ctx)
 		response.Error(ctx, http.StatusInternalServerError, "获取授权配置失败: "+err.Error())
 		return
@@ -109,7 +152,22 @@ func (c *SSOController) Callback(ctx *gin.Context) {
 
 	verifier, _ := ctx.Cookie("sso_verifier")
 
-	result, err := c.ssoService.HandleCallback(ctx.Request.Context(), provider, ctx.Query("code"), verifier)
+	requestCtx := ctx.Request.Context()
+	if tenant.IsMultiTenant() {
+		tenantCode := strings.TrimSpace(ctx.Query("tenant_code"))
+		if tenantCode == "" {
+			tenantCode, _ = ctx.Cookie("sso_tenant")
+		}
+		bound, err := resolvePublicTenantCtx(ctx, tenantCode)
+		if err != nil {
+			clearSSOCookies(ctx)
+			response.Error(ctx, http.StatusBadRequest, "无法确定租户："+err.Error())
+			return
+		}
+		requestCtx = bound
+	}
+
+	result, err := c.ssoService.HandleCallback(requestCtx, provider, ctx.Query("code"), verifier)
 	clearSSOCookies(ctx)
 	if err != nil {
 		c.callbackError(ctx, err)
@@ -117,7 +175,7 @@ func (c *SSOController) Callback(ctx *gin.Context) {
 	}
 
 	if ctx.Query("format") != "json" {
-		target := c.resolveRedirectTarget(ctx)
+		target := c.resolveRedirectTarget(ctx, requestCtx)
 		if target != "" {
 			sep := "?"
 			if strings.Contains(target, "?") {
@@ -137,14 +195,62 @@ func (c *SSOController) Callback(ctx *gin.Context) {
 	}, "登录成功")
 }
 
-func (c *SSOController) resolveRedirectTarget(ctx *gin.Context) string {
+// resolveRedirectTarget 回调成功后把用户送去哪儿。
+//
+// ?redirect= 只接受站内相对路径（`/x` 但不是 `//x`，后者是协议相对地址，会把用户
+// 甩到外部域）；没带 redirect 时落到该租户的公网基址——基址按 requestCtx 解析，
+// 那里已经绑好发起方租户。
+func (c *SSOController) resolveRedirectTarget(ctx *gin.Context, requestCtx context.Context) string {
 	if r := strings.TrimSpace(ctx.Query("redirect")); r != "" {
 		if strings.HasPrefix(r, "/") && !strings.HasPrefix(r, "//") {
 			return r
 		}
 		return ""
 	}
-	return strings.TrimRight(c.frontend, "/")
+	return strings.TrimRight(config.GetPublicBaseURLFor(requestCtx), "/")
+}
+
+// GetTenantProviders 回显本租户自配的 IdP（GET /api/sso/config）
+//
+// client_secret 一律打码成 ***：把密钥渲染进 input 等于把它交给浏览器历史与
+// 前端日志。前端要区分"没填"与"填过看不到"，看的就是这个标记位。
+func (c *SSOController) GetTenantProviders(ctx *gin.Context) {
+	providers, err := c.ssoService.TenantProviders(ctx.Request.Context())
+	if err != nil {
+		response.ErrorFromDB(ctx, err, "读取租户企业登录配置失败", err.Error())
+		return
+	}
+	response.Success(ctx, gin.H{"providers": service.MaskTenantSSOClientSecrets(providers)}, "获取成功")
+}
+
+// SaveTenantProviders 保存本租户自配的 IdP（PUT /api/sso/config）
+//
+// 提交里 client_secret 为 *** 的那条沿用库里那份（回显打码的必然结果），
+// 空串才是"清掉密钥"。少了这一步，运维改一个无关字段就会把密钥写成字面量 ***。
+func (c *SSOController) SaveTenantProviders(ctx *gin.Context) {
+	var body struct {
+		Providers []service.TenantSSOProvider `json:"providers"`
+	}
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		response.Error(ctx, http.StatusBadRequest, "参数错误: "+err.Error())
+		return
+	}
+	requestCtx := ctx.Request.Context()
+	existing, err := c.ssoService.TenantProviders(requestCtx)
+	if err != nil {
+		response.ErrorFromDB(ctx, err, "读取租户企业登录配置失败", err.Error())
+		return
+	}
+	merged, err := service.PreserveMaskedClientSecrets(body.Providers, existing)
+	if err != nil {
+		response.Error(ctx, http.StatusBadRequest, err.Error())
+		return
+	}
+	if err := c.ssoService.SaveTenantProviders(requestCtx, merged); err != nil {
+		response.Error(ctx, http.StatusBadRequest, "配置不合法: "+err.Error())
+		return
+	}
+	response.Success(ctx, gin.H{"providers": service.MaskTenantSSOClientSecrets(merged)}, "保存成功")
 }
 
 func (c *SSOController) callbackError(ctx *gin.Context, err error) {
@@ -174,4 +280,5 @@ func clearSSOCookies(ctx *gin.Context) {
 	ctx.SetCookie("sso_state", "", -1, "/", "", true, true)
 	ctx.SetCookie("sso_nonce", "", -1, "/", "", true, true)
 	ctx.SetCookie("sso_verifier", "", -1, "/", "", true, true)
+	ctx.SetCookie("sso_tenant", "", -1, "/", "", true, true)
 }

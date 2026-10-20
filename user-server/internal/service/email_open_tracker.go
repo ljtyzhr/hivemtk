@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
@@ -114,6 +115,11 @@ func (s *EmailOpenTrackerService) RecordPostmarkEvent(ctx context.Context, evt *
 	if evt == nil {
 		return errors.New("event is nil")
 	}
+	var err error
+	ctx, err = s.bindProviderEventTenant(ctx, evt.Recipient)
+	if err != nil {
+		return err
+	}
 	switch strings.ToLower(evt.RecordType) {
 	case "open":
 		return s.recordOpenByEmail(ctx, evt.Recipient, evt.MessageID, evt.IP, evt.UserAgent)
@@ -139,6 +145,33 @@ func (s *EmailOpenTrackerService) RecordPostmarkEvent(ctx context.Context, evt *
 	default:
 		return fmt.Errorf("%w: unsupported RecordType: %s", utils.ErrInvalidInput, evt.RecordType)
 	}
+}
+
+// bindProviderEventTenant 供应商回执的租户自证：收件人在发信台账里只属于一个
+// 租户时钉死该租户；多租户共用收件人或查不到时保持无绑定，由下游
+// fail-closed（要求 webhook 地址携带 tenant_code）。
+func (s *EmailOpenTrackerService) bindProviderEventTenant(ctx context.Context, recipient string) (context.Context, error) {
+	if !tenant.IsMultiTenant() {
+		return ctx, nil
+	}
+	if _, bound := tenant.FromContext(ctx); bound {
+		return ctx, nil
+	}
+	email := normalizeEmail(recipient)
+	if email == "" {
+		return ctx, nil
+	}
+	if s.repo == nil {
+		return ctx, errors.New("email tracking repository 未初始化")
+	}
+	id, ok, err := s.repo.TenantIDByRecipient(ctx, email)
+	if err != nil {
+		return ctx, fmt.Errorf("解析邮件回执租户失败: %w", err)
+	}
+	if !ok {
+		return ctx, nil
+	}
+	return tenant.OnlyTenant(ctx, id), nil
 }
 
 func (s *EmailOpenTrackerService) recordOpenByEmail(ctx context.Context, email, messageID, ip, ua string) error {
@@ -186,6 +219,11 @@ type SendCloudOpenEvent struct {
 func (s *EmailOpenTrackerService) RecordSendCloudEvent(ctx context.Context, evt *SendCloudOpenEvent) error {
 	if evt == nil {
 		return errors.New("event is nil")
+	}
+	var err error
+	ctx, err = s.bindProviderEventTenant(ctx, evt.Recipient)
+	if err != nil {
+		return err
 	}
 	switch strings.ToLower(evt.Event) {
 	case "delivered", "open":

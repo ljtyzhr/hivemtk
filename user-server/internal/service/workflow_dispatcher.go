@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/tracing"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/logger"
@@ -364,7 +365,9 @@ func (d *WorkflowDispatcher) handleNodeFailure(
 			defer d.wg.Done()
 			select {
 			case <-time.After(backoff):
-				d.Run(context.Background(), exec.ID, tracing.TraceIDFromContext(ctx))
+				// 行自证：重试协程脱离原请求 ctx，必须按执行单自带租户恢复绑定，
+				// 否则 on 模式下 GetByID 被隔离 callback fail-closed，执行永久停在 retrying。
+				d.Run(tenant.WithTenantID(context.Background(), exec.TenantID), exec.ID, tracing.TraceIDFromContext(ctx))
 			case <-d.stopCh:
 				return
 			}

@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"hivemtk-user/internal/aiagent/llm"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/traceparent"
 	"hivemtk-user/internal/pkg/tracing"
 	"hivemtk-user/internal/pkg/utils"
@@ -86,11 +87,17 @@ func TraceMiddleware() gin.HandlerFunc {
 		clientIP := c.ClientIP()
 		userAgent := c.Request.UserAgent()
 		hasTraceparent := c.GetHeader(traceparent.HeaderName) != ""
+		// 租户在各业务分组中间件里绑定（TenantMiddleware 会替换 c.Request），
+		// 必须在 c.Next() 返回后、当前 goroutine 内取值；不能等进了异步体再读，
+		// 那时 gin.Context 已被回收复用。取不到（公开路由）保持 0，由 DB sink
+		// 按多租户 fail-closed 处理，不静默落默认租户。
+		tenantID, _ := tenant.FromContext(c.Request.Context())
 
 		// 发布发生在请求生命周期之外 ⇒ 用 SafeGoDetached 剥离取消链（否则 ctx 一进来就已 cancel）
 		// 并带硬超时，与本包对"HTTP 请求结束后仍需继续执行的任务"的约定一致。
 		utils.SafeGoDetached(ctx, "middleware.trace.publish", 2*time.Second, func(_ context.Context) {
 			llm.PublishTraceEvent(llm.TraceEvent{
+				TenantID:   tenantID,
 				TraceID:    traceID,
 				SpanID:     spanID,
 				Kind:       llm.TraceSpanKindLog,

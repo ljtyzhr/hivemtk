@@ -28,6 +28,7 @@ import (
 	rag_core "hivemtk-user/internal/aiagent/rag/core"
 	"hivemtk-user/internal/etl"
 	"hivemtk-user/internal/event"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 )
 
@@ -37,7 +38,9 @@ import (
 //  1. 订阅 event.TopicKnowledgeDocumentChanged 事件
 //  2. 根据 ChangeType(create/update/delete)执行不同动作
 //  3. create/update:解析 → 切块 → Embedding → 写 chunks
-//  4. delete:级联删除所有 chunks
+//  4. delete:只清本索引器的内存视图；分段行的级联删除由
+//     KnowledgeService.Delete 在同一个请求里落库（本索引器再删一次是重复且
+//     会把"事件重放"变成二次删除）
 //
 // 并发：内部 RWMutex 保证线程安全
 // 失败：仅记录日志,不重试(主流程可重新发布事件)
@@ -108,12 +111,24 @@ func (i *IncrementalIndexer) Handle(evt event.Event) error {
 	payload, ok := evt.Payload.(event.KnowledgeDocumentChangePayload)
 	if !ok {
 		if p, ok := evt.Payload.(*event.KnowledgeDocumentChangePayload); ok && p != nil {
-			return i.handlePayload(context.Background(), *p)
+			return i.handlePayload(ctxFromPayload(*p), *p)
 		}
 		return nil
 	}
 
-	return i.handlePayload(context.Background(), payload)
+	return i.handlePayload(ctxFromPayload(payload), payload)
+}
+
+// ctxFromPayload 从事件载荷恢复租户上下文（T021 的订阅侧半边）：事件线程拿不到
+// 发布点的 ctx，归属靠载荷随行传递。载荷没带租户（off 模式或系统级发布）时保持
+// 无绑定——on 模式下下游隔离 callback 会 fail-closed，绝不回落默认租户，
+// 那会把某个租户的文档索引进别人的库。
+func ctxFromPayload(payload event.KnowledgeDocumentChangePayload) context.Context {
+	ctx := context.Background()
+	if payload.TenantID != 0 {
+		ctx = tenant.WithTenantID(ctx, payload.TenantID)
+	}
+	return ctx
 }
 
 func (i *IncrementalIndexer) handlePayload(ctx context.Context, payload event.KnowledgeDocumentChangePayload) error {

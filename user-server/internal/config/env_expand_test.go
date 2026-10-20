@@ -109,3 +109,33 @@ host: "localhost"`,
 		})
 	}
 }
+
+// GetServerBaseURL 读 config.yaml 时必须先展开 ${VAR:default}：
+// 未展开时跟踪/退订链接会带上字面占位符。
+func TestGetServerBaseURLExpandsEnvPlaceholder(t *testing.T) {
+	t.Chdir(t.TempDir())
+	cfg := "platform_api:\n  api_url: \"${PLATFORM_API_URL:http://127.0.0.1:8205}\"\n"
+	if err := os.WriteFile("config.yaml", []byte(cfg), 0o600); err != nil {
+		t.Fatalf("写入 config.yaml 失败: %v", err)
+	}
+
+	old, had := os.LookupEnv("PLATFORM_API_URL")
+	if err := os.Unsetenv("PLATFORM_API_URL"); err != nil {
+		t.Fatalf("unset PLATFORM_API_URL 失败: %v", err)
+	}
+	t.Cleanup(func() {
+		if had {
+			_ = os.Setenv("PLATFORM_API_URL", old)
+		} else {
+			_ = os.Unsetenv("PLATFORM_API_URL")
+		}
+	})
+	if got := GetServerBaseURL(); got != "http://127.0.0.1:8205" {
+		t.Fatalf("未设置 PLATFORM_API_URL 时 GetServerBaseURL() = %q，期望展开后的默认值", got)
+	}
+
+	t.Setenv("PLATFORM_API_URL", "https://platform.example.com")
+	if got := GetServerBaseURL(); got != "https://platform.example.com" {
+		t.Fatalf("设置 PLATFORM_API_URL 后 GetServerBaseURL() = %q，期望环境变量值", got)
+	}
+}

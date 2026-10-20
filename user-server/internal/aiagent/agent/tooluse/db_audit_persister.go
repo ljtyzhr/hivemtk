@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 
 	"gorm.io/gorm"
@@ -107,6 +108,13 @@ func NewDBAuditLogger(db *gorm.DB, queueSize int, fallback AuditLogger) *DBAudit
 // 异步写入：将 entry 推入队列，由后台 goroutine 批量写入 DB
 // 队列满时降级到 fallback logger（避免丢失审计日志）
 func (l *DBAuditLogger) Log(ctx context.Context, entry AuditEntry) {
+	// 入队即离开请求 ctx：租户必须随 entry 走，否则刷批时只能裸写，
+	// on 模式下被隔离 callback 拒绝，表现为审计整批静默丢失。
+	if entry.TenantID == 0 {
+		if id, ok := tenant.FromContext(ctx); ok {
+			entry.TenantID = id
+		}
+	}
 	select {
 	case l.queue <- entry:
 		l.mu.Lock()
@@ -212,22 +220,59 @@ func (l *DBAuditLogger) flushBatch(batch []AuditEntry) {
 		}
 		return
 	}
-	records := make([]ToolCallAuditRecord, 0, len(batch))
+	// 一批可能混多个租户：按 entry.TenantID 分组，各自用绑定 ctx 落库。
+	// 全批一个 ctx 的写法在 on 模式下要么整批被拒、要么（若用 system scope）
+	// 把 rows 的 tenant_id 全落成列默认值。
+	type tenantBatch struct {
+		tenantID uint
+		records  []ToolCallAuditRecord
+		entries  []AuditEntry
+	}
+	groups := make(map[uint]*tenantBatch, 2)
+	order := make([]uint, 0, 2)
 	for _, e := range batch {
-		records = append(records, auditEntryToRecord(e))
-	}
-	if err := l.db.CreateInBatches(records, 100).Error; err != nil {
-		l.markDegraded(len(batch), "write_failed")
-		if l.fallback != nil {
-			for _, e := range batch {
-				l.fallback.Log(ctx, e)
-			}
+		g, ok := groups[e.TenantID]
+		if !ok {
+			g = &tenantBatch{tenantID: e.TenantID}
+			groups[e.TenantID] = g
+			order = append(order, e.TenantID)
 		}
-		return
+		g.records = append(g.records, auditEntryToRecord(e))
+		g.entries = append(g.entries, e)
 	}
-	l.mu.Lock()
-	l.dbRows += int64(len(records))
-	l.mu.Unlock()
+	writeRows := 0
+	fallbackLog := func(ctx context.Context, entries []AuditEntry) {
+		if l.fallback == nil {
+			return
+		}
+		for _, e := range entries {
+			l.fallback.Log(ctx, e)
+		}
+	}
+	for _, tid := range order {
+		g := groups[tid]
+		if tid == 0 && tenant.IsMultiTenant() {
+			// 无租户归属：on 模式下不存在可以安全落库的默认租户。
+			l.markDegraded(len(g.entries), "no_tenant")
+			fallbackLog(context.Background(), g.entries)
+			continue
+		}
+		tctx := context.Background()
+		if tid != 0 {
+			tctx = tenant.WithTenantID(tctx, tid)
+		}
+		if err := l.db.WithContext(tctx).CreateInBatches(g.records, 100).Error; err != nil {
+			l.markDegraded(len(g.entries), "write_failed")
+			fallbackLog(tctx, g.entries)
+			continue
+		}
+		writeRows += len(g.records)
+	}
+	if writeRows > 0 {
+		l.mu.Lock()
+		l.dbRows += int64(writeRows)
+		l.mu.Unlock()
+	}
 }
 
 // markDegraded 记一次整批降级并按限速打告警。
@@ -276,6 +321,7 @@ const (
 // 静默降级到内存。截断的代价（同一批里 trace_id 前缀相同的行难以区分）明显更小。
 func auditEntryToRecord(e AuditEntry) ToolCallAuditRecord {
 	return ToolCallAuditRecord{
+		TenantID:      e.TenantID,
 		TraceID:       cutBytes(e.TraceID, auditColTraceID),
 		ToolName:      cutBytes(e.ToolName, auditColToolName),
 		CallerID:      cutBytes(e.CallerID, auditColCallerID),

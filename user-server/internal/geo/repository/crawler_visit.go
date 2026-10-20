@@ -126,12 +126,12 @@ func extractDomain(rawURL string) string {
 // 自家站取基址的 host+路径（如 xiaofang142.github.io/hivemtk），其余取 host。
 // 路径不可省：GitHub Pages 项目页形态下 host 是无数项目共用的，
 // 只按 host 聚合会把别人的项目页和自家站折成同一行，可见度统计就此失真。
-func siteKeyOf(rawURL string) (site string, isSelfSite bool) {
+func siteKeyOf(ctx context.Context, rawURL string) (site string, isSelfSite bool) {
 	if rawURL == "" {
 		return "", false
 	}
-	if config.IsSelfSiteURL(rawURL) {
-		return stripScheme(config.WebsiteBaseURL()), true
+	if config.IsSelfSiteURLFor(ctx, rawURL) {
+		return stripScheme(config.WebsiteBaseURLFor(ctx)), true
 	}
 	return extractDomain(rawURL), false
 }
@@ -200,7 +200,7 @@ func (r *geoCrawlerVisitRepo) StatsByDomain(ctx context.Context, days int) ([]Do
 	bucket := map[key]int64{}
 	selfSite := map[string]bool{}
 	for _, row := range raw {
-		site, isSelf := siteKeyOf(row.Path)
+		site, isSelf := siteKeyOf(ctx, row.Path)
 		if site == "" {
 			continue
 		}
@@ -266,7 +266,7 @@ func (r *geoCrawlerVisitRepo) ActiveDomains(ctx context.Context, days int) (int6
 	}
 	sites := map[string]bool{}
 	for _, p := range paths {
-		if s, _ := siteKeyOf(p); s != "" {
+		if s, _ := siteKeyOf(ctx, p); s != "" {
 			sites[s] = true
 		}
 	}

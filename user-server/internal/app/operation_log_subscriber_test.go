@@ -8,6 +8,7 @@ import (
 	"hivemtk-user/internal/event"
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/db"
+	"hivemtk-user/internal/pkg/tenant"
 
 	"hivemtk-user/internal/pkg/testutil"
 
@@ -229,4 +230,47 @@ func waitForLogCondition(t *testing.T, cond func() bool, timeout time.Duration) 
 		time.Sleep(time.Millisecond)
 	}
 	return false
+}
+
+// 操作日志事件跨协程落库：载荷里的租户归属必须原样落到 operation_logs，
+// 且 on 模式下无归属事件必须 fail-closed（不得静默落默认租户）。
+func TestOperationLogSubscriber_Handle_TenantIsolation(t *testing.T) {
+	tenant.SetMode(tenant.ModeOn)
+	t.Cleanup(func() { tenant.SetMode(tenant.ModeOff) })
+
+	database := setupSubscriberTestDB(t)
+	subscriber := NewOperationLogSubscriber(newTestLogRepo(database))
+
+	err := subscriber.Handle(event.Event{
+		Topic: event.TopicOperationLog,
+		Payload: event.OperationLogPayload{
+			TenantID: 42,
+			UserID:   9,
+			Action:   "outbound_auth_failure",
+			Module:   "channel",
+		},
+	})
+	if err != nil {
+		t.Fatalf("Handle failed: %v", err)
+	}
+
+	var log model.OperationLog
+	if err := database.WithContext(tenant.WithSystemScope(context.Background())).First(&log, "user_id = ?", 9).Error; err != nil {
+		t.Fatalf("未找到写入的操作日志: %v", err)
+	}
+	if log.TenantID != 42 {
+		t.Fatalf("operation_logs.tenant_id = %d，期望 42", log.TenantID)
+	}
+
+	err = subscriber.Handle(event.Event{
+		Topic: event.TopicOperationLog,
+		Payload: event.OperationLogPayload{
+			UserID: 10,
+			Action: "outbound_auth_failure",
+			Module: "channel",
+		},
+	})
+	if err == nil {
+		t.Fatal("无租户归属的操作日志在 on 模式下必须 fail-closed")
+	}
 }

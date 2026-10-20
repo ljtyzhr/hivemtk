@@ -19,14 +19,16 @@ const (
 // GET  /api/bridge/token/status  —— 查询配置状态（不回显明文）
 // POST /api/bridge/token/reset   —— 轮换：旧值转 PREV，生成新值返回（仅此一次明文）
 //
-// 存储优先级：DB system_config_kv（运行时可变）> 环境变量 BRIDGE_INGEST_TOKEN。
+// 存储优先级：DB platform_config_kv（运行时可变）> 环境变量 BRIDGE_INGEST_TOKEN。
+// 桥接凭证属于实例级通道凭证（非租户业务配置），必须与租户上下文解耦：
+// 入口校验发生在租户解析之前，用租户 KV 在 on 模式下会 fail-closed。
 type BridgeTokenService struct {
-	kv repository.SystemConfigKVRepository
+	kv repository.PlatformConfigKVRepository
 }
 
 // NewBridgeTokenService 创建服务（全局 DB 装配）
 func NewBridgeTokenService() *BridgeTokenService {
-	return &BridgeTokenService{kv: repository.NewSystemConfigKVRepository()}
+	return &BridgeTokenService{kv: repository.NewPlatformConfigKVRepository()}
 }
 
 func generateBridgeTokenValue() (string, error) {

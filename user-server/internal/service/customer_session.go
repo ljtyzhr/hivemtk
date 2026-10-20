@@ -116,7 +116,7 @@ func (s *CustomerSessionService) CreateSession(ctx context.Context, req *CreateS
 		return nil, err
 	}
 
-	MaybeSendAwayReply(session.SessionID, session.SessionID, string(session.Platform), session.AccountID)
+	MaybeSendAwayReply(ctx, session.SessionID, session.SessionID, string(session.Platform), session.AccountID)
 
 	DispatchSessionEventAsync(RuleEventConversationCreated, session.SessionID, session)
 

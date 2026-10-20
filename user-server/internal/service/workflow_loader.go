@@ -26,7 +26,7 @@ func NewWorkflowLoader() *WorkflowLoader {
 }
 
 func (l *WorkflowLoader) LoadWorkflow(ctx context.Context, workflowID string) (*MarketingWorkflow, error) {
-	if data, found := LoadAssetFromDB("marketing_workflow", workflowID); found {
+	if data, found := LoadAssetFromDB(ctx, "marketing_workflow", workflowID); found {
 		var w MarketingWorkflow
 		if err := json.Unmarshal(data, &w); err == nil {
 			w.ID = workflowID

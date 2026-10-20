@@ -78,8 +78,19 @@ func AppKeyResolve(resolver ChatChannelResolver) gin.HandlerFunc {
 			channelID = DefaultChannelID
 		}
 
+		// ref 槽位（X-Chat-Channel-Id / channel_id query / body.channel_id）里放的
+		// 可能是 app_key：安装引导生成的嵌入代码与 embed-sdk 都以 appKey 作为
+		// channel_ref 传入该槽位。解析语义与 service.VisitorChatService.resolveChannel
+		// 一致——先按 channel_id 列解析，失败再按 app_key 列回退。
+		resolvedViaAppKey := false
 		channel, err := resolver.ResolveByChannelID(c.Request.Context(), channelID)
 		if err != nil {
+			if ch, err2 := resolver.ResolveByAppKey(c.Request.Context(), channelID); err2 == nil {
+				channel, err = ch, nil
+				resolvedViaAppKey = true
+			}
+		}
+		if err != nil || channel == nil {
 
 			c.JSON(http.StatusUnauthorized, gin.H{
 				"code":    401,
@@ -115,6 +126,16 @@ func AppKeyResolve(resolver ChatChannelResolver) gin.HandlerFunc {
 
 		c.Set("chat_channel", channel)
 		c.Set("chat_channel_id", channel.ChannelID)
+		if resolvedViaAppKey {
+			c.Set("chat_app_key", channelID)
+		}
+		// 访客链租户绑定（specs/001-saas-multi-tenant T024）：channel 行自带租户
+		// 归属（写入时行自证），与上方 app_key 分支同语义。此前只有 app_key 分支
+		// 绑定租户，channel_id 槽位解析成功的请求在 on 模式会于下游 GORM 隔离
+		// callback 处 fail-closed（如 agent_statuses 拒绝无租户上下文的查询）。
+		if channel.TenantID != 0 {
+			c.Request = c.Request.WithContext(tenant.WithTenantID(c.Request.Context(), channel.TenantID))
+		}
 		c.Next()
 	}
 }

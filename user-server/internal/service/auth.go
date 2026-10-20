@@ -84,6 +84,9 @@ type RegisterRequest struct {
 	Email    string `json:"email" binding:"required,email"`
 	Phone    string `json:"phone,omitempty"`
 	RealName string `json:"real_name,omitempty"`
+	// TenantCode 加入哪个租户（on 模式必填：自助注册只在租户内加人，
+	// 不创建新租户；开户走 /api/tenant/register）
+	TenantCode string `json:"tenant_code,omitempty"`
 
 	// ---- 开户登记（平台监管责任）----
 	// 需求原文：租户开户必须收集「电话，邮箱，公司名称，负责人等」。
@@ -221,6 +224,19 @@ func (s *AuthService) resolveLoginIdentity(ctx context.Context, req *LoginReques
 	}
 }
 
+// bindUserTenant 把已解析出的用户行归属租户挂到 ctx 上（off 模式直通）。
+// 0 值历史行回落默认租户，与 tokenForUser 的签发口径一致。
+func bindUserTenant(ctx context.Context, user *model.SystemUser) context.Context {
+	if !tenant.IsMultiTenant() || user == nil {
+		return ctx
+	}
+	tid := user.TenantID
+	if tid == 0 {
+		tid = tenant.DefaultTenantID
+	}
+	return tenant.OnlyTenant(ctx, tid)
+}
+
 // tokenForUser 按用户实际归属租户签发 JWT（specs/001-saas-multi-tenant T031）
 //
 // 与历史 GenerateToken 的唯一差异是 tenantID：dataScope/dept/team 仍传空与 0，
@@ -265,10 +281,18 @@ func (s *AuthService) loginTenant(ctx context.Context, user *model.SystemUser) (
 }
 
 func (s *AuthService) loginWithUser(ctx context.Context, user *model.SystemUser) (*LoginResponse, error) {
+	// 身份已按全局通道解析出来，后续所有以 user_id 为主键的租户表读写
+	// （user_mfa / system_users.last_login / login_events）都必须挂在用户
+	// 实际归属租户上下文下：on 模式无租户绑定时隔离闸 fail-closed，错误被
+	// 吞掉就会把"MFA 查询失败"当成"MFA 未启用"直接放行。
+	ctx = bindUserTenant(ctx, user)
+
 	mfaSvc := NewMFAService()
 	mfaEnabled, err := mfaSvc.IsMFAEnabled(ctx, user.ID)
 	if err != nil {
 		logger.Errorf("MFA 状态查询失败: %v", err)
+		// fail-closed：查不出 MFA 状态时绝不能当"未启用"处理（绕过二次验证）。
+		return nil, errors.New("登录失败，请稍后重试")
 	}
 	if mfaEnabled {
 		tempToken, err := mfaSvc.IssueTempToken(ctx, user.ID, user.Username, user.Role)
@@ -517,6 +541,13 @@ var ErrEmailExists = errors.New("邮箱已被使用")
 //
 // 返回 LoginResponse 与登录流程结构一致，便于上层复用。
 func (s *AuthService) Register(ctx context.Context, req *RegisterRequest) (*LoginResponse, error) {
+	// 自助注册只在租户内加人：on 模式没有租户绑定就落库 = 隔离闸 fail-closed，
+	// 与其让用户看到一条库错误，不如在入口说清楚缺什么。
+	tenantID, boundTenant := tenant.FromContext(ctx)
+	if tenant.IsMultiTenant() && !boundTenant {
+		return nil, errors.New("多租户模式下注册必须提供有效的租户短码")
+	}
+
 	username := strings.TrimSpace(req.Username)
 	email := strings.TrimSpace(req.Email)
 	password := req.Password
@@ -534,10 +565,13 @@ func (s *AuthService) Register(ctx context.Context, req *RegisterRequest) (*Logi
 		return nil, err
 	}
 
+	// 用户名租户内唯一（callback 按 ctx 限定）；邮箱跨租户全局唯一
+	// （global_uniq_system_users_email 索引）——按租户查重会放过别的租户
+	// 已占用的邮箱，最终撞唯一索引变成 500。
 	if exists, _ := s.systemUserRepo.UsernameExists(ctx, username, 0); exists {
 		return nil, ErrUsernameExists
 	}
-	if exists, _ := s.systemUserRepo.EmailExists(ctx, email, 0); exists {
+	if exists, _ := s.systemUserRepo.EmailExistsGlobal(ctx, email); exists {
 		return nil, ErrEmailExists
 	}
 
@@ -547,6 +581,7 @@ func (s *AuthService) Register(ctx context.Context, req *RegisterRequest) (*Logi
 	}
 
 	user := &model.SystemUser{
+		TenantID: tenantID,
 		Username: username,
 		Password: password,
 		Email:    email,
@@ -965,7 +1000,8 @@ func (s *AuthService) InitAdminWithRegistration(ctx context.Context,
 
 	// 003 T013 开户赠送：失败仅 Warn 不阻断初始化（赠送可后补，开户不可逆）
 	if t.ID != 0 {
-		provisionTenantStarterKit(ctx, t.ID, repository.NewTenantRepository().GetDB())
+		provisionTenantStarterKit(ctx, t.ID, companyName, repository.NewTenantRepository().GetDB())
+		ProvisionTenantModules(ctx, t.ID)
 	}
 	return nil
 }

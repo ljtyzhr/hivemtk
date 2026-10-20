@@ -47,19 +47,28 @@ func (r *systemConfigRepo) GetConfig(ctx context.Context) (*model.SystemConfig, 
 }
 
 // SaveConfig 保存系统配置。
-// 系统配置是单例表：已存在（First 命中）时必须用 Save 原地更新——
-// 原 FirstOrCreate 在已存在时不写入任何传入字段，前端保存永远是假动作。
+// 每租户一行（tenant_id 唯一索引）：已存在（First 命中，租户由隔离 callback
+// 限定）时必须用 Save 原地更新——原 FirstOrCreate 在已存在时不写入任何传入
+// 字段，前端保存永远是假动作。
+//
+// TenantID 取自既有行而不是入参：admin 页面回传的 JSON 不带 tenant_id，
+// Save 会连同零值一起 UPDATE，若直接落库就把本租户的配置行写成了 tenant_id=0
+// （平台公共池），下一次读取立刻"配置消失"。
 func (r *systemConfigRepo) SaveConfig(ctx context.Context, config *model.SystemConfig) (*model.SystemConfig, error) {
 	var existing model.SystemConfig
 	err := r.db.WithContext(ctx).First(&existing).Error
 	switch {
 	case err == nil:
 		config.ID = existing.ID
+		config.TenantID = existing.TenantID
 		if err := r.db.WithContext(ctx).Save(config).Error; err != nil {
 			return nil, err
 		}
 		return config, nil
 	case errors.Is(err, gorm.ErrRecordNotFound):
+		if config.TenantID == 0 {
+			config.TenantID = scopeTenantID(ctx)
+		}
 		if err := r.db.WithContext(ctx).Create(config).Error; err != nil {
 			return nil, err
 		}

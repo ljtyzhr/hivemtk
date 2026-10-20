@@ -907,7 +907,7 @@ func (s *Customer360Service) GetCustomerList(ctx context.Context, page, pageSize
 
 	result := make(map[string]*Customer360DTO, len(userSessionsMap))
 	for userID, userSessions := range userSessionsMap {
-		dto := s.assembleCustomer360DTO(userSessions, messageMap, clueMap, orderMap)
+		dto := s.assembleCustomer360DTO(ctx, userSessions, messageMap, clueMap, orderMap)
 		if dto == nil {
 			continue
 		}
@@ -940,6 +940,7 @@ func (s *Customer360Service) indexCluesByAccount(ctx context.Context, accounts [
 }
 
 func (s *Customer360Service) assembleCustomer360DTO(
+	ctx context.Context,
 
 	userSessions []*model.CustomerSession,
 
@@ -954,15 +955,15 @@ func (s *Customer360Service) assembleCustomer360DTO(
 		return nil
 	}
 	dto := &Customer360DTO{}
-	dto.BasicInfo = s.buildBasicInfo(context.Background(), userSessions)
-	dto.SessionStats = s.buildSessionStats(context.Background(), userSessions)
-	dto.SessionHistory = s.buildSessionHistory(context.Background(), userSessions)
+	dto.BasicInfo = s.buildBasicInfo(ctx, userSessions)
+	dto.SessionStats = s.buildSessionStats(ctx, userSessions)
+	dto.SessionHistory = s.buildSessionHistory(ctx, userSessions)
 	dto.MessageHistory = s.buildMessageHistoryFromMap(userSessions, messageMap)
 	dto.ClueInfo = s.buildClueInfoFromMap(userSessions, clueMap)
 	dto.OrderInfo = s.buildOrderInfoFromMap(userSessions, orderMap)
-	dto.InteractionStats = s.buildInteractionStats(context.Background(), userSessions)
+	dto.InteractionStats = s.buildInteractionStats(ctx, userSessions)
 
-	dto.UserProfile = s.buildUserProfile(context.Background(), userSessions, dto.InteractionStats, dto.OrderInfo, "")
+	dto.UserProfile = s.buildUserProfile(ctx, userSessions, dto.InteractionStats, dto.OrderInfo, "")
 	return dto
 }
 

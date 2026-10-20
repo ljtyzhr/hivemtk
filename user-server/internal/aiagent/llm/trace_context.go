@@ -324,8 +324,9 @@ func PublishTraceEvent(event TraceEvent) {
 }
 
 // PublishLLMCall 发布 LLM 调用事件
-func PublishLLMCall(traceID, spanID, parentSpanID, provider, model string, durationMs int64, status string, metadata map[string]any) {
+func PublishLLMCall(tenantID uint, traceID, spanID, parentSpanID, provider, model string, durationMs int64, status string, metadata map[string]any) {
 	PublishTraceEvent(TraceEvent{
+		TenantID:     tenantID,
 		TraceID:      traceID,
 		SpanID:       spanID,
 		ParentSpanID: parentSpanID,
@@ -342,8 +343,9 @@ func PublishLLMCall(traceID, spanID, parentSpanID, provider, model string, durat
 }
 
 // PublishToolCall 发布工具调用事件
-func PublishToolCall(traceID, spanID, parentSpanID, toolName string, durationMs int64, status string, metadata map[string]any) {
+func PublishToolCall(tenantID uint, traceID, spanID, parentSpanID, toolName string, durationMs int64, status string, metadata map[string]any) {
 	PublishTraceEvent(TraceEvent{
+		TenantID:     tenantID,
 		TraceID:      traceID,
 		SpanID:       spanID,
 		ParentSpanID: parentSpanID,
@@ -357,8 +359,9 @@ func PublishToolCall(traceID, spanID, parentSpanID, toolName string, durationMs 
 }
 
 // PublishDBOp 发布 DB 操作事件
-func PublishDBOp(traceID, spanID, parentSpanID, operation string, durationMs int64, status string, metadata map[string]any) {
+func PublishDBOp(tenantID uint, traceID, spanID, parentSpanID, operation string, durationMs int64, status string, metadata map[string]any) {
 	PublishTraceEvent(TraceEvent{
+		TenantID:     tenantID,
 		TraceID:      traceID,
 		SpanID:       spanID,
 		ParentSpanID: parentSpanID,

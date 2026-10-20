@@ -182,11 +182,11 @@ func (s *ScriptABService) ExpireScript(ctx context.Context, scriptID uint) error
 }
 
 // RecordExposure 记录曝光（调用方以 goroutine fire-and-forget 调用）
-func (s *ScriptABService) RecordExposure(scriptID uint, version int, oneID string, customerID string, conversationID, traceID string) {
+func (s *ScriptABService) RecordExposure(ctx context.Context, scriptID uint, version int, oneID string, customerID string, conversationID, traceID string) {
 	if scriptID == 0 || oneID == "" {
 		return
 	}
-	cfg := s.GetConfig(context.Background(), scriptID)
+	cfg := s.GetConfig(ctx, scriptID)
 	e := &model.ScriptExposureLog{
 		ScriptID:       scriptID,
 		Version:        version,
@@ -197,9 +197,9 @@ func (s *ScriptABService) RecordExposure(scriptID uint, version int, oneID strin
 		TraceID:        traceID,
 		ExposedAt:      s.now(),
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), utils.ShortTimeout)
+	writeCtx, cancel := context.WithTimeout(ctx, utils.ShortTimeout)
 	defer cancel()
-	if err := s.repo.CreateScriptExposure(ctx, e); err != nil {
+	if err := s.repo.CreateScriptExposure(writeCtx, e); err != nil {
 		slog.Warn("[ScriptAB] 曝光落库失败（不影响主链路）", "script_id", scriptID, "err", err)
 	}
 }

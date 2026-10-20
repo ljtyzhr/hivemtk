@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"strings"
 	"time"
 
 	"hivemtk-user/internal/model"
@@ -37,9 +38,10 @@ const (
 	starterKitTemplateKey = "starter-bundle"
 )
 
-// provisionTenantStarterKit 为新租户克隆起步智能体并创建内置起步资产包（幂等）。
+// provisionTenantStarterKit 为新租户建立站点配置行、克隆起步智能体并创建
+// 内置起步资产包（幂等）。
 // database 由调用方经仓储 GetDB 传入：service 禁止全局摸 db.GetDB（架构门 L4）。
-func provisionTenantStarterKit(ctx context.Context, tenantID uint, database *gorm.DB) {
+func provisionTenantStarterKit(ctx context.Context, tenantID uint, tenantName string, database *gorm.DB) {
 	if tenantID == 0 {
 		return
 	}
@@ -50,8 +52,40 @@ func provisionTenantStarterKit(ctx context.Context, tenantID uint, database *gor
 	// 注册/初始化 ctx 无租户绑定：走系统域豁免通道，行上显式 TenantID 定归属
 	sysCtx := tenant.WithSystemScope(ctx)
 
+	provisionTenantSiteConfig(sysCtx, database, tenantID, tenantName)
 	provisionStarterAgent(sysCtx, database, tenantID)
 	provisionStarterBundle(sysCtx, database, tenantID)
+}
+
+// provisionTenantSiteConfig 为新租户建一行站点配置（一租户一行，幂等）
+//
+// 站点名/主题色/注册开关/上传上限都是租户自己的运营口径：没有这行时读取方会
+// 落 service 层默认值，等于新商户默默继承了一套"别人的默认站点"。开户时显式
+// 建行，默认值与 service.defaultConfig 保持一致。
+func provisionTenantSiteConfig(sysCtx context.Context, db *gorm.DB, tenantID uint, tenantName string) {
+	var existing int64
+	if err := db.WithContext(sysCtx).Model(&model.SystemConfig{}).
+		Where("tenant_id = ?", tenantID).Count(&existing).Error; err != nil {
+		logger.Warnf("[starter-kit] tenant=%d 站点配置幂等检查失败（跳过建行，不阻断注册）: %v", tenantID, err)
+		return
+	}
+	if existing > 0 {
+		return
+	}
+	cfg := &model.SystemConfig{
+		TenantID:             tenantID,
+		Name:                 strings.TrimSpace(tenantName),
+		ThemeColor:           "#409EFF",
+		EnableRegister:       true,
+		EnableEmailMarketing: true,
+		EnableRAG:            true,
+		MaxUploadSizeMB:      50,
+	}
+	if err := db.WithContext(sysCtx).Create(cfg).Error; err != nil {
+		logger.Warnf("[starter-kit] tenant=%d 站点配置创建失败（不阻断注册）: %v", tenantID, err)
+		return
+	}
+	logger.Infof("[starter-kit] tenant=%d 已建立站点配置（site_name=%s）", tenantID, cfg.Name)
 }
 
 // provisionStarterAgent 克隆全局 default_sales 为租户级副本

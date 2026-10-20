@@ -31,6 +31,7 @@ func getPermChecker() PermChecker {
 
 // AuditEntry middleware 自有的审计日志条目（镜像 model.OperationLog 所需字段）
 type AuditEntry struct {
+	TenantID   uint
 	UserID     uint
 	Username   string
 	Action     string
@@ -81,6 +82,12 @@ type ChatChannelResolver interface {
 	ResolveByAppKey(ctx context.Context, appKey string) (*ChatChannelView, error)
 	ResolveByChannelID(ctx context.Context, channelID string) (*ChatChannelView, error)
 }
+
+// TenantCodeResolver 租户短码解析窄接口（装配层由 service.TenantService 适配）。
+//
+// 为什么做成注入的窄接口而不是直接调用 service：service 包已经 import middleware，
+// 反向依赖会成环；而"公开入口按短码定租户"这件事只有装配层知道该用哪个来源。
+type TenantCodeResolver func(ctx context.Context, code string) (uint, error)
 
 func warnPortMissing(port string) {
 	log.Printf("[middleware] %s 未注入（装配遗漏），已降级处理", port)

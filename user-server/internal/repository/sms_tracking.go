@@ -8,6 +8,7 @@ import (
 
 	"hivemtk-user/internal/model"
 	_db "hivemtk-user/internal/pkg/db"
+	"hivemtk-user/internal/pkg/tenant"
 
 	"gorm.io/gorm"
 )
@@ -18,6 +19,8 @@ type SmsTrackingRepository interface {
 	UpdateStatus(ctx context.Context, status *model.SmsDeliveryStatus) error
 	GetByMessageID(ctx context.Context, messageID string) (*model.SmsDeliveryStatus, error)
 	MessageIDExists(ctx context.Context, messageID string) (bool, error)
+	// TenantIDByMessageID 系统作用域反查回执归属租户；跨租户同号时 ok=false（拒猜）
+	TenantIDByMessageID(ctx context.Context, messageID string) (uint, bool, error)
 
 	ListStatusesByJob(ctx context.Context, jobID string, page, limit int) ([]*model.SmsDeliveryStatus, int64, error)
 	ListStatusesByPhone(ctx context.Context, phone string, page, limit int) ([]*model.SmsDeliveryStatus, int64, error)
@@ -76,6 +79,28 @@ func (r *smsTrackingRepo) GetByMessageID(ctx context.Context, messageID string) 
 		return nil, err
 	}
 	return &status, nil
+}
+
+// TenantIDByMessageID 运营商回执没有租户线索，靠发送侧预落的 message_id 行自证归属。
+// 唯一索引是 (tenant_id, message_id)：同一 message_id 若在多个租户下都有行，
+// 无法判定本次回执属于谁 ⇒ 返回 ok=false，由调用方 fail-closed（绝不随手挑一个）。
+func (r *smsTrackingRepo) TenantIDByMessageID(ctx context.Context, messageID string) (uint, bool, error) {
+	if r == nil || r.db == nil {
+		return 0, false, errNilDB
+	}
+	var ids []uint
+	if err := r.db.WithContext(tenant.WithSystemScope(ctx)).
+		Model(&model.SmsDeliveryStatus{}).
+		Distinct("tenant_id").
+		Where("message_id = ?", messageID).
+		Limit(2).
+		Pluck("tenant_id", &ids).Error; err != nil {
+		return 0, false, err
+	}
+	if len(ids) != 1 || ids[0] == 0 {
+		return 0, false, nil
+	}
+	return ids[0], true, nil
 }
 
 func (r *smsTrackingRepo) MessageIDExists(ctx context.Context, messageID string) (bool, error) {

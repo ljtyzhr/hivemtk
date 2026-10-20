@@ -10,6 +10,7 @@ import (
 
 	"hivemtk-user/internal/aiagent/llm"
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 )
 
@@ -205,7 +206,7 @@ func (s *IntentRecognizer) RecognizeIntent(ctx context.Context, message, custome
 		}, nil
 	}
 
-	if !loadIntentEnabled() {
+	if !loadIntentEnabledFor(ctx) {
 		return &IntentResult{
 			Major:      IntentMajorConsult,
 			Minor:      IntentMinorConsultGeneral,
@@ -464,7 +465,7 @@ func (s *IntentRecognizer) saveIntentLog(ctx context.Context, customerID, sessio
 				logger.Errorf("intent_recognition_fine: async persist recovered from panic: %v\n%s", r, debug.Stack())
 			}
 		}()
-		if err := s.logRepo.Create(context.Background(), log); err != nil {
+		if err := s.logRepo.Create(tenant.BackgroundWithTenant(ctx), log); err != nil {
 			logger.Errorf("intent_recognition_fine: async persist intent log failed: %v", err)
 		}
 	}()

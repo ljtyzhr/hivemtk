@@ -60,8 +60,15 @@ func (c *SmsUnsubscribeController) InboundSmsWebhook(ctx *gin.Context) {
 		response.Error(ctx, http.StatusBadRequest, "参数错误："+err.Error())
 		return
 	}
+	// 上行短信只有手机号，无法反查唯一租户（同一号码可属于多个租户）：
+	// on 模式必须由 webhook 地址上的 tenant_code 显式声明归属，缺失即拒绝。
+	requestCtx, err := resolvePublicTenantCtx(ctx, ctx.Query("tenant_code"))
+	if err != nil {
+		response.Error(ctx, http.StatusBadRequest, "无法确定租户："+err.Error())
+		return
+	}
 
-	matched, err := c.svc.ProcessUnsubscribeReply(ctx.Request.Context(), req.Phone, req.Content, req.MessageID)
+	matched, err := c.svc.ProcessUnsubscribeReply(requestCtx, req.Phone, req.Content, req.MessageID)
 	if err != nil {
 		response.ErrorFromDB(ctx, err, "处理上行短信失败："+err.Error())
 		return

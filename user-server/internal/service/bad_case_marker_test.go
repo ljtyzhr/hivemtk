@@ -18,6 +18,7 @@ import (
 
 	"hivemtk-user/internal/dto"
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 )
 
 // newBadCaseOrchestrator 造一个只带配置与标记器的编排器：
@@ -253,6 +254,28 @@ func TestBadCaseMarkBadCase_UsesFreshContextNotRequestContext(t *testing.T) {
 	}
 	if blockedSawCancel.Load() {
 		t.Error("留痕协程用的是请求 ctx：请求一结束这次写入就被取消掉")
+	}
+}
+
+// 留痕协程换了新 ctx，但租户归属必须跟过去：多租户下 bad_cases 的写入
+// 由隔离 callback 按 ctx 填充 tenant_id，丢了归属会被 fail-closed 拒绝。
+func TestBadCaseMarkBadCase_PreservesTenantBinding(t *testing.T) {
+	got := make(chan uint, 1)
+	o := newBadCaseOrchestrator(func(ctx context.Context, in BadCaseMarkInput) {
+		id, _ := tenant.FromContext(ctx)
+		got <- id
+	})
+	reqCtx := tenant.WithTenantID(context.Background(), 42)
+	o.markBadCase(reqCtx, "sess_tenant", lowConfResp("答", 1),
+		&IncomingContext{MessageID: "msg_tenant"}, nil, 0.2, 0.7)
+
+	select {
+	case id := <-got:
+		if id != 42 {
+			t.Fatalf("留痕 ctx 丢失租户归属: got %d want 42", id)
+		}
+	case <-time.After(2 * time.Second):
+		t.Fatal("标记器没被调用（协程没起来？）")
 	}
 }
 

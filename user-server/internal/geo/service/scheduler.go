@@ -9,7 +9,6 @@ import (
 
 	"hivemtk-user/internal/geo/model"
 	"hivemtk-user/internal/geo/repository"
-	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/timeutil"
 	"hivemtk-user/internal/pkg/utils/logger"
 )
@@ -23,14 +22,15 @@ func runeTruncate(s string, n int) string {
 }
 
 func sovRefreshJob(ctx context.Context) (string, error) {
-	// 判读：触达租户表 —— geo_keywords（采样）、geo_probe_runs（逐词探针落行）、
-	// geo_daily_stats（聚合写入）。本 job 由 cron 派发、没有可绑的请求租户，
-	// TENANT_MODE=on 下裸 ctx 的 GORM 调用被隔离 callback fail-closed（生产日志形态：
-	// "[tenant] 表 X 需要租户上下文但 ctx 未绑定"）⇒ 整轮空跑。入口补平台级
-	// tenant.WithSystemScope，与 job_manager.go StartJob/execute 的运行记录同口径；
-	// WithValue 保留 execute 已挂好的超时与取消。口径取"全平台采样聚合"（运维观测），
-	// 不按租户拆分。
-	ctx = tenant.WithSystemScope(ctx)
+	// 判读（二审 P1-2）：触达租户表 —— geo_keywords（采样）、geo_probe_runs（逐词
+	// 探针落行）、geo_daily_stats（聚合写入），且采样对象是**本租户的词表** ⇒ 必须
+	// 逐租户执行，不能"执行一次 + 全平台聚合"（探针行/聚合行是租户行，跨租户 union
+	// 采样会把 A 租户的词探完记到 B 名下）。执行形态由 JobManager 保证：cron 条目按
+	// (任务, 租户) 注册、手动触发经 Fanout 扇出，进来时 ctx 已绑定本租户（execute
+	// 另叠加 def.Timeout）。这里**不再**包 system scope —— 那正是串租户的根源；裸
+	// ctx 在 on 模式会被隔离 callback fail-closed 拒绝（那是漏装配的兜底，不是常态）。
+	// 代价说明：跨租户重叠的关键词会被各租户各探一次（外部 LLM 调用 N 次）——
+	// 探针结果是租户行，无法共享，属可接受成本。
 
 	keywordRepo := repository.NewGeoKeywordRepository()
 	probeRepo := repository.NewGeoProbeRunRepository()
@@ -181,10 +181,11 @@ func loadNegativeKeywords(config *model.GeoConfig) []string {
 }
 
 func negativeMonitorJob(ctx context.Context) (string, error) {
-	// 判读：触达租户表 —— geo_config（读品牌名/负面词）、geo_probe_runs（探针落行）、
-	// geo_alerts（命中写告警）。同 sov_refresh：cron 派发无租户绑定，入口补平台级
-	// system scope 避免 TENANT_MODE=on 下 fail-closed 空跑。
-	ctx = tenant.WithSystemScope(ctx)
+	// 判读（二审 P1-2）：触达租户表 —— geo_config（读**本租户**品牌名/负面词）、
+	// geo_probe_runs（探针落行）、geo_alerts（命中写告警）。品牌名是逐租户配置，
+	// system scope 下 cfgRepo.Get 会读成跨租户 union 的首行（拿 A 租户的品牌去探、
+	// 告警落默认租户）⇒ 必须逐租户执行。ctx 已由 JobManager 绑定本租户（见
+	// job_manager.go execute）；这里不再包 system scope。
 
 	cfgRepo := repository.NewGeoConfigRepository()
 	probeRepo := repository.NewGeoProbeRunRepository()
@@ -259,9 +260,10 @@ func negativeMonitorJob(ctx context.Context) (string, error) {
 }
 
 func sourceCatalogSyncJob(ctx context.Context) (string, error) {
-	// 判读：触达租户表 geo_source_catalog（读种子 URL + 回写 last_checked）。
-	// 同其它 cron job：入口补平台级 system scope，on 模式下不 fail-closed。
-	ctx = tenant.WithSystemScope(ctx)
+	// 判读（二审 P1-2）：触达租户表 geo_source_catalog（读**本租户**种子 URL +
+	// 回写 last_checked）。信源种子是逐租户配置 ⇒ 必须逐租户执行；ctx 已由
+	// JobManager 绑定本租户，这里不再包 system scope（跨租户 union 读会把别的
+	// 租户的种子拿来探、回写也落错行）。
 
 	sourceRepo := repository.NewGeoSourceCatalogRepository()
 	crawlerSvc := NewCrawlerService(sourceRepo)
@@ -292,10 +294,11 @@ func sourceCatalogSyncJob(ctx context.Context) (string, error) {
 }
 
 func crawlerMonitorJob(ctx context.Context) (string, error) {
-	// 判读：CrawlerMonitorCronWithContext 读 geo_keywords/geo_competitors、写
-	// geo_crawler_visits（均带 tenant_id）⇒ 触达租户表。cron 派发无租户绑定，
-	// 入口补平台级 system scope（与其余 GEO job 同口径）。
-	ctx = tenant.WithSystemScope(ctx)
+	// 判读（二审 P1-2）：CrawlerMonitorCronWithContext 读 geo_keywords/geo_competitors
+	// （**本租户**词表与竞品清单）、写 geo_crawler_visits（均带 tenant_id）⇒ 必须
+	// 逐租户执行。ctx 已由 JobManager 绑定本租户，这里不再包 system scope。
+	// 注意：手动同步入口 CrawlerMonitorCronSync 是另一条不经 JobManager 的路径，
+	// 在那里自行 Fanout —— 两条路径互不嵌套，不会双重扇出。
 
 	n, err := CrawlerMonitorCronWithContext(ctx)
 	if err != nil {

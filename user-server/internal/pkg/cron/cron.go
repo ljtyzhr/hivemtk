@@ -6,6 +6,7 @@ import (
 	geoservice "hivemtk-user/internal/geo/service"
 	opsservice "hivemtk-user/internal/ops/service"
 	"hivemtk-user/internal/pkg/db"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/service"
@@ -58,6 +59,18 @@ func (tm *TaskManager) RemoveTask(id cron.EntryID) {
 	tm.cron.Remove(id)
 }
 
+// fanoutTask 按活跃租户逐个执行后台任务。
+//
+// cron 交来的 ctx 不含租户，而带 tenant_id 列的表在 on 模式下要求绑定租户，
+// 未绑定即被隔离守卫拒绝（活码、令牌、升级链规则都属此类）。
+// Fanout 只在全部租户都失败时才把错误汇总回调用方，单租户失败由它就地出声并继续其余租户。
+func fanoutTask(ctx context.Context, run func(ctx context.Context) error) error {
+	_, err := tenant.Fanout(ctx, nil, func(ctx context.Context, _ uint) (int64, error) {
+		return 0, run(ctx)
+	})
+	return err
+}
+
 func InitCron() {
 	mgr := GetTaskManager()
 	_, err := mgr.AddTask("0 * * * * *", func() {
@@ -101,7 +114,12 @@ func InitCron() {
 	}
 
 	_, err = mgr.AddTask("5 */5 * * * *", mgr.goTask("handoff_chain", func(ctx context.Context) {
-		if _, cerr := service.NewHandoffChainService().RunCron(ctx, 200); cerr != nil {
+		// 升级链规则存放在租户维的参数表里：不逐租户注入 ctx 则每轮每条会话都被守卫拒于门外。
+		cerr := fanoutTask(ctx, func(ctx context.Context) error {
+			_, nerr := service.NewHandoffChainService().RunCron(ctx, 200)
+			return nerr
+		})
+		if cerr != nil {
 			logger.Info(fmt.Sprintf("工单升级链定时任务执行失败 %s", cerr.Error()))
 		}
 	}))
@@ -146,8 +164,7 @@ func LiveCodeRotateCron() {
 
 	liveCodeService := service.NewLiveCodeService(db.GetDB())
 
-	err := liveCodeService.RotateLiveCodes(context.Background())
-	if err != nil {
+	if err := fanoutTask(context.Background(), liveCodeService.RotateLiveCodes); err != nil {
 		logger.Error(err, "活码轮询定时任务执行失败")
 		return
 	}
@@ -159,7 +176,7 @@ func LiveCodeRotateCron() {
 func PasswordResetTokenCleanupCron() {
 	logger.Info("开始执行密码重置令牌清理定时任务...")
 	resetService := service.NewPasswordResetService(db.GetDB())
-	if err := resetService.CleanupExpiredTokens(context.Background()); err != nil {
+	if err := fanoutTask(context.Background(), resetService.CleanupExpiredTokens); err != nil {
 		logger.Error(err, "密码重置令牌清理定时任务执行失败")
 		return
 	}

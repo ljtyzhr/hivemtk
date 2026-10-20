@@ -12,6 +12,7 @@ import (
 	"gorm.io/gorm"
 
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
@@ -358,6 +359,10 @@ func (s *SmsDeliveryTrackerService) RecordFromProvider(ctx context.Context, r *P
 	if r.MessageID == "" {
 		return errors.New("messageId 不能为空")
 	}
+	ctx, err := s.bindReportTenant(ctx, r.MessageID)
+	if err != nil {
+		return err
+	}
 
 	req := &DeliveryReportRequest{
 		MessageID:   r.MessageID,
@@ -372,10 +377,13 @@ func (s *SmsDeliveryTrackerService) RecordFromProvider(ctx context.Context, r *P
 	}
 	if err := s.tracking.RecordDeliveryReport(ctx, req); err != nil {
 		logger.Errorf("[SmsDeliveryTracker] record delivery report: %v", err)
+		// 回执落库失败必须让运营商看到失败（否则状态报告永久丢失，
+		// on 模式下租户未解析时更是静默 200 + 零写入）
+		return err
 	}
 
 	go func(phone, carrier string) {
-		bgCtx, cancel := context.WithTimeout(context.Background(), utils.ShortTimeout)
+		bgCtx, cancel := context.WithTimeout(tenant.BackgroundWithTenant(ctx), utils.ShortTimeout)
 		defer cancel()
 		_ = s.DetectAndRecordPortability(bgCtx, phone, carrier)
 	}(r.Phone, r.Carrier)
@@ -385,6 +393,27 @@ func (s *SmsDeliveryTrackerService) RecordFromProvider(ctx context.Context, r *P
 	}
 
 	return nil
+}
+
+// bindReportTenant 运营商回执没有登录态，租户线索只有两处：
+// 调用方显式绑定（webhook 上的 tenant_code），或发送侧预落的 message_id 行自证。
+// 都拿不到就保持无绑定——on 模式下由隔离 callback fail-closed，
+// 绝不回落到默认租户（那会把回执写进别的租户）。
+func (s *SmsDeliveryTrackerService) bindReportTenant(ctx context.Context, messageID string) (context.Context, error) {
+	if !tenant.IsMultiTenant() {
+		return ctx, nil
+	}
+	if _, bound := tenant.FromContext(ctx); bound {
+		return ctx, nil
+	}
+	id, ok, err := s.tracking.TenantIDByMessageID(ctx, messageID)
+	if err != nil {
+		return ctx, fmt.Errorf("解析短信回执租户失败: %w", err)
+	}
+	if !ok {
+		return ctx, nil
+	}
+	return tenant.OnlyTenant(ctx, id), nil
 }
 
 // MarshalReport 序列化原始回执（用于持久化到 raw_payload 字段）

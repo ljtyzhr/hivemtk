@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"fmt"
 	"os"
 	"strings"
@@ -31,38 +32,44 @@ type PlatformConfig struct {
 // 已替换为正式域名（work 子域 = 用户端应用入口）—— 全仓只此一处（平台配置 cloud_url / env PLATFORM_CLOUD_URL 可覆盖）。
 const DefaultCloudURL = "https://work.xapptool.cn"
 
-// cloudURLProvider 是 urls.cloud_url 参数中心取值口（R2 参数化）。
-// 默认返回空串 = 未装配，CloudURL() 会继续回落到 env/常量，等价于接线前行为。
+// cloudURLProvider 是 urls.cloud_url 参数中心取值口（R2 参数化，R5-3 起按 ctx 取租户覆盖）。
+// 默认返回空串 = 未装配，CloudURLFor() 会继续回落到 env/常量，等价于接线前行为。
 //
 // 做成 provider 而不是在这里调 config_param service：config 不能反向依赖 service
 // （service 层 import 了 config，反向会成环），装配点在 internal/app/url_params_wiring.go。
-var cloudURLProvider = func() string { return "" }
+var cloudURLProvider = func(ctx context.Context) string { return "" }
 
 // SetCloudURLProvider 注入 urls.cloud_url 参数中心取值口。传 nil 是空操作而不是复位
 // （与本仓其余 seam 一致，防止装配顺序出错把兜底顶掉）。
-func SetCloudURLProvider(fn func() string) {
+func SetCloudURLProvider(fn func(ctx context.Context) string) {
 	if fn != nil {
 		cloudURLProvider = fn
 	}
 }
 
-// CloudURL 云端版地址：已装配平台配置 > 环境变量 PLATFORM_CLOUD_URL > 参数中心 urls.cloud_url > 占位常量。
+// CloudURLFor 云端版地址：已装配平台配置 > 环境变量 PLATFORM_CLOUD_URL > 参数中心 urls.cloud_url > 占位常量。
+//
+// ctx 用于参数中心的租户覆盖解析：SaaS 模式绑定租户后读到本租户覆盖值，未绑定
+// （启动期 / 平台级调用）回落平台默认值——不会借用别的租户的配置。
 //
 // 刻意与 PlatformURL 不同：PlatformURL 关闭态恒空（"没有平台可连"是合法值），
 // 而云端地址是 public config 的展示字段，任何形态都要给前端一个可渲染的值
 // —— 离线（PLATFORM_ENABLED=false）回落占位常量而非空串。
-func CloudURL() string {
+func CloudURLFor(ctx context.Context) string {
 	if PlatformCfg != nil && strings.TrimSpace(PlatformCfg.CloudURL) != "" {
 		return strings.TrimSpace(PlatformCfg.CloudURL)
 	}
 	if v := strings.TrimSpace(os.Getenv("PLATFORM_CLOUD_URL")); v != "" {
 		return v
 	}
-	if v := strings.TrimSpace(cloudURLProvider()); v != "" {
+	if v := strings.TrimSpace(cloudURLProvider(ctx)); v != "" {
 		return v
 	}
 	return DefaultCloudURL
 }
+
+// CloudURL 无 ctx 形态：平台级调用（无租户归属）等价于未绑定租户读取。
+func CloudURL() string { return CloudURLFor(context.Background()) }
 
 // PlatformCfg 全局平台配置（运行时唯一实例）
 //

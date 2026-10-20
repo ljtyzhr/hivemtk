@@ -13,6 +13,7 @@ import (
 
 	"hivemtk-user/internal/config"
 	"hivemtk-user/internal/pkg/tenant"
+	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/logger"
 )
 
@@ -383,6 +384,12 @@ type ModuleSyncResult struct {
 func (s *ModuleCatalogService) Sync(ctx context.Context) (*ModuleSyncResult, error) {
 	start := time.Now()
 
+	// 请求租户必须在挂 SystemScope **之前**取：那一层会把 ctx 的写权限放大到
+	// 全租户，但仍保留租户绑定（WithSystemScope 不剥 value），这里取的是
+	// 「谁发起了本轮同步」。手动同步按钮与开户后的异步补铺都带着它；后台周期
+	// runner 没有绑定（ok=false），按单商户旧行为处理。
+	reqTenantID, reqTenantBound := tenant.FromContext(ctx)
+
 	// 同步/离线引导跑在请求之外（后台 runner、启动期、手动同步按钮），ctx 可能
 	// 无租户绑定 —— on 模式直连会被隔离 callback fail-closed，Sync 整体报错、
 	// 镜像永不落地（P1 形态：已购模块永远激活不了，闸停在空态）。挂
@@ -484,14 +491,52 @@ func (s *ModuleCatalogService) Sync(ctx context.Context) (*ModuleSyncResult, err
 		}
 		groups[tid] = append(groups[tid], row)
 	}
-	// 非默认租户拿到任何一行，就必须同时拿到基础模块行：boot=true 之后判定
-	// 按行走，缺 base 行会把 core/customer 等基础能力一并判关（空镜像给
-	// 基础包、有镜像却不给基础包是自相矛盾的）。
+	// 发起同步的租户即使一笔订单都没有，也必须是本轮落行的对象：新注册商户
+	// 正是这种形态（本地没有任何订单）。旧逻辑只给「有已付款订单」的租户建
+	// 分组，于是它拿到 0 行 —— 闸按空镜像只放行基础包，平台已按 owned 下发的
+	// 0 元模块也被判关（线上表现：除基础外的页面一律 4301、菜单只剩骨架）。
+	if reqTenantBound && reqTenantID != tenant.DefaultTenantID {
+		if _, ok := groups[reqTenantID]; !ok {
+			groups[reqTenantID] = nil
+		}
+	}
+	// 非默认租户拿到任何一行，就必须同时拿到基础模块行与 0 元赠送行：
+	// boot=true 之后判定按行走，缺 base 行会把 core/customer 等基础能力一并
+	// 判关（空镜像给基础包、有镜像却不给基础包是自相矛盾的）；0 元模块同理 ——
+	// 平台把它们算进 active_keys 并标 gift，本地却只落默认租户，等于对每个
+	// 非默认租户静默收回免费能力。
+	//
+	// 收费模块（PriceCents>0）不在此列：它们只对下单租户可见，落点由上面的
+	// 订单归并决定；对没下单的租户复制就是白送。
 	for tid, g := range groups {
 		if tid == tenant.DefaultTenantID {
 			continue
 		}
-		groups[tid] = append(g, baseTenantModuleRows(now)...)
+		have := make(map[string]bool, len(g)+len(model.BaseModuleKeys()))
+		for _, r := range g {
+			have[r.ModuleKey] = true
+		}
+		for _, r := range baseTenantModuleRows(now) {
+			if have[r.ModuleKey] {
+				continue
+			}
+			g = append(g, r)
+			have[r.ModuleKey] = true
+		}
+		for _, r := range rows {
+			if r.PriceCents != 0 || isBaseModuleKey(r.ModuleKey) || have[r.ModuleKey] {
+				continue
+			}
+			// 每个租户各拿一份独立行：隔离 callback 会把 TenantID 写在行上，
+			// 复用同一指针会被跨租户校验拒绝（或把后一个租户写成前一个）。
+			clone := *r
+			clone.TenantID = 0
+			clone.Source = model.TenantModuleSourceGift
+			clone.ActivatedAt = now
+			g = append(g, &clone)
+			have[r.ModuleKey] = true
+		}
+		groups[tid] = g
 	}
 	tids := make([]uint, 0, len(groups))
 	for tid := range groups {
@@ -727,6 +772,32 @@ func (s *ModuleCatalogService) bootstrapOffline(ctx context.Context, start time.
 		ActiveCount: len(rows), Source: "offline_bootstrap",
 		Message: "未连接平台，已按目录开通全部免费能力（浏览器自动化除外）",
 	}, nil
+}
+
+// ProvisionTenantModules 开户时给新租户铺模块镜像（幂等，失败不阻断开户）。
+//
+// 为什么开户就要铺、不能等用户点「同步」：模块闸对空镜像只放行基础包，
+// 新商户登录后除基础外的每一页都回 4301、「初始化只有骨架」。基础行在本地
+// 直接写（不依赖平台可达，线上事故里平台一直是好的，缺的是本地这步）；
+// 0 元赠送集与订阅镜像需要平台快照，放到后台异步补 —— 开户请求不能等一次
+// 外部 HMAC 往返，失败也只是晚 10 分钟（周期同步会走同一条 Sync）。
+func ProvisionTenantModules(ctx context.Context, tenantID uint) {
+	if tenantID == 0 || !tenant.IsMultiTenant() {
+		return
+	}
+	tctx := tenant.OnlyTenant(ctx, tenantID)
+	if err := repository.NewTenantModuleRepository().
+		UpsertMany(tctx, baseTenantModuleRows(time.Now())); err != nil {
+		logger.Warnf("[tenant-provision] tenant=%d 基础模块行写入失败（不阻断开户）: %v", tenantID, err)
+	}
+	// 后台任务只认租户归属：不继承请求 ctx 的取消（开户响应返回后仍要跑完），
+	// 也不带 SystemScope（否则同步的落点归并会把行写回默认租户）。
+	bg := tenant.OnlyTenant(context.Background(), tenantID)
+	utils.SafeGoDetached(bg, "module.tenant_provision", 30*time.Second, func(c context.Context) {
+		if _, err := NewModuleCatalogService().Sync(c); err != nil {
+			logger.Warnf("[tenant-provision] tenant=%d 模块同步失败（周期同步会补）: %v", tenantID, err)
+		}
+	})
 }
 
 // sourceOf 决定本地镜像记录的开通来源。

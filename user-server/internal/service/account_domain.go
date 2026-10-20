@@ -6,6 +6,7 @@ import (
 	"context"
 	"hivemtk-user/internal/dto"
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/repository"
 )
 
@@ -145,13 +146,12 @@ func (s *ClueService) BatchImportCluesFromDTO(ctx context.Context, reqs []dto.Im
 		// 在协程体内构造会撞上「测试 cleanup 已把全局句柄置 nil」这一窗，
 		// gorm 在 nil 句柄上直接解引用 ⇒ 整个测试二进制 panic。
 		scoreSvc := NewClueScoreService()
-		go s.scoreImportedClues(scoreSvc, clues)
+		go s.scoreImportedClues(tenant.BackgroundWithTenant(ctx), scoreSvc, clues)
 	}
 	return success, skipped, nil
 }
 
-func (s *ClueService) scoreImportedClues(scoreSvc *ClueScoreService, clues []*model.Clue) {
-	ctx := context.Background()
+func (s *ClueService) scoreImportedClues(ctx context.Context, scoreSvc *ClueScoreService, clues []*model.Clue) {
 	for _, c := range clues {
 		if c == nil {
 			continue

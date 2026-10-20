@@ -168,6 +168,9 @@ func (r *RagConfigRepository) UpdateRagProduct(ctx context.Context, product *mod
 	if product.RerankProviderConfig.BaseURL != "" {
 		updates["rerank_base_url"] = product.RerankProviderConfig.BaseURL
 	}
+	if product.RerankProviderConfig.Protocol != "" {
+		updates["rerank_protocol"] = product.RerankProviderConfig.Protocol
+	}
 	updates["rerank_enabled"] = product.RerankProviderConfig.Enabled
 	if product.Temperature != 0 {
 		updates["temperature"] = product.Temperature

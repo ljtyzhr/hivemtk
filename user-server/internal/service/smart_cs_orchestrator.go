@@ -17,6 +17,7 @@ import (
 	"hivemtk-user/internal/identity"
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/sla"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
@@ -467,13 +468,14 @@ func (o *SmartCSOrchestrator) HandleIncomingWithAgent(ctx context.Context, in *I
 		}
 	}
 	if faqStoreAllowed {
+		storeCtx := tenant.BackgroundWithTenant(ctx)
 		go func(answer string, vec []float32) {
 			defer func() {
 				if r := recover(); r != nil {
 					log.Printf("[panic-recover] %T: %v\n%s", r, r, string(debug.Stack()))
 				}
 			}()
-			if err := o.faqCache.Store(context.Background(), ragcache.StoreRequest{
+			if err := o.faqCache.Store(storeCtx, ragcache.StoreRequest{
 				KBID:              faqKBID,
 				PromptVersion:     faqPromptVer,
 				QueryVector:       vec,
@@ -511,7 +513,7 @@ func (o *SmartCSOrchestrator) HandleIncomingWithAgent(ctx context.Context, in *I
 	//     传进来的 ctx 此刻已随请求返回而取消，所以必须挂新 ctx 而不能沿用；
 	//   - produce 为 nil（旗子关/装配未注入）时零动作，本行不改变挂载前的行为。
 	if o.orderDraftProduce != nil {
-		go o.runOrderDraftProduce(session.UserID, salesResp)
+		go o.runOrderDraftProduce(tenant.BackgroundWithTenant(ctx), session.UserID, salesResp)
 	}
 
 	return result, nil
@@ -528,7 +530,7 @@ const orderDraftProduceTimeout = 10 * time.Second
 // 单独成方法有两个用处：一是 HandleIncomingWithAgent 尾部只留一行、不把 recover 与
 // 超时脚手架摊进主流程；二是这条路径可被测试直接驱动（HandleIncomingWithAgent 需要
 // 完整的引擎 + 会话链，为了测几个 nil 判断去搭那套不值得）。
-func (o *SmartCSOrchestrator) runOrderDraftProduce(customerID string, resp *SalesResponse) {
+func (o *SmartCSOrchestrator) runOrderDraftProduce(ctx context.Context, customerID string, resp *SalesResponse) {
 	defer func() {
 		if r := recover(); r != nil {
 			logger.Warnf("[order-draft] 意向提取 panic 已 recover，不影响会话主链路: %v\n%s",
@@ -540,7 +542,9 @@ func (o *SmartCSOrchestrator) runOrderDraftProduce(customerID string, resp *Sale
 	if produce == nil || resp == nil || strings.TrimSpace(resp.Reply) == "" {
 		return
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), orderDraftProduceTimeout)
+	// ctx 由调用方以 tenant.BackgroundWithTenant 派生：无请求取消语义，但带租户归属，
+	// on 模式下写 order_drafts 才不会因无租户被隔离 callback 拒绝。
+	ctx, cancel := context.WithTimeout(ctx, orderDraftProduceTimeout)
 	defer cancel()
 	produce(ctx, customerID, "", resp)
 }
@@ -864,6 +868,8 @@ func badCaseTurnNotAnAnswer(resp *SalesResponse) bool {
 //     在这里判掉就省掉每轮一条永远不用的 goroutine；判据本身仍只在 service 层一份；
 //   - 异步 + recover + 独立 ctx：留痕要写库，库慢或炸都不能把会话响应拖住、带崩；
 //     传进来的 ctx 此刻已随请求返回而取消，所以必须挂新 ctx 而不能沿用；
+//     新 ctx 要带上原 ctx 的租户归属（BackgroundWithTenant），否则多租户下
+//     bad_cases 写入会被隔离 callback fail-closed 拒绝（"ctx 未绑定"）；
 //   - marker 为 nil（底座未装配）时零动作，本行不改变挂载前的行为；
 //   - **在门槛之前先过 badCaseTurnNotAnAnswer**：门槛只看数（置信度、检回数），
 //     看不见"这句根本不是回答"，而它排在第一道的后果正是转人工那轮被记成知识缺口。
@@ -916,7 +922,7 @@ func (o *SmartCSOrchestrator) markBadCase(
 				logger.Warnf("[bad-case] 留痕 panic 已 recover，不影响会话主链路: %v\n%s", r, debug.Stack())
 			}
 		}()
-		ctx, cancel := context.WithTimeout(context.Background(), badCaseMarkTimeout)
+		ctx, cancel := context.WithTimeout(tenant.BackgroundWithTenant(ctx), badCaseMarkTimeout)
 		defer cancel()
 		mark(ctx, in)
 	}(input)

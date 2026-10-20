@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/pkg/utils/response"
 	"hivemtk-user/internal/service"
@@ -164,6 +165,38 @@ func (c *WechatController) SendMessage(ctx *gin.Context) {
 	}, "发送成功")
 }
 
+// bindWebhookTenant 公众号回调（公网、无登录态）的租户绑定。
+//
+// 公众号这一路的账号身份是 wechat_accounts 的主键，与通用回调那条 (渠道, 账号串)
+// 不是同一个标识空间，所以自证只能按 id 反查这张表（判据见 WechatService.ResolveAccountTenant）。
+// 这一步必须在读账号**之前**：on 模式下没有租户绑定的 ctx 读租户表会被隔离 callback
+// 直接拒，于是每一次微信回调都落在 "account not found" 上——签名本来是对的，
+// 配置却永远验证不过去，消息一条也进不了收件箱。
+//
+// 解析不出（行不存在/库不可用）回 ok=false，由调用方按既有的 404 分支回绝；
+// 绝不回落默认租户。off 模式原样透传。
+func (c *WechatController) bindWebhookTenant(ctx *gin.Context, accountID uint) (context.Context, bool) {
+	reqCtx := ctx.Request.Context()
+	if !tenant.IsMultiTenant() {
+		return reqCtx, true
+	}
+	if tid, bound := tenant.FromContext(reqCtx); bound && tid != 0 {
+		return reqCtx, true
+	}
+	tid, err := c.svc.ResolveAccountTenant(reqCtx, accountID)
+	if err != nil {
+		logger.Warnf("[Wechat] 回调租户解析失败 account=%d path=%s ip=%s: %v",
+			accountID, ctx.FullPath(), ctx.ClientIP(), err)
+		return reqCtx, false
+	}
+	if tid == 0 {
+		return reqCtx, false
+	}
+	bound := tenant.OnlyTenant(reqCtx, tid)
+	ctx.Request = ctx.Request.WithContext(bound)
+	return bound, true
+}
+
 // VerifyURL 微信服务器配置验证
 // GET /api/webhook/wechat/{account_id}?signature=xxx&timestamp=xxx&nonce=xxx&echostr=xxx
 func (c *WechatController) VerifyURL(ctx *gin.Context) {
@@ -179,7 +212,13 @@ func (c *WechatController) VerifyURL(ctx *gin.Context) {
 	nonce := ctx.Query("nonce")
 	echostr := ctx.Query("echostr")
 
-	acc, err := c.svc.GetAccount(ctx.Request.Context(), uint(accountID))
+	reqCtx, ok := c.bindWebhookTenant(ctx, uint(accountID))
+	if !ok {
+		ctx.String(http.StatusNotFound, "account not found")
+		return
+	}
+
+	acc, err := c.svc.GetAccount(reqCtx, uint(accountID))
 	if err != nil {
 		ctx.String(http.StatusNotFound, "account not found")
 		return
@@ -207,7 +246,13 @@ func (c *WechatController) ReceiveMessage(ctx *gin.Context) {
 		return
 	}
 
-	acc, err := c.svc.GetAccount(ctx.Request.Context(), uint(accountID))
+	reqCtx, ok := c.bindWebhookTenant(ctx, uint(accountID))
+	if !ok {
+		ctx.String(http.StatusNotFound, "account not found")
+		return
+	}
+
+	acc, err := c.svc.GetAccount(reqCtx, uint(accountID))
 	if err != nil {
 		ctx.String(http.StatusNotFound, "account not found")
 		return
@@ -236,19 +281,22 @@ func (c *WechatController) ReceiveMessage(ctx *gin.Context) {
 		return
 	}
 
-	if err := c.svc.SaveIncomingMessage(ctx.Request.Context(), uint(accountID), msg, body); err != nil {
+	if err := c.svc.SaveIncomingMessage(reqCtx, uint(accountID), msg, body); err != nil {
 		// 入站消息落库失败不能吞：微信侧不重推，丢了就永久丢
 		logger.Errorf("wechat: SaveIncomingMessage 失败 account=%d msg_type=%s: %v", accountID, msg.MsgType, err)
 	}
 
 	ctx.String(http.StatusOK, c.svc.BuildEmptyReply())
 
-	go c.handleIncomingMessage(uint(accountID), msg)
+	go c.handleIncomingMessage(reqCtx, uint(accountID), msg)
 }
 
-func (c *WechatController) handleIncomingMessage(accountID uint, msg *service.WechatIncomingMessage) {
+func (c *WechatController) handleIncomingMessage(base context.Context, accountID uint, msg *service.WechatIncomingMessage) {
 
-	ctx, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+	// BackgroundWithTenant：请求 ctx 会随响应返回被取消，而异步体要继续写库；
+	// 但它带着本条回调的租户归属，必须留住——丢掉就等于在 on 模式下用无绑定 ctx
+	// 写租户表，隔离 callback 拒掉，消息进了库却永远进不了收件箱（只在日志里留一行 Warn）。
+	ctx, cancel := context.WithTimeout(tenant.BackgroundWithTenant(base), 30*time.Second)
 	defer cancel()
 
 	defer func() {

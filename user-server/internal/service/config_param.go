@@ -13,6 +13,7 @@ import (
 	knowledgesvc "hivemtk-user/internal/aiagent/knowledge/service"
 	llmpkg "hivemtk-user/internal/aiagent/llm"
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/platform"
 	"hivemtk-user/internal/repository"
@@ -34,10 +35,13 @@ const configParamTTL = 60 * time.Second
 //
 // 设计约束：
 //   - 不允许 nil DB（启动必须 Migrate + Seed）
-//   - 缓存 key = "group.key"
+//   - 缓存 key = "group.key"（off 模式）/ "t{tenantID}|group.key"（on 模式）
 //   - 读操作在缓存 miss 时拉一次 group 全量（同组一次性加载，减少 DB 往返）
+//   - on 模式读取顺序：本租户覆盖行 → config_params（平台默认值）→ 代码兜底；
+//     写操作只落 tenant_config_params，绝不改平台默认值
 type ConfigParamService struct {
-	repo *repository.ConfigParamRepository
+	repo       *repository.ConfigParamRepository
+	tenantRepo *repository.TenantConfigParamRepository
 
 	mu     sync.RWMutex
 	cache  map[string]paramEntry
@@ -53,10 +57,11 @@ var (
 // NewConfigParamService 构造（main 启动时调用）
 func NewConfigParamService(db *gorm.DB) *ConfigParamService {
 	return &ConfigParamService{
-		repo:   repository.NewConfigParamRepository(db),
-		cache:  make(map[string]paramEntry, 256),
-		loaded: make(map[string]bool, 32),
-		nowFn:  time.Now,
+		repo:       repository.NewConfigParamRepository(db),
+		tenantRepo: repository.NewTenantConfigParamRepository(db),
+		cache:      make(map[string]paramEntry, 256),
+		loaded:     make(map[string]bool, 32),
+		nowFn:      time.Now,
 	}
 }
 
@@ -429,8 +434,31 @@ func (s *ConfigParamService) now() time.Time {
 	return time.Now()
 }
 
+// tenantParamScope 返回当前读取/写入应使用的租户。
+//
+// ok=false 有两种语义，调用方必须区分：
+//   - off 模式：历史单机行为，读写都走实例级 config_params
+//   - on 模式但 ctx 未绑定租户：读取允许回落平台默认值（不是别的租户的数据），
+//     写入必须拒绝（见 UpdateValue），否则一次漏绑中间件就会改写所有人的默认值
+func tenantParamScope(ctx context.Context) (uint, bool) {
+	if !tenant.IsMultiTenant() {
+		return 0, false
+	}
+	return tenant.FromContext(ctx)
+}
+
+func tenantCachePrefix(tenantID uint) string {
+	if tenantID == 0 {
+		return ""
+	}
+	return "t" + strconv.FormatUint(uint64(tenantID), 10) + "|"
+}
+
 func (s *ConfigParamService) getString(ctx context.Context, group, key string) (string, bool) {
-	cacheKey := group + "." + key
+	tenantID, scoped := tenantParamScope(ctx)
+	prefix := tenantCachePrefix(tenantID)
+	cacheKey := prefix + group + "." + key
+	loadKey := prefix + group
 
 	now := s.now()
 	s.mu.RLock()
@@ -443,7 +471,7 @@ func (s *ConfigParamService) getString(ctx context.Context, group, key string) (
 	if expired {
 		s.mu.Lock()
 		delete(s.cache, cacheKey)
-		s.loaded[group] = false
+		s.loaded[loadKey] = false
 		s.mu.Unlock()
 	}
 
@@ -452,7 +480,7 @@ func (s *ConfigParamService) getString(ctx context.Context, group, key string) (
 	}
 
 	s.mu.Lock()
-	if s.loaded[group] {
+	if s.loaded[loadKey] {
 
 		e, ok := s.cache[cacheKey]
 		s.mu.Unlock()
@@ -462,7 +490,7 @@ func (s *ConfigParamService) getString(ctx context.Context, group, key string) (
 		return "", false
 	}
 
-	s.loaded[group] = true
+	s.loaded[loadKey] = true
 	s.mu.Unlock()
 
 	// 这里传 includeDeprecated=true，与管理端 List 的口径**故意相反**：
@@ -475,15 +503,37 @@ func (s *ConfigParamService) getString(ctx context.Context, group, key string) (
 
 		logger.Warnf("[ConfigParam] load group %s failed: %v", group, err)
 		s.mu.Lock()
-		s.loaded[group] = false
+		s.loaded[loadKey] = false
 		s.mu.Unlock()
 		return "", false
 	}
 
+	// 先铺平台默认值，再让本租户覆盖行逐键顶掉。
+	effective := make(map[string]string, len(params))
+	for _, p := range params {
+		effective[p.Key] = p.Value
+	}
+	if scoped && s.tenantRepo != nil {
+		// OnlyTenant：读取路径的 ctx 可能带着 SystemScope（后台任务/迁移），
+		// 隔离 callback 见到它就会跳过租户条件、读到跨租户 union。
+		// 这里必须钉死在当前租户上，不能把两套数据混进同一张 effective 表。
+		tctx := tenant.OnlyTenant(ctx, tenantID)
+		overrides, oerr := s.tenantRepo.ListByGroup(tctx, tenantID, group)
+		if oerr != nil {
+			// 覆盖行读失败不阻断读取：平台默认值是合法值，不是别的租户数据。
+			// 但必须出声——否则租户改了参数却不生效，日志里一行痕迹都没有。
+			logger.Warnf("[ConfigParam] load tenant %d group %s overrides failed（本次按平台默认值提供）: %v", tenantID, group, oerr)
+		} else {
+			for _, o := range overrides {
+				effective[o.Key] = o.Value
+			}
+		}
+	}
+
 	s.mu.Lock()
 	filledAt := s.now().Add(configParamTTL)
-	for _, p := range params {
-		s.cache[p.Group+"."+p.Key] = paramEntry{value: p.Value, expiresAt: filledAt}
+	for k, v := range effective {
+		s.cache[prefix+group+"."+k] = paramEntry{value: v, expiresAt: filledAt}
 	}
 	s.mu.Unlock()
 
@@ -507,7 +557,11 @@ func (s *ConfigParamService) List(ctx context.Context, includeDeprecated bool) (
 	if s.repo == nil {
 		return nil, repoNotInitializedErr
 	}
-	return s.repo.List(ctx, includeDeprecated)
+	params, err := s.repo.List(ctx, includeDeprecated)
+	if err != nil {
+		return nil, err
+	}
+	return s.applyTenantOverrides(ctx, params)
 }
 
 // ListByGroup 按分组返回参数
@@ -515,7 +569,45 @@ func (s *ConfigParamService) ListByGroup(ctx context.Context, group string, incl
 	if s.repo == nil {
 		return nil, repoNotInitializedErr
 	}
-	return s.repo.ListByGroup(ctx, group, includeDeprecated)
+	params, err := s.repo.ListByGroup(ctx, group, includeDeprecated)
+	if err != nil {
+		return nil, err
+	}
+	return s.applyTenantOverrides(ctx, params)
+}
+
+// applyTenantOverrides 把定义行的 Value 换成「该租户的生效值」。
+//
+// 返回的仍是 model.ConfigParam：管理端页面结构与校验边界（Min/Max/Step/ValueType）
+// 都来自定义，租户只覆盖值。未覆盖的键保持平台默认值。
+// 与读取路径不同，这里覆盖行查失败必须返回 error——管理端把平台默认值当成
+// 「当前租户的值」展示，会让管理员以为自己改过（或没改过），比报错更糟。
+func (s *ConfigParamService) applyTenantOverrides(ctx context.Context, params []model.ConfigParam) ([]model.ConfigParam, error) {
+	// 租户可见性先盖再判：它是对「这个键能不能按租户改」的回答，
+	// 与本次请求有没有租户上下文、有没有覆盖行都无关。
+	// 放在下面两个提前返回之后，平台管理员看到的列表里这一列会整列空白。
+	stampTenantScope(params)
+	tenantID, scoped := tenantParamScope(ctx)
+	if !scoped || s.tenantRepo == nil || len(params) == 0 {
+		return params, nil
+	}
+	overrides, err := s.tenantRepo.ListAll(tenant.OnlyTenant(ctx, tenantID), tenantID)
+	if err != nil {
+		return nil, err
+	}
+	if len(overrides) == 0 {
+		return params, nil
+	}
+	byKey := make(map[string]string, len(overrides))
+	for _, o := range overrides {
+		byKey[o.Group+"\x00"+o.Key] = o.Value
+	}
+	for i := range params {
+		if v, ok := byKey[params[i].Group+"\x00"+params[i].Key]; ok {
+			params[i].Value = v
+		}
+	}
+	return params, nil
 }
 
 // Groups 返回分组元数据（中文名 / 说明 / 排序），管理端侧栏直接渲染这一份。
@@ -532,6 +624,43 @@ func (s *ConfigParamService) UpdateValue(ctx context.Context, group, key, newVal
 		return fmt.Errorf("config_param repo not initialized")
 	}
 
+	// on 模式：写租户覆盖行，平台默认值不动。
+	// 没有租户上下文时**拒绝写入**而不是回落实例级：回落会让一次漏绑中间件
+	// 的请求把某个租户的改动写成全体租户的新默认值，且审计里看不出是谁干的。
+	if tenantID, scoped := tenantParamScope(ctx); scoped {
+		if s.tenantRepo == nil {
+			return repoNotInitializedErr
+		}
+		p, err := s.definitionForWrite(ctx, group, key)
+		if err != nil {
+			return err
+		}
+		// 租户覆盖只在「读取点把请求 ctx 交进来」时才生效。这一层拦的是：读取点还在按
+		// 平台域解析时，一次「保存成功」的回执配上照旧的行为，是本页最难查的一类不一致。
+		//
+		// 只拦写不拦重置（ResetToDefault 不走这里）：删掉一条不生效的覆盖行是往正确方向
+		// 走的一步，把它一起拦下就等于没收唯一能清理历史覆盖行的入口。
+		if err := tenantScopedWriteErr(group, key); err != nil {
+			return err
+		}
+		newValue, err = normalizeValueForType(p.ValueType, newValue)
+		if err != nil {
+			return err
+		}
+		if err := validateValue(p.ValueType, newValue, p.Min, p.Max); err != nil {
+			return err
+		}
+		oldValue, _ := s.getString(ctx, group, key)
+		if err := s.tenantRepo.UpsertOverride(tenant.OnlyTenant(ctx, tenantID), tenantID, group, key, newValue, oldValue, actorID); err != nil {
+			return err
+		}
+		s.invalidateTenant(tenantID, group, key)
+		return nil
+	}
+	if tenant.IsMultiTenant() {
+		return repository.ErrTenantParamContextMissing
+	}
+
 	p, err := s.repo.GetByGroupKey(ctx, group, key)
 	if err != nil {
 		return err
@@ -544,15 +673,9 @@ func (s *ConfigParamService) UpdateValue(ctx context.Context, group, key, newVal
 	if err := validateValue(p.ValueType, newValue, p.Min, p.Max); err != nil {
 		return err
 	}
-	// 布尔一律折成 "true"/"false" 再入库。写侧若放过 "1"/"t"/"TRUE" 这类别名，
-	// 读取侧 ParseBool 认它、页面却按字符串比 'true'（编辑器里开关显示为关、
-	// 表格里显示为 1），配置生效与否和它长什么样分家——这是最难查的一种不一致。
-	if p.ValueType == "bool" {
-		b, err := strconv.ParseBool(newValue)
-		if err != nil {
-			return err
-		}
-		newValue = strconv.FormatBool(b)
+	newValue, err = normalizeValueForType(p.ValueType, newValue)
+	if err != nil {
+		return err
 	}
 	if err := s.repo.UpdateValue(ctx, group, key, newValue, actorID); err != nil {
 		return err
@@ -562,10 +685,59 @@ func (s *ConfigParamService) UpdateValue(ctx context.Context, group, key, newVal
 	return nil
 }
 
+// definitionForWrite 取平台定义并做只读/下架校验（租户写路径共用）。
+func (s *ConfigParamService) definitionForWrite(ctx context.Context, group, key string) (*model.ConfigParam, error) {
+	p, err := s.repo.GetByGroupKey(ctx, group, key)
+	if err != nil {
+		return nil, err
+	}
+	if p.ReadOnly {
+		return nil, repository.ErrParamReadOnly
+	}
+	if p.Deprecated {
+		return nil, repository.ErrParamDeprecated
+	}
+	return p, nil
+}
+
+// normalizeValueForType 写侧归一化。
+//
+// 布尔一律折成 "true"/"false" 再入库。写侧若放过 "1"/"t"/"TRUE" 这类别名，
+// 读取侧 ParseBool 认它、页面却按字符串比 'true'（编辑器里开关显示为关、表格里
+// 显示为 1），配置生效与否和它长什么样分家——这是最难查的一种不一致。
+func normalizeValueForType(valueType, newValue string) (string, error) {
+	if valueType != "bool" {
+		return newValue, nil
+	}
+	b, err := strconv.ParseBool(newValue)
+	if err != nil {
+		return "", err
+	}
+	return strconv.FormatBool(b), nil
+}
+
 // ResetToDefault 重置单条为默认值
 func (s *ConfigParamService) ResetToDefault(ctx context.Context, group, key string, actorID uint) error {
 	if s.repo == nil {
 		return repoNotInitializedErr
+	}
+	if tenantID, scoped := tenantParamScope(ctx); scoped {
+		if s.tenantRepo == nil {
+			return repoNotInitializedErr
+		}
+		p, err := s.definitionForWrite(ctx, group, key)
+		if err != nil {
+			return err
+		}
+		oldValue, _ := s.getString(ctx, group, key)
+		if _, err := s.tenantRepo.DeleteOverride(tenant.OnlyTenant(ctx, tenantID), tenantID, group, key, oldValue, p.DefaultValue, actorID); err != nil {
+			return err
+		}
+		s.invalidateTenant(tenantID, group, key)
+		return nil
+	}
+	if tenant.IsMultiTenant() {
+		return repository.ErrTenantParamContextMissing
 	}
 	if err := s.repo.ResetToDefault(ctx, group, key, actorID); err != nil {
 		return err
@@ -579,6 +751,19 @@ func (s *ConfigParamService) BulkResetGroup(ctx context.Context, group string, a
 	if s.repo == nil {
 		return repoNotInitializedErr
 	}
+	if tenantID, scoped := tenantParamScope(ctx); scoped {
+		if s.tenantRepo == nil {
+			return repoNotInitializedErr
+		}
+		if _, err := s.tenantRepo.BulkDeleteGroup(tenant.OnlyTenant(ctx, tenantID), tenantID, group, actorID); err != nil {
+			return err
+		}
+		s.invalidateTenantGroup(tenantID, group)
+		return nil
+	}
+	if tenant.IsMultiTenant() {
+		return repository.ErrTenantParamContextMissing
+	}
 	if err := s.repo.BulkResetGroup(ctx, group, actorID); err != nil {
 		return err
 	}
@@ -591,6 +776,34 @@ func (s *ConfigParamService) AuditLogs(ctx context.Context, limit int) ([]model.
 	if s.repo == nil {
 		return nil, repoNotInitializedErr
 	}
+	if tenantID, scoped := tenantParamScope(ctx); scoped {
+		if s.tenantRepo == nil {
+			return nil, repoNotInitializedErr
+		}
+		logs, err := s.tenantRepo.AuditLogs(tenant.OnlyTenant(ctx, tenantID), tenantID, limit)
+		if err != nil {
+			return nil, err
+		}
+		// 对外保持既有响应形状（管理端页面只认这一套字段）；租户归属由
+		// 请求上下文与查询条件保证，不需要把 tenant_id 回传给前端。
+		out := make([]model.ConfigParamAuditLog, len(logs))
+		for i, l := range logs {
+			out[i] = model.ConfigParamAuditLog{
+				ID:         l.ID,
+				ParamGroup: l.ParamGroup,
+				ParamKey:   l.ParamKey,
+				OldValue:   l.OldValue,
+				NewValue:   l.NewValue,
+				Action:     l.Action,
+				ActorID:    l.ActorID,
+				CreatedAt:  l.CreatedAt,
+			}
+		}
+		return out, nil
+	}
+	if tenant.IsMultiTenant() {
+		return nil, repository.ErrTenantParamContextMissing
+	}
 	return s.repo.AuditLogs(ctx, limit)
 }
 
@@ -601,14 +814,36 @@ func (s *ConfigParamService) invalidate(group, key string) {
 	s.mu.Unlock()
 }
 
+func (s *ConfigParamService) invalidateTenant(tenantID uint, group, key string) {
+	prefix := tenantCachePrefix(tenantID)
+	s.mu.Lock()
+	delete(s.cache, prefix+group+"."+key)
+	s.loaded[prefix+group] = false
+	s.mu.Unlock()
+}
+
 func (s *ConfigParamService) invalidateGroup(group string) {
 	s.mu.Lock()
+	prefix := group + "."
 	for k := range s.cache {
-		if len(k) >= len(group) && k[:len(group)] == group {
+		if strings.HasPrefix(k, prefix) {
 			delete(s.cache, k)
 		}
 	}
 	s.loaded[group] = false
+	s.mu.Unlock()
+}
+
+func (s *ConfigParamService) invalidateTenantGroup(tenantID uint, group string) {
+	prefix := tenantCachePrefix(tenantID)
+	keyPrefix := prefix + group + "."
+	s.mu.Lock()
+	for k := range s.cache {
+		if strings.HasPrefix(k, keyPrefix) {
+			delete(s.cache, k)
+		}
+	}
+	s.loaded[prefix+group] = false
 	s.mu.Unlock()
 }
 

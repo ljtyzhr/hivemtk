@@ -10,6 +10,7 @@ import (
 	"gorm.io/gorm/clause"
 
 	"hivemtk-user/internal/aiagent/llm"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 )
 
@@ -147,8 +148,10 @@ func (c *CachedEmbeddingClient) Embed(ctx context.Context, cfg *llm.EmbeddingCon
 			}
 			results[idx] = vectors[i]
 			text, vec := missTexts[i], vectors[i]
+			// 后台写入脱离请求生命周期但必须保留租户：Redis L1 键按租户分域，
+			// PG L2 的 embedding_cache 是租户表（on 模式无租户会被 callback 拒绝）。
+			ctxBg := tenant.BackgroundWithTenant(ctx)
 			c.submit(func() {
-				ctxBg := context.Background()
 				if c.redis != nil {
 					_ = c.redis.Set(ctxBg, c.cacheKey(model, text), encodeVec(vec), c.ttlRedis)
 				}
@@ -246,8 +249,9 @@ func (c *CachedEmbeddingClient) queryDBCache(ctx context.Context, model, text st
 	if err != nil || len(vec) != expectDim {
 		return nil, false
 	}
+	hitCtx := tenant.BackgroundWithTenant(ctx)
 	c.submit(func() {
-		_ = c.db.WithContext(context.Background()).Table("embedding_cache").
+		_ = c.db.WithContext(hitCtx).Table("embedding_cache").
 			Where("text_hash = ? AND model = ?", hash, model).
 			Updates(map[string]any{
 				"hit_count":    gorm.Expr("hit_count + 1"),

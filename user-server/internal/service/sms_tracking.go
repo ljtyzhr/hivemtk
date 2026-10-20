@@ -125,6 +125,11 @@ func (s *SmsTrackingService) RecordDeliveryReport(ctx context.Context, req *Deli
 	return s.repo.CreateStatus(ctx, record)
 }
 
+// TenantIDByMessageID 系统作用域反查回执归属租户（发送侧预落的 message_id 行）
+func (s *SmsTrackingService) TenantIDByMessageID(ctx context.Context, messageID string) (uint, bool, error) {
+	return s.repo.TenantIDByMessageID(ctx, messageID)
+}
+
 // IsRetryable 判断错误码是否可重试
 //
 // 规则：

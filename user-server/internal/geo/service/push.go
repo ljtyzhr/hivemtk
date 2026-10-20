@@ -563,13 +563,18 @@ func (s *PushService) rollQuotaDay() {
 // 语句的 ctx，调用方（PushURLs/PushManual）透传请求 ctx，否则 on 模式 fail-closed。
 func (s *PushService) persistQuota(ctx context.Context, platform string) {
 	used := s.quota.Used(platform)
-	s.db.WithContext(ctx).Model(&model.GeoPusherConfig{}).
+	err := s.db.WithContext(ctx).Model(&model.GeoPusherConfig{}).
 		Where("platform = ?", platform).
 		Updates(map[string]any{
 			"used_today":    used,
 			"last_reset_at": time.Now(),
 			"updated_at":    time.Now(),
-		})
+		}).Error
+	// 回写失败必须出声（二审 P1-9）：静默丢会让 used_today 停在旧值 —— 跨天/重启
+	// 后按 DB 复原已用量时拿到脏值，当日配额被成倍超发或凭空归零。
+	if err != nil {
+		logger.Warnf("[push] 配额回写失败 platform=%s used_today=%d: %v", platform, used, err)
+	}
 }
 
 // registerFromDB 启动期从 DB 装配推送引擎（NewPushService 构造路径）。

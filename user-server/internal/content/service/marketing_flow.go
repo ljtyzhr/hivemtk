@@ -17,9 +17,9 @@ import (
 	"gorm.io/gorm"
 )
 
-var smsSenderFunc func(phone, content string) error
+var smsSenderFunc func(ctx context.Context, phone, content string) error
 
-func SetSmsSender(fn func(phone, content string) error) {
+func SetSmsSender(fn func(ctx context.Context, phone, content string) error) {
 	smsSenderFunc = fn
 }
 

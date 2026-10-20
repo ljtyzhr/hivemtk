@@ -118,19 +118,26 @@ func (c *AuthController) recordLoginRiskAsync(ctx *gin.Context, username string,
 // @Failure      409   {object}  response.Response  "用户名/邮箱已存在"
 // @Router       /api/auth/register [post]
 func (c *AuthController) Register(ctx *gin.Context) {
-	// enable_register 开关：关闭时 403（配置读失败按保守口径同样拒绝）
-	cfg, cfgErr := service.NewSystemConfigService().GetConfig(ctx.Request.Context())
-	if cfgErr != nil || !cfg.EnableRegister {
-		response.Error(ctx, http.StatusForbidden, "当前站点未开放注册")
-		return
-	}
 	var req service.RegisterRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		response.Error(ctx, http.StatusBadRequest, response.ErrInvalidParams, err.Error())
 		return
 	}
 
-	resp, err := c.authService.Register(ctx.Request.Context(), &req)
+	// 注册开关是租户配置：先解析租户再读，on 模式缺短码直接拒绝（4106 口径）
+	registerCtx, err := resolvePublicTenantCtx(ctx, req.TenantCode)
+	if err != nil {
+		tenantFail(ctx, err)
+		return
+	}
+	// enable_register 开关：关闭时 403（配置读失败按保守口径同样拒绝）
+	cfg, cfgErr := service.NewSystemConfigService().GetConfig(registerCtx)
+	if cfgErr != nil || !cfg.EnableRegister {
+		response.Error(ctx, http.StatusForbidden, "当前站点未开放注册")
+		return
+	}
+
+	resp, err := c.authService.Register(registerCtx, &req)
 	if err != nil {
 		if errors.Is(err, service.ErrUsernameExists) || errors.Is(err, service.ErrEmailExists) {
 			response.Error(ctx, http.StatusConflict, err.Error())

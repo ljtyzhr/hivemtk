@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"fmt"
 	"testing"
 	"time"
@@ -125,7 +126,7 @@ func TestM01_WechatInboundMediaKeepsTypeAndReference(t *testing.T) {
 		tc.msg.FromUserName = from
 		tc.msg.ToUserName = "gh_f4official"
 		tc.msg.CreateTime = time.Now().Add(-time.Hour).Unix()
-		ctrl.handleIncomingMessage(accID, &tc.msg)
+		ctrl.handleIncomingMessage(context.Background(), accID, &tc.msg)
 	}
 
 	hubMsgID := func(msgID string) string { return fmt.Sprintf("wx-%d-%s", accID, msgID) }
@@ -165,7 +166,7 @@ func TestM01_WechatEventPushDoesNotEnterInbox(t *testing.T) {
 		FromUserName: "o-f4-" + nonce, ToUserName: "gh_f4official",
 		MsgType: "event", Event: "subscribe", CreateTime: time.Now().Unix(),
 	}
-	ctrl.handleIncomingMessage(accID, msg)
+	ctrl.handleIncomingMessage(context.Background(), accID, msg)
 
 	var count int64
 	if err := database.Model(&model.MessageHub{}).
@@ -186,7 +187,7 @@ func TestM01_WechatEmptyTextDoesNotEnterInbox(t *testing.T) {
 		MsgID: "wxem" + nonce, FromUserName: "o-f4-" + nonce, ToUserName: "gh_f4official",
 		MsgType: "text", Content: "   ", CreateTime: time.Now().Unix(),
 	}
-	ctrl.handleIncomingMessage(accID, msg)
+	ctrl.handleIncomingMessage(context.Background(), accID, msg)
 	if _, found := f4WxLoadHub(t, database, fmt.Sprintf("wx-%d-%s", accID, msg.MsgID)); found {
 		t.Error("M-01：空白 text 落了 hub 行，want 不落")
 	}

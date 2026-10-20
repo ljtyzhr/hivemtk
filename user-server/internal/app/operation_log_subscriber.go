@@ -6,6 +6,7 @@ import (
 
 	"hivemtk-user/internal/event"
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/repository"
 )
 
@@ -39,6 +40,7 @@ func (s *OperationLogSubscriber) Handle(evt event.Event) error {
 	newValueJSON, _ := json.Marshal(payload.NewValue)
 
 	logEntry := &model.OperationLog{
+		TenantID:   payload.TenantID,
 		UserID:     payload.UserID,
 		Username:   payload.Username,
 		Action:     payload.Action,
@@ -50,5 +52,9 @@ func (s *OperationLogSubscriber) Handle(evt event.Event) error {
 		IP:         payload.IP,
 	}
 
-	return s.repo.Create(context.Background(), logEntry)
+	ctx := context.Background()
+	if payload.TenantID != 0 {
+		ctx = tenant.WithTenantID(ctx, payload.TenantID)
+	}
+	return s.repo.Create(ctx, logEntry)
 }

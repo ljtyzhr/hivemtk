@@ -10,6 +10,8 @@ import (
 	"strings"
 	"sync"
 	"time"
+
+	"hivemtk-user/internal/pkg/tenant"
 )
 
 // RetrievedDoc 检索得到的候选文档（含来源/原始分数，便于多路融合）
@@ -176,7 +178,7 @@ func (s *CrossEncoderScorer) Score(ctx context.Context, query string, docs []Ret
 	scores := make(map[string]float64, len(docs))
 	var pending []RetrievedDoc
 	for _, d := range docs {
-		if v, ok := s.cache.Get(cacheKey(query, d.ID)); ok {
+		if v, ok := s.cache.Get(tenant.RedisKey(ctx, cacheKey(query, d.ID))); ok {
 			scores[d.ID] = v
 			continue
 		}
@@ -198,7 +200,7 @@ func (s *CrossEncoderScorer) Score(ctx context.Context, query string, docs []Ret
 
 	for _, r := range results {
 		scores[r.ID] = r.Score
-		s.cache.Set(cacheKey(query, r.ID), r.Score)
+		s.cache.Set(tenant.RedisKey(ctx, cacheKey(query, r.ID)), r.Score)
 	}
 	return scores, nil
 }
@@ -354,7 +356,7 @@ func (r *RRFReranker) Rerank(ctx context.Context, query string, docs []Retrieved
 
 	ranked := make([]RankedDoc, 0, len(merged))
 	for _, e := range merged {
-		r.cache.Set(cacheKey(query, e.doc.ID), e.score)
+		r.cache.Set(tenant.RedisKey(ctx, cacheKey(query, e.doc.ID)), e.score)
 		ranked = append(ranked, RankedDoc{
 			ID:         e.doc.ID,
 			Content:    e.doc.Content,

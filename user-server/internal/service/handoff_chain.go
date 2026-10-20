@@ -86,6 +86,8 @@ func (s *HandoffChainService) SaveRules(ctx context.Context, rules []HandoffRule
 
 // CheckRules 对指定会话执行规则链检查
 //
+// sessionID 是业务会话号（customer_sessions.session_id），与决策记录里登记的口径一致。
+//
 // 返回触发的规则列表（已执行）+ 建议动作
 func (s *HandoffChainService) CheckRules(ctx context.Context, sessionID string) ([]string, error) {
 	rules, err := s.LoadRules(ctx)
@@ -104,14 +106,12 @@ func (s *HandoffChainService) CheckRules(ctx context.Context, sessionID string) 
 		return nil, fmt.Errorf("查询会话: %w", err)
 	}
 	sess := struct {
-		ID              string     `gorm:"column:id"`
 		Status          string     `gorm:"column:status"`
 		CreatedAt       time.Time  `gorm:"column:created_at"`
-		ResolvedAt      *time.Time `gorm:"column:updated_at"`
+		ResolvedAt      *time.Time `gorm:"column:resolved_at"`
 		CsatScore       *int       `gorm:"column:rating"`
 		AssignedAgentID *uint      `gorm:"column:agent_id"`
 	}{
-		ID:              sessRow.ID,
 		Status:          sessRow.Status,
 		CreatedAt:       sessRow.CreatedAt,
 		ResolvedAt:      sessRow.ResolvedAt,
@@ -138,7 +138,7 @@ func (s *HandoffChainService) CheckRules(ctx context.Context, sessionID string) 
 	return triggered, nil
 }
 
-// RunCron 扫描全量未解决会话并执行规则链
+// RunCron 扫描本租户未解决会话并执行规则链
 // 供 cron 定期调用（建议每 5 分钟）
 func (s *HandoffChainService) RunCron(ctx context.Context, limit int) (int, error) {
 	if s.repo == nil {
@@ -166,10 +166,9 @@ func (s *HandoffChainService) RunCron(ctx context.Context, limit int) (int, erro
 }
 
 func (s *HandoffChainService) matchRule(rule HandoffRule, sess struct {
-	ID              string     `gorm:"column:id"`
 	Status          string     `gorm:"column:status"`
 	CreatedAt       time.Time  `gorm:"column:created_at"`
-	ResolvedAt      *time.Time `gorm:"column:updated_at"`
+	ResolvedAt      *time.Time `gorm:"column:resolved_at"`
 	CsatScore       *int       `gorm:"column:rating"`
 	AssignedAgentID *uint      `gorm:"column:agent_id"`
 }, now time.Time) bool {

@@ -413,17 +413,17 @@ func TestSmartCSOrchestrator_FindOrCreateSession_DerivedOneIDMergesSameUser(t *t
 func TestRunOrderDraftProduce_NilProducerIsNoop(t *testing.T) {
 	o := NewSmartCSOrchestrator(nil, nil, nil)
 	// 未注入（= 旗子 off 的形态）：调用不该 panic，也不该有副作用
-	o.runOrderDraftProduce("cust-nil", &SalesResponse{Reply: "光子嫩肤 3 次 2280 元"})
+	o.runOrderDraftProduce(context.Background(), "cust-nil", &SalesResponse{Reply: "光子嫩肤 3 次 2280 元"})
 
 	// 注入后再清空：与"从没注入过"逐字等价（app 层 attach 失败时靠这个回到零改动）
 	called := 0
 	o.SetOrderDraftProducer(func(context.Context, string, string, *SalesResponse) { called++ })
-	o.runOrderDraftProduce("cust-nil", &SalesResponse{Reply: "x"})
+	o.runOrderDraftProduce(context.Background(), "cust-nil", &SalesResponse{Reply: "x"})
 	if called != 1 {
 		t.Fatalf("注入后应调用一次，实际 %d", called)
 	}
 	o.SetOrderDraftProducer(nil)
-	o.runOrderDraftProduce("cust-nil", &SalesResponse{Reply: "x"})
+	o.runOrderDraftProduce(context.Background(), "cust-nil", &SalesResponse{Reply: "x"})
 	if called != 1 {
 		t.Errorf("清空后不应再调用，实际累计 %d（传 nil 与不调 setter 必须等价）", called)
 	}
@@ -449,7 +449,7 @@ func TestRunOrderDraftProduce_ArgsAndFreshDeadline(t *testing.T) {
 	resp := &SalesResponse{Reply: "好的，光子嫩肤 3 次 2280 元"}
 	// 请求 ctx 此刻已随响应返回而取消 —— 这正是实现里挂新 ctx 的原因，
 	// 所以这里断的是"传进来的那一份可继续用"。
-	o.runOrderDraftProduce("cust_deadline", resp)
+	o.runOrderDraftProduce(context.Background(), "cust_deadline", resp)
 
 	if gotCustomer != "cust_deadline" {
 		t.Errorf("customerID=%q，期望原样透传", gotCustomer)
@@ -486,12 +486,12 @@ func TestRunOrderDraftProduce_EmptyReplySkips(t *testing.T) {
 		{"空回复", &SalesResponse{}},
 		{"纯空白回复", &SalesResponse{Reply: "   \n\t "}},
 	} {
-		o.runOrderDraftProduce("cust_empty", c.resp)
+		o.runOrderDraftProduce(context.Background(), "cust_empty", c.resp)
 		if called != 0 {
 			t.Fatalf("%s：不应调用生产者，实际调了 %d 次", c.name, called)
 		}
 	}
-	o.runOrderDraftProduce("cust_ok", &SalesResponse{Reply: "水光针 1 次 980"})
+	o.runOrderDraftProduce(context.Background(), "cust_ok", &SalesResponse{Reply: "水光针 1 次 980"})
 	if called != 1 {
 		t.Errorf("非空回复应调用一次，实际 %d", called)
 	}
@@ -509,7 +509,7 @@ func TestRunOrderDraftProduce_PanicRecovered(t *testing.T) {
 	done := make(chan struct{})
 	go func() {
 		defer func() { close(done) }()
-		o.runOrderDraftProduce("cust_panic", &SalesResponse{Reply: "光子嫩肤"})
+		o.runOrderDraftProduce(context.Background(), "cust_panic", &SalesResponse{Reply: "光子嫩肤"})
 	}()
 	select {
 	case <-done:
@@ -522,5 +522,5 @@ func TestRunOrderDraftProduce_PanicRecovered(t *testing.T) {
 		var p *OrderDraft
 		_ = p.ID // 空指针解引用：与实现里 debug.Stack() 那条路径同型
 	})
-	o.runOrderDraftProduce("cust_nilptr", &SalesResponse{Reply: "光子嫩肤"})
+	o.runOrderDraftProduce(context.Background(), "cust_nilptr", &SalesResponse{Reply: "光子嫩肤"})
 }

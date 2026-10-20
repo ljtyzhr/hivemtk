@@ -438,7 +438,7 @@ func TestMarketingFlowService_sendActionSendSms(t *testing.T) {
 	t.Run("validation", func(t *testing.T) {
 
 		var callCount int32
-		mockSender := func(phone, content string) error {
+		mockSender := func(_ context.Context, phone, content string) error {
 			atomic.AddInt32(&callCount, 1)
 			return nil
 		}
@@ -500,7 +500,7 @@ func TestMarketingFlowService_sendActionSendSms(t *testing.T) {
 
 	t.Run("sender error propagation", func(t *testing.T) {
 		origSender := smsSenderFunc
-		smsSenderFunc = func(phone, content string) error {
+		smsSenderFunc = func(_ context.Context, phone, content string) error {
 			return errors.New("provider timeout")
 		}
 		defer func() { smsSenderFunc = origSender }()
@@ -878,7 +878,7 @@ func TestSetSmsSender(t *testing.T) {
 	var mu sync.Mutex
 	calls := make([][2]string, 0)
 
-	testSender := func(phone, content string) error {
+	testSender := func(ctx context.Context, phone, content string) error {
 		atomic.AddInt32(&callCount, 1)
 		mu.Lock()
 		calls = append(calls, [2]string{phone, content})
@@ -892,7 +892,7 @@ func TestSetSmsSender(t *testing.T) {
 		t.Fatal("Expected smsSenderFunc to be set after SetSmsSender")
 	}
 
-	if err := smsSenderFunc("13800138000", "hello"); err != nil {
+	if err := smsSenderFunc(context.Background(), "13800138000", "hello"); err != nil {
 		t.Errorf("Unexpected error: %v", err)
 	}
 

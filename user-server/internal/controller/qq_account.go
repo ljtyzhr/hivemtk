@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"net/http"
 	"strconv"
 	"strings"
@@ -66,14 +67,14 @@ type qqAccountVO struct {
 	UpdatedAt         time.Time  `json:"updated_at"`
 }
 
-func toQQAccountVO(acc *model.QQAccount) qqAccountVO {
+func toQQAccountVO(ctx context.Context, acc *model.QQAccount) qqAccountVO {
 	return qqAccountVO{
 		ID:                acc.ID,
 		AccountName:       acc.AccountName,
 		AppID:             acc.AppID,
 		AppSecretMasked:   maskBotToken(acc.AppSecret),
 		WebhookURL:        acc.WebhookURL,
-		WebhookURLSuggest: service.SuggestQQWebhookURL(acc.ID),
+		WebhookURLSuggest: service.SuggestQQWebhookURL(ctx, acc.ID),
 		WebhookEnabled:    acc.WebhookEnabled,
 		AIAgentEnabled:    acc.AIAgentEnabled,
 		LastSyncAt:        acc.LastSyncAt,
@@ -94,7 +95,7 @@ func (ctrl *QQAccountController) List(c *gin.Context) {
 	}
 	list := make([]qqAccountVO, 0, len(accs))
 	for _, acc := range accs {
-		list = append(list, toQQAccountVO(acc))
+		list = append(list, toQQAccountVO(c.Request.Context(), acc))
 	}
 	response.SuccessWithList(c, list, int64(len(list)))
 }
@@ -114,7 +115,7 @@ func (ctrl *QQAccountController) Get(c *gin.Context) {
 	if !guardChannelAccountOwnership(c, acc.OwnerUserID) {
 		return
 	}
-	response.Success(c, toQQAccountVO(acc), "获取成功")
+	response.Success(c, toQQAccountVO(c.Request.Context(), acc), "获取成功")
 }
 
 type qqAccountCreateReq struct {
@@ -163,14 +164,14 @@ func (ctrl *QQAccountController) Create(c *gin.Context) {
 	}
 	// 拿到 ID 后补推导 URL（仅当用户未显式传入且推导值合法）
 	if webhookURL == "" {
-		if suggested := deriveQQWebhookURL(acc.ID); suggested != "" {
+		if suggested := deriveQQWebhookURL(c.Request.Context(), acc.ID); suggested != "" {
 			if vErr := service.ValidateQQWebhookURL(suggested); vErr == nil && acc.WebhookURL == "" {
 				acc.WebhookURL = suggested
 				_ = ctrl.svc.UpdateAccount(c.Request.Context(), acc)
 			}
 		}
 	}
-	response.Success(c, toQQAccountVO(acc), "创建成功")
+	response.Success(c, toQQAccountVO(c.Request.Context(), acc), "创建成功")
 }
 
 // Update 更新（AppSecret / WebhookSecret 为空时保留原值）
@@ -225,7 +226,7 @@ func (ctrl *QQAccountController) Update(c *gin.Context) {
 		response.ErrorFromDB(c, err, "更新失败", err.Error())
 		return
 	}
-	response.Success(c, toQQAccountVO(acc), "更新成功")
+	response.Success(c, toQQAccountVO(c.Request.Context(), acc), "更新成功")
 }
 
 // Delete 删除
@@ -316,7 +317,7 @@ func (ctrl *QQAccountController) VerifyCallback(c *gin.Context) {
 	}, "自检通过：验签链路连通，BotSecret 已配置")
 }
 
-// deriveQQWebhookURL 推导 QQ webhook 回调地址（供前端展示）
-func deriveQQWebhookURL(accountID uint) string {
-	return service.SuggestQQWebhookURL(accountID)
+// deriveQQWebhookURL 推导 QQ webhook 回调地址（供前端展示，按请求租户解析公网基址）
+func deriveQQWebhookURL(ctx context.Context, accountID uint) string {
+	return service.SuggestQQWebhookURL(ctx, accountID)
 }

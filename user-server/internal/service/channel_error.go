@@ -12,6 +12,7 @@ import (
 	"hivemtk-user/internal/channelbot/core"
 	"hivemtk-user/internal/event"
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 )
 
@@ -324,6 +325,18 @@ func retryDelaysFor(ce *ChannelError) []time.Duration {
 	}
 }
 
+// eventTenantID 为跨协程事件载荷取租户归属：发布点必须显式带上，
+// 订阅者侧再按它恢复 ctx（on 模式下无租户会被隔离 callback fail-closed）。
+func eventTenantID(ctx context.Context) uint {
+	if id, ok := tenant.FromContext(ctx); ok {
+		return id
+	}
+	if !tenant.IsMultiTenant() {
+		return tenant.DefaultTenantID
+	}
+	return 0
+}
+
 // outboundSendFailed 统一收口一次"投递失败"：结构化日志 → 授权告警 → 终态失败轨迹。
 //
 // content 是被丢弃的那条回复正文，只在需要另造轨迹行时用到（见下）。
@@ -344,6 +357,7 @@ func (s *WebhookService) outboundSendFailed(ctx context.Context, channel Webhook
 				Source:    "webhook_outbound",
 				Timestamp: time.Now(),
 				Payload: event.OperationLogPayload{
+					TenantID:   eventTenantID(ctx),
 					Action:     "outbound_auth_failure",
 					Module:     "channel",
 					Resource:   string(channel),

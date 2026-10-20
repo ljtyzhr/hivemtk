@@ -31,6 +31,8 @@ type AuditLogger interface {
 }
 
 type AuditEntry struct {
+	// TenantID 审计行归属（写队列时从 ctx 捕获，入队后 ctx 不再可用）。
+	TenantID      uint          `json:"tenant_id,omitempty"`
 	TraceID       string        `json:"trace_id,omitempty"`
 	ToolName      string        `json:"tool_name"`
 	CallerID      string        `json:"caller_id"`

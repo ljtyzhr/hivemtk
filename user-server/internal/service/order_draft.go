@@ -12,6 +12,7 @@ import (
 
 	"gorm.io/gorm"
 
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
 )
@@ -706,7 +707,7 @@ func (s *OrderDraftService) Confirm(ctx context.Context, draftID, confirmedBy st
 		hook := s.scriptConversionHook
 		go func() {
 			defer func() { _ = recover() }()
-			dctx, cancel := context.WithTimeout(context.Background(), 15*time.Second)
+			dctx, cancel := context.WithTimeout(tenant.BackgroundWithTenant(ctx), 15*time.Second)
 			defer cancel()
 			hook(dctx, oneID, convID, "purchase")
 		}()

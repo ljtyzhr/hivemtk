@@ -26,7 +26,7 @@ func NewScriptLoader() *ScriptLoader {
 }
 
 func (l *ScriptLoader) LoadScript(ctx context.Context, scriptID string) (*SalesScript, error) {
-	if data, found := LoadAssetFromDB("sales_script", scriptID); found {
+	if data, found := LoadAssetFromDB(ctx, "sales_script", scriptID); found {
 		var s SalesScript
 		if err := json.Unmarshal(data, &s); err == nil {
 			s.ID = scriptID

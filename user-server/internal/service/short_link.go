@@ -8,6 +8,7 @@ import (
 	"hivemtk-user/internal/config"
 	"hivemtk-user/internal/dto"
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
@@ -226,6 +227,15 @@ func (s *shortLinkService) GetList(ctx context.Context, req *dto.ListShortLinkRe
 }
 
 func (s *shortLinkService) AccessShortLink(ctx context.Context, req *dto.AccessShortLinkRequest) (*dto.AccessShortLinkResponse, error) {
+	// 匿名访问（JSON 入口）没有登录态，短码自身即归属自证：
+	// 先系统作用域反查租户，再把后续读/点击计数/访问记录钉死在该租户。
+	if tenant.IsMultiTenant() {
+		if _, bound := tenant.FromContext(ctx); !bound {
+			if id, ok, err := s.shortLinkRepo.TenantIDByShortCode(ctx, req.ShortCode); err == nil && ok {
+				ctx = tenant.OnlyTenant(ctx, id)
+			}
+		}
+	}
 	shortLink, err := s.shortLinkRepo.GetByShortCode(ctx, req.ShortCode)
 	if err != nil {
 		return nil, errors.New("短链不存在")

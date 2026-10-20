@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
 )
@@ -542,15 +543,20 @@ type LTCConfigSaveResult struct {
 	StagesOn     []string `json:"stages_on"`
 }
 
-// LTCConfigService 读写 ltc.config。
+// ltcCacheEntry 是单个租户的策略缓存格。
+type ltcCacheEntry struct {
+	cfg *LTCConfig
+	at  time.Time
+}
+
+// LTCConfigService 读写 ltc.config（system_config_kv，按租户各存一行）。
 type LTCConfigService struct {
 	store ltcKVStore
 	audit ltcAuditWriter
 
-	mu       sync.RWMutex
-	cached   *LTCConfig
-	cachedAt time.Time
-	nowFn    func() time.Time
+	mu    sync.RWMutex
+	cache map[uint]ltcCacheEntry
+	nowFn func() time.Time
 }
 
 // NewLTCConfigService 用全局 KV 仓储与全局审计仓储构造。无库句柄不报错：那时读出来就是默认全关 + degraded，
@@ -563,7 +569,7 @@ func NewLTCConfigService() *LTCConfigService {
 
 // NewLTCConfigServiceWithStore 注入存储（测试与影子装配用）。
 func NewLTCConfigServiceWithStore(store ltcKVStore) *LTCConfigService {
-	return &LTCConfigService{store: store, nowFn: time.Now}
+	return &LTCConfigService{store: store, cache: make(map[uint]ltcCacheEntry), nowFn: time.Now}
 }
 
 func (s *LTCConfigService) now() time.Time {
@@ -573,18 +579,35 @@ func (s *LTCConfigService) now() time.Time {
 	return time.Now()
 }
 
-// Config 读当前生效策略：缓存优先，miss 或过 TTL 则重读。
+// Config 读当前租户生效策略：缓存优先，miss 或过 TTL 则重读。
+//
+// 缓存按租户分格：策略落点是租户级 KV，共用一格会把 A 租户的开关铺给 B 租户。
+// on 模式没有租户上下文时直接返回降级默认（全关），且不写缓存 —— 这类调用是
+// 装配缺陷，下一次带租户的请求必须还能读到真实配置。
 func (s *LTCConfigService) Config(ctx context.Context) *LTCConfig {
+	if tenant.IsMultiTenant() {
+		if _, ok := tenant.FromContext(ctx); !ok {
+			def := DefaultLTCConfig()
+			def.Degraded = true
+			def.DegradeReason = "多租户模式下读取 ltc.config 需要租户上下文 ⇒ 按默认全关处理"
+			return def
+		}
+	}
+	scope := tenantScopeID(ctx)
+	now := s.now()
 	s.mu.RLock()
-	cached, fresh := s.cached, s.cached != nil && s.now().Before(s.cachedAt.Add(LTCConfigCacheTTL))
+	e, hit := s.cache[scope]
+	fresh := hit && e.cfg != nil && now.Before(e.at.Add(LTCConfigCacheTTL))
 	s.mu.RUnlock()
 	if fresh {
-		return cloneLTCConfig(cached)
+		return cloneLTCConfig(e.cfg)
 	}
 	loaded := s.load(ctx)
 	s.mu.Lock()
-	s.cached = loaded
-	s.cachedAt = s.now()
+	if s.cache == nil {
+		s.cache = make(map[uint]ltcCacheEntry)
+	}
+	s.cache[scope] = ltcCacheEntry{cfg: loaded, at: now}
 	s.mu.Unlock()
 	return cloneLTCConfig(loaded)
 }
@@ -592,7 +615,7 @@ func (s *LTCConfigService) Config(ctx context.Context) *LTCConfig {
 // InvalidateCache 丢弃进程内缓存（下一次读重拉）。
 func (s *LTCConfigService) InvalidateCache() {
 	s.mu.Lock()
-	s.cached = nil
+	s.cache = make(map[uint]ltcCacheEntry)
 	s.mu.Unlock()
 }
 
@@ -639,6 +662,11 @@ func (s *LTCConfigService) Save(ctx context.Context, cfg *LTCConfig, actorID uin
 	if err := cfg.Validate(); err != nil {
 		return nil, fmt.Errorf("拒绝保存：%w", err)
 	}
+	if tenant.IsMultiTenant() {
+		if _, ok := tenant.FromContext(ctx); !ok {
+			return nil, fmt.Errorf("%w：多租户模式下保存 ltc.config 需要租户上下文", ErrLTCStoreUnavailable)
+		}
+	}
 	if s.store == nil || !s.store.Available() {
 		return nil, fmt.Errorf("%w（无 DB 句柄）⇒ ltc.config 未写入", ErrLTCStoreUnavailable)
 	}
@@ -662,9 +690,12 @@ func (s *LTCConfigService) Save(ctx context.Context, cfg *LTCConfig, actorID uin
 	}
 
 	res := &LTCConfigSaveResult{Persisted: true, StoredBytes: len(encoded), StagesOn: out.StagesEnabled.OnList()}
+	scope := tenantScopeID(ctx)
 	s.mu.Lock()
-	s.cached = out
-	s.cachedAt = s.now()
+	if s.cache == nil {
+		s.cache = make(map[uint]ltcCacheEntry)
+	}
+	s.cache[scope] = ltcCacheEntry{cfg: out, at: s.now()}
 	s.mu.Unlock()
 
 	detail := out.AuditDetail()

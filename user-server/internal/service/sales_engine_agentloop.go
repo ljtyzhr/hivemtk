@@ -76,7 +76,11 @@ func (e *SalesEngine) runAgentLoop(
 		e.permissionChecker.SetAgentWhitelist(agentIDStr, allowed)
 	}
 
-	maxTools, maxIter := resolveAgentSettings(ctx)
+	maxTools, maxIter, disabledTools := resolveAgentSettings(ctx)
+
+	// 租户级工具停用：on 模式的共享注册表不能在装配期剔除（那会波及所有租户），
+	// 只能在每次派发时按请求租户的 agent.settings 裁剪。
+	availableTools = filterDisabledTools(availableTools, disabledTools)
 
 	availableTools = filterToolsForScenario(scenario, availableTools)
 	filteredTools := limitToolsForAgent(availableTools, maxTools, allowed)
@@ -492,6 +496,30 @@ func agentContextToolNames(req *SalesRequest) []string {
 		return nil
 	}
 	return req.AgentContext.Tools
+}
+
+// filterDisabledTools 按租户 agent.settings.disabled_tools 裁剪本次派发的工具清单。
+func filterDisabledTools(defs []AgentToolDef, disabled []string) []AgentToolDef {
+	if len(disabled) == 0 {
+		return defs
+	}
+	blocked := make(map[string]struct{}, len(disabled))
+	for _, name := range disabled {
+		if name != "" {
+			blocked[name] = struct{}{}
+		}
+	}
+	if len(blocked) == 0 {
+		return defs
+	}
+	out := make([]AgentToolDef, 0, len(defs))
+	for _, d := range defs {
+		if _, off := blocked[d.Name]; off {
+			continue
+		}
+		out = append(out, d)
+	}
+	return out
 }
 
 func filterToolsForScenario(scenario llm.DispatchScenario, defs []AgentToolDef) []AgentToolDef {

@@ -45,7 +45,12 @@ func (c *EmailOpenTrackerController) PostmarkWebhook(ctx *gin.Context) {
 		response.Error(ctx, http.StatusBadRequest, "参数错误："+err.Error())
 		return
 	}
-	if err := c.svc.RecordPostmarkEvent(ctx.Request.Context(), &evt); err != nil {
+	requestCtx, err := publicWebhookTenantCtx(ctx)
+	if err != nil {
+		response.Error(ctx, http.StatusBadRequest, "租户标识无效："+err.Error())
+		return
+	}
+	if err := c.svc.RecordPostmarkEvent(requestCtx, &evt); err != nil {
 		response.ErrorFromDB(ctx, err, "记录事件失败："+err.Error())
 		return
 	}
@@ -67,7 +72,12 @@ func (c *EmailOpenTrackerController) SendCloudWebhook(ctx *gin.Context) {
 		response.Error(ctx, http.StatusBadRequest, "参数错误："+err.Error())
 		return
 	}
-	if err := c.svc.RecordSendCloudEvent(ctx.Request.Context(), &evt); err != nil {
+	requestCtx, err := publicWebhookTenantCtx(ctx)
+	if err != nil {
+		response.Error(ctx, http.StatusBadRequest, "租户标识无效："+err.Error())
+		return
+	}
+	if err := c.svc.RecordSendCloudEvent(requestCtx, &evt); err != nil {
 		response.ErrorFromDB(ctx, err, "记录事件失败："+err.Error())
 		return
 	}

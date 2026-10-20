@@ -1,10 +1,12 @@
 package llm
 
 import (
+	"context"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 
 	"gorm.io/gorm"
@@ -140,17 +142,31 @@ func (s *DBTraceSink) flushLoop() {
 			batch = batch[:0]
 			return
 		}
-		rows := make([]map[string]any, 0, len(batch))
+		rows := make(map[uint][]map[string]any)
 		for _, e := range batch {
-			rows = append(rows, traceEventToRow(e))
+			rows[e.TenantID] = append(rows[e.TenantID], traceEventToRow(e))
 		}
-		if err := s.db.Table("trace_events").Create(rows).Error; err != nil {
-			logger.GetLogger().Error().
-				Err(err).
-				Int("batch", len(batch)).
-				Msg("[DBTraceSink] batch insert failed")
-		} else {
-			atomic.AddInt64(&s.inserted, int64(len(batch)))
+		for tenantID, group := range rows {
+			if tenantID == 0 {
+				if tenant.IsMultiTenant() {
+					// 公开路由没有租户归属：多租户下 map 落库必被拒绝，逐批报错只会
+					// 刷屏——跳过并计数（绝不借默认租户蒙混落库）。
+					atomic.AddInt64(&s.dropped, int64(len(group)))
+					logger.GetLogger().Debug().Int("batch", len(group)).Msg("[DBTraceSink] skip unbound events")
+					continue
+				}
+				tenantID = tenant.DefaultTenantID
+			}
+			ctx := tenant.WithTenantID(context.Background(), tenantID)
+			if err := s.db.WithContext(ctx).Table("trace_events").Create(group).Error; err != nil {
+				logger.GetLogger().Error().
+					Err(err).
+					Int("batch", len(group)).
+					Uint("tenant", tenantID).
+					Msg("[DBTraceSink] batch insert failed")
+			} else {
+				atomic.AddInt64(&s.inserted, int64(len(group)))
+			}
 		}
 		batch = batch[:0]
 	}
@@ -191,6 +207,11 @@ func traceEventToRow(e TraceEvent) map[string]any {
 		"duration_ms": e.DurationMs,
 		"status":      e.Status,
 		"timestamp":   e.Timestamp,
+	}
+	// map 形态绕过模型 Schema，隔离 callback 无从按上下文填 tenant_id；
+	// 归属未知时不写这一列（多租户下由 callback fail-closed，不静默落默认租户）。
+	if e.TenantID != 0 {
+		row["tenant_id"] = e.TenantID
 	}
 	if e.ParentSpanID != "" {
 		row["parent_span_id"] = e.ParentSpanID

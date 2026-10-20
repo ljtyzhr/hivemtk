@@ -5,6 +5,8 @@ import (
 	"errors"
 	"testing"
 	"time"
+
+	"hivemtk-user/internal/pkg/tenant"
 )
 
 // TestMemoryCache_New 测试创建内存缓存
@@ -396,4 +398,44 @@ func TestMemoryCache_CleanupGoroutine(t *testing.T) {
 
 	time.Sleep(600 * time.Millisecond)
 
+}
+
+// on 模式下内存后端的键必须与 Redis 后端同源分域（tenant.RedisKey），
+// 否则 Redis 不可用退回内存缓存时租户隔离会静默失效。
+func TestMemoryCache_TenantIsolation(t *testing.T) {
+	tenant.SetMode(tenant.ModeOn)
+	t.Cleanup(func() { tenant.SetMode(tenant.ModeOff) })
+
+	c := NewMemoryCacheWithLimit(100)
+	defer c.Close()
+
+	ctxA := tenant.WithTenantID(context.Background(), 11)
+	ctxB := tenant.WithTenantID(context.Background(), 22)
+	if err := c.Set(ctxA, "same-key", "A", time.Minute); err != nil {
+		t.Fatal(err)
+	}
+	if err := c.Set(ctxB, "same-key", "B", time.Minute); err != nil {
+		t.Fatal(err)
+	}
+	if v, err := c.Get(ctxA, "same-key"); err != nil || v != "A" {
+		t.Fatalf("租户 A 读到 %q, err=%v", v, err)
+	}
+	if v, err := c.Get(ctxB, "same-key"); err != nil || v != "B" {
+		t.Fatalf("租户 B 读到 %q, err=%v", v, err)
+	}
+	if _, err := c.Get(context.Background(), "same-key"); !errors.Is(err, ErrCacheMiss) {
+		t.Fatalf("无租户 ctx 不应命中租户键, err=%v", err)
+	}
+
+	nA, err := c.Incr(ctxA, "counter", time.Minute)
+	if err != nil || nA != 1 {
+		t.Fatalf("A counter=%d err=%v", nA, err)
+	}
+	nB, err := c.Incr(ctxB, "counter", time.Minute)
+	if err != nil || nB != 1 {
+		t.Fatalf("B counter=%d err=%v", nB, err)
+	}
+	if nA2, _ := c.Incr(ctxA, "counter", time.Minute); nA2 != 2 {
+		t.Fatalf("A counter 第二次=%d, 期望 2", nA2)
+	}
 }

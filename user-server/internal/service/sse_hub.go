@@ -9,6 +9,9 @@ import (
 	"sync/atomic"
 	"time"
 
+	"hivemtk-user/internal/pkg/tenant"
+	"hivemtk-user/internal/pkg/utils/logger"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -75,6 +78,7 @@ type SSEEvent struct {
 type SSEClient struct {
 	id        string
 	ip        string
+	tenantID  uint
 	topics    map[string]bool
 	eventCh   chan SSEEvent
 	closeCh   chan struct{}
@@ -82,20 +86,36 @@ type SSEClient struct {
 	createdAt time.Time
 }
 
-// NewSSEClient 创建新的 SSE 客户端
-func NewSSEClient(id, ip string, topics []string) *SSEClient {
+// NewSSEClient 创建新的 SSE 客户端。
+// 租户归属从 ctx 派生：on 模式下断言的租户由 Register 强制（无绑定拒绝注册），
+// 事件只投递给同租户客户端（FR-018 实时推送按租户分域）。
+func NewSSEClient(ctx context.Context, id, ip string, topics []string) *SSEClient {
 	topicSet := make(map[string]bool, len(topics))
 	for _, t := range topics {
 		topicSet[t] = true
 	}
+	tenantID, _ := tenant.FromContext(ctx)
 	return &SSEClient{
 		id:        id,
 		ip:        ip,
+		tenantID:  tenantID,
 		topics:    topicSet,
 		eventCh:   make(chan SSEEvent, runtimeSSEClientBufferSize(context.Background())),
 		closeCh:   make(chan struct{}),
 		createdAt: time.Now(),
 	}
+}
+
+// effectiveTenantID 归一化租户归属：off 模式无绑定等同默认租户；
+// on 模式无绑定返回 false，调用方必须 fail-closed（拒绝注册/拒绝投递）。
+func effectiveTenantID(ctx context.Context) (uint, bool) {
+	if id, ok := tenant.FromContext(ctx); ok {
+		return id, true
+	}
+	if tenant.IsMultiTenant() {
+		return 0, false
+	}
+	return tenant.DefaultTenantID, true
 }
 
 // ID 返回客户端 ID
@@ -177,6 +197,13 @@ func (h *SSEHub) Register(ctx context.Context, client *SSEClient) error {
 	if client == nil {
 		return fmt.Errorf("client is nil")
 	}
+	if client.tenantID == 0 {
+		tid, ok := effectiveTenantID(ctx)
+		if !ok {
+			return fmt.Errorf("client missing tenant binding")
+		}
+		client.tenantID = tid
+	}
 	h.mu.Lock()
 	defer h.mu.Unlock()
 	if h.stopped.Load() {
@@ -212,9 +239,16 @@ func (h *SSEHub) Unregister(ctx context.Context, clientID string) {
 	client.Close(ctx)
 }
 
-// Publish 向指定 topic 的所有订阅者广播事件
+// Publish 向指定 topic 的**同租户**订阅者广播事件。
+// 无租户绑定的事件在 on 模式只记日志不投递：宁可丢一条系统告警，
+// 也不能把 A 租户的事件推给 B 租户（FR-018）。
 func (h *SSEHub) Publish(ctx context.Context, event SSEEvent) {
 	if h.stopped.Load() {
+		return
+	}
+	tenantID, ok := effectiveTenantID(ctx)
+	if !ok {
+		logger.Warnf("[SSE] 丢弃无租户归属的事件 topic=%s type=%s", event.Topic, event.EventType)
 		return
 	}
 	if event.Timestamp.IsZero() {
@@ -223,7 +257,7 @@ func (h *SSEHub) Publish(ctx context.Context, event SSEEvent) {
 	h.mu.RLock()
 	clients := make([]*SSEClient, 0, len(h.clients))
 	for _, c := range h.clients {
-		if c.IsSubscribed(ctx, event.Topic) {
+		if c.tenantID == tenantID && c.IsSubscribed(ctx, event.Topic) {
 			clients = append(clients, c)
 		}
 	}
@@ -235,11 +269,21 @@ func (h *SSEHub) Publish(ctx context.Context, event SSEEvent) {
 	}
 }
 
-// GetClientCount 返回当前客户端总数
+// GetClientCount 返回当前上下文租户的客户端数
 func (h *SSEHub) GetClientCount(ctx context.Context) int {
+	tenantID, ok := effectiveTenantID(ctx)
 	h.mu.RLock()
 	defer h.mu.RUnlock()
-	return len(h.clients)
+	if !ok {
+		return 0
+	}
+	n := 0
+	for _, c := range h.clients {
+		if c.tenantID == tenantID {
+			n++
+		}
+	}
+	return n
 }
 
 // GetIPCount 返回指定 IP 的连接数
@@ -249,19 +293,33 @@ func (h *SSEHub) GetIPCount(ctx context.Context, ip string) int {
 	return h.ipCount[ip]
 }
 
-// GetClient 返回指定 ID 的客户端
+// GetClient 返回指定 ID 的客户端（仅限当前上下文租户）
 func (h *SSEHub) GetClient(ctx context.Context, clientID string) *SSEClient {
+	tenantID, ok := effectiveTenantID(ctx)
+	if !ok {
+		return nil
+	}
 	h.mu.RLock()
 	defer h.mu.RUnlock()
-	return h.clients[clientID]
+	if c := h.clients[clientID]; c != nil && c.tenantID == tenantID {
+		return c
+	}
+	return nil
 }
 
-// ListClients 列出所有客户端信息（用于管理 API）
+// ListClients 列出当前上下文租户的所有客户端信息（用于管理 API）
 func (h *SSEHub) ListClients(ctx context.Context) []map[string]any {
+	tenantID, ok := effectiveTenantID(ctx)
 	h.mu.RLock()
 	defer h.mu.RUnlock()
 	out := make([]map[string]any, 0, len(h.clients))
+	if !ok {
+		return out
+	}
 	for _, c := range h.clients {
+		if c.tenantID != tenantID {
+			continue
+		}
 		out = append(out, map[string]any{
 			"id":         c.id,
 			"ip":         c.ip,
@@ -313,13 +371,16 @@ func GetGlobalSSEHub() *SSEHub {
 	return globalSSEHub
 }
 
-// PublishSSEEvent 便捷方法：发布事件到全局 SSE Hub
-func PublishSSEEvent(topic, eventType string, data any, traceID string) {
+// PublishSSEEvent 便捷方法：发布事件到全局 SSE Hub（租户归属取 ctx）
+func PublishSSEEvent(ctx context.Context, topic, eventType string, data any, traceID string) {
 	hub := GetGlobalSSEHub()
 	if hub == nil || hub.Stopped(context.Background()) {
 		return
 	}
-	hub.Publish(context.Background(), SSEEvent{
+	if ctx == nil {
+		ctx = context.Background()
+	}
+	hub.Publish(ctx, SSEEvent{
 		Topic:     topic,
 		EventType: eventType,
 		Data:      data,

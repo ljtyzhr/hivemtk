@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 
 	"gorm.io/gorm"
@@ -18,6 +19,8 @@ type ShortLinkRepository interface {
 	GetList(ctx context.Context, page, pageSize int, shortCode, originalURL string, status int) ([]*model.ShortLink, int64, error)
 	GetTotalCount(ctx context.Context) (int64, error)
 	IncreaseClickCount(ctx context.Context, id uint) error
+	// TenantIDByShortCode 系统作用域反查短码归属租户；跨租户同码时 ok=false
+	TenantIDByShortCode(ctx context.Context, shortCode string) (uint, bool, error)
 }
 
 type shortLinkRepository struct {
@@ -64,6 +67,24 @@ func (r *shortLinkRepository) GetByShortCode(ctx context.Context, shortCode stri
 		return nil, err
 	}
 	return &shortLink, nil
+}
+
+// TenantIDByShortCode 匿名访问只带短码，租户由短链行自证。
+// 短码唯一索引是 (tenant_id, short_code)：同码多租户时拒猜（ok=false）。
+func (r *shortLinkRepository) TenantIDByShortCode(ctx context.Context, shortCode string) (uint, bool, error) {
+	var ids []uint
+	if err := r.db.WithContext(tenant.WithSystemScope(ctx)).
+		Model(&model.ShortLink{}).
+		Distinct("tenant_id").
+		Where("short_code = ?", shortCode).
+		Limit(2).
+		Pluck("tenant_id", &ids).Error; err != nil {
+		return 0, false, err
+	}
+	if len(ids) != 1 || ids[0] == 0 {
+		return 0, false, nil
+	}
+	return ids[0], true, nil
 }
 
 func (r *shortLinkRepository) GetList(ctx context.Context, page, pageSize int, shortCode, originalURL string, status int) ([]*model.ShortLink, int64, error) {

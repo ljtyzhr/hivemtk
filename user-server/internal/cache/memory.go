@@ -1,3 +1,6 @@
+// Package-level 说明：内存后端与 Redis 后端必须共用同一套键分域语义
+// （tenant.RedisKey），否则同一个进程在 Redis 不可用时退回内存缓存，
+// 租户隔离会静默失效。
 package cache
 
 import (
@@ -7,6 +10,8 @@ import (
 	"errors"
 	"sync"
 	"time"
+
+	"hivemtk-user/internal/pkg/tenant"
 )
 
 // ErrCacheMiss key 不存在或已过期时返回（对齐 RedisCache 未命中返回 redis.Nil 的契约）
@@ -181,6 +186,7 @@ func (m *MemoryCache) peekItem(key string) (*cacheItem, bool) {
 // Get 获取缓存
 // 未命中或已过期返回 ErrCacheMiss（与 RedisCache 未命中返回 redis.Nil 的契约对齐）
 func (m *MemoryCache) Get(ctx context.Context, key string) (string, error) {
+	key = tenant.RedisKey(ctx, key)
 	item, ok := m.peekItem(key)
 	if !ok || (!item.expiration.IsZero() && item.expiration.Before(time.Now())) {
 		return "", ErrCacheMiss
@@ -199,6 +205,7 @@ func (m *MemoryCache) Get(ctx context.Context, key string) (string, error) {
 
 // Set 设置缓存
 func (m *MemoryCache) Set(ctx context.Context, key string, value any, expiration time.Duration) error {
+	key = tenant.RedisKey(ctx, key)
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -220,6 +227,7 @@ func (m *MemoryCache) Set(ctx context.Context, key string, value any, expiration
 
 // SetNX 仅在 key 不存在时设置；返回 true 表示本次设置成功
 func (m *MemoryCache) SetNX(ctx context.Context, key string, value any, expiration time.Duration) (bool, error) {
+	key = tenant.RedisKey(ctx, key)
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -242,6 +250,7 @@ func (m *MemoryCache) SetNX(ctx context.Context, key string, value any, expirati
 
 // ReleaseLock 仅当 key 的值等于 token 时删除（安全释放 SetNX 锁）。返回 true 表示成功释放。
 func (m *MemoryCache) ReleaseLock(ctx context.Context, key, token string) (bool, error) {
+	key = tenant.RedisKey(ctx, key)
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	ele, ok := m.data[key]
@@ -262,6 +271,7 @@ func (m *MemoryCache) ReleaseLock(ctx context.Context, key, token string) (bool,
 
 // LPush 向列表头部推入
 func (m *MemoryCache) LPush(ctx context.Context, key string, value any, expiration time.Duration) error {
+	key = tenant.RedisKey(ctx, key)
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -287,6 +297,7 @@ func (m *MemoryCache) LPush(ctx context.Context, key string, value any, expirati
 
 // RPush 向列表尾部推入
 func (m *MemoryCache) RPush(ctx context.Context, key string, value any, expiration time.Duration) error {
+	key = tenant.RedisKey(ctx, key)
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -312,6 +323,7 @@ func (m *MemoryCache) RPush(ctx context.Context, key string, value any, expirati
 
 // LPop 从列表头部弹出
 func (m *MemoryCache) LPop(ctx context.Context, key string) (string, error) {
+	key = tenant.RedisKey(ctx, key)
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
@@ -337,6 +349,7 @@ func (m *MemoryCache) LPop(ctx context.Context, key string) (string, error) {
 // LRange 获取列表区间
 // PopAll 原子取出并删除整个 list（写锁内交换，无丢消息窗口）。
 func (m *MemoryCache) PopAll(ctx context.Context, key string) ([]string, error) {
+	key = tenant.RedisKey(ctx, key)
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	ele, ok := m.data[key]
@@ -361,6 +374,7 @@ func (m *MemoryCache) PopAll(ctx context.Context, key string) ([]string, error) 
 }
 
 func (m *MemoryCache) LRange(ctx context.Context, key string, start, stop int64) ([]string, error) {
+	key = tenant.RedisKey(ctx, key)
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -394,6 +408,7 @@ func (m *MemoryCache) LRange(ctx context.Context, key string, start, stop int64)
 
 // LLen 列表长度
 func (m *MemoryCache) LLen(ctx context.Context, key string) (int64, error) {
+	key = tenant.RedisKey(ctx, key)
 	m.mu.RLock()
 	defer m.mu.RUnlock()
 
@@ -422,6 +437,7 @@ func stringifyValue(v any) string {
 
 // Delete 删除缓存
 func (m *MemoryCache) Delete(ctx context.Context, key string) error {
+	key = tenant.RedisKey(ctx, key)
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if ele, ok := m.data[key]; ok {
@@ -435,6 +451,7 @@ func (m *MemoryCache) Delete(ctx context.Context, key string) error {
 // 首次设置 value=1；expiration>0 时作为 TTL 应用（用于单实例下的 RPM/计数兜底）。
 // 注：调用方应以「按时间窗口轮转的 key」（如带分钟时间戳）驱动窗口重置，TTL 仅用于清理旧 key。
 func (m *MemoryCache) Incr(ctx context.Context, key string, expiration time.Duration) (int64, error) {
+	key = tenant.RedisKey(ctx, key)
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	var exp time.Time
@@ -464,6 +481,7 @@ func (m *MemoryCache) Incr(ctx context.Context, key string, expiration time.Dura
 
 // Exists 检查缓存是否存在
 func (m *MemoryCache) Exists(ctx context.Context, key string) (bool, error) {
+	key = tenant.RedisKey(ctx, key)
 	item, ok := m.peekItem(key)
 	if !ok {
 		return false, nil
@@ -477,6 +495,7 @@ func (m *MemoryCache) Exists(ctx context.Context, key string) (bool, error) {
 // GetJSON 获取 JSON 缓存并反序列化
 // 优化：SetJSON 写入时已序列化缓存，命中时直接反序列化，跳过 Marshal
 func (m *MemoryCache) GetJSON(ctx context.Context, key string, dest any) error {
+	key = tenant.RedisKey(ctx, key)
 	item, ok := m.peekItem(key)
 	if !ok {
 		return ErrCacheMiss

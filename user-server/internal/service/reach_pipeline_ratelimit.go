@@ -62,7 +62,7 @@ func (s *ReachPipelineService) checkRateLimit(ctx context.Context, channel, acco
 		}
 	}
 	if rl.QPS > 0 || rl.Burst > 0 {
-		key := channel + ":" + accountID
+		key := fmt.Sprintf("t%d|%s:%s", tenantScopeID(ctx), channel, accountID)
 		s.rateMu.Lock()
 		b, ok := s.rateState[key]
 		if !ok {
@@ -137,14 +137,21 @@ const (
 	perUserLimitCacheTTL = time.Minute
 )
 
+// perUserLimitEntry 是单个租户的配置缓存格。
+type perUserLimitEntry struct {
+	val int
+	at  time.Time
+}
+
 func (s *ReachPipelineService) resolvePerUserLimit(ctx context.Context, configured int) int {
 	if configured > 0 {
 		return configured
 	}
+	scope := tenantScopeID(ctx)
 	s.perUserLimitMu.Lock()
 	defer s.perUserLimitMu.Unlock()
-	if s.perUserLimitVal > 0 && time.Since(s.perUserLimitLoadAt) < perUserLimitCacheTTL {
-		return s.perUserLimitVal
+	if e, ok := s.perUserLimitCache[scope]; ok && time.Since(e.at) < perUserLimitCacheTTL {
+		return e.val
 	}
 	val := defaultPerUserLimit
 	s.kvRepoOnce.Do(func() { s.kvRepo = repository.NewSystemConfigKVRepository() })
@@ -165,13 +172,17 @@ func (s *ReachPipelineService) resolvePerUserLimit(ctx context.Context, configur
 			}
 		}()
 	}
-	s.perUserLimitVal = val
-	s.perUserLimitLoadAt = time.Now()
+	if s.perUserLimitCache == nil {
+		s.perUserLimitCache = make(map[uint]perUserLimitEntry)
+	}
+	s.perUserLimitCache[scope] = perUserLimitEntry{val: val, at: time.Now()}
 	return val
 }
 
-func dailyQuotaRedisKey(channel, day string) string {
-	return fmt.Sprintf("reach:dailyquota:%s:%s", channel, day)
+// dailyQuotaRedisKey 频控键带租户前缀：渠道名与日期在每个租户都相同，
+// 不分区就会让 A 租户消耗掉 B 租户的当日额度。
+func dailyQuotaRedisKey(ctx context.Context, channel, day string) string {
+	return fmt.Sprintf("reach:t%d:dailyquota:%s:%s", tenantScopeID(ctx), channel, day)
 }
 
 func nextCSTMidnight(t time.Time) time.Duration {
@@ -187,7 +198,7 @@ func (s *ReachPipelineService) ConsumeDailyQuota(ctx context.Context, channel st
 
 func (s *ReachPipelineService) checkDailyQuota(ctx context.Context, channel string, quota int) bool {
 	today := time.Now().In(cstZone).Format("2006-01-02")
-	key := dailyQuotaRedisKey(channel, today)
+	key := dailyQuotaRedisKey(ctx, channel, today)
 	if c := s.rateCacheOrGlobal(); c != nil {
 		n, err := c.Incr(ctx, key, nextCSTMidnight(time.Now()))
 		if err != nil {
@@ -216,7 +227,7 @@ func (s *ReachPipelineService) checkDailyQuota(ctx context.Context, channel stri
 
 func (s *ReachPipelineService) consumeDailyQuota(ctx context.Context, channel string, n int) bool {
 	today := time.Now().In(cstZone).Format("2006-01-02")
-	key := dailyQuotaRedisKey(channel, today)
+	key := dailyQuotaRedisKey(ctx, channel, today)
 	if c := s.rateCacheOrGlobal(); c != nil {
 		ttl := nextCSTMidnight(time.Now())
 		var lastErr error
@@ -253,7 +264,7 @@ func (s *ReachPipelineService) checkPerUser(ctx context.Context, customerID stri
 		return true
 	}
 	if c := s.rateCacheOrGlobal(); c != nil {
-		key := "reach:peruser:" + customerID
+		key := fmt.Sprintf("reach:t%d:peruser:%s", tenantScopeID(ctx), customerID)
 		n, err := c.Incr(ctx, key, cooldown)
 		if err == nil {
 			return n <= int64(limit)
@@ -262,12 +273,13 @@ func (s *ReachPipelineService) checkPerUser(ctx context.Context, customerID stri
 	}
 
 	now := time.Now()
+	scopeKey := fmt.Sprintf("t%d|%s", tenantScopeID(ctx), customerID)
 	s.perUserMu.Lock()
 	defer s.perUserMu.Unlock()
 	if s.perUserHits == nil {
 		s.perUserHits = make(map[string][]time.Time)
 	}
-	hits := s.perUserHits[customerID]
+	hits := s.perUserHits[scopeKey]
 	cutoff := now.Add(-cooldown)
 	newHits := hits[:0]
 	for _, h := range hits {
@@ -276,17 +288,17 @@ func (s *ReachPipelineService) checkPerUser(ctx context.Context, customerID stri
 		}
 	}
 	if len(newHits) >= limit {
-		s.perUserHits[customerID] = newHits
+		s.perUserHits[scopeKey] = newHits
 		return false
 	}
 	newHits = append(newHits, now)
-	s.perUserHits[customerID] = newHits
+	s.perUserHits[scopeKey] = newHits
 	return true
 }
 
 // ResetRateLimit 重置限流状态（用于测试或运维）
 func (s *ReachPipelineService) ResetRateLimit(ctx context.Context, channel string) {
-	prefix := channel
+	prefix := fmt.Sprintf("t%d|%s", tenantScopeID(ctx), channel)
 	s.rateMu.Lock()
 	for k := range s.rateState {
 		if strings.HasPrefix(k, prefix) {
@@ -295,14 +307,12 @@ func (s *ReachPipelineService) ResetRateLimit(ctx context.Context, channel strin
 	}
 	s.rateMu.Unlock()
 	s.dailyQuotaMu.Lock()
-	delete(s.dailyQuota, prefix)
-
-	delete(s.dailyQuota, dailyQuotaRedisKey(prefix, time.Now().In(cstZone).Format("2006-01-02")))
+	delete(s.dailyQuota, dailyQuotaRedisKey(ctx, channel, time.Now().In(cstZone).Format("2006-01-02")))
 	s.dailyQuotaMu.Unlock()
 
 	if c := s.rateCacheOrGlobal(); c != nil {
 		today := time.Now().In(cstZone).Format("2006-01-02")
-		_ = c.Delete(ctx, dailyQuotaRedisKey(channel, today))
+		_ = c.Delete(ctx, dailyQuotaRedisKey(ctx, channel, today))
 	}
 }
 
@@ -315,7 +325,7 @@ func (s *ReachPipelineService) checkGlobalPerUserDaily(ctx context.Context, cust
 		return true
 	}
 	day := time.Now().In(cstLoc()).Format("2006-01-02")
-	key := "reach:global:" + customerID + ":" + day
+	key := fmt.Sprintf("reach:t%d:global:%s:%s", tenantScopeID(ctx), customerID, day)
 
 	if c := s.rateCacheOrGlobal(); c != nil {
 		n, err := c.Incr(ctx, key, nextCSTMidnight(time.Now()))

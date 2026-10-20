@@ -6,6 +6,7 @@ import (
 
 	"hivemtk-user/internal/model"
 	_db "hivemtk-user/internal/pkg/db"
+	"hivemtk-user/internal/pkg/tenant"
 
 	"gorm.io/gorm"
 )
@@ -19,6 +20,8 @@ type EmailUnsubscribeRepository interface {
 	DeleteByEmail(ctx context.Context, email string) error
 	List(ctx context.Context, page, limit int, keyword string) ([]*model.EmailUnsubscribe, int64, error)
 	ListAll(ctx context.Context) ([]*model.EmailUnsubscribe, error)
+	// FindTenantIDByJobID 按邮件任务 ID 反查租户（公开退订入口的引导查询）。
+	FindTenantIDByJobID(ctx context.Context, jobID string) (uint, error)
 }
 
 type emailUnsubscribeRepo struct {
@@ -93,4 +96,19 @@ func (r *emailUnsubscribeRepo) ListAll(ctx context.Context) ([]*model.EmailUnsub
 		return nil, err
 	}
 	return records, nil
+}
+
+// FindTenantIDByJobID 是公开退订入口的租户引导：调用方 ctx 尚无租户，
+// 只能按全局唯一主键 system-scope 反查，再由上层把结果钉进业务 ctx。
+func (r *emailUnsubscribeRepo) FindTenantIDByJobID(ctx context.Context, jobID string) (uint, error) {
+	if jobID == "" {
+		return 0, nil
+	}
+	var tenantID uint
+	err := r.db.WithContext(tenant.WithSystemScope(ctx)).
+		Model(&model.EmailJobs{}).
+		Select("tenant_id").
+		Where("id = ?", jobID).
+		Scan(&tenantID).Error
+	return tenantID, err
 }

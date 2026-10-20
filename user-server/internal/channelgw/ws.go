@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/tracing"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/logger"
@@ -56,6 +57,15 @@ type WSTransport struct {
 	pushInterval time.Duration
 	pushBatch    int
 	OnRegister   func(ctx context.Context, channel, accountID string)
+
+	// TenantBinder 在 register 帧判清渠道账号的租户归属（on 模式必需）。
+	//
+	// 由装配层注入（router 把 bridge 的解析函数交进来）：本包不能直接 import
+	// bridge —— bridge 已经 import channelgw，反向依赖会成环。
+	//
+	// 契约：返回携带租户的 ctx；判不出归属时返回 error，调用方据此拒绝这条连接。
+	// off 模式下注入方原样返回入参 ctx，行为与历史版本等价。
+	TenantBinder func(r *http.Request, channel, accountID string) (context.Context, error)
 }
 
 // NewWSTransport 构造 WS 传输。registry 为 nil 时使用 Default。
@@ -126,6 +136,28 @@ func (t *WSTransport) HandleWS(c *gin.Context) {
 		_ = conn.Close()
 		return
 	}
+
+	// 租户归属必须在双泵启动前判清：on 模式下 channel/account_id 是唯一的归属线索，
+	// 带着无绑定的 ctx 进泵，每一帧的读写都会被隔离 callback 判错，而泵里所有错误
+	// 只落一行 Warn —— 渠道端看见连接正常、心跳照常，消息与下发却一条都没落地。
+	base := context.Background()
+	if t.TenantBinder != nil {
+		bound, terr := t.TenantBinder(c.Request, channel, accountID)
+		if terr != nil {
+			logger.Warnf("[ChannelGW WS] 注册拒绝（租户归属判不清）: channel=%s account=%s: %v",
+				channel, accountID, terr)
+			_ = conn.WriteJSON(&Frame{
+				V: CurrentProtocolVersion, Type: FrameRegisterReject,
+				Channel: channel, AccountID: accountID,
+				Reason: terr.Error(),
+			})
+			_ = conn.Close()
+			return
+		}
+		if bound != nil {
+			base = bound
+		}
+	}
 	_ = conn.SetReadDeadline(time.Now().Add(runtimeWSReadIdleTimeout(c.Request.Context())))
 
 	cn := &wsConn{
@@ -133,6 +165,7 @@ func (t *WSTransport) HandleWS(c *gin.Context) {
 		conn:      conn,
 		channel:   channel,
 		accountID: accountID,
+		base:      base,
 		done:      make(chan struct{}),
 	}
 	logger.Infof("[ChannelGW WS] 渠道连接已注册: channel=%s account=%s", channel, accountID)
@@ -140,7 +173,9 @@ func (t *WSTransport) HandleWS(c *gin.Context) {
 	if t.OnRegister != nil {
 
 		utils.SafeGo(context.Background(), "channelgw.ws.on_register", func(ctx context.Context) {
-			cbCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			// BackgroundWithTenant：这条异步回调不随连接断开而取消，但必须带着
+			// 本连接的租户归属，否则它写的账号在线位落不进任何租户。
+			cbCtx, cancel := context.WithTimeout(tenant.BackgroundWithTenant(base), 3*time.Second)
 			defer cancel()
 			t.OnRegister(cbCtx, channel, accountID)
 		})
@@ -176,6 +211,9 @@ type wsConn struct {
 	conn      *websocket.Conn
 	channel   string
 	accountID string
+	// base 携带本连接的租户归属（register 帧判清后由 TenantBinder 绑定）。
+	// 泵里每一次超时与派生 ctx 都从它起步，而不是 context.Background()。
+	base context.Context
 
 	sendMu    sync.Mutex
 	done      chan struct{}
@@ -189,6 +227,17 @@ func (c *wsConn) close() {
 	})
 }
 
+// baseCtx 取本连接的基准 ctx。
+//
+// 零值 wsConn（测试里直接构造）没有 base，泵是在 goroutine 里跑的，
+// nil ctx 传进 context.WithTimeout 会 panic 并带走整个进程——兜一层 Background。
+func (c *wsConn) baseCtx() context.Context {
+	if c.base == nil {
+		return context.Background()
+	}
+	return c.base
+}
+
 func (c *wsConn) send(f *Frame) bool {
 	select {
 	case <-c.done:
@@ -197,7 +246,7 @@ func (c *wsConn) send(f *Frame) bool {
 	}
 	c.sendMu.Lock()
 	defer c.sendMu.Unlock()
-	_ = c.conn.SetWriteDeadline(time.Now().Add(runtimeWSWriteTimeout(context.Background())))
+	_ = c.conn.SetWriteDeadline(time.Now().Add(runtimeWSWriteTimeout(c.baseCtx())))
 	if err := c.conn.WriteJSON(f); err != nil {
 		logger.Warnf("[ChannelGW WS] 写帧失败 channel=%s account=%s type=%s: %v",
 			c.channel, c.accountID, f.Type, err)
@@ -211,7 +260,7 @@ func (c *wsConn) readPump() {
 	defer c.close()
 	c.conn.SetReadLimit(wsMaxFrameSize)
 	for {
-		_ = c.conn.SetReadDeadline(time.Now().Add(runtimeWSReadIdleTimeout(context.Background())))
+		_ = c.conn.SetReadDeadline(time.Now().Add(runtimeWSReadIdleTimeout(c.baseCtx())))
 		var f Frame
 		if err := c.conn.ReadJSON(&f); err != nil {
 			return
@@ -228,7 +277,7 @@ func (c *wsConn) handleFrame(f *Frame) {
 		if len(f.MsgIDs) == 0 {
 			return
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), runtimeWSPipelineTimeout(context.Background()))
+		ctx, cancel := context.WithTimeout(c.baseCtx(), runtimeWSPipelineTimeout(c.baseCtx()))
 		defer cancel()
 		acked, err := c.t.pipeline.AckOutbound(ctx, c.channel, c.accountID, f.MsgIDs)
 		if err != nil {
@@ -269,7 +318,7 @@ func (c *wsConn) handleInbound(f *Frame) {
 	if len(msgs) == 0 {
 		return
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), runtimeWSPipelineTimeout(context.Background()))
+	ctx, cancel := context.WithTimeout(c.baseCtx(), runtimeWSPipelineTimeout(c.baseCtx()))
 	defer cancel()
 
 	events := make([]*model.MessageEvent, 0, len(msgs))
@@ -334,7 +383,7 @@ func (c *wsConn) handleHistory(f *Frame) {
 	if len(msgs) == 0 {
 		return
 	}
-	ctx, cancel := context.WithTimeout(context.Background(), runtimeWSPipelineTimeout(context.Background()))
+	ctx, cancel := context.WithTimeout(c.baseCtx(), runtimeWSPipelineTimeout(c.baseCtx()))
 	defer cancel()
 	for _, m := range msgs {
 		if m == nil {
@@ -365,7 +414,7 @@ func (c *wsConn) pushPump() {
 }
 
 func (c *wsConn) pushOnce() {
-	ctx, cancel := context.WithTimeout(context.Background(), runtimeWSPipelineTimeout(context.Background()))
+	ctx, cancel := context.WithTimeout(c.baseCtx(), runtimeWSPipelineTimeout(c.baseCtx()))
 	hubs, err := c.t.pipeline.ClaimOutbound(ctx, c.channel, c.accountID, c.t.pushBatch)
 	cancel()
 	if err != nil {
@@ -375,7 +424,7 @@ func (c *wsConn) pushOnce() {
 	if len(hubs) == 0 {
 		return
 	}
-	tracing.RecordDownlinkFetchBatch(context.Background(), c.channel, c.accountID, hubs)
+	tracing.RecordDownlinkFetchBatch(c.baseCtx(), c.channel, c.accountID, hubs)
 	for _, hub := range hubs {
 		f := &Frame{
 			V: CurrentProtocolVersion, Type: FrameOutboundReply,

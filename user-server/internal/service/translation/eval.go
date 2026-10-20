@@ -8,6 +8,7 @@ import (
 
 	"hivemtk-user/internal/aiagent/eval"
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 )
 
@@ -75,8 +76,8 @@ func (s *EvalService) Stats() (sampled, evaluated int64) {
 //   - 按.sampleRate 抽样，未命中 → 直接返回
 //   - 命中 → 启动 goroutine 异步执行 evaluate（不阻塞主流程）
 //
-// 注意：使用 context.Background() 而非入参 ctx，避免主流程 ctx 取消后
-// 异步评估被中断。
+// 注意：异步评估用 tenant.BackgroundWithTenant(ctx) 解绑主流程取消，
+// 同时保留租户绑定——评分要回写 llm_routing_logs（租户表），裸 ctx 会被 fail-closed。
 func (s *EvalService) MaybeEvaluate(ctx context.Context, log *model.LLMRoutingLog, query, candidate, reference string) {
 	if !s.enabled {
 		return
@@ -91,7 +92,7 @@ func (s *EvalService) MaybeEvaluate(ctx context.Context, log *model.LLMRoutingLo
 		return
 	}
 	atomic.AddInt64(&s.sampledCount, 1)
-	go s.evaluate(context.Background(), log, query, candidate, reference)
+	go s.evaluate(tenant.BackgroundWithTenant(ctx), log, query, candidate, reference)
 }
 
 func (s *EvalService) evaluate(ctx context.Context, log *model.LLMRoutingLog, query, candidate, reference string) {

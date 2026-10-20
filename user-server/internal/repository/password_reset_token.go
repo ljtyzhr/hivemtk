@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 
 	"gorm.io/gorm"
 )
@@ -46,6 +47,21 @@ func (r *PasswordResetTokenRepository) GetUserByEmail(ctx context.Context, email
 	return &user, nil
 }
 
+// GetUserByEmailAnyTenant 系统作用域按邮箱反查用户（含 tenant_id）。
+// 找回口令是匿名入口，没有登录态可依；system_users.email 受全局唯一约束，
+// 因此先用系统作用域跨租户定位，再把后续读写钉死在该用户所属租户上。
+func (r *PasswordResetTokenRepository) GetUserByEmailAnyTenant(ctx context.Context, email string) (*model.SystemUser, error) {
+	if r == nil || r.db == nil {
+		return nil, errors.New("password reset token repository not initialized")
+	}
+	var user model.SystemUser
+	if err := r.db.WithContext(tenant.WithSystemScope(ctx)).
+		Where("email = ?", email).First(&user).Error; err != nil {
+		return nil, err
+	}
+	return &user, nil
+}
+
 // CountActiveTokensByUserID 统计指定 user 的有效（未使用且未过期）token 数
 func (r *PasswordResetTokenRepository) CountActiveTokensByUserID(ctx context.Context, userID string, now time.Time) (int64, error) {
 	if r == nil || r.db == nil {
@@ -75,6 +91,20 @@ func (r *PasswordResetTokenRepository) GetByToken(ctx context.Context, tokenStr 
 	}
 	var token model.PasswordResetToken
 	if err := r.db.WithContext(ctx).Where("token = ?", tokenStr).First(&token).Error; err != nil {
+		return nil, err
+	}
+	return &token, nil
+}
+
+// GetByTokenAnyTenant 系统作用域按哈希后的令牌反查（含 tenant_id）。
+// 匿名重置入口只能凭邮件里的明文令牌定位；该令牌本身即资源归属的自证。
+func (r *PasswordResetTokenRepository) GetByTokenAnyTenant(ctx context.Context, tokenStr string) (*model.PasswordResetToken, error) {
+	if r == nil || r.db == nil {
+		return nil, errors.New("password reset token repository not initialized")
+	}
+	var token model.PasswordResetToken
+	if err := r.db.WithContext(tenant.WithSystemScope(ctx)).
+		Where("token = ?", tokenStr).First(&token).Error; err != nil {
 		return nil, err
 	}
 	return &token, nil

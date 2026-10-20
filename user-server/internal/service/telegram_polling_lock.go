@@ -30,14 +30,27 @@ const (
 	PollingLockHeartbeatInterval = 30 * time.Second
 )
 
+// pollingWorkerID/pollingWorkerIDOnce 的读写只走紧随其后的两扇门
+// （pollingWorkerMu 守，注册在 scripts/seam-guard.registry）：polling worker 协程与降级链都
+// 经 GetPollingWorkerID() 读它，而用例要把 owner 换成固定的两个值才能证多实例互斥。
+// 装桩走「换指针」而不是原地改 `*pollingWorkerIDOnce = sync.Once{}`——那是透过指针写一个
+// 别的协程正在 Do 的对象，锁住指针变量本身也拦不住；锁内的一次指针赋值才是并发可见的边界。
+//
+// 这里曾经是包级裸量＋值型 Once，于是「先写全局再读」的用例第一次读就被 Once 体覆盖成
+// 本机的 host:pid，而用例收尾又把值还原成第一次读之前的空串——同一个断言组会随同包用例
+// 的执行顺序在两种红法之间跳。
 var (
+	pollingWorkerMu sync.Mutex
+
 	pollingWorkerID     string
-	pollingWorkerIDOnce sync.Once
+	pollingWorkerIDOnce = &sync.Once{}
 )
 
 // GetPollingWorkerID 获取当前进程的稳定 worker 标识（hostname:pid）
 // 用于分布式锁的 owner 字段，方便日志 / 监控区分是哪个实例持有锁。
 func GetPollingWorkerID() string {
+	pollingWorkerMu.Lock()
+	defer pollingWorkerMu.Unlock()
 	pollingWorkerIDOnce.Do(func() {
 		host, err := os.Hostname()
 		if err != nil || host == "" {

@@ -12,6 +12,7 @@ import (
 	"time"
 
 	"encoding/json"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/tracing"
 	"hivemtk-user/internal/pkg/utils/logger"
 	textutil "hivemtk-user/internal/pkg/utils/text"
@@ -224,8 +225,9 @@ func (d *Dispatcher) callProvider(ctx context.Context, provider *ProviderConfig,
 	if result != nil {
 		finishReason = result.FinishReason
 	}
+	tenantID, _ := tenant.FromContext(ctx)
 	PublishLLMCall(
-		traceID, spanID, parentSpanID,
+		tenantID, traceID, spanID, parentSpanID,
 		provider.Name, provider.Model,
 		int64(latency), llmStatus,
 		map[string]any{
@@ -314,6 +316,7 @@ func (d *Dispatcher) callProvider(ctx context.Context, provider *ProviderConfig,
 	// 就是两本账，重试时会二次扣。详见 service/llm_platform_usage.go 的文件头。
 	if provider.IsPlatformProvider() && dispatchResult != nil {
 		if sink := PlatformUsageSink(); sink != nil {
+			tenantID, _ := tenant.FromContext(ctx)
 			sink(PlatformUsageEvent{
 				Provider:         provider.Name,
 				Model:            provider.Model,
@@ -323,6 +326,7 @@ func (d *Dispatcher) callProvider(ctx context.Context, provider *ProviderConfig,
 				AgentID:          req.AgentID,
 				UserID:           req.UserID,
 				TenantCode:       platform.TenantCodeFromContext(ctx),
+				TenantID:         tenantID,
 				PromptTokens:     int64(promptTokens),
 				CompletionTokens: int64(completionTokens),
 				InputCostCents:   int64(promptCost * 100),

@@ -36,7 +36,7 @@ func GenerateHostToken(userID uint) (string, error) {
 // controller 侧给运维的那句话必须与此一致（由 host_loopback_b19f_test.go 钉住）。
 // 注意：轮换不改变 token 归属用户（新 token 仍按原 userID 生成语义由调用方决定；
 // MVP 简化：轮换时为 admin 指定/默认 user=1 生成，或保留原 token 的 userID）。
-func RotateHostToken(ctx context.Context, kvRepo hrepo.SystemConfigKVRepository) (string, error) {
+func RotateHostToken(ctx context.Context, kvRepo hrepo.PlatformConfigKVRepository) (string, error) {
 	old, err := kvRepo.Get(ctx, hostTokenKey)
 	if err != nil {
 		return "", err
@@ -78,7 +78,7 @@ func parseHostTokenUser(token string) (uint, bool) {
 
 // ValidateHostToken 校验 token（常量时间比较，双 token 候选），返回归属 userID。
 // fail-closed：KV 未配置任何 token 时拒绝。
-func ValidateHostToken(ctx context.Context, kvRepo hrepo.SystemConfigKVRepository, got string) (uint, bool) {
+func ValidateHostToken(ctx context.Context, kvRepo hrepo.PlatformConfigKVRepository, got string) (uint, bool) {
 	candidates := make([]string, 0, 2)
 	if v, err := kvRepo.Get(ctx, hostTokenKey); err == nil && strings.TrimSpace(v) != "" {
 		candidates = append(candidates, strings.TrimSpace(v))
@@ -103,7 +103,7 @@ func ValidateHostToken(ctx context.Context, kvRepo hrepo.SystemConfigKVRepositor
 
 // EnsureHostTokenExists 进程启动时若 KV 无 token 则自动为 admin 生成一个（避免首次部署 fail-closed 卡死）。
 // 返回值仅记日志用。
-func EnsureHostTokenExists(ctx context.Context, kvRepo hrepo.SystemConfigKVRepository) {
+func EnsureHostTokenExists(ctx context.Context, kvRepo hrepo.PlatformConfigKVRepository) {
 	v, err := kvRepo.Get(ctx, hostTokenKey)
 	if err == nil && strings.TrimSpace(v) != "" {
 		return

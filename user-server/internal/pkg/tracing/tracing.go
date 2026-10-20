@@ -13,6 +13,7 @@ import (
 
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/db"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/trace"
 	"hivemtk-user/internal/pkg/utils/logger"
 
@@ -98,6 +99,7 @@ var (
 const sinkBuffer = 8192
 
 type pendingSpan struct {
+	tenantID       uint
 	carrier        *Carrier
 	traceID        string
 	conversationID string
@@ -137,7 +139,7 @@ func Init(d *gorm.DB) {
 func flushLoop(d *gorm.DB) {
 	ticker := time.NewTicker(300 * time.Millisecond)
 	defer ticker.Stop()
-	batch := make([]*model.MessageTrace, 0, 200)
+	batch := make([]pendingSpan, 0, 200)
 	flush := func() {
 		if len(batch) == 0 {
 			return
@@ -149,15 +151,13 @@ func flushLoop(d *gorm.DB) {
 			batch = batch[:0]
 			return
 		}
-		if err := d.CreateInBatches(batch, 200).Error; err != nil {
-			logger.Errorf("tracing.flush: batch insert failed: %v", err)
-		}
+		flushSpans(d, batch)
 		batch = batch[:0]
 	}
 	for {
 		select {
 		case span := <-spanCh:
-			batch = append(batch, toModelFromPending(span))
+			batch = append(batch, span)
 			if len(batch) >= 200 {
 				flush()
 			}
@@ -167,7 +167,7 @@ func flushLoop(d *gorm.DB) {
 			for {
 				select {
 				case span := <-spanCh:
-					batch = append(batch, toModelFromPending(span))
+					batch = append(batch, span)
 					if len(batch) >= 200 {
 						flush()
 					}
@@ -177,6 +177,31 @@ func flushLoop(d *gorm.DB) {
 					return
 				}
 			}
+		}
+	}
+}
+
+// flushSpans 按租户分组落库：隔离 callback 以 ctx 绑定的租户覆盖 tenant_id，
+// 混租户的批次必须拆组、每组一个 ctx；无归属的行保持无绑定 ctx，
+// on 模式由 callback fail-closed（与业务写同一口径，绝不静默落到默认租户）。
+func flushSpans(d *gorm.DB, spans []pendingSpan) {
+	groups := make(map[uint][]*model.MessageTrace)
+	for _, p := range spans {
+		groups[p.tenantID] = append(groups[p.tenantID], toModelFromPending(p))
+	}
+	for tenantID, rows := range groups {
+		if tenantID == 0 {
+			if tenant.IsMultiTenant() {
+				// 公开路由（健康检查等）没有租户归属：多租户下落库必被隔离 callback
+				// 拒绝，逐批打错误日志只会淹没真正的问题——直接跳过，绝不落默认租户。
+				logger.Debugf("tracing.flush: skip %d unbound spans", len(rows))
+				continue
+			}
+			tenantID = tenant.DefaultTenantID // 单租户：显式绑定默认租户，与中间件口径一致
+		}
+		ctx := tenant.WithTenantID(context.Background(), tenantID)
+		if err := d.WithContext(ctx).CreateInBatches(rows, 200).Error; err != nil {
+			logger.Errorf("tracing.flush: batch insert failed (tenant=%d): %v", tenantID, err)
 		}
 	}
 }
@@ -202,7 +227,8 @@ func Stop() {
 func Publish(p pendingSpan) {
 	if spanCh == nil {
 		if d := db.GetDB(); d != nil {
-			_ = d.Create(toModelFromPending(p)).Error
+			_ = d.WithContext(tenant.WithTenantID(context.Background(), p.tenantID)).
+				Create(toModelFromPending(p)).Error
 		}
 		return
 	}
@@ -219,6 +245,14 @@ func Publish(p pendingSpan) {
 // 导致 Stats() 永远返回 0 —— 监控面板看到的 trace 投递/丢弃率将失真。
 func Stats() (int64, int64) {
 	return atomic.LoadInt64(&published), atomic.LoadInt64(&dropped)
+}
+
+// dbCtx 保护传给 GORM 的 ctx：nil 会让隔离 callback 在 ctx.Value 上 panic。
+func dbCtx(ctx context.Context) context.Context {
+	if ctx == nil {
+		return context.Background()
+	}
+	return ctx
 }
 
 type carrierKey struct{}
@@ -445,7 +479,9 @@ func (s *Span) toPending(dur int64, status, errStr string) pendingSpan {
 	if ab == "" && errStr != "" {
 		ab = errStr
 	}
+	tenantID, _ := tenant.FromContext(s.ctx)
 	return pendingSpan{
+		tenantID:       tenantID,
 		carrier:        c,
 		traceID:        tid,
 		conversationID: c.ConversationID,
@@ -472,6 +508,7 @@ func (s *Span) toPending(dur int64, status, errStr string) pendingSpan {
 
 func toModelFromPending(p pendingSpan) *model.MessageTrace {
 	return &model.MessageTrace{
+		TenantID:       p.tenantID,
 		TraceID:        p.traceID,
 		ConversationID: p.conversationID,
 		AccountID:      p.accountID,
@@ -548,7 +585,9 @@ func RecordNode(ctx context.Context, span NodeSpan) {
 	if span.Status == "" {
 		span.Status = StatusOk
 	}
+	tenantID, _ := tenant.FromContext(ctx)
 	Publish(pendingSpan{
+		tenantID:       tenantID,
 		carrier:        carrier,
 		traceID:        span.TraceID,
 		conversationID: span.ConversationID,
@@ -595,7 +634,9 @@ func ReportToolCall(ctx context.Context, ev ToolTraceEvent) {
 			status = "ok"
 		}
 	}
+	tenantID, _ := tenant.FromContext(ctx)
 	Publish(pendingSpan{
+		tenantID:       tenantID,
 		carrier:        carrier,
 		traceID:        tid,
 		conversationID: carrier.ConversationID,
@@ -633,7 +674,7 @@ func RecordDownlinkFetchBatch(ctx context.Context, channel, accountID string, hu
 		ids = append(ids, h.MsgID)
 	}
 	if d := db.GetDB(); d != nil {
-		if err := d.Model(&model.MessageTrace{}).
+		if err := d.WithContext(dbCtx(ctx)).Model(&model.MessageTrace{}).
 			Where("node = ? AND msg_id IN ?", NodeDownlinkFetch, ids).
 			Pluck("msg_id", &existing).Error; err != nil {
 			logger.Errorf("[tracing] RecordDownlinkFetchBatch dedup query failed (best-effort): %v", err)
@@ -695,7 +736,7 @@ func LinkOutboundTraceID(ctx context.Context, conversationID string) string {
 	}
 	if d := db.GetDB(); d != nil {
 		var t model.MessageTrace
-		err := d.Model(&model.MessageTrace{}).
+		err := d.WithContext(dbCtx(ctx)).Model(&model.MessageTrace{}).
 			Where("conversation_id = ? AND direction = ? AND node = ?", conversationID, "inbound", NodeIngest).
 			Order("id DESC").Limit(1).
 			Pluck("trace_id", &t.TraceID).Error

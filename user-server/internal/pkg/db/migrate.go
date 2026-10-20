@@ -226,8 +226,8 @@ func allModels() []any {
 		&model.TenantModule{},
 		&model.ModuleSyncLog{},
 		&model.ModuleOrder{},
-		// 订阅镜像（003 T022）：部署级单行，无 tenant_id。显式迁移 v3.64.0
-		// 是生产口径，这里登记供 AutoMigrate 兜底（全新部署先于迁移跑时建表）。
+		// 订阅镜像（003 T022）：显式迁移 v3.64.0 是生产口径，
+		// 这里登记供 AutoMigrate 兜底（全新部署先于迁移跑时建表）。
 		&model.TenantSubscriptionMirror{},
 		&model.LLMWallet{},
 		&model.LLMWalletTxn{},
@@ -332,6 +332,9 @@ func allModels() []any {
 		//   - TraceEvent        （internal/aiagent/llm，见该文件 init）
 		// -------------------------------------------------------------------
 		&model.AggregationWatermark{},
+		// msg_hourly_summary 由 message_hub 聚合 cron 写入（repository 原子 upsert）。
+		// 此前只出现在测试夹具里，全新部署缺表 ⇒ 聚合永远写不进去。
+		&model.MsgHourlySummary{},
 		&model.AlertHistory{},
 		&model.AlertRule{},
 		// ApprovalRequest（表 approval_requests）：T-P3-01 / N-4 审批检查点，
@@ -356,6 +359,11 @@ func allModels() []any {
 		&model.ConfigParam{},
 		&model.ConfigParamAuditLog{},
 		&model.ConfigParamGroup{},
+		// 租户参数覆盖与审计（SaaS 多租户）：定义仍在上面的实例级 config_params，
+		// 本表按 tenant_id 分域。漏登记时 AutoMigrate 建不出表，租户管理端保存参数
+		// 会一直报“存储不可用”，而读取侧会静默回落到平台默认值。
+		&model.TenantConfigParam{},
+		&model.TenantConfigParamAuditLog{},
 
 		// 业务字典（阶段四）：与 config_params 同级登记，AutoMigrate 建表。
 		&model.Dictionary{},
@@ -413,7 +421,13 @@ func allModels() []any {
 		&model.Bill{},
 		&model.RecoveryQueue{},
 		&model.SecurityAlert{},
+		// SystemConfigKV（表 system_config_kv）：租户业务 KV，主键 (tenant_id, key)。
+		// PlatformConfigKV（表 platform_config_kv）：平台级 KV（桥接/MCP/回调验签/
+		// 宿主令牌、口令策略、安全规则、备份策略），实例一份，不参与租户分域。
+		// 两张表都必须登记：漏建 system_config_kv 时租户配置写不进去（管理台报
+		// 存储不可用）；漏建 platform_config_kv 时桥接/MCP/回调验签全部静默拒绝。
 		&model.SystemConfigKV{},
+		&model.PlatformConfigKV{},
 
 		// ToolCallAudit（表 tool_call_audits）：T-P0-04 判定的"实现了但没接线"里最隐蔽的一条
 		// —— 写入方 tooluse.DBAuditLogger 一直存在，但表**从未登记建表**（它自带的
@@ -532,9 +546,12 @@ func AutoMigrate() *gorm.DB {
 	}
 
 	// 租户登记表 + 隔离 callback（specs/001-saas-multi-tenant T005/T006）：
-	// 登记表以"模型声明 TenantID"为唯一判据；callback 在 off 模式直通、
-	// on 模式注入/填充/fail-closed。注册幂等（同名替换）。
-	tenancyidx.InitTenantRegistry(DB)
+	// 登记表以数据库内省（表上有无 tenant_id 列）为唯一判据；callback 在 off
+	// 模式直通、on 模式注入/填充/fail-closed。注册幂等（同名替换）。
+	// 内省失败必须阻止启动：nil 登记表会让 on 模式把所有表判成非租户表 = 全量放行。
+	if err := tenancyidx.InitTenantRegistry(DB); err != nil {
+		panic(fmt.Sprintf("租户登记表装配失败（拒绝以 fail-open 状态启动）: %v", err))
+	}
 	tenancyidx.RegisterTenantCallbacks(DB)
 
 	// 后台任务扇出的活跃租户枚举器（specs/001-saas-multi-tenant T020）：

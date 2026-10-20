@@ -8,6 +8,7 @@ import (
 
 	"hivemtk-user/internal/aiagent/agent/tooluse"
 	"hivemtk-user/internal/bridge"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
 	"hivemtk-user/internal/service"
@@ -250,6 +251,11 @@ func registerAllAgentToolsViaProviders(gormDB *gorm.DB) {
 }
 
 func applyTenantDisabledTools(registry *tooluse.ToolRegistry) {
+	// 工具注册表是进程级共享的：on 模式下把默认租户的停用清单在装配期剔掉会波及
+	// 所有租户。租户级过滤改在 agent loop 每次派发时按请求 ctx 执行（resolveAgentSettings）。
+	if tenant.IsMultiTenant() {
+		return
+	}
 	cfg, err := service.LoadAgentSettingsConfig(context.Background())
 	if err != nil || cfg == nil {
 		return

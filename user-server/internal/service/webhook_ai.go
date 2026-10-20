@@ -11,6 +11,8 @@ import (
 
 	"hivemtk-user/internal/model"
 
+	"hivemtk-user/internal/pkg/tenant"
+
 	"hivemtk-user/internal/pkg/utils/logger"
 
 	agent_runtime "hivemtk-user/internal/aiagent/agent/runtime"
@@ -406,7 +408,7 @@ func (s *WebhookService) runAIGeneration(ctx context.Context, channel WebhookCha
 		ingress := s.ingressSvc
 		defer func() {
 			if ingress != nil {
-				ingress.ReleaseAIProcessingFlag(context.Background(), convID)
+				ingress.ReleaseAIProcessingFlag(tenant.BackgroundWithTenant(ctx), convID)
 			}
 		}()
 	}

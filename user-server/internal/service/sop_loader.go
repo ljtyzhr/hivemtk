@@ -30,7 +30,7 @@ func NewSOPLoader() *SOPLoader {
 }
 
 func (l *SOPLoader) LoadSOP(ctx context.Context, sopID string) (*IndustrySOP, error) {
-	if data, found := LoadAssetFromDB("industry_sop", sopID); found {
+	if data, found := LoadAssetFromDB(ctx, "industry_sop", sopID); found {
 		var s IndustrySOP
 		if err := json.Unmarshal(data, &s); err == nil {
 			s.ID = sopID

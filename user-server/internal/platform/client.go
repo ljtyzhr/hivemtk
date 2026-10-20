@@ -245,8 +245,14 @@ func (c *Client) doRetry(method, path string, reqData, respData any, retried boo
 		if bodyStr != "" {
 			_ = json.Unmarshal([]byte(bodyStr), &baseResp)
 		}
-		logger.Error(fmt.Errorf("平台接口返回 %d", resp.StatusCode),
-			fmt.Sprintf("商户上报请求失败: %s %s, 状态码: %d, 耗时: %v, 响应: %s", method, url, resp.StatusCode, duration, bodyStr))
+		// 409 是"资源已存在"这类可收敛的业务状态（商户注册每次启动都会命中），
+		// 按 error 打会让正常幂等路径长期占据错误日志；是否算失败由调用方按契约决定。
+		if resp.StatusCode == http.StatusConflict {
+			logger.Warn(fmt.Sprintf("平台返回 409（状态冲突，交由调用方判定）: %s %s, 耗时: %v, 响应: %s", method, url, duration, bodyStr))
+		} else {
+			logger.Error(fmt.Errorf("平台接口返回 %d", resp.StatusCode),
+				fmt.Sprintf("商户上报请求失败: %s %s, 状态码: %d, 耗时: %v, 响应: %s", method, url, resp.StatusCode, duration, bodyStr))
+		}
 		return &PlatformError{StatusCode: resp.StatusCode, RawBody: bodyStr, Resp: &baseResp}
 	}
 
@@ -257,8 +263,12 @@ func (c *Client) doRetry(method, path string, reqData, respData any, retried boo
 		return err
 	}
 	if perr := envelopeRefusal(respBody); perr != nil {
-		logger.Error(fmt.Errorf("平台业务码 %d", perr.Resp.Code),
-			fmt.Sprintf("商户上报被拒: %s %s, 耗时: %v, 响应: %s", method, url, duration, perr.RawBody))
+		if perr.Resp.Code == http.StatusConflict {
+			logger.Warn(fmt.Sprintf("平台业务码 409（状态冲突，交由调用方判定）: %s %s, 耗时: %v, 响应: %s", method, url, duration, perr.RawBody))
+		} else {
+			logger.Error(fmt.Errorf("平台业务码 %d", perr.Resp.Code),
+				fmt.Sprintf("商户上报被拒: %s %s, 耗时: %v, 响应: %s", method, url, duration, perr.RawBody))
+		}
 		return perr
 	}
 	if respData != nil {
@@ -295,11 +305,35 @@ func envelopeRefusal(body []byte) *PlatformError {
 	}
 }
 
+// isPlatformConflict 平台 409：HTTP 状态码或信封业务码任一处为 409 都算
+// （平台两种写法并存：直接回 HTTP 409，或 HTTP 200 + 信封 code=409）。
+func isPlatformConflict(err error) bool {
+	var perr *PlatformError
+	if !errors.As(err, &perr) || perr == nil {
+		return false
+	}
+	return perr.StatusCode == http.StatusConflict || (perr.Resp != nil && perr.Resp.Code == http.StatusConflict)
+}
+
+func platformErrMsg(err error) string {
+	var perr *PlatformError
+	if errors.As(err, &perr) && perr != nil {
+		return perr.Msg()
+	}
+	return err.Error()
+}
+
 func (c *Client) RegisterMerchant(req RegisterMerchantReq) error {
 	logger.Info(fmt.Sprintf("开始商户注册，请求数据: %+v", req))
 	var resp BaseResp
 	err := c.do("POST", "/merchant-api/merchant/register", req, &resp)
 	if err != nil {
+		// 409 = 本商户 key 已在平台注册过（重启/重复部署的常态）。注册是幂等的：
+		// 已有身份与密钥不受影响，按成功返回，避免每次启动都打一条注册失败。
+		if isPlatformConflict(err) {
+			logger.Info(fmt.Sprintf("商户已注册（409 幂等，视为成功）: %s", platformErrMsg(err)))
+			return nil
+		}
 		logger.Error(err, "商户注册失败")
 		return err
 	}

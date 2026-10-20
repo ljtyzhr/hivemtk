@@ -207,6 +207,9 @@ func TestInMemoryTraceBusStopPublish(t *testing.T) {
 func TestPublishTraceEventAutoFill(t *testing.T) {
 	bus := NewInMemoryTraceBus()
 	defer bus.Stop()
+	// 先把 Once 走完再注入：PublishTraceEvent 走 GetGlobalTraceBus()，
+	// 若 Once 还没执行，它会在闭包里覆盖掉这里刚设置的 bus，订阅者就永远收不到事件。
+	InitGlobalTraceBus()
 	oldBus := globalTraceBus
 	globalTraceBus = bus
 	defer func() { globalTraceBus = oldBus }()
@@ -247,6 +250,9 @@ func TestPublishTraceEventAutoFill(t *testing.T) {
 func TestPublishLLMCall(t *testing.T) {
 	bus := NewInMemoryTraceBus()
 	defer bus.Stop()
+	// 先把 Once 走完再注入：PublishTraceEvent 走 GetGlobalTraceBus()，
+	// 若 Once 还没执行，它会在闭包里覆盖掉这里刚设置的 bus，订阅者就永远收不到事件。
+	InitGlobalTraceBus()
 	oldBus := globalTraceBus
 	globalTraceBus = bus
 	defer func() { globalTraceBus = oldBus }()
@@ -261,7 +267,7 @@ func TestPublishLLMCall(t *testing.T) {
 			got.Add(1)
 		},
 	})
-	PublishLLMCall("trace-1", "span-1", "", "deepseek", "deepseek-chat", 100, "ok", map[string]any{"tokens": 50})
+	PublishLLMCall(7, "trace-1", "span-1", "", "deepseek", "deepseek-chat", 100, "ok", map[string]any{"tokens": 50})
 	deadline := time.Now().Add(500 * time.Millisecond)
 	for time.Now().Before(deadline) && got.Load() == 0 {
 		time.Sleep(10 * time.Millisecond)
@@ -284,12 +290,20 @@ func TestPublishLLMCall(t *testing.T) {
 	if received.Metadata["tokens"] != 50 {
 		t.Errorf("expected 50, got %v", received.Metadata["tokens"])
 	}
+	// 租户归属必须随事件一起进 bus：DB sink 按它分组落库，
+	// 丢了就只能在多租户下 fail-closed 或落错租户。
+	if received.TenantID != 7 {
+		t.Errorf("expected tenant 7, got %d", received.TenantID)
+	}
 }
 
 // 18. PublishToolCall 发布工具调用事件
 func TestPublishToolCall(t *testing.T) {
 	bus := NewInMemoryTraceBus()
 	defer bus.Stop()
+	// 先把 Once 走完再注入：PublishTraceEvent 走 GetGlobalTraceBus()，
+	// 若 Once 还没执行，它会在闭包里覆盖掉这里刚设置的 bus，订阅者就永远收不到事件。
+	InitGlobalTraceBus()
 	oldBus := globalTraceBus
 	globalTraceBus = bus
 	defer func() { globalTraceBus = oldBus }()
@@ -304,7 +318,7 @@ func TestPublishToolCall(t *testing.T) {
 			got.Add(1)
 		},
 	})
-	PublishToolCall("trace-1", "span-1", "", "send_email", 200, "ok", nil)
+	PublishToolCall(0, "trace-1", "span-1", "", "send_email", 200, "ok", nil)
 	deadline := time.Now().Add(500 * time.Millisecond)
 	for time.Now().Before(deadline) && got.Load() == 0 {
 		time.Sleep(10 * time.Millisecond)
@@ -324,6 +338,9 @@ func TestPublishToolCall(t *testing.T) {
 func TestPublishDBOp(t *testing.T) {
 	bus := NewInMemoryTraceBus()
 	defer bus.Stop()
+	// 先把 Once 走完再注入：PublishTraceEvent 走 GetGlobalTraceBus()，
+	// 若 Once 还没执行，它会在闭包里覆盖掉这里刚设置的 bus，订阅者就永远收不到事件。
+	InitGlobalTraceBus()
 	oldBus := globalTraceBus
 	globalTraceBus = bus
 	defer func() { globalTraceBus = oldBus }()
@@ -338,7 +355,7 @@ func TestPublishDBOp(t *testing.T) {
 			got.Add(1)
 		},
 	})
-	PublishDBOp("trace-1", "span-1", "", "SELECT customers", 50, "ok", map[string]any{"rows": 10})
+	PublishDBOp(0, "trace-1", "span-1", "", "SELECT customers", 50, "ok", map[string]any{"rows": 10})
 	deadline := time.Now().Add(500 * time.Millisecond)
 	for time.Now().Before(deadline) && got.Load() == 0 {
 		time.Sleep(10 * time.Millisecond)

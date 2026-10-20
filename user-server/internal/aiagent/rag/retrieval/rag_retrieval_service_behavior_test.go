@@ -48,7 +48,7 @@ func TestRagRetrievalServiceImpl_Search_CacheHit(t *testing.T) {
 	assert.NotEmpty(t, results)
 
 	key := fmt.Sprintf("search:%s:%s:%v", "cache_kb", "缓存", params)
-	cached, ok := cache.Get(key)
+	cached, ok := cache.Get(context.Background(), key)
 	assert.True(t, ok, "search result should be cached")
 	cachedResults, ok := cached.([]SearchResult)
 	assert.True(t, ok)

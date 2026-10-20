@@ -374,7 +374,7 @@ func (s *MarketingFlowService) sendActionSendSms(ctx context.Context, config map
 		return nil, errors.New("content 未指定")
 	}
 
-	if err := smsSenderFunc(phone, content); err != nil {
+	if err := smsSenderFunc(ctx, phone, content); err != nil {
 		return nil, fmt.Errorf("发送短信失败：%w", err)
 	}
 

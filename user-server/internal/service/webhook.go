@@ -16,6 +16,7 @@ import (
 	"hivemtk-user/internal/channelbot/whatsapp"
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/dbstate"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
@@ -362,30 +363,84 @@ func webhookInboundRejectReason(channel WebhookChannel) string {
 	return "渠道 " + string(channel) + " 无入站适配器，通用 webhook 不受理"
 }
 
+// webhookAccountTableByChannel 渠道 → 本地渠道账号表。
+//
+// 回调 URL 里那段 account_id 就是这张表的自增主键，不是渠道方的账号 ID：各渠道
+// 取验签密钥走的是 `GetByID(uint(accountID))`（telegram/qq/feishu/wecom/wechat/
+// whatsapp/dingtalk 全都如此，见 service/feishu.go:80 起三个 GetSecretsByAccountID
+// 与 webhook_channel_wecom.go:600 的 ParseUint 分支）。只有 douyin/tiktok/kuaishou
+// 这类没有专用表的渠道退到 integration_accounts 按平台取密钥。
+//
+// 这张表同时是租户反查的**权威源**：主键全库唯一，按它自证不存在歧义。
+var webhookAccountTableByChannel = map[WebhookChannel]string{
+	ChannelWeCom:    "wecom_accounts",
+	ChannelWechat:   "wechat_accounts",
+	ChannelFeishu:   "feishu_accounts",
+	ChannelTelegram: "telegram_accounts",
+	ChannelWhatsapp: "whatsapp_cloud_accounts",
+	ChannelDingTalk: "dingtalk_app_accounts",
+	ChannelQQ:       "qq_accounts",
+}
+
 // ResolveTenantByChannelAccount 渠道回调的租户解析链（specs/001-saas-multi-tenant T022）。
 //
-// 权威线索 = URL 中的 (channel, account_id)；归属源 = bridge_accounts（渠道账号租户域）。
-// on 模式下解析失败返回错误（控制器按 404 + 安全告警拒绝），绝不落入默认租户。
+// 解析顺序与"处理器随后真正读的那张表"对齐，否则绑定的租户与取到密钥的租户不是
+// 同一个，on 模式下要么 fail-closed 丢消息，要么把回调落进别人的租户：
+//
+//	① account_id 是数值 ⇒ 按 (渠道账号表, id) 自证。主键全库唯一 ⇒ 命中即权威。
+//	② 退到 integration_accounts 按平台名自证（douyin/tiktok 等无专用表的渠道，
+//	   以及 account_id 传了渠道侧 ID 的历史配置）。多租户共用同一平台名 ⇒ 歧义，拒。
+//	③ URL 不带 account_id（POST /api/webhook/:channel）时，只有"该渠道账号表全部行
+//	   同属一个租户"才敢定归属。
+//
+// 解析不出（或歧义）返回错误，控制器按 404 + 安全告警拒绝，绝不回落默认租户。
 func (s *WebhookService) ResolveTenantByChannelAccount(ctx context.Context, channel WebhookChannel, accountID string) (uint, error) {
 	if s == nil {
 		return 0, fmt.Errorf("webhook service 未初始化")
+	}
+	// 组级中间件已按同一判据绑过时直接复用，省掉一次反查 SQL。
+	if tid, bound := tenant.FromContext(ctx); bound && tid != 0 {
+		return tid, nil
 	}
 	gdb := dbstate.Get()
 	if gdb == nil {
 		return 0, fmt.Errorf("db 未初始化")
 	}
-	var tid uint
-	err := gdb.WithContext(ctx).Table("bridge_accounts").
-		Select("tenant_id").
-		Where("channel = ? AND account_id = ?", string(channel), accountID).
-		Scan(&tid).Error
+	table, hasTable := webhookAccountTableByChannel[channel]
+	if hasTable && accountID != "" {
+		if id, err := strconv.ParseUint(accountID, 10, 32); err == nil && id > 0 {
+			tid, err := tenant.SingleTenantByKey(ctx, gdb, table, "id = ?", uint(id))
+			if err != nil {
+				return 0, err
+			}
+			if tid != 0 {
+				return tid, nil
+			}
+		}
+	}
+	tid, err := tenant.SingleTenantByKey(ctx, gdb, "integration_accounts", "platform = ?", string(channel))
 	if err != nil {
 		return 0, err
 	}
-	if tid == 0 {
-		return 0, fmt.Errorf("渠道账号未归属任何租户: channel=%s account=%s", channel, accountID)
+	if tid != 0 {
+		return tid, nil
 	}
-	return tid, nil
+	if accountID == "" && hasTable {
+		tid, err = tenant.SingleTenantByKey(ctx, gdb, table, "id > ?", 0)
+		if err != nil {
+			return 0, err
+		}
+		if tid != 0 {
+			return tid, nil
+		}
+	}
+	return 0, fmt.Errorf("渠道账号未归属任何租户: channel=%s account=%s", channel, accountID)
+}
+
+// ResolveWebhookAccountTenant 中间件用的字符串签名入口（WebhookChannel 是具名
+// string 类型，路由里的渠道段是裸字符串）。渠道段大小写不敏感，与 Receive 同口径归一。
+func (s *WebhookService) ResolveWebhookAccountTenant(ctx context.Context, channel, accountID string) (uint, error) {
+	return s.ResolveTenantByChannelAccount(ctx, WebhookChannel(strings.ToLower(strings.TrimSpace(channel))), accountID)
 }
 
 func (s *WebhookService) Receive(ctx context.Context, req *ReceiveRequest) (*ReceiveResult, error) {

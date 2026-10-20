@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
@@ -175,6 +176,24 @@ func (s *AgentStatusService) CheckStaleAgents(ctx context.Context, timeout time.
 	if timeout <= 0 {
 		timeout = HeartbeatOfflineTimeout
 	}
+	// 后台心跳扫描没有请求租户，而 agent_statuses 是租户表：裸 ctx 会被
+	// 隔离 callback fail-closed 拒绝，表现为"在线坐席永远不自动下线"。
+	// 逐活跃租户扇出；已绑定租户的 ctx（手动触发）直接单租户执行。
+	if _, ok := tenant.FromContext(ctx); ok || !tenant.IsMultiTenant() {
+		return s.checkStaleAgentsForTenant(ctx, timeout)
+	}
+	var offlined []uint
+	if _, err := tenant.Fanout(ctx, nil, func(tctx context.Context, _ uint) (int64, error) {
+		ids := s.checkStaleAgentsForTenant(tctx, timeout)
+		offlined = append(offlined, ids...)
+		return int64(len(ids)), nil
+	}); err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Msg("[S-3] heartbeat check: tenant fanout failed")
+	}
+	return offlined
+}
+
+func (s *AgentStatusService) checkStaleAgentsForTenant(ctx context.Context, timeout time.Duration) []uint {
 	agents, err := s.agentRepo.ListAllAgents(ctx)
 	if err != nil {
 		logger.Ctx(ctx).Warn().Err(err).Msg("[S-3] heartbeat check: list agents failed")

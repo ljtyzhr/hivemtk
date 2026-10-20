@@ -17,7 +17,7 @@ package tenant
 
 import (
 	"context"
-	"log"
+	"fmt"
 	"os"
 	"strings"
 	"sync/atomic"
@@ -62,14 +62,17 @@ func ResolveMode(env string) (Mode, bool) {
 var currentMode atomic.Value
 
 // InitFromEnv 从环境变量初始化进程级模式，返回生效模式。
-// 未知值打告警日志（fail-safe 已朝 off）。
-func InitFromEnv() Mode {
-	m, known := ResolveMode(os.Getenv(EnvMode))
+// 未知值返回 error 且保持 off：拼错的 TENANT_MODE 绝不能静默降级为单机形态
+// （那会让 SaaS 部署把所有租户写进默认租户，且没有任何报错）。
+func InitFromEnv() (Mode, error) {
+	raw := os.Getenv(EnvMode)
+	m, known := ResolveMode(raw)
 	if !known {
-		log.Printf("[tenant] TENANT_MODE=%q 不是已知值（off|on），已按 off（离线单机）处理", os.Getenv(EnvMode))
+		SetMode(ModeOff)
+		return ModeOff, fmt.Errorf("TENANT_MODE=%q 不是已知值（off|on），拒绝以单机形态启动 SaaS 服务", raw)
 	}
 	SetMode(m)
-	return m
+	return m, nil
 }
 
 // SetMode 显式设置进程级模式（启动装配与测试注入用）
@@ -138,6 +141,21 @@ type detachedCtx struct{ context.Context }
 
 // Value 恒 nil：连同 SystemScope 与既有租户绑定一并剥掉。
 func (detachedCtx) Value(any) any { return nil }
+
+// BackgroundWithTenant 为后台工作派生新 ctx：不继承父 ctx 的取消/截止
+// （父 ctx 通常随请求结束而取消），但保留其租户归属——异步写库仍落在本租户。
+// 父 ctx 无绑定时：off 模式显式绑定默认租户；on 模式保持无绑定，
+// 由隔离 callback 对后续访问 fail-closed（绝不静默回落默认租户）。
+func BackgroundWithTenant(ctx context.Context) context.Context {
+	bg := context.Background()
+	if id, ok := FromContext(ctx); ok {
+		return WithTenantID(bg, id)
+	}
+	if !IsMultiTenant() {
+		return WithTenantID(bg, DefaultTenantID)
+	}
+	return bg
+}
 
 // OnlyTenant 构造「只携带指定租户」的 ctx：保留父 ctx 的取消/截止语义，
 // 剥离其余全部 value（含 SystemScope 与既有绑定），再显式绑定 id。

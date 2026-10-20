@@ -73,6 +73,9 @@ func CreateMCPCredential(ctx *gin.Context) {
 		response.Error(ctx, http.StatusInternalServerError, "创建失败: "+err.Error())
 		return
 	}
+	// 新建也要清缓存：门那侧的缓存按 client_id 单键存"当时全库唯一归属"，
+	// 第二个租户签发同名的 client_id 会让旧租户的条目把新凭证继续判成歧义/停用。
+	middleware.InvalidateMCPCredentialCache()
 	response.Success(ctx, gin.H{
 		"id": cred.ID, "client_id": clientID, "name": cred.Name,
 		"api_key":  apiKey, // 明文仅此一次

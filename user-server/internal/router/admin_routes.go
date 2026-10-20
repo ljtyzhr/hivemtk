@@ -77,11 +77,11 @@ func setupPublicRoutes(public *gin.RouterGroup, liveCodeController *controller.L
 		service.NewXianyuCardStatsService(db),
 		service.NewTikTokCardService(),
 	)
-	public.GET("/s/:code", redirectCtrl.RedirectShortLink)
-	public.GET("/l/:code", liveCodeController.RedirectLiveCode)
+	public.GET("/s/:code", middleware.PublicCodeTenant(db, "short_links", "short_code"), redirectCtrl.RedirectShortLink)
+	public.GET("/l/:code", middleware.PublicCodeTenant(db, "live_codes", "short_link"), liveCodeController.RedirectLiveCode)
 
-	public.GET("/livecode/:id", liveCodeController.RenderLiveCodePage)
-	public.POST("/livecode/:id/click", liveCodeController.RecordClick)
+	public.GET("/livecode/:id", middleware.PublicStringIDTenant(db, "live_codes"), liveCodeController.RenderLiveCodePage)
+	public.POST("/livecode/:id/click", middleware.PublicStringIDTenant(db, "live_codes"), liveCodeController.RecordClick)
 
 	deps := wirePublicDependencies(db)
 	public.POST("/knowledge-merchant/external/import", deps.knowledgeMerchantCtrl.ExternalImport)
@@ -98,7 +98,10 @@ func setupPublicRoutes(public *gin.RouterGroup, liveCodeController *controller.L
 	// （authed 侧指标查询在 setupEmailRoutes 注册）。此前该控制器零接线，运行时 404。
 	deps.emailTrackingCtrl.RegisterRoutes(public, nil)
 
-	ingressGrp := public.Group("/chat/ingress", middleware.IngressSecretAuth())
+	// 入站消息入口：X-Ingress-Secret 是实例级凭证，区分不了租户。on 模式下
+	// 调用方必须再带 X-Tenant-Code（或 ?tenant_code=）声明这批消息归谁——
+	// 没声明时这里不猜，下游隔离 callback 直接 fail-closed。
+	ingressGrp := public.Group("/chat/ingress", middleware.IngressSecretAuth(), middleware.PublicTenantHint(tenantCodeResolver))
 	ingressGrp.POST("", deps.inboxIngressCtrl.Ingress)
 }
 

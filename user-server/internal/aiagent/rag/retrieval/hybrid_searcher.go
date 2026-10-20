@@ -13,6 +13,7 @@ import (
 
 	"hivemtk-user/internal/aiagent/llm"
 	"hivemtk-user/internal/pkg/kbrelease"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 
 	"gorm.io/gorm"
@@ -253,22 +254,23 @@ func (h *HybridSearcher) SearchIndex(ctx context.Context, productID string, quer
 		fused = fused[:finalK]
 	}
 
-	h.logSearch(query, productID, finalK, len(vecResults), len(kwResults), len(fused), rerankCount, vectorMs, bm25Ms)
+	h.logSearch(ctx, query, productID, finalK, len(vecResults), len(kwResults), len(fused), rerankCount, vectorMs, bm25Ms)
 
 	return fused, nil
 }
 
-func (h *HybridSearcher) logSearch(query, productID string, topK, vectorCount, bm25Count, fusedCount, rerankCount int, vectorMs, bm25Ms int64) {
+func (h *HybridSearcher) logSearch(ctx context.Context, query, productID string, topK, vectorCount, bm25Count, fusedCount, rerankCount int, vectorMs, bm25Ms int64) {
 	if h.db == nil {
 		return
 	}
+	logCtx := tenant.BackgroundWithTenant(ctx)
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
 				logger.Warnf("[Hybrid] logSearch panic recovered: %v\n%s", r, debug.Stack())
 			}
 		}()
-		if err := h.db.WithContext(context.Background()).Table("knowledge_search_logs").
+		if err := h.db.WithContext(logCtx).Table("knowledge_search_logs").
 			Create(map[string]any{
 				"query":             query,
 				"product_id":        gorm.Expr("NULLIF(?::text, '')::bigint", productID),

@@ -35,7 +35,9 @@ func SetupBrowserAutomationRoutes(auth *gin.RouterGroup, engine *gin.Engine, gor
 	profileHealthRepo := barepo.NewBrowserProfileHealthRepositoryWithDB(gormDB)
 	outreachDedupeRepo := barepo.NewBrowserOutreachDedupeRepositoryWithDB(gormDB)
 	outreachReceiptRepo := barepo.NewBrowserOutreachReceiptRepositoryWithDB(gormDB)
-	kvRepo := hrepo.NewSystemConfigKVRepositoryWithDB(gormDB)
+	// Host token 是实例级通道凭证（WS 握手发生在租户解析之前），走平台 KV：
+	// 租户 KV 在 on 模式下无租户上下文会 fail-closed。
+	kvRepo := hrepo.NewPlatformConfigKVRepositoryWithDB(gormDB)
 
 	// --- Service（进程级单例：registry / hand）---
 	registry := basvc.NewHostRegistry()

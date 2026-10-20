@@ -67,13 +67,19 @@ func (c *WebhookController) Stop() {
 // RegisterRoutes 注册路由（公开，不需要鉴权）
 func (c *WebhookController) RegisterRoutes(r *gin.Engine) {
 	wh := r.Group("/api/webhook")
+	if c.svc != nil {
+		wh.Use(middleware.WebhookTenantBinding(c.svc.ResolveWebhookAccountTenant))
+	}
 	{
 		wh.POST("/:channel/:account_id", c.Receive)
 		wh.POST("/:channel", c.ReceiveWithoutAccount)
 		// 队列水位（待处理事件数、积压长度）是运营内部指标，不属于渠道回调面：
 		// /health 留给外部探活（只有一个 ok），stats 改到超管可读——
 		// 判据是"这条口的读者是谁"：渠道方与监控脚本只读健康位，水位是给后台看板用的。
-		wh.GET("/stats", middleware.JWTAuthMiddleware(), middleware.AdminAuthMiddleware(), c.Stats)
+		// TenantMiddleware 不能省：uni_webhook_events 是租户表，on 模式下没有租户绑定
+		// 的 Count 会被隔离 callback 拒绝，而 PendingCount 把错误丢进返回值外，
+		// 于是这条口在超管面前永远报 0（看着"没有积压"的库其实堵满了）。
+		wh.GET("/stats", middleware.JWTAuthMiddleware(), middleware.TenantMiddleware(), middleware.AdminAuthMiddleware(), c.Stats)
 		wh.GET("/health", c.Health)
 		wh.GET("/wecom/:account_id", c.WeComVerify)
 		wh.GET("/feishu/:account_id", c.FeishuVerify)
@@ -81,6 +87,30 @@ func (c *WebhookController) RegisterRoutes(r *gin.Engine) {
 		wh.GET("/dingtalk/:account_id", c.DingTalkVerify)
 		wh.POST("/dingtalk/:account_id", c.DingTalkReceive)
 	}
+}
+
+// bindCallbackTenant 渠道回调的租户绑定（specs/001-saas-multi-tenant T022）。
+//
+// on 模式下由 URL 的 (channel, account_id) 自证归属：解析不出（账号不存在，或
+// 同一个键在两个租户各有一行）就回 404 并报安全告警，返回 ok=false。
+// 绝不回落默认租户 —— 那会把 A 的客户消息落进 B 的收件箱并驱动 B 的 AI 回复。
+// off 模式原样透传 reqCtx（写入走列默认值 1，与历史行为等价）。
+//
+// 组级 WebhookTenantBinding 已经对同一条链做过一次；这里再调一次是因为回绝
+// 必须发生在控制器（它才知道该回 404 而不是 500），而解析函数命中已绑定时
+// 直接复用，不会多跑一趟 SQL。
+func (c *WebhookController) bindCallbackTenant(ctx *gin.Context, reqCtx context.Context, channel service.WebhookChannel, accountID string) (context.Context, bool) {
+	if !tenant.IsMultiTenant() || c.svc == nil {
+		return reqCtx, true
+	}
+	tid, terr := c.svc.ResolveTenantByChannelAccount(ctx.Request.Context(), channel, accountID)
+	if terr != nil {
+		log.Printf("[SECURITY] webhook 租户解析失败 channel=%s account=%s ip=%s: %v",
+			channel, accountID, ctx.ClientIP(), terr)
+		ctx.JSON(http.StatusNotFound, gin.H{"accepted": false, "reason": "unknown account"})
+		return reqCtx, false
+	}
+	return tenant.WithTenantID(reqCtx, tid), true
 }
 
 // Receive godoc
@@ -113,15 +143,9 @@ func (c *WebhookController) Receive(ctx *gin.Context) {
 	// 租户解析链（specs/001-saas-multi-tenant T022）：on 模式下按 (channel, account_id)
 	// 解析归属租户并绑定 ctx；解析失败 fail-closed（404 + 安全告警），绝不落默认租户。
 	// off 模式：数据写入走列默认值 1，等价现状。
-	if tenant.IsMultiTenant() {
-		tid, terr := c.svc.ResolveTenantByChannelAccount(ctx.Request.Context(), channel, accountID)
-		if terr != nil {
-			log.Printf("[SECURITY] webhook 租户解析失败 channel=%s account=%s ip=%s: %v",
-				channel, accountID, ctx.ClientIP(), terr)
-			ctx.JSON(http.StatusNotFound, gin.H{"accepted": false, "reason": "unknown account"})
-			return
-		}
-		reqCtx = tenant.WithTenantID(reqCtx, tid)
+	reqCtx, bound := c.bindCallbackTenant(ctx, reqCtx, channel, accountID)
+	if !bound {
+		return
 	}
 
 	// QQ 开放平台 Op13 回调地址验证：需同步返回 Ed25519 签名，不走入队流程
@@ -213,6 +237,13 @@ func (c *WebhookController) ReceiveWithoutAccount(ctx *gin.Context) {
 	accountID := extractAccountID(body)
 
 	reqCtx := middleware.InjectLangToCtx(ctx.Request.Context(), c.langResolver, "", 0)
+
+	// 这条口没有 account_id 路径段，归属只能由载荷里的 account_id 与渠道名自证；
+	// 与通用入口同一套判据、同一个 fail-closed 后果。
+	reqCtx, bound := c.bindCallbackTenant(ctx, reqCtx, channel, accountID)
+	if !bound {
+		return
+	}
 
 	req := &service.ReceiveRequest{
 		Channel:   channel,

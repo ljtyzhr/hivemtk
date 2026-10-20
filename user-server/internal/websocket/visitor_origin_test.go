@@ -21,6 +21,32 @@ func checkVisitorOrigin(t *testing.T, origin string) bool {
 	return upgraderVisitor.CheckOrigin(req)
 }
 
+// 同源放行：嵌入页 Origin 与请求 Host 同域时必须能连（白名单漏配新部署域
+// 不应把 iframe 自己的 WS 也拦掉）。反代终止 TLS 后上游请求是 http，故只比
+// host 不比 scheme。跨域冒牌域名仍必须落到白名单/私网判定并拒绝。
+func TestVisitorCheckOrigin_SameOriginAllowed(t *testing.T) {
+	allow := []string{
+		"http://server.local",  // 与请求 Host 相同
+		"https://server.local", // TLS 由反代终止，上游请求 scheme 是 http
+	}
+	for _, o := range allow {
+		if !checkVisitorOrigin(t, o) {
+			t.Errorf("同源应放行 Origin=%q", o)
+		}
+	}
+
+	deny := []string{
+		"https://server.local.evil.com",
+		"https://evil.server.local",
+		"https://server.localhost",
+	}
+	for _, o := range deny {
+		if checkVisitorOrigin(t, o) {
+			t.Errorf("非同源且不在白名单时应拒绝 Origin=%q", o)
+		}
+	}
+}
+
 func TestVisitorCheckOrigin_PrivateHostExactMatch(t *testing.T) {
 	allow := []string{
 		"", // 非浏览器客户端不带 Origin：按设计放行

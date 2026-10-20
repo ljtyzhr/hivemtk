@@ -901,20 +901,25 @@ func DefaultParamDefs() []ParamDef {
 			Description: "AI 回复出站免打扰窗口的结束小时（CST，0-23），即重投/首发顺延到的小时。scope=全局。默认 7 与接线前硬编码一致。start>end 表示跨午夜窗口（如 23-7）。越界回落代码默认 7",
 			ValueType:   "int", Unit: "点", Risk: "warning", DefaultValue: "7", Min: strPtr("0"), Max: strPtr("23"), Restart: false},
 
-		// ── urls 组：对外链接三件（R2）────────────────────────────────
+		// ── urls 组：对外链接四件（R2 / R5-3）────────────────────────
 		// 都是 env > 参数 > 代码常量 的三级读取（env 保留为应急）。读取口走参数中心
 		// 60s TTL 缓存（GetString 经 getString），不会每请求打库。
+		// R5-3 起读取口透传请求 ctx：SaaS 模式绑定租户后读到本租户覆盖值，
+		// 未绑定租户（启动期 / 平台级调用）回落平台默认值。
 		// frontend_url 读取点在 service/password_reset.go（直连）；cloud_url /
-		// geo_site_base_url 读取点在 internal/config（config 不能反向 import service，
-		// 走 provider 注入，装配点 app/url_params_wiring.go）。
+		// geo_site_base_url / public_base_url 读取点在 internal/config（config 不能
+		// 反向 import service，走 provider 注入，装配点 app/url_params_wiring.go）。
 		{Group: "urls", Key: "frontend_url", Name: "前端站点基址",
-			Description: "密码重置邮件里拼接 reset 链接用的前端站点基址。优先级 env FRONTEND_URL > 本参数 > 代码兜底 http://localhost:3000。scope=全局。读取点 service/password_reset.go 的 getFrontendBaseURL（发信时读，非高频）。默认与接线前代码兜底一致",
+			Description: "密码重置邮件里拼接 reset 链接用的前端站点基址。优先级 env FRONTEND_URL > 本参数 > 代码兜底 http://localhost:3000。SaaS 模式按租户覆盖（读取点透传重置用户所属租户 ctx；未绑定读平台默认）。读取点 service/password_reset.go 的 getFrontendBaseURL（发信时读，非高频）。默认与接线前代码兜底一致",
 			ValueType:   "string", DefaultValue: "http://localhost:3000", Restart: false},
 		{Group: "urls", Key: "cloud_url", Name: "云端版对外地址",
-			Description: "public config 里展示给前端的云端版对外地址。优先级 平台配置 cloud_url > env PLATFORM_CLOUD_URL > 本参数 > 代码常量 https://work.xapptool.cn。scope=全局。读取点 internal/config/platform.go 的 CloudURL()（provider 注入，60s TTL 缓存）。默认与代码常量一致；参数缺省（空）时回落常量，行为零变更",
+			Description: "public config 里展示给前端的云端版对外地址。优先级 平台配置 cloud_url > env PLATFORM_CLOUD_URL > 本参数 > 代码常量 https://work.xapptool.cn。SaaS 模式按租户覆盖（读取点透传请求 ctx；未绑定读平台默认）。读取点 internal/config/platform.go 的 CloudURLFor（provider 注入，60s TTL 缓存）。默认与代码常量一致；参数缺省（空）时回落常量，行为零变更",
 			ValueType:   "string", DefaultValue: "https://work.xapptool.cn", Restart: false},
 		{Group: "urls", Key: "geo_site_base_url", Name: "官网基址",
-			Description: "官网基址（拼接站内路径、判断是否本站 URL）。优先级 env GEO_SITE_BASE_URL > 本参数 > 代码常量 https://xiaofang142.github.io/hivemtk。scope=全局。读取点 internal/config/website.go 的 WebsiteBaseURL()（provider 注入，60s TTL 缓存）。默认与代码常量一致；参数缺省（空）时回落常量，行为零变更",
+			Description: "官网基址（拼接站内路径、判断是否本站 URL）。优先级 env GEO_SITE_BASE_URL > 本参数 > 代码常量 https://xiaofang142.github.io/hivemtk。SaaS 模式按租户覆盖（读取点透传请求 ctx；未绑定读平台默认）。读取点 internal/config/website.go 的 WebsiteBaseURLFor（provider 注入，60s TTL 缓存）。默认与代码常量一致；参数缺省（空）时回落常量，行为零变更",
 			ValueType:   "string", DefaultValue: "https://xiaofang142.github.io/hivemtk", Restart: false},
+		{Group: "urls", Key: "public_base_url", Name: "公网回调基址",
+			Description: "渠道 webhook 回调与短链拼绝对地址用的公网基址。优先级 env PUBLIC_BASE_URL > config.yaml external.public_base_url > 本参数 > 空（调用方回退请求 Host）。SaaS 模式按租户覆盖（读取点透传请求 ctx；未绑定读平台默认）。平台默认留空＝沿用部署配置，行为零变更。读取点 internal/config/server.go 的 GetPublicBaseURLFor（provider 注入，60s TTL 缓存）",
+			ValueType:   "string", DefaultValue: "", Restart: false},
 	}
 }

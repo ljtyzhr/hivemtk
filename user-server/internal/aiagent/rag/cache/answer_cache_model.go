@@ -22,6 +22,7 @@ const DefaultSemanticThreshold = 0.95
 
 // RAGAnswerCache rag_answer_cache 表模型（L5 数据层，纯数据结构）
 type RAGAnswerCache struct {
+	TenantID      uint      `gorm:"column:tenant_id;not null;default:1;index"`
 	ID            uint64    `gorm:"column:id;primaryKey;autoIncrement"`
 	KBID          string    `gorm:"column:kb_id;type:varchar(64);not null"`
 	PromptVersion string    `gorm:"column:prompt_version;type:varchar(64);not null"`

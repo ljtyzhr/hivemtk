@@ -44,8 +44,13 @@ func (c *EmailUnsubscribeController) UnsubscribePage(ctx *gin.Context) {
 		ctx.String(http.StatusBadRequest, "退订链接无效或已过期：%s", err.Error())
 		return
 	}
+	reqCtx, err := c.svc.ContextForClaim(ctx.Request.Context(), claim)
+	if err != nil {
+		ctx.String(http.StatusBadRequest, "退订链接无效：%s", err.Error())
+		return
+	}
 
-	if c.svc.IsUnsubscribed(ctx.Request.Context(), claim.Email) {
+	if c.svc.IsUnsubscribed(reqCtx, claim.Email) {
 		ctx.Data(http.StatusOK, "text/html; charset=utf-8", []byte(unsubscribedAlreadyHTML(claim.Email)))
 		return
 	}
@@ -72,10 +77,15 @@ func (c *EmailUnsubscribeController) UnsubscribeConfirm(ctx *gin.Context) {
 		response.Error(ctx, http.StatusBadRequest, "退订链接无效或已过期："+err.Error())
 		return
 	}
+	reqCtx, err := c.svc.ContextForClaim(ctx.Request.Context(), claim)
+	if err != nil {
+		response.Error(ctx, http.StatusBadRequest, "退订链接无效："+err.Error())
+		return
+	}
 
 	ip := ctx.ClientIP()
 	ua := ctx.Request.UserAgent()
-	if err := c.svc.UnsubscribeEmail(ctx.Request.Context(), claim.Email, req.Reason, "/api/email/unsubscribe/confirm", claim.JobID, ip, ua); err != nil {
+	if err := c.svc.UnsubscribeEmail(reqCtx, claim.Email, req.Reason, "/api/email/unsubscribe/confirm", claim.JobID, ip, ua); err != nil {
 		response.ErrorFromDB(ctx, err, "退订失败："+err.Error())
 		return
 	}

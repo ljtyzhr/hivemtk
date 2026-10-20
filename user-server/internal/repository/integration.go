@@ -6,6 +6,7 @@ import (
 
 	"hivemtk-user/internal/model"
 	_db "hivemtk-user/internal/pkg/db"
+	"hivemtk-user/internal/pkg/tenant"
 	"time"
 
 	"gorm.io/gorm"
@@ -57,6 +58,28 @@ func (r *IntegrationAccountRepository) GetByPlatformAndAccount(ctx context.Conte
 	}
 	err := q.First(&account).Error
 	return &account, err
+}
+
+// TenantIDByPlatform 由平台名自证回调归属租户（公开 webhook 入口用）。
+//
+// on 模式下回调到达时租户尚未建立；平台 HMAC 密钥是实例级凭证、不能区分租户，
+// 因此只能看 integration_accounts：该平台只被一个租户配置过才可自证，
+// 多租户共用同一平台名时返回 ok=false，由入口要求显式 tenant_code。
+func (r *IntegrationAccountRepository) TenantIDByPlatform(ctx context.Context, platform string) (uint, bool, error) {
+	if platform == "" {
+		return 0, false, nil
+	}
+	var ids []uint
+	err := r.db.WithContext(tenant.WithSystemScope(ctx)).Model(&model.IntegrationAccount{}).
+		Where("platform = ?", platform).
+		Distinct().Limit(2).Pluck("tenant_id", &ids).Error
+	if err != nil {
+		return 0, false, err
+	}
+	if len(ids) != 1 || ids[0] == 0 {
+		return 0, false, nil
+	}
+	return ids[0], true, nil
 }
 
 // GetByPlatform 获取某平台的对接账号(单租户)

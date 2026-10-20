@@ -11,6 +11,7 @@ import (
 	"text/template"
 	"time"
 
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils"
 
 	"gorm.io/gorm"
@@ -351,7 +352,7 @@ func (s *SOPTemplateService) IncrementHitCount(ctx context.Context, id uint) {
 		return
 	}
 
-	utils.SafeGo(context.Background(), "sop_template.IncrementHitCount", func(bgCtx context.Context) {
+	utils.SafeGo(tenant.BackgroundWithTenant(ctx), "sop_template.IncrementHitCount", func(bgCtx context.Context) {
 		bgCtx, cancel := context.WithTimeout(bgCtx, utils.ShortTimeout)
 		defer cancel()
 		utils.WarnErrKV("sop_template.IncrementHitCount.repo",

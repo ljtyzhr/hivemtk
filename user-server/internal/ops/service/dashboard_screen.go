@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"crypto/rand"
 	"encoding/hex"
 	"encoding/json"
@@ -191,6 +192,17 @@ func (s *DashboardScreenService) GetPublicScreen(code string) (*model.DashboardS
 	}
 
 	return screen, nil
+}
+
+// GetPublicScreenCtx 公开访问大屏（匿名）：租户由 code 自证，
+// 后续读取与浏览量自增都钉死在该租户内。
+func (s *DashboardScreenService) GetPublicScreenCtx(ctx context.Context, code string) (*model.DashboardScreen, error) {
+	return s.screenRepo.GetPublicByCodeCtx(ctx, code)
+}
+
+// GetScreenWidgetsCtx 公开访问路径的 widgets 读取
+func (s *DashboardScreenService) GetScreenWidgetsCtx(ctx context.Context, screenID uint) ([]*model.DashboardWidget, error) {
+	return s.widgetRepo.GetByScreenIDCtx(ctx, screenID)
 }
 
 // GetScreenWidgets 获取大屏 widgets

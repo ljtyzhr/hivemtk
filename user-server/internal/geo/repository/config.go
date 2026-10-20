@@ -10,9 +10,10 @@ import (
 	"gorm.io/gorm"
 )
 
-// GeoConfigRepository GEO 全局配置仓储接口（单例：固定首行）
+// GeoConfigRepository GEO 配置仓储接口
 //
-// geo_config 带 tenant_id 列、在租户登记表内：TENANT_MODE=on 下查询必须由
+// geo_config 带 tenant_id 列、在租户登记表内：**每个租户一行**（"单例：固定首行"
+// 是离线单机口径，TENANT_MODE=on 下不成立）。TENANT_MODE=on 下查询必须由
 // ctx 携带租户（或系统豁免），否则隔离 callback fail-closed。因此方法一律收
 // ctx 首参并 db.WithContext(ctx)，不再隐式 context.Background()。
 type GeoConfigRepository interface {

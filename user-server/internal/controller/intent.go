@@ -321,7 +321,7 @@ func (c *IntentController) UpdateConfig(ctx *gin.Context) {
 
 // GetKeywordOverride GET /api/intent-records/keywords-override
 func (c *IntentController) GetKeywordOverride(ctx *gin.Context) {
-	response.Success(ctx, service.GetIntentKeywordOverride(), "查询成功")
+	response.Success(ctx, service.GetIntentKeywordOverride(ctx.Request.Context()), "查询成功")
 }
 
 // UpdateKeywordOverrideRequest 覆盖词表请求体（意图类型 → 追加关键词列表）

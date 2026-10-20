@@ -21,6 +21,8 @@ const (
 // RedisBackedCache 将注入的 CacheInterface 适配到共享的 cache.Cache
 // （Redis 或内存单例）。通过 JSON 信封保留类型信息，无需改动 RAG 检索
 // 热路径中的类型断言代码即可实现跨实例缓存共享。
+//
+// 租户作用域由 backend 按传入 ctx 施加，适配器本身不拼前缀。
 type RedisBackedCache struct {
 	backend cache.Cache
 }
@@ -30,8 +32,8 @@ func NewRedisBackedCache(backend cache.Cache) CacheInterface {
 	return &RedisBackedCache{backend: backend}
 }
 
-func (c *RedisBackedCache) Get(key string) (any, bool) {
-	raw, err := c.backend.Get(context.Background(), key)
+func (c *RedisBackedCache) Get(ctx context.Context, key string) (any, bool) {
+	raw, err := c.backend.Get(ctx, key)
 	if err != nil || raw == "" {
 		return nil, false
 	}
@@ -55,7 +57,7 @@ func (c *RedisBackedCache) Get(key string) (any, bool) {
 	}
 }
 
-func (c *RedisBackedCache) Set(key string, value any, ttl time.Duration) {
+func (c *RedisBackedCache) Set(ctx context.Context, key string, value any, ttl time.Duration) {
 	typ := envTypeAny
 	if _, ok := value.([]SearchResult); ok {
 		typ = envTypeSearchResultSlice
@@ -69,9 +71,9 @@ func (c *RedisBackedCache) Set(key string, value any, ttl time.Duration) {
 	if err != nil {
 		return
 	}
-	_ = c.backend.Set(context.Background(), key, string(out), ttl)
+	_ = c.backend.Set(ctx, key, string(out), ttl)
 }
 
-func (c *RedisBackedCache) Delete(key string) {
-	_ = c.backend.Delete(context.Background(), key)
+func (c *RedisBackedCache) Delete(ctx context.Context, key string) {
+	_ = c.backend.Delete(ctx, key)
 }

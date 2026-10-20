@@ -129,7 +129,7 @@ func TestE2E_KnowledgeIndexFlow(t *testing.T) {
 	bus.Subscribe(event.TopicKnowledgeDocumentChanged, indexer.Handle)
 
 	docIDStr := uintToStr(uint(docID))
-	PublishKnowledgeDocumentCreate("1", uint(docID), "测试内容", 1)
+	PublishKnowledgeDocumentCreate(context.Background(), "1", uint(docID), "测试内容", 1)
 	if !waitUntil(func() bool { return indexer.ChunkCount(docIDStr) > 0 }, 5*time.Second) {
 		t.Error("expected chunks after create event")
 	}
@@ -138,7 +138,7 @@ func TestE2E_KnowledgeIndexFlow(t *testing.T) {
 	if err := os.WriteFile(filePath, []byte(updateContent), 0644); err != nil {
 		t.Fatalf("rewrite temp file: %v", err)
 	}
-	PublishKnowledgeDocumentUpdate("1", uint(docID), "更新内容", 1)
+	PublishKnowledgeDocumentUpdate(context.Background(), "1", uint(docID), "更新内容", 1)
 	if !waitUntil(func() bool {
 		for _, ch := range indexer.GetIndexedChunks(docIDStr) {
 			if strings.Contains(ch.Content, "E2E_ROUND2V_UPDATE_MARKER") {
@@ -150,7 +150,7 @@ func TestE2E_KnowledgeIndexFlow(t *testing.T) {
 		t.Error("expected updated chunk content after update event")
 	}
 
-	PublishKnowledgeDocumentDelete("1", uint(docID), 1)
+	PublishKnowledgeDocumentDelete(context.Background(), "1", uint(docID), 1)
 	if !waitUntil(func() bool { return indexer.ChunkCount(docIDStr) == 0 }, 5*time.Second) {
 		t.Errorf("expected 0 chunks after delete, got %d", indexer.ChunkCount(docIDStr))
 	}
@@ -186,7 +186,7 @@ func TestE2E_CustomerAndKnowledgeInParallel(t *testing.T) {
 		PublishCustomerMessage(context.Background(), "telegram", "tg_001", "cust_001", "", "msg", "")
 	}
 	for i, docID := range docIDs {
-		PublishKnowledgeDocumentCreate("1", uint(docID), "content", uint(i+1))
+		PublishKnowledgeDocumentCreate(context.Background(), "1", uint(docID), "content", uint(i+1))
 	}
 
 	deadline := time.Now().Add(5 * time.Second)

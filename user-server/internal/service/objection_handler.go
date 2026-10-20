@@ -13,6 +13,7 @@ import (
 
 	"hivemtk-user/internal/aiagent/llm"
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/repository"
 )
@@ -246,7 +247,7 @@ func (s *ObjectionHandlerService) Handle(ctx context.Context, req HandleRequest)
 		var exposure *scriptExposure
 		if req.OneID != "" {
 			exposure = &scriptExposure{
-				version:        reqVersionOf(scripts, resp.Template.ID),
+				version:        reqVersionOf(ctx, scripts, resp.Template.ID),
 				oneID:          req.OneID,
 				customerID:     req.CustomerID,
 				conversationID: req.ConversationID,
@@ -342,18 +343,19 @@ func getScriptABService() *ScriptABService {
 // RecordScriptExposure T-7 曝光记录入口：fire-and-forget，绝不影响主链路
 //
 // version/oneID/customerID/conversationID/traceID 任一关键位缺失时静默跳过。
-func RecordScriptExposure(scriptID uint, version int, oneID string, customerID string, conversationID, traceID string) {
+func RecordScriptExposure(ctx context.Context, scriptID uint, version int, oneID string, customerID string, conversationID, traceID string) {
 	svc := getScriptABService()
 	if svc == nil || scriptID == 0 || oneID == "" {
 		return
 	}
+	bgCtx := tenant.BackgroundWithTenant(ctx)
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
 				slog.Warn("[ScriptAB] 曝光记录 panic recovered", "script_id", scriptID, "panic", r)
 			}
 		}()
-		svc.RecordExposure(scriptID, version, oneID, customerID, conversationID, traceID)
+		svc.RecordExposure(bgCtx, scriptID, version, oneID, customerID, conversationID, traceID)
 	}()
 }
 
@@ -368,7 +370,7 @@ func (s *ObjectionHandlerService) recordUsageAsync(ctx context.Context, template
 		}
 	}()
 	if exposure != nil {
-		RecordScriptExposure(templateID, exposure.version, exposure.oneID, exposure.customerID, exposure.conversationID, exposure.traceID)
+		RecordScriptExposure(ctx, templateID, exposure.version, exposure.oneID, exposure.customerID, exposure.conversationID, exposure.traceID)
 	}
 }
 
@@ -380,19 +382,19 @@ type scriptExposure struct {
 	traceID        string
 }
 
-func reqVersionOf(scripts []model.ScriptLibrary, templateID uint) int {
+func reqVersionOf(ctx context.Context, scripts []model.ScriptLibrary, templateID uint) int {
 	for _, sc := range scripts {
 		if sc.ID == templateID {
 			if sc.Version > 0 {
 				return sc.Version
 			}
-			return fallbackVersionOf(templateID)
+			return fallbackVersionOf(ctx, templateID)
 		}
 	}
-	return fallbackVersionOf(templateID)
+	return fallbackVersionOf(ctx, templateID)
 }
 
-func fallbackVersionOf(templateID uint) int {
+func fallbackVersionOf(ctx context.Context, templateID uint) int {
 	if templateID == 0 {
 		return 1
 	}
@@ -413,9 +415,9 @@ func fallbackVersionOf(templateID uint) int {
 		if repo == nil {
 			return
 		}
-		ctx, cancel := context.WithTimeout(context.Background(), utils.ShortTimeout)
+		bgCtx, cancel := context.WithTimeout(tenant.BackgroundWithTenant(ctx), utils.ShortTimeout)
 		defer cancel()
-		if v, err := repo.MaxScriptVersion(ctx, id); err == nil && v > 0 {
+		if v, err := repo.MaxScriptVersion(bgCtx, id); err == nil && v > 0 {
 			versionCacheMu.Lock()
 			if len(versionCache) > 1024 {
 				versionCache = make(map[uint]int)

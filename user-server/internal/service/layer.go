@@ -11,6 +11,7 @@ import (
 	"hivemtk-user/internal/dto"
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/featureflag"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
@@ -129,8 +130,9 @@ func (r *LayerRouter) Route(ctx context.Context, req *RouteRequest) *dto.LayerDe
 				if top.Entry != nil {
 
 					entryID := top.Entry.ID
-					utils.SafeGo(context.Background(), "layer.faq_hit_count", func(_ context.Context) {
-						_ = r.faqRepo.IncrementHitCount(context.Background(), entryID)
+					hitCtx := tenant.BackgroundWithTenant(ctx)
+					utils.SafeGo(hitCtx, "layer.faq_hit_count", func(bgCtx context.Context) {
+						_ = r.faqRepo.IncrementHitCount(bgCtx, entryID)
 					})
 				}
 				return decision
@@ -155,8 +157,9 @@ func (r *LayerRouter) Route(ctx context.Context, req *RouteRequest) *dto.LayerDe
 					}
 
 					faqID := top.ID
-					utils.SafeGo(context.Background(), "layer.faq_hit_count", func(_ context.Context) {
-						_ = r.faqRepo.IncrementHitCount(context.Background(), faqID)
+					hitCtx := tenant.BackgroundWithTenant(ctx)
+					utils.SafeGo(hitCtx, "layer.faq_hit_count", func(bgCtx context.Context) {
+						_ = r.faqRepo.IncrementHitCount(bgCtx, faqID)
 					})
 					return decision
 				}
@@ -196,8 +199,9 @@ func (r *LayerRouter) Route(ctx context.Context, req *RouteRequest) *dto.LayerDe
 				}
 
 				sopID := top.ID
-				utils.SafeGo(context.Background(), "layer.sop_hit_count", func(_ context.Context) {
-					_ = r.sopRepo.IncrementHitCount(context.Background(), sopID)
+				hitCtx := tenant.BackgroundWithTenant(ctx)
+				utils.SafeGo(hitCtx, "layer.sop_hit_count", func(bgCtx context.Context) {
+					_ = r.sopRepo.IncrementHitCount(bgCtx, sopID)
 				})
 				return decision
 			}
@@ -235,10 +239,10 @@ func (r *LayerRouter) record(ctx context.Context, req *RouteRequest, d *dto.Laye
 		Extra:      fmt.Sprintf("faq_id=%d sop_id=%d", d.FAQID, d.SOPID),
 	}
 
-	utils.SafeGo(context.Background(), "layer.record", func(_ context.Context) {
-		bgCtx, cancel := context.WithTimeout(context.Background(), utils.ShortTimeout)
+	utils.SafeGo(tenant.BackgroundWithTenant(ctx), "layer.record", func(bgCtx context.Context) {
+		writeCtx, cancel := context.WithTimeout(bgCtx, utils.ShortTimeout)
 		defer cancel()
-		if err := r.logRepo.Record(bgCtx, log); err != nil {
+		if err := r.logRepo.Record(writeCtx, log); err != nil {
 			if featureflag.Get("debug_log").Bool() {
 				logger.Warnf("[LayerRouter] record failed: %v", err)
 			}

@@ -2,6 +2,8 @@ package router
 
 import (
 	"context"
+	"fmt"
+	"io"
 	"net"
 	"net/http"
 	"net/url"
@@ -52,6 +54,18 @@ func embeddingStatus() (string, string) {
 	if err != nil {
 		return "down", "invalid embedding base url: " + err.Error()
 	}
+
+	// 云端 https：TCP 443 握手成功 ≠ 服务可用（LB/网关收下连接但后端 5xx 时 TCP 照样通），
+	// 必须做真实 HTTP GET 才能探出 5xx / 协议层故障。
+	// 判定口径：拿到任意 HTTP 响应（2xx/3xx/4xx，含 401 鉴权拒绝——说明服务在响应）= up；
+	// 5xx 或连接失败/超时 = down。GET 配置的 base 路径（不带 key）：
+	// DashScope 无免鉴权健康路径，/compatible-mode/v1 等会回 401/404/405，均视为「可达」。
+	if u.Scheme == "https" {
+		return probeEmbeddingHTTP(u)
+	}
+
+	// 本地 http（如 127.0.0.1:8208 / mtk-embedding:8208）：保持历史 TCP dial 口径不变，
+	// 避免本机 8208 未启动时的判定语义变化（连接被拒 → down，与改造前一致）。
 	host := u.Hostname()
 	port := u.Port()
 	if port == "" {
@@ -70,6 +84,27 @@ func embeddingStatus() (string, string) {
 	}
 	utils.WarnErrKV("router.health.embedClose", conn.Close(),
 		"host", host, "port", port)
+	return "up", ""
+}
+
+// probeEmbeddingHTTP 对 https embedding base 做真实 HTTP GET 探活（2s 超时）。
+// 2xx/3xx/4xx → up（401 说明服务在响应）；5xx / 连接失败 / 超时 → down。
+func probeEmbeddingHTTP(u *url.URL) (string, string) {
+	client := &http.Client{Timeout: 2 * time.Second}
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, u.String(), nil)
+	if err != nil {
+		return "down", "invalid embedding probe request: " + err.Error()
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		return "down", "embedding unreachable: " + err.Error()
+	}
+	defer func() { _ = resp.Body.Close() }()
+	// 只排掉开头一段，避免把响应体攒在内存里（也别 Close 不读：连接无法复用无所谓，健康检查低频）
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 4096))
+	if resp.StatusCode >= http.StatusInternalServerError {
+		return "down", fmt.Sprintf("embedding http status=%d", resp.StatusCode)
+	}
 	return "up", ""
 }
 

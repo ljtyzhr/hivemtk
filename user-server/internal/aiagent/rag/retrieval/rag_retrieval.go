@@ -34,10 +34,13 @@ type StorageInterface interface {
 }
 
 // CacheInterface 缓存接口
+//
+// 方法显式接收 ctx：实现必须按 ctx 中的租户作用域读写键，
+// 避免同一缓存实例跨租户命中。
 type CacheInterface interface {
-	Get(key string) (any, bool)
-	Set(key string, value any, ttl time.Duration)
-	Delete(key string)
+	Get(ctx context.Context, key string) (any, bool)
+	Set(ctx context.Context, key string, value any, ttl time.Duration)
+	Delete(ctx context.Context, key string)
 }
 
 // RetrievalConfig 检索配置
@@ -173,16 +176,17 @@ func (r *RagRetrievalServiceImpl) Search(ctx context.Context, kbID string, query
 		return nil, fmt.Errorf("query length exceeds maximum allowed length of %d", r.config.MaxQueryLength)
 	}
 
+	// 先校验知识库归属，再读缓存：缓存键包含 kbID，若先命中缓存，
+	// 猜测他人 kbID 即可绕过 storage 的租户作用域。
+	if _, err := r.storage.GetKnowledgeBase(ctx, kbID); err != nil {
+		return nil, fmt.Errorf("knowledge base not found: %w", err)
+	}
+
 	cacheKey := fmt.Sprintf("search:%s:%s:%v", kbID, query, params)
-	if cached, found := r.cache.Get(cacheKey); found {
+	if cached, found := r.cache.Get(ctx, cacheKey); found {
 		if results, ok := cached.([]SearchResult); ok {
 			return results, nil
 		}
-	}
-
-	_, err := r.storage.GetKnowledgeBase(ctx, kbID)
-	if err != nil {
-		return nil, fmt.Errorf("knowledge base not found: %w", err)
 	}
 
 	if params.TopK <= 0 {
@@ -253,7 +257,7 @@ func (r *RagRetrievalServiceImpl) Search(ctx context.Context, kbID string, query
 			kbID, query, params.TopK, params.SimilarityThreshold, len(chunks))
 	}
 
-	r.cache.Set(cacheKey, results, r.config.CacheTTL)
+	r.cache.Set(ctx, cacheKey, results, r.config.CacheTTL)
 
 	return results, nil
 }

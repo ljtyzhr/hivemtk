@@ -88,10 +88,13 @@ func (s *RagConfigService) QueryKnowledgeBase(ctx context.Context, productID, qu
 		var reranker ragretrieval.RerankerInterface
 		if product.RerankProviderConfig.BaseURL != "" && product.RerankProviderConfig.Enabled {
 			reranker = ragretrieval.NewLocalRerankerWithConfig(&ragretrieval.RerankConfig{
-				BaseURL:    product.RerankProviderConfig.BaseURL,
-				Model:      product.RerankProviderConfig.Model,
-				APIKey:     product.RerankProviderConfig.APIKey,
-				Enabled:    true,
+				BaseURL: product.RerankProviderConfig.BaseURL,
+				Model:   product.RerankProviderConfig.Model,
+				APIKey:  product.RerankProviderConfig.APIKey,
+				Enabled: true,
+				// Protocol 为空时由 NormalizeRerankConfig 按 base 特征推断
+				// （InferRerankProtocol），复用全局配置的自愈逻辑（P2-3/P1-4）
+				Protocol:   product.RerankProviderConfig.Protocol,
 				Timeout:    30,
 				MaxRetries: 2,
 			})

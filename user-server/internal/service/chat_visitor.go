@@ -16,7 +16,6 @@ import (
 	"hivemtk-user/internal/config"
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/security"
-	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
 	"hivemtk-user/internal/websocket"
@@ -151,28 +150,32 @@ func ValidateVisitorToken(token, channelID, visitorID, sessionID string) error {
 }
 
 func (s *VisitorChatService) resolveChannel(ctx context.Context, channelRef string) (*model.ChatChannel, error) {
-	// SystemScope：chat_channels 是租户表，但 channel 解析是建立租户上下文的
-	// 引导步骤（channel 行自带 tenant_id），公开路由此时无租户 ctx。
-	sysCtx := tenant.WithSystemScope(ctx)
+	// 渠道解析是建立租户上下文的引导步骤（channel 行自带 tenant_id），公开路由此时
+	// 可能还没有租户 ctx，才需要退到系统作用域去读。**已绑定的 ctx 不许再退**：
+	// default/{platform}_card 这类每租户自动建的渠道键在多租户下注定重复，退到系统
+	// 作用域就在跨租户并集里 First()，于是"中间件把访客定在 A 租户、这里读到 B 租户
+	// 的渠道"，会话落进第三方。绑定优先；未绑定时的误指派由 service 侧的歧义守卫
+	// 兜住（匹配行跨 ≥2 个租户直接拒，不猜）。
+	readCtx := ChannelReadScope(ctx)
 	ref := strings.TrimSpace(channelRef)
 	if ref == "" {
-		return s.channelSvc.GetOrCreateDefaultChannel(sysCtx)
+		return s.channelSvc.GetOrCreateDefaultChannel(readCtx)
 	}
-	if channel, err := s.channelSvc.GetByChannelID(sysCtx, ref); err == nil {
+	if channel, err := s.channelSvc.GetByChannelID(readCtx, ref); err == nil {
 		return channel, nil
 	} else if !strings.Contains(err.Error(), "渠道不存在") && !strings.Contains(err.Error(), "channel_id 不能为空") {
 		return nil, err
 	}
-	if channel, err := s.channelSvc.GetByAppKey(sysCtx, ref); err == nil {
+	if channel, err := s.channelSvc.GetByAppKey(readCtx, ref); err == nil {
 		return channel, nil
 	} else if !strings.Contains(err.Error(), "AppKey 无效") {
 		return nil, err
 	}
 	if ref == "default" {
-		return s.channelSvc.GetOrCreateDefaultChannel(sysCtx)
+		return s.channelSvc.GetOrCreateDefaultChannel(readCtx)
 	}
 	if platform, ok := IsCardChannelRef(ref); ok {
-		return s.channelSvc.GetOrCreateCardChannel(sysCtx, platform)
+		return s.channelSvc.GetOrCreateCardChannel(readCtx, platform)
 	}
 	return nil, fmt.Errorf("渠道不存在: %s", ref)
 }

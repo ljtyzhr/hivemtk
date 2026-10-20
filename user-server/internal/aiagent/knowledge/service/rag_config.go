@@ -287,6 +287,9 @@ func (s *RagConfigService) UpdateRagProduct(ctx context.Context, req *model.RagP
 	if req.RerankProviderConfig.BaseURL != "" {
 		original.RerankProviderConfig.BaseURL = req.RerankProviderConfig.BaseURL
 	}
+	if req.RerankProviderConfig.Protocol != "" {
+		original.RerankProviderConfig.Protocol = req.RerankProviderConfig.Protocol
+	}
 	original.RerankProviderConfig.Enabled = req.RerankProviderConfig.Enabled
 
 	original.UpdatedAt = time.Now()

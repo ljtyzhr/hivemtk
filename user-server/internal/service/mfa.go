@@ -16,6 +16,7 @@ import (
 
 	"hivemtk-user/internal/cache"
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/bcrypt"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
@@ -366,6 +367,24 @@ func (s *MFAService) VerifyMFALogin(ctx context.Context, tempToken, code string)
 	userID, username, role, err := s.ValidateTempToken(ctx, tempToken)
 	if err != nil {
 		return 0, "", "", err
+	}
+
+	// 临时令牌只携带 userID：租户尚未建立。user_mfa 是租户表，on 模式下
+	// 未绑定 ctx 会 fail-closed（表现为"MFA 未设置"，二次验证永远走不通）。
+	// 按 userID 全局解析归属租户后再读 MFA 配置。
+	if tenant.IsMultiTenant() {
+		if _, bound := tenant.FromContext(ctx); !bound {
+			u, uerr := s.systemUserRepo.GetByID(tenant.WithSystemScope(ctx), userID)
+			if uerr != nil {
+				logger.Errorf("MFA 登录解析用户租户失败: %v", uerr)
+				return 0, "", "", errors.New("验证失败，请稍后重试")
+			}
+			tid := u.TenantID
+			if tid == 0 {
+				tid = tenant.DefaultTenantID
+			}
+			ctx = tenant.OnlyTenant(ctx, tid)
+		}
 	}
 
 	mfa, err := s.mfaRepo.GetByUserID(ctx, userID)

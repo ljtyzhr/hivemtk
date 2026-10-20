@@ -10,6 +10,7 @@ import (
 
 	"hivemtk-user/internal/model"
 	_db "hivemtk-user/internal/pkg/db"
+	"hivemtk-user/internal/pkg/tenant"
 )
 
 // FeatureFlagRepository FeatureFlag 仓储接口
@@ -43,7 +44,23 @@ func NewFeatureFlagRepositoryFromGlobal() FeatureFlagRepository {
 }
 
 func (r *featureFlagRepo) Create(ctx context.Context, f *model.FeatureFlag) error {
+	if f.TenantID == 0 {
+		f.TenantID = scopeTenantID(ctx)
+	}
 	return r.db.WithContext(ctx).Create(f).Error
+}
+
+// scopeTenantID 取本次写入的租户归属：有绑定用绑定；离线单机显式落默认租户
+// （不依赖列默认值，测试与直连仓储的调用方都能看到真实归属）；on 模式无绑定
+// 返回 0，由隔离 callback fail-closed —— 绝不静默写进默认租户。
+func scopeTenantID(ctx context.Context) uint {
+	if id, ok := tenant.FromContext(ctx); ok {
+		return id
+	}
+	if !tenant.IsMultiTenant() {
+		return tenant.DefaultTenantID
+	}
+	return 0
 }
 
 func (r *featureFlagRepo) Update(ctx context.Context, f *model.FeatureFlag) error {
@@ -99,6 +116,9 @@ func (r *featureFlagRepo) ListStale(ctx context.Context, olderThan time.Time) ([
 }
 
 func (r *featureFlagRepo) CreateAudit(ctx context.Context, a *model.FeatureFlagAuditLog) error {
+	if a.TenantID == 0 {
+		a.TenantID = scopeTenantID(ctx)
+	}
 	return r.db.WithContext(ctx).Create(a).Error
 }
 
@@ -116,6 +136,9 @@ func (r *featureFlagRepo) ListAudit(ctx context.Context, flagID uint, limit int)
 }
 
 func (r *featureFlagRepo) CreateEvalLog(ctx context.Context, e *model.FeatureFlagEvalLog) error {
+	if e.TenantID == 0 {
+		e.TenantID = scopeTenantID(ctx)
+	}
 	return r.db.WithContext(ctx).Create(e).Error
 }
 

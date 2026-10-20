@@ -1,6 +1,9 @@
 package controller
 
 import (
+	"context"
+	"strings"
+
 	"hivemtk-user/internal/config"
 	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/response"
@@ -20,6 +23,29 @@ import (
 //
 // 服务层复用 AuthService.Register（角色 user、唯一性/强度校验、注册即签发 JWT）。
 
+// resolvePublicTenantCtx 公开入口的租户归属：站点配置与注册开关都是租户数据，
+// 匿名请求没有 JWT 可依，只能由请求显式携带短码确定。
+//
+//   - off 模式：显式绑定默认租户，语义与历史版本等价；
+//   - on 模式：`tenant_code`（query/body）或 X-Tenant-Code 头解析租户并钉死
+//     绑定。解析不出来就返回错误——绝不在匿名请求上回落到默认租户，
+//     否则 S 租户的公开页会读到默认租户的站点名/注册开关。
+func resolvePublicTenantCtx(c *gin.Context, code string) (context.Context, error) {
+	rctx := c.Request.Context()
+	if !tenant.IsMultiTenant() {
+		return tenant.ContextWithDefault(rctx), nil
+	}
+	code = strings.TrimSpace(code)
+	if code == "" {
+		code = strings.TrimSpace(c.GetHeader("X-Tenant-Code"))
+	}
+	id, err := service.NewTenantService().ResolvePublicTenantID(rctx, code)
+	if err != nil {
+		return rctx, err
+	}
+	return tenant.OnlyTenant(rctx, id), nil
+}
+
 // PublicConfig 未登录可取的最小站点配置
 //
 // @Summary      公开站点配置
@@ -37,12 +63,22 @@ func (c *AuthController) PublicConfig(ctx *gin.Context) {
 	if tenantMode {
 		edition = "saas"
 	}
-	cfg, err := service.NewSystemConfigService().GetConfig(ctx.Request.Context())
+	requestCtx, err := resolvePublicTenantCtx(ctx, ctx.Query("tenant_code"))
+	if err != nil {
+		// 租户未知（on 模式未带短码）按保守值返回：站点名空、注册关闭——
+		// 前端隐藏入口而非误开放，也绝不拿默认租户的配置冒充本租户。
+		response.Success(ctx, gin.H{
+			"site_name": "", "enable_register": false, "tenant_mode": tenantMode,
+			"edition": edition, "cloud_url": config.CloudURLFor(requestCtx),
+		}, "ok")
+		return
+	}
+	cfg, err := service.NewSystemConfigService().GetConfig(requestCtx)
 	if err != nil {
 		// 读失败按保守值返回：站点名空、注册关闭——前端隐藏入口而非误开放
 		response.Success(ctx, gin.H{
 			"site_name": "", "enable_register": false, "tenant_mode": tenantMode,
-			"edition": edition, "cloud_url": config.CloudURL(),
+			"edition": edition, "cloud_url": config.CloudURLFor(requestCtx),
 		}, "ok")
 		return
 	}
@@ -51,6 +87,6 @@ func (c *AuthController) PublicConfig(ctx *gin.Context) {
 		"enable_register": cfg.EnableRegister,
 		"tenant_mode":     tenantMode,
 		"edition":         edition,
-		"cloud_url":       config.CloudURL(),
+		"cloud_url":       config.CloudURLFor(requestCtx),
 	}, "ok")
 }

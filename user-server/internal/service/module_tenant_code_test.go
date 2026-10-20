@@ -187,3 +187,84 @@ func TestSubscriptionRenewCarriesTenantCode(t *testing.T) {
 		t.Errorf("order_type 应为 subscription，实际 %q", body.OrderType)
 	}
 }
+
+// TestModuleOrderCarriesTenantCode 模块下单 body 必须含本租户 code。
+//
+// 线上取证（2026-10-20 生产库）：同一轮端到端验证里续费单在平台侧落了
+// tenant_code=tgzgc8d，模块单 MOD1792483831937A0FDEE 落库是空串——三条下单
+// 路径里只有模块单漏传（subscription/llm 都带）。空串那单平台侧按租户查不到，
+// 本地 module_orders 与平台 orders 对不上账，测试数据也就无法按租户清理。
+func TestModuleOrderCarriesTenantCode(t *testing.T) {
+	withTenantMode(t, tenant.ModeOn)
+	t.Setenv("PLATFORM_ENABLED", "true")
+	t.Setenv("PLATFORM_MERCHANT_KEY", "MKE2E")
+
+	database := setupTenantCodeDB(t)
+	stub := setupTenantCodeStub(t)
+
+	tn := &model.Tenant{Code: "tMODORD", Name: "模块下单租户"}
+	if err := database.Create(tn).Error; err != nil {
+		t.Fatalf("写入租户行: %v", err)
+	}
+
+	ctx := tenant.WithTenantID(context.Background(), tn.ID)
+	res, err := NewModuleCatalogService().CreateOrder(ctx, MarketOrderInput{
+		ModuleKeys:    []string{"browser-automation"},
+		ClientOrderNo: "CLI-MOD-TC-1",
+		ContactName:   "张三",
+		ContactEmail:  "zhangsan@qa.example",
+	})
+	if err != nil {
+		t.Fatalf("模块下单失败: %v", err)
+	}
+	if res.OrderNo != "SUB-TENANT-CODE-1" {
+		t.Fatalf("模块单未走通平台下单: %+v", res)
+	}
+	var body struct {
+		TenantCode string   `json:"tenant_code"`
+		OrderType  string   `json:"order_type"`
+		ModuleKeys []string `json:"module_keys"`
+	}
+	raw := <-stub.orderBodyCh
+	if err := json.Unmarshal(raw, &body); err != nil {
+		t.Fatalf("解析模块下单 body: %v (%s)", err, raw)
+	}
+	if body.TenantCode != "tMODORD" {
+		t.Errorf("模块下单 body tenant_code 应为 tMODORD，实际 %q (%s)", body.TenantCode, raw)
+	}
+	if body.OrderType != "module" {
+		t.Errorf("order_type 应为 module，实际 %q", body.OrderType)
+	}
+	if len(body.ModuleKeys) != 1 || body.ModuleKeys[0] != "browser-automation" {
+		t.Errorf("module_keys 应为 [browser-automation]，实际 %v", body.ModuleKeys)
+	}
+}
+
+// TestModuleOrderOmitsTenantCodeWithoutRow 取不到 code（绑定的租户无行）时
+// 字段整个不传（tenant_code 是 omitempty），平台按旧行为兜底，不许报错。
+func TestModuleOrderOmitsTenantCodeWithoutRow(t *testing.T) {
+	withTenantMode(t, tenant.ModeOn)
+	t.Setenv("PLATFORM_ENABLED", "true")
+	t.Setenv("PLATFORM_MERCHANT_KEY", "MKE2E")
+
+	setupTenantCodeDB(t)
+	stub := setupTenantCodeStub(t)
+
+	ctx := tenant.WithTenantID(context.Background(), 4343)
+	if _, err := NewModuleCatalogService().CreateOrder(ctx, MarketOrderInput{
+		ModuleKeys:    []string{"browser-automation"},
+		ClientOrderNo: "CLI-MOD-TC-2",
+		ContactName:   "张三",
+		ContactEmail:  "zhangsan@qa.example",
+	}); err != nil {
+		t.Fatalf("查不到租户行时模块下单不应报错: %v", err)
+	}
+	raw := <-stub.orderBodyCh
+	var body map[string]any
+	if err := json.Unmarshal(raw, &body); err != nil {
+		t.Fatalf("解析模块下单 body: %v (%s)", err, raw)
+	}
+	if v, ok := body["tenant_code"]; ok {
+		t.Errorf("取不到租户 code 时不该带 tenant_code 字段，实际 %q (%s)", v, raw)
+	}
+}

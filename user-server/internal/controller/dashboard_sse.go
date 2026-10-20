@@ -8,26 +8,33 @@ import (
 	"net/http"
 	"runtime/debug"
 	"sync"
-	"sync/atomic"
 	"time"
 
 	"github.com/gin-gonic/gin"
 
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/pkg/utils/response"
 	"hivemtk-user/internal/service"
 )
 
+type dashboardSnapshotEntry struct {
+	snap *service.DashboardSnapshot
+	at   time.Time
+}
+
 // DashboardSSEController 实时驾驶舱 SSE 控制器
 type DashboardSSEController struct {
 	statsSvc service.DashboardStatsService
 
-	cacheMu      sync.RWMutex
-	lastSnapshot *service.DashboardSnapshot
-	lastUpdateAt time.Time
-	cacheTTL     time.Duration
+	// 快照缓存按租户分域：单一 lastSnapshot 会把 A 租户的统计喂给 2 秒内
+	// 请求快照的 B 租户（FR-018/FR-010 越权读）。
+	cacheMu       sync.RWMutex
+	snapshotCache map[uint]dashboardSnapshotEntry
+	cacheTTL      time.Duration
 
-	subscriberCount atomic.Int64
+	subMu           sync.Mutex
+	subscriberByTen map[uint]int64
 }
 
 // NewDashboardSSEController 创建实时驾驶舱 SSE 控制器
@@ -36,9 +43,40 @@ type DashboardSSEController struct {
 // 传入 nil 时进入"离线模式"：SSE 仍可连接但跳过 DB 采集，返回零值快照。
 func NewDashboardSSEController(statsSvc service.DashboardStatsService) *DashboardSSEController {
 	return &DashboardSSEController{
-		statsSvc: statsSvc,
-		cacheTTL: 2 * time.Second,
+		statsSvc:        statsSvc,
+		cacheTTL:        2 * time.Second,
+		snapshotCache:   make(map[uint]dashboardSnapshotEntry),
+		subscriberByTen: make(map[uint]int64),
 	}
+}
+
+// streamTenant 连接所属租户；off 模式无绑定归默认租户。
+// on 模式无绑定返回 false——调用方必须拒绝建立流，绝不跨租户兜底。
+func streamTenant(ctx context.Context) (uint, bool) {
+	if id, ok := tenant.FromContext(ctx); ok {
+		return id, true
+	}
+	if tenant.IsMultiTenant() {
+		return 0, false
+	}
+	return tenant.DefaultTenantID, true
+}
+
+func (c *DashboardSSEController) addSubscriber(tid uint, delta int64) int64 {
+	c.subMu.Lock()
+	defer c.subMu.Unlock()
+	c.subscriberByTen[tid] += delta
+	if c.subscriberByTen[tid] <= 0 {
+		delete(c.subscriberByTen, tid)
+		return 0
+	}
+	return c.subscriberByTen[tid]
+}
+
+func (c *DashboardSSEController) subscriberCount(tid uint) int64 {
+	c.subMu.Lock()
+	defer c.subMu.Unlock()
+	return c.subscriberByTen[tid]
 }
 
 // StreamEventStream godoc
@@ -50,8 +88,13 @@ func NewDashboardSSEController(statsSvc service.DashboardStatsService) *Dashboar
 // @Success      200  {string}  string  "event: dashboard_update / heartbeat"
 // @Router       /api/dashboards/stream [get]
 func (c *DashboardSSEController) StreamEventStream(ctx *gin.Context) {
-	c.subscriberCount.Add(1)
-	defer c.subscriberCount.Add(-1)
+	tenantID, ok := streamTenant(ctx.Request.Context())
+	if !ok {
+		response.Error(ctx, http.StatusUnauthorized, "tenant context required")
+		return
+	}
+	c.addSubscriber(tenantID, 1)
+	defer c.addSubscriber(tenantID, -1)
 
 	ctx.Writer.Header().Set("Content-Type", "text/event-stream")
 	ctx.Writer.Header().Set("Cache-Control", "no-cache")
@@ -59,7 +102,7 @@ func (c *DashboardSSEController) StreamEventStream(ctx *gin.Context) {
 	ctx.Writer.Header().Set("X-Accel-Buffering", "no")
 	ctx.Writer.WriteHeader(http.StatusOK)
 
-	snapshot := c.collectSnapshot(ctx.Request.Context())
+	snapshot := c.collectSnapshot(ctx.Request.Context(), tenantID)
 	if snapshot != nil {
 		if writeErr := writeDashboardEvent(ctx, "dashboard_update", snapshot); writeErr != nil {
 			return
@@ -68,7 +111,7 @@ func (c *DashboardSSEController) StreamEventStream(ctx *gin.Context) {
 
 	_ = writeDashboardRawEvent(ctx, "connected", map[string]any{
 		"client_ip":   ctx.ClientIP(),
-		"subscriber":  c.subscriberCount.Load(),
+		"subscriber":  c.subscriberCount(tenantID),
 		"message":     "dashboard event stream connected",
 		"refresh_sec": int(c.cacheTTL.Seconds()),
 	})
@@ -84,7 +127,7 @@ func (c *DashboardSSEController) StreamEventStream(ctx *gin.Context) {
 		case <-clientClosed:
 			return
 		case <-dataTicker.C:
-			snapshot := c.collectSnapshot(ctx.Request.Context())
+			snapshot := c.collectSnapshot(ctx.Request.Context(), tenantID)
 			if snapshot == nil {
 				continue
 			}
@@ -94,7 +137,7 @@ func (c *DashboardSSEController) StreamEventStream(ctx *gin.Context) {
 		case <-heartbeatTicker.C:
 			if writeErr := writeDashboardRawEvent(ctx, "heartbeat", map[string]any{
 				"ts":         time.Now().UTC().Format(time.RFC3339Nano),
-				"subscriber": c.subscriberCount.Load(),
+				"subscriber": c.subscriberCount(tenantID),
 			}); writeErr != nil {
 				return
 			}
@@ -104,7 +147,12 @@ func (c *DashboardSSEController) StreamEventStream(ctx *gin.Context) {
 
 // Snapshot 返回当前快照（一次性 JSON）
 func (c *DashboardSSEController) Snapshot(ctx *gin.Context) {
-	snapshot := c.collectSnapshot(ctx.Request.Context())
+	tenantID, ok := streamTenant(ctx.Request.Context())
+	if !ok {
+		response.Error(ctx, http.StatusUnauthorized, "tenant context required")
+		return
+	}
+	snapshot := c.collectSnapshot(ctx.Request.Context(), tenantID)
 	if snapshot == nil {
 		response.Error(ctx, http.StatusInternalServerError, "采集快照失败")
 		return
@@ -114,23 +162,28 @@ func (c *DashboardSSEController) Snapshot(ctx *gin.Context) {
 
 // Metrics 完整指标（含历史趋势）
 func (c *DashboardSSEController) Metrics(ctx *gin.Context) {
-	snapshot := c.collectSnapshot(ctx.Request.Context())
+	tenantID, ok := streamTenant(ctx.Request.Context())
+	if !ok {
+		response.Error(ctx, http.StatusUnauthorized, "tenant context required")
+		return
+	}
+	snapshot := c.collectSnapshot(ctx.Request.Context(), tenantID)
 	if snapshot == nil {
 		response.Error(ctx, http.StatusInternalServerError, "采集指标失败")
 		return
 	}
 	response.Success(ctx, map[string]any{
 		"snapshot":         snapshot,
-		"subscriber_count": c.subscriberCount.Load(),
+		"subscriber_count": c.subscriberCount(tenantID),
 		"cache_ttl_sec":    int(c.cacheTTL.Seconds()),
 		"server_time":      time.Now().UTC().Format(time.RFC3339Nano),
 	}, "ok")
 }
 
-func (c *DashboardSSEController) collectSnapshot(ctx context.Context) *service.DashboardSnapshot {
+func (c *DashboardSSEController) collectSnapshot(ctx context.Context, tenantID uint) *service.DashboardSnapshot {
 	c.cacheMu.RLock()
-	if c.lastSnapshot != nil && time.Since(c.lastUpdateAt) < c.cacheTTL {
-		snap := c.lastSnapshot
+	if entry, ok := c.snapshotCache[tenantID]; ok && entry.snap != nil && time.Since(entry.at) < c.cacheTTL {
+		snap := entry.snap
 		c.cacheMu.RUnlock()
 		return snap
 	}
@@ -154,8 +207,7 @@ func (c *DashboardSSEController) collectSnapshot(ctx context.Context) *service.D
 	snap.LLMMetrics = c.collectLLMMetrics(ctx)
 
 	c.cacheMu.Lock()
-	c.lastSnapshot = snap
-	c.lastUpdateAt = time.Now()
+	c.snapshotCache[tenantID] = dashboardSnapshotEntry{snap: snap, at: time.Now()}
 	c.cacheMu.Unlock()
 
 	return snap

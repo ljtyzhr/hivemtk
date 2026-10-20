@@ -14,6 +14,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/service"
 )
 
@@ -46,14 +47,14 @@ func TestNewDashboardSSEController_Defaults(t *testing.T) {
 	if c.cacheTTL != 2*time.Second {
 		t.Errorf("expected cacheTTL 2s, got %v", c.cacheTTL)
 	}
-	if c.subscriberCount.Load() != 0 {
-		t.Errorf("expected 0 subscribers, got %d", c.subscriberCount.Load())
+	if c.subscriberCount(tenant.DefaultTenantID) != 0 {
+		t.Errorf("expected 0 subscribers, got %d", c.subscriberCount(tenant.DefaultTenantID))
 	}
 }
 
 func TestCollectSnapshot_NoDB(t *testing.T) {
 	c := NewDashboardSSEController(nil)
-	snap := c.collectSnapshot(context.Background())
+	snap := c.collectSnapshot(context.Background(), tenant.DefaultTenantID)
 	if snap == nil {
 		t.Fatal("expected non-nil snapshot")
 	}
@@ -74,23 +75,40 @@ func TestCollectSnapshot_NoDB(t *testing.T) {
 func TestCollectSnapshot_CacheHit(t *testing.T) {
 	c := NewDashboardSSEController(nil)
 	c.cacheTTL = 1 * time.Hour
-	snap1 := c.collectSnapshot(context.Background())
+	snap1 := c.collectSnapshot(context.Background(), tenant.DefaultTenantID)
 	c.cacheMu.Lock()
-	c.lastUpdateAt = time.Now()
-	c.lastSnapshot.GeneratedAt = time.Now().Add(-1 * time.Minute)
+	c.snapshotCache[tenant.DefaultTenantID] = dashboardSnapshotEntry{
+		snap: c.snapshotCache[tenant.DefaultTenantID].snap,
+		at:   time.Now(),
+	}
+	c.snapshotCache[tenant.DefaultTenantID].snap.GeneratedAt = time.Now().Add(-1 * time.Minute)
 	c.cacheMu.Unlock()
-	snap2 := c.collectSnapshot(context.Background())
+	snap2 := c.collectSnapshot(context.Background(), tenant.DefaultTenantID)
 	if snap1 != snap2 {
 		t.Error("expected cache hit (same pointer)")
+	}
+}
+
+// 快照缓存必须按租户分域：同一进程内 A 租户的采集结果不能被 B 租户命中。
+func TestCollectSnapshot_CachePerTenant(t *testing.T) {
+	c := NewDashboardSSEController(nil)
+	c.cacheTTL = time.Hour
+	snapA := c.collectSnapshot(context.Background(), 11)
+	snapB := c.collectSnapshot(context.Background(), 22)
+	if snapA == nil || snapB == nil {
+		t.Fatal("expected non-nil snapshots")
+	}
+	if snapA == snapB {
+		t.Fatal("不同租户共享了同一份快照缓存")
 	}
 }
 
 func TestCollectSnapshot_CacheMiss(t *testing.T) {
 	c := NewDashboardSSEController(nil)
 	c.cacheTTL = 1 * time.Millisecond
-	snap1 := c.collectSnapshot(context.Background())
+	snap1 := c.collectSnapshot(context.Background(), tenant.DefaultTenantID)
 	time.Sleep(2 * time.Millisecond)
-	snap2 := c.collectSnapshot(context.Background())
+	snap2 := c.collectSnapshot(context.Background(), tenant.DefaultTenantID)
 	if snap1 == snap2 {
 		t.Error("expected cache miss (new pointer)")
 	}
@@ -98,7 +116,7 @@ func TestCollectSnapshot_CacheMiss(t *testing.T) {
 
 func TestCollectFunnel_NoDB(t *testing.T) {
 	c := NewDashboardSSEController(nil)
-	snap := c.collectSnapshot(context.Background())
+	snap := c.collectSnapshot(context.Background(), tenant.DefaultTenantID)
 	if snap.Funnel == nil {
 		t.Fatal("expected non-nil funnel")
 	}
@@ -109,7 +127,7 @@ func TestCollectFunnel_NoDB(t *testing.T) {
 
 func TestCollectHumanizeDistribution_NoDB(t *testing.T) {
 	c := NewDashboardSSEController(nil)
-	snap := c.collectSnapshot(context.Background())
+	snap := c.collectSnapshot(context.Background(), tenant.DefaultTenantID)
 	if snap.HumanizeDistribution.WindowHours != 1 {
 		t.Errorf("expected 1h window, got %d", snap.HumanizeDistribution.WindowHours)
 	}
@@ -223,7 +241,7 @@ func TestEventStream_ConcurrentSubscribers(t *testing.T) {
 		}()
 	}
 	wg.Wait()
-	if got := c.subscriberCount.Load(); got != 0 {
+	if got := c.subscriberCount(tenant.DefaultTenantID); got != 0 {
 		t.Errorf("expected 0 subscribers after teardown, got %d", got)
 	}
 }

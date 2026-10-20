@@ -27,8 +27,11 @@ type securityRulesService struct {
 }
 
 // NewSecurityRulesService 构造安全规则配置服务。
+//
+// 安全规则是平台级安全基线（safeprompt 词典为进程级全局运行时状态，
+// 无租户写入口），不是租户业务配置 → platform_config_kv。
 func NewSecurityRulesService(db *gorm.DB) SecurityRulesService {
-	kv := repository.NewSystemConfigKVRepositoryWithDB(db)
+	kv := repository.NewPlatformConfigKVRepositoryWithDB(db)
 	return &securityRulesService{repo: repository.NewSecurityRulesRepository(kv)}
 }
 

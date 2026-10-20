@@ -62,10 +62,10 @@ func ValidateQQWebhookURL(raw string) error {
 	return nil
 }
 
-// SuggestQQWebhookURL 从 PUBLIC_BASE_URL 推导 QQ webhook 回调地址。
+// SuggestQQWebhookURL 从参数中心公网基址推导 QQ webhook 回调地址（按 ctx 取租户覆盖）。
 // 未配置公网 base 时返回空串（调用方降级为手填 + 校验兜底）。
-func SuggestQQWebhookURL(accountID uint) string {
-	return SuggestQQWebhookURLFromBase(config.GetPublicBaseURL(), accountID)
+func SuggestQQWebhookURL(ctx context.Context, accountID uint) string {
+	return SuggestQQWebhookURLFromBase(config.GetPublicBaseURLFor(ctx), accountID)
 }
 
 // SuggestQQWebhookURLFromBase 指定 base 的推导（便于测试与 controller 复用）。

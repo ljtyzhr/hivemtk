@@ -36,6 +36,7 @@ import (
 	"context"
 	"sync"
 
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
 	"hivemtk-user/internal/service"
@@ -133,6 +134,10 @@ func InitCollectionRuntime(db *gorm.DB) *service.CollectionJob {
 // 所以不能塌成一句"未装门"。这一句同时进快照和装配日志：只在日志里的话，
 // 事后查"那三个月的外发受不受审批约束"就只能翻启动日志，而启动日志会被重启冲掉。
 func collectionGateNote(gated bool) string {
+	if gated && tenant.IsMultiTenant() {
+		// 装配期没有请求租户：放量档位按租户各自判定，这里不产出全局耦合读数。
+		return ""
+	}
 	snap, _ := GetReachGateSnapshot()
 	if gated {
 		return ReachRolloutCouplingNote(snap)

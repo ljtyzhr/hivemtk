@@ -11,6 +11,7 @@ import (
 	"hivemtk-user/internal/config"
 	"hivemtk-user/internal/model"
 	dbUtil "hivemtk-user/internal/pkg/db"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/platform"
 	"hivemtk-user/internal/repository"
@@ -179,7 +180,13 @@ var (
 // llm 是底层包，它不能反过来 import service，所以接线必须在能同时看到两侧的地方做。
 func InstallPlatformUsageSink() {
 	llm.SetPlatformUsageSink(func(e llm.PlatformUsageEvent) {
-		recordPlatformUsage(context.Background(), PlatformLLMUsage{
+		// 用量明细是租户表：sink 在调用链之外执行，只能用事件里带的租户
+		// 重建上下文；没带租户就不落（on 模式下 callback 也会拒绝）。
+		ctx := context.Background()
+		if e.TenantID != 0 {
+			ctx = tenant.WithTenantID(ctx, e.TenantID)
+		}
+		recordPlatformUsage(ctx, PlatformLLMUsage{
 			Provider:         e.Provider,
 			Model:            e.Model,
 			PlanCode:         e.PlanCode,

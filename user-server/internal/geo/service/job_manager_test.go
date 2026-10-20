@@ -9,6 +9,7 @@ import (
 	"hivemtk-user/internal/geo/model"
 	"hivemtk-user/internal/geo/repository"
 	"hivemtk-user/internal/pkg/db"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/testutil"
 
 	"github.com/robfig/cron/v3"
@@ -47,13 +48,12 @@ func newTestJobManager(t *testing.T) (*JobManager, *fakeScheduler) {
 	m := &JobManager{
 		runRepo: repository.NewGeoJobRunRepositoryWithDB(database),
 		cfgRepo: repository.NewGeoConfigRepositoryWithDB(database),
-		running: map[string]*atomic.Bool{},
-		specs:   map[string]string{},
-		entryID: map[string]cron.EntryID{},
+		running: map[jobKey]*atomic.Bool{},
+		specs:   map[jobKey]string{},
+		entryID: map[jobKey]cron.EntryID{},
 	}
 	for _, d := range geoJobDefs {
-		m.running[d.Name] = &atomic.Bool{}
-		m.specs[d.Name] = d.DefaultSpec
+		m.specs[jobKey{name: d.Name, tenant: tenant.DefaultTenantID}] = d.DefaultSpec
 	}
 	sched := newFakeScheduler()
 	return m, sched
@@ -63,7 +63,9 @@ func newTestJobManager(t *testing.T) (*JobManager, *fakeScheduler) {
 func TestJobManager_RunRecordsHistory(t *testing.T) {
 	m, _ := newTestJobManager(t)
 
-	m.running[JobSOVRefresh].Store(true)
+	// off 模式：StartJob 经 Fanout 退化为单默认租户，互斥位键为 (任务, 默认租户)
+	defaultKey := jobKey{name: JobSOVRefresh, tenant: tenant.DefaultTenantID}
+	m.runningFor(defaultKey).Store(true)
 	started, err := m.StartJob(JobSOVRefresh, "manual")
 	if err != nil {
 		t.Fatalf("StartJob failed: %v", err)
@@ -71,7 +73,7 @@ func TestJobManager_RunRecordsHistory(t *testing.T) {
 	if started {
 		t.Fatal("任务运行中应跳过新触发")
 	}
-	m.running[JobSOVRefresh].Store(false)
+	m.runningFor(defaultKey).Store(false)
 
 	started, err = m.StartJob(JobSOVRefresh, "manual")
 	if err != nil || !started {
@@ -79,10 +81,10 @@ func TestJobManager_RunRecordsHistory(t *testing.T) {
 	}
 
 	deadline := time.Now().Add(5 * time.Second)
-	for m.running[JobSOVRefresh].Load() && time.Now().Before(deadline) {
+	for m.runningFor(defaultKey).Load() && time.Now().Before(deadline) {
 		time.Sleep(10 * time.Millisecond)
 	}
-	if m.running[JobSOVRefresh].Load() {
+	if m.runningFor(defaultKey).Load() {
 		t.Fatal("任务应已执行完成")
 	}
 
@@ -119,8 +121,9 @@ func TestJobManager_UpdateSchedule(t *testing.T) {
 	if err := m.UpdateSchedule(context.Background(), JobSOVRefresh, "0 30 2 * * *"); err != nil {
 		t.Fatalf("UpdateSchedule failed: %v", err)
 	}
-	if m.specs[JobSOVRefresh] != "0 30 2 * * *" {
-		t.Fatalf("spec 未生效: %s", m.specs[JobSOVRefresh])
+	// off 模式（Background 无租户绑定）：调度落在默认租户的 (任务, 租户) 键上
+	if got := m.specs[jobKey{name: JobSOVRefresh, tenant: tenant.DefaultTenantID}]; got != "0 30 2 * * *" {
+		t.Fatalf("spec 未生效: %s", got)
 	}
 
 	cfg, err := m.cfgRepo.Get(context.Background())

@@ -124,7 +124,7 @@ func (c *RagEvalGapController) Run(ctx *gin.Context) {
 		ProductID string `json:"product_id"`
 	}
 	_ = ctx.ShouldBindJSON(&body)
-	run, err := c.svc.RunAsync(body.ProductID)
+	run, err := c.svc.RunAsync(ctx.Request.Context(), body.ProductID)
 	if HandleServiceError(ctx, err) {
 		return
 	}

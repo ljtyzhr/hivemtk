@@ -12,6 +12,7 @@ import (
 	"hivemtk-user/internal/model"
 
 	"hivemtk-user/internal/pkg/httpclient"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 
 	"hivemtk-user/internal/repository"
@@ -1152,6 +1153,29 @@ func (s *IntegrationService) GetExternalOrdersByCustomer(ctx context.Context, ph
 // ④ 失败时本函数**回错误但保留镜像**：镜像比回款便宜（它是外部事实的副本，重推即可修），
 // 而回款那一腿的错误全部是"载荷或数据坏了"，让渠道看见才有救。
 // 两个判据因此都写进错误文案里：钱记没记上、镜像动没动 —— 后者决定重推是否安全。
+// ResolveWebhookTenant 公开订单回调的租户归属解析：
+// 已绑定（旧 auth 入口 / 显式短码）直接用；否则由平台名自证，
+// 多租户共用同一平台名时返回 ok=false（调用方要求 tenant_code）。
+func (s *IntegrationService) ResolveWebhookTenant(ctx context.Context, platform string) (context.Context, error) {
+	if !tenant.IsMultiTenant() {
+		return ctx, nil
+	}
+	if _, bound := tenant.FromContext(ctx); bound {
+		return ctx, nil
+	}
+	id, ok, err := s.accountRepo.TenantIDByPlatform(ctx, platform)
+	if err != nil {
+		return ctx, fmt.Errorf("解析回调租户失败: %w", err)
+	}
+	if !ok {
+		return ctx, ErrTenantUnresolved
+	}
+	return tenant.OnlyTenant(ctx, id), nil
+}
+
+// ErrTenantUnresolved 公开回调无法自证租户（多租户共用同一平台名）
+var ErrTenantUnresolved = errors.New("无法确定该回调所属租户")
+
 func (s *IntegrationService) UpsertOrderFromWebhook(ctx context.Context, platform, orderID, status string, raw map[string]any) (*OrderWebhookResult, error) {
 	if err := s.recordOrderWebhookEvent(ctx, platform, orderID, status, raw); err != nil {
 		return nil, err

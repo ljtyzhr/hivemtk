@@ -15,6 +15,7 @@ import (
 
 	"hivemtk-user/internal/config"
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
 )
@@ -25,10 +26,11 @@ const emailUnsubscribeSecretEnv = "EMAIL_UNSUBSCRIBE_SECRET"
 
 // UnsubscribeClaim 退订 token 中携带的声明
 type UnsubscribeClaim struct {
-	Email  string `json:"email"`
-	JobID  string `json:"job_id"`
-	Expire int64  `json:"expire"`
-	Nonce  string `json:"nonce"`
+	Email    string `json:"email"`
+	JobID    string `json:"job_id"`
+	Expire   int64  `json:"expire"`
+	Nonce    string `json:"nonce"`
+	TenantID uint   `json:"tenant_id,omitempty"`
 }
 
 // EmailUnsubscribeService 邮件退订服务
@@ -121,11 +123,19 @@ func (s *EmailUnsubscribeService) GenerateUnsubscribeLink(ctx context.Context, e
 		return "", errors.New("email 不能为空")
 	}
 
+	tenantID, ok := tenant.FromContext(ctx)
+	if !ok {
+		if tenant.IsMultiTenant() {
+			return "", errors.New("签发退订链接缺少租户上下文")
+		}
+		tenantID = tenant.DefaultTenantID
+	}
 	claim := UnsubscribeClaim{
-		Email:  email,
-		JobID:  jobID,
-		Expire: time.Now().Add(emailUnsubscribeTokenTTL).Unix(),
-		Nonce:  fmt.Sprintf("unsub-%d", time.Now().UnixNano()),
+		Email:    email,
+		JobID:    jobID,
+		Expire:   time.Now().Add(emailUnsubscribeTokenTTL).Unix(),
+		Nonce:    fmt.Sprintf("unsub-%d", time.Now().UnixNano()),
+		TenantID: tenantID,
 	}
 
 	payload, err := json.Marshal(claim)
@@ -179,6 +189,31 @@ func (s *EmailUnsubscribeService) VerifyUnsubscribeToken(ctx context.Context, to
 		return nil, errors.New("token 已过期")
 	}
 	return &claim, nil
+}
+
+// ContextForClaim 把退订 token 带到租户上下文里：公开入口没有登录态，
+// email_unsubscribes 是租户表，on 模式下不绑定就会 fail-closed。
+// 新 token 自带 tenant_id；旧 token 没有该字段时按 job_id 反查一次（任务主键全局唯一），
+// 两者都没有则拒绝——绝不回落到默认租户。
+func (s *EmailUnsubscribeService) ContextForClaim(ctx context.Context, claim *UnsubscribeClaim) (context.Context, error) {
+	if claim == nil {
+		return ctx, errors.New("退订声明为空")
+	}
+	if claim.TenantID != 0 {
+		return tenant.OnlyTenant(ctx, claim.TenantID), nil
+	}
+	if !tenant.IsMultiTenant() {
+		return ctx, nil
+	}
+	if claim.JobID != "" {
+		id, err := s.repo.FindTenantIDByJobID(ctx, claim.JobID)
+		if err != nil {
+			logger.Warnf("退订 token 按 job_id 反查租户失败 job_id=%s: %v", claim.JobID, err)
+		} else if id != 0 {
+			return tenant.OnlyTenant(ctx, id), nil
+		}
+	}
+	return ctx, errors.New("退订链接缺少租户信息，请使用最近一封邮件中的退订链接")
 }
 
 // ListUnsubscribes 分页查询退订名单

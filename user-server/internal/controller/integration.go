@@ -332,6 +332,27 @@ func (c *IntegrationController) GetExternalOrdersByCustomer(ctx *gin.Context) {
 // 因此下面按**入口**分流，而不是假设"一定是验签进来的"。
 func (c *IntegrationController) ReceiveOrderWebhook(ctx *gin.Context) {
 	platform := ctx.Param("platform")
+
+	// 租户归属：旧 auth 入口已由 JWT 中间件绑定；公开入口在 on 模式下无绑定，
+	// 先接受显式 tenant_code，再尝试由平台名自证（integration_accounts），
+	// 两者都定不下来就拒绝 —— webhook_events/external_orders 都是租户表，
+	// 无绑定 ctx 会被隔离闸 fail-closed，错误只会在深处冒出来。
+	rctx, terr := publicWebhookTenantCtx(ctx)
+	if terr != nil {
+		response.Error(ctx, http.StatusBadRequest, "无法确定租户："+terr.Error())
+		return
+	}
+	rctx, terr = c.integrationService.ResolveWebhookTenant(rctx, platform)
+	if terr != nil {
+		if errors.Is(terr, service.ErrTenantUnresolved) {
+			response.Error(ctx, http.StatusBadRequest,
+				"多租户模式下该回调无法确定租户，请在回调 URL 携带 tenant_code")
+			return
+		}
+		logger.Errorf("[order-webhook] %v", terr)
+		response.Error(ctx, http.StatusInternalServerError, "解析回调租户失败")
+		return
+	}
 	// 验签在中间件里做，这里只做一次事后核对：公开入口的身份由路径前缀决定，
 	// 而"这条路由挂了 guard"目前是注册处的约定 —— 约定会在有人新注册一条同类路由、
 	// 或把 guard 挪走时失效。核对失败就当场拒，绝不把未验签的推送写成订单镜像。
@@ -357,7 +378,7 @@ func (c *IntegrationController) ReceiveOrderWebhook(ctx *gin.Context) {
 	if status == "" {
 		status = "unknown"
 	}
-	res, err := c.integrationService.UpsertOrderFromWebhook(ctx.Request.Context(), platform, orderID, status, body)
+	res, err := c.integrationService.UpsertOrderFromWebhook(rctx, platform, orderID, status, body)
 	if err != nil {
 		orderWebhookFailure(ctx, err)
 		return

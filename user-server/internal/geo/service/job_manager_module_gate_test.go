@@ -11,6 +11,7 @@ import (
 	"hivemtk-user/internal/geo/model"
 	"hivemtk-user/internal/geo/repository"
 	"hivemtk-user/internal/pkg/db"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/testutil"
 )
 
@@ -62,7 +63,7 @@ func TestSetupGeoJobsCmdConsultsModuleGate(t *testing.T) {
 	counter := &countingRunRepo{GeoJobRunRepository: repository.NewGeoJobRunRepositoryWithDB(database)}
 	m.runRepo = counter
 	m.cfgRepo = repository.NewGeoConfigRepositoryWithDB(database)
-	m.entryID = map[string]cron.EntryID{}
+	m.entryID = map[jobKey]cron.EntryID{}
 	m.mu.Unlock()
 
 	oldGate := jobModuleGate
@@ -103,7 +104,7 @@ func TestSetupGeoJobsCmdConsultsModuleGate(t *testing.T) {
 	if counter.creates != 0 {
 		t.Errorf("闸判关时不得启动任务（不应写运行记录），实际 Create 调用 %d 次", counter.creates)
 	}
-	if m.running[JobSOVRefresh].Load() {
+	if m.runningState(jobKey{name: JobSOVRefresh, tenant: tenant.DefaultTenantID}) {
 		t.Error("闸判关时任务不得被标记为 running")
 	}
 	// 闸判关的整段停顿时长（一轮误跑的代价）：断言 cmd 是同步快速返回

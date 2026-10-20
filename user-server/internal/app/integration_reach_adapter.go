@@ -503,7 +503,7 @@ func (a *IntegrationReachAdapter) cardShareURL(ctx context.Context, channel stri
 		return "", fmt.Errorf("card(%s#%d): %w（短链 %s 已于 %s 过期）", channel, cardID, ErrCardNotDeliverable, link.ShortCode,
 			link.ExpireTime.Format(time.RFC3339))
 	}
-	base := config.GetPublicBaseURL()
+	base := config.GetPublicBaseURLFor(ctx)
 	if base == "" {
 		return "", fmt.Errorf("card(%s#%d): %w（未配置 PUBLIC_BASE_URL，服务端拼不出绝对链接）", channel, cardID, ErrCardNotDeliverable)
 	}

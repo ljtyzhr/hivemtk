@@ -433,6 +433,25 @@ func (h *BridgeIngestHandler) HandleHTTPIngest(c *gin.Context) {
 		return
 	}
 
+	// 租户自证必须排在任何写之前：账号注册（异步 Upsert）与消息落库都打在租户表上，
+	// 判不清归属就放行 = 让 A 的私信落进 B 的收件箱并驱动 B 的 AI 回复。
+	// 渠道用归一后的名字：bridge_accounts 只存规范渠道，别名会被读成"没注册过的账号"。
+	reqCtx, terr := bindBridgeTenant(c, channelNorm, accountID)
+	if terr != nil {
+		logger.Ctx(reqCtx).Warn().
+			Err(terr).
+			Str("module", "bridge").
+			Str("event", "http_ingest_tenant_unresolved").
+			Str("channel", channelNorm).
+			Str("account_id", accountID).
+			Str("remote_addr", info.RemoteAddr).
+			Msg("[Bridge HTTP] 租户归属解析失败，拒绝 ingest")
+		bridgeHTTPIngestError("tenant_unresolved")
+		c.JSON(bridgeTenantHTTPStatus(terr), HTTPIngestResponse{OK: false, Reason: terr.Error()})
+		return
+	}
+	ctx0 = reqCtx
+
 	uidAny, _ := c.Get("user_id")
 	uid, _ := uidAny.(uint)
 	if GlobalOwnershipChecker != nil && uid != 0 {
@@ -472,6 +491,9 @@ func (h *BridgeIngestHandler) HandleHTTPIngest(c *gin.Context) {
 		// 入站下游（ingress/消息落库）按该租户隔离；0 = off 模式（列默认值兜底）。
 		if accTenant != 0 {
 			c.Request = c.Request.WithContext(tenant.WithTenantID(c.Request.Context(), accTenant))
+			// ctx0 是绑定前取的快照；后续日志与本函数的配置读取都从它派生，
+			// 这里同步补上租户，避免"请求上下文带租户、协程上下文不带"。
+			ctx0 = tenant.WithTenantID(ctx0, accTenant)
 		}
 	}
 
@@ -548,10 +570,13 @@ func (h *BridgeIngestHandler) HandleHTTPIngest(c *gin.Context) {
 			AccountName: req.AccountName,
 			Status:      "online",
 		}
+		// bridge_accounts 是租户表：入站 ctx 已由归属校验绑定账号租户，
+		// 异步 Update 必须带着它（只解绑取消、不丢租户），否则 on 模式写入被拒。
+		bgCtx := tenant.BackgroundWithTenant(ctx)
 		go func() {
 			defer func() {
 				if r := recover(); r != nil {
-					logger.Ctx(context.Background()).Error().
+					logger.Ctx(bgCtx).Error().
 						Interface("panic", r).
 						Str("stack", string(debug.Stack())).
 						Str("module", "bridge").
@@ -560,7 +585,7 @@ func (h *BridgeIngestHandler) HandleHTTPIngest(c *gin.Context) {
 						Msg("[Bridge] async HTTP Upsert panic recovered")
 				}
 			}()
-			upCtx, cancel := context.WithTimeout(context.Background(), 3*time.Second)
+			upCtx, cancel := context.WithTimeout(bgCtx, 3*time.Second)
 			defer cancel()
 			if err := GlobalBridgeAccountRepo.Upsert(upCtx, up); err != nil {
 				if !errors.Is(err, ErrAccountOwnedByOther) {
@@ -817,7 +842,12 @@ func (h *BridgeIngestHandler) GetBridgeOutbox(c *gin.Context) {
 		c.JSON(http.StatusBadRequest, gin.H{"status": "error", "message": "unsupported bridge channel"})
 		return
 	}
-	ctx := c.Request.Context()
+	ctx, terr := bindBridgeTenant(c, channel, accountID)
+	if terr != nil {
+		bridgeOutboxError("tenant_unresolved")
+		writeBridgeTenantError(c, terr)
+		return
+	}
 	// 轮询本身就是「这个账号还在同步」的证据，必须刷在线位：长轮询模式下扩展不建 SSE 订阅，
 	// 不刷的话补投门（订阅 OR 最近同步）两个信号都读不到，延后出站会被逐轮跳过、永不补投。
 	// 放在取消息之前：outbox 空与「有待投」在这里语义相同，都是"客户端活着"。
@@ -904,6 +934,13 @@ func (h *BridgeIngestHandler) AckBridgeOutbox(c *gin.Context) {
 	if !IsBridgeChannel(channel) {
 		bm.IngestErrors.WithLabel(channel, "unsupported_channel").Inc()
 		c.JSON(http.StatusBadRequest, gin.H{"status": "error", "message": "unsupported bridge channel"})
+		return
+	}
+	// 归属判不清就先回绝：ack 是按 (channel, account_id) 圈定作用域翻状态的写操作，
+	// 无租户绑定时它只会撞隔离 callback 的错误，然后被算进 not_found 计数里回 200。
+	if _, terr := bindBridgeTenant(c, channel, accountID); terr != nil {
+		bm.IngestErrors.WithLabel(channel, "tenant_unresolved").Inc()
+		writeBridgeTenantError(c, terr)
 		return
 	}
 	var req BridgeOutboxAckRequest

@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/bcrypt"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
@@ -76,12 +77,25 @@ var DefaultCommonPasswords = []string{
 var specialCharRegex = regexp.MustCompile(`[!@#$%^&*()_+\-=\[\]{};':"\\|,.<>\/?~\` + "`" + `]`)
 
 var (
-	policyCache      *PasswordPolicy
+	// policyCache 按租户分域：密码策略是租户级安全设置（PUT 由各租户 admin 操作），
+	// 全局单槽会让 A 租户改策略同时改掉 B 租户的登录口径。
+	policyCache      map[uint]*PasswordPolicy
 	policyCacheMutex sync.RWMutex
 )
 
-// PolicyKVKey 密码策略在 system_config_kv 表中存储的 key
+// PolicyKVKey 密码策略在租户级 system_config_kv 表中存储的 key
 const PolicyKVKey = "password_policy"
+
+// policyTenantID 解析本次策略读写归属的租户；on 模式无绑定时 ok=false（fail-closed）。
+func policyTenantID(ctx context.Context) (uint, bool) {
+	if id, ok := tenant.FromContext(ctx); ok {
+		return id, true
+	}
+	if !tenant.IsMultiTenant() {
+		return tenant.DefaultTenantID, true
+	}
+	return 0, false
+}
 
 // PasswordPolicyService 密码策略服务
 type PasswordPolicyService struct {
@@ -99,15 +113,25 @@ func NewPasswordPolicyService() *PasswordPolicyService {
 	}
 }
 
-// GetPolicy 获取当前密码策略
-// 优先级：system_config_kv.password_policy > DefaultPasswordPolicy
-// 结果会缓存到进程内存（修改策略后调用 InvalidatePolicyCache 失效）
+// GetPolicy 获取当前租户的密码策略
+// 优先级：system_config_kv[tenant].password_policy > DefaultPasswordPolicy
+// 结果按租户缓存到进程内存（修改策略后调用 InvalidatePolicyCache 失效）
 func (s *PasswordPolicyService) GetPolicy(ctx context.Context) *PasswordPolicy {
+	tenantID, ok := policyTenantID(ctx)
+	if !ok {
+		// on 模式无租户绑定：策略读取 fail-closed，使用内置最严默认值而不是
+		// 静默共享某个租户的策略。
+		p := DefaultPasswordPolicy
+		return &p
+	}
+
 	policyCacheMutex.RLock()
 	if policyCache != nil {
-		p := *policyCache
-		policyCacheMutex.RUnlock()
-		return &p
+		if cached, hit := policyCache[tenantID]; hit && cached != nil {
+			p := *cached
+			policyCacheMutex.RUnlock()
+			return &p
+		}
 	}
 	policyCacheMutex.RUnlock()
 
@@ -115,12 +139,17 @@ func (s *PasswordPolicyService) GetPolicy(ctx context.Context) *PasswordPolicy {
 	defer policyCacheMutex.Unlock()
 
 	if policyCache != nil {
-		p := *policyCache
-		return &p
+		if cached, hit := policyCache[tenantID]; hit && cached != nil {
+			p := *cached
+			return &p
+		}
+	}
+	if policyCache == nil {
+		policyCache = map[uint]*PasswordPolicy{}
 	}
 
 	policy := s.loadPolicyFromDB(ctx)
-	policyCache = policy
+	policyCache[tenantID] = policy
 	return policy
 }
 
@@ -158,26 +187,37 @@ func (s *PasswordPolicyService) loadPolicyFromDB(ctx context.Context) *PasswordP
 	return &policy
 }
 
-// InvalidatePolicyCache 失效策略缓存
+// InvalidatePolicyCache 失效当前租户的策略缓存
 // 在策略更新后调用
 func (s *PasswordPolicyService) InvalidatePolicyCache(ctx context.Context) {
+	tenantID, ok := policyTenantID(ctx)
+	if !ok {
+		return
+	}
 	policyCacheMutex.Lock()
 	defer policyCacheMutex.Unlock()
-	policyCache = nil
+	delete(policyCache, tenantID)
 }
 
-// SavePolicy 保存密码策略到 system_config_kv 表
+// SavePolicy 保存密码策略到当前租户的 system_config_kv 表
 func (s *PasswordPolicyService) SavePolicy(ctx context.Context, policy *PasswordPolicy) error {
 	if policy == nil {
 		return errors.New("策略不能为空")
+	}
+	tenantID, ok := policyTenantID(ctx)
+	if !ok {
+		return errors.New("多租户模式下保存密码策略需要租户上下文")
 	}
 	if err := s.validatePolicy(ctx, policy); err != nil {
 		return err
 	}
 
 	policyCacheMutex.Lock()
+	if policyCache == nil {
+		policyCache = map[uint]*PasswordPolicy{}
+	}
 	cache := *policy
-	policyCache = &cache
+	policyCache[tenantID] = &cache
 	policyCacheMutex.Unlock()
 
 	jsonBytes, err := json.Marshal(policy)

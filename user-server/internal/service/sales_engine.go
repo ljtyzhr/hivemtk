@@ -658,7 +658,7 @@ var agentLoopMaxIterations = 5
 
 var agentLoopMaxTools = 18
 
-func resolveAgentSettings(ctx context.Context) (maxTools, maxIter int) {
+func resolveAgentSettings(ctx context.Context) (maxTools, maxIter int, disabled []string) {
 	maxTools, maxIter = agentLoopMaxTools, agentLoopMaxIterations
 	if cfg, err := LoadAgentSettingsConfig(ctx); err == nil && cfg != nil {
 		if cfg.MaxTools > 0 {
@@ -667,6 +667,7 @@ func resolveAgentSettings(ctx context.Context) (maxTools, maxIter int) {
 		if cfg.MaxLoopIterations > 0 {
 			maxIter = cfg.MaxLoopIterations
 		}
+		disabled = cfg.DisabledTools
 	}
 	return
 }

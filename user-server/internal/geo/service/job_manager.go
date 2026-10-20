@@ -37,6 +37,32 @@ const (
 	geoJobRunRetention = 30 * 24 * time.Hour
 )
 
+// jobKey 「任务 × 租户」维度的调度/互斥/记账键。
+//
+// 为什么必须含租户（二审 P1-2）：geo_config.cron_specs 是**逐租户持久化**的
+// （UpdateSchedule 在请求租户 ctx 下只写本租户行），cron 条目、spec 快照与
+// running 互斥位因此都是 (任务, 租户) 维度的。若退回按任务名单键：
+//   - 各租户 spec 相同（最常见：都用默认值）时同时到点，抢到全局 running 位的
+//     那个租户跑完之前，其余租户的同任务全部被跳过 ⇒ 只有先到者永远在跑；
+//   - 手动触发（StartJob，经 Fanout 逐租户）会被任意一个在跑的租户挡住。
+type jobKey struct {
+	name   string
+	tenant uint
+}
+
+// tenantIDFromCtx 取 ctx 绑定的租户；无绑定（off 模式 / 后台裸 ctx）按默认租户。
+func tenantIDFromCtx(ctx context.Context) uint {
+	if id, ok := tenant.FromContext(ctx); ok {
+		return id
+	}
+	return tenant.DefaultTenantID
+}
+
+// lockKey 分布式锁键：含租户 —— 租户 A 的长任务不该把租户 B 的同名任务挡在门外。
+func lockKey(jobName string, tenantID uint) string {
+	return fmt.Sprintf("%s/%d", jobName, tenantID)
+}
+
 type geoJobDef struct {
 	Name        string
 	Description string
@@ -98,9 +124,13 @@ type JobManager struct {
 	cfgRepo repository.GeoConfigRepository
 	db      *gorm.DB
 
-	running map[string]*atomic.Bool
-	specs   map[string]string
-	entryID map[string]cron.EntryID
+	// runMu 只护 running 这张**动态键表**（键含租户，运行期才会出现新键）。
+	// 与 m.mu 分开：ListJobs 读 running 时可能已持 m.mu.RLock，混用同一把锁
+	// 会出现 RLock 内再 Lock 的自锁。
+	runMu   sync.Mutex
+	running map[jobKey]*atomic.Bool
+	specs   map[jobKey]string
+	entryID map[jobKey]cron.EntryID
 	setup   bool
 }
 
@@ -112,21 +142,45 @@ var (
 // GetGeoJobManager 进程级单例。未 Setup 前也可手动触发任务（无调度注册）。
 func GetGeoJobManager() *JobManager {
 	jobManagerOnce.Do(func() {
-		running := make(map[string]*atomic.Bool, len(geoJobDefs))
-		specs := make(map[string]string, len(geoJobDefs))
+		running := make(map[jobKey]*atomic.Bool)
+		specs := make(map[jobKey]string, len(geoJobDefs))
 		for _, d := range geoJobDefs {
-			running[d.Name] = &atomic.Bool{}
-			specs[d.Name] = d.DefaultSpec
+			// 默认租户的默认 spec 先占位：Setup 之前（无持久化行）ListJobs 也能
+			// 给出可读的默认调度；其余租户的键在 SetupGeoJobs/UpdateSchedule 出现。
+			specs[jobKey{name: d.Name, tenant: tenant.DefaultTenantID}] = d.DefaultSpec
 		}
 		jobManager = &JobManager{
 			runRepo: repository.NewGeoJobRunRepository(),
 			cfgRepo: repository.NewGeoConfigRepository(),
 			running: running,
 			specs:   specs,
-			entryID: map[string]cron.EntryID{},
+			entryID: map[jobKey]cron.EntryID{},
 		}
 	})
 	return jobManager
+}
+
+// runningFor 取（或首次创建）「任务 × 租户」的互斥位。键是动态的（租户由
+// Fanout/注册闭包给出），必须在 runMu 下惰性创建，不能在构造期预铺。
+func (m *JobManager) runningFor(k jobKey) *atomic.Bool {
+	m.runMu.Lock()
+	defer m.runMu.Unlock()
+	if b, ok := m.running[k]; ok {
+		return b
+	}
+	b := &atomic.Bool{}
+	m.running[k] = b
+	return b
+}
+
+// runningState 只读快照（键不存在视为未在跑）。
+func (m *JobManager) runningState(k jobKey) bool {
+	m.runMu.Lock()
+	defer m.runMu.Unlock()
+	if b, ok := m.running[k]; ok {
+		return b.Load()
+	}
+	return false
 }
 
 // SetJobManagerDB 设置数据库连接用于分布式锁
@@ -178,24 +232,39 @@ func SetupGeoJobs(sched JobScheduler) {
 	m.sched = sched
 	m.setup = true
 
-	persisted := m.loadPersistedSpecs(tenant.WithSystemScope(context.Background()))
-	for _, d := range geoJobDefs {
-		spec := d.DefaultSpec
-		if s, ok := persisted[d.Name]; ok && m.validSpec(s) == nil {
-			spec = s
+	// 逐租户读取并注册调度（specs/001-saas-multi-tenant T020，二审 P1-2）。
+	//
+	// 旧实现用 system scope 读 cfgRepo.Get（First）——多租户下读到的是**跨租户
+	// union 的首行**（= 默认租户的 geo_config），于是租户 2 经 UpdateSchedule
+	// 持久化的 cron 表达式在重启后即丢。改为 Fanout 逐活跃租户读**本租户**行，
+	// 并按 (任务, 租户) 各自注册：cron 闭包钉住注册时的租户，派发时只跑该租户
+	//（见 registerLocked / jobKey 注释）。off 模式 Fanout 退化为单默认租户，
+	// 注册数量与历史版本一致。
+	if _, err := tenant.Fanout(context.Background(), nil, func(tctx context.Context, tid uint) (int64, error) {
+		persisted := m.loadPersistedSpecs(tctx)
+		for _, d := range geoJobDefs {
+			spec := d.DefaultSpec
+			if s, ok := persisted[d.Name]; ok && m.validSpec(s) == nil {
+				spec = s
+			}
+			m.specs[jobKey{name: d.Name, tenant: tid}] = spec
+			if err := m.registerLocked(d.Name, spec, tid); err != nil {
+				logger.Error(err, fmt.Sprintf("[GEO Jobs] 注册任务 %s（租户 %d）失败", d.Name, tid))
+			}
 		}
-		m.specs[d.Name] = spec
-		if err := m.registerLocked(d.Name, spec); err != nil {
-			logger.Error(err, fmt.Sprintf("[GEO Jobs] 注册任务 %s 失败", d.Name))
-		}
+		return 0, nil
+	}); err != nil {
+		// fail-closed（Fanout 枚举器未装配等）：绝不回落成"只注册默认租户"——
+		// 那会把漏装配伪装成 GEO 调度正常。宁可本轮不注册，日志必须响亮。
+		logger.Error(err, "[GEO Jobs] 逐租户注册调度失败：本轮不注册任何 GEO 任务")
+		return
 	}
-	logger.Info("[GEO Jobs] 定时任务已注册：sov_refresh/negative_monitor/source_sync/crawler_monitor（调度可经 /geo/jobs API 调整）")
+	logger.Info("[GEO Jobs] 定时任务已按租户注册（调度可经 /geo/jobs API 调整）")
 }
 
 // loadPersistedSpecs 读 GeoConfig.CronSpecs（geo_config 是租户表）。
-// 启动期由 SetupGeoJobs 调，没有请求租户可绑：调用方传
-// tenant.WithSystemScope(context.Background()) 平台级豁免（与同函数里的
-// FailStaleRunning 同口径），on 模式下读全租户 union、off 模式直通。
+// ctx 必须已绑定租户（Fanout 回调注入）：on 模式下读到的是**本租户**行，
+// off 模式直通。不再用 system scope —— 那会读成跨租户 union 的首行。
 func (m *JobManager) loadPersistedSpecs(ctx context.Context) map[string]string {
 	cfg, err := m.cfgRepo.Get(ctx)
 	if err != nil || strings.TrimSpace(cfg.CronSpecs) == "" {
@@ -209,33 +278,40 @@ func (m *JobManager) loadPersistedSpecs(ctx context.Context) map[string]string {
 	return out
 }
 
-func (m *JobManager) registerLocked(name, spec string) error {
+func (m *JobManager) registerLocked(name, spec string, tid uint) error {
 	if m.sched == nil {
 		return errors.New("调度器未初始化")
 	}
 	if err := m.validSpec(spec); err != nil {
 		return err
 	}
-	if old, ok := m.entryID[name]; ok {
+	def, ok := m.defByName(name)
+	if !ok {
+		return fmt.Errorf("未知任务: %s", name)
+	}
+	k := jobKey{name: name, tenant: tid}
+	if old, ok := m.entryID[k]; ok {
 		m.sched.RemoveTask(old)
-		delete(m.entryID, name)
+		delete(m.entryID, k)
 	}
 	id, err := m.sched.AddTask(spec, func() {
 		// 模块闸（FR-5.6）：**每次派发时**查一次（不是注册时定死）——
 		// 租户随时可能开通/关停 GEO，闸必须跟着开关实时走。未装配/未映射/
-		// DB 错误 → jobModuleGate 内部 fail-open 放行。
+		// DB 错误 → jobModuleGate 内部 fail-open 放行。闸是模块级、租户无关
+		// 判定，所以每条租户条目各问一次（同一轮重复放行只多几行日志）。
 		if !jobModuleGate(context.Background(), name) {
 			logger.Info(fmt.Sprintf("[GEO Jobs] 任务 %s 本轮跳过：GEO 模块无任何租户开通（模块闸）", name))
 			return
 		}
-		if _, err := m.StartJob(name, "cron"); err != nil {
-			logger.Error(err, fmt.Sprintf("[GEO Jobs] 定时触发任务 %s 失败", name))
-		}
+		// 本条目在注册时已钉住租户 tid：cron spec 是逐租户持久化的，派发也只跑
+		// 该租户。**不能**在这里再做全租户扇出 —— 否则任一租户到点都会把全部
+		// 租户的外部采集重跑一遍（重复调 LLM/抓取 API）。
+		m.startJobForTenant(def, tenant.WithTenantID(context.Background(), tid), "cron", tid)
 	})
 	if err != nil {
 		return fmt.Errorf("注册任务 %s 失败: %w", name, err)
 	}
-	m.entryID[name] = id
+	m.entryID[k] = id
 	return nil
 }
 
@@ -249,64 +325,86 @@ func (m *JobManager) validSpec(spec string) error {
 	return nil
 }
 
-// StartJob 异步触发一次任务运行。返回 (false, nil) 表示同任务正在运行被跳过。
+// StartJob 异步触发一次任务运行（**未指定租户**的入口：管理端 Trigger、
+// 手动触发等）。on 模式经 Fanout 逐活跃租户各跑一次（每租户一条独立运行记录、
+// 独立 running 互斥位与分布式锁）；off 模式退化为单默认租户。
+//
+// 返回 (false, nil) 表示没有任何租户被启动（全部因在跑/被他实例锁定而跳过）；
+// (false, err) 表示任务名未知或租户枚举不可用（fail-closed，不猜测租户集合）。
+// cron 派发走 registerLocked 闭包里的 startJobForTenant（单租户），不经本方法，
+// 因此不存在双重扇出。
 func (m *JobManager) StartJob(name, trigger string) (bool, error) {
 	def, ok := m.defByName(name)
 	if !ok {
 		return false, fmt.Errorf("未知任务: %s", name)
 	}
-	if !m.running[name].CompareAndSwap(false, true) {
-		logger.Info(fmt.Sprintf("[GEO Jobs] 任务 %s 上一轮仍在运行，跳过本次触发（trigger=%s）", name, trigger))
-		return false, nil
+	started := false
+	if _, err := tenant.Fanout(context.Background(), nil, func(ctx context.Context, tid uint) (int64, error) {
+		if m.startJobForTenant(def, ctx, trigger, tid) {
+			started = true
+		}
+		return 0, nil
+	}); err != nil {
+		return false, err
+	}
+	return started, nil
+}
+
+// startJobForTenant 单租户启动：running 互斥 → 分布式锁（键含租户）→ 在**本租户**
+// ctx 下落运行记录 → 异步执行。调用方 ctx 必须已绑定 tid（cron 闭包 / Fanout 回调）。
+// 返回 true 表示本次真的启动了。
+func (m *JobManager) startJobForTenant(def geoJobDef, ctx context.Context, trigger string, tid uint) bool {
+	k := jobKey{name: def.Name, tenant: tid}
+	flag := m.runningFor(k)
+	if !flag.CompareAndSwap(false, true) {
+		logger.Info(fmt.Sprintf("[GEO Jobs] 任务 %s（租户 %d）上一轮仍在运行，跳过本次触发（trigger=%s）", def.Name, tid, trigger))
+		return false
 	}
 
-	// 分布式锁：多实例部署时防止同一任务重复执行
+	// 分布式锁：多实例部署时防止同一任务（同一租户）重复执行。
 	if m.db != nil {
-		locked, err := m.acquireDistributedLock(name, def.Timeout)
+		locked, err := m.acquireDistributedLock(def.Name, tid, def.Timeout)
 		if err != nil {
-			logger.Warn(fmt.Sprintf("[GEO Jobs] 任务 %s 获取分布式锁失败: %v", name, err))
+			logger.Warn(fmt.Sprintf("[GEO Jobs] 任务 %s（租户 %d）获取分布式锁失败: %v", def.Name, tid, err))
 		} else if !locked {
-			logger.Info(fmt.Sprintf("[GEO Jobs] 任务 %s 已被其他实例锁定，跳过本次触发（trigger=%s）", name, trigger))
-			m.running[name].Store(false)
-			return false, nil
+			logger.Info(fmt.Sprintf("[GEO Jobs] 任务 %s（租户 %d）已被其他实例锁定，跳过本次触发（trigger=%s）", def.Name, tid, trigger))
+			flag.Store(false)
+			return false
 		}
 	}
 
 	run := &model.GeoJobRun{
-		JobName:   name,
+		JobName:   def.Name,
 		Trigger:   trigger,
 		Status:    "running",
 		StartedAt: time.Now(),
 	}
-	// 平台级豁免（与 SetupGeoJobs 清僵尸同口径）：geo_job_runs 是租户表，而 StartJob
-	// 由 cron tick（registerLocked 里的 context.Background()）与管理端 Trigger 两条路
-	// 进来，都没有可绑的请求租户 —— TENANT_MODE=on 下裸 ctx 的 Create 会被隔离
-	// callback fail-closed（生产日志形态：「任务 X 写入运行记录失败」⇒ 历史整片缺失）。
-	// 运行记录是 append-only 运维记账，不归属任何单一租户，走 tenant.WithSystemScope
-	// 平台级豁免通道（与 migration/备份/健康检查同类）；off 模式 SystemScope 直通，
-	// SQL 形状与历史版本等价。
-	runCtx := tenant.WithSystemScope(context.Background())
+	// 运行记录在**本租户** ctx 下创建：geo_job_runs 是租户表，隔离 callback 的
+	// Create 会填充 tenant_id —— 记账分租户，各租户在 /geo/jobs/runs 只看到自己
+	// 的历史（旧实现用 system scope 一律落列默认值 1，等于只有默认租户有历史）。
+	// 记账失败仅日志：历史缺口不应阻断业务任务本身。
 	var runID uint
-	if err := m.runRepo.Create(runCtx, run); err != nil {
-		logger.Error(err, fmt.Sprintf("[GEO Jobs] 任务 %s 写入运行记录失败（本次不记录历史）", name))
+	if err := m.runRepo.Create(ctx, run); err != nil {
+		logger.Error(err, fmt.Sprintf("[GEO Jobs] 任务 %s（租户 %d）写入运行记录失败（本次不记录历史）", def.Name, tid))
 	} else {
 		runID = run.ID
 	}
 
-	go m.execute(def, runID, trigger)
-	return true, nil
+	go m.execute(def, runID, trigger, ctx, tid, flag)
+	return true
 }
 
 // acquireDistributedLock 尝试获取分布式锁（基于数据库行锁）
 // 判读：pg_try_advisory_lock 是会话级锁，SQL 无 FROM/UPDATE 租户表引用，
 // 不触达任何租户表 —— 裸 Background 不构成隔离 callback 触点，故保持不动。
-func (m *JobManager) acquireDistributedLock(jobName string, timeout time.Duration) (bool, error) {
+// 锁键含租户（lockKey）：调度是逐租户的，租户 A 的任务不该挡住租户 B。
+func (m *JobManager) acquireDistributedLock(jobName string, tenantID uint, timeout time.Duration) (bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
 	var result bool
 	err := m.db.WithContext(ctx).
-		Select("pg_try_advisory_lock(hashtext(?))", jobName).
+		Select("pg_try_advisory_lock(hashtext(?))", lockKey(jobName, tenantID)).
 		Scan(&result).Error
 	if err != nil {
 		return false, err
@@ -316,7 +414,7 @@ func (m *JobManager) acquireDistributedLock(jobName string, timeout time.Duratio
 
 // releaseDistributedLock 释放分布式锁
 // 判读同 acquireDistributedLock：pg_advisory_unlock 不触达租户表，裸 Background 保持不动。
-func (m *JobManager) releaseDistributedLock(jobName string) {
+func (m *JobManager) releaseDistributedLock(jobName string, tenantID uint) {
 	if m.db == nil {
 		return
 	}
@@ -325,29 +423,27 @@ func (m *JobManager) releaseDistributedLock(jobName string) {
 	// 解锁返回值无需使用，但 Scan 目标不可为 nil（gorm 会 panic，见 acquireDistributedLock 同构写法）。
 	var discarded bool
 	_ = m.db.WithContext(ctx).
-		Select("pg_advisory_unlock(hashtext(?))", jobName).
+		Select("pg_advisory_unlock(hashtext(?))", lockKey(jobName, tenantID)).
 		Scan(&discarded).Error
 }
 
-func (m *JobManager) execute(def geoJobDef, runID uint, trigger string) {
-	defer m.running[def.Name].Store(false)
-	defer m.releaseDistributedLock(def.Name)
+// execute 在**单租户**上下文里跑一次任务体并回写运行记录。
+// ctx 已绑定本租户（cron 闭包 / StartJob 的 Fanout 回调），tid 与之一致。
+func (m *JobManager) execute(def geoJobDef, runID uint, trigger string, ctx context.Context, tid uint, flag *atomic.Bool) {
+	defer flag.Store(false)
+	defer m.releaseDistributedLock(def.Name, tid)
 
 	start := time.Now()
-	ctx, cancel := context.WithTimeout(context.Background(), def.Timeout)
+	// 每租户一份超时预算：任务级 def.Timeout 叠在本租户 ctx 上，先跑的租户不会
+	// 把后面的租户饿死（与 sop_scheduler tick 的 P2-5 修法同一口径）。
+	ctx, cancel := context.WithTimeout(ctx, def.Timeout)
 	defer cancel()
 
-	// 运行记录写入（Finish 与过期清理 DeleteBefore）与 StartJob 的 Create 同口径：
-	// geo_job_runs 是 append-only 运维记账，本协程由 cron tick 自起、没有可绑的请求
-	// 租户，TENANT_MODE=on 下裸 context.Background() 会被隔离 callback fail-closed
-	//（对齐 SetupGeoJobs 清僵尸的 tenant.WithSystemScope 平台级豁免通道）。
-	// 注意这个 system scope 只包运行记录写入，不外溢给下面的 def.Fn(ctx)——
-	// 业务任务体自己负责按行/按系统口径恢复租户（本轮已落地：触达租户表的 job
-	// 在入口自行 tenant.WithSystemScope，见 scheduler.go 与 keyword_pipeline.go；
-	// keyword_pipeline 的 SEO 批次再按行 tenant.OnlyTenant 自证）。
-	// off 模式 SystemScope 直通，SQL 不变。
-	runCtx := tenant.WithSystemScope(context.Background())
-
+	// 运行记录回写（Finish）直接用本租户 ctx：geo_job_runs 是租户表，旧实现这里
+	// 包 system scope 会把 Create/Finish 都摊成跨租户、行落列默认值 1（记账串租户）。
+	// def.Fn(ctx) 同样拿到本租户 ctx —— 各 job 入口不再自己补 system scope
+	//（见 scheduler.go / keyword_pipeline.go 的判读注释；on 模式下裸 ctx 会被
+	// 隔离 callback fail-closed，那是漏装配的兜底不是常态路径）。
 	status, summary, errMsg := "success", "", ""
 	func() {
 		defer func() {
@@ -368,14 +464,16 @@ func (m *JobManager) execute(def geoJobDef, runID uint, trigger string) {
 
 	duration := time.Since(start).Milliseconds()
 	if runID > 0 {
-		if err := m.runRepo.Finish(runCtx, runID, status, runeTruncate(summary, 2000), runeTruncate(errMsg, 2000), duration); err != nil {
+		if err := m.runRepo.Finish(ctx, runID, status, runeTruncate(summary, 2000), runeTruncate(errMsg, 2000), duration); err != nil {
 			logger.Error(err, fmt.Sprintf("[GEO Jobs] 任务 %s 回写运行记录失败", def.Name))
 		}
 	}
-	logger.Info(fmt.Sprintf("[GEO Jobs] 任务 %s 完成（trigger=%s status=%s 用时=%dms）%s",
-		def.Name, trigger, status, duration, summary))
+	logger.Info(fmt.Sprintf("[GEO Jobs] 任务 %s（租户 %d）完成（trigger=%s status=%s 用时=%dms）%s",
+		def.Name, tid, trigger, status, duration, summary))
 
-	if err := m.runRepo.DeleteBefore(runCtx, time.Now().Add(-geoJobRunRetention)); err != nil {
+	// 过期运行记录清理是**跨租户**的保留期维护（30 天），与本租户记账无关：
+	// 用 system scope 豁免通道，否则 on 模式下只能清到当前租户这一份。
+	if err := m.runRepo.DeleteBefore(tenant.WithSystemScope(ctx), time.Now().Add(-geoJobRunRetention)); err != nil {
 		logger.Warn(fmt.Sprintf("[GEO Jobs] 清理过期运行记录失败: %v", err))
 	}
 }
@@ -383,7 +481,9 @@ func (m *JobManager) execute(def geoJobDef, runID uint, trigger string) {
 // UpdateSchedule 调整任务 cron 表达式并持久化到 GeoConfig.CronSpecs
 //
 // ctx 由管理端 HTTP handler 透传请求 ctx（geo_config 是租户表，on 模式下读写
-// 需要租户绑定）；本方法只透传不改语义。
+// 需要租户绑定）：调度注册与持久化都落在**本租户** —— 注册 (任务, 本租户) 的
+// cron 条目、写本租户的 geo_config.cron_specs 行。off 模式/无绑定按默认租户
+// （等价历史行为）。
 func (m *JobManager) UpdateSchedule(ctx context.Context, name, spec string) error {
 	def, ok := m.defByName(name)
 	if !ok {
@@ -392,16 +492,17 @@ func (m *JobManager) UpdateSchedule(ctx context.Context, name, spec string) erro
 	if err := m.validSpec(spec); err != nil {
 		return err
 	}
+	tid := tenantIDFromCtx(ctx)
 
 	m.mu.Lock()
 	defer m.mu.Unlock()
 	if !m.setup {
 		return errors.New("调度器未初始化，无法修改调度")
 	}
-	if err := m.registerLocked(name, spec); err != nil {
+	if err := m.registerLocked(name, spec, tid); err != nil {
 		return err
 	}
-	m.specs[name] = spec
+	m.specs[jobKey{name: name, tenant: tid}] = spec
 
 	persisted := map[string]string{}
 	if cfg, err := m.cfgRepo.Get(ctx); err == nil && strings.TrimSpace(cfg.CronSpecs) != "" {
@@ -422,7 +523,7 @@ func (m *JobManager) UpdateSchedule(ctx context.Context, name, spec string) erro
 	if err := m.cfgRepo.Update(ctx, cfg); err != nil {
 		logger.Warn(fmt.Sprintf("[GEO Jobs] 持久化调度配置失败（本次会话内已生效，重启后回退默认）: %v", err))
 	}
-	logger.Info(fmt.Sprintf("[GEO Jobs] 任务 %s 调度已更新为 %q（默认 %q）", def.Name, spec, def.DefaultSpec))
+	logger.Info(fmt.Sprintf("[GEO Jobs] 任务 %s（租户 %d）调度已更新为 %q（默认 %q）", def.Name, tid, spec, def.DefaultSpec))
 	return nil
 }
 
@@ -440,7 +541,10 @@ type GeoJobInfo struct {
 // ListJobs 全部任务 + 最新一次运行状态
 func (m *JobManager) ListJobs(ctx context.Context) []GeoJobInfo {
 	// 锁内只做快照（specs/running/setup），DB IO（runRepo.Latest）移到锁外，
-	// 避免与 UpdateSchedule 的锁内持久化互相阻塞
+	// 避免与 UpdateSchedule 的锁内持久化互相阻塞。
+	// 视图按请求租户取：specs/running 都是 (任务, 租户) 维度；无绑定（off 模式
+	// /裸 ctx）按默认租户。
+	tid := tenantIDFromCtx(ctx)
 	m.mu.RLock()
 	out := make([]GeoJobInfo, 0, len(geoJobDefs))
 	type pendingRun struct {
@@ -449,13 +553,17 @@ func (m *JobManager) ListJobs(ctx context.Context) []GeoJobInfo {
 	}
 	pending := make([]pendingRun, 0, len(geoJobDefs))
 	for i, d := range geoJobDefs {
+		spec := m.specs[jobKey{name: d.Name, tenant: tid}]
+		if strings.TrimSpace(spec) == "" {
+			spec = d.DefaultSpec // 该租户还没持久化过自己的 spec
+		}
 		info := GeoJobInfo{
 			Name:        d.Name,
 			Description: d.Description,
-			Spec:        m.specs[d.Name],
+			Spec:        spec,
 			DefaultSpec: d.DefaultSpec,
 			Scheduled:   m.setup,
-			Running:     m.running[d.Name].Load(),
+			Running:     m.runningState(jobKey{name: d.Name, tenant: tid}),
 		}
 		out = append(out, info)
 		pending = append(pending, pendingRun{idx: i, name: d.Name})

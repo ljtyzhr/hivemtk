@@ -75,21 +75,21 @@ func TestInMemoryCache_Basic(t *testing.T) {
 	ctx := context.Background()
 	c := NewInMemoryCache()
 
-	c.Set("k", "v", time.Minute)
-	val, ok := c.Get("k")
+	c.Set(context.Background(), "k", "v", time.Minute)
+	val, ok := c.Get(context.Background(), "k")
 	assert.True(t, ok)
 	assert.Equal(t, "v", val)
 
-	_, ok = c.Get("missing")
+	_, ok = c.Get(context.Background(), "missing")
 	assert.False(t, ok)
 
-	c.Delete("k")
-	_, ok = c.Get("k")
+	c.Delete(context.Background(), "k")
+	_, ok = c.Get(context.Background(), "k")
 	assert.False(t, ok)
 
-	c.Set("e", "x", 1*time.Nanosecond)
+	c.Set(context.Background(), "e", "x", 1*time.Nanosecond)
 	time.Sleep(2 * time.Millisecond)
-	_, ok = c.Get("e")
+	_, ok = c.Get(context.Background(), "e")
 	assert.False(t, ok)
 	_ = ctx
 }

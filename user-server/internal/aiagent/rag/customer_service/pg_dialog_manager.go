@@ -8,6 +8,7 @@ import (
 
 	"gorm.io/gorm"
 
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 )
 
@@ -200,8 +201,20 @@ func (dm *PgDialogManager) startSessionCleanup() {
 	ticker := time.NewTicker(dm.config.SessionCleanupInterval)
 	defer ticker.Stop()
 	for range ticker.C {
-		if err := dm.CleanupExpiredSessions(context.Background()); err != nil {
+		if err := dm.cleanupAllTenants(context.Background()); err != nil {
 			logger.Errorf("[PgDialogManager] 清理过期会话失败: %v", err)
 		}
 	}
+}
+
+// cleanupAllTenants：rag_sessions 是租户表，on 模式下无租户绑定的后台写入会被
+// 隔离 callback 拒绝（fail-closed），必须逐活跃租户执行。
+func (dm *PgDialogManager) cleanupAllTenants(ctx context.Context) error {
+	if _, ok := tenant.FromContext(ctx); ok || !tenant.IsMultiTenant() {
+		return dm.CleanupExpiredSessions(ctx)
+	}
+	_, err := tenant.Fanout(ctx, nil, func(tctx context.Context, _ uint) (int64, error) {
+		return 0, dm.CleanupExpiredSessions(tctx)
+	})
+	return err
 }

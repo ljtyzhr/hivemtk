@@ -250,12 +250,17 @@ func (s *ModuleCatalogService) CreateOrder(ctx context.Context, in MarketOrderIn
 	res, err := client.CreateOrder(ctx, platform.CreateOrderInput{
 		ClientOrderNo: clientNo,
 		OrderType:     "module",
-		ModuleKeys:    in.ModuleKeys,
-		Options:       in.Options,
-		ContactName:   in.ContactName,
-		ContactPhone:  in.ContactPhone,
-		ContactEmail:  in.ContactEmail,
-		Remark:        in.Remark,
+		// 平台端订单按 (merchant_key, tenant_code) 归属：续费单与 LLM 充值单都带，
+		// 模块单此前漏了，落库后 tenant_code 是空串——平台侧看不到是谁买的，
+		// 本地 module_orders 与平台 orders 也对不上账（测试数据因此无法按租户清理）。
+		// 取不到租户归属（off 模式无租户行 / ctx 无绑定）时传空，平台按旧行为兜底。
+		TenantCode:   currentTenantCode(ctx),
+		ModuleKeys:   in.ModuleKeys,
+		Options:      in.Options,
+		ContactName:  in.ContactName,
+		ContactPhone: in.ContactPhone,
+		ContactEmail: in.ContactEmail,
+		Remark:       in.Remark,
 	})
 	if err != nil {
 		return nil, bizerr.Wrap(bizerr.CodePlatformUnavail, "提交订单失败（平台不可达）", err)

@@ -21,6 +21,10 @@ func setupChatPublicRoutes(public *gin.RouterGroup, db *gorm.DB, orchestrator *s
 	visitorSvc := service.NewVisitorChatService(context.Background(), db, channelSvc, orchestrator, agentBindingSvc)
 
 	chatPublic := public.Group("/chat/public")
+	// tenant_code 声明要排在渠道解析**之前**：default/{platform}_card 这类每租户自动
+	// 建的渠道键在多租户下注定重复，解析器只有在已绑定租户的作用域里读才不会挑到
+	// 别人的渠道行（跨租户同键且没声明 ⇒ 守卫判歧义，最终 401，绝不猜租户）。
+	chatPublic.Use(middleware.PublicTenantHint(tenantCodeResolver))
 	chatPublic.Use(middleware.AppKeyResolve(chatChannelResolver{svc: channelSvc}))
 	chatPublic.Use(middleware.LangResolverMiddleware(langResolver))
 	// 访客双维限流四条（R2 参数化）：装配期读一次塞进限流器构造，改完需重启才生效
@@ -62,7 +66,11 @@ func setupChatPublicRoutes(public *gin.RouterGroup, db *gorm.DB, orchestrator *s
 func setupChatPublicWebSocket(r *gin.Engine, langResolver *translation.LangConfigResolver) {
 	visitorWS := websocket.NewVisitorWSHandler(dbutil.GetDB())
 	visitorWS.SetLangResolver(langResolver)
-	r.GET("/api/ws/visitor", visitorWS.HandleVisitorWebSocket)
+	// 与 HTTP 公开组同一条引导：handler 用 channel_id 反查渠道时 ctx 还没绑租户，
+	// 而 default/{platform}_card 这类键在多租户下注定重复 ⇒ 跨租户同键既不猜也不
+	// 落第三方（守卫判歧义→不绑定→下游 fail-closed）。带 ?tenant_code= 声明时
+	// 这里先绑定，渠道解析随即在已绑定作用域里读到本租户那一行。
+	r.GET("/api/ws/visitor", middleware.PublicTenantHint(tenantCodeResolver), visitorWS.HandleVisitorWebSocket)
 }
 
 func setupChatChannelAdminRoutes(auth *gin.RouterGroup, db *gorm.DB) {
@@ -105,14 +113,14 @@ func setupWeComRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 
 func setupCardShareRoutes(r *gin.Engine, gormDB *gorm.DB) {
 	douyinCardCtrl := controller.NewDouyinCardController(service.NewDouyinCardService(gormDB))
-	r.GET("/share/douyin/:id", douyinCardCtrl.SharePage)
+	r.GET("/share/douyin/:id", middleware.PublicIDTenant(gormDB, "douyin_cards"), douyinCardCtrl.SharePage)
 
 	kuaishouCardCtrl := controller.NewKuaishouCardController(service.NewKuaishouCardService(gormDB))
-	r.GET("/share/kuaishou/:id", kuaishouCardCtrl.SharePage)
+	r.GET("/share/kuaishou/:id", middleware.PublicIDTenant(gormDB, "kuaishou_cards"), kuaishouCardCtrl.SharePage)
 
 	xiaohongshuCardCtrl := controller.NewXiaohongshuCardController(service.NewXiaohongshuCardService(gormDB))
-	r.GET("/share/xiaohongshu/:id", xiaohongshuCardCtrl.SharePage)
+	r.GET("/share/xiaohongshu/:id", middleware.PublicIDTenant(gormDB, "xiaohongshu_cards"), xiaohongshuCardCtrl.SharePage)
 
 	xianyuCardCtrl := controller.NewXianyuCardController(service.NewXianyuCardService(gormDB), service.NewXianyuCardStatsService(gormDB))
-	r.GET("/share/xianyu/:id", xianyuCardCtrl.SharePage)
+	r.GET("/share/xianyu/:id", middleware.PublicIDTenant(gormDB, "xianyu_cards"), xianyuCardCtrl.SharePage)
 }

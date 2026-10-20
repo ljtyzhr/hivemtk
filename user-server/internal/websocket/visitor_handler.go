@@ -78,6 +78,13 @@ var upgraderVisitor = websocket.Upgrader{
 			return true
 		}
 
+		// 同源放行：嵌入式客服页（/chat/embed/*，如 workapi.xapptool.cn）与 API
+		// 同域，访客 WS 就从该域发起。白名单按部署域维护，漏配新域名时同源也必须
+		// 能连（跨源仍走白名单/私网判定，见下）。
+		if u, err := url.Parse(origin); err == nil && u.Host != "" && strings.EqualFold(u.Host, r.Host) {
+			return true
+		}
+
 		if isAllowedOrigin(origin) {
 			return true
 		}
@@ -125,6 +132,21 @@ func (h *VisitorWSHandler) HandleVisitorWebSocket(c *gin.Context) {
 
 	ctx := logger.WithTraceID(c.Request.Context(), c.GetHeader("X-Trace-Id"))
 	ctx = logger.WithModule(ctx, "websocket")
+
+	// channel_id query 是 channel_ref（SDK/安装引导以 appKey 作 ref）：先在
+	// token 校验前交给渠道解析归一化为渠道行自身的 channel_id —— visitor_token
+	// 绑定的就是后者（见 service.OpenSession → GenerateVisitorToken(channel.ChannelID,…)），
+	// 不归一化会让 app_key 形 ref 因 token 渠道不匹配被 403。解析结果随后还用于
+	// 访客连接租户绑定，避免二次查库。
+	var resolvedChannel *VisitorChannelView
+	if visitorChannelResolver != nil {
+		if ch, err := visitorChannelResolver.ResolveByChannelID(ctx, channelID); err == nil && ch != nil {
+			resolvedChannel = ch
+			if canonical := strings.TrimSpace(ch.ChannelID); canonical != "" {
+				channelID = canonical
+			}
+		}
+	}
 
 	visitorToken := strings.TrimSpace(c.Query("visitor_token"))
 	if visitorToken == "" {
@@ -184,12 +206,11 @@ func (h *VisitorWSHandler) HandleVisitorWebSocket(c *gin.Context) {
 	client := NewVisitorClient(h.hub, sessionID, visitorID, channelID)
 	// 访客连接租户绑定（specs/001-saas-multi-tenant T024/T026）：
 	// 访客无 JWT，租户经 channel 归属解析（chat_channels.tenant_id 行自证）；
+	// 上方归一化若已取到渠道行则直接复用，避免二次查库。
 	// 解析失败/未装配时静默降级为无绑定（0），下游写入由列默认值兜底（off 模式等价现状）。
-	if visitorChannelResolver != nil {
-		if ch, err := visitorChannelResolver.ResolveByChannelID(ctx, channelID); err == nil && ch != nil && ch.TenantID != 0 {
-			client.tenantID = ch.TenantID
-			ctx = tenant.WithTenantID(ctx, ch.TenantID)
-		}
+	if resolvedChannel != nil && resolvedChannel.TenantID != 0 {
+		client.tenantID = resolvedChannel.TenantID
+		ctx = tenant.WithTenantID(ctx, resolvedChannel.TenantID)
 	}
 	client.hub = h.hub
 	registerVisitorClient(client)

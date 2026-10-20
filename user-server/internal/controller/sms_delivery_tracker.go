@@ -172,6 +172,11 @@ func (c *SmsDeliveryTrackerController) Webhook(ctx *gin.Context) {
 		response.Error(ctx, http.StatusBadRequest, "参数错误："+err.Error())
 		return
 	}
+	requestCtx, err := publicWebhookTenantCtx(ctx)
+	if err != nil {
+		response.Error(ctx, http.StatusBadRequest, "租户标识无效："+err.Error())
+		return
+	}
 	report := &service.ProviderDeliveryReport{
 		MessageID:   req.MessageID,
 		Phone:       req.Phone,
@@ -185,7 +190,7 @@ func (c *SmsDeliveryTrackerController) Webhook(ctx *gin.Context) {
 		DeliveredAt: req.DeliveredAt,
 		RawPayload:  service.MarshalReport(req),
 	}
-	if err := c.svc.RecordFromProvider(ctx.Request.Context(), report); err != nil {
+	if err := c.svc.RecordFromProvider(requestCtx, report); err != nil {
 		response.ErrorFromDB(ctx, err, "记录回执失败："+err.Error())
 		return
 	}

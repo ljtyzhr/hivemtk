@@ -21,7 +21,12 @@ func NewHelpCenterController() *HelpCenterController {
 
 // Categories GET /api/public/help-center/categories（免登录）
 func (c *HelpCenterController) Categories(ctx *gin.Context) {
-	list, err := c.svc.Categories(ctx.Request.Context())
+	requestCtx, err := resolvePublicTenantCtx(ctx, ctx.Query("tenant_code"))
+	if err != nil {
+		response.Error(ctx, 400, "无法确定租户："+err.Error())
+		return
+	}
+	list, err := c.svc.Categories(requestCtx)
 	if HandleServiceError(ctx, err) {
 		return
 	}
@@ -30,7 +35,12 @@ func (c *HelpCenterController) Categories(ctx *gin.Context) {
 
 // Articles GET /api/public/help-center/articles?category=&q=
 func (c *HelpCenterController) Articles(ctx *gin.Context) {
-	list, err := c.svc.Articles(ctx.Request.Context(), ctx.Query("category"), ctx.Query("q"), 50)
+	requestCtx, err := resolvePublicTenantCtx(ctx, ctx.Query("tenant_code"))
+	if err != nil {
+		response.Error(ctx, 400, "无法确定租户："+err.Error())
+		return
+	}
+	list, err := c.svc.Articles(requestCtx, ctx.Query("category"), ctx.Query("q"), 50)
 	if HandleServiceError(ctx, err) {
 		return
 	}
@@ -49,7 +59,12 @@ func (c *HelpCenterController) Search(ctx *gin.Context) {
 		response.Success(ctx, gin.H{"list": []any{}, "total": 0}, "ok")
 		return
 	}
-	list, err := c.svc.Search(ctx.Request.Context(), keyword, limit)
+	requestCtx, err := resolvePublicTenantCtx(ctx, ctx.Query("tenant_code"))
+	if err != nil {
+		response.Error(ctx, 400, "无法确定租户："+err.Error())
+		return
+	}
+	list, err := c.svc.Search(requestCtx, keyword, limit)
 	if HandleServiceError(ctx, err) {
 		return
 	}
@@ -63,11 +78,16 @@ func (c *HelpCenterController) ArticleDetail(ctx *gin.Context) {
 		response.Error(ctx, 400, "无效的文章 ID")
 		return
 	}
-	art, err := c.svc.ArticleDetail(ctx.Request.Context(), id)
+	requestCtx, err := resolvePublicTenantCtx(ctx, ctx.Query("tenant_code"))
+	if err != nil {
+		response.Error(ctx, 400, "无法确定租户："+err.Error())
+		return
+	}
+	art, err := c.svc.ArticleDetail(requestCtx, id)
 	if HandleServiceError(ctx, err) {
 		return
 	}
-	c.svc.IncArticleViews(ctx.Request.Context(), id)
+	c.svc.IncArticleViews(requestCtx, id)
 	response.Success(ctx, art, "ok")
 }
 

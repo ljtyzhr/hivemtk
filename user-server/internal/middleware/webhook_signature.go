@@ -67,7 +67,7 @@ const (
 	webhookNonceTTLMultiplier = 2
 
 	// webhookSecretKeyPrefix / webhookSecretPrevSuffix：每平台一条密钥，放
-	// system_config_kv（运行时可改、有管理端点、不入库代码仓库）。_prev 是轮换灰度位，
+	// platform_config_kv（运行时可改、有管理端点、不入库代码仓库）。_prev 是轮换灰度位，
 	// 与桥接通道凭证同款语义。
 	webhookSecretKeyPrefix  = "order_webhook_secret_"
 	webhookSecretPrevSuffix = "_prev"
@@ -168,10 +168,11 @@ func (g *OrderWebhookGuard) applySkew(d time.Duration) {
 	}
 }
 
-// NewOrderWebhookGuard 构造验签器。secrets 传 nil 时用全局 system_config_kv 仓储。
+// NewOrderWebhookGuard 构造验签器。secrets 传 nil 时用全局 platform_config_kv 仓储。
 func NewOrderWebhookGuard(secrets webhookSecretStore, opts ...OrderWebhookGuardOption) *OrderWebhookGuard {
 	if secrets == nil {
-		secrets = repository.NewSystemConfigKVRepository()
+		// 回调验签发生在租户解析之前，密钥是每平台一份的实例级凭证 → 平台 KV。
+		secrets = repository.NewPlatformConfigKVRepository()
 	}
 	g := &OrderWebhookGuard{
 		secrets:     secrets,
@@ -232,7 +233,7 @@ func (g *OrderWebhookGuard) Middleware() gin.HandlerFunc {
 			// fail-closed：没有密钥就不存在"可信的回调"。503 而非 401 —— 这多半是本侧
 			// 没配好，对方的签名可能完全正确，回 401 会让对接方去改自己没错的代码。
 			rejectWebhook(c, http.StatusServiceUnavailable,
-				"平台 "+platform+" 未配置回调密钥（system_config_kv 键 "+g.secretKey(platform)+"）")
+				"平台 "+platform+" 未配置回调密钥（platform_config_kv 键 "+g.secretKey(platform)+"）")
 			return
 		}
 
@@ -329,7 +330,7 @@ func (g *OrderWebhookGuard) prevSecretKey(platform string) string {
 // secretCandidates 取该平台的密钥候选（当前 + 轮换灰度位）。
 //
 // 读库出错与"确实没配"都判 fail-closed，但只有后者会被回给调用方当作"未配置"：
-// system_config_kv 一抖就全平台 503 时，日志里那句 Errorf 是本侧故障的唯一线索，
+// platform_config_kv 一抖就全平台 503 时，日志里那句 Errorf 是本侧故障的唯一线索，
 // 不能让运维去问电商平台"你们密钥是不是没配"。
 func (g *OrderWebhookGuard) secretCandidates(ctx context.Context, platform string) ([]string, bool) {
 	out := make([]string, 0, 2)

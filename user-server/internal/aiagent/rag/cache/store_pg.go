@@ -63,6 +63,7 @@ func (r *pgKBMetaReader) GetKBUpdatedAt(ctx context.Context, kbID string) (time.
 //	CREATE EXTENSION IF NOT EXISTS vector;  -- 项目已有（knowledge_vector_migration）
 //	CREATE TABLE IF NOT EXISTS rag_answer_cache (
 //	    id             BIGSERIAL PRIMARY KEY,
+//	    tenant_id      BIGINT       NOT NULL DEFAULT 1,
 //	    kb_id          VARCHAR(64)  NOT NULL,
 //	    prompt_version VARCHAR(64)  NOT NULL,
 //	    query_vector   vector(1024) NOT NULL,
@@ -71,7 +72,7 @@ func (r *pgKBMetaReader) GetKBUpdatedAt(ctx context.Context, kbID string) (time.
 //	    kb_updated_at  TIMESTAMPTZ  NOT NULL
 //	);
 //	CREATE INDEX IF NOT EXISTS idx_rag_answer_cache_kb_prompt
-//	    ON rag_answer_cache (kb_id, prompt_version);
+//	    ON rag_answer_cache (tenant_id, kb_id, prompt_version);
 type PGAnswerCacheStore struct {
 	db *gorm.DB
 }

@@ -14,6 +14,7 @@ import (
 	"time"
 
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/repository"
 )
@@ -501,15 +502,17 @@ func GetOfficeHoursService() *OfficeHoursService {
 }
 
 // MaybeSendAwayReply 新会话非工作时间自动回复入口（fire-and-forget，由会话创建链路调用）
-func MaybeSendAwayReply(sessionID, conversationID, platform, accountID string) {
+func MaybeSendAwayReply(ctx context.Context, sessionID, conversationID, platform, accountID string) {
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
 				log.Printf("[panic-recover] %T: %v\n%s", r, r, string(debug.Stack()))
 			}
 		}()
-		ctx, cancel := context.WithTimeout(context.Background(), utils.ShortTimeout)
+		// 请求 ctx 会随响应取消，但租户归属必须带进协程：裸 Background 在 on 模式下
+		// 读不到本租户的办公时间配置，离店回复写库也会被隔离 callback 拒绝。
+		bg, cancel := context.WithTimeout(tenant.BackgroundWithTenant(ctx), utils.ShortTimeout)
 		defer cancel()
-		GetOfficeHoursService().SendAwayReplyIfClosed(ctx, sessionID, conversationID, platform, accountID)
+		GetOfficeHoursService().SendAwayReplyIfClosed(bg, sessionID, conversationID, platform, accountID)
 	}()
 }

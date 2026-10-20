@@ -18,10 +18,10 @@ import (
 // HostController NM Host 状态（admin 全量 / 登录用户读自己）+ Host WS 入口
 type HostController struct {
 	registry *service.HostRegistry
-	kvRepo   hrepo.SystemConfigKVRepository
+	kvRepo   hrepo.PlatformConfigKVRepository
 }
 
-func NewHostController(registry *service.HostRegistry, kvRepo hrepo.SystemConfigKVRepository) *HostController {
+func NewHostController(registry *service.HostRegistry, kvRepo hrepo.PlatformConfigKVRepository) *HostController {
 	return &HostController{registry: registry, kvRepo: kvRepo}
 }
 
@@ -69,10 +69,10 @@ var hostUpgrader = websocket.Upgrader{
 // HostWSHandler Host WebSocket 入口（双层防护：token + 本地回环 IP）
 type HostWSHandler struct {
 	registry *service.HostRegistry
-	kvRepo   hrepo.SystemConfigKVRepository
+	kvRepo   hrepo.PlatformConfigKVRepository
 }
 
-func NewHostWSHandler(registry *service.HostRegistry, kvRepo hrepo.SystemConfigKVRepository) *HostWSHandler {
+func NewHostWSHandler(registry *service.HostRegistry, kvRepo hrepo.PlatformConfigKVRepository) *HostWSHandler {
 	return &HostWSHandler{registry: registry, kvRepo: kvRepo}
 }
 

@@ -209,7 +209,7 @@ func (s *KnowledgeService) Delete(ctx context.Context, productID string, id int6
 		return err
 	}
 
-	agent_runtime.PublishKnowledgeDocumentDelete(productID, uint(id), 0)
+	agent_runtime.PublishKnowledgeDocumentDelete(ctx, productID, uint(id), 0)
 
 	return nil
 }
@@ -223,7 +223,7 @@ func (s *KnowledgeService) Update(ctx context.Context, doc *model.KnowledgeDocum
 		return err
 	}
 
-	agent_runtime.PublishKnowledgeDocumentUpdate(doc.ProductID, uint(doc.ID), "", 0)
+	agent_runtime.PublishKnowledgeDocumentUpdate(ctx, doc.ProductID, uint(doc.ID), "", 0)
 
 	return nil
 }

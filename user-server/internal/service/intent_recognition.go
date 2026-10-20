@@ -44,7 +44,11 @@ import (
 var (
 	intentEnabledMu sync.RWMutex
 
+	// IntentEnabled 是单租户（off 模式）与缺省租户的开关；SaaS 下每个租户
+	// 各有一份覆盖值，存在 intentEnabledByTenant（懒加载，见 loadIntentEnabledFor）。
 	IntentEnabled = true
+
+	intentEnabledByTenant = make(map[uint]bool)
 )
 
 func loadIntentEnabled() bool {
@@ -57,6 +61,46 @@ func storeIntentEnabled(enabled bool) {
 	intentEnabledMu.Lock()
 	defer intentEnabledMu.Unlock()
 	IntentEnabled = enabled
+}
+
+// loadIntentEnabledFor 按 ctx 租户读总开关：首次访问从该租户的 KV 配置懒加载，
+// 写侧（UpdateIntentConfig）会同步更新本进程缓存。
+//
+// 解析失败不缓存（下一次请求重试）；DB 读失败时 LoadIntentConfig 自身按
+// 单租户启动路径降级为 Enabled=true，缓存的是这份降级值。
+func loadIntentEnabledFor(ctx context.Context) bool {
+	if !tenant.IsMultiTenant() {
+		return loadIntentEnabled()
+	}
+	id, ok := tenant.FromContext(ctx)
+	if !ok {
+		// 无租户上下文的后台路径拿不到任何租户的配置，沿用单租户默认值。
+		return loadIntentEnabled()
+	}
+	intentEnabledMu.RLock()
+	v, found := intentEnabledByTenant[id]
+	intentEnabledMu.RUnlock()
+	if found {
+		return v
+	}
+	cfg, err := LoadIntentConfig(ctx)
+	if err != nil || cfg == nil {
+		return loadIntentEnabled()
+	}
+	intentEnabledMu.Lock()
+	intentEnabledByTenant[id] = cfg.Enabled
+	intentEnabledMu.Unlock()
+	return cfg.Enabled
+}
+
+func storeIntentEnabledFor(ctx context.Context, enabled bool) {
+	if id, ok := tenant.FromContext(ctx); ok {
+		intentEnabledMu.Lock()
+		intentEnabledByTenant[id] = enabled
+		intentEnabledMu.Unlock()
+		return
+	}
+	storeIntentEnabled(enabled)
 }
 
 // IntentConfigKey system_config_kv 表的存储 key
@@ -200,6 +244,11 @@ func (s *IntentRecognizer) loadAnchorsFromDB(ctx context.Context) bool {
 	dim := s.embedSvc.DefaultConfig().Dimension
 	loaded := 0
 	for _, row := range rows {
+		// 锚点是进程级共享的，只能取平台内置（默认租户）那一份：
+		// SystemScope 是全表视角，不筛会把各租户的 intent_examples 混成同一组锚点。
+		if row.TenantID != tenant.DefaultTenantID {
+			continue
+		}
 		v, perr := parsePGVectorLiteral(row.Vector, dim)
 		if perr != nil || len(v) == 0 {
 			continue
@@ -568,7 +617,7 @@ func (s *IntentRecognizer) Recognize(ctx context.Context, sessionID, customerID,
 		return &dto.RecognizeResult{IntentType: IntentUnknown, Confidence: 0, Method: "rule"}, nil
 	}
 
-	if !loadIntentEnabled() {
+	if !loadIntentEnabledFor(ctx) {
 		return &dto.RecognizeResult{
 			IntentType:      IntentUnknown,
 			IntentName:      "未知",
@@ -667,7 +716,7 @@ func (s *IntentRecognizer) recognizeByRule(ctx context.Context, text string) *dt
 		return nil
 	}
 
-	activeIntents := intentsForRule()
+	activeIntents := intentsForRule(ctx)
 	for _, def := range activeIntents {
 		for _, ex := range def.Examples {
 			if strings.EqualFold(text, ex) {
@@ -881,7 +930,9 @@ func (s *IntentRecognizer) saveRecord(ctx context.Context, sessionID, customerID
 				logger.Errorf("intent_recognition: async persist recovered from panic: %v", r)
 			}
 		}()
-		if err := s.recordRepo.Create(context.Background(), rec); err != nil {
+		// 请求 ctx 会随响应取消，但租户归属必须带进协程：裸 Background 在 on 模式下
+		// 被隔离 callback fail-closed，意图记录会整批静默丢失。
+		if err := s.recordRepo.Create(tenant.BackgroundWithTenant(ctx), rec); err != nil {
 			logger.Errorf("intent_recognition: async persist intent record failed: %v", err)
 		}
 	}()
@@ -1044,7 +1095,7 @@ func UpdateIntentConfig(ctx context.Context, cfg *IntentConfig) error {
 	if err := SaveIntentConfig(ctx, cfg); err != nil {
 		return err
 	}
-	SetIntentEnabled(cfg.Enabled)
+	storeIntentEnabledFor(ctx, cfg.Enabled)
 	logger.Infof("[intent] 意图识别配置已更新：Enabled=%v", cfg.Enabled)
 	return nil
 }
@@ -1059,13 +1110,17 @@ func InitIntentRecognizer(db *gorm.DB, dispatcher *llm.Dispatcher, cache *redis.
 	intentRecognizerOnce.Do(func() {
 		ctx, cancel := context.WithTimeout(context.Background(), utils.ShortTimeout)
 		defer cancel()
-		cfg, err := LoadIntentConfig(ctx)
-		if err != nil {
-			logger.Errorf("[intent] 加载意图识别配置失败：%v，使用默认 Enabled=true", err)
-			storeIntentEnabled(true)
-		} else {
-			storeIntentEnabled(cfg.Enabled)
-			logger.Infof("[intent] 已从 DB 加载意图识别配置：Enabled=%v", cfg.Enabled)
+		// 多租户模式下没有"进程级租户"可读：各租户开关在首次请求时懒加载
+		//（loadIntentEnabledFor），此处不写全局默认值，也不把默认租户的值铺给所有人。
+		if !tenant.IsMultiTenant() {
+			cfg, err := LoadIntentConfig(ctx)
+			if err != nil {
+				logger.Errorf("[intent] 加载意图识别配置失败：%v，使用默认 Enabled=true", err)
+				storeIntentEnabled(true)
+			} else {
+				storeIntentEnabled(cfg.Enabled)
+				logger.Infof("[intent] 已从 DB 加载意图识别配置：Enabled=%v", cfg.Enabled)
+			}
 		}
 
 		intentRecognizer = NewIntentRecognizer(db, dispatcher, cache)
@@ -1082,7 +1137,11 @@ const IntentKeywordsOverrideKey = "intent_keywords_override"
 
 var intentOverrideMu sync.RWMutex
 
+// intentKeywordOverride 是单租户/缺省词表；on 模式下每个租户各存一份
+// （intentKeywordByTenant，首次使用时从该租户的 KV 懒加载）。
 var intentKeywordOverride map[string][]string
+
+var intentKeywordByTenant = make(map[uint]map[string][]string)
 
 // LoadIntentKeywordOverride 从 system_config_kv 加载覆盖词表
 func LoadIntentKeywordOverride(ctx context.Context) (map[string][]string, error) {
@@ -1108,26 +1167,66 @@ func SaveIntentKeywordOverride(ctx context.Context, override map[string][]string
 	if _, err := repo.Upsert(ctx, IntentKeywordsOverrideKey, string(data)); err != nil {
 		return fmt.Errorf("upsert intent override: %w", err)
 	}
+	snapshot := make(map[string][]string, len(override))
+	for k, v := range override {
+		snapshot[k] = append([]string(nil), v...)
+	}
 	intentOverrideMu.Lock()
-	intentKeywordOverride = override
+	if id, ok := tenant.FromContext(ctx); ok && tenant.IsMultiTenant() {
+		intentKeywordByTenant[id] = snapshot
+	} else {
+		intentKeywordOverride = snapshot
+	}
 	intentOverrideMu.Unlock()
 	logger.Infof("[intent] 意图词表覆盖已更新：%d 类", len(override))
 	return nil
 }
 
-// GetIntentKeywordOverride 读取当前覆盖词表快照（controller 用）
-func GetIntentKeywordOverride() map[string][]string {
+// intentOverrideFor 返回 ctx 租户的词表覆盖；首次访问懒加载，失败不缓存。
+func intentOverrideFor(ctx context.Context) map[string][]string {
+	id, scoped := tenant.FromContext(ctx)
+	if !tenant.IsMultiTenant() || !scoped {
+		intentOverrideMu.RLock()
+		defer intentOverrideMu.RUnlock()
+		return intentKeywordOverride
+	}
 	intentOverrideMu.RLock()
-	defer intentOverrideMu.RUnlock()
-	out := make(map[string][]string, len(intentKeywordOverride))
-	for k, v := range intentKeywordOverride {
+	m, found := intentKeywordByTenant[id]
+	intentOverrideMu.RUnlock()
+	if found {
+		return m
+	}
+	loaded, err := LoadIntentKeywordOverride(ctx)
+	if err != nil {
+		return nil
+	}
+	if loaded == nil {
+		loaded = map[string][]string{}
+	}
+	intentOverrideMu.Lock()
+	intentKeywordByTenant[id] = loaded
+	intentOverrideMu.Unlock()
+	return loaded
+}
+
+// GetIntentKeywordOverride 读取当前租户的覆盖词表快照（controller 用）
+func GetIntentKeywordOverride(ctx context.Context) map[string][]string {
+	override := intentOverrideFor(ctx)
+	out := make(map[string][]string, len(override))
+	for k, v := range override {
 		out[k] = append([]string(nil), v...)
 	}
 	return out
 }
 
-// InitIntentKeywordOverride 启动时加载覆盖词表（失败静默降级默认词表）
+// InitIntentKeywordOverride 启动时加载覆盖词表（失败静默降级默认词表）。
+//
+// on 模式无进程级租户：跳过启动加载，改为按租户懒加载（intentOverrideFor），
+// 否则默认租户的词表会被当成所有租户的覆盖。
 func InitIntentKeywordOverride(ctx context.Context) {
+	if tenant.IsMultiTenant() {
+		return
+	}
 	m, err := LoadIntentKeywordOverride(ctx)
 	if err != nil {
 		logger.Ctx(ctx).Warn().Err(err).Msg("[intent] 意图词表覆盖加载失败，使用默认词表")
@@ -1141,10 +1240,8 @@ func InitIntentKeywordOverride(ctx context.Context) {
 	}
 }
 
-func intentsForRule() []IntentDef {
-	intentOverrideMu.RLock()
-	override := intentKeywordOverride
-	intentOverrideMu.RUnlock()
+func intentsForRule(ctx context.Context) []IntentDef {
+	override := intentOverrideFor(ctx)
 	if len(override) == 0 {
 		return DefaultIntents
 	}

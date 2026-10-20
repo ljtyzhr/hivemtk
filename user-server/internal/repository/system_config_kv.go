@@ -10,9 +10,15 @@ import (
 
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/db"
+	"hivemtk-user/internal/pkg/tenant"
 )
 
-// SystemConfigKVRepository KV 配置仓储接口
+// SystemConfigKVRepository 租户级 KV 配置仓储接口。
+//
+// 租户归属口径（与隔离 callback 互为冗余，故意显式写出）：
+//   - on 模式：ctx 没有租户绑定时一律返回 ErrKVTenantContextMissing，绝不回落
+//     默认租户——回落会把"漏绑中间件"变成静默写进/读错租户 1 的数据
+//   - off 模式：显式使用默认租户（1），与历史版本行为逐字节等价
 type SystemConfigKVRepository interface {
 	// Available 报告底层 DB 是否可用（nil 探测收敛到 repository 层）。
 	Available() bool
@@ -29,6 +35,13 @@ type SystemConfigKVRepository interface {
 // （构造那一刻 db.GetDB() 还是 nil），而"没配过"是一个合法的业务状态、
 // 两者在 Get 里都表现为空值。合成一种返回，运维改了配置不生效时无从查起。
 var ErrKVStoreUnavailable = errors.New("system_config_kv: 未装配数据库句柄")
+
+// ErrKVTenantContextMissing on 模式下读写租户 KV 却没有租户上下文。
+//
+// 独立哨兵（不复用参数中心的同名语义）：调用方多为"读不到就回落默认值"的
+// 分支，必须能把"库坏了"与"ctx 漏了租户"分开观测——后者是装配缺陷，
+// 静默回落会在 SaaS 上表现为"某租户配置永远不生效"。
+var ErrKVTenantContextMissing = errors.New("system_config_kv: 多租户模式读写需要租户上下文")
 
 type systemConfigKVRepo struct {
 	db *gorm.DB
@@ -57,12 +70,27 @@ func (r *systemConfigKVRepo) Available() bool {
 	return r != nil && r.db != nil
 }
 
+// kvTenantIDFor 解析本次读写应归属的租户。
+func kvTenantIDFor(ctx context.Context) (uint, error) {
+	if id, ok := tenant.FromContext(ctx); ok {
+		return id, nil
+	}
+	if !tenant.IsMultiTenant() {
+		return tenant.DefaultTenantID, nil
+	}
+	return 0, ErrKVTenantContextMissing
+}
+
 func (r *systemConfigKVRepo) Get(ctx context.Context, key string) (string, error) {
 	if !r.Available() {
 		return "", ErrKVStoreUnavailable
 	}
+	tenantID, err := kvTenantIDFor(ctx)
+	if err != nil {
+		return "", err
+	}
 	var row model.SystemConfigKV
-	err := r.db.WithContext(ctx).Where("key = ?", key).First(&row).Error
+	err = r.db.WithContext(ctx).Where("tenant_id = ? AND key = ?", tenantID, key).First(&row).Error
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return "", nil
@@ -76,31 +104,33 @@ func (r *systemConfigKVRepo) Upsert(ctx context.Context, key, value string) (str
 	if !r.Available() {
 		return "", ErrKVStoreUnavailable
 	}
+	tenantID, err := kvTenantIDFor(ctx)
+	if err != nil {
+		return "", err
+	}
 	now := time.Now()
 	row := model.SystemConfigKV{
+		TenantID:  tenantID,
 		Key:       key,
 		Value:     value,
 		CreatedAt: now,
 		UpdatedAt: now,
 	}
-	err := r.db.WithContext(ctx).Clauses(clause.OnConflict{
-		Columns: []clause.Column{{Name: "key"}},
-		DoUpdates: clause.Assignments(map[string]interface{}{
-			"value":      value,
-			"updated_at": now,
-		}),
-	}).Create(&row).Error
-	if err != nil {
-		if ensureErr := r.EnsureTable(ctx); ensureErr != nil {
-			return "", err
-		}
-		err = r.db.WithContext(ctx).Clauses(clause.OnConflict{
-			Columns: []clause.Column{{Name: "key"}},
+	upsert := func() error {
+		return r.db.WithContext(ctx).Clauses(clause.OnConflict{
+			Columns: []clause.Column{{Name: "tenant_id"}, {Name: "key"}},
 			DoUpdates: clause.Assignments(map[string]interface{}{
 				"value":      value,
 				"updated_at": now,
 			}),
 		}).Create(&row).Error
+	}
+	err = upsert()
+	if err != nil {
+		if ensureErr := r.EnsureTable(ctx); ensureErr != nil {
+			return "", err
+		}
+		err = upsert()
 		if err != nil {
 			return "", err
 		}

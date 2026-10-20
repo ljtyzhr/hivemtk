@@ -15,6 +15,7 @@ import (
 
 	"hivemtk-user/internal/aiagent/knowledge/model"
 	"hivemtk-user/internal/aiagent/knowledge/repository"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/logger"
 
@@ -59,6 +60,9 @@ func (s *KnowledgeMerchantService) ExternalImport(ctx context.Context, req *Exte
 	if err != nil {
 		return nil, err
 	}
+	// token 行自带租户归属：公开入口解析出 token 后，后续全部读写（产品、文档、
+	// 导入任务）都必须钉在该租户内；SystemScope 只用于上面那一次 token 反查。
+	ctx = tenant.OnlyTenant(ctx, tok.TenantID)
 	if !tokenHasScope(tok.Scopes, "write") {
 		return nil, fmt.Errorf("%w: token 缺少 write 权限", utils.ErrForbidden)
 	}
@@ -114,20 +118,21 @@ func (s *KnowledgeMerchantService) ExternalImport(ctx context.Context, req *Exte
 		if err := s.externalRepo.Create(ctx, job); err != nil {
 			return nil, fmt.Errorf("创建外部导入任务失败: %w", err)
 		}
+		bgParent := tenant.BackgroundWithTenant(ctx)
 		go func(productID string, items []BatchImportItem, op string) {
 			// SafeGo：裸 go func 中 panic 会击穿进程；失败不得标 completed
 			defer func() {
 				if r := recover(); r != nil {
 					logger.Errorf("[ExternalImport] panic recovered job_no=%s panic=%v\n%s", jobNo, r, debug.Stack())
 					failedAt := time.Now()
-					_ = s.externalRepo.UpdateStatusByJobNo(context.Background(), jobNo, map[string]any{
+					_ = s.externalRepo.UpdateStatusByJobNo(bgParent, jobNo, map[string]any{
 						"status":       "failed",
 						"finished_at":  &failedAt,
 						"error_detail": fmt.Sprintf("panic: %v", r),
 					})
 				}
 			}()
-			bg, bgCancel := context.WithTimeout(context.Background(), ExternalImportTimeout())
+			bg, bgCancel := context.WithTimeout(bgParent, ExternalImportTimeout())
 			defer bgCancel()
 			started := time.Now()
 			now := time.Now()

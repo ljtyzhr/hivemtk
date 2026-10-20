@@ -41,7 +41,12 @@ func (d *Dispatcher) LoadProvidersFromDB() error {
 	// 启动期读路径：无租户 ctx，system scope 豁免（详见 systemScopeCtx 注释）
 	sysCtx := systemScopeCtx()
 	var rows []model.LLMProvider
-	if err := g.WithContext(sysCtx).Order("sort_order ASC, id ASC").Find(&rows).Error; err != nil {
+	// 只装默认租户（tenant_id = 1）：
+	// dispatcher 全局单键 map（AddProvider/路由按 Name 索引），仅装默认租户；
+	// 多租户需按租户分 map，本过滤是防跨租户 Key 泄漏的下限。
+	// TENANT_MODE=off 时数据本就全部归属默认租户，行为不变（callback 直通不受影响）。
+	if err := g.WithContext(sysCtx).Where("tenant_id = ?", tenant.DefaultTenantID).
+		Order("sort_order ASC, id ASC").Find(&rows).Error; err != nil {
 		return err
 	}
 
@@ -116,8 +121,11 @@ func (d *Dispatcher) LoadRoutesFromDB() error {
 		return nil
 	}
 	var rows []model.LLMRoutingRule
-	// 启动期读路径：与 LoadProvidersFromDB 同理，system scope 豁免
-	if err := g.WithContext(systemScopeCtx()).Find(&rows).Error; err != nil {
+	// 启动期读路径：与 LoadProvidersFromDB 同理，system scope 豁免。
+	// 同样只装默认租户：dispatcher.routes 是全局单键 map（按 scenario 索引），
+	// 仅装默认租户；多租户需按租户分 map，本过滤是防跨租户路由/Key 泄漏的下限。
+	if err := g.WithContext(systemScopeCtx()).Where("tenant_id = ?", tenant.DefaultTenantID).
+		Find(&rows).Error; err != nil {
 		logger.Errorf("[LLM] LoadRoutesFromDB 查询失败: %v", err)
 		return err
 	}

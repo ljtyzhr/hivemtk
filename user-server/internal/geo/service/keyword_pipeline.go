@@ -44,13 +44,13 @@ func geoPipelineBatchPerRun(ctx context.Context) int {
 //  8. 有界 SEO：取 N 个无文章长尾/下拉词 → GenerateContent → ScoreContent →
 //     VerifyArticle（含探针 + 多模型对比），逐词容错，N 可配 geo_pipeline_batch_per_run
 func keywordPipelineJob(ctx context.Context) (string, error) {
-	// 判读：触达租户表 —— geo_seed_terms（种子矩阵）、geo_keywords（落库/回填/拉取
-	// 待 SEO 词）、geo_articles 等下游写入。cron 派发无租户绑定，TENANT_MODE=on 下
-	// 裸 ctx 会被隔离 callback fail-closed ⇒ 整轮空跑，故入口补平台级
-	// tenant.WithSystemScope（与 scheduler.go 各 job、job_manager.go 运行记录同口径）。
-	// 例外：SEO 批次是逐词业务执行且行带 tenant_id，那一段改用行自证（见
-	// runPipelineSEOBatch 里的 OnlyTenant），不跟着 system scope 走。
-	ctx = tenant.WithSystemScope(ctx)
+	// 判读（二审 P1-2）：触达租户表 —— geo_seed_terms（种子矩阵）、geo_keywords
+	//（落库/回填/拉取待 SEO 词）、geo_articles 等下游写入，挖掘结果是**本租户**的
+	// 词库 ⇒ 必须逐租户执行（下拉抓取的外部 HTTP 因此为 N 倍，限 30 种子且失败仅
+	// 日志，属可接受代价；LLM SEO 批次本来就是逐词逐租户的）。ctx 已由 JobManager
+	// 绑定本租户，这里不再包 system scope。
+	// SEO 批次里仍保留行自证（runPipelineSEOBatch 的 OnlyTenant）：行 tenant_id
+	// 可能是历史空值/异常值，钉回行自己的租户是幂等保护，不是扇出。
 
 	keywordRepo := repository.NewGeoKeywordRepository()
 	gormDB := pkgdb.GetDB()
@@ -206,10 +206,9 @@ func runPipelineSEOBatch(ctx context.Context, gormDB *gorm.DB, llmAdapter *LLMAd
 			continue
 		}
 		// 行自证（多租户）：待 SEO 行带 tenant_id，生成/评分/验证落的行必须回到该
-		// 行自己的租户。OnlyTenant 剥掉入口的 system scope 再钉回行租户——不剥的话
-		// fillCreateForTenant 先见 SystemScope 就跳过填充，新建行一律落列默认值 1
-		//（= 串租户）。行 tenant_id=0（历史空值）时 OnlyTenant 原样返回、无绑定，
-		// 由隔离 callback 兜底；off 模式下整条链路直通，SQL 形状不变。
+		// 行自己的租户。入口 ctx 已带本租户时 OnlyTenant 是幂等重钉；行 tenant_id=0
+		//（历史空值）时 OnlyTenant 原样返回、无绑定，由隔离 callback 兜底。off 模式
+		// 下整条链路直通，SQL 形状不变。
 		wordCtx := tenant.OnlyTenant(ctx, pending[i].TenantID)
 		if serr := seoOneWord(wordCtx, contentSvc, verifySvc, lang, kw, brand, advs, models); serr != nil {
 			fail++

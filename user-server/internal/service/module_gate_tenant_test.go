@@ -382,3 +382,141 @@ func TestModuleSyncActivatesPaidModuleOnOrderingTenant(t *testing.T) {
 		t.Error("租户 2 的 EnabledKeys 应含 reach-link（菜单过滤同口径）")
 	}
 }
+
+// TestModuleSyncProvisionsFreeModulesForRequestingTenant 无任何下单记录的租户
+// 也必须拿到「基础包 + 0 元赠送模块」（线上事故：新注册商户 tenant_modules 恒空，
+// 除基础外的页面一律 4301，菜单只剩骨架）。
+//
+// 修复前的失效链：Sync 的落点归并只给「本地有已付款订单」的租户建分组，
+// 其余行全部落默认租户；于是**刚注册、还没买过任何东西的租户**拿不到任何行，
+// 模块闸按其空镜像口径只放行基础包 —— 0 元模块（平台已按 gift 下发）也被判关。
+//
+// 钉住三件事：
+//  1. 请求租户（18）拿到 base + 0 元模块，且赠送行来源标 gift；
+//  2. 收费且未下单的模块（browser-automation）不落该租户（不白送）；
+//  3. 默认租户的既有行为不变（商户级已 owned 行仍全量落默认租户）。
+func TestModuleSyncProvisionsFreeModulesForRequestingTenant(t *testing.T) {
+	withTenantMode(t, tenant.ModeOn)
+	t.Setenv("PLATFORM_ENABLED", "true")
+	t.Setenv("PLATFORM_MERCHANT_KEY", "MKE2E")
+	const reqTenantID uint = 18
+
+	catalog := make([]map[string]any, 0, len(model.BaseModuleKeys())+2)
+	for _, k := range model.BaseModuleKeys() {
+		catalog = append(catalog, map[string]any{
+			"module_key": k, "name": k, "category": "base",
+			"owned": true, "owned_status": "active", "owned_source": "default_base",
+			"menu_keys": model.ModuleMenuBindings[k],
+		})
+	}
+	// 0 元付费模块：平台视为赠送（owned=true，无显式 purchase 行）
+	catalog = append(catalog, map[string]any{
+		"module_key": model.ModuleGEO, "name": "GEO 智能优化", "category": "paid",
+		"price_cents": 0, "owned": true, "owned_status": "active",
+		"menu_keys": model.ModuleMenuBindings[model.ModuleGEO],
+	})
+	// 收费模块：商户级已 owned（平台租户级不可见），但本租户没有下单记录
+	catalog = append(catalog, map[string]any{
+		"module_key": model.ModuleBrowserAutomation, "name": "浏览器自动化", "category": "paid",
+		"price_cents": 9900, "owned": true, "owned_status": "active",
+		"owned_source": "purchase", "menu_keys": model.ModuleMenuBindings[model.ModuleBrowserAutomation],
+	})
+	activeKeys := append([]string{}, model.BaseModuleKeys()...)
+	activeKeys = append(activeKeys, model.ModuleGEO, model.ModuleBrowserAutomation)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		w.Header().Set("Content-Type", "application/json")
+		switch r.URL.Path {
+		case "/merchant-api/modules/sync":
+			_ = json.NewEncoder(w).Encode(map[string]any{"code": 200, "msg": "", "data": map[string]any{
+				"merchant_key": "MKE2E",
+				"active_keys":  activeKeys,
+				"menu_keys":    []string{},
+				"catalog":      catalog,
+			}})
+		case "/merchant-api/orders":
+			_ = json.NewEncoder(w).Encode(map[string]any{"code": 200, "msg": "", "data": map[string]any{
+				"total": 0, "list": []map[string]any{},
+			}})
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer srv.Close()
+
+	prev := config.PlatformCfg
+	config.PlatformCfg = &config.PlatformConfig{APIURL: srv.URL, Secret: "test-secret"}
+	t.Cleanup(func() { config.PlatformCfg = prev })
+
+	database := testutil.NewTestDB(t, &model.TenantModule{}, &model.ModuleSyncLog{}, &model.ModuleOrder{})
+	clearModuleTablesOnMode(t, database)
+	repo := repository.NewTenantModuleRepositoryWithDB(database)
+	orderRepo := repository.NewModuleOrderRepositoryWithDB(database)
+
+	// 与「新商户登录后在页面里点同步」/ 开户后异步同步同形：ctx 绑请求租户，无本地订单
+	reqCtx := tenant.WithTenantID(context.Background(), reqTenantID)
+	svc := NewModuleCatalogServiceWithRepos(repo, orderRepo)
+	if _, err := svc.Sync(reqCtx); err != nil {
+		t.Fatalf("Sync 失败: %v", err)
+	}
+
+	sysCtx := tenant.WithSystemScope(context.Background())
+	rows, err := repo.ListAll(sysCtx)
+	if err != nil {
+		t.Fatalf("读全量镜像: %v", err)
+	}
+	baseSet := baseModuleKeySet
+	perTenant := map[uint]map[string]*model.TenantModule{}
+	baseCount := map[uint]int{}
+	for _, r := range rows {
+		if perTenant[r.TenantID] == nil {
+			perTenant[r.TenantID] = map[string]*model.TenantModule{}
+		}
+		perTenant[r.TenantID][r.ModuleKey] = r
+		if hasKey(baseSet, r.ModuleKey) {
+			baseCount[r.TenantID]++
+		}
+	}
+
+	// 1. 请求租户拿到完整基础包 + 0 元模块
+	if got := baseCount[reqTenantID]; got != len(model.BaseModuleKeys()) {
+		t.Errorf("租户 %d 应落 %d 个基础模块行，实际 %d（分布 %v）",
+			reqTenantID, len(model.BaseModuleKeys()), got, baseCount)
+	}
+	geo := perTenant[reqTenantID][model.ModuleGEO]
+	if geo == nil {
+		t.Fatalf("租户 %d 未拿到 0 元模块 geo：空镜像回归（%v）", reqTenantID, perTenant[reqTenantID])
+	}
+	if geo.Source != model.TenantModuleSourceGift {
+		t.Errorf("赠送行来源应为 gift，实际 %q", geo.Source)
+	}
+	if geo.Status != model.TenantModuleActive {
+		t.Errorf("赠送行状态应为 active，实际 %q", geo.Status)
+	}
+
+	// 2. 收费且本租户未下单的模块不许白送
+	if r := perTenant[reqTenantID][model.ModuleBrowserAutomation]; r != nil {
+		t.Errorf("租户 %d 未下单却拿到了收费模块 browser-automation（source=%s）", reqTenantID, r.Source)
+	}
+
+	// 3. 默认租户行为不变：商户级 owned 行照旧全量落默认租户
+	if got := baseCount[tenant.DefaultTenantID]; got != len(model.BaseModuleKeys()) {
+		t.Errorf("默认租户应有 %d 个基础行，实际 %d", len(model.BaseModuleKeys()), got)
+	}
+	if perTenant[tenant.DefaultTenantID][model.ModuleBrowserAutomation] == nil {
+		t.Error("默认租户应保留商户级 owned 的 browser-automation 行")
+	}
+
+	// 4. 闸：赠送模块对请求租户放行，收费模块仍拦
+	gate := NewModuleGateServiceWithRepo(repo)
+	t.Cleanup(func() { model.SetModuleEnabledFilter(nil) })
+	if !gate.IsEnabled(reqCtx, model.ModuleGEO) {
+		t.Error("租户的 0 元赠送模块应放行")
+	}
+	if gate.IsEnabled(reqCtx, model.ModuleBrowserAutomation) {
+		t.Error("未下单的收费模块不应放行")
+	}
+	if !gate.IsEnabled(reqCtx, model.ModuleCore) {
+		t.Error("请求租户的基础模块应放行")
+	}
+}

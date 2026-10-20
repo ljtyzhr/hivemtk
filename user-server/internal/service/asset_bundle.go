@@ -655,16 +655,26 @@ func (e hotPlugEntry) fresh() bool {
 	return time.Since(e.fetchedAt) < bundleHotPlugLocalTTL
 }
 
+// hotPlugIndex 是单个租户的热插拔索引缓存格。
+type hotPlugIndex struct {
+	ids []string
+	at  time.Time
+}
+
 type hotPlugCache struct {
-	mu      sync.RWMutex
-	kv      repository.SystemConfigKVRepository
+	mu sync.RWMutex
+	kv repository.SystemConfigKVRepository
+	// entries 以 tenantScopedKey 为键：资产包 ID 只在租户内唯一，
+	// 共用一格会把 A 租户的启停状态回给 B 租户。
 	entries map[string]hotPlugEntry
-	index   []string
-	indexAt time.Time
+	index   map[uint]hotPlugIndex
 }
 
 func newHotPlugCache() hotPlugCache {
-	return hotPlugCache{entries: make(map[string]hotPlugEntry)}
+	return hotPlugCache{
+		entries: make(map[string]hotPlugEntry),
+		index:   make(map[uint]hotPlugIndex),
+	}
 }
 
 func (c *hotPlugCache) SetConfigKVRepo(kv repository.SystemConfigKVRepository) {
@@ -709,8 +719,9 @@ func (c *hotPlugCache) loadEnabled(ctx context.Context, assetID string) bool {
 	if assetID == "" {
 		return false
 	}
+	cacheKey := tenantScopedKey(ctx, assetID)
 	c.mu.RLock()
-	e, ok := c.entries[assetID]
+	e, ok := c.entries[cacheKey]
 	fallback := ok && e.enabled
 	fresh := ok && e.fresh()
 	kv := c.kv
@@ -724,7 +735,10 @@ func (c *hotPlugCache) loadEnabled(ctx context.Context, assetID string) bool {
 	}
 	enabled := c.fetchEnabled(ctx, assetID, fallback)
 	c.mu.Lock()
-	c.entries[assetID] = hotPlugEntry{enabled: enabled, fetchedAt: time.Now()}
+	if c.entries == nil {
+		c.entries = make(map[string]hotPlugEntry)
+	}
+	c.entries[cacheKey] = hotPlugEntry{enabled: enabled, fetchedAt: time.Now()}
 	c.mu.Unlock()
 	return enabled
 }
@@ -748,7 +762,10 @@ func (c *hotPlugCache) upsert(ctx context.Context, assetID string, enabled bool)
 		logger.Warnf("[asset_bundle] hotplug kv repo unavailable: enable/disable is process-local only asset=%s", assetID)
 	}
 	c.mu.Lock()
-	c.entries[assetID] = hotPlugEntry{enabled: enabled, fetchedAt: time.Now()}
+	if c.entries == nil {
+		c.entries = make(map[string]hotPlugEntry)
+	}
+	c.entries[tenantScopedKey(ctx, assetID)] = hotPlugEntry{enabled: enabled, fetchedAt: time.Now()}
 	c.mu.Unlock()
 }
 
@@ -771,9 +788,11 @@ func (c *hotPlugCache) appendIndex(ctx context.Context, kv repository.SystemConf
 }
 
 func (c *hotPlugCache) candidateIDs(ctx context.Context) []string {
+	scope := tenantScopeID(ctx)
 	c.mu.RLock()
-	localFresh := time.Since(c.indexAt) < bundleHotPlugLocalTTL
-	merged := append([]string(nil), c.index...)
+	idx := c.index[scope]
+	localFresh := time.Since(idx.at) < bundleHotPlugLocalTTL
+	merged := append([]string(nil), idx.ids...)
 	kv := c.kv
 	c.mu.RUnlock()
 	if localFresh || kv == nil {
@@ -806,8 +825,10 @@ func (c *hotPlugCache) candidateIDs(ctx context.Context) []string {
 		merged = append(merged, id)
 	}
 	c.mu.Lock()
-	c.index = merged
-	c.indexAt = time.Now()
+	if c.index == nil {
+		c.index = make(map[uint]hotPlugIndex)
+	}
+	c.index[scope] = hotPlugIndex{ids: merged, at: time.Now()}
 	c.mu.Unlock()
 	return merged
 }

@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"strings"
 	"testing"
 
@@ -46,7 +47,7 @@ func TestLandingURLsCarryConfiguredBase(t *testing.T) {
 	base := "https://example.com/hivemtk"
 	t.Setenv("GEO_SITE_BASE_URL", base)
 
-	got := landingURLs("GEO优化")
+	got := landingURLs(context.Background(), "GEO优化")
 	if len(got) == 0 {
 		t.Fatal("已知关键词必须返回 landing URL")
 	}
@@ -64,7 +65,7 @@ func TestLandingURLsCarryConfiguredBase(t *testing.T) {
 func TestLandingURLsUnknownKeywordFallsBackToRoot(t *testing.T) {
 	t.Setenv("GEO_SITE_BASE_URL", "")
 
-	got := landingURLs("一个没配过的关键词")
+	got := landingURLs(context.Background(), "一个没配过的关键词")
 	want := []string{config.WebsiteBaseURL() + "/"}
 	if len(got) != 1 || got[0] != want[0] {
 		t.Fatalf("未知关键词应兜底到官网首页 %v，实际 %v", want, got)
@@ -80,12 +81,12 @@ func TestLandingURLsNeverEmitEmptyList(t *testing.T) {
 	t.Setenv("GEO_SITE_BASE_URL", "https://example.com/hivemtk")
 
 	for kw := range keywordToLandings {
-		if len(landingURLs(kw)) == 0 {
+		if len(landingURLs(context.Background(), kw)) == 0 {
 			t.Errorf("关键词 %q 返回零 landing", kw)
 		}
 	}
 	for _, kw := range defaultSeedKeywords() {
-		if len(landingURLs(kw)) == 0 {
+		if len(landingURLs(context.Background(), kw)) == 0 {
 			t.Errorf("种子关键词 %q 返回零 landing", kw)
 		}
 	}

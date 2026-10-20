@@ -471,8 +471,8 @@ func (s *TelegramService) CreateAccount(ctx context.Context, acc *model.Telegram
 		acc.WebhookSecret = GenTGWebhookSecret()
 	}
 
-	// 4. 推导 webhook_url：优先用户显式填写，其次 config.GetPublicBaseURL
-	resolvedURL, hasPublic := ResolveTelegramWebhookURL(acc)
+	// 4. 推导 webhook_url：优先用户显式填写，其次 public_base_url（按本租户解析）
+	resolvedURL, hasPublic := ResolveTelegramWebhookURLFor(ctx, acc)
 	if resolvedURL != "" {
 		acc.WebhookURL = resolvedURL
 		acc.WebhookEnabled = true

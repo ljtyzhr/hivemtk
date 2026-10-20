@@ -13,6 +13,7 @@ import (
 	"hivemtk-user/internal/domain/asset"
 	bizerr "hivemtk-user/internal/domain/errors"
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/platform"
 	"hivemtk-user/internal/repository"
@@ -266,7 +267,7 @@ func (s *LocalAssetService) LoadByType(ctx context.Context, assetType string) ([
 		}
 		if la.PurchaseID != nil {
 			_ = s.assetRepo.IncrementUseCount(ctx, la.ID, 1)
-			go s.reportUsageAsync(la.AssetID)
+			go s.reportUsageAsync(ctx, la.AssetID)
 		}
 	}
 	return list, datas, nil
@@ -289,7 +290,7 @@ func (s *LocalAssetService) LoadOne(ctx context.Context, assetID string) (*model
 	}
 	if la.PurchaseID != nil {
 		_ = s.assetRepo.IncrementUseCount(ctx, la.ID, 1)
-		go s.reportUsageAsync(la.AssetID)
+		go s.reportUsageAsync(ctx, la.AssetID)
 	}
 	return la, lad.Data, nil
 }
@@ -315,12 +316,12 @@ func (s *LocalAssetService) ReportUsage(ctx context.Context, assetID string) err
 	return s.assetRepo.SetReportedUseCount(ctx, la.ID, la.UseCount)
 }
 
-func (s *LocalAssetService) reportUsageAsync(assetID string) {
+func (s *LocalAssetService) reportUsageAsync(parent context.Context, assetID string) {
 	if _, loaded := reportingInFlight.LoadOrStore(assetID, true); loaded {
 		return
 	}
 	defer reportingInFlight.Delete(assetID)
-	ctx, cancel := context.WithTimeout(context.Background(), utils.ShortTimeout)
+	ctx, cancel := context.WithTimeout(tenant.BackgroundWithTenant(parent), utils.ShortTimeout)
 	defer cancel()
 	_ = s.ReportUsage(ctx, assetID)
 }

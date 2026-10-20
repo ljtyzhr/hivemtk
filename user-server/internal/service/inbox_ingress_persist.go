@@ -156,7 +156,7 @@ func (s *InboxIngressService) persistMessage(ctx context.Context, event *model.M
 
 		if s.inboxSvc != nil && hub.Direction == "inbound" {
 			ingestTimer := tracing.StartSpan()
-			if _, uerr := s.inboxSvc.UpsertFromHubMessageTx(context.Background(), hub, s.hubRepo); uerr != nil {
+			if _, uerr := s.inboxSvc.UpsertFromHubMessageTx(ctx, hub, s.hubRepo); uerr != nil {
 				if isDuplicateKey(uerr) {
 					logger.Warnf("[Inbox] message_hub duplicate msg_id (idempotent skip): msg_id=%s session=%s",
 						event.EventID, event.SessionID)

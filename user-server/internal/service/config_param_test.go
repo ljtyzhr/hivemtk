@@ -271,7 +271,16 @@ func TestFallbackNilDB(t *testing.T) {
 //	    实现 persona_evaluator.go 已随 9a5f716c 整体删除，这两条永远不会有读取点；
 //	    等价能力是 humanize（其四档已在 3.1a 接线）。留着只会在参数中心页上
 //	    摆两个永远生效不了的旋钮，诱导后来人去查一个已经删掉的实现。
-const defaultParamDefsWant = 239
+//
+// 2026-10-20（R5-3）：+1 = 240。
+//
+//	基线已是 239（远端 7bba3ed1 已把 28317b94 的两条——reporting.default_window_days、
+//	ratelimit.path_quotas——补进锚点）。本卡在此之上新增 1 条 `urls.public_base_url`：
+//	渠道 webhook 回调基址与短链绝对地址此前只有 env PUBLIC_BASE_URL /
+//	config.yaml external.public_base_url 两个来源，SaaS 下每个租户各自的回调域名
+//	只能改部署文件（等于一租户一份 config）。收进参数中心后由
+//	internal/config/server.go 的 GetPublicBaseURLFor 按请求 ctx 读，租户覆盖才真正生效。
+const defaultParamDefsWant = 240
 
 func TestDefaultParamDefsCount(t *testing.T) {
 	defs := DefaultParamDefs()
@@ -302,10 +311,19 @@ func TestDefaultParamDefsCount(t *testing.T) {
 // 于是这条豁免变成了谎话——而本用例另一半断言"豁免清单里的每一条现在必须真的还是空默认"
 // 当场就红了。这正是 ratchet 该干的事：豁免面只允许被**主动撤掉**，不允许悄悄失效。
 //
-// 保留空清单而不是删掉整个用例：上面那个 for 还在负责"出现新的空默认就报警"，
+// 保留这份清单而不是删掉整个用例：上面那个 for 还在负责"出现新的空默认就报警"，
 // 删掉这道门等于把"空默认"这件事重新变成没人看管的入口。
+//
+// 2026-10-20（R5-3）：清单重新有一条 —— `urls.public_base_url`。它与被撤掉的
+// lead.industry_profile 方向相反：那条是"豁免写着空才是对的，结果有人给它填了值"，
+// 这条是"填值才是例外"。公网基址的正确来源本来就是部署侧
+// （env PUBLIC_BASE_URL / config.yaml external.public_base_url），参数中心这一格
+// 只在"这个租户要用自己的回调域"时才有值；给它任何默认域名都会让参数行反过来
+// 压过部署配置，所以空是设计意图，不是漏填。
 func TestDefaultParamDefsEmptyDefaultRatchet(t *testing.T) {
-	allowedEmptyDefault := map[string]bool{}
+	allowedEmptyDefault := map[string]bool{
+		"urls.public_base_url": true,
+	}
 	seen := map[string]bool{}
 	for _, d := range DefaultParamDefs() {
 		if d.DefaultValue != "" {

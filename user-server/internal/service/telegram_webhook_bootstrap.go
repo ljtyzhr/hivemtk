@@ -62,18 +62,21 @@ func ValidateTelegramWebhookURL(raw string) error {
 	return nil
 }
 
-// ResolveTelegramWebhookURL 解析单个 Telegram 账号的 webhook 回调 URL
+// ResolveTelegramWebhookURLFor 解析单个 Telegram 账号的 webhook 回调 URL（按 ctx 取租户级公网基址）
 //
 // 解析顺序（自高到低）：
 //  1. 账号表 telegram_accounts.webhook_url（用户在 UI 显式填写的，覆盖默认）
-//  2. 配置文件 external.public_base_url 或环境变量 PUBLIC_BASE_URL（公网域名/frp 暴露的域名）
-//     → 私域部署基线：user-server 跑在 frp 后，请求 Host 总是 localhost:8204，
-//     必须显式声明公网域名，否则 Telegram 永远无法回调本系统。
+//  2. 配置文件 external.public_base_url / 环境变量 PUBLIC_BASE_URL / 参数中心 urls.public_base_url
+//     （公网域名/frp 暴露的域名）→ 私域部署基线：user-server 跑在 frp 后，请求 Host 总是
+//     localhost:8204，必须显式声明公网域名，否则 Telegram 永远无法回调本系统。
+//
+// ctx 用于参数中心的租户覆盖解析：SaaS 模式应传入账号所属租户的 ctx；
+// 无租户绑定时读平台默认值，不会借用别的租户的配置。
 //
 // 返回值：(url, hasPublicBase)
 //   - url: 最终 webhook URL；账号未启用 / 未配置 时返回空串
 //   - hasPublicBase: 解析过程中是否命中了 public_base_url（用于决定是否走 polling fallback）
-func ResolveTelegramWebhookURL(acc *model.TelegramAccount) (string, bool) {
+func ResolveTelegramWebhookURLFor(ctx context.Context, acc *model.TelegramAccount) (string, bool) {
 	if acc == nil {
 		return "", false
 	}
@@ -81,11 +84,16 @@ func ResolveTelegramWebhookURL(acc *model.TelegramAccount) (string, bool) {
 	if explicit != "" {
 		return explicit, true
 	}
-	publicBase := config.GetPublicBaseURL()
+	publicBase := config.GetPublicBaseURLFor(ctx)
 	if publicBase == "" {
 		return "", false
 	}
 	return strings.TrimRight(publicBase, "/") + fmt.Sprintf("/api/webhook/telegram/%d", acc.ID), true
+}
+
+// ResolveTelegramWebhookURL 无 ctx 形态：平台级调用（无租户归属）等价于未绑定租户读取。
+func ResolveTelegramWebhookURL(acc *model.TelegramAccount) (string, bool) {
+	return ResolveTelegramWebhookURLFor(context.Background(), acc)
 }
 
 func verifyWebhookInfo(acc *model.TelegramAccount) {
@@ -147,7 +155,13 @@ func ReconcileTelegramWebhooks(svc *TelegramService) {
 	StopAllTelegramPolling()
 	for _, acc := range accs {
 		enabled := acc.Status == 1 && acc.WebhookEnabled
-		resolved, hasPublic := ResolveTelegramWebhookURL(acc)
+		// 每账号按自己的租户解析公网基址：系统作用域 ctx 不带租户，直接读参数中心
+		// 只会拿到平台默认值；OnlyTenant 同时剥掉 SystemScope，避免读到跨租户 union。
+		accCtx := ctx
+		if acc.TenantID != 0 {
+			accCtx = tenant.OnlyTenant(ctx, acc.TenantID)
+		}
+		resolved, hasPublic := ResolveTelegramWebhookURLFor(accCtx, acc)
 		ready := acc.BotToken != "" && resolved != ""
 		if enabled && ready {
 			if vErr := ValidateTelegramWebhookURL(resolved); vErr != nil {

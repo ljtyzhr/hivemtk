@@ -15,7 +15,7 @@ import (
 
 func bridgeTokenCandidates() []string {
 	out := []string{}
-	kvRepo := repository.NewSystemConfigKVRepository()
+	kvRepo := repository.NewPlatformConfigKVRepository()
 	ctx := context.Background()
 	if v, err := kvRepo.Get(ctx, "bridge_ingest_token"); err == nil && strings.TrimSpace(v) != "" {
 		out = append(out, strings.TrimSpace(v))

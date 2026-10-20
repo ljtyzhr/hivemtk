@@ -609,7 +609,7 @@ func reachGateStatePayload(snap app.ReachGateSnapshot) gin.H {
 // handleReachGateState 读取非工具外发闸门的接线状态与判定累计（T-P3-07）。
 // 回显口径见 reachGateStatePayload。
 func handleReachGateState(c *gin.Context) {
-	snap, decisions := app.GetReachGateSnapshot()
+	snap, decisions := app.GetReachGateSnapshotFor(c.Request.Context())
 	out := reachGateStatePayload(snap)
 	// 观测块无论装没装门都要出现：未接线是"这个数现在没有"，不是"这个数不用看"。
 	out["rollout_observation"] = app.ObserveReachRollout(snap, decisions)

@@ -1,11 +1,13 @@
 package service
 
 import (
+	"context"
 	"os"
 	"testing"
 
 	"hivemtk-user/internal/config"
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 )
 
 // TestResolveTelegramWebhookURL 覆盖 ResolveTelegramWebhookURL 的所有分支
@@ -79,6 +81,68 @@ func TestResolveTelegramWebhookURL(t *testing.T) {
 			t.Errorf("has should be false when no source")
 		}
 	})
+}
+
+// TestResolveTelegramWebhookURLForTenantBase R5-3：公网基址按 ctx 所属租户解析。
+//
+// A 配了自己的回调域名、B 没配时，B 的 bot 绝不能注册到 A 的域名上——
+// 那等于把 B 的 Telegram 推送整条送到 A 的服务里（跨租户数据泄露）。
+func TestResolveTelegramWebhookURLForTenantBase(t *testing.T) {
+	oldEnv := os.Getenv("PUBLIC_BASE_URL")
+	defer func() {
+		if oldEnv == "" {
+			_ = os.Unsetenv("PUBLIC_BASE_URL")
+		} else {
+			_ = os.Setenv("PUBLIC_BASE_URL", oldEnv)
+		}
+	}()
+	_ = os.Unsetenv("PUBLIC_BASE_URL")
+	oldCfg := config.GetAppConfig()
+	defer config.SetAppConfig(&oldCfg)
+	config.SetAppConfig(&config.AppConfig{})
+
+	bases := map[uint]string{71: "https://t71.example.com", 72: "https://t72.example.com", 99: "https://t99.example.com/"}
+	config.SetPublicBaseURLProvider(func(ctx context.Context) string {
+		if tid, ok := tenant.FromContext(ctx); ok {
+			return bases[tid]
+		}
+		return "https://platform.example.com"
+	})
+	// SetPublicBaseURLProvider(nil) 是空操作而不是复位，只能显式装一枚空 stub 归还全局状态。
+	defer config.SetPublicBaseURLProvider(func(context.Context) string { return "" })
+
+	acc := &model.TelegramAccount{ID: 7}
+	ctxA := tenant.WithTenantID(context.Background(), 71)
+	ctxB := tenant.WithTenantID(context.Background(), 72)
+
+	urlA, hasA := ResolveTelegramWebhookURLFor(ctxA, acc)
+	if !hasA || urlA != "https://t71.example.com/api/webhook/telegram/7" {
+		t.Errorf("A 租户: got url=%q has=%v, want https://t71.example.com/api/webhook/telegram/7 true", urlA, hasA)
+	}
+	urlB, _ := ResolveTelegramWebhookURLFor(ctxB, acc)
+	if urlB == urlA {
+		t.Errorf("B 复用了 A 的基址: both=%q", urlB)
+	}
+	if urlB != "https://t72.example.com/api/webhook/telegram/7" {
+		t.Errorf("B 租户: got %q, want https://t72.example.com/api/webhook/telegram/7", urlB)
+	}
+
+	// 基址自带结尾斜杠时不能拼出 //api
+	urlTrailing, _ := ResolveTelegramWebhookURLFor(tenant.WithTenantID(context.Background(), 99), acc)
+	if urlTrailing != "https://t99.example.com/api/webhook/telegram/7" {
+		t.Errorf("结尾斜杠未裁: got %q, want 单斜杠拼接", urlTrailing)
+	}
+
+	// 无 ctx 形态读平台默认，不借用任何租户的覆盖值
+	if got, _ := ResolveTelegramWebhookURL(acc); got != "https://platform.example.com/api/webhook/telegram/7" {
+		t.Errorf("无租户 ctx: got %q, want 平台默认基址", got)
+	}
+
+	// env 仍是平台级最高优先：租户覆盖不得压过部署显式声明
+	_ = os.Setenv("PUBLIC_BASE_URL", "https://env.example.com")
+	if got, _ := ResolveTelegramWebhookURLFor(ctxA, acc); got != "https://env.example.com/api/webhook/telegram/7" {
+		t.Errorf("env 应压过租户覆盖: got %q, want https://env.example.com/api/webhook/telegram/7", got)
+	}
 }
 
 // TestIsTelegramPollingEnabled 覆盖 polling 自动启用的判定逻辑

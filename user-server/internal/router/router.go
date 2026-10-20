@@ -334,11 +334,15 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 
 	service.InitAssetResolver(gormDB)
 
+	// SSO 服务只建一次：登录页/回调（公开档）与租户自配 IdP 读写（admin 档）共用
+	// 同一份按租户缓存的适配器集合。
+	ssoCtrl := controller.NewSSOController(service.NewSSOService(gormDB))
+
 	public := r.Group("/api")
 	{
 		setupPublicRoutes(public, liveCodeController, gormDB)
 		setupChatPublicRoutes(public, gormDB, orchestrator, langResolver)
-		setupSSORoutes(public, gormDB)
+		setupSSORoutes(public, ssoCtrl)
 		setupSelfServiceRoutes(public, gormDB)
 
 		// 电商订单回调（T-P2-02）：外部平台没有会话凭证，只能走公开组 + HMAC 验签。
@@ -550,6 +554,10 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 		// plainAuth 只挂只读的 Runtime；五个全量/写端点走 admin 组（见 config_param_routes.go）
 		setupConfigParamRoutes(auth, systemAdmin, gormDB)
 
+		// 租户自配 IdP（R5-4）：写入的是本租户的 client_secret 与授权端点，
+		// 与参数中心覆盖写同档，只挂 admin 组。
+		setupSSOConfigRoutes(systemAdmin, ssoCtrl)
+
 		// 业务字典（阶段四）。与参数中心同级：只挂 admin，路由文件里说明为什么不是普通运维该碰的。
 		setupDictionaryRoutes(auth, systemAdmin, gormDB)
 
@@ -661,11 +669,17 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 		// 而且每台运营机器上的扩展凭证会变成工具调用凭证。判据见 middleware.MCPGuard。
 		mcpGroup := r.Group("/api")
 		mcpGroup.Use(middleware.InitGuard())
-		mcpGroup.Use(middleware.MCPGuard())
+		// 租户解析器在这里注入而不是由 middleware 直接 import service：service 已经
+		// import middleware，反向依赖会成环。on 模式下 MCP 的两条凭证链各自定归属——
+		// 凭证行自带（凭证对）或调用方显式声明（单值密钥 + tenant_code），判据见 MCPGuard。
+		mcpGroup.Use(middleware.MCPGuard(tenantCodeResolver))
 		mcpGroup.POST("/mcp", controller.NewMCPController().Handle)
 
 		channelPipeline := channelgw.NewPipeline(bridgeIngressSvc)
 		channelWSTransport := channelgw.NewWSTransport(channelPipeline, channelgw.Default)
+		// 渠道 WS 的归属只能由 register 帧的 (channel, account_id) 自证；解析函数住在
+		// bridge 包，而 bridge 已经 import channelgw——反向依赖会成环，所以在这里接线。
+		channelWSTransport.TenantBinder = bridge.BridgeTenantForRequest
 		bridgeWS.GET("/ws/channel", channelWSTransport.HandleWS)
 
 		tracing.Init(gormDB)

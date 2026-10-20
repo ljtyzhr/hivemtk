@@ -12,6 +12,8 @@ import (
 	"sync/atomic"
 	"time"
 
+	"hivemtk-user/internal/pkg/tenant"
+
 	"github.com/gin-gonic/gin"
 )
 
@@ -129,7 +131,7 @@ func (m *AuditManager) saveAuditBatch(logs []*AuditEntry) {
 		failedLogs := make([]*AuditEntry, 0, len(logs))
 
 		for _, entry := range logs {
-			if err := sink.Save(context.Background(), entry); err != nil {
+			if err := sink.Save(auditEntryContext(entry), entry); err != nil {
 				failedLogs = append(failedLogs, entry)
 			}
 		}
@@ -158,11 +160,35 @@ func (m *AuditManager) saveAuditLog(entry *AuditEntry) {
 
 		m.droppedCount.Add(1)
 		if sink := getAuditSink(); sink != nil {
-			if err := sink.Save(context.Background(), entry); err != nil {
+			if err := sink.Save(auditEntryContext(entry), entry); err != nil {
 				log.Printf("[audit] 同步落库失败（已记入降级计数）: %v", err)
 			}
 		}
 	}
+}
+
+// auditEntryContext 为异步/降级落库重建租户上下文：
+// 队列是跨请求复用的，不能沿用入队时的 request ctx（可能已取消），
+// 但租户归属必须带过去——on 模式下无租户 ctx 会被隔离 callback fail-closed。
+func auditEntryContext(entry *AuditEntry) context.Context {
+	if entry == nil || entry.TenantID == 0 {
+		return context.Background()
+	}
+	return tenant.WithTenantID(context.Background(), entry.TenantID)
+}
+
+// auditTenantID 在 c.Next() 返回后读取租户绑定（TenantMiddleware 已改写 request ctx）。
+func auditTenantID(c *gin.Context) uint {
+	if c == nil || c.Request == nil {
+		return 0
+	}
+	if id, ok := tenant.FromContext(c.Request.Context()); ok {
+		return id
+	}
+	if !tenant.IsMultiTenant() {
+		return tenant.DefaultTenantID
+	}
+	return 0
 }
 
 // AuditConfig 审计配置
@@ -264,6 +290,7 @@ func AuditMiddleware() gin.HandlerFunc {
 		detailJSON, _ := json.Marshal(detail)
 
 		entry := &AuditEntry{
+			TenantID:   auditTenantID(c),
 			UserID:     convertToUint(userID),
 			Username:   convertToString(username),
 			Action:     action,

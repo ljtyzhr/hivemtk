@@ -94,11 +94,12 @@ func TestPollingLock_ConflictBetweenWorkers(t *testing.T) {
 	repo := repository.NewTelegramPollingLockRepositoryWithDB(dbConn)
 	withPollingLockRepo(t, repo)
 
-	originalID := pollingWorkerID
+	// worker ID 走 accessor 装桩（每次切换注册一层还原，用例末尾逐层退回装桩前那一对值）。
+	// 直接写包级全局会被 GetPollingWorkerID 的惰性解析覆盖成本机 host:pid，收尾又会把"还没
+	// 解析过"的空串留在原地——同一断言组会随同包用例顺序在两种红法之间跳。
 	workerA := "host-A:11111"
 	workerB := "host-B:22222"
-	pollingWorkerID = workerA
-	t.Cleanup(func() { pollingWorkerID = originalID })
+	t.Cleanup(resetPollingWorkerIDForTest(workerA))
 
 	acquiredA, ownerA, _, _ := TryAcquirePollingLock(ctx, nil, 200)
 	if !acquiredA {
@@ -108,7 +109,7 @@ func TestPollingLock_ConflictBetweenWorkers(t *testing.T) {
 		t.Errorf("owner=%s, want %s", ownerA, workerA)
 	}
 
-	pollingWorkerID = workerB
+	t.Cleanup(resetPollingWorkerIDForTest(workerB))
 	acquiredB, ownerB, lastHB, _ := TryAcquirePollingLock(ctx, nil, 200)
 	if acquiredB {
 		t.Errorf("Worker B 在活跃锁上抢占应失败")
@@ -120,11 +121,11 @@ func TestPollingLock_ConflictBetweenWorkers(t *testing.T) {
 		t.Errorf("失败时应返回 lastHB（最近心跳时间）")
 	}
 
-	pollingWorkerID = workerA
+	t.Cleanup(resetPollingWorkerIDForTest(workerA))
 	if rerr := ReleasePollingLock(ctx, nil, 200); rerr != nil {
 		t.Fatalf("Release 失败: %v", rerr)
 	}
-	pollingWorkerID = workerB
+	t.Cleanup(resetPollingWorkerIDForTest(workerB))
 	acquiredB2, ownerB2, _, _ := TryAcquirePollingLock(ctx, nil, 200)
 	if !acquiredB2 {
 		t.Errorf("Worker A 释放后 Worker B 应抢占成功")
@@ -133,7 +134,6 @@ func TestPollingLock_ConflictBetweenWorkers(t *testing.T) {
 		t.Errorf("owner=%s, want %s", ownerB2, workerB)
 	}
 
-	pollingWorkerID = workerB
 	_ = ReleasePollingLock(ctx, nil, 200)
 }
 
@@ -146,10 +146,7 @@ func TestPollingLock_StaleTakeover(t *testing.T) {
 	repo := repository.NewTelegramPollingLockRepositoryWithDB(dbConn)
 	withPollingLockRepo(t, repo)
 
-	originalID := pollingWorkerID
-	defer func() { pollingWorkerID = originalID }()
-
-	pollingWorkerID = "host-A:11111"
+	t.Cleanup(resetPollingWorkerIDForTest("host-A:11111"))
 	acquired, _, _, _ := TryAcquirePollingLock(ctx, nil, 300)
 	if !acquired {
 		t.Fatalf("Worker A 应抢占成功")
@@ -161,7 +158,7 @@ func TestPollingLock_StaleTakeover(t *testing.T) {
 		t.Fatalf("设置心跳为过期时间失败: %v", err)
 	}
 
-	pollingWorkerID = "host-B:22222"
+	t.Cleanup(resetPollingWorkerIDForTest("host-B:22222"))
 	acquiredB, ownerB, _, _ := TryAcquirePollingLock(ctx, nil, 300)
 	if !acquiredB {
 		t.Errorf("Worker A 锁过期时 Worker B 应抢占成功")
@@ -182,10 +179,7 @@ func TestPollingLock_HeartbeatLoss(t *testing.T) {
 	repo := repository.NewTelegramPollingLockRepositoryWithDB(dbConn)
 	withPollingLockRepo(t, repo)
 
-	originalID := pollingWorkerID
-	defer func() { pollingWorkerID = originalID }()
-
-	pollingWorkerID = "host-A:11111"
+	t.Cleanup(resetPollingWorkerIDForTest("host-A:11111"))
 	acquired, _, _, _ := TryAcquirePollingLock(ctx, nil, 400)
 	if !acquired {
 		t.Fatalf("Worker A 应抢占成功")
@@ -199,7 +193,7 @@ func TestPollingLock_HeartbeatLoss(t *testing.T) {
 		t.Errorf("Worker A 心跳不应检测到锁丢失")
 	}
 
-	pollingWorkerID = "host-B:22222"
+	t.Cleanup(resetPollingWorkerIDForTest("host-B:22222"))
 	if err := dbConn.Exec(
 		"UPDATE telegram_accounts SET polling_owner = ?, polling_heartbeat_at = ? WHERE id = ?",
 		"host-B:22222", time.Now(), 400,
@@ -207,7 +201,7 @@ func TestPollingLock_HeartbeatLoss(t *testing.T) {
 		t.Fatalf("模拟 Worker B 抢占失败: %v", err)
 	}
 
-	pollingWorkerID = "host-A:11111"
+	t.Cleanup(resetPollingWorkerIDForTest("host-A:11111"))
 	lockLost2, err2 := HeartbeatPollingLock(ctx, nil, 400)
 	if err2 != nil {
 		t.Fatalf("Worker A 心跳（被抢占后）失败: %v", err2)
@@ -216,7 +210,7 @@ func TestPollingLock_HeartbeatLoss(t *testing.T) {
 		t.Errorf("Worker A 心跳应检测到锁丢失（RowsAffected=0）")
 	}
 
-	pollingWorkerID = "host-B:22222"
+	t.Cleanup(resetPollingWorkerIDForTest("host-B:22222"))
 	_ = ReleasePollingLock(ctx, nil, 400)
 }
 
@@ -292,7 +286,7 @@ func TestStopAllTelegramPollingReleasesHeldLock(t *testing.T) {
 		t.Fatalf("polling 注册表初始非空（%d 条）：先归属那几条是谁留的再重跑", initial)
 	}
 
-	workerID := GetPollingWorkerID() // 先固化：直接写 pollingWorkerID 会被 sync.Once 覆盖
+	workerID := GetPollingWorkerID() // 本用例不换 worker，先固化期望 owner 再断言锁按它名下释放
 	acquired, owner, _, err := TryAcquirePollingLock(ctx, nil, 500)
 	if err != nil || !acquired || owner != workerID {
 		t.Fatalf("前置抢占失败: acquired=%v owner=%s err=%v", acquired, owner, err)

@@ -6,6 +6,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -141,6 +142,60 @@ func TestClient_RegisterMerchant_RefusalIsError(t *testing.T) {
 	}
 	if c.merchantSecret != "" {
 		t.Fatalf("拒绝响应不该改动签名密钥，得到 %q", c.merchantSecret)
+	}
+}
+
+// TestClient_RegisterMerchant_ConflictIsIdempotentSuccess 409 = 本商户 key 已在平台
+// 注册过（每次重启都会命中）：注册必须幂等成功，且不得改写已有密钥。
+// 平台两种 409 写法都要认：HTTP 200 + 信封 code=409，以及直接 HTTP 409。
+func TestClient_RegisterMerchant_ConflictIsIdempotentSuccess(t *testing.T) {
+	serve := func(t *testing.T, h http.HandlerFunc) (string, chan string) {
+		t.Helper()
+		paths := make(chan string, 4)
+		srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+			select {
+			case paths <- r.URL.Path:
+			default:
+			}
+			h(w, r)
+		}))
+		t.Cleanup(srv.Close)
+		return srv.URL, paths
+	}
+
+	cases := []struct {
+		name string
+		h    http.HandlerFunc
+	}{
+		{"envelope409", func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusOK)
+			_, _ = fmt.Fprint(w, `{"code":409,"msg":"该邮箱已被注册"}`)
+		}},
+		{"http409", func(w http.ResponseWriter, r *http.Request) {
+			w.WriteHeader(http.StatusConflict)
+			_, _ = fmt.Fprint(w, `{"code":409,"msg":"该邮箱已被注册"}`)
+		}},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Setenv("MERCHANT_API_SECRET", "test-secret")
+			t.Setenv("MERCHANT_STATE_DIR", t.TempDir())
+			url, paths := serve(t, tc.h)
+			withPlatformConfig(t, &config.PlatformConfig{APIURL: url})
+
+			c := NewPlatformClient("test-key")
+			c.SetMerchantSecret("keep-me")
+			if err := c.RegisterMerchant(RegisterMerchantReq{Name: "x"}); err != nil {
+				t.Fatalf("409 应幂等成功，得到 %v", err)
+			}
+			mustHaveHit(t, paths, "/merchant-api/merchant/register")
+			if c.merchantSecret != "keep-me" {
+				t.Errorf("409 响应不应改写已有 secret，得到 %q", c.merchantSecret)
+			}
+			if _, err := os.Stat(merchantSecretFilePath()); !os.IsNotExist(err) {
+				t.Errorf("409 未返回 secret 时不应落盘, stat err=%v", err)
+			}
+		})
 	}
 }
 

@@ -5,6 +5,8 @@ import (
 	"fmt"
 	"sync/atomic"
 
+	"hivemtk-user/internal/pkg/utils/logger"
+
 	"gorm.io/gorm"
 )
 
@@ -65,6 +67,11 @@ func Fanout(ctx context.Context, db *gorm.DB, fn func(ctx context.Context, tenan
 		n, err := fn(WithTenantID(ctx, id), id)
 		if err != nil {
 			lastErr = fmt.Errorf("租户 %d: %w", id, err)
+			// 单租户失败不阻断其余租户（对外语义不变，见函数注释），但**必须出声**：
+			// lastErr 只在"全部失败"时才返回给调用方，部分失败若只记在内存里就是
+			// 一格彻底的静默吞错（二审 P2-4：生产上表现为某租户的任务长期不跑，
+			// 日志里一行痕迹都没有）。
+			logger.Warnf("[tenant] Fanout 租户 %d 执行失败（本轮继续其余租户）: %v", id, err)
 			continue
 		}
 		total += n

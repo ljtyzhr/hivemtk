@@ -219,7 +219,11 @@ func (s *ReachPipelineService) dispatchDueJobs(ctx context.Context) {
 	}
 	for i := range jobs {
 		job := jobs[i]
-		claimed, cerr := s.repo.ClaimJob(ctx, job.ID)
+		// 拣选是系统作用域，执行必须钉死回行自己的租户：OnlyTenant 剥掉
+		// SystemScope，否则 GetPipeline 会读成跨租户 union、执行链的 Create
+		// 会落列默认租户 1。任务行 TenantID 由创建时填充，非 0。
+		jobCtx := tenant.OnlyTenant(ctx, job.TenantID)
+		claimed, cerr := s.repo.ClaimJob(jobCtx, job.ID)
 		if cerr != nil {
 			logger.Errorf("[reach_dispatcher] 抢占任务 %d 失败: %v", job.ID, cerr)
 			continue
@@ -227,7 +231,7 @@ func (s *ReachPipelineService) dispatchDueJobs(ctx context.Context) {
 		if !claimed {
 			continue
 		}
-		if _, err := s.executeJobCore(ctx, &job, true); err != nil {
+		if _, err := s.executeJobCore(jobCtx, &job, true); err != nil {
 			logger.Warnf("[reach_dispatcher] 执行任务 %d 失败: %v", job.ID, err)
 		}
 	}

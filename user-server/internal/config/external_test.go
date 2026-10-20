@@ -61,6 +61,7 @@ func TestGetPublicBaseURL_EnvOverridesConfig(t *testing.T) {
 	})
 
 	t.Run("both empty", func(t *testing.T) {
+		withEmptyURLProviders(t)
 		_ = os.Unsetenv("PUBLIC_BASE_URL")
 		setAppConfigForTest(t, &AppConfig{})
 		if got := GetPublicBaseURL(); got != "" {

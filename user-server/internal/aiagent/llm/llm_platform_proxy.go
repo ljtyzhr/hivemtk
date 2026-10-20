@@ -155,7 +155,10 @@ type PlatformUsageEvent struct {
 	// TenantCode 本次调用归属的租户短码（落本地镜像明细用，与代理调用 query
 	// 同源）。空串 = 取不到租户归属，本地明细照落（tenant_id 列仍按隔离
 	// callback 口径）。
-	TenantCode       string
+	TenantCode string
+	// TenantID 本次调用上下文的租户绑定。0 = ctx 未绑定（on 模式下明细
+	// 落库会被隔离 callback 拒绝），本地 sink 用它重建租户上下文。
+	TenantID         uint
 	PromptTokens     int64
 	CompletionTokens int64
 	InputCostCents   int64

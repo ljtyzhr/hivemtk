@@ -12,6 +12,7 @@ import (
 	"runtime/debug"
 	"time"
 
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 
 	"gorm.io/gorm"
@@ -139,7 +140,7 @@ func (t *BrowserOpenTaskTool) Execute(ctx context.Context, args map[string]any) 
 				logger.Errorf("[BrowserTools] task runner panic: taskID=%d userID=%d panic=%v\n%s", taskID, userID, r, debug.Stack())
 			}
 		}()
-		runCtx, cancel := context.WithTimeout(context.Background(), 30*time.Minute)
+		runCtx, cancel := context.WithTimeout(tenant.BackgroundWithTenant(ctx), 30*time.Minute)
 		defer cancel()
 		_ = browserTaskRunner(runCtx, taskID, userID, 0) // 失败落库 task.last_result / browser_sessions
 	}(task.ID, userID)

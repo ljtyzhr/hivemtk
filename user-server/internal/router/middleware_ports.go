@@ -18,6 +18,7 @@ type operationLogSink struct {
 
 func (s operationLogSink) Save(ctx context.Context, entry *middleware.AuditEntry) error {
 	return s.svc.Create(ctx, &model.OperationLog{
+		TenantID:   entry.TenantID,
 		UserID:     entry.UserID,
 		Username:   entry.Username,
 		Action:     entry.Action,
@@ -34,11 +35,27 @@ type chatChannelResolver struct {
 	svc *service.ChatChannelService
 }
 
-// resolveChannelCtx 渠道解析专用 ctx：chat_channels 是租户表，但 channel 解析
-// 本身是建立租户上下文的引导步骤（channel 行自带 tenant_id），必须用 SystemScope
-// 绕过隔离 callback —— 否则 on 模式下公开路由的 channel 查找会 fail-closed 401。
+// resolveChannelCtx 渠道解析用的作用域选择。
+//
+// 未绑定租户时走 SystemScope：channel 行本身就是租户线索，公开路由此刻还没有上下文，
+// 不加系统作用域的话 on 模式下连查都查不到（隔离 callback 对无绑定 ctx fail-closed）。
+//
+// 已绑定时**保持绑定**：访客链按 tenant_code 定过租户、或上游已经由别的渠道行自证过，
+// 此时再退到 SystemScope 等于在跨租户 union 里重新挑一行——同名的 default/卡片渠道
+// 会挑到别的租户，于是"上下文说 A、渠道行是 B"。绑定态的读取天然限定在本租户。
 func resolveChannelCtx(ctx context.Context) context.Context {
+	if tid, bound := tenant.FromContext(ctx); bound && tid != 0 {
+		return ctx
+	}
 	return tenant.WithSystemScope(ctx)
+}
+
+// tenantCodeResolver 装配层适配器：把租户短码解析交给中间件窄接口。
+//
+// 三处公开入口共用（访客 HTTP 链、访客 WS、MCP 单值凭证）——它们是同一件事：
+// 调用方在没有登录态时自己声明"我属于哪个租户"。
+func tenantCodeResolver(ctx context.Context, code string) (uint, error) {
+	return service.NewTenantService().ResolvePublicTenantID(ctx, code)
 }
 
 func (r chatChannelResolver) ResolveByAppKey(ctx context.Context, appKey string) (*middleware.ChatChannelView, error) {
@@ -75,8 +92,18 @@ type visitorChannelResolverAdapter struct {
 
 func (a visitorChannelResolverAdapter) ResolveByChannelID(ctx context.Context, channelID string) (*websocket.VisitorChannelView, error) {
 	ch, err := a.svc.GetByChannelID(resolveChannelCtx(ctx), channelID)
-	if err != nil || ch == nil {
-		return nil, err
+	if err != nil {
+		// ref 槽位可能放的是 app_key（SDK/安装引导以 appKey 作 channel_ref）：
+		// 与中间件 AppKeyResolve、service.resolveChannel 同一语义——先按
+		// channel_id 列解析，失败再按 app_key 列回退。
+		if ch2, err2 := a.svc.GetByAppKey(resolveChannelCtx(ctx), channelID); err2 == nil {
+			ch = ch2
+		} else {
+			return nil, err
+		}
+	}
+	if ch == nil {
+		return nil, nil
 	}
 	return &websocket.VisitorChannelView{ChannelID: ch.ChannelID, TenantID: ch.TenantID}, nil
 }

@@ -7,6 +7,7 @@ import (
 
 	"hivemtk-user/internal/model"
 	_db "hivemtk-user/internal/pkg/db"
+	"hivemtk-user/internal/pkg/tenant"
 
 	"gorm.io/gorm"
 )
@@ -24,6 +25,10 @@ type EmailTrackingRepository interface {
 	GetJobMetric(ctx context.Context, jobID string) (*model.EmailJobMetric, error)
 	UpsertJobMetric(ctx context.Context, metric *model.EmailJobMetric) error
 	ListJobMetricsByRange(ctx context.Context, start, end time.Time) ([]*model.EmailJobMetric, error)
+
+	// TenantIDByRecipient 系统作用域按收件人反查发信租户；
+	// 同一收件人被多个租户发过信时 ok=false（拒猜）
+	TenantIDByRecipient(ctx context.Context, email string) (uint, bool, error)
 }
 
 type emailTrackingRepo struct {
@@ -36,6 +41,28 @@ func NewEmailTrackingRepository(db *gorm.DB) EmailTrackingRepository {
 		db = _db.GetDB()
 	}
 	return &emailTrackingRepo{db: db}
+}
+
+// TenantIDByRecipient 供应商回执没有登录态，收件人 + 发信台账可自证租户。
+// 同一收件人若出现在多个租户的 email_sends 里，无法判定这封信属于谁 ⇒ ok=false，
+// 由调用方 fail-closed（要求 webhook 显式携带 tenant_code）。
+func (r *emailTrackingRepo) TenantIDByRecipient(ctx context.Context, email string) (uint, bool, error) {
+	if r == nil || r.db == nil {
+		return 0, false, errors.New("email tracking repository 未初始化（db is nil）")
+	}
+	var ids []uint
+	if err := r.db.WithContext(tenant.WithSystemScope(ctx)).
+		Model(&model.EmailSend{}).
+		Distinct("tenant_id").
+		Where("to = ?", email).
+		Limit(2).
+		Pluck("tenant_id", &ids).Error; err != nil {
+		return 0, false, err
+	}
+	if len(ids) != 1 || ids[0] == 0 {
+		return 0, false, nil
+	}
+	return ids[0], true, nil
 }
 
 func (r *emailTrackingRepo) CreateEvent(ctx context.Context, event *model.EmailTrackingEvent) error {

@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"hivemtk-user/internal/dto"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils"
 )
 
@@ -29,7 +30,7 @@ func (s *IntentRecognizer) RecognizeSpeculative(
 		return empty, ch, nil
 	}
 
-	if !loadIntentEnabled() {
+	if !loadIntentEnabledFor(ctx) {
 		placeholder := &dto.RecognizeResult{
 			IntentType:      IntentUnknown,
 			IntentName:      "未知",
@@ -48,7 +49,7 @@ func (s *IntentRecognizer) RecognizeSpeculative(
 		s.saveRecord(ctx, sessionID, customerID, text, r, "", 0, 0)
 		ch := make(chan *dto.RecognizeResult, 1)
 		if s.dispatcher != nil {
-			go s.runLLMAsync(sessionID, customerID, text, ch, true)
+			go s.runLLMAsync(ctx, sessionID, customerID, text, ch, true)
 		} else {
 			ch <- r
 			close(ch)
@@ -66,7 +67,7 @@ func (s *IntentRecognizer) RecognizeSpeculative(
 	}
 	ch := make(chan *dto.RecognizeResult, 1)
 	if s.dispatcher != nil {
-		go s.runLLMAsync(sessionID, customerID, text, ch, false)
+		go s.runLLMAsync(ctx, sessionID, customerID, text, ch, false)
 	} else {
 		ch <- placeholder
 		close(ch)
@@ -75,12 +76,13 @@ func (s *IntentRecognizer) RecognizeSpeculative(
 }
 
 func (s *IntentRecognizer) runLLMAsync(
+	ctx context.Context,
 	sessionID, customerID, text string,
 	ch chan<- *dto.RecognizeResult,
 	ruleHit bool,
 ) {
 	defer close(ch)
-	bgCtx, cancel := context.WithTimeout(context.Background(), utils.LongTimeout)
+	bgCtx, cancel := context.WithTimeout(tenant.BackgroundWithTenant(ctx), utils.LongTimeout)
 	defer cancel()
 
 	llmR, err := s.recognizeByLLM(bgCtx, text)

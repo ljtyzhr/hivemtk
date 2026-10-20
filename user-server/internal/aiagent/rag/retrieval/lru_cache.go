@@ -2,8 +2,11 @@ package ragretrieval
 
 import (
 	"container/list"
+	"context"
 	"sync"
 	"time"
+
+	"hivemtk-user/internal/pkg/tenant"
 )
 
 // LRUCache 线程安全的 LRU 缓存
@@ -39,7 +42,8 @@ func NewLRUCache(capacity int, ttl time.Duration) *LRUCache {
 }
 
 // Get 获取缓存值（命中且未过期）
-func (c *LRUCache) Get(key string) (any, bool) {
+func (c *LRUCache) Get(ctx context.Context, key string) (any, bool) {
+	key = tenant.RedisKey(ctx, key)
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	el, ok := c.items[key]
@@ -57,7 +61,8 @@ func (c *LRUCache) Get(key string) (any, bool) {
 }
 
 // Set 设置缓存
-func (c *LRUCache) Set(key string, value any, ttl time.Duration) {
+func (c *LRUCache) Set(ctx context.Context, key string, value any, ttl time.Duration) {
+	key = tenant.RedisKey(ctx, key)
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if ttl <= 0 {
@@ -84,7 +89,8 @@ func (c *LRUCache) Set(key string, value any, ttl time.Duration) {
 }
 
 // Delete 删除
-func (c *LRUCache) Delete(key string) {
+func (c *LRUCache) Delete(ctx context.Context, key string) {
+	key = tenant.RedisKey(ctx, key)
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	if el, ok := c.items[key]; ok {

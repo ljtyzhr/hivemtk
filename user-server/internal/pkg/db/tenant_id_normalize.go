@@ -2,6 +2,7 @@ package db
 
 import (
 	"fmt"
+	"regexp"
 
 	"gorm.io/gorm"
 
@@ -32,6 +33,13 @@ import (
 // 语句失败；若某张表真的存了语义化租户标识（如 "acme"），强转会把那张表打坏。
 // 所以判据是**该列当前的值全部可安全解释为默认租户**（NULL 或空串）才转；
 // 发现非空非数字值就跳过并告警，把决定权留给人工。
+// tenantTableIdentRe 限制能拼进 DDL 的表名。
+//
+// 表名来自 `information_schema`（不是用户输入），但本仓已有一条同族规矩：从库元数据
+// 取出的标识符拼进 DDL 前仍要校验（见 v3.65.0 迁移里的 identRe）。理由是漂移库里
+// 存在何种表名不由我们决定，而这里的每条语句都是 `ALTER TABLE <name>`。
+var tenantTableIdentRe = regexp.MustCompile(`^[A-Za-z_][A-Za-z0-9_$]*$`)
+
 func normalizeTenantIDColumns(db *gorm.DB) {
 	// 用 []string 而不是结构体：GORM 把 table_name 列映射到 TableName 字段
 	// （不是 Table），字段名对不上时 Scan **静默给零值** —— 实测表现为
@@ -50,6 +58,10 @@ func normalizeTenantIDColumns(db *gorm.DB) {
 	logger.Warnf("[migrate] 发现 %d 张表的 tenant_id 类型漂移（varchar 应为 bigint），开始归一化", len(tables))
 
 	for _, table := range tables {
+		if !tenantTableIdentRe.MatchString(table) {
+			logger.Warnf("[migrate] 表名 %q 不符合标识符规范，跳过归一化（需人工处理）", table)
+			continue
+		}
 		// 值体检：只允许 NULL / 空串（语义上即"默认租户"）
 		var bad int64
 		if err := db.Raw(fmt.Sprintf(

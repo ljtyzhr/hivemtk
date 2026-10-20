@@ -354,7 +354,7 @@ func (ctrl *TelegramAccountController) RegisterWebhook(c *gin.Context) {
 }
 
 func deriveTelegramWebhookURL(c *gin.Context, accountID uint) string {
-	return deriveTelegramWebhookURLWithBase(c, accountID, config.GetPublicBaseURL())
+	return deriveTelegramWebhookURLWithBase(c, accountID, config.GetPublicBaseURLFor(c.Request.Context()))
 }
 
 func deriveTelegramWebhookURLWithBase(c *gin.Context, accountID uint, publicBase string) string {

@@ -18,19 +18,15 @@ var tenantExemptTables = map[string]bool{
 	"tenants":                 true, // 租户实体本身
 	"migration_records":       true, // 迁移簿记
 	"migration_checkpoints":   true, // 迁移簿记
-	"config_params":           true, // 实例级参数中心（首期保持实例级）
-	"config_param_groups":     true, // 实例级参数分组
-	"config_param_audit_logs": true, // 参数审计
-	"feature_flags":           true, // 实例级功能开关
-	"feature_flag_audit_logs": true, // 开关审计
-	"feature_flag_eval_logs":  true, // 开关求值日志
+	"config_params":           true, // 参数定义目录（全局只读声明；值在 tenant_config_params）
+	"config_param_groups":     true, // 参数分组目录（全局只读声明）
+	"config_param_audit_logs": true, // 平台侧参数审计
+	"platform_config_kv":      true, // 平台接入令牌/策略（实例唯一，租户不可见）
 	"cron_job_leases":         true, // 进程协调租约（键内含租户分域）
 	"dictionaries":            true, // 全局只读共享
 	"dictionary_transitions":  true, // 全局只读共享
 	"backups":                 true, // 系统操作
 	"restore_records":         true, // 系统操作
-	"system_config":           true, // 实例级系统配置
-	"system_config_kv":        true, // 实例级系统配置
 }
 
 // tenantColumnBatchSize 每批处理的表数：批间独立事务，中断可续跑（幂等）

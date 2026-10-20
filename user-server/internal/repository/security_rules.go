@@ -19,11 +19,11 @@ type SecurityRulesRepository interface {
 }
 
 type securityRulesRepo struct {
-	kv SystemConfigKVRepository
+	kv PlatformConfigKVRepository
 }
 
-// NewSecurityRulesRepository 构造安全规则仓储（复用 system_config_kv）。
-func NewSecurityRulesRepository(kv SystemConfigKVRepository) SecurityRulesRepository {
+// NewSecurityRulesRepository 构造安全规则仓储（复用 platform_config_kv）。
+func NewSecurityRulesRepository(kv PlatformConfigKVRepository) SecurityRulesRepository {
 	if kv == nil {
 		return nil
 	}
