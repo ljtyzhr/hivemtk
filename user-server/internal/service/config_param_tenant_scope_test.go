@@ -157,9 +157,9 @@ func TestListStampsTenantScopeForEveryRow(t *testing.T) {
 	seedBaseParam(t, db, "limits", "max_items", "10")
 
 	want := map[string]string{
-		"cache.max_keys":                 tenantScopePlatform,
-		"agent_llm.max_tokens":            tenantScopePending,
-		"limits.max_items":               tenantScopeInherit,
+		"cache.max_keys":       tenantScopePlatform,
+		"agent_llm.max_tokens": tenantScopePending,
+		"limits.max_items":     tenantScopeInherit,
 	}
 	// off 模式下没有租户上下文，档位仍必须出现在列表里：这一列回答的是
 	// 「这个键能不能按租户改」，与本次请求带不带租户无关。
