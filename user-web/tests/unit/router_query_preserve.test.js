@@ -16,6 +16,15 @@ import { describe, it, expect, vi } from 'vitest'
 // 证不了 vue-router 真的把它带到了 currentRoute 上。这里跑的是真 push、真守卫、真懒登记。
 
 vi.mock('@/utils/initHelper', () => ({ isInitialized: () => true }))
+// 路由守卫在非公开路由上要 await ensureBootstrap()（真发 /api/system/init-status）。
+// 不桩它的话，这条腿的成败取决于本机有没有一个「已初始化」的后端在跑：请求失败时
+// 回落 localStorage（本用例里是空的）⇒ initialized=false ⇒ 首次 push 就被推进 /setup，
+// 被测的「懒模块重定向带不带 query」根本走不到。这里把引导状态钉成「已初始化」，
+// 与下面三个桩同一条隔离思路：本用例测的是守卫怎么带 query，不是引导状态怎么拉。
+vi.mock('@/utils/bootstrapState', () => ({
+  ensureBootstrap: () => Promise.resolve({ initialized: true, tenantMode: false }),
+  getBootstrap: () => ({ initialized: true, tenantMode: false })
+}))
 vi.mock('@/stores/user', () => ({
   useUserStore: () => ({ isLoggedIn: true, role: 'admin', userInfo: { id: 1, username: 'probe' } })
 }))
