@@ -114,6 +114,12 @@ func (c *LLMProxyClient) ChatCompletions(ctx context.Context, provider string, b
 	if meta.UserID != "" {
 		q = append(q, "user_id="+urlQueryEscape(meta.UserID))
 	}
+	// tenant_code 同款风格（空串不上行，与 scenario/trace_id 一致）：平台按
+	// (merchant_key, tenant_code) 每租户一行记账，取不到租户归属时空串照发、
+	// 平台走旧行为兜底。
+	if meta.TenantCode != "" {
+		q = append(q, "tenant_code="+urlQueryEscape(meta.TenantCode))
+	}
 	target := c.baseURL + "/llm-api/v1/chat/completions?" + strings.Join(q, "&")
 
 	req, err := http.NewRequestWithContext(ctx, http.MethodPost, target, bytes.NewReader(body))
@@ -154,6 +160,10 @@ type LLMCallMeta struct {
 	TraceID  string
 	AgentID  string
 	UserID   string
+	// TenantCode 当前租户短码（平台端按 (merchant_key, tenant_code) 每租户
+	// 一行记账）。空串 = 取不到租户归属（后台任务无绑定 / off 模式无租户行），
+	// 此时 query 不上行该参数、平台按旧行为兜底 —— 取不到 code 绝不允许报错。
+	TenantCode string
 }
 
 func parseIntHeader(v string) int64 {

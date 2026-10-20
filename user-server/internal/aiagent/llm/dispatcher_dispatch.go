@@ -15,6 +15,7 @@ import (
 	"hivemtk-user/internal/pkg/tracing"
 	"hivemtk-user/internal/pkg/utils/logger"
 	textutil "hivemtk-user/internal/pkg/utils/text"
+	"hivemtk-user/internal/platform"
 )
 
 type DispatchRequest struct {
@@ -321,6 +322,7 @@ func (d *Dispatcher) callProvider(ctx context.Context, provider *ProviderConfig,
 				TraceID:          traceID,
 				AgentID:          req.AgentID,
 				UserID:           req.UserID,
+				TenantCode:       platform.TenantCodeFromContext(ctx),
 				PromptTokens:     int64(promptTokens),
 				CompletionTokens: int64(completionTokens),
 				InputCostCents:   int64(promptCost * 100),

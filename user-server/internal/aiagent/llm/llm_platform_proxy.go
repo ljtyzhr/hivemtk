@@ -63,6 +63,9 @@ func (s *LLMService) callPlatformProxy(ctx context.Context, config *LLMConfig, b
 		TraceID:  config.TraceID,
 		AgentID:  config.AgentID,
 		UserID:   config.UserID,
+		// 平台按 (merchant_key, tenant_code) 每租户一行记账：从 ctx 解析本租户
+		// code，取不到（无绑定/查不到行/库未就绪）= 空串照发，平台走旧行为兜底。
+		TenantCode: platform.TenantCodeFromContext(ctx),
 	}
 	resp, err := client.ChatCompletions(ctx, config.ProviderName, body, meta)
 	if err != nil {
@@ -142,13 +145,17 @@ func traceContextTraceID(ctx context.Context) string {
 
 // PlatformUsageEvent 一次平台垫资调用的用量
 type PlatformUsageEvent struct {
-	Provider         string
-	Model            string
-	PlanCode         string
-	Scenario         string
-	TraceID          string
-	AgentID          string
-	UserID           string
+	Provider string
+	Model    string
+	PlanCode string
+	Scenario string
+	TraceID  string
+	AgentID  string
+	UserID   string
+	// TenantCode 本次调用归属的租户短码（落本地镜像明细用，与代理调用 query
+	// 同源）。空串 = 取不到租户归属，本地明细照落（tenant_id 列仍按隔离
+	// callback 口径）。
+	TenantCode       string
 	PromptTokens     int64
 	CompletionTokens int64
 	InputCostCents   int64
