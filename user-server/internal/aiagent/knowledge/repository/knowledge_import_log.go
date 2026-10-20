@@ -4,6 +4,7 @@ import (
 	"context"
 	"hivemtk-user/internal/aiagent/knowledge/model"
 	"hivemtk-user/internal/pkg/timeutil"
+	"hivemtk-user/internal/reporting"
 	"time"
 
 	"gorm.io/gorm"
@@ -69,7 +70,7 @@ type DailyTrendItem struct {
 // DailyImportTrend 获取每日导入趋势
 func (r *KnowledgeImportLogRepository) DailyImportTrend(ctx context.Context, productID string, days int) ([]DailyTrendItem, error) {
 	if days <= 0 {
-		days = 30
+		days = reporting.DefaultWindowDays(ctx)
 	}
 	start := timeutil.BusinessDate(time.Now().AddDate(0, 0, -days+1))
 

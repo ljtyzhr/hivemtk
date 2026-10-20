@@ -5,6 +5,7 @@ import (
 
 	"hivemtk-user/internal/geo/service"
 	"hivemtk-user/internal/pkg/utils/response"
+	"hivemtk-user/internal/reporting"
 
 	"github.com/gin-gonic/gin"
 )
@@ -22,7 +23,7 @@ func NewCitationController(citeSvc *service.CitationService) *CitationController
 // Domains 引用域名聚合（自有/竞品/earned 分类）
 // GET /geo/citations/domains?days=30&format=json|csv
 func (c *CitationController) Domains(ctx *gin.Context) {
-	days, _ := strconv.Atoi(ctx.DefaultQuery("days", "30"))
+	days, _ := strconv.Atoi(ctx.DefaultQuery("days", strconv.Itoa(reporting.DefaultWindowDays(ctx.Request.Context()))))
 	res, err := c.citeSvc.DomainStats(ctx.Request.Context(), days)
 	if err != nil {
 		response.ErrorFromDB(ctx, err, "引用域名聚合失败")
@@ -38,7 +39,7 @@ func (c *CitationController) Domains(ctx *gin.Context) {
 // Matrix keyword×domain 矩阵
 // GET /geo/citations/matrix?days=30&top_queries=20&top_domains=10&format=json|csv
 func (c *CitationController) Matrix(ctx *gin.Context) {
-	days, _ := strconv.Atoi(ctx.DefaultQuery("days", "30"))
+	days, _ := strconv.Atoi(ctx.DefaultQuery("days", strconv.Itoa(reporting.DefaultWindowDays(ctx.Request.Context()))))
 	topQ, _ := strconv.Atoi(ctx.DefaultQuery("top_queries", "20"))
 	topD, _ := strconv.Atoi(ctx.DefaultQuery("top_domains", "10"))
 	res, err := c.citeSvc.KeywordDomainMatrix(ctx.Request.Context(), days, topQ, topD)

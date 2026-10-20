@@ -14,21 +14,25 @@ import (
 
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/utils"
+	"hivemtk-user/internal/reporting"
 	"hivemtk-user/internal/repository"
 
 	"gorm.io/gorm"
 )
 
 // BackupGapService backup 页面契约适配（复用既有 BackupService 存储能力 + KV 策略）
+//
+// 备份是实例级运维操作（整库 dump/恢复，跨租户），策略与 backups 表同属平台面：
+// 走 platform_config_kv，不随租户上下文变化。
 type BackupGapService struct {
 	repo *repository.BackupGapRepo
-	kv   repository.SystemConfigKVRepository
+	kv   repository.PlatformConfigKVRepository
 	now  func() time.Time
 }
 
 // NewBackupGapService 构造（ARC-01：gdb 为 nil 时 repo 为 nil，查询类方法返回错误）
 func NewBackupGapService(gdb *gorm.DB) *BackupGapService {
-	return &BackupGapService{repo: repository.NewBackupGapRepoWithDB(gdb), kv: repository.NewSystemConfigKVRepository(), now: time.Now}
+	return &BackupGapService{repo: repository.NewBackupGapRepoWithDB(gdb), kv: repository.NewPlatformConfigKVRepository(), now: time.Now}
 }
 
 // NewBackupGapServiceFromGlobal 便捷构造
@@ -542,7 +546,7 @@ func (s *EmailGapService) Deliverability(ctx context.Context, days int) (*Delive
 		return nil, fmt.Errorf("service or repository is nil")
 	}
 	if days <= 0 || days > 365 {
-		days = 30
+		days = reporting.DefaultWindowDays(ctx)
 	}
 	since := time.Now().AddDate(0, 0, -days)
 	st := &DeliverabilityStats{}
@@ -590,7 +594,7 @@ func (s *EmailGapService) BounceBreakdown(ctx context.Context, days int) ([]map[
 		return nil, fmt.Errorf("service or repository is nil")
 	}
 	if days <= 0 || days > 365 {
-		days = 30
+		days = reporting.DefaultWindowDays(ctx)
 	}
 	since := time.Now().AddDate(0, 0, -days)
 	rows, err := s.repo.BounceByISP(ctx, since)

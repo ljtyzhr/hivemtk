@@ -11,18 +11,15 @@ export default mergeConfig(
       environment: 'jsdom',
       include: ['tests/unit/**/*.{test,spec}.{js,mjs,ts}'],
       exclude: ['node_modules', 'dist', 'tests/e2e/**'],
-      // 串行跑测试文件，不并行。
+      // 并行跑测试文件。恢复并行的前提已成立：所有组件用例的等待模式都换成了
+      // tests/unit/settle-helper.js 的 settle()/settleBody()（渲染连续两轮相同即早停，
+      // 对 setTimeout 驱动的防抖/轮询也等），不再有「刷 N 次 flushPromises 够不够」
+      // 这种赌运气的写法 —— 那正是当年被迫串行的根因（同一棵树连跑三次，
+      // 失败集合分别是 0 / 30 / 11 个，全是等待模式在抢 CPU 时不够用）。
       //
-      // 为什么：本仓的组件用例普遍用「刷新 N 次」等渲染稳定（`await flushPromises()`
-      // 只排空微任务，对 setTimeout 驱动的防抖/轮询一个都不等）。N 在空闲时碰巧够用，
-      // 一旦几个 worker 抢 CPU 就不够 —— 实测同一棵树连跑三次，失败集合分别是
-      // 0 / 30 / 11 个，横跨十几个互不相干的页面，全是这个原因。
-      //
-      // 这类失败比真 bug 更坏：它让人怀疑刚改的代码，久了大家就不信这套测试了。
-      // 56 个文件串行约一分多钟，换确定性值这个价。真要恢复并行，先把
-      // tests/unit/settle-helper.js 那个 settle() 铺进所有用例，让断言不再依赖
-      // 「刷几次够」，而不是把 fileParallelism 调回 true。
-      fileParallelism: false,
+      // 若未来又出现随机红：先查等待模式（是不是绕回了裸 flushPromises / 固定次数连刷），
+      // 而不是把 fileParallelism 关回 false —— 串行只是把这类假失败藏起来，代价是全量变慢。
+      fileParallelism: true,
       coverage: {
         provider: 'v8',
         reporter: ['text', 'html', 'json-summary'],

@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mount, flushPromises } from '@vue/test-utils'
+import { mount } from '@vue/test-utils'
 import ElementPlus, { ElMessage } from 'element-plus'
+import { settle } from './settle-helper'
 
 // 客户会话页的深链入口腿：CSAT 看板「查看会话」以 /#/customerSession/list?session_id=… 打开本页，
 // 本页必须在列表就位后把那条会话选出来。
@@ -112,11 +113,8 @@ async function mountPage() {
     }
   })
   // onMounted 里是 loadSessions → 深链再取宽列表 → selectSession → 标签/AI 建议/画像，
-  // 一串真 promise，多排几轮才落到位。
-  for (let i = 0; i < 8; i++) {
-    await flushPromises()
-    await new Promise((r) => setTimeout(r, 5))
-  }
+  // 一串真 promise 链。settle 排空微任务、让出宏任务，连续两轮渲染相同才停。
+  await settle(wrapper)
   return wrapper
 }
 

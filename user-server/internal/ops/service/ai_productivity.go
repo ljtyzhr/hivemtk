@@ -5,6 +5,7 @@ import (
 	"time"
 
 	opsrepo "hivemtk-user/internal/ops/repository"
+	"hivemtk-user/internal/reporting"
 )
 
 // AIProductivityService AI 产能分析服务
@@ -91,11 +92,10 @@ type DailyMetric struct {
 }
 
 // DailyTrend 日趋势
-func (s *AIProductivityService) DailyTrend(days int) ([]DailyMetric, error) {
+func (s *AIProductivityService) DailyTrend(ctx context.Context, days int) ([]DailyMetric, error) {
 	if days <= 0 || days > 90 {
-		days = 30
+		days = reporting.DefaultWindowDays(ctx)
 	}
-	ctx := context.Background()
 	start := time.Now().AddDate(0, 0, -days)
 	trend := make([]DailyMetric, 0, days)
 

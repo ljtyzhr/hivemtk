@@ -1,6 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { flushPromises } from '@vue/test-utils'
 import axios from 'axios'
+import { settleBody } from './settle-helper'
 
 // 401 的处理只该动"这条请求带出去的那把令牌"。
 //
@@ -53,7 +53,9 @@ function always401(onSend) {
   }
 }
 
-// redirectTo 走 import('@/router')，是条 microtask；请求失败之后还得等它落进 DOM/调用记录
+// redirectTo 走 import('@/router')，是条 microtask；请求失败之后还得等它落进 DOM/调用记录。
+// settleBody 先排空微任务（那条 import 链），再等整页 DOM 稳定（提示条挂在 body 上），
+// 比单次 flushPromises 多让出一个宏任务，且不依赖「刷几次够」。
 async function hit(path = '/api/whatever') {
   let out = { rejected: false }
   try {
@@ -61,7 +63,7 @@ async function hit(path = '/api/whatever') {
   } catch (e) {
     out = { rejected: true, status: e.status, message: e.message }
   }
-  await flushPromises()
+  await settleBody()
   return out
 }
 

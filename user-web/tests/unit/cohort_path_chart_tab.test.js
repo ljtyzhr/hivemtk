@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { mount, flushPromises } from '@vue/test-utils'
+import { mount } from '@vue/test-utils'
 import ElementPlus from 'element-plus'
+import { settle } from './settle-helper'
 
 // 同期群路径分析页：两张图共用一个 el-tabs，未激活的那页是 v-show 藏着的（宽高 0）。
 //
@@ -64,7 +65,7 @@ function inited(el) {
 
 async function openPathTab(wrapper) {
   await wrapper.findAll('.el-tabs__item')[1].trigger('click')
-  await flushPromises()
+  await settle(wrapper)
 }
 
 describe('CohortPath 的图表按当前页签绘制', () => {
@@ -74,7 +75,7 @@ describe('CohortPath 的图表按当前页签绘制', () => {
 
   it('进入页面时只画当前页签那张图，不去 0 宽的隐藏容器里 init', async () => {
     const { wrapper } = mountPage()
-    await flushPromises()
+    await settle(wrapper)
     const [cohortEl, pathEl] = chartEls(wrapper)
     expect(inited(cohortEl)).toBe(true)
     expect(inited(pathEl)).toBe(false)
@@ -83,7 +84,7 @@ describe('CohortPath 的图表按当前页签绘制', () => {
 
   it('当前页签的图画在真实容器上，并校正过一次尺寸', async () => {
     const { wrapper, instances } = mountPage()
-    await flushPromises()
+    await settle(wrapper)
     const [cohortEl] = chartEls(wrapper)
     expect(initedEls()[0]).toBe(cohortEl)
     const chart = instances.get(cohortEl)
@@ -93,7 +94,7 @@ describe('CohortPath 的图表按当前页签绘制', () => {
 
   it('切到「行为路径」才画第二张，画的是桑基图', async () => {
     const { wrapper, instances } = mountPage()
-    await flushPromises()
+    await settle(wrapper)
     const [, pathEl] = chartEls(wrapper)
     expect(inited(pathEl)).toBe(false)
 
@@ -107,14 +108,14 @@ describe('CohortPath 的图表按当前页签绘制', () => {
 
   it('来回切换：每张容器只有一个实例，不会越切越多', async () => {
     const { wrapper, instances } = mountPage()
-    await flushPromises()
+    await settle(wrapper)
     const items = wrapper.findAll('.el-tabs__item')
     await items[1].trigger('click')
-    await flushPromises()
+    await settle(wrapper)
     await items[0].trigger('click')
-    await flushPromises()
+    await settle(wrapper)
     await items[1].trigger('click')
-    await flushPromises()
+    await settle(wrapper)
     expect(instances.size).toBe(2)
     expect(new Set(initedEls()).size).toBe(2)
   })
@@ -124,7 +125,7 @@ describe('CohortPath 的图表按当前页签绘制', () => {
       cohort: { periods: [], cohorts: [{ label: 'x', size: 0, retention: [] }] },
       path: { nodes: [], links: [] }
     })
-    await flushPromises()
+    await settle(wrapper)
     expect(safeInit).not.toHaveBeenCalled()
     expect(wrapper.text()).toContain('暂无留存数据')
 

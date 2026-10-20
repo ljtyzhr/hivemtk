@@ -15,8 +15,9 @@
  *   - 「没碰就不发」「新建那一趟」是护栏腿——防的是实现顺手把每次保存都变成一次依赖写入。
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mount, flushPromises } from '@vue/test-utils'
+import { mount } from '@vue/test-utils'
 import ElementPlus, { ElMessage } from 'element-plus'
+import { settle } from './settle-helper'
 
 const route = vi.hoisted(() => ({ value: { params: { id: '77' } } }))
 const push = vi.hoisted(() => vi.fn())
@@ -56,7 +57,7 @@ async function mountEditor() {
   const host = document.createElement('div')
   document.body.appendChild(host)
   const wrapper = mount(Editor, { global: { plugins: [ElementPlus] }, attachTo: host })
-  for (let i = 0; i < 4; i++) await flushPromises()
+  await settle(wrapper)
   return wrapper
 }
 
@@ -70,12 +71,12 @@ async function pickIn(wrapper, labelText, optionText, nth = 0) {
   const triggerEl = item.querySelectorAll('.el-select__wrapper')[nth]
   expect(triggerEl, `「${labelText}」那一项里没渲染出第 ${nth + 1} 只下拉`).toBeTruthy()
   triggerEl.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-  await flushPromises()
+  await settle(wrapper)
   const option = Array.from(document.querySelectorAll('.el-select-dropdown__item'))
     .find((o) => o.textContent.trim() === optionText)
   expect(option, `下拉里没有文案为 ${optionText} 的选项`).toBeTruthy()
   option.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-  await flushPromises()
+  await settle(wrapper)
   return item
 }
 
@@ -83,7 +84,7 @@ async function clickSave(wrapper) {
   const btn = wrapper.findAll('button').find((b) => b.text().includes('保存'))
   expect(btn, '页面上没有「保存」按钮').toBeTruthy()
   await btn.trigger('click')
-  for (let i = 0; i < 4; i++) await flushPromises()
+  await settle(wrapper)
 }
 
 describe('编辑器里的依赖前置任务', () => {

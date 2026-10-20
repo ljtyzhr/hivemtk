@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	"hivemtk-user/internal/model"
@@ -23,10 +24,19 @@ func TestRateLimitSeedDefaultsMatchProduction(t *testing.T) {
 		"visitor_per_channel_rps":    "100",
 		"visitor_per_channel_bucket": "200",
 	}
+	// Restart 判定按键分口径：上面六条是装配期读一次（Restart=true）；
+	// path_quotas 是每请求热读（middleware/rate_quota.go 逐请求解析 JSON），标 Restart=false 才对。
+	hotRead := map[string]bool{"path_quotas": true}
 	index := map[string]string{}
 	for _, d := range DefaultParamDefs() {
 		if d.Group == "ratelimit" {
 			index[d.Key] = d.DefaultValue
+			if hotRead[d.Key] {
+				if d.Restart {
+					t.Errorf("ratelimit.%s 是每请求热读键，不应标 Restart=true", d.Key)
+				}
+				continue
+			}
 			if !d.Restart {
 				t.Errorf("ratelimit.%s 应标 Restart=true：装配期读一次，不重启不生效", d.Key)
 			}
@@ -39,8 +49,16 @@ func TestRateLimitSeedDefaultsMatchProduction(t *testing.T) {
 			t.Errorf("ratelimit.%s 默认值 = %q, 期望生产值 %q", k, got, w)
 		}
 	}
-	if len(index) != len(want) {
-		t.Errorf("ratelimit 组条数 = %d, 期望 %d", len(index), len(want))
+	// path_quotas 的默认值必须与 middleware.DefaultPathQuota 同源（JSON 序列化那张表）。
+	// 逐字节断言放 middleware 包的用例里（那边能直接引用 DefaultPathQuota），
+	// 这里只锁条数：六条装配期键 + 一条热读 JSON。
+	if len(index) != len(want)+1 {
+		t.Errorf("ratelimit 组条数 = %d, 期望 %d（装配期 %d 条 + path_quotas）", len(index), len(want)+1, len(want))
+	}
+	if got, ok := index["path_quotas"]; !ok {
+		t.Error("ratelimit.path_quotas 在 DefaultParamDefs() 里不存在")
+	} else if !json.Valid([]byte(got)) {
+		t.Errorf("ratelimit.path_quotas 默认值不是合法 JSON: %q", got)
 	}
 }
 

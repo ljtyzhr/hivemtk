@@ -15,8 +15,9 @@
  * 而那条残留会话仍按 created/active 占着并发闸，下一次下发被判「已有任务执行中」。
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mount, flushPromises } from '@vue/test-utils'
+import { mount } from '@vue/test-utils'
 import ElementPlus, { ElMessage } from 'element-plus'
+import { settle } from './settle-helper'
 
 const api = vi.hoisted(() => ({
   getBrowserSession: vi.fn(),
@@ -42,13 +43,14 @@ const NOT_FOUND = () => bizErr('会话不存在', 'NOT_FOUND_1002', 404)
 
 // 轮询是这一页的判据本身，所以必须用假时钟：真等 2s×N 轮在负载机器上会漂成超时，
 // 而「漂没漂」和「停没停」在日志里长得一模一样。
+// settle 在假时钟下不会挂：它在模块加载时捕获的是真实 setTimeout（见 settle-helper.js），
+// 排微任务 + 让出一个真实宏任务，轮询本身仍由下面的 tick() 显式推进。
 async function mountMonitor() {
   vi.useFakeTimers()
   const host = document.createElement('div')
   document.body.appendChild(host)
   const wrapper = mount(Monitor, { global: { plugins: [ElementPlus] }, attachTo: host })
-  await flushPromises()
-  await flushPromises()
+  await settle(wrapper)
   return wrapper
 }
 
@@ -57,7 +59,7 @@ const clickWhere = async (wrapper, label) => {
   const btn = wrapper.findAll('button').find((b) => b.text().includes(label))
   expect(btn, `页面上没有「${label}」按钮`).toBeTruthy()
   await btn.trigger('click')
-  await flushPromises()
+  await settle(wrapper)
   return btn
 }
 

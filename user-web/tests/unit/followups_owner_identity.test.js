@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mount, flushPromises } from '@vue/test-utils'
+import { mount } from '@vue/test-utils'
 import ElementPlus from 'element-plus'
 import { createPinia } from 'pinia'
+import { settle } from './settle-helper'
 
 // 今日跟进的身份腿。
 //
@@ -42,7 +43,7 @@ const mountPage = async () => {
     props: {},
     global: { plugins: [createPinia(), ElementPlus] }
   })
-  await flushPromises()
+  await settle(w)
   return w
 }
 

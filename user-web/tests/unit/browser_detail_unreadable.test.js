@@ -12,8 +12,9 @@
  * 一个假答案，比空着更贵。
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mount, flushPromises } from '@vue/test-utils'
+import { mount } from '@vue/test-utils'
 import ElementPlus from 'element-plus'
+import { settle } from './settle-helper'
 
 const route = vi.hoisted(() => ({ value: { params: { id: '77' } } }))
 const push = vi.hoisted(() => vi.fn())
@@ -52,7 +53,7 @@ async function mountDetail() {
   const host = document.createElement('div')
   document.body.appendChild(host)
   const wrapper = mount(Detail, { global: { plugins: [ElementPlus] }, attachTo: host })
-  for (let i = 0; i < 4; i++) await flushPromises()
+  await settle(wrapper)
   return wrapper
 }
 
@@ -86,7 +87,7 @@ describe('详情页读不到时的样子', () => {
     const retry = wrapper.findAll('button').find((b) => b.text().includes('重试'))
     expect(retry, '读不到的那一屏上没有「重试」入口').toBeTruthy()
     await retry.trigger('click')
-    for (let i = 0; i < 4; i++) await flushPromises()
+    await settle(wrapper)
     expect(api.getBrowserTask).toHaveBeenCalledTimes(2)
     expect(wrapper.text()).toContain(TASK.name)
     // 错误态读通之后要退场：留着那条红幅会让用户以为这一页仍不可信

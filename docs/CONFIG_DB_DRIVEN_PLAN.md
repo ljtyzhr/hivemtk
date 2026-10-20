@@ -1533,3 +1533,57 @@ Name 没有加「（只读）」后缀：UI 已有独立徽标，`stripSuffix()`
 **SMTP 路径 A（DB 化零新增表）**：勘察确认 `/email/smtp` 页面 → `email_smtp` 专表已持久化（密码 AES-GCM 落库、DTO 脱敏）；发信侧 `email/service/email_send.go` 默认通道补 DB 臂：**显式 SmtpID > env > `resolveSmtpFromDB`（首条完整行，crypto.Decrypt）> 报错**——纯增量，只填原先「无 SmtpID 且无 env 即报错」的空档，env 存量部署行为不变，运营页面配好即驱动发送、免重启。
 
 验证：readpoints wired 211→224（UNDECLARED/STALE 0）、defaults comparable 186→197、keystyle 37 组 0 违规，三门 rc=0；gofmt/vet/build clean；`go test -p 1` 五包全 ok（service 668s，含免打扰解析/URL 三级优先/限流默认=生产值/SMTP 优先级新用例）。env 一个未删（`DISABLE_AI_QUIET_HOURS`/`FRONTEND_URL`/`PLATFORM_CLOUD_URL`/`GEO_SITE_BASE_URL` 全保留最高优先级应急）。明确未做：路径级配额 map、`FF_*`、`days=30` 报表窗口、备用邮箱通道。
+
+#### 平台端 R3 已落地（2026-10-20）：资金类两条——分账比例写时戳 + 续费顺延天数快照优先
+
+| group.key | 默认 | 代码点位 | 生效时机 |
+| --- | --- | --- | --- |
+| `asset_market.platform_share_percent` | 30（int 0-100） | `platform-server/internal/service/asset_market_service.go` `resolveShares`/`CreateAsset`（调用点 :393） | 热 · 每次创建资产（60s 缓存） |
+| `subscription.period_days` | 30（int 1-365） | 下单快照 `order_service.go:321` `buildItems`；履约兜底 `subscription_service.go:173` `ExtendByOrder` | 热 · 每次下单/履约兜底 |
+
+**语义（种子 Description 与实现双向钉死）**：
+1. **分账「写时戳」**：参数只作为**新建资产**未显式指定时的默认值——整数百分比÷100 落 `platform_share`（decimal(4,2)），`contributor_share` 同步写 `100%−本参数`（两列是同一笔分账的两半，只戳一半会造出 40%+70% 的坏行）；显式指定（service 层入口 `CreateAssetInput.PlatformShare`，HTTP 面 `json:"-"` 防贡献者自定比例）优先；**存量资产行永不被改写、无回写 job**；购买分账仍按资产行快照（`platformShareAmount = a.Price × a.PlatformShare`）。既有行默认 0.30 不受新默认影响。
+2. **续费天数快照优先**：下单时 `period_days` 读参数并**快照进 `order_items.snapshot`**（锁值，改参数不追溯已下单）；履约 `fulfillSubscription` 优先快照；仅快照缺失/≤0（历史脏数据）才回落「参数 > 常量 30」。**修掉的既有缺陷**：`ExtendByOrder` 原 `days<=0 → 常量30` 的实时回退（改常量会按新值延旧单）。
+3. **幂等双口径无冲突**：平台 grant 幂等锚天数=`coalesce(快照, 30)`，用户端镜像锚=下单时参数值——两者在「参数=默认 30」时相等，参数改后各按自己的时点快照，互不破坏。
+
+**对账证据（发布后跑）**：`assets` 中比例≠0.30/0.70 的行数=0（写时戳不回写存量）；`revenue_records` 近 7 日 `platform_amount/amount` 比例逐行=资产行比例（±0.01）；`subscription_grants.days` = 订单快照 `period_days`。
+
+验证：三道门禁 rc=0（seed 7→9、wired 9、可比对 9、命名违规 0）；`money_params_test.go` 3 例（写时戳+双列补数+显式优先+越界钳位+整数换算、**改参数后购买分账仍按行快照**、**快照单不受参数影响+无快照回落参数+默认路径延 30 天**）；主仓环境 `go test ./internal/{service,shared/service,controller}/ -p 1` 全 ok（含 money 与既有 DB 依赖用例，`POSTGRES_TEST_PORT=8201` + `.env` 密钥注入）；platform-web 构建通过（ConfigParams chunk 更新）。前端 `GROUP_LABELS` 增 `subscription: 订阅`（`asset_market` 原本已有）。实现会话自述的「8 个预存在红」经核实为该会话自身 PG 凭据环境问题，非代码回归——主仓同用例全绿。
+
+#### 清欠批次 F1–F5（2026-10-20）：backlog 一次性清零
+
+**F1（平台端四件套）**：① 删死键 JWT_EXPIRE（platform `.env.example`+`发布流程.md`，取证 0 消费方）；② 修 `TestMonitoringService_GetBusinessMetrics` 时间窗 flaky——根因 seed 未来铺 vs 期望过去铺公式相反（每日 00:00–00:59 必红），修法=seed 统一过去铺 + 期望函数接播种基准 logBase + 固定时刻纯函数用例覆盖跨午夜窗口（00:30→268、00:00→9）；③ 审计/回默认闭环：`GET /platform/config-params/:group/:key/audit?limit=`（解密明文 `{items:[{time,actor,old,new}]}`）+ `POST .../reset`（action="reset" 审计、只读拦、写后缓存失效），管理页行操作加「回默认」确认框与「变更历史」抽屉，新增单测 5 个（路由 401×4、解密明文、reset 落审计+双层只读拒）；④ 三道门挂 `platform-ci.yml` + 仓根/`platform-server` 双 Makefile（`config-param-gates` target）；⑤ `swag init -g cmd/api/main.go -o docs/swagger` 重生成（swag v1.16.4，头未变，含 audit/reset 与 49761d7/794cd76 租户注解欠账）。验证：三门 rc=0（9 wired/9 可比对/0 违规）、gofmt/vet/build 绿、`go test ./... -p 1` 全绿无时间窗红、npm build 绿、CI YAML valid。
+
+**F2（user-web 测试基建收尾）**：27 文件——23 个组件用例文件 **82 处裸 flushPromises 全改 settle(wrapper)/settleBody()**（含 15 处 for 连刷、2 处自定义 flush+setTimeout 循环；断言零改动只改「怎么等」；teleport 弹层以 document.body 为判据）；`settle-helper.js` 捕获真实 setTimeout（假时钟不挂死）+ 新增 `settleBody()`；`router_query_preserve` 补 bootstrapState 桩切断「本机后端可达性」隐性依赖（该红与并行无关，单跑即红）；**`vitest.config.js` fileParallelism 恢复 true**。验证：grep 裸调用 82→0；vitest 三轮全量 **58 文件/632 例全绿**（默认并行 ×2 + threads/50% ×1，27.6–29.8s）；build 绿；改动文件 eslint 0 error。**串行豁免到期，测试基建收口完成。**
+
+**F3（结构化配置三件 + 基线）**：① `ratelimit.path_quotas`（json，每请求热读）——勘察确认配额 map 是请求期查表非构造期；解析失败回落默认表、单条非法丢弃、空表回落默认；种子默认与 `DefaultPathQuota` 同源对账；② `reporting.default_window_days`（int，默认 30，热读）——经 `internal/reporting` 叶子包 + 装配层 provider 注入收口，接入全仓 ~24 处报表 days=30 兜底（`DailyTrend`/`sinceDays` 两签名补 ctx；geo 可见性复用已有 `geo.default_visibility_days` 读口避免双键打架）；③ **备用邮箱通道 DB 化走专表而非参数**：`email_smtp` 表行 `Name='env:163'/'env:qq'` 按 env 链同序顶替对应 env 通道——依据=专表已有 UI+AES-GCM+`json:"-"` 天然不回传，参数中心通用 GET 会明文回给管理端（密码类不宜），env 优先级不变、无此名行时选径逐字节不变；④ defaults 基线 186→**198**（棘轮验证仍挡下降）。门禁：readpoints wired **226**、defaults/keystyle/env-coverage rc=0。测试：middleware/app/reporting/controller/geo/ops 等包全 ok（knowledge 2 例需本机 8208 embedding 服务，环境性非本批）。
+
+**F4（跨仓 drift 门转绿）**：`MERCHANT_API_SECRET` 两端不一致根因=R1 `hivemtk/.env` 是模板占位符 `ChangeMe_To_…`（48 位）、R2 平台 `.env` 是 `openssl rand -hex 32` 生产同构 64 位真值；对齐 R1 至 R2（仅本地 gitignored .env）。复跑：drift 门 **rc=0（PASS=3 FAIL=0）**、check-secrets rc=0。附带裁决：门内记载的 `azbL6ptz…` 是 merchant_key（部署级身份文件）而非 HMAC secret，不参与本门。
+
+**F5（路径配额真功能补全并挂载）**：修复两个真缺陷——(a) 配额表 RPS/BucketSize 从未生效（原实现走 `globalRateLimiter.Allow` 全局桶，参数只回显在 429 JSON）；(b) 桶键只有 path 没有 IP（`/api/reach` 50rps 全站共享，一租户可饿死所有人）。修法=自建 `pathQuotaLimiterManager`：桶键 `ip+"\x00"+path` 每客户端每路径一桶、5min tick 清 30min 闲置、参数变更重建桶（60s 缓存 TTL 内生效）；挂载 `router.go` 全局限流后/JWT 前（未登录也计数，保护昂贵端点的本意）；`GetQuotaSnapshots` Remaining/Used 改从新管理器（Redis 分支保留）；种子 Description 同步「每客户端×路径独立计数」。新 6 用例（429 body 逐字段、跨 IP 隔离、热更新重建、快照自洽、nil 限流器）+ 既有种子/解析用例全 PASS；三门 rc=0（226 wired）。**已知边界**：多实例部署为各实例本地计数（代码注释已标），跨实例一致配额需 Redis 全局桶——未做，属部署拓扑决策。
+
+**F-顺手修（Wall.vue）**：`user-web/src/views/subscription/Wall.vue` `recover()` 被调用但从未定义——0 元续费直通 fulfilled 成功路径会抛 ReferenceError（提示弹出但状态卡旧值）。补 `recover()`：立即一次「sync+状态回读」，未转 active 则落回既有轮询。eslint 0 error。
+
+**F 批次验证汇总**：平台三门 rc=0 + 全量测试绿 + swag/CI/YAML 就绪；用户端四门 rc=0（wired 226、可比对 198/基线 198）+ middleware/app/reporting/email/config 等包 `-p 1` 全绿；user-web vitest 三轮 632 例全绿（并行）+ build 绿；drift/secrets 门 rc=0。
+
+#### 平台端 R4 已落地（2026-10-20）：可运维上限与超时三条
+
+| group.key | 默认 | 代码点位 | 生效时机 |
+| --- | --- | --- | --- |
+| `asset_market.max_withdrawal_amount` | 1000000（int 1-100000000，元） | `platform-server/internal/controller/asset_market_controller.go` `ContributorWithdrawalCreate` | 热 · 每次提现请求（60s 缓存） |
+| `asset_market.batch_operation_limit` | 100（int 1-10000，条） | 同上 `AdminBatchPublish` / `AdminBatchApprove`（共用同一上限） | 热 · 每次批量请求 |
+| `llm_proxy.timeout_seconds` | 120（int 1-1800，秒） | `platform-server/internal/service/llm_proxy_service.go` `NewLLMProxyService` | 构造期 · Restart=true |
+
+**口径**：三条默认值都等于改动前的代码常量（1_000_000 / 100 / 120s），行为零变更；`GetInt` 的兜底实参分别是 `defaultMaxWithdrawalAmount` / `defaultBatchOperationLimit` / `DefaultProxyTimeoutSeconds`，与种子 DefaultValue 同源，defaults 门按实参位置比对。批量错误文案改为回显参数值（`上限 %d 个`），Swagger 注解同步标注「默认值，参数中心可调」；前端 `GROUP_LABELS` 增 `llm_proxy: LLM 代理`。
+
+**明确不 DB 化（同批讨论结论）**：
+- `middleware.maxUploadBodyMB`（64MB 内存调优）、LLM 代理 `maxBodyBytes`（8MB 安全上限）、审计队列 `batchSize/flushInterval`：资源/安全/内部队列参数，运行期改动风险大于运维收益；
+- `log.*`（level/format/filename/rotate）：启动引导配置，必须在 DB 可用前生效。本轮只修「`main.go` 硬编码导致 `config.Cfg.Log.*` 成为死配置」——`logger.Init` 改读 `config.Cfg.Log`（viper 默认值与原硬编码逐项相同，行为零变更），`retention_days` 仍由 config.yaml 唯一驱动；
+- `jwt.expire`：安全姿态；`PLAYGROUND_LLM_BASE_URL`：部署端点（env）；`FF_*` 已在 `feature_flags`。
+
+**配置类缺陷同批修复**：
+1. 用户端 `config.GetServerBaseURL` 直接 `yaml.Unmarshal`、未展开 `${VAR:default}`，跟踪/退订链接会把字面 `${PLATFORM_API_URL:...}` 拼出去；改为先 `expandEnvWithDefault`，`TestGetServerBaseURLExpandsEnvPlaceholder` 钉住（反向还原缺陷时该用例红在字面占位符）。
+2. 平台端 `cmd/api/main.go` 的 `logger.Init` 由硬编码改为读 `config.Cfg.Log`。
+3. 删除 `internal/config/config_viper.go` 零调用死代码 `GetViper` / `WriteConfig` / `Init`（viper 热重载从未接线）。
+
+验证：三道门禁 rc=0（seed 9→12、wired 12、可比对 12、命名违规 0，棘轮基线 9→12）；反向摘掉提现读点 → readpoints rc=1 `UNDECLARED asset_market.max_withdrawal_amount`、defaults rc=2 棘轮 11<12，复原后双绿（md5 回读一致）；`go build ./...` / `go vet ./...` clean；`go test ./internal/controller/ ./internal/config/ ./internal/service/ -p 1` 全 ok（8.2s / 0.3s / 33.5s），新增 `TestAssetMarketCapsFollowConfigParam`（DB 上限调到 100/1 后，150 元提现与 2 条批量均被拒，证明不是只改静态形状）与 `TestLLMProxyTimeoutFollowsConfigParam`（DB 30s 同时进入 `service.timeout` 与 `http.Client.Timeout`，无 DB 回落 120s）；platform-web `vite build` 通过（ConfigParams chunk 19.02 kB）。Swagger `docs.go` 未再生成（该文件正被并行泳道修改，注解已更新，下次 `swag init` 即同步）。

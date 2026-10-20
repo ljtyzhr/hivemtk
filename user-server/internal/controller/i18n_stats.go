@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"hivemtk-user/internal/pkg/utils/response"
+	"hivemtk-user/internal/reporting"
 	"hivemtk-user/internal/service/translation"
 )
 
@@ -101,7 +102,7 @@ func (ctrl *I18nStatsController) GetGlossaryCoverage(c *gin.Context) {
 // GetQualityTrend 质量趋势
 // GET /api/i18n/stats/quality?days=30
 func (ctrl *I18nStatsController) GetQualityTrend(c *gin.Context) {
-	days := parseDays(c, 30)
+	days := parseDays(c, reporting.DefaultWindowDays(c.Request.Context()))
 	rows, err := ctrl.svc.GetQualityTrend(c.Request.Context(), days)
 	if err != nil {
 		response.ErrorFromDB(c, err, "查询失败", err.Error())

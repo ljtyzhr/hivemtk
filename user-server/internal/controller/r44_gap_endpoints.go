@@ -8,6 +8,7 @@ import (
 
 	ksvc "hivemtk-user/internal/aiagent/knowledge/service"
 	"hivemtk-user/internal/pkg/utils/response"
+	"hivemtk-user/internal/reporting"
 	"hivemtk-user/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -200,7 +201,7 @@ func NewEmailGapController() *EmailGapController {
 
 // Deliverability GET /api/email/deliverability?days=30
 func (c *EmailGapController) Deliverability(ctx *gin.Context) {
-	days, _ := strconv.Atoi(ctx.DefaultQuery("days", "30"))
+	days, _ := strconv.Atoi(ctx.DefaultQuery("days", strconv.Itoa(reporting.DefaultWindowDays(ctx.Request.Context()))))
 	st, err := c.svc.Deliverability(ctx.Request.Context(), days)
 	if HandleServiceError(ctx, err) {
 		return
@@ -210,7 +211,7 @@ func (c *EmailGapController) Deliverability(ctx *gin.Context) {
 
 // BounceBreakdown GET /api/email/bounces/breakdown
 func (c *EmailGapController) BounceBreakdown(ctx *gin.Context) {
-	days, _ := strconv.Atoi(ctx.DefaultQuery("days", "30"))
+	days, _ := strconv.Atoi(ctx.DefaultQuery("days", strconv.Itoa(reporting.DefaultWindowDays(ctx.Request.Context()))))
 	res, err := c.svc.BounceBreakdown(ctx.Request.Context(), days)
 	if HandleServiceError(ctx, err) {
 		return

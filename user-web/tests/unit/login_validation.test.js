@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mount, flushPromises } from '@vue/test-utils'
+import { mount } from '@vue/test-utils'
 import ElementPlus from 'element-plus'
 import { createPinia } from 'pinia'
+import { settleBody } from './settle-helper'
 
 // 登录页的"表单没填"和"登录失败"必须是两件事。
 //
@@ -68,14 +69,12 @@ function mountLogin(validateImpl) {
 }
 
 // 点击后 validate() 是 promise，EP 的字段校验链还要再排几轮 microtask 才落到 ElMessage 的 DOM。
+// 表单 attachTo body、提示条也挂在 body 上，所以用整页 DOM 做稳定判据（settleBody）。
 async function clickLogin(wrapper) {
   const buttons = wrapper.findAll('.el-button').filter((b) => b.text() === t('core.login.submit'))
   expect(buttons.length).toBe(1)
   await buttons[0].trigger('click')
-  for (let i = 0; i < 6; i++) {
-    await flushPromises()
-    await new Promise((r) => setTimeout(r, 5))
-  }
+  await settleBody()
 }
 
 const errorToasts = () => Array.from(document.querySelectorAll('.el-message--error')).map((n) => n.textContent.trim())

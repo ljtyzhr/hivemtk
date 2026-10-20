@@ -29,6 +29,13 @@ func defaultTrendDays(ctx context.Context) int {
 	return days
 }
 
+// DefaultVisibilityDays 导出给 geo 控制器用的同一读口：HTTP 层的 DefaultQuery 兜底
+// 与服务层 days<=0 兜底必须读同一条参数（geo.default_visibility_days），
+// 否则会出现「控制器默认 30、服务层默认参数值」两套口径打架。
+func DefaultVisibilityDays(ctx context.Context) int {
+	return defaultTrendDays(ctx)
+}
+
 // VisibilityService AI 可见性趋势分析服务
 //
 // 基于 geo_daily_stats 预聚合表输出每日可见率序列与环比变化，

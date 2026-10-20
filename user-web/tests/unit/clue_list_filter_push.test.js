@@ -13,8 +13,9 @@
  *    只要前端还按本地类型再筛一次，表格就会空，这一格就会红。
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mount, flushPromises } from '@vue/test-utils'
+import { mount } from '@vue/test-utils'
 import ElementPlus from 'element-plus'
+import { settle } from './settle-helper'
 
 const api = vi.hoisted(() => ({
   list: vi.fn(),
@@ -48,7 +49,7 @@ async function mountList() {
     global: { plugins: [ElementPlus], mocks: { $t: (k) => k } },
     attachTo: host,
   })
-  for (let i = 0; i < 3; i++) await flushPromises()
+  await settle(wrapper)
   return wrapper
 }
 
@@ -64,7 +65,7 @@ async function pickOption(wrapper, label, text) {
   const trigger = item.element.querySelector('.el-select__wrapper')
   expect(trigger, `「${label}」没有下拉`).toBeTruthy()
   trigger.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-  await flushPromises()
+  await settle(wrapper)
   // Element Plus 会把三个下拉都预先渲染进 body，开合状态在各自的 .el-popper 父节点上；
   // 只在这唯一展开的面板里找项，才能证明点的是「${label}」这一只而不是别只的下拉。
   const open = Array.from(document.querySelectorAll('.el-select-dropdown'))
@@ -74,14 +75,14 @@ async function pickOption(wrapper, label, text) {
     .find((o) => o.textContent.trim() === text)
   expect(option, `「${label}」里没有 ${text} 这一项`).toBeTruthy()
   option.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-  await flushPromises()
+  await settle(wrapper)
 }
 
 async function clickButton(wrapper, text) {
   const btn = wrapper.findAll('button').find((b) => b.text().includes(text))
   expect(btn, `页面上没有「${text}」按钮`).toBeTruthy()
   await btn.trigger('click')
-  for (let i = 0; i < 3; i++) await flushPromises()
+  await settle(wrapper)
 }
 
 describe('线索列表页把筛选下推到服务端', () => {
@@ -170,7 +171,7 @@ describe('线索列表页把筛选下推到服务端', () => {
     api.list.mockResolvedValue({ list: serverRows(10, 4), total: 29 })
     const wrapper = await mountList()
     await wrapper.find('.btn-next').trigger('click')
-    for (let i = 0; i < 3; i++) await flushPromises()
+    await settle(wrapper)
     expect(pageQueries().at(-1)[0]).toBe(2)
     await pickOption(wrapper, '线索类型', '抖音')
     await clickButton(wrapper, '搜索')

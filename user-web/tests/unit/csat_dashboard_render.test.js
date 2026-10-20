@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mount, flushPromises } from '@vue/test-utils'
+import { mount } from '@vue/test-utils'
 import ElementPlus from 'element-plus'
+import { settle } from './settle-helper'
 
 // CSAT 看板的渲染腿：证明那四张卡、两张图和差评表读的真是 /api/csat/* 的字段，
 // 而不是模板自己造的数。
@@ -77,7 +78,7 @@ function stubHappy() {
 
 async function mountPage() {
   const wrapper = mount(CsatDashboard, { attachTo: document.body, global: { plugins: [ElementPlus] } })
-  await flushPromises()
+  await settle(wrapper)
   return wrapper
 }
 

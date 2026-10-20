@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mount, flushPromises } from '@vue/test-utils'
+import { mount } from '@vue/test-utils'
 import ElementPlus from 'element-plus'
+import { settle } from './settle-helper'
 
 // 消息中枢 Dashboard 的渲染腿：证明"页面上那几个数"真的来自 /api/message-hub/stats，
 // 而不是模板里自己造的。
@@ -81,7 +82,7 @@ const findButton = (text) =>
 
 async function mountPage() {
   const wrapper = mount(Dashboard, { attachTo: document.body, global: { plugins: [ElementPlus] } })
-  await flushPromises()
+  await settle(wrapper)
   return wrapper
 }
 
@@ -223,7 +224,7 @@ describe('死信队列：表格吃的是 list，按钮吃的是 total', () => {
     const wrapper = await mountPage()
     http.post.mockResolvedValue({ requeued: 7 })
     findButton('批量重试').click()
-    await flushPromises()
+    await settle(wrapper)
     expect(http.post).toHaveBeenCalledWith('/api/message-hub/dlq/batch-retry', {})
     expect(document.body.textContent).toContain('已重新入队 7 条')
     expect(http.get.mock.calls.filter((c) => c[0] === '/api/message-hub/stats').length).toBe(2)
@@ -251,7 +252,7 @@ describe('读不到的那一轮：旧数还在，但必须说它是旧数', () =
     const first = statsStarts()[0]
     expect(first).toBe('2026-09-29T09:00:00.000Z')
     vi.advanceTimersByTime(30000)
-    await flushPromises()
+    await settle(wrapper)
     expect(statsStarts()).toHaveLength(2)
     expect(new Date(statsStarts()[1]).getTime() - new Date(first).getTime()).toBe(30000)
     vi.useRealTimers()

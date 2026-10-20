@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"hivemtk-user/internal/pkg/utils/response"
+	"hivemtk-user/internal/reporting"
 	"hivemtk-user/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -58,7 +59,7 @@ func (c *CSATController) Stats(ctx *gin.Context) {
 
 // Trend GET /api/csat/trend?days=30
 func (c *CSATController) Trend(ctx *gin.Context) {
-	days := queryInt(ctx, "days", 30)
+	days := queryInt(ctx, "days", reporting.DefaultWindowDays(ctx.Request.Context()))
 	list, err := c.svc.Trend(ctx.Request.Context(), days)
 	if HandleServiceError(ctx, err) {
 		return

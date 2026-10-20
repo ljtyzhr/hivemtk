@@ -7,8 +7,9 @@
  * 于是一半的情况自愈、另一半留着一张空表，这种「时灵时不灵」最难被当成缺陷报上来。
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mount, flushPromises } from '@vue/test-utils'
+import { mount } from '@vue/test-utils'
 import ElementPlus from 'element-plus'
+import { settle } from './settle-helper'
 
 const api = vi.hoisted(() => ({
   listBrowserTasks: vi.fn(),
@@ -34,7 +35,7 @@ async function mountList() {
   const host = document.createElement('div')
   document.body.appendChild(host)
   const wrapper = mount(List, { global: { plugins: [ElementPlus] }, attachTo: host })
-  for (let i = 0; i < 3; i++) await flushPromises()
+  await settle(wrapper)
   return wrapper
 }
 
@@ -44,7 +45,7 @@ async function goNextPage(wrapper) {
   const next = wrapper.find('.btn-next')
   expect(next.exists(), '分页条上没有下一页按钮').toBeTruthy()
   await next.trigger('click')
-  await flushPromises()
+  await settle(wrapper)
 }
 
 // 走真实点击而不是直接改 query：判据住在「筛选变化时该发什么参数」这条链上，
@@ -53,12 +54,12 @@ async function filterBy(wrapper, statusText) {
   const triggerEl = wrapper.element.querySelector('.toolbar .el-select__wrapper')
   expect(triggerEl, '工具条里没有状态下拉').toBeTruthy()
   triggerEl.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-  await flushPromises()
+  await settle(wrapper)
   const option = Array.from(document.querySelectorAll('.el-select-dropdown__item'))
     .find((o) => o.textContent.trim() === statusText)
   expect(option, `状态下拉里没有 ${statusText} 这一项`).toBeTruthy()
   option.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-  await flushPromises()
+  await settle(wrapper)
 }
 
 describe('列表页的筛选与分页', () => {

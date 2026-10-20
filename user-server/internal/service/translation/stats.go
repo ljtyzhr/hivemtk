@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"time"
 
+	"hivemtk-user/internal/reporting"
 	"hivemtk-user/internal/repository"
 )
 
@@ -189,10 +190,10 @@ func (s *I18nStatsService) GetGlossaryCoverage(ctx context.Context) ([]repositor
 
 // GetQualityTrend 质量趋势
 //
-// days <= 0 时默认 30 天。
+// days <= 0 时回落报表默认窗口参数（reporting.default_window_days，默认 30）。
 func (s *I18nStatsService) GetQualityTrend(ctx context.Context, days int) ([]repository.QualityTrendRow, error) {
 	if days <= 0 {
-		days = 30
+		days = reporting.DefaultWindowDays(ctx)
 	}
 	rows, err := s.repo.QualityTrend(ctx, days)
 	if err != nil {

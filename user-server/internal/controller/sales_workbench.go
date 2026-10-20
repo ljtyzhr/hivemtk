@@ -6,6 +6,7 @@ import (
 	"strconv"
 
 	"hivemtk-user/internal/pkg/utils/response"
+	"hivemtk-user/internal/reporting"
 	"hivemtk-user/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -51,10 +52,10 @@ func (c *SalesWorkbenchController) GetOverview(ctx *gin.Context) {
 	response.Success(ctx, data, "ok")
 }
 
-// windowDays 解析窗口参数 days（可选，默认 30，上限 365）。
+// windowDays 解析窗口参数 days（可选，默认=报表默认窗口参数，上限 365）。
 // 非法值回 (0,false) ⇒ 控制器统一 400，不让垃圾参数进到读侧。
 func windowDays(ctx *gin.Context) (int, bool) {
-	raw := ctx.DefaultQuery("days", "30")
+	raw := ctx.DefaultQuery("days", strconv.Itoa(reporting.DefaultWindowDays(ctx.Request.Context())))
 	days, err := strconv.Atoi(raw)
 	if err != nil || days <= 0 || days > 365 {
 		return 0, false

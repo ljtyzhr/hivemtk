@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { mount, flushPromises } from '@vue/test-utils'
+import { mount } from '@vue/test-utils'
 import ElementPlus from 'element-plus'
+import { settle } from './settle-helper'
 import { createPinia } from 'pinia'
 
 // 组件渲染用例：证明"审批类待办没有裸完成"这条红线**穿过了模板**，而不只是活在 actions.js 里。
@@ -84,7 +85,7 @@ async function mountPage(rows = ROWS) {
   api.list.mockResolvedValue({ list: rows, total: rows.length })
   api.counts.mockResolvedValue({ at: '2026-09-20T09:00:00Z', total_open: rows.length, by_kind: [] })
   const wrapper = mount(List, { attachTo: document.body, global: { plugins: [createPinia(), ElementPlus] } })
-  await flushPromises()
+  await settle(wrapper)
   return wrapper
 }
 
@@ -138,7 +139,7 @@ describe('裁决抽屉：批准/驳回，且驳回没有理由就点不动', () 
     const wrapper = await mountPage()
     const decideBtn = wrapper.findAll('button').find((b) => b.text().trim() === '裁决')
     await decideBtn.trigger('click')
-    await flushPromises()
+    await settle(wrapper)
     expect(api.getApproval).toHaveBeenCalledWith('apr_1')
   })
 
@@ -146,7 +147,7 @@ describe('裁决抽屉：批准/驳回，且驳回没有理由就点不动', () 
     api.getApproval.mockResolvedValue(APPROVAL_DETAIL)
     const wrapper = await mountPage()
     wrapper.findAll('button').find((b) => b.text().trim() === '裁决').trigger('click')
-    await flushPromises()
+    await settle(wrapper)
     const body = document.body.textContent
     expect(body).toContain('批准')
     expect(body).toContain('驳回')
@@ -157,7 +158,7 @@ describe('裁决抽屉：批准/驳回，且驳回没有理由就点不动', () 
     api.getApproval.mockResolvedValue(APPROVAL_DETAIL)
     const wrapper = await mountPage()
     wrapper.findAll('button').find((b) => b.text().trim() === '裁决').trigger('click')
-    await flushPromises()
+    await settle(wrapper)
 
     const reject = () =>
       Array.from(document.querySelectorAll('button')).find((b) => b.textContent.trim() === '驳回')
@@ -167,7 +168,7 @@ describe('裁决抽屉：批准/驳回，且驳回没有理由就点不动', () 
     expect(textarea, '裁决说明输入框必须存在').toBeTruthy()
     textarea.value = '金额与报价单不符'
     textarea.dispatchEvent(new Event('input', { bubbles: true }))
-    await flushPromises()
+    await settle(wrapper)
     expect(reject().disabled).toBe(false)
   })
 
@@ -176,15 +177,15 @@ describe('裁决抽屉：批准/驳回，且驳回没有理由就点不动', () 
     api.decide.mockResolvedValue({ ...APPROVAL_DETAIL, status: 'rejected', decided_by: '7' })
     const wrapper = await mountPage()
     wrapper.findAll('button').find((b) => b.text().trim() === '裁决').trigger('click')
-    await flushPromises()
+    await settle(wrapper)
     const textarea = document.querySelector('textarea')
     textarea.value = '金额与报价单不符'
     textarea.dispatchEvent(new Event('input', { bubbles: true }))
-    await flushPromises()
+    await settle(wrapper)
     Array.from(document.querySelectorAll('button'))
       .find((b) => b.textContent.trim() === '驳回')
       .click()
-    await flushPromises()
+    await settle(wrapper)
     expect(api.decide).toHaveBeenCalledWith('apr_1', 'rejected', '金额与报价单不符')
   })
 
@@ -200,7 +201,7 @@ describe('裁决抽屉：批准/驳回，且驳回没有理由就点不动', () 
     const btn = wrapper.findAll('button').find((b) => b.text().trim() === '裁决')
     expect(btn, '审批行必须有裁决按钮').toBeTruthy()
     btn.trigger('click')
-    await flushPromises()
+    await settle(wrapper)
   }
 
   it('挂起时限已过（状态仍是 pending、三个目标照单全列）：抽屉里没有批准/驳回', async () => {

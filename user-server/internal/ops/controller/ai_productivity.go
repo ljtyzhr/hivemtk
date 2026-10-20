@@ -7,6 +7,7 @@ import (
 
 	"hivemtk-user/internal/ops/service"
 	"hivemtk-user/internal/pkg/utils/response"
+	"hivemtk-user/internal/reporting"
 
 	"github.com/gin-gonic/gin"
 )
@@ -34,8 +35,8 @@ func (c *AIProductivityController) GetReport(ctx *gin.Context) {
 
 // GetDailyTrend 日趋势
 func (c *AIProductivityController) GetDailyTrend(ctx *gin.Context) {
-	days, _ := strconv.Atoi(ctx.DefaultQuery("days", "30"))
-	trend, err := c.svc.DailyTrend(days)
+	days, _ := strconv.Atoi(ctx.DefaultQuery("days", strconv.Itoa(reporting.DefaultWindowDays(ctx.Request.Context()))))
+	trend, err := c.svc.DailyTrend(ctx.Request.Context(), days)
 	if err != nil {
 		response.Error(ctx, http.StatusInternalServerError, "趋势查询失败: "+err.Error())
 		return

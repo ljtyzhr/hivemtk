@@ -23,7 +23,7 @@ func NewVisibilityController(visibilitySvc *service.VisibilityService, fanoutSvc
 
 // Trend GET /geo/visibility/trend?engine=&intent=&days=
 func (c *VisibilityController) Trend(ctx *gin.Context) {
-	days, _ := strconv.Atoi(ctx.DefaultQuery("days", "30"))
+	days, _ := strconv.Atoi(ctx.DefaultQuery("days", strconv.Itoa(service.DefaultVisibilityDays(ctx.Request.Context()))))
 	result, err := c.visibilitySvc.GetTrend(ctx.Request.Context(), service.TrendQuery{
 		Engine: ctx.Query("engine"),
 		Intent: ctx.Query("intent"),
@@ -39,7 +39,7 @@ func (c *VisibilityController) Trend(ctx *gin.Context) {
 // EngineCompare GET /geo/visibility/engine-compare?intent=&days=
 // 引擎维度对比（可见率/负面/引用 + 单日拆分），观测页主数据源
 func (c *VisibilityController) EngineCompare(ctx *gin.Context) {
-	days, _ := strconv.Atoi(ctx.DefaultQuery("days", "30"))
+	days, _ := strconv.Atoi(ctx.DefaultQuery("days", strconv.Itoa(service.DefaultVisibilityDays(ctx.Request.Context()))))
 	result, err := c.visibilitySvc.GetEngineCompare(ctx.Request.Context(), service.TrendQuery{
 		Engine: ctx.Query("engine"),
 		Intent: ctx.Query("intent"),

@@ -5,8 +5,9 @@
  * 上一份文件照样全绿。这里数的是**渲染出来的 DOM 与真实点击发出的参数**。
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mount, flushPromises } from '@vue/test-utils'
+import { mount } from '@vue/test-utils'
 import ElementPlus from 'element-plus'
+import { settle } from './settle-helper'
 
 const api = vi.hoisted(() => ({
   getBrowserSession: vi.fn(),
@@ -43,8 +44,7 @@ const GATE = {
 
 async function mountMonitor() {
   const wrapper = mount(Monitor, { global: { plugins: [ElementPlus] } })
-  await flushPromises()
-  await flushPromises()
+  await settle(wrapper)
   return wrapper
 }
 
@@ -92,7 +92,7 @@ describe('闸门卡片：批之前看得见批的是什么', () => {
     const confirm = wrapper.findAll('button').find((b) => b.text().includes('确认放行'))
     expect(confirm.attributes('disabled')).toBeUndefined()
     await confirm.trigger('click')
-    await flushPromises()
+    await settle(wrapper)
     expect(api.confirmBrowserSession).toHaveBeenCalledWith('77', 'cafe1234')
     wrapper.unmount()
   })

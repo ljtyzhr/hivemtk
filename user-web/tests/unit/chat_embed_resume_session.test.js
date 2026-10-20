@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mount, flushPromises } from '@vue/test-utils'
-import { nextTick } from 'vue'
+import { mount } from '@vue/test-utils'
 
 // 访客侧"历史会话"恢复的凭证腿。
 //
@@ -67,6 +66,7 @@ vi.mock('@/utils/chatSocket', () => ({ ChatSocket: ChatSocketStub, default: Chat
 
 import i18n from '@/i18n'
 import ChatWindow from '@/views/chat/embed/ChatWindow.vue'
+import { settle } from './settle-helper'
 
 const olderRow = {
   id: 11,
@@ -87,8 +87,7 @@ const mountWindow = async () => {
     props: { channelId: 'default', channelTitle: '在线客服' },
     global: { plugins: [i18n] }
   })
-  await flushPromises()
-  await nextTick()
+  await settle(wrapper)
   return wrapper
 }
 
@@ -97,13 +96,11 @@ const openOfflineModal = async (wrapper) => {
   sockets[0].options.onOfflineMessages({
     messages: [{ id: 5, sender_type: 'agent', content: '坐席留言', created_at: NOW }]
   })
-  await flushPromises()
-  await nextTick()
+  await settle(wrapper)
   const btn = wrapper.find('.offline-banner button')
   expect(btn.exists()).toBe(true)
   await btn.trigger('click')
-  await flushPromises()
-  await nextTick()
+  await settle(wrapper)
   expect(wrapper.findAll('.session-item').length).toBe(2)
 }
 
@@ -181,8 +178,7 @@ describe('embed 访客恢复历史会话时的 visitor_token 归属', () => {
     await openOfflineModal(wrapper)
 
     await itemByPreview(wrapper, '发票').trigger('click')
-    await flushPromises()
-    await nextTick()
+    await settle(wrapper)
 
     // 换证只发生一次，且打的是"这条会话 + 本访客 + 本渠道"
     expect(api.exchangeSessionToken).toHaveBeenCalledTimes(1)
@@ -222,8 +218,7 @@ describe('embed 访客恢复历史会话时的 visitor_token 归属', () => {
     })
 
     await itemByPreview(wrapper, '发票').trigger('click')
-    await flushPromises()
-    await nextTick()
+    await settle(wrapper)
 
     // 没换到证就不该去拉历史
     expect(api.getMessages).not.toHaveBeenCalled()
@@ -231,7 +226,7 @@ describe('embed 访客恢复历史会话时的 visitor_token 归属', () => {
 
     // sessionId 没动的证据：右上角 × 关的是原来那条
     await wrapper.find('.close-btn').trigger('click')
-    await flushPromises()
+    await settle(wrapper)
     expect(api.closeSession).toHaveBeenCalledTimes(1)
     expect(api.closeSession.mock.calls[0][0]).toBe('sess_newest')
 
@@ -248,14 +243,13 @@ describe('embed 访客恢复历史会话时的 visitor_token 归属', () => {
     })
 
     await itemByPreview(wrapper, '发票').trigger('click')
-    await flushPromises()
-    await nextTick()
+    await settle(wrapper)
 
     expect(api.getMessages).not.toHaveBeenCalled()
     expect(lastSystemBubble(wrapper)).toBe('历史会话加载失败，请稍后重试')
 
     await wrapper.find('.close-btn').trigger('click')
-    await flushPromises()
+    await settle(wrapper)
     expect(api.closeSession.mock.calls[0][0]).toBe('sess_newest')
 
     wrapper.unmount()
@@ -266,8 +260,7 @@ describe('embed 访客恢复历史会话时的 visitor_token 归属', () => {
     await openOfflineModal(wrapper)
 
     await itemByPreview(wrapper, '发票').trigger('keydown.enter')
-    await flushPromises()
-    await nextTick()
+    await settle(wrapper)
 
     expect(api.exchangeSessionToken).toHaveBeenCalledTimes(1)
     expect(api.exchangeSessionToken.mock.calls[0]).toEqual(['sess_older', 'default', VISITOR_ID])
@@ -292,8 +285,7 @@ describe('embed 访客恢复历史会话时的 visitor_token 归属', () => {
     expect(banner.text()).toContain('2')
 
     await banner.find('button').trigger('click')
-    await flushPromises()
-    await nextTick()
+    await settle(wrapper)
     expect(wrapper.findAll('.session-item').length).toBe(2)
 
     wrapper.unmount()
@@ -319,8 +311,7 @@ describe('embed 访客恢复历史会话时的 visitor_token 归属', () => {
     sockets[0].options.onOfflineMessages({
       messages: [{ id: 5, sender_type: 'agent', content: '坐席留言', created_at: NOW }]
     })
-    await flushPromises()
-    await nextTick()
+    await settle(wrapper)
 
     const banners = wrapper.findAll('.offline-banner')
     expect(banners.length).toBe(1)

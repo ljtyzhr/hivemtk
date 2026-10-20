@@ -9,8 +9,9 @@
  * 不在版本控制里（实测 git ls-files 命中 0 个文件）——照抄指引的新机器那一步根本选不到目录。
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mount, flushPromises } from '@vue/test-utils'
+import { mount } from '@vue/test-utils'
 import ElementPlus from 'element-plus'
+import { settle } from './settle-helper'
 
 const api = vi.hoisted(() => ({ getBrowserHostStatus: vi.fn(), resetBrowserHostToken: vi.fn() }))
 vi.mock('@/api/browserAutomation', () => api)
@@ -24,7 +25,7 @@ const HOST = {
 
 async function mountStatus() {
   const wrapper = mount(Status, { global: { plugins: [ElementPlus] } })
-  for (let i = 0; i < 3; i++) await flushPromises()
+  await settle(wrapper)
   return wrapper
 }
 

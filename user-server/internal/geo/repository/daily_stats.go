@@ -7,6 +7,7 @@ import (
 	"hivemtk-user/internal/geo/model"
 	_db "hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/pkg/timeutil"
+	"hivemtk-user/internal/reporting"
 
 	"gorm.io/gorm"
 )
@@ -86,7 +87,7 @@ func (r *geoDailyStatRepo) List(ctx context.Context, engine, funnelStage, startD
 
 func (r *geoDailyStatRepo) GetTrend(ctx context.Context, engine, funnelStage, intent string, days int) ([]*model.GeoDailyStat, error) {
 	if days <= 0 {
-		days = 30
+		days = reporting.DefaultWindowDays(ctx)
 	}
 	// stat_date 是业务日口径的字符串键（由 scheduler 的 aggregateDailyStats 写入），
 	// 窗口首也必须是业务日，否则 UTC 宿主上"近 N 天"会少/多一天。

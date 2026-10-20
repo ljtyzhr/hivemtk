@@ -603,6 +603,9 @@ func DefaultParamDefs() []ParamDef {
 		{Group: "geo", Key: "default_visibility_days", Name: "可见性趋势默认天数",
 			Description: "AI 可见性趋势查询在调用方没给 days 时的默认时间窗（天）。注意它不是上限：days 大于 365 仍会被夹到 365（一次要回 365 行按引擎的聚合，是查询成本闸，不随默认值一起放大）。改小会让环比对比的样本不足（不足 2 天直接无环比）",
 			ValueType:   "int", Unit: "天", DefaultValue: "30", Min: strPtr("1"), Max: strPtr("365"), Step: strPtr("1")},
+		{Group: "reporting", Key: "default_window_days", Name: "报表默认窗口天数",
+			Description: "报表/列表类接口在调用方没给 days（或给了非法值）时的默认统计窗口（天）。收口原先散在 CSAT 趋势、i18n 质量趋势、邮件可达性、销售工作台、AI 产能、知识库统计等十几处各自写死的 30。每请求热读，改完立即生效；不是各接口的上限（>365 或 >90 的夹取上限仍按各点位自己的口径）。非正数一律回落代码兜底 30",
+			ValueType:   "int", Unit: "天", DefaultValue: "30", Min: strPtr("1"), Max: strPtr("365"), Step: strPtr("1")},
 		// ── webhook 组：回调处理的并发、限流与重试 ────────────────────────
 		// 七个常量原先散在 webhook_dedup.go / webhook.go / webhook_ai.go 三处。
 		// 优先级链：env > 本组 > 常量兜底；env 保留为部署层应急开关。
@@ -870,6 +873,13 @@ func DefaultParamDefs() []ParamDef {
 		{Group: "ratelimit", Key: "visitor_per_channel_bucket", Name: "访客单渠道桶容量",
 			Description: "访客单渠道令牌桶容量（允许的瞬时突发量）。装配期读一次，改完需重启。默认 200（2×RPS）",
 			ValueType:   "int", Risk: "warning", DefaultValue: "200", Min: strPtr("1"), Max: strPtr("1000000"), Step: strPtr("10"), Restart: true},
+		// 路径级配额：每请求热读（参数中心 60s 内存缓存），改完不重启即生效——
+		// 与上面六条装配期定型的键不同，故不标 Restart。
+		// JSON 形状 {path: {rps, bucket_size}}，解析失败/结构非法回落代码默认表
+		// （middleware.DefaultPathQuota），默认值与那张表逐字节同源。
+		{Group: "ratelimit", Key: "path_quotas", Name: "路径级限流配额（整份 JSON）",
+			Description: "按路径覆写限流配额的整份 JSON：{\"/api/path\": {\"rps\": 每秒请求数, \"bucket_size\": 令牌桶容量}}。每客户端（IP）×路径独立计数——一个客户端打满不影响其他客户端；路径必须以 / 开头且 rps/bucket_size 为正，非法条目单条丢弃并打 Warn；整份为空或解析失败回落内置默认四条（external-orders-by-customer / ai-suggestions / trace-eval/trigger / reach）。每请求热读（参数中心 60s 缓存），改表 60s 内生效（已有桶在参数变化时按新值重建），未列入配额表的路径不受此限流影响",
+			ValueType:   "json", Risk: "danger", DefaultValue: `{"/api/integrations/external-orders-by-customer":{"rps":5,"bucket_size":20},"/api/ai-suggestions":{"rps":3,"bucket_size":10},"/api/monitor/trace-eval/trigger":{"rps":1,"bucket_size":5},"/api/reach":{"rps":50,"bucket_size":500}}`, Category: "限流"},
 
 		// ── 免打扰窗口：两条独立管道、四条键，禁止合并（R2）──────────────
 		// reach 组管「全渠道触达管线」的静默时段（原 reach_send_pipeline_quiethours.go

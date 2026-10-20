@@ -323,10 +323,14 @@ func (s *EmailSendService) sendActualEmail(ctx context.Context, email *model.Ema
 		}
 	}
 
-	// 默认通道（R2 路径 A 接线）：env > DB > 无。
+	// 默认通道（R2 路径 A 接线 + F3 备用通道 DB 化）：env > DB > 无。
 	// env 保留为部署层应急开关；DB 是「运营在 /email/smtp 页面配的账号」，
 	// 接上之后运营改页面即驱动发送、免重启。表空/全不可用时 resolveSmtpFromDB 返 nil，
 	// 回落下面的报错分支，行为与接线前（无 env 即报错）一致。
+	//
+	// F3：两条备用通道（163/QQ）同样可 DB 驱动——email_smtp 表里 Name 为
+	// "env:163" / "env:qq" 的行按 env 链同序顶替对应 env 通道（见 resolveSmtpFromDB）。
+	// 存量部署没有这两个名字的行，取径逐字节不变。
 	if smtpConfig == nil {
 		smtpConfig = resolveSmtpFromEnv()
 	}
@@ -347,11 +351,16 @@ func (s *EmailSendService) sendActualEmail(ctx context.Context, email *model.Ema
 	return d.DialAndSend(m)
 }
 
-// resolveSmtpFromDB 从 email_smtp 表挑一个可用 SMTP 作为默认发信通道（R2 路径 A 接线）。
+// resolveSmtpFromDB 从 email_smtp 表挑默认发信通道（R2 路径 A 接线 + F3 备用通道 DB 化）。
 //
 // 为什么补这一层：/email/smtp 页面把 SMTP 持久化进 email_smtp 表，但发信侧原先只在
 // 「email.SmtpID 显式指定」时读表；一旦某封信没带 SmtpID 且 env 未配，即便表里躺着
 // 运营配好的账号也直接报错。接上之后：显式 SmtpID > env > 本函数（DB）> 报错。
+//
+// F3 备用通道 DB 化：行 Name 为 "env:163" / "env:qq" 的账号按 resolveSmtpFromEnv
+// 同一顺序（163 → QQ）优先于「任意首条可用行」被选中——让页面上配的备用通道精确
+// 顶替对应的 env 通道，而不是被首行顺序随机顶掉。存量表里没有这两个名字的行，
+// 选径与接线前逐字节一致；密码同走 crypto 加密落库/解密发送（见下）。
 //
 // 密码落库时已按 crypto.Encrypt 加密（见 EmailSmtpService.CreateEmailSmtp），这里发送前
 // 解回明文；解不动（FIELD_ENCRYPTION_KEY 换过 / 明文遗留行）就沿用原值，与
@@ -365,16 +374,35 @@ func (s *EmailSendService) resolveSmtpFromDB(ctx context.Context) *model.EmailSm
 	if err != nil || len(list) == 0 {
 		return nil
 	}
+	// 备用通道行优先（与 env 链 163 → QQ 同序），再退任意首条可用行。
+	for _, name := range []string{"env:163", "env:qq"} {
+		for _, cfg := range list {
+			if got := smtpRowReady(cfg, name); got != nil {
+				return got
+			}
+		}
+	}
 	for _, cfg := range list {
-		if cfg == nil || cfg.Server == "" || cfg.Username == "" {
-			continue
+		if got := smtpRowReady(cfg, ""); got != nil {
+			return got
 		}
-		if dec, derr := crypto.Decrypt(cfg.Password); derr == nil && dec != "" {
-			cfg.Password = dec
-		}
-		return cfg
 	}
 	return nil
+}
+
+// smtpRowReady 判一行是否可用并解回密码。wantName 非空时要求行 Name 精确匹配
+// （备用通道行的选取）；为空时匹配任意行（通用首条可用行的选取）。
+func smtpRowReady(cfg *model.EmailSmtp, wantName string) *model.EmailSmtp {
+	if cfg == nil || cfg.Server == "" || cfg.Username == "" {
+		return nil
+	}
+	if wantName != "" && cfg.Name != wantName {
+		return nil
+	}
+	if dec, derr := crypto.Decrypt(cfg.Password); derr == nil && dec != "" {
+		cfg.Password = dec
+	}
+	return cfg
 }
 
 // buildEmailMessage 组装一封外发的信：头、正文、附件。

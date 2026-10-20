@@ -8,6 +8,7 @@ import (
 	"gorm.io/gorm"
 
 	_db "hivemtk-user/internal/pkg/db"
+	"hivemtk-user/internal/reporting"
 )
 
 // I18nStatsRepository 多语言统计仓库接口
@@ -150,7 +151,7 @@ func (r *i18nStatsRepo) QualityTrend(ctx context.Context, days int) ([]QualityTr
 		return nil, errors.New("i18n_stats: db is nil")
 	}
 	if days <= 0 {
-		days = 30
+		days = reporting.DefaultWindowDays(ctx)
 	}
 	var rows []QualityTrendRow
 	err := r.db.WithContext(ctx).Table("llm_routing_logs").

@@ -1,7 +1,8 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mount, flushPromises } from '@vue/test-utils'
+import { mount } from '@vue/test-utils'
 import ElementPlus from 'element-plus'
 import { createPinia } from 'pinia'
+import { settle, settleBody } from './settle-helper'
 
 // 组件渲染用例：证明 actions.js 那三条判据**穿过了模板**，而不只是活在判据文件里。
 //
@@ -109,7 +110,7 @@ async function mountPage(rows = ROWS, stats = STATS) {
     attachTo: document.body,
     global: { plugins: [createPinia(), ElementPlus] }
   })
-  await flushPromises()
+  await settle(wrapper)
   return wrapper
 }
 
@@ -189,7 +190,7 @@ describe('503 与读数：底座不可用不等于队列清完了', () => {
       attachTo: document.body,
       global: { plugins: [createPinia(), ElementPlus] }
     })
-    await flushPromises()
+    await settle(wrapper)
     expect(wrapper.text()).toContain('Bad Case 底座不可用')
     expect(wrapper.text()).toContain('一次都没读到')
     wrapper.unmount()
@@ -221,7 +222,8 @@ describe('打标抽屉：类目与依据两条腿都齐了才点得动', () => {
     Array.from(document.querySelectorAll('button'))
       .find((b) => b.textContent.trim() === '打标')
       .click()
-    await flushPromises()
+    // 抽屉 teleport 到 body，wrapper.html() 看不见它 —— 用整页 DOM 做稳定判据
+    await settleBody()
     expect(markDrawer(), '点打标后抽屉必须打开').toBeTruthy()
   }
 
@@ -230,7 +232,7 @@ describe('打标抽屉：类目与依据两条腿都齐了才点得动', () => {
     expect(textarea, '打标抽屉里必须有判定依据输入框').toBeTruthy()
     textarea.value = text
     textarea.dispatchEvent(new Event('input', { bubbles: true }))
-    await flushPromises()
+    await settleBody()
   }
 
   // 走真实点击而不是直接改组件内部状态：这条用例要证的正是"界面能走到那条判据"。
@@ -241,13 +243,13 @@ describe('打标抽屉：类目与依据两条腿都齐了才点得动', () => {
     const wrapperEl = markDrawer().querySelector('.el-select__wrapper')
     expect(wrapperEl, '打标抽屉里必须有类目下拉框').toBeTruthy()
     wrapperEl.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    await flushPromises()
+    await settleBody()
     const option = Array.from(document.querySelectorAll('.el-select-dropdown__item')).find(
       (o) => o.textContent.trim() === text
     )
     expect(option, `类目下拉框里没有文案为 ${text} 的选项`).toBeTruthy()
     option.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-    await flushPromises()
+    await settleBody()
     // 这一句是"选择真的落在了抽屉那只下拉框上"的证据。少了它，上一版那种
     // "抓到筛选器的同名选项、mark.label 压根没动"的失效会一路伪装成"判据生效"（禁用态照样对）。
     expect(markDrawer().textContent).toContain(text)
@@ -278,7 +280,7 @@ describe('打标抽屉：类目与依据两条腿都齐了才点得动', () => {
 
     expect(submitButton().disabled).toBe(false)
     submitButton().click()
-    await flushPromises()
+    await settleBody()
     expect(api.label).toHaveBeenCalledWith('bc_1', 'kb_missing', '库里没有退货政策这一条')
   })
 
@@ -290,7 +292,7 @@ describe('打标抽屉：类目与依据两条腿都齐了才点得动', () => {
     await pickCategory('知识库缺内容（知识库）')
     await typeNote('两条腿都补齐了')
     submitButton().click()
-    await flushPromises()
+    await settleBody()
     // 409 走的是"关掉抽屉 + 刷队列 + 说一句话"这一路（别人的结论该出现在列表里），
     // 所以断言打在 toast 上而不是抽屉里 —— 抽屉此刻本来就应该是关着的。
     expect(document.body.textContent).toContain('当前状态不允许该操作')
@@ -302,7 +304,7 @@ describe('打标抽屉：类目与依据两条腿都齐了才点得动', () => {
     await pickCategory('知识库缺内容（知识库）')
     await typeNote('两条腿都补齐了')
     submitButton().click()
-    await flushPromises()
+    await settleBody()
     expect(markDrawer().textContent).toContain('坏例操作失败')
   })
 })

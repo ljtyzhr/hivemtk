@@ -15,8 +15,9 @@
  *     改动前后都该绿；它们防的是实现顺手把每次保存都变成一次触发器写入。
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mount, flushPromises } from '@vue/test-utils'
+import { mount } from '@vue/test-utils'
 import ElementPlus from 'element-plus'
+import { settle } from './settle-helper'
 
 const route = vi.hoisted(() => ({ value: { params: { id: '77' } } }))
 const push = vi.hoisted(() => vi.fn())
@@ -57,7 +58,7 @@ async function mountEditor() {
   const host = document.createElement('div')
   document.body.appendChild(host)
   const wrapper = mount(Editor, { global: { plugins: [ElementPlus] }, attachTo: host })
-  for (let i = 0; i < 3; i++) await flushPromises()
+  await settle(wrapper)
   return wrapper
 }
 
@@ -65,7 +66,7 @@ async function saveButton(wrapper) {
   const btn = wrapper.findAll('button').find((b) => b.text().includes('保存'))
   expect(btn, '页面上没有「保存」按钮').toBeTruthy()
   await btn.trigger('click')
-  for (let i = 0; i < 3; i++) await flushPromises()
+  await settle(wrapper)
 }
 
 // 任务类型下拉：走真实点击而不是直接改 form——「选了 cron 才出现表达式框」这条判据
@@ -77,12 +78,12 @@ async function pickTaskType(wrapper, text) {
   const triggerEl = item.querySelector('.el-select__wrapper')
   expect(triggerEl, '「任务类型」那一项里没渲染出下拉').toBeTruthy()
   triggerEl.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-  await flushPromises()
+  await settle(wrapper)
   const option = Array.from(document.querySelectorAll('.el-select-dropdown__item'))
     .find((o) => o.textContent.trim() === text)
   expect(option, `任务类型下拉里没有文案为 ${text} 的选项`).toBeTruthy()
   option.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-  await flushPromises()
+  await settle(wrapper)
   // 这一句是「点中的确实是任务类型这只下拉」的证据：页面上还有平台/依赖等多只 el-select，
   // 抓错选项会把一次筛选当成类型切换证成绿。
   expect(item.textContent, `选择 ${text} 后「任务类型」没跟着变`).toContain(text.split(' ')[0])

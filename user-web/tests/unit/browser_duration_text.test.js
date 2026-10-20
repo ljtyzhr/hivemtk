@@ -10,8 +10,9 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
-import { mount, flushPromises } from '@vue/test-utils'
+import { mount } from '@vue/test-utils'
 import ElementPlus from 'element-plus'
+import { settle } from './settle-helper'
 
 import { durationText, sessionDurationText } from '@/views/browserAutomation/durationText'
 
@@ -152,7 +153,7 @@ function durationColumn(root, requiredHeads, column = '耗时') {
 
 async function mountView(component, stubs) {
   const wrapper = mount(component, { global: { plugins: [ElementPlus], stubs: stubs || {} } })
-  for (let i = 0; i < 4; i++) await flushPromises()
+  await settle(wrapper)
   return wrapper
 }
 

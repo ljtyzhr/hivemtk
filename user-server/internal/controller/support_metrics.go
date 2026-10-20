@@ -7,6 +7,7 @@ import (
 
 	bizerr "hivemtk-user/internal/domain/errors"
 	"hivemtk-user/internal/pkg/utils/response"
+	"hivemtk-user/internal/reporting"
 	"hivemtk-user/internal/service"
 )
 
@@ -26,9 +27,9 @@ func (c *SupportMetricsController) GetSupportMetrics(ctx *gin.Context) {
 		response.ErrorWithBusinessCode(ctx, bizerr.CodeInternal, "指标看板数据层不可用", gin.H{})
 		return
 	}
-	days, err := strconv.Atoi(ctx.DefaultQuery("days", "30"))
+	days, err := strconv.Atoi(ctx.DefaultQuery("days", strconv.Itoa(reporting.DefaultWindowDays(ctx.Request.Context()))))
 	if err != nil {
-		days = 30
+		days = reporting.DefaultWindowDays(ctx.Request.Context())
 	}
 
 	metrics, err := c.svc.Collect(ctx.Request.Context(), days)

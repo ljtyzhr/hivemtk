@@ -204,6 +204,21 @@ let recoverTimer = null
 let recoverTicks = 0
 const recoverMaxTicks = 20 // 3s × 20 = 60s 封顶
 
+// 0 元订单直通 fulfilled 时的恢复入口：先立即做一次「镜像刷新 + 状态回读」
+// （不等 3s 轮询首拍，续费成功的提示与状态翻转同时到达）；若这一拍还没
+// 转 active（同步滞后），转入既有轮询兜底，与收银台 paid 路径行为一致。
+// （修复：此函数曾被调用但从未定义——0 元续费成功会抛 ReferenceError，
+// 成功提示已弹出但状态卡在旧值。）
+async function recover () {
+  try {
+    await syncModules({ _silent: true })
+    const s = await subscriptionStatus({ _silent: true })
+    snap.value = s
+    if (s && s.status === 'active') return
+  } catch { /* 单次刷新失败也转入轮询 */ }
+  startRecoverPolling()
+}
+
 function onPaid () {
   ElMessage.success('支付成功！正在确认订阅状态…')
   startRecoverPolling()

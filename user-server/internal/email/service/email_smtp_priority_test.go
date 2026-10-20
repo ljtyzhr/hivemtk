@@ -113,3 +113,120 @@ func TestSendActualEmail_PriorityEnvOverDB(t *testing.T) {
 		t.Errorf("env 优先级：Server = %q, 期望 smtp.env.example（env 应压过 DB）", got.Server)
 	}
 }
+
+// ── F3：备用通道（163/QQ）DB 化 ──────────────────────────────────────────────
+
+// TestResolveSmtpFromDB_NamedBackupChannelFirst 表里有 Name="env:163" 的行时，
+// 它优先于任意首条可用行被选中（与 env 链 163 → QQ 同序），且密码解回明文。
+func TestResolveSmtpFromDB_NamedBackupChannelFirst(t *testing.T) {
+	t.Setenv("FIELD_ENCRYPTION_KEY", "test-field-encryption-key-0123456789abcdef")
+	setupEmailSendServiceTestDB(t)
+	clearSmtpEnv(t)
+	repo := repository.NewEmailSmtpRepository()
+	// 先插一条「普通」行：没有命名通道时它会被选中；有了 env:163 就该让位。
+	if err := repo.Create(context.Background(), &model.EmailSmtp{
+		Name: "plain", Server: "smtp.plain.example", Port: 465,
+		Username: "plain@example.com", Password: "plainpw", Limit: 100,
+	}); err != nil {
+		t.Fatalf("建普通行失败: %v", err)
+	}
+	enc, err := crypto.Encrypt("backup-163-pw")
+	if err != nil {
+		t.Fatalf("加密失败: %v", err)
+	}
+	if err := repo.Create(context.Background(), &model.EmailSmtp{
+		Name: "env:163", Server: "smtp.163.com", Port: 465,
+		Username: "backup163@163.com", Password: enc, Limit: 100,
+	}); err != nil {
+		t.Fatalf("建 env:163 行失败: %v", err)
+	}
+
+	svc := NewEmailSendService()
+	got := svc.resolveSmtpFromDB(context.Background())
+	if got == nil {
+		t.Fatal("resolveSmtpFromDB 应选中 env:163 行，实际 nil")
+	}
+	if got.Name != "env:163" || got.Server != "smtp.163.com" {
+		t.Errorf("选中行 = %s/%s, 期望 env:163/smtp.163.com（命名备用通道应压过首条可用行）", got.Name, got.Server)
+	}
+	if got.Password != "backup-163-pw" {
+		t.Errorf("密码 = %q, 期望解密后的明文 backup-163-pw", got.Password)
+	}
+}
+
+// TestResolveSmtpFromDB_163BeatsQQ 同时有 env:163 与 env:qq 行时按 env 链同序选 163。
+func TestResolveSmtpFromDB_163BeatsQQ(t *testing.T) {
+	setupEmailSendServiceTestDB(t)
+	clearSmtpEnv(t)
+	repo := repository.NewEmailSmtpRepository()
+	// qq 先插入（物理顺序在前），163 后插入：选取顺序不应跟着插入顺序走。
+	if err := repo.Create(context.Background(), &model.EmailSmtp{
+		Name: "env:qq", Server: "smtp.qq.com", Port: 465,
+		Username: "backup@qq.com", Password: "qqpw", Limit: 100,
+	}); err != nil {
+		t.Fatalf("建 env:qq 行失败: %v", err)
+	}
+	if err := repo.Create(context.Background(), &model.EmailSmtp{
+		Name: "env:163", Server: "smtp.163.com", Port: 465,
+		Username: "backup163@163.com", Password: "163pw", Limit: 100,
+	}); err != nil {
+		t.Fatalf("建 env:163 行失败: %v", err)
+	}
+
+	svc := NewEmailSendService()
+	got := svc.resolveSmtpFromDB(context.Background())
+	if got == nil || got.Name != "env:163" {
+		t.Errorf("应选 env:163（与 env 链同序），实际 %+v", got)
+	}
+}
+
+// TestResolveSmtpFromDB_NamedRowIncompleteFallsThrough env:163 行缺 Username 时
+// 跳过它，继续找 qq 命名行——单条坏数据不应把备用通道整条打死。
+func TestResolveSmtpFromDB_NamedRowIncompleteFallsThrough(t *testing.T) {
+	setupEmailSendServiceTestDB(t)
+	clearSmtpEnv(t)
+	repo := repository.NewEmailSmtpRepository()
+	if err := repo.Create(context.Background(), &model.EmailSmtp{
+		Name: "env:163", Server: "smtp.163.com", Port: 465,
+		Username: "", Password: "pw", Limit: 100,
+	}); err != nil {
+		t.Fatalf("建残缺 env:163 行失败: %v", err)
+	}
+	if err := repo.Create(context.Background(), &model.EmailSmtp{
+		Name: "env:qq", Server: "smtp.qq.com", Port: 465,
+		Username: "backup@qq.com", Password: "qqpw", Limit: 100,
+	}); err != nil {
+		t.Fatalf("建 env:qq 行失败: %v", err)
+	}
+
+	svc := NewEmailSendService()
+	got := svc.resolveSmtpFromDB(context.Background())
+	if got == nil || got.Name != "env:qq" {
+		t.Errorf("残缺 163 行应跳过并选 env:qq，实际 %+v", got)
+	}
+}
+
+// TestResolveSmtpFromEnv_BackedUpByDBChannel env 的 163 通道配齐时仍走 env
+// （env 优先级最高，DB 命名行只是备用）；env 缺 163 时 163 命名行才顶上。
+func TestResolveSmtpFromEnv_BackedUpByDBChannel(t *testing.T) {
+	setupEmailSendServiceTestDB(t)
+	clearSmtpEnv(t)
+	repo := repository.NewEmailSmtpRepository()
+	if err := repo.Create(context.Background(), &model.EmailSmtp{
+		Name: "env:163", Server: "smtp.163.com", Port: 465,
+		Username: "backup163@163.com", Password: "163pw", Limit: 100,
+	}); err != nil {
+		t.Fatalf("建 env:163 行失败: %v", err)
+	}
+
+	// env 配齐 163：resolveSmtpFromEnv 返回非 nil，DB 命名行不该被走到。
+	t.Setenv("EMAIL_163_USER", "env163@163.com")
+	t.Setenv("EMAIL_163_PASSWORD", "envpw")
+	got := resolveSmtpFromEnv()
+	if got == nil {
+		t.Fatal("env 配齐 163 时 resolveSmtpFromEnv 不应为 nil")
+	}
+	if got.Username != "env163@163.com" || got.Password != "envpw" {
+		t.Errorf("env 优先级：got %+v, 期望 env 凭据（env 必须压过 DB 命名行）", got)
+	}
+}

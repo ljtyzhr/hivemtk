@@ -7,8 +7,9 @@
  * 这里锁的是详情页必须与列表页同判据：分流只看业务码，不看文案也不只看 HTTP 状态。
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mount, flushPromises } from '@vue/test-utils'
+import { mount } from '@vue/test-utils'
 import ElementPlus, { ElMessage } from 'element-plus'
+import { settle } from './settle-helper'
 
 const route = vi.hoisted(() => ({ value: { params: { id: '77' } } }))
 const push = vi.hoisted(() => vi.fn())
@@ -46,7 +47,7 @@ async function mountDetail() {
   const host = document.createElement('div')
   document.body.appendChild(host)
   const wrapper = mount(Detail, { global: { plugins: [ElementPlus] }, attachTo: host })
-  for (let i = 0; i < 3; i++) await flushPromises()
+  await settle(wrapper)
   return wrapper
 }
 
@@ -54,7 +55,7 @@ const clickRun = async (wrapper) => {
   const btn = wrapper.findAll('button').find((b) => b.text().includes('执行'))
   expect(btn, '页面上没有「执行」按钮').toBeTruthy()
   await btn.trigger('click')
-  for (let i = 0; i < 3; i++) await flushPromises()
+  await settle(wrapper)
 }
 
 describe('详情页的执行入口', () => {
@@ -114,7 +115,7 @@ describe('详情页的执行入口', () => {
     const toggle = wrapper.findAll('button').find((b) => b.text().includes('停用'))
     expect(toggle, '触发器卡片里没有「停用」按钮').toBeTruthy()
     await toggle.trigger('click')
-    for (let i = 0; i < 4; i++) await flushPromises()
+    await settle(wrapper)
     expect(api.disableBrowserCron).toHaveBeenCalledWith(TRIGGER.id)
     expect(api.getBrowserTask.mock.calls.length, '失败后没有重读任务与触发器').toBeGreaterThan(before)
     wrapper.unmount()

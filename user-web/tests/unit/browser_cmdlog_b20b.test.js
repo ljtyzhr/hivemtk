@@ -7,8 +7,9 @@
  * 比原来更误导。所以本批的 Go 侧与这里必须同批落地、同批锁住。
  */
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
-import { mount, flushPromises } from '@vue/test-utils'
+import { mount } from '@vue/test-utils'
 import ElementPlus from 'element-plus'
+import { settle } from './settle-helper'
 import { readFileSync } from 'node:fs'
 import { resolve } from 'node:path'
 
@@ -42,8 +43,7 @@ const LOGS = [
 
 async function mountMonitor() {
   const wrapper = mount(Monitor, { global: { plugins: [ElementPlus] } })
-  await flushPromises()
-  await flushPromises()
+  await settle(wrapper)
   return wrapper
 }
 

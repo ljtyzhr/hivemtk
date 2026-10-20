@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { mount, flushPromises } from '@vue/test-utils'
+import { mount } from '@vue/test-utils'
 import ElementPlus from 'element-plus'
+import { settle } from './settle-helper'
 
 // 转化漏斗看板的摘要区渲染用例（T-P4-06）。
 //
@@ -44,7 +45,7 @@ async function mountPage(stages = STAGES) {
   })
   api.getStageDetails.mockResolvedValue({ stage: 'clue', name: '线索', count: 6, top_sources: [] })
   const wrapper = mount(List, { attachTo: document.body, global: { plugins: [ElementPlus] } })
-  await flushPromises()
+  await settle(wrapper)
   return wrapper
 }
 

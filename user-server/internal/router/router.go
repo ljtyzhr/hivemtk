@@ -225,6 +225,12 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 		},
 	}))
 
+	// 路径级配额限流：自过滤——未列入 ratelimit.path_quotas 的路径直接放行；
+	// 列入的路径按「每客户端（IP）× 路径」独立令牌桶计数（杜绝全站共享桶被单租户打满）。
+	// 桶参数每请求热读参数中心（60s 缓存），改表后已有桶在参数变化时按新值重建。
+	// 位置必须在 JWT 之前——未登录请求也计数，这是保护昂贵端点（AI/外部订单/trace-eval）的本意。
+	r.Use(middleware.PathQuotaMiddleware())
+
 	r.Use(middleware.TraceMiddleware())
 
 	r.Use(middleware.APIInteractionLogger())
@@ -374,7 +380,14 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 			if gormDB == nil {
 				return
 			}
-			if err := gormDB.WithContext(context.Background()).Create(&geomodel.GeoCrawlerVisit{
+			// 该回调挂在 JWT 之前，ctx 里没有租户归属；geo_crawler_visits 是租户表，
+			// on 模式写入会被隔离 callback 拒绝（每请求一条告警噪声），且用默认租户
+			// 落库会把各租户的爬虫访问混记到租户 1。SaaS 形态下没有可靠线索把匿名
+			// 爬虫请求归属到具体租户，宁可不记也不串账。
+			if tenant.IsMultiTenant() {
+				return
+			}
+			if err := gormDB.WithContext(tenant.ContextWithDefault(context.Background())).Create(&geomodel.GeoCrawlerVisit{
 				Engine:    engine,
 				Path:      path,
 				UserAgent: ua,

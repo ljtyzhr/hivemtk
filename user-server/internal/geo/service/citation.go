@@ -9,6 +9,7 @@ import (
 
 	"hivemtk-user/internal/geo/model"
 	"hivemtk-user/internal/geo/repository"
+	"hivemtk-user/internal/reporting"
 )
 
 // CitationService 引用智能服务
@@ -253,7 +254,7 @@ func (s *CitationService) loadClassifyContext(ctx context.Context) (string, []st
 // DomainStats 聚合近 N 天探针引用域名
 func (s *CitationService) DomainStats(ctx context.Context, days int) (*CitationDomainResult, error) {
 	if days <= 0 || days > 90 {
-		days = 30
+		days = reporting.DefaultWindowDays(ctx)
 	}
 	runs, err := s.probeRepo.ListSince(ctx, time.Now().AddDate(0, 0, -days), 20000)
 	if err != nil {
@@ -271,7 +272,7 @@ func (s *CitationService) DomainStats(ctx context.Context, days int) (*CitationD
 // KeywordDomainMatrix 近 N 天 keyword×domain 矩阵
 func (s *CitationService) KeywordDomainMatrix(ctx context.Context, days, topQueries, topDomains int) (*CitationMatrixResult, error) {
 	if days <= 0 || days > 90 {
-		days = 30
+		days = reporting.DefaultWindowDays(ctx)
 	}
 	runs, err := s.probeRepo.ListSince(ctx, time.Now().AddDate(0, 0, -days), 20000)
 	if err != nil {

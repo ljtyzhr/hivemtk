@@ -9,6 +9,7 @@ import (
 
 	"hivemtk-user/internal/geo/service"
 	"hivemtk-user/internal/pkg/utils/response"
+	"hivemtk-user/internal/reporting"
 
 	"github.com/gin-gonic/gin"
 )
@@ -88,9 +89,9 @@ func (c *ReportController) ShareOfVoiceTrend(ctx *gin.Context) {
 		response.Error(ctx, http.StatusServiceUnavailable, "analytics service 未初始化")
 		return
 	}
-	days, _ := strconv.Atoi(ctx.DefaultQuery("days", "30"))
+	days, _ := strconv.Atoi(ctx.DefaultQuery("days", strconv.Itoa(reporting.DefaultWindowDays(ctx.Request.Context()))))
 	if days <= 0 || days > 365 {
-		days = 30
+		days = reporting.DefaultWindowDays(ctx.Request.Context())
 	}
 	intent := ctx.Query("intent")
 

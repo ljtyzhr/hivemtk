@@ -70,7 +70,7 @@ vi.mock('@/stores/user', () => ({
 import { inboxApi } from '@/api/inbox'
 import List from '@/views/inbox/List.vue'
 import i18n from '@/i18n'
-import { settle } from './settle-helper'
+import { settle, settleBody } from './settle-helper'
 
 const getUrls = () => mocks.calls.filter((c) => c.method === 'GET').map((c) => c.url)
 
@@ -118,7 +118,8 @@ async function openAgentOptions(dialog) {
   const select = dialog.querySelector('.el-select__wrapper')
   expect(select, '分配对话框里没有坐席下拉框').toBeTruthy()
   select.dispatchEvent(new MouseEvent('click', { bubbles: true }))
-  await new Promise((r) => setTimeout(r, 0))
+  // 选项 popper 挂在 body 上，等整页 DOM 稳定（settleBody），不再赌「一次宏任务够不够」
+  await settleBody()
   const input = dialog.querySelector('.el-select input')
   expect(input, '坐席下拉框没渲染出可交互的 input').toBeTruthy()
   const popperId = input.getAttribute('aria-controls')

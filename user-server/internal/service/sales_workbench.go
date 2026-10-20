@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"hivemtk-user/internal/pkg/utils/logger"
+	"hivemtk-user/internal/reporting"
 )
 
 // WorkbenchTodo 待办事项（销售工作台首页核心）
@@ -189,7 +190,7 @@ func (s *SalesWorkbenchService) GetTeamDashboard(ctx context.Context, days int) 
 	if stats == nil {
 		return nil
 	}
-	return stats.GetTeamDashboard(ctx, journey, sinceDays(days))
+	return stats.GetTeamDashboard(ctx, journey, sinceDays(ctx, days))
 }
 
 // GetChampionProfile 销冠画像（I7 事件流读侧）：按事件窗口给 TopPerformers、
@@ -201,13 +202,13 @@ func (s *SalesWorkbenchService) GetChampionProfile(ctx context.Context, days int
 	if stats == nil {
 		return nil
 	}
-	return stats.GetChampionProfile(ctx, sinceDays(days))
+	return stats.GetChampionProfile(ctx, sinceDays(ctx, days))
 }
 
-// sinceDays 把天数参数折算成窗口起点；<=0 走默认 30 天。
-func sinceDays(days int) time.Time {
+// sinceDays 把天数参数折算成窗口起点；<=0 回落报表默认窗口参数（默认 30 天）。
+func sinceDays(ctx context.Context, days int) time.Time {
 	if days <= 0 {
-		days = 30
+		days = reporting.DefaultWindowDays(ctx)
 	}
 	return time.Now().AddDate(0, 0, -days)
 }

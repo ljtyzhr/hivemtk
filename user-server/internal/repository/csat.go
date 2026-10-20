@@ -8,6 +8,7 @@ import (
 	"hivemtk-user/internal/model"
 	_db "hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/pkg/timeutil"
+	"hivemtk-user/internal/reporting"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -131,7 +132,7 @@ func (r *CSATSurveyRepository) Stats(ctx context.Context, since *time.Time) (map
 // Trend 按日趋势（近 N 天）
 func (r *CSATSurveyRepository) Trend(ctx context.Context, days int) ([]map[string]any, error) {
 	if days <= 0 || days > 365 {
-		days = 30
+		days = reporting.DefaultWindowDays(ctx)
 	}
 	type row struct {
 		Date string  `json:"date"`

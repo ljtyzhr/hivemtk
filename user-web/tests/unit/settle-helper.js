@@ -13,18 +13,33 @@ import { flushPromises } from '@vue/test-utils'
 // 连续两轮结果相同即认为稳定，早停。没有魔数上限式的「多刷几次」，
 // 因为那只是把概率问题往后推。
 //
-// 用法：`await settle(w)`（w 是 mount 出来的 wrapper）。
+// 用法：`await settle(w)`（w 是 mount 出来的 wrapper）；断言打在 document.body
+// （teleport 弹层 / ElMessage）上时用 `await settleBody()`。
 // 返回实际等待的轮数，便于用例在超限时排查。
+// 在模块加载时捕获真实的 setTimeout。用例里装上 vi.useFakeTimers() 之后，
+// 全局 setTimeout 会被换成假时钟，settle 的「让出一个宏任务」就永远等不到
+// （test-utils 的 flushPromises 不受此害：它的 scheduler 在模块加载时就绑定了 setImmediate）。
+// 捕获后 settle 在假时钟下退化为「排微任务 + 让出一个真实宏任务」，
+// 对轮询类用例至少等价于一次 flushPromises，且不会挂死。
+const realSetTimeout = setTimeout
+
 const MAX_ROUNDS = 40
 
-export const settle = async (w) => {
-  let prev = typeof w?.html === 'function' ? w.html() : ''
+const settleOn = async (snapshot) => {
+  let prev = snapshot()
   for (let round = 1; round <= MAX_ROUNDS; round++) {
     await flushPromises()
-    await new Promise((resolve) => setTimeout(resolve, 0))
-    const now = typeof w?.html === 'function' ? w.html() : ''
+    await new Promise((resolve) => realSetTimeout(resolve, 0))
+    const now = snapshot()
     if (now === prev) return round
     prev = now
   }
   return MAX_ROUNDS
 }
+
+export const settle = async (w) =>
+  settleOn(() => (typeof w?.html === 'function' ? w.html() : ''))
+
+// 弹层 teleport 到 body（el-drawer / el-select popper / ElMessage 都是）或用例只
+// 断言 document.body 时，wrapper.html() 看不见那部分 DOM —— 用整页 body 当稳定判据。
+export const settleBody = async () => settleOn(() => document.body.innerHTML)

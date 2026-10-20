@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { mount, flushPromises } from '@vue/test-utils'
+import { mount } from '@vue/test-utils'
 import ElementPlus from 'element-plus'
+import { settle } from './settle-helper'
 import { createPinia } from 'pinia'
 
 // 渲染用例：证明"平台集成关闭态不露上架入口"这条判据**穿过了模板**。
@@ -49,7 +50,7 @@ const mountPlayground = async () => {
   const wrapper = mount(Playground, {
     global: { plugins: [ElementPlus, createPinia()] }
   })
-  await flushPromises()
+  await settle(wrapper)
   return wrapper
 }
 
@@ -91,7 +92,7 @@ describe('资产包 Playground 的上架入口：跟随 platform_enabled', () =>
     api.getInfo.mockResolvedValue({ platform_enabled: false })
     const wrapper = await mountPlayground()
     await localPublishBtn(wrapper).trigger('click')
-    await flushPromises()
+    await settle(wrapper)
     expect(api.publishBundle).toHaveBeenCalledWith(7)
     expect(api.submitToPlatform).not.toHaveBeenCalled()
   })
@@ -101,7 +102,7 @@ describe('资产包 Playground 的上架入口：跟随 platform_enabled', () =>
     const wrapper = await mountPlayground()
     const btn = wrapper.findAll('button').find((b) => b.text().includes('官方蜂巢商城'))
     await btn.trigger('click')
-    await flushPromises()
+    await settle(wrapper)
     expect(api.publishBundle).toHaveBeenCalledWith(7)
     expect(api.submitToPlatform).toHaveBeenCalledWith(7)
   })

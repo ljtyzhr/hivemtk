@@ -7,6 +7,7 @@ import (
 	knowledgerepo "hivemtk-user/internal/aiagent/knowledge/repository"
 	knowledgesvc "hivemtk-user/internal/aiagent/knowledge/service"
 	"hivemtk-user/internal/pkg/utils/response"
+	"hivemtk-user/internal/reporting"
 	"net/http"
 	"strconv"
 	"strings"
@@ -707,9 +708,9 @@ func (ctrl *KnowledgeWorkspaceController) GetOverviewStats(c *gin.Context) {
 // GetDocumentStats 文档维度统计
 func (ctrl *KnowledgeWorkspaceController) GetDocumentStats(c *gin.Context) {
 	productID := ctrl.resolveProductID(c.Query("product_id"))
-	days, _ := strconv.Atoi(c.DefaultQuery("days", "30"))
+	days, _ := strconv.Atoi(c.DefaultQuery("days", strconv.Itoa(reporting.DefaultWindowDays(c.Request.Context()))))
 	if days <= 0 {
-		days = 30
+		days = reporting.DefaultWindowDays(c.Request.Context())
 	}
 	data, err := ctrl.statsService.GetDocumentStats(c.Request.Context(), productID, days)
 	if err != nil {
@@ -737,9 +738,9 @@ func (ctrl *KnowledgeWorkspaceController) GetSearchStats(c *gin.Context) {
 // GetImportStats 导入维度统计
 func (ctrl *KnowledgeWorkspaceController) GetImportStats(c *gin.Context) {
 	productID := ctrl.resolveProductID(c.Query("product_id"))
-	days, _ := strconv.Atoi(c.DefaultQuery("days", "30"))
+	days, _ := strconv.Atoi(c.DefaultQuery("days", strconv.Itoa(reporting.DefaultWindowDays(c.Request.Context()))))
 	if days <= 0 {
-		days = 30
+		days = reporting.DefaultWindowDays(c.Request.Context())
 	}
 	data, err := ctrl.statsService.GetImportStats(c.Request.Context(), productID, days)
 	if err != nil {
