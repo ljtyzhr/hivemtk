@@ -17,9 +17,6 @@ func TestAIGenerationType_Constants(t *testing.T) {
 	if AIGenerationTypeReply != "reply" {
 		t.Errorf("Expected AIGenerationTypeReply 'reply', got %s", AIGenerationTypeReply)
 	}
-	if AIGenerationTypeTranslation != "translation" {
-		t.Errorf("Expected AIGenerationTypeTranslation 'translation', got %s", AIGenerationTypeTranslation)
-	}
 	if AIGenerationTypeRewrite != "rewrite" {
 		t.Errorf("Expected AIGenerationTypeRewrite 'rewrite', got %s", AIGenerationTypeRewrite)
 	}
@@ -31,9 +28,6 @@ func TestAIGenerationType_Constants(t *testing.T) {
 	}
 	if AIGenerationTypeKeywords != "keywords" {
 		t.Errorf("Expected AIGenerationTypeKeywords 'keywords', got %s", AIGenerationTypeKeywords)
-	}
-	if AIGenerationTypeDescription != "description" {
-		t.Errorf("Expected AIGenerationTypeDescription 'description', got %s", AIGenerationTypeDescription)
 	}
 	if AIGenerationTypeAdCopy != "ad_copy" {
 		t.Errorf("Expected AIGenerationTypeAdCopy 'ad_copy', got %s", AIGenerationTypeAdCopy)
@@ -137,7 +131,7 @@ func TestAIGenerationRecord_WithTypes(t *testing.T) {
 		AIGenerationTypeCopywriting,
 		AIGenerationTypeTitle,
 		AIGenerationTypeReply,
-		AIGenerationTypeTranslation,
+		AIGenerationTypeExpand,
 		AIGenerationTypeScript,
 	}
 

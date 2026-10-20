@@ -71,6 +71,81 @@ func (e *exportDigestRepo) ListBySessionID(_ context.Context, _ uint) ([]*model.
 	return e.digests, nil
 }
 
+// exportErrRepo 四个分量共用的「装配了但这一枪打空」桩：只把 ListBySessionID 换成报错，
+// 其余方法走嵌入的接口（永不触达，nil 接口也没关系）。
+type exportErrRepo struct {
+	repository.BrowserStepRepository
+	err error
+}
+
+func (e *exportErrRepo) ListBySessionID(_ context.Context, _ uint) ([]*model.BrowserStep, error) {
+	return nil, e.err
+}
+
+// TestSessionExportFailsWhenAComponentQueryFails 「分量没装配 ⇒ 置空不报错」与
+// 「分量装配了却查失败 ⇒ 报错」是两件事，现在被写成同一件。
+//
+// 为什么这是缺陷：导出包是给审计员看的，空数组在包里只有一种解释——「这一段没发生过」。
+// 步查询报错却交出 steps=nil，读的人便认定「这个会话没跑过任何步」，而真相是库在这一刻
+// 没答上话。这与本函数文档里 A6 立项要消灭的形状完全同形（「空数组没人分得清是
+// 「没发生」还是「被裁了」」），也与监控盘把 8 处错误吞成全零同形。
+// 归属预检查（GetByID）挡在前面，所以这条路不会因为租户 ctx 未绑定而误红：
+// 能走到分量查询的 ctx 必然已经过归属校验。
+func TestSessionExportFailsWhenAComponentQueryFails(t *testing.T) {
+	sess := &model.BrowserSession{ID: 9, UserID: 3, Status: "completed"}
+	sr := &exportSessionRepo{sess: sess}
+	boom := errors.New("export: 分量查询失败")
+
+	for _, tc := range []struct {
+		name string
+		run  func(*SessionService)
+	}{
+		{"步流水", func(s *SessionService) { s.stepRepo = &exportErrRepo{err: boom} }},
+		{"命令流", func(s *SessionService) {
+			s.SetCommandLogRepository(&exportCmdLogErrRepo{err: boom})
+		}},
+		{"LLM 成本账", func(s *SessionService) {
+			s.SetLLMPlanRepository(&exportPlanErrRepo{err: boom})
+		}},
+		{"裁剪摘要", func(s *SessionService) {
+			s.SetAuditDigestRepository(&exportDigestErrRepo{err: boom})
+		}},
+	} {
+		s := NewSessionService(sr, &exportStepRepo{steps: []*model.BrowserStep{{ID: 1, SessionID: 9}}}, nil)
+		tc.run(s)
+		if _, _, _, _, _, err := s.SessionExport(context.Background(), 9, 3); !errors.Is(err, boom) {
+			t.Errorf("%s 分量查询失败时导出仍返回成功（err=%v）：交出的是一份看着完整的空分量审计包", tc.name, err)
+		}
+	}
+}
+
+type exportCmdLogErrRepo struct {
+	repository.BrowserCommandLogRepository
+	err error
+}
+
+func (e *exportCmdLogErrRepo) ListBySessionID(_ context.Context, _ uint) ([]*model.BrowserCommandLog, error) {
+	return nil, e.err
+}
+
+type exportPlanErrRepo struct {
+	repository.BrowserLLMPlanRepository
+	err error
+}
+
+func (e *exportPlanErrRepo) ListBySessionID(_ context.Context, _ uint, _ int) ([]*model.BrowserLLMPlan, error) {
+	return nil, e.err
+}
+
+type exportDigestErrRepo struct {
+	repository.BrowserAuditDigestRepository
+	err error
+}
+
+func (e *exportDigestErrRepo) ListBySessionID(_ context.Context, _ uint) ([]*model.BrowserAuditDigest, error) {
+	return nil, e.err
+}
+
 func TestSessionExportAggregates(t *testing.T) {
 	sess := &model.BrowserSession{ID: 9, UserID: 3, Status: "completed"}
 	sr := &exportSessionRepo{sess: sess}

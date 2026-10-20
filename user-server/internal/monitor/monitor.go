@@ -4,7 +4,6 @@ import (
 	"context"
 	"database/sql"
 	"errors"
-	"log"
 	"sort"
 	"time"
 
@@ -57,45 +56,63 @@ type HealthOverviewData struct {
 }
 
 // HealthOverview 汇总核心业务链路健康指标。
+//
+// ctx 必须进 GORM：本函数过去收下 ctx 却把它留在原地，所有查询跑在无租户上下文的
+// 全局句柄上，saas 形态下每条都被隔离 callback fail-closed，而错误除 sync_gap 一条外
+// 全被丢弃 ⇒ /monitor/health 返回 200 + 全零，大盘把「一条都没读出来」显示成「一切正常」。
+// 同理，这里的错误一律上抛而不是继续往下攒：一个查不动的库不该交出一版健康的读数。
 func HealthOverview(ctx context.Context) (*HealthOverviewData, error) {
 	d := db.GetDB()
 	if d == nil {
 		return nil, ErrNoDB
 	}
+	d = d.WithContext(ctx)
 	h := &HealthOverviewData{GeneratedAt: time.Now()}
 
 	since1h := time.Now().Add(-time.Hour)
 	var inCount, outCount int64
-	d.Model(&model.MessageHub{}).
+	if err := d.Model(&model.MessageHub{}).
 		Where("direction = ? AND created_at >= ?", "inbound", since1h).
-		Count(&inCount)
+		Count(&inCount).Error; err != nil {
+		return nil, err
+	}
 	h.InboundRatePerMin = float64(inCount) / 60
-	d.Model(&model.MessageHub{}).
+	if err := d.Model(&model.MessageHub{}).
 		Where("direction = ? AND created_at >= ?", "outbound", since1h).
-		Count(&outCount)
+		Count(&outCount).Error; err != nil {
+		return nil, err
+	}
 	h.OutboundRatePerMin = float64(outCount) / 60
 
-	d.Model(&model.MessageHub{}).
+	if err := d.Model(&model.MessageHub{}).
 		Where("direction = ? AND status = ?", "outbound", "pending").
-		Count(&h.PendingCount)
+		Count(&h.PendingCount).Error; err != nil {
+		return nil, err
+	}
 
 	var oldest struct {
 		SentAt *time.Time
 	}
-	d.Model(&model.MessageHub{}).
+	if err := d.Model(&model.MessageHub{}).
 		Where("direction = ? AND status = ?", "outbound", "pending").
 		Select("min(sent_at) as sent_at").
-		Scan(&oldest)
+		Scan(&oldest).Error; err != nil {
+		return nil, err
+	}
 	if oldest.SentAt != nil {
 		h.OldestPendingMin = int64(time.Since(*oldest.SentAt).Minutes())
 	}
 
-	d.Model(&model.MessageHub{}).
+	if err := d.Model(&model.MessageHub{}).
 		Where("direction = ? AND status = ?", "outbound", "delivered").
-		Count(&h.DeliveredCount)
-	d.Model(&model.MessageHub{}).
+		Count(&h.DeliveredCount).Error; err != nil {
+		return nil, err
+	}
+	if err := d.Model(&model.MessageHub{}).
 		Where("direction = ? AND status = ?", "outbound", "failed").
-		Count(&h.FailedCount)
+		Count(&h.FailedCount).Error; err != nil {
+		return nil, err
+	}
 
 	triad := syncGapTriadExpr()
 	missingInbox := d.Select("1").Table("inbox_conversations ic").
@@ -105,19 +122,28 @@ func HealthOverview(ctx context.Context) (*HealthOverviewData, error) {
 		Where("NOT EXISTS (?)", missingInbox).
 		Distinct("m.conversation_id").
 		Count(&h.SyncGapCount).Error; err != nil {
-		log.Printf("[monitor] HealthOverview sync_gap query failed: %v", err)
+		return nil, err
 	}
 
 	threshold := time.Now().Add(-15 * time.Minute)
-	d.Model(&model.MessageHub{}).
+	if err := d.Model(&model.MessageHub{}).
 		Where("direction = ? AND status = ? AND sent_at < ?", "outbound", "pending", threshold).
-		Count(&h.StuckReachable)
-	d.Model(&model.MessageHub{}).
+		Count(&h.StuckReachable).Error; err != nil {
+		return nil, err
+	}
+	if err := d.Model(&model.MessageHub{}).
 		Where("direction = ? AND status = ?", "outbound", "failed").
-		Count(&h.StuckUnreachable)
+		Count(&h.StuckUnreachable).Error; err != nil {
+		return nil, err
+	}
 
-	d.Model(&model.MessageTrace{}).Count(&h.TotalTraces)
-	d.Model(&model.MessageTrace{}).Where("status = ?", "abnormal").Count(&h.AbnormalCount)
+	if err := d.Model(&model.MessageTrace{}).Count(&h.TotalTraces).Error; err != nil {
+		return nil, err
+	}
+	if err := d.Model(&model.MessageTrace{}).Where("status = ?", "abnormal").
+		Count(&h.AbnormalCount).Error; err != nil {
+		return nil, err
+	}
 
 	pub, drop := tracing.Stats()
 	h.TracePublished = pub
@@ -156,11 +182,15 @@ type AnomalyGroups struct {
 }
 
 // Anomalies 返回当前业务链路异常分组清单。
+//
+// ctx 进 GORM 的理由与 HealthOverview 同一条，且这里更糟：四类异常逐条 log 后继续，
+// 结果是一张「没有异常」的空表——而空表在监控页上就是绿灯。
 func Anomalies(ctx context.Context) (*AnomalyGroups, error) {
 	d := db.GetDB()
 	if d == nil {
 		return nil, ErrNoDB
 	}
+	d = d.WithContext(ctx)
 	now := time.Now()
 	threshold := now.Add(-15 * time.Minute)
 	g := &AnomalyGroups{}
@@ -182,7 +212,7 @@ func Anomalies(ctx context.Context) (*AnomalyGroups, error) {
 		Where("NOT EXISTS (?)", missingInbox2).
 		Group("m.conversation_id").
 		Scan(&gaps).Error; err != nil {
-		log.Printf("monitor.Anomalies sync_gap: %v", err)
+		return nil, err
 	}
 	for _, r := range gaps {
 		g.SyncGap = append(g.SyncGap, SyncGapRow(r))
@@ -202,7 +232,7 @@ func Anomalies(ctx context.Context) (*AnomalyGroups, error) {
 		Joins("JOIN inbox_conversations i ON i.conversation_id = h.conversation_id").
 		Where("h.direction = 'outbound' AND h.status = 'pending' AND h.sent_at < ?", threshold).
 		Scan(&reach).Error; err != nil {
-		log.Printf("monitor.Anomalies stuck_reachable: %v", err)
+		return nil, err
 	}
 	if err := d.Table("message_hub h").
 		Select(stuckSel).
@@ -210,7 +240,7 @@ func Anomalies(ctx context.Context) (*AnomalyGroups, error) {
 		Where("h.direction = 'outbound' AND h.status = 'pending' AND h.sent_at < ?", threshold).
 		Where("i.conversation_id IS NULL").
 		Scan(&unreachStuck).Error; err != nil {
-		log.Printf("monitor.Anomalies stuck_unreachable: %v", err)
+		return nil, err
 	}
 	for _, r := range reach {
 		g.StuckReachable = append(g.StuckReachable, StuckRow{
@@ -228,7 +258,7 @@ func Anomalies(ctx context.Context) (*AnomalyGroups, error) {
 		Select(stuckSel).
 		Where("h.direction = 'outbound' AND h.status = 'failed' AND h.sent_at > now() - interval '7 days'").
 		Scan(&failed).Error; err != nil {
-		log.Printf("monitor.Anomalies unreachable: %v", err)
+		return nil, err
 	}
 	for _, r := range failed {
 		g.Unreachable = append(g.Unreachable, StuckRow{
@@ -237,13 +267,14 @@ func Anomalies(ctx context.Context) (*AnomalyGroups, error) {
 	}
 
 	nh, err := NodeHealthByChannel(ctx)
-	if err == nil {
-		for _, n := range nh {
-			if n.AbnormalRate > 0.05 {
-				g.NodeAbnormal = append(g.NodeAbnormal, NodeAbnormalRow{
-					Channel: n.Channel, Node: n.Node, AbnormalRate: n.AbnormalRate,
-				})
-			}
+	if err != nil {
+		return nil, err
+	}
+	for _, n := range nh {
+		if n.AbnormalRate > 0.05 {
+			g.NodeAbnormal = append(g.NodeAbnormal, NodeAbnormalRow{
+				Channel: n.Channel, Node: n.Node, AbnormalRate: n.AbnormalRate,
+			})
 		}
 	}
 	return g, nil
@@ -269,6 +300,7 @@ func NodeHealthByChannel(ctx context.Context) ([]NodeHealth, error) {
 	if d == nil {
 		return nil, ErrNoDB
 	}
+	d = d.WithContext(ctx)
 	since := time.Now().Add(-NodeHealthWindow())
 
 	type aggRow struct {
@@ -361,6 +393,7 @@ func Lifecycle(ctx context.Context, conversationID, traceID string, limit int) (
 	if d == nil {
 		return nil, ErrNoDB
 	}
+	d = d.WithContext(ctx)
 	if limit <= 0 || limit > 50 {
 		limit = 20
 	}
@@ -469,6 +502,7 @@ func Traces(ctx context.Context, limit int) ([]TraceSummary, error) {
 	if d == nil {
 		return nil, ErrNoDB
 	}
+	d = d.WithContext(ctx)
 	if limit <= 0 || limit > 200 {
 		limit = 50
 	}
@@ -536,6 +570,7 @@ func TraceTree(ctx context.Context, traceID, conversationID, msgID string) (*Tra
 	if d == nil {
 		return nil, ErrNoDB
 	}
+	d = d.WithContext(ctx)
 	var tid string
 	switch {
 	case traceID != "":
@@ -600,6 +635,8 @@ func LifecycleLatencyByChannel(ctx context.Context) ([]LifecycleLatency, error) 
 		return nil, ErrNoDB
 	}
 
+	d = d.WithContext(ctx)
+
 	type pair struct {
 		Channel  string
 		IngestAt time.Time
@@ -643,6 +680,9 @@ func PurgeOld(ctx context.Context, olderThan time.Duration) (int64, error) {
 	if d == nil {
 		return 0, ErrNoDB
 	}
+	// 绑 ctx：这条删除过去是全实例口径——saas 形态下任一调用方一次调用会清掉**所有租户**
+	// 的 trace。当前生产无调用方（见 model-list.md 待决策项），补上钩子前先把它钉在租户内。
+	d = d.WithContext(ctx)
 	cut := time.Now().Add(-olderThan)
 	res := d.Where("created_at < ?", cut).Delete(&model.MessageTrace{})
 	return res.RowsAffected, res.Error

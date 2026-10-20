@@ -25,6 +25,11 @@ func setupAIContentServiceTestDB(t *testing.T) *gorm.DB {
 	return database
 }
 
+// aiSvcCtx 本文件用例全部跑在 off 模式（隔离 callback 直通），ctx 只用于把参数补齐、
+// 不承担租户语义；on 模式的真实读数（遮挡、fail-closed、归属门）由 content/repository
+// 域的 ai_content_tenant_test.go 钉住，这一层只验服务自身的转发与校验。
+var aiSvcCtx = context.Background()
+
 // TestNewAIContentService 测试创建 AI 内容服务
 func TestNewAIContentService(t *testing.T) {
 	database := setupAIContentServiceTestDB(t)
@@ -295,7 +300,7 @@ func TestAIContentService_GetGenerationHistory(t *testing.T) {
 
 	userID := uint(1)
 
-	records, total, err := service.GetGenerationHistory(userID, 1, 10, nil)
+	records, total, err := service.GetGenerationHistory(aiSvcCtx, userID, 1, 10, nil)
 	if err != nil {
 		t.Fatalf("GetGenerationHistory failed: %v", err)
 	}
@@ -338,7 +343,7 @@ func TestAIContentService_GetGenerationHistory_WithFilters(t *testing.T) {
 		"type": string(model.AIGenerationTypeCopywriting),
 	}
 
-	records, total, err := service.GetGenerationHistory(userID, 1, 10, filters)
+	records, total, err := service.GetGenerationHistory(aiSvcCtx, userID, 1, 10, filters)
 	if err != nil {
 		t.Fatalf("GetGenerationHistory failed: %v", err)
 	}
@@ -365,7 +370,7 @@ func TestAIContentService_GetRecordByID_Success(t *testing.T) {
 	}
 	database.Create(record)
 
-	fetchedRecord, err := service.GetRecordByID(record.ID)
+	fetchedRecord, err := service.GetRecordByID(aiSvcCtx, record.ID, 1)
 	if err != nil {
 		t.Fatalf("GetRecordByID failed: %v", err)
 	}
@@ -375,7 +380,9 @@ func TestAIContentService_GetRecordByID_Success(t *testing.T) {
 	}
 }
 
-func TestAIContentService_GetRecordByID_WrongMerchant(t *testing.T) {
+// 记录属于 user=1，以 user=2 的身份取同一条必须读不到：
+// 改前这一口只看 id，同租户内任何登录用户换个 id 就能拿到别人的输入原文与生成结果。
+func TestAIContentService_GetRecordByID_WrongOwner(t *testing.T) {
 	database := setupAIContentServiceTestDB(t)
 	service := NewAIContentService(database)
 
@@ -387,12 +394,9 @@ func TestAIContentService_GetRecordByID_WrongMerchant(t *testing.T) {
 	}
 	database.Create(record)
 
-	fetchedRecord, err := service.GetRecordByID(record.ID)
-	if err != nil {
-		t.Fatalf("GetRecordByID should succeed in single-tenant mode: %v", err)
-	}
-	if fetchedRecord == nil {
-		t.Error("Expected record to be returned in single-tenant mode")
+	fetchedRecord, err := service.GetRecordByID(aiSvcCtx, record.ID, 2)
+	if err == nil {
+		t.Errorf("以别人的 user_id 读到了 %+v，期望失败", fetchedRecord)
 	}
 }
 
@@ -410,7 +414,7 @@ func TestAIContentService_SaveRecord(t *testing.T) {
 	}
 	database.Create(record)
 
-	err := service.SaveRecord(record.ID)
+	err := service.SaveRecord(aiSvcCtx, record.ID)
 	if err != nil {
 		t.Fatalf("SaveRecord failed: %v", err)
 	}
@@ -437,7 +441,7 @@ func TestAIContentService_FavoriteRecord(t *testing.T) {
 	}
 	database.Create(record)
 
-	err := service.FavoriteRecord(record.ID, true)
+	err := service.FavoriteRecord(aiSvcCtx, record.ID, 1, true)
 	if err != nil {
 		t.Fatalf("FavoriteRecord failed: %v", err)
 	}
@@ -464,7 +468,7 @@ func TestAIContentService_RateRecord_Success(t *testing.T) {
 	}
 	database.Create(record)
 
-	err := service.RateRecord(record.ID, 5)
+	err := service.RateRecord(aiSvcCtx, record.ID, 1, 5)
 	if err != nil {
 		t.Fatalf("RateRecord failed: %v", err)
 	}
@@ -490,7 +494,7 @@ func TestAIContentService_RateRecord_InvalidRating(t *testing.T) {
 	}
 	database.Create(record)
 
-	err := service.RateRecord(record.ID, 10)
+	err := service.RateRecord(aiSvcCtx, record.ID, 1, 10)
 	if err == nil {
 		t.Error("Expected error for invalid rating")
 	}
@@ -509,7 +513,7 @@ func TestAIContentService_DeleteRecord_Success(t *testing.T) {
 	}
 	database.Create(record)
 
-	err := service.DeleteRecord(record.ID)
+	err := service.DeleteRecord(aiSvcCtx, record.ID)
 	if err != nil {
 		t.Fatalf("DeleteRecord failed: %v", err)
 	}
@@ -522,21 +526,15 @@ func TestAIContentService_DeleteRecord_Success(t *testing.T) {
 	}
 }
 
-func TestAIContentService_DeleteRecord_WrongMerchant(t *testing.T) {
+// DeleteRecord 是管理口（只有 admin 路由挂它，角色由 AdminAuthMiddleware 证明），签名里没有 userID，
+// 所以这一层能钉的是「命中 0 行不许静默成功」：改前 gorm 对 0 行 DELETE 回 nil error，
+// 处理器随后对不存在的 id 回「删除成功」，界面显示已删、库里一行没动。
+func TestAIContentService_DeleteRecord_MissingRow(t *testing.T) {
 	database := setupAIContentServiceTestDB(t)
 	service := NewAIContentService(database)
 
-	record := &model.AIGenerationRecord{
-		UserID: 1,
-		Type:   model.AIGenerationTypeCopywriting,
-		Input:  "测试输入",
-		Output: "测试输出",
-	}
-	database.Create(record)
-
-	err := service.DeleteRecord(record.ID)
-	if err != nil {
-		t.Errorf("DeleteRecord should succeed in single-tenant mode: %v", err)
+	if err := service.DeleteRecord(aiSvcCtx, 999999); err == nil {
+		t.Error("删除不存在的 id 返回了 nil error")
 	}
 }
 
@@ -563,7 +561,7 @@ func TestPromptTemplateService_GetTemplates(t *testing.T) {
 	}
 	database.Create(template2)
 
-	templates, err := service.GetTemplates("")
+	templates, err := service.GetTemplates(aiSvcCtx, "")
 	if err != nil {
 		t.Fatalf("GetTemplates failed: %v", err)
 	}
@@ -596,7 +594,7 @@ func TestPromptTemplateService_GetTemplates_ByType(t *testing.T) {
 	}
 	database.Create(template2)
 
-	templates, err := service.GetTemplates(string(model.AIGenerationTypeCopywriting))
+	templates, err := service.GetTemplates(aiSvcCtx, string(model.AIGenerationTypeCopywriting))
 	if err != nil {
 		t.Fatalf("GetTemplates failed: %v", err)
 	}
@@ -624,7 +622,7 @@ func TestPromptTemplateService_GetTemplateByID_Success(t *testing.T) {
 	}
 	database.Create(template)
 
-	fetchedTemplate, err := service.GetTemplateByID(template.ID)
+	fetchedTemplate, err := service.GetTemplateByID(aiSvcCtx, template.ID)
 	if err != nil {
 		t.Fatalf("GetTemplateByID failed: %v", err)
 	}
@@ -652,7 +650,7 @@ func TestPromptTemplateService_GetTemplateByID_SystemTemplate(t *testing.T) {
 	}
 	database.Create(template)
 
-	fetchedTemplate, err := service.GetTemplateByID(template.ID)
+	fetchedTemplate, err := service.GetTemplateByID(aiSvcCtx, template.ID)
 	if err != nil {
 		t.Fatalf("GetTemplateByID failed: %v", err)
 	}
@@ -675,7 +673,7 @@ func TestPromptTemplateService_GetTemplateByID_WrongMerchant(t *testing.T) {
 	}
 	database.Create(template)
 
-	fetchedTemplate, err := service.GetTemplateByID(template.ID)
+	fetchedTemplate, err := service.GetTemplateByID(aiSvcCtx, template.ID)
 	if err != nil {
 		t.Fatalf("GetTemplateByID should succeed in single-tenant mode: %v", err)
 	}
@@ -698,7 +696,7 @@ func TestPromptTemplateService_CreateTemplate(t *testing.T) {
 		Example:     "示例输出",
 	}
 
-	createdTemplate, err := service.CreateTemplate(req)
+	createdTemplate, err := service.CreateTemplate(aiSvcCtx, req)
 	if err != nil {
 		t.Fatalf("CreateTemplate failed: %v", err)
 	}
@@ -716,9 +714,12 @@ func TestPromptTemplateService_CreateTemplate(t *testing.T) {
 	}
 
 	var savedTemplate model.PromptTemplate
-	database.First(&savedTemplate, createdTemplate.ID)
-
-	_ = savedTemplate
+	if firstErr := database.First(&savedTemplate, createdTemplate.ID).Error; firstErr != nil {
+		t.Fatalf("模板创建后回读失败: %v", firstErr)
+	}
+	if savedTemplate.Template != req.Template {
+		t.Errorf("落库正文 %q，期望 %q", savedTemplate.Template, req.Template)
+	}
 }
 
 // TestPromptTemplateService_UpdateTemplate_Success 测试更新模板成功
@@ -744,7 +745,7 @@ func TestPromptTemplateService_UpdateTemplate_Success(t *testing.T) {
 		Example:     "更新后的示例",
 	}
 
-	updatedTemplate, err := service.UpdateTemplate(template.ID, req)
+	updatedTemplate, err := service.UpdateTemplate(aiSvcCtx, template.ID, req)
 	if err != nil {
 		t.Fatalf("UpdateTemplate failed: %v", err)
 	}
@@ -785,7 +786,7 @@ func TestPromptTemplateService_UpdateTemplate_SystemTemplate(t *testing.T) {
 		Template: "更新后的内容",
 	}
 
-	_, err := service.UpdateTemplate(template.ID, req)
+	_, err := service.UpdateTemplate(aiSvcCtx, template.ID, req)
 	if err == nil {
 		t.Error("Expected error for updating system template")
 	}
@@ -810,7 +811,7 @@ func TestPromptTemplateService_UpdateTemplate_WrongMerchant(t *testing.T) {
 		Template: "更新后的内容",
 	}
 
-	_, err := service.UpdateTemplate(template.ID, req)
+	_, err := service.UpdateTemplate(aiSvcCtx, template.ID, req)
 	if err != nil {
 		t.Errorf("UpdateTemplate should succeed in single-tenant mode: %v", err)
 	}
@@ -830,7 +831,7 @@ func TestPromptTemplateService_DeleteTemplate_Success(t *testing.T) {
 	}
 	database.Create(template)
 
-	err := service.DeleteTemplate(template.ID)
+	err := service.DeleteTemplate(aiSvcCtx, template.ID)
 	if err != nil {
 		t.Fatalf("DeleteTemplate failed: %v", err)
 	}
@@ -857,7 +858,7 @@ func TestPromptTemplateService_DeleteTemplate_SystemTemplate(t *testing.T) {
 	}
 	database.Create(template)
 
-	err := service.DeleteTemplate(template.ID)
+	err := service.DeleteTemplate(aiSvcCtx, template.ID)
 	if err == nil {
 		t.Error("Expected error for deleting system template")
 	}
@@ -876,7 +877,7 @@ func TestPromptTemplateService_DeleteTemplate_WrongMerchant(t *testing.T) {
 	}
 	database.Create(template)
 
-	err := service.DeleteTemplate(template.ID)
+	err := service.DeleteTemplate(aiSvcCtx, template.ID)
 	if err != nil {
 		t.Errorf("DeleteTemplate should succeed in single-tenant mode: %v", err)
 	}
@@ -887,7 +888,7 @@ func TestPromptTemplateService_InitSystemTemplates(t *testing.T) {
 	database := setupAIContentServiceTestDB(t)
 	service := NewPromptTemplateService(database)
 
-	err := service.InitSystemTemplates()
+	err := service.InitSystemTemplates(aiSvcCtx)
 
 	if err != nil {
 		t.Fatalf("InitSystemTemplates failed: %v", err)
@@ -961,7 +962,7 @@ func TestAIContentService_buildDefaultPrompt_Copywriting(t *testing.T) {
 		Input: "测试产品",
 	}
 
-	prompt, err := service.buildPrompt(req)
+	prompt, err := service.buildPrompt(aiSvcCtx, req)
 
 	if err != nil {
 		t.Fatalf("buildPrompt failed: %v", err)
@@ -982,7 +983,7 @@ func TestAIContentService_buildDefaultPrompt_Title(t *testing.T) {
 		Input: "测试内容",
 	}
 
-	prompt, err := service.buildPrompt(req)
+	prompt, err := service.buildPrompt(aiSvcCtx, req)
 
 	if err != nil {
 		t.Fatalf("buildPrompt failed: %v", err)
@@ -1016,42 +1017,49 @@ func TestAIContentService_fillTemplate(t *testing.T) {
 	}
 }
 
-// TestAIContentService_buildDefaultPrompt_AllTypes 测试所有类型的默认提示词
-func TestAIContentService_buildDefaultPrompt_AllTypes(t *testing.T) {
+// TestAIContentService_TypeVocabularyMatchesPrompts 类型表与提示词分支必须同步。
+//
+// 改前这里是一张手写的类型表 + `prompt != ""` 断言：`translation` 走的是 switch 的
+// `default: return input`（把用户原文当提示词发给模型），因为原文非空，断言照样绿——
+// 弱断言把「有类型、没实现」藏了整轮审查。现在两个方向都钉：
+//
+//	表里有 ⇒ 必须有专属分支（不能原样回显）；分支里有 ⇒ 必须出现在给前端的类型表里（否则选不到）。
+func TestAIContentService_TypeVocabularyMatchesPrompts(t *testing.T) {
 	database := setupAIContentServiceTestDB(t)
-	service := NewAIContentService(database)
+	content := NewAIContentService(database)
+	template := NewPromptTemplateService(database)
 
-	testCases := []struct {
-		name  string
-		typ   model.AIGenerationType
-		input string
-	}{
-		{"Summary", model.AIGenerationTypeSummary, "测试内容"},
-		{"Translation", model.AIGenerationTypeTranslation, "Hello World"},
-		{"Expand", model.AIGenerationTypeExpand, "简短内容"},
-		{"Polish", model.AIGenerationTypePolish, "需要润色的文本"},
-		{"Keywords", model.AIGenerationTypeKeywords, "关键词提取文本"},
-		{"AdCopy", model.AIGenerationTypeAdCopy, "产品描述"},
-		{"Email", model.AIGenerationTypeEmail, "邮件内容"},
-		{"Script", model.AIGenerationTypeScript, "销售场景"},
+	listed := map[string]bool{}
+	for _, item := range template.GetTemplateTypes() {
+		value := item["value"]
+		if value == "" {
+			t.Errorf("类型表里有一项没有 value：%+v", item)
+			continue
+		}
+		if listed[value] {
+			t.Errorf("类型表里 %s 出现两次", value)
+		}
+		listed[value] = true
+
+		const input = "测试内容"
+		prompt, err := content.buildPrompt(aiSvcCtx, &GenerateContentRequest{Type: model.AIGenerationType(value), Input: input})
+		if err != nil {
+			t.Errorf("类型 %s 构建提示词失败: %v", value, err)
+			continue
+		}
+		if prompt == input {
+			t.Errorf("类型 %s 在类型表里却没有专属分支：原样回显用户输入，选了等于没选", value)
+		}
 	}
 
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			req := &GenerateContentRequest{
-				Type:  tc.typ,
-				Input: tc.input,
-			}
-
-			prompt, err := service.buildPrompt(req)
-
-			if err != nil {
-				t.Fatalf("buildPrompt failed for %s: %v", tc.name, err)
-			}
-
-			if prompt == "" {
-				t.Errorf("Expected non-empty prompt for %s", tc.name)
-			}
-		})
+	for _, typ := range []model.AIGenerationType{
+		model.AIGenerationTypeCopywriting, model.AIGenerationTypeTitle, model.AIGenerationTypeSummary,
+		model.AIGenerationTypeReply, model.AIGenerationTypeRewrite, model.AIGenerationTypeExpand,
+		model.AIGenerationTypePolish, model.AIGenerationTypeKeywords, model.AIGenerationTypeAdCopy,
+		model.AIGenerationTypeSocialPost, model.AIGenerationTypeScript, model.AIGenerationTypeEmail,
+	} {
+		if !listed[string(typ)] {
+			t.Errorf("类型 %s 有提示词分支却不在类型表里：前端选不到", typ)
+		}
 	}
 }

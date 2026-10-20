@@ -26,16 +26,28 @@ func NewAIContentController() *AIContentController {
 	}
 }
 
+// aiUserID 取调用者身份（生成记录与模板的归属门都建在这个值上）。
+//
+// 用 `ctx.Get` + `convertToUint` 而不是 `ctx.GetUint`：中间件存进 gin ctx 的是 any
+// （JWTAuthMiddleware 存 uint，TeamJWTAuthMiddleware 存 claims 里的 float64/string），
+// `GetUint` 只认 uint、其余类型返回 0——那会让归属门在「身份取不到」时退化成
+// 「查 user_id=0 的行」而不是拒绝。这里宁可回 401。
+func aiUserID(ctx *gin.Context) (uint, bool) {
+	v, exists := ctx.Get("user_id")
+	uid := convertToUint(v)
+	if !exists || uid == 0 {
+		response.Error(ctx, http.StatusUnauthorized, "未找到用户信息")
+		return 0, false
+	}
+	return uid, true
+}
+
 // GenerateContent 生成内容
 func (c *AIContentController) GenerateContent(ctx *gin.Context) {
-
-	userID, exists := ctx.Get("user_id")
-	if !exists {
-		response.Error(ctx, http.StatusUnauthorized, "未找到用户信息")
+	uid, ok := aiUserID(ctx)
+	if !ok {
 		return
 	}
-
-	uid := convertToUint(userID)
 
 	var req service.GenerateContentRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
@@ -53,14 +65,10 @@ func (c *AIContentController) GenerateContent(ctx *gin.Context) {
 
 // CreateHistory 创建生成历史记录（不调用外部 AI 服务，直接保存到数据库）
 func (c *AIContentController) CreateHistory(ctx *gin.Context) {
-
-	userID, exists := ctx.Get("user_id")
-	if !exists {
-		response.Error(ctx, http.StatusUnauthorized, "未找到用户信息")
+	uid, ok := aiUserID(ctx)
+	if !ok {
 		return
 	}
-
-	uid := convertToUint(userID)
 
 	var req service.CreateHistoryRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
@@ -68,7 +76,7 @@ func (c *AIContentController) CreateHistory(ctx *gin.Context) {
 		return
 	}
 
-	record, err := c.contentService.CreateHistory(uid, &req)
+	record, err := c.contentService.CreateHistory(ctx.Request.Context(), uid, &req)
 	if errhttp.HandleServiceError(ctx, err) {
 		return
 	}
@@ -78,16 +86,8 @@ func (c *AIContentController) CreateHistory(ctx *gin.Context) {
 
 // GetGenerationHistory 获取生成历史
 func (c *AIContentController) GetGenerationHistory(ctx *gin.Context) {
-
-	userID, exists := ctx.Get("user_id")
-	if !exists {
-		response.Error(ctx, http.StatusUnauthorized, "未找到用户信息")
-		return
-	}
-
-	uid := convertToUint(userID)
-	if uid == 0 {
-		response.Error(ctx, http.StatusUnauthorized, "无效的用户信息")
+	uid, ok := aiUserID(ctx)
+	if !ok {
 		return
 	}
 
@@ -105,7 +105,7 @@ func (c *AIContentController) GetGenerationHistory(ctx *gin.Context) {
 		filters["is_favorite"] = isFavorite == "true"
 	}
 
-	records, total, err := c.contentService.GetGenerationHistory(uid, page, pageSize, filters)
+	records, total, err := c.contentService.GetGenerationHistory(ctx.Request.Context(), uid, page, pageSize, filters)
 	if err != nil {
 		response.Error(ctx, http.StatusInternalServerError, err.Error())
 		return
@@ -121,26 +121,17 @@ func (c *AIContentController) GetGenerationHistory(ctx *gin.Context) {
 
 // GetRecordByID 获取生成记录详情
 func (c *AIContentController) GetRecordByID(ctx *gin.Context) {
-
-	userID, exists := ctx.Get("user_id")
-	if !exists {
-		response.Error(ctx, http.StatusUnauthorized, "未找到用户信息")
-		return
-	}
-	uid := convertToUint(userID)
-	if uid == 0 {
-		response.Error(ctx, http.StatusUnauthorized, "无效的用户信息")
+	uid, ok := aiUserID(ctx)
+	if !ok {
 		return
 	}
 
-	idStr := ctx.Param("id")
-	id, err := strconv.ParseUint(idStr, 10, 32)
-	if err != nil {
-		response.Error(ctx, http.StatusBadRequest, "无效的记录ID")
+	id, valid := parseRecordID(ctx)
+	if !valid {
 		return
 	}
 
-	record, err := c.contentService.GetRecordByID(uint(id))
+	record, err := c.contentService.GetRecordByID(ctx.Request.Context(), id, uid)
 	if err != nil {
 		response.Error(ctx, http.StatusNotFound, err.Error())
 		return
@@ -149,17 +140,28 @@ func (c *AIContentController) GetRecordByID(ctx *gin.Context) {
 	response.Success(ctx, record, "获取成功")
 }
 
-// SaveRecord 保存生成记录
-func (c *AIContentController) SaveRecord(ctx *gin.Context) {
-
+// parseRecordID 路径参数 :id。0 不是合法主键，和解析失败一样回 400。
+func parseRecordID(ctx *gin.Context) (uint, bool) {
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
-	if err != nil {
+	if err != nil || id == 0 {
 		response.Error(ctx, http.StatusBadRequest, "无效的记录ID")
+		return 0, false
+	}
+	return uint(id), true
+}
+
+// SaveRecord 保存生成记录（admin 路由：管理员整理本租户内容库，不按 user_id 收窄）
+func (c *AIContentController) SaveRecord(ctx *gin.Context) {
+	if _, ok := aiUserID(ctx); !ok {
+		return
+	}
+	id, valid := parseRecordID(ctx)
+	if !valid {
 		return
 	}
 
-	if errhttp.HandleDBError(ctx, c.contentService.SaveRecord(uint(id)), "保存记录") {
+	if errhttp.HandleDBError(ctx, c.contentService.SaveRecord(ctx.Request.Context(), id), "保存记录") {
 		return
 	}
 
@@ -168,11 +170,12 @@ func (c *AIContentController) SaveRecord(ctx *gin.Context) {
 
 // FavoriteRecord 收藏生成记录
 func (c *AIContentController) FavoriteRecord(ctx *gin.Context) {
-
-	idStr := ctx.Param("id")
-	id, err := strconv.ParseUint(idStr, 10, 32)
-	if err != nil {
-		response.Error(ctx, http.StatusBadRequest, "无效的记录ID")
+	uid, ok := aiUserID(ctx)
+	if !ok {
+		return
+	}
+	id, valid := parseRecordID(ctx)
+	if !valid {
 		return
 	}
 
@@ -183,7 +186,7 @@ func (c *AIContentController) FavoriteRecord(ctx *gin.Context) {
 		req.IsFavorite = true
 	}
 
-	if errhttp.HandleDBError(ctx, c.contentService.FavoriteRecord(uint(id), req.IsFavorite), "收藏记录") {
+	if errhttp.HandleDBError(ctx, c.contentService.FavoriteRecord(ctx.Request.Context(), id, uid, req.IsFavorite), "收藏记录") {
 		return
 	}
 
@@ -192,11 +195,12 @@ func (c *AIContentController) FavoriteRecord(ctx *gin.Context) {
 
 // RateRecord 评分生成记录
 func (c *AIContentController) RateRecord(ctx *gin.Context) {
-
-	idStr := ctx.Param("id")
-	id, err := strconv.ParseUint(idStr, 10, 32)
-	if err != nil {
-		response.Error(ctx, http.StatusBadRequest, "无效的记录ID")
+	uid, ok := aiUserID(ctx)
+	if !ok {
+		return
+	}
+	id, valid := parseRecordID(ctx)
+	if !valid {
 		return
 	}
 
@@ -208,24 +212,24 @@ func (c *AIContentController) RateRecord(ctx *gin.Context) {
 		return
 	}
 
-	if errhttp.HandleDBError(ctx, c.contentService.RateRecord(uint(id), req.Rating), "评分记录") {
+	if errhttp.HandleDBError(ctx, c.contentService.RateRecord(ctx.Request.Context(), id, uid, req.Rating), "评分记录") {
 		return
 	}
 
 	response.Success(ctx, nil, "评分成功")
 }
 
-// DeleteRecord 删除生成记录
+// DeleteRecord 删除生成记录（admin 路由：管理员整理本租户内容库，不按 user_id 收窄）
 func (c *AIContentController) DeleteRecord(ctx *gin.Context) {
-
-	idStr := ctx.Param("id")
-	id, err := strconv.ParseUint(idStr, 10, 32)
-	if err != nil {
-		response.Error(ctx, http.StatusBadRequest, "无效的记录ID")
+	if _, ok := aiUserID(ctx); !ok {
+		return
+	}
+	id, valid := parseRecordID(ctx)
+	if !valid {
 		return
 	}
 
-	if errhttp.HandleServiceError(ctx, c.contentService.DeleteRecord(uint(id))) {
+	if errhttp.HandleServiceError(ctx, c.contentService.DeleteRecord(ctx.Request.Context(), id)) {
 		return
 	}
 
@@ -236,7 +240,7 @@ func (c *AIContentController) DeleteRecord(ctx *gin.Context) {
 func (c *AIContentController) GetTemplates(ctx *gin.Context) {
 	templateType := ctx.Query("type")
 
-	templates, err := c.templateService.GetTemplates(templateType)
+	templates, err := c.templateService.GetTemplates(ctx.Request.Context(), templateType)
 	if err != nil {
 		response.Error(ctx, http.StatusInternalServerError, err.Error())
 		return
@@ -250,12 +254,12 @@ func (c *AIContentController) GetTemplateByID(ctx *gin.Context) {
 
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
-	if err != nil {
+	if err != nil || id == 0 {
 		response.Error(ctx, http.StatusBadRequest, "无效的模板ID")
 		return
 	}
 
-	template, err := c.templateService.GetTemplateByID(uint(id))
+	template, err := c.templateService.GetTemplateByID(ctx.Request.Context(), uint(id))
 	if err != nil {
 		response.Error(ctx, http.StatusNotFound, err.Error())
 		return
@@ -273,7 +277,7 @@ func (c *AIContentController) CreateTemplate(ctx *gin.Context) {
 		return
 	}
 
-	template, err := c.templateService.CreateTemplate(&req)
+	template, err := c.templateService.CreateTemplate(ctx.Request.Context(), &req)
 	if err != nil {
 		response.Error(ctx, http.StatusInternalServerError, err.Error())
 		return
@@ -287,7 +291,7 @@ func (c *AIContentController) UpdateTemplate(ctx *gin.Context) {
 
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
-	if err != nil {
+	if err != nil || id == 0 {
 		response.Error(ctx, http.StatusBadRequest, "无效的模板ID")
 		return
 	}
@@ -298,7 +302,7 @@ func (c *AIContentController) UpdateTemplate(ctx *gin.Context) {
 		return
 	}
 
-	template, err := c.templateService.UpdateTemplate(uint(id), &req)
+	template, err := c.templateService.UpdateTemplate(ctx.Request.Context(), uint(id), &req)
 	if errhttp.HandleServiceError(ctx, err) {
 		return
 	}
@@ -311,12 +315,12 @@ func (c *AIContentController) DeleteTemplate(ctx *gin.Context) {
 
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
-	if err != nil {
+	if err != nil || id == 0 {
 		response.Error(ctx, http.StatusBadRequest, "无效的模板ID")
 		return
 	}
 
-	if errhttp.HandleServiceError(ctx, c.templateService.DeleteTemplate(uint(id))) {
+	if errhttp.HandleServiceError(ctx, c.templateService.DeleteTemplate(ctx.Request.Context(), uint(id))) {
 		return
 	}
 

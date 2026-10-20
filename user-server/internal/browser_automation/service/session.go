@@ -7,6 +7,7 @@ import (
 
 	"hivemtk-user/internal/browser_automation/model"
 	"hivemtk-user/internal/browser_automation/repository"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 )
 
@@ -47,6 +48,23 @@ func (s *SessionService) Get(ctx context.Context, id, userID uint) (*model.Brows
 
 func (s *SessionService) ListByUser(ctx context.Context, userID uint, status string, page, limit int) ([]*model.BrowserSession, int64, error) {
 	return s.sessionRepo.ListByUser(ctx, userID, status, page, limit)
+}
+
+// FailRunningForUser Host 断连收口：该用户所有在途会话置 failed，返回收口条数。
+//
+// 走 system scope 是因为调用方给不了租户：`HostRegistry.onDisconnect` 在 WS 读协程里
+// 触发，递给钩子的是 `context.Background()`（host_registry.go:231），而 browser_sessions
+// 是租户表 ⇒ saas 形态下这一刀被隔离 callback fail-closed，掉线后的 active 会话永久躺着，
+// 并一直占住并发闸（CountRunningByUser）——用户重开 Chrome 也起不了新任务。
+// 收口判据是全局唯一的 user_id（一个用户只属一个租户），所以 system scope 触达的行集
+// 与「已知租户时租户内执行」相同；口径与本域对账器（stale_reconcile 整轮跑在
+// WithSystemScope 下）一致，不是新开的例外通道。
+func (s *SessionService) FailRunningForUser(ctx context.Context, userID uint, reason string) (int, error) {
+	sessions, err := s.sessionRepo.FailRunningByUser(tenant.WithSystemScope(ctx), userID, reason)
+	if err != nil {
+		return 0, err
+	}
+	return len(sessions), nil
 }
 
 func (s *SessionService) ListByTask(ctx context.Context, taskID, userID uint, page, limit int) ([]*model.BrowserSession, int64, error) {
@@ -215,8 +233,12 @@ type SessionExportRow struct {
 }
 
 // SessionExport I5：session 全量审计包=会话元数据+步流水+命令流+LLM 成本账+裁剪摘要。
-// 归属校验与 ListCommandLogs 同构（GetByID 带 userID）；仓储未装配的分量置空不报错
-// （审计导出是增强，不因装配缺位而失败——与 D1 读侧同纪律）。
+// 归属校验与 ListCommandLogs 同构（GetByID 带 userID）。
+// 分量 missing 与分量 read-failure 是两件事，必须分开：
+//   - 仓储**未装配**（nil）⇒ 该分量置空、整包照样返回（与 D1 读侧同纪律，装配缺位是部署问题，
+//     不该把一次导出判死）；
+//   - 装配了却**查询失败** ⇒ 整包报错。空数组在审计包里只有一种读法——「这一段没发生过」，
+//     把一次库没答上话伪装成「这个会话没跑过任何步」，正是 A6 立项要消灭的那个形状。
 //
 // 摘要分量（/ A6）刻意做成**同一个返回元组**而不是另开一个方法：元组少一个值，
 // 调用方编译不过；两个方法则允许「只导了命令流、忘了导摘要」这种静默残缺长期存在，
@@ -228,30 +250,36 @@ func (s *SessionService) SessionExport(ctx context.Context, sessionID, userID ui
 	}
 	steps, err := s.stepRepo.ListBySessionID(ctx, sessionID)
 	if err != nil {
-		steps = nil // 步查询失败不阻断导出（会话元数据仍有价值）
+		return nil, nil, nil, nil, nil, err
 	}
 	var logs []*model.BrowserCommandLog
 	if s.cmdLogRepo != nil {
-		if l, err := s.cmdLogRepo.ListBySessionID(ctx, sessionID); err == nil {
-			logs = l
+		l, err := s.cmdLogRepo.ListBySessionID(ctx, sessionID)
+		if err != nil {
+			return nil, nil, nil, nil, nil, err
 		}
+		logs = l
 	}
 	var digests []*model.BrowserAuditDigest
 	if s.digestRepo != nil {
-		if d, err := s.digestRepo.ListBySessionID(ctx, sessionID); err == nil {
-			digests = d
+		d, err := s.digestRepo.ListBySessionID(ctx, sessionID)
+		if err != nil {
+			return nil, nil, nil, nil, nil, err
 		}
+		digests = d
 	}
 	var plans []*SessionExportRow
 	if s.planRepo != nil {
-		if ps, err := s.planRepo.ListBySessionID(ctx, sessionID, 200); err == nil {
-			for _, p := range ps {
-				plans = append(plans, &SessionExportRow{
-					ID: p.ID, Kind: p.Kind, Goal: p.Goal, Steps: []byte(p.Steps),
-					Reasoning: p.Reasoning, Model: p.Model,
-					TokenIn: p.TokenIn, TokenOut: p.TokenOut, CreatedAt: p.CreatedAt,
-				})
-			}
+		ps, err := s.planRepo.ListBySessionID(ctx, sessionID, 200)
+		if err != nil {
+			return nil, nil, nil, nil, nil, err
+		}
+		for _, p := range ps {
+			plans = append(plans, &SessionExportRow{
+				ID: p.ID, Kind: p.Kind, Goal: p.Goal, Steps: []byte(p.Steps),
+				Reasoning: p.Reasoning, Model: p.Model,
+				TokenIn: p.TokenIn, TokenOut: p.TokenOut, CreatedAt: p.CreatedAt,
+			})
 		}
 	}
 	return sess, steps, logs, plans, digests, nil

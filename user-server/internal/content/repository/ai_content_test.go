@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"hivemtk-user/internal/content/model"
 	"testing"
 
@@ -24,6 +25,10 @@ func setupAIContentRepositories(t *testing.T) (AIGenerationRecordRepository, Pro
 
 	return aiRepo, promptRepo
 }
+
+// aiTestCtx 本文件全部用例跑在 off 模式（隔离 callback 直通），
+// ctx 在这里只是把参数补齐、不承担租户语义；on 模式的真实读数由 ai_content_tenant_test.go 钉。
+var aiTestCtx = context.Background()
 
 // TestAIGenerationRecordRepository_Create 测试创建生成记录
 func TestAIGenerationRecordRepository_Create(t *testing.T) {
@@ -73,7 +78,7 @@ func TestAIGenerationRecordRepository_Create(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := aiRepo.Create(tt.record)
+			err := aiRepo.Create(aiTestCtx, tt.record)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Create() error = %v, wantErr %v", err, tt.wantErr)
@@ -96,7 +101,7 @@ func TestAIGenerationRecordRepository_GetByID(t *testing.T) {
 		Input:  "GetByID test input",
 		Output: "GetByID test output",
 	}
-	aiRepo.Create(record)
+	aiRepo.Create(aiTestCtx, record)
 
 	tests := []struct {
 		name    string
@@ -117,7 +122,7 @@ func TestAIGenerationRecordRepository_GetByID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := aiRepo.GetByID(tt.id)
+			result, err := aiRepo.GetByID(aiTestCtx, tt.id, 1)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetByID() error = %v, wantErr %v", err, tt.wantErr)
@@ -145,12 +150,12 @@ func TestAIGenerationRecordRepository_GetByMerchantAndUser(t *testing.T) {
 		{UserID: 2, Type: model.AIGenerationTypeCopywriting, Input: "u2-input-1", Output: "u2-output-1"},
 	}
 	for _, r := range records {
-		if err := aiRepo.Create(r); err != nil {
+		if err := aiRepo.Create(aiTestCtx, r); err != nil {
 			t.Fatalf("Create() error = %v", err)
 		}
 	}
 
-	list, total, err := aiRepo.GetByMerchantAndUser(1, 1, 10, nil)
+	list, total, err := aiRepo.GetByMerchantAndUser(aiTestCtx, 1, 1, 10, nil)
 	if err != nil {
 		t.Fatalf("GetByMerchantAndUser() error = %v", err)
 	}
@@ -161,7 +166,7 @@ func TestAIGenerationRecordRepository_GetByMerchantAndUser(t *testing.T) {
 		t.Errorf("Expected 3 records for user 1, got %d", len(list))
 	}
 
-	_, total2, err := aiRepo.GetByMerchantAndUser(2, 1, 10, nil)
+	_, total2, err := aiRepo.GetByMerchantAndUser(aiTestCtx, 2, 1, 10, nil)
 	if err != nil {
 		t.Fatalf("GetByMerchantAndUser() user 2 error = %v", err)
 	}
@@ -169,7 +174,7 @@ func TestAIGenerationRecordRepository_GetByMerchantAndUser(t *testing.T) {
 		t.Errorf("Expected total 1 for user 2, got %d", total2)
 	}
 
-	_, totalWithType, err := aiRepo.GetByMerchantAndUser(1, 1, 10, map[string]any{
+	_, totalWithType, err := aiRepo.GetByMerchantAndUser(aiTestCtx, 1, 1, 10, map[string]any{
 		"type": model.AIGenerationTypeCopywriting,
 	})
 	if err != nil {
@@ -179,14 +184,14 @@ func TestAIGenerationRecordRepository_GetByMerchantAndUser(t *testing.T) {
 		t.Errorf("Expected total 2 for user 1 with type=copywriting, got %d", totalWithType)
 	}
 
-	page1, _, err := aiRepo.GetByMerchantAndUser(1, 1, 2, nil)
+	page1, _, err := aiRepo.GetByMerchantAndUser(aiTestCtx, 1, 1, 2, nil)
 	if err != nil {
 		t.Fatalf("GetByMerchantAndUser() page 1 error = %v", err)
 	}
 	if len(page1) != 2 {
 		t.Errorf("Expected 2 records on page 1, got %d", len(page1))
 	}
-	page2, _, err := aiRepo.GetByMerchantAndUser(1, 2, 2, nil)
+	page2, _, err := aiRepo.GetByMerchantAndUser(aiTestCtx, 1, 2, 2, nil)
 	if err != nil {
 		t.Fatalf("GetByMerchantAndUser() page 2 error = %v", err)
 	}
@@ -194,7 +199,7 @@ func TestAIGenerationRecordRepository_GetByMerchantAndUser(t *testing.T) {
 		t.Errorf("Expected 1 record on page 2, got %d", len(page2))
 	}
 
-	empty, totalEmpty, err := aiRepo.GetByMerchantAndUser(999, 1, 10, nil)
+	empty, totalEmpty, err := aiRepo.GetByMerchantAndUser(aiTestCtx, 999, 1, 10, nil)
 	if err != nil {
 		t.Fatalf("GetByMerchantAndUser() empty user error = %v", err)
 	}
@@ -203,7 +208,7 @@ func TestAIGenerationRecordRepository_GetByMerchantAndUser(t *testing.T) {
 	}
 }
 
-// TestAIGenerationRecordRepository_UpdateSaved 测试更新保存状态
+// TestAIGenerationRecordRepository_UpdateSaved 管理口：只按租户收窄，不认 user_id。
 func TestAIGenerationRecordRepository_UpdateSaved(t *testing.T) {
 	aiRepo, _ := setupAIContentRepositories(t)
 
@@ -214,7 +219,7 @@ func TestAIGenerationRecordRepository_UpdateSaved(t *testing.T) {
 		Output:  "Save output",
 		IsSaved: false,
 	}
-	aiRepo.Create(record)
+	aiRepo.Create(aiTestCtx, record)
 
 	tests := []struct {
 		name    string
@@ -235,14 +240,14 @@ func TestAIGenerationRecordRepository_UpdateSaved(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := aiRepo.UpdateSaved(record.ID, tt.isSaved)
+			err := aiRepo.UpdateSaved(aiTestCtx, record.ID, tt.isSaved)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("UpdateSaved() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
 			if !tt.wantErr {
-				updated, _ := aiRepo.GetByID(record.ID)
+				updated, _ := aiRepo.GetByID(aiTestCtx, record.ID, 1)
 				if updated.IsSaved != tt.isSaved {
 					t.Errorf("Expected IsSaved=%v, got %v", tt.isSaved, updated.IsSaved)
 				}
@@ -261,14 +266,14 @@ func TestAIGenerationRecordRepository_UpdateFavorite(t *testing.T) {
 		Input:  "Favorite test",
 		Output: "Favorite output",
 	}
-	aiRepo.Create(record)
+	aiRepo.Create(aiTestCtx, record)
 
-	err := aiRepo.UpdateFavorite(record.ID, true)
+	err := aiRepo.UpdateFavorite(aiTestCtx, record.ID, 1, true)
 	if err != nil {
 		t.Errorf("UpdateFavorite() error = %v", err)
 	}
 
-	updated, _ := aiRepo.GetByID(record.ID)
+	updated, _ := aiRepo.GetByID(aiTestCtx, record.ID, 1)
 	if !updated.IsFavorite {
 		t.Error("Expected IsFavorite to be true")
 	}
@@ -284,7 +289,7 @@ func TestAIGenerationRecordRepository_UpdateRating(t *testing.T) {
 		Input:  "Rating test",
 		Output: "Rating output",
 	}
-	aiRepo.Create(record)
+	aiRepo.Create(aiTestCtx, record)
 
 	tests := []struct {
 		name    string
@@ -305,14 +310,14 @@ func TestAIGenerationRecordRepository_UpdateRating(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := aiRepo.UpdateRating(record.ID, tt.rating)
+			err := aiRepo.UpdateRating(aiTestCtx, record.ID, 1, tt.rating)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("UpdateRating() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
 			if !tt.wantErr {
-				updated, _ := aiRepo.GetByID(record.ID)
+				updated, _ := aiRepo.GetByID(aiTestCtx, record.ID, 1)
 				if updated.Rating != tt.rating {
 					t.Errorf("Expected Rating=%d, got %d", tt.rating, updated.Rating)
 				}
@@ -331,14 +336,14 @@ func TestAIGenerationRecordRepository_Delete(t *testing.T) {
 		Input:  "Delete test",
 		Output: "Delete output",
 	}
-	aiRepo.Create(record)
+	aiRepo.Create(aiTestCtx, record)
 
-	err := aiRepo.Delete(record.ID)
+	err := aiRepo.Delete(aiTestCtx, record.ID)
 	if err != nil {
 		t.Errorf("Delete() error = %v", err)
 	}
 
-	_, err = aiRepo.GetByID(record.ID)
+	_, err = aiRepo.GetByID(aiTestCtx, record.ID, 1)
 	if err == nil {
 		t.Error("Expected record to be deleted")
 	}
@@ -378,7 +383,7 @@ func TestPromptTemplateRepository_Create(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := promptRepo.Create(tt.template)
+			err := promptRepo.Create(aiTestCtx, tt.template)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Create() error = %v, wantErr %v", err, tt.wantErr)
@@ -401,7 +406,7 @@ func TestPromptTemplateRepository_GetByID(t *testing.T) {
 		Template:    "GetByID content",
 		Description: "GetByID description",
 	}
-	promptRepo.Create(template)
+	promptRepo.Create(aiTestCtx, template)
 
 	tests := []struct {
 		name    string
@@ -422,7 +427,7 @@ func TestPromptTemplateRepository_GetByID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := promptRepo.GetByID(tt.id)
+			result, err := promptRepo.GetByID(aiTestCtx, tt.id)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetByID() error = %v, wantErr %v", err, tt.wantErr)
@@ -440,7 +445,7 @@ func TestPromptTemplateRepository_GetByID(t *testing.T) {
 func TestPromptTemplateRepository_ListByType(t *testing.T) {
 	_, promptRepo := setupAIContentRepositories(t)
 
-	promptRepo.Create(&model.PromptTemplate{
+	promptRepo.Create(aiTestCtx, &model.PromptTemplate{
 		Name:     "System Template 1",
 		Type:     model.AIGenerationTypeCopywriting,
 		Template: "System content 1",
@@ -448,14 +453,14 @@ func TestPromptTemplateRepository_ListByType(t *testing.T) {
 		Status:   1,
 	})
 
-	promptRepo.Create(&model.PromptTemplate{
+	promptRepo.Create(aiTestCtx, &model.PromptTemplate{
 		Name:     "Merchant Template 1",
 		Type:     model.AIGenerationTypeCopywriting,
 		Template: "Merchant content 1",
 		Status:   1,
 	})
 
-	promptRepo.Create(&model.PromptTemplate{
+	promptRepo.Create(aiTestCtx, &model.PromptTemplate{
 		Name:     "Merchant Template 2",
 		Type:     model.AIGenerationTypeTitle,
 		Template: "Merchant content 2",
@@ -481,7 +486,7 @@ func TestPromptTemplateRepository_ListByType(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			results, err := promptRepo.ListByType(tt.templateType)
+			results, err := promptRepo.ListByType(aiTestCtx, tt.templateType)
 			if err != nil {
 				t.Errorf("ListByType() error = %v", err)
 			}
@@ -501,7 +506,7 @@ func TestPromptTemplateRepository_GetByTypeAndName(t *testing.T) {
 		Type:     model.AIGenerationTypeCopywriting,
 		Template: "Test content",
 	}
-	promptRepo.Create(template)
+	promptRepo.Create(aiTestCtx, template)
 
 	tests := []struct {
 		name         string
@@ -525,7 +530,7 @@ func TestPromptTemplateRepository_GetByTypeAndName(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := promptRepo.GetByTypeAndName(tt.tp, tt.templateName)
+			result, err := promptRepo.GetByTypeAndName(aiTestCtx, tt.tp, tt.templateName)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetByTypeAndName() error = %v, wantErr %v", err, tt.wantErr)
@@ -550,17 +555,17 @@ func TestPromptTemplateRepository_Update(t *testing.T) {
 		Template:    "Original content",
 		Description: "Original description",
 	}
-	promptRepo.Create(template)
+	promptRepo.Create(aiTestCtx, template)
 
 	template.Name = "Updated Name"
 	template.Template = "Updated content"
 
-	err := promptRepo.Update(template)
+	err := promptRepo.Update(aiTestCtx, template)
 	if err != nil {
 		t.Errorf("Update() error = %v", err)
 	}
 
-	updated, _ := promptRepo.GetByID(template.ID)
+	updated, _ := promptRepo.GetByID(aiTestCtx, template.ID)
 	if updated.Name != "Updated Name" {
 		t.Errorf("Expected name 'Updated Name', got '%s'", updated.Name)
 	}
@@ -575,40 +580,15 @@ func TestPromptTemplateRepository_Delete(t *testing.T) {
 		Type:     model.AIGenerationTypeTitle,
 		Template: "Delete content",
 	}
-	promptRepo.Create(template)
+	promptRepo.Create(aiTestCtx, template)
 
-	err := promptRepo.Delete(template.ID)
+	err := promptRepo.Delete(aiTestCtx, template.ID)
 	if err != nil {
 		t.Errorf("Delete() error = %v", err)
 	}
 
-	_, err = promptRepo.GetByID(template.ID)
+	_, err = promptRepo.GetByID(aiTestCtx, template.ID)
 	if err == nil {
 		t.Error("Expected template to be deleted")
-	}
-}
-
-// TestPromptTemplateRepository_IncrementUseCount 测试增加使用次数
-func TestPromptTemplateRepository_IncrementUseCount(t *testing.T) {
-	_, promptRepo := setupAIContentRepositories(t)
-
-	template := &model.PromptTemplate{
-		Name:     "Use Count Test",
-		Type:     model.AIGenerationTypeCopywriting,
-		Template: "Use count content",
-		UseCount: 0,
-	}
-	promptRepo.Create(template)
-
-	for i := 0; i < 3; i++ {
-		err := promptRepo.IncrementUseCount(template.ID)
-		if err != nil {
-			t.Errorf("IncrementUseCount() error = %v", err)
-		}
-	}
-
-	updated, _ := promptRepo.GetByID(template.ID)
-	if updated.UseCount != 3 {
-		t.Errorf("Expected UseCount 3, got %d", updated.UseCount)
 	}
 }

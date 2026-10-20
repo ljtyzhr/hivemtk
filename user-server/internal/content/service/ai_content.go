@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"hivemtk-user/internal/aiagent/llm"
 	"hivemtk-user/internal/content/model"
@@ -21,12 +22,11 @@ type AIContentService struct {
 }
 
 // NewAIContentService 创建 AI 内容服务实例
-func NewAIContentService(db any) *AIContentService {
-	gormDB := db.(*gorm.DB)
+func NewAIContentService(db *gorm.DB) *AIContentService {
 	return &AIContentService{
 		llmService:   llm.NewLLMService(),
-		recordRepo:   repository.NewAIGenerationRecordRepository(gormDB),
-		templateRepo: repository.NewPromptTemplateRepository(gormDB),
+		recordRepo:   repository.NewAIGenerationRecordRepository(db),
+		templateRepo: repository.NewPromptTemplateRepository(db),
 	}
 }
 
@@ -49,12 +49,12 @@ type GenerateContentResponse struct {
 
 // GenerateContent 生成内容
 func (s *AIContentService) GenerateContent(ctx context.Context, userID uint, req *GenerateContentRequest) (*GenerateContentResponse, error) {
-	apiKey := s.resolveAPIKey(ctx)
+	apiKey := s.resolveAPIKey()
 	if apiKey == "" {
 		return nil, fmt.Errorf("AI service not configured")
 	}
 
-	prompt, err := s.buildPrompt(req)
+	prompt, err := s.buildPrompt(ctx, req)
 	if err != nil {
 		return nil, err
 	}
@@ -91,7 +91,7 @@ func (s *AIContentService) GenerateContent(ctx context.Context, userID uint, req
 		TokensUsed: tokensUsed,
 	}
 
-	if err := s.recordRepo.Create(record); err != nil {
+	if err := s.recordRepo.Create(ctx, record); err != nil {
 		return nil, fmt.Errorf("生成记录落库失败：%v", err)
 	}
 
@@ -103,11 +103,17 @@ func (s *AIContentService) GenerateContent(ctx context.Context, userID uint, req
 	}, nil
 }
 
-func (s *AIContentService) buildPrompt(req *GenerateContentRequest) (string, error) {
+// buildPrompt 模板正文的读取走仓储：模板属于租户，跨租户的模板必须报「不存在」，
+// 而闸门本身的故障（ctx 没绑、隔离被拒）不能被折叠成同一句话——
+// 那会让运维去查「这个 id 为什么没有」，而真相是请求根本没带租户。
+func (s *AIContentService) buildPrompt(ctx context.Context, req *GenerateContentRequest) (string, error) {
 	if req.TemplateID > 0 {
-		template, err := s.templateRepo.GetByID(req.TemplateID)
+		template, err := s.templateRepo.GetByID(ctx, req.TemplateID)
 		if err != nil {
-			return "", fmt.Errorf("模板不存在")
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return "", fmt.Errorf("模板不存在")
+			}
+			return "", err
 		}
 		return s.fillTemplate(template.Template, req.Variables)
 	}
@@ -177,7 +183,7 @@ type CreateHistoryRequest struct {
 }
 
 // CreateHistory 直接创建生成历史记录（不调用外部 AI 服务）
-func (s *AIContentService) CreateHistory(userID uint, req *CreateHistoryRequest) (*model.AIGenerationRecord, error) {
+func (s *AIContentService) CreateHistory(ctx context.Context, userID uint, req *CreateHistoryRequest) (*model.AIGenerationRecord, error) {
 	modelName := req.Model
 	if modelName == "" {
 		modelName = "manual"
@@ -192,7 +198,7 @@ func (s *AIContentService) CreateHistory(userID uint, req *CreateHistoryRequest)
 		Model:      modelName,
 	}
 
-	if err := s.recordRepo.Create(record); err != nil {
+	if err := s.recordRepo.Create(ctx, record); err != nil {
 		return nil, fmt.Errorf("创建历史记录失败：%v", err)
 	}
 
@@ -200,45 +206,39 @@ func (s *AIContentService) CreateHistory(userID uint, req *CreateHistoryRequest)
 }
 
 // GetGenerationHistory 获取生成历史
-func (s *AIContentService) GetGenerationHistory(userID uint, page, pageSize int, filters map[string]any) ([]*model.AIGenerationRecord, int64, error) {
-	return s.recordRepo.GetByMerchantAndUser(userID, page, pageSize, filters)
+func (s *AIContentService) GetGenerationHistory(ctx context.Context, userID uint, page, pageSize int, filters map[string]any) ([]*model.AIGenerationRecord, int64, error) {
+	return s.recordRepo.GetByMerchantAndUser(ctx, userID, page, pageSize, filters)
 }
 
-// GetRecordByID 获取生成记录
-func (s *AIContentService) GetRecordByID(id uint) (*model.AIGenerationRecord, error) {
-	record, err := s.recordRepo.GetByID(id)
-	if err != nil {
-		return nil, err
-	}
-	return record, nil
+// GetRecordByID 获取生成记录（只限归属人）
+func (s *AIContentService) GetRecordByID(ctx context.Context, id, userID uint) (*model.AIGenerationRecord, error) {
+	return s.recordRepo.GetByID(ctx, id, userID)
 }
 
-// SaveRecord 保存生成记录
-func (s *AIContentService) SaveRecord(id uint) error {
-	return s.recordRepo.UpdateSaved(id, true)
+// SaveRecord 保存生成记录。管理口：只挂在 admin 路由组下、由 AdminAuthMiddleware 证明角色，
+// 整理的是本租户的内容库，因此不按 user_id 收窄（租户边界仍由 ctx 保证）。
+func (s *AIContentService) SaveRecord(ctx context.Context, id uint) error {
+	return s.recordRepo.UpdateSaved(ctx, id, true)
 }
 
 // FavoriteRecord 收藏生成记录
-func (s *AIContentService) FavoriteRecord(id uint, isFavorite bool) error {
-	return s.recordRepo.UpdateFavorite(id, isFavorite)
+func (s *AIContentService) FavoriteRecord(ctx context.Context, id, userID uint, isFavorite bool) error {
+	return s.recordRepo.UpdateFavorite(ctx, id, userID, isFavorite)
 }
 
 // RateRecord 评分生成记录
-func (s *AIContentService) RateRecord(id uint, rating int) error {
+func (s *AIContentService) RateRecord(ctx context.Context, id, userID uint, rating int) error {
 	if rating < 1 || rating > 5 {
 		return fmt.Errorf("评分必须在 1-5 之间")
 	}
-	return s.recordRepo.UpdateRating(id, rating)
+	return s.recordRepo.UpdateRating(ctx, id, userID, rating)
 }
 
-// DeleteRecord 删除生成记录
-func (s *AIContentService) DeleteRecord(id uint) error {
-	record, err := s.recordRepo.GetByID(id)
-	if err != nil {
-		return err
-	}
-	_ = record
-	return s.recordRepo.Delete(id)
+// DeleteRecord 删除生成记录。管理口，与 SaveRecord 同一权限宽度（只有 admin 路由挂它）。
+// 不再先读一遍判存在：读改写之间那一步没有任何东西会失效，但多出来的那次 SELECT 会让
+// 「查不到」和「不在这个租户」在出口混成两种错误码。
+func (s *AIContentService) DeleteRecord(ctx context.Context, id uint) error {
+	return s.recordRepo.Delete(ctx, id)
 }
 
 // PromptTemplateService 提示词模板服务
@@ -247,10 +247,9 @@ type PromptTemplateService struct {
 }
 
 // NewPromptTemplateService 创建提示词模板服务实例
-func NewPromptTemplateService(db any) *PromptTemplateService {
-	gormDB := db.(*gorm.DB)
+func NewPromptTemplateService(db *gorm.DB) *PromptTemplateService {
 	return &PromptTemplateService{
-		templateRepo: repository.NewPromptTemplateRepository(gormDB),
+		templateRepo: repository.NewPromptTemplateRepository(db),
 	}
 }
 
@@ -265,22 +264,17 @@ type CreateTemplateRequest struct {
 }
 
 // GetTemplates 获取模板列表
-func (s *PromptTemplateService) GetTemplates(templateType string) ([]*model.PromptTemplate, error) {
-	return s.templateRepo.ListByType(templateType)
+func (s *PromptTemplateService) GetTemplates(ctx context.Context, templateType string) ([]*model.PromptTemplate, error) {
+	return s.templateRepo.ListByType(ctx, templateType)
 }
 
 // GetTemplateByID 获取模板详情
-func (s *PromptTemplateService) GetTemplateByID(id uint) (*model.PromptTemplate, error) {
-	template, err := s.templateRepo.GetByID(id)
-	if err != nil {
-		return nil, err
-	}
-	_ = template
-	return template, nil
+func (s *PromptTemplateService) GetTemplateByID(ctx context.Context, id uint) (*model.PromptTemplate, error) {
+	return s.templateRepo.GetByID(ctx, id)
 }
 
 // CreateTemplate 创建模板
-func (s *PromptTemplateService) CreateTemplate(req *CreateTemplateRequest) (*model.PromptTemplate, error) {
+func (s *PromptTemplateService) CreateTemplate(ctx context.Context, req *CreateTemplateRequest) (*model.PromptTemplate, error) {
 	template := &model.PromptTemplate{
 		Name:        req.Name,
 		Type:        req.Type,
@@ -291,7 +285,7 @@ func (s *PromptTemplateService) CreateTemplate(req *CreateTemplateRequest) (*mod
 		IsSystem:    false,
 	}
 
-	if err := s.templateRepo.Create(template); err != nil {
+	if err := s.templateRepo.Create(ctx, template); err != nil {
 		return nil, err
 	}
 
@@ -299,8 +293,8 @@ func (s *PromptTemplateService) CreateTemplate(req *CreateTemplateRequest) (*mod
 }
 
 // UpdateTemplate 更新模板
-func (s *PromptTemplateService) UpdateTemplate(id uint, req *CreateTemplateRequest) (*model.PromptTemplate, error) {
-	template, err := s.templateRepo.GetByID(id)
+func (s *PromptTemplateService) UpdateTemplate(ctx context.Context, id uint, req *CreateTemplateRequest) (*model.PromptTemplate, error) {
+	template, err := s.templateRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -309,8 +303,6 @@ func (s *PromptTemplateService) UpdateTemplate(id uint, req *CreateTemplateReque
 		return nil, fmt.Errorf("系统模板不能修改")
 	}
 
-	_ = template
-
 	template.Name = req.Name
 	template.Type = req.Type
 	template.Template = req.Template
@@ -318,7 +310,7 @@ func (s *PromptTemplateService) UpdateTemplate(id uint, req *CreateTemplateReque
 	template.Description = req.Description
 	template.Example = req.Example
 
-	if err := s.templateRepo.Update(template); err != nil {
+	if err := s.templateRepo.Update(ctx, template); err != nil {
 		return nil, err
 	}
 
@@ -326,8 +318,8 @@ func (s *PromptTemplateService) UpdateTemplate(id uint, req *CreateTemplateReque
 }
 
 // DeleteTemplate 删除模板
-func (s *PromptTemplateService) DeleteTemplate(id uint) error {
-	template, err := s.templateRepo.GetByID(id)
+func (s *PromptTemplateService) DeleteTemplate(ctx context.Context, id uint) error {
+	template, err := s.templateRepo.GetByID(ctx, id)
 	if err != nil {
 		return err
 	}
@@ -336,19 +328,23 @@ func (s *PromptTemplateService) DeleteTemplate(id uint) error {
 		return fmt.Errorf("系统模板不能删除")
 	}
 
-	_ = template
-
-	return s.templateRepo.Delete(id)
+	return s.templateRepo.Delete(ctx, id)
 }
 
-// InitSystemTemplates 初始化系统模板
-func (s *PromptTemplateService) InitSystemTemplates() error {
+// InitSystemTemplates 初始化系统模板。
+//
+// **生产零调用方**（见 model-list #14 的 4.4：这是一条没接上的引导，而不是可以删掉的死码——
+// `is_system` 那两条守卫与 `ListByType` 的 `is_system DESC` 排序都靠这批种子才有意义）。
+// 接线时 ctx 必须是**已绑定租户**的 ctx：模板行落在哪个租户由 ctx 决定，
+// 用 `context.Background()`（bootstrap 的常态）在 on 模式会被隔离 callback 当场拒绝，
+// 而 system scope 下写入会落默认租户 1（见 tenancyidx 的 create 早退分支）。
+func (s *PromptTemplateService) InitSystemTemplates(ctx context.Context) error {
 	for _, template := range model.SystemPromptTemplates {
-		existing, _ := s.templateRepo.GetByTypeAndName(template.Type, template.Name)
+		existing, _ := s.templateRepo.GetByTypeAndName(ctx, template.Type, template.Name)
 		if existing == nil {
 			templateCopy := template
 			templateCopy.Status = 1
-			if err := s.templateRepo.Create(&templateCopy); err != nil {
+			if err := s.templateRepo.Create(ctx, &templateCopy); err != nil {
 				logger.Warnf("[PromptTemplate] 初始化系统模板失败 type=%s name=%s: %v", template.Type, template.Name, err)
 			}
 		}
@@ -374,18 +370,15 @@ func (s *PromptTemplateService) GetTemplateTypes() []map[string]string {
 	}
 }
 
-func (s *AIContentService) resolveAPIKey(ctx context.Context) string {
+// resolveAPIKey 与 aiagent/llm 同口径：LLM 密钥只来自环境变量，不读库。
+// 原实现绕道 loadSystemLLMConfig，而那个「Config」也只读环境变量（ctx 从头到尾没用过，
+// BaseURL/Model 两个字段没有任何读者），错误信息却写「数据库无 LLM 配置」——
+// 三跳之后交出的还是同一个 os.Getenv，故直接收口为一次查表。
+func (s *AIContentService) resolveAPIKey() string {
 	if v := os.Getenv("LLM_API_KEY"); v != "" {
 		return v
 	}
-	if v := os.Getenv("OPENAI_API_KEY"); v != "" {
-		return v
-	}
-	cfg, err := s.loadSystemLLMConfig(ctx)
-	if err != nil || cfg == nil {
-		return ""
-	}
-	return cfg.APIKey
+	return os.Getenv("OPENAI_API_KEY")
 }
 
 func (s *AIContentService) resolveBaseURL() string {
@@ -396,34 +389,4 @@ func (s *AIContentService) resolveBaseURL() string {
 		return v
 	}
 	return "https://api.openai.com"
-}
-
-type llmSystemConfig struct {
-	APIKey  string
-	BaseURL string
-	Model   string
-}
-
-func (s *AIContentService) loadSystemLLMConfig(ctx context.Context) (*llmSystemConfig, error) {
-	// 注：曾有一段 sysrepo.GetConfig 的读取，其结果从未被使用（空 if 块），已删除。
-	apiKey := os.Getenv("LLM_API_KEY")
-	if apiKey == "" {
-		apiKey = os.Getenv("OPENAI_API_KEY")
-	}
-	baseURL := os.Getenv("LLM_BASE_URL")
-	if baseURL == "" {
-		baseURL = "https://api.openai.com/v1"
-	}
-	model := os.Getenv("LLM_MODEL")
-	if model == "" {
-		model = "gpt-3.5-turbo"
-	}
-	if apiKey == "" {
-		return nil, fmt.Errorf("未配置 LLM_API_KEY 环境变量,且数据库无 LLM 配置")
-	}
-	return &llmSystemConfig{
-		APIKey:  apiKey,
-		BaseURL: baseURL,
-		Model:   model,
-	}, nil
 }

@@ -80,15 +80,18 @@ func SetupBrowserAutomationRoutes(auth *gin.RouterGroup, engine *gin.Engine, gor
 	// workflow browser_task 动作执行器注入：service.SetWorkflowBrowserTaskRunner → TaskService.RunTaskWithRetry
 	wfsvc.SetWorkflowBrowserTaskRunner(taskSvc.RunTaskWithRetry)
 
-	// Host 断连清理钩子：该用户所有 running session 置 failed
+	// Host 断连清理钩子：该用户所有 running session 置 failed。
+	// 收口写在 SessionService 里而不是这里直接调仓储：钩子拿到的 ctx 无租户（见
+	// service/session.go 的 FailRunningForUser），装配层不该自己决定用哪个 scope——
+	// 那正是 saas 形态下这一刀被 fail-closed 的原因。
 	registry.SetDisconnectHook(func(ctx context.Context, userID uint) {
-		sessions, err := sessionRepo.FailRunningByUser(ctx, userID, "Host 掉线（Chrome 断开或扩展重载）")
+		n, err := sessionSvc.FailRunningForUser(ctx, userID, "Host 掉线（Chrome 断开或扩展重载）")
 		if err != nil {
 			logger.Warnf("[BrowserHost] 断连清理失败 user=%d: %v", userID, err)
 			return
 		}
-		if len(sessions) > 0 {
-			logger.Infof("[BrowserHost] 断连清理完成 user=%d failed_sessions=%d", userID, len(sessions))
+		if n > 0 {
+			logger.Infof("[BrowserHost] 断连清理完成 user=%d failed_sessions=%d", userID, n)
 		}
 	})
 

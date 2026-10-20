@@ -189,7 +189,11 @@ func (s *TaskService) Update(ctx context.Context, id, userID uint, mutator func(
 	if t.TaskType != "cron" {
 		s.removeTriggers(ctx, t.ID)
 	}
-	return t, nil
+	// 回读而不是直接返 t：Update 只落用户可编辑列（见 repository 的 taskOwnedByExecutorCols），
+	// t 上的 status/retry_count/next_retry_at/campaign_act_used 是**读快照那一刻**的值，
+	// 而这几列在执行体手里，编辑期间就能被改写。返快照等于让界面读到库里没发生的状态——
+	// 一次编辑一条 SELECT，换的是「响应与库一致」。
+	return s.taskRepo.GetByID(ctx, id, userID)
 }
 
 func (s *TaskService) Delete(ctx context.Context, id, userID uint) error {

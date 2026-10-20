@@ -33,7 +33,10 @@ import (
 func TestTracingAndMonitoring(t *testing.T) {
 	// NewTestDB 在隔离库（user_db_test_<pid>）内 DropTable + AutoMigrate，
 	// 不会触碰 user_db；不可达时本地 Skip / CI Fatal（不再无条件 Skip）。
-	gdb := testutil.NewTestDB(t, &model.MessageHub{}, &model.MessageTrace{})
+	// 建表清单必须跟上 HealthOverview/Anomalies 实际读到的表：sync_gap 那条
+	// `NOT EXISTS (SELECT 1 FROM inbox_conversations …)` 长期缺这张表，
+	// 但因为错误只 log 不上抛，用例一直绿着——错误上抛后它就以 42P01 红在根因上。
+	gdb := testutil.NewTestDB(t, &model.MessageHub{}, &model.MessageTrace{}, &model.InboxConversation{})
 	db.SetTestDB(gdb)
 	ctx := context.Background()
 	conv := "conv-monitor-test-" + time.Now().Format("150405")

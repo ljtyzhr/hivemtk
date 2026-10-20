@@ -10,13 +10,26 @@ import (
 )
 
 // BrowserStepRepository 步骤仓储
+//
+// 方法面收口（实体审查 #11，4.4）：原有 `ListBySessionIDAnyUser`、`UpdateStatus`、
+// `DeleteBySessionID` 三个方法在全仓（含测试）零引用，已删。三条各自都是一张会误导人的门牌：
+//   - `ListBySessionIDAnyUser` 是 `ListBySessionID` 的别名版：逐字同实现，注释声称
+//     「供归属校验后的内部流程使用」，但两者都不带 user 过滤——名字承诺的区别并不存在，
+//     留着就是让下一个读者以为「AnyUser 那条是内部专用、可以不做归属校验」。
+//     实际读家只有一条：`SessionService.ListSteps` 先 `GetByID(sessionID, userID)` 判归属，
+//     再调 `ListBySessionID`。
+//   - `UpdateStatus` 只写 status/error_msg 两列，而步终态的写入方一律同时要写 result 与
+//     duration（`UpdateResult`，executor.go:172 是唯一写家）。留着它等于摆一条
+//     「可以只改状态不改时长/结果」的旁路，把 G10 那条「终态三件套同刻落库」的口径拆开口子。
+//   - `DeleteBySessionID`：步骤行与 command_log 同为 append-only 凭据，任务删除走的是
+//     会话收敛（`convergeInFlightSessions`），全仓没有任何删步路径。留着就是给「顺手清一下
+//     某会话的步骤」留门，而那一刀删掉的是审计链的一半。
 type BrowserStepRepository interface {
 	BatchCreate(ctx context.Context, steps []*model.BrowserStep) error
 	ListBySessionID(ctx context.Context, sessionID uint) ([]*model.BrowserStep, error)
-	ListBySessionIDAnyUser(ctx context.Context, sessionID uint) ([]*model.BrowserStep, error)
-	UpdateStatus(ctx context.Context, id uint, status, errMsg string) error
+	// UpdateResult 步终态的唯一写入口：status/result/duration/error_msg 同刻落库，
+	// 命中 0 行报错（终态丢失没有兜底收敛器，见实现注释）。
 	UpdateResult(ctx context.Context, id uint, status string, result []byte, durationMs int64, errMsg string) error
-	DeleteBySessionID(ctx context.Context, sessionID uint) error
 	// UpdateSubmitState 写台账状态转移：只写 submit_state/text_hash 两列，
 	// 与 UpdateResult 分道——步终态（status）由步收口写，提交归因由台账写，两者在
 	// 「已提交但验证未见」时必然不同值，合成一列就会把结果未知态当成可重发。
@@ -58,16 +71,10 @@ func (r *browserStepRepo) ListBySessionID(ctx context.Context, sessionID uint) (
 	return list, err
 }
 
-// ListBySessionIDAnyUser 供归属校验后的内部流程使用（session 归属已在上层校验）
-func (r *browserStepRepo) ListBySessionIDAnyUser(ctx context.Context, sessionID uint) ([]*model.BrowserStep, error) {
-	return r.ListBySessionID(ctx, sessionID)
-}
-
-func (r *browserStepRepo) UpdateStatus(ctx context.Context, id uint, status, errMsg string) error {
-	return r.db.WithContext(ctx).Model(&model.BrowserStep{}).Where("id = ?", id).
-		Updates(map[string]any{"status": status, "error_msg": errMsg}).Error
-}
-
+// UpdateResult 落步终态。0 行受影响**必须报错**（口径同下方 UpdateSubmitState）：
+// `finishStep` 把「落库失败」当错误上报，而 gorm 对 0 行只回 Error==nil——放行就等于
+// 这一步永远停在 running 且日志里一行红都没有。session/task 行有 stale_reconcile 兜底收敛，
+// 步行没有任何兜底，这里就是终态丢失的唯一无声出口。
 func (r *browserStepRepo) UpdateResult(ctx context.Context, id uint, status string, result StepResultJSON, durationMs int64, errMsg string) error {
 	updates := map[string]any{
 		"status":      status,
@@ -77,11 +84,14 @@ func (r *browserStepRepo) UpdateResult(ctx context.Context, id uint, status stri
 	if len(result) > 0 {
 		updates["result"] = result
 	}
-	return r.db.WithContext(ctx).Model(&model.BrowserStep{}).Where("id = ?", id).Updates(updates).Error
-}
-
-func (r *browserStepRepo) DeleteBySessionID(ctx context.Context, sessionID uint) error {
-	return r.db.WithContext(ctx).Where("session_id = ?", sessionID).Delete(&model.BrowserStep{}).Error
+	res := r.db.WithContext(ctx).Model(&model.BrowserStep{}).Where("id = ?", id).Updates(updates)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return fmt.Errorf("步终态落库命中 0 行（step=%d status=%s）：该行不存在、已软删或不属于当前租户，面板将永远看不到这一步的结论", id, status)
+	}
+	return nil
 }
 
 // UpdateSubmitState 写台账。0 行受影响**必须报错**：本方法是「重发闸门的唯一事实来源」的
