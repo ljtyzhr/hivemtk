@@ -65,8 +65,35 @@ func (s *SubscriptionMirrorService) SaveFromSnapshot(ctx context.Context, sub *p
 		row.TrialExpiresAt = v
 	}
 	// status 缓存列按本地惰性判定回填，不盲信平台列（权威是两个时间戳的比较）
-	row.Status = row.CurrentStatus(now)
+	row.Status = mirrorStatus(row, now)
 	return s.repo.Upsert(ctx, row)
+}
+
+// mirrorHasPeriodData 镜像是否携带任何可用于判定的到期数据。
+// false = 从未同步到订阅段（fail-open 放行，修订 #2 唯一的 fail-open 情形）。
+// 逻辑自 model 下沉（架构门 [Model]：model 只留表映射）。
+func mirrorHasPeriodData(m *model.TenantSubscriptionMirror) bool {
+	if m == nil {
+		return false
+	}
+	return m.CurrentPeriodEnd != nil || m.TrialExpiresAt != nil
+}
+
+// mirrorStatus 惰性判定（与平台 TenantSubscription.CurrentStatus 同款逻辑，独立实现）。
+//
+// 优先级：current_period_end 在未来 → active（已付费用户不再显示体验期，
+// 即使 trial 期还没过完）；否则 trial_expires_at 在未来 → trial；否则 expired。
+func mirrorStatus(m *model.TenantSubscriptionMirror, now time.Time) string {
+	if m == nil {
+		return model.SubscriptionStatusExpired
+	}
+	if m.CurrentPeriodEnd != nil && m.CurrentPeriodEnd.After(now) {
+		return model.SubscriptionStatusActive
+	}
+	if m.TrialExpiresAt != nil && m.TrialExpiresAt.After(now) {
+		return model.SubscriptionStatusTrial
+	}
+	return model.SubscriptionStatusExpired
 }
 
 // parseRFC3339Ptr 空串 → nil；非空按 RFC3339 解析
@@ -111,10 +138,10 @@ func (s *SubscriptionMirrorService) Snapshot(ctx context.Context) (*Subscription
 	if row == nil {
 		return out, nil
 	}
-	st := row.CurrentStatus(now)
+	st := mirrorStatus(row, now)
 	out.Status = st
 	out.Locked = st == model.SubscriptionStatusExpired
-	out.NoData = !row.HasPeriodData()
+	out.NoData = !mirrorHasPeriodData(row)
 	if out.NoData {
 		// 无 period 数据：fail-open —— 锁决策不生效（修订 #2 唯一放行情形）
 		out.Locked = false

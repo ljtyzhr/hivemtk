@@ -20,13 +20,16 @@ user-server/internal/service/inbox_ingress.go	1	存量：service 直接取 DB �
 user-server/internal/service/inbox_scope.go	1	存量：作用域过滤直接查 system_users 表，走的是全局库句柄，收口需改构造注入
 user-server/internal/service/knowledge_base.go	2	存量：service 直接取 DB 句柄，收口需改构造注入（R22 登记，勿新增）
 user-server/internal/service/llm_platform_usage.go	2	存量：平台垫资用量落库直接取全局库句柄，收口需改构造注入（2026-10-18 架构门抓漏补登）
+user-server/internal/service/message_hub_summary_agg.go	1	存量：租户 ctx 扫描批次聚合哨兵直接取句柄，收口需改构造注入（2026-10-20 复登记）
 user-server/internal/service/objection_handler.go	3	存量：service 直接取 DB 句柄，收口需改构造注入（R22 登记，勿新增）
 user-server/internal/service/openapi.go	2	存量：service 直接取 DB 句柄，收口需改构造注入（R22 登记，勿新增）
 user-server/internal/service/r44_gap_services.go	4	存量：service 直接取 DB 句柄，收口需改构造注入（R22 登记，勿新增）
 user-server/internal/service/rag_product.go	1	存量：service 直接取 DB 句柄，收口需改构造注入（R22 登记，勿新增）
+user-server/internal/service/rag_metrics.go	2	存量：租户 ctx 扫描批次直取句柄，收口需改构造注入（2026-10-20 复登记）
 user-server/internal/service/sales_persona.go	2	存量：service 直接取 DB 句柄，收口需改构造注入（R22 登记，勿新增）
 user-server/internal/service/security_audit.go	1	存量：service 直接取 DB 句柄，收口需改构造注入（R22 登记，勿新增）
 user-server/internal/service/sop_template.go	1	存量：service 直接取 DB 句柄，收口需改构造注入（R22 登记，勿新增）
+user-server/internal/service/tenant_starter_kit.go	1	存量：租户 ctx 扫描批次直取句柄，收口需改构造注入（2026-10-20 复登记）
 user-server/internal/service/tiktok_card.go	1	存量：卡片服务构造时取全局库句柄，收口需改构造注入
 user-server/internal/service/trace_learning/insights.go	1	存量：service 直接取 DB 句柄，收口需改构造注入（R22 登记，勿新增）
 user-server/internal/service/trace_learning/service.go	3	存量：service 直接取 DB 句柄，收口需改构造注入（R22 登记，勿新增）

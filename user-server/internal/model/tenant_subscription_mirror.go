@@ -57,28 +57,6 @@ type TenantSubscriptionMirror struct {
 
 func (TenantSubscriptionMirror) TableName() string { return "tenant_subscription_mirror" }
 
-// HasPeriodData 镜像是否携带任何可用于判定的到期数据。
-// false = 从未同步到订阅段（fail-open 放行，修订 #2 唯一的 fail-open 情形）。
-func (m *TenantSubscriptionMirror) HasPeriodData() bool {
-	if m == nil {
-		return false
-	}
-	return m.CurrentPeriodEnd != nil || m.TrialExpiresAt != nil
-}
-
-// CurrentStatus 惰性判定（与平台 TenantSubscription.CurrentStatus 同款逻辑，独立实现）。
-//
-// 优先级：current_period_end 在未来 → active（已付费用户不再显示体验期，
-// 即使 trial 期还没过完）；否则 trial_expires_at 在未来 → trial；否则 expired。
-func (m *TenantSubscriptionMirror) CurrentStatus(now time.Time) string {
-	if m == nil {
-		return SubscriptionStatusExpired
-	}
-	if m.CurrentPeriodEnd != nil && m.CurrentPeriodEnd.After(now) {
-		return SubscriptionStatusActive
-	}
-	if m.TrialExpiresAt != nil && m.TrialExpiresAt.After(now) {
-		return SubscriptionStatusTrial
-	}
-	return SubscriptionStatusExpired
-}
+// 判定逻辑（HasPeriodData/CurrentStatus）已下沉 service 层（subscription.go 的
+// mirrorHasPeriodData/mirrorStatus）：架构门 [Model] 规定 model 只留表映射与
+// GORM Hook，业务判定方法一律不落 model。
