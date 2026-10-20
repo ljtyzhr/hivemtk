@@ -35,6 +35,7 @@ type MarketTemplateDownload struct {
 	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
 
 	ID           uint      `gorm:"primaryKey;autoIncrement" json:"id"`
+	UserID       uint      `gorm:"index;not null;default:0" json:"user_id"`
 	TemplateID   uint      `gorm:"index;not null" json:"template_id"`
 	TemplateType string    `gorm:"type:varchar(20)" json:"template_type"`
 	DownloadedAt time.Time `gorm:"autoCreateTime" json:"downloaded_at"`

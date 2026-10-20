@@ -9,6 +9,7 @@ import (
 	"strings"
 
 	"hivemtk-user/internal/content/service"
+	"hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/pkg/utils/response"
 
 	"github.com/gin-gonic/gin"
@@ -55,7 +56,7 @@ type BatchImportController struct {
 // NewBatchImportController 创建批量导入控制器
 func NewBatchImportController() *BatchImportController {
 	return &BatchImportController{
-		svc: service.NewBatchOperationService(),
+		svc: service.NewBatchOperationService(db.GetDB()),
 	}
 }
 
@@ -174,14 +175,12 @@ type BatchExportController struct {
 // NewBatchExportController 创建批量导出控制器
 func NewBatchExportController() *BatchExportController {
 	return &BatchExportController{
-		svc: service.NewBatchOperationService(),
+		svc: service.NewBatchOperationService(db.GetDB()),
 	}
 }
 
 // ExportData 导出数据
 func (c *BatchExportController) ExportData(ctx *gin.Context) {
-	_ = ctx
-
 	exportType := ctx.PostForm("type")
 	if exportType == "" {
 		exportType = string(service.ExportTypeClue)
@@ -253,7 +252,7 @@ type BatchOperationController struct {
 // NewBatchOperationController 创建批量操作控制器
 func NewBatchOperationController() *BatchOperationController {
 	return &BatchOperationController{
-		svc: service.NewBatchOperationService(),
+		svc: service.NewBatchOperationService(db.GetDB()),
 	}
 }
 
@@ -264,8 +263,6 @@ type BatchDeleteRequest struct {
 
 // BatchDelete 批量删除
 func (c *BatchOperationController) BatchDelete(ctx *gin.Context) {
-	_ = ctx
-
 	var req BatchDeleteRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		response.Error(ctx, http.StatusBadRequest, "请求参数错误："+err.Error())
@@ -314,7 +311,7 @@ func (c *BatchOperationController) BatchUpdate(ctx *gin.Context) {
 		return
 	}
 
-	count, err := c.svc.BatchUpdateClues(&service.BatchUpdateRequest{
+	count, err := c.svc.BatchUpdateClues(ctx.Request.Context(), &service.BatchUpdateRequest{
 		IDs:    req.IDs,
 		Fields: req.Fields,
 	})
@@ -347,7 +344,6 @@ func (c *BatchOperationController) GetTools(ctx *gin.Context) {
 
 // GetHistories 获取批量操作历史列表
 func (c *BatchOperationController) GetHistories(ctx *gin.Context) {
-
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(ctx.DefaultQuery("page_size", "20"))
 	if page < 1 {
@@ -357,9 +353,8 @@ func (c *BatchOperationController) GetHistories(ctx *gin.Context) {
 		pageSize = 20
 	}
 
-	list, total, err := c.svc.GetHistories(page, pageSize)
-	if err != nil {
-		response.Error(ctx, http.StatusInternalServerError, "获取历史记录失败: "+err.Error())
+	list, total, err := c.svc.GetHistories(ctx.Request.Context(), page, pageSize)
+	if errhttp.HandleDBError(ctx, err, "获取批量操作历史") {
 		return
 	}
 
@@ -380,9 +375,8 @@ func (c *BatchOperationController) GetHistoryByID(ctx *gin.Context) {
 		return
 	}
 
-	history, err := c.svc.GetHistoryByID(uint(id))
-	if err != nil {
-		response.Error(ctx, http.StatusNotFound, "历史记录不存在")
+	history, err := c.svc.GetHistoryByID(ctx.Request.Context(), uint(id))
+	if errhttp.HandleDBError(ctx, err, "获取批量操作历史") {
 		return
 	}
 
@@ -398,7 +392,7 @@ func (c *BatchOperationController) CancelHistory(ctx *gin.Context) {
 		return
 	}
 
-	if errhttp.HandleDBError(ctx, c.svc.CancelHistory(uint(id)), "取消批量操作") {
+	if errhttp.HandleDBError(ctx, c.svc.CancelHistory(ctx.Request.Context(), uint(id)), "取消批量操作") {
 		return
 	}
 

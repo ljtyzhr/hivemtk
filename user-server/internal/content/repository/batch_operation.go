@@ -8,7 +8,6 @@ import (
 	"gorm.io/gorm"
 
 	contentmodel "hivemtk-user/internal/content/model"
-	_db "hivemtk-user/internal/pkg/db"
 )
 
 // BatchOperationRepository 批量操作历史仓储
@@ -17,8 +16,8 @@ type BatchOperationRepository struct {
 }
 
 // NewBatchOperationRepository 创建批量操作历史仓储实例
-func NewBatchOperationRepository() *BatchOperationRepository {
-	return &BatchOperationRepository{db: _db.GetDB()}
+func NewBatchOperationRepository(db *gorm.DB) *BatchOperationRepository {
+	return &BatchOperationRepository{db: db}
 }
 
 // ListHistories 分页查询批量操作历史（按 created_at DESC）
@@ -27,25 +26,28 @@ func (r *BatchOperationRepository) ListHistories(ctx context.Context, page, page
 	var total int64
 	if err := r.db.WithContext(ctx).
 		Model(&contentmodel.BatchOperationHistory{}).
-		Where("1 = 1").
 		Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 	offset := (page - 1) * pageSize
 	err := r.db.WithContext(ctx).
 		Model(&contentmodel.BatchOperationHistory{}).
-		Where("1 = 1").
 		Order("created_at DESC").
 		Offset(offset).Limit(pageSize).
 		Find(&list).Error
 	return list, total, err
 }
 
-// GetHistoryByID 根据 ID 获取批量操作历史
+// GetHistoryByID 根据 ID 获取批量操作历史。
+//
+// 失败一律交出 (nil, err)：命中不到既可能是记录不存在，也可能是租户上下文没绑定，
+// 回一个零值结构体等于让 handler 无从分辨，只能把配置级故障说成「记录不存在」。
 func (r *BatchOperationRepository) GetHistoryByID(ctx context.Context, id uint) (*contentmodel.BatchOperationHistory, error) {
 	var history contentmodel.BatchOperationHistory
-	err := r.db.WithContext(ctx).First(&history, id).Error
-	return &history, err
+	if err := r.db.WithContext(ctx).First(&history, id).Error; err != nil {
+		return nil, err
+	}
+	return &history, nil
 }
 
 // ErrBatchOperationNotCancellable 操作记录不存在或状态不可取消

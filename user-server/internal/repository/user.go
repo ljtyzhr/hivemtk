@@ -30,6 +30,11 @@ func NewUserRepository() UserRepository {
 	return &userRepo{db: _db.GetDB()}
 }
 
+// NewUserRepositoryWithDB 注入版构造口（与全仓 *WithDB 同一约定），供装配层与用例传入指定句柄。
+func NewUserRepositoryWithDB(db *gorm.DB) UserRepository {
+	return &userRepo{db: db}
+}
+
 func (r *userRepo) Create(ctx context.Context, user *model.User) error {
 	return r.db.WithContext(ctx).Create(user).Error
 }

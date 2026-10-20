@@ -3,6 +3,7 @@ package controller
 import (
 	"hivemtk-user/internal/content/model"
 	"hivemtk-user/internal/content/service"
+	"hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/pkg/errhttp"
 	"hivemtk-user/internal/pkg/utils/response"
 	"net/http"
@@ -19,8 +20,21 @@ type TemplateMarketController struct {
 // NewTemplateMarketController 创建模板市场控制器实例
 func NewTemplateMarketController() *TemplateMarketController {
 	return &TemplateMarketController{
-		marketService: service.NewTemplateMarketService(),
+		marketService: service.NewTemplateMarketService(db.GetDB()),
 	}
+}
+
+// callerUserID 取当前登录用户。
+//
+// 必须是「取不到就 401」：JWT 中间件存的类型不止一种（user 侧 uint、团队侧 float64/string），
+// 改前这里直接 `userID.(uint)`，团队身份进来就是 panic ⇒ 500 页而不是鉴权失败。
+func callerUserID(ctx *gin.Context) (uint, bool) {
+	raw, exists := ctx.Get("user_id")
+	if !exists {
+		return 0, false
+	}
+	id := convertToUint(raw)
+	return id, id != 0
 }
 
 // GetTemplateList 获取模板列表
@@ -30,9 +44,8 @@ func (c *TemplateMarketController) GetTemplateList(ctx *gin.Context) {
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(ctx.DefaultQuery("page_size", "10"))
 
-	templates, total, err := c.marketService.GetTemplateList(category, templateType, page, pageSize)
-	if err != nil {
-		response.Error(ctx, http.StatusInternalServerError, err.Error())
+	templates, total, err := c.marketService.GetTemplateList(ctx.Request.Context(), category, templateType, page, pageSize)
+	if errhttp.HandleDBError(ctx, err, "获取模板列表") {
 		return
 	}
 
@@ -53,9 +66,8 @@ func (c *TemplateMarketController) GetTemplateByID(ctx *gin.Context) {
 		return
 	}
 
-	template, err := c.marketService.GetTemplateByID(uint(id))
-	if err != nil {
-		response.Error(ctx, http.StatusNotFound, err.Error())
+	template, err := c.marketService.GetTemplateByID(ctx.Request.Context(), uint(id))
+	if errhttp.HandleDBError(ctx, err, "获取模板详情") {
 		return
 	}
 
@@ -64,8 +76,11 @@ func (c *TemplateMarketController) GetTemplateByID(ctx *gin.Context) {
 
 // DownloadTemplate 下载模板
 func (c *TemplateMarketController) DownloadTemplate(ctx *gin.Context) {
-
-	userID, _ := ctx.Get("user_id")
+	userID, ok := callerUserID(ctx)
+	if !ok {
+		response.Error(ctx, http.StatusUnauthorized, "未授权访问")
+		return
+	}
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
 	if err != nil {
@@ -73,7 +88,7 @@ func (c *TemplateMarketController) DownloadTemplate(ctx *gin.Context) {
 		return
 	}
 
-	template, err := c.marketService.DownloadTemplate(userID.(uint), uint(id))
+	template, err := c.marketService.DownloadTemplate(ctx.Request.Context(), userID, uint(id))
 	if errhttp.HandleDBError(ctx, err, "下载模板") {
 		return
 	}
@@ -86,9 +101,8 @@ func (c *TemplateMarketController) GetOfficialTemplates(ctx *gin.Context) {
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(ctx.DefaultQuery("page_size", "10"))
 
-	templates, total, err := c.marketService.GetOfficialTemplates(page, pageSize)
-	if err != nil {
-		response.Error(ctx, http.StatusInternalServerError, err.Error())
+	templates, total, err := c.marketService.GetOfficialTemplates(ctx.Request.Context(), page, pageSize)
+	if errhttp.HandleDBError(ctx, err, "获取官方模板") {
 		return
 	}
 
@@ -106,9 +120,8 @@ func (c *TemplateMarketController) SearchTemplates(ctx *gin.Context) {
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(ctx.DefaultQuery("page_size", "10"))
 
-	templates, total, err := c.marketService.SearchTemplates(keyword, page, pageSize)
-	if err != nil {
-		response.Error(ctx, http.StatusInternalServerError, err.Error())
+	templates, total, err := c.marketService.SearchTemplates(ctx.Request.Context(), keyword, page, pageSize)
+	if errhttp.HandleDBError(ctx, err, "搜索模板") {
 		return
 	}
 
@@ -122,13 +135,17 @@ func (c *TemplateMarketController) SearchTemplates(ctx *gin.Context) {
 
 // GetMyDownloads 获取我的下载
 func (c *TemplateMarketController) GetMyDownloads(ctx *gin.Context) {
+	userID, ok := callerUserID(ctx)
+	if !ok {
+		response.Error(ctx, http.StatusUnauthorized, "未授权访问")
+		return
+	}
 
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(ctx.DefaultQuery("page_size", "10"))
 
-	records, total, err := c.marketService.GetMyDownloads(page, pageSize)
-	if err != nil {
-		response.Error(ctx, http.StatusInternalServerError, err.Error())
+	records, total, err := c.marketService.GetMyDownloads(ctx.Request.Context(), userID, page, pageSize)
+	if errhttp.HandleDBError(ctx, err, "获取下载记录") {
 		return
 	}
 
@@ -142,19 +159,16 @@ func (c *TemplateMarketController) GetMyDownloads(ctx *gin.Context) {
 
 // CreateTemplate 创建模板
 func (c *TemplateMarketController) CreateTemplate(ctx *gin.Context) {
-
 	var template model.MarketTemplate
 	if err := ctx.ShouldBindJSON(&template); err != nil {
 		response.Error(ctx, http.StatusBadRequest, "请求参数错误："+err.Error())
 		return
 	}
 
+	// 建模板口对所有登录用户开放，官方标记不能让请求体自己填
 	template.IsOfficial = false
-	if template.Author == "" {
-		template.Author = ""
-	}
 
-	if errhttp.HandleServiceError(ctx, c.marketService.CreateTemplate(&template)) {
+	if errhttp.HandleServiceError(ctx, c.marketService.CreateTemplate(ctx.Request.Context(), &template)) {
 		return
 	}
 
@@ -178,7 +192,7 @@ func (c *TemplateMarketController) RateTemplate(ctx *gin.Context) {
 		return
 	}
 
-	if errhttp.HandleDBError(ctx, c.marketService.RateTemplate(uint(id), req.Rating), "评分模板") {
+	if errhttp.HandleDBError(ctx, c.marketService.RateTemplate(ctx.Request.Context(), uint(id), req.Rating), "评分模板") {
 		return
 	}
 

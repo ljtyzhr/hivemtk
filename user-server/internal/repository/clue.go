@@ -290,6 +290,11 @@ func (r *clueRepo) ListByAccounts(ctx context.Context, accounts []string) ([]*mo
 	return clues, nil
 }
 
+// BatchUpdateInTx 逐条更新并返回**实际写入的行数**。
+//
+// 改前两处口径错误：`Updates` 报错只 `continue` 却照样 `count++`，命中 0 行（跨租户 id 被
+// 租户谓词挡掉就是 0 行）也不算失败——于是「updated_count」等于「请求条数」，
+// 把一条没写成的记录报成写成。现在按 RowsAffected 计数，出错直接让事务回滚。
 func (r *clueRepo) BatchUpdateInTx(ctx context.Context, ids []string, updates map[string]any) (int, error) {
 	count := 0
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
@@ -297,10 +302,11 @@ func (r *clueRepo) BatchUpdateInTx(ctx context.Context, ids []string, updates ma
 			if id == "" {
 				continue
 			}
-			if err := tx.Model(&model.Clue{}).Where("id = ?", id).Updates(updates).Error; err != nil {
-				continue
+			res := tx.Model(&model.Clue{}).Where("id = ?", id).Updates(updates)
+			if res.Error != nil {
+				return res.Error
 			}
-			count++
+			count += int(res.RowsAffected)
 		}
 		return nil
 	})

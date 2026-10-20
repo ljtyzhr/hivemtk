@@ -18,6 +18,8 @@ import (
 	cdpmodel "hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/utils/logger"
 	cdprepo "hivemtk-user/internal/repository"
+
+	"gorm.io/gorm"
 )
 
 // BatchOperationService 批量操作服务
@@ -28,11 +30,14 @@ type BatchOperationService struct {
 }
 
 // NewBatchOperationService 创建批量操作服务
-func NewBatchOperationService() *BatchOperationService {
+//
+// 收 db 而不是内部去摸全局句柄：这一层的缺陷正是「把 handler 传下来的 ctx 丢掉、
+// 自己造 context.Background()」，构造口能注入才能在 on 模式下把 ctx 是否贯通钉成用例。
+func NewBatchOperationService(db *gorm.DB) *BatchOperationService {
 	return &BatchOperationService{
-		batchOpRepo: contentrepo.NewBatchOperationRepository(),
-		clueRepo:    cdprepo.NewClueRepository(),
-		userRepo:    cdprepo.NewUserRepository(),
+		batchOpRepo: contentrepo.NewBatchOperationRepository(db),
+		clueRepo:    cdprepo.NewClueRepositoryWithDB(db),
+		userRepo:    cdprepo.NewUserRepositoryWithDB(db),
 	}
 }
 
@@ -291,7 +296,7 @@ func (s *BatchOperationService) GenerateCSV(ctx context.Context, exportType Expo
 	case ExportTypeClue:
 		return s.exportClues(ctx, writer, &buf, ids)
 	case ExportTypeUser:
-		return s.exportUsers(writer, &buf, ids)
+		return s.exportUsers(ctx, writer, &buf, ids)
 	default:
 		return nil, errors.New("不支持的导出类型")
 	}
@@ -452,13 +457,13 @@ func (s *BatchOperationService) exportClues(ctx context.Context, writer *csv.Wri
 	return buf, nil
 }
 
-func (s *BatchOperationService) exportUsers(writer *csv.Writer, buf *bytes.Buffer, ids []string) (*bytes.Buffer, error) {
+func (s *BatchOperationService) exportUsers(ctx context.Context, writer *csv.Writer, buf *bytes.Buffer, ids []string) (*bytes.Buffer, error) {
 	headers := []string{"ID", "用户名", "邮箱", "手机号", "真实姓名", "状态", "创建时间"}
 	if err := writer.Write(headers); err != nil {
 		return nil, err
 	}
 
-	users, _, err := s.userRepo.GetUserList(context.Background(), 1, 10000)
+	users, _, err := s.userRepo.GetUserList(ctx, 1, 10000)
 	if err != nil {
 		return nil, fmt.Errorf("查询用户失败: %w", err)
 	}
@@ -582,7 +587,7 @@ type BatchUpdateRequest struct {
 }
 
 // BatchUpdateClues 批量更新线索
-func (s *BatchOperationService) BatchUpdateClues(req *BatchUpdateRequest) (int, error) {
+func (s *BatchOperationService) BatchUpdateClues(ctx context.Context, req *BatchUpdateRequest) (int, error) {
 	if len(req.IDs) == 0 {
 		return 0, errors.New("ID 列表不能为空")
 	}
@@ -625,7 +630,7 @@ func (s *BatchOperationService) BatchUpdateClues(req *BatchUpdateRequest) (int, 
 			trimmedIDs = append(trimmedIDs, id)
 		}
 	}
-	return s.clueRepo.BatchUpdateInTx(context.Background(), trimmedIDs, updates)
+	return s.clueRepo.BatchUpdateInTx(ctx, trimmedIDs, updates)
 }
 
 // ReadAllFromReader 工具函数：从 io.Reader 读取所有内容
@@ -634,16 +639,16 @@ func ReadAllFromReader(r io.Reader) ([]byte, error) {
 }
 
 // GetHistories 获取批量操作历史列表
-func (s *BatchOperationService) GetHistories(page, pageSize int) ([]*model.BatchOperationHistory, int64, error) {
-	return s.batchOpRepo.ListHistories(context.Background(), page, pageSize)
+func (s *BatchOperationService) GetHistories(ctx context.Context, page, pageSize int) ([]*model.BatchOperationHistory, int64, error) {
+	return s.batchOpRepo.ListHistories(ctx, page, pageSize)
 }
 
 // GetHistoryByID 根据 ID 获取批量操作历史
-func (s *BatchOperationService) GetHistoryByID(id uint) (*model.BatchOperationHistory, error) {
-	return s.batchOpRepo.GetHistoryByID(context.Background(), id)
+func (s *BatchOperationService) GetHistoryByID(ctx context.Context, id uint) (*model.BatchOperationHistory, error) {
+	return s.batchOpRepo.GetHistoryByID(ctx, id)
 }
 
 // CancelHistory 取消批量操作（标记为已取消）
-func (s *BatchOperationService) CancelHistory(id uint) error {
-	return s.batchOpRepo.CancelHistory(context.Background(), id)
+func (s *BatchOperationService) CancelHistory(ctx context.Context, id uint) error {
+	return s.batchOpRepo.CancelHistory(ctx, id)
 }
