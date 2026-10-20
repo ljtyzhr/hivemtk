@@ -67,6 +67,9 @@ func (c *AssetMarketClient) ListAssets(ctx context.Context, assetType, industry 
 	if industry != "" {
 		q.Set("industry", industry)
 	}
+	// tenant_code：purchased 标记按 (merchant_key, tenant_code) 判定
+	//（平台侧购买记录每租户一行），空串照发走 '' 兜底行=旧行为。
+	q.Set("tenant_code", TenantCodeFromContext(ctx))
 	path := "/merchant-api/asset-market/list?" + q.Encode()
 	var resp struct {
 		List  []map[string]any `json:"list"`
@@ -80,7 +83,8 @@ func (c *AssetMarketClient) ListAssets(ctx context.Context, assetType, industry 
 
 func (c *AssetMarketClient) GetAssetDetail(ctx context.Context, assetID string) (map[string]any, error) {
 	var resp map[string]any
-	detailPath := "/merchant-api/asset-market/detail/" + url.PathEscape(assetID)
+	detailPath := "/merchant-api/asset-market/detail/" + url.PathEscape(assetID) +
+		"?tenant_code=" + url.QueryEscape(TenantCodeFromContext(ctx))
 	if err := c.doData("GET", detailPath, nil, &resp); err != nil {
 		return nil, err
 	}
@@ -104,8 +108,18 @@ func (c *AssetMarketClient) Purchase(ctx context.Context, assetID string) error 
 }
 
 func (c *AssetMarketClient) PullData(ctx context.Context, assetID string) (*AssetPayload, error) {
+	// sync 必须带 tenant_code：平台按 (merchant_key, tenant_code) 校验本租户
+	// 的购买记录后才放行数据（购买先于拉取，同租户口径）；空值 omitempty
+	// 不上行 = 旧行为。
+	in := struct {
+		AssetID    string `json:"asset_id"`
+		TenantCode string `json:"tenant_code,omitempty"`
+	}{
+		AssetID:    assetID,
+		TenantCode: TenantCodeFromContext(ctx),
+	}
 	var payload AssetPayload
-	if err := c.doData("POST", "/merchant-api/asset-market/sync", map[string]string{"asset_id": assetID}, &payload); err != nil {
+	if err := c.doData("POST", "/merchant-api/asset-market/sync", in, &payload); err != nil {
 		return nil, err
 	}
 	return &payload, nil
@@ -113,7 +127,9 @@ func (c *AssetMarketClient) PullData(ctx context.Context, assetID string) (*Asse
 
 func (c *AssetMarketClient) MyPurchases(ctx context.Context) ([]map[string]any, error) {
 	var list []map[string]any
-	if err := c.doData("GET", "/merchant-api/asset-market/my-purchases", nil, &list); err != nil {
+	path := "/merchant-api/asset-market/my-purchases?tenant_code=" +
+		url.QueryEscape(TenantCodeFromContext(ctx))
+	if err := c.doData("GET", path, nil, &list); err != nil {
 		return nil, err
 	}
 	return list, nil
