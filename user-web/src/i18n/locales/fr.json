@@ -80,7 +80,8 @@
     "logout": "Log out",
     "login": "Log in",
     "collapseMenu": "Collapse menu",
-    "expandMenu": "Expand menu"
+    "expandMenu": "Expand menu",
+    "globalTour": "Visite générale"
   },
   "role": {
     "title": "Role Management",
@@ -1932,6 +1933,332 @@
     "errPhoneRequired": "Veuillez saisir le numéro de téléphone",
     "errPhoneFormat": "Format de téléphone invalide",
     "errAgreeRequired": "Veuillez d'abord confirmer l'avis réglementaire",
-    "errAlreadyInit": "Système déjà initialisé ; connectez-vous directement"
+    "errAlreadyInit": "Système déjà initialisé ; connectez-vous directement",
+    "onboarding": {
+      "next": "Suivant",
+      "prev": "Précédent",
+      "done": "Terminer",
+      "skip": "Passer",
+      "global": {
+        "step1": {
+          "title": "Logo de la marque",
+          "description": "C'est le logo du système. Cliquez pour revenir au tableau de bord d'accueil"
+        },
+        "step2": {
+          "title": "Menu de navigation principal",
+          "description": "Basculez entre les modules principaux : Espace de travail, Message Hub, Centre client, Agent IA, Prospection, Centre de connaissances, Analyses, Paramètres système, etc."
+        },
+        "step3": {
+          "title": "Menu latéral",
+          "description": "Sous-menus du module en cours. Repliez-le pour n'afficher que les icônes et gagner de la place"
+        },
+        "step4": {
+          "title": "Centre de notifications",
+          "description": "Consultez les notifications système, les annonces de version et les alertes importantes. Le point rouge signale les messages non lus"
+        },
+        "step5": {
+          "title": "Menu utilisateur",
+          "description": "Profil, Centre d'aide et Déconnexion. L'avatar affiche la première lettre de votre nom d'utilisateur"
+        },
+        "step6": {
+          "title": "Zone de contenu principal",
+          "description": "Toutes les pages métier s'affichent ici. Prend en charge le fil d'Ariane et les animations de transition"
+        }
+      },
+      "module": {
+        "messageHub": {
+          "step1": {
+            "title": "Cartes de synthèse des messages",
+            "description": "Métriques en temps réel : total des messages, non lus, temps de réponse moyen et respect du SLA par canal"
+          },
+          "step2": {
+            "title": "Onglets des canaux",
+            "description": "Filtrez les messages par canal : WeChat, WhatsApp, Telegram, e-mail, SMS, etc."
+          },
+          "step3": {
+            "title": "Tableau des messages",
+            "description": "Tous les messages entrants au même endroit. Filtrez par statut, canal et heure. Cliquez pour le détail"
+          }
+        },
+        "inbox": {
+          "step1": {
+            "title": "Barre de filtres",
+            "description": "Filtrez rapidement les sessions par agent, canal, tag et période"
+          },
+          "step2": {
+            "title": "Liste des sessions",
+            "description": "Sessions actives, en attente et closes. Recherche par nom ou ID client"
+          },
+          "step3": {
+            "title": "Panneau de chat",
+            "description": "Messages de la session en cours. Envoyez textes, images, fichiers et réponses rapides"
+          },
+          "step4": {
+            "title": "Attribution des agents",
+            "description": "Attribuez à un agent en ligne ou passez à l'agent IA pour une réponse automatique"
+          }
+        },
+        "customer": {
+          "step1": {
+            "title": "Recherche client",
+            "description": "Recherche multidimensionnelle : téléphone, e-mail, nom, OneID et tags"
+          },
+          "step2": {
+            "title": "Carte de profil 360°",
+            "description": "Vue complète : attributs, événements, tags, sessions, commandes, prospects et actifs"
+          },
+          "step3": {
+            "title": "Onglets de détail",
+            "description": "Flux d'événements, tags, sessions, commandes, prospects et actifs — explorez chaque dimension"
+          },
+          "step4": {
+            "title": "Éditeur de tags",
+            "description": "Taguez les clients et créez des segments pour une prospection de précision et un classement RFM"
+          }
+        },
+        "aiAgent": {
+          "step1": {
+            "title": "Barre d'outils de la liste d'agents",
+            "description": "Créez, importez, exportez et filtrez par type : Ventes, Support ou Hybride"
+          },
+          "step2": {
+            "title": "Tableau des agents",
+            "description": "Code, nom, type, canaux liés, statut et dernière mise à jour — d'un coup d'œil"
+          },
+          "step3": {
+            "title": "Dialogue de création d'agent",
+            "description": "Configurez le persona, le prompt, la base de connaissances, les outils, les paramètres du modèle et le seuil de confiance"
+          }
+        },
+        "agentActive": {
+          "step1": {
+            "title": "Éditeur de canevas",
+            "description": "Glissez-déposez des nœuds pour construire vos flux de prospection : délai, branchement, action et nœuds IA"
+          },
+          "step2": {
+            "title": "Palette de nœuds",
+            "description": "Déclencheurs, actions, conditions, IA, délai et sous-flux — de nombreux types de nœuds"
+          },
+          "step3": {
+            "title": "Barre du canevas",
+            "description": "Zoom, centrage, annuler, rétablir, publication, contrôle de versions et export JSON"
+          }
+        },
+        "agentSupport": {
+          "step1": {
+            "title": "Liste des SOP",
+            "description": "Procédures opérationnelles standard : scénario, étapes, scripts et résultats attendus, versionnées"
+          },
+          "step2": {
+            "title": "Bibliothèque de modèles de scripts",
+            "description": "Scripts des top performers : prise de parole, traitement des objections et closing, classés par scénario"
+          },
+          "step3": {
+            "title": "Base de connaissances FAQ",
+            "description": "Questions et réponses fréquentes. L'IA associe automatiquement les réponses. Seuil de similarité réglable"
+          }
+        },
+        "agentWorkbench": {
+          "step1": {
+            "title": "Tableau de bord des agents",
+            "description": "Agents en ligne, occupés ou hors ligne en temps réel, charge actuelle, capacité et temps de réponse moyen"
+          },
+          "step2": {
+            "title": "Panneau de réponses rapides",
+            "description": "Recherchez des scripts par catégorie et envoyez en un clic. Insertion de variables comme le nom et le numéro de commande"
+          },
+          "step3": {
+            "title": "Panneau de suggestions IA",
+            "description": "Suggestions de réponse, extraits de connaissances et scripts en temps réel. Cliquez pour les utiliser et gagnez en efficacité"
+          }
+        },
+        "reach": {
+          "step1": {
+            "title": "Onglets des canaux",
+            "description": "E-mail, SMS, WhatsApp, Douyin, Kuaishou, Xiaohongshu, Xianyu et TikTok — de façon unifiée"
+          },
+          "step2": {
+            "title": "Liste des brouillons",
+            "description": "Brouillons en révision, en attente ou programmés. Texte enrichi, variables et pièces jointes pris en charge"
+          },
+          "step3": {
+            "title": "Configuration du travail",
+            "description": "Audience cible, planification, fréquence, déduplication, test A/B et suivi de la livraison"
+          }
+        },
+        "knowledge": {
+          "step1": {
+            "title": "Arborescence des documents",
+            "description": "Gestion de dossiers multi-niveaux. Réordonnez, déplacez et copiez par glisser-déposer"
+          },
+          "step2": {
+            "title": "Éditeur de texte enrichi",
+            "description": "Édition WYSIWYG. Images, tableaux, blocs de code, formules et liens internes"
+          },
+          "step3": {
+            "title": "Environnement de test de récupération",
+            "description": "Testez la recherche vectorielle en direct. Réglez Top-K, le seuil de similarité et la stratégie de reclassement"
+          }
+        },
+        "analytics": {
+          "step1": {
+            "title": "Canevas du tableau de bord",
+            "description": "Constructeur glisser-déposer : graphiques, cartes KPI, tableaux, cartes et composants personnalisés"
+          },
+          "step2": {
+            "title": "Bibliothèque de widgets",
+            "description": "Plus de 20 types de graphiques : lignes, barres, camembert, entonnoir, sankey, carte de chaleur, etc."
+          },
+          "step3": {
+            "title": "Configuration des sources de données",
+            "description": "Connectez API, SQL, CSV et flux. Correspondance de champs, champs calculés et stratégie de cache"
+          }
+        },
+        "geoTools": {
+          "step1": {
+            "title": "Onglets du module GEO",
+            "description": "Extraction de mots-clés, création de contenu, optimisation, vérification multi-modèles, rapports et configuration"
+          },
+          "step2": {
+            "title": "Tableau mots-clés et contenu",
+            "description": "Volume de recherche, concurrence, intention, fonctionnalités SERP, suivi de positions et citations dans les aperçus IA"
+          },
+          "step3": {
+            "title": "Éditeur de contenu",
+            "description": "Rédaction assistée par IA : plan, développement, optimisation SEO, synchronisation multilingue et contrôle de conformité"
+          }
+        },
+        "system": {
+          "step1": {
+            "title": "Onglets de paramètres",
+            "description": "Configuration du site, stockage, supervision, traçage, bibliothèque d'actifs, guide et fonctionnalités activables"
+          },
+          "step2": {
+            "title": "Tableaux utilisateurs, rôles et permissions",
+            "description": "Gestion des utilisateurs, attribution des rôles, autorisations de menus, permissions de données, journaux d'audit et de connexion"
+          },
+          "step3": {
+            "title": "Matrice des permissions",
+            "description": "Configuration visuelle des permissions menu, boutons et données basée sur le RBAC. L'administrateur a tout ; les rôles, au besoin"
+          }
+        },
+        "assetBundle": {
+          "step1": {
+            "title": "Liste des paquets",
+            "description": "Versionnés : paquets de scripts, de connaissances, de workflows et de configuration avec dépendances"
+          },
+          "step2": {
+            "title": "Environnement de développement",
+            "description": "Débogage en ligne : entrée simulée, visualisation de la sortie, tests unitaires et benchmarks de performance"
+          },
+          "step3": {
+            "title": "Pack de scripts marchand",
+            "description": "Livraison standardisée : assistant d'installation, assistant de configuration, mise à niveau et retour arrière"
+          }
+        },
+        "assetMarket": {
+          "step1": {
+            "title": "Filtres du marché",
+            "description": "Filtrez par catégorie, tag, prix, note et version compatible"
+          },
+          "step2": {
+            "title": "Grille des paquets",
+            "description": "Aperçu de la couverture, de la présentation, de la version, de l'auteur, des téléchargements et des avis. Installation ou essai en un clic"
+          },
+          "step3": {
+            "title": "Mes actifs",
+            "description": "Installés, achetés, en développement ou en attente. Notifications de mise à niveau et mise à niveau en un clic"
+          }
+        }
+      },
+      "page": {
+        "messageHub": {
+          "step1": {
+            "title": "Cartes KPI de synthèse",
+            "description": "Total des messages, non lus, temps de réponse moyen et taux de SLA — vue globale instantanée"
+          },
+          "step2": {
+            "title": "Filtre canal et statut",
+            "description": "Filtre combiné : canal, statut et heure. Enregistrez-le comme vue personnalisée"
+          },
+          "step3": {
+            "title": "Tableau de détail des messages",
+            "description": "Expéditeur, aperçu, statut, latence, tentatives et code d'erreur. Export CSV"
+          },
+          "step4": {
+            "title": "Pagination",
+            "description": "Taille de page, saut à une page et total. Défilement virtuel pour les gros volumes"
+          }
+        },
+        "inbox": {
+          "step1": {
+            "title": "Barre de filtres des sessions",
+            "description": "Agent, canal, tag, statut et heure. Vues rapides : Mes sessions, Toutes et Non lues"
+          },
+          "step2": {
+            "title": "Liste des sessions",
+            "description": "Avatar, nom, dernier message, compteur de non lus, temps d'attente, agent et tags"
+          },
+          "step3": {
+            "title": "Interaction de chat",
+            "description": "Bulles, saisie avec / et @IA ainsi que pièces jointes, statut d'envoi et accusé de lecture"
+          },
+          "step4": {
+            "title": "Liste déroulante d'attribution",
+            "description": "Liste d'agents en direct avec charge et compétences. Reprise forcée ou transfert"
+          }
+        },
+        "customer": {
+          "step1": {
+            "title": "Champ de recherche client",
+            "description": "Correspondance floue multicritères. Syntaxe avancée : champ:valeur, tag:tag, event:event"
+          },
+          "step2": {
+            "title": "Carte de profil",
+            "description": "Tags d'identité, segment RFM, étape du cycle de vie, niveau d'intention et dernière activité"
+          },
+          "step3": {
+            "title": "Groupe d'onglets de détail",
+            "description": "Chronologie des événements, tags, sessions, commandes, prospects et actifs — toutes les dimensions"
+          },
+          "step4": {
+            "title": "Barre latérale de l'éditeur de tags",
+            "description": "Tags système, personnalisés et par règles en 3 niveaux. Étiquetage par lot et lignée des tags"
+          }
+        },
+        "aiAgent": {
+          "step1": {
+            "title": "Barre d'actions de la liste",
+            "description": "Créer, importer, exporter, cloner, activer, désactiver et supprimer. Opérations groupées prises en charge"
+          },
+          "step2": {
+            "title": "Tableau des agents",
+            "description": "Code, nom, type, modèle, base de connaissances, outils, canaux, statut et mise à jour. Colonnes personnalisables"
+          },
+          "step3": {
+            "title": "Dialogue créer et modifier",
+            "description": "Informations de base, prompt de persona, paramètres du modèle, liaison de la base de connaissances, outils, confiance et chat de test"
+          }
+        },
+        "agentActive": {
+          "step1": {
+            "title": "Canevas du flux",
+            "description": "Connexions disposées automatiquement. Fusion de branches, passerelle parallèle et réutilisation de sous-flux"
+          },
+          "step2": {
+            "title": "Panneau de configuration des nœuds",
+            "description": "Formulaires par nœud : délai (durée ou expression), branchement (condition), IA (prompt, outils, repli)"
+          },
+          "step3": {
+            "title": "Barre du canevas",
+            "description": "Zoom, centrage, annuler, rétablir, aligner, grille, publier, version, import, export et aperçu"
+          },
+          "step4": {
+            "title": "Mini-carte",
+            "description": "Vue d'ensemble pour les grands flux. Navigation rapide et déplacement de la zone de vue, plus jamais perdu"
+          }
+        }
+      }
+    }
   }
 }

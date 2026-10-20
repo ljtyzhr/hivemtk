@@ -80,7 +80,8 @@
     "logout": "Log out",
     "login": "Log in",
     "collapseMenu": "Collapse menu",
-    "expandMenu": "Expand menu"
+    "expandMenu": "Expand menu",
+    "globalTour": "Tour geral"
   },
   "role": {
     "title": "Role Management",
@@ -1932,6 +1933,332 @@
     "errPhoneRequired": "Digite o número de telefone",
     "errPhoneFormat": "Formato de telefone inválido",
     "errAgreeRequired": "Confirme primeiro o aviso regulatório",
-    "errAlreadyInit": "Sistema já inicializado; faça login diretamente"
+    "errAlreadyInit": "Sistema já inicializado; faça login diretamente",
+    "onboarding": {
+      "next": "Avançar",
+      "prev": "Voltar",
+      "done": "Concluir",
+      "skip": "Pular",
+      "global": {
+        "step1": {
+          "title": "Logotipo da marca",
+          "description": "Este é o logotipo do sistema. Clique para voltar ao painel inicial"
+        },
+        "step2": {
+          "title": "Menu de navegação superior",
+          "description": "Alterne entre os módulos principais: Workspace, Message Hub, Central do Cliente, Agente de IA, Outreach, Central de Conhecimento, Análises, Configurações do sistema e mais"
+        },
+        "step3": {
+          "title": "Menu lateral",
+          "description": "Submenus do módulo atual. Recolha-o para exibir apenas os ícones e economizar espaço"
+        },
+        "step4": {
+          "title": "Central de notificações",
+          "description": "Veja notificações do sistema, anúncios de versão e avisos importantes. O ponto vermelho indica mensagens não lidas"
+        },
+        "step5": {
+          "title": "Menu do usuário",
+          "description": "Perfil, Central de ajuda e Sair. O avatar mostra a primeira letra do seu nome de usuário"
+        },
+        "step6": {
+          "title": "Área de conteúdo principal",
+          "description": "Todas as páginas de negócios são renderizadas aqui. Suporta navegação por trilha e animações de transição"
+        }
+      },
+      "module": {
+        "messageHub": {
+          "step1": {
+            "title": "Cartões de visão geral de mensagens",
+            "description": "Métricas em tempo real: total de mensagens, não lidas, tempo médio de resposta e conformidade de SLA por canal"
+          },
+          "step2": {
+            "title": "Abas de canais",
+            "description": "Filtre mensagens por canal: WeChat, WhatsApp, Telegram, e-mail, SMS e mais"
+          },
+          "step3": {
+            "title": "Tabela de mensagens",
+            "description": "Todas as mensagens recebidas em um só lugar. Filtre por status, canal e hora. Clique para ver detalhes"
+          }
+        },
+        "inbox": {
+          "step1": {
+            "title": "Barra de filtros",
+            "description": "Filtre sessões rapidamente por agente, canal, tag e período"
+          },
+          "step2": {
+            "title": "Lista de sessões",
+            "description": "Sessões ativas, pendentes e encerradas. Pesquise por nome ou ID do cliente"
+          },
+          "step3": {
+            "title": "Painel de chat",
+            "description": "Mensagens da sessão atual. Envie textos, imagens, arquivos e respostas rápidas"
+          },
+          "step4": {
+            "title": "Atribuição de agentes",
+            "description": "Atribua a agentes online ou passe ao agente de IA para resposta automática"
+          }
+        },
+        "customer": {
+          "step1": {
+            "title": "Busca de clientes",
+            "description": "Consulta multidimensional: telefone, e-mail, nome, OneID e tags"
+          },
+          "step2": {
+            "title": "Cartão de perfil 360°",
+            "description": "Visão completa: atributos, eventos, tags, sessões, pedidos, leads e ativos"
+          },
+          "step3": {
+            "title": "Abas de detalhes",
+            "description": "Fluxo de eventos, tags, sessões, pedidos, leads e ativos — aprofunde cada dimensão"
+          },
+          "step4": {
+            "title": "Editor de tags",
+            "description": "Etiquete clientes e crie segmentos para outreach de precisão e segmentação RFM"
+          }
+        },
+        "aiAgent": {
+          "step1": {
+            "title": "Barra de ferramentas da lista de agentes",
+            "description": "Crie, importe, exporte e filtre por tipo: Vendas, Suporte ou Híbrido"
+          },
+          "step2": {
+            "title": "Tabela de agentes",
+            "description": "Código, nome, tipo, canais vinculados, status e última atualização — tudo de relance"
+          },
+          "step3": {
+            "title": "Diálogo de criação de agente",
+            "description": "Configure persona, prompt, base de conhecimento, ferramentas, parâmetros do modelo e limiar de confiança"
+          }
+        },
+        "agentActive": {
+          "step1": {
+            "title": "Editor de canvas",
+            "description": "Arraste e solte nós para criar fluxos de outreach: atraso, ramificação, ação e nós de IA"
+          },
+          "step2": {
+            "title": "Paleta de nós",
+            "description": "Gatilhos, ações, condições, IA, atraso e subfluxos — tipos de nós abundantes"
+          },
+          "step3": {
+            "title": "Barra do canvas",
+            "description": "Zoom, centralizar, desfazer, refazer, publicar, controle de versão e exportar JSON"
+          }
+        },
+        "agentSupport": {
+          "step1": {
+            "title": "Lista de SOP",
+            "description": "Procedimentos operacionais padrão: cenário, etapas, scripts e resultados esperados, com versionamento"
+          },
+          "step2": {
+            "title": "Biblioteca de modelos de scripts",
+            "description": "Scripts de alto desempenho: abordagem, tratamento de objeções e fechamento, categorizados por cenário"
+          },
+          "step3": {
+            "title": "Base de conhecimento de perguntas frequentes",
+            "description": "Perguntas e respostas frequentes. A IA combina respostas automaticamente. Limiar de similaridade ajustável"
+          }
+        },
+        "agentWorkbench": {
+          "step1": {
+            "title": "Painel de status dos agentes",
+            "description": "Agentes online, ocupados e offline em tempo real, carga atual, capacidade e tempo médio de resposta"
+          },
+          "step2": {
+            "title": "Painel de respostas rápidas",
+            "description": "Pesquise scripts por categoria e envie com um clique. Inserção de variáveis como nome e número do pedido"
+          },
+          "step3": {
+            "title": "Painel de sugestões de IA",
+            "description": "Sugestões de resposta, trechos de conhecimento e scripts em tempo real. Clique para usar e ganhe eficiência"
+          }
+        },
+        "reach": {
+          "step1": {
+            "title": "Abas de canais",
+            "description": "E-mail, SMS, WhatsApp, Douyin, Kuaishou, Xiaohongshu, Xianyu e TikTok — de forma unificada"
+          },
+          "step2": {
+            "title": "Lista de rascunhos",
+            "description": "Rascunhos em edição, em revisão ou agendados. Suporta texto rico, variáveis e anexos"
+          },
+          "step3": {
+            "title": "Configuração do job",
+            "description": "Público-alvo, agenda, frequência, deduplicação, teste A/B e rastreamento de entrega"
+          }
+        },
+        "knowledge": {
+          "step1": {
+            "title": "Árvore de documentos",
+            "description": "Gerenciamento de pastas multinível. Reordene, mova e copie com arrastar e soltar"
+          },
+          "step2": {
+            "title": "Editor de texto rico",
+            "description": "Edição WYSIWYG. Imagens, tabelas, blocos de código, fórmulas e links internos"
+          },
+          "step3": {
+            "title": "Ambiente de testes de recuperação",
+            "description": "Teste a busca vetorial ao vivo. Ajuste Top-K, o limiar de similaridade e a estratégia de reordenação"
+          }
+        },
+        "analytics": {
+          "step1": {
+            "title": "Canvas do painel",
+            "description": "Construtor com arrastar e soltar: gráficos, cartões KPI, tabelas, mapas e componentes personalizados"
+          },
+          "step2": {
+            "title": "Biblioteca de widgets",
+            "description": "Mais de 20 tipos de gráficos: linhas, barras, pizza, funil, sankey, mapa de calor e mais"
+          },
+          "step3": {
+            "title": "Configuração de fontes de dados",
+            "description": "Conecte API, SQL, CSV e fluxos. Mapeamento de campos, campos calculados e estratégia de cache"
+          }
+        },
+        "geoTools": {
+          "step1": {
+            "title": "Abas do módulo GEO",
+            "description": "Mineração de palavras-chave, criação de conteúdo, otimização, verificação multimodelo, relatórios e configuração"
+          },
+          "step2": {
+            "title": "Tabela de palavras-chave e conteúdo",
+            "description": "Volume de busca, concorrência, intenção, recursos SERP, rastreamento de posições e citações em resumos de IA"
+          },
+          "step3": {
+            "title": "Editor de conteúdo",
+            "description": "Redação assistida por IA: esquema, expansão, otimização SEO, sincronização multilíngue e verificação de conformidade"
+          }
+        },
+        "system": {
+          "step1": {
+            "title": "Abas de configurações",
+            "description": "Configuração do site, armazenamento, monitoramento, rastreamento, biblioteca de ativos, guia e flags de recursos"
+          },
+          "step2": {
+            "title": "Tabelas de usuários, papéis e permissões",
+            "description": "Gerenciamento de usuários, atribuição de papéis, autorização de menus, permissões de dados, logs de auditoria e de login"
+          },
+          "step3": {
+            "title": "Matriz de permissões",
+            "description": "Configuração visual de permissões de menu, botões e dados baseada em RBAC. O administrador tem tudo; os papéis, conforme a necessidade"
+          }
+        },
+        "assetBundle": {
+          "step1": {
+            "title": "Lista de bundles",
+            "description": "Com versões: pacotes de scripts, de conhecimento, de fluxos de trabalho e de configuração com dependências"
+          },
+          "step2": {
+            "title": "Ambiente de desenvolvimento",
+            "description": "Depuração online: entrada simulada, visualização da saída, testes unitários e benchmark de desempenho"
+          },
+          "step3": {
+            "title": "Pacote de scripts do lojista",
+            "description": "Entrega padronizada: assistente de instalação, assistente de configuração, atualização e rollback"
+          }
+        },
+        "assetMarket": {
+          "step1": {
+            "title": "Filtros do mercado",
+            "description": "Filtre por categoria, tag, preço, avaliação e versão compatível"
+          },
+          "step2": {
+            "title": "Grade de bundles",
+            "description": "Prévia de capa, descrição, versão, autor, downloads e avaliações. Instale ou experimente com um clique"
+          },
+          "step3": {
+            "title": "Minha área de ativos",
+            "description": "Instalados, comprados, em desenvolvimento ou pendentes. Notificações de atualização e upgrade com um clique"
+          }
+        }
+      },
+      "page": {
+        "messageHub": {
+          "step1": {
+            "title": "Cartões KPI de visão geral",
+            "description": "Total de mensagens, não lidas, tempo médio de resposta e taxa de SLA — visão global instantânea"
+          },
+          "step2": {
+            "title": "Filtro de canal e status",
+            "description": "Filtro combinado: canal, status e hora. Salve como visualização personalizada"
+          },
+          "step3": {
+            "title": "Tabela de detalhes de mensagens",
+            "description": "Remetente, prévia, status, latência, tentativas e código de erro. Exportação para CSV"
+          },
+          "step4": {
+            "title": "Paginação",
+            "description": "Tamanho da página, salto para página e total. Rolagem virtual para grandes volumes"
+          }
+        },
+        "inbox": {
+          "step1": {
+            "title": "Barra de filtros de sessões",
+            "description": "Agente, canal, tag, status e hora. Visualizações rápidas: Minhas, Todas e Não lidas"
+          },
+          "step2": {
+            "title": "Lista de sessões",
+            "description": "Avatar, nome, última mensagem, contador de não lidas, tempo de espera, agente e tags"
+          },
+          "step3": {
+            "title": "Interação no chat",
+            "description": "Balões, entrada com / e @IA bem como anexos, status de envio e confirmação de leitura"
+          },
+          "step4": {
+            "title": "Suspenso de atribuição de agentes",
+            "description": "Lista de agentes ao vivo com carga e habilidades. Assuma o controle ou transfira"
+          }
+        },
+        "customer": {
+          "step1": {
+            "title": "Caixa de busca de clientes",
+            "description": "Correspondência aproximada mult campos. Sintaxe avançada: campo:valor, tag:tag, event:event"
+          },
+          "step2": {
+            "title": "Cartão de perfil",
+            "description": "Tags de identidade, segmento RFM, estágio do ciclo de vida, nível de intenção e última atividade"
+          },
+          "step3": {
+            "title": "Grupo de abas de detalhes",
+            "description": "Linha do tempo de eventos, tags, sessões, pedidos, leads e ativos — todas as dimensões"
+          },
+          "step4": {
+            "title": "Barra lateral do editor de tags",
+            "description": "Tags de sistema, personalizadas e por regras em 3 camadas. Aplique tags em lote e acompanhe a linhagem das tags"
+          }
+        },
+        "aiAgent": {
+          "step1": {
+            "title": "Barra de ações da lista",
+            "description": "Criar, importar, exportar, clonar, ativar, desativar e excluir. Suporta operações em lote"
+          },
+          "step2": {
+            "title": "Tabela de agentes",
+            "description": "Código, nome, tipo, modelo, base de conhecimento, ferramentas, canais, status e atualização. Colunas personalizáveis"
+          },
+          "step3": {
+            "title": "Diálogo criar e editar",
+            "description": "Informações básicas, prompt de persona, parâmetros do modelo, vinculação da base de conhecimento, ferramentas, confiança e chat de teste"
+          }
+        },
+        "agentActive": {
+          "step1": {
+            "title": "Canvas do fluxo",
+            "description": "Conexões com layout automático. Mesclagem de ramificações, gateway paralelo e reutilização de subfluxos"
+          },
+          "step2": {
+            "title": "Painel de configuração de nós",
+            "description": "Formulários por nó: atraso (duração ou expressão), ramificação (condição), IA (prompt, ferramentas, alternativa)"
+          },
+          "step3": {
+            "title": "Barra do canvas",
+            "description": "Zoom, centralizar, desfazer, refazer, alinhar, grade, publicar, versão, importar, exportar e visualizar"
+          },
+          "step4": {
+            "title": "Minimapa",
+            "description": "Visão geral para fluxos grandes. Navegação rápida e arraste da área de visualização, nunca se perca"
+          }
+        }
+      }
+    }
   }
 }
