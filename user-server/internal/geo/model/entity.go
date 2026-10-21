@@ -19,7 +19,6 @@ type GeoEntity struct {
 	Type        string         `gorm:"column:type;size:64;index" json:"type"`
 	Aliases     datatypes.JSON `gorm:"column:aliases;type:jsonb" json:"aliases"`
 	Description string         `gorm:"column:description;type:text" json:"description"`
-	SourceDocID uint           `gorm:"column:source_doc_id;index" json:"source_doc_id"`
 	Confidence  float64        `gorm:"column:confidence;default:0.8" json:"confidence"`
 	CreatedAt   time.Time      `json:"created_at"`
 	UpdatedAt   time.Time      `json:"updated_at"`
@@ -32,6 +31,10 @@ func (GeoEntity) TableName() string { return "geo_entities" }
 //
 // 记录两个实体之间的关系（is_a/used_for/competitor_of/part_of 等），
 // 为后续知识图谱和竞品对比分析提供结构化输入。
+//
+// 业务唯一键 (tenant_id, entity_a_id, entity_b_id, relation) 由 v3.72.0 迁移
+// 建唯一索引（先按该键去重再建）。模型不写 uniqueIndex 标签：AutoMigrate 先于
+// 迁移执行且不做去重，存量库有重复行时会直接建索引失败并阻断启动。
 type GeoEntityRelation struct {
 	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
 

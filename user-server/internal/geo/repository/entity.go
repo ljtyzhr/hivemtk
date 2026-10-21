@@ -7,25 +7,17 @@ import (
 	_db "hivemtk-user/internal/pkg/db"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // GeoEntityRepository 实体 + 关系仓储
-// EntityRepository 是同接口别名（service/entity_extractor.go 使用的名字）
 type GeoEntityRepository interface {
 	Create(ctx context.Context, e *model.GeoEntity) error
 	BatchCreate(ctx context.Context, entities []*model.GeoEntity) error
-	GetByID(ctx context.Context, id uint) (*model.GeoEntity, error)
 	List(ctx context.Context, search string, entityType string, page, limit int) ([]*model.GeoEntity, int64, error)
-	GetRelations(ctx context.Context, entityID uint) ([]*model.GeoEntityRelation, error)
 	GetRelationGraph(ctx context.Context, entityID uint, depth int) ([]*model.GeoEntityRelation, []*model.GeoEntity, error)
 	UpsertRelation(ctx context.Context, rel *model.GeoEntityRelation) error
-	BatchUpsertRelations(ctx context.Context, rels []*model.GeoEntityRelation) error
-	// CreateRelation entity_extractor.go 使用的名称，同 UpsertRelation
-	CreateRelation(ctx context.Context, rel *model.GeoEntityRelation) error
 }
-
-// EntityRepository service/entity_extractor.go 使用的别名
-type EntityRepository = GeoEntityRepository
 
 type geoEntityRepo struct{ db *gorm.DB }
 
@@ -47,12 +39,6 @@ func (r *geoEntityRepo) BatchCreate(ctx context.Context, entities []*model.GeoEn
 	return r.db.WithContext(ctx).CreateInBatches(entities, 100).Error
 }
 
-func (r *geoEntityRepo) GetByID(ctx context.Context, id uint) (*model.GeoEntity, error) {
-	var e model.GeoEntity
-	err := r.db.WithContext(ctx).Where("id = ?", id).First(&e).Error
-	return &e, err
-}
-
 func (r *geoEntityRepo) List(ctx context.Context, search string, entityType string, page, limit int) ([]*model.GeoEntity, int64, error) {
 	if page <= 0 {
 		page = 1
@@ -60,11 +46,15 @@ func (r *geoEntityRepo) List(ctx context.Context, search string, entityType stri
 	if limit <= 0 {
 		limit = 20
 	}
+	if limit > 500 {
+		limit = 500
+	}
 	var list []*model.GeoEntity
 	var total int64
 	q := r.db.WithContext(ctx).Model(&model.GeoEntity{})
 	if search != "" {
-		q = q.Where("name ILIKE ? OR description ILIKE ?", "%"+search+"%", "%"+search+"%")
+		pattern := "%" + escapeLike(search) + "%"
+		q = q.Where("name ILIKE ? OR description ILIKE ?", pattern, pattern)
 	}
 	if entityType != "" {
 		q = q.Where("type = ?", entityType)
@@ -74,14 +64,6 @@ func (r *geoEntityRepo) List(ctx context.Context, search string, entityType stri
 	}
 	err := q.Offset((page - 1) * limit).Limit(limit).Order("created_at DESC").Find(&list).Error
 	return list, total, err
-}
-
-func (r *geoEntityRepo) GetRelations(ctx context.Context, entityID uint) ([]*model.GeoEntityRelation, error) {
-	var list []*model.GeoEntityRelation
-	err := r.db.WithContext(ctx).
-		Where("entity_a_id = ? OR entity_b_id = ?", entityID, entityID).
-		Find(&list).Error
-	return list, err
 }
 
 func (r *geoEntityRepo) GetRelationGraph(ctx context.Context, entityID uint, depth int) ([]*model.GeoEntityRelation, []*model.GeoEntity, error) {
@@ -128,22 +110,14 @@ func (r *geoEntityRepo) GetRelationGraph(ctx context.Context, entityID uint, dep
 	return rels, entities, nil
 }
 
+// UpsertRelation 幂等写入关系：冲突键与 v3.72.0 的唯一索引
+// (tenant_id, entity_a_id, entity_b_id, relation) 完全一致。
+// 不用 FirstOrCreate：SELECT 后 INSERT 在并发抽取下会各写一行、同一关系出现重复边。
 func (r *geoEntityRepo) UpsertRelation(ctx context.Context, rel *model.GeoEntityRelation) error {
-	return r.db.WithContext(ctx).
-		Where("entity_a_id = ? AND entity_b_id = ? AND relation = ?", rel.EntityAID, rel.EntityBID, rel.Relation).
-		Assign(model.GeoEntityRelation{Relation: rel.Relation}).
-		FirstOrCreate(rel).Error
-}
-
-func (r *geoEntityRepo) CreateRelation(ctx context.Context, rel *model.GeoEntityRelation) error {
-	return r.UpsertRelation(ctx, rel)
-}
-
-func (r *geoEntityRepo) BatchUpsertRelations(ctx context.Context, rels []*model.GeoEntityRelation) error {
-	for _, rl := range rels {
-		if err := r.UpsertRelation(ctx, rl); err != nil {
-			return err
-		}
-	}
-	return nil
+	return r.db.WithContext(ctx).Clauses(clause.OnConflict{
+		Columns: []clause.Column{
+			{Name: "tenant_id"}, {Name: "entity_a_id"}, {Name: "entity_b_id"}, {Name: "relation"},
+		},
+		DoNothing: true,
+	}).Create(rel).Error
 }

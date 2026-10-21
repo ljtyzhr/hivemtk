@@ -9,6 +9,7 @@ import (
 	"hivemtk-user/internal/aiagent/llm"
 	"hivemtk-user/internal/geo/model"
 	"hivemtk-user/internal/geo/repository"
+	"hivemtk-user/internal/pkg/utils/logger"
 )
 
 // EntityExtractorService 实体抽取服务（G7.2）
@@ -17,11 +18,10 @@ import (
 // 和实体关系（is_a/used_for/competitor_of/part_of）。写入 geo_entities /
 // geo_entity_relations。
 //
-// 依赖注入：EntityRepository（实体持久化，repository 包已用 type alias 适配）、
-// GeoKnowledgeDocumentRepository（文档读取）、LLM Dispatcher（模型调用）。
-// 全部接口化，便于测试。
+// 依赖注入：GeoEntityRepository（实体持久化）、GeoKnowledgeDocumentRepository
+// （文档读取）、LLM Dispatcher（模型调用）。全部接口化，便于测试。
 type EntityExtractorService struct {
-	entityRepo    repository.EntityRepository
+	entityRepo    repository.GeoEntityRepository
 	kbRepo        repository.GeoKnowledgeDocumentRepository
 	llmDispatcher *llm.Dispatcher
 	promptManager *PromptManager
@@ -29,7 +29,7 @@ type EntityExtractorService struct {
 
 // NewEntityExtractorService 创建实体抽取服务
 func NewEntityExtractorService(
-	entityRepo repository.EntityRepository,
+	entityRepo repository.GeoEntityRepository,
 	kbRepo repository.GeoKnowledgeDocumentRepository,
 	llmDispatcher *llm.Dispatcher,
 ) *EntityExtractorService {
@@ -108,7 +108,6 @@ func (s *EntityExtractorService) ExtractFromDocument(ctx context.Context, docID 
 			Type:        e.Type,
 			Aliases:     mustJSON(e.Aliases),
 			Description: e.Description,
-			SourceDocID: 0,
 			Confidence:  e.Confidence,
 		}
 		if ent.Name == "" {
@@ -123,12 +122,12 @@ func (s *EntityExtractorService) ExtractFromDocument(ctx context.Context, docID 
 		}
 	}
 
+	// BatchCreate 由 PostgreSQL RETURNING 回填 ID，直接按本次写入的实体建映射。
+	// 不再回查 List：那会按 created_at 取首页，本次实体被挤出分页时关系全丢，
+	// 还会把库里同名的旧实体错认成本次抽取结果。
 	nameToID := make(map[string]uint, len(entities))
-	list, _, err := s.entityRepo.List(ctx, "", "", 1, len(entities)+10)
-	if err != nil {
-
-	} else {
-		for _, e := range list {
+	for _, e := range entities {
+		if e.ID != 0 {
 			nameToID[e.Name] = e.ID
 		}
 	}
@@ -136,7 +135,7 @@ func (s *EntityExtractorService) ExtractFromDocument(ctx context.Context, docID 
 	for _, r := range parsed.Relations {
 		aID, okA := nameToID[r.EntityA]
 		bID, okB := nameToID[r.EntityB]
-		if !okA || !okB || aID == 0 || bID == 0 {
+		if !okA || !okB || aID == 0 || bID == 0 || strings.TrimSpace(r.Relation) == "" {
 			continue
 		}
 		rel := &model.GeoEntityRelation{
@@ -144,9 +143,9 @@ func (s *EntityExtractorService) ExtractFromDocument(ctx context.Context, docID 
 			EntityBID: bID,
 			Relation:  r.Relation,
 		}
-		if err := s.entityRepo.CreateRelation(ctx, rel); err != nil {
-
-			continue
+		if err := s.entityRepo.UpsertRelation(ctx, rel); err != nil {
+			logger.Warnf("[GEO Entity] 写入实体关系失败 doc=%s rel=%s-%s(%s): %v",
+				docID, r.EntityA, r.EntityB, r.Relation, err)
 		}
 	}
 

@@ -244,4 +244,7 @@ func RegisterMigrations(registry *migration.MigrationRegistry, db *gorm.DB) {
 	// v3.71.0：geo_daily_stats 唯一键 (tenant_id, stat_date, engine, intent)——
 	// 模型原标签建出的是非唯一索引，ON CONFLICT 在全新库上 42P10
 	register(NewGeoDailyStatUniqueKeyMigration(db))
+	// v3.72.0：geo_entity_relations 唯一键 (tenant_id, entity_a_id, entity_b_id, relation)
+	// ——先按该键去重再建，修复并发抽取写重复关系边；顺带删除 source_doc_id 僵尸列
+	register(NewGeoEntityRelationUniqueKeyMigration(db))
 }

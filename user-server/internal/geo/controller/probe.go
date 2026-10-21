@@ -5,7 +5,6 @@ import (
 	"net/http"
 	"strconv"
 
-	"hivemtk-user/internal/geo/repository"
 	"hivemtk-user/internal/geo/service"
 	"hivemtk-user/internal/pkg/utils/response"
 
@@ -170,13 +169,13 @@ func (c *SourceCatalogController) LookupLevels(ctx *gin.Context) {
 
 // EntityController 实体图谱控制器（读路径；写入由 entity_extractor 定时任务负责）
 type EntityController struct {
-	entityRepo repository.GeoEntityRepository
-	extractor  *service.EntityExtractorService
+	entitySvc *service.EntityService
+	extractor *service.EntityExtractorService
 }
 
 // NewEntityController 构造实体控制器
-func NewEntityController(er repository.GeoEntityRepository, ex *service.EntityExtractorService) *EntityController {
-	return &EntityController{entityRepo: er, extractor: ex}
+func NewEntityController(es *service.EntityService, ex *service.EntityExtractorService) *EntityController {
+	return &EntityController{entitySvc: es, extractor: ex}
 }
 
 // ListEntities 查询实体列表
@@ -186,7 +185,7 @@ func (c *EntityController) ListEntities(ctx *gin.Context) {
 	entityType := ctx.Query("type")
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(ctx.DefaultQuery("limit", "20"))
-	list, total, err := c.entityRepo.List(ctx.Request.Context(), search, entityType, page, limit)
+	list, total, err := c.entitySvc.List(ctx.Request.Context(), search, entityType, page, limit)
 	if err != nil {
 		response.ErrorFromDB(ctx, err, "查询实体列表失败")
 		return
@@ -199,14 +198,11 @@ func (c *EntityController) ListEntities(ctx *gin.Context) {
 func (c *EntityController) GetGraph(ctx *gin.Context) {
 	id, _ := strconv.ParseUint(ctx.Param("id"), 10, 64)
 	depth, _ := strconv.Atoi(ctx.DefaultQuery("depth", "2"))
-	if depth <= 0 || depth > 5 {
-		depth = 2
-	}
 	if id == 0 {
 		response.Error(ctx, http.StatusBadRequest, "id 无效")
 		return
 	}
-	rels, entities, err := c.entityRepo.GetRelationGraph(ctx.Request.Context(), uint(id), depth)
+	rels, entities, err := c.entitySvc.Graph(ctx.Request.Context(), uint(id), depth)
 	if err != nil {
 		response.ErrorFromDB(ctx, err, "查询实体关系图失败")
 		return

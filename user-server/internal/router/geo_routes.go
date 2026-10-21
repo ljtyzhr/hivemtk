@@ -153,12 +153,13 @@ func SetupGeoRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 	sourceCtrl := geoctrl.NewSourceCatalogController(crawlerSvc)
 
 	entityRepo := georepo.NewGeoEntityRepositoryWithDB(gormDB)
+	entitySvc := geoservice.NewEntityService(entityRepo)
 	extractSvc := geoservice.NewEntityExtractorService(
 		entityRepo,
 		kbDocRepo,
 		llm.GetGlobalDispatcher(),
 	)
-	entityCtrl := geoctrl.NewEntityController(entityRepo, extractSvc)
+	entityCtrl := geoctrl.NewEntityController(entitySvc, extractSvc)
 
 	competitorRepo := georepo.NewGeoCompetitorRepositoryWithDB(gormDB)
 	competitorSvc := geoservice.NewGeoCompetitorService(competitorRepo)
