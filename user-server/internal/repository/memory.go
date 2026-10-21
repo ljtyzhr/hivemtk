@@ -46,7 +46,6 @@ type MemoryRepository interface {
 	ListSOPStatesByCustomer(ctx context.Context, customerID string, limit int) ([]model.SOPStateMemory, error)
 
 	CountBusinessMemoriesByCustomer(ctx context.Context, customerID string) (int64, error)
-	PluckOldestBusinessMemoryIDs(ctx context.Context, customerID string, limit int) ([]uint, error)
 	DeleteBusinessMemoriesByIDs(ctx context.Context, ids []uint) error
 	CreateBusinessMemory(ctx context.Context, item *model.BusinessMemory) error
 	ListBusinessMemories(ctx context.Context, customerID, memoryType string, limit int) ([]model.BusinessMemory, error)
@@ -200,20 +199,24 @@ func (r *memoryRepository) ListSOPStatesByCustomer(ctx context.Context, customer
 	return list, err
 }
 
+// CountBusinessMemoriesByCustomer 数这个客户有多少条 L4 记忆。
+//
+// 错误必须往上抛：这个数字是 **L4 的容量闸**（`MemorySystem.L4Add` 拿它判
+// 「count+1 > L4MaxPerCust(500) 才淘汰」）。而 gorm 对查询失败只回 Error，
+// 原来的写法把 .Error 丢了、直接 `return count, nil` —— 于是任何一次查询失败
+// （连接池打满、DDL 锁、ctx 取消）都被读成「这个客户有 0 条记忆」，
+// 淘汰这一格**永远不触发**：L4 记忆行无界增长，而界面上看不出任何异常，
+// 只有「这个客户的记忆越攒越多」这一种表现。
+//
+// 闸门该往哪边倒：读不动 ≠ 不存在。把「读不到」谎报成「没有」= 把容量闸关掉，
+// 这与本仓反复出现的那条纪律同一条（读侧失败不得被当成「没有这一行」）。
 func (r *memoryRepository) CountBusinessMemoriesByCustomer(ctx context.Context, customerID string) (int64, error) {
 	var count int64
-	r.db.WithContext(ctx).Model(&model.BusinessMemory{}).
-		Where("customer_id = ?", customerID).Count(&count)
+	if err := r.db.WithContext(ctx).Model(&model.BusinessMemory{}).
+		Where("customer_id = ?", customerID).Count(&count).Error; err != nil {
+		return 0, err
+	}
 	return count, nil
-}
-
-func (r *memoryRepository) PluckOldestBusinessMemoryIDs(ctx context.Context, customerID string, limit int) ([]uint, error) {
-	var ids []uint
-	r.db.WithContext(ctx).Model(&model.BusinessMemory{}).
-		Where("customer_id = ?", customerID).
-		Order("importance ASC, created_at ASC").Limit(limit).
-		Pluck("id", &ids)
-	return ids, nil
 }
 
 func (r *memoryRepository) DeleteBusinessMemoriesByIDs(ctx context.Context, ids []uint) error {

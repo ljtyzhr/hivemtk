@@ -353,8 +353,20 @@ func (m *MemorySystem) L4Record(ctx context.Context, customerID, memoryType, con
 	m.mu.Lock()
 	defer m.mu.Unlock()
 
-	count, _ := m.memoryRepo.CountBusinessMemoriesByCustomer(ctx, customerID)
-	if count+1 > int64(L4MaxPerCust) {
+	// 容量闸：数不出来就不淘汰，但**照样记这一条**。
+	//
+	// 往哪边倒是有取舍的，两侧的失效面不同：
+	//   - 数不出来 ⇒ 跳过淘汰：最多多留几条记忆（超限几行），不会丢东西；
+	//   - 数不出来却仍淘汰：会按一个「不知道有多满」的数去删行，删多少是猜的，
+	//     猜大了就删掉不该删的记忆。
+	// 所以这里选前者——读侧失败只影响「能不能裁」，不影响「能不能记」。
+	// 反过来，仓储那一层必须把计数错误往上抛（原来被丢掉、直接读成 0 条），
+	// 否则「读不到」会被谎报成「这个客户有 0 条记忆」，淘汰这一格永远不触发，
+	// L4 记忆行无界增长且全程无声。
+	count, err := m.memoryRepo.CountBusinessMemoriesByCustomer(ctx, customerID)
+	if err != nil {
+		logger.Warnf("[MemorySystem] L4 记忆计数失败，跳过本次淘汰（仍记录） customer=%s: %v", customerID, err)
+	} else if count+1 > int64(L4MaxPerCust) {
 		m.l4EvictImportanceAware(ctx, customerID, int(count+1-int64(L4MaxPerCust)))
 	}
 
