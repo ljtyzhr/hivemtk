@@ -80,7 +80,6 @@ type stubBaselineRepo struct {
 	mu         sync.Mutex
 	baseline   *model.ChampionBaseline
 	findErr    error
-	saved      []model.ChampionBaseline
 	refreshErr error
 	refreshed  int
 }
@@ -96,16 +95,6 @@ func (r *stubBaselineRepo) FindByPersonaIndustryIntent(ctx context.Context, pers
 		return nil, r.findErr
 	}
 	return r.baseline, nil
-}
-
-func (r *stubBaselineRepo) Save(ctx context.Context, b *model.ChampionBaseline) (uint64, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	if b == nil {
-		return 0, nil
-	}
-	r.saved = append(r.saved, *b)
-	return uint64(len(r.saved)), nil
 }
 
 func (r *stubBaselineRepo) ListEnabled(ctx context.Context) ([]model.ChampionBaseline, error) {

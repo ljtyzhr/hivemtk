@@ -29,7 +29,6 @@ type HumanizeScoreRepository interface {
 // ChampionBaselineRepository 销冠基线仓储接口
 type ChampionBaselineRepository interface {
 	FindByPersonaIndustryIntent(ctx context.Context, persona, industry, intent string) (*model.ChampionBaseline, error)
-	Save(ctx context.Context, b *model.ChampionBaseline) (uint64, error)
 	ListEnabled(ctx context.Context) ([]model.ChampionBaseline, error)
 	RefreshPhrases(ctx context.Context, baselineID uint64, phrases []model.ChampionPhrase) error
 }

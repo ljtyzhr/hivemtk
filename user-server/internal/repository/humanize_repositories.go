@@ -111,33 +111,6 @@ func (r *ChampionBaselineRepositoryImpl) FindByPersonaIndustryIntent(
 	return &b, nil
 }
 
-// Save 保存新版本基线
-// b 由 service 层构建（含 SampleCount/Stddev/PeriodStart/PeriodEnd），仓储负责版本号递增与旧版本禁用
-func (r *ChampionBaselineRepositoryImpl) Save(
-	ctx context.Context, b *model.ChampionBaseline,
-) (uint64, error) {
-	if b == nil {
-		return 0, fmt.Errorf("baseline is nil")
-	}
-
-	var maxVersion int
-	db.GetDB().WithContext(ctx).
-		Model(&model.ChampionBaseline{}).
-		Where("persona = ? AND industry = ? AND intent = ?", b.Persona, b.Industry, b.Intent).
-		Select("COALESCE(MAX(version), 0)").Scan(&maxVersion)
-	b.Version = maxVersion + 1
-	b.Enabled = true
-	if err := db.GetDB().WithContext(ctx).Create(b).Error; err != nil {
-		return 0, fmt.Errorf("create champion_baseline: %w", err)
-	}
-	db.GetDB().WithContext(ctx).
-		Model(&model.ChampionBaseline{}).
-		Where("persona = ? AND industry = ? AND intent = ? AND id != ?",
-			b.Persona, b.Industry, b.Intent, b.ID).
-		Update("enabled", false)
-	return b.ID, nil
-}
-
 // ListEnabled 列出所有启用的基线
 func (r *ChampionBaselineRepositoryImpl) ListEnabled(ctx context.Context) ([]model.ChampionBaseline, error) {
 	var entities []model.ChampionBaseline
