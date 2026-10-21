@@ -64,7 +64,7 @@ func (c *WorkflowController) Update(ctx *gin.Context) {
 	}
 	wf, err := c.svc.Update(ctx.Request.Context(), ctx.Param("id"), &req)
 	if err != nil {
-		response.BusinessError(ctx, err.Error())
+		response.ErrorFromDB(ctx, err, "更新工作流失败")
 		return
 	}
 	response.Success(ctx, wf, "更新工作流成功")

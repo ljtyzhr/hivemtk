@@ -139,8 +139,11 @@ func TestGeoWorkflowRepository(t *testing.T) {
 	db := setupGeoTestDB(t)
 	repo := NewGeoWorkflowRepositoryWithDB(db)
 
-	wf := &model.GeoWorkflow{Name: "内容生产工作流", Enabled: true}
-	wf.SetSteps([]map[string]interface{}{{"name": "step1", "type": "content_generate"}})
+	wf := &model.GeoWorkflow{
+		Name:    "内容生产工作流",
+		Enabled: true,
+		Steps:   `[{"name":"step1","type":"content_generate"}]`,
+	}
 	if err := repo.Create(ctx, wf); err != nil {
 		t.Fatalf("Create workflow failed: %v", err)
 	}

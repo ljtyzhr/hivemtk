@@ -171,6 +171,8 @@ func (s *WorkflowService) List(ctx context.Context) ([]*dto.WorkflowResponse, er
 	for _, wf := range wfs {
 		resp, err := s.toWorkflowResponse(wf)
 		if err != nil {
+			// 步骤 JSON 损坏时跳过该行，但必须留痕：静默丢弃会让列表"少一条"无从追查。
+			logger.Warnf("[GEO 工作流] 列表解码失败 id=%s: %v", wf.ID, err)
 			continue
 		}
 		res = append(res, resp)
@@ -207,6 +209,7 @@ func (s *WorkflowService) ListTemplates(ctx context.Context) ([]*dto.WorkflowTem
 	for _, tpl := range tpls {
 		resp, err := s.toTemplateResponse(tpl)
 		if err != nil {
+			logger.Warnf("[GEO 工作流] 模板解码失败 id=%s: %v", tpl.ID, err)
 			continue
 		}
 		res = append(res, resp)
@@ -265,7 +268,9 @@ func (s *WorkflowService) Run(ctx context.Context, id string) (*dto.RunWorkflowR
 				exec.Error = "工作流执行异常中断"
 			}
 		}
-		if err := s.execRepo.Update(ctx, exec); err != nil {
+		// 终态必须落库：请求方断开时 ctx 会取消，若沿用原 ctx，这里写失败后
+		// 执行记录会永远停在 running。WithoutCancel 保留租户等取值、只摘掉取消信号。
+		if err := s.execRepo.Update(context.WithoutCancel(ctx), exec); err != nil {
 			logger.Errorf("工作流执行记录落库失败 exec_id=%s: %v", exec.ID, err)
 		}
 	}()

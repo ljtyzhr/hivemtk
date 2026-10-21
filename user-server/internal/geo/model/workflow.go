@@ -35,16 +35,6 @@ func (m *GeoWorkflow) BeforeCreate(tx *gorm.DB) error {
 	return nil
 }
 
-// SetSteps 设置步骤（自动序列化）
-func (m *GeoWorkflow) SetSteps(steps []map[string]interface{}) error {
-	b, err := json.Marshal(steps)
-	if err != nil {
-		return err
-	}
-	m.Steps = string(b)
-	return nil
-}
-
 // GetSteps 获取步骤（反序列化）
 func (m *GeoWorkflow) GetSteps() ([]map[string]interface{}, error) {
 	var steps []map[string]interface{}
@@ -125,16 +115,6 @@ func (m *GeoWorkflowTemplate) BeforeCreate(tx *gorm.DB) error {
 	if m.ID == "" {
 		m.ID = uuid.New().String()
 	}
-	return nil
-}
-
-// SetSteps 设置步骤
-func (m *GeoWorkflowTemplate) SetSteps(steps []map[string]interface{}) error {
-	b, err := json.Marshal(steps)
-	if err != nil {
-		return err
-	}
-	m.Steps = string(b)
 	return nil
 }
 
