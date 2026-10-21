@@ -51,6 +51,9 @@ func (m *GeoKeyword) BeforeCreate(tx *gorm.DB) error {
 }
 
 // GeoKeywordGroup GEO 关键词分组模型
+//
+// 业务唯一键 (tenant_id, name) 由 v3.74.0 迁移建唯一索引（先去重再建）。
+// 模型不写 uniqueIndex 标签：AutoMigrate 先于迁移执行且不去重，存量重复分组会阻断启动。
 type GeoKeywordGroup struct {
 	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
 

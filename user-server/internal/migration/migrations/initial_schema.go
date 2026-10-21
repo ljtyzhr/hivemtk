@@ -250,4 +250,7 @@ func RegisterMigrations(registry *migration.MigrationRegistry, db *gorm.DB) {
 	// v3.73.0：geo_index_trackings 唯一键 (tenant_id, article_id, engine)——先按该键
 	// 去重再建，保证验证结果幂等写入（原「先 UPDATE 再 INSERT」并发写重复行）
 	register(NewGeoIndexTrackingUniqueKeyMigration(db))
+	// v3.74.0：geo_keyword_groups 唯一键 (tenant_id, name)——先去重再建，
+	// 修复话题聚类并发 upsert 建出同名分组 / Save 复活软删除行
+	register(NewGeoKeywordGroupUniqueKeyMigration(db))
 }

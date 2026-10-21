@@ -21,11 +21,8 @@ func escapeLike(s string) string {
 type GeoKeywordRepository interface {
 	Create(ctx context.Context, keyword *model.GeoKeyword) error
 	BatchCreate(ctx context.Context, keywords []*model.GeoKeyword) error
-	GetByID(ctx context.Context, id string) (*model.GeoKeyword, error)
 	GetList(ctx context.Context, search, category, source, cluster, status, layer string, page, limit int) ([]*model.GeoKeyword, int64, error)
 	Delete(ctx context.Context, id string) error
-	GetByCluster(ctx context.Context, cluster string) ([]*model.GeoKeyword, error)
-	GetStatistics(ctx context.Context) ([]map[string]any, error)
 	// CountByLayerStatus 统计指定 layer + status 的关键词数
 	CountByLayerStatus(ctx context.Context, layer, status string) (int64, error)
 }
@@ -54,13 +51,16 @@ func (r *geoKeywordRepo) BatchCreate(ctx context.Context, keywords []*model.GeoK
 	return r.db.WithContext(ctx).CreateInBatches(keywords, 100).Error
 }
 
-func (r *geoKeywordRepo) GetByID(ctx context.Context, id string) (*model.GeoKeyword, error) {
-	var keyword model.GeoKeyword
-	err := r.db.WithContext(ctx).Where("id = ?", id).First(&keyword).Error
-	return &keyword, err
-}
-
 func (r *geoKeywordRepo) GetList(ctx context.Context, search, category, source, cluster, status, layer string, page, limit int) ([]*model.GeoKeyword, int64, error) {
+	if page <= 0 {
+		page = 1
+	}
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 200 {
+		limit = 200
+	}
 	var keywords []*model.GeoKeyword
 	var total int64
 	offset := (page - 1) * limit
@@ -96,23 +96,14 @@ func (r *geoKeywordRepo) GetList(ctx context.Context, search, category, source, 
 }
 
 func (r *geoKeywordRepo) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&model.GeoKeyword{}).Error
-}
-
-func (r *geoKeywordRepo) GetByCluster(ctx context.Context, cluster string) ([]*model.GeoKeyword, error) {
-	var keywords []*model.GeoKeyword
-	err := r.db.WithContext(ctx).Where("cluster = ?", cluster).Order("created_at DESC").Find(&keywords).Error
-	return keywords, err
-}
-
-func (r *geoKeywordRepo) GetStatistics(ctx context.Context) ([]map[string]any, error) {
-	var statistics []map[string]any
-	err := r.db.WithContext(ctx).Table("geo_keywords").
-		Select("source AS source, COUNT(*) AS total").
-		Where("deleted_at IS NULL").
-		Group("source").Order("source").
-		Scan(&statistics).Error
-	return statistics, err
+	res := r.db.WithContext(ctx).Where("id = ?", id).Delete(&model.GeoKeyword{})
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 func (r *geoKeywordRepo) CountByLayerStatus(ctx context.Context, layer, status string) (int64, error) {
