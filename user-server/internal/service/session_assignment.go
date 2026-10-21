@@ -342,7 +342,7 @@ func (s *SessionAssignmentService) handleByHuman(ctx context.Context, session *m
 }
 
 func (s *SessionAssignmentService) autoAssignToAgent(ctx context.Context, session *model.CustomerSession, reason string) error {
-	bestAgent, err := s.agentRepo.AutoAssignAgentTx(ctx, s.sessionRepo, session.ID)
+	bestAgent, err := s.agentRepo.AutoAssignAgentTx(ctx, session.ID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return errors.New("无在线客服")

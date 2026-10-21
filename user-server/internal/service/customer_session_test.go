@@ -491,7 +491,7 @@ func TestCustomerSessionService_TagSession_Success(t *testing.T) {
 // TestAgentStatusService_CreateAgent_Success 测试创建客服成功
 func TestAgentStatusService_CreateAgent_Success(t *testing.T) {
 	setupCustomerSessionService(t)
-	agentService := NewAgentStatusService()
+	agentService := NewAgentStatusService(repository.NewAgentStatusRepositoryWithDB(db.GetDB()), repository.NewCustomerSessionRepositoryWithDB(db.GetDB()))
 
 	req := &CreateAgentRequest{
 		AgentID:     123,
@@ -518,7 +518,7 @@ func TestAgentStatusService_CreateAgent_Success(t *testing.T) {
 // TestAgentStatusService_GetAgentStatus_Success 测试获取客服状态
 func TestAgentStatusService_GetAgentStatus_Success(t *testing.T) {
 	service := setupCustomerSessionService(t)
-	agentService := NewAgentStatusService()
+	agentService := NewAgentStatusService(repository.NewAgentStatusRepositoryWithDB(db.GetDB()), repository.NewCustomerSessionRepositoryWithDB(db.GetDB()))
 
 	agent := &model.AgentStatus{
 		AgentID:        123,
@@ -545,7 +545,7 @@ func TestAgentStatusService_GetAgentStatus_Success(t *testing.T) {
 // TestAgentStatusService_GetOnlineAgents_Success 测试获取在线客服列表
 func TestAgentStatusService_GetOnlineAgents_Success(t *testing.T) {
 	service := setupCustomerSessionService(t)
-	agentService := NewAgentStatusService()
+	agentService := NewAgentStatusService(repository.NewAgentStatusRepositoryWithDB(db.GetDB()), repository.NewCustomerSessionRepositoryWithDB(db.GetDB()))
 
 	agent1 := &model.AgentStatus{
 		AgentID:     123,
@@ -582,7 +582,7 @@ func TestAgentStatusService_GetOnlineAgents_Success(t *testing.T) {
 // TestAgentStatusService_GoOnline_Success 测试客服上线
 func TestAgentStatusService_GoOnline_Success(t *testing.T) {
 	service := setupCustomerSessionService(t)
-	agentService := NewAgentStatusService()
+	agentService := NewAgentStatusService(repository.NewAgentStatusRepositoryWithDB(db.GetDB()), repository.NewCustomerSessionRepositoryWithDB(db.GetDB()))
 
 	agent := &model.AgentStatus{
 		AgentID:     123,
@@ -606,7 +606,7 @@ func TestAgentStatusService_GoOnline_Success(t *testing.T) {
 // TestAgentStatusService_GoOffline_Success 测试客服下线
 func TestAgentStatusService_GoOffline_Success(t *testing.T) {
 	service := setupCustomerSessionService(t)
-	agentService := NewAgentStatusService()
+	agentService := NewAgentStatusService(repository.NewAgentStatusRepositoryWithDB(db.GetDB()), repository.NewCustomerSessionRepositoryWithDB(db.GetDB()))
 
 	agent := &model.AgentStatus{
 		AgentID:        123,
@@ -631,7 +631,7 @@ func TestAgentStatusService_GoOffline_Success(t *testing.T) {
 // TestAgentStatusService_GoOffline_WithActiveSessions 测试有活跃会话时下线
 func TestAgentStatusService_GoOffline_WithActiveSessions(t *testing.T) {
 	service := setupCustomerSessionService(t)
-	agentService := NewAgentStatusService()
+	agentService := NewAgentStatusService(repository.NewAgentStatusRepositoryWithDB(db.GetDB()), repository.NewCustomerSessionRepositoryWithDB(db.GetDB()))
 
 	agent := &model.AgentStatus{
 		AgentID:        123,

@@ -13,21 +13,19 @@ import (
 )
 
 // setupAutoAssignTestDB 建立自动分配测试库（坐席状态 + 会话两表）
-func setupAutoAssignTestDB(t *testing.T) (*gorm.DB, *AgentStatusRepository, *CustomerSessionRepository) {
+func setupAutoAssignTestDB(t *testing.T) (*gorm.DB, *AgentStatusRepository) {
 	t.Helper()
 	database := testutil.NewTestDB(t,
 		&model.AgentStatus{},
 		&model.CustomerSession{},
 	)
-	return database,
-		NewAgentStatusRepositoryWithDB(database),
-		NewCustomerSessionRepositoryWithDB(database)
+	return database, NewAgentStatusRepositoryWithDB(database)
 }
 
 // TestAutoAssignAgentTx_PicksLeastBusyWithLock 验证事务分配选中 last_active 最新的最闲坐席，
 // 并原子完成 会话分配 + 坐席负载自增
 func TestAutoAssignAgentTx_PicksLeastBusyWithLock(t *testing.T) {
-	database, agentRepo, sessionRepo := setupAutoAssignTestDB(t)
+	database, agentRepo := setupAutoAssignTestDB(t)
 	ctx := context.Background()
 
 	fresh := time.Now().Add(-1 * time.Minute)
@@ -59,7 +57,7 @@ func TestAutoAssignAgentTx_PicksLeastBusyWithLock(t *testing.T) {
 		t.Fatalf("seed session: %v", err)
 	}
 
-	best, err := agentRepo.AutoAssignAgentTx(ctx, sessionRepo, sess.ID)
+	best, err := agentRepo.AutoAssignAgentTx(ctx, sess.ID)
 	if err != nil {
 		t.Fatalf("AutoAssignAgentTx: %v", err)
 	}
@@ -86,7 +84,7 @@ func TestAutoAssignAgentTx_PicksLeastBusyWithLock(t *testing.T) {
 
 // TestAutoAssignAgentTx_NoAgentAvailable 无可用坐席时回滚并返回 ErrRecordNotFound
 func TestAutoAssignAgentTx_NoAgentAvailable(t *testing.T) {
-	database, agentRepo, sessionRepo := setupAutoAssignTestDB(t)
+	database, agentRepo := setupAutoAssignTestDB(t)
 	ctx := context.Background()
 
 	sess := &model.CustomerSession{SessionID: "as-tx-2", Platform: "wechat", Status: model.SessionStatusPending}
@@ -94,7 +92,7 @@ func TestAutoAssignAgentTx_NoAgentAvailable(t *testing.T) {
 		t.Fatalf("seed session: %v", err)
 	}
 
-	_, err := agentRepo.AutoAssignAgentTx(ctx, sessionRepo, sess.ID)
+	_, err := agentRepo.AutoAssignAgentTx(ctx, sess.ID)
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		t.Fatalf("expected ErrRecordNotFound, got %v", err)
 	}

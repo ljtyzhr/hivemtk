@@ -31,7 +31,7 @@ func setupFrontendAliases(auth, systemAdmin *gin.RouterGroup, engine *gin.Engine
 	aiAgentSvc := service.NewAIAgentService()
 	// doReg 注册前端兼容别名。
 	//
-	// ⚠️ 2026-09-16：原实现在 recover 中 `_ = r` **静默吞掉**注册失败，导致别名层
+	// ⚠️ 原实现在 recover 中 `_ = r` **静默吞掉**注册失败，导致别名层
 	// 完全没有可观测性 —— 审计时实测有 58 处 doReg 在每次启动时静默失败而无人知晓
 	// （同期 doRegAdmin 会打印告警，两者行为不一致）。现改为与 doRegAdmin 一致地打印
 	// 告警，使「别名没生效」这件事在启动日志里可见。
@@ -198,7 +198,10 @@ func setupFrontendAliases(auth, systemAdmin *gin.RouterGroup, engine *gin.Engine
 	doReg("GET", "/script-templates/public", scriptCtrl.GetPublicTemplates)
 	doReg("POST", "/script-templates/recommend", scriptCtrl.RecommendScript)
 
-	agentStatusCtrl := controller.NewAgentStatusController(aiAgentSvc)
+	agentStatusCtrl := controller.NewAgentStatusController(aiAgentSvc, service.NewAgentStatusService(
+		repository.NewAgentStatusRepositoryWithDB(gormDB),
+		repository.NewCustomerSessionRepositoryWithDB(gormDB),
+	))
 	doReg("GET", "/agent-statuses", agentStatusCtrl.GetOnlineAgents)
 	doReg("GET", "/agent-statuses/online", agentStatusCtrl.GetOnlineAgents)
 	doReg("GET", "/agent-statuses/list", agentStatusCtrl.ListAllAgents)
@@ -443,7 +446,7 @@ func setupFrontendAliases(auth, systemAdmin *gin.RouterGroup, engine *gin.Engine
 	notifCtrlAlias := controller.NewNotificationController(service.NewNotificationService(gormDB))
 	doReg("POST", "/mentions/:id/read", notifCtrlAlias.MarkRead)
 	doReg("GET", "/mentions/mine", notifCtrlAlias.List)
-	// 2026-10-12 移除：doReg("GET", "/system/menus", systemInfoCtrl.SystemMenus)
+	// doReg("GET", "/system/menus", systemInfoCtrl.SystemMenus)
 	//
 	// 这条别名原指 SystemInfoController.SystemMenus，而那个方法的注释自陈
 	// 「当前开源版无动态菜单配置，返回空数组供前端做初始渲染占位」。

@@ -18,7 +18,7 @@ import (
 	"gorm.io/gorm"
 )
 
-func setupCustomerServiceRoutes(auth *gin.RouterGroup, aiAgentSvc *service.AIAgentService, langResolver *translation.LangConfigResolver) {
+func setupCustomerServiceRoutes(auth *gin.RouterGroup, aiAgentSvc *service.AIAgentService, langResolver *translation.LangConfigResolver, db *gorm.DB) {
 	customerSessionCtrl := controller.NewCustomerSessionController()
 	auth.GET("/customer-sessions", customerSessionCtrl.GetSessions)
 	auth.GET("/customer-sessions/pending", customerSessionCtrl.GetPendingSessions)
@@ -41,7 +41,10 @@ func setupCustomerServiceRoutes(auth *gin.RouterGroup, aiAgentSvc *service.AIAge
 	auth.PUT("/customer-sessions/:id/status", customerSessionCtrl.UpdateSessionStatus)
 	auth.GET("/customer-sessions/:id", customerSessionCtrl.GetSessionByID)
 
-	agentStatusCtrl := controller.NewAgentStatusController(aiAgentSvc)
+	agentStatusCtrl := controller.NewAgentStatusController(aiAgentSvc, service.NewAgentStatusService(
+		repository.NewAgentStatusRepositoryWithDB(db),
+		repository.NewCustomerSessionRepositoryWithDB(db),
+	))
 	auth.POST("/agents", agentStatusCtrl.CreateAgent)
 	auth.GET("/agents/me", agentStatusCtrl.GetMyAgent)
 	auth.GET("/agents/all", agentStatusCtrl.ListAllAgents)

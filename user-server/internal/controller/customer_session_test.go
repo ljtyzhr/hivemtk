@@ -9,6 +9,8 @@ import (
 
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/db"
+	"hivemtk-user/internal/repository"
+	"hivemtk-user/internal/service"
 
 	"hivemtk-user/internal/pkg/testutil"
 
@@ -29,7 +31,10 @@ func setupCustomerSessionTestDB(t *testing.T) *gorm.DB {
 func setupCustomerSessionController(t *testing.T) (*CustomerSessionController, *AgentStatusController, *gin.Engine) {
 	setupCustomerSessionTestDB(t)
 	sessionCtrl := NewCustomerSessionController()
-	agentCtrl := NewAgentStatusController(nil)
+	agentCtrl := NewAgentStatusController(nil, service.NewAgentStatusService(
+		repository.NewAgentStatusRepositoryWithDB(db.GetDB()),
+		repository.NewCustomerSessionRepositoryWithDB(db.GetDB()),
+	))
 	router := gin.New()
 
 	router.Use(func(c *gin.Context) {
@@ -660,7 +665,7 @@ func TestAgentStatusController_GetAgentSessions(t *testing.T) {
 
 // TestAgentStatusController_NewAgentStatusController 测试构造函数
 func TestAgentStatusController_NewAgentStatusController(t *testing.T) {
-	ctrl := NewAgentStatusController(nil)
+	ctrl := NewAgentStatusController(nil, nil)
 	if ctrl == nil {
 		t.Error("Expected controller instance, got nil")
 	}

@@ -615,7 +615,7 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 
 		setupWeComRoutes(auth, gormDB)
 
-		setupCustomerServiceRoutes(auth, aiAgentSvcGlobal, langResolver)
+		setupCustomerServiceRoutes(auth, aiAgentSvcGlobal, langResolver, gormDB)
 
 		copilotCtrl := controller.NewManageCoPilotController()
 		auth.GET("/manage/co-pilot/config", copilotCtrl.GetConfig)

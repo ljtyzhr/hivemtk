@@ -19,9 +19,12 @@ type AgentStatusController struct {
 // NewAgentStatusController 创建客服状态控制器实例
 //
 // 由 router 层注入 *service.AIAgentService，控制器仅持有 service 依赖，零 db 引用。
-func NewAgentStatusController(aiAgentSvc *service.AIAgentService) *AgentStatusController {
+func NewAgentStatusController(
+	aiAgentSvc *service.AIAgentService,
+	agentStatusSvc *service.AgentStatusService,
+) *AgentStatusController {
 	return &AgentStatusController{
-		agentService:    service.NewAgentStatusService(),
+		agentService:    agentStatusSvc,
 		customerService: service.NewCustomerServiceAgentServiceViaPort(aiAgentSvc),
 	}
 }

@@ -11,6 +11,13 @@ import (
 	"gorm.io/gorm/clause"
 )
 
+const (
+	// agentOnlineListLimit 在线坐席候选上限：按负载升序取最闲的，封顶不影响分配质量。
+	agentOnlineListLimit = 500
+	// agentAllListLimit 监管控制台/心跳扫描的全量坐席上限。
+	agentAllListLimit = 1000
+)
+
 // AgentStatusRepository 客服状态仓库
 type AgentStatusRepository struct {
 	db *gorm.DB
@@ -49,7 +56,7 @@ func (r *AgentStatusRepository) GetOnlineAgents(ctx context.Context) ([]*model.A
 	cutoff := time.Now().Add(-5 * time.Minute)
 	err := r.db.WithContext(ctx).Where("status IN ? AND active_sessions < max_sessions AND last_active_at > ?",
 		[]string{"online", "busy"}, cutoff).
-		Order("active_sessions ASC").Find(&agents).Error
+		Order("active_sessions ASC").Limit(agentOnlineListLimit).Find(&agents).Error
 	return agents, err
 }
 
@@ -58,7 +65,7 @@ func (r *AgentStatusRepository) ListAllAgents(ctx context.Context) ([]*model.Age
 	var agents []*model.AgentStatus
 	// 必须 WithContext：on 模式 tenancyidx 从 ctx 取租户注入过滤，
 	// 丢 ctx 会触发 fail-closed 5000（003 生产联调发现）
-	err := r.db.WithContext(ctx).Order("agent_id ASC").Find(&agents).Error
+	err := r.db.WithContext(ctx).Order("agent_id ASC").Limit(agentAllListLimit).Find(&agents).Error
 	return agents, err
 }
 
@@ -72,6 +79,8 @@ func (r *AgentStatusRepository) UpdateStatus(ctx context.Context, agentID uint, 
 		updates["offline_at"] = &now
 	}
 	updates["last_active_at"] = &now
+	// 计数/状态更新保持"0 行即 no-op"：心跳与计数是 best-effort，
+	// 坐席行缺失时按幂等成功处理（既有契约，由仓储用例锁死）。
 	return r.db.WithContext(ctx).Model(&model.AgentStatus{}).Where("agent_id = ?", agentID).Updates(updates).Error
 }
 
@@ -129,7 +138,7 @@ func (r *AgentStatusRepository) CountByStatus(ctx context.Context, status string
 // AutoAssignAgentTx 自动分配事务：行锁锁定最闲在线坐席 → 会话分配 → 坐席负载 +1，原子提交。
 // 返回被分配的坐席（供调用方做 WS 通知）；无可用坐席返回 gorm.ErrRecordNotFound。
 // 该方法为 data-integrity R6 的 SELECT FOR UPDATE 行锁分配链路的仓储收口（原 service 层直连 tx 实现）。
-func (r *AgentStatusRepository) AutoAssignAgentTx(ctx context.Context, sessionRepo *CustomerSessionRepository, sessionID uint) (*model.AgentStatus, error) {
+func (r *AgentStatusRepository) AutoAssignAgentTx(ctx context.Context, sessionID uint) (*model.AgentStatus, error) {
 	tx := r.db.WithContext(ctx).Begin()
 	if tx.Error != nil {
 		return nil, fmt.Errorf("start transaction: %w", tx.Error)
@@ -153,7 +162,9 @@ func (r *AgentStatusRepository) AutoAssignAgentTx(ctx context.Context, sessionRe
 		return nil, err
 	}
 
-	if err := sessionRepo.AssignAgent(ctx, sessionID, bestAgent.AgentID, bestAgent.AgentName); err != nil {
+	// 必须用挂在同一事务上的仓储：传入外部仓储会走它自己的连接，
+	// 后面的负载自增回滚了、会话分配却已经提交，事务名不副实。
+	if err := NewCustomerSessionRepositoryWithDB(tx).AssignAgent(ctx, sessionID, bestAgent.AgentID, bestAgent.AgentName); err != nil {
 		tx.Rollback()
 		return nil, fmt.Errorf("assign agent: %w", err)
 	}

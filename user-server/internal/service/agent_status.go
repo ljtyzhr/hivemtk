@@ -24,17 +24,20 @@ const (
 
 // AgentStatusService 客服状态服务
 type AgentStatusService struct {
-	agentRepo *repository.AgentStatusRepository
+	agentRepo   *repository.AgentStatusRepository
+	sessionRepo *repository.CustomerSessionRepository
 
 	mu        sync.Mutex
 	monitorOn bool
 }
 
-// NewAgentStatusService 创建客服状态服务实例
-func NewAgentStatusService() *AgentStatusService {
-	return &AgentStatusService{
-		agentRepo: repository.NewAgentStatusRepository(),
-	}
+// NewAgentStatusService 创建客服状态服务实例；两个仓储都由装配层注入，
+// 服务内不再直取全局 db 句柄。
+func NewAgentStatusService(
+	agentRepo *repository.AgentStatusRepository,
+	sessionRepo *repository.CustomerSessionRepository,
+) *AgentStatusService {
+	return &AgentStatusService{agentRepo: agentRepo, sessionRepo: sessionRepo}
 }
 
 // CreateAgentRequest 创建客服请求
@@ -117,8 +120,7 @@ func (s *AgentStatusService) GoOffline(ctx context.Context, agentID uint) error 
 
 // GetAgentSessions 获取客服的活跃会话
 func (s *AgentStatusService) GetAgentSessions(ctx context.Context, agentID uint) ([]*model.CustomerSession, error) {
-	sessionRepo := repository.NewCustomerSessionRepository()
-	return sessionRepo.GetAgentSessions(ctx, agentID)
+	return s.sessionRepo.GetAgentSessions(ctx, agentID)
 }
 
 // TouchHeartbeat 记录坐席工作台连接活跃（S-3）。
@@ -225,8 +227,7 @@ func (s *AgentStatusService) checkStaleAgentsForTenant(ctx context.Context, time
 }
 
 func (s *AgentStatusService) returnSessionsToAI(ctx context.Context, agentID uint) int {
-	sessionRepo := repository.NewCustomerSessionRepository()
-	sessions, err := sessionRepo.GetAgentSessions(ctx, agentID)
+	sessions, err := s.sessionRepo.GetAgentSessions(ctx, agentID)
 	if err != nil {
 		logger.Ctx(ctx).Warn().Err(err).
 			Uint("agent_id", agentID).
@@ -246,13 +247,13 @@ func (s *AgentStatusService) returnSessionsToAI(ctx context.Context, agentID uin
 					Msg("[S-3] release human lock failed (continue)")
 			}
 		}
-		if err := sessionRepo.UpdateHandlerType(ctx, sess.ID, model.HandlerTypeAI); err != nil {
+		if err := s.sessionRepo.UpdateHandlerType(ctx, sess.ID, model.HandlerTypeAI); err != nil {
 			logger.Ctx(ctx).Warn().Err(err).
 				Str("session_id", sess.SessionID).
 				Msg("[S-3] set session handler=ai failed")
 			continue
 		}
-		if err := sessionRepo.UpdateStatus(ctx, sess.ID, model.SessionStatusAIHandling); err != nil {
+		if err := s.sessionRepo.UpdateStatus(ctx, sess.ID, model.SessionStatusAIHandling); err != nil {
 			logger.Ctx(ctx).Warn().Err(err).
 				Str("session_id", sess.SessionID).
 				Msg("[S-3] set session status=ai_handling failed")

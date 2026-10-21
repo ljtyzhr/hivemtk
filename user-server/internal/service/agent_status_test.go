@@ -26,7 +26,7 @@ func setupAgentStatusTestDB(t *testing.T) *gorm.DB {
 // TestTouchHeartbeat_UpdatesLastActiveAt 验证心跳刷新只动 last_active_at
 func TestTouchHeartbeat_UpdatesLastActiveAt(t *testing.T) {
 	setupAgentStatusTestDB(t)
-	svc := NewAgentStatusService()
+	svc := NewAgentStatusService(repository.NewAgentStatusRepositoryWithDB(db.GetDB()), repository.NewCustomerSessionRepositoryWithDB(db.GetDB()))
 	ctx := context.Background()
 
 	old := time.Now().Add(-10 * time.Minute)
@@ -60,7 +60,7 @@ func TestTouchHeartbeat_UpdatesLastActiveAt(t *testing.T) {
 // 心跳超时在线坐席 → 自动 offline + 在办会话转回 AI（handler/status/锁/活跃数）。
 func TestCheckStaleAgents_OfflineAndReturnSessionsToAI(t *testing.T) {
 	setupAgentStatusTestDB(t)
-	svc := NewAgentStatusService()
+	svc := NewAgentStatusService(repository.NewAgentStatusRepositoryWithDB(db.GetDB()), repository.NewCustomerSessionRepositoryWithDB(db.GetDB()))
 	ctx := context.Background()
 
 	stale := time.Now().Add(-2 * HeartbeatOfflineTimeout)
@@ -123,7 +123,7 @@ func TestCheckStaleAgents_OfflineAndReturnSessionsToAI(t *testing.T) {
 // last_active_at 为空的在线坐席不做自动下线判定（由查询侧 cutoff 兜底）。
 func TestCheckStaleAgents_NilHeartbeatSkipped(t *testing.T) {
 	setupAgentStatusTestDB(t)
-	svc := NewAgentStatusService()
+	svc := NewAgentStatusService(repository.NewAgentStatusRepositoryWithDB(db.GetDB()), repository.NewCustomerSessionRepositoryWithDB(db.GetDB()))
 	ctx := context.Background()
 
 	if err := db.GetDB().Create(&model.AgentStatus{
@@ -145,7 +145,7 @@ func TestCheckStaleAgents_NilHeartbeatSkipped(t *testing.T) {
 // 仅验证状态位语义，ticker 循环本身由 CheckStaleAgents 单测覆盖。
 func TestStartHeartbeatMonitor_Idempotent(t *testing.T) {
 	setupAgentStatusTestDB(t)
-	svc := NewAgentStatusService()
+	svc := NewAgentStatusService(repository.NewAgentStatusRepositoryWithDB(db.GetDB()), repository.NewCustomerSessionRepositoryWithDB(db.GetDB()))
 
 	ctx, cancel := context.WithCancel(context.Background())
 	defer cancel()
