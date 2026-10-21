@@ -51,6 +51,24 @@ func waitForIntentCount(t *testing.T, rec *IntentRecognizer, customerID string, 
 	}
 }
 
+// waitForIntentRows 等异步落库的行数到 want。
+//
+// 识别记录是异步写的：用定长 sleep 等它，机器负载高时只等到一部分
+// （实测 3→1、2→1），红的原因与被测逻辑无关。轮询到目标行数或超时，
+// 断言强度不变（仍然要求「恰好 N 条」），只把「等多久」交给被测代码。
+func waitForIntentRows(t *testing.T, db *gorm.DB, want int64, timeout time.Duration) int64 {
+	t.Helper()
+	deadline := time.Now().Add(timeout)
+	var count int64
+	for {
+		db.Model(&model.IntentRecord{}).Count(&count)
+		if count >= want || time.Now().After(deadline) {
+			return count
+		}
+		time.Sleep(20 * time.Millisecond)
+	}
+}
+
 // 1. 完全匹配 - 询价
 func TestRecognizeRule_PriceInquiryExact(t *testing.T) {
 	rec, _ := newIntentRecognizer(t)
@@ -547,10 +565,7 @@ func TestRecognize_MultipleKeywordConfidence(t *testing.T) {
 func TestRecognize_Persist(t *testing.T) {
 	rec, db := newIntentRecognizer(t)
 	rec.Recognize(context.Background(), "s-1", "u-1", "多少钱")
-	time.Sleep(200 * time.Millisecond)
-	var count int64
-	db.Model(&model.IntentRecord{}).Count(&count)
-	if count == 0 {
+	if count := waitForIntentRows(t, db, 1, 3*time.Second); count == 0 {
 		t.Error("expected record to be saved")
 	}
 }
@@ -561,10 +576,7 @@ func TestRecognize_MultiplePersist(t *testing.T) {
 	for i := 0; i < 5; i++ {
 		rec.Recognize(context.Background(), "s-1", "u-1", "多少钱")
 	}
-	time.Sleep(200 * time.Millisecond)
-	var count int64
-	db.Model(&model.IntentRecord{}).Count(&count)
-	if count < 5 {
+	if count := waitForIntentRows(t, db, 5, 3*time.Second); count < 5 {
 		t.Errorf("expected >=5, got %d", count)
 	}
 }
@@ -573,7 +585,7 @@ func TestRecognize_MultiplePersist(t *testing.T) {
 func TestRecognize_RecordFields(t *testing.T) {
 	rec, db := newIntentRecognizer(t)
 	rec.Recognize(context.Background(), "s-1", "u-1", "多少钱")
-	time.Sleep(200 * time.Millisecond)
+	waitForIntentRows(t, db, 1, 3*time.Second)
 	var r model.IntentRecord
 	db.First(&r)
 
@@ -606,7 +618,7 @@ func TestStats_Populated(t *testing.T) {
 	rec.Recognize(context.Background(), "s-1", "u-1", "多少钱")
 	rec.Recognize(context.Background(), "s-1", "u-1", "太贵了")
 	rec.Recognize(context.Background(), "s-1", "u-1", "太贵了")
-	time.Sleep(200 * time.Millisecond)
+	waitForIntentCount(t, rec, "u-1", 3, 3*time.Second)
 	stats, _ := rec.GetIntentStats(context.Background(), 7)
 	if stats[IntentPriceInquiry] != 1 {
 		t.Errorf("expected 1, got %d", stats[IntentPriceInquiry])
@@ -620,7 +632,7 @@ func TestStats_Populated(t *testing.T) {
 func TestStats_ZeroDays(t *testing.T) {
 	rec, _ := newIntentRecognizer(t)
 	rec.Recognize(context.Background(), "s-1", "u-1", "多少钱")
-	time.Sleep(200 * time.Millisecond)
+	waitForIntentCount(t, rec, "u-1", 1, 3*time.Second)
 	stats, _ := rec.GetIntentStats(context.Background(), 0)
 	_ = stats
 }
@@ -1097,17 +1109,7 @@ func TestRecognize_SameCustomerMultiple(t *testing.T) {
 	rec.Recognize(context.Background(), "s-1", "u-1", "多少钱")
 	rec.Recognize(context.Background(), "s-1", "u-1", "多少钱")
 	rec.Recognize(context.Background(), "s-1", "u-1", "多少钱")
-	// 三条记录是异步落库的：定长 sleep 在机器负载高时只等到一部分（实测 3→1），
-	// 改成有上限的轮询，等满仍是「必须恰好 3 条」，不放宽断言。
-	var list []model.IntentRecord
-	deadline := time.Now().Add(2 * time.Second)
-	for {
-		list, _ = rec.GetRecentIntents(context.Background(), "u-1", 10)
-		if len(list) >= 3 || time.Now().After(deadline) {
-			break
-		}
-		time.Sleep(50 * time.Millisecond)
-	}
+	list := waitForIntentCount(t, rec, "u-1", 3, 3*time.Second)
 	if len(list) != 3 {
 		t.Errorf("expected 3, got %d", len(list))
 	}
@@ -1130,8 +1132,7 @@ func TestRecognize_MultiSession(t *testing.T) {
 	rec, _ := newIntentRecognizer(t)
 	rec.Recognize(context.Background(), "s-1", "u-1", "多少钱")
 	rec.Recognize(context.Background(), "s-2", "u-1", "多少钱")
-	time.Sleep(200 * time.Millisecond)
-	list, _ := rec.GetRecentIntents(context.Background(), "u-1", 10)
+	list := waitForIntentCount(t, rec, "u-1", 2, 3*time.Second)
 	if len(list) != 2 {
 		t.Errorf("expected 2 across sessions, got %d", len(list))
 	}
