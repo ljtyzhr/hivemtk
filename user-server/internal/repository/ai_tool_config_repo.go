@@ -19,9 +19,19 @@ func NewAIToolConfigRepository(db *gorm.DB) *AIToolConfigRepository {
 }
 
 // List 获取工具列表
+//
+// 分页入参在此归一：page<1 归 1、pageSize 非法归 20（上限 200），避免
+// 负 Offset 或超大 Limit 把全表读出来。
 func (r *AIToolConfigRepository) List(ctx context.Context, category string, enabled *bool, page, pageSize int) ([]model.AIToolConfig, int64, error) {
 	var tools []model.AIToolConfig
 	var total int64
+
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 200 {
+		pageSize = 20
+	}
 
 	query := r.db.WithContext(ctx).Model(&model.AIToolConfig{})
 
@@ -36,7 +46,7 @@ func (r *AIToolConfigRepository) List(ctx context.Context, category string, enab
 		return nil, 0, err
 	}
 
-	if err := query.Offset((page - 1) * pageSize).Limit(pageSize).Order("display_order ASC").Find(&tools).Error; err != nil {
+	if err := query.Offset((page - 1) * pageSize).Limit(pageSize).Order("display_order ASC, id ASC").Find(&tools).Error; err != nil {
 		return nil, 0, err
 	}
 

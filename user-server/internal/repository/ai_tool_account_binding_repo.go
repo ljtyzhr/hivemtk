@@ -18,10 +18,16 @@ func NewAIToolAccountBindingRepository(db *gorm.DB) *AIToolAccountBindingReposit
 	return &AIToolAccountBindingRepository{db: db}
 }
 
-// ListByTool 获取工具绑定的账号列表
+// aiToolBindingListLimit 单个工具的绑定列表上限，防止无界读。
+const aiToolBindingListLimit = 200
+
+// ListByTool 获取工具绑定的账号列表（最多 aiToolBindingListLimit 条）
 func (r *AIToolAccountBindingRepository) ListByTool(ctx context.Context, toolName string) ([]model.AIToolAccountBinding, error) {
 	var bindings []model.AIToolAccountBinding
-	err := r.db.WithContext(ctx).Where("tool_name = ?", toolName).Find(&bindings).Error
+	err := r.db.WithContext(ctx).Where("tool_name = ?", toolName).
+		Order("id ASC").
+		Limit(aiToolBindingListLimit).
+		Find(&bindings).Error
 	return bindings, err
 }
 
@@ -64,7 +70,10 @@ func (r *AIToolAccountBindingRepository) ListByTools(ctx context.Context, toolNa
 		return out, nil
 	}
 	var bindings []model.AIToolAccountBinding
-	if err := r.db.WithContext(ctx).Where("tool_name IN ?", toolNames).Find(&bindings).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("tool_name IN ?", toolNames).
+		Order("id ASC").
+		Limit(aiToolBindingListLimit * 10).
+		Find(&bindings).Error; err != nil {
 		return nil, err
 	}
 	for _, b := range bindings {

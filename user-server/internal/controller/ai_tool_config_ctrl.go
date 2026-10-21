@@ -77,15 +77,21 @@ func (c *AIToolConfigController) UpdateToolStatus(ctx *gin.Context) {
 		return
 	}
 
+	// is_enabled 必须显式给出：bool 零值会把「漏传字段」当成「关掉工具」，
+	// 一个空 body 就能静默停用工具。
 	var req struct {
-		IsEnabled bool `json:"is_enabled"`
+		IsEnabled *bool `json:"is_enabled"`
 	}
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		response.Error(ctx, http.StatusBadRequest, "请求参数错误")
 		return
 	}
+	if req.IsEnabled == nil {
+		response.Error(ctx, http.StatusBadRequest, "is_enabled 不能为空")
+		return
+	}
 
-	if err := c.service.UpdateStatus(ctx.Request.Context(), name, req.IsEnabled); err != nil {
+	if err := c.service.UpdateStatus(ctx.Request.Context(), name, *req.IsEnabled); err != nil {
 		response.ErrorFromDB(ctx, err, "工具不存在")
 		return
 	}
@@ -97,7 +103,7 @@ func (c *AIToolConfigController) UpdateToolStatus(ctx *gin.Context) {
 func (c *AIToolConfigController) BatchUpdateStatus(ctx *gin.Context) {
 	var req struct {
 		Tools     []string `json:"tools"`
-		IsEnabled bool     `json:"is_enabled"`
+		IsEnabled *bool    `json:"is_enabled"`
 	}
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		response.Error(ctx, http.StatusBadRequest, "请求参数错误")
@@ -108,8 +114,12 @@ func (c *AIToolConfigController) BatchUpdateStatus(ctx *gin.Context) {
 		response.Error(ctx, http.StatusBadRequest, "工具列表不能为空")
 		return
 	}
+	if req.IsEnabled == nil {
+		response.Error(ctx, http.StatusBadRequest, "is_enabled 不能为空")
+		return
+	}
 
-	if err := c.service.BatchUpdateStatus(ctx.Request.Context(), req.Tools, req.IsEnabled); err != nil {
+	if err := c.service.BatchUpdateStatus(ctx.Request.Context(), req.Tools, *req.IsEnabled); err != nil {
 		response.ErrorFromDB(ctx, err, "工具不存在")
 		return
 	}
