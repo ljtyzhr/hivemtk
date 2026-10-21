@@ -8,31 +8,42 @@ import (
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 // ScriptTemplateController 话术模板控制器
 type ScriptTemplateController struct {
 	templateService *service.ScriptTemplateService
+	syncService     *service.ScriptTemplateSyncService
 }
 
-// NewScriptTemplateController 创建话术模板控制器实例
-func NewScriptTemplateController() *ScriptTemplateController {
+// NewScriptTemplateController 创建话术模板控制器实例。
+//
+// 句柄由装配点注入（与 #16/#17/#18 同口径）：改前无参构造口一路 new 到仓储，
+// 仓储自己摸全局 db.GetDB()，于是 handler 手上的 ctx 在这条链上没有任何一格被用上。
+// 同步服务也在这里建好：改前 SyncToLibrary handler 每个请求 new 一个，
+// 把「装配」下沉到了请求路径上。
+func NewScriptTemplateController(db *gorm.DB) *ScriptTemplateController {
 	return &ScriptTemplateController{
-		templateService: service.NewScriptTemplateService(),
+		templateService: service.NewScriptTemplateService(db),
+		syncService:     service.NewScriptTemplateSyncService(db),
 	}
 }
 
 // CreateTemplate 创建话术模板
 func (c *ScriptTemplateController) CreateTemplate(ctx *gin.Context) {
-
-	userID, _ := ctx.Get("user_id")
+	createdBy, ok := callerUserID(ctx)
+	if !ok {
+		response.Error(ctx, http.StatusUnauthorized, "未获取到调用方身份")
+		return
+	}
 	var req service.CreateScriptTemplateRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		response.Error(ctx, http.StatusBadRequest, "请求参数错误："+err.Error())
 		return
 	}
 
-	template, err := c.templateService.CreateTemplate(userID.(uint), &req)
+	template, err := c.templateService.CreateTemplate(ctx.Request.Context(), createdBy, &req)
 	if errhttp.HandleDBError(ctx, err, "创建话术模板") {
 		return
 	}
@@ -47,9 +58,8 @@ func (c *ScriptTemplateController) GetTemplateList(ctx *gin.Context) {
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(ctx.DefaultQuery("page_size", "10"))
 
-	templates, total, err := c.templateService.GetTemplateList(category, page, pageSize)
-	if err != nil {
-		response.Error(ctx, http.StatusInternalServerError, err.Error())
+	templates, total, err := c.templateService.GetTemplateList(ctx.Request.Context(), category, page, pageSize)
+	if errhttp.HandleDBError(ctx, err, "获取话术模板列表") {
 		return
 	}
 
@@ -71,9 +81,11 @@ func (c *ScriptTemplateController) GetTemplateByID(ctx *gin.Context) {
 		return
 	}
 
-	template, err := c.templateService.GetTemplateByID(uint(id))
-	if err != nil {
-		response.Error(ctx, http.StatusNotFound, err.Error())
+	template, err := c.templateService.GetTemplateByID(ctx.Request.Context(), uint(id))
+	// 改前这里是 response.Error(ctx, 404, err.Error())：把隔离闸的拒绝、SQL 故障
+	// 一律说成「话术不存在」，还把内部原文递到出口。现在绑 ctx 而不在本租户 ⇒
+	// ErrRecordNotFound ⇒ 404；未绑 ctx ⇒ 500 且只有固定文案。
+	if errhttp.HandleDBError(ctx, err, "获取话术模板详情") {
 		return
 	}
 
@@ -96,7 +108,7 @@ func (c *ScriptTemplateController) UpdateTemplate(ctx *gin.Context) {
 		return
 	}
 
-	template, err := c.templateService.UpdateTemplate(uint(id), &req)
+	template, err := c.templateService.UpdateTemplate(ctx.Request.Context(), uint(id), &req)
 	if errhttp.HandleDBError(ctx, err, "更新话术模板") {
 		return
 	}
@@ -114,7 +126,7 @@ func (c *ScriptTemplateController) DeleteTemplate(ctx *gin.Context) {
 		return
 	}
 
-	if errhttp.HandleDBError(ctx, c.templateService.DeleteTemplate(uint(id)), "删除话术模板") {
+	if errhttp.HandleDBError(ctx, c.templateService.DeleteTemplate(ctx.Request.Context(), uint(id)), "删除话术模板") {
 		return
 	}
 
@@ -124,9 +136,8 @@ func (c *ScriptTemplateController) DeleteTemplate(ctx *gin.Context) {
 // GetCategories 获取话术分类
 func (c *ScriptTemplateController) GetCategories(ctx *gin.Context) {
 
-	categories, err := c.templateService.GetCategories()
-	if err != nil {
-		response.Error(ctx, http.StatusInternalServerError, err.Error())
+	categories, err := c.templateService.GetCategories(ctx.Request.Context())
+	if errhttp.HandleDBError(ctx, err, "获取话术分类") {
 		return
 	}
 
@@ -140,9 +151,8 @@ func (c *ScriptTemplateController) SearchTemplates(ctx *gin.Context) {
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(ctx.DefaultQuery("page_size", "10"))
 
-	templates, total, err := c.templateService.SearchTemplates(keyword, page, pageSize)
-	if err != nil {
-		response.Error(ctx, http.StatusInternalServerError, err.Error())
+	templates, total, err := c.templateService.SearchTemplates(ctx.Request.Context(), keyword, page, pageSize)
+	if errhttp.HandleDBError(ctx, err, "搜索话术") {
 		return
 	}
 
@@ -159,9 +169,8 @@ func (c *ScriptTemplateController) GetPublicTemplates(ctx *gin.Context) {
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(ctx.DefaultQuery("page_size", "10"))
 
-	templates, total, err := c.templateService.GetPublicTemplates(page, pageSize)
-	if err != nil {
-		response.Error(ctx, http.StatusInternalServerError, err.Error())
+	templates, total, err := c.templateService.GetPublicTemplates(ctx.Request.Context(), page, pageSize)
+	if errhttp.HandleDBError(ctx, err, "获取公开话术") {
 		return
 	}
 
@@ -177,28 +186,28 @@ func (c *ScriptTemplateController) GetPublicTemplates(ctx *gin.Context) {
 func (c *ScriptTemplateController) RecommendScript(ctx *gin.Context) {
 
 	var req struct {
-		SessionID string `json:"session_id"`
-		Message   string `json:"message" binding:"required"`
+		Message string `json:"message" binding:"required"`
 	}
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		response.Error(ctx, http.StatusBadRequest, "请求参数错误："+err.Error())
 		return
 	}
 
-	templates, err := c.templateService.RecommendScript(req.SessionID, req.Message)
-	if err != nil {
-		response.Error(ctx, http.StatusInternalServerError, err.Error())
+	// 请求体里的 session_id 从来没有任何下游用过（它唯一的归宿是那张
+	// 零写入点的 script_recommendations 表，见 model-list #19 决策 1），
+	// 改前把它收下再丢掉，等于给调用方一个「会留痕」的错觉。
+	templates, err := c.templateService.RecommendScript(ctx.Request.Context(), req.Message)
+	if errhttp.HandleDBError(ctx, err, "推荐话术") {
 		return
 	}
 
 	response.Success(ctx, templates, "获取推荐成功")
 }
 
+// SyncToLibrary 管理端模板 → 运行时话术库（按调用方租户同步）
 func (c *ScriptTemplateController) SyncToLibrary(ctx *gin.Context) {
-	syncSvc := service.NewScriptTemplateSyncService()
-	stats, err := syncSvc.SyncToLibrary(ctx.Request.Context())
-	if err != nil {
-		response.Error(ctx, http.StatusInternalServerError, err.Error())
+	stats, err := c.syncService.SyncToLibrary(ctx.Request.Context())
+	if errhttp.HandleDBError(ctx, err, "同步话术模板") {
 		return
 	}
 	response.Success(ctx, stats, "同步完成")

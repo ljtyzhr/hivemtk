@@ -189,7 +189,7 @@ func setupFrontendAliases(auth *gin.RouterGroup, engine *gin.Engine, gormDB *gor
 	doReg("GET", "/sop-agents/stats", sopCtrl.Stats)
 	doReg("GET", "/sop-agents/:id", sopCtrl.Get)
 
-	scriptCtrl := contentctrl.NewScriptTemplateController()
+	scriptCtrl := contentctrl.NewScriptTemplateController(gormDB)
 	doReg("GET", "/script-templates", scriptCtrl.GetTemplateList)
 	doReg("GET", "/script-templates/list", scriptCtrl.GetTemplateList)
 	doReg("GET", "/script-templates/categories", scriptCtrl.GetCategories)

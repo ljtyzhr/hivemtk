@@ -10,8 +10,10 @@ import (
 	contentmodel "hivemtk-user/internal/content/model"
 	"hivemtk-user/internal/content/repository"
 	mainmodel "hivemtk-user/internal/model"
-	_db "hivemtk-user/internal/pkg/db"
 )
+
+// ErrScriptLibraryMissing 读前置与写口之间那一行没了（含「不存在」⇒ 出口 404）。
+var ErrScriptLibraryMissing = errors.New("运行时话术不存在")
 
 // ScriptTemplateSyncService 话术模板 → 运行时话术库 同步服务
 type ScriptTemplateSyncService struct {
@@ -19,17 +21,14 @@ type ScriptTemplateSyncService struct {
 	db           *gorm.DB
 }
 
-// NewScriptTemplateSyncService 创建同步服务（使用全局 DB）
-func NewScriptTemplateSyncService() *ScriptTemplateSyncService {
+// NewScriptTemplateSyncService 创建同步服务：句柄由装配点注入，
+// 读写都跟着调用方 ctx 走（改前的无参构造口自己摸全局句柄，
+// on 模式下整条同步被隔离闸拒成 500，而 off 模式下它跨租户合并话术）。
+func NewScriptTemplateSyncService(db *gorm.DB) *ScriptTemplateSyncService {
 	return &ScriptTemplateSyncService{
-		templateRepo: repository.NewScriptTemplateRepository(),
-		db:           _db.GetDB(),
+		templateRepo: repository.NewScriptTemplateRepository(db),
+		db:           db,
 	}
-}
-
-// NewScriptTemplateSyncServiceWithDB 测试/内嵌注入用构造器
-func NewScriptTemplateSyncServiceWithDB(db *gorm.DB, templateRepo *repository.ScriptTemplateRepository) *ScriptTemplateSyncService {
-	return &ScriptTemplateSyncService{templateRepo: templateRepo, db: db}
 }
 
 // SyncToLibraryStats 同步结果统计
@@ -42,14 +41,19 @@ type SyncToLibraryStats struct {
 
 // SyncToLibrary 执行 template → library 单向同步（幂等，可重复执行）。
 //
-// 读取管理端全部话术模板，逐条按 (category, title) upsert 到 script_library：
+// 读取管理端话术模板，逐条按 (category, title) upsert 到 script_library：
 //   - 未命中：创建（Tags 由逗号分隔字符串转 JSONArray，Scenario 取 JourneyStage）
 //   - 已命中：更新 Content/Scenario/Tags，保留 library 侧 usage_count 等运行时统计
+//
+// 同步是**每租户各同步一次**的动作：读模板与查重键都由 ctx 决定租户，
+// 新建的 library 行由隔离 callback 填上调用方租户。
+// 不走 tenant.WithSystemScope：系统作用域会豁免闸，Create 时跳过 tenant_id 填充
+// ⇒ 所有租户的话术都落进列默认值 1（默认租户），B 家内容变成 A 家可见。
 func (s *ScriptTemplateSyncService) SyncToLibrary(ctx context.Context) (*SyncToLibraryStats, error) {
 	if s == nil || s.db == nil || s.templateRepo == nil {
 		return nil, errors.New("script template sync: service not initialized")
 	}
-	templates, _, err := s.templateRepo.GetAll("", 1, 1<<20)
+	templates, err := s.templateRepo.ListAll(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -60,7 +64,7 @@ func (s *ScriptTemplateSyncService) SyncToLibrary(ctx context.Context) (*SyncToL
 			stats.Skipped++
 			continue
 		}
-		created, err := s.upsertOne(t)
+		created, err := s.upsertOne(ctx, t)
 		if err != nil {
 			return stats, err
 		}
@@ -73,20 +77,34 @@ func (s *ScriptTemplateSyncService) SyncToLibrary(ctx context.Context) (*SyncToL
 	return stats, nil
 }
 
-func (s *ScriptTemplateSyncService) upsertOne(t *contentmodel.ScriptTemplate) (bool, error) {
+func (s *ScriptTemplateSyncService) upsertOne(ctx context.Context, t *contentmodel.ScriptTemplate) (bool, error) {
 	var lib mainmodel.ScriptLibrary
-	err := s.db.Where("category = ? AND title = ?", t.Category, t.Title).First(&lib).Error
+	err := s.db.WithContext(ctx).Where("category = ? AND title = ?", t.Category, t.Title).First(&lib).Error
 	switch {
 	case errors.Is(err, gorm.ErrRecordNotFound):
 		rec := templateToLibrary(t)
-		return true, s.db.Create(rec).Error
+		if err := s.db.WithContext(ctx).Create(rec).Error; err != nil {
+			return false, err
+		}
+		return true, nil
 	case err != nil:
 		return false, err
 	default:
-		lib.Content = t.Content
-		lib.Scenario = t.JourneyStage
-		lib.Tags = parseTagsToJSONArray(t.Tags)
-		return false, s.db.Save(&lib).Error
+		// 列级更新：只交正文/场景/标签三列，library 侧的 usage_count、
+		// success_count、conversion_rate、version、status 不由同步口覆写。
+		// 不用 Save——那条 upsert 会按结构体快照把归属与运行时统计一起顶回去。
+		res := s.db.WithContext(ctx).Model(&lib).Updates(map[string]any{
+			"content":  t.Content,
+			"scenario": t.JourneyStage,
+			"tags":     parseTagsToJSONArray(t.Tags),
+		})
+		if res.Error != nil {
+			return false, res.Error
+		}
+		if res.RowsAffected == 0 {
+			return false, ErrScriptLibraryMissing
+		}
+		return false, nil
 	}
 }
 

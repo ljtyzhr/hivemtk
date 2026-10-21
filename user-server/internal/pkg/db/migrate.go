@@ -196,7 +196,6 @@ func allModels() []any {
 		&contentmodel.MarketTemplateDownload{},
 		&contentmodel.ScriptTemplate{},
 		&contentmodel.ScriptCategory{},
-		&contentmodel.ScriptRecommend{},
 		&contentmodel.AIGenerationRecord{},
 		&contentmodel.PromptTemplate{},
 		&model.UnifiedMessage{},

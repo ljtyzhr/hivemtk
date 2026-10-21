@@ -50,23 +50,3 @@ type ScriptCategory struct {
 func (ScriptCategory) TableName() string {
 	return "script_categories"
 }
-
-// ScriptRecommend 话术推荐记录
-type ScriptRecommend struct {
-	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
-
-	ID            uint       `gorm:"primaryKey;autoIncrement" json:"id"`
-	SessionID     string     `gorm:"type:varchar(120);index" json:"session_id"`
-	Message       string     `gorm:"type:text" json:"message"`
-	TemplateID    uint       `json:"template_id"`
-	TemplateTitle string     `gorm:"type:varchar(100)" json:"template_title"`
-	Confidence    float64    `gorm:"type:decimal(5,2)" json:"confidence"`
-	IsUsed        bool       `gorm:"default:false" json:"is_used"`
-	UsedAt        *time.Time `json:"used_at"`
-	CreatedAt     time.Time  `gorm:"autoCreateTime" json:"created_at"`
-}
-
-// TableName 指定表名
-func (ScriptRecommend) TableName() string {
-	return "script_recommendations"
-}

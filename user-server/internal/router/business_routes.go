@@ -6,6 +6,7 @@ import (
 	"hivemtk-user/internal/controller"
 	"hivemtk-user/internal/middleware"
 	opsctrl "hivemtk-user/internal/ops/controller"
+	dbutil "hivemtk-user/internal/pkg/db"
 
 	"github.com/gin-gonic/gin"
 )
@@ -162,7 +163,7 @@ func setupTemplateRoutes(auth *gin.RouterGroup) {
 }
 
 func setupScriptRoutes(auth *gin.RouterGroup) {
-	scriptCtrl := contentctrl.NewScriptTemplateController()
+	scriptCtrl := contentctrl.NewScriptTemplateController(dbutil.GetDB())
 	auth.GET("/scripts", scriptCtrl.GetTemplateList)
 	auth.GET("/scripts/:id", scriptCtrl.GetTemplateByID)
 	auth.POST("/scripts", scriptCtrl.CreateTemplate)

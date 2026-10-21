@@ -13,11 +13,12 @@ type scriptLookupAdapter struct {
 	scriptSvc *contentservice.ScriptTemplateService
 }
 
-// NewScriptLookupAdapter 创建话术库查询适配器
+// NewScriptLookupAdapter 创建话术库查询适配器。
+//
+// 不再在 scriptSvc 为 nil 时自己 new 一个：那条兜底会经无参仓储构造口
+// 摸全局 db.GetDB()，把调用方手里的句柄换成进程默认库（测试与多实例场景下
+// 就是另一个库）。MatchScript 本来就有 `a.scriptSvc == nil` 的空转分支。
 func NewScriptLookupAdapter(scriptSvc *contentservice.ScriptTemplateService) ScriptLookup {
-	if scriptSvc == nil {
-		scriptSvc = contentservice.NewScriptTemplateService()
-	}
 	return &scriptLookupAdapter{scriptSvc: scriptSvc}
 }
 
@@ -30,10 +31,19 @@ func (a *scriptLookupAdapter) MatchScript(ctx context.Context, intent string, sc
 	if category == "" {
 		category = intent
 	}
-	templates, _, err := a.scriptSvc.GetTemplateList(category, 1, 20)
-	if err != nil || len(templates) == 0 {
-		templates, err = a.scriptSvc.RecommendScript("", intent)
-		if err != nil || len(templates) == 0 {
+	// 两条腿的错误一律上抛：改前 err 与「没匹配到」共用 nil,nil，
+	// 于是 on 模式下隔离闸拒绝读话术（上下文/配置坏了）在运行时表现为
+	// 「这条消息没话术可用」——SalesEngine 照常回话，没人知道话术库读不出来。
+	templates, _, err := a.scriptSvc.GetTemplateList(ctx, category, 1, 20)
+	if err != nil {
+		return nil, err
+	}
+	if len(templates) == 0 {
+		templates, err = a.scriptSvc.RecommendScript(ctx, intent)
+		if err != nil {
+			return nil, err
+		}
+		if len(templates) == 0 {
 			return nil, nil
 		}
 	}

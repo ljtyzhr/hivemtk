@@ -2,7 +2,6 @@ package model
 
 import (
 	"testing"
-	"time"
 )
 
 func TestScriptTemplate_TableName(t *testing.T) {
@@ -96,52 +95,5 @@ func TestScriptCategory_BasicFields(t *testing.T) {
 	}
 	if category.SortOrder != 1 {
 		t.Errorf("Expected SortOrder 1, got %d", category.SortOrder)
-	}
-}
-
-func TestScriptRecommend_TableName(t *testing.T) {
-	recommend := &ScriptRecommend{}
-	tableName := recommend.TableName()
-	if tableName != "script_recommendations" {
-		t.Errorf("Expected table name 'script_recommendations', got %s", tableName)
-	}
-}
-
-func TestScriptRecommend_BasicFields(t *testing.T) {
-	now := time.Now()
-
-	recommend := &ScriptRecommend{
-		ID:            1,
-		SessionID:     "sess-001",
-		Message:       "I want to know about shipping",
-		TemplateID:    10,
-		TemplateTitle: "Shipping Info",
-		Confidence:    0.85,
-		IsUsed:        true,
-		UsedAt:        &now,
-	}
-
-	if recommend.ID != 1 {
-		t.Errorf("Expected ID 1, got %d", recommend.ID)
-	}
-	if recommend.TemplateTitle != "Shipping Info" {
-		t.Errorf("Expected TemplateTitle 'Shipping Info', got %s", recommend.TemplateTitle)
-	}
-	if recommend.Confidence != 0.85 {
-		t.Errorf("Expected Confidence 0.85, got %f", recommend.Confidence)
-	}
-	if !recommend.IsUsed {
-		t.Error("Expected IsUsed to be true")
-	}
-}
-
-func TestScriptRecommend_DefaultValues(t *testing.T) {
-	recommend := &ScriptRecommend{}
-
-	if recommend.IsUsed != false {
-		t.Logf("IsUsed is %v (expected false before use)", recommend.IsUsed)
-	}
-	if recommend.Confidence != 0 {
-		t.Logf("Confidence is %f (expected 0 before save)", recommend.Confidence)
 	}
 }

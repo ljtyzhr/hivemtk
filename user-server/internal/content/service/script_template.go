@@ -11,25 +11,27 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"hivemtk-user/internal/content/model"
 	"hivemtk-user/internal/content/repository"
 	"strings"
+
+	"gorm.io/gorm"
 )
 
 // ScriptTemplateService 话术模板服务
 type ScriptTemplateService struct {
-	templateRepo  *repository.ScriptTemplateRepository
-	categoryRepo  *repository.ScriptCategoryRepository
-	recommendRepo *repository.ScriptRecommendRepository
+	templateRepo *repository.ScriptTemplateRepository
+	categoryRepo *repository.ScriptCategoryRepository
 }
 
-// NewScriptTemplateService 创建话术模板服务实例
-func NewScriptTemplateService() *ScriptTemplateService {
+// NewScriptTemplateService 由装配点注入句柄：服务不自己 new 无参仓储
+// （改前仓储构造口自己摸全局 db.GetDB()，handler 的 ctx 从这一段开始断掉）。
+func NewScriptTemplateService(db *gorm.DB) *ScriptTemplateService {
 	return &ScriptTemplateService{
-		templateRepo:  repository.NewScriptTemplateRepository(),
-		categoryRepo:  repository.NewScriptCategoryRepository(),
-		recommendRepo: repository.NewScriptRecommendRepository(),
+		templateRepo: repository.NewScriptTemplateRepository(db),
+		categoryRepo: repository.NewScriptCategoryRepository(db),
 	}
 }
 
@@ -45,7 +47,7 @@ type CreateScriptTemplateRequest struct {
 }
 
 // CreateTemplate 创建话术模板
-func (s *ScriptTemplateService) CreateTemplate(createdBy uint, req *CreateScriptTemplateRequest) (*model.ScriptTemplate, error) {
+func (s *ScriptTemplateService) CreateTemplate(ctx context.Context, createdBy uint, req *CreateScriptTemplateRequest) (*model.ScriptTemplate, error) {
 	variables, _ := json.Marshal(req.Variables)
 
 	template := &model.ScriptTemplate{
@@ -59,7 +61,7 @@ func (s *ScriptTemplateService) CreateTemplate(createdBy uint, req *CreateScript
 		CreatedBy: createdBy,
 	}
 
-	if err := s.templateRepo.Create(template); err != nil {
+	if err := s.templateRepo.Create(ctx, template); err != nil {
 		return nil, err
 	}
 
@@ -67,17 +69,13 @@ func (s *ScriptTemplateService) CreateTemplate(createdBy uint, req *CreateScript
 }
 
 // GetTemplateList 获取话术模板列表
-func (s *ScriptTemplateService) GetTemplateList(category string, page, pageSize int) ([]*model.ScriptTemplate, int64, error) {
-	return s.templateRepo.GetAll(category, page, pageSize)
+func (s *ScriptTemplateService) GetTemplateList(ctx context.Context, category string, page, pageSize int) ([]*model.ScriptTemplate, int64, error) {
+	return s.templateRepo.GetAll(ctx, category, page, pageSize)
 }
 
 // GetTemplateByID 获取话术模板详情
-func (s *ScriptTemplateService) GetTemplateByID(id uint) (*model.ScriptTemplate, error) {
-	template, err := s.templateRepo.GetByID(id)
-	if err != nil {
-		return nil, err
-	}
-	return template, nil
+func (s *ScriptTemplateService) GetTemplateByID(ctx context.Context, id uint) (*model.ScriptTemplate, error) {
+	return s.templateRepo.GetByID(ctx, id)
 }
 
 // UpdateTemplateRequest 更新话术模板请求
@@ -92,9 +90,13 @@ type UpdateTemplateRequest struct {
 	IsPublic     bool     `json:"is_public"`
 }
 
-// UpdateTemplate 更新话术模板
-func (s *ScriptTemplateService) UpdateTemplate(id uint, req *UpdateTemplateRequest) (*model.ScriptTemplate, error) {
-	template, err := s.templateRepo.GetByID(id)
+// UpdateTemplate 更新话术模板。
+//
+// 读前置必须走同一个 ctx：它既是「本租户才改得到」的归属门，也是 Save 那类
+// 「按结构体快照重插」的替代方案——行不可见就在此处交 ErrRecordNotFound，
+// 后面的列级 Update 再也不会碰到别租户或已删除的行。
+func (s *ScriptTemplateService) UpdateTemplate(ctx context.Context, id uint, req *UpdateTemplateRequest) (*model.ScriptTemplate, error) {
+	template, err := s.templateRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -119,37 +121,32 @@ func (s *ScriptTemplateService) UpdateTemplate(id uint, req *UpdateTemplateReque
 	template.JourneyStage = req.JourneyStage
 	template.IsPublic = req.IsPublic
 
-	if err := s.templateRepo.Update(template); err != nil {
+	if err := s.templateRepo.Update(ctx, template); err != nil {
 		return nil, err
 	}
 
 	return template, nil
 }
 
-// DeleteTemplate 删除话术模板
-func (s *ScriptTemplateService) DeleteTemplate(id uint) error {
-	template, err := s.templateRepo.GetByID(id)
-	if err != nil {
-		return err
-	}
-	_ = template
-
-	return s.templateRepo.Delete(id)
+// DeleteTemplate 删除话术模板：命中 0 行由仓储交出缺失哨兵（出口 404），
+// 不再「先查一次、把查到的值丢掉、再删一次」。
+func (s *ScriptTemplateService) DeleteTemplate(ctx context.Context, id uint) error {
+	return s.templateRepo.Delete(ctx, id)
 }
 
 // GetCategories 获取话术分类
-func (s *ScriptTemplateService) GetCategories() ([]*model.ScriptCategory, error) {
-	return s.categoryRepo.GetAll()
+func (s *ScriptTemplateService) GetCategories(ctx context.Context) ([]*model.ScriptCategory, error) {
+	return s.categoryRepo.GetAll(ctx)
 }
 
 // CreateCategory 创建话术分类
-func (s *ScriptTemplateService) CreateCategory(name string, parentID uint) (*model.ScriptCategory, error) {
+func (s *ScriptTemplateService) CreateCategory(ctx context.Context, name string, parentID uint) (*model.ScriptCategory, error) {
 	category := &model.ScriptCategory{
 		Name:     name,
 		ParentID: parentID,
 	}
 
-	if err := s.categoryRepo.Create(category); err != nil {
+	if err := s.categoryRepo.Create(ctx, category); err != nil {
 		return nil, err
 	}
 
@@ -157,23 +154,30 @@ func (s *ScriptTemplateService) CreateCategory(name string, parentID uint) (*mod
 }
 
 // SearchTemplates 搜索话术
-func (s *ScriptTemplateService) SearchTemplates(keyword string, page, pageSize int) ([]*model.ScriptTemplate, int64, error) {
-	return s.templateRepo.SearchTemplates(keyword, page, pageSize)
+func (s *ScriptTemplateService) SearchTemplates(ctx context.Context, keyword string, page, pageSize int) ([]*model.ScriptTemplate, int64, error) {
+	return s.templateRepo.SearchTemplates(ctx, keyword, page, pageSize)
 }
 
 // UseTemplate 使用话术（增加使用次数）
-func (s *ScriptTemplateService) UseTemplate(id uint) error {
-	return s.templateRepo.IncrementUsage(id)
+func (s *ScriptTemplateService) UseTemplate(ctx context.Context, id uint) error {
+	return s.templateRepo.IncrementUsage(ctx, id)
 }
 
 // GetPublicTemplates 获取公开话术模板
-func (s *ScriptTemplateService) GetPublicTemplates(page, pageSize int) ([]*model.ScriptTemplate, int64, error) {
-	return s.templateRepo.GetPublicTemplates(page, pageSize)
+func (s *ScriptTemplateService) GetPublicTemplates(ctx context.Context, page, pageSize int) ([]*model.ScriptTemplate, int64, error) {
+	return s.templateRepo.GetPublicTemplates(ctx, page, pageSize)
 }
 
-// RecommendScript 推荐话术
-func (s *ScriptTemplateService) RecommendScript(sessionID, message string) ([]*model.ScriptTemplate, error) {
-	templates, _, _ := s.templateRepo.SearchTemplates("", 1, 100)
+// RecommendScript 推荐话术。
+//
+// 读模板的错误一律上抛：改前 `templates, _, _ := SearchTemplates(...)` 把错误丢在地上，
+// 于是 on 模式下隔离闸拒绝读取（配置/上下文坏了）与「库里真没话术」长得一模一样，
+// 出口还回 200 + 空列表。
+func (s *ScriptTemplateService) RecommendScript(ctx context.Context, message string) ([]*model.ScriptTemplate, error) {
+	templates, _, err := s.templateRepo.SearchTemplates(ctx, "", 1, 100)
+	if err != nil {
+		return nil, err
+	}
 
 	type scoredTemplate struct {
 		template *model.ScriptTemplate
