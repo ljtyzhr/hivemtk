@@ -9,7 +9,7 @@ import (
 
 // ChannelSpec 渠道注册表条目：声明一个渠道的身份与支持传输。
 //
-// 渠道白名单单源化：历史上 IsBridgeChannel（bridge 包）与 model 渠道常量各自维护，
+// 渠道白名单单源化：此前 IsBridgeChannel（bridge 包）与 model 渠道常量各自维护，
 // 现统一收敛到本注册表；新增渠道仅需 Register 一处，HTTP/WS 传输的校验自动生效。
 type ChannelSpec struct {
 	Name       string

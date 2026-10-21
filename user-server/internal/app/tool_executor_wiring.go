@@ -147,7 +147,7 @@ func SetGlobalToolRouterForTest(r *tooluse.ToolRouter) { globalToolRouter = r }
 //
 // 注册顺序：reach → pm → customer → knowledge → business → 第三方
 //
-// 工具数量不在注释里写死（历史上曾记为 40，实际已增至 42 而无人更正）。
+// 工具数量不在注释里写死（早先记为 40，实际已增至 42 而无人更正）。
 // 需要准确数字时用 `tooluse.GetGlobalRegistry().List()` 在运行时取。
 func RegisterAllAgentTools(gormDB *gorm.DB) {
 	registerAllAgentToolsViaProviders(gormDB)

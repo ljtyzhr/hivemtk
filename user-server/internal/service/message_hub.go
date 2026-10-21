@@ -197,7 +197,7 @@ type PushMessageRequest struct {
 
 	// Status 只在进程内由投递方声明（直接投递渠道在发送 API 成功之后写 delivered），
 	// 故意不带 JSON 标签映射：hub 的 HTTP 推送入口若能让调用方自报状态，任何外部
-	// 调用方都能把一行说成已送达，待办集合与巡检口径会同时对它失真。
+	// 调用方都能把一行说成已送达，待办集合与采集口径会同时对它失真。
 	Status string `json:"-"`
 }
 

@@ -36,7 +36,7 @@ var (
 // 依赖 service.InitMemorySystem 已完成）
 //
 // 装配内容：
-//   - 创建 InferenceCycle（含默认 4 阶段：感知/对齐/门禁/规划）
+//   - 创建 InferenceCycle（含默认 4 阶段：感知/对齐/硬闸/规划）
 //   - 注入 EpisodicMemoryProvider（包装 MemorySystem）
 //   - 注入 StageCheckpointStore（T-P1-01 阶段边界断点续跑，受 FF_LTC_CHECKPOINT 控制）
 //   - 创建 CoreDataFlowOrchestrator（暂不注入 AssetLoader/ToolRouter/Publisher，
@@ -82,7 +82,7 @@ type inferenceRunRequest struct {
 // setupInferenceRoutes 注册推理闭环 API 路由
 //
 // 端点：
-//   - POST /api/agent/inference/run    触发一次推理闭环（感知→对齐→门禁→规划）
+//   - POST /api/agent/inference/run    触发一次推理闭环（感知→对齐→硬闸→规划）
 //   - GET  /api/agent/inference/stats  查询编排器统计
 //
 // 调用方：router.Setup() 的 auth 路由组

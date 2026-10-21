@@ -17,12 +17,12 @@ import (
 //   - 每条一个 SetXxxProvider，只注入闭包，不注入值——这些读取口在构造期和运行期
 //     都会调，注入值等于把参数快照冻在启动那一刻，运维改完不重启不生效。
 //   - Get* 调用与键名字面量必须写在同一行：scripts/check-config-param-readpoints.py
-//     认的就是这个形状，把 Get* 藏进通用 helper 会让门禁判成「未接线」。
+//     认的就是这个形状，把 Get* 藏进通用 helper 会让硬闸判成「未接线」。
 //   - 非法值（非正数、越界）一律回落 aiagent/llm 里的常量兜底，这层判断放在读取口
 //     而不是这里，理由同前两批。
 //
 // 返回值是本批真正接上的键名列表，供启动日志与装配层测试断言，避免"接线函数写了
-// 但少接一条"这种只有门禁能发现的退化。
+// 但少接一条"这种只有硬闸能发现的退化。
 func WireAgentLLMConfigParams() []string {
 	bg := context.Background()
 	cp := service.GlobalConfigParam()

@@ -63,7 +63,7 @@ func (m *LLMSeparatePricingMigration) Up(ctx context.Context) error {
 		return fmt.Errorf("创建 source 索引失败: %w", err)
 	}
 	// 回填：存量行显式标成 self。
-	// 理论上 DEFAULT 已覆盖，这一步是为了把「历史上有没有被别的路径写成 NULL」
+	// 理论上 DEFAULT 已覆盖，这一步是为了把「有没有被别的路径写成 NULL」
 	// 的行也一并归位 —— NULL 会让 ProviderSource() 的判空逻辑走到
 	// "不是 platform 也不是 self"的分支，而不是干净地回落 self。
 	if err := m.db.WithContext(ctx).

@@ -16,7 +16,7 @@ import (
 // RiskLevel()，而唯一的潜在读取方 ToolCallEvent.RiskLevel 在构造事件时根本不赋值
 // （见下方 FeedbackCollectorDecorator），feedback_sink_adapter 里那个
 // metadata["risk_level"] 分支因此从未进过任何一行。留着两套同名方法
-// （BaseTool.RiskLevel 与旧写法的覆盖方法）只会让"分级"这件事有两个答案。
+// （BaseTool.RiskLevel 与覆盖方法）只会让"分级"这件事有两个答案。
 // 另注：旧注释写的默认值是 RiskLevelRead，方向与 G-3 要的 safe-by-default 相反。
 
 // FeedbackSink 反馈回流接口
@@ -130,7 +130,7 @@ func sanitizeArgsForFeedback(args map[string]any) map[string]any {
 // MemoryFeedbackSink 内存反馈接收器（用于测试 / 单机审计）
 //
 // 采用环形缓冲区（ring buffer）实现 O(1) 写入
-//   - 旧写法使用 slice + events[1:] 满容量时 O(n) 拷贝，高频写入时性能瓶颈
+//   - 用 slice + events[1:] 时满容量会有 O(n) 拷贝，高频写入时性能瓶颈
 //   - 新实现使用固定容量 + head/size 指针，写入复杂度 O(1)
 //   - 读出时按 oldest→newest 顺序返回（保持语义一致）
 //

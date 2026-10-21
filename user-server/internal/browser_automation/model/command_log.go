@@ -25,7 +25,7 @@ type BrowserCommandLog struct {
 	//   true  = 这帧声明它观测到的结果为正（event：Host 回执无错；judge：裁决为是）
 	//   false = 这帧声明结果为负
 	//   nil   = 这帧不携带结论（command 帧写下时 Host 还没回执，甚至可能根本没上线）
-	// 旧写法是 bool 且 command 帧恒传字面量 true，于是审计流里每一条「下发」都自带一个 ✓，
+	// 若 command 帧恒传字面量 true，审计流里每一条「下发」都自带一个 ✓，
 	// 而那个 ✓ 在这行上没有任何含义——比没结论更糟，它把「试过」画成「成了」。
 	// 指针 + 无默认值是有意的：带 default:false 的标签会让 gorm 把 nil 当成「用默认」写回 false，
 	// 三态立刻退化成两态；列的可空性由 v3.44.0 迁移负责（旧列是 NOT NULL）。

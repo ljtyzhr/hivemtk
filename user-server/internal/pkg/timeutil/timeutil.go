@@ -68,7 +68,7 @@ func BusinessToday() string {
 
 // ParseBusinessDate 按业务时区把 YYYY-MM-DD 解析成该日 00:00:00。
 //
-// 用来替代 `time.Parse("2006-01-02", s)`：后者返回 **UTC 零点**，
+// 用来替代 `time.Parse("后者返回 **UTC 零点**，
 // 拿去和 CST 会话时区下写入的时间戳列比较，窗口会整体后移 8 小时
 // （每天头 8 小时的记录被静默切掉）。凡是「日期串 → 时间戳列边界」的转换都走这里。
 func ParseBusinessDate(value string) (time.Time, error) {

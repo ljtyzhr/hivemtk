@@ -9,7 +9,7 @@ import (
 
 // HandoffCustomerNotice 转人工时**发给客户看**的那一句，全仓唯一一份。
 //
-// 为什么要有常量、而不是各处各写一句：转人工有两个产出方（本文件的危机门禁、
+// 为什么要有常量、而不是各处各写一句：转人工有两个产出方（本文件的危机硬闸、
 // service 编排器的置信度/关键词/上限/引擎缺位四个出口），文案分叉后客户会在不同渠道
 // 看到不同说法，而排查"这句是谁发的"也无从下手。
 // 措辞约束（改字前先看这三条，都有活的消费方）：
@@ -63,7 +63,7 @@ func (d *DefaultCrisisDetector) Name() string {
 	return "gatekeeper"
 }
 
-// Execute 执行门禁
+// Execute 执行硬闸
 func (d *DefaultCrisisDetector) Execute(ctx context.Context, ic *InferenceContext) StageResult {
 	start := time.Now()
 	ic.Crisis = d.Detect(ctx, ic)

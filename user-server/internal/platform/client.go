@@ -346,7 +346,7 @@ func (c *Client) RegisterMerchant(req RegisterMerchantReq) error {
 		if jerr := json.Unmarshal(resp.Data, &reg); jerr == nil && reg.Secret != "" {
 			// 已有本地密钥文件时**绝不覆盖**：平台这条路 200 = 它按"key 不存在"
 			// 分支新建了一个（随机 key 的）陌生商户并下发了那个商户的 secret ——
-			// 收下它，本机后续所有签名对真正的商户行就是 401（2026-10-21 本机
+			// 收下它，本机后续所有签名对真正的商户行就是 401（本机
 			// 实测踩中：启动协程先于平台 409 冲突分支，把 .merchant_api_secret
 			// 换成了别家的，全站下单瞬断）。首次安装（文件不存在）才落盘。
 			if _, serr := os.Stat(merchantSecretFilePath()); serr == nil {
@@ -393,7 +393,7 @@ func (c *Client) loadMerchantSecret() error {
 		// 返回「签名错误 401」时才需要拿这条日志去核对文件是否残留旧值。
 		//
 		// 历史：环境变量配得完全正确，平台却持续返回
-		// 「签名错误 401」—— 因为文件里留着 2026-09-04 的旧值，而文件在解析链上
+		// 「签名错误 401」—— 因为文件里留着旧值，而文件在解析链上
 		// **优先于环境变量**，且这个优先级在代码里是隐式的（`if secret != ""` 挡在前）。
 		// 两侧"看起来都配对了"，没有任何一处提示谁赢了 —— 这条日志把隐式优先级
 		// 变成显式事实。措辞从 warning 降为 info：两边都有值且不同是正常部署形态，

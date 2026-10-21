@@ -193,7 +193,7 @@ func setupScriptRoutes(auth *gin.RouterGroup) {
 	flagAdmin := auth.Group("/feature-flags", middleware.AdminAuthMiddleware())
 	{
 		flagAdmin.POST("", flagCtrl.Create)
-		// 2026-10-12 补挂：下面这五个管理动作在 Controller 里早就实现好了，
+		// 下面这五个管理动作在 Controller 里早就实现好了，
 		// 但路由只挂了 Create，于是「能新建、不能启用、不能禁用、不能调灰度、不能删」——
 		// 一个用不起来的开关比没有开关更坑：建了以为上线了，实际 Evaluate 永远走 not_found。
 		// 管理端功能开关页（views/system/FeatureFlags.vue）就靠这五个端点。

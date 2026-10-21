@@ -2,7 +2,7 @@
 // 调研依据（PLATFORM_BASE_DESIGN.md §1 能力矩阵）：
 //   - 详情页 /item?id={item_id}；全 CSR，数据走 mtop（sign=MD5(token&t&appKey&data)，appKey=34839810）
 //   - 评论发布接口无公开资料（调研明确标注未找到）→ 不声明 post_comment 能力
-//   - 环境检测狠（baxia 滑块 + RGV587 实弹响应，本机 2026-09-09 实测）
+//   - 环境检测狠（baxia 滑块 + RGV587 实弹响应，本机实测）
 //
 // M2 期先落「读链路」（商品标题/价格/描述/卖家，DOM 可见即 extract）+ DetectBlock 判据。
 package xianyu

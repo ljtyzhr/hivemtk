@@ -24,7 +24,7 @@ import (
 //   - on 模式：Query/Update/Delete 自动注入 `WHERE tenant_id = ?`；Create 自动填充
 //     tenant_id 列；上下文无租户 ⇒ fail-closed 报错（绝不默认全量）
 //   - Raw/Exec（预构建 SQL）：off 直通；on 模式引用租户表即拒绝——数据访问唯一形态
-//     是 GORM API（门禁防回归），运行时这里兜第二道闸
+//     是 GORM API（硬闸防回归），运行时这里兜第二道闸
 //
 // 注册点：db.AutoMigrate()（生产全局 DB）与 testutil.NewTestDB（测试连接）；
 // 同名重复注册等价替换，幂等。
@@ -246,7 +246,7 @@ func fillCreateForTenant(db *gorm.DB) {
 	}
 
 	// schema-less（map）Create：没有 Model 字段可填，INSERT 也不会带 tenant_id。
-	// 旧写法直接 return ⇒ 行落列默认值 1（非默认租户的数据整批串进租户 1）。
+	// 直接 return ⇒ 行落列默认值 1（非默认租户的数据整批串进租户 1）。
 	if stmt.Schema == nil {
 		if !isTenant {
 			return
@@ -731,7 +731,7 @@ func guardUpdateTenantAssignments(stmt *gorm.Statement, id uint) error {
 				//   selected["tenant_id"]==true ⇒ **一定写**（Selects 含 "*" 时零值也照写，
 				//   这就是 Save 的行为）——于是值必须等于上下文租户，零值也不放过；
 				//   未选中且不受限（Selects 为空）⇒ 仅当值非零才写 ⇒ 沿用"非零必须等于租户"。
-				// 旧写法只判了"非零且不等于租户"，于是 Save 一个没加载过的结构体
+				// 只判"非零且不等于租户"时， Save 一个没加载过的结构体
 				// （TenantID 零值）会把行的 tenant_id 覆写成 0 —— 行掉出本租户。
 				// 对抗探针验证：
 				//   UPDATE "tenancy_probe" SET "tenant_id"=$1,"name"=$2 WHERE ... AND "id" = $4

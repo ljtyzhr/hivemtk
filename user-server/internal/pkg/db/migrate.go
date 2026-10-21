@@ -799,7 +799,7 @@ func postMigrateObsDefaultUniqueIndex(db *gorm.DB) {
 // 为什么是硬删不是软删：模型带 DeletedAt，走 GORM 的 Delete 只打标记，原文仍在表里，
 // 备份与只读副本照抄得到 ⇒ 软删等于没修。
 //
-// 判据取列宽而非内容形状：哈希恒 64 字符十六进制，旧写法是 uuid+uuid＝72 字符。
+// 判据取列宽而非内容形状：哈希恒 64 字符十六进制，是 uuid+uuid＝72 字符。
 // 版本化迁移链在当前启动口径下永不执行（建表真值是 AutoMigrate），所以作废挂在 post-migrate。
 func postMigrateDropLegacyPlaintextResetTokens(db *gorm.DB) {
 	if db == nil {

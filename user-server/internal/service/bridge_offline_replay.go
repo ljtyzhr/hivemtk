@@ -58,7 +58,7 @@ type ReplayStats struct {
 
 // partitionBridgeChannels 按"此刻收不收得到"把渠道划成在线/离线两批。
 //
-// 两侧必须互斥且并集为全集：旧写法里"离线"取自一条永远报 42703 的 bridge_metrics
+// 两侧必须互斥且并集为全集：若"离线"取自一条永远报 42703 的 bridge_metrics
 // 聚合查询、"在线"根本没有这一侧，于是回扫既检不出渠道，也谈不上投递。
 //
 // 判据取行上的 Reachable（SQL 侧按 grace 窗口算），不取 status：status='online' 是粘住的列，
@@ -175,7 +175,7 @@ func (s *BridgeOfflineReplayService) DetectOnlineChannels(ctx context.Context) (
 //
 // 从 reach_delayed_outbound 取到期的 pending 行，先抢占（pending→sending）再投到
 // DeliverBridgeOutbound 出站管道，成功收口 sent、失败回到 pending 累计 attempts。
-// 收口写失败必须报警：旧写法用 `_ =` 吞掉 42703，行永远停在 pending，
+// 收口写失败必须报警：用 `_ =` 吞掉 42703，行永远停在 pending，
 // 同一条消息每 5 分钟重投一次。
 func (s *BridgeOfflineReplayService) ReplayDelayedOutbound(ctx context.Context, platform, accountID string, limit int) (replayed, failed int64) {
 	if s.repo == nil {
@@ -287,7 +287,7 @@ func (s *BridgeOfflineReplayService) RunOnce(ctx context.Context) ReplayStats {
 	// 计数名用「不可达」而不是「无订阅者」：轮询式下发的账号没有订阅，
 	// 它是在线位过期才落到这里的，取证时按"没连 SSE"读会找错方向。
 	// online/offline 旁边必须带 grace 秒数：这两个数是按窗口算的，读数不带口径就没法和
-	// 巡检脚本、渠道总览对账（三处同一条 SQL，但窗口是运维可改的配置项）。
+	// 采集脚本、渠道总览对账（三处同一条 SQL，但窗口是运维可改的配置项）。
 	logger.Infof("[BridgeReplay] 回扫完成: scanned=%d online=%d offline=%d grace=%ds unreachable_channels=%d replayed=%d failed=%d duration=%s",
 		stats.ScannedChannels, stats.OnlineChannels, stats.OfflineChannels,
 		int(BridgeOnlineGraceWindow(ctx).Seconds()), stats.SkippedOffline,
@@ -356,7 +356,7 @@ func bridgeChannelNames() []string {
 // 为什么必须有人结算：MaxOutboundPushAttempts 那道 20 次上界只在三条取行路径里生效，
 // 而取行的前提是有账号来拉。账号一旦不再注册/不再同步，那批行既不会被认领、也就永远不会
 // 累计 attempts —— 队列对它们是无限的。用户侧看到的事实是「AI 生成过回复、客户永远收不到」，
-// 而巡检里的积压数字随天数只增不减，永远清不掉。
+// 而采集里的积压数字随天数只增不减，永远清不掉。
 //
 // dryRun=true 时只报数不写：这是一条不可逆的写入（把真回复标成 failed），上线前必须先报数。
 func (s *BridgeOfflineReplayService) SettleOrphanBridgeOutbound(ctx context.Context, ttl time.Duration, dryRun bool) (OrphanSettlement, error) {

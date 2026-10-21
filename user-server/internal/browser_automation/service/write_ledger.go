@@ -38,7 +38,7 @@ func HashWriteText(s string) string {
 // recordSubmitState 台账状态写点。尽力而为但必达终态：ctx 已被取消（超时/中止腿必然如此）
 // 时走 WithoutCancel——「send 已跨越、execCtx 恰好死掉」正是最需要留下台账的一刻。
 //
-// 改口径：写失败必须上抛。旧写法只 Warn，四个调用点拿不到失败事实，于是
+// 改口径：写失败必须上抛。若只 Warn，四个调用点拿不到失败事实，于是
 // 「send 已跨越但台账没落」的下一轮 FindSubmitAttempt 查空——双发闸门整体消失，而这张表
 // 在 §3.1 的定性是「重发闸门的唯一事实来源」。取舍方向不对称：写步失败是**可见、可人工重跑**，
 // 双发是**不可见、撤不回**。失败时先在 ledgerWriteBudget 内退避重试（单行 UPDATE 失败最常见
@@ -165,7 +165,7 @@ func writeGapKey(taskID uint, textHash string) string {
 	return strconv.FormatUint(uint64(taskID), 10) + "|" + textHash
 }
 
-// guardResubmit 双发闸：同任务、同文本在历史上（含其它 session、含被重启后重下发、含
+// guardResubmit 双发闸：同任务、同文本在过去（含其它 session、含被重启后重下发、含
 // Brain 模式换到下标重投）已有提交尝试即不再下发。unattributed 也拦——归因不到不等于没发生。
 //
 // 三种结论（把「任务级自动重试豁免」并进同一趟查询，判定只此一处）：
@@ -231,7 +231,7 @@ func priorOfSkippedWrite(err error) *writeAttemptPrior {
 	return &writeAttemptPrior{state: model.StepSubmitUnattributed}
 }
 
-// stepEffect 一个步的副作用分类。第三态 effectUnknown 是原来缺的那一格：
+// stepEffect 一个步的副作用分类。第三态 effectUnknown 补的就是缺的那一档：
 // 「判不出有没有副作用」既不是「有」也不是「没有」——K8s admission 把 sideEffects 的
 // Unknown 与 Some 同等对待、failurePolicy 默认 Fail，道理都是「不能用判不出来换一次放行」。
 type stepEffect int
@@ -255,7 +255,7 @@ func (s stepEffect) needsWriteGate() bool { return s != effectNone }
 // 会白白剥掉搜索步的重试能力并在重试轮里错误跳过。
 //
 // 定位表**取不到**（平台未注册/适配器缺失）不再等同于「推导不命中」。
-// 旧写法 `locs, _ :=` 把错误丢掉，三条推导全体不命中，只剩 post_comment 与显式声明 ⇒
+// `locs, _ :=` 把错误丢掉，三条推导全体不命中，只剩 post_comment 与显式声明 ⇒
 // retries=0、双发闸、D7 三道同时静默消失。收窄条件同批立住：只有**报错**才升未知，
 // 单纯没命中 locator 仍判只读（上面那条口径不动）；且只升级「本来可能被推导出写」的
 // 动作形态（type+回车 / click / click_near 带按钮文案），scroll、open_tab 这类
@@ -381,7 +381,7 @@ func isNeverExecuted(err error) bool {
 // repository/write_claim.go 与 model/write_claim.go）。
 //
 // 两层闸门各管一种并发，缺一不可：
-//   - guardResubmit（读侧）管「历史上是否发生过尝试」——依据台账三态，跨会话、跨重启；
+//   - guardResubmit（读侧）管「过往是否发生过尝试」——依据台账三态，跨会话、跨重启；
 //   - 本函数管「同一时刻另一条腿也在过闸」——那正是读侧两边都查空的形状，
 //     只有 INSERT 的原子性能分出先后，所以裁决权必须下推到库里的唯一约束。
 //

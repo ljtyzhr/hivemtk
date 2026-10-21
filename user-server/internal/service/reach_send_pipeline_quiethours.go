@@ -34,7 +34,7 @@ const (
 
 // reachQuietHoursStart / reachQuietHoursEnd 每请求读参数中心（60s TTL 缓存），
 // 越界（<0 或 >23）回落代码默认。读取点形状：GetInt( 与 group/key 字面量同一行，
-// 满足 check-config-param-readpoints.py 门禁。scope=全局（config_params 无租户维）。
+// 满足 check-config-param-readpoints.py 硬闸。scope=全局（config_params 无租户维）。
 func reachQuietHoursStart(ctx context.Context) int {
 	v := GlobalConfigParam().GetInt(ctx, "reach", "quiet_hours_start", quietHoursStartHour)
 	if v < 0 || v > 23 {

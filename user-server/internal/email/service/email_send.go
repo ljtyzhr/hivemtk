@@ -427,7 +427,7 @@ func (s *EmailSendService) buildEmailMessage(ctx context.Context, smtpConfig *mo
 // attachmentPaths 把附件列换成"真能挂上的磁盘路径"，并在填了却一项都挂不上时出声。
 //
 // 静默丢弃是这里的历史病：上传侧落盘 {baseDir}/attachments/{yyyy}/{mm}/{uuid}.{ext}，
-// 旧写法却把值抹掉全部斜杠后拼一个扁平根下的文件名，Stat 永远不中 ⇒ 用户的附件从来没
+// 若把值抹掉全部斜杠后拼一个扁平根下的文件名，Stat 永远不中 ⇒ 用户的附件从来没
 // 跟着邮件出去过，而邮件状态写着"已发送"。挂不上仍然照发是对的（附件是增值项），
 // 但不能连"一个都没挂上"都不说。
 func (s *EmailSendService) attachmentPaths(csv string) []string {

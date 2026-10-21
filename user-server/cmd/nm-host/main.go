@@ -208,7 +208,7 @@ func readNativeFrame(r *bufio.Reader) (map[string]any, error) {
 }
 
 // dropOversizedFrame 把超限帧整帧消费掉（保持后续帧边界）并从前缀里捞 req_id。
-// 分配上限只有 nmReqIDScanBytes——旧写法的问题正在于「先按 length 建大缓冲再判断」，
+// 分配上限只有 nmReqIDScanBytes——问题正在于「先按 length 建大缓冲再判断」，
 // 一个 2GiB 的长度声明就是一次 OOM；现在越界判定在分配之前。
 func dropOversizedFrame(r *bufio.Reader, length uint32) error {
 	scan := make([]byte, nmReqIDScanBytes)
@@ -267,7 +267,7 @@ func guardInvocation() {
 }
 
 // tokenFingerprint 日志关联用的 token 指纹（sha256 前 8 位十六进制）。
-// token 是 Host 的长期凭据。旧写法把它拼进 addr 再整条打印，而 NM host 的 stderr
+// token 是 Host 的长期凭据。若把它拼进 addr 再整条打印，而 NM host 的 stderr
 // 会进 Chrome 的 native messaging host 日志文件——等于把凭据落盘给任何读得到该日志的人。
 // 指纹够把「同一次配置的两条日志」对起来，反推不出原值。
 func tokenFingerprint(token string) string {
@@ -339,7 +339,7 @@ type stdinEvent struct {
 const nmInboundBufferFrames = 8
 
 // startStdinPump 起**唯一**一条 stdin 读泵，goroutine 活到进程结束。
-// 修正：旧写法把读泵开在 pumpLoop 里，WS 每重连一次就多一条 goroutine 复用同一个
+// 修正：若把读泵开在 pumpLoop 里，WS 每重连一次就多一条 goroutine 复用同一个
 // bufio.Reader——bufio 不是并发安全的，两条泵会把同一条字节流撕开（长度头读到半截），
 // 而且老泵醒来的第一件事是先抢走一帧再往已关闭的 conn 上写，那条命令在服务端只能干等超时。
 // 终止（EOF/流错位）时先在 stderr 记因，再关 stdinDone 与 out。

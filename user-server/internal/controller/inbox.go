@@ -471,7 +471,7 @@ func (c *InboxIngressController) Ingress(ctx *gin.Context) {
 	response.Success(ctx, result, "消息入站成功")
 }
 
-// LockHuman 锁定会话为人工接管（内部 API，由转人工门禁调用）
+// LockHuman 锁定会话为人工接管（内部 API，由转人工硬闸调用）
 func (c *InboxIngressController) LockHuman(ctx *gin.Context) {
 	var req struct {
 		SessionID string `json:"session_id" binding:"required"`

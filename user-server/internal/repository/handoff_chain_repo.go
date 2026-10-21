@@ -59,7 +59,7 @@ func (r *HandoffChainRepository) GetHandoffRules(ctx context.Context) (string, e
 //
 // 隔离 callback 只给"认得出目标表"的语句注入 tenant_id，而 Table("customer_sessions")
 // 这种 schema-less 形态在 callback 眼里既不会被拒、也不会被过滤。cron 经 Fanout 逐租户
-// 执行时，这就是"每个租户扫到同一批会话、并把别的租户的会话升级掉"（2026-10-20 线上
+// 执行时，这就是"每个租户扫到同一批会话、并把别的租户的会话升级掉"（线上
 // 日志验证：一轮 tick 打印两行完全相同的 sessions=1）。
 //
 // 口径对齐 kvTenantIDFor 与 config_param_tenant.go 的显式条件写法：有绑定按绑定过滤；

@@ -87,7 +87,7 @@ type AutoExecuteDecision struct {
 
 // Evaluate 评估 AI 生成内容是否满足自动执行条件。
 //
-// 判定逻辑（三层门禁）：
+// 判定逻辑（三层硬闸）：
 //  1. 功能总开关 enabled=false → 必须人工审批
 //  2. confidence < threshold → 必须人工审批（AI 不够自信）
 //  3. estimated_cost > cost_limit → 必须人工审批（成本超限）

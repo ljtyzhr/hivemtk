@@ -11,7 +11,7 @@ import (
 // setupConfigParamRoutes 注册配置参数中心的路由。
 //
 // admin 组是「已通过 AdminAuthMiddleware 的 auth 子组」：五个写/查全量的端点必须挂它。
-// 2026-10-11 补：此前这五个端点直接挂在 auth 上，而 auth 只要求登录、不要求管理员
+// 此前这五个端点直接挂在 auth 上，而 auth 只要求登录、不要求管理员
 // ——任何普通登录用户都能改上传上限、改验签旁路、改锁 TTL。前端侧
 // `router/modules/system.js` 的 ConfigParams 路由一直标了 requiresAdmin，
 // 两端口径不一致，靠前端藏菜单挡着。改挂 admin 组把后端口径补齐。

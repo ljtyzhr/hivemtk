@@ -187,7 +187,7 @@ var channelCodeRules = map[string]map[string]codeRule{
 		// 请优先依据 code 判断」⇒ 状态码这一路永远看不到失败；② message「仅用于人工排查，
 		// 内容可能随时调整」⇒ 文案判据不可依赖。取证 A 档：
 		// https://bot.q.qq.com/wiki/develop/api-v2/dev-prepare/access-token.html，
-		// 批J 2026-09-20 curl 直连 http=200 / 24,598 B / md5 f1acdd7dc218e41635259d0fa7fafea0。
+		// curl 直连 http=200 / 24,598 B / md5 f1acdd7dc218e41635259d0fa7fafea0。
 		// 补表前这四个码在文本判据里全落空 ⇒ CategoryUnknown + Retryable=true：
 		// AppID/Secret 错这类"重投不会自己变好"的失败要白撞三轮退避，
 		// 且永不触发 CategoryAuth 那条运维事件（凭证坏了没人知道）。

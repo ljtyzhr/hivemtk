@@ -240,7 +240,7 @@ func Publish(p pendingSpan) {
 	}
 }
 
-// Stats 返回投递统计（运维/健康巡检用）。
+// Stats 返回投递统计（运维/健康采集用）。
 // 注意：不可使用命名返回值，否则 &published 会取到局部返回变量（恒为 0），
 // 导致 Stats() 永远返回 0 —— 监控面板看到的 trace 投递/丢弃率将失真。
 func Stats() (int64, int64) {

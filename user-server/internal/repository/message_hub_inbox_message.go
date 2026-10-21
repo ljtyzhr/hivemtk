@@ -56,7 +56,7 @@ func (r *MessageHubRepository) MarkReadByID(ctx context.Context, id uint) error 
 
 // UpdateMsgID 回写平台消息 ID（ChatbotX 模式移植 T2）。
 //
-// 业务背景：出站消息落库时平台尚未返回消息 ID（旧写法自造 wa-out-{UnixNano}
+// 业务背景：出站消息落库时平台尚未返回消息 ID（自造 wa-out-{UnixNano}
 // 占位），发送成功后平台返回 wamid / message_id，必须回写用于：
 //  1. echo 精确去重（入站回显按 platform+msg_id 命中 outgoing 行即拦截）
 //  2. 状态回执对账（WA statuses 按 wamid 定位消息行）

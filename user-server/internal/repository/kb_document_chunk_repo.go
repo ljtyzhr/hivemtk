@@ -29,7 +29,7 @@ type KBDocumentChunkRow struct {
 // TableName 指定表名
 func (KBDocumentChunkRow) TableName() string { return "kb_document_chunks" }
 
-// 2026-09-16 审计 DB-07：KBDocumentChunkRow 此前从未登记建表，
+// KBDocumentChunkRow 此前从未登记建表，
 // 而本文件第 64 行有 Create 写入 —— 全新部署会缺 kb_document_chunks 表。
 //
 // 为什么写在这里而不是 internal/pkg/db/migrate.go：本包 import 了 internal/pkg/db，

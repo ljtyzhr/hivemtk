@@ -11,7 +11,7 @@ import (
 //
 // 这条是阶段二 2a 的落点之一。背景是「上传上限有三份副本、其中两份半失效」：
 //
-//   - controller.MaxUploadSize（10MB）—— 代码兜底，历史上实际生效的那一层；
+//   - controller.MaxUploadSize（10MB）—— 代码兜底，实际生效的那一层；
 //   - system_config.max_upload_size_mb —— 「系统配置」页能存能显示，但上传链路一处不读；
 //   - misc.upload_max_size_mb —— 2a 新增的统一入口，默认 0（不覆盖）以保持存量站点行为不变。
 //

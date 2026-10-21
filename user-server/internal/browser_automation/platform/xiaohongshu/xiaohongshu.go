@@ -86,7 +86,7 @@ func (p *Platform) ClassifyError(errText string) platform.ErrType {
 }
 
 // CommentLocators 发评论选择器四元组（基座把这套下发给扩展 post_comment 原语）。
-// A1 单一来源：全部取自 Locators() 表，杜绝同串 CSS 写两遍的漂移（旧写法两处字面量重复）。
+// A1 单一来源：全部取自 Locators() 表，杜绝同串 CSS 写两遍的漂移（两处字面量重复）。
 func (p *Platform) CommentLocators() platform.CommentLocators {
 	l := p.Locators()
 	return platform.CommentLocators{

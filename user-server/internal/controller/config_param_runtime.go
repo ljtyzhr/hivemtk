@@ -21,7 +21,7 @@ import (
 //     这类键留在白名单里，前端会在页面上拿到一个「改了没人读」的旋钮，
 //     比不给更糟（运维以为它生效）。**标注和后端事实由
 //     `scripts/check-config-param-readpoints.py` 用同一份清单核对**：把键登记进
-//     runtimePublicKeys 就是向门禁声明"这条有前端消费者"。
+//     runtimePublicKeys 就是向硬闸声明"这条有前端消费者"。
 //
 // 新增组/键要在这里显式登记，并写清楚为什么前端需要它。
 var runtimePublicGroups = map[string]struct{}{

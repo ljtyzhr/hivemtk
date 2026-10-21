@@ -19,7 +19,7 @@ import (
 // 公开 URL 前缀（STORAGE_LOCAL_PUBLIC_URL → /files）、
 // 附件目录名（UPLOAD_FOLDER → attachments）。
 //
-// 磁盘根这里只留两档。历史上中间还夹着一档 `UPLOAD_DIR`，而全仓另外四个本地盘读取点
+// 磁盘根这里只留两档。曾中间还夹着一档 `UPLOAD_DIR`，而全仓另外四个本地盘读取点
 // （storage/factory.go、service/init_storage.go、service/channel_media.go、
 // browser_automation/service/storage_util.go）从来只认 STORAGE_LOCAL_BASE_DIR → ./uploads：
 // 两档链与三档链并存时，"公开链接 404"必然在 controller 上传与渠道媒体之间二选一地发生

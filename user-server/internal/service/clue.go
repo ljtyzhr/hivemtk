@@ -101,7 +101,7 @@ const (
 	ClueTypeSMS         int64 = 17
 	// ClueTypeGeoCapture GEO 决策链捕获线索（v3）：SourceID 存思维链 chain_id 供转化归因回写。
 	//
-	// 它历史上等于 9，与 ClueTypeDouyin 撞号 —— 撞号不是显示瑕疵，是三处实打实的错账：
+	// 它早先等于 9，与 ClueTypeDouyin 撞号 —— 撞号不是显示瑕疵，是三处实打实的错账：
 	// GEO 捕获的线索在列表页显示成「抖音」、评分走抖音档、并且与抖音线索共用
 	// (type, account) 去重键（同一个联系人被两个来源各抓一次时，第二个会被当成重复丢掉）。
 	// 18 是这张表第一个没被占用的号（1-17 连续、99 留给自定义）。

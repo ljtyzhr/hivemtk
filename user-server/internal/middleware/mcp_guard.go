@@ -44,7 +44,7 @@ func mcpDedicatedCandidates(ctx context.Context) []string {
 	}
 	// 两个键各自一行字面量（不是 range 一个名单）：配置面可发现性门
 	// （scripts/check-env-coverage.py）只认 os.Getenv 里的字面键名，绕开它等于
-	// 新增了一个运营看不见、门禁也数不清的环境变量。
+	// 新增了一个运营看不见、硬闸也数不清的环境变量。
 	if v := strings.TrimSpace(os.Getenv("MCP_TOKEN")); v != "" {
 		out = append(out, v)
 	}

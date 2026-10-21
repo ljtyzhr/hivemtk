@@ -160,7 +160,7 @@ func (s *SOPScheduler) tick(ctx context.Context) {
 		return
 	}
 	// 超时预算：**每租户一份 30s**，不是整个 Fanout 共享一份（二审 P2-5）。
-	// 旧写法 `WithTimeout(DefaultHTTPTimeout)` 包在扇出外面 ⇒ 12 个租户共享 30s：
+	// `WithTimeout(DefaultHTTPTimeout)` 包在扇出外面 ⇒ 12 个租户共享 30s：
 	// 先跑的租户耗光预算后，后面的租户一进回调就被 ctx.Done() 打断（扫到的人
 	// 越多饿死越严重）。外层只保留可取消语义（Stop/退出时整体收束），超时移进
 	// 每租户回调内。
@@ -307,7 +307,7 @@ func (s *SOPScheduler) tryExecute(ctx context.Context, agent model.SOPAgent) {
 //	静态通道 customer_ids   —— 手填名单，行为与 T-P5-01 之前逐字节一致。
 //	圈选通道 audience       —— 按条件实时取；未经 audience_confirmed 只做预览、零开工。
 //
-// 两条都没配时返回空名单。旧写法在这里回退到 agent.CreatedBy，而 CreatedBy 是**运营账号**，
+// 两条都没配时返回空名单。若在这里回退到 agent.CreatedBy，而 CreatedBy 是**运营账号**，
 // 于是"配置漏填"这个动作的后果是给配置者本人发一轮 SOP（T-P5-01 AC① 的坏例）。
 func (s *SOPScheduler) resolveTargets(ctx context.Context, agent model.SOPAgent) ([]string, error) {
 	if ids, _ := extractCustomerIDs(agent.TriggerConfig); len(ids) > 0 {

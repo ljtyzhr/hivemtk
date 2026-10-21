@@ -222,7 +222,7 @@ func (c *ModuleMarketController) SyncLogs(ctx *gin.Context) {
 
 // UncoveredRoutes GET /api/modules/uncovered-routes
 //
-// 巡检面：列出"见过但未挂模块"的接口路径（middleware 三态里的 ③）。
+// 采集面：列出"见过但未挂模块"的接口路径（middleware 三态里的 ③）。
 // 它是"新增收费能力忘了补 module_route_patterns.go"的发现手段 —
 // 补漏的兜底在 CI 的覆盖率测试里，但线上能立刻看到实际路径。
 func (c *ModuleMarketController) UncoveredRoutes(ctx *gin.Context) {

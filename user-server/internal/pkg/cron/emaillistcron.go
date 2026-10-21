@@ -185,7 +185,7 @@ func deliverEmailListRow(ctx context.Context, row *model.EmailList, deps emailRo
 		opts = append(opts, mail.Unsubscribe(unsub))
 	}
 	// 附件挂不上不阻断投递（与单封侧同一口径），但"填了却一项都没挂上"必须出声一次：
-	// 历史上这里静默丢附件丢了很久，因为邮件状态只记发送结果、不记部件。
+	// 这里曾静默丢附件丢了很久，因为邮件状态只记发送结果、不记部件。
 	paths := mail.AttachmentPaths(row.Attachments, deps.attachments)
 	if mail.AttachmentsDropped(row.Attachments, paths) {
 		bulkAttachWarnOnce.Do(func() {

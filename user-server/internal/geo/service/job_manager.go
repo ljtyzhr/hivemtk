@@ -236,7 +236,7 @@ func SetupGeoJobs(sched JobScheduler) {
 
 	// 逐租户读取并注册调度（specs/001-saas-multi-tenant T020，二审 P1-2）。
 	//
-	// 旧写法用 system scope 读 cfgRepo.Get（First）——多租户下读到的是**跨租户
+	// 用 system scope 读 cfgRepo.Get（First）——多租户下读到的是**跨租户
 	// union 的首行**（= 默认租户的 geo_config），于是租户 2 经 UpdateSchedule
 	// 持久化的 cron 表达式在重启后即丢。改为 Fanout 逐活跃租户读**本租户**行，
 	// 并按 (任务, 租户) 各自注册：cron 闭包钉住注册时的租户，派发时只跑该租户
@@ -383,7 +383,7 @@ func (m *JobManager) startJobForTenant(def geoJobDef, ctx context.Context, trigg
 	}
 	// 运行记录在**本租户** ctx 下创建：geo_job_runs 是租户表，隔离 callback 的
 	// Create 会填充 tenant_id —— 记账分租户，各租户在 /geo/jobs/runs 只看到自己
-	// 的历史（旧写法用 system scope 一律落列默认值 1，等于只有默认租户有历史）。
+	// 的历史（用 system scope 一律落列默认值 1，等于只有默认租户有历史）。
 	// 记账失败仅日志：历史缺口不应阻断业务任务本身。
 	var runID uint
 	if err := m.runRepo.Create(ctx, run); err != nil {
@@ -443,7 +443,7 @@ func (m *JobManager) execute(def geoJobDef, runID uint, trigger string, ctx cont
 	ctx, cancel := context.WithTimeout(ctx, def.Timeout)
 	defer cancel()
 
-	// 运行记录回写（Finish）直接用本租户 ctx：geo_job_runs 是租户表，旧写法这里
+	// 运行记录回写（Finish）直接用本租户 ctx：geo_job_runs 是租户表，这里
 	// 包 system scope 会把 Create/Finish 都摊成跨租户、行落列默认值 1（记账串租户）。
 	// def.Fn(ctx) 同样拿到本租户 ctx —— 各 job 入口不再自己补 system scope
 	// （见 scheduler.go / keyword_pipeline.go 的判读注释；on 模式下裸 ctx 会被

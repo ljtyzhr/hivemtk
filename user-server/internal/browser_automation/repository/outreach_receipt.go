@@ -64,7 +64,7 @@ func (r *browserOutreachReceiptRepository) ListByTaskID(ctx context.Context, tas
 }
 
 // 会话级读口（曾有 ListBySessionID）已删：路由、service、前端调用点三处交叉验证为零消费者，
-// 触达 P0 Chunk5 定的展示面是**任务详情**回执（docs/superpowers/plans/2026-09-30-outreach-p0.md
+// 触达定的展示面是**任务详情**回执
 // Chunk5），会话侧从来没有要过回执列表。日后若 I5 审计导出要带回执，正确做法是把它加进
 // `SessionService.SessionExport` 那个返回元组（元组少一个值调用方编译不过），
 // 而不是再摆一个没人读的独立方法。（#8 四关 4.4）

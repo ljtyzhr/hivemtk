@@ -23,7 +23,7 @@ import (
 //   - 其余四条是本次新加的 seam。
 //
 // Get* 调用与键名字面量必须写在同一行：scripts/check-config-param-readpoints.py
-// 认的就是这个形状，把 Get* 藏进通用 helper 会让门禁判成「未接线」。
+// 认的就是这个形状，把 Get* 藏进通用 helper 会让硬闸判成「未接线」。
 func WireCacheConfigParams() []string {
 	bg := context.Background()
 	cp := service.GlobalConfigParam()

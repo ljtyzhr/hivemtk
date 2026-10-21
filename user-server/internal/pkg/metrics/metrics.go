@@ -1,9 +1,9 @@
-// Package metrics 提供轻量级指标采集（应用层巡检用）。
+// Package metrics 提供轻量级指标采集（应用层采集用）。
 //
 // 设计目标：
 //   - 零外部依赖（不引入外部监控库）
 //   - 支持 Counter / Gauge / Histogram 三种基础类型
-//   - 文本格式通过 /metrics 端点暴露（用于内部调试/巡检）
+//   - 文本格式通过 /metrics 端点暴露（用于内部调试/采集）
 //   - 线程安全（atomic + mutex）
 //   - 标签（labels）支持
 //
@@ -586,7 +586,7 @@ func Gather(w io.Writer) {
 	}
 }
 
-// Handler 返回 /metrics 端点 handler（用于内部调试/巡检）
+// Handler 返回 /metrics 端点 handler（用于内部调试/采集）
 func Handler() http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "text/plain; version=0.0.4; charset=utf-8")
@@ -655,7 +655,7 @@ func (h *HistogramVec) samples() []Sample {
 
 // CollectSamples 遍历全局注册表，收集所有已注册指标（Counter/Gauge/Histogram）的当前值快照。
 // 线程安全：返回的是复制后的切片，不持有注册表锁。
-// 供 metrics 落库 sink（bridge_sink.go）与 SQL 巡检使用。
+// 供 metrics 落库 sink（bridge_sink.go）与 SQL 采集使用。
 func CollectSamples() []Sample {
 	registryMu.RLock()
 	ms := make([]Metric, 0, len(registry))

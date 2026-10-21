@@ -342,7 +342,7 @@ func HumanTaskSLAField(kind string) string {
 // HumanTaskSLAUnsupportedFields 列出这条待办上**不属于自己 kind** 的已填 SLA 列。
 // 返回空切片（不是 nil）= 合规：调用方与端点直接看长度，不必每次判 nil。
 //
-// 写成包级函数而不是 `*HumanTask` 的方法：五层架构门禁止 model 携带业务方法
+// 写成包级函数而不是 `*HumanTask` 的方法：五层架构硬闸止 model 携带业务方法
 // （只许 TableName 与 GORM Hook，见 scripts/check-architecture.sh 第 4 项）——
 // 这条判据本身就是"哪一列属于哪个 kind"的业务规则，摆进 model 会让门对下一个
 // 往 model 上加方法的人失效。

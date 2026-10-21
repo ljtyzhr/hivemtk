@@ -130,7 +130,7 @@ func (c *InferenceCycle) SetReviewerStage(r InferenceStage) {
 //
 // 行为：
 //  1. 构造 InferenceContext
-//  2. 顺序执行 4 个阶段（感知 → 对齐 → 门禁 → 规划）
+//  2. 顺序执行 4 个阶段（感知 → 对齐 → 硬闸 → 规划）
 //  3. 每阶段都设独立超时
 //  4. 收集所有阶段决策
 //  5. 汇总到 InferenceDecision

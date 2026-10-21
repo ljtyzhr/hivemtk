@@ -63,7 +63,7 @@ var (
 
 // HumanTaskListQuery 列表/聚合的查询条件（对仓储同类型的别名）。
 //
-// 别名而不是照抄一份结构体：HTTP 层必须能构造这个查询，而架构门禁止 controller
+// 别名而不是照抄一份结构体：HTTP 层必须能构造这个查询，而架构硬闸止 controller
 // 引用 repository（第五层不许出现在第三层的 import 里）。照抄一份会在两层之间
 // 留下一个需要手工同步的形状；别名让"对外用哪个名字"只有一处定义。
 type HumanTaskListQuery = repository.HumanTaskQuery

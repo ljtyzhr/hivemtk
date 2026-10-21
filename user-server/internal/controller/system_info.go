@@ -57,7 +57,7 @@ func (c *SystemInfoController) Health(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"status": "ok"}, "ok")
 }
 
-// 2026-10-12 移除 SystemMenus（返回空数组的占位桩）。
+// 移除 SystemMenus（返回空数组的占位桩）。
 // 它原先被 frontend_aliases 注册为 GET /api/system/menus 的兼容别名，
 // 菜单 RBAC 上线后该路径已由 menu_routes.go 的 AdminGetAllMenus 承担，
 // 且桩返回的 [] 没有 tree 字段，前端 RoleList.vue 读不到任何节点。

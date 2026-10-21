@@ -48,7 +48,7 @@ var ErrBadCaseTransition = errors.New("bad_case: 当前状态不允许该操作"
 var ErrBadCaseNothingToExport = errors.New("bad_case: 没有可导出的已打标样本")
 
 // BadCaseListQuery 列表的查询条件（对仓储同类型的别名，与 HumanTaskListQuery 同一取舍）：
-// 架构门禁止 controller 引用 repository，而 HTTP 层必须能构造这个查询。
+// 架构硬闸止 controller 引用 repository，而 HTTP 层必须能构造这个查询。
 // 别名而不是照抄一份结构体 —— 照抄会在两层之间留下一个需要手工同步的形状。
 type BadCaseListQuery = repository.BadCaseListQuery
 

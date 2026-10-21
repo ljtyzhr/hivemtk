@@ -1,6 +1,6 @@
 // Package retrieval 的 pgvector 会话/索引操作集中点（specs/001-saas-multi-tenant T013）。
 //
-// 本文件豁免 GORM-only 门禁（check-gorm-only.sh）：SET LOCAL（会话 GUC）与
+// 本文件豁免 GORM-only 硬闸（check-gorm-only.sh）：SET LOCAL（会话 GUC）与
 // pgvector 索引 DDL（CREATE INDEX ... USING hnsw）是数据库方言操作，
 // GORM 无对应表达；集中于此单点管理，数据访问本身仍一律走 GORM API。
 package ragretrieval

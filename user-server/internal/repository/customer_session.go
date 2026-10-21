@@ -753,7 +753,7 @@ func (r *CustomerSessionRepository) CountSessionsSince(ctx context.Context, sinc
 	return n, err
 }
 
-// CountOpenSessionsSince24h 统计 24 小时内 open 状态会话数（SLA 巡检用）
+// CountOpenSessionsSince24h 统计 24 小时内 open 状态会话数（SLA 采集用）
 func (r *CustomerSessionRepository) CountOpenSessionsSince24h(ctx context.Context) (int64, error) {
 	var n int64
 	err := r.db.WithContext(ctx).Model(&model.CustomerSession{}).

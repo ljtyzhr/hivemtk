@@ -210,7 +210,7 @@ var llmCloudOwnedTables = []string{
 // 常驻 Chromium 会话与任务执行记录。没有专属表时它确实"关了什么都不停"，
 // 但那是实现现状而非它不需要数据 —— 后续补表时往这里加即可，归属已经先立住。
 //
-// 十二张表一张不少（2026-10-21 实体审查 #46–#54 逐表对过 `internal/browser_automation/model`
+// 十二张表一张不少（逐表对过 `internal/browser_automation/model`
 // 的 TableName 取值与开发库 pg_tables）：
 //   - 去掉 browser_profiles：模型已不存在（Profile 概念并入 browser_profile_health），
 //     开发库里也没有这张表——登记一张不存在的表等于让「这张表归谁」这件事说假话。

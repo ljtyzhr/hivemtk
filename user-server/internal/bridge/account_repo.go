@@ -37,7 +37,7 @@ func NewBridgeAccountRepository(db *gorm.DB) *BridgeAccountRepository {
 //   - 并发首建存在竞争：Create 命中唯一冲突时重试一次（此时记录已存在，走"已存在"分支校验归属）。
 func (r *BridgeAccountRepository) Upsert(ctx context.Context, u BridgeAccountUpsert) error {
 	// 两次 First→Create 都撞唯一键时，第二次循环退出前什么都没写：
-	// 旧写法落到函数末尾 return nil，调用方（ingest 异步注册）把"没写成"当成功，
+	// 若落到函数末尾 return nil，调用方（ingest 异步注册）把"没写成"当成功，
 	// 账号在线位与归属就此静默缺失。记下最后一次冲突，循环耗尽后如实返回。
 	var lastUniqueErr error
 	for attempt := 0; attempt < 2; attempt++ {

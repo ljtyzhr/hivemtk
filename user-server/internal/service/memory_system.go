@@ -29,7 +29,7 @@ type MemorySystem struct {
 
 const (
 	// L1WindowSize 现在只是兜底值：运行时读的是 memory.l1_window_size
-	// （G4 门禁抓出来的未入库旋钮，2026-10-11 补接，见下方 runtimeL1WindowSize）。
+	// （见下方 runtimeL1WindowSize）。
 	L1WindowSize = 10
 	L1TTLHours   = 24 * time.Hour
 	L4MaxPerCust = 500
@@ -75,7 +75,7 @@ func EffectiveL1TTLHours() time.Duration {
 // ParamGroupMemory / MemoryL1WindowSizeParam：memory 组与 L1 窗口键名。
 // 抽成常量而不是在调用点写字面量：1.8 栽过一次——channelgw/ws.go 把种子登记的
 // "ws_push_interval" 写成 "ws_push_interval_default"，每次读都 miss、每次回落兜底，
-// 而读取点门禁结构上看不出这类漂移（读取点存在，只是用的别的 key）。
+// 而读取点硬闸结构上看不出这类漂移（读取点存在，只是用的别的 key）。
 const (
 	ParamGroupMemory        = "memory"
 	MemoryL1WindowSizeParam = "l1_window_size"

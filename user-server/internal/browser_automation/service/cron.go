@@ -163,7 +163,7 @@ func (s *CronService) SetEnabled(ctx context.Context, id, userID uint, enabled b
 // applySchedule 触发器调度状态的唯一出口：按 enabled 注册/注销 TaskManager，并把 next_run_at
 // 同步成「按当前表达式算出的下一次」（停用=NULL，读作「没有排定的下一次」）。
 // 新建/改表达式/启停/重启恢复四个入口都走这里，这一列才只有一个写入方——
-// 旧写法只在触发回调里写，且和 last_run_at 一起写成同一个 now，
+// 若只在触发回调里写，且和 last_run_at 一起写成同一个 now，
 // 结果是：第一次触发前恒 NULL，触发后恒等于「上一次触发的时刻」，两个读数都不是列名的意思。
 func (s *CronService) applySchedule(ctx context.Context, tr *model.BrowserCronTrigger, userID uint) {
 	s.unregister(tr.TaskID)

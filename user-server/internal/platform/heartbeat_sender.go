@@ -71,7 +71,7 @@ func StartHeartbeat(ctx context.Context) {
 }
 
 func sendHeartbeat() {
-	// 走 GetStatus 而不是裸 Load：Load 在文件坏着时返回错误，旧写法直接 return，
+	// 走 GetStatus 而不是裸 Load：Load 在文件坏着时返回错误，直接 return 就会
 	// 于是这台实例从此一帧心跳都不发且不留日志；GetStatus 会先把坏文件自愈再拿身份。
 	st := install.GetStatus()
 	if st.InstallID == "" {

@@ -198,7 +198,7 @@ func getFrontendBaseURL(ctx context.Context) string {
 		return url
 	}
 	// env > 参数 > 代码兜底（R2 参数化）。默认与接线前的 http://localhost:3000 一致。
-	// 读取点形状：GetString( 与 group/key 字面量同一行，满足读取点门禁。
+	// 读取点形状：GetString( 与 group/key 字面量同一行，满足读取点硬闸。
 	return GlobalConfigParam().GetString(ctx, "urls", "frontend_url", "http://localhost:3000")
 }
 

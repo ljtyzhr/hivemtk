@@ -53,7 +53,7 @@ func (m *PlatformKVTenantSplitMigration) Description() string {
 }
 
 // platformKVKeyWhere 平台键的筛选谓词（键名常量见 model.PlatformConfigKV 注释）。
-// 用 SQL 字面量而不是 Go 常量拼接：键名是持久化格式，迁移必须对"代码后来改名"
+// 用 SQL 字面量而不是 Go 常量拼接：键名是持久化格式，迁移必须对"代码改名"
 // 免疫——迁移引用的是**当时**写进库里的字符串。
 // password_policy 不在名单内：密码策略由各租户 admin 维护，属于租户级安全设置，
 // 存量行留在 system_config_kv 并随主键复合化归入默认租户。

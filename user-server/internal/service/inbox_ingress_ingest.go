@@ -68,7 +68,7 @@ func channelMsgIDOf(event *model.MessageEvent) string {
 var occurrenceMsgIDRe = regexp.MustCompile(`^mh:[0-9a-f]{8}#[1-9][0-9]*$`)
 
 // stripOccurrenceSuffix 剥离 event_id 尾部的 `#N` 发生次数后缀，返回 base hash。
-// 若无后缀则原样返回。用于出站回声检测：bridge 巡检把 AI 回复从 DOM 抓回时可能
+// 若无后缀则原样返回。用于出站回声检测：bridge 采集把 AI 回复从 DOM 抓回时可能
 // 因同内容重复出现而追加 #N 后缀，剥掉后才能与出站 msg_id（无后缀）对齐。
 func stripOccurrenceSuffix(eventID string) string {
 	if idx := strings.LastIndex(eventID, "#"); idx > 0 {
@@ -137,7 +137,7 @@ func (s *InboxIngressService) interceptInbound(ctx context.Context, event *model
 		}
 	}
 
-	// 出站回声检测（base hash 比对）：bridge 巡检把 AI 出站回复从 DOM 抓回当 inbound 时，
+	// 出站回声检测（base hash 比对）：bridge 采集把 AI 出站回复从 DOM 抓回当 inbound 时，
 	// event_id 就是出站 msg_id 的 ContentHash（可能追加 #N 后缀）。剥离后缀后与出站 msg_id
 	// 精确比对，命中即判定为自回声。此检查不依赖 sender_name / content / 时间窗口，
 	// 是对下面三项内容维度嗅探的兜底加固。
@@ -157,7 +157,7 @@ func (s *InboxIngressService) interceptInbound(ctx context.Context, event *model
 		if rerr == nil && len(rows) > 0 {
 			norm := normalizeEchoText(content)
 			if norm != "" {
-				// 网页渠道（抖音等）AI 的一条回复常被拆成多条气泡发送，扩展巡检会把
+				// 网页渠道（抖音等）AI 的一条回复常被拆成多条气泡发送，扩展采集会把
 				// 相邻气泡拼成一整条抓回，与任何单条出站记录都不再全等——回声就这样
 				// 穿过等值闸触发二次回复（自回复循环）。
 				// 剥离判定：把入站文本剥掉全部近期出站（≥16 字者才参与剥离），剩下的

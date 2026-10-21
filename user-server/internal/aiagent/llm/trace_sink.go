@@ -110,7 +110,7 @@ func (s *DBTraceSink) OnEvent(event model.TraceEvent) {
 	}
 }
 
-// Stats 返回插入/丢弃计数（运维/健康巡检用）。
+// Stats 返回插入/丢弃计数（运维/健康采集用）。
 func (s *DBTraceSink) Stats() (inserted, dropped int64) {
 	return atomic.LoadInt64(&s.inserted), atomic.LoadInt64(&s.dropped)
 }

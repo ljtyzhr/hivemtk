@@ -470,7 +470,7 @@ func (r *FeedbackLoopRepository) RollbackABTest(ctx context.Context, testID uint
 	})
 }
 
-// GetSuggestionAuditFields 读取建议的审计字段（evidence_data），供门禁审计读写。
+// GetSuggestionAuditFields 读取建议的审计字段（evidence_data），供硬闸审计读写。
 func (r *FeedbackLoopRepository) GetSuggestionAuditFields(ctx context.Context, sugID uint) (*model.OptimizationSuggestion, error) {
 	if r == nil || r.db == nil {
 		return nil, errors.New("feedback loop repository not initialized")

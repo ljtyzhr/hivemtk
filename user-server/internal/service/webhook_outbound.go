@@ -50,7 +50,7 @@ const (
 	delayedOutboundTTL = 24 * time.Hour
 	// delayedSendingStuckThreshold 悬挂观测阈值：正常一轮派发在秒级收敛，send_at 超期
 	// 1h 仍停在 sending 说明进程在投递中途崩溃。仅打 warn 供运维核对，不回收、不改状态
-	// （回收语义属产品决策，见 2026-09-19 审计第七轮）。
+	// （回收语义属产品决策）。
 	delayedSendingStuckThreshold = time.Hour
 )
 
@@ -59,7 +59,7 @@ type DelayedOutboundReply = model.DelayedOutboundReply
 
 // aiReplyQuietHoursStart / aiReplyQuietHoursEnd 每请求读参数中心（60s TTL 缓存），
 // 越界（<0 或 >23）回落代码默认。读取点形状：GetInt( 与 group/key 字面量同一行，
-// 满足 check-config-param-readpoints.py 门禁。scope=全局（config_params 无租户维）。
+// 满足 check-config-param-readpoints.py 硬闸。scope=全局（config_params 无租户维）。
 // 与 reach.quiet_hours_*（触达管线）是两条不同管道，各一组键，禁止合并。
 func aiReplyQuietHoursStart(ctx context.Context) int {
 	v := GlobalConfigParam().GetInt(ctx, "webhook", "ai_quiet_hours_start", aiReplyQuietStartHour)

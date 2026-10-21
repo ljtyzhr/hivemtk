@@ -24,7 +24,7 @@ import (
 //	          不存在"关掉 llm-cloud 就看不到套餐 → 死锁"（上一版注释把
 //	          wallet/plans 说成不可拦，与补充表相矛盾，以补充表为准：
 //	          订阅者看到余额与套餐，未订阅者看前端空态页）。
-//	admin —— 管理面（同步日志、巡检面）。
+//	admin —— 管理面（同步日志、采集面）。
 //
 // 模块闸在 auth 组上统一挂 GuardModulePath（见 router.go），本文件只做映射，
 // 不在这里重复挂 RequireModule：路径→模块的判定必须集中在
@@ -34,7 +34,7 @@ import (
 // admin 档按**数据域**分两档（判据是"落到哪张表"）：
 //   - tenantAdmin：sync-logs 落 module_sync_logs（**租户表**，有 tenant_id 列）
 //     ⇒ 租户 admin 读自己租户的同步日志即可，隔离 callback 已限域。
-//   - systemAdmin：uncovered-routes 是**进程内路由巡检**（middleware 的全局注册表，
+//   - systemAdmin：uncovered-routes 是**进程内路由表**（middleware 的全局注册表，
 //     与租户无关）⇒ 平台运营方档。
 func setupModuleRoutes(public, auth, tenantAdmin, systemAdmin *gin.RouterGroup) {
 	ctrl := controller.NewModuleMarketController()
@@ -85,7 +85,7 @@ func setupModuleRoutes(public, auth, tenantAdmin, systemAdmin *gin.RouterGroup) 
 		tenantAdmin.GET("/modules/sync-logs", ctrl.SyncLogs)
 	}
 	if systemAdmin != nil {
-		// 未挂模块的巡检面：进程内路由注册表（全局）⇒ 平台运营方档
+		// 未挂模块的采集面：进程内路由注册表（全局）⇒ 平台运营方档
 		systemAdmin.GET("/modules/uncovered-routes", ctrl.UncoveredRoutes)
 	}
 }

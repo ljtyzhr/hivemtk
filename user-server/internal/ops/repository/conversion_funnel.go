@@ -115,7 +115,7 @@ func (r *ConversionFunnelRepository) GetClueSourceStats(ctx context.Context, sta
 // `conversion_funnels` 演示表里那套 exposure/click/consult/add_wecom/deal **不在**
 // 本词表里，也不是同一批阶段的另一种叫法：那张表只有 cmd/seed 在写、全仓没有任何读
 // 路径（判据见 docs/architecture/DATABASE_SCHEMA_DEEP_DIVE.md §4.11）。把它并进词表
-// 等于把僵尸表扶正，因此 conversion_funnel_stage_test.go 有一条守门测试专门禁止。
+// 等于把僵尸表扶正，因此 conversion_funnel_stage_test.go 有一条守门测试专硬闸止。
 type FunnelStageKey string
 
 const (

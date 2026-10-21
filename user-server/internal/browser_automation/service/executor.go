@@ -73,7 +73,7 @@ type Executor struct {
 	stepRepo    repository.BrowserStepRepository
 	cmdLogRepo  repository.BrowserCommandLogRepository
 	// writeClaimRepo 不可逆写的存储层独占声明。它不是台账的缓存或兜底——
-	// 台账（stepRepo）回答「历史上发生过尝试没有」，本仓储回答「此刻谁有权去跨提交点」，
+	// 台账（stepRepo）回答「过往发生过尝试没有」，本仓储回答「此刻谁有权去跨提交点」，
 	// 后者只能由一条 INSERT 的原子性给出，所以 Executor 上不放任何内存态。
 	// nil（未接线）在写步上是 fail-close，见 claimWriteSlot。
 	writeClaimRepo repository.BrowserWriteClaimRepository
@@ -93,7 +93,7 @@ type Executor struct {
 	pendingReceipts map[uint][]*receiptPending
 
 	// profileHealthRepo 主 Profile 健康熔断仓储（单主 Profile 健康监护）。
-	// nil=未接线（熔断写入跳过，执行不受影响）——熔断是增强不是门禁。
+	// nil=未接线（熔断写入跳过，执行不受影响）——熔断是增强不是硬闸。
 	profileHealthRepo repository.BrowserProfileHealthRepository
 
 	// outreachDedupeRepo 跨任务触达去重仓储（同一平台同一目标同一动作同一文案只触达一次）。
@@ -165,7 +165,7 @@ func NewExecutor(hand *Hand, sessionRepo repository.BrowserSessionRepository, st
 //
 // 不能沿用执行 ctx：超时/中止腿上 ctx 此刻必然已 Done，用它的 UPDATE 会被 DB 驱动取消，
 // 于是这一行永远停在 running——「写步失败是可见、可人工重跑的」这条承诺就地失效。
-// 失败必须上报（旧写法是 `_ =`）：session/task 行有 stale_reconcile 兜底收敛，步行没有。
+// 失败必须上报（不能 `_ =` 吞掉）：session/task 行有 stale_reconcile 兜底收敛，步行没有。
 func (e *Executor) finishStep(ctx context.Context, stepRowID uint, status string, result []byte, durationMs int64, msg string) {
 	writeCtx, cancel := context.WithTimeout(context.WithoutCancel(ctx), stepFinalWriteBudget)
 	defer cancel()
@@ -725,7 +725,7 @@ func (e *Executor) ExecuteSession(ctx context.Context, task *model.BrowserTask, 
 		}
 	}
 	// executeBrain 因 ctx 超时收敛返回后，ctx 已 Done——用原 ctx 写终态会被 DB
-	// 驱动取消，session 永久停留 active（看门狗白兜）。
+	// 驱动取消，session 永久停留 active（兜底收敛白跑）。
 	// 终态收口必须用脱离取消的 context（独立时限见 timeouts.go，只保写库完成，不继承执行期取消）。
 	writeCtx, cancelWrite := context.WithTimeout(context.WithoutCancel(ctx), sessionFinalWriteBudget)
 	defer cancelWrite()
@@ -783,7 +783,7 @@ func (e *Executor) executeBrain(ctx context.Context, task *model.BrowserTask, se
 	// P0-4：LLM 下发参数钳位状态
 	consecutiveActionFails := 0
 	judgeFailOpen := 0 // P1-2 连续 fail-open 计数
-	// 历史压缩台账：滑窗溢出条目按动作折叠计数，台账首行回喂 LLM（零 LLM 成本的 browser-use 压缩等价）
+	// 压缩台账：滑窗溢出条目按动作折叠计数，台账首行回喂 LLM（零 LLM 成本的 browser-use 压缩等价）
 	foldedHistory := map[string]int{}
 	// P1-1：session 级 token 预算熔断（plan+judge 全计入）
 	// Chunk4：预算可由任务字段 TokenBudget 覆盖（0=用默认常量），取数唯一入口 taskTokenBudget。
@@ -791,7 +791,7 @@ func (e *Executor) executeBrain(ctx context.Context, task *model.BrowserTask, se
 	tokenBudget := taskTokenBudget(task)
 	// JEV session 级熔断/独立预算（Executor 进程级单例不放计数，随 task 结束丢弃）
 	jevSess := &jevSessionState{}
-	// wall-clock 看门狗：ctx 取消链在某些 LLM/DB 调用栈不生效（实测出现过 11min+ active），
+	// wall-clock 兜底收敛：ctx 取消链在某些 LLM/DB 调用栈不生效（实测出现过 11min+ active），
 	// 以真实时钟兜底——超执行预算+30s 强制收敛，会话必有终态。
 	// 预算走 taskExecBudget（Brain 模式下 LLM 也能编排出写步，确认挂起同样要留出时长）
 	deadline := time.Now().Add(taskExecBudget(task) + taskWatchdogGrace)
@@ -1182,12 +1182,12 @@ func (e *Executor) executeStepWithRetry(ctx context.Context, task *model.Browser
 		start := time.Now()
 		// P8 append-only 命令日志：命令帧先落（含步骤参数全文），回包/错误随 result 事件再落。
 		// 命令帧 ok=nil（/ A2）：写下这一行时 Host 连回执都还没有，甚至可能
-		// 根本没进 socket——旧写法传字面量 true，于是审计包里每条「下发」都自带一个 ✓，
+		// 根本没进 socket——若传字面量 true，审计包里每条「下发」都自带一个 ✓，
 		// 而那个 ✓ 在这一行上什么也不指。它 attempted，不 succeeded。
 		*seq++
 		cmdPayload := map[string]any{"action": step.Action, "target": step.Target, "params": buildStepParams(step)}
 		// Chunk4：写步的下发帧带上活动预算水位（配置了活动预算时）。读审计包的人据此能回答
-		// 「当时这次触达是第几次、还剩几条」，而不必去猜时间戳落在哪次运行里。
+		// 「这次触达是第几次、还剩几条」，而不必去猜时间戳落在哪次运行里。
 		// 未配置预算则整段不出现（不写 0/0 的假水位）。
 		if writeStep {
 			if snap := campaignBudgetSnapshot(task); snap != nil {
@@ -1200,7 +1200,7 @@ func (e *Executor) executeStepWithRetry(ctx context.Context, task *model.Browser
 		result, err := e.dispatchStep(ctx, task, session, step, stepRow, seq, outreachCtx)
 		dur := time.Since(start).Milliseconds()
 		// 回包帧自己占一个号：dispatchStep 内部还会落 d7_*/comment_send/write_confirm 帧，
-		// 沿用「一问一答同序号」的旧写法会让步级 event 与它们同号（审计面上两条同号帧，
+		// 沿用「一问一答同序号」会让步级 event 与它们同号（审计面上两条同号帧，
 		// 按 seq 还原执行序的读者会看到一次动作凭空分成两叉）。
 		*seq++
 		if err == nil {
@@ -1276,7 +1276,7 @@ func (e *Executor) detectBlockedIfFatal(ctx context.Context, task *model.Browser
 		}
 		*seq++
 		// 审计用外层 ctx：探测预算可能已耗尽，落库不能被探测自身的超时带走。
-		// ok=「探测这条命令本身成没成」，不是「有没有拦到」——旧写法传 blocked，于是每一页
+		// ok=「探测这条命令本身成没成」，不是「有没有拦到」——若传 blocked，于是每一页
 		// 正常页面的探测都记成 ok=false（验证：审计包里 block_detect 全红，
 		// 读包的人会以为检测链路坏了；拦截结论另有 blocked/reason 字段承载）。
 		e.appendCommandLog(ctx, session.ID, task.ID, 0, *seq, "event", "block_detect", map[string]any{

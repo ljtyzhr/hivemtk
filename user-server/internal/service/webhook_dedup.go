@@ -253,7 +253,7 @@ func (s *WebhookService) PendingCount(ctx context.Context) int64 {
 // QueueLen 队列长度
 func (s *WebhookService) QueueLen(ctx context.Context) int { return len(s.queue) }
 
-// MaxWebhookBody 渠道回调请求体硬上限（第十六轮审计，2026-09-19）。
+// MaxWebhookBody 渠道回调请求体硬上限。
 // /api/webhook/* 是**公网未认证入口**（验签必须先拿到完整 body 计算 HMAC，
 // 读体必然发生在任何鉴权之前），此前 io.ReadAll 不设限 ⇒ 任意匿名者
 // 持续 stream 大 body 即可打爆进程内存。各渠道官方事件 payload 远小于

@@ -33,7 +33,7 @@ import (
 //    （route gating 见 middleware/module_gate.go 与 module_catalog.go ① ——
 //     那边的 fail-closed 注释同样在，两边不许互相"抄"。）
 //
-// ③ 未映射 = 放行：路由闸的"未标注"形态是 ③（放行 + 记 WARN 进巡检清单）；
+// ③ 未映射 = 放行：路由闸的"未标注"形态是 ③（放行 + 记 WARN 进采集清单）；
 //    这里的对应物是 workerModuleKey 查不到 → 直接放行。宁可漏闸一个后台任务，
 //    也不能凭猜测把合规/运维任务闸死（见下表的 NOT mapped 清单）。
 //
@@ -63,7 +63,7 @@ import (
 // key 是 worker 名（cron 任务名 / 循环名），不是模块 key：调用点写
 // AllowWorker(ctx, "customer_rfm") 这样的业务名，未来映射变化只改这张表。
 var workerModuleKey = map[string]string{
-	// GEO 定时任务：internal/geo/service/job_manager.go SetupGeoJobs 注册的
+	// GEO 定时任务：// 用 system scope 读 cfgRepo.Get（First）——多租户下读到的是**跨租户 SetupGeoJobs 注册的
 	// 全部任务名（sov_refresh / negative_monitor / source_sync /
 	// crawler_monitor / keyword_pipeline），由 pkg/cron.InitCron 把
 	// service.AllowWorker 注入为 geoservice 的任务闸。

@@ -419,7 +419,7 @@ func (e *SalesEngine) emptyReplyFallback() string {
 // buildAgentSystemPrompt，以及两条非 agent 的兜底 dispatch（见
 // (*SalesEngine).plainDispatchSystemPrompt）。
 //
-// 缺陷（TASKS_AUDIT_2026-09-16.md · COH-01）：本区块原先只拼在 agent loop 路径，
+// 缺陷：本区块原先只拼在 agent loop 路径，
 // 另两条路径的 SystemPrompt 只传 persona，于是 recallRAG 召回的知识库内容被**静默丢弃** ——
 // 向量检索、计费、ContextBudget 裁剪、写入 resp.RAGChunks 全都正常发生，
 // 唯独 LLM 看不到，回答退化为无知识库兜底。表现为 E2E 断言「AI 回复未引用 RAG 知识库」。

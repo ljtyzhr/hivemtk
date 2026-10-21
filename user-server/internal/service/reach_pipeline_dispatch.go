@@ -93,7 +93,7 @@ func (s *ReachPipelineService) dispatchOutbound(ctx context.Context, job *model.
 	}
 	// 没装真实发送器时，只有上面那几条 bridge 渠道还能自己出网（走包级 DeliverBridgeOutbound，
 	// 不依赖注入的 sender）；其余渠道在这里没有任何出口。
-	// 旧写法在这里编一个 "msg_渠道_客户_纳秒" 的假消息号并回成功：作业被记成已投递，
+	// 若在这里编一个 "msg_渠道_客户_纳秒" 的假消息号并回成功：作业被记成已投递，
 	// 假号还会被 trackSendResult 抄进 _tracking，运营台把它当平台回执看。
 	// 没出网就不能说发过，这里必须失败，让作业停在可重跑的失败态。
 	return "", fmt.Errorf("channel %s 没有装配真实发送器，本条没有出网", job.Channel)

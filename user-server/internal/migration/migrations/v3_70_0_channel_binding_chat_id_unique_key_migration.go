@@ -13,7 +13,7 @@ import (
 // 从 (tenant_id, channel_type, account_id) 改为
 // (tenant_id, channel_type, account_id, COALESCE(chat_id, ”))。
 //
-// 事实链（三段都验过，2026-10-21 实体审查 #63）：
+// 事实链（三段都验过，
 //
 //  1. v3.15 迁移（KBUnificationMigration）建的是
 //     `idx_channel_binding UNIQUE (channel_type, account_id)`，随后被

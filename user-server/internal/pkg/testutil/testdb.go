@@ -50,7 +50,7 @@ var (
 //     `ports: "127.0.0.1:${USER_POSTGRES_HOST_PORT:-8202}:8202"` 决定，
 //     本机 .env 覆盖为 8232（见 docs/PORT_REGISTRY.md §一 / §二）。
 //   - 写死 8202 时，本机 `go test ./...` 连不上 → 依赖本辅助的 288 个测试文件
-//     全部 t.Skipf → go test 退出 0，门禁变假绿（这正是 TEST-01 的同源问题，
+//     全部 t.Skipf → go test 退出 0，断言变假绿（同源问题，
 //     只是触发点从 CI 换成了本地）。
 //   - docs/PORT_REGISTRY.md 已把"硬编码 8202 但 ports.go 说 8232"列为缺陷模式，
 //     并记录了 2026-09 CV 验收时因此产生大面积假失败的历史事故。
@@ -130,7 +130,7 @@ func resolveTestDBEndpoint() (string, string, error) {
 // （docker-compose.yml:69），而 CI 的 services.postgres 只写了 health-cmd，整个 workflow
 // 里 "max_connections" 出现 0 次 ⇒ 用镜像默认 100。于是 CI 里整包跑时探针的扇出先把连接
 // 名额吃光，下一枚探针建句柄即红：`FATAL: sorry, too many clients already (SQLSTATE 53300)`
-// —— CI run 2026-09-22T09:57Z 的红因正落在 async_db_handle_probe_test.go:76（第三枚探针的
+// —— CI 上曾复现：红因正落在 async_db_handle_probe_test.go:76（第三枚探针的
 // NewTestDB 调用行）。这条"本地与 CI 的 PG 参数不同源"与 8202／8232 端口漂移是同一族
 // （见 testDBPortCandidates 注释）：本地绿在这类形状上不构成依据。
 //
@@ -164,7 +164,7 @@ const (
 //
 // 注意：本辅助在创建成功后会自动 db.SetTestDB(database) 并在 t.Cleanup 里还原为 nil。
 //
-// 2026-10-13 变更（编码规范审计后续）：Service 层构造器已统一改为无参 + 全局
+// Service 层构造器已统一改为无参 + 全局
 // dbUtil.GetDB()/repository.GetDB() 注入，不再有 WithDB 变体。若本辅助不注入全局，
 // 每个用例都要手工 SetTestDB，漏一处就是 nil 指针 panic（已实测踩过：service 包
 // 130+ 用例因遗漏而失败）。因此把注入收口到这里；已有手工 SetTestDB 的用例不受影响
@@ -181,16 +181,16 @@ func NewTestDB(t testing.TB, models ...any) *gorm.DB {
 
 	host, port, dialErr := resolveTestDBEndpoint()
 	if dialErr != nil {
-		// ⚠️ 2026-09-16：CI 环境下禁止静默跳过。
+		// ⚠️ CI 环境下禁止静默跳过。
 		//
 		// 背景：CI（.github/workflows/user-server-ci.yml）注入的是 POSTGRES_HOST/PORT/
 		// USER/PASSWORD，而本辅助读取的是 POSTGRES_TEST_* 前缀 —— 两者变量名不匹配，
 		// 于是 CI 里 PG 监听在 5432、这里却去连默认的 8202，DialTimeout 必然失败，
 		// 依赖本辅助的 **288 个测试文件全部走 t.Skipf**，`go test` 依然退出 0。
-		// 阻断式测试门禁因此长期形同虚设（且掩盖了 4 个包的真实失败）。
+		// 阻断式测试断言因此长期形同虚设（且掩盖过 4 个包的真实失败）。
 		//
 		// 现约定：CI 环境（GitHub Actions 自动设置 CI=true）下连不上测试库即 **Fatal**，
-		// 让"门禁没跑"这件事本身变成红色，而不是变成一句没人看的 SKIP。
+		// 让"没跑"这件事本身变成红色，而不是变成一句没人看的 SKIP。
 		// 本地开发保留跳过语义，便于不装 PG 也能跑纯单元测试。
 		if os.Getenv("CI") != "" {
 			t.Fatalf("CI 环境下 PostgreSQL 测试库不可达（%s:%s）：%v。\n"+
@@ -214,12 +214,12 @@ func NewTestDB(t testing.TB, models ...any) *gorm.DB {
 	if sqlDB, dbErr := database.DB(); dbErr == nil {
 		sqlDB.SetMaxOpenConns(testDBMaxOpenConns)
 		sqlDB.SetMaxIdleConns(testDBMaxIdleConns)
-		// 2026-10-13：整包跑时每用例都 DropTable+AutoMigrate，磁盘/fsync 压力下
+		// 整包跑时每用例都 DropTable+AutoMigrate，磁盘/fsync 压力下
 		// CREATE EXTENSION / SET session_replication_role / DDL 可能在 PG 后端卡住数分钟
 		// （实测 TestKuaishouCardService_ShareCard_NotFound 卡在 testdb.go:219 的
 		// SET session_replication_role 上直到 go test 超时）。给 setup 会话设上限，
 		// 让失败以错误形式暴露而不是挂死整包。
-		// 2026-10-13: 多参数 SET(...)=... 在部分驱动/协议下语法报错；拆两条。
+		// 多参数 SET(...)=... 在部分驱动/协议下语法报错；拆两条。
 		// 全量套件数百次 DropTable+AutoMigrate 在 fsync 压力下会卡在
 		// SET session_replication_role 等后台语句上数分钟，语句/锁超时兜底。
 		if _, execErr := sqlDB.Exec("SET statement_timeout = '60s'"); execErr != nil {
@@ -277,8 +277,8 @@ func NewTestDB(t testing.TB, models ...any) *gorm.DB {
 
 // procTestDBSlots 进程级测试库的槽位数。
 //
-// 2026-09-16（RISK-07 根因修复）：原实现按 `<base>_<pid>` 命名，**每个测试进程一个库
-// 且从不 DROP** —— 实测累积 1505 个 / 19 GB（见 docs/architecture/TASKS_AUDIT_2026-09-16.md）。
+// 原实现按 `<base>_<pid>` 命名，**每个测试进程一个库
+// 且从不 DROP** —— 实测累积 1505 个 / 19 GB。
 //
 // 为什么不能在进程退出时删：Go **没有**通用的"测试进程退出"回调。只有显式写了 TestMain
 // 的包才有挂钩子的地方，而全仓 293 个使用 NewTestDB 的测试文件分布在 35 个包目录里，
@@ -313,7 +313,7 @@ func ensureProcTestDB(t testing.TB) {
 	procDBInit.Do(func() {
 		// 基名与 getTestDSN 同源（POSTGRES_TEST_DBNAME，默认 user_db_test）。
 		//
-		// ⚠️ 2026-09-16：此处原为硬编码 `"user_db_test_%d"`。而 NewTestDB 会把
+		// ⚠️ 此处不能硬编码 `"user_db_test_%d"`。而 NewTestDB 会把
 		// getTestDSN() 里的 dbname 整体替换成 procDBName（见 NewTestDB 内
 		// `dbnameRe.ReplaceAllString(..., "dbname="+procDBName)`），
 		// 于是 POSTGRES_TEST_DBNAME **设了也不生效** —— 典型"配置项名承诺了它不做的事"。

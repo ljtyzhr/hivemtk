@@ -144,7 +144,7 @@ var ErrParamDeprecated = errors.New("该参数已下架（改了也不生效）�
 
 // ErrParamReadOnly 试图改动一个只读参数（由系统推导或锁死，比如嵌入维度）。
 //
-// 曾经这里返回的是 gorm.ErrRecordNotFound：管理端列表里那一行明明白白存在，
+// 早先返回的是 gorm.ErrRecordNotFound：管理端列表里那一行明明白白存在，
 // 点保存却被告知「记录不存在」，读起来像是页面或索引坏了。哨兵必须说清真正的原因。
 var ErrParamReadOnly = errors.New("该参数为只读，不可在管理端修改（要变更请走代码与迁移）")
 

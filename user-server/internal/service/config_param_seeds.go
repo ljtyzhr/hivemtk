@@ -836,7 +836,7 @@ func DefaultParamDefs() []ParamDef {
 			Description: "【已下架：改了不生效，改动期间请勿依赖】全局 toast/消息提示的停留时长（毫秒）。默认 3000：短了用户来不及读完（尤其是较长的错误文案），长了会挡住下面的操作区",
 			ValueType:   "int", Unit: "毫秒", DefaultValue: "3000", Min: strPtr("1000"), Max: strPtr("30000"), Step: strPtr("500"), Restart: false,
 			Deprecated: true, DeprecatedReason: "前端没有统一的提示出口：全树 196 个文件各自调 ElMessage，只有 3 处显式传 duration，Element Plus 也没有「消息默认时长」的全局配置项可挂。本条零读取点，页面上改了不生效。要接上得先在 utils/ 里收敛一个提示封装（含 ElMessage.success/error/warning 三形）并把 196 处调用改走它，再登记回本条——这是一次前端改造，不属于参数中心能单独完成的范围"},
-		// ── G1 补登记：门禁反向核对抓出的两条孤儿读取点 ──────────────────
+		// ── G1 补登记：硬闸反向核对抓出的两条孤儿读取点 ──────────────────
 		// 两条都在注释里写着「可经 X 调整」，但种子里没有这一条 ⇒ 代码每次读都 miss、
 		// 每次都回落 fallback，运维在页面上看不到这个旋钮。这正是 1.8 在
 		// channelgw/ws.go 上栽过的形状，只是那次的 key 写错、这次是压根没登记。

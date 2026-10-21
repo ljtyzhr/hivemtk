@@ -35,7 +35,7 @@ func isSelectorMiss(err error, token string) bool {
 }
 
 // defaultRelocateLLM 生产实现：走全局 LLM 分发器。
-// 调用级看门狗同 brain.planOnce（R22 验证：execCtx 取消在部分调用栈不生效）——
+// 调用级兜底收敛同 brain.planOnce（R22 验证：execCtx 取消在部分调用栈不生效）——
 // 120s 真实时钟强返，防自愈回路挂死整个 session。
 func defaultRelocateLLM(ctx context.Context, systemPrompt, prompt string) (relocateOutcome, error) {
 	var out relocateOutcome

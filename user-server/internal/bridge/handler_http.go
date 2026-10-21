@@ -31,7 +31,7 @@ import (
 //	bridge.ingest_max_messages → HTTPIngestMaxMessages (fallback)
 //
 // 长轮询超时两个旋钮（bridge.polling_max_timeout / polling_default_timeout）
-// 已于 2026-10-12 下架，对应的 HTTPPollingMaxTimeout / HTTPPollingDefaultTimeout
+// 已下架，对应的 HTTPPollingMaxTimeout / HTTPPollingDefaultTimeout
 // 常量同时删除。删除理由不是「顺手清理」，而是那两个常量全树只有 defaults_test.go
 // 引用——它们的存在本身就在证明「有个旋钮改了不生效」。留着一个改了不生效的旋钮
 // 比没有旋钮更糟：运营改完排查半天，问题却在代码里。
@@ -454,7 +454,7 @@ func (h *BridgeIngestHandler) HandleHTTPIngest(c *gin.Context) {
 
 	// 这里没有逐用户的归属校验：/api/bridge/* 只挂 InitGuard + BridgeIngressGuard，
 	// 不带 JWT 中间件；扩展把实例级桥接凭证同时塞进 X-Bridge-Token 与 Authorization，
-	// 从没有 user_id 可读。历史上那段 "if uid != 0 { 归属校验 }" 因此恒不执行，
+	// 从没有 user_id 可读。那段 "if uid != 0 { 归属校验 }" 因此恒不执行，
 	// 且它按原始渠道名（别名）查账号行、把查无此行当 500。租户归属由上面的
 	// bindBridgeTenant 自证，账号行以 user_id=0 记为租户资产。
 
@@ -552,7 +552,7 @@ func (h *BridgeIngestHandler) HandleHTTPIngest(c *gin.Context) {
 			defer cancel()
 			if err := GlobalBridgeAccountRepo.Upsert(upCtx, up); err != nil {
 				// 归属冲突也要留痕：这正是"别的用户试图上报本账号"的审计信号，
-				// 旧写法把它当预期内静默吞掉（注释说要记日志，代码里没有）。
+				// 不能把它当预期内静默吞掉（注释说要记日志，代码里没有）。
 				event := "http_upsert_failed"
 				if errors.Is(err, ErrAccountOwnedByOther) {
 					event = "http_upsert_ownership_conflict"

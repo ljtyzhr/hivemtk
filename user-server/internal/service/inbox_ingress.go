@@ -879,7 +879,7 @@ func (s *InboxIngressService) handleIngressSingleForBatch(ctx context.Context, e
 				result.Reason = "msg_id already exists in DB; idempotent skip"
 				return result, nil
 			}
-			// 剥离 #N 发生次数后缀后比对 base hash：bridge 巡检把 AI 出站回复从 DOM 抓回时，
+			// 剥离 #N 发生次数后缀后比对 base hash：bridge 采集把 AI 出站回复从 DOM 抓回时，
 			// 若同内容已在可见列表出现过，_canonicalMsgId 会追加 #N 后缀（channel-adapter.js L191-194），
 			// 导致 event_id 与出站 msg_id 字节不等。剥离后命中则判定为出站回声，幂等跳过。
 			if base := stripOccurrenceSuffix(event.EventID); base != event.EventID {

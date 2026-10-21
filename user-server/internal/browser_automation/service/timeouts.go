@@ -68,7 +68,7 @@ const (
 	hostRegThrashCount  = 5
 )
 
-// —— 会话收敛与看门狗（executor.go / task.go / executor_selfheal.go / cron.go）——
+// —— 会话收敛与兜底收敛（executor.go / task.go / executor_selfheal.go / cron.go）——
 const (
 	// sessionFinalWriteBudget 终态收口写库预算。R25/session188 验证：executeBrain 因
 	// ctx 超时收敛返回后 ctx 已 Done，用原 ctx 写终态会被 DB 驱动取消，session 永久
@@ -78,7 +78,7 @@ const (
 	// R22/session132 验证：ctx 取消链在某些 LLM/DB 调用栈不生效（11min+ active），
 	// 以真实时钟兜底保证会话必有终态。
 	taskWatchdogGrace = 30 * time.Second
-	// relocateLLMWatchdog A1 selector 自愈 LLM 调用看门狗：DispatchStructured 内部
+	// relocateLLMWatchdog A1 selector 自愈 LLM 调用兜底收敛：DispatchStructured 内部
 	// 无硬超时，goroutine 悬挂会拖死整轮，独立 120s 判负（降级为原 selector 报错）。
 	relocateLLMWatchdog = 120 * time.Second
 	// cronTriggerOpTimeout cron 触发回调内「再校验 enabled + RunTask」的 DB 操作预算
@@ -105,8 +105,8 @@ func confirmWaitBudget(t *model.BrowserTask) time.Duration {
 }
 
 // taskExecBudget 一次执行的 wall-clock 预算 = TimeoutSec（自动化本身）+ D7 确认等待（另计）。
-// 三处消费必须同源：RunTask 的 execCtx、SafeGoDetached 的外层看门狗、Brain 循环的真实时钟兜底。
-// 各写各的口径就是要收的口子——曾经「确认中」的任务会被看门狗按 TimeoutSec 掐死。
+// 三处消费必须同源：RunTask 的 execCtx、SafeGoDetached 的外层兜底收敛、Brain 循环的真实时钟兜底。
+// 各写各的口径就是要收的口子——曾经「确认中」的任务会被兜底收敛按 TimeoutSec 掐死。
 func taskExecBudget(t *model.BrowserTask) time.Duration {
 	d := time.Duration(t.TimeoutSec) * time.Second
 	if t.RequireConfirm {

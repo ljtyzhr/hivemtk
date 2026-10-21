@@ -8,7 +8,7 @@ import (
 
 // SearchProducts 在指定的多个产品（知识库）下分别检索后合并。
 //
-// 背景：SalesEngine.recallRAG 历史上只调 Search（全产品检索），智能体上配置的
+// 背景：SalesEngine.recallRAG 早先只调 Search（全产品检索），智能体上配置的
 // rag_product_ids 从未生效——任意接入的新知识都会被所有智能体全局召回（污染）。
 // 本方法让 rag_product_ids 真正生效：优先分产品召回，无命中时由调用方回退全局。
 func (s *RagSearcher) SearchProducts(ctx context.Context, productIDs []string, query string, topK int) ([]RAGChunk, error) {

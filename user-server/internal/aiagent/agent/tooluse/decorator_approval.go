@@ -47,8 +47,8 @@ var coldOutreachNameSubstrs = []string{"batch_", "schedule_", "outbound_", "lead
 
 // IsColdOutreachTool 判定工具是否需要冷触达审批门（A-1）。
 //
-// 双重门禁：Category 必须是 CategoryReach + 名称段命中冷触达关键词。
-// 会话内回复（confidence 门禁 + 六否决链）不触发审批——这类工具：
+// 双重硬闸：Category 必须是 CategoryReach + 名称段命中冷触达关键词。
+// 会话内回复（confidence 硬闸 + 六否决链）不触发审批——这类工具：
 //   - Category 为 CategoryPrivateMessage / CategoryCustomer / CategoryKnowledge / CategoryBusiness
 //   - 或 CategoryReach 但名称段仅为 recall/health/history/template/account（非外发）
 //

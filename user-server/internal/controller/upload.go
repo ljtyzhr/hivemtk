@@ -42,7 +42,7 @@ var dangerousExtensions = map[string]bool{
 // fileMagicNumbers 把 magic 映射到**该 magic 的规范扩展名**：一个字节前缀只能命中一个键。
 // 曾把同一段 ZIP magic 同时挂在 .zip/.docx/.xlsx/.pptx 四个键上（另加 .jpg/.jpeg），
 // 而 map 遍历顺序随机 ⇒ 上传 .xlsx 时可能检成 ".docx"，两边都不等、isZipBasedFormat 也救不了，
-// 同一个文件随机 400（批L，2026-09-20 实测）。zip 家族统一检成 ".zip"，
+// 同一个文件随机 400（实测）。zip 家族统一检成 ".zip"，
 // 由 isZipBasedFormat 放行 Office 扩展名；jpg/jpeg 的等价交给 extensionsMatch。
 var fileMagicNumbers = map[string][][]byte{
 	".jpg":  {{0xFF, 0xD8, 0xFF}},
@@ -105,7 +105,7 @@ var resolveUploadParamMaxBytes = func(ctx context.Context) int64 {
 //
 // env 排第一是既有行为（容器化部署靠它临时覆盖），保持不动。
 // 参数中心这层是统一入口：「系统配置」页的上传上限语义是站级配置、覆盖面窄，
-// 且历史上改了不起作用（上传链路一处都不读）；放进参数中心后与其它阈值同一张脸。
+// 且改了不起作用（上传链路一处都不读）；放进参数中心后与其它阈值同一张脸。
 // 兼容列继续保留为第二顺位：存量站点已经在那儿调过值，不能因为新键一上线就把它顶掉。
 // 代码兜底 10MB 必须保留：没有配置行的存量站点不能因为这次接线就突然放宽 5 倍。
 func resolveUploadMaxSize(ctx context.Context) int64 {

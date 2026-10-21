@@ -14,7 +14,7 @@ import (
 //
 // 走直连不造 provider seam：读取点全在 internal/service 包内（3.1 第一批
 // geo.default_visibility_days 定的判据）。每键拆 raw / 带兜底两个函数的理由同
-// webhook_runtime_params.go：读取点门禁认的是「某行同时出现 Get*( 与键名常量」。
+// webhook_runtime_params.go：读取点硬闸认的是「某行同时出现 Get*( 与键名常量」。
 
 const (
 	// ParamGroupDomainHealth / ParamGroupRagHealth 是两组在参数中心里的组名。

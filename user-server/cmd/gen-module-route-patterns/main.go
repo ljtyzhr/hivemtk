@@ -41,7 +41,7 @@ func main() {
 		// 有 {opsOverview, salesCockpit} 这种），那是「两个页面的读侧共用这条口」。
 		// 此时取第一个（此前的做法）会把 /api/ai/sales-cockpit 判成 core，
 		// 而它真正属于 sales-crm —— 闭着眼睛取第一个看起来能跑，实际上给
-		// 收费模块开了后门。歧义一律不拦（走未覆盖通道 + 巡检）。
+		// 收费模块开了后门。歧义一律不拦（走未覆盖通道 + 采集）。
 		distinct := map[string]bool{}
 		for _, k := range c.MenuKeys {
 			if owner := model.OwnerOfMenuKey(k); owner != "" {

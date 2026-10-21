@@ -75,7 +75,7 @@ type smsService struct {
 const (
 	smsAliyunAPIURL  = "https://dysmsapi.aliyuncs.com/"
 	smsTencentAPIURL = "https://sms.tencentcloudapi.com/"
-	// 华为的域里带区域段，与 sendHuawei 旧写法一致取 cn-north-4。
+	// 华为的域里带区域段，与 sendHuawei 一致取 cn-north-4。
 	smsHuaweiAPIURL = "https://smsapi.cn-north-4.boe-business.huaweicloud.com:443/sms/batchSendSms/v1"
 )
 

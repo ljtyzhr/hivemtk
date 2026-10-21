@@ -203,7 +203,7 @@ func (r *memoryRepository) ListSOPStatesByCustomer(ctx context.Context, customer
 //
 // 错误必须往上抛：这个数字是 **L4 的容量闸**（`MemorySystem.L4Add` 拿它判
 // 「count+1 > L4MaxPerCust(500) 才淘汰」）。而 gorm 对查询失败只回 Error，
-// 原来的写法把 .Error 丢了、直接 `return count, nil` —— 于是任何一次查询失败
+// 计数查询的 .Error 必须上抛：直接 `return count, nil` 会让任何一次查询失败
 // （连接池打满、DDL 锁、ctx 取消）都被读成「这个客户有 0 条记忆」，
 // 淘汰这里**永远不触发**：L4 记忆行无界增长，而界面上看不出任何异常，
 // 只有「这个客户的记忆越攒越多」这一种表现。

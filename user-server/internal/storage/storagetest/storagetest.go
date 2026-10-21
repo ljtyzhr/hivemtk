@@ -1,6 +1,6 @@
 // storagetest.go 测试期的存储根注入与收尾清扫。
 //
-// go test 的 CWD 是被测包目录，而上传/备份/还原暂存三棵树历史上都是相对 CWD 的字面量，
+// go test 的 CWD 是被测包目录，而上传/备份/还原暂存三棵树都曾是相对 CWD 的字面量，
 // 于是每跑一轮测试就往源码树里留一份（internal/service/backups 一度积到 490 个目录，
 // internal/aiagent/knowledge/controller/uploads 积到 1550 个文件）。根因侧已由
 // storage.LocalSource / storage.BackupSource 收口成可配置，本包负责测试侧的两件事：

@@ -29,7 +29,7 @@ import (
 // GlobalConfigParam()。3.1a 定的接线判据就是「读取点在不在 internal/service 包内」。
 //
 // 每个键拆成 raw / 带兜底两个函数，不是为了对称：raw 那一行必须同时出现
-// `GetDuration(`/`GetInt(` 与键名常量，参数中心读取点门禁（scripts/
+// `GetDuration(`/`GetInt(` 与键名常量，参数中心读取点硬闸（scripts/
 // check-config-param-readpoints.py）认的就是这个形状，读点藏在通用 helper 的形参里
 // 它判不出来（本批第一版就是这么写的，6 条一起被判成 UNDECLARED）。
 
@@ -38,7 +38,7 @@ const ParamGroupWebhook = "webhook"
 
 // 七个参数键。抽成常量而不是在调用点写字面量：1.8 栽过一次——channelgw/ws.go 把种子
 // 登记的 "ws_push_interval" 写成 "ws_push_interval_default"，每次读都 miss、每次回落
-// 兜底，而读取点门禁结构上看不出这类漂移（读取点存在，只是用的别的 key）。
+// 兜底，而读取点硬闸结构上看不出这类漂移（读取点存在，只是用的别的 key）。
 const (
 	WebhookDedupTTLParam         = "dedup_ttl"
 	WebhookRateLimitParam        = "rate_limit"

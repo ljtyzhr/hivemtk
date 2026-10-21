@@ -743,7 +743,7 @@ func (s *KeywordMiningService) CombineLongtail(ctx context.Context, seedWords []
 		templates = ActiveLongtailTemplates(ctx)
 	}
 
-	// 年份在展开时注入，不写死进模板：写死会让词库随日历过期（历史上 3 个模板硬编码 2026）。
+	// 年份在展开时注入，不写死进模板：写死会让词库随日历过期。
 	year := time.Now().Format("2006")
 
 	// 去重用 map 只作为「是否已见过」的集合，结果集本身按 种子→模板 的展开顺序追加：

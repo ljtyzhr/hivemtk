@@ -79,7 +79,7 @@ type IntentRecord struct {
 	//      精细意图查询报 column "source" does not exist (SQLSTATE 42703)（8 个用例失败）；
 	//   ② 生产侧：全新部署时 AutoMigrate 建出的表同样缺这 6 列，精细意图功能不可用
 	//      （存量库之所以正常，只是因为 AutoMigrate 不会删列）。
-	// 列宽/默认值以实时库 user_db.intent_records 为准（22 列，见 TASKS_AUDIT_2026-09-16.md · TEST-05）。
+	// 列宽/默认值以实时库 user_db.intent_records 为准（22 列）。
 	//
 	// 这些字段用 json:"-" 隐藏：controller/intent.go 直接把 []model.IntentRecord 返回给
 	// 前端，补列不得改变既有响应结构（精细日志另有 IntentLog 视图与专属接口暴露）。

@@ -14,7 +14,7 @@ import (
 // Executor 是进程级单例，内存计数会跨 session 串包，重启即丢。
 
 // recordProfileBlocked 封号熔断写入：MarkBlocked 落库 + block_fused 审计帧。
-// profileHealthRepo==nil（未接线）时跳过写入——熔断是增强不是门禁，执行不受影响。
+// profileHealthRepo==nil（未接线）时跳过写入——熔断是增强不是硬闸，执行不受影响。
 // 返回库错误（调用方决定是否中止）；审计帧失败仅告警（appendCommandLog 自带 nil-safe）。
 func (e *Executor) recordProfileBlocked(ctx context.Context, task *model.BrowserTask, session *model.BrowserSession, reason string) error {
 	platform := taskPlatformID(task)

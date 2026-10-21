@@ -220,7 +220,7 @@
 | 5 | [ ] | `cmd/embedding-server/main.go` | 7 | 33 | 7 | 0 |
 | 6 | [ ] | `cmd/eval-trace/main.go` | 0 | 0 | 0 | 0 |
 | 7 | [ ] | `cmd/gen-module-bindings/main.go` | 3 | 36 | 3 | 0 |
-| 8 | [ ] | `cmd/gen-module-route-patterns/main.go` | 2 | 22 | 2 | 0 |
+| 8 | [x] | `cmd/gen-module-route-patterns/main.go` | 2 | 22 | 2 | 0 |
 | 9 | [ ] | `cmd/geo-run/main.go` | 1 | 1 | 1 | 0 |
 | 10 | [ ] | `cmd/importfaq/main.go` | 1 | 22 | 1 | 0 |
 | 11 | [ ] | `cmd/minttoken/main.go` | 0 | 0 | 0 | 0 |
@@ -260,13 +260,13 @@
 | 45 | [ ] | `internal/aiagent/agent/runtime/asset_bundle_loader.go` | 4 | 13 | 4 | 0 |
 | 46 | [ ] | `internal/aiagent/agent/runtime/chat_history_redis.go` | 4 | 26 | 4 | 0 |
 | 47 | [ ] | `internal/aiagent/agent/runtime/context.go` | 28 | 30 | 28 | 0 |
-| 48 | [ ] | `internal/aiagent/agent/runtime/dataflow_orchestrator.go` | 19 | 31 | 19 | 0 |
+| 48 | [x] | `internal/aiagent/agent/runtime/dataflow_orchestrator.go` | 19 | 31 | 19 | 0 |
 | 49 | [ ] | `internal/aiagent/agent/runtime/event_subscriber.go` | 2 | 10 | 2 | 0 |
-| 50 | [ ] | `internal/aiagent/agent/runtime/gatekeeper_stage.go` | 11 | 29 | 11 | 0 |
+| 50 | [x] | `internal/aiagent/agent/runtime/gatekeeper_stage.go` | 11 | 29 | 11 | 0 |
 | 51 | [ ] | `internal/aiagent/agent/runtime/global.go` | 3 | 4 | 3 | 0 |
 | 52 | [ ] | `internal/aiagent/agent/runtime/idempotency.go` | 6 | 17 | 6 | 0 |
 | 53 | [ ] | `internal/aiagent/agent/runtime/inference_checkpoint.go` | 14 | 32 | 14 | 0 |
-| 54 | [ ] | `internal/aiagent/agent/runtime/inference_cycle.go` | 20 | 46 | 20 | 0 |
+| 54 | [x] | `internal/aiagent/agent/runtime/inference_cycle.go` | 20 | 46 | 20 | 0 |
 | 55 | [ ] | `internal/aiagent/agent/runtime/inference_types.go` | 20 | 25 | 20 | 0 |
 | 56 | [ ] | `internal/aiagent/agent/runtime/intent_extractor.go` | 3 | 10 | 3 | 0 |
 | 57 | [ ] | `internal/aiagent/agent/runtime/local_llm_client.go` | 4 | 18 | 4 | 0 |
@@ -380,7 +380,7 @@
 | 165 | [ ] | `internal/aiagent/knowledge/service/rag_config_rag.go` | 3 | 7 | 3 | 0 |
 | 166 | [ ] | `internal/aiagent/knowledge/service/rag_searcher.go` | 9 | 42 | 9 | 0 |
 | 167 | [ ] | `internal/aiagent/knowledge/service/rag_searcher_bm25.go` | 1 | 3 | 1 | 0 |
-| 168 | [ ] | `internal/aiagent/knowledge/service/rag_searcher_products.go` | 1 | 5 | 1 | 0 |
+| 168 | [x] | `internal/aiagent/knowledge/service/rag_searcher_products.go` | 1 | 5 | 1 | 0 |
 | 169 | [ ] | `internal/aiagent/knowledge/service/rag_searcher_types.go` | 2 | 2 | 2 | 0 |
 | 170 | [ ] | `internal/aiagent/knowledge/service/rag_searcher_vector.go` | 0 | 0 | 0 | 0 |
 | 171 | [ ] | `internal/aiagent/llm/dispatcher.go` | 30 | 57 | 30 | 0 |
@@ -406,7 +406,7 @@
 | 191 | [ ] | `internal/aiagent/llm/selfconsistency/selfconsistency.go` | 12 | 44 | 12 | 0 |
 | 192 | [ ] | `internal/aiagent/llm/trace_context.go` | 33 | 48 | 33 | 0 |
 | 193 | [ ] | `internal/aiagent/llm/trace_query.go` | 7 | 14 | 7 | 0 |
-| 194 | [ ] | `internal/aiagent/llm/trace_sink.go` | 12 | 28 | 12 | 0 |
+| 194 | [x] | `internal/aiagent/llm/trace_sink.go` | 12 | 28 | 12 | 0 |
 | 195 | [ ] | `internal/aiagent/mcp/http.go` | 7 | 11 | 7 | 0 |
 | 196 | [ ] | `internal/aiagent/mcp/server.go` | 30 | 40 | 30 | 0 |
 | 197 | [ ] | `internal/aiagent/rag/cache/answer_cache_model.go` | 10 | 11 | 10 | 0 |
@@ -442,7 +442,7 @@
 | 227 | [ ] | `internal/aiagent/rag/retrieval/markdown_chunk_strategy.go` | 2 | 2 | 2 | 0 |
 | 228 | [ ] | `internal/aiagent/rag/retrieval/multi_query_generator.go` | 6 | 15 | 6 | 0 |
 | 229 | [ ] | `internal/aiagent/rag/retrieval/pgvector_index_ops.go` | 6 | 18 | 6 | 0 |
-| 230 | [ ] | `internal/aiagent/rag/retrieval/pgvector_session.go` | 3 | 8 | 3 | 0 |
+| 230 | [x] | `internal/aiagent/rag/retrieval/pgvector_session.go` | 3 | 8 | 3 | 0 |
 | 231 | [ ] | `internal/aiagent/rag/retrieval/query_rewriter.go` | 8 | 25 | 8 | 0 |
 | 232 | [ ] | `internal/aiagent/rag/retrieval/query_weight.go` | 3 | 8 | 3 | 0 |
 | 233 | [ ] | `internal/aiagent/rag/retrieval/rag_retrieval.go` | 18 | 22 | 18 | 0 |
@@ -462,14 +462,14 @@
 | 247 | [ ] | `internal/aiagent/vector/vector_model.go` | 27 | 29 | 27 | 0 |
 | 248 | [ ] | `internal/app/agent_checkpoint_wiring.go` | 5 | 13 | 5 | 0 |
 | 249 | [x] | `internal/app/agent_lifecycle_wiring.go` | 15 | 55 | 15 | 0 |
-| 250 | [ ] | `internal/app/agent_llm_params_wiring.go` | 2 | 18 | 2 | 0 |
+| 250 | [x] | `internal/app/agent_llm_params_wiring.go` | 2 | 18 | 2 | 0 |
 | 251 | [ ] | `internal/app/agent_tool_params_wiring.go` | 1 | 18 | 1 | 0 |
 | 252 | [x] | `internal/app/approval_runtime_wiring.go` | 15 | 78 | 15 | 0 |
 | 253 | [x] | `internal/app/approval_wiring.go` | 18 | 132 | 18 | 0 |
 | 254 | [x] | `internal/app/bad_case_wiring.go` | 4 | 19 | 4 | 0 |
 | 255 | [x] | `internal/app/bill_wiring.go` | 5 | 32 | 5 | 0 |
 | 256 | [x] | `internal/app/business_notifier_wiring.go` | 2 | 15 | 2 | 0 |
-| 257 | [ ] | `internal/app/cache_params_wiring.go` | 1 | 13 | 1 | 0 |
+| 257 | [x] | `internal/app/cache_params_wiring.go` | 1 | 13 | 1 | 0 |
 | 258 | [ ] | `internal/app/channelbot_params_wiring.go` | 1 | 9 | 1 | 0 |
 | 259 | [x] | `internal/app/collection_wiring.go` | 14 | 73 | 14 | 0 |
 | 260 | [ ] | `internal/app/confidence_params_wiring.go` | 1 | 12 | 1 | 0 |
@@ -479,12 +479,12 @@
 | 264 | [ ] | `internal/app/event_bus.go` | 2 | 11 | 2 | 0 |
 | 265 | [ ] | `internal/app/faq_cache_wiring.go` | 5 | 27 | 5 | 0 |
 | 266 | [ ] | `internal/app/feedback_sink_adapter.go` | 5 | 17 | 5 | 0 |
-| 267 | [ ] | `internal/app/frontend_ui_params_wiring.go` | 1 | 14 | 1 | 0 |
+| 267 | [x] | `internal/app/frontend_ui_params_wiring.go` | 1 | 14 | 1 | 0 |
 | 268 | [ ] | `internal/app/globals.go` | 5 | 5 | 5 | 0 |
 | 269 | [x] | `internal/app/human_task_sla_wiring.go` | 7 | 28 | 7 | 0 |
 | 270 | [x] | `internal/app/human_task_wiring.go` | 5 | 31 | 5 | 0 |
 | 271 | [x] | `internal/app/inbox_sales_session_pagination_wechat_params_wiring.go` | 3 | 30 | 3 | 0 |
-| 272 | [ ] | `internal/app/inference_orchestrator_wiring.go` | 6 | 38 | 6 | 0 |
+| 272 | [x] | `internal/app/inference_orchestrator_wiring.go` | 6 | 38 | 6 | 0 |
 | 273 | [x] | `internal/app/integration_reach_adapter.go` | 54 | 165 | 54 | 0 |
 | 274 | [ ] | `internal/app/kb_release_wiring.go` | 5 | 35 | 5 | 0 |
 | 275 | [ ] | `internal/app/lock_idempotency_params_wiring.go` | 2 | 9 | 2 | 0 |
@@ -509,9 +509,9 @@
 | 294 | [x] | `internal/app/tool_audit_wiring.go` | 14 | 65 | 14 | 0 |
 | 295 | [x] | `internal/app/tool_circuit_breaker_wiring.go` | 15 | 88 | 15 | 0 |
 | 296 | [ ] | `internal/app/tool_executor_adapter.go` | 4 | 6 | 4 | 0 |
-| 297 | [ ] | `internal/app/tool_executor_wiring.go` | 8 | 67 | 8 | 0 |
+| 297 | [x] | `internal/app/tool_executor_wiring.go` | 8 | 67 | 8 | 0 |
 | 298 | [ ] | `internal/app/tool_provider_wiring.go` | 9 | 10 | 9 | 0 |
-| 299 | [ ] | `internal/app/upload_body_limit_params_wiring.go` | 2 | 20 | 2 | 0 |
+| 299 | [x] | `internal/app/upload_body_limit_params_wiring.go` | 2 | 20 | 2 | 0 |
 | 300 | [ ] | `internal/app/url_params_wiring.go` | 1 | 14 | 1 | 0 |
 | 301 | [ ] | `internal/approval/decision_counter.go` | 9 | 23 | 9 | 0 |
 | 302 | [ ] | `internal/approval/whitelist.go` | 11 | 32 | 11 | 0 |
@@ -544,7 +544,7 @@
 | 329 | [x] | `internal/browser_automation/model/session.go` | 6 | 11 | 6 | 0 |
 | 330 | [ ] | `internal/browser_automation/model/step.go` | 17 | 26 | 17 | 0 |
 | 331 | [x] | `internal/browser_automation/model/task.go` | 19 | 32 | 19 | 0 |
-| 332 | [ ] | `internal/browser_automation/model/write_claim.go` | 1 | 16 | 1 | 0 |
+| 332 | [x] | `internal/browser_automation/model/write_claim.go` | 1 | 16 | 1 | 0 |
 | 333 | [x] | `internal/browser_automation/platform/blockdetect.go` | 5 | 19 | 5 | 0 |
 | 334 | [x] | `internal/browser_automation/platform/douyin/douyin.go` | 14 | 23 | 14 | 0 |
 | 335 | [x] | `internal/browser_automation/platform/platform.go` | 35 | 48 | 35 | 0 |
@@ -555,7 +555,7 @@
 | 340 | [ ] | `internal/browser_automation/repository/cron.go` | 5 | 7 | 5 | 0 |
 | 341 | [ ] | `internal/browser_automation/repository/llm_plan.go` | 6 | 10 | 6 | 0 |
 | 342 | [ ] | `internal/browser_automation/repository/outreach_dedupe.go` | 7 | 7 | 7 | 0 |
-| 343 | [ ] | `internal/browser_automation/repository/outreach_receipt.go` | 7 | 13 | 7 | 0 |
+| 343 | [x] | `internal/browser_automation/repository/outreach_receipt.go` | 7 | 13 | 7 | 0 |
 | 344 | [ ] | `internal/browser_automation/repository/profile_health.go` | 5 | 5 | 5 | 0 |
 | 345 | [ ] | `internal/browser_automation/repository/session.go` | 15 | 27 | 15 | 0 |
 | 346 | [ ] | `internal/browser_automation/repository/step.go` | 9 | 22 | 9 | 0 |
@@ -581,7 +581,7 @@
 | 366 | [x] | `internal/browser_automation/service/profile_fuse.go` | 2 | 8 | 2 | 0 |
 | 367 | [x] | `internal/browser_automation/service/retention.go` | 8 | 25 | 8 | 0 |
 | 368 | [ ] | `internal/browser_automation/service/session.go` | 21 | 41 | 21 | 0 |
-| 369 | [ ] | `internal/browser_automation/service/stale_reconcile.go` | 12 | 37 | 12 | 0 |
+| 369 | [x] | `internal/browser_automation/service/stale_reconcile.go` | 12 | 37 | 12 | 0 |
 | 370 | [ ] | `internal/browser_automation/service/storage_util.go` | 3 | 3 | 3 | 0 |
 | 371 | [x] | `internal/browser_automation/service/task.go` | 41 | 94 | 41 | 0 |
 | 372 | [x] | `internal/browser_automation/service/timeouts.go` | 28 | 81 | 28 | 0 |
@@ -600,7 +600,7 @@
 | 385 | [x] | `internal/channelbot/whatsapp/whatsapp.go` | 23 | 54 | 23 | 0 |
 | 386 | [ ] | `internal/channelgw/pipeline.go` | 2 | 13 | 2 | 0 |
 | 387 | [ ] | `internal/channelgw/protocol.go` | 17 | 74 | 17 | 0 |
-| 388 | [ ] | `internal/channelgw/registry.go` | 12 | 22 | 12 | 0 |
+| 388 | [x] | `internal/channelgw/registry.go` | 12 | 22 | 12 | 0 |
 | 389 | [x] | `internal/channelgw/ws.go` | 10 | 28 | 10 | 0 |
 | 390 | [ ] | `internal/config/admin.go` | 6 | 20 | 6 | 0 |
 | 391 | [ ] | `internal/config/init.go` | 1 | 4 | 1 | 0 |
@@ -686,7 +686,7 @@
 | 471 | [ ] | `internal/controller/customer_oneid.go` | 15 | 75 | 15 | 0 |
 | 472 | [ ] | `internal/controller/customer_queue.go` | 7 | 10 | 7 | 0 |
 | 473 | [ ] | `internal/controller/customer_rfm.go` | 7 | 37 | 7 | 0 |
-| 474 | [ ] | `internal/controller/customer_service_plus.go` | 26 | 27 | 26 | 0 |
+| 474 | [x] | `internal/controller/customer_service_plus.go` | 26 | 27 | 26 | 0 |
 | 475 | [ ] | `internal/controller/customer_session.go` | 20 | 22 | 20 | 0 |
 | 476 | [ ] | `internal/controller/customer_session_blacklist.go` | 4 | 17 | 4 | 0 |
 | 477 | [ ] | `internal/controller/customer_session_routing.go` | 6 | 6 | 6 | 0 |
@@ -720,7 +720,7 @@
 | 505 | [ ] | `internal/controller/help_center.go` | 9 | 9 | 9 | 0 |
 | 506 | [x] | `internal/controller/human_task.go` | 28 | 63 | 28 | 0 |
 | 507 | [ ] | `internal/controller/i18n_stats.go` | 10 | 17 | 10 | 0 |
-| 508 | [ ] | `internal/controller/inbox.go` | 31 | 60 | 31 | 0 |
+| 508 | [x] | `internal/controller/inbox.go` | 31 | 60 | 31 | 0 |
 | 509 | [ ] | `internal/controller/integration.go` | 21 | 45 | 21 | 0 |
 | 510 | [ ] | `internal/controller/intent.go` | 19 | 63 | 19 | 0 |
 | 511 | [ ] | `internal/controller/kb_connector.go` | 8 | 10 | 8 | 0 |
@@ -739,7 +739,7 @@
 | 524 | [ ] | `internal/controller/message_hub.go` | 11 | 11 | 11 | 0 |
 | 525 | [ ] | `internal/controller/migration.go` | 9 | 23 | 9 | 0 |
 | 526 | [ ] | `internal/controller/module_llm.go` | 7 | 33 | 7 | 0 |
-| 527 | [ ] | `internal/controller/module_market.go` | 13 | 31 | 13 | 0 |
+| 527 | [x] | `internal/controller/module_market.go` | 13 | 31 | 13 | 0 |
 | 528 | [ ] | `internal/controller/module_paging.go` | 2 | 6 | 2 | 0 |
 | 529 | [ ] | `internal/controller/notification.go` | 6 | 11 | 6 | 0 |
 | 530 | [ ] | `internal/controller/objection_handler.go` | 7 | 7 | 7 | 0 |
@@ -794,7 +794,7 @@
 | 579 | [ ] | `internal/controller/subscription.go` | 4 | 13 | 4 | 0 |
 | 580 | [ ] | `internal/controller/support_metrics.go` | 3 | 3 | 3 | 0 |
 | 581 | [ ] | `internal/controller/system_config.go` | 5 | 6 | 5 | 0 |
-| 582 | [ ] | `internal/controller/system_info.go` | 5 | 23 | 5 | 0 |
+| 582 | [x] | `internal/controller/system_info.go` | 5 | 23 | 5 | 0 |
 | 583 | [ ] | `internal/controller/system_init.go` | 12 | 60 | 12 | 0 |
 | 584 | [ ] | `internal/controller/system_monitor.go` | 0 | 0 | 0 | 0 |
 | 585 | [ ] | `internal/controller/system_ops.go` | 8 | 11 | 8 | 0 |
@@ -814,7 +814,7 @@
 | 599 | [ ] | `internal/controller/user_segment.go` | 12 | 22 | 12 | 0 |
 | 600 | [x] | `internal/controller/webhook.go` | 29 | 117 | 29 | 0 |
 | 601 | [ ] | `internal/controller/wechat.go` | 16 | 32 | 16 | 0 |
-| 602 | [ ] | `internal/controller/wechat_body_limit.go` | 1 | 6 | 1 | 0 |
+| 602 | [x] | `internal/controller/wechat_body_limit.go` | 1 | 6 | 1 | 0 |
 | 603 | [ ] | `internal/controller/wecom.go` | 16 | 19 | 16 | 0 |
 | 604 | [ ] | `internal/controller/wecom_health.go` | 14 | 18 | 14 | 0 |
 | 605 | [ ] | `internal/controller/whatsapp.go` | 11 | 12 | 11 | 0 |
@@ -1024,8 +1024,8 @@
 | 809 | [ ] | `internal/middleware/lang_resolver.go` | 2 | 17 | 2 | 0 |
 | 810 | [ ] | `internal/middleware/locale.go` | 1 | 5 | 1 | 0 |
 | 811 | [x] | `internal/middleware/ltc_gate.go` | 6 | 39 | 6 | 0 |
-| 812 | [ ] | `internal/middleware/mcp_guard.go` | 17 | 83 | 17 | 0 |
-| 813 | [ ] | `internal/middleware/metrics.go` | 4 | 14 | 4 | 0 |
+| 812 | [x] | `internal/middleware/mcp_guard.go` | 17 | 83 | 17 | 0 |
+| 813 | [x] | `internal/middleware/metrics.go` | 4 | 14 | 4 | 0 |
 | 814 | [ ] | `internal/middleware/mfa.go` | 7 | 18 | 7 | 0 |
 | 815 | [x] | `internal/middleware/module_gate.go` | 15 | 45 | 15 | 0 |
 | 816 | [ ] | `internal/middleware/module_route_patterns.go` | 4 | 23 | 4 | 0 |
@@ -1073,7 +1073,7 @@
 | 858 | [ ] | `internal/migration/migrations/l_p1_migration.go` | 8 | 9 | 8 | 0 |
 | 859 | [ ] | `internal/migration/migrations/llm_routing_logs_extend_migration.go` | 7 | 7 | 7 | 0 |
 | 860 | [ ] | `internal/migration/migrations/llm_routing_logs_migration.go` | 7 | 7 | 7 | 0 |
-| 861 | [ ] | `internal/migration/migrations/llm_separate_pricing_migration.go` | 9 | 34 | 9 | 0 |
+| 861 | [x] | `internal/migration/migrations/llm_separate_pricing_migration.go` | 9 | 34 | 9 | 0 |
 | 862 | [ ] | `internal/migration/migrations/llm_usage_records_migration.go` | 8 | 10 | 8 | 0 |
 | 863 | [ ] | `internal/migration/migrations/m_p1_migration.go` | 7 | 7 | 7 | 0 |
 | 864 | [ ] | `internal/migration/migrations/merchant_id_nullable_migration.go` | 7 | 11 | 7 | 0 |
@@ -1099,7 +1099,7 @@
 | 884 | [ ] | `internal/migration/migrations/v3_18_channel_unify_migration.go` | 0 | 0 | 0 | 0 |
 | 885 | [ ] | `internal/migration/migrations/v3_19_drop_cdp_auto_reply_migration.go` | 2 | 10 | 2 | 0 |
 | 886 | [ ] | `internal/migration/migrations/v3_20_live_code_click_logs_migration.go` | 2 | 7 | 2 | 0 |
-| 887 | [ ] | `internal/migration/migrations/v3_21_bridge_metrics_migration.go` | 2 | 7 | 2 | 0 |
+| 887 | [x] | `internal/migration/migrations/v3_21_bridge_metrics_migration.go` | 2 | 7 | 2 | 0 |
 | 888 | [ ] | `internal/migration/migrations/v3_22_0_customer_id_standardize_migration.go` | 2 | 5 | 2 | 0 |
 | 889 | [ ] | `internal/migration/migrations/v3_22_1_soft_delete_migration.go` | 0 | 0 | 0 | 0 |
 | 890 | [ ] | `internal/migration/migrations/v3_22_2_enum_optimize_migration.go` | 0 | 0 | 0 | 0 |
@@ -1139,13 +1139,13 @@
 | 924 | [ ] | `internal/migration/migrations/v3_56_0_clue_geo_capture_type_split_migration.go` | 9 | 43 | 9 | 0 |
 | 925 | [ ] | `internal/migration/migrations/v3_63_0_tenant_init_compliance_columns_migration.go` | 4 | 14 | 4 | 0 |
 | 926 | [ ] | `internal/migration/migrations/v3_64_0_tenant_subscription_mirror_migration.go` | 3 | 14 | 3 | 0 |
-| 927 | [ ] | `internal/migration/migrations/v3_65_0_platform_kv_tenant_split_migration.go` | 15 | 37 | 15 | 0 |
+| 927 | [x] | `internal/migration/migrations/v3_65_0_platform_kv_tenant_split_migration.go` | 15 | 37 | 15 | 0 |
 | 928 | [x] | `internal/migration/migrations/v3_66_0_tenant_site_config_and_feature_flags_migration.go` | 12 | 28 | 12 | 0 |
 | 929 | [ ] | `internal/migration/migrations/wecom_webhook_fields_migration.go` | 7 | 8 | 7 | 0 |
 | 930 | [ ] | `internal/migration/migrations/workflow_visual_orchestrator_migration.go` | 7 | 8 | 7 | 0 |
 | 931 | [ ] | `internal/migration/registry.go` | 8 | 8 | 8 | 0 |
 | 932 | [ ] | `internal/migration/service.go` | 15 | 22 | 15 | 0 |
-| 933 | [ ] | `internal/model/account.go` | 0 | 0 | 0 | 0 |
+| 933 | [x] | `internal/model/account.go` | 0 | 0 | 0 | 0 |
 | 934 | [ ] | `internal/model/aftersale.go` | 1 | 4 | 1 | 0 |
 | 935 | [ ] | `internal/model/agent_kb_binding.go` | 3 | 26 | 3 | 0 |
 | 936 | [ ] | `internal/model/agent_status.go` | 2 | 2 | 2 | 0 |
@@ -1240,7 +1240,7 @@
 | 1025 | [ ] | `internal/model/message_event.go` | 3 | 9 | 3 | 0 |
 | 1026 | [ ] | `internal/model/message_trace.go` | 3 | 33 | 3 | 0 |
 | 1027 | [x] | `internal/model/module_bindings.go` | 60 | 118 | 60 | 0 |
-| 1028 | [ ] | `internal/model/module_tables.go` | 34 | 55 | 34 | 0 |
+| 1028 | [x] | `internal/model/module_tables.go` | 34 | 55 | 34 | 0 |
 | 1029 | [ ] | `internal/model/msg_hourly_summary.go` | 2 | 6 | 2 | 0 |
 | 1030 | [ ] | `internal/model/notification.go` | 3 | 16 | 3 | 0 |
 | 1031 | [ ] | `internal/model/obs_config.go` | 1 | 1 | 1 | 0 |
@@ -1382,14 +1382,14 @@
 | 1167 | [ ] | `internal/pkg/messageid/identity.go` | 3 | 5 | 3 | 0 |
 | 1168 | [ ] | `internal/pkg/metrics/bridge.go` | 2 | 2 | 2 | 0 |
 | 1169 | [ ] | `internal/pkg/metrics/bridge_sink.go` | 6 | 9 | 6 | 0 |
-| 1170 | [ ] | `internal/pkg/metrics/metrics.go` | 49 | 79 | 49 | 0 |
+| 1170 | [x] | `internal/pkg/metrics/metrics.go` | 49 | 79 | 49 | 0 |
 | 1171 | [ ] | `internal/pkg/pagination/cursor.go` | 19 | 35 | 19 | 0 |
 | 1172 | [ ] | `internal/pkg/pagination/extract.go` | 0 | 0 | 0 | 0 |
 | 1173 | [ ] | `internal/pkg/pagination/reflect.go` | 1 | 1 | 1 | 0 |
 | 1174 | [ ] | `internal/pkg/security/visitor_token.go` | 6 | 37 | 6 | 0 |
 | 1175 | [ ] | `internal/pkg/shared/service/system_stats.go` | 5 | 6 | 5 | 0 |
 | 1176 | [ ] | `internal/pkg/sla/default.go` | 3 | 6 | 3 | 0 |
-| 1177 | [ ] | `internal/pkg/sla/slo.go` | 10 | 10 | 10 | 0 |
+| 1177 | [x] | `internal/pkg/sla/slo.go` | 10 | 10 | 10 | 0 |
 | 1178 | [ ] | `internal/pkg/sso/adapter.go` | 3 | 7 | 3 | 0 |
 | 1179 | [ ] | `internal/pkg/sso/dingtalk.go` | 2 | 2 | 2 | 0 |
 | 1180 | [ ] | `internal/pkg/sso/feishu.go` | 2 | 2 | 2 | 0 |
@@ -1411,7 +1411,7 @@
 | 1196 | [ ] | `internal/pkg/trace/trace.go` | 25 | 74 | 25 | 0 |
 | 1197 | [ ] | `internal/pkg/traceparent/traceparent.go` | 8 | 40 | 8 | 0 |
 | 1198 | [ ] | `internal/pkg/tracing/langfuse_attrs.go` | 3 | 10 | 3 | 0 |
-| 1199 | [ ] | `internal/pkg/tracing/tracing.go` | 50 | 73 | 50 | 0 |
+| 1199 | [x] | `internal/pkg/tracing/tracing.go` | 50 | 73 | 50 | 0 |
 | 1200 | [ ] | `internal/pkg/utils/account/account.go` | 0 | 0 | 0 | 0 |
 | 1201 | [ ] | `internal/pkg/utils/async/background.go` | 5 | 19 | 5 | 0 |
 | 1202 | [ ] | `internal/pkg/utils/backoff.go` | 9 | 34 | 9 | 0 |
@@ -1452,7 +1452,7 @@
 | 1237 | [x] | `internal/platform/client.go` | 20 | 65 | 20 | 0 |
 | 1238 | [ ] | `internal/platform/contributor_client.go` | 14 | 27 | 14 | 0 |
 | 1239 | [ ] | `internal/platform/disabled_client.go` | 1 | 12 | 1 | 0 |
-| 1240 | [ ] | `internal/platform/heartbeat_sender.go` | 4 | 15 | 4 | 0 |
+| 1240 | [x] | `internal/platform/heartbeat_sender.go` | 4 | 15 | 4 | 0 |
 | 1241 | [ ] | `internal/platform/llm_proxy_client.go` | 12 | 41 | 12 | 0 |
 | 1242 | [ ] | `internal/platform/module_client.go` | 40 | 55 | 40 | 0 |
 | 1243 | [x] | `internal/platform/sync.go` | 10 | 19 | 10 | 0 |
@@ -1483,7 +1483,7 @@
 | 1268 | [x] | `internal/repository/bandit_allocator.go` | 12 | 29 | 12 | 0 |
 | 1269 | [x] | `internal/repository/bill.go` | 24 | 114 | 24 | 0 |
 | 1270 | [ ] | `internal/repository/bridge_offline_replay_repo.go` | 18 | 62 | 18 | 0 |
-| 1271 | [ ] | `internal/repository/bridge_online_predicate.go` | 2 | 13 | 2 | 0 |
+| 1271 | [x] | `internal/repository/bridge_online_predicate.go` | 2 | 13 | 2 | 0 |
 | 1272 | [ ] | `internal/repository/champion_dialogue.go` | 7 | 30 | 7 | 0 |
 | 1273 | [ ] | `internal/repository/channel_overview.go` | 28 | 34 | 28 | 0 |
 | 1274 | [x] | `internal/repository/chat_channel.go` | 16 | 28 | 16 | 0 |
@@ -1493,7 +1493,7 @@
 | 1278 | [ ] | `internal/repository/clue_score.go` | 4 | 4 | 4 | 0 |
 | 1279 | [ ] | `internal/repository/community.go` | 0 | 0 | 0 | 0 |
 | 1280 | [ ] | `internal/repository/confidence_repositories.go` | 41 | 42 | 41 | 0 |
-| 1281 | [ ] | `internal/repository/config_param.go` | 14 | 53 | 14 | 0 |
+| 1281 | [x] | `internal/repository/config_param.go` | 14 | 53 | 14 | 0 |
 | 1282 | [ ] | `internal/repository/config_param_tenant.go` | 9 | 13 | 9 | 0 |
 | 1283 | [ ] | `internal/repository/cron_job_lease.go` | 6 | 16 | 6 | 0 |
 | 1284 | [ ] | `internal/repository/csat.go` | 12 | 24 | 12 | 0 |
@@ -1510,7 +1510,7 @@
 | 1295 | [ ] | `internal/repository/data_export_repo.go` | 8 | 8 | 8 | 0 |
 | 1296 | [ ] | `internal/repository/data_scope_owner.go` | 4 | 24 | 4 | 0 |
 | 1297 | [ ] | `internal/repository/db_util.go` | 1 | 2 | 1 | 0 |
-| 1298 | [ ] | `internal/repository/delayed_outbound_repo.go` | 16 | 26 | 16 | 0 |
+| 1298 | [x] | `internal/repository/delayed_outbound_repo.go` | 16 | 26 | 16 | 0 |
 | 1299 | [ ] | `internal/repository/dialogue_memory.go` | 3 | 3 | 3 | 0 |
 | 1300 | [x] | `internal/repository/dictionary.go` | 6 | 13 | 6 | 0 |
 | 1301 | [ ] | `internal/repository/dingtalk_app.go` | 2 | 4 | 2 | 0 |
@@ -1528,7 +1528,7 @@
 | 1313 | [ ] | `internal/repository/faq_entry.go` | 18 | 64 | 18 | 0 |
 | 1314 | [ ] | `internal/repository/feature_flag.go` | 5 | 7 | 5 | 0 |
 | 1315 | [ ] | `internal/repository/feedback_learning.go` | 12 | 35 | 12 | 0 |
-| 1316 | [ ] | `internal/repository/feedback_loop.go` | 35 | 46 | 35 | 0 |
+| 1316 | [x] | `internal/repository/feedback_loop.go` | 35 | 46 | 35 | 0 |
 | 1317 | [ ] | `internal/repository/feedback_record.go` | 6 | 15 | 6 | 0 |
 | 1318 | [ ] | `internal/repository/feishu.go` | 36 | 51 | 36 | 0 |
 | 1319 | [x] | `internal/repository/generic.go` | 24 | 28 | 24 | 0 |
@@ -1545,7 +1545,7 @@
 | 1330 | [ ] | `internal/repository/integration_template.go` | 1 | 1 | 1 | 0 |
 | 1331 | [ ] | `internal/repository/intent_example.go` | 5 | 5 | 5 | 0 |
 | 1332 | [ ] | `internal/repository/intent_recognition.go` | 21 | 24 | 21 | 0 |
-| 1333 | [ ] | `internal/repository/kb_document_chunk_repo.go` | 10 | 19 | 10 | 0 |
+| 1333 | [x] | `internal/repository/kb_document_chunk_repo.go` | 10 | 19 | 10 | 0 |
 | 1334 | [ ] | `internal/repository/kb_mcp_repo.go` | 2 | 2 | 2 | 0 |
 | 1335 | [x] | `internal/repository/kb_release.go` | 54 | 165 | 54 | 0 |
 | 1336 | [ ] | `internal/repository/knowledge.go` | 4 | 8 | 4 | 0 |
@@ -1614,7 +1614,7 @@
 | 1399 | [ ] | `internal/repository/security_rules.go` | 6 | 6 | 6 | 0 |
 | 1400 | [ ] | `internal/repository/session_ai.go` | 7 | 7 | 7 | 0 |
 | 1401 | [ ] | `internal/repository/session_chain_repo.go` | 25 | 27 | 25 | 0 |
-| 1402 | [ ] | `internal/repository/session_message.go` | 17 | 36 | 17 | 0 |
+| 1402 | [x] | `internal/repository/session_message.go` | 17 | 36 | 17 | 0 |
 | 1403 | [ ] | `internal/repository/session_tag.go` | 7 | 7 | 7 | 0 |
 | 1404 | [ ] | `internal/repository/short_link.go` | 4 | 5 | 4 | 0 |
 | 1405 | [ ] | `internal/repository/short_link_access.go` | 2 | 2 | 2 | 0 |
@@ -1664,12 +1664,12 @@
 | 1449 | [x] | `internal/router/bad_case_routes.go` | 2 | 10 | 2 | 0 |
 | 1450 | [ ] | `internal/router/bill_routes.go` | 2 | 21 | 2 | 0 |
 | 1451 | [ ] | `internal/router/browser_automation_routes.go` | 39 | 51 | 39 | 0 |
-| 1452 | [ ] | `internal/router/business_routes.go` | 10 | 31 | 10 | 0 |
+| 1452 | [x] | `internal/router/business_routes.go` | 10 | 31 | 10 | 0 |
 | 1453 | [ ] | `internal/router/card_routes.go` | 0 | 0 | 0 | 0 |
 | 1454 | [ ] | `internal/router/channel_overview_routes.go` | 0 | 0 | 0 | 0 |
 | 1455 | [ ] | `internal/router/chat_routes.go` | 4 | 12 | 4 | 0 |
 | 1456 | [ ] | `internal/router/competitor_routes.go` | 0 | 0 | 0 | 0 |
-| 1457 | [ ] | `internal/router/config_param_routes.go` | 1 | 10 | 1 | 0 |
+| 1457 | [x] | `internal/router/config_param_routes.go` | 1 | 10 | 1 | 0 |
 | 1458 | [ ] | `internal/router/content_routes.go` | 0 | 0 | 0 | 0 |
 | 1459 | [ ] | `internal/router/dictionary_routes.go` | 2 | 12 | 2 | 0 |
 | 1460 | [ ] | `internal/router/embed_static_routes.go` | 0 | 0 | 0 | 0 |
@@ -1684,7 +1684,7 @@
 | 1469 | [ ] | `internal/router/menu_routes.go` | 2 | 8 | 2 | 0 |
 | 1470 | [ ] | `internal/router/middleware_ports.go` | 5 | 17 | 5 | 0 |
 | 1471 | [ ] | `internal/router/module_gate_adapter.go` | 2 | 13 | 2 | 0 |
-| 1472 | [ ] | `internal/router/module_routes.go` | 7 | 29 | 7 | 0 |
+| 1472 | [x] | `internal/router/module_routes.go` | 7 | 29 | 7 | 0 |
 | 1473 | [ ] | `internal/router/opportunity_routes.go` | 2 | 17 | 2 | 0 |
 | 1474 | [x] | `internal/router/order_draft_routes.go` | 10 | 36 | 10 | 0 |
 | 1475 | [ ] | `internal/router/platform_routes.go` | 1 | 3 | 1 | 0 |
@@ -1752,7 +1752,7 @@
 | 1537 | [ ] | `internal/service/bridge_token.go` | 4 | 11 | 4 | 0 |
 | 1538 | [ ] | `internal/service/card_stats.go` | 1 | 11 | 1 | 0 |
 | 1539 | [ ] | `internal/service/card_stats_adapters.go` | 7 | 12 | 7 | 0 |
-| 1540 | [ ] | `internal/service/channel_error.go` | 42 | 81 | 42 | 0 |
+| 1540 | [x] | `internal/service/channel_error.go` | 42 | 81 | 42 | 0 |
 | 1541 | [ ] | `internal/service/channel_media.go` | 16 | 32 | 16 | 0 |
 | 1542 | [ ] | `internal/service/channel_overview.go` | 7 | 12 | 7 | 0 |
 | 1543 | [ ] | `internal/service/chat_channel.go` | 28 | 77 | 28 | 0 |
@@ -1761,7 +1761,7 @@
 | 1546 | [ ] | `internal/service/churn/fit.go` | 4 | 9 | 4 | 0 |
 | 1547 | [ ] | `internal/service/churn_score.go` | 8 | 8 | 8 | 0 |
 | 1548 | [ ] | `internal/service/churn_score_job.go` | 5 | 5 | 5 | 0 |
-| 1549 | [ ] | `internal/service/clue.go` | 7 | 19 | 7 | 0 |
+| 1549 | [x] | `internal/service/clue.go` | 7 | 19 | 7 | 0 |
 | 1550 | [ ] | `internal/service/clue_score.go` | 13 | 20 | 13 | 0 |
 | 1551 | [ ] | `internal/service/clue_score_mapper.go` | 0 | 0 | 0 | 0 |
 | 1552 | [x] | `internal/service/collection_hook.go` | 6 | 17 | 6 | 0 |
@@ -1807,7 +1807,7 @@
 | 1592 | [ ] | `internal/service/customer_rfm.go` | 20 | 31 | 20 | 0 |
 | 1593 | [ ] | `internal/service/customer_rfm_cron.go` | 5 | 7 | 5 | 0 |
 | 1594 | [ ] | `internal/service/customer_rfm_mapper.go` | 0 | 0 | 0 | 0 |
-| 1595 | [ ] | `internal/service/customer_service_plus.go` | 39 | 56 | 39 | 0 |
+| 1595 | [x] | `internal/service/customer_service_plus.go` | 39 | 56 | 39 | 0 |
 | 1596 | [x] | `internal/service/customer_session.go` | 21 | 62 | 21 | 0 |
 | 1597 | [ ] | `internal/service/customer_session_blacklist.go` | 7 | 18 | 7 | 0 |
 | 1598 | [ ] | `internal/service/customer_session_cron.go` | 7 | 12 | 7 | 0 |
@@ -1864,7 +1864,7 @@
 | 1649 | [ ] | `internal/service/guard.go` | 5 | 29 | 5 | 0 |
 | 1650 | [ ] | `internal/service/handoff_chain.go` | 7 | 13 | 7 | 0 |
 | 1651 | [ ] | `internal/service/handoff_cond_tree.go` | 4 | 14 | 4 | 0 |
-| 1652 | [ ] | `internal/service/health_weights_runtime_params.go` | 7 | 27 | 7 | 0 |
+| 1652 | [x] | `internal/service/health_weights_runtime_params.go` | 7 | 27 | 7 | 0 |
 | 1653 | [ ] | `internal/service/help_center.go` | 12 | 12 | 12 | 0 |
 | 1654 | [ ] | `internal/service/human_escalation.go` | 21 | 58 | 21 | 0 |
 | 1655 | [x] | `internal/service/human_task.go` | 98 | 288 | 98 | 0 |
@@ -1882,8 +1882,8 @@
 | 1667 | [ ] | `internal/service/humanize_init.go` | 5 | 27 | 5 | 0 |
 | 1668 | [ ] | `internal/service/humanize_polisher.go` | 5 | 5 | 5 | 0 |
 | 1669 | [x] | `internal/service/inbox.go` | 7 | 17 | 7 | 0 |
-| 1670 | [ ] | `internal/service/inbox_ingress.go` | 24 | 57 | 24 | 0 |
-| 1671 | [ ] | `internal/service/inbox_ingress_ingest.go` | 8 | 38 | 8 | 0 |
+| 1670 | [x] | `internal/service/inbox_ingress.go` | 24 | 57 | 24 | 0 |
+| 1671 | [x] | `internal/service/inbox_ingress_ingest.go` | 8 | 38 | 8 | 0 |
 | 1672 | [ ] | `internal/service/inbox_ingress_outbound.go` | 6 | 18 | 6 | 0 |
 | 1673 | [ ] | `internal/service/inbox_ingress_persist.go` | 3 | 11 | 3 | 0 |
 | 1674 | [ ] | `internal/service/inbox_scope.go` | 20 | 29 | 20 | 0 |
@@ -1927,7 +1927,7 @@
 | 1712 | [x] | `internal/service/memory_system.go` | 30 | 58 | 30 | 0 |
 | 1713 | [ ] | `internal/service/menu.go` | 14 | 67 | 14 | 0 |
 | 1714 | [ ] | `internal/service/message.go` | 0 | 0 | 0 | 0 |
-| 1715 | [ ] | `internal/service/message_hub.go` | 62 | 101 | 62 | 0 |
+| 1715 | [x] | `internal/service/message_hub.go` | 62 | 101 | 62 | 0 |
 | 1716 | [ ] | `internal/service/message_hub_summary_agg.go` | 6 | 11 | 6 | 0 |
 | 1717 | [ ] | `internal/service/message_queue.go` | 1 | 6 | 1 | 0 |
 | 1718 | [ ] | `internal/service/message_trace_cleanup_cron.go` | 0 | 0 | 0 | 0 |
@@ -1935,7 +1935,7 @@
 | 1720 | [x] | `internal/service/module_catalog.go` | 73 | 305 | 73 | 0 |
 | 1721 | [x] | `internal/service/module_market.go` | 28 | 58 | 28 | 0 |
 | 1722 | [ ] | `internal/service/module_regulatory.go` | 6 | 16 | 6 | 0 |
-| 1723 | [ ] | `internal/service/module_runtime_filter.go` | 27 | 153 | 27 | 0 |
+| 1723 | [x] | `internal/service/module_runtime_filter.go` | 27 | 153 | 27 | 0 |
 | 1724 | [x] | `internal/service/module_sync_runner.go` | 9 | 38 | 9 | 0 |
 | 1725 | [ ] | `internal/service/nlp_keywords.go` | 4 | 6 | 4 | 0 |
 | 1726 | [ ] | `internal/service/notification.go` | 11 | 19 | 11 | 0 |
@@ -1957,7 +1957,7 @@
 | 1742 | [x] | `internal/service/order_draft_store.go` | 27 | 75 | 27 | 0 |
 | 1743 | [ ] | `internal/service/order_draft_sweep.go` | 17 | 55 | 17 | 0 |
 | 1744 | [ ] | `internal/service/password_policy.go` | 17 | 46 | 17 | 0 |
-| 1745 | [ ] | `internal/service/password_reset.go` | 11 | 24 | 11 | 0 |
+| 1745 | [x] | `internal/service/password_reset.go` | 11 | 24 | 11 | 0 |
 | 1746 | [x] | `internal/service/payment.go` | 67 | 169 | 67 | 0 |
 | 1747 | [ ] | `internal/service/payment_global.go` | 4 | 16 | 4 | 0 |
 | 1748 | [x] | `internal/service/payment_webhook.go` | 11 | 73 | 11 | 0 |
@@ -1993,7 +1993,7 @@
 | 1778 | [ ] | `internal/service/reach_send_pipeline.go` | 10 | 20 | 10 | 0 |
 | 1779 | [ ] | `internal/service/reach_send_pipeline_compliance.go` | 9 | 12 | 9 | 0 |
 | 1780 | [ ] | `internal/service/reach_send_pipeline_components.go` | 14 | 16 | 14 | 0 |
-| 1781 | [ ] | `internal/service/reach_send_pipeline_quiethours.go` | 8 | 15 | 8 | 0 |
+| 1781 | [x] | `internal/service/reach_send_pipeline_quiethours.go` | 8 | 15 | 8 | 0 |
 | 1782 | [ ] | `internal/service/reach_send_pipeline_stats.go` | 5 | 6 | 5 | 0 |
 | 1783 | [ ] | `internal/service/reach_send_pipeline_steps.go` | 1 | 3 | 1 | 0 |
 | 1784 | [x] | `internal/service/recovery_queue.go` | 18 | 30 | 18 | 0 |
@@ -2034,7 +2034,7 @@
 | 1819 | [ ] | `internal/service/sm_list.go` | 0 | 0 | 0 | 0 |
 | 1820 | [x] | `internal/service/smart_cs_orchestrator.go` | 45 | 186 | 45 | 0 |
 | 1821 | [x] | `internal/service/smart_router.go` | 6 | 12 | 6 | 0 |
-| 1822 | [ ] | `internal/service/sms.go` | 12 | 31 | 12 | 0 |
+| 1822 | [x] | `internal/service/sms.go` | 12 | 31 | 12 | 0 |
 | 1823 | [ ] | `internal/service/sms_delivery_tracker.go` | 17 | 45 | 17 | 0 |
 | 1824 | [ ] | `internal/service/sms_helpers.go` | 0 | 0 | 0 | 0 |
 | 1825 | [ ] | `internal/service/sms_tracking.go` | 12 | 36 | 12 | 0 |
@@ -2052,7 +2052,7 @@
 | 1837 | [ ] | `internal/service/sop_node_executors.go` | 18 | 65 | 18 | 0 |
 | 1838 | [x] | `internal/service/sop_outbox_dispatcher.go` | 25 | 85 | 25 | 0 |
 | 1839 | [ ] | `internal/service/sop_reach_send.go` | 29 | 98 | 29 | 0 |
-| 1840 | [ ] | `internal/service/sop_runtime_params.go` | 6 | 25 | 6 | 0 |
+| 1840 | [x] | `internal/service/sop_runtime_params.go` | 6 | 25 | 6 | 0 |
 | 1841 | [x] | `internal/service/sop_scheduler.go` | 24 | 63 | 24 | 0 |
 | 1842 | [ ] | `internal/service/sop_template.go` | 23 | 64 | 23 | 0 |
 | 1843 | [ ] | `internal/service/sse_hub.go` | 37 | 64 | 37 | 0 |
@@ -2107,12 +2107,12 @@
 | 1892 | [ ] | `internal/service/webhook_channel_telegram.go` | 32 | 74 | 32 | 0 |
 | 1893 | [ ] | `internal/service/webhook_channel_wecom.go` | 25 | 66 | 25 | 0 |
 | 1894 | [x] | `internal/service/webhook_channel_whatsapp.go` | 12 | 29 | 12 | 0 |
-| 1895 | [ ] | `internal/service/webhook_dedup.go` | 8 | 37 | 8 | 0 |
+| 1895 | [x] | `internal/service/webhook_dedup.go` | 8 | 37 | 8 | 0 |
 | 1896 | [ ] | `internal/service/webhook_event_key.go` | 6 | 25 | 6 | 0 |
 | 1897 | [ ] | `internal/service/webhook_inbox.go` | 1 | 2 | 1 | 0 |
 | 1898 | [x] | `internal/service/webhook_outbound.go` | 54 | 127 | 54 | 0 |
 | 1899 | [x] | `internal/service/webhook_recovery.go` | 5 | 25 | 5 | 0 |
-| 1900 | [ ] | `internal/service/webhook_runtime_params.go` | 6 | 38 | 6 | 0 |
+| 1900 | [x] | `internal/service/webhook_runtime_params.go` | 6 | 38 | 6 | 0 |
 | 1901 | [x] | `internal/service/wechat.go` | 23 | 48 | 23 | 0 |
 | 1902 | [x] | `internal/service/wechat_inbound_media.go` | 9 | 33 | 9 | 0 |
 | 1903 | [ ] | `internal/service/wecom.go` | 21 | 23 | 21 | 0 |
@@ -2131,12 +2131,12 @@
 | 1916 | [ ] | `internal/service/xianyu_card_stats.go` | 2 | 2 | 2 | 0 |
 | 1917 | [ ] | `internal/service/xiaohongshu_card.go` | 4 | 4 | 4 | 0 |
 | 1918 | [ ] | `internal/service/xiaohongshu_card_stats.go` | 2 | 2 | 2 | 0 |
-| 1919 | [ ] | `internal/storage/attachment_source.go` | 3 | 24 | 3 | 0 |
+| 1919 | [x] | `internal/storage/attachment_source.go` | 3 | 24 | 3 | 0 |
 | 1920 | [ ] | `internal/storage/backup_source.go` | 2 | 19 | 2 | 0 |
 | 1921 | [ ] | `internal/storage/factory.go` | 1 | 1 | 1 | 0 |
 | 1922 | [x] | `internal/storage/local.go` | 15 | 38 | 15 | 0 |
 | 1923 | [ ] | `internal/storage/storage.go` | 12 | 23 | 12 | 0 |
-| 1924 | [ ] | `internal/storage/storagetest/storagetest.go` | 6 | 33 | 6 | 0 |
+| 1924 | [x] | `internal/storage/storagetest/storagetest.go` | 6 | 33 | 6 | 0 |
 | 1925 | [ ] | `internal/system/install/install.go` | 22 | 69 | 22 | 0 |
 | 1926 | [ ] | `internal/websocket/ack_tracker.go` | 9 | 17 | 9 | 0 |
 | 1927 | [ ] | `internal/websocket/envelope.go` | 3 | 5 | 3 | 0 |

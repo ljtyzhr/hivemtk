@@ -334,7 +334,7 @@ func (s *CustomerServicePlusService) DeleteFolder(ctx context.Context, folderID 
 }
 
 // SegmentSaveRequest 分群保存请求。
-// 2026-09-19 安全收口：原 where_sql 字段是客户端直灌 WHERE 的 SQL 注入通道
+// 原 where_sql 字段是客户端直灌 WHERE 的 SQL 注入通道
 // （弱黑名单不拦子查询布尔盲猜），且前端零使用——字段已移除；请求里多余的
 // where_sql 会被 ShouldBindJSON 静默忽略，分群规模改由服务端规则计算（待排期）。
 type SegmentSaveRequest struct {

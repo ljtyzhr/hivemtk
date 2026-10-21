@@ -141,7 +141,7 @@ type OrchestratorResult struct {
 //
 //	A1-A2: 入站已由 InboxIngress 处理（调用方保证 sessionID 存在）
 //	A5:    加载资产上下文（L1/L2/Prompt）
-//	A6-A9: 运行推理闭环（感知→对齐→门禁→规划）
+//	A6-A9: 运行推理闭环（感知→对齐→硬闸→规划）
 //	B4:    若转人工，触发 HumanEscalation
 //	A11:   裁剪 + 发布最终回复
 func (o *CoreDataFlowOrchestrator) Process(ctx context.Context, payload CustomerMessagePayload, agentCtx *AgentContext) (*OrchestratorResult, error) {

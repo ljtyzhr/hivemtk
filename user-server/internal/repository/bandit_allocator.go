@@ -209,7 +209,7 @@ func (r *FeedbackLoopRepository) ResolveArmForPromptCandidate(ctx context.Contex
 //
 // 必须按**臂侧** sop_id 判定，不能先按测试行 sop_id 找实验再按事件 SOPID 取臂：
 // 克隆变体的臂 sop_id 是克隆 SOP 的 ID，而实验行的 sop_id 仍是原 SOP 的 ID，
-// 旧写法下克隆变体产生的反馈永远匹配不到实验（直接 skip，奖励永久丢失）。
+// 若克隆变体产生的反馈匹配不到实验（直接 skip），奖励就永久丢失。
 //
 // 不放宽到 prompt 实验：prompt 实验的每个臂也都带 sop_id，只按 sop_id 命中
 // 会把普通对话反馈错记到 prompt 实验上。

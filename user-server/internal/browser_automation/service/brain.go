@@ -219,7 +219,7 @@ func (s *BrainService) planOnce(ctx context.Context, dispatcher *llm.Dispatcher,
 		MaxTokens:    4096,
 	}
 	var p planSchema
-	// 调用级看门狗（R22 验证：execCtx 取消在部分调用栈不生效，session 卡 active）——
+	// 调用级兜底收敛（R22 验证：execCtx 取消在部分调用栈不生效，session 卡 active）——
 	// 真实时钟强返；被泄漏的内部 goroutine 由 HTTP client 180s 自然终结，可接受
 	type planResult struct {
 		done   bool
