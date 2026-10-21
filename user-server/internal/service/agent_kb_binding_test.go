@@ -352,3 +352,35 @@ func TestGormDB_NilAssignment(t *testing.T) {
 		t.Error("expected nil db")
 	}
 }
+
+// TestBind_UsesRealKBType 绑定行上冗余的 KBType 必须取知识库真实类型：
+// 写死 faq 会让按类型过滤（ListByAgent(kbType)）漏掉 RAG/SOP 库。
+func TestBind_UsesRealKBType(t *testing.T) {
+	database := testutil.NewTestDB(t, &model.KnowledgeBase{}, &model.AgentKBBinding{})
+	if database == nil {
+		t.Fatal("测试库不可达：绑定类型语义判不了（不 Skip）")
+	}
+	kbRepo := repository.NewKnowledgeBaseRepository(database)
+	bindRepo := repository.NewAgentKBBindingRepository(database)
+	svc := NewAgentKBBindingServiceWithRepos(kbRepo, bindRepo, database)
+
+	ctx := context.Background()
+	kb := &model.KnowledgeBase{
+		KBCode: "KB-RAG-T1", Type: model.KnowledgeBaseTypeRAG,
+		Name: "RAG 库", OwnerType: "shared",
+	}
+	if err := kbRepo.Create(ctx, kb); err != nil {
+		t.Fatalf("预置知识库失败: %v", err)
+	}
+	if err := svc.Bind(ctx, 11, kb.ID, 0); err != nil {
+		t.Fatalf("Bind 失败: %v", err)
+	}
+
+	rows, err := bindRepo.ListByAgent(ctx, 11, "")
+	if err != nil {
+		t.Fatalf("ListByAgent 失败: %v", err)
+	}
+	if len(rows) != 1 || rows[0].KBType != model.KnowledgeBaseTypeRAG {
+		t.Fatalf("绑定类型应取知识库真实类型 rag，实际: %+v", rows)
+	}
+}

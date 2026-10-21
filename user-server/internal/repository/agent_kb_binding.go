@@ -8,6 +8,10 @@ import (
 	"gorm.io/gorm"
 )
 
+// bindingListLimit 绑定列表返回上限：单个智能体/知识库的绑定数量远小于此，
+// 但不封顶就是无界查询。
+const bindingListLimit = 500
+
 // AgentKBBindingRepository 智能体知识库绑定仓储
 type AgentKBBindingRepository struct {
 	db *gorm.DB
@@ -18,11 +22,12 @@ func NewAgentKBBindingRepository(db *gorm.DB) *AgentKBBindingRepository {
 	return &AgentKBBindingRepository{db: db}
 }
 
-// Create 新增绑定
+// Create 新增绑定；UNIQUE(tenant_id, agent_id, kb_id) 约束下重复绑定会返回错误。
 //
-// 注意: UNIQUE(agent_id, kb_id) 约束, 重复绑定会返回错误
+// 不用 Select("*")：它会把 nil 的 Enabled(*bool) 当 NULL 写进 NOT NULL 列，
+// 而普通 Create 会省略 nil 指针、让列默认值 true 生效。
 func (r *AgentKBBindingRepository) Create(ctx context.Context, b *model.AgentKBBinding) error {
-	return r.db.WithContext(ctx).Select("*").Create(b).Error
+	return r.db.WithContext(ctx).Create(b).Error
 }
 
 // DeleteByAgentKB 按 (agent_id, kb_id) 删除
@@ -65,7 +70,7 @@ func (r *AgentKBBindingRepository) ListByAgent(ctx context.Context, agentID uint
 		q = q.Where("kb_type = ?", kbType)
 	}
 	var bindings []model.AgentKBBinding
-	err := q.Order("priority DESC, id DESC").Find(&bindings).Error
+	err := q.Order("priority DESC, id DESC").Limit(bindingListLimit).Find(&bindings).Error
 	return bindings, err
 }
 
@@ -75,6 +80,7 @@ func (r *AgentKBBindingRepository) ListByAgentAll(ctx context.Context, agentID u
 	err := r.db.WithContext(ctx).
 		Where("agent_id = ?", agentID).
 		Order("priority DESC, id DESC").
+		Limit(bindingListLimit).
 		Find(&bindings).Error
 	return bindings, err
 }
@@ -85,6 +91,7 @@ func (r *AgentKBBindingRepository) ListByKB(ctx context.Context, kbID uint) ([]m
 	err := r.db.WithContext(ctx).
 		Where("kb_id = ? AND enabled = ?", kbID, true).
 		Order("priority DESC, id DESC").
+		Limit(bindingListLimit).
 		Find(&bindings).Error
 	return bindings, err
 }

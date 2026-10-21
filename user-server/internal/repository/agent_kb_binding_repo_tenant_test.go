@@ -105,3 +105,48 @@ func TestAgentKBBindingRepository_TenantScopedReads(t *testing.T) {
 		t.Fatal("另一租户的绑定不应被本租户看见")
 	}
 }
+
+// TestAgentKBBindingRepository_EnabledAndUniqueSemantics 绑定表的三条落库语义：
+//   - Enabled 留 nil 时取列默认 true（Create 若用 Select("*") 会把 nil 写成 NULL 撞 NOT NULL）
+//   - 显式 false 必须真正落库，不被列默认覆盖
+//   - 唯一约束按租户复合：同租户重复绑定报冲突，跨租户同 (agent_id, kb_id) 各存一份
+func TestAgentKBBindingRepository_EnabledAndUniqueSemantics(t *testing.T) {
+	db := akbSetupDB(t)
+	repo := NewAgentKBBindingRepository(db)
+	ctxA := tenant.WithTenantID(context.Background(), akbTenantA)
+
+	nilEnabled := &model.AgentKBBinding{
+		AgentID: 2, KBID: 100, KBType: model.KnowledgeBaseTypeFAQ,
+		Role: model.AgentKBBindingRolePrimary,
+	}
+	if err := repo.Create(ctxA, nilEnabled); err != nil {
+		t.Fatalf("Enabled 留 nil 的绑定创建失败: %v", err)
+	}
+	if nilEnabled.Enabled == nil || !*nilEnabled.Enabled {
+		t.Fatal("Enabled 留 nil 时应取列默认值 true")
+	}
+
+	falseEnabled := &model.AgentKBBinding{
+		AgentID: 3, KBID: 100, KBType: model.KnowledgeBaseTypeFAQ,
+		Role: model.AgentKBBindingRolePrimary, Enabled: boolPtr(false),
+	}
+	if err := repo.Create(ctxA, falseEnabled); err != nil {
+		t.Fatalf("停用绑定创建失败: %v", err)
+	}
+	rows, err := repo.ListByAgentAll(ctxA, 3)
+	if err != nil {
+		t.Fatalf("ListByAgentAll 失败: %v", err)
+	}
+	if len(rows) != 1 || rows[0].Enabled == nil || *rows[0].Enabled {
+		t.Fatalf("显式 enabled=false 未落库: %+v", rows)
+	}
+
+	// 跨租户同 (agent_id, kb_id) 不应撞唯一索引；同租户再插一次必须冲突。
+	akbSeed(t, db, akbTenantB, 2, 100)
+	if err := repo.Create(ctxA, &model.AgentKBBinding{
+		AgentID: 2, KBID: 100, KBType: model.KnowledgeBaseTypeFAQ,
+		Role: model.AgentKBBindingRolePrimary,
+	}); err == nil {
+		t.Fatal("同租户重复绑定应报唯一冲突")
+	}
+}

@@ -8,7 +8,6 @@ import (
 	"gorm.io/gorm"
 
 	"hivemtk-user/internal/model"
-	dbUtil "hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/repository"
 )
 
@@ -18,11 +17,6 @@ type AgentKBBindingService struct {
 	kbRepo      *repository.KnowledgeBaseRepository
 
 	txBeginner func(ctx context.Context) *gorm.DB
-}
-
-// NewAgentKBBindingServiceDefault 使用全局 DB 创建绑定服务（controller 层入口，避免 controller 持有 gorm.DB）。
-func NewAgentKBBindingServiceDefault() *AgentKBBindingService {
-	return NewAgentKBBindingService(dbUtil.GetDB())
 }
 
 // NewAgentKBBindingService 创建绑定服务
@@ -94,6 +88,7 @@ func (s *AgentKBBindingService) Bind(ctx context.Context, agentID, kbID uint, pr
 	if kbID == 0 {
 		return errors.New("knowledge_base_id 不能为空")
 	}
+	kbType := model.KnowledgeBaseTypeFAQ
 	if s.kbRepo != nil {
 		kb, err := s.kbRepo.GetByID(ctx, kbID)
 		if err != nil {
@@ -102,17 +97,34 @@ func (s *AgentKBBindingService) Bind(ctx context.Context, agentID, kbID uint, pr
 		if kb == nil {
 			return errors.New("知识库不存在")
 		}
-	}
-	if err := s.bindingRepo.DeleteByAgentAndKB(ctx, agentID, kbID); err != nil {
-		return fmt.Errorf("清除旧绑定失败: %w", err)
+		// 冗余类型必须取真实值：写死 faq 会让按类型过滤把 RAG/SOP 库漏掉。
+		if kb.Type != "" {
+			kbType = kb.Type
+		}
 	}
 	binding := &model.AgentKBBinding{
 		AgentID:  agentID,
 		KBID:     kbID,
-		KBType:   model.KnowledgeBaseTypeFAQ,
+		KBType:   kbType,
 		Role:     model.AgentKBBindingRolePrimary,
 		Priority: priority,
 		Enabled:  boolPtr(true),
+	}
+	// 覆盖语义必须是原子的：先删后建若中途失败，绑定会凭空消失。
+	if tx := s.withTxBeginner(ctx); tx != nil {
+		return tx.Transaction(func(tx *gorm.DB) error {
+			tmp := repository.NewAgentKBBindingRepository(tx)
+			if err := tmp.DeleteByAgentAndKB(ctx, agentID, kbID); err != nil {
+				return fmt.Errorf("清除旧绑定失败: %w", err)
+			}
+			if err := tmp.Create(ctx, binding); err != nil {
+				return fmt.Errorf("创建绑定失败: %w", err)
+			}
+			return nil
+		})
+	}
+	if err := s.bindingRepo.DeleteByAgentAndKB(ctx, agentID, kbID); err != nil {
+		return fmt.Errorf("清除旧绑定失败: %w", err)
 	}
 	return s.bindingRepo.Create(ctx, binding)
 }

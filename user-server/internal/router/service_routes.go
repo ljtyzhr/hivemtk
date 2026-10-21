@@ -349,7 +349,7 @@ func setupSOPRoutes(auth *gin.RouterGroup, db *gorm.DB) {
 	kbCtrl := controller.NewKnowledgeBaseController()
 	kbCtrl.RegisterRoutes(auth)
 
-	bindCtrl := controller.NewAgentKBBindingController()
+	bindCtrl := controller.NewAgentKBBindingController(service.NewAgentKBBindingService(db))
 	bindCtrl.RegisterRoutes(auth)
 }
 

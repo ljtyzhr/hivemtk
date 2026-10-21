@@ -16,11 +16,9 @@ type AgentKBBindingController struct {
 	svc *service.AgentKBBindingService
 }
 
-// NewAgentKBBindingController 创建绑定控制器
-func NewAgentKBBindingController() *AgentKBBindingController {
-	return &AgentKBBindingController{
-		svc: service.NewAgentKBBindingServiceDefault(),
-	}
+// NewAgentKBBindingController 创建绑定控制器（服务由装配层注入）
+func NewAgentKBBindingController(svc *service.AgentKBBindingService) *AgentKBBindingController {
+	return &AgentKBBindingController{svc: svc}
 }
 
 // RegisterRoutes 注册路由
