@@ -32,8 +32,12 @@ const (
 	// a6SessionFresh 是五号腿里「未到期、不该被碰」那一段的 session。
 	a6SessionFresh = uint(782206)
 	// a6SourceTwo 供需要两次裁剪的腿复用：界刻意取整秒，两次 PruneBefore 传同一个 cutoff，
-	// 于是 run 行的 cutoff 也逐字节确定（cutoff_source 必须与既有 a6Source 不同，否则撞
-	// browser_audit_prune_runs 上那条「同界同来源」唯一键，第二次裁剪会被库挡下）。
+	// 于是 run 行的 cutoff 也逐字节确定。cutoff_source 与既有 a6Source 取不同值只是为了让
+	// 两组腿的留痕行互不干扰、便于定位——**不是**因为库里有「同界同来源」唯一键：
+	// browser_audit_prune_runs 上从来就没有这个约束（模型无该索引、迁移未建、开发库 \d 无）。
+	// 真正挡住「重放同一次裁剪」的是摘要表的 uk_browser_audit_digests_session_ordinal
+	// （tenant_id, session_id, ordinal）——同 session 同 ordinal 再插一条会被库拒掉。
+	// 留痕表则可以一行行地叠：它的形状是「一次扫描一行」，重扫一次就是又一行。
 	a6SourceTwo = "test:retention_a6_two"
 )
 
