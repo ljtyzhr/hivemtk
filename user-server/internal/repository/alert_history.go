@@ -27,9 +27,14 @@ type alertHistoryRepo struct {
 	db *gorm.DB
 }
 
-// NewAlertHistoryRepository 构造
+// NewAlertHistoryRepository 构造（绑定全局 DB，兼容存量调用）
 func NewAlertHistoryRepository() AlertHistoryRepository {
 	return &alertHistoryRepo{db: db.GetDB()}
+}
+
+// NewAlertHistoryRepositoryWithDB 用指定连接构造（装配层注入）
+func NewAlertHistoryRepositoryWithDB(database *gorm.DB) AlertHistoryRepository {
+	return &alertHistoryRepo{db: database}
 }
 
 func (r *alertHistoryRepo) Create(ctx context.Context, h *model.AlertHistory) error {
@@ -40,7 +45,7 @@ func (r *alertHistoryRepo) List(ctx context.Context, page, size int, ruleID uint
 	if page < 1 {
 		page = 1
 	}
-	if size <= 0 {
+	if size <= 0 || size > 200 {
 		size = 20
 	}
 	var list []*model.AlertHistory
@@ -80,7 +85,7 @@ func (r *alertHistoryRepo) CountFiring(ctx context.Context) (int64, error) {
 }
 
 func (r *alertHistoryRepo) ListFiring(ctx context.Context, limit int) ([]*model.AlertHistory, error) {
-	if limit <= 0 {
+	if limit <= 0 || limit > 200 {
 		limit = 20
 	}
 	var list []*model.AlertHistory

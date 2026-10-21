@@ -68,8 +68,11 @@ func setupUserRoutes(auth *gin.RouterGroup) {
 	}
 }
 
-func setupAlertRoutes(auth *gin.RouterGroup) {
-	alertCtrl := controller.NewAlertRuleController()
+func setupAlertRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
+	alertCtrl := controller.NewAlertRuleController(service.NewAlertRuleServiceWithRepos(
+		repository.NewAlertRuleRepositoryWithDB(gormDB),
+		repository.NewAlertHistoryRepositoryWithDB(gormDB),
+	))
 
 	auth.GET("/alerts/rules", alertCtrl.List)
 	auth.GET("/alerts/rules/:id", alertCtrl.GetByID)

@@ -476,7 +476,7 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 
 		setupAccountRoutes(auth, gormDB)
 
-		setupAlertRoutes(auth)
+		setupAlertRoutes(auth, gormDB)
 
 		setupShortLinkRoutes(auth, public, gormDB)
 

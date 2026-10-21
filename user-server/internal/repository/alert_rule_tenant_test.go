@@ -49,7 +49,7 @@ func arSeed(t *testing.T, db *gorm.DB, tenantID uint, name string) *model.AlertR
 		Severity:        model.AlertSeverityWarning,
 		Channels:        "[]",
 		Targets:         "{}",
-		Enabled:         true,
+		Enabled:         boolPtr(true),
 	}
 	if err := db.WithContext(tenant.WithSystemScope(context.Background())).Create(row).Error; err != nil {
 		t.Fatalf("预置租户 %d 告警规则失败: %v", tenantID, err)
@@ -73,7 +73,7 @@ func TestAlertRuleRepository_CreateFillsTenantAndNameUniquePerTenant(t *testing.
 			Severity:      model.AlertSeverityWarning,
 			Channels:      "[]",
 			Targets:       "{}",
-			Enabled:       true,
+			Enabled:       boolPtr(true),
 		}
 	}
 	a, b := mk(), mk()
@@ -167,7 +167,7 @@ func TestAlertRuleRepository_BatchStatusAndLastTriggeredTenantScoped(t *testing.
 	if err := db.WithContext(tenant.WithSystemScope(context.Background())).First(&after, seedB.ID).Error; err != nil {
 		t.Fatalf("回查租户 B 规则失败: %v", err)
 	}
-	if !after.Enabled {
+	if !after.IsEnabled() {
 		t.Fatal("租户 B 的规则被跨租户禁用")
 	}
 	if err := repo.BatchUpdateStatus(ctxB, []uint{seedB.ID}, false); err != nil {
@@ -176,7 +176,7 @@ func TestAlertRuleRepository_BatchStatusAndLastTriggeredTenantScoped(t *testing.
 	if err := db.WithContext(tenant.WithSystemScope(context.Background())).First(&after, seedB.ID).Error; err != nil {
 		t.Fatalf("回查租户 B 规则失败: %v", err)
 	}
-	if after.Enabled {
+	if after.IsEnabled() {
 		t.Fatal("本租户禁用未落库")
 	}
 
@@ -185,5 +185,52 @@ func TestAlertRuleRepository_BatchStatusAndLastTriggeredTenantScoped(t *testing.
 	}
 	if err := repo.UpdateLastTriggered(ctxB, seedB.ID, time.Now()); err != nil {
 		t.Fatalf("本租户 UpdateLastTriggered 失败: %v", err)
+	}
+}
+
+// TestAlertRuleRepository_ExplicitDisabledCreatePersists 锁住 *bool 语义：
+// 显式 false 必须真正落库成「停用」，nil 才走列默认 true。
+func TestAlertRuleRepository_ExplicitDisabledCreatePersists(t *testing.T) {
+	db := arSetupDB(t)
+	repo := NewAlertRuleRepositoryWithDB(db)
+	ctx := tenant.WithTenantID(context.Background(), arTenantA)
+
+	base := func(name string) *model.AlertRule {
+		return &model.AlertRule{
+			Name:            name,
+			Source:          "system.error_rate",
+			Operator:        "gt",
+			Threshold:       1,
+			WindowSeconds:   60,
+			CooldownSeconds: 300,
+			Severity:        model.AlertSeverityWarning,
+			Channels:        "[]",
+			Targets:         "{}",
+		}
+	}
+
+	disabled := base("explicit-disabled")
+	disabled.Enabled = boolPtr(false)
+	if err := repo.Create(ctx, disabled); err != nil {
+		t.Fatalf("创建停用规则失败: %v", err)
+	}
+
+	implicit := base("implicit-default")
+	if err := repo.Create(ctx, implicit); err != nil {
+		t.Fatalf("创建默认规则失败: %v", err)
+	}
+
+	var gotDisabled, gotImplicit model.AlertRule
+	if err := db.WithContext(tenant.WithSystemScope(context.Background())).First(&gotDisabled, disabled.ID).Error; err != nil {
+		t.Fatalf("回查停用规则失败: %v", err)
+	}
+	if gotDisabled.IsEnabled() {
+		t.Fatal("显式 false 被 default:true 吞掉，规则仍为启用")
+	}
+	if err := db.WithContext(tenant.WithSystemScope(context.Background())).First(&gotImplicit, implicit.ID).Error; err != nil {
+		t.Fatalf("回查默认规则失败: %v", err)
+	}
+	if !gotImplicit.IsEnabled() {
+		t.Fatal("nil 应走列默认 true")
 	}
 }

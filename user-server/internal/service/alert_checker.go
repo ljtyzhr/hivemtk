@@ -54,16 +54,28 @@ type AlertChecker struct {
 	wg       sync.WaitGroup
 }
 
-// NewAlertChecker 构造
-func NewAlertChecker(provider MetricProvider, notifier AlertNotifier, interval time.Duration) *AlertChecker {
+// NewAlertCheckerWithRepos 构造（仓储由装配层注入）
+func NewAlertCheckerWithRepos(
+	provider MetricProvider,
+	notifier AlertNotifier,
+	interval time.Duration,
+	ruleRepo repository.AlertRuleRepository,
+	histRepo repository.AlertHistoryRepository,
+) *AlertChecker {
 	return &AlertChecker{
-		ruleRepo: repository.NewAlertRuleRepository(),
-		histRepo: repository.NewAlertHistoryRepository(),
+		ruleRepo: ruleRepo,
+		histRepo: histRepo,
 		provider: provider,
 		notifier: notifier,
 		interval: interval,
 		stop:     make(chan struct{}),
 	}
+}
+
+// NewAlertChecker 兼容旧装配点：绑定全局 DB 的仓储。
+func NewAlertChecker(provider MetricProvider, notifier AlertNotifier, interval time.Duration) *AlertChecker {
+	return NewAlertCheckerWithRepos(provider, notifier, interval,
+		repository.NewAlertRuleRepository(), repository.NewAlertHistoryRepository())
 }
 
 // Start 启动后台检查器

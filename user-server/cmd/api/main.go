@@ -36,6 +36,7 @@ import (
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/platform"
+	"hivemtk-user/internal/repository"
 	"hivemtk-user/internal/router"
 	"hivemtk-user/internal/secrets"
 	"hivemtk-user/internal/security"
@@ -630,10 +631,12 @@ func main() {
 		alertNotifiers = append(alertNotifiers, service.NewWebhookAlertNotifier(webhookURL))
 		logger.Info("[T8] alert webhook notifier enabled")
 	}
-	alertChecker := service.NewAlertChecker(
+	alertChecker := service.NewAlertCheckerWithRepos(
 		service.NewMetricsAlertProvider(),
 		service.NewMultiNotifier(alertNotifiers...),
 		60*time.Second,
+		repository.NewAlertRuleRepositoryWithDB(db.GetDB()),
+		repository.NewAlertHistoryRepositoryWithDB(db.GetDB()),
 	)
 	alertChecker.Start()
 	defer alertChecker.Stop()

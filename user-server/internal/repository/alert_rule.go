@@ -28,9 +28,14 @@ type alertRuleRepo struct {
 	db *gorm.DB
 }
 
-// NewAlertRuleRepository 构造
+// NewAlertRuleRepository 构造（绑定全局 DB，兼容存量调用）
 func NewAlertRuleRepository() AlertRuleRepository {
 	return &alertRuleRepo{db: db.GetDB()}
+}
+
+// NewAlertRuleRepositoryWithDB 用指定连接构造（装配层注入）
+func NewAlertRuleRepositoryWithDB(database *gorm.DB) AlertRuleRepository {
+	return &alertRuleRepo{db: database}
 }
 
 func (r *alertRuleRepo) Create(ctx context.Context, m *model.AlertRule) error {
@@ -40,15 +45,33 @@ func (r *alertRuleRepo) Create(ctx context.Context, m *model.AlertRule) error {
 // Update 更新告警规则
 //
 // 不用 Save：Save 命中 0 行会回退成 ON CONFLICT(裸主键) DO UPDATE，跨租户按主键
-// Save 能把整行搬到调用方租户下（#14 真库探针复现）。这里显式 Omit 主键/租户/创建时间，
-// 谓词只剩 WHERE id + 注入的 tenant_id，0 行就是 0 行；
-// Select("*") 保证布尔/数值零值也会落库（Updates(struct) 默认跳过零值）。
+// Save 能把整行搬到调用方租户下（#14 真库探针复现）。这里用显式列 map，
+// 谓词只剩 WHERE id + 注入的 tenant_id，0 行就是 0 行；map 写入保留零值
+// （enabled=false / threshold=0 能落库）。last_triggered_at 仅在非 nil 时写入，
+// 避免一次普通编辑把冷却计时清成 NULL。
 func (r *alertRuleRepo) Update(ctx context.Context, m *model.AlertRule) error {
+	updates := map[string]any{
+		"name":             m.Name,
+		"description":      m.Description,
+		"source":           m.Source,
+		"operator":         m.Operator,
+		"threshold":        m.Threshold,
+		"window_seconds":   m.WindowSeconds,
+		"cooldown_seconds": m.CooldownSeconds,
+		"severity":         m.Severity,
+		"channels":         m.Channels,
+		"targets":          m.Targets,
+		"created_by":       m.CreatedBy,
+	}
+	if m.Enabled != nil {
+		updates["enabled"] = *m.Enabled
+	}
+	if m.LastTriggeredAt != nil {
+		updates["last_triggered_at"] = m.LastTriggeredAt
+	}
 	res := r.db.WithContext(ctx).Model(&model.AlertRule{}).
 		Where("id = ?", m.ID).
-		Select("*").
-		Omit("id", "tenant_id", "created_at").
-		Updates(m)
+		Updates(updates)
 	if res.Error != nil {
 		return res.Error
 	}
@@ -81,7 +104,7 @@ func (r *alertRuleRepo) List(ctx context.Context, page, size int, enabledOnly bo
 	if page < 1 {
 		page = 1
 	}
-	if size <= 0 {
+	if size <= 0 || size > 200 {
 		size = 20
 	}
 	var list []*model.AlertRule
@@ -102,11 +125,15 @@ func (r *alertRuleRepo) List(ctx context.Context, page, size int, enabledOnly bo
 	return list, total, nil
 }
 
+// alertRuleListLimit 扫描/列表上限，防止无界读。
+const alertRuleListLimit = 500
+
 func (r *alertRuleRepo) ListEnabled(ctx context.Context) ([]*model.AlertRule, error) {
 	var list []*model.AlertRule
 	if err := r.db.WithContext(ctx).
 		Where("enabled = ?", true).
 		Order("id ASC").
+		Limit(alertRuleListLimit).
 		Find(&list).Error; err != nil {
 		return nil, err
 	}

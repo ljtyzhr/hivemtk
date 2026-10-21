@@ -28,9 +28,9 @@ type AlertRuleController struct {
 	svc *service.AlertRuleService
 }
 
-// NewAlertRuleController 构造
-func NewAlertRuleController() *AlertRuleController {
-	return &AlertRuleController{svc: service.NewAlertRuleService()}
+// NewAlertRuleController 构造（service 由 router 注入）
+func NewAlertRuleController(svc *service.AlertRuleService) *AlertRuleController {
+	return &AlertRuleController{svc: svc}
 }
 
 // Create godoc

@@ -43,12 +43,15 @@ type AlertRuleService struct {
 	hist repository.AlertHistoryRepository
 }
 
-// NewAlertRuleService 构造
+// NewAlertRuleServiceWithRepos 构造（仓储由装配层注入）
+func NewAlertRuleServiceWithRepos(repo repository.AlertRuleRepository, hist repository.AlertHistoryRepository) *AlertRuleService {
+	return &AlertRuleService{repo: repo, hist: hist}
+}
+
+// NewAlertRuleService 兼容旧装配点：绑定全局 DB 的仓储。
+// 新代码一律经 NewAlertRuleServiceWithRepos 由 router 注入。
 func NewAlertRuleService() *AlertRuleService {
-	return &AlertRuleService{
-		repo: repository.NewAlertRuleRepository(),
-		hist: repository.NewAlertHistoryRepository(),
-	}
+	return NewAlertRuleServiceWithRepos(repository.NewAlertRuleRepository(), repository.NewAlertHistoryRepository())
 }
 
 var (
@@ -104,11 +107,9 @@ func (s *AlertRuleService) Create(ctx context.Context, req *AlertRuleRequest, cr
 		Severity:        model.AlertRuleSeverity(req.Severity),
 		Channels:        string(channels),
 		Targets:         string(targets),
-		Enabled:         true,
-		CreatedBy:       creatorID,
-	}
-	if req.Enabled != nil {
-		m.Enabled = *req.Enabled
+		// nil ⇒ 走列默认 true；显式 false 必须原样落库。
+		Enabled:   boolDefaultTrue(req.Enabled),
+		CreatedBy: creatorID,
 	}
 	if err := s.repo.Create(ctx, m); err != nil {
 		logger.Error(err, "创建告警规则失败")
@@ -139,7 +140,7 @@ func (s *AlertRuleService) Update(ctx context.Context, id uint, req *AlertRuleRe
 	m.Channels = string(channels)
 	m.Targets = string(targets)
 	if req.Enabled != nil {
-		m.Enabled = *req.Enabled
+		m.Enabled = req.Enabled
 	}
 	if err := s.repo.Update(ctx, m); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

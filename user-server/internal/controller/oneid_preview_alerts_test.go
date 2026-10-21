@@ -11,6 +11,8 @@ import (
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/pkg/testutil"
+	"hivemtk-user/internal/repository"
+	"hivemtk-user/internal/service"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
@@ -96,7 +98,10 @@ func TestCustomerOneIDController_PreviewMergeRules(t *testing.T) {
 func TestAlertRuleController_Unread(t *testing.T) {
 	gin.SetMode(gin.TestMode)
 	database := setupAlertUnreadTestDB(t)
-	ctrl := NewAlertRuleController()
+	ctrl := NewAlertRuleController(service.NewAlertRuleServiceWithRepos(
+		repository.NewAlertRuleRepositoryWithDB(database),
+		repository.NewAlertHistoryRepositoryWithDB(database),
+	))
 	router := gin.New()
 	router.GET("/api/monitor/alerts/unread", ctrl.Unread)
 

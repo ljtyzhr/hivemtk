@@ -58,11 +58,18 @@ type AlertRule struct {
 	Severity        AlertRuleSeverity `json:"severity" gorm:"size:20;default:'warning'"`
 	Channels        string            `json:"channels" gorm:"type:jsonb;default:'[]'"`
 	Targets         string            `json:"targets" gorm:"type:jsonb;default:'{}'"`
-	Enabled         bool              `json:"enabled" gorm:"default:true;not null"`
-	LastTriggeredAt *time.Time        `json:"last_triggered_at"`
-	CreatedBy       uint              `json:"created_by" gorm:"default:0"`
-	CreatedAt       time.Time         `json:"created_at" gorm:"autoCreateTime"`
-	UpdatedAt       time.Time         `json:"updated_at" gorm:"autoUpdateTime"`
+	// Enabled 用 *bool：bool + `default:true` 时 GORM 会把显式 false 当成零值，
+	// 写入列默认 true —— 「创建即停用」的规则会被静默建造成启用。
+	Enabled         *bool      `json:"enabled" gorm:"default:true;not null"`
+	LastTriggeredAt *time.Time `json:"last_triggered_at"`
+	CreatedBy       uint       `json:"created_by" gorm:"default:0"`
+	CreatedAt       time.Time  `json:"created_at" gorm:"autoCreateTime"`
+	UpdatedAt       time.Time  `json:"updated_at" gorm:"autoUpdateTime"`
+}
+
+// IsEnabled 返回规则是否启用：指针为 nil（未赋值）时按列默认 true 处理。
+func (r *AlertRule) IsEnabled() bool {
+	return r == nil || r.Enabled == nil || *r.Enabled
 }
 
 // TableName 返回表名
