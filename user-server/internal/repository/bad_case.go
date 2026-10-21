@@ -19,7 +19,6 @@ import (
 	"gorm.io/gorm/clause"
 
 	"hivemtk-user/internal/model"
-	_db "hivemtk-user/internal/pkg/db"
 )
 
 // ErrBadCaseInputInvalid 入参越界（未知 source/status/label、空身份、非法分页、空 id 集）。
@@ -112,9 +111,6 @@ type BadCaseRepository interface {
 type badCaseRepo struct {
 	db *gorm.DB
 }
-
-// NewBadCaseRepository 创建实例（用全局 DB）
-func NewBadCaseRepository() BadCaseRepository { return &badCaseRepo{db: _db.GetDB()} }
 
 // NewBadCaseRepositoryWithDB 创建指定数据库连接的实例（用于测试与装配注入）
 func NewBadCaseRepositoryWithDB(db *gorm.DB) BadCaseRepository {
