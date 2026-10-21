@@ -12,7 +12,8 @@ import (
 	"hivemtk-user/internal/bridge"
 	channelgw "hivemtk-user/internal/channelgw"
 	"hivemtk-user/internal/controller"
-	geomodel "hivemtk-user/internal/geo/model"
+	georepo "hivemtk-user/internal/geo/repository"
+	geoservice "hivemtk-user/internal/geo/service"
 	"hivemtk-user/internal/middleware"
 	"hivemtk-user/internal/monitor"
 	"hivemtk-user/internal/pkg/tenant"
@@ -370,33 +371,19 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 
 	setupEmbedStaticRoutes(r)
 
+	var crawlerVisitSvc *geoservice.CrawlerVisitService
+	if gormDB != nil {
+		crawlerVisitSvc = geoservice.NewCrawlerVisitService(georepo.NewGeoCrawlerVisitRepository(gormDB))
+	}
+
 	auth := r.Group("/api")
 	auth.Use(middleware.AICrawlerMonitor(func(engine, path, ua, ip string) {
-
-		// ⚠️ 2026-09-16（审计 DB-07）：此处原先是 `_ = ...Create(...).Error`，
-		// 写入失败被完全丢弃。而 GeoCrawlerVisit 当时又**没登记进 AutoMigrate**，
-		// 全新部署根本不会建 geo_crawler_visits 表 —— 于是"GEO 爬虫访问统计"会
-		// 永久为 0 且**日志里一行都没有**。
-		//
-		// 建表已补进 internal/pkg/db/migrate.go；这里再把错误显性化：
-		// 即便将来表再次出问题，也会在日志里留痕，而不是静默归零。
+		if crawlerVisitSvc == nil {
+			return
+		}
+		// 写库失败必须留痕，不能静默归零（2026-09-16 审计 DB-07）。
 		go func() {
-			if gormDB == nil {
-				return
-			}
-			// 该回调挂在 JWT 之前，ctx 里没有租户归属；geo_crawler_visits 是租户表，
-			// on 模式写入会被隔离 callback 拒绝（每请求一条告警噪声），且用默认租户
-			// 落库会把各租户的爬虫访问混记到租户 1。SaaS 形态下没有可靠线索把匿名
-			// 爬虫请求归属到具体租户，宁可不记也不串账。
-			if tenant.IsMultiTenant() {
-				return
-			}
-			if err := gormDB.WithContext(tenant.ContextWithDefault(context.Background())).Create(&geomodel.GeoCrawlerVisit{
-				Engine:    engine,
-				Path:      path,
-				UserAgent: ua,
-				IP:        ip,
-			}).Error; err != nil {
+			if err := crawlerVisitSvc.RecordAnonymous(context.Background(), engine, path, ua, ip); err != nil {
 				logger.Warnf("[GEO] 记录 AI 爬虫访问失败（engine=%s path=%s）: %v", engine, path, err)
 			}
 		}()

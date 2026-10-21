@@ -18,7 +18,6 @@ import (
 type GeoCrawlerVisitRepository interface {
 	Create(ctx context.Context, v *model.GeoCrawlerVisit) error
 	BulkCreate(ctx context.Context, vs []*model.GeoCrawlerVisit) error
-	StatsByEngine(ctx context.Context, days int) (map[string]int64, error)
 	// StatsByDomain 按域名 + 引擎聚合（近 days 天）
 	StatsByDomain(ctx context.Context, days int) ([]DomainStatRow, error)
 	// StatsByKeyword 按关键词 + 引擎聚合 —— 核心：每个关键词被多少 AI Bot 引擎爬过
@@ -31,8 +30,6 @@ type GeoCrawlerVisitRepository interface {
 	ActiveKeywords(ctx context.Context, days int) (int64, error)
 	// ActiveEngines 近 days 天活跃 AI Bot 引擎数
 	ActiveEngines(ctx context.Context, days int) (int64, error)
-	// Clean 删除全部历史数据（爬虫整轮重置）
-	Clean(ctx context.Context) error
 }
 
 // DomainStatRow 爬虫访问按站点聚合行
@@ -158,27 +155,6 @@ func (r *geoCrawlerVisitRepo) BulkCreate(ctx context.Context, vs []*model.GeoCra
 	return r.db.WithContext(ctx).CreateInBatches(vs, 200).Error
 }
 
-func (r *geoCrawlerVisitRepo) StatsByEngine(ctx context.Context, days int) (map[string]int64, error) {
-	since := time.Now().AddDate(0, 0, -days)
-	type row struct {
-		Engine string
-		N      int64
-	}
-	var rows []row
-	err := r.db.WithContext(ctx).Model(&model.GeoCrawlerVisit{}).
-		Select("engine, COUNT(*) as n").
-		Where("created_at >= ?", since).
-		Group("engine").Find(&rows).Error
-	if err != nil {
-		return nil, err
-	}
-	out := map[string]int64{}
-	for _, r := range rows {
-		out[r.Engine] = r.N
-	}
-	return out, nil
-}
-
 func (r *geoCrawlerVisitRepo) StatsByDomain(ctx context.Context, days int) ([]DomainStatRow, error) {
 	since := time.Now().AddDate(0, 0, -days)
 
@@ -289,8 +265,4 @@ func (r *geoCrawlerVisitRepo) ActiveEngines(ctx context.Context, days int) (int6
 		Where("created_at >= ?", since).
 		Distinct("engine").Count(&n).Error
 	return n, err
-}
-
-func (r *geoCrawlerVisitRepo) Clean(ctx context.Context) error {
-	return r.db.WithContext(ctx).Where("1=1").Delete(&model.GeoCrawlerVisit{}).Error
 }
