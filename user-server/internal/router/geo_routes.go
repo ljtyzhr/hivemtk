@@ -114,7 +114,7 @@ func SetupGeoRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 	// fail-closed ⇒ 探针清单恒空。走 tenant.WithSystemScope 平台级豁免通道。
 	probes := geoservice.NewEngineProbesFromDB(tenant.WithSystemScope(context.Background()), gormDB)
 	kwMiningSvc := geoservice.NewKeywordMiningService(keywordRepo, gormDB, llmAdapter)
-	pushSvc := geoservice.NewPushService(gormDB)
+	pushSvc := geoservice.NewPushService(gormDB, georepo.NewGeoPushRecordRepositoryWithDB(gormDB))
 	siteSvc := geoservice.NewSiteDeployService(gormDB, pushSvc)
 	indexTrackerSvc := geoservice.NewIndexTrackerService(
 		georepo.NewGeoIndexTrackingRepositoryWithDB(gormDB),

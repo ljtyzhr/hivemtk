@@ -20,10 +20,12 @@ import (
 	"time"
 
 	"hivemtk-user/internal/geo/model"
+	"hivemtk-user/internal/geo/repository"
 	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/timeutil"
 	"hivemtk-user/internal/pkg/utils/logger"
 
+	"github.com/google/uuid"
 	"gorm.io/gorm"
 )
 
@@ -499,13 +501,9 @@ func (p *ToutiaoPusher) Push(ctx context.Context, urls []string) ([]PushResult, 
 // SitemapPusher 全量 sitemap 生成 + 提交各站长平台
 // ────────────────────────────────────────────
 
-type SitemapPusher struct {
-	db *gorm.DB
-}
+type SitemapPusher struct{}
 
-func NewSitemapPusher(db *gorm.DB) *SitemapPusher {
-	return &SitemapPusher{db: db}
-}
+func NewSitemapPusher() *SitemapPusher { return &SitemapPusher{} }
 
 func (p *SitemapPusher) Name() string { return "sitemap" }
 
@@ -524,15 +522,17 @@ func (p *SitemapPusher) Push(ctx context.Context, urls []string) ([]PushResult, 
 
 type PushService struct {
 	db       *gorm.DB
+	records  repository.GeoPushRecordRepository
 	quota    *QuotaManager
 	pushers  map[string]Pusher
 	mu       sync.Mutex
 	quotaDay string // 内存配额所属日期，跨天自动 Reset
 }
 
-func NewPushService(db *gorm.DB) *PushService {
+func NewPushService(db *gorm.DB, records repository.GeoPushRecordRepository) *PushService {
 	svc := &PushService{
 		db:       db,
+		records:  records,
 		quota:    NewQuotaManager(),
 		pushers:  map[string]Pusher{},
 		quotaDay: timeutil.BusinessToday(),
@@ -640,7 +640,7 @@ func (s *PushService) registerFromDB() {
 		}
 	}
 	// 兜底：总会注册 sitemap
-	s.pushers["sitemap"] = NewSitemapPusher(s.db)
+	s.pushers["sitemap"] = NewSitemapPusher()
 }
 
 func asString(v any) string {
@@ -650,22 +650,14 @@ func asString(v any) string {
 	return ""
 }
 
-// PushArticle 文章部署后自动推所有启用的引擎
-func (s *PushService) PushArticle(ctx context.Context, article *model.GeoArticle) error {
-	if article == nil || article.SiteURL == "" {
-		return fmt.Errorf("article/site_url 为空")
-	}
-	return s.PushURLs(ctx, []string{article.SiteURL})
-}
-
 // PushURLs 推一组 URL（所有启用的引擎）
 func (s *PushService) PushURLs(ctx context.Context, urls []string) error {
 	if len(urls) == 0 {
 		return nil
 	}
 
-	tx := s.db.WithContext(ctx).Begin()
 	s.rollQuotaDay()
+	batchID := uuid.New().String()
 	for platform, pusher := range s.pushers {
 		if !s.quota.Allow(platform, len(urls)) {
 			logger.Warnf("[%s] 配额用尽，跳过 %d URL", platform, len(urls))
@@ -678,11 +670,9 @@ func (s *PushService) PushURLs(ctx context.Context, urls []string) error {
 		}
 
 		success, fail := 0, 0
+		var records []*model.GeoPushRecord
 		for _, r := range results {
-			rec := &model.GeoPushRecord{
-				Platform: platform, URL: r.URL,
-				SuccessCount: 0, FailCount: 0,
-			}
+			rec := &model.GeoPushRecord{Platform: platform, URL: r.URL, BatchID: batchID}
 			if r.Success {
 				success++
 				rec.SuccessCount = 1
@@ -694,20 +684,43 @@ func (s *PushService) PushURLs(ctx context.Context, urls []string) error {
 			if r.RemainQuota > 0 {
 				rec.RemainQuota = r.RemainQuota
 			}
-			_ = tx.Create(rec).Error
+			records = append(records, rec)
+		}
+		// 记账失败必须上抛：静默丢记录等于事后无账可查。
+		if err := s.records.BatchCreate(ctx, records); err != nil {
+			return fmt.Errorf("[%s] 推送记录落库失败: %w", platform, err)
 		}
 
 		s.quota.Consume(platform, success)
 		s.persistQuota(ctx, platform)
 		logger.Warnf("[%s] 推送 %d URL 成功=%d 失败=%d", platform, len(urls), success, fail)
 	}
-	return tx.Commit().Error
+	return nil
+}
+
+// ValidatePlatforms 校验平台名是否已启用。未注册的平台必须报错，
+// 不能静默跳过——否则调用方拿到 code=0 却一条记录都没有。
+func (s *PushService) ValidatePlatforms(platforms []string) error {
+	var unknown []string
+	for _, plat := range platforms {
+		if _, ok := s.pushers[plat]; !ok {
+			unknown = append(unknown, plat)
+		}
+	}
+	if len(unknown) > 0 {
+		return fmt.Errorf("推送平台未启用: %s", strings.Join(unknown, "、"))
+	}
+	return nil
 }
 
 // PushManual 手动推指定平台
 func (s *PushService) PushManual(ctx context.Context, urls []string, platforms []string) ([]*model.GeoPushRecord, error) {
+	if err := s.ValidatePlatforms(platforms); err != nil {
+		return nil, err
+	}
 	var records []*model.GeoPushRecord
 	s.rollQuotaDay()
+	batchID := uuid.New().String()
 	for _, plat := range platforms {
 		p, ok := s.pushers[plat]
 		if !ok {
@@ -723,7 +736,7 @@ func (s *PushService) PushManual(ctx context.Context, urls []string, platforms [
 		}
 		success := 0
 		for _, r := range results {
-			rec := &model.GeoPushRecord{Platform: plat, URL: r.URL, ErrorMsg: r.Error}
+			rec := &model.GeoPushRecord{Platform: plat, URL: r.URL, BatchID: batchID, ErrorMsg: r.Error}
 			if r.Success {
 				rec.SuccessCount = 1
 				success++
@@ -731,10 +744,12 @@ func (s *PushService) PushManual(ctx context.Context, urls []string, platforms [
 				rec.FailCount = 1
 			}
 			records = append(records, rec)
-			_ = s.db.WithContext(ctx).Create(rec).Error
 		}
 		s.quota.Consume(plat, success)
 		s.persistQuota(ctx, plat)
+	}
+	if err := s.records.BatchCreate(ctx, records); err != nil {
+		return records, fmt.Errorf("推送记录落库失败: %w", err)
 	}
 	return records, nil
 }

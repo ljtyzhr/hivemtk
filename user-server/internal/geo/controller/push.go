@@ -22,11 +22,18 @@ func NewPushController(svc *service.PushService) *PushController {
 // body: {"urls": [...], "platforms": ["baidu","indexnow","google"]}
 func (c *PushController) PushURLs(ctx *gin.Context) {
 	var req struct {
-		URLs      []string `json:"urls" binding:"required"`
+		// 单次最多 2000 条（与百度批量上限一致），避免一次请求把全站 URL 塞进来。
+		URLs      []string `json:"urls" binding:"required,max=2000"`
 		Platforms []string `json:"platforms"`
 	}
 	if !response.BindJSON(ctx, &req) {
 		return
+	}
+	if len(req.Platforms) > 0 {
+		if err := c.svc.ValidatePlatforms(req.Platforms); err != nil {
+			response.Error(ctx, http.StatusBadRequest, err.Error())
+			return
+		}
 	}
 	var err error
 	var records any
