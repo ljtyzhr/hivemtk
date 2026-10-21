@@ -115,7 +115,7 @@ type ChampionDialogue struct {
 	ClusterID           uint       `gorm:"index" json:"cluster_id"`
 	Reward              float64    `gorm:"type:decimal(6,3);not null;default:0" json:"reward"`
 	ConversionAchieved  bool       `gorm:"not null;default:false" json:"conversion_achieved"`
-	ExtractedScripts    JSONMap    `gorm:"type:jsonb" json:"extracted_scripts"`
+	ExtractedScripts    JSONArray  `gorm:"type:jsonb" json:"extracted_scripts"`
 	ExtractedAt         *time.Time `json:"extracted_at"`
 	CreatedAt           time.Time  `gorm:"autoCreateTime;index" json:"created_at"`
 }

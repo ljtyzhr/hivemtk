@@ -1231,7 +1231,7 @@ func (s *aiAgentsSeeder) buildChampionDialogues(ctx *SeedContext) []model.Champi
 			ClusterID:           uint(i%3 + 1),
 			Reward:              randFloat(0.5, 0.95),
 			ConversionAchieved:  i%3 == 0,
-			ExtractedScripts:    model.JSONMap{"title": fmt.Sprintf("销冠话术#%d", i+1), "content": sc.Reply},
+			ExtractedScripts:    model.JSONArray{map[string]any{"title": fmt.Sprintf("销冠话术#%d", i+1), "content": sc.Reply}},
 		}
 		t := daysAgo(randInt(1, 20))
 		dlg.ExtractedAt = &t

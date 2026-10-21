@@ -29,17 +29,33 @@ type ChampionDialogueRow struct {
 //
 // SQL：聚合 reward + 关联最近一条 feedback_events 取 customer_msg / ai_reply 快照
 // 按 aggregated_reward DESC 排序，取最多 maxDialogues 条
+//
+// **两条相关子查询必须自带 tenant_id 条件**：它们写在 Select 里，是 SELECT 列表上的
+// SQL 片段，租户 callback 注入不到里面（callback 只能给外层表 `feedback_signals fs`
+// 加条件）。而 session_id 在两个租户里**可以是同一个值**（两边各自一套会话命名空间）
+// ⇒ 不带租户条件的子查询会按 session_id 命中**别的租户**那一行，把它的客户消息与
+// AI 回包原文带进本租户的销冠对话语料（外层行仍是本租户的，所以从外层看「一切正常」）。
+// 这条跨租户读已由 champion_dialogue_tenant_test.go 实证（去掉条件即复现）。
+//
+// 租户号取自 ctx（scopeTenantID）：on 模式无绑定时返回 0，由隔离 callback fail-closed
+// —— 绝不因为「取不到租户号」就退化成不带条件（那等于把跨租户读打开）。
 func (r *FeedbackLoopRepository) FetchChampionDialogueCandidates(ctx context.Context, scenario string, minReward float64, since time.Time, maxDialogues int) ([]ChampionDialogueRow, error) {
 	if r == nil || r.db == nil {
 		return nil, nil
 	}
+	tenantID := scopeTenantID(ctx)
 	var rows []ChampionDialogueRow
 	err := r.db.WithContext(ctx).Table("feedback_signals fs").
 		Select("fs.session_id, fs.customer_id, "+
-			"(SELECT customer_msg FROM feedback_events WHERE session_id = fs.session_id ORDER BY created_at DESC LIMIT 1) AS customer_msg, "+
-			"(SELECT ai_reply FROM feedback_events WHERE session_id = fs.session_id ORDER BY created_at DESC LIMIT 1) AS ai_reply, "+
+			"(SELECT customer_msg FROM feedback_events fe1 "+
+			"WHERE fe1.session_id = fs.session_id AND fe1.tenant_id = ? "+
+			"ORDER BY fe1.created_at DESC LIMIT 1) AS customer_msg, "+
+			"(SELECT ai_reply FROM feedback_events fe2 "+
+			"WHERE fe2.session_id = fs.session_id AND fe2.tenant_id = ? "+
+			"ORDER BY fe2.created_at DESC LIMIT 1) AS ai_reply, "+
 			"fs.aggregated_reward AS reward, fs.is_champion, "+
-			"COALESCE(fs.signal_breakdown->>'scenario', ?) AS scenario, fs.created_at", scenario).
+			"COALESCE(fs.signal_breakdown->>'scenario', ?) AS scenario, fs.created_at",
+			tenantID, tenantID, scenario).
 		Where("fs.aggregated_reward >= ? AND fs.created_at >= ?", minReward, since).
 		Order("fs.aggregated_reward DESC").
 		Limit(maxDialogues).
