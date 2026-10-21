@@ -521,14 +521,27 @@ func (s *ModuleCatalogService) Sync(ctx context.Context) (*ModuleSyncResult, err
 	}
 
 	// 本地存在但平台已不再下发的模块要显式失效，否则撤销永远不生效
+	//
+	// 作用域纪律（2026-10-22 线上事故）：本轮的 active_keys 是**某一个租户**
+	// 的名单 —— 有租户绑定时是它自己的，没绑定时是**商户级**名单（平台按
+	// merchant_key 的兜底行下发）。商户级名单不代表任何租户，拿它去遍历
+	// 全租户的行会把**别的租户已开通的付费模块**误标成 disabled
+	// （实测：m1 买过 reach-auto 且平台端 active，用户端却显示未拥有）。
+	//
+	// 所以 stale 判定只在**本轮有该租户专属名单**时做，且只看该租户的行：
+	//   - 有租户绑定 ⇒ 判该租户的行（撤销语义正确）；
+	//   - 无租户绑定（商户级那轮）⇒ 不判任何租户行（无权判定别人存废）。
 	existing, err := s.repo.ListAll(ctx)
-	if err == nil {
+	if err == nil && reqTenantBound {
 		active := map[string]bool{}
 		for _, k := range snap.ActiveKeys {
 			active[k] = true
 		}
 		stale := make([]*model.TenantModule, 0)
 		for _, e := range existing {
+			if e.TenantID != reqTenantID {
+				continue // 别的租户的行：商户级/他租户名单无权判定
+			}
 			if !active[e.ModuleKey] && e.Status == model.TenantModuleActive {
 				// gift 行豁免：平台对 0 元模块的 owned 下发口径尚未两端定死 ——
 				// 平台没把某 0 元模块算进 active_keys 时（例如存量商户升级前、
@@ -544,7 +557,9 @@ func (s *ModuleCatalogService) Sync(ctx context.Context) (*ModuleSyncResult, err
 			}
 		}
 		if len(stale) > 0 {
-			if err := s.repo.UpsertMany(ctx, stale); err != nil {
+			// 只带该租户的干净 ctx：SystemScope 下的写会把行落默认租户。
+			uctx := tenant.OnlyTenant(ctx, reqTenantID)
+			if err := s.repo.UpsertMany(uctx, stale); err != nil {
 				logger.Warnf("[module] 失效陈旧模块失败: %v", err)
 			}
 		}
