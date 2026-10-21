@@ -73,8 +73,24 @@ func (r *browserCronTriggerRepo) ListAllEnabled(ctx context.Context) ([]*model.B
 	return list, err
 }
 
+// cronSchedulerOwnedCols 调度记账列，`Update`(Save) 一律不写。
+//
+// `CronService.Update` 的形状是「GetByID 读快照 → mutator 改 cron_expr/time_zone →
+// Save 写回」，而 Save 写**全部**列 —— 于是快照之后落库的窄写会被这次编辑覆回旧值。
+// 这两列每一列都有另一个写主：
+//   - next_run_at —— applySchedule→storeNextRun 与触发回调 UpdateTimes 的产物。
+//     覆回一条旧时刻 = 列表页显示的「下次触发」与实际排期不符；
+//   - last_run_at —— 触发回调 UpdateTimes 的产物。覆回旧值 = 列表页那一列
+//     「上次触发」比实际早一次，而它恰恰是运维判断「这个定时器还活着吗」的那一列。
+//
+// 窗口真实存在：改表达式是 HTTP 入口，触发回调是调度器 goroutine，两者并发。
+// 与 browser_tasks 的 taskOwnedByExecutorCols 同一修法：写面收口到用户可编辑列。
+var cronSchedulerOwnedCols = []string{"next_run_at", "last_run_at"}
+
+// Update 用户可编辑列的唯一写口（cron_expr / time_zone）。
+// 读改写会带出调度记账列的旧值，所以按 cronSchedulerOwnedCols 收口写面。
 func (r *browserCronTriggerRepo) Update(ctx context.Context, t *model.BrowserCronTrigger) error {
-	return r.db.WithContext(ctx).Save(t).Error
+	return r.db.WithContext(ctx).Omit(cronSchedulerOwnedCols...).Save(t).Error
 }
 
 func (r *browserCronTriggerRepo) UpdateEnabled(ctx context.Context, id uint, enabled bool) error {
