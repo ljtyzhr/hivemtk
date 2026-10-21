@@ -124,36 +124,6 @@ func (r *ChampionBaselineRepositoryImpl) ListEnabled(ctx context.Context) ([]mod
 	return entities, nil
 }
 
-// RefreshPhrases 刷新短语库
-// phrases 由 service 层通过 TFIDFPhraseExtractor 预计算，仓储仅负责持久化
-func (r *ChampionBaselineRepositoryImpl) RefreshPhrases(ctx context.Context, baselineID uint64, phrases []model.ChampionPhrase) error {
-	if baselineID == 0 || len(phrases) == 0 {
-		return nil
-	}
-	gormDB := db.GetDB().WithContext(ctx)
-	if err := gormDB.Where("baseline_id = ?", baselineID).Delete(&model.ChampionPhrase{}).Error; err != nil {
-		return fmt.Errorf("delete old phrases: %w", err)
-	}
-	for i := range phrases {
-		phrases[i].BaselineID = baselineID
-	}
-	if err := gormDB.CreateInBatches(phrases, 100).Error; err != nil {
-		return fmt.Errorf("create champion_phrases: %w", err)
-	}
-	return nil
-}
-
-// ListPhrases 列出基线的 top-N 短语
-func (r *ChampionBaselineRepositoryImpl) ListPhrases(ctx context.Context, baselineID uint64, limit int) ([]model.ChampionPhrase, error) {
-	var list []model.ChampionPhrase
-	q := db.GetDB().WithContext(ctx).
-		Where("baseline_id = ?", baselineID).
-		Order("rank ASC")
-	q = applyListLimit(q, limit)
-	err := q.Find(&list).Error
-	return list, err
-}
-
 func generateScoreID() string {
 	return fmt.Sprintf("hs_%d", time.Now().UnixNano())
 }

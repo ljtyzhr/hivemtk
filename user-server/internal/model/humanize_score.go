@@ -95,7 +95,21 @@ func (ChampionBaseline) TableName() string { return "champion_baselines" }
 
 // ChampionPhrase 销冠短语（对应 champion_phrases 表）
 //
-// TF-IDF 提取的销冠高频短语，用于加权欧氏距离补充信号
+// 设计意图：TF-IDF 提取的销冠高频短语，作为加权欧氏距离的补充信号。
+//
+// **但这条信号至今没有接线**（2026-10-21 实体审查 #62 核过）：
+//   - 加权欧氏距离（service/humanize/llm_scorer.go weightedEuclideanDistance）
+//     只读基线的五维分数（ChampionBaseline.Naturalness 等），**不读本表**；
+//   - 本表的唯一写口（仓储 RefreshPhrases）与唯一读口（仓储 ListPhrases）都
+//     零生产调用方，TF-IDF 提取器（TFIDFPhraseExtractor）也只被自己的测试用着；
+//   - 开发库本表 0 行。
+//
+// 那条从未接线的代码簇已在本轮删除（提取器 + 两个仓储方法 + ChampionMessage）。
+// **表本身保留**：它在 allModels()（pkg/db/migrate.go）与模块归属登记
+// （model/module_tables.go 的 ai-sales 段）里都占位，且由 humanize_evaluator 迁移建出，
+// 属「已登记但未启用的表」这一档——仓内另有若干同档表（sales_intent_scores 等），
+// 不宜按「没人用」就退表（退表是产品决定，不是审计能替答的）。
+// 要启用这条信号需要三步：把短语写进本表、在评分侧读它、给抽取器接上真实语料。
 type ChampionPhrase struct {
 	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
 

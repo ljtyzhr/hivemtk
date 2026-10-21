@@ -77,11 +77,9 @@ func (r *stubScoreRepo) Save(ctx context.Context, score *model.HumanizeScore, di
 }
 
 type stubBaselineRepo struct {
-	mu         sync.Mutex
-	baseline   *model.ChampionBaseline
-	findErr    error
-	refreshErr error
-	refreshed  int
+	mu       sync.Mutex
+	baseline *model.ChampionBaseline
+	findErr  error
 }
 
 func newStubBaselineRepo(baseline *model.ChampionBaseline) *stubBaselineRepo {
@@ -104,16 +102,6 @@ func (r *stubBaselineRepo) ListEnabled(ctx context.Context) ([]model.ChampionBas
 		return nil, nil
 	}
 	return []model.ChampionBaseline{*r.baseline}, nil
-}
-
-func (r *stubBaselineRepo) RefreshPhrases(ctx context.Context, baselineID uint64, phrases []model.ChampionPhrase) error {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	r.refreshed++
-	if r.refreshErr != nil {
-		return r.refreshErr
-	}
-	return nil
 }
 
 type stubSampleCollector struct {

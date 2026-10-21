@@ -30,16 +30,6 @@ type HumanizeScoreRepository interface {
 type ChampionBaselineRepository interface {
 	FindByPersonaIndustryIntent(ctx context.Context, persona, industry, intent string) (*model.ChampionBaseline, error)
 	ListEnabled(ctx context.Context) ([]model.ChampionBaseline, error)
-	RefreshPhrases(ctx context.Context, baselineID uint64, phrases []model.ChampionPhrase) error
-}
-
-// ChampionMessage 销冠对话消息（用于基线刷新与短语提取）
-type ChampionMessage struct {
-	Content             string
-	PrevCustomerMessage string
-	Persona             string
-	Industry            string
-	Intent              string
 }
 
 // LowQualitySampleCollector 低质样本收集器接口
