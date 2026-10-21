@@ -6,6 +6,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 
 	"hivemtk-user/internal/model"
 
@@ -28,7 +29,7 @@ func NewAssetBundleVersionLogRepository(db *gorm.DB) AssetBundleVersionLogReposi
 
 func (r *assetBundleVersionLogRepo) Create(ctx context.Context, m *model.AssetBundleVersionLog) error {
 	if m == nil {
-		return nil
+		return errors.New("asset bundle version log is nil")
 	}
 	return r.db.WithContext(ctx).Create(m).Error
 }

@@ -158,10 +158,13 @@ func (r *assetBundleRepo) List(ctx context.Context, f AssetBundleFilter) ([]*mod
 	if f.Size <= 0 {
 		f.Size = 20
 	}
+	if f.Size > 200 {
+		f.Size = 200
+	}
 	if err := q.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	err := q.Order("updated_at DESC").Offset((f.Page - 1) * f.Size).Limit(f.Size).Find(&list).Error
+	err := q.Order("updated_at DESC, id DESC").Offset((f.Page - 1) * f.Size).Limit(f.Size).Find(&list).Error
 	return list, total, err
 }
 
