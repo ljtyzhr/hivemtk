@@ -125,3 +125,83 @@ func TestPaidModuleHasTables(t *testing.T) {
 		}
 	}
 }
+
+// TestBrowserAutomationTablesAllOwned 浏览器自动化的表一张都不许漏登、也不许登幽灵。
+//
+// 为什么单开一条：`TestEveryModelTableHasModuleOwner` 扫的是 `internal/model` 目录，
+// 而浏览器自动化的十二张表住在 `internal/browser_automation/model`——**不在那个扫描面里**。
+// 于是漏登不会让任何一条用例红（事实形态：browser_sessions / browser_steps /
+// browser_command_log / browser_cron_triggers / browser_llm_plans / browser_audit_digests /
+// browser_write_claims 七张长期无主，而 browser_profiles 这张**根本不存在**的表反倒登着）。
+//
+// 漏登的后果不是「读不出来」——本表目前还没有生产消费方——而是**归属这件事没被说清**：
+// 以后真按「关模块 ⇒ 这张表跟着停」做开关时，漏登的那张表会继续被后台任务写。
+//
+// 判据取自模型源码（TableName 取值）而不是手抄清单：手抄清单会被「新增模型时忘了登记」
+// 绕过，那正是这张表要解决的问题。
+func TestBrowserAutomationTablesAllOwned(t *testing.T) {
+	dir := filepath.Join("..", "browser_automation", "model")
+	entries, err := os.ReadDir(dir)
+	if err != nil {
+		t.Fatalf("读 %s 失败: %v", dir, err)
+	}
+	owned := map[string]bool{}
+	for _, tbl := range TablesOfModule(ModuleBrowserAutomation) {
+		owned[tbl] = true
+	}
+	// 实际存在的表：从模型源码里扫 TableName 取值。
+	real := map[string]bool{}
+	for _, e := range entries {
+		name := e.Name()
+		if e.IsDir() || !strings.HasSuffix(name, ".go") || strings.HasSuffix(name, "_test.go") {
+			continue
+		}
+		src, err := os.ReadFile(filepath.Join(dir, name))
+		if err != nil {
+			continue
+		}
+		s := string(src)
+		idx := 0
+		for {
+			pos := strings.Index(s[idx:], "TableName() string")
+			if pos < 0 {
+				break
+			}
+			pos += idx
+			end := strings.Index(s[pos:], "}")
+			if end < 0 {
+				break
+			}
+			seg := s[pos : pos+end]
+			if q1 := strings.Index(seg, `return "`); q1 >= 0 {
+				rest := seg[q1+len(`return "`):]
+				if q2 := strings.Index(rest, `"`); q2 > 0 {
+					real[rest[:q2]] = true
+				}
+			}
+			idx = pos + end
+		}
+	}
+
+	var missing, ghost []string
+	for tbl := range real {
+		if !owned[tbl] {
+			missing = append(missing, tbl)
+		}
+	}
+	for tbl := range owned {
+		if !real[tbl] {
+			ghost = append(ghost, tbl)
+		}
+	}
+	sort.Strings(missing)
+	sort.Strings(ghost)
+	if len(missing) > 0 {
+		t.Errorf("浏览器自动化有 %d 张表未登记模块归属（关掉模块它们不会跟着停）：\n  %s",
+			len(missing), strings.Join(missing, "\n  "))
+	}
+	if len(ghost) > 0 {
+		t.Errorf("浏览器自动化登记了 %d 张不存在的表（登记一张没有的表 = 归属这件事说假话）：\n  %s",
+			len(ghost), strings.Join(ghost, "\n  "))
+	}
+}

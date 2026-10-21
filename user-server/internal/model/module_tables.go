@@ -209,10 +209,22 @@ var llmCloudOwnedTables = []string{
 //
 // 常驻 Chromium 会话与任务执行记录。没有专属表时它确实"关了什么都不停"，
 // 但那是实现现状而非它不需要数据 —— 后续补表时往这里加即可，归属已经先立住。
+//
+// 十二张表一张不少（2026-10-21 实体审查 #46–#54 逐表对过 `internal/browser_automation/model`
+// 的 TableName 取值与开发库 pg_tables）：
+//   - 去掉 browser_profiles：模型已不存在（Profile 概念并入 browser_profile_health），
+//     开发库里也没有这张表——登记一张不存在的表等于让「这张表归谁」这件事说假话。
+//   - 补上此前漏登的六张：browser_sessions / browser_steps / browser_command_log /
+//     browser_cron_triggers / browser_llm_plans / browser_audit_digests /
+//     browser_write_claims。漏登的后果不是「读不出来」——本表目前还没有生产消费方
+//     （OwnerOfTable/TablesOfModule 全仓零引用），而是**归属这件事没被说清**：
+//     以后真按「关模块 ⇒ 这张表跟着停」做开关时，漏登的那张表会继续被后台任务写。
 var browserAutomationOwnedTables = []string{
-	"browser_profiles", "browser_tasks", "browser_outreach_dedupe",
-	"browser_outreach_receipts", "browser_audit_prune_runs",
-	"browser_profile_health",
+	"browser_tasks", "browser_sessions", "browser_steps",
+	"browser_command_log", "browser_cron_triggers", "browser_llm_plans",
+	"browser_audit_digests", "browser_audit_prune_runs",
+	"browser_write_claims", "browser_outreach_dedupe",
+	"browser_outreach_receipts", "browser_profile_health",
 }
 
 // moduleTableRegistry 模块 → 独占表
