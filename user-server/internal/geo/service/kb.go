@@ -56,6 +56,7 @@ func (s *KBService) Save(ctx context.Context, req *dto.SaveKnowledgeDocumentRequ
 	}
 
 	doc := &model.GeoKnowledgeDocument{
+		ID:       req.ID,
 		Title:    req.Title,
 		Content:  req.Content,
 		DocType:  req.DocType,
