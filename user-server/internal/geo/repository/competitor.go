@@ -25,6 +25,11 @@ func NewGeoCompetitorRepository() GeoCompetitorRepository {
 	return &geoCompetitorRepo{db: _db.GetDB()}
 }
 
+// NewGeoCompetitorRepositoryWithDB 显式注入 gormDB（路由装配用，测试可替换）
+func NewGeoCompetitorRepositoryWithDB(db *gorm.DB) GeoCompetitorRepository {
+	return &geoCompetitorRepo{db: db}
+}
+
 func (r *geoCompetitorRepo) List(ctx context.Context, status string) ([]*model.GeoCompetitor, error) {
 	q := r.db.WithContext(ctx).Model(&model.GeoCompetitor{})
 	if status != "" {
@@ -49,11 +54,30 @@ func (r *geoCompetitorRepo) Create(ctx context.Context, c *model.GeoCompetitor) 
 }
 
 func (r *geoCompetitorRepo) Update(ctx context.Context, c *model.GeoCompetitor) error {
-	return r.db.WithContext(ctx).Save(c).Error
+	// 不用 Save：Save 在目标行已被删除时会重新 INSERT，把已删竞品「复活」，
+	// 且命中 0 行时无法区分跨租户/不存在。按主键定向更新并检查影响行数。
+	res := r.db.WithContext(ctx).Model(&model.GeoCompetitor{}).
+		Where("id = ?", c.ID).
+		Select("name", "domain", "paths", "category", "priority", "status", "notes").
+		Updates(c)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 func (r *geoCompetitorRepo) Delete(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).Delete(&model.GeoCompetitor{}, id).Error
+	res := r.db.WithContext(ctx).Delete(&model.GeoCompetitor{}, id)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 func (r *geoCompetitorRepo) ListActive(ctx context.Context) ([]*model.GeoCompetitor, error) {

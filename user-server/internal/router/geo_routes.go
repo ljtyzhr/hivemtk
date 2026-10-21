@@ -134,7 +134,7 @@ func SetupGeoRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 	probeRepo := georepo.NewGeoProbeRunRepositoryWithDB(gormDB)
 	probeSvc := geoservice.NewProbeService(probes, probeRepo)
 	probeCtrl := geoctrl.NewProbeController(probeSvc)
-	citeSvc := geoservice.NewCitationService(probeRepo, configRepo, georepo.NewGeoCompetitorRepository())
+	citeSvc := geoservice.NewCitationService(probeRepo, configRepo, georepo.NewGeoCompetitorRepositoryWithDB(gormDB))
 	citeCtrl := geoctrl.NewCitationController(citeSvc)
 	oppSvc := geoservice.NewOpportunityService(
 		analyticsSvc, citeSvc,
@@ -160,7 +160,7 @@ func SetupGeoRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 	)
 	entityCtrl := geoctrl.NewEntityController(entityRepo, extractSvc)
 
-	competitorRepo := georepo.NewGeoCompetitorRepository()
+	competitorRepo := georepo.NewGeoCompetitorRepositoryWithDB(gormDB)
 	competitorSvc := geoservice.NewGeoCompetitorService(competitorRepo)
 	competitorCtrl := geoctrl.NewCompetitorController(competitorSvc)
 
