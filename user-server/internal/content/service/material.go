@@ -4,21 +4,21 @@ import (
 	"context"
 	"crypto/md5"
 	"encoding/hex"
+	"errors"
 	"fmt"
-	contentdto "hivemtk-user/internal/content/dto"
-	"hivemtk-user/internal/content/model"
-	"hivemtk-user/internal/content/repository"
-	"hivemtk-user/internal/dto"
-	usermodel "hivemtk-user/internal/model"
-	"hivemtk-user/internal/pkg/utils/logger"
-	userrepo "hivemtk-user/internal/repository"
-	"hivemtk-user/internal/storage"
 	"image"
 	"io"
 	"mime/multipart"
-	"path/filepath"
 	"strings"
 	"time"
+
+	contentdto "hivemtk-user/internal/content/dto"
+	"hivemtk-user/internal/content/model"
+	"hivemtk-user/internal/content/repository"
+	"hivemtk-user/internal/pkg/utils"
+	"hivemtk-user/internal/pkg/utils/logger"
+	userrepo "hivemtk-user/internal/repository"
+	"hivemtk-user/internal/storage"
 
 	"gorm.io/gorm"
 )
@@ -30,30 +30,34 @@ func strVal(p *string) string {
 	return *p
 }
 
-// ObsService 抽象 OBS 配置服务接口（避免与 system service 包循环依赖）
+// ObsService 抽象 OBS 配置服务接口（避免与 system service 包循环依赖：
+// internal/service 反向依赖本包，见 internal/service/marketing_flow_sms_init.go:9）。
+//
+// 每个方法都收 ctx：默认存储配置落在 obs_config 这张租户表上，
+// 用 context.Background() 读它在 on 模式被隔离闸拒（表现为「素材库上传永远失败」），
+// 本地驱动也靠同一个 ctx 给落盘路径加 tenant_{id}/ 段（storage/local.go T011）。
 type ObsService interface {
-	UploadFile(file multipart.File, header *multipart.FileHeader, licenseID string, folder string) (string, error)
-	GetDefaultConfig(licenseID string) (*dto.ObsConfigResponse, error)
+	UploadFile(ctx context.Context, file multipart.File, header *multipart.FileHeader, folder string) (string, string, error)
 }
 
 type MaterialService interface {
-	GetCategoryList(licenseID string, parentID string, materialType string, page int, limit int) (*contentdto.GetMaterialCategoryListResponse, error)
-	GetCategoryTree(licenseID string, materialType string) ([]*contentdto.MaterialCategoryResponse, error)
-	GetCategory(id string) (*contentdto.MaterialCategoryResponse, error)
-	CreateCategory(req *contentdto.CreateMaterialCategoryRequest) (*contentdto.MaterialCategoryResponse, error)
-	UpdateCategory(id string, req *contentdto.UpdateMaterialCategoryRequest) (*contentdto.MaterialCategoryResponse, error)
-	DeleteCategory(id string) error
+	GetCategoryList(ctx context.Context, licenseID string, parentID string, materialType string, page int, limit int) (*contentdto.GetMaterialCategoryListResponse, error)
+	GetCategoryTree(ctx context.Context, licenseID string, materialType string) ([]*contentdto.MaterialCategoryResponse, error)
+	GetCategory(ctx context.Context, id string) (*contentdto.MaterialCategoryResponse, error)
+	CreateCategory(ctx context.Context, req *contentdto.CreateMaterialCategoryRequest) (*contentdto.MaterialCategoryResponse, error)
+	UpdateCategory(ctx context.Context, id string, req *contentdto.UpdateMaterialCategoryRequest) (*contentdto.MaterialCategoryResponse, error)
+	DeleteCategory(ctx context.Context, id string) error
 
-	GetMaterialList(licenseID string, categoryID string, materialType string, search string, page int, limit int) (*contentdto.GetMaterialListResponse, error)
-	GetMaterial(id string) (*contentdto.MaterialResponse, error)
-	CreateMaterial(req *contentdto.CreateMaterialRequest) (*contentdto.MaterialResponse, error)
-	UpdateMaterial(id string, req *contentdto.UpdateMaterialRequest) (*contentdto.MaterialResponse, error)
-	DeleteMaterial(id string) error
+	GetMaterialList(ctx context.Context, licenseID string, categoryID string, materialType string, search string, page int, limit int) (*contentdto.GetMaterialListResponse, error)
+	GetMaterial(ctx context.Context, id string) (*contentdto.MaterialResponse, error)
+	CreateMaterial(ctx context.Context, req *contentdto.CreateMaterialRequest) (*contentdto.MaterialResponse, error)
+	UpdateMaterial(ctx context.Context, id string, req *contentdto.UpdateMaterialRequest) (*contentdto.MaterialResponse, error)
+	DeleteMaterial(ctx context.Context, id string) error
 
-	UploadMaterial(file multipart.File, header *multipart.FileHeader, req *contentdto.UploadMaterialRequest) (*contentdto.MaterialResponse, error)
-	GetMaterialSelector(licenseID string, materialType string) (*contentdto.MaterialSelectorResponse, error)
-	UpdateMaterialUsage(id string) error
-	GetMaterialStats(licenseID string) (*contentdto.MaterialStatsResponse, error)
+	UploadMaterial(ctx context.Context, file multipart.File, header *multipart.FileHeader, req *contentdto.UploadMaterialRequest) (*contentdto.MaterialResponse, error)
+	GetMaterialSelector(ctx context.Context, licenseID string, materialType string) (*contentdto.MaterialSelectorResponse, error)
+	UpdateMaterialUsage(ctx context.Context, id string) error
+	GetMaterialStats(ctx context.Context, licenseID string) (*contentdto.MaterialStatsResponse, error)
 }
 
 type materialService struct {
@@ -62,20 +66,12 @@ type materialService struct {
 	obsService   ObsService
 }
 
-func NewMaterialService() MaterialService {
+// NewMaterialService 创建素材服务。句柄由装配处交进来，服务层不再自己摸全局 db.GetDB()。
+func NewMaterialService(db *gorm.DB) MaterialService {
 	return &materialService{
-		categoryRepo: repository.NewMaterialCategoryRepository(),
-		materialRepo: repository.NewMaterialRepository(),
-		obsService:   NewObsConfigServiceAdapter(),
-	}
-}
-
-// NewMaterialServiceWithDB creates a new MaterialService with the given database connection (for testing)
-func NewMaterialServiceWithDB(db *gorm.DB) MaterialService {
-	return &materialService{
-		categoryRepo: repository.NewMaterialCategoryRepositoryWithDB(db),
-		materialRepo: repository.NewMaterialRepositoryWithDB(db),
-		obsService:   NewObsConfigServiceAdapter(),
+		categoryRepo: repository.NewMaterialCategoryRepository(db),
+		materialRepo: repository.NewMaterialRepository(db),
+		obsService:   NewObsConfigServiceAdapter(db),
 	}
 }
 
@@ -83,64 +79,33 @@ type obsConfigServiceAdapter struct {
 	cfgRepo userrepo.ObsConfigRepository
 }
 
-// NewObsConfigServiceAdapter 返回立即可用的 adapter（不再依赖外部注入）
-func NewObsConfigServiceAdapter() *obsConfigServiceAdapter {
+// NewObsConfigServiceAdapter 用装配点交来的句柄构造 adapter。
+func NewObsConfigServiceAdapter(db *gorm.DB) *obsConfigServiceAdapter {
 	return &obsConfigServiceAdapter{
-		cfgRepo: userrepo.NewObsConfigRepository(),
+		cfgRepo: userrepo.NewObsConfigRepositoryWithDB(db),
 	}
 }
 
-func (a *obsConfigServiceAdapter) UploadFile(file multipart.File, header *multipart.FileHeader, licenseID string, folder string) (string, error) {
-	_ = licenseID
-
-	cfg, err := a.cfgRepo.GetDefault(context.Background())
+func (a *obsConfigServiceAdapter) UploadFile(ctx context.Context, file multipart.File, header *multipart.FileHeader, folder string) (string, string, error) {
+	cfg, err := a.cfgRepo.GetDefault(ctx)
 	if err != nil {
-		return "", fmt.Errorf("no default obs config: %w", err)
+		return "", "", fmt.Errorf("no default obs config: %w", err)
 	}
 
 	driver, err := storage.Factory(cfg)
 	if err != nil {
-		return "", fmt.Errorf("storage factory: %w", err)
+		return "", "", fmt.Errorf("storage factory: %w", err)
 	}
 
-	publicURL, _, err := driver.UploadMultipart(context.Background(), file, header, folder)
+	publicURL, storagePath, err := driver.UploadMultipart(ctx, file, header, folder)
 	if err != nil {
-		return "", fmt.Errorf("driver upload: %w", err)
+		return "", "", fmt.Errorf("driver upload: %w", err)
 	}
-	return publicURL, nil
+	return publicURL, storagePath, nil
 }
 
-func (a *obsConfigServiceAdapter) GetDefaultConfig(licenseID string) (*dto.ObsConfigResponse, error) {
-	_ = licenseID
-	cfg, err := a.cfgRepo.GetDefault(context.Background())
-	if err != nil {
-		return nil, fmt.Errorf("no default obs config: %w", err)
-	}
-	return obsModelToDTO(cfg), nil
-}
-
-func obsModelToDTO(c *usermodel.ObsConfig) *dto.ObsConfigResponse {
-	return &dto.ObsConfigResponse{
-		ID:         c.ID,
-		Name:       c.Name,
-		Provider:   string(c.Provider),
-		AccessKey:  c.AccessKey,
-		Bucket:     c.Bucket,
-		Region:     c.Region,
-		Endpoint:   c.Endpoint,
-		Domain:     c.Domain,
-		PathPrefix: c.PathPrefix,
-		MaxSize:    c.MaxSize,
-		MaxCount:   c.MaxCount,
-		IsDefault:  c.IsDefault,
-		Status:     string(c.Status),
-		CreatedAt:  c.CreatedAt,
-		UpdatedAt:  c.UpdatedAt,
-	}
-}
-
-func (s *materialService) GetCategoryList(licenseID string, parentID string, materialType string, page int, limit int) (*contentdto.GetMaterialCategoryListResponse, error) {
-	categories, total, err := s.categoryRepo.GetList(licenseID, parentID, materialType, page, limit)
+func (s *materialService) GetCategoryList(ctx context.Context, licenseID string, parentID string, materialType string, page int, limit int) (*contentdto.GetMaterialCategoryListResponse, error) {
+	categories, total, err := s.categoryRepo.GetList(ctx, licenseID, parentID, materialType, page, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -158,8 +123,8 @@ func (s *materialService) GetCategoryList(licenseID string, parentID string, mat
 	}, nil
 }
 
-func (s *materialService) GetCategoryTree(licenseID string, materialType string) ([]*contentdto.MaterialCategoryResponse, error) {
-	categories, err := s.categoryRepo.GetTree(licenseID, materialType)
+func (s *materialService) GetCategoryTree(ctx context.Context, licenseID string, materialType string) ([]*contentdto.MaterialCategoryResponse, error) {
+	categories, err := s.categoryRepo.GetTree(ctx, licenseID, materialType)
 	if err != nil {
 		return nil, err
 	}
@@ -172,15 +137,15 @@ func (s *materialService) GetCategoryTree(licenseID string, materialType string)
 	return list, nil
 }
 
-func (s *materialService) GetCategory(id string) (*contentdto.MaterialCategoryResponse, error) {
-	category, err := s.categoryRepo.GetByID(id)
+func (s *materialService) GetCategory(ctx context.Context, id string) (*contentdto.MaterialCategoryResponse, error) {
+	category, err := s.categoryRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 	return s.convertCategoryToDTO(category), nil
 }
 
-func (s *materialService) CreateCategory(req *contentdto.CreateMaterialCategoryRequest) (*contentdto.MaterialCategoryResponse, error) {
+func (s *materialService) CreateCategory(ctx context.Context, req *contentdto.CreateMaterialCategoryRequest) (*contentdto.MaterialCategoryResponse, error) {
 
 	var pid *string
 	if req.ParentID != "" && req.ParentID != "0" {
@@ -200,16 +165,15 @@ func (s *materialService) CreateCategory(req *contentdto.CreateMaterialCategoryR
 		Status:      "active",
 	}
 
-	err := s.categoryRepo.Create(category)
-	if err != nil {
+	if err := s.categoryRepo.Create(ctx, category); err != nil {
 		return nil, err
 	}
 
 	return s.convertCategoryToDTO(category), nil
 }
 
-func (s *materialService) UpdateCategory(id string, req *contentdto.UpdateMaterialCategoryRequest) (*contentdto.MaterialCategoryResponse, error) {
-	category, err := s.categoryRepo.GetByID(id)
+func (s *materialService) UpdateCategory(ctx context.Context, id string, req *contentdto.UpdateMaterialCategoryRequest) (*contentdto.MaterialCategoryResponse, error) {
+	category, err := s.categoryRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -240,20 +204,26 @@ func (s *materialService) UpdateCategory(id string, req *contentdto.UpdateMateri
 		category.Status = req.Status
 	}
 
-	err = s.categoryRepo.Update(category)
-	if err != nil {
+	if err := s.categoryRepo.Update(ctx, category); err != nil {
 		return nil, err
 	}
 
 	return s.convertCategoryToDTO(category), nil
 }
 
-func (s *materialService) DeleteCategory(id string) error {
-	return s.categoryRepo.Delete(id)
+// DeleteCategory 把「分类非空」这条数据事实翻译成业务校验错误：
+// 改前仓储伪造 gorm.ErrForeignKeyViolated 上抛（schema 里其实没有这条外键约束），
+// 文案不含「不存在」⇒ 出口层只能给 500，运维看不出是「分类下还有东西」。
+func (s *materialService) DeleteCategory(ctx context.Context, id string) error {
+	err := s.categoryRepo.Delete(ctx, id)
+	if errors.Is(err, repository.ErrMaterialCategoryNotEmpty) {
+		return fmt.Errorf("%w: 素材分类下仍有子分类或素材，无法删除", utils.ErrInvalidInput)
+	}
+	return err
 }
 
-func (s *materialService) GetMaterialList(licenseID string, categoryID string, materialType string, search string, page int, limit int) (*contentdto.GetMaterialListResponse, error) {
-	materials, total, err := s.materialRepo.GetList(licenseID, categoryID, materialType, search, page, limit)
+func (s *materialService) GetMaterialList(ctx context.Context, licenseID string, categoryID string, materialType string, search string, page int, limit int) (*contentdto.GetMaterialListResponse, error) {
+	materials, total, err := s.materialRepo.GetList(ctx, licenseID, categoryID, materialType, search, page, limit)
 	if err != nil {
 		return nil, err
 	}
@@ -271,15 +241,15 @@ func (s *materialService) GetMaterialList(licenseID string, categoryID string, m
 	}, nil
 }
 
-func (s *materialService) GetMaterial(id string) (*contentdto.MaterialResponse, error) {
-	material, err := s.materialRepo.GetByID(id)
+func (s *materialService) GetMaterial(ctx context.Context, id string) (*contentdto.MaterialResponse, error) {
+	material, err := s.materialRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 	return s.convertMaterialToDTO(material), nil
 }
 
-func (s *materialService) CreateMaterial(req *contentdto.CreateMaterialRequest) (*contentdto.MaterialResponse, error) {
+func (s *materialService) CreateMaterial(ctx context.Context, req *contentdto.CreateMaterialRequest) (*contentdto.MaterialResponse, error) {
 	material := &model.Material{
 		Name:        req.Name,
 		Type:        model.MaterialType(req.Type),
@@ -300,13 +270,12 @@ func (s *materialService) CreateMaterial(req *contentdto.CreateMaterialRequest) 
 		Status:      "active",
 	}
 
-	err := s.materialRepo.Create(material)
-	if err != nil {
+	if err := s.materialRepo.Create(ctx, material); err != nil {
 		return nil, err
 	}
 
 	if req.CategoryID != "" {
-		if err := s.categoryRepo.UpdateMaterialCount(req.CategoryID); err != nil {
+		if err := s.categoryRepo.UpdateMaterialCount(ctx, req.CategoryID); err != nil {
 			logger.Warnf("[Material] 更新分类素材数量失败 categoryID=%s: %v", req.CategoryID, err)
 		}
 	}
@@ -314,8 +283,8 @@ func (s *materialService) CreateMaterial(req *contentdto.CreateMaterialRequest) 
 	return s.convertMaterialToDTO(material), nil
 }
 
-func (s *materialService) UpdateMaterial(id string, req *contentdto.UpdateMaterialRequest) (*contentdto.MaterialResponse, error) {
-	material, err := s.materialRepo.GetByID(id)
+func (s *materialService) UpdateMaterial(ctx context.Context, id string, req *contentdto.UpdateMaterialRequest) (*contentdto.MaterialResponse, error) {
+	material, err := s.materialRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -336,27 +305,25 @@ func (s *materialService) UpdateMaterial(id string, req *contentdto.UpdateMateri
 		material.Status = req.Status
 	}
 
-	err = s.materialRepo.Update(material)
-	if err != nil {
+	if err := s.materialRepo.Update(ctx, material); err != nil {
 		return nil, err
 	}
 
 	return s.convertMaterialToDTO(material), nil
 }
 
-func (s *materialService) DeleteMaterial(id string) error {
-	material, err := s.materialRepo.GetByID(id)
+func (s *materialService) DeleteMaterial(ctx context.Context, id string) error {
+	material, err := s.materialRepo.GetByID(ctx, id)
 	if err != nil {
 		return err
 	}
 
-	err = s.materialRepo.Delete(id)
-	if err != nil {
+	if err := s.materialRepo.Delete(ctx, id); err != nil {
 		return err
 	}
 
 	if material.CategoryID != "" {
-		if err := s.categoryRepo.UpdateMaterialCount(material.CategoryID); err != nil {
+		if err := s.categoryRepo.UpdateMaterialCount(ctx, material.CategoryID); err != nil {
 			logger.Warnf("[Material] 删除后更新分类素材数量失败 categoryID=%s: %v", material.CategoryID, err)
 		}
 	}
@@ -364,7 +331,7 @@ func (s *materialService) DeleteMaterial(id string) error {
 	return nil
 }
 
-func (s *materialService) UploadMaterial(file multipart.File, header *multipart.FileHeader, req *contentdto.UploadMaterialRequest) (*contentdto.MaterialResponse, error) {
+func (s *materialService) UploadMaterial(ctx context.Context, file multipart.File, header *multipart.FileHeader, req *contentdto.UploadMaterialRequest) (*contentdto.MaterialResponse, error) {
 	mimeType := header.Header.Get("Content-Type")
 	if mimeType == "" {
 		mimeType = "application/octet-stream"
@@ -376,7 +343,7 @@ func (s *materialService) UploadMaterial(file multipart.File, header *multipart.
 	}
 	fileHash := hex.EncodeToString(hash.Sum(nil))
 
-	existing, err := s.materialRepo.GetByHash(fileHash, req.LicenseID)
+	existing, err := s.materialRepo.GetByHash(ctx, fileHash, req.LicenseID)
 	if err == nil && existing != nil {
 		return s.convertMaterialToDTO(existing), nil
 	}
@@ -385,10 +352,11 @@ func (s *materialService) UploadMaterial(file multipart.File, header *multipart.
 		return nil, err
 	}
 
-	ext := strings.ToLower(filepath.Ext(header.Filename))
-	fileName := fmt.Sprintf("materials/%s%s", time.Now().Format("20060102150405"), ext)
-
-	fileURL, err := s.obsService.UploadFile(file, header, req.LicenseID, "materials")
+	// storage_path 存驱动真正落盘的那个键：本地驱动按 tenant_{id}/materials/年/月/uuid.ext 生成，
+	// 后续的 Download / Delete 都拿它去 resolve()。改前这里自己拼了个
+	// "materials/<时间戳>.ext" 塞进列——库里记的路径在磁盘上从来不存在，
+	// 还丢了租户段，等于把「这一行的对象落在谁家」的自证一起丢了。
+	fileURL, storagePath, err := s.obsService.UploadFile(ctx, file, header, "materials")
 	if err != nil {
 		return nil, err
 	}
@@ -414,23 +382,23 @@ func (s *materialService) UploadMaterial(file multipart.File, header *multipart.
 		Height:      height,
 		Duration:    duration,
 		Provider:    "obs",
-		StoragePath: fileName,
+		StoragePath: storagePath,
 		LicenseID:   req.LicenseID,
 		UserID:      req.UserID,
 		Tags:        req.Tags,
 		Description: req.Description,
 	}
 
-	return s.CreateMaterial(createMaterial)
+	return s.CreateMaterial(ctx, createMaterial)
 }
 
-func (s *materialService) GetMaterialSelector(licenseID string, materialType string) (*contentdto.MaterialSelectorResponse, error) {
-	categories, err := s.GetCategoryTree(licenseID, materialType)
+func (s *materialService) GetMaterialSelector(ctx context.Context, licenseID string, materialType string) (*contentdto.MaterialSelectorResponse, error) {
+	categories, err := s.GetCategoryTree(ctx, licenseID, materialType)
 	if err != nil {
 		return nil, err
 	}
 
-	materials, err := s.GetMaterialList(licenseID, "", materialType, "", 1, 50)
+	materials, err := s.GetMaterialList(ctx, licenseID, "", materialType, "", 1, 50)
 	if err != nil {
 		return nil, err
 	}
@@ -527,49 +495,51 @@ func getMaterialTypeByMimeType(mimeType string) string {
 	return "file"
 }
 
-func (s *materialService) UpdateMaterialUsage(id string) error {
-	material, err := s.materialRepo.GetByID(id)
-	if err != nil {
-		return err
-	}
-
-	material.UsageCount++
-	now := time.Now()
-	material.LastUsedAt = &now
-
-	return s.materialRepo.Update(material)
+// UpdateMaterialUsage 走库内自增。改前这里读整行、++、再 Save 回去：
+// 计次只该动 usage_count / last_used_at 两列，整行写回会把并发改过的别的列顶回陈旧快照，
+// 并发计次本身也丢更新（实测 40 次并发后 usage_count 停在个位数）。
+func (s *materialService) UpdateMaterialUsage(ctx context.Context, id string) error {
+	return s.materialRepo.IncrementUsage(ctx, id)
 }
 
-func (s *materialService) GetMaterialStats(licenseID string) (*contentdto.MaterialStatsResponse, error) {
-	materials, _, err := s.materialRepo.GetList(licenseID, "", "", "", 1, 1000)
+// GetMaterialStats 由库侧聚合三查得到。改前是 GetList(..., 1, 1000) 取前一千行回 Go 里数：
+// 素材过一千就静默少报，总体积与总使用次数一起少。
+func (s *materialService) GetMaterialStats(ctx context.Context, licenseID string) (*contentdto.MaterialStatsResponse, error) {
+	byType, err := s.materialRepo.StatsByType(ctx, licenseID)
+	if err != nil {
+		return nil, err
+	}
+
+	now := time.Now()
+	today := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+
+	todayAdded, err := s.materialRepo.CountCreatedSince(ctx, licenseID, today)
+	if err != nil {
+		return nil, err
+	}
+	todayUsed, err := s.materialRepo.CountUsedSince(ctx, licenseID, today)
 	if err != nil {
 		return nil, err
 	}
 
 	stats := &contentdto.MaterialStatsResponse{
-		TotalMaterials: int64(len(materials)),
+		TodayAddedCount: todayAdded,
+		TodayUsageCount: todayUsed,
 	}
 
-	for _, material := range materials {
-		switch material.Type {
-		case "image":
-			stats.ImageCount++
-		case "video":
-			stats.VideoCount++
-		case "audio":
-			stats.AudioCount++
-		case "file":
-			stats.FileCount++
-		}
-		stats.TotalSize += material.Size
-		stats.TotalUsageCount += int64(material.UsageCount)
-
-		if material.CreatedAt.Format("2006-01-02") == time.Now().Format("2006-01-02") {
-			stats.TodayAddedCount++
-		}
-
-		if material.LastUsedAt != nil && material.LastUsedAt.Format("2006-01-02") == time.Now().Format("2006-01-02") {
-			stats.TodayUsageCount++
+	for _, row := range byType {
+		stats.TotalMaterials += row.Count
+		stats.TotalSize += row.TotalSize
+		stats.TotalUsageCount += row.TotalUsage
+		switch model.MaterialType(row.Type) {
+		case model.MaterialTypeImage:
+			stats.ImageCount = row.Count
+		case model.MaterialTypeVideo:
+			stats.VideoCount = row.Count
+		case model.MaterialTypeAudio:
+			stats.AudioCount = row.Count
+		case model.MaterialTypeFile:
+			stats.FileCount = row.Count
 		}
 	}
 

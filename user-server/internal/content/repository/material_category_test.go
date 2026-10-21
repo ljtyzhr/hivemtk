@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"hivemtk-user/internal/content/model"
 	"hivemtk-user/internal/pkg/db"
 	"testing"
@@ -23,7 +24,7 @@ func setupMaterialCategoryTestDB(t *testing.T) *gorm.DB {
 
 func setupMaterialCategoryRepository(t *testing.T) (*gorm.DB, MaterialCategoryRepository) {
 	database := setupMaterialCategoryTestDB(t)
-	return database, NewMaterialCategoryRepository()
+	return database, NewMaterialCategoryRepository(database)
 }
 
 // TestMaterialCategoryRepository_Create 测试创建分类
@@ -73,7 +74,7 @@ func TestMaterialCategoryRepository_Create(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := repo.Create(tt.category)
+			err := repo.Create(context.Background(), tt.category)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Create() error = %v, wantErr %v", err, tt.wantErr)
@@ -97,7 +98,7 @@ func TestMaterialCategoryRepository_GetByID(t *testing.T) {
 		Description: "Test description",
 		Sort:        5,
 	}
-	repo.Create(category)
+	repo.Create(context.Background(), category)
 
 	tests := []struct {
 		name    string
@@ -118,7 +119,7 @@ func TestMaterialCategoryRepository_GetByID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := repo.GetByID(tt.id)
+			result, err := repo.GetByID(context.Background(), tt.id)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetByID() error = %v, wantErr %v", err, tt.wantErr)
@@ -143,7 +144,7 @@ func TestMaterialCategoryRepository_GetList(t *testing.T) {
 		LicenseID: "license-1",
 		Sort:      1,
 	}
-	repo.Create(rootCategory1)
+	repo.Create(context.Background(), rootCategory1)
 
 	rootCategory2 := &model.MaterialCategory{
 		Name:      "Root Category 2",
@@ -151,9 +152,9 @@ func TestMaterialCategoryRepository_GetList(t *testing.T) {
 		LicenseID: "license-1",
 		Sort:      2,
 	}
-	repo.Create(rootCategory2)
+	repo.Create(context.Background(), rootCategory2)
 
-	repo.Create(&model.MaterialCategory{
+	repo.Create(context.Background(), &model.MaterialCategory{
 		Name:      "Child Category 1",
 		Type:      model.MaterialTypeImage,
 		LicenseID: "license-1",
@@ -161,7 +162,7 @@ func TestMaterialCategoryRepository_GetList(t *testing.T) {
 		Sort:      1,
 	})
 
-	repo.Create(&model.MaterialCategory{
+	repo.Create(context.Background(), &model.MaterialCategory{
 		Name:      "Child Category 2",
 		Type:      model.MaterialTypeImage,
 		LicenseID: "license-1",
@@ -169,14 +170,14 @@ func TestMaterialCategoryRepository_GetList(t *testing.T) {
 		Sort:      2,
 	})
 
-	repo.Create(&model.MaterialCategory{
+	repo.Create(context.Background(), &model.MaterialCategory{
 		Name:      "Video Category",
 		Type:      model.MaterialTypeVideo,
 		LicenseID: "license-1",
 		Sort:      3,
 	})
 
-	repo.Create(&model.MaterialCategory{
+	repo.Create(context.Background(), &model.MaterialCategory{
 		Name:      "Other License Category",
 		Type:      model.MaterialTypeImage,
 		LicenseID: "license-2",
@@ -257,7 +258,7 @@ func TestMaterialCategoryRepository_GetList(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			results, total, err := repo.GetList(tt.licenseID, tt.parentID, tt.materialType, tt.page, tt.limit)
+			results, total, err := repo.GetList(context.Background(), tt.licenseID, tt.parentID, tt.materialType, tt.page, tt.limit)
 
 			if err != nil {
 				t.Errorf("GetList() error = %v", err)
@@ -284,10 +285,10 @@ func TestMaterialCategoryRepository_GetList_WithParentFilter(t *testing.T) {
 		LicenseID: "license-1",
 		Sort:      1,
 	}
-	repo.Create(parent)
+	repo.Create(context.Background(), parent)
 
 	for i := 1; i <= 5; i++ {
-		repo.Create(&model.MaterialCategory{
+		repo.Create(context.Background(), &model.MaterialCategory{
 			Name:      "Child " + string(rune('0'+i)),
 			Type:      model.MaterialTypeImage,
 			LicenseID: "license-1",
@@ -302,8 +303,8 @@ func TestMaterialCategoryRepository_GetList_WithParentFilter(t *testing.T) {
 		LicenseID: "license-1",
 		Sort:      2,
 	}
-	repo.Create(otherParent)
-	repo.Create(&model.MaterialCategory{
+	repo.Create(context.Background(), otherParent)
+	repo.Create(context.Background(), &model.MaterialCategory{
 		Name:      "Other Child",
 		Type:      model.MaterialTypeImage,
 		LicenseID: "license-1",
@@ -311,7 +312,7 @@ func TestMaterialCategoryRepository_GetList_WithParentFilter(t *testing.T) {
 		Sort:      1,
 	})
 
-	results, total, err := repo.GetList("license-1", parent.ID, "", 1, 10)
+	results, total, err := repo.GetList(context.Background(), "license-1", parent.ID, "", 1, 10)
 	if err != nil {
 		t.Errorf("GetList() error = %v", err)
 	}
@@ -336,18 +337,18 @@ func TestMaterialCategoryRepository_Update(t *testing.T) {
 		Sort:        1,
 		Description: "Original description",
 	}
-	repo.Create(category)
+	repo.Create(context.Background(), category)
 
 	category.Name = "Updated Name"
 	category.Sort = 10
 	category.Description = "Updated description"
 
-	err := repo.Update(category)
+	err := repo.Update(context.Background(), category)
 	if err != nil {
 		t.Errorf("Update() error = %v", err)
 	}
 
-	updated, _ := repo.GetByID(category.ID)
+	updated, _ := repo.GetByID(context.Background(), category.ID)
 	if updated.Name != "Updated Name" {
 		t.Errorf("Expected name 'Updated Name', got '%s'", updated.Name)
 	}
@@ -368,14 +369,14 @@ func TestMaterialCategoryRepository_Delete(t *testing.T) {
 		Type:      model.MaterialTypeImage,
 		LicenseID: "license-1",
 	}
-	repo.Create(category)
+	repo.Create(context.Background(), category)
 
-	err := repo.Delete(category.ID)
+	err := repo.Delete(context.Background(), category.ID)
 	if err != nil {
 		t.Errorf("Delete() error = %v", err)
 	}
 
-	_, err = repo.GetByID(category.ID)
+	_, err = repo.GetByID(context.Background(), category.ID)
 	if err == nil {
 		t.Error("Expected category to be deleted")
 	}
@@ -390,16 +391,16 @@ func TestMaterialCategoryRepository_Delete_WithChildren(t *testing.T) {
 		Type:      model.MaterialTypeImage,
 		LicenseID: "license-1",
 	}
-	repo.Create(parent)
+	repo.Create(context.Background(), parent)
 
-	repo.Create(&model.MaterialCategory{
+	repo.Create(context.Background(), &model.MaterialCategory{
 		Name:      "Child Category",
 		Type:      model.MaterialTypeImage,
 		LicenseID: "license-1",
 		ParentID:  toPtr(parent.ID),
 	})
 
-	err := repo.Delete(parent.ID)
+	err := repo.Delete(context.Background(), parent.ID)
 	if err == nil {
 		t.Error("Expected error when deleting category with children")
 	}
@@ -414,7 +415,7 @@ func TestMaterialCategoryRepository_Delete_WithMaterials(t *testing.T) {
 		Type:      model.MaterialTypeImage,
 		LicenseID: "license-1",
 	}
-	repo.Create(category)
+	repo.Create(context.Background(), category)
 
 	database.Create(&model.Material{
 		Name:       "Test Material",
@@ -425,7 +426,7 @@ func TestMaterialCategoryRepository_Delete_WithMaterials(t *testing.T) {
 		Size:       1024,
 	})
 
-	err := repo.Delete(category.ID)
+	err := repo.Delete(context.Background(), category.ID)
 	if err == nil {
 		t.Error("Expected error when deleting category with materials")
 	}
@@ -441,7 +442,7 @@ func TestMaterialCategoryRepository_GetTree(t *testing.T) {
 		LicenseID: "license-1",
 		Sort:      1,
 	}
-	repo.Create(root1)
+	repo.Create(context.Background(), root1)
 
 	root2 := &model.MaterialCategory{
 		Name:      "Root 2",
@@ -449,9 +450,9 @@ func TestMaterialCategoryRepository_GetTree(t *testing.T) {
 		LicenseID: "license-1",
 		Sort:      2,
 	}
-	repo.Create(root2)
+	repo.Create(context.Background(), root2)
 
-	repo.Create(&model.MaterialCategory{
+	repo.Create(context.Background(), &model.MaterialCategory{
 		Name:      "Child 1-1",
 		Type:      model.MaterialTypeImage,
 		LicenseID: "license-1",
@@ -459,7 +460,7 @@ func TestMaterialCategoryRepository_GetTree(t *testing.T) {
 		Sort:      1,
 	})
 
-	repo.Create(&model.MaterialCategory{
+	repo.Create(context.Background(), &model.MaterialCategory{
 		Name:      "Child 1-2",
 		Type:      model.MaterialTypeImage,
 		LicenseID: "license-1",
@@ -467,7 +468,7 @@ func TestMaterialCategoryRepository_GetTree(t *testing.T) {
 		Sort:      2,
 	})
 
-	repo.Create(&model.MaterialCategory{
+	repo.Create(context.Background(), &model.MaterialCategory{
 		Name:      "Child 2-1",
 		Type:      model.MaterialTypeImage,
 		LicenseID: "license-1",
@@ -475,14 +476,14 @@ func TestMaterialCategoryRepository_GetTree(t *testing.T) {
 		Sort:      1,
 	})
 
-	repo.Create(&model.MaterialCategory{
+	repo.Create(context.Background(), &model.MaterialCategory{
 		Name:      "Video Root",
 		Type:      model.MaterialTypeVideo,
 		LicenseID: "license-1",
 		Sort:      3,
 	})
 
-	results, err := repo.GetTree("license-1", string(model.MaterialTypeImage))
+	results, err := repo.GetTree(context.Background(), "license-1", string(model.MaterialTypeImage))
 	if err != nil {
 		t.Errorf("GetTree() error = %v", err)
 	}
@@ -502,7 +503,7 @@ func TestMaterialCategoryRepository_UpdateMaterialCount(t *testing.T) {
 		LicenseID:     "license-1",
 		MaterialCount: 0,
 	}
-	repo.Create(category)
+	repo.Create(context.Background(), category)
 
 	for i := 1; i <= 3; i++ {
 		database.Create(&model.Material{
@@ -515,12 +516,12 @@ func TestMaterialCategoryRepository_UpdateMaterialCount(t *testing.T) {
 		})
 	}
 
-	err := repo.UpdateMaterialCount(category.ID)
+	err := repo.UpdateMaterialCount(context.Background(), category.ID)
 	if err != nil {
 		t.Errorf("UpdateMaterialCount() error = %v", err)
 	}
 
-	updated, _ := repo.GetByID(category.ID)
+	updated, _ := repo.GetByID(context.Background(), category.ID)
 	if updated.MaterialCount != 3 {
 		t.Errorf("Expected MaterialCount 3, got %d", updated.MaterialCount)
 	}
@@ -530,7 +531,7 @@ func TestMaterialCategoryRepository_UpdateMaterialCount(t *testing.T) {
 func TestMaterialCategoryRepository_GetByID_NotFound(t *testing.T) {
 	_, repo := setupMaterialCategoryRepository(t)
 
-	_, err := repo.GetByID("non-existing-id")
+	_, err := repo.GetByID(context.Background(), "non-existing-id")
 	if err == nil {
 		t.Error("Expected error when getting non-existing category")
 	}
@@ -540,7 +541,7 @@ func TestMaterialCategoryRepository_GetByID_NotFound(t *testing.T) {
 func TestMaterialCategoryRepository_GetList_EmptyResult(t *testing.T) {
 	_, repo := setupMaterialCategoryRepository(t)
 
-	results, total, err := repo.GetList("non-existing-license", "", "", 1, 10)
+	results, total, err := repo.GetList(context.Background(), "non-existing-license", "", "", 1, 10)
 	if err != nil {
 		t.Errorf("GetList() error = %v", err)
 	}

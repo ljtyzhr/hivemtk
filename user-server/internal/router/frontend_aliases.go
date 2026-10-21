@@ -369,7 +369,7 @@ func setupFrontendAliases(auth *gin.RouterGroup, engine *gin.Engine, gormDB *gor
 	doReg("GET", "/obs-configs/default", obsCtrl.GetDefaultConfig)
 	doReg("GET", "/obs-configs/:id", obsCtrl.GetConfig)
 
-	materialCtrl := contentctrl.NewMaterialController(contentService.NewMaterialService())
+	materialCtrl := contentctrl.NewMaterialController(contentService.NewMaterialService(gormDB))
 	doReg("GET", "/material-library/list", materialCtrl.GetMaterialList)
 	doReg("GET", "/material-library", materialCtrl.GetMaterialList)
 	doReg("GET", "/material-library/categories", materialCtrl.GetMaterialCategories)

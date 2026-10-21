@@ -5,12 +5,13 @@ import (
 	contentservice "hivemtk-user/internal/content/service"
 	"hivemtk-user/internal/controller"
 	"hivemtk-user/internal/middleware"
+	dbutil "hivemtk-user/internal/pkg/db"
 
 	"github.com/gin-gonic/gin"
 )
 
 func setupMaterialRoutes(auth *gin.RouterGroup) {
-	materialCtrl := contentctrl.NewMaterialController(contentservice.NewMaterialService())
+	materialCtrl := contentctrl.NewMaterialController(contentservice.NewMaterialService(dbutil.GetDB()))
 
 	auth.GET("/material/list", materialCtrl.GetMaterialList)
 	auth.POST("/material", materialCtrl.UploadMaterial)

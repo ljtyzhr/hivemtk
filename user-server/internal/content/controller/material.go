@@ -86,7 +86,7 @@ func (c *MaterialController) GetMaterialList(ctx *gin.Context) {
 		return
 	}
 
-	resp, err := c.service.GetMaterialList(licenseID, categoryID, materialType, search, page, limit)
+	resp, err := c.service.GetMaterialList(ctx.Request.Context(), licenseID, categoryID, materialType, search, page, limit)
 	if err != nil {
 		response.Error(ctx, http.StatusInternalServerError, "获取素材列表失败")
 		return
@@ -102,7 +102,7 @@ func (c *MaterialController) GetMaterialByID(ctx *gin.Context) {
 		return
 	}
 
-	material, err := c.service.GetMaterial(materialID)
+	material, err := c.service.GetMaterial(ctx.Request.Context(), materialID)
 	if errhttp.HandleDBError(ctx, err, "获取素材详情") {
 		return
 	}
@@ -117,7 +117,7 @@ func (c *MaterialController) GetMaterialCategoryByID(ctx *gin.Context) {
 		return
 	}
 
-	category, err := c.service.GetCategory(categoryID)
+	category, err := c.service.GetCategory(ctx.Request.Context(), categoryID)
 	if errhttp.HandleDBError(ctx, err, "获取素材分类详情") {
 		return
 	}
@@ -138,7 +138,7 @@ func (c *MaterialController) UpdateMaterialUsage(ctx *gin.Context) {
 		return
 	}
 
-	err := c.service.UpdateMaterialUsage(materialID)
+	err := c.service.UpdateMaterialUsage(ctx.Request.Context(), materialID)
 	if errhttp.HandleDBError(ctx, err, "更新素材使用次数") {
 		return
 	}
@@ -153,7 +153,7 @@ func (c *MaterialController) GetMaterialStats(ctx *gin.Context) {
 		return
 	}
 
-	stats, err := c.service.GetMaterialStats(licenseID)
+	stats, err := c.service.GetMaterialStats(ctx.Request.Context(), licenseID)
 	if err != nil {
 		response.Error(ctx, http.StatusInternalServerError, "获取素材统计失败")
 		return
@@ -203,9 +203,8 @@ func (c *MaterialController) UploadMaterial(ctx *gin.Context) {
 		UserID:     userID,
 	}
 
-	material, err := c.service.UploadMaterial(file, header, uploadReq)
-	if err != nil {
-		response.Error(ctx, http.StatusInternalServerError, "上传失败: "+err.Error())
+	material, err := c.service.UploadMaterial(ctx.Request.Context(), file, header, uploadReq)
+	if errhttp.HandleDBError(ctx, err, "上传素材") {
 		return
 	}
 	response.Success(ctx, material, "上传成功")
@@ -219,7 +218,7 @@ func (c *MaterialController) DeleteMaterial(ctx *gin.Context) {
 		return
 	}
 
-	err := c.service.DeleteMaterial(materialID)
+	err := c.service.DeleteMaterial(ctx.Request.Context(), materialID)
 	if errhttp.HandleDBError(ctx, err, "删除素材") {
 		return
 	}
@@ -239,7 +238,7 @@ func (c *MaterialController) GetMaterialCategories(ctx *gin.Context) {
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(ctx.DefaultQuery("limit", "50"))
 
-	categories, err := c.service.GetCategoryList(licenseID, parentID, materialType, page, limit)
+	categories, err := c.service.GetCategoryList(ctx.Request.Context(), licenseID, parentID, materialType, page, limit)
 	if err != nil {
 		response.Error(ctx, http.StatusInternalServerError, "获取分类失败")
 		return
@@ -272,7 +271,7 @@ func (c *MaterialController) CreateMaterialCategory(ctx *gin.Context) {
 	req.LicenseID = licenseID
 	req.UserID = userID
 
-	category, err := c.service.CreateCategory(&req)
+	category, err := c.service.CreateCategory(ctx.Request.Context(), &req)
 	if err != nil {
 		response.Error(ctx, http.StatusInternalServerError, "创建失败")
 		return
@@ -294,7 +293,7 @@ func (c *MaterialController) UpdateMaterialCategory(ctx *gin.Context) {
 		return
 	}
 
-	category, err := c.service.UpdateCategory(categoryID, &req)
+	category, err := c.service.UpdateCategory(ctx.Request.Context(), categoryID, &req)
 	if errhttp.HandleDBError(ctx, err, "更新素材分类") {
 		return
 	}
@@ -309,7 +308,7 @@ func (c *MaterialController) DeleteMaterialCategory(ctx *gin.Context) {
 		return
 	}
 
-	err := c.service.DeleteCategory(categoryID)
+	err := c.service.DeleteCategory(ctx.Request.Context(), categoryID)
 	if errhttp.HandleDBError(ctx, err, "删除素材分类") {
 		return
 	}
@@ -325,7 +324,7 @@ func (c *MaterialController) GetMaterialSelector(ctx *gin.Context) {
 	}
 
 	materialType := ctx.Query("type")
-	resp, err := c.service.GetMaterialSelector(licenseID, materialType)
+	resp, err := c.service.GetMaterialSelector(ctx.Request.Context(), licenseID, materialType)
 	if err != nil {
 		response.Error(ctx, http.StatusInternalServerError, "获取素材选择器失败")
 		return

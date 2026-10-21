@@ -2,6 +2,7 @@ package controller
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"errors"
 	"io"
@@ -68,45 +69,45 @@ type stubMaterialService struct {
 
 var errStubNotUsed = errors.New("stub: 本用例不该走到这里")
 
-func (*stubMaterialService) GetCategoryList(string, string, string, int, int) (*dto.GetMaterialCategoryListResponse, error) {
+func (*stubMaterialService) GetCategoryList(context.Context, string, string, string, int, int) (*dto.GetMaterialCategoryListResponse, error) {
 	return nil, errStubNotUsed
 }
-func (*stubMaterialService) GetCategoryTree(string, string) ([]*dto.MaterialCategoryResponse, error) {
+func (*stubMaterialService) GetCategoryTree(context.Context, string, string) ([]*dto.MaterialCategoryResponse, error) {
 	return nil, errStubNotUsed
 }
-func (*stubMaterialService) GetCategory(string) (*dto.MaterialCategoryResponse, error) {
+func (*stubMaterialService) GetCategory(context.Context, string) (*dto.MaterialCategoryResponse, error) {
 	return nil, errStubNotUsed
 }
-func (*stubMaterialService) CreateCategory(*dto.CreateMaterialCategoryRequest) (*dto.MaterialCategoryResponse, error) {
+func (*stubMaterialService) CreateCategory(context.Context, *dto.CreateMaterialCategoryRequest) (*dto.MaterialCategoryResponse, error) {
 	return nil, errStubNotUsed
 }
-func (*stubMaterialService) UpdateCategory(string, *dto.UpdateMaterialCategoryRequest) (*dto.MaterialCategoryResponse, error) {
+func (*stubMaterialService) UpdateCategory(context.Context, string, *dto.UpdateMaterialCategoryRequest) (*dto.MaterialCategoryResponse, error) {
 	return nil, errStubNotUsed
 }
-func (*stubMaterialService) DeleteCategory(string) error { return errStubNotUsed }
-func (*stubMaterialService) GetMaterialList(string, string, string, string, int, int) (*dto.GetMaterialListResponse, error) {
+func (*stubMaterialService) DeleteCategory(context.Context, string) error { return errStubNotUsed }
+func (*stubMaterialService) GetMaterialList(context.Context, string, string, string, string, int, int) (*dto.GetMaterialListResponse, error) {
 	return nil, errStubNotUsed
 }
-func (*stubMaterialService) GetMaterial(string) (*dto.MaterialResponse, error) {
+func (*stubMaterialService) GetMaterial(context.Context, string) (*dto.MaterialResponse, error) {
 	return nil, errStubNotUsed
 }
-func (*stubMaterialService) CreateMaterial(*dto.CreateMaterialRequest) (*dto.MaterialResponse, error) {
+func (*stubMaterialService) CreateMaterial(context.Context, *dto.CreateMaterialRequest) (*dto.MaterialResponse, error) {
 	return nil, errStubNotUsed
 }
-func (*stubMaterialService) UpdateMaterial(string, *dto.UpdateMaterialRequest) (*dto.MaterialResponse, error) {
+func (*stubMaterialService) UpdateMaterial(context.Context, string, *dto.UpdateMaterialRequest) (*dto.MaterialResponse, error) {
 	return nil, errStubNotUsed
 }
-func (*stubMaterialService) DeleteMaterial(string) error { return errStubNotUsed }
-func (s *stubMaterialService) UploadMaterial(_ multipart.File, header *multipart.FileHeader, req *dto.UploadMaterialRequest) (*dto.MaterialResponse, error) {
+func (*stubMaterialService) DeleteMaterial(context.Context, string) error { return errStubNotUsed }
+func (s *stubMaterialService) UploadMaterial(_ context.Context, _ multipart.File, header *multipart.FileHeader, req *dto.UploadMaterialRequest) (*dto.MaterialResponse, error) {
 	s.uploadCalled = true
 	s.uploadedName = req.Name
 	return &dto.MaterialResponse{Name: header.Filename}, nil
 }
-func (*stubMaterialService) GetMaterialSelector(string, string) (*dto.MaterialSelectorResponse, error) {
+func (*stubMaterialService) GetMaterialSelector(context.Context, string, string) (*dto.MaterialSelectorResponse, error) {
 	return nil, errStubNotUsed
 }
-func (*stubMaterialService) UpdateMaterialUsage(string) error { return errStubNotUsed }
-func (*stubMaterialService) GetMaterialStats(string) (*dto.MaterialStatsResponse, error) {
+func (*stubMaterialService) UpdateMaterialUsage(context.Context, string) error { return errStubNotUsed }
+func (*stubMaterialService) GetMaterialStats(context.Context, string) (*dto.MaterialStatsResponse, error) {
 	return nil, errStubNotUsed
 }
 
@@ -205,9 +206,10 @@ func TestUploadMaterialFallsBackToTenMBWithoutParameter(t *testing.T) {
 // TestUploadMaterialRejectionDoesNotEchoRequest 体积拒绝的文案里只能出现配置数字：
 // 这条链路收的是任意外部文件，文件名与内容都不该被回显到响应里。
 //
-// 注：只覆盖「超上限被拒」这一条出口。放行后下游 UploadMaterial 失败时，handler 会把
-// err.Error() 拼进 500 文案（"上传失败: "+err.Error()），那条路的内容回显不归本参数管，
-// 属素材服务与下游实现的独立问题。
+// 注：本函数只覆盖「超上限被拒」这一条出口。放行后下游 UploadMaterial 失败的那条 500
+// 出口走 errhttp.HandleDBError，不再拼 err.Error()，回显回归由
+// TestMaterialUploadKeepsCallerTenant 锁（变异 M10 曾复现原文
+// "上传失败: no default obs config: [tenant] 表 obs_config 需要租户上下文但 ctx 未绑定（query）"）。
 func TestUploadMaterialRejectionDoesNotEchoRequest(t *testing.T) {
 	t.Cleanup(resetMaterialMaxSizeMBProvider)
 	SetMaterialMaxSizeMBProvider(func() int { return 1 })
