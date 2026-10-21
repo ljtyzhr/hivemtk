@@ -114,7 +114,11 @@ func SetupGeoRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 	// fail-closed ⇒ 探针清单恒空。走 tenant.WithSystemScope 平台级豁免通道。
 	probes := geoservice.NewEngineProbesFromDB(tenant.WithSystemScope(context.Background()), gormDB)
 	kwMiningSvc := geoservice.NewKeywordMiningService(keywordRepo, gormDB, llmAdapter)
-	pushSvc := geoservice.NewPushService(gormDB, georepo.NewGeoPushRecordRepositoryWithDB(gormDB))
+	pushSvc := geoservice.NewPushService(
+		georepo.NewGeoPusherConfigRepositoryWithDB(gormDB),
+		georepo.NewGeoPushRecordRepositoryWithDB(gormDB),
+		articleRepo,
+	)
 	siteSvc := geoservice.NewSiteDeployService(gormDB, pushSvc)
 	indexTrackerSvc := geoservice.NewIndexTrackerService(
 		georepo.NewGeoIndexTrackingRepositoryWithDB(gormDB),
@@ -134,7 +138,8 @@ func SetupGeoRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 
 	// ⬇️ GEO v2 CRUD Controller（3 张核心配置表）
 	siteCRUDCtrl := geoctrl.NewGeoSiteController(gormDB)
-	pusherCRUDCtrl := geoctrl.NewGeoPusherConfigController(gormDB)
+	pusherConfigSvc := geoservice.NewPusherConfigService(georepo.NewGeoPusherConfigRepositoryWithDB(gormDB))
+	pusherCRUDCtrl := geoctrl.NewGeoPusherConfigController(pusherConfigSvc)
 	schemaCRUDCtrl := geoctrl.NewGeoSchemaTemplateController(gormDB)
 
 	probeRepo := georepo.NewGeoProbeRunRepositoryWithDB(gormDB)

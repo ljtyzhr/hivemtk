@@ -8,6 +8,8 @@ import (
 	"testing"
 
 	geomodel "hivemtk-user/internal/geo/model"
+	georepo "hivemtk-user/internal/geo/repository"
+	geoservice "hivemtk-user/internal/geo/service"
 	"hivemtk-user/internal/pkg/testutil"
 
 	"github.com/gin-gonic/gin"
@@ -18,7 +20,9 @@ func init() { gin.SetMode(gin.TestMode) }
 
 func newGeoCRUDRouter(db *gorm.DB) *gin.Engine {
 	r := gin.New()
-	pusher := NewGeoPusherConfigController(db)
+	pusher := NewGeoPusherConfigController(
+		geoservice.NewPusherConfigService(georepo.NewGeoPusherConfigRepositoryWithDB(db)),
+	)
 	r.GET("/pusher-configs", pusher.List)
 	r.GET("/pusher-configs/:id", pusher.Get)
 	r.POST("/pusher-configs", pusher.Create)

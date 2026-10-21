@@ -1,56 +1,75 @@
 package controller
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
-	"hivemtk-user/internal/geo/model"
+	"hivemtk-user/internal/geo/service"
 	"hivemtk-user/internal/pkg/utils/response"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
 // GeoPusherConfigController 蜘蛛平台配置 CRUD
 type GeoPusherConfigController struct {
-	db *gorm.DB
+	svc *service.PusherConfigService
 }
 
-func NewGeoPusherConfigController(db *gorm.DB) *GeoPusherConfigController {
-	return &GeoPusherConfigController{db: db}
+func NewGeoPusherConfigController(svc *service.PusherConfigService) *GeoPusherConfigController {
+	return &GeoPusherConfigController{svc: svc}
+}
+
+// pusherConfigRequest 只含可编辑字段；id/tenant_id/used_today/last_reset_at 由系统维护。
+type pusherConfigRequest struct {
+	Platform   *string        `json:"platform"`
+	ConfigJSON datatypes.JSON `json:"config_json"`
+	DailyLimit *int           `json:"daily_limit"`
+	Active     *bool          `json:"active"`
+}
+
+func (r pusherConfigRequest) toInput() service.PusherConfigInput {
+	return service.PusherConfigInput{
+		Platform:   r.Platform,
+		ConfigJSON: r.ConfigJSON,
+		DailyLimit: r.DailyLimit,
+		Active:     r.Active,
+	}
 }
 
 func (c *GeoPusherConfigController) List(ctx *gin.Context) {
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(ctx.DefaultQuery("limit", "20"))
-	if page <= 0 {
-		page = 1
+	list, total, err := c.svc.List(ctx.Request.Context(), page, limit)
+	if err != nil {
+		response.Error(ctx, http.StatusInternalServerError, err.Error())
+		return
 	}
-	if limit <= 0 {
-		limit = 20
-	}
-	var list []model.GeoPusherConfig
-	var total int64
-	c.db.Model(&model.GeoPusherConfig{}).Count(&total)
-	c.db.Order("platform ASC").Offset((page - 1) * limit).Limit(limit).Find(&list)
 	response.Success(ctx, gin.H{"list": list, "total": total}, "ok")
 }
 
 func (c *GeoPusherConfigController) Get(ctx *gin.Context) {
-	var item model.GeoPusherConfig
-	if err := c.db.Where("id = ?", ctx.Param("id")).First(&item).Error; err != nil {
-		response.Error(ctx, http.StatusNotFound, err.Error())
+	item, err := c.svc.Get(ctx.Request.Context(), ctx.Param("id"))
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			response.Error(ctx, http.StatusNotFound, "推送平台配置不存在")
+			return
+		}
+		response.Error(ctx, http.StatusInternalServerError, err.Error())
 		return
 	}
 	response.Success(ctx, item, "ok")
 }
 
 func (c *GeoPusherConfigController) Create(ctx *gin.Context) {
-	var item model.GeoPusherConfig
-	if !response.BindJSON(ctx, &item) {
+	var req pusherConfigRequest
+	if !response.BindJSON(ctx, &req) {
 		return
 	}
-	if err := c.db.Create(&item).Error; err != nil {
+	item, err := c.svc.Create(ctx.Request.Context(), req.toInput())
+	if err != nil {
 		response.Error(ctx, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -58,15 +77,16 @@ func (c *GeoPusherConfigController) Create(ctx *gin.Context) {
 }
 
 func (c *GeoPusherConfigController) Update(ctx *gin.Context) {
-	var item model.GeoPusherConfig
-	if err := c.db.Where("id = ?", ctx.Param("id")).First(&item).Error; err != nil {
-		response.Error(ctx, http.StatusNotFound, err.Error())
+	var req pusherConfigRequest
+	if !response.BindJSON(ctx, &req) {
 		return
 	}
-	if !response.BindJSON(ctx, &item) {
-		return
-	}
-	if err := c.db.Save(&item).Error; err != nil {
+	item, err := c.svc.Update(ctx.Request.Context(), ctx.Param("id"), req.toInput())
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			response.Error(ctx, http.StatusNotFound, "推送平台配置不存在")
+			return
+		}
 		response.Error(ctx, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -74,8 +94,12 @@ func (c *GeoPusherConfigController) Update(ctx *gin.Context) {
 }
 
 func (c *GeoPusherConfigController) Delete(ctx *gin.Context) {
-	if err := c.db.Delete(&model.GeoPusherConfig{}, "id = ?", ctx.Param("id")).Error; err != nil {
-		response.Error(ctx, http.StatusBadRequest, err.Error())
+	if err := c.svc.Delete(ctx.Request.Context(), ctx.Param("id")); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			response.Error(ctx, http.StatusNotFound, "推送平台配置不存在")
+			return
+		}
+		response.Error(ctx, http.StatusInternalServerError, err.Error())
 		return
 	}
 	response.Success(ctx, nil, "deleted")

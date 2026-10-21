@@ -26,7 +26,6 @@ import (
 	"hivemtk-user/internal/pkg/utils/logger"
 
 	"github.com/google/uuid"
-	"gorm.io/gorm"
 )
 
 // PushResult 单个 URL 推送结果
@@ -521,18 +520,24 @@ func (p *SitemapPusher) Push(ctx context.Context, urls []string) ([]PushResult, 
 // ────────────────────────────────────────────
 
 type PushService struct {
-	db       *gorm.DB
+	configs  repository.GeoPusherConfigRepository
 	records  repository.GeoPushRecordRepository
+	articles repository.GeoArticleRepository
 	quota    *QuotaManager
 	pushers  map[string]Pusher
 	mu       sync.Mutex
 	quotaDay string // 内存配额所属日期，跨天自动 Reset
 }
 
-func NewPushService(db *gorm.DB, records repository.GeoPushRecordRepository) *PushService {
+func NewPushService(
+	configs repository.GeoPusherConfigRepository,
+	records repository.GeoPushRecordRepository,
+	articles repository.GeoArticleRepository,
+) *PushService {
 	svc := &PushService{
-		db:       db,
+		configs:  configs,
 		records:  records,
+		articles: articles,
 		quota:    NewQuotaManager(),
 		pushers:  map[string]Pusher{},
 		quotaDay: timeutil.BusinessToday(),
@@ -563,13 +568,7 @@ func (s *PushService) rollQuotaDay() {
 // 语句的 ctx，调用方（PushURLs/PushManual）透传请求 ctx，否则 on 模式 fail-closed。
 func (s *PushService) persistQuota(ctx context.Context, platform string) {
 	used := s.quota.Used(platform)
-	err := s.db.WithContext(ctx).Model(&model.GeoPusherConfig{}).
-		Where("platform = ?", platform).
-		Updates(map[string]any{
-			"used_today":    used,
-			"last_reset_at": time.Now(),
-			"updated_at":    time.Now(),
-		}).Error
+	err := s.configs.UpdateUsage(ctx, platform, used)
 	// 回写失败必须出声（二审 P1-9）：静默丢会让 used_today 停在旧值 —— 跨天/重启
 	// 后按 DB 复原已用量时拿到脏值，当日配额被成倍超发或凭空归零。
 	if err != nil {
@@ -584,8 +583,10 @@ func (s *PushService) persistQuota(ctx context.Context, platform string) {
 // 走 tenant.WithSystemScope 平台级豁免通道（与 migration/健康检查同口径）。
 func (s *PushService) registerFromDB() {
 	ctx := tenant.WithSystemScope(context.Background())
-	var configs []model.GeoPusherConfig
-	if err := s.db.WithContext(ctx).Find(&configs).Error; err != nil {
+	configs, err := s.configs.ListAll(ctx)
+	if err != nil {
+		// 装配失败必须出声：否则推送引擎全灭且无任何日志。
+		logger.Warnf("[push] 平台配置装配失败: %v", err)
 		return
 	}
 	today := timeutil.BusinessToday()
@@ -770,8 +771,8 @@ func (s *PushService) QuotaStatus() map[string]any {
 
 // GenerateAndSubmitSitemap 全量 sitemap 生成（定时调用）
 func (s *PushService) GenerateAndSubmitSitemap(ctx context.Context) (string, error) {
-	var articles []model.GeoArticle
-	if err := s.db.WithContext(ctx).Where("deployed_at IS NOT NULL AND site_url != ''").Find(&articles).Error; err != nil {
+	articles, err := s.articles.ListDeployed(ctx)
+	if err != nil {
 		return "", err
 	}
 

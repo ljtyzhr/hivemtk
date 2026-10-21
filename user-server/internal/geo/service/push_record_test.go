@@ -53,8 +53,9 @@ func newPushSvcForTest(t *testing.T, records repository.GeoPushRecordRepository,
 		t.Fatal("测试库不可达：记账契约判不了（不 Skip，跳过等于没锁）")
 	}
 	return &PushService{
-		db:       db,
+		configs:  repository.NewGeoPusherConfigRepositoryWithDB(db),
 		records:  records,
+		articles: repository.NewGeoArticleRepositoryWithDB(db),
 		quota:    NewQuotaManager(),
 		pushers:  pushers,
 		quotaDay: timeutil.BusinessToday(),
@@ -67,9 +68,10 @@ func TestPushURLs_逐条记账且同批共用BatchID(t *testing.T) {
 		t.Fatal("测试库不可达")
 	}
 	svc := &PushService{
-		db:      db,
-		records: repository.NewGeoPushRecordRepositoryWithDB(db),
-		quota:   NewQuotaManager(),
+		configs:  repository.NewGeoPusherConfigRepositoryWithDB(db),
+		records:  repository.NewGeoPushRecordRepositoryWithDB(db),
+		articles: repository.NewGeoArticleRepositoryWithDB(db),
+		quota:    NewQuotaManager(),
 		pushers: map[string]Pusher{"baidu": &stubPusher{
 			name:    "baidu",
 			results: []PushResult{{Success: true, RemainQuota: 99}, {Success: false, Error: "拒收"}},

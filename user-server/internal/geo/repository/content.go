@@ -20,6 +20,8 @@ type GeoArticleRepository interface {
 	Count(ctx context.Context, deployedOnly bool) (int64, error)
 	// ListDeployedNeedingVerify 已部署但 since 之后没有更新过追踪的文章
 	ListDeployedNeedingVerify(ctx context.Context, since time.Time, limit int) ([]*model.GeoArticle, error)
+	// ListDeployed 全部已部署且有站点 URL 的文章（sitemap 全量生成用）
+	ListDeployed(ctx context.Context) ([]*model.GeoArticle, error)
 }
 
 type geoArticleRepo struct {
@@ -68,6 +70,15 @@ func (r *geoArticleRepo) ListDeployedNeedingVerify(ctx context.Context, since ti
 		)`, since).
 		Order("deployed_at DESC").
 		Limit(limit).
+		Find(&list).Error
+	return list, err
+}
+
+func (r *geoArticleRepo) ListDeployed(ctx context.Context) ([]*model.GeoArticle, error) {
+	var list []*model.GeoArticle
+	err := r.db.WithContext(ctx).
+		Where("deployed_at IS NOT NULL AND site_url != ''").
+		Order("deployed_at DESC").
 		Find(&list).Error
 	return list, err
 }
