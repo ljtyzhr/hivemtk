@@ -66,6 +66,16 @@ func (c *AuthController) Login(ctx *gin.Context) {
 
 	middleware.ClearBruteForceFailure(ctx, "auth.login")
 
+	// 登录是公开路由（不挂 TenantMiddleware），租户只能由命中的用户行携带。
+	// service 层的 bindUserTenant 只改了局部 ctx，不回流到 request ctx ⇒
+	// recordLoginRiskAsync 取不到租户 ⇒ 登录风控整链（login_events 写入 /
+	// 最近失败次数 / 异常登录告警）在 on 模式下被隔离闸 fail-closed 静默拒绝。
+	// 这里把租户回填进 request ctx，风控链才拿得到归属。
+	if resp != nil && resp.TenantID != 0 && tenant.IsMultiTenant() {
+		ctx.Request = ctx.Request.WithContext(tenant.WithTenantID(ctx.Request.Context(), resp.TenantID))
+		ctx.Set(middleware.TenantContextKey, resp.TenantID)
+	}
+
 	c.recordLoginRiskAsync(ctx, req.Username, true, "")
 	response.Success(ctx, resp, "登录成功")
 }

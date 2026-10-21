@@ -30,6 +30,8 @@ func setupTestControllerDB(t *testing.T) *gorm.DB {
 		&model.SystemConfigKV{},
 		// 登录风险检测异步写登录事件，缺表会把真实失败淹没在 42P01 噪声里。
 		&model.LoginEvent{},
+		// on 模式登录要查租户（停用拦截 / 租户短码），缺表登录直接 401。
+		&model.Tenant{},
 	)
 	db.SetTestDB(database)
 	return database

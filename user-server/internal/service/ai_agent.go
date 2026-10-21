@@ -477,9 +477,25 @@ func NewCustomerServiceAgentService() *CustomerServiceAgentService {
 // NewCustomerServiceAgentServiceViaPort 通过 Port 模式创建客服挂载服务
 //
 // 注意：所有持久化操作走 repo（含 agentStatusRepo）。
+//
+// 三个 repo 必须与无参构造器一样装齐：本构造器是 controller.NewAgentStatusController
+// 的唯一入口（它要复用 router 装配好的 agentSvc），而 GetMyAgent 走
+// GetOrCreateAgentStatusByUserID → agentStatusRepo.GetByAgentID。装配缺项时
+// r.db 为 nil ⇒ nil pointer panic ⇒ 线上 GET /api/agents/me 返回 500
+// （2026-10-21 生产事故：既有测试全用无参构造器，照不到这条腿）。
 func NewCustomerServiceAgentServiceViaPort(agentSvc *AIAgentService) *CustomerServiceAgentService {
+	repo := repository.NewCustomerServiceAgentRepository()
+	repo.SetDB(context.Background(), repository.GetDB())
+	agentRepo := repository.NewAIAgentRepository()
+	agentRepo.SetDB(context.Background(), repository.GetDB())
+	if agentSvc == nil {
+		agentSvc = NewAIAgentService()
+	}
 	return &CustomerServiceAgentService{
-		agentSvc: agentSvc,
+		repo:            repo,
+		agentRepo:       agentRepo,
+		agentSvc:        agentSvc,
+		agentStatusRepo: repository.NewAgentStatusRepository(),
 	}
 }
 
