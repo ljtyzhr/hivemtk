@@ -113,15 +113,15 @@ func newScopedEngine(t *testing.T) (tenantPaths, systemPaths map[string]bool) {
 	systemAdmin.Use(middleware.PlatformOperatorMiddleware())
 
 	// 同一批 setup 函数，分别喂两个引擎 —— 端点进哪个引擎就是挂哪个守卫。
-	setupSystemRoutes(tenantAdmin, systemAdmin)
+	setupSystemRoutes(tenantAdmin, systemAdmin, nil)
 	setupTenantRoutes(nil, tenantAuth, systemAdmin)
 	setupModuleRoutes(nil, tenantAuth, tenantAdmin, systemAdmin)
 	setupConfigParamRoutes(tenantAuth, tenantAdmin, nil)
 	setupSSOConfigRoutes(tenantAdmin, controller.NewSSOController(service.NewSSOService(nil)))
 	setupDictionaryRoutes(tenantAuth, systemAdmin, (*gorm.DB)(nil))
 	// 备份/恢复只有平台运营方档：全局表 backups / restore_records
-	setupBackupRoutes(systemAdmin)
-	setupBackupAliases(systemAdmin)
+	setupBackupRoutes(systemAdmin, nil)
+	setupBackupAliases(systemAdmin, nil)
 
 	return routePathsOf(tenantEngine), routePathsOf(systemEngine)
 }

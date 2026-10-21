@@ -558,7 +558,7 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 
 		systemAdmin := auth.Group("")
 		systemAdmin.Use(middleware.PlatformOperatorMiddleware())
-		setupSystemRoutes(tenantAdmin, systemAdmin)
+		setupSystemRoutes(tenantAdmin, systemAdmin, gormDB)
 
 		// 租户运营端点（T033）：跨租户可见数据 → 平台运营方守卫；
 		// 公开档的 register 已在 setupTenantRoutes(public) 注册，此处补登录档与 admin 档
@@ -824,7 +824,7 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 
 		setupCommunityRoutes(auth)
 
-		setupBackupRoutes(systemAdmin)
+		setupBackupRoutes(systemAdmin, gormDB)
 
 		setupMigrationRoutes(auth, gormDB)
 

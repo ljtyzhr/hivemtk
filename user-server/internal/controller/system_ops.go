@@ -24,13 +24,18 @@ type SystemOpsController struct {
 	monitorService *service.SystemMonitorService
 }
 
-// NewSystemOpsController 创建系统运维控制器实例
-func NewSystemOpsController() *SystemOpsController {
+// NewSystemOpsControllerWithServices 创建系统运维控制器实例（backup/restore 服务由 router 注入）
+func NewSystemOpsControllerWithServices(backupSvc *service.BackupService, restoreSvc *service.RestoreService) *SystemOpsController {
 	return &SystemOpsController{
-		backupService:  service.NewBackupService(),
-		restoreService: service.NewRestoreService(),
+		backupService:  backupSvc,
+		restoreService: restoreSvc,
 		monitorService: service.NewSystemMonitorService(),
 	}
+}
+
+// NewSystemOpsController 兼容旧装配点（测试）：绑定全局 DB 的备份/恢复服务。
+func NewSystemOpsController() *SystemOpsController {
+	return NewSystemOpsControllerWithServices(service.NewBackupService(), service.NewRestoreService())
 }
 
 func currentUserID(ctx *gin.Context) uint {

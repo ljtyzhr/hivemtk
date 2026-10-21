@@ -72,11 +72,9 @@ func atoiOrDefault(raw string, def int) int {
 	return v
 }
 
-// NewBackupController 创建备份控制器实例
-func NewBackupController() *BackupController {
-	return &BackupController{
-		backupService: service.NewBackupService(),
-	}
+// NewBackupController 创建备份控制器实例（service 由 router 注入）
+func NewBackupController(svc *service.BackupService) *BackupController {
+	return &BackupController{backupService: svc}
 }
 
 func isAdmin(ctx *gin.Context) bool {
@@ -221,11 +219,9 @@ type RestoreController struct {
 	restoreService *service.RestoreService
 }
 
-// NewRestoreController 创建恢复控制器实例
-func NewRestoreController() *RestoreController {
-	return &RestoreController{
-		restoreService: service.NewRestoreService(),
-	}
+// NewRestoreController 创建恢复控制器实例（service 由 router 注入）
+func NewRestoreController(svc *service.RestoreService) *RestoreController {
+	return &RestoreController{restoreService: svc}
 }
 
 // RestoreBackup 恢复备份

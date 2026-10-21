@@ -16,12 +16,18 @@ import (
 
 // BackupGapController backup 页面端点组
 type BackupGapController struct {
-	svc *service.BackupGapService
+	svc        *service.BackupGapService
+	backupSvc  *service.BackupService
+	restoreSvc *service.RestoreService
 }
 
-// NewBackupGapController 构造
-func NewBackupGapController() *BackupGapController {
-	return &BackupGapController{svc: service.NewBackupGapServiceFromGlobal()}
+// NewBackupGapController 构造（backup/restore 服务由 router 注入）
+func NewBackupGapController(backupSvc *service.BackupService, restoreSvc *service.RestoreService) *BackupGapController {
+	return &BackupGapController{
+		svc:        service.NewBackupGapServiceFromGlobal(),
+		backupSvc:  backupSvc,
+		restoreSvc: restoreSvc,
+	}
 }
 
 // List GET /api/backup/list → [{id, createdAt, size, checksum, status, type, name}]（复用既有 backups 表）
@@ -69,8 +75,7 @@ func (c *BackupGapController) SaveStrategy(ctx *gin.Context) {
 
 // Create POST /api/backup/create（复用 BackupService.CreateBackupSimple，异步执行）
 func (c *BackupGapController) Create(ctx *gin.Context) {
-	backupSvc := service.NewBackupService()
-	b, err := backupSvc.CreateBackupSimple(ctx.Request.Context(), 0, "manual-"+time.Now().Format("20060102150405"), "full")
+	b, err := c.backupSvc.CreateBackupSimple(ctx.Request.Context(), 0, "manual-"+time.Now().Format("20060102150405"), "full")
 	if HandleServiceError(ctx, err) {
 		return
 	}
@@ -385,8 +390,7 @@ func (c *BackupGapController) Preview(ctx *gin.Context) {
 	if !ok {
 		return
 	}
-	backupSvc := service.NewBackupService()
-	b, err := backupSvc.GetBackupByID(ctx.Request.Context(), id)
+	b, err := c.backupSvc.GetBackupByID(ctx.Request.Context(), id)
 	if HandleServiceError(ctx, err) {
 		return
 	}
@@ -406,8 +410,7 @@ func (c *BackupGapController) Restore(ctx *gin.Context) {
 	if !ok {
 		return
 	}
-	restoreSvc := service.NewRestoreService()
-	rec, err := restoreSvc.RestoreBackup(ctx.Request.Context(), 0, &service.RestoreBackupRequest{BackupID: id})
+	rec, err := c.restoreSvc.RestoreBackup(ctx.Request.Context(), 0, &service.RestoreBackupRequest{BackupID: id})
 	if HandleServiceError(ctx, err) {
 		return
 	}
@@ -420,8 +423,7 @@ func (c *BackupGapController) Delete(ctx *gin.Context) {
 	if !ok {
 		return
 	}
-	backupSvc := service.NewBackupService()
-	if err := backupSvc.DeleteBackup(ctx.Request.Context(), id); HandleServiceError(ctx, err) {
+	if err := c.backupSvc.DeleteBackup(ctx.Request.Context(), id); HandleServiceError(ctx, err) {
 		return
 	}
 	response.Success(ctx, gin.H{"deleted": true}, "已删除")

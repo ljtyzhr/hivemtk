@@ -10,6 +10,7 @@ import (
 
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/db"
+	"hivemtk-user/internal/repository"
 	"hivemtk-user/internal/service"
 
 	"hivemtk-user/internal/pkg/testutil"
@@ -24,8 +25,17 @@ func setupBackupController(t *testing.T) (*BackupController, *RestoreController,
 		&model.RestoreRecord{},
 	)
 	db.SetTestDB(database)
-	ctrl := NewBackupController()
-	restoreCtrl := NewRestoreController()
+	backupSvc := service.NewBackupServiceWithRepos(
+		repository.NewBackupRepositoryWithDB(database),
+		repository.NewBackupDataRepositoryWithDB(database),
+	)
+	restoreSvc := service.NewRestoreServiceWithRepos(
+		repository.NewRestoreRecordRepositoryWithDB(database),
+		repository.NewBackupRepositoryWithDB(database),
+		repository.NewBackupDataRepositoryWithDB(database),
+	)
+	ctrl := NewBackupController(backupSvc)
+	restoreCtrl := NewRestoreController(restoreSvc)
 	router := gin.New()
 	return ctrl, restoreCtrl, router, database
 }
@@ -321,7 +331,7 @@ func TestBackupController_DeleteBackup_NoMerchant(t *testing.T) {
 
 // TestBackupController_NewBackupController 测试构造函数
 func TestBackupController_NewBackupController(t *testing.T) {
-	ctrl := NewBackupController()
+	ctrl := NewBackupController(service.NewBackupService())
 	if ctrl == nil {
 		t.Error("Expected controller instance, got nil")
 	}
@@ -499,7 +509,7 @@ func TestRestoreController_GetLastRestore_NoMerchant(t *testing.T) {
 
 // TestRestoreController_NewRestoreController 测试构造函数
 func TestRestoreController_NewRestoreController(t *testing.T) {
-	ctrl := NewRestoreController()
+	ctrl := NewRestoreController(service.NewRestoreService())
 	if ctrl == nil {
 		t.Error("Expected controller instance, got nil")
 	}

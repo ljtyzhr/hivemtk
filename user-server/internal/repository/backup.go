@@ -59,15 +59,33 @@ func (r *BackupRepository) GetAll(ctx context.Context, page, pageSize int) ([]*m
 	var backups []*model.Backup
 	var total int64
 
+	page, pageSize = normalizeBackupPage(page, pageSize)
 	if err := r.db.WithContext(ctx).Model(&model.Backup{}).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	err := r.db.WithContext(ctx).Order("created_at DESC").
+	err := r.db.WithContext(ctx).Order("created_at DESC, id DESC").
 		Offset((page - 1) * pageSize).
 		Limit(pageSize).
 		Find(&backups).Error
 
 	return backups, total, err
+}
+
+// normalizeBackupPage 归一分页入参：负 Offset 在 PostgreSQL 直接报错，
+// 超大 pageSize 则会把整张备份清单一次拉出来。
+func normalizeBackupPage(page, pageSize int) (int, int) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize <= 0 {
+		pageSize = 20
+	}
+	// 与 controller 的 DefaultBackupPageSizeCap（1000）对齐：仓储不再二次收紧，
+	// 否则接口回了 1000 而底层只给 200，前端分页会静默缺页。
+	if pageSize > 1000 {
+		pageSize = 1000
+	}
+	return page, pageSize
 }
 
 // Update 更新备份记录（仅执行态列，不整行覆写）
@@ -136,10 +154,11 @@ func (r *RestoreRecordRepository) GetAll(ctx context.Context, page, pageSize int
 	var records []*model.RestoreRecord
 	var total int64
 
+	page, pageSize = normalizeBackupPage(page, pageSize)
 	if err := r.db.WithContext(ctx).Model(&model.RestoreRecord{}).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	err := r.db.WithContext(ctx).Order("created_at DESC").
+	err := r.db.WithContext(ctx).Order("created_at DESC, id DESC").
 		Offset((page - 1) * pageSize).
 		Limit(pageSize).
 		Find(&records).Error

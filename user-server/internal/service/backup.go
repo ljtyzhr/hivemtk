@@ -42,12 +42,17 @@ func validateBackupName(name string) error {
 	return nil
 }
 
-// NewBackupService 创建备份服务实例
-func NewBackupService() *BackupService {
+// NewBackupServiceWithRepos 创建备份服务实例（仓储由装配层注入）
+func NewBackupServiceWithRepos(backupRepo *repository.BackupRepository, backupDataRepo repository.BackupDataRepository) *BackupService {
 	return &BackupService{
-		backupRepo:     repository.NewBackupRepository(),
-		backupDataRepo: repository.NewBackupDataRepository(),
+		backupRepo:     backupRepo,
+		backupDataRepo: backupDataRepo,
 	}
+}
+
+// NewBackupService 兼容旧装配点：绑定全局 DB 的仓储。
+func NewBackupService() *BackupService {
+	return NewBackupServiceWithRepos(repository.NewBackupRepository(), repository.NewBackupDataRepository())
 }
 
 // CreateBackupRequest 创建备份请求
@@ -386,13 +391,26 @@ type RestoreService struct {
 	backupDataRepo repository.BackupDataRepository
 }
 
-// NewRestoreService 创建恢复服务实例
-func NewRestoreService() *RestoreService {
+// NewRestoreServiceWithRepos 创建恢复服务实例（仓储由装配层注入）
+func NewRestoreServiceWithRepos(
+	restoreRepo *repository.RestoreRecordRepository,
+	backupRepo *repository.BackupRepository,
+	backupDataRepo repository.BackupDataRepository,
+) *RestoreService {
 	return &RestoreService{
-		restoreRepo:    repository.NewRestoreRecordRepository(),
-		backupRepo:     repository.NewBackupRepository(),
-		backupDataRepo: repository.NewBackupDataRepository(),
+		restoreRepo:    restoreRepo,
+		backupRepo:     backupRepo,
+		backupDataRepo: backupDataRepo,
 	}
+}
+
+// NewRestoreService 兼容旧装配点：绑定全局 DB 的仓储。
+func NewRestoreService() *RestoreService {
+	return NewRestoreServiceWithRepos(
+		repository.NewRestoreRecordRepository(),
+		repository.NewBackupRepository(),
+		repository.NewBackupDataRepository(),
+	)
 }
 
 // RestoreBackupRequest 恢复备份请求

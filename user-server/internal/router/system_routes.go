@@ -34,7 +34,7 @@ import (
 //	system_config / system_config_kv / obs_config 都是**租户表**（有 tenant_id 列，
 //	由隔离 callback 自动限域）⇒ 租户档；
 //	backups / restore_records 是**全局表**，进程级操作没有租户概念 ⇒ 平台运营方档。
-func setupSystemRoutes(tenantAdmin, systemAdmin *gin.RouterGroup) {
+func setupSystemRoutes(tenantAdmin, systemAdmin *gin.RouterGroup, gormDB *gorm.DB) {
 	systemConfigCtrl := controller.NewSystemConfigController()
 	tenantAdmin.GET("/system/config", systemConfigCtrl.GetConfig)
 	tenantAdmin.POST("/system/config", systemConfigCtrl.SaveConfig)
@@ -48,7 +48,7 @@ func setupSystemRoutes(tenantAdmin, systemAdmin *gin.RouterGroup) {
 	tenantAdmin.PUT("/agent/settings", agentSettingsCtrl.SaveConfig)
 
 	// 实例运行态与备份恢复：进程与实例级，不属于任何租户 ⇒ 平台运营方档。
-	systemOpsCtrl := controller.NewSystemOpsController()
+	systemOpsCtrl := controller.NewSystemOpsControllerWithServices(newBackupService(gormDB), newRestoreService(gormDB))
 	systemAdmin.POST("/system/restart", systemOpsCtrl.RestartServer)
 	systemAdmin.GET("/system/logs", systemOpsCtrl.GetSystemLogs)
 	systemAdmin.GET("/system/stats", systemOpsCtrl.GetSystemStats)
@@ -118,9 +118,25 @@ func setupKnowledgeBaseRoutes(auth *gin.RouterGroup) {
 // 入参是平台运营方组而非 auth：backups / restore_records 是全局表，
 // 且备份动作读写的实例数据跨租户（执行体走 SystemScope），
 // 租户 admin 既不该看到别的租户的备份清单，也不该触发全实例恢复。
-func setupBackupRoutes(systemAdmin *gin.RouterGroup) {
-	backupCtrl := controller.NewBackupController()
-	restoreCtrl := controller.NewRestoreController()
+// newBackupService / newRestoreService 统一在此构造（备份域两个装配点共用同一形状）。
+func newBackupService(gormDB *gorm.DB) *service.BackupService {
+	return service.NewBackupServiceWithRepos(
+		repository.NewBackupRepositoryWithDB(gormDB),
+		repository.NewBackupDataRepositoryWithDB(gormDB),
+	)
+}
+
+func newRestoreService(gormDB *gorm.DB) *service.RestoreService {
+	return service.NewRestoreServiceWithRepos(
+		repository.NewRestoreRecordRepositoryWithDB(gormDB),
+		repository.NewBackupRepositoryWithDB(gormDB),
+		repository.NewBackupDataRepositoryWithDB(gormDB),
+	)
+}
+
+func setupBackupRoutes(systemAdmin *gin.RouterGroup, gormDB *gorm.DB) {
+	backupCtrl := controller.NewBackupController(newBackupService(gormDB))
+	restoreCtrl := controller.NewRestoreController(newRestoreService(gormDB))
 	systemAdmin.GET("/backups", backupCtrl.GetBackupList)
 	systemAdmin.GET("/backups/:id", backupCtrl.GetBackupByID)
 	systemAdmin.GET("/restore/list", restoreCtrl.GetRestoreList)

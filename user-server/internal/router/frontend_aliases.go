@@ -492,7 +492,7 @@ func setupFrontendAliases(auth, systemAdmin *gin.RouterGroup, engine *gin.Engine
 	// 备份/恢复操作的是全局表 backups/restore_records，别名必须以平台运营方
 	// 身份注册；老实现用 doRegAdmin（租户 admin）注册，等于让任意租户管理员
 	// 列出、预览、恢复整实例的数据。
-	setupBackupAliases(systemAdmin)
+	setupBackupAliases(systemAdmin, gormDB)
 
 	ragEvalCtrl := controller.NewRagEvalGapController()
 	doReg("GET", "/rag/eval/latest", ragEvalCtrl.Latest)
@@ -555,8 +555,8 @@ func setupFrontendAliases(auth, systemAdmin *gin.RouterGroup, engine *gin.Engine
 // 独立成函数是为了让平台运营方档位测试可以直接挂载它，而不必启动整个
 // 别名层（那需要真实 DB 且会注册数百条路由）。这些别名与
 // setupBackupRoutes 指向同一批全局表，档位必须一致。
-func setupBackupAliases(systemAdmin *gin.RouterGroup) {
-	backupGapCtrl := controller.NewBackupGapController()
+func setupBackupAliases(systemAdmin *gin.RouterGroup, gormDB *gorm.DB) {
+	backupGapCtrl := controller.NewBackupGapController(newBackupService(gormDB), newRestoreService(gormDB))
 	systemAdmin.GET("/backup/list", backupGapCtrl.List)
 	systemAdmin.GET("/backup/stats", backupGapCtrl.Stats)
 	systemAdmin.PUT("/backup/strategy", backupGapCtrl.SaveStrategy)
