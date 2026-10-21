@@ -2,10 +2,10 @@ package repository
 
 import (
 	"context"
-	"hivemtk-user/internal/model"
-	_db "hivemtk-user/internal/pkg/db"
 
 	"gorm.io/gorm"
+
+	"hivemtk-user/internal/model"
 )
 
 // ChatChannelRepository 客服 Web Widget 渠道仓库
@@ -16,34 +16,12 @@ type ChatChannelRepository struct {
 	db *gorm.DB
 }
 
-// NewChatChannelRepository 创建渠道仓库实例（绑定全局默认 DB）
-func NewChatChannelRepository() *ChatChannelRepository {
-	return &ChatChannelRepository{db: _db.GetDB()}
-}
-
 // NewChatChannelRepositoryWithDB 创建指定数据库连接的渠道仓库实例（用于 service 依赖注入 / 测试）
 //
-// db 为 nil 时所有方法走全局 DB（与既有行为一致）；service 构造时显式传入可避免全局态污染。
+// 不做 nil 兜底：隐式回落到全局句柄会把"装配点拿错了 db"变成运行期才显形的跨库读写，
+// 而本仓的装配口径是显式注入（router/main 传 gormDB）。
 func NewChatChannelRepositoryWithDB(db *gorm.DB) *ChatChannelRepository {
-	if db == nil {
-		return &ChatChannelRepository{db: _db.GetDB()}
-	}
 	return &ChatChannelRepository{db: db}
-}
-
-// GetDB 返回当前仓库绑定的 DB（兼容历史 service.db 用法，仅用于构造期）
-func (r *ChatChannelRepository) GetDB(ctx context.Context) *gorm.DB {
-	if r.db == nil {
-		return nil
-	}
-	return r.db.WithContext(ctx)
-}
-
-// SetDB 注入 db（用于测试 / 多 DB 切换）
-func (r *ChatChannelRepository) SetDB(ctx context.Context, db *gorm.DB) {
-	if db != nil {
-		r.db = db
-	}
 }
 
 // Create 创建渠道
@@ -52,26 +30,37 @@ func (r *ChatChannelRepository) Create(ctx context.Context, channel *model.ChatC
 }
 
 // Updates 按主键 ID 批量更新字段（map 形式，零值字段也会更新）
+//
+// 0 行命中回 ErrRecordNotFound：服务层的每条写路径都先读过那一行，
+// 更新不到只可能是行在读与写之间被删（或被租户闸挡掉）——静默成功会让调用方
+// 拿着一份"已更新"的答复去读回一行旧值。
 func (r *ChatChannelRepository) Updates(ctx context.Context, id uint, updates map[string]any) error {
-	return r.db.WithContext(ctx).Model(&model.ChatChannel{}).
+	res := r.db.WithContext(ctx).Model(&model.ChatChannel{}).
 		Where("id = ?", id).
-		Updates(updates).Error
+		Updates(updates)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 // UpdateField 按主键 ID 更新单个字段（用于 status / app_key / app_secret_hash 等单字段切换）
-func (r *ChatChannelRepository) UpdateField(ctx context.Context, id uint, field string, value any) error {
-	return r.db.WithContext(ctx).Model(&model.ChatChannel{}).
-		Where("id = ?", id).
-		Update(field, value).Error
-}
-
-// HardDeleteByChannelID 按 channel_id 硬删除渠道
 //
-// 行为与原 service.HardDelete 一致：物理删除（不走 GORM 软删除）。
-func (r *ChatChannelRepository) HardDeleteByChannelID(ctx context.Context, channelID string) error {
-	return r.db.WithContext(ctx).
-		Where("channel_id = ?", channelID).
-		Delete(&model.ChatChannel{}).Error
+// 0 行命中的判据与 Updates 同一条。
+func (r *ChatChannelRepository) UpdateField(ctx context.Context, id uint, field string, value any) error {
+	res := r.db.WithContext(ctx).Model(&model.ChatChannel{}).
+		Where("id = ?", id).
+		Update(field, value)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 // GetByID 按主键 ID 查询渠道

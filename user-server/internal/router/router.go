@@ -197,7 +197,7 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 
 	app.InitEventBus()
 
-	injectMiddlewarePorts()
+	injectMiddlewarePorts(gormDB)
 
 	r.GET("/health", HealthCheck(HealthRedis, gormDB))
 	r.GET("/healthz", LivenessCheck())

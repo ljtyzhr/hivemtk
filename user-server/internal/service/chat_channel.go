@@ -10,7 +10,6 @@ import (
 	"math/big"
 	"strconv"
 	"strings"
-	"time"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -206,7 +205,14 @@ func (s *ChatChannelService) Update(ctx context.Context, channelID string, req *
 		updates["widget_title"] = *req.WidgetTitle
 	}
 	if req.Status != nil {
-		updates["status"] = *req.Status
+		// 值域守在这里：chat_channels.status 没有 CHECK 约束，拼错一格的行既不会被
+		// ChatChannelIsActive 认成启用，也不会被任何读侧报错 —— 访客 widget 静默失效。
+		status := strings.TrimSpace(*req.Status)
+		if status != string(model.ChatChannelStatusActive) && status != string(model.ChatChannelStatusDisabled) {
+			return nil, fmt.Errorf("渠道状态非法: %q（只接受 %s / %s）",
+				status, model.ChatChannelStatusActive, model.ChatChannelStatusDisabled)
+		}
+		updates["status"] = status
 	}
 	if req.AutoAssign != nil {
 		updates["auto_assign"] = *req.AutoAssign
@@ -235,11 +241,6 @@ func (s *ChatChannelService) Delete(ctx context.Context, channelID string) error
 		return err
 	}
 	return s.repo.UpdateField(ctx, channel.ID, "status", model.ChatChannelStatusDisabled)
-}
-
-// HardDelete 硬删除（管理后台使用）
-func (s *ChatChannelService) HardDelete(ctx context.Context, channelID string) error {
-	return s.repo.HardDeleteByChannelID(ctx, channelID)
 }
 
 // guardSystemScopeChannelKey 系统作用域下的业务键歧义守卫。
@@ -558,5 +559,3 @@ func defaultIfEmpty(s, def string) string {
 	}
 	return s
 }
-
-var _ = time.Second

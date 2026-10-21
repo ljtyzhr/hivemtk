@@ -9,6 +9,8 @@ import (
 	"hivemtk-user/internal/repository"
 	"hivemtk-user/internal/service"
 	"hivemtk-user/internal/websocket"
+
+	"gorm.io/gorm"
 )
 
 // operationLogSink 审计 sink：经 OperationLogService 落库（Router 不直连 Repository）
@@ -108,8 +110,12 @@ func (a visitorChannelResolverAdapter) ResolveByChannelID(ctx context.Context, c
 	return &websocket.VisitorChannelView{ChannelID: ch.ChannelID, TenantID: ch.TenantID}, nil
 }
 
-func injectMiddlewarePorts() {
-	websocket.SetVisitorChannelResolver(visitorChannelResolverAdapter{svc: service.MustNewChatChannelService(repository.NewChatChannelRepository())})
+// injectMiddlewarePorts 装配中间件/WebSocket 侧的窄接口。
+//
+// 渠道解析器必须用 Setup 传进来的那个 DB 句柄：全局句柄版构造函数已删除
+// （隐式回落会让"装配点拿错了 db"变成运行期才显形的跨库读写）。
+func injectMiddlewarePorts(gormDB *gorm.DB) {
+	websocket.SetVisitorChannelResolver(visitorChannelResolverAdapter{svc: service.MustNewChatChannelService(repository.NewChatChannelRepositoryWithDB(gormDB))})
 
 	middleware.SetPermChecker(service.NewPermissionService())
 	middleware.SetAuditSink(operationLogSink{svc: service.NewOperationLogService()})
