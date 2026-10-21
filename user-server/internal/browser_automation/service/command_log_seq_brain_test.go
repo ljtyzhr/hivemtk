@@ -38,9 +38,9 @@ type seqBrainPlanner struct{}
 func (p *seqBrainPlanner) GeneratePlanReflect(context.Context, uint, uint, string, string, string, *reflectState) ([]byte, bool, error) {
 	return []byte(`[]`), true, nil
 }
-func (p *seqBrainPlanner) LastPlanTokens() int  { return 0 }
+func (p *seqBrainPlanner) LastPlanTokens() int   { return 0 }
 func (p *seqBrainPlanner) LastPlanModel() string { return "fake" }
-func (p *seqBrainPlanner) LastAuxTokens() int  { return 0 }
+func (p *seqBrainPlanner) LastAuxTokens() int    { return 0 }
 func (p *seqBrainPlanner) JudgeDone(context.Context, uint, uint, string, string) (bool, string) {
 	return true, ""
 }
