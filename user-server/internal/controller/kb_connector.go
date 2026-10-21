@@ -202,7 +202,7 @@ func SyncKBConnector(ctx *gin.Context) {
 		response.Error(ctx, http.StatusBadRequest, "无效 id")
 		return
 	}
-	res, err := kbconnector.Sync(ctx, id)
+	res, err := kbconnector.Sync(ctx.Request.Context(), id)
 	if err != nil {
 		response.Error(ctx, http.StatusInternalServerError, err.Error())
 		return

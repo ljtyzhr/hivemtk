@@ -1,6 +1,7 @@
 package repository
 
 import (
+	"context"
 	"hivemtk-user/internal/ops/model"
 	"hivemtk-user/internal/pkg/db"
 	"testing"
@@ -9,6 +10,10 @@ import (
 
 	"gorm.io/gorm"
 )
+
+// ctx 是本文件所有仓储调用的租户上下文：租户隔离 callback 从 ctx 取租户注入
+// WHERE/INSERT，测试里必须给一个，否则 on 模式下会 fail-closed 拒执行。
+var ctx = context.Background()
 
 func setupCustomReportTestDB(t *testing.T) *gorm.DB {
 	database := testutil.NewTestDB(t,
@@ -70,7 +75,7 @@ func TestCustomReportRepository_Create(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := repo.Create(tt.report)
+			err := repo.Create(ctx, tt.report)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Create() error = %v, wantErr %v", err, tt.wantErr)
@@ -94,7 +99,7 @@ func TestCustomReportRepository_GetByID(t *testing.T) {
 		IsPublic:    false,
 		CreatedBy:   1,
 	}
-	repo.Create(report)
+	repo.Create(ctx, report)
 
 	tests := []struct {
 		name    string
@@ -115,7 +120,7 @@ func TestCustomReportRepository_GetByID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := repo.GetByID(tt.id)
+			result, err := repo.GetByID(ctx, tt.id)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetByID() error = %v, wantErr %v", err, tt.wantErr)
@@ -134,31 +139,31 @@ func TestCustomReportRepository_GetByID(t *testing.T) {
 func TestCustomReportRepository_GetByDataSource(t *testing.T) {
 	repo := setupCustomReportRepository(t)
 
-	repo.Create(&model.CustomReport{
+	repo.Create(ctx, &model.CustomReport{
 		Name:       "Sessions Report",
 		DataSource: "sessions",
 		IsPublic:   false,
 	})
 
-	repo.Create(&model.CustomReport{
+	repo.Create(ctx, &model.CustomReport{
 		Name:       "Orders Report",
 		DataSource: "orders",
 		IsPublic:   false,
 	})
 
-	repo.Create(&model.CustomReport{
+	repo.Create(ctx, &model.CustomReport{
 		Name:       "Messages Report",
 		DataSource: "messages",
 		IsPublic:   false,
 	})
 
-	repo.Create(&model.CustomReport{
+	repo.Create(ctx, &model.CustomReport{
 		Name:       "Public Sessions",
 		DataSource: "sessions",
 		IsPublic:   true,
 	})
 
-	results, err := repo.GetByDataSource("sessions")
+	results, err := repo.GetByDataSource(ctx, "sessions")
 	if err != nil {
 		t.Errorf("GetByDataSource() error = %v", err)
 	}
@@ -179,17 +184,17 @@ func TestCustomReportRepository_Update(t *testing.T) {
 		IsPublic:    false,
 		CreatedBy:   1,
 	}
-	repo.Create(report)
+	repo.Create(ctx, report)
 
 	report.Name = "Updated Name"
 	report.Description = "Updated description"
 
-	err := repo.Update(report)
+	err := repo.Update(ctx, report)
 	if err != nil {
 		t.Errorf("Update() error = %v", err)
 	}
 
-	updated, _ := repo.GetByID(report.ID)
+	updated, _ := repo.GetByID(ctx, report.ID)
 	if updated.Name != "Updated Name" {
 		t.Errorf("Expected name 'Updated Name', got '%s'", updated.Name)
 	}
@@ -208,14 +213,14 @@ func TestCustomReportRepository_Delete(t *testing.T) {
 		IsPublic:   false,
 		CreatedBy:  1,
 	}
-	repo.Create(report)
+	repo.Create(ctx, report)
 
-	err := repo.Delete(report.ID)
+	err := repo.Delete(ctx, report.ID)
 	if err != nil {
 		t.Errorf("Delete() error = %v", err)
 	}
 
-	_, err = repo.GetByID(report.ID)
+	_, err = repo.GetByID(ctx, report.ID)
 	if err == nil {
 		t.Error("Expected report to be deleted")
 	}
@@ -225,25 +230,25 @@ func TestCustomReportRepository_Delete(t *testing.T) {
 func TestCustomReportRepository_GetPublicTemplates(t *testing.T) {
 	repo := setupCustomReportRepository(t)
 
-	repo.Create(&model.CustomReport{
+	repo.Create(ctx, &model.CustomReport{
 		Name:       "System Template 1",
 		DataSource: "sessions",
 		IsPublic:   true,
 	})
 
-	repo.Create(&model.CustomReport{
+	repo.Create(ctx, &model.CustomReport{
 		Name:       "System Template 2",
 		DataSource: "orders",
 		IsPublic:   true,
 	})
 
-	repo.Create(&model.CustomReport{
+	repo.Create(ctx, &model.CustomReport{
 		Name:       "Merchant Public",
 		DataSource: "sessions",
 		IsPublic:   true,
 	})
 
-	results, err := repo.GetPublicTemplates()
+	results, err := repo.GetPublicTemplates(ctx, )
 	if err != nil {
 		t.Errorf("GetPublicTemplates() error = %v", err)
 	}
@@ -267,9 +272,9 @@ func TestCustomReportRepository_UseTemplate(t *testing.T) {
 		IsPublic:    true,
 		CreatedBy:   0,
 	}
-	repo.Create(template)
+	repo.Create(ctx, template)
 
-	report, err := repo.UseTemplate(template.ID, 1)
+	report, err := repo.UseTemplate(ctx, template.ID, 1)
 	if err != nil {
 		t.Errorf("UseTemplate() error = %v", err)
 	}
@@ -287,7 +292,7 @@ func TestCustomReportRepository_UseTemplate(t *testing.T) {
 func TestCustomReportRepository_GetByID_NotFound(t *testing.T) {
 	repo := setupCustomReportRepository(t)
 
-	_, err := repo.GetByID(99999)
+	_, err := repo.GetByID(ctx, 99999)
 	if err == nil {
 		t.Error("Expected error when getting non-existing report")
 	}
@@ -296,7 +301,7 @@ func TestCustomReportRepository_GetByID_NotFound(t *testing.T) {
 func TestCustomReportRepository_GetAll_EmptyResult(t *testing.T) {
 	repo := setupCustomReportRepository(t)
 
-	results, total, err := repo.GetAll(1, 10)
+	results, total, err := repo.GetAll(ctx, 1, 10)
 	if err != nil {
 		t.Errorf("GetAll() error = %v", err)
 	}

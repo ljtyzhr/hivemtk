@@ -126,7 +126,7 @@ func (c *AnomalyLoginDetectorController) ResolveAlert(ctx *gin.Context) {
 	}
 	_ = ctx.ShouldBindJSON(&body)
 
-	if err := c.detector.ResolveAlert(ctx, uint(alertID), uid, body.Note); err != nil {
+	if err := c.detector.ResolveAlert(ctx.Request.Context(), uint(alertID), uid, body.Note); err != nil {
 		response.Error(ctx, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -160,7 +160,7 @@ func (c *AnomalyLoginDetectorController) IgnoreAlert(ctx *gin.Context) {
 	}
 	_ = ctx.ShouldBindJSON(&body)
 
-	if err := c.detector.IgnoreAlert(ctx, uint(alertID), uid, body.Note); err != nil {
+	if err := c.detector.IgnoreAlert(ctx.Request.Context(), uint(alertID), uid, body.Note); err != nil {
 		response.Error(ctx, http.StatusBadRequest, err.Error())
 		return
 	}

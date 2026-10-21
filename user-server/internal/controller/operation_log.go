@@ -65,7 +65,7 @@ func (c *OperationLogController) GetList(ctx *gin.Context) {
 	}
 
 	if useCursor {
-		logs, total, nextCursor, err := c.logSvc.GetAllKeyset(ctx, cursor, pageSize, filters)
+		logs, total, nextCursor, err := c.logSvc.GetAllKeyset(ctx.Request.Context(), cursor, pageSize, filters)
 		if err != nil {
 			response.ErrorFromDB(ctx, err, err.Error())
 			return
@@ -79,7 +79,7 @@ func (c *OperationLogController) GetList(ctx *gin.Context) {
 		return
 	}
 
-	logs, total, err := c.logSvc.GetAll(ctx, page, pageSize, filters)
+	logs, total, err := c.logSvc.GetAll(ctx.Request.Context(), page, pageSize, filters)
 	if err != nil {
 		response.ErrorFromDB(ctx, err, err.Error())
 		return
@@ -102,7 +102,7 @@ func (c *OperationLogController) GetByID(ctx *gin.Context) {
 		return
 	}
 
-	log, err := c.logSvc.GetByID(ctx, uint(id))
+	log, err := c.logSvc.GetByID(ctx.Request.Context(), uint(id))
 	if err != nil {
 		response.Error(ctx, http.StatusNotFound, "日志不存在")
 		return
@@ -140,7 +140,7 @@ func (c *OperationLogController) GetMyLogs(ctx *gin.Context) {
 		pageSize = 20
 	}
 
-	logs, total, err := c.logSvc.GetByUserID(ctx, uid, page, pageSize)
+	logs, total, err := c.logSvc.GetByUserID(ctx.Request.Context(), uid, page, pageSize)
 	if err != nil {
 		response.ErrorFromDB(ctx, err, err.Error())
 		return
@@ -156,7 +156,7 @@ func (c *OperationLogController) GetMyLogs(ctx *gin.Context) {
 
 // GetStatistics 获取操作日志统计
 func (c *OperationLogController) GetStatistics(ctx *gin.Context) {
-	stats, err := c.logSvc.GetStatistics(ctx)
+	stats, err := c.logSvc.GetStatistics(ctx.Request.Context())
 	if err != nil {
 		response.ErrorFromDB(ctx, err, err.Error())
 		return
@@ -179,7 +179,7 @@ func (c *OperationLogController) ExportLogs(ctx *gin.Context) {
 		pageSize = 10000
 	}
 
-	logs, err := c.logSvc.ExportAll(ctx, pageSize)
+	logs, err := c.logSvc.ExportAll(ctx.Request.Context(), pageSize)
 	if err != nil {
 		response.ErrorFromDB(ctx, err, "查询日志失败: "+err.Error())
 		return
@@ -233,7 +233,7 @@ func (c *OperationLogController) CleanLogs(ctx *gin.Context) {
 	} else {
 		cutoff = time.Now().AddDate(0, 0, -90)
 	}
-	if err := c.logSvc.DeleteOldLogs(ctx, cutoff); err != nil {
+	if err := c.logSvc.DeleteOldLogs(ctx.Request.Context(), cutoff); err != nil {
 		response.ErrorFromDB(ctx, err, "清理失败: "+err.Error())
 		return
 	}
@@ -258,7 +258,7 @@ func (c *OperationLogController) DeleteLogs(ctx *gin.Context) {
 		return
 	}
 
-	count, err := c.logSvc.DeleteByIDs(ctx, req.IDs)
+	count, err := c.logSvc.DeleteByIDs(ctx.Request.Context(), req.IDs)
 	if err != nil {
 		response.ErrorFromDB(ctx, err, "删除失败: "+err.Error())
 		return
@@ -282,7 +282,7 @@ func (c *OperationLogController) RollbackLog(ctx *gin.Context) {
 	if v, ok := ctx.Get("username"); ok {
 		operator, _ = v.(string)
 	}
-	rollbackLog, err := c.logSvc.Rollback(ctx, uint(id), operator)
+	rollbackLog, err := c.logSvc.Rollback(ctx.Request.Context(), uint(id), operator)
 	if err != nil {
 		response.Error(ctx, http.StatusBadRequest, "回滚失败: "+err.Error())
 		return

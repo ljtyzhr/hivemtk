@@ -47,7 +47,20 @@ func (r *customerRFMRepo) Upsert(ctx context.Context, rfm *model.CustomerRFM) er
 	rfm.ID = existing.ID
 	rfm.CreatedAt = existing.CreatedAt
 	rfm.ComputedAt = time.Now()
-	return r.db.WithContext(ctx).Save(rfm).Error
+	// 不用 Save：Save 会把整个结构体写回，包括本层从未赋值的 tenant_id（=0），
+	// 那是「更新不可改写 tenant_id」闸门的直接触发点（on 模式整条 RFM 计算 500）。
+	// tenant_id 由隔离 callback 在 INSERT 时填、在 UPDATE 时不允许改。
+	// updated_at 不进 Select：交给 GORM 的 autoUpdateTime 填当前值，
+	// 进了 Select 反而会把结构体里的零值写回去。
+	res := r.db.WithContext(ctx).Model(&model.CustomerRFM{}).
+		Where("id = ?", existing.ID).
+		Select("customer_id", "unified_id",
+			"recency_days", "frequency", "monetary_total", "avg_order_value",
+			"r_score", "f_score", "m_score", "composite_score", "segment",
+			"churn_risk_level", "churn_score", "last_active_at",
+			"computed_at").
+		Updates(rfm)
+	return res.Error
 }
 
 func (r *customerRFMRepo) GetByCustomerID(ctx context.Context, customerID string) (*model.CustomerRFM, error) {

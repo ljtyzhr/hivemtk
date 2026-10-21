@@ -73,7 +73,7 @@ type UpdateReportRequest struct {
 }
 
 // CreateReport 创建报表
-func (s *CustomReportService) CreateReport(createdBy uint, req *CreateReportRequest) (*model.CustomReport, error) {
+func (s *CustomReportService) CreateReport(ctx context.Context, createdBy uint, req *CreateReportRequest) (*model.CustomReport, error) {
 	if !isValidDataSource(req.DataSource) {
 		return nil, errors.New("不支持的数据源类型")
 	}
@@ -100,7 +100,7 @@ func (s *CustomReportService) CreateReport(createdBy uint, req *CreateReportRequ
 		CreatedBy:   createdBy,
 	}
 
-	err := s.reportRepo.Create(report)
+	err := s.reportRepo.Create(ctx, report)
 	if err != nil {
 		return nil, err
 	}
@@ -109,8 +109,8 @@ func (s *CustomReportService) CreateReport(createdBy uint, req *CreateReportRequ
 }
 
 // GetReport 获取报表详情（带权限校验：公开或本人或管理员可读）
-func (s *CustomReportService) GetReport(id uint, userID uint, isAdmin bool) (*model.CustomReport, error) {
-	report, err := s.reportRepo.GetByID(id)
+func (s *CustomReportService) GetReport(ctx context.Context, id uint, userID uint, isAdmin bool) (*model.CustomReport, error) {
+	report, err := s.reportRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, errors.New("报表不存在")
 	}
@@ -123,16 +123,16 @@ func (s *CustomReportService) GetReport(id uint, userID uint, isAdmin bool) (*mo
 }
 
 // GetReportList 获取报表列表（管理员看全部，普通用户看自己创建的 + 公开的）
-func (s *CustomReportService) GetReportList(page, pageSize int, userID uint, isAdmin bool) ([]*model.CustomReport, int64, error) {
+func (s *CustomReportService) GetReportList(ctx context.Context, page, pageSize int, userID uint, isAdmin bool) ([]*model.CustomReport, int64, error) {
 	if isAdmin {
-		return s.reportRepo.GetAll(page, pageSize)
+		return s.reportRepo.GetAll(ctx, page, pageSize)
 	}
-	return s.reportRepo.GetByCreatorOrPublic(userID, page, pageSize)
+	return s.reportRepo.GetByCreatorOrPublic(ctx, userID, page, pageSize)
 }
 
 // UpdateReport 更新报表（只有创建者或管理员可修改）
-func (s *CustomReportService) UpdateReport(id uint, userID uint, isAdmin bool, req *UpdateReportRequest) (*model.CustomReport, error) {
-	report, err := s.reportRepo.GetByID(id)
+func (s *CustomReportService) UpdateReport(ctx context.Context, id uint, userID uint, isAdmin bool, req *UpdateReportRequest) (*model.CustomReport, error) {
+	report, err := s.reportRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, errors.New("报表不存在")
 	}
@@ -164,7 +164,7 @@ func (s *CustomReportService) UpdateReport(id uint, userID uint, isAdmin bool, r
 	report.ChartConfig = string(chartConfigJSON)
 	report.IsPublic = req.IsPublic
 
-	err = s.reportRepo.Update(report)
+	err = s.reportRepo.Update(ctx, report)
 	if err != nil {
 		return nil, err
 	}
@@ -173,8 +173,8 @@ func (s *CustomReportService) UpdateReport(id uint, userID uint, isAdmin bool, r
 }
 
 // DeleteReport 删除报表（只有创建者或管理员可删除）
-func (s *CustomReportService) DeleteReport(id uint, userID uint, isAdmin bool) error {
-	report, err := s.reportRepo.GetByID(id)
+func (s *CustomReportService) DeleteReport(ctx context.Context, id uint, userID uint, isAdmin bool) error {
+	report, err := s.reportRepo.GetByID(ctx, id)
 	if err != nil {
 		return errors.New("报表不存在")
 	}
@@ -183,17 +183,17 @@ func (s *CustomReportService) DeleteReport(id uint, userID uint, isAdmin bool) e
 		return errors.New("无权限删除此报表")
 	}
 
-	return s.reportRepo.Delete(id)
+	return s.reportRepo.Delete(ctx, id)
 }
 
 // GetPublicTemplates 获取公开模板
-func (s *CustomReportService) GetPublicTemplates() ([]*model.CustomReport, error) {
-	return s.reportRepo.GetPublicTemplates()
+func (s *CustomReportService) GetPublicTemplates(ctx context.Context) ([]*model.CustomReport, error) {
+	return s.reportRepo.GetPublicTemplates(ctx)
 }
 
 // UseTemplate 使用模板
-func (s *CustomReportService) UseTemplate(templateID uint, createdBy uint) (*model.CustomReport, error) {
-	return s.reportRepo.UseTemplate(templateID, createdBy)
+func (s *CustomReportService) UseTemplate(ctx context.Context, templateID uint, createdBy uint) (*model.CustomReport, error) {
+	return s.reportRepo.UseTemplate(ctx, templateID, createdBy)
 }
 
 // QueryReportData 查询报表数据

@@ -31,7 +31,7 @@ func (c *XiaohongshuCardController) Create(ctx *gin.Context) {
 		return
 	}
 
-	card, err := c.service.Create(ctx, &req)
+	card, err := c.service.Create(ctx.Request.Context(), &req)
 	if err != nil {
 		response.ErrorFromDB(ctx, err, response.ErrCreateFailed, err.Error())
 		return
@@ -48,7 +48,7 @@ func (c *XiaohongshuCardController) Update(ctx *gin.Context) {
 		return
 	}
 
-	card, err := c.service.Update(ctx, &req)
+	card, err := c.service.Update(ctx.Request.Context(), &req)
 	if err != nil {
 		response.ErrorFromDB(ctx, err, response.ErrUpdateFailed, err.Error())
 		return
@@ -66,7 +66,7 @@ func (c *XiaohongshuCardController) Delete(ctx *gin.Context) {
 		return
 	}
 
-	if HandleDBError(ctx, c.service.Delete(ctx, uint(id)), "删除小红书卡片") {
+	if HandleDBError(ctx, c.service.Delete(ctx.Request.Context(), uint(id)), "删除小红书卡片") {
 		return
 	}
 
@@ -82,7 +82,7 @@ func (c *XiaohongshuCardController) GetByID(ctx *gin.Context) {
 		return
 	}
 
-	card, err := c.service.GetByID(ctx, uint(id))
+	card, err := c.service.GetByID(ctx.Request.Context(), uint(id))
 	if HandleDBError(ctx, err, "获取小红书卡片") {
 		return
 	}
@@ -98,7 +98,7 @@ func (c *XiaohongshuCardController) GetList(ctx *gin.Context) {
 		return
 	}
 
-	cards, err := c.service.GetList(ctx, &req)
+	cards, err := c.service.GetList(ctx.Request.Context(), &req)
 	if err != nil {
 		response.ErrorFromDB(ctx, err, response.ErrGetFailed, err.Error())
 		return
@@ -117,20 +117,20 @@ func (c *XiaohongshuCardController) GenerateShortLink(ctx *gin.Context) {
 	}
 
 	// 存在性/越权校验（结果在 133 行前后重新获取，此处只消费 error）
-	if _, err := c.service.GetByID(ctx, uint(id)); HandleDBError(ctx, err, "获取小红书卡片") {
+	if _, err := c.service.GetByID(ctx.Request.Context(), uint(id)); HandleDBError(ctx, err, "获取小红书卡片") {
 		return
 	}
 
-	card, err := c.service.GetCardModelByID(ctx, uint(id))
+	card, err := c.service.GetCardModelByID(ctx.Request.Context(), uint(id))
 	if HandleDBError(ctx, err, "获取小红书卡片") {
 		return
 	}
 
-	if HandleDBError(ctx, c.service.GenerateShortLink(ctx, card), "生成短链") {
+	if HandleDBError(ctx, c.service.GenerateShortLink(ctx.Request.Context(), card), "生成短链") {
 		return
 	}
 
-	cardResp, err := c.service.GetByID(ctx, uint(id))
+	cardResp, err := c.service.GetByID(ctx.Request.Context(), uint(id))
 	if HandleDBError(ctx, err, "获取小红书卡片") {
 		return
 	}

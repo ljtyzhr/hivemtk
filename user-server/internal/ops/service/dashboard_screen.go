@@ -39,7 +39,7 @@ type CreateScreenRequest struct {
 }
 
 // CreateScreen 创建大屏
-func (s *DashboardScreenService) CreateScreen(createdBy uint, req *CreateScreenRequest) (*model.DashboardScreen, error) {
+func (s *DashboardScreenService) CreateScreen(ctx context.Context, createdBy uint, req *CreateScreenRequest) (*model.DashboardScreen, error) {
 	layout, _ := json.Marshal(req.Layout)
 
 	screen := &model.DashboardScreen{
@@ -55,7 +55,7 @@ func (s *DashboardScreenService) CreateScreen(createdBy uint, req *CreateScreenR
 		screen.Theme = "dark"
 	}
 
-	if err := s.screenRepo.Create(screen); err != nil {
+	if err := s.screenRepo.Create(ctx, screen); err != nil {
 		return nil, err
 	}
 
@@ -72,13 +72,13 @@ func generateScreenCode() string {
 }
 
 // GetScreenList 获取大屏列表
-func (s *DashboardScreenService) GetScreenList(page, pageSize int) ([]*model.DashboardScreen, int64, error) {
-	return s.screenRepo.GetAll(page, pageSize)
+func (s *DashboardScreenService) GetScreenList(ctx context.Context, page, pageSize int) ([]*model.DashboardScreen, int64, error) {
+	return s.screenRepo.GetAll(ctx, page, pageSize)
 }
 
 // GetScreenByID 获取大屏详情
-func (s *DashboardScreenService) GetScreenByID(id uint) (*model.DashboardScreen, error) {
-	screen, err := s.screenRepo.GetByID(id)
+func (s *DashboardScreenService) GetScreenByID(ctx context.Context, id uint) (*model.DashboardScreen, error) {
+	screen, err := s.screenRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -107,8 +107,8 @@ type WidgetConfig struct {
 }
 
 // UpdateScreen 更新大屏
-func (s *DashboardScreenService) UpdateScreen(id uint, req *UpdateScreenRequest) (*model.DashboardScreen, error) {
-	screen, err := s.screenRepo.GetByID(id)
+func (s *DashboardScreenService) UpdateScreen(ctx context.Context, id uint, req *UpdateScreenRequest) (*model.DashboardScreen, error) {
+	screen, err := s.screenRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
@@ -125,12 +125,12 @@ func (s *DashboardScreenService) UpdateScreen(id uint, req *UpdateScreenRequest)
 	}
 	screen.IsPublic = req.IsPublic
 
-	if err := s.screenRepo.Update(screen); err != nil {
+	if err := s.screenRepo.Update(ctx, screen); err != nil {
 		return nil, err
 	}
 
 	if req.Widgets != nil {
-		if err := s.updateWidgets(screen.ID, req.Widgets); err != nil {
+		if err := s.updateWidgets(ctx, screen.ID, req.Widgets); err != nil {
 			return nil, err
 		}
 	}
@@ -138,8 +138,8 @@ func (s *DashboardScreenService) UpdateScreen(id uint, req *UpdateScreenRequest)
 	return screen, nil
 }
 
-func (s *DashboardScreenService) updateWidgets(screenID uint, widgets []WidgetConfig) error {
-	if err := s.widgetRepo.DeleteByScreenID(screenID); err != nil {
+func (s *DashboardScreenService) updateWidgets(ctx context.Context, screenID uint, widgets []WidgetConfig) error {
+	if err := s.widgetRepo.DeleteByScreenID(ctx, screenID); err != nil {
 		return err
 	}
 
@@ -157,7 +157,7 @@ func (s *DashboardScreenService) updateWidgets(screenID uint, widgets []WidgetCo
 			Height:     w.Height,
 			SortOrder:  i,
 		}
-		if err := s.widgetRepo.Create(widget); err != nil {
+		if err := s.widgetRepo.Create(ctx, widget); err != nil {
 			return err
 		}
 	}
@@ -166,28 +166,28 @@ func (s *DashboardScreenService) updateWidgets(screenID uint, widgets []WidgetCo
 }
 
 // DeleteScreen 删除大屏
-func (s *DashboardScreenService) DeleteScreen(id uint) error {
-	screen, err := s.screenRepo.GetByID(id)
+func (s *DashboardScreenService) DeleteScreen(ctx context.Context, id uint) error {
+	screen, err := s.screenRepo.GetByID(ctx, id)
 	if err != nil {
 		return err
 	}
 	_ = screen
 
-	if err := s.widgetRepo.DeleteByScreenID(id); err != nil {
+	if err := s.widgetRepo.DeleteByScreenID(ctx, id); err != nil {
 		return err
 	}
 
-	return s.screenRepo.Delete(id)
+	return s.screenRepo.Delete(ctx, id)
 }
 
 // GetPublicScreen 公开访问大屏
-func (s *DashboardScreenService) GetPublicScreen(code string) (*model.DashboardScreen, error) {
-	screen, err := s.screenRepo.GetByCode(code)
+func (s *DashboardScreenService) GetPublicScreen(ctx context.Context, code string) (*model.DashboardScreen, error) {
+	screen, err := s.screenRepo.GetByCode(ctx, code)
 	if err != nil {
 		return nil, err
 	}
 
-	if err := s.screenRepo.IncrementViewCount(screen.ID); err != nil {
+	if err := s.screenRepo.IncrementViewCount(ctx, screen.ID); err != nil {
 		logger.Warnf("[DashboardScreen] 浏览量计数失败 screenID=%d: %v", screen.ID, err)
 	}
 
@@ -206,8 +206,8 @@ func (s *DashboardScreenService) GetScreenWidgetsCtx(ctx context.Context, screen
 }
 
 // GetScreenWidgets 获取大屏 widgets
-func (s *DashboardScreenService) GetScreenWidgets(screenID uint) ([]*model.DashboardWidget, error) {
-	return s.widgetRepo.GetByScreenID(screenID)
+func (s *DashboardScreenService) GetScreenWidgets(ctx context.Context, screenID uint) ([]*model.DashboardWidget, error) {
+	return s.widgetRepo.GetByScreenID(ctx, screenID)
 }
 
 // DashboardAggregate 大屏聚合数据（与前端 dashboardScreen/List.vue 契约对齐）
@@ -277,8 +277,8 @@ func dataScopeScope(db *gorm.DB, isAdmin bool) *gorm.DB {
 // isAdmin=true  → 返回全租户数据；
 // isAdmin=false → 按 data_scope 过滤（私域单租户当前无实际隔离，预留接口）。
 // 错误不再用 log.Printf 吞掉，而是向上返回，让 Controller 包装成 500 响应。
-func (s *DashboardScreenService) AggregateDashboardData(isAdmin bool) (*DashboardAggregate, error) {
-	gormDB := sysrepo.GetDB()
+func (s *DashboardScreenService) AggregateDashboardData(ctx context.Context, isAdmin bool) (*DashboardAggregate, error) {
+	gormDB := sysrepo.GetDB().WithContext(ctx)
 	now := time.Now()
 	loc := now.Location()
 	todayStart := time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, loc)
@@ -367,9 +367,11 @@ func (s *DashboardScreenService) AggregateDashboardData(isAdmin bool) (*Dashboar
 		Value int64
 	}
 	var chRows []kvRow
+	// GROUP BY 写表达式本身，不写序号 1：GORM 的 Group 走 WriteQuoted，
+	// 会把 "1" 引用成标识符 "1"（PG 报 column "1" does not exist）。
 	if err := gormDB.Table("clues").
 		Select("COALESCE(NULLIF(source_id, ''), '未知') AS name, COUNT(*) AS value").
-		Group("1").Order("value DESC").
+		Group("COALESCE(NULLIF(source_id, ''), '未知')").Order("value DESC").
 		Scan(&chRows).Error; err != nil {
 		return nil, fmt.Errorf("渠道分布查询失败: %w", err)
 	}
@@ -386,7 +388,7 @@ func (s *DashboardScreenService) AggregateDashboardData(isAdmin bool) (*Dashboar
 	var regRows []kvRow
 	if err := gormDB.Table("clues").
 		Select("COALESCE(NULLIF(city, ''), '未知') AS name, COUNT(*) AS value").
-		Group("1").Order("value DESC").
+		Group("COALESCE(NULLIF(city, ''), '未知')").Order("value DESC").
 		Scan(&regRows).Error; err != nil {
 		return nil, fmt.Errorf("地区分布查询失败: %w", err)
 	}
@@ -438,11 +440,11 @@ func (s *DashboardScreenService) AggregateDashboardData(isAdmin bool) (*Dashboar
 }
 
 // FetchRealtimeActivities 获取实时活动（Service 层）
-func (s *DashboardScreenService) FetchRealtimeActivities(limit int) ([]RealtimeActivity, error) {
+func (s *DashboardScreenService) FetchRealtimeActivities(ctx context.Context, limit int) ([]RealtimeActivity, error) {
 	if limit <= 0 || limit > 100 {
 		limit = 20
 	}
-	gormDB := sysrepo.GetDB()
+	gormDB := sysrepo.GetDB().WithContext(ctx)
 	activities := make([]RealtimeActivity, 0)
 
 	var clues []sysmodel.Clue

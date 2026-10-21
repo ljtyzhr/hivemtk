@@ -62,7 +62,7 @@ func TestDashboardScreenService_CreateScreen(t *testing.T) {
 
 	createdBy := uint(1)
 
-	screen, err := service.CreateScreen(createdBy, req)
+	screen, err := service.CreateScreen(ctx, createdBy, req)
 	if err != nil {
 		t.Fatalf("CreateScreen failed: %v", err)
 	}
@@ -111,7 +111,7 @@ func TestDashboardScreenService_CreateScreen_EmptyTheme(t *testing.T) {
 		IsPublic: true,
 	}
 
-	screen, err := service.CreateScreen(1, req)
+	screen, err := service.CreateScreen(ctx, 1, req)
 	if err != nil {
 		t.Fatalf("CreateScreen failed: %v", err)
 	}
@@ -134,7 +134,7 @@ func TestDashboardScreenService_CreateScreen_WithNilLayout(t *testing.T) {
 		IsPublic: true,
 	}
 
-	screen, err := service.CreateScreen(1, req)
+	screen, err := service.CreateScreen(ctx, 1, req)
 	if err != nil {
 		t.Fatalf("CreateScreen failed: %v", err)
 	}
@@ -157,13 +157,13 @@ func TestDashboardScreenService_GetScreenList(t *testing.T) {
 			Theme:    "dark",
 			IsPublic: false,
 		}
-		_, err := service.CreateScreen(1, req)
+		_, err := service.CreateScreen(ctx, 1, req)
 		if err != nil {
 			t.Fatalf("CreateScreen failed: %v", err)
 		}
 	}
 
-	screens, total, err := service.GetScreenList(1, 10)
+	screens, total, err := service.GetScreenList(ctx, 1, 10)
 	if err != nil {
 		t.Fatalf("GetScreenList failed: %v", err)
 	}
@@ -189,12 +189,12 @@ func TestDashboardScreenService_GetScreenList_Single(t *testing.T) {
 		Theme:    "dark",
 		IsPublic: false,
 	}
-	_, err := service.CreateScreen(1, req)
+	_, err := service.CreateScreen(ctx, 1, req)
 	if err != nil {
 		t.Fatalf("CreateScreen failed: %v", err)
 	}
 
-	screens, total, err := service.GetScreenList(1, 10)
+	screens, total, err := service.GetScreenList(ctx, 1, 10)
 	if err != nil {
 		t.Fatalf("GetScreenList failed: %v", err)
 	}
@@ -222,7 +222,7 @@ func TestDashboardScreenService_GetScreenList_MultipleUsers(t *testing.T) {
 			Theme:    "dark",
 			IsPublic: false,
 		}
-		_, err := service.CreateScreen(1, req)
+		_, err := service.CreateScreen(ctx, 1, req)
 		if err != nil {
 			t.Fatalf("CreateScreen failed for user 1: %v", err)
 		}
@@ -235,13 +235,13 @@ func TestDashboardScreenService_GetScreenList_MultipleUsers(t *testing.T) {
 			Theme:    "dark",
 			IsPublic: false,
 		}
-		_, err := service.CreateScreen(2, req)
+		_, err := service.CreateScreen(ctx, 2, req)
 		if err != nil {
 			t.Fatalf("CreateScreen failed for user 2: %v", err)
 		}
 	}
 
-	all, total, err := service.GetScreenList(1, 10)
+	all, total, err := service.GetScreenList(ctx, 1, 10)
 	if err != nil {
 		t.Fatalf("GetScreenList failed: %v", err)
 	}
@@ -277,13 +277,13 @@ func TestDashboardScreenService_GetScreenList_WithPagination(t *testing.T) {
 			Theme:    "dark",
 			IsPublic: false,
 		}
-		_, err := service.CreateScreen(1, req)
+		_, err := service.CreateScreen(ctx, 1, req)
 		if err != nil {
 			t.Fatalf("CreateScreen failed: %v", err)
 		}
 	}
 
-	screens, total, err := service.GetScreenList(1, 2)
+	screens, total, err := service.GetScreenList(ctx, 1, 2)
 	if err != nil {
 		t.Fatalf("GetScreenList failed: %v", err)
 	}
@@ -296,7 +296,7 @@ func TestDashboardScreenService_GetScreenList_WithPagination(t *testing.T) {
 		t.Errorf("Expected 2 screens on page 1, got %d", len(screens))
 	}
 
-	screens2, _, err := service.GetScreenList(2, 2)
+	screens2, _, err := service.GetScreenList(ctx, 2, 2)
 	if err != nil {
 		t.Fatalf("GetScreenList failed for page 2: %v", err)
 	}
@@ -311,7 +311,7 @@ func TestDashboardScreenService_GetScreenList_EmptyMerchant(t *testing.T) {
 	repo := newTestDashboardScreenRepository(database)
 	service := &DashboardScreenService{screenRepo: repo}
 
-	screens, total, err := service.GetScreenList(1, 10)
+	screens, total, err := service.GetScreenList(ctx, 1, 10)
 	if err != nil {
 		t.Fatalf("GetScreenList failed: %v", err)
 	}
@@ -337,12 +337,12 @@ func TestDashboardScreenService_GetScreenByID(t *testing.T) {
 		Theme:    "dark",
 		IsPublic: false,
 	}
-	screen, err := service.CreateScreen(1, req)
+	screen, err := service.CreateScreen(ctx, 1, req)
 	if err != nil {
 		t.Fatalf("CreateScreen failed: %v", err)
 	}
 
-	retrievedScreen, err := service.GetScreenByID(screen.ID)
+	retrievedScreen, err := service.GetScreenByID(ctx, screen.ID)
 	if err != nil {
 		t.Fatalf("GetScreenByID failed: %v", err)
 	}
@@ -369,12 +369,12 @@ func TestDashboardScreenService_GetScreenByID_SingleTenant(t *testing.T) {
 		Theme:    "dark",
 		IsPublic: false,
 	}
-	screen, err := service.CreateScreen(1, req)
+	screen, err := service.CreateScreen(ctx, 1, req)
 	if err != nil {
 		t.Fatalf("CreateScreen failed: %v", err)
 	}
 
-	got, err := service.GetScreenByID(screen.ID)
+	got, err := service.GetScreenByID(ctx, screen.ID)
 	if err != nil {
 		t.Fatalf("GetScreenByID should succeed in single-tenant mode, got: %v", err)
 	}
@@ -389,7 +389,7 @@ func TestDashboardScreenService_GetScreenByID_NotFound(t *testing.T) {
 	_ = newTestDashboardScreenRepository(database)
 	service := NewDashboardScreenService()
 
-	_, err := service.GetScreenByID(99999)
+	_, err := service.GetScreenByID(ctx, 99999)
 	if err == nil {
 		t.Error("Expected error for non-existent screen")
 	}
@@ -407,7 +407,7 @@ func TestDashboardScreenService_UpdateScreen(t *testing.T) {
 		Theme:    "light",
 		IsPublic: false,
 	}
-	screen, err := service.CreateScreen(1, req)
+	screen, err := service.CreateScreen(ctx, 1, req)
 	if err != nil {
 		t.Fatalf("CreateScreen failed: %v", err)
 	}
@@ -431,7 +431,7 @@ func TestDashboardScreenService_UpdateScreen(t *testing.T) {
 		},
 	}
 
-	updatedScreen, err := service.UpdateScreen(screen.ID, updateReq)
+	updatedScreen, err := service.UpdateScreen(ctx, screen.ID, updateReq)
 	if err != nil {
 		t.Fatalf("UpdateScreen failed: %v", err)
 	}
@@ -467,7 +467,7 @@ func TestDashboardScreenService_UpdateScreen_Partial(t *testing.T) {
 		Theme:    "light",
 		IsPublic: false,
 	}
-	screen, err := service.CreateScreen(1, req)
+	screen, err := service.CreateScreen(ctx, 1, req)
 	if err != nil {
 		t.Fatalf("CreateScreen failed: %v", err)
 	}
@@ -479,7 +479,7 @@ func TestDashboardScreenService_UpdateScreen_Partial(t *testing.T) {
 		IsPublic: false,
 	}
 
-	updatedScreen, err := service.UpdateScreen(screen.ID, updateReq)
+	updatedScreen, err := service.UpdateScreen(ctx, screen.ID, updateReq)
 	if err != nil {
 		t.Fatalf("UpdateScreen failed: %v", err)
 	}
@@ -506,7 +506,7 @@ func TestDashboardScreenService_UpdateScreen_SingleTenant(t *testing.T) {
 		Theme:    "dark",
 		IsPublic: false,
 	}
-	screen, err := service.CreateScreen(1, req)
+	screen, err := service.CreateScreen(ctx, 1, req)
 	if err != nil {
 		t.Fatalf("CreateScreen failed: %v", err)
 	}
@@ -514,7 +514,7 @@ func TestDashboardScreenService_UpdateScreen_SingleTenant(t *testing.T) {
 	updateReq := &UpdateScreenRequest{
 		Name: "新名称",
 	}
-	updated, err := service.UpdateScreen(screen.ID, updateReq)
+	updated, err := service.UpdateScreen(ctx, screen.ID, updateReq)
 	if err != nil {
 		t.Fatalf("UpdateScreen in single-tenant should succeed, got: %v", err)
 	}
@@ -532,7 +532,7 @@ func TestDashboardScreenService_UpdateScreen_NotFound(t *testing.T) {
 	updateReq := &UpdateScreenRequest{
 		Name: "新名称",
 	}
-	_, err := service.UpdateScreen(99999, updateReq)
+	_, err := service.UpdateScreen(ctx, 99999, updateReq)
 	if err == nil {
 		t.Error("Expected error for non-existent screen")
 	}
@@ -551,7 +551,7 @@ func TestDashboardScreenService_DeleteScreen(t *testing.T) {
 		Theme:    "dark",
 		IsPublic: false,
 	}
-	screen, err := service.CreateScreen(1, req)
+	screen, err := service.CreateScreen(ctx, 1, req)
 	if err != nil {
 		t.Fatalf("CreateScreen failed: %v", err)
 	}
@@ -568,7 +568,7 @@ func TestDashboardScreenService_DeleteScreen(t *testing.T) {
 	}
 	database.Create(widget)
 
-	err = service.DeleteScreen(screen.ID)
+	err = service.DeleteScreen(ctx, screen.ID)
 	if err != nil {
 		t.Fatalf("DeleteScreen failed: %v", err)
 	}
@@ -598,12 +598,12 @@ func TestDashboardScreenService_DeleteScreen_Access(t *testing.T) {
 		Theme:    "dark",
 		IsPublic: false,
 	}
-	screen, err := service.CreateScreen(1, req)
+	screen, err := service.CreateScreen(ctx, 1, req)
 	if err != nil {
 		t.Fatalf("CreateScreen failed: %v", err)
 	}
 
-	err = service.DeleteScreen(screen.ID)
+	err = service.DeleteScreen(ctx, screen.ID)
 	if err != nil {
 		t.Errorf("Expected no error, got: %v", err)
 	}
@@ -615,7 +615,7 @@ func TestDashboardScreenService_DeleteScreen_NotFound(t *testing.T) {
 	_ = newTestDashboardScreenRepository(database)
 	service := NewDashboardScreenService()
 
-	err := service.DeleteScreen(99999)
+	err := service.DeleteScreen(ctx, 99999)
 	if err == nil {
 		t.Error("Expected error for non-existent screen")
 	}
@@ -633,12 +633,12 @@ func TestDashboardScreenService_GetPublicScreen(t *testing.T) {
 		Theme:    "dark",
 		IsPublic: true,
 	}
-	screen, err := service.CreateScreen(1, req)
+	screen, err := service.CreateScreen(ctx, 1, req)
 	if err != nil {
 		t.Fatalf("CreateScreen failed: %v", err)
 	}
 
-	retrievedScreen, err := service.GetPublicScreen(screen.Code)
+	retrievedScreen, err := service.GetPublicScreen(ctx, screen.Code)
 	if err != nil {
 		t.Fatalf("GetPublicScreen failed: %v", err)
 	}
@@ -666,13 +666,13 @@ func TestDashboardScreenService_GetPublicScreen_MultipleViews(t *testing.T) {
 		Theme:    "dark",
 		IsPublic: true,
 	}
-	screen, err := service.CreateScreen(1, req)
+	screen, err := service.CreateScreen(ctx, 1, req)
 	if err != nil {
 		t.Fatalf("CreateScreen failed: %v", err)
 	}
 
 	for i := 0; i < 5; i++ {
-		_, err = service.GetPublicScreen(screen.Code)
+		_, err = service.GetPublicScreen(ctx, screen.Code)
 		if err != nil {
 			t.Fatalf("GetPublicScreen failed: %v", err)
 		}
@@ -691,7 +691,7 @@ func TestDashboardScreenService_GetPublicScreen_NotFound(t *testing.T) {
 	_ = newTestDashboardScreenRepository(database)
 	service := NewDashboardScreenService()
 
-	_, err := service.GetPublicScreen("non-existent-code")
+	_, err := service.GetPublicScreen(ctx, "non-existent-code")
 	if err == nil {
 		t.Error("Expected error for non-existent screen")
 	}
@@ -709,7 +709,7 @@ func TestDashboardScreenService_GetScreenWidgets(t *testing.T) {
 		Theme:    "dark",
 		IsPublic: false,
 	}
-	screen, err := service.CreateScreen(1, req)
+	screen, err := service.CreateScreen(ctx, 1, req)
 	if err != nil {
 		t.Fatalf("CreateScreen failed: %v", err)
 	}
@@ -723,7 +723,7 @@ func TestDashboardScreenService_GetScreenWidgets(t *testing.T) {
 		database.Create(&widgets[i])
 	}
 
-	retrievedWidgets, err := service.GetScreenWidgets(screen.ID)
+	retrievedWidgets, err := service.GetScreenWidgets(ctx, screen.ID)
 	if err != nil {
 		t.Fatalf("GetScreenWidgets failed: %v", err)
 	}
@@ -755,12 +755,12 @@ func TestDashboardScreenService_GetScreenWidgets_Empty(t *testing.T) {
 		Theme:    "dark",
 		IsPublic: false,
 	}
-	screen, err := service.CreateScreen(1, req)
+	screen, err := service.CreateScreen(ctx, 1, req)
 	if err != nil {
 		t.Fatalf("CreateScreen failed: %v", err)
 	}
 
-	widgets, err := service.GetScreenWidgets(screen.ID)
+	widgets, err := service.GetScreenWidgets(ctx, screen.ID)
 	if err != nil {
 		t.Fatalf("GetScreenWidgets failed: %v", err)
 	}
@@ -782,7 +782,7 @@ func TestDashboardScreenService_updateWidgets(t *testing.T) {
 		Theme:    "dark",
 		IsPublic: false,
 	}
-	screen, err := service.CreateScreen(1, req)
+	screen, err := service.CreateScreen(ctx, 1, req)
 	if err != nil {
 		t.Fatalf("CreateScreen failed: %v", err)
 	}
@@ -803,7 +803,7 @@ func TestDashboardScreenService_updateWidgets(t *testing.T) {
 	updateReq := &UpdateScreenRequest{
 		Widgets: newWidgets,
 	}
-	_, err = service.UpdateScreen(screen.ID, updateReq)
+	_, err = service.UpdateScreen(ctx, screen.ID, updateReq)
 	if err != nil {
 		t.Fatalf("UpdateScreen failed: %v", err)
 	}
@@ -880,7 +880,7 @@ func TestDashboardScreenService_CreateScreen_WithWidgets(t *testing.T) {
 		IsPublic: true,
 	}
 
-	screen, err := service.CreateScreen(1, req)
+	screen, err := service.CreateScreen(ctx, 1, req)
 	if err != nil {
 		t.Fatalf("CreateScreen failed: %v", err)
 	}
@@ -902,7 +902,7 @@ func TestDashboardScreenService_UpdateScreen_WithEmptyWidgets(t *testing.T) {
 		Theme:    "dark",
 		IsPublic: false,
 	}
-	screen, err := service.CreateScreen(1, req)
+	screen, err := service.CreateScreen(ctx, 1, req)
 	if err != nil {
 		t.Fatalf("CreateScreen failed: %v", err)
 	}
@@ -922,7 +922,7 @@ func TestDashboardScreenService_UpdateScreen_WithEmptyWidgets(t *testing.T) {
 	updateReq := &UpdateScreenRequest{
 		Widgets: []WidgetConfig{},
 	}
-	_, err = service.UpdateScreen(screen.ID, updateReq)
+	_, err = service.UpdateScreen(ctx, screen.ID, updateReq)
 	if err != nil {
 		t.Fatalf("UpdateScreen failed: %v", err)
 	}
@@ -947,17 +947,17 @@ func TestDashboardScreenService_GetScreenByID_DeletedScreen(t *testing.T) {
 		Theme:    "dark",
 		IsPublic: false,
 	}
-	screen, err := service.CreateScreen(1, req)
+	screen, err := service.CreateScreen(ctx, 1, req)
 	if err != nil {
 		t.Fatalf("CreateScreen failed: %v", err)
 	}
 
-	err = service.DeleteScreen(screen.ID)
+	err = service.DeleteScreen(ctx, screen.ID)
 	if err != nil {
 		t.Fatalf("DeleteScreen failed: %v", err)
 	}
 
-	_, err = service.GetScreenByID(screen.ID)
+	_, err = service.GetScreenByID(ctx, screen.ID)
 	if err == nil {
 		t.Error("Expected error for deleted screen")
 	}
@@ -977,13 +977,13 @@ func TestDashboardScreenService_ConcurrentAccess(t *testing.T) {
 		Theme:    "dark",
 		IsPublic: true,
 	}
-	screen, err := service.CreateScreen(1, req)
+	screen, err := service.CreateScreen(ctx, 1, req)
 	if err != nil {
 		t.Fatalf("CreateScreen failed: %v", err)
 	}
 
 	for i := 0; i < 10; i++ {
-		_, err := service.GetPublicScreen(screen.Code)
+		_, err := service.GetPublicScreen(ctx, screen.Code)
 		if err != nil {
 			t.Errorf("GetPublicScreen failed: %v", err)
 		}
@@ -1008,7 +1008,7 @@ func TestDashboardScreenService_WidgetConfigSerialization(t *testing.T) {
 		Theme:    "dark",
 		IsPublic: false,
 	}
-	screen, err := service.CreateScreen(1, req)
+	screen, err := service.CreateScreen(ctx, 1, req)
 	if err != nil {
 		t.Fatalf("CreateScreen failed: %v", err)
 	}
@@ -1037,7 +1037,7 @@ func TestDashboardScreenService_WidgetConfigSerialization(t *testing.T) {
 		},
 	}
 
-	_, err = service.UpdateScreen(screen.ID, updateReq)
+	_, err = service.UpdateScreen(ctx, screen.ID, updateReq)
 	if err != nil {
 		t.Fatalf("UpdateScreen failed: %v", err)
 	}

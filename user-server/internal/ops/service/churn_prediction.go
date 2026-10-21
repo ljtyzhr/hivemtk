@@ -47,8 +47,8 @@ func NewChurnPredictionServiceWithDB(db *gorm.DB) *ChurnPredictionService {
 }
 
 // GetChurnPrediction 获取用户的流失预测
-func (s *ChurnPredictionService) GetChurnPrediction(userID string) (*model.ChurnPrediction, error) {
-	prediction, err := s.predictionRepo.GetByUserID(userID)
+func (s *ChurnPredictionService) GetChurnPrediction(ctx context.Context, userID string) (*model.ChurnPrediction, error) {
+	prediction, err := s.predictionRepo.GetByUserID(ctx, userID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return &model.ChurnPrediction{
@@ -67,18 +67,18 @@ func (s *ChurnPredictionService) GetChurnPrediction(userID string) (*model.Churn
 }
 
 // GetChurnPredictions 获取流失预测列表
-func (s *ChurnPredictionService) GetChurnPredictions(page, pageSize int) ([]*model.ChurnPrediction, int64, error) {
-	return s.predictionRepo.GetAll(page, pageSize)
+func (s *ChurnPredictionService) GetChurnPredictions(ctx context.Context, page, pageSize int) ([]*model.ChurnPrediction, int64, error) {
+	return s.predictionRepo.GetAll(ctx, page, pageSize)
 }
 
 // GetHighRiskUsers 获取高风险用户列表
-func (s *ChurnPredictionService) GetHighRiskUsers(limit int) ([]*model.ChurnPrediction, error) {
-	return s.predictionRepo.GetHighRiskUsers(limit)
+func (s *ChurnPredictionService) GetHighRiskUsers(ctx context.Context, limit int) ([]*model.ChurnPrediction, error) {
+	return s.predictionRepo.GetHighRiskUsers(ctx, limit)
 }
 
 // CalculateChurnPrediction 计算用户流失分数
-func (s *ChurnPredictionService) CalculateChurnPrediction(userID string, userData map[string]any) error {
-	config, err := s.configRepo.GetCurrent()
+func (s *ChurnPredictionService) CalculateChurnPrediction(ctx context.Context, userID string, userData map[string]any) error {
+	config, err := s.configRepo.GetCurrent(ctx)
 	if err != nil || !isValidChurnConfig(config) {
 		config = s.getDefaultConfig()
 	}
@@ -124,7 +124,7 @@ func (s *ChurnPredictionService) CalculateChurnPrediction(userID string, userDat
 		prediction.LastPurchaseAt = &lastPurchase
 	}
 
-	return s.predictionRepo.Upsert(prediction)
+	return s.predictionRepo.Upsert(ctx, prediction)
 }
 
 func (s *ChurnPredictionService) calculateInactiveScore(userData map[string]any, threshold int) float64 {
@@ -216,7 +216,7 @@ func (s *ChurnPredictionService) identifyRiskFactors(inactiveScore, purchaseFreq
 }
 
 // CreateChurnWarning 创建流失预警
-func (s *ChurnPredictionService) CreateChurnWarning(userID string, prediction *model.ChurnPrediction) error {
+func (s *ChurnPredictionService) CreateChurnWarning(ctx context.Context, userID string, prediction *model.ChurnPrediction) error {
 	var warningLevel, warningType, description, suggestion string
 
 	switch prediction.ChurnRisk {
@@ -248,7 +248,7 @@ func (s *ChurnPredictionService) CreateChurnWarning(userID string, prediction *m
 		IsHandled:    false,
 	}
 
-	existing, _, err := s.warningRepo.GetUnhandled(1, 200)
+	existing, _, err := s.warningRepo.GetUnhandled(ctx, 1, 200)
 	if err == nil {
 		for _, w := range existing {
 			if w.UserID == userID && w.WarningType == warningType {
@@ -257,33 +257,33 @@ func (s *ChurnPredictionService) CreateChurnWarning(userID string, prediction *m
 		}
 	}
 
-	return s.warningRepo.Create(warning)
+	return s.warningRepo.Create(ctx, warning)
 }
 
 // GetChurnWarnings 获取流失预警列表
-func (s *ChurnPredictionService) GetChurnWarnings(page, pageSize int) ([]*model.ChurnWarning, int64, error) {
-	return s.warningRepo.GetAll(page, pageSize)
+func (s *ChurnPredictionService) GetChurnWarnings(ctx context.Context, page, pageSize int) ([]*model.ChurnWarning, int64, error) {
+	return s.warningRepo.GetAll(ctx, page, pageSize)
 }
 
 // GetUnhandledWarnings 获取未处理的流失预警
-func (s *ChurnPredictionService) GetUnhandledWarnings(page, pageSize int) ([]*model.ChurnWarning, int64, error) {
-	return s.warningRepo.GetUnhandled(page, pageSize)
+func (s *ChurnPredictionService) GetUnhandledWarnings(ctx context.Context, page, pageSize int) ([]*model.ChurnWarning, int64, error) {
+	return s.warningRepo.GetUnhandled(ctx, page, pageSize)
 }
 
 // MarkWarningHandled 标记预警为已处理
-func (s *ChurnPredictionService) MarkWarningHandled(id, handledBy uint, note string) error {
-	return s.warningRepo.MarkHandled(id, handledBy, note)
+func (s *ChurnPredictionService) MarkWarningHandled(ctx context.Context, id, handledBy uint, note string) error {
+	return s.warningRepo.MarkHandled(ctx, id, handledBy, note)
 }
 
 // InterveneWarning 对流失预警进行干预，记录干预类型
-func (s *ChurnPredictionService) InterveneWarning(id, handledBy uint, interventionType string) error {
+func (s *ChurnPredictionService) InterveneWarning(ctx context.Context, id, handledBy uint, interventionType string) error {
 	note := "干预类型: " + interventionType
-	return s.warningRepo.MarkHandled(id, handledBy, note)
+	return s.warningRepo.MarkHandled(ctx, id, handledBy, note)
 }
 
 // GetModelConfig 获取模型配置
-func (s *ChurnPredictionService) GetModelConfig() (*model.ChurnModelConfig, error) {
-	config, err := s.configRepo.GetCurrent()
+func (s *ChurnPredictionService) GetModelConfig(ctx context.Context) (*model.ChurnModelConfig, error) {
+	config, err := s.configRepo.GetCurrent(ctx)
 	if err != nil {
 		return s.getDefaultConfig(), nil
 	}
@@ -291,8 +291,8 @@ func (s *ChurnPredictionService) GetModelConfig() (*model.ChurnModelConfig, erro
 }
 
 // SaveModelConfig 保存模型配置
-func (s *ChurnPredictionService) SaveModelConfig(config *model.ChurnModelConfig) error {
-	return s.configRepo.Upsert(config)
+func (s *ChurnPredictionService) SaveModelConfig(ctx context.Context, config *model.ChurnModelConfig) error {
+	return s.configRepo.Upsert(ctx, config)
 }
 
 func (s *ChurnPredictionService) getDefaultConfig() *model.ChurnModelConfig {
@@ -326,13 +326,13 @@ func isValidChurnConfig(c *model.ChurnModelConfig) bool {
 }
 
 // GetChurnStatistics 获取流失统计
-func (s *ChurnPredictionService) GetChurnStatistics(startDate, endDate string) ([]*model.ChurnStatistics, error) {
-	return s.statsRepo.GetAll(startDate, endDate)
+func (s *ChurnPredictionService) GetChurnStatistics(ctx context.Context, startDate, endDate string) ([]*model.ChurnStatistics, error) {
+	return s.statsRepo.GetAll(ctx, startDate, endDate)
 }
 
 // CalculateDailyStatistics 计算每日统计
-func (s *ChurnPredictionService) CalculateDailyStatistics(date string) error {
-	predictions, _, _ := s.predictionRepo.GetAll(1, 10000)
+func (s *ChurnPredictionService) CalculateDailyStatistics(ctx context.Context, date string) error {
+	predictions, _, _ := s.predictionRepo.GetAll(ctx, 1, 10000)
 
 	totalUsers := len(predictions)
 	churnUsers := 0
@@ -364,35 +364,35 @@ func (s *ChurnPredictionService) CalculateDailyStatistics(date string) error {
 		CriticalUsers: criticalUsers,
 	}
 
-	return s.statsRepo.Create(stats)
+	return s.statsRepo.Create(ctx, stats)
 }
 
 // RunChurnCalculation 运行流失计算（定时任务）
-func (s *ChurnPredictionService) RunChurnCalculation(users []map[string]any) error {
+func (s *ChurnPredictionService) RunChurnCalculation(ctx context.Context, users []map[string]any) error {
 	for _, user := range users {
 		userID, ok := user["user_id"].(string)
 		if !ok {
 			continue
 		}
 
-		if err := s.CalculateChurnPrediction(userID, user); err != nil {
+		if err := s.CalculateChurnPrediction(ctx, userID, user); err != nil {
 			continue
 		}
 
-		prediction, _ := s.predictionRepo.GetByUserID(userID)
+		prediction, _ := s.predictionRepo.GetByUserID(ctx, userID)
 		if prediction != nil {
-			if err := s.CreateChurnWarning(userID, prediction); err != nil {
+			if err := s.CreateChurnWarning(ctx, userID, prediction); err != nil {
 				logger.Warnf("[Churn] 创建流失预警失败 userID=%s: %v", userID, err)
 			}
 		}
 	}
 
-	if err := s.configRepo.UpdateCalcTime(); err != nil {
+	if err := s.configRepo.UpdateCalcTime(ctx); err != nil {
 		logger.Warnf("[Churn] 更新计算时间失败: %v", err)
 	}
 
 	date := timeutil.BusinessToday()
-	if err := s.CalculateDailyStatistics(date); err != nil {
+	if err := s.CalculateDailyStatistics(ctx, date); err != nil {
 		logger.Warnf("[Churn] 计算每日统计失败 date=%s: %v", date, err)
 	}
 
@@ -417,8 +417,8 @@ func (s *ChurnPredictionService) DebugAggregate(ctx context.Context) ([]UserBeha
 }
 
 // GetPredictionByUserID 按用户 ID 获取流失预测（用于调试/验证）
-func (s *ChurnPredictionService) GetPredictionByUserID(userID string) (*model.ChurnPrediction, error) {
-	return s.predictionRepo.GetByUserID(userID)
+func (s *ChurnPredictionService) GetPredictionByUserID(ctx context.Context, userID string) (*model.ChurnPrediction, error) {
+	return s.predictionRepo.GetByUserID(ctx, userID)
 }
 
 func (s *ChurnPredictionService) aggregateCustomerBehavior(ctx context.Context) ([]UserBehaviorSnapshot, error) {
@@ -490,15 +490,15 @@ func (s *ChurnPredictionService) RunChurnCalculationForAllCustomers(ctx context.
 		users = append(users, u)
 	}
 
-	if err := s.RunChurnCalculation(users); err != nil {
+	if err := s.RunChurnCalculation(ctx, users); err != nil {
 		return 0, err
 	}
 	return len(users), nil
 }
 
 // GetChurnRate 获取流失率
-func (s *ChurnPredictionService) GetChurnRate() (float64, error) {
-	stats, err := s.statsRepo.GetLatest()
+func (s *ChurnPredictionService) GetChurnRate(ctx context.Context) (float64, error) {
+	stats, err := s.statsRepo.GetLatest(ctx)
 	if err != nil {
 		return 0, err
 	}
@@ -506,8 +506,8 @@ func (s *ChurnPredictionService) GetChurnRate() (float64, error) {
 }
 
 // GetRiskDistribution 获取风险分布
-func (s *ChurnPredictionService) GetRiskDistribution() (map[string]int, error) {
-	predictions, _, _ := s.predictionRepo.GetAll(1, 10000)
+func (s *ChurnPredictionService) GetRiskDistribution(ctx context.Context) (map[string]int, error) {
+	predictions, _, _ := s.predictionRepo.GetAll(ctx, 1, 10000)
 
 	distribution := map[string]int{
 		"low":      0,

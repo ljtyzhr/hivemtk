@@ -11,6 +11,7 @@ import (
 
 	"hivemtk-user/internal/aiagent/llm"
 	"hivemtk-user/internal/model"
+	dbutil "hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
 
@@ -183,8 +184,8 @@ func (s *Service) RunBatch(ctx context.Context, sinceHours, batchSize int, dryRu
 	var previewBuf []*model.TraceEvalLog
 
 	connErr := s.repo.GetDB().WithContext(ctx).Connection(func(conn *gorm.DB) error {
-		var held bool
-		if e := conn.Select("pg_try_advisory_lock(?)", runBatchLockKey).Scan(&held).Error; e != nil {
+		held, e := dbutil.TryAdvisoryLock(ctx, conn, runBatchLockKey)
+		if e != nil {
 			return e
 		}
 		if !held {
@@ -192,8 +193,7 @@ func (s *Service) RunBatch(ctx context.Context, sinceHours, batchSize int, dryRu
 			return nil
 		}
 		defer func() {
-			var unlocked bool
-			_ = conn.Select("pg_advisory_unlock(?)", runBatchLockKey).Scan(&unlocked).Error
+			_ = dbutil.ReleaseAdvisoryLock(ctx, conn, runBatchLockKey)
 		}()
 
 		stalled := 0

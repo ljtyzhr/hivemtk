@@ -1,9 +1,11 @@
 package repository
 
 import (
+	"context"
+	"time"
+
 	"hivemtk-user/internal/ops/model"
 	_db "hivemtk-user/internal/pkg/db"
-	"time"
 
 	"gorm.io/gorm"
 )
@@ -21,30 +23,33 @@ func NewChurnPredictionRepository() *ChurnPredictionRepository {
 }
 
 // Upsert 创建或更新流失预测
-func (r *ChurnPredictionRepository) Upsert(prediction *model.ChurnPrediction) error {
+func (r *ChurnPredictionRepository) Upsert(ctx context.Context, prediction *model.ChurnPrediction) error {
 	var existing model.ChurnPrediction
-	err := r.db.Where("user_id = ?", prediction.UserID).First(&existing).Error
+	err := r.db.WithContext(ctx).Where("user_id = ?", prediction.UserID).First(&existing).Error
 	if err == nil {
 		prediction.ID = existing.ID
-		return r.db.Save(prediction).Error
+		return r.db.WithContext(ctx).Save(prediction).Error
 	}
-	return r.db.Create(prediction).Error
+	return r.db.WithContext(ctx).Create(prediction).Error
 }
 
 // GetByID 根据 ID 获取流失预测
-func (r *ChurnPredictionRepository) GetByID(id uint) (*model.ChurnPrediction, error) {
+func (r *ChurnPredictionRepository) GetByID(ctx context.Context, id uint) (*model.ChurnPrediction, error) {
 	var prediction model.ChurnPrediction
-	err := r.db.First(&prediction, id).Error
+	err := r.db.WithContext(ctx).First(&prediction, id).Error
 	return &prediction, err
 }
 
 // GetAll 获取所有流失预测列表
-func (r *ChurnPredictionRepository) GetAll(page, pageSize int) ([]*model.ChurnPrediction, int64, error) {
+func (r *ChurnPredictionRepository) GetAll(ctx context.Context, page, pageSize int) ([]*model.ChurnPrediction, int64, error) {
 	var predictions []*model.ChurnPrediction
 	var total int64
 
-	r.db.Model(&model.ChurnPrediction{}).Count(&total)
-	err := r.db.
+	q := r.db.WithContext(ctx).Model(&model.ChurnPrediction{})
+	if err := q.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	err := q.
 		Order("churn_score DESC").
 		Offset((page - 1) * pageSize).
 		Limit(pageSize).
@@ -54,13 +59,15 @@ func (r *ChurnPredictionRepository) GetAll(page, pageSize int) ([]*model.ChurnPr
 }
 
 // GetByRisk 根据风险等级获取流失预测
-func (r *ChurnPredictionRepository) GetByRisk(riskLevel string, page, pageSize int) ([]*model.ChurnPrediction, int64, error) {
+func (r *ChurnPredictionRepository) GetByRisk(ctx context.Context, riskLevel string, page, pageSize int) ([]*model.ChurnPrediction, int64, error) {
 	var predictions []*model.ChurnPrediction
 	var total int64
 
-	r.db.Model(&model.ChurnPrediction{}).Where("churn_risk = ?", riskLevel).Count(&total)
-	err := r.db.Where("churn_risk = ?", riskLevel).
-		Order("churn_score DESC").
+	q := r.db.WithContext(ctx).Model(&model.ChurnPrediction{}).Where("churn_risk = ?", riskLevel)
+	if err := q.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	err := q.Order("churn_score DESC").
 		Offset((page - 1) * pageSize).
 		Limit(pageSize).
 		Find(&predictions).Error
@@ -69,16 +76,16 @@ func (r *ChurnPredictionRepository) GetByRisk(riskLevel string, page, pageSize i
 }
 
 // GetByUserID 根据用户 ID 获取流失预测
-func (r *ChurnPredictionRepository) GetByUserID(userID string) (*model.ChurnPrediction, error) {
+func (r *ChurnPredictionRepository) GetByUserID(ctx context.Context, userID string) (*model.ChurnPrediction, error) {
 	var prediction model.ChurnPrediction
-	err := r.db.Where("user_id = ?", userID).First(&prediction).Error
+	err := r.db.WithContext(ctx).Where("user_id = ?", userID).First(&prediction).Error
 	return &prediction, err
 }
 
 // GetHighRiskUsers 获取高风险用户列表
-func (r *ChurnPredictionRepository) GetHighRiskUsers(limit int) ([]*model.ChurnPrediction, error) {
+func (r *ChurnPredictionRepository) GetHighRiskUsers(ctx context.Context, limit int) ([]*model.ChurnPrediction, error) {
 	var predictions []*model.ChurnPrediction
-	err := r.db.Where("churn_risk IN ?", []string{"high", "critical"}).
+	err := r.db.WithContext(ctx).Where("churn_risk IN ?", []string{"high", "critical"}).
 		Order("churn_score DESC").
 		Limit(limit).
 		Find(&predictions).Error
@@ -98,24 +105,27 @@ func NewChurnWarningRepository() *ChurnWarningRepository {
 }
 
 // Create 创建流失预警
-func (r *ChurnWarningRepository) Create(warning *model.ChurnWarning) error {
-	return r.db.Create(warning).Error
+func (r *ChurnWarningRepository) Create(ctx context.Context, warning *model.ChurnWarning) error {
+	return r.db.WithContext(ctx).Create(warning).Error
 }
 
 // GetByID 根据 ID 获取流失预警
-func (r *ChurnWarningRepository) GetByID(id uint) (*model.ChurnWarning, error) {
+func (r *ChurnWarningRepository) GetByID(ctx context.Context, id uint) (*model.ChurnWarning, error) {
 	var warning model.ChurnWarning
-	err := r.db.First(&warning, id).Error
+	err := r.db.WithContext(ctx).First(&warning, id).Error
 	return &warning, err
 }
 
 // GetAll 获取所有流失预警列表
-func (r *ChurnWarningRepository) GetAll(page, pageSize int) ([]*model.ChurnWarning, int64, error) {
+func (r *ChurnWarningRepository) GetAll(ctx context.Context, page, pageSize int) ([]*model.ChurnWarning, int64, error) {
 	var warnings []*model.ChurnWarning
 	var total int64
 
-	r.db.Model(&model.ChurnWarning{}).Count(&total)
-	err := r.db.
+	q := r.db.WithContext(ctx).Model(&model.ChurnWarning{})
+	if err := q.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	err := q.
 		Order("created_at DESC").
 		Offset((page - 1) * pageSize).
 		Limit(pageSize).
@@ -125,13 +135,15 @@ func (r *ChurnWarningRepository) GetAll(page, pageSize int) ([]*model.ChurnWarni
 }
 
 // GetUnhandled 获取未处理的流失预警
-func (r *ChurnWarningRepository) GetUnhandled(page, pageSize int) ([]*model.ChurnWarning, int64, error) {
+func (r *ChurnWarningRepository) GetUnhandled(ctx context.Context, page, pageSize int) ([]*model.ChurnWarning, int64, error) {
 	var warnings []*model.ChurnWarning
 	var total int64
 
-	r.db.Model(&model.ChurnWarning{}).Where("is_handled = ?", false).Count(&total)
-	err := r.db.Where("is_handled = ?", false).
-		Order("created_at DESC").
+	q := r.db.WithContext(ctx).Model(&model.ChurnWarning{}).Where("is_handled = ?", false)
+	if err := q.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	err := q.Order("created_at DESC").
 		Offset((page - 1) * pageSize).
 		Limit(pageSize).
 		Find(&warnings).Error
@@ -140,14 +152,14 @@ func (r *ChurnWarningRepository) GetUnhandled(page, pageSize int) ([]*model.Chur
 }
 
 // Update 更新流失预警
-func (r *ChurnWarningRepository) Update(warning *model.ChurnWarning) error {
-	return r.db.Save(warning).Error
+func (r *ChurnWarningRepository) Update(ctx context.Context, warning *model.ChurnWarning) error {
+	return r.db.WithContext(ctx).Save(warning).Error
 }
 
 // MarkHandled 标记为已处理
-func (r *ChurnWarningRepository) MarkHandled(id uint, handledBy uint, note string) error {
+func (r *ChurnWarningRepository) MarkHandled(ctx context.Context, id uint, handledBy uint, note string) error {
 	now := time.Now()
-	return r.db.Model(&model.ChurnWarning{}).Where("id = ?", id).Updates(map[string]any{
+	return r.db.WithContext(ctx).Model(&model.ChurnWarning{}).Where("id = ?", id).Updates(map[string]any{
 		"is_handled":   true,
 		"handled_at":   now,
 		"handled_by":   handledBy,
@@ -169,26 +181,35 @@ func NewChurnModelConfigRepository() *ChurnModelConfigRepository {
 }
 
 // GetCurrent 获取当前模型配置
-func (r *ChurnModelConfigRepository) GetCurrent() (*model.ChurnModelConfig, error) {
+func (r *ChurnModelConfigRepository) GetCurrent(ctx context.Context) (*model.ChurnModelConfig, error) {
 	var config model.ChurnModelConfig
-	err := r.db.First(&config).Error
+	err := r.db.WithContext(ctx).First(&config).Error
 	return &config, err
 }
 
 // Upsert 创建或更新模型配置
-func (r *ChurnModelConfigRepository) Upsert(config *model.ChurnModelConfig) error {
+func (r *ChurnModelConfigRepository) Upsert(ctx context.Context, config *model.ChurnModelConfig) error {
 	var existing model.ChurnModelConfig
-	err := r.db.Where("id > ?", 0).First(&existing).Error
+	err := r.db.WithContext(ctx).Where("id > ?", 0).First(&existing).Error
 	if err == nil {
 		config.ID = existing.ID
-		return r.db.Save(config).Error
+		// 不用 Save：Save 会把整个结构体写回，包括请求体里没带的 tenant_id（=0），
+		// 那是「更新不可改写 tenant_id」闸门的直接触发点（on 模式整条保存 500）。
+		// tenant_id 由隔离 callback 在 INSERT 时填、在 UPDATE 时不允许改。
+		res := r.db.WithContext(ctx).Model(&model.ChurnModelConfig{}).
+			Where("id = ?", existing.ID).
+			Select("inactive_days_weight", "purchase_freq_weight", "order_value_weight",
+				"engagement_weight", "inactive_threshold", "purchase_threshold",
+				"high_risk_score", "critical_risk_score").
+			Updates(config)
+		return res.Error
 	}
-	return r.db.Create(config).Error
+	return r.db.WithContext(ctx).Create(config).Error
 }
 
 // UpdateCalcTime 更新最后计算时间
-func (r *ChurnModelConfigRepository) UpdateCalcTime() error {
-	return r.db.Model(&model.ChurnModelConfig{}).
+func (r *ChurnModelConfigRepository) UpdateCalcTime(ctx context.Context) error {
+	return r.db.WithContext(ctx).Model(&model.ChurnModelConfig{}).
 		Where("id > ?", 0).
 		Update("last_calculated_at", time.Now()).Error
 }
@@ -206,23 +227,23 @@ func NewChurnStatisticsRepository() *ChurnStatisticsRepository {
 }
 
 // Create 创建流失统计
-func (r *ChurnStatisticsRepository) Create(stats *model.ChurnStatistics) error {
-	return r.db.Create(stats).Error
+func (r *ChurnStatisticsRepository) Create(ctx context.Context, stats *model.ChurnStatistics) error {
+	return r.db.WithContext(ctx).Create(stats).Error
 }
 
 // GetAll 获取所有流失统计
-func (r *ChurnStatisticsRepository) GetAll(startDate, endDate string) ([]*model.ChurnStatistics, error) {
+func (r *ChurnStatisticsRepository) GetAll(ctx context.Context, startDate, endDate string) ([]*model.ChurnStatistics, error) {
 	var stats []*model.ChurnStatistics
-	err := r.db.Where("stat_date BETWEEN ? AND ?", startDate, endDate).
+	err := r.db.WithContext(ctx).Where("stat_date BETWEEN ? AND ?", startDate, endDate).
 		Order("stat_date DESC").
 		Find(&stats).Error
 	return stats, err
 }
 
 // GetLatest 获取最新的流失统计
-func (r *ChurnStatisticsRepository) GetLatest() (*model.ChurnStatistics, error) {
+func (r *ChurnStatisticsRepository) GetLatest(ctx context.Context) (*model.ChurnStatistics, error) {
 	var stats model.ChurnStatistics
-	err := r.db.
+	err := r.db.WithContext(ctx).
 		Order("stat_date DESC").
 		First(&stats).Error
 	return &stats, err

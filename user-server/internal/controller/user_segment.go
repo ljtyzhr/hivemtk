@@ -190,7 +190,7 @@ func (c *UserSegmentController) GetRFMStats(ctx *gin.Context) {
 
 // CalculateRFM 手动触发 RFM 全量计算（CustomerRFMService.ComputeAll，含挽回队列联动）
 func (c *UserSegmentController) CalculateRFM(ctx *gin.Context) {
-	count, err := c.rfmService.ComputeAll(ctx, 0)
+	count, err := c.rfmService.ComputeAll(ctx.Request.Context(), 0)
 	if err != nil {
 		response.ErrorFromDB(ctx, err, err.Error())
 		return

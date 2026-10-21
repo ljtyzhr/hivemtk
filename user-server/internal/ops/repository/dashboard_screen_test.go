@@ -60,7 +60,7 @@ func TestDashboardScreenRepository_Create(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := screenRepo.Create(tt.screen)
+			err := screenRepo.Create(ctx, tt.screen)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Create() error = %v, wantErr %v", err, tt.wantErr)
@@ -83,7 +83,7 @@ func TestDashboardScreenRepository_GetByID(t *testing.T) {
 		Theme:     "dark",
 		CreatedBy: 1,
 	}
-	screenRepo.Create(screen)
+	screenRepo.Create(ctx, screen)
 
 	tests := []struct {
 		name    string
@@ -104,7 +104,7 @@ func TestDashboardScreenRepository_GetByID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := screenRepo.GetByID(tt.id)
+			result, err := screenRepo.GetByID(ctx, tt.id)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetByID() error = %v, wantErr %v", err, tt.wantErr)
@@ -128,7 +128,7 @@ func TestDashboardScreenRepository_GetByCode(t *testing.T) {
 		Code:     "unique_code_123",
 		IsPublic: true,
 	}
-	screenRepo.Create(screen)
+	screenRepo.Create(ctx, screen)
 
 	tests := []struct {
 		name    string
@@ -149,7 +149,7 @@ func TestDashboardScreenRepository_GetByCode(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := screenRepo.GetByCode(tt.code)
+			result, err := screenRepo.GetByCode(ctx, tt.code)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetByCode() error = %v, wantErr %v", err, tt.wantErr)
@@ -173,17 +173,17 @@ func TestDashboardScreenRepository_Update(t *testing.T) {
 		Code:  "original_code",
 		Theme: "light",
 	}
-	screenRepo.Create(screen)
+	screenRepo.Create(ctx, screen)
 
 	screen.Name = "Updated Name"
 	screen.Theme = "dark"
 
-	err := screenRepo.Update(screen)
+	err := screenRepo.Update(ctx, screen)
 	if err != nil {
 		t.Errorf("Update() error = %v", err)
 	}
 
-	updated, _ := screenRepo.GetByID(screen.ID)
+	updated, _ := screenRepo.GetByID(ctx, screen.ID)
 	if updated.Name != "Updated Name" {
 		t.Errorf("Expected name 'Updated Name', got '%s'", updated.Name)
 	}
@@ -200,14 +200,14 @@ func TestDashboardScreenRepository_Delete(t *testing.T) {
 		Name: "To Delete",
 		Code: "delete_code",
 	}
-	screenRepo.Create(screen)
+	screenRepo.Create(ctx, screen)
 
-	err := screenRepo.Delete(screen.ID)
+	err := screenRepo.Delete(ctx, screen.ID)
 	if err != nil {
 		t.Errorf("Delete() error = %v", err)
 	}
 
-	_, err = screenRepo.GetByID(screen.ID)
+	_, err = screenRepo.GetByID(ctx, screen.ID)
 	if err == nil {
 		t.Error("Expected screen to be deleted")
 	}
@@ -222,16 +222,16 @@ func TestDashboardScreenRepository_IncrementViewCount(t *testing.T) {
 		Code:      "view_test",
 		ViewCount: 0,
 	}
-	screenRepo.Create(screen)
+	screenRepo.Create(ctx, screen)
 
 	for i := 1; i <= 3; i++ {
-		err := screenRepo.IncrementViewCount(screen.ID)
+		err := screenRepo.IncrementViewCount(ctx, screen.ID)
 		if err != nil {
 			t.Errorf("IncrementViewCount() error = %v", err)
 		}
 	}
 
-	updated, _ := screenRepo.GetByID(screen.ID)
+	updated, _ := screenRepo.GetByID(ctx, screen.ID)
 	if updated.ViewCount != 3 {
 		t.Errorf("Expected ViewCount 3, got %d", updated.ViewCount)
 	}
@@ -246,7 +246,7 @@ func TestDashboardWidgetRepository_Create(t *testing.T) {
 		Name: "Widget Test Dashboard",
 		Code: "widget_test",
 	}
-	screenRepo.Create(screen)
+	screenRepo.Create(ctx, screen)
 
 	widget := &model.DashboardWidget{
 		ScreenID:   screen.ID,
@@ -260,7 +260,7 @@ func TestDashboardWidgetRepository_Create(t *testing.T) {
 		Height:     4,
 	}
 
-	err := widgetRepo.Create(widget)
+	err := widgetRepo.Create(ctx, widget)
 	if err != nil {
 		t.Errorf("Create() error = %v", err)
 	}
@@ -279,10 +279,10 @@ func TestDashboardWidgetRepository_GetByScreenID(t *testing.T) {
 		Name: "GetWidgets Dashboard",
 		Code: "getwidgets_test",
 	}
-	screenRepo.Create(screen)
+	screenRepo.Create(ctx, screen)
 
 	for i := 1; i <= 3; i++ {
-		widgetRepo.Create(&model.DashboardWidget{
+		widgetRepo.Create(ctx, &model.DashboardWidget{
 			ScreenID:   screen.ID,
 			WidgetType: "chart",
 			Title:      "Widget " + string(rune('0'+i)),
@@ -290,7 +290,7 @@ func TestDashboardWidgetRepository_GetByScreenID(t *testing.T) {
 		})
 	}
 
-	results, err := widgetRepo.GetByScreenID(screen.ID)
+	results, err := widgetRepo.GetByScreenID(ctx, screen.ID)
 	if err != nil {
 		t.Errorf("GetByScreenID() error = %v", err)
 	}
@@ -309,22 +309,22 @@ func TestDashboardWidgetRepository_DeleteByScreenID(t *testing.T) {
 		Name: "Delete Widgets Dashboard",
 		Code: "delete_widgets_test",
 	}
-	screenRepo.Create(screen)
+	screenRepo.Create(ctx, screen)
 
 	for i := 1; i <= 3; i++ {
-		widgetRepo.Create(&model.DashboardWidget{
+		widgetRepo.Create(ctx, &model.DashboardWidget{
 			ScreenID:   screen.ID,
 			WidgetType: "chart",
 			Title:      "Widget " + string(rune('0'+i)),
 		})
 	}
 
-	err := widgetRepo.DeleteByScreenID(screen.ID)
+	err := widgetRepo.DeleteByScreenID(ctx, screen.ID)
 	if err != nil {
 		t.Errorf("DeleteByScreenID() error = %v", err)
 	}
 
-	results, _ := widgetRepo.GetByScreenID(screen.ID)
+	results, _ := widgetRepo.GetByScreenID(ctx, screen.ID)
 	if len(results) != 0 {
 		t.Errorf("Expected 0 widgets after deletion, got %d", len(results))
 	}

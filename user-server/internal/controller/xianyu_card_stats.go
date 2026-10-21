@@ -42,7 +42,7 @@ func (c *XianyuCardStatsController) GetCardStats(ctx *gin.Context) {
 		return
 	}
 
-	raw, err := c.service.GetCardStatsRaw(ctx, uint(cardID), startDate, endDate)
+	raw, err := c.service.GetCardStatsRaw(ctx.Request.Context(), uint(cardID), startDate, endDate)
 	if err != nil {
 		dates := []string{}
 		views := []int{}
@@ -156,7 +156,7 @@ func (c *XianyuCardStatsController) GetOverallStats(ctx *gin.Context) {
 	endDate := ctx.DefaultQuery("end_date", timeutil.BusinessDate(queryNow))
 	_ = ctx.DefaultQuery("group_by", "day")
 
-	raw2, err := c.service.GetOverallStatsRaw(ctx, startDate, endDate)
+	raw2, err := c.service.GetOverallStatsRaw(ctx.Request.Context(), startDate, endDate)
 	if err != nil {
 		data := gin.H{
 			"overall": gin.H{

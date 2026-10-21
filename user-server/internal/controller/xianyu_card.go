@@ -34,7 +34,7 @@ func (c *XianyuCardController) Create(ctx *gin.Context) {
 		return
 	}
 
-	card, err := c.service.Create(ctx, &req)
+	card, err := c.service.Create(ctx.Request.Context(), &req)
 	if HandleDBError(ctx, err, "创建闲鱼卡片") {
 		return
 	}
@@ -50,7 +50,7 @@ func (c *XianyuCardController) Update(ctx *gin.Context) {
 		return
 	}
 
-	card, err := c.service.Update(ctx, &req)
+	card, err := c.service.Update(ctx.Request.Context(), &req)
 	if HandleDBError(ctx, err, "更新闲鱼卡片") {
 		return
 	}
@@ -67,7 +67,7 @@ func (c *XianyuCardController) Delete(ctx *gin.Context) {
 		return
 	}
 
-	if HandleDBError(ctx, c.service.Delete(ctx, uint(id)), "删除闲鱼卡片") {
+	if HandleDBError(ctx, c.service.Delete(ctx.Request.Context(), uint(id)), "删除闲鱼卡片") {
 		return
 	}
 
@@ -83,7 +83,7 @@ func (c *XianyuCardController) GetByID(ctx *gin.Context) {
 		return
 	}
 
-	card, err := c.service.GetByID(ctx, uint(id))
+	card, err := c.service.GetByID(ctx.Request.Context(), uint(id))
 	if HandleDBError(ctx, err, "获取闲鱼卡片") {
 		return
 	}
@@ -106,7 +106,7 @@ func (c *XianyuCardController) GetList(ctx *gin.Context) {
 		req.PageSize = 10
 	}
 
-	cards, err := c.service.GetList(ctx, &req)
+	cards, err := c.service.GetList(ctx.Request.Context(), &req)
 	if err != nil {
 		response.ErrorFromDB(ctx, err, response.ErrGetListFailed, err.Error())
 		return
@@ -124,7 +124,7 @@ func (c *XianyuCardController) GenerateShortLink(ctx *gin.Context) {
 		return
 	}
 
-	card, err := c.service.GetByIDWithRefresh(ctx, uint(id))
+	card, err := c.service.GetByIDWithRefresh(ctx.Request.Context(), uint(id))
 	if HandleDBError(ctx, err, "获取闲鱼卡片") {
 		return
 	}
@@ -146,7 +146,7 @@ func (c *XianyuCardController) ViewCard(ctx *gin.Context) {
 	ip := ctx.ClientIP()
 	ua := ctx.GetHeader("User-Agent")
 	ref := ctx.GetHeader("Referer")
-	if HandleDBError(ctx, c.statsSvc.RecordView(ctx, uint(id), ip, ua, ref), "记录浏览") {
+	if HandleDBError(ctx, c.statsSvc.RecordView(ctx.Request.Context(), uint(id), ip, ua, ref), "记录浏览") {
 		return
 	}
 	response.Success(ctx, gin.H{"id": id}, response.ErrSuccess)
@@ -178,7 +178,7 @@ func (c *XianyuCardController) PostRecordView(ctx *gin.Context) {
 	if ref == "" {
 		ref = ctx.GetHeader("Referer")
 	}
-	if HandleDBError(ctx, c.statsSvc.RecordView(ctx, uint(id), ip, ua, ref), "记录浏览") {
+	if HandleDBError(ctx, c.statsSvc.RecordView(ctx.Request.Context(), uint(id), ip, ua, ref), "记录浏览") {
 		return
 	}
 	response.Success(ctx, gin.H{"id": id}, response.ErrSuccess)
@@ -210,7 +210,7 @@ func (c *XianyuCardController) PostRecordClick(ctx *gin.Context) {
 	if ref == "" {
 		ref = ctx.GetHeader("Referer")
 	}
-	if HandleDBError(ctx, c.statsSvc.RecordClick(ctx, uint(id), ip, ua, ref), "记录点击") {
+	if HandleDBError(ctx, c.statsSvc.RecordClick(ctx.Request.Context(), uint(id), ip, ua, ref), "记录点击") {
 		return
 	}
 	response.Success(ctx, gin.H{"id": id}, response.ErrSuccess)
@@ -242,7 +242,7 @@ func (c *XianyuCardController) PostRecordShare(ctx *gin.Context) {
 	if ref == "" {
 		ref = ctx.GetHeader("Referer")
 	}
-	if HandleDBError(ctx, c.statsSvc.RecordShare(ctx, uint(id), ip, ua, ref), "记录分享") {
+	if HandleDBError(ctx, c.statsSvc.RecordShare(ctx.Request.Context(), uint(id), ip, ua, ref), "记录分享") {
 		return
 	}
 	response.Success(ctx, gin.H{"id": id}, response.ErrSuccess)

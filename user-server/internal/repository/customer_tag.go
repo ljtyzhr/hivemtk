@@ -28,12 +28,12 @@ func NewCustomerTagRepository() CustomerTagRepository {
 }
 
 func (r *customerTagRepository) Create(ctx context.Context, tag *model.CustomerTag) error {
-	return _db.GetDB().Create(tag).Error
+	return _db.GetDB().WithContext(ctx).Create(tag).Error
 }
 
 func (r *customerTagRepository) GetByID(ctx context.Context, id string) (*model.CustomerTag, error) {
 	var tag model.CustomerTag
-	if err := _db.GetDB().First(&tag, "id = ?", id).Error; err != nil {
+	if err := _db.GetDB().WithContext(ctx).First(&tag, "id = ?", id).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
@@ -45,7 +45,7 @@ func (r *customerTagRepository) GetByID(ctx context.Context, id string) (*model.
 func (r *customerTagRepository) ListByMerchant(ctx context.Context) ([]*model.CustomerTag, error) {
 	var tags []*model.CustomerTag
 
-	if err := _db.GetDB().
+	if err := _db.GetDB().WithContext(ctx).
 		Order("category, name").
 		Find(&tags).Error; err != nil {
 		return nil, err
@@ -57,7 +57,7 @@ func (r *customerTagRepository) ListByMerchant(ctx context.Context) ([]*model.Cu
 func (r *customerTagRepository) ListAutoTags(ctx context.Context) ([]*model.CustomerTag, error) {
 	var tags []*model.CustomerTag
 
-	if err := _db.GetDB().
+	if err := _db.GetDB().WithContext(ctx).
 		Where("source = ?", model.TagSourceAuto).
 		Order("category, name").
 		Find(&tags).Error; err != nil {
@@ -68,9 +68,9 @@ func (r *customerTagRepository) ListAutoTags(ctx context.Context) ([]*model.Cust
 }
 
 func (r *customerTagRepository) Delete(ctx context.Context, id string) error {
-	return _db.GetDB().Delete(&model.CustomerTag{}, "id = ?", id).Error
+	return _db.GetDB().WithContext(ctx).Delete(&model.CustomerTag{}, "id = ?", id).Error
 }
 
 func (r *customerTagRepository) Update(ctx context.Context, tag *model.CustomerTag) error {
-	return _db.GetDB().Save(tag).Error
+	return _db.GetDB().WithContext(ctx).Save(tag).Error
 }

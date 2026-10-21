@@ -50,7 +50,7 @@ func (c *CustomReportController) CreateReport(ctx *gin.Context) {
 		return
 	}
 
-	report, err := c.reportService.CreateReport(userID.(uint), &req)
+	report, err := c.reportService.CreateReport(ctx.Request.Context(), userID.(uint), &req)
 	if errhttp.HandleServiceError(ctx, err) {
 		return
 	}
@@ -69,7 +69,7 @@ func (c *CustomReportController) GetReport(ctx *gin.Context) {
 	}
 
 	userID, isAdmin := extractUserContext(ctx)
-	report, err := c.reportService.GetReport(uint(id), userID, isAdmin)
+	report, err := c.reportService.GetReport(ctx.Request.Context(), uint(id), userID, isAdmin)
 	if err != nil {
 		response.Error(ctx, http.StatusNotFound, err.Error())
 		return
@@ -95,7 +95,7 @@ func (c *CustomReportController) GetReportList(ctx *gin.Context) {
 	}
 
 	userID, isAdmin := extractUserContext(ctx)
-	reports, total, err := c.reportService.GetReportList(page, pageSize, userID, isAdmin)
+	reports, total, err := c.reportService.GetReportList(ctx.Request.Context(), page, pageSize, userID, isAdmin)
 	if err != nil {
 		response.Error(ctx, http.StatusInternalServerError, err.Error())
 		return
@@ -126,7 +126,7 @@ func (c *CustomReportController) UpdateReport(ctx *gin.Context) {
 	}
 
 	userID, isAdmin := extractUserContext(ctx)
-	report, err := c.reportService.UpdateReport(uint(id), userID, isAdmin, &req)
+	report, err := c.reportService.UpdateReport(ctx.Request.Context(), uint(id), userID, isAdmin, &req)
 	if errhttp.HandleDBError(ctx, err, "更新报表") {
 		return
 	}
@@ -145,7 +145,7 @@ func (c *CustomReportController) DeleteReport(ctx *gin.Context) {
 	}
 
 	userID, isAdmin := extractUserContext(ctx)
-	err = c.reportService.DeleteReport(uint(id), userID, isAdmin)
+	err = c.reportService.DeleteReport(ctx.Request.Context(), uint(id), userID, isAdmin)
 	if errhttp.HandleDBError(ctx, err, "删除报表") {
 		return
 	}
@@ -155,7 +155,7 @@ func (c *CustomReportController) DeleteReport(ctx *gin.Context) {
 
 // GetPublicTemplates 获取公开模板
 func (c *CustomReportController) GetPublicTemplates(ctx *gin.Context) {
-	templates, err := c.reportService.GetPublicTemplates()
+	templates, err := c.reportService.GetPublicTemplates(ctx.Request.Context())
 	if err != nil {
 		response.Error(ctx, http.StatusInternalServerError, err.Error())
 		return
@@ -180,7 +180,7 @@ func (c *CustomReportController) UseTemplate(ctx *gin.Context) {
 		return
 	}
 
-	report, err := c.reportService.UseTemplate(uint(id), userID.(uint))
+	report, err := c.reportService.UseTemplate(ctx.Request.Context(), uint(id), userID.(uint))
 	if errhttp.HandleDBError(ctx, err, "使用报表模板") {
 		return
 	}
@@ -214,7 +214,7 @@ func (c *CustomReportController) QueryReportData(ctx *gin.Context) {
 	}
 
 	userID, isAdmin := extractUserContext(ctx)
-	report, err := c.reportService.GetReport(uint(id), userID, isAdmin)
+	report, err := c.reportService.GetReport(ctx.Request.Context(), uint(id), userID, isAdmin)
 	if err != nil {
 		response.Error(ctx, http.StatusNotFound, err.Error())
 		return
@@ -254,7 +254,7 @@ func (c *CustomReportController) ExportCSV(ginCtx *gin.Context) {
 	}
 
 	userID, isAdmin := extractUserContext(ginCtx)
-	report, err := c.reportService.GetReport(uint(id), userID, isAdmin)
+	report, err := c.reportService.GetReport(ginCtx.Request.Context(), uint(id), userID, isAdmin)
 	if err != nil {
 		response.Error(ginCtx, http.StatusNotFound, err.Error())
 		return

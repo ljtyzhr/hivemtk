@@ -23,24 +23,27 @@ func NewDashboardScreenRepository() *DashboardScreenRepository {
 }
 
 // Create 创建大屏
-func (r *DashboardScreenRepository) Create(screen *model.DashboardScreen) error {
-	return r.db.Create(screen).Error
+func (r *DashboardScreenRepository) Create(ctx context.Context, screen *model.DashboardScreen) error {
+	return r.db.WithContext(ctx).Create(screen).Error
 }
 
 // GetByID 根据 ID 获取大屏
-func (r *DashboardScreenRepository) GetByID(id uint) (*model.DashboardScreen, error) {
+func (r *DashboardScreenRepository) GetByID(ctx context.Context, id uint) (*model.DashboardScreen, error) {
 	var screen model.DashboardScreen
-	err := r.db.First(&screen, id).Error
+	err := r.db.WithContext(ctx).First(&screen, id).Error
 	return &screen, err
 }
 
 // GetAll 获取所有大屏列表
-func (r *DashboardScreenRepository) GetAll(page, pageSize int) ([]*model.DashboardScreen, int64, error) {
+func (r *DashboardScreenRepository) GetAll(ctx context.Context, page, pageSize int) ([]*model.DashboardScreen, int64, error) {
 	var screens []*model.DashboardScreen
 	var total int64
 
-	r.db.Model(&model.DashboardScreen{}).Count(&total)
-	err := r.db.
+	q := r.db.WithContext(ctx).Model(&model.DashboardScreen{})
+	if err := q.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	err := q.
 		Order("created_at DESC").
 		Offset((page - 1) * pageSize).
 		Limit(pageSize).
@@ -50,10 +53,10 @@ func (r *DashboardScreenRepository) GetAll(page, pageSize int) ([]*model.Dashboa
 }
 
 // GetByCode 根据编码获取大屏
-func (r *DashboardScreenRepository) GetByCode(code string) (*model.DashboardScreen, error) {
+func (r *DashboardScreenRepository) GetByCode(ctx context.Context, code string) (*model.DashboardScreen, error) {
 	var screen model.DashboardScreen
 
-	err := r.db.Where("code = ? AND is_public = ?", code, true).First(&screen).Error
+	err := r.db.WithContext(ctx).Where("code = ? AND is_public = ?", code, true).First(&screen).Error
 	return &screen, err
 }
 
@@ -88,18 +91,18 @@ func (r *DashboardScreenRepository) GetPublicByCodeCtx(ctx context.Context, code
 }
 
 // Update 更新大屏
-func (r *DashboardScreenRepository) Update(screen *model.DashboardScreen) error {
-	return r.db.Save(screen).Error
+func (r *DashboardScreenRepository) Update(ctx context.Context, screen *model.DashboardScreen) error {
+	return r.db.WithContext(ctx).Save(screen).Error
 }
 
 // Delete 删除大屏
-func (r *DashboardScreenRepository) Delete(id uint) error {
-	return r.db.Delete(&model.DashboardScreen{}, id).Error
+func (r *DashboardScreenRepository) Delete(ctx context.Context, id uint) error {
+	return r.db.WithContext(ctx).Delete(&model.DashboardScreen{}, id).Error
 }
 
 // IncrementViewCount 增加访问次数
-func (r *DashboardScreenRepository) IncrementViewCount(id uint) error {
-	return r.db.Model(&model.DashboardScreen{}).Where("id = ?", id).Update("view_count", gorm.Expr("view_count + 1")).Error
+func (r *DashboardScreenRepository) IncrementViewCount(ctx context.Context, id uint) error {
+	return r.db.WithContext(ctx).Model(&model.DashboardScreen{}).Where("id = ?", id).Update("view_count", gorm.Expr("view_count + 1")).Error
 }
 
 // DashboardWidgetRepository 大屏 Widget 仓库
@@ -115,14 +118,14 @@ func NewDashboardWidgetRepository() *DashboardWidgetRepository {
 }
 
 // Create 创建 Widget
-func (r *DashboardWidgetRepository) Create(widget *model.DashboardWidget) error {
-	return r.db.Create(widget).Error
+func (r *DashboardWidgetRepository) Create(ctx context.Context, widget *model.DashboardWidget) error {
+	return r.db.WithContext(ctx).Create(widget).Error
 }
 
 // GetByScreenID 根据大屏 ID 获取 Widgets
-func (r *DashboardWidgetRepository) GetByScreenID(screenID uint) ([]*model.DashboardWidget, error) {
+func (r *DashboardWidgetRepository) GetByScreenID(ctx context.Context, screenID uint) ([]*model.DashboardWidget, error) {
 	var widgets []*model.DashboardWidget
-	err := r.db.Where("screen_id = ?", screenID).Order("sort_order, y, x").Find(&widgets).Error
+	err := r.db.WithContext(ctx).Where("screen_id = ?", screenID).Order("sort_order, y, x").Find(&widgets).Error
 	return widgets, err
 }
 
@@ -134,6 +137,6 @@ func (r *DashboardWidgetRepository) GetByScreenIDCtx(ctx context.Context, screen
 }
 
 // DeleteByScreenID 删除大屏下所有 Widgets
-func (r *DashboardWidgetRepository) DeleteByScreenID(screenID uint) error {
-	return r.db.Where("screen_id = ?", screenID).Delete(&model.DashboardWidget{}).Error
+func (r *DashboardWidgetRepository) DeleteByScreenID(ctx context.Context, screenID uint) error {
+	return r.db.WithContext(ctx).Where("screen_id = ?", screenID).Delete(&model.DashboardWidget{}).Error
 }

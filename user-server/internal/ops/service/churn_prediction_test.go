@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"hivemtk-user/internal/ops/model"
 	"hivemtk-user/internal/pkg/db"
@@ -11,6 +12,11 @@ import (
 
 	"gorm.io/gorm"
 )
+
+// ctx 是本文件所有服务调用的租户上下文。
+// 服务层方法一律要求显式 ctx（租户隔离 callback 从 ctx 取租户注入
+// WHERE/INSERT），测试里必须给一个，否则 on 模式下会 fail-closed 拒执行。
+var ctx = context.Background()
 
 func setupChurnPredictionServiceTestDB(t *testing.T) *gorm.DB {
 	database := testutil.NewTestDB(t,
@@ -62,12 +68,12 @@ func TestChurnPredictionService_CalculateChurnPrediction_LowRisk(t *testing.T) {
 		"last_purchase_at":    time.Now().AddDate(0, 0, -10),
 	}
 
-	err := service.CalculateChurnPrediction("user_123", userData)
+	err := service.CalculateChurnPrediction(ctx, "user_123", userData)
 	if err != nil {
 		t.Fatalf("CalculateChurnPrediction failed: %v", err)
 	}
 
-	prediction, err := service.GetChurnPrediction("user_123")
+	prediction, err := service.GetChurnPrediction(ctx, "user_123")
 	if err != nil {
 		t.Fatalf("GetChurnPrediction failed: %v", err)
 	}
@@ -92,12 +98,12 @@ func TestChurnPredictionService_CalculateChurnPrediction_HighRisk(t *testing.T) 
 		"interactions_30d":    0,
 	}
 
-	err := service.CalculateChurnPrediction("user_456", userData)
+	err := service.CalculateChurnPrediction(ctx, "user_456", userData)
 	if err != nil {
 		t.Fatalf("CalculateChurnPrediction failed: %v", err)
 	}
 
-	prediction, err := service.GetChurnPrediction("user_456")
+	prediction, err := service.GetChurnPrediction(ctx, "user_456")
 	if err != nil {
 		t.Fatalf("GetChurnPrediction failed: %v", err)
 	}
@@ -121,7 +127,7 @@ func TestChurnPredictionService_CalculateChurnPrediction_WithCustomConfig(t *tes
 		HighRiskScore:      60,
 		CriticalRiskScore:  80,
 	}
-	service.SaveModelConfig(config)
+	service.SaveModelConfig(ctx, config)
 
 	userData := map[string]any{
 		"user_id":             "user_789",
@@ -131,12 +137,12 @@ func TestChurnPredictionService_CalculateChurnPrediction_WithCustomConfig(t *tes
 		"interactions_30d":    5,
 	}
 
-	err := service.CalculateChurnPrediction("user_789", userData)
+	err := service.CalculateChurnPrediction(ctx, "user_789", userData)
 	if err != nil {
 		t.Fatalf("CalculateChurnPrediction failed: %v", err)
 	}
 
-	prediction, _ := service.GetChurnPrediction("user_789")
+	prediction, _ := service.GetChurnPrediction(ctx, "user_789")
 	if prediction == nil {
 		t.Error("Expected prediction to be created")
 	}
@@ -154,10 +160,10 @@ func TestChurnPredictionService_GetChurnPredictions(t *testing.T) {
 			"average_order_value": float64(i * 50),
 			"interactions_30d":    i,
 		}
-		service.CalculateChurnPrediction("user_"+string(rune('0'+i)), userData)
+		service.CalculateChurnPrediction(ctx, "user_"+string(rune('0'+i)), userData)
 	}
 
-	predictions, total, err := service.GetChurnPredictions(1, 10)
+	predictions, total, err := service.GetChurnPredictions(ctx, 1, 10)
 	if err != nil {
 		t.Fatalf("GetChurnPredictions failed: %v", err)
 	}
@@ -181,7 +187,7 @@ func TestChurnPredictionService_GetHighRiskUsers(t *testing.T) {
 		"average_order_value": 20.0,
 		"interactions_30d":    0,
 	}
-	service.CalculateChurnPrediction("user_high", userData)
+	service.CalculateChurnPrediction(ctx, "user_high", userData)
 
 	userDataLow := map[string]any{
 		"user_id":             "user_low",
@@ -190,9 +196,9 @@ func TestChurnPredictionService_GetHighRiskUsers(t *testing.T) {
 		"average_order_value": 200.0,
 		"interactions_30d":    20,
 	}
-	service.CalculateChurnPrediction("user_low", userDataLow)
+	service.CalculateChurnPrediction(ctx, "user_low", userDataLow)
 
-	highRiskUsers, err := service.GetHighRiskUsers(10)
+	highRiskUsers, err := service.GetHighRiskUsers(ctx, 10)
 	if err != nil {
 		t.Fatalf("GetHighRiskUsers failed: %v", err)
 	}
@@ -213,12 +219,12 @@ func TestChurnPredictionService_CreateChurnWarning(t *testing.T) {
 		RiskFactors: `["长期未活跃", "购买频率下降"]`,
 	}
 
-	err := service.CreateChurnWarning("user_warn", prediction)
+	err := service.CreateChurnWarning(ctx, "user_warn", prediction)
 	if err != nil {
 		t.Fatalf("CreateChurnWarning failed: %v", err)
 	}
 
-	warnings, total, _ := service.GetChurnWarnings(1, 10)
+	warnings, total, _ := service.GetChurnWarnings(ctx, 1, 10)
 	if total != 1 {
 		t.Errorf("Expected 1 warning, got %d", total)
 	}
@@ -238,12 +244,12 @@ func TestChurnPredictionService_CreateChurnWarning_LowRisk(t *testing.T) {
 		RiskFactors: `[]`,
 	}
 
-	err := service.CreateChurnWarning("user_low", prediction)
+	err := service.CreateChurnWarning(ctx, "user_low", prediction)
 	if err != nil {
 		t.Fatalf("CreateChurnWarning failed: %v", err)
 	}
 
-	_, total, _ := service.GetChurnWarnings(1, 10)
+	_, total, _ := service.GetChurnWarnings(ctx, 1, 10)
 	if total != 0 {
 		t.Errorf("Expected 0 warnings for low risk, got %d", total)
 	}
@@ -259,9 +265,9 @@ func TestChurnPredictionService_GetUnhandledWarnings(t *testing.T) {
 		ChurnRisk:   "high",
 		RiskFactors: `["长期未活跃"]`,
 	}
-	service.CreateChurnWarning("user_unhandled", prediction)
+	service.CreateChurnWarning(ctx, "user_unhandled", prediction)
 
-	warnings, total, err := service.GetUnhandledWarnings(1, 10)
+	warnings, total, err := service.GetUnhandledWarnings(ctx, 1, 10)
 	if err != nil {
 		t.Fatalf("GetUnhandledWarnings failed: %v", err)
 	}
@@ -284,20 +290,20 @@ func TestChurnPredictionService_MarkWarningHandled(t *testing.T) {
 		ChurnRisk:   "high",
 		RiskFactors: `["购买频率下降"]`,
 	}
-	service.CreateChurnWarning("user_handle", prediction)
+	service.CreateChurnWarning(ctx, "user_handle", prediction)
 
-	warnings, _, _ := service.GetChurnWarnings(1, 10)
+	warnings, _, _ := service.GetChurnWarnings(ctx, 1, 10)
 	if len(warnings) == 0 {
 		t.Fatal("No warnings created")
 	}
 	warningID := warnings[0].ID
 
-	err := service.MarkWarningHandled(warningID, 123, "已联系用户")
+	err := service.MarkWarningHandled(ctx, warningID, 123, "已联系用户")
 	if err != nil {
 		t.Fatalf("MarkWarningHandled failed: %v", err)
 	}
 
-	updated, _, _ := service.GetUnhandledWarnings(1, 10)
+	updated, _, _ := service.GetUnhandledWarnings(ctx, 1, 10)
 	if len(updated) != 0 {
 		t.Error("Expected warning to be handled")
 	}
@@ -307,7 +313,7 @@ func TestChurnPredictionService_MarkWarningHandled(t *testing.T) {
 func TestChurnPredictionService_GetModelConfig(t *testing.T) {
 	service := setupChurnPredictionService(t)
 
-	config, err := service.GetModelConfig()
+	config, err := service.GetModelConfig(ctx, )
 	if err != nil {
 		t.Fatalf("GetModelConfig failed: %v", err)
 	}
@@ -335,12 +341,12 @@ func TestChurnPredictionService_SaveModelConfig(t *testing.T) {
 		CriticalRiskScore:  80,
 	}
 
-	err := service.SaveModelConfig(config)
+	err := service.SaveModelConfig(ctx, config)
 	if err != nil {
 		t.Fatalf("SaveModelConfig failed: %v", err)
 	}
 
-	retrieved, err := service.GetModelConfig()
+	retrieved, err := service.GetModelConfig(ctx, )
 	if err != nil {
 		t.Fatalf("GetModelConfig failed: %v", err)
 	}
@@ -371,16 +377,16 @@ func TestChurnPredictionService_CalculateDailyStatistics(t *testing.T) {
 			ChurnRisk:   risk,
 			RiskFactors: `[]`,
 		}
-		service.predictionRepo.Upsert(prediction)
+		service.predictionRepo.Upsert(ctx, prediction)
 	}
 
 	date := time.Now().Format("2006-01-02")
-	err := service.CalculateDailyStatistics(date)
+	err := service.CalculateDailyStatistics(ctx, date)
 	if err != nil {
 		t.Fatalf("CalculateDailyStatistics failed: %v", err)
 	}
 
-	stats, err := service.statsRepo.GetLatest()
+	stats, err := service.statsRepo.GetLatest(ctx, )
 	if err != nil {
 		t.Fatalf("GetLatest stats failed: %v", err)
 	}
@@ -418,10 +424,10 @@ func TestChurnPredictionService_GetRiskDistribution(t *testing.T) {
 			ChurnRisk:   risk,
 			RiskFactors: `[]`,
 		}
-		service.predictionRepo.Upsert(prediction)
+		service.predictionRepo.Upsert(ctx, prediction)
 	}
 
-	distribution, err := service.GetRiskDistribution()
+	distribution, err := service.GetRiskDistribution(ctx, )
 	if err != nil {
 		t.Fatalf("GetRiskDistribution failed: %v", err)
 	}
@@ -624,22 +630,22 @@ func TestChurnPredictionService_RunChurnCalculation(t *testing.T) {
 		},
 	}
 
-	err := service.RunChurnCalculation(users)
+	err := service.RunChurnCalculation(ctx, users)
 	if err != nil {
 		t.Fatalf("RunChurnCalculation failed: %v", err)
 	}
 
-	pred1, _ := service.GetChurnPrediction("user_batch_1")
+	pred1, _ := service.GetChurnPrediction(ctx, "user_batch_1")
 	if pred1 == nil {
 		t.Error("Expected prediction for user_batch_1")
 	}
 
-	pred2, _ := service.GetChurnPrediction("user_batch_2")
+	pred2, _ := service.GetChurnPrediction(ctx, "user_batch_2")
 	if pred2 == nil {
 		t.Error("Expected prediction for user_batch_2")
 	}
 
-	_, total, _ := service.GetUnhandledWarnings(1, 10)
+	_, total, _ := service.GetUnhandledWarnings(ctx, 1, 10)
 	if total < 1 {
 		t.Errorf("Expected at least 1 warning, got %d", total)
 	}
@@ -684,9 +690,9 @@ func TestChurnPredictionService_GetChurnRate(t *testing.T) {
 		HighRiskUsers: 10,
 		CriticalUsers: 5,
 	}
-	service.statsRepo.Create(stats)
+	service.statsRepo.Create(ctx, stats)
 
-	rate, err := service.GetChurnRate()
+	rate, err := service.GetChurnRate(ctx, )
 	if err != nil {
 		t.Fatalf("GetChurnRate failed: %v", err)
 	}
@@ -707,10 +713,10 @@ func TestChurnPredictionService_GetChurnWarnings_Pagination(t *testing.T) {
 			ChurnRisk:   "high",
 			RiskFactors: `["长期未活跃"]`,
 		}
-		service.CreateChurnWarning("user_page_"+string(rune('0'+i%10)), prediction)
+		service.CreateChurnWarning(ctx, "user_page_"+string(rune('0'+i%10)), prediction)
 	}
 
-	warnings, total, err := service.GetChurnWarnings(1, 10)
+	warnings, total, err := service.GetChurnWarnings(ctx, 1, 10)
 	if err != nil {
 		t.Fatalf("GetChurnWarnings failed: %v", err)
 	}
@@ -735,12 +741,12 @@ func TestChurnPredictionService_CalculateChurnPrediction_RiskFactorsJSON(t *test
 		"interactions_30d":    0,
 	}
 
-	err := service.CalculateChurnPrediction("user_json", userData)
+	err := service.CalculateChurnPrediction(ctx, "user_json", userData)
 	if err != nil {
 		t.Fatalf("CalculateChurnPrediction failed: %v", err)
 	}
 
-	prediction, _ := service.GetChurnPrediction("user_json")
+	prediction, _ := service.GetChurnPrediction(ctx, "user_json")
 
 	var factors []string
 	err = json.Unmarshal([]byte(prediction.RiskFactors), &factors)

@@ -31,7 +31,7 @@ func (c *KuaishouCardController) Create(ctx *gin.Context) {
 		return
 	}
 
-	card, err := c.service.Create(ctx, &req)
+	card, err := c.service.Create(ctx.Request.Context(), &req)
 	if HandleDBError(ctx, err, "创建快手卡片") {
 		return
 	}
@@ -66,7 +66,7 @@ func (c *KuaishouCardController) Update(ctx *gin.Context) {
 		return
 	}
 
-	card, err := c.service.Update(ctx, &req)
+	card, err := c.service.Update(ctx.Request.Context(), &req)
 	if HandleDBError(ctx, err, "更新快手卡片") {
 		return
 	}
@@ -83,7 +83,7 @@ func (c *KuaishouCardController) Delete(ctx *gin.Context) {
 		return
 	}
 
-	err = c.service.Delete(ctx, uint(id))
+	err = c.service.Delete(ctx.Request.Context(), uint(id))
 	if HandleDBError(ctx, err, "删除快手卡片") {
 		return
 	}
@@ -100,7 +100,7 @@ func (c *KuaishouCardController) GetByID(ctx *gin.Context) {
 		return
 	}
 
-	card, err := c.service.GetByID(ctx, uint(id))
+	card, err := c.service.GetByID(ctx.Request.Context(), uint(id))
 	if err != nil {
 		response.Error(ctx, http.StatusNotFound, response.ErrResourceNotFound, err.Error())
 		return
@@ -124,7 +124,7 @@ func (c *KuaishouCardController) GetList(ctx *gin.Context) {
 		req.PageSize = 10
 	}
 
-	list, err := c.service.GetList(ctx, &req)
+	list, err := c.service.GetList(ctx.Request.Context(), &req)
 	if err != nil {
 		response.ErrorFromDB(ctx, err, response.ErrGetListFailed, err.Error())
 		return
@@ -142,7 +142,7 @@ func (c *KuaishouCardController) ViewCard(ctx *gin.Context) {
 		return
 	}
 
-	err = c.service.ViewCard(ctx, uint(id))
+	err = c.service.ViewCard(ctx.Request.Context(), uint(id))
 	if HandleDBError(ctx, err, "浏览快手卡片") {
 		return
 	}
@@ -159,7 +159,7 @@ func (c *KuaishouCardController) LikeCard(ctx *gin.Context) {
 		return
 	}
 
-	err = c.service.LikeCard(ctx, uint(id))
+	err = c.service.LikeCard(ctx.Request.Context(), uint(id))
 	if HandleDBError(ctx, err, "点赞快手卡片") {
 		return
 	}
@@ -181,7 +181,7 @@ func (c *KuaishouCardController) ShareCard(ctx *gin.Context) {
 		platform = "unknown"
 	}
 
-	card, err := c.service.ShareCard(ctx, uint(id), platform)
+	card, err := c.service.ShareCard(ctx.Request.Context(), uint(id), platform)
 	if HandleDBError(ctx, err, "分享快手卡片") {
 		return
 	}
@@ -198,19 +198,19 @@ func (c *KuaishouCardController) GenerateShortLink(ctx *gin.Context) {
 		return
 	}
 
-	card, err := c.service.GetCardModelByID(ctx, uint(id))
+	card, err := c.service.GetCardModelByID(ctx.Request.Context(), uint(id))
 	if err != nil {
 		response.Error(ctx, http.StatusNotFound, response.ErrResourceNotFound, err.Error())
 		return
 	}
 
-	err = c.service.GenerateShortLink(ctx, card)
+	err = c.service.GenerateShortLink(ctx.Request.Context(), card)
 	if err != nil {
 		response.ErrorFromDB(ctx, err, response.ErrBusinessError, err.Error())
 		return
 	}
 
-	updatedCard, err := c.service.GetByID(ctx, uint(id))
+	updatedCard, err := c.service.GetByID(ctx.Request.Context(), uint(id))
 	if HandleDBError(ctx, err, "获取快手卡片") {
 		return
 	}

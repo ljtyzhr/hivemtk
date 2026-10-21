@@ -32,7 +32,7 @@ func (c *ChurnPredictionController) GetChurnPrediction(ctx *gin.Context) {
 		return
 	}
 
-	prediction, err := c.churnService.GetChurnPrediction(userID)
+	prediction, err := c.churnService.GetChurnPrediction(ctx.Request.Context(), userID)
 	if err != nil {
 		response.Error(ctx, http.StatusNotFound, err.Error())
 		return
@@ -47,7 +47,7 @@ func (c *ChurnPredictionController) GetChurnPredictions(ctx *gin.Context) {
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(ctx.DefaultQuery("page_size", "10"))
 
-	predictions, total, err := c.churnService.GetChurnPredictions(page, pageSize)
+	predictions, total, err := c.churnService.GetChurnPredictions(ctx.Request.Context(), page, pageSize)
 	if err != nil {
 		response.Error(ctx, http.StatusInternalServerError, err.Error())
 		return
@@ -66,7 +66,7 @@ func (c *ChurnPredictionController) GetHighRiskUsers(ctx *gin.Context) {
 
 	limit, _ := strconv.Atoi(ctx.DefaultQuery("limit", "50"))
 
-	users, err := c.churnService.GetHighRiskUsers(limit)
+	users, err := c.churnService.GetHighRiskUsers(ctx.Request.Context(), limit)
 	if err != nil {
 		response.Error(ctx, http.StatusInternalServerError, err.Error())
 		return
@@ -81,7 +81,7 @@ func (c *ChurnPredictionController) GetChurnWarnings(ctx *gin.Context) {
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(ctx.DefaultQuery("page_size", "10"))
 
-	warnings, total, err := c.churnService.GetChurnWarnings(page, pageSize)
+	warnings, total, err := c.churnService.GetChurnWarnings(ctx.Request.Context(), page, pageSize)
 	if err != nil {
 		response.Error(ctx, http.StatusInternalServerError, err.Error())
 		return
@@ -101,7 +101,7 @@ func (c *ChurnPredictionController) GetUnhandledWarnings(ctx *gin.Context) {
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(ctx.DefaultQuery("page_size", "10"))
 
-	warnings, total, err := c.churnService.GetUnhandledWarnings(page, pageSize)
+	warnings, total, err := c.churnService.GetUnhandledWarnings(ctx.Request.Context(), page, pageSize)
 	if err != nil {
 		response.Error(ctx, http.StatusInternalServerError, err.Error())
 		return
@@ -135,7 +135,7 @@ func (c *ChurnPredictionController) MarkWarningHandled(ctx *gin.Context) {
 	userID, _ := ctx.Get("user_id")
 	handledBy, _ := userID.(uint)
 
-	if errhttp.HandleDBError(ctx, c.churnService.MarkWarningHandled(uint(id), handledBy, req.Note), "标记预警") {
+	if errhttp.HandleDBError(ctx, c.churnService.MarkWarningHandled(ctx.Request.Context(), uint(id), handledBy, req.Note), "标记预警") {
 		return
 	}
 
@@ -157,7 +157,7 @@ func (c *ChurnPredictionController) InterveneUser(ctx *gin.Context) {
 	userID, _ := ctx.Get("user_id")
 	handledBy, _ := userID.(uint)
 
-	if errhttp.HandleDBError(ctx, c.churnService.InterveneWarning(req.WarningID, handledBy, req.InterventionType), "干预预警") {
+	if errhttp.HandleDBError(ctx, c.churnService.InterveneWarning(ctx.Request.Context(), req.WarningID, handledBy, req.InterventionType), "干预预警") {
 		return
 	}
 
@@ -170,7 +170,7 @@ func (c *ChurnPredictionController) InterveneUser(ctx *gin.Context) {
 // GetModelConfig 获取模型配置
 func (c *ChurnPredictionController) GetModelConfig(ctx *gin.Context) {
 
-	config, err := c.churnService.GetModelConfig()
+	config, err := c.churnService.GetModelConfig(ctx.Request.Context())
 	if errhttp.HandleDBError(ctx, err, "获取模型配置") {
 		return
 	}
@@ -187,7 +187,7 @@ func (c *ChurnPredictionController) SaveModelConfig(ctx *gin.Context) {
 		return
 	}
 
-	if errhttp.HandleDBError(ctx, c.churnService.SaveModelConfig(&config), "保存模型配置") {
+	if errhttp.HandleDBError(ctx, c.churnService.SaveModelConfig(ctx.Request.Context(), &config), "保存模型配置") {
 		return
 	}
 
@@ -209,7 +209,7 @@ func (c *ChurnPredictionController) GetChurnStatistics(ctx *gin.Context) {
 		return
 	}
 
-	stats, err := c.churnService.GetChurnStatistics(startDate, endDate)
+	stats, err := c.churnService.GetChurnStatistics(ctx.Request.Context(), startDate, endDate)
 	if err != nil {
 		response.Error(ctx, http.StatusInternalServerError, err.Error())
 		return
@@ -221,7 +221,7 @@ func (c *ChurnPredictionController) GetChurnStatistics(ctx *gin.Context) {
 // GetRiskDistribution 获取风险分布
 func (c *ChurnPredictionController) GetRiskDistribution(ctx *gin.Context) {
 
-	distribution, err := c.churnService.GetRiskDistribution()
+	distribution, err := c.churnService.GetRiskDistribution(ctx.Request.Context())
 	if err != nil {
 		response.Error(ctx, http.StatusInternalServerError, err.Error())
 		return

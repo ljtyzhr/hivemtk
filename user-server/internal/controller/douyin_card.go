@@ -31,7 +31,7 @@ func (c *DouyinCardController) Create(ctx *gin.Context) {
 		return
 	}
 
-	card, err := c.service.Create(ctx, &req)
+	card, err := c.service.Create(ctx.Request.Context(), &req)
 	if HandleDBError(ctx, err, "创建抖音卡片") {
 		return
 	}
@@ -61,7 +61,7 @@ func (c *DouyinCardController) Update(ctx *gin.Context) {
 		return
 	}
 
-	card, err := c.service.Update(ctx, &req)
+	card, err := c.service.Update(ctx.Request.Context(), &req)
 	if HandleDBError(ctx, err, "更新抖音卡片") {
 		return
 	}
@@ -78,7 +78,7 @@ func (c *DouyinCardController) Delete(ctx *gin.Context) {
 		return
 	}
 
-	if HandleDBError(ctx, c.service.Delete(ctx, uint(id)), "删除抖音卡片") {
+	if HandleDBError(ctx, c.service.Delete(ctx.Request.Context(), uint(id)), "删除抖音卡片") {
 		return
 	}
 
@@ -94,7 +94,7 @@ func (c *DouyinCardController) GetByID(ctx *gin.Context) {
 		return
 	}
 
-	card, err := c.service.GetByID(ctx, uint(id))
+	card, err := c.service.GetByID(ctx.Request.Context(), uint(id))
 	if err != nil {
 		response.Error(ctx, http.StatusNotFound, response.ErrResourceNotFound, err.Error())
 		return
@@ -118,7 +118,7 @@ func (c *DouyinCardController) GetList(ctx *gin.Context) {
 		req.PageSize = 10
 	}
 
-	list, err := c.service.GetList(ctx, &req)
+	list, err := c.service.GetList(ctx.Request.Context(), &req)
 	if err != nil {
 		response.ErrorFromDB(ctx, err, response.ErrGetListFailed, err.Error())
 		return
@@ -136,16 +136,16 @@ func (c *DouyinCardController) GenerateShortLink(ctx *gin.Context) {
 		return
 	}
 
-	card, err := c.service.GetCardModelByID(ctx, uint(id))
+	card, err := c.service.GetCardModelByID(ctx.Request.Context(), uint(id))
 	if HandleDBError(ctx, err, "获取抖音卡片") {
 		return
 	}
 
-	if HandleDBError(ctx, c.service.GenerateShortLink(ctx, card), "生成短链") {
+	if HandleDBError(ctx, c.service.GenerateShortLink(ctx.Request.Context(), card), "生成短链") {
 		return
 	}
 
-	cardResp, err := c.service.GetByIDWithRefresh(ctx, uint(id))
+	cardResp, err := c.service.GetByIDWithRefresh(ctx.Request.Context(), uint(id))
 	if HandleDBError(ctx, err, "获取抖音卡片") {
 		return
 	}

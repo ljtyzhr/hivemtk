@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"hash/fnv"
 	"runtime/debug"
 	"strings"
 	"sync"
@@ -13,6 +14,7 @@ import (
 
 	"hivemtk-user/internal/geo/model"
 	"hivemtk-user/internal/geo/repository"
+	dbutil "hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 
@@ -394,22 +396,20 @@ func (m *JobManager) startJobForTenant(def geoJobDef, ctx context.Context, trigg
 	return true
 }
 
-// acquireDistributedLock 尝试获取分布式锁（基于数据库行锁）
-// 判读：pg_try_advisory_lock 是会话级锁，SQL 无 FROM/UPDATE 租户表引用，
-// 不触达任何租户表 —— 裸 Background 不构成隔离 callback 触点，故保持不动。
+// acquireDistributedLock 尝试获取分布式锁（基于数据库 advisory lock）
+// 判读：pg_try_advisory_lock 是会话级锁，SQL 不读写任何租户表行，
+// 不触达租户表 —— 裸 Background 不构成隔离 callback 触点，故保持不动。
 // 锁键含租户（lockKey）：调度是逐租户的，租户 A 的任务不该挡住租户 B。
+//
+// 为什么走 dbutil.TryAdvisoryLock 而不是就地 Select：GORM 的 Select 在没有
+// Model/Table 时拼出 `SELECT <expr> FROM `（FROM 后面是空的）⇒ 扫出多一列
+// 空值，Scan 进 bool 报 "unsupported data type: <nil>"，**锁根本没拿到**
+// （2026-10-22 实测）。共享实现见 internal/pkg/db/advisory_lock.go。
 func (m *JobManager) acquireDistributedLock(jobName string, tenantID uint, timeout time.Duration) (bool, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
 
-	var result bool
-	err := m.db.WithContext(ctx).
-		Select("pg_try_advisory_lock(hashtext(?))", lockKey(jobName, tenantID)).
-		Scan(&result).Error
-	if err != nil {
-		return false, err
-	}
-	return result, nil
+	return dbutil.TryAdvisoryLock(ctx, m.db, advisoryLockKey(lockKey(jobName, tenantID)))
 }
 
 // releaseDistributedLock 释放分布式锁
@@ -420,11 +420,15 @@ func (m *JobManager) releaseDistributedLock(jobName string, tenantID uint) {
 	}
 	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 	defer cancel()
-	// 解锁返回值无需使用，但 Scan 目标不可为 nil（gorm 会 panic，见 acquireDistributedLock 同构写法）。
-	var discarded bool
-	_ = m.db.WithContext(ctx).
-		Select("pg_advisory_unlock(hashtext(?))", lockKey(jobName, tenantID)).
-		Scan(&discarded).Error
+	_ = dbutil.ReleaseAdvisoryLock(ctx, m.db, advisoryLockKey(lockKey(jobName, tenantID)))
+}
+
+// advisoryLockKey 把锁键字符串压成 int64（advisory lock 收 int64）。
+// 用 FNV-1a 而不是内置 hash：同一进程内稳定，且不依赖随机种子。
+func advisoryLockKey(key string) int64 {
+	h := fnv.New64a()
+	_, _ = h.Write([]byte(key))
+	return int64(h.Sum64())
 }
 
 // execute 在**单租户**上下文里跑一次任务体并回写运行记录。

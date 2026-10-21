@@ -51,7 +51,7 @@ func (c *CustomerJourneyController) TransitionStage(ctx *gin.Context) {
 	if operatorStr == "" {
 		operatorStr = "manual"
 	}
-	event, err := c.svc.Transition(ctx, req.CustomerID, dto.JourneyStage(req.ToStage), req.Source, operatorStr, req.Reason, nil)
+	event, err := c.svc.Transition(ctx.Request.Context(), req.CustomerID, dto.JourneyStage(req.ToStage), req.Source, operatorStr, req.Reason, nil)
 	if err != nil {
 		response.Error(ctx, http.StatusBadRequest, "迁移失败: "+err.Error())
 		return

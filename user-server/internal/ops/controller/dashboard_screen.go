@@ -32,7 +32,7 @@ func (c *DashboardScreenController) CreateScreen(ctx *gin.Context) {
 		return
 	}
 
-	screen, err := c.screenService.CreateScreen(userID.(uint), &req)
+	screen, err := c.screenService.CreateScreen(ctx.Request.Context(), userID.(uint), &req)
 	if errhttp.HandleDBError(ctx, err, "创建大屏") {
 		return
 	}
@@ -46,7 +46,7 @@ func (c *DashboardScreenController) GetScreenList(ctx *gin.Context) {
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(ctx.DefaultQuery("page_size", "10"))
 
-	screens, total, err := c.screenService.GetScreenList(page, pageSize)
+	screens, total, err := c.screenService.GetScreenList(ctx.Request.Context(), page, pageSize)
 	if err != nil {
 		response.Error(ctx, http.StatusInternalServerError, err.Error())
 		return
@@ -70,7 +70,7 @@ func (c *DashboardScreenController) GetScreenByID(ctx *gin.Context) {
 		return
 	}
 
-	screen, err := c.screenService.GetScreenByID(uint(id))
+	screen, err := c.screenService.GetScreenByID(ctx.Request.Context(), uint(id))
 	if err != nil {
 		response.Error(ctx, http.StatusNotFound, err.Error())
 		return
@@ -89,7 +89,7 @@ func (c *DashboardScreenController) requireScreenOwnership(ctx *gin.Context, id 
 	if role, _ := ctx.Get("role"); role == "admin" {
 		return uid, true
 	}
-	screen, err := c.screenService.GetScreenByID(id)
+	screen, err := c.screenService.GetScreenByID(ctx.Request.Context(), id)
 	if err != nil || screen == nil {
 		response.Error(ctx, http.StatusNotFound, "大屏不存在")
 		return 0, false
@@ -119,7 +119,7 @@ func (c *DashboardScreenController) UpdateScreen(ctx *gin.Context) {
 		return
 	}
 
-	screen, err := c.screenService.UpdateScreen(uint(id), &req)
+	screen, err := c.screenService.UpdateScreen(ctx.Request.Context(), uint(id), &req)
 	if errhttp.HandleDBError(ctx, err, "更新大屏") {
 		return
 	}
@@ -140,7 +140,7 @@ func (c *DashboardScreenController) DeleteScreen(ctx *gin.Context) {
 		return
 	}
 
-	if errhttp.HandleDBError(ctx, c.screenService.DeleteScreen(uint(id)), "删除大屏") {
+	if errhttp.HandleDBError(ctx, c.screenService.DeleteScreen(ctx.Request.Context(), uint(id)), "删除大屏") {
 		return
 	}
 
@@ -174,7 +174,7 @@ func (c *DashboardScreenController) PublicViewScreen(ctx *gin.Context) {
 func (c *DashboardScreenController) GetDashboardData(ctx *gin.Context) {
 	role, _ := ctx.Get("role")
 	isAdmin := role == "admin"
-	data, err := c.screenService.AggregateDashboardData(isAdmin)
+	data, err := c.screenService.AggregateDashboardData(ctx.Request.Context(), isAdmin)
 	if err != nil {
 		response.Error(ctx, http.StatusInternalServerError, "聚合大屏数据失败: "+err.Error())
 		return
@@ -185,7 +185,7 @@ func (c *DashboardScreenController) GetDashboardData(ctx *gin.Context) {
 // GetRealtimeActivities 获取实时活动
 // 架构修复：通过 Service 层访问 DB
 func (c *DashboardScreenController) GetRealtimeActivities(ctx *gin.Context) {
-	activities, err := c.screenService.FetchRealtimeActivities(20)
+	activities, err := c.screenService.FetchRealtimeActivities(ctx.Request.Context(), 20)
 	if err != nil {
 		response.Error(ctx, http.StatusInternalServerError, "获取实时活动失败: "+err.Error())
 		return

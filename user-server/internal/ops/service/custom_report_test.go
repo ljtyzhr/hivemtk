@@ -74,7 +74,7 @@ func TestCustomReportService_CreateReport_Success(t *testing.T) {
 		IsPublic:    false,
 	}
 
-	report, err := service.CreateReport(123, req)
+	report, err := service.CreateReport(ctx, 123, req)
 	if err != nil {
 		t.Fatalf("CreateReport failed: %v", err)
 	}
@@ -99,7 +99,7 @@ func TestCustomReportService_CreateReport_InvalidDataSource(t *testing.T) {
 		ChartType:  "line",
 	}
 
-	_, err := service.CreateReport(123, req)
+	_, err := service.CreateReport(ctx, 123, req)
 	if err == nil {
 		t.Error("Expected error for invalid data source")
 	}
@@ -116,7 +116,7 @@ func TestCustomReportService_CreateReport_InvalidChartType(t *testing.T) {
 		ChartType:  "invalid_chart",
 	}
 
-	_, err := service.CreateReport(123, req)
+	_, err := service.CreateReport(ctx, 123, req)
 	if err == nil {
 		t.Error("Expected error for invalid chart type")
 	}
@@ -133,9 +133,9 @@ func TestCustomReportService_GetReport_Success(t *testing.T) {
 		ChartType:  "bar",
 		IsPublic:   true,
 	}
-	created, _ := service.CreateReport(123, createReq)
+	created, _ := service.CreateReport(ctx, 123, createReq)
 
-	report, err := service.GetReport(created.ID, 123, true)
+	report, err := service.GetReport(ctx, created.ID, 123, true)
 	if err != nil {
 		t.Fatalf("GetReport failed: %v", err)
 	}
@@ -150,7 +150,7 @@ func TestCustomReportService_GetReport_NotFound(t *testing.T) {
 	db := setupCustomReportServiceTestDB(t)
 	service := setupCustomReportService(t, db)
 
-	_, err := service.GetReport(999999, 123, true)
+	_, err := service.GetReport(ctx, 999999, 123, true)
 	if err == nil {
 		t.Error("Expected error for non-existent report")
 	}
@@ -167,9 +167,9 @@ func TestCustomReportService_GetReport_NoPermission(t *testing.T) {
 		ChartType:  "table",
 		IsPublic:   false,
 	}
-	created, _ := service.CreateReport(123, createReq)
+	created, _ := service.CreateReport(ctx, 123, createReq)
 
-	_, err := service.GetReport(created.ID, 999, false)
+	_, err := service.GetReport(ctx, created.ID, 999, false)
 	if err == nil {
 		t.Error("Expected error for no permission")
 	}
@@ -186,10 +186,10 @@ func TestCustomReportService_GetReportList_Success(t *testing.T) {
 			DataSource: "sessions",
 			ChartType:  "line",
 		}
-		service.CreateReport(123, createReq)
+		service.CreateReport(ctx, 123, createReq)
 	}
 
-	reports, total, err := service.GetReportList(1, 10, 123, true)
+	reports, total, err := service.GetReportList(ctx, 1, 10, 123, true)
 	if err != nil {
 		t.Fatalf("GetReportList failed: %v", err)
 	}
@@ -212,7 +212,7 @@ func TestCustomReportService_UpdateReport_Success(t *testing.T) {
 		DataSource: "sessions",
 		ChartType:  "bar",
 	}
-	created, _ := service.CreateReport(123, createReq)
+	created, _ := service.CreateReport(ctx, 123, createReq)
 
 	updateReq := &UpdateReportRequest{
 		Name:        "Updated",
@@ -222,7 +222,7 @@ func TestCustomReportService_UpdateReport_Success(t *testing.T) {
 		IsPublic:    true,
 	}
 
-	updated, err := service.UpdateReport(created.ID, 123, true, updateReq)
+	updated, err := service.UpdateReport(ctx, created.ID, 123, true, updateReq)
 	if err != nil {
 		t.Fatalf("UpdateReport failed: %v", err)
 	}
@@ -246,7 +246,7 @@ func TestCustomReportService_UpdateReport_NotFound(t *testing.T) {
 		ChartType:  "line",
 	}
 
-	_, err := service.UpdateReport(999999, 123, true, updateReq)
+	_, err := service.UpdateReport(ctx, 999999, 123, true, updateReq)
 	if err == nil {
 		t.Error("Expected error for non-existent report")
 	}
@@ -262,7 +262,7 @@ func TestCustomReportService_UpdateReport_SingleTenant(t *testing.T) {
 		DataSource: "sessions",
 		ChartType:  "bar",
 	}
-	created, _ := service.CreateReport(123, createReq)
+	created, _ := service.CreateReport(ctx, 123, createReq)
 
 	updateReq := &UpdateReportRequest{
 		Name:       "Updated",
@@ -270,7 +270,7 @@ func TestCustomReportService_UpdateReport_SingleTenant(t *testing.T) {
 		ChartType:  "bar",
 	}
 
-	updated, err := service.UpdateReport(created.ID, 123, true, updateReq)
+	updated, err := service.UpdateReport(ctx, created.ID, 123, true, updateReq)
 	if err != nil {
 		t.Fatalf("UpdateReport failed: %v", err)
 	}
@@ -289,14 +289,14 @@ func TestCustomReportService_DeleteReport_Success(t *testing.T) {
 		DataSource: "sessions",
 		ChartType:  "table",
 	}
-	created, _ := service.CreateReport(123, createReq)
+	created, _ := service.CreateReport(ctx, 123, createReq)
 
-	err := service.DeleteReport(created.ID, 123, true)
+	err := service.DeleteReport(ctx, created.ID, 123, true)
 	if err != nil {
 		t.Fatalf("DeleteReport failed: %v", err)
 	}
 
-	_, err = service.GetReport(created.ID, 123, true)
+	_, err = service.GetReport(ctx, created.ID, 123, true)
 	if err == nil {
 		t.Error("Expected error after deletion")
 	}
@@ -307,7 +307,7 @@ func TestCustomReportService_DeleteReport_NotFound(t *testing.T) {
 	db := setupCustomReportServiceTestDB(t)
 	service := setupCustomReportService(t, db)
 
-	err := service.DeleteReport(999999, 123, true)
+	err := service.DeleteReport(ctx, 999999, 123, true)
 	if err == nil {
 		t.Error("Expected error for non-existent report")
 	}
@@ -324,9 +324,9 @@ func TestCustomReportService_GetPublicTemplates_Success(t *testing.T) {
 		ChartType:  "line",
 		IsPublic:   true,
 	}
-	service.CreateReport(1, createReq)
+	service.CreateReport(ctx, 1, createReq)
 
-	templates, err := service.GetPublicTemplates()
+	templates, err := service.GetPublicTemplates(ctx, )
 	if err != nil {
 		t.Fatalf("GetPublicTemplates failed: %v", err)
 	}
@@ -347,9 +347,9 @@ func TestCustomReportService_UseTemplate_Success(t *testing.T) {
 		ChartType:  "bar",
 		IsPublic:   true,
 	}
-	template, _ := service.CreateReport(1, createReq)
+	template, _ := service.CreateReport(ctx, 1, createReq)
 
-	_, err := service.UseTemplate(template.ID, 123)
+	_, err := service.UseTemplate(ctx, template.ID, 123)
 	if err != nil {
 		t.Fatalf("UseTemplate failed: %v", err)
 	}
@@ -380,7 +380,7 @@ func TestCustomReportService_QueryReportData_Sessions(t *testing.T) {
 	if err := db.Create(&sysmodel.UnifiedMessage{ContentType: "text", Content: "hello"}).Error; err != nil {
 		t.Fatalf("seed unified_message: %v", err)
 	}
-	report, err := service.CreateReport(123, createReq)
+	report, err := service.CreateReport(ctx, 123, createReq)
 	if err != nil {
 		t.Fatalf("CreateReport failed: %v", err)
 	}
@@ -417,7 +417,7 @@ func TestCustomReportService_QueryReportData_Clues(t *testing.T) {
 		Metrics:    []model.ReportMetric{{Field: "clue_count", Label: "线索数"}},
 		ChartType:  "pie",
 	}
-	report, err := service.CreateReport(123, createReq)
+	report, err := service.CreateReport(ctx, 123, createReq)
 	if err != nil {
 		t.Fatalf("CreateReport failed: %v", err)
 	}
@@ -459,7 +459,7 @@ func TestCustomReportService_QueryReportData_RFM(t *testing.T) {
 		Metrics:    []model.ReportMetric{{Field: "user_count", Label: "用户数"}},
 		ChartType:  "bar",
 	}
-	report, err := service.CreateReport(123, createReq)
+	report, err := service.CreateReport(ctx, 123, createReq)
 	if err != nil {
 		t.Fatalf("CreateReport failed: %v", err)
 	}
@@ -504,7 +504,7 @@ func TestCustomReportService_QueryReportData_Messages(t *testing.T) {
 	if err := db.Create(&sysmodel.UnifiedMessage{ContentType: "text", Content: "hello"}).Error; err != nil {
 		t.Fatalf("seed unified_message: %v", err)
 	}
-	report, err := service.CreateReport(123, createReq)
+	report, err := service.CreateReport(ctx, 123, createReq)
 	if err != nil {
 		t.Fatalf("CreateReport failed: %v", err)
 	}
@@ -534,7 +534,7 @@ func TestCustomReportService_QueryReportData_Agents(t *testing.T) {
 		Metrics:    []model.ReportMetric{{Field: "session_count", Label: "会话数"}, {Field: "avg_response_time", Label: "平均响应时间"}},
 		ChartType:  "table",
 	}
-	report, err := service.CreateReport(123, createReq)
+	report, err := service.CreateReport(ctx, 123, createReq)
 	if err != nil {
 		t.Fatalf("CreateReport failed: %v", err)
 	}
@@ -561,7 +561,7 @@ func TestCustomReportService_QueryReportData_Users(t *testing.T) {
 		Metrics:    []model.ReportMetric{{Field: "user_count", Label: "用户数"}},
 		ChartType:  "pie",
 	}
-	report, err := service.CreateReport(123, createReq)
+	report, err := service.CreateReport(ctx, 123, createReq)
 	if err != nil {
 		t.Fatalf("CreateReport failed: %v", err)
 	}
