@@ -259,7 +259,10 @@ func (h *VisitorWSHandler) onConnect(client *Client, sinceSeq uint64, ctx contex
 		CreatedAt    time.Time `gorm:"column:created_at"`
 	}
 	var rows []offlineRow
-	if err := h.db.Table("session_messages").
+	// 必须 WithContext(ctx)：on 模式 tenancyidx 从 ctx 取租户注入 WHERE tenant_id=?，
+	// 裸 h.db.Table(...) 不带 ctx ⇒ 隔离闸 fail-closed ⇒ 离线消息永远拉不到
+	// （2026-10-21 生产实测：访客 WS 连上后 offline 消息恒空）。
+	if err := h.db.WithContext(ctx).Table("session_messages").
 		Select("id, session_id, content, sender_type, sender_name, ai_source, ai_confidence, created_at").
 		Where("session_id = ? AND sender_type IN ? AND delivered_at IS NULL",
 			client.sessionID, []string{"ai", "agent"}).
@@ -306,7 +309,7 @@ func (h *VisitorWSHandler) onConnect(client *Client, sinceSeq uint64, ctx contex
 	}
 
 	now := time.Now()
-	if err := h.db.Table("session_messages").
+	if err := h.db.WithContext(ctx).Table("session_messages").
 		Where("session_id = ? AND id IN ?", client.sessionID, ids).
 		Update("delivered_at", &now).Error; err != nil {
 		logger.Ctx(ctx).Error().Err(err).Str("session_id", client.sessionID).Msg("mark delivered failed")
