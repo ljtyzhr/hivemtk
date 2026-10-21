@@ -117,18 +117,12 @@ func TestShareOfVoice_TieBrokenByName(t *testing.T) {
 // stubVerifyRepo 只喂 GetByBrandName，其余方法不被本用例的路径使用。
 type stubVerifyRepo struct{ rows []*model.GeoVerifyResult }
 
-func (r *stubVerifyRepo) ListAllForSOV(_ context.Context, _ string) ([]*model.GeoVerifyResult, error) {
-	return r.rows, nil
-}
 func (r *stubVerifyRepo) Create(_ context.Context, _ *model.GeoVerifyResult) error { return nil }
 func (r *stubVerifyRepo) GetByArticleID(_ context.Context, _ string) ([]*model.GeoVerifyResult, error) {
 	return nil, nil
 }
 func (r *stubVerifyRepo) GetByBrandName(_ context.Context, _ string) ([]*model.GeoVerifyResult, error) {
 	return r.rows, nil
-}
-func (r *stubVerifyRepo) GetList(_ context.Context, _ string, _, _ int) ([]*model.GeoVerifyResult, int64, error) {
-	return nil, 0, nil
 }
 func (r *stubVerifyRepo) GetStatistics(_ context.Context) ([]map[string]any, error) { return nil, nil }
 

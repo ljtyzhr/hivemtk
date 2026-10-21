@@ -504,7 +504,10 @@ func (s *KeywordService) recordAPICall(ctx context.Context, resp *LLMResult, pur
 		Purpose:      purpose,
 		Status:       "success",
 	}
-	_ = s.apiCallRepo.Create(ctx, call)
+	// 成本记录失败必须出声：静默丢会让成本报表系统性少计。
+	if err := s.apiCallRepo.Create(ctx, call); err != nil {
+		logger.Warnf("[GEO 成本] API 调用记录写入失败 purpose=%s model=%s: %v", purpose, call.Model, err)
+	}
 }
 
 var jsonArrayRegex = regexp.MustCompile(`\[[\s\S]*\]`)
