@@ -241,4 +241,7 @@ func RegisterMigrations(registry *migration.MigrationRegistry, db *gorm.DB) {
 	// v3.70.0：channel_agent_bindings 唯一键加入 chat_id 维度——同一账号下的
 	// telegram 群组要能各自建绑定，而 account 级默认仍只允许一条
 	register(NewChannelBindingChatIDUniqueKeyMigration(db))
+	// v3.71.0：geo_daily_stats 唯一键 (tenant_id, stat_date, engine, intent)——
+	// 模型原标签建出的是非唯一索引，ON CONFLICT 在全新库上 42P10
+	register(NewGeoDailyStatUniqueKeyMigration(db))
 }

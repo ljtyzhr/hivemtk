@@ -14,9 +14,9 @@ type GeoDailyStat struct {
 	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
 
 	ID                       uint           `gorm:"primaryKey" json:"id"`
-	Date                     string         `gorm:"column:stat_date;size:10;index:idx_date_engine_intent,uniqueIndex" json:"date"`
-	Engine                   string         `gorm:"column:engine;size:32;index:idx_date_engine_intent,uniqueIndex" json:"engine"`
-	Intent                   string         `gorm:"column:intent;size:64;index:idx_date_engine_intent,uniqueIndex" json:"intent"`
+	Date                     string         `gorm:"column:stat_date;size:10;uniqueIndex:idx_date_engine_intent" json:"date"`
+	Engine                   string         `gorm:"column:engine;size:32;uniqueIndex:idx_date_engine_intent" json:"engine"`
+	Intent                   string         `gorm:"column:intent;size:64;uniqueIndex:idx_date_engine_intent" json:"intent"`
 	FunnelStage              string         `gorm:"column:funnel_stage;size:20;index" json:"funnel_stage"`
 	BrandMentionedCount      int            `gorm:"column:brand_mentioned_count" json:"brand_mentioned_count"`
 	CompetitorMentionedCount int            `gorm:"column:competitor_mentioned_count" json:"competitor_mentioned_count"`

@@ -8,12 +8,12 @@ import (
 	"time"
 
 	"hivemtk-user/internal/geo/model"
+	"hivemtk-user/internal/geo/repository"
 	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/timeutil"
 	"hivemtk-user/internal/pkg/utils/logger"
 
 	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
 )
 
 // IndexTrackerService 收录追踪 + AI 引用验证
@@ -24,13 +24,14 @@ import (
 // 3. AutoVerifyCron — 每日定时入口（02:00）
 // 4. UpsertDailyStats — 聚合到 geo_daily_stats
 type IndexTrackerService struct {
-	db     *gorm.DB
-	probes []SearchProbe
+	db        *gorm.DB
+	dailyRepo repository.GeoDailyStatRepository
+	probes    []SearchProbe
 }
 
 // NewIndexTrackerService 创建收录追踪服务（probes 为 AI 搜索探针，可为空）
-func NewIndexTrackerService(db *gorm.DB, probes ...SearchProbe) *IndexTrackerService {
-	return &IndexTrackerService{db: db, probes: probes}
+func NewIndexTrackerService(db *gorm.DB, dailyRepo repository.GeoDailyStatRepository, probes ...SearchProbe) *IndexTrackerService {
+	return &IndexTrackerService{db: db, dailyRepo: dailyRepo, probes: probes}
 }
 
 // ArticleStanding 单篇文章站位评分
@@ -323,27 +324,7 @@ func (s *IndexTrackerService) upsertDailyStats(ctx context.Context) {
 	// 这一轮会把业务当日的引用数累加到**前一天**的行上。
 	statDate := timeutil.BusinessToday()
 	for _, r := range rows {
-		// upsert：冲突则累计（T012 清偿：OnConflict + gorm.Expr 累加）
-		if err := s.db.WithContext(ctx).Table("geo_daily_stats").
-			Clauses(clause.OnConflict{
-				Columns: []clause.Column{
-					{Name: "tenant_id"}, {Name: "stat_date"}, {Name: "engine"},
-					{Name: "intent"}, {Name: "funnel_stage"},
-				},
-				DoUpdates: clause.Assignments(map[string]any{
-					"citation_count":        gorm.Expr("geo_daily_stats.citation_count + EXCLUDED.citation_count"),
-					"brand_mentioned_count": gorm.Expr("geo_daily_stats.brand_mentioned_count + EXCLUDED.brand_mentioned_count"),
-				}),
-			}).
-			Create(map[string]any{
-				"stat_date":             statDate,
-				"engine":                r.Engine,
-				"intent":                "mixed",
-				"funnel_stage":          "mixed",
-				"citation_count":        r.Citations,
-				"brand_mentioned_count": r.BrandMentions,
-				"probe_count":           0,
-			}).Error; err != nil {
+		if err := s.dailyRepo.IncrementByEngine(ctx, statDate, r.Engine, int(r.Citations), int(r.BrandMentions)); err != nil {
 			logger.Warnf("upsertDailyStats: 引擎 %s 聚合失败: %v", r.Engine, err)
 		}
 	}

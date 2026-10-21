@@ -10,6 +10,7 @@ import (
 	"hivemtk-user/internal/reporting"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // GeoDailyStatRepository 每日聚合统计仓储（UPSERT 语义）
@@ -19,9 +20,10 @@ import (
 type GeoDailyStatRepository interface {
 	Upsert(ctx context.Context, stat *model.GeoDailyStat) error
 	BatchUpsert(ctx context.Context, stats []*model.GeoDailyStat) error
+	// IncrementByEngine 按 (stat_date, engine, "mixed", "mixed") 累加引用数
+	IncrementByEngine(ctx context.Context, statDate, engine string, citations, brandMentions int) error
 	List(ctx context.Context, engine, funnelStage, startDate, endDate string, page, limit int) ([]*model.GeoDailyStat, int64, error)
 	GetTrend(ctx context.Context, engine, funnelStage, intent string, days int) ([]*model.GeoDailyStat, error)
-	DeleteBefore(ctx context.Context, before time.Time) error
 }
 
 type geoDailyStatRepo struct{ db *gorm.DB }
@@ -34,17 +36,38 @@ func NewGeoDailyStatRepositoryWithDB(db *gorm.DB) GeoDailyStatRepository {
 }
 
 func (r *geoDailyStatRepo) Upsert(ctx context.Context, stat *model.GeoDailyStat) error {
-	return r.db.WithContext(ctx).
-		Where("stat_date = ? AND engine = ? AND intent = ?", stat.Date, stat.Engine, stat.Intent).
-		Assign(model.GeoDailyStat{
-			FunnelStage:              stat.FunnelStage,
-			BrandMentionedCount:      stat.BrandMentionedCount,
-			CompetitorMentionedCount: stat.CompetitorMentionedCount,
-			CitationCount:            stat.CitationCount,
-			NegativeCount:            stat.NegativeCount,
-			ProbeCount:               stat.ProbeCount,
-		}).
-		FirstOrCreate(stat).Error
+	// 不用 FirstOrCreate：SELECT 后 INSERT 在并发下会撞唯一键（23505）。
+	// 冲突目标与表上的唯一键一致（Normalize 后的 (tenant_id, stat_date, engine, intent)）；
+	// tenant_id 由隔离 callback 在 INSERT 前填好。
+	return r.db.WithContext(ctx).Clauses(clause.OnConflict{
+		Columns: []clause.Column{
+			{Name: "tenant_id"}, {Name: "stat_date"}, {Name: "engine"}, {Name: "intent"},
+		},
+		DoUpdates: clause.AssignmentColumns([]string{
+			"funnel_stage", "brand_mentioned_count", "competitor_mentioned_count",
+			"citation_count", "negative_count", "probe_count",
+		}),
+	}).Create(stat).Error
+}
+
+func (r *geoDailyStatRepo) IncrementByEngine(ctx context.Context, statDate, engine string, citations, brandMentions int) error {
+	stat := &model.GeoDailyStat{
+		Date:                statDate,
+		Engine:              engine,
+		Intent:              "mixed",
+		FunnelStage:         "mixed",
+		CitationCount:       citations,
+		BrandMentionedCount: brandMentions,
+	}
+	return r.db.WithContext(ctx).Clauses(clause.OnConflict{
+		Columns: []clause.Column{
+			{Name: "tenant_id"}, {Name: "stat_date"}, {Name: "engine"}, {Name: "intent"},
+		},
+		DoUpdates: clause.Assignments(map[string]any{
+			"citation_count":        gorm.Expr("geo_daily_stats.citation_count + EXCLUDED.citation_count"),
+			"brand_mentioned_count": gorm.Expr("geo_daily_stats.brand_mentioned_count + EXCLUDED.brand_mentioned_count"),
+		}),
+	}).Create(stat).Error
 }
 
 func (r *geoDailyStatRepo) BatchUpsert(ctx context.Context, stats []*model.GeoDailyStat) error {
@@ -105,8 +128,4 @@ func (r *geoDailyStatRepo) GetTrend(ctx context.Context, engine, funnelStage, in
 	}
 	err := q.Order("stat_date ASC").Find(&list).Error
 	return list, err
-}
-
-func (r *geoDailyStatRepo) DeleteBefore(ctx context.Context, before time.Time) error {
-	return r.db.WithContext(ctx).Where("stat_date < ?", timeutil.BusinessDate(before)).Delete(&model.GeoDailyStat{}).Error
 }
