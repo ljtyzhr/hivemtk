@@ -27,8 +27,10 @@ type GeoSeedTerm struct {
 	Category     string `gorm:"type:varchar(32);index" json:"category"`
 	BusinessLine string `gorm:"type:varchar(64);index;default:''" json:"business_line"`
 	Source       string `gorm:"type:varchar(200);default:''" json:"source"`
-	Active       bool   `gorm:"default:true;index" json:"active"`
-	Sort         int    `gorm:"default:0;index" json:"sort"`
+	// 不能声明 gorm default：零值 false 会被 GORM 省略而落成列默认 true，
+	// 于是「显式停用」的写入静默变成启用。
+	Active bool `gorm:"index" json:"active"`
+	Sort   int  `gorm:"default:0;index" json:"sort"`
 
 	CreatedAt time.Time      `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt time.Time      `gorm:"autoUpdateTime" json:"updated_at"`

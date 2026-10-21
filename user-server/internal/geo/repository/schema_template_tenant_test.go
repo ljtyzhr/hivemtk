@@ -105,3 +105,26 @@ func TestGeoSchemaTemplateRepository_TenantScoped(t *testing.T) {
 		t.Fatal("无租户 ctx 创建应报错，实际成功")
 	}
 }
+
+// TestGeoSchemaTemplateRepository_停用值不被列默认值覆盖 Active 声明了 gorm
+// default:true 时，false 是零值、会被 GORM 从 INSERT 里省略，落库变成 true。
+func TestGeoSchemaTemplateRepository_停用值不被列默认值覆盖(t *testing.T) {
+	db := gstSetupDB(t)
+	repo := NewGeoSchemaTemplateRepositoryWithDB(db)
+	ctxA := tenant.WithTenantID(context.Background(), gstTenantA)
+
+	tpl := &model.GeoSchemaTemplate{
+		PageType: "faq", SchemaType: "FAQPage",
+		TemplateJSON: datatypes.JSON(`{"@type":"FAQPage"}`), Active: false,
+	}
+	if err := repo.Create(ctxA, tpl); err != nil {
+		t.Fatalf("创建失败: %v", err)
+	}
+	got, err := repo.GetByID(ctxA, tpl.ID)
+	if err != nil {
+		t.Fatalf("回查失败: %v", err)
+	}
+	if got.Active {
+		t.Fatal("显式 active=false 落库变成了 true")
+	}
+}

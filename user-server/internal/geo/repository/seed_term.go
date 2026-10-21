@@ -15,10 +15,6 @@ type GeoSeedTermRepository interface {
 	ListActive(ctx context.Context) ([]*model.GeoSeedTerm, error)
 	// UpsertBatch 按 term 批量 upsert（首次自动播种用，幂等）
 	UpsertBatch(ctx context.Context, terms []*model.GeoSeedTerm) (int, error)
-	// Count 统计词条总数（空表判定用）
-	Count(ctx context.Context) (int64, error)
-	// DeleteByTerm 按词条名删除
-	DeleteByTerm(ctx context.Context, term string) error
 }
 
 type geoSeedTermRepo struct {
@@ -50,7 +46,9 @@ func (r *geoSeedTermRepo) UpsertBatch(ctx context.Context, terms []*model.GeoSee
 	// 同一批内按 term 去重（同一词可能归属多条业务线），否则 PG 报
 	// ON CONFLICT DO UPDATE cannot affect row a second time (21000)
 	seen := make(map[string]struct{}, len(terms))
-	deduped := terms[:0]
+	// 必须新开切片：复用 terms[:0] 会把调用方传入的切片原地压紧（元素错位），
+	// 调用方若还持有该切片就会看到被改写的行。
+	deduped := make([]*model.GeoSeedTerm, 0, len(terms))
 	for _, t := range terms {
 		if t == nil {
 			continue
@@ -68,16 +66,4 @@ func (r *geoSeedTermRepo) UpsertBatch(ctx context.Context, terms []*model.GeoSee
 		return 0, err
 	}
 	return len(deduped), nil
-}
-
-func (r *geoSeedTermRepo) Count(ctx context.Context) (int64, error) {
-	var n int64
-	if err := r.db.WithContext(ctx).Model(&model.GeoSeedTerm{}).Count(&n).Error; err != nil {
-		return 0, err
-	}
-	return n, nil
-}
-
-func (r *geoSeedTermRepo) DeleteByTerm(ctx context.Context, term string) error {
-	return r.db.WithContext(ctx).Where("term = ?", term).Delete(&model.GeoSeedTerm{}).Error
 }

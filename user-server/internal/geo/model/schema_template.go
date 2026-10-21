@@ -21,7 +21,8 @@ type GeoSchemaTemplate struct {
 	SchemaType string `gorm:"type:varchar(50);index" json:"schema_type"`
 	// 'FAQPage' | 'Product' | 'Article' | 'Comparison' | 'Organization'
 	TemplateJSON datatypes.JSON `gorm:"type:jsonb;not null" json:"template_json"`
-	Active       bool           `gorm:"default:true" json:"active"`
+	// 不能声明 gorm default：零值 false 会被 GORM 省略而落成列默认 true。
+	Active bool `json:"active"`
 
 	CreatedAt time.Time      `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt time.Time      `gorm:"autoUpdateTime" json:"updated_at"`

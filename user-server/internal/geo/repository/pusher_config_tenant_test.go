@@ -140,3 +140,25 @@ func TestGeoPusherConfigRepository_TenantScoped(t *testing.T) {
 		t.Fatal("无租户 ctx 创建应报错，实际成功")
 	}
 }
+
+// TestGeoPusherConfigRepository_停用值不被列默认值覆盖 同上：Active 声明
+// default:true 会让显式 false 被省略，落库变 true。
+func TestGeoPusherConfigRepository_停用值不被列默认值覆盖(t *testing.T) {
+	db := gpcSetupDB(t)
+	repo := NewGeoPusherConfigRepositoryWithDB(db)
+	ctxA := tenant.WithTenantID(context.Background(), gpcTenantA)
+
+	cfg := &model.GeoPusherConfig{
+		Platform: "indexnow", ConfigJSON: datatypes.JSON(`{"host":"a.example"}`), Active: false,
+	}
+	if err := repo.Create(ctxA, cfg); err != nil {
+		t.Fatalf("创建失败: %v", err)
+	}
+	got, err := repo.GetByID(ctxA, cfg.ID)
+	if err != nil {
+		t.Fatalf("回查失败: %v", err)
+	}
+	if got.Active {
+		t.Fatal("显式 active=false 落库变成了 true")
+	}
+}

@@ -22,7 +22,8 @@ type GeoPusherConfig struct {
 	DailyLimit  int            `json:"daily_limit"`
 	UsedToday   int            `gorm:"default:0" json:"used_today"`
 	LastResetAt *time.Time     `json:"last_reset_at"`
-	Active      bool           `gorm:"default:true" json:"active"`
+	// 不能声明 gorm default：零值 false 会被 GORM 省略而落成列默认 true。
+	Active bool `json:"active"`
 
 	CreatedAt time.Time      `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt time.Time      `gorm:"autoUpdateTime" json:"updated_at"`
