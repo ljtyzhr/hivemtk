@@ -114,6 +114,9 @@ func (r *MessageHubRepository) GetLastInboundByConversation(ctx context.Context,
 	return &msg, nil
 }
 
+// conversationContextLimit 会话上下文读取上限：取最近 N 条，防止长会话无界读。
+const conversationContextLimit = 1000
+
 func (r *MessageHubRepository) ListByConversationContext(ctx context.Context, platform, accountID, customerID string) ([]*model.MessageHub, error) {
 	if r == nil || r.db == nil {
 		return nil, nil
@@ -123,6 +126,8 @@ func (r *MessageHubRepository) ListByConversationContext(ctx context.Context, pl
 		Where("platform = ? AND account_id = ? AND (sender_id = ? OR receiver_id = ?)",
 			platform, accountID, customerID, customerID).
 		Where(undeliveredOutboundCond, undeliveredOutboundArgs...).
+		Order("sent_at DESC, id DESC").
+		Limit(conversationContextLimit).
 		Find(&hubs).Error; err != nil {
 		return nil, err
 	}

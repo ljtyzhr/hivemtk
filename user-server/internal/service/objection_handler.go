@@ -39,14 +39,20 @@ func (s *ObjectionHandlerService) SetDispatcher(d objectionDispatcher) {
 	s.dispatcher = d
 }
 
-// NewObjectionHandlerService 创建服务
+// NewObjectionHandlerServiceWithRepo 创建服务（仓储由装配层注入）
 // D10: 直接接入全局 dispatcher（审核修正①——装配点零改动；全局未初始化时兜底自动关闭）
-func NewObjectionHandlerService() *ObjectionHandlerService {
-	s := &ObjectionHandlerService{scriptRepo: repository.NewScriptLibraryRepository(repository.GetDB())}
+func NewObjectionHandlerServiceWithRepo(repo ScriptLibraryRepo) *ObjectionHandlerService {
+	s := &ObjectionHandlerService{scriptRepo: repo}
 	if d := llm.GetGlobalDispatcher(); d != nil {
 		s.dispatcher = d
 	}
 	return s
+}
+
+// NewObjectionHandlerService 兼容旧装配点：绑定全局 DB 的仓储。
+// 新代码一律经 NewObjectionHandlerServiceWithRepo 由 router 注入。
+func NewObjectionHandlerService() *ObjectionHandlerService {
+	return NewObjectionHandlerServiceWithRepo(repository.NewScriptLibraryRepositoryFromGlobal())
 }
 
 // ObjectionCategory 异议类别
@@ -331,11 +337,7 @@ var scriptABSvc *ScriptABService
 
 func getScriptABService() *ScriptABService {
 	scriptABOnce.Do(func() {
-		repo := repository.NewScriptLibraryRepository(repository.GetDB())
-		if repo == nil {
-			return
-		}
-		scriptABSvc = NewScriptABService(repo)
+		scriptABSvc = NewScriptABServiceFromGlobal()
 	})
 	return scriptABSvc
 }

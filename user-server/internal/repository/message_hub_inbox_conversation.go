@@ -166,11 +166,6 @@ func (r *InboxConversationRepository) GetByID(ctx context.Context, id uint) (*mo
 	return &conv, err
 }
 
-// Update 更新会话
-func (r *InboxConversationRepository) Update(ctx context.Context, conv *model.InboxConversation) error {
-	return r.db.WithContext(ctx).Save(conv).Error
-}
-
 // ListByAccount 按账号列出会话
 func (r *InboxConversationRepository) ListByAccount(ctx context.Context, platform, accountID string, page, pageSize int) ([]*model.InboxConversation, int64, error) {
 	var items []*model.InboxConversation

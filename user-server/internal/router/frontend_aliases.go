@@ -224,7 +224,8 @@ func setupFrontendAliases(auth, systemAdmin *gin.RouterGroup, engine *gin.Engine
 	aiSuggestionCtrl := controller.NewAISuggestionController()
 	doReg("GET", "/ai-suggestions", aiSuggestionCtrl.GetSuggestions)
 
-	objCtrl := controller.NewObjectionHandlerController()
+	objCtrl := controller.NewObjectionHandlerController(
+		service.NewObjectionHandlerServiceWithRepo(repository.NewScriptLibraryRepository(gormDB)))
 	doReg("GET", "/objection-templates", objCtrl.ListCategories)
 	doReg("GET", "/objection-templates/list", objCtrl.ListCategories)
 	doReg("POST", "/objection-templates/handle", objCtrl.Handle)

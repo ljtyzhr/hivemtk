@@ -136,10 +136,10 @@ var (
 // NewWeComAccountHealthService 创建账号健康度服务
 func NewWeComAccountHealthService(db *gorm.DB) *WeComAccountHealthService {
 	accountRepo := repository.NewWeComAccountRepository()
+	accountRepo.SetDB(context.Background(), db)
 	healthRepo := repository.NewWeComAccountHealthRepository()
 	if db != nil {
-		accountRepo.SetDB(context.Background(), db)
-		healthRepo.SetDB(context.Background(), db)
+		healthRepo = repository.NewWeComAccountHealthRepositoryWithDB(db)
 	}
 	return &WeComAccountHealthService{
 		accountRepo: accountRepo,

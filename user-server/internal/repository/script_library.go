@@ -73,7 +73,10 @@ func (r *ScriptLibraryRepository) IncrementUsageStats(ctx context.Context, templ
 		Updates(updates).Error
 }
 
-// ListScriptVersions 查询话术版本历史（version DESC）
+// scriptVersionListLimit 版本历史上限：版本号只增不减，封顶防止无界读。
+const scriptVersionListLimit = 200
+
+// ListScriptVersions 查询话术版本历史（version DESC，最多 scriptVersionListLimit 条）
 func (r *ScriptLibraryRepository) ListScriptVersions(ctx context.Context, scriptID uint) ([]model.ScriptVersion, error) {
 	if r == nil || r.db == nil {
 		return nil, errors.New("script library repository not initialized")
@@ -82,6 +85,7 @@ func (r *ScriptLibraryRepository) ListScriptVersions(ctx context.Context, script
 	err := r.db.WithContext(ctx).
 		Where("script_id = ?", scriptID).
 		Order("version DESC").
+		Limit(scriptVersionListLimit).
 		Find(&versions).Error
 	return versions, err
 }

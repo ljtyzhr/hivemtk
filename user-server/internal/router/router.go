@@ -776,7 +776,7 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 
 		setupAnalyticsRoutes(auth)
 
-		setupObjectionHandlerRoutes(auth)
+		setupObjectionHandlerRoutes(auth, gormDB)
 
 		setupCustomerJourneyRoutes(auth)
 

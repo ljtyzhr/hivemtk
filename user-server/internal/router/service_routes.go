@@ -485,8 +485,9 @@ func setupAnalyticsRoutes(auth *gin.RouterGroup) {
 	auth.GET("/analytics/persona/staffs/:id", personaCtrl.GetReport)
 }
 
-func setupObjectionHandlerRoutes(auth *gin.RouterGroup) {
-	objCtrl := controller.NewObjectionHandlerController()
+func setupObjectionHandlerRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
+	objSvc := service.NewObjectionHandlerServiceWithRepo(repository.NewScriptLibraryRepository(gormDB))
+	objCtrl := controller.NewObjectionHandlerController(objSvc)
 	auth.POST("/objection/handle", objCtrl.Handle)
 	auth.POST("/objection/classify", objCtrl.Classify)
 	auth.GET("/objection/categories", objCtrl.ListCategories)

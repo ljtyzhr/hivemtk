@@ -9,6 +9,9 @@ import (
 	"gorm.io/gorm"
 )
 
+// sopListLimit SOP 列表上限：调度/日度迭代全量扫描，封顶防止无界读。
+const sopListLimit = 500
+
 // SopAgentRepository SOP 智能体仓储
 type SopAgentRepository struct {
 	db *gorm.DB
@@ -27,7 +30,7 @@ func (r *SopAgentRepository) ListActiveByTriggerType(ctx context.Context, trigge
 	var list []model.SOPAgent
 	if err := r.db.WithContext(ctx).
 		Where("is_active = ? AND trigger_type = ?", true, triggerType).
-		Find(&list).Error; err != nil {
+		Limit(sopListLimit).Find(&list).Error; err != nil {
 		return nil, err
 	}
 	return list, nil
@@ -52,7 +55,7 @@ func (r *SopAgentRepository) ListByUseBandit(ctx context.Context, useBandit bool
 	var list []model.SOPAgent
 	if err := r.db.WithContext(ctx).
 		Where("use_bandit = ?", useBandit).
-		Find(&list).Error; err != nil {
+		Limit(sopListLimit).Find(&list).Error; err != nil {
 		return nil, err
 	}
 	return list, nil
@@ -137,12 +140,41 @@ func (r *SopExecutionRepository) GetByID(ctx context.Context, id uint) (*model.S
 	return &exec, nil
 }
 
-// Save 保存 SOP 执行记录（存在则更新，不存在则创建）
+// Save 更新已存在的 SOP 执行记录
+//
+// 不用 Save：0 行命中会退化成按裸主键 ON CONFLICT，跨租户能把整行搬走/复活。
+// 新建走 Create；这里用列 map + WHERE id，0 行即 NotFound。
 func (r *SopExecutionRepository) Save(ctx context.Context, exec *model.SOPExecution) error {
 	if r == nil || r.db == nil {
 		return errors.New("sop execution repository not initialized")
 	}
-	return r.db.WithContext(ctx).Save(exec).Error
+	res := r.db.WithContext(ctx).Model(&model.SOPExecution{}).
+		Where("id = ?", exec.ID).
+		Updates(map[string]any{
+			"sop_id":           exec.SOPID,
+			"customer_id":      exec.CustomerID,
+			"session_id":       exec.SessionID,
+			"current_node":     exec.CurrentNode,
+			"current_node_idx": exec.CurrentNodeIdx,
+			"status":           exec.Status,
+			"execution_data":   exec.ExecutionData,
+			"started_at":       exec.StartedAt,
+			"completed_at":     exec.CompletedAt,
+			"error_message":    exec.ErrorMessage,
+			"variant":          exec.Variant,
+			"last_event_at":    exec.LastEventAt,
+			"attempt_count":    exec.AttemptCount,
+			"trace_id":         exec.TraceID,
+			"wait_event":       exec.WaitEvent,
+			"executed_nodes":   exec.ExecutedNodes,
+		})
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 // UpdateAttemptCount 更新执行记录的尝试次数
@@ -209,12 +241,38 @@ func (r *SopAgentRepository) GetByID(ctx context.Context, id uint) (*model.SOPAg
 	return &agent, nil
 }
 
-// Save 保存 SOP 智能体（存在则更新，不存在则创建）
+// Save 更新已存在的 SOP 智能体（新建走 Create）
+//
+// 列 map 代替 Save：0 行命中必须报 NotFound，不得按裸主键把行搬到别的租户下。
 func (r *SopAgentRepository) Save(ctx context.Context, agent *model.SOPAgent) error {
 	if r == nil || r.db == nil {
 		return errors.New("sop agent repository not initialized")
 	}
-	return r.db.WithContext(ctx).Save(agent).Error
+	res := r.db.WithContext(ctx).Model(&model.SOPAgent{}).
+		Where("id = ?", agent.ID).
+		Updates(map[string]any{
+			"name":            agent.Name,
+			"scenario":        agent.Scenario,
+			"description":     agent.Description,
+			"trigger_type":    agent.TriggerType,
+			"trigger_config":  agent.TriggerConfig,
+			"sop_graph":       agent.SOPGraph,
+			"version":         agent.Version,
+			"is_active":       agent.IsActive,
+			"priority":        agent.Priority,
+			"execution_count": agent.ExecutionCount,
+			"success_count":   agent.SuccessCount,
+			"ab_test_config":  agent.ABTestConfig,
+			"use_bandit":      agent.UseBandit,
+			"created_by":      agent.CreatedBy,
+		})
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 // DeleteByID 按 ID 删除 SOP 智能体，返回受影响行数

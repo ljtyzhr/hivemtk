@@ -46,8 +46,38 @@ func (r *dialogueMemoryRepository) CreateDialogueMemory(ctx context.Context, mem
 	return r.db.WithContext(ctx).Create(mem).Error
 }
 
+// SaveDialogueMemory 更新已存在的记忆行（新建走 CreateDialogueMemory）
+//
+// 不用 Save：0 行命中会退化成按裸主键 ON CONFLICT，跨租户能把整行搬走/复活。
 func (r *dialogueMemoryRepository) SaveDialogueMemory(ctx context.Context, mem *model.DialogueMemory) error {
-	return r.db.WithContext(ctx).Save(mem).Error
+	res := r.db.WithContext(ctx).Model(&model.DialogueMemory{}).
+		Where("id = ?", mem.ID).
+		Updates(map[string]any{
+			"session_id":             mem.SessionID,
+			"customer_id":            mem.CustomerID,
+			"summary":                mem.Summary,
+			"key_facts":              mem.KeyFacts,
+			"customer_name":          mem.CustomerName,
+			"customer_phone":         mem.CustomerPhone,
+			"customer_wechat":        mem.CustomerWechat,
+			"budget":                 mem.Budget,
+			"demand":                 mem.Demand,
+			"objections":             mem.Objections,
+			"purchase_intent":        mem.PurchaseIntent,
+			"intent_trail":           mem.IntentTrail,
+			"sop_history":            mem.SOPHistory,
+			"last_action":            mem.LastAction,
+			"next_action_suggestion": mem.NextActionSuggestion,
+			"last_active_at":         mem.LastActiveAt,
+			"message_count":          mem.MessageCount,
+		})
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 func (r *dialogueMemoryRepository) ListDialogueMemoriesByCustomer(ctx context.Context, customerID string, limit int) ([]*model.DialogueMemory, int64, error) {

@@ -134,8 +134,51 @@ func (r *MessageHubRepository) ListByConversation(ctx context.Context, conversat
 	return items, total, err
 }
 
+// Update 更新已存在的消息行（新建走 Create）
+//
+// 不用 Save：0 行命中会退化成按裸主键 ON CONFLICT，跨租户能把整行搬走/复活。
+// 这里用列 map + WHERE id（租户谓词由隔离 callback 注入），0 行即 NotFound。
 func (r *MessageHubRepository) Update(ctx context.Context, hub *model.MessageHub) error {
-	return r.db.WithContext(ctx).Save(hub).Error
+	if r == nil || r.db == nil {
+		return gorm.ErrInvalidDB
+	}
+	res := r.db.WithContext(ctx).Model(&model.MessageHub{}).
+		Where("id = ?", hub.ID).
+		Updates(map[string]any{
+			"platform":        hub.Platform,
+			"msg_id":          hub.MsgID,
+			"account_id":      hub.AccountID,
+			"direction":       hub.Direction,
+			"status":          hub.Status,
+			"msg_type":        hub.MsgType,
+			"sender_id":       hub.SenderID,
+			"sender_name":     hub.SenderName,
+			"receiver_id":     hub.ReceiverID,
+			"receiver_name":   hub.ReceiverName,
+			"content":         hub.Content,
+			"media_url":       hub.MediaURL,
+			"conversation_id": hub.ConversationID,
+			"is_group":        hub.IsGroup,
+			"group_id":        hub.GroupID,
+			"is_ai_reply":     hub.IsAIReply,
+			"ai_agent":        hub.AIAgent,
+			"trace_id":        hub.TraceID,
+			"dedup_hash":      hub.DedupHash,
+			"claimed_at":      hub.ClaimedAt,
+			"push_attempts":   hub.PushAttempts,
+			"push_error":      hub.PushError,
+			"is_read":         hub.IsRead,
+			"read_at":         hub.ReadAt,
+			"sent_at":         hub.SentAt,
+			"extra":           hub.Extra,
+		})
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 func (r *MessageHubRepository) Delete(ctx context.Context, id uint) error {

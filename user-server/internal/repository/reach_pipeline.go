@@ -65,11 +65,36 @@ func (r *ReachPipelineRepository) FindPipelineByID(ctx context.Context, id uint)
 }
 
 // SavePipeline 保存 Pipeline 全字段（用于 UpdatePipeline 整体回写）
+//
+// 不用 Save：Save 的 UPDATE 命中 0 行时会回退成 ON CONFLICT(裸主键) DO UPDATE，
+// 租户闸对 excluded.tenant_id 放行 ⇒ 跨租户按主键 Save 会把整行搬到调用方租户下。
+// 这里用列 map + WHERE id（租户谓词由隔离 callback 注入），0 行即 NotFound。
 func (r *ReachPipelineRepository) SavePipeline(ctx context.Context, pipe *model.ReachPipeline) error {
 	if r == nil || r.db == nil {
 		return errors.New("reach pipeline repository not initialized")
 	}
-	return r.db.WithContext(ctx).Save(pipe).Error
+	res := r.db.WithContext(ctx).Model(&model.ReachPipeline{}).
+		Where("id = ?", pipe.ID).
+		Updates(map[string]any{
+			"name":          pipe.Name,
+			"description":   pipe.Description,
+			"channel":       pipe.Channel,
+			"steps":         pipe.Steps,
+			"retry_policy":  pipe.RetryPolicy,
+			"rate_limit":    pipe.RateLimit,
+			"status":        pipe.Status,
+			"version":       pipe.Version,
+			"total_runs":    pipe.TotalRuns,
+			"total_success": pipe.TotalSuccess,
+			"total_failure": pipe.TotalFailure,
+		})
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 // ListPipelines 列出 Pipeline（按 channel / status 过滤，id DESC 排序，分页）
@@ -173,13 +198,22 @@ func (r *ReachPipelineRepository) ResetStuckJobs(ctx context.Context, olderThan 
 }
 
 // UpdatePipelineStatus 更新 Pipeline 状态（active/paused/archived）
+//
+// 0 行命中必须报 NotFound：跨租户或已删除的 id 不得返回「操作成功」。
 func (r *ReachPipelineRepository) UpdatePipelineStatus(ctx context.Context, id uint, status string) error {
 	if r == nil || r.db == nil {
 		return errors.New("reach pipeline repository not initialized")
 	}
-	return r.db.WithContext(ctx).Model(&model.ReachPipeline{}).
+	res := r.db.WithContext(ctx).Model(&model.ReachPipeline{}).
 		Where("id = ?", id).
-		Update("status", status).Error
+		Update("status", status)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 // IncrementPipelineField 给 Pipeline 的指定数值字段自增 delta（用于 total_runs/total_success/total_failure）
@@ -250,11 +284,38 @@ func (r *ReachPipelineRepository) UpdateJobStateWithCond(ctx context.Context, id
 }
 
 // SaveJob 保存任务全字段（用于 ExecuteJob 内多次回写状态）
+//
+// 与 SavePipeline 同理：列 map 代替 Save，0 行命中即 NotFound（行被删或跨租户）。
 func (r *ReachPipelineRepository) SaveJob(ctx context.Context, job *model.ReachJob) error {
 	if r == nil || r.db == nil {
 		return errors.New("reach pipeline repository not initialized")
 	}
-	return r.db.WithContext(ctx).Save(job).Error
+	res := r.db.WithContext(ctx).Model(&model.ReachJob{}).
+		Where("id = ?", job.ID).
+		Updates(map[string]any{
+			"pipeline_id":   job.PipelineID,
+			"channel":       job.Channel,
+			"customer_id":   job.CustomerID,
+			"account_id":    job.AccountID,
+			"payload":       job.Payload,
+			"state":         job.State,
+			"current_step":  job.CurrentStep,
+			"step_results":  job.StepResults,
+			"retry_count":   job.RetryCount,
+			"max_retry":     job.MaxRetry,
+			"next_run_at":   job.NextRunAt,
+			"started_at":    job.StartedAt,
+			"completed_at":  job.CompletedAt,
+			"error_message": job.ErrorMessage,
+			"duration_ms":   job.DurationMs,
+		})
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 // TouchRunningJob 刷新运行中任务的 updated_at，作为执行存活心跳。

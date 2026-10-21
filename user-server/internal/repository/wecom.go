@@ -382,11 +382,16 @@ type WeComAccountHealthRepository struct {
 	db *gorm.DB
 }
 
-// NewWeComAccountHealthRepository 创建企业微信账号健康度仓库实例
+// NewWeComAccountHealthRepository 创建企业微信账号健康度仓库实例（绑定全局 DB，仅兼容存量调用）
 func NewWeComAccountHealthRepository() *WeComAccountHealthRepository {
 	return &WeComAccountHealthRepository{
 		db: _db.GetDB(),
 	}
+}
+
+// NewWeComAccountHealthRepositoryWithDB 创建指定数据库连接的健康度仓库
+func NewWeComAccountHealthRepositoryWithDB(db *gorm.DB) *WeComAccountHealthRepository {
+	return &WeComAccountHealthRepository{db: db}
 }
 
 // SetDB 注入 db（用于测试）

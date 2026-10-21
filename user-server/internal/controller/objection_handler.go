@@ -15,9 +15,9 @@ type ObjectionHandlerController struct {
 	svc *service.ObjectionHandlerService
 }
 
-// NewObjectionHandlerController 创建控制器
-func NewObjectionHandlerController() *ObjectionHandlerController {
-	return &ObjectionHandlerController{svc: service.NewObjectionHandlerService()}
+// NewObjectionHandlerController 创建控制器（service 由 router 注入）
+func NewObjectionHandlerController(svc *service.ObjectionHandlerService) *ObjectionHandlerController {
+	return &ObjectionHandlerController{svc: svc}
 }
 
 // Handle 处理异议
