@@ -3,7 +3,6 @@ package service
 import (
 	"context"
 	"testing"
-	"time"
 
 	"hivemtk-user/internal/geo/model"
 )
@@ -48,8 +47,6 @@ func (r *memAlertRepo) MarkNotified(_ context.Context, id uint) error {
 	}
 	return nil
 }
-
-func (r *memAlertRepo) DeleteBefore(_ context.Context, _ time.Time) error { return nil }
 
 func (r *memAlertRepo) CountUnread(_ context.Context) (int64, error) {
 	var n int64

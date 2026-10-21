@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"time"
 
 	"hivemtk-user/internal/geo/model"
 	_db "hivemtk-user/internal/pkg/db"
@@ -15,7 +14,6 @@ type GeoAlertRepository interface {
 	Create(ctx context.Context, alert *model.GeoAlert) error
 	List(ctx context.Context, alertType, level string, page, limit int) ([]*model.GeoAlert, int64, error)
 	MarkNotified(ctx context.Context, id uint) error
-	DeleteBefore(ctx context.Context, before time.Time) error
 	CountUnread(ctx context.Context) (int64, error)
 	Delete(ctx context.Context, id uint) error
 }
@@ -63,13 +61,16 @@ func (r *geoAlertRepo) List(ctx context.Context, alertType, level string, page, 
 }
 
 func (r *geoAlertRepo) MarkNotified(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).Model(&model.GeoAlert{}).
+	res := r.db.WithContext(ctx).Model(&model.GeoAlert{}).
 		Where("id = ?", id).
-		Update("notified", true).Error
-}
-
-func (r *geoAlertRepo) DeleteBefore(ctx context.Context, before time.Time) error {
-	return r.db.WithContext(ctx).Where("created_at < ?", before).Delete(&model.GeoAlert{}).Error
+		Update("notified", true)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 func (r *geoAlertRepo) CountUnread(ctx context.Context) (int64, error) {

@@ -57,6 +57,10 @@ func (c *AlertController) MarkNotified(ctx *gin.Context) {
 		return
 	}
 	if err := c.svc.MarkNotified(ctx.Request.Context(), uint(id)); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			response.Error(ctx, http.StatusNotFound, "告警不存在")
+			return
+		}
 		response.Error(ctx, http.StatusInternalServerError, "确认告警失败")
 		return
 	}
