@@ -28,7 +28,7 @@ func setupMarketingFlowTestDB(t *testing.T) *gorm.DB {
 func setupMarketingFlowRouter(t *testing.T, db *gorm.DB) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 
-	flowService := service.NewMarketingFlowServiceWithDB(db)
+	flowService := service.NewMarketingFlowService(db)
 
 	controller := &MarketingFlowController{
 		flowService: flowService,
@@ -715,10 +715,11 @@ func TestMarketingFlowController_GetExecutionStats(t *testing.T) {
 			expectSuccess:  false,
 		},
 		{
+			// 父流程不可见时统计口不能回 200 空表：那等于把「没这个流程」说成「有，但没跑过」。
 			name:           "nonexistent_id",
 			url:            "/api/flows/9999/stats",
-			expectedStatus: 200,
-			expectSuccess:  true,
+			expectedStatus: 404,
+			expectSuccess:  false,
 		},
 	}
 

@@ -7,6 +7,8 @@ import (
 	"fmt"
 	"hivemtk-user/internal/content/model"
 	"hivemtk-user/internal/content/repository"
+	"hivemtk-user/internal/pkg/tenant"
+	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/logger"
 	cdprepo "hivemtk-user/internal/repository"
 	"runtime/debug"
@@ -23,15 +25,6 @@ func SetSmsSender(fn func(ctx context.Context, phone, content string) error) {
 	smsSenderFunc = fn
 }
 
-type MarketingWorkflow struct {
-	ID       string                   `json:"id"`
-	Name     string                   `json:"name"`
-	Industry string                   `json:"industry"`
-	Trigger  map[string]interface{}   `json:"trigger"`
-	Steps    []map[string]interface{} `json:"steps"`
-	KPI      map[string]interface{}   `json:"kpi"`
-}
-
 type MarketingFlowService struct {
 	flowRepo         *repository.MarketingFlowRepository
 	executionRepo    *repository.FlowExecutionRepository
@@ -43,23 +36,14 @@ type MarketingFlowService struct {
 	operationLogRepo cdprepo.OperationLogRepository
 }
 
-func NewMarketingFlowService() *MarketingFlowService {
+// NewMarketingFlowService 创建营销流程服务。
+//
+// 句柄由装配处交进来，服务层不再自己摸全局 `db.GetDB()`（与 #16 同口径）：
+// 租户来自每次调用的 ctx，句柄只是连接池，把「摸全局」留在装配层才能一眼看出谁在构造它。
+func NewMarketingFlowService(db *gorm.DB) *MarketingFlowService {
 	return &MarketingFlowService{
-		flowRepo:         repository.NewMarketingFlowRepository(),
-		executionRepo:    repository.NewFlowExecutionRepository(),
-		userTagRepo:      cdprepo.NewUserTagRepository(),
-		orderRepo:        cdprepo.NewOrderRepository(),
-		clueRepo:         cdprepo.NewClueRepository(),
-		sessionRepo:      cdprepo.NewCustomerSessionRepository(),
-		agentRepo:        cdprepo.NewAgentStatusRepository(),
-		operationLogRepo: cdprepo.NewOperationLogRepository(),
-	}
-}
-
-func NewMarketingFlowServiceWithDB(db *gorm.DB) *MarketingFlowService {
-	return &MarketingFlowService{
-		flowRepo:         repository.NewMarketingFlowRepositoryWithDB(db),
-		executionRepo:    repository.NewFlowExecutionRepositoryWithDB(db),
+		flowRepo:         repository.NewMarketingFlowRepository(db),
+		executionRepo:    repository.NewFlowExecutionRepository(db),
 		userTagRepo:      cdprepo.NewUserTagRepositoryWithDB(db),
 		orderRepo:        cdprepo.NewOrderRepositoryWithDB(db),
 		clueRepo:         cdprepo.NewClueRepositoryWithDB(db),
@@ -77,14 +61,14 @@ type CreateFlowRequest struct {
 	FlowData      *model.FlowDefinition `json:"flow_data"`
 }
 
-func (s *MarketingFlowService) CreateFlow(createdBy uint, req *CreateFlowRequest) (*model.MarketingFlow, error) {
+func (s *MarketingFlowService) CreateFlow(ctx context.Context, createdBy uint, req *CreateFlowRequest) (*model.MarketingFlow, error) {
 	flowData, err := json.Marshal(req.FlowData)
 	if err != nil {
-		return nil, fmt.Errorf("流程定义 JSON 序列化失败：%w", err)
+		return nil, fmt.Errorf("%w: 流程定义序列化失败", utils.ErrInvalidInput)
 	}
 
 	if err := s.validateFlowDefinition(string(flowData)); err != nil {
-		return nil, fmt.Errorf("流程定义无效：%w", err)
+		return nil, err
 	}
 
 	triggerConfig, _ := json.Marshal(req.TriggerConfig)
@@ -100,23 +84,19 @@ func (s *MarketingFlowService) CreateFlow(createdBy uint, req *CreateFlowRequest
 		CreatedBy:     createdBy,
 	}
 
-	if err := s.flowRepo.Create(flow); err != nil {
+	if err := s.flowRepo.Create(ctx, flow); err != nil {
 		return nil, err
 	}
 
 	return flow, nil
 }
 
-func (s *MarketingFlowService) GetFlowList(page, pageSize int) ([]*model.MarketingFlow, int64, error) {
-	return s.flowRepo.GetAll(page, pageSize)
+func (s *MarketingFlowService) GetFlowList(ctx context.Context, page, pageSize int) ([]*model.MarketingFlow, int64, error) {
+	return s.flowRepo.GetAll(ctx, page, pageSize)
 }
 
-func (s *MarketingFlowService) GetFlowByID(id uint) (*model.MarketingFlow, error) {
-	flow, err := s.flowRepo.GetByID(id)
-	if err != nil {
-		return nil, err
-	}
-	return flow, nil
+func (s *MarketingFlowService) GetFlowByID(ctx context.Context, id uint) (*model.MarketingFlow, error) {
+	return s.flowRepo.GetByID(ctx, id)
 }
 
 type UpdateFlowRequest struct {
@@ -127,14 +107,14 @@ type UpdateFlowRequest struct {
 	FlowData      *model.FlowDefinition `json:"flow_data"`
 }
 
-func (s *MarketingFlowService) UpdateFlow(id uint, userID uint, isAdmin bool, req *UpdateFlowRequest) (*model.MarketingFlow, error) {
-	flow, err := s.flowRepo.GetByID(id)
+func (s *MarketingFlowService) UpdateFlow(ctx context.Context, id uint, userID uint, isAdmin bool, req *UpdateFlowRequest) (*model.MarketingFlow, error) {
+	flow, err := s.flowRepo.GetByID(ctx, id)
 	if err != nil {
 		return nil, err
 	}
 
 	if !isAdmin && flow.CreatedBy != userID {
-		return nil, errors.New("无权限修改此营销流程")
+		return nil, fmt.Errorf("%w: 无权限修改此营销流程", utils.ErrForbidden)
 	}
 
 	if req.Name != "" {
@@ -156,81 +136,81 @@ func (s *MarketingFlowService) UpdateFlow(id uint, userID uint, isAdmin bool, re
 	}
 
 	flow.Version++
-	if err := s.flowRepo.Update(flow); err != nil {
+	if err := s.flowRepo.Update(ctx, flow); err != nil {
 		return nil, err
 	}
 
 	return flow, nil
 }
 
-func (s *MarketingFlowService) DeleteFlow(id uint, userID uint, isAdmin bool) error {
-	flow, err := s.flowRepo.GetByID(id)
+func (s *MarketingFlowService) DeleteFlow(ctx context.Context, id uint, userID uint, isAdmin bool) error {
+	flow, err := s.flowRepo.GetByID(ctx, id)
 	if err != nil {
 		return err
 	}
 
 	if !isAdmin && flow.CreatedBy != userID {
-		return errors.New("无权限删除此营销流程")
+		return fmt.Errorf("%w: 无权限删除此营销流程", utils.ErrForbidden)
 	}
 
-	return s.flowRepo.Delete(id)
+	return s.flowRepo.Delete(ctx, id)
 }
 
-func (s *MarketingFlowService) ActivateFlow(id uint, userID uint, isAdmin bool) error {
-	flow, err := s.flowRepo.GetByID(id)
+func (s *MarketingFlowService) ActivateFlow(ctx context.Context, id uint, userID uint, isAdmin bool) error {
+	flow, err := s.flowRepo.GetByID(ctx, id)
 	if err != nil {
 		return err
 	}
 
 	if !isAdmin && flow.CreatedBy != userID {
-		return errors.New("无权限激活此营销流程")
+		return fmt.Errorf("%w: 无权限激活此营销流程", utils.ErrForbidden)
 	}
 
 	if err := s.validateFlowDefinition(flow.FlowData); err != nil {
-		return fmt.Errorf("流程定义无效：%w", err)
+		return err
 	}
 
-	return s.flowRepo.UpdateStatus(id, model.FlowStatusActive)
+	return s.flowRepo.UpdateStatus(ctx, id, model.FlowStatusActive)
 }
 
-func (s *MarketingFlowService) PauseFlow(id uint, userID uint, isAdmin bool) error {
-	flow, err := s.flowRepo.GetByID(id)
+func (s *MarketingFlowService) PauseFlow(ctx context.Context, id uint, userID uint, isAdmin bool) error {
+	flow, err := s.flowRepo.GetByID(ctx, id)
 	if err != nil {
 		return err
 	}
 
 	if !isAdmin && flow.CreatedBy != userID {
-		return errors.New("无权限暂停此营销流程")
+		return fmt.Errorf("%w: 无权限暂停此营销流程", utils.ErrForbidden)
 	}
 
-	return s.flowRepo.UpdateStatus(id, model.FlowStatusPaused)
+	return s.flowRepo.UpdateStatus(ctx, id, model.FlowStatusPaused)
 }
 
-func (s *MarketingFlowService) StopFlow(id uint, userID uint, isAdmin bool) error {
-	flow, err := s.flowRepo.GetByID(id)
+func (s *MarketingFlowService) StopFlow(ctx context.Context, id uint, userID uint, isAdmin bool) error {
+	flow, err := s.flowRepo.GetByID(ctx, id)
 	if err != nil {
 		return err
 	}
 
 	if !isAdmin && flow.CreatedBy != userID {
-		return errors.New("无权限停止此营销流程")
+		return fmt.Errorf("%w: 无权限停止此营销流程", utils.ErrForbidden)
 	}
 
-	return s.flowRepo.UpdateStatus(id, model.FlowStatusInactive)
+	return s.flowRepo.UpdateStatus(ctx, id, model.FlowStatusInactive)
 }
 
 func (s *MarketingFlowService) validateFlowDefinition(flowData string) error {
 	if flowData == "" {
-		return errors.New("流程定义为空")
+		return fmt.Errorf("%w: 流程定义为空", utils.ErrInvalidInput)
 	}
 
 	var def model.FlowDefinition
 	if err := json.Unmarshal([]byte(flowData), &def); err != nil {
-		return fmt.Errorf("流程定义 JSON 解析失败：%w", err)
+		return fmt.Errorf("%w: 流程定义 JSON 解析失败", utils.ErrInvalidInput)
 	}
 
 	if len(def.Nodes) == 0 {
-		return errors.New("流程至少需要一个节点")
+		return fmt.Errorf("%w: 流程至少需要一个节点", utils.ErrInvalidInput)
 	}
 
 	hasTrigger := false
@@ -241,24 +221,36 @@ func (s *MarketingFlowService) validateFlowDefinition(flowData string) error {
 		}
 	}
 	if !hasTrigger {
-		return errors.New("流程必须有触发器节点")
+		return fmt.Errorf("%w: 流程必须有触发器节点", utils.ErrInvalidInput)
 	}
 
 	return nil
 }
 
-func (s *MarketingFlowService) GetExecutionList(flowID uint, page, pageSize int) ([]*model.FlowExecution, int64, error) {
-	return s.executionRepo.GetByFlowID(flowID, page, pageSize)
+// GetExecutionList 某流程的执行记录列表。
+//
+// 先按父流程解一次租户：flow_executions 虽然自带 tenant_id，但「父流程不属于本租户」
+// 与「流程不存在」必须走同一条 404，否则对别租户流程读子记录会回 200 空列表，
+// 把越权探测的成败差异抹平。
+func (s *MarketingFlowService) GetExecutionList(ctx context.Context, flowID uint, page, pageSize int) ([]*model.FlowExecution, int64, error) {
+	if _, err := s.flowRepo.GetByID(ctx, flowID); err != nil {
+		return nil, 0, err
+	}
+	return s.executionRepo.GetByFlowID(ctx, flowID, page, pageSize)
 }
 
-func (s *MarketingFlowService) GetExecutionStats(flowID uint) (map[string]int64, error) {
-	return s.executionRepo.GetStats(flowID)
+// GetExecutionStats 某流程的执行统计，租户口径同上。
+func (s *MarketingFlowService) GetExecutionStats(ctx context.Context, flowID uint) (map[string]int64, error) {
+	if _, err := s.flowRepo.GetByID(ctx, flowID); err != nil {
+		return nil, err
+	}
+	return s.executionRepo.GetStats(ctx, flowID)
 }
 
-func (s *MarketingFlowService) TriggerFlow(ctx context.Context, flow *model.MarketingFlow, triggerID, userID string, data map[string]any) error {
+func (s *MarketingFlowService) TriggerFlow(ctx context.Context, flow *model.MarketingFlow, triggerID, userID string, data map[string]any) (*model.FlowExecution, error) {
 
 	if flow.Status != model.FlowStatusActive {
-		return errors.New("流程未激活")
+		return nil, fmt.Errorf("%w: 流程未激活", utils.ErrInvalidInput)
 	}
 
 	execution := &model.FlowExecution{
@@ -270,18 +262,21 @@ func (s *MarketingFlowService) TriggerFlow(ctx context.Context, flow *model.Mark
 		StartedAt:     time.Now(),
 	}
 
-	if err := s.executionRepo.Create(execution); err != nil {
-		return err
+	if err := s.executionRepo.Create(ctx, execution); err != nil {
+		return nil, err
 	}
 
-	go s.executeFlow(context.Background(), execution, flow, data)
+	// 异步体必须脱离请求 ctx（delay 节点最长等 300s，不能随响应返回被取消），
+	// 但不能脱离租户：全仓异步写库都走 BackgroundWithTenant，这里漏掉就等于
+	// 每次落状态都被隔离闸拒绝，流程永远停在 running。
+	go s.executeFlow(tenant.BackgroundWithTenant(ctx), execution, flow, data)
 
-	return nil
+	return execution, nil
 }
 
 func (s *MarketingFlowService) executeFlow(ctx context.Context, execution *model.FlowExecution, flow *model.MarketingFlow, data map[string]any) {
 	persist := func() {
-		if err := s.executionRepo.Update(execution); err != nil {
+		if err := s.executionRepo.Update(ctx, execution); err != nil {
 			logger.Errorf("[MarketingFlow] 执行状态落库失败 executionID=%d status=%s: %v", execution.ID, execution.Status, err)
 		}
 	}
@@ -555,29 +550,16 @@ func (s *MarketingFlowService) handleDelay(ctx context.Context, node model.FlowN
 	return nil, nil
 }
 
-// GetActiveFlows 获取所有激活的流程
-func (s *MarketingFlowService) GetActiveFlows() ([]*model.MarketingFlow, error) {
-	return s.flowRepo.GetByStatus(model.FlowStatusActive)
-}
-
-// TriggerFlowByID 按 ID 触发营销流程（封装 GetByID + TriggerFlow）
+// TriggerFlowByID 按 ID 触发营销流程（封装 GetByID + TriggerFlow）。
+//
+// 直接回新建的执行记录，不再回查「最新一条」：回查既可能因为并发触发返回别人的
+// 执行记录，也可能在查空时交出 (nil, nil)，让出口层把「没触发成」说成成功。
 func (s *MarketingFlowService) TriggerFlowByID(ctx context.Context, flowID uint, triggerID, userID string, data map[string]any) (*model.FlowExecution, error) {
-	flow, err := s.flowRepo.GetByID(flowID)
+	flow, err := s.flowRepo.GetByID(ctx, flowID)
 	if err != nil {
 		return nil, err
 	}
-	if err := s.TriggerFlow(ctx, flow, triggerID, userID, data); err != nil {
-		return nil, err
-	}
-
-	executions, _, err := s.executionRepo.GetByFlowID(flowID, 1, 1)
-	if err != nil {
-		return nil, err
-	}
-	if len(executions) > 0 {
-		return executions[0], nil
-	}
-	return nil, nil
+	return s.TriggerFlow(ctx, flow, triggerID, userID, data)
 }
 
 // ProbeMaxFlowDelaySeconds 暴露读取口当前值，供装配层测试断言接线确实生效。

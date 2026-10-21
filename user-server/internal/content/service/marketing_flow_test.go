@@ -3,8 +3,11 @@ package service
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"hivemtk-user/internal/content/model"
 	"hivemtk-user/internal/pkg/db"
+	"hivemtk-user/internal/pkg/tenant"
+	"hivemtk-user/internal/pkg/utils"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -27,13 +30,12 @@ func setupMarketingFlowServiceTestDB(t *testing.T) *gorm.DB {
 }
 
 func setupMarketingFlowService(t *testing.T) *MarketingFlowService {
-	setupMarketingFlowServiceTestDB(t)
-	return NewMarketingFlowService()
+	return NewMarketingFlowService(setupMarketingFlowServiceTestDB(t))
 }
 
 // TestNewMarketingFlowService 测试创建服务实例
 func TestNewMarketingFlowService(t *testing.T) {
-	service := NewMarketingFlowService()
+	service := setupMarketingFlowService(t)
 	if service == nil {
 		t.Fatal("Expected service instance, got nil")
 	}
@@ -57,7 +59,7 @@ func TestMarketingFlowService_CreateFlow(t *testing.T) {
 		FlowData:      &model.FlowDefinition{Nodes: []model.FlowNode{{ID: "node1", Type: "trigger"}, {ID: "node2", Type: "action"}}},
 	}
 
-	flow, err := service.CreateFlow(1, req)
+	flow, err := service.CreateFlow(context.Background(), 1, req)
 	if err != nil {
 		t.Fatalf("CreateFlow failed: %v", err)
 	}
@@ -92,7 +94,7 @@ func TestMarketingFlowService_CreateFlow_InvalidFlowData(t *testing.T) {
 		TriggerConfig: map[string]any{"event": "user_follow"},
 	}
 
-	_, err := service.CreateFlow(1, req)
+	_, err := service.CreateFlow(context.Background(), 1, req)
 	if err == nil {
 		t.Error("Expected error for invalid flow data (missing trigger node)")
 	}
@@ -110,7 +112,7 @@ func TestMarketingFlowService_CreateFlow_EmptyNodes(t *testing.T) {
 		FlowData:      &model.FlowDefinition{Nodes: []model.FlowNode{}},
 	}
 
-	_, err := service.CreateFlow(1, req)
+	_, err := service.CreateFlow(context.Background(), 1, req)
 	if err == nil {
 		t.Error("Expected error for empty nodes")
 	}
@@ -127,7 +129,7 @@ func TestMarketingFlowService_GetFlowList(t *testing.T) {
 		})
 	}
 
-	flows, total, err := service.GetFlowList(1, 10)
+	flows, total, err := service.GetFlowList(context.Background(), 1, 10)
 	if err != nil {
 		t.Fatalf("GetFlowList failed: %v", err)
 	}
@@ -150,7 +152,7 @@ func TestMarketingFlowService_GetFlowByID(t *testing.T) {
 	}
 	db.GetDB().Create(flow)
 
-	result, err := service.GetFlowByID(flow.ID)
+	result, err := service.GetFlowByID(context.Background(), flow.ID)
 	if err != nil {
 		t.Fatalf("GetFlowByID failed: %v", err)
 	}
@@ -171,12 +173,35 @@ func TestMarketingFlowService_GetFlowByID_SingleTenant(t *testing.T) {
 	}
 	db.GetDB().Create(flow)
 
-	got, err := service.GetFlowByID(flow.ID)
+	got, err := service.GetFlowByID(context.Background(), flow.ID)
 	if err != nil {
 		t.Fatalf("GetFlowByID should succeed in single-tenant mode, got: %v", err)
 	}
 	if got == nil || got.ID != flow.ID {
 		t.Errorf("Expected flow ID %d, got %v", flow.ID, got)
+	}
+}
+
+// TestMarketingFlowService_GetFlowByID_UnboundTenant 服务层不吞租户故障：上下文未绑定时
+// 必须把错误交出去，而不是回一个零值流程让上层以为「查到了」。
+func TestMarketingFlowService_GetFlowByID_UnboundTenant(t *testing.T) {
+	database := setupMarketingFlowServiceTestDB(t)
+	tenant.SetMode(tenant.ModeOn)
+	t.Cleanup(func() { tenant.SetMode(tenant.ModeOff) })
+
+	row := &model.MarketingFlow{Name: "裸库流程", Status: model.FlowStatusDraft}
+	if err := database.WithContext(tenant.WithSystemScope(context.Background())).
+		Create(row).Error; err != nil {
+		t.Fatalf("预置流程失败: %v", err)
+	}
+
+	service := NewMarketingFlowService(database)
+	got, err := service.GetFlowByID(context.Background(), row.ID)
+	if err == nil {
+		t.Fatalf("无租户上下文时不应查到流程，实得 %+v", got)
+	}
+	if got != nil {
+		t.Errorf("出错时必须交出 nil，实得 %+v", got)
 	}
 }
 
@@ -195,7 +220,7 @@ func TestMarketingFlowService_UpdateFlow(t *testing.T) {
 		Description: "New Description",
 	}
 
-	updated, err := service.UpdateFlow(flow.ID, 123, true, req)
+	updated, err := service.UpdateFlow(context.Background(), flow.ID, 123, true, req)
 	if err != nil {
 		t.Fatalf("UpdateFlow failed: %v", err)
 	}
@@ -222,7 +247,7 @@ func TestMarketingFlowService_UpdateFlow_SingleTenant(t *testing.T) {
 	req := &UpdateFlowRequest{
 		Name: "Updated",
 	}
-	updated, err := service.UpdateFlow(flow.ID, 123, true, req)
+	updated, err := service.UpdateFlow(context.Background(), flow.ID, 123, true, req)
 	if err != nil {
 		t.Fatalf("UpdateFlow should succeed in single-tenant mode, got: %v", err)
 	}
@@ -241,12 +266,12 @@ func TestMarketingFlowService_DeleteFlow(t *testing.T) {
 	}
 	db.GetDB().Create(flow)
 
-	err := service.DeleteFlow(flow.ID, 123, true)
+	err := service.DeleteFlow(context.Background(), flow.ID, 123, true)
 	if err != nil {
 		t.Fatalf("DeleteFlow failed: %v", err)
 	}
 
-	_, err = service.GetFlowByID(flow.ID)
+	_, err = service.GetFlowByID(context.Background(), flow.ID)
 	if err == nil {
 		t.Error("Expected flow to be deleted")
 	}
@@ -263,7 +288,7 @@ func TestMarketingFlowService_DeleteFlow_SingleTenant(t *testing.T) {
 	}
 	db.GetDB().Create(flow)
 
-	if err := service.DeleteFlow(flow.ID, 123, true); err != nil {
+	if err := service.DeleteFlow(context.Background(), flow.ID, 123, true); err != nil {
 		t.Fatalf("DeleteFlow should succeed in single-tenant mode, got: %v", err)
 	}
 	var count int64
@@ -290,7 +315,7 @@ func TestMarketingFlowService_ActivateFlow(t *testing.T) {
 	}
 	db.GetDB().Create(flow)
 
-	err := service.ActivateFlow(flow.ID, 123, true)
+	err := service.ActivateFlow(context.Background(), flow.ID, 123, true)
 	if err != nil {
 		t.Fatalf("ActivateFlow failed: %v", err)
 	}
@@ -302,8 +327,11 @@ func TestMarketingFlowService_ActivateFlow(t *testing.T) {
 	}
 }
 
-// TestMarketingFlowService_ActivateFlow_InvalidStatus 测试激活流程（无效状态）
-func TestMarketingFlowService_ActivateFlow_InvalidStatus(t *testing.T) {
+// TestMarketingFlowService_ActivateFlow_InvalidDefinition 定义不合法时拒绝激活
+//
+// ActivateFlow 唯一的闸门是流程定义校验（状态本身没有迁移门槛，从任意状态置为
+// active 是预期行为）。这里锁两件事：错误必须归入参数类，且失败后库里状态不动。
+func TestMarketingFlowService_ActivateFlow_InvalidDefinition(t *testing.T) {
 	service := setupMarketingFlowService(t)
 
 	flow := &model.MarketingFlow{
@@ -312,9 +340,18 @@ func TestMarketingFlowService_ActivateFlow_InvalidStatus(t *testing.T) {
 	}
 	db.GetDB().Create(flow)
 
-	err := service.ActivateFlow(flow.ID, 123, true)
+	err := service.ActivateFlow(context.Background(), flow.ID, 123, true)
 	if err == nil {
-		t.Error("Expected error for invalid status")
+		t.Error("空定义不应激活成功")
+	}
+	if !errors.Is(err, utils.ErrInvalidInput) {
+		t.Errorf("定义缺失应归入参数错误，实得 %v", err)
+	}
+
+	var refreshed model.MarketingFlow
+	db.GetDB().First(&refreshed, flow.ID)
+	if refreshed.Status != model.FlowStatusInactive {
+		t.Errorf("激活失败后状态不应被改动，实得 %s", refreshed.Status)
 	}
 }
 
@@ -328,7 +365,7 @@ func TestMarketingFlowService_PauseFlow(t *testing.T) {
 	}
 	db.GetDB().Create(flow)
 
-	err := service.PauseFlow(flow.ID, 123, true)
+	err := service.PauseFlow(context.Background(), flow.ID, 123, true)
 	if err != nil {
 		t.Fatalf("PauseFlow failed: %v", err)
 	}
@@ -350,7 +387,7 @@ func TestMarketingFlowService_StopFlow(t *testing.T) {
 	}
 	db.GetDB().Create(flow)
 
-	err := service.StopFlow(flow.ID, 123, true)
+	err := service.StopFlow(context.Background(), flow.ID, 123, true)
 	if err != nil {
 		t.Fatalf("StopFlow failed: %v", err)
 	}
@@ -387,21 +424,27 @@ func TestMarketingFlowService_TriggerFlow(t *testing.T) {
 	}
 	db.GetDB().Create(flow)
 
-	err := service.TriggerFlow(context.Background(), flow, "trigger_123", "user_123", nil)
+	execution, err := service.TriggerFlow(context.Background(), flow, "trigger_123", "user_123", nil)
 	if err != nil {
 		t.Fatalf("TriggerFlow failed: %v", err)
 	}
+	if execution == nil || execution.ID == 0 {
+		t.Fatal("TriggerFlow 必须直接交回新建的执行记录，不能回 nil")
+	}
+	if execution.Status != "running" {
+		t.Errorf("新建执行记录初始状态应为 running，实得 %s", execution.Status)
+	}
 
-	var execution model.FlowExecution
-	db.GetDB().Where("flow_id = ? AND user_id = ?", flow.ID, "user_123").First(&execution)
-	if execution.ID == 0 {
+	var got model.FlowExecution
+	db.GetDB().Where("flow_id = ? AND user_id = ?", flow.ID, "user_123").First(&got)
+	if got.ID == 0 {
 		t.Fatal("Expected execution to be created")
 	}
-	if execution.FlowID != flow.ID {
-		t.Errorf("Expected flow_id %d, got %d", flow.ID, execution.FlowID)
+	if got.FlowID != flow.ID {
+		t.Errorf("Expected flow_id %d, got %d", flow.ID, got.FlowID)
 	}
-	if execution.UserID != "user_123" {
-		t.Errorf("Expected user_id 'user_123', got '%s'", execution.UserID)
+	if got.UserID != "user_123" {
+		t.Errorf("Expected user_id 'user_123', got '%s'", got.UserID)
 	}
 }
 
@@ -415,7 +458,7 @@ func TestMarketingFlowService_TriggerFlow_InactiveFlow(t *testing.T) {
 	}
 	db.GetDB().Create(flow)
 
-	err := service.TriggerFlow(context.Background(), flow, "trigger_123", "user_123", nil)
+	_, err := service.TriggerFlow(context.Background(), flow, "trigger_123", "user_123", nil)
 	if err == nil {
 		t.Error("Expected error for inactive flow")
 	}
@@ -424,16 +467,23 @@ func TestMarketingFlowService_TriggerFlow_InactiveFlow(t *testing.T) {
 // TestMarketingFlowService_GetExecutionList 测试获取执行列表
 func TestMarketingFlowService_GetExecutionList(t *testing.T) {
 	service := setupMarketingFlowService(t)
+	ctx := context.Background()
+
+	// 子记录读口先按父流程解租户，故必须先有父流程。
+	flow := &model.MarketingFlow{Name: "父流程", Status: model.FlowStatusActive}
+	if err := service.flowRepo.Create(ctx, flow); err != nil {
+		t.Fatalf("预置父流程失败: %v", err)
+	}
 
 	for i := 0; i < 3; i++ {
 		db.GetDB().Create(&model.FlowExecution{
-			FlowID: 1,
+			FlowID: flow.ID,
 			UserID: "user_123",
 			Status: "completed",
 		})
 	}
 
-	executions, total, err := service.GetExecutionList(1, 1, 10)
+	executions, total, err := service.GetExecutionList(ctx, flow.ID, 1, 10)
 	if err != nil {
 		t.Fatalf("GetExecutionList failed: %v", err)
 	}
@@ -446,9 +496,29 @@ func TestMarketingFlowService_GetExecutionList(t *testing.T) {
 	}
 }
 
+// TestMarketingFlowService_GetExecutionList_ParentGate 父流程不可见时子记录读口必须一起失败：
+// 否则对别租户/已删除流程回 200 空列表，越权探测拿不到任何差异。
+func TestMarketingFlowService_GetExecutionList_ParentGate(t *testing.T) {
+	service := setupMarketingFlowService(t)
+
+	_, _, err := service.GetExecutionList(context.Background(), 99999999, 1, 10)
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Errorf("读不存在父流程的执行列表应交出记录不存在，实得 %v", err)
+	}
+	if _, err := service.GetExecutionStats(context.Background(), 99999999); !errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Errorf("读不存在父流程的统计应交出记录不存在，实得 %v", err)
+	}
+}
+
 // TestMarketingFlowService_GetExecutionStats 测试获取执行统计
 func TestMarketingFlowService_GetExecutionStats(t *testing.T) {
 	service := setupMarketingFlowService(t)
+	ctx := context.Background()
+
+	flow := &model.MarketingFlow{Name: "统计父流程", Status: model.FlowStatusActive}
+	if err := service.flowRepo.Create(ctx, flow); err != nil {
+		t.Fatalf("预置父流程失败: %v", err)
+	}
 
 	for i := 0; i < 5; i++ {
 		status := "completed"
@@ -456,13 +526,13 @@ func TestMarketingFlowService_GetExecutionStats(t *testing.T) {
 			status = "failed"
 		}
 		db.GetDB().Create(&model.FlowExecution{
-			FlowID: 1,
+			FlowID: flow.ID,
 			UserID: "user_123",
 			Status: status,
 		})
 	}
 
-	stats, err := service.GetExecutionStats(1)
+	stats, err := service.GetExecutionStats(ctx, flow.ID)
 	if err != nil {
 		t.Fatalf("GetExecutionStats failed: %v", err)
 	}
@@ -470,26 +540,8 @@ func TestMarketingFlowService_GetExecutionStats(t *testing.T) {
 	if stats == nil {
 		t.Fatal("Expected stats to be returned")
 	}
-}
-
-// TestMarketingFlowService_GetActiveFlows 测试获取活跃流程
-func TestMarketingFlowService_GetActiveFlows(t *testing.T) {
-	service := setupMarketingFlowService(t)
-
-	for i := 0; i < 3; i++ {
-		db.GetDB().Create(&model.MarketingFlow{
-			Name:   "Active Flow",
-			Status: model.FlowStatusActive,
-		})
-	}
-
-	flows, err := service.GetActiveFlows()
-	if err != nil {
-		t.Fatalf("GetActiveFlows failed: %v", err)
-	}
-
-	if len(flows) != 3 {
-		t.Errorf("Expected 3 active flows, got %d", len(flows))
+	if stats["failed"] != 3 || stats["completed"] != 2 {
+		t.Errorf("按状态聚合应得 failed=3 completed=2，实得 %+v", stats)
 	}
 }
 

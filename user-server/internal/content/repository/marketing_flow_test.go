@@ -1,6 +1,8 @@
 package repository
 
 import (
+	"context"
+	"errors"
 	"hivemtk-user/internal/content/model"
 	"hivemtk-user/internal/pkg/db"
 	"testing"
@@ -21,8 +23,8 @@ func setupMarketingFlowTestDB(t *testing.T) *gorm.DB {
 }
 
 func setupMarketingFlowRepositories(t *testing.T) (*MarketingFlowRepository, *FlowExecutionRepository) {
-	setupMarketingFlowTestDB(t)
-	return NewMarketingFlowRepository(), NewFlowExecutionRepository()
+	database := setupMarketingFlowTestDB(t)
+	return NewMarketingFlowRepository(database), NewFlowExecutionRepository(database)
 }
 
 // TestMarketingFlowRepository_Create 测试创建流程
@@ -59,7 +61,7 @@ func TestMarketingFlowRepository_Create(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := flowRepo.Create(tt.flow)
+			err := flowRepo.Create(context.Background(), tt.flow)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Create() error = %v, wantErr %v", err, tt.wantErr)
@@ -81,7 +83,7 @@ func TestMarketingFlowRepository_GetByID(t *testing.T) {
 		Status:      model.FlowStatusActive,
 		Description: "Test description",
 	}
-	flowRepo.Create(flow)
+	flowRepo.Create(context.Background(), flow)
 
 	tests := []struct {
 		name    string
@@ -102,10 +104,14 @@ func TestMarketingFlowRepository_GetByID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			result, err := flowRepo.GetByID(tt.id)
+			result, err := flowRepo.GetByID(context.Background(), tt.id)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetByID() error = %v, wantErr %v", err, tt.wantErr)
+			}
+
+			if tt.wantErr && result != nil {
+				t.Errorf("GetByID() 报错时必须交出 nil，实得 %+v", result)
 			}
 
 			if !tt.wantErr {
@@ -129,7 +135,7 @@ func TestMarketingFlowRepository_Update(t *testing.T) {
 		Status:      model.FlowStatusDraft,
 		Description: "Original description",
 	}
-	flowRepo.Create(flow)
+	flowRepo.Create(context.Background(), flow)
 
 	tests := []struct {
 		name       string
@@ -156,14 +162,14 @@ func TestMarketingFlowRepository_Update(t *testing.T) {
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
 			tt.updateFunc(flow)
-			err := flowRepo.Update(flow)
+			err := flowRepo.Update(context.Background(), flow)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Update() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
 			if !tt.wantErr {
-				updated, _ := flowRepo.GetByID(flow.ID)
+				updated, _ := flowRepo.GetByID(context.Background(), flow.ID)
 				if updated.Name != flow.Name {
 					t.Errorf("Expected name '%s', got '%s'", flow.Name, updated.Name)
 				}
@@ -172,6 +178,28 @@ func TestMarketingFlowRepository_Update(t *testing.T) {
 				}
 			}
 		})
+	}
+
+	// 读改写之间流程被别人删掉：Save 命中 0 行不能报成功，否则上层回「更新成功」而库里什么都没变。
+	stale := &model.MarketingFlow{Name: "已被删除的", Status: model.FlowStatusDraft}
+	if err := flowRepo.Create(context.Background(), stale); err != nil {
+		t.Fatalf("预置流程失败: %v", err)
+	}
+	if err := flowRepo.Delete(context.Background(), stale.ID); err != nil {
+		t.Fatalf("删除流程失败: %v", err)
+	}
+	stale.Name = "改不回来了"
+	if err := flowRepo.Update(context.Background(), stale); !errors.Is(err, ErrMarketingFlowMissing) {
+		t.Errorf("对已删除流程 Update 应交出 ErrMarketingFlowMissing，实得 %v", err)
+	}
+
+	// 更新失败后那行必须仍然是「没有」：Save 的 upsert 会把它按结构体里的 tenant_id 重新插回来。
+	var count int64
+	if err := db.GetDB().Model(&model.MarketingFlow{}).Where("id = ?", stale.ID).Count(&count).Error; err != nil {
+		t.Fatalf("统计流程失败: %v", err)
+	}
+	if count != 0 {
+		t.Errorf("Update 失败后不应把已删除的流程写回库，实得 count=%d", count)
 	}
 }
 
@@ -183,84 +211,48 @@ func TestMarketingFlowRepository_Delete(t *testing.T) {
 		Name:   "To Be Deleted",
 		Status: model.FlowStatusDraft,
 	}
-	flowRepo.Create(flow)
+	flowRepo.Create(context.Background(), flow)
 
-	err := flowRepo.Delete(flow.ID)
+	err := flowRepo.Delete(context.Background(), flow.ID)
 	if err != nil {
 		t.Errorf("Delete() error = %v", err)
 	}
 
-	_, err = flowRepo.GetByID(flow.ID)
+	_, err = flowRepo.GetByID(context.Background(), flow.ID)
 	if err == nil {
 		t.Error("Expected flow to be deleted")
 	}
+
+	// 再删一次命中 0 行：不能把「没删到东西」说成删除成功。
+	if err := flowRepo.Delete(context.Background(), flow.ID); !errors.Is(err, ErrMarketingFlowMissing) {
+		t.Errorf("重复删除应交出 ErrMarketingFlowMissing，实得 %v", err)
+	}
 }
 
-// TestMarketingFlowRepository_GetByStatus 测试根据状态获取流程
-func TestMarketingFlowRepository_GetByStatus(t *testing.T) {
+// TestMarketingFlowRepository_GetAllClampsPaging 分页夹紧：page=0 会算出负 OFFSET
+// 让 Postgres 直接报错，越界的 page_size 会把整表拖进一次响应。
+func TestMarketingFlowRepository_GetAllClampsPaging(t *testing.T) {
 	flowRepo, _ := setupMarketingFlowRepositories(t)
 
-	flowRepo.Create(&model.MarketingFlow{
-		Name:   "Draft Flow 1",
-		Status: model.FlowStatusDraft,
-	})
-	flowRepo.Create(&model.MarketingFlow{
-		Name:   "Draft Flow 2",
-		Status: model.FlowStatusDraft,
-	})
-	flowRepo.Create(&model.MarketingFlow{
-		Name:   "Active Flow",
-		Status: model.FlowStatusActive,
-	})
-	flowRepo.Create(&model.MarketingFlow{
-		Name:   "Paused Flow",
-		Status: model.FlowStatusPaused,
-	})
-
-	tests := []struct {
-		name       string
-		merchantID string
-		status     model.FlowStatus
-		wantCount  int
-	}{
-		{
-			name: "get draft flows",
-
-			status:    model.FlowStatusDraft,
-			wantCount: 2,
-		},
-		{
-			name: "get active flows",
-
-			status:    model.FlowStatusActive,
-			wantCount: 1,
-		},
-		{
-			name: "get paused flows",
-
-			status:    model.FlowStatusPaused,
-			wantCount: 1,
-		},
-		{
-			name: "get inactive flows (none)",
-
-			status:    model.FlowStatusInactive,
-			wantCount: 0,
-		},
+	for i := 0; i < 3; i++ {
+		if err := flowRepo.Create(context.Background(), &model.MarketingFlow{
+			Name:   "分页流程",
+			Status: model.FlowStatusDraft,
+		}); err != nil {
+			t.Fatalf("预置流程失败: %v", err)
+		}
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			results, err := flowRepo.GetByStatus(tt.status)
+	flows, total, err := flowRepo.GetAll(context.Background(), 0, 0)
+	if err != nil {
+		t.Fatalf("page=0 应被夹成第 1 页而不是报错，实得 %v", err)
+	}
+	if total != 3 || len(flows) != 3 {
+		t.Errorf("page=0 应回第 1 页 3 条，实得 total=%d len=%d", total, len(flows))
+	}
 
-			if err != nil {
-				t.Errorf("GetByStatus() error = %v", err)
-			}
-
-			if len(results) != tt.wantCount {
-				t.Errorf("Expected %d flows, got %d", tt.wantCount, len(results))
-			}
-		})
+	if _, _, err := flowRepo.GetAll(context.Background(), 1, 100000); err != nil {
+		t.Fatalf("越界 page_size 应被夹到默认值而不是报错，实得 %v", err)
 	}
 }
 
@@ -272,7 +264,7 @@ func TestMarketingFlowRepository_UpdateStatus(t *testing.T) {
 		Name:   "Status Update Test",
 		Status: model.FlowStatusDraft,
 	}
-	flowRepo.Create(flow)
+	flowRepo.Create(context.Background(), flow)
 
 	tests := []struct {
 		name      string
@@ -298,19 +290,24 @@ func TestMarketingFlowRepository_UpdateStatus(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := flowRepo.UpdateStatus(flow.ID, tt.newStatus)
+			err := flowRepo.UpdateStatus(context.Background(), flow.ID, tt.newStatus)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("UpdateStatus() error = %v, wantErr %v", err, tt.wantErr)
 			}
 
 			if !tt.wantErr {
-				updated, _ := flowRepo.GetByID(flow.ID)
+				updated, _ := flowRepo.GetByID(context.Background(), flow.ID)
 				if updated.Status != tt.newStatus {
 					t.Errorf("Expected status '%v', got '%v'", tt.newStatus, updated.Status)
 				}
 			}
 		})
+	}
+
+	// 命中 0 行（流程不存在）不能报成功：否则 handler 会回「激活成功」而库里什么都没变。
+	if err := flowRepo.UpdateStatus(context.Background(), 999999, model.FlowStatusActive); !errors.Is(err, ErrMarketingFlowMissing) {
+		t.Errorf("对不存在的流程改状态应交出 ErrMarketingFlowMissing，实得 %v", err)
 	}
 }
 
@@ -350,7 +347,7 @@ func TestFlowExecutionRepository_Create(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			err := execRepo.Create(tt.execution)
+			err := execRepo.Create(context.Background(), tt.execution)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("Create() error = %v, wantErr %v", err, tt.wantErr)
@@ -363,68 +360,19 @@ func TestFlowExecutionRepository_Create(t *testing.T) {
 	}
 }
 
-// TestFlowExecutionRepository_GetByID 测试根据 ID 获取执行记录
-func TestFlowExecutionRepository_GetByID(t *testing.T) {
-	_, execRepo := setupMarketingFlowRepositories(t)
-
-	execution := &model.FlowExecution{
-		FlowID:      1,
-		UserID:      "user-123",
-		Status:      "running",
-		CurrentNode: "node-1",
-	}
-	execRepo.Create(execution)
-
-	tests := []struct {
-		name    string
-		id      uint
-		wantErr bool
-	}{
-		{
-			name:    "get existing execution",
-			id:      execution.ID,
-			wantErr: false,
-		},
-		{
-			name:    "get non-existing execution",
-			id:      99999,
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result, err := execRepo.GetByID(tt.id)
-
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GetByID() error = %v, wantErr %v", err, tt.wantErr)
-			}
-
-			if !tt.wantErr {
-				if result.ID != tt.id {
-					t.Errorf("Expected ID %d, got %d", tt.id, result.ID)
-				}
-				if result.UserID != "user-123" {
-					t.Errorf("Expected user ID 'user-123', got '%s'", result.UserID)
-				}
-			}
-		})
-	}
-}
-
 // TestFlowExecutionRepository_GetByFlowID 测试根据流程 ID 获取执行记录
 func TestFlowExecutionRepository_GetByFlowID(t *testing.T) {
 	_, execRepo := setupMarketingFlowRepositories(t)
 
 	for i := 1; i <= 5; i++ {
-		execRepo.Create(&model.FlowExecution{
+		execRepo.Create(context.Background(), &model.FlowExecution{
 			FlowID: 1,
 			UserID: string(rune('0' + i)),
 			Status: "running",
 		})
 	}
 
-	execRepo.Create(&model.FlowExecution{
+	execRepo.Create(context.Background(), &model.FlowExecution{
 		FlowID: 999,
 		UserID: "user-other",
 		Status: "completed",
@@ -474,7 +422,7 @@ func TestFlowExecutionRepository_GetByFlowID(t *testing.T) {
 
 	for _, tt := range tests {
 		t.Run(tt.name, func(t *testing.T) {
-			results, total, err := execRepo.GetByFlowID(tt.flowID, tt.page, tt.pageSize)
+			results, total, err := execRepo.GetByFlowID(context.Background(), tt.flowID, tt.page, tt.pageSize)
 
 			if (err != nil) != tt.wantErr {
 				t.Errorf("GetByFlowID() error = %v, wantErr %v", err, tt.wantErr)
@@ -494,6 +442,7 @@ func TestFlowExecutionRepository_GetByFlowID(t *testing.T) {
 // TestFlowExecutionRepository_Update 测试更新执行记录
 func TestFlowExecutionRepository_Update(t *testing.T) {
 	_, execRepo := setupMarketingFlowRepositories(t)
+	ctx := context.Background()
 
 	execution := &model.FlowExecution{
 		FlowID:      1,
@@ -501,152 +450,61 @@ func TestFlowExecutionRepository_Update(t *testing.T) {
 		Status:      "running",
 		CurrentNode: "node-1",
 	}
-	execRepo.Create(execution)
+	if err := execRepo.Create(ctx, execution); err != nil {
+		t.Fatalf("预置执行记录失败: %v", err)
+	}
 
 	execution.Status = "completed"
 	execution.CurrentNode = ""
 
-	err := execRepo.Update(execution)
+	err := execRepo.Update(ctx, execution)
 	if err != nil {
 		t.Errorf("Update() error = %v", err)
 	}
 
-	updated, _ := execRepo.GetByID(execution.ID)
+	var updated model.FlowExecution
+	if err := db.GetDB().First(&updated, execution.ID).Error; err != nil {
+		t.Fatalf("读回执行记录失败: %v", err)
+	}
 	if updated.Status != "completed" {
 		t.Errorf("Expected status 'completed', got '%s'", updated.Status)
-	}
-}
-
-// TestFlowExecutionRepository_GetRunningExecutions 测试获取运行中的执行记录
-func TestFlowExecutionRepository_GetRunningExecutions(t *testing.T) {
-	_, execRepo := setupMarketingFlowRepositories(t)
-
-	execRepo.Create(&model.FlowExecution{
-		FlowID: 1,
-		UserID: "user-1",
-		Status: "running",
-	})
-	execRepo.Create(&model.FlowExecution{
-		FlowID: 1,
-		UserID: "user-2",
-		Status: "running",
-	})
-	execRepo.Create(&model.FlowExecution{
-		FlowID: 1,
-		UserID: "user-3",
-		Status: "completed",
-	})
-	execRepo.Create(&model.FlowExecution{
-		FlowID: 1,
-		UserID: "user-4",
-		Status: "failed",
-	})
-
-	results, err := execRepo.GetRunningExecutions(1)
-	if err != nil {
-		t.Errorf("GetRunningExecutions() error = %v", err)
-	}
-
-	if len(results) != 2 {
-		t.Errorf("Expected 2 running executions, got %d", len(results))
-	}
-}
-
-// TestFlowExecutionRepository_GetByUser 测试根据用户 ID 获取执行记录
-func TestFlowExecutionRepository_GetByUser(t *testing.T) {
-	_, execRepo := setupMarketingFlowRepositories(t)
-
-	execRepo.Create(&model.FlowExecution{
-		FlowID: 1,
-		UserID: "user-123",
-		Status: "running",
-	})
-	execRepo.Create(&model.FlowExecution{
-		FlowID: 2,
-		UserID: "user-123",
-		Status: "completed",
-	})
-	execRepo.Create(&model.FlowExecution{
-		FlowID: 3,
-		UserID: "user-456",
-		Status: "running",
-	})
-
-	tests := []struct {
-		name       string
-		merchantID string
-		userID     string
-		page       int
-		pageSize   int
-		wantCount  int
-		wantErr    bool
-	}{
-		{
-			name: "get user executions",
-
-			userID:    "user-123",
-			page:      1,
-			pageSize:  10,
-			wantCount: 2,
-			wantErr:   false,
-		},
-		{
-			name: "get different user executions",
-
-			userID:    "user-456",
-			page:      1,
-			pageSize:  10,
-			wantCount: 1,
-			wantErr:   false,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			results, total, err := execRepo.GetByUser(tt.userID, tt.page, tt.pageSize)
-
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GetByUser() error = %v, wantErr %v", err, tt.wantErr)
-			}
-
-			if len(results) != tt.wantCount {
-				t.Errorf("Expected %d results, got %d", tt.wantCount, len(results))
-			}
-
-			if int(total) != tt.wantCount {
-				t.Errorf("Expected total %d, got %d", tt.wantCount, total)
-			}
-		})
 	}
 }
 
 // TestFlowExecutionRepository_GetStats 测试获取执行统计
 func TestFlowExecutionRepository_GetStats(t *testing.T) {
 	_, execRepo := setupMarketingFlowRepositories(t)
+	ctx := context.Background()
 
 	for i := 0; i < 3; i++ {
-		execRepo.Create(&model.FlowExecution{
+		if err := execRepo.Create(ctx, &model.FlowExecution{
 			FlowID: 1,
 			UserID: string(rune('0' + i)),
 			Status: "running",
-		})
+		}); err != nil {
+			t.Fatalf("预置执行记录失败: %v", err)
+		}
 	}
 	for i := 0; i < 2; i++ {
-		execRepo.Create(&model.FlowExecution{
+		if err := execRepo.Create(ctx, &model.FlowExecution{
 			FlowID: 1,
 			UserID: string(rune('a' + i)),
 			Status: "completed",
-		})
+		}); err != nil {
+			t.Fatalf("预置执行记录失败: %v", err)
+		}
 	}
-	execRepo.Create(&model.FlowExecution{
+	if err := execRepo.Create(ctx, &model.FlowExecution{
 		FlowID: 1,
 		UserID: "user-failed",
 		Status: "failed",
-	})
+	}); err != nil {
+		t.Fatalf("预置执行记录失败: %v", err)
+	}
 
-	stats, err := execRepo.GetStats(1)
+	stats, err := execRepo.GetStats(ctx, 1)
 	if err != nil {
-		t.Errorf("GetStats() error = %v", err)
+		t.Fatalf("GetStats() error = %v", err)
 	}
 
 	if stats["running"] != 3 {
@@ -660,35 +518,21 @@ func TestFlowExecutionRepository_GetStats(t *testing.T) {
 	}
 }
 
-// TestFlowExecutionRepository_CleanupOldExecutions 测试清理旧的执行记录
-func TestFlowExecutionRepository_CleanupOldExecutions(t *testing.T) {
+// TestFlowExecutionRepository_GetByFlowIDClampsPaging 执行记录列表同样要夹紧分页：
+// flow_id 命中的记录数不可控，page=0 会让整口直接 500。
+func TestFlowExecutionRepository_GetByFlowIDClampsPaging(t *testing.T) {
 	_, execRepo := setupMarketingFlowRepositories(t)
+	ctx := context.Background()
 
-	oldTime := time.Now().AddDate(0, 0, -31)
-	execRepo.Create(&model.FlowExecution{
-		FlowID:      1,
-		UserID:      "user-old-1",
-		Status:      "completed",
-		StartedAt:   oldTime,
-		CompletedAt: &oldTime,
-	})
-
-	newTime := time.Now()
-	execRepo.Create(&model.FlowExecution{
-		FlowID:      1,
-		UserID:      "user-new-1",
-		Status:      "completed",
-		StartedAt:   newTime,
-		CompletedAt: &newTime,
-	})
-
-	err := execRepo.CleanupOldExecutions()
-	if err != nil {
-		t.Errorf("CleanupOldExecutions() error = %v", err)
+	if err := execRepo.Create(ctx, &model.FlowExecution{FlowID: 42, UserID: "u", Status: "running"}); err != nil {
+		t.Fatalf("预置执行记录失败: %v", err)
 	}
 
-	results, _, _ := execRepo.GetByFlowID(1, 1, 10)
-	if len(results) != 1 {
-		t.Errorf("Expected 1 execution remaining, got %d", len(results))
+	results, total, err := execRepo.GetByFlowID(ctx, 42, 0, 0)
+	if err != nil {
+		t.Fatalf("page=0 应被夹成第 1 页而不是报错，实得 %v", err)
+	}
+	if total != 1 || len(results) != 1 {
+		t.Errorf("应回第 1 页 1 条，实得 total=%d len=%d", total, len(results))
 	}
 }

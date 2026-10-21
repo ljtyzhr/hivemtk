@@ -2,6 +2,7 @@ package controller
 
 import (
 	"hivemtk-user/internal/content/service"
+	"hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/pkg/errhttp"
 	"hivemtk-user/internal/pkg/utils/response"
 	"net/http"
@@ -10,13 +11,17 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-func extractFlowUserContext(ctx *gin.Context) (uint, bool) {
-	userID, _ := ctx.Get("user_id")
-	roleVal, _ := ctx.Get("role")
-	role, _ := roleVal.(string)
-	isAdmin := role == "admin" || role == "super_admin"
-	uid, _ := userID.(uint)
-	return uid, isAdmin
+// flowCaller 取「身份 + 是否管理员」。
+//
+// 身份类型必须过 convertToUint：用户侧 JWT 中间件存 uint，团队侧存 float64/string，
+// 改前这里是 `userID.(uint)`——团队身份进来直接 panic，无身份时 nil.(uint) 同样 panic，
+// 两者都表现为 500 而不是鉴权/权限失败。
+func flowCaller(ctx *gin.Context) (uint, bool, bool) {
+	uid, ok := callerUserID(ctx)
+	role, _ := ctx.Get("role")
+	admin, _ := role.(string)
+	isAdmin := admin == "admin" || admin == "super_admin"
+	return uid, ok, isAdmin && ok
 }
 
 // MarketingFlowController 营销流程控制器
@@ -27,22 +32,26 @@ type MarketingFlowController struct {
 // NewMarketingFlowController 创建营销流程控制器实例
 func NewMarketingFlowController() *MarketingFlowController {
 	return &MarketingFlowController{
-		flowService: service.NewMarketingFlowService(),
+		flowService: service.NewMarketingFlowService(db.GetDB()),
 	}
 }
 
 // CreateFlow 创建流程
 func (c *MarketingFlowController) CreateFlow(ctx *gin.Context) {
+	userID, ok, _ := flowCaller(ctx)
+	if !ok {
+		response.Error(ctx, http.StatusUnauthorized, "未授权访问")
+		return
+	}
 
-	userID, _ := ctx.Get("user_id")
 	var req service.CreateFlowRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		response.Error(ctx, http.StatusBadRequest, "请求参数错误："+err.Error())
 		return
 	}
 
-	flow, err := c.flowService.CreateFlow(userID.(uint), &req)
-	if errhttp.HandleServiceError(ctx, err) {
+	flow, err := c.flowService.CreateFlow(ctx.Request.Context(), userID, &req)
+	if errhttp.HandleDBError(ctx, err, "创建营销流程") {
 		return
 	}
 
@@ -51,13 +60,11 @@ func (c *MarketingFlowController) CreateFlow(ctx *gin.Context) {
 
 // GetFlowList 获取流程列表
 func (c *MarketingFlowController) GetFlowList(ctx *gin.Context) {
-
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(ctx.DefaultQuery("page_size", "10"))
 
-	flows, total, err := c.flowService.GetFlowList(page, pageSize)
-	if err != nil {
-		response.Error(ctx, http.StatusInternalServerError, err.Error())
+	flows, total, err := c.flowService.GetFlowList(ctx.Request.Context(), page, pageSize)
+	if errhttp.HandleDBError(ctx, err, "获取营销流程列表") {
 		return
 	}
 
@@ -71,17 +78,13 @@ func (c *MarketingFlowController) GetFlowList(ctx *gin.Context) {
 
 // GetFlowByID 获取流程详情
 func (c *MarketingFlowController) GetFlowByID(ctx *gin.Context) {
-
-	idStr := ctx.Param("id")
-	id, err := strconv.ParseUint(idStr, 10, 32)
-	if err != nil {
-		response.Error(ctx, http.StatusBadRequest, "无效的流程 ID")
+	id, ok := flowIDParam(ctx)
+	if !ok {
 		return
 	}
 
-	flow, err := c.flowService.GetFlowByID(uint(id))
-	if err != nil {
-		response.Error(ctx, http.StatusNotFound, err.Error())
+	flow, err := c.flowService.GetFlowByID(ctx.Request.Context(), id)
+	if errhttp.HandleDBError(ctx, err, "获取营销流程") {
 		return
 	}
 
@@ -90,11 +93,8 @@ func (c *MarketingFlowController) GetFlowByID(ctx *gin.Context) {
 
 // UpdateFlow 更新流程
 func (c *MarketingFlowController) UpdateFlow(ctx *gin.Context) {
-
-	idStr := ctx.Param("id")
-	id, err := strconv.ParseUint(idStr, 10, 32)
-	if err != nil {
-		response.Error(ctx, http.StatusBadRequest, "无效的流程 ID")
+	id, ok := flowIDParam(ctx)
+	if !ok {
 		return
 	}
 
@@ -104,8 +104,8 @@ func (c *MarketingFlowController) UpdateFlow(ctx *gin.Context) {
 		return
 	}
 
-	userID, isAdmin := extractFlowUserContext(ctx)
-	flow, err := c.flowService.UpdateFlow(uint(id), userID, isAdmin, &req)
+	userID, _, isAdmin := flowCaller(ctx)
+	flow, err := c.flowService.UpdateFlow(ctx.Request.Context(), id, userID, isAdmin, &req)
 	if errhttp.HandleDBError(ctx, err, "更新营销流程") {
 		return
 	}
@@ -115,16 +115,13 @@ func (c *MarketingFlowController) UpdateFlow(ctx *gin.Context) {
 
 // DeleteFlow 删除流程
 func (c *MarketingFlowController) DeleteFlow(ctx *gin.Context) {
-
-	idStr := ctx.Param("id")
-	id, err := strconv.ParseUint(idStr, 10, 32)
-	if err != nil {
-		response.Error(ctx, http.StatusBadRequest, "无效的流程 ID")
+	id, ok := flowIDParam(ctx)
+	if !ok {
 		return
 	}
 
-	userID, isAdmin := extractFlowUserContext(ctx)
-	if errhttp.HandleDBError(ctx, c.flowService.DeleteFlow(uint(id), userID, isAdmin), "删除营销流程") {
+	userID, _, isAdmin := flowCaller(ctx)
+	if errhttp.HandleDBError(ctx, c.flowService.DeleteFlow(ctx.Request.Context(), id, userID, isAdmin), "删除营销流程") {
 		return
 	}
 
@@ -133,16 +130,13 @@ func (c *MarketingFlowController) DeleteFlow(ctx *gin.Context) {
 
 // ActivateFlow 激活流程
 func (c *MarketingFlowController) ActivateFlow(ctx *gin.Context) {
-
-	idStr := ctx.Param("id")
-	id, err := strconv.ParseUint(idStr, 10, 32)
-	if err != nil {
-		response.Error(ctx, http.StatusBadRequest, "无效的流程 ID")
+	id, ok := flowIDParam(ctx)
+	if !ok {
 		return
 	}
 
-	userID, isAdmin := extractFlowUserContext(ctx)
-	if errhttp.HandleDBError(ctx, c.flowService.ActivateFlow(uint(id), userID, isAdmin), "激活营销流程") {
+	userID, _, isAdmin := flowCaller(ctx)
+	if errhttp.HandleDBError(ctx, c.flowService.ActivateFlow(ctx.Request.Context(), id, userID, isAdmin), "激活营销流程") {
 		return
 	}
 
@@ -151,16 +145,13 @@ func (c *MarketingFlowController) ActivateFlow(ctx *gin.Context) {
 
 // PauseFlow 暂停流程
 func (c *MarketingFlowController) PauseFlow(ctx *gin.Context) {
-
-	idStr := ctx.Param("id")
-	id, err := strconv.ParseUint(idStr, 10, 32)
-	if err != nil {
-		response.Error(ctx, http.StatusBadRequest, "无效的流程 ID")
+	id, ok := flowIDParam(ctx)
+	if !ok {
 		return
 	}
 
-	userID, isAdmin := extractFlowUserContext(ctx)
-	if errhttp.HandleDBError(ctx, c.flowService.PauseFlow(uint(id), userID, isAdmin), "暂停营销流程") {
+	userID, _, isAdmin := flowCaller(ctx)
+	if errhttp.HandleDBError(ctx, c.flowService.PauseFlow(ctx.Request.Context(), id, userID, isAdmin), "暂停营销流程") {
 		return
 	}
 
@@ -169,16 +160,13 @@ func (c *MarketingFlowController) PauseFlow(ctx *gin.Context) {
 
 // StopFlow 停止流程
 func (c *MarketingFlowController) StopFlow(ctx *gin.Context) {
-
-	idStr := ctx.Param("id")
-	id, err := strconv.ParseUint(idStr, 10, 32)
-	if err != nil {
-		response.Error(ctx, http.StatusBadRequest, "无效的流程 ID")
+	id, ok := flowIDParam(ctx)
+	if !ok {
 		return
 	}
 
-	userID, isAdmin := extractFlowUserContext(ctx)
-	if errhttp.HandleDBError(ctx, c.flowService.StopFlow(uint(id), userID, isAdmin), "停止营销流程") {
+	userID, _, isAdmin := flowCaller(ctx)
+	if errhttp.HandleDBError(ctx, c.flowService.StopFlow(ctx.Request.Context(), id, userID, isAdmin), "停止营销流程") {
 		return
 	}
 
@@ -187,18 +175,15 @@ func (c *MarketingFlowController) StopFlow(ctx *gin.Context) {
 
 // GetExecutionList 获取执行记录列表
 func (c *MarketingFlowController) GetExecutionList(ctx *gin.Context) {
-
-	flowIDStr := ctx.Param("id")
-	flowID, err := strconv.ParseUint(flowIDStr, 10, 32)
-	if err != nil {
-		response.Error(ctx, http.StatusBadRequest, "无效的流程 ID")
+	id, ok := flowIDParam(ctx)
+	if !ok {
 		return
 	}
 
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(ctx.DefaultQuery("page_size", "10"))
 
-	executions, total, err := c.flowService.GetExecutionList(uint(flowID), page, pageSize)
+	executions, total, err := c.flowService.GetExecutionList(ctx.Request.Context(), id, page, pageSize)
 	if errhttp.HandleDBError(ctx, err, "获取执行记录") {
 		return
 	}
@@ -213,15 +198,12 @@ func (c *MarketingFlowController) GetExecutionList(ctx *gin.Context) {
 
 // GetExecutionStats 获取执行统计
 func (c *MarketingFlowController) GetExecutionStats(ctx *gin.Context) {
-
-	idStr := ctx.Param("id")
-	id, err := strconv.ParseUint(idStr, 10, 32)
-	if err != nil {
-		response.Error(ctx, http.StatusBadRequest, "无效的流程 ID")
+	id, ok := flowIDParam(ctx)
+	if !ok {
 		return
 	}
 
-	stats, err := c.flowService.GetExecutionStats(uint(id))
+	stats, err := c.flowService.GetExecutionStats(ctx.Request.Context(), id)
 	if errhttp.HandleDBError(ctx, err, "获取执行统计") {
 		return
 	}
@@ -238,21 +220,15 @@ type TriggerRequest struct {
 // Trigger 触发营销流程（手动触发 / 测试触发）
 // POST /marketing-flows/:id/trigger
 func (c *MarketingFlowController) Trigger(ctx *gin.Context) {
-	idStr := ctx.Param("id")
-	id, err := strconv.ParseUint(idStr, 10, 32)
-	if err != nil {
-		response.Error(ctx, http.StatusBadRequest, "无效的流程 ID")
+	id, ok := flowIDParam(ctx)
+	if !ok {
 		return
 	}
 
 	var req TriggerRequest
 	_ = ctx.ShouldBindJSON(&req)
 
-	userID, _ := ctx.Get("user_id")
-	uid := uint(0)
-	if v, ok := userID.(uint); ok {
-		uid = v
-	}
+	uid, _, _ := flowCaller(ctx)
 	uidStr := strconv.FormatUint(uint64(uid), 10)
 
 	triggerID := req.TriggerID
@@ -260,10 +236,19 @@ func (c *MarketingFlowController) Trigger(ctx *gin.Context) {
 		triggerID = "manual-" + uidStr
 	}
 
-	execution, err := c.flowService.TriggerFlowByID(ctx.Request.Context(), uint(id), triggerID, uidStr, req.Data)
-	if errhttp.HandleServiceError(ctx, err) {
+	execution, err := c.flowService.TriggerFlowByID(ctx.Request.Context(), id, triggerID, uidStr, req.Data)
+	if errhttp.HandleDBError(ctx, err, "触发营销流程") {
 		return
 	}
 
 	response.Success(ctx, execution, "流程已触发")
+}
+
+func flowIDParam(ctx *gin.Context) (uint, bool) {
+	id, err := strconv.ParseUint(ctx.Param("id"), 10, 32)
+	if err != nil {
+		response.Error(ctx, http.StatusBadRequest, "无效的流程 ID")
+		return 0, false
+	}
+	return uint(id), true
 }
