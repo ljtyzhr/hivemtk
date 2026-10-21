@@ -17,6 +17,13 @@ import (
 // Upsert 仅刷新在线状态、不改动归属字段。供 handler 记录审计日志。
 var ErrAccountOwnedByOther = errors.New("bridge account owned by another user")
 
+// bridgeAccountListLimit 管理面单租户可见账号数的读取上限。
+//
+// 网页扩展每个浏览器实例注册一条，长期运行会累积历史账号（换了浏览器/重装扩展
+// 都会留下一条）；没有上限时一次 GET 就是一次无界全表读，而管理面只需要
+// 最近活跃的那一批。截断对调用方是安全的：在线位与可用性判断都不依赖"看见全部"。
+const bridgeAccountListLimit = 500
+
 // BridgeAccountRepository 桥接账号持久化（实现 BridgeAccountRepo 接口）。
 //
 // 放在 bridge 包内以避免 import cycle（repository 已间接依赖 bridge）。
@@ -85,17 +92,32 @@ func (r *BridgeAccountRepository) Upsert(ctx context.Context, u BridgeAccountUps
 			return ErrAccountOwnedByOther
 		}
 
-		acc.Status = u.Status
+		// 更新走列白名单 map，不用 Save：Save 在 0 行命中时会退化成按裸主键
+		// ON CONFLICT 的 Create（GORM 的既有行为），于是"行在读与写之间被删掉"
+		// 会变成一次带旧 id 的重新插入，而那次插入不带任何归属校验。
+		// 写集合只有在线位/昵称/智能体/updated_at：归属（user_id）与身份列不在这条路径上。
 		now := time.Now()
-		acc.LastSyncAt = &now
+		updates := map[string]any{
+			"status":       u.Status,
+			"last_sync_at": now,
+			"updated_at":   now,
+		}
 		if u.AccountName != "" {
-			acc.AccountName = u.AccountName
+			updates["account_name"] = u.AccountName
 		}
 		if u.AgentID != 0 {
-			acc.AgentID = u.AgentID
+			updates["agent_id"] = u.AgentID
 		}
-		if err := r.db.WithContext(ctx).Save(&acc).Error; err != nil {
-			return err
+		res := r.db.WithContext(ctx).Model(&model.BridgeAccount{}).
+			Where("id = ?", acc.ID).
+			Updates(updates)
+		if res.Error != nil {
+			return res.Error
+		}
+		if res.RowsAffected == 0 {
+			// 锁定的那一行不在了（被删或被租户闸挡掉）：宁可报"不存在"让调用方重试，
+			// 也不留下一句"注册成功"而账号行根本不存在。
+			return gorm.ErrRecordNotFound
 		}
 		if u.AgentID != 0 {
 			return r.upsertBinding(ctx, u.Channel, u.AccountID, u.AgentID)
@@ -109,8 +131,19 @@ func (r *BridgeAccountRepository) Upsert(ctx context.Context, u BridgeAccountUps
 	return nil
 }
 
+// isUniqueViolation 判定"撞的是 bridge_accounts 的 (tenant_id, channel, account_id)
+// 唯一索引"。
+//
+// 只认 "duplicate key value" 依赖 PG 的消息本地化（l10n 环境下文案会变），于是在非英文
+// 实例上并发首建的第一次冲突不会被识别成"已存在"，那一轮注册直接失败。SQLSTATE 与索引名
+// 两个条件都命中才认，与 bill/quote 侧同一形状：别的唯一冲突（主键等）不该被读成
+// "这条账号已经注册过"。
 func isUniqueViolation(err error) bool {
-	return err != nil && strings.Contains(err.Error(), "duplicate key value")
+	if err == nil {
+		return false
+	}
+	msg := err.Error()
+	return strings.Contains(msg, "23505") && strings.Contains(msg, "uk_bridge_ch_acc")
 }
 
 func (r *BridgeAccountRepository) upsertBinding(ctx context.Context, channel, accountID string, agentID uint) error {
@@ -215,7 +248,7 @@ func (r *BridgeAccountRepository) ListForUser(ctx context.Context, userID uint) 
 	var accs []model.BridgeAccount
 	if err := r.db.WithContext(ctx).
 		Where("user_id = 0 OR user_id = ?", userID).
-		Order("id desc").Find(&accs).Error; err != nil {
+		Order("id desc").Limit(bridgeAccountListLimit).Find(&accs).Error; err != nil {
 		return nil, err
 	}
 	now := time.Now()
