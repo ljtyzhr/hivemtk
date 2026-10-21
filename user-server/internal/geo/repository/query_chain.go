@@ -19,6 +19,8 @@ type GeoQueryChainRepository interface {
 	ListByOneID(ctx context.Context, oneID string) ([]*model.GeoQueryChain, error)
 	// CountToday 统计当日新增行数（探针日预算护栏；按 created_at 而非 chain_id）
 	CountToday(ctx context.Context) (int64, error)
+	// BindOneIDToChain 把客户 OneID 回填到该链尚未绑定 OneID 的行（线索捕获后的归因关联）
+	BindOneIDToChain(ctx context.Context, chainID, oneID string) (int64, error)
 }
 
 type geoQueryChainRepository struct{ db *gorm.DB }
@@ -69,6 +71,16 @@ func (r *geoQueryChainRepository) CountToday(ctx context.Context) (int64, error)
 	return n, err
 }
 
+func (r *geoQueryChainRepository) BindOneIDToChain(ctx context.Context, chainID, oneID string) (int64, error) {
+	if chainID == "" || oneID == "" {
+		return 0, nil
+	}
+	res := r.db.WithContext(ctx).Model(&model.GeoQueryChain{}).
+		Where("chain_id = ? AND (one_id = '' OR one_id IS NULL)", chainID).
+		Update("one_id", oneID)
+	return res.RowsAffected, res.Error
+}
+
 // GeoContentTaskRepository 补位任务仓储
 type GeoContentTaskRepository interface {
 	Create(ctx context.Context, task *model.GeoContentTask) error
@@ -99,9 +111,17 @@ func (r *geoContentTaskRepository) ListPending(ctx context.Context, limit int) (
 	return rows, err
 }
 
+// MarkDone 标记任务完成；0 行说明任务不存在（含已软删/跨租户），不能当作成功。
 func (r *geoContentTaskRepository) MarkDone(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Model(&model.GeoContentTask{}).
-		Where("id = ?", id).Update("status", "done").Error
+	res := r.db.WithContext(ctx).Model(&model.GeoContentTask{}).
+		Where("id = ?", id).Update("status", "done")
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 func (r *geoContentTaskRepository) CountByStatus(ctx context.Context, status string) (int64, error) {

@@ -1,37 +1,30 @@
 package controller
 
 import (
-	"context"
+	"errors"
 	"net/http"
 	"strconv"
 
-	"hivemtk-user/internal/geo/repository"
+	"hivemtk-user/internal/geo/service"
 	"hivemtk-user/internal/pkg/utils/response"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 type GeoDecisionController struct {
-	chainRepo repository.GeoQueryChainRepository
-	taskRepo  repository.GeoContentTaskRepository
-	report    DecisionReportQuerier
+	svc *service.DecisionService
 }
 
-// DecisionReportQuerier L4 结果指标查询端口（主域 clue 统计由装配层实现）
-type DecisionReportQuerier interface {
-	CountCapturedLeads(ctx context.Context) (int64, error)
-}
-
-func NewGeoDecisionController(chainRepo repository.GeoQueryChainRepository,
-	taskRepo repository.GeoContentTaskRepository, report DecisionReportQuerier) *GeoDecisionController {
-	return &GeoDecisionController{chainRepo: chainRepo, taskRepo: taskRepo, report: report}
+func NewGeoDecisionController(svc *service.DecisionService) *GeoDecisionController {
+	return &GeoDecisionController{svc: svc}
 }
 
 // GetTasks 待处理补位任务列表（内容生产管线消费入口）
 // GET /api/geo/decision/tasks?limit=50
 func (c *GeoDecisionController) GetTasks(ctx *gin.Context) {
 	limit, _ := strconv.Atoi(ctx.DefaultQuery("limit", "50"))
-	tasks, err := c.taskRepo.ListPending(ctx.Request.Context(), limit)
+	tasks, err := c.svc.ListTasks(ctx.Request.Context(), limit)
 	if err != nil {
 		response.Error(ctx, http.StatusInternalServerError, "查询任务失败: "+err.Error())
 		return
@@ -42,7 +35,11 @@ func (c *GeoDecisionController) GetTasks(ctx *gin.Context) {
 // MarkTaskDone 标记任务完成
 // POST /api/geo/decision/tasks/:id/done
 func (c *GeoDecisionController) MarkTaskDone(ctx *gin.Context) {
-	if err := c.taskRepo.MarkDone(ctx.Request.Context(), ctx.Param("id")); err != nil {
+	if err := c.svc.MarkDone(ctx.Request.Context(), ctx.Param("id")); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			response.Error(ctx, http.StatusNotFound, "补位任务不存在")
+			return
+		}
 		response.Error(ctx, http.StatusInternalServerError, "更新失败: "+err.Error())
 		return
 	}
@@ -53,16 +50,10 @@ func (c *GeoDecisionController) MarkTaskDone(ctx *gin.Context) {
 // 思维链规模 / 补位任务漏斗 / 捕获线索数（OneID→成交归因的前置层）
 // GET /api/geo/decision/report
 func (c *GeoDecisionController) GetDecisionReport(ctx *gin.Context) {
-	ctxReq := ctx.Request.Context()
-	pending, _ := c.taskRepo.ListPending(ctxReq, 200)
-	doneN, _ := c.taskRepo.CountByStatus(ctxReq, "done")
-	var leads int64
-	if c.report != nil {
-		leads, _ = c.report.CountCapturedLeads(ctxReq)
+	report, err := c.svc.Report(ctx.Request.Context())
+	if err != nil {
+		response.Error(ctx, http.StatusInternalServerError, "统计失败: "+err.Error())
+		return
 	}
-	response.Success(ctx, gin.H{
-		"tasks_pending":  len(pending),
-		"tasks_done":     doneN,
-		"leads_captured": leads,
-	}, "ok")
+	response.Success(ctx, report, "ok")
 }

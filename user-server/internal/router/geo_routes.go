@@ -55,9 +55,7 @@ func SetupGeoRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 	mainClueRepo := mainrepo.NewClueRepositoryWithDB(gormDB)
 
 	decisionCtrl := geoctrl.NewGeoDecisionController(
-		georepo.NewGeoQueryChainRepository(gormDB),
-		georepo.NewGeoContentTaskRepository(gormDB),
-		newGeoLeadReporter(gormDB),
+		geoservice.NewDecisionService(taskRepo, newGeoLeadReporter(mainClueRepo)),
 	)
 	auth.GET("/geo/decision/report", decisionCtrl.GetDecisionReport)
 	auth.GET("/geo/decision/tasks", decisionCtrl.GetTasks)
@@ -73,7 +71,6 @@ func SetupGeoRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 		llmAdapter,
 		georepo.NewGeoAPICallRepositoryWithDB(gormDB))
 
-	geoChainRepo := georepo.NewGeoQueryChainRepository(gormDB)
 	wfSvc.RegisterCaptureLeadExecutor(geoservice.CaptureLeadFunc(func(ctx context.Context, contact, contactType, chainID, intent string) (string, error) {
 		clue := &model.Clue{
 			Account:  contact,
@@ -87,11 +84,9 @@ func SetupGeoRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 			return "", err
 		}
 
-		if clue.OneID != "" && geoChainRepo != nil {
-			utils.WarnErrKV("router.geo.bindOneIDToChain", gormDB.WithContext(ctx).
-				Table("geo_query_chains").
-				Where("chain_id = ? AND (one_id = '' OR one_id IS NULL)", chainID).
-				Update("one_id", clue.OneID).Error, "chain_id", chainID, "one_id", clue.OneID, "clue_id", clue.ID)
+		if clue.OneID != "" {
+			_, err := chainRepo.BindOneIDToChain(ctx, chainID, clue.OneID)
+			utils.WarnErrKV("router.geo.bindOneIDToChain", err, "chain_id", chainID, "one_id", clue.OneID, "clue_id", clue.ID)
 		}
 		return clue.ID, nil
 	}))
@@ -342,15 +337,17 @@ func SetupGeoRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 	geoAdmin.DELETE("/dicts/:category/:key", dictCtrl.Delete)
 }
 
-type geoLeadReporter struct{ db *gorm.DB }
+// geoLeadReporter GEO 捕获线索计数。
+//
+// v3.56.0 起 GEO 捕获有独立类型号 18（存量 9 已改判），所以按类型统计即可；
+// 旧实现写死 type=9 且靠 source_id 前缀排除抖音线索——改判后恒为 0。
+type geoLeadReporter struct{ clues mainrepo.ClueRepository }
 
-func newGeoLeadReporter(db *gorm.DB) *geoLeadReporter { return &geoLeadReporter{db: db} }
+func newGeoLeadReporter(clues mainrepo.ClueRepository) *geoLeadReporter {
+	return &geoLeadReporter{clues: clues}
+}
 
 func (r *geoLeadReporter) CountCapturedLeads(ctx context.Context) (int64, error) {
-	var n int64
-	err := r.db.WithContext(ctx).Model(&model.Clue{}).
-		Where("type = ?", int64(9)).
-		Where("(source_id LIKE 'probe:%' OR source_id LIKE 'verify:%' OR source_id LIKE 'inbox:%')").
-		Count(&n).Error
-	return n, err
+	clueType := service.ClueTypeGeoCapture
+	return r.clues.CountWithQuery(ctx, mainrepo.ClueQuery{Type: &clueType})
 }

@@ -47,6 +47,9 @@ func (r *stubChainRepo) ListByOneID(_ context.Context, _ string) ([]*model.GeoQu
 	return r.rows, nil
 }
 func (r *stubChainRepo) CountToday(_ context.Context) (int64, error) { return 0, nil }
+func (r *stubChainRepo) BindOneIDToChain(_ context.Context, _, _ string) (int64, error) {
+	return 0, nil
+}
 
 type stubTaskRepo struct{ rows []*model.GeoContentTask }
 
