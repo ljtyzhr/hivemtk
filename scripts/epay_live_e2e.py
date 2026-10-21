@@ -250,8 +250,8 @@ def s0_preflight(user: Client, plat: Client, rep: Report, env: dict,
 # ---------------------------------------------------------------------------
 # S1 注册租户（沿用 mock 脚本口径：每轮唯一账号，trial 起步）
 # ---------------------------------------------------------------------------
-def s1_register(user: Client, rep: Report, run: str) -> str | None:
-    rep.step("S1 注册 SaaS 租户 → sync → 订阅状态")
+def s1_register(user: Client, rep: Report, run: str, sql_ok: bool = True) -> str | None:
+    rep.step("S1 注册 SaaS 租户 → sync → 订阅状态 → 商户镜像")
     st, payload, _ = user.get("/api/tenant/regulatory-notice", desc="监管告知")
     agreement = ""
     if st == 200 and code_of(payload) == 0:
@@ -290,6 +290,16 @@ def s1_register(user: Client, rep: Report, run: str) -> str | None:
                                token=token)
     rep.assert_("S1.2 sync code=0", st == 200 and code_of(payload) == 0,
                 f"HTTP={st} code={code_of(payload)}")
+
+    # 需求 2026-10-21 #2：开户登记必须镜像进 merchants —— 否则平台端
+    # "租户登记有数据、商户管理空白"。
+    if sql_ok:
+        company = body["company_name"]
+        row = psql("SELECT count(*) FROM merchants WHERE name='%s';" % company, rep)
+        rep.assert_("S1.3 开户登记已镜像进 merchants（商户管理有数据）",
+                    bool(row) and int(row) >= 1, f"merchants 匹配行={row!r}")
+    else:
+        rep.degrade("S1.3 跳过 SQL 断言（--no-sql）")
     return token
 
 
@@ -490,9 +500,46 @@ def s3_subscription(user: Client, plat: Client, rep: Report, token: str, run: st
 # ---------------------------------------------------------------------------
 # S4 LLM 套餐：下单 → 收银台 → 回调 → 余额入账
 # ---------------------------------------------------------------------------
+def ensure_llm_module(user: Client, plat: Client, rep: Report, token: str,
+                      run: str, key: str) -> None:
+    """套餐列表被模块闸门挡住（4301）时，先 1 元买下 llm-cloud 再放行。
+
+    付费模块标价后新租户不再自动持有 llm-cloud，套餐页必须先开通模块。
+    这条腿顺带把"付费模块购买"也纳入真网关验收。
+    """
+    st, payload, _ = user.get("/api/llm/plans", desc="套餐列表（闸门探测）",
+                              token=token)
+    if st == 200 and code_of(payload) == 0:
+        return
+    st, payload, _ = user.post("/api/module-market/order",
+                               desc="模块闸门 4301 → 1 元开通 llm-cloud",
+                               token=token, body={
+                                   "module_keys": ["llm-cloud"],
+                                   "client_order_no": "EM" + run,
+                                   "contact_phone": "13800138000",
+                               })
+    if st != 200 or code_of(payload) != 0:
+        return  # 交由 S4.1 断言如实报告
+    d = data_of(payload)
+    order_no = d.get("order_no")
+    total = int(d.get("total_amount_cents") or 0)
+    params = {
+        "pid": env_pid, "type": "alipay", "out_trade_no": order_no,
+        "trade_no": "EV" + time.strftime("%Y%m%d%H%M%S") +
+                    "".join(random.choice(string.digits) for _ in range(6)),
+        "trade_status": "TRADE_SUCCESS", "money": cents_to_yuan(total),
+        "name": "HiveMTK llm-cloud " + str(order_no),
+    }
+    send_notify(plat, rep, key, params, "llm-cloud 模块回调")
+    wait_pay_status(user, rep, token, order_no)
+    user.post("/api/modules/sync", desc="sync（激活 llm-cloud）", token=token)
+    rep.note(f"llm-cloud 已开通 order_no={order_no} total={total}分")
+
+
 def s4_llm(user: Client, plat: Client, rep: Report, token: str, run: str,
             key: str, gateway: str, sql_ok: bool, plan_code: str) -> str | None:
     rep.step("S4 LLM 套餐：下单 → 真实收银台 → 回调 → 余额入账")
+    ensure_llm_module(user, plat, rep, token, run, key)
     st, payload, _ = user.get("/api/llm/plans", desc="套餐列表", token=token)
     plans = data_of(payload).get("list", []) if st == 200 and code_of(payload) == 0 else []
     chosen = None
@@ -615,10 +662,15 @@ def s5_negatives(plat: Client, rep: Report, key: str) -> None:
 # ---------------------------------------------------------------------------
 # S6 三向对账（清单 §5 的本机子集）
 # ---------------------------------------------------------------------------
-def s6_reconcile(rep: Report, order_nos: list[str], sql_ok: bool) -> None:
+def s6_reconcile(rep: Report, order_nos: list[str], sql_ok: bool,
+                 paid_skipped: bool = False) -> None:
     rep.step("S6 三向对账：订单 ↔ 支付流水 ↔ 回调留痕（本轮订单）")
     if not sql_ok:
         rep.degrade("S6 跳过 SQL 断言（--no-sql）")
+        return
+    if paid_skipped:
+        # 付费场景全跳过时本轮没有可对账的订单（免费单不走支付流水/回调）
+        rep.degrade("S6 跳过：module/subscription/llm 全被 --skip，无付费订单")
         return
     if not order_nos:
         rep.assert_("S6.0 本轮至少有一张订单", False, "没有可对账的订单号")
@@ -646,6 +698,64 @@ def s6_reconcile(rep: Report, order_nos: list[str], sql_ok: bool) -> None:
     rep.assert_("S6.3 无孤儿 grant", row == "0", f"row={row!r}")
 
 
+# ---------------------------------------------------------------------------
+# S7 免费/0 元功能订阅：下单即开通，不拦联系方式、不弹线下指引
+# （需求 2026-10-21 #1：免费功能订阅直接完成开通，不需要联系微信）
+# ---------------------------------------------------------------------------
+def s7_free(user: Client, rep: Report, token: str, run: str, sql_ok: bool) -> None:
+    rep.step("S7 免费模块：下单即开通（无联系方式、无 payment 段也不拦）")
+    free_key = None
+    st, payload, _ = user.get("/api/module-market/list", desc="市场列表（找免费模块）")
+    if st == 200 and code_of(payload) == 0:
+        for it in data_of(payload).get("list", []):
+            if (it.get("free") or int(it.get("price_cents") or 0) == 0) \
+                    and not it.get("owned"):
+                free_key = it.get("module_key")
+                break
+    rep.assert_("S7.1 市场存在未开通的免费模块", bool(free_key), f"free_key={free_key!r}")
+    if not free_key:
+        return
+
+    # 故意不带任何联系方式：免费单必须直接开通
+    body = {"module_keys": [free_key], "client_order_no": "EV" + run + "F"}
+    st, payload, _ = user.post("/api/module-market/order",
+                               desc="免费模块下单（不填联系方式）",
+                               token=token, body=body)
+    ok = st == 200 and code_of(payload) == 0
+    rep.assert_("S7.2 免费下单 code=0（不因缺联系方式被拒）", ok,
+                f"HTTP={st} code={code_of(payload)} "
+                f"msg={payload.get('msg') or payload.get('message')}")
+    if not ok:
+        return
+    d = data_of(payload)
+    order_no = d.get("order_no")
+    rep.assert_("S7.3 下单响应 status=fulfilled（0 元直通）",
+                d.get("status") == "fulfilled", f"status={d.get('status')!r}")
+    rep.assert_("S7.4 无 payment 段且 payment_guide 已清空（不引导线下付款）",
+                not d.get("payment") and not (d.get("payment_guide") or "").strip(),
+                f"payment={d.get('payment')!r} guide={d.get('payment_guide')!r}")
+
+    st, payload, _ = user.post("/api/modules/sync", desc="sync", token=token)
+    rep.assert_("S7.5 sync code=0", st == 200 and code_of(payload) == 0,
+                f"HTTP={st} code={code_of(payload)}")
+    st, payload, _ = user.get("/api/modules/my", desc="我的模块", token=token)
+    owned = None
+    if st == 200 and code_of(payload) == 0:
+        for it in data_of(payload).get("list", []):
+            if it.get("module_key") == free_key:
+                owned = it.get("owned")
+    rep.assert_("S7.6 免费模块已激活 owned=true", owned is True, f"owned={owned!r}")
+
+    if sql_ok:
+        row = psql("SELECT status, coalesce(contact_phone,''), "
+                   "coalesce(contact_email,'') "
+                   f"FROM orders WHERE order_no='{order_no}';", rep)
+        rep.assert_("S7.7 DB：订单 fulfilled 且未强塞联系方式",
+                    row == "fulfilled||", f"row={row!r}")
+    else:
+        rep.degrade("S7.7 跳过 SQL 断言（--no-sql）")
+
+
 env_pid = ""
 
 
@@ -655,7 +765,7 @@ def main():
     ap.add_argument("--user-base", default=USER_BASE)
     ap.add_argument("--plat-base", default=PLAT_BASE)
     ap.add_argument("--skip", default="",
-                    help="逗号分隔，跳过步骤：module,subscription,llm,negatives")
+                    help="逗号分隔，跳过步骤：module,subscription,llm,free,negatives")
     ap.add_argument("--plan-code", default="", help="LLM 套餐编码（默认取第一个正价套餐）")
     ap.add_argument("--no-sql", action="store_true", help="跳过全部 SQL 断言（线上）")
     ap.add_argument("--client-ip", default="203.0.113.10",
@@ -707,7 +817,7 @@ def main():
         sys.stderr.write("❌ 缺少 EPAY_API_KEY 或 pid（通道未配置）\n")
         sys.exit(3)
 
-    token = s1_register(user, rep, run)
+    token = s1_register(user, rep, run, not args.no_sql)
     if not token:
         sys.exit(rep.finish())
 
@@ -726,9 +836,12 @@ def main():
                     args.plan_code)
         if no:
             order_nos.append(no)
+    if "free" not in skip:
+        s7_free(user, rep, token, run, not args.no_sql)
     if "negatives" not in skip:
         s5_negatives(plat, rep, key)
-    s6_reconcile(rep, order_nos, not args.no_sql)
+    s6_reconcile(rep, order_nos, not args.no_sql,
+                 paid_skipped={"module", "subscription", "llm"} <= skip)
 
     sys.exit(rep.finish())
 

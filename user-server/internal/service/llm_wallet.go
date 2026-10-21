@@ -205,14 +205,19 @@ func (s *LLMWalletService) CreateOrder(ctx context.Context, in LLMOrderInput) (*
 	if err != nil {
 		return nil, bizerr.Wrap(bizerr.CodeModulePlatformUnavail, "提交订单失败（平台不可达）", err)
 	}
-	// 平台未下发 payment 段 = 走线下路径。此时才要求联系方式：
+	// 平台未下发 payment 段且订单仍待支付 = 走线下路径，此时才要求联系方式：
 	// 没有联系人，运营无法完成线下收款，订单只能悬着。
+	// 0 元单平台直通 fulfilled（修订 #9）没有"等付款"环节，一并放行。
 	// 用同一 client_order_no 重试会命中平台幂等键，不会重复下单。
-	if res.Payment == nil && strings.TrimSpace(in.ContactPhone) == "" && strings.TrimSpace(in.ContactEmail) == "" {
+	if res.Payment == nil && !orderSettled(res.Status) &&
+		strings.TrimSpace(in.ContactPhone) == "" && strings.TrimSpace(in.ContactEmail) == "" {
 		return nil, ErrNoContactForPayment
 	}
 	guide := res.PaymentGuide
-	if strings.TrimSpace(guide) == "" {
+	if orderSettled(res.Status) {
+		// 已入账的单不挂"联系运营完成付款"指引（口径同模块单）
+		guide = ""
+	} else if strings.TrimSpace(guide) == "" {
 		if g, gerr := platform.NewModuleClient().PaymentGuide(ctx); gerr == nil {
 			guide = g
 		} else {

@@ -228,7 +228,10 @@ func (s *SubscriptionMirrorService) Renew(ctx context.Context, clientOrderNo, co
 	// 本地订单镜像落一行（type=subscription）：订单页可见 + sync 刷状态同口径。
 	items, _ := json.Marshal(res.Items)
 	guide := res.PaymentGuide
-	if strings.TrimSpace(guide) == "" {
+	if orderSettled(res.Status) {
+		// 0 元续费单平台直通 fulfilled：已顺延，不再挂"联系运营付款"指引
+		guide = ""
+	} else if strings.TrimSpace(guide) == "" {
 		guide = "订单已提交，请联系平台运营完成付款；付款确认后订阅自动顺延。"
 	}
 	if err := NewModuleCatalogService().order.Upsert(ctx, &model.ModuleOrder{

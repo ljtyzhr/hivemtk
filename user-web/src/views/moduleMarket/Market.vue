@@ -408,8 +408,11 @@ async function submit () {
       contact_email: form.contact_email || userStore.userInfo?.email || ''
     })
     confirmVisible.value = false
-    // 003 T019：有 payment 段（在线支付）→ 弹收银台；无 → 线下指引 toast
-    if (res?.payment?.pay_url) {
+    // 003 T019：有 payment 段（在线支付）→ 弹收银台；0 元单平台直通
+    // fulfilled → 直接提示已开通；其余 → 线下指引 toast
+    if (res?.status === 'fulfilled') {
+      ElMessage.success('模块已自动开通！可在「我的模块」查看。')
+    } else if (res?.payment?.pay_url) {
       cashierOrderNo.value = res.order_no
       cashierPayment.value = res.payment
       cashierGuide.value = res?.payment_guide || ''

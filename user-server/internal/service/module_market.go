@@ -72,11 +72,15 @@ func (s *ModuleCatalogService) MarketList(ctx context.Context) ([]ModuleMarketIt
 	if err != nil {
 		return nil, false, err
 	}
+	// 展示价以平台 module_catalog 现价为准：改价是平台端运营动作，
+	// 内嵌元数据只是平台不可达时的兜底。不覆盖的后果是市场页显示旧价、
+	// 下单却按平台新价成交（2026-10-21 线上全价改 1 元时页面还挂 99 元）。
+	livePrices := s.liveMarketPrices(ctx)
 	out := make([]ModuleMarketItem, 0, len(model.ModuleCatalogMeta))
 	for _, meta := range model.ModuleCatalogMeta {
 		menuKeys := model.ModuleMenuBindings[meta.Key]
 		row := owned[meta.Key]
-		price := marketPriceOf(meta.PriceCents, row)
+		price := marketPriceOf(livePriceOf(meta.PriceCents, livePrices, meta.Key), row)
 		item := ModuleMarketItem{
 			ModuleKey:    meta.Key,
 			Name:         meta.Name,
@@ -114,7 +118,7 @@ func (s *ModuleCatalogService) MarketDetail(ctx context.Context, moduleKey strin
 		return nil, err
 	}
 	row := owned[moduleKey]
-	price := marketPriceOf(meta.PriceCents, row)
+	price := marketPriceOf(livePriceOf(meta.PriceCents, s.liveMarketPrices(ctx), moduleKey), row)
 	menuKeys := model.ModuleMenuBindings[moduleKey]
 
 	d := &ModuleMarketDetail{
@@ -155,6 +159,27 @@ func (s *ModuleCatalogService) MarketDetail(ctx context.Context, moduleKey strin
 func marketPriceOf(metaPrice int64, row *model.TenantModule) int64 {
 	if row != nil {
 		return row.PriceCents
+	}
+	return metaPrice
+}
+
+// liveMarketPrices 拉平台 module_catalog 现价表；平台不可达返回 nil（回落内嵌价）。
+func (s *ModuleCatalogService) liveMarketPrices(ctx context.Context) map[string]int64 {
+	snap, err := platform.NewModuleClient().Market(ctx)
+	if err != nil || snap == nil {
+		return nil
+	}
+	prices := make(map[string]int64, len(snap.Modules))
+	for _, r := range snap.Modules {
+		prices[r.ModuleKey] = r.PriceCents
+	}
+	return prices
+}
+
+// livePriceOf 平台有该模块现价就用平台价，否则用内嵌兜底价。
+func livePriceOf(metaPrice int64, live map[string]int64, key string) int64 {
+	if p, ok := live[key]; ok {
+		return p
 	}
 	return metaPrice
 }
@@ -274,9 +299,10 @@ func (s *ModuleCatalogService) CreateOrder(ctx context.Context, in MarketOrderIn
 		return nil, bizerr.Wrap(bizerr.CodePlatformUnavail, "提交订单失败（平台不可达）", err)
 	}
 
-	// ---- 联系人约束（仅线下路径强制）----
-	// 平台返回 payment 段 = 在线支付路径 → 放行；没有 = 线下引导 → 必须留联系人。
-	if res.Payment == nil && !hasContact {
+	// ---- 联系人约束（仅线下待支付路径强制）----
+	// 平台返回 payment 段 = 在线支付路径 → 放行；0 元单平台直通 fulfilled
+	// 也没有"等付款"环节 → 同样放行；只有"无 payment 且仍待支付"才是线下引导。
+	if res.Payment == nil && !hasContact && !orderSettled(res.Status) {
 		// 平台单已建但本地不留：缺联系方式的单运营联系不上买家，等于流程断在这里。
 		// 让用户补联系方式后用同一 client_order_no 重试（幂等命中既有单），
 		// 比留一张孤儿单更干净。
@@ -285,7 +311,12 @@ func (s *ModuleCatalogService) CreateOrder(ctx context.Context, in MarketOrderIn
 
 	items, _ := json.Marshal(res.Items)
 	guide := res.PaymentGuide
-	if strings.TrimSpace(guide) == "" {
+	if orderSettled(res.Status) {
+		// 已落权益的单（0 元直通 fulfilled 等）不挂付款指引 —— 平台的
+		// payment_guide 是"联系运营完成付款"通用文案，订单页再展示它
+		// 等于让已开通的人去付第二次钱。
+		guide = ""
+	} else if strings.TrimSpace(guide) == "" {
 		// 平台没给（老版本平台端）就自己拉一次；仍拿不到就用固定文案，
 		// 绝不让"付款指引"为空 —— 用户不知道找谁付款就等于没下单
 		if g, gerr := client.PaymentGuide(ctx); gerr == nil {
@@ -378,6 +409,17 @@ func newClientOrderNo() string {
 		return fmt.Sprintf("MO%d", time.Now().UnixNano())
 	}
 	return fmt.Sprintf("MO%d%s", time.Now().UnixMilli(), strings.ToUpper(fmt.Sprintf("%x", buf))[:10])
+}
+
+// orderSettled 判平台订单是否已无"等付款"环节：0 元单平台直通 fulfilled
+// （修订 #9），回调入账后也会推到 paid/fulfilled。这类单不能按线下路径
+// 拦联系方式、也不能挂"联系运营完成付款"的付款指引。
+func orderSettled(status string) bool {
+	switch strings.TrimSpace(status) {
+	case "paid", "fulfilled":
+		return true
+	}
+	return false
 }
 
 // ListOrders 本地订单镜像列表（状态以平台为准，本地由同步刷新）
