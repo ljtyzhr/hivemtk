@@ -364,8 +364,8 @@ func (s *ChannelAgentBindingService) Delete(ctx context.Context, id uint) error 
 // 适用场景:
 //   - 渠道账号第一次绑定智能体
 //   - 渠道账号切换绑定的智能体
-//   - 与 channel_agent_bindings 表的 uq_channel_account_primary 部分唯一索引
-//     配合, 即使并发也只有一条主绑定能落地
+//   - 与 channel_agent_bindings 表的 idx_channel_binding_unique 唯一键配合
+//     (tenant_id, channel_type, account_id, COALESCE(chat_id,”)), 即使并发也只有一条主绑定能落地
 func (s *ChannelAgentBindingService) ReplaceBinding(ctx context.Context, channelType, accountID string, agentID uint) (*model.ChannelAgentBinding, error) {
 	if channelType == "" {
 		return nil, errors.New("channel_type 不能为空")

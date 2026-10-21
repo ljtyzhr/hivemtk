@@ -115,8 +115,8 @@ const (
 //
 // 强 1对1 改造 (Task 21):
 //   - 同一 (channel_type, account_id) 只能有 1 条 is_primary=true 记录
-//   - 数据库层通过部分 UNIQUE INDEX 保证: uq_channel_account_primary
-//     (channel_type, account_id) WHERE is_primary = true
+//   - 数据库层通过唯一索引保证: idx_channel_binding_unique
+//     (tenant_id, channel_type, account_id, COALESCE(chat_id, ”))
 //   - 历史 is_primary=false 的辅助记录不再被业务使用, 保留为审计/回滚用途
 //   - 业务层在 Replace / Bind 时, 必须先 ClearPrimaryByChannelAccount 再 Create
 //
@@ -124,7 +124,21 @@ const (
 // 索引:
 //   - INDEX(channel_type, account_id)       按渠道账号查询
 //   - INDEX(agent_id)                       反查智能体被哪些渠道使用
-//   - uq_channel_account_primary (迁移 035) 强 1对1 部分唯一索引
+//   - idx_channel_binding_unique (v3.70.0) 唯一键，带 chat_id 维度
+//
+// **唯一键为什么带 chat_id**：chat_id 是「群组/会话 ID」（Telegram chat_id /
+// Slack channel_id），NULL=account 级默认。telegram 群组功能靠它区分「同一账号下的
+// 多个群」——不含 chat_id 的唯一键会让同一账号的第二个群根本建不出绑定行。
+// 而 chat_id 为 NULL 与空串必须视为同一个键（PG 唯一索引里 NULL 互不相等，
+// 不归一的话 account 级默认可以无限多条），所以用 COALESCE(chat_id, ”)。
+//
+// **为什么由版本化迁移建而不是模型标签**：GORM 的 uniqueIndex 标签表达不了
+// COALESCE 表达式索引。该索引由 v3.70.0 迁移建（见
+// internal/migration/migrations/v3_70_0_channel_binding_chat_id_unique_key_migration.go），
+// 而 v3.15 迁移建的那个不含 chat_id 的旧索引由同一迁移替换掉。
+// 注：更早的注释说唯一键是 `uq_channel_account_primary (channel_type, account_id)
+// WHERE is_primary = true`（迁移 035 的形状）——该索引在开发库里并不存在，
+// 且那个形状也不含 tenant_id，多租户下会让一条渠道账号只能属于一个租户。
 type ChannelAgentBinding struct {
 	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
 

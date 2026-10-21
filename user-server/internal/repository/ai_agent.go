@@ -163,8 +163,9 @@ func (r *ChannelAgentBindingRepository) Create(ctx context.Context, b *model.Cha
 
 // ReplacePrimaryBinding 事务替换渠道账号主绑定: 清除旧主绑定 + 创建新主绑定
 //
-// 任一步骤失败整体回滚; 与 channel_agent_bindings 的 uq_channel_account_primary
-// 部分唯一索引配合, 即使并发也只有一条主绑定能落地。
+// 任一步骤失败整体回滚; 与 channel_agent_bindings 的 idx_channel_binding_unique
+// 唯一键 (tenant_id, channel_type, account_id, COALESCE(chat_id,”)) 配合,
+// 即使并发也只有一条主绑定能落地。
 func (r *ChannelAgentBindingRepository) ReplacePrimaryBinding(ctx context.Context, channelType, accountID string, agentID uint) (*model.ChannelAgentBinding, error) {
 	var created *model.ChannelAgentBinding
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {

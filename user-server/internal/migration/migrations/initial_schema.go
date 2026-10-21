@@ -238,4 +238,7 @@ func RegisterMigrations(registry *migration.MigrationRegistry, db *gorm.DB) {
 	// v3.69.0：bandit_arms 唯一键从 (tenant_id, arm_key) 恢复为
 	// (tenant_id, experiment_id, arm_key)——arm_key 只在实验内唯一
 	register(NewBanditArmUniqueKeyMigration(db))
+	// v3.70.0：channel_agent_bindings 唯一键加入 chat_id 维度——同一账号下的
+	// telegram 群组要能各自建绑定，而 account 级默认仍只允许一条
+	register(NewChannelBindingChatIDUniqueKeyMigration(db))
 }
