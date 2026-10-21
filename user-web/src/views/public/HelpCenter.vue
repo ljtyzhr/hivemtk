@@ -106,8 +106,11 @@
 </template>
 
 <script setup>
-import { ref, onMounted } from 'vue';
+import { ref, onMounted, computed } from 'vue';
 import { Search, ArrowLeft } from '@element-plus/icons-vue'
+import { useUserStore } from '@/stores/user'
+
+const userStore = useUserStore()
 
 const categories = ref([])
 const articles = ref([])
@@ -116,10 +119,23 @@ const activeCat = ref('')
 const keyword = ref('')
 const loading = ref(false)
 
+// 帮助中心是公开页（未登录也能进），但它的数据是**租户级**的
+// （knowledge_documents 是租户表，后端按 tenant_id 过滤）。
+// SaaS 模式下后端要求调用方声明租户（query 的 tenant_code 或 X-Tenant-Code 头），
+// 缺了就回 400「缺少租户短码」——页面于是永远空白。
+// 已登录用户从 userInfo 里取本租户短码带上；未登录访客没有短码，
+// 此时传空（后端 off 模式照常按默认租户走，on 模式会明确报缺短码而不是静默串租户）。
+const tenantCode = computed(() => userStore.userInfo?.tenant_code || '')
+
+const withTenant = (url) => {
+  if (!tenantCode.value) return url
+  return url + (url.includes('?') ? '&' : '?') + 'tenant_code=' + encodeURIComponent(tenantCode.value)
+}
+
 const fmtTime = (t) => (t ? String(t).replace('T', ' ').slice(0, 10) : '')
 
 const loadCategories = async () => {
-  const res = await fetch('/api/public/help-center/categories').then((r) => r.json()).catch(() => null)
+  const res = await fetch(withTenant('/api/public/help-center/categories')).then((r) => r.json()).catch(() => null)
   categories.value = res?.data?.list || []
 }
 
@@ -129,7 +145,7 @@ const loadArticles = async () => {
     const qs = new URLSearchParams()
     if (activeCat.value) qs.set('category', activeCat.value)
     if (keyword.value) qs.set('q', keyword.value)
-    const res = await fetch(`/api/public/help-center/articles?${qs}`).then((r) => r.json()).catch(() => null)
+    const res = await fetch(withTenant(`/api/public/help-center/articles?${qs}`)).then((r) => r.json()).catch(() => null)
     articles.value = res?.data?.list || []
   } finally {
     loading.value = false
@@ -147,7 +163,7 @@ const setCat = (c) => { activeCat.value = c; detail.value = null; loadArticles()
 const openArticle = async (id) => {
   loading.value = true
   try {
-    const res = await fetch(`/api/public/help-center/articles/${id}`).then((r) => r.json()).catch(() => null)
+    const res = await fetch(withTenant(`/api/public/help-center/articles/${id}`)).then((r) => r.json()).catch(() => null)
     detail.value = res?.data || null
   } finally {
     loading.value = false

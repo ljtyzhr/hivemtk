@@ -49,6 +49,16 @@ ANON_REDIRECT_RE = re.compile(
 )
 TITLE_RE = re.compile(r"title:\s*'([^']*)'")
 AUTH_RE = re.compile(r"requiresAuth:\s*(true|false)")
+# 父路由的 children 段：{ path: '/browser-automation', ..., children: [ ... ] }
+# 子路由的 path 是**相对**的（'tasks'），实际路径 = 父 path + '/' + 子 path。
+# 不解析就会把 'tasks' 当成根级路径记进清单 ⇒ 访问时 404「页面不存在」。
+CHILDREN_RE = re.compile(
+    r"path:\s*'(/[^']*)'\s*,\s*name:\s*'[^']*'\s*,\s*"
+    r"(?:component:\s*\(\)\s*=>\s*import\('([^']*)'\)\s*,\s*)?"
+    r"(?:redirect:\s*'([^']*)'\s*,\s*)?"
+    r"meta:\s*\{([^}]*)\}\s*,\s*children:\s*\[",
+    re.S,
+)
 
 
 def parse_routes(src):
@@ -112,6 +122,39 @@ def parse_routes(src):
                 kind="重定向→" + target,
             )
         )
+    # 子路由（父路由带 children）：把相对 path 拼成绝对路径再记，
+    # 否则清单里留下的是 'tasks' 这种相对片段，访问时必然 404。
+    for m in CHILDREN_RE.finditer(clean):
+        parent, parent_comp, parent_redirect, parent_meta = m.groups()
+        start = m.end()
+        depth = 1
+        i = start
+        while i < len(clean) and depth > 0:
+            if clean[i] == "[":
+                depth += 1
+            elif clean[i] == "]":
+                depth -= 1
+            i += 1
+        block = clean[start : i - 1]
+        for cm in ROUTE_RE.finditer(block):
+            cpath, cname, ccomp, cmeta = cm.groups()
+            title = ""
+            auth = ""
+            if cmeta:
+                t = TITLE_RE.search(cmeta)
+                a = AUTH_RE.search(cmeta)
+                title = t.group(1) if t else ""
+                auth = a.group(1) if a else ""
+            full = parent.rstrip("/") + "/" + cpath.lstrip("/")
+            if full in seen:
+                continue
+            seen.add(full)
+            out.append(
+                OrderedDict(
+                    path=full, name=cname, comp=ccomp.replace("@/", ""),
+                    title=title, auth=auth, kind="页面",
+                )
+            )
     return out
 
 
