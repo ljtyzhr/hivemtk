@@ -134,7 +134,7 @@ func StartTelegramPolling(acc *model.TelegramAccount) {
 
 	// worker ctx 顺带钉上账号行租户：心跳协程（HeartbeatPollingLock）同样是对
 	// telegram_accounts 的 UPDATE，随 ctx 继承租户，on 模式下才不会每 30s fail-closed
-	//（心跳一直失败 ⇒ 锁永不续约 ⇒ 60s 后被别的实例抢走 ⇒ 409 Conflict）。
+	// （心跳一直失败 ⇒ 锁永不续约 ⇒ 60s 后被别的实例抢走 ⇒ 409 Conflict）。
 	ctx, cancel := context.WithCancel(tenant.WithTenantID(context.Background(), acc.TenantID))
 	state := &telegramPollingState{cancel: cancel, done: make(chan struct{}), lockHeld: true, tenantID: acc.TenantID}
 	telegramPollingMu.Lock()
@@ -167,7 +167,7 @@ func stopTelegramPollingLocked(accountID uint) {
 	}
 	if s.lockHeld {
 		// 行自证（T027）：关停路径手里只有 accountID，租户从登记的 worker 状态恢复
-		//（与 StopAllTelegramPolling 同一形态）；裸背景 ctx 在 on 模式释放会被 fail-closed。
+		// （与 StopAllTelegramPolling 同一形态）；裸背景 ctx 在 on 模式释放会被 fail-closed。
 		if rerr := ReleasePollingLock(tenant.WithTenantID(context.Background(), s.tenantID), nil, accountID); rerr != nil {
 			logger.Warnf("[TG-Polling] 账号 %d 释放锁失败: %v", accountID, rerr)
 		} else {
@@ -195,7 +195,7 @@ func StopTelegramPolling(accountID uint) {
 	}
 	if s.lockHeld {
 		// 行自证（T027）：关停路径手里只有 accountID，租户从登记的 worker 状态恢复
-		//（与 StopAllTelegramPolling 同一形态）；裸背景 ctx 在 on 模式释放会被 fail-closed。
+		// （与 StopAllTelegramPolling 同一形态）；裸背景 ctx 在 on 模式释放会被 fail-closed。
 		if rerr := ReleasePollingLock(tenant.WithTenantID(context.Background(), s.tenantID), nil, accountID); rerr != nil {
 			logger.Warnf("[TG-Polling] 账号 %d 释放锁失败: %v", accountID, rerr)
 		} else {

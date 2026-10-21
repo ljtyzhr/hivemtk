@@ -31,7 +31,7 @@ func ListAccounts(ctx context.Context, userID uint) ([]BridgeAccountView, error)
 	return GlobalBridgeAccountRepo.ListForUser(ctx, userID)
 }
 
-// SendManualMessage 人工座席经桥接代发文本消息（G14）。
+// SendManualMessage 人工座席经桥接代发文本消息。
 //
 // 渠道先归一：bridge_accounts、在线判定与出站白名单用的都是规范名，
 // 别名（douyin_web）原样下传会查不到账号行、也过不了出站白名单。

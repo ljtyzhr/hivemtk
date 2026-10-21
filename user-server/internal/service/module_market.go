@@ -74,7 +74,7 @@ func (s *ModuleCatalogService) MarketList(ctx context.Context) ([]ModuleMarketIt
 	}
 	// 展示价以平台 module_catalog 现价为准：改价是平台端运营动作，
 	// 内嵌元数据只是平台不可达时的兜底。不覆盖的后果是市场页显示旧价、
-	// 下单却按平台新价成交（2026-10-21 线上全价改 1 元时页面还挂 99 元）。
+	// 下单却按平台新价成交。
 	livePrices := s.liveMarketPrices(ctx)
 	out := make([]ModuleMarketItem, 0, len(model.ModuleCatalogMeta))
 	for _, meta := range model.ModuleCatalogMeta {

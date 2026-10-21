@@ -1,4 +1,4 @@
-// Package service - GDPR DSAR 数据导出（G6）
+// Package service - GDPR DSAR 数据导出
 //
 // 给定 customer_id，导出该用户的所有数据打包成 JSON。
 // 导出范围：customers 主表 + customer_sessions + session_messages + customer_tags + memory_items

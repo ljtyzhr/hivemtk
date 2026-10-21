@@ -50,10 +50,10 @@ import (
 // （实测见 docs/architecture/AI_CORE_FEATURE_INVENTORY.md 短板 G18）。
 // b) 键折算规则只有一条：Version <= 1 一律折算成 "v1"。存量行经 AutoMigrate 补列后
 // 读到 0 或 1 都命中该规则 ⇒ 升级后不改任何缓存键，这是"未开灰度时逐条一致"
-// （AC③）成立的原因，不是巧合。改这条规则等于清空全量答案缓存。
+// 成立的原因，不是巧合。改这条规则等于清空全量答案缓存。
 // c) 灰度组读写的命名空间 = Version+1 那一个号，因此"转正"就是把 Version 加一，
 // 流量落在灰度组已经焐热的同一批行上；回滚就是退回去。两个版本的行同时存在于
-// 同一张表 ⇒ 转正/回滚都不需要重灌数据（AC②）。前提在仓储层：
+// 同一张表 ⇒ 转正/回滚都不需要重灌数据。前提在仓储层：
 // Repository.UpdateVersionCanary 必须走 UpdateColumns 不 bump updated_at，
 // 否则 cache/service.go 的 fresh() 会把另一个版本的行整批删掉。
 // d) 分桶沿用仓内既有口径（flagBucketHash，FNV-1a，key = "kb.{id}"），不新造第三套；

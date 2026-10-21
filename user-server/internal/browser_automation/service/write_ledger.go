@@ -38,7 +38,7 @@ func HashWriteText(s string) string {
 // recordSubmitState 台账状态写点。尽力而为但必达终态：ctx 已被取消（超时/中止腿必然如此）
 // 时走 WithoutCancel——「send 已跨越、execCtx 恰好死掉」正是最需要留下台账的一刻。
 //
-// 改口径：写失败必须上抛。旧实现只 Warn，四个调用点拿不到失败事实，于是
+// 改口径：写失败必须上抛。旧写法只 Warn，四个调用点拿不到失败事实，于是
 // 「send 已跨越但台账没落」的下一轮 FindSubmitAttempt 查空——双发闸门整体消失，而这张表
 // 在 §3.1 的定性是「重发闸门的唯一事实来源」。取舍方向不对称：写步失败是**可见、可人工重跑**，
 // 双发是**不可见、撤不回**。失败时先在 ledgerWriteBudget 内退避重试（单行 UPDATE 失败最常见

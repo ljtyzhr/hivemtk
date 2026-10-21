@@ -1,6 +1,6 @@
 // Package timeutil 提供与时间边界计算相关的小工具。
 //
-// 存在的理由（2026-09-16 审计 · TZ-01）：
+// 存在的理由：
 // 仓库里原本用 `time.Now().Truncate(24 * time.Hour)` 求「今天零点」，
 // 这个写法是**错的**。Go 的 `Time.Truncate` 按「自 year 1 起的绝对时间」对齐，
 // 与 Location 无关 —— 因此在 CST(UTC+8) 下它得到的是 **UTC 零点 = 本地 08:00**，

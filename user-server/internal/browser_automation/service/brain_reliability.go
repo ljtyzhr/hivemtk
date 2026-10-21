@@ -56,7 +56,7 @@ func clampBrainStepParams(retryCount, backoffMs int) (int, int) {
 // 文案原样进历史回喂下一轮；返回空串=放行。
 //
 // 判据来自 dto 的 oneof（REST 与 Brain 同源，见 dto/step_action.go）。旧写法只有两条腿：
-// 空 action 静默跳过（模型收不到反馈，下轮照吐）、screenshot 单独硬闸（G17）——其余幻觉动作名
+// 空 action 静默跳过（模型收不到反馈，下轮照吐）、screenshot 单独硬闸——其余幻觉动作名
 // 一路畅通到 dispatchStep 的 default，先建一条注定失败的 browser_steps 行、白烧一次 CDP 往返，
 // 前台渲染成用户看不懂的红灯。拒它是信息：LLM 下一轮看见「这个动作名服务端不认识」才会换。
 func brainPlanStepRejection(action string) string {

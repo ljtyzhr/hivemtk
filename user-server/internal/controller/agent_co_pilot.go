@@ -1,4 +1,4 @@
-// Package controller - Agent Co-Pilot 自动执行（G1）
+// Package controller - Agent Co-Pilot 自动执行
 package controller
 
 import (

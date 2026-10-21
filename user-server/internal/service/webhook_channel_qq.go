@@ -97,7 +97,7 @@ func (s *WebhookService) dispatchQQ(ctx context.Context, accountID string, p *Pa
 	// 同步构造 hub 记录供 sendOutbound / AI 触发使用（Ingress 内部已落库，此处为内存视图）。
 	// MsgID/Extra 与 Ingress 落库口径对齐：MsgID=HubMsgID()（媒体回填按它找行），
 	// Extra.channel_msg_id 供 QQOutboundMsgID 取被动回复关联 ID，必须是官方 d.id 原值
-	//——官方发送接口写的是「msg_id 从 GROUP_AT_MESSAGE_CREATE 等事件的 d.id 获取，5 分钟内有效」，
+	// ——官方发送接口写的是「msg_id 从 GROUP_AT_MESSAGE_CREATE 等事件的 d.id 获取，5 分钟内有效」，
 	// 带内部命名空间前缀的值平台不认，每条 AI 回复都会 400。
 	hub := &model.MessageHub{
 		Platform:       model.ChannelQQ,

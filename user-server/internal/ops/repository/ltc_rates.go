@@ -10,7 +10,7 @@ import (
 	_db "hivemtk-user/internal/pkg/db"
 )
 
-// LtcRatesRepository LTC 三率取数层（T-P8-05）。
+// LtcRatesRepository LTC 三率取数层。
 //
 // 只做四件事：按状态数商机、加总应收（剔作废）、加总回款（只认 confirmed）、
 // 数逾期商机。比率的除法在 service 层（分母为 0 的形状那里判）。

@@ -183,7 +183,7 @@ func (r *promptTemplateRepo) Update(ctx context.Context, template *model.PromptT
 	// 这里不能用 Save：Save 的 UPDATE 命中 0 行时（on 模式下正是「行不在本租户」这一情形）
 	// 会回退成 `INSERT ... ON CONFLICT ("id") DO UPDATE SET tenant_id="excluded".tenant_id, ...`
 	// （gorm v1.31.2 finisher_api.go Save 的 RowsAffected==0 分支）。冲突目标是裸主键、不含租户，
-	// 于是别的租户一次「本该改不到」的 Save 反而把整行搬到自己的 tenant_id 下（2026-10-21 探针实测）。
+	// 于是别的租户一次「本该改不到」的 Save 反而把整行搬到自己的 tenant_id 下。
 	// 改成显式列集 Updates：谓词只剩 WHERE id AND tenant_id，命中 0 行就是 0 行。
 	res := r.db.WithContext(ctx).Model(&model.PromptTemplate{}).
 		Where("id = ?", template.ID).

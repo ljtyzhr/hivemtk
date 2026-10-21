@@ -135,7 +135,7 @@ func handleOrderDraftStats(c *gin.Context) {
 	snap := app.GetOrderDraftSnapshot(context.Background())
 
 	if snap.Assembled && snap.CountsError != "" {
-		// 装配在位却读不到计数 ⇒ 503，不回空计数（AC⑤）。口径与 T-P1-08 的审计读侧一致：
+		// 装配在位却读不到计数 ⇒ 503，不回空计数。口径与 T-P1-08 的审计读侧一致：
 		// "0 张草稿"是一句业务结论，拿一次查询故障去支撑它，等于让运维以为一切正常。
 		response.Error(c, 503, "草稿计数读取失败（运行时在位但底座读不动）: "+snap.CountsError)
 		return

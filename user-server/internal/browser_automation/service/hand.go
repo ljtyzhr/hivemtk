@@ -269,7 +269,7 @@ func (h *Hand) closeTab(ctx context.Context, userID uint, tabID int) error {
 	return err
 }
 
-// G9 死代码清扫（R25）：Hand.tabExists（远程 tab_exists 命令）全仓零调用方已删除；
+// G9 死代码清扫：Hand.tabExists（远程 tab_exists 命令）全仓零调用方已删除；
 // 扩展侧 tab_exists case 保留——dispatch 内部用它做 tab 存活闸门（那是本地函数，不走命令帧）。
 
 // toInt 宽松数字转换（JSON 解出的 float64）

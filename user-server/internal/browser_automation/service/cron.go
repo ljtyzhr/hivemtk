@@ -53,7 +53,7 @@ func toSixField(expr, timeZone string) string {
 // cronParser 6 段秒级解析器（NewParser 原生支持 TZ=/CRON_TZ= 前缀，与 TaskManager 配置一致，用于提前校验）
 var cronParser = cronv3.NewParser(cronv3.Second | cronv3.Minute | cronv3.Hour | cronv3.Dom | cronv3.Month | cronv3.Dow | cronv3.Descriptor)
 
-// ValidateCronExpr 校验 5 段 cron 表达式（转 6 段后解析）+ 时区合法性（G20）。timeZone 空=服务器本地。
+// ValidateCronExpr 校验 5 段 cron 表达式（转 6 段后解析）+ 时区合法性。timeZone 空=服务器本地。
 func ValidateCronExpr(expr, timeZone string) error {
 	tz := strings.TrimSpace(timeZone)
 	if tz != "" {
@@ -163,7 +163,7 @@ func (s *CronService) SetEnabled(ctx context.Context, id, userID uint, enabled b
 // applySchedule 触发器调度状态的唯一出口：按 enabled 注册/注销 TaskManager，并把 next_run_at
 // 同步成「按当前表达式算出的下一次」（停用=NULL，读作「没有排定的下一次」）。
 // 新建/改表达式/启停/重启恢复四个入口都走这里，这一列才只有一个写入方——
-// 旧实现只在触发回调里写，且和 last_run_at 一起写成同一个 now，
+// 旧写法只在触发回调里写，且和 last_run_at 一起写成同一个 now，
 // 结果是：第一次触发前恒 NULL，触发后恒等于「上一次触发的时刻」，两个读数都不是列名的意思。
 func (s *CronService) applySchedule(ctx context.Context, tr *model.BrowserCronTrigger, userID uint) {
 	s.unregister(tr.TaskID)

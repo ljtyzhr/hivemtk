@@ -190,9 +190,9 @@ func (s *IntentRecognizer) precomputeAnchors() {
 	// 启动期全局预热（SetEmbeddingService 异步触发）：DefaultIntents 内置示例的
 	// 向量锚点不归属任何租户，intent_examples 是租户表，TENANT_MODE=on 时无租户
 	// ctx 的 UpsertBatch（create）/ListAll（query）被隔离 callback fail-closed
-	//（生产日志实证："[Intent] 示例向量落库失败（下次启动将重算）"）。走
+	// （生产日志实证："[Intent] 示例向量落库失败（下次启动将重算）"）。走
 	// tenant.WithSystemScope 平台级豁免通道；行上显式钉 TenantID=DefaultTenantID
-	//（与 init_storage.go seed 同规范：平台级预热数据归默认租户，自证放行）。
+	// （与 init_storage.go seed 同规范：平台级预热数据归默认租户，自证放行）。
 	ctx := tenant.WithSystemScope(context.Background())
 	if s.loadAnchorsFromDB(ctx) {
 		return
@@ -1111,7 +1111,7 @@ func InitIntentRecognizer(db *gorm.DB, dispatcher *llm.Dispatcher, cache *redis.
 		ctx, cancel := context.WithTimeout(context.Background(), utils.ShortTimeout)
 		defer cancel()
 		// 多租户模式下没有"进程级租户"可读：各租户开关在首次请求时懒加载
-		//（loadIntentEnabledFor），此处不写全局默认值，也不把默认租户的值铺给所有人。
+		// （loadIntentEnabledFor），此处不写全局默认值，也不把默认租户的值铺给所有人。
 		if !tenant.IsMultiTenant() {
 			cfg, err := LoadIntentConfig(ctx)
 			if err != nil {

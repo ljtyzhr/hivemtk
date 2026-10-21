@@ -24,7 +24,7 @@ func InitDefaultStorageIfEmpty(gdb *gorm.DB) {
 	}
 
 	// 平台级启动期操作：obs_config 是租户表，TENANT_MODE=on 时无租户 ctx 的 count
-	//（query）与下面的 seed Create 会被隔离 callback fail-closed（生产日志实证：
+	// （query）与下面的 seed Create 会被隔离 callback fail-closed（生产日志实证：
 	// "[OBS] InitDefaultStorageIfEmpty: count failed: [tenant] 表 obs_config 需要租户
 	// 上下文但 ctx 未绑定（query）"）。启动期 seed 没有 HTTP 请求 ctx 可绑，走
 	// tenant.WithSystemScope 这条平台级豁免通道；行上显式钉 TenantID=1（与

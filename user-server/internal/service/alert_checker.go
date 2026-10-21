@@ -89,7 +89,7 @@ func (c *AlertChecker) loop() {
 	// 没有 HTTP 请求 ctx 可绑，而 alert_rules / alert_histories 都是租户表 ——
 	// TENANT_MODE=on 下裸 ctx 会被隔离 callback fail-closed（生产日志实证：
 	// "[AlertChecker] 拉取规则失败/首轮检查失败/周期检查失败"）。修法是 Fanout
-	//（checkOnce 内）而不是 system scope：规则拉取/触发记账是**逐租户**的业务
+	// （checkOnce 内）而不是 system scope：规则拉取/触发记账是**逐租户**的业务
 	// 动作，system scope 会把规则读成跨租户 union、历史 Create 落列默认租户 1。
 	// CheckOnce 虽导出但无 HTTP 调用方；其透传语义保留：ctx 已带租户时 checkOnce
 	// 不扇出、只查该租户。

@@ -552,7 +552,7 @@ func (h *BridgeIngestHandler) HandleHTTPIngest(c *gin.Context) {
 			defer cancel()
 			if err := GlobalBridgeAccountRepo.Upsert(upCtx, up); err != nil {
 				// 归属冲突也要留痕：这正是"别的用户试图上报本账号"的审计信号，
-				// 旧实现把它当预期内静默吞掉（注释说要记日志，代码里没有）。
+				// 旧写法把它当预期内静默吞掉（注释说要记日志，代码里没有）。
 				event := "http_upsert_failed"
 				if errors.Is(err, ErrAccountOwnedByOther) {
 					event = "http_upsert_ownership_conflict"

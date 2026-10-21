@@ -541,7 +541,7 @@ func VerifyWebhook(secret, headerSecret string) bool {
 // insecureTelegramWebhookAllowed 与 ALLOW_INSECURE_WEBHOOK / MARKETING_WEBHOOK_ALLOW_INSECURE
 // 同口径：显式开关与开发姿态必须**同时**满足，缺一个都不跳过验签。
 //
-// 旧实现只看开关 ⇒ 生产环境误设该变量会让 Telegram 回调验签被静默跳过（仅一条
+// 旧写法只看开关 ⇒ 生产环境误设该变量会让 Telegram 回调验签被静默跳过（仅一条
 // Warnf），而 service 包的 guardInsecureWebhookAtStartup 只覆盖
 // ALLOW_INSECURE_WEBHOOK 一个键，启动也不报错 —— 这是三处验签旁路里唯一没有
 // 环境护栏的一处。
@@ -906,7 +906,7 @@ type TGMessage struct {
 	LeftChatMember *TGUser    `json:"left_chat_member,omitempty"`
 	NewChatTitle   string     `json:"new_chat_title,omitempty"`
 
-	// 富媒体容器（M-01）。官方互斥关系决定了下面的判定顺序，不是随手排的：
+	// 富媒体容器。官方互斥关系决定了下面的判定顺序，不是随手排的：
 	// 「Message is an animation… when this field is set, the document field will also be
 	// set」「live_photo… when this field is set, the photo field will also be set」
 	// ⇒ animation 必须排在 document 前、live_photo 必须排在 photo 前，否则 GIF 会被判成文件、

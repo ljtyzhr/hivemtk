@@ -11,7 +11,7 @@
 // service 侧的钩子（`SetPreSendApprovalChecker`）因此是唯一的判点，本文件是唯一的装法。
 //
 // 三把旗子的关系（少一把就装不上，必须写清楚）：
-//   - `FF_LTC_APPROVAL_GATE`（W-1）：裁决来源（白名单 checker + 计数器）存不存在；
+//   - `FF_LTC_APPROVAL_GATE`：裁决来源（白名单 checker + 计数器）存不存在；
 //   - `FF_LTC_REACH_GATE`（本文件）：外发出口挂不挂这道门、以哪种模式挂；
 //   - `approval.FlagKey`（内层）：白名单生不生效。
 //

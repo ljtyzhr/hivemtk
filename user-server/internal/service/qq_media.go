@@ -16,7 +16,7 @@ import (
 	"hivemtk-user/internal/pkg/utils/logger"
 )
 
-// QQ 机器人入站媒体（M-01）：官方消息事件把富媒体放在 d.attachments[]，
+// QQ 机器人入站媒体：官方消息事件把富媒体放在 d.attachments[]，
 // 每项自带可直接 GET 的 url（image/jpeg|image/png|image/gif|video/mp4|voice|file 六类，
 // 见 bot.q.qq.com/wiki/develop/api-v2/autogen/event/group_message_create.html）。
 // QQ 没有「媒体 ID + 换取下载链接」这一步，但 url 是 CDN 临时链接且官方未公布有效期

@@ -363,7 +363,7 @@ func (ObjectionTemplate) TableName() string { return "objection_templates" }
 
 // ConversionFunnel 转化漏斗 —— ⚠️ **僵尸表：只有演示数据在写，全仓没有读路径**（R-4）。
 //
-// 实测口径（2026-09-19）：对 `model.ConversionFunnel` 的非测试引用只有 `cmd/seed/seed_stats.go`
+// 实测口径：对 `model.ConversionFunnel` 的非测试引用只有 `cmd/seed/seed_stats.go`
 // 一处（往里插 35 行假数据）；`GET /api/conversion-funnel` 走的是
 // `internal/ops/service.ConversionFunnelService.BuildFunnel`，它对 customer_events / clues /
 // intent_records / customer_sessions **实时聚合**，从不读本表。两边连阶段名都不成套：

@@ -65,7 +65,7 @@ func windowDays(ctx *gin.Context) (int, bool) {
 
 // GetTeamDashboard GET /api/sales-workbench/team-dashboard?days=30
 //
-// 团队排行 + AI 产能 + 销冠画像 + 漏斗的事件流读口（I7）。与 SQL 口径的
+// 团队排行 + AI 产能 + 销冠画像 + 漏斗的事件流读口。与 SQL 口径的
 // /api/ai-productivity/* 并存不替换：两套字段集本就不同，换源=改历史数字。
 // 未装配回 503 的口径与 GetOverview 一致。
 func (c *SalesWorkbenchController) GetTeamDashboard(ctx *gin.Context) {
@@ -87,7 +87,7 @@ func (c *SalesWorkbenchController) GetTeamDashboard(ctx *gin.Context) {
 }
 
 // GetChampionProfile GET /api/sales-workbench/champion?days=30
-// 销冠画像的事件流读口（I7），口径同上。
+// 销冠画像的事件流读口，口径同上。
 func (c *SalesWorkbenchController) GetChampionProfile(ctx *gin.Context) {
 	if c.svc == nil {
 		response.Error(ctx, http.StatusServiceUnavailable, "工作台服务未装配")

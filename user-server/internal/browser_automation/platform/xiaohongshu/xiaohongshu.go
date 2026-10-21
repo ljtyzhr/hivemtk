@@ -2,7 +2,7 @@
 // DOM 知识来源（调研已核实的公开实现）：
 //   - xpzouying/xiaohongshu-mcp comment_feed.go：输入框 div.input-box p.content-input /
 //     div.content-edit p.content-textarea；发送 button.submit；验证 .comments-container
-//   - 本机真机实测（R17）：输入框 p.content-textarea；发送 button（文本「发送」）；
+//   - 本机真机验证：输入框 p.content-textarea；发送 button（文本「发送」）；
 //     详情页 URL /search_result/{noteId}?xsec_token=&xsec_source= （token 必须从列表透传）
 package xiaohongshu
 
@@ -86,7 +86,7 @@ func (p *Platform) ClassifyError(errText string) platform.ErrType {
 }
 
 // CommentLocators 发评论选择器四元组（基座把这套下发给扩展 post_comment 原语）。
-// A1 单一来源：全部取自 Locators() 表，杜绝同串 CSS 写两遍的漂移（旧实现两处字面量重复）。
+// A1 单一来源：全部取自 Locators() 表，杜绝同串 CSS 写两遍的漂移（旧写法两处字面量重复）。
 func (p *Platform) CommentLocators() platform.CommentLocators {
 	l := p.Locators()
 	return platform.CommentLocators{

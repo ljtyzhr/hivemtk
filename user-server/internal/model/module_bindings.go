@@ -89,7 +89,7 @@ type ModuleMeta struct {
 
 // ModuleCatalogMeta 24 个模块的元数据。顺序即平台端市场默认排序。
 //
-// 定价口径（2026-10-19 计费二期重定价，显式覆盖 2026-10-18「平价路线」旧口径）：
+// 定价口径：
 // 功能模块几乎全部免费 —— 除浏览器自动化外的 16 个付费类目模块 price_cents=0
 // （需开通但不收钱，FreeToEnable，注册/初始化自动赠予）；唯一例外是
 // 浏览器自动化 ¥99 买断（9900 分 / BillingCycleOnce，不设 ExpiresAt，

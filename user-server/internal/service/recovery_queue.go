@@ -165,7 +165,7 @@ func (s *RecoveryQueueService) ListReadyForAttempt(ctx context.Context, limit in
 //
 // 为什么需要它：ListReadyForAttempt 的排序是 `priority ASC, next_attempt_at ASC NULLS FIRST`
 // —— 没有文案、worker 只能跳过的那批项 next_attempt_at 恒为 NULL，会永久占住队首，
-// 在单轮上限（AC④）下把有文案的项挤出去。跳过时必须把它们推离队首，
+// 在单轮上限下把有文案的项挤出去。跳过时必须把它们推离队首，
 // 又不能记成"发送失败一次"（那会消耗掉三次机会里的一次，而什么都没发）。
 func (s *RecoveryQueueService) DeferAttempt(ctx context.Context, id uint64, delay time.Duration) error {
 	if id == 0 {

@@ -126,8 +126,8 @@ func (c *ProactiveReachController) ListChannels(ctx *gin.Context) {
 	}
 
 	// 预览口径必须与外发闸门同源：外发认「反规范化列 + customer_channels 绑定表」的并集
-	//（见 service.CustomerIdentity），这里若只认反规范化列，就会对同一个客户给出
-	//「可用渠道=空、外发却说该渠道不可用」这种自相矛盾的画面。
+	// （见 service.CustomerIdentity），这里若只认反规范化列，就会对同一个客户给出
+	// 「可用渠道=空、外发却说该渠道不可用」这种自相矛盾的画面。
 	avail, err := c.svc.ListChannelAvailability(ctx.Request.Context(), cust)
 	if err != nil {
 		response.Error(ctx, http.StatusInternalServerError, "查询渠道身份失败")

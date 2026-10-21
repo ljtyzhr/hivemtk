@@ -89,7 +89,7 @@ func (s *ConversionFunnelService) BuildFunnel(startTime, endTime time.Time) (*Fu
 		Stage: string(opsrepo.StageSession), Name: opsrepo.StageSession.Label(), Count: sessionCount,
 	})
 
-	// 商机段（T-P4-06）是这条口径里**唯一**把取数失败打出来的一段，理由与四段不同：
+	// 商机段是这条口径里**唯一**把取数失败打出来的一段，理由与四段不同：
 	// 今日 `opportunities` 只有一个生产者（挖掘链达标那一跳，T-P4-05），所以"0"在这里
 	// 有两种完全不同的来路——真没转化出商机，和这张表压根没建起来/接缝没装配上。
 	// 四段那些老腿面对的是同一件事，但它们答"0"时没有人会拿它做决策；这一段答 0 会被

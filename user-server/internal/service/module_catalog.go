@@ -450,7 +450,7 @@ func (s *ModuleCatalogService) Sync(ctx context.Context) (*ModuleSyncResult, err
 			case reqTenantBound:
 				// 本轮同步有租户绑定 ⇒ 落点就是**本轮这个租户**。
 				//
-				// 为什么不再从订单反查（2026-10-22 线上事故）：平台端 active_keys
+				// 为什么不再从订单反查：平台端 active_keys
 				// 早已按租户分开下发（每个租户拿到的名单只含它自己开通的模块），
 				// 落点本该直接是它自己。而 purchaseTenants 的判据是「首见即最新」
 				// —— 跨租户订单里**最新那一笔**的租户赢了：m1 与 m2 都买过
@@ -539,7 +539,7 @@ func (s *ModuleCatalogService) Sync(ctx context.Context) (*ModuleSyncResult, err
 
 	// 本地存在但平台已不再下发的模块要显式失效，否则撤销永远不生效
 	//
-	// 作用域纪律（2026-10-22 线上事故）：本轮的 active_keys 是**某一个租户**
+	// 作用域纪律：本轮的 active_keys 是**某一个租户**
 	// 的名单 —— 有租户绑定时是它自己的，没绑定时是**商户级**名单（平台按
 	// merchant_key 的兜底行下发）。商户级名单不代表任何租户，拿它去遍历
 	// 全租户的行会把**别的租户已开通的付费模块**误标成 disabled

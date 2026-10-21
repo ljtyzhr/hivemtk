@@ -153,7 +153,7 @@ func summarizeResult(data any) string {
 // cutBytes 按字节上限截断，并回退到最近的合法 rune 边界。
 //
 // 原来这里是 `s[:50]` / `s[:200]` 的裸字节切片。内存里这么砍没有任何后果，但本包现在
-// 会把摘要**落库**（T-P1-08）：砍在多字节字符中间会产出非法 UTF-8，PG 的 TEXT 列直接
+// 会把摘要**落库**：砍在多字节字符中间会产出非法 UTF-8，PG 的 TEXT 列直接
 // 报 `invalid byte sequence for encoding "UTF8"`（实测），而 flushBatch 是整批
 // CreateInBatches ⇒ 一条坏数据带走 100 条好审计。本项目参数与话术大量是中文，
 // 命中概率不是尾数。

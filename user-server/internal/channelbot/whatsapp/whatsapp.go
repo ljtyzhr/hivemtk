@@ -141,7 +141,7 @@ func VerifySubscribe(mode, token, challenge, verifyToken string) (string, bool) 
 
 // VerifyWebhook 校验 X-Hub-Signature-256（HMAC-SHA256）。
 //
-// appSecret 为空一律**拒签**（fail-closed）。旧实现在空密钥时直接 return true，
+// appSecret 为空一律**拒签**（fail-closed）。旧写法在空密钥时直接 return true，
 // 注释还写着「与项目既有行为一致」——那是本仓验签链路里唯一一处 fail-open，
 // 且形状比任何 env 旁路都危险：不带任何开关、不记任何日志、调用方漏掉前置
 // 守卫就静默放行伪造回调。

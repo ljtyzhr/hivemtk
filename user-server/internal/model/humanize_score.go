@@ -97,7 +97,7 @@ func (ChampionBaseline) TableName() string { return "champion_baselines" }
 //
 // 设计意图：TF-IDF 提取的销冠高频短语，作为加权欧氏距离的补充信号。
 //
-// **但这条信号至今没有接线**（2026-10-21 实体审查 #62 核过）：
+// **但这条信号至今没有接线**：
 //   - 加权欧氏距离（service/humanize/llm_scorer.go weightedEuclideanDistance）
 //     只读基线的五维分数（ChampionBaseline.Naturalness 等），**不读本表**；
 //   - 本表的唯一写口（仓储 RefreshPhrases）与唯一读口（仓储 ListPhrases）都

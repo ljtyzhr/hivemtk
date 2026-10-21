@@ -31,7 +31,7 @@ func NewGeoSourceCatalogRepositoryWithDB(db *gorm.DB) GeoSourceCatalogRepository
 	return &geoSourceCatalogRepo{db: db}
 }
 
-// Upsert 一次 SQL 完成 upsert（旧实现 SELECT-then-INSERT，并发下会撞唯一索引报错）。
+// Upsert 一次 SQL 完成 upsert（旧写法 SELECT-then-INSERT，并发下会撞唯一索引报错）。
 //
 // 冲突时只覆盖**非空**字段：爬虫访问只带 URL 与 domain，若把 level/category/
 // description 一起写回，会把人工/AI 整理好的 A/B/C/D 等级清空。

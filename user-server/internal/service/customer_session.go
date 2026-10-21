@@ -357,7 +357,7 @@ func (s *CustomerSessionService) UpdateSessionStatus(ctx context.Context, sessio
 	}
 
 	if (status == model.SessionStatusResolved || status == model.SessionStatusClosed) && session.Status != status {
-		// 统一待办收口（T-P3-03）：会话都结束了，池子里那条"这条会话等人工"必须跟着落定。
+		// 统一待办收口：会话都结束了，池子里那条"这条会话等人工"必须跟着落定。
 		cancelOpenHumanTaskForSession(ctx, session.SessionID, status)
 
 		chain := NewSessionChainServiceFromGlobal()

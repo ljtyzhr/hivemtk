@@ -52,7 +52,7 @@ func (s *WebhookService) dispatchWhatsApp(ctx context.Context, accountID string,
 		return nil, err
 	}
 
-	// 媒体消息按 wamid 建索引：一条推送可以带多条媒体，只取首条会漏存（N-10）。
+	// 媒体消息按 wamid 建索引：一条推送可以带多条媒体，只取首条会漏存。
 	mediaByWAMID := waPayload.MediaByMsgID()
 
 	var firstHub *model.MessageHub

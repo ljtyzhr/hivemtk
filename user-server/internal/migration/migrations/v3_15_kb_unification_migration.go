@@ -175,7 +175,7 @@ func (m *KBUnificationMigration) Down(ctx context.Context) error {
 		"faq_entries.agent_id")
 
 	// agent_kb_bindings / knowledge_bases 已登记为 GORM 模型
-	//（&model.AgentKBBinding{} / &model.KnowledgeBase{}，见 internal/pkg/db/migrate.go 的 allModels），
+	// （&model.AgentKBBinding{} / &model.KnowledgeBase{}，见 internal/pkg/db/migrate.go 的 allModels），
 	// 建表事实源是 AutoMigrate ⇒ 本迁移的 Up 里的 CREATE TABLE IF NOT EXISTS 是空操作，
 	// 这两张表不是本迁移建的，Down 不得销毁它们（知识库与绑定数据丢失不可恢复）。
 	declineTableDrop(m.Version(), "agent_kb_bindings", "knowledge_bases")

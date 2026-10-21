@@ -1,4 +1,4 @@
-// Package controller - 智能路由 & 技能匹配（G2）
+// Package controller - 智能路由 & 技能匹配
 package controller
 
 import (

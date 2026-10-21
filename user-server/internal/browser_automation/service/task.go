@@ -451,7 +451,7 @@ func (s *TaskService) RunTask(ctx context.Context, taskID, userID uint, retryCou
 	if runningByTask > 0 {
 		return nil, ErrTaskRunning
 	}
-	// F8 并发闸（G18）：消费 MaxConcurrentJobs 语义——单 Host 连接上多 session 是
+	// F8 并发闸：消费 MaxConcurrentJobs 语义——单 Host 连接上多 session 是
 	// 逻辑级并发（帧串行≠会话串行），写互踩且风控节奏被打乱。闸值=每用户同时 1 个
 	// running session（v1 单租户单 Host，取平台声明下限）；cron 触发命中此闸=本轮自然跳过（调用方仅记日志）。
 	runningByUser, err := s.sessionRepo.CountRunningByUser(ctx, userID)

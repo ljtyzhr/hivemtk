@@ -1,4 +1,4 @@
-// email_drain_worker.go 排期邮件的排水节拍（R21）。
+// email_drain_worker.go 排期邮件的排水节拍。
 //
 // 排水判据本身在 EmailSendService.ProcessPendingEmails，本文件只管"有人按节拍跑它"。
 // 这件事之所以要单独写一遍：ProcessPendingEmails 交付时就存在，但全仓非测试调用点为 0，

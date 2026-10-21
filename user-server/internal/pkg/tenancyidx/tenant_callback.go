@@ -246,7 +246,7 @@ func fillCreateForTenant(db *gorm.DB) {
 	}
 
 	// schema-less（map）Create：没有 Model 字段可填，INSERT 也不会带 tenant_id。
-	// 旧实现直接 return ⇒ 行落列默认值 1（非默认租户的数据整批串进租户 1）。
+	// 旧写法直接 return ⇒ 行落列默认值 1（非默认租户的数据整批串进租户 1）。
 	if stmt.Schema == nil {
 		if !isTenant {
 			return
@@ -278,7 +278,7 @@ func fillCreateForTenant(db *gorm.DB) {
 
 	// 批量 Create(&[]*Model / []Model)：stmt.ReflectValue 是**切片**。
 	// 若对整片直接 ValueOf/Set —— reflect 在切片上调 Field 直接 panic
-	//（on 模式 + 有租户绑定 ctx + 批量写租户表 = 进程级崩溃；单行路径不受
+	// （on 模式 + 有租户绑定 ctx + 批量写租户表 = 进程级崩溃；单行路径不受
 	// 影响，所以长期没暴露）。逐元素执行与单行完全相同的填充/校验语义。
 	rv := stmt.ReflectValue
 	switch rv.Kind() {
@@ -441,7 +441,7 @@ func fillOneForTenant(db *gorm.DB, field *schema.Field, v reflect.Value, id uint
 	}
 	if !v.CanAddr() {
 		// 不可寻址就填不进去：宁可 fail-closed 报错，也不能静默落列默认值 1
-		//（那会把行写到默认租户 = 串租户）。单行 Create 的 Dest 恒可寻址。
+		// （那会把行写到默认租户 = 串租户）。单行 Create 的 Dest 恒可寻址。
 		tenantGuardFail(db, table, "create：目标行不可寻址，无法填充 tenant_id")
 		return false
 	}
@@ -731,7 +731,7 @@ func guardUpdateTenantAssignments(stmt *gorm.Statement, id uint) error {
 				//   selected["tenant_id"]==true ⇒ **一定写**（Selects 含 "*" 时零值也照写，
 				//   这就是 Save 的行为）——于是值必须等于上下文租户，零值也不放过；
 				//   未选中且不受限（Selects 为空）⇒ 仅当值非零才写 ⇒ 沿用"非零必须等于租户"。
-				// 旧实现只判了"非零且不等于租户"，于是 Save 一个没加载过的结构体
+				// 旧写法只判了"非零且不等于租户"，于是 Save 一个没加载过的结构体
 				// （TenantID 零值）会把行的 tenant_id 覆写成 0 —— 行掉出本租户。
 				// 对抗探针验证：
 				//   UPDATE "tenancy_probe" SET "tenant_id"=$1,"name"=$2 WHERE ... AND "id" = $4

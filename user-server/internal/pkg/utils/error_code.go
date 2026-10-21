@@ -55,7 +55,7 @@ const (
 	// 任何按码分流的改动都会把误操作当成重复提交（同族两条 409 已经栽过一次）。
 	ErrorCodeBrowserStateConflict ErrorCode = "BROWSER_STATE_CONFLICT_8003"
 
-	// LTC 运营开关域（T-P3-06）。闸门拦截落 409，但绝不能走 response.Error(c, 409, …)：
+	// LTC 运营开关域。闸门拦截落 409，但绝不能走 response.Error(c, 409, …)：
 	// 那会被 errorCodeFromHTTPCode 折成 DUPLICATE_ENTRY_3003（「重复的记录」），
 	// 而闸门拦下时**一个键都没写、一条记录都没碰**——码在说一件根本没发生的事。
 	// 三个码对应三种修法，合成一个就把三件事办成一件：

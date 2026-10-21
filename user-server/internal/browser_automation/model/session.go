@@ -9,7 +9,7 @@ import (
 
 // BrowserSession Chrome tab 会话（一次执行 = 一个 session）
 // Chrome "寄生"式：复用主 Profile、后台 tab、不抢焦点
-// G9 死字段收口（R25）：title/llm_plan/hand_latency_ms/console_errors 四列——
+// G9 死字段收口：title/llm_plan/hand_latency_ms/console_errors 四列——
 // 零生产/零消费（title 从未写入、llm_plan 被 browser_llm_plans 表取代、hand 延迟恒 0、
 // console 不采集）——模型字段已删；DB 列按 D6 决策保留待统一清理，不动线上 DDL。
 type BrowserSession struct {

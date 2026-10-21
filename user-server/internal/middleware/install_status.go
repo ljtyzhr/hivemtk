@@ -7,7 +7,7 @@ import (
 
 // InstallStatus 安装态检查器。
 //
-// 本类型只承载 install.lock 状态与版本/超管账号读取。历史上它叫 LicenseChecker
+// 本类型只承载 install.lock 状态与版本/超管账号读取。它早先叫 LicenseChecker
 // 并向平台换取授权；hivemtk 开源后那段已整体移除，线上平台域亦已于 2026-09 下线。
 // 判断"是否已初始化"的唯一依据是 install.lock.Initialized == true。
 // 无字段：安装态全部就地读 install.lock，没有任何需要跨调用保有的可变状态。
@@ -21,7 +21,7 @@ var (
 // InitInstallStatus 装配全局安装态检查器。
 //
 // 无参：安装态只来自本地 install.lock，没有任何"向平台确认"的地址需要记录。
-// 曾经这里收过 serverURL / licenseKey 两个形参并写进结构体，实测全仓无一处读取。
+// 早先这里收过 serverURL / licenseKey 两个形参并写进结构体，实测全仓无一处读取。
 func InitInstallStatus() {
 	installStatusMu.Lock()
 	defer installStatusMu.Unlock()

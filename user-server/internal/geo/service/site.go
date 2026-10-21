@@ -306,7 +306,7 @@ func (s *SiteDeployService) TriggerDeploy(ctx context.Context) (string, error) {
 	}
 	if len(urls) > 0 && s.pushSvc != nil {
 		// 行自证（多租户，二审 P1-9）：站点部署推送是**租户业务** —— 推送记录
-		//（geo_push_records，经 PushURLs 的 tx）与配额回写（geo_pusher_configs，
+		// （geo_push_records，经 PushURLs 的 tx）与配额回写（geo_pusher_configs，
 		// persistQuota）都是租户表且已改为消费 ctx。本 goroutine 脱离请求生命周期、
 		// 拿不到请求 ctx，用**站点行自己的 TenantID** 钉住（siteCfg 由上面带租户的
 		// 请求 ctx 读出，行值可信）。此前这里用裸 context.Background()：on 模式下

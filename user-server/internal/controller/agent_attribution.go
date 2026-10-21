@@ -1,4 +1,4 @@
-// Package controller - Agent 绩效归因（G5）
+// Package controller - Agent 绩效归因
 package controller
 
 import (

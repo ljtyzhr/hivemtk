@@ -553,7 +553,7 @@ func (s *OrderDraftService) CreateManual(ctx context.Context, req *CreateDraftRe
 			OccurredAt:  now,
 		})
 	}
-	// 手创也响铃铛（I8）：草稿"待确认"本身就是挂在 owner 头上的一步待办 ——
+	// 手创也响铃铛：草稿"待确认"本身就是挂在 owner 头上的一步待办 ——
 	// 创建者即 owner 时这条是自提提醒，不算噪音；owner 是别人时这正是他要的。
 	NotifyBusiness(ctx, OrderDraftCreatedNotification(draft))
 	return draft, nil

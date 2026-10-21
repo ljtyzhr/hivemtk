@@ -158,7 +158,7 @@ func approvalOwnerKey(ctx context.Context) string {
 	return tc.AgentID
 }
 
-// ApprovalGateDecorator 把审批门挂到装饰器链上（T-P1-05）。
+// ApprovalGateDecorator 把审批门挂到装饰器链上。
 //
 // 为什么不用上面的 WithApproval（Tool 包装）：那条路要在每个注册点各包一层，而它在生产里
 // 一个调用点都没有（只剩测试在用）；装饰器形态只需在 executor 唯一的建链点表态一次。

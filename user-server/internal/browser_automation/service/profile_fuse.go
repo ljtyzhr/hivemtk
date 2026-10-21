@@ -11,7 +11,7 @@ import (
 //
 // 本项目风控特色是复用主 Profile（不做多账号矩阵），熔断对象是
 // 「平台 × 主 Profile 登录态」而非某个子账号。熔断状态必须落库——
-// Executor 是进程级单例（R-A4），内存计数会跨 session 串包，重启即丢。
+// Executor 是进程级单例，内存计数会跨 session 串包，重启即丢。
 
 // recordProfileBlocked 封号熔断写入：MarkBlocked 落库 + block_fused 审计帧。
 // profileHealthRepo==nil（未接线）时跳过写入——熔断是增强不是门禁，执行不受影响。

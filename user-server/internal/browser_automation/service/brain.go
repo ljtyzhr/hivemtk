@@ -66,7 +66,7 @@ func loopFingerprint(history []string) (bool, string) {
 	return false, ""
 }
 
-// G9 死代码清扫（R25）：旧转发壳 GeneratePlan / GeneratePlanWithHistory /
+// G9 死代码清扫：旧转发壳 GeneratePlan / GeneratePlanWithHistory /
 // GeneratePlanWithPlatform 全仓零调用方，删除——Brain 编排唯一入口是 GeneratePlanReflect
 // （executor 经它透传 reflectState，旧壳 session 记 0 会丢成本账归属）。
 
@@ -84,7 +84,7 @@ func (s *BrainService) LastAuxTokens() int {
 }
 
 // JudgeDone done 的独立验收（对标 browser-use judge）：approve=false 则执行器继续循环。
-// F5（G14）：finalState 必须是**执行器重拍的页面快照证据**（页面真实态），不再是 agent 自报摘要——
+// F5：finalState 必须是**执行器重拍的页面快照证据**（页面真实态），不再是 agent 自报摘要——
 // 验收员只信页面。token 消耗记入 browser_llm_plans（kind=judge，P1-1 成本账）。
 func (s *BrainService) JudgeDone(ctx context.Context, taskID, sessionID uint, goal, evidence string) (approve bool, reason string) {
 	dispatcher := llm.GetGlobalDispatcher()
@@ -313,7 +313,7 @@ func buildReasoningText(p *planSchema) string {
 }
 
 // SummarizeSession 执行结束后 LLM 总结（token 落库 kind=summary，D3/G3 成本账）。
-// G9（R25）：consoleErrors 参数删除——console 从不采集，恒空字符串进 prompt 是噪声。
+// G9：consoleErrors 参数删除——console 从不采集，恒空字符串进 prompt 是噪声。
 func (s *BrainService) SummarizeSession(ctx context.Context, taskID, sessionID uint, goal string, success, total int, extracts string) string {
 	if total <= 0 {
 		return ""

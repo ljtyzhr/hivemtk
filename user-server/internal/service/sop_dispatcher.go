@@ -81,7 +81,7 @@ type dispatchTask struct {
 	// 为什么要在这里捎带：定时器是**唯一**知道自己在等什么的东西，而点火之后那一行
 	// 状态已经变成 fired，再想读就得按 (execution,node) 反查一遍——多一次读、多一个
 	// 读错行的机会（同一节点重跑过就有好几行）。payload 里的恢复凭证由审批等待档写入
-	// （T-P3-02），调度器本身不认识它，只负责原样递到回读方手里。
+	// ，调度器本身不认识它，只负责原样递到回读方手里。
 	WaitEvent   string
 	WaitPayload model.JSONMap
 }
@@ -191,7 +191,7 @@ func DefaultSOPRetryPolicy() *SOPRetryPolicy {
 
 // Backoff 计算第 attempt 次重试的退避时间（attempt 从 1 开始）
 //
-// 标准指数退避：Backoff(N) = InitialBackoff * Multiplier^(N-1)，被 MaxBackoff 封顶。
+// 标准指数退避：Backoff(N) = InitialBackoff * Multiplier^，被 MaxBackoff 封顶。
 //   - attempt=1 → InitialBackoff
 //   - attempt=2 → InitialBackoff * Multiplier
 //   - attempt=3 → InitialBackoff * Multiplier^2
@@ -445,7 +445,7 @@ func (d *SOPExecutionDispatcher) processTask(ctx context.Context, workerID int, 
 				Msg("[worker] wait node satisfied (timer fired), advance to next")
 		}
 		result = &NodeExecResult{Status: NodeStatusSkipped}
-		// 审批等待档（T-P3-02）：等待条件是"有人裁决了"，而这件事只有库里那条审批记录知道。
+		// 审批等待档：等待条件是"有人裁决了"，而这件事只有库里那条审批记录知道。
 		// 点火这一刻才回读，把结论并进 Output —— handleNodeSuccess 会先把它写进
 		// ExecutionData 再算下一跳，于是后面的 condition 节点能按结论分支。
 		// 非审批等待返回 nil，这一行等价于改动前。

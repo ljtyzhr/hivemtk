@@ -477,7 +477,7 @@ func (c *HostConn) forceSelfHeal(reason string) {
 	c.close()
 }
 
-// probeServable 注册期可服务探针（F3）：注册成功只证明 WS 与 register 帧到达，
+// probeServable 注册期可服务探针：注册成功只证明 WS 与 register 帧到达，
 // 不证明 stdio→扩展→回传这条应用面链能走通——真机三次实测「在线但不可服务」，
 // 首个用户任务因此白烧 2×30s 才由 A5 判病自愈。这里用零副作用最轻原语
 // `tab_exists(tab_id=0)`（扩展侧 !tabId → 直接 {exists:false}，不碰任何 tab、不查登录态）

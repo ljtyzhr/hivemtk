@@ -698,7 +698,7 @@ func (s *MarketingFlowService) sendActionSendEmail(ctx context.Context, config m
 //
 // 豁免必须同时满足「显式设了开关」与「进程处于开发姿态」（APP_ENV/MODE/GIN_MODE 判定，
 // 与 ALLOW_INSECURE_WEBHOOK、secrets MASTER_KEY 护栏复用同一个 config.IsDevelopmentEnv）。
-// 旧实现只看开关 ⇒ 一个既不在 .env-example 也不在文档里的变量能把 SSRF 闸门整个关掉，
+// 旧写法只看开关 ⇒ 一个既不在 .env-example 也不在文档里的变量能把 SSRF 闸门整个关掉，
 // 且在进程上留了生产环境也照样静默生效。
 func insecureWebhookBypassAllowed() bool {
 	if os.Getenv("MARKETING_WEBHOOK_ALLOW_INSECURE") != "true" {

@@ -40,7 +40,7 @@ type ApprovalRequest struct {
 	Status string `gorm:"type:varchar(16);index" json:"status"`
 
 	// ResumeToken 挂起点恢复凭证：pending 时非空，流程把它写进自己的 checkpoint，
-	// 裁决后来凭它续跑（T-P3-02）。与 ID 分开的理由是权限，不是方便：
+	// 裁决后来凭它续跑。与 ID 分开的理由是权限，不是方便：
 	// ID 会出现在列表、日志、审计里，凡看得见 ID 的地方都能拿去裁决；
 	// 而"能恢复这条流程"是一种能力，必须不可枚举（crypto/rand 32 字节）。
 	//

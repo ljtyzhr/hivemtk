@@ -1,8 +1,8 @@
 // opportunity.go 商机仓储（T-P4-02 / N-1 的第二层）
 //
-// 五层架构里本文件是 service.OpportunityService（T-P4-03）与 opportunities 表之间
+// 五层架构里本文件是 service.OpportunityService与 opportunities 表之间
 // 唯一的一层。它**只做三件事**：把行写进去、按已命名的维度把行读出来、在改写时
-// 保证"后写不静默覆盖先写"（AC①）。
+// 保证"后写不静默覆盖先写"。
 //
 // AC②（铁律：仓储无业务判断）在本文件的具体形状是：这里**不校验** stage/status 值域、
 // 不判断跃迁是否合法、不看金额范围、不读 ltc.config 的阈值。理由不是洁癖 ——

@@ -1,7 +1,7 @@
-// notify_business.go 业务通知生产者（I8）：给通知中心补三类运营类生产者 ——
+// notify_business.go 业务通知生产者：给通知中心补三类运营类生产者 ——
 // 新订单草稿待确认、新坏例待归因、知识库变更待审核。
 //
-// 与待办 SLA（I2）的关系：两路共用 NotificationService 与 notifications 表，
+// 与待办 SLA的关系：两路共用 NotificationService 与 notifications 表，
 // 但**装配彼此独立** —— SLA 那台挂在三态旗 FF_LTC_HANDOFF_SLA_JOB 上（off 时
 // 根本不构造），这一口不受任何旗子控制：底座拿到 DB 句柄就装配，三类生产者
 // 即刻生效。理由是两件事的风险不同：SLA 会按节拍反复外发（必须有档位），

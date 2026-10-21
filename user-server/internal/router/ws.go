@@ -23,7 +23,7 @@ import (
 
 // RegisterWSRoutes 注册 WebSocket 路由（不破坏其他路由）
 //
-// 调用方：**当前全树零调用方**（2026-09-29 用 grep 复取，含注释也只有本文件自己），
+// 调用方：**当前全树零调用方**，
 // 也就是说 GET /ws/chat 从来没有被注册过——实测 GET /ws/chat 落到 SPA 的 NoRoute 兜底
 // （返回 200 + index.html），它不是 WebSocket 端点。历史上这句注释写的是
 // 「Setup() 中调用」，于是每个读到这里的人都以为这条路是活的：文档照它写"真实对话入口"、

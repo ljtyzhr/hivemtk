@@ -1,4 +1,4 @@
-// human_task_sla_wiring.go 待办 SLA 超时闭环的装配层（I2）。
+// human_task_sla_wiring.go 待办 SLA 超时闭环的装配层。
 //
 // 一句话职责：把 service.HumanTaskSLAWorker（human_task_sla_job.go）按一把三态旗子
 // 挂到进程上。在此之前，human_tasks 的逾期只被 CountOverdueOpenByKind 数出来，

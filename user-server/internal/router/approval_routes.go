@@ -1,4 +1,4 @@
-// approval_routes.go 审批 API 的路由挂载点（T-P3-04）。
+// approval_routes.go 审批 API 的路由挂载点。
 //
 // 与 human_task_routes.go 分两个文件，是因为两者的**关闸方式**不同：待办底座没有旗子
 // （db==nil 就是它的关闸），而审批运行时受 FF_LTC_APPROVAL_RESUME 控制。

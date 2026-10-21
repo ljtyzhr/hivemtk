@@ -758,7 +758,7 @@ func postMigrateObsDefaultUniqueIndex(db *gorm.DB) {
 	}
 	// 平台级启动期操作：obs_config 是租户表，TENANT_MODE=on 时 post-migrate 的裸
 	// Count（query）与下面那段清重 UPDATE（预构建 SQL）会被隔离 callback fail-closed
-	//（生产日志实证："post-migrate: 统计 obs_config 默认行失败(跳过唯一索引): [tenant] 表
+	// （生产日志实证："post-migrate: 统计 obs_config 默认行失败(跳过唯一索引): [tenant] 表
 	// obs_config 需要租户上下文但 ctx 未绑定（query）"）。这里没有 HTTP 请求 ctx 可绑，
 	// 走 tenant.WithSystemScope 这条平台级豁免通道（与 migration/备份/健康检查同类）。
 	db = db.WithContext(tenant.WithSystemScope(context.Background()))
@@ -799,7 +799,7 @@ func postMigrateObsDefaultUniqueIndex(db *gorm.DB) {
 // 为什么是硬删不是软删：模型带 DeletedAt，走 GORM 的 Delete 只打标记，原文仍在表里，
 // 备份与只读副本照抄得到 ⇒ 软删等于没修。
 //
-// 判据取列宽而非内容形状：哈希恒 64 字符十六进制，旧实现是 uuid+uuid＝72 字符。
+// 判据取列宽而非内容形状：哈希恒 64 字符十六进制，旧写法是 uuid+uuid＝72 字符。
 // 版本化迁移链在当前启动口径下永不执行（建表真值是 AutoMigrate），所以作废挂在 post-migrate。
 func postMigrateDropLegacyPlaintextResetTokens(db *gorm.DB) {
 	if db == nil {
@@ -811,7 +811,7 @@ func postMigrateDropLegacyPlaintextResetTokens(db *gorm.DB) {
 	// + 紧随的 "post-migrate: 统计明文密码重置令牌失败(跳过作废)"）。
 	// 改写为 GORM API 查询 + tenant.WithSystemScope 平台级豁免；统计与作废语义保持不变：
 	// Unscoped 绕过软删过滤（原裸 SQL 不看 deleted_at），Delete 也走 Unscoped 物理硬删
-	//（模型带 DeletedAt，普通 GORM Delete 只打软删标记，原文仍在表里等于没修）。
+	// （模型带 DeletedAt，普通 GORM Delete 只打软删标记，原文仍在表里等于没修）。
 	sysDB := db.WithContext(tenant.WithSystemScope(context.Background()))
 	const legacyWhere = "char_length(token) <> ?"
 	var legacy int64

@@ -19,7 +19,7 @@ import (
 	"hivemtk-user/internal/pkg/utils/logger"
 )
 
-// 钉钉机器人入站媒体（M-01）：官方口径为
+// 钉钉机器人入站媒体：官方口径为
 // open.dingtalk.com/document/development/download-the-file-content-of-the-robot-receiving-message
 // —— POST https://api.dingtalk.com/v1.0/robot/messageFiles/download，header
 // x-acs-dingtalk-access-token，body {downloadCode, robotCode}（两个都必填），

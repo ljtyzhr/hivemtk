@@ -1182,7 +1182,7 @@ func (e *Executor) executeStepWithRetry(ctx context.Context, task *model.Browser
 		start := time.Now()
 		// P8 append-only 命令日志：命令帧先落（含步骤参数全文），回包/错误随 result 事件再落。
 		// 命令帧 ok=nil（/ A2）：写下这一行时 Host 连回执都还没有，甚至可能
-		// 根本没进 socket——旧实现传字面量 true，于是审计包里每条「下发」都自带一个 ✓，
+		// 根本没进 socket——旧写法传字面量 true，于是审计包里每条「下发」都自带一个 ✓，
 		// 而那个 ✓ 在这一行上什么也不指。它 attempted，不 succeeded。
 		*seq++
 		cmdPayload := map[string]any{"action": step.Action, "target": step.Target, "params": buildStepParams(step)}
@@ -1276,7 +1276,7 @@ func (e *Executor) detectBlockedIfFatal(ctx context.Context, task *model.Browser
 		}
 		*seq++
 		// 审计用外层 ctx：探测预算可能已耗尽，落库不能被探测自身的超时带走。
-		// ok=「探测这条命令本身成没成」，不是「有没有拦到」——旧实现传 blocked，于是每一页
+		// ok=「探测这条命令本身成没成」，不是「有没有拦到」——旧写法传 blocked，于是每一页
 		// 正常页面的探测都记成 ok=false（验证：审计包里 block_detect 全红，
 		// 读包的人会以为检测链路坏了；拦截结论另有 blocked/reason 字段承载）。
 		e.appendCommandLog(ctx, session.ID, task.ID, 0, *seq, "event", "block_detect", map[string]any{

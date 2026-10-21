@@ -47,7 +47,7 @@ type assetEnvelope struct {
 func (c *AssetMarketClient) doData(method, path string, req any, out any) error {
 	var env assetEnvelope
 	// 信封 code 不在这里判：商户客户端的传输层已把"HTTP 200 + code 非 200"统一转成
-	// *PlatformError（R11），此处再判一次就是一段永不命中的死分支。
+	// *PlatformError，此处再判一次就是一段永不命中的死分支。
 	if err := c.client.Do(method, path, req, &env); err != nil {
 		return err
 	}
@@ -68,7 +68,7 @@ func (c *AssetMarketClient) ListAssets(ctx context.Context, assetType, industry 
 		q.Set("industry", industry)
 	}
 	// tenant_code：purchased 标记按 (merchant_key, tenant_code) 判定
-	//（平台侧购买记录每租户一行），空串照发走 '' 兜底行=旧行为。
+	// （平台侧购买记录每租户一行），空串照发走 '' 兜底行=旧行为。
 	q.Set("tenant_code", TenantCodeFromContext(ctx))
 	path := "/merchant-api/asset-market/list?" + q.Encode()
 	var resp struct {

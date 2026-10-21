@@ -39,7 +39,7 @@ type WechatService struct {
 	mu           sync.RWMutex
 	tokenClients map[uint]*wechatTokenClient
 	// 入站媒体回填用的 hub 仓储：构造期由 db 建好存句柄，service 不持 DB
-	//（架构门 L4：service 不得直接持 db；wechat_inbound_media.go 的回填改用它）。
+	// （架构门 L4：service 不得直接持 db；wechat_inbound_media.go 的回填改用它）。
 	hubRepo *repository.MessageHubRepository
 }
 

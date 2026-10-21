@@ -807,7 +807,7 @@ func (s *InboxService) reconcileSyncGapConversation(ctx context.Context, platfor
 //  2. session_messages：网页 widget 访客消息 + 坐席在客服会话里的回复，
 //     以 session_id 关联（InboxConversation.ConversationID == SessionMessage.SessionID）。
 //
-// 旧实现只读 message_hub，导致网页端发的消息在统一收件箱点开后空白。
+// 旧写法只读 message_hub，导致网页端发的消息在统一收件箱点开后空白。
 func (s *InboxService) GetMessagesByConversation(ctx context.Context, conversationID uint, page, pageSize int) ([]map[string]any, int64, error) {
 	if s.inboxRepo == nil {
 		return []map[string]any{}, 0, nil

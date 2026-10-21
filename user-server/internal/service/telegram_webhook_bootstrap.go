@@ -139,7 +139,7 @@ func ReconcileTelegramWebhooks(svc *TelegramService) {
 	// 无租户 ctx 的 ListAccounts（query）/UpdateAccount（update）会被隔离 callback fail-closed
 	// 拒绝（生产日志实证："[TG-Bootstrap] 列举 Telegram 账号失败: [tenant] 表 telegram_accounts
 	// 需要租户上下文但 ctx 未绑定（query）"）。走 tenant.WithSystemScope 这条平台级豁免通道
-	//（与 migration / 启动期健康对账同源，见 dispatcher_persistence.systemScopeCtx）。
+	// （与 migration / 启动期健康对账同源，见 dispatcher_persistence.systemScopeCtx）。
 	//
 	// 这里**不是** Fanout：本路径没有会按 ctx 注入租户的写 —— 全量读出来的账号行自带
 	// tenant_id，回写是按行主键的 Save（行自证），既不新建行、也不做任何跨模块业务落库，

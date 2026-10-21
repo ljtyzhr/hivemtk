@@ -237,7 +237,7 @@ type ApprovalWaitNotifier interface {
 	NotifyDecided(ctx context.Context, req *model.ApprovalRequest)
 }
 
-// ApprovalTaskSink 审批与统一待办池之间唯一的出口（T-P3-04）。
+// ApprovalTaskSink 审批与统一待办池之间唯一的出口。
 //
 // 只有两个方法，且刻意不叫 SubmitTask/CancelTask 那样的动作名：投什么类别、标题写什么、
 // 截止落哪一列、done 还是 cancelled 全由实现方（HumanTaskService）按待办域的规矩定，
@@ -423,7 +423,7 @@ func (s *ApprovalRequestService) Submit(ctx context.Context, in ApprovalSubmitIn
 		return nil, false, fmt.Errorf("approval_request: 查已有 pending 失败: %w", err)
 	}
 	if existing != nil {
-		// 复用路径也要保证待办在（T-P3-04）：第一次入队可能碰上"审批落库成功、
+		// 复用路径也要保证待办在：第一次入队可能碰上"审批落库成功、
 		// 待办投递失败"（见 deliverTask 的失败方向），重试这一次就是它唯一的补投机会。
 		if existing.Status == model.ApprovalStatusPending {
 			if err := s.deliverTask(ctx, existing); err != nil {
@@ -575,7 +575,7 @@ func (s *ApprovalRequestService) Decide(ctx context.Context, id string, verdict 
 		// 看见一条能点的待办（点下去拿到 409，而 409 在这里读起来像权限问题）。
 		// 收口失败不上抛，理由见 closeTask。
 		s.closeTask(ctx, cur)
-		// 唤醒挂在这件事上的流程（T-P3-02）。放在**读回之后**：通知出去的那一刻，
+		// 唤醒挂在这件事上的流程。放在**读回之后**：通知出去的那一刻，
 		// 被叫醒的一方会立刻回读这一行，它必须读到刚落的结论而不是旧值。
 		s.notifyWait(ctx, cur)
 		return cur, nil

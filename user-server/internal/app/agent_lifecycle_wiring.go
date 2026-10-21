@@ -19,7 +19,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// 本文件兑现「双模式」的另一半：把 lifecycle 装配起来，并**按 model.AgentMode 分派**（W-4）。
+// 本文件兑现「双模式」的另一半：把 lifecycle 装配起来，并**按 model.AgentMode 分派**。
 //
 // 在此之前，`lifecycle.Resolver` 与 `AgentMode` 两侧字段都存在，但
 //   - `AIAgentService.LoadContext` 组装上下文时不带模式（读出来恒为空串），

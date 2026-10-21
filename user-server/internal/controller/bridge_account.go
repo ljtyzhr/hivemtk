@@ -13,7 +13,7 @@ import (
 // BridgeAccountController 桥接账号管理（抖音/小红书/TikTok 网页私信）
 //
 //	GET  /api/bridge/accounts  —— 列出当前用户的桥接账号（含在线状态）
-//	POST /api/bridge/send      —— 人工座席经桥接代发消息（G14）
+//	POST /api/bridge/send      —— 人工座席经桥接代发消息
 //
 // 业务判定（渠道归一、归属、租户钉死、在线门、投递编排）在 bridge 域服务，
 // 本层只做参数绑定与状态码映射。

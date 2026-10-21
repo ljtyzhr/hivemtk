@@ -88,7 +88,7 @@ const (
 	SalesEventTypeAIDeal       = "ai_deal"
 	SalesEventTypeOrderDraft   = "order_draft"
 	SalesEventTypeSalesProfile = "sales_profile"
-	// SalesEventTypeQuote 报价外发成功那一条（T-P6-03）。
+	// SalesEventTypeQuote 报价外发成功那一条。
 	// 它是这张表在生产路径上的**第一个**带 opportunity_id / quote_id 的写入方：
 	// 上面文档里的口径 a（"整张表零写入"）随那张卡一起更正，见文件头与
 	// scripts/check-unwired-assets.sh 项 9。

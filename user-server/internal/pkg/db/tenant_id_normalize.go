@@ -11,7 +11,7 @@ import (
 
 // normalizeTenantIDColumns 归一化 tenant_id 的列类型（必须在 AutoMigrate **之前**执行）。
 //
-// 事故实测（2026-10-18）：GEO 模块的模型已声明 `TenantID uint`，而遗留库里
+// 事故验证：GEO 模块的模型已声明 `TenantID uint`，而遗留库里
 // 8 张 geo_* 表的 tenant_id 仍是 varchar。后果不是"迁移告警"，是**功能直接失败**：
 //
 //	ERROR: operator does not exist: character varying = integer

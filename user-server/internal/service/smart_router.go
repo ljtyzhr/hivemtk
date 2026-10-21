@@ -1,4 +1,4 @@
-// Package service - 智能路由 & 技能匹配（G2）
+// Package service - 智能路由 & 技能匹配
 //
 // 入站编排时，用意图识别结果 + 坐席技能标签（agent_statuses.skills）+ 当前负载，
 // 选择最合适的坐席。替代纯 round-robin。

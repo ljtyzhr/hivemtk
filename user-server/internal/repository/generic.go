@@ -14,7 +14,7 @@ import (
 )
 
 // orderClauseRe / identRe 是泛型仓库 orderBy 与条件列名的结构白名单。
-// BaseRepository 当前无生产调用方（2026-09-19 审计全树 grep 证实），但它是
+// BaseRepository 当前无生产调用方，但它是
 // 被反复复制的模板——预先把"裸 SQL 通道"焊死成"列名 + ASC/DESC"语法子集，
 // 未来接入 HTTP 参数也不会构成注入面。非法输入回退默认排序并告警（fail-closed）。
 var (

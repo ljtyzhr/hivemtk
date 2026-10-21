@@ -4,7 +4,7 @@
 // `internal/pkg/db` 的 AutoMigrate()，它按 model 包的清单登记（见 migrate.go
 // allModels()）。模型留在 tooluse 里 = 有生产写入路径却没有建表登记，
 // 正是 migrate_test.go TestAllModels_CoversModelsWithWritePaths 要拦的那类缺陷
-// （2026-09-16 审计 DB-07 的 GeoCrawlerVisit 同源）。
+// 。
 // tooluse 侧保留同名别名，写入口径不变。
 package model
 

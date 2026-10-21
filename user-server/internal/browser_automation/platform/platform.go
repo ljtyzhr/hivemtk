@@ -6,7 +6,7 @@
 //	Mixpost SocialProviderManager（注册表）+ Apify SessionPool（三态机）。
 //
 // 新平台接入 = platform/<name>/ 目录四件套（Locators/Recipe/Verifier/Signature）
-// + init() 注册，基座/Brain/UI 零改动（P5）。
+// + init() 注册，基座/Brain/UI 零改动。
 package platform
 
 import (
@@ -34,7 +34,7 @@ const (
 	ErrBadBody      ErrType = "bad_body"      // 参数/内容不合规，不重试
 	ErrRetry        ErrType = "retry"         // 瞬态失败（网络/元素未就绪），可重试
 	ErrDisconnect   ErrType = "disconnect"    // 账号被平台拒绝，必须停止并人工介入
-	// ErrUnknown 判据未命中——A3 fail-closed（2026-09-19）：契约默认失败，不盲目重试。
+	// ErrUnknown 判据未命中——A3 fail-closed：契约默认失败，不盲目重试。
 	// 依据：AWS SDK Go v2 retry 三值判定「全 Unknown 即不重试」；盲目重试把瞬态抖动
 	// 放大成风控信号，且掩盖归因缺口——未分类错误应由上层打点、显式扩表，而非默认放行。
 	ErrUnknown ErrType = "unknown"

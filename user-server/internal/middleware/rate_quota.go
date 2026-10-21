@@ -109,7 +109,7 @@ type pathQuotaStats struct {
 
 // pathQuotaLimiterManager 路径级配额限流管理器。
 //
-// 桶键 = ip + "\x00" + path：**每客户端每路径一个桶**。旧实现用 "path:"+path
+// 桶键 = ip + "\x00" + path：**每客户端每路径一个桶**。旧写法用 "path:"+path
 // 做全局共享桶，一个活跃租户就能把 /api/reach 的全站配额打满、所有人吃 429——
 // 按客户端分桶后各桶互不影响，配额语义回到「单客户端单路径的速率上限」。
 //

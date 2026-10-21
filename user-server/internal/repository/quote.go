@@ -1,6 +1,6 @@
 // quote.go 报价版本链仓储（T-P6-01 / N-5 报价域的第二层）
 //
-// 本文件是 service（T-P6-02）与 quotes / quote_line_items 之间唯一的一层，
+// 本文件是 service与 quotes / quote_line_items 之间唯一的一层，
 // 它只负责三件事：**把版本链的走向算对**、**把旧版守住不被改写**、
 // **按已命名的键把行读出来**。三条各自对应一张 AC，判据落在 quote_test.go。
 //
@@ -76,7 +76,7 @@ type QuoteRepository interface {
 	// Append 以 baseID 那一版为基准追加下一版：Version = 基准 +1、SourceID = baseID，
 	// 两者都由本层写。next 的内容列（含 Status）由调用方给，本层不复制也不校验。
 	//
-	// 行项目**不跟着复制**：新版该带哪些行是报价生成（T-P6-02）的判据，
+	// 行项目**不跟着复制**：新版该带哪些行是报价生成的判据，
 	// 在这里复制一份就等于替那张卡定了"还价不改行"这个默认值。
 	//
 	// 基准行不存在 ⇒ ErrQuoteNotFound；基准与 next 不同链（quote_id 或商机归属不符）

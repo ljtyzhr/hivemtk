@@ -40,7 +40,7 @@ type BrowserTaskRepository interface {
 	// 对账器（stale_reconcile.go）专用两条，见各自注释
 	FindStaleRunningAll(ctx context.Context, minAge time.Duration, limit int) ([]*model.BrowserTask, error)
 	ReconcileRunResult(ctx context.Context, id uint, status, lastResult, errMsg string) (bool, error)
-	// D4b（G5）：重试持久化——scheduleRetry 落 next_retry_at，扫描器条件认领（置 NULL）防双触发
+	// D4b：重试持久化——scheduleRetry 落 next_retry_at，扫描器条件认领（置 NULL）防双触发
 	SetNextRetryAt(ctx context.Context, id uint, at *time.Time) error
 	// ownerUserIDs：本进程持有 Host 连接的用户白名单（空=不加此过滤，见 ClaimDueRetries 注释）
 	ClaimDueRetries(ctx context.Context, now time.Time, limit int, ownerUserIDs []uint) ([]*model.BrowserTask, error)
@@ -209,7 +209,7 @@ func (r *browserTaskRepo) ReconcileRunResult(ctx context.Context, id uint, statu
 	return res.RowsAffected == 1, nil
 }
 
-// SetNextRetryAt D4b（G5）：设置/清除任务的重试到期时间（nil=取消挂起重试）。
+// SetNextRetryAt D4b：设置/清除任务的重试到期时间（nil=取消挂起重试）。
 // 命中 0 行报错——挂起与取消都是「只有落了库才成立」的声明，
 // 调用方紧接着要说「已挂起，重启不丢」，白写就是把一次不会发生的调度说成了已安排。
 func (r *browserTaskRepo) SetNextRetryAt(ctx context.Context, id uint, at *time.Time) error {
@@ -228,7 +228,7 @@ func (r *browserTaskRepo) SetNextRetryAt(ctx context.Context, id uint, at *time.
 	return nil
 }
 
-// ClaimDueRetries D4b（G5）：原子认领到期重试——条件更新置 NULL，多副本同库仅一方 RowsAffected=1；
+// ClaimDueRetries D4b：原子认领到期重试——条件更新置 NULL，多副本同库仅一方 RowsAffected=1；
 // 认领成功后进程崩溃则重试丢失（与改造前语义相同），但重启不再丢挂起重试。
 //
 // 归属门：Host 连接是**进程内**状态（registry.conns），挂起重试却是**库内**共享队列。

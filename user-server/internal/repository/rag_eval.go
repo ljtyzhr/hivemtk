@@ -1,4 +1,4 @@
-// Package repository - RAG 自动评测仓库（G4）
+// Package repository - RAG 自动评测仓库
 package repository
 
 import (

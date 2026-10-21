@@ -1,4 +1,4 @@
-// collection_hook.go 回款完成 → 赢单 → 复购跟进的默认钩子（T-P7-04）。
+// collection_hook.go 回款完成 → 赢单 → 复购跟进的默认钩子。
 //
 // 形状说明：组装函数 WireCollectionToRepurchase 落在 service 层而不是 app 层 ——
 // 钩子要同时认识三台服务（商机 / 旅程 / 跟进），这份"认识"本身是可单测的业务逻辑，

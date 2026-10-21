@@ -9,7 +9,7 @@ import (
 	"hivemtk-user/internal/pkg/utils/response"
 )
 
-// LtcRatesController LTC 三率控制器（T-P8-05）。
+// LtcRatesController LTC 三率控制器。
 //
 // 范式与 conversion_funnel.go 同一格：参数解析 + 调 service +
 // response.Success / response.Error 包装，本层不碰口径。

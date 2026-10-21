@@ -1,6 +1,6 @@
 // blockdetect.go — 平台拦截的结构化判据（正则+状态码表）。
 //
-// 缺陷根因（旧实现）：文案 marker 对 snapshot 全文 Contains——评论/正文里出现
+// 缺陷根因（旧写法）：文案 marker 对 snapshot 全文 Contains——评论/正文里出现
 // 「验证码」三个字就误判拦截。业界调研（MediaCrawler 系风控判定）结论：拦截判定
 // 必须分层——URL 重定向模式 / 风控专用 DOM 容器 / 结构化文案，全文子串是反模式。
 //

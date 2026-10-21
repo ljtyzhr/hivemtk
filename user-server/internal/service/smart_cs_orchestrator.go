@@ -51,17 +51,17 @@ type SmartCSOrchestrator struct {
 
 	dncChecker DoNotContactChecker
 
-	// orderDraftProduce 「AI 响应 → 订单意向提取 → 建草稿」的生产者（T-P2-06）。
+	// orderDraftProduce 「AI 响应 → 订单意向提取 → 建草稿」的生产者。
 	// 由 internal/app 的装配层注入；nil = 本进程不产草稿（旗子关着 / 没 DB 句柄）。
 	orderDraftProduce func(ctx context.Context, customerID, ownerID string, resp *SalesResponse)
 
-	// humanTaskProduce 「转人工 → 投递一条会话待办」的生产者（T-P3-03）。
+	// humanTaskProduce 「转人工 → 投递一条会话待办」的生产者。
 	// 同样由 internal/app 注入；nil = 本进程不产待办（没有 DB 句柄时就是这份形态），
-	// 此时 transferToHuman 的行为与本卡之前逐字一致。
+	// 此时 transferToHuman 的行为与本处之前逐字一致。
 	humanTaskProduce func(ctx context.Context, session *model.CustomerSession, reason string) error
 
-	// badCaseMark 「这一轮回答的事实 → 一条 Bad Case 留痕」的标记器（T-P8-03）。
-	// 同样由 internal/app 注入；nil = 本进程不留痕，回答路径与本卡之前逐字一致。
+	// badCaseMark 「这一轮回答的事实 → 一条 Bad Case 留痕」的标记器。
+	// 同样由 internal/app 注入；nil = 本进程不留痕，回答路径与本处之前逐字一致。
 	// 它做成**吞错误的函数注入**（返回 void）而不是 error：留痕是回答的旁路，
 	// Mark 里任何失败都不该改变本轮回复发不发、发什么 —— 那件事由日志说一句承担。
 	badCaseMark func(ctx context.Context, in BadCaseMarkInput)
@@ -145,7 +145,7 @@ func (o *SmartCSOrchestrator) SetDNCChecker(checker DoNotContactChecker) {
 	o.dncChecker = checker
 }
 
-// SetOrderDraftProducer 注入「AI 响应后提取订单意向并建草稿」的生产者（T-P2-06）。
+// SetOrderDraftProducer 注入「AI 响应后提取订单意向并建草稿」的生产者。
 //
 // 传 nil 与不调这个效果相同：一条草稿都不会建。之所以做成函数注入而不是让编排器
 // 自己去 new 一个 OrderDraftService，是"要不要持久化"这个决策归装配层（读旗子、拿
@@ -154,11 +154,11 @@ func (o *SmartCSOrchestrator) SetOrderDraftProducer(produce func(ctx context.Con
 	o.orderDraftProduce = produce
 }
 
-// SetHumanTaskProducer 注入「转人工 → 投递一条会话待办」的生产者（T-P3-03）。
+// SetHumanTaskProducer 注入「转人工 → 投递一条会话待办」的生产者。
 //
-// 传 nil 与不调这个效果相同：一条待办都不会投（= 本卡之前的行为，会话只改状态）。
+// 传 nil 与不调这个效果相同：一条待办都不会投（= 本处之前的行为，会话只改状态）。
 // 做成函数注入而不是编排器自己去拿全局服务，理由与上面那条一致：有没有 DB 句柄、
-// 要不要建底座是装配层的事；这里也顺带成为本卡天然的关闸（没有旗子，不注入即零改动）。
+// 要不要建底座是装配层的事；这里也顺带成为本处天然的关闸（没有旗子，不注入即零改动）。
 func (o *SmartCSOrchestrator) SetHumanTaskProducer(produce func(ctx context.Context, session *model.CustomerSession, reason string) error) {
 	o.humanTaskProduce = produce
 }
@@ -166,7 +166,7 @@ func (o *SmartCSOrchestrator) SetHumanTaskProducer(produce func(ctx context.Cont
 // SetBadCaseMarker 注入「本轮回答事实 → Bad Case 留痕」的标记器（T-P8-03 / AC①）。
 //
 // 传 nil 与不调这个效果相同：一条坏例都不会记。做成函数注入的理由与上面两条一致
-// （有没有底座是装配层的事），它同时就是本卡天然的关闸。
+// （有没有底座是装配层的事），它同时就是本处天然的关闸。
 func (o *SmartCSOrchestrator) SetBadCaseMarker(mark func(ctx context.Context, in BadCaseMarkInput)) {
 	o.badCaseMark = mark
 }
@@ -838,7 +838,7 @@ const badCaseMarkTimeout = 10 * time.Second
 // 三类轮次必须挡在留痕之外，否则零命中判据会把它们记成"知识库缺料"（AC③ 的
 // D→A 就是照这份清单去补文档的，混进去一条就是让知识库去补一个不存在的缺口）：
 //   - 转人工：回复是 `[系统自动转人工] …` 这句系统公告，不是模型答的；而"这轮要人接"
-//     这件事在人工任务队列里已经有一行（T-P3-03），记进坏例等于同一事实两个去处；
+//     这件事在人工任务队列里已经有一行，记进坏例等于同一事实两个去处；
 //   - 追问澄清：问句本身含糊到被判成需要澄清，此时"没检回内容"分不清是缺料还是问法不清；
 //   - 生成失败：回复是兜底文案（脚本 / "抱歉, 服务暂时不可用"），把容量故障记成知识缺口。
 //
@@ -912,7 +912,7 @@ func (o *SmartCSOrchestrator) markBadCase(
 	}
 	reply := input.AnswerText
 	if strings.TrimSpace(reply) == "" {
-		// 空回复不该留痕：本卡的样本是给评测集用的"这句答错了"，
+		// 空回复不该留痕：本处的样本是给评测集用的"这句答错了"，
 		// 空串进去只会变成下游一条无法判定的样本（降级链的出口在上面已经 return 了）。
 		return
 	}
@@ -1038,7 +1038,7 @@ func (o *SmartCSOrchestrator) transferToHuman(
 	//     会话还没转过去就先投，坐席会领到一条 status 仍是 ai_handling 的会话；
 	//   - 失败只告警不上抛：会话此刻已经是 waiting 了，回滚不了，而上抛会让调用方把
 	//     整条消息处理判失败（客户那边其实已经转过去了）。漏投由这条 Error 日志兜底，
-	//     它是本卡唯一一处"待办可能缺"的已知缺口；
+	//     它是本处唯一一处"待办可能缺"的已知缺口；
 	//   - 幂等交给服务：同一次转人工被低置信度与情绪策略两个出口各叫一次、以及上一轮
 	//     还没处理完就再转，都只会拿到同一条开放待办（用例逐条验过）。
 	if err := o.produceHandoffTask(ctx, session, reason); err != nil {
@@ -1060,7 +1060,7 @@ const humanTaskProduceTimeout = 5 * time.Second
 // ctx 用 WithoutCancel + 新上界，而不是直接沿用请求 ctx（与订单草稿那条**刻意不同**）：
 // 草稿丢了可以重建、而且是后台附带产物，所以它异步跑；待办不行 —— 会话此刻已经被判成
 // "等人工"，客户端断开、响应已返回都不改变"有人在等"这件事。若沿用请求 ctx，
-// 客户端一断就把这条 INSERT 取消掉，结果正是本卡要消灭的那个形态：
+// 客户端一断就把这条 INSERT 取消掉，结果正是本处要消灭的那个形态：
 // 会话 waiting、池子里空无一物、谁也不知道。
 func (o *SmartCSOrchestrator) produceHandoffTask(ctx context.Context, session *model.CustomerSession, reason string) error {
 	if o.humanTaskProduce == nil {

@@ -1,4 +1,4 @@
-// kb_connectors.go 知识连接器控制器（R40）
+// kb_connectors.go 知识连接器控制器
 package controller
 
 import (

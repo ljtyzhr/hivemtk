@@ -130,7 +130,7 @@ func (r *HelpCenterRepository) ListPublicArticles(ctx context.Context, category,
 		var cks []ck
 		// DISTINCT ON 让数据库每文档只吐 chunk_index 最小的那一段：扫描量从
 		// "每篇文档全部切片的完整正文"（≤limit × 每文档切片数）压回 ≤len(rows) 行。
-		// 没换成 WHERE chunk_index = 0：旧实现取的是"最小 index 那段"，而各写入方
+		// 没换成 WHERE chunk_index = 0：旧写法取的是"最小 index 那段"，而各写入方
 		// 是否恒从 0 起号没被验证过 —— 按最小值取才与旧行为逐字等价。
 		if err := r.db.WithContext(ctx).
 			Table("knowledge_chunks").

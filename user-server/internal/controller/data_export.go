@@ -1,4 +1,4 @@
-// Package controller - GDPR DSAR 数据导出（G6）
+// Package controller - GDPR DSAR 数据导出
 package controller
 
 import (

@@ -114,7 +114,7 @@ func (s *KnowledgeMerchantService) ExternalImport(ctx context.Context, req *Exte
 		}
 		payload, _ := json.Marshal(req)
 		job.Payload = string(payload)
-		// 落库失败则不得进入异步分支：否则 API 返回的 jobNo 无对应记录，后续状态更新全部落空，调用方永远轮询不到结果（R76）
+		// 落库失败则不得进入异步分支：否则 API 返回的 jobNo 无对应记录，后续状态更新全部落空，调用方永远轮询不到结果
 		if err := s.externalRepo.Create(ctx, job); err != nil {
 			return nil, fmt.Errorf("创建外部导入任务失败: %w", err)
 		}

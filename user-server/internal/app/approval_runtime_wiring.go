@@ -167,7 +167,7 @@ func InitApprovalRuntime(db *gorm.DB) *ApprovalRuntime {
 	}
 
 	svc := service.NewApprovalRequestService(repository.NewApprovalRequestRepositoryWithDB(db), nil)
-	// 待办出口（T-P3-04）：shadow 与 on 两档都装。出口本身是"每次调用现取全局底座"的
+	// 待办出口：shadow 与 on 两档都装。出口本身是"每次调用现取全局底座"的
 	// 适配器，所以这里不必关心 InitHumanTaskRuntime 有没有跑过 —— 它在 router.go 里
 	// 恰好排在本次 Init 的下一句（:230 与 :235），传实例进去拿到的一定是 nil。
 	//

@@ -29,7 +29,7 @@ type MemorySystem struct {
 
 const (
 	// L1WindowSize 现在只是兜底值：运行时读的是 memory.l1_window_size
-	//（G4 门禁抓出来的未入库旋钮，2026-10-11 补接，见下方 runtimeL1WindowSize）。
+	// （G4 门禁抓出来的未入库旋钮，2026-10-11 补接，见下方 runtimeL1WindowSize）。
 	L1WindowSize = 10
 	L1TTLHours   = 24 * time.Hour
 	L4MaxPerCust = 500

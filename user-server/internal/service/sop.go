@@ -82,7 +82,7 @@ const (
 
 	SOPNodeTypeLLM = "llm"
 
-	// SOPNodeTypeReachSend 主动外发节点（T-P5-03）：图上唯一真的把内容送到客户手上的类型。
+	// SOPNodeTypeReachSend 主动外发节点：图上唯一真的把内容送到客户手上的类型。
 	// 它自己不碰渠道 —— 发送整包交给 ProactiveReachService.ReachByCustomer，
 	// 于是退订/频控/发送前闸门三判据只有一处实现。见 sop_reach_send.go 文件头。
 	SOPNodeTypeReachSend = "reach_send"

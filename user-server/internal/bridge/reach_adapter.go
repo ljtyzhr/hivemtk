@@ -108,7 +108,7 @@ func (a *BridgeReachAdapter) SendCard(ctx context.Context, channel, accountID, e
 	return a.inner.SendCard(ctx, channel, accountID, externalUserID, cardID)
 }
 
-// Recall B8（2026-09-19）：Bridge 渠道的 msgID 是 deliverToOutbox 生成的合成键
+// Recall B8：Bridge 渠道的 msgID 是 deliverToOutbox 生成的合成键
 // （bridge:channel:account:openid），不是平台真实消息标识——透传给 inner 会拿假 ID
 // 调撤回 API（静默失败或误撤）。且下行本无平台侧撤回通道，显式 not_supported。
 func (a *BridgeReachAdapter) Recall(ctx context.Context, channel, msgID string) error {

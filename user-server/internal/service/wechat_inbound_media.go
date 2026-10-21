@@ -18,7 +18,7 @@ import (
 	"hivemtk-user/internal/pkg/utils/logger"
 )
 
-// 公众号入站媒体（M-01）。
+// 公众号入站媒体。
 //
 // 修复前的形状：service/wechat.go 的解析结构体**已经**把 MediaId/PicUrl/Format 读出来了，
 // controller/wechat.go 构造 model.MessageEvent 时却只带 Content —— 三个字段原地蒸发，

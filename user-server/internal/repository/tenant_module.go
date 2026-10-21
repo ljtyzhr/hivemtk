@@ -241,7 +241,7 @@ func NewModuleOrderRepositoryWithDB(gdb *gorm.DB) ModuleOrderRepository {
 
 func (r *moduleOrderRepo) Upsert(ctx context.Context, o *model.ModuleOrder) error {
 	// ID 是 varchar 主键：镜像落库不赋 ID 会插入空串主键，第二单必撞 pkey
-	//（003 活体联调发现）。用 order_no 充当镜像主键，天然幂等。
+	// （003 活体联调发现）。用 order_no 充当镜像主键，天然幂等。
 	if strings.TrimSpace(o.ID) == "" {
 		o.ID = o.OrderNo
 	}

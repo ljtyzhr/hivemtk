@@ -1,4 +1,4 @@
-// Package service - Agent Co-Pilot 自动执行（G1）
+// Package service - Agent Co-Pilot 自动执行
 //
 // 把现有审批门（approval gate）从"人工审核"扩展为"可配置阈值自动放行"。
 // 当 AI 生成内容满足质量阈值时自动执行，否则进入审批队列。

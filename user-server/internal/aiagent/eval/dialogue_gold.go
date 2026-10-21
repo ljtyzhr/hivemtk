@@ -5,7 +5,7 @@ package eval
 // 为什么不用 Evaluator：它是单轮问答形状（candidate vs reference 一次打分），
 // 装不下"一轮对话多回合 + 每回合期望动作"的对话级语义；
 // 为什么不用 RagEvalRun：那是检索指标形状（recall/MRR/NDCG）。
-// 本文件的评分只依赖 ChrFEvaluator（纯本地，无 LLM），CI 可跑（AC②）。
+// 本文件的评分只依赖 ChrFEvaluator（纯本地，无 LLM），CI 可跑。
 //
 // 评价维度（turn 级，只评 assistant 回合，user 回合是题面不参评）：
 //  1. ChrF：候选回复 vs 标准回复的字符/词 n-gram F 分；

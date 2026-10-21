@@ -175,7 +175,7 @@ func NewWebhookService(db *gorm.DB) *WebhookService {
 	s.startRecoveryScanner()
 	// 免打扰（23:00-07:00）到期回复的投递循环必须在服务装配时就起来：原先唯一启动点
 	// 藏在 enqueueDelayedOutbound 内部，即"只有再次命中免打扰才会有人消费"，
-	// 进程重启后已到期的 AI 回复会永久搁置（T-P0-07）。
+	// 进程重启后已到期的 AI 回复会永久搁置。
 	s.startDelayedOutboundDispatch()
 
 	// 审计 N-04：此处原先注册 globalReorderBuffer.FlushHandler（WhatsApp 乱序缓冲的

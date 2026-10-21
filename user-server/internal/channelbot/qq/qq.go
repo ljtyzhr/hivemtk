@@ -6,7 +6,7 @@
 // 鉴权链路：
 //   - AppID + AppSecret → POST /app/getAppAccessToken 换 access_token（7200s，服务端缓存临期刷新）
 //   - API 请求头 Authorization: QQBot {access_token}
-//   - 事件推送域名 api.bot.qq.com（2026-08-10 起统一，沙箱 sandbox.api.sgroup.qq.com）
+//   - 事件推送域名 api.bot.qq.com
 //
 // 回调验签（Ed25519，官方《签名生成》）：
 //   - 由 BotSecret 派生 seed：repeat 补齐后截取 32 字节，ed25519.GenerateKey 生成密钥对
@@ -470,7 +470,7 @@ func (a Attachment) mediaKind() string {
 		return kindFile
 	}
 	// content_type 缺失/新增取值时按 URL 后缀兜底，未知一律按文件处理
-	//（按图片存会在工作台渲染成破图，按文件存至少能下载原名）。
+	// （按图片存会在工作台渲染成破图，按文件存至少能下载原名）。
 	switch strings.ToLower(path.Ext(strings.SplitN(a.URL, "?", 2)[0])) {
 	case ".jpg", ".jpeg", ".png", ".gif", ".bmp", ".webp":
 		return kindImage

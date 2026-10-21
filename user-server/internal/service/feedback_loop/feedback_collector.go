@@ -205,7 +205,7 @@ func (c *FeedbackCollector) lookupWeight(key dto.FeedbackSignalKey) float64 {
 	return 0
 }
 
-// collectionRewardCap 回款金额缩放的上确界（T-P8-02）：再大的单也不许一次吃掉
+// collectionRewardCap 回款金额缩放的上确界：再大的单也不许一次吃掉
 // 超过一个半转化（2.0×1.5）的 reward，话术池的探索不能被土豪单锁死。
 const collectionRewardCap = 3.0
 
@@ -249,7 +249,7 @@ func (c *FeedbackCollector) computeReward(key dto.FeedbackSignalKey, value any, 
 			return -weight * 1.6
 		}
 	case dto.FBSignalCollection:
-		// 回款金额缩放（T-P8-02）：reward = weight * log10(1+累计settled)。
+		// 回款金额缩放：reward = weight * log10(1+累计settled)。
 		// 金额跨 3 个量级（百→十万），线性会让大单吞掉一切；log10 下 1 万 ≈ 2.0，
 		// 与 conversion 的 +2.0 同量级；封顶 3.0 防巨单独大。v<=0 给 0（冲销退回
 		// 不倒扣 —— 倒扣的那一格由 collection_lost 负责，职责不串）。

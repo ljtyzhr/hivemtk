@@ -87,7 +87,7 @@ type CompensationPlan struct {
 // 计划保留有上界（config.MaxPlansKept）：本管理器在 T-P1-02 后是**进程级单例**，
 // 原先 plans 只增不减 ⇒ 每次失败执行泄漏一条计划（含全部节点记录），
 // 故障风暴（如 LLM 集群不可用致大量 SOP 失败）下会无界增长。现按写入顺序淘汰最旧的，
-// 因此 Summary()/GetPlan() 只覆盖"最近 N 次"，不是全量史册；全量留档属 DB 侧（T-P1-08）。
+// 因此 Summary()/GetPlan() 只覆盖"最近 N 次"，不是全量史册；全量留档属 DB 侧。
 type CompensationManager struct {
 	mu     sync.RWMutex
 	plans  map[uint]*CompensationPlan
@@ -430,7 +430,7 @@ func (m *CompensationManager) Summary() CompensationSummary {
 	return summary
 }
 
-// compensationEnvVar Saga 补偿挂载开关（T-P1-02）。默认关闭 = 现网行为零变化。
+// compensationEnvVar Saga 补偿挂载开关。默认关闭 = 现网行为零变化。
 const compensationEnvVar = "FF_LTC_SAGA_COMPENSATION"
 
 // compensationEnabledFn 判定入口，测试可替换（先例：checkpointEnabledFn）。

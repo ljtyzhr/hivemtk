@@ -75,7 +75,7 @@ type ExecutionContext struct {
 	StartedAt     time.Time
 	Attempt       int
 
-	// ApprovalOutcome 审批定时器点火后回读到的结论（T-P5-03）。
+	// ApprovalOutcome 审批定时器点火后回读到的结论。
 	//
 	// 只有"这一条任务由 wait_event=approval 的定时器点火派生、且目标节点不是 wait 节点"
 	// 时非空。为什么要分这里而不是把结论并进 ExecutionData：wait 节点的既有语义是

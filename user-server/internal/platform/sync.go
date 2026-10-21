@@ -117,7 +117,7 @@ func registerMerchantAs(key string, req RegisterMerchantReq) error {
 }
 
 // CheckConnection 探测平台连通性。三处调用点（app-config / 同步 / 健康检查）要的都是
-// "平台在不在"，不是"授权状态"——后者属商业版契约，开源平台从未实现该端点（R12）。
+// "平台在不在"，不是"授权状态"——后者属商业版契约，开源平台从未实现该端点。
 func CheckConnection() error {
 	return NewPlatformClient(merchantKey).CheckConnection()
 }

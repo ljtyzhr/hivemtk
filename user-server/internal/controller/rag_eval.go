@@ -1,4 +1,4 @@
-// Package controller - RAG 自动评估 Pipeline（G4）
+// Package controller - RAG 自动评估 Pipeline
 package controller
 
 import (

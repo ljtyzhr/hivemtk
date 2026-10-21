@@ -496,7 +496,7 @@ func (s *TelegramService) CreateAccount(ctx context.Context, acc *model.Telegram
 				acc.LastErrorMsg = err.Error()
 				// 行自证（specs/001-saas-multi-tenant T027）：本协程是 HTTP 建号请求的收尾，
 				// 脱离了请求 ctx，但账号行刚创建、acc.TenantID 已由 on 模式隔离 callback 填好
-				//（off 模式为 0 → WithTenantID 原样返回，行为与旧版本等价）。裸
+				// （off 模式为 0 → WithTenantID 原样返回，行为与旧版本等价）。裸
 				// context.Background() 在 TENANT_MODE=on 下这次 Update 会被 fail-closed 拒绝。
 				_ = s.accRepo.Update(tenant.WithTenantID(context.Background(), acc.TenantID), acc)
 			} else {
@@ -629,7 +629,7 @@ func (s *TelegramIntegrationService) SendMessage(ctx context.Context, accountID 
 // 必须含 accountID：message_hub 唯一键是 (platform,msg_id,conversation_id)，不含账号，
 // 而 TG 的 message_id 是「每个 bot 每个 chat 各自计数」——两个 bot 服务同一个客户时
 // 必然产生相同编号，只写 tg-<message_id> 会撞唯一键，导致发送已成功却落库失败，
-// 上层据「无出站记录」误判未回复并重复生成投递（2026-09-19 实测）。
+// 上层据「无出站记录」误判未回复并重复生成投递。
 func telegramOutboundHubMsgID(accountID uint, messageID int64) string {
 	if messageID > 0 {
 		return fmt.Sprintf("tg-out-%d-%d", accountID, messageID)
@@ -679,7 +679,7 @@ func (s *TelegramIntegrationService) SendMessageWithReceipt(ctx context.Context,
 			logger.Warnf("[tg] 新 token 持久化失败 account=%d: %v", acc.ID, uErr)
 		}
 		// 失败也要留出站轨迹：否则会话里只剩客户入站行，事后既看不出 AI 生成过回复、
-		// 也看不出投递失败（2026-09-19 断网验证：日志有 outbound send failed，库里零痕迹）。
+		// 也看不出投递失败。
 		s.pushTelegramSendFailureTrace(ctx, accountID, chatID, content, err)
 		return "", fmt.Errorf("send tg msg: %w", err)
 	}

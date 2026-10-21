@@ -155,7 +155,7 @@ func (r *obsConfigRepo) GetDefault(ctx context.Context) (*model.ObsConfig, error
 // 反过来则存在一个"两条都为真"的瞬间——它只活在事务内，外部读不到，
 // 提交前一定会被第二句清掉。
 //
-// 目标行不存在时必须报错并回滚：旧实现把 ClearDefault 先提交了，第二句影响 0 行
+// 目标行不存在时必须报错并回滚：旧写法把 ClearDefault 先提交了，第二句影响 0 行
 // 仍返回 nil，库里留下"零条默认"，全站上传与媒体转存从此再没有自愈路径。
 func (r *obsConfigRepo) SetDefault(ctx context.Context, id string) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {

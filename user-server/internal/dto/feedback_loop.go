@@ -21,10 +21,10 @@ const (
 	FBSignalScriptAdopt  FeedbackSignalKey = "script_adopt"
 	FBSignalToolCall     FeedbackSignalKey = "tool_call"
 	FBSignalIntentMatch  FeedbackSignalKey = "intent_match"
-	// FBSignalCollection 回款金额信号（T-P8-02）：value = 本次结算后累计 settled 金额，
+	// FBSignalCollection 回款金额信号：value = 本次结算后累计 settled 金额，
 	// reward 按 log10 缩放（weight 作缩放系数），封顶见 computeReward。
 	FBSignalCollection FeedbackSignalKey = "collection"
-	// FBSignalCollectionLost 丢单负样本（T-P8-02）：MarkLost 真跃迁时 emission，
+	// FBSignalCollectionLost 丢单负样本：MarkLost 真跃迁时 emission，
 	// flat 负 reward 走 default 分支（weight 即 reward）。
 	FBSignalCollectionLost FeedbackSignalKey = "collection_lost"
 )

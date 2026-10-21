@@ -14,7 +14,7 @@ import (
 //
 // C7 裁定的落法：**Active 不自建 Agent 循环**。它把一次主动运行整个交给 SOP 引擎
 // （`SOPService.Execute`），工具链与出域都由 SOP 节点执行器去做 —— 于是闸门（T-P3-07 /
-// T-P5-03）与归因（P8）天然只有一条路可走。本包因此**不许** import 会话引擎
+// T-P5-03）与归因天然只有一条路可走。本包因此**不许** import 会话引擎
 // （`service` / `agent/runtime`），AC② 由 `TestActiveNeverImportsConversationEngine` 钉住。
 //
 // 三步职责的边界（本处刻意不做的事都写在这里，不藏在代码里）：

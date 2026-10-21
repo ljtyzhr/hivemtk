@@ -1,4 +1,4 @@
-// Package service - RAG 自动评估 Pipeline（G4）
+// Package service - RAG 自动评估 Pipeline
 //
 // 自动跑 RAG 评测：取知识库文档切片 → 生成问题 → 用 RAG 检索回答 → 评估 recall/precision → 记录
 //

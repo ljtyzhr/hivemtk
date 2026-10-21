@@ -58,7 +58,7 @@ type ReplayStats struct {
 
 // partitionBridgeChannels 按"此刻收不收得到"把渠道划成在线/离线两批。
 //
-// 两侧必须互斥且并集为全集：旧实现里"离线"取自一条永远报 42703 的 bridge_metrics
+// 两侧必须互斥且并集为全集：旧写法里"离线"取自一条永远报 42703 的 bridge_metrics
 // 聚合查询、"在线"根本没有这一侧，于是回扫既检不出渠道，也谈不上投递。
 //
 // 判据取行上的 Reachable（SQL 侧按 grace 窗口算），不取 status：status='online' 是粘住的列，
@@ -175,7 +175,7 @@ func (s *BridgeOfflineReplayService) DetectOnlineChannels(ctx context.Context) (
 //
 // 从 reach_delayed_outbound 取到期的 pending 行，先抢占（pending→sending）再投到
 // DeliverBridgeOutbound 出站管道，成功收口 sent、失败回到 pending 累计 attempts。
-// 收口写失败必须报警：旧实现用 `_ =` 吞掉 42703，行永远停在 pending，
+// 收口写失败必须报警：旧写法用 `_ =` 吞掉 42703，行永远停在 pending，
 // 同一条消息每 5 分钟重投一次。
 func (s *BridgeOfflineReplayService) ReplayDelayedOutbound(ctx context.Context, platform, accountID string, limit int) (replayed, failed int64) {
 	if s.repo == nil {

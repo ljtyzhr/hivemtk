@@ -69,7 +69,7 @@ func extractHTMLText(data []byte) string {
 	return collapseSpaces(buf.String())
 }
 
-// 第十六轮审计（2026-09-19）：外部文档是"小文件大输出"的放大攻击面——
+// 第十六轮审计：外部文档是"小文件大输出"的放大攻击面——
 // zip 的 deflate 最大膨胀比约 1000:1，一个贴着上传上限的 .docx 可让
 // word/document.xml 解出数 GB 直接把进程打爆（内存 DoS）。所有解析器
 // 的**解压/累积输出**统一在此设硬上限，超上限视为炸弹/畸形文档报错，

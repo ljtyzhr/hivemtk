@@ -132,18 +132,18 @@ func BuildSmartOrchestrator(engine *service.SalesEngine, kbRepo *repository.Know
 		o.SetDNCChecker(dncSvc)
 	}
 
-	// 订单草稿生产者（T-P2-06）：运行时由 router.Setup 里的 InitOrderDraftRuntime 装配，
+	// 订单草稿生产者：运行时由 router.Setup 里的 InitOrderDraftRuntime 装配，
 	// 这里只负责"挂上"。拿不到运行时（旗子 FF_LTC_ORDER_DRAFT_DB=off）时什么都不挂：
 	// 编排器的生产者字段保持零值 nil，HandleIncomingWithAgent 尾部那条 `!= nil` 分支
 	// 因此根本不进（由 TestRunOrderDraftProduce_NilProducerIsNoop 锁定）。
 	attachOrderDraftProducer(o, currentOrderDraftRuntime())
 
-	// 会话人工待办生产者（T-P3-03）：全局底座由 router.Setup 里的 InitHumanTaskRuntime
-	// 装配，这里只负责挂。没装配（拿不到 DB 句柄）时挂的是 nil，与"本卡之前"逐字一致。
+	// 会话人工待办生产者：全局底座由 router.Setup 里的 InitHumanTaskRuntime
+	// 装配，这里只负责挂。没装配（拿不到 DB 句柄）时挂的是 nil，与"本处之前"逐字一致。
 	attachHumanTaskProducer(o)
 
-	// Bad Case 自动标记器（T-P8-03）：全局底座同样由 router.Setup 里的 InitBadCaseRuntime
-	// 装配，这里只负责挂。没装配时挂的是 nil ⇒ 低质回答不留痕，回答路径与本卡之前逐字一致。
+	// Bad Case 自动标记器：全局底座同样由 router.Setup 里的 InitBadCaseRuntime
+	// 装配，这里只负责挂。没装配时挂的是 nil ⇒ 低质回答不留痕，回答路径与本处之前逐字一致。
 	attachBadCaseMarker(o)
 
 	// 语义答案缓存：四样零件都在，缺的一直是装配（详见 faq_cache_wiring.go）。

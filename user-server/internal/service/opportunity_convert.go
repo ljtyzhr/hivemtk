@@ -17,7 +17,7 @@
 //  3. 幂等 —— 闸门之后才查"这条线索是不是已经有商机了"。放在闸门之前会为了一个
 //     注定不建的行去读库；放在写之后则根本来不及。
 //
-// 本层**一个字节都不写 clues.is_opportunity**（AC②）。那一列今天的语义是挖掘侧按
+// 本层**一个字节都不写 clues.is_opportunity**。那一列今天的语义是挖掘侧按
 // intent_score 顺手打上的热度标记（lead_mining.go 与 lead_miner_unified.go 两处都在写），
 // 不是"这条线索已经变成商机"。两处都写 ⇒ 同一列承载两个判据、取值时刻还不同，
 // 旧读取方（列表筛 COALESCE(is_opportunity,0)>=1）看到的人群会凭空换一批。
@@ -118,7 +118,7 @@ type OpportunityConvertService struct {
 	// now 同时喂三处：主键的时间段、赢率的逾期判据、审计的时间痕。
 	// 分叉成两个时钟会出现"这一行刚建出来就已经逾期"这种自相矛盾的形状。
 	now func() time.Time
-	// trace 全链路埋点写口（T-P8-01）：nil = 没装，转化照常，不阻塞。
+	// trace 全链路埋点写口：nil = 没装，转化照常，不阻塞。
 	trace salesTraceWriter
 }
 

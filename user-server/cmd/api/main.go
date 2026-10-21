@@ -283,7 +283,7 @@ func main() {
 		logger.Info("[ConfigParam] urls 组接线 " + strconv.Itoa(len(wired)) + " 条")
 	}
 
-	// reporting 组（F3）：报表默认窗口天数。点位横跨 repository/controller/geo/
+	// reporting 组：报表默认窗口天数。点位横跨 repository/controller/geo/
 	// knowledge/ops 等不能反向 import service 的包，走 provider 注入。
 	if wired := app.WireReportingConfigParams(); len(wired) > 0 {
 		logger.Info("[ConfigParam] reporting 组接线 " + strconv.Itoa(len(wired)) + " 条")
@@ -481,7 +481,7 @@ func main() {
 	execDispatcher := service.InitSOPExecutionDispatcher(db.GetDB(), scheduler.SOPService(context.Background()), nil)
 	defer execDispatcher.Stop(context.Background())
 	execDispatcher.SetWSHub(context.Background(), websocket.GetHub())
-	// W-2 Saga 补偿挂载（T-P1-02）：FF_LTC_SAGA_COMPENSATION 关时不注入，失败路径与今天一致。
+	// W-2 Saga 补偿挂载：FF_LTC_SAGA_COMPENSATION 关时不注入，失败路径与今天一致。
 	sopCompensationMgr := service.InitSOPCompensation(execDispatcher)
 	if sopCompensationMgr != nil {
 		// 灰度期观测：退出前把内存保留的补偿摘要打出来，作为"这条接线是否可默认开启"的证据来源。
@@ -641,7 +641,7 @@ func main() {
 
 	registerEventSubscribers()
 
-	// 阶段边界断点续跑（T-P1-01）：必须在 router.Setup 之前装配，
+	// 阶段边界断点续跑：必须在 router.Setup 之前装配，
 	// 否则 InitInferenceOrchestrator 构造推理闭环时拿不到 store。
 	app.InitAgentCheckpointStore(db.GetDB())
 

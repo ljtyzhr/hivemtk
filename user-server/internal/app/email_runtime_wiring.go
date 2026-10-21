@@ -1,4 +1,4 @@
-// email_runtime_wiring.go 排期邮件排水的装配层（R21）。
+// email_runtime_wiring.go 排期邮件排水的装配层。
 //
 // 一句话职责：把"到期该发的邮件真的发出去"这件事挂到进程上。在此之前
 // EmailSendService.ProcessPendingEmails 全仓非测试调用点为 0，而 dto.SendEmailRequest

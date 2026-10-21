@@ -3,7 +3,7 @@
 // 为什么放在 mail 包（与 unsubscribe.go 同一个理由）：单封投递走
 // internal/email/service.sendActualEmail，营销群发走 internal/pkg/cron.EmailListCron。
 // "粘贴进来的那串值算不算一个本站附件"写在任何一条路径的包里，另一条都会各写一份，
-// 然后各自漂移。而两份旧实现（各写死一个扁平根 uploads/attachments + 抹掉全部斜杠再取
+// 然后各自漂移。而两份旧写法（各写死一个扁平根 uploads/attachments + 抹掉全部斜杠再取
 // Base）实测永远 Stat 不到文件：上传侧落盘是 {baseDir}/attachments/{yyyy}/{mm}/{uuid}.{ext}，
 // 于是附件被静默丢弃，邮件照样标成已发送 —— 没人知道用户的附件从来没寄出去过。
 package mail

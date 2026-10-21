@@ -24,7 +24,7 @@ import (
 // AgentStageNames 五阶段顺序（恢复游标依据）
 var AgentStageNames = []string{"perception", "alignment", "gatekeeper", "planner", "reviewer"}
 
-// checkpointEnvVar 断点续跑挂载开关（T-P1-01）。默认关闭 = 现网行为零变化。
+// checkpointEnvVar 断点续跑挂载开关。默认关闭 = 现网行为零变化。
 const checkpointEnvVar = "FF_LTC_CHECKPOINT"
 
 // checkpointEnabledFn 判定入口，测试可替换（先例：aiReplyQuietHoursFn）。

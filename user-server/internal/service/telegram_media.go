@@ -15,7 +15,7 @@ import (
 	"hivemtk-user/internal/pkg/utils/logger"
 )
 
-// TG 入站媒体（M-01）。
+// TG 入站媒体。
 //
 // 修复前的形状：TGMessage 只有 Text/Caption 两个正文字段，photo/video/voice/audio/document/
 // sticker 一个都没声明 ⇒ 官方推来的媒体容器在解析阶段就被丢弃，MsgType 又写死 "text"，

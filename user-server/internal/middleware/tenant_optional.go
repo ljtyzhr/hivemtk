@@ -8,7 +8,7 @@ import (
 
 // TenantBindIfAuthenticated 公开端点的「登录则绑租户」中间件。
 //
-// 背景（2026-10-22 线上实测）：功能模块市场是**公开橱窗档**（未登录也能逛，
+// 背景：功能模块市场是**公开橱窗档**（未登录也能逛，
 // 见 module_routes.go 的 public 组注释），所以它不挂 TenantMiddleware ——
 // 请求 ctx 里没有租户。于是：
 //

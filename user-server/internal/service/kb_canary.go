@@ -95,7 +95,7 @@ func kbCachePromptVersion(version int) string {
 // kbCanaryTargetVersion 灰度组落在哪个版本号上：稳定版本号的下一个。
 //
 // 下一个号而不是带后缀的临时号，是为了让"转正"退化成一次指针移动：灰度组已经焐热的
-// 行正好就是新版稳定流量的行，不需要重灌（AC②）。
+// 行正好就是新版稳定流量的行，不需要重灌。
 func kbCanaryTargetVersion(version int) int {
 	if version < 1 {
 		version = 1

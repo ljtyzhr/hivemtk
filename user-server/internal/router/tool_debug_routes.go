@@ -370,7 +370,7 @@ type toolCircuitResetRequest struct {
 	ToolName string `json:"tool_name" binding:"required"`
 }
 
-// handleToolCircuitState 读取工具熔断的接线状态与判定累计（T-P1-04）。
+// handleToolCircuitState 读取工具熔断的接线状态与判定累计。
 //
 // 为什么要一次读两套：本项目有两处互不相干的"熔断"——
 //   - executor 装饰链上的 tooluse.CircuitBreakerRegistry（本处接上，按工具累计连续失败）
@@ -545,7 +545,7 @@ func handleToolApprovalState(c *gin.Context) {
 	response.Success(c, out, "ok")
 }
 
-// reachGateStatePayload 外发闸门的回显口径（T-P3-07）。
+// reachGateStatePayload 外发闸门的回显口径。
 //
 // 与 approvalStatePayload 同形，但三个读数是 reach 专属的、缺一不可：
 //   - whitelist_entries_for_reach：授权表两条路径共用，只看总数会把"工具侧批了 5 个"
@@ -606,7 +606,7 @@ func reachGateStatePayload(snap app.ReachGateSnapshot) gin.H {
 	return out
 }
 
-// handleReachGateState 读取非工具外发闸门的接线状态与判定累计（T-P3-07）。
+// handleReachGateState 读取非工具外发闸门的接线状态与判定累计。
 // 回显口径见 reachGateStatePayload。
 func handleReachGateState(c *gin.Context) {
 	snap, decisions := app.GetReachGateSnapshotFor(c.Request.Context())

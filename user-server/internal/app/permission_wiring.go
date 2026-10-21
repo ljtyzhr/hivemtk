@@ -52,7 +52,7 @@ type riskGateMode string
 const (
 	riskGateOff    riskGateMode = "off"
 	riskGateShadow riskGateMode = "shadow"
-	// riskGateBlock 阻断（T-P9-01）：would_deny 变成真拦截。回滚 = 把旗子置回 off/shadow。
+	// riskGateBlock 阻断：would_deny 变成真拦截。回滚 = 把旗子置回 off/shadow。
 	riskGateBlock riskGateMode = "block"
 )
 

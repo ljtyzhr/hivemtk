@@ -49,7 +49,7 @@ func (r *browserCommandLogRepo) ListBySessionID(ctx context.Context, sessionID u
 	return list, err
 }
 
-// pruneBatchRows 治理裁剪的单批行数（G19）：command_log 与 llm_plans 共用同一口径，
+// pruneBatchRows 治理裁剪的单批行数：command_log 与 llm_plans 共用同一口径，
 // 两处各自写死一个字面量的话，改一处就等于「一半分批、一半整表」。
 // 分批的理由是锁持有时间：首次上线时超期行数等于历史全量，一条语句吃完就是长事务。
 // 改这个值要连 repository/retention_b19g_test.go 的种子（一批 + 1 行）一起看，

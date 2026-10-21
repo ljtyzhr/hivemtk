@@ -346,7 +346,7 @@ func (s *Service) persistLead(ctx context.Context, cfg *model.LeadMiningConfig, 
 	if err := s.clueRepo.Create(ctx, clue); err != nil {
 		logger.Warnf("[lead-mining] 写入线索失败 account=%s: %v", account, err)
 		// 线索没落库就不转：商机行的 clue_id 是一个没有下家的引用，
-		// 而本表不建外键（T-P4-01），这条断链谁都不会发现。
+		// 而本表不建外键，这条断链谁都不会发现。
 		return
 	}
 	s.tryConvertToOpportunity(ctx, clue.ID, customer, jd)

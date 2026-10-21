@@ -482,7 +482,7 @@ func NewCustomerServiceAgentService() *CustomerServiceAgentService {
 // 的唯一入口（它要复用 router 装配好的 agentSvc），而 GetMyAgent 走
 // GetOrCreateAgentStatusByUserID → agentStatusRepo.GetByAgentID。装配缺项时
 // r.db 为 nil ⇒ nil pointer panic ⇒ 线上 GET /api/agents/me 返回 500
-// （2026-10-21 生产事故：既有测试全用无参构造器，照不到这条腿）。
+// 。
 func NewCustomerServiceAgentServiceViaPort(agentSvc *AIAgentService) *CustomerServiceAgentService {
 	repo := repository.NewCustomerServiceAgentRepository()
 	repo.SetDB(context.Background(), repository.GetDB())

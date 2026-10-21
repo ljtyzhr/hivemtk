@@ -342,7 +342,7 @@ func SetupGeoRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 // geoLeadReporter GEO 捕获线索计数。
 //
 // v3.56.0 起 GEO 捕获有独立类型号 18（存量 9 已改判），所以按类型统计即可；
-// 旧实现写死 type=9 且靠 source_id 前缀排除抖音线索——改判后恒为 0。
+// 旧写法写死 type=9 且靠 source_id 前缀排除抖音线索——改判后恒为 0。
 type geoLeadReporter struct{ clues mainrepo.ClueRepository }
 
 func newGeoLeadReporter(clues mainrepo.ClueRepository) *geoLeadReporter {

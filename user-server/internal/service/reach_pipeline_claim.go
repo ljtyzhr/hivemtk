@@ -207,7 +207,7 @@ func (s *ReachPipelineService) dispatchDueJobs(ctx context.Context) {
 	// ctx 未绑定（update）"、"拉取到期任务失败: ...（query）"）。调度器由
 	// StartDispatcher(context.Background(), ...) 启动，没有 HTTP 请求 ctx 可绑，走
 	// tenant.WithSystemScope 这条平台级豁免通道；不放宽任何带请求 ctx 的 HTTP 路径
-	//（ExecuteJob 走的是 request ctx，不经本函数）。
+	// （ExecuteJob 走的是 request ctx，不经本函数）。
 	ctx = tenant.WithSystemScope(ctx)
 	if _, err := s.repo.ResetStuckJobs(ctx, 10*time.Minute); err != nil {
 		logger.Errorf("[reach_dispatcher] 恢复 stuck 任务失败: %v", err)

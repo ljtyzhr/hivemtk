@@ -151,7 +151,7 @@ func RiskGateDecorator(t Tool, grants AgentGrantReader, observer RiskObserver) T
 }
 
 // ErrRiskDenied 阻断模式下"高危且未逐条授权"调用的拒绝原因哨兵。
-// 与 ErrPermissionDenied 分开：一个是"后果分级"的拒（P9），一个是"授权检查"的拒。
+// 与 ErrPermissionDenied 分开：一个是"后果分级"的拒，一个是"授权检查"的拒。
 var ErrRiskDenied = fmt.Errorf("tool risk denied")
 
 // RiskGateBlockDecorator 把判定变成阻断（T-P9-01 / G-3）：deny ⟺ WouldDeny。

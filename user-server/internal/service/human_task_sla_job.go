@@ -1,4 +1,4 @@
-// human_task_sla_job.go 转人工待办的 SLA 超时闭环（I2）。
+// human_task_sla_job.go 转人工待办的 SLA 超时闭环。
 //
 // 背景：human_tasks 三类的 SLA 时刻在开放那一刻就写进了各自的列
 // （会话判首响 sla_first_response_at、审批判裁决 sla_decide_at、催收判升级 sla_escalate_at），

@@ -48,7 +48,7 @@ func InitOpportunityRuntime(db *gorm.DB) *service.OpportunityService {
 	svc.SetLostRewardHook(service.WireLostReward(service.GetFeedbackCollector()))
 	service.SetGlobalOpportunityService(svc)
 
-	// 线索→商机的转换竖（T-P4-05）。四个句柄都从同一个 db 出发：
+	// 线索→商机的转换竖。四个句柄都从同一个 db 出发：
 	// 名单接错库的后果不是报错，是每一单都走 no_roster、owner 恒为空 ——
 	// 一个看起来"配置就是这样"的形状，所以这里不给任何一句兜底。
 	conv := service.NewOpportunityConvertService(

@@ -246,7 +246,7 @@ var delayedDispatchStop chan struct{}
 
 func (s *WebhookService) startDelayedOutboundDispatch() {
 	// 先把库里已到期的回复立刻投一轮，再挂 ticker。否则服务重启后到期项要等到
-	// "下一次有人入队"才被顺带启动的消费者取走（T-P0-07）。抢占式 pending→sending
+	// "下一次有人入队"才被顺带启动的消费者取走。抢占式 pending→sending
 	// 保证这一轮与 ticker、与其他实例之间不会重复投递。
 	s.dispatchDueDelayedOutbound(context.Background())
 
@@ -280,7 +280,7 @@ func (s *WebhookService) dispatchDueDelayedOutbound(ctx context.Context) {
 	// callback fail-closed（生产日志实证："[H-3] 延迟出站 TTL 判过期失败，本轮跳过判期但
 	// 不阻断重放: [tenant] 表 reach_delayed_outbound 需要租户上下文但 ctx 未绑定（update）"、
 	// "sending 悬挂行观测查询失败: ...（query）"）。消费者由 context.Background() 启动
-	//（startDelayedOutboundDispatch），没有 HTTP 请求 ctx 可绑，走 tenant.WithSystemScope
+	// （startDelayedOutboundDispatch），没有 HTTP 请求 ctx 可绑，走 tenant.WithSystemScope
 	// 这条平台级豁免通道；不放宽任何带请求 ctx 的路径（本函数无 HTTP 调用方）。
 	ctx = tenant.WithSystemScope(ctx)
 	now := time.Now()
@@ -624,7 +624,7 @@ func (s *WebhookService) sendOutbound(ctx context.Context, channel WebhookChanne
 			if last, qerr := s.messageHubRepo.GetLastInboundByConversation(ctx, hubMsg.ConversationID); qerr == nil && last != nil && !last.SentAt.IsZero() {
 				if time.Since(last.SentAt) > 24*time.Hour {
 					// 超 24h 客服窗口：自由文本会被 Meta 拒收，降级走预审批模板兜底
-					//（模板名可用环境变量按账号/全局配置；未配置模板时维持原失败语义）。
+					// （模板名可用环境变量按账号/全局配置；未配置模板时维持原失败语义）。
 					tplName := os.Getenv("WHATSAPP_FALLBACK_TEMPLATE")
 					if tplName == "" {
 						logger.Ctx(ctx).Warn().

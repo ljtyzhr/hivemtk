@@ -165,7 +165,7 @@ func DefaultParamDefs() []ParamDef {
 			Description: "同一会话内 AI 连续回复超过此次数后强制转人工",
 			ValueType:   "int", Unit: "次", DefaultValue: "10", Min: strPtr("2"), Max: strPtr("50"), Step: strPtr("1")},
 
-		// human_task.handoff_first_response_minutes（T-P3-03）：键名这里是一串字面量、
+		// human_task.handoff_first_response_minutes：键名这里是一串字面量、
 		// 服务侧读的是 service.HumanTaskConfigGroup / HumanTaskHandoffSlaKey 两个常量，
 		// 两边打错任意一处都**不会报错**，只会让运维改参数永远不生效（GetInt 安静回退默认值）。
 		// 所以一致性由 TestHumanTaskSeedKeyMatchesServiceConstants 逐字锁住。
@@ -881,7 +881,7 @@ func DefaultParamDefs() []ParamDef {
 			Description: "按路径覆写限流配额的整份 JSON：{\"/api/path\": {\"rps\": 每秒请求数, \"bucket_size\": 令牌桶容量}}。每客户端（IP）×路径独立计数——一个客户端打满不影响其他客户端；路径必须以 / 开头且 rps/bucket_size 为正，非法条目单条丢弃并打 Warn；整份为空或解析失败回落内置默认四条（external-orders-by-customer / ai-suggestions / trace-eval/trigger / reach）。每请求热读（参数中心 60s 缓存），改表 60s 内生效（已有桶在参数变化时按新值重建），未列入配额表的路径不受此限流影响",
 			ValueType:   "json", Risk: "danger", DefaultValue: `{"/api/integrations/external-orders-by-customer":{"rps":5,"bucket_size":20},"/api/ai-suggestions":{"rps":3,"bucket_size":10},"/api/monitor/trace-eval/trigger":{"rps":1,"bucket_size":5},"/api/reach":{"rps":50,"bucket_size":500}}`, Category: "限流"},
 
-		// ── 免打扰窗口：两条独立管道、四条键，禁止合并（R2）──────────────
+		// ── 免打扰窗口：两条独立管道、四条键，禁止合并──────────────
 		// reach 组管「全渠道触达管线」的静默时段（原 reach_send_pipeline_quiethours.go
 		// 硬编码 22-8）；webhook 组管「AI 回复」的免打扰（原 webhook_outbound.go 硬编码 23-7）。
 		// 两处是不同管道、允许不同值，故拆成两组键，Description 写明分工。

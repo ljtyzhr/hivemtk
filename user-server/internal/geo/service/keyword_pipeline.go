@@ -45,7 +45,7 @@ func geoPipelineBatchPerRun(ctx context.Context) int {
 //     VerifyArticle（含探针 + 多模型对比），逐词容错，N 可配 geo_pipeline_batch_per_run
 func keywordPipelineJob(ctx context.Context) (string, error) {
 	// 判读（二审 P1-2）：触达租户表 —— geo_seed_terms（种子矩阵）、geo_keywords
-	//（落库/回填/拉取待 SEO 词）、geo_articles 等下游写入，挖掘结果是**本租户**的
+	// （落库/回填/拉取待 SEO 词）、geo_articles 等下游写入，挖掘结果是**本租户**的
 	// 词库 ⇒ 必须逐租户执行（下拉抓取的外部 HTTP 因此为 N 倍，限 30 种子且失败仅
 	// 日志，属可接受代价；LLM SEO 批次本来就是逐词逐租户的）。ctx 已由 JobManager
 	// 绑定本租户，这里不再包 system scope。
@@ -207,7 +207,7 @@ func runPipelineSEOBatch(ctx context.Context, gormDB *gorm.DB, llmAdapter *LLMAd
 		}
 		// 行自证（多租户）：待 SEO 行带 tenant_id，生成/评分/验证落的行必须回到该
 		// 行自己的租户。入口 ctx 已带本租户时 OnlyTenant 是幂等重钉；行 tenant_id=0
-		//（历史空值）时 OnlyTenant 原样返回、无绑定，由隔离 callback 兜底。off 模式
+		// （历史空值）时 OnlyTenant 原样返回、无绑定，由隔离 callback 兜底。off 模式
 		// 下整条链路直通，SQL 形状不变。
 		wordCtx := tenant.OnlyTenant(ctx, pending[i].TenantID)
 		if serr := seoOneWord(wordCtx, contentSvc, verifySvc, lang, kw, brand, advs, models); serr != nil {

@@ -13,7 +13,7 @@ import (
 
 // DefaultMaxJSONBodyMB 是 JSON / 表单请求体的全局上限（MB）。
 //
-// ⚠️ 背景（2026-09-21 · 第十六轮登记的残项）：本仓此前只在**个别入口**设了 body 上限
+// ⚠️ 背景：本仓此前只在**个别入口**设了 body 上限
 // （公网 webhook、MCP 口、bridge 入站、微信回调、商机口各自为政），
 // gin 引擎层面对 JSON 请求体**不设默认上限** ⇒ `c.ShouldBindJSON` 会把整个 body 读进内存。
 // 未封顶的那批口（authed 内部口为主，如 asset-market 的 `io.ReadAll(c.Request.Body)`

@@ -98,7 +98,7 @@ func NewLocalReranker() *LocalReranker {
 //
 // 超时关系（P2-1「RERANK_TIMEOUT 配 60s 无效」根因）：
 // callOnce 每次尝试用 ctx.WithTimeout(cfg.Timeout) 控制单次请求，
-// 而 http.Client.Timeout 是整个请求（含读响应体）的硬上限——旧实现硬编码 30s，
+// 而 http.Client.Timeout 是整个请求（含读响应体）的硬上限——旧写法硬编码 30s，
 // cfg.Timeout=60 时 ctx 还没到期 client 已经掐断，配置形同虚设。
 // 故这里取 max(cfg.Timeout, 30s)：配置更大时放行，配置更小时仍由 ctx 生效（不放大默认值）。
 func NewLocalRerankerWithConfig(cfg *RerankConfig) *LocalReranker {

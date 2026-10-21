@@ -192,7 +192,7 @@ func (s *ProactiveReachService) SetDoNotContact(dnc *DoNotContactService) {
 	s.dnc = dnc
 }
 
-// SetPreSendApprovalChecker 注入发送前审批闸门（T-P3-07）。
+// SetPreSendApprovalChecker 注入发送前审批闸门。
 //
 // 为什么是注入而不是构造参数：闸门依赖 W-1 的白名单与旗子，那些在 main 启动序列里
 // 晚于本服务构造才就绪；与 SetSMSRegistry 等 8 个外发器同一套装配时序。

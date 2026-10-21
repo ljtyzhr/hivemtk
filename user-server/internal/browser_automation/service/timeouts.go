@@ -82,7 +82,7 @@ const (
 	// 无硬超时，goroutine 悬挂会拖死整轮，独立 120s 判负（降级为原 selector 报错）。
 	relocateLLMWatchdog = 120 * time.Second
 	// cronTriggerOpTimeout cron 触发回调内「再校验 enabled + RunTask」的 DB 操作预算
-	//（脱离请求 ctx，后台触发无上游超时可用）。
+	// （脱离请求 ctx，后台触发无上游超时可用）。
 	cronTriggerOpTimeout = 30 * time.Second
 	// sessionTabCleanupBudget 会话收口时回收自身 tab 的单条命令预算。执行 ctx 此时通常已
 	// 取消（超时/中止腿必然如此），必须走 WithoutCancel；close_tab 在扩展侧是一次

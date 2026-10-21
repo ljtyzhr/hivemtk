@@ -10,7 +10,7 @@ import (
 	"hivemtk-user/internal/model"
 )
 
-// ConsumeQuotaAtomic 原子扣减企微账号日配额（W-7）。
+// ConsumeQuotaAtomic 原子扣减企微账号日配额。
 //
 // 原 WeComAccountHealthService.ConsumeQuota 为「读 used → 内存判断 → 写回 used+count」
 // 的读改写模式，并发调用会互相覆盖导致超发。本方法用单条条件 UPDATE 原子完成

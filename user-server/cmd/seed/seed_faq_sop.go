@@ -1250,7 +1250,7 @@ func (s *faqSopSeeder) sopSupportStage() []model.SOPTemplate {
 	return out
 }
 
-// sopRepurchaseStage 复购阶段 (T-P7-04)：回款完成 → 赢单后旅程切 StageRepurchase，
+// sopRepurchaseStage 复购阶段：回款完成 → 赢单后旅程切 StageRepurchase，
 // 跟进提醒挂的 SOPName 就是 repurchase_reminder（SOPName 只是标签，跟进调度器不解析
 // 模板；这里补上同名模板，让 SOP 检索侧也能命中同一套话术，标签与模板两边对得上）。
 func (s *faqSopSeeder) sopRepurchaseStage() []model.SOPTemplate {

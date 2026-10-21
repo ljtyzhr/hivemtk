@@ -1,4 +1,4 @@
-// business_notifier_wiring.go 业务通知生产者的装配层（I8）。
+// business_notifier_wiring.go 业务通知生产者的装配层。
 //
 // 职责与 bad_case_wiring.go 同一条：把"有没有 DB 句柄"翻译成一个可注入的服务、
 // 登记到全局，让三个生产者（订单草稿 / 坏例 / 知识库变更）在请求期现取同一份。

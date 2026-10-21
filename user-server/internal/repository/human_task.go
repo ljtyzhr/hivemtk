@@ -121,7 +121,7 @@ type HumanTaskRepository interface {
 	//
 	// 每类只判自己那一列（会话判首响、审批判裁决、催收判升级）。用
 	// COALESCE(三列) 是这里最省事的写错法：一行 kind 是会话、却被填上审批档时刻的
-	// 脏数据，会按审批档的截止被判逾期，坐席的响应指标当场失真（AC④）。
+	// 脏数据，会按审批档的截止被判逾期，坐席的响应指标当场失真。
 	CountOverdueOpenByKind(ctx context.Context, now time.Time) (map[string]int64, error)
 }
 
@@ -311,7 +311,7 @@ func humanTaskScopeWhere(q HumanTaskQuery) (string, []any, error) {
 // 每类一段 `(kind = ? AND <本类SLA列> IS NOT NULL AND <本类SLA列> <= ?)`，
 // 与 CountOverdueOpenByKind 逐类发出的那三条 WHERE 逐字同源。合并成
 // COALESCE(三列) 是最省事的写错法：一行会话待办被填上审批档时刻就会按审批档判逾期，
-// 坐席的响应指标当场失真（AC④）。kinds 为空时已在上游补成三类，这里不再兜底。
+// 坐席的响应指标当场失真。kinds 为空时已在上游补成三类，这里不再兜底。
 func humanTaskOverdueWhere(kinds []string, now time.Time) (string, []any, error) {
 	if now.IsZero() {
 		now = time.Now()

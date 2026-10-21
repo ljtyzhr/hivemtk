@@ -84,7 +84,7 @@ func (c *HumanTaskController) List(ctx *gin.Context) {
 	response.SuccessWithList(ctx, list, total)
 }
 
-// Counts GET /api/human-tasks/counts —— 未读数聚合（AC③）与每类逾期数（AC④）。
+// Counts GET /api/human-tasks/counts —— 未读数聚合与每类逾期数。
 func (c *HumanTaskController) Counts(ctx *gin.Context) {
 	if !c.svc.Available() {
 		c.unavailable(ctx)
