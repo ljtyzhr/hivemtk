@@ -218,9 +218,15 @@ func (c *ModuleClient) SyncModules(ctx context.Context, tenantCode string) (*Mod
 }
 
 // Market 拉取模块市场
-func (c *ModuleClient) Market(ctx context.Context) (*ModuleMarketRow, error) {
+//
+// tenantCode 为当前租户短码：SaaS 下所有租户共享 merchant_key，平台端的
+// "已拥有"判定不带租户维度就会出现"租户 A 买过的模块在租户 B 的市场里
+// 也显示已拥有"。空串 = 取不到租户归属（后台任务无绑定 / off 模式），
+// 平台按商户级行兜底。
+func (c *ModuleClient) Market(ctx context.Context, tenantCode string) (*ModuleMarketRow, error) {
 	var m ModuleMarketRow
-	if err := c.do("GET", "/merchant-api/module-market", nil, &m); err != nil {
+	path := "/merchant-api/module-market?tenant_code=" + url.QueryEscape(tenantCode)
+	if err := c.do("GET", path, nil, &m); err != nil {
 		return nil, err
 	}
 	return &m, nil

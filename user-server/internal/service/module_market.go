@@ -165,7 +165,7 @@ func marketPriceOf(metaPrice int64, row *model.TenantModule) int64 {
 
 // liveMarketPrices 拉平台 module_catalog 现价表；平台不可达返回 nil（回落内嵌价）。
 func (s *ModuleCatalogService) liveMarketPrices(ctx context.Context) map[string]int64 {
-	snap, err := platform.NewModuleClient().Market(ctx)
+	snap, err := platform.NewModuleClient().Market(ctx, currentTenantCode(ctx))
 	if err != nil || snap == nil {
 		return nil
 	}
