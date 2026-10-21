@@ -2,6 +2,8 @@ package repository
 
 import (
 	"context"
+	"errors"
+	"strings"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -19,9 +21,17 @@ func NewChurnScoreRepository(db *gorm.DB) *ChurnScoreRepository {
 }
 
 // UpsertBatch 周批全量重算 upsert（customer_key 冲突时整行覆盖，computed_at 刷新）
+//
+// 空 customer_key 一律拒绝：它是冲突列，同租户内所有空键会互相覆盖成一行，
+// 而那条 upsert 不会报任何错（评分行数从 N 悄悄变成 1）。
 func (r *ChurnScoreRepository) UpsertBatch(ctx context.Context, rows []model.ChurnScore) error {
 	if len(rows) == 0 {
 		return nil
+	}
+	for i := range rows {
+		if strings.TrimSpace(rows[i].CustomerKey) == "" {
+			return errors.New("churn score repository: customer_key 为空（空键会在同租户内互相覆盖）")
+		}
 	}
 	return r.db.WithContext(ctx).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "tenant_id"}, {Name: "customer_key"}},
