@@ -247,4 +247,7 @@ func RegisterMigrations(registry *migration.MigrationRegistry, db *gorm.DB) {
 	// v3.72.0：geo_entity_relations 唯一键 (tenant_id, entity_a_id, entity_b_id, relation)
 	// ——先按该键去重再建，修复并发抽取写重复关系边；顺带删除 source_doc_id 僵尸列
 	register(NewGeoEntityRelationUniqueKeyMigration(db))
+	// v3.73.0：geo_index_trackings 唯一键 (tenant_id, article_id, engine)——先按该键
+	// 去重再建，保证验证结果幂等写入（原「先 UPDATE 再 INSERT」并发写重复行）
+	register(NewGeoIndexTrackingUniqueKeyMigration(db))
 }

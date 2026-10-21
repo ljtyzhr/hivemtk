@@ -2,6 +2,8 @@ package repository
 
 import (
 	"context"
+	"time"
+
 	"hivemtk-user/internal/geo/model"
 	_db "hivemtk-user/internal/pkg/db"
 
@@ -14,6 +16,10 @@ type GeoArticleRepository interface {
 	GetByID(ctx context.Context, id string) (*model.GeoArticle, error)
 	GetList(ctx context.Context, keyword, status string, page, limit int) ([]*model.GeoArticle, int64, error)
 	Update(ctx context.Context, article *model.GeoArticle) error
+	// Count 文章总数；deployedOnly 为 true 时只统计已部署（deployed_at 非空）
+	Count(ctx context.Context, deployedOnly bool) (int64, error)
+	// ListDeployedNeedingVerify 已部署但 since 之后没有更新过追踪的文章
+	ListDeployedNeedingVerify(ctx context.Context, since time.Time, limit int) ([]*model.GeoArticle, error)
 }
 
 type geoArticleRepo struct {
@@ -37,6 +43,33 @@ func (r *geoArticleRepo) GetByID(ctx context.Context, id string) (*model.GeoArti
 	var article model.GeoArticle
 	err := r.db.WithContext(ctx).Where("id = ?", id).First(&article).Error
 	return &article, err
+}
+
+func (r *geoArticleRepo) Count(ctx context.Context, deployedOnly bool) (int64, error) {
+	var n int64
+	q := r.db.WithContext(ctx).Model(&model.GeoArticle{})
+	if deployedOnly {
+		q = q.Where("deployed_at IS NOT NULL")
+	}
+	err := q.Count(&n).Error
+	return n, err
+}
+
+func (r *geoArticleRepo) ListDeployedNeedingVerify(ctx context.Context, since time.Time, limit int) ([]*model.GeoArticle, error) {
+	if limit <= 0 || limit > 500 {
+		limit = 200
+	}
+	var list []*model.GeoArticle
+	err := r.db.WithContext(ctx).
+		Where("deployed_at IS NOT NULL AND site_url != ''").
+		Where(`NOT EXISTS (
+			SELECT 1 FROM geo_index_trackings t
+			WHERE t.article_id = geo_articles.id AND t.updated_at > ?
+		)`, since).
+		Order("deployed_at DESC").
+		Limit(limit).
+		Find(&list).Error
+	return list, err
 }
 
 func (r *geoArticleRepo) GetList(ctx context.Context, keyword, status string, page, limit int) ([]*model.GeoArticle, int64, error) {

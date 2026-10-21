@@ -26,6 +26,8 @@ type GeoKeywordRepository interface {
 	Delete(ctx context.Context, id string) error
 	GetByCluster(ctx context.Context, cluster string) ([]*model.GeoKeyword, error)
 	GetStatistics(ctx context.Context) ([]map[string]any, error)
+	// CountByLayerStatus 统计指定 layer + status 的关键词数
+	CountByLayerStatus(ctx context.Context, layer, status string) (int64, error)
 }
 
 type geoKeywordRepo struct {
@@ -111,4 +113,12 @@ func (r *geoKeywordRepo) GetStatistics(ctx context.Context) ([]map[string]any, e
 		Group("source").Order("source").
 		Scan(&statistics).Error
 	return statistics, err
+}
+
+func (r *geoKeywordRepo) CountByLayerStatus(ctx context.Context, layer, status string) (int64, error) {
+	var n int64
+	err := r.db.WithContext(ctx).Model(&model.GeoKeyword{}).
+		Where("layer = ? AND status = ?", layer, status).
+		Count(&n).Error
+	return n, err
 }

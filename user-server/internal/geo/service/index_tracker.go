@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"fmt"
 	"net/url"
 	"strings"
 	"sync"
@@ -9,11 +10,8 @@ import (
 
 	"hivemtk-user/internal/geo/model"
 	"hivemtk-user/internal/geo/repository"
-	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/timeutil"
 	"hivemtk-user/internal/pkg/utils/logger"
-
-	"gorm.io/gorm"
 )
 
 // IndexTrackerService 收录追踪 + AI 引用验证
@@ -24,14 +22,28 @@ import (
 // 3. AutoVerifyCron — 每日定时入口（02:00）
 // 4. UpsertDailyStats — 聚合到 geo_daily_stats
 type IndexTrackerService struct {
-	db        *gorm.DB
-	dailyRepo repository.GeoDailyStatRepository
-	probes    []SearchProbe
+	trackingRepo repository.GeoIndexTrackingRepository
+	articleRepo  repository.GeoArticleRepository
+	keywordRepo  repository.GeoKeywordRepository
+	dailyRepo    repository.GeoDailyStatRepository
+	probes       []SearchProbe
 }
 
 // NewIndexTrackerService 创建收录追踪服务（probes 为 AI 搜索探针，可为空）
-func NewIndexTrackerService(db *gorm.DB, dailyRepo repository.GeoDailyStatRepository, probes ...SearchProbe) *IndexTrackerService {
-	return &IndexTrackerService{db: db, dailyRepo: dailyRepo, probes: probes}
+func NewIndexTrackerService(
+	trackingRepo repository.GeoIndexTrackingRepository,
+	articleRepo repository.GeoArticleRepository,
+	keywordRepo repository.GeoKeywordRepository,
+	dailyRepo repository.GeoDailyStatRepository,
+	probes ...SearchProbe,
+) *IndexTrackerService {
+	return &IndexTrackerService{
+		trackingRepo: trackingRepo,
+		articleRepo:  articleRepo,
+		keywordRepo:  keywordRepo,
+		dailyRepo:    dailyRepo,
+		probes:       probes,
+	}
 }
 
 // ArticleStanding 单篇文章站位评分
@@ -41,7 +53,7 @@ type ArticleStanding struct {
 	TotalEngines   int                      `json:"total_engines"`
 	AICitedEngines int                      `json:"ai_cited_engines"`
 	StandingScore  float64                  `json:"standing_score"` // 0-100
-	Trackings      []model.GeoIndexTracking `json:"trackings"`
+	Trackings      []*model.GeoIndexTracking `json:"trackings"`
 }
 
 // FunnelStats 全链路漏斗
@@ -53,26 +65,13 @@ type FunnelStats struct {
 	IndexedByEngine map[string]int     `json:"indexed_by_engine"`
 	AICitedByEngine map[string]int     `json:"ai_cited_by_engine"`
 	ConversionRates map[string]float64 `json:"conversion_rates"`
-	Trackings       []TrackRow         `json:"trackings"`
-}
-
-// TrackRow 收录追踪明细行（JOIN 文章标题）
-type TrackRow struct {
-	ArticleID    string     `gorm:"column:article_id" json:"article_id"`
-	URL          string     `gorm:"column:url" json:"url"`
-	Engine       string     `gorm:"column:engine" json:"engine"`
-	Keyword      string     `gorm:"column:keyword" json:"keyword"`
-	Indexed      bool       `gorm:"column:indexed" json:"indexed"`
-	RankPosition int        `gorm:"column:rank_position" json:"rank_position"`
-	AICited      bool       `gorm:"column:ai_cited" json:"ai_cited"`
-	AICiteCount  int        `gorm:"column:ai_cite_count" json:"ai_cite_count"`
-	LastChecked  *time.Time `gorm:"column:last_checked" json:"last_checked"`
+	Trackings       []repository.TrackRow `json:"trackings"`
 }
 
 // VerifyArticleFull 单篇全链路验证：真实调用 AI 搜索探针，检测文章 URL 是否被引用
 func (s *IndexTrackerService) VerifyArticleFull(ctx context.Context, articleID string) (*ArticleStanding, error) {
-	var article model.GeoArticle
-	if err := s.db.WithContext(ctx).First(&article, "id = ?", articleID).Error; err != nil {
+	article, err := s.articleRepo.GetByID(ctx, articleID)
+	if err != nil {
 		return nil, err
 	}
 
@@ -120,38 +119,26 @@ func (s *IndexTrackerService) VerifyArticleFull(ctx context.Context, articleID s
 				continue
 			}
 			now := oc.checked
-			updates := map[string]any{
-				"ai_cited":      oc.cited > 0,
-				"ai_cite_count": oc.cited,
-				"url":           article.SiteURL,
-				"last_checked":  now,
-				"updated_at":    now,
+			tracking := &model.GeoIndexTracking{
+				ArticleID:   article.ID,
+				Engine:      oc.engine,
+				URL:         article.SiteURL,
+				Keyword:     query,
+				AICited:     oc.cited > 0,
+				AICiteCount: oc.cited,
+				LastChecked: &now,
 			}
-			res := s.db.WithContext(ctx).Model(&model.GeoIndexTracking{}).
-				Where("article_id = ? AND engine = ?", article.ID, oc.engine).
-				Updates(updates)
-			if res.Error != nil {
-				logger.Warnf("VerifyArticleFull: 更新 tracking %s 失败: %v", oc.engine, res.Error)
-				continue
-			}
-			if res.RowsAffected == 0 {
-				tracking := model.GeoIndexTracking{
-					ArticleID:   article.ID,
-					Engine:      oc.engine,
-					URL:         article.SiteURL,
-					Keyword:     query,
-					AICited:     oc.cited > 0,
-					AICiteCount: oc.cited,
-					LastChecked: &now,
-				}
-				_ = s.db.WithContext(ctx).Create(&tracking).Error
+			if err := s.trackingRepo.UpsertCitation(ctx, tracking); err != nil {
+				logger.Warnf("VerifyArticleFull: 更新 tracking %s 失败: %v", oc.engine, err)
 			}
 		}
 	}
 
 	// 站位评分以 DB 最终状态为准，避免内存零值误判
-	var tracked []model.GeoIndexTracking
-	s.db.WithContext(ctx).Where("article_id = ?", article.ID).Find(&tracked)
+	tracked, err := s.trackingRepo.ListByArticle(ctx, article.ID)
+	if err != nil {
+		return nil, err
+	}
 	as.Trackings = tracked
 	as.TotalEngines = len(tracked)
 	for _, t := range tracked {
@@ -165,14 +152,9 @@ func (s *IndexTrackerService) VerifyArticleFull(ctx context.Context, articleID s
 	return as, nil
 }
 
-// activeProbes 返回可用探针（构造注入优先，懒加载 DB 装配兜底）
+// activeProbes 返回构造时注入的探针。
+// 装配（含 DB 读取）由 router 在启动期用 system scope 完成，服务层不再持有 DB。
 func (s *IndexTrackerService) activeProbes() []SearchProbe {
-	if len(s.probes) > 0 {
-		return s.probes
-	}
-	// 探针装配是平台级全局动作（同 search_probe.NewEngineProbes）：system scope
-	// 豁免，不按请求租户过滤引擎清单。
-	s.probes = NewEngineProbesFromDB(tenant.WithSystemScope(context.Background()), s.db)
 	return s.probes
 }
 
@@ -221,42 +203,43 @@ func (s *IndexTrackerService) FunnelStats(ctx context.Context) (*FunnelStats, er
 	}
 
 	// 关键词数（按 layer）
-	var seedCnt, longtailCnt int64
-	s.db.WithContext(ctx).Model(&model.GeoKeyword{}).Where("layer = 'seed' AND status = 'active'").Count(&seedCnt)
-	s.db.WithContext(ctx).Model(&model.GeoKeyword{}).Where("layer = 'longtail' AND status = 'active'").Count(&longtailCnt)
+	seedCnt, err := s.keywordRepo.CountByLayerStatus(ctx, "seed", "active")
+	if err != nil {
+		return nil, err
+	}
+	longtailCnt, err := s.keywordRepo.CountByLayerStatus(ctx, "longtail", "active")
+	if err != nil {
+		return nil, err
+	}
 	fs.SeedCount = int(seedCnt)
 	fs.LongtailCount = int(longtailCnt)
 
 	// 文章数
-	var artCnt, depCnt int64
-	s.db.WithContext(ctx).Model(&model.GeoArticle{}).Count(&artCnt)
-	s.db.WithContext(ctx).Model(&model.GeoArticle{}).Where("deployed_at IS NOT NULL").Count(&depCnt)
+	artCnt, err := s.articleRepo.Count(ctx, false)
+	if err != nil {
+		return nil, err
+	}
+	depCnt, err := s.articleRepo.Count(ctx, true)
+	if err != nil {
+		return nil, err
+	}
 	fs.ArticleCount = int(artCnt)
 	fs.DeployedCount = int(depCnt)
 
-	// 按引擎统计收录
-	type eCount struct {
-		Engine string `gorm:"column:engine"`
-		Cnt    int64  `gorm:"column:cnt"`
+	// 按引擎统计收录 / AI 引用
+	indexedRows, err := s.trackingRepo.CountIndexedByEngine(ctx)
+	if err != nil {
+		return nil, err
 	}
-	var eRows []eCount
-	s.db.WithContext(ctx).Model(&model.GeoIndexTracking{}).
-		Select("engine, COUNT(*) as cnt").
-		Where("indexed = true").
-		Group("engine").
-		Scan(&eRows)
-	for _, r := range eRows {
-		fs.IndexedByEngine[r.Engine] = int(r.Cnt)
+	for _, r := range indexedRows {
+		fs.IndexedByEngine[r.Engine] = int(r.Count)
 	}
-
-	// 按引擎统计 AI 引用
-	s.db.WithContext(ctx).Model(&model.GeoIndexTracking{}).
-		Select("engine, COUNT(*) as cnt").
-		Where("ai_cited = true").
-		Group("engine").
-		Scan(&eRows)
-	for _, r := range eRows {
-		fs.AICitedByEngine[r.Engine] = int(r.Cnt)
+	citedRows, err := s.trackingRepo.CountAICitedByEngine(ctx)
+	if err != nil {
+		return nil, err
+	}
+	for _, r := range citedRows {
+		fs.AICitedByEngine[r.Engine] = int(r.Count)
 	}
 
 	// 转化率
@@ -268,11 +251,10 @@ func (s *IndexTrackerService) FunnelStats(ctx context.Context) (*FunnelStats, er
 	}
 
 	// 追踪明细（最近 100 条，供前端列表展示）
-	var trackings []TrackRow
-	s.db.WithContext(ctx).Model(&model.GeoIndexTracking{}).
-		Order("updated_at DESC").
-		Limit(100).
-		Scan(&trackings)
+	trackings, err := s.trackingRepo.Recent(ctx, 100)
+	if err != nil {
+		return nil, err
+	}
 	fs.Trackings = trackings
 
 	return fs, nil
@@ -281,15 +263,10 @@ func (s *IndexTrackerService) FunnelStats(ctx context.Context) (*FunnelStats, er
 // AutoVerifyCron 每日 02:00 定时入口
 // 扫描已部署且超过 24h 未验证的文章 → 全链路验证 → Upsert geo_daily_stats
 func (s *IndexTrackerService) AutoVerifyCron(ctx context.Context) error {
-	var articles []model.GeoArticle
-	s.db.WithContext(ctx).Where("deployed_at IS NOT NULL AND site_url != ''").
-		Where(`NOT EXISTS (
-			SELECT 1 FROM geo_index_trackings t
-			WHERE t.article_id = geo_articles.id AND t.updated_at > ?
-		)`, time.Now().Add(-24*time.Hour)).
-		Order("deployed_at DESC").
-		Limit(200).
-		Find(&articles)
+	articles, err := s.articleRepo.ListDeployedNeedingVerify(ctx, time.Now().Add(-24*time.Hour), 200)
+	if err != nil {
+		return fmt.Errorf("查询待验证文章失败: %w", err)
+	}
 
 	logger.Warnf("AutoVerifyCron: %d 篇已部署文章待验证", len(articles))
 
@@ -307,24 +284,17 @@ func (s *IndexTrackerService) AutoVerifyCron(ctx context.Context) error {
 
 // upsertDailyStats 把 index_tracking 聚合到 daily_stats
 func (s *IndexTrackerService) upsertDailyStats(ctx context.Context) {
-	// 简化版：按 engine 聚合 citation_count
-	type agg struct {
-		Engine        string `gorm:"column:engine"`
-		Citations     int64  `gorm:"column:citations"`
-		BrandMentions int64  `gorm:"column:brand_mentions"`
+	rows, err := s.trackingRepo.CountAICitedByEngine(ctx)
+	if err != nil {
+		logger.Warnf("upsertDailyStats: 聚合查询失败: %v", err)
+		return
 	}
-	var rows []agg
-	s.db.WithContext(ctx).Model(&model.GeoIndexTracking{}).
-		Select("engine, COUNT(*) as citations, 0 as brand_mentions").
-		Where("ai_cited = true").
-		Group("engine").
-		Scan(&rows)
 
 	// stat_date 是 DB 的日期唯一键组成部分：宿主机是 UTC 时，16:00–23:59 之间
 	// 这一轮会把业务当日的引用数累加到**前一天**的行上。
 	statDate := timeutil.BusinessToday()
 	for _, r := range rows {
-		if err := s.dailyRepo.IncrementByEngine(ctx, statDate, r.Engine, int(r.Citations), int(r.BrandMentions)); err != nil {
+		if err := s.dailyRepo.IncrementByEngine(ctx, statDate, r.Engine, int(r.Count), 0); err != nil {
 			logger.Warnf("upsertDailyStats: 引擎 %s 聚合失败: %v", r.Engine, err)
 		}
 	}

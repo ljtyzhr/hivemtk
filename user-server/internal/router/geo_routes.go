@@ -116,7 +116,13 @@ func SetupGeoRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 	kwMiningSvc := geoservice.NewKeywordMiningService(keywordRepo, gormDB, llmAdapter)
 	pushSvc := geoservice.NewPushService(gormDB)
 	siteSvc := geoservice.NewSiteDeployService(gormDB, pushSvc)
-	indexTrackerSvc := geoservice.NewIndexTrackerService(gormDB, georepo.NewGeoDailyStatRepositoryWithDB(gormDB), probes...)
+	indexTrackerSvc := geoservice.NewIndexTrackerService(
+		georepo.NewGeoIndexTrackingRepositoryWithDB(gormDB),
+		articleRepo,
+		keywordRepo,
+		georepo.NewGeoDailyStatRepositoryWithDB(gormDB),
+		probes...,
+	)
 	kwMiningCtrl := geoctrl.NewKeywordMiningController(kwMiningSvc)
 	seedTermSvc := geoservice.NewSeedTermService(georepo.NewGeoSeedTermRepositoryWithDB(gormDB))
 	seedTermCtrl := geoctrl.NewSeedTermController(seedTermSvc)
