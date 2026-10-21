@@ -41,18 +41,34 @@ func (c *SignalCollector) Collect(ctx context.Context, in *dto.SignalCollectionI
 		IntentConf: clamp01(in.RawIntentConf),
 	}
 
+	// 逐维标出"真取到了证据"还是"只是中性占位值"。
+	//
+	// 占位值 0.5 的含义是"这里没数据"，不是"这一维是中等水平"。让它们参与
+	// 等权聚合，等于凭空给这两维各 0.5 的信用或扣分 —— 首轮对话里 ctx_relev
+	// 与 llm_entropy 恒为占位值，两项占 35% 权重，把总置信度按在阈值之下，
+	// 官网客服对"介绍下项目"这种能答的问题也判低置信转人工。
+	signals.Available = dto.SignalAvailability{
+		Set:        true,
+		IntentConf: in.RawIntentConf > 0,
+		EntityComp: true,
+		CtxRelev:   false,
+		RAGQual:    false,
+		LLMEntropy: false,
+	}
+
 	signals.EntityComp = c.computeEntityComp(in.ExtractedEntities, in.ExpectedEntities)
 
-	ctxRelev, err := c.computeCtxRelev(ctx, in.Text, in.LastTurns)
+	ctxRelev, ctxOK, err := c.computeCtxRelev(ctx, in.Text, in.LastTurns)
 	if err == nil {
 		signals.CtxRelev = ctxRelev
+		signals.Available.CtxRelev = ctxOK
 	} else {
 		signals.CtxRelev = 0.5
 	}
 
-	signals.RAGQual = c.computeRAGQual(in)
+	signals.RAGQual, signals.Available.RAGQual = c.computeRAGQual(in)
 
-	signals.LLMEntropy = c.computeLLMEntropy(in.LLMLogprobs)
+	signals.LLMEntropy, signals.Available.LLMEntropy = c.computeLLMEntropy(in.LLMLogprobs)
 
 	return signals, nil
 }
@@ -70,19 +86,23 @@ func (c *SignalCollector) computeEntityComp(extracted, expected map[string]any) 
 	return clamp01(float64(hit) / float64(len(expected)))
 }
 
-func (c *SignalCollector) computeCtxRelev(ctx context.Context, query string, lastTurns []string) (float64, error) {
+// computeCtxRelev 算上下文相关性，第二个返回值表示**是否真取到了证据**。
+//
+// 没有历史对话（首轮）、没有 embedder、或向量化失败时，返回的中性 0.5 只是占位值，
+// available=false ⇒ 该维不参与加权。
+func (c *SignalCollector) computeCtxRelev(ctx context.Context, query string, lastTurns []string) (float64, bool, error) {
 	if c.embedder == nil {
-		return 0.5, nil
+		return 0.5, false, nil
 	}
 	if len(lastTurns) == 0 || strings.TrimSpace(query) == "" {
-		return 0.5, nil
+		return 0.5, false, nil
 	}
 	queryVec, err := c.embedder.Embed(ctx, query)
 	if err != nil {
-		return 0.5, err
+		return 0.5, false, err
 	}
 	if len(queryVec) == 0 {
-		return 0.5, nil
+		return 0.5, false, nil
 	}
 
 	meanVec := make([]float32, len(queryVec))
@@ -101,35 +121,53 @@ func (c *SignalCollector) computeCtxRelev(ctx context.Context, query string, las
 		validCount++
 	}
 	if validCount == 0 {
-		return 0.5, nil
+		return 0.5, false, nil
 	}
 	for i := range meanVec {
 		meanVec[i] /= float32(validCount)
 	}
-	return clamp01(cosineSim(queryVec, meanVec)), nil
+	return clamp01(cosineSim(queryVec, meanVec)), true, nil
 }
 
-func (c *SignalCollector) computeRAGQual(in *dto.SignalCollectionInput) float64 {
+// computeRAGQual 算 RAG 检索质量，第二个返回值表示**是否真取到了证据**。
+//
+// 未执行检索（没有召回也没有执行标记）⇒ 0.5 中性占位值、available=false。
+// 执行了检索但一条没召回 ⇒ 0.0、available=true（这是"确实没有相关知识"的真实结论，
+// 与"没查"是两回事，不能混同）。
+func (c *SignalCollector) computeRAGQual(in *dto.SignalCollectionInput) (float64, bool) {
 	if !in.RAGExecuted && len(in.RAGChunks) == 0 {
-		return 0.5
+		return 0.5, false
 	}
 	chunks := in.RAGChunks
 	if len(chunks) == 0 {
-		return 0.0
+		return 0.0, true
 	}
 	sum := 0.0
 	for _, ch := range chunks {
 		sum += ch.Score
 	}
 	meanScore := sum / float64(len(chunks))
-	expectedK := 5.0
-	coverage := math.Min(1.0, float64(len(chunks))/expectedK)
-	return clamp01(meanScore * coverage)
+
+	// 覆盖率 = 实际召回条数 / 本次配置的期望条数。
+	//
+	// 分母早先写死 5.0，而智能体普遍配 rag_top_k=3 ⇒ 每次正常召回都被折成 0.6 倍。
+	// 召回条数少是**配置**（限上下文预算），不是缺陷，不能拿来当质量折扣。
+	expectedK := in.RAGTopK
+	if expectedK <= 0 {
+		// 调用方没给期望条数：以实际召回条数为分母（全覆盖 ⇒ 1.0）。
+		expectedK = len(chunks)
+	}
+	coverage := math.Min(1.0, float64(len(chunks))/float64(expectedK))
+	return clamp01(meanScore * coverage), true
 }
 
-func (c *SignalCollector) computeLLMEntropy(logprobs []float64) float64 {
+// computeLLMEntropy 算 LLM 生成熵，第二个返回值表示**是否真取到了证据**。
+//
+// 没有 logprobs 时返回 0.5 中性占位值、available=false —— 那不是"生成熵是中等水平"，
+// 而是"没测到熵"。
+func (c *SignalCollector) computeLLMEntropy(logprobs []float64) (float64, bool) {
 	if len(logprobs) == 0 {
-		return 0.5
+		return 0.5, false
 	}
 	maxLp := logprobs[0]
 	for _, lp := range logprobs {
@@ -144,7 +182,7 @@ func (c *SignalCollector) computeLLMEntropy(logprobs []float64) float64 {
 		expSum += expLp[i]
 	}
 	if expSum == 0 {
-		return 0.5
+		return 0.5, false
 	}
 	entropy := 0.0
 	for _, e := range expLp {
@@ -155,10 +193,10 @@ func (c *SignalCollector) computeLLMEntropy(logprobs []float64) float64 {
 	}
 	k := float64(len(logprobs))
 	if k <= 1 {
-		return 1.0
+		return 1.0, true
 	}
 	normalizedEntropy := entropy / math.Log(k)
-	return clamp01(1.0 - normalizedEntropy)
+	return clamp01(1.0 - normalizedEntropy), true
 }
 
 func cosineSim(a, b []float32) float64 {

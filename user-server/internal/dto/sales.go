@@ -312,9 +312,17 @@ type SalesResponse struct {
 	Audited             bool             `json:"audited"`
 	AuditIssues         []string         `json:"audit_issues,omitempty"`
 	TransferredToHuman  bool             `json:"transferred_to_human"`
-	TransferReason      string           `json:"transfer_reason,omitempty"`
-	Cards               []RichCard       `json:"cards,omitempty"`
-	Steps               []SalesStepLog   `json:"steps"`
+
+	// DefiniteAnswer 标记本条回复来自**确定答案**（FAQ 标准答案 / 人工标注答案），
+	// 而不是模型现场生成。
+	//
+	// 编排器据此跳过置信度判据：确定答案不需要再判"这个回答可不可信" ——
+	// 它就是标准答案本身。线上 FAQ 的 intent 字段多为空，早先的意图判据
+	// 会把空串当成"已知意图"，于是 FAQ 已经答对了仍被低置信判据推翻去转人工。
+	DefiniteAnswer bool           `json:"definite_answer,omitempty"`
+	TransferReason string         `json:"transfer_reason,omitempty"`
+	Cards          []RichCard     `json:"cards,omitempty"`
+	Steps          []SalesStepLog `json:"steps"`
 
 	Confidence *ConfidenceDecision `json:"confidence,omitempty"`
 

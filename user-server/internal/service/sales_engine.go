@@ -11,6 +11,7 @@ import (
 	confidencesvc "hivemtk-user/internal/service/confidence"
 	humanizesvc "hivemtk-user/internal/service/humanize"
 	"strconv"
+	"strings"
 	"time"
 
 	"gorm.io/gorm"
@@ -72,6 +73,10 @@ type SalesEngine struct {
 	toolExecutor AgentToolExecutor
 
 	layerRouter *LayerRouter
+
+	// faqSvc FAQ 快速通道的服务端（标准答案直答，零 LLM 调用）。
+	// 为 nil 时本通道不生效，其余行为不变。
+	faqSvc *FAQService
 
 	permissionChecker AgentToolPermissionChecker
 
@@ -166,6 +171,67 @@ func (e *SalesEngine) SetLayerRouter(ctx context.Context, lr *LayerRouter) {
 	e.layerRouter = lr
 }
 
+// SetFAQService 注入 FAQ 服务（开启 FAQ 快速通道：命中标准答案直接作答）。
+//
+// 为 nil（不调用本方法）时快速通道不生效，引擎行为与挂载前逐字一致。
+func (e *SalesEngine) SetFAQService(svc *FAQService) {
+	e.faqSvc = svc
+}
+
+// tryFAQFastPath 尝试用 FAQ 标准答案直接回复。
+//
+// 第二个返回值表示"是否命中并已作答"。命中时：零 LLM 调用、零 Token、
+// 答案确定（人工标注的标准答案，不是模型现场编的）。
+//
+// 与 LayerRouter.Route 的关系：Route 是**双层架构的实验通道**，受 FF_LAYER1 旗子
+// 控制（默认关），且只在流式路径被调用。本方法是 FAQ 这一个能力的最小实现，
+// 不受该旗子约束 —— 官网客服靠它才能把"介绍下项目"这类问题答对。
+//
+// 为什么不复用 Route：Route 的开关语义是"要不要开双层架构实验"，而这里是
+// "有一条标准答案要不要直接用"。把后者绑在前者上，等于官网客服的能力取决于
+// 一个默认关闭的实验旗子。
+func (e *SalesEngine) tryFAQFastPath(ctx context.Context, req *SalesRequest) (*SalesResponse, bool) {
+	if e.faqSvc == nil || req == nil || strings.TrimSpace(req.UserMessage) == "" {
+		return nil, false
+	}
+	agentID := agentIDFromCtx(req)
+	if agentID == 0 {
+		// 没有挂载智能体时不走本通道：没有智能体归属就没有 FAQ 归属，
+		// 拿全局共享 FAQ 回答会串到别的租户/商户的话术上。
+		return nil, false
+	}
+	matches, err := e.faqSvc.MatchByAgent(ctx, agentID, req.UserMessage, faqTopKDefault)
+	if err != nil || len(matches) == 0 {
+		return nil, false
+	}
+	top := matches[0]
+	if top.Score < faqHitThresh {
+		return nil, false
+	}
+	entry := top.Entry
+	if entry == nil || strings.TrimSpace(entry.Answer) == "" {
+		return nil, false
+	}
+
+	resp := &SalesResponse{
+		Reply:  entry.Answer,
+		Intent: &dto.RecognizeResult{IntentType: entry.Intent, Confidence: top.Score},
+		Confidence: &dto.ConfidenceDecision{
+			AggregatedConf:   top.Score,
+			DynamicThreshold: faqHitThresh,
+			DecisionBand:     dto.BandAuto,
+		},
+		// 标记为确定答案：编排器据此跳过置信度判据（标准答案不需要再判可不可信）。
+		DefiniteAnswer: true,
+		Steps: []dto.SalesStepLog{{
+			Step:   "layer1_faq_fastpath",
+			Status: "ok",
+			Detail: fmt.Sprintf("faq_id=%d score=%.4f", entry.ID, top.Score),
+		}},
+	}
+	return resp, true
+}
+
 type SalesRequest = dto.SalesRequest
 
 func agentIDFromCtx(req *SalesRequest) uint {
@@ -186,6 +252,16 @@ func (e *SalesEngine) Handle(ctx context.Context, req *SalesRequest) (*SalesResp
 	}
 	if req.Config == nil {
 		req.Config = DefaultSalesEngineConfig()
+	}
+
+	// Layer1 FAQ 快速通道：命中就用标准答案直接回复，跳过 LLM 与 RAG。
+	//
+	// 为什么非流式路径也要走这一段：官网网页客服（HTTP /api/chat/public/*）走的正是
+	// 本方法，而它早先只在 HandleStream 里查 FAQ —— 于是网页客服永远走 LLM 慢路径：
+	// RAG 弱召回 → 置信度不足 → 转人工 → 「暂无坐席在线」。
+	// FAQ 里明明有「HiveMTK 是什么？」这种标准答案，却一次都没被用上。
+	if resp, hit := e.tryFAQFastPath(ctx, req); hit {
+		return resp, nil
 	}
 
 	if e.shouldUseParallel() {

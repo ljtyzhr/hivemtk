@@ -173,6 +173,14 @@ func (r *FAQRepository) ListByAgent(ctx context.Context, agentID uint, limit int
 	return entries, err
 }
 
+// ScoreFAQCandidates 对已加载的 FAQ 候选集打分排序（不查库）。
+//
+// 导出它是为了让 service 层的测试能复用**生产同一份**打分口径，而不是另写一份
+// 近似实现 —— 另写一份就等于让用例锁住一份与生产不同的算法。
+func ScoreFAQCandidates(_ context.Context, r *FAQRepository, entries []model.FAQEntry, msg string, topK int) ([]model.FAQEntry, error) {
+	return r.scoreAndRank(context.Background(), entries, msg, topK)
+}
+
 func (r *FAQRepository) scoreAndRank(ctx context.Context, all []model.FAQEntry, msg string, topK int) ([]model.FAQEntry, error) {
 	msgTokens := tokenize(msg)
 	if len(msgTokens) == 0 {
@@ -191,8 +199,17 @@ func (r *FAQRepository) scoreAndRank(ctx context.Context, all []model.FAQEntry, 
 		faqTokens := tokenize(e.Question + " " + e.Answer)
 		score := jaccardSimilarity(msgTokens, faqTokens)
 		for _, kw := range e.Keywords {
-			if kw != "" && strings.Contains(msg, kw) {
-				score += 0.3
+			if kw == "" {
+				continue
+			}
+			if strings.Contains(msg, kw) {
+				// 关键词原样出现在用户句子里：最强的一条证据。
+				score += faqKeywordBonusExact
+				continue
+			}
+			if keywordTokenOverlap(msg, kw) {
+				// 用户句与关键词共用词元（语序变了、字面不连续）：次强证据。
+				score += faqKeywordBonusPartial
 			}
 		}
 		score = score * (e.Confidence + 0.1*logPlus(e.HitCount))
@@ -364,6 +381,47 @@ func tokenize(s string) []string {
 		}
 	}
 	return tokens
+}
+
+// FAQ 关键词命中的加分。
+//
+// 关键词是人工标注的**强证据**（"这条问答讲的就是收费"），比 jaccard 的字面相似度
+// 可靠得多。早先固定 +0.3，且只在"关键词原样连续出现在用户句子里"时才给 ——
+// 中文里语序一变整句就不含原关键词（关键词「产品介绍」遇到「介绍下项目」），
+// FAQ 明明有标准答案却匹配不上，问题只能落到 RAG 弱召回上 → 置信度不足 → 转人工。
+const (
+	// faqKeywordBonusExact 关键词原样命中（连续子串）的加分。
+	//
+	// 0.7 这个值不是随手取的：命中分最终还要乘 confidence（0.90~0.95），
+	// 0.5×0.9=0.45 够不到 Layer1 的 0.6 门槛 ⇒ 「多少钱」这种**明确**在问
+	// 收费的问题反而匹配不上。0.7×0.9=0.63 过门槛，留出的余量也够
+	// 「部署需要什么环境」这类多词问法。
+	faqKeywordBonusExact = 0.7
+	// faqKeywordBonusPartial 关键词与用户句共用词元时的加分。
+	faqKeywordBonusPartial = 0.4
+)
+
+// keywordTokenOverlap 判断用户句与关键词是否共用词元。
+//
+// 关键词「产品介绍」与用户句「介绍下项目」共用「介绍」—— 核心词在，语序不同。
+// 这正是 FAQ 该起作用的地方：用户用自己的话问同一个意思。
+func keywordTokenOverlap(msg, kw string) bool {
+	msgTokens := tokenize(msg)
+	if len(msgTokens) == 0 {
+		return false
+	}
+	kwTokens := tokenize(kw)
+	if len(kwTokens) == 0 {
+		return false
+	}
+	for _, t := range kwTokens {
+		for _, mt := range msgTokens {
+			if t == mt {
+				return true
+			}
+		}
+	}
+	return false
 }
 
 func hasChinese(s string) bool {

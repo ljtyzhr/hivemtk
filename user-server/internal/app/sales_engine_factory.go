@@ -57,6 +57,16 @@ func BuildSalesEngine(gormDB *gorm.DB) *service.SalesEngine {
 
 	engine.SetFeedbackLearner(context.Background(), service.NewFeedbackLearner(gormDB))
 
+	// FAQ 快速通道：命中标准答案就直接作答（零 LLM、零 Token、答案确定）。
+	//
+	// 为什么必须在这里注入：官网网页客服（HTTP /api/chat/public/*）走的正是
+	// SalesEngine.Handle，而它早先从不查 FAQ —— FAQ 里明明有「HiveMTK 是什么？」
+	// 这类标准答案，却因为整条 FAQ 通道没装配而一次都没被用上；问题只能落到
+	// RAG 弱召回上 → 置信度不足 → 转人工 → 「暂无坐席在线」。
+	faqSvc := service.NewFAQService(gormDB, nil)
+	engine.SetFAQService(faqSvc)
+	logger.Info("[agent] ✅ SalesEngine 已注入 FAQ 快速通道（命中标准答案直答）")
+
 	confidenceAgg := service.GetConfidenceAggregator()
 	if confidenceAgg == nil {
 		confidenceAgg = service.InitConfidenceAggregator(gormDB, service.NewLocalConfidenceEmbedder())

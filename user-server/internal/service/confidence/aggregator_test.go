@@ -360,17 +360,17 @@ func TestAggregate_RAGNotExecuted_SignalNeutral(t *testing.T) {
 func TestComputeRAGQual_NeutralVsExecuted(t *testing.T) {
 	c := NewSignalCollector(nil)
 
-	neutral := c.computeRAGQual(&dto.SignalCollectionInput{})
+	neutral, _ := c.computeRAGQual(&dto.SignalCollectionInput{})
 	if neutral != 0.5 {
 		t.Errorf("未执行+无 chunks 应返回中性 0.5, got %v", neutral)
 	}
 
-	executedEmpty := c.computeRAGQual(&dto.SignalCollectionInput{RAGExecuted: true})
+	executedEmpty, _ := c.computeRAGQual(&dto.SignalCollectionInput{RAGExecuted: true})
 	if executedEmpty != 0.0 {
 		t.Errorf("已执行无命中应返回 0, got %v", executedEmpty)
 	}
 
-	withChunks := c.computeRAGQual(&dto.SignalCollectionInput{
+	withChunks, _ := c.computeRAGQual(&dto.SignalCollectionInput{
 		RAGExecuted: true,
 		RAGChunks:   []dto.RAGChunk{{Score: 0.9}, {Score: 0.8}},
 	})

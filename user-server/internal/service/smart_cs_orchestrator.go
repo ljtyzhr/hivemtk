@@ -416,7 +416,7 @@ func (o *SmartCSOrchestrator) HandleIncomingWithAgent(ctx context.Context, in *I
 		}
 	}
 	result.SalesResponse = salesResp
-	conf, confDec := o.extractConfidence(ctx, salesResp, session.SessionID, in.Content)
+	conf, confDec := o.extractConfidenceWithTopK(ctx, salesResp, session.SessionID, in.Content, ragTopKOf(finalAgentCtx))
 	result.Confidence = conf
 	result.Cards = RichCardsFromDTO(salesResp.Cards)
 
@@ -438,11 +438,17 @@ func (o *SmartCSOrchestrator) HandleIncomingWithAgent(ctx context.Context, in *I
 	// 样本（模型答了、答得不好、人接了），放到分支后面就整批漏掉。引擎自己转掉的那批
 	// 由 badCaseTurnNotAnAnswer 挡，不必靠这里的行序。
 	o.markBadCase(ctx, session.SessionID, salesResp, in, confDec, effectiveConf, threshold)
-	knownIntent := salesResp.Intent != nil && salesResp.Intent.IntentType != IntentUnknown
+	knownIntent := isKnownIntent(salesResp.Intent)
 	safeIntent := salesResp.Intent != nil &&
 		(salesResp.Intent.IntentType == IntentGreeting || salesResp.Intent.IntentType == IntentSocial)
+	band := ""
+	if confDec != nil {
+		band = confDec.DecisionBand
+	}
+	// 确定答案（FAQ 标准答案）不适用置信度判据：它就是标准答案本身，
+	// 不需要再判"这个回答可不可信"。
 	shouldTransfer := salesResp.TransferredToHuman ||
-		(knownIntent && !safeIntent && effectiveConf < threshold)
+		(!isDefiniteAnswer(salesResp) && knownIntent && !safeIntent && shouldTransferOnLowConfidence(band, effectiveConf, threshold))
 	if shouldTransfer {
 		result.HandlerType = model.HandlerTypeHuman
 		result.Transferred = true
@@ -1128,7 +1134,76 @@ func (o *SmartCSOrchestrator) isUrgentOrComplaint(ctx context.Context, content s
 // 而 Bad Case 要落的正是"凭什么判它低质"。此前这里把 dec 折成一个 float 就丢掉，
 // 于是坏例只能自己再算一遍 —— 两处各算一次正是官方 G4 说的那种割裂。
 // 拿不到决策（聚合器报错走启发式）时回 nil，调用方必须判空。
-func (o *SmartCSOrchestrator) extractConfidence(ctx context.Context, resp *SalesResponse, sessionID, userText string) (float64, *dto.ConfidenceDecision) {
+// ragTopKOf 取智能体配置的期望召回条数（rag_top_k）。
+//
+// 它是 RAG 覆盖率的**分母**：覆盖率 = 实际召回条数 / 期望条数。取不到（没有挂载
+// 智能体 / 未配置）时回 0，采集器会退回"以实际召回条数为分母"。
+func ragTopKOf(agentCtx *AgentContext) int {
+	if agentCtx == nil {
+		return 0
+	}
+	return agentCtx.RAGTopK
+}
+
+// isKnownIntent 判断本轮是否识别出了一个**具体**意图。
+//
+// 旧判据是 `IntentType != IntentUnknown`，把空串也算成"已知意图" —— 而线上 FAQ
+// 的 intent 字段大多为空（FAQ 直答会把 entry.Intent 原样带进来），于是
+// FAQ 已经用标准答案答出来了，仍被"低置信 + 已知意图"判据推翻去转人工。
+// 空意图的正确含义是"没识别出具体意图"，不该参与置信度转人工判据。
+func isKnownIntent(intent *dto.RecognizeResult) bool {
+	if intent == nil {
+		return false
+	}
+	t := strings.TrimSpace(intent.IntentType)
+	return t != "" && t != IntentUnknown
+}
+
+// isDefiniteAnswer 判断本条回复是否来自确定答案（FAQ 标准答案等）。
+func isDefiniteAnswer(resp *SalesResponse) bool {
+	return resp != nil && resp.DefiniteAnswer
+}
+
+// shouldTransferOnLowConfidence 判"置信度低于阈值"要不要直接转人工。
+//
+// 口径：**只有决策区间明确落在 handoff 时才转**。
+//
+// 置信度聚合器已经把同一轮判成了四档区间，而这一层此前根本不看它 ——
+// "低置信"一律等于"转人工"。于是 review（人工审核）与 llm_fallback（LLM 兜底）
+// 两档被当成了 handoff：线上「介绍下项目」信号落在 review 档、置信度 0.62，
+// 仍被判「AI 置信度不足 (0.62 < 0.70)」转人工 → 前端再提示「暂无坐席在线」。
+// 这两档的语义本就是"先别急着转"，把它们等同于 handoff 是把决策区间白算了。
+//
+// band 为空（聚合器没给出区间，或走的是启发式回退路径）⇒ 退回旧口径：
+// 只看置信度与阈值。保证老路径行为逐字不变。
+func shouldTransferOnLowConfidence(band string, conf, threshold float64) bool {
+	if conf >= threshold {
+		return false
+	}
+	if band == "" {
+		return true
+	}
+	return band == dto.BandHandoff
+}
+
+// extractConfidence 算出本轮回答的置信度（不指定检索期望条数）。
+//
+// 生产路径走 extractConfidenceWithTopK（要带上 rag_top_k 才算得准 RAG 覆盖率）；
+// 这个薄包装保留给既有单测的调用契约。
+func (o *SmartCSOrchestrator) extractConfidence(ctx context.Context, resp *SalesResponse, sessionID, userText string) (float64, *dto.ConfidenceDecision) { //nolint:unused //// 仅被 *_test.go 引用，生产路径未用
+	return o.extractConfidenceWithTopK(ctx, resp, sessionID, userText, 0)
+}
+
+// extractConfidenceWithTopK 算出本轮回答的置信度，并把**整份决策**一起交回去。
+//
+// 第二个返回值是 T-P8-03 加的：决策里带着 signal_id、否决规则名与当时的动态阈值，
+// 而 Bad Case 要落的正是"凭什么判它低质"。此前这里把 dec 折成一个 float 就丢掉，
+// 于是坏例只能自己再算一遍 —— 两处各算一次正是官方 G4 说的那种割裂。
+// 拿不到决策（聚合器报错走启发式）时回 nil，调用方必须判空。
+//
+// ragTopK 是本次检索的期望召回条数（智能体的 rag_top_k）：它决定 RAG 覆盖率的
+// 分母。传 0 表示调用方拿不到该口径，采集器会退回"以实际召回条数为分母"。
+func (o *SmartCSOrchestrator) extractConfidenceWithTopK(ctx context.Context, resp *SalesResponse, sessionID, userText string, ragTopK int) (float64, *dto.ConfidenceDecision) {
 	if resp == nil {
 		return 0, nil
 	}
@@ -1138,6 +1213,7 @@ func (o *SmartCSOrchestrator) extractConfidence(ctx context.Context, resp *Sales
 			Text:        userText,
 			RAGExecuted: len(resp.RAGChunks) > 0,
 			RAGChunks:   resp.RAGChunks,
+			RAGTopK:     ragTopK,
 		}
 		if resp.Intent != nil {
 			in.IntentType = resp.Intent.IntentType

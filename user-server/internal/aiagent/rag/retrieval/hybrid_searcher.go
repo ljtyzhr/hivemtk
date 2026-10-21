@@ -208,29 +208,7 @@ func (h *HybridSearcher) SearchIndex(ctx context.Context, productID string, quer
 	profile := ResolveQueryWeightProfile(query, h.vectorWeight, h.keywordWeight)
 	fused := h.reciprocalRankFusion(vecResults, kwResults, profile.VectorWeight, profile.KeywordWeight)
 
-	rerankCount := 0
-	if h.config.EnableRerank && h.reranker != nil && len(fused) > topK {
-		rerankTopN := h.config.FusedTopN
-		if rerankTopN <= 0 {
-			rerankTopN = topK * 4
-		}
-		if rerankTopN > len(fused) {
-			rerankTopN = len(fused)
-		}
-		rerankPool := fused[:rerankTopN]
-		reranked, rerr := h.reranker.Rerank(ctx, query, toRerankDocs(rerankPool))
-
-		if rerr == nil {
-			if len(reranked) == 0 {
-				logger.Infof("[Hybrid] rerank 全部文档低于阈值(floor=%.1f)，视为知识不足，降级使用原始融合结果", rerankScoreFloor)
-			} else {
-				fused = applyRerank(fused, reranked)
-				rerankCount = len(reranked)
-			}
-		} else {
-			logger.Warnf("[Hybrid] rerank 失败，降级使用原始融合结果: %v", rerr)
-		}
-	}
+	fused, rerankCount := h.applyRerankToFused(ctx, query, fused, topK)
 
 	if rerankCount == 0 && len(fused) > 0 {
 		normalizeRRFScores(fused)
@@ -257,6 +235,41 @@ func (h *HybridSearcher) SearchIndex(ctx context.Context, productID string, quer
 	h.logSearch(ctx, query, productID, finalK, len(vecResults), len(kwResults), len(fused), rerankCount, vectorMs, bm25Ms)
 
 	return fused, nil
+}
+
+// applyRerankToFused 对融合结果做重排，把**名次分**换成**绝对相关度分**。
+//
+// 为什么"候选池不比 topK 大"也必须做：rerank 的作用是换量纲，不是筛数量。
+// 早先的触发条件是 `len(fused) > topK` —— 拿候选池跟**截断阈值**比大小，
+// 于是小知识库（官网只有 6 个 chunk、rag_top_k=3 ⇒ 候选池恰好 3 条）永远
+// 条件不成立、rerank 整段被跳过，分数停在 RRF 名次分上（top1 恒 1.0、其余 0.1~0.3）。
+// 上层把这种名次分当绝对相关度用，于是语义上完全命中的召回被说成"质量 0.13"，
+// 把总置信度压到阈值以下 ⇒ 官网客服对正常问题一律转人工。
+//
+// 候选池为空、或重排未开启/不可用时，原样返回（调用方据 rerankCount 决定要不要
+// 退回 RRF 归一化）。
+func (h *HybridSearcher) applyRerankToFused(ctx context.Context, query string, fused []Chunk, topK int) ([]Chunk, int) {
+	if !h.config.EnableRerank || h.reranker == nil || len(fused) == 0 {
+		return fused, 0
+	}
+	rerankTopN := h.config.FusedTopN
+	if rerankTopN <= 0 {
+		rerankTopN = topK * 4
+	}
+	if rerankTopN > len(fused) {
+		rerankTopN = len(fused)
+	}
+	rerankPool := fused[:rerankTopN]
+	reranked, rerr := h.reranker.Rerank(ctx, query, toRerankDocs(rerankPool))
+	if rerr != nil {
+		logger.Warnf("[Hybrid] rerank 失败，降级使用原始融合结果: %v", rerr)
+		return fused, 0
+	}
+	if len(reranked) == 0 {
+		logger.Infof("[Hybrid] rerank 全部文档低于阈值(floor=%.1f)，视为知识不足，降级使用原始融合结果", rerankScoreFloor)
+		return fused, 0
+	}
+	return applyRerank(fused, reranked), len(reranked)
 }
 
 func (h *HybridSearcher) logSearch(ctx context.Context, query, productID string, topK, vectorCount, bm25Count, fusedCount, rerankCount int, vectorMs, bm25Ms int64) {

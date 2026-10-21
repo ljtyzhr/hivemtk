@@ -77,7 +77,7 @@ func TestSignalCollector_EntityComp_ValueMismatch(t *testing.T) {
 
 func TestSignalCollector_CtxRelev_NilEmbedder(t *testing.T) {
 	c := NewSignalCollector(nil)
-	got, err := c.computeCtxRelev(context.Background(), "hello", []string{"hi"})
+	got, _, err := c.computeCtxRelev(context.Background(), "hello", []string{"hi"})
 	if err != nil {
 		t.Fatalf("nil embedder 不应返回错误: %v", err)
 	}
@@ -88,7 +88,7 @@ func TestSignalCollector_CtxRelev_NilEmbedder(t *testing.T) {
 
 func TestSignalCollector_CtxRelev_EmptyTurns(t *testing.T) {
 	c := NewSignalCollector(&mockEmbedder{})
-	got, err := c.computeCtxRelev(context.Background(), "hello", nil)
+	got, _, err := c.computeCtxRelev(context.Background(), "hello", nil)
 	if err != nil {
 		t.Fatalf("空对话不应返回错误: %v", err)
 	}
@@ -99,7 +99,7 @@ func TestSignalCollector_CtxRelev_EmptyTurns(t *testing.T) {
 
 func TestSignalCollector_CtxRelev_EmptyQuery(t *testing.T) {
 	c := NewSignalCollector(&mockEmbedder{})
-	got, err := c.computeCtxRelev(context.Background(), "  ", []string{"hi"})
+	got, _, err := c.computeCtxRelev(context.Background(), "  ", []string{"hi"})
 	if err != nil {
 		t.Fatalf("空 query 不应返回错误: %v", err)
 	}
@@ -116,7 +116,7 @@ func TestSignalCollector_CtxRelev_IdenticalVectors(t *testing.T) {
 		},
 	}
 	c := NewSignalCollector(emb)
-	got, err := c.computeCtxRelev(context.Background(), "hello", []string{"hi"})
+	got, _, err := c.computeCtxRelev(context.Background(), "hello", []string{"hi"})
 	if err != nil {
 		t.Fatalf("相同向量不应返回错误: %v", err)
 	}
@@ -133,7 +133,7 @@ func TestSignalCollector_CtxRelev_OrthogonalVectors(t *testing.T) {
 		},
 	}
 	c := NewSignalCollector(emb)
-	got, _ := c.computeCtxRelev(context.Background(), "hello", []string{"world"})
+	got, _, _ := c.computeCtxRelev(context.Background(), "hello", []string{"world"})
 	if !approxEqual(got, 0.0) {
 		t.Errorf("正交向量 cosine 应为 0.0, got %v", got)
 	}
@@ -148,7 +148,7 @@ func TestSignalCollector_CtxRelev_MeanOfMultipleTurns(t *testing.T) {
 		},
 	}
 	c := NewSignalCollector(emb)
-	got, _ := c.computeCtxRelev(context.Background(), "q", []string{"t1", "t2"})
+	got, _, _ := c.computeCtxRelev(context.Background(), "q", []string{"t1", "t2"})
 	if got < 0.99 {
 		t.Errorf("均值向量相似度应接近 1.0, got %v", got)
 	}
@@ -156,10 +156,10 @@ func TestSignalCollector_CtxRelev_MeanOfMultipleTurns(t *testing.T) {
 
 func TestSignalCollector_RAGQual_Empty(t *testing.T) {
 	c := NewSignalCollector(nil)
-	if got := c.computeRAGQual(&dto.SignalCollectionInput{}); !approxEqual(got, 0.5) {
+	if got, _ := c.computeRAGQual(&dto.SignalCollectionInput{}); !approxEqual(got, 0.5) {
 		t.Errorf("未执行+空 chunks 应返回中性 0.5, got %v", got)
 	}
-	if got := c.computeRAGQual(&dto.SignalCollectionInput{RAGExecuted: true}); !approxEqual(got, 0.0) {
+	if got, _ := c.computeRAGQual(&dto.SignalCollectionInput{RAGExecuted: true}); !approxEqual(got, 0.0) {
 		t.Errorf("已执行+空 chunks 应返回 0.0, got %v", got)
 	}
 }
@@ -171,7 +171,8 @@ func TestSignalCollector_RAGQual_PartialCoverage(t *testing.T) {
 		{Score: 0.6},
 		{Score: 0.4},
 	}
-	got := c.computeRAGQual(&dto.SignalCollectionInput{RAGChunks: chunks})
+	// 期望 5 条、只召回 3 条 ⇒ 覆盖率 0.6，均值 0.6 ⇒ 0.36。
+	got, _ := c.computeRAGQual(&dto.SignalCollectionInput{RAGChunks: chunks, RAGTopK: 5})
 	if !approxEqual(got, 0.36) {
 		t.Errorf("部分覆盖 RAGQual 应为 0.36, got %v", got)
 	}
@@ -186,7 +187,7 @@ func TestSignalCollector_RAGQual_FullCoverage(t *testing.T) {
 		{Score: 0.5},
 		{Score: 0.4},
 	}
-	got := c.computeRAGQual(&dto.SignalCollectionInput{RAGChunks: chunks})
+	got, _ := c.computeRAGQual(&dto.SignalCollectionInput{RAGChunks: chunks, RAGTopK: 5})
 	if !approxEqual(got, 0.6) {
 		t.Errorf("全覆盖 RAGQual 应为 0.6, got %v", got)
 	}
@@ -198,7 +199,7 @@ func TestSignalCollector_RAGQual_MoreThanExpected(t *testing.T) {
 		{Score: 1.0}, {Score: 1.0}, {Score: 1.0}, {Score: 1.0},
 		{Score: 1.0}, {Score: 1.0}, {Score: 1.0}, {Score: 1.0},
 	}
-	got := c.computeRAGQual(&dto.SignalCollectionInput{RAGChunks: chunks})
+	got, _ := c.computeRAGQual(&dto.SignalCollectionInput{RAGChunks: chunks})
 	if !approxEqual(got, 1.0) {
 		t.Errorf("score 全 1.0 + 全覆盖应返回 1.0, got %v", got)
 	}
@@ -206,7 +207,7 @@ func TestSignalCollector_RAGQual_MoreThanExpected(t *testing.T) {
 
 func TestSignalCollector_LLMEntropy_EmptyLogprobs(t *testing.T) {
 	c := NewSignalCollector(nil)
-	got := c.computeLLMEntropy(nil)
+	got, _ := c.computeLLMEntropy(nil)
 	if !approxEqual(got, 0.5) {
 		t.Errorf("空 logprobs 应返回 0.5, got %v", got)
 	}
@@ -214,7 +215,7 @@ func TestSignalCollector_LLMEntropy_EmptyLogprobs(t *testing.T) {
 
 func TestSignalCollector_LLMEntropy_SingleLogprob(t *testing.T) {
 	c := NewSignalCollector(nil)
-	got := c.computeLLMEntropy([]float64{0.5})
+	got, _ := c.computeLLMEntropy([]float64{0.5})
 	if !approxEqual(got, 1.0) {
 		t.Errorf("单元素 logprobs 应返回 1.0, got %v", got)
 	}
@@ -222,7 +223,7 @@ func TestSignalCollector_LLMEntropy_SingleLogprob(t *testing.T) {
 
 func TestSignalCollector_LLMEntropy_UniformDistribution(t *testing.T) {
 	c := NewSignalCollector(nil)
-	got := c.computeLLMEntropy([]float64{-1.0, -1.0, -1.0, -1.0})
+	got, _ := c.computeLLMEntropy([]float64{-1.0, -1.0, -1.0, -1.0})
 	if got > 0.05 {
 		t.Errorf("均匀分布 LLMEntropy 应接近 0, got %v", got)
 	}
@@ -230,7 +231,7 @@ func TestSignalCollector_LLMEntropy_UniformDistribution(t *testing.T) {
 
 func TestSignalCollector_LLMEntropy_PeakedDistribution(t *testing.T) {
 	c := NewSignalCollector(nil)
-	got := c.computeLLMEntropy([]float64{100.0, -100.0, -100.0, -100.0})
+	got, _ := c.computeLLMEntropy([]float64{100.0, -100.0, -100.0, -100.0})
 	if got < 0.95 {
 		t.Errorf("极端分布 LLMEntropy 应接近 1, got %v", got)
 	}
@@ -238,7 +239,7 @@ func TestSignalCollector_LLMEntropy_PeakedDistribution(t *testing.T) {
 
 func TestSignalCollector_LLMEntropy_TwoEqualLargeValues(t *testing.T) {
 	c := NewSignalCollector(nil)
-	got := c.computeLLMEntropy([]float64{10.0, 10.0, -10.0})
+	got, _ := c.computeLLMEntropy([]float64{10.0, 10.0, -10.0})
 	if got < 0.30 || got > 0.45 {
 		t.Errorf("两个相等大值 LLMEntropy 应在 [0.30, 0.45], got %v", got)
 	}

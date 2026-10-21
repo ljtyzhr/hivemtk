@@ -18,6 +18,57 @@ type FiveSignals struct {
 	CtxRelev   float64 `json:"ctx_relev"`
 	RAGQual    float64 `json:"rag_qual"`
 	LLMEntropy float64 `json:"llm_entropy"`
+
+	// Available 标出哪些信号**真的取到了证据**。
+	//
+	// 为什么需要它：采集器在拿不到证据时会给 0.5 这个中性占位值（没有历史对话、
+	// 没有 logprobs、没有 embedder）。占位值不是"中等证据"，它只是"这里没数据"，
+	// 可加权聚合把它当成实打实的 0.5 参与计算 —— 首轮对话里 ctx_relev 与
+	// llm_entropy 恒为 0.5，两项合计占 35% 权重，把总置信度死死按在 0.7 阈值之下：
+	// 线上「介绍下项目」意图识别 0.9、召回也命中，仍被算成 0.62 ⇒ 转人工。
+	//
+	// 口径：某信号不可用 ⇒ 它的权重从加权分母里去掉、其余信号按比例放大。
+	// 可用信号一个都没有时，退回原来的等权平均（不改变"全不可用"的历史行为）。
+	//
+	// **必须用 Set 字段表达可用性**：结构体零值表示"未设置 = 全部可用"，
+	// 而"全部不可用"要靠 Set=true 显式表达（见 AllAvailable / NoneAvailable）。
+	Available SignalAvailability `json:"available,omitempty"`
+}
+
+// SignalAvailability 逐信号可用性标记。
+//
+// 字段语义是"**已设置**"标记：该维被显式标为不可用时置 false，其余为 true。
+// 零值（未设置）由 IsZero 判定为"全部可用"，见 FiveSignals.Available 的说明。
+type SignalAvailability struct {
+	// Set 区分"未设置"与"显式全不可用"。
+	Set        bool `json:"set,omitempty"`
+	IntentConf bool `json:"intent_conf"`
+	EntityComp bool `json:"entity_comp"`
+	CtxRelev   bool `json:"ctx_relev"`
+	RAGQual    bool `json:"rag_qual"`
+	LLMEntropy bool `json:"llm_entropy"`
+}
+
+// AllAvailable 五维信号全部可用。
+func AllAvailable() SignalAvailability {
+	return SignalAvailability{
+		Set:        true,
+		IntentConf: true,
+		EntityComp: true,
+		CtxRelev:   true,
+		RAGQual:    true,
+		LLMEntropy: true,
+	}
+}
+
+// NoneAvailable 五维信号全部不可用。
+func NoneAvailable() SignalAvailability {
+	return SignalAvailability{Set: true}
+}
+
+// IsZero 是否为"零值"（= 未设置 ⇒ 全部可用）。
+func (a SignalAvailability) IsZero() bool {
+	return !a.Set
 }
 
 // SignalCollectionInput 5 维信号采集入参
@@ -38,6 +89,13 @@ type SignalCollectionInput struct {
 	RAGChunks         []RAGChunk     `json:"rag_chunks,omitempty"`
 	RAGExecuted       bool           `json:"rag_executed,omitempty"`
 	LastTurns         []string       `json:"last_turns,omitempty"`
+
+	// RAGTopK 本次检索实际配置的期望召回条数（= 智能体的 rag_top_k）。
+	//
+	// 它是 RAG 覆盖率的**分母**：覆盖率 = 实际召回条数 / 期望条数。
+	// 早先覆盖率的分母写死 5，而智能体普遍配 3 ⇒ 任何一次正常召回都被平白折成 0.6 倍，
+	// 把"召回了 3 条好知识"说成"只覆盖了 60%"。0 表示调用方没给（按实际召回条数兜底）。
+	RAGTopK int `json:"rag_top_k,omitempty"`
 
 	CustomerLevel     string  `json:"customer_level,omitempty"`
 	AgentAvailability float64 `json:"agent_availability,omitempty"`

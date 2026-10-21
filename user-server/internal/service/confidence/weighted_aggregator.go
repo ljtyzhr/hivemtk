@@ -46,16 +46,54 @@ func NewDefaultWeightedAggregator() *WeightedAggregator {
 //
 // signals 为 nil 时返回 0
 // 公式：conf = Σ w_i * signal_i
+//
+// **缺失的信号不参与加权**（signals.Available 标出哪些真取到了证据）：
+// 采集器在拿不到证据时给的是 0.5 中性占位值 —— 那是"这里没数据"，不是"中等证据"。
+// 把占位值当实打实的分数算，等于凭空给这一维 0.5 的信用/扣分：首轮对话里
+// ctx_relev（没历史）与 llm_entropy（没 logprobs）两项占 35% 权重，
+// 把总置信度按在阈值之下，官网客服对正常问题一律转人工。
+//
+// 口径：不可用信号的权重从分母里去掉，其余信号按比例放大；
+// 可用信号一个都没有时退回等权平均（不返回 0 —— 0 会被判成"完全不可信"而直接转人工）。
 func (a *WeightedAggregator) Aggregate(signals *dto.FiveSignals) float64 {
 	if signals == nil {
 		return 0
 	}
-	conf := a.weights.IntentConf*signals.IntentConf +
-		a.weights.EntityComp*signals.EntityComp +
-		a.weights.CtxRelev*signals.CtxRelev +
-		a.weights.RAGQual*signals.RAGQual +
-		a.weights.LLMEntropy*signals.LLMEntropy
-	return clamp01(conf)
+	avail := signals.Available
+	if avail.IsZero() {
+		// 未标可用性（零值）= 全部可用，与本字段引入前的行为逐字一致。
+		avail = dto.AllAvailable()
+	}
+
+	weighted := 0.0
+	weightSum := 0.0
+	plainSum := 0.0
+	plainCount := 0
+
+	add := func(weight, value float64, usable bool) {
+		plainSum += value
+		plainCount++
+		if !usable {
+			return
+		}
+		weighted += weight * value
+		weightSum += weight
+	}
+
+	add(a.weights.IntentConf, signals.IntentConf, avail.IntentConf)
+	add(a.weights.EntityComp, signals.EntityComp, avail.EntityComp)
+	add(a.weights.CtxRelev, signals.CtxRelev, avail.CtxRelev)
+	add(a.weights.RAGQual, signals.RAGQual, avail.RAGQual)
+	add(a.weights.LLMEntropy, signals.LLMEntropy, avail.LLMEntropy)
+
+	if weightSum <= 0 {
+		// 一个可用信号都没有：退回等权平均。
+		if plainCount == 0 {
+			return 0
+		}
+		return clamp01(plainSum / float64(plainCount))
+	}
+	return clamp01(weighted / weightSum)
 }
 
 // UpdateWeights 热更新权重（运营后台调参）
