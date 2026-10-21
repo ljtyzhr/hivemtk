@@ -446,8 +446,25 @@ func (s *ModuleCatalogService) Sync(ctx context.Context) (*ModuleSyncResult, err
 		// 归属漂移（若某张历史订单的 items 里混进了基础 key，默认租户也不
 		// 丢失它的 base 行；下单租户的基础包由下面的补齐分支负责）。
 		if !isBaseModuleKey(row.ModuleKey) {
-			if t, ok := targets[row.ModuleKey]; ok {
-				tid = t
+			switch {
+			case reqTenantBound:
+				// 本轮同步有租户绑定 ⇒ 落点就是**本轮这个租户**。
+				//
+				// 为什么不再从订单反查（2026-10-22 线上事故）：平台端 active_keys
+				// 早已按租户分开下发（每个租户拿到的名单只含它自己开通的模块），
+				// 落点本该直接是它自己。而 purchaseTenants 的判据是「首见即最新」
+				// —— 跨租户订单里**最新那一笔**的租户赢了：m1 与 m2 都买过
+				// reach-auto，m2 的订单更新，于是 m1 那轮 sync 把 reach-auto
+				// 写到了 **m2 名下**，m1 自己的行停在 disabled（市场页显示未拥有），
+				// m2 白得一个模块。
+				//
+				// 订单反查只在**商户级那轮**（无租户绑定、平台下发的是商户级名单）
+				// 才有意义：那时名单是整个商户的，落到哪个租户需要看订单。
+				tid = reqTenantID
+			default:
+				if t, ok := targets[row.ModuleKey]; ok {
+					tid = t
+				}
 			}
 		}
 		groups[tid] = append(groups[tid], row)

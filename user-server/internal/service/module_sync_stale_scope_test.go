@@ -6,6 +6,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"hivemtk-user/internal/config"
 	"hivemtk-user/internal/model"
@@ -201,4 +202,77 @@ func setupTenantScopeStub(t *testing.T, activeKeys []string) {
 	prev := config.PlatformCfg
 	config.PlatformCfg = &config.PlatformConfig{APIURL: srv.URL, Secret: "test-secret"}
 	t.Cleanup(func() { config.PlatformCfg = prev })
+}
+
+// TestSync_TenantRound_LandsPaidModuleOnRequestingTenant 钉住「收费模块的开通
+// 落点必须是本轮同步的那个租户」。
+//
+// 线上症状（2026-10-22）：m1 与 m2 都买过 reach-auto。平台的 active_keys 早已
+// 按租户分开下发（m1 拿到的名单含 reach-auto），但用户端落点归并用的是
+// purchaseTenants 的「首见即最新」判据 —— 跨租户订单里**最新那一笔**的租户
+// 赢了，于是 m1 的那轮 sync 把 reach-auto 写到了 **m2 名下**，m1 自己的行
+// 停在 disabled：m1 市场页显示未拥有，而 m2 白得一个模块。
+//
+// 判据：平台端 active_keys 已经是「本租户的名单」⇒ 落点就该是本轮租户；
+// 只有商户级那轮（无租户绑定）才需要从订单反查落点。
+func TestSync_TenantRound_LandsPaidModuleOnRequestingTenant(t *testing.T) {
+	withTenantMode(t, tenant.ModeOn)
+	t.Setenv("PLATFORM_ENABLED", "true")
+	t.Setenv("PLATFORM_MERCHANT_KEY", "MKE2E")
+
+	database := setupStaleScopeDB(t)
+	setupTenantScopeStub(t, []string{"core", "reach-auto"})
+
+	tenantA := &model.Tenant{Code: "tLAND1", Name: "租户甲"}
+	if err := database.Create(tenantA).Error; err != nil {
+		t.Fatalf("写入租户行: %v", err)
+	}
+	tenantB := &model.Tenant{Code: "tLAND2", Name: "租户乙"}
+	if err := database.Create(tenantB).Error; err != nil {
+		t.Fatalf("写入租户行: %v", err)
+	}
+
+	// 两个租户都买过 reach-auto，**乙的订单更新**（首见即最新会选中乙）
+	writeOrder := func(tn *model.Tenant, orderNo string, at time.Time) {
+		items := `[{"item_key":"reach-auto","quantity":1,"snapshot":"{\"price_cents\":100}","item_name":"营销自动化","item_type":"module","amount_cents":100,"unit_price_cents":100}]`
+		ord := &model.ModuleOrder{
+			ID: "id-" + orderNo, OrderNo: orderNo, ClientOrderNo: orderNo, TenantID: tn.ID,
+			OrderType: "module", Status: model.ModuleOrderFulfilled,
+			TotalAmountCents: 100, Currency: "CNY", Items: items,
+			CreatedAt: at, UpdatedAt: at,
+		}
+		if err := database.WithContext(tenant.WithSystemScope(context.Background())).Create(ord).Error; err != nil {
+			t.Fatalf("写入订单 %s: %v", orderNo, err)
+		}
+	}
+	base := time.Now().Add(-time.Hour)
+	writeOrder(tenantA, "ORD-A-OLD", base)
+	writeOrder(tenantB, "ORD-B-NEW", time.Now()) // 更新 ⇒ 首见即最新会选中乙
+
+	svc := NewModuleCatalogService()
+	ctxA := tenant.OnlyTenant(context.Background(), tenantA.ID)
+	if _, err := svc.Sync(ctxA); err != nil {
+		t.Fatalf("租户甲 Sync 失败: %v", err)
+	}
+
+	// 甲名下必须有 reach-auto 且为 active
+	var gotA model.TenantModule
+	if err := database.WithContext(ctxA).
+		Where("module_key = ?", "reach-auto").First(&gotA).Error; err != nil {
+		t.Fatalf("租户甲名下应有 reach-auto 的开通行（平台名单已含它）: %v", err)
+	}
+	if gotA.Status != model.TenantModuleActive {
+		t.Errorf("租户甲的 reach-auto 应为 active，实际 %s", gotA.Status)
+	}
+
+	// 乙名下**不应**因为甲这轮 sync 多出 reach-auto
+	var nB int64
+	if err := database.WithContext(tenant.OnlyTenant(context.Background(), tenantB.ID)).
+		Model(&model.TenantModule{}).Where("module_key = ?", "reach-auto").Count(&nB).Error; err != nil {
+		t.Fatalf("统计租户乙的模块行失败: %v", err)
+	}
+	if nB > 0 {
+		t.Errorf("租户甲这轮 sync 不该往租户乙名下写 reach-auto（实写 %d 行）："+
+			"落点必须是本轮同步的租户，不是订单里最新那一笔的租户", nB)
+	}
 }
