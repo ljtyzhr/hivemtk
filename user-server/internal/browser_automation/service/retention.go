@@ -88,7 +88,7 @@ func retentionEnabled(cmdLogRepo repository.BrowserCommandLogRepository, planRep
 }
 
 // pruneAuditOnce 跑一轮扫描：界与来源**每次现读现算**。
-// 单独成函数是因为「来源到底有没有传给 PruneBefore」这一格必须可断言——goroutine + 1h ticker
+// 单独成函数是因为「来源到底有没有传给 PruneBefore」这里必须可断言——goroutine + 1h ticker
 // 里的接线测不到，而它正是这条修复的落点（少传一处，库里就只剩 cutoff 没有来源，
 // 与修复前的形状逐字节相同，且没有任何一行会红）。
 //

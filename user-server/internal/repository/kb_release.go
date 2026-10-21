@@ -202,7 +202,7 @@ func (r *KBReleaseRepository) ListReleases(ctx context.Context) ([]model.KBRelea
 // SetGoverned 翻转发治开关（启用/停用发布制）。
 //
 // 停用只翻这一列，**不回滚任何已生效的版本号**：governed=false 让闸门对该库整体失效，
-// 语料回到"全可见"，而历史版本号还在 —— 重新开启时不需要重建任何状态。
+// 语料回到"全可见"，而旧版本号还在 —— 重新开启时不需要重建任何状态。
 func (r *KBReleaseRepository) SetGoverned(ctx context.Context, productID string, governed bool, actor string) (*model.KBRelease, error) {
 	if !r.Available() {
 		return nil, errors.New("kb_release repository: db 未初始化")
@@ -336,7 +336,7 @@ func (r *KBReleaseRepository) WithdrawChange(ctx context.Context, id string) (bo
 	return res.RowsAffected > 0, nil
 }
 
-// AppendAudit 记一条留痕（AC③）。与业务写同事务调用时把 tx 传进来，
+// AppendAudit 记一条留痕。与业务写同事务调用时把 tx 传进来，
 // 传 nil 用本层句柄（独立记录，例如启用治理这类"事务已经 commit 完"的事件）。
 func (r *KBReleaseRepository) AppendAudit(ctx context.Context, tx *gorm.DB, log model.KBChangeAuditLog) error {
 	if r == nil {
@@ -359,7 +359,7 @@ func (r *KBReleaseRepository) AppendAudit(ctx context.Context, tx *gorm.DB, log 
 // RecordAudit 独立记一条留痕（不绑事务）。
 //
 // 单列一扇而不是让 service 传 nil：service 层不得出现 *gorm.DB（架构门 2.2 的口径），
-// 而"提交之后再记"这一格本来就没有 tx 可给。
+// 而"提交之后再记"这个值本来就没有 tx 可给。
 func (r *KBReleaseRepository) RecordAudit(ctx context.Context, log model.KBChangeAuditLog) error {
 	return r.AppendAudit(ctx, nil, log)
 }
@@ -389,7 +389,7 @@ func (r *KBReleaseRepository) ListAuditBySubject(ctx context.Context, subjectKey
 // 前三个由 knowledge_chunks_tsv_trigger 维护
 // （internal/migration/migrations/rag_hybrid_migration.go:151-171，含 content_hash 那段），
 // embed_status 走库级 DEFAULT 'pending' —— 而**没有任何后台通路扫这一列回填向量**
-// （实测：全仓读点只有 vector_retriever.go:153 的告警计数与文档级筛选），
+// （验证：全仓读点只有 vector_retriever.go:153 的告警计数与文档级筛选），
 // 所以向量侧的补齐由 service 在事务提交后显式做一次，见 service 侧 kbEmbedApplied。
 
 // chunkIndexSQL 同一文档内当前最大分段号的下一格（revise 复用旧行的号，让替换段落留在原位）
@@ -687,7 +687,7 @@ func (r *KBReleaseRepository) chunkIndexFor(ctx context.Context, tx *gorm.DB, do
 
 // Rollback 生效指针回拨一格：previous → effective，previous 清零，并记下刚被撤下的号。
 //
-// **一个字节都不碰 knowledge_chunks**（AC②）。回拨之后：
+// **一个字节都不碰 knowledge_chunks**。回拨之后：
 //   - 被撤下那一版引入的行 kb_version > effective ⇒ 不可见（它们还在表里，随时能回来）；
 //   - 被撤下那一版退役的行 retired_version > effective ⇒ 老内容重新可见。
 //     两条都只由 effective 这一个数决定，所以"回滚"没有任何数据搬运。

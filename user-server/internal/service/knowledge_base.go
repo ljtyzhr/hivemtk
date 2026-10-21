@@ -86,7 +86,7 @@ func (s *KnowledgeBaseService) CreateKB(ctx context.Context, kb *model.Knowledge
 		if kb.OwnerAgentID == nil || *kb.OwnerAgentID == 0 {
 			// 必须包 ErrInvalidInput：response.ErrorFromDB 是按 errors.Is / 消息子串分档的，
 			// 裸 errors.New 的消息（"…必填"）不在它的子串名单里 ⇒ 调用方拿到 500 INTERNAL_ERROR_6002，
-			// 而这是纯粹的入参错（2026-09-22 在开发实例上实测：shared+owner 那一格返 500）。
+			// 而这是纯粹的入参错（2026-09-22 在开发实例上验证：shared+owner 那一格返 500）。
 			return fmt.Errorf("%w: owner_type=private 时 owner_agent_id 必填", utils.ErrInvalidInput)
 		}
 		ownerAgentID = *kb.OwnerAgentID

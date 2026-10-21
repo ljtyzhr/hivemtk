@@ -543,7 +543,7 @@ func (s *ModuleCatalogService) Sync(ctx context.Context) (*ModuleSyncResult, err
 	// 的名单 —— 有租户绑定时是它自己的，没绑定时是**商户级**名单（平台按
 	// merchant_key 的兜底行下发）。商户级名单不代表任何租户，拿它去遍历
 	// 全租户的行会把**别的租户已开通的付费模块**误标成 disabled
-	// （实测：m1 买过 reach-auto 且平台端 active，用户端却显示未拥有）。
+	// （验证：m1 买过 reach-auto 且平台端 active，用户端却显示未拥有）。
 	//
 	// 所以 stale 判定只在**本轮有该租户专属名单**时做，且只看该租户的行：
 	//   - 有租户绑定 ⇒ 判该租户的行（撤销语义正确）；
@@ -618,7 +618,7 @@ func (s *ModuleCatalogService) purchaseTenants(ctx context.Context) map[string]u
 			}
 			tid := o.TenantID
 			if tid == 0 {
-				// 迁移前落库的历史行没有 tenant_id 值：归默认租户（存量数据
+				// 迁移前落库的存量行没有 tenant_id 值：归默认租户（存量数据
 				// 升级口径同此），绝不放行 tid=0（那会构造出无绑定 ctx →
 				// on 模式 fail-closed 让整轮同步失败）。
 				tid = tenant.DefaultTenantID

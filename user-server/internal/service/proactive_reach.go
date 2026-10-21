@@ -111,7 +111,7 @@ type ProactiveReachService struct {
 
 	dnc *DoNotContactService
 
-	// preSendGate 发送前审批钩子；nil 表示"没装闸门"，外发行为与接线前逐字一致。
+	// preSendGate 发送前审批钩子；nil 表示"没装闸门"，外发行为与接线前一致。
 	preSendGate ReachPreSendChecker
 
 	smsRegistry      func() (func(ctx context.Context, phone, content, templateID string, params map[string]string) (string, error), error)
@@ -211,7 +211,7 @@ func (s *ProactiveReachService) PreSendApprovalChecker() ReachPreSendChecker {
 // reachApprovalKey 判定键：客户身份优先，退到"渠道:收件人"。
 //
 // 刻意不含 AccountID：短信/邮箱/钉钉渠道的 accountID 在装配里恒为空，用它当键会得到
-// 一把恒空的白名单——判了等于没判（T-P1-05 的教训，本卡的 AC②）。
+// 一把恒空的白名单——判了等于没判（T-P1-05 的教训，本处的 AC②）。
 func reachApprovalKey(oneID, customerID, channel, recipient string) string {
 	if oneID != "" {
 		return oneID

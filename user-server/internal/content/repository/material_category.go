@@ -89,7 +89,7 @@ func (r *materialCategoryRepo) Delete(ctx context.Context, id string) error {
 	}
 
 	// ⚠️ 这条不变量只有 Go 里这一处守：schema 里 materials.category_id / parent_id 上没有外键
-	// 约束（变异 M14 实测：裸删返回成功、子分类与素材变成孤儿行）。所以「非空即拒」不能省，
+	// 约束（变异 M14 验证：裸删返回成功、子分类与素材变成孤儿行）。所以「非空即拒」不能省，
 	// 也不能像改前那样伪造一个 gorm.ErrForeignKeyViolated 上抛——那条文案不含「不存在」，
 	// 出口层只能给 500，运维看不出是「分类非空」。
 	var childCount int64

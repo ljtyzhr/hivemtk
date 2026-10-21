@@ -61,7 +61,7 @@ type TelegramGateService struct {
 //
 // 为什么需要这个接缝：AuthorizeMember 的放行动作（UnrestrictChatMember /
 // ApproveChatJoinRequest）必须打到 TG 侧；没有接缝时测试只能用假 token 打真 API，
-// 必然 401，于是"授权成功"这条主路径永远无法被验证（历史上该用例因此长期失败）。
+// 必然 401，于是"授权成功"这条主路径永远无法被验证。
 // 与 db.SetTestDB / config.SetAppConfig 同属项目既有的测试注入约定。
 func (s *TelegramGateService) SetAPIBase(u string) { s.apiBase = u }
 
@@ -554,7 +554,7 @@ func (s *TelegramGateService) exemptPrivilegedSpeaker(ctx context.Context, accou
 // MemberUnverified 判断成员在指定群是否处于未过验证状态（pending/restricted/kicked 且未激活）。
 // 用于门控群 AI 互锁：未验证成员的群发言不触发销售 AI / 线索商机挖掘。
 // 语义：群有启用中的 mute_unlock 门控但该成员无台账 → 视为门控生效前已在群的
-// 历史成员/绕过入群事件的人，同样拦截（gateWhitelisted 为 false）；
+// 老成员/绕过入群事件的人，同样拦截（gateWhitelisted 为 false）；
 // 群无门控或成员已验证 → 放行。
 func (s *TelegramGateService) MemberUnverified(ctx context.Context, accountID uint, chatID, userID string) bool {
 	if !s.wired() {
@@ -571,7 +571,7 @@ func (s *TelegramGateService) MemberUnverified(ctx context.Context, accountID ui
 		}
 		return false
 	}
-	// 无台账：仅当群是启用中的禁言解锁门控时才拦截（历史成员补验证），否则放行
+	// 无台账：仅当群是启用中的禁言解锁门控时才拦截（老成员补验证），否则放行
 	gate, gerr := s.gateRepo.GetByChatID(ctx, accountID, chatID)
 	if gerr != nil || gate == nil || !gate.Enabled || gate.Mode != TGGateModeMuteUnlock {
 		return false
@@ -699,7 +699,7 @@ func (s *TelegramGateService) AuthorizeMemberByID(ctx context.Context, memberID 
 
 // tgGateWelcomeResendMax 群内验证提示的最大补发次数（含入群时的首次尝试）。
 // 上限存在的理由：提示发不出去一般不是抖动，而是 Bot 在这个群里没了发言权限；
-// 对这种成员每分钟重发一次只会把群刷屏（线上实测 6 名成员被重播 219 条）。
+// 对这种成员每分钟重发一次只会把群刷屏（线上出现过 6 名成员被重播 219 条）。
 const tgGateWelcomeResendMax = 3
 
 // tgGateInFlightQuiet 一行台账"可能还正被入群请求内路径握着"的时长上界。
@@ -707,7 +707,7 @@ const tgGateWelcomeResendMax = 3
 // 这条窗口守的不变量：同一次入群只许播报一次。请求内路径（HandleNewMembers）在
 // 写台账与本次尝试的收尾写入之间夹两次 TG 往返，那段时间里这一行同样满足
 // "从未送达 + 窗口开着"，补偿循环如果照单捞取，就会对同一个人再禁言一次、再播报
-// 一次（线上实测第 2、3 条提示即由此而来，两次 restrict 相隔 8 秒）。
+// 一次（线上第 2、3 条提示即由此而来，两次 restrict 相隔 8 秒）。
 //
 // 上界怎么来的：这一行上的最长串是"禁言 + 提示"两次渠道层调用，单次受
 // core.DefaultHTTPTimeout=30s 约束 ⇒ 60s；实测 8–10s。取两个清扫节拍（2 分钟）
@@ -725,7 +725,7 @@ const tgGateInFlightQuiet = 2 * gateSweeperInterval
 //
 // 取数判据是 welcome_sent_at 而不是 expires_at：ListStalledRestricted 只返回"提示
 // 从未送达"的 restricted 成员，所以已被告知的人根本进不了这个循环——一次播报都不发，
-// 计时也不再被顶回去（历史上"临近到期"被当成"提示没送达"，每个 TTL 给同一个人重播
+// 计时也不再被顶回去（"临近到期"曾被当成"提示没送达"，每个 TTL 给同一个人重播
 // 一次群消息，且重播顺手把 expires_at 顶回去，TTL 清理对这个人永不触发）。
 //
 // 进来的人三条路：
@@ -823,10 +823,10 @@ func (s *TelegramGateService) retimeGateWindow(ctx context.Context, m *model.Tel
 // 隔离 callback fail-closed 拒绝（生产日志实证："[TG-Gate] TTL 清扫失败: [tenant] 表
 // telegram_group_members 需要租户上下文但 ctx 未绑定（query）"）—— 症状是超时成员永远不被处置。
 //
-// 修法是 Fanout 而不是 system scope：这一格**对真人动手**（踢群 / 拒绝入群申请 / 补发验证提示），
+// 修法是 Fanout 而不是 system scope：这里**对真人动手**（踢群 / 拒绝入群申请 / 补发验证提示），
 // RecoverStalled 还会按 ctx 取 bot 客户端（telegram_accounts 读）并回写台账 —— system scope
 // 虽能放行查询，但这些读会摊成跨租户全量（拿别的租户的 bot 去踢自己的群），新建/回写也会失真。
-// 逐活跃租户注入 ctx = 行归属谁就以谁的身份动谁的群；off 模式退化为单默认租户（等价历史行为）。
+// 逐活跃租户注入 ctx = 行归属谁就以谁的身份动谁的群；off 模式退化为单默认租户。
 // 跨进程租约（cron_job_leases，无 tenant_id 列、进程级互斥）留在扇出之外，见 sweepOnce。
 func (s *TelegramGateService) SweepExpired(ctx context.Context, limit int) (int, error) {
 	if !s.wired() {

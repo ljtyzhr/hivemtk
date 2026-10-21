@@ -496,7 +496,7 @@ func (s *TelegramService) CreateAccount(ctx context.Context, acc *model.Telegram
 				acc.LastErrorMsg = err.Error()
 				// 行自证（specs/001-saas-multi-tenant T027）：本协程是 HTTP 建号请求的收尾，
 				// 脱离了请求 ctx，但账号行刚创建、acc.TenantID 已由 on 模式隔离 callback 填好
-				//（off 模式为 0 → WithTenantID 原样返回，行为与历史版本等价）。裸
+				//（off 模式为 0 → WithTenantID 原样返回，行为与旧版本等价）。裸
 				// context.Background() 在 TENANT_MODE=on 下这次 Update 会被 fail-closed 拒绝。
 				_ = s.accRepo.Update(tenant.WithTenantID(context.Background(), acc.TenantID), acc)
 			} else {
@@ -679,7 +679,7 @@ func (s *TelegramIntegrationService) SendMessageWithReceipt(ctx context.Context,
 			logger.Warnf("[tg] 新 token 持久化失败 account=%d: %v", acc.ID, uErr)
 		}
 		// 失败也要留出站轨迹：否则会话里只剩客户入站行，事后既看不出 AI 生成过回复、
-		// 也看不出投递失败（2026-09-19 断网实测：日志有 outbound send failed，库里零痕迹）。
+		// 也看不出投递失败（2026-09-19 断网验证：日志有 outbound send failed，库里零痕迹）。
 		s.pushTelegramSendFailureTrace(ctx, accountID, chatID, content, err)
 		return "", fmt.Errorf("send tg msg: %w", err)
 	}

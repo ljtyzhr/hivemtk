@@ -80,7 +80,7 @@ var bulkLinkWarnOnce sync.Once
 // —— 退订判定（email_unsubscribe）、按记录选 SMTP（email_smtp）、行状态回写与 job 计数都要
 // 按行所属租户生效；system scope 虽能放行查询，但这些读会摊成跨租户全量（A 租户的退订名单
 // 挡住 B 的收件人），新建/回写也会失真。Fanout 逐活跃租户注入 ctx，off 模式退化为单默认
-// 租户（等价历史行为），与 sop_scheduler.tick / churn_score_job 同一形态。
+// 租户（等价既有行为），与 sop_scheduler.tick / churn_score_job 同一形态。
 func EmailListCron() {
 	defer func() {
 		if r := recover(); r != nil {

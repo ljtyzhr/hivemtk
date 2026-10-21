@@ -29,7 +29,7 @@ import (
 // 那一格，而"这笔钱算不算结清了"由回款腿自己按整张单求和判（见 RecordPayment）。
 // 用接口而不是直接持 *PaymentService 还有一个实际作用：装配失败的环境里
 // SetOrderPaymentSink(nil) 之后这一腿必须**明确报错**而不是静默少记一笔钱，
-// 而"静默少记"正是本卡 AC① 之外最贵的一种坏法。
+// 而"静默少记"正是本处 AC① 之外最贵的一种坏法。
 type OrderPaymentSink interface {
 	Available() bool
 	RecordPayment(ctx context.Context, in RecordPaymentInput) (*PaymentReceipt, error)
@@ -51,7 +51,7 @@ type OrderWebhookResult struct {
 //
 // 白名单而不是"认识的就取、不认识的原样忽略"：未知格子说明**渠道在按另一份契约推送**，
 // 而那多半是同一笔钱的另一种写法（比如 bill_amount 与 amount 并存且不相等）。
-// 忽略它 = 按半份契约把钱记进去，而这一格记的是钱。
+// 忽略它 = 按半份契约把钱记进去，而这里记的是钱。
 var orderWebhookPaymentKeys = map[string]bool{
 	"bill_id":     true,
 	"channel_ref": true,
@@ -193,7 +193,7 @@ func webhookAmount(v any) (float64, bool) {
 
 // webhookMoneyCent 把载荷里的金额落成镜像那三列（bigint，口径是**元取整**）。
 //
-// 老代码是 int64(v)：向零截断，199.99 → 199（G15 第⑥条）。这一格是运营读订单时看到的
+// 老代码是 int64(v)：向零截断，199.99 → 199（G15 第⑥条）。这里是运营读订单时看到的
 // "收了多少钱"，系统性少记一分的方向恰好是最不该少记的那一侧，改成四舍五入。
 // 列型不动：改成 numeric 要在存量表上 ALTER，而这张表上没有任何一处按它做对账
 // （对账读 bills/payments，见 model/integration.go 那段）。
@@ -235,7 +235,7 @@ func orderWebhookEventKey(platform, orderID, status string, raw map[string]any) 
 // 那"重放这一条"就没有判据了（重放读的是 RawData，去重读的是摘要）。
 // 用 encoding/json 而不是老代码的 fmt.Sprintf("%v")：前者对 map 键排序，
 // 所以"同一份载荷"在两个进程里也是同一段字节；后者稳定但没有结构，
-// 而这一格是唯一一处"渠道原样说了什么"的存证。
+// 而这里是唯一一处"渠道原样说了什么"的存证。
 func orderWebhookCanonicalText(raw map[string]any) string {
 	if raw == nil {
 		return "{}"

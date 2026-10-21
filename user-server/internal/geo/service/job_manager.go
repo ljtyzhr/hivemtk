@@ -241,7 +241,7 @@ func SetupGeoJobs(sched JobScheduler) {
 	// 持久化的 cron 表达式在重启后即丢。改为 Fanout 逐活跃租户读**本租户**行，
 	// 并按 (任务, 租户) 各自注册：cron 闭包钉住注册时的租户，派发时只跑该租户
 	//（见 registerLocked / jobKey 注释）。off 模式 Fanout 退化为单默认租户，
-	// 注册数量与历史版本一致。
+	// 注册数量与旧版本一致。
 	if _, err := tenant.Fanout(context.Background(), nil, func(tctx context.Context, tid uint) (int64, error) {
 		persisted := m.loadPersistedSpecs(tctx)
 		for _, d := range geoJobDefs {
@@ -487,7 +487,7 @@ func (m *JobManager) execute(def geoJobDef, runID uint, trigger string, ctx cont
 // ctx 由管理端 HTTP handler 透传请求 ctx（geo_config 是租户表，on 模式下读写
 // 需要租户绑定）：调度注册与持久化都落在**本租户** —— 注册 (任务, 本租户) 的
 // cron 条目、写本租户的 geo_config.cron_specs 行。off 模式/无绑定按默认租户
-// （等价历史行为）。
+// （等价既有行为）。
 func (m *JobManager) UpdateSchedule(ctx context.Context, name, spec string) error {
 	def, ok := m.defByName(name)
 	if !ok {

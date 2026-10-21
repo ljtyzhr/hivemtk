@@ -15,7 +15,7 @@ import (
 // 事实链：
 //  1. 模型原标签写成 `index:idx_date_engine_intent,uniqueIndex`，GORM 把它解析成
 //     「一个同名非唯一复合索引 + 一个单独的 uniqueIndex 设置」，实际建出来的是
-//     **非唯一**索引（按仓内迁移重建的库实测：idx_date_engine_intent 无 UNIQUE）。
+//     **非唯一**索引（按仓内迁移重建的库验证：idx_date_engine_intent 无 UNIQUE）。
 //  2. 开发库里存在手写的 `UNIQUE (tenant_id, stat_date, engine, intent)`，
 //     但仓内没有任何迁移建它 ⇒ 全新部署与开发库漂移。
 //  3. 后果：`Upsert` / `IncrementByEngine` 的 `ON CONFLICT (...)` 在全新库上报

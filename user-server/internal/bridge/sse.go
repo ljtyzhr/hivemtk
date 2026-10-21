@@ -117,7 +117,7 @@ type SSEEvent struct {
 
 // OutboundEventData 下行出站事件的业务字段（SSEEvent.Data 的单一构造源）。
 //
-// R-B1 契约（2026-09-19）：SSE 总线路径与 DB 补拉路径必须产出**逐键一致**的 Data——
+// 契约：SSE 总线路径与 DB 补拉路径必须产出**逐键一致**的 Data——
 // 扩展端 downlink 以 Data.msg_id 为去重/ack 复合键（msg_id|conversation_id），
 // 曾因总线路径缺 msg_id → 键退化为 "undefined|conv" → 同会话第二条起全被误判重复
 // → 静默丢消息。任何新增投递路径一律经 BuildOutboundSSEEvent，禁止手拼 Data。
@@ -319,7 +319,7 @@ func (b *SSEBus) HasSubscribers(channel, accountID string) bool {
 //     根本不建订阅，只留得下轮询刷新过的同步时间。只认订阅会让这种模式下所有延后出站
 //     被逐轮跳过、一行都不碰，而且不报错——门从"少烧几条判弃"变成"永不补投"。
 //
-// 渠道先归一再查：订阅键与 bridge_accounts 都存规范渠道，回扫读来的可能是历史别名值。
+// 渠道先归一再查：订阅键与 bridge_accounts 都存规范渠道，回扫读来的可能是遗留别名值。
 // 真值读不到（仓储未装配 / 查询失败）时放行，与探针缺件同一口径：
 // 门建不起来只能退化成"照旧补投"，不能变成"谁都不投"。
 func BridgeChannelOnline(ctx context.Context, channel, accountID string) bool {
@@ -672,7 +672,7 @@ func (h *SSEHandler) HandleOutboxSSE(c *gin.Context) {
 	clientGone := c.Request.Context().Done()
 	lastBusEventAt := time.Now()
 
-	// R-B3（2026-09-19）：轮询定时器仅在目标间隔变化时 Reset——原实现每轮 select 前无条件
+	// 轮询定时器仅在目标间隔变化时 Reset——每轮 select 前无条件
 	// Reset，而心跳每 15s 也触发一轮，poll 计时被反复续期 → 永远不到点 → 总线丢事件时
 	// 的 DB 兜底补拉形同虚设。
 	curPollInterval := pollInterval
@@ -757,7 +757,7 @@ func writeSSEEvent(w http.ResponseWriter, ev SSEEvent) bool {
 	}
 	dataJSON, err := json.Marshal(ev.Data)
 	if err != nil {
-		// 序列化失败 = 该事件必丢——Error 级日志留痕（原来只写注释帧给客户端，
+		// 序列化失败 = 该事件必丢——Error 级日志留痕（只写注释帧给客户端，
 		// 客户端按协议忽略注释 → 静默丢消息且服务端零感知）。
 		logger.GetLogger().Error().Err(err).
 			Str("event", "sse_marshal_error").

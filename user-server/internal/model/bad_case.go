@@ -180,7 +180,7 @@ var BadCaseFixLayers = []string{
 }
 
 // BadCaseLabelFixLayer 类目 → 责任层。表写成数据而不是 switch：
-// "七个类目各自落在四层里的哪一层"本身就是本卡的验收对象（见 model 层的表驱动用例）。
+// "七个类目各自落在四层里的哪一层"本身就是本处的验收对象（见 model 层的表驱动用例）。
 var BadCaseLabelFixLayer = map[string]string{
 	BadCaseLabelKBMissing:       BadCaseFixLayerKnowledge,
 	BadCaseLabelKBStale:         BadCaseFixLayerKnowledge,

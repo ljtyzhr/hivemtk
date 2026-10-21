@@ -68,7 +68,7 @@ func (s *ConversionFunnelService) BuildFunnel(startTime, endTime time.Time) (*Fu
 	// 阶段键与中文名一律取词表（唯一真源），此处不写字面量 —— R-4 之前这里与
 	// `conversion_funnels` 演示表各有一套阶段名，那正是"双源"的一部分。
 	// 前四个 count 的错误刻意沿用现状不外抛（部分数据源不可用时宁可回一份看着齐全的
-	// 报告），该口径的代价已登记为短板 G16，改它属改变现网行为，不在本卡。
+	// 报告），该口径的代价已登记为短板 G16，改它属改变现网行为，不在本处。
 	visitCount, _ := s.repo.CountCustomerEventsByTimeRange(ctx, startTime, endTime)
 	report.Stages = append(report.Stages, FunnelStage{
 		Stage: string(opsrepo.StageVisit), Name: opsrepo.StageVisit.Label(), Count: visitCount,

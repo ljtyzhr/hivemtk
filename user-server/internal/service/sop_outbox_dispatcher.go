@@ -136,7 +136,7 @@ func (o *SOPOutboxDispatcher) processDueTimers(ctx context.Context) {
 	// Create 会落列默认值 1，于是租户 N 的 timer 点火后事件/执行被串写到默认租户。
 	// Fanout 逐活跃租户注入 ctx ⇒ 查询自动带 WHERE tenant_id=N（只看本租户的行）、
 	// 点火与派发也拿到已绑定租户的 ctx，不产生任何跨租户读写；off 模式退化为单
-	// 默认租户（等价历史行为）。与 sop_scheduler.tick / churn_score_job 同一形态。
+	// 默认租户（等价既有行为）。与 sop_scheduler.tick / churn_score_job 同一形态。
 	// 行上 sop_timers.tenant_id（T027 行自证）在下面仍再兜一层（timerRowTenant）。
 	if _, err := tenant.Fanout(ctx, nil, func(tctx context.Context, _ uint) (int64, error) {
 		o.processDueTimersForTenant(tctx)
@@ -539,7 +539,7 @@ func (d *SOPStuckDetector) scanStuckExecutions(ctx context.Context) {
 	// sop_exec_events，还可能发消息。system scope 只豁免查询，派发链下游的 Create
 	// 会落列默认值 1，把租户 N 的恢复写到默认租户（串租户）。Fanout 逐活跃租户注入
 	// ctx ⇒ 查询自动带 WHERE tenant_id=N、派发也带着租户上下文；off 模式退化为单
-	// 默认租户，等价历史行为。与 sop_scheduler.tick / churn_score_job 同一形态。
+	// 默认租户，等价既有行为。与 sop_scheduler.tick / churn_score_job 同一形态。
 	// 行上 sop_executions.tenant_id（T027 行自证）在循环里再兜一层。
 	if _, err := tenant.Fanout(ctx, nil, func(tctx context.Context, _ uint) (int64, error) {
 		d.scanStuckExecutionsForTenant(tctx)

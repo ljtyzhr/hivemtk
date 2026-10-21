@@ -117,7 +117,7 @@ type ExternalOrder struct {
 	// 可空是主形态而不是偷懒：绝大多数外部订单与我们的报价链无关（客户自己下的单），
 	// 只有载荷里带了账单号的那些才有值。**不建唯一**：分期与拆单都是一单对一账/一账对多单。
 	//
-	// 这一格是 G15 第③条的落点：改之前"钱到了"与"这是哪张应收"之间没有任何一行数据连着，
+	// 这里是 G15 第③条的落点：改之前"钱到了"与"这是哪张应收"之间没有任何一行数据连着，
 	// external_orders 又不带报价引用（见 model/bill.go 那段），于是回款域无从对齐。
 	// 它与 payments.bill_id 的分工：本列是**镜像上的线索**（哪条订单付过账），
 	// payments 才是**资金凭据**（哪笔钱算进结清）。结清判据只读后者，见 service/payment.go。
@@ -129,7 +129,7 @@ type ExternalOrder struct {
 	//
 	// 镜像侧的钱从来不是财务精度：列型是 bigint，改它要在存量表上 ALTER 列型，
 	// 而这一张表上没有任何一处按它做对账（对账读 bills/payments）。
-	// 本卡修的是**读法**：载荷里的 369.99 从前被 int64() 截成 369（系统性少记），
+	// 本处修的是**读法**：载荷里的 369.99 从前被 int64() 截成 369（系统性少记），
 	// 现在按四舍五入落 370，且金额文本的解析集中到 webhookMoney（见 service 层）。
 	TotalAmount    int64 `gorm:"type:bigint;default:0" json:"total_amount"`
 	PayAmount      int64 `gorm:"type:bigint;default:0" json:"pay_amount"`
@@ -175,7 +175,7 @@ var externalOrderStatusRank = map[string]int{
 // NormalizeExternalOrderStatus 把平台状态词归一到判据用的形态：去前后空白 + 小写。
 //
 // 只用于比较，**不写回库里**：external_orders.status 存的仍是平台原样给的那个词
-// （镜像的可读性优先于列值整齐，且历史行里已经是混杂的）。
+// （镜像的可读性优先于列值整齐，且存量行里已经是混杂的）。
 func NormalizeExternalOrderStatus(s string) string {
 	return strings.ToLower(strings.TrimSpace(s))
 }

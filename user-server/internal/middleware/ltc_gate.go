@@ -2,7 +2,7 @@
 //
 // 这张卡要修的是一句一直没落点的话："运营点一下就能整条 LTC 开/关"。
 // 落点定在遗留 KV 配置表里的 `ltc.config` 一行（读写与校验在 internal/service/ltc_config.go，
-// 走 repository.SystemConfigKVRepository，本卡不写裸 SQL），
+// 走 repository.SystemConfigKVRepository，本处不写裸 SQL），
 // 本文件只负责它面向 HTTP 的那一半：一条没被运营打开的 LTC 路由，请求必须**在进业务
 // handler 之前**被拦下 —— 拦在 handler 里等于外发/写库已经发生过了，
 // 而"总开关关着时不产生外发副作用"正是这张卡的 AC①。

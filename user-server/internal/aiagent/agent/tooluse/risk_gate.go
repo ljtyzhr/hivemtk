@@ -134,7 +134,7 @@ func RiskVerdict(t Tool, tc *ToolContext, grants AgentGrantReader) RiskDecision 
 //
 // **本函数不存在返回拒绝的路径**：结论只经 observer 流出，next 的结果原样透出。
 // 这是 AC② 的结构保证，比"旗子现在是 shadow"强 —— 旗子能被运维改掉，代码里的路径不能。
-// grants 或 observer 为 nil 时纯透传（= 未接线，行为与接线前逐字一致）。
+// grants 或 observer 为 nil 时纯透传（= 未接线，行为与接线前一致）。
 func RiskGateDecorator(t Tool, grants AgentGrantReader, observer RiskObserver) ToolDecorator {
 	return func(next ToolHandler) ToolHandler {
 		return func(ctx context.Context, args map[string]any) (ToolResult, error) {

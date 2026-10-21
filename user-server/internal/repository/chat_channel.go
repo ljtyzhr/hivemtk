@@ -23,7 +23,7 @@ func NewChatChannelRepository() *ChatChannelRepository {
 
 // NewChatChannelRepositoryWithDB 创建指定数据库连接的渠道仓库实例（用于 service 依赖注入 / 测试）
 //
-// db 为 nil 时所有方法走全局 DB（与历史行为一致）；service 构造时显式传入可避免全局态污染。
+// db 为 nil 时所有方法走全局 DB（与既有行为一致）；service 构造时显式传入可避免全局态污染。
 func NewChatChannelRepositoryWithDB(db *gorm.DB) *ChatChannelRepository {
 	if db == nil {
 		return &ChatChannelRepository{db: _db.GetDB()}

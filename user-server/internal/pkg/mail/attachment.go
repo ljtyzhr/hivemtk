@@ -3,7 +3,7 @@
 // 为什么放在 mail 包（与 unsubscribe.go 同一个理由）：单封投递走
 // internal/email/service.sendActualEmail，营销群发走 internal/pkg/cron.EmailListCron。
 // "粘贴进来的那串值算不算一个本站附件"写在任何一条路径的包里，另一条都会各写一份，
-// 然后各自漂移。而两份历史实现（各写死一个扁平根 uploads/attachments + 抹掉全部斜杠再取
+// 然后各自漂移。而两份旧实现（各写死一个扁平根 uploads/attachments + 抹掉全部斜杠再取
 // Base）实测永远 Stat 不到文件：上传侧落盘是 {baseDir}/attachments/{yyyy}/{mm}/{uuid}.{ext}，
 // 于是附件被静默丢弃，邮件照样标成已发送 —— 没人知道用户的附件从来没寄出去过。
 package mail
@@ -51,7 +51,7 @@ func attachmentEntries(csv string) []string {
 // AttachmentsDropped 判"附件列填了值却一项都没解析出来"。
 //
 // 单独成函数是为了让这个判定本身可断：两条外发路径都靠它决定要不要出声，
-// 而"填了附件、邮件已发送、附件从来没过"正是这一格安静了很久的原因。
+// 而"填了附件、邮件已发送、附件从来没过"正是这里安静了很久的原因。
 func AttachmentsDropped(csv string, paths []string) bool {
 	return len(attachmentEntries(csv)) > 0 && len(paths) == 0
 }

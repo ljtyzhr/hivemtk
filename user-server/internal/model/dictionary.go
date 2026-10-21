@@ -26,7 +26,7 @@ type Dictionary struct {
 	Name        string `gorm:"type:varchar(200);not null" json:"name"`
 	Description string `gorm:"type:varchar(500)" json:"description"`
 	SortOrder   int    `gorm:"default:0" json:"sort_order"`
-	// Enabled=false 的项不参与新写入，但历史行仍可能是它——所以下发时必须带上，
+	// Enabled=false 的项不参与新写入，但存量行仍可能是它——所以下发时必须带上，
 	// 让前端能把存量值也译成人话；只挡"新建时选它"。
 	Enabled      bool      `gorm:"default:true" json:"enabled"`
 	SystemLocked bool      `gorm:"default:false" json:"system_locked"`

@@ -6,7 +6,7 @@ import (
 )
 
 const (
-	// DefaultListenHost HTTP 监听主机兜底值。保持 0.0.0.0（历史行为）：
+	// DefaultListenHost HTTP 监听主机兜底值。保持 0.0.0.0（既有行为）：
 	// 收回本机只能靠显式设 SERVER_HOST=127.0.0.1，见 docs/DEPLOYMENT_GUIDE.md §6.2 加固路线①。
 	DefaultListenHost = "0.0.0.0"
 

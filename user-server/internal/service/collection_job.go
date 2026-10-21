@@ -187,7 +187,7 @@ type CollectionRoundReport struct {
 	EscalationHeld    int `json:"escalation_held"`
 	SkippedNoIdentity int `json:"skipped_no_identity"`
 	// SkippedNotOverdue 「扫出来的行我不认它逾期」。刻意不叫 no_due_date：账期未定
-	// 那一格已经有 `Undated` 在数（那是运营要看的读数），这一格是**自检** ——
+	// 那里已经有 `Undated` 在数（那是运营要看的读数），这里是**自检** ——
 	// 仓储的查询条件与这里的判据分开了才可能非零。两种坏法（读不出账期 /
 	// 其实还在宽限期内）处置动作相同（这一轮不碰它），所以合成一格，
 	// 换来"`SkippedNotOverdue > 0` 是一个干净的告警条件"。
@@ -289,7 +289,7 @@ func (j *CollectionJob) Available() bool {
 	return j != nil && j.bills != nil && j.opps != nil && j.reach != nil && j.tasks != nil && j.stages != nil
 }
 
-// SetClockForTest 注入时钟（催收的每一天都从这一格走）。
+// SetClockForTest 注入时钟（催收的每一天都从这里走）。
 //
 // 导出是为了让装配测试（app / router 包）也能钉住时间；生产不碰它。
 func (j *CollectionJob) SetClockForTest(now func() time.Time) {

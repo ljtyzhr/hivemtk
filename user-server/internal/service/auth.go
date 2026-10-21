@@ -30,7 +30,7 @@ import (
 //   - email：跨租户全局唯一（global_uniq_system_users_email 索引兜底），消解上述歧义
 //
 // 两者必须至少提供一个（binding required_without 双向约束）；
-// 离线模式（TENANT_MODE=off）两条通道语义与历史完全一致。
+// 离线模式（TENANT_MODE=off）两条通道语义一致。
 type LoginRequest struct {
 	Username   string `json:"username" binding:"required_without=Email"`
 	Email      string `json:"email" binding:"required_without=Username"`
@@ -225,7 +225,7 @@ func (s *AuthService) resolveLoginIdentity(ctx context.Context, req *LoginReques
 }
 
 // bindUserTenant 把已解析出的用户行归属租户挂到 ctx 上（off 模式直通）。
-// 0 值历史行回落默认租户，与 tokenForUser 的签发口径一致。
+// 0 值遗留行回落默认租户，与 tokenForUser 的签发口径一致。
 func bindUserTenant(ctx context.Context, user *model.SystemUser) context.Context {
 	if !tenant.IsMultiTenant() || user == nil {
 		return ctx
@@ -239,9 +239,9 @@ func bindUserTenant(ctx context.Context, user *model.SystemUser) context.Context
 
 // tokenForUser 按用户实际归属租户签发 JWT（specs/001-saas-multi-tenant T031）
 //
-// 与历史 GenerateToken 的唯一差异是 tenantID：dataScope/dept/team 仍传空与 0，
+// 与 GenerateToken 的唯一差异是 tenantID：dataScope/dept/team 仍传空与 0，
 // 保持既有行级权限语义不变。off 模式用户行 tenant_id 恒为 1（存量回填值），
-// 为 0 的历史行回落到默认租户，避免签出 tenant_id=0 的越权令牌。
+// 为 0 的遗留行回落到默认租户，避免签出 tenant_id=0 的越权令牌。
 func (s *AuthService) tokenForUser(user *model.SystemUser) (string, error) {
 	tid := user.TenantID
 	if tid == 0 {
@@ -338,7 +338,7 @@ func (s *AuthService) loginWithUser(ctx context.Context, user *model.SystemUser)
 
 // RefreshToken 续期令牌。
 //
-// 第十八轮（2026-09-19）改造：旧实现走 utils.RefreshToken，**只把旧令牌里的 claims 原样
+// 走 utils.RefreshToken 时**只把旧令牌里的 claims 原样
 // 抄进新令牌**，全程不回源——后果是被禁用/被删除/被降权的账号只要每 24h 刷一次，
 // 就能带着过期的 role/data_scope 无限续期，"24 小时暴露面"实际是"永久暴露面"。
 // 现在改为：吊销位判定 → 回源查账号 → 状态守卫 → 用**当前**库内角色/数据范围重新签发。
@@ -368,7 +368,7 @@ func (s *AuthService) RefreshToken(ctx context.Context, tokenString string) (str
 
 	// 刷新必须保留用户的真实租户：GenerateTokenWithScope 硬编码默认租户（tenant_id=1），
 	// 会让非默认租户用户在刷新后"掉进"1 号租户（越权读默认租户数据）。
-	// 与登录签发（tokenForUser）同口径：0 值历史行回落默认租户，避免签出 tenant_id=0。
+	// 与登录签发（tokenForUser）同口径：0 值遗留行回落默认租户，避免签出 tenant_id=0。
 	tid := user.TenantID
 	if tid == 0 {
 		tid = tenant.DefaultTenantID
@@ -417,7 +417,7 @@ const initialAdminID uint = 1
 var ErrInitialAdminProtected = errors.New("初始超管账号的密码不允许通过此入口修改（系统级保护）")
 
 // ChangePassword 修改密码
-// 修复：强制走密码策略校验 + 记录历史
+// 强制走密码策略校验 + 记录改密留痕
 // 保护：初始超管（id=1）密码不允许通过任何入口修改，防止密码被改后无法登录
 func (s *AuthService) ChangePassword(ctx context.Context, userID uint, req *ChangePasswordRequest) error {
 	if userID == initialAdminID {
@@ -913,7 +913,7 @@ func (s *AuthService) ValidateOfflineRegistration(companyName, realName, phone, 
 //	      （见 repository/tenant.go 的注释）。登记行失败即中止：没有租户归属的
 //	      超管在 on 模式是悬空行，后续所有按租户隔离的写入都落不到它头上。
 //	off：  全部校验 → INSERT → install.lock → 回填 → 建 tenants 行。
-//	      与历史顺序逐条一致；登记失败**不回滚超管**（留痕缺失可补，
+//	      顺序逐条一致；登记失败**不回滚超管**（留痕缺失可补，
 //	      把已能登录的人挡在门外不可逆）。
 //
 // clientIP/userAgent：003 T010 静默合规采集 —— 服务端视角落 tenants 三列

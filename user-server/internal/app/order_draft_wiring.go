@@ -9,14 +9,14 @@
 // 三态语义（顺序 = 风险递增，默认停在第一档）：
 //
 //	off（默认）  不装配任何东西：没有草稿服务、没有清扫协程、编排器不挂生产者。
-//	             与 T-P2-01 交付态逐字节一致（AC③ 的断言对象）。
+//	             与交付态一致。
 //	shadow     新建走影子底座：读一律走内存（对调用方零行为变化），写同时镜像进库，
 //	             于是 order_drafts 里有真实行可与内存并排对照，而 Durable() 仍是 false。
 //	on         新建走 DB 底座：权威副本进库，重启不丢、多副本共享同一份。
 //
 // 为什么"on 只影响新建"：底座选择发生在构造期，存量进程里已有的内存草稿不会凭空搬进
 // 库。所以从 shadow 切到 on 时，库里只有切档之后被写过的那些行，观察端点上两个计数
-// 必然对不上一次 —— 这是切档的已知代价，不是丢数据（本卡不做事后搬运，见卡面执行结果）。
+// 必然对不上一次 —— 这是切档的已知代价，不是丢数据（本处不做事后搬运，见卡面执行结果）。
 //
 // 与 FF_LTC_KB_CANARY / FF_TOOL_CIRCUIT_BREAKER 同一取舍：布尔式真值（true/1/yes/on）
 // 只到 shadow。一把能让业务数据换存储介质的旗子，不该因为有人按习惯写了 `=true`
@@ -84,7 +84,7 @@ func parseOrderDraftMode(raw string) orderDraftMode {
 //
 // 为什么必须与草稿旗子分开（项11b 的关键取舍）：
 //   - off（默认）：生产者走既有的 OrderDraftService.CreateDraftsFromSalesResponse，
-//     只建草稿，行为与今天逐字节一致；
+//     只建草稿，行为与今天一致；
 //   - 真值：生产者改走 SalesActionTrigger.TriggerAfterSales，交付其注释里那套
 //     "商业产品级业务流"（打标签 / 推进旅程 / 提取意向建草稿 / 按意图排跟进 /
 //     记销售事件），草稿仍由同一条 CreateFromIntent 口径产出。
@@ -131,7 +131,7 @@ type OrderDraftRuntime struct {
 
 	// producerAttached 编排器上到底挂没挂生产者。与 Assembled 分开记，是因为它们是
 	// 两个独立的失败面：运行时装配在 Init 里，挂生产者在后一步。只回"运行时在"的话，
-	// "装配了但没人调"这个本卡开工前的原病灶就会被端点说成已修好。
+	// "装配了但没人调"这个本处开工前的原病灶就会被端点说成已修好。
 	producerAttached bool
 
 	// trigger 销售动作触发器（项11b）。非 nil = 本运行时装配了触发器（SetDraftService /
@@ -296,7 +296,7 @@ func InitOrderDraftRuntime(db *gorm.DB) *OrderDraftRuntime {
 // StopOrderDraftRuntime 停掉清扫协程并清空全局引用（幂等）。
 //
 // 为什么现在没有调用方而不是"留个 TODO"：优雅停机的正解位置是 cmd/api/main.go 的
-// 退出序列（与 InitRecoveryWorker 返回的 worker 同一个坑位），而本卡的改动范围不含
+// 退出序列（与 InitRecoveryWorker 返回的 worker 同一个坑位），而本处的改动范围不含
 // main.go（原因写在 attachOrderDraftProducer 的注释里，不是偏好）。入口先备好，
 // 那一行接得上；没有它，进程退出时清扫协程就是无人回收的泄漏。
 func StopOrderDraftRuntime() {
@@ -314,10 +314,10 @@ func StopOrderDraftRuntime() {
 //
 // 调用方：BuildSmartOrchestrator（internal/app/sales_engine_factory.go）。
 // 为什么挂在那儿而不是 cmd/api/main.go：
-//   - 本卡的改动集刻意不含 main.go —— 它与 BuildSalesEngine 同属并行会话正在改的文件
-//     （git status 里它是 unstaged），把它 staged 进本卡提交会连带把别人的未提交工作
+//   - 本处的改动集刻意不含 main.go —— 它与 BuildSalesEngine 同属并行会话正在改的文件
+//     （git status 里它是 unstaged），把它 staged 进本处提交会连带把别人的未提交工作
 //     一起提交进去，那是拿别人的 WIP 换我这卡的装配位置；
-//   - BuildSmartOrchestrator 是这条竖**唯一**的编排器构造点（实测：router.go 一处调用，
+//   - BuildSmartOrchestrator 是这条竖**唯一**的编排器构造点（验证：router.go 一处调用，
 //     gormDB 形参现成），拿 DB 句柄不需要新增参数，装配时机与旗子读取都正好在
 //     HTTP 收流量之前。
 //

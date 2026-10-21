@@ -41,9 +41,9 @@ type IntegrationService struct {
 	productRepo      *repository.ExternalProductRepository
 	webhookEventRepo *repository.WebhookEventRepository
 
-	// payments 回款腿（T-P7-02）。**不在构造函数里 new**：PaymentService 要的是
+	// payments 回款腿。**不在构造函数里 new**：PaymentService 要的是
 	// 两个仓储的注入（payments + bills），而本服务是"全局 DB 句柄"那一代的老形状。
-	// 生产上这一格由构造函数从全局登记处取（见下面的 GlobalPaymentService 那一支），
+	// 生产上这里由构造函数从全局登记处取（见下面的 GlobalPaymentService 那一支），
 	// 测试里可以再用 SetOrderPaymentSink 换成假腿（判据：中间那一格要看得清）。
 	// 没塞 ⇒ 带 payment 格子的回调明确报错（见 UpsertOrderFromWebhook），不静默丢一笔钱。
 	payments OrderPaymentSink
@@ -62,7 +62,7 @@ var (
 // 所以 router.go 里那两行的顺序由 order_webhook_payment_wiring_test.go 与它自己的用例守着。
 //
 // 判空写成"取出来再判"而不是直接赋值：全局里放着的可能是 typed-nil，
-// 赋给接口格子之后 `!= nil` 为真，"有没有腿"这一格从此没有可信答案（判据见那一份用例的 ②）。
+// 赋给接口格子之后 `!= nil` 为真，"有没有腿"这个值从此没有可信答案（判据见那一份用例的 ②）。
 func NewIntegrationService() *IntegrationService {
 	svc := &IntegrationService{
 		accountRepo:      repository.NewIntegrationAccountRepository(),
@@ -1195,7 +1195,7 @@ func (s *IntegrationService) UpsertOrderFromWebhook(ctx context.Context, platfor
 	if created {
 		o = &model.ExternalOrder{Platform: platform, OrderID: orderID}
 	}
-	// 只挡"往回"这一格，别的列照旧更新：镜像的价值在于它尽量新，
+	// 只挡"往回"这个值，别的列照旧更新：镜像的价值在于它尽量新，
 	// 而一次迟到的 created 把已付的单擦回待付是假事实（G15 第②条）。
 	if !model.ExternalOrderStatusRegresses(o.Status, status) {
 		o.Status = status
@@ -1225,7 +1225,7 @@ func (s *IntegrationService) UpsertOrderFromWebhook(ctx context.Context, platfor
 			o.OrderTime = t
 		}
 	}
-	// 只在真的解析出账单号时写这一格：**不**把已有的值抹成空串。
+	// 只在真的解析出账单号时写这里：**不**把已有的值抹成空串。
 	// 抹掉等于把"这单付过账"的来路线索洗掉，而后续那条不带 payment 的普通状态推送
 	// 完全没有资格声明"这单与账单无关"。
 	if present && perr == nil && in.BillID != "" {
@@ -1246,7 +1246,7 @@ func (s *IntegrationService) UpsertOrderFromWebhook(ctx context.Context, platfor
 // recordOrderWebhookEvent 落一条事件留痕。
 //
 // 撞到 event_id 唯一键 ⇒ 同一条通知的第二次投递，**继续处理**而不是报错：
-// 这一格只是账本，不是闸门（拿它当闸门会让"第一次写坏了、重推被挡在门外"变成死局）。
+// 这里只是账本，不是闸门（拿它当闸门会让"第一次写坏了、重推被挡在门外"变成死局）。
 // 这里只按 SQLSTATE 23505 判重、不核索引名，与 bills/payments 那一族不同：
 // 那两族认错 23505 会把一次该失败的写入吞成成功复用（吞的是钱），
 // 而本表认错的最坏结果是"少留一行痕"，镜像与回款两腿都照常走。

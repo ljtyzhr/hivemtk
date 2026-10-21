@@ -58,10 +58,10 @@ const BadCaseDefaultPageSize = 20
 
 // badCaseFallbackThreshold 阈值缺位时用的档。
 //
-// 取编排器同款默认档而不是自己写一个数：本卡有两处会读阈值（自动标记的门槛、
+// 取编排器同款默认档而不是自己写一个数：本处有两处会读阈值（自动标记的门槛、
 // 落库那一列的 0 值兜底），写死两处就会在下次改默认档时漂成两个口径。
 // 也不能取 0：阈值读不到时 "confidence < 0" 永不成立 ⇒ 整条自动标记静默停摆，
-// 而它是本卡唯一的生产者。
+// 而它是本处唯一的生产者。
 func badCaseFallbackThreshold() float64 { return DefaultOrchestratorConfig().ConfidenceThreshold }
 
 var badCaseIDSeq int64
@@ -384,7 +384,7 @@ func (s *BadCaseService) List(ctx context.Context, q repository.BadCaseListQuery
 
 // BadCaseEvalRow 导出给评测集的一行（T-P8-04 的直接输入）。
 //
-// 字段刻意少于库里那一行：expected_* 一类"标准答案"列本卡**给不出**，
+// 字段刻意少于库里那一行：expected_* 一类"标准答案"列本处**给不出**，
 // 打标的人判的是"这句回答错在哪"，不是"正确回答是什么"。这里留一个空的
 // expected_answer 字段会被下游当成"已有人写过标准答案"而直接用，
 // 所以宁可不给，让 T-P8-04 自己决定要不要在此之上补标注。
@@ -466,7 +466,7 @@ const BadCaseDefaultExportLimit = 200
 type BadCaseStats struct {
 	ByStatus   map[string]int64 `json:"by_status"`
 	ByFixLayer map[string]int64 `json:"by_fix_layer"`
-	// LabeledRatio 已判率（分母 = 四态总数）。单独给这一个数是因为它是本卡的
+	// LabeledRatio 已判率（分母 = 四态总数）。单独给这一个数是因为它是本处的
 	// 北极星：闭环"转起来了没有"看的是有多少行走完了判定，而不是总共记了多少行。
 	LabeledRatio float64 `json:"labeled_ratio"`
 }

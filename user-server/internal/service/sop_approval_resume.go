@@ -6,8 +6,8 @@
 //
 // 为什么"挂起"不需要新机器：SOP 的 wait 节点早就有一套持久化等待
 // （`sop_timers` + outbox 轮询器 + FOR UPDATE SKIP LOCKED 点火 + MarkFired CAS 抢占），
-// 本卡做的只是给这套机器加一种等待对象：**从"等时间到"变成"等一个结论"**。
-// 于是"进程重启后可续跑"不是本卡新保证，而是继承来的 —— 挂起状态全在库里两行记录上
+// 本处做的只是给这套机器加一种等待对象：**从"等时间到"变成"等一个结论"**。
+// 于是"进程重启后可续跑"不是本处新保证，而是继承来的 —— 挂起状态全在库里两行记录上
 // （executions.status=running + timers.status=pending），进程内存里一点不剩。
 //
 // 两条唤醒路径，只有一条管正确性：
@@ -111,7 +111,7 @@ const (
 	// "流程把它写进自己的 checkpoint"（model.ApprovalRequest.ResumeToken 同一口径）。
 	ApprovalOutcomeTokenKey = "_approval_token"
 	// ApprovalOutcomeDerivedKey 标记结论是推导出来的（"ttl" = 审批行仍 pending 但已过期，
-	// 清扫还没来得及落库）。有这一格，运维就能区分"系统判的过期"与"库里已写的过期"。
+	// 清扫还没来得及落库）。有这里，运维就能区分"系统判的过期"与"库里已写的过期"。
 	ApprovalOutcomeDerivedKey = "_approval_derived"
 	// ApprovalOutcomeErrorKey 只在读不回结论时出现（原因见 approvalOutcomeFailure）。
 	// 单开一格而不塞进 _approval_note：note 是**裁决人**写给人看的话，
@@ -252,7 +252,7 @@ func (b *ApprovalResumeBridge) NotifyDecided(ctx context.Context, req *model.App
 // 非审批等待（task.WaitEvent != approval）返回 nil，调用方行为与改动前逐字节一致。
 // 一旦是审批等待，返回值**恒非空**（失败也返回 unreadable）：没有任何一条路径能让流程
 // 卡在这里。卡死比误拒贵得多 —— 误拒可以被人工重新发起，卡死的流程连"它卡住了"
-// 都要等到巡检发现。
+// 都要等到清扫发现。
 func (b *ApprovalResumeBridge) ResolveOnFire(ctx context.Context, task *dispatchTask) model.JSONMap {
 	if task == nil || task.WaitEvent != WaitEventApproval {
 		return nil
@@ -281,7 +281,7 @@ func (b *ApprovalResumeBridge) ResolveOnFire(ctx context.Context, task *dispatch
 	// 它对 rejected / expired 这类终态行返回 (行, false, ErrApprovalResumeNotPending)。
 	// 若按 err 优先判失败，一次正常的**人工拒绝**就会在流程里读成 unreadable：
 	// 分支条件 `_approval_status eq rejected` 永不命中，流程被推到默认分支上，
-	// 而库里、日志里一切都"看起来正常"。本卡要的是"这件事最后怎么样了"，
+	// 而库里、日志里一切都"看起来正常"。本处要的是"这件事最后怎么样了"，
 	// 只要行读到了，它就是结论；err 只在**行也没读到**时才是失败原因。
 	if row == nil {
 		if err != nil {
@@ -326,7 +326,7 @@ func (b *ApprovalResumeBridge) ResolveOnFire(ctx context.Context, task *dispatch
 // approvalOutcomeFromRow 把一条审批记录摊成 ExecutionData 的产物。
 //
 // 入参是行本身而不是六个同类型字符串：六个 string 的形参顺序写错不会有任何编译错误，
-// 而这一格的值最终决定流程走哪条分支。
+// 而这里的值最终决定流程走哪条分支。
 func approvalOutcomeFromRow(row *model.ApprovalRequest, derived string) model.JSONMap {
 	out := model.JSONMap{
 		ApprovalOutcomeStatusKey:  row.Status,
@@ -429,7 +429,7 @@ func (b *ApprovalResumeBridge) SubmitForNode(ctx context.Context, ec *ExecutionC
 // 建新定时器之前先删掉本节点遗留的 pending 定时器：wait 节点重跑（重试、恢复重投）会
 // 各留一行，两行都会点火、都会派发一个推进任务，而调度器不校验 task.NodeID 与
 // exec.CurrentNode 是否还一致 ⇒ 同一次等待把流程推进两次。
-// 通用 timer 档位上这个隐患今天也在（不在本卡范围，见移交项）；审批档位先在自己这条路上堵住。
+// 通用 timer 档位上这个隐患今天也在（不在本处范围，见移交项）；审批档位先在自己这条路上堵住。
 func (b *ApprovalResumeBridge) ExecuteApprovalWait(ctx context.Context, ec *ExecutionContext) (*NodeExecResult, error) {
 	wait, err := b.SubmitForNode(ctx, ec)
 	if err != nil {

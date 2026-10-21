@@ -35,7 +35,7 @@ type KBChangeRequest struct {
 	ID string `gorm:"type:text;primaryKey" json:"id"`
 
 	// ProductID 生效归属：线上 RAG 召回按 product_id 取数（不是 knowledge_bases.id，
-	// 见 kb_canary.go 文件头记的实测：生产检索链根本不看 knowledge_bases 行）。
+	// 见 kb_canary.go 文件头记的验证：生产检索链根本不看 knowledge_bases 行）。
 	// 所以版本闸门、待发布桶、发布/回滚全部挂在 product_id 上。
 	ProductID string `gorm:"type:varchar(64);index;not null;default:''" json:"product_id"`
 
@@ -138,7 +138,7 @@ func KBChangeTransitionAllowed(from, to string) bool {
 //   - allocated_version 是**高水位**（只增不减）：任何新桶都从它往后取一格，
 //     于是"版本号"与"时间顺序"永远同向，回滚不会让某个号被复用；
 //   - draft_version 是待发布桶（0 = 当前没有在攒的改动）：导入链路与已批准的变更
-//     都落进这一格，一次发布整体上线；
+//     都落进这里，一次发布整体上线；
 //   - effective_version 是在服快照号（0 = 还没发布过任何一版）：**读路径唯一读的字段**；
 //   - previous_version 只答"回滚回到哪一格"，因此回滚天然只有一步（见 RecalledVersion）。
 type KBRelease struct {
@@ -162,7 +162,7 @@ type KBRelease struct {
 	AllocatedVersion int `gorm:"not null;default:0" json:"allocated_version"`
 
 	// RecalledVersion 被回滚掉的那个版本号（0 = 没有）。它是**发布禁令**：
-	// 只要它 > effective_version，下一次发布就会被拒 —— 否则指针跨过这一格时，
+	// 只要它 > effective_version，下一次发布就会被拒 —— 否则指针跨过这里时，
 	// 上次被回滚掉的那段语料会随"kb_version <= 新 effective"重新可见，
 	// 而没有任何一次动作批准过它回来。这一条就是二次审核否掉旧设计的那个洞。
 	// 解除只有两条路：Restore（回滚的逆操作，把号放回去）或撤掉那一版的变更。

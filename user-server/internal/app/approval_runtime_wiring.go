@@ -8,7 +8,7 @@
 // 三态语义（顺序 = 风险递增，默认停在第一档）：
 //
 //	off（默认） 什么都不装配。图里的审批等待节点判**失败**（不是跳过、不是放行），
-//	            到期 pending 无人清扫 —— 与 T-P3-01 交付态逐字节一致。
+//	            到期 pending 无人清扫 —— 与交付态一致。
 //	shadow    只装清扫器：审批行会按 expires_at 收口、待办会自己退场，但**没有桥**，
 //	            于是没有任何流程会因为这次装配而停下来等人类。这一档回答的问题是
 //	            "清扫那段 UPDATE 在真表上跑对了没有"，答案不影响任何客户会话。
@@ -207,7 +207,7 @@ func InitApprovalRuntime(db *gorm.DB) *ApprovalRuntime {
 // StopApprovalRuntime 停掉清扫协程并清空全局引用（幂等）。
 //
 // 与 StopOrderDraftRuntime 同一个已知缺口：正解位置是 cmd/api/main.go 的退出序列，
-// 而本卡的改动范围不含 main.go（它是并行会话正在改的文件）。入口先备好，
+// 而本处的改动范围不含 main.go（它是并行会话正在改的文件）。入口先备好，
 // 没有它，进程退出时清扫协程就是无人回收的泄漏。
 func StopApprovalRuntime() {
 	rt := currentApprovalRuntime()

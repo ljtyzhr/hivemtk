@@ -20,7 +20,7 @@
 // 一张没有依据的价格文件发给客户，代价不对等。
 //
 // 本层**不持久化话术**（quotes 表也没有那一列）：生成时选中的那版只是视图里带出去
-// 的临时事实，发送时（T-P6-03）必须重新解析生效版本 —— 否则发送动作会发出
+// 的临时事实，发送时必须重新解析生效版本 —— 否则发送动作会发出
 // 一份生成时快照，而那份话术可能早在两次谈判之间被运营下线。
 package service
 
@@ -132,12 +132,12 @@ type QuoteScriptPort interface {
 
 // QuoteGenerateInput 一次生成/还价的全部输入。
 //
-// **没有话术字段**（AC①）：能递正文就迟早会有人递正文，那时版本、灰度、过期三判据
+// **没有话术字段**：能递正文就迟早会有人递正文，那时版本、灰度、过期三判据
 // 全被绕过而库里读不出差别。字段集合由反射用例钉成白名单。
 type QuoteGenerateInput struct {
 	OpportunityID string `json:"opportunity_id"` // 必填（还价侧留空 = 继承基准那一版的归属）
 	// OneID 不带 json 标签是判据不是遗漏：**收件人在 HTTP 面上不是入参**。
-	// 发送腿（T-P6-03）的 one_id 是从报价行的来源商机读出来的，生成侧若允许调用方递一个，
+	// 发送腿的 one_id 是从报价行的来源商机读出来的，生成侧若允许调用方递一个，
 	// 就等于允许"给甲客户生成、按乙客户分桶"，而灰度分桶的意义正是"同一个人看到同一版话术"。
 	OneID        string           `json:"-"`             // 可空：没定位到人时分桶为空，正文照样要生效版本
 	TemplateCode string           `json:"template_code"` // 生成第一版必填；还价不重跑模板（见 Revise）
@@ -186,7 +186,7 @@ type QuoteView struct {
 	Total         float64         `json:"total"`
 
 	// Script 本次解析到的生效话术。只在生成/还价的返回里出现，**不落库**：
-	// 发送时（T-P6-03）要重新解析一次，拿这一份去发等于把谈判期间可能已下线的文案发出去。
+	// 发送时要重新解析一次，拿这一份去发等于把谈判期间可能已下线的文案发出去。
 	Script *QuoteScript `json:"script,omitempty"`
 }
 
@@ -257,7 +257,7 @@ func (s *QuoteService) Available() bool {
 //
 // 判据次序：装配 → 身份与量程 → 闸门 → 商机存在 → 话术生效版本 → 模板 → 合并行 → 写。
 // 闸门排在任何 DB 读之前（一次没开的阶段不该去扫两张表），话术排在模板之前
-// （AC① 是本卡的顺序依赖，模板坏了还能换一份，没有生效版本的话术是根本不该出报价）。
+// （AC① 是本处的顺序依赖，模板坏了还能换一份，没有生效版本的话术是根本不该出报价）。
 func (s *QuoteService) Generate(ctx context.Context, in QuoteGenerateInput) (*QuoteView, error) {
 	if !s.Available() {
 		return nil, ErrQuoteServiceUnavailable
@@ -572,7 +572,7 @@ func (s *QuoteService) resolveScript(ctx context.Context, oneID string) (QuoteSc
 	return resolveQuoteScript(ctx, s.cfg, s.scripts, oneID)
 }
 
-// resolveQuoteScript 解析的两个端口抽成包级函数：发送腿（T-P6-03）发的就是这一格。
+// resolveQuoteScript 解析的两个端口抽成包级函数：发送腿发的就是这里。
 //
 // 两侧各写一份的话，"配置指针 → 生效快照 → 空正文判失败"这条链会先在其中一侧漂掉，
 // 而漂掉的那一侧发出去的东西在库里看起来完全正常。
@@ -776,7 +776,7 @@ func mergeQuoteLines(base []quoteLine, over []QuoteLineInput) ([]quoteLine, erro
 //
 // 界必须在这一层判，不能留给 PG：越界的写法照样能落库**到一半** —— Create 先成功、
 // AddLines 被 22003 numeric field overflow 拒掉，于是链上留下一行"0 明细、合计 0"的
-// 孤儿版本行，报回来的还是"必须人工处置"那一句（实测）。那既不是入参错的样子,
+// 孤儿版本行，报回来的还是"必须人工处置"那一句。那既不是入参错的样子,
 // 也不是本层承诺的"三处失败面一行都不写"。
 const (
 	quoteMaxQuantity = 1e10
@@ -821,7 +821,7 @@ func checkQuoteLineShape(pid, title string, qty, unit, disc float64) error {
 //
 // 为什么不写成 math.Round(v*100)/100：0.5×1.15 的真值是 0.575，float64 里存的是
 // 0.57499999999999995551，乘 100 落在 57.49999… ⇒ 舍出 0.57；而同一笔数交给
-// 库里的 numeric(14,2) 是 0.58（PG 按十进制取舍，实测）。半分那一格按二进制就是
+// 库里的 numeric(14,2) 是 0.58（PG 按十进制取舍，实测）。半分这一步按二进制就是
 // **向下**，与本页写死的「半分向上」自相矛盾，差的那一分落在客户那张单子上。
 // 所以先把这个 float64 打成它最短的十进制表示（也就是录进来那位数），再离零取整。
 func quoteRound2(v float64) float64 {
@@ -845,7 +845,7 @@ func quoteRound2(v float64) float64 {
 
 // quoteLineAmount 行净额 = 数量 × 单价 × (1 − 折扣/100)，**逐行**舍到分。
 //
-// 关键在"逐行"：合计是那一分一分舍完之后的行相加（AC③）。先加总再舍一次会差一分，
+// 关键在"逐行"：合计是那一分一分舍完之后的行相加。先加总再舍一次会差一分，
 // 而"这张报价的总价是多少"必须只有一个答案 —— 答案是库里那些行相加。
 // 100% 折扣合法（赠送行），净额 0.00 而不是 NULL。
 func quoteLineAmount(l quoteLine) float64 {
@@ -948,7 +948,7 @@ func NewQuoteScriptSource(repo *repository.ScriptLibraryRepository, ab *ScriptAB
 // 读失败单独上抛（那是去修存储不是去改配置）。
 //
 // 状态用「” 或 active 才算活着」，与 ListObjectionTemplates 那道既有过滤同口径：
-// 存量行里有历史遗留的空串，把它判死会让运营没动过的话术突然全灭。
+// 存量行里有遗留的空串，把它判死会让运营没动过的话术突然全灭。
 func (src *QuoteScriptSource) ActiveQuoteScript(ctx context.Context, scriptID uint, oneID string) (QuoteScript, error) {
 	if src == nil || src.repo == nil {
 		return QuoteScript{}, errors.New("quote script source: 未装配话术库仓储")

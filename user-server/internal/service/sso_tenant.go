@@ -16,7 +16,7 @@ import (
 
 // kvSSOProviders 是租户级 IdP 配置在 system_config_kv 里的键。
 //
-// 为什么放 KV 而不是参数中心（config_params）：这一格里有 client_secret。
+// 为什么放 KV 而不是参数中心（config_params）：这里里有 client_secret。
 // 参数中心的值列今天不落密（只有审计行走 dbencrypt），把凭证写进去等于新增一个
 // 明文凭证面；而 system_config_kv + secrets 这条"整份 JSON 一把存、凭证字段逐个
 // 加密封装"的形状已有先例（agent.tool_integrations）。
@@ -55,7 +55,7 @@ type TenantSSOProvider struct {
 // 不能当成"配了但为空"——两者对登录页的意义不同（一个是平台统一入口，一个是租户
 // 自己关掉了）。
 //
-// 没有包级 Load/SaveTenantSSOProviders 那种"用全局句柄再包一层"的入口：读写这一格
+// 没有包级 Load/SaveTenantSSOProviders 那种"用全局句柄再包一层"的入口：读写这里
 // 的唯一消费者是 SSOService，它构造时已经拿到一把显式的 db（NewSSOService(gormDB)），
 // 再走全局句柄等于同一份配置有两个出处，装配顺序错了会静默读到另一个库。
 func loadTenantSSOProvidersWithRepo(ctx context.Context, repo repository.SystemConfigKVRepository) ([]TenantSSOProvider, error) {

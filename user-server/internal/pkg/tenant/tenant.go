@@ -2,7 +2,7 @@
 //
 // 设计依据: specs/001-saas-multi-tenant/（research.md D5/D6）
 //   - TENANT_MODE 环境变量决定形态: off（默认，离线单机）| on（SaaS 多租户）
-//   - 离线模式一切数据归属 DefaultTenantID，行为与历史版本等价
+//   - 离线模式一切数据归属 DefaultTenantID，行为与旧版本等价
 //   - 租户身份经由 context 贯通入口 → GORM callback → 后台任务（行自证）
 //   - SystemScope 是 migration/备份/健康检查等系统操作的唯一豁免通道
 //
@@ -27,7 +27,7 @@ import (
 type Mode string
 
 const (
-	// ModeOff 离线单机模式（默认）：全部数据归属默认租户，行为等价历史版本
+	// ModeOff 离线单机模式（默认）：全部数据归属默认租户，行为等价旧版本
 	ModeOff Mode = "off"
 	// ModeOn SaaS 多租户模式：租户注册/隔离/扇出全机制生效
 	ModeOn Mode = "on"

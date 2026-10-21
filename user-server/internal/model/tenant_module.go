@@ -210,7 +210,7 @@ const (
 // 为什么不复用 llm_usage_records：那张表是聚合向的（只有总量，没有 provider /
 // 幂等键 / 归因字段），塞不下明细；而把明细硬塞进去会让两套语义的列混在一张表里，
 // 将来加字段时必然互相打架。代价只是多一张表，而"主键类型不同"的代价是
-// **静默改表** —— AutoMigrate 会按模型把它改成 bigint PK，历史行的 uuid 值随之失效，
+// **静默改表** —— AutoMigrate 会按模型把它改成 bigint PK，存量行的 uuid 值随之失效，
 // 而 AI 产能看板不会报任何错。
 type PlatformLLMUsageRecord struct {
 	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`

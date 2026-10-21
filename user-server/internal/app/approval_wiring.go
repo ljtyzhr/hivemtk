@@ -220,7 +220,7 @@ type blockApprovalChecker struct {
 
 func (b blockApprovalChecker) IsApproved(ctx context.Context, toolName, accountID string) bool {
 	if b.inner == nil {
-		// 与"闸门未接线"逐字一致：没有 checker 就没有裁决来源，此时放行。
+		// 与"闸门未接线"一致：没有 checker 就没有裁决来源，此时放行。
 		return true
 	}
 	allowed, reason := b.inner.Verdict(ctx, toolName, accountID)

@@ -59,7 +59,7 @@ var runtimePublicKeys = map[string]struct{}{
 //     页面上没有任何地方说这个上限其实可以改。
 //   - knowledge.merchant_batch_max_file_size —— BatchImport.vue 写死 20MB，
 //     而接线前后端那条链路根本不判大小（页面那 20MB 是唯一防线，且能绕过）。
-//     这条的默认值就是 20MB，所以下发之后前端的读数与接线前逐字一致。
+//     这条的默认值就是 20MB，所以下发之后前端的读数与接线前一致。
 //
 // 这里放的键**不受 groups 过滤**（跨组键本来就按全坐标 `group.key` 寻址，
 // 让调用方先猜到自己该传哪个组名只会多一种拿不到值的形态）。

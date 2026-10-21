@@ -15,7 +15,7 @@ import (
 //
 // 多租户修正（003 生产联调）：001 迁移给全表加了 tenant_id 且 tenancyidx 注入
 // 生效 —— 旧行锚 id=1 在第二个租户出现后读写全错。行锚改为 ctx 租户 id，
-// off 模式回落 DefaultTenantID=1 与旧版逐字节一致。
+// off 模式回落 DefaultTenantID=1 与旧版一致。
 type TenantSubscriptionMirrorRepository interface {
 	// Get 读当前租户单行；无行返回 (nil, nil)（fail-open 判定的输入）。
 	Get(ctx context.Context) (*model.TenantSubscriptionMirror, error)

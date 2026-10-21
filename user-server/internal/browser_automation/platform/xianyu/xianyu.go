@@ -37,7 +37,7 @@ func (p *Platform) MaxConcurrentJobs() int { return 1 }
 // A1：拦截文案移出 → BlockMarkers/BlockSelectors）
 func (p *Platform) Locators() map[string]string {
 	return map[string]string{
-		// R20 实测：商品卡片是 a[href*='/item?id='] 链接，长文本含标题+描述+价格+发货地
+		// R20 验证：商品卡片是 a[href*='/item?id='] 链接，长文本含标题+描述+价格+发货地
 		"item_card":     "a[href*='/item?id=']",
 		"item_title":    "a[href*='/item?id=']", // 卡片整体（标题混在卡片文本里，无独立节点）
 		"item_price":    "[class*=price], [class*=Price]",

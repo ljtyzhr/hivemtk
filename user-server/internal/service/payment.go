@@ -12,7 +12,7 @@
 //
 // 三条判据各挡一种坏法：
 //
-//	① 幂等键（AC②）：同 channel_ref 只入账一次。这一条物理上住在库上的唯一索引，
+//	① 幂等键：同 channel_ref 只入账一次。这一条物理上住在库上的唯一索引，
 //	   本层做的是"撞键之后回读那一行并比对内容"——内容不同就不是同一笔钱，
 //	   此时复用的后果是把第二笔真钱吞掉，所以拒。
 //	② 来路：账单必须存在且**没作废**。往 voided 的应收上记账，等于把一张已收口的
@@ -25,9 +25,9 @@
 //     两边一比就看得见。于是 outstanding 恒 >=0，欠额那一格不会被读成负数。
 //   - **跃迁失败不回滚回款**（TestPaymentServiceAvailabilityAndFailures）：钱记下了就是记下了，
 //     回滚它等于少记一笔；报 ErrPaymentStatusStuck 并说明"重放同一笔回调可补上"，
-//     因为整条腿是幂等的 —— 这一格的可重放性是上面那条方向选择的**代价**，不是巧合。
+//     因为整条腿是幂等的 —— 这里的可重放性是上面那条方向选择的**代价**，不是巧合。
 //
-// 不做的事，逐条有归属：不推送催收（T-P7-03）、不在结清时改商机（T-P7-04）、
+// 不做的事，逐条有归属：不推送催收、不在结清时改商机、
 // 不做部分冲销（渠道按整笔冲，金额恒正的判据见 model/payment.go）、
 // 不开"人工补记一笔回款"的 HTTP 口（钱只在外部电商到账，X8/D-4；没有数据源的写口就是没有判据的写口）。
 
@@ -115,7 +115,7 @@ type RecordPaymentInput struct {
 // PaymentView 一行回款凭据的对外视图。
 //
 // FilledPaidAt 不是装饰：paid_at 那一格是"哪天到账"，运营按它排账龄。
-// 载荷没给而系统填了接收时刻，调用方就必须能看出这一格不是渠道说的。
+// 载荷没给而系统填了接收时刻，调用方就必须能看出这里不是渠道说的。
 type PaymentView struct {
 	ID           string    `json:"id"`
 	BillID       string    `json:"bill_id"`
@@ -160,7 +160,7 @@ type PaymentReceipt struct {
 }
 
 // CollectionCompletedHook 回款完成（账单 Transited 到 paid）之后的钩子：
-// 赢单收口 + 复购跟进（T-P7-04）。只在"这次把账单结掉了"时触发一次，
+// 赢单收口 + 复购跟进。只在"这次把账单结掉了"时触发一次，
 // partial 不触发、已结掉账单的重放不触发（Transited 为假）。
 //
 // 约定：返回 ErrCollectionHookSkipped（用 errors.Is 判）表示"主动跳过"，
@@ -188,11 +188,11 @@ type PaymentService struct {
 	payments paymentStore
 	bills    settlementBillStore
 	now      func() time.Time
-	// onCollection 回款完成钩子（T-P7-04）：nil = 没装，触发条件到了也只是记 "no-hook"。
+	// onCollection 回款完成钩子：nil = 没装，触发条件到了也只是记 "no-hook"。
 	onCollection CollectionCompletedHook
-	// onReward 回款奖励钩子（T-P8-02）：nil = 没装；错只 Warn，不断支付。
+	// onReward 回款奖励钩子：nil = 没装；错只 Warn，不断支付。
 	onReward CollectionRewardHook
-	// trace 全链路埋点写口（T-P8-01）：nil = 没装，记账照常，不阻塞。
+	// trace 全链路埋点写口：nil = 没装，记账照常，不阻塞。
 	trace salesTraceWriter
 }
 
@@ -204,7 +204,7 @@ func (s *PaymentService) SetSalesTrace(w salesTraceWriter) {
 	s.trace = w
 }
 
-// SetCollectionRewardHook 注入回款奖励钩子（T-P8-02）。传 nil 表示不采集。
+// SetCollectionRewardHook 注入回款奖励钩子。传 nil 表示不采集。
 // 钩子在 traceSettlement 内触发（Transited 的每次结算），错只 Warn，不断支付。
 func (s *PaymentService) SetCollectionRewardHook(hook CollectionRewardHook) {
 	if s == nil {
@@ -229,7 +229,7 @@ func (s *PaymentService) SetClock(now func() time.Time) {
 	s.now = now
 }
 
-// SetCollectionCompletedHook 装回款完成钩子（T-P7-04）：生产由 app/payment_wiring.go
+// SetCollectionCompletedHook 装回款完成钩子：生产由 app/payment_wiring.go
 // 装默认实现（赢单→复购），测试可换计数替身。nil = 明确不装。
 func (s *PaymentService) SetCollectionCompletedHook(hook CollectionCompletedHook) {
 	if s == nil {
@@ -240,10 +240,10 @@ func (s *PaymentService) SetCollectionCompletedHook(hook CollectionCompletedHook
 
 // fireCollectionCompleted 触发条件 + 结论记账。
 //
-// 只认"这次 Transited 到 paid"：partial 不触发（AC②）、已结掉账单的重放
+// 只认"这次 Transited 到 paid"：partial 不触发、已结掉账单的重放
 // Transited 为假不触发（AC③ 的 SOP 侧）。钩子的任何失败都只变成结论字符串，
 // 不败支付 —— 钱已记、单已结是事实，钩子只是事实的跟进。
-// traceSettlement 回款记账两处收口的公共尾巴（T-P8-01）：先写 bill/settled 链路事件，
+// traceSettlement 回款记账两处收口的公共尾巴：先写 bill/settled 链路事件，
 // 再走回款→赢单钩子。事件只在 Transited 时发（真推动账单状态的那一次）；
 // partial 同样发（Result 携带 paid/partial），链上不断。
 func (s *PaymentService) traceSettlement(ctx context.Context, bill *model.Bill, settled SettlementView) string {
@@ -566,7 +566,7 @@ func (s *PaymentService) statementOfBill(ctx context.Context, bill *model.Bill) 
 		return nil, fmt.Errorf("payment: 求账单 %s 的已收失败：%w", bill.ID, err)
 	}
 	view := settlementOf(bill, money2(settled))
-	// 读侧不写库，所以这一格报的是**库里那一行**的状态；视图上另外两格
+	// 读侧不写库，所以这里报的是**库里那一行**的状态；视图上另外两格
 	// 若与它矛盾（例如跃迁那天失败了），对账读到的就是"库里说的"而不是"我以为的"。
 	out := &BillStatementView{
 		BillID: bill.ID, QuoteID: bill.QuoteID, QuoteRowID: bill.QuoteRowID, OpportunityID: bill.OpportunityID,

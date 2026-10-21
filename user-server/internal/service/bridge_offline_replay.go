@@ -247,7 +247,7 @@ func (s *BridgeOfflineReplayService) RunOnce(ctx context.Context) ReplayStats {
 	perChannelLimit := 50
 	for _, ch := range channels {
 		// 补投门：另一端收不到（既没挂 SSE、也没在宽限窗内轮询/心跳过）就整条渠道跳过、一行都不碰，
-		// 行留在 pending 等下一次可达的那轮；进去走一遍状态机只会把历史行烧成判弃。
+		// 行留在 pending 等下一次可达的那轮；进去走一遍状态机只会把存量行烧成判弃。
 		if !bridgeChannelOnline(ctx, ch.Platform, ch.AccountID) {
 			stats.SkippedOffline++
 			continue
@@ -261,7 +261,7 @@ func (s *BridgeOfflineReplayService) RunOnce(ctx context.Context) ReplayStats {
 	//
 	// 缺省只报数不写：这道 UPDATE 不可逆（真回复从此离开待办集合），而回扫是每 5 分钟自动跑的
 	// 后台任务 —— 开发态存盘即热重载进真实例、连的是真库，"先人工确认再放量"如果只靠流程约定，
-	// 实际等于没有闸门（实测：闸门上线前的一轮 cron 就把 38 行历史 pending 直接烧成 failed）。
+	// 实际等于没有闸门（验证：闸门上线前的一轮 cron 就把 38 行历史 pending 直接烧成 failed）。
 	// 要真结算，运维读到达标口径后把 bridge.outbound_orphan_dry_run 置 false。
 	orphanDryRun := bridgeOrphanSettlementDryRun(ctx)
 	orphan, oerr := s.SettleOrphanBridgeOutbound(ctx, bridgeOrphanOutboundTTL(ctx), orphanDryRun)
@@ -285,7 +285,7 @@ func (s *BridgeOfflineReplayService) RunOnce(ctx context.Context) ReplayStats {
 
 	stats.FinishedAt = time.Now()
 	// 计数名用「不可达」而不是「无订阅者」：轮询式下发的账号没有订阅，
-	// 它是在线位过期才落到这一格的，取证时按"没连 SSE"读会找错方向。
+	// 它是在线位过期才落到这里的，取证时按"没连 SSE"读会找错方向。
 	// online/offline 旁边必须带 grace 秒数：这两个数是按窗口算的，读数不带口径就没法和
 	// 巡检脚本、渠道总览对账（三处同一条 SQL，但窗口是运维可改的配置项）。
 	logger.Infof("[BridgeReplay] 回扫完成: scanned=%d online=%d offline=%d grace=%ds unreachable_channels=%d replayed=%d failed=%d duration=%s",

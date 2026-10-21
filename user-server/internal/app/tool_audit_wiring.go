@@ -20,7 +20,7 @@ import (
 // 自 v3.29 前后就写完了，单测也齐，但生产从来没构造过：executor 配置里的 AuditLogger
 // 一直是 MemoryAuditLogger ⇒ 重启即丢、多副本各看各的 10000 条。
 //
-// 本卡接线时实测出的两件事，都写进了各自的修法位置，这里只留结论：
+// 本处接线时实测出的两件事，都写进了各自的修法位置，这里只留结论：
 //  1. **表根本不存在**。写入方自带一个 AutoMigrateAuditTable，但它全仓零调用，
 //     而建表清单（internal/pkg/db allModels()）里也没有这个模型 —— 开发库实测没有
 //     tool_call_audits 表。只"接 logger"不"登记表"的话，第一批写入就会失败并整批
@@ -32,7 +32,7 @@ import (
 //
 // 两态而非三态（与同目录另四把旗子刻意不同，理由在此）：
 //
-//	off（默认）  沿用纯内存实现，装饰链与接线前逐字节一致
+//	off（默认）  沿用纯内存实现，装饰链与接线前一致
 //	on           审计同时写内存与 DB（内存仍是 /agent/tools/audit 的默认数据源）
 //
 // 熔断/审批门/挽回 worker 做成 off|shadow|enforce，是因为它们会**改变请求结果**，
@@ -96,7 +96,7 @@ func parseToolAuditMode(raw string) string {
 // 返回生效模式（供启动日志与端点回显）。off 时**一个对象都不构造**，config.AuditLogger
 // 保持调用方传入的纯内存实现 —— 这是"关旗逐字等价于接线前"的可断言形态。
 // on 但拿不到 DB 句柄时不静默退化：照常告警并回 off，因为"以为在落库、其实没有"
-// 恰是本卡开工时那个资产的状态，不能再造一次。
+// 恰是本处开工时那个资产的状态，不能再造一次。
 func applyToolAuditPersistence(config *tooluse.ToolExecutorConfig, gormDB *gorm.DB) string {
 	toolAuditRepo = repository.NewToolAuditRepository(gormDB)
 	toolAuditMode = parseToolAuditMode(os.Getenv(ToolAuditFlagEnv))
@@ -185,7 +185,7 @@ func ToolAuditDBAvailable() bool { return toolAuditRepo.Available() }
 // CloseToolAuditPersistence 进程退出前排空落库队列。
 //
 // 不排空的后果很具体：flushInterval 是 1s，崩溃/正常退出前最多有 1s 的批（上限
-// batchSize=100 条，队列里还可能更多）留在内存通道里没写出去 —— 而"耐久"正是本卡目的。
+// batchSize=100 条，队列里还可能更多）留在内存通道里没写出去 —— 而"耐久"正是本处目的。
 // 由 cmd/api/main.go defer 调用；off 时无对象可关，直接返回。
 func CloseToolAuditPersistence() {
 	if toolAuditDBLogger == nil {

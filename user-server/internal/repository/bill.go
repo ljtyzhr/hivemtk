@@ -79,7 +79,7 @@ type BillRepository interface {
 
 	// ListByQuoteID 按**逻辑报价号**捞出这张报价单开过的全部应收，按派生早晚升序。
 	// T-P7-02 补的那一格（对账读口："这张报价开了几张应收、各欠多少"）；
-	// 放宽接口形状的判据、以及"为什么这一格不构成列全表"，逐字见 bill_test.go 的
+	// 放宽接口形状的判据、以及"为什么这里不构成列全表"，逐字见 bill_test.go 的
 	// TestBillRepository_MethodSetIsExactlyTheDocumentedSeven。零命中是空切片 + nil error。
 	ListByQuoteID(ctx context.Context, quoteID string) ([]*model.Bill, error)
 }
@@ -107,7 +107,7 @@ type billRepo struct {
 
 // NewBillRepositoryWithDB 创建指定数据库连接的实例（用于测试与装配注入）。
 //
-// 本卡不产出 NewBillRepository()（读全局句柄的那个版本）：账单的第一个消费者
+// 本处不产出 NewBillRepository()（读全局句柄的那个版本）：账单的第一个消费者
 // 是报价接受路径，它的装配点与 quote 服务同处，等那边的注入落地再一起给，
 // 先造一个没人调的构造函数就是把未走过的路写进生产代码。
 func NewBillRepositoryWithDB(db *gorm.DB) BillRepository {

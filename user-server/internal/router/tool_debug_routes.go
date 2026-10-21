@@ -262,7 +262,7 @@ func toolAuditPersistenceEcho(snap app.ToolAuditSnapshot) gin.H {
 //
 // 三种"不能查"分开说，因为处置动作完全不同；措辞里一律带上 mode。旗子名用包级常量
 // 而不用 snap.FlagEnv —— 后者是快照字段，一旦哪个构造路径忘了填，运维就会读到
-// "设 =on 并重启"这种指不了任何地方的话（本卡的测试实测到了这个形状）。
+// "设 =on 并重启"这种指不了任何地方的话（本处的测试实测到了这个形状）。
 func toolAuditDBBlockedReason(snap app.ToolAuditSnapshot) string {
 	switch {
 	case !snap.DBHandle && !snap.Wired:
@@ -270,7 +270,7 @@ func toolAuditDBBlockedReason(snap app.ToolAuditSnapshot) string {
 	case !snap.DBHandle:
 		return "mode=" + snap.Mode + " 且写侧已接线，但读侧句柄为 nil ⇒ 查不了库（查启动日志里的 [tool-audit] 告警）"
 	case !snap.Wired:
-		// 库里可能真有历史行（别的进程/更早一次接线写的），但本进程不产新行 ——
+		// 库里可能真有存量行（别的进程/更早一次接线写的），但本进程不产新行 ——
 		// 与其回一份"看起来是审计记录"的东西，不如把口径说清楚。
 		return "读侧有句柄但写侧未接线（mode=" + snap.Mode + "）⇒ ?source=db 只会查到既有行，本进程不落库；" +
 			"要落库请设 " + app.ToolAuditFlagEnv + "=on 并重启"
@@ -373,7 +373,7 @@ type toolCircuitResetRequest struct {
 // handleToolCircuitState 读取工具熔断的接线状态与判定累计（T-P1-04）。
 //
 // 为什么要一次读两套：本项目有两处互不相干的"熔断"——
-//   - executor 装饰链上的 tooluse.CircuitBreakerRegistry（本卡接上，按工具累计连续失败）
+//   - executor 装饰链上的 tooluse.CircuitBreakerRegistry（本处接上，按工具累计连续失败）
 //   - ToolRouter 内部的 r.circuit（早已存在，用于失败工具短路/切换）
 //
 // 两者独立计量、独立冷却。排障时只看其中一套会得出相反结论，故本端点把两套一起摊开，
@@ -677,7 +677,7 @@ func handleToolApprovalWhitelist(c *gin.Context) {
 		// （ActiveEntryCount / decide）都按 `expiresAt.After(now)` 算有效，于是这次授权
 		// 什么都没开到。若这里照样回 200，操作者读到的是"给了窗口"，而下一次冷触达
 		// 仍被拒 —— 两端各说各话，排查方向会从"这个账号没被放行"跑到"旗子没开"。
-		// 撤权不看这一格：撤一条本来就已过期的授权仍然是撤，拦它等于拦人关门。
+		// 撤权不看这里：撤一条本来就已过期的授权仍然是撤，拦它等于拦人关门。
 		if !req.Revoke && !parsed.After(time.Now()) {
 			response.Error(c, 400, "expires_at 必须晚于当下（收到 "+parsed.Format(time.RFC3339)+
 				"）：这条授权当场就会失效，本次不写入。要么给一个未来时刻，要么不带这一格（= 永不过期）")

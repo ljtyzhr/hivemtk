@@ -69,7 +69,7 @@ func NewConfigParamService(db *gorm.DB) *ConfigParamService {
 //
 // 语义：**后写覆盖**，不是"只生效一次"。
 //
-// 历史缺陷（见 TASKS_AUDIT_2026-09-16.md · TEST-05）：本函数原用 sync.Once，
+// 本函数不能用 sync.Once：
 // 于是第二次及以后的 SeedConfigParams 造出的新实例被**静默丢弃**，全局仍指向首个实例。
 // 而 ConfigParamService 是按 key 的**负缓存**（未命中即把默认值写入 cache 并置 loaded），
 // 因此旧实例会把"表还空着时读到的 0"永久固化 —— 之后再怎么 seed 都读不回真值。
@@ -109,7 +109,7 @@ func GlobalConfigParam() *ConfigParamService {
 
 // BridgeOnlineGraceParam / BridgeOnlineGraceDefault 是"这台桥接账号此刻够得着吗"的唯一时长来源。
 //
-// 在线判定散在四个读侧（管理面列表、渠道总览计数、主动触达选号、巡检脚本），各自写死一份秒数
+// 在线判定散在四个读侧（管理面列表、渠道总览计数、主动触达选号、清扫脚本），各自写死一份秒数
 // 就会造出互相矛盾的报告：列表说在线、总览报另一个数、发出去的出站行没人来取。
 // 默认值与 config_params 里 bridge/online_grace_window 的 DefaultValue("30") 同值，改动要一起改。
 const (
@@ -167,7 +167,7 @@ func SeedConfigParams(ctx context.Context, db *gorm.DB) error {
 	var created, existing, refreshed int
 	// seed 失败的参数**必须冒泡**。
 	//
-	// 历史实现是 `logger.Warnf(...)` + `continue`：插入失败（比如撞唯一索引）后这一条
+	// 插入失败（比如撞唯一索引）后这一条
 	// 就不存在了——管理台看不到它、代码里的 Get* 永远读到 fallback，
 	// 而启动日志里只有一行 Warn，混在几百行 INFO 里没人会注意到。
 	// 于是「加一条参数」变成了一件要看运气的操作：参数可能根本没进库，
@@ -227,7 +227,7 @@ func SeedConfigParams(ctx context.Context, db *gorm.DB) error {
 // 而组元数据只决定侧栏那列中文名，读不到时前端回落显示英文 group key——
 // 纯外观降级，功能不残废。把两者绑在一起的后果是：任何一个只声明 &model.ConfigParam{}
 // 的测试 fixture 都会在 seed 那一步撞 `relation "config_param_groups" does not exist`。
-// 曾经为此在 testutil 里藏耦合（靠 reflect 拿类型名绕开 import 成环），那等于把
+// 曾为此在 testutil 里藏耦合（靠 reflect 拿类型名绕开 import 成环），那等于把
 // 「哪张表和哪张表绑着」这条知识藏进一个所有测试共用的黑箱里，而它本可以由两个独立的
 // 入口自然表达。改为独立入口后：失败只降级外观、只在 main.go 一处调用、
 // 且各有各的测试。
@@ -437,7 +437,7 @@ func (s *ConfigParamService) now() time.Time {
 // tenantParamScope 返回当前读取/写入应使用的租户。
 //
 // ok=false 有两种语义，调用方必须区分：
-//   - off 模式：历史单机行为，读写都走实例级 config_params
+//   - off 模式：单机行为，读写都走实例级 config_params
 //   - on 模式但 ctx 未绑定租户：读取允许回落平台默认值（不是别的租户的数据），
 //     写入必须拒绝（见 UpdateValue），否则一次漏绑中间件就会改写所有人的默认值
 func tenantParamScope(ctx context.Context) (uint, bool) {
@@ -639,7 +639,7 @@ func (s *ConfigParamService) UpdateValue(ctx context.Context, group, key, newVal
 		// 平台域解析时，一次「保存成功」的回执配上照旧的行为，是本页最难查的一类不一致。
 		//
 		// 只拦写不拦重置（ResetToDefault 不走这里）：删掉一条不生效的覆盖行是往正确方向
-		// 走的一步，把它一起拦下就等于没收唯一能清理历史覆盖行的入口。
+		// 走的一步，把它一起拦下就等于没收唯一能清理遗留覆盖行的入口。
 		if err := tenantScopedWriteErr(group, key); err != nil {
 			return err
 		}
@@ -854,10 +854,10 @@ func (s *ConfigParamService) invalidateTenantGroup(tenantID uint, group string) 
 //     否则运维给一个 int 参数写进 "abc"，GetInt 读到解析失败、悄悄回退到编译期兜底值，
 //     页面显示「保存成功」、行为却完全没变——这跟「登记了没人读」是同一种病。
 //  2. 解析失败一律 return error，**没有任何一条分支允许 return nil 蒙混过关**。
-//     （历史缺陷：duration 分支在 time.ParseDuration/ParseFloat 失败时直接 return nil，
+//     （缺陷：duration 分支在 time.ParseDuration/ParseFloat 失败时直接 return nil，
 //     等于把 min/max 校验整个关掉，写 "999999999s" 也能存进去。）
 //  3. switch 对 value_type **穷举**，未知类型走 default 报错。
-//     （历史缺陷：bool 与 string 两型根本不在 switch 里，任何值都能存进布尔开关；
+//     （缺陷：bool 与 string 两型根本不在 switch 里，任何值都能存进布尔开关；
 //     今天登记表里有 int/float/duration/bool/json/string 六型，
 //     TestEverySeedValueTypeHasAValidationBranch 把「集合与分支一一对应」钉成判据。）
 //
@@ -938,7 +938,7 @@ func validateValue(valueType, value string, min, max *string) error {
 		}
 	case "bool":
 		// 判据与读取侧严格同一条：GetBool 用的就是 strconv.ParseBool。
-		// 少这一格时 "banana" 能存进布尔开关，页面显示「保存成功」，
+		// 少这里时 "banana" 能存进布尔开关，页面显示「保存成功」，
 		// GetBool 解析失败却静默回落兜底值——开关看起来坏了，实际是库里那格脏了。
 		if _, err := strconv.ParseBool(value); err != nil {
 			return fmt.Errorf("value %q not valid bool: %w", value, err)

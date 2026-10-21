@@ -3,7 +3,7 @@
 // 本层是三件事的唯一落点：
 //  1. **写入闸门**：kind/身份/长度在这里判，落到仓储就晚了 —— 仓储只认列名与索引，
 //     一行 kind 拼错的待办会永远不出现在任何一类的读数里（AC③ 的过滤救不了它）。
-//  2. **幂等**：同一件事的第二次投递回到同一条开放待办（AC②）。这件事由
+//  2. **幂等**：同一件事的第二次投递回到同一条开放待办。这件事由
 //     uq_human_task_open 在库里兜底、由本层把它翻成"复用那一行"而不是"报错"。
 //     转人工那条调用方是**不许**因为待办已存在而失败的。
 //  3. **跃迁**：动作合法性只认 model.HumanTaskTransitionAllowed 一张表（三类共用），
@@ -41,7 +41,7 @@ type HumanTaskConfigReader interface {
 // 会让前端无法区分"这条已经被别人处理了"与"服务出故障了"，前者该刷新列表，后者不该。
 var (
 	// ErrHumanTaskInputInvalid 入参不合法（400）。与仓储同一 sentinel：
-	// 校验分散在两层是历史事实，但对调用方来说它们都是"你给的东西不对"。
+	// 校验分散在两层，但对调用方来说它们都是"你给的东西不对"。
 	ErrHumanTaskInputInvalid = repository.ErrHumanTaskInputInvalid
 	// ErrHumanTaskNotFound 没有这条待办（404）。
 	ErrHumanTaskNotFound = errors.New("human_task: 待办不存在")
@@ -55,7 +55,7 @@ var (
 	ErrHumanTaskLost = errors.New("human_task: 待办已被他人更新，请重新查看")
 	// ErrHumanTaskOpenConflict 同一对象的开放待办撞在唯一索引上（409）。
 	// 与仓储同一 sentinel（别名，理由同 ErrHumanTaskInputInvalid）：Submit 在绝大多数
-	// 路径上把它吃成"复用那一行"（AC②），只剩"索引拦了、回读却为空"这一条窄缝会把它
+	// 路径上把它吃成"复用那一行"，只剩"索引拦了、回读却为空"这一条窄缝会把它
 	// 原样交出去 —— 那里调用方需要的是"这次没落进去，重试"，报成 500 会让前端在
 	// 底座其实健康时无限打圈。
 	ErrHumanTaskOpenConflict = repository.ErrHumanTaskOpenConflict
@@ -91,7 +91,7 @@ const (
 // DefaultHumanTaskHandoffSlaMinutes 配置缺失/越界时的会话首响 SLA（分钟）。
 //
 // 为什么不走既有的 sla_policies 表：那张表（model.SLAPolicy / service.SLAService.AddPolicy）
-// 在本仓**没有任何持久化与调用方**（T-P3-03 实测：全仓零构造点，闸登记在
+// 在本仓**没有任何持久化与调用方**（全仓零构造点，闸登记在
 // scripts/check-unwired-assets.sh 的未接线项里）。把待办的 SLA 挂在一个没人写的表上，
 // 等于待办永远读不到截止。这里改用 config_params（有 seed、有管理端 CRUD、有读取缓存），
 // 并在移交清单里记下"若将来要按坐席/技能组分别定 SLA，正确落点是 sla_policies + 写入方"。
@@ -99,25 +99,25 @@ const DefaultHumanTaskHandoffSlaMinutes = 5
 
 // HumanTaskSubjectCustomerSession 会话待办的 subject_type 字面量。
 //
-// 导出是为了三处指同一个字符串：转人工投递（本卡）、会话关闭时的撤销钩子（本卡）、
+// 导出是为了三处指同一个字符串：转人工投递（本处）、会话关闭时的撤销钩子（本处）、
 // 以及闸机基线里那一列。
 const HumanTaskSubjectCustomerSession = "customer_session"
 
-// HumanTaskSubjectApprovalRequest 审批类待办的 subject_type 字面量（T-P3-04）。
+// HumanTaskSubjectApprovalRequest 审批类待办的 subject_type 字面量。
 //
 // 它的 subject_id 是 approval_requests.id（不是被审对象的二元组）：待办与审批必须
 // 一对一，而"同一次动作重新 Submit"在审批侧本来就会新建一行（改判无路），
 // 于是待办也跟着新建一条 —— 用被审对象做键会让第二次入队复用第一次那条已关闭的待办。
 const HumanTaskSubjectApprovalRequest = "approval_request"
 
-// HumanTaskSubjectCollectionCase 催收升级待办的 subject_type 字面量（T-P7-03）。
+// HumanTaskSubjectCollectionCase 催收升级待办的 subject_type 字面量。
 //
 // 它的 subject_id 是 **bills.id**（那一张应收），不是商机也不是报价：升级要人去看的是
 // "这一笔钱还没收到"，而一张账单一生只会被升级到一次（升级窗口在 collection_job 侧另算，
 // 因为 Submit 的幂等只覆盖"还在 open 的那条"）。
 //
-// 这一格从"没有生产投递方"变成有投递方，是 T-P7-01 立「登记一个没人用的字符串
-// 就是留一份假象」那条判据时等的那个东西：常量跟着第一个真实写路径一起落地，不提前占位。
+// 这里从"没有生产投递方"变成有投递方，是「登记一个没人用的字符串
+// 就是留一份假象」那条判据要的：常量跟着第一个真实写路径一起落地，不提前占位。
 const HumanTaskSubjectCollectionCase = "collection_case"
 
 // HumanTaskSubmitInput 投递一条待办。
@@ -209,7 +209,7 @@ func humanTaskClip(v string, maxLn int) string {
 
 // humanTaskPlaceSLA 把截止时刻放进该 kind 唯一那一档。
 //
-// 这是"三类共用一张表但 SLA 字段独立"（AC①）在写入侧的**唯一**落点：
+// 这是"三类共用一张表但 SLA 字段独立"在写入侧的**唯一**落点：
 // 调用方只说"什么时候算慢"，不说"写哪一列"，于是填错列在这条路径上不可表达。
 // 反过来，如果哪天加第四档而忘了改这里（或忘了改 model.HumanTaskSLAField），
 // default 分支会报错，而不是静默把截止丢在一边。
@@ -272,7 +272,7 @@ func NewHumanTaskService(repo repository.HumanTaskRepository, cfg HumanTaskConfi
 }
 
 // SetGlobalHumanTaskService 登记全局实例（装配点：internal/app 构造编排器那一处）。
-// 传 nil 等于撤掉 —— 撤掉后端点回 503、编排器不再投递，这是本卡天然的关闸。
+// 传 nil 等于撤掉 —— 撤掉后端点回 503、编排器不再投递，这是本处天然的关闸。
 func SetGlobalHumanTaskService(s *HumanTaskService) { globalHumanTaskSvc.Store(s) }
 
 // GlobalHumanTaskService 取全局实例（可能为 nil；调用方必须判空并给出"未装配"的答复）。
@@ -342,7 +342,7 @@ func (s *HumanTaskService) Submit(ctx context.Context, in HumanTaskSubmitInput) 
 	if err := s.repo.Insert(ctx, row); err != nil {
 		if errors.Is(err, repository.ErrHumanTaskOpenConflict) {
 			// 上面那次读是空的：另一个调用方在这个窗口里写下了那一行。
-			// 竞态下的正确出口是复用它（AC②），而不是把唯一索引错误抛给转人工。
+			// 竞态下的正确出口是复用它，而不是把唯一索引错误抛给转人工。
 			fresh, gerr := s.repo.GetOpenBySubject(ctx, in.SubjectType, in.SubjectID)
 			if gerr != nil {
 				return nil, false, gerr
@@ -676,7 +676,7 @@ func (s *HumanTaskService) CancelOpenBySubject(ctx context.Context, subjectType,
 		// 这里用 CloseTarget 而不是 TransitionAllowed：审批类的 complete/cancel 已经从
 		// 对外动作表里摘掉（人不能从待办侧关掉一条还在等的审批），而**系统按业务身份收口**
 		// 恰恰是那条唯一合法的路。两张判据合成一张时，关掉对外按钮会连这条路一起断掉，
-		// 且断得没有声音（本函数回 (cur,false,nil)）—— 实测过：裁决后待办原样留在池子里。
+		// 且断得没有声音（本函数回 (cur,false,nil)）—— 裁决后待办原样留在池子里。
 		return cur, false, nil
 	}
 	now := loadHumanTaskNowFn()()
@@ -829,7 +829,7 @@ func approvalTaskAutoCancelReason(req *model.ApprovalRequest) string {
 	}
 }
 
-// globalHumanTaskSink 审批服务应装的待办出口：每次调用**现取**全局底座（T-P3-04）。
+// globalHumanTaskSink 审批服务应装的待办出口：每次调用**现取**全局底座。
 //
 // 为什么不直接把实例传过去（SetTaskSink(GlobalHumanTaskService()) 那种一步写法）：
 // router.go 里 InitApprovalRuntime 跑在 InitHumanTaskRuntime 之前（:230 与 :235），
@@ -949,7 +949,7 @@ func humanTaskTransitionError(cur *model.HumanTask, action, operator string) err
 	case action == model.HumanTaskActionRelease:
 		return fmt.Errorf("%w: 只有 pending 的会话待办可以退回到池子（id=%s，当前态 %s）",
 			ErrHumanTaskTransition, cur.ID, cur.Status)
-	// 下面这一格必须排在"开放态"那条**前面**，否则同一个 409 会说错原因。
+	// 下面这段必须排在"开放态"那条**前面**，否则同一个 409 会说错原因。
 	//
 	// 同一句"complete 在 pending 态不可执行"在两种原因下成立：这一类根本不开放这个动作，
 	// 与这个状态没有这条边。前者要人换个地方点（裁决口），后者要人刷新，处置完全相反。

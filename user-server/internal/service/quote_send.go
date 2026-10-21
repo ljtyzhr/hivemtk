@@ -58,7 +58,7 @@
 // 到期这一档本层**读时刻而不只读 status**（见 approvalWindowClosed）：报价竖在审批运行时
 // off 的那一档下也开待办，而那一档没有清扫协程。残余一条如实记下：窗口关掉之后别人才批上的
 // 那条批准，本层照样放行 —— 作废一个人的裁决不是发送腿的权限，正解在清扫器或 Decide 那一侧
-// （T-P3-01 的定义侧，本卡不动），已登记为移交项。
+// （T-P3-01 的定义侧，本处不动），已登记为移交项。
 package service
 
 import (
@@ -83,8 +83,8 @@ const (
 	// 刻意不含版本、也不含报价编号：它们都在 subject_id 那一列里。
 	QuoteSendPolicyKey = "quote.send"
 
-	// QuoteDiscountPolicyKey 折扣达到阈值时追加的**第二道**门（T-P6-04）。
-	// 与低档共用同一个 subject（同一张版本行主键），只靠这一格把两道裁决分开 ——
+	// QuoteDiscountPolicyKey 折扣达到阈值时追加的**第二道**门。
+	// 与低档共用同一个 subject（同一张版本行主键），只靠 policy_key 把两道裁决分开 ——
 	// 判据的出处就是 model/approval_request.go:33：policy_key 必须进幂等键，
 	// 否则"批了发送"会顺手把"批了这个折扣"也答掉，那是闸门被自己绕过。
 	QuoteDiscountPolicyKey = "quote.discount_high"
@@ -128,7 +128,7 @@ var (
 
 // quoteSendStore 发送腿对存储的全部依赖。
 //
-// 与生成腿那份 quoteStore 的差别只有一格 UpdateStatus，而这一格正是两张卡的分界：
+// 与生成腿那份 quoteStore 的差别只有 UpdateStatus 一个方法，而这个方法正是两张卡的分界：
 // 生成侧的类型里没有它，发送侧的类型里有它且**只有**它（方法集由反射用例钉成三个）。
 // 于是"未过闸门就发出去"在两侧都不是被约定挡住的。
 type quoteSendStore interface {
@@ -148,7 +148,7 @@ type quoteSendApproval interface {
 
 // quoteOpenApprovalReader 「这一版当前开着的那条待办」的读口（AC② 留下的号丢了之后的找回路）。
 //
-// 只有仓储上有这一格（ApprovalRequestService 刻意不包一层）：审批服务是写侧的门面，
+// 只有仓储上有这个读口（ApprovalRequestService 刻意不包一层）：审批服务是写侧的门面，
 // 而这里是纯读。多包一层会让"读自己的 pending"和"入队一条 pending"看起来是同一类动作。
 type quoteOpenApprovalReader interface {
 	GetPendingBySubject(ctx context.Context, subjectType, subjectID, policyKey string) (*model.ApprovalRequest, error)
@@ -252,7 +252,7 @@ func (s *QuoteSendService) Available() bool {
 // OpenApproval 读一版报价当前开着的那条待办；没有开放审批回 (nil, nil)。
 //
 // 存在的理由很具体：Send 返回里那个审批号一旦丢了，调用方只能重开一条待办
-// （见测试 SendAfterDecision 那一例）。有了这一格，"停在 pending"才是**可查**的事实。
+// （见测试 SendAfterDecision 那一例）。有了这个读口，"停在 pending"才是**可查**的事实。
 // 它不校验版本行是否存在：读的是审批表，且"这一版存不存在"由发送那一步判。
 //
 // 两道门之后（T-P6-04）它按 [quote.send, quote.discount_high] 的顺序查，取先命中的那一条。
@@ -260,7 +260,7 @@ func (s *QuoteSendService) Available() bool {
 // （串行判据见 Send），所以"低档还开着"时第一查就命中，"低档批完、高档刚开出来"这个
 // 最容易丢号的窗口里第一查落空、第二查命中 —— 两格谁在场都答得对，而不用先知道折扣有多大。
 // 残余一种形状如实记下：若哪天有人把第二道门批掉、又有一次不带号的调用把第一道重新开出来，
-// 这一格会先读到那条新开的低档待办。方向是"多等一道"，不是"少一道"。
+// 这个读口会先读到那条新开的低档待办。方向是"多等一道"，不是"少一道"。
 func (s *QuoteSendService) OpenApproval(ctx context.Context, quoteRowID string) (*model.ApprovalRequest, error) {
 	if !s.Available() {
 		return nil, ErrQuoteServiceUnavailable
@@ -418,7 +418,7 @@ func quoteNeedsHighDiscountApproval(maxDiscount, threshold float64) bool {
 // quoteDiscountThreshold 读那一格阈值。
 //
 // 读不到（端口给不出配置）时取 0 而不是取默认那份 15：发送腿没有"没有策略"这一档，
-// 只能往严的那一侧倒（0 = 任何折扣都要第二道门）。今天这一格走不到：同一份 reader
+// 只能往严的那一侧倒（0 = 任何折扣都要第二道门）。今天这个读口走不到：同一份 reader
 // 在 gate 那一步就会把 nil/降级那份判成"阶段关着"而整条发送被拒 —— 留着是因为
 // "读不到就当没有阈值"这种默认值将来一定会被人踩，写下来比不写贵不了多少。
 func quoteDiscountThreshold(ctx context.Context, reader LTCConfigReader) float64 {
@@ -462,7 +462,7 @@ func (s *QuoteSendService) notApprovedResult(appr *model.ApprovalRequest, rowSta
 	case model.ApprovalStatusRejected:
 		// 库里那一版**留**在草稿：报价生命周期的 rejected 说的是"客户拒了这份报价"，
 		// 不是"内部审批没通过"。两件事合成一个值之后，"被自己人拦下"的报价就再也发不出去了。
-		// 两道门都走这一格：被第二道拦下时，低档那条批准仍然留在库里（它批的是另一件事）。
+		// 两道门都走这条路径：被第二道拦下时，低档那条批准仍然留在库里（它批的是另一件事）。
 		return &QuoteSendResult{
 			Disposition: QuoteSendRejected, ApprovalID: appr.ID, Status: rowStatus,
 		}, nil
@@ -502,7 +502,7 @@ func (s *QuoteSendService) submitGate(ctx context.Context, rowID, policyKey stri
 
 // carriedApproval 按号读回调用方递来的那条结论，并核对它确实是"这一版、门序里的某一道"。
 //
-// 三列里 policy_key 那一格从"等于低档"变成"在门序里"：这是本卡唯一放宽的一处，
+// 三列里 policy_key 那一格从"等于低档"变成"在门序里"：这是本处唯一放宽的一处，
 // 而放宽的方向被下面那道派发判据原地咬住 —— 门序里的**非最后**一道批完也不派发，
 // 派发只认最后那道。所以"另一道策略的批准"今天有两种：不该出现在这一版上的（报 mismatch），
 // 和该出现但只算半程的（开出下一道）。
@@ -526,7 +526,7 @@ func (s *QuoteSendService) carriedApproval(ctx context.Context, rowID, approvalI
 	return appr, nil
 }
 
-// dispatch 派发：门序里**最后一道**已经批过之后，才走得进这一格（AC① 的那一处唯一入口）。
+// dispatch 派发：门序里**最后一道**已经批过之后，才走得进这里（唯一入口）。
 //
 // 顺序仍是"补齐完整性判据（收件人、话术）→ 认领 → 出域 → 回写事件"。
 // 明细由调用方带进来（上面刚读过，门序就是从它算的）：再读一遍会让"按哪几行算的档"

@@ -135,7 +135,7 @@ var liveFunnelStages = []FunnelStageKey{StageVisit, StageClue, StageIntent, Stag
 
 // reservedFunnelStages 是「键名已定、数据源未接」的阶段，只登记不产出。
 // 本清单自 T-P4-06 起为空 —— 机制留着而不是删掉：下次再出现"先定名、后接待"的阶段，
-// 仍然该登记在这里，而不是在服务层凭空多画一段（那正是本卡之前的商机位）。
+// 仍然该登记在这里，而不是在服务层凭空多画一段（那正是本处之前的商机位）。
 var reservedFunnelStages = []FunnelStageKey{}
 
 var funnelStageLabels = map[FunnelStageKey]string{

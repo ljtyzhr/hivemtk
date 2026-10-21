@@ -20,7 +20,7 @@ import (
 // DefaultEmailDrainInterval 排水节拍。
 //
 // 排期粒度是分钟级（用户在后台能选"9 点发"），所以 30 秒的误差远小于使用者对
-// "定时"的预期；再快就多打一次带锁的 SELECT，而这一格没有任何客户可感知收益。
+// "定时"的预期；再快就多打一次带锁的 SELECT，而这里没有任何客户可感知收益。
 const DefaultEmailDrainInterval = 30 * time.Second
 
 // EmailDrainWorker 排水节拍器。
@@ -89,7 +89,7 @@ func (w *EmailDrainWorker) loop(ctx context.Context) {
 		case <-w.stop:
 			return
 		case <-ticker.C:
-			// 失败在这一格只出声不上抛：没有调用方可给（进程自己就是调用方），
+			// 失败在这里只出声不上抛：没有调用方可给（进程自己就是调用方），
 			// 而"下一轮再试"正是队列该有的恢复方式。
 			if err := w.RunOnce(ctx); err != nil {
 				logger.Errorf("[email-drain] 本轮排水失败 ⇒ 未认领的邮件留待下一轮：%v", err)

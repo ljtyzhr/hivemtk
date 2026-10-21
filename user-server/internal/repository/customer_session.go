@@ -621,7 +621,7 @@ func (r *CustomerSessionRepository) GetBySessionIDPlatformAccountUser(
 //   - 排除已结束状态（excludeStatuses，通常为 [resolved, closed]）
 //   - 按 last_message_at DESC NULLS LAST, created_at DESC 排序，取首条
 //
-// 未命中返回 (nil, gorm.ErrRecordNotFound)（与历史行为一致）。
+// 未命中返回 (nil, gorm.ErrRecordNotFound)（与既有行为一致）。
 func (r *CustomerSessionRepository) GetLatestActiveByPlatformAccountUser(
 	ctx context.Context, platform model.Platform,
 	accountID, userID string, excludeStatuses []model.SessionStatus,

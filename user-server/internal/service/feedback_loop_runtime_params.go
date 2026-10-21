@@ -116,7 +116,7 @@ func BanditConfigFromParams(ctx context.Context) feedbackloop.BanditConfig {
 
 // FeedbackCollectorConfigFromParams 采集器配置：队列容量、刷盘间隔、批量大小三项。
 // Weights（信号权重表）**刻意不入库**：它是一张 12 键的双射表（dto.FeedbackSignalKey →
-// float64），改成 12 条参数后每一行仍是"配了这一格才覆盖一格的权重"，运维要看全貌反而
+// float64），改成 12 条参数后每一行仍是"配了这里才覆盖一格的权重"，运维要看全貌反而
 // 更难。要动它应走字典表（阶段四），不是参数中心。
 func FeedbackCollectorConfigFromParams(ctx context.Context) feedbackloop.FeedbackCollectorConfig {
 	d := feedbackloop.DefaultFeedbackCollectorConfig()

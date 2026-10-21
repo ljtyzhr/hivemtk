@@ -19,7 +19,7 @@ func setupSSORoutes(public *gin.RouterGroup, ssoCtrl *controller.SSOController) 
 
 // setupSSOConfigRoutes 注册 admin 档的租户 IdP 自配端点（R5-4，SaaS 多租户）。
 //
-// 挂 admin 而不是普通登录档：这一格写的是**本租户**的 IdP 地址与 client_secret，
+// 挂 admin 而不是普通登录档：这里写的是**本租户**的 IdP 地址与 client_secret，
 // 拿到它就等于能把全租户用户的登录流量导向自己的服务器。租户内的这一权限只给
 // 管理档，与参数中心的租户覆盖写入口同档（见 config_param_routes.go）。
 func setupSSOConfigRoutes(systemAdmin *gin.RouterGroup, ssoCtrl *controller.SSOController) {

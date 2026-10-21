@@ -383,7 +383,7 @@ func (c *KBReleaseController) movePointer(ctx *gin.Context, forward bool) {
 
 // SetGoverned PATCH /api/kb-releases/:product/governed  body: {"governed":true}
 //
-// 用 PATCH 而不是 POST：这一格改的是"这个库受不受管"这一个布尔属性，不创建也不删除发布行
+// 用 PATCH 而不是 POST：这里改的是"这个库受不受管"这一个布尔属性，不创建也不删除发布行
 // （启用后指针全为 0，语料照常按存量可见）。
 // 幂等：重复置同一值返回同一份记录，只在真正翻转的那一刻记一条 governed 留痕。
 func (c *KBReleaseController) SetGoverned(ctx *gin.Context) {
@@ -409,7 +409,7 @@ func (c *KBReleaseController) SetGoverned(ctx *gin.Context) {
 	}
 	if body.Governed == nil {
 		// 必须显式给布尔值：漏字段就当成"启用"是一个会扩大治理范围的静默动作，
-		// 而这一格的正确方向恰好相反 —— 宁可不改，不可多改。
+		// 而这里的正确方向恰好相反 —— 宁可不改，不可多改。
 		response.Error(ctx, http.StatusBadRequest, `请求体缺少 governed 布尔字段（形如 {"governed":true}）`)
 		return
 	}
@@ -596,7 +596,7 @@ func kbChangeIDParam(ctx *gin.Context) (string, bool) {
 //
 // 长度闸来自列宽（service.KBReleaseProductMaxLen），不是审美：超长的一次读取会让
 // PG 在 varchar(64) 的隐式转换上报 "value too long" ⇒ 同一个原因在别的端点报 400、
-// 在这一格报 500。回显时不带入参数原文（响应体放大器）。
+// 在这里报 500。回显时不带入参数原文（响应体放大器）。
 func kbReleaseProductParam(ctx *gin.Context) (string, bool) {
 	product := strings.TrimSpace(ctx.Param("product"))
 	if product == "" {

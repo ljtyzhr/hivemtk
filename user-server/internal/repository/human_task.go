@@ -199,7 +199,7 @@ func (r *humanTaskRepo) GetOpenBySubject(ctx context.Context, subjectType, subje
 	}
 	var t model.HumanTask
 	// 排序是"最早那条"而不是"任意一条"：部分唯一保证最多一行开放，
-	// 但历史行不止一行；带 ORDER BY 让这个查询在索引被改动后仍然给出可解释的答案。
+	// 但存量行不止一行；带 ORDER BY 让这个查询在索引被改动后仍然给出可解释的答案。
 	err := r.db.WithContext(ctx).
 		Where("subject_type = ? AND subject_id = ? AND "+model.HumanTaskOpenPredicateSQL(), subjectType, subjectID).
 		Order("created_at ASC, id ASC").

@@ -21,7 +21,7 @@
 // 内容列的方法（唯一的写方法是 UpdateStatus，它的写集合只有 status + updated_at），
 // 明细只能 Add 不能改。这条由 `TestQuoteRepo_InterfaceHasNoContentRewriter` 钉住。
 //
-// 本卡刻意**没有内存版底座**（同 T-P4-02 的商机表）：一旦有内存影子，
+// 本处刻意**没有内存版底座**（同 T-P4-02 的商机表）：一旦有内存影子，
 // "这一版已经被别人追加过了"就永远测不出来。句柄不可用 ⇒ 每个方法明确报错。
 package repository
 

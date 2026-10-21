@@ -24,7 +24,7 @@ func NewDictionaryRepository(db *gorm.DB) *DictionaryRepository {
 func (r *DictionaryRepository) available() bool { return r != nil && r.db != nil }
 
 // ListByParent 取一个域下的全部字典项（按 sort_order、code 排序）。
-// 不过滤 Enabled：历史行仍可能是停用项，调用方要能把它译成人话。
+// 不过滤 Enabled：存量行仍可能是停用项，调用方要能把它译成人话。
 func (r *DictionaryRepository) ListByParent(ctx context.Context, parent string) ([]model.Dictionary, error) {
 	if !r.available() {
 		return nil, ErrDictionaryStoreUnavailable

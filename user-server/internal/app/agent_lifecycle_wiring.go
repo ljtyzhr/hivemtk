@@ -43,7 +43,7 @@ type AgentContextLoader interface {
 
 // AgentLifecycleRuntime 双模式运行时：一台智能体的一次运行该走哪条生命周期。
 //
-// 选择函数用的是 `lifecycle.Resolver` —— 它自写下起一直零调用方，本卡就是来接它的
+// 选择函数用的是 `lifecycle.Resolver` —— 它自写下起一直零调用方，本处就是来接它的
 // （模式比对的字面量因此只有一处定义，不在 app 层再抄一遍）。
 type AgentLifecycleRuntime struct {
 	loader  AgentContextLoader
@@ -64,7 +64,7 @@ func (r *AgentLifecycleRuntime) LifecycleFor(mode string) lifecycle.AgentLifecyc
 	if r == nil || r.resolve == nil {
 		return nil
 	}
-	// Resolver 比的是字面量，脏值先归一（'  Active ' 与 'ACTIVE' 都是历史行可能长成的样子）。
+	// Resolver 比的是字面量，脏值先归一（'  Active ' 与 'ACTIVE' 都是存量行可能长成的样子）。
 	return r.resolve(strings.ToLower(strings.TrimSpace(mode)))
 }
 

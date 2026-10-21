@@ -54,7 +54,7 @@ func WireInboxSalesSessionPaginationConfigParams() []string {
 	})
 	wired = append(wired, "inbox_sales.unified_miner_lead_threshold")
 
-	// 兜底常量与种子 DefaultValue 逐字一致，由 scripts/check-config-param-defaults.py 比对；
+	// 兜底常量与种子 DefaultValue 一致，由 scripts/check-config-param-defaults.py 比对；
 	// 这里不再用 `true` / `""` 字面量，否则「代码默认」与「控制台上看到的那个值」会各走一路。
 	appsvc.SetLeadLLMRefineProviders(
 		func() bool { return cp.GetBool(bg, "lead", "llm_refine_enabled", appsvc.DefaultLeadLLMRefineEnabled) },

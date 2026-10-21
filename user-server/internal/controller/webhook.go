@@ -94,7 +94,7 @@ func (c *WebhookController) RegisterRoutes(r *gin.Engine) {
 // on 模式下由 URL 的 (channel, account_id) 自证归属：解析不出（账号不存在，或
 // 同一个键在两个租户各有一行）就回 404 并报安全告警，返回 ok=false。
 // 绝不回落默认租户 —— 那会把 A 的客户消息落进 B 的收件箱并驱动 B 的 AI 回复。
-// off 模式原样透传 reqCtx（写入走列默认值 1，与历史行为等价）。
+// off 模式原样透传 reqCtx（写入走列默认值 1，与既有行为等价）。
 //
 // 组级 WebhookTenantBinding 已经对同一条链做过一次；这里再调一次是因为回绝
 // 必须发生在控制器（它才知道该回 404 而不是 500），而解析函数命中已绑定时

@@ -86,7 +86,7 @@ func (r *ScriptTemplateRepository) ListAll(ctx context.Context) ([]*model.Script
 //
 // ⚠️ 隔离闸拦不住这条：guardOnConflictTenantAssignments 只拒「DO UPDATE 把 tenant_id
 // 改成别的值」，而 Save 生成的正是 tenant_id = excluded.tenant_id，在放行名单里
-// （#18 变异 M2 实测：on 模式出口层锁全绿）。归属只能靠「不用 Save」+ 读前置。
+// （#18 变异 M2 验证：on 模式出口层锁全绿）。归属只能靠「不用 Save」+ 读前置。
 func (r *ScriptTemplateRepository) Update(ctx context.Context, template *model.ScriptTemplate) error {
 	res := r.db.WithContext(ctx).Model(template).
 		Select("*").Omit("id", "created_at", "tenant_id", "created_by", "usage_count").Updates(template)

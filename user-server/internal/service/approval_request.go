@@ -7,10 +7,10 @@
 // "审批说已批准、流程根本没人续跑"这种两边都对、合起来错的分歧
 // （C2 明确要求复用同一套游标，不另造）。
 //
-// 旧接口 `tooluse.ApprovalChecker`（bool）在本卡**未被引用、也未被改动**：
+// 旧接口 `tooluse.ApprovalChecker`（bool）在本处**未被引用、也未被改动**：
 // C2 的约束是「禁止在 decorator_approval.go 上叠加第二个布尔接口」，
 // 而它允许旧接口"作为 auto-approve 的判据来源之一"。这里给的正是那个入口的形状
-// （AutoApprovalPolicy），但刻意不在本卡把它接到白名单 checker 上 ——
+// （AutoApprovalPolicy），但刻意不在本处把它接到白名单 checker 上 ——
 // 从 (subject_type, subject_id) 映射到 (tool_name, account_id) 是调用方的知识
 // （报价的 subject 是 quote_id、外发的 subject 是 reach_plan_id，账号从哪来各不相同），
 // 现在接等于替三个还没写的调用方各自代设计一次。接线的卡是 T-P3-07 / T-P5-03。
@@ -79,7 +79,7 @@ var ErrApprovalResumeNotPending = errors.New("approval_request: 审批尚未放�
 // ErrApprovalDecideTooLate 截止时刻已过，本次人工裁决**没有**被收录（返回时同样带当前记录）。
 //
 // 它存在的理由是一段真实的时间窗：TTL 过完到清扫器跑上来之间最多有一整个轮次（本模块
-// 实测为 5 分钟），这段时间里库里那一行仍写着 pending。若不拦：
+// 5 分钟），这段时间里库里那一行仍写着 pending。若不拦：
 //   - 审批桥早就按"超时"把流程推走了（ResolveOnFire 对 pending 且已过 expires_at 的行
 //     给出 derived=ttl，见 sop_approval_resume.go）—— 人这时批的是一扇已经关上的门；
 //   - 而落进去的那一行会写下 `decided_by=<人的账号>`、`decided_at=<刚才>`，事后查"这件
@@ -542,7 +542,7 @@ func (s *ApprovalRequestService) Decide(ctx context.Context, id string, verdict 
 	// 它拦的是另一件事：有人往表里放开 pending→某个不该存在的目标、或把
 	// pending→rejected 整条删掉。前者让一次合法裁决把行改成表外状态，后者让"拒"这条路
 	// 静默失效 —— 两种都只有一行表数据变了，代码看不出问题，只能靠这条判据变红。
-	// 变异实测：把表里 pending→rejected 摘掉，Decide(ApprovalReject) 立刻在落库前失败。
+	// 变异验证：把表里 pending→rejected 摘掉，Decide(ApprovalReject) 立刻在落库前失败。
 	if !model.ApprovalTransitionAllowed(model.ApprovalStatusPending, target) {
 		return nil, fmt.Errorf("%w: 状态机不允许 %s → %s", ErrApprovalIllegalTransition,
 			model.ApprovalStatusPending, target)
@@ -647,8 +647,8 @@ func (s *ApprovalRequestService) ByResumeToken(ctx context.Context, token string
 //
 // limit<=0 = 本轮不限（装配侧应传有界值，理由同 recovery worker 的单轮上限：
 // 一次清理的最坏耗时与锁范围必须有上界）。
-// 这一格状态必须由某个调用方按节拍来推（T-P2-06 在 PurgeTerminal 上刚踩过：
-// 常量写了、没人调，等于没有保留期）⇒ 定时调用方就在本卡的装配里
+// 这个状态必须由某个调用方按节拍来推（在 PurgeTerminal 上刚踩过：
+// 常量写了、没人调，等于没有保留期）⇒ 定时调用方就在本处的装配里
 // （internal/app/approval_runtime_wiring.go 的清扫协程），T-P3-01 登记的那条
 // "pending 不会自动过期"的移交项到这里收口。
 func (s *ApprovalRequestService) ExpireOverdue(ctx context.Context, limit int) ([]*model.ApprovalRequest, error) {

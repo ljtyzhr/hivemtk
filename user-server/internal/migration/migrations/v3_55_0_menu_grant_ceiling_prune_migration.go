@@ -20,7 +20,7 @@ import (
 //
 //	读侧（model.EligibleMenuKeys 那层交集）已经让越界行**当下**不生效了，但行还躺在表里。
 //	留着的那一行是一颗延时引信——注册表日后把某个节点重新放开给 staff 时（改一行 Roles
-//	词表，没有任何人点过"授权"），那颗历史行会立刻生效，界面上凭空多出一项谁也想不起
+//	词表，没有任何人点过"授权"），那颗存量行会立刻生效，界面上凭空多出一项谁也想不起
 //	是哪次批的。这类"改注册表 = 静默复权"没有审计痕迹，比当初多给一个菜单更难查。
 //
 //	摘掉之后，重新放开一个节点必须走管理台的显式授权（service.MenuService.UpdateRoleMenuKeys
@@ -32,7 +32,7 @@ import (
 // 重新 seed（与全新部署同一条路，不是新行为）。
 //
 // 只动有读家的角色：customer_service / staff 这两档是 service.MenuService 真会去查的。
-// 表里如果出现别的角色码（历史遗留的 manager / sales / viewer，或已归一的 user），
+// 表里如果出现别的角色码（遗留的 manager / sales / viewer，或已归一的 user），
 // 本迁移**不删**，只警告：那些行今天没有任何读路径会取到，删它们属于"未证伪就动手"；
 // 而且一旦哪天真加了同名的自定义角色，被删掉的授权是找不回来的。
 type MenuGrantCeilingPruneMigration struct {

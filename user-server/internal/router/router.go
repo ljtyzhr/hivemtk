@@ -185,7 +185,7 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 	r.Use(corsMiddleware())
 	r.Use(gin.Recovery())
 
-	// 全局请求体封顶（R19）：注册位置必须在**任何会读 body 的中间件与鉴权之前** ——
+	// 全局请求体封顶：注册位置必须在**任何会读 body 的中间件与鉴权之前** ——
 	// gin 的引擎级 Use 只对注册它之后登记的路由生效，晚一步就等于给已注册的路由留口子。
 	// multipart 由中间件内部跳过，其内存占用改由下面的 MaxMultipartMemory 收（gin 默认 32MB 偏大）。
 	r.Use(middleware.BodyLimit(middleware.BodyLimitFromEnv()))
@@ -205,7 +205,7 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 
 	// 路由表调试端点：默认仅本地/开发环境开放；生产需显式 ENABLE_DEBUG_ROUTES=true
 	//
-	// "本地/开发开放"只管住了"要不要注册这条路"这一半；一旦注册，它原先是**引擎级裸路由**，
+	// "本地/开发开放"只管住了"要不要注册这条路"这一半；一旦注册，它就是**引擎级裸路由**，
 	// 本机端口上的任何进程（以及转发到本机的反向代理、隧道、同网络的访客）都能一次拿走
 	// 整张路由表——那是把全部攻击面按方法和路径名清单化地交给对方。注册条件不动（开发期
 	// 确实要看路由），但读它需要超管身份：这条是调试面，不是前端功能面，加守卫不会碰到任何页面。
@@ -213,7 +213,7 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 		r.GET("/__debug__/routes", middleware.JWTAuthMiddleware(), middleware.AdminAuthMiddleware(), controller.DebugRoutesHandler(r))
 	}
 
-	// 全局限流两条（R2 参数化）：装配期读一次塞进限流器构造，改完需重启才生效
+	// 全局限流两条：装配期读一次塞进限流器构造，改完需重启才生效
 	// （种子 ratelimit.global_* 标 Restart=true）。走直连范式——本包已 import service。
 	// 默认值 1000/20000 即接线前 router 写死的生产值，行为零变更。
 	r.Use(middleware.RateLimitMiddleware(middleware.RateLimitConfig{
@@ -246,36 +246,36 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 	app.InitGlobalToolRouter()
 	app.RegisterAllAgentTools(gormDB)
 	app.InitInferenceOrchestrator()
-	// 订单草稿运行时（T-P2-06）：必须在 BuildSmartOrchestrator 之前，后者按全局运行时
+	// 订单草稿运行时：必须在 BuildSmartOrchestrator 之前，后者按全局运行时
 	// 决定挂不挂生产者。默认旗子 off ⇒ 这一步只是打一行"未装配"日志，不产生任何协程。
 	app.InitOrderDraftRuntime(gormDB)
 
-	// 销售工作台读侧（项11a）：必须排在 InitOrderDraftRuntime 之后 —— 它要借草稿竖
+	// 销售工作台读侧：必须排在 InitOrderDraftRuntime 之后 —— 它要借草稿竖
 	// 装配好的草稿/旅程/跟进服务（进程内内存，本进程唯一的写入方就在那条竖）。
 	// 没有旗子：装配本身零行为变化，借不到就少几块数据并出声，不回空壳当"今天没单子"。
 	app.InitSalesWorkbenchRuntime()
 
-	// 异步审批运行时（T-P3-02）：清扫器 + 挂起/恢复桥。放在 SOP 调度器之后、路由之前 ——
+	// 异步审批运行时：清扫器 + 挂起/恢复桥。放在 SOP 调度器之后、路由之前 ——
 	// 桥要在第一笔流量进来之前挂上，否则会出现"审批服务已能收单、流程侧无人被叫醒"的窗口。
 	// 默认旗子 off ⇒ 这一步只打一行"未装配"日志，不产生任何协程。
 	app.InitApprovalRuntime(gormDB)
 
-	// 统一待办底座（T-P3-03）：同样必须在 BuildSmartOrchestrator 之前 —— 编排器按全局
+	// 统一待办底座：同样必须在 BuildSmartOrchestrator 之前 —— 编排器按全局
 	// 服务决定挂不挂"转人工 → 投递会话待办"的生产者。本竖没有旗子：底座拿不到 DB 句柄
 	// 就是不装配，此时下面那组 /api/human-tasks/* 端点全部回 503（不会回一个空列表骗人）。
 	app.InitHumanTaskRuntime(gormDB)
 
-	// 待办 SLA 超时闭环（I2）：排在 InitHumanTaskRuntime 之后（读的就是它那张表），
+	// 待办 SLA 超时闭环：排在 InitHumanTaskRuntime 之后（读的就是它那张表），
 	// 在路由之前装配。三态旗子 FF_LTC_HANDOFF_SLA_JOB（off|shadow|enforce），默认 off ⇒
 	// 只打一行"不装配"日志、不产生协程。enforce 档逾期即发站内提醒、拖过一个 SLA 窗口再升级。
 	app.InitHumanTaskSLA(gormDB)
 
-	// Bad Case 底座（T-P8-03）：同一位置约束（在编排器与路由之前）。本竖也没有旗子 ——
+	// Bad Case 底座：同一位置约束（在编排器与路由之前）。本竖也没有旗子 ——
 	// 编排器按全局服务决定挂不挂"这一轮低质 → 留一条痕"的标记器，不装配时
-	// 下面那组 /api/bad-cases/* 全部回 503，且回答路径与本卡之前逐字一致。
+	// 下面那组 /api/bad-cases/* 全部回 503。
 	app.InitBadCaseRuntime(gormDB)
 
-	// 知识库变更底座（T-P9-02）：同一位置约束（在编排器与路由之前），但**多一条**顺序要求 ——
+	// 知识库变更底座：同一位置约束（在编排器与路由之前），但**多一条**顺序要求 ——
 	// 它必须排在 InitApprovalRuntime 之后，装配点优先复用全局审批服务（裁决入口在
 	// /api/approvals/*）；那把旗子是 off 时就地构造一份只用于入队/读结论的，并出声
 	// "没人能在 HTTP 上批准这一条"（见 app/kb_release_wiring.go 文件头）。
@@ -283,42 +283,42 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 	// 而变更行在发布之前一行都不进 knowledge_chunks ⇒ 装上不等于线上有变化。
 	app.InitKBReleaseRuntime(gormDB)
 
-	// 业务通知口（I8）：同一位置约束（在编排器与路由之前）。排在这三个底座
+	// 业务通知口：同一位置约束（在编排器与路由之前）。排在这三个底座
 	// （草稿/坏例/知识库变更）之后是读法上的顺序 —— 它只登记一台通知服务，
 	// 不依赖前面任何一个的实例。本竖没有旗子、也不产生协程：拿到 DB 即装配，
 	// 拿不到就全局置空（生产者全部 no-op，业务动作照常成功，只是铃铛不响）。
 	app.InitBusinessNotifier(gormDB)
 
-	// 商机底座（T-P4-04）：同一位置约束（在编排器与路由之前）。本竖没有旗子，也不产生协程 ——
+	// 商机底座：同一位置约束（在编排器与路由之前）。本竖没有旗子，也不产生协程 ——
 	// 不装配就是 /api/opportunity/* 全部回 503，不会回一个空列表骗人。
 	app.InitOpportunityRuntime(gormDB)
 
-	// 报价两条腿（T-P6-02 生成 / T-P6-03 发送）：必须排在 InitApprovalRuntime 与
+	// 报价两条腿（生成 / 发送）：必须排在 InitApprovalRuntime 与
 	// InitHumanTaskRuntime **之后** —— 装配点优先复用全局审批服务（裁决入口在 /api/approvals/*），
 	// 并在那一刻取待办出口。同样排在 InitGlobalToolExecutor 之后：发送腿那份外发服务要挂
-	// T-P3-07 的发送前闸门，而闸门的裁决来源是工具执行器装配时建的。本竖没有旗子也不产生协程，
+	// 发送前闸门，而闸门的裁决来源是工具执行器装配时建的。本竖没有旗子也不产生协程，
 	// 但会在 FF_LTC_APPROVAL_RESUME=off 时点名"批不了"这件事（见 quote_wiring.go 文件头）。
 	app.InitQuoteRuntime(gormDB)
 
-	// 账单派生腿（T-P7-01）：同一位置约束，排在报价之后只是读法上的顺序（本竖不复用
+	// 账单派生腿：同一位置约束，排在报价之后只是读法上的顺序（本竖不复用
 	// 报价的服务实例，两把句柄各自 WithDB 注入）。不装配的代价不是一句 503，
 	// 是 `accepted` 在全系统没有写入口 ⇒ 回款域没有起点，所以这里必须出声。
 	app.InitBillRuntime(gormDB)
 
-	// 回款腿（T-P7-02）：位置约束有**两处**而不是一处。除"排在路由之前"之外，
+	// 回款腿：位置约束有**两处**而不是一处。除"排在路由之前"之外，
 	// 它还必须早于下面 setupIntegrationRoutes 里那一次 NewIntegrationController ——
 	// 那条回调路（外部电商推"这笔钱到了"）用的就是这一份实例，晚于构造则永远记不到钱。
 	// 判据与顺序各由 order_webhook_payment_wiring_test.go 与 router 侧的用例守着。
 	app.InitPaymentRuntime(gormDB)
 
-	// 邮件排水运行时（R21）：必须在路由之前 —— /api/email/* 读的是同一个 status 字段的
+	// 邮件排水运行时：必须在路由之前 —— /api/email/* 读的是同一个 status 字段的
 	// 那一列，装配点晚于流量的话，列表里会出现"排水器刚把它改成发送中、读侧还在按待发送
-	// 统计"的错位。本竖没有旗子：拿不到 DB 句柄就是不装配，不装配就是回到 R21 之前的
-	// 存量状态（行永远停在 status=0），不会假装自己在发。
+	// 统计"的错位。本竖没有旗子：拿不到 DB 句柄就是不装配，不装配就是存量状态
+	// （行永远停在 status=0），不会假装自己在发。
 	app.InitEmailRuntime(gormDB)
 
 	engine := app.BuildSalesEngine(gormDB)
-	// 双模式生命周期（T-P5-02 / W-4）：被动复用上面这个会话引擎实例，主动走 SOP 编排出口。
+	// 双模式生命周期：被动复用上面这个会话引擎实例，主动走 SOP 编排出口。
 	// 放在 BuildSalesEngine 之后、路由之前 —— 路由挂的必须是这个已装配的运行时。
 	app.InitAgentLifecycles(gormDB, engine)
 	kbRepo := repository.NewKnowledgeBaseRepository(gormDB)
@@ -346,7 +346,7 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 		setupSSORoutes(public, ssoCtrl)
 		setupSelfServiceRoutes(public, gormDB)
 
-		// 电商订单回调（T-P2-02）：外部平台没有会话凭证，只能走公开组 + HMAC 验签。
+		// 电商订单回调：外部平台没有会话凭证，只能走公开组 + HMAC 验签。
 		// 与 auth 组里那条旧路径并存，旧路径已标 deprecation。
 		setupOrderWebhookRoutes(public)
 
@@ -381,7 +381,7 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 		if crawlerVisitSvc == nil {
 			return
 		}
-		// 写库失败必须留痕，不能静默归零（2026-09-16 审计 DB-07）。
+		// 写库失败必须留痕，不能静默归零。
 		go func() {
 			if err := crawlerVisitSvc.RecordAnonymous(context.Background(), engine, path, ua, ip); err != nil {
 				logger.Warnf("[GEO] 记录 AI 爬虫访问失败（engine=%s path=%s）: %v", engine, path, err)
@@ -451,8 +451,7 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 		//
 		// ⚠️ 必须挂在 auth.Use(JWTAuthMiddleware()) 之后：gin 的 RouterGroup.Use
 		// 只在注册时把当时的 handler 链快照进路由，对**之前**注册的路由不生效。
-		// 历史缺陷：该行原位于 294 行 Use 之前，导致 7 个监控接口全部匿名可访问
-		// （启动日志中 handler 数为 11，而需登录的 /api/users 为 12）。
+		// 挂错位置会让这 7 个监控接口全部匿名可访问。
 		monitor.RegisterRoutes(auth)
 
 		// 链路自学习监控口：/monitor/trace-eval/logs 与 /monitor/knowledge-weights 在
@@ -494,33 +493,33 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 
 		setupRecoveryQueueRoutes(auth)
 
-		// 统一人工待办 /api/human-tasks/*（T-P3-03）：必须挂在这个块里 —— auth 组在本块
+		// 统一人工待办 /api/human-tasks/*：必须挂在这个块里 —— auth 组在本块
 		// 入口已 Use(JWTAuthMiddleware())，动作端点的操作者身份取自令牌里的 user_id。
 		setupHumanTaskRoutes(auth)
 
-		// Bad Case 队列与评测集导出 /api/bad-cases/*（T-P8-03）：与上一行同一位置约束
+		// Bad Case 队列与评测集导出 /api/bad-cases/*：与上一行同一位置约束
 		// （打标/撤销/补录三个写入口的操作者身份取自令牌里的 user_id）。
 		setupBadCaseRoutes(auth)
 
-		// 审批详情与裁决 /api/approvals/*（T-P3-04）：待办池里 kind=approval 那几行的
+		// 审批详情与裁决 /api/approvals/*：待办池里 kind=approval 那几行的
 		// 唯一出口。与上一行同一位置约束（身份取自令牌），且必须在
 		// app.InitApprovalRuntime 之后 —— 它决定这里是全局实例还是"回 503 的空壳"。
 		setupApprovalRoutes(auth)
 
-		// 知识库变更与发布 /api/kb-changes/* + /api/kb-releases/*（T-P9-02）：与上一行同一
+		// 知识库变更与发布 /api/kb-changes/* + /api/kb-releases/*：与上一行同一
 		// 位置约束（六个写入口的操作者身份取自令牌），且必须在 app.InitKBReleaseRuntime 之后。
 		setupKBReleaseRoutes(auth)
 
-		// 商机 /api/opportunity/*（T-P4-04）：与上一行同一位置约束（写入口的操作者身份
-		// 取自令牌，虽然本卡还不记 actor —— 那件事归哪张表还没拍板）。
+		// 商机 /api/opportunity/*：与上一行同一位置约束（写入口的操作者身份
+		// 取自令牌，虽然本处还不记 actor —— 那件事归哪张表还没拍板）。
 		setupOpportunityRoutes(auth)
 
-		// 报价 /api/quote/*（T-P6-03）：同一位置约束，而且比商机那条更硬 ——
+		// 报价 /api/quote/*：同一位置约束，而且比商机那条更硬 ——
 		// 发送那一条的操作者要落进 sales_events.owner_id（"谁把这一版发出去的"），
 		// 那个身份只来自令牌；匿名可访问等于审计里所有人都可以是任何人。
 		setupQuoteRoutes(auth)
 
-		// 账单 /api/bill/*（T-P7-01）：同一位置约束。这一条比报价那条更要紧 ——
+		// 账单 /api/bill/*：同一位置约束。这一条比报价那条更要紧 ——
 		// 它是 `accepted` 在整个系统里的唯一生产写入口，匿名可访问等于任何人都能
 		// 在任意一条报价上开出一张应收。
 		setupBillRoutes(auth)
@@ -530,14 +529,14 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 		//   tenantAdmin —— 操作**租户表**（system_config / system_config_kv /
 		//     obs_config / tenant_config_params …）的管理端点。租户 admin 本就该
 		//     读写自己租户的这些数据（隔离 callback 已经把范围限死在本租户），
-		//     所以守卫是 AdminAuthMiddleware（只判 role=="admin"），与历史一致。
+		//     所以守卫是 AdminAuthMiddleware（只判 role=="admin"）。
 		//
 		//   systemAdmin —— 操作**全局表与实例运行态**的管理端点（tenants 租户清单 /
-		//     停用租户 / 备份恢复 / 重启 / 迁移记录 / 路由巡检）。这些是平台运营语义，
+		//     停用租户 / 备份恢复 / 重启 / 迁移记录 / 路由表导出）。这些是平台运营语义，
 		//     守卫是 PlatformOperatorMiddleware：SaaS 模式下"admin"角色同时表示
 		//     平台运营方与租户管理员，只判 role 区分不出来 ⇒ 租户 admin 会拿到
 		//     看到/停用别的租户、重启实例的权限。平台运营方 = 本实例**首个租户**
-		//     的管理员（tenants 表 ID 最小）；off 模式恒放行，行为与历史逐字节一致。
+		//     的管理员（tenants 表 ID 最小）；off 模式恒放行。
 		//
 		// 【为什么必须分两档】平台运营方守卫是"降敌意"方向（把本该能访问的人挡在外面），
 		// 一旦套在整个 admin 组上就会**误伤租户内管理功能**——第一轮就是这么把
@@ -559,7 +558,7 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 
 		// 功能模块市场（下单/查单/我的模块）与 LLM 余额、套餐。
 		// sync-logs 落 module_sync_logs（租户表）⇒ 租户档；
-		// uncovered-routes 是进程内路由巡检（全局）⇒ 平台运营方档。
+		// uncovered-routes 是进程内路由表（全局）⇒ 平台运营方档。
 		setupModuleRoutes(nil, auth, tenantAdmin, systemAdmin)
 
 		setupSystemUserRoutes(auth)
@@ -682,7 +681,7 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 		bridgeWS.GET("/bridge/capabilities", controller.NewBridgeCapabilitiesController().GetCapabilities)
 
 		// MCP 工具调用入口单独一条门：它挂在桥接组里时，BRIDGE_INGEST_AUTH=off 这条
-		// 「内网扩展可不带凭证上报」的历史逃生阀会把**服务端工具调用**一起放开，
+		// 「内网扩展可不带凭证上报」的逃生阀会把**服务端工具调用**一起放开，
 		// 而且每台运营机器上的扩展凭证会变成工具调用凭证。判据见 middleware.MCPGuard。
 		mcpGroup := r.Group("/api")
 		mcpGroup.Use(middleware.InitGuard())
@@ -835,7 +834,7 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 
 		app.SetupInferenceRoutes(auth)
 
-		// 智能体双模式运行入口（T-P5-02）：按 agent_id 读出 agent_mode 再分派。
+		// 智能体双模式运行入口：按 agent_id 读出 agent_mode 再分派。
 		app.SetupAgentLifecycleRoutes(auth)
 
 		aiAgentCtrl := controller.NewAIAgentControllerWithService(aiAgentSvcGlobal)

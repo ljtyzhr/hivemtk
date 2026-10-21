@@ -4,7 +4,7 @@
 // 一份可读的快照 —— 在此之前 `CollectionJob` 全仓非测试构造点为 0，那正是判定 A 的
 // 原文形状（service 侧 27 条用例全绿，生产路径上没人把它接起来）。
 //
-// 为什么这一卡**必须**装而不是停在"服务层写完了"：催收是回款域里第一条会**主动打扰客户**
+// 为什么这一处**必须**装而不是停在"服务层写完了"：催收是回款域里第一条会**主动打扰客户**
 // 的腿。它不装，`bills` 里那些越过账期的行就永远停在 open，"逾期"这件事在系统里
 // 只剩一句注释；升级待办也不会有人投。两种失效都不报错、不崩溃，只在客户那边表现为
 // "欠了三个月没人催"，而在我们这边表现为"库里一切正常"。
@@ -177,7 +177,7 @@ func GetCollectionSnapshot(ctx context.Context) CollectionSnapshot {
 
 	if rt == nil {
 		// 未装配时只能回显 env 上此刻的值，并且必须说清这是"没装配所以只能读 env"，
-		// 否则这一格与"装配了、跑着、恰好也是这个档"在响应里长得一模一样。
+		// 否则这里与"装配了、跑着、恰好也是这个档"在响应里长得一模一样。
 		snap.Mode = string(service.CollectionJobModeFromEnv())
 		snap.UnassembledHint = "本进程未装配催收腿（无 DB 句柄或启动路径没调装配）⇒ mode 读自当前环境变量，" +
 			"不是任何一台在跑的实例"
@@ -223,7 +223,7 @@ type CollectionSnapshot struct {
 	RemindWindow      string `json:"remind_window"`
 	EscalateWindow    string `json:"escalate_window"`
 
-	// 第二把锁：ltc.config 的 collection 阶段。旗子三档全开而这一格关着，一条都不催。
+	// 第二把锁：ltc.config 的 collection 阶段。旗子三档全开而这里关着，一条都不催。
 	StageOn     bool   `json:"stage_on"`
 	StageReason string `json:"stage_reason,omitempty"`
 

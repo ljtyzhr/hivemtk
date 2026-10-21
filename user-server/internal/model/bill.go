@@ -11,17 +11,17 @@
 // 收款动作**不在**本域（X8/D-4：钱在外部电商到账）。本表记的是"我方主张应收多少、
 // 到期没有、收清没有"，即 LTC-15/16 要的那本状态账。
 //
-// 本卡只交付**列、值域与"由哪一版报价派生"的形状**：
+// 本处只交付**列、值域与"由哪一版报价派生"的形状**：
 //   - 派生的算法与触发点在 T-P7-01 的 service 层（同卡交付）；
 //   - 回款行（payment）在 T-P7-02 —— 所以本表**不带**任何"已收金额"列（判据见下）；
-//   - 逾期扫描与催收升级在 T-P7-03 —— 所以本表**不带** overdue 这一格状态。
+//   - 逾期扫描与催收升级在 T-P7-03 —— 所以本表**不带** overdue 这里状态。
 package model
 
 import "time"
 
 // Bill 账单行（表 bills）
 //
-// 一行 = **一张应收**，且它钉死在某一版报价上。这是本卡最容易在建表时走歪的一步：
+// 一行 = **一张应收**，且它钉死在某一版报价上。这是本处最容易在建表时走歪的一步：
 // 卡面列清单写的是 quote_id，而 quotes 里那一列是**逻辑报价号、跨版本重复出现**
 // （v1/v2/v3 共用一个 quote_id，见 quote.go 的 uq_quotes_quote_version）。
 // 拿它当派生的幂等键，等于"一张报价单只能开一张账单"——客户还价后又接受新版时，
@@ -32,7 +32,7 @@ type Bill struct {
 
 	// ID 账单号（形如 b_<unixnano>_<seq>，由 service 层的生成器产出）。
 	//
-	// 刻意不用自增 serial：这把键会被抄进 payments.bill_id（T-P7-02），
+	// 刻意不用自增 serial：这把键会被抄进 payments.bill_id，
 	// 与 quotes.id 同一判据 —— 引用键必须多实例不撞。
 	ID string `gorm:"type:text;primaryKey" json:"id"`
 
@@ -74,7 +74,7 @@ type Bill struct {
 
 	// DueAt 账期截止，可空 = **账期未定**。
 	//
-	// 空是合法值而不是偷懒：卡面与本仓都没有"付款条件"这一格（报价模板里的
+	// 空是合法值而不是偷懒：卡面与本仓都没有"付款条件"这个字段（报价模板里的
 	// valid_days 是**报价有效期**，不是"多少天内付款"），凭空补一个默认 30 天
 	// 会被运营读成合同条款。
 	//
@@ -82,7 +82,7 @@ type Bill struct {
 	// `status IN (open, partial) ∧ due_at IS NOT NULL ∧ due_at < now`，
 	// 账期未定的账单**不参与扫描**、但要在视图里被数出来（"没有逾期"与
 	// "没法定逾期"是两件事，合成一件的那天，催收就再也看不见这批单）。
-	// 那一句"要被数出来"由 BillRepository.ScanOverdue 的 Undated 兑现（T-P7-03）。
+	// 那一句"要被数出来"由 BillRepository.ScanOverdue 的 Undated 兑现。
 	//
 	// 时区：库里是 timestamptz，比较发生在读侧，本层不写任何按天取整的表达式
 	// （那条路径要先经过 check-date-bucket-tz 点名的显式时区处理）。
@@ -96,7 +96,7 @@ type Bill struct {
 	// 本列答"这笔钱收清没有"。三格各有一处事实源 —— 合成一格的两条后果在 T-P4-01
 	// （漏斗与赢率塌成同一个数）与 quotes（accepted 不等于 paid）各拦过一次。
 	//
-	// T-P7-01 交付时这里写的是"**不建索引**：本卡没有按状态捞的读方"（原话留在
+	// T-P7-01 交付时这里写的是"**不建索引**：本处没有按状态捞的读方"（原话留在
 	// TestBillKeyedToExactlyOneQuoteVersion 的用例注释里）。读方在 T-P7-03 真的来了：
 	// BillRepository.ScanOverdue 每轮按 `status IN (…) ∧ due_at < cutoff` 捞，
 	// bills 从此是唯一一张会被定时任务反复带谓词扫的凭证表 —— 那一格按它自己许下的
@@ -141,7 +141,7 @@ const BillCurrencyDefault = "CNY"
 
 // BillStatusesChased **参与催收扫描**的那几格：open（一分未收）与 partial（收了一部分仍欠）。
 //
-// 与 PaymentStatusesCounted 同族同形状：逾期扫描的 SQL 的 IN 列表由这一格生成，
+// 与 PaymentStatusesCounted 同族同形状：逾期扫描的 SQL 的 IN 列表由这里生成，
 // service 层不另拼一份字面量。两处各写一遍的后果与"报价头存合计"同一条 ——
 // 一处加了新状态，另一处静默不催，而"少催"这条方向没有任何人会察觉。
 //
@@ -192,7 +192,7 @@ func BillStatusKnown(s string) bool {
 //   - open/partial→voided：人工收口，催收与对账都要能表达"这张不再主张"。
 //
 // 仍然禁的一侧是 voided：**作废不可逆** —— 要重来只能派生新的一张，留下两张说过程
-// （与 approval_requests 的"改判无路"同一形状：历史行不被覆盖，是这几张凭证类表共同的取向）。
+// （与 approval_requests 的"改判无路"同一形状：存量行不被覆盖，是这几张凭证类表共同的取向）。
 // paid→voided 同样禁：结清过的应收要作废，等于用一格状态盖掉一次真实发生过收付的历史。
 var billStatusTransitions = map[string][]string{
 	BillStatusOpen:    {BillStatusPartial, BillStatusPaid, BillStatusVoided},

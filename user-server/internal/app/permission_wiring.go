@@ -15,26 +15,26 @@ import (
 // ToolRiskLevel(read|write|admin) 有 3 个工具实现，而唯一读者 ToolCallEvent.RiskLevel
 // 在 FeedbackCollectorDecorator 里从未被赋值 ⇒ 元数据写进 DB 后没有任何消费方
 // （app/feedback_sink_adapter.go 只在非空时写 metadata）。那是一副"看着有、其实不通"
-// 的假配置，与本卡要修的现象同源：`WhitelistPermissionChecker.defaultAllow=true`
+// 的假配置，与本处要修的现象同源：`WhitelistPermissionChecker.defaultAllow=true`
 // 让"白名单"名义上是授权、实现上是默认放行。
 //
-// 因此本卡先把词汇迁到 readonly|low_write|high_write（判据=副作用落在谁的系统、能否撤回），
+// 因此本处先把词汇迁到 readonly|low_write|high_write（判据=副作用落在谁的系统、能否撤回），
 // 把 45 个生产工具的声明补齐，再挂一个**只判定不拦截**的观察层。
 //
 // 两态而非三态（与熔断/审批门的刻意差别）：
 //
-//	off（默认） 不挂判定层，装饰链与接线前逐字节一致
+//	off（默认） 不挂判定层，装饰链与接线前一致
 //	shadow      每次调用算一次判定并留痕；**代码里不存在拒绝路径**
 //
 // 三态（T-P9-01 起，与熔断/审批门对齐）：
 //
-//	off（默认） 不挂判定层，装饰链与接线前逐字节一致
+//	off（默认） 不挂判定层，装饰链与接线前一致
 //	shadow      每次调用算一次判定并留痕；**代码里不存在拒绝路径**
 //	block       would_deny 变成真拦截（RiskGateBlockDecorator）：高危且未逐条授权的调用被拒，
 //	            被拒记 tool_risk_denied（error 级）+ tool_risk_decision allowed=false；
 //	            回滚 = 旗子置回 off/shadow，不动代码。
 //
-// 历史注记：T-P3-05 时代本卡没有阻断态，`=enforce|block|true` 一律按 shadow 挂载并告警
+// 历史注记：T-P3-05 时代本处没有阻断态，`=enforce|block|true` 一律按 shadow 挂载并告警
 // "这个构建里它拦不住任何东西"。P9 把阻断接上之后，这段告警逻辑已改为真进 block；
 // 报告的 blocks_when_denied 随旗子走（block 态 true），"当前有没有真拦"以它为准。
 

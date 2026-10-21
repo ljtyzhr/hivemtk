@@ -64,7 +64,7 @@ type WSTransport struct {
 	// bridge —— bridge 已经 import channelgw，反向依赖会成环。
 	//
 	// 契约：返回携带租户的 ctx；判不出归属时返回 error，调用方据此拒绝这条连接。
-	// off 模式下注入方原样返回入参 ctx，行为与历史版本等价。
+	// off 模式下注入方原样返回入参 ctx，行为与旧版本等价。
 	TenantBinder func(r *http.Request, channel, accountID string) (context.Context, error)
 }
 

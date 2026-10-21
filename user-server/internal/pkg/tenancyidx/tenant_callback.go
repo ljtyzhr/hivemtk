@@ -20,16 +20,16 @@ import (
 // 断开 testutil→db 的 import 环（pkg/db 测试依赖 testutil 的链路会成环）。
 //
 // 隔离的唯一执行者，业务代码零入侵：
-//   - off 模式（TENANT_MODE=off，默认）：全部 callback 直通，SQL 形状与历史版本逐字节等价
+//   - off 模式（TENANT_MODE=off，默认）：全部 callback 直通，SQL 形状保持不变
 //   - on 模式：Query/Update/Delete 自动注入 `WHERE tenant_id = ?`；Create 自动填充
 //     tenant_id 列；上下文无租户 ⇒ fail-closed 报错（绝不默认全量）
 //   - Raw/Exec（预构建 SQL）：off 直通；on 模式引用租户表即拒绝——数据访问唯一形态
-//     是 GORM API（T012-T014 已清偿历史债务，门禁防回归），运行时这里兜第二道闸
+//     是 GORM API（门禁防回归），运行时这里兜第二道闸
 //
 // 注册点：db.AutoMigrate()（生产全局 DB）与 testutil.NewTestDB（测试连接）；
 // 同名重复注册等价替换，幂等。
 
-// identPattern 匹配裸标识符、双引号标识符与反引号标识符（PG 仅双引号，兼容历史写法）
+// identPattern 匹配裸标识符、双引号标识符与反引号标识符（PG 仅双引号，兼容遗留写法）
 const identPattern = `(?:"[^"]+"|` + "`[^`]+`" + `|[A-Za-z_][A-Za-z0-9_$]*)`
 
 // tableRefRe 从预构建 SQL / JOIN 片段中提取引用表（FROM/JOIN/INTO/UPDATE 等关键字后）
@@ -268,7 +268,7 @@ func fillCreateForTenant(db *gorm.DB) {
 	// ConvertToCreateValues **不把 tenant_id 放进 INSERT**（Selects 非空即 restricted，
 	// 只有 selectedColumns 里为 true 的列进 SQL）。于是回调填进内存的值根本没进 SQL，
 	// 行落**列默认值 1** —— 也就是默认租户：on 模式下这是一次静默的跨租户写。
-	// 实测（2026-10-20 对抗探针）：INSERT INTO "tenancy_probe" ("name") VALUES ($1)，
+	// 对抗探针验证：INSERT INTO "tenancy_probe" ("name") VALUES ($1)，
 	// 行 tenant_id=1，而发起方 ctx 租户是 91。
 	if isTenant && !tenantIDWillBeInserted(stmt) {
 		tenantGuardFail(db, table, "create：本次 INSERT 不含 tenant_id 列（Omit/Select 掉了），"+
@@ -277,7 +277,7 @@ func fillCreateForTenant(db *gorm.DB) {
 	}
 
 	// 批量 Create(&[]*Model / []Model)：stmt.ReflectValue 是**切片**。
-	// 曾经对整片直接 ValueOf/Set —— reflect 在切片上调 Field 直接 panic
+	// 若对整片直接 ValueOf/Set —— reflect 在切片上调 Field 直接 panic
 	//（on 模式 + 有租户绑定 ctx + 批量写租户表 = 进程级崩溃；单行路径不受
 	// 影响，所以长期没暴露）。逐元素执行与单行完全相同的填充/校验语义。
 	rv := stmt.ReflectValue
@@ -496,7 +496,7 @@ func guardRawForTenant(db *gorm.DB) {
 }
 
 // guardRawSQLForTenant 预构建 SQL 守卫：on 模式引用租户表即拒绝。
-// 数据访问唯一形态是 GORM API（check-gorm-only 门禁）；此处是运行时第二道闸。
+// 数据访问唯一形态是 GORM API；此处是运行时第二道闸。
 func guardRawSQLForTenant(db *gorm.DB) {
 	if db == nil || db.Statement == nil {
 		return
@@ -579,7 +579,7 @@ func scopeTenantJoins(stmt *gorm.Statement, bound bool, id uint) error {
 			//
 			// 为什么不能简单追加到 join 串末尾：join 串自带 WHERE 时（"JOIN x ON … WHERE …"），
 			// 追加的 AND 会落进 WHERE 侧 ⇒ LEFT JOIN 退化成 INNER JOIN ⇒ 未匹配的父行被挤掉。
-			// 实测（2026-10-20 对抗探针）修前 SQL：
+			// 对抗探针实测，修前 SQL：
 			//   … LEFT JOIN tenancy_probe AS tp ON tp.id = g.id + 1000
 			//     WHERE g.id = 1 AND "tp"."tenant_id" = $1
 			// 期望：租户条件在 ON 里，父行保留（0 行 = 语义被破坏）。
@@ -689,7 +689,7 @@ func quoteIdent(name string) string {
 //
 // 于是 Omit("tenant_id") / Select("name") 会让 INSERT **缺 tenant_id 列**：
 // 回调填进内存的值根本没进 SQL，行落**列默认值 1**（默认租户）——
-// on 模式下这是一次静默的跨租户写（实测：INSERT INTO "tenancy_probe" ("name") VALUES ($1)，
+// on 模式下这是一次静默的跨租户写（验证：INSERT INTO "tenancy_probe" ("name") VALUES ($1)，
 // 行 tenant_id=1，而发起方 ctx 租户是 91）。
 func tenantIDWillBeInserted(stmt *gorm.Statement) bool {
 	if stmt == nil {
@@ -733,7 +733,7 @@ func guardUpdateTenantAssignments(stmt *gorm.Statement, id uint) error {
 				//   未选中且不受限（Selects 为空）⇒ 仅当值非零才写 ⇒ 沿用"非零必须等于租户"。
 				// 旧实现只判了"非零且不等于租户"，于是 Save 一个没加载过的结构体
 				// （TenantID 零值）会把行的 tenant_id 覆写成 0 —— 行掉出本租户。
-				// 实测（2026-10-20 对抗探针）：
+				// 对抗探针验证：
 				//   UPDATE "tenancy_probe" SET "tenant_id"=$1,"name"=$2 WHERE ... AND "id" = $4
 				// $1 = 0，守卫未拦。
 				selected, restricted := stmt.SelectAndOmitColumns(false, true)

@@ -13,7 +13,7 @@ import (
 // 后台任务租户扇出（specs/001-saas-multi-tenant T020）
 //
 // 全部非 UI 自动流程（cron/SOP/队列消费）统一经 Fanout 执行：
-//   - off 模式：单次回调，ctx 绑默认租户（等价历史行为）
+//   - off 模式：单次回调，ctx 绑默认租户（等价既有行为）
 //   - on 模式：枚举活跃租户（tenants.status=1）逐租户回调，单租户失败不阻断其余
 //
 // 回调内的一切 GORM 访问经 WithContext(ctx) 自动获得租户隔离（T005 callback）。

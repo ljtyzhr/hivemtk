@@ -176,7 +176,7 @@ func allModels() []any {
 		// 登记后 AutoMigrate 建表；customer_id 的单列 uniqueIndex 经
 		// tenancyidx.Normalize 复合化为 (tenant_id, customer_id)——一个客户在每个
 		// 租户内一条 RFM 行。表名是单数 customer_rfm（模型里显式 TableName），
-		// module_tables.go 里同时登记的 "customer_rfms" 是历史复数写法。
+		// module_tables.go 里同时登记的 "customer_rfms" 是复数写法（遗留）。
 		&model.CustomerRFM{},
 		&model.IntegrationAccount{},
 		&model.SyncLog{},
@@ -282,7 +282,7 @@ func allModels() []any {
 		// RAG 答案缓存的 pgKBMetaReader.GetKBUpdatedAt（internal/aiagent/rag/cache/
 		// store_pg.go:46）按表名查 knowledge_bases.updated_at，命中前用它判缓存新鲜度。
 		// 此前**从未登记建表**：开发库里的 knowledge_bases 是 v3.15 知识库统一迁移
-		// 留下的历史残留，而本仓生产建表只跑 AutoMigrate ⇒ 全新部署没有这张表 ⇒
+		// 留下的残留，而本仓生产建表只跑 AutoMigrate ⇒ 全新部署没有这张表 ⇒
 		// 答案缓存每次命中前都报 relation does not exist（service.go:108 直接返回 err），
 		// 缓存整层不可用；而知识库管理端的增删改查全部撞同一张不存在的表。
 		// 登记后 AutoMigrate 建表；UNIQUE(kb_code) 经 tenancyidx.Normalize 复合化为
@@ -297,7 +297,7 @@ func allModels() []any {
 		// 有两条生产写入路径——service.AgentKBBindingService.Bind / BatchBind，
 		// 以及 repository.KnowledgeBaseRepository.CreateWithBinding（建私有知识库时
 		// 在同一事务里写 kb 行 + 绑定行）。此前**从未登记建表**：开发库里的
-		// agent_kb_bindings 是 v3.15 那次知识库统一迁移留下的历史残留，而本仓生产
+		// agent_kb_bindings 是知识库统一迁移留下的残留，而本仓生产
 		// 建表只跑 AutoMigrate（启动期 ExecuteUpgrade 固定空跑）⇒ 全新部署根本没有
 		// 这张表 ⇒ Bind 报 relation does not exist，私有知识库创建整个事务回滚。
 		// 登记后 AutoMigrate 建表，tenancyidx.Normalize 把 UNIQUE(agent_id, kb_id)
@@ -378,16 +378,16 @@ func allModels() []any {
 		&geomodel.GeoSeedTerm{},
 		&geomodel.GeoDict{},
 
-		// GeoCrawlerVisit 此前是 29 个 geo 模型里**唯一没登记**的（2026-09-16 审计 DB-07）：
+		// GeoCrawlerVisit 此前是 29 个 geo 模型里**唯一没登记**的：
 		// internal/router/router.go 的 AICrawlerMonitor 回调会 fire-and-forget 地写入它，
 		// 而该写入的 error 又被 `_ =` 丢弃 —— 全新部署不建表 ⇒ 数据永久为 0 且毫无报错。
-		// 现在补进清单，建表不再依赖"历史遗留库里恰好有这张表"。
+		// 现在补进清单，建表不再依赖"遗留库里恰好有这张表"。
 		&geomodel.GeoCrawlerVisit{},
 
 		// -------------------------------------------------------------------
-		// 2026-09-16 审计 DB-07：补齐「有生产写入路径、却从未登记建表」的模型。
+		// 补齐「有生产写入路径、却从未登记建表」的模型。
 		//
-		// 这些模型的表在开发库里确实存在，但那只是历史遗留（曾有测试把模型
+		// 这些模型的表在开发库里确实存在，但那只是遗留（曾有测试把模型
 		// AutoMigrate 进了 user_db，见 TEST-06）；它们既不在 allModels()、
 		// 也不在 internal/migration/migrations、也不在 migrations/*.sql 里。
 		// 因此**全新部署不会建这些表** → 写入失败 → 而多数写入点的 error
@@ -407,7 +407,7 @@ func allModels() []any {
 		&model.AlertRule{},
 		// ApprovalRequest（表 approval_requests）：T-P3-01 / N-4 审批检查点，
 		// 写入路径是 repository.approvalRequestRepo.Insert。
-		// 本卡交付的是底座、尚未装配（装配卡 T-P3-02/T-P3-07），但**建表登记必须在
+		// 本处交付的是底座、尚未装配（装配卡 T-P3-02/T-P3-07），但**建表登记必须在
 		// 今天这一批**：登记晚一卡，中间那段部署里闸门第一次落库就会往不存在的表里写
 		// （T-P1-08 在 tool_call_audits 上正是这个形状：只接 logger 不登记表 = 整批静默降级）。
 		&model.ApprovalRequest{},
@@ -418,7 +418,7 @@ func allModels() []any {
 		// ConfigParam（表 config_params）：参数中心主表。SeedConfigParams 启动即
 		// First() 探测它——漏登记时全新部署建不出表，seed 直接失败，**参数中心
 		// 全量失效**（所有 Get* 走代码兜底值，意图锚点预计算、线索阈值等整批降级）。
-		// 审计表 ConfigParamAuditLog 在下面有登记，主表历史上只靠开发库遗留存在。
+		// 审计表 ConfigParamAuditLog 在下面有登记，主表只靠开发库遗留存在。
 		// MCPCredential（表 mcp_credentials）：MCP 工具入口的 ClientID+APIKey 凭证对。
 		&model.MCPCredential{},
 		// ExternalKBConnector / ExternalKBSyncItem：第三方知识库连接器与同步幂等明细。
@@ -469,7 +469,7 @@ func allModels() []any {
 		&model.Payment{},
 		&model.RagMetricsDaily{},
 		// Quote / QuoteLineItem（表 quotes / quote_line_items）：T-P6-01 / N-5 报价域第一层。
-		// 与 Opportunity 同一句理由登记：本卡只交付列与索引形状，生成方在 T-P6-02。
+		// 与 Opportunity 同一句理由登记：本处只交付列与索引形状，生成方在 T-P6-02。
 		// 这里少登记一张会是一种**不对称**的坏法：quotes 建了、明细没建 ⇒ 报价存得下、
 		// 行项目写不进去，而"合计对不对"的用例连不上明细表时是 Skip 不是 Fail。
 		&model.Quote{},
@@ -482,7 +482,7 @@ func allModels() []any {
 		&model.BadCase{},
 		// Bill（表 bills）：T-P7-01 / N-6 回款域第一层。
 		// 卡面写的 `v3_50_0_bill_migration.go` 因此不产出 —— 本仓生产建表只跑 AutoMigrate，
-		// 启动期 ExecuteUpgrade 固定空跑（与本文件头部那八次同源实测一致）。
+		// 启动期 ExecuteUpgrade 固定空跑（与本文件头部那八次同源）。
 		// 登记理由与 Quote 同一条：这张表的失败面是"表没建、代码全对"，
 		// 而应收是**给钱的那张纸**：漏建表的那天销售照样点"客户已接受"，
 		// 报价状态真的变成 accepted，只有账单这一侧在日志里留一句话。
@@ -500,7 +500,7 @@ func allModels() []any {
 		// ToolCallAudit（表 tool_call_audits）：T-P0-04 判定的"实现了但没接线"里最隐蔽的一条
 		// —— 写入方 tooluse.DBAuditLogger 一直存在，但表**从未登记建表**（它自带的
 		// AutoMigrateAuditTable 零调用），且 check_model_migration.py 因为"文件里含
-		// .AutoMigrate("而把它误判成已登记。实测开发库里没有这张表。
+		// .AutoMigrate("而把它误判成已登记。开发库里没有这张表。
 		&model.ToolCallAudit{},
 
 		&model.UserMFA{},
@@ -509,9 +509,9 @@ func allModels() []any {
 		&model.WorkflowVersion{},
 
 		// BrowserAuditDigest / BrowserAuditPruneRun（批22 / A6）：command_log 裁剪前的内容摘要
-		// 与每次扫描的留痕。这两张表是「删掉的那段历史」唯一的凭据，本身永不裁剪；
+		// 与每次扫描的留痕。这两张表是「删掉的那段」唯一的凭据，本身永不裁剪；
 		// 没建出来的失效方向是 fail-close（PruneBefore 写不进摘要就整批回滚，一行都不删），
-		// 表现为治理任务天天告警，而不是历史无声消失。
+		// 表现为治理任务天天告警，而不是无声消失。
 		&browsermodel.BrowserAuditDigest{},
 		&browsermodel.BrowserAuditPruneRun{},
 		// BrowserOutreachDedupe（表 browser_outreach_dedupe）：跨任务用户级触达去重行
@@ -584,7 +584,7 @@ func AutoMigrate() *gorm.DB {
 	// 清理"形状已漂移"的模块索引（必须在 AutoMigrate **之前**）。
 	//
 	// 为什么需要它：GORM AutoMigrate **只按名字判索引是否存在，不比对列集**。
-	// 一个曾经存在、后来列集变过的索引（同名）会让 AutoMigrate 认为"已经有了"，
+	// 一个列集变过的索引（同名）会让 AutoMigrate 认为"已经有了"，
 	// 于是永远停留在旧形状上。而 ON CONFLICT 依赖索引的**精确列集** ——
 	// 匹配不上就是 42P10 → 模块下发全量失败 → tenant_modules 恒空 →
 	// 模块闸落在"首启全放行"态 → **付费模块对所有人开放**。
@@ -676,12 +676,12 @@ func AutoMigrate() *gorm.DB {
 // verifyUniqueIndex 在报"已就绪"之前读一次库里的**形状**：返回空串表示那枚索引确实唯一，
 // 否则返回一句可以直接落日志的归因（含索引名，三条钩子同族、文案相近，不点名运维不知道该动谁）。
 //
-// 为什么 `CREATE UNIQUE INDEX IF NOT EXISTS` 的 err 不足以支撑"已就绪"这句话（N-36，实测）：
+// 为什么 `CREATE UNIQUE INDEX IF NOT EXISTS` 的 err 不足以支撑"已就绪"这句话：
 // PG 的 `IF NOT EXISTS` 只看**名字** —— 名字被一枚非唯一的历史索引占住时整句是静默 no-op
 // （err=<nil>、indisunique=false、同键两行照落）。标签那一层也补不回来，GORM 同样按名字对账
 // （`driver/postgres@v1.6.0/migrator.go:109` 的 HasIndex 只查 pg_indexes.indexname）。
 // 三条钩子存在的全部理由就是"第二层没铺上要在启动日志里看得见"，
-// 只看 err 恰好把这一格报成"铺上了" —— 日志说反话比没有日志更坏。
+// 只看 err 恰好把这一步报成"铺上了" —— 日志说反话比没有日志更坏。
 //
 // 为什么形状不对也只报不修（不 DROP 那枚同名索引再重建）：非唯一索引可能是有人为读路径特意建的，
 // 启动期替运维决定删它是拿一个可用性隐患换一致性隐患；且这三道守卫的既有口径就是"只报不改"。
@@ -845,7 +845,7 @@ func postMigrateDropLegacyPlaintextResetTokens(db *gorm.DB) {
 // 索引名一律取自 model 的两枚常量，不在这里再写字面量：常量改名而这里没改，
 // DROP 会打在一个不存在的名字上并**静默成功**（IF EXISTS 对拼错的名字也是"执行成功"）。
 //
-// 建不成只 Warn 不 panic：这一格失败的后果是"跨平台同号仍被拦"（即改键之前的既有行为），
+// 建不成只 Warn 不 panic：这里失败的后果是"跨平台同号仍被拦"（即改键之前的既有行为），
 // 而 panic 的后果是整个服务起不来 —— 前者是存量缺陷未修，后者是把一个域的问题升级成全站。
 func postMigrateDropLegacyExternalOrderKey(db *gorm.DB) {
 	if db == nil {
@@ -906,13 +906,13 @@ func isTolerableMigrateError(err error) bool {
 	}
 	// 列类型的**遗留漂移**：库里的列类型与模型声明不一致，且 default 无法自动转换。
 	//
-	// 实测形态（2026-10-18）：GEO 模块的模型已把 tenant_id 改成 uint(bigint)，
+	// 实测形态：GEO 模块的模型已把 tenant_id 改成 uint(bigint)，
 	// 而开发库里遗留的列仍是 varchar（default ''::character varying），
 	// AutoMigrate 改类型时撞 `42804 default for column "tenant_id" cannot be
 	// cast automatically to type bigint` —— 而这个错误**不在可容忍清单**，
 	// 于是 migrate.go 直接 panic，user-server 在该库上根本起不来。
 	//
-	// 为什么要容忍而不是放着 panic：一个环境的历史 schema 漂移，不该让**整个进程**
+	// 为什么要容忍而不是放着 panic：一个环境的 schema 漂移，不该让**整个进程**
 	// 起不来。panic 的伤害远大于漂移本身 —— 漂移只影响那一列，而起不来意味着
 	// 连本地验证、连看日志都做不到。
 	// 走 createTableFallback 兜底时，缺表会被重建（数据丢失，日志里会明写），

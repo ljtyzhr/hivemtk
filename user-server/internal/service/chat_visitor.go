@@ -47,7 +47,7 @@ type VisitorChatService struct {
 }
 
 // NewVisitorChatService 构造访客会话服务
-// agentBindingSvc 可为 nil（测试/降级场景）：nil 时网页客服回退默认编排（与历史行为一致）
+// agentBindingSvc 可为 nil（测试/降级场景）：nil 时网页客服回退默认编排（与既有行为一致）
 //
 // 五层架构 §三.5：service 层禁止直接持有 *gorm.DB，db 仅在构造期用于绑定各 repository；
 // 测试场景下调用方应先 db.SetTestDB(database)，再传入 db=database 以保证 repository 走测试库。

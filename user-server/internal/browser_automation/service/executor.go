@@ -691,9 +691,9 @@ func (e *Executor) ExecuteSession(ctx context.Context, task *model.BrowserTask, 
 					failed++
 					if !step.ContinueOnError {
 						sessionFailed = errMsg
-						// 真机实测（session229：xhs 跳 website-login/error?error_code=300012
-						// 「IP存在风险」）：风控页最常见的表现恰恰是「某步定位失败」，
-						// 而旧代码在此直接 break 跳过了步后拦截检测，于是风控页被误报成
+						// 风控页最常见的表现恰恰是「某步定位失败」（小红书跳
+						// website-login/error?error_code=300012「IP存在风险」即此形）：
+						// 若在此直接 break 跳过步后拦截检测，风控页会被误报成
 						// selector_timeout——归因错方向，人工就会去改选择器而不是换网络。
 						// 失败收口前先过一次拦截判定，命中即用语义更准的风控归因替换原始错误。
 						if blocked, reason := e.detectBlockedIfFatal(ctx, task, session, &cmdSeq); blocked {
@@ -724,8 +724,8 @@ func (e *Executor) ExecuteSession(ctx context.Context, task *model.BrowserTask, 
 			finalStatus = "stopped"
 		}
 	}
-	// R25 真机回归 P0 修复（session188 实测）：executeBrain 因 ctx 超时收敛返回后，
-	// ctx 已 Done——用原 ctx 写终态会被 DB 驱动取消，session 永久停留 active（看门狗白兜）。
+	// executeBrain 因 ctx 超时收敛返回后，ctx 已 Done——用原 ctx 写终态会被 DB
+	// 驱动取消，session 永久停留 active（看门狗白兜）。
 	// 终态收口必须用脱离取消的 context（独立时限见 timeouts.go，只保写库完成，不继承执行期取消）。
 	writeCtx, cancelWrite := context.WithTimeout(context.WithoutCancel(ctx), sessionFinalWriteBudget)
 	defer cancelWrite()
@@ -733,11 +733,11 @@ func (e *Executor) ExecuteSession(ctx context.Context, task *model.BrowserTask, 
 	_ = e.sessionRepo.UpdateMetrics(writeCtx, session.ID, success+failed, success, failed)
 
 	// F10 会话收口必须回收自己打开的 tab。openTab 从不复用（tab-manager.js:6 每次 tabs.create），
-	// 而 failed/stopped/超时 三条路径根本走不到编排里末尾的 close_tab 步——真机实测同一
-	// Profile 累积 40 个泄漏 tab（cron 任务按周期无限增长，后台 tab 常驻还拖慢 SW）。
+	// 而 failed/stopped/超时 三条路径根本走不到编排里末尾的 close_tab 步——同一
+	// Profile 会持续累积泄漏 tab（cron 任务按周期无限增长，后台 tab 常驻还拖慢 SW）。
 	// 「留着给用户看结果」不成立：证据已在审计包（快照/截图/command_log），且崩后
-	// chrome_tab_id 本就失效（A9 结论：续跑唯一合法入口是重新 open_tab）。
-	// Chunk5 触达回执：拍验收截图 + 落本会话的回执行。
+	// chrome_tab_id 本就失效（续跑唯一合法入口是重新 open_tab）。
+	// 触达回执：拍验收截图 + 落本会话的回执行。
 	// **必须在 cleanupSessionTab 之前**：tab 一回收，captureVisibleTab 就只能截到用户
 	// 自己的页面（静默假内容，比没有更坏），顺序颠倒等于回执永远拍不到真页面。
 	e.captureSessionReceipts(writeCtx, task, session, &cmdSeq)
@@ -783,7 +783,7 @@ func (e *Executor) executeBrain(ctx context.Context, task *model.BrowserTask, se
 	// P0-4：LLM 下发参数钳位状态
 	consecutiveActionFails := 0
 	judgeFailOpen := 0 // P1-2 连续 fail-open 计数
-	// F6 历史压缩台账：滑窗溢出条目按动作折叠计数，台账首行回喂 LLM（零 LLM 成本的 browser-use 压缩等价）
+	// 历史压缩台账：滑窗溢出条目按动作折叠计数，台账首行回喂 LLM（零 LLM 成本的 browser-use 压缩等价）
 	foldedHistory := map[string]int{}
 	// P1-1：session 级 token 预算熔断（plan+judge 全计入）
 	// Chunk4：预算可由任务字段 TokenBudget 覆盖（0=用默认常量），取数唯一入口 taskTokenBudget。
@@ -791,7 +791,7 @@ func (e *Executor) executeBrain(ctx context.Context, task *model.BrowserTask, se
 	tokenBudget := taskTokenBudget(task)
 	// JEV session 级熔断/独立预算（Executor 进程级单例不放计数，随 task 结束丢弃）
 	jevSess := &jevSessionState{}
-	// wall-clock 看门狗（R22）：ctx 取消链在某些 LLM/DB 调用栈不生效（session132 实测 11min+ active），
+	// wall-clock 看门狗：ctx 取消链在某些 LLM/DB 调用栈不生效（实测出现过 11min+ active），
 	// 以真实时钟兜底——超执行预算+30s 强制收敛，会话必有终态。
 	// 预算走 taskExecBudget（Brain 模式下 LLM 也能编排出写步，确认挂起同样要留出时长）
 	deadline := time.Now().Add(taskExecBudget(task) + taskWatchdogGrace)
@@ -832,7 +832,7 @@ func (e *Executor) executeBrain(ctx context.Context, task *model.BrowserTask, se
 			}
 		}
 		// reflect 状态（对标 browser-use MessageManager）：跨轮评估/记忆/历史。
-		// F6 压缩视图：折叠台账非空时作为历史首行喂 LLM（滑窗只保近史，构成信息不丢）。
+		// 压缩视图：折叠台账非空时作为历史首行喂 LLM（滑窗只保近史，构成信息不丢）。
 		histView := history
 		if hdr := buildFoldHeader(foldedHistory); hdr != "" {
 			histView = append([]string{hdr}, history...)
@@ -871,7 +871,7 @@ func (e *Executor) executeBrain(ctx context.Context, task *model.BrowserTask, se
 		consecutiveFails = 0
 		if done {
 			// 独立 judge 验收（对标 browser-use judge）：agent 自称完成 ≠ 真完成。
-			// F5（G14）：证据改为**重拍的页面真实快照**（不再是自报摘要）——验收员只信页面；
+			// F5：证据改为**重拍的页面真实快照**（不再是自报摘要）——验收员只信页面；
 			// 快照重拍失败才降级回自报摘要（fail-soft：judge 增强不阻断主流程）。
 			judgeCtx := ctx
 			evidenceSnap, _, snapErr := e.hand.snapshot(ctx, task.UserID, session.ChromeTabID)
@@ -958,7 +958,7 @@ func (e *Executor) executeBrain(ctx context.Context, task *model.BrowserTask, se
 			step.RetryCount, step.RetryBackoffMs = clampBrainStepParams(step.RetryCount, step.RetryBackoffMs)
 			status, errMsg, stepResult := e.executeStepWithRetry(ctx, task, session, stepIdx, step, stopCh, cmdSeq, pageURL)
 			stepIdx++
-			// 历史记录（F6 滑窗压缩：溢出最旧条折叠入账）：LLM 下轮能看到已做过的关键动作
+			// 历史记录（滑窗压缩：溢出最旧条折叠入账）：LLM 下轮能看到已做过的关键动作
 			hist := step.Action + " " + step.Target
 			if step.Action == "click" {
 				hist += " → " + status
@@ -1016,7 +1016,7 @@ func (e *Executor) executeBrain(ctx context.Context, task *model.BrowserTask, se
 			return success, failed, reason
 		}
 		// 循环检测 nudge（对标 browser-use 循环指纹）：连续 3 轮同序列 → 注入换路径提示
-		// G9 收口（R25）：文案走 brain_prompts 工厂（prompt 资产化铁律，禁止散落拼接）
+		// 文案走 brain_prompts 工厂（prompt 资产化铁律，禁止散落拼接）
 		if stuck, seq := loopFingerprint(history); stuck {
 			logger.Warnf("[BrowserExec] brain 循环检测命中 session=%d seq=%s，注入 nudge", session.ID, seq)
 			prevEvaluation = strings.TrimSpace(BuildLoopNudge(strings.Split(seq, "|")))
@@ -1062,7 +1062,7 @@ func (e *Executor) executeStepWithRetry(ctx context.Context, task *model.Browser
 	if backoff <= 0 {
 		backoff = 1000
 	}
-	// F2①（G11）：不可逆写原语服务端强制 retries=0——「提交成功但 verify 超时」是结果未知态，
+	// F2①：不可逆写原语服务端强制 retries=0——「提交成功但 verify 超时」是结果未知态，
 	// 重试=可能双发（Postiz 接口级契约：不可逆变更 maximumAttempts:1）。不信任编排/LLM 传入的重试参数。
 	if writeStep {
 		retries = 0
@@ -1123,7 +1123,7 @@ func (e *Executor) executeStepWithRetry(ctx context.Context, task *model.Browser
 		// 读闸放行 ≠ 独占。上面的查询依据的是台账，「两条腿同时过闸、彼此都查空」
 		// 是并发的常态形状而非意外，所以裁决权必须下推到库里唯一约束的那一次 INSERT。
 		// 位置刻意排在 D7 挂起之前：挂起一分钟，另一条腿在这一分钟里过读闸、下发、提交，
-		// 正是本卡要消灭的那次双发——人工确认的等待期是并发窗口最宽的一刻，不是最窄的。
+		// 正是本处要消灭的那次双发——人工确认的等待期是并发窗口最宽的一刻，不是最窄的。
 		if err := e.claimWriteSlot(ctx, task.ID, session.ID, stepRow.ID, writeKey); err != nil {
 			msg := fmt.Sprintf("写步拒绝下发（%s）：%v", writeWhy, err)
 			e.finishStep(ctx, stepRow.ID, "failed", nil, 0, msg)
@@ -1234,7 +1234,7 @@ func (e *Executor) executeStepWithRetry(ctx context.Context, task *model.Browser
 		e.appendCommandLog(ctx, session.ID, task.ID, stepRow.ID, *seq, "event", step.Action,
 			mergeAuditMeta(map[string]any{"error": lastErr}, e.stepAuditMeta(dur)), dur, verdict(false))
 		logger.Warnf("[BrowserExec] step 失败 session=%d idx=%d action=%s attempt=%d: %s", session.ID, index, step.Action, attempt, lastErr)
-		// F7（G16）：重试按平台错误归因分线（MediaCrawler 处置矩阵语义）——
+		// F7：重试按平台错误归因分线（MediaCrawler 处置矩阵语义）——
 		// bad_body（内容被拒）重试无意义直接终止；refresh_token/disconnect 同样终止（交上层 session 级处置）；
 		// 仅 retry（瞬态）继续退避重试。
 		if attempt < retries && !stepErrRetryable(taskPlatformID(task), lastErr) {
@@ -1277,7 +1277,7 @@ func (e *Executor) detectBlockedIfFatal(ctx context.Context, task *model.Browser
 		*seq++
 		// 审计用外层 ctx：探测预算可能已耗尽，落库不能被探测自身的超时带走。
 		// ok=「探测这条命令本身成没成」，不是「有没有拦到」——旧实现传 blocked，于是每一页
-		// 正常页面的探测都记成 ok=false（F11c 真机实测：审计包里 block_detect 全红，
+		// 正常页面的探测都记成 ok=false（验证：审计包里 block_detect 全红，
 		// 读包的人会以为检测链路坏了；拦截结论另有 blocked/reason 字段承载）。
 		e.appendCommandLog(ctx, session.ID, task.ID, 0, *seq, "event", "block_detect", map[string]any{
 			"url": pageURL, "snapshot_chars": len(snap), "snapshot_error": snapErr,
@@ -1285,7 +1285,7 @@ func (e *Executor) detectBlockedIfFatal(ctx context.Context, task *model.Browser
 			"blocked": blocked, "reason": reason,
 		}, time.Since(start).Milliseconds(), verdict(snapErr == ""))
 	}()
-	// 整段探测共用一个短预算：snapshot（真机 24 次实测 max 876ms）+ 弹层选择器逐个 query，
+	// 整段探测共用一个短预算：snapshot（实测 24 次 max 876ms）+ 弹层选择器逐个 query，
 	// 若各自吃满 defaultCmdTimeout，失败步（本身已耗 30s）会被拖成 60s+，而且探测命令自身的
 	// 超时还会计入 A5 僵尸判定，把「步失败」误升级成「Host 假死」。预算内拿不到证据即放行。
 	pctx, cancel := context.WithTimeout(ctx, blockDetectBudget)
@@ -1295,7 +1295,7 @@ func (e *Executor) detectBlockedIfFatal(ctx context.Context, task *model.Browser
 		snapErr = err.Error()
 		return false, ""
 	}
-	// 真机实测（session234/235）：风控提示页只有标题+两个按钮，a11y 采集出的是空快照。
+	// 风控提示页只有标题+两个按钮，a11y 采集出的是空快照。
 	// 旧闸门 `snap == ""` 于是把「URL 已经明写 website-login/error?error_code=300012」的
 	// 拦截页判成「无数据」直接放行——URL 层判定不该依赖快照有没有内容。
 	// 只有「快照和 URL 都拿不到」（旧扩展 / tab 已死）才算真无证据。
@@ -1543,7 +1543,7 @@ func (e *Executor) dispatchStep(ctx context.Context, task *model.BrowserTask, se
 		// 「已经发出去了」的事实，只有一边留回执的话，验收面就成了替平台做裁决。
 		e.enqueueOutreachReceipt(ctx, task, session, step, stepRow, outreachCtx, evidence, verified)
 		// 台账缺口优先于「看起来成功」：verified 的回查证据是真的，但库里没有这次提交，
-		// 下一轮的同文本重发就不会被拦——所以这一格不能给绿。判红不等于宣称失败，
+		// 下一轮的同文本重发就不会被拦——所以这里不能给绿。判红不等于宣称失败，
 		// 文案里把「回查见/未见」原样带上，人一眼能判该不该补这条台账。
 		if ledgerErr := errors.Join(sentLedgerErr, finalLedgerErr); ledgerErr != nil {
 			seen := "回查未见评论（结果未知）"
@@ -1565,7 +1565,7 @@ func (e *Executor) dispatchStep(ctx context.Context, task *model.BrowserTask, se
 			})
 		}
 		// fails-loudly：提交结局未知或验证未见——归因「平台静默吞/审核中/渲染超时」，
-		// 步判失败但不重试（重试=双发）。这是 R17/R19-6 实测形态的正式归宿。
+		// 步判失败但不重试（重试=双发）。
 		if sendErr != nil {
 			return nil, fmt.Errorf("post_comment 提交命令异常（%v）且回查未见评论——结果未知，不重试防双发", sendErr)
 		}
@@ -1817,7 +1817,7 @@ func lastN(s []string, n int) []string {
 	return s[len(s)-n:]
 }
 
-// ---- F6（G15 余项）历史压缩：滑动窗口 + 确定性折叠台账 ----
+// ---- 历史压缩：滑动窗口 + 确定性折叠台账 ----
 // browser-use 用额外 LLM 调用压缩历史（25 步/40k→6k）；我们取等价语义的零成本形态：
 // 溢出窗口的最旧条目不静默丢弃，而是计入折叠台账（按动作计数），台账首行喂 LLM——
 // 保留"总共做过什么"的构成信息（防重复无效动作），逐条细节永久可查 command_log。
@@ -1838,7 +1838,7 @@ func appendHistoryBounded(history []string, entry string, folded map[string]int)
 	return append(history, entry)
 }
 
-// historyActionOf 提取历史行动作词（行格式 "<action> <target>[ → 状态]"；折叠行以 "[" 前缀开头不计动作）
+// historyActionOf 提取存量行动作词（行格式 "<action> <target>[ → 状态]"；折叠行以 "[" 前缀开头不计动作）
 func historyActionOf(line string) string {
 	if strings.HasPrefix(line, "[") {
 		return "compacted"
@@ -1887,7 +1887,7 @@ func stepChangedPage(action string, result json.RawMessage) bool {
 	return false
 }
 
-// stepErrRetryable 步失败是否值得再试（F7/G16 + R-A3 fail-closed，2026-09-19）：
+// stepErrRetryable 步失败是否值得再试（fail-closed）：
 // 仅显式归因 retry（瞬态：超时/元素未就绪）继续退避重试；bad_body/refresh_token/
 // disconnect 终止（语义同前）；ErrUnknown（判据未命中）同样终止——未知错误盲目重试
 // 会把归因缺口放大成风控信号，正确路径是打点归因后显式扩表（AWS SDK「全 Unknown 不重试」语义）。

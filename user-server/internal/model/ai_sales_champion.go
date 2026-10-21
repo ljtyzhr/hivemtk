@@ -73,7 +73,7 @@ type IntentRecord struct {
 	//
 	// ⚠️ 本结构体是 intent_records 的**唯一 automigrate 来源**
 	// （见 internal/pkg/db/migrate.go 的 AutoMigrate 清单），因此它必须是该表的
-	// **完整**列映射。历史缺陷：这 6 列只声明在 model.IntentLog 里，而 IntentLog
+	// **完整**列映射。缺陷：这 6 列只声明在 model.IntentLog 里，而 IntentLog
 	// 被明确禁止加入 automigrate 清单 —— 于是
 	//   ① 测试侧：testutil.NewTestDB 会 DropTable 后按模型重建，缺列即丢列，
 	//      精细意图查询报 column "source" does not exist (SQLSTATE 42703)（8 个用例失败）；
@@ -372,7 +372,7 @@ func (ObjectionTemplate) TableName() string { return "objection_templates" }
 // 产品里并不存在的漏斗。
 //
 // 为什么不删（"未证伪不删"）：本表仍在 `internal/pkg/db/migrate.go allModels()` 里登记，
-// 生产库可能已有历史行；删表要先证伪"仓外没有读取方"（BI/报表脚本不在本仓，本地看不到）。
+// 生产库可能已有存量行；删表要先证伪"仓外没有读取方"（BI/报表脚本不在本仓，本地看不到）。
 // 三条同时成立时另立卡删除：① 仓外读取方确认为零；② 表内行只来自 seed；③ 已决定归档方式。
 //
 // **LTC 报价/商机漏斗（T-P4、T-P7-02）不得写入本表**，阶段维度走

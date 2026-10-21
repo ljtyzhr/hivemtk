@@ -27,7 +27,7 @@ import (
 
 // BadCaseController 坏例队列与评测集导出的共用控制器。
 //
-// svc 允许是 nil（本竖未装配）：所有出口走 Available() 回 503 —— 这就是本卡天然的关闸。
+// svc 允许是 nil（本竖未装配）：所有出口走 Available() 回 503 —— 这就是本处天然的关闸。
 type BadCaseController struct {
 	svc *service.BadCaseService
 }
@@ -74,7 +74,7 @@ func (c *BadCaseController) List(ctx *gin.Context) {
 	response.SuccessWithList(ctx, list, total)
 }
 
-// Stats GET /api/bad-cases/stats —— 队列读数（已判率是本卡北极星）。
+// Stats GET /api/bad-cases/stats —— 队列读数（已判率是本处北极星）。
 func (c *BadCaseController) Stats(ctx *gin.Context) {
 	if !c.svc.Available() {
 		c.unavailable(ctx)

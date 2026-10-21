@@ -301,13 +301,13 @@ func (c *SOPController) ListExecutions(ctx *gin.Context) {
 // 与 TestApprovalResumeE2E 里那条 checkpoint 断言）。于是同一个值换了一张表就又从
 // /sop/executions* 出去了，而这两个读端点任何登录用户都能读：换表不等于换了信任边界。
 //
-// 为什么遮成固定串而不是删掉这一格：删掉后"这条流程从没等过审批"与"等过、凭证被遮"
+// 为什么遮成固定串而不是删掉这里：删掉后"这条流程从没等过审批"与"等过、凭证被遮"
 // 在响应里长得一模一样，而运维要问的正好是后者。
 const approvalTokenMask = "[redacted]"
 
 // redactApprovalToken 返回遮掉恢复凭证的执行数据。
 //
-// 没有这一格时原样返回：绝大多数执行记录根本没有审批产物，为它们各建一份 map 是白付的分配。
+// 没有这里时原样返回：绝大多数执行记录根本没有审批产物，为它们各建一份 map 是白付的分配。
 // 有则**必须复制**：入参可能是 service 手上那份活对象（Execute/Step 返回的就是它），
 // 就地改键会把续跑要读的那一格一起改掉，而那是一次跨请求的进程内副作用。
 func redactApprovalToken(data model.JSONMap) model.JSONMap {

@@ -101,7 +101,7 @@ func (r *emailSendRepo) ClaimDueForUpdate(ctx context.Context, now time.Time, li
 // ExpireStalePending 把排期时刻早于 cutoff 却仍 pending 的行判为 expired，返回影响行数。
 //
 // 边界取严格小于（同 reach_delayed_outbound 的 ExpireStale）：恰好等于 cutoff 的行本轮不动，
-// 时间单调前进，下一轮必然覆盖。这一格存在的理由是排水一旦被装上进程，
+// 时间单调前进，下一轮必然覆盖。这里存在的理由是排水一旦被装上进程，
 // 没有上限就意味着进程停机几周后重启会把几周前排的邮件一次性群发出去。
 func (r *emailSendRepo) ExpireStalePending(ctx context.Context, cutoff time.Time) (int64, error) {
 	if r.db == nil {

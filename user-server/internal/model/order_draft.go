@@ -20,7 +20,7 @@ type OrderDraft struct {
 
 	// ID 草稿业务主键（service.generateDraftID 产出，形如 draft_<unixnano>_<seq>）。
 	// 用它做主键而不是自增 serial：草稿 ID 会作为 sales_events.draft_id 的外键值
-	// 散在事件流里，换不成稳定的键就没法"重启后仍能关联"（本卡 AC④）。
+	// 散在事件流里，换不成稳定的键就没法"重启后仍能关联"（本处 AC④）。
 	ID          string `gorm:"type:text;primaryKey" json:"id"`
 	CustomerID  string `gorm:"type:text;index;uniqueIndex:uq_order_draft_pending,priority:1,where:status = 'pending'" json:"customer_id"`
 	OneID       string `gorm:"type:text;index" json:"one_id"`

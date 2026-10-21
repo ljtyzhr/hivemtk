@@ -31,7 +31,7 @@ import (
 // HumanTaskController 待办中心 / 坐席收件箱共用控制器。
 //
 // svc 允许是 nil（human_task 未装配）：所有出口都会走 Available() 回 503，
-// 这就是本卡天然的关闸 —— 不注入服务 ⇒ 端点在、答案诚实。
+// 这就是本处天然的关闸 —— 不注入服务 ⇒ 端点在、答案诚实。
 type HumanTaskController struct {
 	svc *service.HumanTaskService
 }

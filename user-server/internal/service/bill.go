@@ -6,19 +6,19 @@
 //
 // 「成交」在这一天之前系统里没有任何一处写得住：
 //   - model.QuoteStatusAccepted 这个值从 T-P6-01 起就在值域里，但全仓非测试代码
-//     没有任何一条路径写它（实测：repository.QuoteRepository.UpdateStatus 的调用方
+//     没有任何一条路径写它（验证：repository.QuoteRepository.UpdateStatus 的调用方
 //     只有发送腿的 draft↔sent 两次），所以"客户接了"这件事在库里从来没有发生过；
 //   - external_orders 那边有真实成交数据，但它不带报价引用（见 model/integration.go
 //     的 ExternalOrder：只有 platform_order_no / pay_amount），追不回"这是哪一版报的价"。
 //
-// 于是本层就是 `accepted` 的**唯一生产写入口**。这既是本卡的价值，也是本卡最需要
+// 于是本层就是 `accepted` 的**唯一生产写入口**。这既是本处的价值，也是本处最需要
 // 说清楚的一句限制：调用方是人（销售在工作台上点"客户已确认"），不是客户。
 // 报价控制器当年刻意没开这个口（internal/controller/quote.go 的 RegisterRoutes 注释：
 // "接受报价是客户的动作，不是销售的按钮"），那条判断今天仍然成立 ——
-// 变化的是它现在有了后果：点这一格的人同时在开一张应收，而这一条是**可审计**的：
+// 变化的是它现在有了后果：点这里的人同时在开一张应收，而这一条是**可审计**的：
 // bills.created_at 记"什么时候开的"，quote_row_id 记"从哪一版来的"，
 // 报价行的 updated_at 记"哪一版被动过"。
-// 【限制如实记下】本卡没有"谁确认的"这一格 —— bills 的列清单里没有，
+// 【限制如实记下】本处没有"谁确认的"这个字段 —— bills 的列清单里没有，
 // 而把它塞进 sales_events 属 T-P8-01 的埋点范围（那张卡给全事件类型统一补
 // opportunity_id / quote_id）。等它落地时，"是谁点的"才有地方存；现在不假装有。
 //
@@ -34,7 +34,7 @@
 //	   原账单一式两份会变成两张应收。本层不自动作废原来那张 —— 作废要看回款，
 //	   而回款行在 T-P7-02；宁可挡在门外让人先去处理那一张。
 //	④ 金额只有一个来源：那一版的行项目相加（quoteSumAmount，与发送腿同一个函数）。
-//	   入参里没有 amount 这一格，"账单金额与报价合计一致"（AC②）因此不是两条数据
+//	   入参里没有 amount 这个值，"账单金额与报价合计一致"因此不是两条数据
 //	   比对出来的巧合，而是同一个算法的同一个结果。
 //
 // 顺序（这一条是本层最容易日后被人"顺手优化"掉的地方）：
@@ -42,7 +42,7 @@
 // 然后才是 CAS(sent→accepted) → Create。于是两个失败窗口的方向分别是：
 //   - 只读判据没过 ⇒ 库里什么都没动（报价还是 sent，可以修好数据再来一次）；
 //   - CAS 成了而账单没落（崩溃 / 库抖）⇒ 留下"已接受但没账单"，
-//     这一格靠重入修得回来：再点一次会跳过 CAS、直接派生（见 DeriveFromQuote 里
+//     这里靠重入修得回来：再点一次会跳过 CAS、直接派生（见 DeriveFromQuote 里
 //     那一支 accepted 分支）。反过来先插账单再改报价，坏的那一侧是
 //     "报价没成交而库里有一张应收"，而本表没有删除口，那是要人去删的数据。
 //
@@ -120,9 +120,9 @@ type billQuoteStore interface {
 // 入参里能递进来一个，AC② 的"账单金额与报价合计一致"就当场失去对账对象。
 //
 // due_at 在 T-P7-01 交付时也在"没有"那一栏里，理由当时成立、今天被 T-P7-03 换掉：
-// 报价域里没有"付款条件"这一格（valid_days 是报价有效期），所以本层**没有地方能推出来**，
+// 报价域里没有"付款条件"这个字段（valid_days 是报价有效期），所以本层**没有地方能推出来**，
 // 而逾期判据读的正是它 —— 那一列全是 NULL 的催收是一条永不发信的腿。
-// 于是这一格改由在场的人给（合同条款），本层仍然不替它算：不补默认天数、不做时区换算。
+// 于是这里改由在场的人给（合同条款），本层仍然不替它算：不补默认天数、不做时区换算。
 type BillDeriveInput struct {
 	QuoteRowID string     // 必填：quotes.id（**版本行主键**，不是 quotes.quote_id 逻辑号）
 	DueAt      *time.Time // 可空：账期；nil ⇒ 库里落 NULL，读作"账期未定"（催收侧记 Undated，不参与逾期扫描）
@@ -151,7 +151,7 @@ type BillService struct {
 	bills  billStore
 	quotes billQuoteStore
 	now    func() time.Time
-	// trace 全链路埋点写口（T-P8-01）：nil = 没装，派生照常，不阻塞。
+	// trace 全链路埋点写口：nil = 没装，派生照常，不阻塞。
 	trace salesTraceWriter
 }
 
@@ -366,7 +366,7 @@ func nextBillSeq() int64 { return atomic.AddInt64(&billSeq, 1) }
 // **不含日期串**：带日期就要选一个时区格式化，而本仓 PG 会话钉在 CST、
 // Go 侧按宿主机时区读，同一时刻能生成两个"当天序号"（日期边界裂脑那条老账）。
 // 前缀 b_ 与 quotes 的 q_ 同族：运营在库里肉眼就能分域。
-// bills.id 是 text，没有宽度上限问题；但它会被抄进 payments.bill_id（T-P7-02），
+// bills.id 是 text，没有宽度上限问题；但它会被抄进 payments.bill_id，
 // 那一列按计划是 varchar(64)，所以这里必须短于它 —— 2+19+1+13 = 35 字符。
 func newBillKey(now time.Time, seq int64) string {
 	return fmt.Sprintf("b_%d_%d", now.UnixNano(), seq)

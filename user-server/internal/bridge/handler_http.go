@@ -266,7 +266,7 @@ func (f *outboxDBFetcher) FetchOutboxSince(ctx context.Context, channel, account
 	if lastEventID != "" {
 		id, err := strconv.ParseUint(lastEventID, 10, 64)
 		if err != nil {
-			// B8（2026-09-19）：非法游标 ≠ 无游标。旧行为把垃圾游标当 0 → 全量回放
+			// B8：非法游标 ≠ 无游标。旧行为把垃圾游标当 0 → 全量回放
 			// 最多 200 条已投递 outbound → 浏览器重复转发。fail-closed：返回 0 行、
 			// 游标原样保留（连接继续收增量），Warn 留现场。空游标（首连）仍走全量补齐。
 			logger.Ctx(ctx).Warn().

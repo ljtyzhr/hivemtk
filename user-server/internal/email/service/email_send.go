@@ -227,7 +227,7 @@ func (s *EmailSendService) SendEmail(ctx context.Context, req dto.SendEmailReque
 // 顺序是有意义的：回捞必须排在过期与认领之前，否则上一进程遗留的 sending 行要空等一轮；
 // 而过期必须排在认领之前，否则刚被回捞回来的老邮件会先被投出去、下一轮才被判过期。
 //
-// 三个步骤各自的失败都不阻断本轮剩下的事，但一律出声：这一格静默失败的原症状就是
+// 三个步骤各自的失败都不阻断本轮剩下的事，但一律出声：这里静默失败的原症状就是
 // "邮件永远停在待发送、一行错误都没有"，不能再把它换成另一句没人看见的话。
 //
 // 后台任务租户扇出（specs/001-saas-multi-tenant T020）：TENANT_MODE=on 时 email_sends 是
@@ -240,7 +240,7 @@ func (s *EmailSendService) SendEmail(ctx context.Context, req dto.SendEmailReque
 // 要按 ctx 取退订名单（email_unsubscribe）、按 SmtpID 取发信配置（email_smtp）、再回写行状态
 // —— system scope 虽能放行查询，但这些读会摊成跨租户全量（A 租户的退订名单挡住 B 的信），
 // 新建行还会落到列默认租户 1（写错租户）。Fanout 逐活跃租户注入 ctx（Query 加
-// WHERE tenant_id=N、Create 填 N），off 模式退化为单默认租户，等价历史行为 ——
+// WHERE tenant_id=N、Create 填 N），off 模式退化为单默认租户，等价既有行为 ——
 // 与 sop_scheduler.tick / churn_score_job 同一形态。
 func (s *EmailSendService) ProcessPendingEmails(ctx context.Context) error {
 	deliver := s.deliveryFn()
@@ -426,7 +426,7 @@ func (s *EmailSendService) buildEmailMessage(ctx context.Context, smtpConfig *mo
 
 // attachmentPaths 把附件列换成"真能挂上的磁盘路径"，并在填了却一项都挂不上时出声。
 //
-// 静默丢弃是这一格的历史病：上传侧落盘 {baseDir}/attachments/{yyyy}/{mm}/{uuid}.{ext}，
+// 静默丢弃是这里的历史病：上传侧落盘 {baseDir}/attachments/{yyyy}/{mm}/{uuid}.{ext}，
 // 旧实现却把值抹掉全部斜杠后拼一个扁平根下的文件名，Stat 永远不中 ⇒ 用户的附件从来没
 // 跟着邮件出去过，而邮件状态写着"已发送"。挂不上仍然照发是对的（附件是增值项），
 // 但不能连"一个都没挂上"都不说。

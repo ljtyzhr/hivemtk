@@ -1,6 +1,6 @@
 // Package tooluse 的工具风险分级（T-P3-05 / G-3）。
 //
-// 这里只有**元数据与读取口径**，没有任何放行决定：本卡的任务是"先给每个工具定级，
+// 这里只有**元数据与读取口径**，没有任何放行决定：本处的任务是"先给每个工具定级，
 // 并把判定记下来"，转阻断排在 P9。之所以要单独一层，是因为现存的
 // WhitelistPermissionChecker 回答的是"这个 Agent 能不能调这个工具"，
 // 而 G-3 要回答的是另一个问题："这个工具一旦跑起来会不会出域、能不能撤回"。
@@ -44,7 +44,7 @@ func IsValidRiskLevel(l ToolRiskLevel) bool {
 // RiskDeclared 由声明了自身后果分级的工具实现。
 //
 // 刻意**不**加进 Tool 接口：加进去等于宣布"第三方工具不升级就注册不了"，
-// 而这一卡的目的是观察而非设门槛。未实现者由 EffectiveRisk 兜到 high_write。
+// 而这一处的目的是观察而非设门槛。未实现者由 EffectiveRisk 兜到 high_write。
 type RiskDeclared interface {
 	RiskLevel() ToolRiskLevel
 }

@@ -172,7 +172,7 @@ const (
 //
 // 参数类型是 testing.TB 而非 *testing.T：benchmark 同样需要测试库。若只接受
 // *testing.T，基准测试就只能自带第 N 套 DSN 拼装（见 internal/repository/
-// message_hub_inbox_outbound_p0_5_bench_test.go 的历史实现：默认端口 8202、
+// message_hub_inbox_outbound_p0_5_bench_test.go 的旧实现：默认端口 8202、
 // 默认口令 postgres、还认第五个变量名 TEST_DATABASE_URL），结果是基准静默 Skip。
 // 放宽为 testing.TB 后测试与基准共用同一引导入口；*testing.T 满足 testing.TB，
 // 既有调用方无需改动。

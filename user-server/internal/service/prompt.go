@@ -22,7 +22,7 @@ func NewPromptServiceWithRepo(repo *repository.PromptRepo) *PromptService {
 	return &PromptService{repo: repo}
 }
 
-// ListVersions 获取某个 SOP Node / Prompt ID 的所有历史版本
+// ListVersions 获取某个 SOP Node / Prompt ID 的所有旧版本
 func (s *PromptService) ListVersions(ctx context.Context, idStr string, sopID uint, sopNodeID string, status string) ([]model.PromptCandidate, error) {
 	return s.repo.ListVersions(ctx, idStr, sopID, sopNodeID, status)
 }

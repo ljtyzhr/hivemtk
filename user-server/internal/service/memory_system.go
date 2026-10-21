@@ -361,7 +361,7 @@ func (m *MemorySystem) L4Record(ctx context.Context, customerID, memoryType, con
 	//     猜大了就删掉不该删的记忆。
 	// 所以这里选前者——读侧失败只影响「能不能裁」，不影响「能不能记」。
 	// 反过来，仓储那一层必须把计数错误往上抛（原来被丢掉、直接读成 0 条），
-	// 否则「读不到」会被谎报成「这个客户有 0 条记忆」，淘汰这一格永远不触发，
+	// 否则「读不到」会被谎报成「这个客户有 0 条记忆」，淘汰这里永远不触发，
 	// L4 记忆行无界增长且全程无声。
 	count, err := m.memoryRepo.CountBusinessMemoriesByCustomer(ctx, customerID)
 	if err != nil {

@@ -25,9 +25,9 @@ import (
 // 不是「买了所有模块」。闸放在权限之后，超管就成了绕过付费的后门。
 //
 // ===== 未覆盖路由的处置（B-2）====
-// 未命中任何模式 → 放行 + 记 WARN + 进 uncovered-routes 巡检清单。
+// 未命中任何模式 → 放行 + 记 WARN + 进 uncovered-routes 清单。
 // 判据：上线一个新接口忘了标注就全站 403 是灾难；漏拦最多让某个接口多暴露。
-// 真正的兜底是 TestModuleRoutePatternsCoverShippedRoutes（CI 里跑）。
+// 真正的兜底是 TestModuleRoutePatternsCoverShippedRoutes。
 
 // moduleGateChecker 判定函数（装配期由 service.ModuleGateService 注入）
 type moduleGateChecker interface {
@@ -65,7 +65,7 @@ func ModuleOwnerOf(path string) string {
 	return matchModulePattern(path)
 }
 
-// UncoveredModuleRoutes 返回「已见到但未挂模块」的真实路径（巡检用）
+// UncoveredModuleRoutes 返回「已见到但未挂模块」的真实路径
 func UncoveredModuleRoutes() []string {
 	moduleUncoveredMu.Lock()
 	defer moduleUncoveredMu.Unlock()
@@ -77,7 +77,7 @@ func UncoveredModuleRoutes() []string {
 	return out
 }
 
-// ResetUncoveredModuleRoutes 清空巡检清单（测试用）
+// ResetUncoveredModuleRoutes 清空清单（测试用）
 func ResetUncoveredModuleRoutes() {
 	moduleUncoveredMu.Lock()
 	moduleUncovered = map[string]bool{}

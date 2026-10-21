@@ -456,7 +456,7 @@ func (d *SOPExecutionDispatcher) processTask(ctx context.Context, workerID int, 
 		// 审批定时器点火后重入的**非 wait** 节点（T-P5-03 的 reach_send）：结论必须在这里
 		// 递回执行器手里。不递的话它读不到裁决，只会再入队一次审批 —— 待办中心被同一件事
 		// 刷屏，而那条外发永远发不出去。
-		// 非审批等待（timer / customer_reply）回读返回 nil ⇒ 这一格恒空 ⇒ 对既有节点逐字等价于改动前。
+		// 非审批等待（timer / customer_reply）回读返回 nil ⇒ 这里恒空 ⇒ 对既有节点逐字等价于改动前。
 		var approvalOutcome model.JSONMap
 		if task.TimerFired && task.WaitEvent == WaitEventApproval {
 			approvalOutcome = GetApprovalResumeBridge().ResolveOnFire(ctx, task)

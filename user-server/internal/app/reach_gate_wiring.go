@@ -42,7 +42,7 @@ import (
 )
 
 const (
-	// ReachGateFlagEnv 外发闸门开关。默认 off：不装门，外发路径与接线前逐字一致。
+	// ReachGateFlagEnv 外发闸门开关。默认 off：不装门，外发路径与接线前一致。
 	ReachGateFlagEnv = "FF_LTC_REACH_GATE"
 	// ReachApprovalToolKey 外发闸门在 W-1 白名单里的"入口名"。
 	//
@@ -275,7 +275,7 @@ func rolloutComparisonVerdict(metrics []ReachRolloutMetric) string {
 // 但刻意不复用同一个函数：两者的告警说的是两件不同的后果 —— W-1 那句要提白名单内层旗子
 // （它没开时 block 只剩无差别失败），这句要提"W-1 没接线时这里根本装不上"。
 // 合成一个函数就得为两边各留一个措辞分支，读起来比这两段还长；且 AC④ 要求工具路径
-// 的既有行为逐字不变，把它的解析器顺手改掉是超出本卡范围的改动。
+// 的既有行为逐字不变，把它的解析器顺手改掉是超出本处范围的改动。
 func parseReachGateMode(raw string) approvalGateMode {
 	v := strings.ToLower(strings.TrimSpace(raw))
 	switch v {

@@ -7,7 +7,7 @@
 // 会被报成"整个报价域没装配"，读的人去找错东西。
 //
 // 口径与 globalOpportunitySvc 完全一致：atomic.Pointer，装配点写、请求路径读，
-// 传 nil 等于撤掉（撤掉之后端点回 503，这是本卡天然的关闸）。
+// 传 nil 等于撤掉（撤掉之后端点回 503，这是本处天然的关闸）。
 package service
 
 import (

@@ -60,7 +60,7 @@ type RerankConfig struct {
 //
 // 端点约定（按 base_url 特征分三类，见 resolveRerankEndpoint / NormalizeRerankConfig）：
 //   - TEI / llama.cpp / 自建 OpenAI 代理（非阿里云域名）：
-//     BaseURL=http://host:port    → POST {BaseURL}/v1/rerank（自动补 /v1，历史行为不变）
+//     BaseURL=http://host:port    → POST {BaseURL}/v1/rerank（自动补 /v1，既有行为不变）
 //     BaseURL=http://host:port/v1 → POST {BaseURL}/rerank
 //   - DashScope/MaaS OpenAI 兼容（path 含 compatible-mode / compatible-api）：
 //     POST {BaseURL}/reranks（复数，官方兼容端点，仅 qwen3-rerank）
@@ -98,7 +98,7 @@ func NewLocalReranker() *LocalReranker {
 //
 // 超时关系（P2-1「RERANK_TIMEOUT 配 60s 无效」根因）：
 // callOnce 每次尝试用 ctx.WithTimeout(cfg.Timeout) 控制单次请求，
-// 而 http.Client.Timeout 是整个请求（含读响应体）的硬上限——历史实现硬编码 30s，
+// 而 http.Client.Timeout 是整个请求（含读响应体）的硬上限——旧实现硬编码 30s，
 // cfg.Timeout=60 时 ctx 还没到期 client 已经掐断，配置形同虚设。
 // 故这里取 max(cfg.Timeout, 30s)：配置更大时放行，配置更小时仍由 ctx 生效（不放大默认值）。
 func NewLocalRerankerWithConfig(cfg *RerankConfig) *LocalReranker {
@@ -321,7 +321,7 @@ func InferRerankProtocol(base string) string {
 //
 // 三类 base_url 的最终行为（与 resolveRerankEndpoint 一致）：
 //  1. TEI / llama.cpp / vLLM / 自建 OpenAI 代理（非阿里云域名）：protocol=openai（默认），
-//     端点 = base（历史行为：自动补 /v1）+ 单数 /rerank —— 老用户不受影响。
+//     端点 = base（既有行为：自动补 /v1）+ 单数 /rerank —— 老用户不受影响。
 //  2. DashScope/MaaS OpenAI 兼容（path 含 compatible-mode 或 compatible-api，且非经典域名）：
 //     protocol=openai，端点 = base + 复数 /reranks（官方兼容端点）。
 //  3. DashScope/MaaS 原生（裸域名、/api/v1、或已带 /api/v1/services/rerank/...）：
@@ -407,7 +407,7 @@ func resolveRerankEndpoint(cfg *RerankConfig) string {
 		return base + dashscopeCompatRerankSuffix
 	}
 
-	// ① TEI / llama.cpp / 自建 OpenAI 代理：保持历史行为 —— 自动补 /v1 后拼单数 /rerank
+	// ① TEI / llama.cpp / 自建 OpenAI 代理：保持既有行为 —— 自动补 /v1 后拼单数 /rerank
 	if !strings.HasSuffix(base, "/v1") && !strings.HasSuffix(base, "/v1/") {
 		base += "/v1"
 	}

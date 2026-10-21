@@ -166,7 +166,7 @@ var HumanTaskTerminalStatuses = []string{
 //     这与待办池的用途一致（宁可多看见一条，不可静默少一条）。
 //  2. 可行性。GORM 按逗号切 tag，`where:status IN ('pending','claimed')` 会被劈成
 //     `where:status IN ('pending'` + 一个无意义的片段，AutoMigrate 直接 42601
-//     syntax error（本卡实测：建表阶段就炸，12 条仓储用例全红在同一句上）。
+//     syntax error（本处验证：建表阶段就炸，12 条仓储用例全红在同一句上）。
 //     含逗号的谓词进不了 tag，与写法优劣无关。
 func HumanTaskOpenPredicateSQL() string {
 	clauses := make([]string, 0, len(HumanTaskTerminalStatuses))
@@ -270,7 +270,7 @@ var humanTaskActionKinds = map[string]map[string]bool{
 // 为什么不复用 HumanTaskTransitionAllowed：调用方（审批裁决落定后的 CloseForApproval）
 // 不是"一个人在选按钮"，而是"那件业务已经有结论了，投影该收口"。它的合法性来自业务行
 // 落定这件事，若它也过对外动作表，把审批类的 complete 关掉就等于把"批完之后待办消失"
-// 这条正常路径一起关掉 —— 那会是比原缺陷更糟的修法（实测：改完表后 CloseForApproval
+// 这条正常路径一起关掉 —— 那会是比原缺陷更糟的修法（验证：改完表后 CloseForApproval
 // 静默 no-op，待办永远留在池子里）。
 // 终态仍拦得住：两个终态在 humanTaskActionTargets 里没有出边。
 func HumanTaskCloseTarget(from, action string) (to string, ok bool) {

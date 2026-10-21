@@ -99,7 +99,7 @@ func (pc *PlatformController) platformDataRaw(c *gin.Context, method, path strin
 // （旧形态是 public 组下的 POST /api/platform/register，那条 404 由
 // router/authorization_routes_gone_test.go 钉住）。
 // 仓内现在唯一的挂载点是 controller/platform_test.go 的本地路径，
-// 断言的是"平台不可达/被拒时原因要原样带出去"这一格。
+// 断言的是"平台不可达/被拒时原因要原样带出去"这个值。
 func (pc *PlatformController) RegisterMerchant(c *gin.Context) {
 	var req struct {
 		Name         string `json:"name" binding:"required"`

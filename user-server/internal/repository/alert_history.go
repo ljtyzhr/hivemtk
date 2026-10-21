@@ -92,7 +92,7 @@ func (r *alertHistoryRepo) ListFiring(ctx context.Context, limit int) ([]*model.
 	return list, err
 }
 
-// UpdateNotify 回写通知结果；0 行说明历史行不属于本租户或已不存在，不能静默成功。
+// UpdateNotify 回写通知结果；0 行说明存量行不属于本租户或已不存在，不能静默成功。
 func (r *alertHistoryRepo) UpdateNotify(ctx context.Context, id uint, result string) error {
 	res := r.db.WithContext(ctx).Model(&model.AlertHistory{}).
 		Where("id = ?", id).

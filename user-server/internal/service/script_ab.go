@@ -166,7 +166,7 @@ func (s *ScriptABService) CreateVersion(ctx context.Context, scriptID uint, note
 	return v, nil
 }
 
-// ActivateVersion 激活历史版本（回滚=激活旧版本，Langfuse label 语义）
+// ActivateVersion 激活旧版本（回滚=激活旧版本，Langfuse label 语义）
 func (s *ScriptABService) ActivateVersion(ctx context.Context, scriptID uint, version int) error {
 	var v model.ScriptVersion
 	if err := s.repo.FirstVersionByID(ctx, scriptID, version, &v); err != nil {

@@ -22,7 +22,7 @@ import (
 // hostProber 交互式执行前的 Host 在线探针，生产实现是 *service.HostRegistry。
 // 只挂在这一条 HTTP 路径上：cron 与自动重试要容忍「Host 暂时不在，会话排队等它」，
 // 而在列表页点「执行」的人必须当场拿到「没 Host」的结论。
-// 的 C 腿（真机 kill nm-host 后点执行）实测：改造前 /run 回的是 200 + session_id，
+// 的 C 腿（真机 kill nm-host 后点执行）验证：改造前 /run 回的是 200 + session_id，
 // RunTask 全异步，ErrHostOffline 只在执行期产生 → 8001 在请求面永远不出现，
 // 前端「离线 → 引导弹窗」形同虚设，用户看到的是「已开始执行」再等一条红色会话失败。
 type hostProber interface{ EnsureOnline(userID uint) error }

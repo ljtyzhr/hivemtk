@@ -67,7 +67,7 @@ func (m *TenantSiteConfigAndFeatureFlagMigration) Up(ctx context.Context) error 
 			}
 		}
 
-		// 2. system_config：一租户一行。历史实现用 First() 定位单例行，正常
+		// 2. system_config：一租户一行。旧实现用 First() 定位单例行，正常
 		//    不会出现同租户多行；若确有（人工导入/早期并发），保留最小 id
 		//    （First 命中的就是它，后续 Save 一直更新这一行）。
 		if tx.Migrator().HasTable("system_config") {

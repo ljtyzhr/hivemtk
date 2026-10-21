@@ -104,7 +104,7 @@ func (r *materialRepo) GetList(ctx context.Context, licenseID string, categoryID
 // license_id 一起写回。别租户的行被并进本租户也是同一条路（DO UPDATE 改的是归属列本身）。
 //
 // ⚠️ 隔离闸拦不住这条：guardOnConflictTenantAssignments 只拒「DO UPDATE 把 tenant_id 改成别的值」，
-// 而 Save 生成的正是 tenant_id = excluded.tenant_id，在放行名单里（变异 M2 实测：on 模式全绿）。
+// 而 Save 生成的正是 tenant_id = excluded.tenant_id，在放行名单里（变异 M2 验证：on 模式全绿）。
 // 所以归属只能靠「不用 Save」+ 服务层那条租户自证的读前置，不能指望 upsert 被闸拒。
 func (r *materialRepo) Update(ctx context.Context, material *model.Material) error {
 	res := r.db.WithContext(ctx).Model(material).
@@ -186,7 +186,7 @@ func (r *materialRepo) CountUsedSince(ctx context.Context, licenseID string, sin
 
 // normalizeMaterialPaging 夹紧分页参数。夹紧的实际危害在 limit：limit<=0 会被 GORM 原样
 // 发成 LIMIT 0（响应恒空，运维以为「素材没了」），limit 过界则一次把整表拖进一条响应。
-// page<=0 在 GORM 里被吞成「无偏移」（变异 M6 实测：不是 PG 报错），不夹紧也照样要修，
+// page<=0 在 GORM 里被吞成「无偏移」（变异 M6 验证：不是 PG 报错），不夹紧也照样要修，
 // 因为「page=0 回第 1 页」和「page=1 回第 1 页」该有同一个明确口径。
 func normalizeMaterialPaging(page, limit int) (int, int) {
 	if page < 1 {

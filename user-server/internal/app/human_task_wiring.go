@@ -4,12 +4,12 @@
 // 让两个消费方在同一时刻看到同一份 —— 路由（在 router.go 里现取全局，决定回 200 还是 503）
 // 与编排器（在 BuildSmartOrchestrator 里挂生产者，决定转人工时投不投待办）。
 //
-// 为什么这一卡**不加旗子**（与 FF_LTC_ORDER_DRAFT_DB / FF_LTC_APPROVAL_RESUME 不同）：
+// 为什么这一处**不加旗子**（与 FF_LTC_ORDER_DRAFT_DB / FF_LTC_APPROVAL_RESUME 不同）：
 // 那两把旗子守的是"业务数据换存储介质"与"流程挂起/恢复改变时序"，出错面是数据与状态机；
 // 本竖写的是**一张新表的新行**，不改动任何既有读写路径，唯一的失败是"少投一条待办"，
 // 而那件事由 transferToHuman 那条 Error 日志说得出、也补得回。
 // 真正的关闸已经存在且更彻底：不装配 ⇒ 全局服务为 nil ⇒ 编排器不挂生产者 ⇒
-// transferToHuman 与本卡交付前逐字一致（由 TestTransferToHuman_WithoutProducerIsUnchanged 锁定）。
+// transferToHuman 与本处装配前一致（由 TestTransferToHuman_WithoutProducerIsUnchanged 锁定）。
 //
 // 五层归属：全局登记与取用在这里；"投什么类别、SLA 落哪一列、幂等怎么判"全在 service。
 package app

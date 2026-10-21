@@ -130,7 +130,7 @@ func (s *OpportunityConvertService) SetSalesTrace(w salesTraceWriter) {
 	s.trace = w
 }
 
-// NewOpportunityConvertService 构造。audit 允许为 nil（装配回显会照实报出这一格空着）。
+// NewOpportunityConvertService 构造。audit 允许为 nil（装配回显会照实报出这里空着）。
 func NewOpportunityConvertService(repo repository.OpportunityRepository, gate LTCConfigReader,
 	assigner *OwnerAssigner, audit ltcAuditWriter) *OpportunityConvertService {
 	return &OpportunityConvertService{repo: repo, gate: gate, assigner: assigner, audit: audit, now: time.Now}

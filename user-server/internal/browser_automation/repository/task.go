@@ -233,7 +233,7 @@ func (r *browserTaskRepo) SetNextRetryAt(ctx context.Context, id uint, at *time.
 //
 // 归属门：Host 连接是**进程内**状态（registry.conns），挂起重试却是**库内**共享队列。
 // 无门时任一实例都能认领任一用户的重试，然后在自己空空的 registry 上判「browser host
-// 未连接」，把 MaxRetryTimes 的额度烧在一次根本不可能执行的认领上（真机实测：task=377
+// 未连接」，把 MaxRetryTimes 的额度烧在一次根本不可能执行的认领上（真机验证：task=377
 // session=429 由另一实例认领，而本机 Host 全程在线）。ownerUserIDs 即本进程持有连接的用户
 // 白名单。**空=不加过滤**：装配遗漏时退化成改造前行为，也不要静默停掉全部重试
 // （调用方若要表达「本机无人」，应自行不调用，见 feedback.scanDueRetries）。

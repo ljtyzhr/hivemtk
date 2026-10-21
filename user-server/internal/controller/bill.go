@@ -6,7 +6,7 @@
 //     体里若能递进 `amount`，AC② 的"账单金额与报价合计一致"就当场失去对账对象 ——
 //     服务层的入参结构里没有那一格（由反射用例钉成白名单），但宽容的绑定会把递进来的
 //     金额**静默丢掉**，于是"我传了 5000 而系统按 369.99 记账"在调用方与系统两边都看起来是对的。
-//     读侧的形状更窄：入参只有 URL 上的那把键，所以这一格的全部工作就是"有界、非空、原样透传"。
+//     读侧的形状更窄：入参只有 URL 上的那把键，所以这里的全部工作就是"有界、非空、原样透传"。
 //  2. **状态码 + 分诊码**：八个哨兵各自对应一种**修法不同**的失败（改载荷 / 换行号 /
 //     先去处置原账单 / 重读那一版再来），所以每个错误都随 `data.reason` 出一个机器可读判据词。
 //     HTTP 状态码分不开其中三种 409，reason 分得开。
@@ -30,7 +30,7 @@
 //     否则事后连一处可查的线索都没有。
 //
 // 幂等不在本层：重复点确认由服务层合成同一个结果（复用那一行），响应面上靠 `reused`
-// 这一格把"我刚开了一张应收"与"这张早就在了"分开 —— 本层不加锁、不判重，
+// 这里把"我刚开了一张应收"与"这张早就在了"分开 —— 本层不加锁、不判重，
 // 因为那两处判据都在库里，在这里再写一遍就是第三个事实源。
 package controller
 
@@ -99,7 +99,7 @@ func NewBillController(derive BillDeriver, read BillReader) *BillController {
 
 // Available 报告**派生腿**在不在（装配回显与测试用；nil 接收者同样答得出来，不 panic）。
 //
-// 名字不带 leg 是历史原因（T-P7-01 时只有一条腿），K68 那一格变异注的正是"它有没有真的问服务本身"。
+// 名字不带 leg 是因为只有一条腿，那格变异注的正是"它有没有真的问服务本身"。
 // 读腿的可读性走 canRead()：它只在本层内部用于关闸，装配日志在 router 层直接问服务实例。
 func (c *BillController) Available() bool {
 	return c != nil && c.derive != nil && c.derive.Available()
@@ -115,7 +115,7 @@ func (c *BillController) canRead() bool {
 // 三条端点：一条写、两条读，两把键各一。为什么成交确认挂在 /api/bill 而不是 /api/quote/:id/accept：
 // 报价控制器当年刻意没开 accept 那一条（controller/quote.go 的 RegisterRoutes 注释，
 // 而 router/quote_routes_test.go 用 404 探针把它钉成了静态锁）。那句话今天仍然成立，
-// 变的是它有了后果——点这一格的人同时在开一张应收。把端点放在账单域，
+// 变的是它有了后果——点它的人同时在开一张应收。把端点放在账单域，
 // 是让"这是记账动作"这件事写在 URL 上，而不是靠注释提醒。
 //
 // 读侧两条的分工：`/:id` 答"这张单收了多少"，`/of-quote/:quote_id` 答"这张报价单开过哪几张单"
@@ -138,7 +138,7 @@ const (
 	// 写成"等于上面那个"而不是另填一个 64：bills.id / bills.quote_id / quotes.id 三把键列
 	// 同为 varchar(64)，宽度由同一个建表口径决定。分开写两个常量的那天，它们就会各自漂。
 	billKeyMaxLen = billRowIDMaxLen
-	// billBodyMaxBytes 请求体上限：这一格的入参只有一个行号，1KB 已是百倍余量。
+	// billBodyMaxBytes 请求体上限：入参只有一个行号，1KB 已是百倍余量。
 	// 比报价侧（8KB，装得下一张行项目覆盖清单）窄一档是刻意的：入参面窄到一行字符串，
 	// 体积上限就该跟着窄，否则"上限"这个词在这里没有任何含义。
 	billBodyMaxBytes = 1 << 10
@@ -170,11 +170,11 @@ const (
 
 // billDeriveBody 派生入参：版本行号 + 可选账期。
 //
-// 不内嵌 service.BillDeriveInput 而另写一个结构，是为了让"体里能递进来什么"这一格
-// 在 HTTP 边界上独立可读（Swagger 生成的 schema 就是这一格）；字段名与 json tag
+// 不内嵌 service.BillDeriveInput 而另写一个结构，是为了让"体里能递进来什么"
+// 在 HTTP 边界上独立可读（Swagger 生成的 schema 就是这份）；字段名与 json tag
 // 必须与服务层同形，TestBillController_BodyCarriesOnlyTheRowKey 逐格试的是这个集合的补集。
 //
-// due_at 只吃带显式偏移的 RFC3339（Go 的 time.Time 默认形状）。这一格刻意不做任何加工：
+// due_at 只吃带显式偏移的 RFC3339（Go 的 time.Time 默认形状）。这里刻意不做任何加工：
 // 裸日期 "2026-12-31" 要在 400 那一支挡下，而不是由服务端按某个时区展开成一天 ——
 // 那一展开正是 check-date-bucket-tz 点名的裂脑，而它落点是"该不该催收"这种要给人看的答案。
 type billDeriveBody struct {
@@ -247,7 +247,7 @@ func (c *BillController) Derive(ctx *gin.Context) {
 		c.replyError(ctx, errors.New("派生账单返回了空结果而没有给错误"), rowID)
 		return
 	}
-	// 审计行：库里今天没有"谁确认的"这一格（见文件头），这一行是那件事唯一的去处。
+	// 审计行：库里没有"谁确认的"这个字段（见文件头），这一行是那件事唯一的去处。
 	// 行号与账单号都用 %q：它们是从请求体与库里来的文本，裸 %s 能把一次调用劈成两行日志。
 	logger.Infof("[Bill] 用户 %s 确认报价行 %q 成交 ⇒ 账单 %q（金额 %s %s，%s）",
 		operator, rowID, view.ID, strconv.FormatFloat(view.Amount, 'f', 2, 64), view.Currency,
@@ -258,7 +258,7 @@ func (c *BillController) Derive(ctx *gin.Context) {
 // View GET /api/bill/:id —— 这张应收收了多少、还欠多少。
 //
 // 读的是**结论**（service 层求过和的那份），不是 bills 与 payments 的行：
-// 这一格若能把行读出来，前端就会在这里加一遍总，而"已收"只允许有一个算法。
+// 这里若能把行读出来，前端就会在这里加一遍总，而"已收"只允许有一个算法。
 //
 // 200 只有一种来源；三种失败各一档状态码，其中"没这张单"与"底座没装"必须分开——
 // 前者是键给错了，后者是没人接库，两者的修法连主语都不一样。
@@ -332,7 +332,7 @@ func (c *BillController) OfQuote(ctx *gin.Context) {
 		return
 	}
 	if views == nil {
-		// 服务层今天给的是 make 出来的空切片；这一格守的是"哪天它改成直接 return nil"。
+		// 服务层给的是 make 出来的空切片；这里守的是"哪天它改成直接 return nil"。
 		// null 与 [] 在前端是两件事：前者是"没读到"，后者是"这张单子确实一张应收都没开"。
 		views = []*service.BillStatementView{}
 	}
@@ -354,7 +354,7 @@ func (c *BillController) bindJSON(ctx *gin.Context, target any) bool {
 }
 
 // replyBindError 体积、空体、形状三种来路分开说（同报价侧：混成一格时运维读到的是"调用方写错了"，
-// 实际发生的是"这一格被封顶了"，两种情形的处置动作完全不同）。
+// 实际发生的是"这里被封顶了"，两种情形的处置动作完全不同）。
 func (c *BillController) replyBindError(ctx *gin.Context, err error) {
 	msg := err.Error()
 	var tooLarge *http.MaxBytesError
@@ -393,7 +393,7 @@ func (c *BillController) unavailable(ctx *gin.Context, msg string) {
 // 三种 409 各给各的 reason：状态码相同而修法完全不同 ——
 // not_sent 是"这一版还没给客户看过"（该去发送），not_latest_version 是"客户手上是另一版"
 // （该去确认最新那一版），chain_already_accepted 是"这条链已经成交过"
-// （该先去处置原来那张账单，而不是再点一次）。
+// （该先去处置已开的那张账单，而不是再点一次）。
 func (c *BillController) replyError(ctx *gin.Context, err error, rowID string) {
 	switch {
 	case errors.Is(err, service.ErrBillServiceUnavailable):

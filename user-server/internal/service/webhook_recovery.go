@@ -124,7 +124,7 @@ func (s *WebhookService) startRecoveryScanner() {
 // 触发 AI、回写事件行），全靠 ctx 注入租户。走 system scope 虽能取到全量行，但执行链的
 // Create 会被 fillCreateForTenant 放行到列默认租户 1（串写默认租户），Query 也会摊成跨租户
 // 全量 —— 与 sop_scheduler.tick 同一结论：执行链吃 ctx 租户 ⇒ 逐租户注入（Fanout）。
-// off 模式退化为单默认租户，等价历史行为。
+// off 模式退化为单默认租户，等价既有行为。
 func (sc *webhookRecoveryScanner) scanOnce(ctx context.Context) int {
 	if sc.eventRepo == nil {
 		return 0
@@ -134,7 +134,7 @@ func (sc *webhookRecoveryScanner) scanOnce(ctx context.Context) int {
 	})
 	if err != nil {
 		// 只有 Fanout 的结构性失败会走到这里（活跃租户枚举器未装配 / ctx 已取消）：
-		// 照样出声 —— 这一格静默的形态就是"积压事件再也不重放，且一行日志都没有"。
+		// 照样出声 —— 这里静默的形态就是"积压事件再也不重放，且一行日志都没有"。
 		logger.Ctx(ctx).Warn().Err(err).Msg("[WebhookRecovery] scan fanout failed")
 		return 0
 	}

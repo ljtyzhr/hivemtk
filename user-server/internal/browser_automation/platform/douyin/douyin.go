@@ -38,7 +38,7 @@ func (p *Platform) MaxConcurrentJobs() int { return 1 } // 写操作串行（风
 // A1：拦截文案移出 → BlockMarkers）
 func (p *Platform) Locators() map[string]string {
 	return map[string]string{
-		// R20 实测：搜索结果页 a[href*='/video/'] 卡片整体含标题+作者+时长+点赞（无独立 title 节点）
+		// R20 验证：搜索结果页 a[href*='/video/'] 卡片整体含标题+作者+时长+点赞（无独立 title 节点）
 		"video_card":    "a[href*='/video/'], a[href*='/note/'], a[href*='modal_id']",
 		"video_link":    "a[href*='/video/'], a[href*='/note/']",
 		"video_title":   "a[href*='/video/']", // 卡片整体文本（标题混在卡片文本里）

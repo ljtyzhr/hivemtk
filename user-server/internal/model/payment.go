@@ -12,7 +12,7 @@
 // 卡面写的 `v3_50_x_payment_migration.go` 因此不产出）。
 //
 // 与 bills 的分工，一句话：bills 答"我方主张收多少"，payments 答"渠道说收到了多少"。
-// 两格之间的差就是欠额 —— 逾期扫描（T-P7-03）与赢单跃迁（T-P7-04）读的都是那个差，
+// 两格之间的差就是欠额 —— 逾期扫描与赢单跃迁读的都是那个差，
 // 所以本表的**幂等键**比多一列少一列重要得多：同一笔钱记两次，欠额会被记成已收。
 package model
 
@@ -47,7 +47,7 @@ type Payment struct {
 
 	// Currency 币种（ISO 4217 三位码），由渠道载荷给出，缺省随账单。
 	//
-	// 为什么不带这一格就不成：账单是 CNY 而这一笔是 USD 时，"收了多少"这个和
+	// 为什么不带这里就不成：账单是 CNY 而这一笔是 USD 时，"收了多少"这个和
 	// 没有定义。与 bills.currency 同一判据（混币的合计没有定义）。
 	Currency string `gorm:"type:varchar(3);default:'CNY'" json:"currency"`
 
@@ -82,7 +82,7 @@ type Payment struct {
 
 	// OrderID 触发这笔回款的外部订单号（同上，取自载荷的 order_id）。
 	//
-	// 与 platform 合起来就是 external_orders 的来路键 —— 这一格只是把"哪条回调"
+	// 与 platform 合起来就是 external_orders 的来路键 —— 这里只是把"哪条回调"
 	// 留在凭据上，**不**据此反查账单：账单来路只有 bill_id 一条（判据见
 	// TestPaymentCarriesNoQuoteOrOpportunityColumns，副本会漂）。
 	OrderID string `gorm:"type:varchar(100);index" json:"order_id"`
@@ -120,7 +120,7 @@ const (
 
 // PaymentStatusesCounted 是**计入结清**的那些状态。
 //
-// 这一格是结清金额的唯一事实源：仓储的求和 SQL 与本层任何内存复算都从这里取条件，
+// 这里是结清金额的唯一事实源：仓储的求和 SQL 与本层任何内存复算都从这里取条件，
 // 两边各写一遍字面量的后果与"报价头存合计"同一条 —— 一处加了新状态，另一处静默不算。
 var PaymentStatusesCounted = []string{PaymentStatusConfirmed}
 
@@ -144,7 +144,7 @@ func PaymentStatusKnown(s string) bool {
 	return false
 }
 
-// PaymentCountsTowardSettlement 报告这一格状态的钱要不要算进"已收多少"。
+// PaymentCountsTowardSettlement 报告这里状态的钱要不要算进"已收多少"。
 // 判据读 PaymentStatusesCounted，不另写一遍字面量。
 func PaymentCountsTowardSettlement(status string) bool {
 	for _, v := range PaymentStatusesCounted {

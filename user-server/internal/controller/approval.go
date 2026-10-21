@@ -3,7 +3,7 @@
 // 为什么这一层必须存在：待办池里 kind=approval 那几行点"完成"只会把待办关掉，
 // 而**审批行还停在 pending** —— 挂在它上面的流程不会被叫醒，下次同一对象入队又拿到
 // 那条旧 pending。也就是说只给列表不给裁决口，等于给用户一个会把闸门拆掉的按钮。
-// 所以本卡连后端一起做：详情 + 裁决两条，别的一条都不加（列表仍归 human-tasks，
+// 所以本处连后端一起做：详情 + 裁决两条，别的一条都不加（列表仍归 human-tasks，
 // 见下）。
 //
 // 本层三件事，与 controller/human_task.go 同一分工：
@@ -77,7 +77,7 @@ const approvalNoteMaxLen = 2000
 // DecidableByHuman 是第二份读数，它落的是时间这半句：allowed_transitions 只说"这个状态
 // 语义上去得了哪几个态"，它**不**说"人现在还有没有机会去落其中一个"。已过截止而未落定
 // （清扫轮次未到）的那条恰好是这两个答案分开的时刻：状态还是 pending，三个目标照单全列，
-// 而裁决口已经关上了。少了这一格，前端能给的唯一形状就是"按钮亮着、点下去永远 409"。
+// 而裁决口已经关上了。少了这里，前端能给的唯一形状就是"按钮亮着、点下去永远 409"。
 type approvalDetail struct {
 	*model.ApprovalRequest
 	AllowedTransitions []string `json:"allowed_transitions"`

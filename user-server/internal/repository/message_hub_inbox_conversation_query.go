@@ -253,7 +253,7 @@ func (r *InboxConversationRepository) ReconcileUnread(ctx context.Context) (int6
 	return total, nil
 }
 
-// NormalizeStatuses 将历史遗留的非标准状态值归一为四值字典：
+// NormalizeStatuses 将遗留的非标准状态值归一为四值字典：
 //   - active（webhook_inbox 旧写入值）→ unread（未读计数>0）或 open（无未读）
 //   - 其它未知值同样按有无未读落到 unread / open
 //

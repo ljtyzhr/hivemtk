@@ -8,7 +8,7 @@
 // 看不到它、也就永远调不到它的检索参数（top_k / 阈值 / embedding 档位）。
 //
 // 与 031 的分工：031 仍是一次性人工灌入路径（它同时带 13 篇知识文档与分段）；
-// 本文件只补"注册行"这一格，让任何一次 cmd/seed 都能把绑定落到真实存在的产品上。
+// 本文件只补"注册行"这个值，让任何一次 cmd/seed 都能把绑定落到真实存在的产品上。
 // 两处必须同源的关键字段（id / category / vector_table / embedding_model /
 // embedding_dim / llm_model）由 scripts/check-deploy-claims.py 规则 8 对着 031 校准。
 package main

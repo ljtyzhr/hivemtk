@@ -47,7 +47,7 @@ const (
 	hostWriteDeadline = 10 * time.Second // 单帧写时限（ping/JSON 同值）
 	// hostDisconnectHookTimeout 断连钩子（该用户 running session 置 failed）的独立 ctx 预算。
 	hostDisconnectHookTimeout = 10 * time.Second
-	// hostServProbeTimeout 注册期可服务探针（F3）的等回包时限。取值依据：探针帧在扩展侧是
+	// hostServProbeTimeout 注册期可服务探针的等回包时限。取值依据：探针帧在扩展侧是
 	// 纯 chrome.tabs.get(0) 早退（不发 CDP、不等页面），正常耗时 <10ms；这里给的余量全部
 	// 让给「SW 冷启/刚被 Chrome 唤醒」这类合法慢路径——探针误判的代价是白重启一次 host，
 	// 而探针时限过短的代价是把可用 Host 拖进重启循环，故宁松不紧（远小于用户可见的 30s 命令超时）。
@@ -70,12 +70,12 @@ const (
 
 // —— 会话收敛与看门狗（executor.go / task.go / executor_selfheal.go / cron.go）——
 const (
-	// sessionFinalWriteBudget 终态收口写库预算。R25/session188 实测：executeBrain 因
+	// sessionFinalWriteBudget 终态收口写库预算。R25/session188 验证：executeBrain 因
 	// ctx 超时收敛返回后 ctx 已 Done，用原 ctx 写终态会被 DB 驱动取消，session 永久
 	// 停留 active——终态必须走 WithoutCancel 的独立时限。
 	sessionFinalWriteBudget = 120 * time.Second
 	// taskWatchdogGrace wall-clock 兜底宽限：全链预算 = TimeoutSec + 30s。
-	// R22/session132 实测：ctx 取消链在某些 LLM/DB 调用栈不生效（11min+ active），
+	// R22/session132 验证：ctx 取消链在某些 LLM/DB 调用栈不生效（11min+ active），
 	// 以真实时钟兜底保证会话必有终态。
 	taskWatchdogGrace = 30 * time.Second
 	// relocateLLMWatchdog A1 selector 自愈 LLM 调用看门狗：DispatchStructured 内部
@@ -136,7 +136,7 @@ const stepFinalWriteBudget = 3 * time.Second
 
 // —— 拦截页探测（executor.go detectBlockedIfFatal）——
 // blockDetectBudget 一次拦截检测的整段预算（snapshot + 弹层选择器逐个 query 共用）。
-// session236 实测：失败步本身已耗满 30s 命令超时，检测再叠一条满额 30s 命令，单步失败
+// session236 验证：失败步本身已耗满 30s 命令超时，检测再叠一条满额 30s 命令，单步失败
 // 拖到 60s+，且检测命令自身的超时会计入 A5「连续 2 条命令超时」僵尸判定，把步失败误升级
 // 成 Host 假死自愈。检测是增强不是闸门，给短预算拿得到就算证据、拿不到就放行。
 const blockDetectBudget = 8 * time.Second

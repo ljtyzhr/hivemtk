@@ -103,7 +103,7 @@ func (d *LocalDriver) UploadMultipart(ctx context.Context, file multipart.File, 
 // 写入采用 os.CreateTemp + os.Rename 原子方式，避免半写入文件被读到。
 //
 // 租户分域（specs/001-saas-multi-tenant T011）：
-//   - off 模式：路径与历史版本逐字节一致（无租户段，存量文件零迁移）
+//   - off 模式：路径与旧版本逐字节一致（无租户段，存量文件零迁移）
 //   - on 模式 + ctx 携带租户：storagePath 前置 "tenant_{id}/"——路径自证租户，
 //     /files 公开服务零改动（URL 不可枚举 UUID 即读取防线，与现状同级）
 func (d *LocalDriver) UploadReader(ctx context.Context, reader io.Reader, size int64, folder string, filename string) (string, string, error) {

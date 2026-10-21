@@ -76,7 +76,7 @@ func SetupGeoRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 			Account:  contact,
 			Name:     contact,
 			SourceID: chainID,
-			// GEO 捕获有自己的类型号（历史版本借用抖音的 9，列表页因此把它叫成抖音、
+			// GEO 捕获有自己的类型号（旧版本借用抖音的 9，列表页因此把它叫成抖音、
 			// 还与抖音线索共用 (type, account) 判重键）。存量 9 的改判见 v3.56.0。
 			Type: service.ClueTypeGeoCapture,
 		}

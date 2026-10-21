@@ -175,7 +175,7 @@ func (s *SOPScheduler) tick(ctx context.Context) {
 	// 查询，但 fillCreateForTenant 对 system scope 直接放行给列默认值 1，于是本该
 	// 归属租户 N 的执行会被串写到默认租户（写错租户）。Fanout 则在 on 模式下逐活跃
 	// 租户注入 ctx（Query 加 WHERE tenant_id=N、Create 填 N），off 模式退化为单默认
-	// 租户（等价历史行为）—— 与 churn_score_job / session_ttl_cron 同一形态。
+	// 租户（等价既有行为）—— 与 churn_score_job / session_ttl_cron 同一形态。
 	//
 	// 上面的 AllowWorker 闸是**模块级、租户无关**判定，保持在扇出之外不随租户变。
 	if _, err := tenant.Fanout(ctx, nil, func(ctx context.Context, _ uint) (int64, error) {

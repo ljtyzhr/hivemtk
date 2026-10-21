@@ -205,7 +205,7 @@ func (r *memoryRepository) ListSOPStatesByCustomer(ctx context.Context, customer
 // 「count+1 > L4MaxPerCust(500) 才淘汰」）。而 gorm 对查询失败只回 Error，
 // 原来的写法把 .Error 丢了、直接 `return count, nil` —— 于是任何一次查询失败
 // （连接池打满、DDL 锁、ctx 取消）都被读成「这个客户有 0 条记忆」，
-// 淘汰这一格**永远不触发**：L4 记忆行无界增长，而界面上看不出任何异常，
+// 淘汰这里**永远不触发**：L4 记忆行无界增长，而界面上看不出任何异常，
 // 只有「这个客户的记忆越攒越多」这一种表现。
 //
 // 闸门该往哪边倒：读不动 ≠ 不存在。把「读不到」谎报成「没有」= 把容量闸关掉，

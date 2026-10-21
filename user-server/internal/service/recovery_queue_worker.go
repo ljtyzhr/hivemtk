@@ -10,18 +10,18 @@ package service
 //
 // 本文件补上那只消费者，并把"外发"这件事拆成四道必须同时成立的约束：
 //
-//  1. **显式开关**（AC③）：`FF_LTC_RECOVERY_WORKER`，三态 off|shadow|enforce。
+//  1. **显式开关**：`FF_LTC_RECOVERY_WORKER`，三态 off|shadow|enforce。
 //     off（默认）连 goroutine 都不起；shadow 只跑只选路不发的 dry-run；
 //     enforce 才真发。布尔真值（`true`/`1`/`on`）一律只到 shadow —— 和 W-1 审批门
 //     同一条口径：给真人发短信是不可撤回的动作，必须在 env 里写出 `enforce` 这个词。
 //  2. **显式文案**：外发内容只认 `meta_json.content`。队列里**没有任何地方**存着文案
 //     （Enqueue 过去不收文案，RFM 自动入队也不写，seed 写的 meta 只有 source/campaign），
 //     所以 worker 也不会替它编一句 —— 没有文案的项跳过、不消耗尝试次数。
-//     "系统自己想话说"不是本卡的范围，那是 AI 生成内容的合规问题，不该由一个 cron 顺带解决。
-//  3. **频控与 DNC**（AC②）：交给 `ProactiveReachService.ReachByCustomer` 里既有的两道
+//     "系统自己想话说"不是本处的范围，那是 AI 生成内容的合规问题，不该由一个 cron 顺带解决。
+//  3. **频控与 DNC**：交给 `ProactiveReachService.ReachByCustomer` 里既有的两道
 //     （ReachByCustomer 里的 `filterDoNotContactChannels` / `checkCooldown`），worker 不另起一套判重。
 //     T-P3-07 后同一出口还有第三道：发送前审批门 `ErrReachApprovalDenied`，处置见 processOne 的分支。
-//  4. **单轮上限**（AC④）：`LTC_RECOVERY_WORKER_BATCH`，默认 20。
+//  4. **单轮上限**：`LTC_RECOVERY_WORKER_BATCH`，默认 20。
 //
 // 一条曾经写着的边界已在 T-P3-07 收口：本 worker 从前**不经过**任何审批门。
 // W-1（internal/app/approval_wiring.go）挂在工具执行链的 buildHandler 上，而这里是 cron
@@ -57,7 +57,7 @@ import (
 const (
 	// RecoveryWorkerFlagEnv 主开关，取值 off|shadow|enforce
 	RecoveryWorkerFlagEnv = "FF_LTC_RECOVERY_WORKER"
-	// RecoveryWorkerBatchEnv 单轮处理上限（AC④）
+	// RecoveryWorkerBatchEnv 单轮处理上限
 	RecoveryWorkerBatchEnv = "LTC_RECOVERY_WORKER_BATCH"
 	// RecoveryWorkerIntervalEnv 轮询间隔
 	RecoveryWorkerIntervalEnv = "LTC_RECOVERY_WORKER_INTERVAL"

@@ -115,7 +115,7 @@ func orderDraftStatsPayload(snap app.OrderDraftSnapshot) gin.H {
 			}
 			if snap.Durable {
 				// 走到这里说明底座与 durable 自相矛盾（影子的 durable 恒为 false）。
-				// 不静默：本卡的核心断言就是"影子期不许声称重启不丢"。
+				// 不静默：本处的核心断言就是"影子期不许声称重启不丢"。
 				out["invariant_violation"] = "store=shadow 但 Durable()=true ⇒ 与影子底座的定义冲突，端点读数不可信"
 			}
 		}

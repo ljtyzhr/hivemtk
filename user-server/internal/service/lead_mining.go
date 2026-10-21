@@ -382,7 +382,7 @@ func (s *Service) tryConvertToOpportunity(ctx context.Context, clueID string, cu
 	}
 	if res.Created && res.AuditError != "" {
 		// 商机已经落库，缺的是来源记录 —— 这一条必须冒出来：它意味着事后没人答得出
-		// "这单凭什么占我的工作台"，而那一格正是本卡承诺要能回答的问题。
+		// "这单凭什么占我的工作台"，而那一格正是本处承诺要能回答的问题。
 		logger.Warnf("[lead-mining] 商机 %s 已建但审计缺失: %s", res.Opportunity.ID, res.AuditError)
 	}
 }

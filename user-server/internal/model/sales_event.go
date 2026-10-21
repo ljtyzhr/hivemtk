@@ -9,11 +9,11 @@ import "time"
 // 做 DB 权威统计；与实时驾驶舱（dashboard_sse_stats）互补。
 //
 // OpportunityID / QuoteID 两列（T-P2-04 / R-5，原文件头自记的 H2 技术债）是给 LTC
-// 新域预留的外键位。预留时本卡只开列、**不写任何生产者**，并把"由谁写"记成了
+// 新域预留的外键位。预留时本处只开列、**不写任何生产者**，并把"由谁写"记成了
 // "商机事件由 P4 写入、报价事件由 P6 写入"——前者至今没发生（见 a），后者发生在
 // T-P6-03。理由与三条口径如下：
 //
-//	a) 【T-P6-03 后更正，实测于本卡】"整张表零写入"这句已经不成立：从报价发送腿起，
+//	a) 【T-P6-03 后更正，实测于本处】"整张表零写入"这句已经不成立：从报价发送腿起，
 //	   `event_type = "quote"` 这一类是生产路径上的**第一个**写入方，它把
 //	   opportunity_id / quote_id / owner_id 三列一起填上（internal/service/quote_send.go
 //	   的 SalesEvent 构造点）。除此之外的四类事件仍然没有生产者：它们的构造点都在
@@ -21,7 +21,7 @@ import "time"
 //	   亦 0 命中，已接线的 FollowUpService 走 `if s.stats != nil` 保护（stats 恒 nil）。
 //	   该状态由 `check-unwired-assets.sh` **项 9** 盯梢，接线前不得宣称"商机事件已入库"。
 //
-//	   【T-P8-01 续记】本卡给 opportunity / bill 两类加了生产写入方（见两常量的注释），
+//	   【T-P8-01 续记】本处给 opportunity / bill 两类加了生产写入方（见两常量的注释），
 //	   上面"除此之外的四类事件仍然没有生产者"一句即日起只剩 order / followup /
 //	   ai_deal / order_draft / sales_profile 五类成立；NewSalesEventStatsService 的
 //	   0 构造点状态与项 9 盯梢不变（读侧装配仍未发生）。
@@ -29,7 +29,7 @@ import "time"
 //	   这一更正不改 c) 的结论：T-P8-01 之前**没有任何**按 opportunity_id / quote_id
 //	   检索 sales_events 的读路径（写方 ≠ 读方），索引照旧随第一个读方一起加；
 //	   T-P8-01 即那个读方：repository.ListByOpportunityID + 索引
-//	   idx_sales_events_opportunity 随本卡落地。
+//	   idx_sales_events_opportunity 随本处落地。
 //	b) NULL 与 '' 各有含义，别当成一回事：列可空且**不回填**，所以迁移前已有的行是 NULL
 //	   （= 这条事件发生在有商机概念之前）；迁移后经 GORM 写入的行是 ''
 //	   （= 有该概念、但这次事件没有商机）。Go 侧用 string 而非 *string，是让写入侧

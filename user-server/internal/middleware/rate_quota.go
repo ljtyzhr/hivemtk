@@ -45,7 +45,7 @@ type pathQuotaEntry struct {
 // resolvePathQuotas 返回当前生效的路径级配额表。
 //
 // 读取口径（ratelimit.path_quotas，每请求热读——参数中心有 60s 内存缓存，成本可控）：
-//   - 参数未装配 / 值为空串 → DefaultPathQuota（行为与接线前逐字节一致）；
+//   - 参数未装配 / 值为空串 → DefaultPathQuota（行为与接线前一致）；
 //   - 整份解析失败 → Warn 并回落 DefaultPathQuota（写侧 validateValue 已拦非法 JSON，
 //     这里再兜一层是防手改库）；
 //   - 单条非法（路径不以 / 开头、rps<=0、bucket_size<=0）→ 丢弃该条并 Warn，

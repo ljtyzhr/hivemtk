@@ -759,7 +759,7 @@ func (s *KeywordMiningService) CombineLongtail(ctx context.Context, seedWords []
 				continue
 			}
 			// 模板只认 {seed}/{year}；残留花括号说明管理员写了个引擎不认识的占位符，
-			// 原样落库就等于把模板语法写进词库（历史缺陷：`{seed}和XX对比哪个好` 生成过上千条含字面 XX 的词）。
+			// 原样落库就等于把模板语法写进词库（缺陷：`{seed}和XX对比哪个好` 生成过上千条含字面 XX 的词）。
 			if strings.ContainsAny(kw, "{}") {
 				continue
 			}

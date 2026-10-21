@@ -511,7 +511,7 @@ func (a *IntegrationReachAdapter) cardShareURL(ctx context.Context, channel stri
 }
 
 // shortLinkStatusDisabled 与 internal/controller/redirect.go 的 410 判据同一个值：
-// 短链状态里 2 才是"停用"，0 是历史行的默认空值，不能当停用处理。
+// 短链状态里 2 才是"停用"，0 是存量行的默认空值，不能当停用处理。
 const shortLinkStatusDisabled = 2
 
 func derefUint(v *uint) uint {

@@ -392,7 +392,7 @@ func (c *Client) loadMerchantSecret() error {
 		// 两者不同属**设计行为**（文件在解析链上优先，契约 §1）——只有当平台
 		// 返回「签名错误 401」时才需要拿这条日志去核对文件是否残留旧值。
 		//
-		// 历史（2026-10-18 事故）：环境变量配得完全正确，平台却持续返回
+		// 历史：环境变量配得完全正确，平台却持续返回
 		// 「签名错误 401」—— 因为文件里留着 2026-09-04 的旧值，而文件在解析链上
 		// **优先于环境变量**，且这个优先级在代码里是隐式的（`if secret != ""` 挡在前）。
 		// 两侧"看起来都配对了"，没有任何一处提示谁赢了 —— 这条日志把隐式优先级
@@ -420,7 +420,7 @@ func (c *Client) loadMerchantSecret() error {
 // 不走 doRetry —— 那条路会做商户签名并可能拉 JWT，把一个连通性探针绑到鉴权链上等于
 // 多造两类假故障（签名没配好 / 登录不上都会被判成"平台挂了"）。
 // 也不要恢复成"查授权状态"：平台从未实现授权端点（开源版连 License 概念都移除了），
-// 拿它做探针会让健康平台恒被判成 unreachable（R12）。
+// 拿它做探针会让健康平台恒被判成 unreachable。
 func (c *Client) CheckConnection() error {
 	if config.PlatformCfg == nil {
 		return fmt.Errorf("%w: 未配置平台地址，连通性探测无从发出", ErrPlatformNotConfigured)

@@ -17,7 +17,7 @@ import (
 // T-P5-03）与归因（P8）天然只有一条路可走。本包因此**不许** import 会话引擎
 // （`service` / `agent/runtime`），AC② 由 `TestActiveNeverImportsConversationEngine` 钉住。
 //
-// 三步职责的边界（本卡刻意不做的事都写在这里，不藏在代码里）：
+// 三步职责的边界（本处刻意不做的事都写在这里，不藏在代码里）：
 //
 //	选材 —— 只认"请求里那一个客户"。群体选材在 T-P5-01 的圈选器，两处各圈一遍必然漂移。
 //	决策 —— 只做"从智能体挂的 SOP 里取第一个可解析的"。`DecisionStrategyIDs` 那条链今天
@@ -58,7 +58,7 @@ type CustomerLookup interface {
 
 // PassiveAgentLifecycle 被动模式：入站消息驱动，交给既有会话引擎跑一轮应答。
 //
-// 本卡不改它今天在生产里怎么走（渠道入站仍走 `SmartCSOrchestrator`），只是让这个类型第一次
+// 本处不改它今天在生产里怎么走（渠道入站仍走 `SmartCSOrchestrator`），只是让这个类型第一次
 // 真实存在，从而 `Resolver` 回退时有东西可返回、"未知模式走被动"不再是一句注释。
 type PassiveAgentLifecycle struct {
 	runner ConversationRunner
@@ -185,7 +185,7 @@ func (l *ActiveAgentLifecycle) Run(ctx context.Context, agentCtx *dto.AgentConte
 // firstParsableSOPID 取第一个可解析且非零的 SOP ID。
 //
 // `ai_agents.sop_ids` 是 text[]：运营手填就可能混进空串或非数字项。整批作废太脆
-// （一个错字让这台智能体永久跑不动），逐项报错又超出本卡范围 —— 取第一个能用的，
+// （一个错字让这台智能体永久跑不动），逐项报错又超出本处范围 —— 取第一个能用的，
 // 并在调用方红因里点名"没有可用项"。
 func firstParsableSOPID(ids []string) (uint, error) {
 	for _, raw := range ids {

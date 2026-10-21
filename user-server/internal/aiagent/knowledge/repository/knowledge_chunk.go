@@ -26,7 +26,7 @@ func NewKnowledgeChunkRepository(db *gorm.DB) *KnowledgeChunkRepository {
 
 // Create 创建分段
 //
-// T-P9-02：写入前先过一次版本打戳（见 kbrelease.StampForWrite）。收在仓储这一格而不是
+// T-P9-02：写入前先过一次版本打戳（见 kbrelease.StampForWrite）。收在仓储这里而不是
 // 各导入入口，是因为漏掉一次打戳的表现是"这段内容带着 kb_version=0 落库"，
 // 而 0 的语义是"不受闸门管" —— 那是 AC① 的无声绕过口，不是少一个装饰字段。
 func (r *KnowledgeChunkRepository) Create(ctx context.Context, chunk *model.KnowledgeChunk) error {
@@ -67,7 +67,7 @@ func (r *KnowledgeChunkRepository) BatchCreate(ctx context.Context, chunks []mod
 //   - Delete(id) 抹掉一条在服分段：已上线内容被一次没有留痕的动作撤下 ⇒ 拒（改提 retire）；
 //   - Create / BatchCreate：新行进待发布桶，未发布前本来就不可见 ⇒ 放行并打戳；
 //   - DeleteByDocumentID / DeleteByProductID：重切与整库清理的内部通路，
-//     一并拦会把"导入"（本卡要求它走发布制）弄成静默失败 ⇒ 放行，只出声。
+//     一并拦会把"导入"（本处要求它走发布制）弄成静默失败 ⇒ 放行，只出声。
 //
 // productID 传空时按 id 回查一次：UpdateChunk 那条链带得上产品号，但 Delete 只有 id。
 // 回查只在闸门 on 时发生（见 DirectWriteBlocked），off 档一个额外查询都不该有。

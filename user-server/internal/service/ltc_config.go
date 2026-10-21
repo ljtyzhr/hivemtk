@@ -26,7 +26,7 @@ import (
 // 业务开关这一族的既有先例是遗留 KV 配置表存整份 JSON 策略（`password_policy.go`），
 // 一次写 = 一次整体生效，故选它。
 // 表名在本文件一律不直写：internal/service 里那道"禁止新写遗留 KV 直查"的文本守卫按"文件里
-// 出现表名"判，注释里的说明也会算，而本卡走的是 repository，一行裸 SQL 都没有。
+// 出现表名"判，注释里的说明也会算，而本处走的是 repository，一行裸 SQL 都没有。
 // 要查表名去看 repository.SystemConfigKVRepository。
 //
 // 两条贯穿全文件的判据：
@@ -368,7 +368,7 @@ func (s *LTCConfigService) ReachRolloutAllows(ctx context.Context, key string) (
 //     它不在 shadow 之外的任何一档里能改；env 停在 off/shadow 时这里写什么都只改变记账。
 //   - 与 `enabled`（LTC 总开关）互不影响：总开关管的是六阶段，外联闸门不属于任何阶段。
 //   - 名单里存的是**闸门判定键本身**（`reachApprovalKey` 的形状：one_id → customer_id →
-//     "渠道:收件人"），不是第二套身份系统 —— 两套授权早晚会"这里批过、那里没批过"。
+//     "渠道:收件人"），不是第二套身份系统 —— 两套授权早晚会"这个值批过、那里没批过"。
 
 type ReachRolloutMode string
 
@@ -494,7 +494,7 @@ func (r ReachRollout) validateReachRollout() error {
 }
 
 // ReadingHints 把这份数字最容易被读错的三处写在响应里（与 /agent/tools/risk 同形制）。
-// guardedRoutes 是"当前已经挂在闸门下的各阶段路由数"，为空就是本卡交付态的真实形状。
+// guardedRoutes 是"当前已经挂在闸门下的各阶段路由数"，为空就是本处交付态的真实形状。
 func (c *LTCConfig) ReadingHints(guardedRoutes map[LTCStage]int) []string {
 	hints := []string{
 		fmt.Sprintf("多副本部署下，改完开关对本进程立即生效、对其余副本最迟 %s 生效（缓存 TTL），不是「改完即全网生效」。", LTCConfigCacheTTL),
@@ -769,7 +769,7 @@ func cloneLTCConfig(c *LTCConfig) *LTCConfig {
 //
 // 不用"只认已知键、其余忽略"的宽容解法是有原因的：`colleciton: true` 这种拼写错误在宽容解法下
 // 得到的是"配置保存成功、阶段没开"，而运维看到的响应是 200 —— 与 password_policy 那套
-// "名义与实现相反"同源，本卡要修的就是这一类。
+// "名义与实现相反"同源，本处要修的就是这一类。
 func ParseLTCConfig(raw []byte) (*LTCConfig, error) {
 	if err := checkJSONShape(raw); err != nil {
 		return nil, err

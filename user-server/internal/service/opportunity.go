@@ -39,7 +39,7 @@
 // **禁止跨域乘算，且这里没有统计学依据**：confidence 以"这一问一答"为条件、
 // lead_score 以"这个客户"为条件、win_probability 以"这一单自身的阶段与事实"为条件。
 // 条件集不同的两个概率相乘不对应任何事件；要用它们，得显式建
-// P(赢 | 阶段, lead_score, confidence) 并**用数据拟合** —— 而拟合需要的历史行还没有。
+// P(赢 | 阶段, lead_score, confidence) 并**用数据拟合** —— 而拟合需要的存量行还没有。
 // 未标定却已分域的三个量，相乘只会得到一个既不可解释也不可回标的数。
 // 所以本层的输入结构里没有它们（字段名集合由用例钉住），
 // 而"到没到运营阈值"交给读方拿 `ltc.config` 自己比（阈值默认 0.50 与 base 表同量程，
@@ -51,7 +51,7 @@
 // 阈值比较读哪一份取决于代码先撞上谁。金额那一格是同一件事的第二份，一并舍。
 //
 // ─────────────────────────────────────────────────────────────────────────────
-// 跃迁机器规则（AC①）
+// 跃迁机器规则
 //
 // 阶段：**向前只一步，向后可任意，同格不算跃迁**。
 // 向前一步是因为每一格都是闸门（跳格 = 某一格的证据从未产生过）；
@@ -66,7 +66,7 @@
 // 该走 P7 的冲销；cancelled 不可回退是因为它的含义是"这根本不该是一条商机"，
 // 回退它等于把误建的行重新投进漏斗。
 //
-// "唯一入口"（AC③）靠 (来源, 起点, 终点) 三元表实现，而不是靠"源码里只有一处赋值"：
+// "唯一入口"靠 (来源, 起点, 终点) 三元表实现，而不是靠"源码里只有一处赋值"：
 // 新的导出方法想写 won，必须挑一个 cause，而放行 won 的只有"回款完成"。
 // 复用内部通道也绕不过这张表。外部保证另有一条：架构门 [1/10] 禁止 controller 直引
 // repository ⇒ 生产路径上能改这一行的只有本层。
@@ -308,9 +308,9 @@ type OpportunityService struct {
 	// now 只被"是否逾期"这一条判据读。做成字段而不是包级变量：
 	// 本文件与 600 多个同包文件共处，改包级时钟会跨用例串扰（-count=2 稳定红那一类）。
 	now func() time.Time
-	// trace 全链路埋点写口（T-P8-01）：nil = 没装，赢单照常，不阻塞。
+	// trace 全链路埋点写口：nil = 没装，赢单照常，不阻塞。
 	trace salesTraceWriter
-	// onLostReward 丢单负样本钩子（T-P8-02）：nil = 没装；错只 Warn，不断丢单。
+	// onLostReward 丢单负样本钩子：nil = 没装；错只 Warn，不断丢单。
 	onLostReward LostRewardHook
 }
 
@@ -379,7 +379,7 @@ func (s *OpportunityService) Get(ctx context.Context, id string) (*model.Opportu
 var globalOpportunitySvc atomic.Pointer[OpportunityService]
 
 // SetGlobalOpportunityService 登记全局实例（装配点：internal/app/opportunity_wiring.go）。
-// 传 nil 等于撤掉 —— 撤掉之后端点回 503，这是本卡天然的关闸。
+// 传 nil 等于撤掉 —— 撤掉之后端点回 503，这是本处天然的关闸。
 func SetGlobalOpportunityService(s *OpportunityService) { globalOpportunitySvc.Store(s) }
 
 // GlobalOpportunityService 取全局实例（可能为 nil；调用方必须判空并给出"未装配"的答复）。
@@ -400,7 +400,7 @@ func (s *OpportunityService) MoveStage(ctx context.Context, id string, expectedV
 				ErrOpportunityTransitionIllegal, row.Stage, toStage)
 		}
 		row.Stage = toStage
-		// 赢率跟着新阶段走：预测的条件集变了（现在多了"这一格的证据已经产生"）。
+		// 赢率跟着新阶段走：预测的条件集变了（现在多了"这里的证据已经产生"）。
 		return true, s.recomputeWinProbability(row)
 	})
 }
@@ -484,9 +484,9 @@ func (s *OpportunityService) MarkWonByCollection(ctx context.Context, id string)
 		OpportunityCauseCollection, model.OpportunityStatusWon, nil)
 }
 
-// CompleteCollection 回款完成这条事实在商机侧的收口（T-P7-04）：幂等门 + 唯一入口。
+// CompleteCollection 回款完成这条事实在商机侧的收口：幂等门 + 唯一入口。
 //
-// 调用方（回款→复购钩子）只认 alreadyWon 这一格来决定"复购跟进排不排"：
+// 调用方（回款→复购钩子）只认 alreadyWon 这个值来决定"复购跟进排不排"：
 //   - false ⇒ 本次是赢单的那一次，调用方继续切旅程、排跟进；
 //   - true ⇒ 赢单早已发生（重放 / 冲销后重付），本次只做幂等收口，不重排。
 //

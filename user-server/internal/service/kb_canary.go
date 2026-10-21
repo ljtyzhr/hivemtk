@@ -1,6 +1,6 @@
 // kb_canary.go 知识库答案缓存的版本与灰度路由（新规划 T-P2-05 / G-1）。
 //
-// 一句话口径：本卡把 rag_answer_cache 里那个写死的 prompt_version="v1" 变成可按客户
+// 一句话口径：本处把 rag_answer_cache 里那个写死的 prompt_version="v1" 变成可按客户
 // 分桶路由的命名空间；版本的物理载体是命名空间号，不是新的表、也不是 knowledge_bases
 // 的行复制。四版口径（生效面/折算规则/转正回滚/分桶复用）写在 model.KnowledgeBase
 // 的类型文档上，本文件是它的唯一实现处。
@@ -30,7 +30,7 @@ import (
 
 // KBCanaryFlagEnv 版本机制总开关。与 KB 行上的 CanaryPercent 是**两层独立的锁**：
 // 旗子关 ⇒ 无论行上怎么配都恒用今天的键；旗子开但行没 publish 过 ⇒ 也恒用今天的键。
-// 只有两道都放行才换命名空间，所以默认态下本卡对线上零影响。
+// 只有两道都放行才换命名空间，所以默认态下本处对线上零影响。
 const KBCanaryFlagEnv = "FF_LTC_KB_CANARY"
 
 type kbCanaryMode string
@@ -118,7 +118,7 @@ func kbCanaryActive(kb *model.KnowledgeBase, oneID string) bool {
 //
 // 复用 flagBucketHash（FNV-1a + key 前缀，feature_flag.go 的按百分比放量口径），
 // 与 script_ab.go 的 AssignBucket 同族；仓内已有第三套分桶（sop_abtest.go 加权变体），
-// 本卡不新造第四套。同一 (kb, oneID) 恒定同桶 ⇒ 粘性。
+// 本处不新造第四套。同一 (kb, oneID) 恒定同桶 ⇒ 粘性。
 func kbInCanaryBucket(kbID uint, oneID string, percent int) bool {
 	// percent <= 0 必须显式挡住：负数转成 uint32 会变成 42 亿，`< uint32(percent)` 恒真，
 	// "零放量"当场翻成"全量放量"。上界不必挡：hash%100 落在 [0,99]，percent>=100 天然全命中。

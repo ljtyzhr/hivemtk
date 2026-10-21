@@ -4,7 +4,7 @@
 // GORM 的 Select 在**没有 Model/Table** 时会拼出 `SELECT <expr> FROM `
 // （FROM 后面是空的）⇒ 结果集多一列空值，Scan 进 bool 报
 // "unsupported data type: <nil>"，而且**锁根本没拿到**。
-// 2026-10-22 实测：POST /api/monitor/trace-eval/trigger 恒 500，就是这一句；
+// 2026-10-22 验证：POST /api/monitor/trace-eval/trigger 恒 500，就是这一句；
 // geo/service/job_manager.go 的分布式锁是同形缺陷（且无测试覆盖，一直没暴露）。
 //
 // 正确形态见下面 advisoryLockFrom 的注释。

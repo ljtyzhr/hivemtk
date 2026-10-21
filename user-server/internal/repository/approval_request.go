@@ -2,7 +2,7 @@
 //
 // 五层架构里本文件是 service.ApprovalRequestService 与 approval_requests 表之间唯一的一层。
 //
-// **本卡刻意没有内存版底座**（与 T-P2-01 的草稿不同，那里内存/DB 一副接口两副实现）：
+// **本处刻意没有内存版底座**（与 T-P2-01 的草稿不同，那里内存/DB 一副接口两副实现）：
 // 审批记录重启即空 = 下一次入队查不到 pending = 要么重复建待办、要么在最坏的一种
 // 实现里"查不到就当作没拦过"直接放行。闸门忘掉自己批过什么，比闸门报错严重得多，
 // 所以这里只有一条路：句柄不可用 ⇒ 明确报错，由调用方 fail-closed。
@@ -36,7 +36,7 @@ var ErrApprovalPendingConflict = errors.New("approval_request: 该对象同策�
 //
 // 注：这段注释刻意不出现"不等于空串"的 SQL 字面量写法（两个 ASCII 单引号相邻）。实测
 // gofmt 会把**函数声明的文档注释**里相邻的两个单引号重写成排版引号，连反引号包起来的代码段
-// 也照改，写完就被静默改掉 —— 本卡实测踩过两次。
+// 也照改，写完就被静默改掉 —— 这里实测踩过两次。
 var ErrApprovalTokenEmpty = errors.New("approval_request: 恢复凭证为空")
 
 // ErrApprovalAsOfMissing MutatePending 没拿到判截止用的时钟。
@@ -76,7 +76,7 @@ type ApprovalRequestRepository interface {
 	GetByResumeToken(ctx context.Context, token string) (*model.ApprovalRequest, error)
 
 	// GetPendingBySubject 取该 (subject, policy) 当前处于 pending 的那条（幂等复用用）；
-	// 没有返回 (nil, nil)，读失败返回 error —— 两者的差别就是本卡 AC③ 能不能兑现的地方。
+	// 没有返回 (nil, nil)，读失败返回 error —— 两者的差别就是本处 AC③ 能不能兑现的地方。
 	GetPendingBySubject(ctx context.Context, subjectType, subjectID, policyKey string) (*model.ApprovalRequest, error)
 
 	// MutatePending 在一条事务里锁住某行、确认仍是 pending **且 asOf 还没过它的截止时间**，
@@ -89,7 +89,7 @@ type ApprovalRequestRepository interface {
 	// `WHERE id = ? AND status = 'pending'`（比较并交换）；`FOR UPDATE` 买的是另一样东西：
 	// **fn 执行期间这一行不许被别人改**。两者各自被一条测试钉住
 	// （`_ConcurrentMutateSingleWinner` / `_MutateHoldsRowLockWhileFnRuns`）——
-	// 变异实测：摘掉 FOR UPDATE 只有后者红，前者仍绿，别把单赢家的功劳记到行锁头上。
+	// 变异验证：摘掉 FOR UPDATE 只有后者红，前者仍绿，别把单赢家的功劳记到行锁头上。
 	//
 	// 第三道条件（截止时间）拦的是**清扫器还没跑到的那段时间**：
 	// TTL 过了但 5 分钟一轮的清扫还没轮上来，这一行在库里仍写着 pending，于是人工裁决
@@ -223,7 +223,7 @@ func (r *approvalRequestRepo) GetPendingBySubject(ctx context.Context, subjectTy
 //   - 带 `expires_at IS NULL OR expires_at > asOf` 的判据 = 拦住"已过期但清扫器还没跑到"
 //     那段窗口里的人工裁决。摘掉它，清扫晚到一步时人照样能签一条"我批了"的假账。
 //
-// 注释只描述这几件事，不再声称"少了行锁就会双写成功"（那是本卡实测推翻的一句）。
+// 注释只描述这几件事，不再声称"少了行锁就会双写成功"（那是实测推翻的一句）。
 func (r *approvalRequestRepo) MutatePending(ctx context.Context, id string, asOf time.Time, fn func(*model.ApprovalRequest)) (bool, error) {
 	if err := r.require(); err != nil {
 		return false, err
@@ -260,7 +260,7 @@ func (r *approvalRequestRepo) MutatePending(ctx context.Context, id string, asOf
 		// 更新静默命中 0 行，applied=false，service 便会对一条**仍然 pending** 的记录
 		// 报出"已由他人裁决"。写回的目标只认传进来的 id，fn 改什么都不算数。
 		// 同一条过期判据在下面那条 UPDATE 里**再出现一次**，这是备份而不是第二道防线，
-		// 依据是变异实测（不是推测）：单撤锁内那一处，仓储用例在「已过截止的行仍被交去
+		// 依据是变异验证（不是推测）：单撤锁内那一处，仓储用例在「已过截止的行仍被交去
 		// 构造写回数据」那格转红；单撤下面 SQL 里的这个条件，整包照旧绿（锁内判据已拦下，
 		// 两处读的是同一把行锁下的同一行）；两处同撤才红。留着它是因为这条 SQL 才是真正
 		// 落库的那个判定，而它与上面的判读之间隔着一次 fn 调用——以后有人把判读挪出锁的

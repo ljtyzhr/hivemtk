@@ -33,7 +33,7 @@ import (
 const (
 	// KBChangeApprovalSubjectType 被审对象类型。
 	KBChangeApprovalSubjectType = "kb_change"
-	// KBChangeApprovalPolicyKey 谁要求审的：知识内容上线这一格。
+	// KBChangeApprovalPolicyKey 谁要求审的：知识内容上线这里。
 	KBChangeApprovalPolicyKey = "kb.change.apply"
 )
 
@@ -177,7 +177,7 @@ type kbChangeApprovalGateway interface {
 // kbChunkEmbedder 向量化通路。实现者是 aiagent 侧的 KnowledgeService.EmbedAndPersistChunks。
 //
 // 为什么发布之后还要补一次向量：**没有任何后台通路扫 embed_status='pending' 回填向量**
-// （实测：全仓对这一列的读点只有 vector_retriever.go:153 的告警计数与文档级筛选），
+// （验证：全仓对这一列的读点只有 vector_retriever.go:153 的告警计数与文档级筛选），
 // 落库那条新分段的 embedding 是 NULL ⇒ 词面检索（content_tsv 由触发器维护）当场可检，
 // 语义检索要等这一次显式补算。所以它是"补强"而不是"生效"，失败只出声、不让发布回滚。
 type kbChunkEmbedder interface {
@@ -469,7 +469,7 @@ func (s *KBReleaseService) PublishPending(ctx context.Context, productID, actor 
 	for i := range pending {
 		ch := pending[i]
 		if ch.ApprovalID == "" {
-			// 无号的行按"没批"处理（不猜）：它要么是半路写入的历史遗留，要么是入队失败后的残留。
+			// 无号的行按"没批"处理（不猜）：它要么是半路写入的遗留，要么是入队失败后的残留。
 			outcome.SkippedUnknown = append(outcome.SkippedUnknown, ch.ID)
 			continue
 		}

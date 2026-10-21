@@ -18,7 +18,7 @@ const (
 	journeyStateKeyPrefix = "journey:state:"
 
 	// 阶段成员索引：journey:stage_index:<stage> 是客户号列表，
-	// journey:stage_seen:<stage>:<customerID> 是"这个客户号已经进过这一格"的哨兵。
+	// journey:stage_seen:<stage>:<customerID> 是"这个客户号已经进过这里"的哨兵。
 	// 没有哨兵键的话每一次互动（Touch 也走 persistState）都会往列表里再推一次同一个客户号。
 	journeyStageIndexPrefix = "journey:stage_index:"
 	journeyStageSeenPrefix  = "journey:stage_seen:"

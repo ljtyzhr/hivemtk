@@ -15,7 +15,7 @@ import (
 // internal/router/router.go 中 `auth.Use(middleware.JWTAuthMiddleware())` 之后的调用点）。
 // 本包不自带鉴权中间件，切勿把本函数接到未受保护的路由组上。
 //
-// 历史缺陷（已修）：调用点曾位于 `auth.Use(JWTAuthMiddleware())` **之前**，
+// 缺陷（已修）：调用点曾位于 `auth.Use(JWTAuthMiddleware())` **之前**，
 // 而 gin 的 RouterGroup.Use 只在路由注册时快照 handler 链，对先注册的路由不生效，
 // 导致下列 7 个接口长期匿名可访问，且响应体含会话链路明细（MessageTrace）。
 //

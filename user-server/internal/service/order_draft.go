@@ -156,7 +156,7 @@ type OrderDraftConfig struct {
 
 // NewOrderDraftService 创建订单草稿服务（内存态底座）。
 //
-// 默认仍是内存：本卡的 AC③ 要求"现有调用方零改动通过编译"，而存量 25 个用例把
+// 默认仍是内存：本处的 AC③ 要求"现有调用方零改动通过编译"，而存量 25 个用例把
 // 返回的 *OrderDraft 当活对象用（改完字段直接断言列表/过期结果）。要 durable 底座
 // 请显式走 NewOrderDraftServiceWithRepo —— 两条路的可观察差异由契约测试钉住。
 func NewOrderDraftService() *OrderDraftService {
@@ -582,7 +582,7 @@ func (s *OrderDraftService) Confirm(ctx context.Context, draftID, confirmedBy st
 	if now.After(cur.ExpiresAt) {
 		// 与实现前一致：就地刷成 expired 后报错，**不**记 expired 统计事件
 		// （ExpireOverdue 会记）。两条路口径不同是既有事实，改它会动仪表盘历史数字，
-		// 不属本卡范围 —— 已在卡面执行结果里登记为待决项。
+		// 不属本处范围 —— 已在卡面执行结果里登记为待决项。
 		if _, applied, e := s.store.mutateIfPending(ctx, draftID, func(d *OrderDraft) {
 			d.Status = DraftStatusExpired
 			d.UpdatedAt = now

@@ -17,7 +17,7 @@ import (
 // gin 的 Use 只对其后注册的路由生效，挂早了就是匿名可访问 —— 而打标是要追责的写操作）。
 //
 // 服务实例取自全局登记处（装配点 app.InitBadCaseRuntime，在 BuildSmartOrchestrator 之前）。
-// 取到 nil 不是错误：路由照挂，每个请求回 503 —— 本卡的"关闸"就是不给它底座。
+// 取到 nil 不是错误：路由照挂，每个请求回 503 —— 本处的"关闸"就是不给它底座。
 func setupBadCaseRoutes(auth *gin.RouterGroup) {
 	svc := service.GlobalBadCaseService()
 	controller.NewBadCaseController(svc).RegisterRoutes(auth)

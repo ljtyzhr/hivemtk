@@ -61,7 +61,7 @@ type LifecycleResult struct {
 	StopReason   string
 
 	// Mode 实际执行的是哪个生命周期 —— 必须回显，因为"未知模式回退 Passive"
-	// 是本卡的验收条件之一，而不回显时运营分不清"它真跑了主动"与"它悄悄回退了"。
+	// 是本处的验收条件之一，而不回显时运营分不清"它真跑了主动"与"它悄悄回退了"。
 	Mode string
 	// ExecutionID 主动模式产出的 SOP 执行记录 ID；被动模式恒为 0（它不建执行）。
 	ExecutionID uint

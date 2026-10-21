@@ -19,7 +19,7 @@
 // 再把它丢掉，等于假装本层记了审计 —— 真接线那一步会发现 HTTP 侧"已经有 actor"，
 // 于是审计表建出来是空的。路由挂在 JWT 组下这件事由 router.go 保证，不是这里的判据。
 //
-// 为什么没有"列出商机"这一条：见 /rules 的响应面与 docs/replan-2026-09 的 T-P4-04 段 ——
+// 为什么没有"列出商机"这一条：见 /rules 的响应面与 docs/replan-2026-09 的对应段 ——
 // 仓储的三个 ListBy* 不返回总数（T-P4-02 的口径），而 CLAUDE.md 的列表契约要求
 // `{list,total}`；`total` 只能是估算或页内行数，两者都会被读成"这商机池就这么大"。
 // 补 total 要动仓储落点，登记给需要列表的那张卡，不在这里偷偷降级判据。
@@ -46,7 +46,7 @@ import (
 // OpportunityController 商机域控制器。
 //
 // svc 允许是 nil（商机竖未装配）：除 /rules 之外的每个出口都回 503，
-// 这就是本卡天然的关闸 —— 端点在、答案诚实。
+// 这就是本处天然的关闸 —— 端点在、答案诚实。
 type OpportunityController struct {
 	svc *service.OpportunityService
 }
@@ -483,7 +483,7 @@ func (c *OpportunityController) bindJSON(ctx *gin.Context, target any) bool {
 	if err := dec.Decode(target); err != nil {
 		msg := err.Error()
 		// 体积那一刀要单列：MaxBytesError 混进"形状不对"里，运维读到的是"调用方字段写错了"，
-		// 实际发生的是"这一格的请求体被封顶了" —— 两种情形的处置动作完全不同。
+		// 实际发生的是"这里的请求体被封顶了" —— 两种情形的处置动作完全不同。
 		var tooLarge *http.MaxBytesError
 		if errors.As(err, &tooLarge) {
 			response.Error(ctx, http.StatusBadRequest,

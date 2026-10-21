@@ -371,7 +371,7 @@ func (s *CustomerSessionService) UpdateSessionStatus(ctx context.Context, sessio
 // cancelOpenHumanTaskForSession 会话结束时撤销它那条开放的人工待办（非致命旁路）。
 //
 // 三处刻意的取舍：
-//   - 底座未装配（全局服务为 nil）时什么都不做、也不告警：那是本卡天然的关闸形态，
+//   - 底座未装配（全局服务为 nil）时什么都不做、也不告警：那是本处天然的关闸形态，
 //     每关一次会话喊一行 WARN 会把日志刷成噪声；
 //   - 只撤销开放那一条（服务侧按 subject 定位 + 跃迁判据），已 done 的原样留着 —— 坐席
 //     工作量与"这轮转人工处理了多久"都读那条记录，覆盖掉就等于把历史改了；

@@ -172,7 +172,7 @@ func main() {
 		if err := service.SeedConfigParams(context.Background(), gdb); err != nil {
 			logger.Errorf("[ConfigParam] seed failed: %v", err)
 		} else {
-			// 数量从种子现取。这行原来写死 "59 defaults"，种子涨到 115 条之后它一直在撒谎——
+			// 数量从种子现取。写死一个数字的话，种子涨上去之后它一直在撒谎——
 			// 跟「登记了没人读」是同一类病：日志看着像证据，实际早就不准了。
 			logger.Info("[ConfigParam] dynamic threshold params seeded (" + strconv.Itoa(len(service.DefaultParamDefs())) + " defaults)")
 		}
@@ -243,8 +243,8 @@ func main() {
 		logger.Info("[ConfigParam] 上传/body 上限接线 " + strconv.Itoa(len(wired)) + " 条")
 	}
 
-	// frontend_ui 组历史上只有前端读，后端一处不摸；本条是第一个例外——素材库上传口
-	// 原来写死 10MB，运维调大后前端放行、后端拦死。走注入而不是 controller 直连，
+	// frontend_ui 组平时只有前端读，后端一处不摸；本条是第一个例外——素材库上传口
+	// 若写死 10MB，运维调大后前端放行、后端拦死。走注入而不是 controller 直连，
 	// 因为 internal/content 整个子模块不 import internal/service。
 	if wired := app.WireFrontendUIConfigParams(); len(wired) > 0 {
 		logger.Info("[ConfigParam] frontend_ui 组接线 " + strconv.Itoa(len(wired)) + " 条")
@@ -270,13 +270,13 @@ func main() {
 		logger.Info("[ConfigParam] P1 第一批接线 " + strconv.Itoa(len(wired)) + " 条")
 	}
 
-	// 全局 Embedding 提供商覆盖：一读一写两条缝。写侧原来是裸 SQL 直写遗留 KV 表，
-	// 收敛到参数中心才拿得到值校验、缓存失效与"谁改的"那条审计。
+	// 全局 Embedding 提供商覆盖：一读一写两条缝。写侧若裸 SQL 直写 KV 表，
+	// 就拿不到值校验、缓存失效与"谁改的"那条审计。
 	if wired := app.WireEmbeddingConfigParams(); len(wired) > 0 {
 		logger.Info("[ConfigParam] Embedding 全局覆盖接线 " + strconv.Itoa(len(wired)) + " 条")
 	}
 
-	// urls 组两条（R2）：cloud_url / geo_site_base_url 的读取点在 internal/config
+	// urls 组两条：cloud_url / geo_site_base_url 的读取点在 internal/config
 	// （config 不能反向 import service），只能由装配层注入 provider。frontend_url
 	// 走 service 直连范式，不在这里。
 	if wired := app.WireURLsConfigParams(); len(wired) > 0 {
@@ -339,7 +339,7 @@ func main() {
 	service.InstallPlatformUsageSink()
 
 	// ② provider 的实际加载延后到平台配置就绪之后（见下方 loadPlatformLLMProviders）。
-	//    曾经就放在这里，于是 config.PlatformCfg 尚为 nil → 请求被拒 →
+	//    若放在这一步，config.PlatformCfg 尚为 nil → 请求被拒 →
 	//    平台 provider **永远拉不下来**，日志里只有一行 warn。
 	if err := llm.GetGlobalDispatcher().LoadProvidersFromDB(); err != nil {
 		logger.Errorf("[LLM] 从数据库加载 provider 失败：%v", err)

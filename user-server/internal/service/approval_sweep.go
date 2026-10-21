@@ -3,9 +3,9 @@
 // T-P3-01 交付了 ExpireOverdue，但全仓非测试调用点是 0 —— 那时 pending 行只增不减，
 // "24 小时没人裁决算放弃"只是一个写在常量旁边的句子。同一张表上"有方法没调用方"
 // 这个形状本仓已经踩过三次（草稿竖的 ExpireOverdue/PurgeTerminal、恢复队列、审批门），
-// 所以本卡把它做成真的有人按节拍跑。
+// 所以本处把它做成真的有人按节拍跑。
 //
-// 与流程侧的关系必须说清，否则这一格会被读成"不跑清扫流程就卡死"：
+// 与流程侧的关系必须说清，否则这里会被读成"不跑清扫流程就卡死"：
 // 挂起的流程**不依赖**本 worker 收口 —— ResolveOnFire 在点火时自己会从
 // "仍 pending 且已过 expires_at" 推导出 expired（见 sop_approval_resume.go）。
 // 本 worker 管的是另一件事：**库里那一行**。少了它，待办中心会一直显示一条
@@ -138,7 +138,7 @@ func (w *ApprovalSweepWorker) RunOnce(ctx context.Context) *ApprovalSweepReport 
 	report.Expired = int(expired)
 	if err != nil {
 		report.Err = err.Error()
-		// 失败必须出声：这一格静默失败的结果是"pending 永不退场"，
+		// 失败必须出声：这里静默失败的结果是"pending 永不退场"，
 		// 而那是 T-P3-01 移交过来的原病灶，不能修完又无声退化回去。
 		logger.Errorf("[approval] 到期清扫失败 ⇒ 已翻 %d 条，剩余留待下一轮：%v", report.Expired, err)
 	}

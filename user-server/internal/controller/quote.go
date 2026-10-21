@@ -14,7 +14,7 @@
 //     "没问"与"问了没有"是两件事。
 //
 // 本层**不做**的第四件：审批、闸门、乐观锁、金额、话术解析全在服务层，这里一处不重写；
-// 也不猜"谁批的"——只有 `Operator` 这一格必须来自会话（sales_events.owner_id 的"是谁点的发送"），
+// 也不猜"谁批的"——只有 `Operator` 必须来自会话（sales_events.owner_id 的"是谁点的发送"），
 // 拿不到就 401 关在门外，而不是递一个空串让服务层去拒（那会被翻成 400，
 // 而该做的事是刷会话不是改载荷）。
 //
@@ -126,7 +126,7 @@ const (
 	quoteReasonGateClosed      = "gate_closed"
 	quoteReasonNotDraft        = "not_draft"
 	// quoteReasonVersionConflict 与 not_draft / approval_mismatch 同为 409，但修法不同：
-	// 这一格是"有人在你之前把下一版追加上了"，调用方要重读最新版再决定，而不是改载荷。
+	// 这里是"有人在你之前把下一版追加上了"，调用方要重读最新版再决定，而不是改载荷。
 	quoteReasonVersionConflict  = "version_conflict"
 	quoteReasonApprovalMismatch = "approval_mismatch"
 	quoteReasonApprovalNotFound = "approval_not_found"
@@ -344,7 +344,7 @@ func (c *QuoteController) Latest(ctx *gin.Context) {
 //
 // 存在的理由是"旧版不可变"这件事唯一能被读出来的地方：报价是多轮的，只有 latest 那一条
 // 时，第二次谈判之后"第一版当时报给客户的是多少钱"就只剩当前态能看见 —— 而当前态正是
-// 会被下一版改掉的那个态。事后核对与审批争议都要回到某一版，这一格就是那条路。
+// 会被下一版改掉的那个态。事后核对与审批争议都要回到某一版，这里就是那条路。
 //
 // @Summary      按版本号读取某一版报价
 // @Tags         Quote
@@ -372,7 +372,7 @@ func (c *QuoteController) Version(ctx *gin.Context) {
 	}
 	version, err := strconv.ParseInt(raw, 10, 64)
 	if err != nil || version <= 0 {
-		// 0 与负数在这一格是"没有对应事实的写法"而不是"查不到"。放它走到底层会回 404，
+		// 0 与负数在这里是"没有对应事实的写法"而不是"查不到"。放它走到底层会回 404，
 		// 于是下一次有人把 0 实现成"取最新"，就等于多出一条没人声明、也没人审的别名入口。
 		response.Error(ctx, http.StatusBadRequest,
 			"报价版本号必须是从 1 开始的正整数（得到 "+raw+"）",
@@ -383,7 +383,7 @@ func (c *QuoteController) Version(ctx *gin.Context) {
 	c.replyView(ctx, view, err)
 }
 
-// quoteSendBody 发送入参：**只有**审批号这一格。
+// quoteSendBody 发送入参：**只有**审批号。
 //
 // 不内嵌 service.QuoteSendInput 是刻意的：那一格里有 QuoteRowID 与 Operator。
 // 前者从请求体进来就等于 `POST /quote/A/send {"quote_row_id":"B"}` —— 路径与体各说一个对象，
@@ -536,7 +536,7 @@ func (c *QuoteController) bindOptionalJSON(ctx *gin.Context, target any) bool {
 func (c *QuoteController) replyBindError(ctx *gin.Context, err error) bool {
 	msg := err.Error()
 	// 体积那一刀要单列：MaxBytesError 混进"形状不对"里，运维读到的是"调用方字段写错了"，
-	// 实际发生的是"这一格的请求体被封顶了" —— 两种情形的处置动作完全不同。
+	// 实际发生的是"这里的请求体被封顶了" —— 两种情形的处置动作完全不同。
 	var tooLarge *http.MaxBytesError
 	if errors.As(err, &tooLarge) {
 		response.Error(ctx, http.StatusBadRequest,
@@ -558,7 +558,7 @@ func (c *QuoteController) replyBindError(ctx *gin.Context, err error) bool {
 // bindJSON 严格绑定：拒收未知字段 + 请求体封顶（生成那条必须带体，空体算 400）。
 //
 // 与商机那一路同一套判据，两句提示文案各写各的：这里"未知字段"的代价不是"改了没生效"，
-// 而是"话术/收件人/金额可以从体里递进来"，所以提示里要点名这一格为什么窄。
+// 而是"话术/收件人/金额可以从体里递进来"，所以提示里要点名它为什么窄。
 func (c *QuoteController) bindJSON(ctx *gin.Context, target any) bool {
 	ctx.Request.Body = http.MaxBytesReader(ctx.Writer, ctx.Request.Body, quoteBodyMaxBytes)
 	dec := json.NewDecoder(ctx.Request.Body)
@@ -614,7 +614,7 @@ func (c *QuoteController) replyView(ctx *gin.Context, view *service.QuoteView, e
 // 顺序是判据的一部分，三处尤其要紧：
 // ① Stuck+Outbound 的复合错必须先判，且不许落到 502 那一档 —— 502 的说法是
 //
-//	"渠道坏了，重试即可"，而这一格重试会被自己那行 sent 挡掉，照着 502 的语义重试的人
+//	"渠道坏了，重试即可"，而这里重试会被自己那行 sent 挡掉，照着 502 的语义重试的人
 //	会在"库里说发过、客户没收到"上得出"已经发过了"。
 //
 // ② 未装配（两条腿各自可能缺件）先判，因为它意味着其余一切判据都没跑。
@@ -650,7 +650,7 @@ func (c *QuoteController) replyError(ctx *gin.Context, err error, action string)
 		// 409 而不是 500：调用方什么都没做错，做错的是"两个人同时基于同一版追加"这件事，
 		// 而修法也不是改载荷，是重读最新版再决定要不要在那之上还价。
 		// reason 必须与 not_draft / approval_mismatch 分开：那两格是"这一版不能这么动"，
-		// 这一格是"这一版已经被人动过了"。
+		// 这里是"这一版已经被人动过了"。
 		response.Error(ctx, http.StatusConflict, err.Error(), gin.H{"reason": quoteReasonVersionConflict})
 	case errors.Is(err, service.ErrQuoteSendRecipientMissing):
 		response.Error(ctx, http.StatusConflict, err.Error(), gin.H{"reason": quoteReasonRecipientMissing})

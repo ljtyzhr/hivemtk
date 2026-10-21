@@ -2,14 +2,14 @@
 //
 // 这张表和商机一样今天**不存在**：全仓对"报价"的表达只到 order_drafts.unit_price
 // 与 total_amount 两个孤立数字（判定 B 的草稿域），既没有版本、也没有行项目 ——
-// 客户还一次价，上一版报价就在草稿里被覆盖掉了。本卡把"报价是一件有版本链的事"
+// 客户还一次价，上一版报价就在草稿里被覆盖掉了。本处把"报价是一件有版本链的事"
 // 第一次放进 schema。
 //
 // 建表登记走 internal/pkg/db 的 allModels()（本仓生产建表只跑 GORM AutoMigrate，
 // 与 T-P2-01/04/05/06、T-P3-01/03、T-P4-01 七次实测同源；
 // 卡面写的 `v3_49_0_quote_migration.go` 因此不产出，理由与落点回灌在执行结果里）。
 //
-// 本卡只交付**列、值域与版本链的形状**：
+// 本处只交付**列、值域与版本链的形状**：
 //   - 报价的生成（模板 / 行项目 / RAG 话术）在 T-P6-02；
 //   - 发送前必经的审批检查点在 T-P6-03 —— 所以本表**不带**任何审批列（判据见下）；
 //   - 折扣阈值的二次审批档位在 T-P6-04，阈值住在 ltc.config，不住在这张表里。
@@ -19,7 +19,7 @@ import "time"
 
 // Quote 报价版本行（表 quotes）
 //
-// 一行 = **一个版本**，不是一张报价单。这是本卡最容易在建表时走歪的一步：
+// 一行 = **一个版本**，不是一张报价单。这是本处最容易在建表时走歪的一步：
 // 若把 quote_id 当主键、version 当可变列，"改价"就是一次 UPDATE，
 // 而 LTC-12 要的谈判过程（客户还了三次价，每一次报的是什么）当场蒸发，
 // 且没有任何一层能事后发现 —— 库里只剩最后一版，它看起来完全正常。
@@ -51,7 +51,7 @@ type Quote struct {
 	// OpportunityID 来源商机。报价的first读法就是"这个商机报过几版"，故建索引。
 	//
 	// 可空吗——不：没有商机就没有报价（W-3 的链条是 线索→商机→报价→订单→回款），
-	// 但本卡不建外键（同商机与审批表的判据：跨写路径的引用一旦建 FK，
+	// 但本处不建外键（同商机与审批表的判据：跨写路径的引用一旦建 FK，
 	// "商机还没落库"就变成"报价建不出来"，而那是两个域的时序问题，不是一件事）。
 	// 值域与存在性由 T-P6-02 的生成器负责，这层只保证宽度与可查。
 	OpportunityID string `gorm:"type:varchar(64);index" json:"opportunity_id"`
@@ -71,7 +71,7 @@ type Quote struct {
 	// 合成一个字段的两条后果各有一处先例：漏斗与赢率塌成同一个数（T-P4-01 拦过），
 	// 以及"客户拒了 v2"被读成"这单丢了"。
 	//
-	// **不建索引**（与 opportunity_id/source_id 相反）：本卡没有任何按状态捞的读方，
+	// **不建索引**（与 opportunity_id/source_id 相反）：本处没有任何按状态捞的读方，
 	// 而 P6-02/03 真要按状态筛的形状是 `WHERE opportunity_id = ? AND status = ?`——
 	// 由 opportunity_id 的索引取行、status 只做过滤。预留索引与预留列同罪（同族判据见
 	// internal/pkg/db/opportunity_migration_test.go 的索引用例）。
@@ -90,7 +90,7 @@ type Quote struct {
 	// 必须可空：零值时间(0001-01-01) 与 opportunities.expected_close_at 同罪 ——
 	// "还没定价到什么时候"和"公元 1 年就过期了"在聚合里读成同一个数。
 	// 时区：库里是 timestamptz，比较发生在读侧（T-P6-02/04），
-	// 本卡不写任何"按天取整"的表达式，因为那条路径要先经过
+	// 本处不写任何"按天取整"的表达式，因为那条路径要先经过
 	// check-date-bucket-tz 点名的显式时区处理。
 	ValidUntil *time.Time `json:"valid_until"`
 
@@ -164,7 +164,7 @@ type QuoteLineItem struct {
 func (QuoteLineItem) TableName() string { return "quote_line_items" }
 
 // QuoteStatuses 报价版本的生命周期值域，按序：draft → sent → {accepted, rejected}，
-// expired 是任何未收口状态的定时终局（判定权在 T-P6-02/03，本卡只定义词表）。
+// expired 是任何未收口状态的定时终局（判定权在 T-P6-02/03，本处只定义词表）。
 //
 // 不含 won/lost/paid：那三格分别属于商机与账单域，各有一处事实源（见结构体注释）。
 var QuoteStatuses = []string{

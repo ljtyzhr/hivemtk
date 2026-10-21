@@ -46,8 +46,8 @@ const paymentChannelRefConstraint = "uq_payments_channel_ref"
 // paymentChannelRefMaxLen 与 model.Payment.ChannelRef 的 varchar(128) 同宽。
 //
 // 为什么在这里判而不是交给库：超限的一次写入会被 PG 截断或报错（取决于版本与列型），
-// 而报错的方向是整条回调 500 ⇒ 渠道重试循环。判在边界上才能给出"是这一格太长"这句话。
-// 刻意**不校验字符集**：这一格只是幂等键，渠道给什么形状的单号都有，
+// 而报错的方向是整条回调 500 ⇒ 渠道重试循环。判在边界上才能给出"是这里太长"这句话。
+// 刻意**不校验字符集**：这里只是幂等键，渠道给什么形状的单号都有，
 // 自造白名单等于替所有平台赌一次它们的编号格式（回显进日志时由调用方用 %q 兜住）。
 const paymentChannelRefMaxLen = 128
 
@@ -217,7 +217,7 @@ func (r *paymentRepo) SumSettledByBill(ctx context.Context, billID string) (floa
 	}
 	statuses := model.PaymentStatusesCounted
 	if len(statuses) == 0 {
-		// 不是"不可能"：这一格与 model 的判据同源，值域被改空是一次真实的模型层改动，
+		// 不是"不可能"：这里与 model 的判据同源，值域被改空是一次真实的模型层改动，
 		// 而 `IN ()` 是 SQL 语法错。报一句人话比让 PG 报语法错便宜。
 		return 0, errors.New("payment repository: 计入结清的状态集为空（model.PaymentStatusesCounted 被改空了？）")
 	}

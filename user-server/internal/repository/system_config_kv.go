@@ -18,7 +18,7 @@ import (
 // 租户归属口径（与隔离 callback 互为冗余，故意显式写出）：
 //   - on 模式：ctx 没有租户绑定时一律返回 ErrKVTenantContextMissing，绝不回落
 //     默认租户——回落会把"漏绑中间件"变成静默写进/读错租户 1 的数据
-//   - off 模式：显式使用默认租户（1），与历史版本行为逐字节等价
+//   - off 模式：显式使用默认租户（1），与旧版本行为逐字节等价
 type SystemConfigKVRepository interface {
 	// Available 报告底层 DB 是否可用（nil 探测收敛到 repository 层）。
 	Available() bool

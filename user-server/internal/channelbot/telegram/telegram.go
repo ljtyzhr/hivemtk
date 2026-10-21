@@ -113,7 +113,7 @@ func NewTelegramClient(token string, opts ...core.ClientOption) *Client {
 	c.BaseClient = core.NewBaseClient(opts...)
 	// WithBaseURL 注入的测试/代理地址优先于默认 apiBase（与 qq 客户端保持一致）。
 	//
-	// 历史缺陷：本客户端曾完全不读 BaseClient.BaseURL，于是 core.WithBaseURL
+	// 缺陷：本客户端曾完全不读 BaseClient.BaseURL，于是 core.WithBaseURL
 	// 这个文档写着"用于测试或代理"的选项在此**静默失效** —— 调用方以为已改地址、
 	// 实际仍打 api.telegram.org。直接后果是 Telegram 群管控链路（telegram_gate.go）
 	// 无法在测试中指向 httptest 服务端，happy path 长期零覆盖。
@@ -1083,7 +1083,7 @@ func (u *Update) AnyMessage() *TGMessage {
 // accountID 必须进键：官方 update_id 与 message_id 都是**单个 bot 自己**的计数，而 message_hub
 // 唯一键是 (platform, msg_id, conversation_id) 不含账号 ⇒ 两个 bot 各自数到同一个号、
 // 又落在同一个会话（同一用户在两个 bot 的私聊里 chat id 就是他的 user id）时，
-// 第二条消息会被中台当重复事件跳过（实测：日志 "钩子2：msg_id 已存在，幂等跳过" +
+// 第二条消息会被中台当重复事件跳过（验证：日志 "钩子2：msg_id 已存在，幂等跳过" +
 // 媒体回填 record not found，客户的话整条蒸发）。与出站 telegramOutboundHubMsgID 同口径。
 func (u *Update) HubMsgID(accountID string) string {
 	if u.UpdateID != 0 {

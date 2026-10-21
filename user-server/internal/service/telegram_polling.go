@@ -43,7 +43,7 @@ type telegramPollingState struct {
 	// 路径（stopTelegramPollingLocked / StopTelegramPolling / StopAll）手里往往
 	// 只剩 accountID —— 关停时靠这里恢复租户 ctx，否则 TENANT_MODE=on 下释放锁
 	// 被隔离 callback fail-closed 拒绝，重启后要等 60s 心跳陈旧窗口才能再抢占。
-	// 0 = 未登记（off 模式或测试构造）：WithTenantID 原样返回，行为与历史版本等价。
+	// 0 = 未登记（off 模式或测试构造）：WithTenantID 原样返回，行为与旧版本等价。
 	tenantID uint
 }
 
@@ -115,7 +115,7 @@ func StartTelegramPolling(acc *model.TelegramAccount) {
 	// UPDATE，而 telegram_accounts 带 tenant_id 列 —— 账号行就在手上，直接按行租户
 	// 恢复 ctx。裸 context.Background() 在 TENANT_MODE=on 下会被隔离 callback
 	// fail-closed 拒绝（表现为抢锁失败 ⇒ polling 永不启动）。off 模式 acc.TenantID
-	// 常为 0，WithTenantID 原样返回，行为与历史版本等价。
+	// 常为 0，WithTenantID 原样返回，行为与旧版本等价。
 	lockCtx := tenant.WithTenantID(context.Background(), acc.TenantID)
 	acquired, owner, lastHB, lockErr := TryAcquirePollingLock(lockCtx, nil, acc.ID)
 	if lockErr != nil {

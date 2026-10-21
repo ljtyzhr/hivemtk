@@ -141,7 +141,7 @@ var followupResults = map[string]bool{
 
 // writeErr 把 service 写口错误翻译成 HTTP 状态码：
 // 不存在→404、已处理（状态守卫）→409、其余→500。用错误串匹配是因为
-// service 层沿用 fmt.Errorf 无哨兵错误（存量形态，本卡不改其签名）。
+// service 层沿用 fmt.Errorf 无哨兵错误（存量形态，本处不改其签名）。
 func writeErr(ctx *gin.Context, err error, action string) {
 	switch {
 	case strings.Contains(err.Error(), "不存在"):

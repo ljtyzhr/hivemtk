@@ -261,7 +261,7 @@ func (h *VisitorWSHandler) onConnect(client *Client, sinceSeq uint64, ctx contex
 	var rows []offlineRow
 	// 必须 WithContext(ctx)：on 模式 tenancyidx 从 ctx 取租户注入 WHERE tenant_id=?，
 	// 裸 h.db.Table(...) 不带 ctx ⇒ 隔离闸 fail-closed ⇒ 离线消息永远拉不到
-	// （2026-10-21 生产实测：访客 WS 连上后 offline 消息恒空）。
+	// （2026-10-21 生产验证：访客 WS 连上后 offline 消息恒空）。
 	if err := h.db.WithContext(ctx).Table("session_messages").
 		Select("id, session_id, content, sender_type, sender_name, ai_source, ai_confidence, created_at").
 		Where("session_id = ? AND sender_type IN ? AND delivered_at IS NULL",

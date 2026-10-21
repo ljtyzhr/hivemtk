@@ -4,7 +4,7 @@
 // **活对象**在用（`draft.ExpiresAt = now-1h` 之后直接调 ExpireOverdue、
 // `d1.Confidence = 0.5` 之后直接调 ListPending 断言排序）。这依赖"返回的指针就是
 // 存储里那份"。落 DB 之后对象必然是副本，这类写法一条都不成立。
-// 所以本卡的做法是：业务逻辑只走 draftStore 一条路，
+// 所以本处的做法是：业务逻辑只走 draftStore 一条路，
 //   - memoryDraftStore = 今天的行为，逐字保留（含指针别名），默认；
 //   - dbDraftStore     =  durable 底座，显式注入才启用（装配点在 T-P2-06）。
 //
@@ -315,7 +315,7 @@ func newDBDraftStore(repo repository.OrderDraftRepository) *dbDraftStore {
 // newDraftStoreForDB 按句柄选底座：拿到可用 DB 才走持久化，否则回内存并告警。
 //
 // 回退必须出声：静默回内存 = "以为重启后草稿还在、其实没了"，
-// 而这正是本卡开工前整个功能的实际状态（一句话都不说过）。
+// 而这正是本处开工前整个功能的实际状态（一句话都不说过）。
 func newDraftStoreForDB(db *gorm.DB) draftStore { //nolint:unused //// 仅被 *_test.go 引用，生产路径未用
 	if db == nil {
 		logger.Warnf("[order-draft] ⚠️ 未拿到 DB 句柄 ⇒ 草稿退回内存态（重启即丢、多副本各看各的）")

@@ -41,7 +41,7 @@ var (
 
 	// dingtalkOpenAPIBase 是钉钉 v1.0 开放接口的域名根（取凭证 + 机器人接收文件下载两条腿都拼它）。
 	// 必须是变量：这两条腿原先把主机名写死在调用点上，"HTTP 200 但 accessToken 为空"那一格
-	// 只能真打外网才碰得到 ⇒ 全仓零用例（批J 实测：既有下载用例是整条换掉 dtMediaFetchFn，
+	// 只能真打外网才碰得到 ⇒ 全仓零用例（批J 验证：既有下载用例是整条换掉 dtMediaFetchFn，
 	// 从没执行过这两个 URL 上的任何解析代码）。测试把它指向 httptest。
 	dingtalkOpenAPIBase = "https://api.dingtalk.com"
 )
