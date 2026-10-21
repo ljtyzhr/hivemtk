@@ -103,6 +103,14 @@
         >
           <template #default="{ row }">
             <el-button
+              v-if="row.status === 'pending_payment' && Number(row.total_amount_cents) > 0"
+              link
+              type="success"
+              @click="openPay(row)"
+            >
+              去支付
+            </el-button>
+            <el-button
               v-if="row.payment_guide"
               link
               type="primary"
@@ -123,6 +131,16 @@
         @current-change="fetch"
       />
     </el-card>
+
+    <!-- 收银台：与下单路径共用同一组件。关掉标签页后从订单页重新打开的就是它 -->
+    <CashierDialog
+      v-model="cashierVisible"
+      :order-no="cashierOrderNo"
+      :payment="cashierPayment"
+      :guide="cashierGuide"
+      :amount-cents="cashierAmountCents"
+      @paid="onCashierPaid"
+    />
 
     <el-dialog
       v-model="guideVisible"
@@ -147,9 +165,10 @@
 import { ref, onMounted, onBeforeUnmount, computed } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
-  listModuleOrders, paymentGuide, syncModules, fmtPrice,
+  listModuleOrders, paymentGuide, syncModules, fmtPrice, orderPayParams,
   ORDER_STATUS_LABEL
 } from '@/api/moduleMarket'
+import CashierDialog from '@/components/CashierDialog.vue'
 
 const STATUS_LABEL = ORDER_STATUS_LABEL
 const STATUS_TAG = {
@@ -250,6 +269,38 @@ async function fetch (silent = false) {
 function openGuide (row) {
   currentGuide.value = row.payment_guide || guide.value
   guideVisible.value = true
+}
+
+// ---- 在线收银台（关掉标签页后从订单页重开）----
+// 这一格存在的理由：下单响应里的 payment 段只活在内存里，用户关掉收银台就丢了。
+// 不补它，一张待支付订单在界面上只剩「付款指引」——本可在线完成的单被推回线下。
+const cashierVisible = ref(false)
+const cashierOrderNo = ref('')
+const cashierPayment = ref(null)
+const cashierGuide = ref('')
+const cashierAmountCents = ref(0)
+
+async function openPay (row) {
+  try {
+    const res = await orderPayParams(row.order_no)
+    if (!res?.payment?.pay_url) {
+      ElMessage.warning(res?.payment_guide || '在线支付暂不可用，请稍后重试或联系平台运营')
+      return
+    }
+    cashierOrderNo.value = res.order_no
+    cashierPayment.value = res.payment
+    cashierGuide.value = res?.payment_guide || ''
+    cashierAmountCents.value = Number(res?.total_amount_cents || row.total_amount_cents || 0)
+    cashierVisible.value = true
+  } catch (e) {
+    ElMessage.error(e?.message || '获取支付参数失败')
+  }
+}
+
+// 支付确认：状态机迁移由下面的 fetch 比对上一轮状态，这里只做一次即时反馈
+function onCashierPaid () {
+  ElMessage.success('支付成功！权益开通中。')
+  refreshGrantState(true)
 }
 
 function parseItems (row) {

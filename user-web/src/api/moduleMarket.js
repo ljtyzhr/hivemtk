@@ -3,9 +3,10 @@ import { http } from '@/utils/request';
 // ============================================================
 // 功能模块市场（用户端）
 //
-// 对标 assetMarket.js 的交互形态（分组筛选 + 卡片网格 + 一键下单），
-// 关键差别：这里**没有"立即到账"**。一期没有支付通道，提交订单后必须
-// 联系运营线下付款，所以每个入口都要带出付款指引，而不是让人点了就以为买到了。
+// 对标 assetMarket.js 的交互形态（分组筛选 + 卡片网格 + 一键下单）。
+// 主路径是在线收银台（易支付）：下单响应带 payment 段就直接跳收银台，
+// 支付成功权益自动开通。payment 段为空（平台关通道 / 生成失败）才是例外 ——
+// 此时回落 payment_guide 线下指引，那是零代码回滚路径，不是常规流程。
 // ============================================================
 
 // ── 市场浏览（public 档：未登录也能逛）──────────────────────────────
@@ -40,6 +41,11 @@ export const moduleOrderDetail = (orderNo) =>
 // 支付状态直查（003 T018）：比 10 分钟 sync 快，收银台轮询用
 export const orderPayStatus = (orderNo, config) =>
   http.get(`/api/module-market/orders/${encodeURIComponent(orderNo)}/pay-status`, undefined, config);
+
+// 「去支付」：给已下的待支付订单重新取一次支付参数，收银台关掉后可重开。
+// 平台按 out_trade_no 现算参数，不会产生第二张订单。
+export const orderPayParams = (orderNo) =>
+  http.post(`/api/module-market/orders/${encodeURIComponent(orderNo)}/pay`);
 
 // ── 订阅状态与续费（003 T018/T022）────────────────────────────────
 //

@@ -9,6 +9,7 @@ import (
 	"hivemtk-user/internal/config"
 	bizerr "hivemtk-user/internal/domain/errors"
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/platform"
 	"hivemtk-user/internal/repository"
 
@@ -198,6 +199,8 @@ func (s *LLMWalletService) CreateOrder(ctx context.Context, in LLMOrderInput) (*
 		// 本套餐入的是**本租户**的钱包。取不到租户归属时为空（omitempty 不上行），
 		// 平台按旧行为兜底。
 		TenantCode: currentTenantCode(ctx),
+		// 买家终端 IP（mapi clientip，口径同模块/续费单）。
+		ClientIP: platform.ClientIPFromContext(ctx),
 	})
 	if err != nil {
 		return nil, bizerr.Wrap(bizerr.CodeModulePlatformUnavail, "提交订单失败（平台不可达）", err)
@@ -213,13 +216,24 @@ func (s *LLMWalletService) CreateOrder(ctx context.Context, in LLMOrderInput) (*
 		if g, gerr := platform.NewModuleClient().PaymentGuide(ctx); gerr == nil {
 			guide = g
 		} else {
-			guide = "订单已提交，请联系平台运营完成付款；付款确认后余额自动入账。"
+			guide = "订单已提交，请按付款指引完成付款；付款确认后余额自动入账。"
 		}
+	}
+	// 本地订单镜像（与订阅续费同口径）：订单页可见、可「去支付」重开收银台。
+	// 不落镜像时用户关掉收银台就再也找不到这笔单，只能重新下单。
+	items, _ := json.Marshal(res.Items)
+	if err := NewModuleCatalogService().order.Upsert(ctx, &model.ModuleOrder{
+		OrderNo: res.OrderNo, ClientOrderNo: clientNo,
+		OrderType: "llm", Status: res.Status,
+		TotalAmountCents: res.TotalCents, Currency: "CNY",
+		Items: string(items), PaymentGuide: guide,
+	}); err != nil {
+		logger.Warnf("[llm] 套餐订单镜像落库失败（不影响下单结果）: %v", err)
 	}
 	return &LLMOrderResult{
 		OrderNo: res.OrderNo, Status: res.Status,
 		TotalCents: res.TotalCents, PaymentGuide: guide,
-		Payment: res.Payment,
+		Duplicate: res.Duplicate, Payment: res.Payment,
 	}, nil
 }
 

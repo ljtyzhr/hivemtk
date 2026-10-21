@@ -66,6 +66,15 @@ func setupTenantCodeStub(t *testing.T) *tenantCodeCaptures {
 					"order_no": "SUB-TENANT-CODE-1", "status": "pending_payment",
 					"total_amount_cents": 14900, "items": []any{},
 					"payment_guide": "联系运营付款",
+					// 平台通道就绪时下发的支付参数段（003 T018）：
+					// 模块/订阅/LLM 三条下单链路都必须原样透传，否则前端只能
+					// 回落到"加微信/联系运营"——本期明确要废弃的旧流程。
+					"payment": map[string]any{
+						"gateway_url": "https://pay.example.com",
+						"pay_url":     "https://pay.example.com/submit.php",
+						"params":      map[string]string{"pid": "1295", "sign": "x"},
+						"method":      "POST",
+					},
 				}})
 				return
 			}

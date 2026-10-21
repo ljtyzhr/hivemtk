@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"net/http"
 	"strings"
 	"time"
 
@@ -24,6 +25,10 @@ var (
 	ErrModuleAlreadyOwned  = errors.New("模块已开通")
 	ErrModuleOrderNoClient = errors.New("缺少订单幂等键")
 	ErrNoContactForPayment = errors.New("请填写联系方式（平台运营需要据此联系你完成线下付款）")
+	// ErrOrderNotPayable 这张订单当前不需要、也不允许再发起在线支付
+	// （已支付 / 已关闭 / 0 元直通）。单独 sentinel 的理由：处置动作是
+	// 「刷新订单页看状态」，不是「改参数重试」—— 报成参数错误会让人反复重试。
+	ErrOrderNotPayable = bizerr.New(bizerr.CodeParamInvalid, "该订单当前无需在线支付")
 )
 
 // ModuleMarketItem 市场卡片项
@@ -261,6 +266,9 @@ func (s *ModuleCatalogService) CreateOrder(ctx context.Context, in MarketOrderIn
 		ContactPhone: in.ContactPhone,
 		ContactEmail: in.ContactEmail,
 		Remark:       in.Remark,
+		// 买家终端 IP：平台侧 mapi 下单把它当 clientip 必填项（网关拒环回地址）。
+		// 没有它，平台只能拿"用户端服务器的 IP"去下单。
+		ClientIP: platform.ClientIPFromContext(ctx),
 	})
 	if err != nil {
 		return nil, bizerr.Wrap(bizerr.CodePlatformUnavail, "提交订单失败（平台不可达）", err)
@@ -299,6 +307,68 @@ func (s *ModuleCatalogService) CreateOrder(ctx context.Context, in MarketOrderIn
 		OrderNo: res.OrderNo, Status: res.Status, TotalCents: res.TotalCents,
 		Items: res.Items, PaymentGuide: guide, Payment: res.Payment,
 		PlatformEnabled: true,
+	}, nil
+}
+
+// PayOrder 为**已下的**待支付订单重新申请在线支付参数（订单页「去支付」）。
+//
+// 下单只在 CreateOrder 那一刻挂 payment 段；用户关掉收银台标签页后，订单页只剩
+// 付款指引（联系运营），一条本可在线完成的订单被退回线下。本方法把同一张订单
+// 再交给平台现算一次参数 —— 平台按 out_trade_no 认单，不会产生第二张订单。
+//
+// 本地镜像只用来挡"这单根本不需要再付"（已支付 / 0 元直通）；镜像缺失（老订单、
+// 或某类订单没落镜像）不阻断，交给平台按订单状态与通道配置做权威判定。
+func (s *ModuleCatalogService) PayOrder(ctx context.Context, orderNo string) (*MarketOrderResult, error) {
+	if !config.PlatformEnabled() {
+		return nil, ErrPlatformUnavailable
+	}
+	orderNo = strings.TrimSpace(orderNo)
+	if orderNo == "" {
+		return nil, bizerr.New(bizerr.CodeParamInvalid, "订单号不能为空")
+	}
+	if local, err := s.order.GetByOrderNo(ctx, orderNo); err == nil && local != nil {
+		if local.Status != model.ModuleOrderPendingPayment || local.TotalAmountCents <= 0 {
+			return nil, ErrOrderNotPayable
+		}
+	}
+	res, err := platform.NewModuleClient().CreateOrderPayment(ctx, orderNo)
+	if err != nil {
+		// 平台把"这单为什么付不了"放在 msg 里（非待支付 / 0 元 / 通道未配置 /
+		// 无权操作）。原样透出才看得懂：包成「平台不可达」会把一个状态问题
+		// 说成网络问题，让人反复重试同一张已经付过的单。
+		var pe *platform.PlatformError
+		if errors.As(err, &pe) {
+			code := bizerr.CodeModulePlatformUnavail
+			switch pe.StatusCode {
+			case http.StatusBadRequest:
+				code = bizerr.CodeParamInvalid
+			case http.StatusUnauthorized:
+				code = bizerr.CodeUnauthorized
+			case http.StatusForbidden:
+				code = bizerr.CodeForbidden
+			case http.StatusNotFound:
+				code = bizerr.CodeNotFound
+			}
+			msg := pe.Msg()
+			if strings.TrimSpace(msg) == "" {
+				msg = "获取支付参数失败，请稍后重试或联系平台运营"
+			}
+			return nil, bizerr.New(code, msg)
+		}
+		return nil, bizerr.Wrap(bizerr.CodeModulePlatformUnavail, "获取支付参数失败（平台不可达）", err)
+	}
+	guide := res.PaymentGuide
+	if strings.TrimSpace(guide) == "" {
+		if g, gerr := platform.NewModuleClient().PaymentGuide(ctx); gerr == nil {
+			guide = g
+		} else {
+			guide = "订单已提交，请联系平台运营完成付款；付款确认后权益自动开通。"
+		}
+	}
+	return &MarketOrderResult{
+		OrderNo: res.OrderNo, Status: res.Status, TotalCents: res.TotalCents,
+		Items: res.Items, PaymentGuide: guide, Payment: res.Payment,
+		Duplicate: res.Duplicate, PlatformEnabled: true,
 	}, nil
 }
 

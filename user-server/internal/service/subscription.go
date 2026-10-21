@@ -220,6 +220,7 @@ func (s *SubscriptionMirrorService) Renew(ctx context.Context, clientOrderNo, co
 		ContactPhone: contactPhone,
 		ContactEmail: contactEmail,
 		Remark:       remark,
+		ClientIP:     platform.ClientIPFromContext(ctx),
 	})
 	if err != nil {
 		return nil, bizerr.Wrap(bizerr.CodePlatformUnavail, "续费下单失败（平台不可达）", err)

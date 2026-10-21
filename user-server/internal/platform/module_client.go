@@ -167,6 +167,25 @@ func NewModuleClient() *ModuleClient {
 	return &ModuleClient{client: NewPlatformClient(key)}
 }
 
+type clientIPCtxKey struct{}
+
+// WithClientIP 把本次请求的终端 IP 放进 ctx，供下单/取支付参数的调用链透传给平台。
+func WithClientIP(ctx context.Context, ip string) context.Context {
+	if strings.TrimSpace(ip) == "" {
+		return ctx
+	}
+	return context.WithValue(ctx, clientIPCtxKey{}, strings.TrimSpace(ip))
+}
+
+// ClientIPFromContext 读终端 IP；没有（后台任务/off 模式）返回空串。
+func ClientIPFromContext(ctx context.Context) string {
+	if ctx == nil {
+		return ""
+	}
+	s, _ := ctx.Value(clientIPCtxKey{}).(string)
+	return strings.TrimSpace(s)
+}
+
 // do 执行一次平台请求并解出 data
 func (c *ModuleClient) do(method, path string, req any, out any) error {
 	var env struct {
@@ -229,6 +248,10 @@ type CreateOrderInput struct {
 	ContactPhone  string                     `json:"contact_phone"`
 	ContactEmail  string                     `json:"contact_email"`
 	Remark        string                     `json:"remark"`
+	// ClientIP 发起下单的终端 IP。平台侧 mapi（易支付 API 下单口）把它当
+	// clientip 必填项；这份值在请求体里**被 HMAC 签名覆盖**，伪造即验签失败。
+	// 取不到（后台任务无请求上下文）时空串不上行，平台回落自己看到的来源。
+	ClientIP string `json:"clientip,omitempty"`
 	// TenantCode 当前租户短码（平台端按 (merchant_key, tenant_code) 归属订单行）。
 	// 订阅类订单（order_type=subscription，用户端续费 Renew）与 LLM 套餐订单
 	// （order_type=llm）必带；模块等其余类型暂不强填（空值 omitempty 不上行，
@@ -241,6 +264,26 @@ type CreateOrderInput struct {
 func (c *ModuleClient) CreateOrder(ctx context.Context, in CreateOrderInput) (*ModuleOrderResult, error) {
 	var out ModuleOrderResult
 	if err := c.do("POST", "/merchant-api/orders", in, &out); err != nil {
+		return nil, err
+	}
+	return &out, nil
+}
+
+// CreateOrderPayment 给**已下的**待支付订单重新申请在线支付参数（订单页「去支付」）。
+//
+// 与 CreateOrder 是同一条平台腿（attachEpayPayment），只是把"下单"换成"这单还要付"。
+// 没有它，用户关掉收银台标签页之后订单页只剩付款指引（联系运营），一张本可在线
+// 完成的订单只能退回线下。平台侧按 out_trade_no 现算参数，不产生第二张订单；
+// 非待支付 / 0 元 / 通道未配置会以 HTTP 非 200 返回，由调用方映射提示。
+func (c *ModuleClient) CreateOrderPayment(ctx context.Context, orderNo string) (*ModuleOrderResult, error) {
+	var out ModuleOrderResult
+	path := "/merchant-api/orders/" + url.PathEscape(orderNo) + "/pay"
+	// body 带上买家终端 IP（签名覆盖）：取支付参数和下单是同一条 mapi 腿，
+	// 同样要 clientip。没有它平台只能用自己看到的来源（用户端服务器 IP）。
+	body := struct {
+		ClientIP string `json:"clientip,omitempty"`
+	}{ClientIP: ClientIPFromContext(ctx)}
+	if err := c.do("POST", path, body, &out); err != nil {
 		return nil, err
 	}
 	return &out, nil

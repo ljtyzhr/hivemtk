@@ -54,6 +54,9 @@ func setupModuleRoutes(public, auth, tenantAdmin, systemAdmin *gin.RouterGroup) 
 		auth.GET("/module-market/orders/:order_no", ctrl.OrderDetail)
 		// 支付状态直查（003 T018）：比 10 分钟 sync 快，收银台轮询用
 		auth.GET("/module-market/orders/:order_no/pay-status", ctrl.PayStatus)
+		// 「去支付」（003 收银台补口）：关掉收银台标签页后，订单页要能重新取
+		// 支付参数开收银台，否则该单只剩付款指引一条线
+		auth.POST("/module-market/orders/:order_no/pay", ctrl.PayOrder)
 		auth.GET("/modules/my", ctrl.MyModules)
 		auth.POST("/modules/sync", ctrl.Sync)
 		auth.GET("/llm/wallet", ctrl.LLMWallet)

@@ -66,7 +66,7 @@ func (c *SubscriptionController) Renew(ctx *gin.Context) {
 		response.Error(ctx, 400, "参数错误: "+err.Error())
 		return
 	}
-	res, err := c.svc.Renew(ctx.Request.Context(),
+	res, err := c.svc.Renew(withBuyerIP(ctx),
 		in.ClientOrderNo, in.ContactName, in.ContactPhone, in.ContactEmail, in.Remark)
 	if err != nil {
 		subscriptionFail(ctx, err)

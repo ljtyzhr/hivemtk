@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"strconv"
@@ -11,6 +12,7 @@ import (
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/pkg/utils/response"
+	"hivemtk-user/internal/platform"
 	"hivemtk-user/internal/service"
 )
 
@@ -98,6 +100,13 @@ func (c *ModuleMarketController) Detail(ctx *gin.Context) {
 	response.Success(ctx, d, "ok")
 }
 
+// withBuyerIP 把本次请求的买家终端 IP 放进 ctx。
+// 平台侧 mapi（易支付 API 下单口）把 clientip 当必填项，且网关拒环回地址；
+// 取不到它，平台只能拿"用户端服务器的 IP"去下单。
+func withBuyerIP(ctx *gin.Context) context.Context {
+	return platform.WithClientIP(ctx.Request.Context(), ctx.ClientIP())
+}
+
 // CreateOrder POST /api/module-market/order
 func (c *ModuleMarketController) CreateOrder(ctx *gin.Context) {
 	var in service.MarketOrderInput
@@ -105,12 +114,12 @@ func (c *ModuleMarketController) CreateOrder(ctx *gin.Context) {
 		response.Error(ctx, http.StatusBadRequest, "参数错误: "+err.Error())
 		return
 	}
-	res, err := c.svc().CreateOrder(ctx.Request.Context(), in)
+	res, err := c.svc().CreateOrder(withBuyerIP(ctx), in)
 	if err != nil {
 		moduleMarketFail(ctx, err)
 		return
 	}
-	response.Success(ctx, res, "订单已提交，请联系平台运营完成付款")
+	response.Success(ctx, res, "订单已提交，请完成支付")
 }
 
 // Orders GET /api/module-market/orders
@@ -150,6 +159,25 @@ func (c *ModuleMarketController) PayStatus(ctx *gin.Context) {
 		"status":   status,
 		"paid":     status == model.ModuleOrderPaid || status == model.ModuleOrderFulfilled,
 	}, "ok")
+}
+
+// PayOrder POST /api/module-market/orders/:order_no/pay
+//
+// 订单页「去支付」：给已下的待支付订单重新取一次在线支付参数，前端拿 payment 段
+// 直接开收银台。与下单是平台同一条腿，所以这里不再要求联系方式 ——
+// 在线支付本来就不该先加好友。
+func (c *ModuleMarketController) PayOrder(ctx *gin.Context) {
+	res, err := c.svc().PayOrder(withBuyerIP(ctx), ctx.Param("order_no"))
+	if err != nil {
+		moduleMarketFail(ctx, err)
+		return
+	}
+	if res.Payment == nil || res.Payment.PayURL == "" {
+		response.ErrorWithBusinessCode(ctx, bizerr.CodeInternal,
+			"在线支付暂不可用，请稍后重试或联系平台运营", gin.H{})
+		return
+	}
+	response.Success(ctx, res, "ok")
 }
 
 // MyModules GET /api/modules/my

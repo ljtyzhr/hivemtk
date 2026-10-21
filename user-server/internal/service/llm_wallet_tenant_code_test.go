@@ -42,6 +42,11 @@ func TestLLMOrderCarriesTenantCode(t *testing.T) {
 	if res.OrderNo == "" {
 		t.Fatalf("下单未走通平台: %+v", res)
 	}
+	// 在线支付参数必须透传：平台已下发 payment 段时前端要直接开收银台，
+	// 不能再回落"联系运营/加微信"的线下指引。
+	if res.Payment == nil || res.Payment.PayURL == "" {
+		t.Fatalf("LLM 下单必须透传平台 payment 段，实际 %+v", res.Payment)
+	}
 
 	var body struct {
 		TenantCode    string `json:"tenant_code"`

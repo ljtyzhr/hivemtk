@@ -101,12 +101,12 @@ func (c *ModuleMarketController) CreateLLMOrder(ctx *gin.Context) {
 		response.Error(ctx, http.StatusBadRequest, "参数错误: "+err.Error())
 		return
 	}
-	res, err := service.NewLLMWalletService().CreateOrder(ctx.Request.Context(), in)
+	res, err := service.NewLLMWalletService().CreateOrder(withBuyerIP(ctx), in)
 	if err != nil {
 		moduleMarketFail(ctx, err)
 		return
 	}
-	response.Success(ctx, res, "订单已提交，请联系平台运营完成付款；付款确认后余额自动入账")
+	response.Success(ctx, res, "订单已提交，请完成支付；支付成功后余额自动入账")
 }
 
 var _ = platform.ModuleSnapshot{}
