@@ -44,20 +44,31 @@ func (r *geoConfigRepo) Update(ctx context.Context, config *model.GeoConfig) err
 	db := r.db.WithContext(ctx)
 	var existing model.GeoConfig
 	err := db.First(&existing).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return db.Create(config).Error
+	}
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return db.Create(config).Error
-		}
 		return err
 	}
 	config.ID = existing.ID
-	return db.Save(config).Error
+	// 不用 Save：并发删除后 Save 会把整行重新 INSERT（复活已删配置），且命中 0 行
+	// 时无法与「不存在」区分。
+	res := db.Model(&model.GeoConfig{}).Where("id = ?", existing.ID).
+		Select("brand_name", "brand_description", "advantages", "competitors", "domain",
+			"language", "default_model", "verify_models", "negative_keywords", "cron_specs").
+		Updates(config)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 // GeoPlatformAccountRepository GEO 平台账号仓储接口
 type GeoPlatformAccountRepository interface {
 	Create(ctx context.Context, account *model.GeoPlatformAccount) error
-	GetByID(ctx context.Context, id string) (*model.GeoPlatformAccount, error)
 	GetByPlatformAndName(ctx context.Context, platform, accountName string) (*model.GeoPlatformAccount, error)
 	GetLatestByPlatform(ctx context.Context, platform string) (*model.GeoPlatformAccount, error)
 	GetList(ctx context.Context, platform string, page, limit int) ([]*model.GeoPlatformAccount, int64, error)
@@ -76,12 +87,6 @@ func NewGeoPlatformAccountRepositoryWithDB(db *gorm.DB) GeoPlatformAccountReposi
 
 func (r *geoPlatformAccountRepo) Create(ctx context.Context, account *model.GeoPlatformAccount) error {
 	return r.db.WithContext(ctx).Create(account).Error
-}
-
-func (r *geoPlatformAccountRepo) GetByID(ctx context.Context, id string) (*model.GeoPlatformAccount, error) {
-	var account model.GeoPlatformAccount
-	err := r.db.WithContext(ctx).Where("id = ?", id).First(&account).Error
-	return &account, err
 }
 
 func (r *geoPlatformAccountRepo) GetByPlatformAndName(ctx context.Context, platform, accountName string) (*model.GeoPlatformAccount, error) {
@@ -119,19 +124,35 @@ func (r *geoPlatformAccountRepo) GetList(ctx context.Context, platform string, p
 }
 
 func (r *geoPlatformAccountRepo) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&model.GeoPlatformAccount{}).Error
+	res := r.db.WithContext(ctx).Where("id = ?", id).Delete(&model.GeoPlatformAccount{})
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 func (r *geoPlatformAccountRepo) Update(ctx context.Context, account *model.GeoPlatformAccount) error {
-	return r.db.WithContext(ctx).Save(account).Error
+	// 不用 Save：已删除账号会被重新 INSERT，且命中 0 行时无法区分跨租户/不存在。
+	res := r.db.WithContext(ctx).Model(&model.GeoPlatformAccount{}).
+		Where("id = ?", account.ID).
+		Select("platform", "account_id", "account_name", "status", "config").
+		Updates(account)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 // GeoPublishRecordRepository GEO 发布记录仓储接口
 type GeoPublishRecordRepository interface {
 	Create(ctx context.Context, record *model.GeoPublishRecord) error
-	GetByID(ctx context.Context, id string) (*model.GeoPublishRecord, error)
 	GetList(ctx context.Context, articleID, platform string, page, limit int) ([]*model.GeoPublishRecord, int64, error)
-	Update(ctx context.Context, record *model.GeoPublishRecord) error
 }
 
 type geoPublishRecordRepo struct {
@@ -145,12 +166,6 @@ func NewGeoPublishRecordRepositoryWithDB(db *gorm.DB) GeoPublishRecordRepository
 
 func (r *geoPublishRecordRepo) Create(ctx context.Context, record *model.GeoPublishRecord) error {
 	return r.db.WithContext(ctx).Create(record).Error
-}
-
-func (r *geoPublishRecordRepo) GetByID(ctx context.Context, id string) (*model.GeoPublishRecord, error) {
-	var record model.GeoPublishRecord
-	err := r.db.WithContext(ctx).Where("id = ?", id).First(&record).Error
-	return &record, err
 }
 
 func (r *geoPublishRecordRepo) GetList(ctx context.Context, articleID, platform string, page, limit int) ([]*model.GeoPublishRecord, int64, error) {
@@ -174,8 +189,4 @@ func (r *geoPublishRecordRepo) GetList(ctx context.Context, articleID, platform 
 
 	err = query.Offset(offset).Limit(limit).Order("created_at DESC").Find(&records).Error
 	return records, total, err
-}
-
-func (r *geoPublishRecordRepo) Update(ctx context.Context, record *model.GeoPublishRecord) error {
-	return r.db.WithContext(ctx).Save(record).Error
 }

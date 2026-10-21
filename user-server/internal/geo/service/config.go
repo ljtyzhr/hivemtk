@@ -42,6 +42,9 @@ func (s *ConfigService) GetConfig(ctx context.Context) (*model.GeoConfig, error)
 func (s *ConfigService) UpdateConfig(ctx context.Context, brand, brandDescription, advantages string, competitors []string, domain, defaultModel string, verifyModels []string, negativeKeywords []string) error {
 	existing, err := s.configRepo.Get(ctx)
 	if err != nil {
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			return err
+		}
 		existing = &model.GeoConfig{Language: "zh"}
 	}
 	if brand != "" {
