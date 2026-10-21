@@ -4,10 +4,13 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"fmt"
+	"strings"
 	"sync"
 
 	"hivemtk-user/internal/geo/model"
 	"hivemtk-user/internal/geo/repository"
+	"hivemtk-user/internal/pkg/tenant"
 
 	"gorm.io/gorm"
 )
@@ -46,12 +49,20 @@ func globalDict() *DictService {
 	return globalDictService
 }
 
-func dictCacheKey(category, key string) string { return category + "\x00" + key }
+// dictCacheKey 缓存键必须带租户：字典是租户表，同名 category/key 在不同租户
+// 可以是不同的值；不带租户会让进程内缓存把 A 租户的配置发给 B 租户。
+func dictCacheKey(ctx context.Context, category, key string) string {
+	tenantID := tenant.DefaultTenantID
+	if id, ok := tenant.FromContext(ctx); ok {
+		tenantID = id
+	}
+	return fmt.Sprintf("%d\x00%s\x00%s", tenantID, category, key)
+}
 
 // GetString 取字典值；DB 无行则播种 fallback 行（best-effort）后返回 fallback；
 // DB 故障直接返回 fallback（fail-open，保证业务不断）。
 func (s *DictService) GetString(ctx context.Context, category, key, fallback string) string {
-	ck := dictCacheKey(category, key)
+	ck := dictCacheKey(ctx, category, key)
 	if v, ok := dictCache.Load(ck); ok {
 		if str, ok := v.(string); ok {
 			return str
@@ -97,7 +108,7 @@ func (s *DictService) Set(ctx context.Context, category, key, value, remark stri
 	}); err != nil {
 		return err
 	}
-	dictCache.Delete(dictCacheKey(category, key))
+	dictCache.Delete(dictCacheKey(ctx, category, key))
 	return nil
 }
 
@@ -111,24 +122,30 @@ func (s *DictService) Delete(ctx context.Context, category, key string) error {
 	if err := s.repo.Delete(ctx, category, key); err != nil {
 		return err
 	}
-	dictCache.Delete(dictCacheKey(category, key))
+	dictCache.Delete(dictCacheKey(ctx, category, key))
 	return nil
 }
 
-// DictValue 包级便捷函数：各 Service 零 DI 成本读取字典（DB 优先 + 自动播种 + fail-open）。
-// 判读：这里传的 context.Background() 到不了隔离 callback —— GeoDictRepository 的
-// GetAny/Upsert 没有 ctx 形参（隐式 Background 下发），所以本行不是租户触点，
-// 本轮不动；"geo_dicts 是租户表而仓储层无 ctx" 属仓储层残留，另行处理。
-func DictValue(category, key, fallback string) string {
-	return globalDict().GetString(context.Background(), category, key, fallback)
+// DictValue 带调用方 ctx 读取字典（DB 优先 + 自动播种 + fail-open）。
+// ctx 必须带租户：否则 on 模式读不到本租户的值（fail-open 成缺省值）、
+// 缺行播种也写不进去。
+func DictValue(ctx context.Context, category, key, fallback string) string {
+	return globalDict().GetString(ctx, category, key, fallback)
 }
 
-// DictJSON 包级便捷函数：读取字典 JSON 值到 out。
-func DictJSON(category, key, fallback string, out any) error {
-	return globalDict().GetJSON(context.Background(), category, key, fallback, out)
+// DictJSON 带调用方 ctx 读取字典 JSON 值到 out。
+func DictJSON(ctx context.Context, category, key, fallback string, out any) error {
+	return globalDict().GetJSON(ctx, category, key, fallback, out)
 }
 
-// DictInvalidate 失效共享缓存（测试/运维用；直改库后的补偿入口，正常写路径走 Set）
+// DictInvalidate 失效共享缓存（测试/运维用；直改库后的补偿入口，正常写路径走 Set）。
+// 不带租户：把所有租户下同 category/key 的缓存一并清掉，宁多清不漏清。
 func DictInvalidate(category, key string) {
-	dictCache.Delete(dictCacheKey(category, key))
+	suffix := "\x00" + category + "\x00" + key
+	dictCache.Range(func(k, _ any) bool {
+		if s, ok := k.(string); ok && strings.HasSuffix(s, suffix) {
+			dictCache.Delete(k)
+		}
+		return true
+	})
 }

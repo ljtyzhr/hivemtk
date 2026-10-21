@@ -65,9 +65,9 @@ func defaultPlatformMetasJSON() string {
 // PlatformMetas 返回所有平台的元信息表：
 // DB 优先（geo_dicts/platform_metas.table），缺行自动播种；
 // DB 故障或空表时 fail-open 回内置表。
-func PlatformMetas() map[string]PlatformMeta {
+func PlatformMetas(ctx context.Context) map[string]PlatformMeta {
 	var m map[string]PlatformMeta
-	if err := DictJSON(model.DictCategoryPlatformMetas, "table", defaultPlatformMetasJSON(), &m); err != nil || len(m) == 0 {
+	if err := DictJSON(ctx, model.DictCategoryPlatformMetas, "table", defaultPlatformMetasJSON(), &m); err != nil || len(m) == 0 {
 		return defaultPlatformMetas()
 	}
 	return m
@@ -79,12 +79,12 @@ type AdaptedContent struct {
 	Body  string `json:"body"`
 }
 
-// ContentAdapter 将通用文章适配成某平台的格式
-type ContentAdapter func(article *model.GeoArticle, platform string) AdaptedContent
+// ContentAdapter 将通用文章适配成某平台的格式；ctx 用于读取租户级平台字典
+type ContentAdapter func(ctx context.Context, article *model.GeoArticle, platform string) AdaptedContent
 
 // DefaultContentAdapter 默认适配器：按平台限制截断标题、保留正文 Markdown
-func DefaultContentAdapter(article *model.GeoArticle, platform string) AdaptedContent {
-	meta := PlatformMetas()[platform]
+func DefaultContentAdapter(ctx context.Context, article *model.GeoArticle, platform string) AdaptedContent {
+	meta := PlatformMetas(ctx)[platform]
 	title := article.Title
 	body := article.Content
 	if meta.MaxTitleLen > 0 && len([]rune(title)) > meta.MaxTitleLen {
@@ -215,7 +215,7 @@ func (p *PublishPipeline) publishOne(ctx context.Context, article *model.GeoArti
 		return PublishResult{Platform: platform, Status: "skipped", Message: "no publisher registered"}
 	}
 	adapter := p.adapters[0]
-	content := adapter(article, platform)
+	content := adapter(ctx, article, platform)
 
 	account, err := p.accountRepo.GetLatestByPlatform(ctx, platform)
 	if err != nil {

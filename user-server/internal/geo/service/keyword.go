@@ -42,9 +42,9 @@ func defaultKeywordWordbanksJSON() string {
 
 // activeKeywordWordbanks DB 优先读取组合词库（geo_dicts/keyword_wordbanks.banks），
 // 缺行自动播种；DB 故障或空表时 fail-open 回内置词库。
-func activeKeywordWordbanks() map[string][]string {
+func activeKeywordWordbanks(ctx context.Context) map[string][]string {
 	var m map[string][]string
-	if err := DictJSON(model.DictCategoryKeywordWordbanks, "banks", defaultKeywordWordbanksJSON(), &m); err != nil || len(m) == 0 {
+	if err := DictJSON(ctx, model.DictCategoryKeywordWordbanks, "banks", defaultKeywordWordbanksJSON(), &m); err != nil || len(m) == 0 {
 		return defaultKeywordWordbanks()
 	}
 	return m
@@ -82,7 +82,7 @@ type minedKeyword struct {
 //   - llm：LLM 生成，LLM 不可用时降级为词库组合，保证链路不中断；
 //   - mixed/longtail：LLM 生成，同样具备降级兜底。
 func (s *KeywordService) MineKeywords(ctx context.Context, seedWords []string, mode string, brandName string, advantages []string) ([]*model.GeoKeyword, error) {
-	baseKeywords := generateKeywordCombinations(seedWords)
+	baseKeywords := generateKeywordCombinations(ctx, seedWords)
 
 	var keywords []*minedKeyword
 	if mode == "combination" {
@@ -93,9 +93,9 @@ func (s *KeywordService) MineKeywords(ctx context.Context, seedWords []string, m
 
 		var prompt string
 		if mode == "longtail" {
-			prompt = KeywordPolishPrompt(brandName, KeywordsToJSON(baseKeywords))
+			prompt = KeywordPolishPrompt(ctx, brandName, KeywordsToJSON(baseKeywords))
 		} else {
-			prompt = KeywordMiningPrompt(brandName, advantagesStr, seedWordsJSON)
+			prompt = KeywordMiningPrompt(ctx, brandName, advantagesStr, seedWordsJSON)
 		}
 
 		resp, err := s.llm.GenerateJSON(ctx, "", prompt, 8000)
@@ -230,8 +230,8 @@ func truncateForLog(s string, n int) string {
 	return string(r[:n]) + "…"
 }
 
-func generateKeywordCombinations(seedWords []string) []string {
-	wordbanks := activeKeywordWordbanks()
+func generateKeywordCombinations(ctx context.Context, seedWords []string) []string {
+	wordbanks := activeKeywordWordbanks(ctx)
 	if len(seedWords) > 0 {
 		wordbanks["C主词"] = append(wordbanks["C主词"], seedWords...)
 	}
@@ -318,7 +318,7 @@ func (s *KeywordService) SemanticExpand(ctx context.Context, keywords []string, 
 		keywordsToExpand = keywordsToExpand[:50]
 	}
 	keywordsJSON := KeywordsToJSON(keywordsToExpand)
-	prompt := SemanticExpandPrompt(brandName, keywordsJSON)
+	prompt := SemanticExpandPrompt(ctx, brandName, keywordsJSON)
 
 	resp, err := s.llm.GenerateJSON(ctx, "", prompt, 8000)
 	if err != nil {
@@ -418,7 +418,7 @@ func (s *KeywordService) TopicCluster(ctx context.Context, keywords []string, br
 		keywordsToCluster = keywordsToCluster[:100]
 	}
 	keywordsJSON := KeywordsToJSON(keywordsToCluster)
-	prompt := TopicClusterPrompt(brandName, keywordsJSON)
+	prompt := TopicClusterPrompt(ctx, brandName, keywordsJSON)
 
 	resp, err := s.llm.GenerateJSON(ctx, "", prompt, 8000)
 	if err != nil {
@@ -493,7 +493,7 @@ func (s *KeywordService) recordAPICall(ctx context.Context, resp *LLMResult, pur
 	if s.apiCallRepo == nil || resp == nil {
 		return
 	}
-	costUSD, costCNY := EstimateCostUSD(resp.Model, resp.InputTokens, resp.OutputTokens)
+	costUSD, costCNY := EstimateCostUSD(ctx, resp.Model, resp.InputTokens, resp.OutputTokens)
 	call := &model.GeoAPICall{
 		Provider:     resp.Provider,
 		Model:        resp.Model,

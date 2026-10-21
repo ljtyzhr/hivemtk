@@ -28,10 +28,6 @@ func newStubDictRepo() *stubDictRepo {
 
 func (r *stubDictRepo) ck(category, key string) string { return category + "\x00" + key }
 
-func (r *stubDictRepo) Get(ctx context.Context, category, key string) (*model.GeoDict, error) {
-	return r.GetAny(ctx, category, key)
-}
-
 func (r *stubDictRepo) GetAny(_ context.Context, category, key string) (*model.GeoDict, error) {
 	if d, ok := r.rows[r.ck(category, key)]; ok {
 		return d, nil
@@ -58,16 +54,6 @@ func (r *stubDictRepo) Upsert(_ context.Context, d *model.GeoDict) error {
 func (r *stubDictRepo) Delete(_ context.Context, category, key string) error {
 	delete(r.rows, r.ck(category, key))
 	return nil
-}
-
-func (r *stubDictRepo) CountByCategory(_ context.Context, category string) (int64, error) {
-	var n int64
-	for _, d := range r.rows {
-		if d.Category == category {
-			n++
-		}
-	}
-	return n, nil
 }
 
 const dictTestCategory = "dict_cache_test"

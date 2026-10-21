@@ -1,5 +1,7 @@
 package service
 
+import "context"
+
 // PromptManager GEO 模块国际化 Prompt 管理器（G13.1）
 //
 // 按 language (zh/en/ja) 返回不同 prompt template。
@@ -32,17 +34,17 @@ func normalizeLanguage(lang string) string {
 }
 
 // EntityExtractPrompt 根据文档标题和正文生成实体抽取 Prompt
-func (pm *PromptManager) EntityExtractPrompt(title, content string) string {
-	return pm.EntityExtractPromptWithLang("zh", title, content)
+func (pm *PromptManager) EntityExtractPrompt(ctx context.Context, title, content string) string {
+	return pm.EntityExtractPromptWithLang(ctx, "zh", title, content)
 }
 
 // EntityExtractPromptWithLang 带语言参数的版本（ja 走 en fallback）
-func (pm *PromptManager) EntityExtractPromptWithLang(lang, title, content string) string {
+func (pm *PromptManager) EntityExtractPromptWithLang(ctx context.Context, lang, title, content string) string {
 	norm := normalizeLanguage(lang)
 
 	switch norm {
 	case "en", "ja":
-		return promptTpl("EntityExtractPrompt.en", `You are a named entity extraction expert. Extract structured entities and relations from the given document.
+		return promptTpl(ctx, "EntityExtractPrompt.en", `You are a named entity extraction expert. Extract structured entities and relations from the given document.
 
 【Document Title】
 %s
@@ -69,7 +71,7 @@ Respond ONLY with valid JSON, no markdown fences:
 【Start】`, title, content)
 
 	default:
-		return promptTpl("EntityExtractPrompt.zh", `你是实体抽取专家。请从以下文档中抽取结构化实体和实体关系。
+		return promptTpl(ctx, "EntityExtractPrompt.zh", `你是实体抽取专家。请从以下文档中抽取结构化实体和实体关系。
 
 【文档标题】
 %s
@@ -98,17 +100,17 @@ Respond ONLY with valid JSON, no markdown fences:
 }
 
 // SourceClassifyPrompt 按语言返回信源分类 Prompt（A/B/C/D + 央媒/省市/行业/无效）
-func (pm *PromptManager) SourceClassifyPrompt(url, content string) string {
-	return pm.SourceClassifyPromptWithLang("zh", url, content)
+func (pm *PromptManager) SourceClassifyPrompt(ctx context.Context, url, content string) string {
+	return pm.SourceClassifyPromptWithLang(ctx, "zh", url, content)
 }
 
 // SourceClassifyPromptWithLang 带语言参数
-func (pm *PromptManager) SourceClassifyPromptWithLang(lang, url, content string) string {
+func (pm *PromptManager) SourceClassifyPromptWithLang(ctx context.Context, lang, url, content string) string {
 	norm := normalizeLanguage(lang)
 
 	switch norm {
 	case "en", "ja":
-		return promptTpl("SourceClassifyPrompt.en", `Classify the credibility and category of the following web source.
+		return promptTpl(ctx, "SourceClassifyPrompt.en", `Classify the credibility and category of the following web source.
 
 【Source URL】
 %s
@@ -127,7 +129,7 @@ Respond ONLY with valid JSON:
 【Start】`, url, truncate(content, 2000))
 
 	default:
-		return promptTpl("SourceClassifyPrompt.zh", `请对以下信源做可信度和分类判定。
+		return promptTpl(ctx, "SourceClassifyPrompt.zh", `请对以下信源做可信度和分类判定。
 
 【信源 URL】
 %s

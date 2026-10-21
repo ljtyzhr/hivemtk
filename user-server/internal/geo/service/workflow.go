@@ -452,7 +452,7 @@ func (s *WorkflowService) registerBuiltinExecutors() {
 		}
 		prompt := fmt.Sprintf("请撰写一篇关于\"%s\"的高质量文章，要求：\n1. 品牌自然融入：%s\n2. 核心优势：%s\n3. 目标平台：%s\n4. 关键词：%s\n5. 字数800-1200字，结构清晰，包含标题、正文、结语\n6. 使用专业但亲切的语调", topic, brand, advantages, platform, keyword)
 
-		prompt = EnhancePromptWithIntent(prompt, keyword)
+		prompt = EnhancePromptWithIntent(ctx, prompt, keyword)
 		if gen != nil {
 			resp, err := gen.Generate(ctx, "", prompt, 0.7, 3000)
 			if err != nil {

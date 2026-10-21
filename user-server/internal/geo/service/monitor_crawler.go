@@ -34,9 +34,9 @@ func defaultCrawlerUAsJSON() string {
 
 // activeCrawlerUAs DB 优先读取 AI 爬虫 UA（geo_dicts/crawler_uas.list），
 // 缺行自动播种；DB 故障或空表时 fail-open 回内置 aiBotUserAgents。
-func activeCrawlerUAs() []string {
+func activeCrawlerUAs(ctx context.Context) []string {
 	var list []string
-	if err := DictJSON(model.DictCategoryCrawlerUAs, "list", defaultCrawlerUAsJSON(), &list); err != nil || len(list) == 0 {
+	if err := DictJSON(ctx, model.DictCategoryCrawlerUAs, "list", defaultCrawlerUAsJSON(), &list); err != nil || len(list) == 0 {
 		return aiBotUserAgents
 	}
 	return list
@@ -59,9 +59,9 @@ func defaultKeywordLandingsJSON() string {
 
 // activeKeywordLandings DB 优先读取关键词落地映射（geo_dicts/keyword_landings.map），
 // 缺行自动播种；DB 故障或空表时 fail-open 回内置 keywordToLandings。
-func activeKeywordLandings() map[string][]string {
+func activeKeywordLandings(ctx context.Context) map[string][]string {
 	var m map[string][]string
-	if err := DictJSON(model.DictCategoryKeywordLandings, "map", defaultKeywordLandingsJSON(), &m); err != nil || len(m) == 0 {
+	if err := DictJSON(ctx, model.DictCategoryKeywordLandings, "map", defaultKeywordLandingsJSON(), &m); err != nil || len(m) == 0 {
 		return keywordToLandings
 	}
 	return m
@@ -122,7 +122,7 @@ var keywordToLandings = map[string][]string{
 // 落地映射 DB 优先（geo_dicts/keyword_landings.map），兜底内置 keywordToLandings。
 func landingURLs(ctx context.Context, kw string) []string {
 	base := config.WebsiteBaseURLFor(ctx)
-	paths, ok := activeKeywordLandings()[kw]
+	paths, ok := activeKeywordLandings(ctx)[kw]
 	if !ok {
 		paths = []string{"/"}
 	}
@@ -214,7 +214,7 @@ func (s *MonitorCrawlerService) RunCrawlerCron(ctx context.Context) (int, error)
 	visits := make([]*model.GeoCrawlerVisit, 0, len(tasks)*2)
 	var success, fail int
 	for i, t := range tasks {
-		for _, ua := range pickRandomUAs(2) {
+		for _, ua := range pickRandomUAs(ctx, 2) {
 			v := s.doCrawl(ctx, t.URL, t.Keyword, ua)
 			if v != nil {
 				visits = append(visits, v)
@@ -299,8 +299,8 @@ func defaultSeedKeywords() []string {
 	}
 }
 
-func pickRandomUAs(n int) []string {
-	uas := activeCrawlerUAs()
+func pickRandomUAs(ctx context.Context, n int) []string {
+	uas := activeCrawlerUAs(ctx)
 	if n >= len(uas) {
 		n = len(uas)
 	}

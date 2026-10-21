@@ -2,9 +2,12 @@ package repository
 
 import (
 	"context"
+	"fmt"
+	"time"
+
 	"hivemtk-user/internal/geo/model"
 	_db "hivemtk-user/internal/pkg/db"
-	"time"
+	"hivemtk-user/internal/pkg/tenant"
 
 	"github.com/google/uuid"
 	"gorm.io/gorm"
@@ -13,18 +16,14 @@ import (
 
 // GeoDictRepository GEO 通用配置字典
 type GeoDictRepository interface {
-	// Get 按类目+键取单条（仅启用）
-	Get(ctx context.Context, category, key string) (*model.GeoDict, error)
 	// GetAny 按类目+键取单条（含停用，用于区分“缺行”与“已停用”，避免停用被自动播种复活）
 	GetAny(ctx context.Context, category, key string) (*model.GeoDict, error)
 	// ListByCategory 按类目列出全部启用条目（sort 升序）
 	ListByCategory(ctx context.Context, category string) ([]*model.GeoDict, error)
-	// Upsert 按 (category,key) 幂等写入
+	// Upsert 按 (tenant_id, category, key) 幂等写入
 	Upsert(ctx context.Context, d *model.GeoDict) error
 	// Delete 按类目+键删除
 	Delete(ctx context.Context, category, key string) error
-	// CountByCategory 统计类目下条目数
-	CountByCategory(ctx context.Context, category string) (int64, error)
 }
 
 type geoDictRepo struct {
@@ -54,18 +53,6 @@ func (r *geoDictRepo) dbh(ctx context.Context) (*gorm.DB, error) {
 		return nil, gorm.ErrInvalidDB
 	}
 	return db.WithContext(ctx), nil
-}
-
-func (r *geoDictRepo) Get(ctx context.Context, category, key string) (*model.GeoDict, error) {
-	db, err := r.dbh(ctx)
-	if err != nil {
-		return nil, err
-	}
-	var d model.GeoDict
-	if err := db.Where("category = ? AND \"key\" = ? AND active = ?", category, key, true).First(&d).Error; err != nil {
-		return nil, err
-	}
-	return &d, nil
 }
 
 func (r *geoDictRepo) GetAny(ctx context.Context, category, key string) (*model.GeoDict, error) {
@@ -106,6 +93,15 @@ func (r *geoDictRepo) Upsert(ctx context.Context, d *model.GeoDict) error {
 	if d.ID == "" {
 		d.ID = uuid.NewString()
 	}
+	// map 形态的 Create 拿不到模型 Schema，隔离 callback 无法填 tenant_id；
+	// 必须显式取 ctx 绑定并写进列，否则 SaaS 下所有字典行都会落列默认值 1。
+	tenantID, ok := tenant.FromContext(ctx)
+	if !ok {
+		if tenant.IsMultiTenant() {
+			return fmt.Errorf("写入 geo_dicts 缺少租户上下文")
+		}
+		tenantID = tenant.DefaultTenantID
+	}
 	now := time.Now()
 	return db.Table("geo_dicts").
 		Clauses(clause.OnConflict{
@@ -120,6 +116,7 @@ func (r *geoDictRepo) Upsert(ctx context.Context, d *model.GeoDict) error {
 		}).
 		Create(map[string]any{
 			"id":         d.ID,
+			"tenant_id":  tenantID,
 			"category":   d.Category,
 			"key":        d.Key,
 			"value":      d.Value,
@@ -136,17 +133,12 @@ func (r *geoDictRepo) Delete(ctx context.Context, category, key string) error {
 	if err != nil {
 		return err
 	}
-	return db.Where("category = ? AND \"key\" = ?", category, key).Delete(&model.GeoDict{}).Error
-}
-
-func (r *geoDictRepo) CountByCategory(ctx context.Context, category string) (int64, error) {
-	db, err := r.dbh(ctx)
-	if err != nil {
-		return 0, err
+	res := db.Where("category = ? AND \"key\" = ?", category, key).Delete(&model.GeoDict{})
+	if res.Error != nil {
+		return res.Error
 	}
-	var n int64
-	if err := db.Model(&model.GeoDict{}).Where("category = ?", category).Count(&n).Error; err != nil {
-		return 0, err
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
 	}
-	return n, nil
+	return nil
 }

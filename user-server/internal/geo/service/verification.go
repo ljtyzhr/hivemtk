@@ -65,7 +65,7 @@ func (s *VerificationService) VerifyArticle(ctx context.Context, req dto.VerifyR
 		probeEngine = probeResult.Engine
 	}
 
-	prompt := VerifySearchPrompt(req.BrandName, req.Query, probeResponse)
+	prompt := VerifySearchPrompt(ctx, req.BrandName, req.Query, probeResponse)
 
 	resp, err := s.llm.GenerateJSON(ctx, "", prompt, 8000)
 	if err != nil {
@@ -214,7 +214,7 @@ func (s *VerificationService) MonitorNegative(ctx context.Context, brandName str
 		engineTag = "probe-failed"
 	}
 
-	prompt := NegativeMonitorPrompt(brandName, probeResults.String())
+	prompt := NegativeMonitorPrompt(ctx, brandName, probeResults.String())
 
 	resp, err := s.llm.GenerateJSON(ctx, "", prompt, 8000)
 	if err != nil {
@@ -355,7 +355,7 @@ func (s *VerificationService) recordAPICall(ctx context.Context, resp *LLMResult
 	if s.apiCallRepo == nil || resp == nil {
 		return
 	}
-	costUSD, costCNY := EstimateCostUSD(resp.Model, resp.InputTokens, resp.OutputTokens)
+	costUSD, costCNY := EstimateCostUSD(ctx, resp.Model, resp.InputTokens, resp.OutputTokens)
 	call := &model.GeoAPICall{
 		Provider:     resp.Provider,
 		Model:        resp.Model,

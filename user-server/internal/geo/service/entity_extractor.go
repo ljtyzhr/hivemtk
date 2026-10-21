@@ -75,7 +75,7 @@ func (s *EntityExtractorService) ExtractFromDocument(ctx context.Context, docID 
 		return fmt.Errorf("文档内容为空，跳过抽取")
 	}
 
-	prompt := s.promptManager.EntityExtractPrompt(doc.Title, doc.Content)
+	prompt := s.promptManager.EntityExtractPrompt(ctx, doc.Title, doc.Content)
 
 	req := llm.DispatchRequest{
 		Scenario:    llm.ScenarioHighQuality,

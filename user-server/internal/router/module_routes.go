@@ -2,6 +2,7 @@ package router
 
 import (
 	"hivemtk-user/internal/controller"
+	"hivemtk-user/internal/middleware"
 
 	"github.com/gin-gonic/gin"
 )
@@ -41,7 +42,15 @@ func setupModuleRoutes(public, auth, tenantAdmin, systemAdmin *gin.RouterGroup) 
 	// 各档 nil 防护（Setup 早期阶段仅 public 就绪；鉴权档由 auth 组就绪后二次挂载）
 	if public != nil {
 		// public：市场列表（未登录也要能逛）与监管告知
-		public.GET("/module-market/list", ctrl.List)
+		//
+		// 市场列表要显示「已拥有」标记，就得有租户归属；但它是公开橱窗档
+		// （未登录可浏览），不能挂 TenantMiddleware 强制登录。折中：
+		// 可选认证 + 登录则绑租户 —— 匿名浏览不受影响，带令牌时按该租户判定 owned。
+		// 不挂这一步的线上症状：已付费的模块在市场页看着像没买（owned 恒 false）。
+		public.GET("/module-market/list",
+			middleware.OptionalAuthMiddleware(),
+			middleware.TenantBindIfAuthenticated(),
+			ctrl.List)
 		public.GET("/module-market/payment-guide", ctrl.PaymentGuide)
 		public.GET("/tenant/regulatory-notice", ctrl.RegulatoryNotice)
 	}

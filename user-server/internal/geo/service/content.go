@@ -77,7 +77,7 @@ func (s *ContentService) GenerateContent(ctx context.Context, lang, keyword, bra
 	if style == "" {
 		style = "专业"
 	}
-	prompt := ContentGenerationPrompt(brandName, advantagesStr, keyword, wordCountStr, style, lang)
+	prompt := ContentGenerationPrompt(ctx, brandName, advantagesStr, keyword, wordCountStr, style, lang)
 
 	resp, err := s.llm.Generate(ctx, "", prompt, 0.7, 4000)
 	if err != nil {
@@ -140,7 +140,7 @@ func (s *ContentService) GenerateContent(ctx context.Context, lang, keyword, bra
 // OptimizeContent 优化内容
 func (s *ContentService) OptimizeContent(ctx context.Context, articleID, content, brandName string, advantages []string) (*model.GeoOptimization, error) {
 	advantagesStr := AdvantagesToString(advantages)
-	prompt := ContentOptimizePrompt(brandName, advantagesStr, content)
+	prompt := ContentOptimizePrompt(ctx, brandName, advantagesStr, content)
 
 	resp, err := s.llm.Generate(ctx, "", prompt, 0.6, 4000)
 	if err != nil {
@@ -180,7 +180,7 @@ func extractOptimizedContent(response string) string {
 // ScoreContent 内容质量评分
 // articleID 可选：非空时将评分结果持久化到 geo_articles.score / score_detail
 func (s *ContentService) ScoreContent(ctx context.Context, articleID, content, brandName, keyword string) (map[string]any, error) {
-	prompt := ContentScorePrompt(brandName, keyword, content)
+	prompt := ContentScorePrompt(ctx, brandName, keyword, content)
 
 	resp, err := s.llm.GenerateJSON(ctx, "", prompt, 8000)
 	if err != nil {
@@ -266,7 +266,7 @@ func parseScoreResult(content string) map[string]any {
 // articleID 可选：非空时将增强后内容持久化到 geo_articles.content
 func (s *ContentService) EnhanceEEAT(ctx context.Context, articleID, content, brandName string, advantages []string) (map[string]any, error) {
 	advantagesStr := AdvantagesToString(advantages)
-	prompt := EEATEnhancePrompt(brandName, advantagesStr, content)
+	prompt := EEATEnhancePrompt(ctx, brandName, advantagesStr, content)
 
 	resp, err := s.llm.Generate(ctx, "", prompt, 0.5, 4000)
 	if err != nil {
@@ -311,7 +311,7 @@ func (s *ContentService) EnhanceEEAT(ctx context.Context, articleID, content, br
 // GenerateSchema 生成 JSON-LD Schema（第三参为站点域名）
 // articleID 可选：非空时将 Schema 持久化到 geo_articles.json_ld
 func (s *ContentService) GenerateSchema(ctx context.Context, articleID, brandName, description, domain string) (map[string]any, error) {
-	prompt := SchemaGeneratePrompt(brandName, description, domain)
+	prompt := SchemaGeneratePrompt(ctx, brandName, description, domain)
 
 	resp, err := s.llm.GenerateJSON(ctx, "", prompt, 8000)
 	if err != nil {
@@ -578,7 +578,7 @@ func (s *ContentService) recordAPICall(ctx context.Context, resp *LLMResult, ope
 	if s.apiCallRepo == nil || resp == nil {
 		return
 	}
-	costUSD, costCNY := EstimateCostUSD(resp.Model, resp.InputTokens, resp.OutputTokens)
+	costUSD, costCNY := EstimateCostUSD(ctx, resp.Model, resp.InputTokens, resp.OutputTokens)
 	call := &model.GeoAPICall{
 		Provider:     resp.Provider,
 		Model:        resp.Model,

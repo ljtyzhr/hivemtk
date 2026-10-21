@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"strings"
 	"testing"
 )
@@ -22,7 +23,7 @@ func TestClassifyIntentCategories(t *testing.T) {
 }
 
 func TestGetIntentStrategy_Fallback(t *testing.T) {
-	st := GetIntentStrategy("不存在的意图")
+	st := GetIntentStrategy(context.Background(), "不存在的意图")
 	if st.Intent != "信息" {
 		t.Errorf("未知意图应回退到信息策略, got %+v", st)
 	}
@@ -33,7 +34,7 @@ func TestGetIntentStrategy_Fallback(t *testing.T) {
 
 func TestEnhancePromptWithIntent(t *testing.T) {
 	base := "基础prompt"
-	out := EnhancePromptWithIntent(base, "两款机型参数对比")
+	out := EnhancePromptWithIntent(context.Background(), base, "两款机型参数对比")
 	if !strings.Contains(out, base) {
 		t.Error("增强后应保留原始 prompt")
 	}
@@ -43,7 +44,7 @@ func TestEnhancePromptWithIntent(t *testing.T) {
 		}
 	}
 
-	outQ := EnhancePromptWithIntent(base, "如何安装")
+	outQ := EnhancePromptWithIntent(context.Background(), base, "如何安装")
 	if strings.Contains(outQ, "对照表") {
 		t.Error("教程意图不应携带对比类策略")
 	}

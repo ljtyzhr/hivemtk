@@ -727,9 +727,9 @@ func defaultLongtailTemplatesJSON() string {
 // ActiveLongtailTemplates DB 优先读取长尾模板（geo_dicts/longtail_templates.templates），
 // 缺行自动播种；DB 故障或空表时 fail-open 回内置 DefaultLongtailTemplates。
 // 导出是因为 controller 也要走这条字典入口：它原先直引内置切片，管理员改字典在这条路上不生效。
-func ActiveLongtailTemplates() []LongtailTemplate {
+func ActiveLongtailTemplates(ctx context.Context) []LongtailTemplate {
 	var rows []LongtailTemplate
-	if err := DictJSON(model.DictCategoryLongtailTemplates, "templates", defaultLongtailTemplatesJSON(), &rows); err != nil || len(rows) == 0 {
+	if err := DictJSON(ctx, model.DictCategoryLongtailTemplates, "templates", defaultLongtailTemplatesJSON(), &rows); err != nil || len(rows) == 0 {
 		return DefaultLongtailTemplates
 	}
 	return rows
@@ -740,7 +740,7 @@ func ActiveLongtailTemplates() []LongtailTemplate {
 // templates: 不传则用 DB 优先的 ActiveLongtailTemplates（兜底 DefaultLongtailTemplates）
 func (s *KeywordMiningService) CombineLongtail(ctx context.Context, seedWords []string, templates []LongtailTemplate) ([]*model.GeoKeyword, error) {
 	if len(templates) == 0 {
-		templates = ActiveLongtailTemplates()
+		templates = ActiveLongtailTemplates(ctx)
 	}
 
 	// 年份在展开时注入，不写死进模板：写死会让词库随日历过期（历史上 3 个模板硬编码 2026）。

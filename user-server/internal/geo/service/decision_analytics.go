@@ -252,7 +252,7 @@ func (s *GeoDecisionAnalyticsService) GetCrawlerStats(ctx context.Context) (*Cra
 	// 信源站点等级 DB 优先（geo_dicts/source_levels.map），缺行自动播种；
 	// 失败时不注入，repository 回退内置表（fail-open）。
 	var levelMap map[string]string
-	if err := DictJSON(model.DictCategorySourceLevels, "map", `{"weibanzhushou.com":"B","tanmascrm.com":"C","fengchenscrm.com":"C","hubspot.com":"A","producthunt.com":"A","techcrunch.com":"A","intercom.com":"A","baidu.com":"A","google.com":"A","bing.com":"A"}`, &levelMap); err == nil && len(levelMap) > 0 {
+	if err := DictJSON(ctx, model.DictCategorySourceLevels, "map", `{"weibanzhushou.com":"B","tanmascrm.com":"C","fengchenscrm.com":"C","hubspot.com":"A","producthunt.com":"A","techcrunch.com":"A","intercom.com":"A","baidu.com":"A","google.com":"A","bing.com":"A"}`, &levelMap); err == nil && len(levelMap) > 0 {
 		repository.SetDomainSourceLevel(levelMap)
 	}
 	keywordRows, _ := s.crawler.StatsByKeyword(ctx, 30)
@@ -449,7 +449,7 @@ func (s *GeoDecisionAnalyticsService) recordAPICall(ctx context.Context, resp *L
 	if s.apiCallRepo == nil || resp == nil {
 		return
 	}
-	costUSD, costCNY := EstimateCostUSD(resp.Model, resp.InputTokens, resp.OutputTokens)
+	costUSD, costCNY := EstimateCostUSD(ctx, resp.Model, resp.InputTokens, resp.OutputTokens)
 	call := &model.GeoAPICall{
 		Provider:     resp.Provider,
 		Model:        resp.Model,

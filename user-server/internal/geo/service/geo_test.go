@@ -142,7 +142,7 @@ func TestPlatformService_SaveAccount(t *testing.T) {
 
 func TestEstimateCostUSD(t *testing.T) {
 
-	usd, cny := EstimateCostUSD("gpt-4o", 1_000_000, 500_000)
+	usd, cny := EstimateCostUSD(context.Background(), "gpt-4o", 1_000_000, 500_000)
 	if usd != 2.5+5.0 {
 		t.Fatalf("expected gpt-4o cost 7.5 USD, got %v", usd)
 	}
@@ -150,22 +150,22 @@ func TestEstimateCostUSD(t *testing.T) {
 		t.Fatalf("CNY should be USD * rate, got %v vs %v", cny, usd)
 	}
 
-	usd2, _ := EstimateCostUSD("gpt-4o-2024-08-06", 1_000_000, 0)
+	usd2, _ := EstimateCostUSD(context.Background(), "gpt-4o-2024-08-06", 1_000_000, 0)
 	if usd2 != 2.5 {
 		t.Fatalf("expected versioned gpt-4o input cost 2.5 USD, got %v", usd2)
 	}
 
-	usdMini, _ := EstimateCostUSD("gpt-4o-mini", 1_000_000, 0)
+	usdMini, _ := EstimateCostUSD(context.Background(), "gpt-4o-mini", 1_000_000, 0)
 	if usdMini != 0.15 {
 		t.Fatalf("expected gpt-4o-mini input cost 0.15 USD, got %v", usdMini)
 	}
 
-	usd3, _ := EstimateCostUSD("unknown-model-x", 1_000_000, 0)
+	usd3, _ := EstimateCostUSD(context.Background(), "unknown-model-x", 1_000_000, 0)
 	if usd3 != fallbackPriceIn {
 		t.Fatalf("expected fallback price %v, got %v", fallbackPriceIn, usd3)
 	}
 
-	if usd4, _ := EstimateCostUSD("gpt-4o", 0, 0); usd4 != 0 {
+	if usd4, _ := EstimateCostUSD(context.Background(), "gpt-4o", 0, 0); usd4 != 0 {
 		t.Fatalf("expected zero cost for zero tokens, got %v", usd4)
 	}
 }

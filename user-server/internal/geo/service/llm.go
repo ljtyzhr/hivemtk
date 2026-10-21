@@ -143,9 +143,9 @@ func defaultPriceTable() string {
 
 // activePriceRows 生效定价表：DB 优先（geo_dicts/model_prices.table，缺行自动播种），
 // 故障或空表时 fail-open 回内置 modelPrices，保证计费永不中断
-func activePriceRows() []modelPriceRow {
+func activePriceRows(ctx context.Context) []modelPriceRow {
 	var rows []modelPriceRow
-	if err := DictJSON(model.DictCategoryModelPrices, "table", defaultPriceTable(), &rows); err != nil || len(rows) == 0 {
+	if err := DictJSON(ctx, model.DictCategoryModelPrices, "table", defaultPriceTable(), &rows); err != nil || len(rows) == 0 {
 		rows = make([]modelPriceRow, 0, len(modelPrices))
 		for _, p := range modelPrices {
 			rows = append(rows, modelPriceRow{Aliases: p.aliases, Input: p.input, Output: p.output})
@@ -155,10 +155,10 @@ func activePriceRows() []modelPriceRow {
 }
 
 // EstimateCostUSD 估算单次调用的美元成本（定价表 DB 优先，未识别模型走兜底价）
-func EstimateCostUSD(modelName string, inputTokens, outputTokens int) (float64, float64) {
+func EstimateCostUSD(ctx context.Context, modelName string, inputTokens, outputTokens int) (float64, float64) {
 	in, out := fallbackPriceIn, fallbackPriceOut
 	name := strings.ToLower(modelName)
-	for _, p := range activePriceRows() {
+	for _, p := range activePriceRows(ctx) {
 		matched := false
 		for _, a := range p.Aliases {
 			if strings.Contains(name, a) {

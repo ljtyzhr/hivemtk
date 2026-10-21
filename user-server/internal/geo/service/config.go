@@ -87,7 +87,7 @@ type configOptimizeResult struct {
 // OptimizeConfig 优化 GEO 配置
 func (s *ConfigService) OptimizeConfig(ctx context.Context, brandName, advantages string, competitors []string) (map[string]any, error) {
 	competitorsStr := strings.Join(competitors, "、")
-	prompt := ConfigOptimizePrompt(brandName, advantages, competitorsStr)
+	prompt := ConfigOptimizePrompt(ctx, brandName, advantages, competitorsStr)
 
 	resp, err := s.llm.GenerateJSON(ctx, "", prompt, 8000)
 	if err != nil {

@@ -61,7 +61,7 @@ func (c *KeywordMiningController) CombineLongtail(ctx *gin.Context) {
 	// 的修改在这条入口上被静默忽略——管线那条入口已经走字典，两条口径会分叉。
 	templates := []service.LongtailTemplate{}
 	if req.UseDefaultTpls || len(req.CustomTemplates) == 0 {
-		templates = service.ActiveLongtailTemplates()
+		templates = service.ActiveLongtailTemplates(ctx.Request.Context())
 	}
 	for _, t := range req.CustomTemplates {
 		templates = append(templates, service.LongtailTemplate{Template: t})

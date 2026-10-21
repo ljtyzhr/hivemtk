@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"encoding/json"
 	"strings"
 	"sync"
@@ -74,17 +75,17 @@ func defaultIntentMatrixJSON() string {
 
 // activeIntentMatrix DB 优先读取意图矩阵（geo_dicts/intent_matrix.matrix），
 // 缺行自动播种；DB 故障或空表时 fail-open 回内置 DefaultIntentMatrix。
-func activeIntentMatrix() map[string]IntentStrategy {
+func activeIntentMatrix(ctx context.Context) map[string]IntentStrategy {
 	var m map[string]IntentStrategy
-	if err := DictJSON(model.DictCategoryIntentMatrix, "matrix", defaultIntentMatrixJSON(), &m); err != nil || len(m) == 0 {
+	if err := DictJSON(ctx, model.DictCategoryIntentMatrix, "matrix", defaultIntentMatrixJSON(), &m); err != nil || len(m) == 0 {
 		return DefaultIntentMatrix
 	}
 	return m
 }
 
 // GetIntentStrategy 获取意图策略；未知意图回退到"信息"基础策略
-func GetIntentStrategy(intent string) IntentStrategy {
-	m := activeIntentMatrix()
+func GetIntentStrategy(ctx context.Context, intent string) IntentStrategy {
+	m := activeIntentMatrix(ctx)
 	if st, ok := m[intent]; ok {
 		return st
 	}
@@ -97,9 +98,9 @@ func GetIntentStrategy(intent string) IntentStrategy {
 // EnhancePromptWithIntent 按关键词的决策意图增强生成 prompt（思维链布控核心注入点）：
 // 在基础 prompt 之后追加该意图下的信源类型、内容形态与策略指令，
 // 使产出内容的信源布局与用户所处决策阶段匹配。
-func EnhancePromptWithIntent(basePrompt, keyword string) string {
+func EnhancePromptWithIntent(ctx context.Context, basePrompt, keyword string) string {
 	intent := classifyIntent(keyword)
-	st := GetIntentStrategy(intent)
+	st := GetIntentStrategy(ctx, intent)
 	var b strings.Builder
 	b.WriteString(basePrompt)
 	b.WriteString("\n6. 决策意图适配（用户处于「")
