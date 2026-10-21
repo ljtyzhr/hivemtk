@@ -7,21 +7,29 @@ import (
 	"gorm.io/gorm"
 )
 
+const (
+	// aiAgentListLimit 智能体列表上限：管理端下拉/列表全量拉取，封顶防止无界扫描。
+	aiAgentListLimit = 500
+	// channelBindingListLimit 单渠道账号/单智能体的绑定行数上限：业务上远小于该值。
+	channelBindingListLimit = 500
+	// csAgentMountListLimit 单座席/单智能体的挂载行数上限。
+	csAgentMountListLimit = 500
+)
+
 // AIAgentRepository AI 智能体仓库
 type AIAgentRepository struct {
 	db *gorm.DB
 }
 
-// NewAIAgentRepository 创建智能体仓库
+// NewAIAgentRepository 创建智能体仓库（绑定全局默认 DB，仅兼容存量测试）
+// 生产装配一律用 NewAIAgentRepositoryWithDB 显式注入句柄。
 func NewAIAgentRepository() *AIAgentRepository {
-	return &AIAgentRepository{}
+	return &AIAgentRepository{db: GetDB()}
 }
 
-// SetDB 注入 db（用于测试和外部依赖注入）
-func (r *AIAgentRepository) SetDB(ctx context.Context, db *gorm.DB) {
-	if db != nil {
-		r.db = db
-	}
+// NewAIAgentRepositoryWithDB 创建指定数据库连接的智能体仓库
+func NewAIAgentRepositoryWithDB(db *gorm.DB) *AIAgentRepository {
+	return &AIAgentRepository{db: db}
 }
 
 // Create 创建智能体
@@ -77,7 +85,7 @@ func (r *AIAgentRepository) List(ctx context.Context, agentType string, status i
 		q = q.Where("name LIKE ? OR agent_code LIKE ? OR description LIKE ?", like, like, like)
 	}
 	var list []*model.AIAgent
-	if err := q.Order("id DESC").Find(&list).Error; err != nil {
+	if err := q.Order("id DESC").Limit(aiAgentListLimit).Find(&list).Error; err != nil {
 		return nil, err
 	}
 	return list, nil
@@ -86,7 +94,8 @@ func (r *AIAgentRepository) List(ctx context.Context, agentType string, status i
 // ListEnabled 获取所有启用的智能体
 func (r *AIAgentRepository) ListEnabled(ctx context.Context) ([]*model.AIAgent, error) {
 	var list []*model.AIAgent
-	if err := r.db.WithContext(ctx).Where("status = ?", 1).Order("id DESC").Find(&list).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("status = ?", 1).Order("id DESC").
+		Limit(aiAgentListLimit).Find(&list).Error; err != nil {
 		return nil, err
 	}
 	return list, nil
@@ -96,15 +105,45 @@ func (r *AIAgentRepository) ListEnabled(ctx context.Context) ([]*model.AIAgent, 
 //
 // 不用 Save：Save 的 UPDATE 命中 0 行时会回退成 ON CONFLICT(裸主键) DO UPDATE，
 // 而租户闸对 excluded.tenant_id 是放行的 —— 跨租户按主键 Save 会把整行搬到
-// 调用方租户下（#14 真库探针复现）。这里显式 Omit 主键/租户/创建时间，
-// 谓词只剩 WHERE id + 注入的 tenant_id，0 行就是 0 行。
-// Select("*") 保证布尔/数值字段的零值也会落库（Updates(struct) 默认跳过零值）。
+// 调用方租户下（#14 真库探针复现）。这里用显式列 map：谓词只剩 WHERE id +
+// 注入的 tenant_id，0 行就是 0 行；同时 map 不做零值裁剪，显式 false/0 能落库。
+// 四个 *bool 能力开关为 nil 时跳过该列（保留原值），不解引用、不写 NULL。
 func (r *AIAgentRepository) Update(ctx context.Context, agent *model.AIAgent) error {
+	updates := map[string]any{
+		"agent_code": agent.AgentCode, "name": agent.Name, "description": agent.Description,
+		"avatar": agent.Avatar, "agent_type": agent.AgentType, "agent_mode": agent.AgentMode,
+		"persona": agent.Persona, "system_prompt": agent.SystemPrompt, "greeting": agent.Greeting,
+		"rag_product_ids": agent.RagProductIDs, "faq_entry_ids": agent.FAQEntryIDs,
+		"sop_template_ids": agent.SOPTemplateIDs, "sop_ids": agent.SOPIDs,
+		"script_library_ids": agent.ScriptLibraryIDs, "ab_experiment_ids": agent.ABExperimentIDs,
+		"asset_bundle_id": agent.AssetBundleID,
+		"llm_model":       agent.LLMModel, "llm_api_key": agent.LLMProviderConfig.APIKey,
+		"llm_base_url": agent.LLMProviderConfig.BaseURL, "llm_api_type": agent.LLMProviderConfig.APIType,
+		"llm_model_detail": agent.LLMProviderConfig.Model, "llm_max_retries": agent.LLMProviderConfig.MaxRetries,
+		"llm_request_timeout": agent.LLMProviderConfig.RequestTimeout,
+		"temperature":         agent.Temperature, "max_tokens": agent.MaxTokens, "top_p": agent.TopP,
+		"frequency_penalty": agent.FrequencyPenalty, "presence_penalty": agent.PresencePenalty,
+		"internal_language": agent.InternalLanguage, "target_language": agent.TargetLanguage,
+		"enable_content_audit": agent.EnableContentAudit, "rag_top_k": agent.RAGTopK,
+		"confidence_threshold": agent.ConfidenceThreshold, "max_ai_consecutive": agent.MaxAIConsecutive,
+		"status": agent.Status, "version": agent.Version,
+	}
+	if agent.EnableRAG != nil {
+		updates["enable_rag"] = *agent.EnableRAG
+	}
+	if agent.EnableScriptMatch != nil {
+		updates["enable_script_match"] = *agent.EnableScriptMatch
+	}
+	if agent.EnableHumanizePolish != nil {
+		updates["enable_humanize_polish"] = *agent.EnableHumanizePolish
+	}
+	if agent.EnablePlaybook != nil {
+		updates["enable_playbook"] = *agent.EnablePlaybook
+	}
+
 	res := r.db.WithContext(ctx).Model(&model.AIAgent{}).
 		Where("id = ?", agent.ID).
-		Select("*").
-		Omit("id", "tenant_id", "created_at").
-		Updates(agent)
+		Updates(updates)
 	if res.Error != nil {
 		return res.Error
 	}
@@ -144,19 +183,20 @@ type ChannelAgentBindingRepository struct {
 	db *gorm.DB
 }
 
-// NewChannelAgentBindingRepository 创建渠道绑定仓库
+// NewChannelAgentBindingRepository 创建渠道绑定仓库（绑定全局默认 DB，仅兼容存量测试）
 func NewChannelAgentBindingRepository() *ChannelAgentBindingRepository {
-	return &ChannelAgentBindingRepository{}
+	return &ChannelAgentBindingRepository{db: GetDB()}
 }
 
-// SetDB 注入 db
-func (r *ChannelAgentBindingRepository) SetDB(ctx context.Context, db *gorm.DB) {
-	if db != nil {
-		r.db = db
-	}
+// NewChannelAgentBindingRepositoryWithDB 创建指定数据库连接的渠道绑定仓库
+func NewChannelAgentBindingRepositoryWithDB(db *gorm.DB) *ChannelAgentBindingRepository {
+	return &ChannelAgentBindingRepository{db: db}
 }
 
 // Create 创建绑定
+//
+// IsPrimary/Enabled 是 *bool：nil 落 DB 默认 true，显式 false 真写 false（GORM 对
+// 非 nil 指针不做零值替换）。
 func (r *ChannelAgentBindingRepository) Create(ctx context.Context, b *model.ChannelAgentBinding) error {
 	return r.db.WithContext(ctx).Create(b).Error
 }
@@ -169,17 +209,17 @@ func (r *ChannelAgentBindingRepository) Create(ctx context.Context, b *model.Cha
 func (r *ChannelAgentBindingRepository) ReplacePrimaryBinding(ctx context.Context, channelType, accountID string, agentID uint) (*model.ChannelAgentBinding, error) {
 	var created *model.ChannelAgentBinding
 	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		tmpRepo := NewChannelAgentBindingRepository()
-		tmpRepo.SetDB(ctx, tx)
+		tmpRepo := NewChannelAgentBindingRepositoryWithDB(tx)
 		if err := tmpRepo.ClearPrimaryByChannelAccount(ctx, channelType, accountID); err != nil {
 			return err
 		}
+		primary, enabled := true, true
 		b := &model.ChannelAgentBinding{
 			ChannelType: channelType,
 			AccountID:   accountID,
 			AgentID:     agentID,
-			IsPrimary:   true,
-			Enabled:     true,
+			IsPrimary:   &primary,
+			Enabled:     &enabled,
 		}
 		if err := tmpRepo.Create(ctx, b); err != nil {
 			return err
@@ -206,7 +246,7 @@ func (r *ChannelAgentBindingRepository) GetByID(ctx context.Context, id uint) (*
 func (r *ChannelAgentBindingRepository) ListByChannelAccount(ctx context.Context, channelType, accountID string) ([]*model.ChannelAgentBinding, error) {
 	var list []*model.ChannelAgentBinding
 	if err := r.db.WithContext(ctx).Where("channel_type = ? AND account_id = ?", channelType, accountID).
-		Order("is_primary DESC, id DESC").Find(&list).Error; err != nil {
+		Order("is_primary DESC, id DESC").Limit(channelBindingListLimit).Find(&list).Error; err != nil {
 		return nil, err
 	}
 	return list, nil
@@ -230,7 +270,8 @@ func (r *ChannelAgentBindingRepository) GetPrimaryByChannelAccount(ctx context.C
 // ListByAgentID 反查智能体被哪些渠道账号使用
 func (r *ChannelAgentBindingRepository) ListByAgentID(ctx context.Context, agentID uint) ([]*model.ChannelAgentBinding, error) {
 	var list []*model.ChannelAgentBinding
-	if err := r.db.WithContext(ctx).Where("agent_id = ?", agentID).Order("id DESC").Find(&list).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("agent_id = ?", agentID).Order("id DESC").
+		Limit(channelBindingListLimit).Find(&list).Error; err != nil {
 		return nil, err
 	}
 	return list, nil
@@ -304,13 +345,45 @@ func (r *ChannelAgentBindingRepository) GetBindingByChatID(ctx context.Context, 
 }
 
 // Update 更新绑定
+//
+// 不用 Save（0 行命中会退化成按裸主键 ON CONFLICT，跨租户能把整行搬走）；用列 map
+// 保留零值语义：is_primary/enabled 为 nil 时跳过（保留原值），显式 false 落库。
 func (r *ChannelAgentBindingRepository) Update(ctx context.Context, b *model.ChannelAgentBinding) error {
-	return r.db.WithContext(ctx).Save(b).Error
+	updates := map[string]any{
+		"channel_type": b.ChannelType,
+		"account_id":   b.AccountID,
+		"chat_id":      b.ChatID,
+		"chat_type":    b.ChatType,
+		"priority":     b.Priority,
+		"agent_id":     b.AgentID,
+	}
+	if b.IsPrimary != nil {
+		updates["is_primary"] = *b.IsPrimary
+	}
+	if b.Enabled != nil {
+		updates["enabled"] = *b.Enabled
+	}
+	res := r.db.WithContext(ctx).Model(&model.ChannelAgentBinding{}).
+		Where("id = ?", b.ID).Updates(updates)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 // Delete 删除绑定
 func (r *ChannelAgentBindingRepository) Delete(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).Delete(&model.ChannelAgentBinding{}, id).Error
+	res := r.db.WithContext(ctx).Delete(&model.ChannelAgentBinding{}, id)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 // ClearPrimaryByChannelAccount 清除指定渠道账号下的所有主绑定标记
@@ -332,16 +405,14 @@ type CustomerServiceAgentRepository struct {
 	db *gorm.DB
 }
 
-// NewCustomerServiceAgentRepository 创建客服挂载仓库
+// NewCustomerServiceAgentRepository 创建客服挂载仓库（绑定全局默认 DB，仅兼容存量测试）
 func NewCustomerServiceAgentRepository() *CustomerServiceAgentRepository {
-	return &CustomerServiceAgentRepository{}
+	return &CustomerServiceAgentRepository{db: GetDB()}
 }
 
-// SetDB 注入 db
-func (r *CustomerServiceAgentRepository) SetDB(ctx context.Context, db *gorm.DB) {
-	if db != nil {
-		r.db = db
-	}
+// NewCustomerServiceAgentRepositoryWithDB 创建指定数据库连接的客服挂载仓库
+func NewCustomerServiceAgentRepositoryWithDB(db *gorm.DB) *CustomerServiceAgentRepository {
+	return &CustomerServiceAgentRepository{db: db}
 }
 
 // Create 创建挂载
@@ -362,7 +433,7 @@ func (r *CustomerServiceAgentRepository) GetByID(ctx context.Context, id uint) (
 func (r *CustomerServiceAgentRepository) ListByAgentStatusID(ctx context.Context, agentStatusID uint) ([]*model.CustomerServiceAgent, error) {
 	var list []*model.CustomerServiceAgent
 	if err := r.db.WithContext(ctx).Where("agent_status_id = ?", agentStatusID).
-		Order("is_primary DESC, id DESC").Find(&list).Error; err != nil {
+		Order("is_primary DESC, id DESC").Limit(csAgentMountListLimit).Find(&list).Error; err != nil {
 		return nil, err
 	}
 	return list, nil
@@ -386,20 +457,46 @@ func (r *CustomerServiceAgentRepository) GetPrimaryByAgentStatusID(ctx context.C
 // ListByAIAgentID 反查智能体被哪些客服使用
 func (r *CustomerServiceAgentRepository) ListByAIAgentID(ctx context.Context, aiAgentID uint) ([]*model.CustomerServiceAgent, error) {
 	var list []*model.CustomerServiceAgent
-	if err := r.db.WithContext(ctx).Where("ai_agent_id = ?", aiAgentID).Order("id DESC").Find(&list).Error; err != nil {
+	if err := r.db.WithContext(ctx).Where("ai_agent_id = ?", aiAgentID).Order("id DESC").
+		Limit(csAgentMountListLimit).Find(&list).Error; err != nil {
 		return nil, err
 	}
 	return list, nil
 }
 
-// Update 更新挂载
+// Update 更新挂载（列 map：nil 的 is_primary/enabled 保留原值，显式 false 落库）
 func (r *CustomerServiceAgentRepository) Update(ctx context.Context, c *model.CustomerServiceAgent) error {
-	return r.db.WithContext(ctx).Save(c).Error
+	updates := map[string]any{
+		"agent_status_id": c.AgentStatusID,
+		"ai_agent_id":     c.AIAgentID,
+	}
+	if c.IsPrimary != nil {
+		updates["is_primary"] = *c.IsPrimary
+	}
+	if c.Enabled != nil {
+		updates["enabled"] = *c.Enabled
+	}
+	res := r.db.WithContext(ctx).Model(&model.CustomerServiceAgent{}).
+		Where("id = ?", c.ID).Updates(updates)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 // Delete 删除挂载
 func (r *CustomerServiceAgentRepository) Delete(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).Delete(&model.CustomerServiceAgent{}, id).Error
+	res := r.db.WithContext(ctx).Delete(&model.CustomerServiceAgent{}, id)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 // ClearPrimaryByAgentStatusID 清除指定座席下所有主挂载标记

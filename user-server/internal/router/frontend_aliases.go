@@ -28,7 +28,7 @@ var aliasRegFailures []string
 
 func setupFrontendAliases(auth, systemAdmin *gin.RouterGroup, engine *gin.Engine, gormDB *gorm.DB) {
 	aliasRegFailures = nil
-	aiAgentSvc := service.NewAIAgentService()
+	aiAgentSvc := service.NewAIAgentServiceWithRepo(repository.NewAIAgentRepositoryWithDB(gormDB))
 	// doReg 注册前端兼容别名。
 	//
 	// ⚠️ 原实现在 recover 中 `_ = r` **静默吞掉**注册失败，导致别名层
@@ -198,10 +198,16 @@ func setupFrontendAliases(auth, systemAdmin *gin.RouterGroup, engine *gin.Engine
 	doReg("GET", "/script-templates/public", scriptCtrl.GetPublicTemplates)
 	doReg("POST", "/script-templates/recommend", scriptCtrl.RecommendScript)
 
-	agentStatusCtrl := controller.NewAgentStatusController(aiAgentSvc, service.NewAgentStatusService(
-		repository.NewAgentStatusRepositoryWithDB(gormDB),
-		repository.NewCustomerSessionRepositoryWithDB(gormDB),
-	))
+	agentStatusAliasRepo := repository.NewAgentStatusRepositoryWithDB(gormDB)
+	agentStatusCtrl := controller.NewAgentStatusController(
+		service.NewAgentStatusService(agentStatusAliasRepo, repository.NewCustomerSessionRepositoryWithDB(gormDB)),
+		service.NewCustomerServiceAgentServiceWithRepos(
+			repository.NewCustomerServiceAgentRepositoryWithDB(gormDB),
+			repository.NewAIAgentRepositoryWithDB(gormDB),
+			agentStatusAliasRepo,
+			aiAgentSvc,
+		),
+	)
 	doReg("GET", "/agent-statuses", agentStatusCtrl.GetOnlineAgents)
 	doReg("GET", "/agent-statuses/online", agentStatusCtrl.GetOnlineAgents)
 	doReg("GET", "/agent-statuses/list", agentStatusCtrl.ListAllAgents)

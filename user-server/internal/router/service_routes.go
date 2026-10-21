@@ -41,10 +41,16 @@ func setupCustomerServiceRoutes(auth *gin.RouterGroup, aiAgentSvc *service.AIAge
 	auth.PUT("/customer-sessions/:id/status", customerSessionCtrl.UpdateSessionStatus)
 	auth.GET("/customer-sessions/:id", customerSessionCtrl.GetSessionByID)
 
-	agentStatusCtrl := controller.NewAgentStatusController(aiAgentSvc, service.NewAgentStatusService(
-		repository.NewAgentStatusRepositoryWithDB(db),
-		repository.NewCustomerSessionRepositoryWithDB(db),
-	))
+	agentStatusRepo := repository.NewAgentStatusRepositoryWithDB(db)
+	agentStatusCtrl := controller.NewAgentStatusController(
+		service.NewAgentStatusService(agentStatusRepo, repository.NewCustomerSessionRepositoryWithDB(db)),
+		service.NewCustomerServiceAgentServiceWithRepos(
+			repository.NewCustomerServiceAgentRepositoryWithDB(db),
+			repository.NewAIAgentRepositoryWithDB(db),
+			agentStatusRepo,
+			aiAgentSvc,
+		),
+	)
 	auth.POST("/agents", agentStatusCtrl.CreateAgent)
 	auth.GET("/agents/me", agentStatusCtrl.GetMyAgent)
 	auth.GET("/agents/all", agentStatusCtrl.ListAllAgents)

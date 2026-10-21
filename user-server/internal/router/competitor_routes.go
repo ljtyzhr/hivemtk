@@ -2,18 +2,23 @@ package router
 
 import (
 	"hivemtk-user/internal/controller"
+	"hivemtk-user/internal/repository"
+	"hivemtk-user/internal/service"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
-func setupCompetitorFeatureRoutes(auth *gin.RouterGroup) {
+func setupCompetitorFeatureRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 
 	coPilotCtrl := controller.NewAgentCoPilotController()
 	auth.GET("/agent/co-pilot/config", coPilotCtrl.GetConfig)
 	auth.PUT("/agent/co-pilot/config", coPilotCtrl.SaveConfig)
 	auth.POST("/agent/co-pilot/evaluate", coPilotCtrl.Evaluate)
 
-	smartRouterCtrl := controller.NewSmartRouterController()
+	smartRouterCtrl := controller.NewSmartRouterController(service.NewSmartRouterWithRepos(
+		repository.NewAgentStatusRepositoryWithDB(gormDB),
+	))
 	auth.POST("/smart-router/select", smartRouterCtrl.SelectAgent)
 
 	ragEvalCtrl := controller.NewRagEvalController()

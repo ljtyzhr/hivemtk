@@ -17,7 +17,12 @@ import (
 
 func setupChatPublicRoutes(public *gin.RouterGroup, db *gorm.DB, orchestrator *service.SmartCSOrchestrator, langResolver *translation.LangConfigResolver) {
 	channelSvc := service.MustNewChatChannelService(repository.NewChatChannelRepositoryWithDB(db))
-	agentBindingSvc := service.NewChannelAgentBindingService()
+	aiAgentRepo := repository.NewAIAgentRepositoryWithDB(db)
+	agentBindingSvc := service.NewChannelAgentBindingServiceWithRepos(
+		repository.NewChannelAgentBindingRepositoryWithDB(db),
+		aiAgentRepo,
+		service.NewAIAgentServiceWithRepo(aiAgentRepo),
+	)
 	visitorSvc := service.NewVisitorChatService(context.Background(), db, channelSvc, orchestrator, agentBindingSvc)
 
 	chatPublic := public.Group("/chat/public")

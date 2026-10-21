@@ -123,13 +123,27 @@ func (r *BridgeAccountRepository) upsertBinding(ctx context.Context, channel, ac
 		Where("channel_type = ? AND account_id = ? AND agent_id = ?", channel, accountID, agentID).
 		First(&b).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
-		b = model.ChannelAgentBinding{ChannelType: channel, AccountID: accountID, AgentID: agentID}
-	} else if err != nil {
+		primary, enabled := true, true
+		b = model.ChannelAgentBinding{
+			ChannelType: channel, AccountID: accountID, AgentID: agentID,
+			IsPrimary: &primary, Enabled: &enabled,
+		}
+		return r.db.WithContext(ctx).Create(&b).Error
+	}
+	if err != nil {
 		return err
 	}
-	b.IsPrimary = true
-	b.Enabled = true
-	return r.db.WithContext(ctx).Save(&b).Error
+	// 不用 Save：0 行命中会退化成按裸主键 ON CONFLICT，跨租户能把整行搬走。
+	res := r.db.WithContext(ctx).Model(&model.ChannelAgentBinding{}).
+		Where("id = ?", b.ID).
+		Updates(map[string]any{"is_primary": true, "enabled": true})
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 // SetOffline 连接断开：置离线 + 记录最后同步时间。

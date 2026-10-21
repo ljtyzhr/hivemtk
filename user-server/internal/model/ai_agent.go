@@ -69,12 +69,16 @@ type AIAgent struct {
 	InternalLanguage string `gorm:"type:varchar(8);default:'zh'" json:"internal_language"`
 	TargetLanguage   string `gorm:"type:varchar(8);default:''" json:"target_language"`
 
-	EnableRAG            bool `gorm:"default:true" json:"enable_rag"`
-	EnableScriptMatch    bool `gorm:"default:true" json:"enable_script_match"`
-	EnableHumanizePolish bool `gorm:"default:true" json:"enable_humanize_polish"`
-	EnableContentAudit   bool `gorm:"default:false" json:"enable_content_audit"`
-	EnablePlaybook       bool `gorm:"default:true" json:"enable_playbook"`
-	RAGTopK              int  `gorm:"default:3" json:"rag_top_k"`
+	// 四个「默认开启」的能力开关必须是 *bool：bool + `default:true` 时 GORM 会把
+	// 显式 false 当成零值，写入 DefaultValueInterface(true) 并回填结构体 —— 创建时
+	// 关不掉能力，且内存值与落库值不一致。指针语义：nil=未传 → 落 DB 默认 true，
+	// 显式 false → 真写 false。读取一律走 RAGEnabled() 等取值方法，别直接解引用。
+	EnableRAG            *bool `gorm:"default:true" json:"enable_rag"`
+	EnableScriptMatch    *bool `gorm:"default:true" json:"enable_script_match"`
+	EnableHumanizePolish *bool `gorm:"default:true" json:"enable_humanize_polish"`
+	EnableContentAudit   bool  `gorm:"default:false" json:"enable_content_audit"`
+	EnablePlaybook       *bool `gorm:"default:true" json:"enable_playbook"`
+	RAGTopK              int   `gorm:"default:3" json:"rag_top_k"`
 
 	ConfidenceThreshold float64 `gorm:"default:0.7" json:"confidence_threshold"`
 	MaxAIConsecutive    int     `gorm:"default:0" json:"max_ai_consecutive"`
@@ -91,6 +95,28 @@ type AIAgent struct {
 func (AIAgent) TableName() string {
 	return "ai_agents"
 }
+
+// boolOrDefault 三态布尔取值：nil 表示「未传」，按能力默认值处理。
+func boolOrDefault(v *bool, def bool) bool {
+	if v == nil {
+		return def
+	}
+	return *v
+}
+
+// RAGEnabled 是否启用 RAG（nil = 默认启用）
+func (a *AIAgent) RAGEnabled() bool { return boolOrDefault(a.EnableRAG, true) }
+
+// ScriptMatchEnabled 是否启用话术匹配（nil = 默认启用）
+func (a *AIAgent) ScriptMatchEnabled() bool { return boolOrDefault(a.EnableScriptMatch, true) }
+
+// HumanizePolishEnabled 是否启用拟人润色（nil = 默认启用）
+func (a *AIAgent) HumanizePolishEnabled() bool {
+	return boolOrDefault(a.EnableHumanizePolish, true)
+}
+
+// PlaybookEnabled 是否启用 Playbook（nil = 默认启用）
+func (a *AIAgent) PlaybookEnabled() bool { return boolOrDefault(a.EnablePlaybook, true) }
 
 // ChannelType 渠道类型枚举
 type ChannelType string
@@ -149,8 +175,12 @@ type ChannelAgentBinding struct {
 	ChatType    string `gorm:"type:varchar(16)" json:"chat_type,omitempty"`     // group | dm | thread
 	Priority    int    `gorm:"default:0" json:"priority"`                       // 手动优先级，高优先
 	AgentID     uint   `gorm:"not null;index" json:"agent_id"`
-	IsPrimary   bool   `gorm:"default:true" json:"is_primary"`
-	Enabled     bool   `gorm:"default:true" json:"enabled"`
+	// IsPrimary/Enabled 用 *bool 的原因同 AIAgent 能力开关：bool + `default:true`
+	// 会把显式 false 吞成 true。这里吞掉的后果是硬伤 —— 要求建「辅助绑定」
+	// (is_primary=false) 的请求会落成第二条主绑定（ClearPrimary 没被调用），
+	// 要求 enabled=false 的绑定会直接上线接流量。
+	IsPrimary *bool `gorm:"default:true" json:"is_primary"`
+	Enabled   *bool `gorm:"default:true" json:"enabled"`
 
 	CreatedAt time.Time      `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt time.Time      `gorm:"autoUpdateTime" json:"updated_at"`
@@ -162,6 +192,12 @@ func (ChannelAgentBinding) TableName() string {
 	return "channel_agent_bindings"
 }
 
+// Primary 是否主绑定（nil = 默认主绑定）
+func (b *ChannelAgentBinding) Primary() bool { return boolOrDefault(b.IsPrimary, true) }
+
+// IsActive 是否启用（nil = 默认启用）
+func (b *ChannelAgentBinding) IsActive() bool { return boolOrDefault(b.Enabled, true) }
+
 // CustomerServiceAgent 客服座席 ↔ 智能体挂载
 //
 // 同一座席可挂载多个智能体，但只有一个 is_primary=true
@@ -172,8 +208,10 @@ type CustomerServiceAgent struct {
 	ID            uint `gorm:"primaryKey;autoIncrement" json:"id"`
 	AgentStatusID uint `gorm:"not null;index;uniqueIndex:idx_cs_agent_unique" json:"agent_status_id"`
 	AIAgentID     uint `gorm:"not null;index;uniqueIndex:idx_cs_agent_unique" json:"ai_agent_id"`
-	IsPrimary     bool `gorm:"default:true" json:"is_primary"`
-	Enabled       bool `gorm:"default:true" json:"enabled"`
+	// 指针语义同 ChannelAgentBinding：显式 false 必须能落库，否则「辅助挂载」会
+	// 变成主挂载、停用的挂载会在 Create 时被默认值拉回启用。
+	IsPrimary *bool `gorm:"default:true" json:"is_primary"`
+	Enabled   *bool `gorm:"default:true" json:"enabled"`
 
 	CreatedAt time.Time      `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt time.Time      `gorm:"autoUpdateTime" json:"updated_at"`
@@ -184,3 +222,9 @@ type CustomerServiceAgent struct {
 func (CustomerServiceAgent) TableName() string {
 	return "customer_service_agents"
 }
+
+// Primary 是否主挂载（nil = 默认主挂载）
+func (c *CustomerServiceAgent) Primary() bool { return boolOrDefault(c.IsPrimary, true) }
+
+// IsActive 是否启用（nil = 默认启用）
+func (c *CustomerServiceAgent) IsActive() bool { return boolOrDefault(c.Enabled, true) }

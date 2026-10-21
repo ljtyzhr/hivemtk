@@ -36,6 +36,9 @@ const (
 
 func cbKeySystemCtx() context.Context { return tenant.WithSystemScope(context.Background()) }
 
+// cbKeyBoolPtr 生成绑定开关的指针值（model 用 *bool 区分「未传」与显式 false）。
+func cbKeyBoolPtr(b bool) *bool { return &b }
+
 // cbKeyFixture 建表并把索引还原成 v3.70.0 之前的错误形态：
 // (tenant_id, channel_type, account_id) 唯一（不含 chat_id）。
 func cbKeyFixture(t *testing.T) *gorm.DB {
@@ -62,7 +65,7 @@ ON channel_agent_bindings (tenant_id, channel_type, account_id)`).Error; err != 
 	// 落一行 account 级默认（chat_id 为空）——迁移前就该存在，且迁移后必须还在。
 	if err := db.WithContext(cbKeySystemCtx()).Create(&model.ChannelAgentBinding{
 		TenantID: cbKeyTenantA, ChannelType: cbKeyChannel, AccountID: cbKeyAccount,
-		AgentID: 9001, IsPrimary: true, Enabled: true,
+		AgentID: 9001, IsPrimary: cbKeyBoolPtr(true), Enabled: cbKeyBoolPtr(true),
 	}).Error; err != nil {
 		t.Fatalf("落 account 级默认绑定失败: %v", err)
 	}
@@ -82,7 +85,7 @@ func TestChannelBindingChatIDUniqueKeyMigrationAllowsSameAccountMultipleChats(t 
 	for _, chat := range []string{cbKeyChatOne, cbKeyChatTwo} {
 		if err := db.WithContext(cbKeySystemCtx()).Create(&model.ChannelAgentBinding{
 			TenantID: cbKeyTenantA, ChannelType: cbKeyChannel, AccountID: cbKeyAccount,
-			ChatID: chat, AgentID: 9002, IsPrimary: false, Enabled: true,
+			ChatID: chat, AgentID: 9002, IsPrimary: cbKeyBoolPtr(false), Enabled: cbKeyBoolPtr(true),
 		}).Error; err != nil {
 			t.Fatalf("迁移后同一账号的群 %s 写不进绑定（键位没加 chat_id 维度）: %v", chat, err)
 		}
@@ -91,7 +94,7 @@ func TestChannelBindingChatIDUniqueKeyMigrationAllowsSameAccountMultipleChats(t 
 	// account 级默认仍然只允许一条：chat_id 为 NULL 与空串视为同一个键。
 	dupDefault := &model.ChannelAgentBinding{
 		TenantID: cbKeyTenantA, ChannelType: cbKeyChannel, AccountID: cbKeyAccount,
-		AgentID: 9003, IsPrimary: true, Enabled: true,
+		AgentID: 9003, IsPrimary: cbKeyBoolPtr(true), Enabled: cbKeyBoolPtr(true),
 	}
 	if err := db.WithContext(cbKeySystemCtx()).Create(dupDefault).Error; err == nil {
 		t.Error("同账号的第二条 account 级默认未被唯一键挡住：account 级默认唯一性丢失")
@@ -100,7 +103,7 @@ func TestChannelBindingChatIDUniqueKeyMigrationAllowsSameAccountMultipleChats(t 
 	// 跨租户同账号同群必须能共存。
 	if err := db.WithContext(cbKeySystemCtx()).Create(&model.ChannelAgentBinding{
 		TenantID: cbKeyTenantB, ChannelType: cbKeyChannel, AccountID: cbKeyAccount,
-		ChatID: cbKeyChatOne, AgentID: 9004, IsPrimary: false, Enabled: true,
+		ChatID: cbKeyChatOne, AgentID: 9004, IsPrimary: cbKeyBoolPtr(false), Enabled: cbKeyBoolPtr(true),
 	}).Error; err != nil {
 		t.Fatalf("迁移后另一租户写不进同账号同群的绑定（唯一键漏了 tenant_id）: %v", err)
 	}
@@ -152,7 +155,7 @@ func TestChannelBindingChatIDUniqueKeyMigrationDedupsBeforeIndex(t *testing.T) {
 	for i := 0; i < 3; i++ {
 		if err := db.WithContext(cbKeySystemCtx()).Create(&model.ChannelAgentBinding{
 			TenantID: cbKeyTenantA, ChannelType: cbKeyChannel, AccountID: cbKeyAccount,
-			ChatID: cbKeyChatOne, AgentID: uint(9100 + i), IsPrimary: false, Enabled: true,
+			ChatID: cbKeyChatOne, AgentID: uint(9100 + i), IsPrimary: cbKeyBoolPtr(false), Enabled: cbKeyBoolPtr(true),
 		}).Error; err != nil {
 			t.Fatalf("造重复行失败: %v", err)
 		}

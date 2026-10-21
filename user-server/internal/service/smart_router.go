@@ -16,15 +16,11 @@ import (
 // SmartRouter 智能路由服务
 type SmartRouter struct {
 	agentStatusRepo *repository.AgentStatusRepository
-	aiAgentRepo     *repository.AIAgentRepository
 }
 
-// NewSmartRouter 创建服务实例
-func NewSmartRouter() *SmartRouter {
-	return &SmartRouter{
-		agentStatusRepo: repository.NewAgentStatusRepository(),
-		aiAgentRepo:     repository.NewAIAgentRepository(),
-	}
+// NewSmartRouterWithRepos 用注入的仓储创建智能路由服务
+func NewSmartRouterWithRepos(agentStatusRepo *repository.AgentStatusRepository) *SmartRouter {
+	return &SmartRouter{agentStatusRepo: agentStatusRepo}
 }
 
 // RouteRequest 路由请求参数

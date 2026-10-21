@@ -27,6 +27,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"hivemtk-user/internal/model"
@@ -60,10 +61,9 @@ func cabSeed(t *testing.T, db *gorm.DB, ctx context.Context, agentID uint, isPri
 	t.Helper()
 	row := &model.ChannelAgentBinding{
 		ChannelType: cabChannelType, AccountID: cabAccountID,
-		AgentID: agentID, IsPrimary: isPrimary, Enabled: true,
+		AgentID: agentID, IsPrimary: boolPtr(isPrimary), Enabled: boolPtr(true),
 	}
-	repo := NewChannelAgentBindingRepository()
-	repo.SetDB(ctx, db)
+	repo := NewChannelAgentBindingRepositoryWithDB(db)
 	if err := repo.Create(ctx, row); err != nil {
 		t.Fatalf("落绑定失败: %v", err)
 	}
@@ -113,8 +113,7 @@ func TestChannelAgentBindingClearPrimaryStaysInTenant(t *testing.T) {
 	cabSeed(t, db, ctxA, 9001, true)
 	bRow := cabSeed(t, db, ctxB, 9002, true)
 
-	repo := NewChannelAgentBindingRepository()
-	repo.SetDB(ctxA, db)
+	repo := NewChannelAgentBindingRepositoryWithDB(db)
 	if err := repo.ClearPrimaryByChannelAccount(ctxA, cabChannelType, cabAccountID); err != nil {
 		t.Fatalf("A 租户清主绑定报错: %v", err)
 	}
@@ -140,8 +139,7 @@ func TestChannelAgentBindingReadsAreTenantScoped(t *testing.T) {
 	cabSeed(t, db, ctxA, 9001, true)
 	cabSeed(t, db, ctxB, 9002, true)
 
-	repo := NewChannelAgentBindingRepository()
-	repo.SetDB(ctxA, db)
+	repo := NewChannelAgentBindingRepositoryWithDB(db)
 	for _, tc := range []struct {
 		name     string
 		ctx      context.Context
@@ -166,5 +164,80 @@ func TestChannelAgentBindingReadsAreTenantScoped(t *testing.T) {
 	// 裸 ctx 同样 fail-closed：读侧一旦放行，「按渠道账号号读别人的绑定」就写回了库里。
 	if _, err := repo.ListByChannelAccount(context.Background(), cabChannelType, cabAccountID); err == nil {
 		t.Error("裸 ctx 的 ListByChannelAccount 未被拒绝")
+	}
+}
+
+// TestChannelAgentBindingExplicitFalsePersists 显式 false 必须落库。
+//
+// 这两列带 `default:true`：用 bool 时 GORM 把 false 当零值，写入 DB 默认值 true ——
+// 「建一条辅助绑定 (is_primary=false)」会落成第二条主绑定（业务层也没走 Clear），
+// 「建一条停用绑定 (enabled=false)」会直接上线接流量。
+func TestChannelAgentBindingExplicitFalsePersists(t *testing.T) {
+	db := cabDB(t)
+	ctxA := tenant.WithTenantID(context.Background(), cabTenantA)
+	repo := NewChannelAgentBindingRepositoryWithDB(db)
+
+	row := &model.ChannelAgentBinding{
+		ChannelType: cabChannelType, AccountID: "acc-aux",
+		AgentID: 9101, IsPrimary: boolPtr(false), Enabled: boolPtr(false),
+	}
+	if err := repo.Create(ctxA, row); err != nil {
+		t.Fatalf("创建辅助绑定失败: %v", err)
+	}
+
+	var got model.ChannelAgentBinding
+	if err := db.WithContext(ctxA).First(&got, row.ID).Error; err != nil {
+		t.Fatalf("回读失败: %v", err)
+	}
+	if got.Primary() {
+		t.Error("is_primary 显式 false 被 DB 默认值覆盖成 true：辅助绑定会变成第二条主绑定")
+	}
+	if got.IsActive() {
+		t.Error("enabled 显式 false 被 DB 默认值覆盖成 true：停用绑定会直接上线")
+	}
+
+	// nil = 未传，仍走默认 true（与显式 false 互不干扰）。
+	implicit := &model.ChannelAgentBinding{
+		ChannelType: cabChannelType, AccountID: "acc-default",
+		AgentID: 9102,
+	}
+	if err := repo.Create(ctxA, implicit); err != nil {
+		t.Fatalf("创建默认绑定失败: %v", err)
+	}
+	var gotImplicit model.ChannelAgentBinding
+	if err := db.WithContext(ctxA).First(&gotImplicit, implicit.ID).Error; err != nil {
+		t.Fatalf("回读默认绑定失败: %v", err)
+	}
+	if !gotImplicit.Primary() || !gotImplicit.IsActive() {
+		t.Errorf("未传开关时应落默认 true，实际 primary=%v enabled=%v",
+			gotImplicit.Primary(), gotImplicit.IsActive())
+	}
+}
+
+// TestChannelAgentBindingUpdateDeleteStayInTenant Update/Delete 只作用自己的租户：
+// 0 行命中必须报 ErrRecordNotFound，而不是假成功或按主键搬行。
+func TestChannelAgentBindingUpdateDeleteStayInTenant(t *testing.T) {
+	db := cabDB(t)
+	ctxA := tenant.WithTenantID(context.Background(), cabTenantA)
+	ctxB := tenant.WithTenantID(context.Background(), cabTenantB)
+	repo := NewChannelAgentBindingRepositoryWithDB(db)
+
+	bRow := cabSeed(t, db, ctxB, 9201, true)
+
+	stolen := *bRow
+	stolen.AgentID = 9999
+	if err := repo.Update(ctxA, &stolen); !errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Fatalf("跨租户 Update 应报 ErrRecordNotFound，实际: %v", err)
+	}
+	if err := repo.Delete(ctxA, bRow.ID); !errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Fatalf("跨租户 Delete 应报 ErrRecordNotFound，实际: %v", err)
+	}
+
+	var bAfter model.ChannelAgentBinding
+	if err := db.WithContext(ctxB).First(&bAfter, bRow.ID).Error; err != nil {
+		t.Fatalf("租户 B 的行不应被删除/搬走: %v", err)
+	}
+	if bAfter.AgentID != 9201 || bAfter.TenantID != cabTenantB {
+		t.Fatalf("租户 B 的行被跨租户改写: tenant=%d agent_id=%d", bAfter.TenantID, bAfter.AgentID)
 	}
 }

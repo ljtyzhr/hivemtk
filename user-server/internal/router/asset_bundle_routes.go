@@ -39,7 +39,7 @@ func setupAssetMarketRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 	h := controller.NewAssetMarketController(
 		service.NewLocalAssetService(ar, dr, sr, pc, gdb),
 		service.NewAssetMarketService(pc),
-		service.NewAIAgentService(),
+		service.NewAIAgentServiceWithRepo(repository.NewAIAgentRepositoryWithDB(gdb)),
 	)
 
 	groups := []*gin.RouterGroup{

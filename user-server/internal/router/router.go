@@ -323,14 +323,22 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 	app.InitAgentLifecycles(gormDB, engine)
 	kbRepo := repository.NewKnowledgeBaseRepository(gormDB)
 	orchestrator := app.BuildSmartOrchestrator(engine, kbRepo, gormDB)
-	aiAgentSvcGlobal := service.NewAIAgentService()
-	channelBindingSvcGlobal := service.NewChannelAgentBindingService()
-	csAgentSvcGlobal := service.NewCustomerServiceAgentService()
+	aiAgentRepoGlobal := repository.NewAIAgentRepositoryWithDB(gormDB)
+	aiAgentSvcGlobal := service.NewAIAgentServiceWithRepo(aiAgentRepoGlobal)
+	channelBindingSvcGlobal := service.NewChannelAgentBindingServiceWithRepos(
+		repository.NewChannelAgentBindingRepositoryWithDB(gormDB), aiAgentRepoGlobal, aiAgentSvcGlobal,
+	)
+	csAgentSvcGlobal := service.NewCustomerServiceAgentServiceWithRepos(
+		repository.NewCustomerServiceAgentRepositoryWithDB(gormDB),
+		aiAgentRepoGlobal,
+		repository.NewAgentStatusRepositoryWithDB(gormDB),
+		aiAgentSvcGlobal,
+	)
 	orchestrator.SetCustomerServiceAgentService(context.Background(), csAgentSvcGlobal)
 
 	langResolver := translation.NewLangConfigResolver(
-		repository.NewChatChannelRepository(),
-		repository.NewAIAgentRepository(),
+		repository.NewChatChannelRepositoryWithDB(gormDB),
+		aiAgentRepoGlobal,
 	)
 
 	service.InitAssetResolver(gormDB)
@@ -847,7 +855,7 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 		csAgentMountCtrl := controller.NewCustomerServiceAgentControllerWithService(csAgentSvcGlobal)
 		csAgentMountCtrl.RegisterRoutes(auth)
 
-		setupCompetitorFeatureRoutes(auth)
+		setupCompetitorFeatureRoutes(auth, gormDB)
 
 		setupFrontendAliases(auth, systemAdmin, r, gormDB)
 	}

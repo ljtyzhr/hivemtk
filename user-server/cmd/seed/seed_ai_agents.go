@@ -177,6 +177,9 @@ func (s *aiAgentsSeeder) Seed(database *gorm.DB, ctx *SeedContext) error {
 	return nil
 }
 
+// boolPtr 生成能力开关的指针值（model 用 *bool 区分「未传」与显式 false）
+func boolPtr(b bool) *bool { return &b }
+
 func (s *aiAgentsSeeder) buildAIAgents() []model.AIAgent {
 	// hivemtk 平台知识库产品 ID（与迁移 031_platform_cs_rag_seed.sql、
 	// scripts/seed/expand_knowledge_base*.py 中的 PRODUCT_ID 一致）；
@@ -195,7 +198,7 @@ func (s *aiAgentsSeeder) buildAIAgents() []model.AIAgent {
 			LLMModel:     "default",
 			Temperature:  0.5,
 			MaxTokens:    800,
-			EnableRAG:    true, EnableScriptMatch: false, EnableHumanizePolish: false, EnableContentAudit: true, EnablePlaybook: false,
+			EnableRAG:    boolPtr(true), EnableScriptMatch: boolPtr(false), EnableHumanizePolish: boolPtr(false), EnableContentAudit: true, EnablePlaybook: boolPtr(false),
 			RAGTopK:             5,
 			ConfidenceThreshold: 0.7,
 			MaxAIConsecutive:    4,
@@ -214,7 +217,7 @@ func (s *aiAgentsSeeder) buildAIAgents() []model.AIAgent {
 			LLMModel:     "default",
 			Temperature:  0.6,
 			MaxTokens:    800,
-			EnableRAG:    true, EnableScriptMatch: false, EnableHumanizePolish: false, EnableContentAudit: true, EnablePlaybook: false,
+			EnableRAG:    boolPtr(true), EnableScriptMatch: boolPtr(false), EnableHumanizePolish: boolPtr(false), EnableContentAudit: true, EnablePlaybook: boolPtr(false),
 			RAGTopK:             5,
 			ConfidenceThreshold: 0.7,
 			MaxAIConsecutive:    4,
@@ -233,7 +236,7 @@ func (s *aiAgentsSeeder) buildAIAgents() []model.AIAgent {
 			LLMModel:     "default",
 			Temperature:  0.6,
 			MaxTokens:    800,
-			EnableRAG:    true, EnableScriptMatch: false, EnableHumanizePolish: false, EnableContentAudit: true, EnablePlaybook: false,
+			EnableRAG:    boolPtr(true), EnableScriptMatch: boolPtr(false), EnableHumanizePolish: boolPtr(false), EnableContentAudit: true, EnablePlaybook: boolPtr(false),
 			RAGTopK:             5,
 			ConfidenceThreshold: 0.7,
 			MaxAIConsecutive:    4,
@@ -252,7 +255,7 @@ func (s *aiAgentsSeeder) buildAIAgents() []model.AIAgent {
 			LLMModel:     "default",
 			Temperature:  0.6,
 			MaxTokens:    700,
-			EnableRAG:    true, EnableScriptMatch: false, EnableHumanizePolish: false, EnableContentAudit: true, EnablePlaybook: false,
+			EnableRAG:    boolPtr(true), EnableScriptMatch: boolPtr(false), EnableHumanizePolish: boolPtr(false), EnableContentAudit: true, EnablePlaybook: boolPtr(false),
 			RAGTopK:             4,
 			ConfidenceThreshold: 0.7,
 			MaxAIConsecutive:    3,
@@ -271,7 +274,7 @@ func (s *aiAgentsSeeder) buildAIAgents() []model.AIAgent {
 			LLMModel:     "default",
 			Temperature:  0.6,
 			MaxTokens:    800,
-			EnableRAG:    true, EnableScriptMatch: false, EnableHumanizePolish: false, EnableContentAudit: true, EnablePlaybook: false,
+			EnableRAG:    boolPtr(true), EnableScriptMatch: boolPtr(false), EnableHumanizePolish: boolPtr(false), EnableContentAudit: true, EnablePlaybook: boolPtr(false),
 			RAGTopK:             5,
 			ConfidenceThreshold: 0.7,
 			MaxAIConsecutive:    4,
@@ -290,7 +293,7 @@ func (s *aiAgentsSeeder) buildAIAgents() []model.AIAgent {
 			LLMModel:     "default",
 			Temperature:  0.7,
 			MaxTokens:    800,
-			EnableRAG:    true, EnableScriptMatch: true, EnableHumanizePolish: false, EnableContentAudit: true, EnablePlaybook: true,
+			EnableRAG:    boolPtr(true), EnableScriptMatch: boolPtr(true), EnableHumanizePolish: boolPtr(false), EnableContentAudit: true, EnablePlaybook: boolPtr(true),
 			RAGTopK:             4,
 			ConfidenceThreshold: 0.7,
 			MaxAIConsecutive:    5,
@@ -309,7 +312,7 @@ func (s *aiAgentsSeeder) buildAIAgents() []model.AIAgent {
 			LLMModel:     "default",
 			Temperature:  0.4,
 			MaxTokens:    700,
-			EnableRAG:    true, EnableScriptMatch: false, EnableHumanizePolish: false, EnableContentAudit: true, EnablePlaybook: false,
+			EnableRAG:    boolPtr(true), EnableScriptMatch: boolPtr(false), EnableHumanizePolish: boolPtr(false), EnableContentAudit: true, EnablePlaybook: boolPtr(false),
 			RAGTopK:             4,
 			ConfidenceThreshold: 0.65,
 			MaxAIConsecutive:    3,
@@ -328,7 +331,7 @@ func (s *aiAgentsSeeder) buildAIAgents() []model.AIAgent {
 			LLMModel:     "default",
 			Temperature:  0.5,
 			MaxTokens:    800,
-			EnableRAG:    true, EnableScriptMatch: false, EnableHumanizePolish: false, EnableContentAudit: true, EnablePlaybook: false,
+			EnableRAG:    boolPtr(true), EnableScriptMatch: boolPtr(false), EnableHumanizePolish: boolPtr(false), EnableContentAudit: true, EnablePlaybook: boolPtr(false),
 			RAGTopK:             5,
 			ConfidenceThreshold: 0.7,
 			MaxAIConsecutive:    4,
@@ -347,7 +350,7 @@ func (s *aiAgentsSeeder) buildAIAgents() []model.AIAgent {
 			LLMModel:     "default",
 			Temperature:  0.6,
 			MaxTokens:    600,
-			EnableRAG:    false, EnableScriptMatch: true, EnableHumanizePolish: true, EnableContentAudit: true, EnablePlaybook: false,
+			EnableRAG:    boolPtr(false), EnableScriptMatch: boolPtr(true), EnableHumanizePolish: boolPtr(true), EnableContentAudit: true, EnablePlaybook: boolPtr(false),
 			RAGTopK:             0,
 			ConfidenceThreshold: 0.6,
 			MaxAIConsecutive:    2,
@@ -366,7 +369,7 @@ func (s *aiAgentsSeeder) buildAIAgents() []model.AIAgent {
 			LLMModel:     "default",
 			Temperature:  0.6,
 			MaxTokens:    800,
-			EnableRAG:    true, EnableScriptMatch: true, EnableHumanizePolish: false, EnableContentAudit: true, EnablePlaybook: false,
+			EnableRAG:    boolPtr(true), EnableScriptMatch: boolPtr(true), EnableHumanizePolish: boolPtr(false), EnableContentAudit: true, EnablePlaybook: boolPtr(false),
 			RAGTopK:             4,
 			ConfidenceThreshold: 0.7,
 			MaxAIConsecutive:    4,
@@ -385,7 +388,7 @@ func (s *aiAgentsSeeder) buildAIAgents() []model.AIAgent {
 			LLMModel:     "default",
 			Temperature:  0.5,
 			MaxTokens:    800,
-			EnableRAG:    true, EnableScriptMatch: true, EnableHumanizePolish: true, EnableContentAudit: true, EnablePlaybook: true,
+			EnableRAG:    boolPtr(true), EnableScriptMatch: boolPtr(true), EnableHumanizePolish: boolPtr(true), EnableContentAudit: true, EnablePlaybook: boolPtr(true),
 			RAGTopK:             5,
 			ConfidenceThreshold: 0.7,
 			MaxAIConsecutive:    4,
@@ -422,17 +425,17 @@ func (s *aiAgentsSeeder) buildBindings(agents []model.AIAgent) []model.ChannelAg
 		hivemtkSvc = agents[10]
 	}
 	bindings := []model.ChannelAgentBinding{
-		{ChannelType: string(model.ChannelTypeWeb), AccountID: "default", AgentID: hivemtkSvc.ID, IsPrimary: true, Enabled: true},
-		{ChannelType: string(model.ChannelTypeTelegram), AccountID: "default", AgentID: hivemtkSvc.ID, IsPrimary: true, Enabled: true},
+		{ChannelType: string(model.ChannelTypeWeb), AccountID: "default", AgentID: hivemtkSvc.ID, IsPrimary: boolPtr(true), Enabled: boolPtr(true)},
+		{ChannelType: string(model.ChannelTypeTelegram), AccountID: "default", AgentID: hivemtkSvc.ID, IsPrimary: boolPtr(true), Enabled: boolPtr(true)},
 
-		{ChannelType: string(model.ChannelTypeWeCom), AccountID: "seed-wecom-001", AgentID: agents[0].ID, IsPrimary: true, Enabled: true},
-		{ChannelType: string(model.ChannelTypeWeCom), AccountID: "seed-wecom-002", AgentID: agents[1].ID, IsPrimary: true, Enabled: true},
-		{ChannelType: string(model.ChannelTypeWhatsApp), AccountID: "seed-wa-001", AgentID: agents[0].ID, IsPrimary: true, Enabled: true},
-		{ChannelType: string(model.ChannelTypeFeishu), AccountID: "seed-feishu-001", AgentID: agents[2].ID, IsPrimary: true, Enabled: true},
-		{ChannelType: string(model.ChannelTypeDingTalk), AccountID: "seed-dingtalk-001", AgentID: agents[2].ID, IsPrimary: false, Enabled: true},
-		{ChannelType: string(model.ChannelTypeTelegram), AccountID: "seed-tg-001", AgentID: agents[3].ID, IsPrimary: true, Enabled: true},
-		{ChannelType: string(model.ChannelTypeDouyin), AccountID: "seed-dy-001", AgentID: agents[1].ID, IsPrimary: true, Enabled: true},
-		{ChannelType: string(model.ChannelTypeXiaohongshu), AccountID: "seed-xhs-001", AgentID: agents[4].ID, IsPrimary: true, Enabled: true},
+		{ChannelType: string(model.ChannelTypeWeCom), AccountID: "seed-wecom-001", AgentID: agents[0].ID, IsPrimary: boolPtr(true), Enabled: boolPtr(true)},
+		{ChannelType: string(model.ChannelTypeWeCom), AccountID: "seed-wecom-002", AgentID: agents[1].ID, IsPrimary: boolPtr(true), Enabled: boolPtr(true)},
+		{ChannelType: string(model.ChannelTypeWhatsApp), AccountID: "seed-wa-001", AgentID: agents[0].ID, IsPrimary: boolPtr(true), Enabled: boolPtr(true)},
+		{ChannelType: string(model.ChannelTypeFeishu), AccountID: "seed-feishu-001", AgentID: agents[2].ID, IsPrimary: boolPtr(true), Enabled: boolPtr(true)},
+		{ChannelType: string(model.ChannelTypeDingTalk), AccountID: "seed-dingtalk-001", AgentID: agents[2].ID, IsPrimary: boolPtr(false), Enabled: boolPtr(true)},
+		{ChannelType: string(model.ChannelTypeTelegram), AccountID: "seed-tg-001", AgentID: agents[3].ID, IsPrimary: boolPtr(true), Enabled: boolPtr(true)},
+		{ChannelType: string(model.ChannelTypeDouyin), AccountID: "seed-dy-001", AgentID: agents[1].ID, IsPrimary: boolPtr(true), Enabled: boolPtr(true)},
+		{ChannelType: string(model.ChannelTypeXiaohongshu), AccountID: "seed-xhs-001", AgentID: agents[4].ID, IsPrimary: boolPtr(true), Enabled: boolPtr(true)},
 	}
 	return bindings
 }
@@ -442,9 +445,9 @@ func (s *aiAgentsSeeder) buildCustomerServiceAgents(agents []model.AIAgent, ctx 
 		return nil
 	}
 	csAgents := []model.CustomerServiceAgent{
-		{AgentStatusID: ctx.AgentStatusIDs[0], AIAgentID: agents[0].ID, IsPrimary: true, Enabled: true},
-		{AgentStatusID: ctx.AgentStatusIDs[1], AIAgentID: agents[2].ID, IsPrimary: true, Enabled: true},
-		{AgentStatusID: ctx.AgentStatusIDs[2], AIAgentID: agents[1].ID, IsPrimary: false, Enabled: true},
+		{AgentStatusID: ctx.AgentStatusIDs[0], AIAgentID: agents[0].ID, IsPrimary: boolPtr(true), Enabled: boolPtr(true)},
+		{AgentStatusID: ctx.AgentStatusIDs[1], AIAgentID: agents[2].ID, IsPrimary: boolPtr(true), Enabled: boolPtr(true)},
+		{AgentStatusID: ctx.AgentStatusIDs[2], AIAgentID: agents[1].ID, IsPrimary: boolPtr(false), Enabled: boolPtr(true)},
 	}
 	return csAgents
 }

@@ -287,7 +287,7 @@ func setupQQFullchain(t *testing.T) *qqFullchainEnv {
 	}
 	binding := model.ChannelAgentBinding{
 		ChannelType: "qq", AccountID: fmt.Sprintf("%d", 1), AgentID: agent.ID,
-		IsPrimary: true, Enabled: true,
+		IsPrimary: boolPtr(true), Enabled: boolPtr(true),
 	}
 	if err := database.Create(&binding).Error; err != nil {
 		t.Fatalf("seed binding: %v", err)
@@ -322,8 +322,12 @@ func setupQQFullchain(t *testing.T) *qqFullchainEnv {
 	webhookSvc.SetIngressSvc(bridgeIngress)
 	webhookSvc.SetSalesEngine(context.Background(), engine)
 	webhookSvc.SetSmartOrchestrator(context.Background(), orch)
-	// 渠道绑定智能体（生产为全局单例构造；测试注入测试 DB）
-	webhookSvc.SetAgentBindingService(context.Background(), service.NewChannelAgentBindingService())
+	// 渠道绑定智能体：与生产装配同口径，显式注入测试 DB
+	webhookSvc.SetAgentBindingService(context.Background(), service.NewChannelAgentBindingServiceWithRepos(
+		repository.NewChannelAgentBindingRepositoryWithDB(database),
+		repository.NewAIAgentRepositoryWithDB(database),
+		service.NewAIAgentServiceWithRepo(repository.NewAIAgentRepositoryWithDB(database)),
+	))
 
 	// 真 gin 入口：复用生产 WebhookController.RegisterRoutes（含 extractHeaders 白名单、
 	// Op13 短路、响应码映射），确保 controller 层取头逻辑被真实覆盖（P0-1 回归保护）。

@@ -34,8 +34,8 @@ func makeAgent(code, name, agentType string) *model.AIAgent {
 		LLMModel:            "gpt-4o-mini",
 		Temperature:         0.7,
 		MaxTokens:           800,
-		EnableRAG:           true,
-		EnableScriptMatch:   true,
+		EnableRAG:           boolPtr(true),
+		EnableScriptMatch:   boolPtr(true),
 		ConfidenceThreshold: 0.7,
 		MaxAIConsecutive:    5,
 		Status:              1,
@@ -200,8 +200,8 @@ func TestAIAgentService_DeleteWithReference(t *testing.T) {
 		ChannelType: "telegram",
 		AccountID:   "acc1",
 		AgentID:     agent.ID,
-		IsPrimary:   true,
-		Enabled:     true,
+		IsPrimary:   boolPtr(true),
+		Enabled:     boolPtr(true),
 	}
 	_ = bindSvc.Create(context.Background(), binding)
 
@@ -321,8 +321,8 @@ func TestChannelBinding_CreateAndList(t *testing.T) {
 		ChannelType: "telegram",
 		AccountID:   "tg_acc_1",
 		AgentID:     agent.ID,
-		IsPrimary:   true,
-		Enabled:     true,
+		IsPrimary:   boolPtr(true),
+		Enabled:     boolPtr(true),
 	}
 	if err := bindSvc.Create(context.Background(), b); err != nil {
 		t.Fatalf("创建绑定失败: %v", err)
@@ -350,13 +350,13 @@ func TestChannelBinding_PrimarySwitch(t *testing.T) {
 
 	b1 := &model.ChannelAgentBinding{
 		ChannelType: "telegram", AccountID: "acc_x",
-		AgentID: a1.ID, IsPrimary: true, Enabled: true,
+		AgentID: a1.ID, IsPrimary: boolPtr(true), Enabled: boolPtr(true),
 	}
 	_ = bindSvc.Create(context.Background(), b1)
 
 	b2 := &model.ChannelAgentBinding{
 		ChannelType: "telegram", AccountID: "acc_x",
-		AgentID: a2.ID, IsPrimary: true, Enabled: true,
+		AgentID: a2.ID, IsPrimary: boolPtr(true), Enabled: boolPtr(true),
 	}
 	_ = bindSvc.Create(context.Background(), b2)
 
@@ -366,7 +366,7 @@ func TestChannelBinding_PrimarySwitch(t *testing.T) {
 	}
 	primaryCount := 0
 	for _, b := range list {
-		if b.IsPrimary {
+		if b.Primary() {
 			primaryCount++
 		}
 	}
@@ -386,7 +386,7 @@ func TestChannelBinding_LoadAgentForChannel(t *testing.T) {
 
 	b := &model.ChannelAgentBinding{
 		ChannelType: "whatsapp", AccountID: "wa_1",
-		AgentID: agent.ID, IsPrimary: true, Enabled: true,
+		AgentID: agent.ID, IsPrimary: boolPtr(true), Enabled: boolPtr(true),
 	}
 	_ = bindSvc.Create(context.Background(), b)
 
@@ -421,7 +421,7 @@ func TestChannelBinding_BindDisabledAgent(t *testing.T) {
 
 	b := &model.ChannelAgentBinding{
 		ChannelType: "telegram", AccountID: "acc_d",
-		AgentID: agent.ID, IsPrimary: true, Enabled: true,
+		AgentID: agent.ID, IsPrimary: boolPtr(true), Enabled: boolPtr(true),
 	}
 	err := bindSvc.Create(context.Background(), b)
 	if err == nil {
@@ -444,8 +444,8 @@ func TestCSAgentMount_CreateAndList(t *testing.T) {
 	m := &model.CustomerServiceAgent{
 		AgentStatusID: st.ID,
 		AIAgentID:     agent.ID,
-		IsPrimary:     true,
-		Enabled:       true,
+		IsPrimary:     boolPtr(true),
+		Enabled:       boolPtr(true),
 	}
 	if err := mountSvc.Create(context.Background(), m); err != nil {
 		t.Fatalf("创建挂载失败: %v", err)
@@ -475,19 +475,19 @@ func TestCSAgentMount_PrimarySwitch(t *testing.T) {
 	_ = db.GetDB().Create(st)
 
 	m1 := &model.CustomerServiceAgent{
-		AgentStatusID: st.ID, AIAgentID: a1.ID, IsPrimary: true, Enabled: true,
+		AgentStatusID: st.ID, AIAgentID: a1.ID, IsPrimary: boolPtr(true), Enabled: boolPtr(true),
 	}
 	_ = mountSvc.Create(context.Background(), m1)
 
 	m2 := &model.CustomerServiceAgent{
-		AgentStatusID: st.ID, AIAgentID: a2.ID, IsPrimary: true, Enabled: true,
+		AgentStatusID: st.ID, AIAgentID: a2.ID, IsPrimary: boolPtr(true), Enabled: boolPtr(true),
 	}
 	_ = mountSvc.Create(context.Background(), m2)
 
 	list, _ := mountSvc.ListByAgentStatusID(context.Background(), st.ID)
 	primaryCount := 0
 	for _, m := range list {
-		if m.IsPrimary {
+		if m.Primary() {
 			primaryCount++
 		}
 	}
@@ -509,7 +509,7 @@ func TestCSAgentMount_LoadAgentForSeat(t *testing.T) {
 	_ = db.GetDB().Create(st)
 
 	m := &model.CustomerServiceAgent{
-		AgentStatusID: st.ID, AIAgentID: agent.ID, IsPrimary: true, Enabled: true,
+		AgentStatusID: st.ID, AIAgentID: agent.ID, IsPrimary: boolPtr(true), Enabled: boolPtr(true),
 	}
 	_ = mountSvc.Create(context.Background(), m)
 
@@ -695,7 +695,7 @@ func TestE2E_ChannelBindingToLoadContext(t *testing.T) {
 
 	b := &model.ChannelAgentBinding{
 		ChannelType: "wecom", AccountID: "wecom_acc_1",
-		AgentID: agent.ID, IsPrimary: true, Enabled: true,
+		AgentID: agent.ID, IsPrimary: boolPtr(true), Enabled: boolPtr(true),
 	}
 	_ = bindSvc.Create(context.Background(), b)
 

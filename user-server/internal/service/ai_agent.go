@@ -43,10 +43,14 @@ type agentCacheEntry struct {
 	expiresAt time.Time
 }
 
-// NewAIAgentService 创建智能体服务(无参,内部用 dbUtil.GetDB()
+// NewAIAgentService 创建智能体服务（绑定全局默认 DB，仅兼容存量测试/调用方）
+// 生产装配一律用 NewAIAgentServiceWithRepo 显式注入仓储。
 func NewAIAgentService() *AIAgentService {
-	repo := repository.NewAIAgentRepository()
-	repo.SetDB(context.Background(), repository.GetDB())
+	return NewAIAgentServiceWithRepo(repository.NewAIAgentRepository())
+}
+
+// NewAIAgentServiceWithRepo 用注入的仓储创建智能体服务（五层架构的唯一生产入口）
+func NewAIAgentServiceWithRepo(repo *repository.AIAgentRepository) *AIAgentService {
 	return &AIAgentService{
 		repo:     repo,
 		cache:    make(map[agentCacheKey]*agentCacheEntry),
@@ -193,11 +197,11 @@ func (s *AIAgentService) LoadContext(ctx context.Context, agentID uint) (*AgentC
 		TopP:                 agent.TopP,
 		FrequencyPenalty:     agent.FrequencyPenalty,
 		PresencePenalty:      agent.PresencePenalty,
-		EnableRAG:            agent.EnableRAG,
-		EnableScriptMatch:    agent.EnableScriptMatch,
-		EnableHumanizePolish: agent.EnableHumanizePolish,
+		EnableRAG:            agent.RAGEnabled(),
+		EnableScriptMatch:    agent.ScriptMatchEnabled(),
+		EnableHumanizePolish: agent.HumanizePolishEnabled(),
 		EnableContentAudit:   agent.EnableContentAudit,
-		EnablePlaybook:       agent.EnablePlaybook,
+		EnablePlaybook:       agent.PlaybookEnabled(),
 		RAGTopK:              agent.RAGTopK,
 		ConfidenceThreshold:  agent.ConfidenceThreshold,
 		MaxAIConsecutive:     agent.MaxAIConsecutive,
@@ -272,16 +276,25 @@ type ChannelAgentBindingService struct {
 	agentSvc  *AIAgentService
 }
 
-// NewChannelAgentBindingService 创建渠道绑定服务(无参,内部经 repository.GetDB() 注入全局库)
+// NewChannelAgentBindingService 创建渠道绑定服务（绑定全局默认 DB，仅兼容存量测试/调用方）
+// 生产装配一律用 NewChannelAgentBindingServiceWithRepos 显式注入仓储。
 func NewChannelAgentBindingService() *ChannelAgentBindingService {
-	repo := repository.NewChannelAgentBindingRepository()
-	repo.SetDB(context.Background(), repository.GetDB())
-	agentRepo := repository.NewAIAgentRepository()
-	agentRepo.SetDB(context.Background(), repository.GetDB())
+	agentSvc := NewAIAgentService()
+	return NewChannelAgentBindingServiceWithRepos(
+		repository.NewChannelAgentBindingRepository(), agentSvc.repo, agentSvc,
+	)
+}
+
+// NewChannelAgentBindingServiceWithRepos 用注入的仓储创建渠道绑定服务
+func NewChannelAgentBindingServiceWithRepos(
+	repo *repository.ChannelAgentBindingRepository,
+	agentRepo *repository.AIAgentRepository,
+	agentSvc *AIAgentService,
+) *ChannelAgentBindingService {
 	return &ChannelAgentBindingService{
 		repo:      repo,
 		agentRepo: agentRepo,
-		agentSvc:  NewAIAgentService(),
+		agentSvc:  agentSvc,
 	}
 }
 
@@ -304,7 +317,7 @@ func (s *ChannelAgentBindingService) Create(ctx context.Context, b *model.Channe
 	if agent.Status != 1 {
 		return errors.New("智能体已禁用，无法绑定")
 	}
-	if b.IsPrimary {
+	if b.Primary() {
 		if err := s.repo.ClearPrimaryByChannelAccount(ctx, b.ChannelType, b.AccountID); err != nil {
 			return fmt.Errorf("清除旧主绑定失败: %w", err)
 		}
@@ -329,7 +342,7 @@ func (s *ChannelAgentBindingService) GetByID(ctx context.Context, id uint) (*mod
 
 // Update 更新绑定
 func (s *ChannelAgentBindingService) Update(ctx context.Context, b *model.ChannelAgentBinding) error {
-	if b.IsPrimary {
+	if b.Primary() {
 		existing, _ := s.repo.GetByID(ctx, b.ID)
 		if existing != nil && (existing.ChannelType != b.ChannelType || existing.AccountID != b.AccountID) {
 			if err := s.repo.ClearPrimaryByChannelAccount(ctx, b.ChannelType, b.AccountID); err != nil {
@@ -460,17 +473,37 @@ type CustomerServiceAgentService struct {
 	agentStatusRepo *repository.AgentStatusRepository
 }
 
-// NewCustomerServiceAgentService 创建客服挂载服务(无参,内部用 dbUtil.GetDB())
+// NewCustomerServiceAgentService 创建客服挂载服务（绑定全局默认 DB，仅兼容存量测试/调用方）
+// 生产装配一律用 NewCustomerServiceAgentServiceWithRepos 显式注入仓储。
 func NewCustomerServiceAgentService() *CustomerServiceAgentService {
-	repo := repository.NewCustomerServiceAgentRepository()
-	repo.SetDB(context.Background(), repository.GetDB())
-	agentRepo := repository.NewAIAgentRepository()
-	agentRepo.SetDB(context.Background(), repository.GetDB())
+	agentSvc := NewAIAgentService()
+	return NewCustomerServiceAgentServiceWithRepos(
+		repository.NewCustomerServiceAgentRepository(),
+		agentSvc.repo,
+		repository.NewAgentStatusRepository(),
+		agentSvc,
+	)
+}
+
+// NewCustomerServiceAgentServiceWithRepos 用注入的仓储创建客服挂载服务
+//
+// 四个依赖必须给齐：GetMyAgent 走 GetOrCreateAgentStatusByUserID →
+// agentStatusRepo.GetByAgentID，Create 走 agentRepo.GetByID，装配缺项就是
+// nil pointer panic（线上 GET /api/agents/me 直接 500）。
+func NewCustomerServiceAgentServiceWithRepos(
+	repo *repository.CustomerServiceAgentRepository,
+	agentRepo *repository.AIAgentRepository,
+	agentStatusRepo *repository.AgentStatusRepository,
+	agentSvc *AIAgentService,
+) *CustomerServiceAgentService {
+	if agentSvc == nil {
+		agentSvc = NewAIAgentServiceWithRepo(agentRepo)
+	}
 	return &CustomerServiceAgentService{
 		repo:            repo,
 		agentRepo:       agentRepo,
-		agentSvc:        NewAIAgentService(),
-		agentStatusRepo: repository.NewAgentStatusRepository(),
+		agentSvc:        agentSvc,
+		agentStatusRepo: agentStatusRepo,
 	}
 }
 
@@ -484,19 +517,19 @@ func NewCustomerServiceAgentService() *CustomerServiceAgentService {
 // r.db 为 nil ⇒ nil pointer panic ⇒ 线上 GET /api/agents/me 返回 500
 // 。
 func NewCustomerServiceAgentServiceViaPort(agentSvc *AIAgentService) *CustomerServiceAgentService {
-	repo := repository.NewCustomerServiceAgentRepository()
-	repo.SetDB(context.Background(), repository.GetDB())
-	agentRepo := repository.NewAIAgentRepository()
-	agentRepo.SetDB(context.Background(), repository.GetDB())
-	if agentSvc == nil {
+	var agentRepo *repository.AIAgentRepository
+	if agentSvc != nil {
+		agentRepo = agentSvc.repo
+	} else {
 		agentSvc = NewAIAgentService()
+		agentRepo = agentSvc.repo
 	}
-	return &CustomerServiceAgentService{
-		repo:            repo,
-		agentRepo:       agentRepo,
-		agentSvc:        agentSvc,
-		agentStatusRepo: repository.NewAgentStatusRepository(),
-	}
+	return NewCustomerServiceAgentServiceWithRepos(
+		repository.NewCustomerServiceAgentRepository(),
+		agentRepo,
+		repository.NewAgentStatusRepository(),
+		agentSvc,
+	)
 }
 
 // Create 创建挂载
@@ -514,7 +547,7 @@ func (s *CustomerServiceAgentService) Create(ctx context.Context, c *model.Custo
 	if agent.Status != 1 {
 		return errors.New("智能体已禁用，无法挂载")
 	}
-	if c.IsPrimary {
+	if c.Primary() {
 		if err := s.repo.ClearPrimaryByAgentStatusID(ctx, c.AgentStatusID); err != nil {
 			return fmt.Errorf("清除旧主挂载失败: %w", err)
 		}
@@ -539,7 +572,7 @@ func (s *CustomerServiceAgentService) GetByID(ctx context.Context, id uint) (*mo
 
 // Update 更新挂载
 func (s *CustomerServiceAgentService) Update(ctx context.Context, c *model.CustomerServiceAgent) error {
-	if c.IsPrimary {
+	if c.Primary() {
 		existing, _ := s.repo.GetByID(ctx, c.ID)
 		if existing != nil {
 			if err := s.repo.ClearPrimaryByAgentStatusID(ctx, existing.AgentStatusID); err != nil {
@@ -618,11 +651,12 @@ func (s *CustomerServiceAgentService) CreateByUserID(ctx context.Context, userID
 	if err != nil {
 		return nil, err
 	}
+	enabled := true
 	m := &model.CustomerServiceAgent{
 		AgentStatusID: st.ID,
 		AIAgentID:     aiAgentID,
-		IsPrimary:     isPrimary,
-		Enabled:       true,
+		IsPrimary:     &isPrimary,
+		Enabled:       &enabled,
 	}
 	if err := s.Create(ctx, m); err != nil {
 		return nil, err

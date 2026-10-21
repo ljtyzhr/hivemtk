@@ -112,40 +112,49 @@ func (ctrl *AIAgentController) Get(c *gin.Context) {
 	response.Success(c, agent, "获取成功")
 }
 
+// boolPtrOrDefaultTrue 三态布尔落到「默认开启」能力开关：nil（未传）= true。
+func boolPtrOrDefaultTrue(v *bool) *bool {
+	if v == nil {
+		return boolPtr(true)
+	}
+	return v
+}
+
 type aiAgentCreateReq struct {
-	AgentCode            string                  `json:"agent_code" binding:"required"`
-	Name                 string                  `json:"name" binding:"required"`
-	Description          string                  `json:"description"`
-	Avatar               string                  `json:"avatar"`
-	AgentType            string                  `json:"agent_type"`
-	AgentMode            string                  `json:"agent_mode"`
-	Persona              string                  `json:"persona" binding:"required"`
-	SystemPrompt         string                  `json:"system_prompt"`
-	Greeting             string                  `json:"greeting"`
-	AssetBundleID        string                  `json:"asset_bundle_id"`
-	RagProductIDs        []string                `json:"rag_product_ids"`
-	FAQEntryIDs          []string                `json:"faq_entry_ids"`
-	SOPTemplateIDs       []string                `json:"sop_template_ids"`
-	SOPIDs               []string                `json:"sop_ids"`
-	ScriptLibraryIDs     []string                `json:"script_library_ids"`
-	LLMModel             string                  `json:"llm_model"`
-	LLMProviderConfig    model.LLMProviderConfig `json:"llm_provider_config"`
-	Temperature          float64                 `json:"temperature"`
-	MaxTokens            int                     `json:"max_tokens"`
-	TopP                 float64                 `json:"top_p"`
-	FrequencyPenalty     float64                 `json:"frequency_penalty"`
-	PresencePenalty      float64                 `json:"presence_penalty"`
-	EnableRAG            bool                    `json:"enable_rag"`
-	EnableScriptMatch    bool                    `json:"enable_script_match"`
-	EnableHumanizePolish bool                    `json:"enable_humanize_polish"`
-	EnableContentAudit   bool                    `json:"enable_content_audit"`
-	EnablePlaybook       bool                    `json:"enable_playbook"`
-	RAGTopK              int                     `json:"rag_top_k"`
-	ConfidenceThreshold  float64                 `json:"confidence_threshold"`
-	MaxAIConsecutive     int                     `json:"max_ai_consecutive"`
-	Status               int                     `json:"status"`
-	InternalLanguage     string                  `json:"internal_language"`
-	TargetLanguage       string                  `json:"target_language"`
+	AgentCode         string                  `json:"agent_code" binding:"required"`
+	Name              string                  `json:"name" binding:"required"`
+	Description       string                  `json:"description"`
+	Avatar            string                  `json:"avatar"`
+	AgentType         string                  `json:"agent_type"`
+	AgentMode         string                  `json:"agent_mode"`
+	Persona           string                  `json:"persona" binding:"required"`
+	SystemPrompt      string                  `json:"system_prompt"`
+	Greeting          string                  `json:"greeting"`
+	AssetBundleID     string                  `json:"asset_bundle_id"`
+	RagProductIDs     []string                `json:"rag_product_ids"`
+	FAQEntryIDs       []string                `json:"faq_entry_ids"`
+	SOPTemplateIDs    []string                `json:"sop_template_ids"`
+	SOPIDs            []string                `json:"sop_ids"`
+	ScriptLibraryIDs  []string                `json:"script_library_ids"`
+	LLMModel          string                  `json:"llm_model"`
+	LLMProviderConfig model.LLMProviderConfig `json:"llm_provider_config"`
+	Temperature       float64                 `json:"temperature"`
+	MaxTokens         int                     `json:"max_tokens"`
+	TopP              float64                 `json:"top_p"`
+	FrequencyPenalty  float64                 `json:"frequency_penalty"`
+	PresencePenalty   float64                 `json:"presence_penalty"`
+	// 指针用于区分「未传」与「显式 false」：未传走能力默认值，显式 false 必须落库。
+	EnableRAG            *bool   `json:"enable_rag"`
+	EnableScriptMatch    *bool   `json:"enable_script_match"`
+	EnableHumanizePolish *bool   `json:"enable_humanize_polish"`
+	EnableContentAudit   *bool   `json:"enable_content_audit"`
+	EnablePlaybook       *bool   `json:"enable_playbook"`
+	RAGTopK              int     `json:"rag_top_k"`
+	ConfidenceThreshold  float64 `json:"confidence_threshold"`
+	MaxAIConsecutive     int     `json:"max_ai_consecutive"`
+	Status               int     `json:"status"`
+	InternalLanguage     string  `json:"internal_language"`
+	TargetLanguage       string  `json:"target_language"`
 }
 
 func (ctrl *AIAgentController) Create(c *gin.Context) {
@@ -177,11 +186,11 @@ func (ctrl *AIAgentController) Create(c *gin.Context) {
 		TopP:                 req.TopP,
 		FrequencyPenalty:     req.FrequencyPenalty,
 		PresencePenalty:      req.PresencePenalty,
-		EnableRAG:            req.EnableRAG,
-		EnableScriptMatch:    req.EnableScriptMatch,
-		EnableHumanizePolish: req.EnableHumanizePolish,
-		EnableContentAudit:   req.EnableContentAudit,
-		EnablePlaybook:       req.EnablePlaybook,
+		EnableRAG:            boolPtrOrDefaultTrue(req.EnableRAG),
+		EnableScriptMatch:    boolPtrOrDefaultTrue(req.EnableScriptMatch),
+		EnableHumanizePolish: boolPtrOrDefaultTrue(req.EnableHumanizePolish),
+		EnableContentAudit:   req.EnableContentAudit != nil && *req.EnableContentAudit,
+		EnablePlaybook:       boolPtrOrDefaultTrue(req.EnablePlaybook),
 		RAGTopK:              req.RAGTopK,
 		ConfidenceThreshold:  req.ConfidenceThreshold,
 		MaxAIConsecutive:     req.MaxAIConsecutive,
@@ -210,19 +219,6 @@ func (ctrl *AIAgentController) Create(c *gin.Context) {
 	if agent.ConfidenceThreshold == 0 {
 		agent.ConfidenceThreshold = 0.5
 	}
-	if !agent.EnableRAG && !req.EnableRAG {
-		agent.EnableRAG = true
-	}
-	if !agent.EnableScriptMatch && !req.EnableScriptMatch {
-		agent.EnableScriptMatch = true
-	}
-	if !agent.EnableHumanizePolish && !req.EnableHumanizePolish {
-		agent.EnableHumanizePolish = true
-	}
-	if !agent.EnablePlaybook && !req.EnablePlaybook {
-		agent.EnablePlaybook = true
-	}
-
 	if err := ctrl.svc.Create(c.Request.Context(), agent); err != nil {
 		response.Error(c, http.StatusBadRequest, "创建失败", err.Error())
 		return
@@ -317,19 +313,19 @@ func (ctrl *AIAgentController) Update(c *gin.Context) {
 	if hasKey("presence_penalty") {
 		existing.PresencePenalty = req.PresencePenalty
 	}
-	if hasKey("enable_rag") {
+	if hasKey("enable_rag") && req.EnableRAG != nil {
 		existing.EnableRAG = req.EnableRAG
 	}
-	if hasKey("enable_script_match") {
+	if hasKey("enable_script_match") && req.EnableScriptMatch != nil {
 		existing.EnableScriptMatch = req.EnableScriptMatch
 	}
-	if hasKey("enable_humanize_polish") {
+	if hasKey("enable_humanize_polish") && req.EnableHumanizePolish != nil {
 		existing.EnableHumanizePolish = req.EnableHumanizePolish
 	}
-	if hasKey("enable_content_audit") {
-		existing.EnableContentAudit = req.EnableContentAudit
+	if hasKey("enable_content_audit") && req.EnableContentAudit != nil {
+		existing.EnableContentAudit = *req.EnableContentAudit
 	}
-	if hasKey("enable_playbook") {
+	if hasKey("enable_playbook") && req.EnablePlaybook != nil {
 		existing.EnablePlaybook = req.EnablePlaybook
 	}
 	if hasKey("rag_top_k") && req.RAGTopK != 0 {
@@ -525,13 +521,8 @@ func (ctrl *ChannelAgentBindingController) Create(c *gin.Context) {
 		ChatID:      req.ChatID,
 		ChatType:    req.ChatType,
 		Priority:    req.Priority,
-		Enabled:     true,
-	}
-	if req.IsPrimary != nil {
-		b.IsPrimary = *req.IsPrimary
-	}
-	if req.Enabled != nil {
-		b.Enabled = *req.Enabled
+		IsPrimary:   boolPtrOrDefaultTrue(req.IsPrimary),
+		Enabled:     boolPtrOrDefaultTrue(req.Enabled),
 	}
 	if err := ctrl.svc.Create(c.Request.Context(), b); err != nil {
 		response.Error(c, http.StatusBadRequest, "创建失败", err.Error())
@@ -565,10 +556,10 @@ func (ctrl *ChannelAgentBindingController) Update(c *gin.Context) {
 	existing.Priority = req.Priority
 	// PATCH 语义：未传保留原值，防止漏字段把绑定意外停用
 	if req.IsPrimary != nil {
-		existing.IsPrimary = *req.IsPrimary
+		existing.IsPrimary = req.IsPrimary
 	}
 	if req.Enabled != nil {
-		existing.Enabled = *req.Enabled
+		existing.Enabled = req.Enabled
 	}
 	if err := ctrl.svc.Update(c.Request.Context(), existing); err != nil {
 		response.Error(c, http.StatusBadRequest, "更新失败", err.Error())
@@ -661,13 +652,8 @@ func (ctrl *CustomerServiceAgentController) Create(c *gin.Context) {
 	m := &model.CustomerServiceAgent{
 		AgentStatusID: req.AgentStatusID,
 		AIAgentID:     req.AIAgentID,
-		Enabled:       true,
-	}
-	if req.IsPrimary != nil {
-		m.IsPrimary = *req.IsPrimary
-	}
-	if req.Enabled != nil {
-		m.Enabled = *req.Enabled
+		IsPrimary:     boolPtrOrDefaultTrue(req.IsPrimary),
+		Enabled:       boolPtrOrDefaultTrue(req.Enabled),
 	}
 	if err := ctrl.svc.Create(c.Request.Context(), m); err != nil {
 		response.Error(c, http.StatusBadRequest, "创建失败", err.Error())
@@ -698,10 +684,10 @@ func (ctrl *CustomerServiceAgentController) Update(c *gin.Context) {
 	existing.AIAgentID = req.AIAgentID
 	// PATCH 语义：未传保留原值，防止漏字段把挂载意外停用
 	if req.IsPrimary != nil {
-		existing.IsPrimary = *req.IsPrimary
+		existing.IsPrimary = req.IsPrimary
 	}
 	if req.Enabled != nil {
-		existing.Enabled = *req.Enabled
+		existing.Enabled = req.Enabled
 	}
 	if err := ctrl.svc.Update(c.Request.Context(), existing); err != nil {
 		response.Error(c, http.StatusBadRequest, "更新失败", err.Error())

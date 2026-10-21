@@ -31,10 +31,18 @@ func setupCustomerSessionTestDB(t *testing.T) *gorm.DB {
 func setupCustomerSessionController(t *testing.T) (*CustomerSessionController, *AgentStatusController, *gin.Engine) {
 	setupCustomerSessionTestDB(t)
 	sessionCtrl := NewCustomerSessionController()
-	agentCtrl := NewAgentStatusController(nil, service.NewAgentStatusService(
-		repository.NewAgentStatusRepositoryWithDB(db.GetDB()),
-		repository.NewCustomerSessionRepositoryWithDB(db.GetDB()),
-	))
+	agentCtrl := NewAgentStatusController(
+		service.NewAgentStatusService(
+			repository.NewAgentStatusRepositoryWithDB(db.GetDB()),
+			repository.NewCustomerSessionRepositoryWithDB(db.GetDB()),
+		),
+		service.NewCustomerServiceAgentServiceWithRepos(
+			repository.NewCustomerServiceAgentRepositoryWithDB(db.GetDB()),
+			repository.NewAIAgentRepositoryWithDB(db.GetDB()),
+			repository.NewAgentStatusRepositoryWithDB(db.GetDB()),
+			nil,
+		),
+	)
 	router := gin.New()
 
 	router.Use(func(c *gin.Context) {

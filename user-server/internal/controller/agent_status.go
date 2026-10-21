@@ -18,14 +18,15 @@ type AgentStatusController struct {
 
 // NewAgentStatusController 创建客服状态控制器实例
 //
-// 由 router 层注入 *service.AIAgentService，控制器仅持有 service 依赖，零 db 引用。
+// 由 router 层注入两个 service，控制器仅持有 service 依赖，零 db 引用。
+// 挂载服务必须在装配层用显式 DB 建好再传进来（不在控制器里自取全局库）。
 func NewAgentStatusController(
-	aiAgentSvc *service.AIAgentService,
 	agentStatusSvc *service.AgentStatusService,
+	csAgentSvc *service.CustomerServiceAgentService,
 ) *AgentStatusController {
 	return &AgentStatusController{
 		agentService:    agentStatusSvc,
-		customerService: service.NewCustomerServiceAgentServiceViaPort(aiAgentSvc),
+		customerService: csAgentSvc,
 	}
 }
 

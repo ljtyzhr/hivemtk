@@ -10,6 +10,17 @@ import (
 	"hivemtk-user/internal/model"
 )
 
+// boolDefaultTrue 三态布尔落到「默认开启」能力开关：nil（未传）= true，显式 false 保留。
+func boolDefaultTrue(v *bool) *bool {
+	b := v == nil || *v
+	return &b
+}
+
+// boolOrDefaultFalse 三态布尔落到「默认关闭」开关：nil（未传）= false。
+func boolOrDefaultFalse(v *bool) bool {
+	return v != nil && *v
+}
+
 // AIAgentCreateDTO 智能体创建/更新 DTO（脱离 model 的入参）
 type AIAgentCreateDTO struct {
 	AgentCode            string          `json:"agent_code"`
@@ -30,11 +41,11 @@ type AIAgentCreateDTO struct {
 	TopP                 float64         `json:"top_p"`
 	FrequencyPenalty     float64         `json:"frequency_penalty"`
 	PresencePenalty      float64         `json:"presence_penalty"`
-	EnableRAG            bool            `json:"enable_rag"`
-	EnableScriptMatch    bool            `json:"enable_script_match"`
-	EnableHumanizePolish bool            `json:"enable_humanize_polish"`
-	EnableContentAudit   bool            `json:"enable_content_audit"`
-	EnablePlaybook       bool            `json:"enable_playbook"`
+	EnableRAG            *bool           `json:"enable_rag"`
+	EnableScriptMatch    *bool           `json:"enable_script_match"`
+	EnableHumanizePolish *bool           `json:"enable_humanize_polish"`
+	EnableContentAudit   *bool           `json:"enable_content_audit"`
+	EnablePlaybook       *bool           `json:"enable_playbook"`
 	RAGTopK              int             `json:"rag_top_k"`
 	ConfidenceThreshold  float64         `json:"confidence_threshold"`
 	MaxAIConsecutive     int             `json:"max_ai_consecutive"`
@@ -55,28 +66,30 @@ func (s *AIAgentService) CreateAIAgent(ctx context.Context, req *AIAgentCreateDT
 	}
 
 	agent := &model.AIAgent{
-		AgentCode:            req.AgentCode,
-		Name:                 req.Name,
-		Description:          req.Description,
-		Avatar:               req.Avatar,
-		AgentType:            req.AgentType,
-		Persona:              req.Persona,
-		SystemPrompt:         systemPrompt,
-		Greeting:             greeting,
-		RagProductIDs:        req.RagProductIDs,
-		SOPIDs:               req.SOPIDs,
-		ScriptLibraryIDs:     req.ScriptLibraryIDs,
-		LLMModel:             req.LLMModel,
-		Temperature:          req.Temperature,
-		MaxTokens:            req.MaxTokens,
-		TopP:                 req.TopP,
-		FrequencyPenalty:     req.FrequencyPenalty,
-		PresencePenalty:      req.PresencePenalty,
-		EnableRAG:            req.EnableRAG,
-		EnableScriptMatch:    req.EnableScriptMatch,
-		EnableHumanizePolish: req.EnableHumanizePolish,
-		EnableContentAudit:   req.EnableContentAudit,
-		EnablePlaybook:       req.EnablePlaybook,
+		AgentCode:        req.AgentCode,
+		Name:             req.Name,
+		Description:      req.Description,
+		Avatar:           req.Avatar,
+		AgentType:        req.AgentType,
+		Persona:          req.Persona,
+		SystemPrompt:     systemPrompt,
+		Greeting:         greeting,
+		RagProductIDs:    req.RagProductIDs,
+		SOPIDs:           req.SOPIDs,
+		ScriptLibraryIDs: req.ScriptLibraryIDs,
+		LLMModel:         req.LLMModel,
+		Temperature:      req.Temperature,
+		MaxTokens:        req.MaxTokens,
+		TopP:             req.TopP,
+		FrequencyPenalty: req.FrequencyPenalty,
+		PresencePenalty:  req.PresencePenalty,
+		// 四个默认开启的开关：nil=未传 → 显式 true（不依赖 DB 默认值，响应与落库一致）；
+		// 显式 false 原样保留（以前这里被 `!req.X` 强制拉回 true，创建时关不掉能力）。
+		EnableRAG:            boolDefaultTrue(req.EnableRAG),
+		EnableScriptMatch:    boolDefaultTrue(req.EnableScriptMatch),
+		EnableHumanizePolish: boolDefaultTrue(req.EnableHumanizePolish),
+		EnableContentAudit:   boolOrDefaultFalse(req.EnableContentAudit),
+		EnablePlaybook:       boolDefaultTrue(req.EnablePlaybook),
 		RAGTopK:              req.RAGTopK,
 		ConfidenceThreshold:  req.ConfidenceThreshold,
 		MaxAIConsecutive:     req.MaxAIConsecutive,
@@ -110,19 +123,6 @@ func (s *AIAgentService) CreateAIAgent(ctx context.Context, req *AIAgentCreateDT
 	if agent.ConfidenceThreshold == 0 {
 		agent.ConfidenceThreshold = 0.5
 	}
-	if !agent.EnableRAG && !req.EnableRAG {
-		agent.EnableRAG = true
-	}
-	if !agent.EnableScriptMatch && !req.EnableScriptMatch {
-		agent.EnableScriptMatch = true
-	}
-	if !agent.EnableHumanizePolish && !req.EnableHumanizePolish {
-		agent.EnableHumanizePolish = true
-	}
-	if !agent.EnablePlaybook && !req.EnablePlaybook {
-		agent.EnablePlaybook = true
-	}
-
 	if err := s.Create(ctx, agent); err != nil {
 		return nil, err
 	}
@@ -206,19 +206,20 @@ func (s *AIAgentService) UpdateAIAgentFromJSON(ctx context.Context, id uint, raw
 	if hasKey("presence_penalty") {
 		existing.PresencePenalty = req.PresencePenalty
 	}
-	if hasKey("enable_rag") {
+	// JSON null 与「未传」同义：保持原值，不把开关写成 NULL。
+	if hasKey("enable_rag") && req.EnableRAG != nil {
 		existing.EnableRAG = req.EnableRAG
 	}
-	if hasKey("enable_script_match") {
+	if hasKey("enable_script_match") && req.EnableScriptMatch != nil {
 		existing.EnableScriptMatch = req.EnableScriptMatch
 	}
-	if hasKey("enable_humanize_polish") {
+	if hasKey("enable_humanize_polish") && req.EnableHumanizePolish != nil {
 		existing.EnableHumanizePolish = req.EnableHumanizePolish
 	}
-	if hasKey("enable_content_audit") {
-		existing.EnableContentAudit = req.EnableContentAudit
+	if hasKey("enable_content_audit") && req.EnableContentAudit != nil {
+		existing.EnableContentAudit = *req.EnableContentAudit
 	}
-	if hasKey("enable_playbook") {
+	if hasKey("enable_playbook") && req.EnablePlaybook != nil {
 		existing.EnablePlaybook = req.EnablePlaybook
 	}
 	if hasKey("rag_top_k") && req.RAGTopK != 0 {
@@ -245,8 +246,8 @@ type ChannelBindingDTO struct {
 	ChannelType string `json:"channel_type" binding:"required"`
 	AccountID   string `json:"account_id" binding:"required"`
 	AgentID     uint   `json:"agent_id" binding:"required"`
-	IsPrimary   bool   `json:"is_primary"`
-	Enabled     bool   `json:"enabled"`
+	IsPrimary   *bool  `json:"is_primary"`
+	Enabled     *bool  `json:"enabled"`
 }
 
 // CreateChannelBinding 创建渠道绑定
@@ -255,11 +256,8 @@ func (s *ChannelAgentBindingService) CreateChannelBinding(ctx context.Context, r
 		ChannelType: NormalizeChannelType(req.ChannelType),
 		AccountID:   req.AccountID,
 		AgentID:     req.AgentID,
-		IsPrimary:   req.IsPrimary,
-		Enabled:     true,
-	}
-	if !req.Enabled {
-		b.Enabled = false
+		IsPrimary:   boolDefaultTrue(req.IsPrimary),
+		Enabled:     boolDefaultTrue(req.Enabled),
 	}
 	if err := s.Create(ctx, b); err != nil {
 		return nil, err
@@ -286,10 +284,10 @@ func (s *ChannelAgentBindingService) UpdateChannelBindingFromJSON(ctx context.Co
 	existing.ChannelType = NormalizeChannelType(req.ChannelType)
 	existing.AccountID = req.AccountID
 	existing.AgentID = req.AgentID
-	if _, ok := rawKeys["is_primary"]; ok {
+	if _, ok := rawKeys["is_primary"]; ok && req.IsPrimary != nil {
 		existing.IsPrimary = req.IsPrimary
 	}
-	if _, ok := rawKeys["enabled"]; ok {
+	if _, ok := rawKeys["enabled"]; ok && req.Enabled != nil {
 		existing.Enabled = req.Enabled
 	}
 	if err := s.Update(ctx, existing); err != nil {
@@ -300,10 +298,10 @@ func (s *ChannelAgentBindingService) UpdateChannelBindingFromJSON(ctx context.Co
 
 // CSAgentMountDTO 客服挂载创建 DTO（脱离 model 的入参）
 type CSAgentMountDTO struct {
-	AgentStatusID uint `json:"agent_status_id" binding:"required"`
-	AIAgentID     uint `json:"ai_agent_id" binding:"required"`
-	IsPrimary     bool `json:"is_primary"`
-	Enabled       bool `json:"enabled"`
+	AgentStatusID uint  `json:"agent_status_id" binding:"required"`
+	AIAgentID     uint  `json:"ai_agent_id" binding:"required"`
+	IsPrimary     *bool `json:"is_primary"`
+	Enabled       *bool `json:"enabled"`
 }
 
 // CreateCSAgentMount 创建客服挂载
@@ -311,11 +309,8 @@ func (s *CustomerServiceAgentService) CreateCSAgentMount(ctx context.Context, re
 	m := &model.CustomerServiceAgent{
 		AgentStatusID: req.AgentStatusID,
 		AIAgentID:     req.AIAgentID,
-		IsPrimary:     req.IsPrimary,
-		Enabled:       true,
-	}
-	if !req.Enabled {
-		m.Enabled = false
+		IsPrimary:     boolDefaultTrue(req.IsPrimary),
+		Enabled:       boolDefaultTrue(req.Enabled),
 	}
 	if err := s.Create(ctx, m); err != nil {
 		return nil, err
@@ -341,10 +336,10 @@ func (s *CustomerServiceAgentService) UpdateCSAgentMountFromJSON(ctx context.Con
 	_ = json.Unmarshal(rawJSON, &rawKeys)
 	existing.AgentStatusID = req.AgentStatusID
 	existing.AIAgentID = req.AIAgentID
-	if _, ok := rawKeys["is_primary"]; ok {
+	if _, ok := rawKeys["is_primary"]; ok && req.IsPrimary != nil {
 		existing.IsPrimary = req.IsPrimary
 	}
-	if _, ok := rawKeys["enabled"]; ok {
+	if _, ok := rawKeys["enabled"]; ok && req.Enabled != nil {
 		existing.Enabled = req.Enabled
 	}
 	if err := s.Update(ctx, existing); err != nil {
