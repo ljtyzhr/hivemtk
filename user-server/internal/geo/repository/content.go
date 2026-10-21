@@ -22,6 +22,10 @@ type GeoArticleRepository interface {
 	ListDeployedNeedingVerify(ctx context.Context, since time.Time, limit int) ([]*model.GeoArticle, error)
 	// ListDeployed 全部已部署且有站点 URL 的文章（sitemap 全量生成用）
 	ListDeployed(ctx context.Context) ([]*model.GeoArticle, error)
+	// ListPublished 全部已发布文章（静态站导出用）
+	ListPublished(ctx context.Context) ([]*model.GeoArticle, error)
+	// ListDeployedSince deployed_at >= since 的文章（部署后触发蜘蛛推送用）
+	ListDeployedSince(ctx context.Context, since time.Time) ([]*model.GeoArticle, error)
 }
 
 type geoArticleRepo struct {
@@ -80,6 +84,18 @@ func (r *geoArticleRepo) ListDeployed(ctx context.Context) ([]*model.GeoArticle,
 		Where("deployed_at IS NOT NULL AND site_url != ''").
 		Order("deployed_at DESC").
 		Find(&list).Error
+	return list, err
+}
+
+func (r *geoArticleRepo) ListPublished(ctx context.Context) ([]*model.GeoArticle, error) {
+	var list []*model.GeoArticle
+	err := r.db.WithContext(ctx).Where("status = ?", "published").Find(&list).Error
+	return list, err
+}
+
+func (r *geoArticleRepo) ListDeployedSince(ctx context.Context, since time.Time) ([]*model.GeoArticle, error) {
+	var list []*model.GeoArticle
+	err := r.db.WithContext(ctx).Where("deployed_at >= ?", since).Find(&list).Error
 	return list, err
 }
 

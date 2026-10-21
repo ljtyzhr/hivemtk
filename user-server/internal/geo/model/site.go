@@ -23,7 +23,8 @@ type GeoSite struct {
 	DeployCmd    string     `gorm:"type:varchar(255)" json:"deploy_cmd"`
 	HealthScore  int        `gorm:"default:0" json:"health_score"`
 	LastDeployAt *time.Time `json:"last_deploy_at"`
-	Active       bool       `gorm:"default:true" json:"active"`
+	// 不能声明 gorm default：零值 false 会被 GORM 省略而落成列默认 true。
+	Active bool `json:"active"`
 
 	CreatedAt time.Time      `gorm:"autoCreateTime" json:"created_at"`
 	UpdatedAt time.Time      `gorm:"autoUpdateTime" json:"updated_at"`

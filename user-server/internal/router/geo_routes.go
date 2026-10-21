@@ -114,7 +114,8 @@ func SetupGeoRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 		georepo.NewGeoPushRecordRepositoryWithDB(gormDB),
 		articleRepo,
 	)
-	siteSvc := geoservice.NewSiteDeployService(gormDB, pushSvc)
+	siteRepo := georepo.NewGeoSiteRepositoryWithDB(gormDB)
+	siteSvc := geoservice.NewSiteDeployService(siteRepo, articleRepo, pushSvc)
 	indexTrackerSvc := geoservice.NewIndexTrackerService(
 		georepo.NewGeoIndexTrackingRepositoryWithDB(gormDB),
 		articleRepo,
@@ -132,7 +133,7 @@ func SetupGeoRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 	indexCtrl := geoctrl.NewIndexTrackerController(indexTrackerSvc)
 
 	// ⬇️ GEO v2 CRUD Controller（3 张核心配置表）
-	siteCRUDCtrl := geoctrl.NewGeoSiteController(gormDB)
+	siteCRUDCtrl := geoctrl.NewGeoSiteController(geoservice.NewSiteConfigService(siteRepo))
 	pusherConfigSvc := geoservice.NewPusherConfigService(georepo.NewGeoPusherConfigRepositoryWithDB(gormDB))
 	pusherCRUDCtrl := geoctrl.NewGeoPusherConfigController(pusherConfigSvc)
 	schemaTemplateSvc := geoservice.NewSchemaTemplateService(georepo.NewGeoSchemaTemplateRepositoryWithDB(gormDB))

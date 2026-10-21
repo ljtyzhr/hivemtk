@@ -1,10 +1,11 @@
 package controller
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
-	"hivemtk-user/internal/geo/model"
+	"hivemtk-user/internal/geo/service"
 	"hivemtk-user/internal/pkg/utils/response"
 
 	"github.com/gin-gonic/gin"
@@ -13,45 +14,65 @@ import (
 
 // GeoSiteController 站点部署配置 CRUD
 type GeoSiteController struct {
-	db *gorm.DB
+	svc *service.SiteConfigService
 }
 
-func NewGeoSiteController(db *gorm.DB) *GeoSiteController {
-	return &GeoSiteController{db: db}
+func NewGeoSiteController(svc *service.SiteConfigService) *GeoSiteController {
+	return &GeoSiteController{svc: svc}
+}
+
+// geoSiteRequest 只含可编辑字段；id/tenant_id/health_score/last_deploy_at 由系统维护。
+type geoSiteRequest struct {
+	Domain    *string `json:"domain"`
+	Provider  *string `json:"provider"`
+	HugoPath  *string `json:"hugo_path"`
+	GitRepo   *string `json:"git_repo"`
+	DeployCmd *string `json:"deploy_cmd"`
+	Active    *bool   `json:"active"`
+}
+
+func (r geoSiteRequest) toInput() service.SiteConfigInput {
+	return service.SiteConfigInput{
+		Domain:    r.Domain,
+		Provider:  r.Provider,
+		HugoPath:  r.HugoPath,
+		GitRepo:   r.GitRepo,
+		DeployCmd: r.DeployCmd,
+		Active:    r.Active,
+	}
 }
 
 func (c *GeoSiteController) List(ctx *gin.Context) {
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(ctx.DefaultQuery("limit", "20"))
-	if page <= 0 {
-		page = 1
+	list, total, err := c.svc.List(ctx.Request.Context(), page, limit)
+	if err != nil {
+		response.Error(ctx, http.StatusInternalServerError, err.Error())
+		return
 	}
-	if limit <= 0 {
-		limit = 20
-	}
-	var list []model.GeoSite
-	var total int64
-	c.db.Model(&model.GeoSite{}).Count(&total)
-	c.db.Order("created_at DESC").Offset((page - 1) * limit).Limit(limit).Find(&list)
 	response.Success(ctx, gin.H{"list": list, "total": total}, "ok")
 }
 
 func (c *GeoSiteController) Get(ctx *gin.Context) {
-	var item model.GeoSite
-	if err := c.db.Where("id = ?", ctx.Param("id")).First(&item).Error; err != nil {
-		response.Error(ctx, http.StatusNotFound, err.Error())
+	item, err := c.svc.Get(ctx.Request.Context(), ctx.Param("id"))
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			response.Error(ctx, http.StatusNotFound, "站点配置不存在")
+			return
+		}
+		response.Error(ctx, http.StatusInternalServerError, err.Error())
 		return
 	}
 	response.Success(ctx, item, "ok")
 }
 
 func (c *GeoSiteController) Create(ctx *gin.Context) {
-	var item model.GeoSite
-	if !response.BindJSON(ctx, &item) {
+	var req geoSiteRequest
+	if !response.BindJSON(ctx, &req) {
 		return
 	}
-	item.Active = true
-	if err := c.db.Create(&item).Error; err != nil {
+	item, err := c.svc.Create(ctx.Request.Context(), req.toInput())
+	if err != nil {
 		response.Error(ctx, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -59,15 +80,16 @@ func (c *GeoSiteController) Create(ctx *gin.Context) {
 }
 
 func (c *GeoSiteController) Update(ctx *gin.Context) {
-	var item model.GeoSite
-	if err := c.db.Where("id = ?", ctx.Param("id")).First(&item).Error; err != nil {
-		response.Error(ctx, http.StatusNotFound, err.Error())
+	var req geoSiteRequest
+	if !response.BindJSON(ctx, &req) {
 		return
 	}
-	if !response.BindJSON(ctx, &item) {
-		return
-	}
-	if err := c.db.Save(&item).Error; err != nil {
+	item, err := c.svc.Update(ctx.Request.Context(), ctx.Param("id"), req.toInput())
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			response.Error(ctx, http.StatusNotFound, "站点配置不存在")
+			return
+		}
 		response.Error(ctx, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -75,8 +97,12 @@ func (c *GeoSiteController) Update(ctx *gin.Context) {
 }
 
 func (c *GeoSiteController) Delete(ctx *gin.Context) {
-	if err := c.db.Delete(&model.GeoSite{}, "id = ?", ctx.Param("id")).Error; err != nil {
-		response.Error(ctx, http.StatusBadRequest, err.Error())
+	if err := c.svc.Delete(ctx.Request.Context(), ctx.Param("id")); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			response.Error(ctx, http.StatusNotFound, "站点配置不存在")
+			return
+		}
+		response.Error(ctx, http.StatusInternalServerError, err.Error())
 		return
 	}
 	response.Success(ctx, nil, "deleted")

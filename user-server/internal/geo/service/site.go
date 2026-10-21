@@ -10,10 +10,9 @@ import (
 	"time"
 
 	"hivemtk-user/internal/geo/model"
+	"hivemtk-user/internal/geo/repository"
 	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
-
-	"gorm.io/gorm"
 )
 
 // SiteDeployService 静态站部署服务
@@ -22,25 +21,17 @@ import (
 // 生成 llms.txt v2 + robots.txt + sitemap.xml，
 // 触发 GitHub Actions → Cloudflare Pages 部署。
 type SiteDeployService struct {
-	db      *gorm.DB
-	pushSvc *PushService
+	sites    repository.GeoSiteRepository
+	articles repository.GeoArticleRepository
+	pushSvc  *PushService
 }
 
-func NewSiteDeployService(db *gorm.DB, pushSvc *PushService) *SiteDeployService {
-	return &SiteDeployService{db: db, pushSvc: pushSvc}
-}
-
-// SiteHealth 部署后健康检查结果
-type SiteHealth struct {
-	Domain       string `json:"domain"`
-	HTTPSOK      bool   `json:"https_ok"`
-	LlmsOK       bool   `json:"llms_ok"`
-	RobotsOK     bool   `json:"robots_ok"`
-	SitemapOK    bool   `json:"sitemap_ok"`
-	ResponseMs   int64  `json:"response_ms"`
-	SchemaOK     bool   `json:"schema_ok"`
-	HealthScore  int    `json:"health_score"`
-	ErrorDetails string `json:"error_details,omitempty"`
+func NewSiteDeployService(
+	sites repository.GeoSiteRepository,
+	articles repository.GeoArticleRepository,
+	pushSvc *PushService,
+) *SiteDeployService {
+	return &SiteDeployService{sites: sites, articles: articles, pushSvc: pushSvc}
 }
 
 // GenerateLLMsTxt v2 格式动态生成
@@ -152,8 +143,8 @@ Sitemap: /sitemap.xml
 // 同时写 llms.txt + robots.txt + sitemap.xml 到 Hugo static/
 func (s *SiteDeployService) ExportToHugo(ctx context.Context) (int, error) {
 	// 读配置
-	var siteCfg model.GeoSite
-	if err := s.db.WithContext(ctx).Where("active = true").First(&siteCfg).Error; err != nil {
+	siteCfg, err := s.sites.GetActive(ctx)
+	if err != nil {
 		return 0, fmt.Errorf("geo_site 未配置: %w", err)
 	}
 	if siteCfg.HugoPath == "" {
@@ -170,8 +161,8 @@ func (s *SiteDeployService) ExportToHugo(ctx context.Context) (int, error) {
 	}
 
 	// 读已发布文章
-	var articles []model.GeoArticle
-	if err := s.db.WithContext(ctx).Where("status = ?", "published").Find(&articles).Error; err != nil {
+	articles, err := s.articles.ListPublished(ctx)
+	if err != nil {
 		return 0, err
 	}
 
@@ -210,18 +201,20 @@ func (s *SiteDeployService) ExportToHugo(ctx context.Context) (int, error) {
 		sitePath := fmt.Sprintf("/article/%s.html", slug)
 		mdRelPath := fmt.Sprintf("/posts/%s.md", slug)
 		now := time.Now()
-		s.db.WithContext(ctx).Model(&a).Updates(map[string]any{
-			"site_url":      siteURL,
-			"site_path":     sitePath,
-			"markdown_path": mdRelPath,
-			"deployed_at":   now,
-			"llms_included": true,
-		})
+		a.SiteURL = siteURL
+		a.SitePath = sitePath
+		a.MarkdownPath = mdRelPath
+		a.DeployedAt = &now
+		a.LlmsIncluded = true
+		if err := s.articles.Update(ctx, a); err != nil {
+			logger.Warnf("回写文章部署字段失败 %s: %v", slug, err)
+			continue
+		}
 		count++
 	}
 
 	// 写 llms.txt（v2）
-	llmsContent := GenerateLLMsTxt(siteCfg.Domain, siteCfg.Domain, articles)
+	llmsContent := GenerateLLMsTxt(siteCfg.Domain, siteCfg.Domain, derefArticles(articles))
 	if err := os.WriteFile(filepath.Join(staticDir, "llms.txt"), []byte(llmsContent), 0o644); err != nil {
 		logger.Warnf("写 llms.txt 失败: %v", err)
 	}
@@ -232,13 +225,24 @@ func (s *SiteDeployService) ExportToHugo(ctx context.Context) (int, error) {
 	}
 
 	// 写 sitemap.xml
-	sitemap := s.buildSitemapXML(siteCfg.Domain, articles)
+	sitemap := s.buildSitemapXML(siteCfg.Domain, derefArticles(articles))
 	if err := os.WriteFile(filepath.Join(staticDir, "sitemap.xml"), []byte(sitemap), 0o644); err != nil {
 		logger.Warnf("写 sitemap.xml 失败: %v", err)
 	}
 
 	logger.Warnf("ExportToHugo: %d 篇文章已导出到 %s", count, siteCfg.HugoPath)
 	return count, nil
+}
+
+// derefArticles 值切片适配（生成函数按值接收，仓储返回指针切片）
+func derefArticles(in []*model.GeoArticle) []model.GeoArticle {
+	out := make([]model.GeoArticle, 0, len(in))
+	for _, a := range in {
+		if a != nil {
+			out = append(out, *a)
+		}
+	}
+	return out
 }
 
 // buildSitemapXML 生成 sitemap.xml
@@ -262,8 +266,8 @@ func (s *SiteDeployService) buildSitemapXML(domain string, articles []model.GeoA
 
 // TriggerDeploy 触发部署（git add → commit → push → GitHub Actions → Cloudflare）
 func (s *SiteDeployService) TriggerDeploy(ctx context.Context) (string, error) {
-	var siteCfg model.GeoSite
-	if err := s.db.WithContext(ctx).Where("active = true").First(&siteCfg).Error; err != nil {
+	siteCfg, err := s.sites.GetActive(ctx)
+	if err != nil {
 		return "", err
 	}
 
@@ -283,13 +287,17 @@ func (s *SiteDeployService) TriggerDeploy(ctx context.Context) (string, error) {
 	}
 
 	now := time.Now()
-	s.db.WithContext(ctx).Model(&siteCfg).Update("last_deploy_at", now)
+	if err := s.sites.UpdateLastDeployAt(ctx, siteCfg.ID, now); err != nil {
+		logger.Warnf("回写 last_deploy_at 失败 site=%s: %v", siteCfg.ID, err)
+	}
 
 	// 触发蜘蛛推送（异步，不等部署完成）
 	// 用 >= 而不是 =，避免时间戳精度导致漏查
 	triggerFrom := now.Add(-30 * time.Second)
-	var articles []model.GeoArticle
-	s.db.WithContext(ctx).Where("deployed_at >= ?", triggerFrom).Find(&articles)
+	articles, err := s.articles.ListDeployedSince(ctx, triggerFrom)
+	if err != nil {
+		return "", err
+	}
 	urls := make([]string, 0, len(articles))
 	for _, a := range articles {
 		if a.SiteURL != "" {
@@ -314,29 +322,6 @@ func (s *SiteDeployService) TriggerDeploy(ctx context.Context) (string, error) {
 	}
 
 	return fmt.Sprintf("https://%s", siteCfg.Domain), nil
-}
-
-// HealthCheck 部署后健康检查（简化版，真实部署时应做 HTTP 请求）
-func (s *SiteDeployService) HealthCheck(ctx context.Context, site *model.GeoSite) (*SiteHealth, error) {
-	h := &SiteHealth{Domain: site.Domain}
-	score := 0
-	if h.HTTPSOK {
-		score += 20
-	}
-	if h.LlmsOK {
-		score += 25
-	}
-	if h.RobotsOK {
-		score += 20
-	}
-	if h.SitemapOK {
-		score += 20
-	}
-	if h.SchemaOK {
-		score += 15
-	}
-	h.HealthScore = score
-	return h, nil
 }
 
 // slugify 中文标题转 URL slug（简化版）
