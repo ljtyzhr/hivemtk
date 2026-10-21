@@ -240,8 +240,9 @@ type AfterSalePortAdapter struct {
 
 // NewAfterSalePortAdapter 构造
 func NewAfterSalePortAdapter(svc *AfterSaleService) *AfterSalePortAdapter {
+	// 不再在适配器里兜底自建服务：那会用全局 db 句柄绕过装配层的注入。
 	if svc == nil {
-		svc = NewAfterSaleServiceWithClient(repository.NewAfterSaleRepository(), nil)
+		panic("NewAfterSalePortAdapter: svc 不能为 nil（由装配层注入）")
 	}
 	return &AfterSalePortAdapter{svc: svc}
 }

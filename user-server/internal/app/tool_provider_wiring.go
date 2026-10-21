@@ -101,7 +101,9 @@ func (p *BusinessToolProvider) Provide(ctx tooluse.ProviderContext) ([]tooluse.T
 		return nil, errProviderDBRequired
 	}
 	orderPort := service.NewOrderPortAdapter(repository.NewExternalOrderRepository())
-	afterSalePort := service.NewAfterSalePortAdapter(service.NewAfterSaleService())
+	afterSalePort := service.NewAfterSalePortAdapter(
+		service.NewAfterSaleService(repository.NewAfterSaleRepositoryWithDB(ctx.DB)),
+	)
 	deps := tooluse.NewBusinessToolDepsWithPorts(
 		service.NewFollowUpPortAdapter(service.NewFollowUpService(service.NewCustomerJourneyService())),
 		orderPort,

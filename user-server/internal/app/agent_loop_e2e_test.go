@@ -561,7 +561,7 @@ func newTestBusinessToolDeps(db *gorm.DB) tooluse.BusinessToolDeps {
 	return tooluse.NewBusinessToolDepsWithPorts(
 		service.NewFollowUpPortAdapter(service.NewFollowUpService(service.NewCustomerJourneyService())),
 		orderPort,
-		service.NewAfterSalePortAdapter(service.NewAfterSaleService()),
+		service.NewAfterSalePortAdapter(service.NewAfterSaleService(repository.NewAfterSaleRepositoryWithDB(db))),
 		db,
 	)
 }

@@ -53,8 +53,7 @@ func asSeed(t *testing.T, db *gorm.DB, tenantID uint, orderID string) *model.Aft
 
 func TestAfterSaleRepository_CreateFillsTenant(t *testing.T) {
 	db := asSetupDB(t)
-	repo := NewAfterSaleRepository()
-	repo.SetDB(context.Background(), db)
+	repo := NewAfterSaleRepositoryWithDB(db)
 
 	ctxA := tenant.WithTenantID(context.Background(), asTenantA)
 	row := &model.AfterSale{Platform: "jd", OrderID: "JD-CREATE-A", Type: "refund", Status: "pending"}
@@ -66,17 +65,24 @@ func TestAfterSaleRepository_CreateFillsTenant(t *testing.T) {
 	}
 }
 
-func TestAfterSaleRepository_GetByID_CrossTenantNotFound(t *testing.T) {
+// 跨租户回写必须按"不存在"处理：电商回推的状态只能落到本租户自己的售后单上。
+func TestAfterSaleRepository_Update_CrossTenantNotFound(t *testing.T) {
 	db := asSetupDB(t)
-	asSeed(t, db, asTenantA, "AS-MINE-A")
 	theirs := asSeed(t, db, asTenantB, "AS-THEIRS-B")
 
-	repo := NewAfterSaleRepository()
-	repo.SetDB(context.Background(), db)
+	repo := NewAfterSaleRepositoryWithDB(db)
 	ctxA := tenant.WithTenantID(context.Background(), asTenantA)
 
-	if _, err := repo.GetByID(ctxA, theirs.ID); !errors.Is(err, gorm.ErrRecordNotFound) {
-		t.Fatalf("跨租户 GetByID 期望 ErrRecordNotFound，实际: %v", err)
+	theirs.Status = "refunded"
+	if err := repo.Update(ctxA, theirs); !errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Fatalf("跨租户 Update 期望 ErrRecordNotFound，实际: %v", err)
+	}
+
+	// 本租户更新成功。
+	mine := asSeed(t, db, asTenantA, "AS-MINE-A")
+	mine.Status = "refunded"
+	if err := repo.Update(ctxA, mine); err != nil {
+		t.Fatalf("本租户 Update 失败: %v", err)
 	}
 }
 
@@ -85,8 +91,7 @@ func TestAfterSaleRepository_Query_OnlyOwnTenant(t *testing.T) {
 	asSeed(t, db, asTenantA, "AS-ORDER-A")
 	asSeed(t, db, asTenantB, "AS-ORDER-B")
 
-	repo := NewAfterSaleRepository()
-	repo.SetDB(context.Background(), db)
+	repo := NewAfterSaleRepositoryWithDB(db)
 	ctxA := tenant.WithTenantID(context.Background(), asTenantA)
 
 	byPhone, err := repo.ListByCustomer(ctxA, "13800000000")

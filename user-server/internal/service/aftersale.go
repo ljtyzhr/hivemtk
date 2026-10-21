@@ -6,6 +6,7 @@ import (
 
 	"hivemtk-user/internal/aiagent/agent/portcontract"
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
 )
 
@@ -19,9 +20,10 @@ type AfterSaleService struct {
 	client AfterSaleExternalClient
 }
 
-// NewAfterSaleService 构造（无回写客户端，走 best-effort 本地落库）
-func NewAfterSaleService() *AfterSaleService {
-	return NewAfterSaleServiceWithClient(repository.NewAfterSaleRepository(), nil)
+// NewAfterSaleService 构造（无回写客户端，走 best-effort 本地落库）。
+// 仓储由装配层注入：服务不再直取全局 db 句柄。
+func NewAfterSaleService(repo *repository.AfterSaleRepository) *AfterSaleService {
+	return NewAfterSaleServiceWithClient(repo, nil)
 }
 
 // NewAfterSaleServiceWithClient 构造（注入回写电商客户端）
@@ -59,14 +61,15 @@ func (s *AfterSaleService) Create(ctx context.Context, req *portcontract.AfterSa
 	}
 	if client := s.resolveClient(ctx); client != nil && client.Configured() {
 		if res, err := client.Create(ctx, req); err != nil {
-			fmt.Printf("[aftersale] 回写电商失败（本地已落库，状态待刷新）：%v\n", err)
+			// 本地已落库，回写失败不能回滚，但必须留痕，否则电商侧静默少单。
+			logger.Errorf("[售后] 回写电商失败（本地已落库，状态待刷新）：%v", err)
 		} else if res != nil && res.ExternalID != "" {
 			as.ExternalID = res.ExternalID
 			if res.Status != "" {
 				as.Status = res.Status
 			}
 			if err := s.repo.Update(ctx, as); err != nil {
-				fmt.Printf("[aftersale] 更新回写结果失败：%v\n", err)
+				logger.Errorf("[售后] 更新回写结果失败 id=%d: %v", as.ID, err)
 			}
 		}
 	}
