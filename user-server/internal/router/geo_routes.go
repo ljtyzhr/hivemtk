@@ -135,7 +135,8 @@ func SetupGeoRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 	siteCRUDCtrl := geoctrl.NewGeoSiteController(gormDB)
 	pusherConfigSvc := geoservice.NewPusherConfigService(georepo.NewGeoPusherConfigRepositoryWithDB(gormDB))
 	pusherCRUDCtrl := geoctrl.NewGeoPusherConfigController(pusherConfigSvc)
-	schemaCRUDCtrl := geoctrl.NewGeoSchemaTemplateController(gormDB)
+	schemaTemplateSvc := geoservice.NewSchemaTemplateService(georepo.NewGeoSchemaTemplateRepositoryWithDB(gormDB))
+	schemaCRUDCtrl := geoctrl.NewGeoSchemaTemplateController(schemaTemplateSvc)
 
 	probeRepo := georepo.NewGeoProbeRunRepositoryWithDB(gormDB)
 	probeSvc := geoservice.NewProbeService(probes, probeRepo)

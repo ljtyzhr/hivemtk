@@ -29,7 +29,9 @@ func newGeoCRUDRouter(db *gorm.DB) *gin.Engine {
 	r.PUT("/pusher-configs/:id", pusher.Update)
 	r.DELETE("/pusher-configs/:id", pusher.Delete)
 
-	tpl := NewGeoSchemaTemplateController(db)
+	tpl := NewGeoSchemaTemplateController(
+		geoservice.NewSchemaTemplateService(georepo.NewGeoSchemaTemplateRepositoryWithDB(db)),
+	)
 	r.GET("/schema-templates", tpl.List)
 	r.GET("/schema-templates/:id", tpl.Get)
 	r.POST("/schema-templates", tpl.Create)

@@ -1,64 +1,75 @@
 package controller
 
 import (
+	"errors"
 	"net/http"
 	"strconv"
 
-	"hivemtk-user/internal/geo/model"
+	"hivemtk-user/internal/geo/service"
 	"hivemtk-user/internal/pkg/utils/response"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/datatypes"
 	"gorm.io/gorm"
 )
 
 // GeoSchemaTemplateController Schema 模板库 CRUD
 type GeoSchemaTemplateController struct {
-	db *gorm.DB
+	svc *service.SchemaTemplateService
 }
 
-func NewGeoSchemaTemplateController(db *gorm.DB) *GeoSchemaTemplateController {
-	return &GeoSchemaTemplateController{db: db}
+func NewGeoSchemaTemplateController(svc *service.SchemaTemplateService) *GeoSchemaTemplateController {
+	return &GeoSchemaTemplateController{svc: svc}
+}
+
+// schemaTemplateRequest 只含可编辑字段；id/tenant_id/时间戳由系统维护。
+type schemaTemplateRequest struct {
+	PageType     *string        `json:"page_type"`
+	SchemaType   *string        `json:"schema_type"`
+	TemplateJSON datatypes.JSON `json:"template_json"`
+	Active       *bool          `json:"active"`
+}
+
+func (r schemaTemplateRequest) toInput() service.SchemaTemplateInput {
+	return service.SchemaTemplateInput{
+		PageType:     r.PageType,
+		SchemaType:   r.SchemaType,
+		TemplateJSON: r.TemplateJSON,
+		Active:       r.Active,
+	}
 }
 
 func (c *GeoSchemaTemplateController) List(ctx *gin.Context) {
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(ctx.DefaultQuery("limit", "20"))
-	if page <= 0 {
-		page = 1
+	list, total, err := c.svc.List(ctx.Request.Context(), page, limit)
+	if err != nil {
+		response.Error(ctx, http.StatusInternalServerError, err.Error())
+		return
 	}
-	if limit <= 0 {
-		limit = 20
-	}
-	var list []model.GeoSchemaTemplate
-	var total int64
-	c.db.Model(&model.GeoSchemaTemplate{}).Count(&total)
-	c.db.Order("page_type ASC, schema_type ASC").Offset((page - 1) * limit).Limit(limit).Find(&list)
 	response.Success(ctx, gin.H{"list": list, "total": total}, "ok")
 }
 
 func (c *GeoSchemaTemplateController) Get(ctx *gin.Context) {
-	var item model.GeoSchemaTemplate
-	if err := c.db.Where("id = ?", ctx.Param("id")).First(&item).Error; err != nil {
-		response.Error(ctx, http.StatusNotFound, err.Error())
+	item, err := c.svc.Get(ctx.Request.Context(), ctx.Param("id"))
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			response.Error(ctx, http.StatusNotFound, "Schema 模板不存在")
+			return
+		}
+		response.Error(ctx, http.StatusInternalServerError, err.Error())
 		return
 	}
 	response.Success(ctx, item, "ok")
 }
 
 func (c *GeoSchemaTemplateController) Create(ctx *gin.Context) {
-	var item model.GeoSchemaTemplate
-	if !response.BindJSON(ctx, &item) {
+	var req schemaTemplateRequest
+	if !response.BindJSON(ctx, &req) {
 		return
 	}
-	if item.PageType == "" {
-		response.Error(ctx, http.StatusBadRequest, "page_type required")
-		return
-	}
-	if item.SchemaType == "" {
-		response.Error(ctx, http.StatusBadRequest, "schema_type required")
-		return
-	}
-	if err := c.db.Create(&item).Error; err != nil {
+	item, err := c.svc.Create(ctx.Request.Context(), req.toInput())
+	if err != nil {
 		response.Error(ctx, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -66,15 +77,16 @@ func (c *GeoSchemaTemplateController) Create(ctx *gin.Context) {
 }
 
 func (c *GeoSchemaTemplateController) Update(ctx *gin.Context) {
-	var item model.GeoSchemaTemplate
-	if err := c.db.Where("id = ?", ctx.Param("id")).First(&item).Error; err != nil {
-		response.Error(ctx, http.StatusNotFound, err.Error())
+	var req schemaTemplateRequest
+	if !response.BindJSON(ctx, &req) {
 		return
 	}
-	if !response.BindJSON(ctx, &item) {
-		return
-	}
-	if err := c.db.Save(&item).Error; err != nil {
+	item, err := c.svc.Update(ctx.Request.Context(), ctx.Param("id"), req.toInput())
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			response.Error(ctx, http.StatusNotFound, "Schema 模板不存在")
+			return
+		}
 		response.Error(ctx, http.StatusBadRequest, err.Error())
 		return
 	}
@@ -82,8 +94,12 @@ func (c *GeoSchemaTemplateController) Update(ctx *gin.Context) {
 }
 
 func (c *GeoSchemaTemplateController) Delete(ctx *gin.Context) {
-	if err := c.db.Delete(&model.GeoSchemaTemplate{}, "id = ?", ctx.Param("id")).Error; err != nil {
-		response.Error(ctx, http.StatusBadRequest, err.Error())
+	if err := c.svc.Delete(ctx.Request.Context(), ctx.Param("id")); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			response.Error(ctx, http.StatusNotFound, "Schema 模板不存在")
+			return
+		}
+		response.Error(ctx, http.StatusInternalServerError, err.Error())
 		return
 	}
 	response.Success(ctx, nil, "deleted")

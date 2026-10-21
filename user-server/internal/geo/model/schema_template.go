@@ -11,8 +11,7 @@ import (
 
 // GeoSchemaTemplate Schema 模板库
 //
-// 按页面类型 + Schema @type 组织。ContentService.GenerateSchema /
-// ContentCreation 前端页面下拉选择都从这里读。
+// 按页面类型 + Schema @type 组织，管理端（/geo-tools/schema-templates）维护。
 type GeoSchemaTemplate struct {
 	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
 
