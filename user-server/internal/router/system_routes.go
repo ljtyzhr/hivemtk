@@ -21,37 +21,54 @@ import (
 	"gorm.io/gorm"
 )
 
-func setupSystemRoutes(auth *gin.RouterGroup) {
+// setupSystemRoutes 注册系统域路由。
+//
+// 两个参数按**数据域**分档（不是按"路由归属"分档）：
+//   - tenantAdmin：操作**租户表**的端点。租户 admin 本就该读写自己租户的这些
+//     数据（隔离 callback 已把范围限死在本租户），守卫是普通 admin。
+//   - systemAdmin：操作**全局表与实例运行态**的端点（备份恢复 / 重启 / 实例统计），
+//     平台运营语义，守卫是 PlatformOperatorMiddleware。
+//
+// 判据是"端点写读落到哪张表"：
+//
+//	system_config / system_config_kv / obs_config 都是**租户表**（有 tenant_id 列，
+//	由隔离 callback 自动限域）⇒ 租户档；
+//	backups / restore_records 是**全局表**，进程级操作没有租户概念 ⇒ 平台运营方档。
+func setupSystemRoutes(tenantAdmin, systemAdmin *gin.RouterGroup) {
 	systemConfigCtrl := controller.NewSystemConfigController()
-	auth.GET("/system/config", systemConfigCtrl.GetConfig)
-	auth.POST("/system/config", systemConfigCtrl.SaveConfig)
+	tenantAdmin.GET("/system/config", systemConfigCtrl.GetConfig)
+	tenantAdmin.POST("/system/config", systemConfigCtrl.SaveConfig)
 
 	toolIntegrationCtrl := controller.NewToolIntegrationConfigController()
-	auth.GET("/agent/tool-integrations", toolIntegrationCtrl.GetConfig)
-	auth.PUT("/agent/tool-integrations", toolIntegrationCtrl.SaveConfig)
+	tenantAdmin.GET("/agent/tool-integrations", toolIntegrationCtrl.GetConfig)
+	tenantAdmin.PUT("/agent/tool-integrations", toolIntegrationCtrl.SaveConfig)
 
 	agentSettingsCtrl := controller.NewAgentSettingsController()
-	auth.GET("/agent/settings", agentSettingsCtrl.GetConfig)
-	auth.PUT("/agent/settings", agentSettingsCtrl.SaveConfig)
+	tenantAdmin.GET("/agent/settings", agentSettingsCtrl.GetConfig)
+	tenantAdmin.PUT("/agent/settings", agentSettingsCtrl.SaveConfig)
 
+	// 实例运行态与备份恢复：进程与实例级，不属于任何租户 ⇒ 平台运营方档。
 	systemOpsCtrl := controller.NewSystemOpsController()
-	auth.POST("/system/restart", systemOpsCtrl.RestartServer)
-	auth.GET("/system/logs", systemOpsCtrl.GetSystemLogs)
-	auth.GET("/system/stats", systemOpsCtrl.GetSystemStats)
-	auth.GET("/stats/system", systemOpsCtrl.GetSystemStats)
-	auth.GET("/system/backup", systemOpsCtrl.GetBackupList)
-	auth.POST("/system/backup", systemOpsCtrl.CreateBackup)
-	auth.POST("/system/restore", systemOpsCtrl.RestoreBackup)
+	systemAdmin.POST("/system/restart", systemOpsCtrl.RestartServer)
+	systemAdmin.GET("/system/logs", systemOpsCtrl.GetSystemLogs)
+	systemAdmin.GET("/system/stats", systemOpsCtrl.GetSystemStats)
+	systemAdmin.GET("/stats/system", systemOpsCtrl.GetSystemStats)
+	systemAdmin.GET("/system/backup", systemOpsCtrl.GetBackupList)
+	systemAdmin.POST("/system/backup", systemOpsCtrl.CreateBackup)
+	systemAdmin.POST("/system/restore", systemOpsCtrl.RestoreBackup)
 
+	// 管理员登录策略：读的是**进程静态配置**（config.GetAdminConfig，不落库、
+	// 与租户无关），不泄露任何租户数据 ⇒ 租户档即可，不必要求平台运营方。
 	adminConfigCtrl := controller.NewAdminConfigController()
-	auth.GET("/admin/config", adminConfigCtrl.GetAdminConfig)
+	tenantAdmin.GET("/admin/config", adminConfigCtrl.GetAdminConfig)
 
+	// OBS 配置：obs_config 是**租户表**（有 tenant_id 列）⇒ 租户档。
 	obsConfigCtrl := controller.NewObsConfigController()
-	auth.GET("/obs/config", obsConfigCtrl.GetConfigList)
-	auth.GET("/obs/config/:id", obsConfigCtrl.GetConfig)
-	auth.GET("/obs/config/default", obsConfigCtrl.GetDefaultConfig)
+	tenantAdmin.GET("/obs/config", obsConfigCtrl.GetConfigList)
+	tenantAdmin.GET("/obs/config/:id", obsConfigCtrl.GetConfig)
+	tenantAdmin.GET("/obs/config/default", obsConfigCtrl.GetDefaultConfig)
 
-	obsAdmin := auth.Group("", middleware.AdminAuthMiddleware())
+	obsAdmin := tenantAdmin.Group("", middleware.AdminAuthMiddleware())
 	{
 		obsAdmin.POST("/obs/config", obsConfigCtrl.CreateConfig)
 		obsAdmin.PUT("/obs/config/:id", obsConfigCtrl.UpdateConfig)
@@ -96,17 +113,21 @@ func setupKnowledgeBaseRoutes(auth *gin.RouterGroup) {
 	knowledgeMerchantCtrl.RegisterRoutes(auth)
 }
 
-func setupBackupRoutes(auth *gin.RouterGroup) {
+// setupBackupRoutes 注册备份/恢复端点。
+//
+// 入参是平台运营方组而非 auth：backups / restore_records 是全局表，
+// 且备份动作读写的实例数据跨租户（执行体走 SystemScope），
+// 租户 admin 既不该看到别的租户的备份清单，也不该触发全实例恢复。
+func setupBackupRoutes(systemAdmin *gin.RouterGroup) {
 	backupCtrl := controller.NewBackupController()
 	restoreCtrl := controller.NewRestoreController()
-	admin := auth.Group("", middleware.AdminAuthMiddleware())
-	admin.GET("/backups", backupCtrl.GetBackupList)
-	admin.GET("/backups/:id", backupCtrl.GetBackupByID)
-	admin.GET("/restore/list", restoreCtrl.GetRestoreList)
-	admin.GET("/restore/last", restoreCtrl.GetLastRestore)
-	admin.POST("/backups", backupCtrl.CreateBackup)
-	admin.DELETE("/backups/:id", backupCtrl.DeleteBackup)
-	admin.POST("/restore", restoreCtrl.RestoreBackup)
+	systemAdmin.GET("/backups", backupCtrl.GetBackupList)
+	systemAdmin.GET("/backups/:id", backupCtrl.GetBackupByID)
+	systemAdmin.GET("/restore/list", restoreCtrl.GetRestoreList)
+	systemAdmin.GET("/restore/last", restoreCtrl.GetLastRestore)
+	systemAdmin.POST("/backups", backupCtrl.CreateBackup)
+	systemAdmin.DELETE("/backups/:id", backupCtrl.DeleteBackup)
+	systemAdmin.POST("/restore", restoreCtrl.RestoreBackup)
 }
 
 func setupMigrationRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {

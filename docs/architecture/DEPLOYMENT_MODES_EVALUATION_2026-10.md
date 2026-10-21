@@ -234,10 +234,16 @@
 | 部署文档漏 `PLATFORM_ENABLED` 那一轴（**已修**） | `docs/architecture/部署方案_用户端.md` §十一 + 新增 §十一.1 |
 | 2×2 矩阵的**行为契约补齐**（形态③首次成文） | 本文 §2 |
 | **跨租户越权**（**已修**，对抗性跑出来的） | `internal/middleware/platform_operator.go` + `internal/router/router.go` + `internal/service/tenant.go`；见 `.specify/bugs/cross-tenant-admin-privilege-escalation/` |
+| **守卫过度收紧**（**已修**，二次审核打出来的） | admin 档按数据域拆两档：`internal/router/router.go` + `system_routes.go` + `module_routes.go`；门禁 `internal/router/platform_operator_scope_test.go`；见 `.specify/bugs/platform-operator-guard-over-tightened/` |
 
 ### 待批准（本文第 6 节）
 
 方案 E（形态矩阵契约门禁）需批准后走 spec-kit（规则3/4）。
+
+> **注意两份真相**：本节「行为契约表」与门禁
+> `internal/router/platform_operator_scope_test.go` 的「端点归属表」是**两张独立的表**。
+> 后续若要收口，应让门禁直接读本文的表格（或反过来由表格生成门禁），
+> 否则一处改了另一处没改 —— 而这类漂移**编译照过、单测照绿**，只有活体才看得见。
 
 ---
 
@@ -295,6 +301,43 @@
 （A/B 实验仓储的 ctx 化重构），中途留下一个编译红：
 `ABExperimentResult` 模型缺 `CreatedAt` 字段（库里 `created_at` 列存在且 NOT NULL，
 但 Go 模型没声明，同文件其余三个模型都声明了）。按"发现即修"补上该字段后编译恢复。
+
+### 9.4 二次审核打出的第二处缺陷：守卫**过度收紧**（误伤租户内管理功能）
+
+§9.1 的越权修复方向是对的（跨租户确实堵住了），但**施加范围错了**：
+守卫被套在**整个 `systemAdmin` 路由组**上，而那一组里混着操作**租户表**的端点。
+二次审核拿**真实租户令牌**复验，8 条端点被误打成 403：
+
+| 端点 | 落库 | 归属 |
+|---|---|---|
+| `/api/system/config` | `system_config`（租户表） | 租户档 |
+| `/api/agent/tool-integrations` | `system_config_kv`（租户表） | 租户档 |
+| `/api/agent/settings` | `system_config_kv`（租户表） | 租户档 |
+| `/api/obs/config` | `obs_config`（租户表） | 租户档 |
+| `/api/manage/config-params` | 平台目录 + **本租户覆盖** | 租户档 |
+| `/api/admin/config` | 进程静态配置 | 租户档 |
+| `/api/modules/sync-logs` | `module_sync_logs`（租户表） | 租户档 |
+| `/api/sso/config` | `system_config_kv` 的 `sso.providers`（租户表） | 租户档 |
+
+⇒ **租户管理员在自己的租户里，除业务功能外所有管理配置页面全废。**
+
+**根因（本仓最值得记住的一条）**：
+**守卫按"路由组"施加，而权限边界实际按"数据域"划分。**
+「是不是平台运营方」与「这个端点该不该被平台运营方守卫」是**两个不同的问题**。
+
+而且两个方向的代价**不对称**：平台运营方守卫是"降敌意"方向——
+套错档位会**误伤合法功能**（本轮），漏套会**漏放越权**（§9.1）。
+所以两档都必须按**端点操作的数据落在哪张表**来分，不能按"这路由组看起来像管理端"分。
+
+**修法**：admin 档按数据域拆成两档（`tenantAdmin` 普通 admin 守卫 /
+`systemAdmin` 平台运营方守卫），并加**常驻门禁**把归属钉成两张表
+（`internal/router/platform_operator_scope_test.go`）——
+门禁做了**反向验证**（把端点挪错档位 ⇒ 必须红），否则它只是一张摆设的清单。
+
+**为什么这类回归常规测试抓不到**：守卫本身是对的、编译照过、既有单测照绿；
+只有**拿真实租户令牌打活体端点**才看得见。
+
+完整评估：`.specify/bugs/platform-operator-guard-over-tightened/`。
 
 
 ---

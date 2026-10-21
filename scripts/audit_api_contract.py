@@ -252,7 +252,16 @@ def resolve(fkey, var, depth=0):
     # 这两个形参名是 3.2（GET /api/config/runtime）与 4.1（字典只读下发）
     # 引入时起的，此前的按名推断表里没有，于是这两条路由被判成"后端没有"，
     # strict 模式直接红。与 `auth`/`public`/`router` 同属一类，一并列出。
-    if var in ('auth', 'public', 'router', 'plainAuth', 'admin', 'systemAdmin'):
+    #
+    # `tenantAdmin` 是 2026-10-21 二次审核引入的：admin 档按**数据域**拆两档时
+    # 新增的租户档（setupSystemRoutes / setupModuleRoutes 的租户级端点挂它）。
+    # 装配处 `tenantAdmin := auth.Group("")` ⇒ 前缀同样是 /api。
+    # 漏了它 ⇒ 那批端点被判成"后端没有" ⇒ strict 模式红 11 条假缺陷。
+    #
+    # 教训：这张表是**按名推断**，任何新增的组形参都必须登记，
+    # 否则"后端路由存在但审计说没有"——而且报的是 UNMATCHED（前端调了后端没有），
+    # 方向完全指错，排查会绕远路。
+    if var in ('auth', 'public', 'router', 'plainAuth', 'admin', 'systemAdmin', 'tenantAdmin'):
         return '/api'
     if var == 'r':
         return ''

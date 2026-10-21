@@ -355,7 +355,7 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 		// 功能模块市场：未登录也能逛（public 档只放 浏览/付款指引/监管告知 三类读口，
 		// 下单与查单在 auth 档）。刻意不给它挂模块闸 —— 市场正是买模块的入口，
 		// 拦了就永远买不了。
-		setupModuleRoutes(public, nil, nil)
+		setupModuleRoutes(public, nil, nil, nil)
 
 		hcCtrl := controller.NewHelpCenterController()
 		public.GET("/public/help-center/categories", hcCtrl.Categories)
@@ -538,36 +538,57 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 		// 在任意一条报价上开出一张应收。
 		setupBillRoutes(auth)
 
-		// systemAdmin 组 = **平台运营方**专用档。
+		// 两个 admin 档，按**数据域**分，不按"路由组"一刀切：
 		//
-		// 守卫不是 AdminAuthMiddleware（只判 role=="admin"）——SaaS 模式下
-		// 租户 admin 也是 admin，两者不可区分，租户 admin 会因此拿到跨租户
-		// 与实例级权限（看到/停用别的租户、重启实例、拉备份）。
-		// 平台运营方 = 本实例**首个租户**的管理员（tenants 表 ID 最小）；
-		// off 模式（离线单机）恒放行，行为与历史版本逐字节一致。
+		//   tenantAdmin —— 操作**租户表**（system_config / system_config_kv /
+		//     obs_config / tenant_config_params …）的管理端点。租户 admin 本就该
+		//     读写自己租户的这些数据（隔离 callback 已经把范围限死在本租户），
+		//     所以守卫是 AdminAuthMiddleware（只判 role=="admin"），与历史一致。
+		//
+		//   systemAdmin —— 操作**全局表与实例运行态**的管理端点（tenants 租户清单 /
+		//     停用租户 / 备份恢复 / 重启 / 迁移记录 / 路由巡检）。这些是平台运营语义，
+		//     守卫是 PlatformOperatorMiddleware：SaaS 模式下"admin"角色同时表示
+		//     平台运营方与租户管理员，只判 role 区分不出来 ⇒ 租户 admin 会拿到
+		//     看到/停用别的租户、重启实例的权限。平台运营方 = 本实例**首个租户**
+		//     的管理员（tenants 表 ID 最小）；off 模式恒放行，行为与历史逐字节一致。
+		//
+		// 【为什么必须分两档】平台运营方守卫是"降敌意"方向（把本该能访问的人挡在外面），
+		// 一旦套在整个 admin 组上就会**误伤租户内管理功能**——第一轮就是这么把
+		// 「租户 admin 读自己的站点配置 / 工具集成 / Agent 设置 / OBS 配置 / 参数覆盖」
+		// 全部打成 403 的。分档判据是**端点操作的数据落在哪张表**，不是"挂在哪个组"。
+		//
 		// 详见 middleware.PlatformOperatorMiddleware 与
 		// .specify/bugs/cross-tenant-admin-privilege-escalation/。
+		tenantAdmin := auth.Group("")
+		tenantAdmin.Use(middleware.AdminAuthMiddleware())
+
 		systemAdmin := auth.Group("")
 		systemAdmin.Use(middleware.PlatformOperatorMiddleware())
-		setupSystemRoutes(systemAdmin)
+		setupSystemRoutes(tenantAdmin, systemAdmin)
 
-		// 租户运营端点（T033）：跨租户可见数据 → 硬超管守卫；
+		// 租户运营端点（T033）：跨租户可见数据 → 平台运营方守卫；
 		// 公开档的 register 已在 setupTenantRoutes(public) 注册，此处补登录档与 admin 档
 		setupTenantRoutes(nil, auth, systemAdmin)
 
-		// 功能模块市场（下单/查单/我的模块）与 LLM 余额、套餐
-		setupModuleRoutes(nil, auth, systemAdmin)
+		// 功能模块市场（下单/查单/我的模块）与 LLM 余额、套餐。
+		// sync-logs 落 module_sync_logs（租户表）⇒ 租户档；
+		// uncovered-routes 是进程内路由巡检（全局）⇒ 平台运营方档。
+		setupModuleRoutes(nil, auth, tenantAdmin, systemAdmin)
 
 		setupSystemUserRoutes(auth)
 
-		// plainAuth 只挂只读的 Runtime；五个全量/写端点走 admin 组（见 config_param_routes.go）
-		setupConfigParamRoutes(auth, systemAdmin, gormDB)
+		// plainAuth 只挂只读的 Runtime；五个全量/写端点走租户 admin 档
+		// （config-params 写的是本租户的覆盖行 tenant_config_params，见 config_param.go
+		//  的 UpdateValue：on 模式落租户覆盖、不动平台默认值）
+		setupConfigParamRoutes(auth, tenantAdmin, gormDB)
 
 		// 租户自配 IdP（R5-4）：写入的是本租户的 client_secret 与授权端点，
-		// 与参数中心覆盖写同档，只挂 admin 组。
-		setupSSOConfigRoutes(systemAdmin, ssoCtrl)
+		// 与参数中心覆盖写同档，只挂租户 admin 组。
+		setupSSOConfigRoutes(tenantAdmin, ssoCtrl)
 
-		// 业务字典（阶段四）。与参数中心同级：只挂 admin，路由文件里说明为什么不是普通运维该碰的。
+		// 业务字典（阶段四）。dictionaries / dictionary_transitions 是**全局只读共享**
+		// （specs/001 data-model.md：「dictionary 等纯只读共享数据 | 全局只读」），
+		// 写端点改动的是全体租户共用的字典项 ⇒ 平台运营方档。
 		setupDictionaryRoutes(auth, systemAdmin, gormDB)
 
 		setupRoleRoutes(auth)
@@ -807,7 +828,7 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 
 		setupCommunityRoutes(auth)
 
-		setupBackupRoutes(auth)
+		setupBackupRoutes(systemAdmin)
 
 		setupMigrationRoutes(auth, gormDB)
 
@@ -840,7 +861,7 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 
 		setupCompetitorFeatureRoutes(auth)
 
-		setupFrontendAliases(auth, r, gormDB)
+		setupFrontendAliases(auth, systemAdmin, r, gormDB)
 	}
 
 	webhookCtrl := controller.NewWebhookController(webhookSvc)

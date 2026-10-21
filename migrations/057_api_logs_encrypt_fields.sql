@@ -1,11 +1,13 @@
 -- 057: api_logs 敏感字段加密（OPT-SEC-04）
 --
 -- 存量数据策略说明：
---   ip_address / user_agent 的新写入在应用层（internal/ops/repository/stats.go
---   CreateAPILog）经 internal/pkg/dbencrypt 加密为 `enc:v1:{base64}` 密文。
---   存量明文行**不做批量改写**：纯 SQL 无法实现 AES-256-GCM（nonce 随机生成、
---   密钥仅存在于应用侧 MASTER_KEY，严禁下发到数据库），故保留明文、依赖读取
---   出口 Decrypt 的透传兼容（非 enc:v1: 前缀原样返回）。新写入一律加密。
+--   ip_address / user_agent 的新写入原在应用层的 ops 统计仓储里经
+--   internal/pkg/dbencrypt 加密为 `enc:v1:{base64}` 密文。该写入口在
+--   2026-10-21 的零生产消费者清理中已随该仓储文件一并移除（写方法无任何
+--   调用点），所以本迁移现在**只做字段长度保护**：存量明文行保留原样
+--   （纯 SQL 无法实现 AES-256-GCM —— nonce 随机生成、密钥仅存在于应用侧
+--   MASTER_KEY，严禁下发到数据库），读取出口 Decrypt 的透传兼容
+--   （非 enc:v1: 前缀原样返回）仍按原逻辑保留。
 --
 -- 本迁移仅做字段长度保护：密文 = "enc:v1:" + base64(nonce|ciphertext|tag)，
 -- 比明文长约 2~4 倍，varchar(45) 无法容纳加密后的 IP，需扩容。全部幂等写法。

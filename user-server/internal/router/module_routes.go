@@ -28,7 +28,14 @@ import (
 // 模块闸在 auth 组上统一挂 GuardModulePath（见 router.go），本文件只做映射，
 // 不在这里重复挂 RequireModule：路径→模块的判定必须集中在
 // middleware/module_route_patterns.go 一张表里，否则必然漂移。
-func setupModuleRoutes(public, auth, admin *gin.RouterGroup) {
+// setupModuleRoutes 注册模块市场路由。
+//
+// admin 档按**数据域**分两档（判据是"落到哪张表"）：
+//   - tenantAdmin：sync-logs 落 module_sync_logs（**租户表**，有 tenant_id 列）
+//     ⇒ 租户 admin 读自己租户的同步日志即可，隔离 callback 已限域。
+//   - systemAdmin：uncovered-routes 是**进程内路由巡检**（middleware 的全局注册表，
+//     与租户无关）⇒ 平台运营方档。
+func setupModuleRoutes(public, auth, tenantAdmin, systemAdmin *gin.RouterGroup) {
 	ctrl := controller.NewModuleMarketController()
 
 	// 各档 nil 防护（Setup 早期阶段仅 public 就绪；鉴权档由 auth 组就绪后二次挂载）
@@ -61,9 +68,12 @@ func setupModuleRoutes(public, auth, admin *gin.RouterGroup) {
 		auth.POST("/subscription/renew", subCtrl.Renew)
 	}
 
-	if admin != nil {
-		// admin：同步日志 + 未挂模块的巡检面
-		admin.GET("/modules/sync-logs", ctrl.SyncLogs)
-		admin.GET("/modules/uncovered-routes", ctrl.UncoveredRoutes)
+	if tenantAdmin != nil {
+		// 同步日志：落租户表 module_sync_logs ⇒ 租户档
+		tenantAdmin.GET("/modules/sync-logs", ctrl.SyncLogs)
+	}
+	if systemAdmin != nil {
+		// 未挂模块的巡检面：进程内路由注册表（全局）⇒ 平台运营方档
+		systemAdmin.GET("/modules/uncovered-routes", ctrl.UncoveredRoutes)
 	}
 }
