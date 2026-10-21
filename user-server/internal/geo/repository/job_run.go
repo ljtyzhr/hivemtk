@@ -41,7 +41,7 @@ func (r *geoJobRunRepo) Create(ctx context.Context, run *model.GeoJobRun) error 
 
 func (r *geoJobRunRepo) Finish(ctx context.Context, id uint, status, summary, errMsg string, durationMs int64) error {
 	now := time.Now()
-	return r.db.WithContext(ctx).Model(&model.GeoJobRun{}).
+	res := r.db.WithContext(ctx).Model(&model.GeoJobRun{}).
 		Where("id = ?", id).
 		Updates(map[string]any{
 			"status":      status,
@@ -49,7 +49,15 @@ func (r *geoJobRunRepo) Finish(ctx context.Context, id uint, status, summary, er
 			"error":       errMsg,
 			"finished_at": &now,
 			"duration_ms": durationMs,
-		}).Error
+		})
+	if res.Error != nil {
+		return res.Error
+	}
+	// 0 行说明记录已被清理或不属于本租户：不能当作回写成功。
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 func (r *geoJobRunRepo) List(ctx context.Context, jobName string, page, limit int) ([]*model.GeoJobRun, int64, error) {
@@ -86,9 +94,14 @@ func (r *geoJobRunRepo) Latest(ctx context.Context, jobName string) (*model.GeoJ
 }
 
 func (r *geoJobRunRepo) FailStaleRunning(ctx context.Context) error {
+	now := time.Now()
 	return r.db.WithContext(ctx).Model(&model.GeoJobRun{}).
 		Where("status = ?", "running").
-		Updates(map[string]any{"status": "failed", "error": "进程重启，运行中断"}).Error
+		Updates(map[string]any{
+			"status":      "failed",
+			"error":       "进程重启，运行中断",
+			"finished_at": &now,
+		}).Error
 }
 
 func (r *geoJobRunRepo) DeleteBefore(ctx context.Context, before time.Time) error {
