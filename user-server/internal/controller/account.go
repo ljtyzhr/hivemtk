@@ -13,8 +13,8 @@ type AccountController struct {
 	svc *service.AccountService
 }
 
-func NewAccountController() *AccountController {
-	return &AccountController{svc: service.NewAccountService()}
+func NewAccountController(svc *service.AccountService) *AccountController {
+	return &AccountController{svc: svc}
 }
 
 func (c *AccountController) GetAccounts(ctx *gin.Context) {
@@ -32,7 +32,7 @@ func (c *AccountController) GetAccounts(ctx *gin.Context) {
 		resp.List = append(resp.List, &dto.AccountResponse{
 			ID:               account.ID,
 			TgName:           account.TgName,
-			TgBotToken:       account.TgBotToken,
+			TgBotToken:       maskBotToken(account.TgBotToken),
 			Price:            account.Price,
 			GroupID:          account.GroupID,
 			ProxyEnableProxy: account.ProxyEnableProxy,
@@ -66,7 +66,7 @@ func (c *AccountController) GetAccount(ctx *gin.Context) {
 	resp := dto.AccountResponse{
 		ID:               account.ID,
 		TgName:           account.TgName,
-		TgBotToken:       account.TgBotToken,
+		TgBotToken:       maskBotToken(account.TgBotToken),
 		Price:            account.Price,
 		GroupID:          account.GroupID,
 		ProxyEnableProxy: account.ProxyEnableProxy,

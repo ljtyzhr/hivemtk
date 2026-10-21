@@ -4,10 +4,11 @@ import (
 	"context"
 	"hivemtk-user/internal/model"
 
-	_db "hivemtk-user/internal/pkg/db"
-
 	"gorm.io/gorm"
 )
+
+// accountListLimit 账号列表返回上限：列表接口无分页参数，不封顶时会把整表读进内存。
+const accountListLimit = 200
 
 type AccountRepository interface {
 	GetByID(ctx context.Context, id string) (*model.Account, error)
@@ -16,10 +17,6 @@ type AccountRepository interface {
 
 type accountRepo struct {
 	db *gorm.DB
-}
-
-func NewAccountRepository() AccountRepository {
-	return &accountRepo{db: _db.GetDB()}
 }
 
 // NewAccountRepositoryWithDB 创建账号仓库实例（显式注入 db，兼容测试与五层架构调用方）
@@ -35,6 +32,6 @@ func (r *accountRepo) GetByID(ctx context.Context, id string) (*model.Account, e
 
 func (r *accountRepo) GetAccountList(ctx context.Context) ([]*model.Account, error) {
 	var accounts []*model.Account
-	err := r.db.WithContext(ctx).Find(&accounts).Error
+	err := r.db.WithContext(ctx).Order("create_time DESC").Limit(accountListLimit).Find(&accounts).Error
 	return accounts, err
 }

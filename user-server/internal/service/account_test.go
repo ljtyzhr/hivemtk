@@ -7,6 +7,7 @@ import (
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/pkg/testutil"
+	"hivemtk-user/internal/repository"
 
 	"gorm.io/gorm"
 )
@@ -19,17 +20,14 @@ func setupAccountServiceTestDB(t *testing.T) *gorm.DB {
 	return database
 }
 
-func TestNewAccountService(t *testing.T) {
-	service := NewAccountService()
-	if service == nil {
-		t.Error("Expected non-nil service")
-	}
+func newAccountServiceForTest(t *testing.T) (*AccountService, *gorm.DB) {
+	t.Helper()
+	database := setupAccountServiceTestDB(t)
+	return NewAccountService(repository.NewAccountRepositoryWithDB(database)), database
 }
 
 func TestAccountService_GetAccount(t *testing.T) {
-	database := setupAccountServiceTestDB(t)
-
-	service := NewAccountService()
+	service, database := newAccountServiceForTest(t)
 
 	account := model.Account{
 		ID:         "svc-get-account",
@@ -54,9 +52,7 @@ func TestAccountService_GetAccount(t *testing.T) {
 }
 
 func TestAccountService_GetAccount_NotFound(t *testing.T) {
-	setupAccountServiceTestDB(t)
-
-	service := NewAccountService()
+	service, _ := newAccountServiceForTest(t)
 
 	_, err := service.GetAccount(context.Background(), "non-existent-id")
 	if err == nil {
@@ -65,9 +61,7 @@ func TestAccountService_GetAccount_NotFound(t *testing.T) {
 }
 
 func TestAccountService_GetAccountList(t *testing.T) {
-	database := setupAccountServiceTestDB(t)
-
-	service := NewAccountService()
+	service, database := newAccountServiceForTest(t)
 
 	for i := 0; i < 5; i++ {
 		account := model.Account{
@@ -94,9 +88,7 @@ func TestAccountService_GetAccountList(t *testing.T) {
 }
 
 func TestAccountService_GetAccountList_Empty(t *testing.T) {
-	setupAccountServiceTestDB(t)
-
-	service := NewAccountService()
+	service, _ := newAccountServiceForTest(t)
 
 	accounts, err := service.GetAccountList(context.Background())
 	if err != nil {

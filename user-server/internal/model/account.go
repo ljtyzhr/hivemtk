@@ -10,7 +10,7 @@ import (
 type Account struct {
 	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
 
-	ID               string `gorm:"type:varchar(36);primary_key" json:"id"`
+	ID               string `gorm:"type:varchar(36);primaryKey" json:"id"`
 	TgName           string `gorm:"tg_name" json:"tg_name"`
 	TgBotToken       string `gorm:"tg_bot_token" json:"tg_bot_token"`
 	GroupID          int64  `gorm:"group_id" json:"group_id"`
@@ -20,7 +20,9 @@ type Account struct {
 	ProxyHost        string `gorm:"default:'127.0.0.1'" json:"proxy_host"`
 	ProxyPort        int    `gorm:"default:1080" json:"proxy_port"`
 
-	Status     _type.AccountStatusType `gorm:"index;default:1" json:"status"`
+	// Status 不声明 default：AccountStatusInactive==0 是合法状态，带 default:1 时
+	// GORM 会把显式 0 当零值省略，落库反被 DB 默认值改成 Active。
+	Status     _type.AccountStatusType `gorm:"index" json:"status"`
 	CreateTime int64                   `gorm:"autoCreateTime" json:"create_time"`
 	Msg        string                  `gorm:"msg" json:"msg"`
 	URL        string                  `gorm:"url" json:"url"`

@@ -81,8 +81,10 @@ func setupAlertRoutes(auth *gin.RouterGroup) {
 	}
 }
 
-func setupAccountRoutes(auth *gin.RouterGroup) {
-	accountCtrl := controller.NewAccountController()
+func setupAccountRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
+	accountCtrl := controller.NewAccountController(
+		service.NewAccountService(repository.NewAccountRepositoryWithDB(gormDB)),
+	)
 	auth.GET("/account/list", accountCtrl.GetAccounts)
 	auth.GET("/account/:id", accountCtrl.GetAccount)
 	auth.GET("/accounts/list", accountCtrl.GetAccounts)

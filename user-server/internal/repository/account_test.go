@@ -20,19 +20,10 @@ func setupAccountTestDB(t *testing.T) *gorm.DB {
 	return database
 }
 
-func TestAccountRepository_New(t *testing.T) {
-	setupAccountTestDB(t)
-
-	repo := NewAccountRepository()
-	if repo == nil {
-		t.Fatal("Expected non-nil repository")
-	}
-}
-
 func TestAccountRepository_GetByID(t *testing.T) {
 	database := setupAccountTestDB(t)
 
-	repo := NewAccountRepository()
+	repo := NewAccountRepositoryWithDB(database)
 	ctx := context.Background()
 
 	account := &model.Account{
@@ -57,10 +48,10 @@ func TestAccountRepository_GetByID(t *testing.T) {
 }
 
 func TestAccountRepository_GetByID_NotFound(t *testing.T) {
-	setupAccountTestDB(t)
+	database := setupAccountTestDB(t)
 
 	ctx := context.Background()
-	repo := NewAccountRepository()
+	repo := NewAccountRepositoryWithDB(database)
 
 	_, err := repo.GetByID(ctx, "non-existent-id")
 	if err == nil {
@@ -72,7 +63,7 @@ func TestAccountRepository_GetAccountList(t *testing.T) {
 	database := setupAccountTestDB(t)
 
 	ctx := context.Background()
-	repo := NewAccountRepository()
+	repo := NewAccountRepositoryWithDB(database)
 
 	for i := 0; i < 5; i++ {
 		account := &model.Account{
@@ -94,5 +85,30 @@ func TestAccountRepository_GetAccountList(t *testing.T) {
 
 	if len(accounts) != 5 {
 		t.Errorf("Expected 5 accounts, got %d", len(accounts))
+	}
+}
+
+// TestAccountRepository_InactiveStatusPersists 停用状态（值为 0）必须能真正落库：
+// 字段曾声明 gorm:"default:1"，GORM 会把显式 0 当零值省略，落库反被默认值改成 Active。
+func TestAccountRepository_InactiveStatusPersists(t *testing.T) {
+	database := setupAccountTestDB(t)
+	ctx := context.Background()
+	repo := NewAccountRepositoryWithDB(database)
+
+	row := &model.Account{
+		ID:     "acc-inactive",
+		TgName: "tg-inactive",
+		Status: _type.AccountStatusInactive,
+	}
+	if err := database.WithContext(ctx).Create(row).Error; err != nil {
+		t.Fatalf("seed inactive account failed: %v", err)
+	}
+
+	got, err := repo.GetByID(ctx, row.ID)
+	if err != nil {
+		t.Fatalf("GetByID failed: %v", err)
+	}
+	if got.Status != _type.AccountStatusInactive {
+		t.Fatalf("停用状态被列默认值覆盖：期望 %d，实际 %d", _type.AccountStatusInactive, got.Status)
 	}
 }

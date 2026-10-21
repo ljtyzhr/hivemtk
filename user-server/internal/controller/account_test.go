@@ -4,10 +4,13 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/db"
+	"hivemtk-user/internal/repository"
+	"hivemtk-user/internal/service"
 
 	"hivemtk-user/internal/pkg/testutil"
 
@@ -40,7 +43,7 @@ func setupTestControllerDB(t *testing.T) *gorm.DB {
 // TestAccountController_GetAccounts_Success 测试获取账户列表成功
 func TestAccountController_GetAccounts_Success(t *testing.T) {
 	database := setupTestControllerDB(t)
-	ctrl := NewAccountController()
+	ctrl := NewAccountController(service.NewAccountService(repository.NewAccountRepositoryWithDB(database)))
 	router := setupGinEngine()
 	router.GET("/accounts", ctrl.GetAccounts)
 
@@ -66,12 +69,16 @@ func TestAccountController_GetAccounts_Success(t *testing.T) {
 	if response["code"] != float64(0) {
 		t.Errorf("Expected code SUCCESS, got %v", response["code"])
 	}
+	// Bot Token 是可接管机器人的凭据，列表接口只能回脱敏值。
+	if strings.Contains(w.Body.String(), account.TgBotToken) {
+		t.Errorf("接口下发了 Bot Token 原文: %s", w.Body.String())
+	}
 }
 
 // TestAccountController_GetAccounts_EmptyList 测试空账户列表
 func TestAccountController_GetAccounts_EmptyList(t *testing.T) {
-	setupTestControllerDB(t)
-	ctrl := NewAccountController()
+	database := setupTestControllerDB(t)
+	ctrl := NewAccountController(service.NewAccountService(repository.NewAccountRepositoryWithDB(database)))
 	router := setupGinEngine()
 	router.GET("/accounts", ctrl.GetAccounts)
 
@@ -87,7 +94,7 @@ func TestAccountController_GetAccounts_EmptyList(t *testing.T) {
 // TestAccountController_GetAccounts_MultipleAccounts 测试获取多个账户
 func TestAccountController_GetAccounts_MultipleAccounts(t *testing.T) {
 	database := setupTestControllerDB(t)
-	ctrl := NewAccountController()
+	ctrl := NewAccountController(service.NewAccountService(repository.NewAccountRepositoryWithDB(database)))
 	router := setupGinEngine()
 	router.GET("/accounts", ctrl.GetAccounts)
 
