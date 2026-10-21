@@ -17,18 +17,20 @@ import (
 //
 // 数据访问全部下沉到 Repository，Service 层只做编排和轻量解析。
 type CrawlerService struct {
-	sourceCatalogRepo repository.SourceCatalogRepository
+	sourceCatalogRepo repository.GeoSourceCatalogRepository
 }
 
 // NewCrawlerService 创建 CrawlerService
-func NewCrawlerService(sourceCatalogRepo repository.SourceCatalogRepository) *CrawlerService {
+func NewCrawlerService(sourceCatalogRepo repository.GeoSourceCatalogRepository) *CrawlerService {
 	return &CrawlerService{sourceCatalogRepo: sourceCatalogRepo}
 }
 
-// RecordVisit 记录一次爬虫访问，并刷新信源目录的 last_checked
+// RecordVisit 登记一次信源访问（刷新同步时间戳）
 //
-// 传入完整 URL，自动提取 domain。若 source_catalog 中尚无此 URL 对应条目，
-// 会 upsert 一条（level 默认为空，后续由人工/爬虫规则补齐）。
+// 本条链路只维护 geo_source_catalogs：传入完整 URL，自动提取 domain；
+// 条目不存在则新建（level 留空，等人工/规则补齐），存在则只刷新 last_checked
+// 与非空字段，不会把已标注的等级清空。访问明细的落库在爬虫追踪链路
+// （geo_crawler_visits），不在本方法内。
 func (s *CrawlerService) RecordVisit(ctx context.Context, sourceURL string) error {
 	domain := ExtractDomain(sourceURL)
 	if domain == "" {
@@ -50,7 +52,7 @@ func (s *CrawlerService) RecordVisit(ctx context.Context, sourceURL string) erro
 // 若 sourceURL 未登记，则回退到同 domain 下的任意已验证条目。
 func (s *CrawlerService) LookupSourceLevel(ctx context.Context, sourceURL string) (string, *model.GeoSourceCatalog, error) {
 
-	item, err := s.sourceCatalogRepo.FindByURL(ctx, sourceURL)
+	item, err := s.sourceCatalogRepo.GetByURL(ctx, sourceURL)
 	if err == nil && item != nil && item.Level != "" {
 		return item.Level, item, nil
 	}

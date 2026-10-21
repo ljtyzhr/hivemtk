@@ -14,13 +14,15 @@ import (
 type GeoSourceCatalog struct {
 	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
 
-	ID          uint           `gorm:"primaryKey" json:"id"`
-	SourceURL   string         `gorm:"column:source_url;size:512;uniqueIndex" json:"source_url"`
-	Domain      string         `gorm:"column:domain;size:256;index" json:"domain"`
-	Level       string         `gorm:"column:level;size:2;index" json:"level"`
-	Category    string         `gorm:"column:category;size:64;index" json:"category"`
-	Description string         `gorm:"column:description;size:512" json:"description"`
-	Verified    bool           `gorm:"column:verified;default:true" json:"verified"`
+	ID          uint   `gorm:"primaryKey" json:"id"`
+	SourceURL   string `gorm:"column:source_url;size:512;uniqueIndex" json:"source_url"`
+	Domain      string `gorm:"column:domain;size:256;index" json:"domain"`
+	Level       string `gorm:"column:level;size:2;index" json:"level"`
+	Category    string `gorm:"column:category;size:64;index" json:"category"`
+	Description string `gorm:"column:description;size:512" json:"description"`
+	// 不能声明 gorm default：零值 false 会被 GORM 省略而落成列默认 true，
+	// 于是「显式未验证」的条目直接进了已验证种子集。
+	Verified    bool           `gorm:"column:verified" json:"verified"`
 	LastChecked time.Time      `gorm:"column:last_checked" json:"last_checked"`
 	CreatedAt   time.Time      `json:"created_at"`
 	UpdatedAt   time.Time      `json:"updated_at"`

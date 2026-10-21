@@ -8,71 +8,63 @@ import (
 	_db "hivemtk-user/internal/pkg/db"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // GeoSourceCatalogRepository 信源目录仓储
-// SourceCatalogRepository 是同接口别名（service/crawler.go 使用的名字）
 type GeoSourceCatalogRepository interface {
+	// Upsert 按 (tenant_id, source_url) 原子 upsert；空值字段不覆盖存量（见实现注释）
 	Upsert(ctx context.Context, item *model.GeoSourceCatalog) error
-	BatchUpsert(ctx context.Context, items []*model.GeoSourceCatalog) error
-	GetByID(ctx context.Context, id uint) (*model.GeoSourceCatalog, error)
 	GetByURL(ctx context.Context, url string) (*model.GeoSourceCatalog, error)
-	// FindByURL crawler.go 使用的名称，同 GetByURL
-	FindByURL(ctx context.Context, url string) (*model.GeoSourceCatalog, error)
 	FindByDomain(ctx context.Context, domain string) ([]*model.GeoSourceCatalog, error)
-	List(ctx context.Context, level, category string, page, limit int) ([]*model.GeoSourceCatalog, int64, error)
 	ListSeedURLs(ctx context.Context) ([]*model.GeoSourceCatalog, error)
 	UpdateLastChecked(ctx context.Context, id uint, t time.Time) error
-	Delete(ctx context.Context, id uint) error
 }
-
-// SourceCatalogRepository service/crawler.go 使用的别名
-type SourceCatalogRepository = GeoSourceCatalogRepository
 
 type geoSourceCatalogRepo struct{ db *gorm.DB }
 
 func NewGeoSourceCatalogRepository() GeoSourceCatalogRepository {
 	return &geoSourceCatalogRepo{db: _db.GetDB()}
 }
+
 func NewGeoSourceCatalogRepositoryWithDB(db *gorm.DB) GeoSourceCatalogRepository {
 	return &geoSourceCatalogRepo{db: db}
 }
 
+// Upsert 一次 SQL 完成 upsert（旧实现 SELECT-then-INSERT，并发下会撞唯一索引报错）。
+//
+// 冲突时只覆盖**非空**字段：爬虫访问只带 URL 与 domain，若把 level/category/
+// description 一起写回，会把人工/AI 整理好的 A/B/C/D 等级清空。
 func (r *geoSourceCatalogRepo) Upsert(ctx context.Context, item *model.GeoSourceCatalog) error {
-	return r.db.WithContext(ctx).Where("source_url = ?", item.SourceURL).
-		Assign(model.GeoSourceCatalog{
-			Domain:      item.Domain,
-			Level:       item.Level,
-			Category:    item.Category,
-			Description: item.Description,
-			Verified:    item.Verified,
-		}).
-		FirstOrCreate(item).Error
-}
-
-func (r *geoSourceCatalogRepo) BatchUpsert(ctx context.Context, items []*model.GeoSourceCatalog) error {
-	for _, it := range items {
-		if err := r.Upsert(ctx, it); err != nil {
-			return err
-		}
+	updates := map[string]any{
+		"verified":   item.Verified,
+		"updated_at": time.Now(),
 	}
-	return nil
-}
-
-func (r *geoSourceCatalogRepo) GetByID(ctx context.Context, id uint) (*model.GeoSourceCatalog, error) {
-	var m model.GeoSourceCatalog
-	err := r.db.WithContext(ctx).Where("id = ?", id).First(&m).Error
-	return &m, err
+	if item.Domain != "" {
+		updates["domain"] = item.Domain
+	}
+	if item.Level != "" {
+		updates["level"] = item.Level
+	}
+	if item.Category != "" {
+		updates["category"] = item.Category
+	}
+	if item.Description != "" {
+		updates["description"] = item.Description
+	}
+	if !item.LastChecked.IsZero() {
+		updates["last_checked"] = item.LastChecked
+	}
+	return r.db.WithContext(ctx).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "tenant_id"}, {Name: "source_url"}},
+		DoUpdates: clause.Assignments(updates),
+	}).Create(item).Error
 }
 
 func (r *geoSourceCatalogRepo) GetByURL(ctx context.Context, url string) (*model.GeoSourceCatalog, error) {
 	var m model.GeoSourceCatalog
 	err := r.db.WithContext(ctx).Where("source_url = ?", url).First(&m).Error
 	return &m, err
-}
-
-func (r *geoSourceCatalogRepo) FindByURL(ctx context.Context, url string) (*model.GeoSourceCatalog, error) {
-	return r.GetByURL(ctx, url)
 }
 
 func (r *geoSourceCatalogRepo) FindByDomain(ctx context.Context, domain string) ([]*model.GeoSourceCatalog, error) {
@@ -84,29 +76,6 @@ func (r *geoSourceCatalogRepo) FindByDomain(ctx context.Context, domain string) 
 	return list, err
 }
 
-func (r *geoSourceCatalogRepo) List(ctx context.Context, level, category string, page, limit int) ([]*model.GeoSourceCatalog, int64, error) {
-	if page <= 0 {
-		page = 1
-	}
-	if limit <= 0 {
-		limit = 20
-	}
-	var list []*model.GeoSourceCatalog
-	var total int64
-	q := r.db.WithContext(ctx).Model(&model.GeoSourceCatalog{})
-	if level != "" {
-		q = q.Where("level = ?", level)
-	}
-	if category != "" {
-		q = q.Where("category = ?", category)
-	}
-	if err := q.Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
-	err := q.Offset((page - 1) * limit).Limit(limit).Order("updated_at DESC").Find(&list).Error
-	return list, total, err
-}
-
 func (r *geoSourceCatalogRepo) ListSeedURLs(ctx context.Context) ([]*model.GeoSourceCatalog, error) {
 	var list []*model.GeoSourceCatalog
 	err := r.db.WithContext(ctx).
@@ -116,11 +85,15 @@ func (r *geoSourceCatalogRepo) ListSeedURLs(ctx context.Context) ([]*model.GeoSo
 	return list, err
 }
 
+// UpdateLastChecked 刷新探测时间；0 行说明条目不存在（含跨租户），不能当作成功。
 func (r *geoSourceCatalogRepo) UpdateLastChecked(ctx context.Context, id uint, t time.Time) error {
-	return r.db.WithContext(ctx).Model(&model.GeoSourceCatalog{}).
-		Where("id = ?", id).Update("last_checked", t).Error
-}
-
-func (r *geoSourceCatalogRepo) Delete(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).Delete(&model.GeoSourceCatalog{}, "id = ?", id).Error
+	res := r.db.WithContext(ctx).Model(&model.GeoSourceCatalog{}).
+		Where("id = ?", id).Update("last_checked", t)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
