@@ -26,13 +26,13 @@ import (
 // ParamGroupFeedback 是这一组在参数中心里的组名。
 const ParamGroupFeedback = "feedback"
 
-// 22 个键。抽成常量而不是在调用点写字面量：1.8 栽过一次——channelgw/ws.go 把种子
+// 19 个读取键。抽成常量而不是在调用点写字面量：1.8 栽过一次——channelgw/ws.go 把种子
 // 登记的 "ws_push_interval" 写成 "ws_push_interval_default"，每次读都 miss、每次回落
 // 兜底，而读取点门禁结构上看不出这类漂移（读取点存在，只是用的别的 key）。
+//
+// bandit_min_samples_for_exploit / bandit_exploration_floor / bandit_traffic_ceiling
+// 三个键随臂选择路径下线而不再被读取，种子定义已标 Deprecated（值留档，不再上架）。
 const (
-	FBBanditMinSamplesForExploit = "bandit_min_samples_for_exploit"
-	FBBanditExplorationFloor     = "bandit_exploration_floor"
-	FBBanditTrafficCeiling       = "bandit_traffic_ceiling"
 	FBBanditConvergenceThreshold = "bandit_convergence_threshold"
 	FBBanditMinSamplesForPromote = "bandit_min_samples_for_promote"
 	FBBanditPosteriorSamples     = "bandit_posterior_samples"
@@ -104,13 +104,10 @@ func fbOrDur(v, def time.Duration) time.Duration {
 	return def
 }
 
-// BanditConfigFromParams 按参数中心组装 bandit 配置。采样量、探索下限、流量上限、
-// 收敛阈值、晋升样本量、后验采样数六项；读不到或写坏时逐项回落 DefaultBanditConfig()。
+// BanditConfigFromParams 按参数中心组装 bandit 配置。收敛阈值、晋升样本量、
+// 后验采样数三项；读不到或写坏时逐项回落 DefaultBanditConfig()。
 func BanditConfigFromParams(ctx context.Context) feedbackloop.BanditConfig {
 	d := feedbackloop.DefaultBanditConfig()
-	d.MinSamplesForExploit = fbOrInt(GlobalConfigParam().GetInt(ctx, ParamGroupFeedback, FBBanditMinSamplesForExploit, 0), d.MinSamplesForExploit)
-	d.ExplorationFloor = fbOrPosFloat(GlobalConfigParam().GetFloat(ctx, ParamGroupFeedback, FBBanditExplorationFloor, 0), d.ExplorationFloor)
-	d.TrafficCeiling = fbOrPosFloat(GlobalConfigParam().GetFloat(ctx, ParamGroupFeedback, FBBanditTrafficCeiling, 0), d.TrafficCeiling)
 	d.ConvergenceThreshold = fbOrPosFloat(GlobalConfigParam().GetFloat(ctx, ParamGroupFeedback, FBBanditConvergenceThreshold, 0), d.ConvergenceThreshold)
 	d.MinSamplesForPromote = fbOrInt(GlobalConfigParam().GetInt(ctx, ParamGroupFeedback, FBBanditMinSamplesForPromote, 0), d.MinSamplesForPromote)
 	d.PosteriorSamples = fbOrInt(GlobalConfigParam().GetInt(ctx, ParamGroupFeedback, FBBanditPosteriorSamples, 0), d.PosteriorSamples)

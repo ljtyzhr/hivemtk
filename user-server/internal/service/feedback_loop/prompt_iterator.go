@@ -105,7 +105,9 @@ func (p *PromptIterator) IterateForNode(ctx context.Context, sopID uint, nodeID 
 	}
 
 	if p.config.AutoApprove && len(candidates) > 0 {
-		p.createABTest(ctx, sopID, nodeID, *current, candidates)
+		if err := p.createABTest(ctx, sopID, nodeID, *current, candidates); err != nil {
+			return candidates, fmt.Errorf("create ab test: %w", err)
+		}
 	}
 
 	return candidates, nil
@@ -182,7 +184,7 @@ func (p *PromptIterator) generateCandidates(ctx context.Context, current model.P
 	return out, nil
 }
 
-func (p *PromptIterator) createABTest(ctx context.Context, sopID uint, nodeID string, current model.PromptCandidate, newCandidates []model.PromptCandidate) {
+func (p *PromptIterator) createABTest(ctx context.Context, sopID uint, nodeID string, current model.PromptCandidate, newCandidates []model.PromptCandidate) error {
 	experimentID := fmt.Sprintf("sop%d_node%s_%d", sopID, nodeID, time.Now().Unix())
 	armKeys := []string{"arm_0_original"}
 	for i := range newCandidates {
@@ -202,7 +204,7 @@ func (p *PromptIterator) createABTest(ctx context.Context, sopID uint, nodeID st
 		AutoPromote:    true,
 	}
 	if err := p.repo.CreatePromptABTest(ctx, abTest); err != nil {
-		return
+		return fmt.Errorf("create prompt ab test: %w", err)
 	}
 
 	arms := []model.BanditArm{
@@ -229,7 +231,10 @@ func (p *PromptIterator) createABTest(ctx context.Context, sopID uint, nodeID st
 			Status:            model.BanditArmStatusExploring,
 		})
 	}
-	_ = p.repo.CreateBanditArmsInBatches(ctx, arms, 100)
+	if err := p.repo.CreateBanditArmsInBatches(ctx, arms, 100); err != nil {
+		return fmt.Errorf("create bandit arms: %w", err)
+	}
+	return nil
 }
 
 func armKeysToInterface(keys []string) []any {

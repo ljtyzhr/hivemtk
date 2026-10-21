@@ -2,6 +2,8 @@ package model
 
 import (
 	"time"
+
+	"gorm.io/gorm"
 )
 
 // AlertRuleSeverity 告警分级
@@ -12,9 +14,6 @@ const (
 	AlertSeverityWarning  AlertRuleSeverity = "warning"
 	AlertSeverityInfo     AlertRuleSeverity = "info"
 )
-
-// AlertRuleStatus 告警规则状态
-type AlertRuleStatus string
 
 // AlertChannel 告警通知渠道
 type AlertChannel string
@@ -64,19 +63,11 @@ type AlertRule struct {
 	CreatedBy       uint              `json:"created_by" gorm:"default:0"`
 	CreatedAt       time.Time         `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt       time.Time         `json:"updated_at" gorm:"autoUpdateTime"`
-
-	Managers []AlertRuleManager `json:"managers,omitempty" gorm:"-"`
 }
 
 // TableName 返回表名
 func (AlertRule) TableName() string {
 	return "alert_rules"
-}
-
-// AlertRuleManager 规则负责人（用于前端展示，未落库单独表）
-type AlertRuleManager struct {
-	UserID   uint   `json:"user_id"`
-	Username string `json:"username"`
 }
 
 // AlertHistory 告警历史
@@ -101,7 +92,7 @@ type AlertHistory struct {
 	CreatedAt    time.Time         `json:"created_at" gorm:"autoCreateTime"`
 
 	// 软删除（与全局 SoftDelete 迁移对齐：用 deleted_at）
-	DeletedAt *time.Time `json:"deleted_at" gorm:"index"`
+	DeletedAt gorm.DeletedAt `json:"deleted_at,omitempty" gorm:"index"`
 }
 
 // TableName 返回表名

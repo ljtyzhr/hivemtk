@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/db"
 	"testing"
@@ -247,7 +248,7 @@ func TestBackupRepository_Delete(t *testing.T) {
 		{
 			name:        "delete non-existing backup",
 			id:          99999,
-			wantErr:     false,
+			wantErr:     true,
 			shouldExist: true,
 		},
 	}
@@ -270,111 +271,62 @@ func TestBackupRepository_Delete(t *testing.T) {
 	}
 }
 
-// TestBackupRepository_GetRecentBackups 测试获取最近的备份记录
-func TestBackupRepository_GetRecentBackups(t *testing.T) {
+// TestBackupRepository_UpdatePreservesImmutableFields 钉住 Update 白名单。
+//
+// 老实现用 Save() 写整行，调用方手里那份结构体只要缺列，就会把备份名、
+// 类型、创建人这些不该由状态更新改动的列静默覆盖成零值。Update 现在只写
+// 显式白名单，本测试确保「传进来什么脏值都不会落库」。
+func TestBackupRepository_UpdatePreservesImmutableFields(t *testing.T) {
 	backupRepo, _ := setupBackupRepositories(t)
 	ctx := context.Background()
 
-	backupRepo.Create(ctx, &model.Backup{
-		BackupName: "Completed 1",
-		BackupType: model.BackupTypeFull,
-		Status:     model.BackupStatusCompleted,
-		CreatedBy:  1,
-	})
-	backupRepo.Create(ctx, &model.Backup{
-		BackupName: "Completed 2",
-		BackupType: model.BackupTypeFull,
-		Status:     model.BackupStatusCompleted,
-		CreatedBy:  1,
-	})
-	backupRepo.Create(ctx, &model.Backup{
-		BackupName: "Pending",
+	backup := &model.Backup{
+		BackupName: "immutable-name",
 		BackupType: model.BackupTypeFull,
 		Status:     model.BackupStatusPending,
-		CreatedBy:  1,
-	})
-	backupRepo.Create(ctx, &model.Backup{
-		BackupName: "Failed",
-		BackupType: model.BackupTypeFull,
-		Status:     model.BackupStatusFailed,
-		CreatedBy:  1,
-	})
-
-	tests := []struct {
-		name      string
-		limit     int
-		wantCount int
-	}{
-		{
-			name:      "get recent completed backups",
-			limit:     5,
-			wantCount: 2,
-		},
-		{
-			name:      "limit results",
-			limit:     1,
-			wantCount: 1,
-		},
+		CreatedBy:  7,
+	}
+	if err := backupRepo.Create(ctx, backup); err != nil {
+		t.Fatalf("Create() error = %v", err)
 	}
 
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			results, err := backupRepo.GetRecentBackups(context.Background(), tt.limit)
-			if err != nil {
-				t.Errorf("GetRecentBackups() error = %v", err)
-			}
-			if len(results) > tt.wantCount {
-				t.Errorf("Expected at most %d results, got %d", tt.wantCount, len(results))
-			}
-		})
+	mutated := &model.Backup{
+		ID:         backup.ID,
+		BackupName: "",
+		BackupType: model.BackupTypeIncremental,
+		Status:     model.BackupStatusCompleted,
+		CreatedBy:  0,
+	}
+	if err := backupRepo.Update(ctx, mutated); err != nil {
+		t.Fatalf("Update() error = %v", err)
+	}
+
+	got, err := backupRepo.GetByID(ctx, backup.ID)
+	if err != nil {
+		t.Fatalf("GetByID() error = %v", err)
+	}
+	if got.BackupName != "immutable-name" {
+		t.Errorf("BackupName 被 Update 覆盖: want %q, got %q", "immutable-name", got.BackupName)
+	}
+	if got.BackupType != model.BackupTypeFull {
+		t.Errorf("BackupType 被 Update 覆盖: want %q, got %q", model.BackupTypeFull, got.BackupType)
+	}
+	if got.CreatedBy != 7 {
+		t.Errorf("CreatedBy 被 Update 覆盖: want 7, got %d", got.CreatedBy)
+	}
+	if got.Status != model.BackupStatusCompleted {
+		t.Errorf("Status 未更新: want %q, got %q", model.BackupStatusCompleted, got.Status)
 	}
 }
 
-// TestBackupRepository_CleanupOldBackups 测试清理旧的备份记录
-func TestBackupRepository_CleanupOldBackups(t *testing.T) {
+// TestBackupRepository_UpdateNotFound 已删除的备份不能被 Update 复活。
+func TestBackupRepository_UpdateNotFound(t *testing.T) {
 	backupRepo, _ := setupBackupRepositories(t)
 	ctx := context.Background()
 
-	now := time.Now()
-	oldDate := now.AddDate(0, 0, -31)
-
-	backupRepo.Create(ctx, &model.Backup{
-		BackupName: "Old Backup 1",
-		BackupType: model.BackupTypeFull,
-		Status:     model.BackupStatusCompleted,
-		CreatedAt:  oldDate,
-		CreatedBy:  1,
-	})
-	backupRepo.Create(ctx, &model.Backup{
-		BackupName: "Old Backup 2",
-		BackupType: model.BackupTypeFull,
-		Status:     model.BackupStatusCompleted,
-		CreatedAt:  oldDate,
-		CreatedBy:  1,
-	})
-
-	backupRepo.Create(ctx, &model.Backup{
-		BackupName: "New Backup",
-		BackupType: model.BackupTypeFull,
-		Status:     model.BackupStatusCompleted,
-		CreatedAt:  now,
-		CreatedBy:  1,
-	})
-
-	err := backupRepo.CleanupOldBackups(context.Background())
-	if err != nil {
-		t.Errorf("CleanupOldBackups() error = %v", err)
-	}
-
-	var remainingBackups []model.Backup
-	db.GetDB().Find(&remainingBackups)
-
-	if len(remainingBackups) != 1 {
-		t.Errorf("Expected 1 remaining backup, got %d", len(remainingBackups))
-	}
-
-	if remainingBackups[0].BackupName != "New Backup" {
-		t.Errorf("Expected 'New Backup' to remain, got '%s'", remainingBackups[0].BackupName)
+	err := backupRepo.Update(ctx, &model.Backup{ID: 99999, Status: model.BackupStatusCompleted})
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Errorf("Update() error = %v, want %v", err, gorm.ErrRecordNotFound)
 	}
 }
 

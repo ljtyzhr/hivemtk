@@ -344,5 +344,12 @@ func (s *KnowledgeBaseService) UnbindFromAgent(ctx context.Context, kbID, agentI
 	if s.bindingRepo == nil {
 		return nil
 	}
+	exists, err := s.bindingRepo.CheckExists(ctx, agentID, kbID)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		return gorm.ErrRecordNotFound
+	}
 	return s.bindingRepo.DeleteByAgentAndKB(ctx, agentID, kbID)
 }

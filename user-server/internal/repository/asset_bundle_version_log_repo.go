@@ -15,7 +15,6 @@ import (
 // AssetBundleVersionLogRepository 资产包版本日志仓储接口
 type AssetBundleVersionLogRepository interface {
 	Create(ctx context.Context, m *model.AssetBundleVersionLog) error
-	List(ctx context.Context, assetID string, limit int) ([]*model.AssetBundleVersionLog, error)
 }
 
 type assetBundleVersionLogRepo struct {
@@ -32,17 +31,4 @@ func (r *assetBundleVersionLogRepo) Create(ctx context.Context, m *model.AssetBu
 		return nil
 	}
 	return r.db.WithContext(ctx).Create(m).Error
-}
-
-func (r *assetBundleVersionLogRepo) List(ctx context.Context, assetID string, limit int) ([]*model.AssetBundleVersionLog, error) {
-	var list []*model.AssetBundleVersionLog
-	q := r.db.WithContext(ctx).Model(&model.AssetBundleVersionLog{})
-	if assetID != "" {
-		q = q.Where("asset_id = ?", assetID)
-	}
-	if limit <= 0 {
-		limit = 50
-	}
-	err := q.Order("created_at DESC").Limit(limit).Find(&list).Error
-	return list, err
 }

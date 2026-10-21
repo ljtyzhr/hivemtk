@@ -35,8 +35,6 @@ type DeliveryReportRequest struct {
 // 职责：
 //   - RecordDeliveryReport：接收运营商状态报告 webhook
 //   - IsRetryable：判断错误码是否可重试
-//   - GetJobMetrics：返回任务的实时聚合指标
-//   - RefreshJobMetrics：定时任务刷新任务指标
 //   - RetryFailedMessages：重试可重试的失败消息
 type SmsTrackingService struct {
 	repo repository.SmsTrackingRepository
@@ -193,102 +191,6 @@ func (s *SmsTrackingService) RetryFailedMessages(ctx context.Context, batchSize 
 	}
 
 	return retried, nil
-}
-
-// GetJobMetrics 返回任务的实时聚合指标
-func (s *SmsTrackingService) GetJobMetrics(ctx context.Context, jobID string) (*model.SmsJobMetric, error) {
-	if jobID == "" {
-		return nil, errors.New("job_id 不能为空")
-	}
-
-	metric, err := s.repo.GetJobMetric(ctx, jobID)
-	if err != nil {
-		return nil, err
-	}
-	if metric == nil {
-		metric = &model.SmsJobMetric{JobID: jobID}
-	}
-
-	sent, err := s.repo.CountByJob(ctx, jobID, "")
-	if err != nil {
-		return nil, err
-	}
-	delivered, err := s.repo.CountByJob(ctx, jobID, model.SmsStatusDelivered)
-	if err != nil {
-		return nil, err
-	}
-	failed, err := s.repo.CountByJob(ctx, jobID, model.SmsStatusFailed)
-	if err != nil {
-		return nil, err
-	}
-	retryable, err := s.repo.CountByJob(ctx, jobID, model.SmsStatusRetryable)
-	if err != nil {
-		return nil, err
-	}
-
-	metric.TotalSent = sent
-	metric.TotalDelivered = delivered
-	metric.TotalFailed = failed + retryable
-	metric.TotalRetried = retryable
-
-	if sent > 0 {
-		metric.DeliveryRate = round2(float64(delivered) / float64(sent) * 100)
-		metric.FailureRate = round2(float64(metric.TotalFailed) / float64(sent) * 100)
-	} else {
-		metric.DeliveryRate = 0
-		metric.FailureRate = 0
-	}
-
-	return metric, nil
-}
-
-// GetRangeMetrics 聚合时间区间内的短信指标
-func (s *SmsTrackingService) GetRangeMetrics(ctx context.Context, start, end time.Time) (*model.SmsJobMetric, error) {
-	if start.IsZero() || end.IsZero() {
-		return nil, errors.New("start / end 不能为空")
-	}
-	if end.Before(start) {
-		return nil, errors.New("end 必须大于 start")
-	}
-
-	sent, err := s.repo.CountByRange(ctx, start, end, "")
-	if err != nil {
-		return nil, err
-	}
-	delivered, err := s.repo.CountByRange(ctx, start, end, model.SmsStatusDelivered)
-	if err != nil {
-		return nil, err
-	}
-	failed, err := s.repo.CountByRange(ctx, start, end, model.SmsStatusFailed)
-	if err != nil {
-		return nil, err
-	}
-	retryable, err := s.repo.CountByRange(ctx, start, end, model.SmsStatusRetryable)
-	if err != nil {
-		return nil, err
-	}
-
-	metric := &model.SmsJobMetric{
-		JobID:          "range",
-		TotalSent:      sent,
-		TotalDelivered: delivered,
-		TotalFailed:    failed + retryable,
-		TotalRetried:   retryable,
-	}
-	if sent > 0 {
-		metric.DeliveryRate = round2(float64(delivered) / float64(sent) * 100)
-		metric.FailureRate = round2(float64(metric.TotalFailed) / float64(sent) * 100)
-	}
-	return metric, nil
-}
-
-// RefreshJobMetrics 刷新任务指标（定时任务调用，每 5 分钟一次）
-func (s *SmsTrackingService) RefreshJobMetrics(ctx context.Context, jobID string) error {
-	metric, err := s.GetJobMetrics(ctx, jobID)
-	if err != nil {
-		return err
-	}
-	return s.repo.UpsertJobMetric(ctx, metric)
 }
 
 // ListJobStatuses 分页查询任务的送达状态

@@ -14,12 +14,13 @@ import (
 type AlertHistoryRepository interface {
 	Create(ctx context.Context, h *model.AlertHistory) error
 	List(ctx context.Context, page, size int, ruleID uint, source string) ([]*model.AlertHistory, int64, error)
-	CountFiringIn(ctx context.Context, ruleID uint, since time.Time) (int64, error)
 	ResolveFiring(ctx context.Context, ruleID uint, resolvedAt time.Time) error
 	// CountFiring 统计所有未恢复（firing）告警数
 	CountFiring(ctx context.Context) (int64, error)
 	// ListFiring 列出未恢复（firing）告警（按触发时间倒序，limit<=0 时取前 20 条）
 	ListFiring(ctx context.Context, limit int) ([]*model.AlertHistory, error)
+	// UpdateNotify 回写通知结果（异步通知完成后补记）
+	UpdateNotify(ctx context.Context, id uint, result string) error
 }
 
 type alertHistoryRepo struct {
@@ -63,14 +64,6 @@ func (r *alertHistoryRepo) List(ctx context.Context, page, size int, ruleID uint
 	return list, total, nil
 }
 
-func (r *alertHistoryRepo) CountFiringIn(ctx context.Context, ruleID uint, since time.Time) (int64, error) {
-	var n int64
-	err := r.db.WithContext(ctx).Model(&model.AlertHistory{}).
-		Where("rule_id = ? AND status = ? AND triggered_at >= ?", ruleID, model.AlertHistoryFiring, since).
-		Count(&n).Error
-	return n, err
-}
-
 func (r *alertHistoryRepo) ResolveFiring(ctx context.Context, ruleID uint, resolvedAt time.Time) error {
 	return r.db.WithContext(ctx).Model(&model.AlertHistory{}).
 		Where("rule_id = ? AND status = ?", ruleID, model.AlertHistoryFiring).
@@ -97,6 +90,20 @@ func (r *alertHistoryRepo) ListFiring(ctx context.Context, limit int) ([]*model.
 		Limit(limit).
 		Find(&list).Error
 	return list, err
+}
+
+// UpdateNotify 回写通知结果；0 行说明历史行不属于本租户或已不存在，不能静默成功。
+func (r *alertHistoryRepo) UpdateNotify(ctx context.Context, id uint, result string) error {
+	res := r.db.WithContext(ctx).Model(&model.AlertHistory{}).
+		Where("id = ?", id).
+		Update("notify_result", result)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 var _ AlertHistoryRepository = (*alertHistoryRepo)(nil)

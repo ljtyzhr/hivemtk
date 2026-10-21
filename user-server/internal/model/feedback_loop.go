@@ -197,9 +197,9 @@ type BanditArm struct {
 	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
 
 	ID                uint       `gorm:"primaryKey;autoIncrement" json:"id"`
-	ExperimentID      string     `gorm:"type:varchar(64);index;not null" json:"experiment_id"`
+	ExperimentID      string     `gorm:"type:varchar(64);index;not null;uniqueIndex:idx_bandit_exp_arm,priority:1" json:"experiment_id"`
 	ExperimentType    string     `gorm:"type:varchar(20);not null" json:"experiment_type"`
-	ArmKey            string     `gorm:"type:varchar(100);not null;uniqueIndex:idx_bandit_exp_arm" json:"arm_key"`
+	ArmKey            string     `gorm:"type:varchar(100);not null;uniqueIndex:idx_bandit_exp_arm,priority:2" json:"arm_key"`
 	SOPID             uint       `gorm:"index" json:"sop_id"`
 	Variant           string     `gorm:"type:varchar(50)" json:"variant"`
 	PromptCandidateID uint       `json:"prompt_candidate_id"`

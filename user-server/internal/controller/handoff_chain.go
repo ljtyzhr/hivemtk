@@ -1,7 +1,6 @@
 package controller
 
 import (
-	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/utils/response"
 	"hivemtk-user/internal/service"
 
@@ -58,38 +57,6 @@ func (c *HandoffChainController) ReopenOnInboundMessage(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"session_id": req.SessionID, "reopened": reopened}, "ok")
 }
 
-// CreateRule POST /api/manage/rules
-// body: {"event": "...", "conditions": "{\"field\":\"...\"}", "actions": "[...]", "name": "...", "enabled": true, "priority": 0, "delay_minutes": 0}
-func (c *HandoffChainController) CreateRule(ctx *gin.Context) {
-	var req struct {
-		Event        string `json:"event" binding:"required"`
-		Conditions   string `json:"conditions"`
-		Actions      string `json:"actions" binding:"required"`
-		Name         string `json:"name" binding:"required"`
-		Enabled      bool   `json:"enabled"`
-		Priority     int    `json:"priority"`
-		DelayMinutes int    `json:"delay_minutes"`
-	}
-	if err := ctx.ShouldBindJSON(&req); err != nil {
-		response.Error(ctx, 400, "请求参数错误："+err.Error())
-		return
-	}
-	rule := &model.AutomationRule{
-		Event:        req.Event,
-		Conditions:   req.Conditions,
-		Actions:      req.Actions,
-		Name:         req.Name,
-		Enabled:      req.Enabled,
-		Priority:     req.Priority,
-		DelayMinutes: req.DelayMinutes,
-	}
-	r, err := c.ruleSvc.Create(ctx.Request.Context(), rule)
-	if HandleServiceError(ctx, err) {
-		return
-	}
-	response.Success(ctx, r, "规则已创建")
-}
-
 // ListRules GET /api/manage/rules?event=
 func (c *HandoffChainController) ListRules(ctx *gin.Context) {
 	list, err := c.ruleSvc.List(ctx.Request.Context(), ctx.Query("event"))
@@ -97,36 +64,4 @@ func (c *HandoffChainController) ListRules(ctx *gin.Context) {
 		return
 	}
 	response.Success(ctx, gin.H{"list": list, "total": len(list)}, "ok")
-}
-
-// DeleteRule DELETE /api/manage/rules/:id
-func (c *HandoffChainController) DeleteRule(ctx *gin.Context) {
-	id, ok := parseUintParam(ctx, "id")
-	if !ok {
-		return
-	}
-	if err := c.ruleSvc.Delete(ctx.Request.Context(), id); HandleServiceError(ctx, err) {
-		return
-	}
-	response.Success(ctx, gin.H{"deleted": true}, "已删除")
-}
-
-// ToggleRule PUT /api/manage/rules/:id/toggle
-// body: {"enabled": true}
-func (c *HandoffChainController) ToggleRule(ctx *gin.Context) {
-	id, ok := parseUintParam(ctx, "id")
-	if !ok {
-		return
-	}
-	var req struct {
-		Enabled *bool `json:"enabled" binding:"required"`
-	}
-	if err := ctx.ShouldBindJSON(&req); err != nil || req.Enabled == nil {
-		response.Error(ctx, 400, "enabled 必填")
-		return
-	}
-	if err := c.ruleSvc.Toggle(ctx.Request.Context(), id, *req.Enabled); HandleServiceError(ctx, err) {
-		return
-	}
-	response.Success(ctx, gin.H{"enabled": *req.Enabled}, "已更新")
 }

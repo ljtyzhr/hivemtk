@@ -61,18 +61,6 @@ func (a *AssetBundleWeavePortAdapter) WeaveForRequest(ctx context.Context, in po
 	return msgs, nil
 }
 
-// IsBundleEnabled 实现 portcontract.AssetBundleWeavePort
-// IsBundleEnabled 判断资产是否启用
-//
-// 工具层 Port 接口签名约束为单参;此处为 Port 模式薄包装,使用 background ctx
-// 隔离与上游请求的取消传播（资产启用判断不应被业务请求取消影响）。
-func (a *AssetBundleWeavePortAdapter) IsBundleEnabled(assetID string) bool {
-	if a == nil || a.svc == nil {
-		return false
-	}
-	return a.svc.IsBundleEnabled(context.Background(), assetID)
-}
-
 var _ portcontract.AssetBundleWeavePort = (*AssetBundleWeavePortAdapter)(nil)
 
 // KnowledgeSearchPortAdapter 适配 KnowledgeBaseService → portcontract.KnowledgeSearchPort

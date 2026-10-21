@@ -84,7 +84,7 @@ func TestSessionEventDispatchResolvesDBHandleSynchronously(t *testing.T) {
 		// 本探针只迁移 automation_rules 且它是空的：异步体第一步 ListEnabledRulesByEvent
 		// 恒回零条 ⇒ 一条规则都不执行 ⇒ 只读不写，不给测试库留行、不污染别家的计数断言。
 		sessionID := fmt.Sprintf("dispatch-handle-probe-%d-%d", time.Now().UnixNano(), i)
-		DispatchSessionEventAsync(RuleEventConversationCreated, sessionID,
+		DispatchSessionEventAsync(context.Background(), RuleEventConversationCreated, sessionID,
 			&model.CustomerSession{SessionID: sessionID})
 		db.SetTestDB(cur)
 	}

@@ -294,7 +294,7 @@
         :closable="false"
         class="mb-12"
         title="输入与输出分别计价"
-        description="绝大多数厂商的输出单价是输入的数倍。下单后请按付款指引联系平台运营，确认收款后余额自动入账。"
+        description="绝大多数厂商的输出单价是输入的数倍。点击「购买」直接进入在线收银台，支付成功后余额自动入账。"
       />
       <el-table
         v-loading="planLoading"
@@ -349,42 +349,16 @@
       </el-table>
     </el-dialog>
 
-    <el-dialog
-      v-model="contactVisible"
-      title="填写联系方式"
-      width="460px"
-    >
-      <el-alert
-        type="warning"
-        :closable="false"
-        class="mb-12"
-        title="用于线下付款联系"
-        description="平台运营需要据此联系你完成付款。请填写电话或邮箱。"
-      />
-      <el-form
-        :model="orderForm"
-        label-width="70px"
-      >
-        <el-form-item label="电话">
-          <el-input v-model="orderForm.contact_phone" />
-        </el-form-item>
-        <el-form-item label="邮箱">
-          <el-input v-model="orderForm.contact_email" />
-        </el-form-item>
-      </el-form>
-      <template #footer>
-        <el-button @click="contactVisible = false">
-          取消
-        </el-button>
-        <el-button
-          type="primary"
-          :loading="ordering"
-          @click="submitLLMOrder"
-        >
-          提交订单
-        </el-button>
-      </template>
-    </el-dialog>
+    <!-- 收银台：与模块/订阅下单共用同一个组件。
+         有 payment 段 → 在线支付；无 → 只在通道异常时展示兜底指引。 -->
+    <CashierDialog
+      v-model="cashierVisible"
+      :order-no="cashierOrderNo"
+      :payment="cashierPayment"
+      :guide="cashierGuide"
+      :amount-cents="cashierAmountCents"
+      @paid="onLLMPaid"
+    />
 
     <el-card
       shadow="never"
@@ -462,6 +436,8 @@ import {
   priceLabel, fmtPrice, fmtTokens,
   MODULE_CATEGORY_LABEL, MODULE_SOURCE_LABEL, MODULE_STATUS_LABEL
 } from '@/api/moduleMarket'
+import { useUserStore } from '@/stores/user'
+import CashierDialog from '@/components/CashierDialog.vue'
 
 
 const CATEGORY_LABEL = MODULE_CATEGORY_LABEL
@@ -474,14 +450,20 @@ const logs = ref([])
 const wallet = ref({})
 const plans = ref([])
 const planVisible = ref(false)
-const contactVisible = ref(false)
 const planLoading = ref(false)
 const ordering = ref(false)
-const pendingPlan = ref(null)
-const orderForm = reactive({ contact_phone: '', contact_email: '' })
 const loading = ref(false)
 const syncing = ref(false)
 const platformEnabled = ref(true)
+
+// 收银台（与模块/订阅共用）：订单号 / 支付参数 / 兜底指引 / 金额
+const cashierVisible = ref(false)
+const cashierOrderNo = ref('')
+const cashierPayment = ref(null)
+const cashierGuide = ref('')
+const cashierAmountCents = ref(0)
+
+const userStore = useUserStore()
 const tab = ref('owned')
 const keyword = ref('')
 const filter = reactive({})
@@ -552,30 +534,46 @@ function openPlans () {
   loadLLM()
 }
 
-function buy (plan) {
-  pendingPlan.value = plan
-  contactVisible.value = true
+// 订单幂等键：点击购买即生成一次，失败重试沿用同一键 —— 不会重复下单
+// （与模块市场 Market.vue 同口径）。
+function genClientOrderNo () {
+  return `LLM-${Date.now()}-${Math.random().toString(36).slice(2, 10)}`
 }
 
-async function submitLLMOrder () {
-  if (!orderForm.contact_phone && !orderForm.contact_email) {
-    ElMessage.warning('请填写电话或邮箱 —— 平台运营需要据此联系你完成付款')
-    return
-  }
+// 购买套餐：不再要求先填联系方式/加微信，直接下单并进入在线收银台。
+// 账号邮箱顺带上行，仅用于线下通道异常时的兜底联系（不作为付款前置条件）。
+async function buy (plan) {
   ordering.value = true
   try {
     const res = await createLLMOrder({
-      plan_code: pendingPlan.value?.plan_code,
-      contact_phone: orderForm.contact_phone,
-      contact_email: orderForm.contact_email
+      plan_code: plan?.plan_code,
+      client_order_no: genClientOrderNo(),
+      contact_email: userStore.userInfo?.email || ''
     })
-    contactVisible.value = false
-    ElMessage.success(res?.payment_guide || '订单已提交，请联系平台运营完成付款')
+    if (res?.payment?.pay_url) {
+      cashierOrderNo.value = res.order_no
+      cashierPayment.value = res.payment
+      cashierGuide.value = res?.payment_guide || ''
+      cashierAmountCents.value = Number(res?.total_amount_cents || 0)
+      cashierVisible.value = true
+    } else if (res?.status === 'fulfilled') {
+      ElMessage.success('套餐已生效，余额已入账')
+      loadLLM()
+    } else {
+      // 通道未启用/生成失败：平台零代码回滚线下路径。
+      ElMessage.warning(res?.payment_guide || '在线支付暂不可用，请联系平台运营')
+    }
   } catch (e) {
     ElMessage.error(e?.message || '下单失败')
   } finally {
     ordering.value = false
   }
+}
+
+// 支付确认：刷新钱包余额与套餐列表（余额入账由平台回调完成）
+function onLLMPaid () {
+  ElMessage.success('支付成功！余额入账中，稍后自动刷新。')
+  setTimeout(loadLLM, 1500)
 }
 
 async function onSync () {

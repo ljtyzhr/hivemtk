@@ -28,7 +28,7 @@ func (m *ConfidenceMigration) Name() string { return "置信度驱动转人工�
 
 // Description 返回迁移描述
 func (m *ConfidenceMigration) Description() string {
-	return "创建 confidence_signals / confidence_calibrations / handoff_decisions / threshold_policies / ab_tests / ab_test_metrics 6 张表"
+	return "创建 confidence_signals / confidence_calibrations / handoff_decisions / threshold_policies 4 张表"
 }
 
 // Up 执行升级
@@ -51,14 +51,6 @@ func (m *ConfidenceMigration) Up(ctx context.Context) error {
 
 	if err := m.createThresholdPolicies(ctx); err != nil {
 		return fmt.Errorf("create threshold_policies 失败: %w", err)
-	}
-
-	if err := m.createABTests(ctx); err != nil {
-		return fmt.Errorf("create ab_tests 失败: %w", err)
-	}
-
-	if err := m.createABTestMetrics(ctx); err != nil {
-		return fmt.Errorf("create ab_test_metrics 失败: %w", err)
 	}
 
 	if err := m.seedDefaultPolicies(ctx); err != nil {
@@ -177,49 +169,6 @@ func (m *ConfidenceMigration) createThresholdPolicies(ctx context.Context) error
 	return execAll(ctx, m.db, stmts)
 }
 
-func (m *ConfidenceMigration) createABTests(ctx context.Context) error {
-	stmts := []string{
-		`CREATE TABLE IF NOT EXISTS ab_tests (
-			id BIGSERIAL PRIMARY KEY,
-			test_id VARCHAR(64) NOT NULL UNIQUE,
-			test_name VARCHAR(128) NOT NULL,
-			description TEXT DEFAULT '',
-			status VARCHAR(32) NOT NULL DEFAULT 'draft',
-			traffic_split JSONB NOT NULL,
-			targeting_rule JSONB DEFAULT '{}',
-			metrics JSONB NOT NULL,
-			control_stats JSONB DEFAULT '{}',
-			treatment_stats JSONB DEFAULT '{}',
-			mann_whitney_u DECIMAL(10,4) DEFAULT 0,
-			mann_whitney_p DECIMAL(8,4) DEFAULT 0,
-			bootstrap_ci_lower DECIMAL(5,4) DEFAULT 0,
-			bootstrap_ci_upper DECIMAL(5,4) DEFAULT 0,
-			bootstrap_n INT DEFAULT 10000,
-			started_at TIMESTAMPTZ,
-			stopped_at TIMESTAMPTZ,
-			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-			updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-		)`,
-		`CREATE INDEX IF NOT EXISTS idx_ab_status ON ab_tests(status, started_at DESC)`,
-	}
-	return execAll(ctx, m.db, stmts)
-}
-
-func (m *ConfidenceMigration) createABTestMetrics(ctx context.Context) error {
-	stmts := []string{
-		`CREATE TABLE IF NOT EXISTS ab_test_metrics (
-			id BIGSERIAL PRIMARY KEY,
-			test_id VARCHAR(64) NOT NULL,
-			group_name VARCHAR(16) NOT NULL,
-			metric_name VARCHAR(64) NOT NULL,
-			value DECIMAL(15,6) NOT NULL,
-			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-		)`,
-		`CREATE INDEX IF NOT EXISTS idx_abm_test ON ab_test_metrics(test_id, group_name, metric_name, created_at)`,
-	}
-	return execAll(ctx, m.db, stmts)
-}
-
 func (m *ConfidenceMigration) seedDefaultPolicies(ctx context.Context) error {
 	var count int64
 	if err := m.db.WithContext(ctx).
@@ -272,7 +221,7 @@ func (m *ConfidenceMigration) Down(ctx context.Context) error {
 	if m.db == nil {
 		return fmt.Errorf("db is nil")
 	}
-	declineTableDrop(m.Version(), "ab_test_metrics", "ab_tests", "handoff_decisions", "confidence_signals")
+	declineTableDrop(m.Version(), "handoff_decisions", "confidence_signals")
 	return nil
 }
 

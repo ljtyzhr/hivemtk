@@ -232,4 +232,10 @@ func RegisterMigrations(registry *migration.MigrationRegistry, db *gorm.DB) {
 	// v3.67.0：摘除浏览器定时触发器的软删残留行（它们占着 (tenant_id, task_id) 唯一键位，
 	// 让同一任务再也挂不上新触发器）
 	register(NewBrowserCronTriggerTombstonePruneMigration(db))
+	// v3.68.0：A/B 实验结果唯一键从 (tenant_id, experiment_id) 恢复为
+	// (tenant_id, experiment_id, variant_id)——单列唯一会让多变异实验算不出第二条结果
+	register(NewABExperimentResultUniqueKeyMigration(db))
+	// v3.69.0：bandit_arms 唯一键从 (tenant_id, arm_key) 恢复为
+	// (tenant_id, experiment_id, arm_key)——arm_key 只在实验内唯一
+	register(NewBanditArmUniqueKeyMigration(db))
 }

@@ -17,7 +17,6 @@ import (
 func setupSmsTrackingTestDB(t *testing.T) *gorm.DB {
 	database := testutil.NewTestDB(t,
 		&model.SmsDeliveryStatus{},
-		&model.SmsJobMetric{},
 	)
 	db.SetTestDB(database)
 	return database
@@ -384,194 +383,6 @@ func TestSmsTracking_RetryFailedMessages_DefaultBatchSize(t *testing.T) {
 	}
 }
 
-// TestSmsTracking_GetJobMetrics_WithMetrics 测试获取任务指标
-func TestSmsTracking_GetJobMetrics_WithMetrics(t *testing.T) {
-	database := setupSmsTrackingTestDB(t)
-	svc := newSmsTrackingService(database)
-
-	statuses := []struct {
-		msgID   string
-		phone   string
-		status  string
-		errCode string
-	}{
-		{"m1", "13800138001", "DELIVERED", ""},
-		{"m2", "13800138002", "DELIVERED", ""},
-		{"m3", "13800138003", "DELIVERED", ""},
-		{"m4", "13800138004", "FAILED", model.SmsErrorCodeInvalidPhone},
-		{"m5", "13800138005", "FAILED", model.SmsErrorCodeGatewayTimeout},
-	}
-	for _, s := range statuses {
-		req := &DeliveryReportRequest{
-			MessageID: s.msgID,
-			Phone:     s.phone,
-			JobID:     "job-metrics",
-			Status:    s.status,
-			ErrorCode: s.errCode,
-		}
-		if err := svc.RecordDeliveryReport(context.Background(), req); err != nil {
-			t.Fatalf("准备数据失败: %v", err)
-		}
-	}
-
-	metric, err := svc.GetJobMetrics(context.Background(), "job-metrics")
-	if err != nil {
-		t.Fatalf("GetJobMetrics failed: %v", err)
-	}
-	if metric.TotalSent != 5 {
-		t.Errorf("Expected TotalSent=5, got %d", metric.TotalSent)
-	}
-	if metric.TotalDelivered != 3 {
-		t.Errorf("Expected TotalDelivered=3, got %d", metric.TotalDelivered)
-	}
-	if metric.TotalFailed != 2 {
-		t.Errorf("Expected TotalFailed=2, got %d", metric.TotalFailed)
-	}
-	if metric.TotalRetried != 1 {
-		t.Errorf("Expected TotalRetried=1, got %d", metric.TotalRetried)
-	}
-	if metric.DeliveryRate != 60 {
-		t.Errorf("Expected DeliveryRate=60, got %f", metric.DeliveryRate)
-	}
-	if metric.FailureRate != 40 {
-		t.Errorf("Expected FailureRate=40, got %f", metric.FailureRate)
-	}
-}
-
-// TestSmsTracking_GetJobMetrics_Empty 测试空任务指标
-func TestSmsTracking_GetJobMetrics_Empty(t *testing.T) {
-	database := setupSmsTrackingTestDB(t)
-	svc := newSmsTrackingService(database)
-
-	metric, err := svc.GetJobMetrics(context.Background(), "job-empty")
-	if err != nil {
-		t.Fatalf("GetJobMetrics failed: %v", err)
-	}
-	if metric.TotalSent != 0 {
-		t.Errorf("Expected TotalSent=0, got %d", metric.TotalSent)
-	}
-	if metric.DeliveryRate != 0 {
-		t.Errorf("Expected DeliveryRate=0, got %f", metric.DeliveryRate)
-	}
-}
-
-// TestSmsTracking_GetJobMetrics_EmptyJobID 测试空 job_id
-func TestSmsTracking_GetJobMetrics_EmptyJobID(t *testing.T) {
-	database := setupSmsTrackingTestDB(t)
-	svc := newSmsTrackingService(database)
-
-	_, err := svc.GetJobMetrics(context.Background(), "")
-	if err == nil {
-		t.Error("Expected error for empty job_id")
-	}
-}
-
-// TestSmsTracking_GetRangeMetrics_WithMetrics 测试区间指标
-func TestSmsTracking_GetRangeMetrics_WithMetrics(t *testing.T) {
-	database := setupSmsTrackingTestDB(t)
-	svc := newSmsTrackingService(database)
-
-	for i, s := range []struct {
-		msgID  string
-		phone  string
-		status string
-	}{
-		{"r1", "13800138011", "DELIVERED"},
-		{"r2", "13800138012", "DELIVERED"},
-		{"r3", "13800138013", "FAILED"},
-	} {
-		req := &DeliveryReportRequest{
-			MessageID: s.msgID,
-			Phone:     s.phone,
-			JobID:     "job-range-" + string(rune('0'+i)),
-			Status:    s.status,
-			ErrorCode: func() string {
-				if s.status == "FAILED" {
-					return model.SmsErrorCodeInvalidPhone
-				}
-				return ""
-			}(),
-		}
-		if err := svc.RecordDeliveryReport(context.Background(), req); err != nil {
-			t.Fatalf("准备数据失败: %v", err)
-		}
-	}
-
-	start := time.Now().Add(-1 * time.Hour)
-	end := time.Now().Add(1 * time.Hour)
-	metric, err := svc.GetRangeMetrics(context.Background(), start, end)
-	if err != nil {
-		t.Fatalf("GetRangeMetrics failed: %v", err)
-	}
-	if metric.TotalSent != 3 {
-		t.Errorf("Expected TotalSent=3, got %d", metric.TotalSent)
-	}
-	if metric.TotalDelivered != 2 {
-		t.Errorf("Expected TotalDelivered=2, got %d", metric.TotalDelivered)
-	}
-	if metric.TotalFailed != 1 {
-		t.Errorf("Expected TotalFailed=1, got %d", metric.TotalFailed)
-	}
-}
-
-// TestSmsTracking_GetRangeMetrics_InvalidRange 测试无效时间区间
-func TestSmsTracking_GetRangeMetrics_InvalidRange(t *testing.T) {
-	database := setupSmsTrackingTestDB(t)
-	svc := newSmsTrackingService(database)
-
-	start := time.Now()
-	end := time.Now().Add(-1 * time.Hour)
-	_, err := svc.GetRangeMetrics(context.Background(), start, end)
-	if err == nil {
-		t.Error("Expected error for invalid range")
-	}
-}
-
-// TestSmsTracking_GetRangeMetrics_EmptyRange 测试空时间值
-func TestSmsTracking_GetRangeMetrics_EmptyRange(t *testing.T) {
-	database := setupSmsTrackingTestDB(t)
-	svc := newSmsTrackingService(database)
-
-	_, err := svc.GetRangeMetrics(context.Background(), time.Time{}, time.Now())
-	if err == nil {
-		t.Error("Expected error for zero start time")
-	}
-}
-
-// TestSmsTracking_RefreshJobMetrics 测试刷新任务指标
-func TestSmsTracking_RefreshJobMetrics(t *testing.T) {
-	database := setupSmsTrackingTestDB(t)
-	svc := newSmsTrackingService(database)
-
-	req := &DeliveryReportRequest{
-		MessageID: "refresh-001",
-		Phone:     "13800138000",
-		JobID:     "job-refresh",
-		Status:    "DELIVERED",
-	}
-	if err := svc.RecordDeliveryReport(context.Background(), req); err != nil {
-		t.Fatalf("准备数据失败: %v", err)
-	}
-
-	if err := svc.RefreshJobMetrics(context.Background(), "job-refresh"); err != nil {
-		t.Fatalf("RefreshJobMetrics failed: %v", err)
-	}
-
-	var metric model.SmsJobMetric
-	if err := database.Where("job_id = ?", "job-refresh").First(&metric).Error; err != nil {
-		t.Fatalf("查询指标失败: %v", err)
-	}
-	if metric.TotalSent != 1 {
-		t.Errorf("Expected TotalSent=1, got %d", metric.TotalSent)
-	}
-	if metric.TotalDelivered != 1 {
-		t.Errorf("Expected TotalDelivered=1, got %d", metric.TotalDelivered)
-	}
-	if metric.DeliveryRate != 100 {
-		t.Errorf("Expected DeliveryRate=100, got %f", metric.DeliveryRate)
-	}
-}
-
 // TestSmsTracking_ListJobStatuses 测试分页查询任务状态
 func TestSmsTracking_ListJobStatuses(t *testing.T) {
 	database := setupSmsTrackingTestDB(t)
@@ -767,10 +578,6 @@ func TestSmsTracking_FullFlow(t *testing.T) {
 		t.Fatalf("step 4 失败: %v", err)
 	}
 
-	if err := svc.RefreshJobMetrics(ctx, "job-flow"); err != nil {
-		t.Fatalf("step 5 失败: %v", err)
-	}
-
 	var record model.SmsDeliveryStatus
 	if err := database.Where("message_id = ?", "flow-001").First(&record).Error; err != nil {
 		t.Fatalf("查询记录失败: %v", err)
@@ -780,20 +587,6 @@ func TestSmsTracking_FullFlow(t *testing.T) {
 	}
 	if record.RetryCount != 1 {
 		t.Errorf("Expected RetryCount=1, got %d", record.RetryCount)
-	}
-
-	metric, err := svc.GetJobMetrics(context.Background(), "job-flow")
-	if err != nil {
-		t.Fatalf("GetJobMetrics failed: %v", err)
-	}
-	if metric.TotalSent != 1 {
-		t.Errorf("Expected TotalSent=1, got %d", metric.TotalSent)
-	}
-	if metric.TotalDelivered != 1 {
-		t.Errorf("Expected TotalDelivered=1, got %d", metric.TotalDelivered)
-	}
-	if metric.DeliveryRate != 100 {
-		t.Errorf("Expected DeliveryRate=100, got %f", metric.DeliveryRate)
 	}
 }
 

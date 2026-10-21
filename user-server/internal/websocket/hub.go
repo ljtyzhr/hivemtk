@@ -303,11 +303,6 @@ func NotifySessionUpdate(agentID string, sessionData any) error {
 	return GetHub().SendToAgent(agentID, "session_update", sessionData)
 }
 
-// NotifyAISuggestion 通知AI建议
-func NotifyAISuggestion(agentID string, suggestionData any) error {
-	return GetHub().SendToAgent(agentID, "ai_suggestion", suggestionData)
-}
-
 // BroadcastAgentStatus 广播客服状态变更
 func BroadcastAgentStatus(statusData any) error {
 	return GetHub().BroadcastToMerchant("", "agent_status", statusData)

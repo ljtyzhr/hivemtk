@@ -39,11 +39,22 @@ func (r *AISuggestionRepository) GetBySessionID(ctx context.Context, sessionID s
 }
 
 // MarkAsUsed 标记建议已使用
+//
+// 命中 0 行必须报错：GORM 对 0 行 UPDATE 只回 Error==nil，而「不属于本租户」
+// 与「id 不存在」在 after-clauses 前是完全相同的读数——静默成功会让界面显示
+// 「已采用」，库里一个字节都没变。
 func (r *AISuggestionRepository) MarkAsUsed(ctx context.Context, id uint, agentID uint) error {
 	now := time.Now()
-	return r.db.WithContext(ctx).Model(&model.AISuggestion{}).Where("id = ?", id).Updates(map[string]any{
+	res := r.db.WithContext(ctx).Model(&model.AISuggestion{}).Where("id = ?", id).Updates(map[string]any{
 		"is_used": true,
 		"used_by": agentID,
 		"used_at": &now,
-	}).Error
+	})
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }

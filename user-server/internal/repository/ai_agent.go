@@ -24,14 +24,6 @@ func (r *AIAgentRepository) SetDB(ctx context.Context, db *gorm.DB) {
 	}
 }
 
-// GetDB 获取 db（内部使用）
-func (r *AIAgentRepository) GetDB(ctx context.Context) *gorm.DB {
-	if r.db == nil {
-		return nil
-	}
-	return r.db.WithContext(ctx)
-}
-
 // Create 创建智能体
 func (r *AIAgentRepository) Create(ctx context.Context, agent *model.AIAgent) error {
 	return r.db.WithContext(ctx).Create(agent).Error
@@ -101,31 +93,50 @@ func (r *AIAgentRepository) ListEnabled(ctx context.Context) ([]*model.AIAgent, 
 }
 
 // Update 更新智能体
+//
+// 不用 Save：Save 的 UPDATE 命中 0 行时会回退成 ON CONFLICT(裸主键) DO UPDATE，
+// 而租户闸对 excluded.tenant_id 是放行的 —— 跨租户按主键 Save 会把整行搬到
+// 调用方租户下（#14 真库探针复现）。这里显式 Omit 主键/租户/创建时间，
+// 谓词只剩 WHERE id + 注入的 tenant_id，0 行就是 0 行。
+// Select("*") 保证布尔/数值字段的零值也会落库（Updates(struct) 默认跳过零值）。
 func (r *AIAgentRepository) Update(ctx context.Context, agent *model.AIAgent) error {
-	return r.db.WithContext(ctx).Save(agent).Error
+	res := r.db.WithContext(ctx).Model(&model.AIAgent{}).
+		Where("id = ?", agent.ID).
+		Select("*").
+		Omit("id", "tenant_id", "created_at").
+		Updates(agent)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 // UpdateStatus 更新状态
 func (r *AIAgentRepository) UpdateStatus(ctx context.Context, id uint, status int) error {
-	return r.db.WithContext(ctx).Model(&model.AIAgent{}).Where("id = ?", id).Update("status", status).Error
+	result := r.db.WithContext(ctx).Model(&model.AIAgent{}).Where("id = ?", id).Update("status", status)
+	if result.Error != nil {
+		return result.Error
+	}
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 // Delete 删除智能体
 // 注意：关联的 channel_agent_bindings 和 customer_service_agents 由数据库外键 ON DELETE CASCADE 自动级联删除
 func (r *AIAgentRepository) Delete(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).Delete(&model.AIAgent{}, id).Error
-}
-
-// CountByIDs 按ID集合统计数量（用于校验绑定挂载合法性）
-func (r *AIAgentRepository) CountByIDs(ctx context.Context, ids []uint) (int64, error) {
-	if len(ids) == 0 {
-		return 0, nil
+	result := r.db.WithContext(ctx).Delete(&model.AIAgent{}, id)
+	if result.Error != nil {
+		return result.Error
 	}
-	var count int64
-	if err := r.db.WithContext(ctx).Model(&model.AIAgent{}).Where("id IN ?", ids).Count(&count).Error; err != nil {
-		return 0, err
+	if result.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
 	}
-	return count, nil
+	return nil
 }
 
 // ChannelAgentBindingRepository 渠道绑定仓库

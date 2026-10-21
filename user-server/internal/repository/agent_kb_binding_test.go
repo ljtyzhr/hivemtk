@@ -151,65 +151,6 @@ func TestAgentKBBindingRepository_DeleteByAgentKB(t *testing.T) {
 	}
 }
 
-func TestAgentKBBindingRepository_Update(t *testing.T) {
-	repo, _, done := setupAgentKBBindingRepoWithTX(t)
-	defer done()
-	ctx := context.Background()
-
-	b := newTestBinding(1, 100, "faq", "primary")
-	if err := repo.Create(ctx, b); err != nil {
-		t.Fatal(err)
-	}
-	b.Role = model.AgentKBBindingRoleReference
-	b.Priority = 10
-	if err := repo.Update(ctx, b.ID, b); err != nil {
-		t.Fatal(err)
-	}
-	got, _ := repo.GetByAgentKB(ctx, 1, 100)
-	if got == nil {
-		t.Fatal("expected non-nil")
-	}
-	if got.Role != model.AgentKBBindingRoleReference {
-		t.Errorf("Role not updated: got %q", got.Role)
-	}
-	if got.Priority != 10 {
-		t.Errorf("Priority not updated: got %d", got.Priority)
-	}
-}
-
-func TestAgentKBBindingRepository_GetByAgentKB_NotFound(t *testing.T) {
-	repo, _, done := setupAgentKBBindingRepoWithTX(t)
-	defer done()
-	ctx := context.Background()
-
-	got, err := repo.GetByAgentKB(ctx, 999, 999)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if got != nil {
-		t.Error("expected nil for not-found")
-	}
-}
-
-// TestAgentKBBindingRepository_DeleteByID 验证按 ID 删除
-func TestAgentKBBindingRepository_DeleteByID(t *testing.T) {
-	repo, _, done := setupAgentKBBindingRepoWithTX(t)
-	defer done()
-	ctx := context.Background()
-
-	b := newTestBinding(1, 100, "faq", "primary")
-	if err := repo.Create(ctx, b); err != nil {
-		t.Fatal(err)
-	}
-	if err := repo.Delete(ctx, b.ID); err != nil {
-		t.Fatal(err)
-	}
-	exists, _ := repo.CheckExists(ctx, 1, 100)
-	if exists {
-		t.Error("expected deleted")
-	}
-}
-
 // TestAgentKBBindingRepository_DeleteByAgent 验证级联删除某智能体所有绑定
 func TestAgentKBBindingRepository_DeleteByAgent(t *testing.T) {
 	repo, _, done := setupAgentKBBindingRepoWithTX(t)
@@ -322,34 +263,6 @@ func TestAgentKBBindingRepository_CheckExists_False(t *testing.T) {
 	exists, _ = repo.CheckExists(ctx, 999, 100)
 	if exists {
 		t.Error("expected exists=false for non-existing agent")
-	}
-}
-
-// TestAgentKBBindingRepository_Update_Priority 验证 priority 更新
-func TestAgentKBBindingRepository_Update_Priority(t *testing.T) {
-	repo, _, done := setupAgentKBBindingRepoWithTX(t)
-	defer done()
-	ctx := context.Background()
-
-	b := newTestBinding(1, 100, "faq", "primary")
-	if err := repo.Create(ctx, b); err != nil {
-		t.Fatal(err)
-	}
-	b.Priority = 99
-	if err := repo.Update(ctx, b.ID, b); err != nil {
-		t.Fatal(err)
-	}
-	got, err := repo.GetByAgentKB(ctx, 1, 100)
-	if err != nil {
-		t.Fatalf("GetByAgentKB: %v", err)
-	}
-	if got == nil {
-		// GetByAgentKB 把 record-not-found 归成 (nil, nil)：没有这一判，下一行的
-		// nil 解引用会 panic 掉整个测试二进制，把「没查到」伪装成崩溃、连带带走同包其它用例。
-		t.Fatal("GetByAgentKB 交回 (nil, nil) ⇒ 按 (agent_id,kb_id)=(1,100) 没查到行")
-	}
-	if got.Priority != 99 {
-		t.Errorf("expected priority=99, got %d", got.Priority)
 	}
 }
 

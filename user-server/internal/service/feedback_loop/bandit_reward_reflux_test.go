@@ -2,6 +2,8 @@ package feedbackloop
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"testing"
 	"time"
 
@@ -10,7 +12,9 @@ import (
 )
 
 type mockBanditUpdater struct {
-	calls []mockRewardCall
+	calls   []mockRewardCall
+	failN   int
+	failErr error
 }
 
 type mockRewardCall struct {
@@ -22,6 +26,10 @@ type mockRewardCall struct {
 
 func (m *mockBanditUpdater) UpdateReward(_ context.Context, experimentID, armKey string, success bool, reward float64) error {
 	m.calls = append(m.calls, mockRewardCall{experimentID, armKey, success, reward})
+	if m.failN > 0 {
+		m.failN--
+		return m.failErr
+	}
 	return nil
 }
 
@@ -195,5 +203,241 @@ func TestD04_NoRunningExperimentSkips(t *testing.T) {
 	stats, _ := r.RefluxOnce(context.Background(), time.Now().Add(-time.Minute), time.Now().Add(time.Minute))
 	if stats.Skipped != 1 {
 		t.Errorf("无实验应 skip, got %+v", stats)
+	}
+}
+
+// D04: 事件数超过单批上限时要按 id 游标续扫，不能只处理前 500 条
+func TestD04_RefluxPaginatesBeyondBatchSize(t *testing.T) {
+	db := testutil.NewTestDB(t,
+		&model.FeedbackEvent{},
+		&model.PromptABTest{},
+		&model.BanditArm{},
+		&model.BanditRefluxLog{},
+	)
+	db.Create(&model.PromptABTest{
+		ExperimentID:   "exp-d04-page",
+		ExperimentType: model.BanditExperimentTypeSOPVariant,
+		SOPID:          88,
+		ArmKeys:        model.JSONArray{"A"},
+		Status:         "running",
+	})
+	db.Create(&model.BanditArm{ExperimentID: "exp-d04-page", ExperimentType: model.BanditExperimentTypeSOPVariant, ArmKey: "A", SOPID: 88, Variant: "A"})
+
+	mock := &mockBanditUpdater{}
+	r := NewBanditRewardReflux(db, mock)
+	r.batchSize = 2
+
+	now := time.Now()
+	for i := 0; i < 5; i++ {
+		if err := db.Create(&model.FeedbackEvent{
+			EventID:    fmt.Sprintf("evt-page-%d", i),
+			SessionID:  fmt.Sprintf("sess-page-%d", i),
+			CustomerID: "c1",
+			SOPID:      88,
+			SignalKey:  "conversion",
+			Reward:     2.0,
+			CreatedAt:  now,
+		}).Error; err != nil {
+			t.Fatalf("seed event %d: %v", i, err)
+		}
+	}
+	stats, err := r.RefluxOnce(context.Background(), now.Add(-time.Minute), now.Add(time.Minute))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stats.Refluxed != 5 || stats.Duped != 0 || stats.Failed != 0 {
+		t.Errorf("5 条事件应全部回流, got %+v", stats)
+	}
+	if len(mock.calls) != 5 {
+		t.Errorf("UpdateReward 应调用 5 次, got %d", len(mock.calls))
+	}
+}
+
+// D04: 同会话同 SOP 的第二笔 conversion 由复合唯一键去重，只能入账一次
+func TestD04_ConversionDedupedBySessionAndSOP(t *testing.T) {
+	db := testutil.NewTestDB(t,
+		&model.FeedbackEvent{},
+		&model.PromptABTest{},
+		&model.BanditArm{},
+		&model.BanditRefluxLog{},
+	)
+	db.Create(&model.PromptABTest{
+		ExperimentID:   "exp-d04-conv",
+		ExperimentType: model.BanditExperimentTypeSOPVariant,
+		SOPID:          77,
+		ArmKeys:        model.JSONArray{"A"},
+		Status:         "running",
+	})
+	db.Create(&model.BanditArm{ExperimentID: "exp-d04-conv", ExperimentType: model.BanditExperimentTypeSOPVariant, ArmKey: "A", SOPID: 77, Variant: "A"})
+
+	mock := &mockBanditUpdater{}
+	r := NewBanditRewardReflux(db, mock)
+	now := time.Now()
+	for i := 0; i < 2; i++ {
+		db.Create(&model.FeedbackEvent{
+			EventID:    fmt.Sprintf("evt-conv-%d", i),
+			SessionID:  "sess-conv",
+			CustomerID: "c1",
+			SOPID:      77,
+			SignalKey:  "conversion",
+			Reward:     2.0,
+			CreatedAt:  now,
+		})
+	}
+	stats, err := r.RefluxOnce(context.Background(), now.Add(-time.Minute), now.Add(time.Minute))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stats.Refluxed != 1 || stats.Duped != 1 {
+		t.Errorf("同会话转化应 refluxed=1 duped=1, got %+v", stats)
+	}
+	if len(mock.calls) != 1 {
+		t.Errorf("同会话转化只应更新一次臂, got %d", len(mock.calls))
+	}
+}
+
+// D04: 克隆变体的臂挂在克隆 SOP 的 ID 上，事件按克隆 SOP 也必须解析到该臂
+func TestD04_ClonedVariantArmResolvedByArmSOP(t *testing.T) {
+	db := testutil.NewTestDB(t,
+		&model.FeedbackEvent{},
+		&model.PromptABTest{},
+		&model.BanditArm{},
+		&model.BanditRefluxLog{},
+	)
+	db.Create(&model.PromptABTest{
+		ExperimentID:   "exp-d04-clone",
+		ExperimentType: model.BanditExperimentTypeSOPVariant,
+		SOPID:          100,
+		ArmKeys:        model.JSONArray{"arm_a_original", "arm_b_variant"},
+		Status:         "running",
+	})
+	db.Create(&model.BanditArm{ExperimentID: "exp-d04-clone", ExperimentType: model.BanditExperimentTypeSOPVariant, ArmKey: "arm_a_original", SOPID: 100, Variant: "A"})
+	db.Create(&model.BanditArm{ExperimentID: "exp-d04-clone", ExperimentType: model.BanditExperimentTypeSOPVariant, ArmKey: "arm_b_variant", SOPID: 200, Variant: "B"})
+
+	mock := &mockBanditUpdater{}
+	r := NewBanditRewardReflux(db, mock)
+	now := time.Now()
+	db.Create(&model.FeedbackEvent{
+		EventID:    "evt-clone-b",
+		SessionID:  "sess-clone",
+		CustomerID: "c1",
+		SOPID:      200,
+		SignalKey:  "conversion",
+		Reward:     2.0,
+		Variant:    "B",
+		CreatedAt:  now,
+	})
+
+	stats, err := r.RefluxOnce(context.Background(), now.Add(-time.Minute), now.Add(time.Minute))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stats.Refluxed != 1 || len(mock.calls) != 1 {
+		t.Fatalf("克隆变体事件应回流 1 次, got %+v calls=%d", stats, len(mock.calls))
+	}
+	if mock.calls[0].ExperimentID != "exp-d04-clone" || mock.calls[0].ArmKey != "arm_b_variant" {
+		t.Errorf("应记到克隆变体臂, got %+v", mock.calls[0])
+	}
+}
+
+// D04: 解析期的 DB 错误必须让本轮失败（cron 不推进游标），不能记 Skip 永久丢单
+func TestD04_ResolveErrorAbortsWindow(t *testing.T) {
+	db := testutil.NewTestDB(t,
+		&model.FeedbackEvent{},
+		&model.PromptABTest{},
+		&model.BanditArm{},
+		&model.BanditRefluxLog{},
+	)
+	db.Create(&model.PromptABTest{
+		ExperimentID:   "exp-d04-err",
+		ExperimentType: model.BanditExperimentTypeSOPVariant,
+		SOPID:          55,
+		ArmKeys:        model.JSONArray{"A"},
+		Status:         "running",
+	})
+	db.Create(&model.BanditArm{ExperimentID: "exp-d04-err", ExperimentType: model.BanditExperimentTypeSOPVariant, ArmKey: "A", SOPID: 55, Variant: "A"})
+	now := time.Now()
+	db.Create(&model.FeedbackEvent{
+		EventID:    "evt-err",
+		SessionID:  "sess-err",
+		CustomerID: "c1",
+		SOPID:      55,
+		SignalKey:  "conversion",
+		Reward:     2.0,
+		CreatedAt:  now,
+	})
+	// 拆掉解析链依赖的 JOIN 表：模拟解析期 DB 故障（表缺失/连接异常同类）
+	if err := db.Exec("ALTER TABLE prompt_ab_tests RENAME TO prompt_ab_tests_broken").Error; err != nil {
+		t.Fatalf("rename prompt_ab_tests: %v", err)
+	}
+
+	mock := &mockBanditUpdater{}
+	r := NewBanditRewardReflux(db, mock)
+	if _, err := r.RefluxOnce(context.Background(), now.Add(-time.Minute), now.Add(time.Minute)); err == nil {
+		t.Fatal("解析失败时 RefluxOnce 应返回 error，否则游标推进后该事件永不重试")
+	}
+	var logs int64
+	db.Model(&model.BanditRefluxLog{}).Count(&logs)
+	if logs != 0 {
+		t.Errorf("解析失败不应写台账, got %d 行", logs)
+	}
+	if len(mock.calls) != 0 {
+		t.Errorf("解析失败不应更新臂, got %d 次", len(mock.calls))
+	}
+}
+
+// D04: 臂更新失败时补偿删除台账，否则这笔事件会被永久标记为已入账
+func TestD04_UpdateFailureRollsBackLedger(t *testing.T) {
+	db := testutil.NewTestDB(t,
+		&model.FeedbackEvent{},
+		&model.PromptABTest{},
+		&model.BanditArm{},
+		&model.BanditRefluxLog{},
+	)
+	db.Create(&model.PromptABTest{
+		ExperimentID:   "exp-d04-comp",
+		ExperimentType: model.BanditExperimentTypeSOPVariant,
+		SOPID:          66,
+		ArmKeys:        model.JSONArray{"A"},
+		Status:         "running",
+	})
+	db.Create(&model.BanditArm{ExperimentID: "exp-d04-comp", ExperimentType: model.BanditExperimentTypeSOPVariant, ArmKey: "A", SOPID: 66, Variant: "A"})
+
+	mock := &mockBanditUpdater{failN: 1, failErr: errors.New("db down")}
+	r := NewBanditRewardReflux(db, mock)
+	now := time.Now()
+	db.Create(&model.FeedbackEvent{
+		EventID:    "evt-comp-1",
+		SessionID:  "sess-comp",
+		CustomerID: "c1",
+		SOPID:      66,
+		SignalKey:  "conversion",
+		Reward:     2.0,
+		CreatedAt:  now,
+	})
+
+	stats, err := r.RefluxOnce(context.Background(), now.Add(-time.Minute), now.Add(time.Minute))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stats.Failed != 1 || stats.Refluxed != 0 {
+		t.Fatalf("首次更新失败应 failed=1 refluxed=0, got %+v", stats)
+	}
+	var logs int64
+	db.Model(&model.BanditRefluxLog{}).Count(&logs)
+	if logs != 0 {
+		t.Fatalf("更新失败后台账应被补偿删除, got %d 行", logs)
+	}
+
+	stats2, err := r.RefluxOnce(context.Background(), now.Add(-time.Minute), now.Add(time.Minute))
+	if err != nil {
+		t.Fatal(err)
+	}
+	if stats2.Refluxed != 1 {
+		t.Errorf("补偿后重扫应成功回流, got %+v", stats2)
+	}
+	db.Model(&model.BanditRefluxLog{}).Count(&logs)
+	if logs != 1 {
+		t.Errorf("重扫成功后台账应有 1 行, got %d", logs)
 	}
 }

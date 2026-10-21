@@ -181,33 +181,6 @@ func (r *ChampionBaselineRepositoryImpl) ListPhrases(ctx context.Context, baseli
 	return list, err
 }
 
-// ABTestStatRepository A/B 测试统计仓储
-type ABTestStatRepository struct{}
-
-// NewABTestStatRepository 构造
-func NewABTestStatRepository() *ABTestStatRepository {
-	return &ABTestStatRepository{}
-}
-
-// Save 保存统计结果（同时写入 control 与 treatment 两条记录）
-// rows 由 service 层构建，仓储仅负责持久化
-func (r *ABTestStatRepository) Save(ctx context.Context, rows []model.ABTestStat) error {
-	if len(rows) == 0 {
-		return nil
-	}
-	return db.GetDB().WithContext(ctx).CreateInBatches(rows, 100).Error
-}
-
-// ListByExperiment 按实验 ID 查询统计结果
-func (r *ABTestStatRepository) ListByExperiment(ctx context.Context, experimentID string) ([]model.ABTestStat, error) {
-	var list []model.ABTestStat
-	err := db.GetDB().WithContext(ctx).
-		Where("experiment_id = ?", experimentID).
-		Order("group_name ASC, created_at DESC").
-		Find(&list).Error
-	return list, err
-}
-
 func generateScoreID() string {
 	return fmt.Sprintf("hs_%d", time.Now().UnixNano())
 }

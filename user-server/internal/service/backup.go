@@ -7,6 +7,7 @@ import (
 	"errors"
 	"fmt"
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
 	"hivemtk-user/internal/storage"
@@ -83,9 +84,11 @@ func (s *BackupService) CreateBackup(ctx context.Context, createdBy uint, req *C
 	// 后台执行协程拿独立快照：executeBackup 会持续改写状态/路径字段，与调用方共享
 	// 同一 *model.Backup 即为数据竞争（go test -race 实证），调用方还可能读到未落库
 	// 的中间态。返回原始指针，语义恒为"刚入库的那一行（pending）"。
+	// 备份是全实例动作：必须走 SystemScope 才能跨租户读取，否则 on 模式下
+	// 隔离 callback 只会导出调用方所属租户的数据，备份"成功"但内容残缺。
 	job := *backup
 	go func(b *model.Backup) {
-		s.executeBackup(context.WithoutCancel(ctx), b)
+		s.executeBackup(tenant.WithSystemScope(context.WithoutCancel(ctx)), b)
 	}(&job)
 
 	return backup, nil
@@ -195,9 +198,8 @@ func (s *BackupService) exportData(ctx context.Context) ([]byte, error) {
 	}
 
 	now := time.Now()
-	cutoff := now.Add(-24 * time.Hour).Unix()
 
-	clues, err := s.backupDataRepo.DumpClues(ctx, cutoff)
+	clues, err := s.backupDataRepo.DumpClues(ctx)
 	if err != nil {
 		return nil, err
 	}
@@ -209,7 +211,7 @@ func (s *BackupService) exportData(ctx context.Context) ([]byte, error) {
 
 	links, err := s.dumpAllShortLinks(ctx)
 	if err != nil {
-		links = []byte("[]")
+		return nil, err
 	}
 
 	clueCount := jsonArrayLen(clues)
@@ -421,8 +423,8 @@ func (s *RestoreService) RestoreBackup(ctx context.Context, createdBy uint, req 
 	}
 
 	go func(src model.RestoreRecord) {
-
-		s.executeRestore(context.WithoutCancel(ctx), &src, backup)
+		// 与备份对称：恢复要写回备份覆盖的全部租户，不能被调用方租户截断。
+		s.executeRestore(tenant.WithSystemScope(context.WithoutCancel(ctx)), &src, backup)
 	}(*record)
 
 	return record, nil
@@ -523,9 +525,10 @@ func (s *RestoreService) restoreDatabase(ctx context.Context, backup *model.Back
 	}
 
 	var backupData struct {
-		Version string           `json:"version"`
-		Clues   []map[string]any `json:"clues"`
-		Users   []map[string]any `json:"users"`
+		Version   string           `json:"version"`
+		Clues     []map[string]any `json:"clues"`
+		Users     []map[string]any `json:"users"`
+		ShortLink []map[string]any `json:"short_link"`
 
 		MFA             []map[string]any `json:"mfa"`
 		OBSConfig       []map[string]any `json:"obs_config"`
@@ -562,7 +565,8 @@ func (s *RestoreService) restoreDatabase(ctx context.Context, backup *model.Back
 		if id == "" {
 			continue
 		}
-		exists, err := s.backupDataRepo.ClueExists(ctx, id)
+		tenantID := backupRowTenantID(c)
+		exists, err := s.backupDataRepo.ClueExists(ctx, tenantID, id)
 		if err != nil {
 			logger.Error(err, "检查线索失败: "+id)
 			continue
@@ -571,15 +575,16 @@ func (s *RestoreService) restoreDatabase(ctx context.Context, backup *model.Back
 			continue
 		}
 		row := map[string]any{
-			"id":          id,
-			"source_id":   c["source_id"],
-			"account":     c["account"],
-			"clue_type":   c["type"],
-			"is_verify":   c["is_verify"],
-			"name":        c["name"],
-			"city":        c["city"],
-			"address":     c["address"],
-			"description": c["desc"],
+			"tenant_id": tenantID,
+			"id":        id,
+			"source_id": c["source_id"],
+			"account":   c["account"],
+			"type":      c["type"],
+			"is_verify": c["is_verify"],
+			"name":      c["name"],
+			"city":      c["city"],
+			"address":   c["address"],
+			"desc":      c["desc"],
 		}
 		if err := s.backupDataRepo.RestoreClue(ctx, row); err != nil {
 			logger.Error(err, "恢复线索失败: "+id)
@@ -594,7 +599,8 @@ func (s *RestoreService) restoreDatabase(ctx context.Context, backup *model.Back
 		if username == "" {
 			continue
 		}
-		exists, err := s.backupDataRepo.UserExistsByUsername(ctx, username)
+		tenantID := backupRowTenantID(u)
+		exists, err := s.backupDataRepo.UserExistsByUsername(ctx, tenantID, username)
 		if err != nil {
 			continue
 		}
@@ -603,16 +609,43 @@ func (s *RestoreService) restoreDatabase(ctx context.Context, backup *model.Back
 		}
 
 		if err := s.backupDataRepo.RestoreUser(ctx, map[string]any{
-			"id":       u["id"],
-			"username": username,
-			"email":    u["email"],
-			"phone":    u["phone"],
-			"password": u["password"],
+			"tenant_id": tenantID,
+			"id":        u["id"],
+			"username":  username,
+			"email":     u["email"],
+			"phone":     u["phone"],
+			"password":  u["password"],
 		}); err != nil {
 			logger.Error(err, "恢复用户失败: "+username)
 			continue
 		}
 		restoredUsers++
+	}
+
+	restoredLinks := 0
+	for _, l := range backupData.ShortLink {
+		code, _ := l["short_code"].(string)
+		if code == "" {
+			continue
+		}
+		tenantID := backupRowTenantID(l)
+		exists, err := s.backupDataRepo.ShortLinkExistsByCode(ctx, tenantID, code)
+		if err != nil {
+			logger.Error(err, "检查短链失败: "+code)
+			continue
+		}
+		if exists {
+			continue
+		}
+		if err := s.backupDataRepo.RestoreShortLink(ctx, map[string]any{
+			"tenant_id":    tenantID,
+			"short_code":   code,
+			"original_url": l["original_url"],
+		}); err != nil {
+			logger.Error(err, "恢复短链失败: "+code)
+			continue
+		}
+		restoredLinks++
 	}
 
 	type restoreExtra struct {
@@ -665,13 +698,43 @@ func (s *RestoreService) restoreDatabase(ctx context.Context, backup *model.Back
 			strings.Join(failedExtraTables, ", "))
 	}
 
-	logger.Info(fmt.Sprintf("备份 %s 恢复完成: 线索 %d 条, 用户 %d 个, 扩表 %d 组",
-		backup.BackupName, restoredClues, restoredUsers, restoredExtraTables))
+	logger.Info(fmt.Sprintf("备份 %s 恢复完成: 线索 %d 条, 用户 %d 个, 短链 %d 条, 扩表 %d 组",
+		backup.BackupName, restoredClues, restoredUsers, restoredLinks, restoredExtraTables))
 
 	if e := os.RemoveAll(restoreTmp); e != nil {
 		logger.Warnf("[Restore] 清理临时目录失败: %v", e)
 	}
 	return nil
+}
+
+// backupRowTenantID 读取备份行归属租户；旧格式没有该字段，按默认租户归属
+// （与恢复时 Create 落库的列默认值一致）。
+func backupRowTenantID(row map[string]any) uint {
+	for _, key := range []string{"tenant_id", "TenantID"} {
+		v, ok := row[key]
+		if !ok {
+			continue
+		}
+		switch n := v.(type) {
+		case uint:
+			if n != 0 {
+				return n
+			}
+		case int:
+			if n > 0 {
+				return uint(n)
+			}
+		case int64:
+			if n > 0 {
+				return uint(n)
+			}
+		case float64:
+			if n > 0 && n == float64(uint(n)) {
+				return uint(n)
+			}
+		}
+	}
+	return tenant.DefaultTenantID
 }
 
 // GetRestoreList 获取恢复记录列表

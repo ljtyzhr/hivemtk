@@ -264,9 +264,9 @@ func NewAssetBundleService(repo repository.AssetBundleRepository, version reposi
 
 // WithVersionLogRepo 显式注入版本日志仓储。
 //
-// K-3：版本审计必须真实持久化——不再提供仅 Debug 日志的 stub；
-// 构造函数传 nil 时回退全局 DB 的真实仓储（保持既有签名兼容调用方），
-// 测试/特殊装配场景用本方法显式注入。
+// K-3：版本审计必须真实持久化——不再提供仅 Debug 日志的 stub。
+// 构造函数已接受同一依赖；本方法只服务于测试/特殊装配的二次注入。
+// 传 nil 表示关闭版本审计（会告警），不提供任何全局 DB 回退。
 func (s *AssetBundleService) WithVersionLogRepo(v repository.AssetBundleVersionLogRepository) *AssetBundleService {
 	s.applyVersionLogRepo(v)
 	return s

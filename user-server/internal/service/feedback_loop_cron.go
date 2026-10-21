@@ -67,7 +67,7 @@ func (c *FeedbackLoopCron) runChampionBaselineMonthly(ctx context.Context, _ *go
 				c.runChampionBaselineMonthlyTenant(ctx)
 				return 0, nil
 			})
-			return
+			continue
 		}
 		c.runChampionBaselineMonthlyTenant(ctx)
 	}
@@ -166,7 +166,7 @@ func (c *FeedbackLoopCron) runChampionDialogueWeekly(ctx context.Context) {
 				c.runChampionDialogueWeeklyTenant(ctx)
 				return 0, nil
 			})
-			return
+			continue
 		}
 		c.runChampionDialogueWeeklyTenant(ctx)
 	}
@@ -198,7 +198,7 @@ func (c *FeedbackLoopCron) runPromptIteratorDaily(ctx context.Context) {
 				c.runPromptIteratorDailyTenant(ctx)
 				return 0, nil
 			})
-			return
+			continue
 		}
 		c.runPromptIteratorDailyTenant(ctx)
 	}
@@ -311,7 +311,7 @@ func (c *FeedbackLoopCron) runBanditConvergence(ctx context.Context) {
 				c.runBanditConvergenceTenant(ctx)
 				return 0, nil
 			})
-			return
+			continue
 		}
 		c.runBanditConvergenceTenant(ctx)
 	}
@@ -372,7 +372,7 @@ func (c *FeedbackLoopCron) runOptimizerCycle(ctx context.Context) {
 				c.runOptimizerCycleTenant(ctx)
 				return 0, nil
 			})
-			return
+			continue
 		}
 		c.runOptimizerCycleTenant(ctx)
 	}

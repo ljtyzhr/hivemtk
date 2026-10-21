@@ -113,35 +113,6 @@ type ChampionPhrase struct {
 // TableName 表名
 func (ChampionPhrase) TableName() string { return "champion_phrases" }
 
-// ABTestStat A/B 测试统计结果（对应 ab_test_stats 表）
-//
-// 与 ABTest 表不同：
-//   - ABTest 表：A/B 实验配置（流量分配、目标、状态）
-//   - ABTestStat 表：实验统计结果汇总（每组一条记录，含 U/p/d/CI/winner）
-type ABTestStat struct {
-	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
-
-	ID              uint64    `gorm:"primaryKey;autoIncrement" json:"id"`
-	ExperimentID    string    `gorm:"column:experiment_id;size:64;not null;index:idx_abstat_exp,priority:1" json:"experiment_id"`
-	GroupName       string    `gorm:"column:group_name;size:16;not null;index:idx_abstat_exp,priority:2" json:"group_name"`
-	SampleSize      int       `gorm:"column:sample_size;not null" json:"sample_size"`
-	MeanScore       float64   `gorm:"column:mean_score;type:decimal(8,4)" json:"mean_score"`
-	MedianScore     float64   `gorm:"column:median_score;type:decimal(8,4)" json:"median_score"`
-	StddevScore     float64   `gorm:"column:stddev_score;type:decimal(8,4)" json:"stddev_score"`
-	MannWhitneyU    int64     `gorm:"column:mann_whitney_u;default:0" json:"mann_whitney_u"`
-	MannWhitneyP    float64   `gorm:"column:mann_whitney_p;type:decimal(8,4);default:0" json:"mann_whitney_p"`
-	CohensD         float64   `gorm:"column:cohens_d;type:decimal(8,4);default:0" json:"cohens_d"`
-	BootstrapCILow  float64   `gorm:"column:bootstrap_ci_low;type:decimal(5,4);default:0" json:"bootstrap_ci_low"`
-	BootstrapCIHigh float64   `gorm:"column:bootstrap_ci_high;type:decimal(5,4);default:0" json:"bootstrap_ci_high"`
-	Significant     bool      `gorm:"column:significant;default:false" json:"significant"`
-	EffectSizeLabel string    `gorm:"column:effect_size_label;size:16;default:'negligible'" json:"effect_size_label"`
-	Winner          string    `gorm:"column:winner;size:16;default:'inconclusive'" json:"winner"`
-	CreatedAt       time.Time `gorm:"column:created_at;not null;default:now();index:idx_abstat_exp,priority:3" json:"created_at"`
-}
-
-// TableName 表名
-func (ABTestStat) TableName() string { return "ab_test_stats" }
-
 // LowQualitySampleType 扩展常量（新增类型）
 //
 // 复用 low_quality_samples 表的 sample_type 字段，仅追加枚举值，不修改表结构

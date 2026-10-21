@@ -68,10 +68,10 @@ var DefaultSignalWeights = SignalWeightMap{
 }
 
 // BanditConfig Bandit 分配器配置
+//
+// 只保留后验生命周期（收敛判定 + 晋升）用到的三项；臂选择下线后，
+// 探索/流量上限类参数已无读取方（见 config_param_seeds.go 中标记下架的种子）。
 type BanditConfig struct {
-	MinSamplesForExploit int
-	ExplorationFloor     float64
-	TrafficCeiling       float64
 	ConvergenceThreshold float64
 	MinSamplesForPromote int
 	PosteriorSamples     int
@@ -80,9 +80,6 @@ type BanditConfig struct {
 // DefaultBanditConfig 默认 Bandit 配置
 func DefaultBanditConfig() BanditConfig {
 	return BanditConfig{
-		MinSamplesForExploit: 30,
-		ExplorationFloor:     0.10,
-		TrafficCeiling:       0.60,
 		ConvergenceThreshold: 0.95,
 		MinSamplesForPromote: 100,
 		PosteriorSamples:     1000,
@@ -165,7 +162,6 @@ func DefaultSOPAutoOptimizerConfig() SOPAutoOptimizerConfig {
 
 var (
 	ErrInvalidInput         = errors.New("feedback_loop: invalid input")
-	ErrNoArms               = errors.New("feedback_loop: no arms for experiment")
 	ErrInsufficientSamples  = errors.New("feedback_loop: insufficient samples for iteration")
 	ErrActivePromptNotFound = errors.New("feedback_loop: no active prompt for sop node")
 	ErrDispatcherNotConfig  = errors.New("feedback_loop: llm dispatcher not configured")

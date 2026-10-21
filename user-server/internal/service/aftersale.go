@@ -29,11 +29,6 @@ func NewAfterSaleServiceWithClient(repo *repository.AfterSaleRepository, client 
 	return &AfterSaleService{repo: repo, client: client}
 }
 
-// SetExternalClient 设置/替换回写电商平台客户端
-func (s *AfterSaleService) SetExternalClient(client AfterSaleExternalClient) {
-	s.client = client
-}
-
 // Create 发起售后：本地落库 + （可选）回写电商。
 //
 // 回写说明：优先使用注入的 AfterSaleExternalClient；否则按数据库 system_config_kv

@@ -124,10 +124,9 @@ func TestBillRoutes_TableIsExactlyTheDeclaredSet(t *testing.T) {
 // 判据不是"还没写"，是"写了就错"：
 //   - /pay、/void、/status：结清与作废要读回款行（T-P7-02），逾期与催收属 T-P7-03；
 //     今天开这一格，就是给财务台账开一条**不走回款**的捷径，而 AC② 的对账正要读那两格。
-//   - GET /api/bill（列表）：账单没有租户列（判据见 model/bill.go），
-//     列全表的端点在补上归属列之前等于"任何人可看全公司的应收"。
-//     它与本卡新加的两条 GET 的分工：那两条**都必须带一把键**（账单号 / 报价号），
-//     所以"读一张单"合法、"读所有单"仍然 404 —— 键就是这一族目前的归属判据。
+//   - GET /api/bill（列表）：本域刻意不提供无键列表读口（租户隔离由 callback 收窄，
+//     但"读所有单"不该被开出来）；它与本卡新加的两条 GET 的分工：那两条**都必须带一把键**
+//     （账单号 / 报价号），所以"读一张单"合法、"读所有单"仍然 404。
 //   - PUT /api/bill/:id：金额列建后即不可改（它是对账的凭证），可改的那格不叫凭证。
 //
 // 光看路由表不够（有人会把动作塞进已有端点的请求体里），所以再读一遍控制器源码：
@@ -616,7 +615,7 @@ func billSeedChain(t *testing.T, database *gorm.DB, oppID, rowID, chainID string
 //     少了这一条，读口在生产上是"路由在、腿不在"⇒ 永久 503，而 503 在单测里也是合法答复；
 //  2. 读出来的 settled / outstanding 与**库里回款行的和**一致（不是视图自己算的巧合）；
 //  3. 钱进来之后账单状态由回款累加推动（open→partial→paid），且这一格是从库里读回来的；
-//  4. 鉴权：账单没有租户列，读单落在鉴权链之外就等于任何人可看别人的应收。
+//  4. 鉴权：读单的租户归属由 JWT 中间件绑定，落在鉴权链之外就等于没人替它绑租户。
 //
 // 入账走 service.GlobalPaymentService()（生产实例、真库），而不是再开一个 HTTP 入口：
 // 回款进库的唯一生产通路是订单 webhook，那一条已由 package service 与 package controller
@@ -740,7 +739,7 @@ func TestBillRoutes_LiveReadSideThroughRealSetup(t *testing.T) {
 
 	// ⑥ 匿名：与上面那条 200 同一个体、同一个路径，去掉令牌。
 	if code, _, raw = doBillRequest(t, engine, http.MethodGet, "/api/bill/"+billID, "", ""); code >= 200 && code < 300 {
-		t.Errorf("匿名读单回 %d：应收明细落在了鉴权链之外（本表没有租户列）：%s", code, raw)
+		t.Errorf("匿名读单回 %d：应收明细落在了鉴权链之外（读单未绑定租户）：%s", code, raw)
 	}
 }
 

@@ -43,6 +43,15 @@ func backupPageSizeCap() int {
 	return DefaultBackupPageSizeCap
 }
 
+// clampBackupPage 页码下界为 1：Offset 为负时 PostgreSQL 直接报错，
+// page 缺省/脏值都应回到第一页而不是把请求打成 500。
+func clampBackupPage(page int) int {
+	if page < 1 {
+		return 1
+	}
+	return page
+}
+
 // clampBackupPageSize 把入参规整进 [1, 单页上限]。
 func clampBackupPageSize(pageSize int) int {
 	if pageSize <= 0 {
@@ -106,10 +115,6 @@ func (c *BackupController) CreateBackup(ctx *gin.Context) {
 	if !ok {
 		return
 	}
-	if !ok {
-		response.Error(ctx, http.StatusUnauthorized, "无效的用户信息")
-		return
-	}
 
 	var req service.CreateBackupRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
@@ -138,7 +143,7 @@ func (c *BackupController) GetBackupList(ctx *gin.Context) {
 		return
 	}
 
-	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
+	page := clampBackupPage(atoiOrDefault(ctx.DefaultQuery("page", ""), 1))
 	pageSize := clampBackupPageSize(atoiOrDefault(ctx.DefaultQuery("page_size", ""), defaultBackupPageSize))
 
 	backups, total, err := c.backupService.GetBackupList(ctx.Request.Context(), page, pageSize)
@@ -264,8 +269,8 @@ func (c *RestoreController) GetRestoreList(ctx *gin.Context) {
 		return
 	}
 
-	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
-	pageSize, _ := strconv.Atoi(ctx.DefaultQuery("page_size", "10"))
+	page := clampBackupPage(atoiOrDefault(ctx.DefaultQuery("page", ""), 1))
+	pageSize := clampBackupPageSize(atoiOrDefault(ctx.DefaultQuery("page_size", ""), defaultBackupPageSize))
 
 	records, total, err := c.restoreService.GetRestoreList(ctx.Request.Context(), page, pageSize)
 	if err != nil {

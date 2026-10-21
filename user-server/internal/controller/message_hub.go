@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/pagination"
 	"hivemtk-user/internal/pkg/utils/response"
 	"hivemtk-user/internal/service"
@@ -47,13 +48,16 @@ func (c *MessageHubController) Push(ctx *gin.Context) {
 	}
 
 	if msg != nil && msg.Direction == "inbound" {
+		// 异步体继承请求租户：裸 context.Background() 在 on 模式下会让
+		// ReopenOnInboundMessage / GetSession / 规则查询全部 fail-closed。
+		bg := tenant.BackgroundWithTenant(ctx.Request.Context())
 		go func(m *model.MessageHub) {
 			defer func() {
 				if r := recover(); r != nil {
 					log.Printf("[panic-recover] %T: %v\n%s", r, r, string(debug.Stack()))
 				}
 			}()
-			ctx2, cancel := context.WithTimeout(context.Background(), 30*time.Second)
+			ctx2, cancel := context.WithTimeout(bg, 30*time.Second)
 			defer cancel()
 			chainSvc := service.NewSessionChainServiceFromGlobal()
 			_, _ = chainSvc.ReopenOnInboundMessage(ctx2, m.ConversationID)

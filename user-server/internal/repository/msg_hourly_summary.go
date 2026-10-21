@@ -35,8 +35,6 @@ type MessageHubSummaryRepository interface {
 	UpsertIncrementBatch(ctx context.Context, source string, newWatermark int64, deltas []MsgHourlyDelta) error
 	// QuerySince 查询 bucket >= since 的 summary 行（驾驶舱双读之主路径）。
 	QuerySince(ctx context.Context, since time.Time) ([]model.MsgHourlySummary, error)
-	// LatestBucket 返回最新 hour_bucket；表空时返回 nil。
-	LatestBucket(ctx context.Context) (*time.Time, error)
 	// LatestUpdate 返回最近一次聚合刷新时间 MAX(updated_at)；表空返回 nil。
 	// 用于 X-8 陈旧判定（hour_bucket 是小时粒度，不能反映聚合任务新鲜度）。
 	LatestUpdate(ctx context.Context) (*time.Time, error)
@@ -125,17 +123,6 @@ func (r *msgHourlySummaryRepo) QuerySince(ctx context.Context, since time.Time) 
 		Order("hour_bucket ASC").
 		Find(&rows).Error
 	return rows, err
-}
-
-func (r *msgHourlySummaryRepo) LatestBucket(ctx context.Context) (*time.Time, error) {
-	var row struct {
-		Latest *time.Time
-	}
-	err := r.db.WithContext(ctx).
-		Model(&model.MsgHourlySummary{}).
-		Select("MAX(hour_bucket) AS latest").
-		Scan(&row).Error
-	return row.Latest, err
 }
 
 func (r *msgHourlySummaryRepo) LatestUpdate(ctx context.Context) (*time.Time, error) {

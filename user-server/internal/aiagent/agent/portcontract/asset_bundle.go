@@ -52,8 +52,6 @@ type WeaveOptionsPort struct {
 // 消费方：agent_runtime/asset_bundle_loader.go（实现 AssetLoader 接口）
 type AssetBundleWeavePort interface {
 	WeaveForRequest(ctx context.Context, in WeaveRequestPort) ([]model.AssetBundleMessage, error)
-
-	IsBundleEnabled(assetID string) bool
 }
 
 // ChatHistoryPort 活跃会话历史端口

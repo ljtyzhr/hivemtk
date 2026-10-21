@@ -122,6 +122,14 @@ func (s *AgentKBBindingService) Unbind(ctx context.Context, agentID, kbID uint) 
 	if s.bindingRepo == nil {
 		return errors.New("binding repo not initialized")
 	}
+	exists, err := s.bindingRepo.CheckExists(ctx, agentID, kbID)
+	if err != nil {
+		return err
+	}
+	if !exists {
+		// 隔离条件挡掉 0 行时若不探测，跨租户解绑会返回「解绑成功」而实际未动任何数据。
+		return gorm.ErrRecordNotFound
+	}
 	return s.bindingRepo.DeleteByAgentAndKB(ctx, agentID, kbID)
 }
 

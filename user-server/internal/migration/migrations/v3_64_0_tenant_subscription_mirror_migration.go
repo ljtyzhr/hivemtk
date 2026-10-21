@@ -11,11 +11,13 @@ import (
 
 // TenantSubscriptionMirrorMigration 订阅镜像表（003 T022 · ADR-M8 修订 #4）
 //
-// 部署级**单行**（无 tenant_id）：sync 跑在 SystemScope，带 tenant_id 必踩
-// 默认租户串写坑（002 模块镜像 purchaseTenants 同款问题）。
+// 建表时是部署级单行；003 生产联调后改为**每租户一行**（行锚 id = tenant_id，
+// tenant_id 列由启动期 AutoMigrate 按模型补齐）。后台同步跑在 SystemScope，
+// 落默认租户那一行；租户内手动同步保留租户绑定，落本租户。
 //
 //	tenant_subscription_mirror
-//	  id                  SMALLINT PK（恒为 1，单行锚）
+//	  id                  PK（行锚 = tenant_id；off 模式恒 1）
+//	  tenant_id           BIGINT（隔离列，模型声明，AutoMigrate 补）
 //	  status              VARCHAR(16)  —— 判定缓存列，权威 = CurrentStatus()
 //	  current_period_end  TIMESTAMPTZ NULL
 //	  trial_expires_at    TIMESTAMPTZ NULL
@@ -37,7 +39,7 @@ func (m *TenantSubscriptionMirrorMigration) Name() string {
 }
 
 func (m *TenantSubscriptionMirrorMigration) Description() string {
-	return "v3.64.0：新增 tenant_subscription_mirror 部署级单行订阅镜像表（003 T022）；幂等可重入"
+	return "v3.64.0：新增 tenant_subscription_mirror 订阅镜像表（003 T022；后经 003 联调改为每租户一行）；幂等可重入"
 }
 
 func (m *TenantSubscriptionMirrorMigration) Up(ctx context.Context) error {

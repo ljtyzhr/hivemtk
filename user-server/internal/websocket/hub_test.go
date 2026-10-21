@@ -222,16 +222,6 @@ func TestNotifySessionUpdate(t *testing.T) {
 	_ = err
 }
 
-func TestNotifyAISuggestion(t *testing.T) {
-	suggestionData := map[string]any{
-		"suggestion": "Reply with greeting",
-		"confidence": 0.9,
-	}
-
-	err := NotifyAISuggestion("agent1", suggestionData)
-	_ = err
-}
-
 func TestBroadcastAgentStatus(t *testing.T) {
 	statusData := map[string]any{
 		"agent_id": "agent1",

@@ -3,6 +3,7 @@ package bridge
 import (
 	"context"
 	"errors"
+	"fmt"
 	"strings"
 	"time"
 
@@ -35,6 +36,10 @@ func NewBridgeAccountRepository(db *gorm.DB) *BridgeAccountRepository {
 //     并返回 ErrAccountOwnedByOther（handler 记审计日志，但 hub 收发不受影响）。
 //   - 并发首建存在竞争：Create 命中唯一冲突时重试一次（此时记录已存在，走"已存在"分支校验归属）。
 func (r *BridgeAccountRepository) Upsert(ctx context.Context, u BridgeAccountUpsert) error {
+	// 两次 First→Create 都撞唯一键时，第二次循环退出前什么都没写：
+	// 旧实现落到函数末尾 return nil，调用方（ingest 异步注册）把"没写成"当成功，
+	// 账号在线位与归属就此静默缺失。记下最后一次冲突，循环耗尽后如实返回。
+	var lastUniqueErr error
 	for attempt := 0; attempt < 2; attempt++ {
 		var acc model.BridgeAccount
 		err := r.db.WithContext(ctx).Where("channel = ? AND account_id = ?", u.Channel, u.AccountID).First(&acc).Error
@@ -55,6 +60,7 @@ func (r *BridgeAccountRepository) Upsert(ctx context.Context, u BridgeAccountUps
 			acc.LastSyncAt = &now
 			if cerr := r.db.WithContext(ctx).Create(&acc).Error; cerr != nil {
 				if isUniqueViolation(cerr) {
+					lastUniqueErr = cerr
 					continue
 				}
 				return cerr
@@ -69,9 +75,13 @@ func (r *BridgeAccountRepository) Upsert(ctx context.Context, u BridgeAccountUps
 
 		if acc.UserID != u.UserID {
 			now := time.Now()
-			_ = r.db.WithContext(ctx).Model(&model.BridgeAccount{}).
+			if uerr := r.db.WithContext(ctx).Model(&model.BridgeAccount{}).
 				Where("channel = ? AND account_id = ?", u.Channel, u.AccountID).
-				Updates(map[string]any{"status": u.Status, "last_sync_at": now}).Error
+				Updates(map[string]any{"status": u.Status, "last_sync_at": now}).Error; uerr != nil {
+				// 归属冲突与刷新失败是两件事：只报后者会让调用方以为"仅归属未改"，
+				// 线上却连在线位都没刷新；包在一起交给 handler 一并留痕。
+				return fmt.Errorf("%w（刷新在线状态失败：%v）", ErrAccountOwnedByOther, uerr)
+			}
 			return ErrAccountOwnedByOther
 		}
 
@@ -91,6 +101,10 @@ func (r *BridgeAccountRepository) Upsert(ctx context.Context, u BridgeAccountUps
 			return r.upsertBinding(ctx, u.Channel, u.AccountID, u.AgentID)
 		}
 		return nil
+	}
+	if lastUniqueErr != nil {
+		return fmt.Errorf("bridge account upsert 重试后仍撞唯一键（channel=%s account_id=%s）: %w",
+			u.Channel, u.AccountID, lastUniqueErr)
 	}
 	return nil
 }
@@ -177,9 +191,17 @@ func IsAccountRowOnline(ctx context.Context, lastSyncAt *time.Time, status strin
 	return isOnlineByLastSync(ctx, lastSyncAt, status, time.Now())
 }
 
-func (r *BridgeAccountRepository) ListByUser(ctx context.Context, userID uint) ([]BridgeAccountView, error) {
+// ListForUser 列出当前租户内、当前用户可见的桥接账号。
+//
+// 生产登记入口（HTTP ingest）不携带用户身份，账号以 user_id=0 落库；那是
+// 租户资产而不是"无主所以谁都看不见"的孤儿行。只按 user_id=? 过滤会让管理面
+// 在单机与 SaaS 两种形态下恒为空。user_id 非零表示显式认领，仍只对本人可见；
+// 租户边界由隔离 callback 收窄，本过滤不承担跨租户遮挡。
+func (r *BridgeAccountRepository) ListForUser(ctx context.Context, userID uint) ([]BridgeAccountView, error) {
 	var accs []model.BridgeAccount
-	if err := r.db.WithContext(ctx).Where("user_id = ?", userID).Order("id desc").Find(&accs).Error; err != nil {
+	if err := r.db.WithContext(ctx).
+		Where("user_id = 0 OR user_id = ?", userID).
+		Order("id desc").Find(&accs).Error; err != nil {
 		return nil, err
 	}
 	now := time.Now()
@@ -216,10 +238,17 @@ func (r *BridgeAccountRepository) IsOnline(ctx context.Context, channel, account
 }
 
 // GetByChannelAccount 按渠道+账号查询（供归属校验使用）。
+//
+// 查无此行返回 (nil, nil)：对当前上下文而言"不存在"与"归属他人"同属不可见，
+// 归属校验据此回 403。把 gorm.ErrRecordNotFound 抛给 router 的校验闭包会把
+// 一次越权尝试（或跨租户访问）变成 500，运维看到的是服务故障而非拒绝。
 func (r *BridgeAccountRepository) GetByChannelAccount(ctx context.Context, channel, accountID string) (*model.BridgeAccount, error) {
 	var acc model.BridgeAccount
 	err := r.db.WithContext(ctx).Where("channel = ? AND account_id = ?", channel, accountID).First(&acc).Error
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
 		return nil, err
 	}
 	return &acc, nil

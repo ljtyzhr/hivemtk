@@ -71,6 +71,7 @@ import (
 
 	"hivemtk-user/internal/cache"
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
 )
@@ -457,11 +458,26 @@ func (j *CollectionJob) loop(ctx context.Context) {
 		case <-j.stop:
 			return
 		case <-ticker.C:
-			if _, err := j.RunOnce(ctx); err != nil {
+			if err := j.runRound(ctx); err != nil {
 				logger.Ctx(ctx).Error().Err(err).Msg("[CollectionJob] 本轮执行失败")
 			}
 		}
 	}
+}
+
+// runRound 一轮的后台入口。
+//
+// 必须逐租户扇出：bills 是租户表，ScanOverdue 的每一句查询都经隔离 callback
+// 收窄。on 模式下拿裸 ctx 跑，每轮都会被「需要租户上下文」拒掉——催收整条腿
+// 在 SaaS 形态里一声不响地空转（off 形态照常，所以单机测不出来）。
+func (j *CollectionJob) runRound(ctx context.Context) error {
+	_, err := tenant.Fanout(ctx, nil, func(tctx context.Context, _ uint) (int64, error) {
+		if _, err := j.RunOnce(tctx); err != nil {
+			return 0, err
+		}
+		return 1, nil
+	})
+	return err
 }
 
 // RunOnce 跑一轮：判开关 → 扫逾期 → 逐张分派（升级 / 归组待催）→ 按客户合并发。

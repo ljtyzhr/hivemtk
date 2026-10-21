@@ -10,6 +10,7 @@ import (
 
 	"hivemtk-user/internal/dto"
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/repository"
 
 	"gorm.io/gorm"
@@ -25,8 +26,16 @@ type AIAgentService struct {
 	repo *repository.AIAgentRepository
 
 	cacheMu  sync.RWMutex
-	cache    map[uint]*agentCacheEntry
+	cache    map[agentCacheKey]*agentCacheEntry
 	cacheTTL time.Duration
+}
+
+// agentCacheKey 缓存键必须带租户：agent ID 全局唯一，但缓存命中会绕过
+// 仓储层按租户过滤的 GetByID，仅用 agentID 会把 A 租户的智能体配置
+// （人设/系统提示词/LLM 配置）直接发给 B 租户。
+type agentCacheKey struct {
+	tenantID uint
+	agentID  uint
 }
 
 type agentCacheEntry struct {
@@ -40,15 +49,8 @@ func NewAIAgentService() *AIAgentService {
 	repo.SetDB(context.Background(), repository.GetDB())
 	return &AIAgentService{
 		repo:     repo,
-		cache:    make(map[uint]*agentCacheEntry),
+		cache:    make(map[agentCacheKey]*agentCacheEntry),
 		cacheTTL: 30 * time.Second,
-	}
-}
-
-// SetRepository 注入 repository（用于测试）
-func (s *AIAgentService) SetRepository(ctx context.Context, repo *repository.AIAgentRepository) {
-	if repo != nil {
-		s.repo = repo
 	}
 }
 
@@ -72,7 +74,7 @@ func (s *AIAgentService) Create(ctx context.Context, a *model.AIAgent) error {
 	if err := s.repo.Create(ctx, a); err != nil {
 		return err
 	}
-	s.invalidateCache(ctx, a.ID)
+	s.invalidateCache(a.ID)
 	return nil
 }
 
@@ -106,7 +108,7 @@ func (s *AIAgentService) Update(ctx context.Context, a *model.AIAgent) error {
 	if err := s.repo.Update(ctx, a); err != nil {
 		return err
 	}
-	s.invalidateCache(ctx, a.ID)
+	s.invalidateCache(a.ID)
 	return nil
 }
 
@@ -115,7 +117,7 @@ func (s *AIAgentService) UpdateStatus(ctx context.Context, id uint, status int) 
 	if err := s.repo.UpdateStatus(ctx, id, status); err != nil {
 		return err
 	}
-	s.invalidateCache(ctx, id)
+	s.invalidateCache(id)
 	return nil
 }
 
@@ -123,18 +125,24 @@ func (s *AIAgentService) UpdateStatus(ctx context.Context, id uint, status int) 
 // 业务约束：若智能体被渠道绑定或客服挂载引用，应先解绑
 func (s *AIAgentService) Delete(ctx context.Context, id uint) error {
 
-	bindings, _ := s.repo.CountChannelBindingsByAgent(ctx, id)
+	bindings, err := s.repo.CountChannelBindingsByAgent(ctx, id)
+	if err != nil {
+		return err
+	}
 	if bindings > 0 {
 		return fmt.Errorf("智能体被 %d 个渠道账号绑定，请先解绑", bindings)
 	}
-	mounts, _ := s.repo.CountServiceMountsByAgent(ctx, id)
+	mounts, err := s.repo.CountServiceMountsByAgent(ctx, id)
+	if err != nil {
+		return err
+	}
 	if mounts > 0 {
 		return fmt.Errorf("智能体被 %d 个客服座席挂载，请先解挂", mounts)
 	}
 	if err := s.repo.Delete(ctx, id); err != nil {
 		return err
 	}
-	s.invalidateCache(ctx, id)
+	s.invalidateCache(id)
 	return nil
 }
 
@@ -144,8 +152,10 @@ func (s *AIAgentService) LoadContext(ctx context.Context, agentID uint) (*AgentC
 	if agentID == 0 {
 		return nil, nil
 	}
+	tenantID, _ := tenant.FromContext(ctx)
+	key := agentCacheKey{tenantID: tenantID, agentID: agentID}
 	s.cacheMu.RLock()
-	if entry, ok := s.cache[agentID]; ok && time.Now().Before(entry.expiresAt) {
+	if entry, ok := s.cache[key]; ok && time.Now().Before(entry.expiresAt) {
 		s.cacheMu.RUnlock()
 		return entry.ctx, nil
 	}
@@ -153,7 +163,7 @@ func (s *AIAgentService) LoadContext(ctx context.Context, agentID uint) (*AgentC
 
 	agent, err := s.repo.GetByID(ctx, agentID)
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
 		return nil, err
@@ -195,7 +205,7 @@ func (s *AIAgentService) LoadContext(ctx context.Context, agentID uint) (*AgentC
 	}
 
 	s.cacheMu.Lock()
-	s.cache[agentID] = &agentCacheEntry{
+	s.cache[key] = &agentCacheEntry{
 		ctx:       agentCtx,
 		expiresAt: time.Now().Add(s.cacheTTL),
 	}
@@ -204,9 +214,15 @@ func (s *AIAgentService) LoadContext(ctx context.Context, agentID uint) (*AgentC
 	return agentCtx, nil
 }
 
-func (s *AIAgentService) invalidateCache(ctx context.Context, agentID uint) {
+// invalidateCache 清除该智能体在全部租户下的缓存。
+// 只按 agentID 删：变更可能来自系统域（跨租户可见），不能只清当前租户。
+func (s *AIAgentService) invalidateCache(agentID uint) {
 	s.cacheMu.Lock()
-	delete(s.cache, agentID)
+	for k := range s.cache {
+		if k.agentID == agentID {
+			delete(s.cache, k)
+		}
+	}
 	s.cacheMu.Unlock()
 }
 
@@ -224,7 +240,7 @@ func (s *AIAgentService) BindAssetBundle(ctx context.Context, agentID uint, asse
 	if err := s.repo.Update(ctx, agent); err != nil {
 		return err
 	}
-	s.invalidateCache(ctx, agentID)
+	s.invalidateCache(agentID)
 	return nil
 }
 

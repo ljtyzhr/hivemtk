@@ -98,27 +98,3 @@ func (s *SmsDeliveryStatus) BeforeCreate(tx *gorm.DB) error {
 	}
 	return nil
 }
-
-// SmsJobMetric 短信任务指标（每 job_id 一条）
-//
-// delivery_rate = total_delivered / total_sent * 100
-// failure_rate  = total_failed   / total_sent * 100
-type SmsJobMetric struct {
-	TenantID       uint           `gorm:"not null;default:1;index" json:"tenant_id"`
-	ID             uint           `gorm:"primarykey" json:"id"`
-	JobID          string         `gorm:"type:varchar(36);uniqueIndex;not null" json:"jobId"`
-	TotalSent      int64          `gorm:"default:0" json:"totalSent"`
-	TotalDelivered int64          `gorm:"default:0" json:"totalDelivered"`
-	TotalFailed    int64          `gorm:"default:0" json:"totalFailed"`
-	TotalRetried   int64          `gorm:"default:0" json:"totalRetried"`
-	DeliveryRate   float64        `gorm:"type:numeric(5,2);default:0" json:"deliveryRate"`
-	FailureRate    float64        `gorm:"type:numeric(5,2);default:0" json:"failureRate"`
-	CreatedAt      time.Time      `json:"createdAt"`
-	UpdatedAt      time.Time      `json:"updatedAt"`
-	DeletedAt      gorm.DeletedAt `gorm:"index" json:"-"`
-}
-
-// TableName 显式指定表名
-func (*SmsJobMetric) TableName() string {
-	return "sms_job_metrics"
-}

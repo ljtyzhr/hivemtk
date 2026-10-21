@@ -717,16 +717,18 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 
 		bridgeRepo := bridge.NewBridgeAccountRepository(gormDB)
 		bridge.RegisterBridgeAccountRepo(bridgeRepo)
+		// 归属判据：user_id=0 是租户资产（HTTP 登记入口只认实例级桥接凭证，没有用户身份），
+		// 对租户内用户可见；非零是显式认领，只对本人放行。查无此行（含被隔离 callback
+		// 挡掉的跨租户行）⇒ 不归当前用户，不能当成"尚未注册所以放行"。
 		bridge.RegisterOwnershipChecker(func(ctx context.Context, userID uint, channel, accountID string) (bool, uint, error) {
 			acc, err := bridgeRepo.GetByChannelAccount(ctx, channel, accountID)
-
 			if err != nil {
 				return false, 0, err
 			}
 			if acc == nil {
 				return false, 0, nil
 			}
-			return acc.UserID == userID, acc.TenantID, nil
+			return acc.UserID == 0 || acc.UserID == userID, acc.TenantID, nil
 		})
 		bridgeAccountCtrl := controller.NewBridgeAccountController()
 		bridgeAccountCtrl.RegisterRoutes(auth)

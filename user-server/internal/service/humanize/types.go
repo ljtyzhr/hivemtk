@@ -59,9 +59,6 @@ type LLMDispatcher interface {
 // ErrInvalidInput 输入非法
 var ErrInvalidInput = errors.New("humanize: invalid input")
 
-// ErrInsufficientSamples 样本不足
-var ErrInsufficientSamples = errors.New("humanize: insufficient samples")
-
 // ErrAggregatorNotInitialized 聚合器未初始化
 var ErrAggregatorNotInitialized = errors.New("humanize: aggregator not initialized")
 

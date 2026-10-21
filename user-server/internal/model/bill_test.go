@@ -316,9 +316,11 @@ func TestBillStatusTransitionsAreDeclared(t *testing.T) {
 			t.Errorf("跃迁 %s→%s 应为 %v，实际 %v", tc.from, tc.to, tc.ok, got)
 		}
 	}
-	// voided 是唯一终态：出边为空。
-	if n := len(BillStatusNext(BillStatusVoided)); n != 0 {
-		t.Errorf("voided 是终态却有 %d 条出边：终态有出边等于没有终态", n)
+	// voided 是唯一终态：对值域里每一格都没有出边。
+	for _, to := range BillStatuses {
+		if BillStatusCanTransit(BillStatusVoided, to) {
+			t.Errorf("voided 是终态却有出边 voided→%s：终态有出边等于没有终态", to)
+		}
 	}
 	// paid 不再要求出边为空（见上面的放宽理由），但它**不许自环**：
 	// 零位移跃迁在仓储层就被拒，这里若放行为是两张脸。

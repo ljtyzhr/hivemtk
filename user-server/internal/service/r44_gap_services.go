@@ -24,13 +24,16 @@ import (
 // BackupGapService backup 页面契约适配（复用既有 BackupService 存储能力 + KV 策略）
 type BackupGapService struct {
 	repo *repository.BackupGapRepo
-	kv   repository.SystemConfigKVRepository
+	kv   repository.PlatformConfigKVRepository
 	now  func() time.Time
 }
 
 // NewBackupGapService 构造（ARC-01：gdb 为 nil 时 repo 为 nil，查询类方法返回错误）
 func NewBackupGapService(gdb *gorm.DB) *BackupGapService {
-	return &BackupGapService{repo: repository.NewBackupGapRepoWithDB(gdb), kv: repository.NewSystemConfigKVRepository(), now: time.Now}
+	// backup.strategy 是平台键（v3.65.0 已迁至 platform_config_kv）：整库备份是
+	// 实例运维动作，不是租户自己的设置。用租户级仓储会在迁移后读不到原值，
+	// 并且把新写入落回 system_config_kv，形成两份互不相干的策略。
+	return &BackupGapService{repo: repository.NewBackupGapRepoWithDB(gdb), kv: repository.NewPlatformConfigKVRepositoryWithDB(gdb), now: time.Now}
 }
 
 // NewBackupGapServiceFromGlobal 便捷构造

@@ -55,22 +55,6 @@ func TestAgentStatus_Create(t *testing.T) {
 	assert.Equal(t, "online", got.Status)
 }
 
-func TestAgentStatus_Update(t *testing.T) {
-	repo, ctx := setupAgentStatusRepo(t)
-
-	s := newTestAgentStatus(1002, "小红", "offline")
-	require.NoError(t, repo.Create(ctx, s))
-
-	s.Status = "online"
-	s.ActiveSessions = 2
-	require.NoError(t, repo.Update(ctx, s))
-
-	got, err := repo.GetByAgentID(ctx, 1002)
-	require.NoError(t, err)
-	assert.Equal(t, "online", got.Status)
-	assert.Equal(t, 2, got.ActiveSessions)
-}
-
 func TestAgentStatus_GetByAgentID_Found(t *testing.T) {
 	repo, ctx := setupAgentStatusRepo(t)
 

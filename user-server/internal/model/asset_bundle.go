@@ -85,7 +85,8 @@ func (m *AssetBundleMessages) Scan(src any) error {
 // AssetBundle AI 资产包主表
 //
 // 设计原则：
-//  1. AssetID 全局唯一（uniqueIndex），用于 Weave 时的快速索引
+//  1. AssetID 在租户内唯一（uniqueIndex 由 tenancyidx.Normalize 复合为
+//     (tenant_id, asset_id)；不同租户可各自拥有同一 AssetID 的资产包）
 //  2. Messages 字段是 JSONB，100% 遵守 OpenAI ChatML 协议
 //  3. Author 字段记录开发者，Title 给人看
 //  4. Version 语义化版本号

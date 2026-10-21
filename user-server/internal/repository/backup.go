@@ -2,12 +2,26 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"hivemtk-user/internal/model"
 	_db "hivemtk-user/internal/pkg/db"
-	"time"
 
 	"gorm.io/gorm"
 )
+
+// backupUpdateColumns 备份记录的可变列白名单。
+//
+// 职责属性（backup_name / backup_type / created_by / created_at）不在其中：
+// 后台执行体持有的是创建时的快照，整行 Save 会把期间可能发生的改名、
+// 归属修正一并写回旧值。状态机只推进执行态字段。
+var backupUpdateColumns = []string{
+	"status", "file_path", "file_size", "error_message", "started_at", "completed_at",
+}
+
+// restoreRecordUpdateColumns 恢复记录的可变列白名单。
+var restoreRecordUpdateColumns = []string{
+	"status", "error_message", "restored_at",
+}
 
 // BackupRepository 备份仓库
 type BackupRepository struct {
@@ -56,31 +70,34 @@ func (r *BackupRepository) GetAll(ctx context.Context, page, pageSize int) ([]*m
 	return backups, total, err
 }
 
-// Update 更新备份记录
+// Update 更新备份记录（仅执行态列，不整行覆写）
 func (r *BackupRepository) Update(ctx context.Context, backup *model.Backup) error {
-	return r.db.WithContext(ctx).Save(backup).Error
+	if backup == nil {
+		return errors.New("backup is nil")
+	}
+	res := r.db.WithContext(ctx).Model(&model.Backup{}).
+		Where("id = ?", backup.ID).
+		Select(backupUpdateColumns).
+		Updates(backup)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 // Delete 删除备份记录
 func (r *BackupRepository) Delete(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).Delete(&model.Backup{}, id).Error
-}
-
-// GetRecentBackups 获取最近的备份记录
-func (r *BackupRepository) GetRecentBackups(ctx context.Context, limit int) ([]*model.Backup, error) {
-	var backups []*model.Backup
-	err := r.db.WithContext(ctx).Where("status = ?", string(model.BackupStatusCompleted)).
-		Order("created_at DESC").
-		Limit(limit).
-		Find(&backups).Error
-	return backups, err
-}
-
-// CleanupOldBackups 清理旧的备份记录（保留最近 30 天）
-func (r *BackupRepository) CleanupOldBackups(ctx context.Context) error {
-	threshold := time.Now().AddDate(0, 0, -30)
-	return r.db.WithContext(ctx).Where("created_at < ?", threshold).
-		Delete(&model.Backup{}).Error
+	res := r.db.WithContext(ctx).Delete(&model.Backup{}, id)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 // RestoreRecordRepository 恢复记录仓库
@@ -130,9 +147,22 @@ func (r *RestoreRecordRepository) GetAll(ctx context.Context, page, pageSize int
 	return records, total, err
 }
 
-// Update 更新恢复记录
+// Update 更新恢复记录（仅执行态列，不整行覆写）
 func (r *RestoreRecordRepository) Update(ctx context.Context, record *model.RestoreRecord) error {
-	return r.db.WithContext(ctx).Save(record).Error
+	if record == nil {
+		return errors.New("restore record is nil")
+	}
+	res := r.db.WithContext(ctx).Model(&model.RestoreRecord{}).
+		Where("id = ?", record.ID).
+		Select(restoreRecordUpdateColumns).
+		Updates(record)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 // GetLastRestore 获取最近一次恢复记录

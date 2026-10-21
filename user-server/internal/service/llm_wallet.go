@@ -163,6 +163,10 @@ type LLMOrderResult struct {
 	TotalCents   int64  `json:"total_amount_cents"`
 	PaymentGuide string `json:"payment_guide"`
 	Duplicate    bool   `json:"duplicate"`
+	// Payment 平台下发的支付参数段（epay：pay_url/params/method/mock）。
+	// 与模块/订阅订单同一形状：有值 → 前端直接开收银台；为空 → 才回落
+	// payment_guide 线下指引（平台关渠道 enabled 的零代码回滚路径）。
+	Payment *platform.OrderPayment `json:"payment,omitempty"`
 }
 
 // CreateOrder 购买 LLM 套餐
@@ -176,9 +180,9 @@ func (s *LLMWalletService) CreateOrder(ctx context.Context, in LLMOrderInput) (*
 	if strings.TrimSpace(in.PlanCode) == "" {
 		return nil, bizerr.New(bizerr.CodeParamInvalid, "请选择套餐")
 	}
-	if strings.TrimSpace(in.ContactPhone) == "" && strings.TrimSpace(in.ContactEmail) == "" {
-		return nil, ErrNoContactForPayment
-	}
+	// 联系方式不再前置强拦（与模块下单同口径，003 T018）：在线支付不需要先加好友，
+	// 是否有 payment 段要等平台返回才知道。线下回落路径才要求留联系方式，
+	// 判定放在平台响应之后（见下方 res.Payment == nil 分支）。
 	clientNo := strings.TrimSpace(in.ClientOrderNo)
 	if clientNo == "" {
 		clientNo = newClientOrderNo()
@@ -198,6 +202,12 @@ func (s *LLMWalletService) CreateOrder(ctx context.Context, in LLMOrderInput) (*
 	if err != nil {
 		return nil, bizerr.Wrap(bizerr.CodeModulePlatformUnavail, "提交订单失败（平台不可达）", err)
 	}
+	// 平台未下发 payment 段 = 走线下路径。此时才要求联系方式：
+	// 没有联系人，运营无法完成线下收款，订单只能悬着。
+	// 用同一 client_order_no 重试会命中平台幂等键，不会重复下单。
+	if res.Payment == nil && strings.TrimSpace(in.ContactPhone) == "" && strings.TrimSpace(in.ContactEmail) == "" {
+		return nil, ErrNoContactForPayment
+	}
 	guide := res.PaymentGuide
 	if strings.TrimSpace(guide) == "" {
 		if g, gerr := platform.NewModuleClient().PaymentGuide(ctx); gerr == nil {
@@ -209,6 +219,7 @@ func (s *LLMWalletService) CreateOrder(ctx context.Context, in LLMOrderInput) (*
 	return &LLMOrderResult{
 		OrderNo: res.OrderNo, Status: res.Status,
 		TotalCents: res.TotalCents, PaymentGuide: guide,
+		Payment: res.Payment,
 	}, nil
 }
 

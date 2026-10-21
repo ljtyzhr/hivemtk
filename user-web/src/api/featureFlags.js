@@ -61,7 +61,3 @@ export function auditLogs(id) {
 export function evalLogs(id) {
   return http.get(`/api/feature-flags/${id}/eval-log`)
 }
-
-export function codeReferences(id) {
-  return http.get(`/api/feature-flags/${id}/code-references`)
-}

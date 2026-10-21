@@ -4,8 +4,10 @@ import "time"
 
 // BridgeAccount 桥接账号（抖音/小红书/TikTok 网页私信扩展账号）
 //
-// 由扩展连接时（register 帧）自动注册/更新；user_id 记录归属，
-// agent_id 用于 AI 路由（与 channel_agent_bindings 联动）。
+// 由扩展上报（HTTP ingest）时自动注册/更新；agent_id 用于 AI 路由
+// （与 channel_agent_bindings 联动）。user_id 的 0 是常态而非缺失：
+// 上报通道只认实例级桥接凭证、不带用户身份，账号归属落在租户上；
+// 非零表示被某个用户显式认领，此时只对本人可见/可用。
 type BridgeAccount struct {
 	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
 

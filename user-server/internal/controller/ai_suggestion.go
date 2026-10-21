@@ -22,8 +22,21 @@ func NewAISuggestionController() *AISuggestionController {
 }
 
 // GetSuggestions 获取AI建议
+//
+// 同一 handler 挂两种路由：带路径参数的 `/ai-suggestions/:session_id`，
+// 以及只带 query 的别名 `/ai-suggestions?session_id=...`
+// （`frontend_aliases.go:216` / `:441`，e2e `deep_customer_sessions.sh:110` 用后者）。
+// 只读 Param 时别名会拿空串查到空列表并回 200，看起来「没有建议」而不是「参数丢了」。
 func (c *AISuggestionController) GetSuggestions(ctx *gin.Context) {
 	sessionID := ctx.Param("session_id")
+	if sessionID == "" {
+		sessionID = ctx.Query("session_id")
+	}
+	if sessionID == "" {
+		response.Error(ctx, http.StatusBadRequest, "session_id 不能为空")
+		return
+	}
+
 	suggestions, err := c.suggestionService.GetSuggestions(ctx.Request.Context(), sessionID)
 	if HandleDBError(ctx, err, "获取AI建议") {
 		return
@@ -42,9 +55,13 @@ func (c *AISuggestionController) UseSuggestion(ctx *gin.Context) {
 	}
 
 	agentID := getUserIDFromContext(ctx)
+	if agentID == 0 {
+		response.Error(ctx, http.StatusUnauthorized, "未登录")
+		return
+	}
 
 	if err := c.suggestionService.UseSuggestion(ctx.Request.Context(), uint(id), agentID); err != nil {
-		response.Error(ctx, http.StatusBadRequest, err.Error())
+		response.ErrorFromDB(ctx, err, "建议不存在", err.Error())
 		return
 	}
 

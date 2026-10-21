@@ -1,6 +1,6 @@
 # HiveMtk 用户端 API 清单
 
-来源：`user-web/src/api/*.js`（111 个文件）· 调用点 1028
+来源：`user-web/src/api/*.js`（111 个文件）· 调用点 1027
 
 约定：路径保留前端模板字面量原样（`${id}` 等为路径参数）；`query` 列为 GET/DELETE 的第二参数，`body` 列为 POST/PUT/PATCH 的第二参数。
 
@@ -581,7 +581,7 @@
 | 358 | POST | `/api/faqs/match` | `match` | `data` | `data` |
 | 359 | GET | `/api/faqs/stats` | `stats` | `` | `` |
 
-## featureFlags.js  (12)
+## featureFlags.js  (11)
 
 | # | Method | Path | 前端函数 | 函数入参 | query / body |
 |---|---|---|---|---|---|
@@ -596,7 +596,6 @@
 | 368 | POST | `/api/feature-flags/${id}/rollout` | `setRollout` | `id, percentage` | `{ percentage }` |
 | 369 | GET | `/api/feature-flags/${id}/audit` | `auditLogs` | `id` | `` |
 | 370 | GET | `/api/feature-flags/${id}/eval-log` | `evalLogs` | `id` | `` |
-| 371 | GET | `/api/feature-flags/${id}/code-references` | `codeReferences` | `id` | `` |
 
 ## feishu.js  (7)
 

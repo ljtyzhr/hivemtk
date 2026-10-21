@@ -3,13 +3,10 @@ package service
 import (
 	"context"
 	"encoding/json"
-	"errors"
 	"hivemtk-user/internal/ops/model"
 	"hivemtk-user/internal/ops/repository"
-	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"math"
-	"sync"
 )
 
 // ABExperimentService A/B 测试服务
@@ -18,8 +15,6 @@ type ABExperimentService struct {
 	variantRepo    *repository.ABVariantRepository
 	conversionRepo *repository.ABConversionEventRepository
 	resultRepo     *repository.ABExperimentResultRepository
-	variantCache   map[uint]*model.ABVariant
-	cacheMutex     sync.RWMutex
 }
 
 // NewABExperimentService 创建 A/B 测试服务实例
@@ -29,7 +24,6 @@ func NewABExperimentService() *ABExperimentService {
 		variantRepo:    repository.NewABVariantRepository(),
 		conversionRepo: repository.NewABConversionEventRepository(),
 		resultRepo:     repository.NewABExperimentResultRepository(),
-		variantCache:   make(map[uint]*model.ABVariant),
 	}
 }
 
@@ -167,107 +161,6 @@ func (s *ABExperimentService) StopExperiment(ctx context.Context, id uint) error
 		return err
 	}
 	return s.CalculateResults(ctx, id)
-}
-
-// GetVariant 获取变体（用于流量分配）
-func (s *ABExperimentService) GetVariant(ctx context.Context, sourceID string) (*model.ABVariant, error) {
-	variant, err := s.getVariantFromDB(ctx, sourceID)
-	if err != nil {
-
-		s.cacheMutex.RLock()
-		cached, ok := s.variantCache[s.variantCacheKey(ctx, sourceID)]
-		s.cacheMutex.RUnlock()
-		if ok {
-			return cached, nil
-		}
-		return nil, err
-	}
-	return variant, nil
-}
-
-func (s *ABExperimentService) hashSourceID(sourceID string) uint {
-	hash := uint(0)
-	for i := 0; i < len(sourceID); i++ {
-		hash = hash*31 + uint(sourceID[i])
-	}
-	return hash % 1000000
-}
-
-// variantCacheKey 变体缓存键：租户 + 来源。缓存是进程级共享的，
-// 不带租户会跨租户串数据；读写两侧必须用同一把钥匙，否则缓存恒不命中。
-func (s *ABExperimentService) variantCacheKey(ctx context.Context, sourceID string) uint {
-	tenantID, _ := tenant.FromContext(ctx)
-	return tenantID*1000000000 + s.hashSourceID(sourceID)
-}
-
-func (s *ABExperimentService) getVariantFromDB(ctx context.Context, sourceID string) (*model.ABVariant, error) {
-	experiment, err := s.experimentRepo.GetRunningBySourceID(ctx, sourceID)
-	if err != nil {
-		return nil, errors.New("no running experiment for this source")
-	}
-
-	variants, err := s.variantRepo.GetByExperiment(ctx, experiment.ID)
-	if err != nil || len(variants) == 0 {
-		return nil, errors.New("no variants found for experiment")
-	}
-
-	totalWeight := 0
-	for _, v := range variants {
-		if v.Weight <= 0 {
-			totalWeight++
-		} else {
-			totalWeight += v.Weight
-		}
-	}
-
-	if totalWeight <= 0 {
-		return variants[0], nil
-	}
-
-	seed := s.hashSourceID(sourceID)
-	pick := int(seed) % totalWeight
-
-	cumulative := 0
-	for _, v := range variants {
-		w := v.Weight
-		if w <= 0 {
-			w = 1
-		}
-		cumulative += w
-		if pick < cumulative {
-			if err := s.variantRepo.IncrementTraffic(ctx, v.ID); err != nil {
-				logger.Warnf("[ABExperiment] 流量计数失败 variantID=%d: %v", v.ID, err)
-			}
-
-			s.cacheMutex.Lock()
-			s.variantCache[s.variantCacheKey(ctx, sourceID)] = v
-			s.cacheMutex.Unlock()
-
-			return v, nil
-		}
-	}
-
-	return variants[0], nil
-}
-
-// RecordConversion 记录转化事件
-// eventValue 单位：分（int64），如购买金额 99.99 元应传 9999
-func (s *ABExperimentService) RecordConversion(ctx context.Context, experimentID, variantID uint, eventName, eventType string, eventValue int64, userID string, metadata map[string]any) error {
-	metadataJSON, _ := json.Marshal(metadata)
-	event := &model.ABConversionEvent{
-		ExperimentID: experimentID,
-		EventName:    eventName,
-		EventType:    eventType,
-		EventValue:   eventValue,
-		UserID:       userID,
-		VariantID:    variantID,
-		Metadata:     string(metadataJSON),
-	}
-	if err := s.conversionRepo.Create(ctx, event); err != nil {
-		return err
-	}
-
-	return s.variantRepo.IncrementConversion(ctx, variantID)
 }
 
 // CalculateResults 计算实验结果

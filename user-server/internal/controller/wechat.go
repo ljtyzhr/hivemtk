@@ -119,7 +119,7 @@ func (c *WechatController) UpdateAccount(ctx *gin.Context) {
 		Status:         "active",
 	}
 	if err := c.svc.UpdateAccount(ctx.Request.Context(), acc); err != nil {
-		response.Error(ctx, http.StatusInternalServerError, "更新失败: "+err.Error())
+		response.ErrorFromDB(ctx, err, "更新失败: "+err.Error())
 		return
 	}
 	response.Success(ctx, nil, "更新成功")
@@ -133,7 +133,7 @@ func (c *WechatController) DeleteAccount(ctx *gin.Context) {
 		return
 	}
 	if err := c.svc.DeleteAccount(ctx.Request.Context(), uint(id)); err != nil {
-		response.Error(ctx, http.StatusInternalServerError, "删除失败: "+err.Error())
+		response.ErrorFromDB(ctx, err, "删除失败: "+err.Error())
 		return
 	}
 	response.Success(ctx, nil, "删除成功")

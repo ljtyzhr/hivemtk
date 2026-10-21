@@ -7,6 +7,8 @@ import (
 	"testing"
 
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
+	"hivemtk-user/internal/pkg/testutil"
 	"hivemtk-user/internal/repository"
 
 	"gorm.io/gorm"
@@ -67,6 +69,47 @@ func TestUnbind_NilBindingRepo(t *testing.T) {
 	err := svc.Unbind(context.Background(), 1, 1)
 	if err == nil {
 		t.Error("expected error for nil binding repo")
+	}
+}
+
+// TestUnbind_CrossTenantReportsNotFound：隔离条件挡掉 0 行时必须返回 not-found，
+// 而不是让跨租户解绑拿到「解绑成功」；同时确认对方租户的数据未被删除。
+func TestUnbind_CrossTenantReportsNotFound(t *testing.T) {
+	tenant.SetMode(tenant.ModeOn)
+	t.Cleanup(func() {
+		tenant.ResetRegistryForTest()
+		tenant.SetMode(tenant.ModeOff)
+	})
+	database := testutil.NewTestDB(t, &model.AgentKBBinding{})
+	if database == nil {
+		t.Fatal("测试库不可达：跨租户解绑语义判不了（不 Skip）")
+	}
+
+	theirs := &model.AgentKBBinding{
+		TenantID: 92,
+		AgentID:  1,
+		KBID:     100,
+		KBType:   model.KnowledgeBaseTypeFAQ,
+		Role:     model.AgentKBBindingRolePrimary,
+		Enabled:  boolPtr(true),
+	}
+	if err := database.WithContext(tenant.WithSystemScope(context.Background())).Create(theirs).Error; err != nil {
+		t.Fatalf("预置对方租户绑定失败: %v", err)
+	}
+
+	svc := NewAgentKBBindingService(database)
+	ctxA := tenant.WithTenantID(context.Background(), 91)
+	if err := svc.Unbind(ctxA, 1, 100); !errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Fatalf("跨租户 Unbind 期望 ErrRecordNotFound，实际: %v", err)
+	}
+
+	var count int64
+	if err := database.WithContext(tenant.WithSystemScope(context.Background())).
+		Model(&model.AgentKBBinding{}).Where("id = ?", theirs.ID).Count(&count).Error; err != nil {
+		t.Fatalf("回查对方租户绑定失败: %v", err)
+	}
+	if count != 1 {
+		t.Fatalf("对方租户绑定应保持 1 条，实际 %d", count)
 	}
 }
 

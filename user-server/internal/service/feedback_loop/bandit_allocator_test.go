@@ -3,12 +3,12 @@ package feedbackloop
 import (
 	"context"
 	"errors"
-	"fmt"
 	"math"
 	"testing"
-	"time"
 
 	"hivemtk-user/internal/model"
+
+	"gorm.io/gorm"
 )
 
 // TestBetaSample_RangeInUnitInterval Beta 采样结果应在 [0,1]
@@ -113,151 +113,6 @@ func TestGammaSample_MeanConverges(t *testing.T) {
 	}
 }
 
-// TestPickLowestTrafficArm 选流量最低的非排除臂
-func TestPickLowestTrafficArm(t *testing.T) {
-	arms := []*model.BanditArm{
-		{ArmKey: "arm_a", TotalTrials: 100},
-		{ArmKey: "arm_b", TotalTrials: 30},
-		{ArmKey: "arm_c", TotalTrials: 50},
-	}
-	got := pickLowestTrafficArm(arms, "arm_a")
-	if got != "arm_b" {
-		t.Errorf("pickLowestTrafficArm exclude=arm_a = %q want arm_b", got)
-	}
-	got = pickLowestTrafficArm(arms, "arm_b")
-	if got != "arm_c" {
-		t.Errorf("pickLowestTrafficArm exclude=arm_b = %q want arm_c", got)
-	}
-	got = pickLowestTrafficArm([]*model.BanditArm{{ArmKey: "only", TotalTrials: 1}}, "only")
-	if got != "only" {
-		t.Errorf("pickLowestTrafficArm single arm = %q want only", got)
-	}
-}
-
-// TestEnforceTrafficCeiling_NoCeilingReached 未达上限时不强制探索
-func TestEnforceTrafficCeiling_NoCeilingReached(t *testing.T) {
-	b := NewBanditAllocator(nil, DefaultBanditConfig(), 42)
-	arms := []*model.BanditArm{
-		{ArmKey: "arm_a", TotalTrials: 50},
-		{ArmKey: "arm_b", TotalTrials: 50},
-	}
-	forced, needExplore := b.enforceTrafficCeiling(arms, "arm_a", 100)
-	if needExplore {
-		t.Errorf("arm_a 占 50%% 未超上限，不应强制探索")
-	}
-	if forced != "arm_a" {
-		t.Errorf("未强制时 forced = %q want arm_a", forced)
-	}
-}
-
-// TestEnforceTrafficCeiling_CeilingReached 达上限时强制探索其他臂
-func TestEnforceTrafficCeiling_CeilingReached(t *testing.T) {
-	b := NewBanditAllocator(nil, DefaultBanditConfig(), 42)
-	arms := []*model.BanditArm{
-		{ArmKey: "arm_a", TotalTrials: 80},
-		{ArmKey: "arm_b", TotalTrials: 20},
-	}
-	forced, needExplore := b.enforceTrafficCeiling(arms, "arm_a", 100)
-	if !needExplore {
-		t.Errorf("arm_a 占 80%% 超上限，应强制探索")
-	}
-	if forced != "arm_b" {
-		t.Errorf("强制探索时 forced = %q want arm_b", forced)
-	}
-}
-
-// TestEnforceTrafficCeiling_ZeroTotalTrials 总样本为 0 时不强制
-func TestEnforceTrafficCeiling_ZeroTotalTrials(t *testing.T) {
-	b := NewBanditAllocator(nil, DefaultBanditConfig(), 42)
-	arms := []*model.BanditArm{
-		{ArmKey: "arm_a", TotalTrials: 0},
-		{ArmKey: "arm_b", TotalTrials: 0},
-	}
-	forced, needExplore := b.enforceTrafficCeiling(arms, "arm_a", 0)
-	if needExplore {
-		t.Errorf("总样本为 0 时不应强制探索")
-	}
-	if forced != "arm_a" {
-		t.Errorf("不强制时 forced = %q want arm_a", forced)
-	}
-}
-
-// TestBanditAllocator_SelectArm_ColdStartUniform 冷启动期均匀随机分配
-//
-// 验证：
-//   - 每臂样本 < MinSamplesForExploit 时使用 cold_start_uniform 策略
-//   - 多次调用后每个臂都被选中过（均匀性）
-func TestBanditAllocator_SelectArm_ColdStartUniform(t *testing.T) {
-	db := setupFeedbackLoopTestDB(t)
-	ctx := context.Background()
-	expID := "test_cold_start"
-	arms := []model.BanditArm{
-		{ExperimentID: expID, ExperimentType: "prompt", ArmKey: "arm_a", Alpha: 2, Beta: 2, Status: model.BanditArmStatusExploring},
-		{ExperimentID: expID, ExperimentType: "prompt", ArmKey: "arm_b", Alpha: 2, Beta: 2, Status: model.BanditArmStatusExploring},
-		{ExperimentID: expID, ExperimentType: "prompt", ArmKey: "arm_c", Alpha: 2, Beta: 2, Status: model.BanditArmStatusExploring},
-	}
-	if err := db.Create(&arms).Error; err != nil {
-		t.Fatalf("seed arms: %v", err)
-	}
-
-	b := NewBanditAllocator(db, DefaultBanditConfig(), 42)
-
-	selected := make(map[string]int)
-	for i := 0; i < 60; i++ {
-		armKey, _, err := b.SelectArm(ctx, expID)
-		if err != nil {
-			t.Fatalf("SelectArm[%d] failed: %v", i, err)
-		}
-		selected[armKey]++
-	}
-	if len(selected) < 3 {
-		t.Errorf("冷启动期应均匀分配到 3 个臂，实际选中 %d 个: %v", len(selected), selected)
-	}
-}
-
-// TestBanditAllocator_SelectArm_SingleArm 单臂场景直接返回
-func TestBanditAllocator_SelectArm_SingleArm(t *testing.T) {
-	db := setupFeedbackLoopTestDB(t)
-	expID := "test_single_arm"
-	arm := model.BanditArm{
-		ExperimentID: expID, ExperimentType: "prompt", ArmKey: "arm_only",
-		Alpha: 2, Beta: 2, Status: model.BanditArmStatusExploring,
-	}
-	if err := db.Create(&arm).Error; err != nil {
-		t.Fatalf("seed: %v", err)
-	}
-	b := NewBanditAllocator(db, DefaultBanditConfig(), 42)
-	armKey, strategy, err := b.SelectArm(context.Background(), expID)
-	if err != nil {
-		t.Fatalf("SelectArm: %v", err)
-	}
-	if armKey != "arm_only" {
-		t.Errorf("armKey = %q want arm_only", armKey)
-	}
-	if strategy != "single_arm" {
-		t.Errorf("strategy = %q want single_arm", strategy)
-	}
-}
-
-// TestBanditAllocator_SelectArm_NoArms 无臂错误
-func TestBanditAllocator_SelectArm_NoArms(t *testing.T) {
-	db := setupFeedbackLoopTestDB(t)
-	b := NewBanditAllocator(db, DefaultBanditConfig(), 42)
-	_, _, err := b.SelectArm(context.Background(), "non_existent_experiment")
-	if !errors.Is(err, ErrNoArms) {
-		t.Errorf("SelectArm 无臂应返回 ErrNoArms, got %v", err)
-	}
-}
-
-// TestBanditAllocator_SelectArm_EmptyExperimentID 空 experimentID
-func TestBanditAllocator_SelectArm_EmptyExperimentID(t *testing.T) {
-	b := NewBanditAllocator(nil, DefaultBanditConfig(), 42)
-	_, _, err := b.SelectArm(context.Background(), "")
-	if !errors.Is(err, ErrInvalidInput) {
-		t.Errorf("空 experimentID 应返回 ErrInvalidInput, got %v", err)
-	}
-}
-
 // TestBanditAllocator_UpdateReward_Success 成功更新 alpha
 func TestBanditAllocator_UpdateReward_Success(t *testing.T) {
 	db := setupFeedbackLoopTestDB(t)
@@ -332,6 +187,45 @@ func TestBanditAllocator_UpdateReward_InvalidInput(t *testing.T) {
 	}
 	if err := b.UpdateReward(context.Background(), "exp", "", true, 1.0); !errors.Is(err, ErrInvalidInput) {
 		t.Errorf("空 armKey 应返回 ErrInvalidInput, got %v", err)
+	}
+}
+
+// TestBanditAllocator_UpdateReward_UnknownArmFails 不存在的臂必须报错而不是静默成功
+//
+// 静默成功会让回流台账记下一笔"已入账"，而臂后验一字未动。
+func TestBanditAllocator_UpdateReward_UnknownArmFails(t *testing.T) {
+	db := setupFeedbackLoopTestDB(t)
+	b := NewBanditAllocator(db, DefaultBanditConfig(), 42)
+	err := b.UpdateReward(context.Background(), "exp-missing", "arm_missing", true, 1.0)
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Errorf("不存在的臂应返回 ErrRecordNotFound, got %v", err)
+	}
+}
+
+// TestBanditAllocator_PromoteArm_UnknownWinnerKeepsArms 胜出臂不存在时不得退役其他臂
+func TestBanditAllocator_PromoteArm_UnknownWinnerKeepsArms(t *testing.T) {
+	db := setupFeedbackLoopTestDB(t)
+	expID := "test_promote_unknown"
+	arms := []model.BanditArm{
+		{ExperimentID: expID, ExperimentType: "prompt", ArmKey: "arm_a", Alpha: 2, Beta: 2, Status: model.BanditArmStatusExploring},
+		{ExperimentID: expID, ExperimentType: "prompt", ArmKey: "arm_b", Alpha: 2, Beta: 2, Status: model.BanditArmStatusExploring},
+	}
+	if err := db.Create(&arms).Error; err != nil {
+		t.Fatalf("seed: %v", err)
+	}
+	b := NewBanditAllocator(db, DefaultBanditConfig(), 42)
+	err := b.PromoteArm(context.Background(), expID, "typo_arm")
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Fatalf("不存在的胜出臂应返回 ErrRecordNotFound, got %v", err)
+	}
+	var rows []model.BanditArm
+	if err := db.Where("experiment_id = ?", expID).Find(&rows).Error; err != nil {
+		t.Fatalf("回查失败: %v", err)
+	}
+	for _, row := range rows {
+		if row.Status != model.BanditArmStatusExploring {
+			t.Errorf("胜出臂不存在时不应改动其他臂 %s: status=%q", row.ArmKey, row.Status)
+		}
 	}
 }
 
@@ -427,90 +321,3 @@ func TestBanditAllocator_PromoteArm_InvalidInput(t *testing.T) {
 	}
 }
 
-// TestBanditAllocator_InvalidateCache 失效缓存
-//
-// 验证：失效缓存后下次 SelectArm 会重新查 DB
-func TestBanditAllocator_InvalidateCache(t *testing.T) {
-	db := setupFeedbackLoopTestDB(t)
-	ctx := context.Background()
-	expID := "test_invalidate"
-	arm := model.BanditArm{
-		ExperimentID: expID, ExperimentType: "prompt", ArmKey: "arm_a",
-		Alpha: 2, Beta: 2, Status: model.BanditArmStatusExploring,
-	}
-	if err := db.Create(&arm).Error; err != nil {
-		t.Fatalf("seed: %v", err)
-	}
-	b := NewBanditAllocator(db, DefaultBanditConfig(), 42)
-	_, _, err := b.SelectArm(ctx, expID)
-	if err != nil {
-		t.Fatalf("first SelectArm: %v", err)
-	}
-	b.InvalidateCache(expID)
-	_, _, err = b.SelectArm(ctx, expID)
-	if err != nil {
-		t.Fatalf("second SelectArm after invalidate: %v", err)
-	}
-}
-
-// TestBanditAllocator_SelectPrompt_NoRunningTest 无运行中的实验返回 0
-func TestBanditAllocator_SelectPrompt_NoRunningTest(t *testing.T) {
-	db := setupFeedbackLoopTestDB(t)
-	b := NewBanditAllocator(db, DefaultBanditConfig(), 42)
-	promptID, armKey, err := b.SelectPrompt(context.Background(), 1, "node_1")
-	if err != nil {
-		t.Fatalf("SelectPrompt: %v", err)
-	}
-	if promptID != 0 {
-		t.Errorf("无运行中实验时 promptID = %v want 0", promptID)
-	}
-	if armKey != "" {
-		t.Errorf("无运行中实验时 armKey = %q want empty", armKey)
-	}
-}
-
-// TestBanditAllocator_SelectPrompt_WithRunningTest 有运行中实验返回候选
-func TestBanditAllocator_SelectPrompt_WithRunningTest(t *testing.T) {
-	db := setupFeedbackLoopTestDB(t)
-	cand := model.PromptCandidate{
-		SOPNodeID: "node_1", SOPID: 1, Scenario: "sop_reply", Version: "v1.0",
-		Title: "test", SystemPrompt: "sys", UserPromptTemplate: "user",
-		Status: model.PromptCandidateStatusActive,
-	}
-	if err := db.Create(&cand).Error; err != nil {
-		t.Fatalf("seed candidate: %v", err)
-	}
-	now := time.Now()
-	expID := fmt.Sprintf("sop1_node1_%d", now.Unix())
-	test := model.PromptABTest{
-		ExperimentID: expID, ExperimentType: model.BanditExperimentTypePrompt,
-		SOPID: 1, SOPNodeID: "node_1", Name: "test",
-		ArmKeys:   model.JSONArray([]any{"arm_0"}),
-		Config:    model.JSONMap{"min_samples": 100},
-		Status:    model.PromptABTestStatusRunning,
-		StartedAt: &now,
-	}
-	if err := db.Create(&test).Error; err != nil {
-		t.Fatalf("seed ab test: %v", err)
-	}
-	arm := model.BanditArm{
-		ExperimentID: expID, ExperimentType: model.BanditExperimentTypePrompt,
-		ArmKey: "arm_0", SOPID: 1, PromptCandidateID: cand.ID,
-		Alpha: 2, Beta: 2, Status: model.BanditArmStatusExploring,
-	}
-	if err := db.Create(&arm).Error; err != nil {
-		t.Fatalf("seed arm: %v", err)
-	}
-
-	b := NewBanditAllocator(db, DefaultBanditConfig(), 42)
-	promptID, armKey, err := b.SelectPrompt(context.Background(), 1, "node_1")
-	if err != nil {
-		t.Fatalf("SelectPrompt: %v", err)
-	}
-	if promptID != cand.ID {
-		t.Errorf("promptID = %v want %d", promptID, cand.ID)
-	}
-	if armKey != "arm_0" {
-		t.Errorf("armKey = %q want arm_0", armKey)
-	}
-}

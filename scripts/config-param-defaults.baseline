@@ -4,4 +4,14 @@
 # 刷新：python3 scripts/check-config-param-defaults.py --refresh-baseline
 # 只在两种情况下改小：门的某条兜底形态被**改进**成别的判据、或种子条目被删；
 # 都要在同一笔里写明是哪一种。
-198
+#
+# 2026-10-21：198 → 195。属于**第二种**（种子条目被下架，不是门的兜底形态变了）：
+#   feedback.bandit_min_samples_for_exploit / bandit_exploration_floor /
+#   bandit_traffic_ceiling 三条随 2026-10 审计删除的臂选择路径
+#   （BanditAllocator.SelectArm 全树已无生产调用方）一并标记 Deprecated。
+#   「已下架」条目不再参与比对（已下架 13 → 16），可比对条数随之 198 → 195。
+#   门的解析面没变：那 3 条原先就是 NO_CONST（常量右值含 "https://" 时
+#   NUM_CONST 的 `[^=\n]+` 会在 "=" 处截断——**这是门的既有解析缺陷，本轮未修**，
+#   因为它只影响 NO_CONST 的原因文案、不影响"可比对/不可比对"的判定）。
+#   后续若修那个正则，可比对数会回到 198，届时基线应再调高。
+195

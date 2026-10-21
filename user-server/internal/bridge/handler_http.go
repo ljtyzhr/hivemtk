@@ -452,50 +452,11 @@ func (h *BridgeIngestHandler) HandleHTTPIngest(c *gin.Context) {
 	}
 	ctx0 = reqCtx
 
-	uidAny, _ := c.Get("user_id")
-	uid, _ := uidAny.(uint)
-	if GlobalOwnershipChecker != nil && uid != 0 {
-		owns, accTenant, err := GlobalOwnershipChecker(c.Request.Context(), uid, channel, accountID)
-		if err != nil {
-			logger.Ctx(ctx0).Warn().
-				Str("module", "bridge").
-				Str("event", "http_ingest_ownership_check_failed").
-				Err(err).
-				Str("full_url", info.FullURL).
-				Str("channel", channel).
-				Str("account_id", accountID).
-				Uint("user_id", uid).
-				Msg("[Bridge HTTP] 账号归属校验失败")
-			c.JSON(http.StatusInternalServerError, HTTPIngestResponse{
-				OK:     false,
-				Reason: "ownership check failed: " + err.Error(),
-			})
-			return
-		}
-		if !owns {
-			logger.Ctx(ctx0).Warn().
-				Str("module", "bridge").
-				Str("event", "http_ingest_ownership_denied").
-				Str("full_url", info.FullURL).
-				Str("channel", channel).
-				Str("account_id", accountID).
-				Uint("user_id", uid).
-				Msg("[Bridge HTTP] 账号归属不属于当前 user，拒绝 ingest")
-			c.JSON(http.StatusForbidden, HTTPIngestResponse{
-				OK:     false,
-				Reason: "account not owned by current user",
-			})
-			return
-		}
-		// 租户绑定（specs/001-saas-multi-tenant T023）：账号归属租户随校验透出，
-		// 入站下游（ingress/消息落库）按该租户隔离；0 = off 模式（列默认值兜底）。
-		if accTenant != 0 {
-			c.Request = c.Request.WithContext(tenant.WithTenantID(c.Request.Context(), accTenant))
-			// ctx0 是绑定前取的快照；后续日志与本函数的配置读取都从它派生，
-			// 这里同步补上租户，避免"请求上下文带租户、协程上下文不带"。
-			ctx0 = tenant.WithTenantID(ctx0, accTenant)
-		}
-	}
+	// 这里没有逐用户的归属校验：/api/bridge/* 只挂 InitGuard + BridgeIngressGuard，
+	// 不带 JWT 中间件；扩展把实例级桥接凭证同时塞进 X-Bridge-Token 与 Authorization，
+	// 从没有 user_id 可读。历史上那段 "if uid != 0 { 归属校验 }" 因此恒不执行，
+	// 且它按原始渠道名（别名）查账号行、把查无此行当 500。租户归属由上面的
+	// bindBridgeTenant 自证，账号行以 user_id=0 记为租户资产。
 
 	maxBodySize := runtimeIngestMaxBodySize(ctx0)
 	if info.ContentLength > int64(maxBodySize) {
@@ -563,14 +524,16 @@ func (h *BridgeIngestHandler) HandleHTTPIngest(c *gin.Context) {
 
 	if GlobalBridgeAccountRepo != nil && (req.AgentID > 0 || req.AccountName != "" || len(req.Messages) > 0) {
 		up := BridgeAccountUpsert{
-			UserID:      uid,
+			// 入站没有用户身份：账号登记为租户资产（user_id=0），
+			// 管理面的可见性/归属判据见 account_service.go 与 router 的 OwnershipChecker。
+			UserID:      0,
 			Channel:     NormalizeBridgeChannel(channel),
 			AccountID:   accountID,
 			AgentID:     req.AgentID,
 			AccountName: req.AccountName,
 			Status:      "online",
 		}
-		// bridge_accounts 是租户表：入站 ctx 已由归属校验绑定账号租户，
+		// bridge_accounts 是租户表：入站 ctx 已由 bindBridgeTenant 绑定账号租户，
 		// 异步 Update 必须带着它（只解绑取消、不丢租户），否则 on 模式写入被拒。
 		bgCtx := tenant.BackgroundWithTenant(ctx)
 		go func() {
@@ -588,11 +551,17 @@ func (h *BridgeIngestHandler) HandleHTTPIngest(c *gin.Context) {
 			upCtx, cancel := context.WithTimeout(bgCtx, 3*time.Second)
 			defer cancel()
 			if err := GlobalBridgeAccountRepo.Upsert(upCtx, up); err != nil {
-				if !errors.Is(err, ErrAccountOwnedByOther) {
-					logger.Ctx(context.Background()).Warn().Err(err).Str("module", "bridge").
-						Str("channel", up.Channel).Str("account_id", up.AccountID).
-						Msg("bridge HTTP Upsert failed (non-fatal)")
+				// 归属冲突也要留痕：这正是"别的用户试图上报本账号"的审计信号，
+				// 旧实现把它当预期内静默吞掉（注释说要记日志，代码里没有）。
+				event := "http_upsert_failed"
+				if errors.Is(err, ErrAccountOwnedByOther) {
+					event = "http_upsert_ownership_conflict"
 				}
+				logger.Ctx(context.Background()).Warn().Err(err).
+					Str("module", "bridge").
+					Str("event", event).
+					Str("channel", up.Channel).Str("account_id", up.AccountID).
+					Msg("bridge HTTP Upsert 未完成（non-fatal）")
 			}
 		}()
 	}

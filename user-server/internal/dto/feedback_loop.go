@@ -93,28 +93,6 @@ type OptimizationReport struct {
 	Errors          []string  `json:"errors"`
 }
 
-// BanditSelectResult Bandit 选择结果（service → 外部）
-//
-// 由 BanditAllocator.SelectArm / SelectPrompt 返回
-type BanditSelectResult struct {
-	ExperimentID      string `json:"experiment_id"`
-	ArmKey            string `json:"arm_key"`
-	PromptCandidateID uint   `json:"prompt_candidate_id"`
-	SampleStrategy    string `json:"sample_strategy"`
-	TotalSamples      int64  `json:"total_samples"`
-	CacheHit          bool   `json:"cache_hit"`
-}
-
-// BanditConvergenceResult Bandit 收敛检查结果
-type BanditConvergenceResult struct {
-	ExperimentID  string  `json:"experiment_id"`
-	Converged     bool    `json:"converged"`
-	WinnerArmKey  string  `json:"winner_arm_key"`
-	PosteriorProb float64 `json:"posterior_prob"`
-	TotalSamples  int64   `json:"total_samples"`
-	MinSamplesMet bool    `json:"min_samples_met"`
-}
-
 var (
 	ErrFeedbackRequestNil     = errors.New("feedback_loop: collect request is nil")
 	ErrFeedbackSessionEmpty   = errors.New("feedback_loop: session_id is empty")

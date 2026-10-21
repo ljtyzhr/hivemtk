@@ -568,8 +568,14 @@ func TestBindingCRUD_DisabledBinding_FilteredOut(t *testing.T) {
 	if len(bindings) != 1 {
 		t.Fatal("setup failed")
 	}
-	bindings[0].Enabled = boolPtr(false)
-	if err := bindRepo.Update(ctx, bindings[0].ID, &bindings[0]); err != nil {
+	// 直接写 enabled 列，不用仓储的 Update：
+	// 生产代码里**没有任何路径**会把绑定置为 disabled（Bind / BatchBind /
+	// ReplaceByAgent 一律写 enabled=true），仓储也没有 Update 方法 ——
+	// 用一个生产不存在的 API 去测，等于给一条不存在的路径写断言。
+	// 这里要验的是"查询按 enabled 过滤"这件事本身，所以直接改列。
+	if err := db.Model(&model.AgentKBBinding{}).
+		Where("id = ?", bindings[0].ID).
+		Update("enabled", false).Error; err != nil {
 		t.Fatal(err)
 	}
 

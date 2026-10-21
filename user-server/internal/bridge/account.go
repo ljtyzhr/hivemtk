@@ -2,7 +2,9 @@ package bridge
 
 import "context"
 
-// BridgeAccountUpsert 账号注册/上线时持久化的字段
+// BridgeAccountUpsert 账号注册/上线时持久化的字段。
+// UserID=0 是常态：登记入口（HTTP ingest）只认实例级桥接凭证，没有用户身份，
+// 账号归属落在租户上；非零只在带用户身份的写入路径出现。
 type BridgeAccountUpsert struct {
 	UserID      uint
 	Channel     string
@@ -25,13 +27,13 @@ type BridgeAccountView struct {
 	LastSyncAt  interface{} `json:"last_sync_at"`
 }
 
-// BridgeAccountRepo 桥接账号持久化接口（由 repository 包实现，router 启动时注入）。
-// 设计为接口 + 包级全局，避免改动 NewBridgeWSHandler 签名、不影响既有测试。
+// BridgeAccountRepo 桥接账号持久化接口（由 account_repo.go 实现，router 启动时注入）。
+// 设计为接口 + 包级全局，避免改动桥接入站 handler 的构造签名、不影响既有测试。
 type BridgeAccountRepo interface {
 	Upsert(ctx context.Context, u BridgeAccountUpsert) error
 	SetOffline(ctx context.Context, channel, accountID string) error
 	TouchLastSync(ctx context.Context, channel, accountID string) error
-	ListByUser(ctx context.Context, userID uint) ([]BridgeAccountView, error)
+	ListForUser(ctx context.Context, userID uint) ([]BridgeAccountView, error)
 	IsOnline(ctx context.Context, channel, accountID string) (bool, error)
 }
 

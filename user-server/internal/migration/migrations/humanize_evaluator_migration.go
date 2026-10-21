@@ -23,11 +23,11 @@ func NewHumanizeEvaluatorMigration(db *gorm.DB) *HumanizeEvaluatorMigration {
 func (m *HumanizeEvaluatorMigration) Version() string { return "v2.9.1" }
 
 // Name 返回迁移名称
-func (m *HumanizeEvaluatorMigration) Name() string { return "拟人度评估器（5 张表）" }
+func (m *HumanizeEvaluatorMigration) Name() string { return "拟人度评估器（4 张表）" }
 
 // Description 返回迁移描述
 func (m *HumanizeEvaluatorMigration) Description() string {
-	return "创建 humanize_scores / humanize_dimensions / champion_baselines / champion_phrases / ab_test_stats 5 张表"
+	return "创建 humanize_scores / humanize_dimensions / champion_baselines / champion_phrases 4 张表"
 }
 
 // Up 执行升级
@@ -50,10 +50,6 @@ func (m *HumanizeEvaluatorMigration) Up(ctx context.Context) error {
 
 	if err := m.createChampionPhrases(ctx); err != nil {
 		return fmt.Errorf("create champion_phrases 失败: %w", err)
-	}
-
-	if err := m.createABTestStats(ctx); err != nil {
-		return fmt.Errorf("create ab_test_stats 失败: %w", err)
 	}
 
 	return nil
@@ -157,41 +153,16 @@ func (m *HumanizeEvaluatorMigration) createChampionPhrases(ctx context.Context) 
 	return execAllHumanize(ctx, m.db, stmts)
 }
 
-func (m *HumanizeEvaluatorMigration) createABTestStats(ctx context.Context) error {
-	stmts := []string{
-		`CREATE TABLE IF NOT EXISTS ab_test_stats (
-			id BIGSERIAL PRIMARY KEY,
-			experiment_id VARCHAR(64) NOT NULL,
-			group_name VARCHAR(16) NOT NULL,
-			sample_size INT NOT NULL,
-			mean_score DECIMAL(8,4) DEFAULT 0,
-			median_score DECIMAL(8,4) DEFAULT 0,
-			stddev_score DECIMAL(8,4) DEFAULT 0,
-			mann_whitney_u BIGINT DEFAULT 0,
-			mann_whitney_p DECIMAL(8,4) DEFAULT 0,
-			cohens_d DECIMAL(8,4) DEFAULT 0,
-			bootstrap_ci_low DECIMAL(5,4) DEFAULT 0,
-			bootstrap_ci_high DECIMAL(5,4) DEFAULT 0,
-			significant BOOLEAN DEFAULT FALSE,
-			effect_size_label VARCHAR(16) DEFAULT 'negligible',
-			winner VARCHAR(16) DEFAULT 'inconclusive',
-			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
-		)`,
-		`CREATE INDEX IF NOT EXISTS idx_abstat_exp ON ab_test_stats(experiment_id, group_name, created_at DESC)`,
-	}
-	return execAllHumanize(ctx, m.db, stmts)
-}
-
 // Down 回滚（删除新表）
 //
 // 注意：
 // 不删除 low_quality_samples（与 共享）
-//   - 5 张新表可安全删除
+//   - 4 张新表可安全删除
 func (m *HumanizeEvaluatorMigration) Down(ctx context.Context) error {
 	if m.db == nil {
 		return fmt.Errorf("db is nil")
 	}
-	declineTableDrop(m.Version(), "ab_test_stats", "champion_phrases", "champion_baselines",
+	declineTableDrop(m.Version(), "champion_phrases", "champion_baselines",
 		"humanize_dimensions", "humanize_scores")
 	return nil
 }

@@ -66,16 +66,12 @@ func TestFeedbackConfigsReadParamCenter(t *testing.T) {
 		}
 	}
 
-	// ── bandit 6 条 ──
-	set(FBBanditMinSamplesForExploit, "7")
-	set(FBBanditExplorationFloor, "0.25")
-	set(FBBanditTrafficCeiling, "0.4")
+	// ── bandit 3 条（原先的探索/流量三项随臂选择路径下架）──
 	set(FBBanditConvergenceThreshold, "0.9")
 	set(FBBanditMinSamplesForPromote, "200")
 	set(FBBanditPosteriorSamples, "500")
 	b := BanditConfigFromParams(ctx)
-	if b.MinSamplesForExploit != 7 || b.ExplorationFloor != 0.25 || b.TrafficCeiling != 0.4 ||
-		b.ConvergenceThreshold != 0.9 || b.MinSamplesForPromote != 200 || b.PosteriorSamples != 500 {
+	if b.ConvergenceThreshold != 0.9 || b.MinSamplesForPromote != 200 || b.PosteriorSamples != 500 {
 		t.Errorf("bandit 配置未按参数生效: %+v", b)
 	}
 
@@ -128,7 +124,7 @@ func TestFeedbackConfigsReadParamCenter(t *testing.T) {
 }
 
 // TestFeedbackFloatFallbackSemantics 两类 float 兜底语义不同，必须分开钉：
-//   - fbOrPosFloat（exploration_floor 等正值参数）：0 回落默认值。
+//   - fbOrPosFloat（正值参数，如 convergence_threshold）：0 回落默认值。
 //   - fbOrAnyFloat（negative_reward_threshold，默认负数）：0 是合法语义
 //     「关掉这道门限」，不是「没配过」，不该回落。
 func TestFeedbackFloatFallbackSemantics(t *testing.T) {
@@ -163,9 +159,9 @@ func TestFeedbackFloatFallbackSemantics(t *testing.T) {
 // TestFeedbackSeedsMatchConfigDefaults 22 条种子的默认值必须等于 DefaultXxxConfig()。
 func TestFeedbackSeedsMatchConfigDefaults(t *testing.T) {
 	d := map[string]string{
-		FBBanditMinSamplesForExploit:      "30",
-		FBBanditExplorationFloor:          "0.10",
-		FBBanditTrafficCeiling:            "0.60",
+		"bandit_min_samples_for_exploit": "30",
+		"bandit_exploration_floor":       "0.10",
+		"bandit_traffic_ceiling":         "0.60",
 		FBBanditConvergenceThreshold:      "0.95",
 		FBBanditMinSamplesForPromote:      "100",
 		FBBanditPosteriorSamples:          "1000",
@@ -210,8 +206,9 @@ func TestFeedbackSeedsMatchConfigDefaults(t *testing.T) {
 	}
 }
 
-// TestFeedbackParamKeysAreAllRead 反向钉死「登记了必须有人读」：22 条逐一改库后
-// 断言对应字段真的变了。
+// TestFeedbackParamKeysAreAllRead 反向钉死「登记了必须有人读」：19 条在架参数逐一改库后
+// 断言对应字段真的变了。三条 bandit 探索参数已随臂选择路径下架（Deprecated），
+// 不在此列表内。
 func TestFeedbackParamKeysAreAllRead(t *testing.T) {
 	svc, _ := newFeedbackParamFixture(t)
 	ctx := context.Background()
@@ -227,7 +224,6 @@ func TestFeedbackParamKeysAreAllRead(t *testing.T) {
 		FBIteratorNegativeRewardThreshold: "-1",
 	}
 	for _, k := range []string{
-		FBBanditMinSamplesForExploit, FBBanditExplorationFloor, FBBanditTrafficCeiling,
 		FBBanditConvergenceThreshold, FBBanditMinSamplesForPromote,
 		FBCollectorQueueSize, FBCollectorFlushInterval, FBCollectorBatchSize,
 		FBAnalyzerMinReward, FBAnalyzerClusterSimThreshold, FBAnalyzerMinClusterSize,
@@ -258,7 +254,6 @@ func TestFeedbackParamKeysAreAllRead(t *testing.T) {
 	o := SOPAutoOptimizerConfigFromParams(ctx)
 
 	for name, cse := range map[string]struct{ got, want int }{
-		"bandit_min_samples_for_exploit":     {b.MinSamplesForExploit, 1},
 		"bandit_min_samples_for_promote":     {b.MinSamplesForPromote, 1},
 		"bandit_posterior_samples":           {b.PosteriorSamples, 10}, // Min 10，见 perKey
 		"collector_queue_size":               {c.QueueSize, 1},
@@ -275,8 +270,6 @@ func TestFeedbackParamKeysAreAllRead(t *testing.T) {
 		}
 	}
 	for name, got := range map[string]float64{
-		"bandit_exploration_floor":           b.ExplorationFloor,
-		"bandit_traffic_ceiling":             b.TrafficCeiling,
 		"bandit_convergence_threshold":       b.ConvergenceThreshold,
 		"analyzer_min_reward":                a.MinReward,
 		"analyzer_cluster_sim_threshold":     a.ClusterSimThreshold,

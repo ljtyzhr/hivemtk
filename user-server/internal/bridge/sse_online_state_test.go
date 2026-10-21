@@ -103,7 +103,7 @@ func (f *recordingBridgeAccountRepo) TouchLastSync(_ context.Context, channel, a
 	f.touchKeys <- channel + ":" + accountID
 	return nil
 }
-func (f *recordingBridgeAccountRepo) ListByUser(context.Context, uint) ([]BridgeAccountView, error) {
+func (f *recordingBridgeAccountRepo) ListForUser(context.Context, uint) ([]BridgeAccountView, error) {
 	return nil, nil
 }
 func (f *recordingBridgeAccountRepo) IsOnline(_ context.Context, channel, accountID string) (bool, error) {

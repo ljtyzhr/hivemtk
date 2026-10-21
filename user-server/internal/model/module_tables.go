@@ -106,7 +106,7 @@ var aiSalesOwnedTables = []string{
 	"intent_records", "intent_examples", "sales_intent_scores",
 	"objection_templates", "sales_personas",
 	"sales_champion_profile_snapshots", "champion_baselines",
-	"champion_dialogues", "champion_phrases", "ai_sales_logs",
+	"champion_dialogues", "champion_phrases",
 	"sop_agents", "sop_templates", "sop_executions", "sop_node_transitions",
 	"sop_state_memories", "sop_timers", "sop_outbox", "sop_exec_events",
 	"confidence_signals", "confidence_calibrations", "humanize_scores",
@@ -126,7 +126,7 @@ var reachAutoOwnedTables = []string{
 // reach-sms / reach-email 模块独占
 var reachSmsOwnedTables = []string{
 	"sms", "sms_unsubscribes", "sms_tracking", "sms_delivery_statuses",
-	"sms_job_metrics", "sms_number_portability_logs",
+	"sms_number_portability_logs",
 }
 
 var reachEmailOwnedTables = []string{
@@ -169,12 +169,12 @@ var imIntlOwnedTables = []string{
 // analytics / experiment 模块独占
 var analyticsOwnedTables = []string{
 	"daily_stats", "conversion_funnels", "report_subscriptions",
-	"customer_journey", "ab_test_metrics", "external_customers",
+	"customer_journey", "external_customers",
 	"support_metrics",
 }
 
 var experimentOwnedTables = []string{
-	"ab_tests", "ab_test_stats", "churn_scores", "bandit_arms", "recovery_queue",
+	"churn_scores", "bandit_arms", "recovery_queue",
 }
 
 // sales-crm 模块独占

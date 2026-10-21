@@ -641,10 +641,6 @@ func (r *mockAssetBundleRepo) Update(_ context.Context, m *model.AssetBundle) er
 	return nil
 }
 
-func (r *mockAssetBundleRepo) Save(ctx context.Context, m *model.AssetBundle) error {
-	return r.Update(context.Background(), m)
-}
-
 func (r *mockAssetBundleRepo) SoftDelete(_ context.Context, id int64) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -655,10 +651,6 @@ func (r *mockAssetBundleRepo) SoftDelete(_ context.Context, id int64) error {
 	delete(r.byID, id)
 	delete(r.storage, b.AssetID)
 	return nil
-}
-
-func (r *mockAssetBundleRepo) HardDelete(ctx context.Context, id int64) error {
-	return r.SoftDelete(context.Background(), id)
 }
 
 func (r *mockAssetBundleRepo) FindByID(_ context.Context, id int64) (*model.AssetBundle, error) {
@@ -694,32 +686,6 @@ func (r *mockAssetBundleRepo) List(_ context.Context, _ repository.AssetBundleFi
 	return list, int64(len(list)), nil
 }
 
-func (r *mockAssetBundleRepo) ListByAuthor(_ context.Context, author string, _ int) ([]*model.AssetBundle, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	var list []*model.AssetBundle
-	for _, b := range r.byID {
-		if b.Author == author {
-			cp := *b
-			list = append(list, &cp)
-		}
-	}
-	return list, nil
-}
-
-func (r *mockAssetBundleRepo) ListActive(_ context.Context, _ int) ([]*model.AssetBundle, error) {
-	r.mu.Lock()
-	defer r.mu.Unlock()
-	var list []*model.AssetBundle
-	for _, b := range r.byID {
-		if b.Status == model.AssetBundleStatusActive {
-			cp := *b
-			list = append(list, &cp)
-		}
-	}
-	return list, nil
-}
-
 func (r *mockAssetBundleRepo) IncrementUseCount(_ context.Context, assetID string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -753,16 +719,10 @@ func (r *mockVersionLogRepo) Create(_ context.Context, m *model.AssetBundleVersi
 	return nil
 }
 
-func (r *mockVersionLogRepo) List(_ context.Context, assetID string, _ int) ([]*model.AssetBundleVersionLog, error) {
+func (r *mockVersionLogRepo) snapshot() []*model.AssetBundleVersionLog {
 	r.mu.Lock()
 	defer r.mu.Unlock()
-	var list []*model.AssetBundleVersionLog
-	for _, l := range r.logs {
-		if assetID == "" || l.AssetID == assetID {
-			list = append(list, l)
-		}
-	}
-	return list, nil
+	return append([]*model.AssetBundleVersionLog(nil), r.logs...)
 }
 
 // TestService_CreateBundle 测试创建资产包（业务校验）
@@ -839,7 +799,7 @@ func TestService_UpdateBundle_VersionLog(t *testing.T) {
 	if err := svc.UpdateBundle(context.Background(), bundle); err != nil {
 		t.Fatal(err)
 	}
-	logs, _ := ver.List(context.Background(), "ver_001", 10)
+	logs := ver.snapshot()
 	if len(logs) != 1 {
 		t.Fatalf("expected 1 version log, got %d", len(logs))
 	}
@@ -994,9 +954,6 @@ type failingVersionLogRepo struct{}
 func (failingVersionLogRepo) Create(context.Context, *model.AssetBundleVersionLog) error {
 	return errors.New("simulated db down")
 }
-func (failingVersionLogRepo) List(context.Context, string, int) ([]*model.AssetBundleVersionLog, error) {
-	return nil, nil
-}
 
 // TestHotPlug_K2_PersistAcrossInstances 热插拔开关落库：跨实例可见、Disable 同步持久化
 func TestHotPlug_K2_PersistAcrossInstances(t *testing.T) {
@@ -1132,7 +1089,7 @@ func TestVersionLog_K3_WithVersionLogRepoInjection(t *testing.T) {
 	if err := svc.UpdateBundle(ctx, b); err != nil {
 		t.Fatal(err)
 	}
-	logs, _ := ver.List(ctx, "ver_inject_001", 10)
+	logs := ver.snapshot()
 	if len(logs) != 1 || logs[0].FromVer != "1.0.0" || logs[0].ToVer != "1.2.0" {
 		t.Fatalf("logs = %+v", logs)
 	}

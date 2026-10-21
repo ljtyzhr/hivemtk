@@ -184,88 +184,24 @@ type RuleAction struct {
 
 // RuleEngineService 规则引擎
 type RuleEngineService struct {
-	repo   *repository.AutomationRuleRepository
-	csPlus *CustomerServicePlusService
-	now    func() time.Time
+	repo *repository.AutomationRuleRepository
+	now  func() time.Time
 }
 
 // NewRuleEngineService 构造
 func NewRuleEngineService() *RuleEngineService {
 	return &RuleEngineService{
-		repo:   repository.NewAutomationRuleRepository(),
-		csPlus: NewCustomerServicePlusService(),
-		now:    time.Now,
+		repo: repository.NewAutomationRuleRepository(),
+		now:  time.Now,
 	}
 }
 
 // NewRuleEngineServiceFromGlobal 便捷构造
 func NewRuleEngineServiceFromGlobal() *RuleEngineService { return NewRuleEngineService() }
 
-// Create 创建规则
-func (s *RuleEngineService) Create(ctx context.Context, r *model.AutomationRule) (*model.AutomationRule, error) {
-	if r.Event != RuleEventConversationCreated && r.Event != RuleEventMessageInbound && r.Event != RuleEventSessionResolved {
-		return nil, fmt.Errorf("不支持的事件: %s", r.Event)
-	}
-	var conds []RuleCondition
-	if err := json.Unmarshal([]byte(r.Conditions), &conds); err != nil {
-		return nil, fmt.Errorf("conditions JSON 非法")
-	}
-	for _, c := range conds {
-		switch c.Op {
-		case "eq", "contains", "gt", "lt":
-		default:
-			return nil, fmt.Errorf("不支持的条件操作符: %s", c.Op)
-		}
-	}
-	var acts []RuleAction
-	if err := json.Unmarshal([]byte(r.Actions), &acts); err != nil || len(acts) == 0 {
-		return nil, fmt.Errorf("actions JSON 非法或为空")
-	}
-	for _, a := range acts {
-		switch a.Type {
-		case RuleActAddTag, RuleActSetPriority, RuleActAssign, RuleActClose, RuleActSendMessage, RuleActAddNote, RuleActWebhook:
-		default:
-			return nil, fmt.Errorf("不支持的动作: %s", a.Type)
-		}
-	}
-	if err := s.repo.CreateRule(ctx, r); err != nil {
-		return nil, err
-	}
-	return r, nil
-}
-
 // List 规则列表
 func (s *RuleEngineService) List(ctx context.Context, event string) ([]*model.AutomationRule, error) {
 	return s.repo.ListRules(ctx, event)
-}
-
-// Delete 删除
-func (s *RuleEngineService) Delete(ctx context.Context, id uint) error {
-	return s.repo.DeleteRule(ctx, id)
-}
-
-// Toggle 启停
-func (s *RuleEngineService) Toggle(ctx context.Context, id uint, enabled bool) error {
-	return s.repo.ToggleRule(ctx, id, enabled)
-}
-
-// DispatchSessionEvent 会话事件入口（session 落库/迁移点调用）
-func (s *RuleEngineService) DispatchSessionEvent(ctx context.Context, event, sessionID string, session *model.CustomerSession) {
-	go func() {
-		defer func() {
-			if r := recover(); r != nil {
-				log.Printf("[panic-recover] %T: %v\n%s", r, r, string(debug.Stack()))
-			}
-		}()
-		c, cancel := context.WithTimeout(context.Background(), utils.DefaultHTTPTimeout)
-		defer cancel()
-		s.DispatchWithText(c, event, sessionID, "", session)
-	}()
-}
-
-// Dispatch 规则匹配执行（inboundText: message_inbound 事件的消息内容，供 content 条件匹配）
-func (s *RuleEngineService) Dispatch(ctx context.Context, event, sessionID string, session *model.CustomerSession) {
-	s.DispatchWithText(ctx, event, sessionID, "", session)
 }
 
 // DispatchWithText 完整入口（带消息内容）

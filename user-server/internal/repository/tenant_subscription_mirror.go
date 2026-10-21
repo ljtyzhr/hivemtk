@@ -23,12 +23,26 @@ type TenantSubscriptionMirrorRepository interface {
 	Upsert(ctx context.Context, row *model.TenantSubscriptionMirror) error
 }
 
-// mirrorTid 行锚租户：ctx 绑定优先，无绑定（off 模式 / SystemScope）回落默认租户。
-func mirrorTid(ctx context.Context) uint {
+// ErrMirrorTenantContextMissing on 模式下既无租户绑定、又不在系统作用域。
+//
+// 后台同步/启动期走 SystemScope（单部署刷新默认租户那一行），租户请求走绑定；
+// 只剩「漏绑中间件」这一种情况——此时回落默认租户会静默读写租户 1 的订阅，
+// 表现为某些租户的续费墙永不出现，所以必须报错而不是 fail-open。
+var ErrMirrorTenantContextMissing = errors.New("tenant_subscription_mirror: 多租户模式需要租户上下文或系统作用域")
+
+// mirrorTid 行锚租户：ctx 绑定优先（SystemScope 不剥 value，租户内手动同步仍落本租户）；
+// 无绑定仅允许 SystemScope 与 off 模式回落默认租户。
+func mirrorTid(ctx context.Context) (uint, error) {
 	if id, ok := tenant.FromContext(ctx); ok && id > 0 {
-		return id
+		return id, nil
 	}
-	return tenant.DefaultTenantID
+	if tenant.IsSystemScope(ctx) {
+		return tenant.DefaultTenantID, nil
+	}
+	if !tenant.IsMultiTenant() {
+		return tenant.DefaultTenantID, nil
+	}
+	return 0, ErrMirrorTenantContextMissing
 }
 
 type tenantSubscriptionMirrorRepo struct{ db *gorm.DB }
@@ -47,8 +61,12 @@ func (r *tenantSubscriptionMirrorRepo) Get(ctx context.Context) (*model.TenantSu
 	if r.db == nil {
 		return nil, errors.New("db is nil")
 	}
+	tid, err := mirrorTid(ctx)
+	if err != nil {
+		return nil, err
+	}
 	var row model.TenantSubscriptionMirror
-	err := r.db.WithContext(ctx).Where("id = ?", mirrorTid(ctx)).First(&row).Error
+	err = r.db.WithContext(ctx).Where("id = ?", tid).First(&row).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, nil
 	}
@@ -65,7 +83,10 @@ func (r *tenantSubscriptionMirrorRepo) Upsert(ctx context.Context, row *model.Te
 	if row == nil {
 		return errors.New("row is nil")
 	}
-	tid := mirrorTid(ctx)
+	tid, err := mirrorTid(ctx)
+	if err != nil {
+		return err
+	}
 	row.ID = tid
 	row.TenantID = tid
 	return r.db.WithContext(ctx).Clauses(clause.OnConflict{

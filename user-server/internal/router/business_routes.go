@@ -190,7 +190,6 @@ func setupScriptRoutes(auth *gin.RouterGroup) {
 	auth.GET("/feature-flags/:id", flagCtrl.Get)
 	auth.GET("/feature-flags/:id/audit", flagCtrl.Audit)
 	auth.GET("/feature-flags/:id/eval-log", flagCtrl.EvalLogs)
-	auth.GET("/feature-flags/:id/code-references", flagCtrl.CodeReferences)
 	flagAdmin := auth.Group("/feature-flags", middleware.AdminAuthMiddleware())
 	{
 		flagAdmin.POST("", flagCtrl.Create)
@@ -203,6 +202,12 @@ func setupScriptRoutes(auth *gin.RouterGroup) {
 		flagAdmin.POST("/:id/enable", flagCtrl.Enable)
 		flagAdmin.POST("/:id/disable", flagCtrl.Disable)
 		flagAdmin.POST("/:id/rollout", flagCtrl.Rollout)
+		// 评估口是运维验证灰度用的（docs/operations/KNOWLEDGE_GROUP_DEPLOY.md §3.3
+		// 的第三步就是打它），不是「管理动作」：I27 按「FE 不调即死」批量清扫时
+		// 连同管理动作一起删了，结果评估链（含 feature_flag_eval_logs 的写入）在
+		// 运行期没有任何入口，UI 的曝光日志永远为空。这里按运维口的原意挂回。
+		flagAdmin.POST("/evaluate", flagCtrl.Evaluate)
+		flagAdmin.POST("/evaluate-batch", flagCtrl.EvaluateBatch)
 	}
 }
 

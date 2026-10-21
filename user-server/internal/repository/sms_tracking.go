@@ -29,10 +29,6 @@ type SmsTrackingRepository interface {
 
 	CountByJob(ctx context.Context, jobID, status string) (int64, error)
 	CountByRange(ctx context.Context, start, end time.Time, status string) (int64, error)
-
-	GetJobMetric(ctx context.Context, jobID string) (*model.SmsJobMetric, error)
-	UpsertJobMetric(ctx context.Context, metric *model.SmsJobMetric) error
-	ListJobMetricsByRange(ctx context.Context, start, end time.Time) ([]*model.SmsJobMetric, error)
 }
 
 type smsTrackingRepo struct {
@@ -199,43 +195,4 @@ func (r *smsTrackingRepo) CountByRange(ctx context.Context, start, end time.Time
 	}
 	err := query.Count(&count).Error
 	return count, err
-}
-
-func (r *smsTrackingRepo) GetJobMetric(ctx context.Context, jobID string) (*model.SmsJobMetric, error) {
-	if r == nil || r.db == nil {
-		return nil, nil
-	}
-	var metric model.SmsJobMetric
-	err := r.db.WithContext(ctx).Where("job_id = ?", jobID).First(&metric).Error
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	return &metric, nil
-}
-
-func (r *smsTrackingRepo) UpsertJobMetric(ctx context.Context, metric *model.SmsJobMetric) error {
-	if r == nil || r.db == nil {
-		return errNilDB
-	}
-	existing, err := r.GetJobMetric(ctx, metric.JobID)
-	if err != nil {
-		return err
-	}
-	if existing != nil {
-		metric.ID = existing.ID
-		return r.db.WithContext(ctx).Save(metric).Error
-	}
-	return r.db.WithContext(ctx).Create(metric).Error
-}
-
-func (r *smsTrackingRepo) ListJobMetricsByRange(ctx context.Context, start, end time.Time) ([]*model.SmsJobMetric, error) {
-	if r == nil || r.db == nil {
-		return nil, nil
-	}
-	var metrics []*model.SmsJobMetric
-	err := r.db.WithContext(ctx).Where("updated_at BETWEEN ? AND ?", start, end).Find(&metrics).Error
-	return metrics, err
 }

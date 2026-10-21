@@ -88,7 +88,6 @@ func (s *AgentStatusService) UpdateAgentStatus(ctx context.Context, agentID uint
 	if err != nil {
 		return err
 	}
-	_ = agent
 
 	if agent.Status == "offline" && status != "online" {
 		return errors.New("客服离线时只能切换到在线状态")
@@ -108,7 +107,6 @@ func (s *AgentStatusService) GoOffline(ctx context.Context, agentID uint) error 
 	if err != nil {
 		return err
 	}
-	_ = agent
 
 	if agent.ActiveSessions > 0 {
 		return errors.New("还有未完成的会话，请先处理或转接")

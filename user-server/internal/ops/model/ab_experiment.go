@@ -49,6 +49,9 @@ func (ABVariant) TableName() string {
 }
 
 // ABConversionEvent 转化事件
+//
+// 应用内没有写入路径，当前仅被 diagnostics / CUPED / results-with-reach 读作
+// 可选明细；无数据时三者按设计退化。
 type ABConversionEvent struct {
 	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
 
@@ -73,8 +76,8 @@ type ABExperimentResult struct {
 	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
 
 	ID              uint      `gorm:"primaryKey;autoIncrement" json:"id"`
-	ExperimentID    uint      `gorm:"uniqueIndex;not null" json:"experiment_id"`
-	VariantID       uint      `gorm:"index;not null" json:"variant_id"`
+	ExperimentID    uint      `gorm:"not null;uniqueIndex:idx_ab_experiment_results_exp_variant,priority:1" json:"experiment_id"`
+	VariantID       uint      `gorm:"not null;uniqueIndex:idx_ab_experiment_results_exp_variant,priority:2" json:"variant_id"`
 	VariantName     string    `gorm:"type:varchar(50)" json:"variant_name"`
 	IsControl       bool      `json:"is_control"`
 	TrafficCount    int       `json:"traffic_count"`

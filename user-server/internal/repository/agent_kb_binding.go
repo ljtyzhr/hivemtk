@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 
 	"hivemtk-user/internal/model"
 
@@ -24,11 +23,6 @@ func NewAgentKBBindingRepository(db *gorm.DB) *AgentKBBindingRepository {
 // 注意: UNIQUE(agent_id, kb_id) 约束, 重复绑定会返回错误
 func (r *AgentKBBindingRepository) Create(ctx context.Context, b *model.AgentKBBinding) error {
 	return r.db.WithContext(ctx).Select("*").Create(b).Error
-}
-
-// Delete 按 ID 删除
-func (r *AgentKBBindingRepository) Delete(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&model.AgentKBBinding{}).Error
 }
 
 // DeleteByAgentKB 按 (agent_id, kb_id) 删除
@@ -102,25 +96,4 @@ func (r *AgentKBBindingRepository) CheckExists(ctx context.Context, agentID, kbI
 		Where("agent_id = ? AND kb_id = ?", agentID, kbID).
 		Count(&count).Error
 	return count > 0, err
-}
-
-// GetByAgentKB 获取单条绑定
-func (r *AgentKBBindingRepository) GetByAgentKB(ctx context.Context, agentID, kbID uint) (*model.AgentKBBinding, error) {
-	var b model.AgentKBBinding
-	if err := r.db.WithContext(ctx).
-		Where("agent_id = ? AND kb_id = ?", agentID, kbID).
-		First(&b).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	return &b, nil
-}
-
-// Update 更新绑定
-func (r *AgentKBBindingRepository) Update(ctx context.Context, id uint, b *model.AgentKBBinding) error {
-	return r.db.WithContext(ctx).Model(&model.AgentKBBinding{}).
-		Where("id = ?", id).
-		Select("*").Updates(b).Error
 }

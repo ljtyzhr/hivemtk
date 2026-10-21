@@ -106,14 +106,6 @@ func NewAutomationRuleRepositoryWithDB(db *gorm.DB) *AutomationRuleRepository {
 	return &AutomationRuleRepository{db: db}
 }
 
-// CreateRule 创建规则
-func (r *AutomationRuleRepository) CreateRule(ctx context.Context, rule *model.AutomationRule) error {
-	if r.db == nil {
-		return errors.New("automation rule repository not initialized")
-	}
-	return r.db.WithContext(ctx).Create(rule).Error
-}
-
 // ListRules 按 event 过滤规则列表
 func (r *AutomationRuleRepository) ListRules(ctx context.Context, event string) ([]*model.AutomationRule, error) {
 	if r.db == nil {
@@ -139,23 +131,6 @@ func (r *AutomationRuleRepository) ListEnabledRulesByEvent(ctx context.Context, 
 		Order("priority ASC, id ASC").Limit(20).
 		Find(&rules).Error
 	return rules, err
-}
-
-// DeleteRule 删除规则
-func (r *AutomationRuleRepository) DeleteRule(ctx context.Context, id uint) error {
-	if r.db == nil {
-		return nil
-	}
-	return r.db.WithContext(ctx).Delete(&model.AutomationRule{}, id).Error
-}
-
-// ToggleRule 启停规则
-func (r *AutomationRuleRepository) ToggleRule(ctx context.Context, id uint, enabled bool) error {
-	if r.db == nil {
-		return nil
-	}
-	return r.db.WithContext(ctx).Model(&model.AutomationRule{}).
-		Where("id = ?", id).Update("enabled", enabled).Error
 }
 
 // IncrementRuleRunCount 规则执行次数自增

@@ -252,31 +252,20 @@
         </template>
 
         <el-divider content-position="left">
-          联系方式（线下付款必填其一；在线支付可不填）
+          支付方式
         </el-divider>
+        <el-alert
+          type="info"
+          :closable="false"
+          show-icon
+          title="在线支付"
+          description="提交订单后直接进入收银台（支付宝 / 微信），支付成功模块自动开通，无需加微信或等待人工确认。"
+        />
         <el-form
           :model="form"
           label-width="80px"
           class="mt-8"
         >
-          <el-form-item label="称呼">
-            <el-input
-              v-model="form.contact_name"
-              placeholder="选填"
-            />
-          </el-form-item>
-          <el-form-item label="电话">
-            <el-input
-              v-model="form.contact_phone"
-              placeholder="线下付款必填其一（在线支付可不填）"
-            />
-          </el-form-item>
-          <el-form-item label="邮箱">
-            <el-input
-              v-model="form.contact_email"
-              placeholder="线下付款必填其一（在线支付可不填）"
-            />
-          </el-form-item>
           <el-form-item label="备注">
             <el-input
               v-model="form.remark"
@@ -407,19 +396,16 @@ async function openConfirm (m) {
 }
 
 async function submit () {
-  // 联系方式不再前端硬拦（003 T018）：在线支付不强制、线下路径由后端
-  // 按 payment 段有无判定（ErrNoContactForPayment 仅线下路径触发）。
-  // 前端只在两者皆空时给一次软提醒，不阻断提交。
-  if (!form.contact_phone && !form.contact_email) {
-    ElMessage.info('若走线下付款，平台运营需要电话或邮箱联系你；在线支付可直接提交')
-  }
+  // 在线支付为默认路径：不再要求先填联系方式 / 加微信（003 T018）。
+  // 账号邮箱顺带上行，仅用于通道异常时的线下兜底联系。
   submitting.value = true
   try {
     const res = await createModuleOrder({
       module_keys: [confirmTarget.value.module_key],
       options: {},
       client_order_no: clientOrderNo.value,
-      ...form
+      ...form,
+      contact_email: form.contact_email || userStore.userInfo?.email || ''
     })
     confirmVisible.value = false
     // 003 T019：有 payment 段（在线支付）→ 弹收银台；无 → 线下指引 toast

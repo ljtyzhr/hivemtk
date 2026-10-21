@@ -3,7 +3,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"gorm.io/gorm"
@@ -162,5 +161,3 @@ func (r *featureFlagRepo) TouchEvaluated(ctx context.Context, id uint) error {
 		Where("id = ?", id).
 		UpdateColumn("last_evaluated_at", &now).Error
 }
-
-var _ = errors.New

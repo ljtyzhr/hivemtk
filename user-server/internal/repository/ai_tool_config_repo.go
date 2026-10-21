@@ -52,43 +52,27 @@ func (r *AIToolConfigRepository) GetByName(ctx context.Context, name string) (*m
 	return &tool, nil
 }
 
-// Create 创建工具配置
-func (r *AIToolConfigRepository) Create(ctx context.Context, tool *model.AIToolConfig) error {
-	return r.db.WithContext(ctx).Create(tool).Error
-}
-
-// Update 更新工具配置
-func (r *AIToolConfigRepository) Update(ctx context.Context, tool *model.AIToolConfig) error {
-	return r.db.WithContext(ctx).Save(tool).Error
-}
-
 // UpdateStatus 更新工具状态
 func (r *AIToolConfigRepository) UpdateStatus(ctx context.Context, name string, enabled bool) error {
-	return r.db.WithContext(ctx).Model(&model.AIToolConfig{}).Where("tool_name = ?", name).Update("is_enabled", enabled).Error
+	res := r.db.WithContext(ctx).Model(&model.AIToolConfig{}).Where("tool_name = ?", name).Update("is_enabled", enabled)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		// 跨租户与真不存在同读数：静默成功会让界面显示已切换，库里没变
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 // BatchUpdateStatus 批量更新工具状态
 func (r *AIToolConfigRepository) BatchUpdateStatus(ctx context.Context, names []string, enabled bool) error {
-	return r.db.WithContext(ctx).Model(&model.AIToolConfig{}).Where("tool_name IN ?", names).Update("is_enabled", enabled).Error
-}
-
-// Count 统计工具数量
-func (r *AIToolConfigRepository) Count(ctx context.Context) (int64, error) {
-	var count int64
-	err := r.db.WithContext(ctx).Model(&model.AIToolConfig{}).Count(&count).Error
-	return count, err
-}
-
-// CountByCategory 按分类统计
-func (r *AIToolConfigRepository) CountByCategory(ctx context.Context, category string) (int64, error) {
-	var count int64
-	err := r.db.WithContext(ctx).Model(&model.AIToolConfig{}).Where("category = ?", category).Count(&count).Error
-	return count, err
-}
-
-// CountEnabled 统计启用数量
-func (r *AIToolConfigRepository) CountEnabled(ctx context.Context) (int64, error) {
-	var count int64
-	err := r.db.WithContext(ctx).Model(&model.AIToolConfig{}).Where("is_enabled = true").Count(&count).Error
-	return count, err
+	res := r.db.WithContext(ctx).Model(&model.AIToolConfig{}).Where("tool_name IN ?", names).Update("is_enabled", enabled)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }

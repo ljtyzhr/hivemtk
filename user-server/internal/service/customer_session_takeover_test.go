@@ -120,9 +120,6 @@ func TestTakeoverByAgent_TakeoverFromAnother(t *testing.T) {
 	_ = svc.agentRepo.Create(context.Background(), a1)
 	_ = svc.agentRepo.Create(context.Background(), a2)
 	_ = svc.sessionRepo.AssignAgent(context.Background(), sess.ID, 500, "甲")
-	a1Got, _ := svc.agentRepo.GetByAgentID(context.Background(), 500)
-	a1Got.ActiveSessions = 1
-	_ = svc.agentRepo.Update(context.Background(), a1Got)
 
 	if err := svc.TakeoverByAgent(context.Background(), &TakeoverRequest{SessionID: sess.ID, AgentID: 501}); err != nil {
 		t.Fatalf("takeover: %v", err)

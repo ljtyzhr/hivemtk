@@ -3,11 +3,17 @@ package repository
 
 import (
 	"context"
+	"errors"
 
 	"hivemtk-user/internal/model"
 
 	"gorm.io/gorm"
 )
+
+// ErrWechatAccountNotFound 更新/删除命中的是被隔离条件挡掉的 0 行：
+// 多租户模式下这既可能是行本就不存在，也可能是不属于当前租户——对外都回 404，
+// 不能让"改了 0 行"被当成更新成功（否则跨租户 PUT 会收到"更新成功"而对方数据没动）。
+var ErrWechatAccountNotFound = errors.New("wechat: 公众号账号不存在")
 
 // WechatAccountRepository 公众号账号 CRUD 与消息落库收口
 type WechatAccountRepository struct {
@@ -71,7 +77,7 @@ func (r *WechatAccountRepository) UpdateCredentials(ctx context.Context, acc *mo
 	if r.db == nil {
 		return gorm.ErrInvalidDB
 	}
-	return r.db.WithContext(ctx).Model(acc).Updates(map[string]any{
+	res := r.db.WithContext(ctx).Model(acc).Updates(map[string]any{
 		"app_id":           acc.AppID,
 		"app_secret":       acc.AppSecret,
 		"original_id":      acc.OriginalID,
@@ -79,7 +85,14 @@ func (r *WechatAccountRepository) UpdateCredentials(ctx context.Context, acc *mo
 		"encoding_aes_key": acc.EncodingAESKey,
 		"agent_id":         acc.AgentID,
 		"status":           acc.Status,
-	}).Error
+	})
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return ErrWechatAccountNotFound
+	}
+	return nil
 }
 
 // Delete 删除账号
@@ -87,7 +100,14 @@ func (r *WechatAccountRepository) Delete(ctx context.Context, id uint) error {
 	if r.db == nil {
 		return gorm.ErrInvalidDB
 	}
-	return r.db.WithContext(ctx).Delete(&model.WechatAccount{}, id).Error
+	res := r.db.WithContext(ctx).Delete(&model.WechatAccount{}, id)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return ErrWechatAccountNotFound
+	}
+	return nil
 }
 
 // CreateMessage 落库公众号消息（收/发共用）

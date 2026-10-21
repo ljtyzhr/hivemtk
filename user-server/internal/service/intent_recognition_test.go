@@ -1097,8 +1097,17 @@ func TestRecognize_SameCustomerMultiple(t *testing.T) {
 	rec.Recognize(context.Background(), "s-1", "u-1", "多少钱")
 	rec.Recognize(context.Background(), "s-1", "u-1", "多少钱")
 	rec.Recognize(context.Background(), "s-1", "u-1", "多少钱")
-	time.Sleep(200 * time.Millisecond)
-	list, _ := rec.GetRecentIntents(context.Background(), "u-1", 10)
+	// 三条记录是异步落库的：定长 sleep 在机器负载高时只等到一部分（实测 3→1），
+	// 改成有上限的轮询，等满仍是「必须恰好 3 条」，不放宽断言。
+	var list []model.IntentRecord
+	deadline := time.Now().Add(2 * time.Second)
+	for {
+		list, _ = rec.GetRecentIntents(context.Background(), "u-1", 10)
+		if len(list) >= 3 || time.Now().After(deadline) {
+			break
+		}
+		time.Sleep(50 * time.Millisecond)
+	}
 	if len(list) != 3 {
 		t.Errorf("expected 3, got %d", len(list))
 	}

@@ -103,20 +103,3 @@ func TestAccount_WithProxyConfig(t *testing.T) {
 		t.Errorf("Expected ProxyPort 1080, got %d", account.ProxyPort)
 	}
 }
-
-func TestAccount_BeforeCreate(t *testing.T) {
-	account := &Account{
-		TgName: "testbot",
-	}
-
-	err := account.BeforeCreate(nil)
-	if err != nil {
-		t.Errorf("Expected no error, got %v", err)
-	}
-	if account.ID == "" {
-		t.Error("Expected non-empty ID after BeforeCreate")
-	}
-	if len(account.ID) != 36 {
-		t.Errorf("Expected ID length 36 (UUID), got %d", len(account.ID))
-	}
-}

@@ -62,7 +62,7 @@ func (c *AIToolConfigController) GetTool(ctx *gin.Context) {
 
 	result, err := c.service.GetTool(ctx.Request.Context(), name)
 	if err != nil {
-		response.Error(ctx, http.StatusNotFound, "工具不存在")
+		response.ErrorFromDB(ctx, err, "工具不存在")
 		return
 	}
 	response.Success(ctx, result, "ok")
@@ -86,7 +86,7 @@ func (c *AIToolConfigController) UpdateToolStatus(ctx *gin.Context) {
 	}
 
 	if err := c.service.UpdateStatus(ctx.Request.Context(), name, req.IsEnabled); err != nil {
-		response.Error(ctx, http.StatusInternalServerError, "更新状态失败: "+err.Error())
+		response.ErrorFromDB(ctx, err, "工具不存在")
 		return
 	}
 	response.Success(ctx, nil, "success")
@@ -110,7 +110,7 @@ func (c *AIToolConfigController) BatchUpdateStatus(ctx *gin.Context) {
 	}
 
 	if err := c.service.BatchUpdateStatus(ctx.Request.Context(), req.Tools, req.IsEnabled); err != nil {
-		response.Error(ctx, http.StatusInternalServerError, "批量更新失败: "+err.Error())
+		response.ErrorFromDB(ctx, err, "工具不存在")
 		return
 	}
 	response.Success(ctx, nil, "success")
@@ -177,7 +177,7 @@ func (c *AIToolConfigController) UnbindAccount(ctx *gin.Context) {
 	}
 
 	if err := c.service.UnbindAccount(ctx.Request.Context(), name, accountType, accountID); err != nil {
-		response.Error(ctx, http.StatusInternalServerError, "解绑失败: "+err.Error())
+		response.ErrorFromDB(ctx, err, "绑定不存在")
 		return
 	}
 	response.Success(ctx, nil, "success")

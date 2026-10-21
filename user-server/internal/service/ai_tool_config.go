@@ -35,7 +35,10 @@ func (s *AIToolConfigService) ListTools(ctx context.Context, category string, en
 	for _, tool := range tools {
 		names = append(names, tool.ToolName)
 	}
-	bindingsByTool, _ := s.bindingRepo.ListByTools(ctx, names)
+	bindingsByTool, err := s.bindingRepo.ListByTools(ctx, names)
+	if err != nil {
+		return nil, err
+	}
 
 	result := make([]model.AIToolWithBinding, 0, len(tools))
 	for _, tool := range tools {
@@ -58,7 +61,10 @@ func (s *AIToolConfigService) GetTool(ctx context.Context, name string) (*model.
 		return nil, err
 	}
 
-	bindings, _ := s.bindingRepo.ListByTool(ctx, name)
+	bindings, err := s.bindingRepo.ListByTool(ctx, name)
+	if err != nil {
+		return nil, err
+	}
 	return &model.AIToolWithBinding{
 		AIToolConfig:  *tool,
 		BoundAccounts: bindings,
@@ -90,27 +96,10 @@ func (s *AIToolConfigService) BindAccount(ctx context.Context, toolName, account
 		Enabled:     true,
 	}
 
-	if isPrimary {
-		if err := s.bindingRepo.SetPrimary(ctx, toolName, accountType, accountID); err != nil {
-			return err
-		}
-	}
-
-	return s.bindingRepo.Create(ctx, binding)
+	return s.bindingRepo.Bind(ctx, binding)
 }
 
 // UnbindAccount 解绑账号
 func (s *AIToolConfigService) UnbindAccount(ctx context.Context, toolName, accountType, accountID string) error {
 	return s.bindingRepo.Delete(ctx, toolName, accountType, accountID)
-}
-
-// GetStats 获取统计信息
-func (s *AIToolConfigService) GetStats(ctx context.Context) (*model.AIToolStats, error) {
-	total, _ := s.toolRepo.Count(ctx)
-	enabled, _ := s.toolRepo.CountEnabled(ctx)
-
-	return &model.AIToolStats{
-		TotalCalls:  total,
-		SuccessRate: float64(enabled) / float64(total),
-	}, nil
 }

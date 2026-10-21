@@ -24,9 +24,9 @@ import (
 // 两边不一致时下面 TestRetiredParamsHaveNoDeadMarker 会先红一次。
 const markerToken = "未接线"
 
-// retiredSeedKeys 是 13 条下架项的完整清单，逐条写死而不是从种子里过滤。
+// retiredSeedKeys 是 16 条下架项的完整清单，逐条写死而不是从种子里过滤。
 //
-// 为什么写死：全仓 217 条参数里 Deprecated 只有这 13 条。如果用「把种子里
+// 为什么写死：全仓 240 条参数里 Deprecated 只有这 16 条。如果用「把种子里
 // deprecated 的都算进来」来生成期望值，那有人误把一条正常参数标成下架时，
 // 这条例外会跟着一起"通过"——用例再也发现不了。下架是一次不可逆的产品决定，
 // 值得用字面量钉住。
@@ -44,6 +44,9 @@ var retiredSeedKeys = []struct{ group, key string }{
 	{"lock", "ai_lock_ttl"},
 	{"frontend_ui", "websocket_reconnect_max_wait_ms"},
 	{"frontend_ui", "toast_duration_ms"},
+	{"feedback", "bandit_min_samples_for_exploit"},
+	{"feedback", "bandit_exploration_floor"},
+	{"feedback", "bandit_traffic_ceiling"},
 }
 
 func seedDefsIndex() map[string]ParamDef {

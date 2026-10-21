@@ -207,13 +207,15 @@ func (c *AlertChecker) fire(ctx context.Context, rule *model.AlertRule, val floa
 	}
 	if c.notifier != nil {
 		notifyFn := func() {
-			if err := c.notifier.Notify(ctx, rule, h); err != nil {
+			// 异步通知可能排在请求 ctx 取消之后：保留租户、脱离取消
+			nctx := tenant.BackgroundWithTenant(ctx)
+			if err := c.notifier.Notify(nctx, rule, h); err != nil {
 				logger.Error(err, "[AlertChecker] 通知下发失败: "+rule.Name)
 				h.NotifyResult = "notify_error: " + err.Error()
 			} else {
 				h.NotifyResult = "ok"
 			}
-			_ = updateNotifyResult(ctx, c.histRepo, h)
+			_ = updateNotifyResult(nctx, c.histRepo, h)
 		}
 
 		if d := GetAlertDispatcher(); d != nil {
@@ -252,13 +254,7 @@ func evaluateOperator(op string, val, threshold float64) bool {
 }
 
 func updateNotifyResult(ctx context.Context, repo repository.AlertHistoryRepository, h *model.AlertHistory) error {
-	type updater interface {
-		UpdateNotify(context.Context, uint, string) error
-	}
-	if u, ok := repo.(updater); ok {
-		return u.UpdateNotify(ctx, h.ID, h.NotifyResult)
-	}
-	return nil
+	return repo.UpdateNotify(ctx, h.ID, h.NotifyResult)
 }
 
 type metricsProvider struct{}

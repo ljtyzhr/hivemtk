@@ -26,7 +26,7 @@ import (
 // 会失败的测试，而不是启动日志里没人看的告警。
 var aliasRegFailures []string
 
-func setupFrontendAliases(auth *gin.RouterGroup, engine *gin.Engine, gormDB *gorm.DB) {
+func setupFrontendAliases(auth, systemAdmin *gin.RouterGroup, engine *gin.Engine, gormDB *gorm.DB) {
 	aliasRegFailures = nil
 	aiAgentSvc := service.NewAIAgentService()
 	// doReg 注册前端兼容别名。
@@ -478,15 +478,10 @@ func setupFrontendAliases(auth *gin.RouterGroup, engine *gin.Engine, gormDB *gor
 	doRegAdmin("POST", "/domain-pool/:id/rotate", domainCtrl.RotateToBackup)
 	doRegAdmin("POST", "/domain-pool/:id/suspend", domainCtrl.SuspendDomain)
 
-	backupGapCtrl := controller.NewBackupGapController()
-	doRegAdmin("GET", "/backup/list", backupGapCtrl.List)
-	doRegAdmin("GET", "/backup/stats", backupGapCtrl.Stats)
-	doRegAdmin("PUT", "/backup/strategy", backupGapCtrl.SaveStrategy)
-	doRegAdmin("POST", "/backup/create", backupGapCtrl.Create)
-	doRegAdmin("GET", "/backup/:id/preview", backupGapCtrl.Preview)
-	doRegAdmin("POST", "/backup/:id/restore", backupGapCtrl.Restore)
-	doRegAdmin("DELETE", "/backup/:id", backupGapCtrl.Delete)
-	doRegAdmin("GET", "/backups/stats", backupGapCtrl.Stats)
+	// 备份/恢复操作的是全局表 backups/restore_records，别名必须以平台运营方
+	// 身份注册；老实现用 doRegAdmin（租户 admin）注册，等于让任意租户管理员
+	// 列出、预览、恢复整实例的数据。
+	setupBackupAliases(systemAdmin)
 
 	ragEvalCtrl := controller.NewRagEvalGapController()
 	doReg("GET", "/rag/eval/latest", ragEvalCtrl.Latest)
@@ -542,4 +537,21 @@ func setupFrontendAliases(auth *gin.RouterGroup, engine *gin.Engine, gormDB *gor
 	doReg("GET", "/churn-prediction/risk-distribution", churnCtrl.GetRiskDistribution)
 	doReg("GET", "/churn-prediction/model-config", churnCtrl.GetModelConfig)
 	doRegAdmin("POST", "/churn-prediction/model-config", churnCtrl.SaveModelConfig)
+}
+
+// setupBackupAliases 注册备份/恢复的前端兼容别名。
+//
+// 独立成函数是为了让平台运营方档位测试可以直接挂载它，而不必启动整个
+// 别名层（那需要真实 DB 且会注册数百条路由）。这些别名与
+// setupBackupRoutes 指向同一批全局表，档位必须一致。
+func setupBackupAliases(systemAdmin *gin.RouterGroup) {
+	backupGapCtrl := controller.NewBackupGapController()
+	systemAdmin.GET("/backup/list", backupGapCtrl.List)
+	systemAdmin.GET("/backup/stats", backupGapCtrl.Stats)
+	systemAdmin.PUT("/backup/strategy", backupGapCtrl.SaveStrategy)
+	systemAdmin.POST("/backup/create", backupGapCtrl.Create)
+	systemAdmin.GET("/backup/:id/preview", backupGapCtrl.Preview)
+	systemAdmin.POST("/backup/:id/restore", backupGapCtrl.Restore)
+	systemAdmin.DELETE("/backup/:id", backupGapCtrl.Delete)
+	systemAdmin.GET("/backups/stats", backupGapCtrl.Stats)
 }

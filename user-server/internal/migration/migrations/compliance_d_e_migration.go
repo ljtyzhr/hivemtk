@@ -24,12 +24,12 @@ func (m *ComplianceDEMigration) Version() string { return "v2.10.1" }
 
 // Name 返回迁移名称
 func (m *ComplianceDEMigration) Name() string {
-	return "D+E 域合规（邮件+短信退订与追踪 6 张表）"
+	return "D+E 域合规（邮件+短信退订与追踪 5 张表）"
 }
 
 // Description 返回迁移描述
 func (m *ComplianceDEMigration) Description() string {
-	return "创建 email_unsubscribes / email_tracking_events / email_job_metrics / sms_unsubscribes / sms_delivery_statuses / sms_job_metrics 6 张表"
+	return "创建 email_unsubscribes / email_tracking_events / email_job_metrics / sms_unsubscribes / sms_delivery_statuses 5 张表"
 }
 
 // Up 执行升级
@@ -56,10 +56,6 @@ func (m *ComplianceDEMigration) Up(ctx context.Context) error {
 
 	if err := m.createSmsDeliveryStatuses(ctx); err != nil {
 		return fmt.Errorf("create sms_delivery_statuses 失败: %w", err)
-	}
-
-	if err := m.createSmsJobMetrics(ctx); err != nil {
-		return fmt.Errorf("create sms_job_metrics 失败: %w", err)
 	}
 
 	return nil
@@ -187,41 +183,15 @@ func (m *ComplianceDEMigration) createSmsDeliveryStatuses(ctx context.Context) e
 	return execAllComplianceDE(ctx, m.db, stmts)
 }
 
-func (m *ComplianceDEMigration) createSmsJobMetrics(ctx context.Context) error {
-	stmts := []string{
-		`CREATE TABLE IF NOT EXISTS sms_job_metrics (
-			id BIGSERIAL PRIMARY KEY,
-			job_id VARCHAR(36) NOT NULL UNIQUE,
-			total_sent BIGINT NOT NULL DEFAULT 0,
-			total_delivered BIGINT NOT NULL DEFAULT 0,
-			total_failed BIGINT NOT NULL DEFAULT 0,
-			total_retried BIGINT NOT NULL DEFAULT 0,
-			delivery_rate NUMERIC(5,2) NOT NULL DEFAULT 0,
-			failure_rate NUMERIC(5,2) NOT NULL DEFAULT 0,
-			created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-			updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-			deleted_at TIMESTAMPTZ
-		)`,
-		`CREATE INDEX IF NOT EXISTS idx_sms_job_metrics_job ON sms_job_metrics(job_id)`,
-		`CREATE INDEX IF NOT EXISTS idx_sms_job_metrics_updated ON sms_job_metrics(updated_at)`,
-		`CREATE INDEX IF NOT EXISTS idx_sms_job_metrics_deleted ON sms_job_metrics(deleted_at)`,
-	}
-	return execAllComplianceDE(ctx, m.db, stmts)
-}
-
-// Down 执行降级（删除 6 张表）
+// Down 执行降级
+//
+// 这 5 张表均已登记为 GORM 模型（internal/pkg/db/migrate.go 的 allModels），
+// 建表事实源是启动期 AutoMigrate；本迁移 Up 里的 CREATE TABLE IF NOT EXISTS
+// 在 AutoMigrate 之后是空操作 ⇒ Down 不得销毁在用对象（删掉即数据丢失）。
 func (m *ComplianceDEMigration) Down(ctx context.Context) error {
-	// email_job_metrics / email_tracking_events 已登记为 GORM 模型（internal/pkg/db/migrate.go 的
-	// allModels 里是 &model.EmailJobMetric{} 与 &model.EmailTrackingEvent{}），
-	// 建表事实源是 AutoMigrate，本迁移的 Up 里的 CREATE TABLE IF NOT EXISTS 在 AutoMigrate
-	// 之后是空操作 ⇒ 这两张表不是本迁移建的，Down 不得销毁它们（删掉即数据丢失）。
-	// sms_job_metrics 没有模型持有，仍属本迁移自建对象，继续删除。
 	declineTableDrop(m.Version(), "sms_delivery_statuses", "sms_unsubscribes", "email_unsubscribes",
 		"email_job_metrics", "email_tracking_events")
-	stmts := []string{
-		`DROP TABLE IF EXISTS sms_job_metrics`,
-	}
-	return execAllComplianceDE(ctx, m.db, stmts)
+	return nil
 }
 
 func execAllComplianceDE(ctx context.Context, db *gorm.DB, stmts []string) error {

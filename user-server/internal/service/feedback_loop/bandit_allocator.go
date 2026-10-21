@@ -2,25 +2,29 @@ package feedbackloop
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"math"
 	"math/rand"
-	"sort"
 	"sync"
 	"time"
 
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/repository"
 
 	"gorm.io/gorm"
 )
 
-// BanditAllocator Multi-Armed Bandit 流量分配器
+// BanditAllocator Multi-Armed Bandit 分配器
+//
+// 负责臂后验更新、收敛判定与胜者晋升。臂选择（SelectArm/SelectPrompt）的唯一
+// 调用方随 self_learning 模块一起下线后无人引用，且持锁调用 betaSample 会死锁，
+// 已在 2026-10 审计中整段删除；当前 SOP 变体分流走 SOPAgent.ABTestConfig。
 type BanditAllocator struct {
 	banditRepo *repository.FeedbackLoopRepository
 	mu         sync.RWMutex
 	cache      map[string][]*model.BanditArm
+	rngMu      sync.Mutex
 	rng        *rand.Rand
 	config     BanditConfig
 }
@@ -33,15 +37,6 @@ type BanditAllocator struct {
 //	cfg    - 配置（零值字段会用默认值填充）
 //	seed   - PRNG 种子（测试时可固定；生产用 time.Now().UnixNano()）
 func NewBanditAllocator(db *gorm.DB, cfg BanditConfig, seed int64) *BanditAllocator {
-	if cfg.MinSamplesForExploit == 0 {
-		cfg.MinSamplesForExploit = 30
-	}
-	if cfg.ExplorationFloor == 0 {
-		cfg.ExplorationFloor = 0.10
-	}
-	if cfg.TrafficCeiling == 0 {
-		cfg.TrafficCeiling = 0.60
-	}
 	if cfg.ConvergenceThreshold == 0 {
 		cfg.ConvergenceThreshold = 0.95
 	}
@@ -62,104 +57,6 @@ func NewBanditAllocator(db *gorm.DB, cfg BanditConfig, seed int64) *BanditAlloca
 	}
 }
 
-// SelectArm 为指定实验选择一个臂（Thompson Sampling）
-//
-// 冷启动期（每臂样本 < MinSamplesForExploit）强制均匀随机分配
-// 利用期使用 Thompson Sampling
-// 流量上限保护：单臂流量超过 TrafficCeiling 时强制探索其他臂
-//
-// 返回：
-//
-//	armKey  - 选中的 arm key
-//	strategy - cold_start_uniform / thompson_sampling / forced_explore
-//	err     - 错误（无臂/DB 错误）
-func (b *BanditAllocator) SelectArm(ctx context.Context, experimentID string) (armKey, strategy string, err error) {
-	if experimentID == "" {
-		return "", "", ErrInvalidInput
-	}
-	arms, err := b.loadArms(ctx, experimentID)
-	if err != nil {
-		return "", "", fmt.Errorf("load arms: %w", err)
-	}
-	if len(arms) == 0 {
-		return "", "", ErrNoArms
-	}
-	if len(arms) == 1 {
-		return arms[0].ArmKey, "single_arm", nil
-	}
-
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
-	activeArms := make([]*model.BanditArm, 0, len(arms))
-	totalSamples := int64(0)
-	for _, a := range arms {
-		if a.Status == model.BanditArmStatusExploring || a.Status == model.BanditArmStatusExploiting {
-			activeArms = append(activeArms, a)
-			totalSamples += a.TotalTrials
-		}
-	}
-	if len(activeArms) == 0 {
-		return arms[0].ArmKey, "no_active", nil
-	}
-
-	minSamples := int64(b.config.MinSamplesForExploit)
-	if totalSamples < minSamples*int64(len(activeArms)) {
-		idx := b.rng.Intn(len(activeArms))
-		go b.markSampledAsync(experimentID, activeArms[idx].ArmKey)
-		return activeArms[idx].ArmKey, "cold_start_uniform", nil
-	}
-
-	bestKey := ""
-	bestSample := -1.0
-	for _, a := range activeArms {
-		sample := b.betaSample(a.Alpha, a.Beta)
-		if sample > bestSample {
-			bestSample = sample
-			bestKey = a.ArmKey
-		}
-	}
-	if bestKey == "" {
-		return activeArms[0].ArmKey, "fallback_first", nil
-	}
-	strategy = "thompson_sampling"
-
-	if forcedKey, needExplore := b.enforceTrafficCeiling(activeArms, bestKey, totalSamples); needExplore {
-		bestKey = forcedKey
-		strategy = "forced_explore"
-	}
-
-	go b.markSampledAsync(experimentID, bestKey)
-
-	return bestKey, strategy, nil
-}
-
-// SelectPrompt 便捷方法：为 SOP 节点选择 Prompt 候选
-//
-// 查找当前 running 的 prompt 实验，调用 SelectArm，并返回关联的 PromptCandidateID
-// 若无运行中的实验或无可用臂，返回 0 表示使用默认 Prompt
-func (b *BanditAllocator) SelectPrompt(ctx context.Context, sopID uint, nodeID string) (uint, string, error) {
-	test, err := b.banditRepo.GetRunningPromptABTestBySOPNode(ctx, sopID, nodeID)
-	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return 0, "", nil
-		}
-		return 0, "", fmt.Errorf("query running ab test: %w", err)
-	}
-	armKey, _, err := b.SelectArm(ctx, test.ExperimentID)
-	if err != nil {
-		return 0, "", err
-	}
-	if armKey == "" {
-		return 0, "", nil
-	}
-	arm, err := b.banditRepo.GetBanditArmByExperimentAndKey(ctx, test.ExperimentID, armKey)
-	if err != nil {
-		return 0, armKey, fmt.Errorf("query arm: %w", err)
-	}
-	return arm.PromptCandidateID, armKey, nil
-}
-
 // UpdateReward 更新臂的奖励（成功/失败）
 //
 // 在 FeedbackCollector 写入 feedback_signals 后异步调用
@@ -170,13 +67,10 @@ func (b *BanditAllocator) UpdateReward(ctx context.Context, experimentID, armKey
 	if experimentID == "" || armKey == "" {
 		return ErrInvalidInput
 	}
-	b.mu.Lock()
-	defer b.mu.Unlock()
-
 	if err := b.banditRepo.UpdateBanditArmReward(ctx, experimentID, armKey, success, reward); err != nil {
 		return fmt.Errorf("update bandit arm: %w", err)
 	}
-	delete(b.cache, experimentID)
+	b.invalidateCache(ctx, experimentID)
 	return nil
 }
 
@@ -241,73 +135,57 @@ func (b *BanditAllocator) PromoteArm(ctx context.Context, experimentID, winnerKe
 	if experimentID == "" || winnerKey == "" {
 		return ErrInvalidInput
 	}
-	return b.banditRepo.PromoteBanditArmWinner(ctx, experimentID, winnerKey)
+	if err := b.banditRepo.PromoteBanditArmWinner(ctx, experimentID, winnerKey); err != nil {
+		return err
+	}
+	b.invalidateCache(ctx, experimentID)
+	return nil
 }
 
-// InvalidateCache 失效指定实验的缓存（外部数据变更后调用）
-func (b *BanditAllocator) InvalidateCache(experimentID string) {
+// cacheKey 租户参与缓存键
+//
+// 只按 experiment_id 做键时，多租户进程里先加载的租户 A 的臂列表会被
+// 租户 B 的 CheckConvergence 直接命中，后验数据跨租户串读。
+func cacheKey(ctx context.Context, experimentID string) string {
+	tenantID, _ := tenant.FromContext(ctx)
+	return fmt.Sprintf("%d:%s", tenantID, experimentID)
+}
+
+func (b *BanditAllocator) invalidateCache(ctx context.Context, experimentID string) {
 	b.mu.Lock()
-	defer b.mu.Unlock()
-	delete(b.cache, experimentID)
+	delete(b.cache, cacheKey(ctx, experimentID))
+	b.mu.Unlock()
 }
 
 func (b *BanditAllocator) loadArms(ctx context.Context, experimentID string) ([]*model.BanditArm, error) {
+	key := cacheKey(ctx, experimentID)
 	b.mu.RLock()
-	if arms, ok := b.cache[experimentID]; ok {
-		b.mu.RUnlock()
+	arms, ok := b.cache[key]
+	b.mu.RUnlock()
+	if ok {
 		return arms, nil
 	}
-	b.mu.RUnlock()
 
 	arms, err := b.banditRepo.ListActiveBanditArms(ctx, experimentID)
 	if err != nil {
 		return nil, err
 	}
 	b.mu.Lock()
-	b.cache[experimentID] = arms
+	b.cache[key] = arms
 	b.mu.Unlock()
 	return arms, nil
 }
 
-func (b *BanditAllocator) enforceTrafficCeiling(arms []*model.BanditArm, bestKey string, totalTrials int64) (string, bool) {
-	if totalTrials == 0 {
-		return bestKey, false
-	}
-	for _, a := range arms {
-		if a.ArmKey == bestKey {
-			if float64(a.TotalTrials)/float64(totalTrials) > b.config.TrafficCeiling {
-				return pickLowestTrafficArm(arms, bestKey), true
-			}
-			return bestKey, false
-		}
-	}
-	return bestKey, false
-}
-
-func pickLowestTrafficArm(arms []*model.BanditArm, excludeKey string) string {
-	sort.Slice(arms, func(i, j int) bool {
-		return arms[i].TotalTrials < arms[j].TotalTrials
-	})
-	for _, a := range arms {
-		if a.ArmKey != excludeKey {
-			return a.ArmKey
-		}
-	}
-	return excludeKey
-}
-
-func (b *BanditAllocator) markSampledAsync(experimentID, armKey string) {
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-	_ = b.banditRepo.UpdateBanditArmLastSampled(ctx, experimentID, armKey, time.Now())
-}
-
+// betaSample 采样 Beta(alpha,beta)
+//
+// rng 不是并发安全的，用独立 rngMu 保护。早期实现复用 cache 的 b.mu，
+// 而 SelectArm 在持 b.mu 的情况下再调用本方法，必然自锁死。
 func (b *BanditAllocator) betaSample(alpha, beta float64) float64 {
 	if alpha <= 0 || beta <= 0 {
 		return 0.5
 	}
-	b.mu.Lock()
-	defer b.mu.Unlock()
+	b.rngMu.Lock()
+	defer b.rngMu.Unlock()
 	x := gammaSample(alpha, 1.0, b.rng)
 	y := gammaSample(beta, 1.0, b.rng)
 	sum := x + y

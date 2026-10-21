@@ -17,6 +17,7 @@ import (
 	"sync"
 	"time"
 
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 )
 
@@ -119,20 +120,28 @@ func (w *ApprovalSweepWorker) loop(ctx context.Context) {
 
 // RunOnce 跑一轮到期清扫，返回本轮结果。导出的理由是"测的那份就是生产跑的那份"：
 // 只靠节拍触发的循环无法在测试里等到，而不限窗口的话 AC③ 只能测常量不能测行为。
+//
+// 按租户扇出（Fanout）：Start 拿到的是 context.Background，on 模式下无租户绑定，
+// 隔离 callback 对 approval_requests 的读取会 fail-closed —— 直接拿原 ctx 跑
+// 等于清扫轮轮失败，pending 永不退场。Fanout 逐活跃租户注入 ctx，同时保证
+// closeTask/notifyWait 也在对应租户下读写待办与 SOP 定时器。
 func (w *ApprovalSweepWorker) RunOnce(ctx context.Context) *ApprovalSweepReport {
 	report := &ApprovalSweepReport{At: time.Now()}
 	if w == nil || w.svc == nil {
 		report.Err = "审批服务未注入"
 		return report
 	}
-	flipped, err := w.svc.ExpireOverdue(ctx, approvalSweepBatchLimit)
+	expired, err := tenant.Fanout(ctx, nil, func(tctx context.Context, _ uint) (int64, error) {
+		flipped, ferr := w.svc.ExpireOverdue(tctx, approvalSweepBatchLimit)
+		return int64(len(flipped)), ferr
+	})
+	report.Expired = int(expired)
 	if err != nil {
 		report.Err = err.Error()
 		// 失败必须出声：这一格静默失败的结果是"pending 永不退场"，
 		// 而那是 T-P3-01 移交过来的原病灶，不能修完又无声退化回去。
-		logger.Errorf("[approval] 到期清扫失败 ⇒ 已翻 %d 条，剩余留待下一轮：%v", len(flipped), err)
+		logger.Errorf("[approval] 到期清扫失败 ⇒ 已翻 %d 条，剩余留待下一轮：%v", report.Expired, err)
 	}
-	report.Expired = len(flipped)
 
 	w.mu.Lock()
 	w.rounds++

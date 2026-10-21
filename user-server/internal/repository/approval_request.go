@@ -18,7 +18,6 @@ import (
 	"gorm.io/gorm/clause"
 
 	"hivemtk-user/internal/model"
-	_db "hivemtk-user/internal/pkg/db"
 )
 
 // ErrApprovalPendingConflict 同一 subject+policy 已有他人先建的 pending 审批
@@ -115,12 +114,7 @@ type approvalRequestRepo struct {
 	db *gorm.DB
 }
 
-// NewApprovalRequestRepository 创建实例（用全局 DB）
-func NewApprovalRequestRepository() ApprovalRequestRepository {
-	return &approvalRequestRepo{db: _db.GetDB()}
-}
-
-// NewApprovalRequestRepositoryWithDB 创建指定数据库连接的实例（用于测试与装配注入）
+// NewApprovalRequestRepositoryWithDB 创建指定数据库连接的实例（装配与测试注入）
 func NewApprovalRequestRepositoryWithDB(db *gorm.DB) ApprovalRequestRepository {
 	return &approvalRequestRepo{db: db}
 }

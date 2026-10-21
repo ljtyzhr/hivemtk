@@ -213,10 +213,3 @@ func BillStatusCanTransit(from, to string) bool {
 	}
 	return false
 }
-
-// BillStatusNext 返回某一格的出边（副本无所谓：调用方只读长度与内容）。
-// 空切片 = 终态。单独给一个读口的理由与 opportunity 那边同：
-// 跃迁表是**表**，不是散落在 if 里的字面值，否则"改判无路"这件事没人能测。
-func BillStatusNext(from string) []string {
-	return billStatusTransitions[from]
-}

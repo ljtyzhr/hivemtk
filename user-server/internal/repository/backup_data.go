@@ -4,7 +4,6 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
-	"time"
 
 	_db "hivemtk-user/internal/pkg/db"
 
@@ -12,15 +11,14 @@ import (
 )
 
 type BackupDataRepository interface {
-	DumpClues(ctx context.Context, sinceUnix int64) (json.RawMessage, error)
+	DumpClues(ctx context.Context) (json.RawMessage, error)
 	DumpUsers(ctx context.Context, limit, offset int) (json.RawMessage, error)
 	DumpShortLinks(ctx context.Context, limit, offset int) (json.RawMessage, error)
-	DumpTable(ctx context.Context, tableName string) (json.RawMessage, error)
-	ClueExists(ctx context.Context, id string) (bool, error)
+	ClueExists(ctx context.Context, tenantID uint, id string) (bool, error)
 	RestoreClue(ctx context.Context, row map[string]any) error
-	UserExistsByUsername(ctx context.Context, username string) (bool, error)
+	UserExistsByUsername(ctx context.Context, tenantID uint, username string) (bool, error)
 	RestoreUser(ctx context.Context, row map[string]any) error
-	ShortLinkExistsByCode(ctx context.Context, code string) (bool, error)
+	ShortLinkExistsByCode(ctx context.Context, tenantID uint, code string) (bool, error)
 	RestoreShortLink(ctx context.Context, row map[string]any) error
 	RestoreTable(ctx context.Context, tableName string, rows []map[string]any) error
 }
@@ -39,8 +37,9 @@ func NewBackupDataRepositoryWithDB(gormDB *gorm.DB) BackupDataRepository {
 	return &backupDataRepo{db: gormDB}
 }
 
-func (r *backupDataRepo) DumpClues(ctx context.Context, sinceUnix int64) (json.RawMessage, error) {
+func (r *backupDataRepo) DumpClues(ctx context.Context) (json.RawMessage, error) {
 	type clueRow struct {
+		TenantID uint   `json:"tenant_id"`
 		ID       string `json:"id"`
 		SourceID string `json:"source_id"`
 		Account  string `json:"account"`
@@ -52,9 +51,7 @@ func (r *backupDataRepo) DumpClues(ctx context.Context, sinceUnix int64) (json.R
 		Desc     string `json:"desc"`
 	}
 	var rows []clueRow
-	if err := r.db.WithContext(ctx).Table("clues").
-		Where("create_time > ?", sinceUnix).
-		Find(&rows).Error; err != nil {
+	if err := r.db.WithContext(ctx).Table("clues").Order("id ASC").Find(&rows).Error; err != nil {
 		return nil, err
 	}
 	return json.Marshal(rows)
@@ -62,6 +59,7 @@ func (r *backupDataRepo) DumpClues(ctx context.Context, sinceUnix int64) (json.R
 
 func (r *backupDataRepo) DumpUsers(ctx context.Context, limit, offset int) (json.RawMessage, error) {
 	type userRow struct {
+		TenantID uint   `json:"tenant_id"`
 		ID       string `json:"id"`
 		Username string `json:"username"`
 		Email    string `json:"email"`
@@ -69,7 +67,8 @@ func (r *backupDataRepo) DumpUsers(ctx context.Context, limit, offset int) (json
 		Password string `json:"password"`
 	}
 	var rows []userRow
-	if err := r.db.WithContext(ctx).Table("user").Limit(limit).Offset(offset).Find(&rows).Error; err != nil {
+	if err := r.db.WithContext(ctx).Table("user").
+		Order("id ASC").Limit(limit).Offset(offset).Find(&rows).Error; err != nil {
 		return nil, err
 	}
 	return json.Marshal(rows)
@@ -77,20 +76,24 @@ func (r *backupDataRepo) DumpUsers(ctx context.Context, limit, offset int) (json
 
 func (r *backupDataRepo) DumpShortLinks(ctx context.Context, limit, offset int) (json.RawMessage, error) {
 	type row struct {
-		ID        uint   `json:"id"`
-		ShortCode string `json:"short_code"`
-		URL       string `json:"url"`
+		TenantID    uint   `json:"tenant_id"`
+		ID          uint   `json:"id"`
+		ShortCode   string `json:"short_code"`
+		OriginalURL string `gorm:"column:original_url" json:"original_url"`
 	}
 	var rows []row
-	if err := r.db.WithContext(ctx).Table("short_links").Limit(limit).Offset(offset).Find(&rows).Error; err != nil {
+	if err := r.db.WithContext(ctx).Table("short_links").
+		Order("id ASC").Limit(limit).Offset(offset).Find(&rows).Error; err != nil {
 		return nil, err
 	}
 	return json.Marshal(rows)
 }
 
-func (r *backupDataRepo) ClueExists(ctx context.Context, id string) (bool, error) {
+func (r *backupDataRepo) ClueExists(ctx context.Context, tenantID uint, id string) (bool, error) {
 	var count int64
-	if err := r.db.WithContext(ctx).Table("clues").Where("id = ?", id).Count(&count).Error; err != nil {
+	if err := r.db.WithContext(ctx).Table("clues").
+		Where("tenant_id = ? AND id = ?", tenantID, id).
+		Count(&count).Error; err != nil {
 		return false, err
 	}
 	return count > 0, nil
@@ -100,9 +103,11 @@ func (r *backupDataRepo) RestoreClue(ctx context.Context, row map[string]any) er
 	return r.db.WithContext(ctx).Table("clues").Create(row).Error
 }
 
-func (r *backupDataRepo) UserExistsByUsername(ctx context.Context, username string) (bool, error) {
+func (r *backupDataRepo) UserExistsByUsername(ctx context.Context, tenantID uint, username string) (bool, error) {
 	var count int64
-	if err := r.db.WithContext(ctx).Table("user").Where("username = ?", username).Count(&count).Error; err != nil {
+	if err := r.db.WithContext(ctx).Table("user").
+		Where("tenant_id = ? AND username = ?", tenantID, username).
+		Count(&count).Error; err != nil {
 		return false, err
 	}
 	return count > 0, nil
@@ -112,9 +117,11 @@ func (r *backupDataRepo) RestoreUser(ctx context.Context, row map[string]any) er
 	return r.db.WithContext(ctx).Table("user").Create(row).Error
 }
 
-func (r *backupDataRepo) ShortLinkExistsByCode(ctx context.Context, code string) (bool, error) {
+func (r *backupDataRepo) ShortLinkExistsByCode(ctx context.Context, tenantID uint, code string) (bool, error) {
 	var count int64
-	if err := r.db.WithContext(ctx).Table("short_links").Where("short_code = ?", code).Count(&count).Error; err != nil {
+	if err := r.db.WithContext(ctx).Table("short_links").
+		Where("tenant_id = ? AND short_code = ?", tenantID, code).
+		Count(&count).Error; err != nil {
 		return false, err
 	}
 	return count > 0, nil
@@ -136,22 +143,12 @@ var allowedBackupTables = map[string]bool{
 	"password_history":        true,
 }
 
-func (r *backupDataRepo) DumpTable(ctx context.Context, tableName string) (json.RawMessage, error) {
-	if !allowedBackupTables[tableName] {
-		return nil, fmt.Errorf("表 %s 不在导出白名单内", tableName)
-	}
-	var rows []map[string]any
-	if err := r.db.WithContext(ctx).Table(tableName).Find(&rows).Error; err != nil {
-		return nil, err
-	}
-	if rows == nil {
-		return []byte("[]"), nil
-	}
-	return json.Marshal(rows)
-}
-
-// RestoreTable 恢复单表：整表 DELETE + 逐行 Create 包在同一个事务里，
+// RestoreTable 恢复单表：DELETE 备份覆盖到的租户 + 逐行 Create 包在同一个事务里，
 // 任一行失败整体回滚，绝不留下"清空了但没恢复完"的半恢复状态。
+//
+// DELETE 必须带租户范围：这里跑在 SystemScope 下，无 WHERE 的整表清空会连
+// 备份未覆盖的租户一起清掉。备份来自旧版本时行内可能没有 tenant_id，
+// 这类行按默认租户（1）归属，与 Create 落库时的列默认值一致。
 func (r *backupDataRepo) RestoreTable(ctx context.Context, tableName string, rows []map[string]any) error {
 	if !allowedBackupTables[tableName] {
 		return fmt.Errorf("表 %s 不在恢复白名单内", tableName)
@@ -160,8 +157,11 @@ func (r *backupDataRepo) RestoreTable(ctx context.Context, tableName string, row
 		return nil
 	}
 
+	tenantIDs := backupRowTenantIDs(rows)
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Table(tableName).Session(&gorm.Session{AllowGlobalUpdate: true}).Delete(nil).Error; err != nil {
+		if err := tx.Table(tableName).
+			Where("tenant_id IN ?", tenantIDs).
+			Delete(nil).Error; err != nil {
 			return fmt.Errorf("清空 %s 失败: %w", tableName, err)
 		}
 		for i, row := range rows {
@@ -173,6 +173,53 @@ func (r *backupDataRepo) RestoreTable(ctx context.Context, tableName string, row
 	})
 }
 
-var _ = time.Now
+// backupRowTenantIDs 收集备份行覆盖的租户集合；缺省归属默认租户。
+func backupRowTenantIDs(rows []map[string]any) []uint {
+	seen := map[uint]bool{}
+	ids := make([]uint, 0, 1)
+	for _, row := range rows {
+		id := backupRowTenantID(row)
+		if !seen[id] {
+			seen[id] = true
+			ids = append(ids, id)
+		}
+	}
+	return ids
+}
+
+func backupRowTenantID(row map[string]any) uint {
+	for _, key := range []string{"tenant_id", "TenantID"} {
+		if v, ok := row[key]; ok {
+			if n, ok := backupUint(v); ok && n != 0 {
+				return n
+			}
+		}
+	}
+	return 1
+}
+
+func backupUint(v any) (uint, bool) {
+	switch n := v.(type) {
+	case uint:
+		return n, true
+	case uint8:
+		return uint(n), true
+	case uint16:
+		return uint(n), true
+	case uint32:
+		return uint(n), true
+	case uint64:
+		return uint(n), true
+	case int:
+		return uint(n), n >= 0
+	case int32:
+		return uint(n), n >= 0
+	case int64:
+		return uint(n), n >= 0
+	case float64:
+		return uint(n), n >= 0 && n == float64(uint(n))
+	}
+	return 0, false
+}
 
 var _ BackupDataRepository = (*backupDataRepo)(nil)

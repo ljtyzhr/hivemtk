@@ -35,9 +35,6 @@ func TestNewABExperimentService(t *testing.T) {
 	if service == nil {
 		t.Fatal("Expected service instance, got nil")
 	}
-	if service.variantCache == nil {
-		t.Error("Expected variantCache to be initialized")
-	}
 	if service.experimentRepo == nil {
 		t.Error("Expected experimentRepo to be initialized")
 	}
@@ -405,95 +402,76 @@ func TestABExperimentService_StopExperiment_Success(t *testing.T) {
 	}
 }
 
-// TestABExperimentService_GetVariant_CacheHit 测试从缓存获取变体
-func TestABExperimentService_GetVariant_CacheHit(t *testing.T) {
-	ctx := context.Background()
-	service := setupABExperimentService(t)
-
-	hashKey := service.hashSourceID("test_source")
-	cachedVariant := &model.ABVariant{
-		Name:      "Cached",
-		IsControl: true,
-	}
-	service.variantCache[hashKey] = cachedVariant
-
-	variant, err := service.GetVariant(ctx, "test_source")
-	if err != nil {
-		t.Fatalf("GetVariant failed: %v", err)
-	}
-
-	if variant.Name != "Cached" {
-		t.Errorf("Expected cached variant 'Cached', got '%s'", variant.Name)
-	}
-}
-
-// TestABExperimentService_GetVariant_NotFound 测试变体不存在
-func TestABExperimentService_GetVariant_NotFound(t *testing.T) {
-	ctx := context.Background()
-	service := setupABExperimentService(t)
-
-	_, err := service.GetVariant(ctx, "non_existent_source")
-	if err == nil {
-		t.Error("Expected error for non-existent variant")
-	}
-}
-
-// TestABExperimentService_hashSourceID 测试哈希函数
-func TestABExperimentService_hashSourceID(t *testing.T) {
-	service := setupABExperimentService(t)
-
-	hash1 := service.hashSourceID("test123")
-	hash2 := service.hashSourceID("test123")
-	hash3 := service.hashSourceID("test456")
-	_ = hash3
-
-	if hash1 != hash2 {
-		t.Error("Same input should produce same hash")
-	}
-	if hash1 == 0 {
-		t.Error("Hash should not be 0")
-	}
-	if hash1 >= 1000000 {
-		t.Error("Hash should be less than 1000000")
-	}
-}
-
-// TestABExperimentService_RecordConversion_Success 测试记录转化事件
-func TestABExperimentService_RecordConversion_Success(t *testing.T) {
+// TestABExperimentService_GetConversionEvents_Success 测试获取转化事件
+func TestABExperimentService_GetConversionEvents_Success(t *testing.T) {
 	ctx := context.Background()
 	service := setupABExperimentService(t)
 
 	createReq := &CreateExperimentRequest{
-		Name:       "Conversion Test",
+		Name:       "Get Events Test",
 		SourceType: "page",
-		SourceID:   "page_conv",
+		SourceID:   "page_getevents",
 		Variants:   []VariantConfig{{Name: "A"}},
 	}
 	experiment, _ := service.CreateExperiment(ctx, createReq)
-
 	variants, _ := service.variantRepo.GetByExperiment(ctx, experiment.ID)
-	if len(variants) == 0 {
-		t.Fatal("No variants created")
-	}
-	variant := variants[0]
 
-	metadata := map[string]any{"source": "test"}
-	err := service.RecordConversion(ctx,
-		experiment.ID,
-		variant.ID,
-		"purchase",
-		"click",
-		9999,
-		"user_123",
-		metadata,
-	)
+	event := &model.ABConversionEvent{
+		ExperimentID: experiment.ID,
+		VariantID:    variants[0].ID,
+		EventName:    "purchase",
+		EventType:    "click",
+		EventValue:   9999,
+		UserID:       "user_123",
+	}
+	if err := db.GetDB().Create(event).Error; err != nil {
+		t.Fatalf("seed conversion event failed: %v", err)
+	}
+
+	events, total, err := service.GetConversionEvents(ctx, experiment.ID, 1, 10)
 	if err != nil {
-		t.Fatalf("RecordConversion failed: %v", err)
+		t.Fatalf("GetConversionEvents failed: %v", err)
 	}
 
-	events, _, _ := service.conversionRepo.GetByExperiment(ctx, experiment.ID, 1, 10)
+	if total != 1 {
+		t.Errorf("Expected total 1, got %d", total)
+	}
 	if len(events) != 1 {
-		t.Errorf("Expected 1 conversion event, got %d", len(events))
+		t.Errorf("Expected 1 event, got %d", len(events))
+	}
+}
+
+// TestABExperimentService_CalculateResults_MultiVariant 多变异实验每个变体各留一条结果。
+// 唯一键位只能是 (tenant_id, experiment_id, variant_id)：若 ExperimentID 单列唯一，
+// 第二个变体的 Upsert 会撞约束，CalculateResults 直接失败。
+func TestABExperimentService_CalculateResults_MultiVariant(t *testing.T) {
+	ctx := context.Background()
+	service := setupABExperimentService(t)
+
+	createReq := &CreateExperimentRequest{
+		Name:       "Multi Variant Results",
+		SourceType: "page",
+		SourceID:   "page_multi_results",
+		Variants: []VariantConfig{
+			{Name: "Control", IsControl: true, Weight: 50},
+			{Name: "Treatment", Weight: 50},
+		},
+	}
+	experiment, err := service.CreateExperiment(ctx, createReq)
+	if err != nil {
+		t.Fatalf("CreateExperiment failed: %v", err)
+	}
+
+	if err := service.CalculateResults(ctx, experiment.ID); err != nil {
+		t.Fatalf("CalculateResults failed: %v", err)
+	}
+
+	results, err := service.resultRepo.GetByExperiment(ctx, experiment.ID)
+	if err != nil {
+		t.Fatalf("GetByExperiment failed: %v", err)
+	}
+	if len(results) != 2 {
+		t.Fatalf("Expected 2 variant results, got %d", len(results))
 	}
 }
 
@@ -518,9 +496,12 @@ func TestABExperimentService_CalculateResults_Success(t *testing.T) {
 	}
 	variant := variants[0]
 
-	service.variantRepo.IncrementTraffic(ctx, variant.ID)
-	service.variantRepo.IncrementTraffic(ctx, variant.ID)
-	service.variantRepo.IncrementConversion(ctx, variant.ID)
+	if err := db.GetDB().WithContext(ctx).Model(variant).Updates(map[string]any{
+		"traffic_count":    2,
+		"conversion_count": 1,
+	}).Error; err != nil {
+		t.Fatalf("seed variant counts failed: %v", err)
+	}
 
 	err := service.CalculateResults(ctx, experiment.ID)
 	if err != nil {
@@ -636,42 +617,5 @@ func TestABExperimentService_GetExperimentResults_Success(t *testing.T) {
 
 	if len(results) != 1 {
 		t.Errorf("Expected 1 result, got %d", len(results))
-	}
-}
-
-// TestABExperimentService_GetConversionEvents_Success 测试获取转化事件
-func TestABExperimentService_GetConversionEvents_Success(t *testing.T) {
-	ctx := context.Background()
-	service := setupABExperimentService(t)
-
-	createReq := &CreateExperimentRequest{
-		Name:       "Get Events Test",
-		SourceType: "page",
-		SourceID:   "page_getevents",
-		Variants:   []VariantConfig{{Name: "A"}},
-	}
-	experiment, _ := service.CreateExperiment(ctx, createReq)
-	variants, _ := service.variantRepo.GetByExperiment(ctx, experiment.ID)
-
-	event := &model.ABConversionEvent{
-		ExperimentID: experiment.ID,
-		VariantID:    variants[0].ID,
-		EventName:    "purchase",
-		EventType:    "click",
-		EventValue:   9999,
-		UserID:       "user_123",
-	}
-	service.conversionRepo.Create(ctx, event)
-
-	events, total, err := service.GetConversionEvents(ctx, experiment.ID, 1, 10)
-	if err != nil {
-		t.Fatalf("GetConversionEvents failed: %v", err)
-	}
-
-	if total != 1 {
-		t.Errorf("Expected total 1, got %d", total)
-	}
-	if len(events) != 1 {
-		t.Errorf("Expected 1 event, got %d", len(events))
 	}
 }

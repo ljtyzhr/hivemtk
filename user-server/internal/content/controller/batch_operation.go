@@ -294,8 +294,6 @@ type BatchUpdateRequest struct {
 
 // BatchUpdate 批量更新
 func (c *BatchOperationController) BatchUpdate(ctx *gin.Context) {
-	_ = ctx
-
 	var req BatchUpdateRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		response.Error(ctx, http.StatusBadRequest, "请求参数错误："+err.Error())

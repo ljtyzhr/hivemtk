@@ -23,7 +23,7 @@ func NewSystemConfigService() *SystemConfigService {
 func (s *SystemConfigService) GetConfig(ctx context.Context) (*model.SystemConfig, error) {
 	config, err := s.repo.GetConfig(ctx)
 	if err != nil {
-		return s.defaultConfig(ctx), nil
+		return s.defaultConfig(), nil
 	}
 	return config, nil
 }
@@ -85,7 +85,7 @@ func (s *SystemConfigService) PingDB(ctx context.Context) bool {
 	return s.repo.PingDB(ctx)
 }
 
-func (s *SystemConfigService) defaultConfig(ctx context.Context) *model.SystemConfig {
+func (s *SystemConfigService) defaultConfig() *model.SystemConfig {
 	return &model.SystemConfig{
 		Name:                 "",
 		WebsiteURL:           "",

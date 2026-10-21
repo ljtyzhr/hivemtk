@@ -50,8 +50,6 @@ func TestConfidenceMigration_UpCreatesAllTables(t *testing.T) {
 		"confidence_calibrations",
 		"handoff_decisions",
 		"threshold_policies",
-		"ab_tests",
-		"ab_test_metrics",
 	}
 	for _, table := range expectedTables {
 		var exists bool
@@ -192,7 +190,7 @@ func TestConfidenceMigration_DefaultPoliciesFields(t *testing.T) {
 	}
 }
 
-// TestConfidenceMigration_Down 集成测试：Down 只回退自己新建的对象，模型持有的 4 张表不得被删
+// TestConfidenceMigration_Down 集成测试：Down 只回退自己新建的对象，模型持有的 3 张表不得被删
 func TestConfidenceMigration_Down(t *testing.T) {
 	db := setupConfidenceMigrationTestDB(t)
 
@@ -207,8 +205,6 @@ func TestConfidenceMigration_Down(t *testing.T) {
 	preservedTables := []string{
 		"confidence_signals",
 		"handoff_decisions",
-		"ab_tests",
-		"ab_test_metrics",
 	}
 	for _, table := range preservedTables {
 		var exists bool
@@ -318,34 +314,6 @@ func TestConfidenceMigration_InsertCalibration(t *testing.T) {
 	}
 }
 
-// TestConfidenceMigration_InsertABTest 集成测试：ab_tests + ab_test_metrics 可写入
-func TestConfidenceMigration_InsertABTest(t *testing.T) {
-	db := setupConfidenceMigrationTestDB(t)
-
-	m := NewConfidenceMigration(db)
-	if err := m.Up(context.Background()); err != nil {
-		t.Fatalf("Up() failed: %v", err)
-	}
-
-	if err := db.Exec(`
-		INSERT INTO ab_tests
-			(test_id, test_name, description, status, traffic_split, metrics)
-		VALUES ($1, $2, $3, 'running',
-		        '{"control": 0.5, "treatment": 0.5}'::jsonb,
-		        '["ctr", "conversion"]'::jsonb)
-	`, "test-1", "测试1", "A/B 测试").Error; err != nil {
-		t.Errorf("插入 ab_tests 失败: %v", err)
-	}
-
-	if err := db.Exec(`
-		INSERT INTO ab_test_metrics
-			(test_id, group_name, metric_name, value)
-		VALUES ($1, $2, $3, $4)
-	`, "test-1", "control", "ctr", 0.123456).Error; err != nil {
-		t.Errorf("插入 ab_test_metrics 失败: %v", err)
-	}
-}
-
 // TestConfidenceMigration_IndexesCreated 集成测试：所有索引创建
 func TestConfidenceMigration_IndexesCreated(t *testing.T) {
 	db := setupConfidenceMigrationTestDB(t)
@@ -364,8 +332,6 @@ func TestConfidenceMigration_IndexesCreated(t *testing.T) {
 		"idx_handoff_agent",
 		"idx_handoff_sla",
 		"idx_policies_intent",
-		"idx_ab_status",
-		"idx_abm_test",
 	}
 	for _, idx := range expectedIndexes {
 		var exists bool

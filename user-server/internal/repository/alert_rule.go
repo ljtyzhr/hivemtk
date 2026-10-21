@@ -37,8 +37,25 @@ func (r *alertRuleRepo) Create(ctx context.Context, m *model.AlertRule) error {
 	return r.db.WithContext(ctx).Create(m).Error
 }
 
+// Update 更新告警规则
+//
+// 不用 Save：Save 命中 0 行会回退成 ON CONFLICT(裸主键) DO UPDATE，跨租户按主键
+// Save 能把整行搬到调用方租户下（#14 真库探针复现）。这里显式 Omit 主键/租户/创建时间，
+// 谓词只剩 WHERE id + 注入的 tenant_id，0 行就是 0 行；
+// Select("*") 保证布尔/数值零值也会落库（Updates(struct) 默认跳过零值）。
 func (r *alertRuleRepo) Update(ctx context.Context, m *model.AlertRule) error {
-	return r.db.WithContext(ctx).Save(m).Error
+	res := r.db.WithContext(ctx).Model(&model.AlertRule{}).
+		Where("id = ?", m.ID).
+		Select("*").
+		Omit("id", "tenant_id", "created_at").
+		Updates(m)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 func (r *alertRuleRepo) Delete(ctx context.Context, id uint) error {
@@ -113,9 +130,16 @@ func (r *alertRuleRepo) BatchUpdateStatus(ctx context.Context, ids []uint, enabl
 	if len(ids) == 0 {
 		return errors.New("ids 不能为空")
 	}
-	return r.db.WithContext(ctx).Model(&model.AlertRule{}).
+	res := r.db.WithContext(ctx).Model(&model.AlertRule{}).
 		Where("id IN ?", ids).
-		Update("enabled", enabled).Error
+		Update("enabled", enabled)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 var _ AlertRuleRepository = (*alertRuleRepo)(nil)

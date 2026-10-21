@@ -11,6 +11,7 @@ import (
 	"time"
 
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
@@ -21,11 +22,10 @@ import (
 
 // CustomerSessionService 客服会话服务
 type CustomerSessionService struct {
-	sessionRepo    *repository.CustomerSessionRepository
-	messageRepo    *repository.SessionMessageRepository
-	agentRepo      *repository.AgentStatusRepository
-	suggestionRepo *repository.AISuggestionRepository
-	blacklistRepo  *repository.UserBlacklistRepository
+	sessionRepo   *repository.CustomerSessionRepository
+	messageRepo   *repository.SessionMessageRepository
+	agentRepo     *repository.AgentStatusRepository
+	blacklistRepo *repository.UserBlacklistRepository
 }
 
 // CustomerSessionActiveTTL 客服会话活跃 TTL 的兜底值声明。
@@ -65,11 +65,10 @@ func (s *CustomerSessionService) AutoCloseStaleSessions(ctx context.Context) (in
 // NewCustomerSessionService 创建客服会话服务实例
 func NewCustomerSessionService() *CustomerSessionService {
 	return &CustomerSessionService{
-		sessionRepo:    repository.NewCustomerSessionRepository(),
-		messageRepo:    repository.NewSessionMessageRepository(),
-		agentRepo:      repository.NewAgentStatusRepository(),
-		suggestionRepo: repository.NewAISuggestionRepository(),
-		blacklistRepo:  repository.NewUserBlacklistRepository(),
+		sessionRepo:   repository.NewCustomerSessionRepository(),
+		messageRepo:   repository.NewSessionMessageRepository(),
+		agentRepo:     repository.NewAgentStatusRepository(),
+		blacklistRepo: repository.NewUserBlacklistRepository(),
 	}
 }
 
@@ -118,7 +117,7 @@ func (s *CustomerSessionService) CreateSession(ctx context.Context, req *CreateS
 
 	MaybeSendAwayReply(ctx, session.SessionID, session.SessionID, string(session.Platform), session.AccountID)
 
-	DispatchSessionEventAsync(RuleEventConversationCreated, session.SessionID, session)
+	DispatchSessionEventAsync(ctx, RuleEventConversationCreated, session.SessionID, session)
 
 	return session, nil
 }
@@ -363,7 +362,7 @@ func (s *CustomerSessionService) UpdateSessionStatus(ctx context.Context, sessio
 
 		chain := NewSessionChainServiceFromGlobal()
 		chain.TriggerCSATOnClose(session)
-		DispatchSessionEventAsync(RuleEventSessionResolved, session.SessionID, session)
+		DispatchSessionEventAsync(ctx, RuleEventSessionResolved, session.SessionID, session)
 	}
 
 	return nil
@@ -438,7 +437,7 @@ func CustomerSessionCanSendMessage(s *model.CustomerSession) bool {
 	}
 }
 
-func DispatchSessionEventAsync(event, sessionID string, session *model.CustomerSession) {
+func DispatchSessionEventAsync(ctx context.Context, event, sessionID string, session *model.CustomerSession) {
 	// 引擎必须在 spawning 之前构造：NewRuleEngineService 一路要读 pkg/db 的包级全局句柄十余次
 	// （repository.NewAutomationRuleRepository、NewCustomerServicePlusService 名下 8 个子仓储等），
 	// 放进下面的异步体就会与"另一条用例改写全局句柄"的 db.SetTestDB() 撞在同一地址上——
@@ -446,14 +445,17 @@ func DispatchSessionEventAsync(event, sessionID string, session *model.CustomerS
 	// 两条红（单跑不复现）。同形状先例见 session_chain.go:TriggerCSATOnClose、
 	// objection_handler.go:fallbackVersionOf；回归探针见 async_db_handle_probe_test.go。
 	engine := NewRuleEngineServiceFromGlobal()
+	// 异步体必须继承调用方租户：裸 context.Background() 在 on 模式下没有租户绑定，
+	// 规则查询会被隔离 callback fail-closed，结果是"会话建好了但规则一条都没跑"。
+	bg := tenant.BackgroundWithTenant(ctx)
 	go func() {
 		defer func() {
 			if r := recover(); r != nil {
 				log.Printf("[panic-recover] %T: %v\n%s", r, r, string(debug.Stack()))
 			}
 		}()
-		ctx, cancel := context.WithTimeout(context.Background(), utils.DefaultHTTPTimeout)
+		dctx, cancel := context.WithTimeout(bg, utils.DefaultHTTPTimeout)
 		defer cancel()
-		engine.DispatchWithText(ctx, event, sessionID, "", session)
+		engine.DispatchWithText(dctx, event, sessionID, "", session)
 	}()
 }

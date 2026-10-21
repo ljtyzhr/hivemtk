@@ -67,9 +67,18 @@ func (r *FeedbackLoopRepository) UpdateBanditArmReward(ctx context.Context, expe
 	} else {
 		updates["beta"] = gorm.Expr("beta + 1")
 	}
-	return r.db.WithContext(ctx).Model(&model.BanditArm{}).
+	res := r.db.WithContext(ctx).Model(&model.BanditArm{}).
 		Where("experiment_id = ? AND arm_key = ?", experimentID, armKey).
-		Updates(updates).Error
+		Updates(updates)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		// 臂不存在（实验已下线/被清理，或跨租户）时静默成功会让回流台账
+		// 记下一笔"已入账"而臂的后验一字未动，下一轮又因台账重复而永不重试。
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 // PromoteBanditArmWinner 事务：提升胜出臂 + 淘汰其他臂
@@ -82,14 +91,20 @@ func (r *FeedbackLoopRepository) PromoteBanditArmWinner(ctx context.Context, exp
 	}
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		now := time.Now()
-		if err := tx.Model(&model.BanditArm{}).
+		res := tx.Model(&model.BanditArm{}).
 			Where("experiment_id = ? AND arm_key = ?", experimentID, winnerKey).
 			Updates(map[string]any{
 				"status":      model.BanditArmStatusPromoted,
 				"promoted_at": now,
 				"updated_at":  now,
-			}).Error; err != nil {
-			return fmt.Errorf("promote winner: %w", err)
+			})
+		if res.Error != nil {
+			return fmt.Errorf("promote winner: %w", res.Error)
+		}
+		if res.RowsAffected == 0 {
+			// 胜出臂必须真实存在：否则下面那条"退役其余臂"会把整组实验
+			// 全部退光而没有一条 promoted —— 一个拼错的 arm_key 就能让实验消失。
+			return fmt.Errorf("promote winner %q: %w", winnerKey, gorm.ErrRecordNotFound)
 		}
 		if err := tx.Model(&model.BanditArm{}).
 			Where("experiment_id = ? AND arm_key != ?", experimentID, winnerKey).
@@ -121,48 +136,55 @@ func (r *FeedbackLoopRepository) ListActiveBanditArms(ctx context.Context, exper
 	return arms, nil
 }
 
-// UpdateBanditArmLastSampled 更新臂的 last_sampled_at（异步标记采样时间）
+// ListRewardRefluxEvents 按 id 游标分页查询 (since, until] 窗口内 reward != 0 的反馈事件
 //
-// 用于 markSampledAsync：不阻塞主链路，单字段更新
-func (r *FeedbackLoopRepository) UpdateBanditArmLastSampled(ctx context.Context, experimentID, armKey string, sampledAt time.Time) error {
-	if r == nil || r.db == nil {
-		return nil
-	}
-	return r.db.WithContext(ctx).Model(&model.BanditArm{}).
-		Where("experiment_id = ? AND arm_key = ?", experimentID, armKey).
-		Update("last_sampled_at", sampledAt).Error
-}
-
-// ListRewardRefluxEvents 查询 (since, until] 窗口内 reward != 0 的反馈事件（回流扫描源）
-func (r *FeedbackLoopRepository) ListRewardRefluxEvents(ctx context.Context, since, until time.Time) ([]model.FeedbackEvent, error) {
+// afterID 为上一批最后一条的 id（首批传 0），调用方循环到返回条数小于 limit 为止。
+// 早期实现固定 Limit(500) 且无游标，窗口内第 501 笔之后的事件会被静默丢弃。
+func (r *FeedbackLoopRepository) ListRewardRefluxEvents(ctx context.Context, since, until time.Time, afterID uint, limit int) ([]model.FeedbackEvent, error) {
 	if r == nil || r.db == nil {
 		return nil, errors.New("feedback loop repository not initialized")
 	}
+	if limit <= 0 {
+		return nil, errors.New("feedback loop repository: limit must be positive")
+	}
 	var events []model.FeedbackEvent
 	err := r.db.WithContext(ctx).
-		Where("created_at > ? AND created_at <= ? AND reward != 0", since, until).
-		Order("id ASC").Limit(500).
+		Where("created_at > ? AND created_at <= ? AND reward != 0 AND id > ?", since, until, afterID).
+		Order("id ASC").Limit(limit).
 		Find(&events).Error
 	return events, err
 }
 
-// CountRefluxLogsByEventID 统计事件已回流次数（台账防重复）
-func (r *FeedbackLoopRepository) CountRefluxLogsByEventID(ctx context.Context, eventID string) (int64, error) {
+// CreateRefluxLog 幂等写入回流台账
+//
+// 返回是否真正插入：event_id 或 (session_id,sop_id,signal_key) 撞唯一索引时为 false。
+// 调用方必须先插入、再更新臂后验——插入失败即代表这笔已被别的进程/上一轮入账。
+func (r *FeedbackLoopRepository) CreateRefluxLog(ctx context.Context, log *model.BanditRefluxLog) (bool, error) {
 	if r == nil || r.db == nil {
-		return 0, errors.New("feedback loop repository not initialized")
+		return false, errors.New("feedback loop repository not initialized")
 	}
-	var cnt int64
-	err := r.db.WithContext(ctx).Model(&model.BanditRefluxLog{}).
-		Where("event_id = ?", eventID).Count(&cnt).Error
-	return cnt, err
+	res := r.db.WithContext(ctx).Clauses(clause.OnConflict{DoNothing: true}).Create(log)
+	if res.Error != nil {
+		return false, res.Error
+	}
+	return res.RowsAffected > 0, nil
 }
 
-// CreateRefluxLog 幂等写入回流台账（event_id 冲突时忽略）
-func (r *FeedbackLoopRepository) CreateRefluxLog(ctx context.Context, log *model.BanditRefluxLog) error {
+// DeleteRefluxLogByID 删除一笔回流台账（臂后验更新失败时的补偿，使下一轮可重试）
+func (r *FeedbackLoopRepository) DeleteRefluxLogByID(ctx context.Context, id uint) error {
 	if r == nil || r.db == nil {
 		return errors.New("feedback loop repository not initialized")
 	}
-	return r.db.WithContext(ctx).Clauses(clause.OnConflict{DoNothing: true}).Create(log).Error
+	res := r.db.WithContext(ctx).Delete(&model.BanditRefluxLog{}, id)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		// 补偿删除必须真的删掉：0 行说明台账不在本租户可见范围，
+		// 静默返回 nil 会让调用方以为补偿成功，而这笔事件下一轮仍被判重。
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 // ResolveArmForPromptCandidate 按 prompt candidate 解析运行中实验臂
@@ -183,27 +205,23 @@ func (r *FeedbackLoopRepository) ResolveArmForPromptCandidate(ctx context.Contex
 	return &arm, nil
 }
 
-// ListRunningABTestsBySOP 按 SOP 查询 running 的 SOP 变体实验（升序取前 2 条）
-func (r *FeedbackLoopRepository) ListRunningABTestsBySOP(ctx context.Context, sopID uint) ([]model.PromptABTest, error) {
-	if r == nil || r.db == nil {
-		return nil, errors.New("feedback loop repository not initialized")
-	}
-	var tests []model.PromptABTest
-	err := r.db.WithContext(ctx).
-		Where("status = ? AND experiment_type = ? AND sop_id = ?", "running", model.BanditExperimentTypeSOPVariant, sopID).
-		Order("id ASC").Limit(2).
-		Find(&tests).Error
-	return tests, err
-}
-
-// GetBanditArmByExperimentAndSOP 按实验 + SOP 查询臂
-func (r *FeedbackLoopRepository) GetBanditArmByExperimentAndSOP(ctx context.Context, experimentID string, sopID uint) (*model.BanditArm, error) {
+// ResolveArmForSOP 按事件所属 SOP 解析运行中 SOP 变体实验臂
+//
+// 必须按**臂侧** sop_id 判定，不能先按测试行 sop_id 找实验再按事件 SOPID 取臂：
+// 克隆变体的臂 sop_id 是克隆 SOP 的 ID，而实验行的 sop_id 仍是原 SOP 的 ID，
+// 旧实现下克隆变体产生的反馈永远匹配不到实验（直接 skip，奖励永久丢失）。
+//
+// 不放宽到 prompt 实验：prompt 实验的每个臂也都带 sop_id，只按 sop_id 命中
+// 会把普通对话反馈错记到 prompt 实验上。
+func (r *FeedbackLoopRepository) ResolveArmForSOP(ctx context.Context, sopID uint) (*model.BanditArm, error) {
 	if r == nil || r.db == nil {
 		return nil, gorm.ErrRecordNotFound
 	}
 	var arm model.BanditArm
 	err := r.db.WithContext(ctx).
-		Where("experiment_id = ? AND sop_id = ?", experimentID, sopID).
+		Joins("JOIN prompt_ab_tests t ON t.experiment_id = bandit_arms.experiment_id AND t.status = 'running'").
+		Where("bandit_arms.sop_id = ? AND bandit_arms.experiment_type = ?", sopID, model.BanditExperimentTypeSOPVariant).
+		Order("t.id ASC, bandit_arms.id ASC").
 		First(&arm).Error
 	if err != nil {
 		return nil, err

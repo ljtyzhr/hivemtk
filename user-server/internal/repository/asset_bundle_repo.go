@@ -46,14 +46,10 @@ type AssetBundleFilter struct {
 type AssetBundleRepository interface {
 	Create(ctx context.Context, m *model.AssetBundle) error
 	Update(ctx context.Context, m *model.AssetBundle) error
-	Save(ctx context.Context, m *model.AssetBundle) error
 	SoftDelete(ctx context.Context, id int64) error
-	HardDelete(ctx context.Context, id int64) error
 	FindByID(ctx context.Context, id int64) (*model.AssetBundle, error)
 	FindByAssetID(ctx context.Context, assetID string) (*model.AssetBundle, error)
 	List(ctx context.Context, f AssetBundleFilter) ([]*model.AssetBundle, int64, error)
-	ListByAuthor(ctx context.Context, author string, limit int) ([]*model.AssetBundle, error)
-	ListActive(ctx context.Context, limit int) ([]*model.AssetBundle, error)
 	IncrementUseCount(ctx context.Context, assetID string) error
 	ExistsByAssetID(ctx context.Context, assetID string) (bool, error)
 }
@@ -74,23 +70,43 @@ func (r *assetBundleRepo) Create(ctx context.Context, m *model.AssetBundle) erro
 	return r.db.WithContext(ctx).Create(m).Error
 }
 
+// assetBundleUpdateColumns 允许经 Update 回写的列。
+//
+// 刻意不含身份与计数列：asset_id / tenant_id 归创建时定死，use_count 由
+// IncrementUseCount 专用路径自增，rating* 目前无写路径。examples /
+// supported_languages 也不在内——HTTP 更新 DTO 不携带这两列，若放进白名单，
+// 一次普通编辑会把种子写入的示例与语言清空。
+var assetBundleUpdateColumns = []string{
+	"title", "description", "author", "version", "scope", "status",
+	"industry", "language", "tags", "messages", "cover_image",
+}
+
 func (r *assetBundleRepo) Update(ctx context.Context, m *model.AssetBundle) error {
 	if m == nil {
 		return errors.New("asset bundle is nil")
 	}
-	return r.db.WithContext(ctx).Save(m).Error
-}
-
-func (r *assetBundleRepo) Save(ctx context.Context, m *model.AssetBundle) error {
-	return r.Update(ctx, m)
+	res := r.db.WithContext(ctx).Model(&model.AssetBundle{}).
+		Where("id = ?", m.ID).
+		Select(assetBundleUpdateColumns).
+		Updates(m)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 func (r *assetBundleRepo) SoftDelete(ctx context.Context, id int64) error {
-	return r.db.WithContext(ctx).Delete(&model.AssetBundle{}, id).Error
-}
-
-func (r *assetBundleRepo) HardDelete(ctx context.Context, id int64) error {
-	return r.db.WithContext(ctx).Unscoped().Delete(&model.AssetBundle{}, id).Error
+	res := r.db.WithContext(ctx).Delete(&model.AssetBundle{}, id)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 func (r *assetBundleRepo) FindByID(ctx context.Context, id int64) (*model.AssetBundle, error) {
@@ -147,22 +163,6 @@ func (r *assetBundleRepo) List(ctx context.Context, f AssetBundleFilter) ([]*mod
 	}
 	err := q.Order("updated_at DESC").Offset((f.Page - 1) * f.Size).Limit(f.Size).Find(&list).Error
 	return list, total, err
-}
-
-func (r *assetBundleRepo) ListByAuthor(ctx context.Context, author string, limit int) ([]*model.AssetBundle, error) {
-	var list []*model.AssetBundle
-	q := r.db.WithContext(ctx).Where("author = ?", author).Order("updated_at DESC")
-	q = applyListLimit(q, limit)
-	err := q.Find(&list).Error
-	return list, err
-}
-
-func (r *assetBundleRepo) ListActive(ctx context.Context, limit int) ([]*model.AssetBundle, error) {
-	var list []*model.AssetBundle
-	q := r.db.WithContext(ctx).Where("status = ?", model.AssetBundleStatusActive).Order("use_count DESC, updated_at DESC")
-	q = applyListLimit(q, limit)
-	err := q.Find(&list).Error
-	return list, err
 }
 
 func (r *assetBundleRepo) IncrementUseCount(ctx context.Context, assetID string) error {

@@ -189,7 +189,7 @@ func (c *AlertRuleController) SetStatus(ctx *gin.Context) {
 		return
 	}
 	if err := c.svc.SetStatus(ctx.Request.Context(), req.IDs, req.Enabled); err != nil {
-		response.Error(ctx, http.StatusInternalServerError, err.Error())
+		response.ErrorFromDB(ctx, err, "告警规则不存在")
 		return
 	}
 	response.Success(ctx, nil, "操作成功")

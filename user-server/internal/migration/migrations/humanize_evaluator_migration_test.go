@@ -39,7 +39,7 @@ func TestHumanizeMigration_NilDB(t *testing.T) {
 	}
 }
 
-// TestHumanizeMigration_UpCreatesAllTables 集成测试：Up 创建所有 5 张表
+// TestHumanizeMigration_UpCreatesAllTables 集成测试：Up 创建所有 4 张表
 func TestHumanizeMigration_UpCreatesAllTables(t *testing.T) {
 	db := setupHumanizeMigrationTestDB(t)
 
@@ -53,7 +53,6 @@ func TestHumanizeMigration_UpCreatesAllTables(t *testing.T) {
 		"humanize_dimensions",
 		"champion_baselines",
 		"champion_phrases",
-		"ab_test_stats",
 	}
 	for _, table := range expectedTables {
 		var exists bool
@@ -79,7 +78,7 @@ func TestHumanizeMigration_UpIdempotent(t *testing.T) {
 	}
 }
 
-// TestHumanizeMigration_Down 集成测试：Down 不删模型持有的 5 张表（降级销毁在用数据）
+// TestHumanizeMigration_Down 集成测试：Down 不删模型持有的 4 张表（降级销毁在用数据）
 func TestHumanizeMigration_Down(t *testing.T) {
 	db := setupHumanizeMigrationTestDB(t)
 
@@ -96,7 +95,6 @@ func TestHumanizeMigration_Down(t *testing.T) {
 		"humanize_dimensions",
 		"champion_baselines",
 		"champion_phrases",
-		"ab_test_stats",
 	}
 	for _, table := range preservedTables {
 		var exists bool
@@ -275,47 +273,6 @@ func TestHumanizeMigration_InsertChampionPhrase(t *testing.T) {
 	}
 }
 
-// TestHumanizeMigration_InsertABTestStat 集成测试：ab_test_stats 可写入
-func TestHumanizeMigration_InsertABTestStat(t *testing.T) {
-	db := setupHumanizeMigrationTestDB(t)
-
-	m := NewHumanizeEvaluatorMigration(db)
-	if err := m.Up(context.Background()); err != nil {
-		t.Fatalf("Up() failed: %v", err)
-	}
-
-	for _, g := range []struct {
-		group  string
-		mean   float64
-		stddev float64
-	}{
-		{"control", 0.7500, 0.0500},
-		{"treatment", 0.8800, 0.0400},
-	} {
-		if err := db.Exec(`
-			INSERT INTO ab_test_stats
-				(experiment_id, group_name, sample_size, mean_score, median_score, stddev_score,
-				 mann_whitney_u, mann_whitney_p, cohens_d,
-				 bootstrap_ci_low, bootstrap_ci_high,
-				 significant, effect_size_label, winner)
-			VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
-		`,
-			"exp-001", g.group, 30, g.mean, g.mean, g.stddev,
-			120, 0.0010, -1.8500,
-			0.0800, 0.1800,
-			true, "large", "treatment",
-		).Error; err != nil {
-			t.Errorf("插入 ab_test_stats(%s) 失败: %v", g.group, err)
-		}
-	}
-
-	var count int64
-	_ = db.Raw(`SELECT COUNT(*) FROM ab_test_stats WHERE experiment_id = 'exp-001'`).Scan(&count)
-	if count != 2 {
-		t.Errorf("应插入 2 条统计记录, got %d", count)
-	}
-}
-
 // TestHumanizeMigration_IndexesCreated 集成测试：所有索引创建
 func TestHumanizeMigration_IndexesCreated(t *testing.T) {
 	db := setupHumanizeMigrationTestDB(t)
@@ -332,7 +289,6 @@ func TestHumanizeMigration_IndexesCreated(t *testing.T) {
 		"idx_hd_score",
 		"idx_champion_pii",
 		"idx_cp_baseline",
-		"idx_abstat_exp",
 	}
 	for _, idx := range expectedIndexes {
 		var exists bool

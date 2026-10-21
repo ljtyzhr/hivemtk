@@ -105,7 +105,6 @@ var adminOnlyRoutes = []adminRouteRule{
 
 	// —— 功能开关的放量与诊断（列表读侧仍开放）——
 	{Pattern: "/api/feature-flags/*/audit"},
-	{Pattern: "/api/feature-flags/*/code-references"},
 	{Pattern: "/api/feature-flags/*/eval-log"},
 	{Pattern: "/api/feature-flags/*/enable"},
 	{Pattern: "/api/feature-flags/*/disable"},

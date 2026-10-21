@@ -47,8 +47,8 @@ func TestNewCustomerSessionService(t *testing.T) {
 	if service.agentRepo == nil {
 		t.Error("Expected agentRepo to be initialized")
 	}
-	if service.suggestionRepo == nil {
-		t.Error("Expected suggestionRepo to be initialized")
+	if service.blacklistRepo == nil {
+		t.Error("Expected blacklistRepo to be initialized")
 	}
 }
 
@@ -648,53 +648,6 @@ func TestAgentStatusService_GoOffline_WithActiveSessions(t *testing.T) {
 	}
 }
 
-// TestAISuggestionService_CreateSuggestion_Success 测试创建 AI 建议
-func TestAISuggestionService_CreateSuggestion_Success(t *testing.T) {
-	service := setupCustomerSessionService(t)
-	suggestionService := NewAISuggestionService()
-
-	sessionReq := &CreateSessionRequest{
-		Platform:  model.PlatformDouyin,
-		AccountID: "account_123",
-		UserID:    "user_123",
-	}
-	session, _ := service.CreateSession(context.Background(), sessionReq)
-
-	agent := &model.AgentStatus{
-		AgentID:        123,
-		AgentName:      "客服 A",
-		Status:         "online",
-		MaxSessions:    5,
-		ActiveSessions: 1,
-	}
-	service.agentRepo.Create(context.Background(), agent)
-	service.sessionRepo.AssignAgent(context.Background(), session.ID, 123, "客服 A")
-
-	message := &model.SessionMessage{
-		SessionID:  session.SessionID,
-		Content:    "用户消息",
-		SenderType: "user",
-	}
-	service.messageRepo.Create(context.Background(), message)
-
-	suggestion, err := suggestionService.CreateSuggestion(context.Background(), session.SessionID,
-		message.ID,
-		"这是建议回复",
-		0.95,
-		"ai-model",
-	)
-	if err != nil {
-		t.Fatalf("CreateSuggestion failed: %v", err)
-	}
-
-	if suggestion.Suggestion != "这是建议回复" {
-		t.Errorf("Expected suggestion '这是建议回复', got '%s'", suggestion.Suggestion)
-	}
-	if suggestion.Confidence != 0.95 {
-		t.Errorf("Expected confidence 0.95, got %f", suggestion.Confidence)
-	}
-}
-
 // TestAISuggestionService_GetSuggestions_Success 测试获取 AI 建议列表
 func TestAISuggestionService_GetSuggestions_Success(t *testing.T) {
 	service := setupCustomerSessionService(t)
@@ -708,12 +661,16 @@ func TestAISuggestionService_GetSuggestions_Success(t *testing.T) {
 	session, _ := service.CreateSession(context.Background(), sessionReq)
 
 	for i := 0; i < 3; i++ {
-		suggestionService.CreateSuggestion(context.Background(), session.SessionID,
-			1,
-			"Suggestion "+string(rune('0'+i)),
-			0.9,
-			"ai-model",
-		)
+		seed := &model.AISuggestion{
+			SessionID:  session.SessionID,
+			MessageID:  1,
+			Suggestion: "Suggestion " + string(rune('0'+i)),
+			Confidence: 0.9,
+			Source:     "ai-model",
+		}
+		if err := suggestionService.suggestionRepo.Create(context.Background(), seed); err != nil {
+			t.Fatalf("预置 AI 建议失败: %v", err)
+		}
 	}
 
 	suggestions, err := suggestionService.GetSuggestions(context.Background(), session.SessionID)
@@ -738,14 +695,18 @@ func TestAISuggestionService_UseSuggestion_Success(t *testing.T) {
 	}
 	session, _ := service.CreateSession(context.Background(), sessionReq)
 
-	suggestion, _ := suggestionService.CreateSuggestion(context.Background(), session.SessionID,
-		1,
-		"这是建议",
-		0.9,
-		"ai-model",
-	)
+	seed := &model.AISuggestion{
+		SessionID:  session.SessionID,
+		MessageID:  1,
+		Suggestion: "这是建议",
+		Confidence: 0.9,
+		Source:     "ai-model",
+	}
+	if err := suggestionService.suggestionRepo.Create(context.Background(), seed); err != nil {
+		t.Fatalf("预置 AI 建议失败: %v", err)
+	}
 
-	err := suggestionService.UseSuggestion(context.Background(), suggestion.ID, 123)
+	err := suggestionService.UseSuggestion(context.Background(), seed.ID, 123)
 	if err != nil {
 		t.Fatalf("UseSuggestion failed: %v", err)
 	}

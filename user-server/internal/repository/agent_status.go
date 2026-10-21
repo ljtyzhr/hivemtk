@@ -33,11 +33,6 @@ func (r *AgentStatusRepository) Create(ctx context.Context, status *model.AgentS
 	return r.db.WithContext(ctx).Create(status).Error
 }
 
-// Update 更新客服状态
-func (r *AgentStatusRepository) Update(ctx context.Context, status *model.AgentStatus) error {
-	return r.db.WithContext(ctx).Save(status).Error
-}
-
 // GetByAgentID 根据客服ID获取状态
 func (r *AgentStatusRepository) GetByAgentID(ctx context.Context, agentID uint) (*model.AgentStatus, error) {
 	var status model.AgentStatus
@@ -128,14 +123,6 @@ func (r *AgentStatusRepository) CountByStatus(ctx context.Context, status string
 	var count int64
 	err := r.db.WithContext(ctx).Model(&model.AgentStatus{}).
 		Where("status = ?", status).Count(&count).Error
-	return count, err
-}
-
-// CountByStatusIn 按 status IN [...] 统计坐席数
-func (r *AgentStatusRepository) CountByStatusIn(ctx context.Context, statuses []string) (int64, error) {
-	var count int64
-	err := r.db.WithContext(ctx).Model(&model.AgentStatus{}).
-		Where("status IN ?", statuses).Count(&count).Error
 	return count, err
 }
 

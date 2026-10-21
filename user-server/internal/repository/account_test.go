@@ -29,42 +29,22 @@ func TestAccountRepository_New(t *testing.T) {
 	}
 }
 
-func TestAccountRepository_Create(t *testing.T) {
-	setupAccountTestDB(t)
-
-	repo := NewAccountRepository()
-	ctx := context.Background()
-
-	account := &model.Account{
-		TgName:     "testtg",
-		TgBotToken: "token123",
-		GroupID:    12345,
-		Status:     _type.AccountStatusActive,
-	}
-
-	err := repo.Create(ctx, account)
-	if err != nil {
-		t.Fatalf("Create failed: %v", err)
-	}
-
-	if account.ID == "" {
-		t.Error("Expected non-empty ID after create")
-	}
-}
-
 func TestAccountRepository_GetByID(t *testing.T) {
-	setupAccountTestDB(t)
+	database := setupAccountTestDB(t)
 
 	repo := NewAccountRepository()
 	ctx := context.Background()
 
 	account := &model.Account{
+		ID:         "acc-get-by-id",
 		TgName:     "testtg",
 		TgBotToken: "token123",
 		GroupID:    12345,
 		Status:     _type.AccountStatusActive,
 	}
-	repo.Create(ctx, account)
+	if err := database.Create(account).Error; err != nil {
+		t.Fatalf("seed account failed: %v", err)
+	}
 
 	fetchedAccount, err := repo.GetByID(ctx, account.ID)
 	if err != nil {
@@ -89,153 +69,30 @@ func TestAccountRepository_GetByID_NotFound(t *testing.T) {
 }
 
 func TestAccountRepository_GetAccountList(t *testing.T) {
-	setupAccountTestDB(t)
+	database := setupAccountTestDB(t)
 
 	ctx := context.Background()
 	repo := NewAccountRepository()
 
 	for i := 0; i < 5; i++ {
 		account := &model.Account{
+			ID:         "acc-list-" + string(rune('0'+i)),
 			TgName:     "tg" + string(rune('0'+i)),
 			TgBotToken: "token" + string(rune('0'+i)),
 			GroupID:    int64(10000 + i),
 			Status:     _type.AccountStatusActive,
 		}
-		repo.Create(ctx, account)
+		if err := database.Create(account).Error; err != nil {
+			t.Fatalf("seed account %d failed: %v", i, err)
+		}
 	}
 
-	accounts, err := repo.GetAccountList(context.Background())
+	accounts, err := repo.GetAccountList(ctx)
 	if err != nil {
 		t.Fatalf("GetAccountList failed: %v", err)
 	}
 
 	if len(accounts) != 5 {
 		t.Errorf("Expected 5 accounts, got %d", len(accounts))
-	}
-}
-
-func TestAccountRepository_Update(t *testing.T) {
-	setupAccountTestDB(t)
-
-	ctx := context.Background()
-	repo := NewAccountRepository()
-
-	account := &model.Account{
-		TgName:     "testtg",
-		TgBotToken: "token123",
-		GroupID:    12345,
-		Status:     _type.AccountStatusActive,
-	}
-	repo.Create(ctx, account)
-
-	account.TgBotToken = "newtoken123"
-	err := repo.Update(ctx, account)
-	if err != nil {
-		t.Fatalf("Update failed: %v", err)
-	}
-
-	fetchedAccount, _ := repo.GetByID(ctx, account.ID)
-	if fetchedAccount.TgBotToken != "newtoken123" {
-		t.Errorf("Expected TgBotToken 'newtoken123', got %s", fetchedAccount.TgBotToken)
-	}
-}
-
-func TestAccountRepository_Delete(t *testing.T) {
-	setupAccountTestDB(t)
-
-	ctx := context.Background()
-	repo := NewAccountRepository()
-
-	account := &model.Account{
-		TgName:     "testtg",
-		TgBotToken: "token123",
-		GroupID:    12345,
-		Status:     _type.AccountStatusActive,
-	}
-	repo.Create(ctx, account)
-
-	err := repo.Delete(ctx, account.ID)
-	if err != nil {
-		t.Fatalf("Delete failed: %v", err)
-	}
-
-	_, err = repo.GetByID(ctx, account.ID)
-	if err == nil {
-		t.Error("Expected error after delete")
-	}
-}
-
-func TestAccountRepository_UpdateAccountStatusById(t *testing.T) {
-	setupAccountTestDB(t)
-
-	ctx := context.Background()
-	repo := NewAccountRepository()
-
-	account := &model.Account{
-		TgName:     "testtg",
-		TgBotToken: "token123",
-		GroupID:    12345,
-		Status:     _type.AccountStatusActive,
-	}
-	repo.Create(ctx, account)
-
-	err := repo.UpdateAccountStatusById(context.Background(), account.ID, _type.AccountStatusInactive, "Test message")
-	if err != nil {
-		t.Fatalf("UpdateAccountStatusById failed: %v", err)
-	}
-
-	fetchedAccount, _ := repo.GetByID(ctx, account.ID)
-	if fetchedAccount.Status != _type.AccountStatusInactive {
-		t.Errorf("Expected status Inactive, got %d", fetchedAccount.Status)
-	}
-	if fetchedAccount.Msg != "Test message" {
-		t.Errorf("Expected msg 'Test message', got %s", fetchedAccount.Msg)
-	}
-}
-
-func TestAccountRepository_UpdateAccountStatusById_NotFound(t *testing.T) {
-	setupAccountTestDB(t)
-
-	repo := NewAccountRepository()
-
-	err := repo.UpdateAccountStatusById(context.Background(), "non-existent-id", _type.AccountStatusInactive, "Test message")
-	if err == nil {
-		t.Error("Expected error for non-existent account")
-	}
-}
-
-func TestAccountRepository_UpdateAccountTgNameById(t *testing.T) {
-	setupAccountTestDB(t)
-
-	ctx := context.Background()
-	repo := NewAccountRepository()
-
-	account := &model.Account{
-		TgName:     "oldtgname",
-		TgBotToken: "token123",
-		GroupID:    12345,
-		Status:     _type.AccountStatusActive,
-	}
-	repo.Create(ctx, account)
-
-	err := repo.UpdateAccountTgNameById(context.Background(), account.ID, "newtgname")
-	if err != nil {
-		t.Fatalf("UpdateAccountTgNameById failed: %v", err)
-	}
-
-	fetchedAccount, _ := repo.GetByID(ctx, account.ID)
-	if fetchedAccount.TgName != "newtgname" {
-		t.Errorf("Expected TgName 'newtgname', got %s", fetchedAccount.TgName)
-	}
-}
-
-func TestAccountRepository_UpdateAccountTgNameById_NotFound(t *testing.T) {
-	setupAccountTestDB(t)
-
-	repo := NewAccountRepository()
-
-	err := repo.UpdateAccountTgNameById(context.Background(), "non-existent-id", "newtgname")
-	if err == nil {
-		t.Error("Expected error for non-existent account")
 	}
 }

@@ -142,6 +142,9 @@ func (s *AlertRuleService) Update(ctx context.Context, id uint, req *AlertRuleRe
 		m.Enabled = *req.Enabled
 	}
 	if err := s.repo.Update(ctx, m); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrAlertRuleNotFound
+		}
 		return nil, fmt.Errorf("更新告警规则失败: %w", err)
 	}
 	return m, nil

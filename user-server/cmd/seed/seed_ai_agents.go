@@ -15,7 +15,6 @@
 // feedback_signals (15) 反馈信号聚合
 // prompt_candidates (6) Prompt 候选
 // champion_dialogues (10) 销冠对话
-// ai_sales_logs (30) AI 谈单日志
 package main
 
 import (
@@ -33,13 +32,10 @@ type aiAgentsSeeder struct{}
 
 func (s *aiAgentsSeeder) Name() string { return "ai_agents" }
 func (s *aiAgentsSeeder) Description() string {
-	return "智能体(11)+绑定(10)+SOP(5)+话术(20)+异议(15)+记忆(8)+意图(20)+反馈(30)+销冠(10)+日志(30)"
+	return "智能体(11)+绑定(10)+SOP(5)+话术(20)+异议(15)+记忆(8)+意图(20)+反馈(30)+销冠(10)"
 }
 
 func (s *aiAgentsSeeder) Clean(database *gorm.DB) error {
-	if _, err := cleanByCondition(database, &model.AISalesLog{}, "extra::text LIKE ?", "%"+seedTag+"%"); err != nil {
-		return fmt.Errorf("清空 ai_sales_logs 失败: %w", err)
-	}
 	if _, err := cleanByCondition(database, &model.BanditArm{}, "experiment_id LIKE ?", "seed-%"); err != nil {
 		return fmt.Errorf("清空 bandit_arms 失败: %w", err)
 	}
@@ -174,15 +170,10 @@ func (s *aiAgentsSeeder) Seed(database *gorm.DB, ctx *SeedContext) error {
 		return fmt.Errorf("写入 champion_dialogues 失败: %w", err)
 	}
 
-	aiLogs := s.buildAISalesLogs(ctx)
-	if err := batchInsert(database, aiLogs, 50); err != nil {
-		return fmt.Errorf("写入 ai_sales_logs 失败: %w", err)
-	}
-
-	log.Printf("  ✓ 已写入 智能体%d+绑定%d+挂载%d+话术%d+异议%d+SOP%d+执行%d+记忆%d+意图%d+意向%d+反馈%d+信号%d+Prompt%d+销冠%d+日志%d",
+	log.Printf("  ✓ 已写入 智能体%d+绑定%d+挂载%d+话术%d+异议%d+SOP%d+执行%d+记忆%d+意图%d+意向%d+反馈%d+信号%d+Prompt%d+销冠%d",
 		len(agents), len(bindings), len(csAgents), len(scripts), len(objections),
 		len(sopAgents), len(sopExecs), len(memories), len(intents), len(intentScores),
-		len(fbEvents), len(fbSignals), len(promptCands), len(champions), len(aiLogs))
+		len(fbEvents), len(fbSignals), len(promptCands), len(champions))
 	return nil
 }
 
@@ -1247,42 +1238,4 @@ func (s *aiAgentsSeeder) buildChampionDialogues(ctx *SeedContext) []model.Champi
 		dialogues = append(dialogues, dlg)
 	}
 	return dialogues
-}
-
-func (s *aiAgentsSeeder) buildAISalesLogs(ctx *SeedContext) []model.AISalesLog {
-	if len(ctx.SessionIDs) == 0 {
-		return nil
-	}
-	scenarios := []string{"objection", "closing", "followup", "nurture", "repurchase", "greeting", "discovery", "presentation"}
-	logs := make([]model.AISalesLog, 0, 30)
-	for i := 0; i < 30; i++ {
-		customerID := ""
-		if len(ctx.CustomerIDs) > 0 {
-			customerID = ctx.CustomerIDs[i%len(ctx.CustomerIDs)]
-		}
-		promptTokens := randInt(100, 2000)
-		completionTokens := randInt(50, 1000)
-		success := i%10 != 0
-		var errMsg string
-		if !success {
-			errMsg = "LLM 超时，触发降级"
-		}
-		logRec := model.AISalesLog{
-			SessionID:        ctx.SessionIDs[i%len(ctx.SessionIDs)],
-			CustomerID:       customerID,
-			SOPID:            uint(i%5 + 1),
-			LLMModel:         "default",
-			Scenario:         scenarios[i%len(scenarios)],
-			PromptTokens:     promptTokens,
-			CompletionTokens: completionTokens,
-			TotalTokens:      promptTokens + completionTokens,
-			Cost:             randFloat(0.001, 0.05),
-			LatencyMs:        randInt(200, 3000),
-			Success:          success,
-			ErrorMessage:     errMsg,
-			Extra:            model.JSONMap{"seed": seedTag, "trace_id": fmt.Sprintf("seed-trace-%d", i+1)},
-		}
-		logs = append(logs, logRec)
-	}
-	return logs
 }

@@ -35,14 +35,13 @@ type FlagEvaluateResult struct {
 
 // FeatureFlagService 功能开关服务
 type FeatureFlagService struct {
-	repo   repository.FeatureFlagRepository
-	kvRepo repository.SystemConfigKVRepository
-	now    func() time.Time
+	repo repository.FeatureFlagRepository
+	now  func() time.Time
 }
 
 // NewFeatureFlagService 构造
 func NewFeatureFlagService(repo repository.FeatureFlagRepository) *FeatureFlagService {
-	return &FeatureFlagService{repo: repo, kvRepo: repository.NewSystemConfigKVRepository(), now: time.Now}
+	return &FeatureFlagService{repo: repo, now: time.Now}
 }
 
 // NewFeatureFlagServiceFromGlobal 便捷构造
@@ -259,18 +258,6 @@ func (s *FeatureFlagService) ListEvalLogs(ctx context.Context, flagKey string) (
 	return s.repo.ListEvalLogs(ctx, flagKey, 100)
 }
 
-func (s *FeatureFlagService) CodeReferences(ctx context.Context, flagKey string) []map[string]string {
-	refs, err := s.ListCodeReferences(ctx, flagKey)
-	if err != nil {
-		return []map[string]string{}
-	}
-	out := make([]map[string]string, 0, len(refs))
-	for _, r := range refs {
-		out = append(out, map[string]string{"file": r.File, "note": r.Note})
-	}
-	return out
-}
-
 func (s *FeatureFlagService) auditAsync(ctx context.Context, f *model.FeatureFlag, action string, actorID uint, detail string) {
 	a := &model.FeatureFlagAuditLog{
 		FlagID:  f.ID,
@@ -341,44 +328,4 @@ func jsonRawValue(payload string) any {
 		return parsed
 	}
 	return payload
-}
-
-// FlagCodeRef 代码引用条目
-type FlagCodeRef struct {
-	File string `json:"file"`
-	Line int    `json:"line"`
-	Note string `json:"note"`
-}
-
-func flagRefsKVKey(flagKey string) string { return fmt.Sprintf("flag_refs.%s", flagKey) }
-
-// ListCodeReferences 读取已登记引用（KV 注册表；空=未登记）
-func (s *FeatureFlagService) ListCodeReferences(ctx context.Context, flagKey string) ([]FlagCodeRef, error) {
-	if s.kvRepo == nil {
-		return []FlagCodeRef{}, nil
-	}
-	raw, err := s.kvRepo.Get(ctx, flagRefsKVKey(flagKey))
-	if err != nil || raw == "" {
-		return []FlagCodeRef{}, nil
-	}
-	var refs []FlagCodeRef
-	if err := json.Unmarshal([]byte(raw), &refs); err != nil {
-		return []FlagCodeRef{}, nil
-	}
-	return refs, nil
-}
-
-// RegisterCodeReference 登记/追加代码引用（工具链调用：前端 GET 直接展示）
-func (s *FeatureFlagService) RegisterCodeReference(ctx context.Context, flagKey string, ref FlagCodeRef) error {
-	if s.kvRepo == nil {
-		return fmt.Errorf("KV 存储未初始化")
-	}
-	refs, _ := s.ListCodeReferences(ctx, flagKey)
-	refs = append(refs, ref)
-	raw, err := json.Marshal(refs)
-	if err != nil {
-		return err
-	}
-	_, err = s.kvRepo.Upsert(ctx, flagRefsKVKey(flagKey), string(raw))
-	return err
 }

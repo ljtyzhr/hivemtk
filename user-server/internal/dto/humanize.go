@@ -88,28 +88,6 @@ func ScoreHumanizeEvalByDimension(r *HumanizeEvalResult, dim HumanizeDimension) 
 	return 0, false
 }
 
-// ABTestStatsInput A/B 测试统计输入
-type ABTestStatsInput struct {
-	ExperimentID string    `json:"experiment_id"`
-	Control      []float64 `json:"control"`
-	Treatment    []float64 `json:"treatment"`
-}
-
-// ABTestStatsResult A/B 测试统计结果
-type ABTestStatsResult struct {
-	ExperimentID    string  `json:"experiment_id"`
-	ControlMean     float64 `json:"control_mean"`
-	TreatmentMean   float64 `json:"treatment_mean"`
-	MannWhitneyU    float64 `json:"mann_whitney_u"`
-	MannWhitneyP    float64 `json:"mann_whitney_p"`
-	CohensD         float64 `json:"cohens_d"`
-	EffectSizeLabel string  `json:"effect_size_label"`
-	BootstrapCILow  float64 `json:"bootstrap_ci_low"`
-	BootstrapCIHigh float64 `json:"bootstrap_ci_high"`
-	Significant     bool    `json:"significant"`
-	Winner          string  `json:"winner"`
-}
-
 // ChampionBaselineDTO 销冠基线 DTO（供 service 层使用，与 model.ChampionBaseline 解耦）
 type ChampionBaselineDTO struct {
 	Persona         string  `json:"persona"`

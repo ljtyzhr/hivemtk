@@ -65,15 +65,6 @@ func (AIToolAccountBinding) TableName() string {
 type AIToolWithBinding struct {
 	AIToolConfig
 	BoundAccounts []AIToolAccountBinding `json:"bound_accounts,omitempty"`
-	Stats         *AIToolStats           `json:"stats,omitempty"`
-}
-
-// AIToolStats 工具统计
-type AIToolStats struct {
-	TotalCalls  int64   `json:"total_calls"`
-	SuccessRate float64 `json:"success_rate"`
-	AvgDuration int64   `json:"avg_duration_ms"`
-	TodayCalls  int64   `json:"today_calls"`
 }
 
 // AIToolListResponse 工具列表响应

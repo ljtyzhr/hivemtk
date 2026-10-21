@@ -20,8 +20,9 @@
 //   - 不列全表（无 GET /api/bill）、不改账单（无 PUT）、不改状态（无 /pay / /void / /status）：
 //     结清与作废只能由回款行累加出来（T-P7-02 的服务层），逾期与催收在 T-P7-03。
 //     今天开出任何一格"把账单改成已收"，就是给财务台账开一条**不走回款**的捷径。
-//     两条 GET 都必须带一把键 —— 键是本表目前唯一的归属判据（bills 没有租户列，
-//     判据见 model/bill.go），没有键的读在补上归属列之前等于"任何人可看全公司的应收"。
+//     两条 GET 都必须带一把键 —— 本域刻意不提供无键列表读口：租户归属由 JWT 中间件
+//     绑定后经隔离 callback 收窄（bills.tenant_id），键是"读哪一张/哪一条链"的谓词，
+//     没有键的读等于一次租户内全表捞。
 //   - 不做闸门：报价的出域必经审批（T-P6-03 已守在那条腿上），而"确认已成交"
 //     是内部记账动作，不往域外送任何东西。
 //   - 不记"谁确认的"到库里：bills 没有那一格（限制与服务层的同一句话同源，
@@ -71,8 +72,8 @@ type BillDeriver interface {
 // "收了多少、还欠多少"这个结论，不是 bills 与 payments 的行）。为什么要卡在结论这一层：
 // 一旦这层能拿到行，它就会顺手自己加一遍 —— 而"已收"这个数只允许有一个算法
 // （service/payment.go 的 statementOfBill），多一处就是 AC② 对不上账的那天。
-// 也**没有**分页、排序、按客户/按状态捞：账单没有租户列（model/bill.go），
-// 没有键的读口在本域等于"任何人可看全公司的应收"。
+// 也**没有**分页、排序、按客户/按状态捞：对账读的入口是"一张单"或"一条报价链"，
+// 无键读口在本域等于一次租户内全表捞（租户隔离由 callback 兜底，但宽读口不该靠它兜）。
 type BillReader interface {
 	Available() bool
 	Statement(ctx context.Context, billID string) (*service.BillStatementView, error)
@@ -270,7 +271,7 @@ func (c *BillController) Derive(ctx *gin.Context) {
 // @Param        id     path    string  true  "账单号 bills.id（不是报价号，也不接受空串）"
 // @Success      200    {object}  response.Response  "成功（data 为对账视图，payments 恒为数组）"
 // @Failure      400    {object}  response.Response  "路径上的账单号为空或超宽"
-// @Failure      401    {object}  response.Response  "未鉴权（本表没有租户列，读单必须落在鉴权链内）"
+// @Failure      401    {object}  response.Response  "未鉴权（读单必须落在鉴权链内，租户由 JWT 中间件绑定）"
 // @Failure      404    {object}  response.Response  "该账单号没有对应的应收"
 // @Failure      500    {object}  response.Response  "底座或数据异常（不透出底层错误串）"
 // @Failure      503    {object}  response.Response  "对账腿未装配"

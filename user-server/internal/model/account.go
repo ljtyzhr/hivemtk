@@ -30,7 +30,23 @@ func (a *Account) TableName() string {
 	return "account"
 }
 
+// BeforeCreate 生成主键 ID（仅当调用方没给时）。
+//
+// 为什么必须留着：Account.ID 是 `varchar(36)` 的**字符串**主键，GORM 的
+// 自增/默认机制对它无效 ⇒ 主键值只能由模型自己填。没有这个钩子，
+// `db.Create(&model.Account{})` 会以**空串**作主键落库 ⇒ 第二行就撞
+// 主键冲突。2026-10-21 的一次"零生产消费者清理"把这个钩子与仓储的
+// Create 一起删了（理由是仓储 Create 没有调用方），但模型的**主键契约**
+// 还在——只读调用方不代表这张表不能被写。集成测试
+// TestIntegration_AccountManagement 立刻红在这里（"Expected account ID
+// to be generated"），是它把这个问题挡在了提交前。
+//
+// **只在 ID 为空时生成**：调用方显式给了 ID（种子/数据订正/跨表搬行）
+// 就要原样保留，否则"预置一行 acc-tenant-a"会被换成随机 UUID，
+// 后续按那个 ID 断言的用例全红。与 WhatsappAccount.BeforeCreate 同一口径。
 func (a *Account) BeforeCreate(tx *gorm.DB) error {
-	a.ID = uuid.New().String()
+	if a.ID == "" {
+		a.ID = uuid.New().String()
+	}
 	return nil
 }

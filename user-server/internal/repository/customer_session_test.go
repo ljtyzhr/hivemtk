@@ -767,37 +767,6 @@ func TestAgentStatusRepository_Create(t *testing.T) {
 	}
 }
 
-// TestAgentStatusRepository_Update 测试更新客服状态
-func TestAgentStatusRepository_Update(t *testing.T) {
-	_, _, agentRepo, _, _, _ := setupCustomerSessionRepositories(t)
-	ctx := context.Background()
-
-	status := &model.AgentStatus{
-		AgentID:        1,
-		AgentName:      "Agent Smith",
-		Status:         "online",
-		MaxSessions:    5,
-		ActiveSessions: 0,
-	}
-	agentRepo.Create(ctx, status)
-
-	status.Status = "busy"
-	status.ActiveSessions = 3
-
-	err := agentRepo.Update(ctx, status)
-	if err != nil {
-		t.Errorf("Update() error = %v", err)
-	}
-
-	updated, _ := agentRepo.GetByAgentID(context.Background(), 1)
-	if updated.Status != "busy" {
-		t.Errorf("Expected status 'busy', got '%s'", updated.Status)
-	}
-	if updated.ActiveSessions != 3 {
-		t.Errorf("Expected ActiveSessions 3, got %d", updated.ActiveSessions)
-	}
-}
-
 // TestAgentStatusRepository_GetByAgentID 测试根据客服 ID 获取状态
 func TestAgentStatusRepository_GetByAgentID(t *testing.T) {
 	_, _, agentRepo, _, _, _ := setupCustomerSessionRepositories(t)

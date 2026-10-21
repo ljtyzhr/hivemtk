@@ -425,30 +425,6 @@ type SalesPersona struct {
 
 func (SalesPersona) TableName() string { return "sales_personas" }
 
-// AISalesLog AI 谈单日志
-type AISalesLog struct {
-	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
-
-	ID               uint           `gorm:"primaryKey;autoIncrement" json:"id"`
-	SessionID        string         `gorm:"type:varchar(120);not null;index" json:"session_id"`
-	CustomerID       string         `gorm:"type:varchar(64)" json:"customer_id"`
-	SOPID            uint           `json:"sop_id"`
-	LLMModel         string         `gorm:"type:varchar(50)" json:"llm_model"`
-	Scenario         string         `gorm:"type:varchar(50);index" json:"scenario"`
-	PromptTokens     int            `gorm:"default:0" json:"prompt_tokens"`
-	CompletionTokens int            `gorm:"default:0" json:"completion_tokens"`
-	TotalTokens      int            `gorm:"default:0" json:"total_tokens"`
-	Cost             float64        `gorm:"type:decimal(10,4);default:0" json:"cost"`
-	LatencyMs        int            `gorm:"default:0" json:"latency_ms"`
-	Success          bool           `gorm:"default:true" json:"success"`
-	ErrorMessage     string         `gorm:"type:text" json:"error_message"`
-	Extra            JSONMap        `gorm:"type:text" json:"extra"`
-	CreatedAt        time.Time      `gorm:"autoCreateTime;index" json:"created_at"`
-	DeletedAt        gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
-}
-
-func (AISalesLog) TableName() string { return "ai_sales_logs" }
-
 // InboxConversation 统一收件箱会话
 type InboxConversation struct {
 	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`

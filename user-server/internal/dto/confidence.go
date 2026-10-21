@@ -74,18 +74,6 @@ type CalibrationResult struct {
 	SampleSize  int     `json:"sample_size"`
 }
 
-// ABTestAnalysis A/B 测试分析结果
-type ABTestAnalysis struct {
-	ControlMean      float64 `json:"control_mean"`
-	TreatmentMean    float64 `json:"treatment_mean"`
-	Difference       float64 `json:"difference"`
-	MannWhitneyU     float64 `json:"mann_whitney_u"`
-	MannWhitneyP     float64 `json:"mann_whitney_p"`
-	BootstrapCILower float64 `json:"bootstrap_ci_lower"`
-	BootstrapCIUpper float64 `json:"bootstrap_ci_upper"`
-	Significant      bool    `json:"significant"`
-}
-
 // ThresholdPolicyRequest 阈值策略 Upsert 请求 DTO
 type ThresholdPolicyRequest struct {
 	PolicyID                string  `json:"policy_id" binding:"required,min=1,max=64"`
