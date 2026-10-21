@@ -81,7 +81,8 @@ func setupCustomerServiceRoutes(auth *gin.RouterGroup, aiAgentSvc *service.AIAge
 	tagWrite.PUT("/:id", sessionTagCtrl.UpdateTag)
 	tagWrite.DELETE("/:id", sessionTagCtrl.DeleteTag)
 
-	aiSuggestionCtrl := controller.NewAISuggestionController()
+	aiSuggestionCtrl := controller.NewAISuggestionController(
+		service.NewAISuggestionServiceWithRepo(repository.NewAISuggestionRepositoryWithDB(db)))
 	auth.GET("/ai-suggestions/:session_id", aiSuggestionCtrl.GetSuggestions)
 	auth.POST("/ai-suggestions/:id/use", aiSuggestionCtrl.UseSuggestion)
 

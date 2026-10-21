@@ -221,7 +221,8 @@ func setupFrontendAliases(auth, systemAdmin *gin.RouterGroup, engine *gin.Engine
 	quickReplyCtrl := controller.NewQuickReplyController()
 	doReg("GET", "/quick-replies/list", quickReplyCtrl.GetReplies)
 
-	aiSuggestionCtrl := controller.NewAISuggestionController()
+	aiSuggestionCtrl := controller.NewAISuggestionController(
+		service.NewAISuggestionServiceWithRepo(repository.NewAISuggestionRepositoryWithDB(gormDB)))
 	doReg("GET", "/ai-suggestions", aiSuggestionCtrl.GetSuggestions)
 
 	objCtrl := controller.NewObjectionHandlerController(

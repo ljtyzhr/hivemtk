@@ -12,6 +12,8 @@ import (
 
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/testutil"
+	"hivemtk-user/internal/repository"
+	"hivemtk-user/internal/service"
 
 	"github.com/gin-gonic/gin"
 )
@@ -33,7 +35,8 @@ func asgCtrlRouter(t *testing.T) (*gin.Engine, *model.AISuggestion) {
 		t.Fatalf("预置建议失败: %v", err)
 	}
 
-	ctrl := NewAISuggestionController()
+	ctrl := NewAISuggestionController(
+		service.NewAISuggestionServiceWithRepo(repository.NewAISuggestionRepositoryWithDB(db)))
 	router := gin.New()
 	router.Use(func(ctx *gin.Context) {
 		if uid, err := strconv.ParseUint(ctx.GetHeader("X-Test-Uid"), 10, 32); err == nil && uid != 0 {

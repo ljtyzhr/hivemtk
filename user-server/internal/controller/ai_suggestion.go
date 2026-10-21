@@ -14,11 +14,9 @@ type AISuggestionController struct {
 	suggestionService *service.AISuggestionService
 }
 
-// NewAISuggestionController 创建AI建议控制器实例
-func NewAISuggestionController() *AISuggestionController {
-	return &AISuggestionController{
-		suggestionService: service.NewAISuggestionService(),
-	}
+// NewAISuggestionController 创建AI建议控制器实例（service 由 router 注入）
+func NewAISuggestionController(svc *service.AISuggestionService) *AISuggestionController {
+	return &AISuggestionController{suggestionService: svc}
 }
 
 // GetSuggestions 获取AI建议

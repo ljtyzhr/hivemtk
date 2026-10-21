@@ -85,6 +85,13 @@ func DefaultOrchestratorConfig() *OrchestratorConfig {
 	}
 }
 
+// SetSuggestionRepo 注入 AI 建议仓储（装配层调用；nil 视为不注入）
+func (o *SmartCSOrchestrator) SetSuggestionRepo(repo *repository.AISuggestionRepository) {
+	if repo != nil {
+		o.suggestionRepo = repo
+	}
+}
+
 // SetConfidenceAggregator 注入五信号置信度聚合器（D01；factory 层从 engine 取同实例）
 func (o *SmartCSOrchestrator) SetConfidenceAggregator(agg *confidencesvc.ConfidenceAggregator) {
 	o.confidenceAgg = agg

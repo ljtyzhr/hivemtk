@@ -122,6 +122,7 @@ func BuildSmartOrchestrator(engine *service.SalesEngine, kbRepo *repository.Know
 	cfg := service.DefaultOrchestratorConfig()
 	cfg.ConfidenceThreshold = 0.5
 	o := service.NewSmartCSOrchestrator(engine, cfg, kbRepo)
+	o.SetSuggestionRepo(repository.NewAISuggestionRepositoryWithDB(gormDB))
 	o.SetIdentityService(service.NewCustomerIdentityService())
 
 	o.SetConfidenceAggregator(engine.ConfidenceAggregator())

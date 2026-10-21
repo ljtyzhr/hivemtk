@@ -12,11 +12,15 @@ type AISuggestionService struct {
 	suggestionRepo *repository.AISuggestionRepository
 }
 
-// NewAISuggestionService 创建AI建议服务实例
+// NewAISuggestionServiceWithRepo 创建AI建议服务实例（仓储由装配层注入）
+func NewAISuggestionServiceWithRepo(repo *repository.AISuggestionRepository) *AISuggestionService {
+	return &AISuggestionService{suggestionRepo: repo}
+}
+
+// NewAISuggestionService 兼容旧装配点：绑定全局 DB 的仓储。
+// 新代码一律经 NewAISuggestionServiceWithRepo 由 router 注入。
 func NewAISuggestionService() *AISuggestionService {
-	return &AISuggestionService{
-		suggestionRepo: repository.NewAISuggestionRepository(),
-	}
+	return NewAISuggestionServiceWithRepo(repository.NewAISuggestionRepository())
 }
 
 // GetSuggestions 获取会话的AI建议
