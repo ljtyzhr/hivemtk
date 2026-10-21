@@ -30,9 +30,6 @@ type stubProbeRepo struct {
 }
 
 func (r *stubProbeRepo) Create(_ context.Context, _ *model.GeoProbeRun) error { return nil }
-func (r *stubProbeRepo) BatchCreate(_ context.Context, _ []*model.GeoProbeRun) error {
-	return nil
-}
 func (r *stubProbeRepo) ListByEngine(_ context.Context, _ string, _, _ int) ([]*model.GeoProbeRun, int64, error) {
 	return nil, 0, errors.New("stubProbeRepo.ListByEngine 未被 avg_sov 口径使用")
 }
@@ -44,9 +41,6 @@ func (r *stubProbeRepo) ListSince(_ context.Context, _ time.Time, _ int) ([]*mod
 }
 func (r *stubProbeRepo) ListBetween(_ context.Context, _, _ time.Time) ([]*model.GeoProbeRun, error) {
 	return nil, errors.New("stubProbeRepo.ListBetween 未被 avg_sov 口径使用")
-}
-func (r *stubProbeRepo) ListByIntent(_ context.Context, _ string, _ time.Time) ([]*model.GeoProbeRun, error) {
-	return nil, errors.New("stubProbeRepo.ListByIntent 未被 avg_sov 口径使用")
 }
 func (r *stubProbeRepo) DistinctEngines(_ context.Context) ([]string, error) { return nil, nil }
 

@@ -10,15 +10,13 @@ import (
 	"gorm.io/gorm"
 )
 
-// GeoProbeRunRepository interface {
+// GeoProbeRunRepository 探针运行记录仓储（append-only）
 type GeoProbeRunRepository interface {
 	Create(ctx context.Context, run *model.GeoProbeRun) error
-	BatchCreate(ctx context.Context, runs []*model.GeoProbeRun) error
 	ListByEngine(ctx context.Context, engine string, page, limit int) ([]*model.GeoProbeRun, int64, error)
 	ListRecent(ctx context.Context, limit int) ([]*model.GeoProbeRun, error)
 	ListSince(ctx context.Context, since time.Time, limit int) ([]*model.GeoProbeRun, error)
 	ListBetween(ctx context.Context, since, until time.Time) ([]*model.GeoProbeRun, error)
-	ListByIntent(ctx context.Context, intent string, since time.Time) ([]*model.GeoProbeRun, error)
 	DistinctEngines(ctx context.Context) ([]string, error)
 }
 
@@ -35,19 +33,15 @@ func (r *geoProbeRunRepo) Create(ctx context.Context, run *model.GeoProbeRun) er
 	return r.db.WithContext(ctx).Create(run).Error
 }
 
-func (r *geoProbeRunRepo) BatchCreate(ctx context.Context, runs []*model.GeoProbeRun) error {
-	if len(runs) == 0 {
-		return nil
-	}
-	return r.db.WithContext(ctx).CreateInBatches(runs, 50).Error
-}
-
 func (r *geoProbeRunRepo) ListByEngine(ctx context.Context, engine string, page, limit int) ([]*model.GeoProbeRun, int64, error) {
 	if page <= 0 {
 		page = 1
 	}
 	if limit <= 0 {
 		limit = 20
+	}
+	if limit > 200 {
+		limit = 200
 	}
 	var list []*model.GeoProbeRun
 	var total int64
@@ -68,17 +62,6 @@ func (r *geoProbeRunRepo) ListRecent(ctx context.Context, limit int) ([]*model.G
 	}
 	var list []*model.GeoProbeRun
 	err := r.db.WithContext(ctx).Order("created_at DESC").Limit(limit).Find(&list).Error
-	return list, err
-}
-
-func (r *geoProbeRunRepo) ListByIntent(ctx context.Context, intent string, since time.Time) ([]*model.GeoProbeRun, error) {
-
-	var list []*model.GeoProbeRun
-	q := r.db.WithContext(ctx)
-	if !since.IsZero() {
-		q = q.Where("created_at >= ?", since)
-	}
-	err := q.Order("created_at DESC").Find(&list).Error
 	return list, err
 }
 
