@@ -131,7 +131,7 @@ func (c *ContentController) GetArticleList(ctx *gin.Context) {
 	if page <= 0 {
 		page = 1
 	}
-	if limit <= 0 {
+	if limit <= 0 || limit > 200 {
 		limit = 20
 	}
 

@@ -13,7 +13,6 @@ type GeoArticleRepository interface {
 	Create(ctx context.Context, article *model.GeoArticle) error
 	GetByID(ctx context.Context, id string) (*model.GeoArticle, error)
 	GetList(ctx context.Context, keyword, status string, page, limit int) ([]*model.GeoArticle, int64, error)
-	Delete(ctx context.Context, id string) error
 	Update(ctx context.Context, article *model.GeoArticle) error
 }
 
@@ -63,18 +62,27 @@ func (r *geoArticleRepo) GetList(ctx context.Context, keyword, status string, pa
 	return articles, total, err
 }
 
-func (r *geoArticleRepo) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&model.GeoArticle{}).Error
-}
-
 func (r *geoArticleRepo) Update(ctx context.Context, article *model.GeoArticle) error {
-	return r.db.WithContext(ctx).Save(article).Error
+	// 不用 Save：已删除文章会被重新 INSERT，且命中 0 行时无法区分不存在。
+	res := r.db.WithContext(ctx).Model(&model.GeoArticle{}).
+		Where("id = ?", article.ID).
+		Select("title", "content", "keyword", "model", "prompt", "word_count", "status",
+			"score", "score_detail", "json_ld", "brand_name", "site_url", "site_path",
+			"schema_json", "markdown_path", "deployed_at", "llms_included",
+			"funnel_stage", "query_intent").
+		Updates(article)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 // GeoOptimizationRepository GEO 优化记录仓储接口
 type GeoOptimizationRepository interface {
 	Create(ctx context.Context, opt *model.GeoOptimization) error
-	GetByArticleID(ctx context.Context, articleID string) ([]*model.GeoOptimization, error)
 	GetList(ctx context.Context, articleID string, page, limit int) ([]*model.GeoOptimization, int64, error)
 }
 
@@ -93,12 +101,6 @@ func NewGeoOptimizationRepositoryWithDB(db *gorm.DB) GeoOptimizationRepository {
 
 func (r *geoOptimizationRepo) Create(ctx context.Context, opt *model.GeoOptimization) error {
 	return r.db.WithContext(ctx).Create(opt).Error
-}
-
-func (r *geoOptimizationRepo) GetByArticleID(ctx context.Context, articleID string) ([]*model.GeoOptimization, error) {
-	var opts []*model.GeoOptimization
-	err := r.db.WithContext(ctx).Where("article_id = ?", articleID).Order("created_at DESC").Find(&opts).Error
-	return opts, err
 }
 
 func (r *geoOptimizationRepo) GetList(ctx context.Context, articleID string, page, limit int) ([]*model.GeoOptimization, int64, error) {
