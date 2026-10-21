@@ -637,7 +637,13 @@ func (e *Executor) ExecuteSession(ctx context.Context, task *model.BrowserTask, 
 
 	if task.BrainMode {
 		// Brain 模式：LLM 每轮看快照出 plan → 执行 → done 判定（loop_count 不适用）
-		success, failed, sessionFailed = e.executeBrain(ctx, task, session, stopCh)
+		//
+		// cmdSeq 必须与本函数共用同一个计数器（**不**在 executeBrain 内部另开一个）：
+		// Brain 段落的帧与本函数收口段落的帧（captureSessionReceipts / cleanupSessionTab）
+		// 落在同一个 session 的同一条命令流里，seq 是那条流里的唯一序号。两个计数器
+		// 都从 0 起 ⇒ 收口帧与 Brain 帧撞号，而撞号之后按 seq 排序无法还原先后，
+		// 裁剪摘要的 [FirstSeq,LastSeq] 区间也会与行数对不上（断号信号误报成真缺行）。
+		success, failed, sessionFailed = e.executeBrain(ctx, task, session, stopCh, &cmdSeq)
 	} else {
 		loopCount := task.LoopCount
 		if loopCount < 1 {
@@ -754,7 +760,12 @@ func (e *Executor) ExecuteSession(ctx context.Context, task *model.BrowserTask, 
 // 返回 (success, failed, sessionFailed)；sessionFailed 为空表示目标达成（done）。
 // 容错：LLM 编排失败/snapshot 失败不直接终止——先尝试恢复 tab 再重试本轮，
 // 连续 brainMaxFailures 次失败才放弃（LLM JSON 抖动与 Host 空闲断连都是瞬态）。
-func (e *Executor) executeBrain(ctx context.Context, task *model.BrowserTask, session *model.BrowserSession, stopCh chan struct{}) (int, int, string) {
+//
+// seq 是**调用方那个** session 局部计数器（`cmdSeq *int`），不是本函数另开的一个：
+// Brain 段落的帧与 ExecuteSession 收口段落的帧落在同一个 session 的同一条命令流里，
+// seq 是那条流里的唯一序号。另开一个计数器 ⇒ 收口帧与 Brain 帧撞号 ⇒ 按 seq 排序
+// 无法还原先后，裁剪摘要的区间也会与行数对不上。
+func (e *Executor) executeBrain(ctx context.Context, task *model.BrowserTask, session *model.BrowserSession, stopCh chan struct{}, cmdSeq *int) (int, int, string) {
 	if e.brain == nil {
 		return 0, 0, "Brain 服务未装配"
 	}
@@ -766,7 +777,9 @@ func (e *Executor) executeBrain(ctx context.Context, task *model.BrowserTask, se
 	var history []string
 	// reflect 跨轮状态（对标 browser-use evaluation/memory 回喂）
 	var prevEvaluation, memory string
-	cmdSeq := 0 // session 局部命令日志计数（P0-2）
+	if cmdSeq == nil {
+		cmdSeq = new(int) // 兜底：直接调本函数的测试不该因此 panic
+	}
 	// P0-4：LLM 下发参数钳位状态
 	consecutiveActionFails := 0
 	judgeFailOpen := 0 // P1-2 连续 fail-open 计数
@@ -812,8 +825,8 @@ func (e *Executor) executeBrain(ctx context.Context, task *model.BrowserTask, se
 			}
 			session.ChromeTabID = tabID
 			_ = e.sessionRepo.UpdateChromeTabID(ctx, session.ID, tabID)
-			cmdSeq++ // P2-1 自愈动作落审计
-			e.appendCommandLog(ctx, session.ID, task.ID, 0, cmdSeq, "event", "open_tab_recovery", map[string]any{"reason": "snapshot_failed", "new_tab": tabID}, 0, verdict(true))
+			*cmdSeq++ // P2-1 自愈动作落审计
+			e.appendCommandLog(ctx, session.ID, task.ID, 0, *cmdSeq, "event", "open_tab_recovery", map[string]any{"reason": "snapshot_failed", "new_tab": tabID}, 0, verdict(true))
 			if snap, pageURL, err = e.hand.snapshot(ctx, task.UserID, session.ChromeTabID); err != nil {
 				return success, failed, "snapshot 失败: " + err.Error()
 			}
@@ -826,7 +839,7 @@ func (e *Executor) executeBrain(ctx context.Context, task *model.BrowserTask, se
 		}
 		st := &reflectState{History: histView, PrevEvaluation: prevEvaluation, Memory: memory}
 		// JEV 优先、Brain 回退（设计步骤四 §2：planRound 内决策；JEV 未启用/失败即原路径）。
-		planOut, err := e.planRound(ctx, task, session, snap, pageURL, st, history, &cmdSeq, jevSess)
+		planOut, err := e.planRound(ctx, task, session, snap, pageURL, st, history, cmdSeq, jevSess)
 		stepsJSON, done, terminal := planOut.stepsJSON, planOut.done, planOut.terminal
 		if terminal != "" {
 			return success, failed, terminal
@@ -884,8 +897,8 @@ func (e *Executor) executeBrain(ctx context.Context, task *model.BrowserTask, se
 				judgeFailOpen = 0
 			}
 			// P1-2：judge 结果落 command_log（direction=judge，审计可查）
-			cmdSeq++
-			e.appendCommandLog(ctx, session.ID, task.ID, 0, cmdSeq, "judge", "judge_done",
+			*cmdSeq++
+			e.appendCommandLog(ctx, session.ID, task.ID, 0, *cmdSeq, "judge", "judge_done",
 				map[string]any{"approve": approve, "reason": reason}, 0, verdict(approve))
 			if approve {
 				exceeded = false
@@ -943,7 +956,7 @@ func (e *Executor) executeBrain(ctx context.Context, task *model.BrowserTask, se
 			}
 			// P0-4：LLM 幻觉参数服务端钳位
 			step.RetryCount, step.RetryBackoffMs = clampBrainStepParams(step.RetryCount, step.RetryBackoffMs)
-			status, errMsg, stepResult := e.executeStepWithRetry(ctx, task, session, stepIdx, step, stopCh, &cmdSeq, pageURL)
+			status, errMsg, stepResult := e.executeStepWithRetry(ctx, task, session, stepIdx, step, stopCh, cmdSeq, pageURL)
 			stepIdx++
 			// 历史记录（F6 滑窗压缩：溢出最旧条折叠入账）：LLM 下轮能看到已做过的关键动作
 			hist := step.Action + " " + step.Target
@@ -997,7 +1010,7 @@ func (e *Executor) executeBrain(ctx context.Context, task *model.BrowserTask, se
 			logger.Warnf("[BrowserExec] brain 轮内步骤失败 session=%d: %s（下轮 snapshot 自恢复）", session.ID, abort)
 		}
 		// 拦截页检测（铁律 4）：Brain 轮后同样检测——风控页命中即终止，全自动闭环
-		if blocked, reason := e.detectBlockedIfFatal(ctx, task, session, &cmdSeq); blocked {
+		if blocked, reason := e.detectBlockedIfFatal(ctx, task, session, cmdSeq); blocked {
 			// 熔断写入：同平台新任务启动门 + 人工恢复（best-effort，不改终止语义）
 			_ = e.recordProfileBlocked(ctx, task, session, reason)
 			return success, failed, reason

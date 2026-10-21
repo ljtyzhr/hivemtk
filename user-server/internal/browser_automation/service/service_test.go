@@ -112,7 +112,7 @@ func TestExecuteBrainNilBrain(t *testing.T) {
 	session := &model.BrowserSession{}
 	stopCh := make(chan struct{})
 
-	success, failed, msg := e.executeBrain(context.Background(), task, session, stopCh)
+	success, failed, msg := e.executeBrain(context.Background(), task, session, stopCh, new(int))
 	if success != 0 || failed != 0 {
 		t.Errorf("nil brain 应 0/0，got %d/%d", success, failed)
 	}
