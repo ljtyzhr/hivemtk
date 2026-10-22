@@ -415,7 +415,13 @@ case "$MODE" in
   *) die "未知模式: $MODE" ;;
 esac
 
-healthcheck
+# web 模式只推静态资源，本次没有（重新）部署 user-server：本地 8204 探的是
+# 另一套进程（生产形态下 API 在远端容器里），拿它自证本次发布只会误报失败。
+if [[ "$MODE" == "web" ]]; then
+  log "  本次仅发布前端，跳过 user-server 健康检查"
+else
+  healthcheck
+fi
 
 if [[ -n "$DRY_RUN" ]]; then
   log "发布完成（--dry-run 仅预览，未实际执行）。"
