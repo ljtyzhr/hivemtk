@@ -31,6 +31,18 @@ func (c *GrowthController) ListWebhookSubs(ctx *gin.Context) {
 	if HandleServiceError(ctx, err) {
 		return
 	}
+	// 出参脱敏：secret 是**签名校验用的密钥**，直接序列化 ⇒ 任何能看列表的人
+	// 都能拿走它去伪造 webhook 回调。
+	//
+	// 为什么创建口（CreateWebhookSub）**不**脱敏：那里是"secret 只给看一次"的
+	// 契约（响应文案明写"请保存 secret，用于签名校验"）—— 订阅方必须在这里
+	// 拿到它才能配置对端。列表是"浏览"路径，不需要 secret，脱敏不影响任何用法。
+	for _, sub := range list {
+		if sub == nil {
+			continue
+		}
+		sub.Secret = maskCredential(sub.Secret)
+	}
 	response.Success(ctx, gin.H{"list": list, "total": len(list)}, "ok")
 }
 
