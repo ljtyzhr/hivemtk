@@ -136,6 +136,48 @@ FAIL	hivemtk-user/internal/service	601.106s
 **待发版后复核**：商户侧 `llm_providers` 出现 `platform-sensenova` 行
 （同步在 user-server 启动期执行，需本修复上线后才生效）。
 
+### 发版后复核（2026-10-22 已发版并复核）
+
+user-server 侧已发版（交叉编译 linux/amd64 → 换二进制 → `docker compose build
+user-server` → 重启；容器内二进制 md5 `51cffe99f4e50518ec0391644904e512`
+与上传件一致，旧版留 `user-server.prev-20261022-faq2`）。
+
+启动日志读数：
+
+```
+[llm-provider] 平台下发 provider 同步完成：1 条
+[llm-provider] 已同步 1 个平台下发 provider
+[llm-provider] 平台 provider 已并入路由表
+```
+
+商户库 `llm_providers` 读数（3 行）：
+
+```
+     name        |  source  | plan_code | enabled |              display_name               | tenant_id | has_key
+------------------+----------+-----------+---------+-------------------------------------------+-----------+--------
+ deepseek-flash-b   |     self |           | t       | SenseNova DeepSeek-V4-Flash(备用)       |         1 | t
+ default            |     self |           | t       | SenseNova DeepSeek-V4-Flash             |         1 | t
+ platform-sensenova | platform | starter   | t       | SenseNova DeepSeek-V4-Flash（平台垫资） |         1 | f
+```
+
+两条要点：① 商户自己的 `default` / `deepseek-flash-b` 仍是 `self`（**没被改写成
+platform**）—— 这是选新名 `platform-sensenova` 的原因；② 平台下发行
+`has_key=f`，**API Key 没下发到商户端**（ADR-M7），Key 仍只在平台侧。
+
+端到端再验（赠送额度实际消耗）：
+
+```
+调用前: in=9997514 out=1999884
+POST /llm-api/v1/chat/completions?provider=platform-sensenova&tenant_code=tztn25d
+  → 200，厂商返回标准 OpenAI 格式 usage
+调用后: in=9997429 out=1999852 consumed=2571/148
+llm_usage_records: e2e-final-001 | platform-sensenova | starter | 85 | 32 | 0 | 0
+```
+
+（`input_cost_cents=0` 是整数分向下取整：85 token 不足 1k 粒度；
+2283 token 那次测出 2 分，费率链路本身已验证。）
+
+
 ## 验证阶梯（第 6 步）
 
 ```bash
@@ -231,11 +273,14 @@ ok  	hivemtk-user/internal/service	25.917s
 
 ## Residual Risks
 
-- 本次修复**未发版到线上**（user-server 侧）。平台侧 provider 绑定已上线，
-  商户侧同步仍被隔离拦截，直到本修复的二进制上线并重启 user-server。
-  ⇒ 线上此刻平台垫资通道**仍不可用**，商户看到的仍是「同步 0 条」。
-- 发版须交叉编译 + 重建镜像（本地 darwin/arm64 二进制在容器里会 exec format error；
-  只 `docker compose up -d` 不改镜像时会跑旧二进制）。
+- 本次修复**已发版到线上并复核**（见上「发版后复核」段）。平台垫资通道对所有租户
+  已可用：平台端 provider 绑定就绪 + 商户侧同步落库 + 赠送额度实际可消耗。
+  仍未做的一件事：**路由表里还没有把平台 provider 设为任何场景的主 provider**
+  —— `llm_routing_rules` 生产库为空，场景路由走代码种子（主 provider = `default`，
+  即商户自带的 self）。所以平台垫资通道「可用」是指链路通、余额能扣，
+  但**默认场景仍走自带 Key 的 `default`**，不会自动切到平台垫资。
+  要让某场景走平台垫资，需在后台「LLM 路由」把该场景主 provider 改成
+  `platform-sensenova`（或配成 fallback）。
 - `TestModuleSyncExemptsGiftRowsFromStaleDisable` /
   `TestModuleSyncProvisionsFreeModulesForRequestingTenant` 两条既有红
   属模块闸/赠送行口径（`source` 应为 gift 实为 purchase），不在本次范围，
@@ -247,4 +292,8 @@ ok  	hivemtk-user/internal/service	25.917s
 - 平台端 provider 的 `api_key` 在平台库**明文存储**（平台库无加密层，
   与商户端 `enc:v1:` 密文不同）。本次沿用现状未改加密策略；
   若后续要加密平台侧密钥，需另评估 `llm_provider_bindings.api_key` 的迁移。
+- 发版时带了另一条泳道**未提交**的 `bridge_extension.go` 两个文件
+  （`router.go` 已提交引用它们 ⇒ HEAD 本身编译不过，不带就构建不出来）。
+  这两处随本次二进制一并上线，内容未经本泳道审阅。
+
 
