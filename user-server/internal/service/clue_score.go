@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"math"
-	"strconv"
 	"time"
 
 	"context"
@@ -14,6 +13,12 @@ import (
 	"hivemtk-user/internal/repository"
 
 	"gorm.io/gorm"
+)
+
+// 线索评分域对调用方暴露的「不存在」语义，供 controller 区分 404 与真实故障。
+var (
+	ErrClueScoreNotFound = errors.New("未找到评分")
+	ErrClueNotFound      = errors.New("线索不存在")
 )
 
 // ClueScoreService 线索评分服务
@@ -288,17 +293,19 @@ func (s *ClueScoreService) RecordEngagement(ctx context.Context, clueID, eventTy
 
 // GetByClueID 查询线索评分
 func (s *ClueScoreService) GetByClueID(ctx context.Context, clueID string) (*model.ClueScore, error) {
-	return s.scoreRepo.GetByClueID(ctx, clueID)
+	score, err := s.scoreRepo.GetByClueID(ctx, clueID)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrClueScoreNotFound
+		}
+		return nil, err
+	}
+	return score, nil
 }
 
 // ListByGrade 按等级分页查询
 func (s *ClueScoreService) ListByGrade(ctx context.Context, grade string, page, pageSize int) ([]*model.ClueScore, int64, error) {
 	return s.scoreRepo.ListByGrade(ctx, grade, page, pageSize)
-}
-
-// ListTopByScore 查询 top N 评分
-func (s *ClueScoreService) ListTopByScore(ctx context.Context, limit int) ([]*model.ClueScore, error) {
-	return s.scoreRepo.ListTopByScore(ctx, limit)
 }
 
 // LoadClueForScoring 加载线索对象（用于评分）。
@@ -311,7 +318,7 @@ func (s *ClueScoreService) LoadClueForScoring(ctx context.Context, clueID string
 	clue, err := s.clueRepo.GetByID(ctx, clueID)
 	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("线索不存在")
+			return nil, ErrClueNotFound
 		}
 		return nil, err
 	}
@@ -432,13 +439,4 @@ func calcConfidence(channel, verify, profile, engagement, recency int) int {
 		score += 20
 	}
 	return score
-}
-
-// FormatCreateTime 辅助：把字符串 create_time 转 int64（兼容 list 中已格式化字符串）
-func FormatCreateTime(s string) int64 {
-	v, err := strconv.ParseInt(s, 10, 64)
-	if err != nil {
-		return 0
-	}
-	return v
 }

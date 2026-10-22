@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"errors"
 	"hivemtk-user/internal/dto"
 	"hivemtk-user/internal/pkg/utils/response"
 	"hivemtk-user/internal/service"
@@ -35,7 +36,11 @@ func (c *ClueScoreController) ScoreClue(ctx *gin.Context) {
 	}
 	clue, err := c.svc.LoadClueForScoring(ctx.Request.Context(), req.ClueID)
 	if err != nil {
-		response.Error(ctx, http.StatusNotFound, "线索不存在")
+		if errors.Is(err, service.ErrClueNotFound) {
+			response.Error(ctx, http.StatusNotFound, "线索不存在")
+			return
+		}
+		response.ErrorFromDB(ctx, err, "加载线索失败: "+err.Error())
 		return
 	}
 	score, err := c.svc.ScoreClue(ctx.Request.Context(), clue)
@@ -78,7 +83,11 @@ func (c *ClueScoreController) GetByClueID(ctx *gin.Context) {
 	clueID := ctx.Param("clue_id")
 	score, err := c.svc.GetByClueID(ctx.Request.Context(), clueID)
 	if err != nil {
-		response.Error(ctx, http.StatusNotFound, "未找到评分")
+		if errors.Is(err, service.ErrClueScoreNotFound) {
+			response.Error(ctx, http.StatusNotFound, "未找到评分")
+			return
+		}
+		response.ErrorFromDB(ctx, err, "查询评分失败: "+err.Error())
 		return
 	}
 	response.Success(ctx, service.FromClueScoreModel(score), "ok")

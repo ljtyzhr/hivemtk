@@ -4,10 +4,10 @@ import (
 	"context"
 	"errors"
 	"hivemtk-user/internal/model"
-	_db "hivemtk-user/internal/pkg/db"
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // ClueScoreRepository 线索评分仓库
@@ -15,40 +15,55 @@ type ClueScoreRepository interface {
 	Upsert(ctx context.Context, score *model.ClueScore) error
 	GetByClueID(ctx context.Context, clueID string) (*model.ClueScore, error)
 	ListByGrade(ctx context.Context, grade string, page, pageSize int) ([]*model.ClueScore, int64, error)
-	ListTopByScore(ctx context.Context, limit int) ([]*model.ClueScore, error)
-	DeleteByClueID(ctx context.Context, clueID string) error
 }
 
 type clueScoreRepo struct {
 	db *gorm.DB
 }
 
-// NewClueScoreRepository 创建线索评分仓库
-func NewClueScoreRepository() ClueScoreRepository {
-	return &clueScoreRepo{db: _db.GetDB()}
-}
-
-// NewClueScoreRepositoryWithDB 测试用 - 自定义 DB
+// NewClueScoreRepositoryWithDB 用装配点注入的连接创建线索评分仓库
 func NewClueScoreRepositoryWithDB(db *gorm.DB) ClueScoreRepository {
 	return &clueScoreRepo{db: db}
 }
 
+// Upsert 写入评分：先按唯一键插入，命中已有行则更新。
+// 唯一索引在租户模式下被 tenancyidx 复合化为 (tenant_id, clue_id)，单租户模式下仍可能是
+// 单列 clue_id，因此 ON CONFLICT 不带目标列（DoNothing），两种索引形态都成立。
 func (r *clueScoreRepo) Upsert(ctx context.Context, score *model.ClueScore) error {
 	if score.ClueID == "" {
 		return errors.New("clue_id 不能为空")
 	}
-	var existing model.ClueScore
-	err := r.db.WithContext(ctx).Where("clue_id = ?", score.ClueID).First(&existing).Error
-	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
-		return err
-	}
-	if errors.Is(err, gorm.ErrRecordNotFound) {
-		return r.db.WithContext(ctx).Create(score).Error
-	}
-	score.ID = existing.ID
-	score.CreatedAt = existing.CreatedAt
 	score.ScoredAt = time.Now()
-	return r.db.WithContext(ctx).Save(score).Error
+	res := r.db.WithContext(ctx).Clauses(clause.OnConflict{DoNothing: true}).Create(score)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected > 0 {
+		return nil
+	}
+	upd := r.db.WithContext(ctx).Model(&model.ClueScore{}).
+		Where("clue_id = ?", score.ClueID).
+		Updates(map[string]any{
+			"account":          score.Account,
+			"total_score":      score.TotalScore,
+			"grade":            score.Grade,
+			"confidence":       score.Confidence,
+			"channel_score":    score.ChannelScore,
+			"verify_score":     score.VerifyScore,
+			"profile_score":    score.ProfileScore,
+			"engagement_score": score.EngagementScore,
+			"recency_score":    score.RecencyScore,
+			"factors_json":     score.FactorsJSON,
+			"model_version":    score.ModelVersion,
+			"scored_at":        score.ScoredAt,
+		})
+	if upd.Error != nil {
+		return upd.Error
+	}
+	if upd.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 func (r *clueScoreRepo) GetByClueID(ctx context.Context, clueID string) (*model.ClueScore, error) {
@@ -66,43 +81,30 @@ func (r *clueScoreRepo) ListByGrade(ctx context.Context, grade string, page, pag
 	if pageSize < 1 || pageSize > 200 {
 		pageSize = 20
 	}
-	var scores []*model.ClueScore
 	var total int64
-	q := r.db.WithContext(ctx).Model(&model.ClueScore{})
+	countTx := r.db.WithContext(ctx).Model(&model.ClueScore{})
 	if grade != "" {
-		q = q.Where("grade = ?", grade)
+		countTx = countTx.Where("grade = ?", grade)
 	}
-	if err := q.Count(&total).Error; err != nil {
+	if err := countTx.Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	if err := q.Order("total_score DESC, scored_at DESC").
+	var scores []*model.ClueScore
+	listTx := r.db.WithContext(ctx).Model(&model.ClueScore{})
+	if grade != "" {
+		listTx = listTx.Where("grade = ?", grade)
+	}
+	if err := listTx.Order("total_score DESC, scored_at DESC, id DESC").
 		Offset((page - 1) * pageSize).Limit(pageSize).Find(&scores).Error; err != nil {
 		return nil, 0, err
 	}
 	return scores, total, nil
 }
 
-func (r *clueScoreRepo) ListTopByScore(ctx context.Context, limit int) ([]*model.ClueScore, error) {
-	if limit < 1 || limit > 200 {
-		limit = 20
-	}
-	var scores []*model.ClueScore
-	if err := r.db.WithContext(ctx).Order("total_score DESC, scored_at DESC").Limit(limit).Find(&scores).Error; err != nil {
-		return nil, err
-	}
-	return scores, nil
-}
-
-func (r *clueScoreRepo) DeleteByClueID(ctx context.Context, clueID string) error {
-	return r.db.WithContext(ctx).Where("clue_id = ?", clueID).Delete(&model.ClueScore{}).Error
-}
-
 // ClueEngagementRepository 线索互动事件仓库
 type ClueEngagementRepository interface {
 	Create(ctx context.Context, evt *model.ClueEngagementEvent) error
 	CountByClueID(ctx context.Context, clueID string, since time.Time) (int64, error)
-	CountByType(ctx context.Context, clueID string) (map[string]int64, error)
-	LastByClueID(ctx context.Context, clueID string, limit int) ([]*model.ClueEngagementEvent, error)
 	CountByClueIDsBatch(ctx context.Context, clueIDs []string, since time.Time) (map[string]int64, error)
 }
 
@@ -110,10 +112,7 @@ type clueEngagementRepo struct {
 	db *gorm.DB
 }
 
-func NewClueEngagementRepository() ClueEngagementRepository {
-	return &clueEngagementRepo{db: _db.GetDB()}
-}
-
+// NewClueEngagementRepositoryWithDB 用装配点注入的连接创建线索互动事件仓库
 func NewClueEngagementRepositoryWithDB(db *gorm.DB) ClueEngagementRepository {
 	return &clueEngagementRepo{db: db}
 }
@@ -170,32 +169,4 @@ func (r *clueEngagementRepo) CountByClueIDsBatch(ctx context.Context, clueIDs []
 		result[r.ClueID] = r.Cnt
 	}
 	return result, nil
-}
-
-func (r *clueEngagementRepo) CountByType(ctx context.Context, clueID string) (map[string]int64, error) {
-	type resultRow struct {
-		EventType string
-		Cnt       int64
-	}
-	var rows []resultRow
-	if err := r.db.WithContext(ctx).Model(&model.ClueEngagementEvent{}).
-		Select("event_type, COUNT(*) as cnt").
-		Where("clue_id = ?", clueID).
-		Group("event_type").Scan(&rows).Error; err != nil {
-		return nil, err
-	}
-	out := make(map[string]int64, len(rows))
-	for _, r := range rows {
-		out[r.EventType] = r.Cnt
-	}
-	return out, nil
-}
-
-func (r *clueEngagementRepo) LastByClueID(ctx context.Context, clueID string, limit int) ([]*model.ClueEngagementEvent, error) {
-	if limit < 1 || limit > 100 {
-		limit = 10
-	}
-	var evts []*model.ClueEngagementEvent
-	err := r.db.WithContext(ctx).Where("clue_id = ?", clueID).Order("created_at DESC").Limit(limit).Find(&evts).Error
-	return evts, err
 }
