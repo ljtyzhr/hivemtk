@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/utils/response"
 	"hivemtk-user/internal/service"
 	"strings"
@@ -31,7 +32,36 @@ func (c *WhatsappController) ListAccounts(ctx *gin.Context) {
 		response.ErrorFromDB(ctx, err, "获取账号列表失败", err.Error())
 		return
 	}
+	// 出参脱敏：token / app_secret 是企业微信侧的接入**密钥**，
+	// 直接序列化 ⇒ 任何登录用户都能把商户的接入凭证整个读走。
+	// （app_id 是业务标识不是密钥，与 whatsapp-cloud 保留 whatsapp_business_id
+	//   明文的口径一致，不在这里掩。）
+	// 兄弟模块 whatsapp-cloud 早就这么做了（access_token_masked / app_secret_masked，
+	// 见 whatsapp_cloud_account.go 的 maskFeishuSecret），这条是漏的。
+	//
+	// 为什么可以就地脱敏、且不需要"写侧认掩码"那一步：
+	// 凭证是**扫码登录流程**写进去的（CreateAccount 只收 name/remark，
+	// UpdateAccount 也只改 name/remark），前端既不读它也不回传它 ⇒
+	// 不存在"把掩码原样提交回来覆盖真值"的路径（对比企业微信 / 短信配置那两处）。
+	maskWhatsappAccountSecrets(list)
 	response.Success(ctx, list, "获取账号列表成功")
+}
+
+// maskWhatsappAccountSecrets 就地把接入密钥换成掩码。
+//
+// 掩码格式与 whatsapp-cloud 一致（maskFeishuSecret）：前 4 位 + **** + 后 4 位，
+// 够运维认是哪一把钥匙，又不泄密。空串保持空（表示"还没配"）。
+//
+// 只掩密钥（token / app_secret），不掩业务标识（app_id）——
+// 与 whatsapp-cloud 保留 whatsapp_business_id 明文的口径一致。
+func maskWhatsappAccountSecrets(list []*model.WhatsappAccount) {
+	for _, acc := range list {
+		if acc == nil {
+			continue
+		}
+		acc.Token = maskFeishuSecret(acc.Token)
+		acc.AppSecret = maskFeishuSecret(acc.AppSecret)
+	}
 }
 
 type createAccountReq struct {
@@ -50,6 +80,8 @@ func (c *WhatsappController) CreateAccount(ctx *gin.Context) {
 		response.ErrorFromDB(ctx, err, "创建账号失败", err.Error())
 		return
 	}
+	// 回显同样脱敏（账号模型带着 token / app_secret 字段）。
+	maskWhatsappAccountSecrets([]*model.WhatsappAccount{acc})
 	response.Success(ctx, acc, "创建账号成功")
 }
 
@@ -169,6 +201,8 @@ func (c *WhatsappController) UpdateAccount(ctx *gin.Context) {
 		response.ErrorFromDB(ctx, err, "更新账号失败", err.Error())
 		return
 	}
+	// 回显同样脱敏（下面这条 account 带着 token / app_secret）。
+	maskWhatsappAccountSecrets([]*model.WhatsappAccount{acc})
 	response.Success(ctx, acc, "更新账号成功")
 }
 
