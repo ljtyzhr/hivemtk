@@ -72,6 +72,11 @@ var platformOperatorPaths = []string{
 	// 改词条是全局治理动作
 	"/api/manage/dictionaries/:parent/items",
 	"/api/manage/dictionaries/:parent/transitions",
+	// 平台端通信地址：platform.api_host 是**部署级**参数（这台部署连哪个平台），
+	// 改它影响全体租户 ⇒ 平台运营方档。租户档的通用参数页在 SaaS 模式下会把它
+	// 落进租户覆盖行（无效写入），所以必须有这条专用通道。
+	"/api/manage/platform-host",
+	"/api/manage/platform-host/connectivity",
 }
 
 // tenantScopedAdminPaths 必须留在租户档的端点（操作租户表，租户 admin 要能读写自己那份）。
@@ -116,7 +121,7 @@ func newScopedEngine(t *testing.T) (tenantPaths, systemPaths map[string]bool) {
 	setupSystemRoutes(tenantAdmin, systemAdmin, nil)
 	setupTenantRoutes(nil, tenantAuth, systemAdmin)
 	setupModuleRoutes(nil, tenantAuth, tenantAdmin, systemAdmin)
-	setupConfigParamRoutes(tenantAuth, tenantAdmin, nil)
+	setupConfigParamRoutes(tenantAuth, tenantAdmin, systemAdmin, nil)
 	setupSSOConfigRoutes(tenantAdmin, controller.NewSSOController(service.NewSSOService(nil)))
 	setupDictionaryRoutes(tenantAuth, systemAdmin, (*gorm.DB)(nil))
 	// 备份/恢复只有平台运营方档：全局表 backups / restore_records

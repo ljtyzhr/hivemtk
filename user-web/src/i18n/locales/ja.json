@@ -293,6 +293,8 @@
     "scriptTemplateAbStats": "トークンA/B統計",
     "sopTemplateMarket": "SOPテンプレート市場",
     "bridgeToken": "ブリッジトークン",
+    "bridgeExtension": "拡張機能パッケージ",
+
     "whatsappLeadGroup": "リードグループ",
     "whatsappBulkMatrix": "一括統計マトリクス",
     "cohortPath": "コホートパス",

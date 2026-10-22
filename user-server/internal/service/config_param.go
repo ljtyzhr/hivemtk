@@ -716,6 +716,62 @@ func normalizeValueForType(valueType, newValue string) (string, error) {
 	return strconv.FormatBool(b), nil
 }
 
+// UpdatePlatformDefault 更新**平台默认值**（config_params 表本体），不写租户覆盖行。
+//
+// 为什么需要这条独立入口：SaaS 模式下 UpdateValue 看到请求 ctx 带着租户绑定，
+// 就一律写 tenant_config_params 覆盖行 —— 这对「按租户分叉的参数」是对的，
+// 但对**平台级参数**（platform.api_host 这类：这台部署连哪个平台，是部署级事实）
+// 就成了死路：平台运营方自己也是一个租户，admin 身份照样落进租户分支，
+// 于是「改这台实例连哪个平台」这件事**没有任何人能做**。
+//
+// 与 UpdateValue 的分工：
+//   - UpdateValue           ⇒ 写本租户的覆盖行（租户级参数）
+//   - UpdatePlatformDefault ⇒ 写平台默认行（平台级参数，租户覆盖行对它无意义）
+//
+// 判据放在 service 层而不是 controller 层：controller 不知道自己写的是
+// 哪一档，而「这一键是不是平台级」是 config_param_tenant_scope.go 里的事实。
+// 守卫放在 service ⇒ 任何调用方都绕不过去。
+//
+// 只允许写 platformScopedParams 里的键：这条路径绕过租户分支，
+// 若让它能写任意键，租户就能通过它改写全体租户的默认值 —— 那正是
+// UpdateValue 刻意不让人做的事。
+func (s *ConfigParamService) UpdatePlatformDefault(ctx context.Context, group, key, newValue string, actorID uint) error {
+	if s.repo == nil {
+		return repoNotInitializedErr
+	}
+	full := fullParamKey(group, key)
+	if _, isPlatformScoped := platformScopedParams[full]; !isPlatformScoped {
+		return fmt.Errorf("参数 %s 不是平台级参数：平台默认值写入只对平台级参数开放，"+
+			"租户级参数请走普通参数更新（写本租户覆盖行）", full)
+	}
+
+	p, err := s.repo.GetByGroupKey(ctx, group, key)
+	if err != nil {
+		return err
+	}
+	if p.ReadOnly {
+		return repository.ErrParamReadOnly
+	}
+	if p.Deprecated {
+		return repository.ErrParamDeprecated
+	}
+	if err := validateValue(p.ValueType, newValue, p.Min, p.Max); err != nil {
+		return err
+	}
+	newValue, err = normalizeValueForType(p.ValueType, newValue)
+	if err != nil {
+		return err
+	}
+	if err := s.repo.UpdateValue(ctx, group, key, newValue, actorID); err != nil {
+		return err
+	}
+	// 平台默认值变了，**所有租户**的该键缓存都要失效：租户覆盖行里可能留着
+	// 旧值的拷贝，不一起清就会出现「平台默认改了但某租户还是旧值」。
+	s.invalidate(group, key)
+	s.invalidateGroup(group)
+	return nil
+}
+
 // ResetToDefault 重置单条为默认值
 func (s *ConfigParamService) ResetToDefault(ctx context.Context, group, key string, actorID uint) error {
 	if s.repo == nil {
@@ -822,16 +878,45 @@ func (s *ConfigParamService) invalidateTenant(tenantID uint, group, key string) 
 	s.mu.Unlock()
 }
 
+// invalidateGroup 清掉整组在**所有域**（平台域 + 各租户域）的缓存。
+//
+// 为什么必须连租户域一起清：缓存键分两种形态 —— 平台域是 "group.key"，
+// 租户域是 "t<租户ID>|group.key"（见 tenantCachePrefix）。只按 "group." 前缀
+// 匹配的话，租户域的键一条都清不掉，于是平台默认值改了之后，**已经读过一次的
+// 租户仍拿到旧值** —— 而这正是"平台默认值写入"这条通道要修的那类不一致
+// （用户改完平台地址，部分租户仍连着旧平台）。
+//
+// 匹配方式：键里 "|" 之后才是 group/key，所以判据是「键的 group 部分等于目标组」
+// —— 对平台域与租户域同时成立。
 func (s *ConfigParamService) invalidateGroup(group string) {
 	s.mu.Lock()
-	prefix := group + "."
 	for k := range s.cache {
-		if strings.HasPrefix(k, prefix) {
+		if paramCacheKeyGroup(k) == group {
 			delete(s.cache, k)
 		}
 	}
 	s.loaded[group] = false
+	// 租户域的 loaded 标记带前缀，一并清掉
+	for k := range s.loaded {
+		if paramCacheKeyGroup(k) == group {
+			delete(s.loaded, k)
+		}
+	}
 	s.mu.Unlock()
+}
+
+// paramCacheKeyGroup 从缓存键里取出 group 部分。
+//
+// 键形态有两种："group.key"（平台域）与 "t<租户ID>|group.key"（租户域）。
+// 租户域那截前缀长度不定，所以不能按固定前缀切，要找最后一个 "|"。
+func paramCacheKeyGroup(cacheKey string) string {
+	if i := strings.LastIndexByte(cacheKey, '|'); i >= 0 {
+		cacheKey = cacheKey[i+1:]
+	}
+	if j := strings.IndexByte(cacheKey, '.'); j >= 0 {
+		return cacheKey[:j]
+	}
+	return cacheKey
 }
 
 func (s *ConfigParamService) invalidateTenantGroup(tenantID uint, group string) {

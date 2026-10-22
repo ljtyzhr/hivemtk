@@ -18,7 +18,12 @@ import (
 //
 // plainAuth 组只挂一条只读的 Runtime（GET /api/config/runtime），它返回白名单内的
 // 组的值，供前端缓存。两条组的分界见 controller/config_param_runtime.go。
-func setupConfigParamRoutes(plainAuth, admin *gin.RouterGroup, db *gorm.DB) {
+//
+// platformHost 组（systemAdmin 档）挂平台地址的专用读写端点：平台地址是
+// **部署级**参数（这台部署连哪个平台），改它影响全体租户 ⇒ 归平台运营方档。
+// 普通参数中心页面（tenantAdmin 档）在 SaaS 模式下会把写入落到租户覆盖行，
+// 对这一条是无效写入，所以需要这条专用通道。
+func setupConfigParamRoutes(plainAuth, admin, systemAdmin *gin.RouterGroup, db *gorm.DB) {
 	svc := service.GlobalConfigParam()
 	ctrl := controller.NewConfigParamController(svc)
 
@@ -30,4 +35,10 @@ func setupConfigParamRoutes(plainAuth, admin *gin.RouterGroup, db *gorm.DB) {
 	admin.PUT("/manage/config-params/:group/:key", ctrl.Update)
 	admin.POST("/manage/config-params/:group/:key/reset", ctrl.ResetToDefault)
 	admin.POST("/manage/config-params/:group/reset", ctrl.BulkResetGroup)
+
+	if systemAdmin != nil {
+		hostCtrl := controller.NewPlatformConnectivityController()
+		systemAdmin.PUT("/manage/platform-host", hostCtrl.SetPlatformHost)
+		systemAdmin.POST("/manage/platform-host/connectivity", hostCtrl.TestConnectivity)
+	}
 }

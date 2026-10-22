@@ -293,6 +293,8 @@
     "scriptTemplateAbStats": "话术 AB 统计",
     "sopTemplateMarket": "SOP 模板市场",
     "bridgeToken": "桥接凭证",
+    "bridgeExtension": "扩展安装包",
+
     "whatsappLeadGroup": "群发线索分组",
     "whatsappBulkMatrix": "群发统计矩阵",
     "cohortPath": "同期群路径分析",

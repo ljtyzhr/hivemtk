@@ -251,6 +251,8 @@
     "scriptTemplateAbStats": "إحصاءات A/B",
     "sopTemplateMarket": "سوق SOP",
     "bridgeToken": "رموز الجسر",
+    "bridgeExtension": "حزمة الإضافة",
+
     "whatsappLeadGroup": "مجموعات العملاء",
     "whatsappBulkMatrix": "مصفوفة إحصاءات الإرسال",
     "cohortPath": "مسار المجموعة",

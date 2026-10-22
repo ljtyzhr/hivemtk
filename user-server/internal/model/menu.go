@@ -422,6 +422,10 @@ var SystemMenuTree = []SystemMenuNode{
 					{Key: "platformAccount", Title: "平台账号", Icon: "Platform", Path: "/platformAccount/list"},
 					{Key: "integration", Title: "第三方对接", Icon: "Connection", Path: "/integration/list"},
 					{Key: "bridgeToken", Title: "桥接凭证", Icon: "Key", Path: "/bridge/token"},
+					// 桥接扩展安装包（浏览器扩展不上架商店，平台上传、租户下载）。
+					// 放在权限设置组下：它与桥接凭证同属"渠道接入"这一摊，
+					// 而非租户日常经营入口。
+					{Key: "bridgeExtension", Title: "扩展安装包", Icon: "Download", Path: "/bridge/extension"},
 					{Key: "operationLog", Title: "操作日志", Icon: "Tickets", Path: "/operationLog/list"},
 					{Key: "securityAudit", Title: "安全审计", Icon: "Lock", Path: "/securityAudit/list"},
 				},

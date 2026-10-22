@@ -293,6 +293,8 @@
     "scriptTemplateAbStats": "Estadísticas A/B",
     "sopTemplateMarket": "Mercado SOP",
     "bridgeToken": "Tokens Bridge",
+    "bridgeExtension": "Paquete de Extensión",
+
     "whatsappLeadGroup": "Grupos de leads",
     "whatsappBulkMatrix": "Matriz estadísticas",
     "cohortPath": "Ruta de cohorte",

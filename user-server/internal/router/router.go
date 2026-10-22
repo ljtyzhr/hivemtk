@@ -575,7 +575,7 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 		// plainAuth 只挂只读的 Runtime；五个全量/写端点走租户 admin 档
 		// （config-params 写的是本租户的覆盖行 tenant_config_params，见 config_param.go
 		//  的 UpdateValue：on 模式落租户覆盖、不动平台默认值）
-		setupConfigParamRoutes(auth, tenantAdmin, gormDB)
+		setupConfigParamRoutes(auth, tenantAdmin, systemAdmin, gormDB)
 
 		// 租户自配 IdP（R5-4）：写入的是本租户的 client_secret 与授权端点，
 		// 与参数中心覆盖写同档，只挂租户 admin 组。

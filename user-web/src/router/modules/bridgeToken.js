@@ -9,6 +9,11 @@ export default [{
   component: () => import('@/views/bridge/TokenManagement.vue'),
   meta: { title: '桥接凭证', requiresAdmin: true }
 }, {
+  path: '/bridge/extension',
+  name: 'BridgeExtensionPackage',
+  component: () => import('@/views/bridge/ExtensionPackage.vue'),
+  meta: { title: '扩展安装包', icon: 'Download', requiresAuth: true }
+}, {
   path: '/token',
   redirect: '/bridge/token'
 }];

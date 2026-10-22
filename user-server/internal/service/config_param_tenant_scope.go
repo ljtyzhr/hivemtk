@@ -98,6 +98,11 @@ var platformScopedParams = map[string]string{
 	"ratelimit.visitor_per_ip_bucket":      "按 IP 限流桶深",
 	"ratelimit.visitor_per_ip_rps":         "按 IP 限流速率",
 	"sales.identity_max_attempts":          "身份解析尝试次数上限",
+
+	// —— 平台端通信地址：这台部署连哪个平台，是**部署级**事实不是租户级事实。
+	// 按租户分叉会让「一个租户填错地址 ⇒ 全租户的资产市场/订阅/钱包一起拉空」，
+	// 而它们本该互不相干。SaaS 模式下所有租户连同一个平台。
+	"platform.api_host": "平台端 API 地址（部署级，租户写一律拒绝）",
 }
 
 var tenantPendingParams = map[string]string{
