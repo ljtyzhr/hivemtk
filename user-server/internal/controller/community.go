@@ -13,9 +13,9 @@ type CommunityController struct {
 	svc *service.CommunityService
 }
 
-// NewCommunityController 创建社群管理控制器实例
-func NewCommunityController() *CommunityController {
-	return &CommunityController{svc: service.NewCommunityService()}
+// NewCommunityController 创建社群管理控制器实例（服务由装配点注入）
+func NewCommunityController(svc *service.CommunityService) *CommunityController {
+	return &CommunityController{svc: svc}
 }
 
 // GetGroups 获取社群列表

@@ -6,7 +6,6 @@ import (
 	"time"
 
 	"hivemtk-user/internal/model"
-	_db "hivemtk-user/internal/pkg/db"
 
 	"hivemtk-user/internal/pkg/timeutil"
 
@@ -22,13 +21,22 @@ type CommunityRepository interface {
 
 	GetMembers(ctx context.Context, groupID string, page, pageSize int, search string) ([]*model.CommunityMember, int64, error)
 	AddMember(ctx context.Context, member *model.CommunityMember) (*model.CommunityMember, error)
+	ExistsMemberByUsername(ctx context.Context, groupID, username string) (bool, error)
 	UpdateMember(ctx context.Context, id string, updates map[string]any) error
 	RemoveMember(ctx context.Context, id string) error
 	GetMemberByID(ctx context.Context, id string) (*model.CommunityMember, error)
 
 	GetMessages(ctx context.Context, groupID string, page, pageSize int) ([]*model.CommunityMessage, int64, error)
-	AddMessage(ctx context.Context, message *model.CommunityMessage) (*model.CommunityMessage, error)
-	GetStatistics(ctx context.Context) (*map[string]any, error)
+	GetStatistics(ctx context.Context) (*CommunityStatistics, error)
+}
+
+// CommunityStatistics 社群统计口径。
+type CommunityStatistics struct {
+	TotalGroups     int64
+	TotalMembers    int64
+	TotalMessages   int64
+	ActiveGroups    int64
+	NewMembersToday int64
 }
 
 type communityRepository struct {
@@ -39,27 +47,37 @@ func NewCommunityRepository(db *gorm.DB) CommunityRepository {
 	return &communityRepository{db: db}
 }
 
-func NewCommunityRepositoryDefault() CommunityRepository {
-	return &communityRepository{db: _db.GetDB()}
+// normalizeCommunityPaging 兜底分页：page<1 会算出负 Offset（PG 直接报错），
+// pageSize<1 在 PG 里等于不设上限 —— 两者都必须归一。
+func normalizeCommunityPaging(page, pageSize int) (int, int) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 20
+	}
+	return page, pageSize
 }
 
 func (r *communityRepository) GetGroups(ctx context.Context, page, pageSize int, search string) ([]*model.CommunityGroup, int64, error) {
-	var groups []*model.CommunityGroup
-	var total int64
-
-	query := r.db.WithContext(ctx).Model(&model.CommunityGroup{})
-
-	if search != "" {
-		searchPattern := "%" + search + "%"
-		query = query.Where("name LIKE ? OR description LIKE ?", searchPattern, searchPattern)
+	page, pageSize = normalizeCommunityPaging(page, pageSize)
+	applyFilter := func(tx *gorm.DB) *gorm.DB {
+		if search != "" {
+			searchPattern := "%" + search + "%"
+			tx = tx.Where("name LIKE ? OR description LIKE ?", searchPattern, searchPattern)
+		}
+		return tx
 	}
 
-	if err := query.Count(&total).Error; err != nil {
+	var total int64
+	if err := applyFilter(r.db.WithContext(ctx).Model(&model.CommunityGroup{})).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	offset := (page - 1) * pageSize
-	if err := query.Offset(offset).Limit(pageSize).Find(&groups).Error; err != nil {
+	var groups []*model.CommunityGroup
+	if err := applyFilter(r.db.WithContext(ctx).Model(&model.CommunityGroup{})).
+		Order("created_at DESC, id DESC").
+		Offset((page - 1) * pageSize).Limit(pageSize).Find(&groups).Error; err != nil {
 		return nil, 0, err
 	}
 
@@ -85,21 +103,23 @@ func (r *communityRepository) UpdateGroup(ctx context.Context, id string, update
 }
 
 func (r *communityRepository) DeleteGroup(ctx context.Context, id string) error {
-	if err := r.db.WithContext(ctx).Where("group_id = ?", id).Delete(&model.CommunityMember{}).Error; err != nil {
-		return err
-	}
-	if err := r.db.WithContext(ctx).Where("group_id = ?", id).Delete(&model.CommunityMessage{}).Error; err != nil {
-		return err
-	}
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Where("group_id = ?", id).Delete(&model.CommunityMember{}).Error; err != nil {
+			return err
+		}
+		if err := tx.Where("group_id = ?", id).Delete(&model.CommunityMessage{}).Error; err != nil {
+			return err
+		}
 
-	result := r.db.WithContext(ctx).Where("id = ?", id).Delete(&model.CommunityGroup{})
-	if result.Error != nil {
-		return result.Error
-	}
-	if result.RowsAffected == 0 {
-		return errors.New("社群不存在")
-	}
-	return nil
+		result := tx.Where("id = ?", id).Delete(&model.CommunityGroup{})
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return errors.New("社群不存在")
+		}
+		return nil
+	})
 }
 
 func (r *communityRepository) GetGroupByID(ctx context.Context, id string) (*model.CommunityGroup, error) {
@@ -114,44 +134,63 @@ func (r *communityRepository) GetGroupByID(ctx context.Context, id string) (*mod
 }
 
 func (r *communityRepository) GetMembers(ctx context.Context, groupID string, page, pageSize int, search string) ([]*model.CommunityMember, int64, error) {
-	var members []*model.CommunityMember
-	var total int64
-
-	query := r.db.WithContext(ctx).Model(&model.CommunityMember{}).Where("group_id = ?", groupID)
-
-	if search != "" {
-		searchPattern := "%" + search + "%"
-		query = query.Where("name LIKE ? OR username LIKE ?", searchPattern, searchPattern)
+	page, pageSize = normalizeCommunityPaging(page, pageSize)
+	applyFilter := func(tx *gorm.DB) *gorm.DB {
+		tx = tx.Where("group_id = ?", groupID)
+		if search != "" {
+			searchPattern := "%" + search + "%"
+			tx = tx.Where("name LIKE ? OR username LIKE ?", searchPattern, searchPattern)
+		}
+		return tx
 	}
 
-	if err := query.Count(&total).Error; err != nil {
+	var total int64
+	if err := applyFilter(r.db.WithContext(ctx).Model(&model.CommunityMember{})).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	offset := (page - 1) * pageSize
-	if err := query.Offset(offset).Limit(pageSize).Find(&members).Error; err != nil {
+	var members []*model.CommunityMember
+	if err := applyFilter(r.db.WithContext(ctx).Model(&model.CommunityMember{})).
+		Order("join_date DESC, id DESC").
+		Offset((page - 1) * pageSize).Limit(pageSize).Find(&members).Error; err != nil {
 		return nil, 0, err
 	}
 
 	return members, total, nil
 }
 
-func (r *communityRepository) AddMember(ctx context.Context, member *model.CommunityMember) (*model.CommunityMember, error) {
-
-	var existingMember model.CommunityMember
-	result := r.db.WithContext(ctx).Where("group_id = ? AND username = ?", member.GroupID, member.Username).First(&existingMember)
-	if result.Error == nil {
-		return nil, errors.New("该用户名已在群组中")
+// ExistsMemberByUsername 判断群组内是否已有同名用户名（租户内判定）。
+func (r *communityRepository) ExistsMemberByUsername(ctx context.Context, groupID, username string) (bool, error) {
+	var count int64
+	err := r.db.WithContext(ctx).Model(&model.CommunityMember{}).
+		Where("group_id = ? AND username = ?", groupID, username).
+		Count(&count).Error
+	if err != nil {
+		return false, err
 	}
+	return count > 0, nil
+}
 
-	if err := r.db.WithContext(ctx).Create(member).Error; err != nil {
+// AddMember 纯写入 + 群组成员数递增；同事务保证两者要么都成功要么都回滚。
+func (r *communityRepository) AddMember(ctx context.Context, member *model.CommunityMember) (*model.CommunityMember, error) {
+	err := r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		if err := tx.Create(member).Error; err != nil {
+			return err
+		}
+		result := tx.Model(&model.CommunityGroup{}).
+			Where("id = ?", member.GroupID).
+			UpdateColumn("member_count", gorm.Expr("member_count + ?", 1))
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
+			return gorm.ErrRecordNotFound
+		}
+		return nil
+	})
+	if err != nil {
 		return nil, err
 	}
-
-	if err := r.db.WithContext(ctx).Model(&model.CommunityGroup{}).Where("id = ?", member.GroupID).UpdateColumn("member_count", gorm.Expr("member_count + ?", 1)).Error; err != nil {
-		return member, err
-	}
-
 	return member, nil
 }
 
@@ -167,27 +206,28 @@ func (r *communityRepository) UpdateMember(ctx context.Context, id string, updat
 }
 
 func (r *communityRepository) RemoveMember(ctx context.Context, id string) error {
-	var member model.CommunityMember
-	if err := r.db.WithContext(ctx).Where("id = ?", id).First(&member).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		var member model.CommunityMember
+		if err := tx.Where("id = ?", id).First(&member).Error; err != nil {
+			if errors.Is(err, gorm.ErrRecordNotFound) {
+				return errors.New("社群成员不存在")
+			}
+			return err
+		}
+
+		result := tx.Where("id = ?", id).Delete(&model.CommunityMember{})
+		if result.Error != nil {
+			return result.Error
+		}
+		if result.RowsAffected == 0 {
 			return errors.New("社群成员不存在")
 		}
-		return err
-	}
 
-	result := r.db.WithContext(ctx).Where("id = ?", id).Delete(&model.CommunityMember{})
-	if result.Error != nil {
-		return result.Error
-	}
-	if result.RowsAffected == 0 {
-		return errors.New("社群成员不存在")
-	}
-
-	if err := r.db.WithContext(ctx).Model(&model.CommunityGroup{}).Where("id = ?", member.GroupID).UpdateColumn("member_count", gorm.Expr("member_count - ?", 1)).Error; err != nil {
-		return err
-	}
-
-	return nil
+		// 历史数据里 member_count 可能已是 0，减到负数会把统计带偏。
+		return tx.Model(&model.CommunityGroup{}).
+			Where("id = ?", member.GroupID).
+			UpdateColumn("member_count", gorm.Expr("GREATEST(member_count - ?, 0)", 1)).Error
+	})
 }
 
 func (r *communityRepository) GetMemberByID(ctx context.Context, id string) (*model.CommunityMember, error) {
@@ -202,31 +242,26 @@ func (r *communityRepository) GetMemberByID(ctx context.Context, id string) (*mo
 }
 
 func (r *communityRepository) GetMessages(ctx context.Context, groupID string, page, pageSize int) ([]*model.CommunityMessage, int64, error) {
-	var messages []*model.CommunityMessage
+	page, pageSize = normalizeCommunityPaging(page, pageSize)
+
 	var total int64
-
-	query := r.db.WithContext(ctx).Model(&model.CommunityMessage{}).Where("group_id = ?", groupID)
-
-	if err := query.Count(&total).Error; err != nil {
+	if err := r.db.WithContext(ctx).Model(&model.CommunityMessage{}).
+		Where("group_id = ?", groupID).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	offset := (page - 1) * pageSize
-	if err := query.Offset(offset).Limit(pageSize).Order("timestamp DESC").Find(&messages).Error; err != nil {
+	var messages []*model.CommunityMessage
+	if err := r.db.WithContext(ctx).Model(&model.CommunityMessage{}).
+		Where("group_id = ?", groupID).
+		Order("timestamp DESC, id DESC").
+		Offset((page - 1) * pageSize).Limit(pageSize).Find(&messages).Error; err != nil {
 		return nil, 0, err
 	}
 
 	return messages, total, nil
 }
 
-func (r *communityRepository) AddMessage(ctx context.Context, message *model.CommunityMessage) (*model.CommunityMessage, error) {
-	if err := r.db.WithContext(ctx).Create(message).Error; err != nil {
-		return nil, err
-	}
-	return message, nil
-}
-
-func (r *communityRepository) GetStatistics(ctx context.Context) (*map[string]any, error) {
+func (r *communityRepository) GetStatistics(ctx context.Context) (*CommunityStatistics, error) {
 	var totalGroups int64
 	var totalMembers int64
 	var totalMessages int64
@@ -260,13 +295,11 @@ func (r *communityRepository) GetStatistics(ctx context.Context) (*map[string]an
 		return nil, err
 	}
 
-	stats := map[string]any{
-		"total_groups":      totalGroups,
-		"total_members":     totalMembers,
-		"total_messages":    totalMessages,
-		"active_groups":     activeGroups,
-		"new_members_today": newMembersToday,
-	}
-
-	return &stats, nil
+	return &CommunityStatistics{
+		TotalGroups:     totalGroups,
+		TotalMembers:    totalMembers,
+		TotalMessages:   totalMessages,
+		ActiveGroups:    activeGroups,
+		NewMembersToday: newMembersToday,
+	}, nil
 }

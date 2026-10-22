@@ -26,9 +26,9 @@ func setupCommunityServiceTestDB(t *testing.T) *gorm.DB {
 
 // TestNewCommunityService 测试创建社区服务
 func TestNewCommunityService(t *testing.T) {
-	setupCommunityServiceTestDB(t)
+	database := setupCommunityServiceTestDB(t)
 
-	service := NewCommunityService()
+	service := NewCommunityService(database)
 	if service == nil {
 		t.Error("Expected non-nil service")
 	}
@@ -38,7 +38,7 @@ func TestNewCommunityService(t *testing.T) {
 func TestCommunityService_GetGroups_Empty(t *testing.T) {
 	database := setupCommunityServiceTestDB(t)
 
-	service := NewCommunityService()
+	service := NewCommunityService(database)
 
 	groups, total, err := service.GetGroups(context.Background(), 1, 20, "")
 	if err != nil {
@@ -60,7 +60,7 @@ func TestCommunityService_GetGroups_Empty(t *testing.T) {
 func TestCommunityService_GetGroups_WithResults(t *testing.T) {
 	database := setupCommunityServiceTestDB(t)
 
-	service := NewCommunityService()
+	service := NewCommunityService(database)
 
 	for i := 0; i < 5; i++ {
 		group := &model.CommunityGroup{
@@ -92,7 +92,7 @@ func TestCommunityService_GetGroups_WithResults(t *testing.T) {
 func TestCommunityService_GetGroups_WithSearch(t *testing.T) {
 	database := setupCommunityServiceTestDB(t)
 
-	service := NewCommunityService()
+	service := NewCommunityService(database)
 
 	database.Create(&model.CommunityGroup{ID: "1", Name: "技术交流群", Description: "技术交流"})
 	database.Create(&model.CommunityGroup{ID: "2", Name: "产品讨论群", Description: "产品相关"})
@@ -114,7 +114,7 @@ func TestCommunityService_GetGroups_WithSearch(t *testing.T) {
 func TestCommunityService_GetGroups_Pagination(t *testing.T) {
 	database := setupCommunityServiceTestDB(t)
 
-	service := NewCommunityService()
+	service := NewCommunityService(database)
 
 	for i := 0; i < 25; i++ {
 		group := &model.CommunityGroup{
@@ -159,7 +159,7 @@ func TestCommunityService_GetGroups_Pagination(t *testing.T) {
 func TestCommunityService_CreateGroup(t *testing.T) {
 	database := setupCommunityServiceTestDB(t)
 
-	service := NewCommunityService()
+	service := NewCommunityService(database)
 
 	req := &dto.CreateCommunityGroupRequest{
 		Name:        "测试群组",
@@ -198,7 +198,7 @@ func TestCommunityService_CreateGroup(t *testing.T) {
 func TestCommunityService_CreateGroup_EmptyName(t *testing.T) {
 	database := setupCommunityServiceTestDB(t)
 
-	service := NewCommunityService()
+	service := NewCommunityService(database)
 
 	req := &dto.CreateCommunityGroupRequest{
 		Name:        "",
@@ -217,7 +217,7 @@ func TestCommunityService_CreateGroup_EmptyName(t *testing.T) {
 func TestCommunityService_CreateGroup_EmptyDescription(t *testing.T) {
 	database := setupCommunityServiceTestDB(t)
 
-	service := NewCommunityService()
+	service := NewCommunityService(database)
 
 	req := &dto.CreateCommunityGroupRequest{
 		Name:        "测试群组",
@@ -240,7 +240,7 @@ func TestCommunityService_CreateGroup_EmptyDescription(t *testing.T) {
 func TestCommunityService_UpdateGroup(t *testing.T) {
 	database := setupCommunityServiceTestDB(t)
 
-	service := NewCommunityService()
+	service := NewCommunityService(database)
 
 	group := &model.CommunityGroup{
 		ID:          "test-group-id",
@@ -276,7 +276,7 @@ func TestCommunityService_UpdateGroup(t *testing.T) {
 func TestCommunityService_UpdateGroup_Partial(t *testing.T) {
 	database := setupCommunityServiceTestDB(t)
 
-	service := NewCommunityService()
+	service := NewCommunityService(database)
 
 	group := &model.CommunityGroup{
 		ID:          "test-group-id",
@@ -312,7 +312,7 @@ func TestCommunityService_UpdateGroup_Partial(t *testing.T) {
 func TestCommunityService_UpdateGroup_NotFound(t *testing.T) {
 	database := setupCommunityServiceTestDB(t)
 
-	service := NewCommunityService()
+	service := NewCommunityService(database)
 
 	req := &dto.UpdateCommunityGroupRequest{
 		Name: "新名称",
@@ -330,7 +330,7 @@ func TestCommunityService_UpdateGroup_NotFound(t *testing.T) {
 func TestCommunityService_DeleteGroup(t *testing.T) {
 	database := setupCommunityServiceTestDB(t)
 
-	service := NewCommunityService()
+	service := NewCommunityService(database)
 
 	group := &model.CommunityGroup{
 		ID:          "test-group-id",
@@ -358,7 +358,7 @@ func TestCommunityService_DeleteGroup(t *testing.T) {
 func TestCommunityService_DeleteGroup_WithMembers(t *testing.T) {
 	database := setupCommunityServiceTestDB(t)
 
-	service := NewCommunityService()
+	service := NewCommunityService(database)
 
 	group := &model.CommunityGroup{
 		ID:          "test-group-id",
@@ -419,7 +419,7 @@ func TestCommunityService_DeleteGroup_WithMembers(t *testing.T) {
 func TestCommunityService_DeleteGroup_NotFound(t *testing.T) {
 	database := setupCommunityServiceTestDB(t)
 
-	service := NewCommunityService()
+	service := NewCommunityService(database)
 
 	err := service.DeleteGroup(context.Background(), "non-existent-id")
 	if err == nil {
@@ -433,7 +433,7 @@ func TestCommunityService_DeleteGroup_NotFound(t *testing.T) {
 func TestCommunityService_GetMembers_Empty(t *testing.T) {
 	database := setupCommunityServiceTestDB(t)
 
-	service := NewCommunityService()
+	service := NewCommunityService(database)
 
 	members, total, err := service.GetMembers(context.Background(), "group-id", 1, 20, "")
 	if err != nil {
@@ -455,7 +455,7 @@ func TestCommunityService_GetMembers_Empty(t *testing.T) {
 func TestCommunityService_GetMembers_WithResults(t *testing.T) {
 	database := setupCommunityServiceTestDB(t)
 
-	service := NewCommunityService()
+	service := NewCommunityService(database)
 
 	group := &model.CommunityGroup{
 		ID:          "group-id",
@@ -501,7 +501,7 @@ func TestCommunityService_GetMembers_WithResults(t *testing.T) {
 func TestCommunityService_GetMembers_WithSearch(t *testing.T) {
 	database := setupCommunityServiceTestDB(t)
 
-	service := NewCommunityService()
+	service := NewCommunityService(database)
 
 	group := &model.CommunityGroup{
 		ID:          "group-id",
@@ -545,7 +545,7 @@ func TestCommunityService_GetMembers_WithSearch(t *testing.T) {
 func TestCommunityService_AddMember(t *testing.T) {
 	database := setupCommunityServiceTestDB(t)
 
-	service := NewCommunityService()
+	service := NewCommunityService(database)
 
 	group := &model.CommunityGroup{
 		ID:          "group-id",
@@ -596,7 +596,7 @@ func TestCommunityService_AddMember(t *testing.T) {
 func TestCommunityService_AddMember_DuplicateUsername(t *testing.T) {
 	database := setupCommunityServiceTestDB(t)
 
-	service := NewCommunityService()
+	service := NewCommunityService(database)
 
 	group := &model.CommunityGroup{
 		ID:          "group-id",
@@ -635,7 +635,7 @@ func TestCommunityService_AddMember_DuplicateUsername(t *testing.T) {
 func TestCommunityService_UpdateMember(t *testing.T) {
 	database := setupCommunityServiceTestDB(t)
 
-	service := NewCommunityService()
+	service := NewCommunityService(database)
 
 	member := &model.CommunityMember{
 		ID:        "member-id",
@@ -679,7 +679,7 @@ func TestCommunityService_UpdateMember(t *testing.T) {
 func TestCommunityService_UpdateMember_Partial(t *testing.T) {
 	database := setupCommunityServiceTestDB(t)
 
-	service := NewCommunityService()
+	service := NewCommunityService(database)
 
 	member := &model.CommunityMember{
 		ID:        "member-id",
@@ -723,7 +723,7 @@ func TestCommunityService_UpdateMember_Partial(t *testing.T) {
 func TestCommunityService_UpdateMember_NotFound(t *testing.T) {
 	database := setupCommunityServiceTestDB(t)
 
-	service := NewCommunityService()
+	service := NewCommunityService(database)
 
 	req := &dto.UpdateCommunityMemberRequest{
 		Name: "新名称",
@@ -741,7 +741,7 @@ func TestCommunityService_UpdateMember_NotFound(t *testing.T) {
 func TestCommunityService_RemoveMember(t *testing.T) {
 	database := setupCommunityServiceTestDB(t)
 
-	service := NewCommunityService()
+	service := NewCommunityService(database)
 
 	group := &model.CommunityGroup{
 		ID:          "group-id",
@@ -789,7 +789,7 @@ func TestCommunityService_RemoveMember(t *testing.T) {
 func TestCommunityService_RemoveMember_NotFound(t *testing.T) {
 	database := setupCommunityServiceTestDB(t)
 
-	service := NewCommunityService()
+	service := NewCommunityService(database)
 
 	err := service.RemoveMember(context.Background(), "non-existent-id")
 	if err == nil {
@@ -803,7 +803,7 @@ func TestCommunityService_RemoveMember_NotFound(t *testing.T) {
 func TestCommunityService_GetMessages_Empty(t *testing.T) {
 	database := setupCommunityServiceTestDB(t)
 
-	service := NewCommunityService()
+	service := NewCommunityService(database)
 
 	messages, total, err := service.GetMessages(context.Background(), "group-id", 1, 20)
 	if err != nil {
@@ -825,7 +825,7 @@ func TestCommunityService_GetMessages_Empty(t *testing.T) {
 func TestCommunityService_GetMessages_WithResults(t *testing.T) {
 	database := setupCommunityServiceTestDB(t)
 
-	service := NewCommunityService()
+	service := NewCommunityService(database)
 
 	for i := 0; i < 5; i++ {
 		message := &model.CommunityMessage{
@@ -859,7 +859,7 @@ func TestCommunityService_GetMessages_WithResults(t *testing.T) {
 func TestCommunityService_GetMessages_Pagination(t *testing.T) {
 	database := setupCommunityServiceTestDB(t)
 
-	service := NewCommunityService()
+	service := NewCommunityService(database)
 
 	for i := 0; i < 25; i++ {
 		message := &model.CommunityMessage{
@@ -896,7 +896,7 @@ func TestCommunityService_GetMessages_Pagination(t *testing.T) {
 func TestCommunityService_GetStatistics_Empty(t *testing.T) {
 	database := setupCommunityServiceTestDB(t)
 
-	service := NewCommunityService()
+	service := NewCommunityService(database)
 
 	stats, err := service.GetStatistics(context.Background())
 	if err != nil {
@@ -926,7 +926,7 @@ func TestCommunityService_GetStatistics_Empty(t *testing.T) {
 func TestCommunityService_GetStatistics_WithData(t *testing.T) {
 	database := setupCommunityServiceTestDB(t)
 
-	service := NewCommunityService()
+	service := NewCommunityService(database)
 
 	group1 := &model.CommunityGroup{ID: "g1", Name: "群组 1", MemberCount: 2, CreatedAt: time.Now(), UpdatedAt: time.Now()}
 	group2 := &model.CommunityGroup{ID: "g2", Name: "群组 2", MemberCount: 1, CreatedAt: time.Now(), UpdatedAt: time.Now()}
@@ -967,7 +967,7 @@ func TestCommunityService_GetStatistics_WithData(t *testing.T) {
 func TestCommunityService_GetStatistics_ActiveGroups(t *testing.T) {
 	database := setupCommunityServiceTestDB(t)
 
-	service := NewCommunityService()
+	service := NewCommunityService(database)
 
 	group1 := &model.CommunityGroup{ID: "g1", Name: "群组 1", MemberCount: 0, CreatedAt: time.Now(), UpdatedAt: time.Now()}
 	group2 := &model.CommunityGroup{ID: "g2", Name: "群组 2", MemberCount: 0, CreatedAt: time.Now(), UpdatedAt: time.Now()}
@@ -994,7 +994,7 @@ func TestCommunityService_GetStatistics_ActiveGroups(t *testing.T) {
 func TestCommunityService_GetStatistics_NewMembersToday(t *testing.T) {
 	database := setupCommunityServiceTestDB(t)
 
-	service := NewCommunityService()
+	service := NewCommunityService(database)
 
 	group := &model.CommunityGroup{ID: "g1", Name: "群组 1", MemberCount: 0, CreatedAt: time.Now(), UpdatedAt: time.Now()}
 	database.Create(group)
@@ -1018,7 +1018,7 @@ func TestCommunityService_GetStatistics_NewMembersToday(t *testing.T) {
 func TestCommunityService_Integration_FullWorkflow(t *testing.T) {
 	database := setupCommunityServiceTestDB(t)
 
-	service := NewCommunityService()
+	service := NewCommunityService(database)
 
 	_, total, err := service.GetGroups(context.Background(), 1, 20, "")
 	if err != nil {

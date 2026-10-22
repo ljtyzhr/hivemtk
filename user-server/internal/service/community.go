@@ -10,15 +10,16 @@ import (
 	"hivemtk-user/internal/repository"
 
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type CommunityService struct {
 	repo repository.CommunityRepository
 }
 
-func NewCommunityService() *CommunityService {
-	repo := repository.NewCommunityRepositoryDefault()
-	return &CommunityService{repo: repo}
+// NewCommunityService 用装配点注入的连接创建社群服务。
+func NewCommunityService(db *gorm.DB) *CommunityService {
+	return &CommunityService{repo: repository.NewCommunityRepository(db)}
 }
 
 func (s *CommunityService) GetGroups(ctx context.Context, page, pageSize int, search string) ([]*dto.CommunityGroupResponse, int64, error) {
@@ -155,6 +156,21 @@ func (s *CommunityService) GetMemberByID(ctx context.Context, id string) (*dto.C
 }
 
 func (s *CommunityService) AddMember(ctx context.Context, req *dto.AddCommunityMemberRequest) (*dto.CommunityMemberResponse, error) {
+	group, err := s.repo.GetGroupByID(ctx, req.GroupID)
+	if err != nil {
+		return nil, err
+	}
+	if group == nil {
+		return nil, errors.New("社群不存在")
+	}
+	exists, err := s.repo.ExistsMemberByUsername(ctx, req.GroupID, req.Username)
+	if err != nil {
+		return nil, err
+	}
+	if exists {
+		return nil, errors.New("该用户名已在群组中")
+	}
+
 	id := uuid.New().String()
 
 	member := &model.CommunityMember{
@@ -239,10 +255,10 @@ func (s *CommunityService) GetStatistics(ctx context.Context) (*dto.CommunitySta
 	}
 
 	return &dto.CommunityStatisticsResponse{
-		TotalGroups:     int((*stats)["total_groups"].(int64)),
-		TotalMembers:    int((*stats)["total_members"].(int64)),
-		TotalMessages:   int((*stats)["total_messages"].(int64)),
-		ActiveGroups:    int((*stats)["active_groups"].(int64)),
-		NewMembersToday: int((*stats)["new_members_today"].(int64)),
+		TotalGroups:     int(stats.TotalGroups),
+		TotalMembers:    int(stats.TotalMembers),
+		TotalMessages:   int(stats.TotalMessages),
+		ActiveGroups:    int(stats.ActiveGroups),
+		NewMembersToday: int(stats.NewMembersToday),
 	}, nil
 }

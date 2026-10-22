@@ -829,7 +829,7 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 
 		setupTypingPredictRoutes(auth)
 
-		setupCommunityRoutes(auth)
+		setupCommunityRoutes(auth, gormDB)
 
 		setupBackupRoutes(systemAdmin, gormDB)
 

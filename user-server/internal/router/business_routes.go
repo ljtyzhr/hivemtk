@@ -7,8 +7,10 @@ import (
 	"hivemtk-user/internal/middleware"
 	opsctrl "hivemtk-user/internal/ops/controller"
 	dbutil "hivemtk-user/internal/pkg/db"
+	"hivemtk-user/internal/service"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 func setupBatchRoutes(auth *gin.RouterGroup) {
@@ -308,8 +310,8 @@ func setupOrderWebhookRoutes(public *gin.RouterGroup) {
 	public.POST(orderWebhookPublicPath, guard.Middleware(), integrationCtrl.ReceiveOrderWebhook)
 }
 
-func setupCommunityRoutes(auth *gin.RouterGroup) {
-	communityCtrl := controller.NewCommunityController()
+func setupCommunityRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
+	communityCtrl := controller.NewCommunityController(service.NewCommunityService(gormDB))
 	auth.GET("/community/groups", communityCtrl.GetGroups)
 	auth.GET("/community/groups/:id", communityCtrl.GetGroupByID)
 	auth.GET("/community/members", communityCtrl.GetMembers)

@@ -50,7 +50,7 @@ func createMember(t *testing.T, repo CommunityRepository, groupID, name, usernam
 	return created
 }
 
-func createMessage(t *testing.T, repo CommunityRepository, groupID, userID, userName, content, messageType string) *model.CommunityMessage {
+func createMessage(t *testing.T, database *gorm.DB, groupID, userID, userName, content, messageType string) *model.CommunityMessage {
 	message := &model.CommunityMessage{
 		ID:          uuid.New().String(),
 		GroupID:     groupID,
@@ -59,11 +59,10 @@ func createMessage(t *testing.T, repo CommunityRepository, groupID, userID, user
 		Content:     content,
 		MessageType: messageType,
 	}
-	created, err := repo.AddMessage(context.Background(), message)
-	if err != nil {
-		t.Fatalf("AddMessage failed: %v", err)
+	if err := database.Create(message).Error; err != nil {
+		t.Fatalf("seed community message failed: %v", err)
 	}
-	return created
+	return message
 }
 
 func TestCommunityRepository_New(t *testing.T) {
@@ -335,35 +334,23 @@ func TestCommunityRepository_AddMember(t *testing.T) {
 	}
 }
 
-func TestCommunityRepository_AddMember_DuplicateUsername(t *testing.T) {
+// TestCommunityRepository_ExistsMemberByUsername 判重是业务规则（由 service 执行），
+// 仓储只提供「租户内是否已存在」的查询；另钉住仓储写入本身是纯插入。
+func TestCommunityRepository_ExistsMemberByUsername(t *testing.T) {
 	db := setupCommunityTestDB(t)
-
 	repo := NewCommunityRepository(db)
 
 	group := createGroup(t, repo, "Test Group", "Test description")
 
-	member := &model.CommunityMember{
-		ID:       uuid.New().String(),
-		GroupID:  group.ID,
-		Name:     "Test Member",
-		Username: "testuser",
-		Role:     "member",
-		Status:   "active",
+	if exists, err := repo.ExistsMemberByUsername(context.Background(), group.ID, "testuser"); err != nil || exists {
+		t.Fatalf("未添加成员时存在性应为 false: exists=%v err=%v", exists, err)
 	}
-	repo.AddMember(context.Background(), member)
-
-	member2 := &model.CommunityMember{
-		ID:       uuid.New().String(),
-		GroupID:  group.ID,
-		Name:     "Another Member",
-		Username: "testuser",
-		Role:     "member",
-		Status:   "active",
+	createMember(t, repo, group.ID, "Test Member", "testuser", "member", "active")
+	if exists, err := repo.ExistsMemberByUsername(context.Background(), group.ID, "testuser"); err != nil || !exists {
+		t.Fatalf("已添加成员后存在性应为 true: exists=%v err=%v", exists, err)
 	}
-
-	_, err := repo.AddMember(context.Background(), member2)
-	if err == nil {
-		t.Error("Expected error for duplicate username")
+	if exists, err := repo.ExistsMemberByUsername(context.Background(), "other-group", "testuser"); err != nil || exists {
+		t.Fatalf("判重只在群组内生效: exists=%v err=%v", exists, err)
 	}
 }
 
@@ -519,62 +506,6 @@ func TestCommunityRepository_RemoveMember_NotFound(t *testing.T) {
 	}
 }
 
-func TestCommunityRepository_AddMessage(t *testing.T) {
-	db := setupCommunityTestDB(t)
-
-	repo := NewCommunityRepository(db)
-
-	group := createGroup(t, repo, "Test Group", "Test description")
-
-	message := &model.CommunityMessage{
-		ID:          uuid.New().String(),
-		GroupID:     group.ID,
-		UserID:      "user123",
-		UserName:    "testuser",
-		Content:     "Hello, World!",
-		MessageType: "text",
-	}
-
-	createdMessage, err := repo.AddMessage(context.Background(), message)
-	if err != nil {
-		t.Fatalf("AddMessage failed: %v", err)
-	}
-
-	if createdMessage.ID == "" {
-		t.Error("Expected non-empty ID after add")
-	}
-}
-
-func TestCommunityRepository_AddMessage_DifferentTypes(t *testing.T) {
-	db := setupCommunityTestDB(t)
-
-	repo := NewCommunityRepository(db)
-
-	group := createGroup(t, repo, "Test Group", "Test description")
-
-	messageTypes := []string{"text", "image", "video", "file"}
-	for i, msgType := range messageTypes {
-		message := &model.CommunityMessage{
-			ID:          uuid.New().String(),
-			GroupID:     group.ID,
-			UserID:      "user" + string(rune('0'+i)),
-			UserName:    "user" + string(rune('0'+i)),
-			Content:     "Content " + string(rune('0'+i)),
-			MessageType: msgType,
-		}
-		_, err := repo.AddMessage(context.Background(), message)
-		if err != nil {
-			t.Fatalf("AddMessage failed: %v", err)
-		}
-	}
-
-	messages, total, _ := repo.GetMessages(context.Background(), group.ID, 1, 10)
-	if total != 4 {
-		t.Errorf("Expected total 4 messages, got %d", total)
-	}
-	_ = messages
-}
-
 func TestCommunityRepository_GetMessages(t *testing.T) {
 	db := setupCommunityTestDB(t)
 
@@ -583,7 +514,7 @@ func TestCommunityRepository_GetMessages(t *testing.T) {
 	group := createGroup(t, repo, "Test Group", "Test description")
 
 	for i := 0; i < 10; i++ {
-		createMessage(t, repo, group.ID, "user"+string(rune('0'+i)), "user"+string(rune('0'+i)), "Message "+string(rune('0'+i)), "text")
+		createMessage(t, db, group.ID, "user"+string(rune('0'+i)), "user"+string(rune('0'+i)), "Message "+string(rune('0'+i)), "text")
 	}
 
 	messages, total, err := repo.GetMessages(context.Background(), group.ID, 1, 5)
@@ -630,11 +561,11 @@ func TestCommunityRepository_GetMessages_DifferentGroup(t *testing.T) {
 	group2 := createGroup(t, repo, "Group 2", "Description 2")
 
 	for i := 0; i < 5; i++ {
-		createMessage(t, repo, group1.ID, "user"+string(rune('0'+i)), "user"+string(rune('0'+i)), "Group 1 Message "+string(rune('0'+i)), "text")
+		createMessage(t, db, group1.ID, "user"+string(rune('0'+i)), "user"+string(rune('0'+i)), "Group 1 Message "+string(rune('0'+i)), "text")
 	}
 
 	for i := 0; i < 3; i++ {
-		createMessage(t, repo, group2.ID, "user"+string(rune('a'+i)), "user"+string(rune('a'+i)), "Group 2 Message "+string(rune('a'+i)), "text")
+		createMessage(t, db, group2.ID, "user"+string(rune('a'+i)), "user"+string(rune('a'+i)), "Group 2 Message "+string(rune('a'+i)), "text")
 	}
 
 	messages, total, err := repo.GetMessages(context.Background(), group1.ID, 1, 10)
@@ -663,23 +594,23 @@ func TestCommunityRepository_GetStatistics(t *testing.T) {
 	createMember(t, repo, group1.ID, "Member 2", "member2", "member", "active")
 	createMember(t, repo, group2.ID, "Member 3", "member3", "member", "active")
 
-	createMessage(t, repo, group1.ID, "user123", "testuser", "Hello!", "text")
+	createMessage(t, db, group1.ID, "user123", "testuser", "Hello!", "text")
 
 	stats, err := repo.GetStatistics(context.Background())
 	if err != nil {
 		t.Fatalf("GetStatistics failed: %v", err)
 	}
 
-	if (*stats)["total_groups"] != int64(2) {
-		t.Errorf("Expected total_groups 2, got %v", (*stats)["total_groups"])
+	if stats.TotalGroups != 2 {
+		t.Errorf("Expected total_groups 2, got %d", stats.TotalGroups)
 	}
 
-	if (*stats)["total_members"] != int64(3) {
-		t.Errorf("Expected total_members 3, got %v", (*stats)["total_members"])
+	if stats.TotalMembers != 3 {
+		t.Errorf("Expected total_members 3, got %d", stats.TotalMembers)
 	}
 
-	if (*stats)["total_messages"] != int64(1) {
-		t.Errorf("Expected total_messages 1, got %v", (*stats)["total_messages"])
+	if stats.TotalMessages != 1 {
+		t.Errorf("Expected total_messages 1, got %d", stats.TotalMessages)
 	}
 }
 
@@ -693,15 +624,15 @@ func TestCommunityRepository_GetStatistics_Empty(t *testing.T) {
 		t.Fatalf("GetStatistics failed: %v", err)
 	}
 
-	if (*stats)["total_groups"] != int64(0) {
-		t.Errorf("Expected total_groups 0, got %v", (*stats)["total_groups"])
+	if stats.TotalGroups != 0 {
+		t.Errorf("Expected total_groups 0, got %d", stats.TotalGroups)
 	}
 
-	if (*stats)["total_members"] != int64(0) {
-		t.Errorf("Expected total_members 0, got %v", (*stats)["total_members"])
+	if stats.TotalMembers != 0 {
+		t.Errorf("Expected total_members 0, got %d", stats.TotalMembers)
 	}
 
-	if (*stats)["total_messages"] != int64(0) {
-		t.Errorf("Expected total_messages 0, got %v", (*stats)["total_messages"])
+	if stats.TotalMessages != 0 {
+		t.Errorf("Expected total_messages 0, got %d", stats.TotalMessages)
 	}
 }

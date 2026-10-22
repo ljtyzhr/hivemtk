@@ -9,6 +9,7 @@ import (
 
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/db"
+	"hivemtk-user/internal/service"
 
 	"hivemtk-user/internal/pkg/testutil"
 
@@ -27,8 +28,8 @@ func setupCommunityTestDB(t *testing.T) *gorm.DB {
 }
 
 func setupCommunityController(t *testing.T) (*CommunityController, *gin.Engine) {
-	setupCommunityTestDB(t)
-	ctrl := NewCommunityController()
+	database := setupCommunityTestDB(t)
+	ctrl := NewCommunityController(service.NewCommunityService(database))
 	router := gin.New()
 
 	return ctrl, router
@@ -168,6 +169,11 @@ func TestCommunityController_AddMember_Success(t *testing.T) {
 	ctrl, router := setupCommunityController(t)
 	router.POST("/community/members", ctrl.AddMember)
 
+	// 加成员前群组必须存在（service 已把「群组可见性」纳入业务校验）。
+	if err := db.GetDB().Create(&model.CommunityGroup{ID: "1", Name: "测试群组"}).Error; err != nil {
+		t.Fatalf("seed group failed: %v", err)
+	}
+
 	addReq := map[string]any{
 		"group_id": "1",
 		"name":     "测试成员",
@@ -281,7 +287,8 @@ func TestCommunityController_GetStatistics_Success(t *testing.T) {
 
 // TestCommunityController_NewCommunityController 测试构造函数
 func TestCommunityController_NewCommunityController(t *testing.T) {
-	ctrl := NewCommunityController()
+	database := setupCommunityTestDB(t)
+	ctrl := NewCommunityController(service.NewCommunityService(database))
 	if ctrl == nil {
 		t.Error("Expected controller instance, got nil")
 	}
