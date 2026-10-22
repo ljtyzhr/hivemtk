@@ -21,7 +21,8 @@
 | New / updated tests (confidence) | `go test ./internal/service/confidence/...` | pass | ok 0.617s |
 | New / updated tests (retrieval) | `go test ./internal/aiagent/rag/retrieval/...` | pass | ok 8.105s |
 | New / updated tests (FAQ 匹配) | `go test ./internal/repository/ -run TestFAQScoring_WebsiteQuestionsAreMatchable` | pass | 19 个问法全命中 |
-| Regression suite (service 全包) | `go test ./internal/service/ -timeout 1800s` | pass | **ok 1155.226s**（无失败） |
+| Regression suite (service 全包) | `go test ./internal/service/ -timeout 1800s` | pass | **ok 1155.226s**（主工作区那次无失败）；隔离 worktree 复跑时 2 条失败，见下方说明 |
+| Regression suite（那 2 条失败的归因） | 在 `8516dd0c~1`（我的提交之前）建基线 worktree 跑同两条 | pass | `TestModuleSyncExemptsGiftRowsFromStaleDisable` / `TestModuleSyncProvisionsFreeModulesForRequestingTenant` **基线同样红** ⇒ 与本改动无关（属另一条泳道"SaaS 模块开通的租户维度"的在途状态，见 `internal/service/module_gate_tenant_test.go`，与本 bug 涉及的 11 个文件无交集） |
 | Regression suite (repository) | `go test ./internal/repository/...` | pass | ok |
 | Regression suite (app) | `go test ./internal/app/...` | pass | ok 52.663s |
 | Regression suite (dto) | `go test ./internal/dto/...` | pass | ok |
