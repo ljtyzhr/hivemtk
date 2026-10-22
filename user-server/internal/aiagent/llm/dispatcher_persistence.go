@@ -80,12 +80,32 @@ func (d *Dispatcher) LoadProvidersFromDB() error {
 // UpsertProviderToDB 写入/更新单个 provider 到 llm_providers（Name 为唯一键）。
 // 直接镜像内存态 pc（含 APIKey）：与 dispatcher 内存保持一致。
 // 清空密钥由调用方通过 APIKeyClearSentinel 解析后传 "" 实现。
+//
+// ============================================================
+// 写库必须走 system scope + 显式 tenant_id（两个都缺一不可）
+//
+// 1) **system scope**：llm_providers 有 tenant_id 列 ⇒ 被 tenancyidx 自动
+//    登记为租户表（登记按 information_schema 内省，不是硬编码清单）。
+//    TENANT_MODE=on 时，隔离 callback 对「ctx 未绑租户」的写是 fail-closed 的
+//    （tenancyidx.tenantGuardFail），报错原文：
+//      [tenant] 表 llm_providers 需要租户上下文但 ctx 未绑定（query）
+//    本函数是**平台级装配写库**（dispatcher 的 provider 注册表是全局单键 map，
+//    按 Name 索引，本就不分租户），与同文件读路径
+//    （LoadProvidersFromDB → g.WithContext(systemScopeCtx())）同一口径。
+//    隔离本身**不放宽**：带请求 ctx 的 HTTP 路径仍然 fail-closed。
+//
+// 2) **显式 tenant_id**：Save 一个 TenantID 零值的结构体时，GORM 的
+//    ConvertToAssignments 仍会写 tenant_id 列，值 0 把行**移出本租户**
+//    （D2 缺陷，见 .specify/bugs/saas-tenant-isolation-audit/）。
+//    显式写 DefaultTenantID 才既不串租户、也不依赖列默认值。
 func (d *Dispatcher) UpsertProviderToDB(pc ProviderConfig) error {
 	g := providerDB()
 	if g == nil {
 		return nil
 	}
+	g = g.WithContext(systemScopeCtx())
 	row := providerConfigToRow(pc)
+	row.TenantID = tenant.DefaultTenantID
 	row.UpdatedAt = time.Now()
 
 	var exist model.LLMProvider
@@ -145,17 +165,25 @@ func (d *Dispatcher) LoadRoutesFromDB() error {
 
 // UpsertRouteToDB 将路由规则 upsert 到 llm_routing_rules 表。
 // db 未就绪时静默跳过(内存已生效)，仅记录日志，不阻断主流程。
+//
+// 写库走 system scope + 显式 tenant_id：llm_routing_rules 是租户表，
+// TENANT_MODE=on 时无 ctx 的写会被隔离 fail-closed 拒绝
+// （"[tenant] 表 llm_routing_rules 需要租户上下文但 ctx 未绑定（query）"），
+// 后果是**后台配的路由只进内存、容器一重启全丢**。
+// 口径与 UpsertProviderToDB、LoadRoutesFromDB 同一套。
 func (d *Dispatcher) UpsertRouteToDB(r ScenarioRoute) error {
 	g := providerDB()
 	if g == nil {
 		return nil
 	}
+	g = g.WithContext(systemScopeCtx())
 	buf, err := json.Marshal(r)
 	if err != nil {
 		logger.Errorf("[LLM] UpsertRouteToDB 序列化 scenario=%s 失败: %v", r.Scenario, err)
 		return err
 	}
 	row := model.LLMRoutingRule{
+		TenantID:  tenant.DefaultTenantID,
 		Scenario:  string(r.Scenario),
 		RouteJSON: string(buf),
 		Version:   r.Version,
@@ -185,11 +213,14 @@ func (d *Dispatcher) UpsertRouteToDB(r ScenarioRoute) error {
 }
 
 // DeleteRouteFromDB 从数据库删除某场景路由定义。
+// 同 UpsertRouteToDB：走 system scope，否则删除被隔离 fail-closed 拒绝
+// （后台「删除路由」会删不掉，且内存已删、库还在 ⇒ 重启后又回来了）。
 func (d *Dispatcher) DeleteRouteFromDB(scenario DispatchScenario) error {
 	g := providerDB()
 	if g == nil {
 		return nil
 	}
+	g = g.WithContext(systemScopeCtx())
 	if err := g.Where("scenario = ?", string(scenario)).Delete(&model.LLMRoutingRule{}).Error; err != nil {
 		logger.Errorf("[LLM] DeleteRouteFromDB scenario=%s 失败: %v", scenario, err)
 		return err
@@ -198,11 +229,13 @@ func (d *Dispatcher) DeleteRouteFromDB(scenario DispatchScenario) error {
 }
 
 // DeleteProviderFromDB 从 llm_providers 删除指定 provider。
+// 同 UpsertProviderToDB：走 system scope，否则删除被隔离 fail-closed 拒绝。
 func (d *Dispatcher) DeleteProviderFromDB(name string) error {
 	g := providerDB()
 	if g == nil {
 		return nil
 	}
+	g = g.WithContext(systemScopeCtx())
 	if err := g.Where("name = ?", name).Delete(&model.LLMProvider{}).Error; err != nil {
 		logger.Errorf("[LLM] DeleteProviderFromDB %s 失败: %v", name, err)
 		return err
