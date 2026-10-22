@@ -52,7 +52,7 @@ var coreOwnedTables = []string{
 	// 消息基础（所有 IM/工作台共用）
 	"unified_messages", "unified_replies", "message_hub", "message",
 	"session_messages", "message_trace", "msg_hourly_summary",
-	"notifications", "web_vital_records", "help_center_test_records",
+	"notifications", "notification_reads", "web_vital_records", "help_center_test_records",
 	"cron_job_leases", "account", "user", "order",
 }
 
