@@ -65,6 +65,12 @@ on:
       # 由 scripts/check-ci-gate-paths.py 第 4 条判据常驻守着（含 pull_request 那份镜像）。
       - 'Makefile'
       - '.github/workflows/user-server-ci.yml'
+      # 后台任务租户归属门：判据脚本本体与登记表都进触发面 ——
+      # 只改判据、或只动登记表的提交必须重跑这道门（同 check-ci-gate-paths 的规矩）；
+      # 自检脚本也进来，"门自己坏掉"必须能被改到它的那次提交抓到。
+      - 'scripts/check-tenant-ctx-writes.py'
+      - 'scripts/tenant-ctx-cron.registry'
+      - 'scripts/check-tenant-ctx-writes.test.sh'
   pull_request:
     branches: [master, main]
     paths:
@@ -110,6 +116,10 @@ on:
       # 与上面 push 段同因：`make fmt-check`／`make lint-config-verify` 的判据在 Makefile 里。
       - 'Makefile'
       - '.github/workflows/user-server-ci.yml'
+      # 与 push 段同因：后台任务租户归属门的判据本体、登记表与自检脚本。
+      - 'scripts/check-tenant-ctx-writes.py'
+      - 'scripts/tenant-ctx-cron.registry'
+      - 'scripts/check-tenant-ctx-writes.test.sh'
 
 # ============================================================================
 # 拆分说明（2026-09-20 第二十六轮 · A3）：原来 15 个步骤串在一个 `test` job 里，
@@ -228,6 +238,19 @@ jobs:
         # docs/architecture/PSEUDO_INCOMPLETE_INVENTORY_2026-10.md A 类：已删的说谎符号
         # 不得原样长回、已修的真接线不得断。无 DB 无网络，纯 grep。
         run: bash scripts/check-cleared-fake-assets.sh --repo .
+
+      - name: 后台任务租户归属门（新增后台任务必须显式声明扇出/租户无关）
+        # 2026-10-22：桥接链路线上故障后建门。SaaS 模式下后台路径写租户表却没带租户 ctx
+        # 会被 tenancyidx 隔离守卫 fail-closed 拒绝，而任务"照跑、什么都不干"（只报数不报错）。
+        # 判据不猜实现（扇出可能在 service 方法内部），改为**完整性 + 防腐烂**：
+        # 每个 cron 注册点必须在 scripts/tenant-ctx-cron.registry 里登记扇出锚点或租户无关理由；
+        # 锚点消失、任务不再调锚点、登记项失配，逐条红。无 DB 无网络，纯静态。
+        run: python3 scripts/check-tenant-ctx-writes.py
+
+      - name: 后台任务租户归属门用例（假树夹具，9 枚控制）
+        # 恒绿的门与坏掉的门长得一样：这一格逐条注入 NEW/STALE/BROKEN/SEAM/缺表五种违规，
+        # 要求门逐条开火。缺了它，判据正则退化成恒绿时 CI 完全无感。
+        run: bash scripts/check-tenant-ctx-writes.test.sh
 
       - name: 参数中心读取点门（要么有人读、要么承认未接线）
         # 2026-10-09（B7）：同上从 make audit 常驻化到 CI。判据现读 user-server 种子与

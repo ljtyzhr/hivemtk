@@ -1,0 +1,24 @@
+# 后台任务租户归属登记表 —— `scripts/check-tenant-ctx-writes.py` 的比对表
+#
+# 格式：`<任务名><TAB><kind><TAB><payload>`；空行与 `#` 开头行忽略。
+#   kind=fanout      payload=`<相对仓库根的路径>::<锚点>`，锚点必须是该文件里**真实存在**的字面量
+#                    （通常就是那行扇出调用）。锚点消失 ⇒ STALE 红（防「登记写着扇出、代码里早没了」）。
+#   kind=tenant-free payload=`<理由>`，必须非空且写清「为什么这个任务碰不到租户表」。
+#
+# 判据：注册点无登记 ⇒ NEW 红；登记项无注册点 ⇒ STALE 红；锚点找不到 ⇒ STALE 红。
+# 任务键：`goTask("<name>", …)` 取 <name>；`AddTask("<spec>", func(){ XxxCron() })` 取体内第一个
+#         同包导出被调函数名（如 EmailListCron）。
+#
+# 建表背景（2026-10-22 桥接链路线上故障）：桥接回扫 cron 漏了租户扇出，SaaS 模式下每 5 分钟
+# 打一行 `[tenant] 表 bridge_accounts 需要租户上下文但 ctx 未绑定` 且整轮空转（只报数、不报错）。
+# 同文件另外四个任务都走 fanoutTask —— 这是既定约定，只是漏了一处。本表把「漏一处」变成提交时红灯。
+#
+# 新增后台任务时：先在这里为它写一行（扇出锚点 / 租户无关理由），再提交。
+
+EmailListCron	fanout	user-server/internal/pkg/cron/emaillistcron.go::tenant.Fanout(context.Background(), nil, func(ctx context.Context, _ uint) (int64, error) {
+LiveCodeRotateCron	fanout	user-server/internal/pkg/cron/cron.go::fanoutTask(context.Background(), liveCodeService.RotateLiveCodes)
+ChurnCalculationCron	fanout	user-server/internal/pkg/cron/cron.go::tenant.Fanout(context.Background(), nil, func(ctx context.Context, _ uint) (int64, error) {
+PasswordResetTokenCleanupCron	fanout	user-server/internal/pkg/cron/cron.go::fanoutTask(context.Background(), resetService.CleanupExpiredTokens)
+bridge_offline_replay	fanout	user-server/internal/service/bridge_offline_replay.go::func (s *BridgeOfflineReplayService) RunOnceAllTenants(ctx context.Context) ReplayStats {
+handoff_chain	fanout	user-server/internal/pkg/cron/cron.go::service.NewHandoffChainService().RunCron(ctx, 200)
+daily_backup	tenant-free	backups 表无 tenant_id（internal/model/backup.go:26-34）：整库文件备份不写任何租户行，扇出反而会把同一份备份按租户重复做 N 次

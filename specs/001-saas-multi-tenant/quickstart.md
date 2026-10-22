@@ -39,11 +39,19 @@
 1. 两租户各建延时任务（SOP 定时/延时触达）。
 2. 等待执行窗口 → 两租户任务各自执行、各自租户上下文产出正确（收件人/文案/日志归属）。
 3. off 模式回归场景 A 第 5 步确认退化等价。
+4. **新增后台任务**：在 `scripts/tenant-ctx-cron.registry` 里为它写一行——`fanout` 要写清扇出锚点
+   （`<相对路径>::<锚点字面量>`），`tenant-free` 要写清为什么不碰租户表。不写就是提交时红
+   （`scripts/check-tenant-ctx-writes.py`）。这条闸是 2026-10-22 桥接链路线上故障后建的：
+   回扫 cron 漏了扇出，SaaS 模式下「任务照跑、什么都不干」，日志里只有一行
+   `[tenant] 表 … 需要租户上下文但 ctx 未绑定`。
 
 ## 场景 F：CI 门禁
 
 1. `scripts/check-gorm-only.sh` 通过（业务包 0 处 `.Exec(`/`.Raw(`）。
 2. 故意在业务 repo 加一处 `.Raw(` → 门禁失败（反向验证）。
+3. `scripts/check-tenant-ctx-writes.py` 通过（后台任务注册点全部登记、seam 回调均带 ctx）。
+   反向验证两条：把某个任务的调用改回不带租户的旧方法 ⇒ `BROKEN` 红；
+   把注册点从登记表删掉 ⇒ `NEW` 红。自检：`bash scripts/check-tenant-ctx-writes.test.sh`（9 枚控制）。
 
 ## 验收基线
 
