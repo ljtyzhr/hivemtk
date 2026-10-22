@@ -253,4 +253,8 @@ func RegisterMigrations(registry *migration.MigrationRegistry, db *gorm.DB) {
 	// v3.74.0：geo_keyword_groups 唯一键 (tenant_id, name)——先去重再建，
 	// 修复话题聚类并发 upsert 建出同名分组 / Save 复活软删除行
 	register(NewGeoKeywordGroupUniqueKeyMigration(db))
+	// v3.75.0：站内消息通知模块——建 notification_reads 回执表（平台消息
+	// 按人已读），notifications 加 level/source_msg_id/source 列与
+	// (tenant_id, source_msg_id) 幂等部分唯一索引
+	register(NewInAppNotificationMigration(db))
 }

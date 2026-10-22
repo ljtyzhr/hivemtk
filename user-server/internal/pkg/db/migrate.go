@@ -311,6 +311,7 @@ func allModels() []any {
 		&model.LayerDecisionLog{},
 		&model.ChatChannel{},
 		&model.Notification{},
+		&model.NotificationRead{},
 		&model.AssetBundle{},
 		&model.AssetBundleVersionLog{},
 		&model.LocalAsset{},

@@ -30,9 +30,10 @@ func (ctrl *NotificationController) List(c *gin.Context) {
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
 
 	req := service.NotificationListRequest{
-		Page: page,
-		Size: pageSize,
-		Type: c.Query("type"),
+		Page:  page,
+		Size:  pageSize,
+		Type:  c.Query("type"),
+		Level: c.Query("level"),
 	}
 
 	if v, ok := c.Get("user_id"); ok {

@@ -8,6 +8,7 @@ import (
 	_db "hivemtk-user/internal/pkg/db"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // NotificationRepository 系统通知仓库
@@ -40,6 +41,7 @@ type NotificationListQuery struct {
 	Page    int
 	Size    int
 	Type    string
+	Level   string
 	IsRead  *bool
 	Keyword string
 }
@@ -68,6 +70,9 @@ func (r *NotificationRepository) List(ctx context.Context, q NotificationListQue
 	if q.Type != "" {
 		tx = tx.Where("type = ?", q.Type)
 	}
+	if q.Level != "" {
+		tx = tx.Where("level = ?", q.Level)
+	}
 	if q.IsRead != nil {
 		tx = tx.Where("is_read = ?", *q.IsRead)
 	}
@@ -90,6 +95,102 @@ func (r *NotificationRepository) List(ctx context.Context, q NotificationListQue
 	}
 
 	return &NotificationListResult{List: list, Total: total}, nil
+}
+
+// UpsertFromPlatform 幂等写入一条平台下发的通知。
+//
+// 幂等靠 (tenant_id, source_msg_id) 部分唯一索引
+// （uq_notification_tenant_source_msg, WHERE source_msg_id > 0）。
+//
+// 关键：PG 的 ON CONFLICT 必须**重复索引的部分索引谓词**才能推断出
+// 用哪个唯一索引 —— 只写列名会报 42P10
+// （there is no unique or exclusion constraint matching the ON CONFLICT
+// specification）。所以这里带上 TargetWhere，与模型上的 where 标签一致。
+//
+// 冲突时**什么都不更新**：平台消息的正文/标题是不可变快照，用户端已经
+// 看过的那条不应该因为平台改了草稿而变样。
+func (r *NotificationRepository) UpsertFromPlatform(ctx context.Context, n *model.Notification) (bool, error) {
+	if r == nil || r.db == nil {
+		return false, nil
+	}
+	res := r.db.WithContext(ctx).Clauses(clause.OnConflict{
+		Columns: []clause.Column{
+			{Name: "tenant_id"},
+			{Name: "source_msg_id"},
+		},
+		TargetWhere: clause.Where{Exprs: []clause.Expression{
+			clause.Expr{SQL: "source_msg_id > 0"},
+		}},
+		DoNothing: true,
+	}).Create(n)
+	if res.Error != nil {
+		return false, res.Error
+	}
+	// RowsAffected = 0 表示撞上已有行（已投递过），= 1 表示本次新写入。
+	return res.RowsAffected > 0, nil
+}
+
+// ExistsBySourceMsgID 判断某平台消息在本租户是否已投递过。
+func (r *NotificationRepository) ExistsBySourceMsgID(ctx context.Context, sourceMsgID int64) (bool, error) {
+	if r == nil || r.db == nil {
+		return false, nil
+	}
+	var count int64
+	err := r.db.WithContext(ctx).Model(&model.Notification{}).
+		Where("source_msg_id = ?", sourceMsgID).
+		Count(&count).Error
+	return count > 0, err
+}
+
+// MaxSourceMsgID 取本租户已投递的最大平台消息 ID（= 下一轮同步的游标）。
+//
+// 它就是"已投递过"的全部证据：平台消息 ID 单调递增，而本地落地的行
+// 逐条对应一条已投递消息，所以最大值天然是正确游标。不另存游标 ⇒ 不会
+// 与真实投递情况漂移。
+func (r *NotificationRepository) MaxSourceMsgID(ctx context.Context) (int64, error) {
+	if r == nil || r.db == nil {
+		return 0, nil
+	}
+	var max *int64
+	err := r.db.WithContext(ctx).Model(&model.Notification{}).
+		Where("source_msg_id > 0").
+		Select("MAX(source_msg_id)").
+		Scan(&max).Error
+	if err != nil {
+		return 0, err
+	}
+	if max == nil {
+		return 0, nil
+	}
+	return *max, nil
+}
+
+// ExistsInTenant 判断某条通知是否存在于当前租户。
+//
+// 用途：标记已读前的归属校验 —— 不属于本租户就报"不存在或无权限"，
+// 不泄露"这条消息存在但不属于你"。读面带 tenant_id 条件（隔离 callback
+// 注入），所以这里天然只查得到本租户的行。
+func (r *NotificationRepository) ExistsInTenant(ctx context.Context, tenantID, id uint) (bool, error) {
+	if r == nil || r.db == nil {
+		return false, nil
+	}
+	var count int64
+	err := r.db.WithContext(ctx).Model(&model.Notification{}).
+		Where("id = ? AND tenant_id = ?", id, tenantID).
+		Count(&count).Error
+	return count > 0, err
+}
+
+// IsPlatformNotice 判断某条通知是否是平台下发的消息。
+func (r *NotificationRepository) IsPlatformNotice(ctx context.Context, id uint) (bool, error) {
+	if r == nil || r.db == nil {
+		return false, nil
+	}
+	var count int64
+	err := r.db.WithContext(ctx).Model(&model.Notification{}).
+		Where("id = ? AND type = ?", id, model.NotificationTypePlatformNotice).
+		Count(&count).Error
+	return count > 0, err
 }
 
 // MarkReadByID 标记单条已读，返回受影响行数（用于权限校验）

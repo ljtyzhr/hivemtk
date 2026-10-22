@@ -662,6 +662,17 @@ func main() {
 	moduleSync := service.StartModuleSync(context.Background())
 	defer moduleSync.Stop()
 
+	// ── 站内消息：平台消息投递同步 ──────────────────────────────
+	//
+	// 平台运营方在平台后台发的消息，由本机周期拉取并镜像到本地
+	// notifications 表（与模块下发同步同一模式：拉取而非推送 ——
+	// 生产是单机部署，用户端没有公网回调地址）。
+	//
+	// 平台联动未启用（PLATFORM_ENABLED=false）时整个跳过，不发起任何
+	// 平台请求 —— 离线单机部署不该在日志里留平台不可达的噪音。
+	noticeSync := service.StartNoticeSync(context.Background())
+	defer noticeSync.Stop()
+
 	router.Setup(r, db.GetDB())
 
 	// W-5 挽回队列消费：装配落在 internal/app（见 recovery_worker_wiring.go），

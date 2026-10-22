@@ -239,6 +239,20 @@ const t = i18n.global.t
 const activeTopMenu = ref('')
 const activeSubMenu = ref(route.path)
 const unreadCount = ref(0)
+let unreadTimer = null
+import { notificationApi } from '@/api/notification'
+// 铃铛未读角标：轮询通知中心的未读数。
+//
+// 口径与通知中心一致：平台消息按人独立已读（一人点开不影响他人），
+// 本地业务通知沿用原有口径。
+const loadUnreadCount = async () => {
+  if (!userStore.isLoggedIn) return
+  try {
+    const res = await notificationApi.unreadCount()
+    const data = res?.data || res
+    unreadCount.value = Number(data?.count || 0)
+  } catch { /* 静默失败：铃铛角标非关键路径 */ }
+}
 const geoAlertCount = ref(0)
 let geoAlertTimer = null
 import { getGeoAlertsUnreadCount } from '@/api/geoAlert'
@@ -379,10 +393,16 @@ onMounted(async () => {
   geoAlertTimer = setInterval(() => {
     if (document.visibilityState === 'visible') loadGeoAlertCount()
   }, 60000)
+
+  loadUnreadCount()
+  unreadTimer = setInterval(() => {
+    if (document.visibilityState === 'visible') loadUnreadCount()
+  }, 30000)
 })
 
 onUnmounted(() => {
   if (geoAlertTimer) { clearInterval(geoAlertTimer); geoAlertTimer = null }
+  if (unreadTimer) { clearInterval(unreadTimer); unreadTimer = null }
 })
 </script>
 

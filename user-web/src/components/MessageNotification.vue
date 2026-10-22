@@ -37,7 +37,7 @@ import i18n from '@/i18n'
 import { ref, onMounted, onUnmounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Bell } from '@element-plus/icons-vue'
-import { platformAPI } from '@/api/platform'
+import { notificationApi } from '@/api/notification'
 
 const hasNewMessage = ref(false)
 const dismissed = ref(false)
@@ -69,10 +69,18 @@ const isMessageDismissed = (messageId) => {
 };
 
 let pollingStopped = false;
+// 飘条读**本地通知中心**的最新一条，而不是平台侧的 latest。
+//
+// 两点理由：
+//   1. 同源同口径 —— 飘条与通知中心列表读的是同一份数据，不会出现
+//      "列表里没有但飘条弹出来"的分裂；
+//   2. 平台 latest 是**全局一条**（不分租户、不分人），已读状态记在平台侧；
+//      平台消息的已读是按人独立记录的，只有本地通知中心有这个口径。
 const checkNewMessage = async () => {
   if (pollingStopped) return
   try {
-    const message = await platformAPI.getLatestMessage();
+    const res = await notificationApi.list({ page: 1, page_size: 1 })
+    const message = (res?.list || [])[0]
     if (message && message.id && message.id !== currentMessage.value.id && !isMessageDismissed(message.id)) {
       currentMessage.value = message
       hasNewMessage.value = true
@@ -91,7 +99,7 @@ const checkNewMessage = async () => {
 const markAsRead = async () => {
   try {
     if (currentMessage.value.id) {
-      await platformAPI.markMessageRead(currentMessage.value.id)
+      await notificationApi.markRead(currentMessage.value.id)
       addToDismissedMessages(currentMessage.value.id);
     }
     hasNewMessage.value = false

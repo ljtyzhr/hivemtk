@@ -1,19 +1,21 @@
 package service
 
 import (
+	"context"
 	"errors"
 	"time"
 
 	"gorm.io/gorm"
 
-	"context"
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/repository"
 )
 
 // NotificationService 通知中心服务
 type NotificationService struct {
-	repo *repository.NotificationRepository
+	repo     *repository.NotificationRepository
+	readRepo *repository.NotificationReadRepository
 }
 
 // NewNotificationService 构造服务
@@ -21,20 +23,24 @@ type NotificationService struct {
 // 五层架构 §三.5：构造函数保留 db *gorm.DB 参数（调用方不变），
 // 内部创建 repository 实例，service 不再持有 db。
 func NewNotificationService(db *gorm.DB) *NotificationService {
-	return &NotificationService{repo: repository.NewNotificationRepositoryWithDB(db)}
+	return &NotificationService{
+		repo:     repository.NewNotificationRepositoryWithDB(db),
+		readRepo: repository.NewNotificationReadRepositoryWithDB(db),
+	}
 }
 
-// ListRequest 列表请求
+// NotificationListRequest 列表请求
 type NotificationListRequest struct {
 	UserID  uint
 	Page    int
 	Size    int
 	Type    string
+	Level   string
 	IsRead  *bool
 	Keyword string
 }
 
-// ListResponse 列表响应
+// NotificationListResponse 列表响应
 type NotificationListResponse struct {
 	List  []model.Notification `json:"list"`
 	Total int64                `json:"total"`
@@ -43,6 +49,10 @@ type NotificationListResponse struct {
 }
 
 // List 拉取通知列表
+//
+// 平台消息（type = platform_notice）的 is_read **按当前用户**计算：
+// 该用户有没有对应的已读回执。本地业务通知沿用行上的 is_read
+// （它们的受众是管理员/审核人，"任一人读过即算"是对的）。
 func (s *NotificationService) List(ctx context.Context, req NotificationListRequest) (*NotificationListResponse, error) {
 	if req.Page < 1 {
 		req.Page = 1
@@ -56,10 +66,15 @@ func (s *NotificationService) List(ctx context.Context, req NotificationListRequ
 		Page:    req.Page,
 		Size:    req.Size,
 		Type:    req.Type,
+		Level:   req.Level,
 		IsRead:  req.IsRead,
 		Keyword: req.Keyword,
 	})
 	if err != nil {
+		return nil, err
+	}
+
+	if err := s.applyReadState(ctx, req.UserID, res.List); err != nil {
 		return nil, err
 	}
 
@@ -71,11 +86,70 @@ func (s *NotificationService) List(ctx context.Context, req NotificationListRequ
 	}, nil
 }
 
+// applyReadState 把平台消息的已读状态按当前用户的回执改写。
+//
+// 为什么必须改写：notifications.is_read 是**消息行上的单一布尔位**，
+// 平台消息一条对应 N 个用户，A 点已读会把 B 看到的同一条也变成已读
+// ⇒ 未读角标被一个人清零。回执表把"消息 × 人"的已读关系显式建模，
+// 这里把行上的默认值换成"当前用户视角"的真值。
+//
+// 本地业务通知不动：它们的受众是管理员/审核人，任一人读过即算。
+func (s *NotificationService) applyReadState(ctx context.Context, userID uint, list []model.Notification) error {
+	if len(list) == 0 {
+		return nil
+	}
+	tenantID := currentTenantID(ctx)
+
+	read, err := s.readRepo.ReadNotificationIDs(ctx, tenantID, userID)
+	if err != nil {
+		return err
+	}
+
+	for i := range list {
+		if list[i].Type != model.NotificationTypePlatformNotice {
+			continue
+		}
+		list[i].IsRead = read[list[i].ID]
+		if list[i].IsRead {
+			// 回执的 read_at 不在本表里；置一个非零值让前端能区分
+			// "已读"与"未读"（有些列表按 read_at 排序）。
+			now := time.Now()
+			list[i].ReadAt = &now
+		} else {
+			list[i].ReadAt = nil
+		}
+	}
+	return nil
+}
+
 // MarkRead 标记单条已读
+//
+// 平台消息写已读回执（按人独立）；本地业务通知沿用行上的 is_read。
 func (s *NotificationService) MarkRead(ctx context.Context, userID uint, id uint) error {
 	if id == 0 {
 		return errors.New("id 不能为空")
 	}
+
+	tenantID := currentTenantID(ctx)
+
+	// 先确认这条通知属于当前租户 —— 不属于就报"不存在或无权限"，
+	// 不泄露"这条消息存在但不属于你"。
+	belongs, err := s.belongsToTenant(ctx, tenantID, id)
+	if err != nil {
+		return err
+	}
+	if !belongs {
+		return errors.New("通知不存在或无权限")
+	}
+
+	isPlatform, err := s.isPlatformNotice(ctx, id)
+	if err != nil {
+		return err
+	}
+	if isPlatform {
+		return s.readRepo.MarkRead(ctx, tenantID, id, userID)
+	}
+
 	affected, err := s.repo.MarkReadByID(ctx, userID, id)
 	if err != nil {
 		return err
@@ -87,13 +161,40 @@ func (s *NotificationService) MarkRead(ctx context.Context, userID uint, id uint
 }
 
 // MarkAllRead 全部标记已读
+//
+// 平台消息批量写回执；本地业务通知沿用行上的 is_read。
 func (s *NotificationService) MarkAllRead(ctx context.Context, userID uint) (int64, error) {
-	return s.repo.MarkAllRead(ctx, userID)
+	tenantID := currentTenantID(ctx)
+
+	marked, err := s.readRepo.MarkAllRead(ctx, tenantID, userID)
+	if err != nil {
+		return 0, err
+	}
+
+	local, err := s.repo.MarkAllRead(ctx, userID)
+	if err != nil {
+		return marked, err
+	}
+	return marked + local, nil
 }
 
 // CountUnread 统计未读数
+//
+// 平台消息未读 = 该租户内该用户**无回执**的平台消息条数；
+// 本地业务通知沿用既有口径（行上的 is_read 未置位）。
 func (s *NotificationService) CountUnread(ctx context.Context, userID uint) (int64, error) {
-	return s.repo.CountUnread(ctx, userID)
+	tenantID := currentTenantID(ctx)
+
+	platformUnread, err := s.readRepo.CountUnread(ctx, tenantID, userID)
+	if err != nil {
+		return 0, err
+	}
+
+	local, err := s.repo.CountUnread(ctx, userID)
+	if err != nil {
+		return 0, err
+	}
+	return platformUnread + local, nil
 }
 
 // Create 写入一条通知（供业务调用 / 自动迁移后种子数据）
@@ -170,4 +271,25 @@ func (s *NotificationService) SeedIfEmpty(ctx context.Context) error {
 		}
 	}
 	return nil
+}
+
+// belongsToTenant 判断该通知是否属于当前租户。
+func (s *NotificationService) belongsToTenant(ctx context.Context, tenantID, id uint) (bool, error) {
+	return s.repo.ExistsInTenant(ctx, tenantID, id)
+}
+
+// isPlatformNotice 判断该通知是否是平台下发的消息。
+func (s *NotificationService) isPlatformNotice(ctx context.Context, id uint) (bool, error) {
+	return s.repo.IsPlatformNotice(ctx, id)
+}
+
+// currentTenantID 取当前上下文的租户号。
+//
+// 取不到时回落默认租户：离线路径（TENANT_MODE=off）本就只有默认租户，
+// 而 on 模式下请求期一定有租户绑定（TenantMiddleware 负责）。
+func currentTenantID(ctx context.Context) uint {
+	if id, ok := tenant.FromContext(ctx); ok && id != 0 {
+		return id
+	}
+	return tenant.DefaultTenantID
 }

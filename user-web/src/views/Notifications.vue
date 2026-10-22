@@ -125,6 +125,38 @@
                 :label="$t('公告')"
                 value="announcement"
               />
+              <el-option
+                :label="$t('平台消息')"
+                value="platform_notice"
+              />
+            </el-select>
+            <el-select
+              v-model="filter.level"
+              :placeholder="$t('级别')"
+              clearable
+              style="width: 120px"
+              @change="loadList"
+            >
+              <el-option
+                :label="$t('全部')"
+                :value="''"
+              />
+              <el-option
+                :label="$t('普通')"
+                value="info"
+              />
+              <el-option
+                :label="$t('警告')"
+                value="warning"
+              />
+              <el-option
+                :label="$t('重要')"
+                value="error"
+              />
+              <el-option
+                :label="$t('成功')"
+                value="success"
+              />
             </el-select>
             <el-select
               v-model="filter.is_read"
@@ -196,6 +228,21 @@
           </template>
         </el-table-column>
         <el-table-column
+          label="来源"
+          width="90"
+          align="center"
+        >
+          <template #default="{ row }">
+            <el-tag
+              :type="row.source === 'platform' ? 'primary' : 'info'"
+              size="small"
+              effect="plain"
+            >
+              {{ row.source === 'platform' ? $t('平台') : $t('系统') }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column
           prop="title"
           label="标题"
           min-width="200"
@@ -256,12 +303,29 @@
         v-if="current"
         class="detail-content"
       >
-        <el-tag
-          :type="typeTagType(current.type)"
-          size="small"
-        >
-          {{ typeLabel(current.type) }}
-        </el-tag>
+        <div class="detail-tags">
+          <el-tag
+            :type="typeTagType(current.type)"
+            size="small"
+          >
+            {{ typeLabel(current.type) }}
+          </el-tag>
+          <el-tag
+            v-if="current.level"
+            :type="levelTagType(current.level)"
+            size="small"
+            effect="plain"
+          >
+            {{ levelLabel(current.level) }}
+          </el-tag>
+          <el-tag
+            :type="current.source === 'platform' ? 'primary' : 'info'"
+            size="small"
+            effect="plain"
+          >
+            {{ current.source === 'platform' ? $t('平台下发') : $t('系统通知') }}
+          </el-tag>
+        </div>
         <h3 class="detail-title">
           {{ current.title }}
         </h3>
@@ -300,8 +364,7 @@ import i18n from '@/i18n'
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { Refresh, Check, Link } from '@element-plus/icons-vue'
-import { http } from '@/utils/request'
-import { platformAPI } from '@/api/platform'
+import { notificationApi } from '@/api/notification'
 
 const loading = ref(false)
 void Refresh; void Check; void Link
@@ -310,7 +373,7 @@ const list = ref([])
 const total = ref(0)
 const page = ref(1)
 const pageSize = ref(20)
-const filter = reactive({ type: '', is_read: '', keyword: '' })
+const filter = reactive({ type: '', level: '', is_read: '', keyword: '' })
 
 const viewVisible = ref(false)
 const current = ref(null)
@@ -324,13 +387,31 @@ const stats = ref({
 const hasUnread = computed(() => (stats.value.unread || 0) > 0)
 
 const typeLabel = (t) => {
-  const map = { info: '信息', warning: '警告', error: '错误', success: '成功', announcement: '公告', notification: '通知' }
+  const map = {
+    info: '信息',
+    warning: '警告',
+    error: '错误',
+    success: '成功',
+    announcement: '公告',
+    notification: '通知',
+    platform_notice: '平台消息'
+  }
   return map[t] || t || '通知'
 }
 
 const typeTagType = (t) => {
-  const map = { info: 'info', warning: 'warning', error: 'danger', success: 'success', announcement: 'primary' }
+  const map = { info: 'info', warning: 'warning', error: 'danger', success: 'success', announcement: 'primary', platform_notice: 'primary' }
   return map[t] || 'info'
+}
+
+const levelLabel = (l) => {
+  const map = { info: '普通', warning: '警告', error: '重要', success: '成功' }
+  return map[l] || '普通'
+}
+
+const levelTagType = (l) => {
+  const map = { info: 'info', warning: 'warning', error: 'danger', success: 'success' }
+  return map[l] || 'info'
 }
 
 const formatTime = (t) => {
@@ -346,20 +427,11 @@ const loadList = async () => {
       page_size: pageSize.value
     };
     if (filter.type) params.type = filter.type
+    if (filter.level) params.level = filter.level
     if (filter.is_read !== '') params.is_read = filter.is_read
     if (filter.keyword) params.keyword = filter.keyword
 
-    let res = null
-    try {
-      res = await http.get('/api/auth/notifications', { params })
-    } catch (e1) {
-      try {
-        const latest = await platformAPI.getLatestMessage()
-        res = latest ? { list: [latest.data || latest], total: 1 } : { list: [], total: 0 }
-      } catch (e2) {
-        res = { list: [], total: 0 }
-      }
-    }
+    const res = await notificationApi.list(params)
     list.value = res?.list || []
     total.value = res?.total || list.value.length
     computeStats();
@@ -373,7 +445,7 @@ const loadList = async () => {
 const computeStats = () => {
   stats.value.total = list.value.length
   stats.value.unread = list.value.filter(m => !m.is_read).length
-  const byType = { info: 0, warning: 0, error: 0, success: 0, announcement: 0 }
+  const byType = { info: 0, warning: 0, error: 0, success: 0, announcement: 0, platform_notice: 0 }
   list.value.forEach(m => {
     const t = m.type || 'info'
     byType[t] = (byType[t] || 0) + 1
@@ -386,22 +458,17 @@ const onView = async (row) => {
   viewVisible.value = true
   if (!row.is_read) {
     try {
-      await platformAPI.markMessageRead(row.id)
+      await notificationApi.markRead(row.id)
       row.is_read = true
       computeStats()
-    } catch { /* 忽略：清理/存储/恢复类 best-effort 操作 */ }
+    } catch { /* 忽略：标记已读失败不该挡住用户看详情 */ }
   }
 }
 
 const onMarkAllRead = async () => {
   marking.value = true
   try {
-    const ids = list.value.filter(m => !m.is_read).map(m => m.id).filter(Boolean)
-    for (const id of ids) {
-      try {
-        await platformAPI.markMessageRead(id)
-      } catch { /* 忽略：清理/存储/恢复类 best-effort 操作 */ }
-    }
+    await notificationApi.markAllRead()
     list.value.forEach(m => { m.is_read = true })
     computeStats()
     ElMessage.success(i18n.global.t('已全部标记为已读'))
@@ -460,6 +527,11 @@ onMounted(() => {
 .stat-warning .stat-value { color: #F59E0B; }
 .detail-content {
   padding: 8px 0;
+}
+.detail-tags {
+  display: flex;
+  align-items: center;
+  gap: 8px;
 }
 .detail-title {
   margin: 12px 0 4px;
