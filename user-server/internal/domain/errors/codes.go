@@ -112,6 +112,27 @@ func New(code int, msg string) *BizError {
 // 把内部故障也算成"上游失败"⇒ 内部错误会被报成 502（Bad Gateway），
 // 而 502 的语义是"网关/上游给的东西不能用" —— 运维会查错方向：
 // 去查渠道，而不是查自己的库。两者必须分开。
+// IsClientError 判断一个错误是不是「客户端侧的业务校验失败」（4xxx 段）。
+//
+// 为什么需要：4xxx 是"你这个账号当前做不到 / 参数不合法 / 状态不允许"这类
+// **业务校验**，语义是 400 而不是 500。上层若一律按"没匹配到关键字就 500"处理，
+// 这些本该引导用户改正的提示会被报成服务端故障，客户端还会当故障去重试。
+//
+// 与 IsUpstreamFailure 分工：
+//
+//	4xxx ⇒ 客户端侧问题（400）
+//	5xxx 的 CodePlatformUnavail ⇒ 上游问题（502）
+func IsClientError(err error) bool {
+	if err == nil {
+		return false
+	}
+	var be *BizError
+	if !errors.As(err, &be) {
+		return false
+	}
+	return be.Code >= 4000 && be.Code < 5000
+}
+
 func IsUpstreamFailure(err error) bool {
 	if err == nil {
 		return false

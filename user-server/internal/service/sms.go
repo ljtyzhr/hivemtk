@@ -302,7 +302,8 @@ func isSMSNightRestricted(t time.Time) bool {
 func (s *smsService) SendSms(ctx context.Context, req *dto.SmsSendRequest) error {
 
 	if smsNightRestrictedFn(time.Now()) {
-		return errors.New("当前处于夜间禁发时段(22:00-8:00)，短信已拦截")
+		// 4xxx = 业务校验（客户端侧问题）⇒ 上层映射 400，不是 500。
+		return bizerr.New(bizerr.CodeParamInvalid, "当前处于夜间禁发时段(22:00-8:00)，短信已拦截")
 	}
 
 	if err := validateSMSPhone(req.Phone); err != nil {
@@ -313,7 +314,7 @@ func (s *smsService) SendSms(ctx context.Context, req *dto.SmsSendRequest) error
 		// 这里返回哨兵而不是 nil：nil 会被每一个调用方读成"发成功了"
 		// （外发链据此记成功、烧幂等键、把这条算进送达率分母）。错误串不带手机号，理由见
 		// service/proactive_reach.go 里同一族哨兵的注释——这条串会落进队列台账。
-		return fmt.Errorf("%w: 该号码已在短信退订名单里，未向渠道提交任何内容", ErrDoNotContact)
+		return bizerr.Wrap(bizerr.CodeParamInvalid, "该号码已在短信退订名单里，未向渠道提交任何内容", ErrDoNotContact)
 	}
 	config, err := s.repo.GetConfig(ctx)
 	if err != nil {
@@ -599,7 +600,8 @@ func (s *smsService) sendHuawei(ctx context.Context, phone, content string) (tim
 func (s *smsService) ResendSms(ctx context.Context, id uint) error {
 
 	if smsNightRestrictedFn(time.Now()) {
-		return errors.New("当前处于夜间禁发时段(22:00-8:00)，短信已拦截")
+		// 4xxx = 业务校验（客户端侧问题）⇒ 上层映射 400，不是 500。
+		return bizerr.New(bizerr.CodeParamInvalid, "当前处于夜间禁发时段(22:00-8:00)，短信已拦截")
 	}
 	record, err := s.repo.GetSmsByID(ctx, id)
 	if err != nil {
@@ -614,7 +616,7 @@ func (s *smsService) ResendSms(ctx context.Context, id uint) error {
 	// 而这里直连 dispatchToProvider，绕过了 SendSms 那道检查。
 	// 放在改状态之前：拦下时不该在台账上留一条"正在发"。
 	if s.unsub().IsUnsubscribed(ctx, record.Phone) {
-		return fmt.Errorf("%w: 该号码已在短信退订名单里，重发同样不提交给渠道", ErrDoNotContact)
+		return bizerr.Wrap(bizerr.CodeParamInvalid, "该号码已在短信退订名单里，重发同样不提交给渠道", ErrDoNotContact)
 	}
 
 	record.Status = "sending"

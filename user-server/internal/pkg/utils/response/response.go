@@ -185,6 +185,18 @@ func ErrorFromDB(c *gin.Context, err error, fallbackMsg string, data ...any) {
 	// （"Specified access key is not found."），只取 Message 会把真因丢掉。
 	// 不用 fallbackMsg：fallbackMsg 只有"发送草稿失败"这种操作名，
 	// 操作者还得再翻日志才知道是密钥错了还是渠道挂了。
+	// 4xxx = 客户端侧业务校验失败（参数不合法 / 状态不允许 / 当前做不到）⇒ 400。
+	// 不能落到最后那句 500：这类提示是写给用户照做的，报成服务端故障既误导又招重试。
+	// 与 IsUpstreamFailure（5xxx 平台类 ⇒ 502）分工见 domain/errors/codes.go。
+	if bizerr.IsClientError(err) {
+		msg := fallbackMsg
+		var be *bizerr.BizError
+		if errors.As(err, &be) && be.Error() != "" {
+			msg = be.Error()
+		}
+		Error(c, http.StatusBadRequest, msg, data...)
+		return
+	}
 	if bizerr.IsUpstreamFailure(err) {
 		msg := fallbackMsg
 		var be *bizerr.BizError
