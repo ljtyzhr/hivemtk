@@ -81,15 +81,46 @@ llm_routing_rules: 0 行
 
 后台改 provider 质量分 → `{"code":400,"message":"provider 落库失败: [tenant] 表 llm_providers 需要租户上下文但 ctx 未绑定（query）；..."}`
 
-**修复后**待发版复核：改一次场景路由 ⇒ `llm_routing_rules` 应出现 8 行；
-改 provider 质量分 ⇒ 接口 200 且 `llm_providers.quality_score` 落库；
-重启 user-server 后路由仍在（`LoadRoutesFromDB` 覆盖内存种子）。
+**修复后**（2026-10-22 已发版并复核）：
+
+发版：交叉编译 linux/amd64 → 换二进制 → `docker compose build user-server` → 重启。
+容器内二进制 md5 `c22cef845367488e19912b8432af5d6a` 与上传件一致。
+
+后台重配后读数：
+
+```
+llm_routing_rules:
+ tenant_id |     scenario     | version
+-----------+------------------+---------
+         1 | friendly_chat    |       1
+         1 | high_quality     |       1
+         1 | intent_recognize |       1
+         1 | jev_choice       |       1
+         1 | long_summary     |       1
+         1 | low_cost         |       1
+         1 | objection        |       1
+         1 | sop_reply        |       1
+(8 rows)
+
+llm_providers: platform-sensenova | quality_score=0.96 | source=platform
+落库失败日志条数: 0
+```
+
+**重启后复核**（`docker restart mtk-user-server` → 容器内 md5 仍 `c22cef84`）：
+
+```
+GET /api/llm/scene-routing → {"scenario":"high_quality","provider":"default",
+  "fallbacks":["platform-sensenova"],...,"version":1}
+```
+
+⇒ 路由**重启后仍在**。这正是原缺陷的核心（改完只进内存、重启全丢），
+现在彻底闭环。
 
 ## Residual Risks
 
-- 本次修复**未发版到线上**。发版后需在后台**重配一次**场景路由
-  —— 修复前的配置只进了内存、`llm_routing_rules` 0 行，重启即丢，
-  不会因为代码上线而自动恢复。
+- 发版后需在后台**重配一次**场景路由 —— 修复前的配置只进了内存、
+  `llm_routing_rules` 0 行，重启即丢，不会因为代码上线而自动恢复。
+  （本次已在发版后重配并复核落库。）
 - 发版须交叉编译 + 重建镜像（本地 darwin/arm64 二进制在容器里会 exec format error；
   只 `docker compose up -d` 不改镜像时会跑旧二进制）。
 - 线上二进制会被并行泳道覆盖（2026-10-22 实测：发版后 2 分钟被另一条泳道
