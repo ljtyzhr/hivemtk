@@ -1624,7 +1624,11 @@
 | 1026 | GET | `/api/xiaohongshu/stats/card/${id}` | `getXiaohongshuCardStats` | `id, params` | `params` |
 | 1027 | GET | `/api/xiaohongshu/stats/overall` | `getXiaohongshuCardOverallStats` | `params` | `params` |
 | 1028 | POST | `/api/xiaohongshu/${id}/generate-short-link` | `generateShortLink` | `id` | `` |
+| 1029 | GET | `/api/auth/notifications` | `notificationCtrl.List` | `page,page_size,type,level,is_read,keyword` | `list,total` |
+| 1030 | GET | `/api/auth/notifications/unread-count` | `notificationCtrl.UnreadCount` | `` | `count` |
+| 1031 | POST | `/api/auth/notifications/:id/read` | `notificationCtrl.MarkRead` | `id` | `` |
+| 1032 | POST | `/api/auth/notifications/read-all` | `notificationCtrl.MarkAllRead` | `` | `marked` |
 
 ---
 
-合计 1028 条调用点。
+合计 1032 条调用点。

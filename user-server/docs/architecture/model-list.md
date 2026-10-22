@@ -273,151 +273,152 @@
 | 227 | P2 | `ModuleSyncLog` | `module_sync_logs` | `internal/model/tenant_module.go` | ✅ | allModels | ✅ | ✅ | ☐ |
 | 228 | P2 | `MsgHourlySummary` | `msg_hourly_summary` | `internal/model/msg_hourly_summary.go` | ✅ | allModels | ✅ | ✅ | ☐ |
 | 229 | P2 | `Notification` | `notifications` | `internal/model/notification.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 230 | P2 | `ObjectionTemplate` | `objection_templates` | `internal/model/ai_sales_champion.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 231 | P2 | `ObsConfig` | `obs_config` | `internal/model/obs_config.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 232 | P2 | `OperationLog` | `operation_logs` | `internal/model/operation_log.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 233 | P2 | `Opportunity` | `opportunities` | `internal/model/opportunity.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 234 | P2 | `OptimizationSuggestion` | `optimization_suggestions` | `internal/model/feedback_learning.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 235 | P2 | `Order` | `order` | `internal/model/order.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 236 | P2 | `OrderDraft` | `order_drafts` | `internal/model/order_draft.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 237 | P2 | `PasswordHistory` | `password_history` | `internal/model/password_history.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 238 | P2 | `PasswordResetToken` | `password_reset_tokens` | `internal/model/password_reset_token.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 239 | P2 | `Payment` | `payments` | `internal/model/payment.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 240 | P2 | `PerformanceTestResult` | `performance_test_results` | `internal/ops/model/performance_test_result.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 241 | P2 | `PlatformAccountConfig` | `platform_account_configs` | `internal/model/platform_account_config.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 242 | P2 | `PlatformAccount` | `platform_accounts` | `internal/model/unified_message.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 243 | P2 | `PlatformConfigKV` | `platform_config_kv` | `internal/model/platform_config_kv.go` | — | allModels | ✅ | — | ☐ |
-| 244 | P2 | `PlatformLLMUsageRecord` | `platform_llm_usage_records` | `internal/model/tenant_module.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 245 | P2 | `PlatformUser` | `platform_users` | `internal/model/unified_message.go` | — | **未登记** | ❌ | — | ☐ |
-| 246 | P2 | `PromptABTest` | `prompt_ab_tests` | `internal/model/feedback_loop.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 247 | P2 | `PromptCandidate` | `prompt_candidates` | `internal/model/feedback_loop.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 248 | P2 | `PromptTemplate` | `prompt_templates` | `internal/content/model/ai_content.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 249 | P2 | `QQAccount` | `qq_accounts` | `internal/model/feishu.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 250 | P2 | `QueueStatus` | `queue_statuses` | `internal/model/whatsapp_queue.go` | — | **未登记** | ❌ | — | ☐ |
-| 251 | P2 | `QueuedMessage` | `queued_messages` | `internal/model/whatsapp_queue.go` | — | **未登记** | ❌ | — | ☐ |
-| 252 | P2 | `QuickReply` | `quick_replies` | `internal/model/quick_reply.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 253 | P2 | `QuickReplyFolder` | `quick_reply_folders` | `internal/model/quick_reply_folder.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 254 | P2 | `QuoteLineItem` | `quote_line_items` | `internal/model/quote.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 255 | P2 | `Quote` | `quotes` | `internal/model/quote.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 256 | P2 | `RagEvalQuestion` | `rag_eval_questions` | `internal/model/web_vital.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 257 | P2 | `RagEvalRun` | `rag_eval_runs` | `internal/model/web_vital.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 258 | P2 | `RagMessage` | `rag_messages` | `internal/model/rag_session.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 259 | P2 | `RagMetricsDaily` | `rag_metrics_daily` | `internal/model/rag_metrics.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 260 | P2 | `RagProduct` | `rag_products` | `internal/model/rag_product.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 261 | P2 | `RagQueryLog` | `rag_query_logs` | `internal/model/rag_metrics.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 262 | P2 | `RagRecallMonitorSnapshot` | `rag_recall_monitor_snapshots` | `internal/model/rag_recall_monitor_snapshot.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 263 | P2 | `RagSession` | `rag_sessions` | `internal/model/rag_session.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 264 | P2 | `RateValue` | `rate_values` | `internal/ops/model/ltc_rates.go` | — | **未登记** | ❌ | — | ☐ |
-| 265 | P2 | `ReachComplianceLog` | `reach_compliance_log` | `internal/model/reach_compliance_log.go` | ✅ | ExtraModels | ✅ | ✅ | ☐ |
-| 266 | P2 | `DelayedOutboundReply` | `reach_delayed_outbound` | `internal/model/reach_delayed_outbound.go` | ✅ | ExtraModels | ✅ | ✅ | ☐ |
-| 267 | P2 | `ReachJob` | `reach_jobs` | `internal/model/ai_sales_champion.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 268 | P2 | `ReachPipeline` | `reach_pipelines` | `internal/model/ai_sales_champion.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 269 | P2 | `RecoveryQueue` | `recovery_queue` | `internal/model/customer_rfm.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 270 | P2 | `ReportDimension` | `report_dimensions` | `internal/ops/model/custom_report.go` | — | **未登记** | ❌ | — | ☐ |
-| 271 | P2 | `ReportMetric` | `report_metrics` | `internal/ops/model/custom_report.go` | — | **未登记** | ❌ | — | ☐ |
-| 272 | P2 | `ReportSubscription` | `report_subscriptions` | `internal/model/customer_segment.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 273 | P2 | `RerankProviderConfig` | `rerank_provider_configs` | `internal/model/rag_product.go` | — | **未登记** | ❌ | — | ☐ |
-| 274 | P2 | `RestoreRecord` | `restore_records` | `internal/model/backup.go` | — | allModels | ✅ | ✅ | ☐ |
-| 275 | P2 | `RFMRule` | `rfm_rules` | `internal/model/rfm_rule.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 276 | P2 | `RoleMenuPermission` | `role_menu_permissions` | `internal/model/menu.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 277 | P2 | `RulePendingExecution` | `rule_pending_executions` | `internal/model/customer_segment.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 278 | P2 | `SalesChampionProfileSnapshot` | `sales_champion_profile_snapshots` | `internal/model/feedback_learning.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 279 | P2 | `SalesEvent` | `sales_events` | `internal/model/sales_event.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 280 | P2 | `SalesIntentScore` | `sales_intent_scores` | `internal/model/ai_sales_champion.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 281 | P2 | `SalesPersona` | `sales_personas` | `internal/model/ai_sales_champion.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 282 | P2 | `SavedView` | `saved_views` | `internal/model/customer_segment.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 283 | P2 | `ScriptCategory` | `script_categories` | `internal/content/model/script_template.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 284 | P2 | `ScriptExposureLog` | `script_exposure_logs` | `internal/model/ai_sales_champion.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 285 | P2 | `ScriptLibrary` | `script_library` | `internal/model/ai_sales_champion.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 286 | P2 | `ScriptRecommend` | `script_recommendations` | `internal/content/model/script_template.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 287 | P2 | `ScriptTemplate` | `script_templates` | `internal/content/model/script_template.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 288 | P2 | `ScriptVersion` | `script_versions` | `internal/model/ai_sales_champion.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 289 | P2 | `SecurityAlert` | `security_alerts` | `internal/model/security_alert.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 290 | P2 | `SecurityAuditItem` | `security_audit_items` | `internal/model/security_audit.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 291 | P2 | `SecurityAudit` | `security_audits` | `internal/model/security_audit.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 292 | P2 | `SendOptions` | `send_options` | `internal/model/unified_message.go` | — | **未登记** | ❌ | — | ☐ |
-| 293 | P2 | `SessionAISummary` | `session_ai_summaries` | `internal/model/customer_segment.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 294 | P2 | `SessionMessage` | `session_messages` | `internal/model/session_message.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 295 | P2 | `SessionTag` | `session_tags` | `internal/model/session_tag.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 296 | P2 | `ShortLinkAccess` | `short_link_accesses` | `internal/model/short_link_access.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 297 | P2 | `ShortLink` | `short_links` | `internal/model/short_link.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 298 | P2 | `SLAPolicy` | `sla_policies` | `internal/model/sla.go` | ✅ | **未登记** | ❌ | — | ☐ |
-| 299 | P2 | `SLAViolation` | `sla_violations` | `internal/model/sla.go` | ✅ | **未登记** | ❌ | — | ☐ |
-| 300 | P2 | `Smlist` | `smlist` | `internal/model/sm_list.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 301 | P2 | `SmsAliyunConfig` | `sms_aliyun_configs` | `internal/model/sms.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 302 | P2 | `SmsConfig` | `sms_configs` | `internal/model/sms.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 303 | P2 | `SmsDeliveryStatus` | `sms_delivery_statuses` | `internal/model/sms_tracking.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 304 | P2 | `SmsDraft` | `sms_drafts` | `internal/model/sms.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 305 | P2 | `SmsHuaweiConfig` | `sms_huawei_configs` | `internal/model/sms.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 306 | P2 | `SmsJobDetail` | `sms_job_details` | `internal/model/sms.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 307 | P2 | `SmsJob` | `sms_jobs` | `internal/model/sms.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 308 | P2 | `SmsNumberPortabilityRecord` | `sms_number_portability_logs` | `internal/model/sms_number_portability.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 309 | P2 | `SmsRecord` | `sms_records` | `internal/model/sms.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 310 | P2 | `SmsTencentConfig` | `sms_tencent_configs` | `internal/model/sms.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 311 | P2 | `SmsUnsubscribe` | `sms_unsubscribes` | `internal/model/sms_unsubscribe.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 312 | P2 | `SOPAgent` | `sop_agents` | `internal/model/ai_sales_champion.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 313 | P2 | `SOPExecEvent` | `sop_exec_events` | `internal/model/sop_executor.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 314 | P2 | `SOPExecution` | `sop_executions` | `internal/model/ai_sales_champion.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 315 | P2 | `SOPNodeTransition` | `sop_node_transitions` | `internal/model/feedback_learning.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 316 | P2 | `SOPOutbox` | `sop_outbox` | `internal/model/sop_executor.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 317 | P2 | `SOPStateMemory` | `sop_state_memories` | `internal/model/memory.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 318 | P2 | `SOPTemplate` | `sop_templates` | `internal/model/sop_template.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 319 | P2 | `SOPTimer` | `sop_timers` | `internal/model/sop_executor.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 320 | P2 | `SSOIdentity` | `sso_identities` | `internal/model/sso_identity.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 321 | P2 | `SupportMetrics` | `support_metrics` | `internal/model/support_metrics.go` | — | **未登记** | ❌ | — | ☐ |
-| 322 | P2 | `SyncLog` | `sync_logs` | `internal/model/integration.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 323 | P2 | `SystemMetrics` | `system_metrics` | `internal/model/stats.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 324 | P2 | `SystemRole` | `system_roles` | `internal/model/role.go` | — | **未登记** | ❌ | — | ☐ |
-| 325 | P2 | `SystemUser` | `system_users` | `internal/model/system_user.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 326 | P2 | `TelegramAccount` | `telegram_accounts` | `internal/model/feishu.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 327 | P2 | `TelegramGroupGate` | `telegram_group_gates` | `internal/model/telegram_gate.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 328 | P2 | `TelegramGroupMember` | `telegram_group_members` | `internal/model/telegram_gate.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 329 | P2 | `TenantConfigParamAuditLog` | `tenant_config_param_audit_logs` | `internal/model/config_param_tenant.go` | ✅ | allModels | ✅ | — | ☐ |
-| 330 | P2 | `TenantConfigParam` | `tenant_config_params` | `internal/model/config_param_tenant.go` | ✅ | allModels | ✅ | — | ☐ |
-| 331 | P2 | `TenantModule` | `tenant_modules` | `internal/model/tenant_module.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 332 | P2 | `Tenant` | `tenants` | `internal/model/tenant.go` | — | allModels | ✅ | ✅ | ☐ |
-| 333 | P2 | `ThresholdPolicy` | `threshold_policies` | `internal/model/confidence.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 334 | P2 | `TikTokCardActivity` | `tiktok_card_activities` | `internal/model/tiktok_card.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 335 | P2 | `TikTokCard` | `tiktok_cards` | `internal/model/tiktok_card.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 336 | P2 | `ToolCallAudit` | `tool_call_audits` | `internal/model/tool_audit.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 337 | P2 | `TraceEvalLog` | `trace_eval_log` | `internal/model/trace_eval.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 338 | P2 | `UnifiedMessage` | `unified_messages` | `internal/model/unified_message.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 339 | P2 | `UnifiedReply` | `unified_replies` | `internal/model/unified_message.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 340 | P2 | `UpgradeTask` | `upgrade_tasks` | `internal/model/upgrade.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 341 | P2 | `User` | `user` | `internal/model/user.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 342 | P2 | `UserBlacklist` | `user_blacklist` | `internal/model/user_blacklist.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 343 | P2 | `UserMFA` | `user_mfa` | `internal/model/user_mfa.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 344 | P2 | `UserRFM` | `user_rfms` | `internal/model/rfm_rule.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 345 | P2 | `UserTag` | `user_tags` | `internal/model/user.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 346 | P2 | `VisitLog` | `visit_logs` | `internal/model/stats.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 347 | P2 | `WebVitalRecord` | `web_vital_records` | `internal/model/web_vital.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 348 | P2 | `WebhookEvent` | `webhook_events` | `internal/model/integration.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 349 | P2 | `WebhookSubscription` | `webhook_subscriptions` | `internal/model/customer_segment.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 350 | P2 | `WechatMessage` | `wechat_messages` | `internal/model/wechat_message.go` | ✅ | **未登记** | ❌ | — | ☐ |
-| 351 | P2 | `WeComAccountHealth` | `wecom_account_health` | `internal/model/ai_sales_champion.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 352 | P2 | `WeComAccount` | `wecom_accounts` | `internal/model/wecom.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 353 | P2 | `WeComCustomer` | `wecom_customers` | `internal/model/wecom.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 354 | P2 | `WeComGroupMember` | `wecom_group_members` | `internal/model/wecom.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 355 | P2 | `WeComGroup` | `wecom_groups` | `internal/model/wecom.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 356 | P2 | `WeComMessage` | `wecom_messages` | `internal/model/wecom.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 357 | P2 | `WeComTag` | `wecom_tags` | `internal/model/wecom.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 358 | P2 | `WhatsappAccount` | `whatsapp_accounts` | `internal/model/whatsapp_account.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 359 | P2 | `WhatsAppCloudAccount` | `whatsapp_cloud_accounts` | `internal/model/feishu.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 360 | P2 | `WhatsappDraft` | `whatsapp_drafts` | `internal/model/whatsapp_draft.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 361 | P2 | `WhatsappGroupMessage` | `whatsapp_group_messages` | `internal/model/whatsapp_group_message.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 362 | P2 | `WhatsappJobDetail` | `whatsapp_job_details` | `internal/model/whatsapp_job.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 363 | P2 | `WhatsappJob` | `whatsapp_jobs` | `internal/model/whatsapp_job.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 364 | P2 | `WhatsAppMessageQueue` | `whatsapp_message_queues` | `internal/model/whatsapp_message_queue.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 365 | P2 | `WhatsappMessageTemplate` | `whatsapp_message_templates` | `internal/model/whatsapp_message_template.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 366 | P2 | `WhatsAppQueueStatus` | `whatsapp_queue_statuses` | `internal/model/whatsapp_message_queue.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 367 | P2 | `WhatsappSession` | `whatsapp_sessions` | `internal/model/whatsapp_session.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 368 | P2 | `WorkflowExecution` | `workflow_executions` | `internal/model/workflow_orchestrator.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 369 | P2 | `WorkflowNodeExecution` | `workflow_node_executions` | `internal/model/workflow_orchestrator.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 370 | P2 | `WorkflowVersion` | `workflow_versions` | `internal/model/workflow_orchestrator.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 371 | P2 | `XianyuCardActivity` | `xianyu_card_activities` | `internal/model/xianyu_card_activity.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 372 | P2 | `XianyuCard` | `xianyu_cards` | `internal/model/xianyu_card.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 373 | P2 | `XiaohongshuCardActivity` | `xiaohongshu_card_activities` | `internal/model/xiaohongshu_card_activity.go` | ✅ | allModels | ✅ | ✅ | ☐ |
-| 374 | P2 | `XiaohongshuCard` | `xiaohongshu_cards` | `internal/model/xiaohongshu_card.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 230 | P2 | `NotificationRead` | `notification_reads` | `internal/model/notification_read.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 231 | P2 | `ObjectionTemplate` | `objection_templates` | `internal/model/ai_sales_champion.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 232 | P2 | `ObsConfig` | `obs_config` | `internal/model/obs_config.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 233 | P2 | `OperationLog` | `operation_logs` | `internal/model/operation_log.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 234 | P2 | `Opportunity` | `opportunities` | `internal/model/opportunity.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 235 | P2 | `OptimizationSuggestion` | `optimization_suggestions` | `internal/model/feedback_learning.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 236 | P2 | `Order` | `order` | `internal/model/order.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 237 | P2 | `OrderDraft` | `order_drafts` | `internal/model/order_draft.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 238 | P2 | `PasswordHistory` | `password_history` | `internal/model/password_history.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 239 | P2 | `PasswordResetToken` | `password_reset_tokens` | `internal/model/password_reset_token.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 240 | P2 | `Payment` | `payments` | `internal/model/payment.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 241 | P2 | `PerformanceTestResult` | `performance_test_results` | `internal/ops/model/performance_test_result.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 242 | P2 | `PlatformAccountConfig` | `platform_account_configs` | `internal/model/platform_account_config.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 243 | P2 | `PlatformAccount` | `platform_accounts` | `internal/model/unified_message.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 244 | P2 | `PlatformConfigKV` | `platform_config_kv` | `internal/model/platform_config_kv.go` | — | allModels | ✅ | — | ☐ |
+| 245 | P2 | `PlatformLLMUsageRecord` | `platform_llm_usage_records` | `internal/model/tenant_module.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 246 | P2 | `PlatformUser` | `platform_users` | `internal/model/unified_message.go` | — | **未登记** | ❌ | — | ☐ |
+| 247 | P2 | `PromptABTest` | `prompt_ab_tests` | `internal/model/feedback_loop.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 248 | P2 | `PromptCandidate` | `prompt_candidates` | `internal/model/feedback_loop.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 249 | P2 | `PromptTemplate` | `prompt_templates` | `internal/content/model/ai_content.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 250 | P2 | `QQAccount` | `qq_accounts` | `internal/model/feishu.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 251 | P2 | `QueueStatus` | `queue_statuses` | `internal/model/whatsapp_queue.go` | — | **未登记** | ❌ | — | ☐ |
+| 252 | P2 | `QueuedMessage` | `queued_messages` | `internal/model/whatsapp_queue.go` | — | **未登记** | ❌ | — | ☐ |
+| 253 | P2 | `QuickReply` | `quick_replies` | `internal/model/quick_reply.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 254 | P2 | `QuickReplyFolder` | `quick_reply_folders` | `internal/model/quick_reply_folder.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 255 | P2 | `QuoteLineItem` | `quote_line_items` | `internal/model/quote.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 256 | P2 | `Quote` | `quotes` | `internal/model/quote.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 257 | P2 | `RagEvalQuestion` | `rag_eval_questions` | `internal/model/web_vital.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 258 | P2 | `RagEvalRun` | `rag_eval_runs` | `internal/model/web_vital.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 259 | P2 | `RagMessage` | `rag_messages` | `internal/model/rag_session.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 260 | P2 | `RagMetricsDaily` | `rag_metrics_daily` | `internal/model/rag_metrics.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 261 | P2 | `RagProduct` | `rag_products` | `internal/model/rag_product.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 262 | P2 | `RagQueryLog` | `rag_query_logs` | `internal/model/rag_metrics.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 263 | P2 | `RagRecallMonitorSnapshot` | `rag_recall_monitor_snapshots` | `internal/model/rag_recall_monitor_snapshot.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 264 | P2 | `RagSession` | `rag_sessions` | `internal/model/rag_session.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 265 | P2 | `RateValue` | `rate_values` | `internal/ops/model/ltc_rates.go` | — | **未登记** | ❌ | — | ☐ |
+| 266 | P2 | `ReachComplianceLog` | `reach_compliance_log` | `internal/model/reach_compliance_log.go` | ✅ | ExtraModels | ✅ | ✅ | ☐ |
+| 267 | P2 | `DelayedOutboundReply` | `reach_delayed_outbound` | `internal/model/reach_delayed_outbound.go` | ✅ | ExtraModels | ✅ | ✅ | ☐ |
+| 268 | P2 | `ReachJob` | `reach_jobs` | `internal/model/ai_sales_champion.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 269 | P2 | `ReachPipeline` | `reach_pipelines` | `internal/model/ai_sales_champion.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 270 | P2 | `RecoveryQueue` | `recovery_queue` | `internal/model/customer_rfm.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 271 | P2 | `ReportDimension` | `report_dimensions` | `internal/ops/model/custom_report.go` | — | **未登记** | ❌ | — | ☐ |
+| 272 | P2 | `ReportMetric` | `report_metrics` | `internal/ops/model/custom_report.go` | — | **未登记** | ❌ | — | ☐ |
+| 273 | P2 | `ReportSubscription` | `report_subscriptions` | `internal/model/customer_segment.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 274 | P2 | `RerankProviderConfig` | `rerank_provider_configs` | `internal/model/rag_product.go` | — | **未登记** | ❌ | — | ☐ |
+| 275 | P2 | `RestoreRecord` | `restore_records` | `internal/model/backup.go` | — | allModels | ✅ | ✅ | ☐ |
+| 276 | P2 | `RFMRule` | `rfm_rules` | `internal/model/rfm_rule.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 277 | P2 | `RoleMenuPermission` | `role_menu_permissions` | `internal/model/menu.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 278 | P2 | `RulePendingExecution` | `rule_pending_executions` | `internal/model/customer_segment.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 279 | P2 | `SalesChampionProfileSnapshot` | `sales_champion_profile_snapshots` | `internal/model/feedback_learning.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 280 | P2 | `SalesEvent` | `sales_events` | `internal/model/sales_event.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 281 | P2 | `SalesIntentScore` | `sales_intent_scores` | `internal/model/ai_sales_champion.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 282 | P2 | `SalesPersona` | `sales_personas` | `internal/model/ai_sales_champion.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 283 | P2 | `SavedView` | `saved_views` | `internal/model/customer_segment.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 284 | P2 | `ScriptCategory` | `script_categories` | `internal/content/model/script_template.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 285 | P2 | `ScriptExposureLog` | `script_exposure_logs` | `internal/model/ai_sales_champion.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 286 | P2 | `ScriptLibrary` | `script_library` | `internal/model/ai_sales_champion.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 287 | P2 | `ScriptRecommend` | `script_recommendations` | `internal/content/model/script_template.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 288 | P2 | `ScriptTemplate` | `script_templates` | `internal/content/model/script_template.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 289 | P2 | `ScriptVersion` | `script_versions` | `internal/model/ai_sales_champion.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 290 | P2 | `SecurityAlert` | `security_alerts` | `internal/model/security_alert.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 291 | P2 | `SecurityAuditItem` | `security_audit_items` | `internal/model/security_audit.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 292 | P2 | `SecurityAudit` | `security_audits` | `internal/model/security_audit.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 293 | P2 | `SendOptions` | `send_options` | `internal/model/unified_message.go` | — | **未登记** | ❌ | — | ☐ |
+| 294 | P2 | `SessionAISummary` | `session_ai_summaries` | `internal/model/customer_segment.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 295 | P2 | `SessionMessage` | `session_messages` | `internal/model/session_message.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 296 | P2 | `SessionTag` | `session_tags` | `internal/model/session_tag.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 297 | P2 | `ShortLinkAccess` | `short_link_accesses` | `internal/model/short_link_access.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 298 | P2 | `ShortLink` | `short_links` | `internal/model/short_link.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 299 | P2 | `SLAPolicy` | `sla_policies` | `internal/model/sla.go` | ✅ | **未登记** | ❌ | — | ☐ |
+| 300 | P2 | `SLAViolation` | `sla_violations` | `internal/model/sla.go` | ✅ | **未登记** | ❌ | — | ☐ |
+| 301 | P2 | `Smlist` | `smlist` | `internal/model/sm_list.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 302 | P2 | `SmsAliyunConfig` | `sms_aliyun_configs` | `internal/model/sms.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 303 | P2 | `SmsConfig` | `sms_configs` | `internal/model/sms.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 304 | P2 | `SmsDeliveryStatus` | `sms_delivery_statuses` | `internal/model/sms_tracking.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 305 | P2 | `SmsDraft` | `sms_drafts` | `internal/model/sms.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 306 | P2 | `SmsHuaweiConfig` | `sms_huawei_configs` | `internal/model/sms.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 307 | P2 | `SmsJobDetail` | `sms_job_details` | `internal/model/sms.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 308 | P2 | `SmsJob` | `sms_jobs` | `internal/model/sms.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 309 | P2 | `SmsNumberPortabilityRecord` | `sms_number_portability_logs` | `internal/model/sms_number_portability.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 310 | P2 | `SmsRecord` | `sms_records` | `internal/model/sms.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 311 | P2 | `SmsTencentConfig` | `sms_tencent_configs` | `internal/model/sms.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 312 | P2 | `SmsUnsubscribe` | `sms_unsubscribes` | `internal/model/sms_unsubscribe.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 313 | P2 | `SOPAgent` | `sop_agents` | `internal/model/ai_sales_champion.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 314 | P2 | `SOPExecEvent` | `sop_exec_events` | `internal/model/sop_executor.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 315 | P2 | `SOPExecution` | `sop_executions` | `internal/model/ai_sales_champion.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 316 | P2 | `SOPNodeTransition` | `sop_node_transitions` | `internal/model/feedback_learning.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 317 | P2 | `SOPOutbox` | `sop_outbox` | `internal/model/sop_executor.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 318 | P2 | `SOPStateMemory` | `sop_state_memories` | `internal/model/memory.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 319 | P2 | `SOPTemplate` | `sop_templates` | `internal/model/sop_template.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 320 | P2 | `SOPTimer` | `sop_timers` | `internal/model/sop_executor.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 321 | P2 | `SSOIdentity` | `sso_identities` | `internal/model/sso_identity.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 322 | P2 | `SupportMetrics` | `support_metrics` | `internal/model/support_metrics.go` | — | **未登记** | ❌ | — | ☐ |
+| 323 | P2 | `SyncLog` | `sync_logs` | `internal/model/integration.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 324 | P2 | `SystemMetrics` | `system_metrics` | `internal/model/stats.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 325 | P2 | `SystemRole` | `system_roles` | `internal/model/role.go` | — | **未登记** | ❌ | — | ☐ |
+| 326 | P2 | `SystemUser` | `system_users` | `internal/model/system_user.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 327 | P2 | `TelegramAccount` | `telegram_accounts` | `internal/model/feishu.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 328 | P2 | `TelegramGroupGate` | `telegram_group_gates` | `internal/model/telegram_gate.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 329 | P2 | `TelegramGroupMember` | `telegram_group_members` | `internal/model/telegram_gate.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 330 | P2 | `TenantConfigParamAuditLog` | `tenant_config_param_audit_logs` | `internal/model/config_param_tenant.go` | ✅ | allModels | ✅ | — | ☐ |
+| 331 | P2 | `TenantConfigParam` | `tenant_config_params` | `internal/model/config_param_tenant.go` | ✅ | allModels | ✅ | — | ☐ |
+| 332 | P2 | `TenantModule` | `tenant_modules` | `internal/model/tenant_module.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 333 | P2 | `Tenant` | `tenants` | `internal/model/tenant.go` | — | allModels | ✅ | ✅ | ☐ |
+| 334 | P2 | `ThresholdPolicy` | `threshold_policies` | `internal/model/confidence.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 335 | P2 | `TikTokCardActivity` | `tiktok_card_activities` | `internal/model/tiktok_card.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 336 | P2 | `TikTokCard` | `tiktok_cards` | `internal/model/tiktok_card.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 337 | P2 | `ToolCallAudit` | `tool_call_audits` | `internal/model/tool_audit.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 338 | P2 | `TraceEvalLog` | `trace_eval_log` | `internal/model/trace_eval.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 339 | P2 | `UnifiedMessage` | `unified_messages` | `internal/model/unified_message.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 340 | P2 | `UnifiedReply` | `unified_replies` | `internal/model/unified_message.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 341 | P2 | `UpgradeTask` | `upgrade_tasks` | `internal/model/upgrade.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 342 | P2 | `User` | `user` | `internal/model/user.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 343 | P2 | `UserBlacklist` | `user_blacklist` | `internal/model/user_blacklist.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 344 | P2 | `UserMFA` | `user_mfa` | `internal/model/user_mfa.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 345 | P2 | `UserRFM` | `user_rfms` | `internal/model/rfm_rule.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 346 | P2 | `UserTag` | `user_tags` | `internal/model/user.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 347 | P2 | `VisitLog` | `visit_logs` | `internal/model/stats.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 348 | P2 | `WebVitalRecord` | `web_vital_records` | `internal/model/web_vital.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 349 | P2 | `WebhookEvent` | `webhook_events` | `internal/model/integration.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 350 | P2 | `WebhookSubscription` | `webhook_subscriptions` | `internal/model/customer_segment.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 351 | P2 | `WechatMessage` | `wechat_messages` | `internal/model/wechat_message.go` | ✅ | **未登记** | ❌ | — | ☐ |
+| 352 | P2 | `WeComAccountHealth` | `wecom_account_health` | `internal/model/ai_sales_champion.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 353 | P2 | `WeComAccount` | `wecom_accounts` | `internal/model/wecom.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 354 | P2 | `WeComCustomer` | `wecom_customers` | `internal/model/wecom.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 355 | P2 | `WeComGroupMember` | `wecom_group_members` | `internal/model/wecom.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 356 | P2 | `WeComGroup` | `wecom_groups` | `internal/model/wecom.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 357 | P2 | `WeComMessage` | `wecom_messages` | `internal/model/wecom.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 358 | P2 | `WeComTag` | `wecom_tags` | `internal/model/wecom.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 359 | P2 | `WhatsappAccount` | `whatsapp_accounts` | `internal/model/whatsapp_account.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 360 | P2 | `WhatsAppCloudAccount` | `whatsapp_cloud_accounts` | `internal/model/feishu.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 361 | P2 | `WhatsappDraft` | `whatsapp_drafts` | `internal/model/whatsapp_draft.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 362 | P2 | `WhatsappGroupMessage` | `whatsapp_group_messages` | `internal/model/whatsapp_group_message.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 363 | P2 | `WhatsappJobDetail` | `whatsapp_job_details` | `internal/model/whatsapp_job.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 364 | P2 | `WhatsappJob` | `whatsapp_jobs` | `internal/model/whatsapp_job.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 365 | P2 | `WhatsAppMessageQueue` | `whatsapp_message_queues` | `internal/model/whatsapp_message_queue.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 366 | P2 | `WhatsappMessageTemplate` | `whatsapp_message_templates` | `internal/model/whatsapp_message_template.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 367 | P2 | `WhatsAppQueueStatus` | `whatsapp_queue_statuses` | `internal/model/whatsapp_message_queue.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 368 | P2 | `WhatsappSession` | `whatsapp_sessions` | `internal/model/whatsapp_session.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 369 | P2 | `WorkflowExecution` | `workflow_executions` | `internal/model/workflow_orchestrator.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 370 | P2 | `WorkflowNodeExecution` | `workflow_node_executions` | `internal/model/workflow_orchestrator.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 371 | P2 | `WorkflowVersion` | `workflow_versions` | `internal/model/workflow_orchestrator.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 372 | P2 | `XianyuCardActivity` | `xianyu_card_activities` | `internal/model/xianyu_card_activity.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 373 | P2 | `XianyuCard` | `xianyu_cards` | `internal/model/xianyu_card.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 374 | P2 | `XiaohongshuCardActivity` | `xiaohongshu_card_activities` | `internal/model/xiaohongshu_card_activity.go` | ✅ | allModels | ✅ | ✅ | ☐ |
+| 375 | P2 | `XiaohongshuCard` | `xiaohongshu_cards` | `internal/model/xiaohongshu_card.go` | ✅ | allModels | ✅ | ✅ | ☐ |
 
 ---
 
@@ -456,10 +457,10 @@
 
 | # | 实体 | 表 | 模型文件 | dev 库有表 |
 |---|------|-----|----------|-----------|
-| 1 | ~~`LiveCodeClickLog`~~（已核销：Go 迁移 v3.20.0） | `livecode_click_log` | `internal/model/live_code_click_log.go` | ✅ |
-| 2 | ~~`QRCodeClickLog`~~（已核销：Go 迁移 v3.20.0） | `qr_code_click_log` | `internal/model/live_code_click_log.go` | ✅ |
-| 3 | ~~`SmsJobMetric`~~（已删除：僵尸链） | `sms_job_metrics` | ~~`internal/model/sms_tracking.go`~~ | ✅ |
-| 4 | `WechatAccount` | `wechat_accounts` | `internal/model/wechat_account.go` | ✅ |
+| 2 | ~~`LiveCodeClickLog`~~（已核销：Go 迁移 v3.20.0） | `livecode_click_log` | `internal/model/live_code_click_log.go` | ✅ |
+| 3 | ~~`QRCodeClickLog`~~（已核销：Go 迁移 v3.20.0） | `qr_code_click_log` | `internal/model/live_code_click_log.go` | ✅ |
+| 4 | ~~`SmsJobMetric`~~（已删除：僵尸链） | `sms_job_metrics` | ~~`internal/model/sms_tracking.go`~~ | ✅ |
+| 5 | `WechatAccount` | `wechat_accounts` | `internal/model/wechat_account.go` | ✅ |
 
 ### 4-B 实体在 dev 库存在、但 GORM 模型算不出这张表（历史残留 / 迁移建表）
 
@@ -540,14 +541,14 @@
 
 | 轮次 | 实体 | 4.1 五层 | 4.2 GORM | 4.3 多租户 | 4.4 僵尸 | 处置 |
 |------|------|---------|---------|-----------|---------|------|
-| 1 | AgentKBBinding | ✅ | ✅ | ❌ 缺建表登记 | ✅ | 已修：allModels() 补登记 |
-| 2 | KnowledgeBase | ✅ | ✅ | ❌ 缺建表登记 | ✅ | 已修：allModels() 补登记（同时修好 RAG 答案缓存的读路径） |
-| 3 | BrowserOutreachDedupe | ✅ | ✅ | ❌ 缺建表登记 | ✅ | 已修：allModels() 补登记 |
-| 4 | BrowserOutreachReceipt | ✅ | ✅ | ❌ 缺建表登记 | ✅ | 已修：allModels() 补登记 |
-| 5 | BrowserProfileHealth | ✅ | ✅ | ❌ 缺建表登记 | ✅ | 已修：allModels() 补登记 |
-| 6 | CustomerRFM | ✅ | ✅ | ❌ 缺建表登记 | ✅ | 已修：allModels() 补登记 |
-| 7 | EmailTrackingEvent | ✅ | ✅ | ❌ 缺建表登记 | ✅ | 已修：allModels() 补登记 |
-| 8 | EmailJobMetric | ✅ | ✅ | ❌ 缺建表登记 | ✅ | 已修：allModels() 补登记 |
-| 9 | Glossary | ✅ | ✅ | ❌ 无 tenant_id + 缓存键无租户 + FLUSHDB | ✅ | 已修：model 补 tenant_id、缓存键加租户、失效改逐键删（不再 FLUSHDB）、allModels() 补登记；新增 4 条回归用例 |
+| 2 | AgentKBBinding | ✅ | ✅ | ❌ 缺建表登记 | ✅ | 已修：allModels() 补登记 |
+| 3 | KnowledgeBase | ✅ | ✅ | ❌ 缺建表登记 | ✅ | 已修：allModels() 补登记（同时修好 RAG 答案缓存的读路径） |
+| 4 | BrowserOutreachDedupe | ✅ | ✅ | ❌ 缺建表登记 | ✅ | 已修：allModels() 补登记 |
+| 5 | BrowserOutreachReceipt | ✅ | ✅ | ❌ 缺建表登记 | ✅ | 已修：allModels() 补登记 |
+| 6 | BrowserProfileHealth | ✅ | ✅ | ❌ 缺建表登记 | ✅ | 已修：allModels() 补登记 |
+| 7 | CustomerRFM | ✅ | ✅ | ❌ 缺建表登记 | ✅ | 已修：allModels() 补登记 |
+| 8 | EmailTrackingEvent | ✅ | ✅ | ❌ 缺建表登记 | ✅ | 已修：allModels() 补登记 |
+| 9 | EmailJobMetric | ✅ | ✅ | ❌ 缺建表登记 | ✅ | 已修：allModels() 补登记 |
+| 10 | Glossary | ✅ | ✅ | ❌ 无 tenant_id + 缓存键无租户 + FLUSHDB | ✅ | 已修：model 补 tenant_id、缓存键加租户、失效改逐键删（不再 FLUSHDB）、allModels() 补登记；新增 4 条回归用例 |
 
 （每轮一行；处置写「无问题」或「已修：xxx」。整表清空且 §二 全部打勾 = 第一轮完成。）
