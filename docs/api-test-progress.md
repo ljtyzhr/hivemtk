@@ -97,6 +97,12 @@ done
 | assetMarket.js | 11 | ✅ 全通过 | 平台侧数据污染（见问题 #5），user-server 侧行为正确 |
 | backup.js | 7 | ✅ 全通过 | 备份任务真跑完并产出 zip；restore 任务真跑完 |
 | sms.js | 20 | ✅ 全通过 | 修了租户改写 + 渠道错误被误判成「记录不存在」（见问题 #5/#9/#10） |
+| knowledge.js | 27 | ✅ 全通过 | 修了 OpenAPI 源更新改写租户（见问题 #13）；文档 CRUD/进度/分块/统计全通 |
+| reachPipeline.js | 16 | ✅ 全通过 | 管道与任务的 CRUD + 状态机（pause/resume/archive/cancel/retry/execute）+ 限流重置全通 |
+| featureFlags.js | 11 | ✅ 全通过 | 增删改查 + enable/disable/rollout/audit/eval-log 全通（tenant_id 保持 1） |
+| sessionTags / quickReplies / dashboards / domainPool / whatsapp 模板 / community 群组 | 18 | ✅ 全通过 | 更新类路由逐条验过，tenant_id 均保持 1，未出现同族改写 |
+| telegram.js | 13 | ✅ 全通过 | 账号/闸门全通；**该模块本就把 bot_token 掩码返回**（`8602****TJ_k`），是同族做法的正面样板 |
+| users.js（部分） | — | ✅ | 含 `POST /api/auth/mfa/setup`：**第二次**调用曾回 500（问题 #14），已修 |
 
 ## 已发现问题
 
@@ -114,6 +120,7 @@ done
 | 10 | `POST /api/sms/job/{id}/{pause,resume,stop}` | 状态不对（如"只能暂停运行中的任务"）时回 **500** + 一句"暂停任务失败"，真正的原因被吞掉；客户端会把 500 当服务端故障去重试 | controller 用 `HandleDBError`（DB 错误映射器）处理**业务状态校验**失败。`errhttp.HandleDBError` 对非 not-found 错误一律 500 | ✅ **本轮已修复**：三个状态迁移改用 `HandleServiceError`（同文件 `ResendSms` 早有此先例）⇒ 400 + 真因。同步更新 3 条既有测试的期望（500→400）并注明原因 |
 | 11 | `POST /api/sms/config`（以及任何"读旧行→盖回去"的写路径） | SaaS(8204) ⇒ 500 `[tenant] 更新不可改写 tenant_id（上下文租户 1，SET 值 0）`；独立(8304) ⇒ 200 | 仓储写法是"先 First 读出 existing，再把新 model 的 ID 认成 existing.ID，然后 Save"。GORM 的 `Save`（Selects=*）写**全部字段含零值**，而调用方传进来的是**新建的零值 model**（tenant_id=0）⇒ 这一行的租户被改写成 0。多租户模式下 tenant 回调 fail-closed 当场拒掉；独立部署没有这层校验 ⇒ **同一个接口 SaaS 下 500、私域下 200**（能用的那边掩盖了坏的那边） | ✅ **本轮已修复**：Save 之前把库里的 `tenant_id` 带回来。共 6 处同型：4 张短信配置表（sms_configs / sms_aliyun_configs / sms_tencent_configs / sms_huawei_configs）+ `UserRFM`（BatchUpsert）+ `EmailJobMetric`（UpsertJobMetric）。补 2 条回归测试（`internal/repository/sms_tenant_scope_test.go`），已验证「回退修复即红」；API 复测 8204/8305 均 200，落库 tenant_id=1 |
 | 13 | `PUT /api/knowledge/openapi/sources/{id}` | SaaS(8204) ⇒ 500 `[tenant] 更新不可改写 tenant_id（上下文租户 1，SET 值 0）`；独立 ⇒ 200 | 与 #11 **同族**：controller 传进来的是**新建的零值 model**（tenant_id=0），`OpenAPIService.UpdateSource` 已经先 `GetByID` 查过存在性却**丢掉了那一行**，repo 走 `Save` ⇒ 零值 tenant_id 一起写进去。另一处同型：`RagConfigRepository.UpsertAccountConfig`（同样 `config.ID = existingConfig.ID` 后 `Save`，同样丢掉 existing 的 tenant_id） | ✅ **本轮已修复**：两处都在 Save 前把库里的 `tenant_id` 带回来。补 2 条回归测试（`internal/service/openapi_tenant_test.go`），已验证「回退修复即红」（回退后 tenant_id 落成 0）；API 复测 8204/8306 均 200、tenant_id=1 |
+| 14 | `POST /api/auth/mfa/setup` | **第二次**调用回 500「MFA 设置失败」；私域形态同一接口 200 | 与 #11/#13 **同族**：SetupMFA 传进 repo.Save 的是**新建的零值 model**（tenant_id=0），`Save` 写**全部字段含零值** ⇒ 该行租户被改写成 0。**第一次不报**（库里没这行 ⇒ 走 Create，由隔离 callback 填 tenant_id），所以这条缺陷**只在第二次设置 MFA 时才现形** —— 手工测一次测不出来 | ✅ **本轮已修复**：更新前把库里的 `tenant_id` 带回来。补 1 条回归测试（`internal/service/mfa_tenant_test.go`，连着调两次 SetupMFA），已验证「回退修复即红」（回退后 tenant_id 落成 0）；API 复测 8204 连续两次均 200、库中 tenant_id=1 |
 | 12 | `GET /api/wecom/accounts`、`GET /api/wecom/health/accounts` 等读接口 | 响应体里带**明文** `corp_secret` / `agent_secret` / `access_token` / `callback_token` / `encoding_aes_key` ⇒ 任何登录用户都能把商户的企业微信应用密钥、通讯录回调密钥、AES 密钥整个读走 | `WeComAccount` 这个 model 直接序列化给前端。同仓的短信配置那条路是脱敏的（`maskSMSConfig`），这里漏了。**不能只脱敏**：前端编辑弹窗把列表回填的 `corp_secret` 原样提交回来（`user-web/src/views/wecomAccount/List.vue` 的 `openEditDialog` + 提交 payload），只脱敏不认掩码 ⇒ 用户保存一次，真密钥就被覆盖成 `****`，账号直接废掉 | ✅ **本轮已修复**（读写成对）：读侧 `controller/wecom_secret_mask.go` 脱敏（5 个密钥字段，空串保持空、脱敏幂等）；写侧 `service/wecom_secret_mask.go` 认掩码串 ⇒ 保留原值（沿用该 service 已有的"密钥空串=保留原值"口径）。补 8 条回归测试（`internal/controller/wecom_secret_mask_test.go` 6 条 + `internal/service/wecom_secret_mask_test.go` 2 条）。**自查抓到过一次自己写错**：掩码的真实形态是"前缀+末4位"（`****cret`），写侧最初按**全等**比对 `****` ⇒ 认不出来，掩码照样覆盖了真密钥（API 实测复现：DB 变成 `****cret`）。改成**前缀**判定后才真正拦住（`strings.HasPrefix`），并把测试夹具改成真实掩码形态（`WeComSecretMask+"1234"`） |
 
 ## 第五步 · 对抗性复核（自审本批改动）
