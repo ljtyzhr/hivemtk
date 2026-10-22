@@ -192,8 +192,8 @@ HEAD=`c2ed9674`，**不含本次改动**）上跑同样两条 ⇒ **同样红、
   FFFD: .specify/bugs/website-chat-false-handoff/fix.md 有 3 个 U+FFFD 替身字符（基线允许 0），行号 [124]
 ```
 
-**本次新增文件里的 U+FFFD 已在 `01465521` 修掉**（`test.md` 的「测��库」与
-测试文件的「原��那句」两处字符损坏，已重写该处措辞）。当前 audit 只剩
+**本次新增文件里的 U+FFFD 已在 `01465521` 修掉**（`test.md` 的「测试库」与
+测试文件的「原来那句」两处字符损坏，已重写该处措辞）。当前 audit 只剩
 **另一条泳道**的 `website-chat-false-handoff/fix.md` 一处。
 
 **3) `markdownlint-cli2 (--lint-md)` 9 issues in 9 files** —— 全部是
