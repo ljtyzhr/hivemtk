@@ -75,11 +75,27 @@ func (c *EmailDraftController) GetEmailDraftDetail(ctx *gin.Context) {
 }
 
 // UpdateEmailDraft 更新草稿
+// PUT /api/email/drafts/:id
+//
+// 草稿 id 来自**路径参数**（与同资源的 GET / DELETE 一致）。
+// 之前只认 body 里的 id（dto.UpdateEmailDraftRequest.ID），而前端
+// `updateDraft(id, data)` 走的是 `PUT /api/email/drafts/${id}` ——
+// id 在路径上、body 里没有 ⇒ 后端拿到空串 ⇒ 恒 400「无效的 ID 格式」
+// ⇒ **邮件草稿的编辑页永远存不进去**。
+// body 里的 id 仍作兜底（老调用方可能两处都带），但两者不一致时以路径为准。
 func (c *EmailDraftController) UpdateEmailDraft(ctx *gin.Context) {
 	var req dto.UpdateEmailDraftRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		response.Error(ctx, http.StatusBadRequest, "参数错误："+err.Error())
 		return
+	}
+
+	if pathID := ctx.Param("id"); pathID != "" {
+		if req.ID != "" && req.ID != pathID {
+			response.Error(ctx, http.StatusBadRequest, "路径参数与请求体中的草稿 ID 不一致")
+			return
+		}
+		req.ID = pathID
 	}
 
 	if _, err := uuid.Parse(req.ID); err != nil {

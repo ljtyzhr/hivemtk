@@ -31,6 +31,8 @@ func Sync(ctx context.Context, connectorID uint) (*SyncResult, error) {
 	}
 	var conn model.ExternalKBConnector
 	if err := g.WithContext(ctx).First(&conn, connectorID).Error; err != nil {
+		// 包一层 gorm.ErrRecordNotFound，让调用方能按「资源不存在」判 404
+		// （控制器用 errors.Is 判），而不是一律 500。
 		return nil, fmt.Errorf("连接器不存在: %w", err)
 	}
 	setStatus(g, conn.ID, "running", "")

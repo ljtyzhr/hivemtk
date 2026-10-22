@@ -17,11 +17,9 @@ import (
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/pkg/utils/pagination"
 	"hivemtk-user/internal/pkg/utils/response"
-	"hivemtk-user/internal/repository"
 	"hivemtk-user/internal/service"
 
 	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
 )
 
 // GroupMessagingController WhatsApp 群发消息控制器
@@ -37,26 +35,17 @@ type GroupMessagingController struct {
 }
 
 // NewGroupMessagingController 构造控制器。
-// db 只用于给缺省依赖建仓储（显式注入，不摸全局句柄）；显式传入的服务优先。
+//
+// 依赖全部由**装配层**（router）注入，控制器不 import repository / gorm：
+// 仓储属于 repository 包，controller 层碰它们会被 depguard 拦下
+// （controller-layer 清单），而且那是五层架构的破口（Controller→Repository 跳层）。
+// 装配点见 router/platform_routes.go 的 setupWhatsappRoutes。
 func NewGroupMessagingController(
-	db *gorm.DB,
 	whatsappSvc *service.WhatsappService,
 	clueSvc *service.ClueService,
 	messageQueue *service.MessageQueueService,
 	templateService *service.WhatsAppTemplateService,
 ) *GroupMessagingController {
-	if whatsappSvc == nil {
-		whatsappSvc = service.NewWhatsappService(db)
-	}
-	if clueSvc == nil {
-		clueSvc = service.NewClueService(repository.NewClueRepositoryWithDB(db), nil)
-	}
-	if templateService == nil {
-		templateService = service.NewWhatsAppTemplateService(db)
-	}
-	if messageQueue == nil {
-		messageQueue = service.NewMessageQueueService(db)
-	}
 	return &GroupMessagingController{
 		whatsappService: whatsappSvc,
 		clueSvc:         clueSvc,

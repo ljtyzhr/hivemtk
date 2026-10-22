@@ -257,4 +257,8 @@ func RegisterMigrations(registry *migration.MigrationRegistry, db *gorm.DB) {
 	// 按人已读），notifications 加 level/source_msg_id/source 列与
 	// (tenant_id, source_msg_id) 幂等部分唯一索引
 	register(NewInAppNotificationMigration(db))
+	// v3.76.0：churn_predictions / customer_rfm 的存量孤儿行（tenant_id=0）
+	// 归入默认租户 1 —— 那批行不属于任何租户，谁都读不到，等于隐身；
+	// 写入侧已改为按主键定向更新，不再产生新孤儿行
+	register(NewTenantOrphanRowRepairMigration(db))
 }

@@ -280,7 +280,13 @@ func TestFallbackNilDB(t *testing.T) {
 //	config.yaml external.public_base_url 两个来源，SaaS 下每个租户各自的回调域名
 //	只能改部署文件（等于一租户一份 config）。收进参数中心后由
 //	internal/config/server.go 的 GetPublicBaseURLFor 按请求 ctx 读，租户覆盖才真正生效。
-const defaultParamDefsWant = 240
+//
+// 2026-10-22：+1 = 241。新增 `platform.api_host`（平台端 API 地址）：
+//
+//	出网目标从 env/config.yaml 收进参数中心，改完在管理端生效（60s TTL），
+//	不用改部署文件重启。它的默认值留空是刻意的（空 = 没有平台可连，
+//	与 PLATFORM_ENABLED 关态语义一致），见下面 EmptyDefaultRatchet 的豁免清单。
+const defaultParamDefsWant = 241
 
 func TestDefaultParamDefsCount(t *testing.T) {
 	defs := DefaultParamDefs()
@@ -320,9 +326,15 @@ func TestDefaultParamDefsCount(t *testing.T) {
 // （env PUBLIC_BASE_URL / config.yaml external.public_base_url），参数中心这一格
 // 只在"这个租户要用自己的回调域"时才有值；给它任何默认域名都会让参数行反过来
 // 压过部署配置，所以空是设计意图，不是漏填。
+//
+// 2026-10-22：再加一条 `platform.api_host`。理由同上但方向更硬 ——
+// 它是**平台级**参数（这台部署连哪个平台是部署级事实，租户写一律拒绝），
+// 空值的含义是"没有平台可连"，与 PLATFORM_ENABLED 关态一致；回落一个具体
+// 域名只会让请求打向黑洞、把日志刷成 Error，换不来任何功能。
 func TestDefaultParamDefsEmptyDefaultRatchet(t *testing.T) {
 	allowedEmptyDefault := map[string]bool{
 		"urls.public_base_url": true,
+		"platform.api_host":    true,
 	}
 	seen := map[string]bool{}
 	for _, d := range DefaultParamDefs() {

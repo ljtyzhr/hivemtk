@@ -47,17 +47,27 @@ func (c *DouyinCardController) Update(ctx *gin.Context) {
 		return
 	}
 
-	idStr := ctx.Param("id")
-	idFromURI, err := strconv.ParseUint(idStr, 10, 32)
-	if err != nil {
-		response.Error(ctx, http.StatusBadRequest, response.ErrInvalidIDFormat, err.Error())
-		return
+	// 路由注册为 /douyin/update（无 :id），ID 只在 body；有 :id 时才做一致性校验
+	// （同 /kuaishou/update 的处理：两条路由形状并存时都要能用）。
+	//
+	// 为什么不能无条件读 ctx.Param("id")：本路由没有 :id ⇒ Param 返回空串 ⇒
+	// ParseUint("") 报 "invalid syntax" ⇒ 恒 400「无效的 ID 格式」，
+	// 抖音卡片的编辑页**永远存不进去**。
+	if idStr := ctx.Param("id"); idStr != "" {
+		idFromURI, err := strconv.ParseUint(idStr, 10, 32)
+		if err != nil {
+			response.Error(ctx, http.StatusBadRequest, response.ErrInvalidIDFormat, err.Error())
+			return
+		}
+		if req.ID == 0 {
+			req.ID = uint(idFromURI)
+		} else if req.ID != uint(idFromURI) {
+			response.Error(ctx, http.StatusBadRequest, response.ErrIDMismatch, "JSON 中的 ID 与 URI 参数中的 ID 不匹配")
+			return
+		}
 	}
-
 	if req.ID == 0 {
-		req.ID = uint(idFromURI)
-	} else if req.ID != uint(idFromURI) {
-		response.Error(ctx, http.StatusBadRequest, response.ErrIDMismatch, "JSON 中的 ID 与 URI 参数中的 ID 不匹配")
+		response.Error(ctx, http.StatusBadRequest, response.ErrInvalidIDFormat, "id 必填")
 		return
 	}
 

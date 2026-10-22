@@ -157,11 +157,16 @@
           label="导入文件"
         >
           <el-upload
-            action="/api/batch/import"
             :show-file-list="false"
+            :http-request="uploadRequest"
+            accept=".csv"
           >
             <el-button>选择文件</el-button>
           </el-upload>
+          <span
+            v-if="form.file"
+            class="form-tip"
+          >已选：{{ form.file.name }}</span>
         </el-form-item>
         <el-form-item label="执行参数">
           <el-input
@@ -428,7 +433,7 @@ import i18n from '@/i18n'
 import { ref, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus, User, ChatLineRound, Promotion, Money, Document, Bell, ShoppingCart } from '@element-plus/icons-vue'
-import { getBatchTools, runBatch, getBatchHistories, cancelBatch, previewBatch, getBatchDetail } from '@/api/batchOperation.js'
+import { getBatchTools, runBatch, getBatchHistories, cancelBatch, previewBatch, getBatchDetail, batchImportFile } from '@/api/batchOperation.js'
 import { toList } from '@/utils/list.js'
 import { PASS_FAIL_STATUS, getStatusLabel, getStatusTagType } from '@/constants/status';
 
@@ -440,7 +445,7 @@ const tools = ref([])
 const histories = ref([])
 const dialogVisible = ref(false)
 const currentTool = ref(null)
-const form = ref({ source: 'all', filter: '', params: '', dryRun: true })
+const form = ref({ source: 'all', filter: '', params: '', dryRun: true, file: null })
 
 const detailDialogVisible = ref(false)
 const detailLoading = ref(false)
@@ -476,8 +481,27 @@ const loadHistories = async () => {
 
 const openTool = (tool) => {
   currentTool.value = tool
-  form.value = { source: 'all', filter: '', params: '', dryRun: true }
+  form.value = { source: 'all', filter: '', params: '', dryRun: true, file: null }
   dialogVisible.value = true
+}
+
+// uploadRequest：走 api 层的上传（http-request 自定义），而不是 el-upload 的
+// action= 直连。
+//
+// action= 直连是 el-upload 发的裸 XHR：**不带 Authorization 头** ⇒ 后端回
+// 401「未提供认证令牌」，而且失败信息不会进全局错误处理，页面上看不出原因。
+// 走 api 层则由 axios 拦截器统一带上令牌、统一处理业务码。
+const uploadRequest = async (options) => {
+  try {
+    const res = await batchImportFile(options.file, 'clue')
+    form.value.file = options.file
+    ElMessage.success(i18n.global.t('batchOperation.importDone'))
+    loadHistories()
+    if (options.onSuccess) options.onSuccess(res)
+  } catch (err) {
+    ElMessage.error(i18n.global.t('batchOperation.importFailed') + '：' + (err?.message || err))
+    if (options.onError) options.onError(err)
+  }
 }
 
 const preview = async () => {
@@ -490,9 +514,10 @@ const preview = async () => {
     const res = await previewBatch({ tool: currentTool.value.name, ...form.value, dryRun: true })
     const data = res;
 
+    // 后端 Preview 的响应是 { operation_type, data_type, selected_count, preview }
     previewData.value = data.items || data.records || [];
     previewSummary.value = {
-      total: data.total || data.totalCount || previewData.value.length,
+      total: data.selected_count ?? data.total ?? data.totalCount ?? previewData.value.length,
       success: data.successCount || data.success || 0,
       failed: data.failedCount || data.failed || 0,
       errors: data.errors || []
@@ -506,17 +531,21 @@ const preview = async () => {
 }
 
 const execute = async () => {
-  const loading = ElMessage({ message: i18n.global.t('正在执行批量操作...'), type: 'info', duration: 0 })
+  const loading = ElMessage({ message: i18n.global.t('batchOperation.running'), type: 'info', duration: 0 })
   try {
     await runBatch({ tool: currentTool.value.name, ...form.value })
     loading.close()
-    ElMessage.success(i18n.global.t('批量任务已提交'))
+    ElMessage.success(i18n.global.t('batchOperation.taskSubmitted'))
     dialogVisible.value = false
     previewVisible.value = false
     loadHistories()
   } catch (error) {
     loading.close()
-    ElMessage.error(i18n.global.t('执行失败'))
+    // 这里必须把后端/契约层的原话透出来：批量操作的失败原因（ids 超限、
+    // 筛选条件不是合法 JSON、没选文件……）全在 message 里，换成一句
+    // 「执行失败」等于把唯一有用的信息吃掉。
+    // 前缀仍走 i18n（词条「执行失败」在 9 个语言包里都有），别又写死中文。
+    ElMessage.error(i18n.global.t('batchOperation.executeFailed') + '：' + (error?.message || error))
   }
 }
 
@@ -540,7 +569,7 @@ const cancelTask = async (row) => {
     ElMessage.success(i18n.global.t('已取消'))
     loadHistories()
   } catch (e) {
-    if (e !== 'cancel') ElMessage.error(i18n.global.t('取消失败'))
+    if (e !== 'cancel') ElMessage.error(i18n.global.t('batchOperation.cancelFailed'))
   }
 }
 

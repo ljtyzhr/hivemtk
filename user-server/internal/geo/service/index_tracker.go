@@ -48,23 +48,23 @@ func NewIndexTrackerService(
 
 // ArticleStanding 单篇文章站位评分
 type ArticleStanding struct {
-	ArticleID      string                   `json:"article_id"`
-	Title          string                   `json:"title"`
-	TotalEngines   int                      `json:"total_engines"`
-	AICitedEngines int                      `json:"ai_cited_engines"`
-	StandingScore  float64                  `json:"standing_score"` // 0-100
+	ArticleID      string                    `json:"article_id"`
+	Title          string                    `json:"title"`
+	TotalEngines   int                       `json:"total_engines"`
+	AICitedEngines int                       `json:"ai_cited_engines"`
+	StandingScore  float64                   `json:"standing_score"` // 0-100
 	Trackings      []*model.GeoIndexTracking `json:"trackings"`
 }
 
 // FunnelStats 全链路漏斗
 type FunnelStats struct {
-	SeedCount       int                `json:"seed_count"`
-	LongtailCount   int                `json:"longtail_count"`
-	ArticleCount    int                `json:"article_count"`
-	DeployedCount   int                `json:"deployed_count"`
-	IndexedByEngine map[string]int     `json:"indexed_by_engine"`
-	AICitedByEngine map[string]int     `json:"ai_cited_by_engine"`
-	ConversionRates map[string]float64 `json:"conversion_rates"`
+	SeedCount       int                   `json:"seed_count"`
+	LongtailCount   int                   `json:"longtail_count"`
+	ArticleCount    int                   `json:"article_count"`
+	DeployedCount   int                   `json:"deployed_count"`
+	IndexedByEngine map[string]int        `json:"indexed_by_engine"`
+	AICitedByEngine map[string]int        `json:"ai_cited_by_engine"`
+	ConversionRates map[string]float64    `json:"conversion_rates"`
 	Trackings       []repository.TrackRow `json:"trackings"`
 }
 

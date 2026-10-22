@@ -84,20 +84,20 @@ func (d *Dispatcher) LoadProvidersFromDB() error {
 // ============================================================
 // 写库必须走 system scope + 显式 tenant_id（两个都缺一不可）
 //
-// 1) **system scope**：llm_providers 有 tenant_id 列 ⇒ 被 tenancyidx 自动
-//    登记为租户表（登记按 information_schema 内省，不是硬编码清单）。
-//    TENANT_MODE=on 时，隔离 callback 对「ctx 未绑租户」的写是 fail-closed 的
-//    （tenancyidx.tenantGuardFail），报错原文：
-//      [tenant] 表 llm_providers 需要租户上下文但 ctx 未绑定（query）
-//    本函数是**平台级装配写库**（dispatcher 的 provider 注册表是全局单键 map，
-//    按 Name 索引，本就不分租户），与同文件读路径
-//    （LoadProvidersFromDB → g.WithContext(systemScopeCtx())）同一口径。
-//    隔离本身**不放宽**：带请求 ctx 的 HTTP 路径仍然 fail-closed。
+//  1. **system scope**：llm_providers 有 tenant_id 列 ⇒ 被 tenancyidx 自动
+//     登记为租户表（登记按 information_schema 内省，不是硬编码清单）。
+//     TENANT_MODE=on 时，隔离 callback 对「ctx 未绑租户」的写是 fail-closed 的
+//     （tenancyidx.tenantGuardFail），报错原文：
+//     [tenant] 表 llm_providers 需要租户上下文但 ctx 未绑定（query）
+//     本函数是**平台级装配写库**（dispatcher 的 provider 注册表是全局单键 map，
+//     按 Name 索引，本就不分租户），与同文件读路径
+//     （LoadProvidersFromDB → g.WithContext(systemScopeCtx())）同一口径。
+//     隔离本身**不放宽**：带请求 ctx 的 HTTP 路径仍然 fail-closed。
 //
-// 2) **显式 tenant_id**：Save 一个 TenantID 零值的结构体时，GORM 的
-//    ConvertToAssignments 仍会写 tenant_id 列，值 0 把行**移出本租户**
-//    （D2 缺陷，见 .specify/bugs/saas-tenant-isolation-audit/）。
-//    显式写 DefaultTenantID 才既不串租户、也不依赖列默认值。
+//  2. **显式 tenant_id**：Save 一个 TenantID 零值的结构体时，GORM 的
+//     ConvertToAssignments 仍会写 tenant_id 列，值 0 把行**移出本租户**
+//     （D2 缺陷，见 .specify/bugs/saas-tenant-isolation-audit/）。
+//     显式写 DefaultTenantID 才既不串租户、也不依赖列默认值。
 func (d *Dispatcher) UpsertProviderToDB(pc ProviderConfig) error {
 	g := providerDB()
 	if g == nil {

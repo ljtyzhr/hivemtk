@@ -8,6 +8,8 @@ import (
 	"hivemtk-user/internal/dto"
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/repository"
+
+	"gorm.io/gorm"
 )
 
 // ClueService 线索域业务服务。
@@ -21,6 +23,16 @@ type ClueService struct {
 
 func NewClueService(repo repository.ClueRepository, scoreSvc *ClueScoreService) *ClueService {
 	return &ClueService{repo: repo, scoreSvc: scoreSvc}
+}
+
+// NewClueServiceWithDB 用给定连接构造线索服务（仓储在这一层构造）。
+//
+// 为什么要有它：线索仓储属于 repository 包，**controller 层不许 import repository**
+// （depguard 的 controller-layer 清单）。以前控制器为了兜底「没注入线索服务」
+// 就在自己身上 new 仓储 —— 那是五层架构的破口（Router→Controller→Repository 跳层）。
+// 兜底逻辑挪到这一层之后，控制器只认「注入好的服务」，缺依赖就在装配点补。
+func NewClueServiceWithDB(db *gorm.DB, scoreSvc *ClueScoreService) *ClueService {
+	return NewClueService(repository.NewClueRepositoryWithDB(db), scoreSvc)
 }
 
 // Register 建线索。(type, account) 去重是业务判据，放在这里：

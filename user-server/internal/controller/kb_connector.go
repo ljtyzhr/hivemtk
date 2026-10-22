@@ -176,6 +176,10 @@ func UpdateKBConnector(ctx *gin.Context) {
 		return
 	}
 	if err := kbAdminSvc().Update(ctx.Request.Context(), id, updates); err != nil {
+		if isNotFoundError(err) {
+			response.NotFoundError(ctx, "连接器")
+			return
+		}
 		response.Error(ctx, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -189,6 +193,10 @@ func DeleteKBConnector(ctx *gin.Context) {
 		return
 	}
 	if err := kbAdminSvc().Delete(ctx.Request.Context(), parseUintOrZero(ctx.Param("id"))); err != nil {
+		if isNotFoundError(err) {
+			response.NotFoundError(ctx, "连接器")
+			return
+		}
 		response.Error(ctx, http.StatusInternalServerError, err.Error())
 		return
 	}
@@ -204,6 +212,12 @@ func SyncKBConnector(ctx *gin.Context) {
 	}
 	res, err := kbconnector.Sync(ctx.Request.Context(), id)
 	if err != nil {
+		// 连接器不存在是 404（资源没找到），不是 500（服务端炸了）。
+		// 同步本身失败（上游连不上、配置不合法）才是 500。
+		if isNotFoundError(err) {
+			response.NotFoundError(ctx, "连接器")
+			return
+		}
 		response.Error(ctx, http.StatusInternalServerError, err.Error())
 		return
 	}

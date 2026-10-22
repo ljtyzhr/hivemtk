@@ -5,6 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"encoding/hex"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"math/big"
@@ -83,33 +84,126 @@ func ChatChannelAllowedOriginsList(c *model.ChatChannel) []string {
 	return result
 }
 
+// AllowedOriginsInput 渠道「允许的 origin」入参。
+//
+// 为什么不是一个裸 []string：
+//
+//   - 存储层 model.ChatChannel.AllowedOrigins 是 **text**（逗号分隔串），
+//     读接口（GET /api/chat-channels/:id）返回的也就是**字符串**；
+//   - 前端 user-web/src/views/chatChannel/Create.vue 与 Edit.vue 收发两侧都按
+//     **字符串**处理（`originsText` / `res.allowed_origins.split(',')`）。
+//
+// 而改造前这个入参被声明成 `[]string`，于是前端发字符串 ⇒ Go 反序列化直接报
+// "json: cannot unmarshal string into Go struct field ...allowed_origins of type
+// []string" ⇒ **渠道新建/编辑页 100% 不可用**（而 GET 又能正常显示，缺陷被
+// 藏在"只有保存才报错"里）。
+//
+// 这里改成能同时吃下两种形状的自定义类型：
+//   - 字符串 "a.com,b.com"（前端现状、读接口口径）
+//   - 数组   ["a.com","b.com"]（旧调用方 / 脚本 / 文档里的写法）
+//
+// 归一化后一律以**逗号分隔串**落库（与列类型一致），并保留空白/分隔符清洗。
+type AllowedOriginsInput struct {
+	values []string
+}
+
+// UnmarshalJSON 兼容字符串与数组两种入参。
+func (a *AllowedOriginsInput) UnmarshalJSON(data []byte) error {
+	trimmed := strings.TrimSpace(string(data))
+	if trimmed == "" || trimmed == "null" {
+		a.values = nil
+		return nil
+	}
+	switch trimmed[0] {
+	case '"':
+		var s string
+		if err := json.Unmarshal(data, &s); err != nil {
+			return err
+		}
+		a.values = splitOrigins(s)
+		return nil
+	case '[':
+		var list []string
+		if err := json.Unmarshal(data, &list); err != nil {
+			return err
+		}
+		a.values = splitOrigins(strings.Join(list, ","))
+		return nil
+	default:
+		return fmt.Errorf("allowed_origins 必须是字符串或字符串数组")
+	}
+}
+
+// MarshalJSON 归一化为字符串（与读接口口径一致）。
+func (a AllowedOriginsInput) MarshalJSON() ([]byte, error) {
+	return json.Marshal(a.String())
+}
+
+// Values 返回归一化后的 origin 列表（已去空白、已丢弃空项）。
+func (a AllowedOriginsInput) Values() []string {
+	if a.values == nil {
+		return []string{}
+	}
+	return a.values
+}
+
+// String 返回逗号分隔串（落库形态）。
+func (a AllowedOriginsInput) String() string {
+	return strings.Join(a.Values(), ",")
+}
+
+// IsEmpty 是否一个 origin 都没有。
+func (a AllowedOriginsInput) IsEmpty() bool {
+	return len(a.Values()) == 0
+}
+
+// splitOrigins 按逗号/分号/空白/换行切分并清洗。
+func splitOrigins(s string) []string {
+	out := []string{}
+	for _, part := range strings.FieldsFunc(s, func(r rune) bool {
+		return r == ',' || r == ';' || r == ' ' || r == '\n' || r == '\t' || r == '\r'
+	}) {
+		if p := strings.TrimSpace(part); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
+}
+
+// MustAllowedOriginsInput 由逗号分隔串构造入参（测试与内部调用用）。
+//
+// 与 json.Unmarshal 走的路径同源：逗号/分号/空白都当分隔符，空白项丢弃。
+func MustAllowedOriginsInput(s string) AllowedOriginsInput {
+	return AllowedOriginsInput{values: splitOrigins(s)}
+}
+
 // CreateChannelRequest 创建渠道请求
 type CreateChannelRequest struct {
-	ChannelName         string   `json:"channel_name" binding:"required,min=1,max=100"`
-	AllowedOrigins      []string `json:"allowed_origins" binding:"required,min=1"`
-	DefaultRAGProductID string   `json:"default_rag_product_id"`
-	WelcomeMessage      string   `json:"welcome_message"`
-	WidgetColor         string   `json:"widget_color"`
-	WidgetPosition      string   `json:"widget_position"`
-	WidgetTitle         string   `json:"widget_title"`
-	AutoAssign          *bool    `json:"auto_assign"`
-	ConfidenceThreshold *float64 `json:"confidence_threshold"`
-	TargetLanguage      string   `json:"target_language"`
+	ChannelName         string              `json:"channel_name" binding:"required,min=1,max=100"`
+	AllowedOrigins      AllowedOriginsInput `json:"allowed_origins" binding:"required"`
+	DefaultRAGProductID string              `json:"default_rag_product_id"`
+	WelcomeMessage      string              `json:"welcome_message"`
+	WidgetColor         string              `json:"widget_color"`
+	WidgetPosition      string              `json:"widget_position"`
+	WidgetTitle         string              `json:"widget_title"`
+	AutoAssign          *bool               `json:"auto_assign"`
+	ConfidenceThreshold *float64            `json:"confidence_threshold"`
+	TargetLanguage      string              `json:"target_language"`
 }
 
 // UpdateChannelRequest 更新渠道请求
 type UpdateChannelRequest struct {
-	ChannelName         *string   `json:"channel_name"`
-	AllowedOrigins      *[]string `json:"allowed_origins"`
-	DefaultRAGProductID *string   `json:"default_rag_product_id"`
-	WelcomeMessage      *string   `json:"welcome_message"`
-	WidgetColor         *string   `json:"widget_color"`
-	WidgetPosition      *string   `json:"widget_position"`
-	WidgetTitle         *string   `json:"widget_title"`
-	Status              *string   `json:"status"`
-	AutoAssign          *bool     `json:"auto_assign"`
-	ConfidenceThreshold *float64  `json:"confidence_threshold"`
-	TargetLanguage      *string   `json:"target_language"`
+	ChannelName         *string              `json:"channel_name"`
+	AllowedOrigins      *AllowedOriginsInput `json:"allowed_origins"`
+	DefaultRAGProductID *string              `json:"default_rag_product_id"`
+	WelcomeMessage      *string              `json:"welcome_message"`
+	WidgetColor         *string              `json:"widget_color"`
+	WidgetPosition      *string              `json:"widget_position"`
+	WidgetTitle         *string              `json:"widget_title"`
+	Status              *string              `json:"status"`
+	AutoAssign          *bool                `json:"auto_assign"`
+	ConfidenceThreshold *float64             `json:"confidence_threshold"`
+	TargetLanguage      *string              `json:"target_language"`
 }
 
 // ChannelCreateResult 渠道创建结果（含一次性返回的明文凭证）
@@ -127,7 +221,7 @@ func (s *ChatChannelService) Create(ctx context.Context, req *CreateChannelReque
 	if strings.TrimSpace(req.ChannelName) == "" {
 		return nil, errors.New("渠道名称不能为空")
 	}
-	if len(req.AllowedOrigins) == 0 {
+	if req.AllowedOrigins.IsEmpty() {
 		return nil, errors.New("至少配置一个允许的 origin")
 	}
 
@@ -145,7 +239,7 @@ func (s *ChatChannelService) Create(ctx context.Context, req *CreateChannelReque
 		ChannelName:         req.ChannelName,
 		AppKey:              appKey,
 		AppSecretHash:       hashAppSecret(appSecret),
-		AllowedOrigins:      strings.Join(req.AllowedOrigins, ","),
+		AllowedOrigins:      req.AllowedOrigins.String(),
 		DefaultRAGProductID: ragProductIDStringToUint(req.DefaultRAGProductID),
 		WelcomeMessage:      req.WelcomeMessage,
 		WidgetColor:         defaultIfEmpty(req.WidgetColor, "#1989fa"),
@@ -187,7 +281,7 @@ func (s *ChatChannelService) Update(ctx context.Context, channelID string, req *
 		updates["channel_name"] = *req.ChannelName
 	}
 	if req.AllowedOrigins != nil {
-		updates["allowed_origins"] = strings.Join(*req.AllowedOrigins, ",")
+		updates["allowed_origins"] = req.AllowedOrigins.String()
 	}
 	if req.DefaultRAGProductID != nil {
 		updates["default_rag_product_id"] = ragProductIDStringToUint(*req.DefaultRAGProductID)

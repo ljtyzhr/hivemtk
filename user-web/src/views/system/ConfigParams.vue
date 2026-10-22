@@ -895,19 +895,6 @@ function isForbiddenError(e) {
   return Number((e && (e.status || (e.response && e.response.status))) || 0) === 403
 }
 
-// 草稿随分组切换同步：进 platform 组时把当前生效值灌进草稿框。
-watch(
-  () => currentGroup.value,
-  (g) => {
-    if (g === platformHostGroup) {
-      platformHostDraft.value = platformHostCurrent.value
-      platformHostProbe.value = null
-      platformHostForbidden.value = false
-    }
-  },
-  { immediate: true }
-)
-
 async function probePlatformHost() {
   platformHostProbing.value = true
   platformHostProbe.value = null
@@ -1052,6 +1039,25 @@ const currentGroupLabel = computed(() => {
 })
 
 const currentGroupDesc = computed(() => groupDesc(currentGroup.value))
+
+// 草稿随分组切换同步：进 platform 组时把当前生效值灌进草稿框。
+//
+// 位置说明：这段 watch 依赖 currentGroup，而 currentGroup 在下面才声明 ——
+// 放在声明之前会踩 **暂时性死区**（watch 的 getter 在 { immediate: true } 下
+// 立即执行 ⇒ 读到一个还没初始化的 const ⇒ ReferenceError:
+// "Cannot access 'currentGroup' before initialization" ⇒ 整页白屏）。
+// 所以它必须待在 currentGroup 声明之后。
+watch(
+  () => currentGroup.value,
+  (g) => {
+    if (g === platformHostGroup) {
+      platformHostDraft.value = platformHostCurrent.value
+      platformHostProbe.value = null
+      platformHostForbidden.value = false
+    }
+  },
+  { immediate: true }
+)
 
 const filteredList = computed(() => {
   const kw = keyword.value.trim().toLowerCase()

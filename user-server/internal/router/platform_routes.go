@@ -3,7 +3,6 @@ package router
 import (
 	"hivemtk-user/internal/controller"
 	"hivemtk-user/internal/middleware"
-	"hivemtk-user/internal/repository"
 	"hivemtk-user/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -12,10 +11,11 @@ import (
 
 func setupWhatsappRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 	whatsappCtrl := controller.NewWhatsappController(service.NewWhatsappService(gormDB))
+	// 群发控制器的依赖全部在装配层构造（controller 不 import repository / gorm ——
+	// depguard 的 controller-layer 清单，且那是五层架构的破口）。
 	whatsappGroupMsgCtrl := controller.NewGroupMessagingController(
-		gormDB,
 		whatsappCtrl.GetService(),
-		service.NewClueService(repository.NewClueRepositoryWithDB(gormDB), service.NewClueScoreService(gormDB)),
+		service.NewClueServiceWithDB(gormDB, service.NewClueScoreService(gormDB)),
 		service.NewMessageQueueService(gormDB),
 		service.NewWhatsAppTemplateService(gormDB),
 	)

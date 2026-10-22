@@ -37,12 +37,33 @@ func (r *ExternalKBConnectorRepo) Create(ctx context.Context, row *model.Externa
 	return r.db.WithContext(ctx).Create(row).Error
 }
 
+// Update 更新连接器。
+//
+// 0 行受影响时报「不存在」而不是静默成功：GORM 的 Updates 对没有匹配行的
+// Where 不返回错误，于是「改一个不存在的连接器」会回 200「已更新」——
+// 调用方（页面）以为改成功了，实际什么都没发生。改不存在的资源是 404 的语义，
+// 不是 200。
 func (r *ExternalKBConnectorRepo) Update(ctx context.Context, id uint, updates map[string]any) error {
-	return r.db.WithContext(ctx).Model(&model.ExternalKBConnector{}).Where("id = ?", id).Updates(updates).Error
+	res := r.db.WithContext(ctx).Model(&model.ExternalKBConnector{}).Where("id = ?", id).Updates(updates)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
+// Delete 删除连接器（同 Update：0 行 ⇒ 不存在，而不是静默成功）。
 func (r *ExternalKBConnectorRepo) Delete(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).Delete(&model.ExternalKBConnector{}, id).Error
+	res := r.db.WithContext(ctx).Delete(&model.ExternalKBConnector{}, id)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 func (r *ExternalKBConnectorRepo) FindItem(ctx context.Context, connectorID uint, docKey string) (*model.ExternalKBSyncItem, error) {

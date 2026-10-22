@@ -21,7 +21,7 @@ func TestChatChannelUpdate_StatusDomainEnforced(t *testing.T) {
 
 	created, err := svc.Create(ctx, &CreateChannelRequest{
 		ChannelName:    "状态值域用例",
-		AllowedOrigins: []string{"https://example.com"},
+		AllowedOrigins: MustAllowedOriginsInput("https://example.com"),
 	}, 1)
 	if err != nil {
 		t.Fatalf("建渠道失败: %v", err)

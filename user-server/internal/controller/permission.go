@@ -122,11 +122,21 @@ func (ctrl *PermissionController) ListAuditLogs(c *gin.Context) {
 	response.SuccessWithPage(c, resp.List, int64(p), int64(s), resp.Total)
 }
 
+// writePermissionServiceError 把服务层的错误映射成 HTTP 状态码。
+//
+// 两类都要 400（不是 500）：
+//   - ErrInvalidInput：入参/业务前提不满足（不能改自己的密码、密码不合策略…）
+//   - ErrInitialAdminProtected：初始超管（id=1）的密码受系统级保护，所有改密
+//     入口都拒绝。这**不是**服务端故障，是一条明确的业务规则。
+//
+// 之前只有 ErrInvalidInput 被显式判，其余一律落 ErrorFromDB ⇒ 500：
+// 「初始超管账号的密码不允许通过此入口修改」被报成 500，调用方会以为服务端炸了，
+// 而实际上这条 500 与数据库毫无关系（ErrorFromDB 对非 DB 错误也只是原样回 500）。
 func writePermissionServiceError(c *gin.Context, err error) {
 	if err == nil {
 		return
 	}
-	if errors.Is(err, service.ErrInvalidInput) {
+	if errors.Is(err, service.ErrInvalidInput) || errors.Is(err, service.ErrInitialAdminProtected) {
 		response.Error(c, http.StatusBadRequest, err.Error())
 		return
 	}

@@ -285,13 +285,19 @@ func TestOfflineBootstrapOpensGiftModules(t *testing.T) {
 		}
 	}
 	if gate.IsEnabled(ctx, model.ModuleBrowserAutomation) {
-		t.Error("离线部署时 browser-automation 应锁定（¥99 买断，本地无支付通道）")
+		t.Error("离线部署时 browser-automation 应锁定（付费买断，本地无支付通道）")
 	}
-	// EnabledKeys = 23 = 24 - browser-automation
+	// EnabledKeys = 基础模块 + 0 元赠送付费模块。
+	//
+	// 2026-10-22：定价对齐 ¥1（commit 38f9fce2）之后，目录里**没有** 0 元的付费模块了
+	// （原来的 16 条 0 元赠送全部变成 ¥1），所以赠送集为空 ⇒ 离线只开 7 个基础模块。
+	// 这里不再写死「24 - 浏览器自动化」：那个数是旧口径（16 条 0 元赠送时代）留下的，
+	// 定价一改就与事实脱节 —— 判据应当跟着目录走（giftPaidKeys() 已经是这个形状）。
 	keys := gate.EnabledKeys(ctx)
-	if len(keys) != len(model.ModuleCatalogMeta)-1 {
-		t.Errorf("离线 EnabledKeys 应为 %d（24 - 浏览器自动化），实际 %d: %v",
-			len(model.ModuleCatalogMeta)-1, len(keys), keys)
+	wantEnabled := len(model.BaseModuleKeys()) + len(giftPaidKeys())
+	if len(keys) != wantEnabled {
+		t.Errorf("离线 EnabledKeys 应为 %d（基础 %d + 0 元赠送 %d），实际 %d: %v",
+			wantEnabled, len(model.BaseModuleKeys()), len(giftPaidKeys()), len(keys), keys)
 	}
 	if hasKey(keys, model.ModuleBrowserAutomation) {
 		t.Error("EnabledKeys 不应含 browser-automation")
@@ -330,9 +336,11 @@ func TestOfflineBootstrapUpgradesExistingDeployment(t *testing.T) {
 	if err != nil {
 		t.Fatal(err)
 	}
-	wantTotal := len(model.BaseModuleKeys()) + len(giftPaidKeys())
+	// 行数 = 基础 + 赠送 + **存量已购行**（geo 那条 purchase 行是升级前就有的，
+	// 升级只做幂等补齐、不删它 ⇒ 计入总数）。
+	wantTotal := len(model.BaseModuleKeys()) + len(giftPaidKeys()) + 1 /* geo 已购 */
 	if len(rows) != wantTotal {
-		t.Errorf("升级后应有 %d 行（基础 + 赠送），实际 %d", wantTotal, len(rows))
+		t.Errorf("升级后应有 %d 行（基础 + 赠送 + 存量已购），实际 %d", wantTotal, len(rows))
 	}
 	byKey := map[string]*model.TenantModule{}
 	for _, r := range rows {
@@ -357,24 +365,91 @@ func TestOfflineBootstrapUpgradesExistingDeployment(t *testing.T) {
 		t.Errorf("二次 Sync 破坏幂等：行数 %d → %d", len(rows), len(rows2))
 	}
 
-	// 菜单树对账：新增 16 组的 menu_keys 必须出现在过滤结果里，买断模块不出现
+	// 菜单树对账：**赠送集**里的模块，其菜单节点必须出现在过滤结果里。
+	//
+	// 2026-10-22：定价对齐 ¥1 之后赠送集为空（没有 0 元付费模块了），所以菜单树
+	// 里只该出现基础模块的菜单；原来写死的那 13 个付费模块菜单（aiAgent/geoTools…）
+	// 属于旧口径。判据改成跟着赠送集走：0 元赠送模块的菜单必须在，
+	// 付费模块的菜单**必须不在**（没开通就不该出现）。
+	//
+	// 同时保留一条硬判据：基础模块的菜单必须都在（赠送集为空时它就是全部）。
 	gate := NewModuleGateServiceWithRepo(repo)
 	gate.Invalidate()
 	gate.Refresh(ctx)
 	model.SetModuleEnabledFilter(gate.ModuleEnabledFunc())
 	t.Cleanup(func() { model.SetModuleEnabledFilter(nil) })
 	tree := model.FilterMenuTreeByModule(model.SystemMenuTree, model.ModuleEnabledFilter)
-	for _, k := range []string{
-		"aiAgent", "geoTools", "smsReach", "emailReach", "douyin",
-		"shortLink", "wecomAccount", "telegram", "dashboardScreen", "abExperiment",
-		"salesCockpit", "approvalTask", "i18nManage",
-	} {
+
+	for _, k := range baseMenuKeys() {
 		if findMenuKey(tree, k) < 0 {
-			t.Errorf("升级补齐后菜单节点 %s 仍缺失（菜单快照未按赠送集刷新）", k)
+			t.Errorf("基础模块菜单节点 %s 缺失（升级后基础能力应当始终可用）", k)
+		}
+	}
+	for _, k := range giftPaidKeys() {
+		if findMenuKey(tree, giftMenuKey(k)) < 0 {
+			t.Errorf("0 元赠送模块 %s 的菜单节点缺失（菜单快照未按赠送集刷新）", k)
 		}
 	}
 	if findMenuKey(tree, "browserAutomation") >= 0 {
 		t.Error("browser-automation 未开通，其菜单节点不应出现在菜单树里")
+	}
+}
+
+// baseMenuKeys 基础模块对应的菜单节点（这些在任何形态下都该出现）。
+//
+// 取自 model.ModuleMenuBindings 里基础模块那一段（core/customer/inbox/
+// knowledge/asset/llm-self/platform-link 的首节点各挑一个能稳定命中的）——
+// 写死一长串菜单名会随菜单树改版一起腐化，而这里要判的只是
+// 「基础模块的菜单节点确实在过滤结果里」。
+func baseMenuKeys() []string {
+	out := []string{}
+	for _, m := range model.ModuleCatalogMeta {
+		if m.Category != model.ModuleCategoryBase {
+			continue
+		}
+		keys := model.ModuleMenuBindings[m.Key]
+		if len(keys) == 0 {
+			continue
+		}
+		out = append(out, keys[0])
+	}
+	return out
+}
+
+// giftMenuKey 0 元赠送模块 → 菜单节点 key 的映射。
+//
+// 目录里付费模块的菜单组名与模块 key 不是一一同名（ai-agent → aiAgent 等），
+// 这里只把「确实有赠送集」的场景用起来；赠送集为空时它返回空串，调用方跳过。
+func giftMenuKey(moduleKey string) string {
+	switch moduleKey {
+	case model.ModuleAIAgent:
+		return "aiAgent"
+	case model.ModuleGEO:
+		return "geoTools"
+	case model.ModuleReachSMS:
+		return "smsReach"
+	case model.ModuleReachEmail:
+		return "emailReach"
+	case model.ModuleReachSocial:
+		return "douyin"
+	case model.ModuleReachLink:
+		return "shortLink"
+	case model.ModuleIMWecom:
+		return "wecomAccount"
+	case model.ModuleIMIntl:
+		return "telegram"
+	case model.ModuleAnalytics:
+		return "dashboardScreen"
+	case model.ModuleExperiment:
+		return "abExperiment"
+	case model.ModuleSalesCRM:
+		return "salesCockpit"
+	case model.ModuleApproval:
+		return "approvalTask"
+	case model.ModuleI18N:
+		return "i18nManage"
+	default:
+		return ""
 	}
 }
 
@@ -429,33 +504,61 @@ func TestMarketListMarksBaseAsFreeAndPaidAsPayable(t *testing.T) {
 	if !byKey[model.ModuleCore].Free {
 		t.Error("core 应标记为 free")
 	}
-	// 003 重定价：geo 是付费类目但定价 0 元 → FreeToEnable（需开通、不收钱）
-	if byKey[model.ModuleGEO].Free {
-		t.Error("geo 是付费类目模块，不应标记 free")
+	// 003 重定价（2026-10-22 对齐 ¥1，commit 38f9fce2）：
+	// 目录里 17 个付费模块**全部**是 ¥1（100 分），没有 0 元赠送项了。
+	// 所以 geo / llm-cloud 都是「需开通且收钱」，不再是 free_to_enable；
+	// browser-automation 也是 ¥1（不再是 ¥99 买断）。
+	if byKey[model.ModuleGEO].FreeToEnable {
+		t.Error("geo 是付费类目模块（¥1），不应标记 free_to_enable（0 元才赠送）")
 	}
-	if !byKey[model.ModuleGEO].FreeToEnable {
-		t.Error("geo 定价 0 元（003 全免费口径）：应标记 free_to_enable")
+	if byKey[model.ModuleLLMCloud].FreeToEnable {
+		t.Error("llm-cloud 定价 ¥1，不应标记「需开通但不收钱」")
 	}
-	if !byKey[model.ModuleLLMCloud].FreeToEnable {
-		t.Error("llm-cloud 定价为 0：应标记「需开通但不收钱」")
-	}
-	// 唯一有价模块：browser-automation ¥99 买断（003 R3）
+	// 定价与计费周期必须与目录一致（不写死数值：目录一改价这里就跟着走）
 	ba := byKey[model.ModuleBrowserAutomation]
 	if ba.FreeToEnable {
-		t.Error("browser-automation 有价（¥99 买断），不应标记 free_to_enable")
+		t.Error("browser-automation 有价，不应标记 free_to_enable")
 	}
-	if ba.PriceCents != 9900 || ba.BillingCycle != model.BillingCycleOnce {
-		t.Errorf("browser-automation 应为 9900 分 / once，实际 %d / %q", ba.PriceCents, ba.BillingCycle)
+	wantPrice, wantCycle := int64(0), ""
+	for _, m := range model.ModuleCatalogMeta {
+		if m.Key == model.ModuleBrowserAutomation {
+			wantPrice, wantCycle = m.PriceCents, m.BillingCycle
+		}
 	}
-	// 种子口径：24 模块中恰 1 个 price>0（003 T005 验收）
+	if ba.PriceCents != wantPrice || ba.BillingCycle != wantCycle {
+		t.Errorf("browser-automation 定价应与目录一致（%d 分 / %q），实际 %d / %q",
+			wantPrice, wantCycle, ba.PriceCents, ba.BillingCycle)
+	}
+	// 定价口径：市场里的每个模块，其价格/计费周期都要与编译期目录一致。
+	// （旧口径「24 个中恰 1 个有价」是 003 全免费时代的断言；定价改 ¥1 后
+	//   有价模块变成 17 个 —— 判据改成「与目录逐条一致」，改价不用回来改这里。）
+	for _, m := range list {
+		var wm model.ModuleMeta
+		for _, c := range model.ModuleCatalogMeta {
+			if c.Key == m.ModuleKey {
+				wm = c
+			}
+		}
+		if m.PriceCents != wm.PriceCents || m.BillingCycle != wm.BillingCycle {
+			t.Errorf("%s 定价与目录不一致：市场 %d 分 / %q，目录 %d 分 / %q",
+				m.ModuleKey, m.PriceCents, m.BillingCycle, wm.PriceCents, wm.BillingCycle)
+		}
+	}
+	// 有价模块数 = 目录里有价的那几条（不写死 1）。
+	wantPriced := 0
+	for _, c := range model.ModuleCatalogMeta {
+		if c.PriceCents > 0 {
+			wantPriced++
+		}
+	}
 	priced := 0
 	for _, m := range list {
 		if m.PriceCents > 0 {
 			priced++
 		}
 	}
-	if priced != 1 {
-		t.Errorf("应恰有 1 个有价模块（browser-automation），实际 %d 个", priced)
+	if priced != wantPriced {
+		t.Errorf("有价模块数应与目录一致（%d），实际 %d 个", wantPriced, priced)
 	}
 }
 

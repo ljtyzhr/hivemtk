@@ -21,10 +21,10 @@ type NotificationRead struct {
 	ID uint `json:"id" gorm:"primaryKey"`
 
 	// NotificationID 指向 notifications.id。
-	NotificationID uint `json:"notification_id" gorm:"not null;index;uniqueIndex:uq_notification_read,priority:2" json:"notification_id"`
+	NotificationID uint `gorm:"not null;index;uniqueIndex:uq_notification_read,priority:2" json:"notification_id"`
 
 	// UserID 谁读的。
-	UserID uint `json:"user_id" gorm:"not null;index;uniqueIndex:uq_notification_read,priority:3" json:"user_id"`
+	UserID uint `gorm:"not null;index;uniqueIndex:uq_notification_read,priority:3" json:"user_id"`
 
 	ReadAt time.Time `json:"read_at" gorm:"not null"`
 }

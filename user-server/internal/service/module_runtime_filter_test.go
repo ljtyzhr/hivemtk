@@ -312,11 +312,26 @@ func TestRuntimeGateOfflineEquivalenceWithIsEnabled(t *testing.T) {
 	if !AllowWorker(ctx, "customer_rfm") || !AllowWorker(ctx, "customer_session") || !AllowWorker(ctx, "rag_eval") {
 		t.Error("bootstrapOffline 落地后 customer/knowledge cron 应放行")
 	}
-	// geo 是 0 元赠送模块（003 重定价）→ bootstrapOffline 落地后其 worker 放行
-	if !AllowWorker(ctx, "sov_refresh") {
-		t.Error("0 元赠送模块 geo 落地后其关联 worker 应放行")
+	// geo 是不是 0 元赠送，决定它的 worker 离线路径放不放行 —— 判据跟着目录走。
+	//
+	// 2026-10-22 定价对齐 ¥1（commit 38f9fce2）之后，目录里**没有** 0 元付费模块了
+	// （geo 也是 ¥1），所以离线 bootstrap 不再赠送 geo ⇒ 它的 worker 也不该放行。
+	// 原来这条写死「geo 是 0 元赠送 → 放行」，是 003 全免费时代的断言；
+	// 定价一改它就与事实脱节（断言说放行、生产说拦）。
+	geoIsGift := false
+	for _, m := range model.ModuleCatalogMeta {
+		if m.Key == model.ModuleGEO {
+			geoIsGift = m.Category == model.ModuleCategoryPaid && m.PriceCents == 0
+		}
 	}
-	// browser-automation 仍锁定（¥99 买断，离线不可购）→ 关联能力拦
+	if geoIsGift {
+		if !AllowWorker(ctx, "sov_refresh") {
+			t.Error("0 元赠送模块 geo 落地后其关联 worker 应放行")
+		}
+	} else if AllowWorker(ctx, "sov_refresh") {
+		t.Error("geo 已是付费模块（¥1），离线 bootstrap 不赠送它 ⇒ 关联 worker 应被拦")
+	}
+	// browser-automation 仍锁定（付费买断，离线不可购）→ 关联能力拦
 	if AllowWorker(ctx, model.ModuleBrowserAutomation) {
 		t.Error("未开通的 browser-automation 关联 worker 应被拦")
 	}

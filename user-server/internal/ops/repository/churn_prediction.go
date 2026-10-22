@@ -23,12 +23,33 @@ func NewChurnPredictionRepository() *ChurnPredictionRepository {
 }
 
 // Upsert 创建或更新流失预测
+//
+// 不用 Save：Save 会把整个结构体写回，包括调用方没填的 tenant_id（=0），
+// 那是「更新不可改写 tenant_id」闸门的直接触发点（on 模式整条保存 500），
+// 而且行会带着 tenant_id=0 落库 —— 那不属于任何租户，任何租户都读不到它
+// （离线单机档下 tenant_id=1 的行也读不到，等于这批预测对所有人隐身）。
+// tenant_id 由隔离 callback 在 INSERT 时填、在 UPDATE 时不允许改；
+// updated_at 交给 GORM 的 autoUpdateTime。
 func (r *ChurnPredictionRepository) Upsert(ctx context.Context, prediction *model.ChurnPrediction) error {
 	var existing model.ChurnPrediction
 	err := r.db.WithContext(ctx).Where("user_id = ?", prediction.UserID).First(&existing).Error
 	if err == nil {
 		prediction.ID = existing.ID
-		return r.db.WithContext(ctx).Save(prediction).Error
+		res := r.db.WithContext(ctx).Model(&model.ChurnPrediction{}).
+			Where("id = ?", existing.ID).
+			Select("user_id", "churn_score", "churn_risk", "risk_factors",
+				"last_activity_at", "last_purchase_at", "days_since_active",
+				"purchase_freq", "average_order_value").
+			Updates(prediction)
+		if res.Error != nil {
+			return res.Error
+		}
+		// 把内存里的租户归属同步成这一行真实的归属：调用方传进来的结构体
+		// tenant_id 是零值（它没义务知道行归属），但把零值留在结构体里，
+		// 下游若再拿它去写别的表，就会被「写入 tenant_id 与上下文租户不一致」
+		// 那道闸拒掉 —— 而那不是调用方的错，是这里没把事实回填。
+		prediction.TenantID = existing.TenantID
+		return nil
 	}
 	return r.db.WithContext(ctx).Create(prediction).Error
 }

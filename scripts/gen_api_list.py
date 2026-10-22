@@ -53,7 +53,42 @@ def classify_auth(path):
     return "用户端"
 
 
+def load_prior_status():
+    """读既有 api-list.md 的勾选状态，建索引。
+
+    为什么要有这一步：清单是「逐条 curl 验证」的进度台账，重新生成时若把状态
+    一律写成 [ ]，几百条已验证的结论会被静默清零——而且没人会发现（表还在，
+    只是全是未勾选）。所以生成器必须**认得**自己上一版的勾选。
+
+    索引键用（方法, 路径, 源文件）——**不含行号**：行号会随前端文件改动整体
+    平移，拿它当键等于「改一行前端就丢一批勾选」。同一个文件里同一对
+    （方法, 路径）重复出现时（确有这种：chatChannel 的 create/get 各一次等），
+    再按出现次序配对（同一键的第 k 次出现 ↔ 上一版的第 k 次出现），
+    这样重复项也不会互相错位。
+    """
+    if not os.path.exists(OUT):
+        return {}
+    pat = re.compile(
+        r"^\|\s*\d+\s*\|\s*\[([ xX~!-])\]\s*\|\s*(\w+)\s*\|\s*`([^`]*)`\s*\|[^|]*\|\s*"
+        r"`src/api/([^`]*)`\s*\|\s*(\d+)\s*\|"
+    )
+    out = {}
+    seq = {}
+    with open(OUT, encoding="utf-8") as fh:
+        for ln in fh:
+            m = pat.match(ln)
+            if not m:
+                continue
+            mark, method, url, fname, line = m.groups()
+            key = (method.upper(), url, fname)
+            k = seq.get(key, 0)
+            seq[key] = k + 1
+            out[(key, k)] = mark
+    return out
+
+
 def main():
+    prior_status = load_prior_status()
     rows = []
     files = sorted(f for f in os.listdir(API_DIR) if f.endswith(".js"))
     for fname in files:
@@ -94,6 +129,16 @@ def main():
     lines.append("- 校验口径：每条路由**逐条手工 curl**，分析 `code` 与 `data`；")
     lines.append("  `code=0` 通过；`code!=0` 判定是调用错误还是业务错误，即时修复")
     lines.append("")
+    lines.append("## 状态标记")
+    lines.append("")
+    lines.append("| 标记 | 含义 |")
+    lines.append("|---|---|")
+    lines.append("| `[ ]` | 未验证 |")
+    lines.append("| `[x]` | 已验证通过（HTTP 200 且 `code=0`，或已确认是**正确**的业务错误响应） |")
+    lines.append("| `[~]` | 已验证但**存在待修问题**（见任务三结论与本轮修复记录） |")
+    lines.append("")
+    lines.append("> 重新生成本文件时，`[x]` / `[~]` 标记按（方法, 路径, 源文件, 行号）**沿用**，")
+    lines.append("> 不会把已验证的结论抹回 `[ ]`。")
     lines.append("## 档位说明")
     lines.append("")
     lines.append("| 档位 | 含义 |")
@@ -106,9 +151,17 @@ def main():
     lines.append("")
     lines.append("| # | 状态 | 方法 | 路径 | 档位 | 源文件 | 行 |")
     lines.append("|---|---|---|---|---|---|---|")
+    seq = {}
     for i, r in enumerate(rows, 1):
+        # 状态沿用既有清单里同一条路由的标记（键 = 方法+路径+源文件，同键按出现次序配对）：
+        # 重新生成本文件**不得**把已逐条 curl 验证过的 [x] 抹回 [ ] ——
+        # 那会把上一轮几百条路由的验证结论静默清零。
+        key = (r["method"], r["url"], r["file"])
+        k = seq.get(key, 0)
+        seq[key] = k + 1
+        mark = prior_status.get((key, k), " ")
         lines.append(
-            f"| {i} | [ ] | {r['method']} | `{r['url']}` | {r['auth']} | "
+            f"| {i} | [{mark}] | {r['method']} | `{r['url']}` | {r['auth']} | "
             f"`src/api/{r['file']}` | {r['line']} |"
         )
     lines.append("")
