@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"fmt"
+	"net/http"
 	"net/url"
 	"strconv"
 	"time"
@@ -100,7 +101,11 @@ func (c *NoticeClient) do(ctx context.Context, method, path string, req any, out
 	if err := c.client.Do(method, path, req, &env); err != nil {
 		return err
 	}
-	if env.Code != 0 {
+	// **成功码有两个**：平台侧 response.Success 写的是 `code:200`（不是 0），
+	// 而仓内既有的 envelopeRefusal（internal/platform/client.go）把 `0` 与
+	// `200` 都当成功。只认 0 会把每一次成功读成"平台拒绝" —— 这正是仓内
+	// 宪法 §IV「以外部成败以业务码为准」要防的那类误判，故与之同一口径。
+	if env.Code != 0 && env.Code != http.StatusOK {
 		return fmt.Errorf("平台拒绝通知接口: code=%d msg=%s", env.Code, env.Msg)
 	}
 	if out == nil || len(env.Data) == 0 || string(env.Data) == "null" {
