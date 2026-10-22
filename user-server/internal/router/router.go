@@ -655,11 +655,15 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 		messageHubRepo := repository.NewMessageHubRepositoryWithDB(gormDB)
 		bridgeHandler.SetOutboxQuerier(messageHubRepo)
 
-		service.SetGlobalSSEPublisher(func(channel, accountID string, hubID uint64, convID, msgType, receiverID, content string, isAIReply bool, createdAt time.Time) {
+		service.SetGlobalSSEPublisher(func(ctx context.Context, channel, accountID string, hubID uint64, convID, msgType, receiverID, content string, isAIReply bool, createdAt time.Time) {
 			// R-B1：总线 Data 与 DB 补拉路径逐键一致（msg_id 必带——扩展端复合去重键
 			// msg_id|conversation_id 依赖它；曾缺 msg_id 致同会话第二条起静默丢消息）。
 			// msg_id 与落库行同源：service.ContentHashMsgID ≡ DeliverBridgeOutbound 赋值处。
-			bridge.GlobalSSEBus.Publish(bridge.BuildOutboundSSEEvent(bridge.OutboundEventData{
+			// 用 PublishCtx 而非 Publish：认领那一步要 UPDATE message_hub（租户表），
+			// on 模式下 ctx 不带租户会被隔离守卫 fail-closed 拒绝
+			// （"[SSE] 出站认领报错，放弃本次推送"）。ctx 由 service 侧派生，
+			// 已带租户归属。
+			bridge.GlobalSSEBus.PublishCtx(ctx, bridge.BuildOutboundSSEEvent(bridge.OutboundEventData{
 				HubID:          hubID,
 				MsgID:          service.ContentHashMsgID(channel, convID, content),
 				Platform:       channel,

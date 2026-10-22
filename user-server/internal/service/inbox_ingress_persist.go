@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/tracing"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/websocket"
@@ -384,6 +385,9 @@ func (s *InboxIngressService) persistHistoryMessage(ctx context.Context, event *
 			Str("account_id", hub.AccountID).
 			Str("conv_id", hub.ConversationID).
 			Msg("[SSE] persistHistoryMessage calling GlobalSSEPublisher")
+		// 派生带租户的 ctx（认领要 UPDATE message_hub，on 模式下无租户即被守卫拒绝），
+		// 口径同 bridge_outbound.go 的同名调用点。
+		pubCtx := tenant.BackgroundWithTenant(ctx)
 		go func() {
 			defer func() {
 				if r := recover(); r != nil {
@@ -391,6 +395,7 @@ func (s *InboxIngressService) persistHistoryMessage(ctx context.Context, event *
 				}
 			}()
 			GlobalSSEPublisher(
+				pubCtx,
 				hub.Platform, hub.AccountID,
 				uint64(hub.ID),
 				hub.ConversationID,

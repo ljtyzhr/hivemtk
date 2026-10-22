@@ -876,6 +876,9 @@ func (s *WebhookService) sendOutbound(ctx context.Context, channel WebhookChanne
 					Str("account_id", accountID).
 					Str("conv_id", persisted.ConversationID).
 					Msg("[SSE] webhook_outbound calling GlobalSSEPublisher")
+				// 派生带租户的 ctx（认领要 UPDATE message_hub，on 模式下无租户即被守卫拒绝），
+				// 口径同 bridge_outbound.go 的同名调用点。
+				pubCtx := tenant.BackgroundWithTenant(ctx)
 				go func() {
 					defer func() {
 						if r := recover(); r != nil {
@@ -883,6 +886,7 @@ func (s *WebhookService) sendOutbound(ctx context.Context, channel WebhookChanne
 						}
 					}()
 					GlobalSSEPublisher(
+						pubCtx,
 						string(channel), accountID,
 						uint64(persisted.ID),
 						persisted.ConversationID,

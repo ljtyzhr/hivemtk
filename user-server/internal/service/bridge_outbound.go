@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 )
 
@@ -44,6 +45,13 @@ var globalInboxIngressService *InboxIngressService
 // 不阻塞 DeliverBridgeOutbound 主路径。
 //
 // 参数：
+//   - ctx: **必须携带租户归属**。SSE 推送前的"出站认领"（ClaimOutboundForPush）
+//     要 UPDATE message_hub 这张租户表，on 模式下 ctx 不带租户即被隔离守卫
+//     fail-closed 拒绝 ⇒ 现场是 "[SSE] 出站认领报错，放弃本次推送（行仍待办，
+//     超时后重投）"——推送看着通了，其实每条都靠超时重投兜着。
+//     调用方在起 goroutine 前用 tenant.BackgroundWithTenant(ctx) 派生
+//     （保留租户归属、丢掉请求的取消信号），见本仓既有用法
+//     （account_domain.go / customer_session.go）。
 //   - channel, accountID: 渠道和账号标识
 //   - hubID: message_hub 表主键（用于 SSE id/Last-Event-ID）
 //   - convID: 会话 ID（用于前端路由）
@@ -52,10 +60,10 @@ var globalInboxIngressService *InboxIngressService
 //   - content: 消息内容
 //   - isAIReply: 是否为 AI 回复
 //   - createdAt: 创建时间
-var GlobalSSEPublisher func(channel, accountID string, hubID uint64, convID, msgType, receiverID, content string, isAIReply bool, createdAt time.Time)
+var GlobalSSEPublisher func(ctx context.Context, channel, accountID string, hubID uint64, convID, msgType, receiverID, content string, isAIReply bool, createdAt time.Time)
 
 // SetGlobalSSEPublisher 由 bridge 包在初始化时调用，注入 SSE 通知回调
-func SetGlobalSSEPublisher(fn func(channel, accountID string, hubID uint64, convID, msgType, receiverID, content string, isAIReply bool, createdAt time.Time)) {
+func SetGlobalSSEPublisher(fn func(ctx context.Context, channel, accountID string, hubID uint64, convID, msgType, receiverID, content string, isAIReply bool, createdAt time.Time)) {
 	GlobalSSEPublisher = fn
 	logger.Info("[SSE] GlobalSSEPublisher registered successfully")
 }
@@ -124,6 +132,11 @@ func DeliverBridgeOutbound(ctx context.Context, channel, accountID, conversation
 	}
 
 	if GlobalSSEPublisher != nil {
+		// 派生带租户的 ctx：认领那一步要 UPDATE message_hub（租户表），
+		// on 模式下 ctx 不带租户会被隔离守卫 fail-closed 拒绝。
+		// BackgroundWithTenant 保留租户归属、丢掉请求的取消信号（请求早结束、
+		// 推送还没发出去时不能把推送一起取消）。
+		pubCtx := tenant.BackgroundWithTenant(ctx)
 		go func() {
 			defer func() {
 				if r := recover(); r != nil {
@@ -131,6 +144,7 @@ func DeliverBridgeOutbound(ctx context.Context, channel, accountID, conversation
 				}
 			}()
 			GlobalSSEPublisher(
+				pubCtx,
 				channel, accountID,
 				uint64(h.ID),
 				h.ConversationID,
