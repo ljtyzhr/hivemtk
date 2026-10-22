@@ -89,6 +89,11 @@ func (r *RagConfigRepository) UpsertAccountConfig(ctx context.Context, config *s
 	}
 
 	config.ID = existingConfig.ID
+	// 把库里的 tenant_id 带回来（与 openapi source 的 Update 同一族修法）：
+	// 调用方传进来的是**新建的零值 model**（tenant_id=0），而 Save 写**全部字段含零值**
+	// ⇒ 这一行的租户被改写成 0，多租户模式下被 tenant 回调 fail-closed 拒掉
+	//（"[tenant] 更新不可改写 tenant_id"），接口 500；独立部署没这层校验 ⇒ 200。
+	config.TenantID = existingConfig.TenantID
 	return r.db.WithContext(ctx).Save(config).Error
 }
 

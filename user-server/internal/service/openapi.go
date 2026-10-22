@@ -77,12 +77,22 @@ func (s *OpenAPIService) UpdateSource(ctx context.Context, src *model.KnowledgeO
 		return errors.New("数据源 ID 不能为空")
 	}
 	// 先确认存在，避免 repo.Save 对不存在的 id 变成 INSERT（upsert 语义错误）
-	if _, err := s.srcRepo.GetByID(ctx, src.ID); err != nil {
+	existing, err := s.srcRepo.GetByID(ctx, src.ID)
+	if err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) || strings.Contains(err.Error(), "not found") {
 			return fmt.Errorf("数据源不存在: id=%d", src.ID)
 		}
 		return err
 	}
+	// 把库里的 tenant_id 带回来。
+	//
+	// 为什么必须：调用方传进来的是**新建的零值 model**（tenant_id=0），
+	// 而 repo.Update 走 GORM 的 Save —— Save 写**全部字段含零值**，
+	// 于是这一行的租户被改写成 0。多租户模式下 tenant 回调 fail-closed 当场拒掉：
+	// "[tenant] 更新不可改写 tenant_id（上下文租户 1，SET 值 0）" ⇒ 接口 500；
+	// 独立部署模式没有这层校验 ⇒ 同一个接口 SaaS 下 500、私域下 200。
+	// 这就是本仓这一族缺陷的通用形状（见 service/sms.go 的 SaveConfig 同型）。
+	src.TenantID = existing.TenantID
 	if err := s.encryptAuthConfig(ctx, src); err != nil {
 		return fmt.Errorf("加密认证配置失败: %w", err)
 	}
