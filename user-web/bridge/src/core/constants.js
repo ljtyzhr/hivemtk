@@ -26,6 +26,24 @@ export const DEFAULT_USER_SERVER = {
   profile: 'dev',
 };
 
+// 租户短码（tenant_code）——SaaS 多租户模式下桥接入口的归属自证凭据。
+//
+// 服务端判据（user-server/internal/bridge/tenant_binding.go:63-92）：
+//   ① bridge_accounts 里 (channel, account_id) 行只属于一个租户 ⇒ 绑它；
+//   ② 账号尚未注册过，或同一 (channel, account_id) 在两个租户各有一行
+//      ⇒ 只认显式 tenant_code（query 或 X-Tenant-Code 头），由短码解析；
+//   ③ 两条线索都没有 ⇒ 拒绝（404，提示补 tenant_code）。
+//
+// 首次上报必须带短码：账号行只能由 ingest 内部的异步 Upsert 创建，而那段 Upsert
+// 排在租户判定之后 ⇒ 不带短码的首次上报必然 404（先有鸡还是先有蛋的死锁）。
+//
+// 短码来源：用户端 GET /api/tenant/info 的 tenant_code 字段（登录后可见）。
+// 离线单机模式（TENANT_MODE=off）服务端整段跳过租户判定 ⇒ 留空即可。
+export const TENANT_CODE = Object.freeze({
+  QUERY_PARAM: 'tenant_code',
+  HEADER: 'X-Tenant-Code',
+});
+
 // =============================================================
 // 2) 平台入口（仅用于 popup 一键打开的快捷入口）
 // =============================================================

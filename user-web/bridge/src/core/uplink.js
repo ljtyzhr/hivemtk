@@ -163,6 +163,7 @@ export class Uplink {
           accountId,
           conversationId,
           token: cfg.token || '',
+          tenantCode: cfg.tenantCode || '',
         },
         body,
         {

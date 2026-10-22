@@ -59,13 +59,14 @@ function randomBytes(length, rng) {
 }
 
 // 序列化当前配置 → 导出明文数据对象
-// 导出字段：serverUrl/token/channel/accountId/conversationId/patrol/rate/circuit/version（+accounts）
+// 导出字段：serverUrl/token/tenantCode/channel/accountId/conversationId/patrol/rate/circuit/version（+accounts）
 export function serializeConfig(cfg) {
   const c = cfg || {};
   return {
     schema: CONFIG_SCHEMA,
     serverUrl: c.serverUrl || '',
     token: c.token || '',
+    tenantCode: c.tenantCode || '',
     channel: c.channel || '',
     accountId: c.accountId || '',
     conversationId: c.conversationId || '',
@@ -189,7 +190,7 @@ export async function importConfig(fileOrText, passphrase, opts = {}) {
   if (!data || typeof data !== 'object') throw new Error('配置数据无效');
 
   const patch = {};
-  for (const key of ['serverUrl', 'token', 'channel', 'accountId', 'conversationId']) {
+  for (const key of ['serverUrl', 'token', 'tenantCode', 'channel', 'accountId', 'conversationId']) {
     if (typeof data[key] === 'string') patch[key] = data[key];
   }
   for (const key of ['patrol', 'rate', 'circuit', 'accounts']) {

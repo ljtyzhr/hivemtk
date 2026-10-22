@@ -34,10 +34,11 @@ func (c *BridgeExtensionController) RegisterRoutes(auth *gin.RouterGroup) {
 // 返回平台上最新一版桥接扩展安装包信息（含绝对下载地址与 sha256）。
 //
 // 状态码口径：
-//   200 —— 有可下载的包
-//   404 —— 当前部署未接入平台，或平台上还没上架扩展包（两种都是"现在拿不到"，
-//          但文案不同：前者提示部署形态，后者提示平台侧待上传）
-//   503 —— 平台侧调用失败（网络/签名），不是"没有这个东西"
+//
+//	200 —— 有可下载的包
+//	404 —— 当前部署未接入平台，或平台上还没上架扩展包（两种都是"现在拿不到"，
+//	       但文案不同：前者提示部署形态，后者提示平台侧待上传）
+//	503 —— 平台侧调用失败（网络/签名），不是"没有这个东西"
 func (c *BridgeExtensionController) Package(ctx *gin.Context) {
 	pkg, err := c.svc.Latest(ctx.Request.Context())
 	if err != nil {

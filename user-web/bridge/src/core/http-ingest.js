@@ -1,4 +1,4 @@
-import { DEFAULT_USER_SERVER, BRIDGE_PROTOCOL_V2 } from './constants.js';
+import { DEFAULT_USER_SERVER, BRIDGE_PROTOCOL_V2, TENANT_CODE } from './constants.js';
 import { createLogger } from './logger.js';
 
 const log = createLogger('http', 'bridge');
@@ -35,6 +35,19 @@ export function buildAuthHeaders(token) {
     headers['Authorization'] = `Bearer ${t}`;
   }
   return headers;
+}
+
+// 把租户短码写进 URL query（服务端读 query 优先于 X-Tenant-Code 头，见
+// user-server/internal/bridge/tenant_binding.go:47-56 的 bridgeTenantHintFromRequest）。
+//
+// 留空则不写：离线单机模式（TENANT_MODE=off）服务端整段跳过租户判定，
+// 多带一个空参数没有意义，反而会让服务端把 "" 解析成"带了短码但无效"。
+export function applyTenantCode(url, tenantCode) {
+  const code = String(tenantCode || '').trim();
+  if (!code) return url;
+  const u = new URL(url);
+  u.searchParams.set(TENANT_CODE.QUERY_PARAM, code);
+  return u.toString();
 }
 
 // 构造完整的上行 URL（HTTP ingest 端点 + channel/account_id/conversation_id 全部 query 参数）。
@@ -171,14 +184,14 @@ async function fetchWithRetry(url, options, retryOpts = {}) {
   throw lastErr || new Error('fetch failed');
 }
 
-async function postIngest({ serverUrl, channel, accountId, conversationId, token }, body, opts = {}) {
+async function postIngest({ serverUrl, channel, accountId, conversationId, token, tenantCode }, body, opts = {}) {
   const params = { channel, accountId, conversationId, token };
   const label = opts.label || '[HTTP ingest]';
   const logResult = _logRequest(label, serverUrl, params, body);
   if (!logResult) {
     throw new Error('ingest URL 构造失败');
   }
-  const { url } = logResult;
+  const url = applyTenantCode(logResult.url, tenantCode);
   const timeoutMs = opts.timeoutMs ?? HTTP_INGEST_DEFAULTS.requestTimeoutMs;
   // 透传 retry 参数：测试场景可显式覆盖 maxRetries/retryBaseMs；
   // 生产默认走 HTTP_INGEST_DEFAULTS（maxRetries=3, retryBaseMs=1000）。
@@ -239,7 +252,7 @@ async function postIngest({ serverUrl, channel, accountId, conversationId, token
 
 const OUTBOX_PATH = '/api/bridge/outbox';
 
-async function getOutbox({ serverUrl, channel, accountId, token }, opts = {}) {
+async function getOutbox({ serverUrl, channel, accountId, token, tenantCode }, opts = {}) {
   const acct = accountId || 'default';
   const u = new URL(`${toHttpUrl(serverUrl)}${OUTBOX_PATH}`);
   u.searchParams.set('channel', channel || '');
@@ -247,13 +260,14 @@ async function getOutbox({ serverUrl, channel, accountId, token }, opts = {}) {
   // 拉取条数：默认 50，可由配置覆盖（与后端 GetBridgeOutbox limit query 对齐）
   const batchSize = opts.batchSize && opts.batchSize > 0 ? opts.batchSize : 50;
   u.searchParams.set('limit', String(batchSize));
+  const url = applyTenantCode(u.toString(), tenantCode);
   const label = opts.label || '[HTTP outbox]';
   const timeoutMs = opts.timeoutMs ?? HTTP_INGEST_DEFAULTS.requestTimeoutMs;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   const startedAt = Date.now();
   try {
-    const res = await fetchWithRetry(u.toString(), {
+    const res = await fetchWithRetry(url, {
       method: 'GET',
       headers: buildAuthHeaders(token),
       signal: controller.signal,
@@ -279,11 +293,12 @@ async function getOutbox({ serverUrl, channel, accountId, token }, opts = {}) {
 // 的同 msg_id 行（后端语义见 handler_http.go v2 分支）。
 // 新协议：opts.items（[{msg_id, conversation_id}]）或 opts.conversationId 存在且合法时
 // 发 v2 items[]，服务端按会话精确翻转；否则回退 legacy msg_ids（老服务端 / 无会话归属场景）。
-async function ackOutbox({ serverUrl, channel, accountId, token }, msgIds, opts = {}) {
+async function ackOutbox({ serverUrl, channel, accountId, token, tenantCode }, msgIds, opts = {}) {
   const acct = accountId || 'default';
   const u = new URL(`${toHttpUrl(serverUrl)}${OUTBOX_PATH}/ack`);
   u.searchParams.set('channel', channel || '');
   u.searchParams.set('account_id', acct);
+  const url = applyTenantCode(u.toString(), tenantCode);
   const label = opts.label || '[HTTP outbox-ack]';
   const V2 = BRIDGE_PROTOCOL_V2;
   let items = null;
@@ -305,7 +320,7 @@ async function ackOutbox({ serverUrl, channel, accountId, token }, msgIds, opts 
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);
   try {
-    const res = await fetchWithRetry(u.toString(), {
+    const res = await fetchWithRetry(url, {
       method: 'POST',
       headers: buildAuthHeaders(token),
       body: JSON.stringify(body),

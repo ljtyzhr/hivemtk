@@ -14,7 +14,7 @@
 //   4. Content Script 生命周期与页面绑定，更稳定
 
 import { createLogger } from './logger.js';
-import { DEFAULT_USER_SERVER } from './constants.js';
+import { DEFAULT_USER_SERVER, TENANT_CODE } from './constants.js';
 
 const log = createLogger('sse-fetch', 'bridge');
 
@@ -189,6 +189,7 @@ export async function connectSSE(channel, accountId, opts = {}) {
   const {
     serverUrl = DEFAULT_USER_SERVER.baseUrl,
     token = '',
+    tenantCode = '',
     lastEventId = '',
     onMessage,
     onError,
@@ -202,6 +203,12 @@ export async function connectSSE(channel, accountId, opts = {}) {
   url.searchParams.set('account_id', accountId);
   if (lastEventId) {
     url.searchParams.set('last_event_id', lastEventId);
+  }
+  // 租户短码：SaaS 模式下服务端靠它（或账号行自证）定归属，见
+  // user-server/internal/bridge/tenant_binding.go:47-56。留空则不写。
+  const tenant = String(tenantCode || '').trim();
+  if (tenant) {
+    url.searchParams.set(TENANT_CODE.QUERY_PARAM, tenant);
   }
 
   // 构建 Headers

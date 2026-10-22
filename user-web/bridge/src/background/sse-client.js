@@ -7,7 +7,7 @@
 // 5. 持久化 Last-Event-ID 到 chrome.storage.local
 
 import { createLogger } from '../core/logger.js';
-import { DEFAULT_USER_SERVER } from '../core/constants.js';
+import { DEFAULT_USER_SERVER, TENANT_CODE } from '../core/constants.js';
 
 const log = createLogger('sse', 'bg');
 
@@ -45,6 +45,28 @@ function getAuthToken() {
       resolve('');
     }
   });
+}
+
+// 租户短码：SaaS 模式下服务端靠它（或账号行自证）定归属，见
+// user-server/internal/bridge/tenant_binding.go:47-56。离线单机留空。
+function getTenantCode() {
+  return new Promise((resolve) => {
+    try {
+      chrome.storage.local.get('bridgeConfig', (res) => {
+        const cfg = res && res.bridgeConfig ? res.bridgeConfig : {};
+        resolve(typeof cfg.tenantCode === 'string' ? cfg.tenantCode.trim() : '');
+      });
+    } catch (_) {
+      resolve('');
+    }
+  });
+}
+
+// 把租户短码追加到已带 query 的 URL 上（EventSource 路径专用）。
+function appendTenantCode(url, tenantCode) {
+  const code = String(tenantCode || '').trim();
+  if (!code) return url;
+  return `${url}&${TENANT_CODE.QUERY_PARAM}=${encodeURIComponent(code)}`;
 }
 
 // ---- Tab 注册/注销（与 background/index.js 的消息监听器共存）----
@@ -91,8 +113,10 @@ if (chrome && chrome.runtime && chrome.runtime.onMessage) {
     getBaseUrl().then((baseUrl) => {
       const url = `${baseUrl}/api/bridge/outbox/ack?channel=${encodeURIComponent(msg.channel)}&account_id=${encodeURIComponent(msg.accountId)}`;
       const token = getAuthToken();
-      return Promise.all([url, token]);
-    }).then(([url, token]) => {
+      const tenantCode = getTenantCode();
+      return Promise.all([url, token, tenantCode]);
+    }).then(([rawUrl, token, tenantCode]) => {
+      const url = appendTenantCode(rawUrl, tenantCode);
       const headers = { 'Content-Type': 'application/json' };
       const t = (token || '').trim();
       if (t) {
@@ -134,12 +158,16 @@ async function ensureSSEConnection(channel, accountId) {
 
   const baseUrl = await getBaseUrl();
   const token = await getAuthToken();
+  const tenantCode = await getTenantCode();
 
   const url = `${baseUrl}/api/bridge/outbox/sse?channel=${encodeURIComponent(channel)}&account_id=${encodeURIComponent(accountId)}&last_event_id=${encodeURIComponent(lastEventID)}`;
   // EventSource 不支持自定义 Header，Token 只能通过查询参数；
   // 服务端闸门读的键名是 bridge_token（middleware/bridge_ingress_guard.go），
   // 写成 token 会被当成"没带凭证"直接 401。
-  const fullUrl = token ? `${url}&bridge_token=${encodeURIComponent(token)}` : url;
+  const fullUrl = appendTenantCode(
+    token ? `${url}&bridge_token=${encodeURIComponent(token)}` : url,
+    tenantCode
+  );
 
   log.info(`SSE 连接中: ${key}, lastEventID=${lastEventID || '(none)'}`);
 

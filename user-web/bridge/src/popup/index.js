@@ -1063,9 +1063,11 @@ function wirePatrol() {
 document.addEventListener('DOMContentLoaded', () => {
   $('serverUrl').placeholder = DEFAULT_PLACEHOLDER;
   $('token').placeholder = '服务端配置了桥接凭证时必填，留空会被全部拒绝（401）';
+  $('tenantCode').placeholder = 'SaaS 多租户模式必填，如 t42xk（离线单机留空）';
   loadConfig((cfg) => {
     $('serverUrl').value = cfg.serverUrl || '';
     $('token').value = cfg.token || '';
+    $('tenantCode').value = cfg.tenantCode || '';
   });
 
   $('save').addEventListener('click', async () => {
@@ -1077,7 +1079,12 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     btn.disabled = true;
-    const cfg = { serverUrl, token: $('token').value.trim(), autoConnect: true };
+    const cfg = {
+      serverUrl,
+      token: $('token').value.trim(),
+      tenantCode: $('tenantCode').value.trim(),
+      autoConnect: true,
+    };
     saveConfig(cfg, (ok) => {
       btn.disabled = false;
       if (ok) {
@@ -1109,6 +1116,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   $('serverUrl').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('save').click(); });
   $('token').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('save').click(); });
+  $('tenantCode').addEventListener('keydown', (e) => { if (e.key === 'Enter') $('save').click(); });
 
   $('status').addEventListener('click', refreshStatus);
   $('selfcheck').addEventListener('click', selfCheck);

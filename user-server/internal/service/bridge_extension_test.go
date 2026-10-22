@@ -91,11 +91,11 @@ func TestBridgeExtensionService_LatestVersionObjectForm(t *testing.T) {
 		detail: map[string]any{
 			"name": "HiveBridge 蜂桥",
 			"latest_version": map[string]any{
-				"version":      "1.2.0",
-				"file_url":     "/files/extensions/2026/10/pkg.zip",
-				"filename":     "hivebridge-1.2.0.zip",
-				"size_bytes":   float64(21504),
-				"file_sha256":  "abc123",
+				"version":     "1.2.0",
+				"file_url":    "/files/extensions/2026/10/pkg.zip",
+				"filename":    "hivebridge-1.2.0.zip",
+				"size_bytes":  float64(21504),
+				"file_sha256": "abc123",
 			},
 		},
 	}

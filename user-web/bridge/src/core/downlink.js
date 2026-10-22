@@ -223,7 +223,7 @@ export async function drainPendingAcks(channel, cred) {
   for (const { msgId, conversationId } of duePending) {
     try {
       const reAck = await ackOutbox(
-        { serverUrl: cred.serverUrl, channel, accountId: cred.accountId, token: cred.token },
+        { serverUrl: cred.serverUrl, channel, accountId: cred.accountId, token: cred.token, tenantCode: cred.tenantCode },
         [msgId],
         {
           label: `[下行 ack 重试] ${channel}:${msgId}`,
@@ -310,14 +310,15 @@ export async function pollDownlink(channel, accountId, getConfig, options = {}) 
   }
   const serverUrl = cfg.serverUrl || '';
   const token = cfg.token || '';
+  const tenantCode = cfg.tenantCode || '';
   if (!serverUrl) return;
 
   // 2026-08-15 P0-9：先消化上轮残留的 _pendingAck（带退避，attempts<MAX_ACK_RETRY_ATTEMPTS）。
   // 必要性：ack 是"后端记账"，失败不能让"用户已收到"这件事回滚。排水语义见 drainPendingAcks。
-  await drainPendingAcks(channel, { serverUrl, accountId, token });
+  await drainPendingAcks(channel, { serverUrl, accountId, token, tenantCode });
 
   const res = await getOutbox(
-    { serverUrl, channel, accountId, token },
+    { serverUrl, channel, accountId, token, tenantCode },
     { label: `[下行 outbox] ${channel}`, batchSize: outboxBatchSize }
   );
   const messages = (res && res.messages) || [];
@@ -359,7 +360,7 @@ export async function pollDownlink(channel, accountId, getConfig, options = {}) 
 
   if (dupEntries.length) {
     await reAckSentDuplicates(
-      { serverUrl, channel, accountId, token },
+      { serverUrl, channel, accountId, token, tenantCode },
       dupEntries,
       `[下行重复补确认] ${channel}`
     );
@@ -451,7 +452,7 @@ export async function pollDownlink(channel, accountId, getConfig, options = {}) 
         ? { label: `[下行 ack] ${channel}:${convId}`, items: sentEntries }
         : { label: `[下行 ack] ${channel}:${convId}` };
       const ackRes = await ackOutbox(
-        { serverUrl, channel, accountId, token },
+        { serverUrl, channel, accountId, token, tenantCode },
         sentIds,
         ackOpts
       );
@@ -806,10 +807,11 @@ export async function startSSEDelivery(channel, accountId, handlers) {
     }
   } catch (_) {}
 
-  // serverUrl/token 必须是可重读的：重连循环靠这两个闭包值活过配置变更。
+  // serverUrl/token/tenantCode 必须是可重读的：重连循环靠这三个闭包值活过配置变更。
   // 快照成 const 的话，"不永久放弃"只是把"等刷新页面"换成"等一个永远拿不到新凭证的循环"。
   let serverUrl = cfg.serverUrl || DEFAULT_USER_SERVER.baseUrl;
   let token = cfg.token || '';
+  let tenantCode = cfg.tenantCode || '';
   const lastEventId = getLastEventID(channel, accountId);
 
   // 4xx 之后重读一次配置：被拒最常见的成因就是凭证/地址写错，而运维的修复动作发生在选项页。
@@ -822,6 +824,7 @@ export async function startSSEDelivery(channel, accountId, handlers) {
         const next = (r && r.bridgeConfig) || {};
         if (next.serverUrl) serverUrl = next.serverUrl;
         if (typeof next.token === 'string') token = next.token;
+        if (typeof next.tenantCode === 'string') tenantCode = next.tenantCode.trim();
       }
     } catch (_) {}
   }
@@ -865,6 +868,7 @@ export async function startSSEDelivery(channel, accountId, handlers) {
         cleanupSSE = await connectSSE(channel, accountId, {
           serverUrl,
           token,
+          tenantCode,
           lastEventId: getLastEventID(channel, accountId), // 每次重连获取最新的 lastEventId
           onMessage: async (data) => {
             if (stopped) return;
@@ -882,7 +886,7 @@ export async function startSSEDelivery(channel, accountId, handlers) {
               // 否则每 claimTimeout 重推一次、每次命中缓存跳过，循环永不收敛。
               log.info(`SSE 消息已在缓存中，补确认后跳过: ${cacheKey}`);
               await reAckSentDuplicates(
-                { serverUrl, channel, accountId, token },
+                { serverUrl, channel, accountId, token, tenantCode },
                 // 只确认服务端真实点名过的行：msg_id 缺失时 msgId 是本地 contentHash 回退值，
                 // 拿它去 ack 只会命中 not_found 噪声。
                 data.msg_id ? [{ msg_id: data.msg_id, conversation_id: data.conversation_id || '' }] : [],
@@ -934,7 +938,7 @@ export async function startSSEDelivery(channel, accountId, handlers) {
                     // ackOutbox 不抛错只回 {status:'error'}——两条失败路径都要入重试队列。
                     try {
                       const ackRes = await ackOutbox(
-                        { serverUrl, channel, accountId, token },
+                        { serverUrl, channel, accountId, token, tenantCode },
                         [msgId],
                         { label: `[SSE ack] ${channel}:${convId}`, conversationId: dbConvId }
                       );
@@ -1055,7 +1059,7 @@ export async function startSSEDelivery(channel, accountId, handlers) {
   // pollDownlink 会排水 ⇒ ack 失败入队的条目在默认形态下永不重试，页面一刷新队列即清空。
   // 凭证按次现读，不快照：SSE 侧被 4xx 拒过、重读配置后 token 会换，
   // 排水若还拿启动时那份旧凭证，下行接上了、ack 却永远打不通（行一直留在欠投递集合里）。
-  const ackCred = () => ({ serverUrl, accountId, token });
+  const ackCred = () => ({ serverUrl, accountId, token, tenantCode });
   const ackDrainEveryMs = handlers && handlers.pendingAckDrainIntervalMs
     ? handlers.pendingAckDrainIntervalMs
     : BRIDGE_THREE_CHANNEL.pendingAckDrainIntervalMs;

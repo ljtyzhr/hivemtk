@@ -28,6 +28,7 @@ function getConfig() {
         res[KEY] || {
           serverUrl: DEFAULT_USER_SERVER.baseUrl,
           token: '',
+          tenantCode: '',
           autoConnect: true,
         }
       );

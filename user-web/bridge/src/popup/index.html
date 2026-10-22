@@ -124,6 +124,10 @@
     <input id="token" placeholder="服务端配置了桥接凭证时必填，留空会被全部拒绝（401）" autocomplete="off" />
     <div class="hint">请求以 <code>X-Bridge-Token</code> 头携带该凭证（同时作为 Bearer 透传）。服务端闸门是 fail-closed：一旦配置了凭证，未带凭证的上行/下发/ack 一律 401。凭证由管理员在 HiveMTK 网页端「桥接凭证」页（<code>/bridge/token</code>）点「生成新凭证」取得，只需粘贴一次；网页登录用的 JWT 与此不是同一个值。</div>
 
+    <label for="tenantCode">租户短码 (tenant_code)</label>
+    <input id="tenantCode" placeholder="SaaS 多租户模式必填，如 t42xk" autocomplete="off" />
+    <div class="hint">SaaS 多租户部署下，服务端要靠它或「账号行自证」确定这条私信属于哪个租户；<b>首次上报必填</b>，否则服务端回 404「该渠道账号尚未归属任何租户」。短码在网页端登录后可见（<code>GET /api/tenant/info</code> 的 <code>tenant_code</code>）。离线单机部署留空即可。</div>
+
     <div class="row">
       <button id="save" class="primary">保存并连接</button>
       <button id="test" class="secondary">测试连接</button>

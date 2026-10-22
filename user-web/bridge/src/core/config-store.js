@@ -34,6 +34,7 @@ function buildDefaultConfig() {
   return {
     serverUrl: 'http://localhost:8204',
     token: '',
+    tenantCode: '',
     channel: '',
     accountId: '',
     conversationId: '',
@@ -115,6 +116,9 @@ class ConfigStore extends EventTarget {
     return {
       ...def,
       ...persisted,
+      // tenantCode 归一为字符串：persisted 里存着 null/undefined 时会经展开覆盖掉默认值，
+      // 后面拼 URL 的地方就会把 "null" 当短码发出去。
+      tenantCode: typeof persisted.tenantCode === 'string' ? persisted.tenantCode.trim() : '',
       patrol: { ...def.patrol, ...(persisted.patrol || {}) },
       rate:   { ...def.rate,   ...(persisted.rate || {}) },
       circuit: { ...def.circuit, ...(persisted.circuit || {}) },

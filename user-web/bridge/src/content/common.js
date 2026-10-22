@@ -318,12 +318,12 @@ export function startBridge(channel, buildAdapter) {
 
   try { hydrateSelectors(); } catch (_) {  }
 
-  // 配置读取：每次 submitIngest 提交前调一次，从 chrome.storage 拿 serverUrl/token。
+  // 配置读取：每次 submitIngest 提交前调一次，从 chrome.storage 拿 serverUrl/token/tenantCode。
   // chrome.storage 在 content script 不可用（需要 background 转发）— 但实测可用，
   // 与 background 共享同一 storage.local 命名空间。失败兜底走 DEFAULT_USER_SERVER。
   const getConfig = () => new Promise((resolve) => {
     if (!chrome || !chrome.storage || !chrome.storage.local) {
-      resolve({ serverUrl: DEFAULT_USER_SERVER.baseUrl, token: '' });
+      resolve({ serverUrl: DEFAULT_USER_SERVER.baseUrl, token: '', tenantCode: '' });
       return;
     }
     try {
@@ -331,18 +331,19 @@ export function startBridge(channel, buildAdapter) {
         const err = (chrome.runtime && chrome.runtime.lastError) ? chrome.runtime.lastError : null;
         if (err) {
           log.warn('getConfig 失败（fallback 默认）', err.message);
-          resolve({ serverUrl: DEFAULT_USER_SERVER.baseUrl, token: '' });
+          resolve({ serverUrl: DEFAULT_USER_SERVER.baseUrl, token: '', tenantCode: '' });
           return;
         }
         const cfg = (res && res.bridgeConfig) || {};
         resolve({
           serverUrl: cfg.serverUrl || DEFAULT_USER_SERVER.baseUrl,
           token: cfg.token || '',
+          tenantCode: typeof cfg.tenantCode === 'string' ? cfg.tenantCode.trim() : '',
         });
       });
     } catch (e) {
       log.warn('getConfig 异常（fallback 默认）', e && e.message);
-      resolve({ serverUrl: DEFAULT_USER_SERVER.baseUrl, token: '' });
+      resolve({ serverUrl: DEFAULT_USER_SERVER.baseUrl, token: '', tenantCode: '' });
     }
   });
 
