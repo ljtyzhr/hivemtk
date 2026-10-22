@@ -32,7 +32,7 @@ func setupCustomReportService(t *testing.T, testDB *gorm.DB) *CustomReportServic
 		db:          testDB,
 		reportRepo:  opsrepo.NewCustomReportRepository(),
 		sessionRepo: sysrepo.NewCustomerSessionRepository(),
-		clueRepo:    sysrepo.NewClueRepository(),
+		clueRepo:    sysrepo.NewClueRepositoryWithDB(testDB),
 		userRfmRepo: sysrepo.NewUserRFMRepository(),
 	}
 }
@@ -326,7 +326,7 @@ func TestCustomReportService_GetPublicTemplates_Success(t *testing.T) {
 	}
 	service.CreateReport(ctx, 1, createReq)
 
-	templates, err := service.GetPublicTemplates(ctx, )
+	templates, err := service.GetPublicTemplates(ctx)
 	if err != nil {
 		t.Fatalf("GetPublicTemplates failed: %v", err)
 	}

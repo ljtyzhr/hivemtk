@@ -38,7 +38,7 @@ type clueListEnvelope struct {
 func clueGetList(t *testing.T, query string) (clueListEnvelope, string) {
 	t.Helper()
 	router := gin.New()
-	router.GET("/clues", NewClueController().GetClueList)
+	router.GET("/clues", newTestClueController().GetClueList)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/clues"+query, nil))
 	body := w.Body.String()
@@ -212,7 +212,7 @@ func TestClueController_GetClueList_FilterPushdown(t *testing.T) {
 
 	t.Run("非法 type 不被静默当成没传", func(t *testing.T) {
 		router := gin.New()
-		router.GET("/clues", NewClueController().GetClueList)
+		router.GET("/clues", newTestClueController().GetClueList)
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/clues?page=1&limit=10&type=abc", nil))
 		// 判据只看一件事：不能给回全量 5 条。400 或业务码非 0 都算拦住了。

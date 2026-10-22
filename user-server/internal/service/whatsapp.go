@@ -16,6 +16,7 @@ import (
 
 	gowa "github.com/Rhymen/go-whatsapp"
 	"github.com/google/uuid"
+	"gorm.io/gorm"
 )
 
 type WhatsappService struct {
@@ -27,13 +28,12 @@ type WhatsappService struct {
 	qrs      map[uuid.UUID]string
 }
 
-// NewWhatsappService 创建 WhatsappService。
-// 修复：原构造函数接收 repo 参数导致 controller 越层 new repository，
-// 现改为内部构造 repo，保持五层架构（Controller → Service → Repository）。
-func NewWhatsappService() *WhatsappService {
+// NewWhatsappService 构造服务：线索仓储用装配点注入的连接（db 为 nil 时该依赖不可用，
+// 与调用方显式传入的语义一致，不回落全局句柄）。
+func NewWhatsappService(db *gorm.DB) *WhatsappService {
 	return &WhatsappService{
 		repo:     repository.NewWhatsappRepository(),
-		clueRepo: repository.NewClueRepository(),
+		clueRepo: repository.NewClueRepositoryWithDB(db),
 		conns:    make(map[uuid.UUID]*gowa.Conn),
 		qrs:      make(map[uuid.UUID]string),
 	}

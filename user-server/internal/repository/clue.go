@@ -4,9 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
+
 	"hivemtk-user/internal/model"
-	_db "hivemtk-user/internal/pkg/db"
-	"time"
 
 	"gorm.io/gorm"
 )
@@ -17,47 +17,33 @@ type ClueRepository interface {
 	GetByID(ctx context.Context, id string) (*model.Clue, error)
 	GetClueList(ctx context.Context, page int, limit int) ([]*model.Clue, int64, error)
 	Delete(ctx context.Context, id string) error
-	GetRecentClueList(ctx context.Context) ([]*model.Clue, error)
 	GetClueStatistics(ctx context.Context) ([]map[string]any, error)
 	GetClueAllList(ctx context.Context, clueType int64) ([]*model.Clue, int64, error)
 	GetWhatsappClues(ctx context.Context) ([]*model.Clue, int64, error)
 	ExistsByTypeAndAccount(ctx context.Context, clueType int64, account string) (bool, error)
 	FindByTypeAndAccount(ctx context.Context, clueType int64, account string) (*model.Clue, error)
-	GetDistinctTypes(ctx context.Context) ([]int64, error)
 	UpdateByID(ctx context.Context, id string, updates map[string]any) error
 	ListByAccounts(ctx context.Context, accounts []string) ([]*model.Clue, error)
 	BatchUpdateInTx(ctx context.Context, ids []string, updates map[string]any) (int, error)
 	ListWithQuery(ctx context.Context, q ClueQuery, page, limit int) ([]*model.Clue, int64, error)
 	CountWithQuery(ctx context.Context, q ClueQuery) (int64, error)
-	TypeDistribution(ctx context.Context, q ClueQuery) ([]ClueTypeAgg, error)
-	TrendByDay(ctx context.Context, q ClueQuery) ([]ClueTrendAgg, error)
 }
 
 type clueRepo struct {
 	db *gorm.DB
 }
 
-func NewClueRepository() ClueRepository {
-	return &clueRepo{db: _db.GetDB()}
-}
+// clueDedupChunkSize 批量导入去重查询的分块大小（每块 200 个 (type, account)）。
+const clueDedupChunkSize = 200
 
-// NewClueRepositoryWithDB 创建指定数据库连接的 ClueRepository 实例（用于测试）
+// NewClueRepositoryWithDB 用调用方注入的连接构造仓储（DI 装配点：router / app wiring）。
 func NewClueRepositoryWithDB(db *gorm.DB) ClueRepository {
 	return &clueRepo{db: db}
 }
 
+// Create 纯写入。去重判据属业务规则，由 service 层先查 ExistsByTypeAndAccount 再决定。
 func (r *clueRepo) Create(ctx context.Context, clue *model.Clue) error {
-
-	var count int64
-	db := r.db.WithContext(ctx)
-	err := db.Model(&model.Clue{}).Where("type = ? and account = ?", clue.Type, clue.Account).Count(&count).Error
-	if err != nil {
-		return err
-	}
-	if count > 0 {
-		return errors.New("重复数据")
-	}
-	return db.Create(clue).Error
+	return r.db.WithContext(ctx).Create(clue).Error
 }
 
 func (r *clueRepo) BatchCreateWithDedup(ctx context.Context, clues []*model.Clue) (successCount, skipCount int64, err error) {
@@ -65,9 +51,15 @@ func (r *clueRepo) BatchCreateWithDedup(ctx context.Context, clues []*model.Clue
 		return 0, 0, nil
 	}
 
+	// 空 account 不参与去重：空串会让同类型下所有「没有账号」的线索互相判重，
+	// 批次里的第 2 条起会被当成重复丢掉。
 	seen := make(map[string]struct{}, len(clues))
 	deduped := make([]*model.Clue, 0, len(clues))
 	for _, c := range clues {
+		if strings.TrimSpace(c.Account) == "" {
+			deduped = append(deduped, c)
+			continue
+		}
 		key := fmt.Sprintf("%d|%s", c.Type, c.Account)
 		if _, ok := seen[key]; ok {
 			skipCount++
@@ -83,24 +75,32 @@ func (r *clueRepo) BatchCreateWithDedup(ctx context.Context, clues []*model.Clue
 	}
 	pairs := make([]pair, 0, len(deduped))
 	for _, c := range deduped {
+		if strings.TrimSpace(c.Account) == "" {
+			continue
+		}
 		pairs = append(pairs, pair{Type: c.Type, Account: c.Account})
 	}
 
+	type resultRow struct {
+		Type    int64
+		Account string
+	}
 	existsSet := make(map[string]struct{})
-	if len(pairs) > 0 {
-		db := r.db.WithContext(ctx)
-
+	db := r.db.WithContext(ctx)
+	// 分块查已存在的 (type, account)：一次导入上千行时，单条 OR 链会把 SQL 文本
+	// 撑到几十万字符，PG 解析开销和占位符上限都会成为真问题。
+	for start := 0; start < len(pairs); start += clueDedupChunkSize {
+		end := start + clueDedupChunkSize
+		if end > len(pairs) {
+			end = len(pairs)
+		}
 		conds := db.Model(&model.Clue{})
-		for i, p := range pairs {
+		for i, p := range pairs[start:end] {
 			if i == 0 {
 				conds = conds.Where("(type = ? AND account = ?)", p.Type, p.Account)
 			} else {
 				conds = conds.Or("(type = ? AND account = ?)", p.Type, p.Account)
 			}
-		}
-		type resultRow struct {
-			Type    int64
-			Account string
 		}
 		var rows []resultRow
 		if err := conds.Distinct("type, account").Find(&rows).Error; err != nil {
@@ -141,7 +141,16 @@ func (r *clueRepo) GetByID(ctx context.Context, id string) (*model.Clue, error) 
 	return &clue, nil
 }
 
+// GetClueList 兼容分页接口（新版页面走 ListWithQuery）。
+// page/limit 在这里归一：调用方传 page=0 会算出负 Offset，PG 直接报
+// "OFFSET must not be negative"；limit=0 在 PG 是「不限制」，等于全表。
 func (r *clueRepo) GetClueList(ctx context.Context, page int, limit int) ([]*model.Clue, int64, error) {
+	if page <= 0 {
+		page = 1
+	}
+	if limit <= 0 {
+		limit = 20
+	}
 	var cluelists []*model.Clue
 	var total int64
 	db := r.db.WithContext(ctx)
@@ -149,7 +158,7 @@ func (r *clueRepo) GetClueList(ctx context.Context, page int, limit int) ([]*mod
 	if err != nil {
 		return nil, 0, err
 	}
-	err = db.Offset((page - 1) * limit).Limit(limit).Find(&cluelists).Error
+	err = db.Order("create_time DESC").Offset((page - 1) * limit).Limit(limit).Find(&cluelists).Error
 	if err != nil {
 		return nil, 0, err
 	}
@@ -157,15 +166,6 @@ func (r *clueRepo) GetClueList(ctx context.Context, page int, limit int) ([]*mod
 }
 func (r *clueRepo) Delete(ctx context.Context, id string) error {
 	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&model.Clue{}).Error
-}
-
-func (r *clueRepo) GetRecentClueList(ctx context.Context) ([]*model.Clue, error) {
-	var cluelists []*model.Clue
-
-	var start_time = time.Now().Add(-time.Hour * 48).Unix()
-	var end_time = time.Now().Unix()
-	err := r.db.WithContext(ctx).Where("create_time > ? and create_time < ?", start_time, end_time).Order("create_time desc").Find(&cluelists).Error
-	return cluelists, err
 }
 
 func (r *clueRepo) GetClueStatistics(ctx context.Context) ([]map[string]any, error) {
@@ -237,12 +237,6 @@ func (r *clueRepo) FindByTypeAndAccount(ctx context.Context, clueType int64, acc
 	return &clue, nil
 }
 
-func (r *clueRepo) GetDistinctTypes(ctx context.Context) ([]int64, error) {
-	var types []int64
-	err := r.db.WithContext(ctx).Model(&model.Clue{}).Distinct("type").Pluck("type", &types).Error
-	return types, err
-}
-
 func (r *clueRepo) UpdateByID(ctx context.Context, id string, updates map[string]any) error {
 	if id == "" {
 		return errors.New("线索 ID 不能为空")
@@ -259,6 +253,11 @@ func (r *clueRepo) UpdateByID(ctx context.Context, id string, updates map[string
 	}
 	return nil
 }
+
+// clueListByAccountsLimit ListByAccounts 单次取数上限。
+// 调用方（customer-360）按「当前页客户」反查线索，键集本身有限；设上限只为挡住
+// 上游把整表账号塞进来的调用，避免一次查询把线索表全量载入。
+const clueListByAccountsLimit = 1000
 
 func (r *clueRepo) ListByAccounts(ctx context.Context, accounts []string) ([]*model.Clue, error) {
 	if len(accounts) == 0 {
@@ -283,6 +282,7 @@ func (r *clueRepo) ListByAccounts(ctx context.Context, accounts []string) ([]*mo
 	err := r.db.WithContext(ctx).
 		Where("account IN ? OR name IN ?", unique, unique).
 		Order("create_time DESC").
+		Limit(clueListByAccountsLimit).
 		Find(&clues).Error
 	if err != nil {
 		return nil, err

@@ -2,6 +2,7 @@ package router
 
 import (
 	"hivemtk-user/internal/controller"
+	emailservice "hivemtk-user/internal/email/service"
 	"hivemtk-user/internal/middleware"
 	"hivemtk-user/internal/repository"
 	"hivemtk-user/internal/service"
@@ -144,7 +145,7 @@ func setupLiveCodeRoutes(auth *gin.RouterGroup, liveCodeController *controller.L
 }
 
 func setupEmailRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
-	emailListCtrl := controller.NewEmailListController()
+	emailListCtrl := controller.NewEmailListController(emailservice.NewEmailListService(gormDB))
 	emailSmtpCtrl := controller.NewEmailSmtpController()
 	emailDraftCtrl := controller.NewEmailDraftController()
 	emailJobsCtrl := controller.NewEmailJobsController()

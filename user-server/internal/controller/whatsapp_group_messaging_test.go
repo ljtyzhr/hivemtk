@@ -9,6 +9,7 @@ import (
 
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/db"
+	"hivemtk-user/internal/repository"
 	"hivemtk-user/internal/service"
 
 	"hivemtk-user/internal/pkg/testutil"
@@ -47,8 +48,8 @@ func setupGroupMessagingRouter(ctrl *GroupMessagingController) *gin.Engine {
 
 func TestGroupMessagingController_GetLeadGroups_Success(t *testing.T) {
 	setupGroupMessagingTestDB(t)
-	ctrl := NewGroupMessagingController(service.NewWhatsappService(), nil, nil, nil)
-	ctrl.clueSvc = service.NewClueService()
+	ctrl := NewGroupMessagingController(db.GetDB(), service.NewWhatsappService(db.GetDB()), nil, nil, nil)
+	ctrl.clueSvc = service.NewClueService(repository.NewClueRepositoryWithDB(db.GetDB()), nil)
 	router := setupGroupMessagingRouter(ctrl)
 
 	req, _ := http.NewRequest("GET", "/whatsapp/lead-groups?page=1&limit=10", nil)
@@ -62,7 +63,7 @@ func TestGroupMessagingController_GetLeadGroups_Success(t *testing.T) {
 
 func TestGroupMessagingController_GetTemplates_Success(t *testing.T) {
 	setupGroupMessagingTestDB(t)
-	ctrl := NewGroupMessagingController(service.NewWhatsappService(), nil, nil, nil)
+	ctrl := NewGroupMessagingController(db.GetDB(), service.NewWhatsappService(db.GetDB()), nil, nil, nil)
 	router := setupGroupMessagingRouter(ctrl)
 
 	req, _ := http.NewRequest("GET", "/whatsapp/templates", nil)
@@ -76,7 +77,7 @@ func TestGroupMessagingController_GetTemplates_Success(t *testing.T) {
 
 func TestGroupMessagingController_CreateTemplate_Success(t *testing.T) {
 	setupGroupMessagingTestDB(t)
-	ctrl := NewGroupMessagingController(service.NewWhatsappService(), nil, nil, nil)
+	ctrl := NewGroupMessagingController(db.GetDB(), service.NewWhatsappService(db.GetDB()), nil, nil, nil)
 	router := setupGroupMessagingRouter(ctrl)
 
 	body, _ := json.Marshal(map[string]any{
@@ -96,7 +97,7 @@ func TestGroupMessagingController_CreateTemplate_Success(t *testing.T) {
 
 func TestGroupMessagingController_CreateTemplate_InvalidJSON(t *testing.T) {
 	setupGroupMessagingTestDB(t)
-	ctrl := NewGroupMessagingController(service.NewWhatsappService(), nil, nil, nil)
+	ctrl := NewGroupMessagingController(db.GetDB(), service.NewWhatsappService(db.GetDB()), nil, nil, nil)
 	router := setupGroupMessagingRouter(ctrl)
 
 	req, _ := http.NewRequest("POST", "/whatsapp/templates", bytes.NewReader([]byte("bad")))
@@ -111,7 +112,7 @@ func TestGroupMessagingController_CreateTemplate_InvalidJSON(t *testing.T) {
 
 func TestGroupMessagingController_SelectGroupAndSendMessage_InvalidJSON(t *testing.T) {
 	setupGroupMessagingTestDB(t)
-	ctrl := NewGroupMessagingController(service.NewWhatsappService(), nil, nil, nil)
+	ctrl := NewGroupMessagingController(db.GetDB(), service.NewWhatsappService(db.GetDB()), nil, nil, nil)
 	router := setupGroupMessagingRouter(ctrl)
 
 	req, _ := http.NewRequest("POST", "/whatsapp/group-messaging/send", bytes.NewReader([]byte("bad")))
@@ -126,7 +127,7 @@ func TestGroupMessagingController_SelectGroupAndSendMessage_InvalidJSON(t *testi
 
 func TestGroupMessagingController_GetSendRecords_Success(t *testing.T) {
 	setupGroupMessagingTestDB(t)
-	ctrl := NewGroupMessagingController(service.NewWhatsappService(), nil, nil, nil)
+	ctrl := NewGroupMessagingController(db.GetDB(), service.NewWhatsappService(db.GetDB()), nil, nil, nil)
 	router := setupGroupMessagingRouter(ctrl)
 
 	req, _ := http.NewRequest("GET", "/whatsapp/group-messaging/records?page=1&limit=10", nil)

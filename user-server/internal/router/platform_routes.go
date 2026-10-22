@@ -3,6 +3,7 @@ package router
 import (
 	"hivemtk-user/internal/controller"
 	"hivemtk-user/internal/middleware"
+	"hivemtk-user/internal/repository"
 	"hivemtk-user/internal/service"
 
 	"github.com/gin-gonic/gin"
@@ -10,10 +11,11 @@ import (
 )
 
 func setupWhatsappRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
-	whatsappCtrl := controller.NewWhatsappController()
+	whatsappCtrl := controller.NewWhatsappController(service.NewWhatsappService(gormDB))
 	whatsappGroupMsgCtrl := controller.NewGroupMessagingController(
+		gormDB,
 		whatsappCtrl.GetService(),
-		service.NewClueService(),
+		service.NewClueService(repository.NewClueRepositoryWithDB(gormDB), service.NewClueScoreService(gormDB)),
 		service.NewMessageQueueService(gormDB),
 		service.NewWhatsAppTemplateService(gormDB),
 	)

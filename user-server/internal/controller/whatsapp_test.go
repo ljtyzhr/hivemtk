@@ -9,6 +9,7 @@ import (
 
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/db"
+	"hivemtk-user/internal/service"
 
 	"hivemtk-user/internal/pkg/testutil"
 
@@ -46,7 +47,7 @@ func setupWhatsAppRouter(ctrl *WhatsappController) *gin.Engine {
 
 func TestWhatsappController_ListAccounts_Success(t *testing.T) {
 	setupWhatsAppTestDB(t)
-	ctrl := NewWhatsappController()
+	ctrl := NewWhatsappController(service.NewWhatsappService(db.GetDB()))
 	router := setupWhatsAppRouter(ctrl)
 
 	req, _ := http.NewRequest("GET", "/whatsapp/accounts", nil)
@@ -60,7 +61,7 @@ func TestWhatsappController_ListAccounts_Success(t *testing.T) {
 
 func TestWhatsappController_CreateAccount_InvalidJSON(t *testing.T) {
 	setupWhatsAppTestDB(t)
-	ctrl := NewWhatsappController()
+	ctrl := NewWhatsappController(service.NewWhatsappService(db.GetDB()))
 	router := setupWhatsAppRouter(ctrl)
 
 	req, _ := http.NewRequest("POST", "/whatsapp/accounts", bytes.NewReader([]byte("bad")))
@@ -75,7 +76,7 @@ func TestWhatsappController_CreateAccount_InvalidJSON(t *testing.T) {
 
 func TestWhatsappController_CreateAccount_Success(t *testing.T) {
 	setupWhatsAppTestDB(t)
-	ctrl := NewWhatsappController()
+	ctrl := NewWhatsappController(service.NewWhatsappService(db.GetDB()))
 	router := setupWhatsAppRouter(ctrl)
 
 	body, _ := json.Marshal(map[string]string{"name": "Test WA", "remark": "test"})
@@ -91,7 +92,7 @@ func TestWhatsappController_CreateAccount_Success(t *testing.T) {
 
 func TestWhatsappController_ListDrafts_Success(t *testing.T) {
 	setupWhatsAppTestDB(t)
-	ctrl := NewWhatsappController()
+	ctrl := NewWhatsappController(service.NewWhatsappService(db.GetDB()))
 	router := setupWhatsAppRouter(ctrl)
 
 	req, _ := http.NewRequest("GET", "/whatsapp/drafts", nil)
@@ -105,7 +106,7 @@ func TestWhatsappController_ListDrafts_Success(t *testing.T) {
 
 func TestWhatsappController_CreateDraft_InvalidJSON(t *testing.T) {
 	setupWhatsAppTestDB(t)
-	ctrl := NewWhatsappController()
+	ctrl := NewWhatsappController(service.NewWhatsappService(db.GetDB()))
 	router := setupWhatsAppRouter(ctrl)
 
 	req, _ := http.NewRequest("POST", "/whatsapp/drafts", bytes.NewReader([]byte("bad")))
@@ -120,7 +121,7 @@ func TestWhatsappController_CreateDraft_InvalidJSON(t *testing.T) {
 
 func TestWhatsappController_CreateDraft_Success(t *testing.T) {
 	setupWhatsAppTestDB(t)
-	ctrl := NewWhatsappController()
+	ctrl := NewWhatsappController(service.NewWhatsappService(db.GetDB()))
 	router := setupWhatsAppRouter(ctrl)
 
 	body, _ := json.Marshal(map[string]string{"title": "Test Draft", "content": "Hello"})
@@ -136,7 +137,7 @@ func TestWhatsappController_CreateDraft_Success(t *testing.T) {
 
 func TestWhatsappController_StartLogin_Success(t *testing.T) {
 	setupWhatsAppTestDB(t)
-	ctrl := NewWhatsappController()
+	ctrl := NewWhatsappController(service.NewWhatsappService(db.GetDB()))
 	router := setupWhatsAppRouter(ctrl)
 
 	body, _ := json.Marshal(map[string]string{"account_id": "550e8400-e29b-41d4-a716-446655440000"})
@@ -152,7 +153,7 @@ func TestWhatsappController_StartLogin_Success(t *testing.T) {
 
 func TestWhatsappController_LoginStatus_Success(t *testing.T) {
 	setupWhatsAppTestDB(t)
-	ctrl := NewWhatsappController()
+	ctrl := NewWhatsappController(service.NewWhatsappService(db.GetDB()))
 	router := setupWhatsAppRouter(ctrl)
 
 	req, _ := http.NewRequest("GET", "/whatsapp/accounts/550e8400-e29b-41d4-a716-446655440000/login-status", nil)
@@ -166,7 +167,7 @@ func TestWhatsappController_LoginStatus_Success(t *testing.T) {
 
 func TestWhatsappController_CreateJob_InvalidJSON(t *testing.T) {
 	setupWhatsAppTestDB(t)
-	ctrl := NewWhatsappController()
+	ctrl := NewWhatsappController(service.NewWhatsappService(db.GetDB()))
 	router := setupWhatsAppRouter(ctrl)
 
 	req, _ := http.NewRequest("POST", "/whatsapp/jobs", bytes.NewReader([]byte("bad")))

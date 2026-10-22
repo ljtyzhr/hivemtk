@@ -19,10 +19,9 @@ func (c *WhatsappController) GetService() *service.WhatsappService {
 	return c.svc
 }
 
-// NewWhatsappController 创建 WhatsApp 控制器
-// 修复：移除 controller 越层 new repository，由 service 内部构造
-func NewWhatsappController() *WhatsappController {
-	return &WhatsappController{svc: service.NewWhatsappService()}
+// NewWhatsappController 创建 WhatsApp 控制器（服务由装配点注入）
+func NewWhatsappController(svc *service.WhatsappService) *WhatsappController {
+	return &WhatsappController{svc: svc}
 }
 
 // Accounts

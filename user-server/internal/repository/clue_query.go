@@ -23,20 +23,6 @@ type ClueQuery struct {
 	EndUnix       int64
 }
 
-// ClueTypeAgg 按类型聚合结果
-type ClueTypeAgg struct {
-	Type        int64 `gorm:"column:type"`
-	Total       int64 `gorm:"column:total"`
-	VerifyTotal int64 `gorm:"column:verify_total"`
-}
-
-// ClueTrendAgg 按天聚合结果
-type ClueTrendAgg struct {
-	Date     string `gorm:"column:date"`
-	Count    int64  `gorm:"column:count"`
-	Verified int64  `gorm:"column:verified"`
-}
-
 func applyClueQuery(db *gorm.DB, q ClueQuery) *gorm.DB {
 	tx := db
 	if kw := strings.TrimSpace(q.Keyword); kw != "" {
@@ -107,31 +93,4 @@ func (r *clueRepo) CountWithQuery(ctx context.Context, q ClueQuery) (int64, erro
 	tx := applyClueQuery(r.db.WithContext(ctx).Model(&model.Clue{}), q)
 	err := tx.Count(&total).Error
 	return total, err
-}
-
-func (r *clueRepo) TypeDistribution(ctx context.Context, q ClueQuery) ([]ClueTypeAgg, error) {
-	var rows []ClueTypeAgg
-	tx := applyClueQuery(r.db.WithContext(ctx).Model(&model.Clue{}), q)
-	err := tx.Select("type AS type, COUNT(*) AS total, COALESCE(SUM(CASE WHEN COALESCE(is_verify,0) >= 1 THEN 1 ELSE 0 END), 0) AS verify_total").
-		Group("type").Order("type").Scan(&rows).Error
-	if err != nil {
-		return nil, err
-	}
-	return rows, nil
-}
-
-func (r *clueRepo) TrendByDay(ctx context.Context, q ClueQuery) ([]ClueTrendAgg, error) {
-	var rows []ClueTrendAgg
-	tx := applyClueQuery(r.db.WithContext(ctx).Model(&model.Clue{}), q)
-
-	const dayExpr = "to_char(to_timestamp(create_time), 'YYYY-MM-DD')"
-	err := tx.Select(
-		dayExpr + " AS date, " +
-			"COUNT(*) AS count, " +
-			"COALESCE(SUM(CASE WHEN COALESCE(is_verify,0) >= 1 THEN 1 ELSE 0 END), 0) AS verified",
-	).Group(dayExpr).Order(dayExpr).Scan(&rows).Error
-	if err != nil {
-		return nil, err
-	}
-	return rows, nil
 }

@@ -37,11 +37,13 @@ type Customer360Service struct {
 	aiTagger    *AITagger
 }
 
-func NewCustomer360Service() *Customer360Service {
+// NewCustomer360Service 构造客户 360 服务。
+// db 用于线索仓储（本实体链路要求显式注入）；其余仓储仍走各自域既有的构造口。
+func NewCustomer360Service(db *gorm.DB) *Customer360Service {
 	return &Customer360Service{
 		sessionRepo:      repository.NewCustomerSessionRepository(),
 		messageRepo:      repository.NewSessionMessageRepository(),
-		clueRepo:         repository.NewClueRepository(),
+		clueRepo:         repository.NewClueRepositoryWithDB(db),
 		orderRepo:        repository.NewOrderRepository(),
 		unifiedMsgRepo:   repository.NewUnifiedMessageRepository(),
 		unifiedReplyRepo: repository.NewUnifiedReplyRepository(),

@@ -17,9 +17,11 @@ import (
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/pkg/utils/pagination"
 	"hivemtk-user/internal/pkg/utils/response"
+	"hivemtk-user/internal/repository"
 	"hivemtk-user/internal/service"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 // GroupMessagingController WhatsApp 群发消息控制器
@@ -34,23 +36,26 @@ type GroupMessagingController struct {
 	queueRunning atomic.Bool
 }
 
+// NewGroupMessagingController 构造控制器。
+// db 只用于给缺省依赖建仓储（显式注入，不摸全局句柄）；显式传入的服务优先。
 func NewGroupMessagingController(
+	db *gorm.DB,
 	whatsappSvc *service.WhatsappService,
 	clueSvc *service.ClueService,
 	messageQueue *service.MessageQueueService,
 	templateService *service.WhatsAppTemplateService,
 ) *GroupMessagingController {
 	if whatsappSvc == nil {
-		whatsappSvc = service.NewWhatsappService()
+		whatsappSvc = service.NewWhatsappService(db)
 	}
 	if clueSvc == nil {
-		clueSvc = service.NewClueService()
+		clueSvc = service.NewClueService(repository.NewClueRepositoryWithDB(db), nil)
 	}
 	if templateService == nil {
-		templateService = service.NewWhatsAppTemplateService(nil)
+		templateService = service.NewWhatsAppTemplateService(db)
 	}
 	if messageQueue == nil {
-		messageQueue = service.NewMessageQueueService(nil)
+		messageQueue = service.NewMessageQueueService(db)
 	}
 	return &GroupMessagingController{
 		whatsappService: whatsappSvc,

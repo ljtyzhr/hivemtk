@@ -15,6 +15,8 @@ import (
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
+
+	"gorm.io/gorm"
 )
 
 const (
@@ -62,15 +64,16 @@ type Service struct {
 
 var singleton *Service
 
-// NewLeadMiningService 构造并启动线索发掘服务（后台 worker，非阻塞）
-func NewLeadMiningService() *Service {
+// NewLeadMiningService 构造并启动线索发掘服务（后台 worker，非阻塞）。
+// db 用于线索仓储的显式注入（不摸全局句柄）。
+func NewLeadMiningService(db *gorm.DB) *Service {
 	ctx, cancel := context.WithCancel(context.Background())
 	s := &Service{
 		queue:     make(chan *model.MessageHub, leadMiningQueueSize),
 		workers:   leadMiningWorkers,
 		judge:     &dispatcherJudge{},
 		custRepo:  repository.NewCustomerRepository(),
-		clueRepo:  repository.NewClueRepository(),
+		clueRepo:  repository.NewClueRepositoryWithDB(db),
 		cfgRepo:   repository.NewLeadMiningConfigRepository(),
 		hubRepo:   repository.NewMessageHubRepository(),
 		lastJudge: make(map[string]time.Time),

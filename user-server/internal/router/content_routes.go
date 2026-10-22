@@ -6,8 +6,11 @@ import (
 	"hivemtk-user/internal/controller"
 	"hivemtk-user/internal/middleware"
 	dbutil "hivemtk-user/internal/pkg/db"
+	"hivemtk-user/internal/repository"
+	"hivemtk-user/internal/service"
 
 	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 )
 
 func setupMaterialRoutes(auth *gin.RouterGroup) {
@@ -33,8 +36,10 @@ func setupMaterialRoutes(auth *gin.RouterGroup) {
 	}
 }
 
-func setupClueRoutes(auth *gin.RouterGroup) {
-	clueCtrl := controller.NewClueController()
+func setupClueRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
+	clueRepo := repository.NewClueRepositoryWithDB(gormDB)
+	clueScoreSvc := service.NewClueScoreService(gormDB)
+	clueCtrl := controller.NewClueController(service.NewClueService(clueRepo, clueScoreSvc))
 	auth.GET("/clue/list", clueCtrl.GetClueList)
 	auth.GET("/clue/statistics", clueCtrl.GetClueStatistics)
 	auth.GET("/clues/list", clueCtrl.GetClueList)
@@ -47,7 +52,7 @@ func setupClueRoutes(auth *gin.RouterGroup) {
 		clueAdmin.POST("/clues/import", clueCtrl.ImportClues)
 	}
 
-	clueScoreCtrl := controller.NewClueScoreController()
+	clueScoreCtrl := controller.NewClueScoreController(clueScoreSvc)
 	auth.POST("/clue/score", middleware.RequirePermission("clues.write"), clueScoreCtrl.ScoreClue)
 	auth.POST("/clue/score-all", middleware.RequirePermission("clues.write"), clueScoreCtrl.ScoreAll)
 	auth.GET("/clue/score/:clue_id", clueScoreCtrl.GetByClueID)

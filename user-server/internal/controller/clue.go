@@ -15,8 +15,8 @@ type ClueController struct {
 	svc *service.ClueService
 }
 
-func NewClueController() *ClueController {
-	return &ClueController{svc: service.NewClueService()}
+func NewClueController(svc *service.ClueService) *ClueController {
+	return &ClueController{svc: svc}
 }
 
 // GetClueList godoc

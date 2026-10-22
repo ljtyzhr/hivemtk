@@ -19,9 +19,9 @@ type EmailListController struct {
 	svc *email.EmailListService
 }
 
-// NewEmailListController 创建列表控制器实例
-func NewEmailListController() *EmailListController {
-	return &EmailListController{svc: email.NewEmailListService()}
+// NewEmailListController 创建列表控制器实例（服务由装配点注入）
+func NewEmailListController(svc *email.EmailListService) *EmailListController {
+	return &EmailListController{svc: svc}
 }
 
 // CreateEmailList 创建列表

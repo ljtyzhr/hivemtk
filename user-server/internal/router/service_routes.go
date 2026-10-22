@@ -95,7 +95,7 @@ func setupCustomerServiceRoutes(auth *gin.RouterGroup, aiAgentSvc *service.AIAge
 	wsHandler.SetLangResolver(langResolver)
 	auth.GET("/ws/agent", wsHandler.HandleWebSocket)
 
-	customer360Ctrl := controller.NewCustomer360Controller()
+	customer360Ctrl := controller.NewCustomer360Controller(service.NewCustomer360Service(db))
 	auth.GET("/customer-360", customer360Ctrl.GetCustomer360)
 	auth.GET("/customer-360/list", customer360Ctrl.GetCustomerList)
 	auth.GET("/customer-360/basic", customer360Ctrl.GetCustomerBasicInfo)

@@ -23,7 +23,7 @@ func setupClueTestDB(t *testing.T) *gorm.DB {
 func TestClueRepository_New(t *testing.T) {
 	setupClueTestDB(t)
 
-	repo := NewClueRepository()
+	repo := NewClueRepositoryWithDB(db.GetDB())
 	if repo == nil {
 		t.Fatal("Expected non-nil repository")
 	}
@@ -32,7 +32,7 @@ func TestClueRepository_New(t *testing.T) {
 func TestClueRepository_Create(t *testing.T) {
 	setupClueTestDB(t)
 
-	repo := NewClueRepository()
+	repo := NewClueRepositoryWithDB(db.GetDB())
 	ctx := context.Background()
 
 	clue := &model.Clue{
@@ -56,10 +56,13 @@ func TestClueRepository_Create(t *testing.T) {
 	}
 }
 
-func TestClueRepository_Create_Duplicate(t *testing.T) {
+// TestClueRepository_CreateIsPureInsert 仓储不做 (type, account) 去重。
+// 去重判据属业务规则，由 service.Register 先查后写；这一条把分层边界钉住，
+// 避免以后有人把 Count 检查又塞回仓储。
+func TestClueRepository_CreateIsPureInsert(t *testing.T) {
 	setupClueTestDB(t)
 
-	repo := NewClueRepository()
+	repo := NewClueRepositoryWithDB(db.GetDB())
 	ctx := context.Background()
 
 	clue := &model.Clue{
@@ -69,9 +72,7 @@ func TestClueRepository_Create_Duplicate(t *testing.T) {
 		IsVerify: 0,
 		Name:     "Test User",
 	}
-
-	err := repo.Create(ctx, clue)
-	if err != nil {
+	if err := repo.Create(ctx, clue); err != nil {
 		t.Fatalf("First Create failed: %v", err)
 	}
 
@@ -82,17 +83,22 @@ func TestClueRepository_Create_Duplicate(t *testing.T) {
 		IsVerify: 0,
 		Name:     "Another User",
 	}
-
-	err = repo.Create(ctx, clue2)
-	if err == nil {
-		t.Error("Expected error for duplicate clue")
+	if err := repo.Create(ctx, clue2); err != nil {
+		t.Fatalf("仓储应只负责写入（去重在 service 层），实际报错: %v", err)
+	}
+	var n int64
+	if err := db.GetDB().Model(&model.Clue{}).Where("type = ? AND account = ?", 1, "test@example.com").Count(&n).Error; err != nil {
+		t.Fatalf("计数失败: %v", err)
+	}
+	if n != 2 {
+		t.Errorf("应写入 2 行（仓储不做去重），实际 %d", n)
 	}
 }
 
 func TestClueRepository_GetClueList(t *testing.T) {
 	setupClueTestDB(t)
 
-	repo := NewClueRepository()
+	repo := NewClueRepositoryWithDB(db.GetDB())
 	ctx := context.Background()
 
 	for i := 0; i < 10; i++ {
@@ -122,7 +128,7 @@ func TestClueRepository_GetClueList(t *testing.T) {
 func TestClueRepository_GetClueList_Empty(t *testing.T) {
 	setupClueTestDB(t)
 
-	repo := NewClueRepository()
+	repo := NewClueRepositoryWithDB(db.GetDB())
 
 	clues, total, err := repo.GetClueList(context.Background(), 1, 10)
 	if err != nil {
@@ -141,7 +147,7 @@ func TestClueRepository_GetClueList_Empty(t *testing.T) {
 func TestClueRepository_ExistsByTypeAndAccount(t *testing.T) {
 	setupClueTestDB(t)
 
-	repo := NewClueRepository()
+	repo := NewClueRepositoryWithDB(db.GetDB())
 	ctx := context.Background()
 
 	clue := &model.Clue{
@@ -165,7 +171,7 @@ func TestClueRepository_ExistsByTypeAndAccount(t *testing.T) {
 func TestClueRepository_ExistsByTypeAndAccount_NotExists(t *testing.T) {
 	setupClueTestDB(t)
 
-	repo := NewClueRepository()
+	repo := NewClueRepositoryWithDB(db.GetDB())
 
 	exists, err := repo.ExistsByTypeAndAccount(context.Background(), 1, "nonexistent@example.com")
 	if err != nil {
@@ -180,7 +186,7 @@ func TestClueRepository_ExistsByTypeAndAccount_NotExists(t *testing.T) {
 func TestClueRepository_ExistsByTypeAndAccount_DifferentType(t *testing.T) {
 	setupClueTestDB(t)
 
-	repo := NewClueRepository()
+	repo := NewClueRepositoryWithDB(db.GetDB())
 	ctx := context.Background()
 
 	clue := &model.Clue{
@@ -204,7 +210,7 @@ func TestClueRepository_ExistsByTypeAndAccount_DifferentType(t *testing.T) {
 func TestClueRepository_Create_VariousTypes(t *testing.T) {
 	setupClueTestDB(t)
 
-	repo := NewClueRepository()
+	repo := NewClueRepositoryWithDB(db.GetDB())
 	ctx := context.Background()
 
 	for i := 0; i < 5; i++ {
@@ -234,7 +240,7 @@ func TestClueRepository_Create_VariousTypes(t *testing.T) {
 func TestClueRepository_Create_VariousAccounts(t *testing.T) {
 	setupClueTestDB(t)
 
-	repo := NewClueRepository()
+	repo := NewClueRepositoryWithDB(db.GetDB())
 	ctx := context.Background()
 
 	for i := 0; i < 5; i++ {
@@ -264,7 +270,7 @@ func TestClueRepository_Create_VariousAccounts(t *testing.T) {
 func TestClueRepository_Create_WithAllFields(t *testing.T) {
 	setupClueTestDB(t)
 
-	repo := NewClueRepository()
+	repo := NewClueRepositoryWithDB(db.GetDB())
 	ctx := context.Background()
 
 	clue := &model.Clue{
@@ -296,7 +302,7 @@ func TestClueRepository_Create_WithAllFields(t *testing.T) {
 func TestClueRepository_Create_LargeBatch(t *testing.T) {
 	setupClueTestDB(t)
 
-	repo := NewClueRepository()
+	repo := NewClueRepositoryWithDB(db.GetDB())
 	ctx := context.Background()
 
 	for i := 0; i < 50; i++ {
@@ -326,7 +332,7 @@ func TestClueRepository_Create_LargeBatch(t *testing.T) {
 func TestClueRepository_GetClueList_SecondPage(t *testing.T) {
 	setupClueTestDB(t)
 
-	repo := NewClueRepository()
+	repo := NewClueRepositoryWithDB(db.GetDB())
 	ctx := context.Background()
 
 	for i := 0; i < 20; i++ {

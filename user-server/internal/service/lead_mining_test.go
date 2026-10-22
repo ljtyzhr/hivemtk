@@ -154,16 +154,12 @@ func (f *fakeClueRepo) ListByAccount(context.Context, string, int, int) ([]*mode
 	return nil, 0, nil
 }
 func (f *fakeClueRepo) Delete(context.Context, string) error { return nil }
-func (f *fakeClueRepo) GetRecentClueList(context.Context) ([]*model.Clue, error) {
-	return nil, nil
-}
 func (f *fakeClueRepo) GetClueStatistics(context.Context) ([]map[string]any, error) {
 	return nil, nil
 }
 func (f *fakeClueRepo) GetClueAllList(context.Context, int64) ([]*model.Clue, int64, error) {
 	return nil, 0, nil
 }
-func (f *fakeClueRepo) GetDistinctTypes(context.Context) ([]int64, error) { return nil, nil }
 func (f *fakeClueRepo) ListByAccounts(context.Context, []string) ([]*model.Clue, error) {
 	return nil, nil
 }
@@ -181,12 +177,6 @@ func (f *fakeClueRepo) ListWithQuery(context.Context, repository.ClueQuery, int,
 }
 func (f *fakeClueRepo) CountWithQuery(context.Context, repository.ClueQuery) (int64, error) {
 	return 0, nil
-}
-func (f *fakeClueRepo) TypeDistribution(context.Context, repository.ClueQuery) ([]repository.ClueTypeAgg, error) {
-	return nil, nil
-}
-func (f *fakeClueRepo) TrendByDay(context.Context, repository.ClueQuery) ([]repository.ClueTrendAgg, error) {
-	return nil, nil
 }
 
 type fakeCfgRepo struct {

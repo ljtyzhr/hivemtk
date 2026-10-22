@@ -12,6 +12,8 @@ import (
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
+
+	"gorm.io/gorm"
 )
 
 // ClueScoreService 线索评分服务
@@ -24,12 +26,12 @@ type ClueScoreService struct {
 	clueRepo   repository.ClueRepository
 }
 
-// NewClueScoreService 创建线索评分服务实例
-func NewClueScoreService() *ClueScoreService {
+// NewClueScoreService 用装配点注入的连接创建线索评分服务
+func NewClueScoreService(db *gorm.DB) *ClueScoreService {
 	return &ClueScoreService{
-		scoreRepo:  repository.NewClueScoreRepository(),
-		engageRepo: repository.NewClueEngagementRepository(),
-		clueRepo:   repository.NewClueRepository(),
+		scoreRepo:  repository.NewClueScoreRepositoryWithDB(db),
+		engageRepo: repository.NewClueEngagementRepositoryWithDB(db),
+		clueRepo:   repository.NewClueRepositoryWithDB(db),
 	}
 }
 
@@ -299,22 +301,21 @@ func (s *ClueScoreService) ListTopByScore(ctx context.Context, limit int) ([]*mo
 	return s.scoreRepo.ListTopByScore(ctx, limit)
 }
 
-// LoadClueForScoring 加载线索对象（用于评分）
-// 通过 clue list 拉取（兼容 string ID 主键）
+// LoadClueForScoring 加载线索对象（用于评分）。
+// 直接按主键取一行：此前是先拉前 500 条再在内存里找，线索超过 500 条后
+// 排在后面的线索会被判成「线索不存在」。
 func (s *ClueScoreService) LoadClueForScoring(ctx context.Context, clueID string) (*model.Clue, error) {
 	if clueID == "" {
 		return nil, errors.New("clue_id 不能为空")
 	}
-	clues, _, err := s.clueRepo.GetClueList(ctx, 1, 500)
+	clue, err := s.clueRepo.GetByID(ctx, clueID)
 	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, errors.New("线索不存在")
+		}
 		return nil, err
 	}
-	for _, c := range clues {
-		if c.ID == clueID {
-			return c, nil
-		}
-	}
-	return nil, errors.New("线索不存在")
+	return clue, nil
 }
 
 func scoreChannel(clueType int64) int {

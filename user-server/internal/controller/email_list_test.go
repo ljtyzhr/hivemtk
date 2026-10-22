@@ -8,6 +8,7 @@ import (
 	"testing"
 
 	"hivemtk-user/internal/dto"
+	email "hivemtk-user/internal/email/service"
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/db"
 
@@ -23,7 +24,7 @@ func setupEmailListController(t *testing.T) (*EmailListController, *gin.Engine) 
 		&model.EmailList{},
 	)
 	db.SetTestDB(database)
-	ctrl := NewEmailListController()
+	ctrl := NewEmailListController(email.NewEmailListService(db.GetDB()))
 	router := gin.New()
 	return ctrl, router
 }
@@ -316,7 +317,7 @@ func TestEmailListController_TraceEmail_Success(t *testing.T) {
 
 // TestEmailListController_NewEmailListController 测试构造函数
 func TestEmailListController_NewEmailListController(t *testing.T) {
-	ctrl := NewEmailListController()
+	ctrl := NewEmailListController(email.NewEmailListService(db.GetDB()))
 	if ctrl == nil {
 		t.Error("Expected controller instance, got nil")
 	}
@@ -352,7 +353,7 @@ func setupEmailListRouter_Merged(ctrl *EmailListController) *gin.Engine {
 // TestEmailListController_GetList_MergedSuccess 测试列表接口(合并自 email_extra_test.go)
 func TestEmailListController_GetList_MergedSuccess(t *testing.T) {
 	setupEmailTestDB_Merged(t)
-	ctrl := NewEmailListController()
+	ctrl := NewEmailListController(email.NewEmailListService(db.GetDB()))
 	router := setupEmailListRouter_Merged(ctrl)
 
 	req, _ := http.NewRequest("GET", "/email/list?page=1&limit=10", nil)
@@ -367,7 +368,7 @@ func TestEmailListController_GetList_MergedSuccess(t *testing.T) {
 // TestEmailListController_Create_MergedInvalidJSON 测试无效 JSON(合并自 email_extra_test.go)
 func TestEmailListController_Create_MergedInvalidJSON(t *testing.T) {
 	setupEmailTestDB_Merged(t)
-	ctrl := NewEmailListController()
+	ctrl := NewEmailListController(email.NewEmailListService(db.GetDB()))
 	router := setupEmailListRouter_Merged(ctrl)
 
 	req, _ := http.NewRequest("POST", "/email/list", bytes.NewReader([]byte("bad")))
@@ -383,7 +384,7 @@ func TestEmailListController_Create_MergedInvalidJSON(t *testing.T) {
 // TestEmailListController_Create_MergedSuccess 测试创建成功(合并自 email_extra_test.go)
 func TestEmailListController_Create_MergedSuccess(t *testing.T) {
 	setupEmailTestDB_Merged(t)
-	ctrl := NewEmailListController()
+	ctrl := NewEmailListController(email.NewEmailListService(db.GetDB()))
 	router := setupEmailListRouter_Merged(ctrl)
 
 	body, _ := json.Marshal(map[string]any{
@@ -405,7 +406,7 @@ func TestEmailListController_Create_MergedSuccess(t *testing.T) {
 // TestEmailListController_Delete_MergedSuccess 测试删除成功(合并自 email_extra_test.go)
 func TestEmailListController_Delete_MergedSuccess(t *testing.T) {
 	setupEmailTestDB_Merged(t)
-	ctrl := NewEmailListController()
+	ctrl := NewEmailListController(email.NewEmailListService(db.GetDB()))
 	router := setupEmailListRouter_Merged(ctrl)
 
 	req, _ := http.NewRequest("DELETE", "/email/list/550e8400-e29b-41d4-a716-446655440000", nil)
@@ -420,7 +421,7 @@ func TestEmailListController_Delete_MergedSuccess(t *testing.T) {
 // TestEmailListController_GetDetail_MergedSuccess 测试详情接口(合并自 email_extra_test.go)
 func TestEmailListController_GetDetail_MergedSuccess(t *testing.T) {
 	setupEmailTestDB_Merged(t)
-	ctrl := NewEmailListController()
+	ctrl := NewEmailListController(email.NewEmailListService(db.GetDB()))
 	router := setupEmailListRouter_Merged(ctrl)
 
 	req, _ := http.NewRequest("GET", "/email/list/550e8400-e29b-41d4-a716-446655440000", nil)

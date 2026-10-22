@@ -25,7 +25,7 @@ func setupClueScoreTestDB(t *testing.T) *gorm.DB {
 func TestClueScoreService_ScoreClue_Verify(t *testing.T) {
 	_ = setupClueScoreTestDB(t)
 
-	svc := NewClueScoreService()
+	svc := NewClueScoreService(db.GetDB())
 	clue := &model.Clue{
 		ID:         "test-clue-1",
 		Account:    "acc-1",
@@ -55,7 +55,7 @@ func TestClueScoreService_ScoreClue_Verify(t *testing.T) {
 func TestClueScoreService_ScoreClue_LowQuality(t *testing.T) {
 	_ = setupClueScoreTestDB(t)
 
-	svc := NewClueScoreService()
+	svc := NewClueScoreService(db.GetDB())
 	clue := &model.Clue{
 		ID:       "test-clue-2",
 		Account:  "acc-2",
@@ -74,7 +74,7 @@ func TestClueScoreService_ScoreClue_LowQuality(t *testing.T) {
 func TestClueScoreService_ScoreClue_ChannelScore(t *testing.T) {
 	_ = setupClueScoreTestDB(t)
 
-	svc := NewClueScoreService()
+	svc := NewClueScoreService(db.GetDB())
 	c1 := &model.Clue{ID: "c-phone", Account: "a1", Type: 3, IsVerify: 1, Name: "A"}
 	c2 := &model.Clue{ID: "c-tw", Account: "a2", Type: 6, IsVerify: 1, Name: "A"}
 
@@ -89,7 +89,7 @@ func TestClueScoreService_ScoreClue_ChannelScore(t *testing.T) {
 func TestClueScoreService_RecordEngagement(t *testing.T) {
 	_ = setupClueScoreTestDB(t)
 
-	svc := NewClueScoreService()
+	svc := NewClueScoreService(db.GetDB())
 	err := svc.RecordEngagement(context.Background(), "c-eng-1", "reply", "wechat", map[string]any{"k": "v"})
 	if err != nil {
 		t.Fatalf("RecordEngagement failed: %v", err)
@@ -99,7 +99,7 @@ func TestClueScoreService_RecordEngagement(t *testing.T) {
 func TestClueScoreService_GetByClueID(t *testing.T) {
 	_ = setupClueScoreTestDB(t)
 
-	svc := NewClueScoreService()
+	svc := NewClueScoreService(db.GetDB())
 	clue := &model.Clue{ID: "c-get", Account: "a", Type: 2, IsVerify: 1, Name: "A"}
 	created, err := svc.ScoreClue(context.Background(), clue)
 	if err != nil {
@@ -118,7 +118,7 @@ func TestClueScoreService_GetByClueID(t *testing.T) {
 func TestClueScoreService_ListByGrade(t *testing.T) {
 	_ = setupClueScoreTestDB(t)
 
-	svc := NewClueScoreService()
+	svc := NewClueScoreService(db.GetDB())
 	svc.ScoreClue(context.Background(), &model.Clue{ID: "g1", Account: "g1", Type: 3, IsVerify: 1, Name: "A", City: "B", Address: "C", Desc: "D"})
 	svc.ScoreClue(context.Background(), &model.Clue{ID: "g2", Account: "g2", Type: 6, IsVerify: 0})
 
@@ -137,7 +137,7 @@ func TestClueScoreService_ListByGrade(t *testing.T) {
 func TestClueScoreService_LoadClueForScoring(t *testing.T) {
 	_ = setupClueScoreTestDB(t)
 
-	svc := NewClueScoreService()
+	svc := NewClueScoreService(db.GetDB())
 	clue := &model.Clue{Account: "la", Type: 2, IsVerify: 1, Name: "load"}
 	err := svc.clueRepo.Create(context.Background(), clue)
 	if err != nil {
@@ -159,7 +159,7 @@ func TestClueScoreService_LoadClueForScoring(t *testing.T) {
 func TestClueScoreService_LoadClueForScoring_NotFound(t *testing.T) {
 	_ = setupClueScoreTestDB(t)
 
-	svc := NewClueScoreService()
+	svc := NewClueScoreService(db.GetDB())
 	_, err := svc.LoadClueForScoring(context.Background(), "non-existent")
 	if err == nil {
 		t.Error("expected error for non-existent clue")

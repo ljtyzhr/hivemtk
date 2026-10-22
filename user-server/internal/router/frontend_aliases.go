@@ -8,6 +8,7 @@ import (
 	contentctrl "hivemtk-user/internal/content/controller"
 	contentService "hivemtk-user/internal/content/service"
 	"hivemtk-user/internal/controller"
+	emailservice "hivemtk-user/internal/email/service"
 	"hivemtk-user/internal/middleware"
 	opsctrl "hivemtk-user/internal/ops/controller"
 	"hivemtk-user/internal/repository"
@@ -86,12 +87,13 @@ func setupFrontendAliases(auth, systemAdmin *gin.RouterGroup, engine *gin.Engine
 	notifCtrl := controller.NewNotificationController(service.NewNotificationService(gormDB))
 	doReg("GET", "/notifications/list", notifCtrl.List)
 
-	clueCtrl := controller.NewClueController()
+	clueRepo := repository.NewClueRepositoryWithDB(gormDB)
+	clueCtrl := controller.NewClueController(service.NewClueService(clueRepo, service.NewClueScoreService(gormDB)))
 	doReg("GET", "/clues", clueCtrl.GetClueList)
 	doReg("GET", "/clues/import", clueCtrl.GetClueTypes)
 	doReg("GET", "/clue-statistics/overview", clueCtrl.GetClueStatistics)
 
-	customer360Ctrl := controller.NewCustomer360Controller()
+	customer360Ctrl := controller.NewCustomer360Controller(service.NewCustomer360Service(gormDB))
 
 	doReg("GET", "/customer-tags", customer360Ctrl.GetCustomerTags)
 	doReg("PUT", "/customer-tags", customer360Ctrl.UpdateCustomerTags)
@@ -238,7 +240,7 @@ func setupFrontendAliases(auth, systemAdmin *gin.RouterGroup, engine *gin.Engine
 	doReg("GET", "/sales-champions/list", personaCtrl.ListStaffs)
 	doReg("GET", "/sales-champions/:id", personaCtrl.GetReport)
 
-	emailListCtrl := controller.NewEmailListController()
+	emailListCtrl := controller.NewEmailListController(emailservice.NewEmailListService(gormDB))
 	doReg("GET", "/email/lists", emailListCtrl.GetEmailListList)
 	doReg("GET", "/email/lists/list", emailListCtrl.GetEmailListList)
 	doReg("GET", "/email/lists/:id", emailListCtrl.GetEmailListDetail)

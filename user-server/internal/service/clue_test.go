@@ -2,8 +2,10 @@ package service
 
 import (
 	"context"
+	"hivemtk-user/internal/dto"
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/db"
+	"hivemtk-user/internal/repository"
 	"testing"
 
 	"hivemtk-user/internal/pkg/testutil"
@@ -20,7 +22,7 @@ func setupClueServiceTestDB(t *testing.T) *gorm.DB {
 }
 
 func TestNewClueService(t *testing.T) {
-	service := NewClueService()
+	service := NewClueService(repository.NewClueRepositoryWithDB(db.GetDB()), nil)
 	if service == nil {
 		t.Error("Expected non-nil service")
 	}
@@ -29,7 +31,7 @@ func TestNewClueService(t *testing.T) {
 func TestClueService_Register(t *testing.T) {
 	setupClueServiceTestDB(t)
 
-	service := NewClueService()
+	service := NewClueService(repository.NewClueRepositoryWithDB(db.GetDB()), nil)
 
 	clue := model.Clue{
 		SourceID: "source123",
@@ -63,7 +65,7 @@ func TestClueService_Register(t *testing.T) {
 func TestClueService_Register_Duplicate(t *testing.T) {
 	setupClueServiceTestDB(t)
 
-	service := NewClueService()
+	service := NewClueService(repository.NewClueRepositoryWithDB(db.GetDB()), nil)
 
 	clue1 := model.Clue{
 		SourceID: "source123",
@@ -97,7 +99,7 @@ func TestClueService_Register_Duplicate(t *testing.T) {
 func TestClueService_GetClue(t *testing.T) {
 	setupClueServiceTestDB(t)
 
-	service := NewClueService()
+	service := NewClueService(repository.NewClueRepositoryWithDB(db.GetDB()), nil)
 
 	clue := model.Clue{
 		SourceID: "source123",
@@ -107,7 +109,7 @@ func TestClueService_GetClue(t *testing.T) {
 	}
 	registered, _ := service.Register(context.Background(), clue)
 
-	clues, total, _ := service.GetClueList(context.Background(), 1, 10)
+	clues, total, _ := service.ListWithQuery(context.Background(), dto.GetClueRequest{Page: 1, PageSize: 10})
 	if total != 1 {
 		t.Fatalf("Expected 1 clue, got %d", total)
 	}
@@ -117,21 +119,10 @@ func TestClueService_GetClue(t *testing.T) {
 	}
 }
 
-func TestClueService_GetClue_NotFound(t *testing.T) {
+func TestClueService_ListWithQuery(t *testing.T) {
 	setupClueServiceTestDB(t)
 
-	service := NewClueService()
-
-	_, err := service.GetClue(context.Background(), "non-existent-id")
-	if err == nil {
-		t.Error("Expected error for non-existent clue")
-	}
-}
-
-func TestClueService_GetClueList(t *testing.T) {
-	setupClueServiceTestDB(t)
-
-	service := NewClueService()
+	service := NewClueService(repository.NewClueRepositoryWithDB(db.GetDB()), nil)
 
 	for i := 0; i < 5; i++ {
 		clue := model.Clue{
@@ -143,9 +134,9 @@ func TestClueService_GetClueList(t *testing.T) {
 		service.Register(context.Background(), clue)
 	}
 
-	clues, total, err := service.GetClueList(context.Background(), 1, 10)
+	clues, total, err := service.ListWithQuery(context.Background(), dto.GetClueRequest{Page: 1, PageSize: 10})
 	if err != nil {
-		t.Fatalf("GetClueList failed: %v", err)
+		t.Fatalf("ListWithQuery failed: %v", err)
 	}
 
 	if total != 5 {
@@ -157,10 +148,10 @@ func TestClueService_GetClueList(t *testing.T) {
 	}
 }
 
-func TestClueService_GetClueList_Pagination(t *testing.T) {
+func TestClueService_ListWithQuery_Pagination(t *testing.T) {
 	setupClueServiceTestDB(t)
 
-	service := NewClueService()
+	service := NewClueService(repository.NewClueRepositoryWithDB(db.GetDB()), nil)
 
 	for i := 0; i < 10; i++ {
 		clue := model.Clue{
@@ -172,9 +163,9 @@ func TestClueService_GetClueList_Pagination(t *testing.T) {
 		service.Register(context.Background(), clue)
 	}
 
-	clues, total, err := service.GetClueList(context.Background(), 1, 5)
+	clues, total, err := service.ListWithQuery(context.Background(), dto.GetClueRequest{Page: 1, PageSize: 5})
 	if err != nil {
-		t.Fatalf("GetClueList failed: %v", err)
+		t.Fatalf("ListWithQuery failed: %v", err)
 	}
 
 	if total != 10 {
@@ -189,7 +180,7 @@ func TestClueService_GetClueList_Pagination(t *testing.T) {
 func TestClueService_DeleteClue(t *testing.T) {
 	setupClueServiceTestDB(t)
 
-	service := NewClueService()
+	service := NewClueService(repository.NewClueRepositoryWithDB(db.GetDB()), nil)
 
 	clue := model.Clue{
 		SourceID: "source123",
@@ -204,7 +195,7 @@ func TestClueService_DeleteClue(t *testing.T) {
 		t.Logf("DeleteClue returned error (known repository bug): %v", err)
 	}
 
-	_, total, _ := service.GetClueList(context.Background(), 1, 10)
+	_, total, _ := service.ListWithQuery(context.Background(), dto.GetClueRequest{Page: 1, PageSize: 10})
 	if total == 0 {
 		t.Log("Delete succeeded")
 	} else {
@@ -212,32 +203,10 @@ func TestClueService_DeleteClue(t *testing.T) {
 	}
 }
 
-func TestClueService_GetRecentClueList(t *testing.T) {
-	setupClueServiceTestDB(t)
-
-	service := NewClueService()
-
-	clue := model.Clue{
-		SourceID: "source123",
-		Account:  "test_account",
-		Type:     1,
-		Name:     "Recent Clue",
-	}
-	service.Register(context.Background(), clue)
-
-	clues, err := service.GetRecentClueList(context.Background())
-	if err != nil {
-		t.Logf("GetRecentClueList returned error: %v", err)
-		return
-	}
-
-	t.Logf("GetRecentClueList returned %d clues", len(clues))
-}
-
 func TestClueService_GetClueStatistics(t *testing.T) {
 	setupClueServiceTestDB(t)
 
-	service := NewClueService()
+	service := NewClueService(repository.NewClueRepositoryWithDB(db.GetDB()), nil)
 
 	for i := 0; i < 3; i++ {
 		clue := model.Clue{
@@ -272,76 +241,10 @@ func TestClueService_GetClueStatistics(t *testing.T) {
 	}
 }
 
-func TestClueService_BatchSaveClue(t *testing.T) {
-	setupClueServiceTestDB(t)
-
-	service := NewClueService()
-
-	clueList := []*model.Clue{
-		{
-			SourceID: "source1",
-			Account:  "account1",
-			Type:     1,
-			Name:     "Batch Clue 1",
-		},
-		{
-			SourceID: "source2",
-			Account:  "account2",
-			Type:     1,
-			Name:     "Batch Clue 2",
-		},
-		{
-			SourceID: "source3",
-			Account:  "account3",
-			Type:     2,
-			Name:     "Batch Clue 3",
-		},
-	}
-
-	err := service.BatchSaveClue(context.Background(), clueList)
-	if err != nil {
-		t.Fatalf("BatchSaveClue failed: %v", err)
-	}
-
-	clues, total, _ := service.GetClueList(context.Background(), 1, 10)
-	if total != 3 {
-		t.Errorf("Expected 3 clues, got %d", total)
-	}
-	if len(clues) != 3 {
-		t.Errorf("Expected 3 clues in list, got %d", len(clues))
-	}
-}
-
-func TestClueService_BatchSaveClue_WithDuplicate(t *testing.T) {
-	setupClueServiceTestDB(t)
-
-	service := NewClueService()
-
-	clueList := []*model.Clue{
-		{
-			SourceID: "source1",
-			Account:  "account1",
-			Type:     1,
-			Name:     "Batch Clue 1",
-		},
-		{
-			SourceID: "source2",
-			Account:  "account1",
-			Type:     1,
-			Name:     "Duplicate Clue",
-		},
-	}
-
-	err := service.BatchSaveClue(context.Background(), clueList)
-	if err == nil {
-		t.Error("Expected error for duplicate in batch")
-	}
-}
-
 func TestClueService_GetClueAllList(t *testing.T) {
 	setupClueServiceTestDB(t)
 
-	service := NewClueService()
+	service := NewClueService(repository.NewClueRepositoryWithDB(db.GetDB()), nil)
 
 	for i := 0; i < 3; i++ {
 		clue := model.Clue{
@@ -381,7 +284,7 @@ func TestClueService_GetClueAllList(t *testing.T) {
 func TestClueService_BatchImportClues(t *testing.T) {
 	setupClueServiceTestDB(t)
 
-	service := NewClueService()
+	service := NewClueService(repository.NewClueRepositoryWithDB(db.GetDB()), nil)
 
 	clues := []*model.Clue{
 		{
@@ -421,7 +324,7 @@ func TestClueService_BatchImportClues(t *testing.T) {
 func TestClueService_BatchImportClues_WithSkip(t *testing.T) {
 	setupClueServiceTestDB(t)
 
-	service := NewClueService()
+	service := NewClueService(repository.NewClueRepositoryWithDB(db.GetDB()), nil)
 
 	clue1 := model.Clue{
 		SourceID: "source1",

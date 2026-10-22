@@ -23,10 +23,10 @@ type Customer360Controller struct {
 	tagRuleSvc         *service.TagRuleService
 }
 
-// NewCustomer360Controller 创建客户 360° 视图控制器
-func NewCustomer360Controller() *Customer360Controller {
+// NewCustomer360Controller 创建客户 360° 视图控制器（主服务由装配点注入）
+func NewCustomer360Controller(customer360Service *service.Customer360Service) *Customer360Controller {
 	return &Customer360Controller{
-		customer360Service: service.NewCustomer360Service(),
+		customer360Service: customer360Service,
 		userTagSvc:         service.NewUserTagService(),
 		userProfileSvc:     service.NewUserProfileService(),
 		tagRuleSvc:         service.NewTagRuleService(),

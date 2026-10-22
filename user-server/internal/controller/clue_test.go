@@ -10,6 +10,8 @@ import (
 	"hivemtk-user/internal/dto"
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/db"
+	"hivemtk-user/internal/repository"
+	"hivemtk-user/internal/service"
 
 	"hivemtk-user/internal/pkg/testutil"
 
@@ -25,9 +27,14 @@ func setupClueTestDB(t *testing.T) *gorm.DB {
 	return database
 }
 
+// newTestClueController 用当前测试库构造控制器（显式注入，不依赖全局构造器）。
+func newTestClueController() *ClueController {
+	return NewClueController(service.NewClueService(repository.NewClueRepositoryWithDB(db.GetDB()), nil))
+}
+
 func setupClueController(t *testing.T) (*ClueController, *gin.Engine) {
 	setupClueTestDB(t)
-	ctrl := NewClueController()
+	ctrl := newTestClueController()
 	router := gin.New()
 
 	return ctrl, router
@@ -36,7 +43,7 @@ func setupClueController(t *testing.T) (*ClueController, *gin.Engine) {
 // TestClueController_GetClueList_Success 测试获取线索列表成功
 func TestClueController_GetClueList_Success(t *testing.T) {
 	database := setupClueTestDB(t)
-	ctrl := NewClueController()
+	ctrl := newTestClueController()
 	router := gin.New()
 
 	clues := []*model.Clue{
@@ -91,7 +98,7 @@ func TestClueController_GetClueList_InvalidParams(t *testing.T) {
 // TestClueController_DeleteClue_Success 测试删除线索成功
 func TestClueController_DeleteClue_Success(t *testing.T) {
 	database := setupClueTestDB(t)
-	ctrl := NewClueController()
+	ctrl := newTestClueController()
 	router := gin.New()
 
 	clue := &model.Clue{SourceID: "src-1", Account: "acc1", Name: "线索 1", City: "北京", Type: 1, IsVerify: 0}
@@ -141,7 +148,7 @@ func TestClueController_DeleteClue_NotFound(t *testing.T) {
 // TestClueController_GetClueStatistics_Success 测试获取线索统计成功
 func TestClueController_GetClueStatistics_Success(t *testing.T) {
 	database := setupClueTestDB(t)
-	ctrl := NewClueController()
+	ctrl := newTestClueController()
 	router := gin.New()
 
 	clues := []*model.Clue{
@@ -259,7 +266,7 @@ func TestClueController_ImportClues_InvalidType(t *testing.T) {
 
 // TestClueController_NewClueController 测试构造函数
 func TestClueController_NewClueController(t *testing.T) {
-	ctrl := NewClueController()
+	ctrl := newTestClueController()
 	if ctrl == nil {
 		t.Error("Expected controller instance, got nil")
 	}

@@ -14,9 +14,9 @@ type ClueScoreController struct {
 	svc *service.ClueScoreService
 }
 
-// NewClueScoreController 创建线索评分控制器
-func NewClueScoreController() *ClueScoreController {
-	return &ClueScoreController{svc: service.NewClueScoreService()}
+// NewClueScoreController 创建线索评分控制器（服务由装配点注入）
+func NewClueScoreController(svc *service.ClueScoreService) *ClueScoreController {
+	return &ClueScoreController{svc: svc}
 }
 
 // ScoreClue 评分单条线索

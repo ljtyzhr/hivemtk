@@ -5,6 +5,7 @@ import (
 	"fmt"
 	email "hivemtk-user/internal/email/service"
 	"hivemtk-user/internal/model"
+	dbpkg "hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/pkg/mail"
 	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
@@ -87,7 +88,7 @@ func EmailListCron() {
 			logger.Errorf("[email_list_cron] panic recovered: %v\n%s", r, debug.Stack())
 		}
 	}()
-	emailListService := email.NewEmailListService()
+	emailListService := email.NewEmailListService(dbpkg.GetDB())
 
 	deps := emailRowDeps{
 		smtp:        email.NewEmailSmtpService(),

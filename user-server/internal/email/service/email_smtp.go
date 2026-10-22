@@ -6,6 +6,7 @@ import (
 	"hivemtk-user/internal/dto"
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/crypto"
+	dbpkg "hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/repository"
 )
 
@@ -65,7 +66,7 @@ func (s *EmailSmtpService) GetRandEmailSmtp(ctx context.Context) (*model.EmailSm
 			emailSmtpList[i].Password = dec
 		}
 	}
-	emailListService := NewEmailListService()
+	emailListService := NewEmailListService(dbpkg.GetDB())
 	for _, emailSmtp := range emailSmtpList {
 		// 记账键必须是 Username：email_list.from 落的是发信账号，读展示名等于永远数到 0，
 		// Limit 形同不存在（日上限是唯一挡着发信域被拉黑的闸门）。

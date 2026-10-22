@@ -94,7 +94,7 @@ func TestLeadMining_Integration_FullPipeline(t *testing.T) {
 	s := &Service{
 		judge:     judge,
 		custRepo:  repository.NewCustomerRepository(),
-		clueRepo:  repository.NewClueRepository(),
+		clueRepo:  repository.NewClueRepositoryWithDB(database),
 		cfgRepo:   cfgRepo,
 		hubRepo:   hubRepo,
 		lastJudge: map[string]time.Time{},
@@ -168,7 +168,7 @@ func TestLeadMining_Integration_NotLead(t *testing.T) {
 	s := &Service{
 		judge:     judge,
 		custRepo:  repository.NewCustomerRepository(),
-		clueRepo:  repository.NewClueRepository(),
+		clueRepo:  repository.NewClueRepositoryWithDB(database),
 		cfgRepo:   cfgRepo,
 		lastJudge: map[string]time.Time{},
 	}
@@ -214,7 +214,7 @@ func TestLeadMining_Integration_AsyncEnqueue(t *testing.T) {
 		workers:   1,
 		judge:     judge,
 		custRepo:  repository.NewCustomerRepository(),
-		clueRepo:  repository.NewClueRepository(),
+		clueRepo:  repository.NewClueRepositoryWithDB(database),
 		cfgRepo:   cfgRepo,
 		hubRepo:   hubRepo,
 		cancel:    cancel,
@@ -276,7 +276,7 @@ func TestLeadMining_Integration_Debounce(t *testing.T) {
 	s := &Service{
 		judge:     judge,
 		custRepo:  repository.NewCustomerRepository(),
-		clueRepo:  repository.NewClueRepository(),
+		clueRepo:  repository.NewClueRepositoryWithDB(database),
 		cfgRepo:   cfgRepo,
 		hubRepo:   hubRepo,
 		lastJudge: map[string]time.Time{},

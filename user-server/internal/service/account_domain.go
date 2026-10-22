@@ -50,12 +50,10 @@ func (s *ClueService) BatchImportCluesFromDTO(ctx context.Context, reqs []dto.Im
 		return success, skipped, err
 	}
 
-	if success > 0 {
-		// 评分是导入后的尽力而为补算。仓库在请求上下文里构造，把已取到的库句柄交进协程体：
-		// 在协程体内构造会撞上「测试 cleanup 已把全局句柄置 nil」这一窗，
-		// gorm 在 nil 句柄上直接解引用 ⇒ 整个测试二进制 panic。
-		scoreSvc := NewClueScoreService()
-		go s.scoreImportedClues(tenant.BackgroundWithTenant(ctx), scoreSvc, clues)
+	if success > 0 && s.scoreSvc != nil {
+		// 评分是导入后的尽力而为补算。评分服务随 ClueService 在装配点注入，
+		// 不在请求/协程体里现造（那会退回全局句柄，测试 cleanup 置 nil 后直接 panic）。
+		go s.scoreImportedClues(tenant.BackgroundWithTenant(ctx), s.scoreSvc, clues)
 	}
 	return success, skipped, nil
 }

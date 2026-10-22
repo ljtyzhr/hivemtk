@@ -2,32 +2,46 @@ package service
 
 import (
 	"context"
+	"errors"
+	"strings"
+
 	"hivemtk-user/internal/dto"
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/repository"
 )
 
+// ClueService 线索域业务服务。
+//
+// 依赖在装配点注入：repo 由 router/app 用显式连接构造，
+// scoreSvc 可为 nil（未注入时导入后不补算评分）。
 type ClueService struct {
-	repo repository.ClueRepository
+	repo     repository.ClueRepository
+	scoreSvc *ClueScoreService
 }
 
-func NewClueService() *ClueService {
-	return &ClueService{repo: repository.NewClueRepository()}
+func NewClueService(repo repository.ClueRepository, scoreSvc *ClueScoreService) *ClueService {
+	return &ClueService{repo: repo, scoreSvc: scoreSvc}
 }
 
+// Register 建线索。(type, account) 去重是业务判据，放在这里：
+// 仓储只负责写入，不再在 SQL 层偷偷加一条查询。
+//
+// 空 account 不参与去重：空串会让同类型下所有「没有账号」的线索互相判重，
+// 第一条之后全部被拒（邮件列表等链路本来就存在空账号的线索）。
 func (s *ClueService) Register(ctx context.Context, clue model.Clue) (*model.Clue, error) {
+	if strings.TrimSpace(clue.Account) != "" {
+		exists, err := s.repo.ExistsByTypeAndAccount(ctx, clue.Type, clue.Account)
+		if err != nil {
+			return nil, err
+		}
+		if exists {
+			return nil, errors.New("重复数据")
+		}
+	}
 	if err := s.repo.Create(ctx, &clue); err != nil {
 		return nil, err
 	}
 	return &clue, nil
-}
-
-func (s *ClueService) GetClue(ctx context.Context, id string) (*model.Clue, error) {
-	return s.repo.GetByID(ctx, id)
-}
-
-func (s *ClueService) GetClueList(ctx context.Context, page int, limit int) ([]*model.Clue, int64, error) {
-	return s.repo.GetClueList(ctx, page, limit)
 }
 
 // ListWithQuery 带筛选条件的分页查询：筛选在 DB 侧完成，total 与筛选同口径。
@@ -46,20 +60,9 @@ func (s *ClueService) ListWithQuery(ctx context.Context, req dto.GetClueRequest)
 func (s *ClueService) DeleteClue(ctx context.Context, id string) error {
 	return s.repo.Delete(ctx, id)
 }
-func (s *ClueService) GetRecentClueList(ctx context.Context) ([]*model.Clue, error) {
-	return s.repo.GetRecentClueList(ctx)
-}
 
 func (s *ClueService) GetClueStatistics(ctx context.Context) ([]map[string]any, error) {
 	return s.repo.GetClueStatistics(ctx)
-}
-func (s *ClueService) BatchSaveClue(ctx context.Context, clueList []*model.Clue) error {
-	for _, clue := range clueList {
-		if _, err := s.Register(ctx, *clue); err != nil {
-			return err
-		}
-	}
-	return nil
 }
 
 func (s *ClueService) GetClueAllList(ctx context.Context, clueType int64) ([]*model.Clue, int64, error) {

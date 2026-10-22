@@ -34,7 +34,7 @@ func setupCustomer360TestDB(t *testing.T) *gorm.DB {
 func setupCustomer360Router(t *testing.T, db *gorm.DB) *gin.Engine {
 	gin.SetMode(gin.TestMode)
 
-	customer360Service := service.NewCustomer360Service()
+	customer360Service := service.NewCustomer360Service(db)
 
 	controller := &Customer360Controller{
 		customer360Service: customer360Service,

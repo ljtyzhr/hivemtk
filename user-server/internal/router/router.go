@@ -19,6 +19,7 @@ import (
 	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/tracing"
 	"hivemtk-user/internal/pkg/utils/logger"
+	"hivemtk-user/internal/platform"
 	"hivemtk-user/internal/repository"
 	"hivemtk-user/internal/service"
 	"hivemtk-user/internal/service/trace_learning"
@@ -492,7 +493,7 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 
 		setupMaterialRoutes(auth)
 
-		setupClueRoutes(auth)
+		setupClueRoutes(auth, gormDB)
 		SetupGeoRoutes(auth, gormDB)
 		SetupBrowserAutomationRoutes(auth, r, gormDB)
 		setupLeadMiningRoutes(auth)
@@ -727,6 +728,12 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 		bridgeAccountCtrl := controller.NewBridgeAccountController()
 		bridgeAccountCtrl.RegisterRoutes(auth)
 
+		// 桥接扩展安装包下载口：浏览器扩展不上架商店，平台运营上传、租户在此下载。
+		// 平台关闭时该服务返回"当前部署未接入平台"，不是 500。
+		controller.NewBridgeExtensionController(
+			service.NewBridgeExtensionService(platform.NewPlatformAPIClient()),
+		).RegisterRoutes(auth)
+
 		if bridgeIngressSvc != nil && webhookSvc != nil {
 			bridgeIngressSvc.SetAITrigger(webhookSvc)
 			webhookSvc.SetIngressSvc(bridgeIngressSvc)
@@ -735,7 +742,7 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 		if bridgeIngressSvc != nil {
 			bridgeIngressSvc.SetInboxService(service.NewInboxService())
 			logger.Infof("[Bridge] bridge InboxService 已注入（统一收件箱会话同步已连通）")
-			bridgeIngressSvc.SetLeadMining(service.NewLeadMiningService())
+			bridgeIngressSvc.SetLeadMining(service.NewLeadMiningService(gormDB))
 			logger.Infof("[Bridge] bridge LeadMining 已注入（线索发掘异步监听已连通）")
 		}
 
