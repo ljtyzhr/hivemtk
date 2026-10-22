@@ -2,15 +2,15 @@ package response
 
 import (
 	"errors"
-	"net/http"
-	"strings"
-
+	"github.com/gin-gonic/gin"
+	"gorm.io/gorm"
 	"hivemtk-user/internal/pkg/i18n"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/logger"
+	"net/http"
+	"strings"
 
-	"github.com/gin-gonic/gin"
-	"gorm.io/gorm"
+	bizerr "hivemtk-user/internal/domain/errors"
 )
 
 // LocaleOf 从 gin 上下文解析请求语言（由 LocaleMiddleware 注入，缺省回退中文）。
@@ -172,6 +172,25 @@ func ErrorFromDB(c *gin.Context, err error, fallbackMsg string, data ...any) {
 	}
 	if errors.Is(err, utils.ErrForbidden) {
 		Error(c, http.StatusForbidden, fallbackMsg, data...)
+		return
+	}
+	// 上游/渠道失败**不是**"记录不存在"（与 errhttp.isNotFoundError 同一条判据）。
+	//
+	// 下面那条按文本判定的分支里含 "not found"/"不存在"，而渠道原文常自带这些词
+	// —— 阿里云短信回 "Specified access key is not found." ——
+	// 于是"密钥填错了"会落成 404「记录不存在」，把操作者引去查记录而不是改密钥。
+	// 错误自己声明了它是上游失败（bizerr 5xxx）时，走 502 而不是 404。
+	//
+	// 消息用 BizError 自己的文案（里面带渠道给的原因，如"凭证无效"），
+	// 不退回 fallbackMsg：fallbackMsg 只有"发送草稿失败"这种操作名，
+	// 把真正的原因（密钥错了 / 渠道不可达）吞掉，操作者还得再翻日志。
+	if bizerr.IsUpstreamFailure(err) {
+		msg := fallbackMsg
+		var be *bizerr.BizError
+		if errors.As(err, &be) && be.Message != "" {
+			msg = be.Message
+		}
+		Error(c, http.StatusBadGateway, msg, data...)
 		return
 	}
 	if strings.Contains(msg, "record not found") || strings.Contains(msg, "not found") || strings.Contains(msg, "不存在") {

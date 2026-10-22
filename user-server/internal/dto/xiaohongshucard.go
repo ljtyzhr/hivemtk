@@ -8,7 +8,7 @@ type XiaohongshuCardCreateRequest struct {
 	RedirectURL  string `json:"redirect_url"`
 	DomainPoolID *uint  `json:"domain_pool_id"`
 	Tags         string `json:"tags" binding:"omitempty,max=255"`
-	IsActive     bool   `json:"is_active"`
+	IsActive     *bool  `json:"is_active"`
 }
 
 // XiaohongshuCardUpdateRequest 更新小红书卡片请求
@@ -21,7 +21,7 @@ type XiaohongshuCardUpdateRequest struct {
 	DomainPoolID *uint  `json:"domain_pool_id"`
 	Tags         string `json:"tags" binding:"omitempty,max=255"`
 	ViewCount    int    `json:"view_count"`
-	IsActive     bool   `json:"is_active"`
+	IsActive     *bool  `json:"is_active"`
 }
 
 // XiaohongshuCardListRequest 小红书卡片列表请求

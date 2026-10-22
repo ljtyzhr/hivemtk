@@ -80,7 +80,14 @@ func (r *smsRepository) SaveConfig(ctx context.Context, config *model.SmsConfig)
 		}
 		return err
 	}
+	// Save 写**全部字段**（含零值），所以必须把库里的 tenant_id 带过来：
+	// 调用方传进来的 config 是新建的零值 model（tenant_id=0），
+	// 直接 Save 等于把这一行的租户改写成 0 —— 多租户模式下 tenant 回调
+	// 会当场拒掉（"更新不可改写 tenant_id（上下文租户 1，SET 值 0）"），
+	// 独立部署模式（TENANT_MODE=off）没有这层校验，于是同一个接口在
+	// SaaS 下 500、私域下 200 —— 正是这次多租户改造要暴露的那类差异。
 	config.ID = existing.ID
+	config.TenantID = existing.TenantID
 	return r.db.WithContext(ctx).Save(config).Error
 }
 
@@ -105,7 +112,14 @@ func (r *smsRepository) SaveAliyunConfig(ctx context.Context, config *model.SmsA
 		}
 		return err
 	}
+	// Save 写**全部字段**（含零值），所以必须把库里的 tenant_id 带过来：
+	// 调用方传进来的 config 是新建的零值 model（tenant_id=0），
+	// 直接 Save 等于把这一行的租户改写成 0 —— 多租户模式下 tenant 回调
+	// 会当场拒掉（"更新不可改写 tenant_id（上下文租户 1，SET 值 0）"），
+	// 独立部署模式（TENANT_MODE=off）没有这层校验，于是同一个接口在
+	// SaaS 下 500、私域下 200 —— 正是这次多租户改造要暴露的那类差异。
 	config.ID = existing.ID
+	config.TenantID = existing.TenantID
 	return r.db.WithContext(ctx).Save(config).Error
 }
 
@@ -130,7 +144,14 @@ func (r *smsRepository) SaveTencentConfig(ctx context.Context, config *model.Sms
 		}
 		return err
 	}
+	// Save 写**全部字段**（含零值），所以必须把库里的 tenant_id 带过来：
+	// 调用方传进来的 config 是新建的零值 model（tenant_id=0），
+	// 直接 Save 等于把这一行的租户改写成 0 —— 多租户模式下 tenant 回调
+	// 会当场拒掉（"更新不可改写 tenant_id（上下文租户 1，SET 值 0）"），
+	// 独立部署模式（TENANT_MODE=off）没有这层校验，于是同一个接口在
+	// SaaS 下 500、私域下 200 —— 正是这次多租户改造要暴露的那类差异。
 	config.ID = existing.ID
+	config.TenantID = existing.TenantID
 	return r.db.WithContext(ctx).Save(config).Error
 }
 
@@ -155,7 +176,14 @@ func (r *smsRepository) SaveHuaweiConfig(ctx context.Context, config *model.SmsH
 		}
 		return err
 	}
+	// Save 写**全部字段**（含零值），所以必须把库里的 tenant_id 带过来：
+	// 调用方传进来的 config 是新建的零值 model（tenant_id=0），
+	// 直接 Save 等于把这一行的租户改写成 0 —— 多租户模式下 tenant 回调
+	// 会当场拒掉（"更新不可改写 tenant_id（上下文租户 1，SET 值 0）"），
+	// 独立部署模式（TENANT_MODE=off）没有这层校验，于是同一个接口在
+	// SaaS 下 500、私域下 200 —— 正是这次多租户改造要暴露的那类差异。
 	config.ID = existing.ID
+	config.TenantID = existing.TenantID
 	return r.db.WithContext(ctx).Save(config).Error
 }
 

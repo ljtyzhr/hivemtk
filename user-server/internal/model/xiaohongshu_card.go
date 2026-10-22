@@ -18,7 +18,7 @@ type XiaohongshuCard struct {
 	DomainPoolID *uint     `json:"domain_pool_id" gorm:""`
 	Tags         string    `gorm:"size:255" json:"tags"`
 	ViewCount    int       `gorm:"default:0" json:"view_count"`
-	IsActive     bool      `gorm:"default:true" json:"is_active"`
+	IsActive     bool      `json:"is_active"`
 	CreatedAt    time.Time `json:"created_at"`
 	UpdatedAt    time.Time `json:"updated_at"`
 }

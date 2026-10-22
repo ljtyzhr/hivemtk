@@ -1191,8 +1191,11 @@ func TestSmsController_PauseJob_NotRunning(t *testing.T) {
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
-	if w.Code != http.StatusInternalServerError {
-		t.Errorf("Expected status Internal Server Error, got %d, body: %s", w.Code, w.Body.String())
+	// 状态不对是**业务校验**失败，不是数据库出错 ⇒ 400（由 HandleServiceError 给出）。
+	// 曾经走 HandleDBError 落成 500，把"只能暂停运行中的任务"这个真正的原因吞成
+	// 一句"暂停任务失败"，客户端还会把 500 当服务端故障去重试。
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("状态不对应回 400，实际 %d，body: %s", w.Code, w.Body.String())
 	}
 }
 
@@ -1235,8 +1238,9 @@ func TestSmsController_ResumeJob_NotPaused(t *testing.T) {
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
-	if w.Code != http.StatusInternalServerError {
-		t.Errorf("Expected status Internal Server Error, got %d, body: %s", w.Code, w.Body.String())
+	// 状态不对是**业务校验**失败 ⇒ 400（HandleServiceError），不是 500。
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("状态不对应回 400，实际 %d，body: %s", w.Code, w.Body.String())
 	}
 }
 
@@ -1279,8 +1283,9 @@ func TestSmsController_StopJob_AlreadyCompleted(t *testing.T) {
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
-	if w.Code != http.StatusInternalServerError {
-		t.Errorf("Expected status Internal Server Error, got %d, body: %s", w.Code, w.Body.String())
+	// 状态不对是**业务校验**失败 ⇒ 400（HandleServiceError），不是 500。
+	if w.Code != http.StatusBadRequest {
+		t.Errorf("状态不对应回 400，实际 %d，body: %s", w.Code, w.Body.String())
 	}
 }
 

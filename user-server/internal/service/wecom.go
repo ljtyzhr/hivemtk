@@ -173,16 +173,20 @@ func (s *WeComService) UpdateAccount(ctx context.Context, id uint, req *CreateAc
 	account.CorpID = req.CorpID
 	account.AgentID = req.AgentID
 	// 密钥类字段空串=保留原值（前端虽然从列表回填明文，但密钥不该被意外清空）
-	if req.CorpSecret != "" {
+	//
+	// 掩码串同样=保留原值：出参已脱敏（见 controller/wecom_secret_mask.go），
+	// 前端编辑弹窗把列表里回填的掩码串原样提交回来。若照单全收，
+	// 保存一次就把真密钥覆盖成 "****" —— 账号直接废掉。
+	if req.CorpSecret != "" && !isMaskedSecretValue(req.CorpSecret) {
 		account.CorpSecret = req.CorpSecret
 	}
-	if req.AgentSecret != "" {
+	if req.AgentSecret != "" && !isMaskedSecretValue(req.AgentSecret) {
 		account.AgentSecret = req.AgentSecret
 	}
-	if req.CallbackToken != "" {
+	if req.CallbackToken != "" && !isMaskedSecretValue(req.CallbackToken) {
 		account.CallbackToken = req.CallbackToken
 	}
-	if req.EncodingAESKey != "" {
+	if req.EncodingAESKey != "" && !isMaskedSecretValue(req.EncodingAESKey) {
 		account.EncodingAESKey = req.EncodingAESKey
 	}
 	account.WebhookEnabled = req.WebhookEnabled

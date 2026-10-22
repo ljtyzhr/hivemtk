@@ -59,7 +59,7 @@ func (s *tiktokCardService) Create(ctx context.Context, req *dto.TikTokCardCreat
 		RedirectURL:  redirectURL,
 		DomainPoolID: req.DomainPoolID,
 		Tags:         req.Tags,
-		IsActive:     req.IsActive,
+		IsActive:     dto.BoolPtrOrDefaultTrue(req.IsActive),
 	}
 
 	created, err := s.repo.Create(ctx, card)
@@ -97,7 +97,9 @@ func (s *tiktokCardService) Update(ctx context.Context, req *dto.TikTokCardUpdat
 	card.ViewCount = req.ViewCount
 	card.LikeCount = req.LikeCount
 	card.ShareCount = req.ShareCount
-	card.IsActive = req.IsActive
+	if req.IsActive != nil {
+		card.IsActive = *req.IsActive
+	}
 
 	updated, err := s.repo.Update(ctx, card)
 	if err != nil {

@@ -451,6 +451,13 @@ func (c *SmsController) CreateJob(ctx *gin.Context) {
 }
 
 // PauseJob 暂停任务
+// PauseJob 暂停任务。
+//
+// 用 HandleServiceError 而不是 HandleDBError：这三个状态迁移（暂停/继续/停止）
+// 的失败大半是**业务校验**（"只能暂停运行中的任务"、"只能停止已暂停的任务"），
+// 不是数据库出错。走 HandleDBError 的话，这类校验失败会落成 500 + 一句
+// "暂停任务失败"，把真正的原因（当前状态是什么、期望状态是什么）吞掉，
+// 客户端还会把 500 当服务端故障去重试。
 func (c *SmsController) PauseJob(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 32)
@@ -459,7 +466,7 @@ func (c *SmsController) PauseJob(ctx *gin.Context) {
 		return
 	}
 
-	if HandleDBError(ctx, c.service.PauseJob(ctx.Request.Context(), uint(id)), "暂停任务") {
+	if HandleServiceError(ctx, c.service.PauseJob(ctx.Request.Context(), uint(id))) {
 		return
 	}
 
@@ -475,7 +482,7 @@ func (c *SmsController) ResumeJob(ctx *gin.Context) {
 		return
 	}
 
-	if HandleDBError(ctx, c.service.ResumeJob(ctx.Request.Context(), uint(id)), "继续任务") {
+	if HandleServiceError(ctx, c.service.ResumeJob(ctx.Request.Context(), uint(id))) {
 		return
 	}
 
@@ -491,7 +498,7 @@ func (c *SmsController) StopJob(ctx *gin.Context) {
 		return
 	}
 
-	if HandleDBError(ctx, c.service.StopJob(ctx.Request.Context(), uint(id)), "停止任务") {
+	if HandleServiceError(ctx, c.service.StopJob(ctx.Request.Context(), uint(id))) {
 		return
 	}
 

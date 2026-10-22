@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"hivemtk-user/internal/dto"
@@ -41,7 +42,7 @@ func TestDouyinCardController_Create_Success(t *testing.T) {
 		RedirectURL:  "https://www.douyin.com",
 		DomainPoolID: 1,
 		Tags:         "test,card",
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	}
 	body, _ := json.Marshal(createReq)
 
@@ -131,7 +132,7 @@ func TestDouyinCardController_Update_Success(t *testing.T) {
 		Description:  "Original description",
 		ImageURL:     "https://example.com/image.jpg",
 		DomainPoolID: 1,
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	})
 
 	router.PUT("/douyin/cards/:id", ctrl.Update)
@@ -145,7 +146,7 @@ func TestDouyinCardController_Update_Success(t *testing.T) {
 		DomainPoolID: 1,
 		Tags:         "updated,card",
 		ViewCount:    100,
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	}
 	body, _ := json.Marshal(updateReq)
 
@@ -156,6 +157,63 @@ func TestDouyinCardController_Update_Success(t *testing.T) {
 
 	if w.Code != http.StatusOK {
 		t.Errorf("Expected status OK, got %d, body: %s", w.Code, w.Body.String())
+	}
+}
+
+// TestDouyinCardController_Update_WithoutIDInPath 钉住「路由没有 :id」这条形状。
+//
+// 背景（任务三逐路由 curl 实测）：真实路由是 `PUT /api/douyin/update`
+// （**没有** :id 路径参数，ID 在 body 里），而控制器原先无条件读
+// ctx.Param("id") ⇒ 空串 ⇒ ParseUint("") 报 "invalid syntax" ⇒ 恒 400
+// 「无效的 ID 格式」⇒ 抖音卡片的编辑页永远存不进去。
+//
+// 判据：body 带 id ⇒ 200；body 也不带 id ⇒ 400 且文案说清是 id 必填
+// （不是那条看不懂的 "parsing \"\": invalid syntax"）。
+func TestDouyinCardController_Update_WithoutIDInPath(t *testing.T) {
+	database := setupDouyinCardTestDB(t)
+	svc := service.NewDouyinCardService(database)
+	ctrl := NewDouyinCardController(svc)
+	router := setupGinEngine()
+
+	card, err := svc.Create(context.Background(), &dto.DouyinCardCreateRequest{
+		Title:    "无 :id 路由用例",
+		ImageURL: "https://example.com/image.jpg",
+		IsActive: boolPtr(true),
+	})
+	if err != nil {
+		t.Fatalf("建卡片失败: %v", err)
+	}
+
+	// 与真实路由同形：PUT /douyin/update（无 :id）
+	router.PUT("/douyin/update", ctrl.Update)
+
+	body, _ := json.Marshal(dto.DouyinCardUpdateRequest{ID: card.ID, Title: "改过的标题"})
+	req, _ := http.NewRequest("PUT", "/douyin/update", bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	router.ServeHTTP(w, req)
+
+	if w.Code != http.StatusOK {
+		t.Fatalf("无 :id 路由应能更新，实际 %d，body: %s", w.Code, w.Body.String())
+	}
+	got, err := svc.GetByID(context.Background(), card.ID)
+	if err != nil {
+		t.Fatalf("回读卡片失败: %v", err)
+	}
+	if got.Title != "改过的标题" {
+		t.Errorf("标题未更新: %q", got.Title)
+	}
+
+	// body 也不带 id ⇒ 400，且文案要说清是 id 必填
+	req2, _ := http.NewRequest("PUT", "/douyin/update", bytes.NewReader([]byte(`{"title":"x"}`)))
+	req2.Header.Set("Content-Type", "application/json")
+	w2 := httptest.NewRecorder()
+	router.ServeHTTP(w2, req2)
+	if w2.Code != http.StatusBadRequest {
+		t.Fatalf("缺 id 应回 400，实际 %d", w2.Code)
+	}
+	if !strings.Contains(w2.Body.String(), "id 必填") {
+		t.Errorf("缺 id 的报错文案应说清 id 必填，实际: %s", w2.Body.String())
 	}
 }
 
@@ -211,7 +269,7 @@ func TestDouyinCardController_Delete_Success(t *testing.T) {
 		Description:  "This card will be deleted",
 		ImageURL:     "https://example.com/image.jpg",
 		DomainPoolID: 1,
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	})
 
 	router.DELETE("/douyin/cards/:id", ctrl.Delete)
@@ -253,7 +311,7 @@ func TestDouyinCardController_GetByID_Success(t *testing.T) {
 		Description:  "Test description",
 		ImageURL:     "https://example.com/image.jpg",
 		DomainPoolID: 1,
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	})
 
 	router.GET("/douyin/cards/:id", ctrl.GetByID)
@@ -312,7 +370,7 @@ func TestDouyinCardController_GetList_Success(t *testing.T) {
 			Description:  "Description " + string(rune('0'+i)),
 			ImageURL:     "https://example.com/image" + string(rune('0'+i)) + ".jpg",
 			DomainPoolID: 1,
-			IsActive:     true,
+			IsActive:     boolPtr(true),
 		})
 	}
 
@@ -339,7 +397,7 @@ func TestDouyinCardController_GetList_DefaultPagination(t *testing.T) {
 		Description:  "Description",
 		ImageURL:     "https://example.com/image.jpg",
 		DomainPoolID: 1,
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	})
 
 	router.GET("/douyin/cards", ctrl.GetList)
@@ -382,7 +440,7 @@ func TestDouyinCardController_GenerateShortLink_Success(t *testing.T) {
 		Description:  "This card will have a short link",
 		ImageURL:     "https://example.com/image.jpg",
 		DomainPoolID: 1,
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	})
 	if err != nil {
 		t.Fatalf("create card failed: %v", err)
@@ -448,7 +506,7 @@ func TestDouyinCardController_Create_WithTags(t *testing.T) {
 		ImageURL:     "https://example.com/image.jpg",
 		DomainPoolID: 1,
 		Tags:         "tag1,tag2,tag3",
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	}
 	body, _ := json.Marshal(createReq)
 
@@ -474,7 +532,7 @@ func TestDouyinCardController_Create_InactiveCard(t *testing.T) {
 		Description:  "This card is inactive",
 		ImageURL:     "https://example.com/image.jpg",
 		DomainPoolID: 1,
-		IsActive:     false,
+		IsActive:     boolPtr(false),
 	}
 	body, _ := json.Marshal(createReq)
 
@@ -500,7 +558,7 @@ func TestDouyinCardController_Update_ViewCount(t *testing.T) {
 		Description:  "Description",
 		ImageURL:     "https://example.com/image.jpg",
 		DomainPoolID: 1,
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	})
 	if err != nil {
 		t.Fatalf("create card failed: %v", err)
@@ -519,7 +577,7 @@ func TestDouyinCardController_Update_ViewCount(t *testing.T) {
 		ImageURL:     "https://example.com/image.jpg",
 		DomainPoolID: 1,
 		ViewCount:    1000,
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	}
 	body, _ := json.Marshal(updateReq)
 

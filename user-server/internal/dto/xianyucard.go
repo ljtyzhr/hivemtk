@@ -8,7 +8,7 @@ type XianyuCardCreateRequest struct {
 	RedirectURL  string `json:"redirect_url"`
 	DomainPoolID uint   `json:"domain_pool_id"`
 	Tags         string `json:"tags" binding:"omitempty,max=255"`
-	IsActive     bool   `json:"is_active"`
+	IsActive     *bool  `json:"is_active"`
 }
 
 // XianyuCardUpdateRequest 更新闲鱼卡片请求
@@ -23,7 +23,7 @@ type XianyuCardUpdateRequest struct {
 	LikeCount    int    `json:"like_count"`
 	ShareCount   int    `json:"share_count"`
 	ViewCount    int    `json:"view_count"`
-	IsActive     bool   `json:"is_active"`
+	IsActive     *bool  `json:"is_active"`
 }
 
 // XianyuCardListRequest 闲鱼卡片列表请求

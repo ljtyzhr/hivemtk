@@ -44,6 +44,9 @@ func (c *WeComController) CreateAccount(ctx *gin.Context) {
 		return
 	}
 
+	// 出参脱敏：账号带着 corp_secret / agent_secret / access_token / callback_token /
+	// encoding_aes_key，直接序列化就是把商户的企业微信应用密钥发给了前端。
+	maskWeComAccount(account)
 	response.Success(ctx, account, "创建成功")
 }
 
@@ -56,6 +59,7 @@ func (c *WeComController) GetAccountList(ctx *gin.Context) {
 		return
 	}
 
+	maskWeComAccounts(accounts)
 	response.Success(ctx, accounts, "获取成功")
 }
 
@@ -75,6 +79,7 @@ func (c *WeComController) GetAccountByID(ctx *gin.Context) {
 		return
 	}
 
+	maskWeComAccount(account)
 	response.Success(ctx, account, "获取成功")
 }
 
@@ -100,6 +105,7 @@ func (c *WeComController) UpdateAccount(ctx *gin.Context) {
 		return
 	}
 
+	maskWeComAccount(account)
 	response.Success(ctx, account, "更新成功")
 }
 
@@ -280,6 +286,7 @@ func (c *WeComController) RefreshAccount(ctx *gin.Context) {
 		response.ErrorFromDB(ctx, err, "刷新后回查账号失败："+err.Error())
 		return
 	}
+	maskWeComAccount(account)
 	response.Success(ctx, account, "刷新成功")
 }
 

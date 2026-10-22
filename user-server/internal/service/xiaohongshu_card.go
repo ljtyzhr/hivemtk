@@ -55,7 +55,7 @@ func (s *xiaohongshuCardService) Create(ctx context.Context, req *dto.Xiaohongsh
 		DomainPoolID: req.DomainPoolID,
 		Tags:         req.Tags,
 		ViewCount:    0,
-		IsActive:     req.IsActive,
+		IsActive:     dto.BoolPtrOrDefaultTrue(req.IsActive),
 	}
 
 	createdCard, err := s.repo.Create(ctx, card)
@@ -107,7 +107,9 @@ func (s *xiaohongshuCardService) Update(ctx context.Context, req *dto.Xiaohongsh
 	card.RedirectURL = redirectURL
 	card.DomainPoolID = req.DomainPoolID
 	card.Tags = req.Tags
-	card.IsActive = req.IsActive
+	if req.IsActive != nil {
+		card.IsActive = *req.IsActive
+	}
 
 	updatedCard, err := s.repo.Update(ctx, card)
 	if err != nil {

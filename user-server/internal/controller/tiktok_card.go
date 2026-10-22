@@ -128,15 +128,34 @@ func (ctrl *TikTokCardController) Delete(c *gin.Context) {
 }
 
 func (ctrl *TikTokCardController) GenerateShortLink(c *gin.Context) {
+	// 入参名以**前端实际发的**为准：`user-web/src/api/tiktokCard.js` 传的是
+	// `{ card_id: cardId }`（snake_case，与本仓其它卡片 DTO 一致）。
+	// 这里原来绑的是 `json:"cardId"`（camelCase），于是前端这一条**永远 400**：
+	// 绑定找不到 card_id，binding:"required" 直接把请求毙在门口。
+	// 兄弟路由（douyin/xiaohongshu/xianyu/kuaishou）把 id 放路径上，不吃这个 body，
+	// 所以只有 tiktok 这一条踩到了。
+	// cardId 保留为兼容别名：第三方脚本可能已经按 camelCase 接过。
+	// 注意：card_id 上**不挂** binding:"required" —— 那个标签会在绑定阶段就把
+	// "只传 cardId" 的请求毙掉（找不到 card_id ⇒ 400 ⇒ 兼容分支永远走不到）。
+	// 必填校验挪到绑定之后手工做，两种键名都能进到这里。
 	var req struct {
-		CardID uint `json:"cardId" binding:"required"`
+		CardID    uint `json:"card_id"`
+		CardIDAlt uint `json:"cardId"`
 	}
 	if err := c.ShouldBindJSON(&req); err != nil {
 		response.Error(c, http.StatusBadRequest, "参数错误: "+err.Error())
 		return
 	}
+	cardID := req.CardID
+	if cardID == 0 {
+		cardID = req.CardIDAlt
+	}
+	if cardID == 0 {
+		response.Error(c, http.StatusBadRequest, "参数错误: card_id 必填")
+		return
+	}
 
-	card, err := ctrl.svc.GenerateShortLink(c.Request.Context(), req.CardID)
+	card, err := ctrl.svc.GenerateShortLink(c.Request.Context(), cardID)
 	if HandleServiceError(c, err) {
 		return
 	}

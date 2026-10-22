@@ -19,7 +19,7 @@ type KuaishouCard struct {
 	ViewCount    int       `json:"view_count" gorm:"default:0"`
 	LikeCount    int       `json:"like_count" gorm:"default:0"`
 	ShareCount   int       `json:"share_count" gorm:"default:0"`
-	IsActive     bool      `json:"is_active" gorm:"default:true"`
+	IsActive     bool      `json:"is_active"`
 	CreatedAt    time.Time `json:"created_at" gorm:"autoCreateTime"`
 	UpdatedAt    time.Time `json:"updated_at" gorm:"autoUpdateTime"`
 }

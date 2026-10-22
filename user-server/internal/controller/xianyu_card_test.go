@@ -44,7 +44,7 @@ func TestXianyuCardController_Create_Success(t *testing.T) {
 		RedirectURL:  "https://www.xianyu.com",
 		DomainPoolID: 1,
 		Tags:         "test,card",
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	}
 	body, _ := json.Marshal(createReq)
 
@@ -158,7 +158,7 @@ func TestXianyuCardController_Update_Success(t *testing.T) {
 		Description:  "Original description",
 		ImageURL:     "https://example.com/image.jpg",
 		DomainPoolID: 1,
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	})
 	if err != nil {
 		t.Fatalf("create card failed: %v", err)
@@ -179,7 +179,7 @@ func TestXianyuCardController_Update_Success(t *testing.T) {
 		DomainPoolID: 1,
 		Tags:         "updated,card",
 		ViewCount:    100,
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	}
 	body, _ := json.Marshal(updateReq)
 
@@ -245,7 +245,7 @@ func TestXianyuCardController_Delete_Success(t *testing.T) {
 		Description:  "This card will be deleted",
 		ImageURL:     "https://example.com/image.jpg",
 		DomainPoolID: 1,
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	})
 
 	router.DELETE("/xianyu/cards/:id", ctrl.Delete)
@@ -287,7 +287,7 @@ func TestXianyuCardController_GetByID_Success(t *testing.T) {
 		Description:  "Test description",
 		ImageURL:     "https://example.com/image.jpg",
 		DomainPoolID: 1,
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	})
 
 	router.GET("/xianyu/cards/:id", ctrl.GetByID)
@@ -346,7 +346,7 @@ func TestXianyuCardController_GetList_Success(t *testing.T) {
 			Description:  "Description " + string(rune('0'+i)),
 			ImageURL:     "https://example.com/image" + string(rune('0'+i)) + ".jpg",
 			DomainPoolID: 1,
-			IsActive:     true,
+			IsActive:     boolPtr(true),
 		})
 	}
 
@@ -373,7 +373,7 @@ func TestXianyuCardController_GetList_DefaultPagination(t *testing.T) {
 		Description:  "Description",
 		ImageURL:     "https://example.com/image.jpg",
 		DomainPoolID: 1,
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	})
 
 	router.GET("/xianyu/cards", ctrl.GetList)
@@ -416,7 +416,7 @@ func TestXianyuCardController_GenerateShortLink_Success(t *testing.T) {
 		Description:  "This card will have a short link",
 		ImageURL:     "https://example.com/image.jpg",
 		DomainPoolID: 1,
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	})
 
 	router.POST("/xianyu/cards/:id/shortlink", ctrl.GenerateShortLink)
@@ -475,7 +475,7 @@ func TestXianyuCardController_Create_WithTags(t *testing.T) {
 		ImageURL:     "https://example.com/image.jpg",
 		DomainPoolID: 1,
 		Tags:         "tag1,tag2,tag3",
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	}
 	body, _ := json.Marshal(createReq)
 
@@ -501,7 +501,7 @@ func TestXianyuCardController_Create_InactiveCard(t *testing.T) {
 		Description:  "This card is inactive",
 		ImageURL:     "https://example.com/image.jpg",
 		DomainPoolID: 1,
-		IsActive:     false,
+		IsActive:     boolPtr(false),
 	}
 	body, _ := json.Marshal(createReq)
 
@@ -527,7 +527,7 @@ func TestXianyuCardController_Update_ViewCount(t *testing.T) {
 		Description:  "Description",
 		ImageURL:     "https://example.com/image.jpg",
 		DomainPoolID: 1,
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	})
 
 	router.PUT("/xianyu/cards/:id", ctrl.Update)
@@ -538,7 +538,7 @@ func TestXianyuCardController_Update_ViewCount(t *testing.T) {
 		Description: "Description",
 		ImageURL:    "https://example.com/image.jpg",
 		ViewCount:   1000,
-		IsActive:    true,
+		IsActive:    boolPtr(true),
 	}
 	body, _ := json.Marshal(updateReq)
 
@@ -564,7 +564,7 @@ func TestXianyuCardController_ViewCard_Success(t *testing.T) {
 		Description:  "This card will be viewed",
 		ImageURL:     "https://example.com/image.jpg",
 		DomainPoolID: 1,
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	})
 
 	router.GET("/xianyu/cards/:id/view", ctrl.ViewCard)
@@ -606,7 +606,7 @@ func TestXianyuCardController_PostRecordView_Success(t *testing.T) {
 		Description:  "This card will be viewed",
 		ImageURL:     "https://example.com/image.jpg",
 		DomainPoolID: 1,
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	})
 
 	router.POST("/xianyu/cards/:id/view", ctrl.PostRecordView)
@@ -640,7 +640,7 @@ func TestXianyuCardController_PostRecordClick_Success(t *testing.T) {
 		Description:  "This card will be clicked",
 		ImageURL:     "https://example.com/image.jpg",
 		DomainPoolID: 1,
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	})
 
 	router.POST("/xianyu/cards/:id/click", ctrl.PostRecordClick)
@@ -674,7 +674,7 @@ func TestXianyuCardController_PostRecordShare_Success(t *testing.T) {
 		Description:  "This card will be shared",
 		ImageURL:     "https://example.com/image.jpg",
 		DomainPoolID: 1,
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	})
 
 	router.POST("/xianyu/cards/:id/share", ctrl.PostRecordShare)

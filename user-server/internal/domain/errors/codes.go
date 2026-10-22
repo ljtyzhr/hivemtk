@@ -1,5 +1,7 @@
 package errors
 
+import "errors"
+
 // 业务错误码
 const (
 	CodeSuccess         = 0
@@ -85,6 +87,35 @@ func (e *BizError) Unwrap() error { return e.Cause }
 
 func New(code int, msg string) *BizError {
 	return &BizError{Code: code, Message: msg}
+}
+
+// IsUpstreamFailure 判断一个错误是不是「外部依赖（平台/渠道）调用失败」。
+//
+// 为什么需要这个判据：上层有一处按**错误文本**判定「记录不存在」
+// （见 internal/pkg/errhttp.isNotFoundError：文本里含"不存在"或"not found" ⇒ 404）。
+// 而渠道侧的原文常常自己带"not found"——阿里云短信回
+// "Specified access key is not found."、腾讯回 "key not found" ——
+// 于是「密钥填错了」被翻译成「记录不存在」，把操作者引向完全错误的方向：
+// 去查记录，而不是去改密钥。
+//
+// 判据不能是"文本里有没有 not found"（那正是错的地方），
+// 必须是**错误自己在声明**它是上游失败：带 5xxx 平台/内部类业务码的 BizError。
+//
+// 用法：service 层把渠道错误包成
+//
+//	bizerr.Wrap(bizerr.CodePlatformUnavail, "发送短信失败（渠道不可达）", err)
+//
+// 上层据此判"这是上游挂了，不是我们的记录没了"。
+func IsUpstreamFailure(err error) bool {
+	if err == nil {
+		return false
+	}
+	var be *BizError
+	if !errors.As(err, &be) {
+		return false
+	}
+	// 5xxx = 内部与平台（见本文件码段约定）；4xxx 是"你这个账号当前做不到"。
+	return be.Code >= 5000 && be.Code < 6000
 }
 
 func Wrap(code int, msg string, cause error) *BizError {

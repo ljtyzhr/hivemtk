@@ -10,6 +10,7 @@
 package controller
 
 import (
+	"fmt"
 	"net/http"
 	"strconv"
 	"strings"
@@ -78,14 +79,24 @@ func (c *AssetBundleController) Register(rg *gin.RouterGroup) {
 }
 
 // SubmitToPlatform 将本地资产包提交平台审核上架（开发者上架链路）
+//
+// 路由参数 :id 的语义与兄弟路由（publish/archive/enable/disable）保持一致：资产包主键 id。
+// 前端 Playground 传的是 bundle.id（数字主键），而 SubmitToPlatform 需要的是 asset_id
+// （业务 slug），历史上这里直接把 :id 当 asset_id 用，导致数字主键永远查不到资产包、
+// 上架链路 100% 报 "record not found"。这里显式做一次主键→asset_id 归一化。
 func (c *AssetBundleController) SubmitToPlatform(ctx *gin.Context) {
 	if rejectPlatformDisabled(ctx) {
 		return
 	}
 
-	assetID := ctx.Param("id")
-	if assetID == "" {
+	rawID := ctx.Param("id")
+	if rawID == "" {
 		response.Error(ctx, http.StatusBadRequest, "invalid asset id")
+		return
+	}
+	assetID, err := c.resolveAssetID(ctx, rawID)
+	if err != nil {
+		response.ErrorFromDB(ctx, err, "提交平台失败: "+err.Error())
 		return
 	}
 	platformAssetID, err := c.svc.SubmitToPlatform(ctx.Request.Context(), assetID)
@@ -95,6 +106,25 @@ func (c *AssetBundleController) SubmitToPlatform(ctx *gin.Context) {
 		return
 	}
 	response.Success(ctx, gin.H{"platform_asset_id": platformAssetID}, "已提交平台审核")
+}
+
+// resolveAssetID 把路由参数归一化成 asset_id：
+//   - 数字主键（前端 bundle.id）→ 查库取该资产包的 asset_id
+//   - 非数字（历史调用方直接传 asset_id slug）→ 原样返回
+func (c *AssetBundleController) resolveAssetID(ctx *gin.Context, rawID string) (string, error) {
+	bundleID, parseErr := strconv.ParseInt(rawID, 10, 64)
+	if parseErr != nil {
+		// 非数字：按 asset_id slug 兼容处理。
+		return rawID, nil
+	}
+	bundle, err := c.svc.GetBundle(ctx.Request.Context(), bundleID)
+	if err != nil {
+		return "", err
+	}
+	if bundle == nil {
+		return "", fmt.Errorf("资产包不存在: %d", bundleID)
+	}
+	return bundle.AssetID, nil
 }
 
 // Create 创建

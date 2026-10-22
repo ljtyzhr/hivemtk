@@ -1,6 +1,7 @@
 package service
 
 import (
+	"context"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/base64"
@@ -8,6 +9,10 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"hivemtk-user/internal/dto"
+	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/httpclient"
+	"hivemtk-user/internal/repository"
 	"io"
 	"net/http"
 	"net/url"
@@ -18,11 +23,7 @@ import (
 	"sync"
 	"time"
 
-	"context"
-	"hivemtk-user/internal/dto"
-	"hivemtk-user/internal/model"
-	"hivemtk-user/internal/pkg/httpclient"
-	"hivemtk-user/internal/repository"
+	bizerr "hivemtk-user/internal/domain/errors"
 )
 
 // SmsService 短信服务接口
@@ -290,7 +291,14 @@ func (s *smsService) SendSms(ctx context.Context, req *dto.SmsSendRequest) error
 		record.ErrorMsg = errMsg
 		record.SendTime = &time.Time{}
 		_ = s.repo.UpdateSmsRecord(ctx, record)
-		return fmt.Errorf("send sms failed: %w", err)
+		// 渠道错误必须**声明**自己是上游失败（bizerr 5xxx），不能只把渠道原文抛出去。
+		//
+		// 原因：上层按错误文本判定"记录不存在"（文本含"不存在"/"not found" ⇒ 404），
+		// 而渠道原文常常自带这些词 —— 阿里云回 "Specified access key is not found." ——
+		// 于是"密钥填错了"被翻译成 404「记录不存在」，把操作者引去查记录而不是改密钥。
+		// 声明成上游失败后：文案说清是渠道侧的问题，HTTP 码也不再是误导性的 404。
+		return bizerr.Wrap(bizerr.CodePlatformUnavail,
+			"发送短信失败（渠道不可达或凭证无效）："+errMsg, err)
 	}
 
 	record.SendTime = &sentTime
@@ -581,7 +589,12 @@ func (s *smsService) ResendSms(ctx context.Context, id uint) error {
 		record.ErrorCode = errCode
 		record.ErrorMsg = errMsg
 		_ = s.repo.UpdateSmsRecord(ctx, record)
-		return fmt.Errorf("resend sms failed: %w", err)
+		// 与 SendSms 同一口径：渠道错误必须**声明**自己是上游失败（bizerr 5xxx），
+		// 不能把渠道原文直接抛出去 —— 原文常自带 "not found"，
+		// 会被上层的"按文本判记录不存在"规则翻译成 404「记录不存在」，
+		// 把"密钥填错了"引向"去查记录"这个完全错误的方向。
+		return bizerr.Wrap(bizerr.CodePlatformUnavail,
+			"重发短信失败（渠道不可达或凭证无效）："+errMsg, err)
 	}
 
 	record.SendTime = &sentTime

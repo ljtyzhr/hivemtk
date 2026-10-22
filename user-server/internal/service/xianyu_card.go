@@ -55,7 +55,7 @@ func (s *xianyuCardService) Create(ctx context.Context, req *dto.XianyuCardCreat
 		RedirectURL:  req.RedirectURL,
 		DomainPoolID: req.DomainPoolID,
 		Tags:         req.Tags,
-		IsActive:     req.IsActive,
+		IsActive:     dto.BoolPtrOrDefaultTrue(req.IsActive),
 	}
 
 	if err := s.repo.Create(ctx, card); err != nil {
@@ -84,7 +84,9 @@ func (s *xianyuCardService) Update(ctx context.Context, req *dto.XianyuCardUpdat
 	card.LikeCount = req.LikeCount
 	card.ShareCount = req.ShareCount
 	card.ViewCount = req.ViewCount
-	card.IsActive = req.IsActive
+	if req.IsActive != nil {
+		card.IsActive = *req.IsActive
+	}
 
 	if err := s.repo.Update(ctx, card); err != nil {
 		return nil, fmt.Errorf("更新闲鱼卡片失败: %w", err)

@@ -62,7 +62,7 @@ func (s *douyinCardService) Create(ctx context.Context, req *dto.DouyinCardCreat
 		RedirectURL:  redirectURL,
 		DomainPoolID: req.DomainPoolID,
 		Tags:         req.Tags,
-		IsActive:     req.IsActive,
+		IsActive:     dto.BoolPtrOrDefaultTrue(req.IsActive),
 	}
 
 	createdCard, err := s.repo.Create(ctx, card)
@@ -111,7 +111,9 @@ func (s *douyinCardService) Update(ctx context.Context, req *dto.DouyinCardUpdat
 	card.DomainPoolID = req.DomainPoolID
 	card.Tags = req.Tags
 	card.ViewCount = req.ViewCount
-	card.IsActive = req.IsActive
+	if req.IsActive != nil {
+		card.IsActive = *req.IsActive
+	}
 
 	updatedCard, err := s.repo.Update(ctx, card)
 	if err != nil {

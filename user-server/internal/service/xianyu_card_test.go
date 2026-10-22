@@ -45,7 +45,7 @@ func TestXianyuCardService_Create_Success(t *testing.T) {
 		RedirectURL:  "https://www.xianyu.cn",
 		DomainPoolID: 1,
 		Tags:         "test,card",
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	}
 
 	card, err := service.Create(context.Background(), req)
@@ -118,7 +118,7 @@ func TestXianyuCardService_Update_Success(t *testing.T) {
 		RedirectURL:  "https://www.xianyu.cn",
 		DomainPoolID: 1,
 		Tags:         "original",
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	}
 	createdCard, err := service.Create(context.Background(), createReq)
 	if err != nil {
@@ -135,7 +135,7 @@ func TestXianyuCardService_Update_Success(t *testing.T) {
 		LikeCount:   50,
 		ShareCount:  25,
 		ViewCount:   100,
-		IsActive:    true,
+		IsActive:    boolPtr(true),
 	}
 
 	updatedCard, err := service.Update(context.Background(), updateReq)
@@ -186,7 +186,7 @@ func TestXianyuCardService_Delete_Success(t *testing.T) {
 		Description:  "This card will be deleted",
 		ImageURL:     "https://example.com/image.jpg",
 		DomainPoolID: 1,
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	}
 	createdCard, err := service.Create(context.Background(), createReq)
 	if err != nil {
@@ -227,7 +227,7 @@ func TestXianyuCardService_GetByID_Success(t *testing.T) {
 		RedirectURL:  "https://www.xianyu.cn",
 		DomainPoolID: 1,
 		Tags:         "test",
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	}
 	createdCard, err := service.Create(context.Background(), createReq)
 	if err != nil {
@@ -268,7 +268,7 @@ func TestXianyuCardService_GetByIDWithRefresh_Success(t *testing.T) {
 		Description:  "Test description",
 		ImageURL:     "https://example.com/image.jpg",
 		DomainPoolID: 1,
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	}
 	createdCard, err := service.Create(context.Background(), createReq)
 	if err != nil {
@@ -295,7 +295,7 @@ func TestXianyuCardService_GetCardModelByID_Success(t *testing.T) {
 		Description:  "Test description",
 		ImageURL:     "https://example.com/image.jpg",
 		DomainPoolID: 1,
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	}
 	createdCard, err := service.Create(context.Background(), createReq)
 	if err != nil {
@@ -326,7 +326,7 @@ func TestXianyuCardService_GetList_Success(t *testing.T) {
 			Description:  "Description " + string(rune('0'+i)),
 			ImageURL:     "https://example.com/image" + string(rune('0'+i)) + ".jpg",
 			DomainPoolID: 1,
-			IsActive:     true,
+			IsActive:     boolPtr(true),
 		}
 		_, err := service.Create(context.Background(), createReq)
 		if err != nil {
@@ -362,7 +362,7 @@ func TestXianyuCardService_GetList_Pagination(t *testing.T) {
 			Description:  "Description " + string(rune('0'+i)),
 			ImageURL:     "https://example.com/image" + string(rune('0'+i)) + ".jpg",
 			DomainPoolID: 1,
-			IsActive:     true,
+			IsActive:     boolPtr(true),
 		}
 		_, err := service.Create(context.Background(), createReq)
 		if err != nil {
@@ -426,7 +426,7 @@ func TestXianyuCardService_ShareCard_Success(t *testing.T) {
 		Description:  "This card will be shared",
 		ImageURL:     "https://example.com/image.jpg",
 		DomainPoolID: 1,
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	}
 	createdCard, err := service.Create(context.Background(), createReq)
 	if err != nil {
@@ -461,7 +461,7 @@ func TestXianyuCardService_Create_WithTags(t *testing.T) {
 		ImageURL:     "https://example.com/image.jpg",
 		DomainPoolID: 1,
 		Tags:         "tag1,tag2,tag3",
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	}
 
 	card, err := service.Create(context.Background(), req)
@@ -484,7 +484,7 @@ func TestXianyuCardService_Create_InactiveCard(t *testing.T) {
 		Description:  "This card is inactive",
 		ImageURL:     "https://example.com/image.jpg",
 		DomainPoolID: 1,
-		IsActive:     false,
+		IsActive:     boolPtr(false),
 	}
 
 	card, err := service.Create(context.Background(), req)

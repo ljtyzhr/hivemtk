@@ -41,7 +41,7 @@ func TestKuaishouCardController_Create_Success(t *testing.T) {
 		RedirectURL:  "https://www.kuaishou.com",
 		DomainPoolID: 1,
 		Tags:         "test,card",
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	}
 	body, _ := json.Marshal(createReq)
 
@@ -155,7 +155,7 @@ func TestKuaishouCardController_Update_Success(t *testing.T) {
 		Description:  "Original description",
 		ImageURL:     "https://example.com/image.jpg",
 		DomainPoolID: 1,
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	})
 
 	router.PUT("/kuaishou/cards/:id", ctrl.Update)
@@ -169,7 +169,7 @@ func TestKuaishouCardController_Update_Success(t *testing.T) {
 		DomainPoolID: 1,
 		Tags:         "updated,card",
 		ViewCount:    100,
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	}
 	body, _ := json.Marshal(updateReq)
 
@@ -235,7 +235,7 @@ func TestKuaishouCardController_Delete_Success(t *testing.T) {
 		Description:  "This card will be deleted",
 		ImageURL:     "https://example.com/image.jpg",
 		DomainPoolID: 1,
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	})
 
 	router.DELETE("/kuaishou/cards/:id", ctrl.Delete)
@@ -277,7 +277,7 @@ func TestKuaishouCardController_GetByID_Success(t *testing.T) {
 		Description:  "Test description",
 		ImageURL:     "https://example.com/image.jpg",
 		DomainPoolID: 1,
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	})
 
 	router.GET("/kuaishou/cards/:id", ctrl.GetByID)
@@ -336,7 +336,7 @@ func TestKuaishouCardController_GetList_Success(t *testing.T) {
 			Description:  "Description " + string(rune('0'+i)),
 			ImageURL:     "https://example.com/image" + string(rune('0'+i)) + ".jpg",
 			DomainPoolID: 1,
-			IsActive:     true,
+			IsActive:     boolPtr(true),
 		})
 	}
 
@@ -363,7 +363,7 @@ func TestKuaishouCardController_GetList_DefaultPagination(t *testing.T) {
 		Description:  "Description",
 		ImageURL:     "https://example.com/image.jpg",
 		DomainPoolID: 1,
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	})
 
 	router.GET("/kuaishou/cards", ctrl.GetList)
@@ -406,7 +406,7 @@ func TestKuaishouCardController_ViewCard_Success(t *testing.T) {
 		Description:  "This card will be viewed",
 		ImageURL:     "https://example.com/image.jpg",
 		DomainPoolID: 1,
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	})
 
 	router.POST("/kuaishou/cards/:id/view", ctrl.ViewCard)
@@ -448,7 +448,7 @@ func TestKuaishouCardController_LikeCard_Success(t *testing.T) {
 		Description:  "This card will be liked",
 		ImageURL:     "https://example.com/image.jpg",
 		DomainPoolID: 1,
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	})
 
 	router.POST("/kuaishou/cards/:id/like", ctrl.LikeCard)
@@ -490,7 +490,7 @@ func TestKuaishouCardController_ShareCard_Success(t *testing.T) {
 		Description:  "This card will be shared",
 		ImageURL:     "https://example.com/image.jpg",
 		DomainPoolID: 1,
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	})
 
 	router.POST("/kuaishou/cards/:id/share", ctrl.ShareCard)
@@ -532,7 +532,7 @@ func TestKuaishouCardController_GenerateShortLink_Success(t *testing.T) {
 		Description:  "This card will have a short link",
 		ImageURL:     "https://example.com/image.jpg",
 		DomainPoolID: 1,
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	})
 	if err != nil {
 		t.Fatalf("create card failed: %v", err)
@@ -598,7 +598,7 @@ func TestKuaishouCardController_Create_WithTags(t *testing.T) {
 		ImageURL:     "https://example.com/image.jpg",
 		DomainPoolID: 1,
 		Tags:         "tag1,tag2,tag3",
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	}
 	body, _ := json.Marshal(createReq)
 
@@ -624,7 +624,7 @@ func TestKuaishouCardController_Create_InactiveCard(t *testing.T) {
 		Description:  "This card is inactive",
 		ImageURL:     "https://example.com/image.jpg",
 		DomainPoolID: 1,
-		IsActive:     false,
+		IsActive:     boolPtr(false),
 	}
 	body, _ := json.Marshal(createReq)
 
@@ -650,7 +650,7 @@ func TestKuaishouCardController_Update_ViewCount(t *testing.T) {
 		Description:  "Description",
 		ImageURL:     "https://example.com/image.jpg",
 		DomainPoolID: 1,
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	})
 
 	router.PUT("/kuaishou/cards/:id", ctrl.Update)
@@ -661,7 +661,7 @@ func TestKuaishouCardController_Update_ViewCount(t *testing.T) {
 		Description: "Description",
 		ImageURL:    "https://example.com/image.jpg",
 		ViewCount:   1000,
-		IsActive:    true,
+		IsActive:    boolPtr(true),
 	}
 	body, _ := json.Marshal(updateReq)
 

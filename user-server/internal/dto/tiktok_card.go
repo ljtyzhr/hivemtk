@@ -8,7 +8,7 @@ type TikTokCardCreateRequest struct {
 	RedirectURL  string `json:"redirect_url"`
 	DomainPoolID uint   `json:"domain_pool_id"`
 	Tags         string `json:"tags" binding:"omitempty,max=255"`
-	IsActive     bool   `json:"is_active"`
+	IsActive     *bool  `json:"is_active"`
 }
 
 // TikTokCardUpdateRequest 更新 TikTok 卡片请求
@@ -23,7 +23,7 @@ type TikTokCardUpdateRequest struct {
 	ViewCount    int    `json:"view_count"`
 	LikeCount    int    `json:"like_count"`
 	ShareCount   int    `json:"share_count"`
-	IsActive     bool   `json:"is_active"`
+	IsActive     *bool  `json:"is_active"`
 }
 
 // TikTokCardResponse TikTok 卡片响应

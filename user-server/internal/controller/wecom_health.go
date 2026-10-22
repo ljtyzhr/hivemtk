@@ -181,6 +181,8 @@ func (c *WeComHealthController) ListAccountsWithHealth(ctx *gin.Context) {
 		response.ErrorFromDB(ctx, err, err.Error())
 		return
 	}
+	// 出参脱敏：这条列表带着完整账号（含 corp_secret / access_token 等密钥）。
+	maskAccountWithHealth(list)
 	response.Success(ctx, list, "查询成功")
 }
 

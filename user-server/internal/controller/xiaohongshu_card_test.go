@@ -51,7 +51,7 @@ func TestXiaohongshuCardController_Create_Success(t *testing.T) {
 		RedirectURL:  "https://www.xiaohongshu.com",
 		DomainPoolID: uintPtr(1),
 		Tags:         "test,card",
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	}
 	body, _ := json.Marshal(createReq)
 
@@ -179,7 +179,7 @@ func TestXiaohongshuCardController_Update_Success(t *testing.T) {
 		Description:  "Original description",
 		ImageURL:     "https://example.com/image.jpg",
 		DomainPoolID: uintPtr(1),
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	})
 
 	if card == nil {
@@ -198,7 +198,7 @@ func TestXiaohongshuCardController_Update_Success(t *testing.T) {
 		DomainPoolID: uintPtr(1),
 		Tags:         "updated,card",
 		ViewCount:    100,
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	}
 	body, _ := json.Marshal(updateReq)
 
@@ -268,7 +268,7 @@ func TestXiaohongshuCardController_Delete_Success(t *testing.T) {
 		Description:  "This card will be deleted",
 		ImageURL:     "https://example.com/image.jpg",
 		DomainPoolID: uintPtr(1),
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	})
 
 	router.DELETE("/xiaohongshu/cards/:id", ctrl.Delete)
@@ -310,7 +310,7 @@ func TestXiaohongshuCardController_GetByID_Success(t *testing.T) {
 		Description:  "Test description",
 		ImageURL:     "https://example.com/image.jpg",
 		DomainPoolID: uintPtr(1),
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	})
 
 	router.GET("/xiaohongshu/cards/:id", ctrl.GetByID)
@@ -369,7 +369,7 @@ func TestXiaohongshuCardController_GetList_Success(t *testing.T) {
 			Description:  "Description " + string(rune('0'+i)),
 			ImageURL:     "https://example.com/image" + string(rune('0'+i)) + ".jpg",
 			DomainPoolID: uintPtr(1),
-			IsActive:     true,
+			IsActive:     boolPtr(true),
 		})
 	}
 
@@ -396,7 +396,7 @@ func TestXiaohongshuCardController_GetList_DefaultPagination(t *testing.T) {
 		Description:  "Description",
 		ImageURL:     "https://example.com/image.jpg",
 		DomainPoolID: uintPtr(1),
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	})
 
 	router.GET("/xiaohongshu/cards", ctrl.GetList)
@@ -445,7 +445,7 @@ func TestXiaohongshuCardController_GenerateShortLink_Success(t *testing.T) {
 		Description:  "This card will have a short link",
 		ImageURL:     "https://example.com/image.jpg",
 		DomainPoolID: uintPtr(1),
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	})
 
 	if card == nil {
@@ -519,7 +519,7 @@ func TestXiaohongshuCardController_Create_WithTags(t *testing.T) {
 		ImageURL:     "https://example.com/image.jpg",
 		DomainPoolID: uintPtr(1),
 		Tags:         "tag1,tag2,tag3",
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	}
 	body, _ := json.Marshal(createReq)
 
@@ -551,7 +551,7 @@ func TestXiaohongshuCardController_Create_InactiveCard(t *testing.T) {
 		Description:  "This card is inactive",
 		ImageURL:     "https://example.com/image.jpg",
 		DomainPoolID: uintPtr(1),
-		IsActive:     false,
+		IsActive:     boolPtr(false),
 	}
 	body, _ := json.Marshal(createReq)
 
@@ -583,7 +583,7 @@ func TestXiaohongshuCardController_Update_ViewCount(t *testing.T) {
 		Description:  "Description",
 		ImageURL:     "https://example.com/image.jpg",
 		DomainPoolID: uintPtr(1),
-		IsActive:     true,
+		IsActive:     boolPtr(true),
 	})
 
 	if card == nil {
@@ -599,7 +599,7 @@ func TestXiaohongshuCardController_Update_ViewCount(t *testing.T) {
 		Description: "Description",
 		ImageURL:    "https://example.com/image.jpg",
 		ViewCount:   1000,
-		IsActive:    true,
+		IsActive:    boolPtr(true),
 	}
 	body, _ := json.Marshal(updateReq)
 
