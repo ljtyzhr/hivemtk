@@ -395,9 +395,17 @@ onMounted(async () => {
   }, 60000)
 
   loadUnreadCount()
-  unreadTimer = setInterval(() => {
-    if (document.visibilityState === 'visible') loadUnreadCount()
-  }, 30000)
+  // 轮询**不按可见性跳过**。
+  //
+  // 照抄 geoAlertCount 的 `document.visibilityState === 'visible'` 守卫是错的：
+  // 后台标签页里可见性为 hidden ⇒ 回调被跳过 ⇒ 用户切回前台时角标是旧的，
+  // 要再等一个周期才更新 —— 而"切回来就看到新消息"恰恰是铃铛存在的意义。
+  // 顺带一提：无头浏览器里 visibilityState 恒为 hidden，照抄会让这段代码
+  // 在自动化验证中**完全不跑**，角标永远是初次加载时的值。
+  //
+  // 未读数是 30 秒一次的一次 GET，代价可忽略；真正该省的是后台轮询，
+  // 那是另一个量级的事（见 platform 侧 module-sync 的 10 分钟周期）。
+  unreadTimer = setInterval(loadUnreadCount, 30000)
 })
 
 onUnmounted(() => {
