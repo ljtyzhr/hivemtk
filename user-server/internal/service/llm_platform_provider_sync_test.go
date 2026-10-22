@@ -74,7 +74,7 @@ func TestSavePlatformProviders_OnModeWithoutTenantCtx(t *testing.T) {
 // tenant_id 可自证 ⇒ tenantGuardFail ⇒
 //   [tenant] 表 llm_providers 需要租户上下文但 ctx 未绑定（create）
 //
-// 本用例把守卫摘掉（模拟原文：不写 TenantID），必须红成**原��那句**；
+// 本用例把守卫摘掉（模拟原文：不写 TenantID），必须红成**原来那句**；
 // 断言的是"落库行必须带显式 tenant_id"这个不变量，而不是某条具体实现。
 func TestSavePlatformProviders_ExplicitTenantIDSelfAsserts(t *testing.T) {
 	database := testutil.NewTestDB(t, &model.LLMProvider{})

@@ -10,7 +10,7 @@
 
 | 项 | 值 |
 |---|---|
-| 测��库 | `127.0.0.1:8202`（本地 `mtk-postgres` 容器）/ `user_db_test`（本次新建） |
+| 测试库 | `127.0.0.1:8202`（本地 `mtk-postgres` 容器）/ `user_db_test`（本次新建） |
 | 口令 | `POSTGRES_TEST_PASSWORD` 取自 `docker exec mtk-postgres printenv POSTGRES_PASSWORD` |
 | 串行 | `-p 1`（平台端各测试包共享同一个测试库，必须串行） |
 | 被测 commit | `4f2eb433` |
