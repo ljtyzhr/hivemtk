@@ -62,16 +62,16 @@ func buildConfidenceAggregator(db *gorm.DB, embedder confidencesvc.Embedder) *co
 	}
 	collector := confidencesvc.NewSignalCollector(embedder)
 
-	calibrator := confidencesvc.NewCalibrator(repository.NewConfidenceCalibrationRepository())
+	calibrator := confidencesvc.NewCalibrator(repository.NewConfidenceCalibrationRepositoryWithDB(db))
 
 	aggregator := confidencesvc.NewDefaultWeightedAggregator()
 
 	vetoChain := confidencesvc.NewVetoChain()
 
-	policyEngine := confidencesvc.NewThresholdPolicyEngine(repository.NewThresholdPolicyRepository())
+	policyEngine := confidencesvc.NewThresholdPolicyEngine(repository.NewThresholdPolicyRepositoryWithDB(db))
 	calc := confidencesvc.NewDynamicThresholdCalculator(policyEngine)
 
-	signalRepo := repository.NewConfidenceSignalRepository()
+	signalRepo := repository.NewConfidenceSignalRepositoryWithDB(db)
 
 	agg := confidencesvc.NewConfidenceAggregator(collector, calibrator, aggregator, vetoChain, calc, signalRepo)
 

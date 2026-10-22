@@ -813,7 +813,7 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 
 		setupABTestRoutes(auth)
 
-		setupTuningRoutes(auth)
+		setupTuningRoutes(auth, gormDB)
 
 		setupAssetMarketRoutes(auth, gormDB)
 

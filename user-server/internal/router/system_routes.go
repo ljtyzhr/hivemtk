@@ -175,9 +175,9 @@ func setupI18nRoutes(auth *gin.RouterGroup, db *gorm.DB) {
 	statsCtrl.RegisterRoutes(auth)
 }
 
-func setupTuningRoutes(auth *gin.RouterGroup) {
+func setupTuningRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 	tuning := auth.Group("/admin/tuning")
-	ctrl := controller.NewTuningController(service.NewTuningService())
+	ctrl := controller.NewTuningController(service.NewTuningService(gormDB))
 
 	tuning.GET("/confidence/signals", ctrl.ListConfidenceSignals)
 	tuning.GET("/confidence/signals/:id", ctrl.GetConfidenceSignal)

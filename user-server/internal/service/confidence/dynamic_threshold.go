@@ -1,6 +1,7 @@
 package confidence
 
 import (
+	"context"
 	"math"
 	"time"
 
@@ -35,11 +36,11 @@ type ThresholdInput struct {
 //   - customer_level: vip +1, low -1, normal 0；权重 α = 0.05
 //   - timeslot:       高峰(10-12, 14-16) -1（放宽让更多进人工）, 低谷(0-7) +1（加严避免无人值守）, 其他 0；权重 β = 0.05
 //   - agent_availability: 空闲>50% -1（多转人工）, 空闲<10% +1（加严避免堆积）, 其他 0；权重 γ = 0.10
-func (c *DynamicThresholdCalculator) Calculate(in *ThresholdInput) float64 {
+func (c *DynamicThresholdCalculator) Calculate(ctx context.Context, in *ThresholdInput) float64 {
 	if c.policyEngine == nil {
 		return 0.70
 	}
-	policy := c.policyEngine.GetPolicy(in.IntentType)
+	policy := c.policyEngine.GetPolicy(ctx, in.IntentType)
 	if policy == nil {
 		return 0.70
 	}

@@ -2,12 +2,19 @@ package service
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/pagination"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/repository"
+
+	"gorm.io/gorm"
 )
+
+// ErrConfidenceSignalNotFound 置信度信号不存在（供 controller 区分 404 与真实故障）。
+var ErrConfidenceSignalNotFound = errors.New("置信度信号不存在")
 
 // TuningService 统一管理服务接口
 //
@@ -60,11 +67,11 @@ type tuningService struct {
 }
 
 // NewTuningService 构造服务(注入所有 tuning 仓储)
-func NewTuningService() TuningService {
+func NewTuningService(db *gorm.DB) TuningService {
 	return &tuningService{
-		signalRepo:   repository.NewConfidenceSignalRepository(),
-		calibRepo:    repository.NewConfidenceCalibrationRepository(),
-		policyRepo:   repository.NewThresholdPolicyRepository(),
+		signalRepo:   repository.NewConfidenceSignalRepositoryWithDB(db),
+		calibRepo:    repository.NewConfidenceCalibrationRepositoryWithDB(db),
+		policyRepo:   repository.NewThresholdPolicyRepositoryWithDB(db),
 		scoreRepo:    repository.NewHumanizeScoreRepository(),
 		baselineRepo: repository.NewChampionBaselineRepository(),
 		lowQRepo:     repository.NewLowQualitySampleRepository(),
@@ -77,7 +84,14 @@ func (s *tuningService) ListConfidenceSignals(ctx context.Context, sessionID str
 }
 
 func (s *tuningService) GetConfidenceSignal(ctx context.Context, id string) (*model.ConfidenceSignal, error) {
-	return s.signalRepo.GetByID(ctx, id)
+	signal, err := s.signalRepo.GetByID(ctx, id)
+	if err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, ErrConfidenceSignalNotFound
+		}
+		return nil, err
+	}
+	return signal, nil
 }
 
 func (s *tuningService) StatsConfidenceSignals(ctx context.Context, since time.Time) (map[string]int64, error) {
@@ -101,9 +115,33 @@ func (s *tuningService) ListThresholdPolicies(ctx context.Context) ([]model.Thre
 }
 
 func (s *tuningService) UpsertThresholdPolicy(ctx context.Context, p *model.ThresholdPolicy) error {
+	if p == nil || p.IntentType == "" || p.PolicyID == "" {
+		return errors.New("intent_type/policy_id 不能为空")
+	}
 	p.IsActive = true
 	p.UpdatedAt = time.Now()
-	return s.policyRepo.Save(ctx, p)
+
+	// policy_id 是业务唯一键：重复提交视为改版，版本号由服务端递增。
+	existing, err := s.policyRepo.GetByPolicyID(ctx, p.PolicyID)
+	if err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return err
+	}
+	if existing != nil {
+		p.ID = existing.ID
+		p.Version = existing.Version + 1
+	} else if p.Version < 1 {
+		p.Version = 1
+	}
+
+	if err := s.policyRepo.SaveActive(ctx, p); err != nil {
+		return err
+	}
+	// 决策引擎按租户缓存策略，写入后必须失效，否则要重启才生效。
+	if agg := GetConfidenceAggregator(); agg != nil {
+		tenantID, _ := tenant.FromContext(ctx)
+		agg.RefreshThresholdPolicies(tenantID)
+	}
+	return nil
 }
 
 func (s *tuningService) ListHumanizeScores(ctx context.Context, sessionID string, passed *bool, page, pageSize int) ([]model.HumanizeScore, int64, error) {

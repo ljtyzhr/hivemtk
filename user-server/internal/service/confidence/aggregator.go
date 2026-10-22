@@ -69,6 +69,14 @@ func (a *ConfidenceAggregator) GetConformal() *ConformalPredictor {
 	return a.conformal
 }
 
+// RefreshThresholdPolicies 使指定租户的阈值策略缓存失效（运营后台写入后调用）。
+func (a *ConfidenceAggregator) RefreshThresholdPolicies(tenantID uint) {
+	if a == nil || a.calc == nil || a.calc.policyEngine == nil {
+		return
+	}
+	a.calc.policyEngine.Invalidate(tenantID)
+}
+
 // Aggregate 主入口：采集信号 → 校准 → 聚合 → 否决 → 阈值 → 决策
 //
 // 输入：dto.SignalCollectionInput（包含 session/customer/message/intent/raw 信号/last turns）
@@ -118,14 +126,14 @@ func (a *ConfidenceAggregator) Aggregate(ctx context.Context, in *dto.SignalColl
 		aggregatedConf = 0
 	}
 
-	threshold := a.calc.Calculate(&ThresholdInput{
+	threshold := a.calc.Calculate(ctx, &ThresholdInput{
 		IntentType:        in.IntentType,
 		CustomerLevel:     inferCustomerLevel(in),
 		AgentAvailability: inferAgentAvailability(in),
 		Now:               time.Now(),
 	})
 
-	policy := a.calc.policyEngine.GetPolicy(in.IntentType)
+	policy := a.calc.policyEngine.GetPolicy(ctx, in.IntentType)
 	band := a.calc.DetermineBand(aggregatedConf, threshold, policy)
 	if vetoTriggered {
 		band = dto.BandHandoff

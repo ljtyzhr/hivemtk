@@ -204,10 +204,14 @@ func (s *HandoffChainService) applyRule(ctx context.Context, rule HandoffRule, s
 		ReasonDetail: rule.Description,
 		IntentType:   rule.TargetRole,
 	}
-	_ = s.repo.CreateHandoffDecisionRecord(ctx, &record)
+	if err := s.repo.CreateHandoffDecisionRecord(ctx, &record); err != nil {
+		return fmt.Errorf("写转派决策记录: %w", err)
+	}
 
 	if rule.Action == "escalate" {
-		_ = s.repo.EscalateSession(ctx, sessionID)
+		if err := s.repo.EscalateSession(ctx, sessionID); err != nil {
+			return fmt.Errorf("升级会话 %s: %w", sessionID, err)
+		}
 	}
 	return nil
 }

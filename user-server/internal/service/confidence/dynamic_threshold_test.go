@@ -6,18 +6,15 @@ import (
 	"time"
 
 	"hivemtk-user/internal/dto"
-	"hivemtk-user/internal/model"
 )
 
 func makePolicyEngine() *ThresholdPolicyEngine {
-	e := NewThresholdPolicyEngine(nil)
-	e.loadDefaults()
-	return e
+	return NewThresholdPolicyEngine(nil)
 }
 
 func TestDynamicThreshold_Calculate_NilPolicyEngine(t *testing.T) {
 	c := NewDynamicThresholdCalculator(nil)
-	got := c.Calculate(&ThresholdInput{IntentType: "ask_product"})
+	got := c.Calculate(context.Background(), &ThresholdInput{IntentType: "ask_product"})
 	if !approxEqual(got, 0.70) {
 		t.Errorf("nil 策略引擎应兜底 0.70, got %v", got)
 	}
@@ -26,7 +23,7 @@ func TestDynamicThreshold_Calculate_NilPolicyEngine(t *testing.T) {
 func TestDynamicThreshold_Calculate_DefaultPolicy(t *testing.T) {
 	e := makePolicyEngine()
 	c := NewDynamicThresholdCalculator(e)
-	got := c.Calculate(&ThresholdInput{
+	got := c.Calculate(context.Background(), &ThresholdInput{
 		IntentType:        "unknown_intent",
 		CustomerLevel:     "normal",
 		AgentAvailability: 0.3,
@@ -40,7 +37,7 @@ func TestDynamicThreshold_Calculate_DefaultPolicy(t *testing.T) {
 func TestDynamicThreshold_Calculate_VIPCustomer(t *testing.T) {
 	e := makePolicyEngine()
 	c := NewDynamicThresholdCalculator(e)
-	got := c.Calculate(&ThresholdInput{
+	got := c.Calculate(context.Background(), &ThresholdInput{
 		IntentType:        "unknown_intent",
 		CustomerLevel:     "vip",
 		AgentAvailability: 0.3,
@@ -54,7 +51,7 @@ func TestDynamicThreshold_Calculate_VIPCustomer(t *testing.T) {
 func TestDynamicThreshold_Calculate_LowCustomer(t *testing.T) {
 	e := makePolicyEngine()
 	c := NewDynamicThresholdCalculator(e)
-	got := c.Calculate(&ThresholdInput{
+	got := c.Calculate(context.Background(), &ThresholdInput{
 		IntentType:        "unknown_intent",
 		CustomerLevel:     "low",
 		AgentAvailability: 0.3,
@@ -68,7 +65,7 @@ func TestDynamicThreshold_Calculate_LowCustomer(t *testing.T) {
 func TestDynamicThreshold_Calculate_PeakHour(t *testing.T) {
 	e := makePolicyEngine()
 	c := NewDynamicThresholdCalculator(e)
-	got := c.Calculate(&ThresholdInput{
+	got := c.Calculate(context.Background(), &ThresholdInput{
 		IntentType:        "unknown_intent",
 		AgentAvailability: 0.3,
 		Now:               time.Date(2026, 7, 19, 11, 0, 0, 0, time.UTC),
@@ -76,7 +73,7 @@ func TestDynamicThreshold_Calculate_PeakHour(t *testing.T) {
 	if !approxEqual(got, 0.65) {
 		t.Errorf("高峰时段应 -0.05, got %v want 0.65", got)
 	}
-	got = c.Calculate(&ThresholdInput{
+	got = c.Calculate(context.Background(), &ThresholdInput{
 		IntentType:        "unknown_intent",
 		AgentAvailability: 0.3,
 		Now:               time.Date(2026, 7, 19, 15, 0, 0, 0, time.UTC),
@@ -89,7 +86,7 @@ func TestDynamicThreshold_Calculate_PeakHour(t *testing.T) {
 func TestDynamicThreshold_Calculate_LowHour(t *testing.T) {
 	e := makePolicyEngine()
 	c := NewDynamicThresholdCalculator(e)
-	got := c.Calculate(&ThresholdInput{
+	got := c.Calculate(context.Background(), &ThresholdInput{
 		IntentType:        "unknown_intent",
 		AgentAvailability: 0.3,
 		Now:               time.Date(2026, 7, 19, 3, 0, 0, 0, time.UTC),
@@ -102,7 +99,7 @@ func TestDynamicThreshold_Calculate_LowHour(t *testing.T) {
 func TestDynamicThreshold_Calculate_HighAvailability(t *testing.T) {
 	e := makePolicyEngine()
 	c := NewDynamicThresholdCalculator(e)
-	got := c.Calculate(&ThresholdInput{
+	got := c.Calculate(context.Background(), &ThresholdInput{
 		IntentType:        "unknown_intent",
 		AgentAvailability: 0.6,
 		Now:               time.Date(2026, 7, 19, 9, 0, 0, 0, time.UTC),
@@ -115,7 +112,7 @@ func TestDynamicThreshold_Calculate_HighAvailability(t *testing.T) {
 func TestDynamicThreshold_Calculate_LowAvailability(t *testing.T) {
 	e := makePolicyEngine()
 	c := NewDynamicThresholdCalculator(e)
-	got := c.Calculate(&ThresholdInput{
+	got := c.Calculate(context.Background(), &ThresholdInput{
 		IntentType:        "unknown_intent",
 		AgentAvailability: 0.05,
 		Now:               time.Date(2026, 7, 19, 9, 0, 0, 0, time.UTC),
@@ -128,7 +125,7 @@ func TestDynamicThreshold_Calculate_LowAvailability(t *testing.T) {
 func TestDynamicThreshold_Calculate_ClipMin(t *testing.T) {
 	e := makePolicyEngine()
 	c := NewDynamicThresholdCalculator(e)
-	got := c.Calculate(&ThresholdInput{
+	got := c.Calculate(context.Background(), &ThresholdInput{
 		IntentType:        "social",
 		CustomerLevel:     "low",
 		AgentAvailability: 0.6,
@@ -142,7 +139,7 @@ func TestDynamicThreshold_Calculate_ClipMin(t *testing.T) {
 func TestDynamicThreshold_Calculate_ClipMax(t *testing.T) {
 	e := makePolicyEngine()
 	c := NewDynamicThresholdCalculator(e)
-	got := c.Calculate(&ThresholdInput{
+	got := c.Calculate(context.Background(), &ThresholdInput{
 		IntentType:        "complaint",
 		CustomerLevel:     "vip",
 		AgentAvailability: 0.05,
@@ -156,7 +153,7 @@ func TestDynamicThreshold_Calculate_ClipMax(t *testing.T) {
 func TestDynamicThreshold_Calculate_AllFactorsCombined(t *testing.T) {
 	e := makePolicyEngine()
 	c := NewDynamicThresholdCalculator(e)
-	got := c.Calculate(&ThresholdInput{
+	got := c.Calculate(context.Background(), &ThresholdInput{
 		IntentType:        "ask_product",
 		CustomerLevel:     "vip",
 		AgentAvailability: 0.7,
@@ -170,7 +167,7 @@ func TestDynamicThreshold_Calculate_AllFactorsCombined(t *testing.T) {
 func TestDynamicThreshold_DetermineBand_Handoff(t *testing.T) {
 	e := makePolicyEngine()
 	c := NewDynamicThresholdCalculator(e)
-	policy := e.GetPolicy("default")
+	policy := e.GetPolicy(context.Background(), "default")
 	got := c.DetermineBand(0.30, 0.70, policy)
 	if got != dto.BandHandoff {
 		t.Errorf("conf=0.30 应为 handoff, got %v", got)
@@ -180,7 +177,7 @@ func TestDynamicThreshold_DetermineBand_Handoff(t *testing.T) {
 func TestDynamicThreshold_DetermineBand_LLMFallback(t *testing.T) {
 	e := makePolicyEngine()
 	c := NewDynamicThresholdCalculator(e)
-	policy := e.GetPolicy("default")
+	policy := e.GetPolicy(context.Background(), "default")
 	got := c.DetermineBand(0.50, 0.70, policy)
 	if got != dto.BandLLMFallback {
 		t.Errorf("conf=0.50 应为 llm_fallback, got %v", got)
@@ -190,7 +187,7 @@ func TestDynamicThreshold_DetermineBand_LLMFallback(t *testing.T) {
 func TestDynamicThreshold_DetermineBand_Review(t *testing.T) {
 	e := makePolicyEngine()
 	c := NewDynamicThresholdCalculator(e)
-	policy := e.GetPolicy("default")
+	policy := e.GetPolicy(context.Background(), "default")
 	got := c.DetermineBand(0.70, 0.70, policy)
 	if got != dto.BandReview {
 		t.Errorf("conf=0.70 应为 review, got %v", got)
@@ -200,7 +197,7 @@ func TestDynamicThreshold_DetermineBand_Review(t *testing.T) {
 func TestDynamicThreshold_DetermineBand_Auto(t *testing.T) {
 	e := makePolicyEngine()
 	c := NewDynamicThresholdCalculator(e)
-	policy := e.GetPolicy("default")
+	policy := e.GetPolicy(context.Background(), "default")
 	got := c.DetermineBand(0.80, 0.70, policy)
 	if got != dto.BandAuto {
 		t.Errorf("conf=0.80 应为 auto, got %v", got)
@@ -210,7 +207,7 @@ func TestDynamicThreshold_DetermineBand_Auto(t *testing.T) {
 func TestDynamicThreshold_DetermineBand_BoundaryHandoff(t *testing.T) {
 	e := makePolicyEngine()
 	c := NewDynamicThresholdCalculator(e)
-	policy := e.GetPolicy("default")
+	policy := e.GetPolicy(context.Background(), "default")
 	got := c.DetermineBand(0.40, 0.70, policy)
 	if got != dto.BandLLMFallback {
 		t.Errorf("conf=0.40 边界应为 llm_fallback, got %v", got)
@@ -220,7 +217,7 @@ func TestDynamicThreshold_DetermineBand_BoundaryHandoff(t *testing.T) {
 func TestDynamicThreshold_DetermineBand_BoundaryReview(t *testing.T) {
 	e := makePolicyEngine()
 	c := NewDynamicThresholdCalculator(e)
-	policy := e.GetPolicy("default")
+	policy := e.GetPolicy(context.Background(), "default")
 	got := c.DetermineBand(0.75, 0.70, policy)
 	if got != dto.BandAuto {
 		t.Errorf("conf=0.75 边界应为 auto, got %v", got)
@@ -248,7 +245,7 @@ func TestThresholdPolicyEngine_LoadPolicies_NilRepo(t *testing.T) {
 	if err := e.LoadPolicies(context.Background()); err != nil {
 		t.Errorf("nil repo LoadPolicies 应返回 nil, got %v", err)
 	}
-	p := e.GetPolicy("complaint")
+	p := e.GetPolicy(context.Background(), "complaint")
 	if p == nil {
 		t.Fatalf("complaint 策略不应为 nil")
 	}
@@ -259,7 +256,7 @@ func TestThresholdPolicyEngine_LoadPolicies_NilRepo(t *testing.T) {
 
 func TestThresholdPolicyEngine_GetPolicy_NotFound(t *testing.T) {
 	e := makePolicyEngine()
-	p := e.GetPolicy("unknown_intent_xyz")
+	p := e.GetPolicy(context.Background(), "unknown_intent_xyz")
 	if p == nil {
 		t.Fatalf("未知 intent 不应返回 nil")
 	}
@@ -287,7 +284,7 @@ func TestThresholdPolicyEngine_GetPolicy_SpecificIntent(t *testing.T) {
 		{"default", 0.70},
 	}
 	for _, tc := range cases {
-		p := e.GetPolicy(tc.intent)
+		p := e.GetPolicy(context.Background(), tc.intent)
 		if p == nil {
 			t.Errorf("intent %s 不应返回 nil", tc.intent)
 			continue
@@ -298,34 +295,9 @@ func TestThresholdPolicyEngine_GetPolicy_SpecificIntent(t *testing.T) {
 	}
 }
 
-func TestThresholdPolicyEngine_UpdatePolicy(t *testing.T) {
-	e := makePolicyEngine()
-	newPolicy := &model.ThresholdPolicy{
-		PolicyID:      "policy_complaint_v2",
-		IntentType:    "complaint",
-		BaseThreshold: 0.90,
-		IsActive:      true,
-	}
-	if err := e.UpdatePolicy(context.Background(), newPolicy); err != nil {
-		t.Fatalf("UpdatePolicy 失败: %v", err)
-	}
-	p := e.GetPolicy("complaint")
-	if !approxEqual(p.BaseThreshold, 0.90) {
-		t.Errorf("更新后 complaint base=0.90, got %v", p.BaseThreshold)
-	}
-}
-
-func TestThresholdPolicyEngine_AllPolicies(t *testing.T) {
-	e := makePolicyEngine()
-	all := e.AllPolicies()
-	if len(all) < 10 {
-		t.Errorf("默认策略应至少 10 条, got %d", len(all))
-	}
-}
-
 func TestThresholdPolicyEngine_PolicyFields(t *testing.T) {
 	e := makePolicyEngine()
-	p := e.GetPolicy("default")
+	p := e.GetPolicy(context.Background(), "default")
 	if p.CustomerLevelWeight != 0.05 {
 		t.Errorf("CustomerLevelWeight=0.05, got %v", p.CustomerLevelWeight)
 	}

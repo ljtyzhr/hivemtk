@@ -1,6 +1,7 @@
 package controller
 
 import (
+	"errors"
 	"hivemtk-user/internal/dto"
 	cursorpkg "hivemtk-user/internal/pkg/pagination"
 	"hivemtk-user/internal/pkg/utils/pagination"
@@ -53,7 +54,11 @@ func (c *TuningController) GetConfidenceSignal(ctx *gin.Context) {
 	id := ctx.Param("id")
 	row, err := c.svc.GetConfidenceSignal(ctx.Request.Context(), id)
 	if err != nil {
-		response.NotFoundError(ctx, "signal")
+		if errors.Is(err, service.ErrConfidenceSignalNotFound) {
+			response.NotFoundError(ctx, "signal")
+			return
+		}
+		response.ErrorFromDB(ctx, err, "get signal failed: "+err.Error())
 		return
 	}
 	response.Success(ctx, row, "")
