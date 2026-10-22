@@ -11,8 +11,8 @@
 #
 # 部署内容：
 #   - user-server → 本地二进制（go build → nohup 重启，127.0.0.1:8204）
-#   - user-web 前端 → $DEPLOY_HOST:$WEBROOT_USERWEB/dist/（需显式 DEPLOY_HOST）
-#   - embed-sdk     → $DEPLOY_HOST:$WEBROOT_USERWEB/embed-sdk-dist/（同上）
+#   - user-web 前端 → $DEPLOY_HOST:$WEBROOT_USERWEB/$WEBROOT_USERWEB_SUBDIR（需显式 DEPLOY_HOST）
+#   - embed-sdk     → $DEPLOY_HOST:$EMBED_SDK_WEBROOT（默认 $WEBROOT_USERWEB/embed-sdk-dist，同上）
 #
 # 用法:
 #   ./deploy-user.sh --api-only                          # 纯本地：只重启本地 user-server
@@ -41,6 +41,12 @@ DEPLOY_HOST="${DEPLOY_HOST:-}"
 REMOTE="ssh $DEPLOY_USER@$DEPLOY_HOST"
 
 WEBROOT_USERWEB="${WEBROOT_USERWEB:-/www/wwwroot/hivemtk/user-web}"
+# 站点根下的子目录：历史布局为 dist/；生产统一栈的站点根本身就是 dist 内容，
+# 用 WEBROOT_USERWEB_SUBDIR= 置空即可平铺推送。
+WEBROOT_USERWEB_SUBDIR="${WEBROOT_USERWEB_SUBDIR:-dist}"
+WEBROOT_USERWEB_DIST="${WEBROOT_USERWEB}/${WEBROOT_USERWEB_SUBDIR}"
+# embed-sdk 产物落点：历史与 user-web 同根；生产统一栈由 user-server 目录托管。
+EMBED_SDK_WEBROOT="${EMBED_SDK_WEBROOT:-$WEBROOT_USERWEB/embed-sdk-dist}"
 USER_SERVER_PORT="${USER_SERVER_PORT:-8204}"
 
 REMOTE_DEPLOY_DIR="${REMOTE_DEPLOY_DIR:-/www/wwwroot/hivemtk}"
@@ -186,22 +192,22 @@ build_web() {
 # ---------- 推 dist 到远端 ----------
 push_web() {
   log "########## 推送前端资源 ##########"
-  run_remote "创建远端目录" "mkdir -p $WEBROOT_USERWEB/dist $WEBROOT_USERWEB/embed-sdk-dist"
+  run_remote "创建远端目录" "mkdir -p $WEBROOT_USERWEB_DIST $EMBED_SDK_WEBROOT"
 
-  log "==> 推送 user-web/dist -> $WEBROOT_USERWEB/dist/"
+  log "==> 推送 user-web/dist -> $WEBROOT_USERWEB_DIST/"
   if command -v rsync >/dev/null 2>&1; then
-    run "rsync -az --delete --exclude='.user.ini' user-web/dist/ $DEPLOY_USER@$DEPLOY_HOST:$WEBROOT_USERWEB/dist/"
+    run "rsync -az --delete --exclude='.user.ini' user-web/dist/ $DEPLOY_USER@$DEPLOY_HOST:$WEBROOT_USERWEB_DIST/"
   else
-    run_remote "清空远端 dist" "find $WEBROOT_USERWEB/dist -mindepth 1 -name '.user.ini' -prune -o -mindepth 1 -delete"
-    run "scp -r user-web/dist/. $DEPLOY_USER@$DEPLOY_HOST:$WEBROOT_USERWEB/dist/"
+    run_remote "清空远端 dist" "find $WEBROOT_USERWEB_DIST -mindepth 1 -name '.user.ini' -prune -o -mindepth 1 -delete"
+    run "scp -r user-web/dist/. $DEPLOY_USER@$DEPLOY_HOST:$WEBROOT_USERWEB_DIST/"
   fi
 
-  log "==> 推送 embed-sdk/dist -> $WEBROOT_USERWEB/embed-sdk-dist/"
+  log "==> 推送 embed-sdk/dist -> $EMBED_SDK_WEBROOT/"
   if command -v rsync >/dev/null 2>&1; then
-    run "rsync -az --delete embed-sdk/dist/ $DEPLOY_USER@$DEPLOY_HOST:$WEBROOT_USERWEB/embed-sdk-dist/"
+    run "rsync -az --delete embed-sdk/dist/ $DEPLOY_USER@$DEPLOY_HOST:$EMBED_SDK_WEBROOT/"
   else
-    run_remote "清空远端 embed-sdk-dist" "find $WEBROOT_USERWEB/embed-sdk-dist -mindepth 1 -delete"
-    run "scp -r embed-sdk/dist/. $DEPLOY_USER@$DEPLOY_HOST:$WEBROOT_USERWEB/embed-sdk-dist/"
+    run_remote "清空远端 embed-sdk-dist" "find $EMBED_SDK_WEBROOT -mindepth 1 -delete"
+    run "scp -r embed-sdk/dist/. $DEPLOY_USER@$DEPLOY_HOST:$EMBED_SDK_WEBROOT/"
   fi
 
   log "  前端资源推送完成"
@@ -419,7 +425,7 @@ else
   log "  本地 API: ${HEALTH_URL%/health}"
   log "  二进制回滚点: user-server/bin/user-server.prev（回滚= mv user-server.prev user-server 后重启）"
   if mode_needs_remote; then
-    log "  前端已推送到: $DEPLOY_USER@$DEPLOY_HOST:$WEBROOT_USERWEB/dist/"
+    log "  前端已推送到: $DEPLOY_USER@$DEPLOY_HOST:$WEBROOT_USERWEB_DIST/"
   else
     log "  本次无远端推送（纯本地模式）"
   fi
