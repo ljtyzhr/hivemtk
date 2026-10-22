@@ -192,6 +192,14 @@ func (s *MFAService) SetupMFA(ctx context.Context, userID uint, username string)
 	} else {
 		mfa.ID = existing.ID
 		mfa.CreatedAt = existing.CreatedAt
+		// 把库里的 tenant_id 带回来。
+		//
+		// 为什么必须：mfa 是**新建的零值 model**（tenant_id=0），而 repo.Save 走
+		// GORM 的 Save —— Save 写**全部字段含零值** ⇒ 这一行的租户被改写成 0。
+		// 多租户模式下 tenant 回调 fail-closed 当场拒掉
+		//（"[tenant] 更新不可改写 tenant_id"），接口 500；独立部署没这层校验 ⇒ 200。
+		// 与 system_config.SaveConfig / 短信配置 SaveConfig 是同一族修法。
+		mfa.TenantID = existing.TenantID
 		if err := s.mfaRepo.Save(ctx, mfa); err != nil {
 			logger.Error(err, "MFA 记录保存失败")
 			return nil, errors.New("MFA 设置失败")
