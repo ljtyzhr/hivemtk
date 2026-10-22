@@ -30,12 +30,17 @@ func (r *LexicalRetriever) Retrieve(ctx context.Context, productID string, query
 		topK = 50
 	}
 
-	if rows, err := r.tryTSQuery(ctx, productID, query, topK, "contextual_tsv", "zh_rag"); err == nil && len(rows) > 0 {
-		return rows, nil
-	}
-
-	if rows, err := r.tryTSQuery(ctx, productID, query, topK, "content_tsv", "simple"); err == nil && len(rows) > 0 {
-		return rows, nil
+	// 文本搜索配置按"库里真实存在的"依次试（见 tsconfig_probe.go）：
+	// 装了 zhparser 的库走 zh_rag（中文分词更准），没装的库直接走 simple，
+	// 不再无条件先试一个不存在的 zh_rag —— 那次注定失败的查询会在每次召回
+	// 留下一条 42704 的 ERROR，功能结果虽对，日志却是假的。
+	cfgs := availableTSConfigs(ctx, r.db)
+	for _, cfg := range cfgs {
+		for _, col := range []string{"contextual_tsv", "content_tsv"} {
+			if rows, err := r.tryTSQuery(ctx, productID, query, topK, col, cfg); err == nil && len(rows) > 0 {
+				return rows, nil
+			}
+		}
 	}
 
 	return r.ilikeFallback(ctx, productID, query, topK)

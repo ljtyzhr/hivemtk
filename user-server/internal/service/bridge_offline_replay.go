@@ -8,6 +8,7 @@ import (
 	"sync/atomic"
 	"time"
 
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
 
@@ -226,8 +227,65 @@ func (s *BridgeOfflineReplayService) ReplayDelayedOutbound(ctx context.Context, 
 	return replayed, failed
 }
 
+// RunOnceAllTenants 逐活跃租户各跑一轮回扫，返回跨租户汇总。
+//
+// 租户注入（specs/001-saas-multi-tenant T020）：必须走 Fanout。
+// cron 交来的 ctx 不含租户，而 bridge_accounts / message_hub / reach_delayed_outbound
+// 都带 tenant_id 列 —— on 模式下未绑定租户即被隔离守卫 fail-closed 拒绝，
+// 于是渠道快照恒空、延后出站永远不补投、孤儿出站永远不结算。
+// 现象是每 5 分钟一行 "[BridgeReplay] 渠道快照读取失败: [tenant] 表 bridge_accounts 需要租户上下文但 ctx 未绑定"，
+// 业务侧完全无感（回扫只报数，不报错给接口层）。
+//
+// 为什么不用 SystemScope 一次扫完：这条任务的**写**操作（补投 reach_delayed_outbound、
+// 结算 message_hub 判弃）本来就是逐租户语义，SystemScope 会把写隔离整体豁免掉——
+// 读省了，写却越界。逐租户跑，读写都在本租户边界内。
+//
+// 计数口径：跨租户求和。逐租户的明细见各租户自己的那行日志（RunOnce 内部打印）。
+func (s *BridgeOfflineReplayService) RunOnceAllTenants(ctx context.Context) ReplayStats {
+	var agg ReplayStats
+	_, err := tenant.Fanout(ctx, nil, func(tctx context.Context, _ uint) (int64, error) {
+		st := s.RunOnce(tctx)
+		agg = mergeReplayStats(agg, st)
+		// 求和口径只留"跑过的消息数"，其余计数由 mergeReplayStats 累加。
+		return st.ReplayedMessages, nil
+	})
+	if err != nil {
+		logger.Warnf("[BridgeReplay] 跨租户回扫失败: %v", err)
+	}
+	return agg
+}
+
+// mergeReplayStats 把一轮单租户统计并进跨租户汇总。
+//
+// 时间字段取最早开始 / 最晚结束：汇总窗口必须覆盖所有租户的实际执行区间，
+// 否则"这轮跑了多久"会读成最后一个租户的耗时。
+// OfflineSnapshots 合并去重：同一渠道账号在多租户下同名也不会互相覆盖（账号行是租户资产）。
+func mergeReplayStats(agg, st ReplayStats) ReplayStats {
+	agg.ScannedChannels += st.ScannedChannels
+	agg.OnlineChannels += st.OnlineChannels
+	agg.OfflineChannels += st.OfflineChannels
+	agg.ReplayedMessages += st.ReplayedMessages
+	agg.FailedMessages += st.FailedMessages
+	agg.SkippedOffline += st.SkippedOffline
+	agg.OrphanCandidateRows += st.OrphanCandidateRows
+	agg.OrphanSkippedOnline += st.OrphanSkippedOnline
+	agg.OrphanSettledRows += st.OrphanSettledRows
+	// 干跑开关是全局口径：任一租户读到 false 就是真结算，取 false 更保守。
+	if !st.OrphanDryRun {
+		agg.OrphanDryRun = false
+	}
+	if agg.StartedAt.IsZero() || (!st.StartedAt.IsZero() && st.StartedAt.Before(agg.StartedAt)) {
+		agg.StartedAt = st.StartedAt
+	}
+	if st.FinishedAt.After(agg.FinishedAt) {
+		agg.FinishedAt = st.FinishedAt
+	}
+	agg.OfflineSnapshots = append(agg.OfflineSnapshots, st.OfflineSnapshots...)
+	return agg
+}
+
 // RunOnce 执行一次完整的离线回扫
-// 供 cron 调用（每 5 分钟）
+// 供 cron 调用（每 5 分钟）；ctx 必须已绑定租户（见 RunOnceAllTenants）。
 func (s *BridgeOfflineReplayService) RunOnce(ctx context.Context) ReplayStats {
 	startedAt := time.Now()
 	stats := ReplayStats{StartedAt: startedAt}

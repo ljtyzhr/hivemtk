@@ -105,8 +105,14 @@ func InitCron() {
 		panic(err)
 	}
 
+	// 租户注入（specs/001-saas-multi-tenant T020）：必须走逐租户扇出。
+	// cron 交来的 ctx 不含租户，而 bridge_accounts / message_hub / reach_delayed_outbound
+	// 都带 tenant_id 列 —— on 模式下未绑定租户即被隔离守卫 fail-closed 拒绝，
+	// 于是渠道快照恒空、延后出站永远不补投、孤儿出站永远不结算，
+	// 现场只有每 5 分钟一行 "[BridgeReplay] 渠道快照读取失败: [tenant] 表 bridge_accounts 需要租户上下文但 ctx 未绑定"。
+	// 与同文件的活码轮询 / 过期令牌清理 / 工单升级链同一口径：逐活跃租户各跑一遍。
 	_, err = mgr.AddTask("0 */5 * * * *", mgr.goTask("bridge_offline_replay", func(ctx context.Context) {
-		service.NewBridgeOfflineReplayService().RunOnce(ctx)
+		service.NewBridgeOfflineReplayService().RunOnceAllTenants(ctx)
 	}))
 	if err != nil {
 		logger.Info(fmt.Sprintf("添加离线消息回扫定时任务失败 %s", err.Error()))
@@ -147,15 +153,30 @@ func InitCron() {
 
 // ChurnCalculationCron 流失预测定时任务：从 customer_events 真实聚合全部客户行为并执行流失计算。
 // 解决此前 churn_predictions 表永远为空（流失页面无真实数据）的断头功能问题。
+//
+// 租户注入（specs/001-saas-multi-tenant T020）：必须走 fanoutTask。
+// cron 交来的 ctx 不含租户，而 customer_events / churn_predictions 都带
+// tenant_id 列 —— on 模式下未绑定租户即被隔离守卫 fail-closed 拒绝，于是
+// 整轮流失计算读不到任何行为数据、算不出任何预测（页面上就是「流失预测
+// 永远是空的」），而且这条 cron 走的是 context.Background() 直连，
+// 失败只会在日志里留一行，接口层完全无感。
+//
+// 与同文件的活码轮询 / 过期令牌清理同一口径：逐活跃租户各跑一遍。
 func ChurnCalculationCron() {
 	logger.Info("开始执行流失预测计算定时任务...")
 	churnService := opsservice.NewChurnPredictionService()
-	n, err := churnService.RunChurnCalculationForAllCustomers(context.Background())
+	// tenant.Fanout 自己跨租户求和（fn 的第一个返回值），所以计数走它的返回值，
+	// 不在回调里自己累加 —— 回调里的累加依赖扇出是串行的，那是实现细节，
+	// 不是契约。
+	total, err := tenant.Fanout(context.Background(), nil, func(ctx context.Context, _ uint) (int64, error) {
+		n, err := churnService.RunChurnCalculationForAllCustomers(ctx)
+		return int64(n), err
+	})
 	if err != nil {
 		logger.Error(err, "流失预测计算定时任务执行失败")
 		return
 	}
-	logger.Info(fmt.Sprintf("流失预测计算定时任务执行完成，覆盖客户数=%d", n))
+	logger.Info(fmt.Sprintf("流失预测计算定时任务执行完成，覆盖客户数=%d", total))
 }
 
 // LiveCodeRotateCron 活码轮询定时任务

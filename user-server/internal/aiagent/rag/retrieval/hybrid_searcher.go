@@ -339,13 +339,24 @@ func (h *HybridSearcher) vectorSearchPG(ctx context.Context, productID string, q
 	return rowsToChunks(rows), nil
 }
 
-func (h *HybridSearcher) detectTSVectorConfig() {
-	for _, tsConfig := range []string{"zh_rag", "simple"} {
+// detectTSVectorConfig 探测本库可用的文本搜索配置与 tsvector 列。
+//
+// 原实现用 `plainto_tsquery('test')`（**单参**形式）去探：这个形式用的是库的
+// **默认**配置（线上 default_text_search_config = pg_catalog.english），
+// 与被探测的 zh_rag 毫无关系 ⇒ 结构上就测不出"zh_rag 存不存在"，
+// 于是恒返回第一个候选 zh_rag。随后用 zh_rag 查必然 42704，cfg 被置 nil，
+// 再回头循环 ["zh_rag","simple"] 又先撞一次 zh_rag ——
+// 每次检索两条注定失败的查询 + 两条 ERROR 日志，探测本身毫无用处。
+//
+// 现在改成：只认**库里真实存在**的配置（availableTSConfigs），
+// 并用**带配置名**的 plainto_tsquery('cfg','test') 探列是否可用。
+func (h *HybridSearcher) detectTSVectorConfig(ctx context.Context) {
+	for _, tsConfig := range availableTSConfigs(ctx, h.db) {
 		for _, tsvCol := range []string{"contextual_tsv", "content_tsv"} {
 			var ok int
-			if err := h.db.Table("knowledge_chunks").
+			if err := h.db.WithContext(ctx).Table("knowledge_chunks").
 				Select("1").
-				Where(fmt.Sprintf("%s @@ plainto_tsquery('test')", tsvCol)).
+				Where(fmt.Sprintf("%s @@ plainto_tsquery('%s', 'test')", tsvCol, tsConfig)).
 				Limit(1).
 				Scan(&ok).Error; err == nil {
 				h.tsvectorMu.Lock()
@@ -383,7 +394,7 @@ func (h *HybridSearcher) keywordSearchPG(ctx context.Context, productID string, 
 	}
 
 	h.tsvectorOnce.Do(func() {
-		h.detectTSVectorConfig()
+		h.detectTSVectorConfig(ctx)
 	})
 
 	h.tsvectorMu.RLock()
@@ -400,7 +411,9 @@ func (h *HybridSearcher) keywordSearchPG(ctx context.Context, productID string, 
 		h.tsvectorMu.Unlock()
 	}
 
-	for _, tsConfig := range []string{"zh_rag", "simple"} {
+	// 兜底链同样只走库里真实存在的配置（见 tsconfig_probe.go）：
+	// 缺 zh_rag 的库不再先撞一次 42704。
+	for _, tsConfig := range availableTSConfigs(ctx, h.db) {
 		for _, tsvCol := range []string{"contextual_tsv", "content_tsv"} {
 			if rows, err := h.tsvectorSearch(ctx, tsConfig, tsvCol, productID, query, topK); err == nil && len(rows) > 0 {
 				return rows, nil

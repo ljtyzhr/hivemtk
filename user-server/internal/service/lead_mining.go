@@ -13,6 +13,7 @@ import (
 	"hivemtk-user/internal/aiagent/llm"
 	"hivemtk-user/internal/dto"
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
 
@@ -206,6 +207,15 @@ func (s *Service) worker(ctx context.Context) {
 func (s *Service) process(ctx context.Context, hub *model.MessageHub) {
 	if hub == nil || hub.Direction != "inbound" {
 		return
+	}
+	// 租户归属：worker 起的 ctx 来自 context.Background()（无租户），而
+	// lead_mining_configs / message_hub / clues 都是租户表 —— on 模式下未绑定租户
+	// 即被隔离守卫 fail-closed 拒绝（"[lead-mining] 读取配置失败: [tenant] 表
+	// lead_mining_configs 需要租户上下文但 ctx 未绑定"），整条线索发掘链路静默不跑。
+	// 行自带 tenant_id（MessageHub 是租户表，落库时由隔离 callback 填好），按行自证绑定：
+	// OnlyTenant 钉死归属、不回落默认租户（TenantID=0 时保持原 ctx，交给隔离守卫继续 fail-closed）。
+	if hub.TenantID != 0 {
+		ctx = tenant.OnlyTenant(ctx, hub.TenantID)
 	}
 	content := strings.TrimSpace(hub.Content)
 	if content == "" {
