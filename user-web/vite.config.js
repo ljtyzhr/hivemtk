@@ -208,27 +208,22 @@ export default defineConfig({
         // 静态资源继续 precache (hash 命名, 新旧共存不冲突)
         globPatterns: ['**/*.{js,css,svg,png,woff2,webp}'],
         // 排除 HTML 和 manifest, 这俩走网络
-        //
-        // i18n 语言包也不进 precache。
-        //
-        // 为什么不 precache：9 个语言包被 i18n/index.js **静态**导入，会打成一个
-        // 2MB+ 的 chunk（assets/i18n-*.js）。它是「翻译文本」不是「应用外壳」——
-        // 每次 SW 更新都把 2MB 文案推给所有用户，换语言的用户里只有 1/9 用得上。
-        // 改成走下面的 runtimeCaching（StaleWhileRevalidate）按需缓存即可。
-        //
-        // 为什么必须排除：不排除的话，workbox 的 maximumFileSizeToCacheInBytes
-        // 默认 2MiB 会被这个 2.004MiB 的 chunk 顶破，**直接让 vite build 失败**
-        // （error during build: Configure "workbox.maximumFileSizeToCacheInBytes"
-        // to change the limit）。生产构建挂掉比少一个 precache 严重得多。
-        globIgnores: [
-          '**/*.html',
-          'manifest.webmanifest',
-          'version.json',
-          '**/assets/i18n-*.js',
-        ],
+        globIgnores: ['**/*.html', 'manifest.webmanifest', 'version.json'],
         // 单文件 precache 上限：2MiB → 4MiB。
-        // 兜底用的最后一道防线 —— 语言包已经排除掉了，但万一以后再长出别的
-        // 大 chunk，不该让整个生产构建直接挂掉。
+        //
+        // 为什么必须调：9 个语言包被 i18n/index.js **静态**导入，会打成一个
+        // 2.004MiB 的 chunk（assets/i18n-*.js），正好顶破 workbox 默认的 2MiB
+        // 上限 ⇒ error during build，**生产构建直接挂掉**（38f9fce2 加的页面
+        // 导览文案让语言包涨了近一倍，从 1.16MiB 涨到 2.00MiB）。
+        //
+        // 为什么是「调上限」而不是「把语言包排除出 precache」：本仓的 SW 是
+        // **版本管理**用的（main.js 靠它做 buildId 比对 + 换版时清缓存），
+        // 而且 registerType 是 'prompt'、main.js 只在「已有 controller」时才
+        // 发 SKIP_WAITING —— 实测这个 SW 装上后**从不接管页面**
+        // （navigator.serviceWorker.controller 恒为 false），
+        // 于是 runtimeCaching 那套根本不会触发。语言包一旦被排除出 precache，
+        // 离线可用性就只剩浏览器 HTTP 缓存兜底 —— 比改之前的既成事实更差。
+        // 所以保留 precache（离线能力不变），只把上限抬到容得下。
         maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         // skipWaiting + clientsClaim: 新 SW 构建后立即 activate
         // 不等所有 tab 关闭, 也不用等用户下次导航
@@ -245,8 +240,8 @@ export default defineConfig({
         runtimeCaching: [
           // i18n 语言包 chunk: StaleWhileRevalidate（先用缓存秒开，后台更新）
           //
-          // 它被排除在 precache 之外（见上），所以第一次访问要从网络拿；
-          // 拿到之后就常驻缓存，下次启动直接命中，不用等网络。
+          // 语言包**仍然在 precache 里**（见上：离线能力不能退化），这条规则是
+          // 叠加的第二道缓存：命中后走 SW 缓存、后台顺手更新一份。
           // 注意要匹配**构建产物路径**（/assets/i18n-*.js），不是源文件路径。
           {
             urlPattern: ({ url }) => /\/assets\/i18n-[^/]+\.js$/.test(url.pathname),
