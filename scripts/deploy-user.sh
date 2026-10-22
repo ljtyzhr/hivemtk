@@ -42,8 +42,8 @@ REMOTE="ssh $DEPLOY_USER@$DEPLOY_HOST"
 
 WEBROOT_USERWEB="${WEBROOT_USERWEB:-/www/wwwroot/hivemtk/user-web}"
 # 站点根下的子目录：历史布局为 dist/；生产统一栈的站点根本身就是 dist 内容，
-# 用 WEBROOT_USERWEB_SUBDIR= 置空即可平铺推送。
-WEBROOT_USERWEB_SUBDIR="${WEBROOT_USERWEB_SUBDIR:-dist}"
+# 用 WEBROOT_USERWEB_SUBDIR= 置空即可平铺推送（必须用 - 而非 :-，后者会把空值当未设置）。
+WEBROOT_USERWEB_SUBDIR="${WEBROOT_USERWEB_SUBDIR-dist}"
 WEBROOT_USERWEB_DIST="${WEBROOT_USERWEB}/${WEBROOT_USERWEB_SUBDIR}"
 # embed-sdk 产物落点：历史与 user-web 同根；生产统一栈由 user-server 目录托管。
 EMBED_SDK_WEBROOT="${EMBED_SDK_WEBROOT:-$WEBROOT_USERWEB/embed-sdk-dist}"
