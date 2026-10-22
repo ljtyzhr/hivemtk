@@ -191,9 +191,7 @@ func TestModuleSyncExemptsGiftRowsFromStaleDisable(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	prev := config.PlatformCfg
-	config.PlatformCfg = &config.PlatformConfig{APIURL: srv.URL, Secret: "test-secret"}
-	t.Cleanup(func() { config.PlatformCfg = prev })
+	withPlatformEndpointCfg(t, &config.PlatformConfig{APIURL: srv.URL, Secret: "test-secret"})
 
 	database := testutil.NewTestDB(t, &model.TenantModule{}, &model.ModuleSyncLog{}, &model.ModuleOrder{})
 	clearModuleTablesOnMode(t, database)
@@ -212,7 +210,12 @@ func TestModuleSyncExemptsGiftRowsFromStaleDisable(t *testing.T) {
 	}
 
 	svc := NewModuleCatalogServiceWithRepos(repo, orderRepo)
-	if _, err := svc.Sync(context.Background()); err != nil {
+	// stale 判定只在「本轮有该租户专属名单」时做（module_catalog.go 的
+	// reqTenantBound 门：商户级名单无权判定别人存废）⇒ ctx 必须绑请求租户。
+	// 这两行写的是默认租户（未显式设 TenantID ⇒ 落 tenant 1），故绑 1。
+	// a315e471 引入 reqTenantBound 时没同步更新本用例，导致 stale 判定整段没跑。
+	reqCtx := tenant.WithTenantID(context.Background(), tenant.DefaultTenantID)
+	if _, err := svc.Sync(reqCtx); err != nil {
 		t.Fatalf("Sync 失败: %v", err)
 	}
 
@@ -276,9 +279,7 @@ func TestModuleSyncActivatesPaidModuleOnOrderingTenant(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	prev := config.PlatformCfg
-	config.PlatformCfg = &config.PlatformConfig{APIURL: srv.URL, Secret: "test-secret"}
-	t.Cleanup(func() { config.PlatformCfg = prev })
+	withPlatformEndpointCfg(t, &config.PlatformConfig{APIURL: srv.URL, Secret: "test-secret"})
 
 	database := testutil.NewTestDB(t, &model.TenantModule{}, &model.ModuleSyncLog{}, &model.ModuleOrder{})
 	clearModuleTablesOnMode(t, database)
@@ -409,20 +410,40 @@ func TestModuleSyncProvisionsFreeModulesForRequestingTenant(t *testing.T) {
 			"menu_keys": model.ModuleMenuBindings[k],
 		})
 	}
-	// 0 元付费模块：平台视为赠送（owned=true，无显式 purchase 行）
+	// 0 元付费模块：平台视为赠送（owned=true，owned_source 显式给 gift）
+	//
+	// 2026-10-21 定价改版后线上已无 0 元付费模块（17 个 paid 模块统一 ¥1），
+	// 但「0 元 ⇒ gift」这条代码路径**仍必须被覆盖**：离线部署 / 存量商户升级前
+	// 落的 0 元 gift 行还在，且平台端改价是后台动作，随时可能把某个模块改回 0 元。
+	// 故桩里保留一个显式 0 元的模块（geo），专门压 gift 这条路径。
+	//
+	// owned_source 必须显式给 "gift"：平台端对「0 元且已授予」的模块就是
+	// 这么下发的（owned_flag=true 且 owned_source 空 ⇒ 平台补 "gift"，
+	// 见 platform-server 的 MerchantMarket 构造）。桩漏了它，用户端
+	// sourceOf() 就会按 paid 类目回落成 "purchase" ⇒ 断言看到的是错的值。
 	catalog = append(catalog, map[string]any{
 		"module_key": model.ModuleGEO, "name": "GEO 智能优化", "category": "paid",
 		"price_cents": 0, "owned": true, "owned_status": "active",
-		"menu_keys": model.ModuleMenuBindings[model.ModuleGEO],
+		"owned_source": "gift",
+		"menu_keys":    model.ModuleMenuBindings[model.ModuleGEO],
 	})
-	// 收费模块：商户级已 owned（平台租户级不可见），但本租户没有下单记录
+	// 收费模块：平台**商户级**已 owned，但本租户没下单 ⇒ 平台按租户下发时
+	// 它的 owned 状态是 disabled（线上实测：tenant 18 的 browser-automation
+	// 就是 source=purchase / status=disabled），**不在本租户的 active_keys 里**。
+	//
+	// 桩若把它写成 owned=true+active_status=active，就会把它塞进 active_keys
+	// ⇒ 用户端按「本轮租户的名单」把它落给请求租户（a315e471 修的正是这条：
+	// 落点用本轮租户，不再用订单反查）⇒ 变成白送。
+	// 价取 2026-10-21 改版后的 ¥1（100 分）；测试只关心「收费」这个性质，不关心具体金额。
 	catalog = append(catalog, map[string]any{
 		"module_key": model.ModuleBrowserAutomation, "name": "浏览器自动化", "category": "paid",
-		"price_cents": 9900, "owned": true, "owned_status": "active",
-		"owned_source": "purchase", "menu_keys": model.ModuleMenuBindings[model.ModuleBrowserAutomation],
+		"price_cents": 100, "owned": false, "owned_status": "",
+		"owned_source": "", "menu_keys": model.ModuleMenuBindings[model.ModuleBrowserAutomation],
 	})
+	// active_keys = 本租户**已授予**的名单（平台端口径：owned=true 的模块）。
+	// 本租户已授予：7 个 base + geo（0 元 gift）。browser-automation 未购买 ⇒ 不在内。
 	activeKeys := append([]string{}, model.BaseModuleKeys()...)
-	activeKeys = append(activeKeys, model.ModuleGEO, model.ModuleBrowserAutomation)
+	activeKeys = append(activeKeys, model.ModuleGEO)
 
 	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		w.Header().Set("Content-Type", "application/json")
@@ -444,9 +465,7 @@ func TestModuleSyncProvisionsFreeModulesForRequestingTenant(t *testing.T) {
 	}))
 	defer srv.Close()
 
-	prev := config.PlatformCfg
-	config.PlatformCfg = &config.PlatformConfig{APIURL: srv.URL, Secret: "test-secret"}
-	t.Cleanup(func() { config.PlatformCfg = prev })
+	withPlatformEndpointCfg(t, &config.PlatformConfig{APIURL: srv.URL, Secret: "test-secret"})
 
 	database := testutil.NewTestDB(t, &model.TenantModule{}, &model.ModuleSyncLog{}, &model.ModuleOrder{})
 	clearModuleTablesOnMode(t, database)
@@ -503,8 +522,13 @@ func TestModuleSyncProvisionsFreeModulesForRequestingTenant(t *testing.T) {
 	if got := baseCount[tenant.DefaultTenantID]; got != len(model.BaseModuleKeys()) {
 		t.Errorf("默认租户应有 %d 个基础行，实际 %d", len(model.BaseModuleKeys()), got)
 	}
-	if perTenant[tenant.DefaultTenantID][model.ModuleBrowserAutomation] == nil {
-		t.Error("默认租户应保留商户级 owned 的 browser-automation 行")
+	// browser-automation 不在默认租户名下：平台按**租户**下发 owned 状态，
+	// 本租户没购买 ⇒ owned=false ⇒ 不在 active_keys ⇒ 谁都不该拿到它
+	// （线上实测：默认租户 1 就没有 browser-automation 行，只有买过的租户有）。
+	// 旧断言要求"默认租户保留商户级 owned 行"——那是平台端改用按租户下发
+	// owned 之前的旧口径，与生产实际不符。
+	if r := perTenant[tenant.DefaultTenantID][model.ModuleBrowserAutomation]; r != nil {
+		t.Errorf("默认租户不该有 browser-automation 行（该租户未购买，source=%s）", r.Source)
 	}
 
 	// 4. 闸：赠送模块对请求租户放行，收费模块仍拦

@@ -55,7 +55,7 @@ func main() {
 	}
 	ctx := context.Background()
 
-	// 初始化全局 AEAD：参数中心里 embedding.global_override 的 api_key 是加密存���的，
+	// 初始化全局 AEAD：参数中心里 embedding.global_override 的 api_key 是加密存储的，
 	// 解密靠 secrets 包的 MASTER_KEY。secrets.InitFromEnv 由**装配层**调用，
 	// 本工具是独立进程 ⇒ 必须自己调一次，否则解密失败、embedding 拿空 key 去请求
 	// dashscope ⇒ 401。

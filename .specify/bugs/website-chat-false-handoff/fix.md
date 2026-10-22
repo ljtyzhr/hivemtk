@@ -121,7 +121,7 @@
 - 红灯校验（逐条确认新测试能抓住原 bug）：
   - 还原旧覆盖率口径 → `TestComputeRAGQual_CoverageUsesConfiguredTopK` / `TestConfidence_WebsiteProductQuestion_...` 失败（0.44 / 0.683）
   - 还原旧 rerank 条件 → `TestRerankRunsWhenCandidatePoolNotLargerThanTopK` 失败（候选池等于/小于 topK 两档）
-- 线上实测（修复前）：`confidence_signals` 表 `rag_qual=0.1344`（意图 0.9 / 实体 1.0 / 上下��� 0.5 / 熵 0.5）⇒ 聚合 0.6219 < 0.70 ⇒ 转人工
+- 线上实测（修复前）：`confidence_signals` 表 `rag_qual=0.1344`（意图 0.9 / 实体 1.0 / 上下文 0.5 / 熵 0.5）⇒ 聚合 0.6219 < 0.70 ⇒ 转人工
 - 线上实测（生产 rerank API 直连，6 条真实 chunk × query「介绍下项目」）：分数 0.341 / 0.320 / 0.287 / 0.277 / 0.274 / 0.269，**top1 命中的正是「HiveMTK 产品介绍」那条**
 - 修复后推算（用上述真实分数）：RAGQual 0.22~0.33，聚合置信度 **0.714~0.748** ⇒ 越过 0.70 阈值，不再转人工
 - 线上数据：FAQ 6 条 → 10 条（补关键词 + 补 4 条标准问答），已备份后执行

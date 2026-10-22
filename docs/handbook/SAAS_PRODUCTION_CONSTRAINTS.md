@@ -82,7 +82,7 @@ fail-closed 5000**（"需要租户上下文但 ctx 未绑定"）。
   `config.yaml` 不拷 `platform.yaml` → 容器内文件缺失 → `PlatformCfg=nil` →
   商户上报/续费下单/模块同步全部"平台配置未初始化"。
 - **现行契约**（commit 见 deploy 仓）：Dockerfile COPY `config/platform.yaml`
-  + deploy.sh 同步该文件到服务器 + 服务器 .env 必须有
+  ＋ deploy.sh 同步该文件到服务器 ＋ 服务器 .env 必须有
   `PLATFORM_ADMIN_PASSWORD`（yaml 里 `${PLATFORM_ADMIN_PASSWORD}` 展开用）。
 - **规则**：user-server 新增任何"仓库内配置文件依赖"，必须同时改
   Dockerfile COPY + deploy.sh rsync，否则线上容器缺文件。
