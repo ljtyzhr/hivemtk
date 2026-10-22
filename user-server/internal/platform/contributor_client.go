@@ -42,11 +42,10 @@ type ContributorClient struct {
 }
 
 func NewContributorClient() *ContributorClient {
-	apiURL := ""
-	if config.PlatformCfg != nil {
-		apiURL = config.PlatformCfg.APIURL
-	}
-	return &ContributorClient{baseURL: apiURL, httpClient: &http.Client{Timeout: 10 * time.Second}}
+	// 用 config.PlatformURL() 而不是直接读 config.PlatformCfg.APIURL：
+	// 前者是平台地址的唯一事实源（含参数中心 platform.api_host），
+	// 后者只在 yaml/env 配了地址时才有值 —— 参数中心配了地址的部署会拿到空串。
+	return &ContributorClient{baseURL: config.PlatformURL(), httpClient: &http.Client{Timeout: 10 * time.Second}}
 }
 
 // contributorAuth 派生出的贡献者账号凭证。

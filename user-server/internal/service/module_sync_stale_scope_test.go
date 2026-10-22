@@ -46,9 +46,7 @@ func setupStaleScopeStub(t *testing.T) {
 	}))
 	t.Cleanup(srv.Close)
 
-	prev := config.PlatformCfg
-	config.PlatformCfg = &config.PlatformConfig{APIURL: srv.URL, Secret: "test-secret"}
-	t.Cleanup(func() { config.PlatformCfg = prev })
+	withPlatformEndpointCfg(t, &config.PlatformConfig{APIURL: srv.URL, Secret: "test-secret"})
 }
 
 func setupStaleScopeDB(t *testing.T) *gorm.DB {
@@ -199,9 +197,7 @@ func setupTenantScopeStub(t *testing.T, activeKeys []string) {
 	}))
 	t.Cleanup(srv.Close)
 
-	prev := config.PlatformCfg
-	config.PlatformCfg = &config.PlatformConfig{APIURL: srv.URL, Secret: "test-secret"}
-	t.Cleanup(func() { config.PlatformCfg = prev })
+	withPlatformEndpointCfg(t, &config.PlatformConfig{APIURL: srv.URL, Secret: "test-secret"})
 }
 
 // TestSync_TenantRound_LandsPaidModuleOnRequestingTenant 钉住「收费模块的开通

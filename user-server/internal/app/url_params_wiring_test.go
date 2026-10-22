@@ -15,9 +15,14 @@ var wantURLsWired = []string{
 	"urls.cloud_url",
 	"urls.geo_site_base_url",
 	"urls.public_base_url",
+	// platform.api_host：平台端 API 地址（应对平台端迁移）。
+	// 与 urls.* 同属「读取点在 internal/config、只能由装配层注入 provider」的形状，
+	// 所以走同一个装配函数 —— 但它的**优先级方向相反**（参数中心 > env，
+	// 而 urls.* 是 env 优先），详见 internal/config/platform.go 的 PlatformURLFor。
+	"platform.api_host",
 }
 
-// resetURLProviders 复位三个 config 侧 provider。
+// resetURLProviders 复位四个 config 侧 provider。
 // 不能传 nil：SetXxxProvider(nil) 按设计是空操作（防装配顺序顶掉兜底），
 // 装过真 provider 的用例会跨用例泄漏。
 func resetURLProviders(t *testing.T) {
@@ -26,10 +31,12 @@ func resetURLProviders(t *testing.T) {
 	config.SetCloudURLProvider(empty)
 	config.SetWebsiteBaseURLProvider(empty)
 	config.SetPublicBaseURLProvider(empty)
+	config.SetPlatformHostProvider(empty)
 	t.Cleanup(func() {
 		config.SetCloudURLProvider(empty)
 		config.SetWebsiteBaseURLProvider(empty)
 		config.SetPublicBaseURLProvider(empty)
+		config.SetPlatformHostProvider(empty)
 	})
 }
 

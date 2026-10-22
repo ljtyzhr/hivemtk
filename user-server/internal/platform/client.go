@@ -121,7 +121,7 @@ func (c *Client) ensureJWTToken() error {
 		"username": username,
 		"password": password,
 	})
-	loginURL := config.PlatformCfg.APIURL + "/api/auth/login"
+	loginURL := config.PlatformURL() + "/api/auth/login"
 	req, _ := http.NewRequest("POST", loginURL, bytes.NewReader(loginBody))
 	req.Header.Set("Content-Type", "application/json")
 
@@ -179,7 +179,7 @@ func (c *Client) doRetry(method, path string, reqData, respData any, retried boo
 		logger.Error(err, "商户上报请求失败")
 		return err
 	}
-	url := config.PlatformCfg.APIURL + path
+	url := config.PlatformURL() + path
 	var body []byte
 	if reqData != nil {
 		var err error
@@ -425,7 +425,7 @@ func (c *Client) CheckConnection() error {
 	if config.PlatformCfg == nil {
 		return fmt.Errorf("%w: 未配置平台地址，连通性探测无从发出", ErrPlatformNotConfigured)
 	}
-	req, err := http.NewRequest(http.MethodGet, config.PlatformCfg.APIURL+"/health", nil)
+	req, err := http.NewRequest(http.MethodGet, config.PlatformURL()+"/health", nil)
 	if err != nil {
 		return fmt.Errorf("平台连通性探测请求构造失败: %w", err)
 	}
@@ -501,7 +501,7 @@ func (c *Client) ReportInstall(req *ReportInstallReq) error {
 	if err != nil {
 		return fmt.Errorf("序列化安装信息失败: %w", err)
 	}
-	url := strings.TrimRight(config.PlatformCfg.APIURL, "/") + "/api/platform/install"
+	url := strings.TrimRight(config.PlatformURL(), "/") + "/api/platform/install"
 	httpReq, _ := http.NewRequest("POST", url, bytes.NewReader(body))
 	httpReq.Header.Set("Content-Type", "application/json")
 	resp, err := c.httpClient.Do(httpReq)
@@ -559,7 +559,7 @@ func (c *Client) ReportHeartbeat(req *ReportHeartbeatReq) error {
 	if err != nil {
 		return fmt.Errorf("序列化心跳数据失败: %w", err)
 	}
-	url := strings.TrimRight(config.PlatformCfg.APIURL, "/") + "/api/platform/heartbeat"
+	url := strings.TrimRight(config.PlatformURL(), "/") + "/api/platform/heartbeat"
 	httpReq, _ := http.NewRequest("POST", url, bytes.NewReader(body))
 	httpReq.Header.Set("Content-Type", "application/json")
 	resp, err := c.httpClient.Do(httpReq)

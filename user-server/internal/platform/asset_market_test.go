@@ -7,6 +7,7 @@ import (
 	"io"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 	"time"
@@ -85,6 +86,13 @@ func withMarketConfig(t *testing.T, url string) {
 	old := config.PlatformCfg
 	t.Cleanup(func() { config.PlatformCfg = old })
 	config.PlatformCfg = &config.PlatformConfig{APIURL: url, Secret: "s"}
+	// 平台地址的解析入口 config.PlatformURL() 在关态恒返回空串，
+	// 只设 PlatformCfg.APIURL 而不开关，出站会拼出无协议的相对路径。
+	// 「有平台配置」在本包里必须同时意味着「开关开着」。
+	// 与 withPlatformConfig 同口径：调用方已设过就不动（零出域用例要关态）。
+	if _, alreadySet := os.LookupEnv("PLATFORM_ENABLED"); !alreadySet {
+		t.Setenv("PLATFORM_ENABLED", "true")
+	}
 }
 
 func TestAssetMarketClient(t *testing.T) {

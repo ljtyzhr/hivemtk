@@ -921,5 +921,19 @@ func DefaultParamDefs() []ParamDef {
 		{Group: "urls", Key: "public_base_url", Name: "公网回调基址",
 			Description: "渠道 webhook 回调与短链拼绝对地址用的公网基址。优先级 env PUBLIC_BASE_URL > config.yaml external.public_base_url > 本参数 > 空（调用方回退请求 Host）。SaaS 模式按租户覆盖（读取点透传请求 ctx；未绑定读平台默认）。平台默认留空＝沿用部署配置，行为零变更。读取点 internal/config/server.go 的 GetPublicBaseURLFor（provider 注入，60s TTL 缓存）",
 			ValueType:   "string", DefaultValue: "", Restart: false},
+		// —— platform 组：平台端通信地址（部署级，不按租户分叉）
+		//
+		// 与 urls.* 组的方向差异是刻意的：urls.* 是 env 优先（env 是部署契约），
+		// 本参数是**参数中心优先** —— 它的存在意义就是"应对平台端迁移"，
+		// 用户端改地址必须能压住部署时留在 .env 里的旧值，否则这条参数改了不生效。
+		//
+		// PLATFORM_ENABLED 仍是 env 总开关，不进参数中心：那是"要不要出网"，
+		// 本参数是"出网去哪"，两件事混在一起会让"关闭平台"变成一个需要改库的动作。
+		//
+		// 默认值留空是刻意的：空 = "没有平台可连"，与关态语义一致；
+		// 回落一个具体域名只会让请求打向黑洞、把日志刷成 Error，换不来任何功能。
+		{Group: "platform", Key: "api_host", Name: "平台端 API 地址",
+			Description: "平台端（platform-server）的对外 API 地址，用户端所有平台能力（商户注册/心跳/资产市场/模块订阅/订单/LLM 钱包/站内信）的出站目标。优先级 本参数 > config/platform.yaml 的 api_url > env PLATFORM_API_HOST/PLATFORM_API_URL > 空串。**参数中心优先于 env 是刻意的**：本参数的存在意义就是应对平台端迁移，改完必须在管理端生效，不能被 .env 里的旧值压住。平台级参数（不按租户分叉，见 config_param_tenant_scope.go 的 platformScopedParams）。读取点 internal/config/platform.go 的 PlatformURLFor（provider 注入，60s TTL 缓存），改完约 60 秒内生效、无需重启。PLATFORM_ENABLED 未开启时本参数不生效（关态地址恒为空串）。",
+			ValueType:   "string", DefaultValue: "", Restart: false, Risk: "danger"},
 	}
 }

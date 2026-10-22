@@ -32,3 +32,24 @@ export function reset(group, key) {
 export function bulkReset(group) {
   return http.post(`/api/manage/config-params/${group}/reset`)
 }
+
+// 平台端地址（platform.api_host）的专用读写端点。
+//
+// 为什么不用上面的 update('platform', 'api_host', ...)：
+// 那条路在 SaaS 模式下会落进**租户覆盖行**（后端 UpdateValue 见到请求 ctx 带租户
+// 绑定就写 tenant_config_params），而平台地址是部署级事实 —— 覆盖行对它不生效。
+// 结果是页面回「保存成功」而地址没变，是最难查的一类不一致。
+//
+// 专用端点直接写平台默认行（config_params 本体），且挂在平台运营方守卫下。
+export function setPlatformHost(address) {
+  return http.put('/api/manage/platform-host', { address })
+}
+
+// testPlatformConnectivity 探测平台端连通性。
+//
+// 不传 address 时探当前生效的地址；传了则探指定的地址（用于「还没保存，先试一下」）。
+// 探针是 GET {host}/health，刻意不走鉴权链 —— 把连通性探针绑到签名/登录上，
+// 会把「签名没配好」「管理员密码不对」都读成「平台挂了」。
+export function testPlatformConnectivity(address) {
+  return http.post('/api/manage/platform-host/connectivity', { address: address || '' })
+}

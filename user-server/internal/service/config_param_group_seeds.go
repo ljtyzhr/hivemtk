@@ -63,6 +63,7 @@ func DefaultParamGroupDefs() []ParamGroupDef {
 		{Group: "reporting", Label: "报表统计", Description: "报表与列表的默认时间窗口天数", SortOrder: 274},
 		{Group: "misc", Label: "其它", Description: "跨域的零散旋钮（访客令牌、上传上限、心跳等）", SortOrder: 280},
 		{Group: "urls", Label: "对外链接", Description: "前端/云端/官网基址（发信与展示用的对外 URL）", SortOrder: 282},
+		{Group: "platform", Label: "平台端通信", Description: "平台端 API 地址（应对平台端迁移，平台级参数）", SortOrder: 283},
 		{Group: "smart_cs", Label: "智能客服", Description: "智能客服编排的阈值与开关", SortOrder: 290},
 	}
 }

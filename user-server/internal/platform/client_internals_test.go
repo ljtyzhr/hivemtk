@@ -19,11 +19,25 @@ import (
 // withPlatformConfig 替换全局平台配置并在用例结束时还原。
 // 本包所有用例都必须走它：config.PlatformCfg 是进程级变量，
 // 既有用例（client_test.go）直接赋值不还原，靠字母序侥幸排在后面才没串味。
+//
+// 同时保证 PLATFORM_ENABLED 是开启态：平台地址的解析入口是 config.PlatformURL()，
+// 而它在**关态恒返回空串**（"没接平台"是合法值）—— 只设 PlatformCfg.APIURL
+// 而不开关，出站会拼出 "/merchant-api/xxx" 这种无协议的相对路径，
+// 请求构造阶段就报 "unsupported protocol scheme"。所以「有平台配置」这件事
+// 在本包里必须同时意味着「开关开着」。
+//
+// 开关的置法是「**调用方已经设过就不动**」：零出域用例（zero_egress_test.go）
+// 要的是关态，它自己先 t.Setenv("PLATFORM_ENABLED", "") 再调本夹具 ——
+// 若本夹具无条件设成 true，就会把那条关态声明顶掉，关态用例反而跑在开启态，
+// 于是"关态应当命中哨兵"的断言读到的是网络错误而不是哨兵错。
 func withPlatformConfig(t *testing.T, cfg *config.PlatformConfig) {
 	t.Helper()
 	orig := config.PlatformCfg
 	config.PlatformCfg = cfg
 	t.Cleanup(func() { config.PlatformCfg = orig })
+	if _, alreadySet := os.LookupEnv("PLATFORM_ENABLED"); !alreadySet {
+		t.Setenv("PLATFORM_ENABLED", "true")
+	}
 }
 
 // TestSignSecretPrecedence 签名密钥优先级：per-merchant > env > PlatformCfg.Secret > 报错。

@@ -265,6 +265,65 @@
             :title="`正在跨全部 ${groups.length} 个分组搜索「${keyword.trim()}」，命中 ${filteredList.length} 条`"
           />
 
+          <!-- 平台端地址专用卡片：只在 platform 分组显示。
+               为什么不用下面表格里的通用编辑器：那条路在 SaaS 模式下会落进
+               租户覆盖行（后端 UpdateValue 见到租户 ctx 就写 tenant_config_params），
+               而平台地址是部署级事实 —— 覆盖行对它不生效，页面会回「保存成功」
+               而地址没变。专用端点直接写平台默认行。 -->
+          <div
+            v-if="showPlatformHostCard"
+            class="platform-host-card"
+          >
+            <el-alert
+              type="warning"
+              :closable="false"
+              show-icon
+              class="platform-host-hint"
+              title="平台端地址是部署级参数：修改后影响本实例的全部租户平台能力（商户注册/心跳/资产市场/模块订阅/订单/LLM 钱包/站内信）。"
+            />
+            <div class="platform-host-row">
+              <el-input
+                v-model="platformHostDraft"
+                placeholder="https://platform.example.com"
+                clearable
+                class="platform-host-input"
+              >
+                <template #prefix>
+                  <el-icon><Link /></el-icon>
+                </template>
+              </el-input>
+              <el-button
+                :loading="platformHostProbing"
+                @click="probePlatformHost"
+              >
+                <el-icon><Connection /></el-icon>
+                测试连通性
+              </el-button>
+              <el-button
+                type="primary"
+                :loading="platformHostSaving"
+                :disabled="!platformHostDirty"
+                @click="savePlatformHost"
+              >
+                保存
+              </el-button>
+            </div>
+            <div
+              v-if="platformHostProbe"
+              class="platform-host-probe"
+              :class="`platform-host-probe--${platformHostProbe.status}`"
+            >
+              <el-tag
+                :type="platformHostProbe.status === 'ok' ? 'success' : (platformHostProbe.status === 'unreachable' ? 'danger' : 'info')"
+                size="small"
+                effect="dark"
+              >
+                {{ platformHostProbeLabel }}
+              </el-tag>
+              <span class="platform-host-probe-msg">{{ platformHostProbe.message }}</span>
+            </div>
+          </div>
+
           <el-table
             v-loading="loading"
             :data="filteredList"
@@ -776,6 +835,95 @@ import { ElMessage, ElMessageBox } from 'element-plus'
 import * as configParamsApi from '@/api/configParams'
 
 const allParams = ref([])
+
+// ── 平台端地址（platform.api_host）专用编辑区 ──
+//
+// 这条参数与其它参数不同：它是**部署级**事实（这台部署连哪个平台），
+// 且在 SaaS 模式下通用编辑器的写入口会落进租户覆盖行 —— 对它无效。
+// 所以给它一条独立的读写通道 + 一个连通性探针。
+const platformHostGroup = 'platform'
+const platformHostKey = 'api_host'
+const platformHostDraft = ref('')
+const platformHostSaving = ref(false)
+const platformHostProbing = ref(false)
+const platformHostProbe = ref(null)
+
+// 通用编辑器里那条 platform.api_host 的当前值（用于判脏与初始化草稿）
+const platformHostCurrent = computed(() => {
+  const p = allParams.value.find(
+    (x) => x && x.group === platformHostGroup && x.key === platformHostKey
+  )
+  return p ? String(p.value || '') : ''
+})
+
+const showPlatformHostCard = computed(() => currentGroup.value === platformHostGroup)
+
+const platformHostDirty = computed(
+  () => platformHostDraft.value.trim().replace(/\/+$/, '') !== platformHostCurrent.value.trim().replace(/\/+$/, '')
+)
+
+const platformHostProbeLabel = computed(() => {
+  const s = platformHostProbe.value && platformHostProbe.value.status
+  if (s === 'ok') return '可达'
+  if (s === 'unreachable') return '不可达'
+  return '未配置'
+})
+
+// 草稿随分组切换同步：进 platform 组时把当前生效值灌进草稿框。
+watch(
+  () => currentGroup.value,
+  (g) => {
+    if (g === platformHostGroup) {
+      platformHostDraft.value = platformHostCurrent.value
+      platformHostProbe.value = null
+    }
+  },
+  { immediate: true }
+)
+
+async function probePlatformHost() {
+  platformHostProbing.value = true
+  platformHostProbe.value = null
+  try {
+    const res = await configParamsApi.testPlatformConnectivity(platformHostDraft.value.trim())
+    const data = res && res.data ? res.data : null
+    platformHostProbe.value = data || { status: 'not_configured', message: res && res.message ? res.message : '无响应' }
+  } catch (e) {
+    platformHostProbe.value = { status: 'unreachable', message: (e && e.message) || '探测请求失败' }
+  } finally {
+    platformHostProbing.value = false
+  }
+}
+
+async function savePlatformHost() {
+  const address = platformHostDraft.value.trim().replace(/\/+$/, '')
+  if (!address) {
+    ElMessage.warning('平台地址不能为空')
+    return
+  }
+  // 二次确认：这一改影响全实例的平台能力，且 60s 缓存过期后才生效，
+  // 改错了不是立刻能看出来的。
+  try {
+    await ElMessageBox.confirm(
+      `确认把平台端地址改成 ${address} 吗？\n\n这会影响本实例全部租户的平台能力（资产市场/模块订阅/订单/LLM 钱包/站内信）。改完约 60 秒内生效。`,
+      '确认修改平台端地址',
+      { type: 'warning', confirmButtonText: '确认修改', cancelButtonText: '取消' }
+    )
+  } catch (e) {
+    return
+  }
+  platformHostSaving.value = true
+  try {
+    await configParamsApi.setPlatformHost(address)
+    ElMessage.success('平台端地址已更新，约 60 秒内生效（无需重启）')
+    platformHostProbe.value = null
+    await loadAll()
+  } catch (e) {
+    ElMessage.error((e && e.message) || '保存失败')
+  } finally {
+    platformHostSaving.value = false
+  }
+}
 
 // 分组元数据（中文名 / 说明 / 排序）来自后端 config_param_groups。
 // 原来这里是前端写死的一张 GROUP_LABELS 表：后端加一个新组，前端不知道中文名就
@@ -1379,6 +1527,26 @@ function formatTs(ts) {
 .header-help { color: #9ca3af; cursor: help; }
 .header-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .scope-hint { margin-bottom: 12px; }
+
+/* 平台端地址专用编辑区 */
+.platform-host-card {
+  margin-bottom: 12px;
+  padding: 12px;
+  border: 1px solid #f0d9a8;
+  border-radius: 6px;
+  background: #fffbf3;
+}
+.platform-host-hint { margin-bottom: 10px; }
+.platform-host-row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.platform-host-input { flex: 1 1 320px; min-width: 240px; }
+.platform-host-probe {
+  display: flex; gap: 8px; align-items: center;
+  margin-top: 10px; font-size: 12px; line-height: 18px;
+}
+.platform-host-probe-msg { color: #4b5563; }
+.platform-host-probe--unreachable .platform-host-probe-msg { color: #b91c1c; }
+.platform-host-probe--ok .platform-host-probe-msg { color: #15803d; }
+
 .reset-badge {
   display: inline-block; margin-left: 4px; padding: 0 6px;
   background: #f59e0b; color: #fff; border-radius: 10px; font-size: 11px; line-height: 16px;

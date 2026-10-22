@@ -1,6 +1,7 @@
 package config
 
 import (
+	"context"
 	"os"
 	"path/filepath"
 	"strings"
@@ -44,6 +45,7 @@ func TestPlatformEnabledAcceptsOnlyTrueLike(t *testing.T) {
 // PlatformURL() 就必须是空串——历史上这里回落过一个已到期不续费的线上域名。
 func TestPlatformURLNeverFallsBackToAnyDomain(t *testing.T) {
 	orig := PlatformCfg
+	withEmptyPlatformHostProvider(t)
 	t.Cleanup(func() { PlatformCfg = orig })
 	PlatformCfg = nil
 
@@ -114,13 +116,16 @@ func TestLoadPlatformRequiredFieldsOnlyWhenEnabled(t *testing.T) {
 		t.Fatal("关闭态 LoadPlatform 必须把 PlatformCfg 置 nil（残留在外的开关会让出站路径继续跑）")
 	}
 
-	// 开态：三段必填校验必须逐个生效。缺一报缺哪一，报不全等于校验形同虚设。
+	// 开态：必填校验必须逐个生效。缺一报缺哪一，报不全等于校验形同虚设。
+	//
+	// api_url 不在这份必填清单里：地址可以来自参数中心 platform.api_host
+	// （管理端在线改），装配期 yaml 的 api_url 本来就允许为空。只判 yaml 会让
+	// "在数据库里配地址"这条路径在启动期直接报错 —— 功能还没上线就先把门堵死。
+	// 地址的必填性由「解析后的最终地址为空」来判（见下面的 TestLoadPlatformAddressRequired）。
 	t.Setenv("PLATFORM_ENABLED", "true")
-	for _, missing := range []string{"api_url", "secret", "admin_password"} {
+	for _, missing := range []string{"secret", "admin_password"} {
 		text := "api_url: http://127.0.0.1:8205\nsecret: s3cr3t\nadmin_username: admin\nadmin_password: pw\n"
 		switch missing {
-		case "api_url":
-			text = "secret: s3cr3t\nadmin_password: pw\n"
 		case "secret":
 			text = "api_url: http://127.0.0.1:8205\nadmin_password: pw\n"
 		case "admin_password":
@@ -143,9 +148,137 @@ func TestLoadPlatformRequiredFieldsOnlyWhenEnabled(t *testing.T) {
 	}
 }
 
+// withEmptyPlatformHostProvider 把平台地址 provider 置为「参数中心无值」。
+//
+// 为什么不能靠 SetPlatformHostProvider(nil) 复位：nil 按设计是空操作
+// （防装配顺序把兜底顶掉），于是装过真 provider 的用例会跨用例泄漏 ——
+// 另一条用例的「yaml 地址应生效」读到的就是上一条装上的参数值。
+// 与 internal/config/url_params_test.go 的 withEmptyURLProviders 同一范式。
+func withEmptyPlatformHostProvider(t *testing.T) {
+	t.Helper()
+	empty := func(context.Context) string { return "" }
+	SetPlatformHostProvider(empty)
+	t.Cleanup(func() { SetPlatformHostProvider(empty) })
+}
+
+// TestLoadPlatformAddressRequired 钉住「地址」的必填判定落在**最终解析结果**上。
+//
+// 三条腿：
+//  1. yaml 的 api_url 空 + 环境变量空 + 参数中心空 ⇒ 报错（没有任何来源）
+//  2. yaml 的 api_url 空但参数中心有值 ⇒ **不报错**（这正是本次落库的目的）
+//  3. yaml 的 api_url 有值 ⇒ 不报错
+func TestLoadPlatformAddressRequired(t *testing.T) {
+	withEmptyPlatformHostProvider(t)
+	t.Cleanup(func() { PlatformCfg = nil })
+
+	p := filepath.Join(t.TempDir(), "platform.yaml")
+	if err := os.WriteFile(p, []byte("secret: s3cr3t\nadmin_password: pw\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	t.Setenv("PLATFORM_CONFIG_PATH", p)
+	t.Setenv("PLATFORM_API_HOST", "")
+	t.Setenv("PLATFORM_API_URL", "")
+	t.Setenv("PLATFORM_ENABLED", "true")
+
+	// 1. 三个来源全空 ⇒ 报错，且报错要说清去哪里配
+	PlatformCfg = nil
+	SetPlatformHostProvider(func(ctx context.Context) string { return "" })
+	err := LoadPlatform(p)
+	if err == nil {
+		t.Fatal("开启态且三处来源全空时必须报错（地址是出站目标，不能留空）")
+	}
+	if !strings.Contains(err.Error(), "platform.api_host") {
+		t.Fatalf("报错必须点名参数中心的键（运维要在管理端改它），实际=%v", err)
+	}
+
+	// 2. yaml 空但参数中心有值 ⇒ 不报错
+	PlatformCfg = nil
+	SetPlatformHostProvider(func(ctx context.Context) string { return "https://new-platform.example.com" })
+	if err := LoadPlatform(p); err != nil {
+		t.Fatalf("参数中心配了地址时不得报错（这正是落库的目的），实际=%v", err)
+	}
+
+	// 3. yaml 有值 ⇒ 不报错
+	if err := os.WriteFile(p, []byte("api_url: http://127.0.0.1:8205\nsecret: s3cr3t\nadmin_password: pw\n"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+	PlatformCfg = nil
+	SetPlatformHostProvider(func(ctx context.Context) string { return "" })
+	if err := LoadPlatform(p); err != nil {
+		t.Fatalf("yaml 配了地址时不得报错，实际=%v", err)
+	}
+}
+
+// TestPlatformURLPriority 钉住地址解析的优先级，尤其是「参数中心压过 env」这条
+// 与 urls.* 组方向相反的规则。
+//
+// 为什么这条必须钉死：参数中心优先是**反直觉**的（urls.* 那几条都是 env 优先），
+// 而它恰恰是本次改造的核心 —— 用户改地址必须能压住部署时留在 .env 里的旧值。
+// 一旦有人"顺手改成和 urls.* 一致"，管理端改地址就会静默不生效，
+// 而页面上回的是「保存成功」。
+func TestPlatformURLPriority(t *testing.T) {
+	orig := PlatformCfg
+	withEmptyPlatformHostProvider(t)
+	t.Cleanup(func() { PlatformCfg = orig })
+	PlatformCfg = nil
+
+	t.Setenv("PLATFORM_ENABLED", "true")
+	t.Setenv("PLATFORM_API_HOST", "http://env.example.com")
+	t.Setenv("PLATFORM_API_URL", "")
+
+	// 参数中心 > env
+	SetPlatformHostProvider(func(ctx context.Context) string { return "https://param.example.com" })
+	if got := PlatformURL(); got != "https://param.example.com" {
+		t.Fatalf("参数中心应压过 env，实际=%q", got)
+	}
+
+	// 参数中心空 ⇒ 回落 env
+	SetPlatformHostProvider(func(ctx context.Context) string { return "" })
+	if got := PlatformURL(); got != "http://env.example.com" {
+		t.Fatalf("参数中心为空时应回落 env，实际=%q", got)
+	}
+
+	// 参数中心空 + env 空 ⇒ 回落已装配的 yaml
+	PlatformCfg = &PlatformConfig{APIURL: "http://yaml.example.com"}
+	if got := PlatformURL(); got != "http://yaml.example.com" {
+		t.Fatalf("参数中心与 env 都空时应回落 yaml，实际=%q", got)
+	}
+
+	// 关态：即使参数中心有值也必须恒空（"没接平台"是合法值）
+	t.Setenv("PLATFORM_ENABLED", "false")
+	SetPlatformHostProvider(func(ctx context.Context) string { return "https://param.example.com" })
+	if got := PlatformURL(); got != "" {
+		t.Fatalf("关态必须屏蔽参数中心里的地址，实际=%q", got)
+	}
+}
+
+// TestPlatformURLForIgnoresTenantScope 钉住「平台地址不按租户分叉」这条语义。
+//
+// 同一个进程里两个租户拿到同一个地址是**正确**的：平台地址是部署级事实。
+// 这个测试把该语义写死，防止将来有人"顺手"给 PlatformURLFor 加租户维度。
+func TestPlatformURLForIgnoresTenantScope(t *testing.T) {
+	orig := PlatformCfg
+	withEmptyPlatformHostProvider(t)
+	t.Cleanup(func() { PlatformCfg = orig })
+	PlatformCfg = nil
+
+	t.Setenv("PLATFORM_ENABLED", "true")
+	t.Setenv("PLATFORM_API_HOST", "")
+	t.Setenv("PLATFORM_API_URL", "")
+	SetPlatformHostProvider(func(ctx context.Context) string { return "https://param.example.com" })
+
+	// 带不同租户绑定的 ctx 读到同一个地址
+	ctxA := context.Background()
+	ctxB := context.WithValue(ctxA, struct{}{}, "other")
+	if got := PlatformURLFor(ctxA); got != PlatformURLFor(ctxB) {
+		t.Fatalf("平台地址不应随 ctx 变化：%q vs %q", PlatformURLFor(ctxA), PlatformURLFor(ctxB))
+	}
+}
+
 // TestLoadPlatformEnabledLoadsFully 保证开关没有把正常路径一起关掉。
 func TestLoadPlatformEnabledLoadsFully(t *testing.T) {
 	orig := PlatformCfg
+	withEmptyPlatformHostProvider(t)
 	t.Cleanup(func() { PlatformCfg = orig })
 	PlatformCfg = nil
 

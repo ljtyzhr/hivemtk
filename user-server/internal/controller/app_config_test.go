@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"os"
 	"strings"
 	"testing"
 
@@ -169,6 +170,14 @@ func withPlatformCfg(t *testing.T, cfg *config.PlatformConfig) {
 	orig := config.PlatformCfg
 	config.PlatformCfg = cfg
 	t.Cleanup(func() { config.PlatformCfg = orig })
+	// 平台地址的解析入口是 config.PlatformURL()，而它在**关态恒返回空串**
+	// （"没接平台"是合法值）—— 只设 PlatformCfg.APIURL 而不开关，
+	// 连通性探针会拼出无协议的相对路径，报 "unsupported protocol scheme"，
+	// 于是"健康平台"被误判成"不可达"。
+	// 与 internal/platform 包的 withPlatformConfig 同一口径。
+	if _, alreadySet := os.LookupEnv("PLATFORM_ENABLED"); !alreadySet {
+		t.Setenv("PLATFORM_ENABLED", "true")
+	}
 }
 
 // TestAppConfigController_SyncWithPlatform_ReportsDegradeReason 私域部署里"平台没接"是常态，

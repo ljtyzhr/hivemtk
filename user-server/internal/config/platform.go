@@ -120,14 +120,51 @@ func ResolvePlatformEnabled(env string) (bool, bool) {
 	}
 }
 
-// PlatformURL 解析平台对外地址：关闭态恒为空串；开启态取 已装配配置 > 环境变量 > 空串。
+// platformHostProvider 是 platform.api_host 参数中心的取值口。
+//
+// 做成 provider 而不是在这里调 config_param service：config 不能反向依赖 service
+// （service 层 import 了 config，反向会成环），装配点在 internal/app/url_params_wiring.go。
+// 与 cloudURLProvider 同一形状，刻意不注入启动瞬间的值：每次调用现读参数中心，
+// 值改完 60s TTL 缓存过期后即生效，不需要重启。
+var platformHostProvider = func(ctx context.Context) string { return "" }
+
+// SetPlatformHostProvider 注入 platform.api_host 参数中心取值口。传 nil 是空操作而不是复位
+// （与本仓其余 seam 一致，防止装配顺序出错把兜底顶掉）。
+func SetPlatformHostProvider(fn func(ctx context.Context) string) {
+	if fn != nil {
+		platformHostProvider = fn
+	}
+}
+
+// PlatformURL 解析平台对外地址：关闭态恒为空串；开启态取
+// 参数中心（platform.api_host）> 已装配配置 > 环境变量 > 空串。
+//
+// **参数中心优先于 env 是刻意的**，与 urls.* 组那几条（env 优先）方向相反：
+// urls.* 面向的是"部署契约"（env 是运维的最终解释权所在），而平台地址面向的是
+// "平台迁移应对"——用户端改地址必须能压住部署时留在 .env 里的旧值，否则这条参数
+// 改了不生效，等于没做。
 //
 // 空串是合法值，含义是"没有平台可连"，所以这里刻意不设任何默认域名：
 // 出站路径本来就各自判 config.PlatformCfg == nil 快速失败，
 // 回落一个具体域名只会让请求打向黑洞、把日志刷成 Error，换不来任何功能。
 func PlatformURL() string {
+	return PlatformURLFor(context.Background())
+}
+
+// PlatformURLFor 带 ctx 形态的地址解析。
+//
+// ctx 目前**不参与**优先级判定（平台地址是部署级事实，不是租户级事实，见
+// platformScopedParams 白名单），但保留 ctx 是为了：
+//  1. 将来若出现"私有平台 + 公有平台"并存的多平台场景，不必再改全部调用点；
+//  2. 与 CloudURLFor / WebsiteBaseURLFor 的形状保持一致，读代码时不用问"这个为什么没有 ctx"。
+//
+// 无 ctx 形态等价于未绑定租户读取。
+func PlatformURLFor(ctx context.Context) string {
 	if !PlatformEnabled() {
 		return ""
+	}
+	if v := strings.TrimSpace(platformHostProvider(ctx)); v != "" {
+		return v
 	}
 	if PlatformCfg != nil && PlatformCfg.APIURL != "" {
 		return PlatformCfg.APIURL
@@ -146,8 +183,13 @@ func PlatformURL() string {
 // 不读文件、不校验字段——nil 就是下游每条出站路径共用的"快速失败"信号。
 //
 // 失败策略（仅开启态）：
-//   - 必填字段缺失（api_url / secret / admin_password）→ 返回错误，且不装配半截配置
+//   - 必填字段缺失（secret / admin_password）→ 返回错误，且不装配半截配置
 //   - 可选字段缺失 → 使用 0 值
+//
+// api_url 的必填判定是**解析后的最终地址**而不是 yaml 字段本身：
+// 地址可能来自参数中心 platform.api_host（管理端可改），那时装配期 yaml 的
+// api_url 本来就允许为空。只判 yaml 会让"在数据库里配地址"这条路径在启动期
+// 直接报错——功能还没上线就先把门堵死。
 //
 // 路径：
 //   - 默认 config/platform.yaml
@@ -174,9 +216,6 @@ func LoadPlatform(path string) error {
 	} else if v := os.Getenv("PLATFORM_API_URL"); v != "" {
 		cfg.APIURL = v
 	}
-	if cfg.APIURL == "" {
-		return fmt.Errorf("平台配置缺少必填字段 api_url（请通过环境变量 PLATFORM_API_HOST/PLATFORM_API_URL 或 config/platform.yaml 的 api_url 指定，容器内禁止留空）")
-	}
 	if cfg.Secret == "" {
 		return fmt.Errorf("平台配置缺少必填字段 secret（HMAC 签名密钥）")
 	}
@@ -184,5 +223,11 @@ func LoadPlatform(path string) error {
 		return fmt.Errorf("平台配置缺少必填字段 admin_password（用于 /platform/* JWT 登录）")
 	}
 	PlatformCfg = &cfg
+	// 装配后再判地址：此刻 PlatformCfg 已就位，PlatformURL() 才能按
+	// 参数中心 > yaml/env 的真实优先级解析出最终值。
+	if PlatformURL() == "" {
+		return fmt.Errorf("平台地址未配置（请在管理端参数中心设置 platform.api_host，" +
+			"或通过环境变量 PLATFORM_API_HOST/PLATFORM_API_URL 或 config/platform.yaml 的 api_url 指定；容器内禁止留空）")
+	}
 	return nil
 }
