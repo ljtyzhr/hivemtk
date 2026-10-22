@@ -297,8 +297,11 @@ func (s *smsService) SendSms(ctx context.Context, req *dto.SmsSendRequest) error
 		// 而渠道原文常常自带这些词 —— 阿里云回 "Specified access key is not found." ——
 		// 于是"密钥填错了"被翻译成 404「记录不存在」，把操作者引去查记录而不是改密钥。
 		// 声明成上游失败后：文案说清是渠道侧的问题，HTTP 码也不再是误导性的 404。
+		// 消息只放"发生了什么"；渠道给的原因放在 cause 里
+		// （BizError.Error() = Message + ": " + cause）。
+		// 两个都抄 errMsg 会让用户读到"…：X：X"——cause 里已经有 X 了。
 		return bizerr.Wrap(bizerr.CodePlatformUnavail,
-			"发送短信失败（渠道不可达或凭证无效）："+errMsg, err)
+			"发送短信失败（渠道不可达或凭证无效）", err)
 	}
 
 	record.SendTime = &sentTime
@@ -593,8 +596,9 @@ func (s *smsService) ResendSms(ctx context.Context, id uint) error {
 		// 不能把渠道原文直接抛出去 —— 原文常自带 "not found"，
 		// 会被上层的"按文本判记录不存在"规则翻译成 404「记录不存在」，
 		// 把"密钥填错了"引向"去查记录"这个完全错误的方向。
+		// 同 SendSms：消息只放"发生了什么"，渠道原因在 cause 里。
 		return bizerr.Wrap(bizerr.CodePlatformUnavail,
-			"重发短信失败（渠道不可达或凭证无效）："+errMsg, err)
+			"重发短信失败（渠道不可达或凭证无效）", err)
 	}
 
 	record.SendTime = &sentTime

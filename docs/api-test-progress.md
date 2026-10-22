@@ -115,6 +115,28 @@ done
 | 11 | `POST /api/sms/config`（以及任何"读旧行→盖回去"的写路径） | SaaS(8204) ⇒ 500 `[tenant] 更新不可改写 tenant_id（上下文租户 1，SET 值 0）`；独立(8304) ⇒ 200 | 仓储写法是"先 First 读出 existing，再把新 model 的 ID 认成 existing.ID，然后 Save"。GORM 的 `Save`（Selects=*）写**全部字段含零值**，而调用方传进来的是**新建的零值 model**（tenant_id=0）⇒ 这一行的租户被改写成 0。多租户模式下 tenant 回调 fail-closed 当场拒掉；独立部署没有这层校验 ⇒ **同一个接口 SaaS 下 500、私域下 200**（能用的那边掩盖了坏的那边） | ✅ **本轮已修复**：Save 之前把库里的 `tenant_id` 带回来。共 6 处同型：4 张短信配置表（sms_configs / sms_aliyun_configs / sms_tencent_configs / sms_huawei_configs）+ `UserRFM`（BatchUpsert）+ `EmailJobMetric`（UpsertJobMetric）。补 2 条回归测试（`internal/repository/sms_tenant_scope_test.go`），已验证「回退修复即红」；API 复测 8204/8305 均 200，落库 tenant_id=1 |
 | 12 | `GET /api/wecom/accounts`、`GET /api/wecom/health/accounts` 等读接口 | 响应体里带**明文** `corp_secret` / `agent_secret` / `access_token` / `callback_token` / `encoding_aes_key` ⇒ 任何登录用户都能把商户的企业微信应用密钥、通讯录回调密钥、AES 密钥整个读走 | `WeComAccount` 这个 model 直接序列化给前端。同仓的短信配置那条路是脱敏的（`maskSMSConfig`），这里漏了。**不能只脱敏**：前端编辑弹窗把列表回填的 `corp_secret` 原样提交回来（`user-web/src/views/wecomAccount/List.vue` 的 `openEditDialog` + 提交 payload），只脱敏不认掩码 ⇒ 用户保存一次，真密钥就被覆盖成 `****`，账号直接废掉 | ✅ **本轮已修复**（读写成对）：读侧 `controller/wecom_secret_mask.go` 脱敏（5 个密钥字段，空串保持空、脱敏幂等）；写侧 `service/wecom_secret_mask.go` 认掩码串 ⇒ 保留原值（沿用该 service 已有的"密钥空串=保留原值"口径）。补 8 条回归测试（`internal/controller/wecom_secret_mask_test.go` 6 条 + `internal/service/wecom_secret_mask_test.go` 2 条）。**自查抓到过一次自己写错**：掩码的真实形态是"前缀+末4位"（`****cret`），写侧最初按**全等**比对 `****` ⇒ 认不出来，掩码照样覆盖了真密钥（API 实测复现：DB 变成 `****cret`）。改成**前缀**判定后才真正拦住（`strings.HasPrefix`），并把测试夹具改成真实掩码形态（`WeComSecretMask+"1234"`） |
 
+## 第五步 · 对抗性复核（自审本批改动）
+
+对本批 8 条修复逐条反向攻击，抓到 **2 处自己引入的缺陷**，都已修掉并回归：
+
+| # | 自查发现 | 现象 | 修法 |
+|---|---|---|---|
+| R1 | `bizerr.IsUpstreamFailure` 按**码段**（5xxx 整段）判上游失败 | 5xxx 段里还有 `CodeInternal(5000)`＝**内部**故障（写库失败之类）。把它算成"上游失败" ⇒ 内部错误被报成 **502 Bad Gateway**，运维会照着去查渠道，而真因在自己的库里 | 改成**显式枚举** `CodePlatformUnavail` 才算上游失败；`CodeInternal` 保持内部语义（500）。补 2 条回归测试（`internal/domain/errors/upstream_failure_test.go`） |
+| R2 | 502 分支只回 `BizError.Message`，**丢了 cause** | 渠道真因（"Specified access key is not found."）不在消息里，操作者还得翻日志 | 改回 `BizError.Error()`（Message + cause）。为避免"原因抄两遍"，同时把 service 层消息里冗余的 `+errMsg` 去掉（cause 里已经有了） |
+
+**8 条修复的 API 端到端回归**（每条一次 curl，8204 SaaS + 8306 私域各一遍）：
+
+| 修复 | 回归口径 | 结果 |
+|---|---|---|
+| #1 submit-platform 数字主键 | `POST /api/asset-bundle/160/submit-platform` | 200，`platform_asset_id=145`（原先 404 record not found） |
+| #2 cron `enabled:false` | `POST /api/browser-automation/cron` | 落库 `enabled=false`、`next_run_at=NULL`（原先 true 且会被排程） |
+| #3 卡片 `is_active:false` | `POST /api/tiktok-card` | 落库 `f`、响应 `is_active=false`（原先 true） |
+| #4 tiktok 短链入参 | `POST /api/tiktok-card/generate-short-link` 传 `{card_id}` | 200（原先必 400） |
+| #5 sms/config 租户 | `POST /api/sms/config`（8204 + 8306） | 均 200，落库 `tenant_id=1`（原先 8204 500） |
+| #6 渠道失败不再误判 404 | `POST /api/sms/send` | **502** + 真因（原先 404「记录不存在」） |
+| #7 任务状态校验 | `POST /api/sms/job/1/pause`（已完成任务） | **400**「只能暂停运行中的任务」（原先 500） |
+| #8 企微密钥读写成对 | GET 拿掩码 → PUT 回填掩码 → 查库 | GET 返 `****cret`；库中仍是 `hack_secret`（真密钥未被覆盖） |
+
 ## 上下文管理纪律（避免反复压缩停顿）
 
 1. 不用 `read` 工具读 `user-web/` 与仓库根下的文件——目录上下文会自动注入 4 个 README（≈15K token/次）。读源码用 `grep` 工具或 shell + `head -c` 限长。

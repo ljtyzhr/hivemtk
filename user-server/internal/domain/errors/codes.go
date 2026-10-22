@@ -99,13 +99,19 @@ func New(code int, msg string) *BizError {
 // 去查记录，而不是去改密钥。
 //
 // 判据不能是"文本里有没有 not found"（那正是错的地方），
-// 必须是**错误自己在声明**它是上游失败：带 5xxx 平台/内部类业务码的 BizError。
+// 必须是**错误自己在声明**它是上游失败：带平台类业务码的 BizError。
 //
 // 用法：service 层把渠道错误包成
 //
 //	bizerr.Wrap(bizerr.CodePlatformUnavail, "发送短信失败（渠道不可达）", err)
 //
 // 上层据此判"这是上游挂了，不是我们的记录没了"。
+//
+// 为什么**不**按码段（5xxx 整段）判：5xxx 段里还有 CodeInternal(5000)，
+// 那是**内部**故障（写库失败之类），不是上游问题。
+// 把内部故障也算成"上游失败"⇒ 内部错误会被报成 502（Bad Gateway），
+// 而 502 的语义是"网关/上游给的东西不能用" —— 运维会查错方向：
+// 去查渠道，而不是查自己的库。两者必须分开。
 func IsUpstreamFailure(err error) bool {
 	if err == nil {
 		return false
@@ -114,8 +120,12 @@ func IsUpstreamFailure(err error) bool {
 	if !errors.As(err, &be) {
 		return false
 	}
-	// 5xxx = 内部与平台（见本文件码段约定）；4xxx 是"你这个账号当前做不到"。
-	return be.Code >= 5000 && be.Code < 6000
+	switch be.Code {
+	case CodePlatformUnavail:
+		return true
+	default:
+		return false
+	}
 }
 
 func Wrap(code int, msg string, cause error) *BizError {

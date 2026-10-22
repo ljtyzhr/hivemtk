@@ -181,14 +181,15 @@ func ErrorFromDB(c *gin.Context, err error, fallbackMsg string, data ...any) {
 	// 于是"密钥填错了"会落成 404「记录不存在」，把操作者引去查记录而不是改密钥。
 	// 错误自己声明了它是上游失败（bizerr 5xxx）时，走 502 而不是 404。
 	//
-	// 消息用 BizError 自己的文案（里面带渠道给的原因，如"凭证无效"），
-	// 不退回 fallbackMsg：fallbackMsg 只有"发送草稿失败"这种操作名，
-	// 把真正的原因（密钥错了 / 渠道不可达）吞掉，操作者还得再翻日志。
+	// 消息用 BizError 的完整串（Message + cause）：cause 里有渠道给的真因
+	// （"Specified access key is not found."），只取 Message 会把真因丢掉。
+	// 不用 fallbackMsg：fallbackMsg 只有"发送草稿失败"这种操作名，
+	// 操作者还得再翻日志才知道是密钥错了还是渠道挂了。
 	if bizerr.IsUpstreamFailure(err) {
 		msg := fallbackMsg
 		var be *bizerr.BizError
-		if errors.As(err, &be) && be.Message != "" {
-			msg = be.Message
+		if errors.As(err, &be) && be.Error() != "" {
+			msg = be.Error()
 		}
 		Error(c, http.StatusBadGateway, msg, data...)
 		return
