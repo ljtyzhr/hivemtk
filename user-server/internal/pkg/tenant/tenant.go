@@ -146,13 +146,24 @@ func (detachedCtx) Value(any) any { return nil }
 // （父 ctx 通常随请求结束而取消），但保留其租户归属——异步写库仍落在本租户。
 // 父 ctx 无绑定时：off 模式显式绑定默认租户；on 模式保持无绑定，
 // 由隔离 callback 对后续访问 fail-closed（绝不静默回落默认租户）。
+//
+// **SystemScope 必须一并保留**（2026-10-22 线上修）：
+// 平台级后台任务（如延迟出站派发 dispatchDueDelayedOutbound）拿的是
+// tenant.WithSystemScope(ctx) —— 那条豁免通道是它们写租户表的唯一凭据。
+// 本函数此前只搬租户、**把 SystemScope 丢了** ⇒ 派生出来的 ctx 变成
+// "无租户、无豁免"，隔离 callback 一律 fail-closed 拒绝，现场是
+// "[SSE] 出站认领报错，放弃本次推送"（SSE 推送前的认领要 UPDATE message_hub）。
+// 丢豁免比不丢更坏：调用方以为豁免还在，写库全被拒。
 func BackgroundWithTenant(ctx context.Context) context.Context {
 	bg := context.Background()
 	if id, ok := FromContext(ctx); ok {
-		return WithTenantID(bg, id)
+		bg = WithTenantID(bg, id)
+	} else if !IsMultiTenant() {
+		bg = WithTenantID(bg, DefaultTenantID)
 	}
-	if !IsMultiTenant() {
-		return WithTenantID(bg, DefaultTenantID)
+	// 父 ctx 带系统作用域 ⇒ 派生 ctx 也带（豁免是 ctx 的一部分，不是租户绑定的一部分）
+	if IsSystemScope(ctx) {
+		bg = WithSystemScope(bg)
 	}
 	return bg
 }

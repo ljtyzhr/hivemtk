@@ -109,6 +109,52 @@ func TestContextWithDefault(t *testing.T) {
 	}
 }
 
+// TestBackgroundWithTenantPreservesSystemScope BackgroundWithTenant 必须连
+// SystemScope 一起搬过去。
+//
+// 回归背景（2026-10-22 线上）：平台级后台任务（延迟出站派发
+// dispatchDueDelayedOutbound）拿的是 tenant.WithSystemScope(ctx) —— 那条豁免通道
+// 是它们写租户表的唯一凭据。BackgroundWithTenant 此前只搬租户、把 SystemScope 丢了，
+// 派生出来的 ctx 变成"无租户、无豁免"，隔离 callback 一律 fail-closed 拒绝，
+// 现场是 "[SSE] 出站认领报错，放弃本次推送"（认领要 UPDATE message_hub）。
+//
+// 丢豁免比不丢更坏：调用方以为豁免还在，写库全被拒。
+func TestBackgroundWithTenantPreservesSystemScope(t *testing.T) {
+	prev := CurrentMode()
+	SetMode(ModeOn)
+	t.Cleanup(func() { SetMode(prev) })
+
+	// 1) 父 ctx 带租户 + 系统作用域 ⇒ 两者都保留
+	base := WithSystemScope(WithTenantID(context.Background(), 7))
+	got := BackgroundWithTenant(base)
+	if id, ok := FromContext(got); !ok || id != 7 {
+		t.Errorf("租户绑定未保留：(%v,%v), want (7,true)", id, ok)
+	}
+	if !IsSystemScope(got) {
+		t.Error("SystemScope 未保留：平台级后台任务派生 ctx 后失去豁免，写租户表会被 fail-closed 拒绝")
+	}
+
+	// 2) 父 ctx 只有系统作用域（无租户绑定）⇒ 豁免仍须保留，租户保持无绑定
+	//    （on 模式下绝不回落默认租户）
+	sysOnly := WithSystemScope(context.Background())
+	got2 := BackgroundWithTenant(sysOnly)
+	if !IsSystemScope(got2) {
+		t.Error("父 ctx 仅带 SystemScope 时，派生 ctx 必须保留豁免")
+	}
+	if id, ok := FromContext(got2); ok {
+		t.Errorf("on 模式下无租户绑定的父 ctx 派生后不得回落默认租户，实际绑到 %d", id)
+	}
+
+	// 3) 普通 ctx ⇒ 派生后既无租户也无豁免
+	plain := BackgroundWithTenant(context.Background())
+	if IsSystemScope(plain) {
+		t.Error("普通 ctx 派生后不应带 SystemScope")
+	}
+	if _, ok := FromContext(plain); ok {
+		t.Error("on 模式下普通 ctx 派生后不得绑定默认租户")
+	}
+}
+
 func TestFromContextNil(t *testing.T) {
 	if _, ok := FromContext(nil); ok {
 		t.Fatal("nil ctx must have no tenant")
