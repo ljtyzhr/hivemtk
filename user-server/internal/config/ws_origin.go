@@ -4,6 +4,7 @@ import (
 	"net/http"
 	"net/url"
 	"os"
+	"strconv"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -93,6 +94,35 @@ func ReloadAllowedWSOrigins() {
 	allowedWSOriginsCache = nil
 }
 
+// RequestScheme 取「浏览器视角」的请求 scheme。
+//
+// 口径与 internal/router 的 CORS 同源判定一致：
+//  1. X-Forwarded-Proto（反代终止 TLS 时由反代写入，浏览器视角的 https）
+//  2. r.TLS != nil ⇒ https
+//  3. 否则 http
+//
+// known=false 表示「这个请求的 scheme 不可知」——直连 Go 的明文部署既没有
+// X-Forwarded-Proto 也没有 TLS，上游看到的一律是 http，而浏览器那边的 Origin
+// 可能是 https。
+func RequestScheme(r *http.Request) (scheme string, known bool) {
+	if r == nil {
+		return "http", false
+	}
+	if proto := strings.TrimSpace(r.Header.Get("X-Forwarded-Proto")); proto != "" {
+		// 反代可能给 "https,http" 这种链式值，取第一段。
+		if i := strings.IndexByte(proto, ','); i >= 0 {
+			proto = strings.TrimSpace(proto[:i])
+		}
+		if proto != "" {
+			return strings.ToLower(proto), true
+		}
+	}
+	if r.TLS != nil {
+		return "https", true
+	}
+	return "http", false
+}
+
 // IsSameOriginWS 判定 WebSocket 的 Origin 是否与请求本身同源。
 //
 // 背景（任务四 UI 拟人测试实测）：前端与 user-server 由同一反向代理层同源托管
@@ -102,12 +132,21 @@ func ReloadAllowedWSOrigins() {
 // 部署域逐个维护，且所有部署脚本都没有设过该变量 ⇒ 同源部署下坐席实时通知 WS
 // 被 gorilla 以 403 "Forbidden" 拒绝，前端陷入重连循环且控制台持续报错。
 //
-// 因此同源一律放行（与 internal/router 的 CORS 同源判定口径一致，也与
-// internal/websocket/visitor_handler.go 访客 WS 的既有做法一致）：同源意味着
-// 请求就是本站自己的 JS 发起的；跨源仍然必须走白名单。
+// 因此同源一律放行（同源意味着请求就是本站自己的 JS 发起的；跨源仍然必须走
+// 白名单）。访客 WS 此前就有同源放行（visitor_handler.go），这里是把坐席 WS 与
+// 聊天流式 WS 补齐到同一口径。
 //
-// 判定口径：Origin 的 host 与请求 Host 相同即同源（不比较 scheme，避免反代
-// 终止 TLS 后 scheme 与浏览器视角不一致导致误拒）。
+// 与 internal/router 的 CORS 同源判定（origin == scheme://Host 整串相等）的
+// 两点差异，都是部署现实逼出来的，**不是**放松：
+//
+//  1. 端口：反代模板（docs/operations/reverse-proxy/nginx.conf.template）写的是
+//     `proxy_set_header Host $host;` —— nginx 的 $host 是**去掉端口**的小写主机名，
+//     而浏览器发的 Origin 带端口（https://host:8443）。整串比较在这种部署下必然
+//     不等 ⇒ 正是要修的那个 403。故这里比**主机名**，端口不比。
+//  2. scheme：反代终止 TLS 时上游请求是 http，只有 X-Forwarded-Proto 能还原
+//     浏览器视角的 https。能取到就要求 scheme 相同（挡住 http→https 降级冒充）；
+//     取不到（直连 Go 的明文部署）就只比主机名 —— 那时整站本就是明文，不存在
+//     「降级冒充一个更安全的同站」这层风险。
 func IsSameOriginWS(origin string, r *http.Request) bool {
 	if origin == "" || r == nil || r.Host == "" {
 		return false
@@ -116,5 +155,46 @@ func IsSameOriginWS(origin string, r *http.Request) bool {
 	if err != nil || u.Host == "" {
 		return false
 	}
-	return strings.EqualFold(u.Host, r.Host)
+	// 主机名（不含端口）必须相同
+	if !strings.EqualFold(u.Hostname(), hostWithoutPort(r.Host)) {
+		return false
+	}
+	// 端口：请求 Host 头带端口时可比（直连 Go 的形态），必须一致；
+	// 反代用 $host 抹掉端口时无从比较，只能不比（见函数注释）。
+	if p := portOf(r.Host); p != "" {
+		if p == "80" || p == "443" {
+			// 默认端口与 Origin 省略端口的写法等价
+			if op := u.Port(); op != "" && op != p {
+				return false
+			}
+		} else if u.Port() != p {
+			return false
+		}
+	}
+	// scheme 已知时必须相同
+	if scheme, known := RequestScheme(r); known {
+		return strings.EqualFold(u.Scheme, scheme)
+	}
+	return true
+}
+
+// hostWithoutPort 去掉 host 里的端口部分（"h:8443" ⇒ "h"）。
+func hostWithoutPort(host string) string {
+	if i := strings.LastIndexByte(host, ':'); i >= 0 {
+		// 只有冒号后全是数字才当端口，避免误切 IPv6 字面量 "[::1]"
+		if _, err := strconv.Atoi(host[i+1:]); err == nil {
+			return host[:i]
+		}
+	}
+	return host
+}
+
+// portOf 取 host 里的端口（没有则空串）。
+func portOf(host string) string {
+	if i := strings.LastIndexByte(host, ':'); i >= 0 {
+		if _, err := strconv.Atoi(host[i+1:]); err == nil {
+			return host[i+1:]
+		}
+	}
+	return ""
 }

@@ -32,11 +32,11 @@ npm install
 VITE_API_BASE_URL=/
 ```
 
-`/` 走同源：dev 由 Vite 把 `/api` 代理到 `http://localhost:8204`，同时兼容首页 CSP（`connect-src 'self' https: wss:`，不含 `http:`，所以跨源明文绝对地址会被浏览器拦掉）。
+`/` 走同源：dev 由 Vite 把 `/api` 代理到 `http://localhost:8204`，同时兼容首页 CSP（`connect-src 'self' https: wss: http://localhost:* http://127.0.0.1:*`——不含 `http:`，回环地址是唯一例外，所以跨源明文绝对地址会被浏览器拦掉）。
 
 | 变量 | 作用 | 默认 | 备注 |
 | --- | --- | --- | --- |
-| `VITE_API_BASE_URL` | axios 实例 baseURL | `/`（三份 env 文件实测一致：`.env.development` / `.env.example` / `.env.production`） | 生产构建可改绝对域名（只能 `https://`，CSP `connect-src 'self' https: wss:` 不含 `http:`）；`localStorage.apiConfig.baseUrl` 的覆盖**仅在 dev 生效**，`request.js:24` 用 `import.meta.env.DEV` 卡住，防被篡改的 localStorage 把全站 API 流量指向任意地址 |
+| `VITE_API_BASE_URL` | axios 实例 baseURL | `/`（三份 env 文件实测一致：`.env.development` / `.env.example` / `.env.production`） | 生产构建可改绝对域名（只能 `https://`，CSP `connect-src 'self' https: wss: http://localhost:* http://127.0.0.1:*` 不含 `http:`，回环是唯一例外）；`localStorage.apiConfig.baseUrl` 的覆盖**仅在 dev 生效**，`request.js:24` 用 `import.meta.env.DEV` 卡住，防被篡改的 localStorage 把全站 API 流量指向任意地址 |
 | WebSocket URL | 由 `configManager.getApiConfig()` 动态推导 | 同源 + `/api/ws/agent` 与 `/api/ws/visitor` | 不可单独配置 |
 
 联调本地后端保持默认即可（Vite 代理 `/api → localhost:8204`）。要连自己另起的远程后端，改 `.env.development` 为绝对 https 地址：
@@ -557,7 +557,7 @@ await updateRequestConfig()
 两条约束：
 
 - **只在 dev 生效**：`request.js:24` 用 `import.meta.env.DEV` 把这条覆盖卡住，生产构建一律走 env 配置——防被篡改的 localStorage 把全站 API 流量指向任意地址。
-- **必须过首页 CSP**：`index.html:12` 的 `connect-src 'self' https: wss:` 不含 `http:`。所以可用的是同源 `/` 与任意 `https://` 地址；从 dev 页（`http://localhost:8211`）填 `http://localhost:8204` 属跨源明文，请求会被浏览器拦掉——要打本地后端就用默认的 `/` 走 Vite 代理，不要手填绝对地址。
+- **必须过首页 CSP**：`index.html` 的 `connect-src 'self' https: wss: http://localhost:* http://127.0.0.1:*` 不含 `http:`（回环是唯一例外，为 Playground 本地模型沙箱而设）。所以可用的是同源 `/`、任意 `https://` 地址，以及 localhost/127.0.0.1；从 dev 页（`http://localhost:8211`）填 `http://localhost:8204` 属跨源明文到非回环地址，仍会被拦掉——要打本地后端就用默认的 `/` 走 Vite 代理，不要手填绝对地址。
 
 ## 11. 常见问题排查
 

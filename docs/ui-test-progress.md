@@ -54,6 +54,15 @@ nohup npx vite --config vite.standalone.config.js   > /tmp/vite-8291.log 2>&1 &
 | 4 | `/knowledgeBase/edit/:id` | 路由名/标题都是「编辑知识库」，但深链进去只看到一屏列表，编辑框不打开（`route.params.id` 被静默丢弃） | `views/knowledgeBase/List.vue` 的 `onMounted` 只处理了 `KnowledgeBaseCreate` 分支，漏了 `KnowledgeBaseEdit` | **已修**：`onMounted` 增加 Edit 分支 → `openEditByRouteId()`：按路由 id 单条读取（`getKB`）并打开编辑框，必要时把列表切到该 KB 的类型分页 |
 | 5 | `/bridge/extension` | 私有部署（`TENANT_MODE=off`）也显示「租户短码必填」并要求「填入租户短码」—— 私域部署根本没有租户短码这个概念 | 页面无条件渲染 SaaS 专属提示 | **已修**：按 `/api/public/config` 的 `tenant_mode` 分形态显示（与 Login.vue 同一口径）。实测：SaaS 显示租户短码指引，私域不显示 |
 | 6 | `/bridge/extension` | 404 是**设计内状态**（后端契约：200=有包 / 404=未接入平台或未上架 / 503=平台侧失败），页面已渲染常驻说明，拦截器却再弹一条「请求地址不存在」 | 读口没带 `_silent` | **已修**：`getBridgeExtensionPackage` 改用 `http.get(url, undefined, { _silent: true })`（与 followup/orderDraft 同口径） |
+| 7 | `/knowledgeBase/list`（三个类型标签页） | **类型过滤从未生效**：RAG / FAQ / SOP 三个标签页拿到的都是同一份全量列表（切标签看不到任何变化，用户只会以为"库里就这些"） | 前端发 `?kb_type=faq`，后端读的是 `?type=`（`controller/knowledge_base.go` 的 `@Param type` 也是这个口径）⇒ 参数名对不上，过滤条件一直是空 | **已修**：后端同时接受 `type`（文档口径）与 `kb_type`（兼容旧前端）；前端改回发 `type`。实测 RAG 标签 2 条、FAQ 标签 4 条，互不串味 |
+| 8 | 全站（点击劫持口径） | `index.html` 注释宣称 `frame-ancestors 'none'` 防护点击劫持，实际 meta CSP 里**没有** frame-ancestors 指令；且按 CSP 规范 frame-ancestors 在 **meta 交付**的 CSP 中被浏览器忽略，meta 只能收紧不能放宽 ⇒ `main.js` 里那段按路由改写 meta 的代码一直是**空转** | 既有实现（本次未引入）。点击劫持防护要靠**响应头**，且 `/chat/embed` 需单独放行 | **注释已改真**（不再宣称有防护），`main.js` 的空转代码删除并留说明。**响应头层面的防护仍是缺口**，见文末「遗留缺口」 |
+
+## 遗留缺口（不在本任务范围，已记录）
+
+| 缺口 | 说明 | 建议 |
+|---|---|---|
+| 点击劫持防护（frame-ancestors） | `index.html` 的 meta CSP 里没有 frame-ancestors 指令，浏览器也忽略 meta 里的这一条 ⇒ 实际**没有**点击劫持防护。`main.js` 那段按路由改写 meta 的代码是空转（已删）。真要防护必须由服务端按路由下发响应头 `Content-Security-Policy: frame-ancestors …`（`/chat/embed` 需单独放行） | 独立任务：服务端加响应头 + 回归「第三方站点能嵌 /chat/embed、其余页面嵌不进去」 |
+| `/api/ws/chat`（聊天流式 WS） | `internal/router/ws.go` 的 `RegisterWSRoutes` **全树零调用方** ⇒ 该端点从未注册进引擎（落到 SPA NoRoute 兜底）。本次只把它的 Origin 口径补齐（与坐席 WS 对齐），**没有**把它变成可用端点 | 要上线需先补鉴权（`HandleChatWS` 目前只校验 session_id/customer_id 非空） |
 
 ## 设计内拒绝（`[~]`，非缺陷）
 

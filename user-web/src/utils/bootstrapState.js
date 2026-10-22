@@ -21,6 +21,12 @@ let bootstrapPromise = null
 const state = {
   initialized: false,
   tenantMode: false,
+  // resolved=true 表示「上面两个值是拉过 /api/system/init-status 与
+  // /api/public/config 之后的真值」，而不是初始占位。
+  // 调用方要按「部署形态」分叉显示时必须先看这个标志：tenantMode 的初值是
+  // false，与「确实不是多租户」同形，分不清就会在 SaaS 实例上先闪一段
+  // 「私域部署」的文案（页面刚挂载、配置还没回来）。
+  resolved: false,
 }
 
 // 拉一次 init-status 并同步 localStorage（保持与旧 App.vue 相同的落盘语义：
@@ -61,6 +67,7 @@ export function ensureBootstrap() {
     .then(([initialized, tenantMode]) => {
       state.tenantMode = tenantMode
       state.initialized = tenantMode ? true : initialized
+      state.resolved = true
       return { ...state }
     })
     .catch(() => ({ ...state }))

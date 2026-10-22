@@ -75,7 +75,7 @@
         <li>打开 Chrome，地址栏输入 <code>chrome://extensions</code>。</li>
         <li>右上角开启「开发者模式」。</li>
         <li>点「加载已解压的扩展程序」，选择刚才解压出来的目录。</li>
-        <li v-if="tenantMode">
+        <li v-if="tenantMode === true">
           点扩展图标，填写本系统的服务端地址与「桥接凭证」，并填入租户短码后保存。
         </li>
         <li v-else>
@@ -86,7 +86,7 @@
            后端 resolveBridgeTenant 直接放行（不绑租户），扩展里没有「租户短码」
            这个字段。此处无条件展示等于让私域用户去填一个不存在的概念。 -->
       <el-alert
-        v-if="tenantMode"
+        v-if="tenantMode === true"
         type="warning"
         :closable="false"
         show-icon
@@ -101,22 +101,35 @@
 import { onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getBridgeExtensionPackage } from '@/api/bridgeExtension.js'
+import { getBootstrap } from '@/utils/bootstrapState.js'
 import { http } from '@/utils/request'
 
 const pkg = ref(null)
 const loading = ref(false)
 const downloading = ref(false)
 const error = ref('')
+
 // 部署形态：SaaS 多租户(on) 才需要租户短码；私域独立部署(off) 没有这个概念。
-// 直接读公开配置（与 Login.vue 同一口径），不依赖引导状态缓存的时序 ——
-// 引导状态在守卫里异步拉取，组件 setup 时未必已经落定。
-const tenantMode = ref(false)
-http.get('/api/public/config', undefined, { _silent: true })
-  .then((res) => {
-    const cfg = res?.data ?? res
-    tenantMode.value = !!cfg?.tenant_mode
-  })
-  .catch(() => { tenantMode.value = false })
+//
+// 三态而不是布尔：null = 还没定。
+//   - 引导状态（getBootstrap）在守卫里已拉过 /api/public/config，但它的
+//     tenantMode 初值是 false，与「确实不是多租户」同形，分不出「已拉」还是
+//     「没拉」⇒ 用 resolved 标志区分。
+//   - resolved 时直接用缓存值（不再发请求，也没有闪动）；
+//   - 没 resolved（理论上不该发生：守卫对非公开路由会 await ensureBootstrap）
+//     就自己拉一次公开配置兜底。
+//   - 仍未知时一律先显示**中性文案**（不出现"私域专有"或"租户短码必填"
+//     这类形态专属内容），避免在 SaaS 实例上先闪一段私域话术。
+const boot = getBootstrap()
+const tenantMode = ref(boot.resolved ? !!boot.tenantMode : null)
+if (tenantMode.value === null) {
+  http.get('/api/public/config', undefined, { _silent: true })
+    .then((res) => {
+      const cfg = res?.data ?? res
+      tenantMode.value = !!cfg?.tenant_mode
+    })
+    .catch(() => { tenantMode.value = false })
+}
 
 const load = async () => {
   loading.value = true

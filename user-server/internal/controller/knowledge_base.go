@@ -61,7 +61,15 @@ func (c *KnowledgeBaseController) RegisterRoutes(router *gin.RouterGroup) {
 // @Success      200  {object}  response.Response  "成功"
 // @Router       /api/knowledge-bases [get]
 func (c *KnowledgeBaseController) List(ctx *gin.Context) {
+	// 类型过滤参数：文档口径是 `type`（见下方 @Param type）。
+	// 但前端 user-web/src/views/knowledgeBase/List.vue 一直发的是 `kb_type`，
+	// 于是这个过滤**从未生效过** —— RAG/FAQ/SOP 三个标签页拿到的都是同一份
+	// 全量列表（用户切标签看到的内容不变，还以为是"库里就这些"）。
+	// 两个名字都收：以文档口径为主，兼容在跑的旧前端。
 	kbType := ctx.Query("type")
+	if kbType == "" {
+		kbType = ctx.Query("kb_type")
+	}
 	ownerType := ctx.Query("owner_type")
 	keyword := ctx.Query("keyword")
 	var agentID uint

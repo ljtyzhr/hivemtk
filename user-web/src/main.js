@@ -48,29 +48,19 @@ updateRequestConfig().catch(error => {
   console.error('初始化API配置失败:', error)
 })
 
-// OPT-SEC-07：根据当前路由动态调整 CSP frame-ancestors
-// /chat/embed 路由需要被第三方网站嵌入（embed-sdk 场景）
-// 其他路由必须 frame-ancestors 'none' 防止点击劫持
-router.afterEach((to) => {
-  const cspMeta = document.querySelector('meta[http-equiv="Content-Security-Policy"]')
-  if (!cspMeta) return
-
-  if (to.path.startsWith('/chat/embed')) {
-    // 允许被任意 origin 嵌入（embed-sdk 业务场景）
-    // 限制:仅 /chat/embed 路由开放,其他路由保持 'none'
-    const csp = cspMeta.getAttribute('content')
-    const newCsp = csp.replace(/frame-ancestors\s+[^;]+/, "frame-ancestors *")
-    cspMeta.setAttribute('content', newCsp)
-  } else {
-    // 默认严格模式:禁止嵌入
-    const csp = cspMeta.getAttribute('content')
-    if (csp && !csp.includes("frame-ancestors 'none'")) {
-      const newCsp = csp.replace(/frame-ancestors\s+[^;]+/, "frame-ancestors 'none'")
-      cspMeta.setAttribute('content', newCsp)
-    }
-  }
-})
-
+// OPT-SEC-07（原实现已移除）：按路由动态改写 meta 里的 frame-ancestors。
+//
+// 为什么删掉：这段代码一直是**空转**。
+//   1. index.html 的 meta CSP 里**没有** frame-ancestors 指令，
+//      csp.replace(/frame-ancestors\s+[^;]+/, …) 找不到可替换的片段，
+//      setAttribute 写回去的还是同一个字符串；
+//   2. 即便写了，按 CSP 规范 frame-ancestors 在 **meta 交付**的 CSP 中被浏览器
+//      **忽略**（meta 只能收紧、不能放宽），所以"运行期把 meta 放宽"这条路子
+//      本来就不成立。
+// 它留下的印象是"点击劫持防护已生效"，实际并没有——那属于**响应头**的活：
+// 要控制「谁能 iframe 嵌我」必须由服务端按路由下发
+// Content-Security-Policy: frame-ancestors …（/chat/embed 需单独放行），
+// 属独立任务，不靠前端 meta 兜。
 app.mount('#app')
 
 // ============================================================================

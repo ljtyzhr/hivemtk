@@ -106,6 +106,10 @@ func buildCheckOrigin(allowedOrigins []string) func(r *http.Request) bool {
 		// 同源放行：前端与 user-server 同源托管时（VITE_API_BASE_URL=/ 的
 		// 部署口径），浏览器握手带的 Origin 就是本站域；白名单按部署域维护，
 		// 漏配新域名时同源也必须能连（跨源仍走白名单）。
+		//
+		// 注意：承载本控制器的 GET /ws/chat 目前**未注册进引擎**
+		// （internal/router/ws.go 的 RegisterWSRoutes 全树零调用方，见该文件
+		// 头注），这里先把口径补齐，等真要上线该端点时不必再改一遍。
 		if config.IsSameOriginWS(origin, r) {
 			return true
 		}

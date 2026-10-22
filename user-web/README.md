@@ -173,7 +173,7 @@ cp .env.example .env.development
 # VITE_API_BASE_URL=https://user-api.your-domain.com
 ```
 
-> 绝对地址只能写 `https://`：`index.html` 的 CSP 是 `connect-src 'self' https: wss:`，不含 `http:`，写成 `http://localhost:8204` 这类跨源明文地址会被浏览器直接拦掉（同源 `/` 不受影响）。
+> 绝对地址只能写 `https://`：`index.html` 的 CSP 是 `connect-src 'self' https: wss: http://localhost:* http://127.0.0.1:*`——**不含 `http:`**（回环地址是唯一例外，见下），所以 `http://example.com/api` 这类跨源明文地址会被浏览器直接拦掉（同源 `/` 不受影响）。回环例外是为资产包 Playground 的「本地模型沙箱」准备的（开发者本机直连 Ollama/vLLM，默认 `http://localhost:11434`），**只对 localhost / 127.0.0.1 生效**，不能拿来连任意外部明文地址。
 
 ### 3. 启动开发服务器
 

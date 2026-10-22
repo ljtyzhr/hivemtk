@@ -6,16 +6,24 @@
     <link rel="icon" type="image/png" href="/logo.png" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <!-- 审计 M6：缓解 XSS 窃取 localStorage 中的 JWT。
-         脚本仅允许同源('self')外部文件，禁止 inline/eval；禁止被嵌入(frame-ancestors 'none')；
-         网络请求限同源 + https/wss。样式保留 'unsafe-inline' 以兼容 Element Plus 动态样式注入。
-         OPT-SEC-07：/chat/embed 路由需要在 JS 中动态调整 frame-ancestors（见 main.js）。
+         脚本仅允许同源('self')外部文件，禁止 inline/eval；样式保留 'unsafe-inline'
+         以兼容 Element Plus 动态样式注入。网络请求限同源 + https/wss。
+
          connect-src 增补 http://localhost:* 与 http://127.0.0.1:*：
          资产包 Playground 的「🧪 本地模型沙箱」是**开发者本机**调试工具，直连本机
          Ollama/vLLM（默认 http://localhost:11434/v1/chat/completions，页面可改），
          而原口径只放行 https:/wss:，明文回环地址一律被浏览器拦掉 ⇒ 该功能恒
          「LLM 调用失败」，页面给的排查提示（起 Ollama / 放 CORS）全都无效。
          放行范围严格限定在**回环地址**：远程攻击者无法从公网路由到 127.0.0.1，
-         因此这不构成「明文跨源到任意站点」；对外的明文 http 仍然照旧被拦。 -->
+         因此这不构成「明文跨源到任意站点」；对外的明文 http 仍然照旧被拦。
+
+         关于点击劫持（frame-ancestors）：**本 meta 里没有、也不应该有
+         frame-ancestors** —— 按 CSP 规范，frame-ancestors 指令在 meta 交付的
+         CSP 中被浏览器**忽略**（且 meta 只能收紧、不能放宽），写在这里是假动作。
+         main.js 里那段按路由改写 meta 的逻辑因此一直是空转（replace 找不到
+         "frame-ancestors" 这段字符串）。真正要控制「谁能 iframe 嵌我」必须走
+         **响应头**（Content-Security-Policy: frame-ancestors … / X-Frame-Options），
+         且 /chat/embed 需要单独放行 —— 属独立任务，不在本条 meta 的能力范围内。 -->
     <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: https:; font-src 'self' data:; connect-src 'self' https: wss: http://localhost:* http://127.0.0.1:*; base-uri 'self'; form-action 'self'; object-src 'none'" />
     <title>AI营销套件</title>
   </head>

@@ -439,6 +439,8 @@ const route = useRoute()
 const currentType = ref('rag');
 const loading = ref(false)
 const list = ref([])
+// 列表请求的自增序号：用于丢弃「类型/分页切换时先发的慢响应」
+let listReqSeq = 0
 const total = ref(0)
 const page = ref(1)
 const pageSize = ref(20)
@@ -476,18 +478,21 @@ const openEditDialog = (row) => {
 // 深链编辑：/knowledgeBase/edit/:id —— 按路由里的 id 拉知识库并直接打开编辑框。
 // 列表里翻页找不到目标、或该 KB 不在当前类型（rag/faq/sop）分页里时，
 // 列表口径会拿不到它，所以这里走单条读取（getKB），不依赖列表数据。
+//
+// 返回值：true = 列表已由本函数负责加载（目标 KB 的类型与当前分页不同，
+// 已切类型并加载）；false = 调用方需要自己加载当前类型的列表。
 const openEditByRouteId = async () => {
   const id = Number(route.params.id)
   if (!Number.isFinite(id) || id <= 0) {
     ElMessage.warning('知识库 ID 无效')
-    return
+    return false
   }
   try {
     const res = await getKB(id)
     const kb = res?.data || res
     if (!kb || !kb.id) {
       ElMessage.warning('知识库不存在或无权访问')
-      return
+      return false
     }
     openEditDialog({
       id: kb.id,
@@ -501,10 +506,16 @@ const openEditByRouteId = async () => {
     const t = kb.kb_type || kb.type
     if (t && t !== currentType.value) {
       currentType.value = t
+      // 切类型必须回到第 1 页：沿用上一页码的话，FAQ 那种只有一两页的类型
+      // 会请求到不存在的第 3 页，表格空着（正是"深链进来什么也没看到"那个症状）。
+      page.value = 1
       loadList(t)
+      return true
     }
+    return false
   } catch (e) {
     ElMessage.error('读取知识库失败：' + (e?.message || '未知错误'))
+    return false
   }
 }
 
@@ -584,20 +595,32 @@ const extractTotal = (r) => {
 
 const loadList = async (type) => {
   loading.value = true
+  // 并发守卫：每次发请求拿一个自增序号，回来时若序号已过期（期间又发过别的
+  // 类型/分页的请求），直接丢弃这份响应 —— 否则「先发的慢请求后到」会把
+  // 上一次类型的行写进列表，标签页显示的是 A 类型、表里却是 B 类型的行。
+  const seq = ++listReqSeq
+  const isStale = () => seq !== listReqSeq
   try {
     const t = type || currentType.value
     const params = {
       page: page.value,
       page_size: pageSize.value,
       kb_type: t,
+      // 后端文档口径是 `type`（controller/knowledge_base.go 的 @Param type）。
+      // 这里此前一直发 `kb_type`，后端读的是 `type` ⇒ 类型过滤从未生效，
+      // RAG/FAQ/SOP 三个标签页拿到的是同一份全量列表。
+      // 后端现已同时接受 kb_type（兼容旧前端），前端这边改回文档口径。
+      type: t,
       keyword: filter.value.keyword || undefined,
       status: filter.value.status ?? undefined
     }
     const res = await listKBs(params).catch(() => null)
+    if (isStale()) return
     let items = extractList(res)
     total.value = extractTotal(res)
     if (items.length === 0) {
       const fb = await listByType(t, params).catch(() => null);
+      if (isStale()) return
       items = extractList(fb)
       total.value = total.value || extractTotal(fb)
     }
@@ -615,6 +638,7 @@ const loadList = async (type) => {
         return { ...it, agent_count }
       })
     );
+    if (isStale()) return
     list.value = enriched
     stats.value = {
       total: total.value || enriched.length,
@@ -622,11 +646,14 @@ const loadList = async (type) => {
     };
     totalAgentBindings.value = enriched.reduce((s, x) => s + (x.agent_count || 0), 0)
   } catch (e) {
+    if (isStale()) return
     list.value = []
     total.value = 0
     stats.value = null
   } finally {
-    loading.value = false
+    // 只有最新一次请求才收 spinner：否则先发的慢请求会先把 loading 置回 false，
+    // 表还在转、数据却已经能点。
+    if (!isStale()) loading.value = false
   }
 }
 
@@ -722,15 +749,24 @@ const onDelete = async (row) => {
   }
 }
 
-onMounted(() => {
-  loadList('rag')
-  if (route.name === 'KnowledgeBaseCreate')
-    openCreateDialog();
+onMounted(async () => {
   // 深链 /knowledgeBase/edit/:id（路由名 KnowledgeBaseEdit，标题「编辑知识库」）
   // 此前只处理了 Create 分支，Edit 分支落到列表页却不打开编辑器 —— 从菜单/
   // 外部深链进来说明"编辑知识库"却只看到一屏列表，路由参数被静默丢弃。
-  if (route.name === 'KnowledgeBaseEdit')
-    openEditByRouteId();
+  //
+  // Edit 分支下不先 loadList('rag')：openEditByRouteId 读到目标 KB 的类型后
+  // 会自己切类型并重新加载；先发的那次 rag 列表请求会变成一次多余的往返，
+  // 且和后一次请求并发（loadList 里的序号守卫会丢弃它，但仍是白跑的网络）。
+  if (route.name === 'KnowledgeBaseEdit') {
+    const loaded = await openEditByRouteId()
+    // openEditByRouteId 在「读到目标 KB 且类型与当前分页不同」时自己切类型并
+    // 加载列表；没切（类型相同）或读取失败时，这里补一次当前类型的列表。
+    if (!loaded) loadList('rag')
+    return
+  }
+  loadList('rag')
+  if (route.name === 'KnowledgeBaseCreate')
+    openCreateDialog();
 })
 </script>
 

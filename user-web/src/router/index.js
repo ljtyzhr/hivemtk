@@ -283,8 +283,7 @@ router.beforeEach(async (to, from, next) => {
     if (!initialized) {
       next('/setup')
       return
-    }
-    const userStore = useUserStore()
+    }    const userStore = useUserStore()
     // 系统已初始化：直接去登录页，绝不把“已初始化实例”的干净浏览器访客单机
     // 送进 /setup 安装向导。SaaS(tenant_mode=on) 多租户实例尤其如此——那里没有
     // “单机首次安装”场景，注册入口在登录页（Login.vue 的 enable_register 开关）。
@@ -313,6 +312,19 @@ router.beforeEach(async (to, from, next) => {
         next({ name: 'NotFound', query: { status: '403', from: to.fullPath }, replace: true })
         return
       }
+    }
+  }
+
+  // NotFound（404 兜底路由）现在是公开路由（public: true，见上面的 meta 注释），
+  // 于是它绕过了上面 if (!isPublic) 里的引导状态判断 —— 后果是「尚未安装」
+  // 的实例上，访客敲一个不存在的地址会看到 404 页而不是安装向导。
+  // 装好之前（initialized=false）仍然推进 /setup，与改动前的行为一致；
+  // /login、/register、/chat/embed 这些真正公开的页面不受影响。
+  if (isPublic && to.name === 'NotFound') {
+    const { initialized } = await ensureBootstrap()
+    if (!initialized) {
+      next('/setup')
+      return
     }
   }
 
