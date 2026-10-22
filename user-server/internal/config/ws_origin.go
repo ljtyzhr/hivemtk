@@ -1,6 +1,8 @@
 package config
 
 import (
+	"net/http"
+	"net/url"
 	"os"
 	"strings"
 
@@ -89,4 +91,30 @@ func loadAllowedWSOriginsFromYAML() []string {
 func ReloadAllowedWSOrigins() {
 	allowedWSOriginsLoaded = false
 	allowedWSOriginsCache = nil
+}
+
+// IsSameOriginWS 判定 WebSocket 的 Origin 是否与请求本身同源。
+//
+// 背景（任务四 UI 拟人测试实测）：前端与 user-server 由同一反向代理层同源托管
+// （.env.development 注释与 VITE_API_BASE_URL=/ 的口径），浏览器发起的 WS 握手
+// 必然带 Origin=<前端站点域>，例如 https://work.xapptool.cn。而 WS 白名单
+// （ALLOWED_WS_ORIGINS / config.yaml platform.allowed_ws_origins / 默认表）按
+// 部署域逐个维护，且所有部署脚本都没有设过该变量 ⇒ 同源部署下坐席实时通知 WS
+// 被 gorilla 以 403 "Forbidden" 拒绝，前端陷入重连循环且控制台持续报错。
+//
+// 因此同源一律放行（与 internal/router 的 CORS 同源判定口径一致，也与
+// internal/websocket/visitor_handler.go 访客 WS 的既有做法一致）：同源意味着
+// 请求就是本站自己的 JS 发起的；跨源仍然必须走白名单。
+//
+// 判定口径：Origin 的 host 与请求 Host 相同即同源（不比较 scheme，避免反代
+// 终止 TLS 后 scheme 与浏览器视角不一致导致误拒）。
+func IsSameOriginWS(origin string, r *http.Request) bool {
+	if origin == "" || r == nil || r.Host == "" {
+		return false
+	}
+	u, err := url.Parse(origin)
+	if err != nil || u.Host == "" {
+		return false
+	}
+	return strings.EqualFold(u.Host, r.Host)
 }

@@ -80,3 +80,35 @@ func TestBuildCheckOrigin_NoExternalMutation(t *testing.T) {
 		t.Errorf("input slice should not be mutated, got %v", origins)
 	}
 }
+
+// TestBuildCheckOrigin_SameOriginAllowed 验证同源放行。
+//
+// 任务四 UI 拟人测试实测缺陷：同源部署（前端与 user-server 同一反向代理层）
+// 下聊天流式 WS 的 Origin 是本站域，而白名单按部署域维护、没有任何部署脚本
+// 配过 ⇒ 同源被 403，聊天流式输出直接不可用。跨源仍必须走白名单。
+func TestBuildCheckOrigin_SameOriginAllowed(t *testing.T) {
+	check := buildCheckOrigin([]string{"https://allowed.example.com"})
+
+	// httptest.NewRequest 的 Host 为 example.com
+	same := []string{
+		"http://example.com",
+		"https://example.com", // 反代终止 TLS，上游 scheme 是 http，只比 host
+	}
+	for _, o := range same {
+		if !check(makeOriginReq(o)) {
+			t.Errorf("同源应放行: origin=%q", o)
+		}
+	}
+
+	// 跨源冒牌仍必须拒绝
+	deny := []string{
+		"https://example.com.evil.com",
+		"https://evil.example.com",
+		"https://other.com",
+	}
+	for _, o := range deny {
+		if check(makeOriginReq(o)) {
+			t.Errorf("跨源冒牌应拒绝: origin=%q", o)
+		}
+	}
+}

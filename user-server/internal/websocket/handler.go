@@ -17,8 +17,20 @@ import (
 	"github.com/gorilla/websocket"
 )
 
-func isAllowedOrigin(origin string) bool {
+// isAllowedOrigin 判定 WS 握手 Origin 是否放行。
+//
+// r 传入请求是为了做同源判定：同源（Origin 的 host == 请求 Host）一律放行，
+// 见 config.IsSameOriginWS 的说明（任务四实测：同源部署下白名单漏配会让坐席
+// 实时通知 WS 恒 403 并触发前端重连循环）。
+func isAllowedOrigin(r *http.Request) bool {
+	origin := ""
+	if r != nil {
+		origin = r.Header.Get("Origin")
+	}
 	if origin == "" {
+		return true
+	}
+	if config.IsSameOriginWS(origin, r) {
 		return true
 	}
 	allowed := config.GetAllowedWSOrigins()
@@ -35,7 +47,7 @@ var upgrader = websocket.Upgrader{
 	WriteBufferSize: 1024,
 
 	CheckOrigin: func(r *http.Request) bool {
-		return isAllowedOrigin(r.Header.Get("Origin"))
+		return isAllowedOrigin(r)
 	},
 }
 

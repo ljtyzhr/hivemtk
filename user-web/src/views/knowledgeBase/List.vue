@@ -473,6 +473,41 @@ const openEditDialog = (row) => {
   formVisible.value = true
 }
 
+// 深链编辑：/knowledgeBase/edit/:id —— 按路由里的 id 拉知识库并直接打开编辑框。
+// 列表里翻页找不到目标、或该 KB 不在当前类型（rag/faq/sop）分页里时，
+// 列表口径会拿不到它，所以这里走单条读取（getKB），不依赖列表数据。
+const openEditByRouteId = async () => {
+  const id = Number(route.params.id)
+  if (!Number.isFinite(id) || id <= 0) {
+    ElMessage.warning('知识库 ID 无效')
+    return
+  }
+  try {
+    const res = await getKB(id)
+    const kb = res?.data || res
+    if (!kb || !kb.id) {
+      ElMessage.warning('知识库不存在或无权访问')
+      return
+    }
+    openEditDialog({
+      id: kb.id,
+      kb_code: kb.kb_code || '',
+      kb_type: kb.kb_type || kb.type || currentType.value,
+      name: kb.name || '',
+      description: kb.description || ''
+    })
+    // 表单里的类型可能与当前列表分页不同（RAG 列表里打开一条 FAQ），
+    // 顺手把列表切到该类型，避免用户在错误的分页上编辑。
+    const t = kb.kb_type || kb.type
+    if (t && t !== currentType.value) {
+      currentType.value = t
+      loadList(t)
+    }
+  } catch (e) {
+    ElMessage.error('读取知识库失败：' + (e?.message || '未知错误'))
+  }
+}
+
 const onSubmitForm = async () => {
   const f = formData.value
   if (!f.kb_code.trim()) return ElMessage.warning('请输入 KB 编码')
@@ -691,6 +726,11 @@ onMounted(() => {
   loadList('rag')
   if (route.name === 'KnowledgeBaseCreate')
     openCreateDialog();
+  // 深链 /knowledgeBase/edit/:id（路由名 KnowledgeBaseEdit，标题「编辑知识库」）
+  // 此前只处理了 Create 分支，Edit 分支落到列表页却不打开编辑器 —— 从菜单/
+  // 外部深链进来说明"编辑知识库"却只看到一屏列表，路由参数被静默丢弃。
+  if (route.name === 'KnowledgeBaseEdit')
+    openEditByRouteId();
 })
 </script>
 

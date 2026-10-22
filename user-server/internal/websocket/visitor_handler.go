@@ -81,11 +81,11 @@ var upgraderVisitor = websocket.Upgrader{
 		// 同源放行：嵌入式客服页（/chat/embed/*，如 workapi.xapptool.cn）与 API
 		// 同域，访客 WS 就从该域发起。白名单按部署域维护，漏配新域名时同源也必须
 		// 能连（跨源仍走白名单/私网判定，见下）。
-		if u, err := url.Parse(origin); err == nil && u.Host != "" && strings.EqualFold(u.Host, r.Host) {
+		if config.IsSameOriginWS(origin, r) {
 			return true
 		}
 
-		if isAllowedOrigin(origin) {
+		if isAllowedOrigin(r) {
 			return true
 		}
 

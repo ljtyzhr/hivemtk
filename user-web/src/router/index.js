@@ -143,7 +143,12 @@ const routes = [
     path: '/:pathMatch(.*)*',
     name: 'NotFound',
     component: () => import('@/views/NotFound.vue'),
-    meta: { title: '页面不存在' }
+    // public: 404 页是静态页、无租户数据，且是若干**公开链路**的终点：
+    // 访客客服挂件点「关闭」会 router.replace 到这里（views/chat/embed/Index.vue），
+    // 未登录访客却因为本路由不在公开白名单而被守卫推进 /login —— 挂件关掉后
+    // 访客看到的是登录表单（嵌在第三方站点的 iframe 里更是突兀），而不是
+    // 「页面不存在」。公开标记只影响「未登录时是否放行」，不泄露任何业务数据。
+    meta: { title: '页面不存在', public: true }
   }
 ]
 

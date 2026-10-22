@@ -103,6 +103,12 @@ func buildCheckOrigin(allowedOrigins []string) func(r *http.Request) bool {
 		if origin == "" {
 			return true
 		}
+		// 同源放行：前端与 user-server 同源托管时（VITE_API_BASE_URL=/ 的
+		// 部署口径），浏览器握手带的 Origin 就是本站域；白名单按部署域维护，
+		// 漏配新域名时同源也必须能连（跨源仍走白名单）。
+		if config.IsSameOriginWS(origin, r) {
+			return true
+		}
 		for _, o := range allowed {
 			if o == "*" {
 				return true

@@ -75,9 +75,18 @@
         <li>打开 Chrome，地址栏输入 <code>chrome://extensions</code>。</li>
         <li>右上角开启「开发者模式」。</li>
         <li>点「加载已解压的扩展程序」，选择刚才解压出来的目录。</li>
-        <li>点扩展图标，填写本系统的服务端地址与「桥接凭证」，并填入租户短码后保存。</li>
+        <li v-if="tenantMode">
+          点扩展图标，填写本系统的服务端地址与「桥接凭证」，并填入租户短码后保存。
+        </li>
+        <li v-else>
+          点扩展图标，填写本系统的服务端地址与「桥接凭证」后保存。
+        </li>
       </ol>
+      <!-- 租户短码只存在于 SaaS 多租户形态：私域独立部署（TENANT_MODE=off）下
+           后端 resolveBridgeTenant 直接放行（不绑租户），扩展里没有「租户短码」
+           这个字段。此处无条件展示等于让私域用户去填一个不存在的概念。 -->
       <el-alert
+        v-if="tenantMode"
         type="warning"
         :closable="false"
         show-icon
@@ -92,11 +101,22 @@
 import { onMounted, ref } from 'vue'
 import { ElMessage } from 'element-plus'
 import { getBridgeExtensionPackage } from '@/api/bridgeExtension.js'
+import { http } from '@/utils/request'
 
 const pkg = ref(null)
 const loading = ref(false)
 const downloading = ref(false)
 const error = ref('')
+// 部署形态：SaaS 多租户(on) 才需要租户短码；私域独立部署(off) 没有这个概念。
+// 直接读公开配置（与 Login.vue 同一口径），不依赖引导状态缓存的时序 ——
+// 引导状态在守卫里异步拉取，组件 setup 时未必已经落定。
+const tenantMode = ref(false)
+http.get('/api/public/config', undefined, { _silent: true })
+  .then((res) => {
+    const cfg = res?.data ?? res
+    tenantMode.value = !!cfg?.tenant_mode
+  })
+  .catch(() => { tenantMode.value = false })
 
 const load = async () => {
   loading.value = true
