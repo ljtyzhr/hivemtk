@@ -212,6 +212,12 @@ func (r *NotificationRepository) MarkReadByID(ctx context.Context, userID, id ui
 }
 
 // MarkAllRead 全部标记已读，返回受影响行数
+// MarkAllRead 把该用户的**本地业务通知**全部标记已读，返回受影响条数。
+//
+// 平台消息不在这里处理：它们的已读由 notification_reads 回执表按人记录
+// （service 层另走 readRepo.MarkAllRead）。若这里也把平台消息的 is_read
+// 置上，等于给"一条消息 N 个人"的语义又加了一条全局位 —— 那正是本模块
+// 要消灭的东西（一人点开，全场清零）。
 func (r *NotificationRepository) MarkAllRead(ctx context.Context, userID uint) (int64, error) {
 	if r == nil || r.db == nil {
 		return 0, nil
@@ -219,6 +225,7 @@ func (r *NotificationRepository) MarkAllRead(ctx context.Context, userID uint) (
 	now := time.Now()
 	res := r.db.WithContext(ctx).Model(&model.Notification{}).
 		Where("is_read = ? AND (user_id = 0 OR user_id = ?)", false, userID).
+		Where("type <> ?", model.NotificationTypePlatformNotice).
 		Updates(map[string]any{
 			"is_read": true,
 			"read_at": &now,
@@ -229,7 +236,12 @@ func (r *NotificationRepository) MarkAllRead(ctx context.Context, userID uint) (
 	return res.RowsAffected, nil
 }
 
-// CountUnread 统计未读数（user_id = 0 与 userID 取并集）
+// CountUnread 统计未读数（**仅本地业务通知**）。
+//
+// 平台消息的未读**不在这里算**：它们的已读状态由 notification_reads 回执表
+// 按人记录，service 层另有 CountUnread(ctx, tenantID, userID) 走回执口径。
+// 若这里也把平台消息算进去，service 再把回执口径加一遍 ⇒ 未读数翻倍
+// （实测角标 11 / 接口 10，差值正是那条平台消息）。
 func (r *NotificationRepository) CountUnread(ctx context.Context, userID uint) (int64, error) {
 	if r == nil || r.db == nil {
 		return 0, nil
@@ -237,6 +249,7 @@ func (r *NotificationRepository) CountUnread(ctx context.Context, userID uint) (
 	var count int64
 	err := r.db.WithContext(ctx).Model(&model.Notification{}).
 		Where("is_read = ? AND (user_id = 0 OR user_id = ?)", false, userID).
+		Where("type <> ?", model.NotificationTypePlatformNotice).
 		Count(&count).Error
 	return count, err
 }

@@ -255,6 +255,74 @@ func TestNotificationRead_PerUserIsolation(t *testing.T) {
 	}
 }
 
+// TestNotificationService_CountUnread_NoDoubleCount 钉死未读数**不重复计平台消息**。
+//
+// 生产实测：铃铛角标 11、接口未读数 10，差值正是那条平台消息。
+//
+// 根因：service 层 CountUnread = 平台消息未读（回执口径）+ 本地通知未读，
+// 而仓储的本地未读查询把**平台消息也算进去了** ⇒ 同一条平台消息被数两次。
+//
+// 修法：仓储的本地口径排除 type = platform_notice（平台消息的已读由回执表
+// 负责），两边各算各的、互不重叠。
+func TestNotificationService_CountUnread_NoDoubleCount(t *testing.T) {
+	database := setupNoticeTestDB(t)
+	repo, _ := newNoticeRepoForTest(t, database)
+	svc := NewNotificationService(database)
+
+	ctx := tenant.WithTenantID(context.Background(), 1)
+
+	// 一条平台消息 + 两条本地业务通知
+	platform := &model.Notification{
+		UserID: 0, Type: model.NotificationTypePlatformNotice,
+		Title: "平台公告", Source: model.NotificationSourcePlatform, SourceMsgID: 500,
+	}
+	if _, err := repo.UpsertFromPlatform(ctx, platform); err != nil {
+		t.Fatalf("投递平台消息失败: %v", err)
+	}
+	for i := 0; i < 2; i++ {
+		local := &model.Notification{
+			UserID: 0, Type: model.NotificationTypeInfo,
+			Title: "本地通知", Source: model.NotificationSourceLocal,
+		}
+		if err := repo.Create(ctx, local); err != nil {
+			t.Fatalf("写本地通知失败: %v", err)
+		}
+	}
+
+	got, err := svc.CountUnread(ctx, 11)
+	if err != nil {
+		t.Fatalf("统计未读失败: %v", err)
+	}
+	// 1 条平台消息（无回执）+ 2 条本地通知 = 3，不该是 4。
+	if got != 3 {
+		t.Fatalf("未读数应为 3（1 平台 + 2 本地），实际 %d（平台消息被重复计数）", got)
+	}
+
+	// 平台消息标记已读后，未读数减 1（走回执，不动行上 is_read）
+	var msg model.Notification
+	if err := database.WithContext(ctx).Where("source_msg_id = ?", 500).First(&msg).Error; err != nil {
+		t.Fatalf("读取平台消息失败: %v", err)
+	}
+	if err := svc.MarkRead(ctx, 11, msg.ID); err != nil {
+		t.Fatalf("标记已读失败: %v", err)
+	}
+	got2, err := svc.CountUnread(ctx, 11)
+	if err != nil {
+		t.Fatalf("统计未读失败: %v", err)
+	}
+	if got2 != 2 {
+		t.Fatalf("平台消息已读后未读数应为 2，实际 %d", got2)
+	}
+
+	// 平台消息行上的 is_read 必须仍是 false：已读归回执管，不归行上布尔位管。
+	if err := database.WithContext(ctx).Where("id = ?", msg.ID).First(&msg).Error; err != nil {
+		t.Fatalf("回读平台消息失败: %v", err)
+	}
+	if msg.IsRead {
+		t.Fatal("平台消息行的 is_read 不该被置上（已读归回执表管）")
+	}
+}
+
 // TestNotificationRead_MarkAllRead 只影响当前用户。
 func TestNotificationRead_MarkAllRead(t *testing.T) {
 	database := setupNoticeTestDB(t)
