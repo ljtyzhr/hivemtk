@@ -57,7 +57,34 @@ export POSTGRES_TEST_HOST=127.0.0.1 POSTGRES_TEST_PORT=8202 \
 
 ## Deviations from Assessment
 
-无路径偏离。一处实现细节补充（assessment 未细化到这一层）：第二个回归用例的断言比 assessment 更强 —— 最初写成"回调收到未绑定的 ctx 时应报错"，实测发现 on 模式下**写库那一步就已经被拒**（`message_hub` create 需要租户上下文），回调根本不会被触发。已把断言改成这个更强的性质：**无租户 ⇒ 写库被拒 ⇒ 回调不触发 ⇒ 宁可不发也不落到默认租户**。
+无路径偏离。两处实现细节补充（assessment 未细化到这一层）：
+
+1. **第二个回归用例的断言比 assessment 更强** —— 最初写成"回调收到未绑定的 ctx 时应报错"，实测发现 on 模式下**写库那一步就已经被拒**（`message_hub` create 需要租户上下文），回调根本不会被触发。已把断言改成这个更强的性质：**无租户 ⇒ 写库被拒 ⇒ 回调不触发 ⇒ 宁可不发也不落到默认租户**。
+
+2. **本修复上线后仍偶发同一类报错，追出第二个根因并当轮修掉**（规则 2）：
+   上一版修的是"回调签名带 ctx + 调用点派生租户 ctx"，但**平台级后台任务那条路仍是无租户**：
+   延迟出站派发 `dispatchDueDelayedOutbound` 拿的是 `tenant.WithSystemScope(ctx)`，
+   而 `tenant.BackgroundWithTenant` **只搬租户、不搬 SystemScope** ⇒ 派生出的 ctx 变成
+   "无租户、无豁免" ⇒ 隔离 callback 一律 fail-closed 拒绝 ⇒ 认领（UPDATE `message_hub`）失败。
+   修法（提交 `3a30bfe4`）：`BackgroundWithTenant` 在父 ctx 带 SystemScope 时，派生 ctx 也带。
+   **丢豁免比不丢更坏**——调用方以为豁免还在，写库全被拒。
+   回归锁：`user-server/internal/pkg/tenant/tenant_test.go` 的
+   `TestBackgroundWithTenantPreservesSystemScope`（三种父 ctx：租户+豁免 / 仅豁免 / 普通）。
+
+## 线上验证（最终）
+
+```
+需要租户上下文        0
+出站认领报错           0
+zh_rag                0
+all providers FAILED  0
+渠道快照读取失败        0
+lead-mining 读配置失败  0
+--- 正向读数
+SSE 客户端连接         4
+AI 回复生成(outbound)  5（10 分钟内）
+延迟出站派发(H-3)      19（SystemScope 那条路正常跑）
+```
 
 ## Risks
 
