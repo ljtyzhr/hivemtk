@@ -71,6 +71,20 @@
             placeholder="用于登录与接收系统通知"
           />
         </el-form-item>
+        <!-- 租户代码（SaaS 多租户形态才有这个概念）：
+             填了 = 加入已有商户（走 /api/auth/register，账号落在该租户下）；
+             留空 = 新商户开户（走 /api/tenant/register，顺带拿到自己的租户代码）。
+             私域独立部署(off)没有租户概念，整块隐藏。 -->
+        <el-form-item
+          v-if="tenantMode"
+          label="租户代码"
+          prop="tenant_code"
+        >
+          <el-input
+            v-model="form.tenant_code"
+            placeholder="加入已有商户时填写（如：tz3rmdj）；留空表示新商户开户"
+          />
+        </el-form-item>
       </el-form>
 
       <!-- 第 2 步：开户登记（监管必需项）-->
@@ -120,7 +134,10 @@
             placeholder="选填，建议填写以便后续快速核验"
           />
         </el-form-item>
-        <el-form-item label="通信地址" prop="address">
+        <el-form-item
+          label="通信地址"
+          prop="address"
+        >
           <el-input
             v-model="form.address"
             placeholder="必填，用于监管问询联系"
@@ -192,6 +209,7 @@ import { useRouter } from 'vue-router'
 import { ElMessage, ElNotification } from 'element-plus'
 import { http } from '@/utils/request'
 import { regulatoryNotice } from '@/api/moduleMarket'
+import { TenantApi } from '@/api/tenant'
 import { useUserStore } from '@/stores/user'
 import { usePermissionStore } from '@/stores/permission'
 
@@ -206,8 +224,15 @@ const notice = ref({ notice: '', agreement_version: '', required_fields: [] })
 const form = reactive({
   username: '', password: '', confirmPassword: '', email: '',
   company_name: '', real_name: '', phone: '', license_no: '', address: '',
-  regulatory_ack: false
+  regulatory_ack: false,
+  // 租户代码：填了=加入已有商户，留空=新商户开户（见模板注释）
+  tenant_code: ''
 })
+
+// SaaS 多租户(on)才有「租户代码」这个概念；私域独立部署(off)登录/注册页
+// 都没有这个字段，注册时多一个框只会让人填一个不存在的值。
+// 与 Login.vue 同一口径：读公开配置 /api/public/config。
+const tenantMode = ref(false)
 
 const rules = {
   username: [
@@ -285,55 +310,25 @@ async function submit () {
 
   submitting.value = true
   try {
-    // SaaS 开户：POST /api/tenant/register —— 一并创建租户（不再落到默认租户 1）。
-    // 字段按后端 RegisterTenantRequest 口径：name=租户展示名（复用公司名称）、
-    // legal_person=负责人（表单字段仍叫 real_name）。响应是 {tenant_id, tenant_code, token}，
-    // token 为开户管理员的终令牌：拿到就直接落库自动登录，缺失才回登录页。
-    const res = await http.post('/api/tenant/register', {
-      name: form.company_name,
-      username: form.username,
-      email: form.email,
-      password: form.password,
-      company_name: form.company_name,
-      legal_person: form.real_name,
-      phone: form.phone,
-      license_no: form.license_no,
-      address: form.address,
-      regulatory_ack: form.regulatory_ack,
-      agreement_version: notice.value.agreement_version
-    })
-    // 租户代码是后续登录/开通子账号的凭据，漏看就麻烦了——用常驻通知而不是 3 秒 toast
-    const tenantCode = res?.tenant_code || res?.data?.tenant_code || ''
-    ElNotification({
-      type: 'success',
-      title: '注册成功！',
-      message: `您的租户代码：${tenantCode || '—'}，请妥善保存（登录与开通子账号时需要）`,
-      duration: 0
-    })
-    const token = res?.token || res?.data?.token || ''
-    if (token) {
-      // 后端没有返回 user 对象，最小用户信息用表单 + 响应拼出来（role 取开户默认 admin）；
-      // 登录终态收尾与 Login.vue finishLogin 对齐：落库 + 重置菜单缓存，然后回首页。
-      userStore.login({
-        username: form.username,
-        email: form.email,
-        role: 'admin',
-        tenant_id: res?.tenant_id ?? res?.data?.tenant_id ?? '',
-        tenant_code: tenantCode
-      }, token)
-      permissionStore.resetMenus()
-      router.push('/')
+    const tenantCode = String(form.tenant_code || '').trim()
+    // 两条注册路径，由「填没填租户代码」分流：
+    //   填了 → 加入已有商户：POST /api/auth/register（on 模式必填 tenant_code，
+    //          后端 resolvePublicTenantCtx 按短码把账号落进那个租户）；
+    //   留空 → 新商户开户：POST /api/tenant/register（顺带创建租户并返回租户代码）。
+    if (tenantCode) {
+      await submitJoinTenant(tenantCode)
     } else {
-      router.push('/login')
+      await submitOpenTenant()
     }
   } catch (e) {
-    // 后端 bizerr 码：4103 邮箱已注册 / 4104 注册已关闭 / 4105 限流。
+    // 后端 bizerr 码：4103 邮箱已注册 / 4104 注册已关闭 / 4105 限流 / 4106 租户不存在。
     // 文案用机器读数字段分流（bizCode/response.data.code），不靠 message 措辞判分支。
     const bizCode = String(e?.bizCode ?? e?.response?.data?.code ?? '')
     const codeMsg = {
       4103: '该邮箱已注册，请直接登录或更换邮箱',
       4104: '平台当前已关闭注册，请联系管理员',
-      4105: '注册过于频繁，请稍后再试'
+      4105: '注册过于频繁，请稍后再试',
+      4106: '租户代码不存在，请向所属商户索取正确的租户代码'
     }
     ElMessage.error(codeMsg[bizCode] || e?.response?.data?.message || e?.message || '注册失败')
   } finally {
@@ -341,7 +336,97 @@ async function submit () {
   }
 }
 
+// 加入已有商户：账号落在该租户下，不创建新租户。
+// 后端 RegisterRequest 口径：负责人字段叫 real_name（不是开户路径的 legal_person）。
+async function submitJoinTenant (tenantCode) {
+  const res = await http.post('/api/auth/register', {
+    username: form.username,
+    password: form.password,
+    email: form.email,
+    phone: form.phone,
+    real_name: form.real_name,
+    tenant_code: tenantCode,
+    company_name: form.company_name,
+    license_no: form.license_no,
+    address: form.address,
+    regulatory_ack: form.regulatory_ack,
+    agreement_version: notice.value.agreement_version
+  })
+  // 响应是 LoginResponse：{token, user, tenant_id, tenant_code}
+  const joinedCode = res?.tenant_code || res?.data?.tenant_code || tenantCode
+  ElNotification({
+    type: 'success',
+    title: '注册成功！',
+    message: `已加入商户，租户代码：${joinedCode}。登录时请填写该租户代码（用户名或邮箱登录均可）。`,
+    duration: 0
+  })
+  const token = res?.token || res?.data?.token || ''
+  const user = res?.user || res?.data?.user || {}
+  if (token) {
+    userStore.login({
+      ...user,
+      username: user.username || form.username,
+      email: user.email || form.email,
+      role: user.role || 'user',
+      tenant_id: res?.tenant_id ?? res?.data?.tenant_id ?? '',
+      tenant_code: joinedCode
+    }, token)
+    permissionStore.resetMenus()
+    router.push('/')
+  } else {
+    router.push('/login')
+  }
+}
+
+// 新商户开户：顺带创建租户，响应带回新租户的租户代码。
+async function submitOpenTenant () {
+  // SaaS 开户：POST /api/tenant/register —— 一并创建租户（不再落到默认租户 1）。
+  // 字段按后端 RegisterTenantRequest 口径：name=租户展示名（复用公司名称）、
+  // legal_person=负责人（表单字段仍叫 real_name）。响应是 {tenant_id, tenant_code, token}，
+  // token 为开户管理员的终令牌：拿到就直接落库自动登录，缺失才回登录页。
+  const res = await http.post('/api/tenant/register', {
+    name: form.company_name,
+    username: form.username,
+    email: form.email,
+    password: form.password,
+    company_name: form.company_name,
+    legal_person: form.real_name,
+    phone: form.phone,
+    license_no: form.license_no,
+    address: form.address,
+    regulatory_ack: form.regulatory_ack,
+    agreement_version: notice.value.agreement_version
+  })
+  // 租户代码是后续登录/开通子账号的凭据，漏看就麻烦了——用常驻通知而不是 3 秒 toast
+  const tenantCode = res?.tenant_code || res?.data?.tenant_code || ''
+  ElNotification({
+    type: 'success',
+    title: '注册成功！',
+    message: `您的租户代码：${tenantCode || '—'}，请妥善保存（登录与开通子账号时需要）`,
+    duration: 0
+  })
+  const token = res?.token || res?.data?.token || ''
+  if (token) {
+    // 后端没有返回 user 对象，最小用户信息用表单 + 响应拼出来（role 取开户默认 admin）；
+    // 登录终态收尾与 Login.vue finishLogin 对齐：落库 + 重置菜单缓存，然后回首页。
+    userStore.login({
+      username: form.username,
+      email: form.email,
+      role: 'admin',
+      tenant_id: res?.tenant_id ?? res?.data?.tenant_id ?? '',
+      tenant_code: tenantCode
+    }, token)
+    permissionStore.resetMenus()
+    router.push('/')
+  } else {
+    router.push('/login')
+  }
+}
+
 onMounted(async () => {
+  // 租户代码输入框只在 SaaS 多租户(on)形态显示（与登录页同一口径）。
+  // 读失败按 off 处理：宁可少给一个框，也不要在私域部署里让人填一个不存在的概念。
+  tenantMode.value = await TenantApi.isMultiTenant()
   try {
     const res = await regulatoryNotice()
     notice.value = res || notice.value

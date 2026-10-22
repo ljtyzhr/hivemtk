@@ -72,6 +72,24 @@ fail-closed 5000**（"需要租户上下文但 ctx 未绑定"）。
   `company_name/legal_person/phone/address`（+`license_no` 选填、
   `regulatory_ack=true`、`agreement_version`）。字段名错一个就 4101。
 
+### 2.2b 注册的两条路径（填不填租户代码分流）
+
+注册页（`/#/register`）现在有**一条入口、两条后端路径**，由「填没填租户代码」决定：
+
+| 表单 | 后端 | 语义 | 响应 |
+|---|---|---|---|
+| 填了租户代码 | `POST /api/auth/register` | **加入已有商户**：账号落进该租户下，不建新租户 | `{token, user, tenant_id, tenant_code}` —— 直接自动登录 |
+| 留空 | `POST /api/tenant/register` | **新商户开户**：顺带创建租户 | `{tenant_id, tenant_code, token}` —— 提示新租户代码 |
+
+- 「加入已有商户」这条后端路径**早就存在**（`resolvePublicTenantCtx` 按短码绑租户，
+  on 模式必填 tenant_code），此前前端 0 处调用 —— 商户给员工开通账号只能走后台，
+  现在前台可直接自助注册进自己的租户。
+- **字段名有坑**：加入路径用 `real_name`（负责人），开户路径用 `legal_person`；
+  开户路径还要 `name`（租户展示名）。前端已按各自口径分别发。
+- 租户代码填错 → 后端 4106（`CodeTenantNotFound`），前端据此给「租户代码不存在，
+  请向所属商户索取正确的租户代码」。
+- 租户代码输入框**只在 `tenant_mode=on` 显示**，私域独立部署（off）没有租户概念。
+
 ### 2.3 租户代码（tenant_code）丢了怎么找
 
 - **租户代码只在开户成功那一次露出**：`/register` 注册完成后弹一次
@@ -93,6 +111,15 @@ fail-closed 5000**（"需要租户上下文但 ctx 未绑定"）。
 
 - **注意**：`tenant_code` 是租户**短码**（`t` + 6 位低歧义字符，如 `tz3rmdj`），
   不是 `tenant_id`（数据库自增 id）。后者在 JWT 里，前者只在上面这个接口里。
+- **落库口径（2026-10-22 修）**：登录响应确实带 `tenant_id`/`tenant_code`
+  （MFA 第二步 `/api/auth/mfa/verify` 同样带），前端落进 `localStorage.user_info`。
+  但 `stores/user.js` 的 `setUserInfo` 原先对每个字段都是 `info.x || ''`，
+  而个人资料页刷新用户信息时只传 `{id, username, email, role}` ⇒
+  `tenant_id`/`tenant_code` 两个 key 不存在，被 `|| ''` 覆盖成空串 ——
+  **打开一次个人中心，登录时记下的租户代码就没了**（连带 `HelpCenter.vue`
+  拼 `tenant_code` 查询参数也变空）。
+  修法：租户字段按「缺失就沿用旧值」合并（`info.tenant_code ?? 旧值`）；
+  换账号残留由 `logout()` 显式清空兜住。
 
 ---
 
