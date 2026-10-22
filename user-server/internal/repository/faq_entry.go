@@ -189,6 +189,7 @@ func (r *FAQRepository) scoreAndRank(ctx context.Context, all []model.FAQEntry, 
 	type scored struct {
 		entry model.FAQEntry
 		score float64
+		level float64
 	}
 	var results []scored
 	for i := range all {
@@ -196,29 +197,70 @@ func (r *FAQRepository) scoreAndRank(ctx context.Context, all []model.FAQEntry, 
 		if e.Enabled == nil || !*e.Enabled {
 			continue
 		}
-		faqTokens := tokenize(e.Question + " " + e.Answer)
-		score := jaccardSimilarity(msgTokens, faqTokens)
-		for _, kw := range e.Keywords {
-			if kw == "" {
-				continue
-			}
-			if strings.Contains(msg, kw) {
-				// 关键词原样出现在用户句子里：最强的一条证据。
-				score += faqKeywordBonusExact
-				continue
-			}
-			if keywordTokenOverlap(msg, kw) {
-				// 用户句与关键词共用词元（语序变了、字面不连续）：次强证据。
-				score += faqKeywordBonusPartial
+		faqTokens := tokenize(e.Question)
+		// 匹配分 = 关键词命中强度（主导）+ 问法相似度（**只做同分决胜**）。
+		//
+		// 为什么改成这个结构：早先把关键词命中**每条独立加分**、jaccard 只占 0~1，
+		// 于是"关键词多但问法不匹配"的 FAQ 靠堆砌压过问法更贴近的条目
+		// （线上实测「多少钱」命中「部署需要什么配置」、「支持哪些语言」命中
+		// 「支持哪些渠道」）—— 答非所问比匹配不上更糟。
+		//
+		// 现在关键词命中强度是**整数计数**（命中几个、命中得多"准"），
+		// 问法相似度只做同分时的决胜项：命中数是整数、天然有序，
+		// 不存在"两个都命中两个关键词、谁的分高"这种靠权重硬凑的模糊地带。
+		// 匹配强度**分层**，不混在一张分数上。
+		//
+		// 一层（精确命中）：关键词原样是用户句的连续子串。这是强证据。
+		// 二层（词元命中）：与关键词共用词元（语序变了、字面不连续）。只作兜底。
+		//
+		// 分层而不是加权混合，是因为两套机制混在一张分数上永远在打架：
+		// 词元命中数一多（中文二元组太容易巧合）就能压过精确命中
+		// （「不会写代码能用吗」撞上"商用/要钱吗"、"能做GEO优化吗"撞上"智能体/功能"），
+		// 而一旦让词元命中也参与同层竞争，精确命中又被稀释。
+		//
+		// 排序键：(层, 层内强度, 问法相似度) —— 层是**主键**，层内再比强度，
+		// 强度相同才看问法相似度。这样"有精确命中的"永远排在"只有词元命中的"前面。
+		exactHits := faqExactKeywordHits(msg, e.Keywords)
+		var level, strength float64
+		if exactHits > 0 {
+			level = faqMatchLevelExact
+			strength = float64(exactHits)
+		} else {
+			tokenHits := faqTokenHits(msg, e.Keywords)
+			if tokenHits > 0 {
+				level = faqMatchLevelToken
+				strength = float64(tokenHits)
+			} else if len(e.Keywords) == 0 {
+				// 这条 FAQ **没有配关键词** ⇒ 只能退回问法本身的词元重合。
+				//
+				// 语序完全颠倒时 jaccard 无能为力（「优惠价可以」vs「可以优惠价吗」
+				// 只有 0.04），但两句话仍共用"优惠""价"这些词元 ——
+				// 词元重合是这种情况下唯一能识别出"讲的是同一件事"的信号。
+				//
+				// 只在**没有关键词**的条目上走这条路：有关键词的条目由上面的
+				// 精确/词元命中负责，避免中文二元组的巧合造成答非所问。
+				if overlap := faqTokenOverlapCount(msgTokens, faqTokens); overlap > 0 {
+					level = faqMatchLevelToken
+					strength = float64(overlap)
+				}
 			}
 		}
+		similarity := jaccardSimilarity(msgTokens, faqTokens)
+		// 分数只反映"这条有多像用户问的那条"（0~1 量级，可与 0.6 门槛比）；
+		// 层号只作**排序键**（主键），不进分数 —— 进了会把分数放大到门槛失去意义。
+		score := faqStrengthWeight*strength + faqSimilarityTieBreak*similarity
 		score = score * (e.Confidence + 0.1*logPlus(e.HitCount))
-		if score < 0.2 {
+		if level == 0 {
+			// 精确命中与词元命中都没有 ⇒ 这条与用户问法无关。
 			continue
 		}
-		results = append(results, scored{entry: e, score: score})
+		results = append(results, scored{entry: e, score: score, level: level})
 	}
-	sort.Slice(results, func(i, j int) bool {
+	// 层是主键：先按层排，层内按强度排，强度相同才看问法相似度。
+	sort.SliceStable(results, func(i, j int) bool {
+		if results[i].level != results[j].level {
+			return results[i].level > results[j].level
+		}
 		return results[i].score > results[j].score
 	})
 	if topK <= 0 || topK > len(results) {
@@ -370,6 +412,32 @@ func tokenize(s string) []string {
 		}
 		return tokens
 	}
+	// 英文/数字片段**整体成词**，不切碎片。
+	//
+	// 早先只把 CJK 二元组和单字入词，夹在中文里的英文被按字符切成了
+	// 2 字碎片（"Telegram" → le/te/gr/am…、"SaaS" → aa/s…），
+	// 于是英文关键词的"词元级命中"全是碎片乱撞：用户问「能接入Telegram吗」
+	// 靠 "le/te" 这种碎片撞上了「支持哪些渠道接入」那条的"接入" ⇒ 答非所问。
+	wordBuf := make([]rune, 0, len(runes))
+	flushWord := func() {
+		if len(wordBuf) >= 2 {
+			// 去掉首尾空白再入词：分隔用的空格/标点不该进词元
+			// （"能接入 Telegram 吗" 的 "Telegram" 前后各有一个空格）。
+			word := strings.TrimSpace(strings.ToLower(string(wordBuf)))
+			if len(word) >= 2 {
+				tokens = append(tokens, word)
+			}
+		}
+		wordBuf = wordBuf[:0]
+	}
+	for _, r := range runes {
+		if isCJK(r) {
+			flushWord()
+			continue
+		}
+		wordBuf = append(wordBuf, r)
+	}
+	flushWord()
 	for i := 0; i < len(runes)-1; i++ {
 		if isCJK(runes[i]) && isCJK(runes[i+1]) {
 			tokens = append(tokens, string(runes[i:i+2]))
@@ -390,21 +458,95 @@ func tokenize(s string) []string {
 // 中文里语序一变整句就不含原关键词（关键词「产品介绍」遇到「介绍下项目」），
 // FAQ 明明有标准答案却匹配不上，问题只能落到 RAG 弱召回上 → 置信度不足 → 转人工。
 const (
-	// faqKeywordBonusExact 关键词原样命中（连续子串）的加分。
+	// faqMatchLevelExact 精确命中层的层号（主键，比词元层高）。
+	faqMatchLevelExact = 2.0
+	// faqMatchLevelToken 词元命中层的层号（兜底）。
+	faqMatchLevelToken = 1.0
+	// faqStrengthWeight 层内强度（命中个数）的权重。
+	faqStrengthWeight = 1.0
+	// faqSimilarityTieBreak 问法相似度在总分里的权重 —— **只做同分决胜**。
 	//
-	// 0.7 这个值不是随手取的：命中分最终还要乘 confidence（0.90~0.95），
-	// 0.5×0.9=0.45 够不到 Layer1 的 0.6 门槛 ⇒ 「多少钱」这种**明确**在问
-	// 收费的问题反而匹配不上。0.7×0.9=0.63 过门槛，留出的余量也够
-	// 「部署需要什么环境」这类多词问法。
-	faqKeywordBonusExact = 0.7
-	// faqKeywordBonusPartial 关键词与用户句共用词元时的加分。
-	faqKeywordBonusPartial = 0.4
+	// 取 0.3：小于一次精确命中（1.0），所以相似度高**不能**翻盘关键词命中数
+	// 不同的两条；但命中数相同时它能把更贴近问法的那条排前面。
+	faqSimilarityTieBreak = 0.3
 )
+
+// faqExactKeywordHits 统计用户问法**精确命中**（连续子串）的关键词个数。
+//
+// 为什么只认精确命中、不认"共用词元"：
+// 中文二元组太容易巧合 ——「不会写代码能用吗」与「商用需要买授权码吗？」共享
+// "能"这个字元，"要钱吗""收费吗"这些关键词也会被算成命中，于是
+// 「不会写代码能用吗」被"商用/授权码"那条抢走；「能做GEO优化吗」被
+// "智能体/功能/能力"那条抢走。答非所问比匹配不上更糟。
+//
+// 代价：语序变了、字面不连续的同义问法（关键词「产品介绍」遇到「介绍下项目」）
+// 匹配不上 —— 那种情况交给问法相似度与知识库 RAG 层兜底，不在这里硬凑。
+func faqExactKeywordHits(msg string, keywords []string) int {
+	lowerMsg := strings.ToLower(msg)
+	hits := 0
+	for _, kw := range keywords {
+		if kw == "" {
+			continue
+		}
+		if strings.Contains(lowerMsg, strings.ToLower(kw)) {
+			hits++
+		}
+	}
+	return hits
+}
+
+// faqTokenHits 统计用户问法与关键词**共用词元**的关键词个数（兜底用）。
+//
+// 只在"精确命中数为 0"时参与打分，见 scoreAndRank 里的说明。
+func faqTokenHits(msg string, keywords []string) int {
+	msgTokens := tokenize(msg)
+	if len(msgTokens) == 0 {
+		return 0
+	}
+	hits := 0
+	for _, kw := range keywords {
+		if kw == "" {
+			continue
+		}
+		if keywordTokenOverlap(msg, kw) {
+			hits++
+		}
+	}
+	return hits
+}
+
+// faqTokenOverlapCount 算用户问法与 FAQ 文本的**词元重合个数**。
+//
+// 与 jaccard 的区别：jaccard 是"重合占比"（语序颠倒时趋近 0），这里只数"重合了几个"
+// —— 「优惠价可以」与「可以优惠价吗」jaccard 只有 0.04，但共用"优惠""价"等词元，
+// 重合个数能识别出"讲的是同一件事"。
+//
+// 只用于**没有配关键词**的 FAQ（见 scoreAndRank 里的说明）。
+func faqTokenOverlapCount(msgTokens, faqTokens []string) int {
+	if len(msgTokens) == 0 || len(faqTokens) == 0 {
+		return 0
+	}
+	setB := make(map[string]struct{}, len(faqTokens))
+	for _, t := range faqTokens {
+		setB[t] = struct{}{}
+	}
+	seen := make(map[string]struct{}, len(msgTokens))
+	overlap := 0
+	for _, t := range msgTokens {
+		if _, dup := seen[t]; dup {
+			continue
+		}
+		seen[t] = struct{}{}
+		if _, ok := setB[t]; ok {
+			overlap++
+		}
+	}
+	return overlap
+}
 
 // keywordTokenOverlap 判断用户句与关键词是否共用词元。
 //
 // 关键词「产品介绍」与用户句「介绍下项目」共用「介绍」—— 核心词在，语序不同。
-// 这正是 FAQ 该起作用的地方：用户用自己的话问同一个意思。
 func keywordTokenOverlap(msg, kw string) bool {
 	msgTokens := tokenize(msg)
 	if len(msgTokens) == 0 {
