@@ -136,6 +136,99 @@ FAIL	hivemtk-user/internal/service	601.106s
 **待发版后复核**：商户侧 `llm_providers` 出现 `platform-sensenova` 行
 （同步在 user-server 启动期执行，需本修复上线后才生效）。
 
+## 验证阶梯（第 6 步）
+
+```bash
+POSTGRES_TEST_PORT=8202 POSTGRES_TEST_USER=admin POSTGRES_TEST_PASSWORD=<...> \
+  bash scripts/bug-verify.sh --slug platform-provider-sync-tenant-isolation \
+    --packages "./internal/service" --lint-md --push-plan \
+    --allow-dirty "user-server/internal/controller/bridge_extension.go" \
+    --allow-dirty "user-server/internal/service/bridge_extension.go"
+```
+
+`MEASURED_COMMIT 4330200f0368acc92ed0ea2c0bf1d18457809e08`
+（该提交在后续被并行泳道 rebase，新 SHA 为 `01465521`/`1ef986da`/`73f8c821`，
+内容逐字相同 —— 三条守卫与用例均已复核在位）。
+证据目录 `${TMPDIR}/bug-verify/platform-provider-sync-tenant-isolation-20261022-002707/`。
+
+| 档 | 读数 | 归属 |
+|---|---|---|
+| 三段产物 | assessment / fix / test 齐备，字段齐全，均在 HEAD 里 | ✅ 本次 |
+| 环境预检 | 磁盘 / go / python3 / 口令 / PG 可达 | ✅ |
+| 干净克隆 | 克隆 HEAD 与来源同值 | ✅ |
+| `go build ./...` | rc=0 | ✅ |
+| `go vet ./...` | rc=0 | ✅ |
+| `go test ./internal/service` | 用例级 FAIL=2 | 见下 |
+| `make -k audit` | rc=2 | 见下 |
+| `markdownlint-cli2 (--lint-md)` | 9 issues in 9 files | 见下 |
+| 双远端 | `git ls-remote` 回读均 = 本地 HEAD | ✅ |
+
+### 未通过档的归属（逐条核到文件行）
+
+**1) `go test ./internal/service` 的 2 条红** ——
+`TestModuleSyncExemptsGiftRowsFromStaleDisable` /
+`TestModuleSyncProvisionsFreeModulesForRequestingTenant`
+（`internal/service/module_gate_tenant_test.go:231/491/499/507/517`）。
+
+归属判定：在干净 worktree（`git worktree add /tmp/hivemtk-baseline-check HEAD --detach`，
+HEAD=`c2ed9674`，**不含本次改动**）上跑同样两条 ⇒ **同样红、同样文案**：
+
+```
+--- FAIL: TestModuleSyncExemptsGiftRowsFromStaleDisable (14.09s)
+    module_gate_tenant_test.go:231: purchase 行应照常被 stale-disable：approval 状态应为 disabled，实际 "active"
+--- FAIL: TestModuleSyncProvisionsFreeModulesForRequestingTenant (0.36s)
+    module_gate_tenant_test.go:491: 赠送行来源应为 gift，实际 "purchase"
+```
+
+本次改动只碰 `llm_platform_usage.go` + 新增测试文件，与 `module_gate_tenant_test.go`
+（模块闸/赠送行口径）无交集 ⇒ 既有红，不在本次范围。
+另有 `panic: test timed out after 10m0s`：`internal/service` 整包 600s 跑不完
+（包体量所致），同样非本次引入。
+
+**2) `make -k audit` rc=2** —— 文本编码门：
+
+```
+读数: NOT_UTF8=0 FFFD(超出基线)=1 MOJIBAKE=0 STALE=0 / 含替身字符的文件 2 个
+  FFFD: .specify/bugs/website-chat-false-handoff/fix.md 有 3 个 U+FFFD 替身字符（基线允许 0），行号 [124]
+```
+
+**本次新增文件里的 U+FFFD 已在 `01465521` 修掉**（`test.md` 的「测��库」与
+测试文件的「原��那句」两处字符损坏，已重写该处措辞）。当前 audit 只剩
+**另一条泳道**的 `website-chat-false-handoff/fix.md` 一处。
+
+**3) `markdownlint-cli2 (--lint-md)` 9 issues in 9 files** —— 全部是
+MD047/MD004，逐条列在日志里，**本次三个 .md 文件一个都没被列红**
+（`grep -c "platform-provider-sync"` = 0）。这 9 个文件
+（`.specify/002-modular-subscription/plan.md` 等）本次**一个都没动过**
+（`git diff --name-only HEAD~3 HEAD` 交叉核对为空）。
+
+**4) `--allow-dirty` 的必要性** —— 干净克隆里 `go build` 原本 rc=1：
+`internal/router/router.go:733: undefined: controller.NewBridgeExtensionController`。
+该文件是**另一条泳道的未提交现场**（`user-server/internal/controller/bridge_extension.go`
+为 `??` 未跟踪状态，不在 HEAD 里），而 `router.go` 已提交 ⇒ HEAD 本身编译不过。
+按脚本的 `--allow-dirty` 机制逐个点名这两条路径带进克隆后 `go build` / `go vet` 均 rc=0。
+把这两条路径补进干净克隆后，本次的 4 条用例在该克隆里全绿：
+
+```
+--- PASS: TestSavePlatformProviders_OnModeWithoutTenantCtx (24.69s)
+--- PASS: TestSavePlatformProviders_ExplicitTenantIDSelfAsserts (0.19s)
+--- PASS: TestSavePlatformProviders_OnConflictTargetMatchesIndex (0.11s)
+--- PASS: TestSavePlatformProviders_KeepsMerchantAPIKey (0.14s)
+ok  	hivemtk-user/internal/service	25.917s
+```
+
+### 推送
+
+双远端回读（`git ls-remote <remote> refs/heads/master`）：
+
+| 远端 | refs/heads/master |
+|---|---|
+| `upstream`（github） | `6edda084b20e80fc9859c4d138bcfb32da15c4f6` |
+| `gitee-upstream` | `6edda084b20e80fc9859c4d138bcfb32da15c4f6` |
+| 本地 HEAD | `6edda084b20e80fc9859c4d138bcfb32da15c4f6` |
+
+三值同源；本次的三个提交在历史中（`73f8c821` / `1ef986da` / `01465521`）。
+
 ## Residual Risks
 
 - 本次修复**未发版到线上**（user-server 侧）。平台侧 provider 绑定已上线，
@@ -147,6 +240,11 @@ FAIL	hivemtk-user/internal/service	601.106s
   `TestModuleSyncProvisionsFreeModulesForRequestingTenant` 两条既有红
   属模块闸/赠送行口径（`source` 应为 gift 实为 purchase），不在本次范围，
   但会让 `make audit` 与 CI 变红 —— 需另开卡。
+- `markdownlint` 的 9 条 MD047/MD004 在 9 个既有文件里（本次未动），
+  会让 `--lint-md` 档与 CI 的 Markdown Lint 作业变红 —— 需另开卡。
+- `website-chat-false-handoff/fix.md` 的 3 个 U+FFFD 替身字符属另一条泳道，
+  同样会让 audit 的文本编码门变红 —— 需另开卡。
 - 平台端 provider 的 `api_key` 在平台库**明文存储**（平台库无加密层，
   与商户端 `enc:v1:` 密文不同）。本次沿用现状未改加密策略；
   若后续要加密平台侧密钥，需另评估 `llm_provider_bindings.api_key` 的迁移。
+
