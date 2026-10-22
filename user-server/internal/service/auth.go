@@ -622,11 +622,28 @@ func (s *AuthService) Register(ctx context.Context, req *RegisterRequest) (*Logi
 	}
 
 	logger.Info("Register 用户注册成功: " + username)
-	return &LoginResponse{
+	resp := &LoginResponse{
 		Token:   token,
 		User:    s.toUserResponse(ctx, user),
 		Expires: time.Now().Add(time.Hour * time.Duration(utils.DefaultJWTConfig.ExpiresHours)).Unix(),
-	}, nil
+	}
+	// 租户归属随响应下发（on 模式）：自助注册是「加入已有商户」，租户由
+	// req.TenantCode 解析而来（controller 的 resolvePublicTenantCtx 已绑 ctx）。
+	// 不下发的话前端拿不到 tenant_code ⇒ 注册成功后无法把租户代码记下来，
+	// 用户下次登录填不对就进不来。与 loginWithUser / MFA 第二步同口径。
+	if tenant.IsMultiTenant() {
+		tid := user.TenantID
+		if tid == 0 {
+			tid = tenant.DefaultTenantID
+		}
+		resp.TenantID = tid
+		if t, err := repository.NewTenantRepository().GetByID(ctx, tid); err == nil {
+			resp.TenantCode = t.Code
+		} else {
+			logger.Warnf("[auth] 自助注册后读取租户短码失败 tenant_id=%d: %v", tid, err)
+		}
+	}
+	return resp, nil
 }
 
 // CheckPassword 校验 SystemUser 密码

@@ -353,6 +353,8 @@ async function submitJoinTenant (tenantCode) {
     agreement_version: notice.value.agreement_version
   })
   // 响应是 LoginResponse：{token, user, tenant_id, tenant_code}
+  // tenant_code 缺失时回落成用户自己填的那串 —— 后端未升级前响应里没有这个字段，
+  // 但用户刚填的短码就是它，回落总比空着强。
   const joinedCode = res?.tenant_code || res?.data?.tenant_code || tenantCode
   ElNotification({
     type: 'success',
