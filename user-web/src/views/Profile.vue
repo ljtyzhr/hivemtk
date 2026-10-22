@@ -117,6 +117,27 @@
                 maxlength="20"
               />
             </el-form-item>
+            <el-form-item
+              v-if="tenantMode && tenantInfo.tenant_code"
+              label="租户代码"
+            >
+              <span class="tenant-code">{{ tenantInfo.tenant_code }}</span>
+              <el-button
+                link
+                type="primary"
+                @click="copyTenantCode"
+              >
+                <el-icon><CopyDocument /></el-icon>
+                复制
+              </el-button>
+              <span class="readonly-hint">下次登录时填在「租户代码」栏即可</span>
+            </el-form-item>
+            <el-form-item
+              v-if="tenantMode && tenantInfo.name"
+              label="租户名称"
+            >
+              <span class="readonly-text">{{ tenantInfo.name }}</span>
+            </el-form-item>
             <el-form-item label="角色">
               <el-tag :type="roleTagType">
                 {{ roleLabel }}
@@ -237,8 +258,9 @@ import i18n from '@/i18n'
 
 import { ref, reactive, computed, onMounted } from 'vue'
 import { ElMessage, ElMessageBox } from 'element-plus'
-import { Check, Lock } from '@element-plus/icons-vue'
+import { Check, Lock, CopyDocument } from '@element-plus/icons-vue'
 import { http } from '@/utils/request'
+import { TenantApi } from '@/api/tenant'
 import { useUserStore } from '@/stores/user'
 import { usePermissionStore } from '@/stores/permission'
 
@@ -270,6 +292,42 @@ const pwdForm = reactive({
   newPassword: '',
   confirmPassword: ''
 })
+
+// 租户信息：登录页「租户代码」要填的那串短码。只在 SaaS 多租户形态下展示——
+// 私域独立部署登录页没有这个输入框，显示短码只会让人去找一个不存在的概念。
+const tenantMode = ref(false)
+const tenantInfo = reactive({
+  tenant_id: '',
+  tenant_code: '',
+  name: '',
+  status: ''
+})
+
+const loadTenantInfo = async () => {
+  tenantMode.value = await TenantApi.isMultiTenant()
+  if (!tenantMode.value) return
+  try {
+    const data = await TenantApi.getInfo()
+    if (!data) return
+    tenantInfo.tenant_id = data.tenant_id ?? ''
+    tenantInfo.tenant_code = data.tenant_code || ''
+    tenantInfo.name = data.name || ''
+    tenantInfo.status = data.status ?? ''
+  } catch {
+    // 单租户/私有化部署没有对应租户行时后端会报「租户不存在」，属预期情况，静默即可
+  }
+}
+
+const copyTenantCode = async () => {
+  const code = tenantInfo.tenant_code
+  if (!code) return
+  try {
+    await navigator.clipboard.writeText(code)
+    ElMessage.success('租户代码已复制：' + code)
+  } catch {
+    ElMessage.error('复制失败，请手动选中复制')
+  }
+}
 
 const initial = computed(() => (form.username || '?').charAt(0).toUpperCase())
 
@@ -347,7 +405,10 @@ const pwdRules = {
 const loadProfile = async () => {
   loading.value = true
   try {
-    const resp = await http.get('/api/auth/current-user')
+    const [resp] = await Promise.all([
+      http.get('/api/auth/current-user'),
+      loadTenantInfo()
+    ])
     const data = resp || {}
     Object.assign(form, {
       id: data.id || '',
@@ -488,5 +549,13 @@ onMounted(() => {
 .readonly-text {
   color: #606266;
   font-size: 13px;
+}
+/* 租户代码：等宽字体，短码是一串要照抄的字符，等宽才好核对 */
+.tenant-code {
+  font-family: 'SFMono-Regular', Consolas, 'Liberation Mono', Menlo, monospace;
+  font-size: 14px;
+  font-weight: 600;
+  letter-spacing: 1px;
+  color: #303133;
 }
 </style>

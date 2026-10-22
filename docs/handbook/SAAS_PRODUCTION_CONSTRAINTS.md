@@ -72,6 +72,28 @@ fail-closed 5000**（"需要租户上下文但 ctx 未绑定"）。
   `company_name/legal_person/phone/address`（+`license_no` 选填、
   `regulatory_ack=true`、`agreement_version`）。字段名错一个就 4101。
 
+### 2.3 租户代码（tenant_code）丢了怎么找
+
+- **租户代码只在开户成功那一次露出**：`/register` 注册完成后弹一次
+  「您的租户代码：xxx，请妥善保存」。之后登录页不再回显，登录响应与 JWT 里
+  **只有 tenant_id、没有 tenant_code** ⇒ 换台机器/清了 localStorage 就找不回来。
+- **现已在两个页面常驻展示**（2026-10-22 加）：
+  - 「个人中心」`/#/profile` —— 基础信息卡片里的「租户代码」行（等宽字体 + 复制按钮）；
+  - 「站点设置」`/#/system/config` —— 基础信息区的「租户代码」行。
+  - 两处都只在 `tenant_mode=on` 的 SaaS 形态显示（与登录页「租户代码」输入框同口径）；
+    私域独立部署（off）登录页没有这个输入框，展示短码只会误导，故整块隐藏。
+- **接口口径**：`GET /api/tenant/info` → `{tenant_id, tenant_code, name, status}`。
+  租户**取自 JWT 的 tenant_id claim**、不是请求参数 ⇒ 任何登录用户读到的都是
+  自己这一家，天然防越权；带登录态即可查：
+
+  ```bash
+  curl -s https://work.xapptool.cn/api/tenant/info \
+    -H "Authorization: Bearer <登录后的 token>"
+  ```
+
+- **注意**：`tenant_code` 是租户**短码**（`t` + 6 位低歧义字符，如 `tz3rmdj`），
+  不是 `tenant_id`（数据库自增 id）。后者在 JWT 里，前者只在上面这个接口里。
+
 ---
 
 ## 三、平台集成装配链（缺一环全断）
