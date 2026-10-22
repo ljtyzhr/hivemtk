@@ -122,7 +122,7 @@ enable 时行可能不存在或三元组为空 → 400"启用前必须配置网�
 | admin 密码 | SQL UPDATE `admin_users.password_hash`（Go bcrypt `$2a$` 预生成） | 服务器无 htpasswd/python3；hash 含 `$` 用单引号 |
 | 模块目录 | `POST /platform/module-catalog/seed`（admin JWT） | Seed() 走 loadCatalogSeed 三级回退（MODULE_SEED_FILE → 磁盘 → 内嵌），a4d60ea 修复 |
 | LLM 套餐 | `POST /platform/llm/plans` ×N，`status=published` | 扣减按 token 数（输入输出分列），per-1k 单价只做成本展示 |
-| 订阅配置 | `PUT /platform/subscription/config` | 14900 分 + trial_days=15 |
+| 订阅配置 | `PUT /platform/subscription/config` | 900 分 + trial_days=15 |
 | 资产包 | 本地库 COPY 导出 → 生产 `\copy ... FROM` 导入 | 见 4.2 列序坑 |
 | 支付通道 | GET → PUT enable | 见 3.4 |
 
@@ -185,7 +185,7 @@ deploy 仓（非 git）：Dockerfile COPY platform.yaml、deploy.sh 同步该文
 2. `curl https://workapi.xapptool.cn/api/system/init-status` → `initialized:true`
 3. 干净浏览器（无 localStorage）打开 work.xapptool.cn → **应直达 /login**
 4. 平台端登录 admin → 模块目录 24 个（browser-automation=9900 其余 0）、
-   订阅配置 14900/15、LLM 套餐 published、支付通道 enabled 且 mock=false
+   订阅配置 900/15、LLM 套餐 published、支付通道 enabled 且 mock=false
 5. 跑 `scripts/prod_e2e_verify.sh` → 25/25
 6. user-server 日志 grep "平台配置加载失败" / "需要租户上下文" → 应为空
    （后台任务的 reach/sop/email 周期性租户报错属已知噪声，见部署 README）

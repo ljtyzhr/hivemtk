@@ -229,7 +229,7 @@ EffectiveOutputCostPer1k() = cost_per_1k_output > 0 ? cost_per_1k_output : cost_
 | 多次充值叠加 | ✅ 天然支持 | — |
 | 优惠券 / 按年订阅 / 套餐捆绑 | ❌ | 003 非目标，明确不做 |
 | 体验期（试用） | ✅ **新商户 15 天**（ADR-M8） | 天数 `SUBSCRIPTION_TRIAL_DAYS` 后台可配，默认 15 |
-| 按月订阅 | ✅ **149 元/月，仅按月**（ADR-M8） | `billing_cycle` 枚举已扩 `monthly` / `once`；到期惰性判定，无 cron |
+| 按月订阅 | ✅ **¥9（ADR-M8）** | `billing_cycle` 枚举已扩 `monthly` / `once`；到期惰性判定，无 cron。2026-10-21 定价改版：价格 149 → 9 元，**周期不变**（仍按 30 天计，用户裁决「只改价格、不改周期」） |
 
 ---
 

@@ -61,7 +61,7 @@
 | 备注 | `remark` | 例如「2026-10 上线真人验收」 | — |
 
 订阅口径同批核对：**订阅配置**页（`billing/Subscription.vue`，`PUT /platform/subscription/config`）——
-月订阅价 `monthly_price_cents=14900`、体验天数 `trial_days=15`。
+月订阅价 `monthly_price_cents=900`、体验天数 `trial_days=15`。
 
 **预期输出**：
 
@@ -105,7 +105,7 @@
 3. **用真实资金扫码/支付最小额**。
 4. 观察平台端回调 → 用户端 `GET /api/module-market/orders/:order_no/pay-status`（比 10 分钟 sync 快）与 `GET /api/modules/sync`。
 5. 订阅单再跑一笔（下单 `order_type=subscription`），验证顺延。
-6. 验收后把价格改回（14900 / 9900）。
+6. 验收后把价格改回（900 / 100）。
 
 **预期输出**：
 
