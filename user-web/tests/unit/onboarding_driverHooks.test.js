@@ -112,3 +112,30 @@ describe('新手引导 · 触发时机', () => {
     expect(code).toMatch(/try\s*\{[\s\S]*?querySelector[\s\S]*?\}\s*catch/)
   })
 })
+
+describe('新手引导 · 「完成」按钮必须真的关掉导览', () => {
+  // 复现：逐页拟人点验时，走完 6 步点「完成」→ 标记已落盘（不再弹），
+  // 但遮罩 + 气泡留在原地不动（实测 popover display:block、300×186、overlay 可见）。
+  //
+  // 根因：driver.js 构造 popover 时 onNextClick 取「步骤级 || 默认」，
+  // 步骤级优先。createDriver 把最后一步的 popover.onNextClick 换成了自己的
+  // 包装函数，于是 driver 自己「最后一页 y('done') 销毁」的逻辑被顶掉；
+  // 包装函数只调 onComplete()，没人 destroy ⇒ 导览永不关闭。
+  it('最后一步的 onNextClick 包装里必须显式 destroy driver', () => {
+    const m = code.match(/last\.popover\.onNextClick\s*=\s*\(\)\s*=>\s*\{([\s\S]*?)\n\s*\}/)
+    expect(m, '找不到最后一步 onNextClick 的包装函数').not.toBeNull()
+    const body = m[1]
+    expect(body, '包装函数里必须调用 destroy()，否则「完成」关不掉').toMatch(/\.destroy\(\)/)
+    // 且必须是调 driver 实例的 destroy，而不是别的空函数
+    expect(body).toMatch(/instance\?\.destroy\(\)|driverInstance\?\.destroy\(\)/)
+  })
+
+  it('destroy 之前必须先跑 onComplete（标记不能因提前销毁而丢）', () => {
+    const m = code.match(/last\.popover\.onNextClick\s*=\s*\(\)\s*=>\s*\{([\s\S]*?)\n\s*\}/)
+    const body = m[1]
+    const onCompleteAt = body.indexOf('onComplete()')
+    const destroyAt = body.indexOf('.destroy(')
+    expect(onCompleteAt, '包装里缺 onComplete()').toBeGreaterThan(-1)
+    expect(destroyAt).toBeGreaterThan(onCompleteAt)
+  })
+})

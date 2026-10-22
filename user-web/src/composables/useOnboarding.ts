@@ -306,12 +306,26 @@ export function useOnboarding() {
     })
 
     // 监听完成事件（最后一步点击"完成"按钮）
+    //
+    // ⚠️ 这里必须自己调 destroy()，不能只打标记了事。
+    //
+    // 原因是 driver.js 的接线方式：构造每一步的 popover 时，B() 取的是
+    //   onNextClick: 步骤级.popover.onNextClick || 默认(推进/销毁)
+    // —— **步骤级优先**。我们一旦在最后一步的 popover 上挂了 onNextClick，
+    // driver 自己「点到最后一页就 y('done') 销毁」的默认逻辑就再也不执行了。
+    // 表现就是：点「完成」→ 标记打上了（下次不再弹），但**遮罩和气泡原地不动**，
+    // 用户以为按钮失灵，只能再去点 ×（2026-10-22 逐页拟人点验实测复现）。
+    //
+    // onDestroyed 里已经有「无论哪条路退出都落标记」的兜底，所以这里主动
+    // destroy 与它重复调用是无害的（markCompleted / markPageSeen 都是幂等写）。
     if (onComplete && steps.length > 0) {
+      const instance = driverInstance
       const last = steps[steps.length - 1]
       const originalDoneClick = last?.popover?.onNextClick
       last.popover.onNextClick = () => {
         onComplete()
         originalDoneClick?.()
+        instance?.destroy()
       }
     }
 
