@@ -281,11 +281,20 @@
               class="platform-host-hint"
               title="平台端地址是部署级参数：修改后影响本实例的全部租户平台能力（商户注册/心跳/资产市场/模块订阅/订单/LLM 钱包/站内信）。"
             />
+            <el-alert
+              v-if="platformHostForbidden"
+              type="info"
+              :closable="false"
+              show-icon
+              class="platform-host-hint"
+              title="当前账号不是平台运营方，只能查看平台端地址；连通性测试与保存需使用平台运营方账号。"
+            />
             <div class="platform-host-row">
               <el-input
                 v-model="platformHostDraft"
                 placeholder="https://platform.example.com"
                 clearable
+                :disabled="platformHostForbidden"
                 class="platform-host-input"
               >
                 <template #prefix>
@@ -294,6 +303,7 @@
               </el-input>
               <el-button
                 :loading="platformHostProbing"
+                :disabled="platformHostForbidden"
                 @click="probePlatformHost"
               >
                 <el-icon><Connection /></el-icon>
@@ -302,7 +312,7 @@
               <el-button
                 type="primary"
                 :loading="platformHostSaving"
-                :disabled="!platformHostDirty"
+                :disabled="!platformHostDirty || platformHostForbidden"
                 @click="savePlatformHost"
               >
                 保存
@@ -314,7 +324,7 @@
               :class="`platform-host-probe--${platformHostProbe.status}`"
             >
               <el-tag
-                :type="platformHostProbe.status === 'ok' ? 'success' : (platformHostProbe.status === 'unreachable' ? 'danger' : 'info')"
+                :type="platformHostProbeTagType"
                 size="small"
                 effect="dark"
               >
@@ -847,6 +857,9 @@ const platformHostDraft = ref('')
 const platformHostSaving = ref(false)
 const platformHostProbing = ref(false)
 const platformHostProbe = ref(null)
+// 403 不是"平台端不可达"：地址没填错、网络也没问题，是当前租户管理员
+// 没有平台运营方权限。混成 unavailable 会让人去查地址/防火墙，白查一轮。
+const platformHostForbidden = ref(false)
 
 // 通用编辑器里那条 platform.api_host 的当前值（用于判脏与初始化草稿）
 const platformHostCurrent = computed(() => {
@@ -866,8 +879,21 @@ const platformHostProbeLabel = computed(() => {
   const s = platformHostProbe.value && platformHostProbe.value.status
   if (s === 'ok') return '可达'
   if (s === 'unreachable') return '不可达'
+  if (s === 'forbidden') return '无权限'
   return '未配置'
 })
+
+const platformHostProbeTagType = computed(() => {
+  const s = platformHostProbe.value && platformHostProbe.value.status
+  if (s === 'ok') return 'success'
+  if (s === 'unreachable') return 'danger'
+  if (s === 'forbidden') return 'warning'
+  return 'info'
+})
+
+function isForbiddenError(e) {
+  return Number((e && (e.status || (e.response && e.response.status))) || 0) === 403
+}
 
 // 草稿随分组切换同步：进 platform 组时把当前生效值灌进草稿框。
 watch(
@@ -876,6 +902,7 @@ watch(
     if (g === platformHostGroup) {
       platformHostDraft.value = platformHostCurrent.value
       platformHostProbe.value = null
+      platformHostForbidden.value = false
     }
   },
   { immediate: true }
@@ -889,7 +916,12 @@ async function probePlatformHost() {
     const data = res && res.data ? res.data : null
     platformHostProbe.value = data || { status: 'not_configured', message: res && res.message ? res.message : '无响应' }
   } catch (e) {
-    platformHostProbe.value = { status: 'unreachable', message: (e && e.message) || '探测请求失败' }
+    if (isForbiddenError(e)) {
+      platformHostForbidden.value = true
+      platformHostProbe.value = { status: 'forbidden', message: (e && e.message) || '仅平台运营方可执行该操作' }
+    } else {
+      platformHostProbe.value = { status: 'unreachable', message: (e && e.message) || '探测请求失败' }
+    }
   } finally {
     platformHostProbing.value = false
   }
@@ -919,7 +951,12 @@ async function savePlatformHost() {
     platformHostProbe.value = null
     await loadAll()
   } catch (e) {
-    ElMessage.error((e && e.message) || '保存失败')
+    if (isForbiddenError(e)) {
+      platformHostForbidden.value = true
+      ElMessage.warning((e && e.message) || '仅平台运营方可修改平台端地址')
+    } else {
+      ElMessage.error((e && e.message) || '保存失败')
+    }
   } finally {
     platformHostSaving.value = false
   }
@@ -1546,6 +1583,7 @@ function formatTs(ts) {
 .platform-host-probe-msg { color: #4b5563; }
 .platform-host-probe--unreachable .platform-host-probe-msg { color: #b91c1c; }
 .platform-host-probe--ok .platform-host-probe-msg { color: #15803d; }
+.platform-host-probe--forbidden .platform-host-probe-msg { color: #b45309; }
 
 .reset-badge {
   display: inline-block; margin-left: 4px; padding: 0 6px;

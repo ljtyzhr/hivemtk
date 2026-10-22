@@ -41,8 +41,10 @@ export function bulkReset(group) {
 // 结果是页面回「保存成功」而地址没变，是最难查的一类不一致。
 //
 // 专用端点直接写平台默认行（config_params 本体），且挂在平台运营方守卫下。
+// _silent：403 由卡片自己渲染成「无权限」状态（并附后端原话），
+// 通用拦截器再弹一句「拒绝访问」只会把精确原因盖掉。
 export function setPlatformHost(address) {
-  return http.put('/api/manage/platform-host', { address })
+  return http.put('/api/manage/platform-host', { address }, { _silent: true })
 }
 
 // testPlatformConnectivity 探测平台端连通性。
@@ -51,5 +53,5 @@ export function setPlatformHost(address) {
 // 探针是 GET {host}/health，刻意不走鉴权链 —— 把连通性探针绑到签名/登录上，
 // 会把「签名没配好」「管理员密码不对」都读成「平台挂了」。
 export function testPlatformConnectivity(address) {
-  return http.post('/api/manage/platform-host/connectivity', { address: address || '' })
+  return http.post('/api/manage/platform-host/connectivity', { address: address || '' }, { _silent: true })
 }
