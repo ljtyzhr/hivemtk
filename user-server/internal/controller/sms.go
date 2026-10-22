@@ -505,12 +505,18 @@ func (c *SmsController) StopJob(ctx *gin.Context) {
 	response.Success(ctx, nil, "success")
 }
 
+// maskSMSConfig 短信通道密钥出参脱敏。
+//
+// 掩码口径与写侧判定共用 service.SmsSecretMask（见 service/sms_secret_mask.go）：
+// 读侧产出"掩码前缀 + 末 4 位"，写侧按**前缀**认得它 ⇒ 保留原值。
+// 两边必须同一个口径，否则前端把掩码原样提交回来就会把真凭证覆盖掉
+// （前端确实这么干：user-web/src/views/sms/Config.vue 把 GET 整份结果塞进表单）。
 func maskSMSConfig(config *dto.SmsConfigResponse) {
 	mask := func(v string) string {
 		if len(v) <= 4 {
-			return "****"
+			return service.SmsSecretMask
 		}
-		return "****" + v[len(v)-4:]
+		return service.SmsSecretMask + v[len(v)-4:]
 	}
 	config.Aliyun.AccessKeyId = mask(config.Aliyun.AccessKeyId)
 	config.Aliyun.AccessKeySecret = mask(config.Aliyun.AccessKeySecret)

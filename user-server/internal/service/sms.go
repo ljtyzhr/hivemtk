@@ -179,10 +179,33 @@ func (s *smsService) SaveConfig(ctx context.Context, req *dto.SmsConfigRequest) 
 		return err
 	}
 
+	// 三家通道的密钥：**掩码串 = "前端没改这个字段" ⇒ 保留库里原值**。
+	//
+	// 为什么必须：读侧（controller/sms.go 的 maskSMSConfig）把密钥脱敏后再给前端，
+	// 而前端配置页把整份 GET 结果直接塞进表单、保存时**原样提交掩码串**
+	//（user-web/src/views/sms/Config.vue：`smsConfig.value = response`）。
+	// 不认掩码 ⇒ 用户打开配置页点一次「保存」，真凭证就被覆盖成 "****ALUE"，
+	// 之后所有短信发送都回 "Specified access key is not found."，
+	// 而页面显示"保存成功"，没有任何异常提示。
+	//
+	// 判据与口径见 service/sms_secret_mask.go（与企业微信那条同族）。
+
 	aliyunConfig := &model.SmsAliyunConfig{
 		AccessKeyID:     req.Aliyun.AccessKeyId,
 		AccessKeySecret: req.Aliyun.AccessKeySecret,
 		SignName:        req.Aliyun.SignName,
+	}
+	if isMaskedSmsSecret(aliyunConfig.AccessKeyID) || isMaskedSmsSecret(aliyunConfig.AccessKeySecret) {
+		old, err := s.repo.GetAliyunConfig(ctx)
+		if err != nil {
+			return err
+		}
+		if isMaskedSmsSecret(aliyunConfig.AccessKeyID) {
+			aliyunConfig.AccessKeyID = old.AccessKeyID
+		}
+		if isMaskedSmsSecret(aliyunConfig.AccessKeySecret) {
+			aliyunConfig.AccessKeySecret = old.AccessKeySecret
+		}
 	}
 	if err := s.repo.SaveAliyunConfig(ctx, aliyunConfig); err != nil {
 		return err
@@ -194,6 +217,18 @@ func (s *smsService) SaveConfig(ctx context.Context, req *dto.SmsConfigRequest) 
 		AppID:     req.Tencent.AppId,
 		SignName:  req.Tencent.SignName,
 	}
+	if isMaskedSmsSecret(tencentConfig.SecretID) || isMaskedSmsSecret(tencentConfig.SecretKey) {
+		old, err := s.repo.GetTencentConfig(ctx)
+		if err != nil {
+			return err
+		}
+		if isMaskedSmsSecret(tencentConfig.SecretID) {
+			tencentConfig.SecretID = old.SecretID
+		}
+		if isMaskedSmsSecret(tencentConfig.SecretKey) {
+			tencentConfig.SecretKey = old.SecretKey
+		}
+	}
 	if err := s.repo.SaveTencentConfig(ctx, tencentConfig); err != nil {
 		return err
 	}
@@ -203,6 +238,18 @@ func (s *smsService) SaveConfig(ctx context.Context, req *dto.SmsConfigRequest) 
 		AppSecret: req.Huawei.AppSecret,
 		Sender:    req.Huawei.Sender,
 		Signature: req.Huawei.Signature,
+	}
+	if isMaskedSmsSecret(huaweiConfig.AppKey) || isMaskedSmsSecret(huaweiConfig.AppSecret) {
+		old, err := s.repo.GetHuaweiConfig(ctx)
+		if err != nil {
+			return err
+		}
+		if isMaskedSmsSecret(huaweiConfig.AppKey) {
+			huaweiConfig.AppKey = old.AppKey
+		}
+		if isMaskedSmsSecret(huaweiConfig.AppSecret) {
+			huaweiConfig.AppSecret = old.AppSecret
+		}
 	}
 	return s.repo.SaveHuaweiConfig(ctx, huaweiConfig)
 }
