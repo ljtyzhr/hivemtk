@@ -126,13 +126,13 @@
                 value="announcement"
               />
               <el-option
-                :label="$t('平台消息')"
+                :label="$t('notifications.platformNotice')"
                 value="platform_notice"
               />
             </el-select>
             <el-select
               v-model="filter.level"
-              :placeholder="$t('级别')"
+              :placeholder="$t('notifications.level')"
               clearable
               style="width: 120px"
               @change="loadList"
@@ -142,7 +142,7 @@
                 :value="''"
               />
               <el-option
-                :label="$t('普通')"
+                :label="$t('notifications.normal')"
                 value="info"
               />
               <el-option
@@ -150,7 +150,7 @@
                 value="warning"
               />
               <el-option
-                :label="$t('重要')"
+                :label="$t('notifications.important')"
                 value="error"
               />
               <el-option
@@ -323,7 +323,7 @@
             size="small"
             effect="plain"
           >
-            {{ current.source === 'platform' ? $t('平台下发') : $t('系统通知') }}
+            {{ current.source === 'platform' ? $t('notifications.fromPlatform') : $t('notifications.systemNotice') }}
           </el-tag>
         </div>
         <h3 class="detail-title">

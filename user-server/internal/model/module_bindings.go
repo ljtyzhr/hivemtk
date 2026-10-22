@@ -194,7 +194,7 @@ func ModuleDependsOn(key string) []string {
 //
 // 键的排序按 SystemMenuTree 的先序遍历顺序书写，方便人工比对；测试不依赖顺序。
 var ModuleMenuBindings = map[string][]string{
-	// ========== core：系统基座（26 节点）==========
+	// ========== core：系统基座（28 节点）==========
 	ModuleCore: {
 		// system 顶级目录及其下的站点配置
 		"system", "siteConfig",
@@ -205,6 +205,10 @@ var ModuleMenuBindings = map[string][]string{
 		"teamGroup", "systemUser", "roleManage", "permissionManage",
 		// 权限设置
 		"permissionGroup", "platformAccount", "integration", "bridgeToken",
+		// bridgeExtension（扩展安装包）与 bridgeToken 同属「桥接」这一摊，
+		// 同为系统基座能力（core）。漏绑会让它落进 enabledForNode 的
+		// 「未绑定 ⇒ 永远放行」分支 —— 模块闸对它完全失效。
+		"bridgeExtension",
 		"operationLog", "securityAudit",
 		// 备份
 		"backupList", "backupEnhanced",

@@ -208,7 +208,28 @@ export default defineConfig({
         // 静态资源继续 precache (hash 命名, 新旧共存不冲突)
         globPatterns: ['**/*.{js,css,svg,png,woff2,webp}'],
         // 排除 HTML 和 manifest, 这俩走网络
-        globIgnores: ['**/*.html', 'manifest.webmanifest', 'version.json'],
+        //
+        // i18n 语言包也不进 precache。
+        //
+        // 为什么不 precache：9 个语言包被 i18n/index.js **静态**导入，会打成一个
+        // 2MB+ 的 chunk（assets/i18n-*.js）。它是「翻译文本」不是「应用外壳」——
+        // 每次 SW 更新都把 2MB 文案推给所有用户，换语言的用户里只有 1/9 用得上。
+        // 改成走下面的 runtimeCaching（StaleWhileRevalidate）按需缓存即可。
+        //
+        // 为什么必须排除：不排除的话，workbox 的 maximumFileSizeToCacheInBytes
+        // 默认 2MiB 会被这个 2.004MiB 的 chunk 顶破，**直接让 vite build 失败**
+        // （error during build: Configure "workbox.maximumFileSizeToCacheInBytes"
+        // to change the limit）。生产构建挂掉比少一个 precache 严重得多。
+        globIgnores: [
+          '**/*.html',
+          'manifest.webmanifest',
+          'version.json',
+          '**/assets/i18n-*.js',
+        ],
+        // 单文件 precache 上限：2MiB → 4MiB。
+        // 兜底用的最后一道防线 —— 语言包已经排除掉了，但万一以后再长出别的
+        // 大 chunk，不该让整个生产构建直接挂掉。
+        maximumFileSizeToCacheInBytes: 4 * 1024 * 1024,
         // skipWaiting + clientsClaim: 新 SW 构建后立即 activate
         // 不等所有 tab 关闭, 也不用等用户下次导航
         skipWaiting: true,
@@ -222,6 +243,19 @@ export default defineConfig({
         ],
         cleanupOutdatedCaches: true,
         runtimeCaching: [
+          // i18n 语言包 chunk: StaleWhileRevalidate（先用缓存秒开，后台更新）
+          //
+          // 它被排除在 precache 之外（见上），所以第一次访问要从网络拿；
+          // 拿到之后就常驻缓存，下次启动直接命中，不用等网络。
+          // 注意要匹配**构建产物路径**（/assets/i18n-*.js），不是源文件路径。
+          {
+            urlPattern: ({ url }) => /\/assets\/i18n-[^/]+\.js$/.test(url.pathname),
+            handler: 'StaleWhileRevalidate',
+            options: {
+              cacheName: 'i18n-chunk-v1',
+              expiration: { maxEntries: 8, maxAgeSeconds: 60 * 60 * 24 * 30 },
+            },
+          },
           // 图片: StaleWhileRevalidate (先显示缓存, 后台更新)
           {
             urlPattern: ({ request }) => request.destination === 'image',

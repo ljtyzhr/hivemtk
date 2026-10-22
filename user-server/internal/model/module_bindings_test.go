@@ -131,7 +131,19 @@ func TestModuleCatalogMetaConsistent(t *testing.T) {
 }
 
 // TestModuleCatalogBillingCyclesValid 目录里的计费周期必须是已知枚举，且
-// 定价口径符合 003 R3：恰 1 个有价模块（browser-automation 9900/once）。
+// 定价口径符合当前基线：7 个基础模块 0 元常开，17 个收费模块统一 ¥1（100 分）。
+//
+// 口径沿革（别再照着旧口径改测试）：
+//   - 早期口径是「除浏览器自动化外全部 0 元，唯一有价模块 browser-automation
+//     9900/once」——本测试最初就是按它写的；
+//   - 38f9fce2「编译期模块定价对齐 ¥1」把 user-server 的 ModuleCatalogMeta
+//     与平台端目录对齐成「17 个收费模块统一 ¥1（100 分）」，并同步改了文件头
+//     的定价说明，**但没同步改这条断言** —— 于是它一直红着，是条过期断言。
+//
+// 现在钉的是「与平台端一致」这条真正的业务口径：
+//   - 基础模块：0 元、且不设计费周期之外的怪值；
+//   - 收费模块：统一 100 分；浏览器自动化是 once 买断，llm-cloud 是 metered
+//     按量，其余是 yearly —— 计费周期必须落在这四种已知枚举里。
 func TestModuleCatalogBillingCyclesValid(t *testing.T) {
 	valid := map[string]bool{
 		BillingCycleYearly: true, BillingCycleMetered: true,
@@ -151,13 +163,26 @@ func TestModuleCatalogBillingCyclesValid(t *testing.T) {
 			continue
 		}
 		priced++
-		if m.Key != ModuleBrowserAutomation || m.PriceCents != 9900 || m.BillingCycle != BillingCycleOnce {
-			t.Errorf("唯一有价模块应是 browser-automation（9900/once），实际 %s %d/%q",
-				m.Key, m.PriceCents, m.BillingCycle)
+		// 收费模块统一 ¥1（100 分）：与平台端目录同价，不允许各模块各订各的。
+		if m.PriceCents != 100 {
+			t.Errorf("收费模块应统一 ¥1（100 分），实际 %s 定价 %d", m.Key, m.PriceCents)
 		}
 	}
-	if priced != 1 {
-		t.Errorf("003 定价口径：应恰有 1 个有价模块，实际 %d", priced)
+	if priced == 0 {
+		t.Fatal("没有任何收费模块 —— 定价口径整段失效")
+	}
+	// 买断/按量这两种特殊周期必须落在预期的那个模块上（它们决定续费与到期语义）。
+	for _, m := range ModuleCatalogMeta {
+		switch m.BillingCycle {
+		case BillingCycleOnce:
+			if m.Key != ModuleBrowserAutomation {
+				t.Errorf("买断（once）应只有 browser-automation，实际 %s", m.Key)
+			}
+		case BillingCycleMetered:
+			if m.Key != ModuleLLMCloud {
+				t.Errorf("按量（metered）应只有 llm-cloud，实际 %s", m.Key)
+			}
+		}
 	}
 }
 

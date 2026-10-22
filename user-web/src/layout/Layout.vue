@@ -107,6 +107,9 @@
               >
                 <el-icon><Compass /></el-icon>{{ t('layout.globalTour') }}
               </el-dropdown-item>
+              <el-dropdown-item command="page-tour">
+                <el-icon><Guide /></el-icon>{{ t('layout.pageTour') }}
+              </el-dropdown-item>
               <el-dropdown-item
                 command="logout"
                 divided
@@ -206,7 +209,7 @@
 </template>
 
 <script setup>
-import { ref, computed, watch, onMounted, onUnmounted } from 'vue'
+import { ref, computed, watch, onMounted, onUnmounted, nextTick } from 'vue'
 import { useRoute, useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import SubMenuItem from '@/components/SubMenuItem.vue'
@@ -216,12 +219,12 @@ import LanguageSwitcher from '@/components/LanguageSwitcher.vue'
 import i18n from '@/i18n'
 import { useUserStore } from '@/stores/user'
 import { usePermissionStore } from '@/stores/permission'
-import { useOnboarding } from '@/composables/useOnboarding'
-import { Warning, Bell, Menu, SwitchButton, Fold, Expand, QuestionFilled, Refresh, Compass } from '@element-plus/icons-vue'
+import { useOnboarding, resolveRoutePattern } from '@/composables/useOnboarding'
+import { Warning, Bell, Menu, SwitchButton, Fold, Expand, QuestionFilled, Refresh, Compass, Guide } from '@element-plus/icons-vue'
 import { routeIconMap, resolveRouteIcon } from '@/utils/iconMap'
-void Bell; void Warning; void Menu; void SwitchButton; void Fold; void Expand; void Refresh; void Compass
+void Bell; void Warning; void Menu; void SwitchButton; void Fold; void Expand; void Refresh; void Compass; void Guide
 
-const { startGlobalTour } = useOnboarding()
+const { startGlobalTour, startPageTour, getPageTourState, destroyPageTour, isTourActive, isPageSeen } = useOnboarding()
 
 // 传给 SubMenuItem 的仍是整张表（它内部走 resolveRouteIcon 逐个解析），
 // 顶层菜单这里也走同一个解析函数：2026-10-12 之前这里写的是
@@ -337,6 +340,78 @@ watch(() => route.path, (newPath) => {
   }
 }, { immediate: true })
 
+// 页面导览自动触发（任务六）。
+//
+// 之前这套东西**根本没接上**：usePageOnboarding / useModuleOnboarding 两个
+// composable 全仓无人调用，模块导览与页面导览的配置写在那里但永远不会被执行，
+// 用户唯一能看到的只有那 6 步全局导览——而它讲的是「品牌位/顶栏/侧边栏」这类
+// 布局外壳，跟用户当下所在页面的功能、操作、配置毫无关系。
+//
+// 现在改成「进到哪一页，就讲哪一页」：路由一变，就用 route.matched 还原路由
+// 模式去注册表里查这一页的导览，查得到且这一页还没看过就开。
+//
+// 时序：必须等页面组件**渲染完**再开。路由 watcher 触发时 <router-view> 里的
+// 新组件还没挂上，DOM 里查不到目标元素，driver.js 就会退化成 0×0 的
+// dummy element（弹窗跑到屏幕正中、没有高亮）。所以这里用 nextTick + 一小段
+// 轮询等待目标元素出现，最多等 5s；等不到就不开（没有高亮的导览比没有导览更糟）。
+//
+// 为什么要等 5s 而不是 2s：数据驱动的页面（列表、卡片、连接器）都是**接口返回后**
+// 才渲染的，路由切换那一刻 DOM 里还没有那些元素。实测连接器页要等接口回来
+// 才有 .connector-card，2s 窗口在慢接口下会错过，导览就永远不出现。
+let pageTourTimer = null
+const PAGE_TOUR_WAIT_MS = 5000
+const PAGE_TOUR_POLL_MS = 150
+
+const stopPageTour = () => {
+  if (pageTourTimer) {
+    clearTimeout(pageTourTimer)
+    pageTourTimer = null
+  }
+}
+
+const schedulePageTour = async (pattern) => {
+  if (!pattern) return
+  stopPageTour()
+  // 切页时把**上一条页面导览**收掉：不然它的高亮还留在上个页面的 DOM 上，
+  // 遮罩也还在，用户会以为新页面卡住了。
+  // 全局导览（首登那 6 步）锚的是布局外壳，切页不影响它，不能一起收。
+  destroyPageTour()
+  await nextTick()
+  const deadline = Date.now() + PAGE_TOUR_WAIT_MS
+  const tick = () => {
+    // 已经看过就不开
+    if (isPageSeen(pattern)) return
+    // 别的导览还在跑（首登时是全局导览）：等它结束再开这一页的，
+    // 否则两条导览会互相把对方收掉，用户只看到最后弹出来的那一条。
+    if (isTourActive()) {
+      pageTourTimer = setTimeout(tick, PAGE_TOUR_POLL_MS)
+      return
+    }
+    // 分清「这一页没配导览」与「元素还没渲染出来」：
+    // 前者重试多少次都没用，后者必须继续等（数据驱动的页面是接口返回后才渲染的）。
+    const state = getPageTourState(pattern)
+    if (state === 'missing-config' || state === 'already-seen') return
+    const started = startPageTour(pattern)
+    if (started) return
+    if (Date.now() < deadline) {
+      pageTourTimer = setTimeout(tick, PAGE_TOUR_POLL_MS)
+    }
+  }
+  tick()
+}
+
+watch(
+  () => [route.path, route.matched],
+  () => {
+    schedulePageTour(resolveRoutePattern(route.matched))
+  },
+  { immediate: true }
+)
+
+onUnmounted(() => {
+  stopPageTour()
+})
+
 const handleTopMenuSelect = (key) => {
   activeTopMenu.value = key
   const menu = filteredTopMenus.value.find(item => item.key === key)
@@ -365,6 +440,13 @@ const handleUserCommand = (command) => {
       break
     case 'global-tour':
       startGlobalTour()
+      break
+    case 'page-tour':
+      // 重看当前页的导览：force=true 忽略「这一页已看过」的标记。
+      // 页面没有登记导览时给个提示，而不是静默什么都不发生。
+      if (!startPageTour(resolveRoutePattern(route.matched), true)) {
+        ElMessage.info(t('layout.pageTourUnavailable'))
+      }
       break
     case 'logout':
         userStore.logout()

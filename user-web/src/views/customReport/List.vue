@@ -373,6 +373,7 @@
 <script setup>
 import i18n from '@/i18n'
 import { ref, onMounted, onActivated } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Plus } from '@element-plus/icons-vue'
 import { toList } from '@/utils/list.js'
@@ -385,19 +386,26 @@ import {
   queryReportData,
 } from '@/api/customReport.js'
 
+// 维度/指标的显示名。标签是直接渲染给用户看的界面文案，所以走 i18n。
+// 用点分键（customReport.dimension.*）而不是中文字面量：中文字面量键在
+// i18n 门禁里算「中文直传」，而点分键才算「真 i18n 键」。
+// 用 useI18n 的 t 而不是 i18n.global.t：后者在模块初始化时求值一次，
+// 切换语言后不会跟着变。
+const { t } = useI18n()
+
 const DIM_MAP = {
-  date: { field: 'date', label: '日期', data_type: 'date', group_by: true },
-  source: { field: 'source', label: '来源', data_type: 'string', group_by: true },
-  platform: { field: 'platform', label: '平台', data_type: 'string', group_by: true },
-  region: { field: 'region', label: '地区', data_type: 'string', group_by: true },
-  user_type: { field: 'user_type', label: '用户类型', data_type: 'string', group_by: true },
+  date: { field: 'date', label: t('customReport.dimension.date'), data_type: 'date', group_by: true },
+  source: { field: 'source', label: t('customReport.dimension.source'), data_type: 'string', group_by: true },
+  platform: { field: 'platform', label: t('customReport.dimension.platform'), data_type: 'string', group_by: true },
+  region: { field: 'region', label: t('customReport.dimension.region'), data_type: 'string', group_by: true },
+  user_type: { field: 'user_type', label: t('customReport.dimension.userType'), data_type: 'string', group_by: true },
 }
 const METRIC_MAP = {
-  count: { field: 'count', label: '数量', agg_func: 'count', data_type: 'number' },
-  amount: { field: 'amount', label: '金额', agg_func: 'sum', data_type: 'number' },
-  conversion: { field: 'conversion', label: '转化率', agg_func: 'avg', data_type: 'percent' },
-  click_rate: { field: 'click_rate', label: '点击率', agg_func: 'avg', data_type: 'percent' },
-  open_rate: { field: 'open_rate', label: '打开率', agg_func: 'avg', data_type: 'percent' },
+  count: { field: 'count', label: t('customReport.metric.count'), agg_func: 'count', data_type: 'number' },
+  amount: { field: 'amount', label: t('customReport.metric.amount'), agg_func: 'sum', data_type: 'number' },
+  conversion: { field: 'conversion', label: t('customReport.metric.conversion'), agg_func: 'avg', data_type: 'percent' },
+  click_rate: { field: 'click_rate', label: t('customReport.metric.clickRate'), agg_func: 'avg', data_type: 'percent' },
+  open_rate: { field: 'open_rate', label: t('customReport.metric.openRate'), agg_func: 'avg', data_type: 'percent' },
 }
 const DIM_OPTIONS = Object.entries(DIM_MAP).map(([value, v]) => ({ value, label: v.label }))
 const METRIC_OPTIONS = Object.entries(METRIC_MAP).map(([value, v]) => ({ value, label: v.label }))

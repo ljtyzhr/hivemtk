@@ -53,7 +53,9 @@
     "collapseMenu": "Collapse menu",
     "expandMenu": "Expand menu",
     "helpCenter": "Centre d'aide",
-    "globalTour": "Visite générale"
+    "globalTour": "Visite générale",
+    "pageTour": "Revoir le guide de cette page",
+    "pageTourUnavailable": "Aucun guide n'est encore défini pour cette page"
   },
   "role": {
     "title": "Role Management",
@@ -579,11 +581,7 @@
   "恢复任务已创建，请稍后查看进度": "Recovery task created, please check back later",
   "批量处理线索、客户、消息等数据": "Batch processing of data such as leads, customers, messages, etc.",
   "操作历史": "History",
-  "正在执行批量操作...": "Performing bulk operation...",
-  "批量任务已提交": "Batch task submitted",
-  "执行失败": "execute fail",
   "已取消": "Canceled",
-  "取消失败": "Canceling failed",
   "会话连接失败，请检查网络": "Session connection failed, please check the network",
   "重试": "Try again",
   "暂无历史会话": "No Historical Sessions",
@@ -1581,7 +1579,7 @@
   "规则构建器": "Constructeur de règles",
   "创建成功": "Créé avec succès",
   "更新成功": "Mis à jour avec succès",
-  "JSON 格式，例如 {&quot;order_id&quot;: 123}": "Format JSON, p. ex. {&quot;order_id&quot;: 123}",
+  "JSON 格式，例如 {&quot;order_id&quot;: 123}": "Format JSON, p. ex. {'{'}&quot;order_id&quot;: 123{'}'}",
   "JSON 预览": "Aperçu JSON",
   "X 坐标": "Coordonnée X",
   "Y 坐标": "Coordonnée Y",
@@ -1622,15 +1620,40 @@
   "输出": "Sortie",
   "选择版本": "Sélectionner la version",
   "触发参数": "Paramètres du déclencheur",
-  "平台消息": "Avis de plateforme",
-  "级别": "Niveau",
-  "普通": "Normal",
-  "重要": "Important",
-  "来源": "Source",
   "平台": "Plateforme",
   "系统": "Système",
-  "平台下发": "De la plateforme",
-  "系统通知": "Avis du système",
+  "customReport": {
+    "dimension": {
+      "date": "Date",
+      "source": "Source",
+      "platform": "Plateforme",
+      "region": "Région",
+      "userType": "Type d'utilisateur"
+    },
+    "metric": {
+      "count": "Nombre",
+      "amount": "Montant",
+      "conversion": "Taux de conversion",
+      "clickRate": "Taux de clics",
+      "openRate": "Taux d'ouverture"
+    }
+  },
+  "batchOperation": {
+    "importDone": "Importation terminée",
+    "importFailed": "Échec de l'importation",
+    "taskSubmitted": "Tâche par lots envoyée",
+    "executeFailed": "Échec de l'exécution",
+    "cancelFailed": "Impossible d'annuler",
+    "running": "Exécution de l'opération par lots..."
+  },
+  "notifications": {
+    "level": "Niveau",
+    "fromPlatform": "De la plateforme",
+    "platformNotice": "Avis de plateforme",
+    "normal": "Normal",
+    "important": "Important",
+    "systemNotice": "Avis du système"
+  },
   "setup": {
     "wizardTitle": "Assistant de configuration du système",
     "wizardIntro": "Suivez les étapes ci-dessous pour terminer la première configuration",
@@ -1691,338 +1714,627 @@
       "next": "Suivant",
       "prev": "Précédent",
       "done": "Terminer",
-      "skip": "Passer",
+      "close": "Fermer le guide",
       "global": {
         "step1": {
-          "title": "Logo de la marque",
-          "description": "C'est le logo du système. Cliquez pour revenir au tableau de bord d'accueil"
+          "title": "Marque du produit",
+          "description": "Le logo. Cliquez pour revenir à la page d'accueil (Message Hub par défaut)."
         },
         "step2": {
-          "title": "Menu de navigation principal",
-          "description": "Basculez entre les modules principaux : Espace de travail, Message Hub, Centre client, Agent IA, Prospection, Centre de connaissances, Analyses, Paramètres système, etc."
+          "title": "Navigation supérieure",
+          "description": "Changez de module selon le domaine métier : Message Hub, centre client, agents IA, prospection, centre de connaissances, analyses, paramètres système. Le menu est servi par le RBAC du back-end : ce que vous ne voyez pas, votre rôle n'y a pas droit."
         },
         "step3": {
-          "title": "Menu latéral",
-          "description": "Sous-menus du module en cours. Repliez-le pour n'afficher que les icônes et gagner de la place"
+          "title": "Barre latérale",
+          "description": "Accès aux sous-pages du module courant. Cliquez sur le titre pour replier ou déplier ; une fois replié, seules les icônes restent et l'espace est gagné. Les entrées avec des sous-pages doivent être dépliées pour les voir."
         },
         "step4": {
-          "title": "Centre de notifications",
-          "description": "Consultez les notifications système, les annonces de version et les alertes importantes. Le point rouge signale les messages non lus"
+          "title": "Cloche de notifications",
+          "description": "Centre de notifications de l'application : annonces de la plateforme et événements métier de votre compte. Le badge indique le nombre de non-lus ; ouvrez-le pour les lire un par un, le badge baisse à mesure que vous lisez."
         },
         "step5": {
           "title": "Menu utilisateur",
-          "description": "Profil, Centre d'aide et Déconnexion. L'avatar affiche la première lettre de votre nom d'utilisateur"
+          "description": "Profil, centre d'aide et déconnexion. Vous pouvez aussi rejouer les guides ici : le guide global explique la mise en page générale, « guide de cette page » explique la page que vous consultez."
         },
         "step6": {
-          "title": "Zone de contenu principal",
-          "description": "Toutes les pages métier s'affichent ici. Prend en charge le fil d'Ariane et les animations de transition"
-        }
-      },
-      "module": {
-        "messageHub": {
-          "step1": {
-            "title": "Cartes de synthèse des messages",
-            "description": "Métriques en temps réel : total des messages, non lus, temps de réponse moyen et respect du SLA par canal"
-          },
-          "step2": {
-            "title": "Onglets des canaux",
-            "description": "Filtrez les messages par canal : WeChat, WhatsApp, Telegram, e-mail, SMS, etc."
-          },
-          "step3": {
-            "title": "Tableau des messages",
-            "description": "Tous les messages entrants au même endroit. Filtrez par statut, canal et heure. Cliquez pour le détail"
-          }
-        },
-        "inbox": {
-          "step1": {
-            "title": "Barre de filtres",
-            "description": "Filtrez rapidement les sessions par agent, canal, tag et période"
-          },
-          "step2": {
-            "title": "Liste des sessions",
-            "description": "Sessions actives, en attente et closes. Recherche par nom ou ID client"
-          },
-          "step3": {
-            "title": "Panneau de chat",
-            "description": "Messages de la session en cours. Envoyez textes, images, fichiers et réponses rapides"
-          },
-          "step4": {
-            "title": "Attribution des agents",
-            "description": "Attribuez à un agent en ligne ou passez à l'agent IA pour une réponse automatique"
-          }
-        },
-        "customer": {
-          "step1": {
-            "title": "Recherche client",
-            "description": "Recherche multidimensionnelle : téléphone, e-mail, nom, OneID et tags"
-          },
-          "step2": {
-            "title": "Carte de profil 360°",
-            "description": "Vue complète : attributs, événements, tags, sessions, commandes, prospects et actifs"
-          },
-          "step3": {
-            "title": "Onglets de détail",
-            "description": "Flux d'événements, tags, sessions, commandes, prospects et actifs — explorez chaque dimension"
-          },
-          "step4": {
-            "title": "Éditeur de tags",
-            "description": "Taguez les clients et créez des segments pour une prospection de précision et un classement RFM"
-          }
-        },
-        "aiAgent": {
-          "step1": {
-            "title": "Barre d'outils de la liste d'agents",
-            "description": "Créez, importez, exportez et filtrez par type : Ventes, Support ou Hybride"
-          },
-          "step2": {
-            "title": "Tableau des agents",
-            "description": "Code, nom, type, canaux liés, statut et dernière mise à jour — d'un coup d'œil"
-          },
-          "step3": {
-            "title": "Dialogue de création d'agent",
-            "description": "Configurez le persona, le prompt, la base de connaissances, les outils, les paramètres du modèle et le seuil de confiance"
-          }
-        },
-        "agentActive": {
-          "step1": {
-            "title": "Éditeur de canevas",
-            "description": "Glissez-déposez des nœuds pour construire vos flux de prospection : délai, branchement, action et nœuds IA"
-          },
-          "step2": {
-            "title": "Palette de nœuds",
-            "description": "Déclencheurs, actions, conditions, IA, délai et sous-flux — de nombreux types de nœuds"
-          },
-          "step3": {
-            "title": "Barre du canevas",
-            "description": "Zoom, centrage, annuler, rétablir, publication, contrôle de versions et export JSON"
-          }
-        },
-        "agentSupport": {
-          "step1": {
-            "title": "Liste des SOP",
-            "description": "Procédures opérationnelles standard : scénario, étapes, scripts et résultats attendus, versionnées"
-          },
-          "step2": {
-            "title": "Bibliothèque de modèles de scripts",
-            "description": "Scripts des top performers : prise de parole, traitement des objections et closing, classés par scénario"
-          },
-          "step3": {
-            "title": "Base de connaissances FAQ",
-            "description": "Questions et réponses fréquentes. L'IA associe automatiquement les réponses. Seuil de similarité réglable"
-          }
-        },
-        "agentWorkbench": {
-          "step1": {
-            "title": "Tableau de bord des agents",
-            "description": "Agents en ligne, occupés ou hors ligne en temps réel, charge actuelle, capacité et temps de réponse moyen"
-          },
-          "step2": {
-            "title": "Panneau de réponses rapides",
-            "description": "Recherchez des scripts par catégorie et envoyez en un clic. Insertion de variables comme le nom et le numéro de commande"
-          },
-          "step3": {
-            "title": "Panneau de suggestions IA",
-            "description": "Suggestions de réponse, extraits de connaissances et scripts en temps réel. Cliquez pour les utiliser et gagnez en efficacité"
-          }
-        },
-        "reach": {
-          "step1": {
-            "title": "Onglets des canaux",
-            "description": "E-mail, SMS, WhatsApp, Douyin, Kuaishou, Xiaohongshu, Xianyu et TikTok — de façon unifiée"
-          },
-          "step2": {
-            "title": "Liste des brouillons",
-            "description": "Brouillons en révision, en attente ou programmés. Texte enrichi, variables et pièces jointes pris en charge"
-          },
-          "step3": {
-            "title": "Configuration du travail",
-            "description": "Audience cible, planification, fréquence, déduplication, test A/B et suivi de la livraison"
-          }
-        },
-        "knowledge": {
-          "step1": {
-            "title": "Arborescence des documents",
-            "description": "Gestion de dossiers multi-niveaux. Réordonnez, déplacez et copiez par glisser-déposer"
-          },
-          "step2": {
-            "title": "Éditeur de texte enrichi",
-            "description": "Édition WYSIWYG. Images, tableaux, blocs de code, formules et liens internes"
-          },
-          "step3": {
-            "title": "Environnement de test de récupération",
-            "description": "Testez la recherche vectorielle en direct. Réglez Top-K, le seuil de similarité et la stratégie de reclassement"
-          }
-        },
-        "analytics": {
-          "step1": {
-            "title": "Canevas du tableau de bord",
-            "description": "Constructeur glisser-déposer : graphiques, cartes KPI, tableaux, cartes et composants personnalisés"
-          },
-          "step2": {
-            "title": "Bibliothèque de widgets",
-            "description": "Plus de 20 types de graphiques : lignes, barres, camembert, entonnoir, sankey, carte de chaleur, etc."
-          },
-          "step3": {
-            "title": "Configuration des sources de données",
-            "description": "Connectez API, SQL, CSV et flux. Correspondance de champs, champs calculés et stratégie de cache"
-          }
-        },
-        "geoTools": {
-          "step1": {
-            "title": "Onglets du module GEO",
-            "description": "Extraction de mots-clés, création de contenu, optimisation, vérification multi-modèles, rapports et configuration"
-          },
-          "step2": {
-            "title": "Tableau mots-clés et contenu",
-            "description": "Volume de recherche, concurrence, intention, fonctionnalités SERP, suivi de positions et citations dans les aperçus IA"
-          },
-          "step3": {
-            "title": "Éditeur de contenu",
-            "description": "Rédaction assistée par IA : plan, développement, optimisation SEO, synchronisation multilingue et contrôle de conformité"
-          }
-        },
-        "system": {
-          "step1": {
-            "title": "Onglets de paramètres",
-            "description": "Configuration du site, stockage, supervision, traçage, bibliothèque d'actifs, guide et fonctionnalités activables"
-          },
-          "step2": {
-            "title": "Tableaux utilisateurs, rôles et permissions",
-            "description": "Gestion des utilisateurs, attribution des rôles, autorisations de menus, permissions de données, journaux d'audit et de connexion"
-          },
-          "step3": {
-            "title": "Matrice des permissions",
-            "description": "Configuration visuelle des permissions menu, boutons et données basée sur le RBAC. L'administrateur a tout ; les rôles, au besoin"
-          }
-        },
-        "assetBundle": {
-          "step1": {
-            "title": "Liste des paquets",
-            "description": "Versionnés : paquets de scripts, de connaissances, de workflows et de configuration avec dépendances"
-          },
-          "step2": {
-            "title": "Environnement de développement",
-            "description": "Débogage en ligne : entrée simulée, visualisation de la sortie, tests unitaires et benchmarks de performance"
-          },
-          "step3": {
-            "title": "Pack de scripts marchand",
-            "description": "Livraison standardisée : assistant d'installation, assistant de configuration, mise à niveau et retour arrière"
-          }
-        },
-        "assetMarket": {
-          "step1": {
-            "title": "Filtres du marché",
-            "description": "Filtrez par catégorie, tag, prix, note et version compatible"
-          },
-          "step2": {
-            "title": "Grille des paquets",
-            "description": "Aperçu de la couverture, de la présentation, de la version, de l'auteur, des téléchargements et des avis. Installation ou essai en un clic"
-          },
-          "step3": {
-            "title": "Mes actifs",
-            "description": "Installés, achetés, en développement ou en attente. Notifications de mise à niveau et mise à niveau en un clic"
-          }
+          "title": "Zone de contenu",
+          "description": "Les pages métier s'affichent ici. En entrant sur une page que vous n'avez jamais vue, son guide s'ouvre tout seul : à quoi elle sert, où sont les actions clés, quels réglages surveiller."
         }
       },
       "page": {
-        "messageHub": {
-          "step1": {
-            "title": "Cartes KPI de synthèse",
-            "description": "Total des messages, non lus, temps de réponse moyen et taux de SLA — vue globale instantanée"
-          },
+        "common": {
+          "overview": "À quoi sert cette page",
+          "action": "Où sont les actions clés"
+        },
+        "messageHubList": {
+          "summary": "Message Hub réunit tous les canaux dans un seul registre : les cartes du haut donnent le volume total, la part entrants/sortants et le nombre de non-lus, et la barre des plateformes répartit le trafic par canal. Le tableau du dessous est le flux complet des messages, filtrable par canal, statut et horaire, chaque ligne remontant à l'expéditeur, au contenu et au résultat de livraison. Pour contacter vos clients, utilisez « Envoyer un message » en haut à droite, en envoi unitaire ou via un modèle.",
           "step2": {
-            "title": "Filtre canal et statut",
-            "description": "Filtre combiné : canal, statut et heure. Enregistrez-le comme vue personnalisée"
-          },
-          "step3": {
-            "title": "Tableau de détail des messages",
-            "description": "Expéditeur, aperçu, statut, latence, tentatives et code d'erreur. Export CSV"
-          },
-          "step4": {
-            "title": "Pagination",
-            "description": "Taille de page, saut à une page et total. Défilement virtuel pour les gros volumes"
+            "title": "Filtres et recherche",
+            "description": "Restreignez le registre par canal, statut de message et plage de dates ; le mot-clé porte à la fois sur l'expéditeur et sur le contenu. Ces filtres déterminent les lignes affichées dans le tableau : appliquez-les puis cliquez sur « Rechercher »."
           }
         },
-        "inbox": {
-          "step1": {
-            "title": "Barre de filtres des sessions",
-            "description": "Agent, canal, tag, statut et heure. Vues rapides : Mes sessions, Toutes et Non lues"
-          },
+        "abExperimentList": {
+          "summary": "La page des expériences A/B gère « la même audience en deux moitiés, on voit laquelle gagne ». Les quatre cartes du haut donnent en cours, terminées, variantes déjà départagées et participants cumulés ; le tableau en dessous liste chaque expérience avec son type de source (page, composant, message...), la répartition du trafic, le statut et les dates. Une expérience doit avoir ses variantes, ses poids et sa source avant de pouvoir être « démarrée » ; en cours elle peut être mise en pause, et les résultats donnent trafic, conversions et taux de conversion par variante.",
           "step2": {
-            "title": "Liste des sessions",
-            "description": "Avatar, nom, dernier message, compteur de non lus, temps d'attente, agent et tags"
-          },
-          "step3": {
-            "title": "Interaction de chat",
-            "description": "Bulles, saisie avec / et @IA ainsi que pièces jointes, statut d'envoi et accusé de lecture"
-          },
-          "step4": {
-            "title": "Liste déroulante d'attribution",
-            "description": "Liste d'agents en direct avec charge et compétences. Reprise forcée ou transfert"
+            "title": "Liste des expériences et actions",
+            "description": "Chaque ligne est une expérience : nom, type et identifiant de source, répartition du trafic, statut et dates. La colonne d’actions propose lancer / mettre en pause / modifier / détail / supprimer selon le statut — un brouillon peut être lancé ou publié d’abord, et une expérience en cours peut être mise en pause pour l’observer. Le filtre restreint par statut et par nom ; cliquez sur « Rechercher » pour appliquer."
           }
         },
-        "customer": {
-          "step1": {
-            "title": "Champ de recherche client",
-            "description": "Correspondance floue multicritères. Syntaxe avancée : champ:valeur, tag:tag, event:event"
-          },
+        "aiAgentList": {
+          "summary": "La page des agents IA regroupe tous les réglages de « laissez l'IA répondre à votre place ». Chaque ligne porte le type d'agent (ventes / support / hybride), ses canaux, sa base de connaissances, ses SOP, ses scripts, son modèle et son statut ; en l'ouvrant on voit le prompt de persona, la base de connaissances utilisée, les outils autorisés et la politique de confiance. Tout cela se règle à la création, sinon l'agent ne reçoit aucun message et répond mal.",
           "step2": {
-            "title": "Carte de profil",
-            "description": "Tags d'identité, segment RFM, étape du cycle de vie, niveau d'intention et dernière activité"
-          },
-          "step3": {
-            "title": "Groupe d'onglets de détail",
-            "description": "Chronologie des événements, tags, sessions, commandes, prospects et actifs — toutes les dimensions"
-          },
-          "step4": {
-            "title": "Barre latérale de l'éditeur de tags",
-            "description": "Tags système, personnalisés et par règles en 3 niveaux. Étiquetage par lot et lignée des tags"
+            "title": "Filtres et création d'agents",
+            "description": "Filtrez par type, statut et canal ; le mot-clé porte sur le nom et le code. « Nouvel agent » ouvre l'éditeur, où l'on définit le prompt, les paramètres du modèle, la base de connaissances, les permissions d'outils et le seuil de confiance, avec la possibilité de tester une conversation avant publication."
           }
         },
-        "aiAgent": {
-          "step1": {
-            "title": "Barre d'actions de la liste",
-            "description": "Créer, importer, exporter, cloner, activer, désactiver et supprimer. Opérations groupées prises en charge"
-          },
+        "aiProductivityList": {
+          "summary": "L'analyse de productivité IA répond à « combien de travail l'IA fait vraiment, et avec quelle qualité ». Quatre cartes donnent le nombre total de conversations, la part de réponses IA, le délai moyen de réponse et le taux de conversion, à côté de la comparaison réponses IA / réponses humaines ; le graphique de tendance retrace ces mêmes métriques dans le temps pour juger si la part de l'IA est saine — une forte part d'IA avec conversion en baisse signale généralement des scripts ou une base de connaissances à reprendre.",
           "step2": {
-            "title": "Tableau des agents",
-            "description": "Code, nom, type, modèle, base de connaissances, outils, canaux, statut et mise à jour. Colonnes personnalisables"
-          },
-          "step3": {
-            "title": "Dialogue créer et modifier",
-            "description": "Informations de base, prompt de persona, paramètres du modèle, liaison de la base de connaissances, outils, confiance et chat de test"
+            "title": "Indicateurs de productivité et tendance",
+            "description": "Les cartes sont des agrégats sur la période, la carte de tendance déploie les mêmes indicateurs sur l'axe du temps pour repérer le jour de l'anomalie. « Actualiser » recharge les chiffres ; le périmètre statistique est défini par le serveur."
           }
         },
-        "agentActive": {
-          "step1": {
-            "title": "Canevas du flux",
-            "description": "Connexions disposées automatiquement. Fusion de branches, passerelle parallèle et réutilisation de sous-flux"
-          },
+        "cohortPath": {
+          "summary": "La page rétention et parcours fait deux choses. « Rétention par cohorte » regroupe les clients par semaine et montre combien de chaque groupe revient les semaines suivantes, ce qui juge la qualité de l'acquisition. « Parcours de comportement » enchaîne clics et actions de session réelles dans l'ordre, pour voir comment les gens naviguent et où ils bloquent. Les deux ont besoin de trafic client.",
           "step2": {
-            "title": "Panneau de configuration des nœuds",
-            "description": "Formulaires par nœud : délai (durée ou expression), branchement (condition), IA (prompt, outils, repli)"
-          },
-          "step3": {
-            "title": "Barre du canevas",
-            "description": "Zoom, centrage, annuler, rétablir, aligner, grille, publier, version, import, export et aperçu"
-          },
-          "step4": {
-            "title": "Mini-carte",
-            "description": "Vue d'ensemble pour les grands flux. Navigation rapide et déplacement de la zone de vue, plus jamais perdu"
+            "title": "Les deux vues : rétention et parcours",
+            "description": "Les deux onglets sont deux analyses : la rétention répond « les clients arrivés en semaine W reviennent-ils ? », le parcours répond « dans quel ordre agissent réellement les clients ? ». L'état vide signale un manque d'activité, pas un échec de chargement."
           }
         },
-        "analytics": {
-          "step1": {
-            "title": "Disposition du canevas",
-            "description": "Organisez les widgets à l'écran par glisser-déposer. Les guides d'alignement et annuler/rétablir gardent une mise en page nette"
-          },
+        "approvalTaskList": {
+          "summary": "Le centre de tâches est le point d'entrée de tout ce qui demande une décision humaine : approbations, dispatch de tâches et autres travaux en attente. Les puces du haut donnent les compteurs ouverts et en retard par type (en retard en rouge) ; le tableau en dessous liste chaque élément avec son type, son titre, son responsable et son échéance. Cliquez le titre pour ouvrir le détail et agir.",
           "step2": {
-            "title": "Panneau de la bibliothèque de widgets",
-            "description": "Choisissez parmi graphiques, cartes KPI, tableaux et blocs de contenu, puis déposez-les sur le canevas"
-          },
-          "step3": {
-            "title": "Liaison de la source de données",
-            "description": "Associez chaque widget à une API, une requête SQL ou un fichier CSV. Mappez les champs une fois et actualisez selon la planification"
+            "title": "Filtres et prise en charge des tâches",
+            "description": "Filtrez par type, statut et responsable : le statut « ouvertes » couvre en attente et prises en charge, et « qui me sont affectées » ne laisse que les vôtres. Les alertes du haut apparaissent quand le service de tâches du backend est indisponible ou que la session ne porte pas d'identifiant utilisateur — les actions sont alors refusées car elles exigent une identité d'opérateur : reconnectez-vous."
+          }
+        },
+        "aiAgentEdit": {
+          "summary": "Voici l'écran de création et d'édition de l'agent, et c'est le remplissage de ces cartes qui décide s'il sera utilisable. « Informations de base » fixe le nom, le type, le code et la description ; « Personnalité » décide de l'identité et du ton ; « Base de connaissances » décide de ce qu'il peut consulter ; « SOP » et « Bibliothèque de scripts » lui fournissent des procédures et des formulations prêtes ; « Configuration LLM » choisit le modèle, la température, les tokens max et le seuil de confiance ; « Moteur de vente » et « Paramètres avancés » sont les réglages propres aux scénarios commerciaux. Enregistrez : l'effet est immédiat.",
+          "step2": {
+            "title": "Configuration de la personnalité et des connaissances",
+            "description": "La personnalité est l'identité et la voix de l'agent ; plus elle est précise, plus les réponses sonnent humaines. La base de connaissances est une sélection multiple en arborescence : montez-y les documents qu'il doit consulter pour les réponses du secteur, les prix et les détails de scripts, car sans cela il ne répond qu'avec les connaissances du modèle. Le bouton « Tester » en haut à droite permet de lancer une vraie conversation avant de valider."
+          }
+        },
+        "assetBundleList": {
+          "summary": "La liste des bundles d'actifs gère des « capacités réutilisables » : bundles de scripts, de connaissances, de workflows et de configuration. Chaque bundle a un Asset ID unique, une version, un type et un statut (brouillon / actif / inactif), et le marchand peut l'installer et l'utiliser tel quel. La bande « actifs en cours » en haut liste les bundles qui servent réellement des marchands ; cliquer une étiquette ouvre la configuration de ce marchand.",
+          "step2": {
+            "title": "Filtres et bande d'activation",
+            "description": "Filtrez par mot-clé (titre ou Asset ID) et par statut. La ligne « actifs en cours » énumère les bundles en service chez les marchands, et son étiquette mène à la page de configuration correspondante — c'est le premier endroit à regarder en cas d'incident. Les actions de la ligne proposent activer/désactiver, publier et supprimer selon le statut."
+          }
+        },
+        "assetBundlePlayground": {
+          "summary": "Le playground est l'endroit où l'on débogue un bundle : on écrit à gauche une question client simulée et on lit à droite la sortie réelle du bundle, pour juger si le prompt, les scripts et la récupération de connaissances sont corrects. L'en-tête porte les métadonnées (Asset ID, nom, version, secteur) ; « Enregistrer » les persiste et « Publier » rend le bundle visible des marchands.",
+          "step2": {
+            "title": "Entrée simulée et sortie réelle",
+            "description": "Tapez un message client simulé dans le panneau de gauche : le bundle produit sa réponse à droite. Ajustez le prompt et les montages de connaissances jusqu'à ce que la sortie soit stable. L'Asset ID identifie le bundle et n'est pas modifiable après création. Incrémentez la version à chaque itération et publiez une fois prêt."
+          }
+        },
+        "assetBundleMerchantNew": {
+          "summary": "L'écran de bundle de scripts marchand gère « donner ce bundle à un marchand ». La barre d'état en haut indique s'il est hébergé ou en pause ; hébergé signifie que l'IA sert en ce moment le site propre et WhatsApp de ce marchand avec ce bundle. En dessous on configure les arguments de vente, le verrouillage de prix, les scripts de chat et les emplacements d'affichage, et l'enregistrement met à jour immédiatement le moteur IA local du marchand.",
+          "step2": {
+            "title": "Produits, verrouillage de prix et scripts",
+            "description": "Le verrouillage de prix fixe le prix que l'IA annonce, les scripts décident comment elle ouvre la vente, les emplacements d'affichage décident de la fiche produit que voit le client. Les trois doivent correspondre au vrai catalogue du marchand, et l'enregistrement est immédiat. « Suspendre l'hébergement » arrête les réponses de l'IA sans supprimer la configuration ; la reprise continue où elle s'était arrêtée."
+          }
+        },
+        "assetMarketMarket": {
+          "summary": "Le marché d'actifs sert à choisir des capacités : chaque carte montre couverture, nom, secteur et type, description, note, téléchargements et prix ; les achetés portent la mention correspondante, les autres s'achètent avec des crédits ou s'essayent gratuitement. Cliquez une carte pour la description complète et les versions.",
+          "step2": {
+            "title": "Filtrage et achat",
+            "description": "Filtrez le marché par type, secteur et mot-clé. Le bouton en bas à droite de la carte est le point d'entrée d'achat : ceux qui ont un prix coûtent des crédits, « essai gratuit » ne coûte rien, et ni l'un ni l'autre n'entre immédiatement dans votre compte — confirmez version et dépendances sur la page de détail. Les bundles achetés se gèrent dans « Mes actifs »."
+          }
+        },
+        "assetMarketDetail": {
+          "summary": "La page de détail donne l'information complète d'un bundle : couverture, nom, secteur et type, version, description, note et téléchargements, plus la liste des actifs qu'il contient. Vérifiez la version et les dépendances avant de décider de l'installer ; le téléchargement ou l'achat se font aussi ici.",
+          "step2": {
+            "title": "Version et contenu",
+            "description": "La moitié supérieure de la carte montre couverture, nom, secteur et type, version, description, note et téléchargements ; la moitié inférieure liste les éléments d'actif réellement inclus (scripts, connaissances, configurations…), et les lire un par un est le moyen de savoir ce que le marchand obtiendra. L'action en haut à droite dépend du type de bundle — « installer dans mes actifs » ou « utiliser directement » — et après installation vous l'activez dans « Mes actifs »."
+          }
+        },
+        "assetMarketMyAssets": {
+          "summary": "« Mes actifs » est le registre des bundles déjà installés sur votre compte : chaque entrée a son statut (actif/inactif), sa version et son origine, et seuls les bundles actifs sont réellement appelés par les agents ou les marchands. Vous y créez vos propres bundles locaux, les modifiez, les activez ou désactivez, montez les versions, et consultez les journaux de synchronisation quand le bundle du marché et votre copie locale divergent.",
+          "step2": {
+            "title": "Actifs propres et activation",
+            "description": "« Créer » génère un bundle local qui ne vient pas du marché, où vous définissez l'Asset ID, le type et le contenu. Activer/désactiver décide si le bundle participe aux appels réels : un bundle désactivé renvoie les agents qui l'utilisent à leur configuration par défaut. Déplier une ligne montre sa configuration JSON complète, et c'est cet enregistrement qui fait foi quand les versions divergent."
+          }
+        },
+        "assetMarketSyncLog": {
+          "summary": "Le journal de synchronisation consigne ce qui s'est passé entre le bundle du marché et vos actifs locaux : qui a synchronisé, quand, quelle version, et si cela a réussi. C'est le premier endroit à consulter quand un achat n'apparaît pas là où il devrait.",
+          "step2": {
+            "title": "Retrouver les bons enregistrements",
+            "description": "Filtrez par Asset ID et plage de dates pour extraire les lignes concernées, puis lisez l'action et le résultat de chacune. Un échec de synchronisation vient le plus souvent d'un conflit de version ou d'un actif local du même nom déjà présent ; corrigez comme indiqué puis resynchronisez."
+          }
+        },
+        "backupList": {
+          "summary": "La page des sauvegardes répond à « comment récupérer les données en cas de problème ». Les cartes donnent le nombre total de sauvegardes, celles terminées et celles en cours, et le tableau liste chaque sauvegarde avec sa date, son type, sa taille et son état. « Sauvegarder maintenant » lance une sauvegarde complète à la main ; la planification automatique (cron, nombre de copies conservées, destination d'archivage) se règle à part, et les fichiers archivés se téléchargent.",
+          "step2": {
+            "title": "Compteurs et sauvegarde manuelle",
+            "description": "Les cartes résument le stock courant et le tableau liste les sauvegardes de la plus récente à la plus ancienne ; « en cours » signifie que le travail tourne. « Sauvegarder maintenant » met une sauvegarde complète en file immédiatement ; pour des sauvegardes récurrentes, configurez la planification avec son expression cron et sa politique de rétention, sinon les vieux fichiers finissent par remplir le disque."
+          }
+        },
+        "badCaseList": {
+          "summary": "La file Bad Case est l'endroit où l'on ressort les conversations qui ont mal tourné. Le système y range les conversations où l'IA a mal répondu, où un humain a repris la main ou où le client s'est plaint, chacune avec son canal d'origine, sa couche d'attribution et son état ; les compteurs du haut donnent le taux de jugement et le compte par état et par couche. Les verdicts humains reviennent ensuite servir d'ajustement.",
+          "step2": {
+            "title": "Filtres et verdicts",
+            "description": "Filtrez la file par canal d'origine, état et couche d'attribution ; la bande de compteurs reflète toujours le filtre en cours. Ouvrez chaque élément, jugez-le et écrivez la conclusion : les compteurs bougent au fil de l'eau. L'alerte en haut signale que la partie backend n'est pas déployée : une liste vide et des compteurs à zéro signifient « rien n'a été lu », pas « la file est vide »."
+          }
+        },
+        "batchOperationList": {
+          "summary": "La page des opérations par lot transforme « modifier beaucoup d'enregistrements d'un coup » en quelques outils prêts : envoi massif, import de prospects, étiquetage massif et attribution massive aux commerciaux. Les cartes du haut portent le nombre d'utilisations de chaque outil, et le tableau d'historique enregistre chaque lot avec son outil, sa portée, le nombre d'enregistrements traités et le résultat.",
+          "step2": {
+            "title": "Cartes d'outils et historique",
+            "description": "Cliquer une carte ouvre le formulaire : choisissez la source et les filtres, joignez un fichier si besoin, et activez la « simulation » pour voir quels enregistrements seraient touchés avant de vous engager. Progression et résultat s'affichent dans la boîte de dialogue et le journal complet reste dans le tableau ; son détail montre la cause d'échec de chaque enregistrement, et le message du serveur est transmis tel quel au lieu d'être réduit à une « exécution échouée »."
+          }
+        },
+        "bridgeToken": {
+          "summary": "La page des identifiants du pont couvre « comment l'extension navigateur revient à votre système ». L'état en haut indique si l'identifiant principal est configuré (depuis la base ou une variable d'environnement) et si un ancien identifiant est encore dans sa fenêtre de grâce. « Générer un nouvel identifiant (rotation) » produit un token dont le texte en clair n'apparaît qu'une fois : copiez-le immédiatement dans les réglages de chaque extension.",
+          "step2": {
+            "title": "Rotation et fenêtre de grâce",
+            "description": "L'extension colle le token dans ses réglages et l'envoie dans l'en-tête X-Bridge-Token ; en SSE le paramètre ?bridge_token= convient aussi. Après une rotation, l'ancien identifiant reste valable pendant la fenêtre de grâce, pour que les extensions non mises à jour ne tombent pas toutes d'un coup — mais la fenêtre se referme : mettez à jour toutes les extensions puis rotatez à nouveau pour retirer l'identifiant précédent."
+          }
+        },
+        "browserAutomationList": {
+          "summary": "La liste des tâches d'automatisation navigateur est le point d'entrée pour qu'une machine manipule une page web à votre place. Chaque tâche est une opération à exécuter : sur quelle plateforme, quelle action, combien de tours. Vous pouvez choisir le mode pas explicites (chaque clic est écrit) ou le mode Brain (un LLM décide en cours de route) — plus souple, mais chaque étape coûte un appel au modèle.",
+          "step2": {
+            "title": "Créer des tâches et filtrer par état",
+            "description": "« Nouvelle tâche » ouvre l'éditeur : plateforme, URL de départ, étapes d'action et paramètres d'exécution. Filtrer par état ne montre que les brouillons, les publiés ou ceux en cours, et la colonne « mode » dit si la tâche est en pas explicites ou en Brain. Une tâche restée en brouillon ne peut pas être déclenchée par cron : publiez-la d'abord."
+          }
+        },
+        "browserAutomationEditor": {
+          "summary": "L'éditeur de tâche configure « comment cette automatisation s'exécute réellement ». Après le nom et la description, on choisit la plateforme (chacune autorise des actions différentes, les non supportées sont signalées), l'URL de départ et les champs à lire ou publier, puis l'éditeur d'étapes : une liste ordonnée de ce qui est fait (ouvrir la page, extraire titre/auteur/commentaires, capture…), que l'on peut partir d'un préréglage de plateforme puis ajuster à la main.",
+          "step2": {
+            "title": "Plateforme et ordre des étapes",
+            "description": "Choisir une plateforme propose la chaîne de lecture correspondante (extraction titre/auteur/commentaires plus capture), encore modifiable étape par étape. L'ordre des étapes est l'ordre d'exécution : une mauvaise étape fait dérailler toute la tâche — lancez donc d'abord un essai restreint et vérifiez les champs extraits avant de publier ou de brancher un cron."
+          }
+        },
+        "browserAutomationDetail": {
+          "summary": "La page de détail résume « ce qu'est cette tâche et si elle a tourné » : type, mode, URL de départ, nombre de répétitions et champs capturés d'un coup d'œil, avec exécuter, publier et modifier en haut à droite selon l'état — publier n'existe que pour un brouillon, et une tâche en cours ne se relance pas. En dessous, les journaux d'exécution et les fichiers produits.",
+          "step2": {
+            "title": "Exécuter et publier",
+            "description": "« Exécuter » la lance maintenant ; « Publier » transforme le brouillon en tâche que cron peut planifier — une tâche non publiée reste inactive à l'heure dite. Les journaux montrent l'heure de début et de fin de chaque tour et les fichiers produits : commencez par là quand quelque chose cloche."
+          }
+        },
+        "browserAutomationMonitor": {
+          "summary": "La page de suivi surveille « où en est cette session ». L'en-tête affiche l'état de la session (created/active/completed/failed/stopped) et trois actions clés : arrêter la session en cours, libérer une écriture en attente et exporter le paquet d'audit. En dessous se déroule la vue en direct de chaque étape avec le journal d'exécution.",
+          "step2": {
+            "title": "La porte de confirmation manuelle et l'export d'audit",
+            "description": "« En attente de confirmation manuelle (écriture suspendue) » signifie que l'étape veut faire une action irréversible comme publier un commentaire ou modifier des données ; la porte D7 l'a mise de côté et rien ne continue tant que vous n'avez pas vérifié la charge utile et cliqué sur « Confirmer et libérer ». « Exporter le paquet d'audit » enregistre le registre complet de la session, que l'on relit ensuite pour Server ou attribuer une action."
+          }
+        },
+        "browserAutomationCron": {
+          "summary": "La page des déclencheurs cron couvre « laisser la tâche tourner toute seule à l'heure ». Chaque ligne est une règle cron pointant vers une tâche, avec son indicateur d'activation. Ce qui compte est l'état de la tâche elle-même : un déclencheur actif sur une tâche encore en brouillon part dans le vide et ne produit aucune session, et la page signale précisément ce cas.",
+          "step2": {
+            "title": "Déclencheurs et état de la tâche",
+            "description": "« Nouveau déclencheur » rattache une tâche publiée à une expression cron ; « Nouvelle tâche cron » crée directement la tâche d'automatisation. Les lignes d'avertissement signifient « le déclencheur est actif mais la tâche ne peut pas s'exécuter » : ouvrez la tâche et publiez-la, sinon chaque déclenchement ne fait rien."
+          }
+        },
+        "churnPredictionList": {
+          "summary": "La page de prédiction de départ utilise l'apprentissage automatique pour savoir « quels clients vont bientôt partir » et intervenir à temps. « Lancer la prédiction » déclenche un lot du modèle qui note chaque client et isole les principaux facteurs de départ ; les cartes donnent les comptes à risque élevé et moyen et le score moyen ; la liste détaille chaque client avec son niveau de risque et l'action conseillée, l'explication des variables à côté.",
+          "step2": {
+            "title": "Lancer la prédiction et lire la liste de risque",
+            "description": "« Lancer la prédiction » n'est pas une requête en direct : il déclenche un lot du modèle et la liste ne se met à jour qu'à la fin (avec un chargement entre-temps). La liste est triée par score décroissant, donc les premières lignes sont celles à traiter en priorité ; ouvrez-en une pour voir quelles variables ont poussé le risque (« pas d'interaction récente », « sensible au prix ») : l'intervention doit répondre à ces facteurs, sinon c'est/peine perdue."
+          }
+        },
+        "clueList": {
+          "summary": "La liste des prospects est le point d'entrée unique des prospects de tous les canaux : formulaires web, publicité, landing pages et imports atterrissent ici. Les cartes donnent le total et le compte par statut, les filtres affinent par mot-clé, type, source, statut et responsable, et chaque ligne peut être affectée, suivie, convertie en client ou supprimée. Import et export sont en haut à droite.",
+          "step2": {
+            "title": "Filtrer, importer et affecter",
+            "description": "Le filtre décide des prospects affichés : le mot-clé porte sur le nom, le compte, la ville ou l'adresse, et « les miens » ne laisse que ceux que vous suivez. Dans les actions de ligne, « affecter » rattache le prospect à un commercial, « suivre » consigne le contact, et « convertir en client » le transforme en conservant son historique : après conversion il quitte le vivier des prospects, il n'a pas disparu."
+          }
+        },
+        "communityList": {
+          "summary": "La page des communautés couvre « opérer des groupes de clients comme des communautés ». En haut on crée un groupe, importe ses membres et exporte la liste ; la zone de recherche filtre par nom, statut et plateforme ; la liste en dessous montre chaque communauté (WeChat, WhatsApp, Telegram...) avec son nom, sa plateforme, son nombre de membres et son statut, et permet de la modifier, de synchroniser son nom ou d'exporter ses membres.",
+          "step2": {
+            "title": "Filtrer les groupes et gérer les membres",
+            "description": "Filtrer par nom et statut est le chemin le plus rapide vers la bonne communauté ; à l'intérieur, on ajoute ou retire des membres et on renseigne leurs étiquettes (segment client, canal d'origine...), qui servent ensuite à la prospection ciblée et à la segmentation RFM. L'export donne la liste des membres pour une annonce ciblée dans le groupe."
+          }
+        },
+        "conversionFunnelList": {
+          "summary": "La page d'entonnoir de conversion calcule « combien de gens se perdent entre la visite et la vente ». Quatre cartes donnent les entrées totales, les conversions (sessions), le taux de bout en bout et le taux de perte moyen ; le graphique en entonnoir montre l'effectif à chaque étape — visite, prospect, intention, session, affaire — avec la perte entre étapes, pour voir où ça fuit.",
+          "step2": {
+            "title": "Étapes de l'entonnoir et localisation de la perte",
+            "description": "Chaque couche de l'entonnoir est une étape de conversion et le pourcentage entre deux couches est la perte à ce niveau : la chute la plus forte est celle qu'il faut corriger (souvent visite → prospect, ou intention → session). Le graphique de droite compare la conversion par canal, ce qui dit si le problème est général ou propre à un canal."
+          }
+        },
+        "customer360List": {
+          "summary": "La page client 360 rassemble sur un seul écran tout ce qui concerne un client : la liste des clients à gauche (recherche par nom, téléphone...), le détail du client sélectionné à droite, avec une fiche de profil en haut (canal d'origine, étiquettes, niveau, dernière activité) et des onglets en dessous pour le flux d'événements, l'historique des conversations, le parcours des commandes et l'origine du prospect.",
+          "step2": {
+            "title": "Trouver un client et parcourir la liste",
+            "description": "Tapez un nom ou un numéro à gauche pour localiser un client ; cliquer une ligne change le détail à droite (la fiche de profil et les onglets n’apparaissent qu’une fois un client sélectionné). Le paginateur permet de parcourir la liste. Les étiquettes de la fiche s’ajoutent et se retirent : elles fondent la prospection ciblée et la segmentation, et les changements prennent effet immédiatement."
+          }
+        },
+        "customerServiceAgentStatus": {
+          "summary": "La page d'état des agents gère « qui de l'équipe support travaille en ce moment et combien il peut absorber ». Les cartes donnent le nombre d'agents, ceux qui sont en ligne et la capacité totale ; le tableau liste chaque agent avec son état, ses sessions en cours et sa limite, et permet de le passer en ligne/occupé/au repos, d'ajuster la limite ou d'affecter et transférer des sessions.",
+          "step2": {
+            "title": "État de l'agent et capacité",
+            "description": "L'état décide si l'agent reçoit de nouvelles sessions — le mettre au repos le sort de fait du tableau de service. La limite est le nombre maximum de sessions simultanées : une fois atteinte, plus rien ne lui est routé. L'enregistrement est immédiat, et la répartition automatique du poste de support se calcule sur ces deux colonnes."
+          }
+        },
+        "customerServiceQuickReply": {
+          "summary": "La page des réponses rapides est la bibliothèque de scripts du support : les phrases tapées sans cesse (délais d'envoi, politique de retour, tarifs) sont stockées comme modèles et envoyées en un clic. Ils sont regroupés par catégorie (avant-vente, après-vente, logistique) et peuvent être étiquetés par canal.",
+          "step2": {
+            "title": "Filtrer par catégorie et contenu du modèle",
+            "description": "Filtrez par catégorie en haut et cherchez dans le texte. Le corps accepte des variables (nom du client, numéro de commande, montant) remplacées à l'envoi ; une faute de variable envoie au client un texte incohérent, donc testez un envoi avant de publier. Supprimer un modèle n'affecte pas les messages déjà envoyés."
+          }
+        },
+        "customerServiceSessionTag": {
+          "summary": "La page des étiquettes de session gère « comment classer une conversation » : étiqueter permet ensuite filtrer, relire et compter par étiquette. En marquant « demande », « réclamation » ou « renouvellement », le responsable voit quel sujet revient le plus et quels clients reposent toujours la même question.",
+          "step2": {
+            "title": "Groupes, étiquettes et usage",
+            "description": "Les étiquettes sont regroupées par usage ; filtrez par groupe en haut et cherchez par nom. Ces étiquettes sont pour les **sessions**, pas pour les clients — le marquage se fait sur la conversation dans le poste de support. Couleur et nom apparaissent dans la liste des sessions : gardez une nomenclature cohérente, sinon une même notion se fragmente en « SAV », « réclamation » et « problème SAV »."
+          }
+        },
+        "customerServiceAiSuggestion": {
+          "summary": "La page des suggestions IA montre « ce que l'IA croit qu'il faut répondre ». En chargeant une session par identifiant, le tableau liste chaque réponse proposée avec sa confiance et son horodatage ; l'agent peut « accepter » (l'utiliser dans la conversation) et donner un retour, et ces acceptations/rejets servent à ajuster le modèle.",
+          "step2": {
+            "title": "Charger les suggestions et donner un retour",
+            "description": "Les suggestions se chargent par **conversation unique** : il faut donc un identifiant de session, que l'on obtient en ouvrant une conversation dans la gestion des sessions clients. « Accepter » signifie que la suggestion était utilisable ; la rejeter en indiquant pourquoi est le retour le plus utile, car c'est le seul moyen d'apprendre au modèle quelles réponses ne marchent pas en situation réelle."
+          }
+        },
+        "customerServiceCsat": {
+          "summary": "Le tableau de bord CSAT est le bilan de santé de la satisfaction client. Les cartes donnent le nombre d'évaluations, la note moyenne et la répartition sur l'échelle ; en dessous, la même information est ventilée par canal, agent et période, ce qui montre quel canal ou quel agent obtient une note basse et le motif de chaque note mauvaise.",
+          "step2": {
+            "title": "Lire les notes et les attribuer",
+            "description": "Chaque ligne est une évaluation réelle : note, date, canal, agent et étiquette de motif. Le graphique de répartition donne le niveau global, celui de tendance dit si cela s'améliore ou se dégrade. Quand un agent obtient une note nettement basse, lisez d'abord le texte de ses évaluations négatives : le texte explique le chiffre plus vite qu'un graphique."
+          }
+        },
+        "emailList": {
+          "summary": "La liste des courriels est le registre de ce qui est parti : chaque ligne montre l'objet, le destinataire, l'état d'envoi et l'heure. « Envoyer un courriel » permet d'en composer un à la main (destinataire, objet, corps, pièces jointes), tandis que les envois plus gros passent par les tâches ou les modèles. Le résultat de la livraison — envoyé, échoué, rebondi — se lit sur la même ligne.",
+          "step2": {
+            "title": "Envoi et liste",
+            "description": "La fenêtre d'envoi accepte des URL de pièces jointes (séparées par des virgules ou des retours à la ligne), mais l'envoi massif réel passe par les « tâches de courriel » : destinataires, conditions, modèle et politique de reprise se règlent une fois, puis tournent au calendrier ou immédiatement. Ouvrez les lignes en échec pour en lire la raison, et retirez les adresses rebondies, sinon le taux de livraison global s'en trouve."
+          }
+        },
+        "emailDrafts": {
+          "summary": "Le dossier des brouillons garde les courriels non encore envoyés : objet, corps et destinataire écrits et conservés pour être modifiés et envoyés plus tard. « Nouveau brouillon » part d'une page blanche, l'éditeur par glisser-déposer construit le courriel visuellement — on glisse des blocs de contenu, on remplit les variables du modèle, l'aperçu se met à jour à droite — ce qui convient à un e-mail marketing renvoyé sans cesse.",
+          "step2": {
+            "title": "Nouveau brouillon et éditeur par glisser",
+            "description": "La différence tient à l'effort : un brouillon neuf convient à un envoi ponctuel, l'éditeur par glisser aux campagnes récurrentes où la mise en page, les blocs et les variables sont fixes et seul le contenu change. Les brouillons ne sont pas envoyés : enregistrez avant de fermer la page, sinon le contenu est perdu. Les variables du modèle ne sont remplacées qu'à l'envoi — prévisualisez avec de vraies valeurs avant de partir."
+          }
+        },
+        "emailJobs": {
+          "summary": "La page des tâches de courriel montre « le courriel parti selon un calendrier » : chaque ligne est une tâche avec son objet, son volume prévu, son volume envoyé, son heure et son état. Une fois la tâche terminée, on voit combien ont réussi et combien ont échoué, les motifs étant dans le détail.",
+          "step2": {
+            "title": "Avancement et diagnostic des échecs",
+            "description": "L'écart entre prévu et envoyé est ce qui n'est pas parti ou a échoué. Ne relancez pas une tâche en cours : laissez-la finir. Lisez les motifs d'échec un par un : sortez les adresses invalides, regroupez le reste par type d'erreur (délai dépassé, rejet, variable manquante) puis décidez si l'on relance ou si l'on corrige le modèle."
+          }
+        },
+        "emailSmtp": {
+          "summary": "La page SMTP gère « par quel serveur de courriel le système part ». Le tableau liste chaque relais avec son nom, l'adresse du serveur, le port, le compte et l'état ; « Ajouter un relais » permet d'en configurer plusieurs (par exemple Tencent Cloud en principal et Alibaba Cloud en secours), et l'envoi les choisit dans l'ordre.",
+          "step2": {
+            "title": "Configuration et bascule de relais",
+            "description": "Adresse, port, compte, mot de passe et chiffrement doivent correspondre exactement à la console du fournisseur : un port ou un chiffrement erronés se manifeste par « connexion impossible » et non par « envoi impossible », ce qui induit en erreur. Après avoir modifié un relais, envoyez un courriel de test pour confirmer la connexion avant de l'activer. On peut désactiver un relais, mais pas le supprimer : la suppression emporte l'historique de livraison."
+          }
+        },
+        "emailInfo": {
+          "summary": "La page de référence des fournisseurs est un tableau pour remplir les paramètres SMTP : pour chaque fournisseur (Tencent Cloud, Alibaba Cloud, Huawei Cloud, SendGrid…) elle donne l'hôte, le port, s'il faut un code d'autorisation plutôt qu'un mot de passe, et les remarques d'authentification, pour que le formulaire soit rempli juste du premier coup.",
+          "step2": {
+            "title": "Référence des paramètres et pièges",
+            "description": "Deux pièges expliquent la plupart des échecs : prendre le code d'autorisation pour un mot de passe (le fournisseur émet un code distinct dans sa console) et associer mal port et chiffrement (465 veut SSL, 587 veut STARTTLS, et l'inverse ne connecte pas). Les badges de port et les notes d'authentification de la page servent précisément à ces deux pièges."
+          }
+        },
+        "emailDeliverability": {
+          "summary": "Le tableau de bord de délivrabilité répond « combien de ce que vous avez envoyé est vraiment arrivé ». Les cartes donnent total envoyé, délivré, taux de délivrabilité et taux de rebond ; en dessous, les mêmes chiffres sont ventilés par domaine et dans le temps, ce qui permet de repérer un domaine signalé comme spam ou un jour de chute.",
+          "step2": {
+            "title": "Lire le taux et l'attribuer",
+            "description": "Un taux durablement bas avec peu de rebonds signifie le plus souvent que les messages partent en spam : ajoutez les enregistrements SPF, DKIM et DMARC. Un taux de rebond élevé signale des adresses de mauvaise qualité (achetées ou périmées) : nettoyez la liste. Si la courbe s'effondre un jour précis, regardez les tâches et les modèles de ce jour : contenu signalé ou pic d'envoi limité, en général."
+          }
+        },
+        "emailDragEditor": {
+          "summary": "L'éditeur par glisser est l'endroit où l'on monte un courriel sans écrire de code : on glisse des blocs de contenu à gauche (titre, texte, image, bouton, séparateur), on les ordonne au centre et on voit le résultat en direct à droite, pour mobile et desktop, avec des variables (nom du client, numéro de commande) à glisser. Les mises en page finies s'enregistrent comme modèles.",
+          "step2": {
+            "title": "Blocs de contenu et variables",
+            "description": "Glisser un bloc sur le canevas l'ajoute, et l'ordre du glissement est l'ordre d'affichage ; le panneau de réglages du bloc pilote taille, couleur et alignement. Les variables s'écrivent entre une paire d'accolades autour du nom, et sont remplacées par destinataire à l'envoi : un nom mal saisi ne déclenche pas d'erreur, il part tel quel — prévisualisez donc toujours avec une vraie valeur. Enregistrez la mise en page comme modèle et la prochaine fois il ne restera qu'à changer le contenu."
+          }
+        },
+        "smsList": {
+          "summary": "La liste des SMS est le registre de ce qui est parti : chaque ligne montre le numéro, le texte, l'état d'envoi et l'heure. La zone de recherche filtre par numéro et par état. « Envoyer un SMS » en compose un à la main, le plus rapide moyen de vérifier que le canal fonctionne.",
+          "step2": {
+            "title": "Envoi et état",
+            "description": "L'envoi manuel sert à tester le canal ; la prospection réelle passe par les « tâches de SMS » (en masse, planifiées, avec modèle). La colonne d'état dit si l'opérateur a accepté le message ; les refus viennent le plus souvent d'une signature ou d'un modèle non approuvés — vérifiez « configuration SMS » avant de renvoyer."
+          }
+        },
+        "smsDrafts": {
+          "summary": "Le dossier des brouillons de SMS garde les messages non envoyés, texte et destinataire préparés. Le SMS a une limite de longueur (la facturation compte les segments, et au-delà de 70 caractères cela fait plusieurs messages), d'où l'intérêt d'écrire avec des variables (nom du client, montant, date) pour rester court.",
+          "step2": {
+            "title": "Brouillons et nombre de segments",
+            "description": "Estimez le nombre de segments en écrivant : un SMS en chinois tient en 70 caractères, au-delà il est coupé tous les 67 caractères et la facture double. Remplacer un texte fixe par des variables raccourcit le message et le rend plus naturel. Les brouillons ne consomment pas d'envoi, mais trop d'entre eux font perdre de vue celui qu'on voulait envoyer."
+          }
+        },
+        "smsJobs": {
+          "summary": "La page des tâches de SMS montre « les messages partis selon un calendrier » : chaque ligne est une tâche avec son texte, son nombre de destinataires, son nombre envoyé, son état et son heure. Une fois finie, on voit combien ont réussi et combien ont échoué.",
+          "step2": {
+            "title": "Avancement et diagnostic des échecs",
+            "description": "L'écart entre ciblés et envoyés est ce qui n'est pas parti ou a échoué. Deux causes fréquentes : un format de numéro incorrect (les numéros internationaux exigent l'indicatif du pays) et une limitation ou un solde insuffisant chez le fournisseur — la première se lit dans le message d'erreur de la tâche, la seconde dans « configuration SMS », au solde et aux limites."
+          }
+        },
+        "smsConfig": {
+          "summary": "La page de configuration SMS couvre « d'où partent les messages et à quoi ils ressemblent » : le fournisseur par défaut (Alibaba Cloud, Tencent Cloud, Huawei Cloud), les identifiants de chacun, la signature et le modèle approuvés, plus les limites d'envoi et le solde. Tout s'applique en enregistrant.",
+          "step2": {
+            "title": "Fournisseur, signature et modèle",
+            "description": "Le « fournisseur par défaut » décide de quelle société on se sert : après bascule, vérifiez que ses identifiants sont bien saisis. La signature et le modèle doivent être **approuvés** — une signature non approuvée est refusée aussitôt par l'opérateur, et l'approbation se fait dans la console du fournisseur ; cette page n'enregistre que le contenu et son état. Une limite trop basse empêche les tâches en masse d'aboutir, une limite trop haute fait stranguer le fournisseur : règlez sur votre volume réel."
+          }
+        },
+        "whatsappAccount": {
+          "summary": "La page des comptes WhatsApp configure « quel compte WhatsApp écrit aux clients ». Chaque compte a un nom, une note et ses identifiants ; une fois rempli et activé, brouillons, tâches et diffusions WhatsApp passent tous par ce compte. Plusieurs comptes peuvent coexister, un par ligne de métier.",
+          "step2": {
+            "title": "Identifiants et activation",
+            "description": "Les identifiants viennent de l'API WhatsApp Business : Business Phone Number ID et Access Token. Une valeur erronée se manifeste par « échec d'authentification à l'envoi » et non par « n'envoie pas », ce qui induit en erreur. Désactiver un compte conserve son historique mais arrête les nouveaux envois par lui. La note indique la propriété (quelle équipe, quel site) : c'est ce qui les distingue quand il y en a plusieurs."
+          }
+        },
+        "whatsappDrafts": {
+          "summary": "Le dossier des brouillons WhatsApp garde les messages non envoyés, texte et destinataire préparés. WhatsApp distingue les messages à modèle (avec variables, modèles approuvés à l'avance) et les messages de conversation : les modèles servent au marketing et aux notifications, et les messages de conversation n'atteignent que les contacts ayant interagi dans les dernières 24 heures.",
+          "step2": {
+            "title": "Brouillons et type de message",
+            "description": "Décidez le type en rédigeant : seul un modèle approuvé atteint un client qui n'a pas interagi, et le texte libre de conversation ne fonctionne que dans les 24 heures suivant un message entrant — enfreindre cela fait bannir le compte. Les variables du modèle sont remplacées à l'envoi, et un nom mal saisi ne donne pas d'erreur : il part tel quel, donc prévisualisez avec une vraie valeur avant d'envoyer."
+          }
+        },
+        "whatsappJobs": {
+          "summary": "La page des tâches WhatsApp montre « les messages envoyés selon un calendrier » : chaque ligne est une tâche avec son modèle, son volume ciblé, son volume envoyé, son état et son heure. Une fois terminée, on voit combien ont réussi et combien ont échoué, avec les motifs dans le détail.",
+          "step2": {
+            "title": "Avancement et diagnostic des échecs",
+            "description": "L'écart entre ciblés et envoyés est ce qui n'est pas parti ou a échoué. Trois causes habituelles côté WhatsApp : le modèle n'est pas approuvé, la fenêtre de conversation de 24 heures a expiré, et le numéro n'est pas sur la liste autorisée — les deux premières se lisent dans le message d'erreur de la tâche, la troisième dans la configuration du compte. Ne relancez pas une tâche en cours : laissez-la finir."
+          }
+        },
+        "whatsappLeadGroupSelection": {
+          "summary": "Cette page est l'étape amont de « choisir un lot de personnes pour une diffusion WhatsApp » : filtrez le vivier de prospects par état, source ou étiquette, cochez ceux qui vous intéressent et enregistrez-les comme groupe auquel les tâches de diffusion peuvent faire référence. Un groupe enregistré retient ses conditions de filtre et se réutilise tel quel.",
+          "step2": {
+            "title": "Filtrer et construire le groupe",
+            "description": "Le filtre décide qui vous choisissez : état, canal d'origine et étiquette se combinent, et les segments de clients existants se choisissent directement. Après avoir coché, nommez le groupe et enregistrez-le : la tâche de diffusion référence le **groupe**, pas le filtre en direct, donc changer le filtre ensuite ne change pas le groupe. Une sélection trop large déclenche les contrôles de risque de WhatsApp : surveillez le volume et le rythme."
+          }
+        },
+        "whatsappGroupMessaging": {
+          "summary": "La page d'envoi massif est là où l'on appuie vraiment sur le bouton. Le formulaire de gauche choisit le modèle ou le contenu, le groupe cible et affiche le nombre de destinataires ; le panneau de droite prévisualise exactement ce que le client verra. Une fois que cela convient, on crée la tâche.",
+          "step2": {
+            "title": "Le formulaire et l'aperçu",
+            "description": "Regardez toujours l'aperçu avant d'envoyer : ce que l'aperçu dessine est ce que le client reçoit (variables substituées, boutons cliquables, retours à la ligne corrects). Le groupe cible décide qui reçoit, le modèle décide de la forme (un modèle à boutons et du texte brut ne se ressentent pas du tout de la même façon). Une fois parti, impossible de se rappeler : testez d'abord sur un petit groupe, vérifiez le taux de livraison, puis élargissez."
+          }
+        },
+        "whatsappBulkMatrix": {
+          "summary": "La matrice de diffusion est le bilan de « comment ce tour s'est passé » : les cartes donnent total envoyé, délivré et échoué, et les mêmes chiffres sont croisés par groupe et par modèle pour voir quelle combinaison fonctionne le mieux.",
+          "step2": {
+            "title": "Lire la matrice et s'en servir",
+            "description": "L'intérêt d'une matrice est la **comparaison côte à côte** : quel public convient à quel contenu, et changer de modèle pour un même public améliorerait-il les choses. Un taux de livraison bas avec un taux d'ouverture correct signale un problème de contenu ; un taux de livraison bas d'emblée signale un problème de numéro ou de modèle — vérifiez donc l'étape d'envoi avant le texte. Reprenez les conclusions ici pour le choix du public et du modèle au tour suivant."
+          }
+        },
+        "telegramAccount": {
+          "summary": "La page du bot Telegram porte une carte « à lire en premier » qui détaille quatre étapes : créer le bot avec BotFather, récupérer le token, le coller dans le système, puis choisir webhook ou polling. Vous pouvez gérer plusieurs comptes de bot : ceux qui ont un token passent par webhook, les autres par polling.",
+          "step2": {
+            "title": "Token et mode de réception",
+            "description": "Le token ne s'obtient que chez BotFather et il est secret : ne le partagez pas après l'avoir collé. Le système reçoit de deux façons : avec un domaine public il utilise le webhook (rapide et econome), sans domaine il interroge en boucle (un peu plus lent mais sans adresse publique). Une seule instance tient le verrou d'interrogation à la fois ; c'est voulu, ce n'est pas une panne."
+          }
+        },
+        "telegramGate": {
+          "summary": "La porte d'entrée Telegram gère « qui entre et comment » : vous pouvez exiger qu'un nouveau membre passe une vérification, choisir la politique d'acceptation ou de refus, et décider si un délai de vérification expiré signifie refuser la demande ou exclure le membre. Vous pouvez aussi couper la porte et laisser le groupe se comporter comme Telegram par défaut.",
+          "step2": {
+            "title": "Les deux dispositifs de contrôle",
+            "description": "La carte en haut explique pourquoi ce dispositif est nécessaire : Telegram n'autorise pas qu'un bot entame une discussion privée avec quelqu'un qui n'a jamais interagi avec lui. Le dispositif A (join_request) convient aux groupes privés : le groupe active « demande d'adhésion », les candidats sont guidés vers l'envoi de /start au bot en privé, et une fois la vérification faite l'adhésion est approuvée automatiquement. Le dispositif B (mute_unlock) convient aux groupes publics : celui qui entre est mis en sourdine, clique le lien de vérification dans le groupe, termine le /start en privé et est réactivé automatiquement. Au délai expiré, le dispositif A refuse la demande et le dispositif B exclut le membre."
+          }
+        },
+        "qqAccount": {
+          "summary": "La page des comptes de bot QQ couvre « quel bot QQ sert les clients ». La carte d'instructions en haut détaille la marche à suivre : créer le bot sur la plateforme ouverte de QQ, coller l'AppID, l'AppSecret et le BotSecret, puis configurer l'adresse de rappel dans l'administration de la plateforme au format indiqué. La liste des comptes en dessous montre le nom, l'AppID, la clé masquée, l'adresse du webhook et si le webhook est activé.",
+          "step2": {
+            "title": "Liste des comptes et webhook",
+            "description": "Chaque ligne est un bot : AppID, AppSecret masqué, l'URL de webhook déjà assemblée et si le webhook est actif. Dans les chats de groupe, le client mentionne le bot par son nom et cela déclenche la réponse de l'agent (les réponses passives sont plafonnées à cinq en cinq minutes) : l'adresse de rappel côté plateforme doit donc correspondre exactement à celle affichée ici, sinon la plateforme ne reçoit rien et l'on voit « le bot ne répond pas ». Les secrets ne sont affichés que masqués, donc en saisir un nouveau suppose de repasser par « ajouter un bot »."
+          }
+        },
+        "knowledgeManagement": {
+          "summary": "La page de gestion des connaissances est le registre des documents RAG : chaque document téléversé est découpé en fragments puis vectorisé, et l'IA cherche d'abord ici, n'appelant le modèle que si quelque chose correspond. Les cartes donnent le nombre de documents, de fragments, de vecteurs et la santé de l'index ; la liste ci-dessous montre par document la source, l'état, le nombre de fragments et la dernière mise à jour, et permet de réindexer, dépublier ou supprimer.",
+          "step2": {
+            "title": "Santé de l'index et actions sur le document",
+            "description": "Un index en mauvaise santé signifie que le découpage est mauvais ou que les vecteurs n'ont jamais été construits : la recherche ne touche pas. Regardez ce chiffre avant de toucher aux paramètres. Les documents en « indexation échouée » se réindexent ; supprimer un document emporte ses fragments et ses vecteurs, et avant de supprimer une base de connaissances déjà référencée par un agent, retirez d'abord la référence."
+          }
+        },
+        "knowledgeBatchImport": {
+          "summary": "La page d'import en masse règle « faire entrer beaucoup de documents d'un coup » : deux voies, téléverser des fichiers (une archive compressée est acceptée) ou coller du texte en bloc. Avant l'import on choisit la stratégie de découpage (par longueur ou par niveau de titre), puis chaque document part dans la file d'indexation où les vecteurs se construisent en tâche de fond.",
+          "step2": {
+            "title": "Stratégie de découpage et import",
+            "description": "La stratégie de découpage décide directement de la qualité de la recherche : un fragmente trop long mélange plusieurs sujets et remonte du contenu hors sujet, un fragmente trop court perd le contexte nécessaire au modèle. Le découpage par niveaux de titre convient le mieux aux documents structurés (manuels, politiques), le découpage par longueur aux historiques de conversation. L'import est asynchrone : la progression se voit dans la liste des tâches."
+          }
+        },
+        "knowledgePlayground": {
+          "summary": "Le playground de récupération est l'endroit où l'on règle les paramètres : on écrit une vraie question à gauche et on voit à droite quels fragments reviennent et dans quel ordre. Top-K, le seuil de similarité et le rerank se règlent en haut, et des modèles de requêtes prêts à l'emploi sont en bas. Régler ici puis appliquer en production est plus sûr que deviner à l'aveugle.",
+          "step2": {
+            "title": "Paramètres de récupération et résultats",
+            "description": "Top-K décide du nombre de candidats retenus, le seuil écarte ce qui score trop bas, et le rerank décide si un modèle plus fin rescore les candidats. Les trois bougent ensemble : augmenter Top-K fait entrer plus de bruit, il faut donc monter le seuil avec lui ; un seuil trop haut filtre le bon fragment et l'on obtient « il est là mais il ne remonte pas ». Essayez plusieurs combinaisons avec de vraies questions, puis figez les valeurs gagnantes dans la configuration de la base de connaissances de l'agent."
+          }
+        },
+        "knowledgeConnectors": {
+          "summary": "La page des connecteurs couvre « aller chercher la connaissance ailleurs » : les identifiants pour Notion, Feishu, DingTalk et le CRM se configurent ici, on teste la connexion, puis on tire le contenu comme documents de la base de connaissances. Cela évite l'aller-retour export puis import.",
+          "step2": {
+            "title": "Identifiants et test de connexion",
+            "description": "Chaque connecteur demande son autorisation propre, et les jetons sont à portée limitée : en donner plus que nécessaire est un risque, pas une commodité. Un test de connexion réussi prouve seulement que vous pouvez vous connecter et lire un répertoire, pas que le contenu sera découpé correctement — tirez du vrai contenu une fois et regardez le résultat de l'import. Les identifiants expirés sont la panne habituelle, et réautoriser puis retirer règle le problème."
+          }
+        },
+        "knowledgeFeedbacks": {
+          "summary": "La liste des retours recueille les moments où la récupération a manqué : ce que le client a demandé, ce que le système a répondu, quels documents ont été cités. On filtre par score bas, retour négatif et date, et ces enregistrements sont la preuve la plus directe pour ajuster découpage et paramètres.",
+          "step2": {
+            "title": "Scores bas et retours négatifs",
+            "description": "Un retour négatif signale le plus souvent l'un de trois problèmes : le document ne traite pas du sujet (écrivez-le), il le traite mais la question est tombée dans un autre fragment (ajustez le découpage), ou le contenu est là mais le fragment pertinent est resté hors des candidats (ajustez Top-K ou le seuil). Regroupez les retours par type avant de changer quoi que ce soit : c'est bien plus rapide que de modifier les documents un par un."
+          }
+        },
+        "knowledgeApiToken": {
+          "summary": "La page des jetons API émet les identifiants permettant à des systèmes externes d'appeler notre base de connaissances : générer un jeton, fixer sa durée de vie, le limiter et voir le nombre d'appels. Le système externe s'en sert pour récupérer de la connaissance ou soumettre des documents, sans compte d'administration.",
+          "step2": {
+            "title": "Jetons et statistiques d'appel",
+            "description": "Le jeton en clair n'est affiché qu'une fois, à la création ; ensuite la liste ne montre qu'un masque, donc le perdre impose d'en générer un autre et de retirer l'ancien. Réglez la durée de vie et la limite d'appels sur le comportement réel de l'appelant : trop serré, les synchronisations en masse de l'autre côté se-take d'429 en série, et sans limite vous laissez la bibliothèque ouverte. Le compteur d'appels de chaque ligne montre qui l'utilise et combien ; désactiver ce dont on n'a plus besoin est plus sûr que le laisser en place."
+          }
+        },
+        "knowledgeExternalImport": {
+          "summary": "La page d'import externe tire du contenu d'une source tierce : on donne l'URL et l'authentification, on indique quels champs prendre, et on choisit entre le mode synchrone et asynchrone. Le synchrone rend le résultat sur-le-champ ; l'asynchrone rend un numéro de tâche et travaille en tâche de fond, ce qui convient aux gros documents.",
+          "step2": {
+            "title": "Mappage des champs et les deux modes",
+            "description": "L'étape « indiquer quel champ source correspond à title, content et ref » décide si l'import pourra être récupéré : un mappage faux laisse le corps du document vide et l'index se construit sur du vide. Le mode synchrone convient aux petits lots quand on veut voir le résultat tout de suite ; l'asynchrone rend un job_no et la progression se voit dans la liste des tâches. Si la source ne renvoie pas du JSON, la requête échoue avec la réponse brute : vérifiez la forme avec curl avant de configurer."
+          }
+        },
+        "knowledgeStatistics": {
+          "summary": "La page des statistiques répond « dans quel état est ma bibliothèque » : santé de l'index, répartition par type de source et comptes d'import sont là. Une santé qui chute précède généralement la plainte du client : quand l'IA commence à rater, c'est ici qu'on l'a vu en premier.",
+          "step2": {
+            "title": "Santé et répartition par source",
+            "description": "La santé de l'index est le chiffre clé : s'il est bas, le découpage ou la construction des vecteurs est cassée et la recherche ne touche pas. La répartition par source montre quel type de source apporte le plus de documents et lequel n'est jamais mis à jour. Les comptes d'import dans le temps montrent ce qui a été ajouté et ce qui a échoué ; si les échecs se concentrent sur une période, allez lire le journal d'import de ce lot au lieu d'attendre que les gens dise que l'IA est devenue bête."
+          }
+        },
+        "knowledgeOpenapi": {
+          "summary": "La page d'intégration OpenAPI ouvre la base de connaissances aux systèmes externes : on configure le point d'entrée et son authentification, on teste la connexion et on regarde un échantillon de réponse. Les autres systèmes récupèrent ou envoient du contenu selon le contrat convenu, sans toucher à la base de données.",
+          "step2": {
+            "title": "Configuration du point d'entrée et test de connexion",
+            "description": "Deux erreurs reviennent ici : les noms de champs renvoyés doivent correspondre exactement à ceux qu'attend l'appelant (title, content et ref sont les trois convenus), et la synchronisation incrémentale a besoin de last_sync_at comme ligne d'eau. Le test de connexion rend un échantillon réel, et le comparer au code d'analyse de l'appelant est le chemin le plus court vers le désaccord. « La syntaxe de template Go peut être utilisée » signifie écrire des expressions de template dans les valeurs des champs, pas que l'appelant envoie des templates."
+          }
+        },
+        "knowledgeRagEval": {
+          "summary": "La page d'évaluation RAG mesure la justesse de l'étape de récupération : on exécute un jeu préparé de questions et réponses et on voit si le fragment qui devait correspondre a été rappelé, et à quel rang. Rappel et rang sont la fonction objectif du réglage des paramètres.",
+          "step2": {
+            "title": "Rappel et rang",
+            "description": "Lisez deux nombres : le rappel (sur combien de cas qui devaient être trouvés on a trouvé juste) et le MRR (où s'est classé le bon fragment). Un rappel bas signifie que l'ensemble des candidats ne le contenait pas — c'est surtout un problème de découpage ou d'indexation ; un rappel correct mais un mauvais rang, voilà ce que règlent Top-K, le seuil et le rerank. Le jeu d'évaluation doit couvrir des questions réelles (tournure familière, fautes, sujets croisés) : un score mesuré sur des questions bien formulées ne vaut rien."
+          }
+        },
+        "geoBrandConfig": {
+          "summary": "La page de configuration de marque couvre « comment les robots d'IA reconnaissent votre marque » : llms.txt v2 est le fichier de navigation de contenu remis aux robots, qui indique le nom du site, le résumé, les liens clés et la formulation de marque ; à côté s'affichent l'aperçu en direct et les réglages de l'en-tête de réponse describedby. Les faits de marque et les formulations interdites se définissent ici, et les citations de l'IA les suivent.",
+          "step2": {
+            "description": "llms.txt est le premier manuel que lit un moteur d'IA en extraits du contenu : plus il est structuré, plus le moteur a de chances de prendre ce que vous voulez. L'aperçu se redessine en direct selon le domaine courant, vous voyez donc le résultat en écrivant. Rédigez la formulation de marque sur deux lignes — les faits et les formulations interdites — car les faits seuls laissent l'ancienne formulation en place, et seul nommer ce qu'il ne faut pas dire l'arrête vraiment."
+          }
+        },
+        "geoSeoInfra": {
+          "summary": "La page d'infrastructure SEO regroupe les réglages techniques qui permettent aux robots de lire correctement votre site : règles de génération de llms.txt v2, en-têtes de réponse (X-Robots-Tag, describedby…), stratégie de sitemap et de robots. À gauche l'aperçu du résultat généré, à droite la liste de contrôle de la spécification v2, pour voir exactement ce qui manque.",
+          "step2": {
+            "description": "La liste de contrôle est la partie la plus utile de cette page : sans nom de site en H1 ni résumé en blockquote, le moteur d'IA analyse votre page avec des morceaux manquants. Amenez la liste entièrement au vert avant de publier : c'est bien plus rapide que courir après l'indexation ensuite. Quand l'aperçu est bon, gardez la même configuration synchronisée sur la page de marque, qui l'emporte en cas de désaccord."
+          }
+        },
+        "geoPusherConfig": {
+          "summary": "La page de push aux robots couvre « comment les moteurs de recherche et d'IA apprennent aussitôt que le contenu a changé » : on configure l'endpoint de push et le quota par plateforme (Baidu, Bing, Google et deux autres), et le système pousse la nouvelle URL dès la publication ou la mise à jour d'un article, ce qui raccourcit le délai d'indexation.",
+          "step2": {
+            "description": "L'endpoint de push se récupère dans la console webmasters de chaque moteur, et une valeur fausse échoue en silence : le push part, aucune erreur ne s'affiche et le destinataire ne reçoit rien ; testez donc une fois avec « pousser maintenant » après le réglage. Un quota de 0 veut dire sans limite, mais le moteur limite quand même et le dépasser entraîne une limitation de débit. Si vous configurez plusieurs plateformes pour un même site, veillez à ne pas compter le quota deux fois."
+          }
+        },
+        "geoSiteConfig": {
+          "summary": "La page de configuration de déploiement des sites statiques couvre « vers quel site le contenu finit par aller » : par site on règle le domaine, la méthode de déploiement et le chemin de sortie. Le contenu généré (Markdown, pages d'article) est publié sur le site correspondant, et chaque site peut porter sa propre marque et son propre llms.txt.",
+          "step2": {
+            "description": "Le domaine doit correspondre à celui de la page de marque, sinon llms.txt et le site réel se contredisent et le manuel que lit l'IA pointe vers un autre domaine. Le chemin de sortie décide si les fichiers générés atterrissent à la racine du site ou dans un sous-dossier, et un mauvais chemin donne des liens statiques en 404. Testez une publication depuis la page « publier sur le site » et vérifiez le chemin avant d'activer la publication automatique."
+          }
+        },
+        "geoSchemaTemplates": {
+          "summary": "La page de modèles de Schema couvre « comment les données structurées sont générées » : vous définissez un modèle par type de contenu (article, produit, questions fréquentes) et la génération l'applique. Schema indique aux moteurs comment lire votre contenu, donc tous les champs demandés par le modèle doivent être renseignés.",
+          "step2": {
+            "description": "Les marqueurs du modèle doivent correspondre un à un aux champs produits par le générateur ; un champ manquant donne un Schema à moitié construit que les moteurs ignorent purement et simplement. L'aperçu de droite rend le JSON final : avant de publier, vérifiez que tous les champs requis sont là. Utilisez un modèle différent par type de contenu au lieu d'appliquer celui d'un article à une page produit."
+          }
+        },
+        "geoCompetitorManage": {
+          "summary": "La page des concurrents tient « la liste de ceux que vous surveillez » : nom, domaine, catégorie et notes de chacun. Les données concurrentes sont la référence de plusieurs analyses ultérieures — le tableau SOV, la comparaison de visibilité et les statistiques de crawl comparent toutes par rapport à elles —, donc une liste imprécise fausse toutes les conclusions qu'on en tire.",
+          "step2": {
+            "description": "Saisissez le domaine canonique (avec et sans www comptent pour deux concurrents) et n'enregistrez pas deux fois le même rival, sinon les statistiques le montrent en double. Le champ catégorie sert à regrouper les comparaisons, et une valeur trop grossière masque les écarts entre segments. Après avoir modifié la liste, le tableau SOV et les statistiques de crawl des concurrents doivent être recalculés pour refléter la nouvelle référence."
+          }
+        },
+        "geoConfigOptimizer": {
+          "summary": "La page de configuration GEO est l'interrupteur principal de toute la capacité GEO : choix du modèle, endpoint d'API, paramètres de génération et sous-fonctions activées se règlent ici. On applique en enregistrant, ou « optimiser la configuration » propose des paramètres calculés pour votre charge actuelle.",
+          "step2": {
+            "description": "C'est la valeur par défaut globale ; chaque sous-page (minage de mots-clés, génération de contenu, push) a en plus sa propre configuration, et la sous-page l'emporte en cas de conflit. Vérifiez le coût quand vous changez de modèle : le minage de mots-clés est à gros volume et ne mérite pas un modèle cher, alors que la rédaction du corps de texte en vaut la peine. La recommandation est calculée sur votre usage actuel, donc relancez-la quand le volume change."
+          }
+        },
+        "geoKeywordMining": {
+          "summary": "La page de minage de mots-clés trouve « comment les clients interrogent vraiment l'IA » : vous saisissez un terme de base et s'affichent les suggestions de complétion, les formulations longues composées, avec volume de recherche, concurrence et classification d'intention. Les termes obtenus sont l'entrée de la création de contenu et de l'optimisation de la structure du site, car les entrées de trafic de l'IA sont précisément ces formes de questions.",
+          "step2": {
+            "description": "« Scrape des suggestions » remonte l'autocomplétion de recherche réelle, le signal est donc net ; « composer du long-tail » multiplie une racine par des modificateurs, ce qui donne du volume mais demande un tri à la main. Comparez les deux colonnes dans le tableau et commencez par ce que les gens demandent vraiment et qui n'est pas trop concurrencé. La classification d'intention décide à qui s'adresse chaque contenu, et une étiquette erronée oriente ensuite la prospection vers la mauvaise personne."
+          }
+        },
+        "geoContentCreation": {
+          "summary": "La page de création de contenu transforme les mots-clés en un article publiable : vous remplissez la configuration de génération (mot-clé cible, longueur, ton, base de connaissances à citer), vous cliquez sur « générer le contenu » et le résultat s'affiche à droite ; vous ajustez la configuration et régénérez jusqu'à ce que ça convienne. Le brouillon peut ensuite passer par l'optimisation avant publication.",
+          "step2": {
+            "description": "Les deux réglages qui comptent le plus sont le mot-clé cible et la base de connaissances citée : les documents montés sont les faits que portera le brouillon, et monter la base d'un concurrent revient à écrire ses affirmations. Longueur et ton donnent sa forme au texte — les moteurs d'IA préfèrent une réponse longue à conclusion nette plutôt qu'un texte bourré de mots-clés. Si le résultat ne plaît pas, changer la configuration et régénérer revient moins cher que de réécrire à la main."
+          }
+        },
+        "geoContentOptimize": {
+          "summary": "La page d'optimisation de contenu rend un article existant plus citable par l'IA : collez l'original, choisissez l'objectif (EEAT, lisibilité, structure, couverture de mots-clés) et le système propose un comparatif avant/après que vous acceptez ou refusez modification par modification.",
+          "step2": {
+            "description": "Le comparatif liste chaque changement, et il faut **les lire un par un avant d'accepter** : le modèle supprime parfois une nuance que vous aviez gardée à dessein, ou transforme une conclusion incertaine en certitude. Après acceptation, relancez le « contrôle de contenu » pour voir si de nouveaux faits se sont glissés. Cette page réécrit la forme, pas les faits : tout ce qui touche aux chiffres et aux conclusions reste à votre charge."
+          }
+        },
+        "geoSitePublish": {
+          "summary": "La page de publication sur le site, ce sont les deux étapes qui mettent le contenu en ligne : d'abord exporter le Markdown (avec Schema et métadonnées), ensuite déclencher le déploiement vers le site statique. Vous pouvez prévisualiser la structure de sortie avant de publier, et le suivi d'indexation montre ensuite l'effet.",
+          "step2": {
+            "description": "L'arborescence exportée devient l'arborescence finale du site, et un lien qui ne colle pas donne un 404 : regardez donc le manifeste d'export une fois avant de déployer. Le déploiement est asynchrone, attendez qu'il se termine au lieu de recliquer, sinon un second déclenchement génère la même page en double. Après publication, vérifiez dans le suivi d'indexation que les moteurs ont bien récupéré le contenu."
+          }
+        },
+        "geoPushCenter": {
+          "summary": "Le centre de push est la console pour « remettre une URL aux moteurs » : quota, nombre de pushes et résultats sont là, et plus bas la liste des liens en attente par plateforme, poussables un par un ou en bloc. C'est là qu'on rattrape tout ce que le push automatique a manqué.",
+          "step2": {
+            "description": "Le quota est le plafond quotidien accordé par le moteur ; une fois épuisé, plus rien ne part jusqu'au lendemain. Le push manuel est un remède au « le push automatique a raté quelques articles », pas un canal normal : pousser à la main souvent ressemble à de l'abus et vous êtes signalé. Lisez les résultats un par un ; la plupart des échecs viennent du quota ou d'une URL fautive."
+          }
+        },
+        "geoPlatformPublish": {
+          "summary": "La page de publication sur les plateformes poste des articles sur les plateformes de contenu : on choisit la plateforme, les articles, on confirme et on publie. En haut les plateformes disponibles et le nombre de publications du jour. La liste des plateformes disponibles décide où vous pouvez publier (Zhihu, WeChat officiel, Xiaohongshu et autres), et chacune a ses règles de longueur et de forme.",
+          "step2": {
+            "description": "Chaque plateforme a sa limite de caractères, ses règles de titre et ses exigences en hashtags, si bien que le même article demande souvent une retouche avant d'y aller : un copié-collé tel quel se fait tronquer ou est jugé poor. Le nombre de publications est le quota quotidien de la plateforme, et épuisé on ne peut plus publier, alors dépenses-le sur ce qui compte. Après publication, regardez la visibilité par plateforme dans le suivi d'indexation."
+          }
+        },
+        "geoWorkflowEditor": {
+          "summary": "La page de modèles Workflow enchaîne les étapes GEO en un pipeline : on extrait le contenu de l'étape précédente et on le passe à la suivante pour enrichir l'EEAT, vérifier les faits ou réécrire. Le score minimal est le seuil d'entrée de chaque étape : en dessous, le pipeline s'y arrête.",
+          "step2": {
+            "description": "L'extraction automatique depuis l'étape précédente repose sur le mapping des champs entre étapes : un mapping erroné fait recevoir à l'étape suivante un contenu vide ou des restes de deux tours plus tôt. Le score minimal est la porte qui bloque le contenu médiocre : trop haut, les étapes suivantes n'ont plus rien à traiter ; trop bas, du contenu de faible qualité est transformé jusqu'au bout. Une fois le modèle enregistré, on peut l'exécuter en lot depuis le centre de push."
+          }
+        },
+        "geoKnowledgeBase": {
+          "summary": "La page de base de connaissances GEO répond « d'où viennent les faits donnés à l'IA » : en haut le nombre de documents, de documents de niveau A et d'entités ; en bas les listes de documents et d'entités. La création comme l'optimisation de contenu puisent leurs faits ici, et ce qui n'y est pas, l'IA l'invente.",
+          "step2": {
+            "description": "Les documents sont gradués A, B ou C, et seul le niveau A atteint la sortie finale : classer A du contenu incertain revient à publier des suppositions comme des faits. Les entités sont des relations structurées du type marque-produit-caractéristique, et plus l'extraction est précise, plus l'IA associe votre marque au bon produit. La bonne façon d'ajouter un fait est d'ajouter un document à la bibliothèque, pas de l'écrire en dur dans un prompt."
+          }
+        },
+        "geoEntityGraph": {
+          "summary": "La page du graphe d'entités dessine les entités et relations de la base de connaissances sous forme de graphe : en haut le total d'entités, de relations et les types de relations, et un clic sur un nœud montre ses voisins. Le but est de vérifier « comment l'IA va comprendre votre marque » : si votre marque n'est pas reliée à ses produits, l'IA peut les confondre.",
+          "step2": {
+            "description": "Quand un concurrent et votre marque apparaissent dans la même relation, regardez si elle signifie « comparé à » ou « de la même catégorie » : la première est normale, la seconde dilue votre positionnement. Les nœuds isolés signifient souvent que l'extraction a manqué quelque chose, alors retournez ajouter le document. Une fois le graphe modifié, le Schema du site publié se met à jour avec lui."
+          }
+        },
+        "geoFunnelDashboard": {
+          "summary": "La vue d'ensemble du passage couvre « du contenu au trafic » sur toute la chaîne : indexation par les moteurs de recherche, citations par les moteurs d'IA, et enfin conversion, couche par couche. En haut les mesures de chaque couche, en bas le graphique du passage et la comparaison par moteur.",
+          "step2": {
+            "description": "L'intérêt du graphique est de situer la fuite : **peu d'indexation** relève du site ou du push, **beaucoup d'indexation mais peu de citations** signifie que l'IA ne juge pas le contenu digne d'être cité (densité, structure, autorité), et **beaucoup de citations sans conversion** relève de la page d'atterrissage. Repérez d'abord la couche à la pente la plus forte, changez la page correspondante, et revenez dans quelques jours voir si cette couche est montée."
+          }
+        },
+        "geoIndexTracking": {
+          "summary": "Le suivi d'indexation et de citations répond « ont-ils trouvé mon contenu, et l'IA le cite-t-elle » : état d'indexation, nombre de citations et position de la citation par site et par mot-clé, avec la comparaison des concurrents.",
+          "step2": {
+            "description": "Indexer et citer sont deux choses : indexer, c'est savoir si un moteur de recherche a collecté le lien ; citer, c'est savoir si un moteur d'IA vous a mentionné dans sa réponse. Ne regarder que l'indexation fait paraître que tout va bien, alors que les moteurs d'IA citent ce qu'ils ont eux-mêmes exploré, ce qui n'est pas le même ensemble. La position de la citation (quel rang, quel passage cité) décide s'il faut réécrire ce passage."
+          }
+        },
+        "geoVisibilityBoard": {
+          "summary": "Le tableau de visibilité mesure « à quelle fréquence l'IA vous mentionne » : un ensemble de questions sonde (comment les clients interrogent vraiment une IA) est lancé sur chaque moteur, et l'on compte la part des sondes où la marque apparaît. En haut la tendance de visibilité de marque et la comparaison des moteurs, pour voir quel moteur vous voit et lequel vous ignore.",
+          "step2": {
+            "description": "Les questions sonde sont le socle de la mesure : il faut qu'elles ressemblent à de vrais clients — familières, avec un contexte —, car un jeu monté à partir de listes de mots-clés donne un taux de visibilité qui ne veut rien dire. Et chaque tour coûte de l'argent et du temps, donc le jeu doit être rafraîchi périodiquement : à mesure que la façon de questionner change, de vieilles sondes continuent d'annoncer un bon score et masquent le problème. La comparaison des moteurs est le graphique le plus directement actionnable : traitez d'abord le pire."
+          }
+        },
+        "geoSovBoard": {
+          "summary": "Le tableau SOV (part de voix) calcule « quand l'IA vous mentionne, quelle part de ces mentions est la vôtre » : total des mentions et nombre de concurrents en haut, répartition par concurrent en bas. C'est la métrique la plus proche de la présence de marque en GEO.",
+          "step2": {
+            "description": "Le SOV est relatif : une part qui baisse peut vouloir dire qu'un concurrent a grandi pendant que vous restiez à l'inertie, pas que vous avez reculé ; lisez-le donc avec le total des mentions : si le total monte et que la part baisse, c'est un concurrent qui vous grignote ; si les deux baissent, le problème est chez vous. Seuls les concurrents de votre liste configurée sont comptés, donc en oublier un gonfle la part."
+          }
+        },
+        "geoCrawlerStats": {
+          "summary": "Les statistiques de crawl montrent « combien le robot de chaque moteur d'IA est venu sur votre site » : visites du jour, pages couvertes, HiveMTK et total des concurrents en haut, détail par moteur et par page en bas. C'est la métrique en amont de l'indexation et des citations.",
+          "step2": {
+            "description": "Peu de visites alors que la page est déjà indexée signifie que le contenu est entré par un autre chemin ; un volume normal sans indexation vient le plus souvent de robots ou d'un en-tête de réponse qui a bloqué. Le nombre de pages couvertes dit combien le robot a réellement atteint : un site avec des centaines d'articles dont on n'a exploré que quelques dizaines signifie qu'il ne suit pas les liens, autrement dit que la structure du site ou la navigation du llms.txt n'est pas claire."
+          }
+        },
+        "geoVerification": {
+          "summary": "La page de vérification répond « sur ce que l'IA dit de vous, qu'est-ce qui est vrai » : vous définissez un ensemble d'affirmations factuelles que le système vérifie sur les différents moteurs, tandis que la surveillance négative surveille précisément les cas où l'IA dit une chose fausse ou négative. Les résultats de vérification comme les impacts négatifs sont archivés.",
+          "step2": {
+            "description": "Les affirmations doivent s'écrire sous forme de phrases vérifiables (« le produit prend en charge X », pas « le produit est bon ») : une affirmation vague est invérifiable. Et la surveillance négative est le cœur du dispositif : dès que l'IA dit une chose fausse ou négative, l'alerte arrive au centre d'alertes et demande une réponse humaine ainsi qu'une correction côté contenu. Ne vérifier que le positif vous dit qu'on vous afelicitations, pas qu'on vous a attaque."
+          }
+        },
+        "geoDecisionReport": {
+          "summary": "La page de rapport de décision revient sur « ce que GEO a réellement apporté » : prospects captés, tâches de manque en attente et comblements terminés en haut, détail du rapport en bas. Un « comblement » est la tâche de contenu produite quand on a détecté que l'IA répondait mal ou ne vous mentionnait pas.",
+          "step2": {
+            "description": "Les prospects captés doivent pouvoir être rattachés à une fenêtre de temps et à un canal d'origine, sinon impossible de distinguer GEO de toute autre campagne. Les tâches de manque sont le produit central de cette page : elles transforment « l'IA s'est trompée ou ne vous a pas mentionné » en travail de contenu exécutable, et le compteur de comblements terminés n'augmente qu'une fois la tâche finie. Un rapport qui compte sans boucler la boucle n/améliorera rien."
+          }
+        },
+        "geoReports": {
+          "summary": "La page des rapports met le coût et le retour de GEO côte à côte : détail du coût API par fournisseur et par modèle, analyse du ROI, statistiques globales. Elle répond « combien ont coûté ces appels et qu'ont-ils rapporté ».",
+          "step2": {
+            "description": "Détailler le coût par fournisseur et par modèle, c'est voir quelle étape brûle l'argent : le minage de mots-clés est à gros volume et un modèle cher y écrase immédiatement le dénominateur du ROI. La « dépense API » de l'analyse du ROI doit être alignée sur le critère du retour (prospects captés, hausse de visibilité), sinon les deux côtés ne couvrent pas la même période et le ROI devient un chiffre sûrement faux. Pour économiser, commencez par « quelle étape coûte le plus », pas en dégradant tous les modèles d'un coup."
+          }
+        },
+        "geoAlertCenter": {
+          "summary": "Le centre d'alertes rassemble les anomalies GEO qui demandent un humain : impacts négatifs des moteurs d'IA, contenu jugé non conforme, échecs de push, erreurs de crawl. En haut le compte des alertes non confirmées, la liste en bas par type et par date.",
+          "step2": {
+            "description": "Chaque type se traite différemment : un impact négatif demande une correction de contenu, un avis de conformité demande de changer la formulation, un push en échec demande de vérifier quota et URL. Les alertes jamais confirmées s'accumulent et faussent du même coup la métrique « alertes non confirmées ». Confirmez-les une fois traitées : cette confirmation est la seule trace de votre taux de traitement quand vous le reviendrez plus tard."
           }
         }
       }

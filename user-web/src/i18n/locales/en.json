@@ -53,7 +53,9 @@
     "collapseMenu": "Collapse menu",
     "expandMenu": "Expand menu",
     "helpCenter": "Help Center",
-    "globalTour": "Global Tour"
+    "globalTour": "Global Tour",
+    "pageTour": "Replay this page's tour",
+    "pageTourUnavailable": "No tour is configured for this page"
   },
   "role": {
     "title": "Role Management",
@@ -579,11 +581,7 @@
   "恢复任务已创建，请稍后查看进度": "Recovery task created, please check back later",
   "批量处理线索、客户、消息等数据": "Batch processing of data such as leads, customers, messages, etc.",
   "操作历史": "History",
-  "正在执行批量操作...": "Performing bulk operation...",
-  "批量任务已提交": "Batch task submitted",
-  "执行失败": "execute fail",
   "已取消": "Canceled",
-  "取消失败": "Canceling failed",
   "会话连接失败，请检查网络": "Session connection failed, please check the network",
   "重试": "Try again",
   "暂无历史会话": "No Historical Sessions",
@@ -1581,7 +1579,7 @@
   "规则构建器": "Rule Builder",
   "创建成功": "Created successfully",
   "更新成功": "Updated successfully",
-  "JSON 格式，例如 {&quot;order_id&quot;: 123}": "JSON format, e.g. {&quot;order_id&quot;: 123}",
+  "JSON 格式，例如 {&quot;order_id&quot;: 123}": "JSON format, e.g. {'{'}&quot;order_id&quot;: 123{'}'}",
   "JSON 预览": "JSON preview",
   "X 坐标": "X coordinate",
   "Y 坐标": "Y coordinate",
@@ -1622,15 +1620,40 @@
   "输出": "Output",
   "选择版本": "Select version",
   "触发参数": "Trigger parameters",
-  "平台消息": "Platform Notice",
-  "级别": "Level",
-  "普通": "Normal",
-  "重要": "Important",
-  "来源": "Source",
   "平台": "Platform",
   "系统": "System",
-  "平台下发": "From platform",
-  "系统通知": "System notice",
+  "customReport": {
+    "dimension": {
+      "date": "Date",
+      "source": "Source",
+      "platform": "Platform",
+      "region": "Region",
+      "userType": "User type"
+    },
+    "metric": {
+      "count": "Count",
+      "amount": "Amount",
+      "conversion": "Conversion rate",
+      "clickRate": "Click rate",
+      "openRate": "Open rate"
+    }
+  },
+  "batchOperation": {
+    "importDone": "Import completed",
+    "importFailed": "Import failed",
+    "taskSubmitted": "Batch task submitted",
+    "executeFailed": "Execution failed",
+    "cancelFailed": "Failed to cancel",
+    "running": "Running the batch operation..."
+  },
+  "notifications": {
+    "level": "Level",
+    "fromPlatform": "From platform",
+    "platformNotice": "Platform Notice",
+    "normal": "Normal",
+    "important": "Important",
+    "systemNotice": "System notice"
+  },
   "setup": {
     "wizardTitle": "System Setup Wizard",
     "wizardIntro": "Follow the steps below to complete the first-time configuration",
@@ -1691,141 +1714,628 @@
       "next": "Next",
       "prev": "Previous",
       "done": "Finish",
-      "skip": "Skip",
+      "close": "Close tour",
       "global": {
         "step1": {
-          "title": "Brand Logo",
-          "description": "This is the system logo. Click to return to the home dashboard."
+          "title": "Brand mark",
+          "description": "The product logo. Click it to go back to the landing page (message hub by default)."
         },
         "step2": {
-          "title": "Top Navigation Menu",
-          "description": "Switch between main modules: Workspace, Message Hub, Customer Center, AI Agent, Outreach, Knowledge Center, Analytics, System Settings, and more."
+          "title": "Top navigation",
+          "description": "Switch modules by business domain: message hub, customer center, AI agents, outreach, knowledge base, analytics, system settings. The menu is served by the backend RBAC — what you do not see means your role is not authorized for it."
         },
         "step3": {
-          "title": "Sidebar Menu",
-          "description": "Sub-menus for the current module. Collapse to show icons only and save screen space."
+          "title": "Sidebar",
+          "description": "Sub-pages of the current module. Click a title to collapse or expand it; collapsed mode shows icons only to free horizontal space. Items with children need expanding before their pages appear."
         },
         "step4": {
-          "title": "Notification Center",
-          "description": "View system notifications, release announcements, and important alerts. Red dot indicates unread messages."
+          "title": "Notification bell",
+          "description": "In-app notification centre: announcements published by the platform plus business events raised for your account. The badge is the unread count; open it to read item by item, and the badge clears as you read."
         },
         "step5": {
-          "title": "User Menu",
-          "description": "Profile, Help Center, Logout. Avatar shows the first letter of your username."
+          "title": "User menu",
+          "description": "Profile, help centre, logout. You can also replay the tours here: the global tour explains the overall layout, while \"tour of this page\" explains the page you are currently on."
         },
         "step6": {
-          "title": "Main Content Area",
-          "description": "All business pages render here. Supports breadcrumb navigation and page transition animations."
-        }
-      },
-      "module": {
-        "messageHub": {
-          "step1": { "title": "Message Overview Cards", "description": "Real-time metrics: total messages, unread count, avg response time, SLA compliance per channel" },
-          "step2": { "title": "Channel Tabs", "description": "Filter messages by channel: WeChat, WhatsApp, Telegram, Email, SMS, and more" },
-          "step3": { "title": "Message List Table", "description": "All incoming messages aggregated. Filter by status, channel, time. Click for details" }
-        },
-        "inbox": {
-          "step1": { "title": "Filter Toolbar", "description": "Quick filter sessions by agent, channel, tag, time range" },
-          "step2": { "title": "Session List", "description": "Active/pending/closed sessions. Search by customer name or ID" },
-          "step3": { "title": "Chat Panel", "description": "Current session messages. Send text, images, files, quick replies" },
-          "step4": { "title": "Agent Assignment", "description": "Assign to online agents or hand off to AI agent for auto-reply" }
-        },
-        "customer": {
-          "step1": { "title": "Customer Search", "description": "Multi-dimensional lookup: phone, email, name, OneID, tags" },
-          "step2": { "title": "360° Profile Card", "description": "Full view: attributes, events, tags, sessions, orders, leads, assets" },
-          "step3": { "title": "Detail Tabs", "description": "Event stream, tags, sessions, orders, leads, assets — deep dive each dimension" },
-          "step4": { "title": "Tag Editor", "description": "Tag customers, build segments for precision outreach and RFM layering" }
-        },
-        "aiAgent": {
-          "step1": { "title": "Agent List Toolbar", "description": "Create, import, export, filter by type (Sales/Support/Hybrid)" },
-          "step2": { "title": "Agent Table", "description": "Code, name, type, bound channels, status, last updated — all at a glance" },
-          "step3": { "title": "Create Agent Dialog", "description": "Configure persona, prompt, knowledge base, tools, model params, confidence threshold" }
-        },
-        "agentActive": {
-          "step1": { "title": "Canvas Editor", "description": "Drag-drop nodes to build outreach flows: delay, branch, action, AI nodes" },
-          "step2": { "title": "Node Palette", "description": "Triggers, actions, conditions, AI, delay, sub-flows — rich node types" },
-          "step3": { "title": "Canvas Toolbar", "description": "Zoom, center, undo/redo, publish, version control, export JSON" }
-        },
-        "agentSupport": {
-          "step1": { "title": "SOP List", "description": "Standard operating procedures: scenario, steps, scripts, expected outcomes, versioned" },
-          "step2": { "title": "Script Template Library", "description": "Top-performer scripts: opening, objection handling, closing, categorized by scenario" },
-          "step3": { "title": "FAQ Knowledge Base", "description": "High-frequency Q&A config. AI auto-matches replies. Tunable similarity threshold" }
-        },
-        "agentWorkbench": {
-          "step1": { "title": "Agent Status Board", "description": "Real-time online/busy/offline agents, current load, capacity, avg response time" },
-          "step2": { "title": "Quick Reply Panel", "description": "Search scripts by category. One-click send. Variable insertion (name, order#)" },
-          "step3": { "title": "AI Suggestion Panel", "description": "Real-time reply suggestions, knowledge snippets, scripts. Click to use. Boost efficiency" }
-        },
-        "reach": {
-          "step1": { "title": "Channel Tabs", "description": "Email, SMS, WhatsApp, Douyin, Kuaishou, Xiaohongshu, Xianyu, TikTok — unified" },
-          "step2": { "title": "Drafts List", "description": "Editing/pending review/scheduled drafts. Rich text, variables, attachments supported" },
-          "step3": { "title": "Job Configuration", "description": "Target audience, schedule, frequency, deduplication, A/B test, delivery tracking" }
-        },
-        "knowledge": {
-          "step1": { "title": "Document Tree", "description": "Multi-level folder management. Drag-drop reorder, move, copy" },
-          "step2": { "title": "Rich Text Editor", "description": "WYSIWYG editing. Images, tables, code blocks, formulas, internal links" },
-          "step3": { "title": "Retrieval Playground", "description": "Live test vector search. Tune Top-K, similarity threshold, rerank strategy" }
-        },
-        "analytics": {
-          "step1": { "title": "Dashboard Canvas", "description": "Drag-drop builder: charts, KPI cards, tables, maps, custom components" },
-          "step2": { "title": "Widget Library", "description": "20+ chart types: line, bar, pie, funnel, sankey, heatmap, and more" },
-          "step3": { "title": "Data Source Config", "description": "Bind API, SQL, CSV, streams. Field mapping, computed fields, cache strategy" }
-        },
-        "geoTools": {
-          "step1": { "title": "GEO Module Tabs", "description": "Keyword mining, content creation, optimization, multi-model verification, reports, config" },
-          "step2": { "title": "Keyword/Content Table", "description": "Search volume, competition, intent, SERP features, rank tracking, AI overview citations" },
-          "step3": { "title": "Content Editor", "description": "AI-assisted writing: outline, expand, SEO optimize, multi-lang sync, compliance check" }
-        },
-        "system": {
-          "step1": { "title": "Settings Tabs", "description": "Site config, storage, monitoring, tracing, asset library, guide, feature flags" },
-          "step2": { "title": "User/Role/Permission Tables", "description": "User mgmt, role assignment, menu auth, data permission, audit logs, login logs" },
-          "step3": { "title": "Permission Matrix", "description": "RBAC-based menu/button/data permission visual config. Admin all, roles on-demand" }
-        },
-        "assetBundle": {
-          "step1": { "title": "Bundle List", "description": "Versioned: script packs, knowledge packs, workflow packs, config packs with deps" },
-          "step2": { "title": "Dev Playground", "description": "Online debug: mock input, view output, unit test, performance benchmark" },
-          "step3": { "title": "Merchant Script Pack", "description": "Standardized delivery: install wizard, config wizard, version upgrade, rollback" }
-        },
-        "assetMarket": {
-          "step1": { "title": "Market Filters", "description": "Filter by category, tag, price, rating, compatible version" },
-          "step2": { "title": "Bundle Grid", "description": "Preview cover, intro, version, author, downloads, reviews. One-click install/try" },
-          "step3": { "title": "My Assets Tab", "description": "Installed/purchased/developing/pending. Update notifications, one-click upgrade" }
+          "title": "Content area",
+          "description": "Business pages render here. When you enter a page you have not seen before, its own tour opens automatically, telling you what the page does, where the key actions are, and which settings matter."
         }
       },
       "page": {
-        "messageHub": {
-          "step1": { "title": "Overview KPI Cards", "description": "Total messages, unread, avg response time, SLA rate — instant global view" },
-          "step2": { "title": "Channel/Status Filter", "description": "Combo filter: channel × status × time. Save as custom views" },
-          "step3": { "title": "Message Detail Table", "description": "Sender, preview, status, latency, retries, error code. Export to CSV" },
-          "step4": { "title": "Pagination", "description": "Page size, jump to page, total count. Virtual scroll for large datasets" }
+        "common": {
+          "overview": "What this page is for",
+          "action": "Where the key actions are"
         },
-        "inbox": {
-          "step1": { "title": "Session Filter Bar", "description": "Agent × channel × tag × status × time. Quick views: Mine/All/Unread" },
-          "step2": { "title": "Session List", "description": "Avatar, name, last msg, unread badge, wait time, agent, tags" },
-          "step3": { "title": "Chat Interaction", "description": "Bubbles, input (/, @AI, attach), send status, read receipt" },
-          "step4": { "title": "Agent Assign Dropdown", "description": "Live agent list with load & skills. Force take-over or transfer" }
+        "messageHubList": {
+          "summary": "The message hub turns every channel into one ledger: the cards on top show total volume, inbound/outbound split and unread count, and the platform bar breaks the traffic down per channel. The table below is the full message flow, filterable by channel, status and time, where each row traces back to sender, content and delivery result. To reach out on your own, use \"Push message\" in the top-right corner for a one-off send or a template broadcast.",
+          "step2": {
+            "title": "Filter and search",
+            "description": "Narrow the ledger by channel, message status and time range; the keyword matches both sender and message body. The filters decide which rows appear in the table below, so apply them and press \"Query\" to refresh."
+          }
         },
-        "customer": {
-          "step1": { "title": "Customer Search Box", "description": "Multi-field fuzzy match. Advanced syntax: field:value, tag:tag, event:event" },
-          "step2": { "title": "Profile Card", "description": "Identity tags, RFM segment, lifecycle stage, intent level, last active" },
-          "step3": { "title": "Detail Tab Group", "description": "Event timeline, tags, sessions, orders, leads, assets — all dimensions" },
-          "step4": { "title": "Tag Editor Sidebar", "description": "System/custom/rule tags 3-layer. Batch tag, tag lineage" }
+        "abExperimentList": {
+          "summary": "The A/B experiment page manages \"split the same audience into two groups, see which variant wins\". The four cards on top give running / completed / variants that already have a winner / total participants; the table below lists each experiment with its source type (page, component, message, ...), traffic split, status and date range. An experiment needs its variants and weights plus a source object before it can be started; while running it can be paused, and the results view shows traffic, conversions and conversion rate per variant.",
+          "step2": {
+            "title": "Experiment list and actions",
+            "description": "Each row is one experiment: name, source type and source ID, traffic split, status and date range. The action column offers start / pause / edit / detail / delete depending on status — a draft can be started or published first, and a running one can be paused to watch. The filter narrows by status and experiment name; press \"Query\" to apply."
+          }
         },
-        "aiAgent": {
-          "step1": { "title": "List Action Bar", "description": "Create/import/export/clone/enable/disable/delete. Batch ops supported" },
-          "step2": { "title": "Agent Table", "description": "Code/name/type/model/KB/tools/channels/status/updated. Columns customizable" },
-          "step3": { "title": "Create/Edit Dialog", "description": "Basic info, persona prompt, model params, KB binding, tools, confidence, test chat" }
+        "aiAgentList": {
+          "summary": "The AI agent page holds every setting behind \"let the AI answer messages for you\". Each row carries the agent type (sales / support / hybrid), its bound channels, knowledge base, SOPs, scripts, model and status; open one to see its persona prompt, the knowledge base it uses, the tools it may call and its confidence policy. All of these have to be configured at creation time, otherwise the agent receives no messages or answers badly.",
+          "step2": {
+            "title": "Agent filters and creation",
+            "description": "Filter by type, status and channel; the keyword matches both name and code. \"New agent\" opens the editor, where you define the persona prompt, model parameters, knowledge-base binding, tool permissions and the confidence threshold, and can run a test conversation before publishing."
+          }
         },
-        "agentActive": {
-          "step1": { "title": "Flow Canvas", "description": "Auto-layout connections. Branch merge, parallel gateway, sub-flow reuse" },
-          "step2": { "title": "Node Config Panel", "description": "Per-node forms: delay(duration/expr), branch(condition), AI(prompt/tools/fallback)" },
-          "step3": { "title": "Canvas Toolbar", "description": "Zoom/center/undo/redo/align/grid/publish/version/import-export/preview" },
-          "step4": { "title": "Minimap", "description": "Bird's-eye view for large flows. Quick navigate, drag viewport, never lost" }
+        "aiProductivityList": {
+          "summary": "AI productivity analysis answers \"how much work is the AI actually doing, and how well\". Four KPI cards give total conversations, the AI reply ratio, average response time and conversion rate, next to the AI vs human reply counts; the trend chart plots the same metrics over time so you can judge whether the AI takeover share is healthy — a high AI ratio with a falling conversion rate usually means the scripts or the knowledge base need work.",
+          "step2": {
+            "title": "Productivity KPIs and trend",
+            "description": "The KPI cards are aggregates for the current period, the trend card is the same metrics expanded along time so you can locate the day the anomaly happened. \"Refresh\" re-fetches the latest figures; the backend defines the exact statistical scope."
+          }
         },
-        "analytics": {
-          "step1": { "title": "Canvas Layout", "description": "Drag widgets to arrange the screen layout. Alignment guides and undo/redo keep it tidy" },
-          "step2": { "title": "Widget Library Panel", "description": "Pick from charts, KPI cards, tables and media blocks, then drop them onto the canvas" },
-          "step3": { "title": "Data Source Binding", "description": "Point each widget at an API, SQL query or CSV file. Map fields once and refresh on schedule" }
+        "cohortPath": {
+          "summary": "The retention and path page does two things. \"Cohort retention\" buckets customers by week and shows how many of each bucket came back in the following weeks, which tells you the quality of your acquisition. \"Behaviour path\" chains real clicks and conversation actions in order, showing how people usually navigate and where they get stuck. Both need customer traffic before they show anything.",
+          "step2": {
+            "title": "The two views: retention and path",
+            "description": "The two tabs are two different analyses: retention answers \"do customers who arrived in week W come back\", the path view answers \"in what order do customers actually act\". The empty state means there is not enough session activity yet, not that loading failed."
+          }
+        },
+        "approvalTaskList": {
+          "summary": "The task centre is the single inbox for everything that needs a human decision: approvals, dispatch tasks and other kinds of pending work. The chips on top give the open and overdue counts per type (overdue ones turn red); the table below lists each item with its type, title, owner and deadline. Click the title to open the detail and act on it.",
+          "step2": {
+            "title": "Task filters and claiming",
+            "description": "Filter by type, status and ownership: the status filter's \"open\" covers both pending and claimed, and choosing \"assigned to me\" narrows it to your own items. The alerts at the top appear when the backend task service is unavailable or the session carries no user id — action endpoints then refuse the call because they require an operator identity, so sign in again first."
+          }
+        },
+        "aiAgentEdit": {
+          "summary": "This is the agent create/edit screen, and whether an agent is usable comes down to how these cards are filled in. \"Basic info\" sets the name, type, code and description. \"Persona\" decides the identity and tone it speaks with. \"Knowledge base\" decides what it can look up. \"SOP\" and \"script library\" hand it ready-made procedures and standard wording. \"LLM config\" picks the model, temperature, max tokens and confidence threshold. \"Sales engine\" and \"advanced parameters\" are the extra switches for sales scenarios. Save when done — changes take effect immediately.",
+          "step2": {
+            "title": "Persona and knowledge configuration",
+            "description": "The persona is the identity and voice it answers with; the more concrete it is, the more human the replies sound. The knowledge base is a tree multi-select: mount the material it should consult for industry answers, pricing and script details, because without it the agent can only answer from the model's own knowledge. Use \"Test\" in the top-right to run a real conversation before you commit."
+          }
+        },
+        "assetBundleList": {
+          "summary": "The asset bundle list manages reusable capability packs: script packs, knowledge packs, workflow packs, config packs. Every pack has a unique Asset ID, a version, a type and a status (draft / active / inactive), and merchants can install and use it directly. The \"hot active\" strip on top lists the packs currently serving real merchants — click a tag to jump to that merchant's configuration.",
+          "step2": {
+            "title": "Filters and the hot-active strip",
+            "description": "Filter by keyword (title or Asset ID) and status. The \"hot active\" row lists the packs currently in service for merchants, and clicking a tag opens that merchant's config page — check it first when troubleshooting. The row actions offer enable/disable, publish and delete depending on status."
+          }
+        },
+        "assetBundlePlayground": {
+          "summary": "The developer playground is where you debug an asset pack: write a mock customer question on the left, read the pack's real output on the right, and judge whether the prompt, scripts and knowledge retrieval are right. The header holds the metadata — Asset ID, name, version, industry — and \"Save\" persists it while \"Publish\" is what makes it visible to merchants.",
+          "step2": {
+            "title": "Mock input and real output",
+            "description": "Type a simulated customer message on the left and the pack generates its reply on the right; iterate on the prompt and knowledge mounts until the output is stable and usable. The Asset ID identifies the pack and cannot be changed after creation. Bump the version number for each iteration, and publish once it is ready."
+          }
+        },
+        "assetBundleMerchantNew": {
+          "summary": "The merchant script-pack screen handles \"hand this pack to a merchant\". The status strip on top says whether the pack is actively hosted or paused; active means the AI is serving that merchant's own site and WhatsApp with this pack right now. Below you configure product selling points, price locking, chat scripts and display slots, and saving hot-updates the merchant's local AI engine immediately.",
+          "step2": {
+            "title": "Products, price locking and scripts",
+            "description": "Price locking fixes the price the AI quotes to customers, scripts decide how it opens the pitch, and display slots decide which product card the customer sees in the conversation. All three have to match the merchant's real catalogue. Saving hot-updates at once; \"pause hosting\" stops the AI from answering with this pack without deleting the configuration, and resuming continues from there."
+          }
+        },
+        "assetMarketMarket": {
+          "summary": "The asset market is where you pick capability packs: each card shows cover, name, industry and type, description, rating, download count and price. Purchased packs are tagged as such, the rest can be bought with credits or tried for free. Click a card for the full description and versions.",
+          "step2": {
+            "title": "Filtering and purchasing",
+            "description": "Filter the market by type, industry and keyword. The button in the bottom-right of a card is the purchase entry — priced packs cost credits, \"free trial\" packs cost nothing, and neither lands in your account straight away: confirm the version and dependencies on the detail page first. Purchased packs are managed under \"My assets\"."
+          }
+        },
+        "assetMarketDetail": {
+          "summary": "The asset detail page gives the full picture of one pack: cover, name, industry and type, version, description, rating and download count, plus the list of assets it actually contains. Check the version and dependencies before deciding to install it; the download or purchase action is on this page too.",
+          "step2": {
+            "title": "Version and content list",
+            "description": "The top of the card shows cover, name, industry and type, version, description, rating and download count; the lower half lists the asset entries the pack actually contains (scripts, knowledge, configs...), and reading them one by one is how you know what the merchant really gets. The download or install action on the right differs by pack type — \"install to my assets\" versus \"use directly\" — and after installing you enable it under \"My assets\"."
+          }
+        },
+        "assetMarketMyAssets": {
+          "summary": "\"My assets\" is the ledger of packs already installed in your account: each entry has its own status (active/inactive), version and origin, and only active packs are actually called by agents or merchants. Here you can create your own local packs, edit them, enable or disable them, upgrade versions, and read sync logs when the market pack and your local copy disagree.",
+          "step2": {
+            "title": "Own assets and enabling",
+            "description": "\"Create\" makes a local pack that does not come from the market, where you define the Asset ID, type and content yourself. Enable/disable decides whether the pack takes part in real calls — a disabled pack makes the agents that use it fall back to their default configuration. Expanding a row shows its full JSON configuration, and that record is authoritative when the market version and the local version disagree."
+          }
+        },
+        "assetMarketSyncLog": {
+          "summary": "The sync log records what happened between the market pack and your local assets: who synced, when, which version, and whether it succeeded or failed. It is the first place to look when a purchase does not show up where you expect it.",
+          "step2": {
+            "title": "Find the sync records you need",
+            "description": "Filter by Asset ID and time range to pull the relevant rows, and read the action and result of each. A failed sync is usually a version conflict or a local asset of the same name already existing; resolve it as indicated and sync again."
+          }
+        },
+        "backupList": {
+          "summary": "The data backup page answers \"how do I get the data back if something goes wrong\". The cards give total backups plus completed and in-flight counts, and the table lists each backup with its time, type, size and status. \"Back up now\" triggers a full backup by hand; automatic scheduling (cron, retention count, archive target) is configured separately, and archived files can be downloaded.",
+          "step2": {
+            "title": "Counts and manual backup",
+            "description": "The cards summarise the current backup pool and the table lists past backups newest first — a row still \"in progress\" means the job is running. \"Back up now\" queues a full backup immediately; for recurring backups set up the schedule with its cron expression and retention policy, so old files do not fill the disk."
+          }
+        },
+        "badCaseList": {
+          "summary": "The Bad Case queue is where failed conversations get pulled out for review. The system files conversations where the AI answered badly, a human took over, or the customer was unhappy, each with its source channel, attribution layer and current status; the counters on top give the judged ratio and the per-status and per-layer counts. Once a human writes a verdict, those verdicts feed back into later tuning.",
+          "step2": {
+            "title": "Filtering and verdicts",
+            "description": "Filter the queue by source channel, status and attribution layer; the counter strip always reflects the current filter. Open each item, judge it and write the conclusion — the counts move as you work. The alert at the top means the backend side of this feature is not deployed: an empty list and all-zero counters then mean \"nothing was read\", not \"the queue is empty\"."
+          }
+        },
+        "batchOperationList": {
+          "summary": "The batch operations page turns \"change many records at once\" into a few ready-made tools: batch messaging, batch lead import, batch tagging, batch assignment to sales. The cards on top carry the number of times each tool has run; the history table below records every batch job with its tool, target scope, number of records processed and the result.",
+          "step2": {
+            "title": "Tool cards and job history",
+            "description": "Clicking a tool card opens the form: pick the source and filter, attach a file if needed, and switch on \"dry run\" to see which records would be touched before committing. Progress and results appear in the dialog, and the full record lands in the history table; its detail view shows the per-record failure reason, and the backend's own message is passed through rather than being flattened into a bare \"execution failed\"."
+          }
+        },
+        "bridgeToken": {
+          "summary": "The bridge credential page covers \"how the browser extension reaches your system\". The status on top says whether the main credential is configured (from the database or from an environment variable) and whether an old credential is still inside its grace window. \"Generate new credential (rotate)\" produces a new token whose plaintext is shown exactly once — copy it straight into each extension's settings page.",
+          "step2": {
+            "title": "Rotation and the grace window",
+            "description": "The extension pastes the token into its settings and sends it as the X-Bridge-Token header; for SSE the ?bridge_token= query parameter works too. After a rotation the old credential keeps working during the grace window, so extensions that were not updated do not all break at once — but the window closes, so update every extension and rotate again to retire the previous credential."
+          }
+        },
+        "browserAutomationList": {
+          "summary": "The browser automation task list is where you let a machine operate a web page on your behalf. Each task is one operation to run: which platform, which action, how many rounds. You can pick explicit step mode (write out every click) or Brain mode (let an LLM decide as it goes) — the latter is more flexible but every step costs a model call.",
+          "step2": {
+            "title": "Creating tasks and filtering by status",
+            "description": "\"New task\" opens the editor for platform, start URL, action steps and run parameters. Filtering the list by status shows only drafts, published or running tasks, and the \"mode\" column says whether the task is explicit steps or Brain. A task still in draft cannot be triggered by cron — publish it first."
+          }
+        },
+        "browserAutomationEditor": {
+          "summary": "The task editor configures \"how this automation actually runs\". After name and description you pick the platform (each supports different actions, and unsupported ones are flagged), the start URL and the fields to read or publish, and below that the step editor: an ordered list of what to do (open the page, pull title/author/comments, take a screenshot, ...), which you can start from a platform preset and then adjust by hand.",
+          "step2": {
+            "title": "Platform and step sequence",
+            "description": "Choosing a platform offers the read-chain preset for it (title/author/comment extraction plus a screenshot), which you can still edit step by step. Step order is execution order — one wrong step derails the whole task — so run a small test first and confirm the extracted fields are right before publishing or attaching a cron."
+          }
+        },
+        "browserAutomationDetail": {
+          "summary": "The task detail page is the overview of \"what this task is and whether it has run\": type, mode, start URL, loop count and field configuration at a glance, with execute, publish and edit in the top right depending on status — publish only exists for drafts, and a running task cannot be triggered again. Execution records and produced files are below.",
+          "step2": {
+            "title": "Run and publish",
+            "description": "\"Execute\" runs it once now; \"Publish\" turns a draft into a task cron may schedule — an unpublished task simply idles when its time comes. The execution records show each round's start and end time and the output files, so start there when something looks wrong."
+          }
+        },
+        "browserAutomationMonitor": {
+          "summary": "The execution monitor watches \"where one session is right now\". The header shows the session status (created/active/completed/failed/stopped) plus three key actions: stop a running session, release a held write operation, and export the audit package. Below is the live view of each step together with the run log.",
+          "step2": {
+            "title": "The human confirmation gate and audit export",
+            "description": "\"Pending manual confirmation (write operation held)\" means the current step wants to do something irreversible like posting a comment or changing data; the D7 gate parked it, and nothing continues until you check the payload and click \"Confirm and release\". \"Export audit package\" writes the full ledger of this session to an archive — that is what you read afterwards to review or attribute an action."
+          }
+        },
+        "browserAutomationCron": {
+          "summary": "The cron trigger page covers \"let the task run by itself on schedule\". Each row is a cron rule pointing at a task, with an enabled flag. What matters is the state of the task itself: a trigger that is on while the task is still an unpublished draft will fire into empty air and produce no session, and the page flags exactly that case.",
+          "step2": {
+            "title": "Triggers and task state",
+            "description": "\"New trigger\" attaches a published task to a cron expression; \"New cron task\" creates the automation task itself. The warning rows mean \"the trigger is enabled but the task cannot run\" — open the task and publish it, otherwise every firing is a no-op."
+          }
+        },
+        "churnPredictionList": {
+          "summary": "The churn prediction page uses machine learning to work out \"which customers are about to leave\", so you can intervene early. \"Run prediction\" triggers a model batch that scores every customer and identifies the main churn factors; the cards give the high- and medium-risk counts and the average risk score; the list shows each customer with their risk level and the suggested intervention, with the feature explanation alongside.",
+          "step2": {
+            "title": "Running the prediction and reading the risk list",
+            "description": "\"Run prediction\" is not a live query — it triggers a model batch and the list only updates once that finishes (with a loading state meanwhile). The list is ordered by risk score, so the top rows are the ones to act on first; open a row to see which features pushed the risk up, such as \"no recent interaction\" or \"price sensitive\" — the intervention has to match those factors or it is wasted effort."
+          }
+        },
+        "clueList": {
+          "summary": "The lead list is the single entry point for leads from every channel: web forms, ads, landing pages and imports all land here. The cards give the total and the per-status counts, the filter narrows by keyword, type, source, status and owner, and each row can be assigned, followed up, converted to a customer or deleted. Import and export sit in the top right.",
+          "step2": {
+            "title": "Filtering, importing and assigning",
+            "description": "The filter decides which leads you see: the keyword matches name, account, city or address, and choosing \"mine\" narrows it to the ones you own. In the row actions, \"assign\" hands the lead to a salesperson, \"follow up\" records the contact, and \"convert to customer\" turns it into a real customer and carries the history along — after converting, the lead leaves the lead pool, so do not assume it disappeared."
+          }
+        },
+        "communityList": {
+          "summary": "The community page covers \"run groups of customers as communities\". At the top you add a group, import members and export the roster; the search area filters by group name, status and platform; the list below shows each community (WeChat, WhatsApp, Telegram and so on) with its name, platform, member count and status, and you can edit it, sync its name or export the member list for a group broadcast.",
+          "step2": {
+            "title": "Group filters and member management",
+            "description": "Filtering by group name and status is the quick way to reach the community you mean; inside a community you add or remove members and set member tags (customer tier, source channel and so on), and those tags feed the later precision outreach and RFM segmentation. The export gives you the member roster to use for a targeted announcement in the group."
+          }
+        },
+        "conversionFunnelList": {
+          "summary": "The conversion funnel page works out \"how many people drop out between the visit and the sale\". Four cards give total entries, conversions (sessions), the end-to-end rate and the average loss rate; the funnel chart shows the count at each stage of visit → lead → intent → session → opportunity together with the loss between stages, so you can see which stage leaks.",
+          "step2": {
+            "title": "Funnel stages and locating the loss",
+            "description": "Each layer of the funnel is a conversion stage and the percentage between two layers is the loss at that step; the steepest drop is the one to fix (usually visit to lead, or intent to session). The distribution chart on the right compares conversion by channel, which tells you whether the problem is general or specific to one channel."
+          }
+        },
+        "customer360List": {
+          "summary": "The customer 360 page puts everything about one customer on one screen: the customer list on the left (search by name, phone and so on), the selected customer's detail on the right, with a profile card on top (source channel, tags, tier, last activity) and tabs below for the event timeline, conversation history, order trail and lead origin.",
+          "step2": {
+            "title": "Finding and browsing customers",
+            "description": "Type a name or phone number on the left to locate a customer; clicking a row swaps the detail on the right (the profile card and detail tabs only appear once a customer is selected). Use the pager to move through the list. The tags on the profile card can be added and removed — they drive later precision outreach and segmentation, and changes take effect immediately."
+          }
+        },
+        "customerServiceAgentStatus": {
+          "summary": "The agent status page maintains \"who in the support team is taking work right now and how much they can take\". The cards give the number of agents, how many are online and the total capacity; the table lists each agent with their state, current session count and limit, and lets you set them online/busy/offline, adjust the limit, or assign and transfer sessions.",
+          "step2": {
+            "title": "Agent state and capacity",
+            "description": "The state decides whether an agent receives new sessions — offline effectively takes them off the roster. The limit is the maximum number of concurrent sessions; once it is reached no more work is routed to them. Changes take effect on save, and auto-assignment in the agent workbench is computed from these two columns."
+          }
+        },
+        "customerServiceQuickReply": {
+          "summary": "The quick reply page is the support team's script library: the sentences you type over and over (shipping times, return policy, price quotes) are stored as templates and sent with one click. Templates are grouped by category — pre-sales, after-sales, logistics — and can be tagged with the channels they apply to.",
+          "step2": {
+            "title": "Categories and template content",
+            "description": "Filter by category on top and search template content. The body can contain placeholders such as customer name, order number or amount, which are substituted when sending; a typo in a variable means the customer sees nonsense, so test-send a new template once before publishing it. Deleting a template does not affect messages already sent in past conversations."
+          }
+        },
+        "customerServiceSessionTag": {
+          "summary": "The session tag page maintains \"how a conversation is classified\": tagging a session lets you later filter, review and count by tag. Marking them as \"enquiry\", \"complaint\" or \"renewal\" lets a team lead see which question keeps coming up and which customers ask about the same thing repeatedly.",
+          "step2": {
+            "title": "Groups, tags and how they are used",
+            "description": "Tags live in groups, one group per purpose; filter by group on top and search by tag name. These tags are for **sessions**, not for customers — the tagging action happens on the conversation in the agent workbench. Colours and names show up on the session list, so keep the naming consistent, otherwise the same concept ends up split into \"after-sales\", \"complaint\" and \"after-sales issue\"."
+          }
+        },
+        "customerServiceAiSuggestion": {
+          "summary": "The AI suggestion page shows \"what the AI thinks this conversation should be answered with\". Load a session by ID and the table lists each suggested reply with its confidence and generation time; an agent can accept one (to use it in the conversation) and give feedback, and those accept/reject records flow back into model tuning.",
+          "step2": {
+            "title": "Loading suggestions and giving feedback",
+            "description": "Suggestions are loaded per **single conversation**, so you need a session ID first — open a conversation in the customer session page to get one. \"Accept\" means the suggestion was usable; rejecting it with a reason is the most valuable feedback you can give, because that is how the model learns which replies do not work in real situations."
+          }
+        },
+        "customerServiceCsat": {
+          "summary": "The CSAT dashboard is the health check on customer satisfaction. The cards give the number of ratings, the average score and the distribution across the scale; below, the same information is broken down by channel, agent and time, so you can see which channel or which agent scores badly and read the reason attached to each low score.",
+          "step2": {
+            "title": "Reading the scores and attributing them",
+            "description": "Every row is a real customer rating: score, time, channel, agent and reason tag. The distribution chart shows the overall level and the trend shows whether it is improving or sliding. When one agent's score is clearly low, read the low-rated entries under their name first — the text explains the number faster than any chart does."
+          }
+        },
+        "emailList": {
+          "summary": "The email list is the ledger of what went out: each row shows subject, recipient, delivery status and time. \"Send email\" composes a single message by hand (recipient, subject, body, attachments), while larger sends go through tasks or templates. The delivery outcome — sent, failed, bounced — is visible on the same row.",
+          "step2": {
+            "title": "Sending and the list",
+            "description": "The send dialog takes attachment URLs (comma or newline separated), but real bulk sending belongs in \"email jobs\" — recipients, conditions, template and retry policy configured once, run on a schedule or immediately. Open the failed rows to see why; bounced addresses must be cleaned out, otherwise they drag the overall deliverability down."
+          }
+        },
+        "emailDrafts": {
+          "summary": "The draft box holds the emails that have not gone out yet: subject, body and recipient written down and kept for later. \"New draft\" starts from blank, while the drag editor builds a mail visually — drag content blocks, fill template variables, preview on the right — which suits marketing mail you send over and over.",
+          "step2": {
+            "title": "New draft and the drag editor",
+            "description": "The two entry points differ in effort: a new draft suits one-off mail, the drag editor suits recurring campaigns where the layout, blocks and variables are fixed and only the content changes. Drafts are not sent, so save before closing the page or the content is gone. Template variables are substituted only at send time — preview once with real values before sending."
+          }
+        },
+        "emailJobs": {
+          "summary": "The email jobs page shows \"the mail that went out on a schedule\": each row is a job with its subject, planned count, sent count, time and status. Once a job finishes you can see how many succeeded and how many failed, with the reasons in the job detail.",
+          "step2": {
+            "title": "Job progress and failure triage",
+            "description": "The gap between planned and sent is what has not gone out yet or has failed. Do not re-trigger a running job; let it finish. Read the failure reasons one by one: pull out invalid addresses, group the rest by error type (connection timeout, rejected, missing template variable), then decide whether to re-run or fix the template."
+          }
+        },
+        "emailSmtp": {
+          "summary": "The SMTP page manages \"which mail server the system sends through\". The table lists each relay with its name, server address, port, account and status; \"Add relay\" lets you configure several (say Tencent Cloud as primary and Alibaba Cloud as backup), and sending picks among them in order.",
+          "step2": {
+            "title": "Relay configuration and switching",
+            "description": "Server address, port, account, password and encryption must match the provider console exactly; a wrong port or encryption mode shows up as \"cannot connect\" rather than \"cannot send\", which is easy to misread. After changing a relay, send one test mail to confirm connectivity before enabling it. Relays can be disabled but should not be deleted — deleting loses the delivery history stored with them."
+          }
+        },
+        "emailInfo": {
+          "summary": "The provider reference page is a lookup table for filling in SMTP settings: for each provider (Tencent Cloud, Alibaba Cloud, Huawei Cloud, SendGrid and others) it lists the host, port, whether an authorisation code is required instead of a password, and the authentication caveats, so you fill the form correctly the first time.",
+          "step2": {
+            "title": "Parameter reference and the usual traps",
+            "description": "Two traps cause most failures: treating the authorisation code as the account password (providers issue a separate code in the console), and getting the port and encryption mode wrong (465 wants SSL, 587 wants STARTTLS, and swapping them means it cannot connect). The port badges and the authentication notes on the page exist for exactly these two traps."
+          }
+        },
+        "emailDeliverability": {
+          "summary": "The deliverability dashboard answers \"how much of what I sent actually reached a mailbox\". The cards give total sent, delivered, delivery rate and bounce rate; below, the same figures are broken down by domain and over time, so you can spot a domain flagged as spam or a day when the rate fell.",
+          "step2": {
+            "title": "Reading the rate and attributing it",
+            "description": "A persistently low delivery rate with few bounces usually means messages land in spam — add SPF, DKIM and DMARC records. A high bounce rate means poor address quality (bought or stale lists), so clean the list. When the trend chart drops on one particular day, look at that day's jobs and templates: usually the content was flagged or the send volume spiked and got throttled."
+          }
+        },
+        "emailDragEditor": {
+          "summary": "The drag editor is where you build a mail without touching code: drag content blocks from the left (heading, text, image, button, divider), arrange them in the middle, and see the result live on the right for phone and desktop, with variables (customer name, order number) available to drop in. Finished layouts can be saved as templates and reused.",
+          "step2": {
+            "title": "Content blocks and variables",
+            "description": "Dragging a block onto the canvas adds it, and the order you drag is the order it renders; the block's settings panel controls size, colour and alignment. Variables are written as a pair of braces around the variable name, and replaced per recipient at send time — a mistyped variable name does not error, it simply goes out as written, so always preview with a real value first. Save a finished layout as a template and next time you only swap the content."
+          }
+        },
+        "smsList": {
+          "summary": "The SMS list is the ledger of messages that went out: each row shows phone number, content, delivery status and time. The search area filters by number and status. \"Send SMS\" composes one by hand, which is the quickest way to check the channel works.",
+          "step2": {
+            "title": "Sending and status",
+            "description": "Hand-sent messages are only for testing the channel; real outreach goes through SMS jobs (bulk, scheduled, template-driven). The status column shows whether the carrier accepted the message; rejections are usually an unapproved signature or template, so check \"SMS config\" before sending again."
+          }
+        },
+        "smsDrafts": {
+          "summary": "The SMS draft box holds messages that have not been sent yet, with content and recipient written down in advance. SMS has a length limit — billing counts segments, and anything over 70 characters is billed as several — so drafts are better written with variables (customer name, amount, date) to keep them short.",
+          "step2": {
+            "title": "Drafts and segment count",
+            "description": "Estimate the segment count while drafting: one Chinese SMS is up to 70 characters, beyond that it is split every 67 characters and the cost multiplies. Substituting fixed text with variables both shortens the message and makes it more natural. Drafts cost nothing to keep, but too many and the one you actually meant to send gets lost."
+          }
+        },
+        "smsJobs": {
+          "summary": "The SMS jobs page shows \"the messages that went out on a schedule\": each row is a job with its content, target count, sent count, status and time. When a job finishes you can see how many succeeded and how many failed.",
+          "step2": {
+            "title": "Job progress and failure triage",
+            "description": "The gap between target and sent is what has not gone out or has failed. Two usual causes: the number format is wrong (international numbers need the country code), and provider-side throttling or an empty balance — the first shows up in the job's error text, the second in \"SMS config\" under balance and rate limits."
+          }
+        },
+        "smsConfig": {
+          "summary": "The SMS config page covers \"where messages go out from and what they look like\": the default provider (Alibaba Cloud, Tencent Cloud, Huawei Cloud), each provider's account and key, the approved signature and template, plus rate limits and balance. Save to apply.",
+          "step2": {
+            "title": "Provider, signature and template",
+            "description": "The default provider decides which company is used, so after switching check that provider's credentials are filled in. The signature and template must be **approved** — an unapproved signature is rejected outright by the carrier, and approval happens in the provider's console; this page only records the content and its status. Too low a rate limit and bulk jobs cannot finish, too high and the provider throttles you; set it to your real send volume."
+          }
+        },
+        "whatsappAccount": {
+          "summary": "The WhatsApp account page configures \"which WhatsApp account sends to customers\". Each account has a name, a note and its credentials; once filled in and enabled, WhatsApp drafts, jobs and broadcasts all go out through that account. Several accounts can coexist, one per business line.",
+          "step2": {
+            "title": "Credentials and enabling",
+            "description": "The credentials come from the WhatsApp Business API: Business Phone Number ID and Access Token. A wrong value shows up as \"authentication failed when sending\" rather than \"cannot send\", which is easy to misread. Disabling an account keeps its message history but stops new messages from going out through it. The note field marks ownership (which team, which site) — with several accounts it is what tells them apart."
+          }
+        },
+        "whatsappDrafts": {
+          "summary": "The WhatsApp draft box holds messages that have not gone out, with content and recipient written in advance. WhatsApp distinguishes template messages (with variables, pre-approved templates) from conversation messages: templates suit marketing and notifications, conversation messages can only reach contacts who interacted in the last 24 hours.",
+          "step2": {
+            "title": "Drafts and message type",
+            "description": "Decide the type while drafting: only an approved template can reach a customer who has not interacted, and free-form conversation messages only work within 24 hours of an incoming message — breaking that rule gets the account banned. Template variables are substituted at send time, and a mistyped variable name does not error, it just goes out as written, so preview once with a real value before sending."
+          }
+        },
+        "whatsappJobs": {
+          "summary": "The WhatsApp job page covers \"the messages sent on a schedule\": each row is a job with its template, target count, sent count, status and time. When a job finishes you can see how many succeeded and how many failed, with the reasons in the detail.",
+          "step2": {
+            "title": "Job progress and failure triage",
+            "description": "The gap between target and sent is what has not gone out or has failed. Three usual WhatsApp causes: the template was not approved, the 24-hour conversation window expired, and the number is not on the allow list — the first two show up in the job's error text, the third in the account configuration. Do not re-trigger a running job; let it finish."
+          }
+        },
+        "whatsappLeadGroupSelection": {
+          "summary": "This page is the upstream step of \"pick a batch of people for a WhatsApp broadcast\": filter the lead pool by status, source or tag, tick the ones you want and save them as a group that broadcast jobs can reference. A saved group remembers its filter conditions, so you can reuse it next time.",
+          "step2": {
+            "title": "Filtering and building a group",
+            "description": "The filter decides who you pick: status, source channel and tag can be combined, and existing customer segments can be selected directly. After ticking, name the group and save it — a broadcast job references the **group**, not the live filter, so changing the filter afterwards does not change the group. Picking too wide triggers WhatsApp's risk controls, so keep both the pace and the size in check."
+          }
+        },
+        "whatsappGroupMessaging": {
+          "summary": "The bulk messaging page is where the send button actually is. The form on the left picks the template or content, the target group and shows the recipient count; the right pane previews exactly what the customer will see. Once it looks right, create the job.",
+          "step2": {
+            "title": "The form and the preview",
+            "description": "Always look at the preview before sending: what the preview renders is what the customer receives (variables substituted, buttons clickable, line breaks correct). The target group decides who gets it, the template decides the shape (a template with buttons and plain text feel very different). Once sent it cannot be recalled, so test with a small group first and confirm the delivery rate before scaling up."
+          }
+        },
+        "whatsappBulkMatrix": {
+          "summary": "The broadcast matrix is the retrospective on \"how did this round actually perform\": the cards give total sent, delivered and failed, and below, the same figures are crossed by group and template so you can see which combination works best.",
+          "step2": {
+            "title": "Reading the matrix and using it",
+            "description": "The point of a matrix is the **side-by-side comparison**: which audience suits which content. A low delivery rate with a reasonable open rate is a content problem; a low delivery rate outright is a number or template problem, so check the sending step before the copy. Take the conclusions here into the next round's audience and template choices."
+          }
+        },
+        "telegramAccount": {
+          "summary": "The Telegram bot page carries a \"read this first\" card that walks through the four steps: create the bot with BotFather, get the token, paste it in, then choose webhook or polling. You can manage several bot accounts; ones with a token use webhook, the rest fall back to polling.",
+          "step2": {
+            "title": "Token and receiving mode",
+            "description": "The token comes only from BotFather and is secret — do not share it after pasting it in. The system receives messages two ways: with a public domain it uses webhook (fast, cheap), without one it polls (a bit slower but needs no public address). Only one instance holds the polling lock at a time; that is by design, not a fault."
+          }
+        },
+        "telegramGate": {
+          "summary": "The Telegram join gate manages \"who gets in and how\": you can require new members to pass a verification, choose the accept-or-refuse policy, and decide whether a verification timeout means refusing the request or removing the member. You can also switch the gate off and let the group behave the way Telegram does by default.",
+          "step2": {
+            "title": "The two control schemes",
+            "description": "The card at the top explains why the gate exists: Telegram does not let a bot start a private chat with someone who never interacted with it. Scheme A (join_request) fits private groups — the group enables \"request to join\", applicants are guided to send /start to the bot in private, and once that is verified the join is approved automatically. Scheme B (mute_unlock) fits public groups — members join muted, click the verification link in the group, finish /start in private and are unmuted automatically. On timeout, scheme A refuses the request and scheme B removes the member."
+          }
+        },
+        "qqAccount": {
+          "summary": "The QQ bot account page covers \"which QQ bot serves customers\". The instruction card at the top spells out the flow: create the bot on the QQ open platform, paste the AppID, AppSecret and BotSecret in, then set the callback address on the platform side in the shown format. The account list below shows each bot's name, AppID, masked secret, webhook address and whether the webhook is enabled.",
+          "step2": {
+            "title": "Account list and webhook",
+            "description": "Each row is one bot: AppID, masked AppSecret, the assembled webhook URL and whether the webhook is on. In group chats a customer mentions the bot by name in the group to trigger the agent reply (passive replies are capped at five within five minutes), so the callback address on the platform side must match the one shown here exactly — a mismatch means the platform never receives anything, which shows up as \"the bot does not answer\". Secrets are only shown masked, so re-entering one means going through \"add bot\" again."
+          }
+        },
+        "knowledgeManagement": {
+          "summary": "The knowledge page is the ledger of the RAG document store: every uploaded document is split into chunks and vectorised, and the AI retrieves from here first, only calling the model when something matches. The counters give document, chunk and vector counts plus index health; the list below shows source, status, chunk count and last update per document, and lets you reindex, unpublish or delete.",
+          "step2": {
+            "title": "Index health and document actions",
+            "description": "A low index health score means chunks were split badly or the vectors were never built, so retrieval misses — look at that number before touching retrieval parameters. Documents marked \"index failed\" need a reindex; deleting a document also removes its chunks and vectors, and before deleting a knowledge base that an agent already references, remove the reference first."
+          }
+        },
+        "knowledgeBatchImport": {
+          "summary": "The batch import page solves \"getting a lot of documents in at once\": either upload files (whole archives supported) or paste text in bulk. You pick the splitting strategy before importing (by length, or by heading level), and each document then goes into the indexing queue where vectors are built in the background.",
+          "step2": {
+            "title": "Splitting strategy and importing",
+            "description": "The splitting strategy decides retrieval quality directly: chunks that are too long mix several topics and retrieve as irrelevant, chunks that are too short lose the context a model needs to answer. Splitting by heading level works best for structured documents such as manuals or policies, while length-based splitting suits chat transcripts. Importing is asynchronous, so watch progress in the task list."
+          }
+        },
+        "knowledgePlayground": {
+          "summary": "The retrieval playground is where you tune retrieval: write a real question on the left and see which chunks come back on the right and in what order. Top-K, the similarity threshold and whether to rerank are all adjustable, and there are ready-made query templates below. Tuning here and then applying the winning parameters beats blind guessing in production.",
+          "step2": {
+            "title": "Retrieval parameters and results",
+            "description": "Top-K decides how many candidates to take, the threshold discards anything scoring below it, and reranking decides whether a finer model re-scores the candidates. The three move together: raising Top-K admits more noise, so raise the threshold with it; pushing the threshold too high filters out the correct chunk and you get \"it is there but never comes up\". Try a few combinations with real questions, then fix the winning values in the agent's knowledge base configuration."
+          }
+        },
+        "knowledgeConnectors": {
+          "summary": "The connectors page handles \"pulling knowledge in from outside\": credentials for Notion, Feishu, DingTalk and your CRM are configured here, then you test the connection and pull the content in as knowledge base documents. It removes the export-then-upload round trip.",
+          "step2": {
+            "title": "Credentials and connection tests",
+            "description": "Each connector needs its own authorisation, and tokens are scoped — granting more than needed is a risk, not a convenience. A passing connection test only proves you can connect and list a directory; it does not prove the content parses into usable chunks, so pull real content once and look at the import result. Expired credentials are the usual failure, and re-authorising then pulling again fixes it."
+          }
+        },
+        "knowledgeFeedbacks": {
+          "summary": "The feedback list collects the moments where retrieval missed: what the customer asked, what the system answered, and which documents it cited. You can filter by low score, negative feedback and time, and these records are the most direct evidence for adjusting splitting and retrieval parameters.",
+          "step2": {
+            "title": "Low scores and negative feedback",
+            "description": "One negative feedback usually points at one of three problems: the document simply does not cover the topic (write it), it does but the question landed in a different chunk (adjust splitting), or the content is there but the relevant chunk sat outside the candidates (adjust Top-K or the threshold). Group the feedback by which of the three it is before changing anything — that is far faster than editing documents one by one."
+          }
+        },
+        "knowledgeApiToken": {
+          "summary": "The API token page issues credentials for external systems calling our knowledge base: generate a token, set an expiry, rate-limit it and watch how often it is used. An external system uses it to pull knowledge or submit documents without needing a back-office account.",
+          "step2": {
+            "title": "Tokens and usage stats",
+            "description": "The plaintext token is shown exactly once, at creation; afterwards the list only shows a mask, so losing it means generating a new one and retiring the old. Set expiry and rate limits to match how the caller actually behaves: too tight and bulk syncs from the other side get a stream of 429s, unlimited and you have effectively opened the library to them. The call count on each row shows who is using it and how much — disabling one you no longer need is safer than keeping it around."
+          }
+        },
+        "knowledgeExternalImport": {
+          "summary": "The external import page pulls content from a third-party source: give it an endpoint and credentials, say which fields to take, and choose between synchronous and asynchronous mode. Synchronous returns straight away; asynchronous hands back a job number and runs in the background, which suits large documents.",
+          "step2": {
+            "title": "Field mapping and the two modes",
+            "description": "The step \"map title/content/ref to source fields\" decides whether the import can be retrieved at all: with the mapping wrong the document body is empty and the index is built over nothing. Synchronous mode is for small batches where you want to see the result now; asynchronous mode returns a job_no and progress is in the async task list. If the source does not return JSON the request fails with the raw response, so check the shape with curl before configuring it."
+          }
+        },
+        "knowledgeStatistics": {
+          "summary": "The knowledge statistics page answers \"what state is my library in\": index health, distribution by source type and import counts are all here. A health score that drops usually precedes user complaints — when the AI starts failing to answer, this is usually where it showed up first.",
+          "step2": {
+            "title": "Health and source distribution",
+            "description": "Index health is the headline number: a low score means chunking or vector construction is broken, so retrieval cannot hit. The source distribution shows which kind of source contributes the most documents and which kind never gets updated. Import counts over time show what was added and what failed, and when failures cluster in one period, go read that batch's import log rather than waiting for users to report that the AI got worse."
+          }
+        },
+        "knowledgeOpenapi": {
+          "summary": "The OpenAPI integration page opens the knowledge base to external systems: configure the endpoint and its authentication, test the connection and inspect a sample response. Other systems fetch documents or submit content over an agreed contract instead of reaching into the database.",
+          "step2": {
+            "title": "Endpoint configuration and connection tests",
+            "description": "Two things go wrong most often here: the field names returned must match exactly what the caller expects (title, content and ref are the agreed three), and incremental sync needs last_sync_at as the watermark. The connection test returns a real response sample, and comparing that against the caller's parsing code is the fastest way to find the mismatch. \"Go template syntax may be used\" means template expressions inside field values, not templates supplied by the caller."
+          }
+        },
+        "knowledgeRagEval": {
+          "summary": "The RAG evaluation page measures how accurate the retrieval step actually is: run a prepared set of question-and-answer pairs and see whether the chunk that should have matched was recalled, and at what rank. Recall and rank are the objective function for tuning retrieval parameters.",
+          "step2": {
+            "title": "Recall and rank",
+            "description": "Read two numbers: recall (how many of the should-have-matched cases were recalled at all) and MRR (where the correct chunk ranked). Low recall means the candidate set does not contain it, which is usually a splitting or indexing problem; recall that is fine but a bad rank is what Top-K, the threshold and reranking fix. The evaluation set has to cover real question shapes, including colloquial wording, typos and cross-topic questions — a score measured on tidy questions is worth nothing."
+          }
+        },
+        "geoBrandConfig": {
+          "summary": "The brand config page covers \"how AI crawlers get to know your brand\": llms.txt v2 is the content navigation file handed to AI crawlers, stating the site name, summary, key page links and brand wording; there is a live preview and the describedby response header settings alongside. Brand facts and the phrases you forbid are defined here, and AI citations follow them.",
+          "step2": {
+            "description": "llms.txt is the first manual an AI engine reads when pulling content: the more structured it is, the more likely the engine takes what you want it to take. The preview renders live for the current domain, so you see the result as you type. Write brand wording as two lines — facts and forbidden phrasing — because facts alone still leave the old wording in play, and only naming what must not be said actually blocks it."
+          }
+        },
+        "geoSeoInfra": {
+          "summary": "The SEO infrastructure page holds the technical settings that let crawlers read your site properly: llms.txt v2 generation rules, response headers (X-Robots-Tag, describedby and friends), sitemap and robots strategy. The left pane previews the generated output, the right pane is the v2 spec checklist, so you can see exactly what is missing.",
+          "step2": {
+            "description": "The checklist is the most useful part of this page: without an H1 site name and a blockquote summary, an AI engine parses your page with pieces missing. Get the list fully green before publishing — that is far faster than chasing indexing afterwards. Once the preview looks right, keep the same configuration in sync on the brand config page, and the brand page wins if they disagree."
+          }
+        },
+        "geoPusherConfig": {
+          "summary": "The crawler push page covers \"how search engines and AI engines learn about new content the moment it changes\": configure the push endpoint and quota for each platform (Baidu, Bing, Google and two more), and the system pushes the new URL to them as soon as an article is published or updated, shortening the time to index.",
+          "step2": {
+            "description": "The push endpoint comes from each engine's webmaster console, and a wrong one fails silently — the push goes out, no error appears, and the other side never receives it, so verify with \"push now\" once after configuring. A quota of 0 means unlimited, but the engine still throttles you, and pushing past the limit gets you rate limited. When you configure several platforms for one site, be careful not to double-count the quota."
+          }
+        },
+        "geoSiteConfig": {
+          "summary": "The static site deployment config page covers \"which site the content finally goes to\": per site you set the domain, the deployment method and the output path. Generated content (Markdown, article pages) is published to the matching site, and each site can carry its own brand and llms.txt.",
+          "step2": {
+            "description": "The domain here must match the one on the brand config page, or the llms.txt and the real site disagree and the manual AI reads points at another domain. The output path decides whether the generated files land at the site root or in a subfolder, and a wrong path means static links 404. Test with one publish from the \"publish to site\" page and check the output path before turning on automatic publishing."
+          }
+        },
+        "geoSchemaTemplates": {
+          "summary": "The schema template library covers \"how structured data is generated\": you define a schema template per content type (article, product, FAQ) and generation applies it. Schema tells search engines and AI engines how to read your content, so every field the template asks for has to be filled.",
+          "step2": {
+            "description": "The placeholders in the template must map one-to-one onto the fields the content generator produces; a missing field yields a half-built schema that search engines ignore outright. The preview on the right renders the final JSON — check the required fields are all there before publishing. Use a different template per content type rather than pushing an article template onto a product page."
+          }
+        },
+        "geoCompetitorManage": {
+          "summary": "The competitor page maintains \"the list of rivals you are watching\": each competitor's name, domain, category and notes. Competitor data is the baseline for several analyses later — the SOV board, visibility comparison and crawler stats all compare against it, so an inaccurate list distorts every conclusion drawn from it.",
+          "step2": {
+            "description": "Enter the canonical domain (www and non-www are counted as two competitors otherwise), and do not add the same rival twice or the statistics show two of them. The category field is used to group comparisons, so a value that is too coarse hides the differences between segments. After changing the list, the SOV board and competitor crawler stats have to be recomputed to reflect the new baseline."
+          }
+        },
+        "geoConfigOptimizer": {
+          "summary": "The GEO config page is the master switch for the whole GEO capability set: model choice, API endpoint, generation parameters and which sub-features are on are all set here. Save to apply, or use \"optimize config\" to get a recommended set of parameters for your current workload.",
+          "step2": {
+            "description": "This is the global default; each sub-page (keyword mining, content generation, push) also has its own override, and the sub-page wins when they conflict. Check cost when changing models: keyword mining is high volume and does not deserve an expensive model, whereas generating the body copy does. The recommendation is computed from your current usage, so re-run it when usage changes."
+          }
+        },
+        "geoKeywordMining": {
+          "summary": "The keyword mining page finds \"how customers actually ask in AI\": enter a core term and it surfaces autocomplete suggestions, composes long-tail variants, and reports search volume, competition and intent classification. The terms you get are the input for content creation and site structure work, because the AI traffic entry points are these question shapes.",
+          "step2": {
+            "description": "\"Scrape suggestions\" pulls real search autocomplete, so the signal is clean; \"compose long-tail\" multiplies a root term with modifiers, which has volume but needs manual filtering. Compare the two side by side in the table and pick the ones people really ask that are not too competitive. The intent classification decides who each piece of content is written for, and a wrong label sends the downstream outreach to the wrong people."
+          }
+        },
+        "geoContentCreation": {
+          "summary": "The content creation page turns keywords into an article that can actually ship: fill in the generation config (target keyword, length, tone, which knowledge base to draw on), press generate, and the result appears on the right; adjust the config and regenerate until it is right. The draft can then go through optimisation before publishing.",
+          "step2": {
+            "description": "The two things that matter most in the config are the target keyword and the knowledge base you point at: whichever documents are mounted, the draft will carry their facts, and mounting a competitor's knowledge base gets you writing their claims. Length and tone shape the piece — AI engines favour long answers with a clear conclusion over keyword-stuffed text. When the result is not right, changing the config and regenerating is cheaper than rewriting by hand."
+          }
+        },
+        "geoContentOptimize": {
+          "summary": "The content optimisation page makes an existing article more quotable by AI: paste the original, pick the goal (EEAT, readability, structure, keyword coverage) and the system shows a before-and-after diff you accept or reject item by item.",
+          "step2": {
+            "description": "The comparison lists each change, and you should read them one by one before accepting — the model sometimes drops qualifiers you deliberately kept, or turns an uncertain claim into a certain one. After accepting, run the content check to see whether new facts crept in. This page rewrites wording, not facts: anything involving numbers or conclusions still has to be verified by you."
+          }
+        },
+        "geoSitePublish": {
+          "summary": "The publish-to-site page is the two steps that get content live: first export the Markdown (with schema and metadata), then trigger the deployment to the static site. You can preview the output structure before publishing, and afterwards the indexing tracker shows the effect.",
+          "step2": {
+            "description": "The exported directory structure becomes the final site structure, and a link that does not line up gives a 404, so look at the export manifest once before deploying. Deployment is asynchronous — wait for it instead of clicking again, because a second trigger produces duplicate pages. After publishing, check the indexing tracker to confirm the engines crawled the new content."
+          }
+        },
+        "geoPushCenter": {
+          "summary": "The push centre is the console for \"hand a URL to the engines\": quota, push counts and results are here, and below is the list of pending links per platform that you can push one at a time or in bulk. It is where you go for anything the automatic push missed.",
+          "step2": {
+            "description": "The quota is the engine's daily allowance; once you are out, pushes stop until the next day. Manual pushing is a remedy for \"the automatic push missed a few articles\", not a regular channel — pushing by hand at high frequency looks like abuse and gets you flagged. Read the results one by one; failures are usually quota or a bad URL."
+          }
+        },
+        "geoPlatformPublish": {
+          "summary": "The platform publish page posts articles to content platforms: pick the platform, pick the articles, confirm and publish. Available platforms and today's publish count are on top. The available list decides where you can post (Zhihu, WeChat, Xiaohongshu and others), and each platform has its own length and format rules.",
+          "step2": {
+            "description": "Every platform has its own length limit, title rules and hashtag requirements, so the same article usually needs a small edit per platform — copy-pasting as is gets truncated or judged low quality. The publish count is the platform's daily allowance, and running out means you cannot post, so spend the quota on content that matters. After publishing, watch visibility per platform in the indexing tracker."
+          }
+        },
+        "geoWorkflowEditor": {
+          "summary": "The workflow template page chains the GEO steps into a pipeline: extract content from the previous step, feed it to the next one for EEAT enrichment, fact checking or rewriting. The minimum score is the entry threshold for each step — below it, the pipeline stops there.",
+          "step2": {
+            "description": "Automatic extraction from the previous step relies on the field mapping between steps; map it wrong and the next step gets empty content or leftovers from two rounds ago. The minimum score is the gate that stops weak content flowing onward: set too high and later steps often have nothing to work on, set too low and junk gets processed all the way through. Once saved, the template can be run in bulk from the push centre."
+          }
+        },
+        "geoKnowledgeBase": {
+          "summary": "The GEO knowledge base answers \"where do the facts fed to AI come from\": total documents, grade-A documents and entity count are on top, with the document and entity lists below. Content generation and optimisation both draw their facts from here, and anything not in the library AI will invent.",
+          "step2": {
+            "description": "Documents are graded A, B or C, and only A-grade facts reach the final output — marking uncertain content as A is publishing guesses as facts. Entities are structured relations such as brand, product and feature; the more accurately they are extracted, the more reliably AI maps your brand to the right product. The right way to add a fact is to add a document to the library, not to hardcode it into a prompt."
+          }
+        },
+        "geoEntityGraph": {
+          "summary": "The entity graph draws the entities and relations from the knowledge base as a graph: entity count, relation count and relation types on top, and clicking a node shows its neighbours. The point is to check \"how will AI understand your brand\" — if your brand is not connected to its products, AI may mix things up.",
+          "step2": {
+            "description": "When a competitor and your brand appear in the same relation, check whether it means \"compared with\" or \"belongs to the same category\" — the first is normal, the second dilutes your positioning. Isolated nodes usually mean extraction missed something, so go back and add the document. Once the graph changes, the schema on the published site is updated with it."
+          }
+        },
+        "geoFunnelDashboard": {
+          "summary": "The funnel overview is the full path from content to traffic: search engine indexing, AI engine citations, and finally conversion, layer by layer. The readings are on top, the funnel chart and the per-engine comparison below.",
+          "step2": {
+            "description": "The funnel chart exists to locate the leak: few indexings is a site or push problem, plenty of indexings but few citations means AI does not consider the content worth citing (density, structure, authority), and plenty of citations without conversion is a landing-page problem. Find the steepest slope first, change the matching page, and come back in a few days to see whether that layer lifted."
+          }
+        },
+        "geoIndexTracking": {
+          "summary": "The indexing and citation tracker answers \"did they find my content, and did AI cite it\": index status, citation counts and citation positions per site and keyword, with a competitor comparison alongside.",
+          "step2": {
+            "description": "Indexing and citation are two different things: indexing is whether a search engine collected the link, citation is whether an AI engine mentioned you in its answer. Looking only at indexing makes everything look fine, but AI engines cite what they crawled themselves, which is not the same set. Citation position (which rank, which passage was cited) decides whether that passage needs rewriting."
+          }
+        },
+        "geoVisibilityBoard": {
+          "summary": "The visibility board measures \"how often AI mentions you\": a set of probe questions (how customers would actually ask an AI) is run against each engine, and the share of probes where the brand is mentioned is counted. The brand visibility trend and the engine comparison sit on top, so you can see which engine sees you and which ignores you.",
+          "step2": {
+            "description": "The probe questions are the foundation of the measurement: they have to sound like real customers — colloquial, with a scenario — because a probe set built from keyword lists produces a visibility number that means nothing. Each probe round costs money and time, so the set needs periodic refreshing: as customer phrasing changes, stale probes keep reporting a high score and hide the problem. The engine comparison chart is the most direct thing to act on: fix the engine that scores worst first."
+          }
+        },
+        "geoSovBoard": {
+          "summary": "The SOV (share of voice) board computes \"when AI mentions you, how often is it you\": total mentions and the number of competitors on top, with the share per competitor below. It is the metric closest to brand presence in GEO.",
+          "step2": {
+            "description": "SOV is a relative metric: a falling share can mean a competitor grew while you stood still, not that you declined, so read it together with total mentions — if the total is rising and the share is falling, a competitor is taking ground; if both fall, the problem is yours. Only competitors in your configured list are counted, so forgetting one inflates the share."
+          }
+        },
+        "geoCrawlerStats": {
+          "summary": "The crawler statistics page shows \"how much each AI engine's crawler visited your site\": today's visits, pages covered, HiveMTK and the competitor total on top, broken down by engine and page below. It is the upstream metric behind indexing and citations.",
+          "step2": {
+            "description": "Low crawl volume with the page already indexed means the content came in through another path; normal crawl volume without indexing usually means robots or a response header blocked it. The pages-covered figure shows how many pages the crawler actually reached — a site with hundreds of articles but only dozens crawled means it is not following the links, so the site structure or the navigation in llms.txt is unclear."
+          }
+        },
+        "geoVerification": {
+          "summary": "The verification page answers \"which of the things AI says about you are true\": you define a set of factual claims and the system verifies them across engines, while negative monitoring specifically watches for AI saying something wrong or negative. Both the verification results and the negative hits are archived.",
+          "step2": {
+            "description": "Claims have to be written as checkable sentences (\"the product supports X\", not \"the product is good\") — a vague claim cannot be verified. Negative monitoring is the point of the whole mechanism: once AI says something wrong or negative, the alert reaches the alert centre and needs a human response and a content-side correction. Positive verification alone tells you that you were praised, not that you were attacked."
+          }
+        },
+        "geoDecisionReport": {
+          "summary": "The decision report reviews \"what GEO actually brought in\": captured leads, open gap tasks and completed backfills on top, with the report detail below. A backfill is the content task produced when AI was found to answer wrongly or to omit you.",
+          "step2": {
+            "description": "Captured leads have to line up with a time window and a source channel, otherwise you cannot tell GEO apart from any other campaign. The gap tasks are the core output of this page: they turn \"AI answered wrong or missed us\" into executable content work, and only when the task is done does \"completed backfills\" go up. A report that counts but does not close the loop will not get any better."
+          }
+        },
+        "geoReports": {
+          "summary": "The reports page puts the cost and the return side by side: API cost detail by provider and model, ROI analysis, and the overall statistics. It answers \"what did these calls cost, and what did they buy\".",
+          "step2": {
+            "description": "Breaking cost down by provider and model is how you see which step is burning money — keyword mining is high volume, and an expensive model there drags the ROI denominator down immediately. The API spend in the ROI analysis has to be aligned with the return side (captured leads, visibility lift), or the two sides cover different periods and the ROI is a confident wrong number. Cut cost starting from \"which step is most expensive\", not by downgrading every model at once."
+          }
+        },
+        "geoAlertCenter": {
+          "summary": "The alert centre gathers the GEO anomalies that need a human: AI engine negative hits, content judged non-compliant, push failures, crawler errors and so on. Unconfirmed alerts are counted on top, and the list below is grouped by type and time.",
+          "step2": {
+            "description": "Each type is handled differently: a negative hit needs a content correction, a compliance notice needs the wording changed, a push failure needs the quota and URL checked. Alerts that are never confirmed keep piling up and also corrupt the \"unconfirmed alerts\" metric itself. Confirm them when you are done — that confirmation is the only record of your handling rate when you review later."
+          }
         }
       }
     }

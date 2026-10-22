@@ -5,7 +5,7 @@
 </template>
 
 <script setup>
-import { computed, onMounted } from 'vue'
+import { computed, onMounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import en from 'element-plus/es/locale/lang/en'
@@ -15,6 +15,7 @@ import i18n from '@/i18n'
 import { elLocaleCode, applyDirection } from '@/i18n/locale'
 import { ensureBootstrap } from '@/utils/bootstrapState'
 import { useOnboardingAutoStart } from '@/composables/useOnboarding'
+import { useUserStore } from '@/stores/user'
 
 const elMap = { 'zh-cn': zhCn, en, ja }
 const elLocale = computed(() => elMap[elLocaleCode(i18n.global.locale.value)] || zhCn)
@@ -23,6 +24,7 @@ const router = useRouter()
 const t = i18n.global.t
 
 const { tryAutoStart } = useOnboardingAutoStart()
+const userStore = useUserStore()
 
 onMounted(async () => {
   applyDirection(i18n.global.locale.value)
@@ -54,6 +56,25 @@ onMounted(async () => {
     console.warn('[App] bootstrap check failed:', e);
   }
 })
+
+// 登录态从「未登录」变成「已登录」时补一次全局导览。
+//
+// 旧实现只在 App.vue 的 onMounted 里调 tryAutoStart()，而 App.vue 在整个 SPA
+// 生命周期里**只挂载一次**：从 /login 登录进来的用户，onMounted 那一刻还没登录
+// （userStore.isLoggedIn=false），tryAutoStart 直接跳过；登录成功后 SPA 只换路由，
+// App.vue 不重新挂载 ⇒ 全局导览**永远不出现**。
+//
+// 引导体系的设计要求是「首次登录自动」（CLAUDE.md 规则 5.1/5.5），所以改成
+// 监听登录态跃迁：未登录→已登录时补跑一次。
+// tryAutoStart 内部有 isCompleted 去重，重复调用不会重复弹窗。
+watch(
+  () => userStore.isLoggedIn,
+  (now, prev) => {
+    if (now && !prev) {
+      tryAutoStart()
+    }
+  }
+)
 </script>
 
 <style>
