@@ -6,7 +6,7 @@
 # schema 漂移，所以按 information_schema 现取列清单生成语句，并且只删一个租户的数据。
 #
 # 三条前置护栏（缺一条即整体中止，不提交）：
-#   1) 目标租户必须命中测试/演示签名：license_no 前缀 QA- / E2E-LIC-，或邮箱落在
+#   1) 目标租户必须命中测试/演示签名：license_no 前缀 QA- / E2E-LIC- / EV-LIC-，或邮箱落在
 #      保留域 @qa.example / @test.local。真实客户不会命中，因此不可能被本脚本命中。
 #   2) 租户 id 不得落在保留名单（默认 1：本地自管实例的租户），code 不得以 local- 开头。
 #   3) 默认 dry-run：整相在事务里真删（所以外键/类型问题会暴露），最后 ROLLBACK；
@@ -34,6 +34,7 @@
 #   scripts/cleanup_qa_tenants.sh --tenant-code QA20261020153000 --commit  # 真删
 #   QA_PROD_SSH=root@1.2.3.4:2222 scripts/cleanup_qa_tenants.sh --tenant-code X --commit
 #   scripts/cleanup_qa_tenants.sh --tenant-code X --phase platform         # 只跑平台相
+#   scripts/cleanup_qa_tenants.sh --tenant-code X --allow-code X --commit  # 显式授权删指定租户（绕过签名护栏1）
 set -uo pipefail
 
 QA_PROD_SSH="${QA_PROD_SSH:-}"
@@ -51,10 +52,20 @@ RESERVED_IDS="${RESERVED_IDS:-1}"
 COMMIT=0
 TENANT_CODE=""
 PHASE="all"
+# 显式授权的租户 code：绕过"必须命中测试签名"的护栏1。
+#
+# 为什么需要：护栏1 认的是 license_no 前缀 QA-/E2E-LIC-/EV-LIC- 与邮箱保留域，
+# 而手工注册的演示租户（公司名"啊发发发"之类）用真实邮箱注册，签名不命中 ——
+# 但它确实是一次性验收数据。
+#
+# 这道口子刻意做窄：只对**命令行显式点名**的 code 生效（不匹配则整个清理中止），
+# 且护栏2（保留名单 local-* / RESERVED_IDS）与护栏3（表清单漂移）照旧生效。
+ALLOW_CODE=""
 while [ $# -gt 0 ]; do
   case "$1" in
     --tenant-code) TENANT_CODE="${2:-}"; shift 2 ;;
     --phase)       PHASE="${2:-}"; shift 2 ;;
+    --allow-code)  ALLOW_CODE="${2:-}"; shift 2 ;;
     --commit)      COMMIT=1; shift ;;
     -h|--help)     sed -n '2,36p' "$0"; exit 0 ;;
     *) echo "未知参数: $1" >&2; exit 2 ;;
@@ -83,6 +94,7 @@ ssh_run() { ssh -p "$SSH_PORT" -o StrictHostKeyChecking=no -o ConnectTimeout=15 
 TOKEN_CODE='__CODE__'
 TOKEN_RESERVED='__RESERVED__'
 TOKEN_EXTRA='__EXTRA__'
+TOKEN_ALLOW='__ALLOW__'
 # 默认给一枚空串值：VALUES 装架照常建，谓词把它滤掉，补认通道就是 0 行
 EXTRA_VALUES="('')"
 
@@ -120,11 +132,20 @@ BEGIN
   IF n <> 1 THEN
     RAISE EXCEPTION '租户 __CODE__ 在 tenants 里不存在（n=%），拒绝继续', n;
   END IF;
-  SELECT count(*) INTO n FROM qa_target
-   WHERE license_no LIKE 'QA-%' OR license_no LIKE 'E2E-LIC-%'
-      OR email LIKE '%@qa.example' OR email LIKE '%@test.local';
-  IF n <> 1 THEN
-    RAISE EXCEPTION '护栏1 失败：租户 __CODE__ 不命中测试/演示签名（license_no 前缀 QA-/E2E-LIC-，邮箱 @qa.example/@test.local），判定为真实客户数据，拒绝清理';
+  IF '__ALLOW__' <> '' THEN
+    -- 显式授权模式：仅对命令行点名的 code 放行签名护栏。
+    SELECT count(*) INTO n FROM qa_target WHERE code = '__ALLOW__';
+    IF n <> 1 THEN
+      RAISE EXCEPTION '护栏1 失败：--allow-code 指定了 __ALLOW__，但目标租户 __CODE__ 的 code 与之不符，拒绝继续';
+    END IF;
+    RAISE NOTICE '护栏1 走显式授权通道（--allow-code __ALLOW__）';
+  ELSE
+    SELECT count(*) INTO n FROM qa_target
+     WHERE license_no LIKE 'QA-%' OR license_no LIKE 'E2E-LIC-%' OR license_no LIKE 'EV-LIC-%'
+        OR email LIKE '%@qa.example' OR email LIKE '%@test.local';
+    IF n <> 1 THEN
+      RAISE EXCEPTION '护栏1 失败：租户 __CODE__ 不命中测试/演示签名（license_no 前缀 QA-/E2E-LIC-/EV-LIC-，邮箱 @qa.example/@test.local），判定为真实客户数据，拒绝清理';
+    END IF;
   END IF;
   SELECT count(*) INTO n FROM qa_target WHERE code LIKE 'local-%' OR id IN (__RESERVED__);
   IF n <> 0 THEN
@@ -150,9 +171,15 @@ SELECT c.table_name,
 
 -- tenants 行本身也纳入同一套装架（删除谓词自带签名，双保险）
 INSERT INTO qa_cols
-SELECT 'tenants', format(
-  'code = %L AND (license_no LIKE %L OR license_no LIKE %L OR email LIKE %L OR email LIKE %L)',
-  '__CODE__', 'QA-%', 'E2E-LIC-%', '%@qa.example', '%@test.local');
+-- tenants 行的谓词同样认显式授权（--allow-code 通道）：授权时只按 code 精确匹配，
+-- 不再要求 license_no/邮箱命中测试签名 —— 否则手工注册、邮箱真实的演示租户
+-- 名下的数据被清了、租户主行却留着（平台相已删、用户相还在，账目不一致）。
+SELECT 'tenants', CASE
+  WHEN '__ALLOW__' <> '' THEN format('code = %L', '__CODE__')
+  ELSE format(
+    'code = %L AND (license_no LIKE %L OR license_no LIKE %L OR license_no LIKE %L OR email LIKE %L OR email LIKE %L)',
+    '__CODE__', 'QA-%', 'E2E-LIC-%', 'EV-LIC-%', '%@qa.example', '%@test.local')
+END;
 
 DO $$
 BEGIN
@@ -565,14 +592,14 @@ fi
 
 # 平台相在前：见文件头「跑的顺序」说明
 if [ "$PHASE" = "all" ] || [ "$PHASE" = "platform" ]; then
-  build_pf_sql | sed -e "s/${TOKEN_CODE}/${TENANT_CODE}/g" -e "s/${TOKEN_EXTRA}/${EXTRA_VALUES}/g" > "$PF_SQL"
+  build_pf_sql | sed -e "s/${TOKEN_CODE}/${TENANT_CODE}/g" -e "s/${TOKEN_EXTRA}/${EXTRA_VALUES}/g" -e "s/${TOKEN_ALLOW}/${ALLOW_CODE}/g" > "$PF_SQL"
   printf '%s\n' "$TAIL" >> "$PF_SQL"
   run_phase "platform_db" "$PF_PG_CONTAINER" "$PF_PG_DB" "$PF_PG_PORT" "$PF_PG_USER" "$PF_SQL" || rc=$?
 fi
 
 if [ "$rc" = "0" ] && { [ "$PHASE" = "all" ] || [ "$PHASE" = "user" ]; }; then
   build_user_sql \
-    | sed -e "s/${TOKEN_CODE}/${TENANT_CODE}/g" -e "s/${TOKEN_RESERVED}/${RESERVED_IDS}/g" > "$USER_SQL"
+    | sed -e "s/${TOKEN_CODE}/${TENANT_CODE}/g" -e "s/${TOKEN_RESERVED}/${RESERVED_IDS}/g" -e "s/${TOKEN_ALLOW}/${ALLOW_CODE}/g" > "$USER_SQL"
   printf '%s\n' "$TAIL" >> "$USER_SQL"
   run_phase "user_db" "$USER_PG_CONTAINER" "$USER_PG_DB" "$USER_PG_PORT" "$USER_PG_USER" "$USER_SQL" || rc=$?
 fi

@@ -2,6 +2,7 @@ package controller
 
 import (
 	"context"
+	"os"
 	"strings"
 
 	"hivemtk-user/internal/config"
@@ -23,6 +24,13 @@ import (
 //
 // 服务层复用 AuthService.Register（角色 user、唯一性/强度校验、注册即签发 JWT）。
 
+// EnvSiteTenantCode 站点默认租户短码。
+//
+// 语义：匿名访问公开页面（登录页的站点名、是否开放注册）时，站点自己的归属租户
+// 是谁。SaaS 部署下每个站点由一个商户持有（官网域名由「四川同咨科技有限公司」
+// 持有，code=tz3rmdj），公开页要读的就是**它的**站点名与注册开关。
+const EnvSiteTenantCode = "SITE_TENANT_CODE"
+
 // resolvePublicTenantCtx 公开入口的租户归属：站点配置与注册开关都是租户数据，
 // 匿名请求没有 JWT 可依，只能由请求显式携带短码确定。
 //
@@ -30,6 +38,18 @@ import (
 //   - on 模式：`tenant_code`（query/body）或 X-Tenant-Code 头解析租户并钉死
 //     绑定。解析不出来就返回错误——绝不在匿名请求上回落到默认租户，
 //     否则 S 租户的公开页会读到默认租户的站点名/注册开关。
+//
+// 站点兜底（EnvSiteTenantCode）：请求**没带**短码时，用部署期配置的站点短码。
+//
+// 为什么需要这一层：注册是**新商户自助开户**（POST /api/tenant/register），
+// 开户时人还没有任何租户短码 —— 让"注册入口可见"依赖"已有租户短码"是死结：
+// 匿名访客在登录页既没有短码也没有 JWT，公开配置只能回保守值
+// enable_register=false ⇒ 前端隐藏注册入口 ⇒ 线上 SaaS 登录页看不到注册链接
+// （2026-10-22 线上实测）。
+//
+// 边界：兜底**只在请求没给短码时**生效。显式给了短码就以请求为准 ——
+// S 租户看到的必须是 S 租户的站点名与注册开关，不能被站点兜底覆盖。
+// 站点短码配错（查不到租户）时按保守值回，注册入口不假开。
 func resolvePublicTenantCtx(c *gin.Context, code string) (context.Context, error) {
 	rctx := c.Request.Context()
 	if !tenant.IsMultiTenant() {
@@ -38,6 +58,9 @@ func resolvePublicTenantCtx(c *gin.Context, code string) (context.Context, error
 	code = strings.TrimSpace(code)
 	if code == "" {
 		code = strings.TrimSpace(c.GetHeader("X-Tenant-Code"))
+	}
+	if code == "" {
+		code = strings.TrimSpace(os.Getenv(EnvSiteTenantCode))
 	}
 	id, err := service.NewTenantService().ResolvePublicTenantID(rctx, code)
 	if err != nil {
