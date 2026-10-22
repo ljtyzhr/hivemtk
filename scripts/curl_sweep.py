@@ -22,7 +22,7 @@ API_LIST = os.path.join(ROOT, "api-list.md")
 TOKEN_FILE = "/tmp/qoder_token.txt"
 BASE = os.environ.get("HIVEMTK_BASE", "http://127.0.0.1:8204")
 
-ROW_RE = re.compile(r"^\|\s*(\d+)\s*\|\s*\[\s*\]\s*\|\s*(\w+)\s*\|\s*`([^`]+)`\s*\|")
+ROW_RE = re.compile(r"^\|\s*(\d+)\s*\|\s*\[[ x~]\]\s*\|\s*(\w+)\s*\|\s*`([^`]+)`\s*\|")
 
 # 路径参数替换表：{id} → 真实 id。取不到就退化成 1（多数详情口对不存在的 id
 # 也会正确回 404/不存在，那本身就是有效判读）。
