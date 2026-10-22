@@ -35,6 +35,36 @@ shared_buffers / effective_cache_size / work_mem / maintenance_work_mem / port`�
 | 应用日志 | tar + gzip（可选） | `user-server/logs/user-server.log`（`config.yaml` `logging.file`） | `/var/backups/hivemtk/` |
 | 配置文件 | 直接复制 | `.env` + `docker-compose.yml` | `/var/backups/hivemtk/config/` |
 
+#### 平台端（platform-stack）—— 另一套栈，别漏
+
+生产是**两套栈**（`/www/wwwroot/hivemtk/user-server` 与 `/www/wwwroot/hivemtk/platform-server`，
+共享 `hivemtk-cloud` 网络）。上表只覆盖**用户端**；平台端是**独立的一套 PG + uploads**，
+漏备它的后果和 2026-10-22 那次事故同源：**DB 还在、文件没了**。
+
+| 组件 | 备份方式 | 真实来源 | 存储位置 |
+|------|---------|---------|---------|
+| 平台端 PostgreSQL（库名 `platform_db`） | `pg_dump -Fc` | 容器 `mtk-platform-postgres`（端口 **8201**） | `/var/backups/hivemtk/` |
+| 平台端上传文件 | tar + gzip | `platform-server/data/uploads/`（对应容器 `/app/uploads`） | `/var/backups/hivemtk/` |
+| 平台端配置 | 直接复制 | `platform-server/.env` + `docker-compose.yml` + `config.docker.yaml` | `/var/backups/hivemtk/config/` |
+
+```bash
+# 平台端库（端口 8201，不是用户端的 8202 —— 端口串了会备错库）
+docker exec mtk-platform-postgres pg_dump -U "${POSTGRES_USER:-admin}" -d "${PLATFORM_DB_NAME:-platform_db}" -Fc \
+  > "$BACKUP_DIR/platform_db.dump"
+
+# 平台端上传文件（宿主机持久化目录，不是容器内的 /app/uploads）
+tar czf "$BACKUP_DIR/platform-uploads.tar.gz" -C /www/wwwroot/hivemtk/platform-server/data uploads
+```
+
+> **端口/库名对照**（备份脚本最容易串的一处）：
+> 用户端 `mtk-postgres:8202/user_db` · 平台端 `mtk-platform-postgres:8201/platform_db`。
+> 备错库不会有任何报错，只是备了一份没用的东西。
+
+> **备份后必须核对**：`scripts/check-storage-consistency.sh --remote <host>:<port> --user root --with-db`
+> 报「N 条 /files/ 引用全部有对应文件」才说明 DB 引用与磁盘实物仍对齐；
+> 只跑 `pg_dump` 不核这一层，等于没备（2026-10-22 事故的 DB 侧当时"完全正常"）。
+
+
 > Redis 必须整目录备份，不能只备 `dump.rdb`：`mtk-redis` 的启动参数带 `--appendonly yes`，
 > 实测在保留 `appendonlydir/` 的情况下覆盖 `dump.rdb` 并重启，Redis 仍从 AOF 装载，
 > RDB 里的键不会回来。
@@ -89,6 +119,25 @@ rm -rf "$BACKUP_DIR/redis_data"
 # 上传文件备份（user-server 的本地存储根，默认 ./uploads，可用 STORAGE_LOCAL_BASE_DIR 覆盖）
 echo "Backing up uploads..."
 tar czf "$BACKUP_DIR/uploads.tar.gz" -C /opt/hivemtk/user-server uploads 2>/dev/null || true
+
+# ---- 平台端（platform-stack）：另一套 PG + 另一套 uploads，漏备 = 再来一次 2026-10-22 ----
+# 平台端容器名是 mtk-platform-postgres（不是 mtk-postgres），端口 8201（不是 8202），
+# 库名 platform_db（不是 user_db）—— 三处都不同，抄错就备了个寂寞。
+PLATFORM_ROOT="/www/wwwroot/hivemtk/platform-server"
+if [ -d "$PLATFORM_ROOT" ]; then
+  echo "Backing up platform PostgreSQL..."
+  docker exec mtk-platform-postgres \
+    pg_dump -U "${POSTGRES_USER:-admin}" -d "${PLATFORM_DB_NAME:-platform_db}" -Fc \
+    > "$BACKUP_DIR/platform_postgres.dump"
+
+  echo "Backing up platform uploads..."
+  tar czf "$BACKUP_DIR/platform_uploads.tar.gz" -C "$PLATFORM_ROOT/data" uploads 2>/dev/null || true
+
+  echo "Backing up platform config..."
+  mkdir -p "$BACKUP_DIR/platform_config"
+  cp "$PLATFORM_ROOT/.env" "$PLATFORM_ROOT/docker-compose.yml" "$PLATFORM_ROOT/config.docker.yaml" \
+     "$BACKUP_DIR/platform_config/" 2>/dev/null || true
+fi
 
 # 配置文件备份
 echo "Backing up config..."
@@ -181,6 +230,14 @@ docker compose up -d mtk-redis
 # 5. 恢复上传文件（备份时是 -C user-server uploads，解回同一层目录）
 echo "Restoring uploads..."
 tar xzf "$BACKUP_DIR/uploads.tar.gz" -C /opt/hivemtk/user-server
+
+# 5b. 恢复平台端 uploads（宿主机持久化目录 data/uploads —— 容器重建不会丢它，
+#     但磁盘坏了/换机会丢；恢复后仍要跑一致性巡检确认 DB 引用与实物对齐）
+if [ -f "$BACKUP_DIR/platform_uploads.tar.gz" ]; then
+  echo "Restoring platform uploads..."
+  mkdir -p /www/wwwroot/hivemtk/platform-server/data
+  tar xzf "$BACKUP_DIR/platform_uploads.tar.gz" -C /www/wwwroot/hivemtk/platform-server/data
+fi
 
 # 6. 启动应用（宿主机进程；docker compose up -d 里没有后端）
 echo "Starting services..."
@@ -434,6 +491,29 @@ fi
 echo "[$(date)] Backup verification completed"
 ```
 
+#### 平台端也要验（用户端验证通过 ≠ 平台端被备份了）
+
+上面的 `verify-backup.sh` **只验证用户端**。平台端是另一套 PG + 另一套 uploads，
+补一段验证（容器名 `mtk-platform-postgres`、端口 8201、库名 `platform_db`）：
+
+```bash
+# 平台端：恢复验证（同样用"表名集合做差"作判据，别只看表数下界）
+PLAT_VERIFY=platform_db_verify
+docker exec mtk-platform-postgres psql -U "${POSTGRES_USER:-admin}" -p 8201 -d postgres -q \
+  -c "DROP DATABASE IF EXISTS $PLAT_VERIFY;" -c "CREATE DATABASE $PLAT_VERIFY;"
+cat "$LATEST/platform_postgres.dump" | docker exec -i mtk-platform-postgres \
+  pg_restore -U "${POSTGRES_USER:-admin}" -p 8201 -d "$PLAT_VERIFY" --no-owner --no-privileges
+docker exec mtk-platform-postgres psql -U "${POSTGRES_USER:-admin}" -p 8201 -d postgres -q \
+  -c "DROP DATABASE IF EXISTS $PLAT_VERIFY;"
+
+# 平台端 uploads 包里至少得有文件（空包 = 备了个寂寞）
+tar tzf "$LATEST/platform_uploads.tar.gz" | grep -q . && echo "platform uploads tar: ok" || echo "❌ platform uploads tar 是空的"
+
+# 最终判据：DB 引用与磁盘实物仍对齐（这条比"库能恢复"更重要 —— 2026-10-22 那次
+# 事故里 DB 侧"完全正常"，坏的是磁盘上的文件）
+scripts/check-storage-consistency.sh --repo . --remote <host>:<port> --user root --with-db
+```
+
 ### 4.2 定时任务
 
 ```cron
@@ -444,3 +524,10 @@ echo "[$(date)] Backup verification completed"
 ---
 
 *最后更新: 2026-10-09（按代码与本机 8202 上的 user_db 逐条重跑校正命令、服务名、端口、卷名与表名）*
+
+*2026-10-22 增补：补上**平台端**（platform-stack）的备份/恢复/验证三段 ——*
+*原文档只覆盖用户端，而生产是两套栈；平台端的 `platform_db`(8201) 与*
+*`platform-server/data/uploads` 此前完全没进备份流程。*
+*这正是 2026-10-22 事故能发生的背景：DB 在持久化 PG 里"完好无损"，文件却在容器*
+*可写层里随重建蒸发。备份与校验都必须以「DB 引用 ↔ 磁盘实物」对齐为最终判据，*
+*而不是"pg_dump 跑成功了"。*

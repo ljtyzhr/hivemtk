@@ -534,7 +534,120 @@ rm -rf user-web/bridge/dist user-web/bridge/dist-zip
 
 ---
 
-## 7. 故障升级矩阵
+## 7. 故障七：扩展安装包下载 404（平台端 uploads 丢失）
+
+### 7.1 现象
+- 用户端「扩展安装包」页（`work.xapptool.cn/#/bridge/extension`）点「下载安装包」得到 404
+- 平台端 `GET https://manageapi.xapptool.cn/files/extensions/<yyyy>/<mm>/<uuid>.zip` 返回 **404 page not found**
+- 但 `GET /api/bridge/extension/package` 仍返回 200，且 `file_url` / `file_sha256` 都有值
+
+> 判据：**平台接口有元数据、静态文件却 404** —— 元数据在持久化 PG 里，文件本体不在。
+> 响应头带 `Content-Security-Policy: sandbox` + `X-Content-Type-Options: nosniff`
+> （`platform-server/internal/router/files_guard.go:34-35`）说明请求**已经打到平台端**，
+> 是 Go 的 `http.ServeFile` 找不到文件，不是 nginx 路由没配。
+
+### 7.2 根因
+**平台端 `platform-server` 容器没把上传目录挂到宿主机**。
+
+- 上传落盘目录 = `STORAGE_LOCAL_BASE_DIR`，未配时是相对工作目录的 `./uploads`
+  （`storage/factory.go:9-11` 与 `router/router.go:52-55` 两处各自读同一个 env）
+- 静态托管目录 = 同一个 `uploadDir`（`router.go:59` `serveUploadsGuarded`）
+- 只要这个目录在**容器可写层**里，`docker compose up -d --build` 重建容器就清空它；
+  而 `asset_versions.file_url` 记在**持久化 PG** 里仍指向那些文件 ⇒ 全部 404
+
+> 2026-10-22 生产实测：09:28 发布 → 09:37 平台运营上传 `hivebridge-1.0.0.zip` →
+> 15:16 再次发布重建容器 → 当天下载全 404，DB 行（`asset_id=2`）一直在。
+> 对照：user-server 的 `./state:/app/state` 早就挂了宿主机（商户身份/install.lock 跨重建存活），
+> 平台端当时漏了同一个口径。
+
+### 7.3 排查步骤
+```bash
+# 1. 确认平台端静态路由存在（响应头带 CSP sandbox 即已打到 Go）
+curl -sI "https://manageapi.xapptool.cn/files/extensions/2026/10/<uuid>.zip" | grep -iE "^HTTP|content-security-policy"
+
+# 2. 看 DB 里的元数据（文件 URL 与 sha 都在这张表）
+docker exec mtk-platform-postgres psql -U admin -d platform_db -p 8201 -t -A -c \
+  "SELECT asset_id,version,file_url,size_bytes,file_sha256 FROM asset_versions WHERE asset_id=2"
+
+# 3. 看容器里文件到底在不在（重点：目录空 = 上传目录没持久化）
+docker exec mtk-platform-server ls -laR /app/uploads
+
+# 4. 看容器有没有挂载（没有 Mounts 就是漏挂）
+docker inspect -f "{{range .Mounts}}{{.Source}} -> {{.Destination}}{{println}}{{end}}" mtk-platform-server
+```
+
+### 7.4 恢复命令
+```bash
+# 1. 补挂载（宿主机目录 + compose volumes），并把落盘目录显式钉死：
+#    platform-server 服务加 environment: STORAGE_LOCAL_BASE_DIR: /app/uploads
+#                            volumes:     - ./data/uploads:/app/uploads
+#    （与 user-server 的 ./state:/app/state 同一口径：跨重建存活的数据一律落宿主机）
+mkdir -p /www/wwwroot/hivemtk/platform-server/data/uploads
+cd /www/wwwroot/hivemtk/platform-server && docker compose up -d --no-build platform-server
+
+# 2. 把安装包补回原路径（路径即 DB 里的 file_url 末两段 extensions/<yyyy>/<mm>/<uuid>.zip）
+scp hivebridge-1.0.0.zip \
+  root@<host>:/www/wwwroot/hivemtk/platform-server/data/uploads/extensions/2026/10/<uuid>.zip
+
+# 3. 对齐 DB 里的 sha256/size_bytes —— 文件是重建出来的，字节可能与登记值不同
+#    （`npm run release` 用 `zip -r -X` 打包，dist 文件 mtime 每次都变 ⇒ 同内容不同 sha）。
+#    对不上会让用户按页面上的 SHA256 校验失败。
+docker exec mtk-platform-postgres psql -U admin -d platform_db -p 8201 -c \
+  "UPDATE asset_versions SET file_sha256='<实际 sha256>', size_bytes=<实际字节数> WHERE id=<行 id>"
+
+# 4. 验证：公开地址 200 + 字节数一致 + sha 与 DB 一致
+curl -s -o /tmp/pkg.zip -w "%{http_code} %{size_download}\n" \
+  "https://manageapi.xapptool.cn/files/extensions/2026/10/<uuid>.zip"
+sha256sum /tmp/pkg.zip
+```
+
+> **不要**用「走平台 API 重新上传」来补包：`UploadFileVersionTx`（`repository/asset_market.go:526-539`）
+> 会把资产状态重置为 `draft`（待审核），用户端只拉已上架资产（`user-server/internal/service/bridge_extension.go:70`），
+> 补完包会连带把扩展从用户端下架，直到重新审核。
+
+### 7.5 同一事故的其他受灾区（2026-10-22 一并排查/修复）
+
+一次容器重建丢的是**整个 uploads 目录**，不止扩展包。已确认的三个同源问题：
+
+| 受灾区 | 现象 | 修复 |
+|---|---|---|
+| `assets.cover_url`（19 行） | 值是 `http://127.0.0.1:8205/files/covers/...` —— 浏览器必然裂图 | 归一成相对路径 `/files/covers/...`（= 上传接口 `PublicURL` 的返回值形态） |
+| `manage.xapptool.cn` 无 `/files/` 路由 | 封面请求被 SPA 的 `try_files` 回落成 index.html | vhost 加 `location ^~ /files/ { proxy_pass http://127.0.0.1:8205; }` |
+| `mtk-user-server` 的 `/app/uploads` | 与平台端同款漏挂（容器可写层，重建即清空） | 同样补挂 `./data/uploads:/app/uploads` |
+
+> **`^~` 不是可选项**：本 vhost 有图片正则 `location ~ .*\.(gif|jpg|jpeg|png|bmp|swf)$`，
+> 正则 location 优先级高于普通前缀 location；只有 `^~` 前缀 location 才会短路正则，
+> 让 `/files/*.png` 落到后端而不是被当站点静态文件去找（找不到 → 404）。
+> 与 `work.xapptool.cn` 的 `location ^~ /files/` 同一口径。
+
+> **`127.0.0.1` 封面为什么长期没人发现**：本地开发机跑着 platform-server（8205），
+> 且本地正好有那批封面文件 —— 开发者自己看是好的，别的运营看全是裂图。
+> **判据**：DB 里的文件 URL 一律应是**相对路径**（`/files/...`）或**生产域名**，
+> 出现 `127.0.0.1` / `localhost` 一律是脏数据（本地 seed 跑出来的）。
+
+### 7.6 巡检脚本（别再靠人点下载才发现）
+
+`scripts/check-storage-consistency.sh` 把三件事对齐：compose 有没有挂载、DB 引用与磁盘实物对不对得上。
+
+```bash
+# 生产巡检（DB 核对要 ssh 到服务器，psql 只在容器里）
+scripts/check-storage-consistency.sh --repo . --remote 101.35.252.112:57122 --user root --with-db
+
+# 静态模式（本地/CI：只看 compose 挂载声明）
+scripts/check-storage-consistency.sh --repo .
+
+# 退出码：0 全通过 / 1 发现问题 / 2 环境缺失
+```
+
+> 该脚本已做**负向验证**：临时移走一个已注册文件后，脚本能精确报出
+> `FAIL 平台端: DB 引用了但磁盘上没有 → .../432d6922-....zip`；不是"永远说没事"的摆设。
+
+### 7.7 责任人
+平台运维工程师（上传目录与 DB 元数据都在平台端）；下载不可用 P2 级 4 小时。
+
+---
+
+## 8. 故障升级矩阵
 
 | 故障 | 级别 | 首次响应 | 恢复目标 | 升级路径 |
 |------|------|---------|---------|---------|
@@ -544,12 +657,15 @@ rm -rf user-web/bridge/dist user-web/bridge/dist-zip
 | 桥接全渠道掉线 | P1 | 15 min | 2 h | 桥接运维 → 前端组 |
 | 内存暴涨 | P2 | 30 min | 4 h | 运维 → 前端组 |
 | 磁盘满 | P1 | 15 min | 1 h | 系统运维 |
+| 扩展安装包下载 404 | P2 | 30 min | 4 h | 平台运维 |
 
-> 桥接全渠道掉线判定为 P1：直接影响自动获客/自动回复核心链路。其余参考 [SLA/SLO](SLA_SLO.md) 约定。
+> 桥接全渠道掉线判定为 P1：直接影响自动获客/自动回复核心链路。扩展安装包下载 404 不影响
+> **已装好的**扩展（已装扩展走 user-server，与平台文件无关），只挡住"新装/换版本"，故 P2。
+> 其余参考 [SLA/SLO](SLA_SLO.md) 约定。
 
 ---
 
-## 8. 运维检查清单（建议频率）
+## 9. 运维检查清单（建议频率）
 
 | 频率 | 动作 | 命令 |
 |------|------|------|
@@ -558,6 +674,7 @@ rm -rf user-web/bridge/dist user-web/bridge/dist-zip
 | 每日 | 数据库备份 | `make db-backup` |
 | 每日 | 磁盘水位 | `df -h` |
 | 每日 | 桥接日志异常扫描 | `grep -iE "error\|fail\|timeout" $HOME/.hivemtk/runtime/*.log` |
+| 每日 | 存储一致性巡检（DB↔磁盘） | `scripts/check-storage-consistency.sh --repo . --remote <host>:<port> --user root --with-db` |
 | 每周 | 备份恢复演练 | 见 [DR_RECOVERY.md](DR_RECOVERY.md) |
 | 每周 | 依赖漏洞扫描 | Dependabot PR 合并 |
 
@@ -565,3 +682,5 @@ rm -rf user-web/bridge/dist user-web/bridge/dist-zip
 
 **版本历史**
 - v1.0 (2026-08-15)：初版，覆盖 6 类高频故障（起不来/断连/LLM 掉线/桥接全掉/内存/磁盘），命令基于 Makefile 与宿主机推理栈实测。
+- v1.1 (2026-10-22)：新增「故障七：扩展安装包下载 404（平台端 uploads 丢失）」——2026-10-22 生产实测事故
+  （平台端容器重建清空 `/app/uploads`，DB 元数据仍在 → 静态下载全 404）；补挂载 + 补包 + 对齐 sha256 的恢复步骤。

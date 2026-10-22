@@ -131,10 +131,31 @@ export function batchDelete(data) {
   return http.post('/api/batch/delete', { ids: toIdList(data?.ids) })
 }
 
+// 批量更新的字段值一律归一成**字符串**。
+//
+// 后端 BatchUpdateRequest.Fields 是 map[string]string，所以 {"type": 9}（数字）
+// 会在反序列化阶段被拒：'json: cannot unmarshal number into Go struct field
+// BatchUpdateRequest.fields of type string' —— 400，且文案对用户毫无指导意义
+// （页面上那个 params 输入框的示例就是 JSON，用户写数字是再自然不过的事）。
+//
+// 数字/布尔在这里转成其字面量字符串（"9" / "true"）——后端对 is_verify、type
+// 这两个数字字段本来就要 ParseInt，转成字符串正合它的意；其余字段是文本列，
+// 字符串也是它要的形状。
+const toFieldMap = (fields) => {
+  const out = {}
+  if (!fields || typeof fields !== 'object' || Array.isArray(fields)) return out
+  Object.entries(fields).forEach(([k, v]) => {
+    if (v === null || v === undefined) return
+    if (typeof v === 'object') return // 复杂值不接受：后端只认标量
+    out[k] = String(v)
+  })
+  return out
+}
+
 export function batchUpdate(data) {
   return http.post('/api/batch/update', {
     ids: toIdList(data?.ids),
-    fields: data?.fields || {}
+    fields: toFieldMap(data?.fields)
   })
 }
 

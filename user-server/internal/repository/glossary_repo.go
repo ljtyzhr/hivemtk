@@ -59,12 +59,28 @@ func (r *GlossaryRepository) Create(ctx context.Context, g *model.Glossary) erro
 }
 
 // Update 更新术语（按 ID 主键）。
+//
+// 不用 Save：Save 把**整个结构体**写回，包括本层从未赋值的 tenant_id（=0）。
+// 后果有两处，都实测过：
+//   - 离线单机（off）档：隔离 callback 不注入 ⇒ 行带着 tenant_id=0 落库 ⇒
+//     那不属于任何租户，**默认租户自己也读不到**（实测：更新一次术语后
+//     select tenant_id from glossaries where term_id=… 得到 0）。
+//   - SaaS（on）档：撞「更新不可改写 tenant_id」闸门 ⇒ 整条更新 500。
+//
+// 改成「按主键定向更新 + 显式列出业务列」：tenant_id 由隔离 callback 负责
+// （INSERT 填、UPDATE 不许改），updated_at 交给 GORM 的 autoUpdateTime。
 func (r *GlossaryRepository) Update(ctx context.Context, g *model.Glossary) error {
 	if g == nil {
 		return errors.New("glossary: nil entity")
 	}
+	if g.ID == 0 {
+		return errors.New("glossary: id required")
+	}
 	g.UpdatedAt = time.Now()
-	return r.db.WithContext(ctx).Save(g).Error
+	return r.db.WithContext(ctx).Model(&model.Glossary{}).
+		Where("id = ?", g.ID).
+		Select("term_id", "category", "preserve", "translations", "pattern", "status").
+		Updates(g).Error
 }
 
 // Delete 软删除（按 TermID）。Status 置 "disabled"，DeletedAt 置当前时间。
