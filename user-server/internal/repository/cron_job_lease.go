@@ -28,12 +28,6 @@ func NewCronJobLeaseRepositoryWithDB(db *gorm.DB) *CronJobLeaseRepository {
 	return &CronJobLeaseRepository{db: db}
 }
 
-func (r *CronJobLeaseRepository) SetDB(ctx context.Context, db *gorm.DB) {
-	if db != nil {
-		r.db = db
-	}
-}
-
 // Hold 抢占或续约租约，返回本轮该不该由调用方干活。
 //
 // 三种情形都会让本行 owner 变成 workerID 并刷心跳：租约行还不存在（先建行再抢）、

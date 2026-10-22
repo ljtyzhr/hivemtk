@@ -395,3 +395,6 @@ user-web/tests/e2e/UI_AUDIT_REPORT.md
 vendor/
 yarn-debug.log*
 yarn-error.log*
+
+# 发布脚本本地交叉编译产物（deploy-user.sh 的 API 路径）
+/deploy/out/
