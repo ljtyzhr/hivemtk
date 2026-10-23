@@ -697,6 +697,12 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 		bridgeWS.GET("/bridge/outbox", bridgeHandler.GetBridgeOutbox)
 		bridgeWS.POST("/bridge/outbox/ack", bridgeHandler.AckBridgeOutbox)
 
+		// B1-a：选择器健康上报。挂在桥接组里（只认实例级桥接凭证），与读判定结果
+		// 的 GET 分开——见 controller.BridgeSelectorHealthController 文件头。
+		selectorHealthCtrl := controller.NewBridgeSelectorHealthController(
+			service.NewSelectorHealthService(repository.NewBridgeSelectorHealthRepository(gormDB)))
+		bridgeWS.POST("/bridge/selector-health", selectorHealthCtrl.Ingest)
+
 		bridgeWS.GET("/bridge/outbox/sse", bridgeHandler.HandleOutboxSSE)
 
 		bridgeWS.GET("/bridge/capabilities", controller.NewBridgeCapabilitiesController().GetCapabilities)
@@ -739,6 +745,10 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 		})
 		bridgeAccountCtrl := controller.NewBridgeAccountController()
 		bridgeAccountCtrl.RegisterRoutes(auth)
+
+		// B1-a 读侧：运营面看判定结果（登录态）。与上面 bridgeWS 里的 POST 上报口
+		// 刻意挂在不同组：扩展凭证不该读得到「全渠道健康度」这张运营表。
+		auth.GET("/bridge/selector-health", selectorHealthCtrl.List)
 
 		// 桥接扩展安装包下载口：浏览器扩展不上架商店，平台运营上传、租户在此下载。
 		// 平台关闭时该服务返回"当前部署未接入平台"，不是 500。

@@ -595,7 +595,15 @@ func DefaultParamDefs() []ParamDef {
 			ValueType:   "int", Risk: "danger", DefaultValue: "1000", Min: strPtr("1"), Max: strPtr("100000"), Step: strPtr("1"), Restart: false},
 		{Group: "bridge", Key: "sse_bus_buffer_size", Name: "bridge SSE 总线缓冲",
 			Description: "bridge SSE 事件总线的 channel 容量（条）。写大＝一次事件洪峰更不容易阻塞发布方，代价是常驻内存；写小＝洪峰时发布方被阻塞。0 会让总线退化为同步信道，一个慢消费者就能堵死所有出站投递。构造期读一次，改完需重启",
-			ValueType:   "int", Risk: "danger", DefaultValue: "100", Min: strPtr("1"), Max: strPtr("100000"), Step: strPtr("1"), Restart: true}, {Group: "memory", Key: "l1_ttl_hours", Name: "短期记忆 TTL",
+			ValueType:   "int", Risk: "danger", DefaultValue: "100", Min: strPtr("1"), Max: strPtr("100000"), Step: strPtr("1"), Restart: true},
+		// B1-a：桥接选择器健康度的降级阈值。
+		// 读点：internal/service/selector_health.go 的 SelectorHealthService.Threshold
+		// （每请求热读，改完即时生效；兜底常量 SelectorHealthDegradedBelow 与 DefaultValue 一致）。
+		{Group: "bridge", Key: "selector_health_degraded_below",
+			Name:        "桥接选择器命中率降级阈值",
+			Description: "选择器命中率低于该百分比即判 degraded（0–100，样本不足 20 次的先归 warming 不算降级）。平台改版后桥接扩展仍在跑、但读不到消息，此前的表现是「这个账号今天没客户」；有了它，运营面会直接看到哪个渠道的哪个字段命中了率掉了。写高＝更容易报警（改版刚发生时就能看到，代价是页面加载慢的正常页面也可能短暂飘红），写低＝更稳但可能漏掉真实失效。非正数或 >100 一律回落兜底 60",
+			ValueType:   "int", Unit: "%", DefaultValue: "60", Min: strPtr("1"), Max: strPtr("100"), Step: strPtr("1"), Restart: false},
+		{Group: "memory", Key: "l1_ttl_hours", Name: "短期记忆 TTL",
 			Description: "L1 短期记忆（MemoryLayerShortTerm）的存活秒数。它同时是召回窗口：调大让多轮对话上下文更连贯，调小让旧消息更快沉到 L4 长期层。默认 24h 与单会话的常见跨度相当。调 0 会让刚写入的短期消息立即过期、短期召回永远空手，症状是「AI 突然不记得上一句」；非正数一律回落代码兜底",
 			ValueType:   "duration", DefaultValue: "86400", Min: strPtr("60"), Max: strPtr("604800"), Step: strPtr("60")},
 		{Group: "memory", Key: "l1_window_size", Name: "短期记忆窗口大小",

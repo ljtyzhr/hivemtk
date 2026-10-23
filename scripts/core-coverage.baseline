@@ -1,0 +1,54 @@
+# 核心域覆盖率棘轮（scripts/check-core-coverage.py 读取）
+#
+# 一行一个核心包：`package | floor_percent`。floor 是**向下取整**的实测值，
+# 只许涨不许跌 —— 覆盖率下降要么补测试，要么（真有正当理由时）用
+# `--allow-drop <包名>` 显式下调并在提交信息里签字。
+#
+# 为什么按包而不按全仓：全仓平均涨了不代表核心链路被测到，详见脚本文件头。
+# 刷新：python3 scripts/check-core-coverage.py --profile user-server/coverage/go-cover.out --refresh
+#
+# ─────────────────────────────────────────────────────────────────────
+hivemtk-user/internal/aiagent/agent/lifecycle | 92
+hivemtk-user/internal/aiagent/agent/portcontract | 25
+hivemtk-user/internal/aiagent/agent/runtime | 57
+hivemtk-user/internal/aiagent/agent/tooluse | 56
+hivemtk-user/internal/aiagent/embedding | 95
+hivemtk-user/internal/aiagent/eval | 93
+hivemtk-user/internal/aiagent/knowledge/controller | 22
+hivemtk-user/internal/aiagent/knowledge/model | 0
+hivemtk-user/internal/aiagent/knowledge/repository | 27
+hivemtk-user/internal/aiagent/knowledge/service | 20
+hivemtk-user/internal/aiagent/llm | 64
+hivemtk-user/internal/aiagent/llm/selfconsistency | 98
+hivemtk-user/internal/aiagent/mcp | 92
+hivemtk-user/internal/aiagent/rag/cache | 66
+hivemtk-user/internal/aiagent/rag/core | 77
+hivemtk-user/internal/aiagent/rag/customer_service | 37
+hivemtk-user/internal/aiagent/rag/eval | 94
+hivemtk-user/internal/aiagent/rag/incremental | 84
+hivemtk-user/internal/aiagent/rag/retrieval | 62
+hivemtk-user/internal/aiagent/rag/service | 31
+hivemtk-user/internal/aiagent/vector | 83
+hivemtk-user/internal/approval | 93
+hivemtk-user/internal/browser_automation/controller | 59
+hivemtk-user/internal/browser_automation/dto | 100
+hivemtk-user/internal/browser_automation/model | 0
+hivemtk-user/internal/browser_automation/platform | 81
+hivemtk-user/internal/browser_automation/platform/douyin | 0
+hivemtk-user/internal/browser_automation/platform/xianyu | 0
+hivemtk-user/internal/browser_automation/platform/xiaohongshu | 0
+hivemtk-user/internal/browser_automation/repository | 78
+hivemtk-user/internal/browser_automation/service | 70
+hivemtk-user/internal/controller | 25
+hivemtk-user/internal/model | 40
+hivemtk-user/internal/reach/card/template | 41
+hivemtk-user/internal/repository | 38
+hivemtk-user/internal/service | 59
+hivemtk-user/internal/service/churn | 85
+hivemtk-user/internal/service/confidence | 89
+hivemtk-user/internal/service/feedback_loop | 80
+hivemtk-user/internal/service/humanize | 94
+hivemtk-user/internal/service/humanize/ai | 92
+hivemtk-user/internal/service/humanize/behavioral | 95
+hivemtk-user/internal/service/trace_learning | 30
+hivemtk-user/internal/service/translation | 32

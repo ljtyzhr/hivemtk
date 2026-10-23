@@ -2,6 +2,7 @@ import { createLogger } from './logger.js';
 import { RateLimiter, globalSendWaitMs, stampGlobalSendAt } from './rate-limiter.js';
 import { makeUnifiedMessage, SENDER, DIRECTION, HISTORY_CONTEXT_WINDOW, PATROL_DEFAULTS, contentHash, typedContentHash, mediaPlaceholder, isMediaMsgType } from './types.js';
 import { mergeSelectors } from './selector-ai.js';
+import { createSelectorHealthTracker } from './selector-health.js';
 import { simulateRealClick } from './dom.js';
 import { humanSendTimeoutMs, BRIDGE_THREE_CHANNEL } from './constants.js';
 import { withTimeout } from './downlink.js';
@@ -371,12 +372,48 @@ export class BaseAdapter {
     }
     return this.hooks.getMessageListRoot ? this.hooks.getMessageListRoot() : null;
   }
-  getMessageItems() { return this.hooks.getMessageItems ? this.hooks.getMessageItems() : []; }
+  // B1-a：定位面的两处入口（消息项 / 会话列表）在这里统计命中率。
+  //
+  // 为什么把探针放在这两个胶水方法上，而不是每个渠道的 hooks 里：
+  //   ① 5 个渠道的 getMessageItems 实现各不相同（虚拟列表、iframe、React fiber…），
+  //      逐渠道埋点＝5 份口径，且新增渠道必然漏一处；而所有渠道都经过这两个方法。
+  //   ② 这两个方法本身就是「选择器最终有没有产出」的裁决点：hooks 返回非空数组
+  //      才说明这一轮的选择器是活的。
+  // 计数只进内存、够量才上报（见 selector-health.js），热路径上不碰存储、不发网络。
+  getMessageItems() {
+    const items = this.hooks.getMessageItems ? this.hooks.getMessageItems() : [];
+    this._recordSelectorHealth('messageItem', Array.isArray(items) && items.length > 0);
+    return items;
+  }
   parseMessageItem(item) {
     return this.hooks.parseMessageItem ? this.hooks.parseMessageItem(item) : null;
   }
   getConversationList() {
-    return this.hooks.getConversationList ? this.hooks.getConversationList() : [];
+    const list = this.hooks.getConversationList ? this.hooks.getConversationList() : [];
+    this._recordSelectorHealth('conversationList', Array.isArray(list) && list.length > 0);
+    return list;
+  }
+  // _recordSelectorHealth 记一次定位尝试，累计够了就把增量推给 background。
+  //
+  // 上报走 background（service worker）而不是直接在 content script 里 fetch：
+  //   · 页面切走/刷新会带走 content script 的内存计数，service worker 活得更久；
+  //   · token/serverUrl 的读点在 background 的配置里，content 侧不必再持有一份凭证。
+  // 没有 chrome.runtime（用例/jsdom）时静默跳过——统计面永远不该让业务代码抛错。
+  _recordSelectorHealth(field, hit) {
+    try {
+      this._selectorHealth = this._selectorHealth || createSelectorHealthTracker();
+      this._selectorHealth.record(this.channel, field, !!hit);
+      if (!this._selectorHealth.shouldFlush(this.channel)) return;
+      const { items } = this._selectorHealth.drain(this.channel);
+      if (!items.length) return;
+      if (typeof chrome === 'undefined' || !chrome.runtime || typeof chrome.runtime.sendMessage !== 'function') return;
+      chrome.runtime.sendMessage({
+        type: 'reportSelectorHealth',
+        channel: this.channel,
+        accountId: this.account || '',
+        items,
+      }, () => { try { void chrome.runtime.lastError; } catch (_) {  } });
+    } catch (_) {  }
   }
   // 批25：opts 透传渠道 sendText（目前只有 { expectConv, assertConv }）：渠道在点发送前
   //   调 assertConvOrAbort 复核会话归属，漂移就清框中止。不传 = 旧行为（无复核）。

@@ -352,6 +352,10 @@ func allModels() []any {
 		&model.SecurityAuditItem{},
 		&model.UserBlacklist{},
 		&model.BridgeAccount{},
+		// B1-a：桥接选择器健康度计数（扩展上报「试了几次/命中几次」，服务端按阈值判
+		// degraded/broken）。不登记建表 ⇒ 全新部署上上报口每次都 500，而扩展侧只会在
+		// 自己的日志里记一行——运营面永远看不到平台改版导致的静默失效。
+		&model.BridgeSelectorHealth{},
 		&model.PasswordResetToken{},
 
 		&geomodel.GeoKeyword{},
@@ -373,6 +377,7 @@ func allModels() []any {
 
 		&geomodel.GeoProbeRun{},
 		&geomodel.GeoDailyStat{},
+		&geomodel.GeoCitationSnapshot{}, // A10 引用漂移快照
 		&geomodel.GeoSourceCatalog{},
 		&geomodel.GeoEntity{},
 		&geomodel.GeoEntityRelation{},

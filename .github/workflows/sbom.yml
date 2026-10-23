@@ -5,8 +5,21 @@
 name: SBOM
 
 on:
-  - push
-  - workflow_dispatch
+  push:
+  # PR 上也要跑：改动依赖清单 / 本工作流 / 断言脚本时，SBOM 的生成与断言必须在合并前
+  # 就被证明还能用。只在 push 上跑的话，「合并后才发现产物断言不过」是必然结局。
+  # paths 刻意收窄到依赖清单与本门自己的判据：SBOM 的输入面就是这些文件。
+  pull_request:
+    paths:
+      - 'scripts/check-sbom-artifacts.py'
+      - '.github/workflows/sbom.yml'
+      - 'user-server/go.mod'
+      - 'user-server/go.sum'
+      - 'user-web/package.json'
+      - 'user-web/package-lock.json'
+      - 'user-web/bridge/package.json'
+      - 'user-web/bridge/package-lock.json'
+  workflow_dispatch:
 
 permissions:
   contents: read
@@ -39,6 +52,16 @@ jobs:
         working-directory: user-web
         run: |
           syft scan dir:. -o spdx-json=../sbom-frontend.spdx.json
+
+      - name: SBOM 产物断言（A2-b：文件存在 ≠ 覆盖了本仓的依赖）
+        # 2026-10-24：前面的三步只要退出码是 0 就算过——而「成功地产出一个没用的东西」
+        # 有太多种形态：格式换成 table、working-directory 写错导致三份产物内容雷同、
+        # syft 一条依赖都没解析出来（SPDX 结构合法、packages 为空）。
+        # 本步骤断言两件事：① 三份产物都能被解析成 SPDX 且 packages 非空；
+        # ② 每份产物覆盖了对应清单里的**全部直接依赖**（go.mod 不带 // indirect 的行、
+        #   package.json 的 dependencies）——这一条才回答「这份 SBOM 是不是本仓的」。
+        # 工作流段（谁生成/谁上传）由 static-gates 里的 --workflow 那一步守着。
+        run: python3 scripts/check-sbom-artifacts.py --dir .
 
       - name: Upload SBOM artifacts
         uses: actions/upload-artifact@v7

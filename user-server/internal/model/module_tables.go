@@ -40,6 +40,11 @@ var coreOwnedTables = []string{
 	"obs_config", "platform_accounts", "platform_account_configs",
 	"integration_accounts", "integration_templates", "webhook_events",
 	"webhook_subscriptions", "bridge_accounts", "api_logs",
+	// B1-a：桥接选择器健康度计数（每渠道×字段一行）。随基座常在而不是随某个可售模块：
+	// 它观测的是**扩展活着与否**，任何用到桥接渠道的模块都依赖它，且它没有自己的
+	// 页面/接口面（读数是运营排障用）。挂到某个模块下就意味着"关掉那个模块后
+	// 这张表不再被清理"，而写入方（扩展上报口）根本不受模块闸管。
+	"bridge_selector_health",
 	// 租户与模块化本体
 	"tenants", "tenant_modules", "module_sync_logs", "module_orders",
 	"tenant_subscription_mirror",

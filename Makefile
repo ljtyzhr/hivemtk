@@ -588,6 +588,21 @@ audit:
 	@python3 scripts/menu-route-role-audit.py --self-check
 	@echo "── vite 主版本守卫：7 个 pin 必须同主版本，锁文件不得落后一个 minor（OPT-FE-07）──"
 	@bash scripts/check-vite-version.sh
+	@echo "── 依赖策略门（弃维护库引用面 / 声明形状 / 禁入名单；不重复 govulncheck 与 npm audit 的 CVE 面）──"
+	@python3 scripts/check-dependency-policy.py
+	@echo "── SBOM 产物断言·工作流段（三份 SPDX 都被生成、都被上传；产物级断言在 sbom.yml 里跑，需要 syft）──"
+	@python3 scripts/check-sbom-artifacts.py --workflow
+	@echo "── 核心域分档覆盖率（每个核心包自己的底线，棘轮只许涨）──"
+	@# 本地 profile 不是每台机器都有：没有时**大声跳过**而不是伪造绿，也不阻断
+	@# 「改一行前端顺手跑一下 audit」的场景。CI 的 coverage 作业无条件跑本门
+	@# （那里 profile 一定有），所以这里的跳过不会让门变成没人跑的空门。
+	@if [ -s user-server/coverage/go-cover.out ]; then \
+		python3 scripts/check-core-coverage.py --profile user-server/coverage/go-cover.out; \
+	else \
+		echo "  SKIP(未判定)：没有 user-server/coverage/go-cover.out —— 先跑"; \
+		echo "  go test ./internal/... -p 1 -short -coverprofile=user-server/coverage/go-cover.out -covermode=atomic"; \
+		echo "  本门在 CI 的 Coverage (user-server) 作业里无条件执行，本地跳过不等于通过"; \
+	fi
 	@echo "✅ 静态审计通过"
 
 # 交付前专用：构建产物里的凭证扫描。**不在 audit / CI 里** ——

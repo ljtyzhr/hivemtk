@@ -331,3 +331,22 @@ Window
 WindowSeconds
 WindowSize
 WorkerCount
+
+# ── B1-a（2026-10-24）：桥接选择器健康度的四个常量，刻意**不入库** ────────────
+# 判据：参数中心的语义是「运维改了就应改变系统行为」，而这四个是**两端协议形状**
+# 与**请求边界**，单边可调只会让扩展与服务端的判定互相打架：
+#   SelectorHealthMinAttempts      —— 与扩展侧 SELECTOR_HEALTH_DEFAULTS.minAttempts 同值。
+#                                     单边调高 ⇒ 服务端判 warming、扩展自检页判 broken，
+#                                     同一现象两个结论；要调必须同时发扩展版本。
+#   SelectorHealthMaxItemsPerReport / SelectorHealthMaxDeltaPerReport
+#                                  —— 上报请求的形状上限（字段数/单次增量）。它们是
+#                                     防脏数据与防撑爆写入的闸，不是运维旋钮；写成参数
+#                                     等于允许把闸开到无限。
+#   BridgeSelectorHealthListLimit  —— 运营面单次读取行数上限，与 bridgeAccountListLimit
+#                                     同一类（表规模由「渠道×字段」收敛，正常十几行）。
+# 真要调整判定敏感度，调的是 `bridge.selector_health_degraded_below`（**已入库**，
+# 每请求热读、改完即时生效），那是唯一该由运维动的阈值。
+BridgeSelectorHealthListLimit
+SelectorHealthMaxDeltaPerReport
+SelectorHealthMaxItemsPerReport
+SelectorHealthMinAttempts

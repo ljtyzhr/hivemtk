@@ -1,0 +1,28 @@
+# 依赖策略基线（scripts/check-dependency-policy.py 读取）
+#
+# 一行一个弃维护依赖，格式（`|` 分隔，四列都必须有内容）：
+#
+#   module | seam | review(YYYY-MM-DD) | why
+#
+# 三列各自的含义与代价：
+#   - seam：**引用面边界**——允许 import 它的文件，或一个目录前缀（多个用空格分隔）。
+#     门会现测：seam 路径必须存在，且该库的引用不得漏到 seam 之外。
+#     写成整仓（如 `user-server/internal`）等于自证「没有边界」，门不拦，但下一轮治理会
+#     在这里读到一条假账；宁可写窄一点、让门红一次，也不要写一个永远为真的 seam。
+#   - review：**到期复查日**。过期即红——到期时要做的是做决定（换掉，或显式延到下一次
+#     真会复查的日期并在 why 里写为什么延），不是改个数字让它变绿。
+#     定日期的方法：按「这个库最晚什么时候会真的让本仓出故障」估，而不是按「希望它什么时候被换掉」。
+#   - why：为什么不现在换。写清"换的成本是什么"，而不是"暂时先这样"。
+#
+# 本表只挡「新引入」与「到期不处理」，不发合格证：登记在册的库仍然是风险，
+# 只是风险被量化成了改动面 + 一个日期。
+#
+# 刷新：无 `--refresh-baseline` —— 本表是**手工合约**，不是生成物。
+# 生成出来的豁免表只会跟着代码漂移，而这里的每一行都必须有一个人签字。
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# module | seam | review | why
+# ─────────────────────────────────────────────────────────────────────────────
+github.com/Rhymen/go-whatsapp | user-server/internal/service/whatsapp_provider.go | 2027-03-31 | 个人版 WhatsApp Web 协议库（QR 登录 + 老式会话发送），上游 2021 后停更、协议已被 Meta 收紧。本仓已经把它的引用收敛到唯一 seam：Cloud API 走 channelbot/whatsapp，个人版只在 whatsapp_provider.go 里实现 WhatsAppProvider（Legacy 实现）。换掉的方式已就位：删掉该文件里的 legacy 实现 + 下线 QR 登录入口，上层 service 不用改。到期日按「Meta 关闭个人版 Web 协议的最后支持窗口」估，不是按开发排期估
+github.com/fvbock/endless | user-server/cmd/api/serve_unix.go | 2027-03-31 | 2017 年后无提交的优雅重启库。收敛成本极低（http.Server.Shutdown + signal.Notify 约 30 行），但它是 cmd/api 的启动路径，改它要连带复验「重启不丢连接」的部署行为，所以排在依赖治理之后。seam 只有一个文件，替换时不需要动任何业务代码
+gopkg.in/gomail.v2 | user-server/internal/pkg/mail user-server/internal/email/service/email_send.go | 2027-03-31 | 2016 年后无提交（作者已声明不再维护）。本仓的改动面只有 internal/pkg/mail 一个包 + email_send.go 一处直连；替换目标是把该包换成标准库 net/smtp（本仓已支持它）或一个维护中的 SMTP 客户端。之所以不现在换：unsubscribe 头、附件编码、编码兼容这几块有既有用例钉着，需要一个专门切片而不是顺手改

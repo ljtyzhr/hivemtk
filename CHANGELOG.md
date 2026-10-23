@@ -20,6 +20,22 @@
 - **顺带修复**：`.env-example` 补登 `TRUSTED_PROXIES`（HEAD 上 `check-env-coverage.py` 的红：可信反代中间件已读该键但文档面没有）
 - **验证**：`go build ./...` 绿、`go vet` 绿、`make audit` 全绿、合规相关 31 个用例全绿（不依赖测试库）
 
+#### 006 · Wave 2 止血切片：五道判据门 + 桥接选择器失效检测（2026-10-24，`specs/006-wave2-gates-and-selector-health`）
+
+共同主题：这五项治的都是同一类病——**功能在跑、CI 在绿，而它其实什么都没守住**。
+
+- **A2-a 依赖策略门**（`scripts/check-dependency-policy.py` + `scripts/dependency-policy.baseline`，自检 10 枚控制）：**不重复** `govulncheck` / `npm audit` 的 CVE 面（它们已在 CI 里跑），只守结构上抓不到的三类 —— 弃维护库的**引用面收敛**（基线 `module | seam | review | why`，`*_test.go` 不计引用面，引用面变宽即 `SEAM_LEAK`）、**到期复查日**（`REVIEW_OVERDUE`，"登记一次就永远躺着"是有时效的决定）、**声明形状**（`latest`/`*`/URL/相对路径 replace 即 `BAD_DECL`）与**禁入名单**。基线是**手工合约**（刻意不给 `--refresh-baseline`：能自动刷新的 seam 基线等于引用面变宽时跑一下就绿）。`lib/pq` 显式 `OUT_OF_SCOPE` 并每次打印原因（它是 model 层的**类型依赖**，收敛＝改字段类型+迁移，不是搬 import）
+- **A2-b SBOM 产物断言**（`scripts/check-sbom-artifacts.py`，自检 16 枚控制）：分两段 —— `--workflow` 纯静态核对 `sbom.yml`（三份期望产物都被生成、每步声明 `working-directory`、格式是 `spdx-json`、产物不落在被扫描目录内、每个产物被 upload 收录/每个上传路径有生成步、upload 有 `retention-days`、挂 Release 必须有 `contents: write`），`--dir` 做产物级断言（SPDX 结构、`packages` 非空、`SPDXID` 唯一、**每份清单的直接依赖全部出现在产物里**）。口径边界：**只对账直接依赖**（`go.mod` 非 indirect 行、`package.json` 的 `dependencies`），devDeps 与传递依赖只打印不判（syft 各 cataloger 收录口径不一致，写成硬判据会得到"本机能过 CI 上红"的门）；名称匹配 purl 优先、**只做精确匹配**（模糊匹配会把"少了 x"变成"因为有 y 所以放行"）
+- **A2-c WhatsApp 接口化**（`internal/service/whatsapp_provider.go` 新增，`whatsapp.go` 重写为纯委派）：`gowa` 收敛到**唯一 seam**；`WhatsAppProvider`（Kind/SendText/SendTemplate）+ 独立 `WhatsAppLoginProvider`（登录只有个人版扫码需要，Cloud API 没这个概念）；`whatsAppProviderFor` **保留旧判据** `Type=="cloud" && PhoneID!="" && Token!=""`（历史数据里存在 `cloud` 但凭据为空的账号，按类型直接走 Cloud 会把"能发"变成 500）；个人版不支持模板消息时返回 `ErrWhatsAppProviderUnsupported` 而**不退化成文本**
+- **A4-a 核心域分档覆盖率**（`scripts/check-core-coverage.py` + `scripts/core-coverage.baseline`，自检 8 枚控制）：把覆盖率从**全仓一个数**（OPT-CI-06 的 22%）拆成**每个核心包一条底线** —— 全仓平均看不到"核心包掉 20 点、边缘包涨回来"。8 条显式前缀（service/repository/controller/model/reach/approval/browser_automation/aiagent），`BELOW_FLOOR`/`UNREGISTERED`(新核心包必须有底线)/`NOT_IN_PROFILE`(**没测到 ≠ 0%**)/`STALE` 四类判据；棘轮**只涨**（`--refresh` 算低时保持原值并打印拒绝），真下调要 `--allow-drop <包名>` 在提交信息里签字
+- **B1-a 桥接选择器失效检测**：平台改版后扩展仍在跑、只是再也读不到消息，后端看到的是"这个账号今天没客户"。**分工是本功能最重要的一条设计——扩展侧只上报事实（attempts/hits），判定与阈值全在服务端**（阈值走参数中心 `bridge/selector_health_degraded_below`，兜底 60，改阈值**不需要发扩展版本**；让扩展判阈值会在各版本客户端出现 N 套互相矛盾的规则）
+  - 前端：`src/core/selector-health.js`（无 IO 计数器 / 多标签页合并 / **按已发批次扣减**而不是清空）+ `channel-adapter.js` 在 `getMessageItems`、`getConversationList` 两个**胶水方法**上埋点（逐渠道 hooks 埋点＝5 份口径且新增渠道必漏）+ `background/index.js` 用 `chrome.alarms` 1 分钟 flush（MV3 service worker 会被挂起，setInterval 不可靠）；新用例 20 例，bridge 全量 878 例全过
+  - 后端：`model/repository/service/controller` 四层 —— `(channel, field)` 唯一、计数**单调累计**（扩展会离线/被休眠，快照会漏掉整段离线时段）、`first_seen_at`/`last_report_at` 支持"这条读数是历史还是现在"；写入先 update 后 create（并发首建撞 23505 补加，不写 `ON CONFLICT (tenant_id,...)` —— 那条唯一索引由 `tenancyidx.Normalize` 在迁移期重建，列序是运维事实）；`hits > attempts` **拒收而不静默夹平**，增量**等比夹取**（夹不是丢：丢掉分母会让命中率偏高，正好掩盖问题）；判定顺序固定 样本不足⇒`warming` → 零命中⇒`broken` → 低于阈值⇒`degraded` → `ok`
+  - 路由刻意分两组：`POST /api/bridge/selector-health` 挂桥接凭证组（扩展没有登录态），`GET` 挂 auth 组（扩展凭证不该读得到全渠道运营读数）
+  - 四个 Go 常量（`SelectorHealthMinAttempts`/`MaxItemsPerReport`/`MaxDeltaPerReport`/`BridgeSelectorHealthListLimit`）**刻意不入参数中心**，写进 `hardcode-tunable.baseline` 并附理由：两端协议形状与请求边界，单边可调只会让扩展与服务端互相打架
+- **接线**：`make audit` 末尾加 A2-a / A2-b(`--workflow`) / A4-a（无 profile 时**大声 SKIP**、不阻断）；`user-server-ci.yml` static gates 加 dependency-policy 与 sbom-artifacts 两步（均含 `--self-check`）、coverage 作业加 core-coverage 两步、push+PR 的 `paths` 各加 7 条（判据脚本与基线必须进触发面，否则"只改判据"的提交不重跑）；`sbom.yml` 加 `pull_request.paths` 与 `--dir .` 断言步
+- **顺带修复**：`model/module_tables.go` 补登 `bridge_selector_health`（`TestEveryModelTableHasModuleOwner` 钉死"一张表都不许无主"，新表不登记会当场红）
+
 #### 003 · SaaS 计费二期（2026-10-19，`.specify/003-saas-billing-v2`）
 
 - **定价改版（显式覆盖 002 年度收费口径）**：功能模块 **23 个全部 0 元**（注册/初始化自动赠予开通，`FreeToEnable`），**浏览器自动化 ¥99 买断**（`billing_cycle=once`，9900 分、不写 `ExpiresAt`，由旧建议 1680 元/年 改为 ¥99，2026-10-19 用户裁决），软件订阅 **149 元/月仅按月**，新商户 **15 天体验期**（`SUBSCRIPTION_TRIAL_DAYS` 默认 15）

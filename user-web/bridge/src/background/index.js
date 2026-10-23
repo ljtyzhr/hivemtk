@@ -1,6 +1,12 @@
 import { DEFAULT_USER_SERVER } from '../core/constants.js';
 import { createLogger } from '../core/logger.js';
 import { autoInjectOnCommit, injectContentScript, scriptingAvailable } from './injector.js';
+import {
+  buildSelectorHealthRequest,
+  mergeSelectorHealthItems,
+  postSelectorHealth,
+  subtractSelectorHealthItems,
+} from '../core/selector-health.js';
 import './sse-client.js';
 
 const log = createLogger('bg', 'bg');
@@ -11,6 +17,10 @@ const KEY = 'bridgeConfig';
 const KEY_ACTIVE = 'bridgeActiveByChannel';
 // content 端上报的 health snapshot（按 channel 索引；2026-08-14 P0-C 死开关）
 const KEY_HEALTH = 'bridgeHealthByChannel';
+// B1-a：选择器命中率的待上报增量（按 channel 索引；content 端累计够量才推过来）
+const KEY_SELECTOR_HEALTH = 'bridgeSelectorHealthPending';
+// B1-a：定时把待上报增量发给服务端（service worker 会被浏览器挂起，必须用 alarms 而不是 setInterval）
+const SELECTOR_HEALTH_ALARM = 'bridgeSelectorHealthFlush';
 
 // ---- chrome API 兜底 ----
 function lastError() {
@@ -109,6 +119,33 @@ chrome.runtime.onMessage.addListener((msg, _sender, sendResponse) => {
     });
     return true;
   }
+  // B1-a：选择器命中率增量（content → 这里 → 服务端）。
+  //
+  // 只落 storage、不在这里直接 POST：content script 可能同时有多个标签页在报，
+  // 而 token/serverUrl 的读点在 background 的配置里。攒到定时器（或调用方显式
+  // flush）再走一趟网络，避免每个 content 每次上报都发一次请求。
+  if (msg && msg.type === 'reportSelectorHealth') {
+    const { channel, items } = msg;
+    if (!channel || !Array.isArray(items) || items.length === 0) {
+      sendResponse({ ok: false, reason: 'invalid_payload' });
+      return false;
+    }
+    chrome.storage.local.get(KEY_SELECTOR_HEALTH, (res) => {
+      const cur = res[KEY_SELECTOR_HEALTH] || {};
+      cur[channel] = mergeSelectorHealthItems(cur[channel], items);
+      chrome.storage.local.set({ [KEY_SELECTOR_HEALTH]: cur }, () => {
+        const err = lastError();
+        if (err) { sendResponse({ ok: false, error: err }); return; }
+        sendResponse({ ok: true, pending: cur[channel].length });
+      });
+    });
+    return true;
+  }
+  // 自检页/排障用：立刻把待上报增量发出去，并回传服务端的判定结果。
+  if (msg && msg.type === 'flushSelectorHealth') {
+    flushSelectorHealthPending().then((r) => sendResponse(r));
+    return true;
+  }
   if (msg && msg.type === 'emergencyStop') {
     broadcastToAllTabs({ type: 'emergencyStop', reason: msg.reason || 'manual' });
     sendResponse({ ok: true, broadcast: true });
@@ -203,6 +240,80 @@ setInterval(() => {
     if (changed) chrome.storage.local.set({ [KEY_HEALTH]: cur });
   });
 }, 60000); 
+
+// ── B1-a：选择器命中率上报 ────────────────────────────────────────────────
+//
+// 失败时**保留**增量（不清空）：观测面丢一次采样，等于把「命中率掉了」这件事推迟一个
+// 周期，而平台改版本来就是越早看到越好。
+// 成功后按「已发出去的那一批」做减法而不是整份清空：POST 期间 content 仍在计数，
+// 直接清空会连那段时间的观测一起丢掉（丢分母 ⇒ 命中率偏高 ⇒ 恰好掩盖问题）。
+function subtractSelectorHealthPending(channel, sent) {
+  return new Promise((resolve) => {
+    chrome.storage.local.get(KEY_SELECTOR_HEALTH, (res) => {
+      const cur = res[KEY_SELECTOR_HEALTH] || {};
+      const left = subtractSelectorHealthItems(cur[channel], sent);
+      if (left.length) cur[channel] = left;
+      else delete cur[channel];
+      chrome.storage.local.set({ [KEY_SELECTOR_HEALTH]: cur }, () => resolve());
+    });
+  });
+}
+
+async function flushSelectorHealthPending() {
+  let snapshot = {};
+  try {
+    snapshot = await new Promise((resolve) => {
+      chrome.storage.local.get(KEY_SELECTOR_HEALTH, (res) => resolve(res[KEY_SELECTOR_HEALTH] || {}));
+    });
+  } catch (e) {
+    return { ok: false, reason: 'storage_unavailable' };
+  }
+  const channels = Object.keys(snapshot);
+  if (!channels.length) return { ok: true, sent: 0, failed: 0 };
+  const cfg = await getConfig();
+  const results = [];
+  for (const channel of channels) {
+    const items = snapshot[channel] || [];
+    if (!items.length) continue;
+    let req;
+    try {
+      req = buildSelectorHealthRequest({
+        serverUrl: cfg.serverUrl || DEFAULT_USER_SERVER.baseUrl,
+        token: cfg.token,
+        tenantCode: cfg.tenantCode,
+        channel,
+        // account_id 只用于服务端排障（哪个浏览器实例在报），不参与聚合；配置里没有
+        // 账号时留空而不是编一个——空字符串在服务端是"未声明"，编出来的值会误导排障。
+        accountId: '',
+        items,
+      });
+    } catch (e) {
+      results.push({ channel, ok: false, error: e && e.message ? e.message : String(e) });
+      continue;
+    }
+    const r = await postSelectorHealth(req);
+    results.push({ channel, ok: r.ok, status: r.status, error: r.error, degraded: r.degraded });
+    if (r.ok) await subtractSelectorHealthPending(channel, items);
+  }
+  const failed = results.filter((x) => !x.ok);
+  if (failed.length) log.warn('选择器健康上报失败：' + JSON.stringify(failed));
+  else if (results.length) log.info(`选择器健康已上报 ${results.length} 个渠道`);
+  return { ok: failed.length === 0, sent: results.length, failed: failed.length, results };
+}
+
+// service worker 会被浏览器挂起：setInterval 在 MV3 里不可靠，周期任务必须走 alarms。
+// 1 分钟一次的代价可以忽略（一次 storage 读 + 增量非空时才发网络），
+// 而周期太长会让「平台改版」到「运营看到」之间的窗口以小时计。
+if (chrome.alarms && typeof chrome.alarms.create === 'function') {
+  try {
+    chrome.alarms.create(SELECTOR_HEALTH_ALARM, { periodInMinutes: 1 });
+    chrome.alarms.onAlarm.addListener((a) => {
+      if (a && a.name === SELECTOR_HEALTH_ALARM) void flushSelectorHealthPending();
+    });
+  } catch (e) {
+    log.warn('选择器健康定时上报未挂上：' + (e && e.message ? e.message : String(e)));
+  }
+}
 
 if (chrome.webNavigation && chrome.webNavigation.onCommitted) {
   chrome.webNavigation.onCommitted.addListener(autoInjectOnCommit);
