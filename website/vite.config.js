@@ -4,15 +4,16 @@ import { fileURLToPath, URL } from 'node:url'
 
 
 // =============================================================
-// 单一源约束（website 子路径 / dev 端口）
+// 单一源约束（website base / dev 端口）
 // 单一代码源：本文件的 SITE_BASE 与 server.port。
 //   - dev-server.cjs 的 SITE_BASE / PORT 必须与本文件字面一致
-//   - index.html 的 canonical/hreflang 前缀、README 的访问地址跟着 SITE_BASE
-// 站点托管在 GitHub Pages 的项目子路径下，全部资源 URL 必须带这个前缀。
-// 历史上这里把 /public 与 /merchant-api 反代到 platform-server:8205 供客服浮标拉联系
-// 信息；浮标随线上域名下线一起删除后，官网运行期零后端依赖，不再有跨包端口对齐关系。
+//   - README 的发布步骤跟着 SITE_BASE 走
+// 发布面只有一个：本地构建产物 dist/ 整目录上传到线上服务器站点根
+// /www/wwwroot/hivemtk/website（对应 https://xapptool.cn/ 根路径），
+// 因此 base 必须是根路径 '/'，产物里的资源引用为 /assets/… 绝对路径。
+// 纯静态站：运行期对任何后端零依赖（无 API 调用、无客服浮标、无登录态）。
 // =============================================================
-const SITE_BASE = '/hivemtk/'
+const SITE_BASE = '/'
 
 export default defineConfig({
   base: SITE_BASE,

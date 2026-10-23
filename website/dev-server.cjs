@@ -1,10 +1,10 @@
-// 官网本地预览服务器：只服务 dist/ 静态产物，模拟 GitHub Pages 的托管行为。
+// 官网本地预览服务器：只服务 dist/ 静态产物，模拟线上站点根（https://xapptool.cn/）的托管行为。
 // =============================================================
-// 单一源约束（website 端口/子路径）
-// 单一代码源：vite.config.js 的 SITE_BASE（'/hivemtk/'）与 server.port（8213）
+// 单一源约束（website 端口/base）
+// 单一代码源：vite.config.js 的 SITE_BASE（'/'）与 server.port（8213）
 // 本文件必须与 vite.config.js 字面一致：
-//   - PORT = 8213           同步 vite.config.js server.port
-//   - SITE_BASE = '/hivemtk/'  同步 vite.config.js base
+//   - PORT = 8213        同步 vite.config.js server.port
+//   - SITE_BASE = '/'    同步 vite.config.js base（线上站点根路径托管）
 // 跨包对齐：platform-server 端口与本文件无关——纯静态站不代理任何后端。
 // =============================================================
 const http = require('http')
@@ -12,7 +12,7 @@ const fs = require('fs')
 const path = require('path')
 
 const PORT = 8213
-const SITE_BASE = '/hivemtk/'
+const SITE_BASE = '/'
 const DIST_DIR = path.join(__dirname, 'dist')
 
 const MIME = {
@@ -47,11 +47,6 @@ function readFileOr(res, filePath, status, onError) {
 function serveStatic(req, res) {
   const urlPath = decodeURIComponent(req.url.split('?')[0])
 
-  // Pages 把站点挂在项目子路径下：根路径没有内容，跳到 base 才能命中 index.html。
-  if (urlPath === '/' || urlPath === SITE_BASE.replace(/\/$/, '')) {
-    res.writeHead(302, { Location: SITE_BASE })
-    return res.end()
-  }
   if (!urlPath.startsWith(SITE_BASE)) {
     return send(res, 404, 'Not Found')
   }
@@ -63,10 +58,9 @@ function serveStatic(req, res) {
     return send(res, 403, 'Forbidden')
   }
   const notFound = () => {
-    // 未命中的路径交给 Pages 的 404.html：它由 postbuild 从 index.html 复制而来，
+    // 未命中的路径回退到 404.html：它由 postbuild 从 index.html 复制而来，
     // 加载后由 vue-router 按真实 pathname 决定渲染页面还是 NotFoundPage。
-    // 状态码保持 404——Pages 对不存在的深链正是「404 + 404.html 内容」，
-    // 本服务器的职责是复现这条兜底链路，不能本地绿、线上换一套语义。
+    // 状态码保持 404，与线上 nginx 的 error_page 404 /404.html 语义一致。
     const notFoundPath = path.join(DIST_DIR, '404.html')
     readFileOr(res, notFoundPath, 404, () =>
       send(res, 404, 'Not Found: 缺少 dist/404.html，请先 npm run build（postbuild 会生成它）')
@@ -74,7 +68,7 @@ function serveStatic(req, res) {
   }
   fs.stat(base, (err, stat) => {
     if (!err && stat.isDirectory()) {
-      // 目录（含 base 根路径 relPath=''）→ index.html，与 Pages 的目录索引行为一致
+      // 目录（含站点根 relPath=''）→ index.html，与 nginx 目录索引行为一致
       return readFileOr(res, path.join(base, 'index.html'), 200, notFound)
     }
     if (!err && stat.isFile()) {

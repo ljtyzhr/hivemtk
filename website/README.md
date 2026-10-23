@@ -8,7 +8,7 @@ HiveMTK · 私域 AI 营销操作系统的官方网站。基于 Vue 3 + Vite + v
 - **构建工具**: Vite 8
 - **路由**: Vue Router 4
 - **国际化**: vue-i18n 9（中 / 英 / 日 / 阿语）
-- **部署**: 商业生产 `https://xapptool.cn`（仓库外 `deploy/` 脚本发布）；开源镜像 GitHub Pages（`https://xiaofang142.github.io/hivemtk/`）
+- **部署**: 线上 `https://xapptool.cn`——本地 `npm run build` 后把 `dist/` 整目录上传到服务器站点根（见「发布」章节，无发布脚本）
 
 本站是**纯静态站**：运行期对任何后端零依赖，不含 API 调用、iframe 客服浮标或登录态。
 
@@ -29,9 +29,8 @@ website/
 │   ├── main.js         # 入口
 │   └── style.css       # 全局样式
 ├── check_i18n.mjs      # 翻译词典完整性校验
-├── deploy.sh           # 唯一构建入口：预检 + npm ci + build + Pages 产物门
 ├── dev-server.cjs      # 本机 dist 预览服务
-├── vite.config.js      # Vite 配置（base = SITE_BASE = '/hivemtk/'）
+├── vite.config.js      # Vite 配置（base = SITE_BASE = '/'，线上站点根路径）
 └── package.json
 ```
 
@@ -56,16 +55,16 @@ npm install
    ```bash
    npm run vite-dev
    ```
-   访问 `http://127.0.0.1:8213/hivemtk/`。端口来自 `vite.config.js` 的 `server.port`。
+   访问 `http://127.0.0.1:8213/`。端口来自 `vite.config.js` 的 `server.port`。
 
-2. **本地预览 dist 静态服务**（模拟 Pages 的静态托管行为，含 SPA fallback）：
+2. **本地预览 dist 静态服务**（模拟线上站点根的静态托管行为，含 SPA fallback 与 404.html）：
    ```bash
    npm run dev
    ```
    启动 `dev-server.cjs`，端口在 `dev-server.cjs` 的 `const PORT = 8213` 配置。
    需先执行 `npm run build` 产出 dist/ 目录。`npm run preview` 是本命令的同义别名。
 
-> `SITE_BASE = '/hivemtk/'` 是三处同步的同一字面量：`vite.config.js` 的 `base`、`dev-server.cjs`、`index.html` 的 canonical/hreflang 前缀。改站点子路径必须三处一起改。
+> `SITE_BASE = '/'` 是两处同步的同一字面量：`vite.config.js` 的 `base` 与 `dev-server.cjs` 的 `SITE_BASE`。线上是域名根路径托管，改托管路径须两处一起改。
 
 ### 构建生产版本
 
@@ -73,39 +72,43 @@ npm install
 npm run build
 ```
 
-产出 `dist/`，由 GitHub Pages 托管。`postbuild.mjs` 在 vite build 之后补两类 Pages 兜底产物：
-`dist/404.html`（Pages 无 rewrite，未知路径返回 404 状态码 + 该页，SPA 靠 `/:pathMatch(.*)*` 接管路由）
+产出 `dist/`，整目录上传到线上站点根。`postbuild.mjs` 在 vite build 之后补两类兜底产物：
+`dist/404.html`（nginx `error_page 404 /404.html`，未知路径返回 404 状态码 + 该页，SPA 靠 `/:pathMatch(.*)*` 接管路由）
 和按路由铺开的 `<route>/index.html`（让深链拿到真 200）。
 
-## 部署去向（两套并存）
+## 发布（线上站点根目录，不用任何脚本）
 
-| | 商业生产 | 开源镜像 |
-|---|---|---|
-| 地址 | `https://xapptool.cn` | `https://xiaofang142.github.io/hivemtk/` |
-| base | 根域 `/`（构建时 `--base=/` 覆盖 `SITE_BASE`） | 子路径 `/hivemtk/`（源码 `SITE_BASE`） |
-| 发布 | 仓库外 `deploy/deploy.sh website`：构建 → 把 dist 里 `xiaofang142.github.io/hivemtk/` 整体替换为 `https://xapptool.cn` → rsync 到服务器 `/www/wwwroot/hivemtk/website` | `.github/workflows/website-pages.yml` CI |
-| 服务器 | `101.35.252.112`（宝塔反代，见 `deploy/README.md`） | GitHub 托管 |
-
-> 源码保留 `github.io` + `/hivemtk/` 是**有意为之**：Pages 镜像需要它；生产 deploy 构建时才替换成 `xapptool.cn`。不要在源码里把它们改成生产域名，否则会打断 Pages CI。完整域名全集见 `deploy/README.md` 第 5 节。
-
-## 发布（GitHub Pages）
-
-构建入口只有一个脚本，CI 与本地跑同一条命令：
+发布只有一种方式：**本地构建 → 把 `dist/` 整目录上传到线上服务器的站点根目录**。
+没有发布脚本、没有 CI 发布、不改域名、不替换任何 URL——构建产物本身就是线上要的东西。
 
 ```bash
+# 1) 本地构建（产物落在 website/dist）
 cd website
-bash deploy.sh                # 预检 + npm ci + build + Pages 产物门
-bash deploy.sh --preflight-only   # 只跑预检，不构建
+npm ci
+npm run build            # vite build + postbuild（按路由铺 <route>/index.html、生成 404.html）
+
+# 2) 上传：整目录覆盖线上站点根（--delete 清掉旧 hash 资源，避免残留文件堆积）
+#    服务器别名 mtk-prod 见 ~/.ssh/config（101.35.252.112:57122，root）
+#    --exclude=.user.ini：宝塔站点根那个文件带 immutable 属性，--delete 删它必报 EPERM
+rsync -az --delete --exclude='.user.ini' -e 'ssh -p 57122' dist/ mtk-prod:/www/wwwroot/hivemtk/website/
+
+# 3) 冒烟（首页 + 一条深链）
+curl -s -o /dev/null -w '%{http_code}\n' https://xapptool.cn/
+curl -s -o /dev/null -w '%{http_code}\n' https://xapptool.cn/pricing/
 ```
 
-推送到 `master` 且改动命中 `website/**` 时，`.github/workflows/website-pages.yml` 自动执行同一脚本并把
-`website/dist` 发布到 Pages。一次性前置（仓库设置里开一次即可）：
+**服务器侧（一次性配置，与日常发布无关）**
 
-```bash
-gh api -X POST repos/xiaofang142/hivemtk/pages -f build_type=workflow
-```
+| 项 | 值 |
+|---|---|
+| 站点根目录 | `/www/wwwroot/hivemtk/website`（`dist/` 内容平铺在此，无子目录） |
+| Web 服务器 | 宝塔 nginx，站点配置 `/www/server/panel/vhost/nginx/xapptool.cn.conf` |
+| HTTPS / SSL | 宝塔证书 `/www/server/panel/vhost/cert/xapptool.cn/fullchain.pem` + `privkey.pem`，443 已启用，HTTP 自动跳 HTTPS（证书在宝塔续期，不随发布变动） |
+| SPA 兜底 | nginx `error_page 404 /404.html`；未知深链由 `postbuild` 生成的 `404.html` 渲染 |
+| 数据库 | 同机 docker 容器 `mtk-postgres`（127.0.0.1:8202）、`mtk-redis`（127.0.0.1:8203）——**官网是纯静态站，运行期不连数据库**，这些容器服务于用户端 / 平台端后端 |
 
-未开启时 workflow 的 configure-pages 步骤会直接报错，不会静默发布空站。
+构建期没有任何环境变量与域名替换：`base` 固定为根路径 `/`（`vite.config.js` 的 `SITE_BASE`），
+所以 `dist/` 可以直接铺到站点根，不需要在上传前 sed 任何东西。
 
 ## 配置口径
 
@@ -113,7 +116,7 @@ gh api -X POST repos/xiaofang142/hivemtk/pages -f build_type=workflow
 因此仓库内不存在 `.env.example` / `.env.development` / `.env.production`，也不需要。
 
 - 翻译词典：`src/i18n/modules/`（完整性由 `check_i18n.mjs` 校验，`MISSING_UNIQ=0` 才算绿）
-- SEO：`index.html` 的 canonical/hreflang/JSON-LD、`public/robots.txt`、`public/sitemap.xml`（源码 host 为 Pages 地址；生产 deploy 构建时统一替换为 `https://xapptool.cn`）
+- SEO：`index.html` 的 canonical/hreflang/JSON-LD、`public/robots.txt`、`public/sitemap.xml`
 
 ## 内容配置
 
@@ -141,8 +144,8 @@ gh api -X POST repos/xiaofang142/hivemtk/pages -f build_type=workflow
 
 ## 所在仓库
 
-本站源码是 **hivemtk 仓库的 `website/` 目录**（不是独立仓库），Pages 站点由该仓库的 GitHub 端发布：
+本站源码是 **hivemtk 仓库的 `website/` 目录**（不是独立仓库），线上发布 = 本地构建产物上传到服务器站点根：
 
 - **主仓库（Gitee）**: [hivemtk](https://gitee.com/xhpmayun/hivemtk)
-- **发布源（GitHub）**: [xiaofang142/hivemtk](https://github.com/xiaofang142/hivemtk) → `https://xiaofang142.github.io/hivemtk/`（开源镜像）；商业生产 `https://xapptool.cn` 由仓库外 `deploy/` 脚本发布
+- **源码（GitHub）**: [xiaofang142/hivemtk](https://github.com/xiaofang142/hivemtk)（官网 = `website/` 目录）
 - **平台端仓库（可选组件）**: [hivemtk-platform](https://gitee.com/xhpmayun/hivemtk-platform) —— 用户端默认 `PLATFORM_ENABLED=false`，不部署平台端也能完整运行
