@@ -18,9 +18,9 @@
 | # | 问题 | 严重度 | 状态 |
 |---|---|---|---|
 | P0-1 | WS `BroadcastToMerchant` 遍历全部连接广播 ⇒ on 模式下**跨租户推送载荷**（SOP 的 session/customer/content 进别人工作台） | 高（数据泄漏） | **已修 + 3 例回归** |
-| P0-2 | `/files/*` 静态服务**不看路径里的租户段** ⇒ 任何拿到 URL 的已登录租户可读别人租户的文件（tasks.md T011 声称"校验租户归属"，代码里那半边从未实现） | 高（数据泄漏） | **已修（已绑定租户的请求）+ 4 例回归**；无凭证外链的残留缺口见 P1-2 |
+| P0-2 | `/files/*` 静态服务**不看路径里的租户段** ⇒ 任何拿到 URL 的已登录租户可读别人租户的文件（tasks.md T011 声称"校验租户归属"，代码里那半边从未实现） | 高（数据泄漏） | **两轮修完**：一轮的 `tenantPathAllowed` 实测在生产上走不到（见 §3 P0-2 的更正），二轮换成"on 模式只认签名凭证 +URL 不含租户段"（A1/A12），含 6 组用例 + 存量重签迁移 |
 | P1-1 | 归属校验缓存的键是 `table:id`、**无租户段** ⇒ 一个租户的归属判定命中另一个租户，且其 record-not-found 语义是 fail-open | 中高 | **已修 + 2 例回归** |
-| P1-2 | 无凭证公开外链（访客 `<img>`、分享页）拿不到租户归属 ⇒ 只能靠 UUID 不可枚举 | 中 | 待批准（签名 URL） |
+| P1-2 | 无凭证公开外链（访客 `<img>`、分享页）拿不到租户归属 ⇒ 只能靠 UUID 不可枚举 | 中 | **已修**（A1）：`/files` 在 on 模式只认 `?s=` 签名凭证，缺失/篡改/过期一律 404；签名自指租户目录 ⇒ 跨租户不可表达 |
 | P1-3 | 通用归属中间件 `RequireOwner*` 的 fail-open 分支（`checker==nil ⇒ 放行`、`db==nil ⇒ (0,nil)`）+ not-found 混成 500 | 中（潜在） | **已修**（语义收口 + 6 例回归，见 §3） |
 | P1-4 | 平台端（运营端）的商户隔离**全靠手写 `Where("merchant_key = ?")`**，无框架约束、无门禁、失败模式是静默跨商户 | 中高（云端侧） | 待批准（设计已给） |
 | P1-5 | 云/本地之间**没有版本/契约握手**：老实例连新平台只能靠运行时 500 发现字段不匹配 | 中（运维） | 待批准 |
@@ -101,14 +101,18 @@ func (h *Hub) BroadcastToMerchant(merchantID string, ...) error {
 
 **判定**：`tasks.md` T011 写的是"静态服务校验租户归属（跨根目录穿越拒绝）"——**落盘半边有实现、服务半边从未实现**，声明与实现漂移，且没有任何用例会红。攻击面：URL 会经导出文件、日志、聊天转发外流，UUID 不可枚举是**唯一**防线。
 
-**修法**：`tenantPathAllowed(ctx, rel)`
-1. off 模式 ⇒ 恒放行（零回归）；
-2. 首段不是 `tenant_{id}` ⇒ 放行（存量根域文件、系统级上传、附件子目录）；
-3. 首段是 `tenant_{id}`：请求 ctx **已绑定租户** ⇒ 必须同租户，否则 **404**（不用 403，避免变成存在性预言机）；ctx **无绑定** ⇒ 放行（访客 `<img>` / 分享页，无凭证外链）。
+**二轮修法（A1/A12，2026-10-23 定稿）**：`tenantPathAllowed(ctx, rel)` 那版**已退役**，理由见下一条更正。现行判据只有一条：**on 模式下 `/files` 必须有签名凭证，验不过一律 404**。
 
-**回归**：`internal/router/files_guard_tenant_test.go`（4 例，含 `tenant_51` 不能被 `tenant_5` 前缀骗过的边界）。
+- 签名承载租户归属与过期时间：`/files/<相对路径>?s=<AES-GCM token>`，token 的明文是 `{p: 相对路径, t: 租户, e: 过期戳}`。**URL 里不再出现 `tenant_{id}` 段**（A12）——租户信息进了加密 token，不是换个位置明文摆放（base64 不是加密）。
+- 跨租户访问在结构上不可表达：签名自指它自己的租户目录，路径段改一个字节即 `ErrFileURLInvalid`。凭证的三条失效通道（缺失/篡改/过期）各有断言。
+- 撤销：轮换 `FILE_URL_SECRET`（未配时回落 `USER_JWT_SECRET` → `JWT_SECRET`，都未配则签名器不可用并响亮报错）。
+- 签发点唯一：`storage.LocalDriver.PublicURL`（五个上传调用点都经它），消费侧零改动；`off` 模式输出与历史**逐字节一致**。
+- 时效：`FILE_URL_TTL`（如 `168h`）可配，**默认不过期**——URL 会被持久化（`materials.url`、`message_hub.media_url`、卡片 `image_url`…），短时 token 会在用户翻历史时自己到期，变成"图片某天开始全裂"。过期校验在活体代码里（`TestVerifyFileURL_ExpiresWhenTTLSet` + 守卫侧 404 用例）。
+- 存量 URL：`v3_80_0_file_url_sign_migration.go` 把登记的 17 个 URL 列里 `/files/tenant_<id>/…` 就地重签（幂等；off 模式零动作；缺密钥时不改写、只响亮记一条并提示重跑）。**列宽守卫**：签名形态比明文长 ~100 字符（真库 `live_code_qrs.image_url` 只有 `varchar(255)`），装不下的行跳过并逐行 WARN —— 迁移不许把可修的数据问题放大成"升级卡在一行数据上"。**漏登记体检（只读）**：登记清单是人工审过的**单值** URL 列；通用上传接口的返回值会被前端存进任意头像/封面列，漏登记的表现是"那一列历史链接全裂且无声"。故收尾再按列名形态（`url|avatar|image|cover|logo|media|icon|thumb|photo|banner|qrcode|path`）扫一遍 `information_schema`，凡未登记却仍命中 `/files/tenant_%` 的列**逐列 WARN**；这一档**永不写库** —— 多值列（JSON 数组、逗号分隔 `images`）用"整列换成一条 URL"去改就是数据销毁。
 
-**残留缺口（P1-2）**：第 3 条第二种情形没收口——无凭证公开外链拿不到租户归属。要真收口只能走**签名 URL**（短时 token / 预签名），属于独立一项，见 P1-2。
+**回归**：`internal/storage/fileurl_test.go`（形态/往返/篡改/过期/无密钥/整段匹配）+ `internal/router/files_guard_tenant_test.go`（六组：无签名 404 / 签名 200 / 篡改与过期 404 / 签名绑租户 / off 逐字节等价 / 危险扩展名仍 403）+ `v3_80_0_…_test.go`（重签/幂等/off 空跑/缺密钥保留/形状边界）。
+
+**更正（本轮最重要的发现，与 §9 台账 P1-3 那条同体例）**：上一轮 `tenantPathAllowed` 的"ctx 已绑定租户 ⇒ 必须同租户"分支**在生产上从未生效**。`/files` 是 `Setup` 里最先注册的路由，而 gin 的 `r.Use` 只对之后登记的路由生效 ⇒ 它的 handler 链上只有一个 handler，没有 JWTAuth/TenantMiddleware ⇒ 请求 ctx 里永远没有租户绑定 ⇒ 那段 `if` 恒走"无绑定 ⇒ 放行"。**实测（改前）**：带「租户 6」JWT 请求 `/files/tenant_5/x.pdf` ⇒ 200；不带 token ⇒ 200。上一轮那 4 例之所以绿，是因为它在进程里手动 `req.WithContext(tenant.WithTenantID(...))` 注入了一个生产路径上不存在的状态 —— 这正是本仓最值得记的失效模式：**判定存在，但没有任何一条生产路径能走到它**。所以本轮换判据而不是打补丁：凭证只剩签名一种，且它不依赖任何中间件链。
 
 ---
 
@@ -191,7 +195,7 @@ func (h *Hub) BroadcastToMerchant(merchantID string, ...) error {
 | **P2-4**（✅ 已修） | 后台任务扇出**已有门禁**，但扫描面只覆盖 `internal/pkg/cron/` | `scripts/check-tenant-ctx-writes.py` 新增 `SCHEDULER_DIRS`（GEO/browser_automation），任务键改用 `@<路径>::<所在函数>`，登记表补 2 行；注册点 7 → **9**，自检 9 枚控制全 PASS | 不改两个调度器自己的 `AddTask` 形态（那是不必要的小重构）：**判据只需"注册点必须做一次归属决策"**，键取法随形态变即可 |
 | **P2-5**（✅ 已修） | 事件总线 `TenantID` 由**发布点自行填充**（4 处各写一遍） | 新增 `event.PublishCtx`/`PublishEventCtx` + `StampTenantFromCtx`（反射盖章，非 0 不覆盖）；3 处迁移；新增门禁 `scripts/check-event-publish-tenant.py` 禁止裸 `event.Publish(`；on 模式下 `TenantID=0` 打响声 | 执行者收成唯一一个 + 门禁，才不依赖"下一个人记得写" |
 | **P2-6** | 两端同名实体各写一份模型（`ConfigParam`/`ConfigParamAuditLog` 等），schema 靠人对齐 | `hivemtk-platform/platform-server/internal/model/config_param.go` vs `user-server/internal/model/config_param.go` | 两端是两个独立库、两条演进节奏，"共一份代码"未必划算；建议只对**跨端传递的结构**（开户登记、心跳、订单、模块下发）做单一事实源 |
-| **P3** | vendor 域名硬编码为默认值（`internal/config/platform.go:33` `DefaultCloudURL = https://work.xapptool.cn`）✅ 已修、`uploads` URL 暴露租户 id、`SetTrustedProxies` 只信私网 ⇒ 反代不在私网时 `ClientIP` 恒为反代 IP（全站共用一个限流桶）✅ 已修 | 见左 | P3-1（`DefaultCloudURL` 回落）：新增 `CloudURLSource` 来源标签 + 启动期 WARN，并把 provider 缺省实参从「同一个常量」改成空串（否则「没配」与「配了同一个值」不可区分，builtin 这一档永远看不到）。P3-3（可信反代）：`middleware.ConfigureTrustedProxies` 成唯一装配入口，名单可由 env `TRUSTED_PROXIES` 覆盖（非法条目整体报错而非静默丢弃），并挂观测中间件在「带 XFF 但来源不受信」时响亮一行（同对端去重 + 累计计数）。P3-2（`uploads` URL 暴露租户 id）与 P1-2 签名 URL 同源，未清 |
+| **P3** | vendor 域名硬编码为默认值（`internal/config/platform.go:33` `DefaultCloudURL = https://work.xapptool.cn`）✅ 已修、`uploads` URL 暴露租户 id、`SetTrustedProxies` 只信私网 ⇒ 反代不在私网时 `ClientIP` 恒为反代 IP（全站共用一个限流桶）✅ 已修 | 见左 | P3-1（`DefaultCloudURL` 回落）：新增 `CloudURLSource` 来源标签 + 启动期 WARN，并把 provider 缺省实参从「同一个常量」改成空串（否则「没配」与「配了同一个值」不可区分，builtin 这一档永远看不到）。P3-3（可信反代）：`middleware.ConfigureTrustedProxies` 成唯一装配入口，名单可由 env `TRUSTED_PROXIES` 覆盖（非法条目整体报错而非静默丢弃），并挂观测中间件在「带 XFF 但来源不受信」时响亮一行（同对端去重 + 累计计数）。P3-2（`uploads` URL 暴露租户 id）✅ 与 P1-2 同源、一并清掉（A12）：URL 形态改为 `?s=` 签名，租户段从路径里消失 |
 
 
 ### P0-1 二期（已修）WS 连接侧两级桶 + 发送口强制带租户
@@ -272,6 +276,12 @@ bash scripts/check-gorm-only.sh                            # ✅ 0 处 .Exec(/.R
 go test ./internal/pkg/tenant/... ./internal/pkg/tenancyidx/...   # ✅
 go test ./internal/websocket/ ./internal/middleware/ ./internal/router/ -count=1  # ✅ 三包全绿
 
+# A1/A12/A18 轮（签名 URL + 存量重签 + 附件分域）
+go test ./internal/storage/ ./internal/pkg/mail/ ./internal/email/... \
+        ./internal/router/ ./internal/migration/... ./internal/pkg/cron/ -count=1   # ✅ 全绿
+go test ./internal/content/... ./internal/browser_automation/service/ -count=1      # ✅ 上传调用点未受影响
+bash scripts/check-gorm-only.sh                            # ✅ 0 处（迁移走 GORM API + SystemScope）
+
 # 1) 真库内省（判定"哪些表是租户表"的唯一事实源）
 psql -h 127.0.0.1 -p 8202 -U admin -d user_db -Atc \
   "select count(*) from information_schema.tables where table_schema='public' and table_type='BASE TABLE'"   # 371
@@ -293,11 +303,12 @@ psql -h 127.0.0.1 -p 8202 -U admin -d user_db -Atc \
 
 | 项 | 依据 | 判断 |
 |---|---|---|
-| **无凭证外链签名化**（P1-2） | `/files` 的访客场景 | 预签名/短时 token；本地存储驱动已留 `SignUploadURL` 接口位，目前是占位报错 |
+| **无凭证外链签名化**（P1-2 / A1 / A12）✅ 已落地 | `/files` 的访客场景 + URL 暴露租户 id | `internal/storage/fileurl.go`：AES-GCM 签名 token（租户 + 相对路径 + 过期），URL 路径不含租户段；`/files` 守卫只认签名（缺失/篡改/过期 ⇒ 404）；`FILE_URL_TTL` 可配（默认不过期，因 URL 会被持久化），撤销靠轮换 `FILE_URL_SECRET`；存量 17 列由 `v3_80_0` 一次性重签。**牙齿**：守卫"验不过就放行" ⇒ 4 条 404 用例红；`PublicURL` 照发明文 ⇒ 形态与签名用例红 |
 | **平台端商户隔离上框架**（P1-4） | 两端能力不对称 | 推荐；与用户端 §7 方案 B（能力类型化）同源 |
 | **Postgres RLS** | `SAAS_MULTI_TENANT_EVALUATION_2026-10.md` §7 已否（连接池/事务语义、表 owner 绕过、`tenant_id=0` 与 `1` 并存无权威表） | 维持"本轮不做"，但仍是侵入面的理论下限；若做，先补"哪些行该是 `tenant_id=0`"的权威表 |
 | **形态矩阵契约门禁**（方案 E）✅ 已落地 | `DEPLOYMENT_MODES_EVALUATION_2026-10.md` §6 | `internal/app/deployment_matrix_contract_test.go`：四格 × 六条行为（出站/租户上下文/自助开户/初始化态/后台扇出/隔离 callback）= 24 条断言，全部走活体组件。两个轴**正交**是核心断言之一：租户那五条在两列数值必须相同，谁在平台开关里顺手加租户判定就会红。**牙齿**：临时让 off 模式也看 claim、让 `PlatformURLFor` 在关闭态照样返回地址 ⇒ ①②③ 三格全红 |
 | **逐端点双租户交叉扫描**（T028 尾巴）✅ 已落地 | 现有覆盖是"逐域代表用例"，731 条带参数端点无一穷尽判据 | `internal/router/cross_tenant_scan_test.go` 三条互补的腿：①匿名参数路由 32 条必须能说出"租户/行靠什么定位"（链上 `Public*Tenant`/`AppKeyResolve` 自动认 16 条 + 台账登记 16 条，双向校验）；②按行自证类用未知键探测 16 次，不得 200；③真库双租户真扫 6 条不同取数风格端点。**关键口径纠正**：正对照从"状态码 200"升级为"200 且响应体含播种行 marker"——实测 `/api/email/smtp/:id` 两租户都回 200 + `{"code":4301,"message":"该功能模块未开通…"}`，只判状态码是假绿（模块闸挡在取数之前，行根本没读出来）。**牙齿**：`GetByID` 走 `tenant.WithSystemScope`（真绕过 callback；`Unscoped()` 咬不动）⇒ 闸三红；摘 `/share/douyin/:id` 的 `PublicIDTenant` ⇒ 闸一红；`renderCardChatPage` 取不到行回 200 ⇒ 闸二红 |
+| **on 模式邮件附件静默丢弃**（A18，本轮顺带审计出） | 修 A1/A12 时顺手查"谁把 `/files/…` 当磁盘路径用" | 附件在 on 模式分域落盘到 `{baseDir}/tenant_{id}/attachments/…`，而解析器只认平根 ⇒ **每一条**附件都 Lstat 不中、静默丢弃（一条 WARN），邮件状态仍写"已发送"，无用例会红。修法：附件根按 URL 里的签名改选（`mail.WithAttachmentDir` + `storage.TenantDirFromFileURL`），并收成唯一构造点 `storage.LocalAttachmentResolver()`（单封投递与营销群发共用；两处各拼一遍正是成因）；验不过不回落猜平根同名文件。**牙齿**：修前 `on 模式附件没解析出来（附件会被静默丢弃）：got=[]` |
 
 ---
 
@@ -313,6 +324,20 @@ psql -h 127.0.0.1 -p 8202 -U admin -d user_db -Atc \
 | `user-server/internal/websocket/hub_tenant_buckets_test.go` | 新增：两级桶 + 发送口 fail-closed + 在线态按租户（5 例） |
 | `user-server/internal/app/deployment_matrix_contract_test.go` | 新增：2×2 部署形态矩阵契约（四格 × 六条行为） |
 | `user-server/internal/router/cross_tenant_scan_test.go` | 新增：A16 逐端点双租户交叉扫描三条腿（匿名参数路由机制闸 32 条 / 未知键闸 16 次 / 真扫 6 条，正对照要求 200 且含 marker） |
+| `user-server/internal/storage/fileurl.go` | 新增（A1/A12）：AES-GCM 文件 URL 签名器（`SignStoredPath`/`VerifyFileURL`/`TenantDir`/`TenantDirFromFileURL`），token 明文 `{p,t,e}`，域分离 `hivemtk/file-url/v1`，密钥 `FILE_URL_SECRET`→`USER_JWT_SECRET`→`JWT_SECRET`，`FILE_URL_TTL` 默认不过期 |
+| `user-server/internal/storage/fileurl_test.go` | 新增：形态（无租户段）/往返/篡改三态+换密钥/过期/无签名器/整段匹配边界 |
+| `user-server/internal/storage/local.go` | `PublicURL` 在 on 模式输出 `/files/<相对路径>?s=<token>`（off 逐字节不变）；`TenantPathPrefix` 保持唯一分域函数 |
+| `user-server/internal/router/files_guard.go` | 整文件重写：删除 `tenantPathAllowed`/`tenantFileSegmentRe`，on 模式**只认签名**（失败 404，无"验不过就放行"分支）；文件头写入退役记录与实测复现 |
+| `user-server/internal/router/files_guard_tenant_test.go` | 六组契约用例（无签名 404 含 ctx 注入 / 签名 200 / 篡改与过期 404 / 签名自指租户 / off 等价 / 危险扩展名仍 403） |
+| `user-server/internal/router/files_guard_setup_test.go` | 新增：走**真装配 `Setup`** 的四条（钉住"ctx 注入能变绿、生产路径走不到"这一失效模式） |
+| `user-server/internal/migration/migrations/v3_80_0_file_url_sign_migration.go` | 新增：17 个 URL 列的存量 `/files/tenant_<id>/…` 就地重签（幂等 / off 零动作 / 缺密钥只 WARN / Down 无动作） |
+| `user-server/internal/migration/migrations/v3_80_0_file_url_sign_migration_test.go` | 新增：重签形状与可验签 / 幂等 / off 空跑 / 缺密钥保留 / 形状边界 |
+| `user-server/internal/migration/migrations/initial_schema.go` | 注册 `v3.80.0` |
+| `user-server/internal/pkg/mail/attachment.go` | 新增 `WithAttachmentDir` 接缝（A18）：附件根按录入值改选 |
+| `user-server/internal/storage/attachment_source.go` | 新增 `LocalAttachmentResolver()`（唯一构造点）：附件根按签名里的租户改选 |
+| `user-server/internal/email/service/email_send.go` | 兜底解析器改走 `storage.LocalAttachmentResolver()` |
+| `user-server/internal/pkg/cron/emaillistcron.go`（+`_test.go`） | 群发侧同样改走唯一构造点；静态装配判据同步升级 |
+| `user-server/internal/email/service/email_attachments_tenant_test.go` | 新增（A18）：on 解析到租户树 / on 无签名不许回落 / off 逐字节等价 |
 | `user-server/internal/service/{session_assignment,customer_session,customer_session_routing,customer_session_takeover,chat_visitor,inbox_ingress_persist}.go` | 13 处 WS 推送调用点补 ctx |
 | `user-server/internal/router/files_guard.go` | 新增 `tenantPathAllowed` + 租户段正则；跨租户 404 |
 | `user-server/internal/router/files_guard_tenant_test.go` | 新增：/files 租户归属四态 + 边界（4 例） |

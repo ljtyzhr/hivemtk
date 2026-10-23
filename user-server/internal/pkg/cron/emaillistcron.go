@@ -98,7 +98,7 @@ func EmailListCron() {
 		mailer:      mail.SendMail,
 		lists:       emailListService,
 		jobs:        email.NewEmailJobsService(),
-		attachments: mail.LocalAttachments(storage.LocalAttachmentSource()),
+		attachments: storage.LocalAttachmentResolver(),
 	}
 
 	// 取列表与逐行投递都放进扇出回调：回调 ctx 按活跃租户注入，查询与回写自动获得隔离。

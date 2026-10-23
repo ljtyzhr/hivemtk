@@ -446,8 +446,7 @@ func (s *EmailSendService) attachmentResolver() mail.AttachmentResolver {
 	if s.attachments != nil {
 		return s.attachments
 	}
-	dir, urlPrefix := storage.LocalAttachmentSource()
-	return mail.LocalAttachments(dir, urlPrefix)
+	return storage.LocalAttachmentResolver()
 }
 
 // emailBody 正文 = 用户录入的内容 + 系统追加的退订页脚 + （可选）打开追踪像素。

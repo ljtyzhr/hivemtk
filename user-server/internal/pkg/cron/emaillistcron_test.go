@@ -437,7 +437,10 @@ func TestEmailListCronWiresComplianceRead(t *testing.T) {
 		"jobs:email.NewEmailJobsService(),",
 		// 附件解析器也必须真的接上环境派生的那棵树：deps 里有这个键、装配时给 nil，
 		// 表现是"运营粘了附件、邮件照样已发送"，与 R21 同一形状。
-		"attachments:mail.LocalAttachments(storage.LocalAttachmentSource()),",
+		// 判据从"mail.LocalAttachments(storage.LocalAttachmentSource())"升级成唯一构造点
+		// storage.LocalAttachmentResolver()：on 模式的分域根（{baseDir}/tenant_{id}/attachments）
+		// 只有那一个构造点知道，两处各拼一遍就是 A18（附件 100% 静默丢弃）。
+		"attachments:storage.LocalAttachmentResolver(),",
 	} {
 		if got := countLinesContaining(src, wiring); got != 1 {
 			t.Errorf("deps 装配里 %s 命中 %d 次，期望恰好 1 次", wiring, got)

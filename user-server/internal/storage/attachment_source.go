@@ -12,6 +12,8 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+
+	"hivemtk-user/internal/pkg/mail"
 )
 
 // LocalSource 按上传侧的既有优先级给出本地存储的三个派生值：
@@ -51,4 +53,25 @@ func LocalSource() (baseDir, publicURLPrefix, attachmentFolder string) {
 func LocalAttachmentSource() (dir, urlPrefix string) {
 	baseDir, publicURLPrefix, folder := LocalSource()
 	return filepath.Join(baseDir, folder), publicURLPrefix
+}
+
+// LocalAttachmentResolver 邮件附件出口的唯一构造点（单封投递 + 营销群发共用）。
+//
+// 只做一件事：把 LocalAttachmentSource 与"按 URL 里的签名定位租户根"接在一起。
+// 为什么必须是一个共享构造点：这两个消费者此前各自 `mail.LocalAttachments(storage.LocalAttachmentSource())`，
+// 于是"on 模式附件落在 {baseDir}/tenant_{id}/attachments/"这件事两边都不知道 ——
+// 附件 100% 静默丢弃（SaaS 审计 A18），而两处各写一遍只会让它们一起继续错。
+func LocalAttachmentResolver() mail.AttachmentResolver {
+	baseDir, urlPrefix, folder := LocalSource()
+	return mail.LocalAttachments(
+		filepath.Join(baseDir, folder),
+		urlPrefix,
+		mail.WithAttachmentDir(func(value, storePath string) string {
+			tenantDir := TenantDirFromFileURL(value, storePath)
+			if tenantDir == "" {
+				return ""
+			}
+			return filepath.Join(baseDir, tenantDir, folder)
+		}),
+	)
 }

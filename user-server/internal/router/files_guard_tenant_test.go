@@ -1,27 +1,36 @@
 package router
 
-// /files 的租户归属校验（T011 静态服务半边，2026-10-23 补）。
+// /files 的访问凭证（SaaS 审计 A1 / A12，2026-10-23 定稿）。
 //
-// 缺陷形状：on 模式下 LocalDriver 把新上传落到 `tenant_{id}/`，但 /files 此前
-// 只判"危险扩展名 + 路径穿越"，**完全不看路径里的租户段** —— 任何拿到 URL 的
-// 已登录租户都能读别的租户的文件（UUID 不可枚举是唯一防线，而 URL 本身会经
-// 导出、日志、转发外流）。tasks.md 的 T011 写着"静态服务校验租户归属"，
-// 代码里那半边从来没实现 —— 声明与实现漂移，且没有任何用例会红。
+// 上一轮（P0-2）的修法是"路径首段 tenant_{id} 必须等于请求 ctx 里的租户"，配了四态用例。
+// 本轮实测发现那条判据**在生产上走不到**：/files 是 Setup 里最先注册的路由，而 gin 的
+// r.Use 只对之后登记的路由生效 ⇒ 它的链上只有一个 handler，没有 JWTAuth/TenantMiddleware
+// ⇒ 请求 ctx 里永远没有租户绑定 ⇒ 那段 if 恒走"无绑定 ⇒ 放行"。实测（改前）：
+// 带「租户 6」JWT 请求 /files/tenant_5/x.pdf ⇒ 200；不带 token ⇒ 200。上一轮的用例之所以绿，
+// 是因为它在进程里手动注入了一个生产路径上不存在的 ctx 状态。
 //
-// 本组用例钉三件事：
-//  1. on 模式：跨租户路径对已绑定租户的请求 ⇒ 404（不是 403，不做存在性预言机）
-//  2. on 模式：无租户绑定（访客 <img>、分享页）⇒ 仍放行（公开外链语义不变）
-//  3. off 模式：逐字节等价现状（离线单机路径里本就没有租户段，行为零变化）
+// 现在的判据只剩一条，且它是**唯一**的：on 模式下 /files 必须有签名凭证（?s=），
+// 验不过一律 404。租户归属由签名承载（不写在 URL 里 = A12），跨租户访问在结构上不可表达
+// —— 签名自指它自己的租户目录，路径改一个字节就验不过。
+//
+// 本文件钉五件事：
+//  1. on 模式：无签名 ⇒ 404（**带不带租户 JWT 都一样**，钉死"ctx 不是凭证"）
+//  2. on 模式：有效签名 ⇒ 200，且读到的正是签名指定的租户目录里的那个文件
+//  3. on 模式：篡改路径段 / 篡改签名字节 / 过期 ⇒ 404
+//  4. on 模式：URL 里没有租户段（A12），租户 5 的签名读不到租户 6 的文件
+//  5. off 模式：逐字节等价历史行为（含 tenant_5/ 明文路径照旧可读）
 
 import (
-	"context"
 	"net/http"
 	"net/http/httptest"
 	"os"
 	"path/filepath"
+	"strings"
 	"testing"
+	"time"
 
 	"hivemtk-user/internal/pkg/tenant"
+	"hivemtk-user/internal/storage"
 
 	"github.com/gin-gonic/gin"
 )
@@ -35,19 +44,19 @@ func newTenantFilesGuardServer(t *testing.T) (*gin.Engine, string) {
 		if err := os.MkdirAll(filepath.Dir(full), 0o750); err != nil {
 			t.Fatal(err)
 		}
-		if err := os.WriteFile(full, []byte("ok"), 0o640); err != nil {
+		if err := os.WriteFile(full, []byte("content:"+rel), 0o640); err != nil {
 			t.Fatal(err)
 		}
 	}
 	mustWrite("tenant_5/materials/2026/10/a.pdf")
 	mustWrite("tenant_6/materials/2026/10/b.pdf")
-	mustWrite("materials/legacy.pdf") // 存量根域文件（T011 只读兼容）
+	mustWrite("materials/legacy.pdf") // 存量根域文件（系统级上传）
 	r := gin.New()
 	r.GET("/files/*filepath", serveUploadsGuarded(dir))
 	return r, dir
 }
 
-func doFilesRequest(t *testing.T, r *gin.Engine, path string, tenantID uint) int {
+func doFilesRequest(t *testing.T, r *gin.Engine, path string, tenantID uint) (int, string) {
 	t.Helper()
 	req := httptest.NewRequest(http.MethodGet, path, nil)
 	if tenantID != 0 {
@@ -55,92 +64,157 @@ func doFilesRequest(t *testing.T, r *gin.Engine, path string, tenantID uint) int
 	}
 	w := httptest.NewRecorder()
 	r.ServeHTTP(w, req)
-	return w.Code
+	return w.Code, w.Body.String()
 }
 
-func TestFilesGuard_TenantScopedOnCrossTenantBlocked(t *testing.T) {
+// signedURLFor 用与守卫同一套签名器给"某个租户的存储路径"签一条 URL。
+func signedURLFor(t *testing.T, storagePath string) string {
+	t.Helper()
+	url := storage.NewLocalDriver(t.TempDir(), "").PublicURL(storagePath)
+	if !strings.Contains(url, "?s=") {
+		t.Fatalf("没签出 URL（%q）：签名器未装配或路径里没有租户段", url)
+	}
+	return url
+}
+
+// ① on 模式：无签名 ⇒ 404。ctx 里有租户也不行 —— ctx 不是凭证。
+func TestFilesGuard_OnModeUnsignedIsNotFound(t *testing.T) {
 	r, _ := newTenantFilesGuardServer(t)
 	tenant.SetMode(tenant.ModeOn)
 	t.Cleanup(func() { tenant.SetMode(tenant.ModeOff) })
 
-	if code := doFilesRequest(t, r, "/files/tenant_5/materials/2026/10/a.pdf", 5); code != http.StatusOK {
-		t.Fatalf("本租户读自己的文件应 200，实际 %d", code)
-	}
-	if code := doFilesRequest(t, r, "/files/tenant_6/materials/2026/10/b.pdf", 5); code != http.StatusNotFound {
-		t.Fatalf("跨租户读文件应 404（存在性也不暴露），实际 %d", code)
-	}
-	// 反向：租户 6 读租户 5 的文件同样被拒
-	if code := doFilesRequest(t, r, "/files/tenant_5/materials/2026/10/a.pdf", 6); code != http.StatusNotFound {
-		t.Fatalf("反向跨租户读文件应 404，实际 %d", code)
+	for _, tc := range []struct {
+		path     string
+		tenantID uint
+		why      string
+	}{
+		{"/files/tenant_5/materials/2026/10/a.pdf", 0, "无 token、无签名"},
+		{"/files/tenant_5/materials/2026/10/a.pdf", 5, "有本租户 ctx，但 ctx 不是凭证"},
+		{"/files/tenant_5/materials/2026/10/a.pdf", 6, "跨租户且无签名"},
+		{"/files/materials/2026/10/a.pdf", 5, "去掉租户段的明文路径（文件在 tenant 树里，读不到）"},
+		{"/files/materials/legacy.pdf", 5, "存量根域文件在 on 模式下同样要凭证"},
+	} {
+		if code, _ := doFilesRequest(t, r, tc.path, tc.tenantID); code != http.StatusNotFound {
+			t.Errorf("%s（%s）应 404，实际 %d", tc.path, tc.why, code)
+		}
 	}
 }
 
-func TestFilesGuard_NoTenantBindingStaysPublic(t *testing.T) {
+// ② on 模式：有效签名 ⇒ 200，且内容来自签名指定的租户目录。
+func TestFilesGuard_OnModeSignedURLOk(t *testing.T) {
 	r, _ := newTenantFilesGuardServer(t)
 	tenant.SetMode(tenant.ModeOn)
 	t.Cleanup(func() { tenant.SetMode(tenant.ModeOff) })
 
-	// 访客 Widget 的 <img>、分享页等无凭证外链：不因"拿不到租户"而断掉
-	if code := doFilesRequest(t, r, "/files/tenant_5/materials/2026/10/a.pdf", 0); code != http.StatusOK {
-		t.Fatalf("无租户绑定的公开外链应保持可读（否则访客侧图片全挂），实际 %d", code)
+	url := signedURLFor(t, "tenant_5/materials/2026/10/a.pdf")
+	if strings.Contains(url, "tenant_5") {
+		t.Fatalf("签名 URL 里仍有租户段：%q（A12）", url)
 	}
-	// 存量根域文件：on 模式下按只读兼容放行（T011 契约）
-	if code := doFilesRequest(t, r, "/files/materials/legacy.pdf", 6); code != http.StatusOK {
-		t.Fatalf("存量根域文件应保持可读，实际 %d", code)
+	code, body := doFilesRequest(t, r, url, 0) // 无 ctx 租户：访客 <img> 的真实形态
+	if code != http.StatusOK {
+		t.Fatalf("带有效签名应 200，实际 %d", code)
+	}
+	if !strings.Contains(body, "tenant_5/materials/2026/10/a.pdf") {
+		t.Fatalf("读到的不是签名指定的那个文件：%q", body)
 	}
 }
 
+// ③ 篡改 / 过期 ⇒ 404（凭证的三条失效通道各有断言）。
+func TestFilesGuard_SignedURLTamperedOrExpiredIsNotFound(t *testing.T) {
+	r, _ := newTenantFilesGuardServer(t)
+	tenant.SetMode(tenant.ModeOn)
+	t.Cleanup(func() { tenant.SetMode(tenant.ModeOff) })
+
+	url := signedURLFor(t, "tenant_5/materials/2026/10/a.pdf")
+	head, sig, _ := strings.Cut(url, "?s=")
+
+	// 篡改路径段
+	if code, _ := doFilesRequest(t, r, "/files/materials/2026/10/b.pdf?s="+sig, 0); code != http.StatusNotFound {
+		t.Errorf("换掉路径段应 404，实际 %d", code)
+	}
+	// 篡改签名字节
+	bad := []byte(sig)
+	bad[len(bad)/2] ^= 0x01
+	if code, _ := doFilesRequest(t, r, head+"?s="+string(bad), 0); code != http.StatusNotFound {
+		t.Errorf("改一个签名字节应 404，实际 %d", code)
+	}
+	// 过期：另装一个 1ms 的签名器签一条，等到过期再验。
+	// 签名器是包级状态，用完必须装回去，否则同包后续用例会因为 TTL 变成"1ms"而随机红。
+	prevSecret, prevTTL := "router-test-secret-32+chars-long-enough!!", time.Second
+	t.Cleanup(func() {
+		if err := storage.ConfigureFileURLSigner(prevSecret, 0); err != nil {
+			t.Logf("恢复签名器 TTL 失败: %v", err)
+		}
+	})
+	if err := storage.ConfigureFileURLSigner(prevSecret, prevTTL); err != nil {
+		t.Fatalf("装短 TTL 签名器失败: %v", err)
+	}
+	shortLived := storage.NewLocalDriver(t.TempDir(), "").PublicURL("tenant_5/materials/2026/10/a.pdf")
+	// 过期戳是 Unix **秒**（URL 里的时间不需要毫秒精度），所以这里必须跨过一个整秒才验得出来。
+	time.Sleep(1100 * time.Millisecond)
+	if code, _ := doFilesRequest(t, r, shortLived, 0); code != http.StatusNotFound {
+		t.Errorf("过期签名应 404，实际 %d", code)
+	}
+}
+
+// ④ 签名自指租户：租户 5 的签名只能读到 tenant_5 树里的文件。
+func TestFilesGuard_SignedURLIsBoundToItsTenantDir(t *testing.T) {
+	r, dir := newTenantFilesGuardServer(t)
+	tenant.SetMode(tenant.ModeOn)
+	t.Cleanup(func() { tenant.SetMode(tenant.ModeOff) })
+
+	// 同一个相对路径在租户 5 与租户 6 下各有一个文件，内容不同
+	if err := os.MkdirAll(filepath.Join(dir, "tenant_6/materials/2026/10"), 0o750); err != nil {
+		t.Fatal(err)
+	}
+	if err := os.WriteFile(filepath.Join(dir, "tenant_6/materials/2026/10/a.pdf"), []byte("content:tenant_6"), 0o640); err != nil {
+		t.Fatal(err)
+	}
+	code, body := doFilesRequest(t, r, signedURLFor(t, "tenant_5/materials/2026/10/a.pdf"), 0)
+	if code != http.StatusOK || !strings.Contains(body, "tenant_5/materials/2026/10/a.pdf") {
+		t.Fatalf("租户 5 的签名应读到 tenant_5 的文件，实际 %d body=%q", code, body)
+	}
+	code, body = doFilesRequest(t, r, signedURLFor(t, "tenant_6/materials/2026/10/a.pdf"), 0)
+	if code != http.StatusOK || !strings.Contains(body, "content:tenant_6") {
+		t.Fatalf("租户 6 的签名应读到 tenant_6 的文件，实际 %d body=%q", code, body)
+	}
+}
+
+// ⑤ off 模式：逐字节等价（离线单机零回归）——包括tenant_* 明文路径照旧可读。
 func TestFilesGuard_OffModeUnchanged(t *testing.T) {
 	r, _ := newTenantFilesGuardServer(t)
 	tenant.SetMode(tenant.ModeOff)
 
-	// off 模式：请求 ctx 即便被塞了租户，也不参与判定（离线单机零回归）
 	for _, tc := range []struct {
 		path     string
 		tenantID uint
 	}{
-		{"/files/tenant_5/materials/2026/10/a.pdf", 6},
+		{"/files/tenant_5/materials/2026/10/a.pdf", 6}, // off 不判租户
 		{"/files/tenant_6/materials/2026/10/b.pdf", 0},
 		{"/files/materials/legacy.pdf", 5},
 	} {
-		if code := doFilesRequest(t, r, tc.path, tc.tenantID); code != http.StatusOK {
+		if code, _ := doFilesRequest(t, r, tc.path, tc.tenantID); code != http.StatusOK {
 			t.Errorf("off 模式 %s 应 200（与历史一致），实际 %d", tc.path, code)
 		}
 	}
 }
 
-func TestTenantPathAllowed_EdgeCases(t *testing.T) {
+// 危险扩展名在两种模式下都要 403（与租户判定正交互，别被签名改造带掉）。
+func TestFilesGuard_DangerousExtStillForbidden(t *testing.T) {
+	r, dir := newTenantFilesGuardServer(t)
+	if err := os.WriteFile(filepath.Join(dir, "materials", "x.html"), []byte("<script>"), 0o640); err != nil {
+		t.Fatal(err)
+	}
+
+	tenant.SetMode(tenant.ModeOff)
+	if code, _ := doFilesRequest(t, r, "/files/materials/x.html", 0); code != http.StatusForbidden {
+		t.Errorf("off 模式危险扩展名应 403，实际 %d", code)
+	}
+
 	tenant.SetMode(tenant.ModeOn)
 	t.Cleanup(func() { tenant.SetMode(tenant.ModeOff) })
-
-	// 租户段必须整段匹配：tenant_51 不能被 tenant_5 前缀骗过，方向两边都要拒
-	for _, tc := range []struct {
-		rel      string
-		ctxID    uint
-		expected bool
-	}{
-		{"tenant_5/materials/a.pdf", 51, false},
-		{"/tenant_5/materials/a.pdf", 51, false},
-		{"tenant_51/materials/a.pdf", 5, false},
-		{"tenant_5/materials/a.pdf", 5, true},
-		// 首段不是租户段：存量根域 / 系统级上传 / 附件子目录一律放行
-		{"materials/a.pdf", 5, true},
-		{"tenant_x/a.pdf", 5, true},
-		{"attachments/tenant_5/a.pdf", 5, true},
-		// A7 的历史文件可读性：知识库 4 条导入通路在升级前落在根域
-		// （knowledge-base/、knowledge/、knowledge-text/、knowledge-url/），
-		// on 模式下这些**没有租户段**的存量路径必须继续可读，否则升级即"老文档全打不开"。
-		{"knowledge-base/20261023/legacy.pdf", 5, true},
-		{"knowledge-text/20261023/legacy.txt", 5, true},
-		{"knowledge-url/20261023/legacy.html", 5, true},
-		{"knowledge/12/20261023/legacy.pdf", 5, true},
-	} {
-		if got := tenantPathAllowed(tenantCtx(tc.ctxID), tc.rel); got != tc.expected {
-			t.Errorf("tenantPathAllowed(%q, tenant=%d) = %v，期望 %v", tc.rel, tc.ctxID, got, tc.expected)
-		}
+	// on 模式下同样 403（扩展名判据在凭证之前，不要用 404 掩盖它）
+	if code, _ := doFilesRequest(t, r, "/files/materials/x.html", 0); code != http.StatusForbidden {
+		t.Errorf("on 模式危险扩展名应 403，实际 %d", code)
 	}
-}
-
-func tenantCtx(id uint) context.Context {
-	return tenant.WithTenantID(context.Background(), id)
 }

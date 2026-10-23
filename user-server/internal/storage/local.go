@@ -191,11 +191,22 @@ func (d *LocalDriver) Delete(ctx context.Context, storagePath string) error {
 	return nil
 }
 
-// PublicURL 生成公开访问 URL：/files/{folder}/{yyyy}/{mm}/{uuid}.{ext}
+// PublicURL 生成公开访问 URL。
+//
+// off 模式：`/files/{folder}/{yyyy}/{mm}/{uuid}.{ext}` —— 与历史逐字节一致
+// （离线单机不签名、URL 里本来就没有租户段）。
+//
+// on 模式：`/files/{folder}/{yyyy}/{mm}/{uuid}.{ext}?s=<token>` —— **租户段从 URL 里
+// 消失**（A12），租户归属与过期时间搬进签名 token（A1）。判据与 token 形态见
+// internal/storage/fileurl.go 文件头。路径不带 `tenant_{id}/` 段时（系统级上传、
+// 存量根域文件）保持原样：这些行本来就不分租户，签名只会把它们变成"看起来像
+// 有归属"的样子。
 func (d *LocalDriver) PublicURL(storagePath string) string {
-
-	cleaned := filepath.ToSlash(storagePath)
-	return d.publicBaseURL + "/" + cleaned
+	cleaned := strings.TrimPrefix(filepath.ToSlash(storagePath), "/")
+	if rel, sig, ok := SignStoredPath(cleaned); ok {
+		return d.publicBaseURL + "/" + rel + "?s=" + sig
+	}
+	return d.publicBaseURL + "/" + filepath.ToSlash(storagePath)
 }
 
 // SignUploadURL 本地存储无法生成预签名 URL —— 私有化部署用服务端中转即可。

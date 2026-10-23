@@ -272,4 +272,8 @@ func RegisterMigrations(registry *migration.MigrationRegistry, db *gorm.DB) {
 	// 判据是真库索引族里有没有 tenant_id 打头的列，不 grep 模型 tag：
 	// tag 只对 AutoMigrate 建的表生效，对手写 CREATE TABLE 的表形同虚设（这 11 张就是这么漏的）
 	register(NewTenantLeadingIndexMigration(db))
+	// v3.80.0：存量"明文租户段"文件 URL 就地重签（SaaS 审计 A1/A12）——/files 在 on 模式下
+	// 只认签名凭证，把租户归属与过期时间搬进 ?s= token、URL 路径里不再出现 tenant_{id}。
+	// 不改库形状、不删东西；幂等（签名后的值不再匹配 /files/tenant_<数字>/ 形态）
+	register(NewFileURLSignMigration(db))
 }

@@ -1,13 +1,10 @@
 package router
 
 import (
-	"context"
 	"net/http"
 	"os"
 	"path/filepath"
-	"regexp"
-	"strconv"
-	"strings"
+	"time"
 
 	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
@@ -28,17 +25,16 @@ import (
 // 取第一个返回值：第三个（附件子目录）与第二个（公网前缀）都不是本路由的坐标系，
 // 路由路径按 /files/* 硬编码，改 STORAGE_LOCAL_PUBLIC_URL 只会改外链，不会改这里挂的路径。
 //
-// /files 走守卫版（同源可执行扩展名 403 + nosniff/sandbox）而非裸 r.Static，
+// /files 走守卫版（同源可执行扩展名 403 + 签名凭证 + nosniff/sandbox）而非裸 r.Static，
 // 堵素材库/渠道媒体任意扩展名落盘后的同源直出。
 func RegisterFilesRoute(r *gin.Engine) {
 	uploadDir, _, _ := storage.LocalSource()
 	_ = os.MkdirAll(uploadDir, 0o750)
 	r.GET("/files/*filepath", serveUploadsGuarded(uploadDir))
-	logger.Infof("[Router] static file server registered (guarded): /files -> %s", uploadDir)
+	logger.Infof("[Router] static file server registered (signed): /files -> %s", uploadDir)
 }
 
-// serveUploadsGuarded 以 r.Static 的替代实现发布本地上传目录（/files/*），
-// 叠加三层防护：
+// serveUploadsGuarded 以 r.Static 的替代实现发布本地上传目录（/files/*），叠加三层防护：
 //
 //  1. 命中"同源可执行/可渲染"扩展名清单（storage.IsDangerousWebExt，与落盘
 //     中和层同一清单）→ 403。落盘层（LocalDriver.generatePath）已把新文件
@@ -46,10 +42,9 @@ func RegisterFilesRoute(r *gin.Engine) {
 //     目录的文件。
 //  2. X-Content-Type-Options: nosniff + Content-Security-Policy: sandbox，
 //     封掉旧浏览器内容嗅探与万一命中文档类型的脚本执行/同源能力。
-//  3. 租户归属校验（T011 的静态服务半边，原先只有落盘半边有实现）：
-//     on 模式下 storage.LocalDriver 把新上传落到 `tenant_{id}/`，而本路由此前
-//     **完全不看路径里的租户段**——拿着 URL 的任何人都能读别的租户的文件。
-//     现行判据见 tenantPathAllowed。
+//  3. 访问凭证（SaaS 审计 A1 / A12，2026-10-23）：
+//     on 模式下，租户归属与过期时间只写在 `?s=` 的签名 token 里，**路径里没有租户段**。
+//     验不过（缺失/篡改/过期）一律 404。判据见下面的 tenantPathAllowed 退役说明。
 //
 // 路径处理：c.Param 取到的相对段先 filepath.Clean("/"+rel) 归一（消化 ..
 // 与多重斜杠）再 Join 到 baseDir；http.ServeFile 对含 ".." 的请求段自带二次
@@ -65,48 +60,48 @@ func serveUploadsGuarded(baseDir string) gin.HandlerFunc {
 			})
 			return
 		}
-		if !tenantPathAllowed(c.Request.Context(), rel) {
-			// 404 而不是 403：403 等于"这个文件存在但不给你看"，是个存在性预言机。
+
+		// off 模式：逐字节等价历史行为（离线单机不签名，路径里本就没有租户段）
+		if !tenant.IsMultiTenant() {
+			serveFile(c, base, filepath.Clean("/"+rel))
+			return
+		}
+
+		// on 模式：签名是**唯一**凭证。三种失败一律 404（不做"验不过就放行"的分支，
+		// 那正是 A1 要清掉的形状；也不用 403 —— 避免变成存在性预言机）。
+		tenantID, path, err := storage.VerifyFileURL(rel, c.Query("s"), time.Now())
+		if err != nil {
 			c.JSON(http.StatusNotFound, gin.H{"error": "file not found"})
 			return
 		}
-		c.Header("X-Content-Type-Options", "nosniff")
-		c.Header("Content-Security-Policy", "sandbox")
-		c.File(filepath.Join(base, filepath.Clean("/"+rel)))
+		serveFile(c, base, filepath.Join(storage.TenantDir(tenantID), filepath.Clean("/"+path)))
 	}
 }
 
-// tenantFileSegmentRe 匹配 LocalDriver.tenantPathPrefix 产出的租户目录段。
-var tenantFileSegmentRe = regexp.MustCompile(`^tenant_([0-9]+)(?:/|$)`)
-
-// tenantPathAllowed 判定本次请求能否读取该相对路径（T011 静态服务半边）。
-//
-// 判据（三条，都是"不改变合法用法"的方向）：
-//  1. off 模式 ⇒ 恒放行（离线单机：路径里本来就不会有租户段，行为逐字节不变）
-//  2. 路径首段不是 `tenant_{id}` ⇒ 放行（存量文件仍在根域、系统级上传、附件子目录）
-//  3. 路径首段是 `tenant_{id}`：
-//     - 请求 ctx 已绑定租户 ⇒ 必须同一个租户，否则 404
-//     - 请求 ctx 无租户 ⇒ **放行**（访客 Widget 的 <img>、分享页等无凭证的公开外链；
-//     on 模式下渲染侧链路本来就靠"UUID 不可枚举"这一层，本轮不改变该前提）
-//
-// 第 3 条的第二种情形是**已知残留风险**，不假装解决：无凭证的公开外链拿不到租户
-// 归属，要收口只能走签名 URL（预签名/短时 token），那是独立一项，见
-// docs/architecture/SAAS_FULLCHAIN_AUDIT_2026-10-23.md 的 P1-2。
-func tenantPathAllowed(ctx context.Context, rel string) bool {
-	if !tenant.IsMultiTenant() {
-		return true
-	}
-	m := tenantFileSegmentRe.FindStringSubmatch(strings.TrimPrefix(rel, "/"))
-	if m == nil {
-		return true
-	}
-	pathTenant, err := strconv.ParseUint(m[1], 10, 64)
-	if err != nil {
-		return false
-	}
-	ctxTenant, ok := tenant.FromContext(ctx)
-	if !ok {
-		return true // 无凭证公开访问：见函数注释第 3 条第二种情形
-	}
-	return uint64(ctxTenant) == pathTenant
+func serveFile(c *gin.Context, base, rel string) {
+	c.Header("X-Content-Type-Options", "nosniff")
+	c.Header("Content-Security-Policy", "sandbox")
+	c.File(filepath.Join(base, rel))
 }
+
+// 退役记录：tenantPathAllowed（2026-10-23 之前的那版 E0 修法）。
+//
+// 上一轮（P0-2）加了"路径首段 `tenant_{id}` 与请求 ctx 里的租户必须相同"的判据，
+// 并配了四态用例。实测（`TestZZFilesChainProbe` 形态的探针，见下方注释里的复现）
+// 证明**这条判据在生产上从未生效**：`/files` 是在 `Setup` 里**最先**注册的一条路由，
+// 而 gin 的 `r.Use` 只对之后登记的路由生效 ⇒ 它的 handler 链上只有一个 handler，
+// 没有 JWTAuth/TenantMiddleware ⇒ 请求 ctx 里永远没有租户绑定 ⇒ 那段 `if` 恒走
+// "无绑定 ⇒ 放行"分支。
+//
+// 复现（本轮实测，改前）：带「租户 6」JWT 请求 `/files/tenant_5/x.pdf` ⇒ **200**；
+// 不带 token 请求同一条 ⇒ **200**。也就是说上一轮的用例之所以绿，是因为它在进程里
+// 手动 `req.WithContext(tenant.WithTenantID(...))` 注入了一个生产路径上不存在的状态。
+//
+// 这正是本仓最值得记的失效模式：**判定存在，但没有任何一条生产路径能走到它**。
+// 所以本轮把判据整体换掉，而不是给它打补丁：凭证只剩签名一种（`storage.SignStoredPath`
+// 在 URL 里签发，`storage.VerifyFileURL` 在这里验），跨租户访问在结构上不可表达 ——
+// 签名自指它自己的租户目录，路径段改一点就验不过。
+//
+// 行为差异（有意为之，登记在案）：on 模式下**任何**未签名的 /files 请求（包括存量
+// 明文 URL `/files/tenant_5/…`）现在都是 404。存量 URL 由
+// `internal/migration/migrations/v3_80_0_file_url_sign_migration.go` 重签。

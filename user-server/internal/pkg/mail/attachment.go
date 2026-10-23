@@ -68,6 +68,35 @@ func AttachmentsFromPaths(paths []string) Option {
 	}
 }
 
+// AttachmentDirFor 决定某一条录入值应当落到哪个**附件根目录**（返回 "" ⇒ 用默认根）。
+//
+// 返回的是完整目录而不是"根下的子目录名"：on 模式的分域是 `{baseDir}/tenant_{id}/attachments`，
+// 租户段在附件目录名**之前**，不在它之后 —— 把子目录名拼到附件根后面会得到
+// `{baseDir}/attachments/tenant_5`，那棵树不存在（本文件第一版就这么写的，用例立刻红了）。
+//
+// 参数是（原始录入值, 相对公开 URL 前缀的存储路径）。第二个参数就是上传侧 `PublicURL`
+// 签名覆盖的那串（`attachments/{yyyy}/{mm}/{name}`）：签名是"自指某条路径"的，
+// 拿附件根相对的短形态去验签会永远验不过（本包第一版就是这么写的，用例立刻红了）。
+// 租户归属不在路径里（SaaS 审计 A12 之后 URL 不含 `tenant_{id}` 段），只在签名 token 里
+// ⇒ 判定它必须同时看到两者。做成注入函数而不是包内直读配置：mail 包不认识存储实现。
+type AttachmentDirFor func(value, storePath string) string
+
+// LocalAttachmentsOption 保守起见做成函数式选项：新增维度（租户根）时不必改动
+// 两个调用点的签名，也就不会出现"一个调用点改了、另一个还在用平根"的漂移。
+type LocalAttachmentsOption func(*localAttachmentsConfig)
+
+type localAttachmentsConfig struct {
+	dirFor AttachmentDirFor
+}
+
+// WithAttachmentDir 让解析器按录入值改选附件根（on 模式的租户分域就是靠它）。
+//
+// 不加它是 SaaS 审计 A18 的形状：附件在 on 模式分域落盘到 `{baseDir}/tenant_{id}/attachments/…`，
+// 而解析器只看平根 ⇒ 每一条附件都 Lstat 不中、静默丢弃（只有一条 WARN）。
+func WithAttachmentDir(fn AttachmentDirFor) LocalAttachmentsOption {
+	return func(c *localAttachmentsConfig) { c.dirFor = fn }
+}
+
 // LocalAttachments 构造一个只认本站上传落盘形状的解析器。
 //
 // dir 是附件根（{baseDir}/{folder}），urlPrefix 是它对外的 URL 前缀（两者都来自上传侧
@@ -79,11 +108,18 @@ func AttachmentsFromPaths(paths []string) Option {
 // host 不参与比对：值可能来自配了绝对公开地址的部署，也可能是粘贴时带上了同样的路径
 // 而域名不同。越界风险由"必须落在附件根的既定形状里"兜住，而不是由认得自家域名兜住 ——
 // 后者会让没配公开域名的部署重新回到静默不附。
-func LocalAttachments(dir, urlPrefix string) AttachmentResolver {
+func LocalAttachments(dir, urlPrefix string, opts ...LocalAttachmentsOption) AttachmentResolver {
+	var cfg localAttachmentsConfig
+	for _, opt := range opts {
+		if opt != nil {
+			opt(&cfg)
+		}
+	}
 	// 前缀自己也只取路径段：公开地址配成裸源站（https://host，不带路径）时，
 	// 上传接口回的是 https://host/attachments/{yyyy}/{mm}/…，认原样比对就永远切不出来。
-	root, _ := publicPath(urlPrefix)
-	prefix := strings.TrimRight(root, "/") + "/" + filepath.Base(filepath.Clean(dir)) + "/"
+	urlRoot, _ := publicPath(urlPrefix)
+	urlRootPrefix := strings.TrimRight(urlRoot, "/") + "/"
+	prefix := urlRootPrefix + filepath.Base(filepath.Clean(dir)) + "/"
 	return func(value string) (string, bool) {
 		path, ok := publicPath(value)
 		if !ok {
@@ -96,7 +132,17 @@ func LocalAttachments(dir, urlPrefix string) AttachmentResolver {
 		if !isStorageLayout(rel) {
 			return "", false
 		}
-		local := filepath.Join(dir, filepath.FromSlash(rel))
+		// 附件根：on 模式要按签名里的租户改选 `{baseDir}/tenant_{id}/attachments`（A18）。
+		// 解不出来（off 模式、无签名、验不过）就用默认根 —— 随后 Lstat 不中即判"挂不上"，
+		// 不去猜平根下同名的文件（那会把别人的残留文件挂给这封信）。
+		root := dir
+		if cfg.dirFor != nil {
+			storePath, _ := strings.CutPrefix(path, urlRootPrefix)
+			if alt := cfg.dirFor(value, storePath); alt != "" {
+				root = alt
+			}
+		}
+		local := filepath.Join(root, filepath.FromSlash(rel))
 		// Lstat 而不是 Stat：形状对了也不允许最后一段是软链接 —— 跟过去之后读的是链接
 		// 指向的文件，那正是"必须落在附件根里"这条界要挡的东西。
 		info, err := os.Lstat(local)
