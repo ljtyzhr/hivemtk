@@ -12,14 +12,16 @@ HiveMTK · 私域 AI 营销操作系统的官方网站。基于 Vue 3 + Vite + v
 
 本站是**纯静态站**：不连数据库、不发后端 API、无登录态。**但有一个运行期外部依赖**——右下角网页客服浮标：`index.html` 末尾内联注入 `https://work.xapptool.cn/embed/marketing-chat-widget.iife.js`（连接云端 `work.xapptool.cn` 的 web 渠道智能体，`appKey ak_79Zw7HWzR5wNUnNn6QMnkw8B`）。
 
-> 它是在服能力，**不是死代码**：2026-10-23 曾被误判「指向已下线域名」删除，线上客服整块消失。判死规约、在服依赖清单、发布后自查命令见 `../deploy/README.md` §9（`deploy/` 在仓库外，路径为 `~/Documents/www/go/deploy/README.md`）。构建不会因它缺失而报错，只能靠 §9.4 的 grep 自查发现。
+> 它是在服能力，**不是死代码**：2026-10-23 曾被误判「指向已下线域名」删除，线上客服整块消失。判死规约、在服依赖清单、发布后自查命令见 `../deploy/README.md` §9（`deploy/` 在仓库外，路径为 `~/Documents/www/go/deploy/README.md`）。
+>
+> **构建门**：`scripts/postbuild.mjs` 的 2.5 节会断言产物壳里还有 `window.MarketingChatWidgetConfig` 与 SDK 地址，缺一条就 `exit 1`——所以删掉浮标 `npm run build` 直接失败。门只保证「壳里挂着」，SDK 是否真活着仍要跑发布后自查（`deploy/README.md` §9.4）。
 
 ## 目录结构
 
 ```
 website/
 ├── public/             # 静态资源（favicon、robots.txt、sitemap.xml、wechat.jpg）
-├── scripts/            # 构建后处理脚本（postbuild.mjs：404 兜底 + 按路由铺 index.html）
+├── scripts/            # 构建后处理脚本（postbuild.mjs：客服浮标硬门 + 按路由铺 index.html + 404 兜底）
 ├── src/
 │   ├── components/     # Vue 组件（Navbar、Hero、Footer 等）
 │   ├── composables/    # 组合式函数（useSite、useSiteContact、useToast）
