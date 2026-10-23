@@ -5,7 +5,9 @@ import (
 	"testing"
 	"time"
 
+	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/testutil"
+	"hivemtk-user/internal/repository"
 )
 
 // TestLabelsToJSON 验证 label 键值对序列化为 JSON 字符串（含 agg 附加维度）。
@@ -115,19 +117,19 @@ func TestHistogramSamples_CountSum(t *testing.T) {
 	}
 }
 
-// TestSinkFlush_NilSink 验证 nil sink / nil db 时 Flush 安全返回 nil。
+// TestSinkFlush_NilSink 验证 nil sink / nil writer 时 Flush 安全返回 nil。
 func TestSinkFlush_NilSink(t *testing.T) {
 	var s *BridgeMetricsSink
 	if err := s.Flush(); err != nil {
 		t.Errorf("nil sink Flush 应返回 nil，实际 %v", err)
 	}
 	if err := NewBridgeMetricsSink(nil).Flush(); err != nil {
-		t.Errorf("nil db Flush 应返回 nil，实际 %v", err)
+		t.Errorf("nil writer Flush 应返回 nil，实际 %v", err)
 	}
 }
 
-// TestStartBridgeMetricsSink_NilDB 验证 nil db 时启动安全（返回可调用的 stop）。
-func TestStartBridgeMetricsSink_NilDB(t *testing.T) {
+// TestStartBridgeMetricsSink_NilWriter 验证 writer 为 nil 时启动安全（返回可调用的 stop）。
+func TestStartBridgeMetricsSink_NilWriter(t *testing.T) {
 	stop := StartBridgeMetricsSink(nil, 10*time.Millisecond)
 	if stop == nil {
 		t.Fatal("StartBridgeMetricsSink(nil) 返回 nil stop")
@@ -139,7 +141,7 @@ func TestStartBridgeMetricsSink_NilDB(t *testing.T) {
 // TestSinkFlush_WithDB 集成测试：Flush 把注册表当前指标写入 bridge_metrics 表。
 // 依赖真实 PostgreSQL，不可达时 testutil 自动 Skip。
 func TestSinkFlush_WithDB(t *testing.T) {
-	db := testutil.NewTestDB(t, &BridgeMetricRow{})
+	db := testutil.NewTestDB(t, &model.BridgeMetricRow{})
 	if db == nil {
 		return
 	}
@@ -150,12 +152,12 @@ func TestSinkFlush_WithDB(t *testing.T) {
 	b := GetBridge()
 	b.IngestTotal.WithLabel("sinkdb", "1").Add(3)
 
-	sink := NewBridgeMetricsSink(db)
+	sink := NewBridgeMetricsSink(repository.NewBridgeMetricsRepository(db))
 	if err := sink.Flush(); err != nil {
 		t.Fatalf("Flush 失败: %v", err)
 	}
 
-	var rows []BridgeMetricRow
+	var rows []model.BridgeMetricRow
 	if err := db.Where("metric_name = ?", "bridge_ingest_total").Find(&rows).Error; err != nil {
 		t.Fatalf("查询失败: %v", err)
 	}

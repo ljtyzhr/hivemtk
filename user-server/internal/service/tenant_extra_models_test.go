@@ -20,7 +20,6 @@ func TestExtraModelsRegisteredAndTenantScoped(t *testing.T) {
 	want := map[string]any{
 		"ab_exposures":           &repository.AbExposure{},
 		"kb_document_chunks":     &repository.KBDocumentChunkRow{},
-		"email_accounts":         &EmailAccount{},
 		"reach_compliance_log":   &model.ReachComplianceLog{},
 		"reach_delayed_outbound": &model.DelayedOutboundReply{},
 	}

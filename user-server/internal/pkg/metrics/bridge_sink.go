@@ -1,53 +1,57 @@
 package metrics
 
 import (
+	"context"
 	"encoding/json"
 	"sync"
 	"time"
 
+	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
-
-	"gorm.io/gorm"
 )
 
-// BridgeMetricRow bridge_metrics 落库行。
-type BridgeMetricRow struct {
-	ID         uint64    `gorm:"column:id;primaryKey" json:"-"`
-	MetricName string    `gorm:"column:metric_name" json:"metric_name"`
-	Labels     string    `gorm:"column:labels" json:"labels"`
-	Value      float64   `gorm:"column:value" json:"value"`
-	MetricType string    `gorm:"column:metric_type" json:"metric_type"`
-	TS         time.Time `gorm:"column:ts" json:"ts"`
-}
+// bridge_metrics 落库 sink。
+//
+// 分层：本包只做"采样 + 序列化"，落库交给实现了 BridgeMetricWriter 的仓储
+// （生产实现是 `repository.BridgeMetricsRepository`）。此前这里直接持 `*gorm.DB`
+// 并 `db.Create(...)`——pkg 层持库句柄写表，等于每个 pkg 都能绕过仓储写任意表。
+//
+// 租户口径：bridge_metrics 是指标时间序列，维度是 (metric_name, labels, ts)，没有租户
+// 归属语义（按租户切分只会把同一张运维看板拆成 N 份）。所以写入走**系统域**显式豁免：
+// on 模式下普通 ctx 没有租户绑定，隔离 callback 会 fail-closed，而这条链路既不该
+// 被某个租户看到、也不该按租户重复跑一遍。
 
-// TableName bridge_metrics 表名
-func (BridgeMetricRow) TableName() string { return "bridge_metrics" }
+// BridgeMetricWriter bridge_metrics 的写入口（由仓储实现）。
+type BridgeMetricWriter interface {
+	WriteBridgeMetrics(ctx context.Context, rows []model.BridgeMetricRow) error
+}
 
 // BridgeMetricsSink 把当前指标快照落库到 bridge_metrics 表。
 type BridgeMetricsSink struct {
-	db *gorm.DB
+	w BridgeMetricWriter
 }
 
 // NewBridgeMetricsSink 创建指标落库 sink
-func NewBridgeMetricsSink(db *gorm.DB) *BridgeMetricsSink {
-	return &BridgeMetricsSink{db: db}
+func NewBridgeMetricsSink(w BridgeMetricWriter) *BridgeMetricsSink {
+	return &BridgeMetricsSink{w: w}
 }
 
-// Flush 把注册表中所有指标当前值追加写入 bridge_metrics 表（一批事务，追加式时间序列）。
+// Flush 把注册表中所有指标当前值追加写入 bridge_metrics 表（一批，追加式时间序列）。
 //
 // 直方图写两行（count / sum，用 labels.agg 区分）；counter / gauge 各写一行。
 func (s *BridgeMetricsSink) Flush() error {
-	if s == nil || s.db == nil {
+	if s == nil || s.w == nil {
 		return nil
 	}
 	samples := CollectSamples()
 	if len(samples) == 0 {
 		return nil
 	}
-	rows := make([]BridgeMetricRow, 0, len(samples))
+	rows := make([]model.BridgeMetricRow, 0, len(samples))
 	now := time.Now()
 	for _, smp := range samples {
-		rows = append(rows, BridgeMetricRow{
+		rows = append(rows, model.BridgeMetricRow{
 			MetricName: smp.Name,
 			Labels:     labelsToJSON(smp.LabelKeys, smp.Labels, smp.Agg),
 			Value:      smp.Value,
@@ -55,7 +59,7 @@ func (s *BridgeMetricsSink) Flush() error {
 			TS:         now,
 		})
 	}
-	return s.db.Create(&rows).Error
+	return s.w.WriteBridgeMetrics(tenant.WithSystemScope(context.Background()), rows)
 }
 
 func labelsToJSON(keys, values []string, agg string) string {
@@ -77,14 +81,17 @@ func labelsToJSON(keys, values []string, agg string) string {
 
 // StartBridgeMetricsSink 启动定期落库后台任务（每 interval 一次 Flush）。
 // interval <= 0 时使用默认 60s。返回 stop 函数（可安全多次调用）。
-func StartBridgeMetricsSink(db *gorm.DB, interval time.Duration) (stop func()) {
-	if db == nil {
+//
+// 注意：本函数在生产装配里**尚未启用**（见 model-list.md #201 的待决策项：
+// 先要有一条保留期/归档策略，否则每分钟一写就是无界增长）。
+func StartBridgeMetricsSink(w BridgeMetricWriter, interval time.Duration) (stop func()) {
+	if w == nil {
 		return func() {}
 	}
 	if interval <= 0 {
 		interval = 60 * time.Second
 	}
-	sink := NewBridgeMetricsSink(db)
+	sink := NewBridgeMetricsSink(w)
 	done := make(chan struct{})
 	var once sync.Once
 

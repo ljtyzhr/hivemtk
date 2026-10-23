@@ -5,7 +5,7 @@ import (
 	"fmt"
 
 	"hivemtk-user/internal/migration"
-	"hivemtk-user/internal/pkg/metrics"
+	"hivemtk-user/internal/model"
 
 	"gorm.io/gorm"
 )
@@ -41,7 +41,7 @@ func (m *BridgeMetricsMigration) Up(ctx context.Context) error {
 	if m.db == nil {
 		return fmt.Errorf("db is nil")
 	}
-	if err := m.db.WithContext(ctx).AutoMigrate(&metrics.BridgeMetricRow{}); err != nil {
+	if err := m.db.WithContext(ctx).AutoMigrate(&model.BridgeMetricRow{}); err != nil {
 		return fmt.Errorf("BridgeMetricsMigration failed: %w", err)
 	}
 	return nil

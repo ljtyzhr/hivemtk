@@ -12,8 +12,6 @@ import (
 	"strings"
 	"time"
 
-	_db "hivemtk-user/internal/pkg/db"
-
 	"gorm.io/gorm"
 
 	"hivemtk-user/internal/model"
@@ -21,28 +19,6 @@ import (
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
 )
-
-// EmailAccount 邮件账号配置（独立表，不依赖既有 schema）
-type EmailAccount struct {
-	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
-
-	ID         uint      `gorm:"primaryKey" json:"id"`
-	Name       string    `gorm:"type:varchar(100)" json:"name"`
-	Host       string    `gorm:"type:varchar(255);not null" json:"host"`
-	Port       int       `gorm:"default:465" json:"port"`
-	Username   string    `gorm:"type:varchar(255)" json:"username"`
-	Password   string    `gorm:"type:varchar(255)" json:"-"`
-	FromAddr   string    `gorm:"type:varchar(255);not null" json:"from_addr"`
-	FromName   string    `gorm:"type:varchar(100)" json:"from_name"`
-	UseSSL     bool      `gorm:"default:true" json:"use_ssl"`
-	DailyQuota int       `gorm:"default:500" json:"daily_quota"`
-	DailyUsed  int       `gorm:"default:0" json:"daily_used"`
-	Status     string    `gorm:"type:varchar(20);default:'active'" json:"status"`
-	CreatedAt  time.Time `gorm:"autoCreateTime" json:"created_at"`
-	UpdatedAt  time.Time `gorm:"autoUpdateTime" json:"updated_at"`
-}
-
-func (EmailAccount) TableName() string { return "email_accounts" }
 
 // EmailService 邮件发送服务（基于 SMTP，纯协议层，不依赖第三方 SaaS）
 type EmailService struct {
@@ -66,27 +42,6 @@ func NewEmailServiceAuto() *EmailService {
 	}
 }
 
-// emailAccountFromRow repo 行模型 → service 账号模型（字段一一对应）
-func emailAccountFromRow(r *repository.EmailAccountRow) *EmailAccount {
-	if r == nil {
-		return nil
-	}
-	return &EmailAccount{
-		ID:         r.ID,
-		Name:       r.Name,
-		Host:       r.Host,
-		Port:       r.Port,
-		Username:   r.Username,
-		Password:   r.Password,
-		FromAddr:   r.FromAddr,
-		FromName:   r.FromName,
-		UseSSL:     r.UseSSL,
-		DailyQuota: r.DailyQuota,
-		DailyUsed:  r.DailyUsed,
-		Status:     r.Status,
-	}
-}
-
 // Send 发送邮件（通过指定 accountID 或默认账号）
 func (s *EmailService) Send(ctx context.Context, accountID uint, to, subject, content string, attachments []string) (string, error) {
 	if s == nil {
@@ -96,14 +51,14 @@ func (s *EmailService) Send(ctx context.Context, accountID uint, to, subject, co
 		return "", errors.New("to and subject are required")
 	}
 
-	var acc *EmailAccount
+	var acc *model.EmailAccount
 	if s.accRepo != nil {
 		if accountID > 0 {
 			row, err := s.accRepo.GetByID(ctx, accountID)
 			if err != nil {
 				return "", fmt.Errorf("email account not found: %w", err)
 			}
-			acc = emailAccountFromRow(row)
+			acc = row
 			if acc.ID > 0 && acc.DailyUsed >= acc.DailyQuota {
 				return "", errors.New("email account quota exceeded")
 			}
@@ -113,7 +68,7 @@ func (s *EmailService) Send(ctx context.Context, accountID uint, to, subject, co
 			if err != nil || len(candidates) == 0 {
 				acc = emailFromEnv()
 			} else {
-				acc = emailAccountFromRow(&candidates[0])
+				acc = &candidates[0]
 			}
 		}
 	}
@@ -155,7 +110,7 @@ func (s *EmailService) Send(ctx context.Context, accountID uint, to, subject, co
 	return msgID, nil
 }
 
-func (s *EmailService) smtpSend(ctx context.Context, acc *EmailAccount, to, subject, content string, attachments []string) (string, error) {
+func (s *EmailService) smtpSend(ctx context.Context, acc *model.EmailAccount, to, subject, content string, attachments []string) (string, error) {
 	// 附件在这条路径上挂不上：下面是手写的单部件 text/html 报文，没有 multipart 能力。
 	// 今天它确实没收到过附件，但这条前提不在看得见的位置，所以在这里把账算清。
 	// Send 的非测试调用点共 7 处，其中 6 处传字面 nil（本包的 auth.go、r48_growth.go、
@@ -254,9 +209,7 @@ func sendMailSSL(addr, host string, auth smtp.Auth, from string, to []string, ms
 	return w.Close()
 }
 
-func init() { _db.RegisterExtraModels(&EmailAccount{}) }
-
-func emailFromEnv() *EmailAccount {
+func emailFromEnv() *model.EmailAccount {
 	host := os.Getenv("SMTP_HOST")
 	if host == "" {
 		return nil
@@ -266,7 +219,7 @@ func emailFromEnv() *EmailAccount {
 		port = 465
 	}
 	useSSL := os.Getenv("SMTP_SSL") != "false"
-	return &EmailAccount{
+	return &model.EmailAccount{
 		Name:     "env-default",
 		Host:     host,
 		Port:     port,

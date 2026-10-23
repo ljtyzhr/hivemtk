@@ -409,6 +409,9 @@ func allModels() []any {
 		// trace_events 由 DBTraceSink 异步批量落库，中间件在每请求发布 span 事件。
 		&model.TraceEvent{},
 		&model.AggregationWatermark{},
+		// email_accounts：邮件账号由 EmailService 读取、仓储写配额计数；模型原在 service 包，
+		// 靠 init() 的 RegisterExtraModels 绕环登记，现落到 internal/model 正常进清单。
+		&model.EmailAccount{},
 		// msg_hourly_summary 由 message_hub 聚合 cron 写入（repository 原子 upsert）。
 		// 此前只出现在测试夹具里，全新部署缺表 ⇒ 聚合永远写不进去。
 		&model.MsgHourlySummary{},
