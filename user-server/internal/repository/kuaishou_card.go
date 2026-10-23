@@ -5,6 +5,8 @@ import (
 
 	"context"
 
+	_db "hivemtk-user/internal/pkg/db"
+
 	"gorm.io/gorm"
 )
 
@@ -41,14 +43,16 @@ func (r *kuaishouCardRepository) Create(ctx context.Context, card *model.Kuaisho
 }
 
 func (r *kuaishouCardRepository) Update(ctx context.Context, card *model.KuaishouCard) (*model.KuaishouCard, error) {
-	if err := r.db.WithContext(ctx).Save(card).Error; err != nil {
+	// 整行回写走 saveWholeRow：裸 Save 命中 0 行会回退成 INSERT，
+	// 卡片被删/别租户时会凭空插出一条同主键新行（详见 pkg/db.SaveWholeRow）。
+	if err := _db.SaveWholeRow(r.db.WithContext(ctx), card); err != nil {
 		return nil, err
 	}
 	return card, nil
 }
 
 func (r *kuaishouCardRepository) Delete(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).Delete(&model.KuaishouCard{}, id).Error
+	return _db.EnsureAffected(r.db.WithContext(ctx).Delete(&model.KuaishouCard{}, id))
 }
 
 func (r *kuaishouCardRepository) GetByID(ctx context.Context, id uint) (*model.KuaishouCard, error) {

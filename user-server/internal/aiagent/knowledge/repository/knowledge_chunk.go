@@ -5,9 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"strconv"
-	"time"
 
 	"hivemtk-user/internal/aiagent/knowledge/model"
+	_db "hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/pkg/kbrelease"
 	"hivemtk-user/internal/pkg/utils/logger"
 
@@ -66,8 +66,8 @@ func (r *KnowledgeChunkRepository) BatchCreate(ctx context.Context, chunks []mod
 //   - Update 覆盖 content：kb_version 保持原值（存量行是 0），改完立刻在服 ⇒ 绕过审批 ⇒ 拒；
 //   - Delete(id) 抹掉一条在服分段：已上线内容被一次没有留痕的动作撤下 ⇒ 拒（改提 retire）；
 //   - Create / BatchCreate：新行进待发布桶，未发布前本来就不可见 ⇒ 放行并打戳；
-//   - DeleteByDocumentID / DeleteByProductID：重切与整库清理的内部通路，
-//     一并拦会把"导入"（本处要求它走发布制）弄成静默失败 ⇒ 放行，只出声。
+//   - DeleteByDocumentID：重切（导入）的内部通路，一并拦会把"导入"（本处要求它
+//     走发布制）弄成静默失败 ⇒ 放行，只出声。
 //
 // productID 传空时按 id 回查一次：UpdateChunk 那条链带得上产品号，但 Delete 只有 id。
 // 回查只在闸门 on 时发生（见 DirectWriteBlocked），off 档一个额外查询都不该有。
@@ -77,9 +77,10 @@ func (r *KnowledgeChunkRepository) guardDirectWrite(ctx context.Context, product
 	}
 	if productID == "" {
 		// 这里**不能**用 GetByID：它把"没有这一行"翻成 error（"chunk not found"），
-		// 而闸门要的就是"没有这一行 ⇒ 没什么可保护的"。照 GetByID 的写法，
-		// 删一条已经不存在的分段会在 on 档凭空多出一个 404/500 —— 而删除本来就是幂等的，
-		// off 档它至今回 nil。判据只在"行确实在、且它所属的库受管"时才开火。
+		// 而闸门要的就是"没有这一行 ⇒ 没什么可保护的"。闸门只回答"要不要拦"，
+		// "行在不在"由 Delete 自己的 0 行判定统一回答 —— 两处都判会让同一个 404
+		// 在 off/on 两档由不同代码产生，报错文案也随之漂移。
+		// 所以判据只在"行确实在、且它所属的库受管"时才开火。
 		var found model.KnowledgeChunk
 		err := r.db.WithContext(ctx).Where("id = ?", id).First(&found).Error
 		if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -149,8 +150,8 @@ func (r *KnowledgeChunkRepository) Update(ctx context.Context, chunk *model.Know
 		"content_hash": chunk.ContentHash,
 		"embedding_id": chunk.EmbeddingID,
 	}
-	return r.db.WithContext(ctx).Model(&model.KnowledgeChunk{}).
-		Where("id = ?", chunk.ID).Updates(updates).Error
+	return _db.EnsureAffected(r.db.WithContext(ctx).Model(&model.KnowledgeChunk{}).
+		Where("id = ?", chunk.ID).Updates(updates))
 }
 
 // Delete 根据 ID 删除分段
@@ -161,7 +162,7 @@ func (r *KnowledgeChunkRepository) Delete(ctx context.Context, id uint64) error 
 	if err := r.guardDirectWrite(ctx, "", id); err != nil {
 		return err
 	}
-	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&model.KnowledgeChunk{}).Error
+	return _db.EnsureAffected(r.db.WithContext(ctx).Where("id = ?", id).Delete(&model.KnowledgeChunk{}))
 }
 
 // DeleteByDocumentID 删除文档的所有分段
@@ -173,15 +174,6 @@ func (r *KnowledgeChunkRepository) DeleteByDocumentID(ctx context.Context, docum
 		return err
 	}
 	return r.db.WithContext(ctx).Where("document_id = ?", documentID).
-		Delete(&model.KnowledgeChunk{}).Error
-}
-
-// DeleteByProductID 删除产品的所有分段
-func (r *KnowledgeChunkRepository) DeleteByProductID(ctx context.Context, productID string) error {
-	if err := r.warnIfGovernedLosingRows(ctx, "product_id", "product_id = ?", productID); err != nil {
-		return err
-	}
-	return r.db.WithContext(ctx).Where("product_id = ?", productID).
 		Delete(&model.KnowledgeChunk{}).Error
 }
 
@@ -234,32 +226,6 @@ func (r *KnowledgeChunkRepository) CountByMerchant(ctx context.Context) (int64, 
 	return count, nil
 }
 
-// FindByContentHash 根据内容哈希查重
-func (r *KnowledgeChunkRepository) FindByContentHash(ctx context.Context, productID string, hash string) (*model.KnowledgeChunk, error) {
-	var chunk model.KnowledgeChunk
-	q := r.db.WithContext(ctx).Where("content_hash = ?", hash)
-	if productID != "" {
-		q = q.Where("product_id = ?", productID)
-	}
-	if err := q.First(&chunk).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, nil
-		}
-		return nil, err
-	}
-	return &chunk, nil
-}
-
-// UpdateScore 更新最近检索分数
-func (r *KnowledgeChunkRepository) UpdateScore(ctx context.Context, id uint64, score float64) error {
-	return r.db.WithContext(ctx).Model(&model.KnowledgeChunk{}).
-		Where("id = ?", id).
-		Updates(map[string]any{
-			"similarity_score": score,
-			"hit_count":        gorm.Expr("hit_count + 1"),
-		}).Error
-}
-
 // IncrementHitCount 批量累加命中分段 hit_count（tooluse 调用，替代直接 DB 访问）
 //
 // 五层架构合规：L4 能力层（tooluse）通过 L3 仓储层间接操作 DB
@@ -282,13 +248,6 @@ func (r *KnowledgeChunkRepository) GetByID(ctx context.Context, id uint64) (*mod
 		return nil, err
 	}
 	return &chunk, nil
-}
-
-// BatchUpdateLastIndexed 批量更新最后索引时间
-func (r *KnowledgeChunkRepository) BatchUpdateLastIndexed(ctx context.Context, documentID uint64) error {
-	return r.db.WithContext(ctx).Model(&model.KnowledgeChunk{}).
-		Where("document_id = ?", documentID).
-		Update("created_at", time.Now()).Error
 }
 
 // UpdateEmbeddingsBatch 事务式批量更新分段 embedding

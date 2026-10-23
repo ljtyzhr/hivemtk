@@ -142,6 +142,15 @@ func (r *IntentLogRepository) List(ctx context.Context, customerID, major string
 	if major != "" {
 		q = q.Where("intent_type = ?", major)
 	}
+	// limit 由 `/api/intent/logs` 的 `strconv.Atoi(ctx.DefaultQuery("limit","100"))`
+	// 转入，且解析错误被丢弃：传 -1 时 GORM 的 Limit(-1) 等于**取消 LIMIT**（全表扫描），
+	// 传 0 是 LIMIT 0（恒空），传 100000 也是全表。三种都不是调用方要的，这里收口。
+	if limit <= 0 {
+		limit = 100
+	}
+	if limit > 1000 {
+		limit = 1000
+	}
 	var logs []model.IntentLog
 	if err := q.Order("timestamp DESC").Limit(limit).Find(&logs).Error; err != nil {
 		return nil, err

@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"hivemtk-user/internal/aiagent/knowledge/model"
+	_db "hivemtk-user/internal/pkg/db"
 	"time"
 
 	"gorm.io/gorm"
@@ -95,7 +96,7 @@ func (r *KnowledgeOpenAPIRepository) Update(ctx context.Context, src *model.Know
 		src.FieldMapping = "{}"
 	}
 	src.UpdatedAt = time.Now()
-	return r.db.WithContext(ctx).Save(src).Error
+	return _db.SaveWholeRow(r.db.WithContext(ctx), src)
 }
 
 // UpdateSyncStatus 更新同步状态
@@ -112,9 +113,9 @@ func (r *KnowledgeOpenAPIRepository) UpdateSyncStatus(ctx context.Context, id ui
 		}).Error
 }
 
-// Delete 删除
+// Delete 删除（命中 0 行即不存在：已删/别租户）
 func (r *KnowledgeOpenAPIRepository) Delete(ctx context.Context, id uint64) error {
-	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&model.KnowledgeOpenAPISource{}).Error
+	return _db.EnsureAffected(r.db.WithContext(ctx).Where("id = ?", id).Delete(&model.KnowledgeOpenAPISource{}))
 }
 
 // ListEnabled 列出启用的数据源

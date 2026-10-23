@@ -76,32 +76,6 @@ func TestKnowledgeDocumentRepository_AgentIsolation_ListByAgent(t *testing.T) {
 	}
 }
 
-func TestKnowledgeDocumentRepository_AgentIsolation_ListShared(t *testing.T) {
-	repo, _, done := setupDocRepoWithTX(t)
-	defer done()
-	ctx := context.Background()
-
-	agentA := uint(10)
-	docs := []*model.KnowledgeDocument{
-		{Title: "shared1", SourceType: model.SourceTypeUpload, EmbedStatus: model.EmbedStatusIndexed, Status: 1, AgentID: nil},
-		{Title: "shared2", SourceType: model.SourceTypeUpload, EmbedStatus: model.EmbedStatusIndexed, Status: 1, AgentID: nil},
-		{Title: "agentA1", SourceType: model.SourceTypeUpload, EmbedStatus: model.EmbedStatusIndexed, Status: 1, AgentID: &agentA},
-	}
-	for _, d := range docs {
-		if err := repo.Create(ctx, d); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	got, err := repo.ListShared(ctx, 100)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(got) != 2 {
-		t.Errorf("ListShared expected 2, got %d", len(got))
-	}
-}
-
 func TestKnowledgeDocumentRepository_AgentIsolation_MatchByAgent(t *testing.T) {
 	repo, _, done := setupDocRepoWithTX(t)
 	defer done()

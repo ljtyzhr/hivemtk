@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"hivemtk-user/internal/aiagent/knowledge/model"
+	_db "hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/pkg/timeutil"
 	"time"
 
@@ -158,20 +159,6 @@ func (r *KnowledgeDocumentRepository) ListByAgent(ctx context.Context, agentID u
 	return docs, err
 }
 
-// ListShared 列出全部共享知识库文档 (agent_id IS NULL)
-func (r *KnowledgeDocumentRepository) ListShared(ctx context.Context, limit int) ([]*model.KnowledgeDocument, error) {
-	if limit <= 0 || limit > 1000 {
-		limit = 200
-	}
-	var docs []*model.KnowledgeDocument
-	err := r.db.WithContext(ctx).
-		Where("agent_id IS NULL AND status = ?", 1).
-		Order("id DESC").
-		Limit(limit).
-		Find(&docs).Error
-	return docs, err
-}
-
 // MatchByAgent 按智能体严格 1:1 匹配 (: 强 1对1 改造)
 //
 // 行为:
@@ -199,7 +186,7 @@ func (r *KnowledgeDocumentRepository) MatchByAgent(ctx context.Context, agentID 
 // Update 更新文档
 func (r *KnowledgeDocumentRepository) Update(ctx context.Context, doc *model.KnowledgeDocument) error {
 	doc.UpdatedAt = time.Now()
-	return r.db.WithContext(ctx).Save(doc).Error
+	return _db.SaveWholeRow(r.db.WithContext(ctx), doc)
 }
 
 // UpdateStatus 更新文档状态
@@ -214,31 +201,25 @@ func (r *KnowledgeDocumentRepository) UpdateStatus(ctx context.Context, id uint6
 		now := time.Now()
 		updates["last_index_at"] = now
 	}
-	return r.db.WithContext(ctx).Model(&model.KnowledgeDocument{}).
+	return _db.EnsureAffected(r.db.WithContext(ctx).Model(&model.KnowledgeDocument{}).
 		Where("id = ?", id).
-		Updates(updates).Error
+		Updates(updates))
 }
 
 // UpdateChunkStats 更新分段统计
 func (r *KnowledgeDocumentRepository) UpdateChunkStats(ctx context.Context, id uint64, chunkCount, totalTokens int) error {
-	return r.db.WithContext(ctx).Model(&model.KnowledgeDocument{}).
+	return _db.EnsureAffected(r.db.WithContext(ctx).Model(&model.KnowledgeDocument{}).
 		Where("id = ?", id).
 		Updates(map[string]any{
 			"chunk_count":  chunkCount,
 			"total_tokens": totalTokens,
 			"updated_at":   time.Now(),
-		}).Error
+		}))
 }
 
-// Delete 删除文档
+// Delete 删除文档（命中 0 行即不存在：已删/别租户，不能回“删除成功”）
 func (r *KnowledgeDocumentRepository) Delete(ctx context.Context, id uint64) error {
-	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&model.KnowledgeDocument{}).Error
-}
-
-// DeleteByProduct 根据产品删除所有文档
-func (r *KnowledgeDocumentRepository) DeleteByProduct(ctx context.Context, productID string) error {
-	return r.db.WithContext(ctx).Model(&model.KnowledgeDocument{}).Where("product_id = ?", productID).
-		Delete(&model.KnowledgeDocument{}).Error
+	return _db.EnsureAffected(r.db.WithContext(ctx).Where("id = ?", id).Delete(&model.KnowledgeDocument{}))
 }
 
 // CountByProduct 统计产品文档数

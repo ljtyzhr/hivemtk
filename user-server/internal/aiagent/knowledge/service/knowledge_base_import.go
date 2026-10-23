@@ -115,7 +115,7 @@ func (s *KnowledgeBaseService) ImportDocument(ctx context.Context, title string,
 		FileType: ext,
 		Status:   model.KBDocumentStatusPending,
 	}
-	if err := s.db.WithContext(ctx).Create(doc).Error; err != nil {
+	if err := s.docs.Create(ctx, doc); err != nil {
 		_ = os.Remove(filePath)
 		return nil, fmt.Errorf("保存文档记录失败: %w", err)
 	}
@@ -161,7 +161,7 @@ func (s *KnowledgeBaseService) IngestLocalFile(ctx context.Context, title, fileP
 		FileType: ext,
 		Status:   model.KBDocumentStatusPending,
 	}
-	if err := s.db.WithContext(ctx).Create(doc).Error; err != nil {
+	if err := s.docs.Create(ctx, doc); err != nil {
 		return 0, fmt.Errorf("保存文档记录失败: %w", err)
 	}
 	async.RunWithTimeout(ctx, AsyncProcessingTimeout(), func(procCtx context.Context) {
@@ -179,9 +179,12 @@ func (s *KnowledgeBaseService) processDocumentAsync(ctx context.Context, documen
 		}
 	}()
 
-	_ = s.db.WithContext(bgCtx).Model(&model.KBDocument{}).
-		Where("id = ?", documentID).
-		Updates(map[string]any{"status": model.KBDocumentStatusProcessing, "error_msg": ""}).Error
+	if err := s.docs.UpdateStatusFields(bgCtx, documentID, map[string]any{
+		"status": model.KBDocumentStatusProcessing, "error_msg": "",
+	}); err != nil {
+		// 状态没推进就继续跑没有任何意义：文档会一直停在 pending，重试也无从下手。
+		logger.Errorf("[KBImport] 标记文档处理中失败 doc=%d: %v", documentID, err)
+	}
 
 	contentBytes, err := os.ReadFile(filePath)
 	if err != nil {
@@ -241,22 +244,22 @@ func (s *KnowledgeBaseService) processDocumentAsync(ctx context.Context, documen
 		return
 	}
 
-	if err := s.db.WithContext(bgCtx).Model(&model.KBDocument{}).Where("id = ?", documentID).Updates(map[string]any{
+	if err := s.docs.UpdateStatusFields(bgCtx, documentID, map[string]any{
 		"status":      model.KBDocumentStatusIndexed,
 		"chunk_count": len(chunks),
 		"content":     content,
 		"error_msg":   "",
-	}).Error; err != nil {
+	}); err != nil {
 		// 索引已建成但状态写失败：文档将滞留 processing，前端无法感知——必须落日志供运维介入
 		logger.Errorf("[KBImport] 标记文档已索引失败 doc=%d: %v", documentID, err)
 	}
 }
 
 func (s *KnowledgeBaseService) markDocumentFailed(ctx context.Context, documentID uint, errMsg string) {
-	if err := s.db.WithContext(ctx).Model(&model.KBDocument{}).Where("id = ?", documentID).Updates(map[string]any{
+	if err := s.docs.UpdateStatusFields(ctx, documentID, map[string]any{
 		"status":    model.KBDocumentStatusFailed,
 		"error_msg": errMsg,
-	}).Error; err != nil {
+	}); err != nil {
 		logger.Errorf("[KBImport] 标记文档失败状态失败 doc=%d (原错误: %s): %v", documentID, errMsg, err)
 	}
 }

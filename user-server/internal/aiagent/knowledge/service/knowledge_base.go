@@ -7,6 +7,7 @@ import (
 	"context"
 	"fmt"
 	"hivemtk-user/internal/aiagent/knowledge/model"
+	knowledgeRepo "hivemtk-user/internal/aiagent/knowledge/repository"
 	ragretrieval "hivemtk-user/internal/aiagent/rag/retrieval"
 	"hivemtk-user/internal/etl"
 	chunkModel "hivemtk-user/internal/model"
@@ -19,6 +20,7 @@ import (
 // KnowledgeBaseService 知识库服务
 type KnowledgeBaseService struct {
 	db        *gorm.DB
+	docs      *knowledgeRepo.KBDocumentRepository
 	processor *etl.DocumentProcessor
 	indexer   ragretrieval.IndexManagerInterface
 	vector    *ragretrieval.Vectorizer
@@ -29,6 +31,7 @@ type KnowledgeBaseService struct {
 func NewKnowledgeBaseService() *KnowledgeBaseService {
 	return &KnowledgeBaseService{
 		db:        db.GetDB(),
+		docs:      knowledgeRepo.NewKBDocumentRepository(db.GetDB()),
 		processor: etl.NewDocumentProcessor(nil),
 		indexer:   ragretrieval.NewInMemoryIndexManager(EmbeddingDim()),
 		vector:    ragretrieval.NewVectorizer(EmbeddingDim(), nil),
@@ -39,6 +42,7 @@ func NewKnowledgeBaseService() *KnowledgeBaseService {
 func NewKnowledgeBaseServiceWithDB(gdb *gorm.DB) *KnowledgeBaseService {
 	return &KnowledgeBaseService{
 		db:        gdb,
+		docs:      knowledgeRepo.NewKBDocumentRepository(gdb),
 		processor: etl.NewDocumentProcessor(nil),
 		indexer:   ragretrieval.NewInMemoryIndexManager(EmbeddingDim()),
 		vector:    ragretrieval.NewVectorizer(EmbeddingDim(), nil),
@@ -54,26 +58,12 @@ func (s *KnowledgeBaseService) ListDocuments(ctx context.Context, page, pageSize
 		pageSize = DefaultPageSize
 	}
 
-	var docs []*model.KBDocument
-	var total int64
-	q := s.db.WithContext(ctx).Model(&model.KBDocument{})
-	if err := q.Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
-	offset := (page - 1) * pageSize
-	if err := q.Order("created_at DESC").Offset(offset).Limit(pageSize).Find(&docs).Error; err != nil {
-		return nil, 0, err
-	}
-	return docs, total, nil
+	return s.docs.List(ctx, page, pageSize)
 }
 
 // GetDocument 获取文档
 func (s *KnowledgeBaseService) GetDocument(ctx context.Context, id uint) (*model.KBDocument, error) {
-	var doc model.KBDocument
-	if err := s.db.WithContext(ctx).Where("id = ?", id).First(&doc).Error; err != nil {
-		return nil, err
-	}
-	return &doc, nil
+	return s.docs.GetByID(ctx, id)
 }
 
 func (s *KnowledgeBaseService) DeleteDocument(ctx context.Context, id uint) error {

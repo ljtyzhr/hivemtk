@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"hivemtk-user/internal/aiagent/knowledge/model"
+	_db "hivemtk-user/internal/pkg/db"
 	"time"
 
 	"gorm.io/gorm"
@@ -46,6 +47,10 @@ func (r *KnowledgeFeedbackRepository) List(ctx context.Context, filter FeedbackL
 	}
 	if filter.PageSize < 1 {
 		filter.PageSize = 20
+	}
+	if filter.PageSize > 100 {
+		// 与 pagination.MaxPageSize 一致：无上界时 page_size=100000 会把整张表读进内存。
+		filter.PageSize = 100
 	}
 	q := r.db.WithContext(ctx).Model(&model.KnowledgeFeedback{})
 	if filter.ProductID != "" {
@@ -105,9 +110,9 @@ func (r *KnowledgeAPITokenRepository) DisableByID(ctx context.Context, id uint64
 	if r == nil || r.db == nil {
 		return nil
 	}
-	return r.db.WithContext(ctx).Model(&model.KnowledgeAPIToken{}).
+	return _db.EnsureAffected(r.db.WithContext(ctx).Model(&model.KnowledgeAPIToken{}).
 		Where("id = ?", id).
-		Updates(map[string]any{"enabled": enabled}).Error
+		Updates(map[string]any{"enabled": enabled}))
 }
 
 // FindByToken 按 hashed token 查找
@@ -158,9 +163,9 @@ func (r *ExternalImportJobRepository) UpdateStatusByJobNo(ctx context.Context, j
 	if r == nil || r.db == nil {
 		return nil
 	}
-	return r.db.WithContext(ctx).Model(&model.ExternalImportJob{}).
+	return _db.EnsureAffected(r.db.WithContext(ctx).Model(&model.ExternalImportJob{}).
 		Where("job_no = ?", jobNo).
-		Updates(updates).Error
+		Updates(updates))
 }
 
 // ExternalJobListFilter 任务列表筛选
@@ -180,6 +185,10 @@ func (r *ExternalImportJobRepository) List(ctx context.Context, filter ExternalJ
 	}
 	if filter.PageSize < 1 {
 		filter.PageSize = 20
+	}
+	if filter.PageSize > 100 {
+		// 与 pagination.MaxPageSize 一致：无上界时 page_size=100000 会把整张表读进内存。
+		filter.PageSize = 100
 	}
 	q := r.db.WithContext(ctx).Model(&model.ExternalImportJob{})
 	if filter.ProductID != "" {

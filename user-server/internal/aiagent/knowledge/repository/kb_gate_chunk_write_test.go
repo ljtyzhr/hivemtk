@@ -8,7 +8,7 @@
 //     后者是刻意不"放行算了"：拿不准归属时静默写 0 就是一次放行。
 //  2. **就地改写 / 单条物理删除**（Update / Delete）。这两条会把未审批正文当场推进线上
 //     （或无声撤下在服内容），闸门 + governed 下必须拒，且拒之后库里那行**没被改过**。
-//  3. **批量删除**（DeleteByDocumentID / DeleteByProductID）。这是导入重切的通路，
+//  3. **批量删除**（DeleteByDocumentID）。这是导入重切的通路，
 //     拦它等于把"导入也走发布制"一起关掉，所以只出声不改判 —— 那一句告警是本卡
 //     唯一一个"运维看得到、代码不拦"的判据，它必须真的出声，且只在有在服行时出声。
 //
@@ -359,12 +359,18 @@ func TestKbRepo_GuardDirectWrite(t *testing.T) {
 		})
 	}
 
-	t.Run("on 受管库：不存在的 id 不报错也不查账", func(t *testing.T) {
+	t.Run("on 受管库：不存在的 id 由 0 行判定报 not found，闸门不代答", func(t *testing.T) {
 		t.Setenv(kbrelease.FlagEnv, "on")
 		db := kbRepoSetup(t, true)
-		// guard 里"行本来就不在 ⇒ 不代答"那一路：让紧随其后的删除给出"删不到"。
-		if err := NewKnowledgeChunkRepository(db).Delete(ctx, 999999); err != nil {
-			t.Errorf("删不存在的 id 不该报错：%v", err)
+		// guard 里"行本来就不在 ⇒ 不代答"那一路：闸门不该拦，紧随其后的删除自己给出
+		// "删不到"。两条要一起看 —— 若 guard 误判成受管并拦下，拿到的会是
+		// ErrGovernedDirectWrite 而不是 ErrRecordNotFound。
+		err := NewKnowledgeChunkRepository(db).Delete(ctx, 999999)
+		if !errors.Is(err, gorm.ErrRecordNotFound) {
+			t.Errorf("删不存在的 id 报的应是 not found，实际 %v", err)
+		}
+		if errors.Is(err, kbrelease.ErrGovernedDirectWrite) {
+			t.Errorf("闸门对不存在的行不该开火")
 		}
 	})
 }

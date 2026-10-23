@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 	"time"
 
 	"hivemtk-user/internal/aiagent/knowledge/model"
@@ -42,6 +41,11 @@ func (r *KBDocumentRepository) List(ctx context.Context, page, pageSize int) ([]
 	if pageSize < 1 {
 		pageSize = 20
 	}
+	if pageSize > 100 {
+		// 上界与 pagination.MaxPageSize 对齐：page_size=100000 在这里唯一的作用
+		// 是把整张表读进内存（调用方 service.ListDocuments 只做了下界判断）。
+		pageSize = 100
+	}
 
 	var docs []*model.KBDocument
 	var total int64
@@ -54,17 +58,6 @@ func (r *KBDocumentRepository) List(ctx context.Context, page, pageSize int) ([]
 		return nil, 0, err
 	}
 	return docs, total, nil
-}
-
-// DeleteByID 按 ID 删除文档
-func (r *KBDocumentRepository) DeleteByID(ctx context.Context, id uint) error {
-	if err := r.db.WithContext(ctx).Where("id = ?", id).First(&model.KBDocument{}).Error; err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil
-		}
-		return err
-	}
-	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&model.KBDocument{}).Error
 }
 
 // UpdateStatusFields 更新文档状态字段

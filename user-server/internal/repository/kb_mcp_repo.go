@@ -66,26 +66,6 @@ func (r *ExternalKBConnectorRepo) Delete(ctx context.Context, id uint) error {
 	return nil
 }
 
-func (r *ExternalKBConnectorRepo) FindItem(ctx context.Context, connectorID uint, docKey string) (*model.ExternalKBSyncItem, error) {
-	var row model.ExternalKBSyncItem
-	err := r.db.WithContext(ctx).
-		Where("connector_id = ? AND doc_key = ?", connectorID, docKey).
-		First(&row).Error
-	if err != nil {
-		return nil, err
-	}
-	return &row, nil
-}
-
-func (r *ExternalKBConnectorRepo) CreateItem(ctx context.Context, item *model.ExternalKBSyncItem) error {
-	return r.db.WithContext(ctx).Create(item).Error
-}
-
-func (r *ExternalKBConnectorRepo) UpdateItem(ctx context.Context, connectorID uint, docKey string, updates map[string]any) error {
-	return r.db.WithContext(ctx).Model(&model.ExternalKBSyncItem{}).
-		Where("connector_id = ? AND doc_key = ?", connectorID, docKey).Updates(updates).Error
-}
-
 // MCPCredentialRepo MCP 凭证对仓储
 type MCPCredentialRepo struct{ db *gorm.DB }
 

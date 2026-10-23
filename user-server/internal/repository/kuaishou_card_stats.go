@@ -46,7 +46,6 @@ type KuaishouCardStatsRepository interface {
 	// （抖音/小红书两仓都有同名方法，快手是漏实现）。
 	GetRecentActivitiesByCard(ctx context.Context, cardID uint, limit int) ([]KuaishouRecentActivity, error)
 	CreateActivity(ctx context.Context, activity *model.KuaishouCardActivity) error
-	SaveCard(ctx context.Context, card *model.KuaishouCard) error
 	IncrementViewCount(ctx context.Context, id uint) error
 }
 
@@ -151,10 +150,6 @@ func (r *kuaishouCardStatsRepository) CreateActivity(ctx context.Context, activi
 		return fmt.Errorf("记录活动失败: %w", err)
 	}
 	return nil
-}
-
-func (r *kuaishouCardStatsRepository) SaveCard(ctx context.Context, card *model.KuaishouCard) error {
-	return r.db.WithContext(ctx).Save(card).Error
 }
 
 func (r *kuaishouCardStatsRepository) IncrementViewCount(ctx context.Context, id uint) error {

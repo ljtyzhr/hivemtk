@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"testing"
 
@@ -148,35 +149,6 @@ func TestKnowledgeBaseRepository_ListByAgent(t *testing.T) {
 	}
 }
 
-func TestKnowledgeBaseRepository_ListShared(t *testing.T) {
-	repo, _, done := setupKBRepoWithTX(t)
-	defer done()
-	ctx := context.Background()
-
-	a1 := uint(1)
-	if err := repo.Create(ctx, newTestKB("K1", "faq", "shared", nil)); err != nil {
-		t.Fatal(err)
-	}
-	if err := repo.Create(ctx, newTestKB("K2", "rag", "shared", nil)); err != nil {
-		t.Fatal(err)
-	}
-	if err := repo.Create(ctx, newTestKB("K3", "faq", "private", &a1)); err != nil {
-		t.Fatal(err)
-	}
-	got, err := repo.ListShared(ctx, "")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(got) != 2 {
-		t.Errorf("expected 2 shared, got %d", len(got))
-	}
-	for _, kb := range got {
-		if kb.OwnerType != model.KnowledgeBaseOwnerShared {
-			t.Errorf("expected shared, got %q", kb.OwnerType)
-		}
-	}
-}
-
 func TestKnowledgeBaseRepository_Update(t *testing.T) {
 	repo, _, done := setupKBRepoWithTX(t)
 	defer done()
@@ -218,31 +190,6 @@ func TestKnowledgeBaseRepository_Delete(t *testing.T) {
 	got, _ := repo.GetByID(ctx, kb.ID)
 	if got != nil {
 		t.Error("expected nil after delete")
-	}
-}
-
-func TestKnowledgeBaseRepository_CountByAgent(t *testing.T) {
-	repo, _, done := setupKBRepoWithTX(t)
-	defer done()
-	ctx := context.Background()
-
-	a1, a2 := uint(1), uint(2)
-	if err := repo.Create(ctx, newTestKB("K1", "faq", "private", &a1)); err != nil {
-		t.Fatal(err)
-	}
-	if err := repo.Create(ctx, newTestKB("K2", "rag", "private", &a1)); err != nil {
-		t.Fatal(err)
-	}
-	if err := repo.Create(ctx, newTestKB("K3", "faq", "private", &a2)); err != nil {
-		t.Fatal(err)
-	}
-	c1, _ := repo.CountByAgent(ctx, a1)
-	if c1 != 2 {
-		t.Errorf("expected count=2 for agent=1, got %d", c1)
-	}
-	c2, _ := repo.CountByAgent(ctx, a2)
-	if c2 != 1 {
-		t.Errorf("expected count=1 for agent=2, got %d", c2)
 	}
 }
 
@@ -512,30 +459,6 @@ func TestKnowledgeBaseRepository_ListByType_Limit(t *testing.T) {
 	}
 }
 
-// TestKnowledgeBaseRepository_ListShared_FilterByType 验证 ListShared 按类型过滤
-func TestKnowledgeBaseRepository_ListShared_FilterByType(t *testing.T) {
-	repo, _, done := setupKBRepoWithTX(t)
-	defer done()
-	ctx := context.Background()
-
-	_ = repo.Create(ctx, newTestKB("F1", "faq", "shared", nil))
-	_ = repo.Create(ctx, newTestKB("R1", "rag", "shared", nil))
-	_ = repo.Create(ctx, newTestKB("F2", "faq", "shared", nil))
-
-	got, err := repo.ListShared(ctx, "faq")
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(got) != 2 {
-		t.Errorf("expected 2 faq-shared, got %d", len(got))
-	}
-	for _, kb := range got {
-		if kb.Type != "faq" {
-			t.Errorf("expected type=faq, got %q", kb.Type)
-		}
-	}
-}
-
 // TestKnowledgeBaseRepository_Update_NonExistent 验证 Update 不存在 ID
 func TestKnowledgeBaseRepository_Update_NonExistent(t *testing.T) {
 	repo, _, done := setupKBRepoWithTX(t)
@@ -544,31 +467,20 @@ func TestKnowledgeBaseRepository_Update_NonExistent(t *testing.T) {
 
 	kb := newTestKB("X", "faq", "shared", nil)
 	kb.Name = "updated"
-	_ = repo.Update(ctx, 99999, kb)
+	// 不存在的 id 必须报 not found：核对 0 行静默成功的老语义（原先这里连断言都没有）
+	if err := repo.Update(ctx, 99999, kb); !errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Errorf("expected ErrRecordNotFound for non-existent update, got %v", err)
+	}
 }
 
-// TestKnowledgeBaseRepository_Delete_NonExistent 验证 Delete 不存在 ID 不报错
+// TestKnowledgeBaseRepository_Delete_NonExistent 验证 Delete 不存在 ID 报 not found
+// （原用例断言"不报错"，等于把 0 行静默成功写成了契约）
 func TestKnowledgeBaseRepository_Delete_NonExistent(t *testing.T) {
 	repo, _, done := setupKBRepoWithTX(t)
 	defer done()
 	ctx := context.Background()
 
-	if err := repo.Delete(ctx, 99999); err != nil {
-		t.Errorf("expected nil error for non-existent delete, got %v", err)
-	}
-}
-
-// TestKnowledgeBaseRepository_CountByAgent_NoKB 验证 CountByAgent 0 KB
-func TestKnowledgeBaseRepository_CountByAgent_NoKB(t *testing.T) {
-	repo, _, done := setupKBRepoWithTX(t)
-	defer done()
-	ctx := context.Background()
-
-	c, err := repo.CountByAgent(ctx, 99999)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if c != 0 {
-		t.Errorf("expected count=0 for agent with no KB, got %d", c)
+	if err := repo.Delete(ctx, 99999); !errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Errorf("expected ErrRecordNotFound for non-existent delete, got %v", err)
 	}
 }

@@ -1535,7 +1535,7 @@
 | 1320 | [ ] | `internal/repository/glossary_repo.go` | 13 | 23 | 13 | 0 |
 | 1321 | [ ] | `internal/repository/growth_repo.go` | 29 | 32 | 29 | 0 |
 | 1322 | [x] | `internal/repository/handoff_chain_repo.go` | 14 | 34 | 14 | 0 |
-| 1323 | [ ] | `internal/repository/help_center.go` | 16 | 16 | 16 | 0 |
+| 1323 | [x] | `internal/repository/help_center.go` | 16 | 16 | 16 | 0（整文件已删：`HelpCenterRepo` 全仓零调用，任务一 #107 的 4.4） |
 | 1324 | [x] | `internal/repository/help_center_repo.go` | 17 | 21 | 17 | 0 |
 | 1325 | [x] | `internal/repository/human_task.go` | 41 | 125 | 41 | 0 |
 | 1326 | [ ] | `internal/repository/humanize_low_quality_collector.go` | 3 | 6 | 3 | 0 |

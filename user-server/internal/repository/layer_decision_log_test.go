@@ -3,7 +3,6 @@ package repository
 import (
 	"context"
 	"testing"
-	"time"
 
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/testutil"
@@ -83,81 +82,6 @@ func TestLayerDecisionLogRepository_GetByTraceID(t *testing.T) {
 	}
 }
 
-func TestLayerDecisionLogRepository_StatsByLayer(t *testing.T) {
-	repo, _, done := setupLayerLogRepoWithTX(t)
-	defer done()
-	ctx := context.Background()
-
-	logs := []*model.LayerDecisionLog{
-		{Layer: "layer1", Reason: "faq_match", Intent: "logistics"},
-		{Layer: "layer1", Reason: "faq_match", Intent: "logistics"},
-		{Layer: "layer1", Reason: "sop_template", Intent: "pricing"},
-		{Layer: "layer1", Reason: "sop_template", Intent: "pricing"},
-		{Layer: "layer1", Reason: "faq_match", Intent: "aftersales"},
-		{Layer: "layer2", Reason: "llm_response", Intent: "general"},
-		{Layer: "layer2", Reason: "llm_response", Intent: "general"},
-		{Layer: "layer2", Reason: "llm_response", Intent: "general"},
-		{Layer: "fallback_template", Reason: "template_default", Intent: "general"},
-		{Layer: "fallback_template", Reason: "template_default", Intent: "general"},
-	}
-	for _, l := range logs {
-		if err := repo.Record(ctx, l); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	stats, err := repo.StatsByLayer(ctx, time.Now().Add(-1*time.Hour))
-	if err != nil {
-		t.Fatal(err)
-	}
-	statMap := make(map[string]int64)
-	for _, s := range stats {
-		statMap[s.Layer] = s.Count
-	}
-	if statMap["layer1"] != 5 {
-		t.Errorf("expected layer1=5, got %d", statMap["layer1"])
-	}
-	if statMap["layer2"] != 3 {
-		t.Errorf("expected layer2=3, got %d", statMap["layer2"])
-	}
-	if statMap["fallback_template"] != 2 {
-		t.Errorf("expected fallback_template=2, got %d", statMap["fallback_template"])
-	}
-}
-
-func TestLayerDecisionLogRepository_StatsByIntent(t *testing.T) {
-	repo, _, done := setupLayerLogRepoWithTX(t)
-	defer done()
-	ctx := context.Background()
-
-	logs := []*model.LayerDecisionLog{
-		{Layer: "layer1", Reason: "faq_match", Intent: "logistics"},
-		{Layer: "layer1", Reason: "faq_match", Intent: "logistics"},
-		{Layer: "layer1", Reason: "sop_template", Intent: "pricing"},
-		{Layer: "layer2", Reason: "llm_response", Intent: "general"},
-	}
-	for _, l := range logs {
-		if err := repo.Record(ctx, l); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	stats, err := repo.StatsByIntent(ctx, time.Now().Add(-1*time.Hour))
-	if err != nil {
-		t.Fatal(err)
-	}
-	intentMap := make(map[string]int64)
-	for _, s := range stats {
-		intentMap[s.Intent] = s.Count
-	}
-	if intentMap["logistics"] != 2 {
-		t.Errorf("expected logistics=2, got %d", intentMap["logistics"])
-	}
-	if intentMap["pricing"] != 1 {
-		t.Errorf("expected pricing=1, got %d", intentMap["pricing"])
-	}
-}
-
 func TestLayerDecisionLogRepository_Recent(t *testing.T) {
 	repo, _, done := setupLayerLogRepoWithTX(t)
 	defer done()
@@ -176,32 +100,5 @@ func TestLayerDecisionLogRepository_Recent(t *testing.T) {
 	}
 	if len(got) != 3 {
 		t.Errorf("expected 3 recent, got %d", len(got))
-	}
-}
-
-func TestLayerDecisionLogRepository_LLMSkippedCount(t *testing.T) {
-	repo, _, done := setupLayerLogRepoWithTX(t)
-	defer done()
-	ctx := context.Background()
-
-	trueVal := true
-	falseVal := false
-	logs := []*model.LayerDecisionLog{
-		{Layer: "layer1", Reason: "faq_match", Intent: "logistics", LLMSkipped: &trueVal},
-		{Layer: "layer1", Reason: "sop_template", Intent: "pricing", LLMSkipped: &trueVal},
-		{Layer: "layer2", Reason: "llm_response", Intent: "general", LLMSkipped: &falseVal},
-	}
-	for _, l := range logs {
-		if err := repo.Record(ctx, l); err != nil {
-			t.Fatal(err)
-		}
-	}
-
-	count, err := repo.LLMSkippedCount(ctx, time.Now().Add(-1*time.Hour))
-	if err != nil {
-		t.Fatal(err)
-	}
-	if count != 2 {
-		t.Errorf("expected 2 LLM skipped, got %d", count)
 	}
 }

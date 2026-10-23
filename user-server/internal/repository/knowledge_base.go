@@ -5,6 +5,7 @@ import (
 	"errors"
 
 	"hivemtk-user/internal/model"
+	_db "hivemtk-user/internal/pkg/db"
 
 	"gorm.io/gorm"
 )
@@ -146,20 +147,9 @@ func (r *KnowledgeBaseRepository) ListByAgent(ctx context.Context, agentID uint)
 	return kbs, nil
 }
 
-// ListShared 列出全部共享知识库 (owner_type=shared)
-func (r *KnowledgeBaseRepository) ListShared(ctx context.Context, kbType string) ([]model.KnowledgeBase, error) {
-	q := r.db.WithContext(ctx).Where("owner_type = ? AND enabled = ?", model.KnowledgeBaseOwnerShared, true)
-	if kbType != "" {
-		q = q.Where("type = ?", kbType)
-	}
-	var kbs []model.KnowledgeBase
-	err := q.Order("id DESC").Find(&kbs).Error
-	return kbs, err
-}
-
 // Update 更新知识库
 func (r *KnowledgeBaseRepository) Update(ctx context.Context, id uint, kb *model.KnowledgeBase) error {
-	return r.db.WithContext(ctx).Model(&model.KnowledgeBase{}).
+	return _db.EnsureAffected(r.db.WithContext(ctx).Model(&model.KnowledgeBase{}).
 		Where("id = ?", id).
 		Updates(map[string]any{
 			"name":           kb.Name,
@@ -170,7 +160,7 @@ func (r *KnowledgeBaseRepository) Update(ctx context.Context, id uint, kb *model
 			"enabled":        kb.Enabled,
 			"member_count":   kb.MemberCount,
 			"doc_count":      kb.DocCount,
-		}).Error
+		}))
 }
 
 // UpdateVersionCanary 只写版本/灰度三列，且**刻意不碰 updated_at**。
@@ -222,16 +212,7 @@ func (r *KnowledgeBaseRepository) AnswerCacheRowsByVersion(ctx context.Context, 
 	return out, nil
 }
 
-// Delete 删除知识库
+// Delete 删除知识库（命中 0 行即不存在：已删/别租户）
 func (r *KnowledgeBaseRepository) Delete(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&model.KnowledgeBase{}).Error
-}
-
-// CountByAgent 统计某智能体拥有多少私有 KB
-func (r *KnowledgeBaseRepository) CountByAgent(ctx context.Context, agentID uint) (int64, error) {
-	var count int64
-	err := r.db.WithContext(ctx).Model(&model.KnowledgeBase{}).
-		Where("owner_agent_id = ?", agentID).
-		Count(&count).Error
-	return count, err
+	return _db.EnsureAffected(r.db.WithContext(ctx).Where("id = ?", id).Delete(&model.KnowledgeBase{}))
 }
