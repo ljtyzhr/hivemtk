@@ -41,7 +41,7 @@ npm install
 | `npm run dev` | `node scripts/build.mjs --watch` 持续构建 | 监听源码变化，刷新扩展生效 |
 | `npm run test` | Vitest 单元测试（jsdom） | 覆盖 `constants.js` / `protocol` / `adapter` / `rate-limiter` / `sanitize` / `fallback` / `popup` / 三通道调度 |
 | `npm run test:watch` | 监听模式 | 开发期间持续运行 |
-| `npm run release` | `node scripts/release.mjs` 打 release 包 | 产物 `release/hivebridge-1.0.0.zip` |
+| `npm run release` | `node scripts/release.mjs` 打 release 包 | 产物 `release/hivebridge-<version>.zip`（版本取 `package.json`） |
 | `npm run lint` | `eslint src test scripts --max-warnings=80` | 静态检查 |
 
 ### 2.1 本地开发联调（核心三步）

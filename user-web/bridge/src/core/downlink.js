@@ -52,6 +52,35 @@ class SentCache {
     this.loaded = true;
   }
 
+  // refresh：把存储里其他标签页新写入的条目并进内存。
+  // 同一渠道的多个聊天页各有一份内存缓存；不并存储的话，A 页发完 B 页仍看不见，
+  // 同一条下行会被第二个页面再发一遍（客户收到两遍）。
+  async refresh() {
+    if (!this.loaded) return this.load();
+    const now = Date.now();
+    try {
+      const v = await chrome.storage.local.get([this.key]);
+      const arr = v && v[this.key];
+      if (Array.isArray(arr)) {
+        let merged = false;
+        for (const e of arr) {
+          if (!Array.isArray(e) || e.length !== 2 || !Number.isFinite(Number(e[1]))) continue;
+          const id = String(e[0]);
+          const ts = Number(e[1]);
+          const cur = this.mem.get(id);
+          if (cur !== undefined && cur >= ts) continue;
+          this.mem.delete(id);
+          this.mem.set(id, ts);
+          merged = true;
+        }
+        // 并进来的条目时间戳可能比本地尾部更旧，恢复「头部即最旧」才能让 evict 的前缀扫描成立。
+        if (merged) this.mem = new Map([...this.mem.entries()].sort((a, b) => a[1] - b[1]));
+      }
+    } catch (_) {
+    }
+    this.evict(now);
+  }
+
   has(id) {
     const ts = this.mem.get(id);
     return ts !== undefined && Date.now() - ts <= BRIDGE_THREE_CHANNEL.sentCacheTtlMs;
@@ -80,11 +109,40 @@ class SentCache {
 
   async flush() {
     if (!this.dirty) return;
-    try {
-      await chrome.storage.local.set({ [this.key]: [...this.mem] });
-      this.dirty = false;
-    } catch (_) {
+    // 落盘必须是读-并-写：直接 set([...mem]) 会把另一个标签页刚写入的条目整表抹掉，
+    // 抹掉的那条下一轮就会被重新下发（重复发送的另一种来源）。
+    // 读和写之间用按渠道的锁串起来，防两个标签页同时「读旧值→各自写」各丢一条。
+    const write = async () => {
+      try {
+        const now = Date.now();
+        const merged = new Map(this.mem);
+        const v = await chrome.storage.local.get([this.key]);
+        const arr = v && v[this.key];
+        if (Array.isArray(arr)) {
+          for (const e of arr) {
+            if (!Array.isArray(e) || e.length !== 2 || !Number.isFinite(Number(e[1]))) continue;
+            const id = String(e[0]);
+            const ts = Number(e[1]);
+            const cur = merged.get(id);
+            if (cur === undefined || ts > cur) merged.set(id, ts);
+          }
+        }
+        this.mem = new Map([...merged.entries()].sort((a, b) => a[1] - b[1]));
+        this.evict(now);
+        await chrome.storage.local.set({ [this.key]: [...this.mem] });
+        this.dirty = false;
+      } catch (_) {
+      }
+    };
+    const locks = typeof navigator !== 'undefined' && navigator ? navigator.locks : null;
+    if (locks && typeof locks.request === 'function') {
+      try {
+        return await locks.request(`bridge-sent-cache:${this.channel}`, write);
+      } catch (_) {
+        return;
+      }
     }
+    return write();
   }
 }
 
@@ -92,6 +150,17 @@ const caches = {};
 function getCache(channel) {
   if (!caches[channel]) caches[channel] = new SentCache(channel);
   return caches[channel];
+}
+
+// withOutboundLock：跨标签页互斥同一 key 的下发临界区。
+// 同一渠道可能同时开着多个聊天页，每个页面都跑自己的下行循环；只靠各自的 SentCache
+// 内存判重挡不住并发（A 页写完存储前 B 页已判过缓存）。Web Locks 按 key 串行，
+// 拿到锁之后再 refresh + 判缓存，保证同一条消息只有一个页面真正调用 sendOutbound。
+// 没有 navigator.locks（非浏览器环境/老内核）时直接执行，退化为原有行为。
+export async function withOutboundLock(key, fn) {
+  const locks = typeof navigator !== 'undefined' && navigator ? navigator.locks : null;
+  if (!locks || typeof locks.request !== 'function') return fn();
+  return locks.request(`bridge-outbound:${key}`, fn);
 }
 
 // _pendingAckByChannel：按渠道维护"待重试 ack"的 msg_id 队列（2026-08-15 P0-9 升级为带退避的 Map）。
@@ -386,55 +455,85 @@ export async function pollDownlink(channel, accountId, getConfig, options = {}) 
       sentEntries.push({ msg_id: msg.msg_id, conversation_id: msg.conversation_id || '' });
     };
     for (const { msg, sanitized } of group) {
-      let result = null;
-      try {
-        if (sendOutbound) {
-          result = await withTimeout(
-            sendOutbound(sanitized, convId, { viaAdapter: channel }),
-            outboundStepTimeoutMs(sanitized, sendTimeoutMs),
-            `sendOutbound(${channel}:${convId})`
-          );
-        } else {
-          log.warn('pollDownlink: 未提供 sendOutbound，跳过下发', channel);
-        }
-      } catch (e) {
-        result = null;
-      }
-      const ok = !!(result && result.ok);
-      const rateLimited = !!(result && result.rateLimited);
-      const notFound = !!(result && result.notFound);
-      // B4：同上——结果日志只带键与状态位，不带私信内容（verbose-gated）
-      log.debug('sendOutbound 结果', {
-        channel, conv_id: convId, msg_id: msg.msg_id,
-        ok: !!(result && result.ok), rateLimited: !!(result && result.rateLimited),
-        notFound: !!(result && result.notFound),
-        // 批24：与 ok 同行的只有「点了」这一件事；sendVerified 才是「窗口里见着自己的气泡」。
-        // 原样打印不做 `!!`：没走到回查的出路必须是 undefined，折成 false 就是把三态洗成二态。
-        sendVerified: result && result.sendVerified,
-      });
-      if (ok) { recordSent(msg); continue; }
-      if (notFound) {
-        log.debug(`下行目标会话不存在，跳过并留 pending: ${convId}`, { msg_id: msg.msg_id });
-        continue;
-      }
-      if (rateLimited) {
-        let delivered = false;
-        for (let attempt = 0; attempt < MAX_RATE_RETRIES && !delivered; attempt++) {
-          const waitMs =
-            options.rateRetryWaitMs != null ? options.rateRetryWaitMs : rateRetryBaseMs();
-          await sleep(waitMs);
-          try {
-            const r2 = await withTimeout(
+      // 跨标签页：同一渠道可能同时开着多个聊天页，两边都会看到同一条 outbox。
+      // 按消息键加锁，进临界区后重新读存储再判缓存：先到的页面发送并落盘，
+      // 后到的页面看到缓存命中就只补 ack，客户不会收到两遍。
+      const cacheKey = `${msg.msg_id}|${convId}`;
+      const outcome = await withOutboundLock(cacheKey, async () => {
+        await cache.refresh();
+        if (cache.has(cacheKey)) return { skipped: true };
+        let result = null;
+        try {
+          if (sendOutbound) {
+            result = await withTimeout(
               sendOutbound(sanitized, convId, { viaAdapter: channel }),
               outboundStepTimeoutMs(sanitized, sendTimeoutMs),
-              `sendOutbound-retry(${channel}:${convId})`
+              `sendOutbound(${channel}:${convId})`
             );
-            if (r2 && r2.ok) { delivered = true; recordSent(msg); }
-            else if (r2 && r2.notFound) break;      
-            else if (r2 && !r2.rateLimited) break;   
-          } catch (e) {  }
+          } else {
+            log.warn('pollDownlink: 未提供 sendOutbound，跳过下发', channel);
+          }
+        } catch (e) {
+          result = null;
         }
-        if (delivered) continue;
+        // B4：同上——结果日志只带键与状态位，不带私信内容（verbose-gated）
+        log.debug('sendOutbound 结果', {
+          channel, conv_id: convId, msg_id: msg.msg_id,
+          ok: !!(result && result.ok), rateLimited: !!(result && result.rateLimited),
+          notFound: !!(result && result.notFound),
+          // 批24：与 ok 同行的只有「点了」这一件事；sendVerified 才是「窗口里见着自己的气泡」。
+          // 原样打印不做 `!!`：没走到回查的出路必须是 undefined，折成 false 就是把三态洗成二态。
+          sendVerified: result && result.sendVerified,
+        });
+        if (result && result.ok) {
+          cache.add(cacheKey);
+          await cache.flush();
+          return { sent: true };
+        }
+        if (result && result.notFound) return { notFound: true };
+        if (result && result.rateLimited) {
+          for (let attempt = 0; attempt < MAX_RATE_RETRIES; attempt++) {
+            const waitMs =
+              options.rateRetryWaitMs != null ? options.rateRetryWaitMs : rateRetryBaseMs();
+            await sleep(waitMs);
+            try {
+              const r2 = await withTimeout(
+                sendOutbound(sanitized, convId, { viaAdapter: channel }),
+                outboundStepTimeoutMs(sanitized, sendTimeoutMs),
+                `sendOutbound-retry(${channel}:${convId})`
+              );
+              if (r2 && r2.ok) {
+                cache.add(cacheKey);
+                await cache.flush();
+                return { sent: true };
+              }
+              if (r2 && r2.notFound) return { notFound: true };
+              if (r2 && !r2.rateLimited) return {};
+            } catch (e) {  }
+          }
+          return { rateLimited: true };
+        }
+        return {};
+      });
+      if (outcome.sent || outcome.skipped) { recordSent(msg); continue; }
+      if (outcome.notFound) {
+        log.debug(`下行目标会话不存在: ${convId}`, { msg_id: msg.msg_id });
+        if (!pageIsHidden()) {
+          const acked = await ackTargetMissing(
+            { serverUrl, channel, accountId, token, tenantCode },
+            msg.msg_id,
+            msg.conversation_id || '',
+            `[下行目标不存在 ack failed] ${channel}:${convId}`
+          );
+          if (!acked) {
+            log.warn(`下行目标会话不存在但 failed ack 未成功，保留 pending 等重推`, {
+              channel, convId, msg_id: msg.msg_id,
+            });
+          }
+        }
+        continue;
+      }
+      if (outcome.rateLimited) {
         log.warn(`下行会话持续限速，放弃本会话剩余并留 pending`, {
           channel, convId, pending: group.length - sentIds.length,
         });
@@ -442,7 +541,6 @@ export async function pollDownlink(channel, accountId, getConfig, options = {}) 
       }
     }
     if (sentIds.length) {
-      for (const id of sentIds) cache.add(`${id}|${convId}`);
       // 第 2 步：尝试 ack 服务端（副作用：让 server 知道这条已下发）
       // B2：全量条目都带原始 conversation_id 时走 v2 items[]（按会话精确翻转）；
       // 有缺失（老服务端 payload 无该字段）→ 保守回退 legacy msg_ids（维持旧行为）。
@@ -617,6 +715,29 @@ async function reAckSentDuplicates(cred, entries, label) {
   log.info(`${label} 已补确认`, {
     channel: cred.channel, total: ids.length, settled, retried: ids.length - settled,
   });
+}
+
+// pageIsHidden：后台标签页可能不渲染会话 DOM，openConversation 的精确匹配会假失败。
+// 隐藏页上的 notFound 不能当结论——误翻 failed 就是永久丢掉一条客户消息。
+function pageIsHidden() {
+  return typeof document !== 'undefined' && !!document && document.visibilityState === 'hidden';
+}
+
+// ackTargetMissing 目标会话确认不存在 → 翻 failed 终态，服务端停止重推。
+// 只走 v2 items[]：legacy 按 msg_id 会翻转所有会话的同 msg_id 行（AI 回复同文本即同 msg_id）。
+// 没有会话归属时宁可不 ack，让行留在 pending 等服务端下次重推。
+async function ackTargetMissing(cred, msgId, conversationId, label) {
+  if (!msgId || !conversationId || conversationId === '_unknown_') return false;
+  try {
+    const res = await ackOutbox(cred, [msgId], {
+      label,
+      items: [{ msg_id: msgId, conversation_id: conversationId }],
+      status: BRIDGE_PROTOCOL_V2.TERMINAL.FAILED,
+    });
+    return !!(res && res.status === 'ok');
+  } catch (_) {
+    return false;
+  }
 }
 
 // =============================================================
@@ -881,6 +1002,8 @@ export async function startSSEDelivery(channel, accountId, handlers) {
 
             // SentCache 防重（复合键：msg_id|conversation_id）
             const cacheKey = `${msgId}|${convId}`;
+            // 其他标签页可能刚发完并落盘：先并一次存储再判，别把它已发的消息再发一遍。
+            await cache.refresh();
             if (cache.has(cacheKey)) {
               // 批11：本地已发过而服务端仍推来 = ack 丢包/领取超时重推。补确认让行翻终态，
               // 否则每 claimTimeout 重推一次、每次命中缓存跳过，循环永不收敛。
@@ -906,59 +1029,91 @@ export async function startSSEDelivery(channel, accountId, handlers) {
                 // XSS 防护：净化内容
                 const safeContent = sanitizeForDisplay ? sanitizeForDisplay(raw) : raw;
 
-                // 调用 sendOutbound 发送到网页（B4：与轮询路径对称的超时保护，
-                // 预算随文案长度伸缩，防拟人键入长文被固定超时误杀）
-                if (handlers.sendOutbound) {
-                  const result = await withTimeout(
-                    handlers.sendOutbound(safeContent, convId, { viaAdapter: channel }),
-                    outboundStepTimeoutMs(safeContent),
-                    `sendOutbound-SSE(${channel}:${convId})`
-                  );
-                  const ok = !!(result && result.ok);
-                  const rateLimited = !!(result && result.rateLimited);
-                  const notFound = !!(result && result.notFound);
-
-                  if (ok) {
-                    // 写入缓存防重
-                    cache.add(cacheKey);
-                    await cache.flush();
-
-                    // 回调通知
-                    handlers.onMessage?.({
-                      msgId,
-                      content: safeContent,
-                      conversationId: convId,
-                      msgType: data.msg_type || 'text',
-                      isAIReply: data.is_ai_reply || data.event === 'ai_reply',
-                    });
-
-                    // ack 服务端（B2：会话有效时 ackOutbox 内部自动走 v2 items[]）
-                    // 批11：必须用 dbConvId（DB 行归属）而非 convId（页面定位键）——DM 场景两者不同，
-                    // 用页面键翻转会 ack 到不存在的行 → 真行永远留在欠投递集合里被重推。
-                    // ackOutbox 不抛错只回 {status:'error'}——两条失败路径都要入重试队列。
-                    try {
-                      const ackRes = await ackOutbox(
-                        { serverUrl, channel, accountId, token, tenantCode },
-                        [msgId],
-                        { label: `[SSE ack] ${channel}:${convId}`, conversationId: dbConvId }
-                      );
-                      if (!ackRes || ackRes.status !== 'ok') {
-                        addPendingAck(channel, msgId, 'sse_ack_not_ok', data.conversation_id || '');
-                      }
-                    } catch (err) {
-                      log.warn('SSE ack 失败，加入重试队列', err && err.message);
-                      addPendingAck(channel, msgId, 'sse_ack_failed', data.conversation_id || '');
-                    }
-                  } else if (rateLimited) {
-                    log.warn(`SSE 下行被限速: ${channel}:${convId}`, { msgId });
-                  } else if (notFound) {
-                    log.warn(`SSE 下行目标会话不存在: ${channel}:${convId}`, { msgId });
-                  } else {
-                    log.warn(`SSE 下行发送失败: ${channel}:${convId}`, { result });
+                // 同一渠道的多个标签页都会收到这条推送。按消息键跨页互斥：
+                // 进锁后再并一次存储判重，只有一个页面真正调用 sendOutbound，
+                // 其余页面补一次 delivered 确认后跳过。
+                await withOutboundLock(cacheKey, async () => {
+                  await cache.refresh();
+                  if (cache.has(cacheKey)) {
+                    log.info(`SSE 消息已被其他标签页发出，补确认后跳过: ${cacheKey}`);
+                    await reAckSentDuplicates(
+                      { serverUrl, channel, accountId, token, tenantCode },
+                      data.msg_id ? [{ msg_id: data.msg_id, conversation_id: data.conversation_id || '' }] : [],
+                      `[SSE 重复补确认] ${channel}:${convId}`
+                    );
+                    handlers.onDuplicate?.(msgId);
+                    return;
                   }
-                } else {
-                  log.warn(`SSE startSSEDelivery: 未提供 sendOutbound`, channel);
-                }
+
+                  // 调用 sendOutbound 发送到网页（B4：与轮询路径对称的超时保护，
+                  // 预算随文案长度伸缩，防拟人键入长文被固定超时误杀）
+                  if (handlers.sendOutbound) {
+                    const result = await withTimeout(
+                      handlers.sendOutbound(safeContent, convId, { viaAdapter: channel }),
+                      outboundStepTimeoutMs(safeContent),
+                      `sendOutbound-SSE(${channel}:${convId})`
+                    );
+                    const ok = !!(result && result.ok);
+                    const rateLimited = !!(result && result.rateLimited);
+                    const notFound = !!(result && result.notFound);
+
+                    if (ok) {
+                      // 写入缓存防重（flush 内部读-并-写，不会抹掉其他标签页的条目）
+                      cache.add(cacheKey);
+                      await cache.flush();
+
+                      // 回调通知
+                      handlers.onMessage?.({
+                        msgId,
+                        content: safeContent,
+                        conversationId: convId,
+                        msgType: data.msg_type || 'text',
+                        isAIReply: data.is_ai_reply || data.event === 'ai_reply',
+                      });
+
+                      // ack 服务端（B2：会话有效时 ackOutbox 内部自动走 v2 items[]）
+                      // 批11：必须用 dbConvId（DB 行归属）而非 convId（页面定位键）——DM 场景两者不同，
+                      // 用页面键翻转会 ack 到不存在的行 → 真行永远留在欠投递集合里被重推。
+                      // ackOutbox 不抛错只回 {status:'error'}——两条失败路径都要入重试队列。
+                      try {
+                        const ackRes = await ackOutbox(
+                          { serverUrl, channel, accountId, token, tenantCode },
+                          [msgId],
+                          { label: `[SSE ack] ${channel}:${convId}`, conversationId: dbConvId }
+                        );
+                        if (!ackRes || ackRes.status !== 'ok') {
+                          addPendingAck(channel, msgId, 'sse_ack_not_ok', data.conversation_id || '');
+                        }
+                      } catch (err) {
+                        log.warn('SSE ack 失败，加入重试队列', err && err.message);
+                        addPendingAck(channel, msgId, 'sse_ack_failed', data.conversation_id || '');
+                      }
+                    } else if (rateLimited) {
+                      log.warn(`SSE 下行被限速: ${channel}:${convId}`, { msgId });
+                    } else if (notFound) {
+                      log.warn(`SSE 下行目标会话不存在: ${channel}:${convId}`, { msgId });
+                      // 可见页上的 notFound 是可信结论：翻 failed 终态，否则服务端每轮领取超时
+                      // 都会重推同一条、这里每次失败，日志里就是一串反复尝试。
+                      if (!pageIsHidden() && data.msg_id) {
+                        const acked = await ackTargetMissing(
+                          { serverUrl, channel, accountId, token, tenantCode },
+                          data.msg_id,
+                          dbConvId,
+                          `[SSE 目标不存在 ack failed] ${channel}:${convId}`
+                        );
+                        if (!acked) {
+                          log.warn(`SSE 目标会话不存在但 failed ack 未成功，保留 pending 等重推`, {
+                            channel, convId, msgId,
+                          });
+                        }
+                      }
+                    } else {
+                      log.warn(`SSE 下行发送失败: ${channel}:${convId}`, { result });
+                    }
+                  } else {
+                    log.warn(`SSE startSSEDelivery: 未提供 sendOutbound`, channel);
+                  }
+                });
               });
             } catch (err) {
               log.error('SSE 消息处理异常', err);

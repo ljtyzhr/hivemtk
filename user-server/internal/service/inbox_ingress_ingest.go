@@ -179,6 +179,22 @@ func (s *InboxIngressService) interceptInbound(ctx context.Context, event *model
 				if strippedAny && len([]rune(remainder)) < 4 {
 					return &IngressDecision{Blocked: true, IsSelfEcho: true, Reason: "self-echo(recent outbound contained in inbound)"}, nil
 				}
+				// 线程容器：整段线程的结尾就是本账号最近发出去的话。逐条剥离后仍会剩下
+				// 客户更早的发言（≥4 字），上面的「剩余近空」判据会放行；这里用「入站尾部
+				// N 字原样出现在近期同会话出站文本里」判定这段内容以我方发言收尾——客户
+				// 在这段里没有新话，不能再触发一次回复。短入站不参与，避免吞掉「可以吗？」。
+				if inRunes := []rune(norm); len(inRunes) >= echoTailWindowRunes {
+					tail := string(inRunes[len(inRunes)-echoTailWindowRunes:])
+					for i := range rows {
+						outNorm := normalizeEchoText(rows[i].Content)
+						if len([]rune(outNorm)) < echoTailMinOutboundRunes {
+							continue
+						}
+						if strings.Contains(outNorm, tail) {
+							return &IngressDecision{Blocked: true, IsSelfEcho: true, Reason: "self-echo(recent outbound tail match)"}, nil
+						}
+					}
+				}
 			}
 		}
 	}
@@ -247,6 +263,13 @@ func groupNameOf(event *model.MessageEvent) string {
 	}
 	return ""
 }
+
+const (
+	// 尾部命中取入站最后 12 字：短到能穿过「可以吗？」这类真实短回复，又长到不会被
+	// 常见套话偶然命中。参与比较的出站文本同样要求至少 12 字。
+	echoTailWindowRunes      = 12
+	echoTailMinOutboundRunes = 12
+)
 
 func normalizeEchoText(s string) string {
 	var b strings.Builder

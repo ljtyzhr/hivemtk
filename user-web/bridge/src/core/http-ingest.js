@@ -301,6 +301,8 @@ async function ackOutbox({ serverUrl, channel, accountId, token, tenantCode }, m
   const url = applyTenantCode(u.toString(), tenantCode);
   const label = opts.label || '[HTTP outbox-ack]';
   const V2 = BRIDGE_PROTOCOL_V2;
+  // 终态：默认 delivered；目标会话确认不存在时调用方传 failed（服务端据此停止重推）。
+  const terminalStatus = opts.status === V2.TERMINAL.FAILED ? V2.TERMINAL.FAILED : V2.TERMINAL.DELIVERED;
   let items = null;
   if (Array.isArray(opts.items) && opts.items.length
       && opts.items.every((it) => it && it[V2.FIELD.MSG_ID] && it[V2.FIELD.CONVERSATION_ID])) {
@@ -314,8 +316,8 @@ async function ackOutbox({ serverUrl, channel, accountId, token, tenantCode }, m
     items = msgIds.map((id) => ({ [V2.FIELD.MSG_ID]: id, [V2.FIELD.CONVERSATION_ID]: opts.conversationId }));
   }
   const body = items
-    ? { v: V2.VERSION, [V2.FIELD.ITEMS]: items, [V2.FIELD.STATUS]: V2.TERMINAL.DELIVERED }
-    : { [V2.FIELD.MSG_IDS]: msgIds, [V2.FIELD.STATUS]: V2.TERMINAL.DELIVERED };
+    ? { v: V2.VERSION, [V2.FIELD.ITEMS]: items, [V2.FIELD.STATUS]: terminalStatus }
+    : { [V2.FIELD.MSG_IDS]: msgIds, [V2.FIELD.STATUS]: terminalStatus };
   const timeoutMs = opts.timeoutMs ?? HTTP_INGEST_DEFAULTS.requestTimeoutMs;
   const controller = new AbortController();
   const timer = setTimeout(() => controller.abort(), timeoutMs);

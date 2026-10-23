@@ -47,6 +47,17 @@ const routerDocToken = "@" + "Router"
 // 下调它意味着有人从清单里删掉了真实存在的接口，而清单是端到端冒烟唯一的输入面。
 const minE2EInventoryCoverage = 738
 
+// minLiveAnnotations 是接口注解条数的棘轮下界（E-2，2026-10-23 实测基线 145）。
+// 只许升不许降：补了新注解就把这个数改成当次实测值；注解被删导致守卫红，
+// 说明有对外端点正在失去文档，需显式改这里并写明原因，不允许静默降。
+// 不设"百分比"目标：分母（全仓 handler 函数）含大量未接线函数，占比无意义（规划 §4.2）。
+const minLiveAnnotations = 145
+
+// minLiveAPIRoutes 是运行时路由表里 /api/ 路由条数的棘轮下界（E-2 同批，2026-10-23 实测 1770）。
+// 守的对象与 minE2EInventoryCoverage 不同：那个守的是冒烟清单覆盖面，这个守的是
+// 注册面本身——路由被静默删除（接线被摘、注册循环被改坏）时这条先红。
+const minLiveAPIRoutes = 1770
+
 // annotationScanRoot 是接口注解的扫描根：模块根（本包目录的 ../..）。
 // 只扫 controller/router/service 会漏掉 internal/geo/controller 这类同样进 swagger 的目录，
 // 而 swagger 的输入面是整个依赖树——门的面必须不小于它在守的那个面。
@@ -185,6 +196,27 @@ func TestAnnotationsMatchLiveRoutes(t *testing.T) {
 	if len(anns) == 0 {
 		t.Fatal("一条接口注解都没扫到：扫描根或标签写法变了，这道门已经空转")
 	}
+	// 注解数棘轮（E-2）：低于基线说明有注解被删。允许升高——补注解后把 minLiveAnnotations
+	// 改成新实测值即可；这里用 < 而不是 !=，升高不红。
+	if len(anns) < minLiveAnnotations {
+		t.Errorf("接口注解 %d 条，低于棘轮基线 %d：有注解被删或扫描面缩小。补回注解，"+
+			"或显式下调基线并在 git message 写明删除的是哪些端点", len(anns), minLiveAnnotations)
+	}
+	// /api/ 注册面棘轮（E-2）：路由被静默摘除时这条先红。
+	apiRoutes := 0
+	for key := range byShape {
+		if strings.HasPrefix(key, "GET /api/") || strings.HasPrefix(key, "POST /api/") ||
+			strings.HasPrefix(key, "PUT /api/") || strings.HasPrefix(key, "PATCH /api/") ||
+			strings.HasPrefix(key, "DELETE /api/") {
+			apiRoutes++
+		}
+	}
+	if apiRoutes < minLiveAPIRoutes {
+		t.Errorf("运行时 /api/ 路由（按形状去重）%d 条，低于棘轮基线 %d：有路由被静默摘除",
+			apiRoutes, minLiveAPIRoutes)
+	}
+	t.Logf("棘轮读数：注解 %d/%d，/api/ 路由（形状去重）%d/%d",
+		len(anns), minLiveAnnotations, apiRoutes, minLiveAPIRoutes)
 	var ghosts, misplaced, badForm []string
 	for _, a := range anns {
 		// gin 的路径参数写法是 :id，OpenAPI 的写法是 {id}。

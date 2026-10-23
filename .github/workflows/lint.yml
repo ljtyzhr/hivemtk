@@ -295,6 +295,48 @@ jobs:
       - name: check-bash32-parse 反向测试（九组，处数由用例现报，证明它会红）
         run: bash scripts/check-bash32-parse.test.sh
 
+  # X-4（未完成事项实施规划 2026-10-23 §5.4）：四刀电池的全族杀伤需要编 Go，
+  # 但不依赖测试库 ⇒ 可以常驻 CI。挂在 macos-latest：与 bash32-parse 同一镜像策略，
+  # 电池判据不依赖解析器版本，但 macOS runner 是本项目开发机同型，能提前暴露平台差异。
+  #
+  # 判据口径（§5.4）：用 `-run` 真名与 `--- PASS/FAIL` 计数做判据，不认裸退出码——
+  # 所以第一步先显式 `go build ./...` + `go test -run <真名> -count=1`，把
+  # "Go 能编译、控制组两条腿全 PASS"钉成独立步骤，再放电池全族；电池自己的
+  # 判据（四格全 KILLED、ran 计数对账、expect 存在于控制组 PASS 名单、md5 复原）
+  # 由 `mut_db_poolcfg.py` 的退出码持有，那一条红了作业才红。
+  #
+  # 触发面：电池判据对象是 user-server/internal/pkg/db 的接线 + 电池驱动本体；
+  # 改了这两面的任何一处都应触发重跑（check-ci-gate-paths 的同族口径）。
+  mut-db-poolcfg-full:
+    name: 四刀电池全族杀伤 (macOS, 编 Go 不用库)
+    runs-on: macos-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: '1.26.9'
+
+      - name: 控制组——目标包能编译且控制组用例真 PASS（判据①：真名 + PASS 计数）
+        run: |
+          set -eu
+          cd user-server
+          go build ./internal/pkg/db/...
+          out=$(go test ./internal/pkg/db -run 'TestPoolBoundLandsOnSQLHandle|TestNormalizePoolFallbacks' -count=1 -v 2>&1)
+          printf '%s\n' "$out"
+          pass=$(printf '%s\n' "$out" | grep -c -- '--- PASS' || true)
+          fail=$(printf '%s\n' "$out" | grep -c -- '--- FAIL' || true)
+          if [ "$pass" -lt 1 ] || [ "$fail" -ne 0 ]; then
+            echo "❌ 控制组判据不成立：--- PASS = $pass（须 ≥1），--- FAIL = $fail（须 0）"
+            exit 1
+          fi
+          echo "✓ 控制组：--- PASS × $pass，--- FAIL × 0"
+
+      - name: 四刀全族（K1–K4 全 KILLED，判定由电池退出码与产物持有）
+        run: python3 scripts/mut_db_poolcfg.py
+
   license-compliance:
     name: LICENSE Compliance Scan
     runs-on: ubuntu-latest

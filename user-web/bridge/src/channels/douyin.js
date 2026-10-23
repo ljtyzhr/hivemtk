@@ -596,7 +596,11 @@ const hooks = {
       }
     };
     walk(thread, 0);
-    return leafText.filter((el) => !isListNoise(el) && !isSystemMessage(el));
+    // 兜底走下去时，某个子级可能是「包着多条气泡的行容器」：先拆开再过滤，
+    // 否则整段线程会被当成一条消息上报（历史回放 + 重复发送的放大器）。
+    return SelectorEngine.expandMultiBubbleItems(leafText)
+      .filter((el) => !SelectorEngine.isOversizedBubble(el))
+      .filter((el) => !isListNoise(el) && !isSystemMessage(el));
   },
   parseMessageItem(item) {
     if (isListNoise(item)) return null;

@@ -524,7 +524,9 @@ const hooks = {
       }
     };
     walk(thread, 0);
-    return leafText.filter((el) => !isListNoise(el));
+    return SelectorEngine.expandMultiBubbleItems(leafText)
+      .filter((el) => !SelectorEngine.isOversizedBubble(el))
+      .filter((el) => !isListNoise(el));
   },
   parseMessageItem(item, ctx) {
     if (isListNoise(item)) return null;

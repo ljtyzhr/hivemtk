@@ -11,6 +11,10 @@
 # 与仓内闸门的分工：CI（GitHub runner）拿不到这三层目录，本闸门只护本机与共享工作区，
 # 需人在提交前/排障时手动跑；建议纳入个人 pre-push 习惯，勿在 CI 里假装它跑过了。
 #
+# 判据同源：B 段的 PATTERN 与 scripts/check-secrets.sh 必须逐字一致，由
+# scripts/check-secrets-patterns.test.sh 的 L8 每轮比对（两份各存一份判据就会漂移）。
+# 红因口径同主闸：只报「文件:行号 ＋ 键名/值长」，命中的字面量本体不出屏（L9 盯着）。
+#
 # 用法： bash hivemtk/scripts/check-secrets-workspace.sh [--verbose] [目录...]
 #       默认扫 <仓根>/../{scripts,docs,cold-start}；也可显式传目录覆盖。
 # 退出码：0=干净，1=发现明文凭证，2=布局不符/缺 .env（检查形同虚设时宁可报错不可静默）
@@ -98,19 +102,24 @@ scan_literal() {
   xargs grep -InHi -E -- "$1" <"$FILELIST" 2>/dev/null || true
 }
 
+# 命中行的位置部分（grep -InH 的 file:line 前两段）。红因一律只报到这里为止，
+# 命中的字面量本体绝不出屏 —— 与 scripts/check-secrets.sh 同口径（见其头部「红因口径」）。
+hit_loc() { printf '%s' "$1" | cut -d: -f1,2; }
+
 echo "────── A. .env 真值比对 ──────"
 AHITS=$(scan_values)
 if [[ -n $AHITS ]]; then
   while IFS= read -r h; do
     [[ -z $h ]] && continue
     keyname="<未知>"
+    keylen=0
     while IFS=$'\t' read -r k v; do
-      [[ $h == *"$v"* ]] && { keyname=$k; break; }
+      if [[ $h == *"$v"* ]]; then keyname=$k; keylen=${#v}; break; fi
     done <"$PAIRS"
     if is_allowed "$h"; then
-      [[ $VERBOSE == 1 ]] && echo "  (allow) ${h:0:120}"
+      [[ $VERBOSE == 1 ]] && echo "  (allow) $(hit_loc "$h")"
     else
-      echo "  ❌ [$keyname] ${h:0:160}"
+      echo "  ❌ [$keyname] $(hit_loc "$h") 命中（值长 ${keylen}，本体不打印）"
       FAIL=1
     fi
   done <<<"$AHITS"
@@ -119,7 +128,11 @@ else
 fi
 
 echo "────── B. 字面量模式 ──────"
-PATTERN='(PG?PASSWORD|PASSWD|SECRET|_TOKEN|api_key)[a-z_]*["'"'"']?[[:space:]]*[:=][[:space:]]*["'"'"']?[A-Za-z0-9@#_-]{16,}'
+# 与 scripts/check-secrets.sh 的 B 段同源同判据（2026-10-23 一起从 PG?PASSWORD 改成
+# PASSW[A-Z]*：旧写法读作"P + 可选 G + PASSWORD"，要匹配的是 PPGPASSWORD/PGPASSWORD，
+# 于是最常见的 POSTGRES_PASSWORD=<字面量>整类不进粗筛）。两份脚本各存一份判据就会漂移，
+# 由 scripts/check-secrets-patterns.test.sh 的 L8 逐字比对两边的 PATTERN，不一致即红。
+PATTERN='(PASSW[A-Z]*|PASSPHRASE|SECRET|_TOKEN|api_key)[a-z_]*["'"'"']?[[:space:]]*[:=][[:space:]]*["'"'"']?[A-Za-z0-9@#_-]{16,}'
 NEGATE='change_?me|placeholder|your_|_here|example|xxxx|replace|redacted|dummy|sample|min_len|for_[a-z_]*|<[a-z_]+>|^\$|^\{\$|[-_]test|test[-_]|^\*\*$|^[0-9*]+$'
 while IFS= read -r h; do
   [[ -z $h ]] && continue
@@ -128,17 +141,17 @@ while IFS= read -r h; do
   [[ $val =~ [0-9] ]] || continue
   [[ $val =~ [A-Za-z] ]] || continue
   if printf '%s' "$h" | grep -qE '[:=][[:space:]]*["'"'"']?\$[{A-Za-z]'; then
-    [[ $VERBOSE == 1 ]] && echo "  (模板展开，跳过) ${h:0:110}"
+    [[ $VERBOSE == 1 ]] && echo "  (模板展开，跳过) $(hit_loc "$h")"
     continue
   fi
   if printf '%s' "$val" | grep -qiE "$NEGATE"; then
-    [[ $VERBOSE == 1 ]] && echo "  (占位符/展开，跳过) ${h:0:110}"
+    [[ $VERBOSE == 1 ]] && echo "  (占位符/展开，跳过) $(hit_loc "$h")"
     continue
   fi
   if is_allowed "$h"; then
-    [[ $VERBOSE == 1 ]] && echo "  (allow) ${h:0:120}"
+    [[ $VERBOSE == 1 ]] && echo "  (allow) $(hit_loc "$h")"
   else
-    echo "  ❌ ${h:0:160}"
+    echo "  ❌ $(hit_loc "$h") 命中（值长 ${#val}，本体不打印）"
     FAIL=1
   fi
 done < <(scan_literal "$PATTERN")

@@ -1,0 +1,13 @@
+#!/bin/sh
+# 推送前密钥闸 —— 把只能在本机跑的那两道真凭证比对挂到 push 前面（E-11）。
+# 启用：git config core.hooksPath .githooks   （本仓已在 .git/config 里设过；新克隆需自行设一次）
+# 绕过：git push --no-verify —— 绕过会连同"闸门没跑起来"一起绕过，见下方判据文件。
+#
+# 判据、退出码与"为什么不上 CI"全部在 scripts/pre-push-secrets.sh 里。
+# 这个文件本身刻意只三行：它没有 .sh 扩展名，不在 check-bash32-parse.sh / check-shellcheck.sh
+# 的扫描面（那两道门按 *.sh / *.bash 枚举），逻辑写在这儿等于写在一扇没人检查的文件里。
+ROOT=$(git rev-parse --show-toplevel) || {
+  echo "❌ pre-push：拿不到仓根，密钥闸未执行" >&2
+  exit 2
+}
+exec bash "$ROOT/scripts/pre-push-secrets.sh" "$@"

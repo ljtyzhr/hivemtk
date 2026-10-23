@@ -58,7 +58,7 @@ note() { printf 'WARN    %s\n' "$1"; warn=$((warn + 1)); }
 check_compose_mount() {
   local f="$1" label="$2"
   if [ ! -f "$f" ]; then
-    note "$label: 找不到 compose 文件 $f，跳过挂载检查"
+    note "$label: 找不到 compose 文件 ${f}，跳过挂载检查"
     return
   fi
   if grep -Eq '^[[:space:]]*-[[:space:]]*[^[:space:]:]+:/app/uploads' "$f"; then

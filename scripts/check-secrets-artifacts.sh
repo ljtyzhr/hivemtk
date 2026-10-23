@@ -59,10 +59,13 @@ if [[ -n $AHITS ]]; then
   while IFS= read -r h; do
     [[ -z $h ]] && continue
     keyname="<未知>"
+    keylen=0
     while IFS=$'\t' read -r k v; do
-      [[ $h == *"$v"* ]] && { keyname=$k; break; }
+      if [[ $h == *"$v"* ]]; then keyname=$k; keylen=${#v}; break; fi
     done <"$PAIRS"
-    echo "  ❌ [$keyname] ${h:0:160}"
+    # 与仓内闸门同口径：只报「文件:行号 ＋ 键名/值长」，命中本体不出屏。
+    # 产物是这些字节最公开的一层，把命中行原样印出来等于把凭证从 .env 搬进终端与 CI 日志。
+    echo "  ❌ [$keyname] $(printf '%s' "$h" | cut -d: -f1,2) 命中（值长 ${keylen}，本体不打印）"
     FAIL=1
   done <<<"$AHITS"
 else

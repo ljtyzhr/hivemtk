@@ -9,7 +9,12 @@
 反向自证：把候选里第一枚临时拼进一行假日志，出现数必须 +1，否则本闸没牙。
 值本身任何形态都不打印：RAW 命中只印 键名／值长／各面计数。
 候选取不到 ⇒ 退 2（ENV-BROKEN：没跑过，不是绿）。任一私有值出现 ⇒ 退 1。全清 ⇒ 退 0。
+`.env` 的坐标＝现取的仓根（`git rev-parse --show-toplevel`），`HUB_ENV_FILE` 可覆盖；
+上面那三个判据文件任一不在原位（＝cwd 不是仓根）同样退 2，退 1 只留给真的发现了明文。
+执行入口：本机 `.githooks/pre-push`（与 `check-secrets.sh` 在同一道钩子里串跑）；**不进 CI**，
+因为候选源是本机 `.env` 与活容器 —— CI 上跑只会得到一扇恒退 2 的哑门。
 """
+import os
 import re
 import subprocess
 import sys
@@ -17,10 +22,25 @@ import time
 from pathlib import Path
 
 SECRET_KEY_RE = re.compile(r"(PASS|SECRET|TOKEN|KEY|DSN|CRED|SALT)", re.I)
-HUB_ENV = Path("/Users/xiaofang/Documents/www/go/hivemtk/hivemtk/.env")
 LOG_GLOB = "docs/superpowers/specs/ledger/logs/**/*.log"
 DOC = "docs/architecture/CHANNEL_INTEGRATION_AUDIT_2026-09.md"
 PROBE = "scripts/cap-ab-53300-probe.py"
+
+
+def hub_env() -> Path:
+    """.env 的坐标：现取仓根，`HUB_ENV_FILE` 可覆盖。
+
+    原先写死本机绝对路径。换一台机器、或本仓被检出到别的目录时，`read_text()` 抛
+    FileNotFoundError ⇒ 进程退 1，而 1 在本闸口径里是「发现明文」——
+    「仓库不在我原来的位置」会被下游读成一次泄露。挂进 .githooks/pre-push 后
+    这个混淆会直接变成别人的推送被莫名拦下，故改成可解析的坐标 + 缺席时退 2。
+    """
+    override = os.environ.get("HUB_ENV_FILE")
+    if override:
+        return Path(override)
+    top = subprocess.run(["git", "rev-parse", "--show-toplevel"],
+                         capture_output=True, text=True).stdout.strip()
+    return (Path(top) if top else Path.cwd()) / ".env"
 
 
 def env_values(path):
@@ -111,8 +131,17 @@ def transcripts_report(vals) -> None:
 
 
 def main() -> int:
+    env_path = hub_env()
+    # 三个要读的面先验存在。缺席时退 2（"没跑过"），而不是让 read_text() 抛异常退 1 ——
+    # 1 在本闸口径里＝"发现了明文"，两种红长得一样，下游就会把"cwd 不在仓根"当成一次泄露。
+    absent = [f"{label} {path}" for label, path in
+              (("hub .env", env_path), ("审计文档", Path(DOC)), ("探针脚本", Path(PROBE)))
+              if not path.is_file()]
+    if absent:
+        print("⇒ ENV-BROKEN：判据文件不在原位（多半是 cwd 不是仓根）：" + "；".join(absent))
+        return 2
     by_value = {}
-    for k, v in env_values(HUB_ENV) + container_values():
+    for k, v in env_values(env_path) + container_values():
         by_value.setdefault(v, k)
     # 一律按 (键名, 值) 迭代：键名可打印，值绝不入档、不入屏
     vals = [(k, v) for v, k in by_value.items()]

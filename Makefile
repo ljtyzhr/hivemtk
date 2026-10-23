@@ -605,15 +605,26 @@ audit-artifacts:
 		website/dist
 
 # 提交前专用：待纳管文件（已跟踪 + 未跟踪，即"正要进仓"的那一批）的明文凭证闸门。
-# **不在 audit / CI 里** —— A 项要把本机 .env 的真实凭证值逐个搜进待纳管文件，
+# **不在 audit 里** —— A 项要把本机 .env 的真实凭证值逐个搜进待纳管文件，
 # CI 既没有 .env、也绝不该有（把真凭证推上 runner 等于第二次泄露）；缺 .env 时
-# 脚本 rc=2，而不是静默零扫描。CI 侧对应的是 gitleaks，它抓的是公开高置信度模式，
-# 覆盖不到本仓自定义键名的字面量赋值。
-# 登记本目标的直接原因：这道门自 81955cfc 起没有任何执行入口（无 CI、无 hook、
+# 脚本 rc=2，而不是静默零扫描。
+#
+# 三个执行点，各守一层，缺一层就退回"只有作者手动跑"：
+#   ① 本机自动层：.githooks/pre-push → scripts/pre-push-secrets.sh，
+#      跑 full 模式 + scripts/check-secret-containment.py（真值×五面包含闸）。
+#      启用前提 `git config core.hooksPath .githooks`；未设置时这一层不存在，
+#      故冷启动文档与 scripts/pre-push-secrets.sh 头部都写了怎么确认。
+#   ② CI 形状层：.github/workflows/secret-patterns.yml 只跑 `--patterns-only`
+#      （B 段字面量模式，不需要 .env）+ 常驻反向测试，另有一步断言"CI 上 full
+#      模式必须退 2"，防止哪天 A 段在 runner 上静默空跑冒充绿。
+#   ③ 本目标：手动／单点复跑，也是给脚本改参数前的兜底入口。
+#   gitleaks（.github/workflows/gitleaks-config.yml）是第四层，抓公开高置信度
+#   模式，覆盖不到本仓自定义键名的字面量赋值。
+# 登记本目标的直接原因：这道门自 81955cfc 起长期没有任何执行入口（无 CI、无 hook、
 # 无 make 目标；`git log -S` 在 .github/ 与 Makefile 里都找不到第二处引用），只有各卡
 # 作者手动跑一遍 —— 手动跑的代价是"红是不是常态"没人说得清：064c6a21 起 HEAD 上就挂着
 # 一条 nm-host 测试夹具的命中，被两轮卡片验收看见并写下"非本卡文件、未代改"放行。
-# 恒红的门与坏掉的门长得一样，故本次逐值豁免那条、并把入口固定在这里。
+# 恒红的门与坏掉的门长得一样，故逐值豁免那条、并把入口固定在这三处。
 audit-secrets:
 	@bash scripts/check-secrets.sh
 

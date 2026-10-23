@@ -598,12 +598,11 @@ func (h *BridgeIngestHandler) HandleHTTPIngest(c *gin.Context) {
 					continue
 				}
 				item := historyItemToEvent(httpMessageToUnified(m), it)
+				// 父消息的 sender_type 只描述当前这条，不描述整段历史；
+				// 用它改写历史方向会把客户问题也标成 outbound。
 				histDir := it.Direction
 				if histDir == "" {
 					histDir = "inbound"
-				}
-				if (m.SenderType == "self" || m.SenderType == "agent") && histDir != "outbound" {
-					histDir = "outbound"
 				}
 				if err := h.callPersistHistory(ctx, item, histDir); err != nil {
 					logger.Ctx(ctx).Warn().Err(err).Str("module", "bridge").

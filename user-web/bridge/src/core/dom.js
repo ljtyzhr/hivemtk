@@ -271,6 +271,9 @@ export function sanitizePeerName(text) {
     s = s.replace(/\s+\d{1,2}:\d{2}$/, '');
     s = s.replace(/\s+\d{4}[/年\-]\d{1,2}[/月\-]\d{1,2}日?$/, '');
     s = s.replace(/\s+\d{1,2}月\d{1,2}日$/, '');
+    // 平台会话列表在同年消息上显示 MM/DD（如 "四川执业药师 10/23"）：
+    // 不剥掉它，conversation_id 每天都会变，下行消息永远找不到目标会话。
+    s = s.replace(/\s+\d{1,2}[/\-]\d{1,2}$/, '');
     s = s.replace(/\s+(交易成功|有新交易评价|已发货|待发货|待付款|等待买家付款|交易关闭|退款成功|退款中|已退款|已读|未读)$/i, '');
     s = s.replace(/\s+\[\d+\]$/, '');
     s = s.replace(/\s+$/, '');
@@ -289,6 +292,7 @@ function isVolatileToken(s) {
   if (/^(昨天|前天|今天)(\s+\d{1,2}:\d{2})?$/i.test(s)) return true;
   if (/^\d{4}[/年\-]\d{1,2}[/月\-]\d{1,2}日?$/.test(s)) return true;
   if (/^\d{1,2}月\d{1,2}日$/.test(s)) return true;
+  if (/^\d{1,2}[/\-]\d{1,2}$/.test(s)) return true;
   if (/^(交易成功|有新交易评价|已发货|待发货|待付款|等待买家付款|交易关闭|退款成功|退款中|已退款|已读|未读)$/i.test(s)) return true;
   return false;
 }
