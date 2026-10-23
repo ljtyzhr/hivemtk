@@ -19,8 +19,12 @@
   猜实现的闸门必然要么误报（没人看）要么漏报（等于没有）。
 
 本门的判据换成**完整性与防腐烂**，不猜实现：
-  1. 扫出 `user-server/internal/pkg/cron/` 里所有任务注册点（`goTask("<name>", …)`
-     与 `AddTask("<spec>", func(){…})`）；
+  1. 扫出后台任务注册点：`user-server/internal/pkg/cron/` 里的
+     `goTask("<name>", …)` / `AddTask("<spec>", func(){…})`，
+     以及**其它自带调度器的包**（`SCHEDULER_DIRS`：`internal/geo/service`、
+     `internal/browser_automation/service`）里的 `.AddTask(…, func(){…})`
+     —— 这些包各有一份自己的调度装配，2026-10-23 之前**完全不在扫描面内**
+     （登记表全绿 ≠ 全仓有门，只是"被扫的那部分"有门）；
   2. 每个注册点必须在 `scripts/tenant-ctx-cron.registry` 里有一行登记：
        - `fanout<TAB><相对路径>::<锚点>` —— 扇出发生在别处，锚点必须是该文件里**真实存在的字面量**
          （通常是那行扇出调用）；锚点消失 ⇒ STALE 红（防「登记表写着扇出、代码里早没了」）；
@@ -53,11 +57,23 @@ REPO = Path(__file__).resolve().parent.parent
 CRON_DIR = "user-server/internal/pkg/cron"
 REGISTRY = "scripts/tenant-ctx-cron.registry"
 
+# R3 扫描面：cron 包之外**自带调度器**的包。判据与 cron 包一致（注册点必须有登记），
+# 唯一差别是任务键取法：这些地方的注册调用首参常常是变量（`spec`），没有字面量名字，
+# 所以键改用 `@<相对路径>::<所在函数名>` —— 函数名是这些注册点唯一稳定的锚。
+# 新增一个"自己 new 调度器"的包时，把它的目录加进来，否则新包里的任务对这道门不可见。
+SCHEDULER_DIRS = (
+    "user-server/internal/geo/service",
+    "user-server/internal/browser_automation/service",
+)
+
 # R2 作用域：这两个包里的注入式 seam
 SEAM_DIRS = ("user-server/internal/service", "user-server/internal/bridge")
 
 GO_TASK_RE = re.compile(r'mgr\.goTask\(\s*"([^"]+)"\s*,')
 ADD_TASK_RE = re.compile(r'mgr\.AddTask\(\s*"[^"]*"\s*,\s*func\s*\(\s*\)\s*\{')
+# 其它调度器包：注册调用首参常是变量，靠"所在函数名"当锚（见 SCHEDULER_DIRS 注释）
+ANY_REGISTER_RE = re.compile(r"\.(?:AddTask|goTask)\(")
+ENCLOSING_FUNC_RE = re.compile(r"^func\s+(?:\([^)]*\)\s*)?([A-Za-z_]\w*)\s*\(", re.M)
 SAME_PKG_CALL_RE = re.compile(r"\b([A-Z][A-Za-z0-9_]*)\s*\(")
 SEAM_VAR_RE = re.compile(r"^var\s+((?:Global[A-Z]\w*)|(?:\w+Sink))\s+func\s*\((.*?)\)", re.S)
 
@@ -115,6 +131,14 @@ def closure_body(src: str, open_brace: int) -> str:
     return src[open_brace:]
 
 
+def enclosing_func_name(src: str, pos: int) -> str:
+    """返回 pos 之前最近的函数声明名（方法取方法名）；找不到返回 `?`。"""
+    name = "?"
+    for m in ENCLOSING_FUNC_RE.finditer(src, 0, pos):
+        name = m.group(1)
+    return name
+
+
 def collect_registrations() -> dict[str, dict]:
     """{task_key: {file, line, body}} —— 任务注册点。
 
@@ -152,6 +176,16 @@ def collect_registrations() -> dict[str, dict]:
             else:
                 key = "@%s:%d" % (rel, src[: m.start()].count("\n") + 1)
             regs[key] = {"file": rel, "line": src[: m.start()].count("\n") + 1, "body": body}
+
+    # 其它自带调度器的包：键 = `@<相对路径>::<所在函数>`
+    for dirpath in SCHEDULER_DIRS:
+        for rel, src in iter_go(dirpath) or []:
+            for m in ANY_REGISTER_RE.finditer(src):
+                key = "@%s::%s" % (rel, enclosing_func_name(src, m.start()))
+                regs.setdefault(
+                    key,
+                    {"file": rel, "line": src[: m.start()].count("\n") + 1, "body": src[m.start() :]},
+                )
     return regs
 
 

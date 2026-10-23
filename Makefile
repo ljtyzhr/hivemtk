@@ -534,6 +534,8 @@ audit:
 	@bash user-server/scripts/check-gorm-only.sh
 	@echo "── 后台任务租户归属门（新增后台任务必须显式声明扇出/租户无关；纯静态）──"
 	@python3 scripts/check-tenant-ctx-writes.py
+	@echo "── 事件发布租户门（租户域事件只能经 event.PublishCtx 盖章）──"
+	@python3 scripts/check-event-publish-tenant.py
 	@echo "── 跨包端口单一源 ──"
 	@bash scripts/audit-cross-package-ports.sh
 	@echo "── 组件类型声明不得指向已删除的组件 ──"

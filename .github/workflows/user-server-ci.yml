@@ -71,6 +71,9 @@ on:
       - 'scripts/check-tenant-ctx-writes.py'
       - 'scripts/tenant-ctx-cron.registry'
       - 'scripts/check-tenant-ctx-writes.test.sh'
+      # 事件发布租户门（A9）：判据脚本本体进触发面 ——
+      # 只改判据的提交必须重跑这道门，否则它退化成恒绿也没人发现。
+      - 'scripts/check-event-publish-tenant.py'
   pull_request:
     branches: [master, main]
     paths:
@@ -120,6 +123,9 @@ on:
       - 'scripts/check-tenant-ctx-writes.py'
       - 'scripts/tenant-ctx-cron.registry'
       - 'scripts/check-tenant-ctx-writes.test.sh'
+      # 事件发布租户门（A9）：判据脚本本体进触发面 ——
+      # 只改判据的提交必须重跑这道门，否则它退化成恒绿也没人发现。
+      - 'scripts/check-event-publish-tenant.py'
 
 # ============================================================================
 # 拆分说明（2026-09-20 第二十六轮 · A3）：原来 15 个步骤串在一个 `test` job 里，
@@ -251,6 +257,13 @@ jobs:
         # 恒绿的门与坏掉的门长得一样：这一格逐条注入 NEW/STALE/BROKEN/SEAM/缺表五种违规，
         # 要求门逐条开火。缺了它，判据正则退化成恒绿时 CI 完全无感。
         run: bash scripts/check-tenant-ctx-writes.test.sh
+
+      - name: 事件发布租户门（租户域事件只能经 event.PublishCtx 盖章）
+        # 2026-10-23（SaaS 审计 A9）：T021「发布点自己填 TenantID」是 40+ 处各写一遍的形状，
+        # 漏一处 ⇒ 订阅者拿到 0 ⇒ on 模式 fail-closed 空转或落默认租户。
+        # 判据同 check-gorm-only：把执行者收成唯一一个 —— internal/ 里禁止裸 event.Publish( 与
+        # .Publish(event.Event{，必须走 PublishCtx/PublishEventCtx（从 ctx 盖章）。纯静态。
+        run: python3 scripts/check-event-publish-tenant.py
 
       - name: 参数中心读取点门（要么有人读、要么承认未接线）
         # 2026-10-09（B7）：同上从 make audit 常驻化到 CI。判据现读 user-server 种子与

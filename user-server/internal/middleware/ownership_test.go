@@ -74,15 +74,65 @@ func TestRequireOwner_OwnerMismatch(t *testing.T) {
 	}
 }
 
-// TestRequireOwner_SystemResource：owner=0（系统资源）→ 200
-func TestRequireOwner_SystemResource(t *testing.T) {
+// TestRequireOwner_SystemResourceDefaultDeny：owner=0（系统级行）默认 → 404
+//
+// 2026-10-23 语义收口：`owner_id = 0` 既可能是平台内置行、也可能是历史脏数据没填 owner，
+// 库里长得一样。默认拒绝 + 显式 WithSystemOwnedAllowed() 才放行。
+func TestRequireOwner_SystemResourceDefaultDeny(t *testing.T) {
 	checker := &fakeOwnershipChecker{ownerID: 0}
 	r := newOwnershipTestRouter(checker, false)
 	w := httptest.NewRecorder()
 	req := httptest.NewRequest("GET", "/r/100", nil)
 	r.ServeHTTP(w, req)
+	if w.Code != http.StatusNotFound {
+		t.Fatalf("want 404, got %d body=%s", w.Code, w.Body.String())
+	}
+}
+
+// TestRequireOwner_SystemResourceOptIn：显式 WithSystemOwnedAllowed() → 放行
+func TestRequireOwner_SystemResourceOptIn(t *testing.T) {
+	checker := &fakeOwnershipChecker{ownerID: 0}
+	gin.SetMode(gin.TestMode)
+	r := gin.New()
+	r.Use(func(c *gin.Context) { c.Set("user_id", uint(42)); c.Next() })
+	r.GET("/r/:id", RequireOwnerWithChecker("id", "test_table", checker, WithSystemOwnedAllowed()), func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"ok": true})
+	})
+	w := httptest.NewRecorder()
+	r.ServeHTTP(w, httptest.NewRequest("GET", "/r/100", nil))
 	if w.Code != http.StatusOK {
 		t.Fatalf("want 200, got %d body=%s", w.Code, w.Body.String())
+	}
+}
+
+// TestRequireOwner_NotFound404：checker 报"不存在" → 404（原来是 500）
+//
+// 两个表名必须各不相同：归属缓存是**进程级全局 map**，同表同 ID 会被前一个用例塞进去，
+// 这类"用例之间通过全局缓存互相污染"的假红假绿在本包历史上出现过不止一次。
+func TestRequireOwner_NotFound404(t *testing.T) {
+	cases := []struct {
+		withCache bool
+		table     string
+	}{
+		{false, "notfound_uncached_table"},
+		{true, "notfound_cached_table"},
+	}
+	for _, tc := range cases {
+		checker := &fakeOwnershipChecker{err: ErrOwnershipNotFound}
+		gin.SetMode(gin.TestMode)
+		r := gin.New()
+		r.Use(func(c *gin.Context) { c.Set("user_id", uint(42)); c.Next() })
+		mw := RequireOwnerWithChecker("id", tc.table, checker)
+		if tc.withCache {
+			mw = RequireOwnerWithCacheAndChecker("id", tc.table, 200*time.Millisecond, checker)
+		}
+		r.GET("/r/:id", mw, func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"ok": true}) })
+
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest("GET", "/r/100", nil))
+		if w.Code != http.StatusNotFound {
+			t.Fatalf("withCache=%v want 404, got %d body=%s", tc.withCache, w.Code, w.Body.String())
+		}
 	}
 }
 
@@ -110,15 +160,27 @@ func TestRequireOwner_InvalidID(t *testing.T) {
 	}
 }
 
-// TestRequireOwner_NilChecker：checker=nil → 放行（向后兼容）
-func TestRequireOwner_NilChecker(t *testing.T) {
-	r := newOwnershipTestRouter(nil, false)
-	w := httptest.NewRecorder()
-	req := httptest.NewRequest("GET", "/r/100", nil)
-	r.ServeHTTP(w, req)
-	if w.Code != http.StatusOK {
-		t.Fatalf("want 200, got %d body=%s", w.Code, w.Body.String())
-	}
+// TestRequireOwner_NilCheckerPanics：checker=nil → **构造期 panic**（原来是"请求期放行"）
+//
+// 这是本轮 A2 的核心：nil checker 的 fail-open 分支已删除，任何"忘了注入 checker"的接线
+// 都会在启动时炸掉，而不是在线上安静地一律放行。
+func TestRequireOwner_NilCheckerPanics(t *testing.T) {
+	assertPanics(t, "RequireOwnerWithChecker", func() {
+		RequireOwnerWithChecker("id", "t", nil)
+	})
+	assertPanics(t, "RequireOwnerWithCacheAndChecker", func() {
+		RequireOwnerWithCacheAndChecker("id", "t", time.Second, nil)
+	})
+}
+
+func assertPanics(t *testing.T, name string, fn func()) {
+	t.Helper()
+	defer func() {
+		if recover() == nil {
+			t.Fatalf("%s(nil checker) 应当 panic，实际未 panic（fail-open 分支又被加回来了？）", name)
+		}
+	}()
+	fn()
 }
 
 // TestRequireOwner_WithCache_HitsOnce：缓存命中后不再调用 checker
@@ -217,9 +279,10 @@ func TestOwnershipCache_Concurrent(t *testing.T) {
 	wg.Wait()
 }
 
-// TestOwnershipCache_DefaultTTL：RequireOwnerWithCache 非正数 ttl → 默认 5s
+// TestOwnershipCache_DefaultTTL：非正数 ttl → 默认 5s
 func TestOwnershipCache_DefaultTTL(t *testing.T) {
-	mw := RequireOwnerWithCache("id", "t", 0)
+	checker := &fakeOwnershipChecker{ownerID: 42}
+	mw := RequireOwnerWithCacheAndChecker("id", "t", 0, checker)
 	_ = mw
 	gin.SetMode(gin.TestMode)
 	r := gin.New()
@@ -237,33 +300,30 @@ func TestOwnershipCache_DefaultTTL(t *testing.T) {
 	}
 }
 
-// TestDBOwnershipChecker_NilDB：db=nil → 返回 0（fail-closed）
+// TestDBOwnershipChecker_NilDB：db=nil → `ErrOwnershipMisconfigured`（不再 (0,nil) 放行）
 func TestDBOwnershipChecker_NilDB(t *testing.T) {
 	c := NewDBOwnershipChecker(nil)
-	id, err := c.GetOwnerID(context.Background(), "t", 1)
-	if err != nil {
-		t.Fatalf("want nil err got %v", err)
-	}
-	if id != 0 {
-		t.Fatalf("want 0 got %d", id)
+	_, err := c.GetOwnerID(context.Background(), "t", 1)
+	if !errors.Is(err, ErrOwnershipMisconfigured) {
+		t.Fatalf("want ErrOwnershipMisconfigured, got %v", err)
 	}
 }
 
-// TestDBOwnershipChecker_EmptyTable：table 为空 → 不查 DB
+// TestDBOwnershipChecker_EmptyTable：table 为空 → `ErrOwnershipMisconfigured`
 func TestDBOwnershipChecker_EmptyTable(t *testing.T) {
 	c := NewDBOwnershipChecker(nil)
-	id, err := c.GetOwnerID(context.Background(), "", 1)
-	if err != nil || id != 0 {
-		t.Fatalf("want (0,nil) got (%d,%v)", id, err)
+	_, err := c.GetOwnerID(context.Background(), "", 1)
+	if !errors.Is(err, ErrOwnershipMisconfigured) {
+		t.Fatalf("want ErrOwnershipMisconfigured, got %v", err)
 	}
 }
 
-// TestDBOwnershipChecker_ZeroID：resourceID=0 → 不查 DB
+// TestDBOwnershipChecker_ZeroID：resourceID=0 → `ErrOwnershipNotFound`（⇒ 404）
 func TestDBOwnershipChecker_ZeroID(t *testing.T) {
 	c := NewDBOwnershipChecker(nil)
-	id, err := c.GetOwnerID(context.Background(), "t", 0)
-	if err != nil || id != 0 {
-		t.Fatalf("want (0,nil) got (%d,%v)", id, err)
+	_, err := c.GetOwnerID(context.Background(), "t", 0)
+	if !errors.Is(err, ErrOwnershipNotFound) {
+		t.Fatalf("want ErrOwnershipNotFound, got %v", err)
 	}
 }
 

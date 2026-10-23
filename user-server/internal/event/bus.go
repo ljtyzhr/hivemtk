@@ -13,9 +13,12 @@
 package event
 
 import (
+	"context"
+	"reflect"
 	"sync"
 	"time"
 
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 )
 
@@ -230,15 +233,121 @@ func GetGlobalBus() *EventBus {
 
 // Publish 全局快捷发布函数
 // 未初始化时为 no-op，调用方可安全使用
+//
+// ⚠️ 租户域事件请改用 `PublishCtx`（发布点不再各自拷贝 `TenantID`）。
+// 保留本函数只为"确实与租户无关"的事件；`scripts/check-event-publish-tenant.py`
+// 禁止在 `internal/event` 之外直接调用它。
 func Publish(topic string, payload any) {
 	b := GetGlobalBus()
 	if b == nil {
 		return
 	}
+	warnIfTenantMissing(topic, payload)
 	b.Publish(Event{
 		Topic:   topic,
 		Payload: payload,
 	})
+}
+
+// PublishCtx 带 ctx 的发布口：**租户由本函数统一盖章**（T021 的收口）。
+//
+// 语义：ctx 里有租户 ⇒ 写进 payload 的 `TenantID` 字段（payload 自己已填的非 0 值不覆盖，
+// 以便"行自证"的发布点钉死行归属）；ctx 里没有租户 ⇒ 原样透传，由 warnIfTenantMissing
+// 在 on 模式下打出响声。
+//
+// 为什么不用"每个发布点自己写 `TenantID: tenantIDFromCtx(ctx)`"：
+// 那是 40+ 处各写一遍的形状，漏一处就是订阅者拿到 0 —— 而 0 在 on 模式下要么 fail-closed
+// 空转、要么落默认租户。执行者唯一 + 门禁，才不依赖"下一个人记得写"。
+func PublishCtx(ctx context.Context, topic string, payload any) {
+	Publish(topic, StampTenantFromCtx(ctx, payload))
+}
+
+// PublishEventCtx 同 PublishCtx，但入参是完整 Event（用于需要 Source/Timestamp 的发布点）。
+func PublishEventCtx(ctx context.Context, evt Event) {
+	b := GetGlobalBus()
+	if b == nil {
+		return
+	}
+	evt.Payload = StampTenantFromCtx(ctx, evt.Payload)
+	warnIfTenantMissing(evt.Topic, evt.Payload)
+	b.Publish(evt)
+}
+
+// StampTenantFromCtx 把 ctx 租户写进 payload 的 `TenantID` 字段；无该字段/已填/无租户则原样返回。
+//
+// 用反射而不是接口，是为了覆盖"已有 20+ 种载荷结构、且大都是值类型"的现状：
+// 值类型会被复制成可寻址副本再改字段，调用方拿到的仍是原值（不产生副作用）。
+func StampTenantFromCtx(ctx context.Context, payload any) any {
+	if ctx == nil || payload == nil {
+		return payload
+	}
+	tid, ok := tenant.FromContext(ctx)
+	if !ok || tid == 0 {
+		return payload
+	}
+	v := reflect.ValueOf(payload)
+	if !v.IsValid() {
+		return payload
+	}
+	target := v
+	switch v.Kind() {
+	case reflect.Ptr:
+		if v.IsNil() {
+			return payload
+		}
+		target = v.Elem()
+	case reflect.Struct:
+		// 值类型：复制一份可寻址副本，改副本，传副本
+		cp := reflect.New(v.Type()).Elem()
+		cp.Set(v)
+		target = cp
+	default:
+		return payload
+	}
+	if target.Kind() != reflect.Struct {
+		return payload
+	}
+	f := target.FieldByName("TenantID")
+	if !f.IsValid() || !f.CanSet() || f.Kind() != reflect.Uint {
+		return payload
+	}
+	if f.Uint() != 0 {
+		return payload
+	}
+	f.SetUint(uint64(tid))
+	if v.Kind() == reflect.Struct {
+		return target.Interface()
+	}
+	return payload
+}
+
+// warnIfTenantMissing on 模式下"载荷带 TenantID 字段但值是 0" ⇒ 打响声。
+//
+// 这是"漏填"唯一能在运行期被看见的地方：不阻断发布（旁路事件丢了比晚到更糟），
+// 但让 `[event]` 这行出现在日志里，而不是等订阅者静默空转。
+func warnIfTenantMissing(topic string, payload any) {
+	if !tenant.IsMultiTenant() || payload == nil {
+		return
+	}
+	v := reflect.ValueOf(payload)
+	if v.Kind() == reflect.Ptr {
+		if v.IsNil() {
+			return
+		}
+		v = v.Elem()
+	}
+	if v.Kind() != reflect.Struct {
+		return
+	}
+	f := v.FieldByName("TenantID")
+	if !f.IsValid() || f.Kind() != reflect.Uint {
+		return // 该载荷不含租户维度：与本门无关
+	}
+	if f.Uint() == 0 {
+		logger.GetLogger().Warn().
+			Str("topic", topic).
+			Msg("[event] on 模式下发布的载荷 TenantID=0（发布点未带租户 ctx）——订阅者会 fail-closed 空转")
+	}
 }
 
 // StopGlobal 停止全局事件总线（main.go 退出时调用）

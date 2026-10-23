@@ -2,6 +2,7 @@ package middleware
 
 import (
 	"context"
+	"errors"
 	"net/http"
 	"strconv"
 	"strings"
@@ -15,12 +16,29 @@ import (
 	"gorm.io/gorm"
 )
 
+// ErrOwnershipNotFound 资源不存在（或不属于任何可见租户）。
+//
+// 引入它的理由是**区分两种"查不到"**：资源不存在应回 404（不泄漏存在性），
+// 而 DB 故障应回 500（可重试、可告警）。历史实现把两者都压成 500。
+var ErrOwnershipNotFound = errors.New("ownership: resource not found")
+
+// ErrOwnershipMisconfigured 归属查询器未正确装配（如 db == nil）。
+//
+// 历史实现此时返回 (0, nil)，中间件据此按"系统级资源"放行 —— 是 fail-open。
+// 现取一律返回本错误，由中间件转 500：装配错必须在请求上响亮，而不是静默放行。
+var ErrOwnershipMisconfigured = errors.New("ownership: checker not configured")
+
 // OwnershipChecker 资源归属查询接口。
 //
 // table 为数据库表名（业务侧硬编码传入，避免 GORM TableName 反射开销），
 // resourceID 是 URL 路径里的资源主键。
-// 返回 ownerID：0 表示系统级资源（允许所有用户访问）。
-// 返回 error：调用方应当 fail-closed，禁止放行。
+//
+// 返回值语义（三条，与中间件一一对应）：
+//   - ownerID > 0：归属该用户；与当前 uid 不等 ⇒ 403
+//   - ownerID == 0 且 err == nil：**系统级资源**（owner_id 列真是 0 的行）。
+//     中间件默认也拒绝（404），只有显式 `WithSystemOwnedAllowed()` 才放行
+//   - err != nil：必须返回 `ErrOwnershipNotFound`（⇒ 404）或其它错误（⇒ 500），
+//     绝不允许用 (0, nil) 表达"查不到"
 type OwnershipChecker interface {
 	GetOwnerID(ctx context.Context, table string, resourceID uint) (uint, error)
 }
@@ -46,16 +64,23 @@ func NewDBOwnershipChecker(db *gorm.DB) *DBOwnershipChecker {
 
 // GetOwnerID 查询资源 owner_id。
 //
-// 注意：
-//   - db 为 nil（test/uninitialized）→ 返回 0 + nil，让上层 fail-closed（不允许任何访问）。
-//   - 记录不存在（gorm.ErrRecordNotFound）→ 返回 0 + nil，视为系统级资源。
-//   - 其他 DB 错误 → 透传 error，调用方按 500 处理。
+// 错误语义（2026-10-23 更正，历史注释与实现是反的）：
+//   - db 为 nil / 未装配 → `ErrOwnershipMisconfigured`（调用方 500，**不再返回 (0, nil) 放行**）
+//   - 记录不存在（`gorm.ErrRecordNotFound`）→ `ErrOwnershipNotFound`（调用方 404）
+//   - 其它 DB 错误 → 透传 error（调用方 500）
 func (c *DBOwnershipChecker) GetOwnerID(ctx context.Context, table string, resourceID uint) (uint, error) {
-	if c == nil || c.db == nil {
-		return 0, nil
+	if c == nil {
+		return 0, ErrOwnershipMisconfigured
 	}
-	if table == "" || resourceID == 0 {
-		return 0, nil
+	if table == "" {
+		return 0, ErrOwnershipMisconfigured
+	}
+	// 入参校验先于装配校验：resourceID==0 是"没有这个资源"，与 checker 装没装好无关。
+	if resourceID == 0 {
+		return 0, ErrOwnershipNotFound
+	}
+	if c.db == nil {
+		return 0, ErrOwnershipMisconfigured
 	}
 	var ownerID uint
 	err := c.db.WithContext(ctx).
@@ -63,6 +88,9 @@ func (c *DBOwnershipChecker) GetOwnerID(ctx context.Context, table string, resou
 		Select("owner_id").
 		Where("id = ?", resourceID).
 		Take(&ownerID).Error
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return 0, ErrOwnershipNotFound
+	}
 	if err != nil {
 		return 0, err
 	}
@@ -105,28 +133,51 @@ func (c *ownershipCache) set(key string, entry ownershipCacheEntry) {
 
 var globalOwnershipCache = newOwnershipCache()
 
-// RequireOwner 归属校验中间件（无缓存版本）。
+// OwnershipPolicy 归属判定策略。
 //
-// 参数：
-//   - resourceKey：URL 参数中资源 ID 的名字（默认 "id"，按业务传 "kb_id" 等）
-//   - table：数据库表名
-//
-// 流程：
-//  1. 取 URL 路径里的资源 ID（uint）
-//  2. 取 JWT 注入的 user_id（utils.GetUID）
-//  3. 调用 OwnershipChecker.GetOwnerID
-//  4. owner 匹配 / owner=0（系统级）→ c.Next()
-//  5. 否则 → 403
-//
-// checker 为 nil 时直接放行（保留向后兼容，由调用方注入具体实现）。
-func RequireOwner(resourceKey, table string) gin.HandlerFunc {
-	return RequireOwnerWithChecker(resourceKey, table, nil)
+// 只影响一类判定：**查到了行、但 owner_id 列是 0**。
+type OwnershipPolicy struct {
+	allowSystemOwned bool
 }
 
-// RequireOwnerWithChecker 带自定义 OwnershipChecker 的归属校验中间件。
+// OwnershipOption 构造归属中间件时的可选策略。
+type OwnershipOption func(*OwnershipPolicy)
+
+// WithSystemOwnedAllowed 允许访问 owner_id = 0 的"系统级资源"行。
 //
-// 用于注入带预编译/特殊表名映射的实现，避免 RequireOwner 内硬编码 GORM。
-func RequireOwnerWithChecker(resourceKey, table string, checker OwnershipChecker) gin.HandlerFunc {
+// 默认**不允许**。理由：`owner_id = 0` 既可能是"平台内置行"，也可能是"历史脏数据没填 owner"，
+// 两者在库里长得一模一样。默认拒绝 + 显式开启，是唯一不会把脏数据自动变成后门的口径。
+func WithSystemOwnedAllowed() OwnershipOption {
+	return func(p *OwnershipPolicy) { p.allowSystemOwned = true }
+}
+
+func newOwnershipPolicy(opts []OwnershipOption) OwnershipPolicy {
+	var p OwnershipPolicy
+	for _, o := range opts {
+		if o != nil {
+			o(&p)
+		}
+	}
+	return p
+}
+
+// RequireOwnerWithChecker 归属校验中间件（无缓存）。
+//
+// **checker 必须非 nil，构造期 panic**。历史上有 `RequireOwner` / `RequireOwnerWithCache`
+// 两个"不带 checker"的构造器，它们把 nil 传下来、请求期 `c.Next()` 放行——
+// 也就是说任何路由接上它就是"一律放行"，而它在 review 里长得像一个安全件。
+// 两者已于 2026-10-23 删除（0 处接线，无兼容负担）。
+//
+// 判定流程：
+//  1. 未登录 → 401；资源 ID 非法 → 400
+//  2. checker 返回 `ErrOwnershipNotFound` → **404**（原来一律 500）
+//  3. checker 返回其它错误 → 500（fail-closed）
+//  4. ownerID == uid → 放行；ownerID == 0 → 404（除非 `WithSystemOwnedAllowed()`）；其它 → 403
+func RequireOwnerWithChecker(resourceKey, table string, checker OwnershipChecker, opts ...OwnershipOption) gin.HandlerFunc {
+	if checker == nil {
+		panic("middleware: RequireOwnerWithChecker 必须注入非 nil OwnershipChecker（nil⇒放行 是 fail-open，已移除）")
+	}
+	pol := newOwnershipPolicy(opts)
 	return func(c *gin.Context) {
 		uid := utils.GetUID(c)
 		if uid == 0 {
@@ -144,27 +195,51 @@ func RequireOwnerWithChecker(resourceKey, table string, checker OwnershipChecker
 			})
 			return
 		}
-		if checker == nil {
-			c.Next()
-			return
-		}
 		ownerID, err := checker.GetOwnerID(c.Request.Context(), table, uint(resourceID))
-		if err != nil {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
-				"code":    500,
-				"message": "归属校验失败",
-			})
-			return
-		}
-		if ownerID != 0 && ownerID != uid {
-			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
-				"code":    403,
-				"message": "无权访问该资源",
-			})
+		if ownershipVerdict(c, ownerID, err, uid, pol) {
 			return
 		}
 		c.Next()
 	}
+}
+
+// ownershipVerdict 把 (ownerID, err) 折算成响应；返回 true 表示已 abort（调用方必须 return）。
+//
+// 无缓存路径与缓存命中路径**必须走同一个函数**：两处各写一遍就是 2026-10-23 之前
+// 「同一语义两个实现、其中一个漏判」那类缺陷的温床。
+func ownershipVerdict(c *gin.Context, ownerID uint, err error, uid uint, pol OwnershipPolicy) bool {
+	switch {
+	case errors.Is(err, ErrOwnershipNotFound):
+		// 404 而不是 403/500：403 等于承认"这个 ID 存在但不归你"（存在性预言机），
+		// 500 会把它混进真故障里，告警与重试都失真。
+		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{
+			"code":    404,
+			"message": "资源不存在",
+		})
+		return true
+	case err != nil:
+		c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
+			"code":    500,
+			"message": "归属校验失败",
+		})
+		return true
+	case ownerID == 0:
+		if pol.allowSystemOwned {
+			return false
+		}
+		c.AbortWithStatusJSON(http.StatusNotFound, gin.H{
+			"code":    404,
+			"message": "资源不存在",
+		})
+		return true
+	case ownerID != uid:
+		c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
+			"code":    403,
+			"message": "无权访问该资源",
+		})
+		return true
+	}
+	return false
 }
 
 // defaultOwnershipCacheTTL 归属缓存默认存活时长，与参数中心
@@ -194,17 +269,15 @@ func ownershipCacheTTL() time.Duration {
 }
 
 // ttl 推荐 5s——业务可调，但需评估：过长放大越权窗口，过短失去缓存意义。
-// 缓存 key = (table, resourceID, userID)；userID 不进 key 可借助上下文比对，
-// 但为简化失效语义这里直接合并。
-func RequireOwnerWithCache(resourceKey, table string, ttl time.Duration) gin.HandlerFunc {
-	return RequireOwnerWithCacheAndChecker(resourceKey, table, ttl, nil)
-}
-
-// RequireOwnerWithCacheAndChecker 带 checker + 缓存的归属校验中间件。
-func RequireOwnerWithCacheAndChecker(resourceKey, table string, ttl time.Duration, checker OwnershipChecker) gin.HandlerFunc {
+// 缓存 key = (租户, table, resourceID)（见 ownershipCacheKey）。
+func RequireOwnerWithCacheAndChecker(resourceKey, table string, ttl time.Duration, checker OwnershipChecker, opts ...OwnershipOption) gin.HandlerFunc {
+	if checker == nil {
+		panic("middleware: RequireOwnerWithCacheAndChecker 必须注入非 nil OwnershipChecker（nil⇒放行 是 fail-open，已移除）")
+	}
 	if ttl <= 0 {
 		ttl = ownershipCacheTTL()
 	}
+	pol := newOwnershipPolicy(opts)
 	return func(c *gin.Context) {
 		uid := utils.GetUID(c)
 		if uid == 0 {
@@ -222,47 +295,23 @@ func RequireOwnerWithCacheAndChecker(resourceKey, table string, ttl time.Duratio
 			})
 			return
 		}
-		if checker == nil {
-			c.Next()
-			return
-		}
 		key := ownershipCacheKey(c.Request.Context(), table, uint(resourceID))
 		if entry, ok := globalOwnershipCache.get(key); ok {
-			if entry.err != nil {
-				c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
-					"code":    500,
-					"message": "归属校验失败",
-				})
-				return
-			}
-			if entry.ownerID != 0 && entry.ownerID != uid {
-				c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
-					"code":    403,
-					"message": "无权访问该资源",
-				})
+			if ownershipVerdict(c, entry.ownerID, entry.err, uid, pol) {
 				return
 			}
 			c.Next()
 			return
 		}
 		ownerID, err := checker.GetOwnerID(c.Request.Context(), table, uint(resourceID))
+		// 「查不到」也缓存：否则拿不存在的 ID 批量扫就是一次不漏的 DB 查询。
+		// 代价是新建资源在其 ID 被缓存 404 的 ttl 内可能短暂 404，与既有 5s 越权窗口同一取舍。
 		globalOwnershipCache.set(key, ownershipCacheEntry{
 			ownerID: ownerID,
 			err:     err,
 			expire:  time.Now().Add(ttl),
 		})
-		if err != nil {
-			c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
-				"code":    500,
-				"message": "归属校验失败",
-			})
-			return
-		}
-		if ownerID != 0 && ownerID != uid {
-			c.AbortWithStatusJSON(http.StatusForbidden, gin.H{
-				"code":    403,
-				"message": "无权访问该资源",
-			})
+		if ownershipVerdict(c, ownerID, err, uid, pol) {
 			return
 		}
 		c.Next()

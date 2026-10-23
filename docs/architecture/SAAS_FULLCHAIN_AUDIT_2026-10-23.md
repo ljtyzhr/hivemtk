@@ -21,7 +21,7 @@
 | P0-2 | `/files/*` 静态服务**不看路径里的租户段** ⇒ 任何拿到 URL 的已登录租户可读别人租户的文件（tasks.md T011 声称"校验租户归属"，代码里那半边从未实现） | 高（数据泄漏） | **已修（已绑定租户的请求）+ 4 例回归**；无凭证外链的残留缺口见 P1-2 |
 | P1-1 | 归属校验缓存的键是 `table:id`、**无租户段** ⇒ 一个租户的归属判定命中另一个租户，且其 record-not-found 语义是 fail-open | 中高 | **已修 + 2 例回归** |
 | P1-2 | 无凭证公开外链（访客 `<img>`、分享页）拿不到租户归属 ⇒ 只能靠 UUID 不可枚举 | 中 | 待批准（签名 URL） |
-| P1-3 | 通用归属中间件 `RequireOwner*` **0 处接线**（僵尸安全件）且 not-found ⇒ "系统级资源，放行" | 中（潜在） | 待决策（详见 §3） |
+| P1-3 | 通用归属中间件 `RequireOwner*` 的 fail-open 分支（`checker==nil ⇒ 放行`、`db==nil ⇒ (0,nil)`）+ not-found 混成 500 | 中（潜在） | **已修**（语义收口 + 6 例回归，见 §3） |
 | P1-4 | 平台端（运营端）的商户隔离**全靠手写 `Where("merchant_key = ?")`**，无框架约束、无门禁、失败模式是静默跨商户 | 中高（云端侧） | 待批准（设计已给） |
 | P1-5 | 云/本地之间**没有版本/契约握手**：老实例连新平台只能靠运行时 500 发现字段不匹配 | 中（运维） | 待批准 |
 | P2-1..6 | 限流键无租户维度、11 张租户表缺 tenant_id 前导索引、知识库导入路径未分域、cron 扇出无门禁、事件总线 TenantID 靠自觉、双仓库同名模型漂移 | 低—中 | 列入清单 |
@@ -126,19 +126,32 @@ func (h *Hub) BroadcastToMerchant(merchantID string, ...) error {
 
 ---
 
-### P1-3（待决策）通用归属中间件是僵尸件，且语义 fail-open
+### P1-3（✅ 已修）通用归属中间件的 fail-open 分支
 
-**证据**：`internal/middleware/ownership.go` 的 `RequireOwner` / `RequireOwnerWithCache` / `RequireOwnerWithCacheAndChecker` 在 `internal/router` 里 **0 处使用**（`grep -rn RequireOwner internal/router` = 0）。
+**先更正审计初稿的一处错判**：初稿写"not-found ⇒ 返回 0 ⇒ 放行（fail-open）"，那读的是
+`GetOwnerID` 的**注释**。活体代码是 `if err != nil { return 0, err }` ⇒ `gorm.ErrRecordNotFound`
+走 error 分支、中间件据此 500，**方向是 fail-closed**。注释与实现漂移，且漂移方向相反。
 
-**为什么它是问题**：
-- 它不是"没用的死代码"这么简单——它是**看起来权威的安全中间件**。下一个人要加资源归属校验时会先找到它，接上就得到一个"跨租户 ID 一律放行"的守卫（见 P1-1 的 not-found 语义）。
-- 本仓已有先例：`internal/repository/scope` 就因为「与真实隔离机制并行、且自称数据隔离维度」被整包删除。
+真正在的 fail-open 是另外两处（都是"装配缺失等于放行"）：
 
-**建议（需产品/安全决策，故本轮不动）**：
-1. 若保留 → 把 not-found 从「系统级资源」改成「不存在 ⇒ 404」，并在接口注释里删掉"0 = 系统级"这条；
-2. 若不用 → 整包删除（连同测试），与 scope 包同一处置口径。
+| 形状 | 后果 |
+|---|---|
+| `RequireOwner(k,t)` / `RequireOwnerWithCache(k,t,ttl)` 两个构造器**默认传 nil checker** | 任何路由接上就是 `c.Next()` 一律放行，而它在 review 里长得像安全件 |
+| `DBOwnershipChecker.GetOwnerID` 在 `db==nil` / `table==""` / `resourceID==0` 时返回 `(0, nil)` | 落进"系统级资源"分支 ⇒ 放行 |
 
----
+**修法**（`internal/middleware/ownership.go`）：
+1. **删除**两个 nil-checker 构造器（0 处接线，无兼容负担）；两个保留的构造器对 nil checker **构造期 panic**；
+2. `ErrOwnershipNotFound` / `ErrOwnershipMisconfigured` 两个哨兵：前者 ⇒ **404**（原来 500，
+   既污染告警又把"不存在"混进真故障），后者 ⇒ 500；
+3. `owner_id == 0` 默认 **404**，只有显式 `WithSystemOwnedAllowed()` 才放行
+   （`owner_id=0` 可能是平台内置行、也可能是漏填 owner 的脏数据，库里长得一样）；
+4. 判定逻辑抽成 `ownershipVerdict`，**缓存命中路径与无缓存路径共用**（两处各写一遍正是本仓反复出事的形状）。
+
+**回归**（`ownership_semantics_test.go` 5 例 + 改写既有 5 例）：nil checker panic、真库 not-found ⇒
+`ErrOwnershipNotFound`、四出口判定矩阵（7 行）、404 也进缓存、系统级行默认拒/显式放。
+
+**"0 处接线"的处置**：保持不接线（不在本轮给真实端点加一层未经产品确认的归属语义），
+但把"接上就会放行"的陷阱拆了 —— 现在接上它只有两种结果：构造期 panic，或按 uid 正确判定。
 
 ### P1-4（待批准）平台端商户隔离无框架约束
 
@@ -175,8 +188,8 @@ func (h *Hub) BroadcastToMerchant(merchantID string, ...) error {
 | **P2-1** | 限流/配额键与桶**无租户维度** | `middleware/ratelimit.go:184` 键=`mtk:ratelimit:{IP}:{分钟}`；`middleware/rate_quota.go:267` 键与桶按 `(IP, path)`；两者都挂在 JWT **之前**，ctx 里没有租户 | 修法要动中间件挂载顺序（租户解析前移），会改变未登录请求的限流语义与既有 429 行为；且需先定"未登录流量算谁的配额"。当前形态的失效模式是**噪声邻居**（同一 NAT/反代后多租户共用一个桶），不是数据泄漏 |
 | **P2-2** | 11 张租户表的索引族里没有以 `tenant_id` 打头的列 ⇒ 隔离条件退化为过滤而非索引查找 | 真库查询：`bridge_metrics`、`email_lists`、`email_smtps`、`fts_test`、`intent_logs`、`livecode_click_log`、`llm_routing_audit`、`llm_usage_records`、`obs_configs`、`qr_code_click_log`、`script_recommends` | 属性能项（多为日志/配置表，行数小）；补索引要单独迁移 + 生产评估锁窗口 |
 | **P2-3** | 知识库导入文件**未按租户分域**（绕过 `LocalDriver`，直接 `uploads/knowledge-base/{yyyyMMdd}/`） | `internal/aiagent/knowledge/service/knowledge_base_import.go:77`、`knowledge_service_import.go:50` | 与 FR-015「文件存储路径按租户分域」不一致，但文件名是 UUID、读取走 DB 行（已受隔离），实际泄漏面小；改路径要同时保证历史文件可读 |
-| **P2-4** | 后台任务扇出**已有门禁 ✅**，但扫描面只覆盖 `internal/pkg/cron/`，**不覆盖**其它调度器（GEO `job_manager.go:299`、browser_automation `cron.go:191` 各自的 `AddTask` 接口）与 `internal/app/` 的装配点 | `scripts/check-tenant-ctx-writes.py` + `scripts/tenant-ctx-cron.registry`（7 个注册点全部登记）；扫描目录见脚本头部 | 门禁本身是对的（判据是"完整性+防腐烂"而不是猜实现，理由写在脚本头）。缺口只是**扫描面**：把 `internal/geo/service`、`internal/browser_automation/service` 的注册点纳入同一张登记表即可，但这两个调度器有自己的 `AddTask` 接口形态，需要先统一成 `goTask(name, fn)` 形状，属小重构 |
-| **P2-5** | 事件总线 `TenantID` 由**发布点自行填充** | `internal/event/types.go:29,50,68` 注释即写明"发布点从 ctx 填充" | 漏填 ⇒ 订阅者 fail-closed（响声），不静默；但可加一条"发布必须带租户"的构造门禁 |
+| **P2-4**（✅ 已修） | 后台任务扇出**已有门禁**，但扫描面只覆盖 `internal/pkg/cron/` | `scripts/check-tenant-ctx-writes.py` 新增 `SCHEDULER_DIRS`（GEO/browser_automation），任务键改用 `@<路径>::<所在函数>`，登记表补 2 行；注册点 7 → **9**，自检 9 枚控制全 PASS | 不改两个调度器自己的 `AddTask` 形态（那是不必要的小重构）：**判据只需"注册点必须做一次归属决策"**，键取法随形态变即可 |
+| **P2-5**（✅ 已修） | 事件总线 `TenantID` 由**发布点自行填充**（4 处各写一遍） | 新增 `event.PublishCtx`/`PublishEventCtx` + `StampTenantFromCtx`（反射盖章，非 0 不覆盖）；3 处迁移；新增门禁 `scripts/check-event-publish-tenant.py` 禁止裸 `event.Publish(`；on 模式下 `TenantID=0` 打响声 | 执行者收成唯一一个 + 门禁，才不依赖"下一个人记得写" |
 | **P2-6** | 两端同名实体各写一份模型（`ConfigParam`/`ConfigParamAuditLog` 等），schema 靠人对齐 | `hivemtk-platform/platform-server/internal/model/config_param.go` vs `user-server/internal/model/config_param.go` | 两端是两个独立库、两条演进节奏，"共一份代码"未必划算；建议只对**跨端传递的结构**（开户登记、心跳、订单、模块下发）做单一事实源 |
 | **P3** | vendor 域名硬编码为默认值（`internal/config/platform.go:33` `DefaultCloudURL = https://work.xapptool.cn`）、`uploads` URL 暴露租户 id、`SetTrustedProxies` 只信私网（`cmd/api/main.go:423`，反代不在私网时 `ClientIP` 恒为反代 IP ⇒ 全站共用一个限流桶） | 同左 | 展示型/运维型问题；`DefaultCloudURL` 已单点化且可被配置覆盖 |
 

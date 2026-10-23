@@ -27,10 +27,8 @@ func PublishKnowledgeDocumentChange(ctx context.Context, workspaceID string, doc
 	}
 
 	payload := event.KnowledgeDocumentChangePayload{
-		// 租户行自证（T021）：订阅者跑在事件线程上，拿不到发布点的 ctx，
-		// 归属只能随载荷传递——不填的话 on 模式下索引器以无绑定 ctx 读写
-		// 知识库（fail-closed），增量索引整条链静默失效。
-		TenantID:    tenantIDFromCtx(ctx),
+		// 租户由 event.PublishCtx 从 ctx 统一盖章（A9）：订阅者跑在事件线程上、拿不到发布点 ctx，
+		// 归属只能随载荷传递——漏填时 on 模式下索引器 fail-closed，增量索引整条链静默失效。
 		WorkspaceID: workspaceID,
 		DocumentID:  documentID,
 		ChangeType:  changeType,
@@ -43,7 +41,7 @@ func PublishKnowledgeDocumentChange(ctx context.Context, workspaceID string, doc
 		payload.ContentHash = hex.EncodeToString(h[:])
 	}
 
-	event.Publish(event.TopicKnowledgeDocumentChanged, payload)
+	event.PublishCtx(ctx, event.TopicKnowledgeDocumentChanged, payload)
 	return traceID
 }
 

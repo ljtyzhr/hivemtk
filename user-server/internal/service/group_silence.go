@@ -82,12 +82,11 @@ type GroupRevivePayload struct {
 }
 
 // EmitGroupRevive 挂接既有 signal/emitter 机制：进程内事件总线 internal/event。
-// 找到的挂接点为全局 event.Publish（OperationLog/AssetDegraded 等同款机制）；
-// 总线未初始化时 Publish 为 no-op，安全。ctx 保留以满足调用方签名约定（总线为进程内异步）。
+// 走 `event.PublishCtx`（A9：租户统一由发布口盖章），总线未初始化时为 no-op，安全。
+// 载荷目前无 TenantID 字段，盖章是 no-op；一旦该信号需要跨租户路由，加字段即自动生效。
 func EmitGroupRevive(ctx context.Context, groupID string, v ReviveVerdict) {
-	_ = ctx
 	logger.Infof("[H-4] 发布群复活信号 group=%s verdict=%s", groupID, v.Verdict)
-	event.Publish(TopicGroupRevive, GroupRevivePayload{
+	event.PublishCtx(ctx, TopicGroupRevive, GroupRevivePayload{
 		SignalKey: ReviveSignalKey,
 		GroupID:   groupID,
 		Verdict:   v.Verdict,

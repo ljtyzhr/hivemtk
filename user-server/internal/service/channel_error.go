@@ -351,20 +351,21 @@ func (s *WebhookService) outboundSendFailed(ctx context.Context, channel Webhook
 		Msg("outbound send failed: " + ce.Raw)
 
 	if ce.Category == CategoryAuth {
-		if bus := event.GetGlobalBus(); bus != nil {
-			bus.Publish(event.Event{
-				Topic:     event.TopicOperationLog,
-				Source:    "webhook_outbound",
-				Timestamp: time.Now(),
-				Payload: event.OperationLogPayload{
-					TenantID:   eventTenantID(ctx),
-					Action:     "outbound_auth_failure",
-					Module:     "channel",
-					Resource:   string(channel),
-					ResourceID: accountID,
-				},
-			})
-		}
+		// 走 event.PublishEventCtx（A9）：这是**唯一**保留手填 TenantID 的发布点，
+		// 因为 eventTenantID 在 off 模式下回落到 DefaultTenantID（历史语义，改了就不是逐字节等价）；
+		// 盖章函数对非 0 值不覆盖，所以两种模式各按各的口径。
+		event.PublishEventCtx(ctx, event.Event{
+			Topic:     event.TopicOperationLog,
+			Source:    "webhook_outbound",
+			Timestamp: time.Now(),
+			Payload: event.OperationLogPayload{
+				TenantID:   eventTenantID(ctx),
+				Action:     "outbound_auth_failure",
+				Module:     "channel",
+				Resource:   string(channel),
+				ResourceID: accountID,
+			},
+		})
 	}
 
 	if hubMsg == nil || s.messageHubRepo == nil {

@@ -23,7 +23,7 @@ import (
 //	    return err
 //	}
 //
-// 注意：admin 角色可豁免归属校验（与 RequireOwner 中间件策略对齐）；
+// 注意：admin 角色可豁免归属校验（与 middleware.RequireOwnerWithChecker 的策略对齐）；
 // 如需关闭 admin 豁免，传 uidOverride=当前UID 并启用 strict 模式。
 func GuardOwnerID(c *gin.Context, resourceOwnerID uint) error {
 	if c == nil {

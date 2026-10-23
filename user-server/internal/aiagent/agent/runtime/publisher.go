@@ -5,7 +5,6 @@ import (
 	"time"
 
 	"hivemtk-user/internal/event"
-	"hivemtk-user/internal/pkg/tenant"
 )
 
 // PublishCustomerMessage 发布客户消息事件
@@ -31,8 +30,8 @@ func PublishCustomerMessage(ctx context.Context, channelType, accountID, custome
 	}
 
 	payload := event.CustomerMessagePayload{
-		// 租户行自证（T021）：发布点从入站 ctx 提取（解析链已绑定）
-		TenantID:    tenantIDFromCtx(ctx),
+		// 租户**不再在此手填**：由 event.PublishCtx 从 ctx 统一盖章（A9）。
+		// 发布点分散在 4 处、各写一遍 `TenantID: tenantIDFromCtx(ctx)` 是漏填的来源。
 		ChannelType: channelType,
 		AccountID:   accountID,
 		CustomerID:  customerID,
@@ -43,7 +42,7 @@ func PublishCustomerMessage(ctx context.Context, channelType, accountID, custome
 		TraceID:     traceID,
 	}
 
-	event.Publish(event.TopicCustomerMessageReceived, payload)
+	event.PublishCtx(ctx, event.TopicCustomerMessageReceived, payload)
 	return traceID
 }
 
@@ -59,7 +58,6 @@ func PublishCustomerMessageWithType(ctx context.Context, channelType, accountID,
 	}
 
 	payload := event.CustomerMessagePayload{
-		TenantID:    tenantIDFromCtx(ctx),
 		ChannelType: channelType,
 		AccountID:   accountID,
 		CustomerID:  customerID,
@@ -70,15 +68,6 @@ func PublishCustomerMessageWithType(ctx context.Context, channelType, accountID,
 		TraceID:     traceID,
 	}
 
-	event.Publish(event.TopicCustomerMessageReceived, payload)
+	event.PublishCtx(ctx, event.TopicCustomerMessageReceived, payload)
 	return traceID
-}
-
-// tenantIDFromCtx 发布侧租户提取（0 = off 模式/系统级发布）
-func tenantIDFromCtx(ctx context.Context) uint {
-	if ctx == nil {
-		return 0
-	}
-	id, _ := tenant.FromContext(ctx)
-	return id
 }
