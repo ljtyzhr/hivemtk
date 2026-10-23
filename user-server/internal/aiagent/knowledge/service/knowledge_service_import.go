@@ -46,7 +46,8 @@ func (s *KnowledgeService) importUploadedFile(ctx context.Context, req *ImportRe
 	}
 
 	uploadBase, _, _ := storage.LocalSource()
-	uploadDir := filepath.Join(uploadBase, "knowledge", req.ProductID, time.Now().Format("20060102"))
+	// 租户分域（A7）：与 LocalDriver 同一个前缀函数；off 模式为空串（路径不变）
+	uploadDir := filepath.Join(uploadBase, storage.TenantPathPrefix(ctx), "knowledge", req.ProductID, time.Now().Format("20060102"))
 	if err := os.MkdirAll(uploadDir, 0755); err != nil {
 		return nil, fmt.Errorf("创建上传目录失败: %w", err)
 	}
@@ -111,7 +112,8 @@ func (s *KnowledgeService) importText(ctx context.Context, req *ImportRequest, p
 	}
 	tagsJSON, _ := json.Marshal(req.Tags)
 	textBase, _, _ := storage.LocalSource()
-	tmpDir := filepath.Join(textBase, "knowledge-text", req.ProductID, time.Now().Format("20060102"))
+	// 租户分域（A7）：与 LocalDriver 同一个前缀函数；off 模式为空串（路径不变）
+	tmpDir := filepath.Join(textBase, storage.TenantPathPrefix(ctx), "knowledge-text", req.ProductID, time.Now().Format("20060102"))
 	if err := os.MkdirAll(tmpDir, 0755); err != nil {
 		return nil, fmt.Errorf("创建目录失败: %w", err)
 	}
@@ -175,7 +177,8 @@ func (s *KnowledgeService) importFromURL(ctx context.Context, req *ImportRequest
 	}
 	tagsJSON, _ := json.Marshal(req.Tags)
 	urlBase, _, _ := storage.LocalSource()
-	tmpDir := filepath.Join(urlBase, "knowledge-url", req.ProductID, time.Now().Format("20060102"))
+	// 租户分域（A7）：与 LocalDriver 同一个前缀函数；off 模式为空串（路径不变）
+	tmpDir := filepath.Join(urlBase, storage.TenantPathPrefix(ctx), "knowledge-url", req.ProductID, time.Now().Format("20060102"))
 	if err := os.MkdirAll(tmpDir, 0755); err != nil {
 		return nil, fmt.Errorf("创建目录失败: %w", err)
 	}

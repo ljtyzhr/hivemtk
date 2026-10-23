@@ -24,7 +24,7 @@
 | P1-3 | 通用归属中间件 `RequireOwner*` 的 fail-open 分支（`checker==nil ⇒ 放行`、`db==nil ⇒ (0,nil)`）+ not-found 混成 500 | 中（潜在） | **已修**（语义收口 + 6 例回归，见 §3） |
 | P1-4 | 平台端（运营端）的商户隔离**全靠手写 `Where("merchant_key = ?")`**，无框架约束、无门禁、失败模式是静默跨商户 | 中高（云端侧） | 待批准（设计已给） |
 | P1-5 | 云/本地之间**没有版本/契约握手**：老实例连新平台只能靠运行时 500 发现字段不匹配 | 中（运维） | 待批准 |
-| P2-1..6 | 限流键无租户维度 ✅、11 张租户表缺 tenant_id 前导索引 ✅、知识库导入路径未分域、cron 扇出无门禁 ✅、事件总线 TenantID 靠自觉 ✅、双仓库同名模型漂移 | 低—中 | 6 项中 4 项已修，余 2 项在清单 |
+| P2-1..6 | 限流键无租户维度 ✅、11 张租户表缺 tenant_id 前导索引 ✅、知识库导入路径未分域 ✅、cron 扇出无门禁 ✅、事件总线 TenantID 靠自觉 ✅、双仓库同名模型漂移 | 低—中 | 6 项中 5 项已修，余 1 项在清单 |
 
 **"一套代码一套逻辑"的实测结论**：部署形态确实由**两个环境变量**（`TENANT_MODE` / `PLATFORM_ENABLED`）单点决定，代码里**没有**任何 `if deploy == "saas"` 式的形态分支——这一条是真的。
 真正威胁"维护两套"的不是形态分支，而是**同一语义在两个通道里各写了一遍且口径不一致**（SSE 按租户过滤、WS 不过滤；落盘层做了租户前缀、服务层没校验）——本轮修的就是这一类。
@@ -187,7 +187,7 @@ func (h *Hub) BroadcastToMerchant(merchantID string, ...) error {
 |---|---|---|---|
 | **P2-1**（✅ 已修） | 限流/配额键与桶**无租户维度** | 真库/活体代码：`RateLimitMiddleware` 与 `PathQuotaMiddleware` 都挂在 JWT **之前**，键只有 `c.ClientIP()`（外加 apikey 变体）。**不需要**改挂载顺序：限流中间件自行验签解析一次令牌取 `claims.TenantID`（不写 ctx，避免给未鉴权请求塞租户绑定）。on 模式键 = `t<tenant>:<clientKey>`，off 模式前缀恒空串（键形逐字节不变，且不付令牌解析成本）；无令牌/坏令牌/历史令牌回落 IP 键 —— 这一档是**显式登记的语义**（未登录流量本无租户），后果仍只剩"未登录噪声邻居"。监控读数口 `GetRateLimitStatus` 走同一键函数，读写不会指向两个桶 |
 | **P2-2**（✅ 已修） | 11 张租户表的索引族里没有以 `tenant_id` 打头的列 ⇒ 隔离条件退化为过滤而非索引查找 | 真库查询（判据**只认前导列**，`(id, tenant_id)` 不算）：`bridge_metrics`、`email_lists`、`email_smtps`、`fts_test`、`intent_logs`、`livecode_click_log`、`llm_routing_audit`、`llm_usage_records`、`obs_configs`、`qr_code_click_log`、`script_recommends` | 补 `v3.79.0` 迁移（幂等、Up 后自复核、Down 只删自建索引、清单写死不扫全库）；**真库实测缺口 11 → 0**。漏因值得记：这些表走手写 `CREATE TABLE` 而非 AutoMigrate，模型的 `index` tag 对它们**不生效**，"模型说建了索引、库里没有"长期共存 |
-| **P2-3** | 知识库导入文件**未按租户分域**（绕过 `LocalDriver`，直接 `uploads/knowledge-base/{yyyyMMdd}/`） | `internal/aiagent/knowledge/service/knowledge_base_import.go:77`、`knowledge_service_import.go:50` | 与 FR-015「文件存储路径按租户分域」不一致，但文件名是 UUID、读取走 DB 行（已受隔离），实际泄漏面小；改路径要同时保证历史文件可读 |
+| **P2-3**（✅ 已修） | 知识库导入文件**未按租户分域**（绕过 `LocalDriver`，直接 `uploads/knowledge-base|knowledge|knowledge-text|knowledge-url/…`） | `internal/aiagent/knowledge/service/knowledge_base_import.go:75`、`knowledge_service_import.go:48/113/177`（共 4 条通路） | 分域原先只做在 `LocalDriver.UploadReader` 里 ⇒"上传口分域了、知识库导入口没分域"，同一个 uploads 根下两种布局并存。修法：`storage.TenantPathPrefix(ctx)` 导出为**唯一**前缀函数（驱动内部同款改为调它），4 条通路各自 `filepath.Join(base, prefix, …)`。off 模式前缀为空串 ⇒ 路径逐字节不变；存量根域文件在 on 模式下仍可读（`/files` 守卫只对 `tenant_*` 首段做归属校验） |
 | **P2-4**（✅ 已修） | 后台任务扇出**已有门禁**，但扫描面只覆盖 `internal/pkg/cron/` | `scripts/check-tenant-ctx-writes.py` 新增 `SCHEDULER_DIRS`（GEO/browser_automation），任务键改用 `@<路径>::<所在函数>`，登记表补 2 行；注册点 7 → **9**，自检 9 枚控制全 PASS | 不改两个调度器自己的 `AddTask` 形态（那是不必要的小重构）：**判据只需"注册点必须做一次归属决策"**，键取法随形态变即可 |
 | **P2-5**（✅ 已修） | 事件总线 `TenantID` 由**发布点自行填充**（4 处各写一遍） | 新增 `event.PublishCtx`/`PublishEventCtx` + `StampTenantFromCtx`（反射盖章，非 0 不覆盖）；3 处迁移；新增门禁 `scripts/check-event-publish-tenant.py` 禁止裸 `event.Publish(`；on 模式下 `TenantID=0` 打响声 | 执行者收成唯一一个 + 门禁，才不依赖"下一个人记得写" |
 | **P2-6** | 两端同名实体各写一份模型（`ConfigParam`/`ConfigParamAuditLog` 等），schema 靠人对齐 | `hivemtk-platform/platform-server/internal/model/config_param.go` vs `user-server/internal/model/config_param.go` | 两端是两个独立库、两条演进节奏，"共一份代码"未必划算；建议只对**跨端传递的结构**（开户登记、心跳、订单、模块下发）做单一事实源 |

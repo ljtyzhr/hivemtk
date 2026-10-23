@@ -43,11 +43,16 @@ func (d *LocalDriver) ensureDir(dir string) error {
 	return os.MkdirAll(dir, 0o750)
 }
 
-// tenantPathPrefix 租户路径前缀（T011）：
+// TenantPathPrefix 租户路径前缀（T011）。
+//
 //   - off 模式恒为空串（键形/路径铁律：与现状逐字节一致）
 //   - on 模式且 ctx 绑定租户 → "tenant_{id}/"（路径自证租户）
 //   - on 模式无租户 ctx → 空串（系统级上传，落入存量根域）
-func (d *LocalDriver) tenantPathPrefix(ctx context.Context) string {
+//
+// **导出**的原因：知识库导入（`aiagent/knowledge/service` 的 4 处）不经 LocalDriver、
+// 自己 os.Create 落盘，它们必须用同一份前缀函数——各写一遍就是"两处实现、
+// 其中一处漏分域"（A7 就是这么漏的：分域只做到了走驱动的上传口）。
+func TenantPathPrefix(ctx context.Context) string {
 	if ctx == nil || !tenant.IsMultiTenant() {
 		return ""
 	}
@@ -56,6 +61,11 @@ func (d *LocalDriver) tenantPathPrefix(ctx context.Context) string {
 		return ""
 	}
 	return fmt.Sprintf("tenant_%d/", id)
+}
+
+// tenantPathPrefix 租户路径前缀（方法形态，供驱动内部调用；实现即 TenantPathPrefix）。
+func (d *LocalDriver) tenantPathPrefix(ctx context.Context) string {
+	return TenantPathPrefix(ctx)
 }
 
 // dangerousWebExts "浏览器同源直接执行/渲染"的扩展名集合。

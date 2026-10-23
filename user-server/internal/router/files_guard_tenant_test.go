@@ -127,6 +127,13 @@ func TestTenantPathAllowed_EdgeCases(t *testing.T) {
 		{"materials/a.pdf", 5, true},
 		{"tenant_x/a.pdf", 5, true},
 		{"attachments/tenant_5/a.pdf", 5, true},
+		// A7 的历史文件可读性：知识库 4 条导入通路在升级前落在根域
+		// （knowledge-base/、knowledge/、knowledge-text/、knowledge-url/），
+		// on 模式下这些**没有租户段**的存量路径必须继续可读，否则升级即"老文档全打不开"。
+		{"knowledge-base/20261023/legacy.pdf", 5, true},
+		{"knowledge-text/20261023/legacy.txt", 5, true},
+		{"knowledge-url/20261023/legacy.html", 5, true},
+		{"knowledge/12/20261023/legacy.pdf", 5, true},
 	} {
 		if got := tenantPathAllowed(tenantCtx(tc.ctxID), tc.rel); got != tc.expected {
 			t.Errorf("tenantPathAllowed(%q, tenant=%d) = %v，期望 %v", tc.rel, tc.ctxID, got, tc.expected)

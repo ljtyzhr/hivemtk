@@ -73,7 +73,10 @@ func (s *KnowledgeBaseService) ImportDocument(ctx context.Context, title string,
 	}
 
 	uploadBase, _, _ := storage.LocalSource()
-	uploadDir := filepath.Join(uploadBase, "knowledge-base", time.Now().Format("20060102"))
+	// 租户分域（A7）：on 模式落 `tenant_{id}/`，与 LocalDriver 用**同一个**前缀函数
+	// （storage.TenantPathPrefix）。off 模式前缀为空串 ⇒ 路径与升级前逐字节一致，
+	// 存量文件（根域 `knowledge-base/…`）原地可读，零迁移。
+	uploadDir := filepath.Join(uploadBase, storage.TenantPathPrefix(ctx), "knowledge-base", time.Now().Format("20060102"))
 	if err := os.MkdirAll(uploadDir, 0755); err != nil {
 		return nil, fmt.Errorf("创建上传目录失败: %w", err)
 	}
