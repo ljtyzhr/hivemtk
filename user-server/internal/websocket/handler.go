@@ -342,7 +342,7 @@ func (h *WSHandler) BroadcastMessage(ctx context.Context, messageType string, da
 	return GetHub().BroadcastToMerchant(ctx, "", messageType, data)
 }
 
-// SendToAgent 发送消息给指定客服
-func (h *WSHandler) SendToAgent(agentID uint, messageType string, data any) error {
-	return GetHub().SendToAgent(strconv.FormatUint(uint64(agentID), 10), messageType, data)
+// SendToAgent 发送消息给指定客服（ctx 必带租户，见 Hub.SendToAgentCtx）
+func (h *WSHandler) SendToAgent(ctx context.Context, agentID uint, messageType string, data any) error {
+	return GetHub().SendToAgentCtx(ctx, strconv.FormatUint(uint64(agentID), 10), messageType, data)
 }

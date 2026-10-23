@@ -275,7 +275,7 @@ func (s *CustomerSessionService) SendMessage(ctx context.Context, req *SendMessa
 	}
 
 	if session.AgentID > 0 && req.SenderType == "user" {
-		if e := websocket.NotifyNewMessage(strconv.FormatUint(uint64(session.AgentID), 10), message); e != nil {
+		if e := websocket.NotifyNewMessage(ctx, strconv.FormatUint(uint64(session.AgentID), 10), message); e != nil {
 			logger.Warnf("[Session] 新消息推送坐席失败 agentID=%d: %v", session.AgentID, e)
 		}
 	}
@@ -348,7 +348,7 @@ func (s *CustomerSessionService) UpdateSessionStatus(ctx context.Context, sessio
 	}
 
 	if session.AgentID > 0 && session.Status != status {
-		if e := websocket.NotifySessionUpdate(strconv.FormatUint(uint64(session.AgentID), 10), map[string]any{
+		if e := websocket.NotifySessionUpdate(ctx, strconv.FormatUint(uint64(session.AgentID), 10), map[string]any{
 			"session_id": session.SessionID,
 			"status":     status,
 		}); e != nil {

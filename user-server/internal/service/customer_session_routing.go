@@ -40,7 +40,7 @@ func (s *CustomerSessionService) AssignSession(ctx context.Context, req *AssignS
 
 	session, _ := s.sessionRepo.GetByID(ctx, req.SessionID)
 	if session != nil {
-		if err := websocket.NotifyNewSession(strconv.FormatUint(uint64(req.AgentID), 10), session); err != nil {
+		if err := websocket.NotifyNewSession(ctx, strconv.FormatUint(uint64(req.AgentID), 10), session); err != nil {
 			logger.Warnf("[CustomerSession] 通知客服新会话失败 agentID=%d: %v", req.AgentID, err)
 		}
 		_ = websocket.SendToVisitor(websocket.TypeAgentJoined, map[string]any{
@@ -109,7 +109,7 @@ func (s *CustomerSessionService) TransferSession(ctx context.Context, sessionID 
 
 	session, _ = s.sessionRepo.GetByID(ctx, sessionID)
 	if session != nil {
-		if err := websocket.NotifyNewSession(strconv.FormatUint(uint64(newAgentID), 10), session); err != nil {
+		if err := websocket.NotifyNewSession(ctx, strconv.FormatUint(uint64(newAgentID), 10), session); err != nil {
 			logger.Warnf("[CustomerSession] 转接后通知客服失败 agentID=%d: %v", newAgentID, err)
 		}
 		_ = websocket.SendToVisitor(websocket.TypeAgentJoined, map[string]any{

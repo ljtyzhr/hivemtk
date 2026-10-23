@@ -33,7 +33,7 @@ func newTestHubWithClients(t *testing.T, tenants map[string]uint) *Hub {
 	deadline := time.Now().Add(2 * time.Second)
 	for time.Now().Before(deadline) {
 		hub.mu.RLock()
-		n := len(hub.clients)
+		n := len(hub.allClientsLocked())
 		hub.mu.RUnlock()
 		if n == len(tenants) {
 			return hub
@@ -54,10 +54,12 @@ func drain(c *Client, d time.Duration) bool {
 	}
 }
 
-func clientOf(hub *Hub, agentID string) *Client {
+// clientOf 按 (租户桶, agentID) 取连接 —— 两级桶之后 agentID 不再全局唯一，
+// 只说 agentID 的查询本身就是 A14 那个缺陷的形状。
+func clientOf(hub *Hub, tenantID uint, agentID string) *Client {
 	hub.mu.RLock()
 	defer hub.mu.RUnlock()
-	return hub.clients[agentID]
+	return hub.connections[tenantID][agentID]
 }
 
 func TestBroadcastToMerchant_OnModeIsolatesTenants(t *testing.T) {
@@ -78,10 +80,10 @@ func TestBroadcastToMerchant_OnModeIsolatesTenants(t *testing.T) {
 		t.Fatalf("广播失败: %v", err)
 	}
 
-	if !drain(clientOf(hub, "agentA"), time.Second) {
+	if !drain(clientOf(hub, 5, "agentA"), time.Second) {
 		t.Fatal("本租户坐席未收到广播（过滤把合法连接也滤掉了）")
 	}
-	if drain(clientOf(hub, "agentB"), 150*time.Millisecond) {
+	if drain(clientOf(hub, 6, "agentB"), 150*time.Millisecond) {
 		t.Fatal("跨租户泄漏：租户 6 的坐席收到了租户 5 的广播载荷")
 	}
 }
@@ -99,10 +101,10 @@ func TestBroadcastToMerchant_OnModeWithoutTenantFailsClosed(t *testing.T) {
 	if err == nil {
 		t.Fatal("on 模式下无租户 ctx 必须 fail-closed 报错，而不是退化成全实例广播")
 	}
-	if drain(clientOf(hub, "agentA"), 150*time.Millisecond) {
+	if drain(clientOf(hub, 5, "agentA"), 150*time.Millisecond) {
 		t.Fatal("fail-closed 之后仍有人收到广播（等于没修）")
 	}
-	if drain(clientOf(hub, "agentB"), 10*time.Millisecond) {
+	if drain(clientOf(hub, 6, "agentB"), 10*time.Millisecond) {
 		t.Fatal("fail-closed 之后仍有人收到广播（等于没修）")
 	}
 }
@@ -120,7 +122,7 @@ func TestBroadcastToMerchant_OffModeUnchanged(t *testing.T) {
 		t.Fatalf("off 模式广播不应报错: %v", err)
 	}
 	for _, id := range []string{"agentA", "agentB"} {
-		if !drain(clientOf(hub, id), time.Second) {
+		if !drain(clientOf(hub, 1, id), time.Second) {
 			t.Errorf("off 模式下 %s 应收到全实例广播", id)
 		}
 	}
@@ -130,7 +132,7 @@ func TestBroadcastToMerchant_OffModeUnchanged(t *testing.T) {
 		t.Fatalf("off 模式广播不应报错: %v", err)
 	}
 	for _, id := range []string{"agentA", "agentB"} {
-		if !drain(clientOf(hub, id), time.Second) {
+		if !drain(clientOf(hub, 1, id), time.Second) {
 			t.Errorf("off 模式下 %s 应收到全实例广播（租户不参与判定）", id)
 		}
 	}

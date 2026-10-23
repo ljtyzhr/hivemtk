@@ -266,7 +266,7 @@ func (s *VisitorChatService) OpenSession(ctx context.Context, req *VisitorOpenSe
 
 	online, _ := s.countOnlineAgents(ctx)
 	if online > 0 {
-		_ = websocket.BroadcastToAgents(websocket.TypeNewSession, map[string]any{
+		_ = websocket.BroadcastToAgents(ctx, websocket.TypeNewSession, map[string]any{
 			"session": session,
 			"channel": map[string]any{
 				"channel_id":   channel.ChannelID,
@@ -458,7 +458,7 @@ func (s *VisitorChatService) SendMessage(ctx context.Context, req *VisitorSendMe
 	}
 
 	if session.AgentID > 0 {
-		_ = websocket.SendToAgent(websocket.TypeNewMessage, map[string]any{
+		_ = websocket.SendToAgent(ctx, websocket.TypeNewMessage, map[string]any{
 			"session_id": session.SessionID,
 			"message":    userMsg,
 		}, session.AgentID)
@@ -489,7 +489,7 @@ func (s *VisitorChatService) SendMessage(ctx context.Context, req *VisitorSendMe
 				}, nil
 			}
 		}
-		_ = websocket.BroadcastToAgents(websocket.TypeNewSession, map[string]any{
+		_ = websocket.BroadcastToAgents(ctx, websocket.TypeNewSession, map[string]any{
 			"session":    session,
 			"need_human": true,
 			"reason":     "关键词命中自动转人工：" + req.Content,
@@ -604,7 +604,7 @@ func (s *VisitorChatService) SendMessage(ctx context.Context, req *VisitorSendMe
 	}
 
 	if session.AgentID > 0 {
-		_ = websocket.SendToAgent(websocket.TypeSessionUpdate, map[string]any{
+		_ = websocket.SendToAgent(ctx, websocket.TypeSessionUpdate, map[string]any{
 			"session_id":   session.SessionID,
 			"handler_type": handleResult.HandlerType,
 			"transferred":  handleResult.Transferred,

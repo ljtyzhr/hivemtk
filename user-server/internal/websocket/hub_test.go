@@ -12,8 +12,8 @@ func TestNewHub(t *testing.T) {
 	if hub == nil {
 		t.Fatal("NewHub returned nil")
 	}
-	if hub.clients == nil {
-		t.Error("Expected clients to be initialized")
+	if hub.connections == nil {
+		t.Error("Expected connections to be initialized")
 	}
 	if hub.register == nil {
 		t.Error("Expected register channel to be initialized")
@@ -54,7 +54,7 @@ func TestHub_Register(t *testing.T) {
 
 	time.Sleep(100 * time.Millisecond)
 
-	if !hub.IsAgentOnline("agent1") {
+	if !hub.IsAgentOnline(context.Background(), "agent1") {
 		t.Error("Expected agent to be online after registration")
 	}
 }
@@ -72,7 +72,7 @@ func TestHub_Unregister(t *testing.T) {
 	hub.Unregister(client)
 	time.Sleep(50 * time.Millisecond)
 
-	if hub.IsAgentOnline("agent1") {
+	if hub.IsAgentOnline(context.Background(), "agent1") {
 		t.Error("Expected agent to be offline after unregistration")
 	}
 }
@@ -89,7 +89,8 @@ func TestHub_Broadcast(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 
 	payload := map[string]string{"test": "data"}
-	err := hub.SendToAgent("agent1", "test_message", payload)
+	// A14 之后发送口必须带 ctx 租户（off 模式下解析为 0 = 不限桶，语义与升级前一致）
+	err := hub.SendToAgentCtx(context.Background(), "agent1", "test_message", payload)
 	if err != nil {
 		t.Errorf("SendToAgent failed: %v", err)
 	}
@@ -106,7 +107,7 @@ func TestHub_SendToAgent(t *testing.T) {
 	time.Sleep(50 * time.Millisecond)
 
 	payload := map[string]any{"key": "value"}
-	err := hub.SendToAgent("agent1", "new_message", payload)
+	err := hub.SendToAgentCtx(context.Background(), "agent1", "new_message", payload)
 	if err != nil {
 		t.Errorf("SendToAgent failed: %v", err)
 	}
@@ -140,7 +141,7 @@ func TestHub_BroadcastToMerchant(t *testing.T) {
 func TestHub_IsAgentOnline(t *testing.T) {
 	hub := NewHub()
 
-	if hub.IsAgentOnline("nonexistent") {
+	if hub.IsAgentOnline(context.Background(), "nonexistent") {
 		t.Error("Expected nonexistent agent to be offline")
 	}
 }
@@ -160,7 +161,7 @@ func TestHub_GetOnlineAgents(t *testing.T) {
 	hub.Register(client2)
 	time.Sleep(100 * time.Millisecond)
 
-	agents := hub.GetOnlineAgents("merchant1")
+	agents := hub.GetOnlineAgents(context.Background())
 	if len(agents) != 2 {
 		t.Errorf("Expected 2 online agents, got %d", len(agents))
 	}
@@ -169,7 +170,7 @@ func TestHub_GetOnlineAgents(t *testing.T) {
 func TestHub_GetOnlineAgents_Empty(t *testing.T) {
 	hub := NewHub()
 
-	agents := hub.GetOnlineAgents("nonexistent")
+	agents := hub.GetOnlineAgents(context.Background())
 	if len(agents) != 0 {
 		t.Errorf("Expected 0 online agents, got %d", len(agents))
 	}
@@ -178,7 +179,7 @@ func TestHub_GetOnlineAgents_Empty(t *testing.T) {
 func TestHub_GetOnlineCount(t *testing.T) {
 	hub := NewHub()
 
-	count := hub.GetOnlineCount()
+	count := hub.GetOnlineCount(context.Background())
 	if count != 0 {
 		t.Errorf("Expected 0 online clients, got %d", count)
 	}
@@ -199,7 +200,7 @@ func TestNotifyNewSession(t *testing.T) {
 		"user_id":    "user1",
 	}
 
-	err := NotifyNewSession("agent1", sessionData)
+	err := NotifyNewSession(context.Background(), "agent1", sessionData)
 	_ = err
 }
 
@@ -209,7 +210,7 @@ func TestNotifyNewMessage(t *testing.T) {
 		"content":    "Hello",
 	}
 
-	err := NotifyNewMessage("agent1", messageData)
+	err := NotifyNewMessage(context.Background(), "agent1", messageData)
 	_ = err
 }
 
@@ -219,7 +220,7 @@ func TestNotifySessionUpdate(t *testing.T) {
 		"status":     "active",
 	}
 
-	err := NotifySessionUpdate("agent1", sessionData)
+	err := NotifySessionUpdate(context.Background(), "agent1", sessionData)
 	_ = err
 }
 

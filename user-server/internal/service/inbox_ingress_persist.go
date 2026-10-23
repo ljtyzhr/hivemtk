@@ -117,7 +117,7 @@ func (s *InboxIngressService) persistMessage(ctx context.Context, event *model.M
 			if s.leadMiningSvc != nil {
 				s.leadMiningSvc.Enqueue(hub)
 			}
-			if err := websocket.BroadcastToAgents(websocket.TypeNewMessage, map[string]any{
+			if err := websocket.BroadcastToAgents(ctx, websocket.TypeNewMessage, map[string]any{
 				"msg_id":          hub.MsgID,
 				"platform":        hub.Platform,
 				"conversation_id": hub.ConversationID,

@@ -313,7 +313,7 @@ func (s *SessionAssignmentService) handleByAI(ctx context.Context, session *mode
 	}
 
 	if session.AgentID > 0 {
-		if err := websocket.NotifySessionUpdate(strconv.FormatUint(uint64(session.AgentID), 10), map[string]any{
+		if err := websocket.NotifySessionUpdate(ctx, strconv.FormatUint(uint64(session.AgentID), 10), map[string]any{
 			"session_id": session.SessionID,
 			"status":     model.SessionStatusAIHandling,
 			"ai_replied": true,
@@ -350,7 +350,7 @@ func (s *SessionAssignmentService) autoAssignToAgent(ctx context.Context, sessio
 		return err
 	}
 
-	if err := websocket.NotifyNewSession(strconv.FormatUint(uint64(bestAgent.AgentID), 10), map[string]any{
+	if err := websocket.NotifyNewSession(ctx, strconv.FormatUint(uint64(bestAgent.AgentID), 10), map[string]any{
 		"session_id":      session.SessionID,
 		"user_name":       session.UserName,
 		"last_message":    session.LastMessage,
@@ -402,7 +402,7 @@ func (s *SessionAssignmentService) TransferToHuman(ctx context.Context, sessionI
 		if err := s.agentRepo.IncrementActiveSessions(ctx, agentID); err != nil {
 			return err
 		}
-		if err := websocket.NotifyNewSession(strconv.FormatUint(uint64(agentID), 10), map[string]any{
+		if err := websocket.NotifyNewSession(ctx, strconv.FormatUint(uint64(agentID), 10), map[string]any{
 			"session_id":      session.SessionID,
 			"user_name":       session.UserName,
 			"last_message":    session.LastMessage,

@@ -51,7 +51,7 @@
 | 登记表判据唯一 | 「是否租户表」只由**表上有没有 `tenant_id` 列**决定 | 真库 371 张表，12 张无 `tenant_id`，**恰好等于**模型侧全局豁免清单（`tenant_callback_test.go` 的反向不变量） |
 | 唯一性租户化 | 租户表上的唯一索引/约束必须已复合为 `(tenant_id, …)` | 只剩 1 条非复合唯一索引：`global_uniq_system_users_email`（刻意豁免，邮箱跨租户全局唯一）。**无遗漏** |
 | 写入侧不串租户 | Create 填充 / 跨租户写拒绝 / `Omit`·`Select`·`Save` 绕过 | `tenant_callback_adversarial_test.go` 覆盖 D1/D2/D3 三处历史缺陷 |
-| 推送通道租户分桶 | 只能收到本租户事件 | **SSE ✅**（`sse_hub.go` Publish 按 `client.tenantID` 过滤）；**WS ❌ → 本轮修**（P0-1） |
+| 推送通道租户分桶 | 只能收到本租户事件 | **SSE ✅**（`sse_hub.go` Publish 按 `client.tenantID` 过滤）；**WS ✅**（P0-1 + 二期：连接两级桶 + 发送口强制带租户） |
 | 后台任务租户扇出 | 周期任务按活跃租户逐个执行 | 全仓 **40+ 处** `tenant.Fanout`，覆盖 cron / SOP outbox / 告警 / RFM / churn / RAG eval / GEO / browser_automation / 邮件列表 |
 | 后台任务登记门 | 新增后台任务必须显式声明"在哪扇出 / 为什么与租户无关" | `scripts/check-tenant-ctx-writes.py`：7 个注册点全部登记（fanout / tenant-free 各有据）；seam 回调首参必须 `context.Context`（这条门是 2026-10-22 一场线上静默空转之后建的） |
 | 外部入口租户解析 | 渠道 webhook / bridge / Widget / 访客 WS / 邮件追踪 | 四条入口全部前置解析 + 失败拒绝 + 安全打点 |
@@ -193,6 +193,53 @@ func (h *Hub) BroadcastToMerchant(merchantID string, ...) error {
 | **P2-6** | 两端同名实体各写一份模型（`ConfigParam`/`ConfigParamAuditLog` 等），schema 靠人对齐 | `hivemtk-platform/platform-server/internal/model/config_param.go` vs `user-server/internal/model/config_param.go` | 两端是两个独立库、两条演进节奏，"共一份代码"未必划算；建议只对**跨端传递的结构**（开户登记、心跳、订单、模块下发）做单一事实源 |
 | **P3** | vendor 域名硬编码为默认值（`internal/config/platform.go:33` `DefaultCloudURL = https://work.xapptool.cn`）✅ 已修、`uploads` URL 暴露租户 id、`SetTrustedProxies` 只信私网 ⇒ 反代不在私网时 `ClientIP` 恒为反代 IP（全站共用一个限流桶）✅ 已修 | 见左 | P3-1（`DefaultCloudURL` 回落）：新增 `CloudURLSource` 来源标签 + 启动期 WARN，并把 provider 缺省实参从「同一个常量」改成空串（否则「没配」与「配了同一个值」不可区分，builtin 这一档永远看不到）。P3-3（可信反代）：`middleware.ConfigureTrustedProxies` 成唯一装配入口，名单可由 env `TRUSTED_PROXIES` 覆盖（非法条目整体报错而非静默丢弃），并挂观测中间件在「带 XFF 但来源不受信」时响亮一行（同对端去重 + 累计计数）。P3-2（`uploads` URL 暴露租户 id）与 P1-2 签名 URL 同源，未清 |
 
+
+### P0-1 二期（已修）WS 连接侧两级桶 + 发送口强制带租户
+
+发送侧过滤（上一节）只解决了"`BroadcastToMerchant` 发给谁"，连接侧仍然是
+**一级 `map[agentID]*Client`**，于是还剩两个洞：
+
+1. **同 agentID 跨租户互相顶掉**。坐席 ID 只是各租户库里的自增主键，"两个租户各有一个
+   id=7 的坐席"是正常现象。一级 map 下后连的把先连的覆盖掉：先连那条连接既不报错、
+   也不再收到任何推送，而且不会被清理（既没人 close 它，也没人知道它存在）。
+2. **其余所有发送口都没有租户维度**：`SendToAgent` / `NotifyNewSession` /
+   `NotifyNewMessage` / `NotifySessionUpdate` / `BroadcastToAgents` / `BroadcastToAll`。
+   单播按 agentID 找 ⇒ 命中谁看谁先注册，**投给了别人**；`BroadcastToAgents` 直接遍历
+   全部连接 ⇒ `chat_visitor.go:269/492`（访客开场、关键词转人工）与
+   `inbox_ingress_persist.go:120`（渠道消息入库）会把 session 详情推进**所有租户**的工作台。
+   修前 `Client.tenantID` 在两侧握手里都绑好了、全仓只有测试在读它——本仓那个最典型的
+   失效形状（"值被记下来了，但没有任何一处 `if` 用它判定"）的又一处落点。
+
+**修法**：
+- `Hub.connections map[uint]map[string]*Client`（租户 → agentID → 连接），
+  `envelopeFrame{tenantID, agentID, bytes}`；`agentOnline` 这张与连接表一一对应的
+  影子表**删除**（它唯一的作用是"再记一遍在线态"，删掉后在线态=桶里有没有这条连接，
+  不可能不同步）。
+- 新增 `resolveSendTenant(ctx, op)` 作为**唯一**的发送侧租户解析：off 模式返回 0
+  （= 不限桶，全实例语义逐字节等价历史）；on 模式取 ctx 租户；on 模式无租户 ⇒ 报错
+  fail-closed。**绝不回落 0**——0 在这条链上的含义是"全部租户"。
+- 所有发送口改为 ctx 形态并走同一个解析：`SendToAgentCtx` / `sendToAgentWithEnvelopeCtx` /
+  `BroadcastToAgentsCtx` / `BroadcastToAllCtx` / `BroadcastToMerchant`；包的 `Notify*`
+  与 `BroadcastToAgents`/`BroadcastToAll` 同步加 ctx。**没有留下任何"不带租户也能发"的口子**。
+- 在线态查询同口径：`IsAgentOnline(ctx,…)` / `GetOnlineAgents(ctx)` / `GetOnlineCount(ctx)`，
+  on 模式无租户答"不在线/空/0"（答"在线"会让调用方把会话派给别人的坐席）；
+  顺手删掉 `GetOnlineAgents(merchantID string)` 那个 `_ = merchantID` 的假参数。
+- 13 个 service 层调用点补 ctx（`session_assignment.go` ×3、`customer_session.go` ×2、
+  `customer_session_routing.go` ×2、`customer_session_takeover.go`、`chat_visitor.go` ×4、
+  `inbox_ingress_persist.go`）——这些函数本来就都有 ctx，说明修前缺的从来不是"拿不到租户"，
+  而是"没人要求它"。
+
+**回归**：`internal/websocket/hub_tenant_buckets_test.go`（5 例，含"同 agentID 跨租户"
+这条一级桶下必红的用例）；既有 `hub_tenant_broadcast_test.go` 三态用例随桶结构更新
+（`clientOf(hub, tenantID, agentID)`——只说 agentID 的查询本身就是缺陷形状）。
+**牙齿**：把 `resolveSendTenant` 临时改成恒 `return 0`（模拟修前无租户维度）⇒
+6 个 on 模式用例全红（"跨租户误投/跨租户泄漏/必须 fail-closed"），恢复即绿。
+
+**顺带修掉的既有缺陷**（同一处代码、不改就是留两颗雷）：
+- 同桶同 agentID 重连时旧连接没人 `close`（goroutine + TCP 泄漏）；
+- 旧连接的 `Unregister` 会把**新**连接从桶里摘掉并关掉它的 send（重连即被误杀）。
+  现在只摘"这条连接自己"（`existing == client`）。
+
 ---
 
 ## 4. 事实源漂移修正（本轮一并做）
@@ -205,7 +252,7 @@ func (h *Hub) BroadcastToMerchant(merchantID string, ...) error {
 | T023 bridge 归属 | 待联调 | 已实现（`bindBridgeTenant` 前置三条入口） |
 | T024 访客链 | 待前端联调 | 已实现（AppKey / 访客 WS / public_tenant 全链） |
 | T025 邮件/telegram | 待收口 | 已实现（token claim 捕获租户） |
-| T026 WS/SSE 分桶 | 待集成轮 | SSE 已实现；**WS 本轮才修**（P0-1） |
+| T026 WS/SSE 分桶 | 待集成轮 | SSE 已实现；WS 已修（P0-1 发送侧过滤 + 二期连接侧两级桶/发送口带租户） |
 | T027 唯一索引对账 | 并入二期 | **真库实测已闭环**（仅剩刻意豁免的 `global_uniq_*`） |
 | T028 越权回归 | 待集成轮 | 已有 5 组；"逐端点双租户交叉扫描"仍未做 → 保留为待办 |
 | T019 迁移真库演练 | 随部署进行 | 未变（仍需一次含存量数据的升级演练） |
@@ -246,7 +293,6 @@ psql -h 127.0.0.1 -p 8202 -U admin -d user_db -Atc \
 
 | 项 | 依据 | 判断 |
 |---|---|---|
-| **WS 推送的"连接即订阅"模型** | 本轮 P0-1 只加了**发送侧**过滤；连接侧仍以 `agentID` 为键、租户仅作属性 | 若未来出现"同 agentID 跨租户"或"租户内多实例"场景，应改为 `hub.clients[tenantID][agentID]` 两级桶（成本中，收益是彻底消除判断遗漏） |
 | **无凭证外链签名化**（P1-2） | `/files` 的访客场景 | 预签名/短时 token；本地存储驱动已留 `SignUploadURL` 接口位，目前是占位报错 |
 | **平台端商户隔离上框架**（P1-4） | 两端能力不对称 | 推荐；与用户端 §7 方案 B（能力类型化）同源 |
 | **Postgres RLS** | `SAAS_MULTI_TENANT_EVALUATION_2026-10.md` §7 已否（连接池/事务语义、表 owner 绕过、`tenant_id=0` 与 `1` 并存无权威表） | 维持"本轮不做"，但仍是侵入面的理论下限；若做，先补"哪些行该是 `tenant_id=0`"的权威表 |
@@ -263,6 +309,9 @@ psql -h 127.0.0.1 -p 8202 -U admin -d user_db -Atc \
 | `user-server/internal/websocket/handler.go` | `BroadcastMessage` 补 ctx |
 | `user-server/internal/service/sop_node_executors.go` | SOP 推送传 ctx |
 | `user-server/internal/websocket/hub_tenant_broadcast_test.go` | 新增：WS 广播三态回归（3 例） |
+| `user-server/internal/websocket/hub.go`/`notify.go`/`handler.go`（二期） | `connections[tenantID][agentID]` 两级桶；删 `agentOnline`；`resolveSendTenant` 为唯一租户解析；所有发送口/在线态查询改 ctx 形态 |
+| `user-server/internal/websocket/hub_tenant_buckets_test.go` | 新增：两级桶 + 发送口 fail-closed + 在线态按租户（5 例） |
+| `user-server/internal/service/{session_assignment,customer_session,customer_session_routing,customer_session_takeover,chat_visitor,inbox_ingress_persist}.go` | 13 处 WS 推送调用点补 ctx |
 | `user-server/internal/router/files_guard.go` | 新增 `tenantPathAllowed` + 租户段正则；跨租户 404 |
 | `user-server/internal/router/files_guard_tenant_test.go` | 新增：/files 租户归属四态 + 边界（4 例） |
 | `user-server/internal/middleware/ownership.go` | 缓存键加租户段；失效函数按前缀清；not-found 语义问题留档（P1-3） |

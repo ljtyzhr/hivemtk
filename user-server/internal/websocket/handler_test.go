@@ -32,7 +32,7 @@ func TestWSHandler_SendToAgent(t *testing.T) {
 	handler := NewWSHandler()
 
 	data := map[string]any{"key": "value"}
-	err := handler.SendToAgent(1, "test_message", data)
+	err := handler.SendToAgent(context.Background(), 1, "test_message", data)
 	_ = err
 }
 

@@ -214,7 +214,7 @@ func (s *CustomerSessionService) unlockHumanSession(ctx context.Context, session
 
 func (s *CustomerSessionService) notifySessionUpdate(ctx context.Context, session *model.CustomerSession, event, handler string) error {
 	agentID := strconv.FormatUint(uint64(session.AgentID), 10)
-	return websocket.NotifySessionUpdate(agentID, map[string]any{
+	return websocket.NotifySessionUpdate(ctx, agentID, map[string]any{
 		"session_id":   session.SessionID,
 		"handler_type": handler,
 		"event":        event,
