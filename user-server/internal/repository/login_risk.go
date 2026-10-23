@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"hivemtk-user/internal/model"
@@ -66,7 +67,7 @@ func (r *loginRiskRepo) GetLastSuccessLocation(ctx context.Context, userID uint)
 	var prev model.LoginEvent
 	if err := r.db.WithContext(ctx).Where("user_id = ? AND success = ?", userID, true).
 		Order("login_at DESC").First(&prev).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return "", "", false, nil
 		}
 		return "", "", false, err
@@ -130,9 +131,9 @@ func (r *loginRiskRepo) CreateSecurityAlert(ctx context.Context, alert *model.Se
 }
 
 func (r *loginRiskRepo) MarkAlertNotified(ctx context.Context, alertID uint) error {
-	return r.db.WithContext(ctx).Model(&model.SecurityAlert{}).
+	return _db.EnsureAffected(r.db.WithContext(ctx).Model(&model.SecurityAlert{}).
 		Where("id = ?", alertID).
-		Update("notified", true).Error
+		Update("notified", true))
 }
 
 func (r *loginRiskRepo) ListSecurityAlerts(ctx context.Context, userID uint, status string, page, pageSize int) ([]*model.SecurityAlert, int64, error) {
@@ -167,14 +168,16 @@ func (r *loginRiskRepo) ListSecurityAlerts(ctx context.Context, userID uint, sta
 }
 
 func (r *loginRiskRepo) ResolveSecurityAlert(ctx context.Context, alertID, resolverUserID uint, note string, now time.Time, status string) error {
-	return r.db.WithContext(ctx).Model(&model.SecurityAlert{}).
+	// 命中 0 行即告警不存在（已删/别租户），不能回"处理成功"——
+	// 上层 controller 会把它翻成对用户的失败提示。
+	return _db.EnsureAffected(r.db.WithContext(ctx).Model(&model.SecurityAlert{}).
 		Where("id = ?", alertID).
 		Updates(map[string]any{
 			"status":       status,
 			"resolved_at":  now,
 			"resolved_by":  resolverUserID,
 			"resolve_note": note,
-		}).Error
+		}))
 }
 
 func (r *loginRiskRepo) CreateNotification(ctx context.Context, notif *model.Notification) error {

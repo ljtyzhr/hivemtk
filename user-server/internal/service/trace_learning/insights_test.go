@@ -73,38 +73,15 @@ func TestSaveInsight_Idempotent(t *testing.T) {
 	db := testutil.NewTestDB(t, &model.LearningInsight{})
 	ctx := context.Background()
 
-	require.NoError(t, SaveInsight(ctx, db, "medical_beauty", "v1 经验", "trace-1"))
-	require.NoError(t, SaveInsight(ctx, db, "medical_beauty", "v2 经验(覆盖)", "trace-1"))
+	repo := repository.NewTraceLearningRepository(db)
+	require.NoError(t, repo.SaveInsight(ctx, "medical_beauty", "v1 经验", "trace-1"))
+	require.NoError(t, repo.SaveInsight(ctx, "medical_beauty", "v2 经验(覆盖)", "trace-1"))
 
 	var rows []model.LearningInsight
 	require.NoError(t, db.Find(&rows).Error)
 	require.Len(t, rows, 1)
 	assert.Equal(t, "v2 经验(覆盖)", rows[0].InsightText)
 	assert.Equal(t, "medical_beauty", rows[0].Industry)
-}
-
-// TestTopInsights_OrderAndDedup 按行业过滤、最新优先、去重、limit 截断
-func TestTopInsights_OrderAndDedup(t *testing.T) {
-	db := testutil.NewTestDB(t, &model.LearningInsight{})
-	ctx := context.Background()
-
-	require.NoError(t, SaveInsight(ctx, db, "medical_beauty", "旧经验", "t-old"))
-	require.NoError(t, SaveInsight(ctx, db, "education", "别行业经验", "t-other"))
-	require.NoError(t, SaveInsight(ctx, db, "medical_beauty", "新经验A", "t-a"))
-	require.NoError(t, SaveInsight(ctx, db, "medical_beauty", "新经验A", "t-a-dup-text"))
-
-	got, err := TopInsights(ctx, db, "medical_beauty", 3)
-	require.NoError(t, err)
-	require.Len(t, got, 2, "应只含本行业且去重后 2 条")
-	assert.Equal(t, "新经验A", got[0], "最新优先")
-
-	empty, err := TopInsights(ctx, db, "finance", 3)
-	require.NoError(t, err)
-	assert.Empty(t, empty)
-
-	nilIndustry, err := TopInsights(ctx, db, "", 3)
-	require.NoError(t, err)
-	assert.Empty(t, nilIndustry)
 }
 
 // TestDistillInsightForTrace_SkipWithoutIndustry 未配置 Industry 时跳过沉淀（不写库）

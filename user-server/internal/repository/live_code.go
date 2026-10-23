@@ -5,6 +5,8 @@ import (
 	"hivemtk-user/internal/model"
 	"time"
 
+	_db "hivemtk-user/internal/pkg/db"
+
 	"gorm.io/gorm"
 )
 
@@ -34,12 +36,13 @@ func (r *liveCodeRepository) Create(ctx context.Context, liveCode *model.LiveCod
 }
 
 func (r *liveCodeRepository) Update(ctx context.Context, liveCode *model.LiveCode) error {
-	return r.db.WithContext(ctx).Save(liveCode).Error
+	return _db.SaveWholeRow(r.db.WithContext(ctx), liveCode)
 }
 
 func (r *liveCodeRepository) Delete(ctx context.Context, id string) error {
-	// ShortLink 带唯一索引，软删行会占用短链导致同名重建撞键，保持物理删除
-	return r.db.WithContext(ctx).Unscoped().Where("id = ?", id).Delete(&model.LiveCode{}).Error
+	// ShortLink 带唯一索引，软删行会占用短链导致同名重建撞键，保持物理删除；
+	// 命中 0 行即活码不存在（已删/别租户），不能回"删除成功"。
+	return _db.EnsureAffected(r.db.WithContext(ctx).Unscoped().Where("id = ?", id).Delete(&model.LiveCode{}))
 }
 
 func (r *liveCodeRepository) GetAvailableLiveCodes(ctx context.Context) ([]*model.LiveCode, error) {
@@ -123,6 +126,18 @@ func (r *liveCodeRepository) GetByShortLink(ctx context.Context, shortLink strin
 }
 
 func (r *liveCodeRepository) GetList(ctx context.Context, page, pageSize int, name, status string) ([]*model.LiveCode, int64, error) {
+	// page/pageSize 在此夹取：`(page-1)*pageSize` 在 page<=0 时给出负 offset
+	// （PG 直接报错），pageSize 无上界时一条 `page_size=100000` 就把整表读进内存。
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 20
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+
 	var liveCodes []*model.LiveCode
 	var total int64
 

@@ -13,6 +13,8 @@ import (
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
+
+	"gorm.io/gorm"
 )
 
 const (
@@ -336,6 +338,8 @@ func (s *LoginRiskService) pushNotification(ctx context.Context, alert *model.Se
 		logger.Errorf("推送安全告警通知失败: %v", err)
 	}
 
+	// 这里的失败只记日志：告警行在同一请求里刚被创建，notified 落不进去说明那行
+	// 已被别的通路删掉，不该让整个登录请求失败。
 	if err := s.repo.MarkAlertNotified(ctx, alert.ID); err != nil {
 		logger.Errorf("更新告警 notified 状态失败: %v", err)
 	}
@@ -377,7 +381,7 @@ func (s *LoginRiskService) ResolveSecurityAlert(ctx context.Context, alertID, re
 	if s.repo == nil {
 		return errors.New("repo 未初始化")
 	}
-	return s.repo.ResolveSecurityAlert(ctx, alertID, resolverUserID, note, time.Now(), string(model.SecurityAlertStatusResolved))
+	return alertWriteError(s.repo.ResolveSecurityAlert(ctx, alertID, resolverUserID, note, time.Now(), string(model.SecurityAlertStatusResolved)))
 }
 
 // IgnoreSecurityAlert 忽略告警
@@ -385,5 +389,15 @@ func (s *LoginRiskService) IgnoreSecurityAlert(ctx context.Context, alertID, res
 	if s.repo == nil {
 		return errors.New("repo 未初始化")
 	}
-	return s.repo.ResolveSecurityAlert(ctx, alertID, resolverUserID, note, time.Now(), string(model.SecurityAlertStatusIgnored))
+	return alertWriteError(s.repo.ResolveSecurityAlert(ctx, alertID, resolverUserID, note, time.Now(), string(model.SecurityAlertStatusIgnored)))
+}
+
+// alertWriteError 把仓储的"命中 0 行"翻成给用户看的话。
+// 告警已被并发处理或已删时，仓储返回 not found，控制器原样外抛会露出 GORM 的
+// 英文 record not found。
+func alertWriteError(err error) error {
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		return errors.New("安全告警不存在或已处理")
+	}
+	return err
 }

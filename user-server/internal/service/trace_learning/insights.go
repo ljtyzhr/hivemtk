@@ -8,10 +8,7 @@ import (
 	"strings"
 
 	"hivemtk-user/internal/aiagent/llm"
-	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/utils/logger"
-
-	"gorm.io/gorm"
 )
 
 const insightSystemPrompt = `你是销售对话复盘专家。给定一次被评分为差评的【用户问题】与【AI 回复】，提炼一条可复用的「错误模式」经验教训，帮助 AI 在同行业的后续对话中避免重蹈覆辙。
@@ -141,58 +138,7 @@ func (s *Service) distillInsightForTrace(ctx context.Context, agg *AggregatedTra
 	if text == "" {
 		return
 	}
-	if err := SaveInsight(ctx, s.repo.GetDB(), industry, text, agg.TraceID); err != nil {
+	if err := s.repo.SaveInsight(ctx, industry, text, agg.TraceID); err != nil {
 		logger.Warnf("[trace_learning] 保存洞察失败 trace=%s: %v", agg.TraceID, err)
 	}
-}
-
-// SaveInsight 幂等写入洞察（source_trace_id 唯一，重评覆盖文本）
-func SaveInsight(ctx context.Context, db *gorm.DB, industry, text, sourceTraceID string) error {
-	ctx = ensureCtx(ctx)
-	row := model.LearningInsight{
-		MerchantID:    0,
-		Industry:      industry,
-		InsightText:   text,
-		SourceTraceID: sourceTraceID,
-	}
-	return db.WithContext(ctx).
-		Where("source_trace_id = ?", sourceTraceID).
-		Assign(row).
-		FirstOrCreate(&row).Error
-}
-
-// TopInsights 按行业读取最近 N 条洞察文本（去重保序），供 SalesEngine 组 prompt 注入。
-// 无数据返回空 slice 不报错。
-func TopInsights(ctx context.Context, db *gorm.DB, industry string, limit int) ([]string, error) {
-	ctx = ensureCtx(ctx)
-	if db == nil || industry == "" {
-		return nil, nil
-	}
-	if limit <= 0 {
-		limit = 3
-	}
-	var rows []model.LearningInsight
-	if err := db.WithContext(ctx).
-		Where("industry = ?", industry).
-		Order("created_at DESC").
-		Limit(limit * 4).
-		Find(&rows).Error; err != nil {
-		return nil, err
-	}
-	seen := map[string]struct{}{}
-	out := make([]string, 0, limit)
-	for _, r := range rows {
-		if r.InsightText == "" {
-			continue
-		}
-		if _, dup := seen[r.InsightText]; dup {
-			continue
-		}
-		seen[r.InsightText] = struct{}{}
-		out = append(out, r.InsightText)
-		if len(out) >= limit {
-			break
-		}
-	}
-	return out, nil
 }

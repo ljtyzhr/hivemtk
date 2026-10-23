@@ -248,8 +248,8 @@ func DefaultParamDefs() []ParamDef {
 			ValueType:   "duration", DefaultValue: "5", Min: strPtr("1"), Max: strPtr("300"), Step: strPtr("1")},
 
 		{Group: "sales", Key: "insight_limit", Name: "销售洞察条数（已下架）",
-			Description: "【已下架：改了不生效，改动期间请勿依赖】trace_learning.TopInsights 的 limit 是入参不是默认值，全仓唯一调用方是 insights_test.go，生产链路没有任何地方取这个数量；要接得先有一个生产调用方把 limit 传进来",
-			ValueType:   "int", Unit: "条", Deprecated: true, DeprecatedReason: "trace_learning.TopInsights 的 limit 是入参不是默认值，全仓唯一调用方是 insights_test.go，生产链路没有任何地方取这个数量——给一个入参配默认值本身就是错的抽象。要重新提供这个旋钮，先有一个生产调用方把 limit 从本参数取出来传进去", DefaultValue: "3", Min: strPtr("1"), Max: strPtr("20"), Step: strPtr("1")},
+			Description: "【已下架：改了不生效，改动期间请勿依赖】原指向 trace_learning.TopInsights 的 limit，而那个函数没有任何生产调用方（学习洞察目前只写不读），已随之删除；要恢复这个旋钮，先有生产调用方按行业读洞察",
+			ValueType:   "int", Unit: "条", Deprecated: true, DeprecatedReason: "对应的读取函数 trace_learning.TopInsights 全仓无生产调用方，已删除：学习洞察写入后没有任何地方回读。给一个不存在的读取路径配默认值本身就是错的抽象。要重新提供这个旋钮，先让某个生产链路把行业与 limit 传进一个真实的读口", DefaultValue: "3", Min: strPtr("1"), Max: strPtr("20"), Step: strPtr("1")},
 
 		{Group: "sales", Key: "identity_max_attempts", Name: "客户身份合并重试上限",
 			Description: "CustomerIdentity 身份合并的最大重试次数",

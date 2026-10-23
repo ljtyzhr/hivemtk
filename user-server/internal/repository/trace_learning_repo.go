@@ -55,6 +55,19 @@ func (r *TraceLearningRepository) ListPendingTraceIDs(ctx context.Context, since
 	return traceIDs, err
 }
 
+// SaveInsight 幂等写一条学习洞察（source_trace_id 命中即覆盖文本，不重复插行）
+func (r *TraceLearningRepository) SaveInsight(ctx context.Context, industry, text, sourceTraceID string) error {
+	row := model.LearningInsight{
+		Industry:      industry,
+		InsightText:   text,
+		SourceTraceID: sourceTraceID,
+	}
+	return r.db.WithContext(ctx).
+		Where("source_trace_id = ?", sourceTraceID).
+		Assign(row).
+		FirstOrCreate(&row).Error
+}
+
 // ListRecentEvalLogs 最近评估记录（created_at 倒序）
 func (r *TraceLearningRepository) ListRecentEvalLogs(ctx context.Context, limit int) ([]model.TraceEvalLog, error) {
 	var logs []model.TraceEvalLog

@@ -5,6 +5,8 @@ import (
 	"time"
 
 	"hivemtk-user/internal/model"
+	_db "hivemtk-user/internal/pkg/db"
+	"hivemtk-user/internal/pkg/timeutil"
 
 	"gorm.io/gorm"
 )
@@ -16,8 +18,6 @@ type LiveCodeQRRepository interface {
 	Delete(ctx context.Context, id string) error
 	GetByID(ctx context.Context, id string) (*model.LiveCodeQR, error)
 	GetByLiveCodeID(ctx context.Context, liveCodeID string) ([]*model.LiveCodeQR, error)
-	GetAvailableQR(ctx context.Context, liveCodeID string) (*model.LiveCodeQR, error)
-	CreateStat(ctx context.Context, stat *model.LiveCodeQRStat) error
 	GetStats(ctx context.Context, qrID string) ([]*model.LiveCodeQRStat, error)
 	IncrementViewStat(ctx context.Context, qrID string) error
 	IncrementClickStat(ctx context.Context, qrID string) error
@@ -39,11 +39,11 @@ func (r *liveCodeQRRepository) Create(ctx context.Context, qrCode *model.LiveCod
 }
 
 func (r *liveCodeQRRepository) Update(ctx context.Context, qrCode *model.LiveCodeQR) error {
-	return r.db.WithContext(ctx).Save(qrCode).Error
+	return _db.SaveWholeRow(r.db.WithContext(ctx), qrCode)
 }
 
 func (r *liveCodeQRRepository) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&model.LiveCodeQR{}).Error
+	return _db.EnsureAffected(r.db.WithContext(ctx).Where("id = ?", id).Delete(&model.LiveCodeQR{}))
 }
 
 func (r *liveCodeQRRepository) GetByID(ctx context.Context, id string) (*model.LiveCodeQR, error) {
@@ -64,21 +64,6 @@ func (r *liveCodeQRRepository) GetByLiveCodeID(ctx context.Context, liveCodeID s
 	return qrCodes, nil
 }
 
-func (r *liveCodeQRRepository) GetAvailableQR(ctx context.Context, liveCodeID string) (*model.LiveCodeQR, error) {
-	var qrCode model.LiveCodeQR
-	err := r.db.WithContext(ctx).Where("live_code_id = ? AND status = ?", liveCodeID, 1).
-		Order("created_at DESC").
-		First(&qrCode).Error
-	if err != nil {
-		return nil, err
-	}
-	return &qrCode, nil
-}
-
-func (r *liveCodeQRRepository) CreateStat(ctx context.Context, stat *model.LiveCodeQRStat) error {
-	return r.db.WithContext(ctx).Create(stat).Error
-}
-
 func (r *liveCodeQRRepository) GetStats(ctx context.Context, qrID string) ([]*model.LiveCodeQRStat, error) {
 	var stats []*model.LiveCodeQRStat
 	err := r.db.WithContext(ctx).Where("qr_code_id = ?", qrID).Order("date DESC").Find(&stats).Error
@@ -88,37 +73,41 @@ func (r *liveCodeQRRepository) GetStats(ctx context.Context, qrID string) ([]*mo
 	return stats, nil
 }
 
-func beginOfToday() time.Time {
-	now := time.Now()
-	return time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+// incrementStat 给「二维码 × 业务日」那一行的计数列 +1。
+//
+// 先 UPDATE、命中 0 行才 INSERT：原先的「先 First 再 Create/UpdateColumn」多一次往返，
+// 且把"查不到行"写成 `err == gorm.ErrRecordNotFound`（哨兵比较，包一层就失效）。
+// 表上没有 (tenant_id, qr_code_id, date) 唯一索引，所以首次并发点击仍可能插出两行日桶；
+// 这不影响 SumStats 的合计（SUM 跨行累加），只是日桶重复 —— 没有唯一索引就用不了
+// ON CONFLICT，这个窗口记在 model-list.md #116 的观察里。
+//
+// column 只由本文件两个固定调用点传入（view_count / click_count），不接受外部输入。
+func (r *liveCodeQRRepository) incrementStat(ctx context.Context, qrID, column string) error {
+	day := timeutil.StartOfBusinessDay(time.Now())
+	res := r.db.WithContext(ctx).Model(&model.LiveCodeQRStat{}).
+		Where("qr_code_id = ? AND date = ?", qrID, day).
+		UpdateColumn(column, gorm.Expr(column+" + 1"))
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected > 0 {
+		return nil
+	}
+	stat := model.LiveCodeQRStat{QRCodeID: qrID, Date: day}
+	if column == "view_count" {
+		stat.ViewCount = 1
+	} else {
+		stat.ClickCount = 1
+	}
+	return r.db.WithContext(ctx).Create(&stat).Error
 }
 
 func (r *liveCodeQRRepository) IncrementViewStat(ctx context.Context, qrID string) error {
-	today := beginOfToday()
-	var stat model.LiveCodeQRStat
-	err := r.db.WithContext(ctx).Where("qr_code_id = ? AND date = ?", qrID, today).First(&stat).Error
-	if err == gorm.ErrRecordNotFound {
-		stat = model.LiveCodeQRStat{QRCodeID: qrID, Date: today, ViewCount: 1, ClickCount: 0}
-		return r.db.WithContext(ctx).Create(&stat).Error
-	}
-	if err != nil {
-		return err
-	}
-	return r.db.WithContext(ctx).Model(&stat).UpdateColumn("view_count", gorm.Expr("view_count + 1")).Error
+	return r.incrementStat(ctx, qrID, "view_count")
 }
 
 func (r *liveCodeQRRepository) IncrementClickStat(ctx context.Context, qrID string) error {
-	today := beginOfToday()
-	var stat model.LiveCodeQRStat
-	err := r.db.WithContext(ctx).Where("qr_code_id = ? AND date = ?", qrID, today).First(&stat).Error
-	if err == gorm.ErrRecordNotFound {
-		stat = model.LiveCodeQRStat{QRCodeID: qrID, Date: today, ViewCount: 0, ClickCount: 1}
-		return r.db.WithContext(ctx).Create(&stat).Error
-	}
-	if err != nil {
-		return err
-	}
-	return r.db.WithContext(ctx).Model(&stat).UpdateColumn("click_count", gorm.Expr("click_count + 1")).Error
+	return r.incrementStat(ctx, qrID, "click_count")
 }
 
 func (r *liveCodeQRRepository) SumStats(ctx context.Context, qrID string) (int64, int64, error) {
@@ -134,10 +123,12 @@ func (r *liveCodeQRRepository) SumStats(ctx context.Context, qrID string) (int64
 
 func (r *liveCodeQRRepository) SumLiveCodeStats(ctx context.Context, liveCodeID string) (int64, int64, error) {
 	var views, clicks int64
+	// 子查询选 live_code_qrs 的**主键 id**（qr_code_id 是 live_code_qr_stats 的列，
+	// live_code_qrs 上没有这一列 —— 选了它 PG 会直接报 column does not exist）。
 	if err := r.db.WithContext(ctx).Model(&model.LiveCodeQRStat{}).
 		Where("qr_code_id IN (?)",
 			r.db.WithContext(ctx).Model(&model.LiveCodeQR{}).
-				Select("qr_code_id").Where("live_code_id = ?", liveCodeID)).
+				Select("id").Where("live_code_id = ?", liveCodeID)).
 		Select("COALESCE(SUM(view_count),0), COALESCE(SUM(click_count),0)").
 		Row().Scan(&views, &clicks); err != nil {
 		return 0, 0, err

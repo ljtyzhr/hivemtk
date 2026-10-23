@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"hivemtk-user/internal/model"
 	"testing"
 
@@ -360,13 +361,13 @@ func TestLiveCodeRepository_GetByID_NotFound(t *testing.T) {
 	}
 }
 
-// TestLiveCodeRepository_Delete_NotFound 测试删除不存在的活码
+// TestLiveCodeRepository_Delete_NotFound 删不存在的活码必须报 not found
+// （原用例断言"不报错"，等于把 0 行静默成功写成契约；上层 ErrorFromDB 会映射 404）
 func TestLiveCodeRepository_Delete_NotFound(t *testing.T) {
 	ctx := context.Background()
 	repo := setupLiveCodeRepository(t)
 
-	err := repo.Delete(ctx, "non-existing-id")
-	if err != nil {
-		t.Errorf("Delete() panicked = %v", err)
+	if err := repo.Delete(ctx, "non-existing-id"); !errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Errorf("expected ErrRecordNotFound, got %v", err)
 	}
 }

@@ -6,6 +6,7 @@ import (
 
 	bizerr "hivemtk-user/internal/domain/errors"
 	"hivemtk-user/internal/model"
+	_db "hivemtk-user/internal/pkg/db"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -34,7 +35,6 @@ type LocalAssetRepository interface {
 	ListByTypeAndActive(ctx context.Context, assetType string) ([]*model.LocalAsset, error)
 	IncrementUseCount(ctx context.Context, id int64, delta int64) error
 	SetReportedUseCount(ctx context.Context, id int64, val int64) error
-	AdvanceReportedUseCount(ctx context.Context, id int64, delta int64) error
 
 	FindActiveAssetIDByType(ctx context.Context, assetType string) (string, error)
 
@@ -56,11 +56,11 @@ func (r *localAssetRepo) Create(ctx context.Context, m *model.LocalAsset) error 
 }
 
 func (r *localAssetRepo) Update(ctx context.Context, m *model.LocalAsset) error {
-	return r.db.WithContext(ctx).Save(m).Error
+	return _db.SaveWholeRow(r.db.WithContext(ctx), m)
 }
 
 func (r *localAssetRepo) SoftDelete(ctx context.Context, id int64) error {
-	return r.db.WithContext(ctx).Delete(&model.LocalAsset{}, id).Error
+	return _db.EnsureAffected(r.db.WithContext(ctx).Delete(&model.LocalAsset{}, id))
 }
 
 func (r *localAssetRepo) FindByID(ctx context.Context, id int64) (*model.LocalAsset, error) {
@@ -100,7 +100,13 @@ func (r *localAssetRepo) List(ctx context.Context, f LocalAssetFilter) ([]*model
 	if f.Size <= 0 {
 		f.Size = 20
 	}
-	q.Count(&total)
+	if f.Size > 100 {
+		// 与 pagination.MaxPageSize 对齐：无上界时 size=100000 会把整表读进内存。
+		f.Size = 100
+	}
+	if err := q.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
 	err := q.Order("synced_at DESC").Offset((f.Page - 1) * f.Size).Limit(f.Size).Find(&list).Error
 	return list, total, err
 }
@@ -124,21 +130,6 @@ func (r *localAssetRepo) IncrementUseCount(ctx context.Context, id int64, delta 
 func (r *localAssetRepo) SetReportedUseCount(ctx context.Context, id int64, val int64) error {
 	return r.db.WithContext(ctx).Model(&model.LocalAsset{}).
 		Where("id = ?", id).UpdateColumn("reported_use_count", val).Error
-}
-
-func (r *localAssetRepo) AdvanceReportedUseCount(ctx context.Context, id int64, delta int64) error {
-	if delta <= 0 {
-		return nil
-	}
-	return r.db.WithContext(ctx).Model(&model.LocalAsset{}).
-		Where("id = ?", id).
-		UpdateColumn("reported_use_count", gorm.Expr("reported_use_count + ?", delta)).Error
-}
-
-func (r *localAssetRepo) SetReportedUseCountIfMatch(ctx context.Context, id int64, newVal int64, expectedUseCount int64) error {
-	return r.db.WithContext(ctx).Model(&model.LocalAsset{}).
-		Where("id = ? AND use_count = ?", id, expectedUseCount).
-		UpdateColumn("reported_use_count", newVal).Error
 }
 
 func (r *localAssetRepo) FindActiveAssetIDByType(ctx context.Context, assetType string) (string, error) {
@@ -186,7 +177,7 @@ func (r *localAssetRepo) PurchaseAndSyncTx(ctx context.Context, la *model.LocalA
 
 func (r *localAssetRepo) SyncDataTx(ctx context.Context, la *model.LocalAsset, data []byte, syncLog *model.LocalAssetSyncLog) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Save(la).Error; err != nil {
+		if err := _db.SaveWholeRow(tx, la); err != nil {
 			return err
 		}
 		if err := upsertLocalAssetData(tx, la.ID, data); err != nil {
@@ -198,14 +189,14 @@ func (r *localAssetRepo) SyncDataTx(ctx context.Context, la *model.LocalAsset, d
 
 func (r *localAssetRepo) UpdateWithDataTx(ctx context.Context, la *model.LocalAsset, data []byte) error {
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Save(la).Error; err != nil {
+		if err := _db.SaveWholeRow(tx, la); err != nil {
 			return err
 		}
 		return upsertLocalAssetData(tx, la.ID, data)
 	})
 }
 
-// upsertLocalAssetData local_asset_data 幂等写入（T012 清偿：原三处内联裸 upsert 收敛于此）
+// upsertLocalAssetData local_asset_data 幂等写入（购买落库/同步/独立调用三处共用同一口径）
 func upsertLocalAssetData(tx *gorm.DB, localAssetID int64, data []byte) error {
 	return tx.Table("local_asset_data").
 		Clauses(clause.OnConflict{
