@@ -296,7 +296,7 @@ psql -h 127.0.0.1 -p 8202 -U admin -d user_db -Atc \
 | **无凭证外链签名化**（P1-2） | `/files` 的访客场景 | 预签名/短时 token；本地存储驱动已留 `SignUploadURL` 接口位，目前是占位报错 |
 | **平台端商户隔离上框架**（P1-4） | 两端能力不对称 | 推荐；与用户端 §7 方案 B（能力类型化）同源 |
 | **Postgres RLS** | `SAAS_MULTI_TENANT_EVALUATION_2026-10.md` §7 已否（连接池/事务语义、表 owner 绕过、`tenant_id=0` 与 `1` 并存无权威表） | 维持"本轮不做"，但仍是侵入面的理论下限；若做，先补"哪些行该是 `tenant_id=0`"的权威表 |
-| **形态矩阵契约门禁**（方案 E） | `DEPLOYMENT_MODES_EVALUATION_2026-10.md` §6 | 推荐：把 2×2 四格的行为契约变成可执行断言，否则文档契约会被下一次改动悄悄改回去 |
+| **形态矩阵契约门禁**（方案 E）✅ 已落地 | `DEPLOYMENT_MODES_EVALUATION_2026-10.md` §6 | `internal/app/deployment_matrix_contract_test.go`：四格 × 六条行为（出站/租户上下文/自助开户/初始化态/后台扇出/隔离 callback）= 24 条断言，全部走活体组件。两个轴**正交**是核心断言之一：租户那五条在两列数值必须相同，谁在平台开关里顺手加租户判定就会红。**牙齿**：临时让 off 模式也看 claim、让 `PlatformURLFor` 在关闭态照样返回地址 ⇒ ①②③ 三格全红 |
 | **逐端点双租户交叉扫描**（T028 尾巴） | 现有覆盖是"逐域代表用例" | 建议做成表驱动扫描：路由清单 × 双租户身份 × 读/写，断言恒为"不存在/403" |
 
 ---
@@ -311,6 +311,7 @@ psql -h 127.0.0.1 -p 8202 -U admin -d user_db -Atc \
 | `user-server/internal/websocket/hub_tenant_broadcast_test.go` | 新增：WS 广播三态回归（3 例） |
 | `user-server/internal/websocket/hub.go`/`notify.go`/`handler.go`（二期） | `connections[tenantID][agentID]` 两级桶；删 `agentOnline`；`resolveSendTenant` 为唯一租户解析；所有发送口/在线态查询改 ctx 形态 |
 | `user-server/internal/websocket/hub_tenant_buckets_test.go` | 新增：两级桶 + 发送口 fail-closed + 在线态按租户（5 例） |
+| `user-server/internal/app/deployment_matrix_contract_test.go` | 新增：2×2 部署形态矩阵契约（四格 × 六条行为） |
 | `user-server/internal/service/{session_assignment,customer_session,customer_session_routing,customer_session_takeover,chat_visitor,inbox_ingress_persist}.go` | 13 处 WS 推送调用点补 ctx |
 | `user-server/internal/router/files_guard.go` | 新增 `tenantPathAllowed` + 租户段正则；跨租户 404 |
 | `user-server/internal/router/files_guard_tenant_test.go` | 新增：/files 租户归属四态 + 边界（4 例） |

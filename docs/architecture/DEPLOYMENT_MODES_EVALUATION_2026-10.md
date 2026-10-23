@@ -217,7 +217,7 @@
 
 | 方案 | 内容 | 成本 | 判断 |
 |---|---|---|---|
-| **E. 形态矩阵契约门禁** | 加一道门禁，断言 4 种组合的**关键判据**（零出站、开户码、隔离注入、降级提示）符合本文 §2 的表格 | 中：需把 §2 的表变成可执行断言 | ✅ **推荐**（本文的契约不写成门禁就会被下一个人改回去） |
+| **E. 形态矩阵契约门禁** ✅ **已落地** | 断言 4 种组合的**关键判据**（零出站、开户码、隔离注入、降级提示）符合本文 §2 的表格 | 已交付 | `user-server/internal/app/deployment_matrix_contract_test.go`：四格 × 六条行为（出站 / 租户上下文 / 自助开户 / 初始化态 / 后台扇出 / 隔离 callback）。两个轴正交（租户那五条在两列数值必须相同）也是断言的一部分 |
 | F. 部署形态显式化 | 引入 `DeploymentMode` 枚举（`saas`/`standalone`/`saas-standalone`…）替代两个布尔 | 高：91 + 26 个分支点要重写 | ❌ 性价比不成立 |
 | G. 每形态一套配置模板 | 提供 4 份 `.env` 模板 | 低 | ⏸ 可选，文档已能表达 |
 
@@ -233,12 +233,14 @@
 | 三态语义回归（2 例） | `internal/config/platform_enabled_resolve_test.go` |
 | 部署文档漏 `PLATFORM_ENABLED` 那一轴（**已修**） | `docs/architecture/部署方案_用户端.md` §十一 + 新增 §十一.1 |
 | 2×2 矩阵的**行为契约补齐**（形态③首次成文） | 本文 §2 |
+| 2×2 矩阵的**行为契约变成可执行断言**（形态③④不再只是文档） | `user-server/internal/app/deployment_matrix_contract_test.go` |
 | **跨租户越权**（**已修**，对抗性跑出来的） | `internal/middleware/platform_operator.go` + `internal/router/router.go` + `internal/service/tenant.go`；见 `.specify/bugs/cross-tenant-admin-privilege-escalation/` |
 | **守卫过度收紧**（**已修**，二次审核打出来的） | admin 档按数据域拆两档：`internal/router/router.go` + `system_routes.go` + `module_routes.go`；门禁 `internal/router/platform_operator_scope_test.go`；见 `.specify/bugs/platform-operator-guard-over-tightened/` |
 
 ### 待批准（本文第 6 节）
 
-方案 E（形态矩阵契约门禁）需批准后走 spec-kit（规则3/4）。
+（原「方案 E 形态矩阵契约门禁」已落地，见上表末行与 `internal/app/deployment_matrix_contract_test.go`。）
+方案 F/G 维持不采纳（F 性价比不成立；G 文档已能表达）。
 
 > **注意两份真相**：本节「行为契约表」与门禁
 > `internal/router/platform_operator_scope_test.go` 的「端点归属表」是**两张独立的表**。
