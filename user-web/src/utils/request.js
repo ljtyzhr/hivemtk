@@ -4,6 +4,16 @@ import { getApiConfig } from './configManager'
 import i18n from '@/i18n'
 import { getStoredLocale } from '@/i18n/locale'
 import { markUserReported } from './errorReporting'
+// OPT-FE-05（2026-10-24）：信封判定/业务码/错误形状抽到 @hivemtk/http-core
+// （与 bridge/platform-web 迁移后共用；拦截器装配仍留本文件——应用侧差异）。
+import {
+  BIZ_CODE_MODULE_NOT_ENABLED,
+  BIZ_CODE_SUBSCRIPTION_EXPIRED,
+  isBizSuccess,
+  isJsonContentType,
+  extractServerMessage as sharedExtractServerMessage,
+  createBizError
+} from '../../../packages/http-core/index.js'
 
 // 生产构建里 vue-i18n 的预编译消息编译器对全部现存 key 抛 UNEXPECTED_RETURN_TYPE
 // （spec §6：dev/prod 一致，1834/1834）。这里必须兜住：t() 的调用点全在拦截器给错误对象
@@ -29,7 +39,7 @@ const createRequestInstance = () => {
         const cfg = JSON.parse(configStr)
         apiBaseUrl = cfg.baseUrl || apiBaseUrl
       }
-    } catch (e) { /* 忽略：清理/存储/恢复类 best-effort 操作 */ }
+    } catch { /* 忽略：清理/存储/恢复类 best-effort 操作 */ }
   }
   return axios.create({
     baseURL: apiBaseUrl,
@@ -55,8 +65,6 @@ const INIT_REDIRECT_MAP = {
 // 拦在这里的好处是**全站一致**：任何深链、任何页面、任何写法都得到同一句
 // 引导 + 同一个去处。加它只需在业务码表登记一行，不会有页面漏掉。
 // ============================================================================
-const BIZ_CODE_MODULE_NOT_ENABLED = 4301
-
 // ============================================================================
 // 订阅到期（003 T023 · 业务码 4305）
 //
@@ -67,8 +75,8 @@ const BIZ_CODE_MODULE_NOT_ENABLED = 4301
 //      不防抖就是同一秒内几十次 location 赋值 + toast。
 // 4305/4301 跳转互斥节流（修订 #3）：两者共用同一个节流键，10s 内
 // 只允许一次跳转发生 —— 墙页与市场页依赖请求集不得互相触发对方业务码。
+// 业务码数值已迁 @hivemtk/http-core（OPT-FE-05），import 进来直接用。
 // ============================================================================
-const BIZ_CODE_SUBSCRIPTION_EXPIRED = 4305
 const SUBSCRIPTION_WALL_REDIRECT = '/subscription-wall'
 const SUB_WALL_THROTTLE_KEY = 'biz_redirect_throttle'
 const SUB_WALL_THROTTLE_MS = 10000
@@ -140,27 +148,21 @@ function showToast(message, type = 'error') {
   else ElMessage.error(msg)
 }
 
+// isJsonResponse / extractServerMessage / buildRequestError 的形状逻辑迁
+// @hivemtk/http-core（OPT-FE-05）；这里只保留应用侧差异：t() 兜底文案与
+// markUserReported 上报挂载。
 function isJsonResponse(resp) {
-  const ct =
-    (resp && resp.headers && (resp.headers['content-type'] || resp.headers['Content-Type'])) || ''
-  return String(ct).toLowerCase().includes('application/json')
+  return isJsonContentType(resp && resp.headers)
 }
 
 function extractServerMessage(data, fallback) {
-  if (data && typeof data === 'object') {
-    return data.message || data.msg || fallback
-  }
-  return fallback
+  return sharedExtractServerMessage(data, fallback)
 }
 
 function buildRequestError(message, response, bizCode) {
-  const err = new Error(message || t('http.requestFailed'))
-  err.response = response || null
   // status / bizCode 都是给调用方分流用的机器读数字段：只靠 message 文案判分支，
   // 服务端换一次措辞（或切了语言）就把逻辑判错——浏览器任务的「忙」与「Host 离线」都栽过这条。
-  err.status = (response && response.status) || 0
-  if (bizCode !== undefined) err.bizCode = bizCode
-  return markUserReported(err)
+  return createBizError(message || t('http.requestFailed'), response, bizCode, markUserReported)
 }
 
 function redirectTo(path) {
@@ -347,7 +349,7 @@ const addInterceptors = () => {
 
       const code = data.code
 
-      if (code === 'SUCCESS' || code === 200 || code === 0) {
+      if (isBizSuccess(code)) {
         return data.data
       }
 

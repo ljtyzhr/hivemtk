@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"strings"
 	"testing"
+	"time"
 
 	geodto "hivemtk-user/internal/geo/dto"
 	"hivemtk-user/internal/geo/model"
@@ -49,6 +50,9 @@ func (r *stubChainRepo) ListByOneID(_ context.Context, _ string) ([]*model.GeoQu
 func (r *stubChainRepo) CountToday(_ context.Context) (int64, error) { return 0, nil }
 func (r *stubChainRepo) BindOneIDToChain(_ context.Context, _, _ string) (int64, error) {
 	return 0, nil
+}
+func (r *stubChainRepo) ListSince(_ context.Context, _ time.Time) ([]*model.GeoQueryChain, error) {
+	return r.rows, nil
 }
 
 type stubTaskRepo struct{ rows []*model.GeoContentTask }

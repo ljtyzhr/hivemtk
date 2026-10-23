@@ -50,6 +50,44 @@ type verifyLLMResponse struct {
 	MentionPositions     []string `json:"mention_positions"`
 	Sentiment            string   `json:"sentiment"`
 	CompetitorsMentioned []string `json:"competitors_mentioned"`
+	// BrandContext A11（2026-10-24）：品牌语境——品牌在什么语境下被提及
+	//（如"价格对比"、"功能介绍"、"用户评价"、"行业排名"）。枚举值见
+	// brandContextKnown；LLM 给出未知值时原样入库（varchar(50) 放得下短语），
+	// 不硬猜——宁可存原文也不要静默归并掉语义。
+	BrandContext string `json:"brand_context"`
+}
+
+// brandContextKnown 是品牌语境的常见枚举（A11）。仅用于报表分组提示，
+// 不做写入拦截：LLM 的短语命中即归并，未命中原样保留。
+var brandContextKnown = map[string]bool{
+	"价格对比": true, "功能介绍": true, "用户评价": true, "行业排名": true,
+	"使用教程": true, "产品推荐": true, "问题解答": true, "风险提示": true,
+	"price_comparison": true, "feature_intro": true, "user_review": true,
+	"industry_ranking": true, "tutorial": true, "recommendation": true,
+	"qa": true, "risk_warning": true,
+}
+
+// normalizeBrandContext 把 LLM 输出的语境短语归一到中文展示键（与前端分组口径一致）；
+// 未知短语原样返回。
+func normalizeBrandContext(s string) string {
+	s = strings.ToLower(strings.TrimSpace(s))
+	if s == "" {
+		return ""
+	}
+	// 英文枚举先归并为中文键（与 brandContextKnown 的中文键同一集合）
+	for en, zh := range map[string]string{
+		"price_comparison": "价格对比", "feature_intro": "功能介绍", "user_review": "用户评价",
+		"industry_ranking": "行业排名", "tutorial": "使用教程", "recommendation": "产品推荐",
+		"qa": "问题解答", "risk_warning": "风险提示",
+	} {
+		if s == en {
+			return zh
+		}
+	}
+	if brandContextKnown[s] {
+		return s
+	}
+	return s
 }
 
 func (s *VerificationService) VerifyArticle(ctx context.Context, req dto.VerifyRequest) (*model.GeoVerifyResult, error) {
@@ -118,7 +156,9 @@ func (s *VerificationService) VerifyArticle(ctx context.Context, req dto.VerifyR
 		BrandMentioned: parsed.BrandMentioned,
 		MentionCount:   parsed.MentionCount,
 		Sentiment:      parsed.Sentiment,
-		Position:       strings.Join(parsed.MentionPositions, "; "),
+		// A11：品牌语境入库（此前该列从未被写过——模型列悬空半年）
+		BrandContext: normalizeBrandContext(parsed.BrandContext),
+		Position:     strings.Join(parsed.MentionPositions, "; "),
 	}
 	if err := s.verifyRepo.Create(ctx, result); err != nil {
 		return nil, fmt.Errorf("保存验证结果失败: %w", err)

@@ -81,8 +81,25 @@ func (c *ReportController) ShareOfVoice(ctx *gin.Context) {
 	response.Success(ctx, result, "ok")
 }
 
-// ShareOfVoiceTrend SOV 趋势环比：当前窗口 vs 上一窗口
-// GET /geo/sov/trend?intent=&days=30
+// ContentFormatAttribution A12 内容类型归因（2026-10-24）
+// GET /geo/reports/content-format?days=30
+// 按内容类型（意图）分组统计提及率/引用率；样本量同行标注，低于
+// ContentFormatAttributionSampleFloor 的分组读数不可下结论（SampleSizeHint 字段）。
+func (c *ReportController) ContentFormatAttribution(ctx *gin.Context) {
+	if c.analyticsSvc == nil {
+		response.Error(ctx, http.StatusServiceUnavailable, "analytics service 未初始化")
+		return
+	}
+	days, _ := strconv.Atoi(ctx.DefaultQuery("days", strconv.Itoa(reporting.DefaultWindowDays(ctx.Request.Context()))))
+	res, err := c.analyticsSvc.GetContentFormatAttribution(ctx.Request.Context(), days)
+	if err != nil {
+		response.Error(ctx, http.StatusInternalServerError, "内容类型归因分析失败: "+err.Error())
+		return
+	}
+	response.Success(ctx, res, "ok")
+}
+
+// ShareOfVoiceTrend SOV 趋势环比：当前窗口 vs 上一窗口// GET /geo/sov/trend?intent=&days=30
 // current = 最近 days 天；previous = 其前一个 days 天（两窗口不重叠）
 func (c *ReportController) ShareOfVoiceTrend(ctx *gin.Context) {
 	if c.analyticsSvc == nil {

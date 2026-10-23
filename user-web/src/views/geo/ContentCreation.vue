@@ -112,6 +112,73 @@
                 <span>生成内容</span>
               </el-button>
             </el-form-item>
+
+            <!-- B2 批量生成入口 -->
+            <el-divider content-position="left">
+              批量生成
+            </el-divider>
+            <el-form-item label="批量词">
+              <el-input
+                v-model="batchKeywordsText"
+                type="textarea"
+                :rows="4"
+                placeholder="每行一个关键词（最多 20 个），与上方共用品牌/优势/文风配置"
+              />
+            </el-form-item>
+            <el-form-item>
+              <el-button
+                type="warning"
+                plain
+                :loading="batchGenerating"
+                :disabled="batchKeywordCount === 0 || batchKeywordCount > 20"
+                @click="handleBatchGenerate"
+              >
+                批量生成（{{ batchKeywordCount }}/20）
+              </el-button>
+            </el-form-item>
+            <!-- 批量进度与逐条结果：成功可查看，失败可单条重试 -->
+            <el-form-item v-if="batchItems.length">
+              <div class="batch-progress">
+                <div class="batch-summary">
+                  成功 {{ batchSucceeded }} / 失败 {{ batchFailed }}
+                  <span v-if="batchTruncated">（超上限，已截断到前 20 条）</span>
+                </div>
+                <div
+                  v-for="(it, i) in batchItems"
+                  :key="i"
+                  class="batch-item"
+                  :class="{ ok: it.ok, fail: !it.ok }"
+                >
+                  <span class="kw">{{ it.keyword }}</span>
+                  <el-tag
+                    v-if="it.ok"
+                    type="success"
+                    size="small"
+                  >
+                    成功
+                  </el-tag>
+                  <template v-else>
+                    <el-tooltip :content="it.error">
+                      <el-tag
+                        type="danger"
+                        size="small"
+                      >
+                        失败
+                      </el-tag>
+                    </el-tooltip>
+                    <el-button
+                      size="small"
+                      text
+                      type="primary"
+                      :disabled="batchGenerating"
+                      @click="retryBatchItem(i)"
+                    >
+                      重试
+                    </el-button>
+                  </template>
+                </div>
+              </div>
+            </el-form-item>
           </el-form>
         </el-card>
       </el-col>
@@ -241,7 +308,7 @@
 </template>
 
 <script setup>
-import { ref, reactive, nextTick, onMounted } from 'vue'
+import { ref, reactive, computed, nextTick, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
 import { EditPen, DocumentCopy, DataAnalysis } from '@element-plus/icons-vue'
 import { geoApi } from '@/api/geo'
@@ -283,6 +350,83 @@ const generating = ref(false)
 const scoring = ref(false)
 const generatedContent = ref('')
 const score = ref(null)
+
+// ---- B2 批量生成（2026-10-24）----
+// 后端是同步有界批（上限 20），这里解析多行输入、渲染逐条结果；失败单条可重试。
+const batchKeywordsText = ref('')
+const batchGenerating = ref(false)
+const batchItems = ref([])
+const batchTruncated = ref(false)
+const batchKeywordCount = computed(() =>
+  batchKeywordsText.value.split('\n').map(s => s.trim()).filter(Boolean).length
+)
+const batchSucceeded = computed(() => batchItems.value.filter(i => i.ok).length)
+const batchFailed = computed(() => batchItems.value.filter(i => !i.ok).length)
+
+const parseBatchKeywords = () =>
+  batchKeywordsText.value.split('\n').map(s => s.trim()).filter(Boolean)
+
+const handleBatchGenerate = async () => {
+  const keywords = parseBatchKeywords()
+  if (!keywords.length) {
+    ElMessage.warning('请填写批量关键词（每行一个）')
+    return
+  }
+  if (!form.brand_name.trim()) {
+    ElMessage.warning('请填写品牌名称')
+    return
+  }
+  batchGenerating.value = true
+  batchItems.value = []
+  batchTruncated.value = false
+  try {
+    const res = await geoApi.batchGenerateContent({
+      keywords,
+      brand_name: form.brand_name,
+      advantages: form.advantages,
+      word_count: form.word_count,
+      style: form.style,
+      lang: 'zh'
+    })
+    batchItems.value = res?.items || []
+    batchTruncated.value = (res?.truncated_to || 0) > 0
+    if (batchFailed.value > 0) {
+      ElMessage.warning(`批量生成完成：成功 ${batchSucceeded.value} 条，失败 ${batchFailed.value} 条（可单条重试）`)
+    } else {
+      ElMessage.success(`批量生成完成：成功 ${batchSucceeded.value} 条`)
+    }
+  } catch (e) {
+    ElMessage.error(e.message || '批量生成失败')
+  } finally {
+    batchGenerating.value = false
+  }
+}
+
+// 失败单条重试：走单条接口，成功后原位更新
+const retryBatchItem = async (idx) => {
+  const it = batchItems.value[idx]
+  if (!it || it.ok) return
+  batchGenerating.value = true
+  try {
+    const res = await geoApi.generateContent({
+      keyword: it.keyword,
+      brand_name: form.brand_name,
+      advantages: form.advantages,
+      word_count: form.word_count,
+      style: form.style
+    })
+    if (res && (res.content || res.article || typeof res === 'string')) {
+      batchItems.value[idx] = { keyword: it.keyword, ok: true, article: res }
+      ElMessage.success(`「${it.keyword}」重试成功`)
+    } else {
+      ElMessage.error('重试返回为空')
+    }
+  } catch (e) {
+    ElMessage.error(e.message || '重试失败')
+  } finally {
+    batchGenerating.value = false
+  }
+}
 
 const advInputVisible = ref(false)
 const advInputValue = ref('')
@@ -456,6 +600,30 @@ const copyContent = async () => {
 @media (max-width: 768px) {
   .score-grid {
     grid-template-columns: repeat(2, 1fr);
+  }
+}
+
+/* B2 批量生成进度区 */
+.batch-progress {
+  width: 100%;
+}
+.batch-summary {
+  margin-bottom: 6px;
+  font-size: 13px;
+  color: var(--el-text-color-secondary);
+}
+.batch-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+  border-bottom: 1px dashed var(--el-border-color-lighter);
+  font-size: 13px;
+  .kw {
+    flex: 1;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 }
 </style>

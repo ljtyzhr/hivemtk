@@ -35,6 +35,7 @@ const (
 	JobSourceSync      = "source_sync"
 	JobCrawlerMonitor  = "crawler_monitor"
 	JobKeywordPipeline = "keyword_pipeline"
+	JobCitationDrift   = "citation_drift" // A10：引用漂移每日快照
 
 	geoJobRunRetention = 30 * 24 * time.Hour
 )
@@ -108,6 +109,15 @@ var geoJobDefs = []geoJobDef{
 		DefaultSpec: "0 0 4 * * *",
 		Timeout:     60 * time.Minute,
 		Fn:          keywordPipelineJob,
+	},
+	{
+		// A10（2026-10-24）：引用漂移快照。排 05:00（在 sov_refresh 02:00 之后）——
+		// 快照的是"业务日已完成探针"的当日聚合，探针跑完才有得聚。
+		Name:        JobCitationDrift,
+		Description: "引用漂移快照：聚合当日探针引用 URL 计数写入 geo_citation_snapshots（diff 用的两个时点）",
+		DefaultSpec: "0 0 5 * * *",
+		Timeout:     15 * time.Minute,
+		Fn:          citationDriftJob,
 	},
 }
 

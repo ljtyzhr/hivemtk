@@ -11,6 +11,7 @@ import (
 	"hivemtk-user/internal/geo/model"
 	"hivemtk-user/internal/geo/repository"
 	"hivemtk-user/internal/pkg/utils/logger"
+	"hivemtk-user/internal/reporting"
 )
 
 // GeoDecisionAnalyticsService 竞品对齐分析服务（v3 吸收 A1/A2/A6/A7）
@@ -166,6 +167,114 @@ func safeDivF(a, b int64) float64 {
 		return 0
 	}
 	return float64(a) / float64(b)
+}
+
+// ---- A12 内容类型归因（2026-10-24）----
+//
+// ContentFormat 之前只活在意图矩阵里（生成提示词用），没有读侧报表：
+// "哪类内容带来了提及/引用"这一问没有答案。本节按 query 的意图分类，把
+// 意图矩阵的 ContentFormat 挂回报表行，按内容类型分组统计提及率/引用率。
+// 样本量必须同行给出——样本 <10 的分组读数不可作决策依据。
+
+// ContentFormatAttributionRow 单内容类型（意图）的归因行。
+type ContentFormatAttributionRow struct {
+	Intent        string  `json:"intent"`          // 意图（疑问/对比/推荐/教程/评测/信息/未分类）
+	ContentFormat string  `json:"content_format"`  // 意图矩阵的内容格式（未分类意图为空）
+	Queries       int64   `json:"queries"`         // 该意图下的查询数（样本量）
+	Mentions      int64   `json:"mentions"`        // 品牌被提及的查询数
+	MentionRate   float64 `json:"mention_rate"`    // mentions/queries（0~1）
+	CitedQueries  int64   `json:"cited_queries"`   // 带引用的查询数
+	CitationRate  float64 `json:"citation_rate"`   // cited/queries（0~1）
+}
+
+// ContentFormatAttributionReport A12 报告。
+type ContentFormatAttributionReport struct {
+	Days int                            `json:"days"`
+	Rows []ContentFormatAttributionRow  `json:"rows"`
+}
+
+// GetContentFormatAttribution 近 N 天按内容类型（意图）分组的提及率/引用率。
+//
+// 数据源：geo_query_chains（意图列 + CitedURLs）——它是唯一同时带 intent 与
+// 引用记录的表；探针行没有 intent 列，join 不出来。样本量同行标注（Queries 列），
+// SampleSizeHint 提示小样本分组不可下结论。
+func (s *GeoDecisionAnalyticsService) GetContentFormatAttribution(ctx context.Context, days int) (*ContentFormatAttributionReport, error) {
+	if days <= 0 || days > 90 {
+		days = reporting.DefaultWindowDays(ctx)
+	}
+	if s.chainRepo == nil {
+		return &ContentFormatAttributionReport{Days: days, Rows: []ContentFormatAttributionRow{}}, nil
+	}
+	rows, err := s.chainRepo.ListSince(ctx, time.Now().AddDate(0, 0, -days))
+	if err != nil {
+		return nil, err
+	}
+	return BuildContentFormatAttribution(days, rows), nil
+}
+
+// ContentFormatAttributionSampleFloor 样本量下限提示阈值：低于它的分组读数不可下结论。
+const ContentFormatAttributionSampleFloor = 10
+
+// BuildContentFormatAttribution 纯聚合（A12 验收：按内容类型分组统计提及率/引用率，样本量标注）。
+func BuildContentFormatAttribution(days int, chains []*model.GeoQueryChain) *ContentFormatAttributionReport {
+	ctx := context.Background()
+	type agg struct {
+		queries  int64
+		mentions int64
+		cited    int64
+	}
+	byIntent := map[string]*agg{}
+	for _, c := range chains {
+		if c == nil {
+			continue
+		}
+		intent := c.Intent
+		if strings.TrimSpace(intent) == "" {
+			intent = "未分类"
+		}
+		a, ok := byIntent[intent]
+		if !ok {
+			a = &agg{}
+			byIntent[intent] = a
+		}
+		a.queries++
+		if c.BrandPosition != "" && c.BrandPosition != "absent" {
+			a.mentions++
+		}
+		if strings.TrimSpace(c.CitedURLs) != "" {
+			a.cited++
+		}
+	}
+	// 行序：样本量降序、意图名升序兜底（map 迭代序随机，报告必须可复现）
+	order := make([]string, 0, len(byIntent))
+	for k := range byIntent {
+		order = append(order, k)
+	}
+	sort.Slice(order, func(i, j int) bool {
+		if byIntent[order[i]].queries != byIntent[order[j]].queries {
+			return byIntent[order[i]].queries > byIntent[order[j]].queries
+		}
+		return order[i] < order[j]
+	})
+	out := make([]ContentFormatAttributionRow, 0, len(order))
+	for _, intent := range order {
+		a := byIntent[intent]
+		row := ContentFormatAttributionRow{
+			Intent:       intent,
+			Queries:      a.queries,
+			Mentions:     a.mentions,
+			MentionRate:  safeDivF(a.mentions, a.queries),
+			CitedQueries: a.cited,
+			CitationRate: safeDivF(a.cited, a.queries),
+		}
+		if st := GetIntentStrategy(ctx, intent); intent != "未分类" && st.Intent == intent {
+			// 只在矩阵里有该意图时挂 ContentFormat——"未分类"回退到"信息"策略
+			// 会伪造一个不存在的归因（A12 的读数要诚实）。
+			row.ContentFormat = st.ContentFormat
+		}
+		out = append(out, row)
+	}
+	return &ContentFormatAttributionReport{Days: days, Rows: out}
 }
 
 // selfBrandSOV 摘要卡片里的 avg_sov：与 GET /geo/sov 同口径，

@@ -11,13 +11,35 @@ import (
 )
 
 // CitationController 引用智能控制器
+//
+// A10（2026-10-24）：driftSvc 注入引用漂移读端（/geo/citations/drift）。
 type CitationController struct {
-	citeSvc *service.CitationService
+	citeSvc   *service.CitationService
+	driftSvc  *service.CitationDriftService
 }
 
-// NewCitationController 构造引用智能控制器
 func NewCitationController(citeSvc *service.CitationService) *CitationController {
 	return &CitationController{citeSvc: citeSvc}
+}
+
+func NewCitationControllerWithDrift(citeSvc *service.CitationService, driftSvc *service.CitationDriftService) *CitationController {
+	return &CitationController{citeSvc: citeSvc, driftSvc: driftSvc}
+}
+
+// Drift 引用漂移 diff（A10）
+// GET /geo/citations/drift?from=2026-10-23&to=2026-10-24
+// from 缺省取 to 之前最近一次快照；任一侧快照缺失返回明确错误（不冒充"没有漂移"）。
+func (c *CitationController) Drift(ctx *gin.Context) {
+	if c.driftSvc == nil {
+		response.Error(ctx, 503, "drift service 未初始化")
+		return
+	}
+	res, err := c.driftSvc.GetDriftBetween(ctx.Request.Context(), ctx.Query("from"), ctx.Query("to"))
+	if err != nil {
+		response.Error(ctx, 404, err.Error())
+		return
+	}
+	response.Success(ctx, res, "ok")
 }
 
 // Domains 引用域名聚合（自有/竞品/earned 分类）

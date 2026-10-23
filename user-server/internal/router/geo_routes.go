@@ -100,7 +100,7 @@ func SetupGeoRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 	platformCtrl := geoctrl.NewPlatformController(platformSvc)
 	kbCtrl := geoctrl.NewKBController(kbSvc)
 	wfCtrl := geoctrl.NewWorkflowController(wfSvc)
-	tmCtrl := geoctrl.NewTechMetricsController()
+	tmCtrl := geoctrl.NewTechMetricsController(kbSvc)
 	keCtrl := geoctrl.NewKeywordEnhanceController(keSvc)
 
 	// ⬇️ GEO v2 新增 Service + Controller
@@ -143,7 +143,9 @@ func SetupGeoRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 	probeSvc := geoservice.NewProbeService(probes, probeRepo)
 	probeCtrl := geoctrl.NewProbeController(probeSvc)
 	citeSvc := geoservice.NewCitationService(probeRepo, configRepo, georepo.NewGeoCompetitorRepositoryWithDB(gormDB))
-	citeCtrl := geoctrl.NewCitationController(citeSvc)
+	// A10（2026-10-24）：引用漂移读端注入（快照由 cron citation_drift 写）。
+	citeCtrl := geoctrl.NewCitationControllerWithDrift(citeSvc,
+		geoservice.NewCitationDriftService(probeRepo, georepo.NewGeoCitationSnapshotRepositoryWithDB(gormDB)))
 	oppSvc := geoservice.NewOpportunityService(
 		analyticsSvc, citeSvc,
 		georepo.NewGeoAlertRepositoryWithDB(gormDB),
@@ -185,6 +187,7 @@ func SetupGeoRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 	geo.DELETE("/keywords/:id", keywordCtrl.DeleteKeyword)
 
 	geo.POST("/content/generate", contentCtrl.GenerateContent)
+	geo.POST("/content/batch-generate", contentCtrl.GenerateContentBatch) // B2 批量生成
 	geo.POST("/content/optimize", contentCtrl.OptimizeContent)
 	geo.POST("/content/score", contentCtrl.ScoreContent)
 	geo.POST("/content/eeat", contentCtrl.EnhanceEEAT)
@@ -200,6 +203,7 @@ func SetupGeoRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 	geo.GET("/reports/summary", reportCtrl.GetReport)
 	geo.GET("/reports/roi", reportCtrl.GetROI)
 	geo.GET("/reports/api-costs", reportCtrl.GetAPICosts)
+	geo.GET("/reports/content-format", reportCtrl.ContentFormatAttribution) // A12 内容类型归因
 
 	geo.GET("/sov", reportCtrl.ShareOfVoice)
 	geo.GET("/sov/trend", reportCtrl.ShareOfVoiceTrend)
@@ -302,6 +306,7 @@ func SetupGeoRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 	geo.GET("/probe/runs", probeCtrl.ListRuns)
 	geo.GET("/citations/domains", citeCtrl.Domains)
 	geo.GET("/citations/matrix", citeCtrl.Matrix)
+	geo.GET("/citations/drift", citeCtrl.Drift) // A10 引用漂移 diff
 	geo.GET("/opportunities", oppCtrl.List)
 
 	geo.GET("/source-catalog/levels", sourceCtrl.LookupLevels)

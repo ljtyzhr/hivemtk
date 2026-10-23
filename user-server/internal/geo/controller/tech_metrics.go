@@ -17,9 +17,12 @@ type TechMetricsController struct {
 }
 
 // NewTechMetricsController 构造技术配置+指标控制器
-func NewTechMetricsController() *TechMetricsController {
+//
+// B1（2026-10-24）：TechConfigService 注入 KB 文档源，llms.txt 的 Docs 段
+// 在请求体未显式给文档时从 GEO KB 自动装配（手工条目优先，见 techconfig.go）。
+func NewTechMetricsController(kbSvc *service.KBService) *TechMetricsController {
 	return &TechMetricsController{
-		techconfigSvc: service.NewTechConfigService(),
+		techconfigSvc: service.NewTechConfigServiceWithKB(kbSvc),
 		metricsSvc:    service.NewMetricsService(),
 	}
 }

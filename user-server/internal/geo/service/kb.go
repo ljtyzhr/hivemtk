@@ -79,6 +79,12 @@ func (s *KBService) List(ctx context.Context) ([]*model.GeoKnowledgeDocument, er
 }
 
 // Delete 删除文档
+// ListDocuments 是 B1（llms.txt 自动装配）需要的直读口：返回 KB 文档原行，
+// 供 TechConfigService 拼装 llms.txt 的 Docs 段（与 List 的 dto 化不同——这里要 SourceURL/Content 原字段）。
+func (s *KBService) ListDocuments(ctx context.Context) ([]*model.GeoKnowledgeDocument, error) {
+	return s.docRepo.GetList(ctx)
+}
+
 func (s *KBService) Delete(ctx context.Context, id string) error {
 	return s.docRepo.Delete(ctx, id)
 }

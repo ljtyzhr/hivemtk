@@ -56,7 +56,7 @@ func newE2ESetup(t *testing.T, db *gorm.DB) (
 	bindRepo := repository.NewAgentKBBindingRepository(db)
 	kbSvc := service.NewKnowledgeBaseService(db)
 	kbSvc.SetRepositories(kbRepo, bindRepo)
-	bindSvc := service.NewAgentKBBindingServiceWithRepos(kbRepo, bindRepo, db)
+	bindSvc := service.NewAgentKBBindingServiceWithRepos(bindRepo)
 	return kbSvc, bindSvc, kbRepo, bindRepo
 }
 

@@ -136,6 +136,11 @@ export const geoApi = {
     return http.post('/api/geo/content/generate', data)
   },
 
+  // B2 批量生成（同步有界批，上限 20；逐条容错，truncated_to 回传截断值）
+  batchGenerateContent(data) {
+    return http.post('/api/geo/content/batch-generate', data)
+  },
+
   scoreContent(data) {
     return http.post('/api/geo/content/score', data)
   },

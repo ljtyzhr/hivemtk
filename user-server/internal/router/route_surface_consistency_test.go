@@ -54,9 +54,13 @@ const minE2EInventoryCoverage = 738
 const minLiveAnnotations = 148
 
 // minLiveAPIRoutes 是运行时路由表里 /api/ 路由条数的棘轮下界（E-2 同批，2026-10-23 实测 1770）。
+//
+// 2026-10-24 上调 1773 → 1792：E-8 批次新增 GEO 端点
+//（/geo/reports/content-format、/geo/citations/drift、/geo/content/batch-generate
+// 及同批装配变化带来的形状去重增量），实测 1792。
+const minLiveAPIRoutes = 1792
 // 守的对象与 minE2EInventoryCoverage 不同：那个守的是冒烟清单覆盖面，这个守的是
 // 注册面本身——路由被静默删除（接线被摘、注册循环被改坏）时这条先红。
-const minLiveAPIRoutes = 1773
 
 // annotationScanRoot 是接口注解的扫描根：模块根（本包目录的 ../..）。
 // 只扫 controller/router/service 会漏掉 internal/geo/controller 这类同样进 swagger 的目录，

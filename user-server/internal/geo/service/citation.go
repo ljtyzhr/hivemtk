@@ -45,6 +45,62 @@ type CitationDomainResult struct {
 	Days    int                  `json:"days"`
 	Domains []CitationDomainStat `json:"domains"`
 	Total   int                  `json:"total"`
+
+	// A9（2026-10-24）引用域名覆盖率：自有域引用 / 总引用。
+	// OwnCitations=0 且 Total>0 ⇒ 覆盖率 0%，GEO 的"让 AI 引用你"目标还没兑现第一条。
+	OwnCitations int             `json:"own_citations"`
+	OwnCoverage  float64         `json:"own_coverage"` // 0~1，Total=0 时恒 0
+	TopExternal  []CitationLink  `json:"top_external"` // Top 外链（非自有域），按引用次数降序
+}
+
+// CitationLink 单条外链（A9：Top 外链明细，域名级聚合太粗，运营要看具体 URL）。
+type CitationLink struct {
+	URL    string `json:"url"`
+	Domain string `json:"domain"`
+	Count  int    `json:"count"`
+}
+
+// OwnDomainCoverage 纯函数：从域名统计里算自有域覆盖率。
+// Total=0 ⇒ 0（没有引用谈何覆盖）。
+func OwnDomainCoverage(stats []CitationDomainStat) (own, total int, coverage float64) {
+	for _, st := range stats {
+		total += st.Count
+		if st.Category == "own" {
+			own += st.Count
+		}
+	}
+	if total > 0 {
+		coverage = float64(own) / float64(total)
+	}
+	return own, total, coverage
+}
+
+// TopExternalLinks 纯函数：非自有域的外链 TopN（按 count 降序、URL 升序钉死并列序）。
+// urls 为 URL→count 的原始计数（调用方从 runs 聚合）。
+func TopExternalLinks(stats []CitationDomainStat, n int) []CitationLink {
+	if n <= 0 {
+		n = 10
+	}
+	var ext []CitationDomainStat
+	for _, st := range stats {
+		if st.Category != "own" {
+			ext = append(ext, st)
+		}
+	}
+	sort.Slice(ext, func(i, j int) bool {
+		if ext[i].Count != ext[j].Count {
+			return ext[i].Count > ext[j].Count
+		}
+		return ext[i].Domain < ext[j].Domain
+	})
+	out := make([]CitationLink, 0, n)
+	for _, st := range ext {
+		if len(out) >= n {
+			break
+		}
+		out = append(out, CitationLink{Domain: st.Domain, Count: st.Count})
+	}
+	return out
 }
 
 // CitationMatrixRow keyword×domain 矩阵行
@@ -252,6 +308,9 @@ func (s *CitationService) loadClassifyContext(ctx context.Context) (string, []st
 }
 
 // DomainStats 聚合近 N 天探针引用域名
+//
+// A9（2026-10-24）：结果附带自有域覆盖率（OwnCoverage）与 Top 外链明细——
+// 只有"own/competitor/earned 分类"读不出"GEO 做得怎么样"这一句话，覆盖率才是判据。
 func (s *CitationService) DomainStats(ctx context.Context, days int) (*CitationDomainResult, error) {
 	if days <= 0 || days > 90 {
 		days = reporting.DefaultWindowDays(ctx)
@@ -266,7 +325,53 @@ func (s *CitationService) DomainStats(ctx context.Context, days int) (*CitationD
 	for _, st := range stats {
 		total += st.Count
 	}
-	return &CitationDomainResult{Days: days, Domains: stats, Total: total}, nil
+	res := &CitationDomainResult{Days: days, Domains: stats, Total: total}
+	res.OwnCitations, res.Total, res.OwnCoverage = OwnDomainCoverage(stats)
+	res.TopExternal = topExternalLinksWithURLs(runs, own, comp, 10)
+	return res, nil
+}
+
+// topExternalLinksWithURLs 在域名分类之上聚合 URL 级明细（A9 的 Top 外链要能给到具体 URL）。
+func topExternalLinksWithURLs(runs []*model.GeoProbeRun, ownDomain string, competitorDomains []string, n int) []CitationLink {
+	compSet := make(map[string]bool, len(competitorDomains))
+	for _, d := range competitorDomains {
+		if h := normalizeHost(d); h != "" {
+			compSet[h] = true
+		}
+	}
+	own := normalizeHost(ownDomain)
+	urlCount := map[string]int{}
+	for _, run := range runs {
+		for _, raw := range extractCitationURLs(run) {
+			host := normalizeHost(ExtractDomain(raw))
+			if host == "" || host == own || strings.HasSuffix(host, "."+own) || compSet[host] {
+				continue
+			}
+			urlCount[raw]++
+		}
+	}
+	type uc struct {
+		url   string
+		count int
+	}
+	var list []uc
+	for u, c := range urlCount {
+		list = append(list, uc{u, c})
+	}
+	sort.Slice(list, func(i, j int) bool {
+		if list[i].count != list[j].count {
+			return list[i].count > list[j].count
+		}
+		return list[i].url < list[j].url
+	})
+	out := make([]CitationLink, 0, n)
+	for i, e := range list {
+		if i >= n {
+			break
+		}
+		out = append(out, CitationLink{URL: e.url, Domain: normalizeHost(ExtractDomain(e.url)), Count: e.count})
+	}
+	return out
 }
 
 // KeywordDomainMatrix 近 N 天 keyword×domain 矩阵

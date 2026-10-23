@@ -16,9 +16,25 @@ import (
 func runeTruncate(s string, n int) string {
 	r := []rune(s)
 	if len(r) <= n {
-		return s
+		return string(r)
 	}
 	return string(r[:n])
+}
+
+// citationDriftJob A10 引用漂移快照（2026-10-24）：聚合当日探针引用 URL 计数。
+// 租户行（geo_probe_runs / geo_citation_snapshots 都是租户表）⇒ 与 sovRefreshJob
+// 同一执行形态：JobManager 保证按 (任务, 租户) 注册，进来时 ctx 已绑定本租户。
+func citationDriftJob(ctx context.Context) (string, error) {
+	svc := NewCitationDriftService(
+		repository.NewGeoProbeRunRepository(),
+		repository.NewGeoCitationSnapshotRepository(),
+	)
+	snap, err := svc.TakeSnapshot(ctx)
+	if err != nil {
+		return "", err
+	}
+	return fmt.Sprintf("快照 %s：URL %d 个 / 引用 %d 次",
+		snap.SnapshotDate, snap.DistinctURLs, snap.TotalCitations), nil
 }
 
 func sovRefreshJob(ctx context.Context) (string, error) {

@@ -1,17 +1,37 @@
 package service
 
 import (
+	"context"
 	"fmt"
 	"strings"
 	"time"
+
+	"hivemtk-user/internal/geo/model"
 )
 
 // TechConfigService GEO 技术配置生成服务（迁移自 AIGEOTOOLS techconfig/techconfig.go）
-type TechConfigService struct{}
+//
+// B1（2026-10-24）：llms.txt 的 Documents 支持从 GEO KB 文档表自动装配——
+// kbDocs 由装配处注入（geo_routes.go）；为 nil 时保持旧行为（只用请求体传入的
+// Documents），不引入新的硬依赖。手工覆盖优先：请求体里显式给的条目不会被自动条目挤掉。
+type TechConfigService struct {
+	kbDocs GeoKBDocsSource
+}
+
+// GeoKBDocsSource 是 llms.txt 自动装配需要的最小 KB 读能力
+// （*GeoKnowledgeService 结构上即满足；收接口是为了可测性）。
+type GeoKBDocsSource interface {
+	ListDocuments(ctx context.Context) ([]*model.GeoKnowledgeDocument, error)
+}
 
 // NewTechConfigService 创建技术配置生成服务
 func NewTechConfigService() *TechConfigService {
 	return &TechConfigService{}
+}
+
+// NewTechConfigServiceWithKB 创建带 KB 自动装配能力的实例（B1）。
+func NewTechConfigServiceWithKB(kb GeoKBDocsSource) *TechConfigService {
+	return &TechConfigService{kbDocs: kb}
 }
 
 // RobotsConfig robots.txt 生成配置
@@ -95,15 +115,73 @@ type LLMsDocEntry struct {
 }
 
 // GenerateLLMsTxt 输出 Markdown 格式的 llms.txt 内容
+//
+// B1（2026-10-24）：请求体未带 Documents（或带了还要求自动补）时，从 GEO KB 文档表
+// 自动装配——KB 文档就是品牌权威资料的第一现场，llms.txt 的受众（AI 引擎）恰恰
+// 需要它们。手工覆盖语义：请求体里显式传入的条目排前面且不重复追加。
 func (s *TechConfigService) GenerateLLMsTxt(cfg *LLMsTxtConfig) string {
+	docs := cfg.Documents
+	if s.kbDocs != nil {
+		docs = mergeKBDocsInto(s, cfg, docs)
+	}
+	return renderLLMsTxt(cfg, docs)
+}
+
+// llmsTxtAutoDocsThreshold：请求体 Documents 少于该数且 KB 装配可用 ⇒ 自动补齐。
+// 显式传了大量文档视为"完全手工接管"，不再混入 KB 条目（可预期性优先）。
+const llmsTxtAutoDocsThreshold = 1
+
+func mergeKBDocsInto(s *TechConfigService, cfg *LLMsTxtConfig, manual []LLMsDocEntry) []LLMsDocEntry {
+	if len(manual) >= llmsTxtAutoDocsThreshold {
+		return manual
+	}
+	ctx := context.Background()
+	kbList, err := s.kbDocs.ListDocuments(ctx)
+	if err != nil || len(kbList) == 0 {
+		return manual
+	}
+	seen := map[string]bool{}
+	for _, d := range manual {
+		seen[d.URL] = true
+	}
+	out := append([]LLMsDocEntry{}, manual...)
+	for _, doc := range kbList {
+		u := doc.SourceURL
+		if u == "" {
+			// KB 文档没有外链时用站内锚：llms.txt 条目必须是可取回的 URL，
+			// 编不出就跳过——塞一个 404 链接比缺一条更坏。
+			continue
+		}
+		if seen[u] {
+			continue
+		}
+		seen[u] = true
+		out = append(out, LLMsDocEntry{
+			Title:       doc.Title,
+			URL:         u,
+			Description: llmsDocDescription(doc),
+		})
+	}
+	return out
+}
+
+func llmsDocDescription(doc *model.GeoKnowledgeDocument) string {
+	desc := []rune(doc.Content)
+	if len(desc) > 80 {
+		desc = desc[:80]
+	}
+	return string(desc)
+}
+
+func renderLLMsTxt(cfg *LLMsTxtConfig, docs []LLMsDocEntry) string {
 	var b strings.Builder
 	b.WriteString("# " + cfg.Brand + "\n\n")
 	if cfg.Overview != "" {
 		b.WriteString("> " + cfg.Overview + "\n\n")
 	}
-	if len(cfg.Documents) > 0 {
+	if len(docs) > 0 {
 		b.WriteString("## Docs\n\n")
-		for _, d := range cfg.Documents {
+		for _, d := range docs {
 			line := "- [" + d.Title + "](" + d.URL + ")"
 			if d.Description != "" {
 				line += ": " + d.Description

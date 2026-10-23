@@ -1,0 +1,11 @@
+{
+  "name": "@hivemtk/http-core",
+  "version": "0.1.0",
+  "private": true,
+  "description": "OPT-FE-05：跨前端共享的响应信封/业务码/错误形状纯函数基座。零依赖、零 DOM。拦截器装配（i18n/toast/会话/跳转）属网关差异适配层，留在各前端 request.js。",
+  "type": "module",
+  "main": "index.js",
+  "exports": {
+    ".": "./index.js"
+  }
+}

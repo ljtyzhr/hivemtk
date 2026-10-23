@@ -36,6 +36,19 @@ func (c *ContentController) GenerateContent(ctx *gin.Context) {
 	response.Success(ctx, result, "内容生成成功")
 }
 
+// GenerateContentBatch B2 批量生成（2026-10-24）
+// POST /geo/content/batch-generate
+// 同步有界批（上限 BatchGenerateMaxKeywords=20），逐条容错，失败单条回传 error
+// 由前端标记可重试；超上限截断回传 truncated_to。
+func (c *ContentController) GenerateContentBatch(ctx *gin.Context) {
+	var req dto.BatchGenerateRequest
+	if !response.BindJSON(ctx, &req) {
+		return
+	}
+	result := c.svc.GenerateContentBatch(ctx.Request.Context(), req)
+	response.Success(ctx, result, "批量生成完成")
+}
+
 // OptimizeContent 优化内容
 // POST /geo/content/optimize
 func (c *ContentController) OptimizeContent(ctx *gin.Context) {

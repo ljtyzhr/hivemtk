@@ -48,6 +48,7 @@
     "ws": "^8.22.0"
   },
   "devDependencies": {
+    "@axe-core/playwright": "^4.14.0",
     "@eslint/js": "^10.0.1",
     "@intlify/bundle-utils": "^11.2.5",
     "@playwright/test": "^1.61.1",
@@ -58,6 +59,7 @@
     "@vitejs/plugin-vue": "^6.0.7",
     "@vitest/coverage-v8": "^4.1.10",
     "@vue/test-utils": "^2.4.11",
+    "axe-core": "^4.14.0",
     "eslint": "^10.10.0",
     "eslint-plugin-vue": "^10.11.0",
     "eslint-plugin-vuejs-accessibility": "^2.4.1",

@@ -276,4 +276,7 @@ func RegisterMigrations(registry *migration.MigrationRegistry, db *gorm.DB) {
 	// 只认签名凭证，把租户归属与过期时间搬进 ?s= token、URL 路径里不再出现 tenant_{id}。
 	// 不改库形状、不删东西；幂等（签名后的值不再匹配 /files/tenant_<数字>/ 形态）
 	register(NewFileURLSignMigration(db))
+	// v3.81.0（A10 引用漂移）：geo_citation_snapshots 唯一键 (tenant_id, snapshot_date)
+	// ——快照 UPSERT 的 ON CONFLICT 依赖它；模型有意不用 uniqueIndex 标签（同 v3.71.0 教训）
+	register(NewGeoCitationSnapshotUniqueKeyMigration(db))
 }

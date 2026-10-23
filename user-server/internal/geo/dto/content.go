@@ -13,6 +13,16 @@ type GenerateContentRequest struct {
 	Lang       string   `json:"lang"`
 }
 
+// BatchGenerateRequest B2 批量生成请求（2026-10-24）
+type BatchGenerateRequest struct {
+	Keywords   []string `json:"keywords" binding:"required,min=1"`
+	BrandName  string   `json:"brand_name"`
+	Advantages []string `json:"advantages"`
+	WordCount  int      `json:"word_count" binding:"omitempty,min=100,max=20000"`
+	Style      string   `json:"style"`
+	Lang       string   `json:"lang"`
+}
+
 // OptimizeContentRequest 内容优化请求
 type OptimizeContentRequest struct {
 	ArticleID  string   `json:"article_id"`

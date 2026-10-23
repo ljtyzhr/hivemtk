@@ -21,6 +21,8 @@ type GeoQueryChainRepository interface {
 	CountToday(ctx context.Context) (int64, error)
 	// BindOneIDToChain 把客户 OneID 回填到该链尚未绑定 OneID 的行（线索捕获后的归因关联）
 	BindOneIDToChain(ctx context.Context, chainID, oneID string) (int64, error)
+	// ListSince 列出近 N 天的思维链行（A12 内容类型归因的读侧；created_at 窗口）。
+	ListSince(ctx context.Context, since time.Time) ([]*model.GeoQueryChain, error)
 }
 
 type geoQueryChainRepository struct{ db *gorm.DB }
@@ -79,6 +81,16 @@ func (r *geoQueryChainRepository) BindOneIDToChain(ctx context.Context, chainID,
 		Where("chain_id = ? AND (one_id = '' OR one_id IS NULL)", chainID).
 		Update("one_id", oneID)
 	return res.RowsAffected, res.Error
+}
+
+// ListSince 列出 created_at >= since 的思维链行（A12 内容类型归因读侧）。
+// 上限 50000 防全表进内存（窗口最大 90 天，正常探针量远低于此）。
+func (r *geoQueryChainRepository) ListSince(ctx context.Context, since time.Time) ([]*model.GeoQueryChain, error) {
+	var rows []*model.GeoQueryChain
+	err := r.db.WithContext(ctx).
+		Where("created_at >= ?", since).
+		Order("created_at ASC").Limit(50000).Find(&rows).Error
+	return rows, err
 }
 
 // GeoContentTaskRepository 补位任务仓储

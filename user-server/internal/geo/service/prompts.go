@@ -593,7 +593,10 @@ func VerifySearchPrompt(ctx context.Context, brandName, query string, probeRespo
 2. 判断目标品牌是否被提及，统计提及次数
 3. 标注每次提及的大致位置（如"开篇首句"、"第二段中部"、"最后总结"）
 4. 分析品牌提及的情感（正面/中性/负面）
-5. 同时识别搜索结果中出现的竞品
+5. 判断品牌被提及的**语境**（brand_context）：从这些里选一个最贴切的——
+   "价格对比"/"功能介绍"/"用户评价"/"行业排名"/"使用教程"/"产品推荐"/"问题解答"/"风险提示"；
+   都不贴切时给一个 8 字以内的自定义短语
+6. 同时识别搜索结果中出现的竞品
 
 【输出格式】
 请严格按照以下 JSON 格式输出：
@@ -604,6 +607,7 @@ func VerifySearchPrompt(ctx context.Context, brandName, query string, probeRespo
   "mention_count": <提及次数>,
   "mention_positions": ["<位置1>", "<位置2>"],
   "sentiment": "<positive/neutral/negative>",
+  "brand_context": "<品牌语境，见任务 5>",
   "competitors_mentioned": ["<竞品1>", "<竞品2>"]
 }
 
