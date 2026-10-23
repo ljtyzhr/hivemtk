@@ -828,7 +828,7 @@ export const pricingPage = {
   ],
   offlineTitle: '离线部署口径',
   offlineDesc:
-    'PLATFORM_ENABLED=false 的离线部署不发出任何出站请求：23 个 0 元功能模块全部自动开通，唯一有价的浏览器自动化保持关闭并在界面明示——本地无支付通道，不做授权码旁路；功能模块市场与订单页显示平台未连接空态。',
+    'PLATFORM_ENABLED=false 的离线部署不发出任何出站请求：7 个基础模块 0 元免费常开，17 个收费模块（统一 ¥1，含浏览器自动化买断）保持关闭并在界面明示——本地无支付通道，不做授权码旁路；功能模块市场与订单页显示平台未连接空态。',
   saasTitle: ['SaaS 功能', '（多租户形态）'],
   saasDesc:
     '同一份代码支持离线单机（默认）与 SaaS 多租户（TENANT_MODE=on）两种形态：多租户形态下注册即开户、租户间数据行级隔离（数据访问层统一强制）、后台流程按数据自带的租户归属执行；平台端（可选本地组件）提供功能模块目录、租户登记审核、订单确认收款、LLM 套餐钱包与运行监控的管理面。数据始终留在你部署的数据库里——这是你运营的 SaaS，不是把数据交给别人的黑盒。',
@@ -837,6 +837,12 @@ export const pricingPage = {
     { title: '数据行级隔离', desc: '隔离在数据访问层统一实施，上下文缺租户时拒绝服务；定时任务、队列、回调等后台流程按数据自带归属执行。' },
     { title: '双形态一套代码', desc: '单机与多租户功能清单一致（差异仅注册入口与租户运营视图），由一项部署配置切换。' },
   ],
+  // —— SaaS 云端版开箱试用入口（注册即开户，15 天体验期全功能可试）——
+  saasTrial: {
+    desc: '开箱试用：云端版注册即开户，新商户 15 天体验期等同订阅有效、全功能可试，并赠 10M 模型 token——无需部署、无需信用卡，到期数据不删，续费 ¥9 / 30 天即恢复。',
+    label: '免费试用云端版',
+    href: CLOUD_URL,
+  },
   faqsTitle: ['订阅常见问题'],
   faqs: [
     {
@@ -883,8 +889,6 @@ export const nav = {
     { label: '工作流', href: '/workflow', type: 'route' },
     { label: '常见问题', href: '/faq', type: 'route' },
     { label: '部署指南', href: '/deploy', type: 'route' },
-    { label: '安装文档', href: '/docs', type: 'route' },
   ],
-  cta: { label: '立即部署', href: '/deploy', type: 'route' },
 }
 

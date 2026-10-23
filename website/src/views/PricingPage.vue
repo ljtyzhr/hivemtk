@@ -204,6 +204,19 @@ function cycleKey(m) {
             <p class="saas-desc">{{ $t(p.desc) }}</p>
           </article>
         </div>
+        <!-- 云端版开箱试用 CTA -->
+        <div class="saas-trial">
+          <p class="saas-trial-desc">{{ $t(page.saasTrial.desc) }}</p>
+          <a
+            :href="page.saasTrial.href"
+            target="_blank"
+            rel="noopener noreferrer"
+            class="btn btn-primary"
+          >
+            <span>{{ $t(page.saasTrial.label) }}</span>
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 13v6a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h6"/><polyline points="15 3 21 3 21 9"/><line x1="10" y1="14" x2="21" y2="3"/></svg>
+          </a>
+        </div>
       </div>
     </section>
 
@@ -618,6 +631,25 @@ function cycleKey(m) {
 }
 .saas-desc {
   font-size: 0.9rem;
+  color: var(--text-soft);
+  line-height: 1.72;
+}
+.saas-trial {
+  margin-top: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+  background: var(--bg-surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 24px;
+}
+.saas-trial-desc {
+  flex: 1;
+  min-width: 260px;
+  font-size: 0.95rem;
   color: var(--text-soft);
   line-height: 1.72;
 }

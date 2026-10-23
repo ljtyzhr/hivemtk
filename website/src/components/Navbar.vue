@@ -88,9 +88,6 @@ watch(locale, () => refreshCurrentLangLabel())
         </template>
 
         <div class="nav-actions-mobile">
-          <router-link to="/deploy" class="btn btn-primary nav-cta-mobile" @click="mobileOpen = false">
-            {{ nav.cta.label }}
-          </router-link>
           <div class="nav-repos-mobile">
             <a href="https://github.com/xiaofang142/hivemtk" target="_blank" rel="noopener noreferrer">
               GitHub
@@ -145,11 +142,6 @@ watch(locale, () => refreshCurrentLangLabel())
             >{{ l.label }}</li>
           </ul>
         </div>
-
-        <router-link to="/deploy" class="btn btn-primary nav-cta">
-          {{ nav.cta.label }}
-          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12h14"/><path d="m12 5 7 7-7 7"/></svg>
-        </router-link>
       </div>
 
       <button

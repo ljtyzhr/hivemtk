@@ -190,9 +190,15 @@ verify_dist() {
   fi
   log "  站内绝对路径: ok（无裸 / 引用）"
 
-  # 旧域名回流：产物里出现即说明有硬编码没清干净
+  # 旧域名回流：产物里出现即说明有硬编码没清干净。
+  # 例外：work.xapptool.cn 是云端版（SaaS）应用入口（CLOUD_URL），仍在服务、属合法引用；
+  # 已到期下线的是主站/体验站等其余 *.xapptool.cn 引用（如已删除的客服浮标）。
   local stale
-  stale="$(grep -rl 'xapptool\.cn' "$ROOT/dist" 2>/dev/null || true)"
+  stale="$(grep -rl 'xapptool\.cn' "$ROOT/dist" 2>/dev/null | while IFS= read -r f; do
+    if grep -o '[a-z.]*xapptool\.cn' "$f" | grep -v '^work\.xapptool\.cn$' | grep -q .; then
+      echo "$f"
+    fi
+  done || true)"
   if [[ -n "$stale" ]]; then
     echo "$stale" | sed 's/^/    /'
     die "产物里仍有已到期域名 xapptool.cn（见上）"

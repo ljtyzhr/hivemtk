@@ -56,7 +56,7 @@ const openSourceLinks = [
         <div class="cta-text">
           <span class="cta-kicker">{{ $t('立即开始') }}</span>
           <h2 class="cta-title">{{ $t('克隆仓库,4 步完成私有化部署') }}</h2>
-          <p class="cta-desc">{{ $t('AGPL-3.0 开源,无授权码、无版本下载：代码与全部功能模块免费开放,仅浏览器自动化 ¥99 买断,云端版软件订阅 149 元/月。完整源码均在 GitHub / Gitee 公开托管。') }}</p>
+          <p class="cta-desc">{{ $t('AGPL-3.0 开源，无授权码、无版本下载：7 个基础模块 0 元免费常开、17 个收费模块统一 ¥1，云端版软件订阅 9 元。完整源码均在 GitHub / Gitee 公开托管。') }}</p>
         </div>
         <div class="cta-repos">
           <a

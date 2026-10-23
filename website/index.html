@@ -115,28 +115,5 @@
   <body>
     <div id="app"></div>
     <script type="module" src="/src/main.js"></script>
-    <!-- HiveMTK 客服浮标（右下角）— 连接 work.xapptool.cn 的 web 渠道智能体 -->
-    <script>
-      // SDK auto-init 会读取此全局配置创建唯一实例（避免 onload 重复 new 出双浮标）
-      window.MarketingChatWidgetConfig = {
-        appKey: 'ak_79Zw7HWzR5wNUnNn6QMnkw8B',
-        apiBaseURL: 'https://work.xapptool.cn',
-        title: 'HiveMTK 在线客服',
-        welcome: '您好！我是 HiveMTK 智能客服，请问有什么可以帮您？',
-        color: '#1989fa',
-        position: 'bottom-right'
-      };
-      (function() {
-        var s = document.createElement('script');
-        // 路径必须是 /embed/（work.xapptool.cn 的该前缀反代到 user-server 的 SDK 静态目录）；
-        // 旧值 /embed-sdk-dist/ 在 nginx 与 user-server 两侧都没有对应产物，浮标从未加载出来
-        s.src = 'https://work.xapptool.cn/embed/marketing-chat-widget.iife.js';
-        s.async = true;
-        s.onerror = function() {
-          console.error('[客服浮标] SDK 加载失败：work.xapptool.cn/embed/marketing-chat-widget.iife.js');
-        };
-        document.head.appendChild(s);
-      })();
-    </script>
   </body>
 </html>
