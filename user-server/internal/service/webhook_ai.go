@@ -280,6 +280,13 @@ func (s *WebhookService) triggerSmartOrchestrator(ctx context.Context, channel W
 		}
 	}
 
+	// FR5.3（002-multi-type-messages）：非文本消息的 AI 上下文统一携带媒体 URL。
+	// 与桥接路径（inbox_ingress.go triggerAIForEvent）共用 AppendMediaContextToContent，
+	// 保证两条漏斗给 AI/坐席的正文同一口径；文本消息逐字节不变。
+	if hubMsg != nil {
+		in.Content = AppendMediaContextToContent(in.Content, hubMsg.MsgType, in.MediaURL)
+	}
+
 	go s.runAIGeneration(ctx, channel, accountID, p, hubMsg, in, agentCtx)
 }
 

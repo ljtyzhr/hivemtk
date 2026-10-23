@@ -18,7 +18,7 @@ func TestPersistBridgeHistory_OutboundHistory_DoesNotPublishSSE(t *testing.T) {
 
 	published := make(chan uint64, 4)
 	prev := GlobalSSEPublisher
-	SetGlobalSSEPublisher(func(ctx context.Context, channel, accountID string, hubID uint64, convID, msgType, receiverID, content string, isAIReply bool, createdAt time.Time) {
+	SetGlobalSSEPublisher(func(ctx context.Context, channel, accountID string, hubID uint64, convID, msgType, receiverID, content, mediaURL string, isAIReply bool, createdAt time.Time) {
 		published <- hubID
 	})
 	t.Cleanup(func() { SetGlobalSSEPublisher(prev) })

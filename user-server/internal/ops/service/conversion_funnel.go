@@ -43,6 +43,18 @@ type FunnelReport struct {
 	Total       int64         `json:"total"`
 	Conversion  float64       `json:"conversion"`
 	GeneratedAt time.Time     `json:"generated_at"`
+	// Degraded（D-3 方案①，显式降级不改数字）：任一阶段 count 取数失败 ⇒ true，
+	// 且对应阶段记入 StageErrors。数字不因降级被清零——已取到的段原样返回，
+	// 失败段按 0 上报但调用方能从 degraded/stage_errors 分辨"0"与"没查到"。
+	Degraded bool `json:"degraded"`
+	// StageErrors 逐段点名取数失败（stage 键 + 错误摘要）。正常态为空数组。
+	StageErrors []StageError `json:"stage_errors,omitempty"`
+}
+
+// StageError 单段取数失败记录
+type StageError struct {
+	Stage string `json:"stage"`
+	Error string `json:"error"`
 }
 
 // BuildFunnel 构建漏斗（阶段清单以 `ops/repository.LiveFunnelStages()` 为准，
@@ -67,40 +79,54 @@ func (s *ConversionFunnelService) BuildFunnel(startTime, endTime time.Time) (*Fu
 
 	// 阶段键与中文名一律取词表（唯一真源），此处不写字面量 —— R-4 之前这里与
 	// `conversion_funnels` 演示表各有一套阶段名，那正是"双源"的一部分。
-	// 前四个 count 的错误刻意沿用现状不外抛（部分数据源不可用时宁可回一份看着齐全的
-	// 报告），该口径的代价已登记为短板 G16，改它属改变现网行为，不在本处。
-	visitCount, _ := s.repo.CountCustomerEventsByTimeRange(ctx, startTime, endTime)
+	// D-3 方案①（2026-10-23）：五个 count 的取数失败**不再静默**——数字仍按现状
+	// 回（失败段按 0 上报、已取到的段原样返回，不因降级清零），但 degraded=true 且
+	// stage_errors 逐段点名。旧口径"宁可回一份看着齐全的报告"保留数字行为，
+	// 只新增"让读的人知道哪些段没查到"的通道（G16 的两难由显式降级化解）。
+	degraded := false
+	stageErrors := make([]StageError, 0, 5)
+	recordErr := func(stage opsrepo.FunnelStageKey, err error) {
+		if err != nil {
+			degraded = true
+			stageErrors = append(stageErrors, StageError{Stage: string(stage), Error: err.Error()})
+			logger.Warnf("[Funnel] %s 段取数失败，本段按 0 上报（0 ≠ 没有数据）: %v", stage.Label(), err)
+		}
+	}
+
+	visitCount, visitErr := s.repo.CountCustomerEventsByTimeRange(ctx, startTime, endTime)
+	recordErr(opsrepo.StageVisit, visitErr)
 	report.Stages = append(report.Stages, FunnelStage{
 		Stage: string(opsrepo.StageVisit), Name: opsrepo.StageVisit.Label(), Count: visitCount,
 	})
 
-	clueCount, _ := s.repo.CountCluesByUnixTimeRange(ctx, startTime, endTime)
+	clueCount, clueErr := s.repo.CountCluesByUnixTimeRange(ctx, startTime, endTime)
+	recordErr(opsrepo.StageClue, clueErr)
 	report.Stages = append(report.Stages, FunnelStage{
 		Stage: string(opsrepo.StageClue), Name: opsrepo.StageClue.Label(), Count: clueCount,
 	})
 
-	intentCount, _ := s.repo.CountIntentRecords(ctx, startTime, endTime, []string{"buy", "purchase", "order", "interested"})
+	intentCount, intentErr := s.repo.CountIntentRecords(ctx, startTime, endTime, []string{"buy", "purchase", "order", "interested"})
+	recordErr(opsrepo.StageIntent, intentErr)
 	report.Stages = append(report.Stages, FunnelStage{
 		Stage: string(opsrepo.StageIntent), Name: opsrepo.StageIntent.Label(), Count: intentCount,
 	})
 
-	sessionCount, _ := s.repo.CountCustomerSessionsByTimeRange(ctx, startTime, endTime)
+	sessionCount, sessionErr := s.repo.CountCustomerSessionsByTimeRange(ctx, startTime, endTime)
+	recordErr(opsrepo.StageSession, sessionErr)
 	report.Stages = append(report.Stages, FunnelStage{
 		Stage: string(opsrepo.StageSession), Name: opsrepo.StageSession.Label(), Count: sessionCount,
 	})
 
-	// 商机段是这条口径里**唯一**把取数失败打出来的一段，理由与四段不同：
-	// 今日 `opportunities` 只有一个生产者（挖掘链达标那一跳，T-P4-05），所以"0"在这里
-	// 有两种完全不同的来路——真没转化出商机，和这张表压根没建起来/接缝没装配上。
-	// 四段那些老腿面对的是同一件事，但它们答"0"时没有人会拿它做决策；这一段答 0 会被
-	// 读成"我们的线索转化不动"，而那条结论会一路走到 P8 的归因里。
+	// 商机段沿用"0 有两种来路"的告警语义（真没转化 / 接缝没装配上），
+	// 现并入统一错误收集器：行为不变（Warnf + 按 0 上报），只多一条 degraded 通道。
 	oppCount, oppErr := s.repo.CountOpportunitiesByTimeRange(ctx, startTime, endTime)
-	if oppErr != nil {
-		logger.Warnf("[Funnel] 商机段取数失败，本段按 0 上报（0 ≠ 没有商机）: %v", oppErr)
-	}
+	recordErr(opsrepo.StageOpportunity, oppErr)
 	report.Stages = append(report.Stages, FunnelStage{
 		Stage: string(opsrepo.StageOpportunity), Name: opsrepo.StageOpportunity.Label(), Count: oppCount,
 	})
+
+	report.Degraded = degraded
+	report.StageErrors = stageErrors
 
 	report.Total = visitCount
 	if visitCount > 0 {
@@ -114,8 +140,17 @@ func (s *ConversionFunnelService) BuildFunnel(startTime, endTime time.Time) (*Fu
 		prev := report.Stages[i-1].Count
 		cur := report.Stages[i].Count
 		if prev > 0 {
-			report.Stages[i].Rate = float64(cur) / float64(prev) * 100
-			report.Stages[i].DropRate = 100 - report.Stages[i].Rate
+			r := float64(cur) / float64(prev) * 100
+			report.Stages[i].Rate = r
+			// D-3：阶段间无单调性 ⇒ 涨幅 >100% 的 rate 是"口径无单调约定"的证据，
+			// 不是坏数，照旧返回（NonMonotonicStagesBaseline 钉住这一现状）；
+			// 但 drop_rate 为负时不再给出会被读成"负流失"的数——置 0，
+			// 语义"该段相对上一段是增长"由 rate>100 自身表达。
+			if r <= 100 {
+				report.Stages[i].DropRate = 100 - r
+			} else {
+				report.Stages[i].DropRate = 0
+			}
 		}
 	}
 

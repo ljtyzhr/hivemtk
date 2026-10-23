@@ -283,6 +283,9 @@ func main() {
 	if wired := app.WireURLsConfigParams(); len(wired) > 0 {
 		logger.Info("[ConfigParam] urls 组接线 " + strconv.Itoa(len(wired)) + " 条")
 	}
+	// A11：云端版地址若仍等于厂商默认域名（且不是 env / 平台配置显式给的）⇒ 启动期响亮一行。
+	// 放在接线之后：provider 已注入，这里读到的就是运行期真正会用的值。
+	app.WarnIfCloudURLIsBuiltinDefault()
 
 	// reporting 组：报表默认窗口天数。点位横跨 repository/controller/geo/
 	// knowledge/ops 等不能反向 import service 的包，走 provider 注入。
@@ -420,11 +423,12 @@ func main() {
 	r := gin.New()
 	r.Use(gin.Recovery())
 
-	if err := r.SetTrustedProxies([]string{
-		"127.0.0.0/8", "::1/128",
-		"10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16",
-	}); err != nil {
-		logger.Warnf("[启动] SetTrustedProxies 失败(回退默认): %v", err)
+	// A13：可信反代名单 env TRUSTED_PROXIES 可覆盖（默认值仍为原私网名单，行为零变更），
+	// 并挂上"带了 X-Forwarded-For 但对端不在名单里"的观测中间件 —— 反代一旦落在公网地址上，
+	// gin 会静默把 ClientIP() 退化成反代 IP（全站一个限流桶、审计 IP 全写成同一个），
+	// 这条中间件让它在第一分钟就有响声，而不是等"限流为什么这么怪"查起。
+	if _, err := middleware.ConfigureTrustedProxies(r); err != nil {
+		logger.Warnf("[启动] 可信反代名单装配失败（沿用 gin 默认语义，ClientIP 可能退化，请修 env TRUSTED_PROXIES）: %v", err)
 	}
 
 	tmplPath := filepath.Join("internal", "template", "*.html")

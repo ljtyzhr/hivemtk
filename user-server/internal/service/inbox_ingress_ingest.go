@@ -286,12 +286,12 @@ func groupNameOf(event *model.MessageEvent) string {
 const (
 	// 尾部命中取入站最后 12 字：短到能穿过「可以吗？」这类真实短回复，又长到不会被
 	// 常见套话偶然命中。参与比较的出站文本同样要求至少 12 字。
-	echoTailWindowRunes      = 12
+	echoTailWindowRunes = 12
 
 	// InboundMisattribWindow 错归去重窗：裸 msg_id（内容哈希）跨会话二次上报的判定窗。
 	// 线上实证的错归间隔是 2 秒（同一批 DOM 采集重扫）；取 2 分钟足以覆盖扩展一轮采集
 	// 抖动，又远小于客户在两个真实会话里发出字节级相同内容的合理间隔下限。
-	InboundMisattribWindow = 2 * time.Minute
+	InboundMisattribWindow   = 2 * time.Minute
 	echoTailMinOutboundRunes = 12
 )
 

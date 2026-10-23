@@ -47,7 +47,8 @@ func DefaultParamGroupDefs() []ParamGroupDef {
 		{Group: "channelbot", Label: "渠道机器人", Description: "QQ / Telegram 的长度上限与 HTTP 超时", SortOrder: 130},
 		{Group: "channelgw", Label: "渠道网关", Description: "渠道网关的连接与推送节奏", SortOrder: 140},
 		{Group: "wecom", Label: "企业微信", Description: "账号健康分档、配额降级与接口超时", SortOrder: 150},
-		{Group: "wechat", Label: "微信", Description: "微信渠道参数", SortOrder: 160},
+		// "wechat" 分组已随 D-7 删除（2026-10-23）：组内唯一的三个旋钮（chat_ws_*）
+		// 是 /ws/chat 死代码的下架参数，随端点一起移除——UI 不再渲染空分组。
 		{Group: "webhook", Label: "Webhook 回调", Description: "回调验签、去重、限流与重试", SortOrder: 170},
 		{Group: "reach", Label: "触达频控", Description: "全管线日触达上限（防打扰）", SortOrder: 180},
 		{Group: "sales", Label: "销售", Description: "销售洞察与客户身份合并", SortOrder: 190},
@@ -64,6 +65,9 @@ func DefaultParamGroupDefs() []ParamGroupDef {
 		{Group: "misc", Label: "其它", Description: "跨域的零散旋钮（访客令牌、上传上限、心跳等）", SortOrder: 280},
 		{Group: "urls", Label: "对外链接", Description: "前端/云端/官网基址（发信与展示用的对外 URL）", SortOrder: 282},
 		{Group: "platform", Label: "平台端通信", Description: "平台端 API 地址（应对平台端迁移，平台级参数）", SortOrder: 283},
+		// content_guard 组：内容安全闸（异步审查流水线）。SortOrder 放在 smart_cs 前面，
+		// 与种子文件里「content_guard 组」的注释块位置对应。
+		{Group: "content_guard", Label: "内容安全", Description: "内容审查流水线的长度上限与转人工口径", SortOrder: 284},
 		{Group: "smart_cs", Label: "智能客服", Description: "智能客服编排的阈值与开关", SortOrder: 290},
 	}
 }

@@ -428,6 +428,56 @@
                     </div>
                   </template>
                 </el-image>
+                <video
+                  v-else-if="isVideo(msg)"
+                  :src="msg.media_url"
+                  controls
+                  preload="metadata"
+                  class="msg-video"
+                />
+                <audio
+                  v-else-if="isAudio(msg)"
+                  :src="msg.media_url"
+                  controls
+                  preload="metadata"
+                  class="msg-audio"
+                />
+                <div
+                  v-else-if="isFile(msg)"
+                  class="msg-file"
+                >
+                  <el-link
+                    :href="msg.media_url"
+                    target="_blank"
+                    type="primary"
+                    :underline="false"
+                  >
+                    <el-icon class="msg-file-icon"><Document /></el-icon>
+                    {{ mediaFileName(msg.media_url) }}
+                  </el-link>
+                </div>
+                <div
+                  v-else-if="isLink(msg)"
+                  class="msg-file"
+                >
+                  <el-link
+                    :href="msg.media_url"
+                    target="_blank"
+                    type="primary"
+                  >
+                    {{ msg.content || msg.media_url }}
+                  </el-link>
+                </div>
+                <template v-else-if="msg.content_type && msg.content_type !== 'text' && !hasMediaBody(msg)">
+                  <el-tag
+                    size="small"
+                    effect="plain"
+                    type="info"
+                  >
+                    {{ $t(typeLabel(msg)) }}
+                  </el-tag>
+                  <span v-if="msg.content && msg.content !== `[${typeLabel(msg)}]`">{{ msg.content }}</span>
+                </template>
                 <template v-else>
                   {{ msg.content || '-' }}
                 </template>
@@ -622,7 +672,7 @@ import { ref, reactive, computed, onMounted, onUnmounted, nextTick } from 'vue'
 import { ElMessage } from 'element-plus'
 import {
   Search, RefreshRight, Refresh, DataAnalysis, Top, Star, StarFilled, Mute,
-  Delete, ArrowDown
+  Delete, ArrowDown, Document
 } from '@element-plus/icons-vue'
 import { inboxApi } from '@/api/inbox'
 import { useUserStore } from '@/stores/user'
@@ -689,6 +739,47 @@ const toTypeLabel = (v) => (TOTYPE_MAP[v] ? t(TOTYPE_MAP[v]) : (v || '-'))
 
 const isImage = (msg) =>
   (msg.content_type === 'image' || /\.(png|jpe?g|gif|webp)(\?|$)/i.test(msg.media_url || '')) && !!msg.media_url
+
+// ---- 多类型消息渲染判定（002-multi-type-messages）----
+// content_type 为中台词表（text/image/video/audio/file/link/card/location）；
+// 兜底用 media_url 扩展名嗅探（直连渠道转存后的 URL 带扩展名）。
+const extOf = (url) => {
+  const m = /\.(mp4|mov|m4v|webm|mkv|mp3|wav|m4a|aac|ogg|amr|pdf|docx?|xlsx?|pptx?|zip|rar|7z|txt|csv)(\?|$)/i.exec(url || '')
+  return m ? m[1].toLowerCase() : ''
+}
+const VIDEO_EXTS = ['mp4', 'mov', 'm4v', 'webm', 'mkv']
+const AUDIO_EXTS = ['mp3', 'wav', 'm4a', 'aac', 'ogg', 'amr']
+
+const isVideo = (msg) => {
+  if (!msg.media_url) return false
+  if (msg.content_type === 'video') return true
+  if (msg.content_type && msg.content_type !== 'text') return false
+  return VIDEO_EXTS.includes(extOf(msg.media_url))
+}
+const isAudio = (msg) => {
+  if (!msg.media_url) return false
+  if (msg.content_type === 'audio') return true
+  if (msg.content_type && msg.content_type !== 'text') return false
+  return AUDIO_EXTS.includes(extOf(msg.media_url))
+}
+const isFile = (msg) => {
+  if (!msg.media_url) return false
+  if (msg.content_type === 'file') return true
+  if (msg.content_type && msg.content_type !== 'text') return false
+  const ext = extOf(msg.media_url)
+  return !!ext && !VIDEO_EXTS.includes(ext) && !AUDIO_EXTS.includes(ext) &&
+    !/\.(png|jpe?g|gif|webp)(\?|$)/i.test(msg.media_url)
+}
+const isLink = (msg) => msg.content_type === 'link' && !!msg.media_url
+// 非文本且无可用 media_url：显示占位标签（如「[语音]」）而不是一行空文本。
+// 值是词条键（中文整键，语言包 4a60d3af 风格），模板 $t(typeLabel(msg)) 消费；
+// collect_literal_key_refs 的整键扫描认这一形态（QUOTED 字面量 == 词条 leaf）。
+const MSG_TYPE_LABELS = { image: '图片', video: '视频', audio: '语音', file: '文件', link: '链接', card: '卡片', location: '位置' }
+const typeLabel = (msg) => MSG_TYPE_LABELS[msg.content_type] || msg.content_type || '消息'
+const hasMediaBody = (msg) => !!msg.media_url && (isImage(msg) || isVideo(msg) || isAudio(msg) || isFile(msg) || isLink(msg))
+const mediaFileName = (url) => {
+  try { return decodeURIComponent((url || '').split('?')[0].split('/').pop() || '文件') } catch { return '文件' }
+}
 
 // outbound: hub 表 direction 字段在 GetMessages 输出中没有直接暴露，
 // 通过 is_ai_reply 或 sender 与账号无关的客服侧推断；这里以 sender_id 等于会话账号 id 视为坐席侧
@@ -1182,6 +1273,27 @@ onUnmounted(stopPolling)
   max-width: 220px;
   max-height: 180px;
   border-radius: 4px;
+}
+/* 002-multi-type-messages：视频/音频/文件卡片 */
+.msg-video {
+  max-width: 280px;
+  max-height: 200px;
+  border-radius: 4px;
+  display: block;
+}
+.msg-audio {
+  max-width: 260px;
+  display: block;
+}
+.msg-file {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  max-width: 280px;
+  word-break: break-all;
+}
+.msg-file-icon {
+  margin-right: 2px;
 }
 .thread-pagination {
   padding-top: 10px;

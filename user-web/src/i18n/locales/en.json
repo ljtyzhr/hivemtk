@@ -442,6 +442,13 @@
   "客户消息轨迹": "Customer Message Trail",
   "客服接入": "Customer service access",
   "抖音卡片预览": "TikTok Card Preview",
+  "图片": "Image",
+  "视频": "Video",
+  "语音": "Voice",
+  "文件": "File",
+  "链接": "Link",
+  "卡片": "Card",
+  "位置": "Location",
   "图片加载失败": "Pictures fail to load",
   "快手卡片预览": "Quick Hands Card Preview",
   "知道了": "Got it.",
@@ -1620,8 +1627,6 @@
   "输出": "Output",
   "选择版本": "Select version",
   "触发参数": "Trigger parameters",
-  "平台": "Platform",
-  "系统": "System",
   "customReport": {
     "dimension": {
       "date": "Date",

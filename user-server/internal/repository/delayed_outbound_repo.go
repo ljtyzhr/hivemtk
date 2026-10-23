@@ -189,8 +189,11 @@ func (r *DelayedOutboundRepository) CreateMessageHubIdempotent(ctx context.Conte
 	if r.db == nil {
 		return msg, nil
 	}
+	// D-2（2026-10-23）：唯一索引 uni_message_hub_platform_msg_conv 已加 direction
+	//（priority:4），ON CONFLICT 的列清单必须与索引形状一致，否则 PG 报
+	// "no unique or exclusion constraint matching the ON CONFLICT specification"。
 	conflict := clause.OnConflict{
-		Columns:   []clause.Column{{Name: "tenant_id"}, {Name: "platform"}, {Name: "msg_id"}, {Name: "conversation_id"}},
+		Columns:   []clause.Column{{Name: "tenant_id"}, {Name: "platform"}, {Name: "msg_id"}, {Name: "conversation_id"}, {Name: "direction"}},
 		DoNothing: true,
 	}
 	if err := r.db.WithContext(ctx).Clauses(conflict).Create(msg).Error; err != nil {

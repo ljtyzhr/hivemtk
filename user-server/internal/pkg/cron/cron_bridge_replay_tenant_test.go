@@ -41,10 +41,10 @@ func TestBridgeOfflineReplayCron_ScansEachActiveTenant(t *testing.T) {
 	} {
 		ctxT := tenant.WithTenantID(context.Background(), tc.tenantID)
 		acc := &model.BridgeAccount{
-			Channel:     "douyin",
-			AccountID:   tc.account,
-			Status:      "online",
-			LastSyncAt:  ptrTime(time.Now()),
+			Channel:    "douyin",
+			AccountID:  tc.account,
+			Status:     "online",
+			LastSyncAt: ptrTime(time.Now()),
 		}
 		if err := gdb.WithContext(ctxT).Create(acc).Error; err != nil {
 			t.Fatalf("seed 账号行失败(tenant=%d): %v", tc.tenantID, err)

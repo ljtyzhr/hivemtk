@@ -80,7 +80,8 @@ func TestConversionFunnel_OpportunityLegFailureIsWarned(t *testing.T) {
 	t.Logf("捕获到的漏斗日志：\n%s", logged)
 
 	// 两条腿（汇总 + 详情）各须一条告警：少一条就是"某一条腿的失败悄悄无声"。
-	if got := strings.Count(logged, "商机段取数失败"); got != 1 {
+	// D-3 后汇总腿日志文案改为统一收集器的格式（"%s 段取数失败"，段名取 Label()=商机）。
+	if got := strings.Count(logged, "商机 段取数失败"); got != 1 {
 		t.Errorf("汇总腿的取数告警应恰好 1 条，实际 %d 条", got)
 	}
 	if got := strings.Count(logged, "商机详情取数失败"); got != 1 {
@@ -107,5 +108,29 @@ func TestConversionFunnel_OpportunityLegFailureIsWarned(t *testing.T) {
 	}
 	if leg.Count != 0 || det.Count != 0 {
 		t.Fatalf("取数失败时商机两段都应回 0，实际 汇总=%d 详情=%d", leg.Count, det.Count)
+	}
+
+	// D-3 方案①验收（规划 §3.3）：失败必须显式可见——degraded=true 且 stage_errors
+	// 点名失败段；其余四段的数字**不被清零**（显式降级 ≠ 静默清空）。
+	if !report.Degraded {
+		t.Errorf("商机段取数失败 ⇒ degraded 必须为 true（显式降级是本口径的全部意义）")
+	}
+	foundOpp := false
+	for _, se := range report.StageErrors {
+		if se.Stage == "opportunity" {
+			foundOpp = true
+			if !strings.Contains(se.Error, "opportunities") {
+				t.Errorf("stage_errors 的错误摘要应含表名 opportunities，实际：%s", se.Error)
+			}
+		}
+	}
+	if !foundOpp {
+		t.Errorf("stage_errors 必须点名 opportunity 段，实际：%v", report.StageErrors)
+	}
+	// 其余四段照常：访问段有种子数据（4 条），失败不能波及它们。
+	for i := range report.Stages {
+		if report.Stages[i].Stage == "visit" && report.Stages[i].Count != 4 {
+			t.Errorf("降级不得清零其它段：访问段应仍为 4，实际 %d", report.Stages[i].Count)
+		}
 	}
 }

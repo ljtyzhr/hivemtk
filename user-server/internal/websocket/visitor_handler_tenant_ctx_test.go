@@ -6,8 +6,8 @@ import (
 	"time"
 
 	"hivemtk-user/internal/model"
-	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/tenancyidx"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/testutil"
 
 	"gorm.io/gorm"
@@ -33,6 +33,7 @@ func setupVisitorTenantDB(t *testing.T) *gorm.DB {
 // GORM，tenancyidx 的隔离闸按「ctx 未绑定」fail-closed 拒绝查询，于是：
 //   - 访客重连后离线消息恒空（AI 回复在断线期间收不到）
 //   - delivered_at 永远打不上（离线消息反复重投）
+//
 // 线上日志原文：「[tenant] 表 session_messages 需要租户上下文但 ctx 未绑定（query）」。
 func TestVisitorOnConnect_OfflineMessages_CarriesTenantContext(t *testing.T) {
 	database := setupVisitorTenantDB(t)
@@ -43,9 +44,9 @@ func TestVisitorOnConnect_OfflineMessages_CarriesTenantContext(t *testing.T) {
 
 	// 租户 tid 名下留一条未投递的 AI 消息
 	msg := &model.SessionMessage{
-		TenantID:  tid,
-		SessionID: "sess_tenant_ctx_1",
-		Content:   "离线期间 AI 的回复",
+		TenantID:   tid,
+		SessionID:  "sess_tenant_ctx_1",
+		Content:    "离线期间 AI 的回复",
 		SenderType: "ai",
 		SenderName: "AI 助手",
 	}
@@ -82,9 +83,9 @@ func TestVisitorOnConnect_OfflineMessages_WithoutTenantContext_Fails(t *testing.
 	const tid uint = 89
 	ctx := tenant.WithTenantID(context.Background(), tid)
 	msg := &model.SessionMessage{
-		TenantID:  tid,
-		SessionID: "sess_tenant_ctx_2",
-		Content:   "x",
+		TenantID:   tid,
+		SessionID:  "sess_tenant_ctx_2",
+		Content:    "x",
 		SenderType: "ai",
 	}
 	if err := database.WithContext(ctx).Create(msg).Error; err != nil {

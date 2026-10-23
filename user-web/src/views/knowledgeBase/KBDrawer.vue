@@ -96,7 +96,8 @@
                   {{ stats.item_count ?? '—' }}
                 </div>
                 <div class="mini-stat-hint">
-                  未接入
+                  <span v-if="stats.item_count == null">未接入</span>
+                  <span v-else class="text-secondary">按成员绑定计数</span>
                 </div>
               </div>
             </el-col>
@@ -332,40 +333,15 @@ const statsLabel = computed(() => {
 })
 
 const itemColumns = computed(() => {
-  const t = props.kbData?.kb_type
-  if (t === 'rag') {
-    return [
-      { prop: 'id', label: 'ID', width: 70 },
-      { prop: 'title', label: '文档标题', minWidth: 180 },
-      { prop: 'file_type', label: '类型', width: 90 },
-      { prop: 'chunk_count', label: '切片数', width: 90 },
-      { prop: 'created_at', label: '创建时间', width: 160 }
-    ]
-  }
-  if (t === 'faq') {
-    return [
-      { prop: 'id', label: 'ID', width: 70 },
-      { prop: 'question', label: '问题', minWidth: 200 },
-      { prop: 'category', label: '分类', width: 120 },
-      { prop: 'intent', label: '意图', width: 120 },
-      { prop: 'enabled', label: '状态', width: 80 }
-    ]
-  }
-  if (t === 'sop') {
-    return [
-      { prop: 'id', label: 'ID', width: 70 },
-      { prop: 'name', label: '模板名称', minWidth: 180 },
-      { prop: 'stage', label: '阶段', width: 100 },
-      { prop: 'intent', label: '意图', width: 120 },
-      { prop: 'enabled', label: '状态', width: 80 }
-    ]
-  }
+  // 成员端点（/api/knowledge-bases/:id/items）的行形状：{id,item_type,item_id,title,created_at,...}。
+  // 标题统一在 title 字段（后端按内容表反查 question/name/title），不再依赖各 List 的原始列名。
   return [
-    { prop: 'id', label: 'ID', width: 70 },
-    { prop: 'name', label: '名称', minWidth: 180 }
+    { prop: 'item_id', label: 'ID', width: 70 },
+    { prop: 'item_type', label: '类型', width: 80 },
+    { prop: 'title', label: '标题', minWidth: 200 },
+    { prop: 'created_at', label: '绑定时间', width: 160 }
   ]
 })
-
 const getTypeLabel = (type) => {
   const map = { rag: 'RAG 文档', faq: 'FAQ', sop: 'SOP 模板' }
   return map[type] || type || '-'
@@ -409,7 +385,8 @@ const loadStats = async () => {
     const res = await getKBStats(props.kbData.id).catch(() => null)
     if (res) {
       stats.value = {
-        agent_count: res.agent_count ?? stats.value.agent_count
+        agent_count: res.agent_count ?? stats.value.agent_count,
+        item_count: res.item_count ?? null
       }
     }
   } catch { /* 忽略：清理/存储/恢复类 best-effort 操作 */ }
@@ -419,18 +396,13 @@ const loadItemsPreview = async () => {
   if (!props.kbData?.id) return
   loadingItems.value = true
   try {
-    const t = props.kbData.kb_type;
-    let url = ''
-    if (t === 'rag') url = '/api/knowledge'
-    else if (t === 'faq') url = '/api/faqs'
-    else if (t === 'sop') url = '/api/sop-templates'
-    if (!url) {
-      itemsPreview.value = []
-      return
-    }
+    // P0-2/P0-3/D-8 方案 A：预览统一走成员端点 /api/knowledge-bases/:id/items，
+    // 后端按 kb_item_bindings 只返回真正绑定进该 KB 的内容（附标题）。
+    // 不再请求 /api/knowledge（从未注册，恒 404），也不再给全局 List 传 kb_id
+    // （FAQ/SOP List 不读它，之前是"参数被静默忽略"的错数据来源）。
     const { http } = await import('@/utils/request')
     const res = await http
-      .get(url, { kb_id: props.kbData.id, page: 1, page_size: 20 })
+      .get(`/api/knowledge-bases/${props.kbData.id}/items`, { page: 1, page_size: 20 })
       .catch(() => null)
     const list = Array.isArray(res) ? res : res?.list || res?.items || []
     itemsPreview.value = list.slice(0, 20)

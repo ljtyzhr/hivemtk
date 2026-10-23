@@ -36,9 +36,9 @@ var retiredSeedKeys = []struct{ group, key string }{
 	{"bridge", "max_reply_content_bytes"},
 	{"pagination", "page_max_size"},
 	{"pagination", "page_default_size"},
-	{"wechat", "chat_ws_ping_period"},
-	{"wechat", "chat_ws_pong_wait"},
-	{"wechat", "chat_ws_write_wait"},
+	// D-7（2026-10-23）：chat_ws_ping_period / chat_ws_pong_wait / chat_ws_write_wait
+	// 三条随 /ws/chat 死代码整体删除（连"已下架"的登记也一并移除——参数本身已不存在，
+	// 页面上不该再有它的任何痕迹）。16 → 13。
 	{"agent_tool", "result_cache_ttl"},
 	{"sales", "insight_limit"},
 	{"lock", "ai_lock_ttl"},

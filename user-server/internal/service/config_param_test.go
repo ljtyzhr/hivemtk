@@ -286,7 +286,11 @@ func TestFallbackNilDB(t *testing.T) {
 //	出网目标从 env/config.yaml 收进参数中心，改完在管理端生效（60s TTL），
 //	不用改部署文件重启。它的默认值留空是刻意的（空 = 没有平台可连，
 //	与 PLATFORM_ENABLED 关态语义一致），见下面 EmptyDefaultRatchet 的豁免清单。
-const defaultParamDefsWant = 241
+//
+// D-7（2026-10-23）：chat_ws_ping_period / chat_ws_pong_wait / chat_ws_write_wait
+// 三条已下架种子随死代码删除 ⇒ 241 → 238。
+// 2026-10-23 content_guard 组新增 max_scan_runes 种子 ⇒ 238 → 239。
+const defaultParamDefsWant = 239
 
 func TestDefaultParamDefsCount(t *testing.T) {
 	defs := DefaultParamDefs()

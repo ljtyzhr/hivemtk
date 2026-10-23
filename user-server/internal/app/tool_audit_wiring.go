@@ -123,7 +123,11 @@ func applyToolAuditPersistence(config *tooluse.ToolExecutorConfig, gormDB *gorm.
 	// 而且靠 Count() 判断"这周有多少调用"会直接翻倍。
 	// AC②"DB 不可用时降级内存"由复合器的内存腿兑现，与 fallback 无关。
 	dbLogger := tooluse.NewDBAuditLogger(gormDB, queueSize, nil)
-	config.AuditLogger = tooluse.NewCompositeAuditLogger(memAuditLogger, dbLogger, nil)
+	// E-6a（2026-10-23）：告警器不再传 nil。取熔断装配处创建的 ToolAlertManager
+	//（shadow/enforce 态非 nil；off 态为 nil，CompositeAuditLogger 对 nil alert 有守卫），
+	// 使工具失败率/耗时/死信告警真正有消费者；熔断开启告警由 observeToolCircuitDecision
+	// 直调 AlertCircuitOpen（见 tool_circuit_breaker_wiring.go）。
+	config.AuditLogger = tooluse.NewCompositeAuditLogger(memAuditLogger, dbLogger, GetToolAlertManager())
 	toolAuditDBLogger = dbLogger
 	toolAuditQueueSize = queueSize
 	return toolAuditModeOn

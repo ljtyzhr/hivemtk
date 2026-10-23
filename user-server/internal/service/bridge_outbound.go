@@ -60,10 +60,10 @@ var globalInboxIngressService *InboxIngressService
 //   - content: 消息内容
 //   - isAIReply: 是否为 AI 回复
 //   - createdAt: 创建时间
-var GlobalSSEPublisher func(ctx context.Context, channel, accountID string, hubID uint64, convID, msgType, receiverID, content string, isAIReply bool, createdAt time.Time)
+var GlobalSSEPublisher func(ctx context.Context, channel, accountID string, hubID uint64, convID, msgType, receiverID, content, mediaURL string, isAIReply bool, createdAt time.Time)
 
 // SetGlobalSSEPublisher 由 bridge 包在初始化时调用，注入 SSE 通知回调
-func SetGlobalSSEPublisher(fn func(ctx context.Context, channel, accountID string, hubID uint64, convID, msgType, receiverID, content string, isAIReply bool, createdAt time.Time)) {
+func SetGlobalSSEPublisher(fn func(ctx context.Context, channel, accountID string, hubID uint64, convID, msgType, receiverID, content, mediaURL string, isAIReply bool, createdAt time.Time)) {
 	GlobalSSEPublisher = fn
 	logger.Info("[SSE] GlobalSSEPublisher registered successfully")
 }
@@ -74,15 +74,26 @@ func SetGlobalInboxIngressService(s *InboxIngressService) { globalInboxIngressSe
 // GlobalInboxIngressService 读取桥接入站服务（装配前为 nil）
 func GlobalInboxIngressService() *InboxIngressService { return globalInboxIngressService }
 
+// DeliverBridgeOutbound 出站入队（旧签名，等价于 DeliverBridgeOutboundWithReceipt 丢回执）。
 func DeliverBridgeOutbound(ctx context.Context, channel, accountID, conversationID, msgType, content, eventID string) error {
+	_, _, err := DeliverBridgeOutboundWithReceipt(ctx, channel, accountID, conversationID, msgType, content, eventID)
+	return err
+}
+
+// DeliverBridgeOutboundWithReceipt 出站入队 + 回执（D-9，2026-10-23）。
+// 返回：hubID = message_hub 行号；msgID = hub 行 MsgID（bridge 渠道的回执键，
+// 发送时是占位内容哈希，平台号回写后由 UpdateMsgID 覆盖）。调用方应把这对值
+// 透给上层响应（ProactiveReachResponse.HubID / MessageID），操作者才有可反查的凭据——
+// Recall（IntegrationReachAdapter.Recall）正是按 msg_id 反查 hub 行的。
+func DeliverBridgeOutboundWithReceipt(ctx context.Context, channel, accountID, conversationID, msgType, content, eventID string) (hubID uint64, msgID string, err error) {
 	if globalInboxIngressService == nil {
-		return errBridgeOutboundNotReady
+		return 0, "", errBridgeOutboundNotReady
 	}
 	if channel == "" || accountID == "" || conversationID == "" {
-		return fmt.Errorf("bridge outbound: channel/account_id/conversation_id required")
+		return 0, "", fmt.Errorf("bridge outbound: channel/account_id/conversation_id required")
 	}
 	if _, ok := bridgeChannels[channel]; !ok {
-		return fmt.Errorf("bridge: 不支持的桥接渠道 %q", channel)
+		return 0, "", fmt.Errorf("bridge: 不支持的桥接渠道 %q", channel)
 	}
 	if undeliverable, reason := bridgeOutboundUndeliverable(accountID, conversationID); undeliverable {
 		logger.Ctx(ctx).Warn().
@@ -92,7 +103,7 @@ func DeliverBridgeOutbound(ctx context.Context, channel, accountID, conversation
 			Str("conversation_id", conversationID).
 			Str("reason", reason).
 			Msg("bridge outbound target undeliverable; rejected before enqueue")
-		return fmt.Errorf("bridge outbound undeliverable: %s", reason)
+		return 0, "", fmt.Errorf("bridge outbound undeliverable: %s", reason)
 	}
 	// 网页私聊渠道（抖音/小红书等）输入框是纯文本：LLM 回复自带的 Markdown
 	// 语法符号在入队前剥成纯文本，覆盖 AI 回复/SOP/触达/主动私信全部出站路径。
@@ -128,7 +139,7 @@ func DeliverBridgeOutbound(ctx context.Context, channel, accountID, conversation
 			Str("account_id", accountID).
 			Str("conversation_id", conversationID).
 			Msg("bridge outbound DeliverOutbound failed")
-		return err
+		return 0, "", err
 	}
 
 	if GlobalSSEPublisher != nil {
@@ -151,13 +162,14 @@ func DeliverBridgeOutbound(ctx context.Context, channel, accountID, conversation
 				h.MsgType,
 				h.ReceiverID,
 				h.Content,
+				h.MediaURL,
 				h.IsAIReply,
 				h.CreatedAt,
 			)
 		}()
 	}
 
-	return nil
+	return uint64(h.ID), h.MsgID, nil
 }
 
 func bridgeOutboundUndeliverable(accountID, conversationID string) (bool, string) {

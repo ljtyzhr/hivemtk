@@ -222,7 +222,7 @@ BASELINE=(
   # 14b 管理端点已经挂进 router.go ⇒ wired（防回退）：删掉 router.go 里那一行时
   #     setupLTCRoutes 函数还在、编译与单测都不会红，只有这一行会红。
   # callpat 里的 `LTCStageGate\(` 之所以不会被本包测试污染：hits() 一律跳过 _test.go。
-  "14|LTC 阶段闸门的业务路由挂载点（今日六阶段无一条业务路由）|func LTCStageGate|LTCStageGate\\(|internal/router cmd/api|"
+  "14|LTC 阶段闸门的业务路由挂载点（quote 链已挂 shadow 闸门，E-7）|func LTCStageGate|GatedGroup\(|internal/router|wired"
   "14|LTC 运营开关管理 API 的挂载入口|func setupLTCRoutes|setupLTCRoutes\\(|internal/router|wired"
   # 项15 = T-P3-07 新增：非工具外发路径的发送前闸门（G13 补盲）。五行全 wired（防回退）。
   # 本卡的失败面与项1 是同一类，只是换了条路：闸门装在 ReachByCustomer 内部，

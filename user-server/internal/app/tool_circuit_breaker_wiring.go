@@ -69,6 +69,8 @@ var (
 	circuitRegistry      *tooluse.CircuitBreakerRegistry
 	circuitDecisions     *tooluse.CircuitDecisionCounter
 	circuitConfigApplied tooluse.CircuitBreakerConfig
+	// toolAlertManager E-6a：熔断告警管理器（off 态为 nil；shadow/enforce 态非 nil）。
+	toolAlertManager *tooluse.ToolAlertManager
 )
 
 // parseToolCircuitMode 解析开关值。
@@ -275,6 +277,7 @@ func applyToolCircuitBreaker(config *tooluse.ToolExecutorConfig) toolCircuitMode
 		circuitRegistry = nil
 		circuitDecisions = nil
 		circuitConfigApplied = tooluse.CircuitBreakerConfig{}
+		toolAlertManager = nil // off 态没有判定流，告警器一并撤下
 		return mode
 	}
 
@@ -282,6 +285,11 @@ func applyToolCircuitBreaker(config *tooluse.ToolExecutorConfig) toolCircuitMode
 	circuitRegistry = tooluse.NewCircuitBreakerRegistry(cfg)
 	circuitDecisions = tooluse.NewCircuitDecisionCounter()
 	circuitConfigApplied = cfg
+	// E-6a：创建告警管理器并注入复合审计器，替代原先的 nil 装配点（规划 §4.6
+	// 验收判据：生产装配路径能构造出非 nil 告警器，nil 装配点消失）。
+	toolAlertManager = tooluse.NewToolAlertManager()
+	// 告警出口：结构化日志（emitAlert 默认通道）已由 ToolAlertManager 自带；
+	// 这里不再额外加 handler，避免一条告警双写。
 
 	config.CircuitBreaker = circuitRegistry
 	config.CircuitBreakerShadow = mode == toolCircuitShadow
@@ -302,6 +310,12 @@ func observeToolCircuitDecision(ctx context.Context, d tooluse.CircuitDecision) 
 	circuitDecisions.Observe(ctx, d)
 	if !d.WouldBlock {
 		return
+	}
+	// E-6a（2026-10-23）：熔断会拦/已开时触发告警管理器——shadow 态只记录不告警
+	// （规划 §4.6 推荐第 3 条：shadow 模式只记录不告警）。告警出口是结构化日志
+	// （ToolAlertManager 默认 emitAlert 走 logger），不新建独立服务。
+	if toolAlertManager != nil && !d.Shadow {
+		toolAlertManager.AlertCircuitOpen(d.ToolName, d.State)
 	}
 	ev := logger.Ctx(ctx).Info()
 	if !d.Shadow {
@@ -324,4 +338,10 @@ func observeToolCircuitDecision(ctx context.Context, d tooluse.CircuitDecision) 
 // registry / decisions 在 off 时为 nil（调用方需 nil-check）。
 func GetToolCircuitSnapshot() (mode string, config tooluse.CircuitBreakerConfig, registry *tooluse.CircuitBreakerRegistry, decisions *tooluse.CircuitDecisionCounter) {
 	return circuitModeValue, circuitConfigApplied, circuitRegistry, circuitDecisions
+}
+
+// GetToolAlertManager 返回熔断装配处的告警管理器（E-6a）。
+// off 态返回 nil——调用方（如 NewCompositeAuditLogger）需容忍 nil。
+func GetToolAlertManager() *tooluse.ToolAlertManager {
+	return toolAlertManager
 }

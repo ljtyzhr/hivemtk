@@ -84,6 +84,9 @@ var knowledgeOwnedTables = []string{
 	"faq_entries", "rag_products", "rag_metrics_daily", "rag_query_logs",
 	"rag_eval_runs", "rag_eval_questions", "rag_recall_monitor_snapshots",
 	"rag_answer_cache",
+	// kb_item_bindings：知识库成员表（P0-2/P0-3/D-8 方案 A），
+	// 归 knowledge 模块：读写方只有 controller/service/repository 的 kb_item_binding 三件
+	"kb_item_bindings",
 }
 
 // asset 模块独占

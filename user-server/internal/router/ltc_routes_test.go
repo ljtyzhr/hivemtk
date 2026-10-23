@@ -219,7 +219,9 @@ func TestLTCConfigView_ShowsRolloutModeAndCohort(t *testing.T) {
 	}
 }
 
-// 交付态的真实形状：一条业务路由都没挂。这条断言是"本卡没让开关悄悄冒充已生效"的证据。
+// E-7（2026-10-23）后 quote 链已挂 shadow 闸门 ⇒ zero-mounted 交付态已不存在。
+// 本用例改为钉住"shadow 挂载态的提示"：配置视图必须说清"挂了但不拦"，
+// 否则运营会把"开着也没拦"读成闸门坏了（或更糟：读成已经生效）。
 func TestLTCConfigView_ZeroMountedSaysItOutLoud(t *testing.T) {
 	view := ltcConfigView(service.DefaultLTCConfig(), middleware.LTCGuardedRoutes())
 	if view["source"] != service.SourceDefault {
@@ -230,8 +232,13 @@ func TestLTCConfigView_ZeroMountedSaysItOutLoud(t *testing.T) {
 		t.Fatalf("guarded_routes 有 %d 键，期望六阶段各一键（缺键会被前端渲染成 undefined 而不是 0）", len(guarded))
 	}
 	hints := strings.Join(view["reading_hints"].([]string), "|")
-	if !strings.Contains(hints, "没有任何路由") {
-		t.Errorf("一条路由都没挂却没说出口：%s", hints)
+	if !strings.Contains(hints, "shadow 态挂载") || !strings.Contains(hints, "不会真的拦") {
+		t.Errorf("shadow 挂载态必须说清「挂了但不拦」：%s", hints)
+	}
+	// 单测进程内没有跑路由装配 ⇒ guarded 计数应为 0；提示仍要能覆盖两种形态。
+	if guarded[string(service.LTCStageQuote)] != 0 {
+		t.Logf("【读数】本进程 quote 闸门登记数=%d（装配后应为 1；单测进程未跑 setupQuoteRoutes 时为 0）",
+			guarded[string(service.LTCStageQuote)])
 	}
 }
 

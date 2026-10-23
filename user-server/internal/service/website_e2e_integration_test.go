@@ -10,8 +10,8 @@ import (
 	"gorm.io/gorm"
 	"gorm.io/gorm/logger"
 
-	dbutil "hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/model"
+	dbutil "hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/repository"
 )
 

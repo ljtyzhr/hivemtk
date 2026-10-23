@@ -202,7 +202,7 @@ def collect_t_call_keys() -> set[str]:
     return out
 
 
-def collect_literal_key_refs() -> tuple[set[str], set[str]]:
+def collect_literal_key_refs() -> tuple[set[str], set[str], set[str]]:
     """扫出「以字面量形态出现」的 i18n 键引用。
 
     为什么必须多这一层：T_CALL 只认 `t('字面量')` 的直接实参，而真实代码里
@@ -217,9 +217,13 @@ def collect_literal_key_refs() -> tuple[set[str], set[str]]:
     漏掉它们的后果不是"数字难看"，是**门在惩罚做对的人**——见文件头
     「消费路径必须穷举」一节。
 
-    口径：返回 (整键集合, 键前缀集合)。
-      - 整键：源码里出现过的、且与词条库某条 leaf **完全相等**的引号字面量；
-      - 前缀：以 '.' 结尾的引号字面量（'roleName.'），由调用方展开成该前缀下的全部词条。
+    口径：返回 (整键集合, 键前缀集合, 全部引号字面量集合)。
+      - 整键：源码里出现过的、且形状是点分键的引号字面量；
+      - 前缀：以 '.' 结尾的引号字面量（'roleName.'），由调用方展开成该前缀下的全部词条；
+      - 全部字面量：交给调用方与词条库 leaf 求交——中文整键（'图片' 这类
+        "先存后消费"的键）由那一层收口。返回原始集合而不是在函数内求交，
+        是因为本函数不持有词条库，且求交口径（leaf 完全相等）属于 main 的
+        「消费路径」定义。
 
     必须是**完全相等**而不是子串包含：`ab.start` 是 `ab.startDate` 的子串，
     用包含判会把 `ab.start` 这条真死词条误判成在用。
@@ -246,7 +250,7 @@ def collect_literal_key_refs() -> tuple[set[str], set[str]]:
             literals.add(m.group(1) if m.group(1) is not None else m.group(2))
     exact = {lit for lit in literals if DOTTED_KEY.match(lit)}
     prefixes = {lit for lit in literals if PREFIX_KEY.match(lit)}
-    return exact, prefixes
+    return exact, prefixes, literals
 
 
 def go_msgid_counts() -> dict[str, int]:
@@ -296,7 +300,13 @@ def main() -> int:
     #   2) 后端菜单注册表下发的 menu.*
     #   3) 源码里以引号字面量出现的整键（titleKey/descriptionKey 这类"先存后消费"）
     #   4) 源码里以引号字面量出现的键前缀（'roleName.' 拼接）
-    lit_exact, lit_prefixes = collect_literal_key_refs()
+    #   5) 源码里以引号字面量出现、且与词条库 leaf 完全相等的**中文整键**
+    #      （2026-10-23 002-multi-type-messages 补：List.vue 的 MSG_TYPE_LABELS
+    #      把 '图片'/'视频' 等键存进对象、模板 $t(typeLabel(msg)) 动态消费——
+    #      与 titleKey 同一形态的"先存后消费"，只是键是中文整键。不认它们
+    #      就会把正在消费的词条判成孤儿，门又在惩罚做对的人。）
+    lit_exact, lit_prefixes, lit_all = collect_literal_key_refs()
+    lit_exact |= {lit for lit in lit_all if lit in base_keys}
     prefix_expanded = {k for k in base_keys
                         if any(k.startswith(p) for p in lit_prefixes)}
     referenced = t_keys | backend_menu_keys() | lit_exact | prefix_expanded

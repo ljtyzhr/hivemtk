@@ -129,6 +129,7 @@ type OutboundEventData struct {
 	ConversationID string
 	Content        string
 	MsgType        string
+	MediaURL       string
 	ReceiverID     string
 	IsAIReply      bool
 	Extra          any
@@ -152,6 +153,7 @@ func BuildOutboundSSEEvent(d OutboundEventData) SSEEvent {
 			"conversation_id": d.ConversationID,
 			"content":         d.Content,
 			"msg_type":        d.MsgType,
+			"media_url":       d.MediaURL,
 			"receiver_id":     d.ReceiverID,
 			"is_ai_reply":     d.IsAIReply,
 			"extra":           d.Extra,

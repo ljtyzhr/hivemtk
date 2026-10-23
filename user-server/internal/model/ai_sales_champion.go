@@ -12,11 +12,15 @@ import (
 type MessageHub struct {
 	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
 
-	ID             uint       `gorm:"primaryKey;autoIncrement" json:"id"`
-	Platform       string     `gorm:"type:varchar(30);not null;index;uniqueIndex:uni_message_hub_platform_msg_conv,priority:1" json:"platform"`
-	MsgID          string     `gorm:"type:varchar(100);uniqueIndex:uni_message_hub_platform_msg_conv,priority:2" json:"msg_id"`
+	ID       uint   `gorm:"primaryKey;autoIncrement" json:"id"`
+	Platform string `gorm:"type:varchar(30);not null;index;uniqueIndex:uni_message_hub_platform_msg_conv,priority:1" json:"platform"`
+	MsgID    string `gorm:"type:varchar(100);uniqueIndex:uni_message_hub_platform_msg_conv,priority:2" json:"msg_id"`
+	// Direction 参与唯一索引（D-2 方案③，2026-10-23）：ContentHashMsgID 不含方向，
+	// 同会话内"客户发 X（inbound）+ AI 回复恰好也是 X（outbound）"两行三元组相同会撞
+	// 唯一索引（d2_msg_id_cross_direction_test.go 实测 23505 证实）。加 direction 后
+	// 跨方向可共存；同方向重复仍被索引兜底去重（入站重复去重语义不变）。
+	Direction      string     `gorm:"type:varchar(10);not null;uniqueIndex:uni_message_hub_platform_msg_conv,priority:4" json:"direction"`
 	AccountID      string     `gorm:"type:varchar(100);not null;index" json:"account_id"`
-	Direction      string     `gorm:"type:varchar(10);not null" json:"direction"`
 	Status         string     `gorm:"type:varchar(20);default:'pending';index" json:"status"`
 	MsgType        string     `gorm:"type:varchar(20);not null" json:"msg_type"`
 	SenderID       string     `gorm:"type:varchar(100);index" json:"sender_id"`

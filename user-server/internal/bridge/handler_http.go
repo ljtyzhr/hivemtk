@@ -308,6 +308,7 @@ func buildOutboundEvent(row model.MessageHub) SSEEvent {
 		ConversationID: row.ConversationID,
 		Content:        row.Content,
 		MsgType:        row.MsgType,
+		MediaURL:       row.MediaURL,
 		ReceiverID:     row.ReceiverID,
 		IsAIReply:      row.IsAIReply,
 		Extra:          row.Extra,

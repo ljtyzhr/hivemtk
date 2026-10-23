@@ -78,7 +78,7 @@ func (r *faqFastPathRepo) Update(context.Context, uint, *model.FAQEntry) error {
 	return nil
 }
 func (r *faqFastPathRepo) SetEnabled(context.Context, uint, bool) error { return nil }
-func (r *faqFastPathRepo) Delete(context.Context, uint) error { return nil }
+func (r *faqFastPathRepo) Delete(context.Context, uint) error           { return nil }
 
 // TestTryFAQFastPath_HitsStandardAnswer FAQ 命中时直接返回标准答案。
 func TestTryFAQFastPath_HitsStandardAnswer(t *testing.T) {
@@ -86,7 +86,7 @@ func TestTryFAQFastPath_HitsStandardAnswer(t *testing.T) {
 	agentID := uint(1)
 	engine := &SalesEngine{faqSvc: newFAQServiceForFastPath([]model.FAQEntry{
 		{ID: 1, Question: "HiveMTK 是什么？", Answer: "HiveMTK 是一款开源的智能营销系统…",
-			Keywords: []string{"HiveMTK", "是什么", "介绍", "产品", "项目", "营销系统", "开源"},
+			Keywords:   []string{"HiveMTK", "是什么", "介绍", "产品", "项目", "营销系统", "开源"},
 			Confidence: 0.95, Enabled: &enabled, AgentID: &agentID},
 	})}
 

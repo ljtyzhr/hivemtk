@@ -203,7 +203,9 @@ func TestSubscriptionWhitelistCoversRenewalSurface(t *testing.T) {
 	// 客户面清单对账
 	customerFacing := []string{
 		"/api/chat/public/sessions/x",
-		"/ws/chat",
+		// "/ws/chat" 已随 D-7 删除（2026-10-23）：端点与死代码一起移除，白名单行同步撤下；
+		// 客户面不再有该路径，未来上真坐席 WS 时按 /api/ws/visitor 的口径重新登记。
+		"/api/ws/visitor",
 		"/api/bridge/ingest",
 		"/api/bridge/outbox",
 		"/api/bridge/outbox/sse",

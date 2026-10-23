@@ -100,9 +100,17 @@ func setupRagRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 	ragRecallCtrl.RegisterRoutes(auth)
 }
 
-func setupKnowledgeBaseRoutes(auth *gin.RouterGroup) {
+func setupKnowledgeBaseRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 	knowledgeBaseCtrl := knowledgectrl.NewKnowledgeBaseController()
 	knowledgeBaseCtrl.RegisterRoutes(auth)
+
+	// 知识库成员绑定（P0-2/P0-3/D-8 方案 A）：/knowledge-bases/:id/items 三端点。
+	// 挂在同一个路由组，不新增 /api/knowledge 顶层域名（规划 §2.2 契约第 1 条）。
+	kbItemCtrl := controller.NewKBItemBindingController(
+		service.NewKBItemBindingService(
+			service.NewKnowledgeBaseService(gormDB),
+			repository.NewKBItemBindingRepository(gormDB)))
+	kbItemCtrl.RegisterRoutes(auth.Group("/knowledge-bases"))
 
 	knowledgeWorkspaceCtrl := knowledgectrl.NewKnowledgeWorkspaceController(&openAPISourceAdapter{svc: service.NewOpenAPIService()})
 	knowledgeWorkspaceCtrl.RegisterRoutes(auth)

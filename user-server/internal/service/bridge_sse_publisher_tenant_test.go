@@ -47,7 +47,7 @@ func TestSSEScopedPublisher_ReceivesTenantBoundContext(t *testing.T) {
 	}
 	got := make(chan received, 4)
 	prev := GlobalSSEPublisher
-	SetGlobalSSEPublisher(func(ctx context.Context, channel, accountID string, hubID uint64, convID, msgType, receiverID, content string, isAIReply bool, createdAt time.Time) {
+	SetGlobalSSEPublisher(func(ctx context.Context, channel, accountID string, hubID uint64, convID, msgType, receiverID, content, mediaURL string, isAIReply bool, createdAt time.Time) {
 		id, ok := tenant.FromContext(ctx)
 		got <- received{tenantID: id, bound: ok}
 	})
@@ -90,7 +90,7 @@ func TestSSEScopedPublisher_NoTenantDoesNotFallBackToDefault(t *testing.T) {
 
 	called := make(chan struct{}, 4)
 	prevPub := GlobalSSEPublisher
-	SetGlobalSSEPublisher(func(ctx context.Context, channel, accountID string, hubID uint64, convID, msgType, receiverID, content string, isAIReply bool, createdAt time.Time) {
+	SetGlobalSSEPublisher(func(ctx context.Context, channel, accountID string, hubID uint64, convID, msgType, receiverID, content, mediaURL string, isAIReply bool, createdAt time.Time) {
 		// 回调若被调用，租户必须已绑定（不得回落默认租户）。
 		if id, ok := tenant.FromContext(ctx); !ok || id == tenant.DefaultTenantID {
 			t.Errorf("SSE 回调收到了未绑定（或默认）租户的 ctx：tenant=%d bound=%v", id, ok)

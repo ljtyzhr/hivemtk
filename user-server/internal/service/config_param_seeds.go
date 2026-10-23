@@ -481,17 +481,11 @@ func DefaultParamDefs() []ParamDef {
 			Description: "外部知识库导入单条内容的最大字符数",
 			ValueType:   "int", Unit: "字符", DefaultValue: "2000", Min: strPtr("100"), Max: strPtr("10000"), Step: strPtr("100")},
 
-		{Group: "wechat", Key: "chat_ws_ping_period", Name: "微信 WS Ping 周期（已下架）",
-			Description: "【已下架：改了不生效，改动期间请勿依赖】internal/controller/chat_ws.go 的 chatWSPingPeriod 有读取点，但承载它的 internal/router/ws.go RegisterWSRoutes 全树零调用方——GET /ws/chat 从未注册，实际落到 SPA 的 NoRoute 兜底。另：后端没有微信渠道 WS 客户端，internal/channelbot 下只有 core/qq/telegram/whatsapp",
-			ValueType:   "duration", Deprecated: true, DeprecatedReason: "internal/controller/chat_ws.go 的 chatWSPingPeriod 有读取点，但承载它的 internal/router/ws.go RegisterWSRoutes 全树零调用方——GET /ws/chat 从未注册进引擎，实测落到 SPA 的 NoRoute 兜底；且后端根本没有微信渠道 WS 客户端（internal/channelbot 下只有 core/qq/telegram/whatsapp），种子的「微信渠道 WS」名不副实。要重新提供这三个旋钮，先决定 /ws/chat 这个端点要不要上（它需要先补鉴权），再把常量登记回本条", DefaultValue: "30", Min: strPtr("5"), Max: strPtr("120"), Step: strPtr("1")},
-
-		{Group: "wechat", Key: "chat_ws_pong_wait", Name: "微信 WS Pong 等待（已下架）",
-			Description: "【已下架：改了不生效，改动期间请勿依赖】同上，chatWSPongWait 所在的 /ws/chat 路由从未注册",
-			ValueType:   "duration", Deprecated: true, DeprecatedReason: "同上，/ws/chat 路由从未注册，该端点是否存在本身还是产品决策", DefaultValue: "60", Min: strPtr("10"), Max: strPtr("300"), Step: strPtr("1")},
-
-		{Group: "wechat", Key: "chat_ws_write_wait", Name: "微信 WS 写等待（已下架）",
-			Description: "【已下架：改了不生效，改动期间请勿依赖】同上，chatWSWriteWait 所在的 /ws/chat 路由从未注册",
-			ValueType:   "duration", Deprecated: true, DeprecatedReason: "同上，/ws/chat 路由从未注册，该端点是否存在本身还是产品决策", DefaultValue: "10", Min: strPtr("1"), Max: strPtr("60"), Step: strPtr("1")},
+		// D-7（2026-10-23）：chat_ws_ping_period / chat_ws_pong_wait / chat_ws_write_wait
+		// 三条已下架种子随死代码一起移除——承载它们的 ChatWS 控制器与 /ws/chat 路由
+		// 从未接线，整体删除（决策：两周内无 /ws/chat 产品计划 ⇒ 删除而非接线）。
+		// 将来若上真坐席 WS，需先补 JWT 鉴权 + Origin 白名单 + 租户绑定
+		//（参照 /api/ws/visitor 的五层防护），再把旋钮登记回来。
 
 		{Group: "inbox_sales", Key: "tg_lead_opportunity_threshold", Name: "Telegram 线索机会阈值",
 			Description: "Telegram 线索识别判定为有机会的最低分数",

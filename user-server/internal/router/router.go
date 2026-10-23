@@ -603,7 +603,7 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 
 		setupRagRoutes(auth, gormDB)
 
-		setupKnowledgeBaseRoutes(auth)
+		setupKnowledgeBaseRoutes(auth, gormDB)
 
 		setupWhatsappRoutes(auth, gormDB)
 
@@ -662,7 +662,7 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 		messageHubRepo := repository.NewMessageHubRepositoryWithDB(gormDB)
 		bridgeHandler.SetOutboxQuerier(messageHubRepo)
 
-		service.SetGlobalSSEPublisher(func(ctx context.Context, channel, accountID string, hubID uint64, convID, msgType, receiverID, content string, isAIReply bool, createdAt time.Time) {
+		service.SetGlobalSSEPublisher(func(ctx context.Context, channel, accountID string, hubID uint64, convID, msgType, receiverID, content, mediaURL string, isAIReply bool, createdAt time.Time) {
 			// R-B1：总线 Data 与 DB 补拉路径逐键一致（msg_id 必带——扩展端复合去重键
 			// msg_id|conversation_id 依赖它；曾缺 msg_id 致同会话第二条起静默丢消息）。
 			// msg_id 与落库行同源：service.ContentHashMsgID ≡ DeliverBridgeOutbound 赋值处。
@@ -678,6 +678,7 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 				ConversationID: convID,
 				Content:        content,
 				MsgType:        msgType,
+				MediaURL:       mediaURL,
 				ReceiverID:     receiverID,
 				IsAIReply:      isAIReply,
 				CreatedAt:      createdAt,

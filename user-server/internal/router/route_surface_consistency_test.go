@@ -51,12 +51,12 @@ const minE2EInventoryCoverage = 738
 // 只许升不许降：补了新注解就把这个数改成当次实测值；注解被删导致守卫红，
 // 说明有对外端点正在失去文档，需显式改这里并写明原因，不允许静默降。
 // 不设"百分比"目标：分母（全仓 handler 函数）含大量未接线函数，占比无意义（规划 §4.2）。
-const minLiveAnnotations = 145
+const minLiveAnnotations = 148
 
 // minLiveAPIRoutes 是运行时路由表里 /api/ 路由条数的棘轮下界（E-2 同批，2026-10-23 实测 1770）。
 // 守的对象与 minE2EInventoryCoverage 不同：那个守的是冒烟清单覆盖面，这个守的是
 // 注册面本身——路由被静默删除（接线被摘、注册循环被改坏）时这条先红。
-const minLiveAPIRoutes = 1770
+const minLiveAPIRoutes = 1773
 
 // annotationScanRoot 是接口注解的扫描根：模块根（本包目录的 ../..）。
 // 只扫 controller/router/service 会漏掉 internal/geo/controller 这类同样进 swagger 的目录，

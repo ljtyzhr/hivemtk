@@ -159,9 +159,9 @@ func TestFeedbackFloatFallbackSemantics(t *testing.T) {
 // TestFeedbackSeedsMatchConfigDefaults 22 条种子的默认值必须等于 DefaultXxxConfig()。
 func TestFeedbackSeedsMatchConfigDefaults(t *testing.T) {
 	d := map[string]string{
-		"bandit_min_samples_for_exploit": "30",
-		"bandit_exploration_floor":       "0.10",
-		"bandit_traffic_ceiling":         "0.60",
+		"bandit_min_samples_for_exploit":  "30",
+		"bandit_exploration_floor":        "0.10",
+		"bandit_traffic_ceiling":          "0.60",
 		FBBanditConvergenceThreshold:      "0.95",
 		FBBanditMinSamplesForPromote:      "100",
 		FBBanditPosteriorSamples:          "1000",

@@ -72,7 +72,8 @@ func TestSavePlatformProviders_OnModeWithoutTenantCtx(t *testing.T) {
 // 生产红因是**行自证**缺失：原文构造 LLMProvider 时不写 TenantID，
 // 于是隔离 callback 的 fillOneForTenant 走 !bound 分支、行上又没有显式
 // tenant_id 可自证 ⇒ tenantGuardFail ⇒
-//   [tenant] 表 llm_providers 需要租户上下文但 ctx 未绑定（create）
+//
+//	[tenant] 表 llm_providers 需要租户上下文但 ctx 未绑定（create）
 //
 // 本用例把守卫摘掉（模拟原文：不写 TenantID），必须红成**原来那句**；
 // 断言的是"落库行必须带显式 tenant_id"这个不变量，而不是某条具体实现。

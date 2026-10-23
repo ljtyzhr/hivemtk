@@ -893,6 +893,7 @@ func (s *WebhookService) sendOutbound(ctx context.Context, channel WebhookChanne
 						persisted.MsgType,
 						persisted.ReceiverID,
 						persisted.Content,
+						persisted.MediaURL,
 						persisted.IsAIReply,
 						persisted.SentAt,
 					)

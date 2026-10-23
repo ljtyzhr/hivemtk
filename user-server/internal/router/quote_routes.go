@@ -13,6 +13,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"hivemtk-user/internal/controller"
+	"hivemtk-user/internal/middleware"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/service"
 )
@@ -31,7 +32,13 @@ import (
 func setupQuoteRoutes(auth *gin.RouterGroup) {
 	reads := service.GlobalQuoteService()
 	sends := service.GlobalQuoteSendService()
-	controller.NewQuoteController(reads, sends).RegisterRoutes(auth)
+	// E-7（2026-10-23）：LTC quote 阶段门，shadow 态挂载——只记录"本应拒绝"不阻断
+	// （规划 §4.7 推荐第 1 步：低风险链路先 shadow 观察一周，读数看
+	// middleware.LTCShadowWouldRefuse 与 event=ltc_gate_shadow 日志；转强制时把
+	// LTCStageGateShadow 换成 LTCStageGate 即可，判定逻辑两态共用）。
+	// 挂在 /quote 子组而非 auth.Use：auth.Use 会波及之后注册的所有路由。
+	controller.NewQuoteController(reads, sends).RegisterRoutes(
+		middleware.GatedGroup(auth, service.LTCStageQuote))
 	if reads == nil || sends == nil {
 		logger.Infof("[Router] quote 路由已挂载，但两条腿未全部装配（生成=%v 发送=%v）⇒ /api/quote/* 全部回 503"+
 			"（检查 app.InitQuoteRuntime 是否在路由之前跑过）", reads != nil, sends != nil)

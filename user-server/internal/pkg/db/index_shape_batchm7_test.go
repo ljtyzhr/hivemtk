@@ -285,7 +285,10 @@ func TestBatchM_MessageHubGuardDoesNotClaimReadyWhenNameIsNotUnique(t *testing.T
 		}
 		batchM7Restore(t, gdb, table, indexNA, postMigrateMessageHubUniqueIndex)
 	})
-	batchM7Squat(t, gdb, table, indexNA, "platform, msg_id, conversation_id")
+	// D-2（2026-10-23）后钩子对**旧三列形状**会做 DROP+升级（那正是 D-2 的迁移路径，
+	// 不再是"只报不改"的对象）；"只报不改"口径在本腿改用**陌生形状**（direction 在前）
+	// 占位验证——同名、非唯一、且既非旧三列也非新四列 ⇒ 钩子不得替运维动它。
+	batchM7Squat(t, gdb, table, indexNA, "direction, platform, msg_id, conversation_id")
 
 	log := batchM7CaptureLogs(t, postMigrateMessageHubUniqueIndex)
 	if strings.Contains(log, batchM5LogHubReady) {

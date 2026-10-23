@@ -28,9 +28,25 @@ type PlatformConfig struct {
 	CloudURL string `yaml:"cloud_url" json:"cloud_url"`
 }
 
-// DefaultCloudURL 云端版对外地址（003 spec R1）。
-// 已替换为正式域名（work 子域 = 用户端应用入口）—— 全仓只此一处（平台配置 cloud_url / env PLATFORM_CLOUD_URL 可覆盖）。
+// DefaultCloudURL 云端版对外地址（003 spec R1）—— **厂商自己的**生产域名。
+//
+// ⚠️ 它是"最后一级回落"，不是"推荐值"：一套自建 SaaS / 私有化部署如果没配
+// `urls.cloud_url`、`PLATFORM_CLOUD_URL` 与平台配置的 cloud_url，前端"云端版入口"
+// 就会指向厂商的站点 —— 用户点过去就是别人的生产环境（托管方自己的实例反倒没人访问）。
+//
+// 因此有两条约束（A11）：
+//  1. 全仓只此一处字面量（改域名只改这里）；
+//  2. **回落到它就等于没配置**，启动期必须打一行 WARN（见 CloudURLSource 与
+//     app.WarnIfCloudURLIsBuiltinDefault），不允许"安静地指错地方"。
 const DefaultCloudURL = "https://work.xapptool.cn"
+
+// 云端版地址的四个来源标签（启动期提示与排障用；顺序即优先级）。
+const (
+	CloudURLSourcePlatformCfg = "platform_config"
+	CloudURLSourceEnv         = "env:PLATFORM_CLOUD_URL"
+	CloudURLSourceParamCenter = "param_center:urls.cloud_url"
+	CloudURLSourceBuiltin     = "builtin_default(vendor)"
+)
 
 // cloudURLProvider 是 urls.cloud_url 参数中心取值口（R2 参数化，R5-3 起按 ctx 取租户覆盖）。
 // 默认返回空串 = 未装配，CloudURLFor() 会继续回落到 env/常量，等价于接线前行为。
@@ -56,16 +72,26 @@ func SetCloudURLProvider(fn func(ctx context.Context) string) {
 // 而云端地址是 public config 的展示字段，任何形态都要给前端一个可渲染的值
 // —— 离线（PLATFORM_ENABLED=false）回落占位常量而非空串。
 func CloudURLFor(ctx context.Context) string {
+	u, _ := CloudURLSource(ctx)
+	return u
+}
+
+// CloudURLSource 返回生效的云端版地址与它的来源标签。
+//
+// 抽出 source 的理由：`CloudURLFor` 只回答"是什么"，而 A11 要回答的是
+// "**这个值是谁给的**"——没配置时它会安静地等于厂商域名，只比较字符串无法区分
+// "运维显式填了同一个域名"和"什么都没填"。启动期据此打响声。
+func CloudURLSource(ctx context.Context) (url, source string) {
 	if PlatformCfg != nil && strings.TrimSpace(PlatformCfg.CloudURL) != "" {
-		return strings.TrimSpace(PlatformCfg.CloudURL)
+		return strings.TrimSpace(PlatformCfg.CloudURL), CloudURLSourcePlatformCfg
 	}
 	if v := strings.TrimSpace(os.Getenv("PLATFORM_CLOUD_URL")); v != "" {
-		return v
+		return v, CloudURLSourceEnv
 	}
 	if v := strings.TrimSpace(cloudURLProvider(ctx)); v != "" {
-		return v
+		return v, CloudURLSourceParamCenter
 	}
-	return DefaultCloudURL
+	return DefaultCloudURL, CloudURLSourceBuiltin
 }
 
 // CloudURL 无 ctx 形态：平台级调用（无租户归属）等价于未绑定租户读取。

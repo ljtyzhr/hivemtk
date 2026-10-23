@@ -78,10 +78,10 @@ func TestGeoDailyStatUniqueKeyMigration_DedupesAndCreatesUniqueIndex(t *testing.
 	}
 
 	var rows []struct {
-		ID                   uint
-		TenantID             uint
-		CitationCount        int
-		BrandMentionedCount  int
+		ID                  uint
+		TenantID            uint
+		CitationCount       int
+		BrandMentionedCount int
 	}
 	if err := db.Raw(`SELECT id, tenant_id, citation_count, brand_mentioned_count
 		FROM geo_daily_stats ORDER BY tenant_id`).Scan(&rows).Error; err != nil {

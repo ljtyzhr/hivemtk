@@ -567,19 +567,23 @@ func (s *InboxIngressService) triggerAIForEvent(ctx context.Context, event *mode
 					Msg("[Inbox] aiTrigger.TriggerInboundAI panic recovered — AI 链路已断开，请查 root cause")
 			}
 		}()
+		// FR5.3（002-multi-type-messages）：非文本消息的 AI 上下文必须携带媒体 URL。
+		// event.MsgType 已被上游（InboundHubMsgType/桥端词表）归一为中台词表类型；
+		// 文本消息此调用逐字节等价于旧口径 event.Content。
+		aiContent := AppendMediaContextToContent(event.Content, event.MsgType, event.MediaURL)
 		logger.Ctx(ctx).Info().
 			Str("channel", event.Channel).
 			Str("account_id", accountID).
 			Str("conv_id", event.ConversationID).
 			Str("event_id", event.EventID).
 			Str("sender", event.SenderID).
-			Int("content_len", len(event.Content)).
+			Int("content_len", len(aiContent)).
 			Msg("[Inbox] aiTrigger.TriggerInboundAI start")
 
 		if !s.markAIProcessing(ctx, event.ConversationID) {
 			return
 		}
-		s.aiTrigger.TriggerInboundAI(ctx, event.Channel, accountID, event.ConversationID, event.SenderID, event.Content, event.EventID, opts...)
+		s.aiTrigger.TriggerInboundAI(ctx, event.Channel, accountID, event.ConversationID, event.SenderID, aiContent, event.EventID, opts...)
 	}()
 }
 

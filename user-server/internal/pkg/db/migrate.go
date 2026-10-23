@@ -304,6 +304,13 @@ func allModels() []any {
 		// 登记后 AutoMigrate 建表，tenancyidx.Normalize 把 UNIQUE(agent_id, kb_id)
 		// 复合化为 (tenant_id, agent_id, kb_id)——业务唯一性是租户内的。
 		&model.AgentKBBinding{},
+		// KBItemBinding（表 kb_item_bindings）：知识库成员表（P0-2/P0-3/D-8 方案 A）。
+		// 此前知识库与内容（FAQ/SOP/文档）之间没有成员关系：内容表无 kb_id、按 owner
+		// agent 反推交集为空，前端抽屉的 kb_id 参数被 List 静默忽略、rag 分支请求的
+		// /api/knowledge 恒 404。本表把"归属"建成独立的多对多关系（UNIQUE(kb_id,
+		// item_type, item_id) 经 tenancyidx.Normalize 复合化为租户内唯一），
+		// 支持一条内容属多个 KB（shared 语义），内容大表不动，允许"未分配"长期存在。
+		&model.KBItemBinding{},
 		&model.CustomerServiceAgent{},
 		&model.LLMProvider{},
 		&model.LLMRoutingRule{},
@@ -895,13 +902,83 @@ func postMigrateMessageHubUniqueIndex() {
 	if err := DB.Exec(`DROP INDEX IF EXISTS uni_message_hub_msg_id_conv`).Error; err != nil {
 		logger.Warn(fmt.Sprintf("post-migrate: DROP 旧 uni_message_hub_msg_id_conv 失败: %v", err))
 	}
-	if err := DB.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS uni_message_hub_platform_msg_conv ON message_hub (platform, msg_id, conversation_id)`).Error; err != nil {
-		logger.Warn(fmt.Sprintf("post-migrate: CREATE uni_message_hub_platform_msg_conv 失败: %v", err))
-	} else if why := verifyUniqueIndex(DB, "uni_message_hub_platform_msg_conv"); why != "" {
-		logger.Warn("post-migrate: " + why + " ⇒ 三元组去重的库级兜底并未生效，需人工 DROP 那枚同名非唯一索引后重启")
-	} else {
-		logger.Info("post-migrate: message_hub (platform, msg_id, conversation_id) 三元组唯一索引已就绪")
+	// D-2（2026-10-23）：索引形状改为 (platform, msg_id, conversation_id, direction)。
+	// 迁移路径：库里还是旧三列形状（历史部署的真实状态）⇒ DROP 后按新形状重建——
+	// 这是 D-2 的升级路径，不是"只报不改"要守的对象；但若同名索引已是**新四列形状**
+	// 而非唯一（有人为读路径特意建的同形索引），仍走 verifyUniqueIndex 的"只报不改"
+	// 旧口径（形状读数见 indexShapeMatches）。AutoMigrate 按 model tag 建的索引成功时
+	// 此处幂等重入无害。
+	switch indexShapeMatches(DB, "message_hub", "uni_message_hub_platform_msg_conv",
+		[]string{"platform", "msg_id", "conversation_id", "direction"}) {
+	case "exact": // 新形状已就绪，不动（幂等）
+		logger.Info("post-migrate: message_hub (platform, msg_id, conversation_id, direction) 唯一索引已就绪（D-2 方案③：跨方向同文本可共存）")
+	case "old_shape": // 旧三列形状 ⇒ D-2 升级：换形状
+		if err := DB.Exec(`DROP INDEX IF EXISTS uni_message_hub_platform_msg_conv`).Error; err != nil {
+			logger.Warn(fmt.Sprintf("post-migrate: DROP 旧三列版 uni_message_hub_platform_msg_conv 失败: %v", err))
+		}
+		if err := DB.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS uni_message_hub_platform_msg_conv ON message_hub (platform, msg_id, conversation_id, direction)`).Error; err != nil {
+			logger.Warn(fmt.Sprintf("post-migrate: CREATE uni_message_hub_platform_msg_conv 失败: %v", err))
+		} else if why := verifyUniqueIndex(DB, "uni_message_hub_platform_msg_conv"); why != "" {
+			logger.Warn("post-migrate: " + why)
+		} else {
+			logger.Info("post-migrate: message_hub 唯一索引已按 D-2 升级为 (platform, msg_id, conversation_id, direction)")
+		}
+	default: // 名字被别的形状占住（既非旧三列也非新四列）⇒ 只报不改（同族守卫既有口径）
+		if err := DB.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS uni_message_hub_platform_msg_conv ON message_hub (platform, msg_id, conversation_id, direction)`).Error; err != nil {
+			logger.Warn(fmt.Sprintf("post-migrate: CREATE uni_message_hub_platform_msg_conv 失败: %v", err))
+		}
+		if why := verifyUniqueIndex(DB, "uni_message_hub_platform_msg_conv"); why != "" {
+			logger.Warn("post-migrate: " + why + " ⇒ 三元组去重的库级兜底并未生效，需人工 DROP 那枚同名非唯一索引后重启")
+		}
 	}
+}
+
+// indexShapeMatches 读库里同名索引的列清单：exact=与 want 完全一致、old_shape=与
+// legacy（D-2 前的三列形状）一致、其他=名字被别的形状占用或不存在。
+// 只在 postMigrateMessageHubUniqueIndex 用（D-2 形状升级判据）。
+func indexShapeMatches(db *gorm.DB, table, indexName string, want []string) string {
+	type col struct {
+		Attname string
+		N       int
+	}
+	var cols []col
+	if err := db.Raw(`
+		SELECT a.attname, k.n
+		FROM pg_index i
+		JOIN pg_class ic ON ic.oid = i.indexrelid
+		JOIN pg_class tc ON tc.oid = i.indrelid
+		JOIN pg_namespace n ON n.oid = ic.relnamespace
+		CROSS JOIN LATERAL unnest(i.indkey) WITH ORDINALITY AS k(attnum, n)
+		JOIN pg_attribute a ON a.attrelid = tc.oid AND a.attnum = k.attnum
+		WHERE ic.relname = ? AND tc.relname = ? AND n.nspname = current_schema()
+		ORDER BY k.n`, indexName, table).Scan(&cols).Error; err != nil {
+		return "unknown"
+	}
+	if len(cols) == 0 {
+		return "missing"
+	}
+	got := make([]string, 0, len(cols))
+	for _, c := range cols {
+		got = append(got, c.Attname)
+	}
+	eq := func(a, b []string) bool {
+		if len(a) != len(b) {
+			return false
+		}
+		for i := range a {
+			if a[i] != b[i] {
+				return false
+			}
+		}
+		return true
+	}
+	if eq(got, want) {
+		return "exact"
+	}
+	if eq(got, []string{"platform", "msg_id", "conversation_id"}) {
+		return "old_shape"
+	}
+	return "other"
 }
 
 func isTolerableMigrateError(err error) bool {

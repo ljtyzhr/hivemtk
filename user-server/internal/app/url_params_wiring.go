@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"hivemtk-user/internal/config"
+	"hivemtk-user/internal/pkg/utils/logger"
 	appsvc "hivemtk-user/internal/service"
 )
 
@@ -30,8 +31,10 @@ func WireURLsConfigParams() []string {
 	cp := appsvc.GlobalConfigParam()
 	wired := make([]string, 0, 4)
 
+	// 这里的"缺省"必须是空串而不是 DefaultCloudURL：同一个值当默认值回填，
+	// 就等于把"没配"伪装成"配了"——A11 的启动期提示就无法区分两者（见 CloudURLSource）。
 	config.SetCloudURLProvider(func(ctx context.Context) string {
-		return cp.GetString(ctx, "urls", "cloud_url", config.DefaultCloudURL)
+		return cp.GetString(ctx, "urls", "cloud_url", "")
 	})
 	wired = append(wired, "urls.cloud_url")
 
@@ -51,4 +54,29 @@ func WireURLsConfigParams() []string {
 	wired = append(wired, "platform.api_host")
 
 	return wired
+}
+
+// WarnIfCloudURLIsBuiltinDefault 启动期提示：云端版地址是不是还指着厂商的默认域名（A11）。
+//
+// 为什么需要它：`urls.cloud_url` 的种子默认值与代码常量**都是**厂商生产域名，所以
+// "运维从没配过"和"运维配了一个一模一样的域名"在参数表里长得完全相同。仅比较字符串
+// 无法区分，只能靠来源标签（CloudURLSource）：
+//   - 来源是 env / 平台配置 ⇒ 运维显式配过，不提示；
+//   - 来源是参数中心（含种子默认值）或代码常量 ⇒ 提示：一套自建 SaaS / 私有化部署此时
+//     会把用户引导到厂商站点。
+//
+// 只打一行，且写明消音办法（把来源改成 env 或平台配置即可），不做任何自动改写：
+// 值本身对厂商自己的云端版是**正确**的，猜错方向比不猜更糟。
+func WarnIfCloudURLIsBuiltinDefault() {
+	url, source := config.CloudURLSource(context.Background())
+	if url != config.DefaultCloudURL {
+		return
+	}
+	if source == config.CloudURLSourceEnv || source == config.CloudURLSourcePlatformCfg {
+		return
+	}
+	logger.Warnf("[urls] 云端版地址仍是内置默认域名 %s（来源 %s）。若本实例是**自建 SaaS / 私有化部署**，"+
+		"前端「云端版入口」会把用户引到厂商生产环境：请显式配置 urls.cloud_url 参数、"+
+		"env PLATFORM_CLOUD_URL 或平台配置的 cloud_url（任一处显式配置后本行不再出现）",
+		url, source)
 }

@@ -18,6 +18,7 @@ import (
 type KnowledgeBaseService struct {
 	repo        *repository.KnowledgeBaseRepository
 	bindingRepo *repository.AgentKBBindingRepository
+	itemRepo    *repository.KBItemBindingRepository // kb_item_bindings 成员表（P0-2/D-8 方案 A）
 }
 
 // IsValidKBType 校验知识库类型字段是否合法 (faq / rag / sop)
@@ -41,6 +42,7 @@ func NewKnowledgeBaseService(db *gorm.DB) *KnowledgeBaseService {
 	return &KnowledgeBaseService{
 		repo:        repository.NewKnowledgeBaseRepository(db),
 		bindingRepo: repository.NewAgentKBBindingRepository(db),
+		itemRepo:    repository.NewKBItemBindingRepository(db),
 	}
 }
 
@@ -134,12 +136,10 @@ func (s *KnowledgeBaseService) GetKB(ctx context.Context, id uint) (*model.Knowl
 
 // GetKBStats 知识库统计（前端 KBDrawer 抽屉）。
 //
-// 只返回可证真的 agent_count（agent_kb_bindings 反查）。
-// item_count / hit_count 不再返回假 0：三个内容表（faq_entries / sop_templates /
-// knowledge_documents）与 knowledge_bases 行之间没有外键，按单个 KB 无法算出条目数，
-// 且 KB 行上的 DocCount 是无人维护的冗余列（恒为建行值 0，见 model/knowledge_base.go
-// 顶部字段说明）。要做真统计需先给内容表加 kb_id 外键并回填（数据迁移 + 归属口径评审，
-// PSEUDO B3）；在此之前前端不展示这两格，而不是展示恒 0 的假数。
+// 返回可证真的 agent_count（agent_kb_bindings 反查）与 item_count（kb_item_bindings
+// 成员表计数，P0-2/D-8 方案 A 落地后的真实归属关系）。
+// hit_count 仍不返回：没有真实检索命中计数的写入路径（文档级 SearchCount/HitCount
+// 全仓无写入，见 model/knowledge_base.go 同名注释），前端继续"未接入"占位，不造假数。
 func (s *KnowledgeBaseService) GetKBStats(ctx context.Context, id uint) (map[string]int64, error) {
 	kb, err := s.GetKB(ctx, id)
 	if err != nil {
@@ -150,6 +150,7 @@ func (s *KnowledgeBaseService) GetKBStats(ctx context.Context, id uint) (map[str
 	}
 	stats := map[string]int64{
 		"agent_count": 0,
+		"item_count":  0,
 	}
 	if s.bindingRepo != nil {
 		bindings, err := s.bindingRepo.ListByKB(ctx, id)
@@ -157,6 +158,13 @@ func (s *KnowledgeBaseService) GetKBStats(ctx context.Context, id uint) (map[str
 			return nil, err
 		}
 		stats["agent_count"] = int64(len(bindings))
+	}
+	if s.itemRepo != nil {
+		n, err := s.itemRepo.CountEffectiveByKB(ctx, kb.TenantID, id, "")
+		if err != nil {
+			return nil, err
+		}
+		stats["item_count"] = n
 	}
 	return stats, nil
 }

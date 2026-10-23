@@ -6,7 +6,7 @@ import { baseCompile } from '@intlify/message-compiler'
 // 9 个语言包里的**每一条**词条都必须能被 vue-i18n 编译通过。
 //
 // 为什么这条门这么严：vue-i18n 1.x 在 dev 下用**运行时**编译器（vite 的
-// hivemtk-i18n-functions 插件只在 build 阶段预编译，dev 走原�� JSON），
+// hivemtk-i18n-functions 插件只在 build 阶段预编译，dev 走原始 JSON），
 // 运行时编译靠 new Function —— 撞上 CSP 的 script-src 'self'（没有 unsafe-eval）
 // 就直接 EvalError 抛出来。而词条编译是**按需**的：只要有一条词条里有
 // vue-i18n 认不出来的语法，这条词条被渲染的瞬间就报错，页面当场白屏。

@@ -313,7 +313,7 @@ func TestChurnPredictionService_MarkWarningHandled(t *testing.T) {
 func TestChurnPredictionService_GetModelConfig(t *testing.T) {
 	service := setupChurnPredictionService(t)
 
-	config, err := service.GetModelConfig(ctx, )
+	config, err := service.GetModelConfig(ctx)
 	if err != nil {
 		t.Fatalf("GetModelConfig failed: %v", err)
 	}
@@ -346,7 +346,7 @@ func TestChurnPredictionService_SaveModelConfig(t *testing.T) {
 		t.Fatalf("SaveModelConfig failed: %v", err)
 	}
 
-	retrieved, err := service.GetModelConfig(ctx, )
+	retrieved, err := service.GetModelConfig(ctx)
 	if err != nil {
 		t.Fatalf("GetModelConfig failed: %v", err)
 	}
@@ -386,7 +386,7 @@ func TestChurnPredictionService_CalculateDailyStatistics(t *testing.T) {
 		t.Fatalf("CalculateDailyStatistics failed: %v", err)
 	}
 
-	stats, err := service.statsRepo.GetLatest(ctx, )
+	stats, err := service.statsRepo.GetLatest(ctx)
 	if err != nil {
 		t.Fatalf("GetLatest stats failed: %v", err)
 	}
@@ -427,7 +427,7 @@ func TestChurnPredictionService_GetRiskDistribution(t *testing.T) {
 		service.predictionRepo.Upsert(ctx, prediction)
 	}
 
-	distribution, err := service.GetRiskDistribution(ctx, )
+	distribution, err := service.GetRiskDistribution(ctx)
 	if err != nil {
 		t.Fatalf("GetRiskDistribution failed: %v", err)
 	}
@@ -692,7 +692,7 @@ func TestChurnPredictionService_GetChurnRate(t *testing.T) {
 	}
 	service.statsRepo.Create(ctx, stats)
 
-	rate, err := service.GetChurnRate(ctx, )
+	rate, err := service.GetChurnRate(ctx)
 	if err != nil {
 		t.Fatalf("GetChurnRate failed: %v", err)
 	}

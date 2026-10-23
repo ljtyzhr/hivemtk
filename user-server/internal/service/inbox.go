@@ -1019,7 +1019,7 @@ func inferFromType(assignedTo string, assignedSOP uint) string { //nolint:unused
 	return "system"
 }
 
-func firstNonEmpty(a, b string) string { //nolint:unused //// 仅被 *_test.go 引用，生产路径未用
+func firstNonEmpty(a, b string) string {
 	if strings.TrimSpace(a) != "" {
 		return a
 	}

@@ -2,6 +2,7 @@ package cache
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 )
@@ -104,8 +105,10 @@ func TestMemoryCache_ListOps(t *testing.T) {
 	if err != nil || v != `{"j":1}` {
 		t.Fatalf("LPop 首元素错误: %q %v", v, err)
 	}
-	if _, err := m.LPop(ctx, "missing"); err != nil {
-		t.Fatal(err)
+	// E-6b 契约对齐后：LPop 未命中 / 取空返回 ErrCacheMiss（与 RedisCache 的
+	// redis.Nil 同语义），不再返回 ("", nil)。旧断言"未命中 err==nil"已反转。
+	if _, err := m.LPop(ctx, "missing"); !errors.Is(err, ErrCacheMiss) {
+		t.Fatalf("LPop 未命中应返回 ErrCacheMiss（E-6b 契约），实际 %v", err)
 	}
 	if err := m.Set(ctx, "q2", "notalist", 0); err != nil {
 		t.Fatal(err)
@@ -113,11 +116,18 @@ func TestMemoryCache_ListOps(t *testing.T) {
 	if v, _ := m.LPop(ctx, "q2"); v != "" {
 		t.Fatal("非 list LPop 应返回空串")
 	}
-	if _, err := m.LPop(ctx, "q"); err != nil {
-		t.Fatal(err)
+	if _, err := m.LPop(ctx, "q"); !errors.Is(err, ErrCacheMiss) && err != nil {
+		t.Fatalf("列表尚有元素时 LPop 不应报错，实际 %v", err)
+	} else if err == nil {
+		// 元素 "a" 已弹出，继续
+		_ = err
 	}
 	if _, err := m.LPop(ctx, "q"); err != nil {
-		t.Fatal(err)
+		t.Fatalf("弹出最后一项 b 不应报错，实际 %v", err)
+	}
+	// E-6b 契约：取空后键删除，再弹返回 ErrCacheMiss
+	if _, err := m.LPop(ctx, "q"); !errors.Is(err, ErrCacheMiss) {
+		t.Fatalf("列表取空后 LPop 应返回 ErrCacheMiss（E-6b 契约），实际 %v", err)
 	}
 	if _, exists := m.peekItem("q"); exists {
 		t.Fatal("list 弹空后键应消失")

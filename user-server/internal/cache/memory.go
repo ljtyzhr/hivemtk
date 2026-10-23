@@ -322,6 +322,11 @@ func (m *MemoryCache) RPush(ctx context.Context, key string, value any, expirati
 }
 
 // LPop 从列表头部弹出
+//
+// E-6b 契约对齐（2026-10-23）：未命中 / 空列表返回 ErrCacheMiss（哨兵与 Get 统一），
+// 不再返回 ("", nil)——RedisCache 腿 LPop 空时返回 redis.Nil，降级到 Memory 时
+// 调用方（inbox_ingress / human_escalation 等）靠错误哨兵区分"没有"与"空串"，
+// 两腿语义必须一致（规划 §4.6b：以 Redis 为准）。
 func (m *MemoryCache) LPop(ctx context.Context, key string) (string, error) {
 	key = tenant.RedisKey(ctx, key)
 	m.mu.Lock()
@@ -329,11 +334,11 @@ func (m *MemoryCache) LPop(ctx context.Context, key string) (string, error) {
 
 	ele, ok := m.data[key]
 	if !ok {
-		return "", nil
+		return "", ErrCacheMiss
 	}
 	item := ele.Value.(*cacheItem)
 	if !item.listMode || len(item.listItems) == 0 {
-		return "", nil
+		return "", ErrCacheMiss
 	}
 	v := item.listItems[0]
 	item.listItems = item.listItems[1:]
@@ -464,7 +469,10 @@ func (m *MemoryCache) Incr(ctx context.Context, key string, expiration time.Dura
 			if n, ok := item.value.(int64); ok {
 				n++
 				item.value = n
-				if expiration > 0 {
+				// E-6b 契约对齐（2026-10-23）：TTL 只在首次自增（n==1）设置，
+				// 不再每次往后推——与 RedisCache 的 Expire-on-first 语义一致；
+				// 旧实现下限流/去重键在高频写入时永不过期（规划 §4.6b 表第 3 行）。
+				if expiration > 0 && n == 1 {
 					item.expiration = exp
 				}
 				m.touch(ele)

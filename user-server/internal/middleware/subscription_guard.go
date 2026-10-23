@@ -83,7 +83,8 @@ var subscriptionAllowExact = []string{
 // 模式语义与 module_gate 相同：`*` 吃掉恰好一段；前缀以 `/*` 结尾表示整棵子树。
 var subscriptionCustomerFacing = []string{
 	"/api/chat/public/*", // setupChatPublicRoutes（widget 对话面）
-	"/ws/chat",           // chat WebSocket（引擎级路由）
+	// "/ws/chat" 已随 D-7 删除（2026-10-23）：ChatWS 控制器与路由从未接线，
+	// 死代码整体移除；将来若上真坐席 WS，参照 /api/ws/visitor 的五层防护重新登记。
 	"/api/ws/visitor",    // 访客 WebSocket
 	"/api/bridge/ingest", // bridge ingress（扩展端上报）
 	"/api/bridge/outbox", // bridge outbox（含 /ack /sse 子路径见下）

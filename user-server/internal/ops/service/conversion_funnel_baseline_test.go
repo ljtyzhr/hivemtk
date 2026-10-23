@@ -171,16 +171,25 @@ func TestConversionFunnel_BuildFunnel_GoldenContract(t *testing.T) {
 	}
 
 	got := stripGeneratedAt(t, report)
+	// D-3 方案①（2026-10-23）响应契约变更：新增 degraded / stage_errors 两键；
+	// drop_rate 在 rate>100（阶段数非单调增长）时置 0 而不再给负流失数。
+	// rate 本身保持现状（400% 仍原样返回，NonMonotonicStagesBaseline 继续钉它）。
 	want := `{"start_time":"2019-03-01T00:00:00Z","end_time":"2019-03-31T23:59:59Z",` +
 		`"stages":[` +
 		`{"stage":"visit","name":"访问","count":4,"rate":100,"drop_rate":0},` +
 		`{"stage":"clue","name":"线索","count":3,"rate":75,"drop_rate":25},` +
 		`{"stage":"intent","name":"意向","count":1,"rate":33.33333333333333,"drop_rate":66.66666666666667},` +
-		`{"stage":"session","name":"会话","count":4,"rate":400,"drop_rate":-300},` +
+		`{"stage":"session","name":"会话","count":4,"rate":400,"drop_rate":0},` +
 		`{"stage":"opportunity","name":"商机","count":3,"rate":75,"drop_rate":25}],` +
-		`"total":4,"conversion":100}`
+		`"total":4,"conversion":100,"degraded":false}`
 	if got != want {
 		t.Fatalf("漏斗响应与基线不一致\n实际：%s\n期望：%s", got, want)
+	}
+	if report.Degraded {
+		t.Errorf("正常取数态 degraded 必须为 false")
+	}
+	if len(report.StageErrors) != 0 {
+		t.Errorf("正常取数态 stage_errors 必须为空，实际 %v", report.StageErrors)
 	}
 	// 第五段**只加段、不改旧账**：total 仍是访问量、conversion 仍是"访问→会话"。
 	// 这两格不是顺带断言 —— 前端摘要区今日读的就是它们（见 user-web 那个 view 里的
@@ -221,9 +230,13 @@ func TestConversionFunnel_BuildFunnel_NonMonotonicStagesBaseline(t *testing.T) {
 	if last == nil {
 		t.Fatal("响应里没有会话段，本条断言无从落点（阶段名漂移了？）")
 	}
-	if last.Rate <= 100 || last.DropRate >= 0 {
-		t.Fatalf("期望登记住「比率超 100 / 跌幅为负」的现状，实际 rate=%v drop=%v ⇒ 口径已变，回灌本卡",
-			last.Rate, last.DropRate)
+	// D-3 后 rate 仍保留 >100 的现状（它本身是"无单调约定"的证据）；
+	// drop_rate 已改为负值置 0，所以这里断 rate>100 且 drop==0（新口径）。
+	if last.Rate <= 100 {
+		t.Fatalf("期望登记住「比率超 100」的现状，实际 rate=%v ⇒ 口径已变，回灌本卡", last.Rate)
+	}
+	if last.DropRate != 0 {
+		t.Fatalf("D-3 后 drop_rate 在 rate>100 时应置 0（不再给负流失数），实际 %v", last.DropRate)
 	}
 }
 
@@ -393,9 +406,9 @@ func TestConversionFunnel_DemoTableRowsNeverMoveTheRealView(t *testing.T) {
 		`{"stage":"visit","name":"访问","count":4,"rate":100,"drop_rate":0},` +
 		`{"stage":"clue","name":"线索","count":3,"rate":75,"drop_rate":25},` +
 		`{"stage":"intent","name":"意向","count":1,"rate":33.33333333333333,"drop_rate":66.66666666666667},` +
-		`{"stage":"session","name":"会话","count":4,"rate":400,"drop_rate":-300},` +
+		`{"stage":"session","name":"会话","count":4,"rate":400,"drop_rate":0},` +
 		`{"stage":"opportunity","name":"商机","count":3,"rate":75,"drop_rate":25}],` +
-		`"total":4,"conversion":100}`
+		`"total":4,"conversion":100,"degraded":false}`
 	if got != want {
 		t.Fatalf("演示表里灌了 4×99999 行之后真实视图变了（AC③ 破了）\n实际：%s\n期望：%s", got, want)
 	}
@@ -466,19 +479,22 @@ func stripGeneratedAt(t *testing.T, report *FunnelReport) string {
 	delete(obj, "generated_at")
 
 	// 逐字段按固定顺序拼回来，避免依赖 map 的随机序。
+	// D-3 方案①：degraded / stage_errors 是新增契约键（stage_errors 带omitempty，
+	// 正常态不出现在 JSON，所以这里只把 degraded 排进固定序）。
 	out := "{"
-	for i, k := range []string{"start_time", "end_time", "stages", "total", "conversion"} {
+	for i, k := range []string{"start_time", "end_time", "stages", "total", "conversion", "degraded"} {
 		v, ok := obj[k]
 		if !ok {
 			t.Fatalf("响应里少了 %q 字段 ⇒ 契约漂移（key: %v）", k, keysOf(obj))
 		}
 		out += `"` + k + `":` + string(v)
-		if i < 4 {
+		if i < 5 {
 			out += ","
 		}
 	}
 	for k := range obj {
-		if k != "start_time" && k != "end_time" && k != "stages" && k != "total" && k != "conversion" {
+		if k != "start_time" && k != "end_time" && k != "stages" && k != "total" &&
+			k != "conversion" && k != "degraded" && k != "stage_errors" {
 			t.Fatalf("响应里多出字段 %q ⇒ 契约漂移（key: %v）", k, keysOf(obj))
 		}
 	}

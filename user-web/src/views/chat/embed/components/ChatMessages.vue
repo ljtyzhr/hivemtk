@@ -63,6 +63,44 @@
               class="bubble"
               :class="bubbleClass(msg)"
             >
+              <!-- 002-multi-type-messages：按 content_type 渲染媒体（图/视频/语音/文件），
+                   媒体在上、文字在下；RichCard 已在上方分支处理。 -->
+              <div
+                v-if="msg.content_type === 'image' && msg.media_url"
+                class="media-block"
+              >
+                <img
+                  :src="msg.media_url"
+                  class="media-image"
+                  alt=""
+                  @error="onMediaError(msg)"
+                >
+              </div>
+              <video
+                v-else-if="msg.content_type === 'video' && msg.media_url"
+                :src="msg.media_url"
+                controls
+                preload="metadata"
+                class="media-video"
+              />
+              <audio
+                v-else-if="msg.content_type === 'audio' && msg.media_url"
+                :src="msg.media_url"
+                controls
+                preload="metadata"
+                class="media-audio"
+              />
+              <div
+                v-else-if="msg.content_type === 'file' && msg.media_url"
+                class="media-file"
+              >
+                <a
+                  :href="msg.media_url"
+                  target="_blank"
+                  rel="noopener"
+                  class="media-file-link"
+                >{{ mediaFileName(msg) }}</a>
+              </div>
               <div
                 class="bubble-content"
                 v-html="formatContent(msg.content)"
@@ -183,6 +221,19 @@ const formatContent = (text) => {
   return DOMPurify.sanitize(html, { USE_PROFILES: { html: true } });
 };
 
+// ---- 002-multi-type-messages：媒体渲染辅助 ----
+const mediaFileName = (msg) => {
+  try {
+    return decodeURIComponent((msg.media_url || '').split('?')[0].split('/').pop() || i18n.global.t('文件'))
+  } catch {
+    return i18n.global.t('文件')
+  }
+}
+const onMediaError = (msg) => {
+  // 图片加载失败退化为正文占位（bubble-content 仍显示 content）
+  msg.media_url = ''
+}
+
 const scrollToBottom = async () => {
   await nextTick()
   if (listRef.value) {
@@ -273,6 +324,41 @@ defineExpose({ scrollToBottom })
 }
 .bubble-content {
   white-space: pre-wrap;
+}
+/* 002-multi-type-messages：媒体块 */
+.media-block {
+  margin-bottom: 4px;
+}
+.media-image {
+  max-width: 240px;
+  max-height: 200px;
+  border-radius: 6px;
+  display: block;
+  cursor: zoom-in;
+}
+.media-video {
+  max-width: 260px;
+  max-height: 200px;
+  border-radius: 6px;
+  display: block;
+  margin-bottom: 4px;
+}
+.media-audio {
+  max-width: 240px;
+  display: block;
+  margin-bottom: 4px;
+}
+.media-file {
+  margin-bottom: 4px;
+}
+.media-file-link {
+  color: #1989fa;
+  text-decoration: none;
+  word-break: break-all;
+  font-size: 13px;
+}
+.bubble.user .media-file-link {
+  color: #fff;
 }
 .bubble.user {
   background: #1989fa;

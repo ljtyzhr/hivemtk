@@ -511,6 +511,12 @@ func (c *LTCConfig) ReadingHints(guardedRoutes map[LTCStage]int) []string {
 	if active == 0 {
 		hints = append(hints, "当前没有任何路由挂在闸门下 ⇒ 把这里全打开不会改变任何现网行为；"+
 			"闸门的生产挂载点从 T-P4-05 起逐阶段接入（本卡交付的是落点与判据，不是已生效的开关面）")
+	} else {
+		// E-7（2026-10-23）：quote 链已挂 shadow 闸门。shadow 态"挂了但不拦"，
+		// 读数不看这个数字就分不清"已拦截 0 条"与"挂了 0 条路由"——两件事。
+		hints = append(hints, "闸门已有 shadow 态挂载（quote 链，只记录不阻断）：这里开着也**不会真的拦**，"+
+			"真正的拦截量看 middleware.LTCShadowWouldRefuse 与 event=ltc_gate_shadow 日志；"+
+			"转强制需把路由装配点从 LTCStageGateShadow 换成 LTCStageGate（见 ltc_gate.go 头注）")
 	}
 	return hints
 }

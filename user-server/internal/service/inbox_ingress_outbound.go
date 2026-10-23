@@ -67,6 +67,7 @@ func (s *InboxIngressService) DeliverOutbound(ctx context.Context, h *model.Mess
 				h.MsgType,
 				h.ReceiverID,
 				h.Content,
+				h.MediaURL,
 				h.IsAIReply,
 				h.SentAt,
 			)

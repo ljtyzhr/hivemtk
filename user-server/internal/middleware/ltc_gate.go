@@ -26,6 +26,7 @@ import (
 	"sync"
 
 	"hivemtk-user/internal/pkg/utils"
+	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/pkg/utils/response"
 	"hivemtk-user/internal/service"
 
@@ -67,6 +68,69 @@ func LTCGuardedRoutes() map[service.LTCStage]int {
 		out[k] = v
 	}
 	return out
+}
+
+// ltCShadowMu 保护 shadow 期统计（进程内，重启清零——shadow 期读数看日志聚合即可）。
+var (
+	ltcShadowMu          sync.Mutex
+	ltcShadowWouldRefuse = map[service.LTCStage]int{}
+)
+
+// LTCShadowWouldRefuse 返回 shadow 期"本应拒绝"的累计请求数（副本）。
+func LTCShadowWouldRefuse() map[service.LTCStage]int {
+	ltcShadowMu.Lock()
+	defer ltcShadowMu.Unlock()
+	out := make(map[service.LTCStage]int, len(ltcShadowWouldRefuse))
+	for k, v := range ltcShadowWouldRefuse {
+		out[k] = v
+	}
+	return out
+}
+
+// LTCStageGateShadow 生成一道 **shadow 态**的阶段闸门（E-7 推荐第 1 步，2026-10-23）。
+// 与 LTCStageGate 的差别只有一个：阶段未启用时**不拦截、不 abort**，请求照常进
+// handler，只做两件事——
+//  1. 打一条 warn 结构化日志（event=ltc_gate_shadow，含 stage/reason），shadow 期
+//     据此统计"本应拒绝"的比例与原因（规划 §4.7 验收第 1 条）；
+//  2. 累计进 LTCShadowWouldRefuse()，调试端点可读。
+//
+// 转强制的路径：观察一周后把挂载点从 LTCStageGateShadow 换成 LTCStageGate 即可，
+// 判定逻辑（StageActive + reason）两态完全共用，切换只改一行装配。
+func LTCStageGateShadow(stage service.LTCStage) gin.HandlerFunc {
+	ltcGuardMu.Lock()
+	ltcGuardedBy[stage]++
+	ltcGuardMu.Unlock()
+
+	return ltcStageGateShadow(stage, service.GlobalLTCConfig())
+}
+
+func ltcStageGateShadow(stage service.LTCStage, reader LTCConfigReader) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		cfg := reader.Config(c.Request.Context())
+		active, reason := cfg.StageActive(stage)
+		if active {
+			c.Next()
+			return
+		}
+		ltcShadowMu.Lock()
+		ltcShadowWouldRefuse[stage]++
+		ltcShadowMu.Unlock()
+		logger.Ctx(c.Request.Context()).Warn().
+			Str("event", "ltc_gate_shadow").
+			Str("stage", string(stage)).
+			Str("reason", reason).
+			Bool("master_enabled", cfg.Enabled).
+			Bool("degraded", cfg.Degraded).
+			Str("path", c.Request.URL.Path).
+			Msg("LTC shadow：本应拒绝的请求（只记录不阻断，转强制见 ltc_gate.go 头注）")
+		c.Next()
+	}
+}
+
+// GatedGroup 返回挂了 shadow 阶段门的子路由组（E-7 装配用）。
+// 不用 auth.Use —— 那会波及之后注册在 auth 上的所有路由；子组的作用域才是闸门应有的。
+func GatedGroup(auth *gin.RouterGroup, stage service.LTCStage) *gin.RouterGroup {
+	return auth.Group("", LTCStageGateShadow(stage))
 }
 
 func ltcStageGate(stage service.LTCStage, reader LTCConfigReader) gin.HandlerFunc {

@@ -91,12 +91,12 @@ func TestProviderAndRouteWrites_OnModeWithoutTenantCtx(t *testing.T) {
 
 	// ---- 路由写入 ----
 	route := ScenarioRoute{
-		Scenario:    ScenarioLowCost,
-		Provider:    "default",
-		Fallbacks:   []string{"platform-sensenova"},
-		CostWeight:  15,
-		MaxLatency:  720000,
-		MinQuality:  0.7,
+		Scenario:   ScenarioLowCost,
+		Provider:   "default",
+		Fallbacks:  []string{"platform-sensenova"},
+		CostWeight: 15,
+		MaxLatency: 720000,
+		MinQuality: 0.7,
 	}
 	if err := d.UpsertRouteToDB(route); err != nil {
 		t.Fatalf("装配层写路由必须在 system scope 下成功: %v", err)

@@ -248,7 +248,7 @@ func TestCustomReportRepository_GetPublicTemplates(t *testing.T) {
 		IsPublic:   true,
 	})
 
-	results, err := repo.GetPublicTemplates(ctx, )
+	results, err := repo.GetPublicTemplates(ctx)
 	if err != nil {
 		t.Errorf("GetPublicTemplates() error = %v", err)
 	}

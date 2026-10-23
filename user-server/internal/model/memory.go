@@ -41,8 +41,12 @@ func (MemoryItem) TableName() string { return "memory_items" }
 type SOPStateMemory struct {
 	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
 
-	ID          uint           `gorm:"primaryKey;autoIncrement" json:"id"`
-	SessionID   string         `gorm:"type:varchar(120);index" json:"session_id"`
+	ID uint `gorm:"primaryKey;autoIncrement" json:"id"`
+	// SessionID NOT NULL（D-6，2026-10-23）：本机 NULL 行 0；写入通路唯一
+	// （L3SaveSOPState → SaveSOPState），该通路无生产调用方 ⇒ 不存在造 NULL 的活路径。
+	// 列级约束由显式迁移 v3.77.0 落（AutoMigrate 对既有列加 NOT NULL 的行为依赖
+	// 版本与库状态，见规划 §3.6 判据），生产库应用迁移前先跑同一条 NULL 计数预检。
+	SessionID   string         `gorm:"type:varchar(120);not null;index" json:"session_id"`
 	CustomerID  string         `gorm:"type:varchar(64);not null;index" json:"customer_id"`
 	SOPID       uint           `gorm:"not null;index" json:"sop_id"`
 	ExecutionID uint           `gorm:"index" json:"execution_id"`

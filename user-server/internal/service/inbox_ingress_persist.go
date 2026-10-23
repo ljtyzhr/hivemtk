@@ -49,7 +49,10 @@ func (s *InboxIngressService) persistMessage(ctx context.Context, event *model.M
 		event.ReceiverID = event.ConversationID
 	}
 	hub := &model.MessageHub{
-		MsgID:     event.EventID,
+		// 非文本消息的 msg_id 用带类型口径（002-multi-type-messages）：event_id 为空时
+		// 兜底生成的哈希并入 msg_type+media_url，否则同会话两张图（content 同为「[图片]」
+		// 占位符）哈希碰撞，第二条被钩子2 判重吞掉。文本消息与旧口径逐字节一致。
+		MsgID:     firstNonEmpty(event.EventID, ContentHashMsgIDTyped(event.Channel, event.ConversationID, event.MsgType, event.MediaURL, event.Content)),
 		Platform:  event.Channel,
 		AccountID: accountID,
 		Direction: direction,
@@ -333,7 +336,8 @@ func (s *InboxIngressService) persistHistoryMessage(ctx context.Context, event *
 		}
 	}
 	hub := &model.MessageHub{
-		MsgID:     event.EventID,
+		// 同 persistMessage：非文本空 event_id 兜底哈希并入类型与媒体（002-multi-type-messages）。
+		MsgID:     firstNonEmpty(event.EventID, ContentHashMsgIDTyped(event.Channel, event.ConversationID, event.MsgType, event.MediaURL, event.Content)),
 		Platform:  event.Channel,
 		AccountID: accountID,
 		Direction: direction,

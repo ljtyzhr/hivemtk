@@ -320,4 +320,3 @@ func TestBanditAllocator_PromoteArm_InvalidInput(t *testing.T) {
 		t.Errorf("空 winnerKey 应返回 ErrInvalidInput, got %v", err)
 	}
 }
-

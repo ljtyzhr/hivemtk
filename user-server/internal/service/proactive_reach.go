@@ -102,6 +102,17 @@ type ProactiveReachResponse struct {
 	SentAt time.Time `json:"sent_at"`
 	// Strategy 选渠道策略说明（透明化）
 	Strategy string `json:"strategy"`
+	// HubID（D-9 回执契约，2026-10-23）：message_hub 行号。仅 bridge 渠道
+	// （走 DeliverBridgeOutbound、先落 hub 行再下发）有值；sms/email 等直发
+	// 渠道没有 hub 行，此键缺省（omitempty）。平台号 vs hub 行号的合同：
+	//   - MessageID：发送腿返回的回执键（bridge 渠道 = hub 行 MsgID，即
+	//     tg-out-.../wamid/feishu-out-... 或内容哈希；直发渠道 = 平台回执 ID）。
+	//     Recall 优先用它（IntegrationReachAdapter.Recall 按 msg_id 反查 hub 行）。
+	//   - HubID：hub 行号，用于管理端定位/对账；无 hub 行的渠道不出现。
+	HubID uint64 `json:"hub_id,omitempty"`
+	// PlatformMsgID 平台侧消息号（平台返回后才存在；发送时通常还没有 ⇒ 常为空）。
+	// 出现时与 message_hub.msg_id（平台号回写后）一致。
+	PlatformMsgID string `json:"platform_msg_id,omitempty"`
 }
 
 type ProactiveReachService struct {
@@ -734,11 +745,17 @@ func (s *ProactiveReachService) sendFeishu(ctx context.Context, req *ProactiveRe
 }
 
 func (s *ProactiveReachService) sendBridge(ctx context.Context, channel string, req *ProactiveReachRequest, recipientID, accountID string) (*ProactiveReachResponse, error) {
-	if err := DeliverBridgeOutbound(ctx, channel, accountID, recipientID, "text", req.Content, ""); err != nil {
+	// D-9 回执契约（2026-10-23）：bridge 渠道走 DeliverBridgeOutboundWithReceipt，
+	// 把真实 hub 行号 + hub 行 MsgID（回执键，Recall 按 msg_id 反查用）透给响应。
+	// 不再用 fmt.Sprintf("%s_%d", channel, UnixNano()) 自造占位——那是个查不到
+	// 任何行的假键，操作者拿它去撤回/对账必然扑空。
+	hubID, msgID, err := DeliverBridgeOutboundWithReceipt(ctx, channel, accountID, recipientID, "text", req.Content, "")
+	if err != nil {
 		return nil, err
 	}
 	return &ProactiveReachResponse{
-		MessageID:   fmt.Sprintf("%s_%d", channel, time.Now().UnixNano()),
+		MessageID:   msgID,
+		HubID:       hubID,
 		Channel:     channel,
 		RecipientID: recipientID,
 		AccountID:   accountID,

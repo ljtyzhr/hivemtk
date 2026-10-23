@@ -52,7 +52,9 @@ import (
 // 钩子里那几句日志的**字面**文本。抄字面是有意的（同批M-4）：改文案必须让腿红一次，
 // 否则"运维从启动日志里看得见什么"这条判据就是空的。
 const (
-	batchM5LogHubReady   = "post-migrate: message_hub (platform, msg_id, conversation_id) 三元组唯一索引已就绪"
+	// D-2（2026-10-23）：键升级为 (platform, msg_id, conversation_id, direction)——跨方向
+// 同文本可共存（d2_msg_id_cross_direction_test.go 实测 23505 证实冲突）。本腿断言同步升级。
+	batchM5LogHubReady   = "post-migrate: message_hub (platform, msg_id, conversation_id, direction) 唯一索引已就绪（D-2 方案③：跨方向同文本可共存）"
 	batchM5LogDropFailed = "DROP 旧 uni_message_hub_msg_id"
 	batchM5LogCreateFail = "CREATE uni_message_hub_platform_msg_conv 失败"
 	batchM5HubIndexName  = "uni_message_hub_platform_msg_conv"
@@ -306,8 +308,8 @@ func TestBatchM_StartupMessageHubIndexShapeAndSecondRunSilent(t *testing.T) {
 	// 键已按 specs/001-saas-multi-tenant 升级为租户维度：(tenant_id, platform, msg_id,
 	// conversation_id)。名字不变是有意为之（原位重建，基线名稳定）；键内容升级时
 	// 本断言同步升级——读日志的人从本注释获得对账依据。
-	if cols != "tenant_id,platform,msg_id,conversation_id" {
-		t.Errorf("三元组索引的列 = %q，期望 tenant_id,platform,msg_id,conversation_id（租户维度去重键，specs/001-saas-multi-tenant T008）", cols)
+	if cols != "tenant_id,platform,msg_id,conversation_id,direction" {
+		t.Errorf("唯一索引的列 = %q，期望 tenant_id,platform,msg_id,conversation_id,direction（租户维度去重键 + D-2 方案③的方向维度）", cols)
 	}
 
 	log2, p2 := batchM4CaptureStartup(t)

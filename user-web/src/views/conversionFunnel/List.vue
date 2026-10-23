@@ -18,6 +18,16 @@
         </el-button>
       </div>
 
+      <el-alert
+        v-if="report && report.degraded"
+        type="warning"
+        :closable="false"
+        show-icon
+        class="degraded-alert"
+        title="数据不完整：部分阶段取数失败，对应数字按 0 上报"
+        :description="degradedDetail"
+      />
+
       <el-row
         :gutter="16"
         class="summary-row"
@@ -203,6 +213,14 @@ export default {
     if (this.chartInst) {
       this.chartInst.dispose()
       this.chartInst = null
+    }
+  },
+  computed: {
+    // D-3：降级态的逐段点名文案（stage_errors 来自后端显式降级契约）。
+    degradedDetail() {
+      const errs = Array.isArray(this.report.stage_errors) ? this.report.stage_errors : []
+      if (!errs.length) return '具体失败阶段未点名（旧版响应）。'
+      return '失败阶段：' + errs.map((e) => e.name || e.stage).join('、')
     }
   },
   methods: {

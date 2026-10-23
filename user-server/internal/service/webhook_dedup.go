@@ -110,6 +110,71 @@ func ContentHashMsgID(channel, conversationID, content string) string {
 	return fmt.Sprintf("mh:%08x", h.Sum32())
 }
 
+// ContentHashMsgIDTyped 带消息类型的统一 msg_id 哈希（002-multi-type-messages）。
+//
+// 背景：非文本消息的 content 经常是占位符（「[图片]」），media_url 才是这条消息的
+// 真正身份。旧口径 ContentHashMsgID(channel, conversationID, content) 对同会话的
+// 两张不同图片产出完全相同的 msg_id ⇒ 入站幂等（钩子2 msg_id 判等）把第二条当
+// 重复吞掉，消息蒸发。
+//
+// 口径：
+//   - msgType 为空或 "text"（不区分大小写）：与 ContentHashMsgID 逐字节一致——
+//     文本消息的 msg_id 全部沿用旧口径，存量行/前端旧哈希不迁移不重算；
+//   - 非文本：输入并入 msgType 与 mediaURL（channel|msgType|mediaURL|content），
+//     前端 types.js 的 typedContentHash 必须与本函数逐字节一致。
+func ContentHashMsgIDTyped(channel, conversationID, msgType, mediaURL, content string) string {
+	t := strings.ToLower(strings.TrimSpace(msgType))
+	if t == "" || t == "text" {
+		return ContentHashMsgID(channel, conversationID, content)
+	}
+	s := channel + "|" + t + "|" + strings.TrimSpace(mediaURL) + "|" + strings.TrimSpace(content)
+	h := fnv.New32a()
+	h.Write([]byte(s))
+	return fmt.Sprintf("mh:%08x", h.Sum32())
+}
+
+// mediaContextTag 非文本消息的媒体上下文词，与直连渠道占位符词表（feishuInboundPlaceholders 等）
+// 及前端 types.js::mediaPlaceholder 同源同义：image→[图片]、audio→[语音]（voice 已被
+// InboundHubMsgType 归一为 audio，不会走到这里）。未知类型兜 `[<类型>]`，与
+// feishuInboundPlaceholder 的兜底口径一致。
+var mediaContextTags = map[string]string{
+	model.MsgTypeImage:    "[图片]",
+	model.MsgTypeVideo:    "[视频]",
+	model.MsgTypeAudio:    "[语音]",
+	model.MsgTypeFile:     "[文件]",
+	model.MsgTypeLink:     "[链接]",
+	model.MsgTypeCard:     "[卡片]",
+	model.MsgTypeLocation: "[位置]",
+}
+
+func mediaContextTag(msgType string) string {
+	if tag, ok := mediaContextTags[msgType]; ok {
+		return tag
+	}
+	return "[" + msgType + "]"
+}
+
+// AppendMediaContextToContent 把媒体信息拼进 AI 触发的 content（FR5.3，002-multi-type-messages）。
+//
+// 非文本入站消息的 content 常是占位符（「[图片]」），AI/坐席只知道「有图」却不知道图在哪。
+// 本函数在 content 后追加 `\n[<类型词>] <media_url>`，签名与文本链路零破坏：
+//   - msgType 为空/text，或 mediaURL 为空：原样返回（文本消息逐字节不变）；
+//   - 其余：content + "\n" + 类型词 + " " + URL。
+//
+// 桥接路径（inbox_ingress.go triggerAIForEvent）与直连路径（webhook_ai.go
+// triggerSmartOrchestrator）共用本函数，保证两条漏斗给 AI 的上下文同一口径。
+func AppendMediaContextToContent(content, msgType, mediaURL string) string {
+	t := strings.ToLower(strings.TrimSpace(msgType))
+	if t == "" || t == model.MsgTypeText {
+		return content
+	}
+	u := strings.TrimSpace(mediaURL)
+	if u == "" {
+		return content
+	}
+	return content + "\n" + mediaContextTag(t) + " " + u
+}
+
 // ContentHashWithSender 统一收件去重哈希（渠道 + 发送者名称 + 消息内容）。
 //
 // 这是「渠道+发送者+消息内容」唯一去重依据的权威实现，前端（types.js::sharedContentHash）
