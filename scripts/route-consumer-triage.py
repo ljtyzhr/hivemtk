@@ -12,7 +12,7 @@
 路由表 = `go test -run '^TestDumpLiveRouteTable$' ./internal/router`（需测试库）导出的 TSV，
 逐行自带 `METHOD  PATH  HANDLER`。这张表来自生产装配入口 `router.Setup()`，
 所以 `frontend_aliases.go` 里 `doReg/doRegAdmin` 这类"静态正则拼不出全路径"的注册也在内——
-那正是旧的 `API_PAGE_INVENTORY.md`（1114 条）比现测（1721 条 `/api/`）少算 607 行的成因。
+那正是旧的 `API_PAGE_INVENTORY.md`（1114 条；2026-10-23 已归档到工作区 `.doc-archive/2026-10-23/`）比现测（1721 条 `/api/`）少算 607 行的成因。
 
 ## 三面（消费证据的扫描面，口径写死在这里，改口径就是改结论）
 | 档 | 目录 | 说明 |

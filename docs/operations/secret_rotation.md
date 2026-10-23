@@ -112,8 +112,9 @@ done
   "不可查"，而**轮换是把"可用"变成"不可用"**——只有后者能真正终止泄露的价值；
   同时 `filter-repo` 会作废所有既有克隆与 CI 缓存，收益为零、代价为共享现场破坏。
   标准处置顺序即"rotate, don't erase"。⇒ 09-24 的实转正是按这条顺序做的，本段结论未变。
-- 未完成：顶层非 git 目录 `scripts/` 里那份 `bulk_seed.py` 仍含同一枚明文（不在任何闸门覆盖内），
-  该残留已移交审计会话 C 的定时修复任务（见 `docs/audit-2026-09-19-sessionC.md` F2），此处不重复修。
+- 已订正（2026-10-23）：顶层 `scripts/bulk_seed.py` 与 `hivemtk/scripts/bulk_seed.py` **均已改为只从环境取口令**
+  （`POSTGRES_PASSWORD` / `HIVEMTK_DB_PASSWORD` / `PGPASSWORD`，缺则 `sys.exit`），不再含明文；
+  历史明文已于 `81955cfc` 清除。本节此前"顶层那份仍含同一枚明文"的说法已过期。
 
 ### 二A.3 为什么这些脚本命令不能手敲
 
