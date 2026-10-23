@@ -35,6 +35,8 @@
   - 四个 Go 常量（`SelectorHealthMinAttempts`/`MaxItemsPerReport`/`MaxDeltaPerReport`/`BridgeSelectorHealthListLimit`）**刻意不入参数中心**，写进 `hardcode-tunable.baseline` 并附理由：两端协议形状与请求边界，单边可调只会让扩展与服务端互相打架
 - **接线**：`make audit` 末尾加 A2-a / A2-b(`--workflow`) / A4-a（无 profile 时**大声 SKIP**、不阻断）；`user-server-ci.yml` static gates 加 dependency-policy 与 sbom-artifacts 两步（均含 `--self-check`）、coverage 作业加 core-coverage 两步、push+PR 的 `paths` 各加 7 条（判据脚本与基线必须进触发面，否则"只改判据"的提交不重跑）；`sbom.yml` 加 `pull_request.paths` 与 `--dir .` 断言步
 - **顺带修复**：`model/module_tables.go` 补登 `bridge_selector_health`（`TestEveryModelTableHasModuleOwner` 钉死"一张表都不许无主"，新表不登记会当场红）
+- **顺带修复（第二轮全量实测暴露）**：`model/module_tables.go` 补登 `bridge_metrics`（无租户语义的运维指标时间序列）与 `email_accounts`（全模块共用的 SMTP 账号配置源，非 reach-email 运行数据）——两表由并发 lane 搬进 model 包后漏登记，`TestEveryModelTableHasModuleOwner` 当场红；`service/arch_gorm_guard_test.go` 棘轮 169→168（现树实测 168 处，棘轮基线不许高于现实）
+- **遗留收口（同日第二轮）**：A2-b `--dir` 在真实 syft v1.55.0 产物上实跑通过（干净提交树 + 无 node_modules 的 CI 同形场景，go 与 frontend 直接依赖全覆盖；bridge 零运行时依赖属合法形状），实跑暴露并修正 `manifest_deps` 的判据混淆（清单缺失=红、零依赖=说明后跳过对账），`--self-check` 16 枚复跑全过；`hardcode-tunable.baseline` 补登 geo 两常量（`ContentFormatAttributionSampleFloor` 报表统计口径 / `BatchGenerateMaxKeywords` 同步批契约护栏，附"为什么不入库"），`make audit` 全绿；完整全仓 profile（CI 同款单条命令）实测与 44 条基线一致、核心域 50.7% 无回落
 
 #### 003 · SaaS 计费二期（2026-10-19，`.specify/003-saas-billing-v2`）
 

@@ -331,6 +331,14 @@ func (s *PaymentService) RecordPayment(ctx context.Context, in RecordPaymentInpu
 		return nil, fmt.Errorf("%w: 状态 %q 不在回款值域 %v 内（越域的词会被求和侧读成「不计入」或「计入」，两种都是静默的）",
 			ErrPaymentInputInvalid, statusWord, model.PaymentStatuses)
 	}
+	// refunded 只能经 RecordPartialRefund 入账：它有自己的入参形状（refund_ref
+	// 幂等键、退款额上限 = 净到账），自述 refunded 的载荷若走本口会被下面的
+	// Status: confirmed 固定覆盖——「渠道说退了钱」被静默记成「又收到一笔钱」，
+	// 方向整个反过来。E-10。
+	if statusWord == model.PaymentStatusRefunded {
+		return nil, fmt.Errorf("%w: 状态 %q 不是回款口的入账语义（部分退款走 RecordPartialRefund，它有独立的幂等键与退款额校验）",
+			ErrPaymentInputInvalid, statusWord)
+	}
 	reversal := statusWord == model.PaymentStatusReversed
 
 	bill, err := s.bills.GetByID(ctx, billID)
@@ -396,6 +404,133 @@ func (s *PaymentService) RecordPayment(ctx context.Context, in RecordPaymentInpu
 	}
 	return &PaymentReceipt{Payment: view, Reused: false,
 		Settlement: settled, Collection: s.traceSettlement(ctx, bill, settled)}, nil
+}
+
+// RecordPartialRefund E-10（2026-10-24，产品可复议）：
+// 记一笔部分退款——渠道把一张已到账应收的一部分退了回去。
+//
+// 表达方式（最优默认）：新增一行 status=refunded 的 payments 行，
+// amount=退款额（恒正，方向由 SumSettledByBill 的减法表达），
+// channel_ref=渠道**退款**流水号（幂等键，与原回款流水号不同键）。
+// 不改原回款行：资金凭据只追加不抹改（同 MarkReversed 判据）。
+//
+// 与整笔冲销（RecordPayment status=reversed）的分工：
+//   - reversed：那一整笔不算数（渠道撤销/全额退），从和里拿掉整笔；
+//   - refunded：钱到过账、退回一部分，从和里减去退款额。
+//     全额退款仍走 reversed 路径（验收判据第 3 条）。
+//
+// 幂等：同一退款流水号重投 ⇒ 复用既有行、重新折算，不重复记账。
+// 前置校验：退款额必须 > 0 且不超过该账单的净到账（退得比收的还多 ⇒ 数据有问题，
+// 报错而不是让结清和变成负数）。
+func (s *PaymentService) RecordPartialRefund(ctx context.Context, in RecordPartialRefundInput) (*PaymentReceipt, error) {
+	if !s.Available() {
+		return nil, ErrPaymentServiceUnavailable
+	}
+	billID := strings.TrimSpace(in.BillID)
+	ref := strings.TrimSpace(in.RefundRef)
+	platform := strings.TrimSpace(in.Platform)
+	orderID := strings.TrimSpace(in.OrderID)
+	currency := strings.ToUpper(strings.TrimSpace(in.Currency))
+	if billID == "" {
+		return nil, fmt.Errorf("%w: bill_id 为空（退款必须钉在一张应收上，否则净到账和对账都没法算）", ErrPaymentInputInvalid)
+	}
+	if ref == "" {
+		return nil, fmt.Errorf("%w: refund_ref 为空（退款流水号是本层的幂等键，空键等于每笔重投都能记一次）", ErrPaymentInputInvalid)
+	}
+	if platform == "" || orderID == "" {
+		return nil, fmt.Errorf("%w: platform / order_id 为空（退款凭据不留来路，渠道问起这笔钱时无从答起）", ErrPaymentInputInvalid)
+	}
+	if !model.PaymentAmountInRange(in.Amount) || in.Amount <= 0 {
+		return nil, fmt.Errorf("%w: 退款额 %v 必须为正数且不超过 numeric(14,2) 上界", ErrPaymentInputInvalid, in.Amount)
+	}
+
+	bill, err := s.bills.GetByID(ctx, billID)
+	if err != nil {
+		return nil, fmt.Errorf("payment: 读账单 %s 失败：%w", billID, err)
+	}
+	if bill == nil {
+		return nil, fmt.Errorf("%w: %s", ErrPaymentBillNotFound, billID)
+	}
+	if bill.Status == model.BillStatusVoided {
+		return nil, fmt.Errorf("%w: %s（作废的凭据不再参与对账，请先人工核对这笔退款该冲哪张）", ErrPaymentBillVoided, billID)
+	}
+	if currency == "" {
+		currency = bill.Currency
+	} else if currency != bill.Currency {
+		return nil, fmt.Errorf("%w: 这笔退款是 %s 而账单 %s 主张 %s（混币的合计没有定义）",
+			ErrPaymentCurrencyMismatch, currency, billID, bill.Currency)
+	}
+
+	// 幂等：同退款流水号重投 ⇒ 复用（金额/账单/币种三格一致才叫同一笔）。
+	existing, err := s.payments.GetByChannelRef(ctx, ref)
+	if err != nil {
+		return nil, fmt.Errorf("payment: 按 refund_ref 回读失败：%w", err)
+	}
+	if existing != nil {
+		if existing.Status != model.PaymentStatusRefunded {
+			return nil, fmt.Errorf("%w: channel_ref=%s 已被一笔 %s 占用，退款流水号与回款流水号不能共用",
+				ErrPaymentRefReuse, ref, existing.Status)
+		}
+		if existing.BillID != bill.ID || money2(existing.Amount) != money2(in.Amount) || existing.Currency != currency {
+			return nil, fmt.Errorf("%w: 已记的是账单 %s 的 %v %s，本次要记的是账单 %s 的 %v %s",
+				ErrPaymentRefReuse, existing.BillID, existing.Amount, existing.Currency,
+				bill.ID, in.Amount, currency)
+		}
+		return s.receiptOf(ctx, existing, bill)
+	}
+
+	// 前置：退款额不许超过净到账（含本批退款前的既有 refunded）。
+	settledBefore, err := s.payments.SumSettledByBill(ctx, billID)
+	if err != nil {
+		return nil, fmt.Errorf("payment: 读净到账失败：%w", err)
+	}
+	if money2(in.Amount) > money2(settledBefore)+paymentCentEpsilon {
+		return nil, fmt.Errorf("%w: 退款额 %v 超过账单 %s 的净到账 %v（先核对渠道数据，负结清是假事实）",
+			ErrPaymentInputInvalid, in.Amount, billID, settledBefore)
+	}
+
+	now := s.now()
+	row := &model.Payment{
+		ID: newPaymentKey(now, nextPaymentSeq()), BillID: billID,
+		Amount: money2(in.Amount), Currency: currency,
+		PaidAt:     payTimeOf(in.RefundedAt, now),
+		ChannelRef: ref, Status: model.PaymentStatusRefunded,
+		Platform: platform, OrderID: orderID,
+		CreatedAt: now, UpdatedAt: now,
+	}
+	if err := s.payments.Create(ctx, row); err != nil {
+		if !errors.Is(err, repository.ErrPaymentAlreadyRecorded) {
+			return nil, fmt.Errorf("payment: 记录退款失败（账单 %s 未做任何折算）：%w", billID, err)
+		}
+		again, gerr := s.payments.GetByChannelRef(ctx, ref)
+		if gerr != nil || again == nil {
+			return nil, fmt.Errorf("payment: 退款并发窗口回读失败：%v（须人工核对 channel_ref=%s）", gerr, ref)
+		}
+		return s.receiptOf(ctx, again, bill)
+	}
+	view := paymentViewOf(row, in.RefundedAt == nil)
+	settled, err := s.applySettlement(ctx, bill)
+	if err != nil {
+		return nil, fmt.Errorf("%w（退款 %s 已入账，账单 %s 的折算没做成；重放同一笔退款通知可补上）：%v",
+			ErrPaymentStatusStuck, view.ID, billID, err)
+	}
+	return &PaymentReceipt{Payment: view, Reused: false,
+		Settlement: settled, Collection: s.traceSettlement(ctx, bill, settled)}, nil
+}
+
+// RecordPartialRefundInput 一笔部分退款通知的全部输入（E-10）。
+//
+// 字段集合与 RecordPaymentInput 同一取向的白名单：没有 quote_id/opportunity_id，
+// 账单来路只有 bill_id 一条。RefundRef 是**渠道退款流水号**——与原回款的
+// channel_ref 是两把键（退款是新的一笔资金事实，不是对旧行的修改）。
+type RecordPartialRefundInput struct {
+	BillID     string
+	RefundRef  string     // 必填：渠道退款流水号（幂等键，占 channel_ref 列）
+	Amount     float64    // 必填：退款额（恒正；方向由求和 SQL 表达）
+	Currency   string     // 可空 ⇒ 随账单
+	RefundedAt *time.Time // 可空 ⇒ 填接收时刻
+	Platform   string     // 必填
+	OrderID    string     // 必填
 }
 
 // settleKnown 幂等通路上的三种结论：复用（无写入）、冲销（只改 status）、拒（内容不符）。

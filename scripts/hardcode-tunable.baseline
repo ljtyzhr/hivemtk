@@ -350,3 +350,15 @@ BridgeSelectorHealthListLimit
 SelectorHealthMaxDeltaPerReport
 SelectorHealthMaxItemsPerReport
 SelectorHealthMinAttempts
+# ── 2026-10-24 geo：分析口径与请求护栏常量（「不用入库」的理由）──────────────
+#   ContentFormatAttributionSampleFloor —— 「内容形态归因」报表的**样本量下限**：
+#     低于它的分组读数在报告里标 SampleSizeHint、结论不予采信。它定义的是
+#     「什么算能下结论」，是统计口径的一部分——按环境调它等于同一份报表对不同人
+#     给出不同结论，而报表是给人做决策用的。改口径走需求变更 + 回归
+#     （decision_analytics_a12_test.go 断言它 ≥1），不是运维调参。
+#   BatchGenerateMaxKeywords —— 批量生成的**单批上限**，即同步接口的契约护栏：
+#     超限截断并在 truncated_to 回传（前端据此提示「只生成了 N 条」），
+#     是 dto / BFF / 前端三处共识的请求形状。调高＝把 HTTP 连接当任务队列用
+#     （无进度持久化、无取消）；真要大批量走 keyword_pipeline cron。契约常量不参数化。
+ContentFormatAttributionSampleFloor
+BatchGenerateMaxKeywords

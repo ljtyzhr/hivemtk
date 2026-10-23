@@ -26,16 +26,17 @@ import (
 	"gorm.io/gorm/schema"
 )
 
-// TestPaymentStatusVocabulary status 值域：恰好两格，且这两格就是"钱会不会离开我们"。
+// TestPaymentStatusVocabulary status 值域：恰好三格，且每一格都是"渠道断言过的资金事实"。
 //
-// confirmed = 渠道说这笔钱到账了；reversed = 同一笔被渠道冲销（退款/撤销）。
+// confirmed = 渠道说这笔钱到账了；reversed = 同一笔被渠道冲销（整笔不算数）；
+// refunded（E-10，2026-10-24，产品可复议）= 钱到过账、渠道退回了一部分——
+// 与 reversed 的分工见 model/payment.go PaymentStatuses 注释。
 // 值域里刻意没有 pending：本表只记**渠道已经断言过**的资金事实，"我方发起了但渠道
 // 还没回话"这件事系统里今天没有任何数据源能填它（收款动作在外部电商，X8/D-4），
 // 写出这一格就是造一个永远没有写入方的状态。
-// 也没有 refunded / partial —— 那是账单与订单镜像的词，回款行的粒度是"一笔"，
-// 一笔要么算进结清要么不算。
+// 也没有 partial —— 那是账单的词（一张应收收了一半），粒度不同，别混进来。
 func TestPaymentStatusVocabulary(t *testing.T) {
-	want := []string{"confirmed", "reversed"}
+	want := []string{"confirmed", "reversed", "refunded"}
 	if !reflect.DeepEqual(PaymentStatuses, want) {
 		t.Fatalf("状态值域漂移：期望 %v，实际 %v（加/改一格要先改卡面 AC 与结清算法，不能顺手）", want, PaymentStatuses)
 	}
@@ -44,10 +45,10 @@ func TestPaymentStatusVocabulary(t *testing.T) {
 			t.Errorf("%q 在值域里却不被 PaymentStatusKnown 认：两判据分家", s)
 		}
 	}
-	// 别的域的词不许被认成本表状态：账单的 partial/paid、订单镜像的 paid/refunded
-	// 与回款行的 confirmed 是三套生命周期，混用的后果不是报错而是"读成另一件事"。
+	// 别的域的词不许被认成本表状态：账单的 partial/paid、订单镜像的 refunded_shipped
+	// 之类与回款行的 confirmed 是三套生命周期，混用的后果不是报错而是"读成另一件事"。
 	for _, bad := range []string{"", " confirmed", "CONFIRMED", "Confirmed", "pending",
-		"open", "partial", "paid", "voided", "refunded", "cancelled", "reverse", "reversed "} {
+		"open", "partial", "paid", "voided", "cancelled", "reverse", "reversed ", "REFUNDED"} {
 		if PaymentStatusKnown(bad) {
 			t.Errorf("未知状态 %q 被认成合法：值域校验失守", bad)
 		}

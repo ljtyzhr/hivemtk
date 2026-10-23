@@ -25,8 +25,10 @@
 - [x] T011 `sbom.yml` 加 `pull_request.paths`（依赖清单 + 本门脚本）与
       `--dir .` 断言步（在 Generate 之后、upload 之前）
 - [x] T012 真实 `sbom.yml` 实测：3 扫描站点 / 3 产物 / 1 upload，rc=0
-- [ ] T013 `--dir` 段在**真实 syft 产物**上跑过——本机 syft 下载超时（28MB，90s 未下完），
-      首次真实运行发生在 CI。**如实记录为遗留，不自称已验证**
+- [x] T013 `--dir` 段在**真实 syft 产物**上跑过 ✅（2026-10-24 第二轮收口：
+      syft v1.55.0 本地源码构建——GitHub Release / Docker Hub / 镜像下载全失败，
+      改走 `go install` + goproxy.cn；干净提交树复刻 sbom.yml 三条 scan 生成产物后
+      `--dir .` rc=0，直接依赖全覆盖；无 node_modules 场景（与 CI 同形）实测通过）
 
 ## Phase 3 · A2-c WhatsApp 接口化
 
@@ -74,6 +76,16 @@
 - [x] T036 种子 `bridge/selector_health_degraded_below`（DefaultValue "60"、Min 1 / Max 100、
       `Restart:false` 热读）
 - [x] T037 四个 Go 常量写进 `hardcode-tunable.baseline` 并附「为什么不入库」的理由
+- [x] T044 遗留收口（2026-10-24 第二轮）：A2-b `--dir` 真实产物实跑 rc=0
+      （syft v1.55.0 本地源码构建，干净提交树 + 无 node_modules 的 CI 同形场景；
+      实跑暴露并修正 `manifest_deps` 判据混淆：清单缺失=红、零依赖=说明后跳过，
+      `--self-check` 16 枚复跑全过）；
+      `hardcode-tunable.baseline` 补登 geo 两常量（口径/契约护栏，附理由）⇒
+      `check-hardcode-tunable` rc=0；完整全仓 profile（CI 同款命令、单条跑）
+      44 条基线复核 rc=0、核心域 50.7% 无回落；`go vet ./...` 全仓干净；
+      干净树全量测试暴露的两处真红已修：`module_tables.go` 补登
+      `bridge_metrics` / `email_accounts`（附归属理由）、`arch_gorm_guard_test.go`
+      棘轮 169→168（棘轮不许高于现实）
 - [x] T038 后端用例：`service/selector_health_test.go`（判定/校验/夹取/新鲜度/阈值回落）、
       `repository/bridge_selector_health_test.go`（真库，累加与排序）
 - [x] T039 全部门禁复跑：config-param 三道 / model_migration / api_contract --strict /

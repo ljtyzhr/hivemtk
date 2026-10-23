@@ -95,12 +95,16 @@ type Payment struct {
 // TableName 指定表名
 func (Payment) TableName() string { return "payments" }
 
-// PaymentStatuses 回款行生命周期，按序：confirmed → reversed。
+// PaymentStatuses 回款行生命周期，按序：confirmed → reversed；另有 refunded。
 //
-// 为什么恰好这两格：
+// 为什么恰好这几格：
 //   - confirmed：渠道断言这笔钱到账了（回调带来的那一条就是这个）；
 //   - reversed：同一笔被渠道冲销（退款/撤销）。没有它，退掉的钱仍被计进结清，
 //     一张实际只收到一半的账单会停在 paid —— 那正是要避免的假事实。
+//   - refunded（E-10 部分退款，2026-10-24，产品可复议）：**收到过、渠道退回了一部分**。
+//     与 reversed 的分工：reversed 是"那一整笔不算数了"（从和里拿掉整笔），
+//     refunded 是"钱到过账、又退回去一部分"（从和里减去退款额）。两者都引用
+//     渠道退款流水号做幂等键（channel_ref 唯一索引不变）。
 //
 // 为什么**没有** pending：本表只记渠道已经断言过的资金事实。"我方发起了但渠道没回话"
 // 今天没有任何数据源能填（收款动作在外部电商，X8/D-4），写出这格就是造一个
@@ -108,7 +112,7 @@ func (Payment) TableName() string { return "payments" }
 //
 // 为什么**没有** partial：那是账单的词（一张应收收了一半），粒度不同，别混进来。
 var PaymentStatuses = []string{
-	PaymentStatusConfirmed, PaymentStatusReversed,
+	PaymentStatusConfirmed, PaymentStatusReversed, PaymentStatusRefunded,
 }
 
 // 回款状态字面值。值与名同形，理由与 bills 同一条：
@@ -116,12 +120,17 @@ var PaymentStatuses = []string{
 const (
 	PaymentStatusConfirmed = "confirmed"
 	PaymentStatusReversed  = "reversed"
+	PaymentStatusRefunded  = "refunded"
 )
 
 // PaymentStatusesCounted 是**计入结清**的那些状态。
 //
 // 这里是结清金额的唯一事实源：仓储的求和 SQL 与本层任何内存复算都从这里取条件，
 // 两边各写一遍字面量的后果与"报价头存合计"同一条 —— 一处加了新状态，另一处静默不算。
+//
+// E-10（2026-10-24）：refunded 不进 Counted——求和 SQL 对它做的是**减法**
+// （净到账 = Σconfirmed − Σrefunded），见 paymentRepo.SumSettledByBill。
+// 把 refunded 塞进这个切片会让退款变成"又一笔到账"，方向整个反过来。
 var PaymentStatusesCounted = []string{PaymentStatusConfirmed}
 
 // PaymentCurrencyDefault 建表默认币种，与列上的 DEFAULT 'CNY' 同一字面值，

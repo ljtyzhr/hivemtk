@@ -236,8 +236,10 @@ func TestParseOrderWebhookPayment(t *testing.T) {
 			"bill_id": "b", "channel_ref": "r", "amount": 1.0, "bill_amount": 999}}, true, true, 0, ""},
 		{"状态 reversed 认", map[string]any{"payment": map[string]any{
 			"bill_id": "b", "channel_ref": "r", "amount": 1.0, "status": "reversed"}}, true, false, 1, ""},
+		{"状态 refunded 认（E-10 部分退款也走 webhook 通道，值域已含）", map[string]any{"payment": map[string]any{
+			"bill_id": "b", "channel_ref": "r", "amount": 1.0, "status": "refunded"}}, true, false, 1, ""},
 		{"状态越域不认", map[string]any{"payment": map[string]any{
-			"bill_id": "b", "channel_ref": "r", "amount": 1.0, "status": "refunded"}}, true, true, 0, ""},
+			"bill_id": "b", "channel_ref": "r", "amount": 1.0, "status": "chargeback"}}, true, true, 0, ""},
 	} {
 		in, present, err := ParseOrderWebhookPayment(tc.body, "taobao", "ORD-1")
 		if present != tc.wantPresent {

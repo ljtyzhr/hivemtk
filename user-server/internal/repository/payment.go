@@ -208,6 +208,10 @@ func (r *paymentRepo) exists(ctx context.Context, id string) (bool, error) {
 // ROUND(...,2) 是列量程而非取巧：numeric(14,2) 相加本来就只有两位，
 // 显式写出来是为了让"这一列的量程"在本文件里也看得见。
 // COALESCE 让"一张没有"回 0：那是合法答案而不是错误（"还没收到钱"要能答出来）。
+//
+// E-10 部分退款（2026-10-24，产品可复议）：净到账 = Σ(confirmed) − Σ(refunded)。
+// refunded 行的 amount 存**退款额**（恒正），方向由这条 SQL 表达——与模型层
+// "符号不许进金额列"的判据一致。reversed 仍不进和（整笔撤销 = 那笔从未算数）。
 func (r *paymentRepo) SumSettledByBill(ctx context.Context, billID string) (float64, error) {
 	if err := r.require(); err != nil {
 		return 0, err
@@ -221,15 +225,26 @@ func (r *paymentRepo) SumSettledByBill(ctx context.Context, billID string) (floa
 		// 而 `IN ()` 是 SQL 语法错。报一句人话比让 PG 报语法错便宜。
 		return 0, errors.New("payment repository: 计入结清的状态集为空（model.PaymentStatusesCounted 被改空了？）")
 	}
-	var sum float64
+	// 净到账 = Σ(confirmed) − Σ(refunded)，全部走 GORM 链式 API（两条条件聚合，各自
+	// COALESCE 让"一张没有"回 0）——`FILTER (WHERE ...)` 只能拼进 Raw，而 Raw 直连
+	// 是 gorm-only 门禁要清偿的债务；两条 Select 各自 SUM 后在 Go 侧相减，语义与
+	// 原 SQL 等价（同一 bill_id 的两次单列聚合），且保持参数绑定。
+	var settled, refunded float64
 	err := r.db.WithContext(ctx).Table("payments").
 		Select("COALESCE(ROUND(SUM(amount), 2), 0)").
 		Where("bill_id = ? AND status IN ?", strings.TrimSpace(billID), statuses).
-		Scan(&sum).Error
+		Scan(&settled).Error
 	if err != nil {
 		return 0, err
 	}
-	return sum, nil
+	err = r.db.WithContext(ctx).Table("payments").
+		Select("COALESCE(ROUND(SUM(amount), 2), 0)").
+		Where("bill_id = ? AND status = ?", strings.TrimSpace(billID), model.PaymentStatusRefunded).
+		Scan(&refunded).Error
+	if err != nil {
+		return 0, err
+	}
+	return settled - refunded, nil
 }
 
 func (r *paymentRepo) GetByID(ctx context.Context, id string) (*model.Payment, error) {

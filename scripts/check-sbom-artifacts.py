@@ -318,10 +318,15 @@ def sbom_names(doc: dict) -> set[str]:
     return names
 
 
-def manifest_deps(path: Path) -> list[str]:
-    """清单里的**直接依赖**名。go.mod 不带 `// indirect`；package.json 只取 dependencies。"""
+def manifest_deps(path: Path) -> list[str] | None:
+    """清单里的**直接依赖**名。go.mod 不带 `// indirect`；package.json 只取 dependencies。
+
+    返回 None 表示**清单读不到**（文件没了/JSON 坏了）——那与「读到但为空」是两种
+    判据：前者红（`MISSING_FILE`），后者是合法形状（bridge 的纯 MV3 扩展运行时
+    零依赖），由调用方打印说明后跳过对账。
+    """
     if not path.is_file():
-        return []
+        return None
     text = path.read_text(encoding="utf-8", errors="replace")
     if path.name == "go.mod":
         out: list[str] = []
@@ -351,7 +356,7 @@ def manifest_deps(path: Path) -> list[str]:
     try:
         data = json.loads(text)
     except json.JSONDecodeError:
-        return []
+        return None
     return sorted((data.get("dependencies") or {}).keys())
 
 
@@ -396,10 +401,18 @@ def check_artifacts(root: Path) -> tuple[list[Finding], dict[str, int]]:
             findings.append(Finding("BAD_PACKAGE", f"{fname}: {len(empty)} 个 package 没有 name"))
 
         deps = manifest_deps(root / manifest_rel)
-        if not deps:
+        if deps is None:
             findings.append(Finding(
-                "MISSING_FILE", f"{fname}: 对账用的清单 {manifest_rel} 读不到直接依赖 —— "
+                "MISSING_FILE", f"{fname}: 对账用的清单 {manifest_rel} 读不到 —— "
                                 f"清单没了就不该继续认为这份 SBOM 覆盖了本仓"))
+            continue
+        if not deps:
+            # 清单在读得到的前提下 dependencies 为空：这是合法形状（如 bridge 的
+            # 纯 MV3 扩展——运行时零依赖，devDeps 只服务构建/测试，刻意不进判据）。
+            # 什么都不判，但要打印出来：空清单的「覆盖」是空洞真，读数不能把它
+            # 假装成对账过了。
+            print(f"  note: {fname}: 清单 {manifest_rel} 无直接依赖（dependencies 为空），"
+                  f"跳过依赖对账；产物含 {len(pkgs)} 个包（devDeps/传递依赖只打印不判）")
             continue
         stats["deps_checked"] += len(deps)
         have = sbom_names(doc)

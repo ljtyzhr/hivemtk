@@ -384,7 +384,7 @@ func TestPaymentServiceRejectsBadProvenanceAndCurrency(t *testing.T) {
 		{"账单不存在", missingBill, ErrPaymentBillNotFound},
 		{"渠道流水号为空", noRef, ErrPaymentInputInvalid},
 		{"金额为负", negAmount, ErrPaymentInputInvalid},
-		{"载荷自述状态越域", badStatus, ErrPaymentInputInvalid},
+		{"载荷自述 refunded 不走回款口（部分退款走 RecordPartialRefund，自述状态只认 confirmed/reversed 的直接入账语义）", badStatus, ErrPaymentInputInvalid},
 		{"币种与账单不符", mismatch, ErrPaymentCurrencyMismatch},
 		{"账单已作废", onVoided, ErrPaymentBillVoided},
 		{"没有平台来路", noPlatform, ErrPaymentInputInvalid},
