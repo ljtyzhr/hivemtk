@@ -83,7 +83,29 @@ SaaS 化后"配置"不是一张表的事：同一份配置值可能属于平台�
 ### 升级（离线实例）
 ```bash
 git pull && make build && make restart
-# 不设置 TENANT_MODE 即 off；迁移自动补列归默认租户，幂等可重入（T019 真库演练已验）
+# 不设置 TENANT_MODE 即 off。SaaS 迁移的第一跳是 v3.58.0"业务表批量补 tenant_id"：
+# ALTER TABLE ... ADD COLUMN IF NOT EXISTS tenant_id bigint NOT NULL DEFAULT 1
+# ⇒ 存量行经 DEFAULT 归默认租户 1，无回填步骤，幂等可重入（中断可续跑）。
+```
+
+**这一跳的演练判据（T019 / SaaS 审计 A17）**：`user-server/internal/migration/migrations/tenant_upgrade_rehearsal_test.go`
+在**真库**上造"升级前形态"的表（无 `tenant_id`）+ 存量行，走"升级 → 重入 → 回滚 → 再升级"
+四步，判据全部来自 `information_schema` 与行内容，而不是"我执行了 DDL"：
+
+- 列形态必须是 `bigint` / `NOT NULL` / `DEFAULT 1`（真库内省）；
+- 存量行数不变、全部 `tenant_id=1`、**内容逐字未变**；
+- 重入幂等，且**不许把已有归属改回去** —— 判据是一条 `tenant_id=2` 的行在重入后**仍是 2**。
+  少了这条，一个"顺手补一句 `UPDATE ... SET tenant_id = 1` 做回填"的实现也能让其余全绿，
+  而那种写法会把租户 2 的数据静默搬到租户 1（两个失效里更严重的那个）；
+- `Down()` 是**显式的"不销毁在用对象"**（`tenant_id` 承载归属，回滚删列 = 直接毁掉归属），
+  判据是回滚后列与数据都还在、且能再升级；
+- 边界：`tenantExemptTables`（`tenants` / `migration_records` / `cron_job_leases` …）不得被加列。
+
+复跑（两条，-run 只写 `TestTenantUpgradeRehearsal` 会漏掉第二条）：
+
+```bash
+cd user-server && go test ./internal/migration/migrations/ -count=1 \
+  -run 'TestTenantUpgradeRehearsalOnExistingData|TestTenantColumnBatchEnumeratesOnlyMigratable' -v
 ```
 
 ### 切 SaaS 模式

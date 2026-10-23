@@ -397,7 +397,7 @@ A3 是"有闸但隔离靠手写"，这里是"压根没有闸"。严重度按后�
 | T026 WS/SSE 分桶 | 待集成轮 | SSE 已实现；WS 已修（P0-1 发送侧过滤 + 二期连接侧两级桶/发送口带租户） |
 | T027 唯一索引对账 | 并入二期 | **真库实测已闭环**（仅剩刻意豁免的 `global_uniq_*`） |
 | T028 越权回归 | 待集成轮 | 已有 5 组；"逐端点双租户交叉扫描"**已补**（见 §6 末行与 §7：`cross_tenant_scan_test.go`，三条腿 + 三枚牙齿） |
-| T019 迁移真库演练 | 随部署进行 | 未变（仍需一次含存量数据的升级演练） |
+| T019 迁移真库演练 | 随部署进行 | **已落地（A17）**：`tenant_upgrade_rehearsal_test.go` 在真库上造"升级前形态"表 + 存量行，走"升级 → 重入 → 回滚 → 再升级"；判据来自 `information_schema` 与行内容；**正对照**是一条 `tenant_id=2` 的行在重入后仍是 2（抓"回填归 1"这类数据破坏写法）；`Down` 是显式 no-op 并被断言"回滚不销毁在用对象"；五条变异逐一验红 |
 
 ---
 
@@ -427,6 +427,10 @@ env -u LLM_ENC_KEY go test -p 1 ./... -count=1             # ✅ 全绿（A20 �
 python3 scripts/check-merchant-scope.py                    # ✅ 通过（现覆盖 /merchant-api + /llm-api/v1）
 bash scripts/check-merchant-scope.test.sh                  # ✅ 十条腿「先绿后红再绿」
 make llm-proxy-auth-gate                                   # ✅ 11 例 + 真装配腿五 + 十条腿「改坏即红」
+
+# A17 轮（含存量数据的升级演练）
+cd user-server && go test ./internal/migration/migrations/ -run 'TestTenantUpgradeRehearsalOnExistingData|TestTenantColumnBatchEnumeratesOnlyMigratable' -count=1 -v  # ✅ 2 例（真库）
+cd user-server && go test ./internal/migration/... -count=1                                      # ✅ 两包全绿（migrations 30s）
 
 # A10 轮（双仓库跨端线上形状清单）
 cd user-server && go test ./internal/pkg/wirecontract/ -count=1   # ✅ 4 例（反射⇄清单）

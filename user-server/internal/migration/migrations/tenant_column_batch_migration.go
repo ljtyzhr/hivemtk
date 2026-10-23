@@ -42,6 +42,17 @@ const tenantColumnBatchSize = 30
 // 存量数据经 DEFAULT 1 自动归属默认租户，无需回填步骤。
 type TenantColumnBatchMigration struct {
 	db *gorm.DB
+
+	// tables 仅测试用覆盖清单（同 v3_79_0 的 withTables 口径）：演练要能在**临时探针表**上
+	// 复现"存量数据升级"，否则断言会被测试库里的其它表搅成不确定。生产路径永远是 nil ⇒
+	// 走 businessTables() 的真库内省。
+	tables []string
+}
+
+// withTables 仅测试用：把清单换成临时探针表，验证同一套 DDL 在真库上的行为。
+func (m *TenantColumnBatchMigration) withTables(tables ...string) *TenantColumnBatchMigration { //nolint:unused // 仅被 *_test.go 引用，生产路径未用
+	m.tables = tables
+	return m
 }
 
 // NewTenantColumnBatchMigration 创建业务表加列迁移
@@ -66,9 +77,13 @@ func (m *TenantColumnBatchMigration) Up(ctx context.Context) error {
 		return fmt.Errorf("db is nil")
 	}
 
-	tables, err := m.businessTables()
-	if err != nil {
-		return err
+	tables := m.tables
+	if tables == nil {
+		var err error
+		tables, err = m.businessTables()
+		if err != nil {
+			return err
+		}
 	}
 	if len(tables) == 0 {
 		return nil
