@@ -89,7 +89,14 @@ export class BaseAdapter {
     this._patrolOpts = null;          
     this._patrolStarted = false;      
     this._lastPatrolAt = undefined;   
-    this._accountEnabled = true;      
+    this._accountEnabled = true;
+    // 会话锚点（批：Bridge 重复消息根治——扩展侧）：会话激活/切换时快照
+    // { cid, peerName, ts }。所有采集路径以锚点为准做两道校验：
+    //   ① 新鲜度：当前 getConversationId() ≠ 锚点 cid ⇒ 抓取全部丢弃
+    //     （URL/虚拟列表未切完的中间态，消息不知道属于谁）；
+    //   ② sender 绑定：1v1 私信里 parsed.sender_name 与锚点 peerName 不一致 ⇒
+    //     判跨会话残留拒收（线上实证 tz3rmdj：说缘 的消息被归到 做点吃的 的会话）。
+    this._convAnchor = { cid: null, peerName: '', ts: 0 };      
     this._patrolStats = { rounds: 0, visited: 0, withNew: 0, captured: 0, failures: 0, lastRoundAt: 0, lastDurationMs: 0 };
   }
 
@@ -144,6 +151,45 @@ export class BaseAdapter {
   // per-pass 计数器：返回该内容键在本轮已出现的次数（0-based），并把计数推进一格。
   // 批量路径（巡检 / 回填 / getMessages）与增量路径的 _occurrenceInList 必须给出同一个数，
   // 所以两边都只按「本轮可见消息里排在前面」定义，不掺到达顺序。
+  // —— 会话锚点（扩展侧错归防线）——
+  // _refreshConvAnchor：会话激活/切换/每轮采集前刷新锚点。peerName 取自 hooks.getPeerName
+  // （各渠道 content 脚本已导出的 header 昵称抓取），取不到时留空——空 peerName 只跳过②校验，
+  // 不影响①。
+  _refreshConvAnchor() {
+    const cid = this.getConversationId() || null;
+    let peerName = '';
+    try {
+      if (this.hooks.getPeerName) peerName = String(this.hooks.getPeerName() || '').trim();
+    } catch (_) { peerName = ''; }
+    if (cid !== this._convAnchor.cid || (peerName && peerName !== this._convAnchor.peerName)) {
+      this._convAnchor = { cid, peerName, ts: Date.now() };
+    }
+    return this._convAnchor;
+  }
+
+  // _isConvAnchorStale：锚点新鲜度校验（①）。锚点惰性跟随 cid（每次采集入口先
+  // _refreshConvAnchor）——锚点校验的价值不在「cid 何时变」（那由 convPolling 负责），
+  // 而在「一批采集里 cid 与 sender 绑定必须自洽」：入口刷新后，循环内 cid 漂移
+  // （SPA 路由切换进行中）⇒ 拒收这批里的后续节点。
+  _isConvAnchorStale(cid) {
+    if (!this._convAnchor.cid) this._refreshConvAnchor();
+    return !cid || !this._convAnchor.cid || cid !== this._convAnchor.cid;
+  }
+
+  // _senderMatchesAnchor：sender 绑定校验（②）。仅对 1v1 私信 + 双方名字都非空时生效：
+  //   消息上抓到的 sender_name 与锚点 peerName 不一致 ⇒ 这条气泡是另一会话的 DOM 残留。
+  //   放行情形：群聊（sender_name 是成员昵称）、self/agent/系统（sender_name 本就为空）、
+  //   锚点或消息任一侧名字缺失（抓取能力不足时宁可不拦，交给服务端错归闸兜底）。
+  _senderMatchesAnchor(parsed) {
+    if (!parsed || parsed.is_group) return true;
+    const st = parsed.sender_type || '';
+    if (st && st !== 'customer') return true;
+    const anchor = this._convAnchor.peerName;
+    const sender = String(parsed.sender_name || '').trim();
+    if (!anchor || !sender) return true;
+    return sender === anchor;
+  }
+
   _bumpOccurrence(counter, cid, parsed) {
     const base = this._dedupKey(cid, parsed);
     const n = counter.get(base) || 0;
@@ -234,6 +280,7 @@ export class BaseAdapter {
   selfTest() { return this.hooks.selfTest ? this.hooks.selfTest() : []; }
 
   getMessages({ limit = 100 } = {}) {
+    this._refreshConvAnchor();
     const out = [];
     const occ = new Map();
     let items;
@@ -252,6 +299,9 @@ export class BaseAdapter {
       // 不在当前会话容器的节点 → 跨会话残留 → 丢弃。
       const root = this.getMessageRoot();
       if (root && item && !root.contains(item)) continue;
+      // 会话锚点校验：cid 与锚点不一致（中间态）或 sender 与锚点昵称错配 ⇒ 丢弃。
+      if (this._isConvAnchorStale(cid)) continue;
+      if (!this._senderMatchesAnchor(parsed)) continue;
       // 稳定键去重（跨 DOM 重渲染）：与 _handleIncremental/_backfill/_collectUnseenText 共用
       // _sentKeys。PollingLoop 每秒巡检、每轮重抓全部可见消息，若不做去重，同一逻辑消息会被反复上行；
       // 规范 event_id（mh:<hash>，同内容第二条起为 mh:<hash>#<n>）让后端按稳定键幂等去重
@@ -373,10 +423,12 @@ export class BaseAdapter {
       this.log.info(`会话切换: ${this.conversationId} -> ${cid}`);
       this.conversationId = cid;
       this._attachConversation();
+      this._refreshConvAnchor();
     }, 2000);
   }
 
   _attachConversation() {
+    this._refreshConvAnchor();
     const root = this.getMessageRoot();
     this.activeRoot = root;
     if (root) {
@@ -459,6 +511,7 @@ export class BaseAdapter {
   }
 
   _scanIncremental() {
+    this._refreshConvAnchor();
     const items = this.getMessageItems();
     for (const item of items) this._handleIncremental(item);
   }
@@ -953,6 +1006,7 @@ export class BaseAdapter {
   }
 
   _collectUnseenText() {
+    this._refreshConvAnchor();
     const batch = [];
     // P1-3：首次巡检单次抓取上限 firstRunMaxBatch（20，防首次涌入），
     // 常规巡检 maxBatchPerPatrol（80）。剩余一律靠下轮扫描补齐。
@@ -976,6 +1030,8 @@ export class BaseAdapter {
       // 上一会话的残留 DOM 节点。检查 item 是否仍在活动消息容器内。
       const root = this.getMessageRoot();
       if (root && item && !root.contains(item)) { this.seenNodes.add(item); continue; }
+      // 会话锚点校验：与 getMessages 同口径（锚点过期/sender 错配 ⇒ 残留，标记 seen 不再上报）。
+      if (this._isConvAnchorStale(cid) || !this._senderMatchesAnchor(parsed)) { this.seenNodes.add(item); continue; }
       if (parsed.msg_type && parsed.msg_type !== 'text') { this.seenNodes.add(item); continue; }
       if (!parsed.text) { this.seenNodes.add(item); continue; }
       // §8.3-17：同内容气泡的发生次数只由「本轮可见消息的顺序」决定，所以 seenNodes 的跳过
@@ -1062,6 +1118,9 @@ export class BaseAdapter {
     // 私信按当前会话 id 上行。不 seenNodes.add：这个节点将来若真的回到活动容器仍可上报。
     const root = this.getMessageRoot();
     if (root && item && !root.contains(item)) return;
+    // 会话锚点校验：锚点过期（中间态）或 sender 与锚点昵称错配 ⇒ 判跨会话残留拒收。
+    // 不 seenNodes.add：锚点刷新后若确认归属仍可上报。
+    if (this._isConvAnchorStale(this.getConversationId()) || !this._senderMatchesAnchor(this.parseMessageItem(item))) return;
     const parsed = this.parseMessageItem(item);
     if (!parsed) return;
     if (item) this.seenNodes.add(item);
@@ -1080,6 +1139,7 @@ export class BaseAdapter {
   }
 
   _backfill(root) {
+    this._refreshConvAnchor();
     if (!this.getConversationId()) {
       this.log.info('回填跳过：当前无活动会话（私信列表视图）');
       return;
@@ -1097,6 +1157,8 @@ export class BaseAdapter {
       // 批24b：回填与巡检/扫描/回查共用这一条会话归属判据。虚拟列表切换后残留节点仍在
       // 文档里，不判归属就会把上一会话的私信并进**当前**会话的历史帧上行（串台）。
       if (activeRoot && item && !activeRoot.contains(item)) { this.seenNodes.add(item); continue; }
+      // 会话锚点校验：与巡检/增量同口径（锚点过期/sender 错配 ⇒ 残留）。
+      if (this._isConvAnchorStale(cid) || !this._senderMatchesAnchor(parsed)) { this.seenNodes.add(item); continue; }
       // §8.3-17：先计数再判 seenNodes，理由同 _collectUnseenText。
       const occurrence = this._bumpOccurrence(occ, cid, parsed);
       if (this.seenNodes.has(item)) continue;
