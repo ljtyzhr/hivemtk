@@ -18,6 +18,13 @@ import (
 const (
 	SendStepPermission = "permission"
 
+	// SendStepCompliancePolicy E1：地区×行业合规策略判定步骤（见 reach_compliance_policy.go）。
+	//
+	// 位置在 permission 之后、rate_limit 之前：permission 已经判过 DNC 与**全局**静默时段，
+	// 这里补的是「地区/行业维度」的更严判据；放在频控之前，是为了让被策略拒掉的消息
+	// 不消耗 GCRA 令牌与日配额（否则一次违规尝试会把合法的后续发送挤掉）。
+	SendStepCompliancePolicy = "compliance_policy"
+
 	SendStepRateLimit = "rate_limit"
 
 	SendStepRetry = "retry"
@@ -35,6 +42,7 @@ const (
 
 var DefaultSendPipelineSteps = []string{
 	SendStepPermission,
+	SendStepCompliancePolicy,
 	SendStepRateLimit,
 	SendStepRetry,
 	SendStepFallback,
@@ -58,6 +66,11 @@ var (
 	ErrSendInsufficientCost = errors.New("insufficient balance for send")
 
 	ErrSendChannelNotConfig = errors.New("channel adapter not configured")
+
+	// ErrSendComplianceDenied E1：命中地区×行业合规策略，本次外发被拒（终态，不重试）。
+	// 与 ErrSendQuietHoursDeferred 区分：后者是「换个时间还能发」，本条是「这个渠道/这个地区
+	// 在当前策略下根本不该发」。调用方据此决定重排还是放弃。
+	ErrSendComplianceDenied = errors.New("send denied by compliance policy")
 )
 
 type ReachSendRequest struct {
@@ -174,9 +187,12 @@ type SendPipeline interface {
 type SendPipelineConfig struct {
 	PermissionChecker SendPermissionChecker
 	// DoNotContact R-3a：全局退订标志位检查器（nil 时跳过该检查）
-	DoNotContact     DoNotContactChecker
-	RateLimiter      SendRateLimiter
-	RateLimitSpec    RateLimitSpec
+	DoNotContact  DoNotContactChecker
+	RateLimiter   SendRateLimiter
+	RateLimitSpec RateLimitSpec
+	// CompliancePolicy E1：地区×行业合规策略判定器。
+	// nil = 该步骤被跳过（记 skipped），行为与升级前一致——这是默认值，不是降级。
+	CompliancePolicy CompliancePolicyEvaluator
 	RetryPolicy      SendRetryPolicy
 	AuditLogger      SendAuditLogger
 	CostTracker      SendCostTracker

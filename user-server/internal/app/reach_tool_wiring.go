@@ -32,6 +32,12 @@ func NewReachToolDepsWithAdapter(db *gorm.DB, adapter tooluse.ReachAdapter) tool
 func newReachSendPipeline(adapter tooluse.ReachAdapter) tooluse.ReachSendPipelinePort {
 
 	cfg := service.NewDefaultRateLimitedPipelineConfigWithCache(&reachChannelAdapterBridge{adapter: adapter})
+	// E1：挂上地区×行业合规策略判定器。
+	//
+	// 用全局单例而不是在这里 new 一个：判定器必须与 proactive 外发路径（工具/API/cron 共用
+	// 出口 enforceOutboundGates）**共用同一份计数**，否则同一客户在两条路径上各有一份额度，
+	// 日上限直接翻倍。策略本身仍来自参数中心，本行只是把「谁来做判定」接上。
+	cfg.CompliancePolicy = service.GlobalCompliancePolicy()
 	if os.Getenv("REACH_DISABLE_QUIET_HOURS") != "true" {
 		q := service.GetGlobalQuietHoursQueue()
 		cfg.QuietHoursEnabled = true

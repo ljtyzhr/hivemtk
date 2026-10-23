@@ -74,7 +74,7 @@ func TestSendPipeline_HappyPath_All9StepsExecuted(t *testing.T) {
 		t.Errorf("期望 primary_channel=sms，实际 %s", resp.PrimaryChannel)
 	}
 	expectedSteps := []string{
-		SendStepPermission, SendStepRateLimit,
+		SendStepPermission, SendStepCompliancePolicy, SendStepRateLimit,
 		SendStepRetry, SendStepFallback, SendStepAudit,
 		SendStepCost, SendStepJourney, SendStepSend,
 	}
@@ -960,8 +960,11 @@ func TestDefaultSendPipelineConfig_AllComponents(t *testing.T) {
 	if cfg.Adapter == nil {
 		t.Error("Adapter 不应为 nil")
 	}
-	if len(cfg.Steps) != 8 {
-		t.Errorf("期望 8 步，实际 %d", len(cfg.Steps))
+	if len(cfg.Steps) != 9 {
+		// E1 起默认序列为 9 步（permission → compliance_policy → rate_limit → …）。
+		// 这条断言刻意写死数字而不是 len(DefaultSendPipelineSteps)：它要守的是
+		// 「默认装配面没被悄悄改动」，写变量等于自己证明自己。
+		t.Errorf("期望 9 步，实际 %d", len(cfg.Steps))
 	}
 	if cfg.RetryPolicy.MaxRetries != 3 {
 		t.Errorf("期望 MaxRetries=3，实际 %d", cfg.RetryPolicy.MaxRetries)

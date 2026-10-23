@@ -31,6 +31,12 @@ var (
 	// ErrReachApprovalDenied 未获外发授权：与 DNC 相反，它是**可补的**（加白名单即可重发），
 	// 所以调用方必须能与另两个哨兵区分开——队列侧据此决定"退避重试"还是"终止"。
 	ErrReachApprovalDenied = errors.New("reach_approval_denied")
+	// ErrReachComplianceDenied E1：命中地区×行业合规策略。
+	//
+	// 与 ErrReachApprovalDenied 的区别是**谁来解**：授权是被人工逐个加白名单（等不了多久），
+	// 合规是策略层面的（改地区/行业策略或换渠道，通常不是"等一会儿就好"）。所以两者必须是
+	// 两个哨兵：队列侧对前者退避、对后者终止 + 报原因码，混成一个就是让运营去猜。
+	ErrReachComplianceDenied = errors.New("reach_compliance_denied")
 )
 
 // ReachSubject 发送前审批的判定对象。
@@ -50,6 +56,11 @@ type ReachSubject struct {
 	Recipient string
 	// AccountID 渠道账号ID；短信/邮箱/钉钉渠道恒为空，**因此它不参与判定键**
 	AccountID string
+	// Region / Industry / OptIn E1：合规策略判定的地区/行业/同意状态，
+	// 由 ProactiveReachRequest 的同名字段透传（缺省即空 ⇒ 走策略默认地区）。
+	Region   string
+	Industry string
+	OptIn    bool
 }
 
 // ReachPreSendChecker 发送前审批钩子：在所有外发渠道的唯一出口上决定是否放行。
@@ -82,6 +93,14 @@ type ProactiveReachRequest struct {
 	TemplateID string `json:"template_id,omitempty"`
 	// Params 模板参数
 	Params map[string]string `json:"params,omitempty"`
+	// Region E1：收件人所在地区（大写，如 US/CN）。
+	// 不填则回落参数中心策略文档的 default_region；两者都空即「无地区规则」。
+	// 刻意不给客户模型加地区字段：那要连带改导入链路与客户档案页，是另一张卡的事。
+	Region string `json:"region,omitempty"`
+	// Industry E1：所属行业（小写，如 medical/finance），对应策略文档的 industries 键。
+	Industry string `json:"industry,omitempty"`
+	// OptIn E1：是否已取得明确同意（医美/金融等 require_opt_in 规则必填）。
+	OptIn bool `json:"opt_in,omitempty"`
 	// DryRun 试运行
 	DryRun bool `json:"dry_run,omitempty"`
 }
@@ -261,6 +280,59 @@ func (s *ProactiveReachService) enforcePreSendApproval(ctx context.Context, sub 
 	return fmt.Errorf("%w: 收件对象未获外发授权（%s）", ErrReachApprovalDenied, reason)
 }
 
+// enforceOutboundGates 外发前的两道判据，顺序固定：授权（W-1）→ 合规（E1 地区×行业）。
+//
+// 为什么必须是一个函数而不是两个调用点并排写：三条外发调用点（手机号/邮箱/选路后）
+// 各写两行，等于给「将来加第三道判据」预留了三次漏接的机会。出口只有这一个函数，
+// 新增判据加在这里就自动覆盖全部渠道。
+func (s *ProactiveReachService) enforceOutboundGates(ctx context.Context, sub ReachSubject) error {
+	if err := s.enforcePreSendApproval(ctx, sub); err != nil {
+		return err
+	}
+	return s.enforceCompliance(ctx, sub)
+}
+
+// enforceCompliance E1：外发前的合规策略判定（地区×行业）。
+//
+// 为什么挂在 enforcePreSendApproval **之后**（同一出口、两道判据）：
+//   - 授权是"这个对象能不能发"，合规是"在这个地区/行业能不能用这个渠道发"；
+//     先授权后合规，被拒的理由才是运营最该先解决的那一个；
+//   - 两者都在唯一出口上判，工具/API/cron 三条路径自动同受约束，不需要各自记得接。
+//
+// 同步路径无可用的延迟队列，因此**静默窗口一律按拒绝返回**（带原因码 quiet_hours），
+// 由上层（recovery queue / SOP 节点）按退避重排——把消息塞进一个不存在的队列才是真丢消息。
+func (s *ProactiveReachService) enforceCompliance(ctx context.Context, sub ReachSubject) error {
+	policy := GlobalCompliancePolicy()
+	decision := policy.Decide(ctx, ComplianceInput{
+		Channel:     sub.Channel,
+		CustomerID:  sub.CustomerID,
+		RecipientID: sub.Recipient,
+		Region:      sub.Region,
+		Industry:    sub.Industry,
+		OptIn:       sub.OptIn,
+	})
+	recordComplianceDecisionEntry(&ReachComplianceLog{
+		Channel:     sub.Channel,
+		RecipientID: sub.Recipient,
+		Decision:    decision.Decision(),
+		Reason:      decision.Reason,
+		Region:      decision.Region,
+		Industry:    decision.Industry,
+		PolicyScope: decision.PolicyScope,
+	})
+	if decision.Allowed && !decision.Deferred {
+		return nil
+	}
+	reason := decision.Reason
+	if decision.Deferred {
+		// 同步路径不可延后：把「本可延后」这件事写进理由，排障才知道该等窗口还是该改策略。
+		reason = fmt.Sprintf("%s(可延后至 %s)", decision.Reason, decision.SendAt.Format(time.RFC3339))
+	}
+	logger.Warnf("[COMPLIANCE] 外发被合规策略拦截 channel=%s region=%s industry=%s reason=%s scope=%s",
+		sub.Channel, decision.Region, decision.Industry, decision.Reason, decision.PolicyScope)
+	return fmt.Errorf("%w: %s", ErrReachComplianceDenied, reason)
+}
+
 func (s *ProactiveReachService) dncService() *DoNotContactService {
 	if s.dnc == nil {
 		s.dnc = NewDoNotContactService(nil)
@@ -294,22 +366,44 @@ func (r *customerRepo) GetByUnifiedID(ctx context.Context, oneID string) (*model
 //  4. 默认顺序：SMS > Email > TG > WhatsApp > 企微 > 微信 > 飞书 > 抖音 > ...
 //  5. 第一个有 active 账号 + 完整身份的渠道即为最终选择
 //  6. 全部不可用 → 返回明确错误（带详细原因）
-func (s *ProactiveReachService) ReachByCustomer(ctx context.Context, req *ProactiveReachRequest) (*ProactiveReachResponse, error) {
+func (s *ProactiveReachService) ReachByCustomer(ctx context.Context, req *ProactiveReachRequest) (resp *ProactiveReachResponse, err error) {
 	if req == nil || req.Content == "" {
 		return nil, errors.New("content is required")
 	}
+
+	// E1：成功外发后计一次当日触达（地区日上限用）。
+	//
+	// 用「命名返回值 + defer」而不是在每个渠道分支各写一行：本函数有 10 个 return 分支，
+	// 逐个手写迟早漏一个，而漏掉的后果是「某渠道的日上限静默失效」——一条只在特定渠道
+	// 才不生效的合规规则，比完全没规则更难发现。sentChannel 在真正委派前才赋值，
+	// 因此被拒（DNC/授权/合规/冷却）与 dry-run 都不会计数。
+	var sentChannel, sentRecipient string
+	defer func() {
+		if err != nil || resp == nil || sentChannel == "" {
+			return
+		}
+		GlobalCompliancePolicy().RecordSentInput(ctx, ComplianceInput{
+			Channel:     sentChannel,
+			CustomerID:  req.CustomerID,
+			RecipientID: sentRecipient,
+			Region:      req.Region,
+			Industry:    req.Industry,
+		})
+	}()
 
 	if req.Phone != "" {
 		if s.checkDoNotContact(ctx, "", "sms", req.Phone) {
 			return nil, fmt.Errorf("%w: phone %s has opted out globally, send skipped", ErrDoNotContact, req.Phone)
 		}
-		if err := s.enforcePreSendApproval(ctx, ReachSubject{
+		if err := s.enforceOutboundGates(ctx, ReachSubject{
 			Key:   reachApprovalKey(req.OneID, req.CustomerID, "sms", req.Phone),
 			OneID: req.OneID, CustomerID: req.CustomerID,
 			Channel: "sms", Recipient: req.Phone, AccountID: req.AccountID,
+			Region: req.Region, Industry: req.Industry, OptIn: req.OptIn,
 		}); err != nil {
 			return nil, err
 		}
+		sentChannel, sentRecipient = "sms", req.Phone
 		return s.sendSMS(ctx, req, req.Phone)
 	}
 	if req.Email != "" {
@@ -317,13 +411,15 @@ func (s *ProactiveReachService) ReachByCustomer(ctx context.Context, req *Proact
 		if s.checkDoNotContact(ctx, "", "email", "email:"+normalized) {
 			return nil, fmt.Errorf("%w: email %s has opted out globally, send skipped", ErrDoNotContact, req.Email)
 		}
-		if err := s.enforcePreSendApproval(ctx, ReachSubject{
+		if err := s.enforceOutboundGates(ctx, ReachSubject{
 			Key:   reachApprovalKey(req.OneID, req.CustomerID, "email", normalized),
 			OneID: req.OneID, CustomerID: req.CustomerID,
 			Channel: "email", Recipient: normalized, AccountID: req.AccountID,
+			Region: req.Region, Industry: req.Industry, OptIn: req.OptIn,
 		}); err != nil {
 			return nil, err
 		}
+		sentChannel, sentRecipient = "email", normalized
 		return s.sendEmail(ctx, req, req.Email)
 	}
 
@@ -388,10 +484,11 @@ func (s *ProactiveReachService) ReachByCustomer(ctx context.Context, req *Proact
 	//     运营补完授权还得再等一小时（有测试钉住这条）。
 	// 顺带的口径变化：选不出渠道（no active account）时，以前若正处冷却会先报 cooldown，
 	// 现在先报选路失败。两者都是"这条没发出去"，队列处置同为退避，不影响外发次数。
-	if err := s.enforcePreSendApproval(ctx, ReachSubject{
+	if err := s.enforceOutboundGates(ctx, ReachSubject{
 		Key:   reachApprovalKey(customer.UnifiedID, customer.ID, channel, recipient),
 		OneID: customer.UnifiedID, CustomerID: customer.ID,
 		Channel: channel, Recipient: recipient, AccountID: accountID,
+		Region: req.Region, Industry: req.Industry, OptIn: req.OptIn,
 	}); err != nil {
 		return nil, err
 	}
@@ -399,6 +496,8 @@ func (s *ProactiveReachService) ReachByCustomer(ctx context.Context, req *Proact
 	if !s.checkCooldown(ctx, customer.UnifiedID) {
 		return nil, fmt.Errorf("%w: customer %s recently received a message, please wait", ErrReachCooldown, customer.UnifiedID)
 	}
+
+	sentChannel, sentRecipient = channel, recipient
 
 	switch channel {
 	case "sms":

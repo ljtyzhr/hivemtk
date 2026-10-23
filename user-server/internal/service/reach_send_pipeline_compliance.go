@@ -62,12 +62,37 @@ func InitComplianceAuditLogger(db *gorm.DB) *ComplianceAuditLogger {
 // GetComplianceAuditLogger 获取全局实例（未初始化返回 nil）
 func GetComplianceAuditLogger() *ComplianceAuditLogger { return complianceLogger }
 
+// record 记录一条「已发生主动触达」的合规提醒行（升级前的既有形态：只有渠道与收件人）。
 func (l *ComplianceAuditLogger) record(channel, recipientID string) {
 	if l == nil {
 		return
 	}
 	l.mu.Lock()
 	l.buf = append(l.buf, &ReachComplianceLog{Channel: channel, RecipientID: recipientID})
+	if len(l.buf) > complianceFlushBatchSize*10 {
+		l.buf = l.buf[len(l.buf)-complianceFlushBatchSize*10:]
+	}
+	full := len(l.buf) >= complianceFlushBatchSize
+	l.mu.Unlock()
+	if full {
+		select {
+		case l.flushCh <- struct{}{}:
+		default:
+		}
+	}
+}
+
+// recordDecision E1：记录一条策略判定留痕（allow/deny/defer）。
+//
+// 与 record 分开而不是加参数：record 的调用点是「发送前提醒」，它对每次外发都记录；
+// 判定留痕只在策略判定器装配时才产生，且要带原因码/地区/行业/规则域。
+// 合并成一个带可选参数的方法会让调用方去猜「传空串算不算提醒行」。
+func (l *ComplianceAuditLogger) recordDecision(entry *ReachComplianceLog) {
+	if l == nil || entry == nil {
+		return
+	}
+	l.mu.Lock()
+	l.buf = append(l.buf, entry)
 	if len(l.buf) > complianceFlushBatchSize*10 {
 		l.buf = l.buf[len(l.buf)-complianceFlushBatchSize*10:]
 	}
@@ -125,9 +150,42 @@ func copyComplianceBatch(batch []*ReachComplianceLog) []*model.ReachComplianceLo
 			Channel:     b.Channel,
 			RecipientID: b.RecipientID,
 			CreatedAt:   b.CreatedAt,
+			// E1 判定语义列：漏拷贝会让审计表只剩 channel/recipient，
+			// 事后无法回答「这次为什么被拒」——那正是本功能要补的洞。
+			Decision:    b.Decision,
+			Reason:      b.Reason,
+			Region:      b.Region,
+			Industry:    b.Industry,
+			PolicyScope: b.PolicyScope,
 		})
 	}
 	return out
+}
+
+// recordComplianceDecision E1：把一次策略判定写进合规审计（异步批量落库）。
+//
+// 只记录**有语义的**判定：策略未启用（policy_disabled）不落库——默认路径不该给
+// 审计表灌行；这与「策略启用后每次外发都留痕」的诉求刚好互补。
+func recordComplianceDecision(req *ReachSendRequest, d ComplianceDecision) {
+	if req == nil || d.Reason == ComplianceReasonDisabled || d.Reason == "" {
+		return
+	}
+	recordComplianceDecisionEntry(&ReachComplianceLog{
+		Channel:     req.Channel,
+		RecipientID: req.RecipientID,
+		Decision:    d.Decision(),
+		Reason:      d.Reason,
+		Region:      d.Region,
+		Industry:    d.Industry,
+		PolicyScope: d.PolicyScope,
+	})
+}
+
+// recordComplianceDecisionEntry 落库入口（proactive 路径也走这里，口径只有一份）。
+func recordComplianceDecisionEntry(entry *ReachComplianceLog) {
+	if audit := GetComplianceAuditLogger(); audit != nil {
+		audit.recordDecision(entry)
+	}
 }
 
 func (l *ComplianceAuditLogger) flushLoop() {

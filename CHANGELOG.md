@@ -9,6 +9,17 @@
 
 ### 新增 (Added)
 
+#### 005 · 主动触达合规策略（地区×行业可配置）（2026-10-23，`specs/005-reach-compliance-policy`）
+
+- **策略承载**：参数中心新键 `reach/compliance_policy_json`（`json` 类型，写侧已有 JSON 语法校验、读侧 60s TTL 缓存、变更有操作审计）。**零新表、零新路由、零新前端页面**
+- **判定器**：`internal/service/reach_compliance_policy.go`（纯函数式，不碰 DB）支持 `allowed_channels`/`denied_channels`/`quiet_hours_start|end`/`daily_limit`/`require_opt_in` 五类规则，地区键大写、行业键小写；拒绝优先于延后、延后取最早释放点、未命中地区规则可按 `unknown_region_deny` 放行或拒绝
+- **同步发送管线**新增第 9 步 `compliance_policy`（`permission` 之后、`rate_limit` 之前）：拒绝即终态（`ErrSendComplianceDenied` + 原因码）、静默窗口复用既有 R-4 延迟队列、`nil` 判定器时该步 `skipped`（**默认零行为变更**）
+- **proactive 外发出口**（工具/API/cron 共用 `enforceOutboundGates`）同一判据：授权 → 合规两道顺序固定；同步路径无延迟队列，静默窗口按拒绝返回并给出「可延后至」时刻；新增哨兵 `ErrReachComplianceDenied` 供队列侧终止而非退避
+- **审计留痕**：`reach_compliance_log` 扩 5 列（`decision`/`reason`/`region`/`industry`/`policy_scope`），事后可回答「这次为什么被拒」
+- **日上限计数**：只在**成功委派给渠道之后**自增（`RecordSent`），被拒/延后不烧配额；进程内计数（与 `MemoryQuietHoursQueue` 同级语义，重启归零）
+- **顺带修复**：`.env-example` 补登 `TRUSTED_PROXIES`（HEAD 上 `check-env-coverage.py` 的红：可信反代中间件已读该键但文档面没有）
+- **验证**：`go build ./...` 绿、`go vet` 绿、`make audit` 全绿、合规相关 31 个用例全绿（不依赖测试库）
+
 #### 003 · SaaS 计费二期（2026-10-19，`.specify/003-saas-billing-v2`）
 
 - **定价改版（显式覆盖 002 年度收费口径）**：功能模块 **23 个全部 0 元**（注册/初始化自动赠予开通，`FreeToEnable`），**浏览器自动化 ¥99 买断**（`billing_cycle=once`，9900 分、不写 `ExpiresAt`，由旧建议 1680 元/年 改为 ¥99，2026-10-19 用户裁决），软件订阅 **149 元/月仅按月**，新商户 **15 天体验期**（`SUBSCRIPTION_TRIAL_DAYS` 默认 15）

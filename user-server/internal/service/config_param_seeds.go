@@ -63,6 +63,13 @@ func DefaultParamDefs() []ParamDef {
 			Description: "同一客户被全部触达管线共享的每日（CST 自然日）触达上限；0=禁用该层",
 			ValueType:   "int", Unit: "次/天", Risk: "warning", DefaultValue: "3", Min: strPtr("0"), Max: strPtr("50"), Category: "触达"},
 
+		{Group: "reach", Key: "compliance_policy_json", Name: "主动触达合规策略（地区×行业）",
+			Description: "JSON 文档，按地区/行业收紧主动触达：{enabled, default_region, unknown_region_deny, " +
+				"regions{US:{allowed_channels,denied_channels,quiet_hours_start,quiet_hours_end,daily_limit,require_opt_in}}, " +
+				"industries{medical:{...同一组字段}}}。空对象或 enabled=false 即不启用（行为与升级前一致）。" +
+				"判定优先级：渠道拒绝>渠道白名单>缺同意>静默时段(延后)>日上限；未命中地区规则且 unknown_region_deny=false 时放行并留痕 region_unruled",
+			ValueType: "json", Risk: "danger", DefaultValue: "{}", Category: "触达"},
+
 		{Group: "bridge", Key: "polling_max_timeout", Name: "轮询最大超时（已下架）",
 			Description: "【已下架：改了不生效，改动期间请勿依赖】服务端没有 HTTP 长轮询实现：ingest 立即返回，回复由扩展走 SSE 或 /outbox 轮询。internal/bridge/handler_http.go 的 HTTPPollingMaxTimeout 全树只有 defaults_test.go 引用。要启用请先实现长轮询分支，并把该常量改成本参数的读取口",
 			ValueType:   "duration", Deprecated: true, DeprecatedReason: "服务端没有 HTTP 长轮询实现：ingest 立即返回，回复由扩展走 SSE 或 /outbox 轮询。两个兜底常量 HTTPPollingMaxTimeout / HTTPPollingDefaultTimeout 已随本次清理删除（它们全树只有默认值测试引用）。要重新提供这个旋钮，先在 internal/bridge/handler_http.go 实现长轮询分支并给等待加 ctx.Done() 退出，再把新的兜底常量登记回本条", DefaultValue: "500", Min: strPtr("10"), Max: strPtr("3600"), Step: strPtr("5")},

@@ -25,14 +25,15 @@ func (p *defaultSendPipeline) Send(ctx context.Context, req *ReachSendRequest) *
 	}
 
 	stepFuncs := map[string]func(ctx context.Context, req *ReachSendRequest, resp *SendResponse) SendStepLog{
-		SendStepPermission: p.runPermission,
-		SendStepRateLimit:  p.runRateLimit,
-		SendStepRetry:      p.runRetry,
-		SendStepFallback:   p.runFallback,
-		SendStepAudit:      p.runAudit,
-		SendStepCost:       p.runCost,
-		SendStepJourney:    p.runJourney,
-		SendStepSend:       p.runSend,
+		SendStepPermission:       p.runPermission,
+		SendStepCompliancePolicy: p.runCompliancePolicy,
+		SendStepRateLimit:        p.runRateLimit,
+		SendStepRetry:            p.runRetry,
+		SendStepFallback:         p.runFallback,
+		SendStepAudit:            p.runAudit,
+		SendStepCost:             p.runCost,
+		SendStepJourney:          p.runJourney,
+		SendStepSend:             p.runSend,
 	}
 
 	for _, step := range p.config.Steps {
@@ -65,6 +66,12 @@ func (p *defaultSendPipeline) Send(ctx context.Context, req *ReachSendRequest) *
 	resp.Success = true
 	resp.DurationMs = time.Since(start).Milliseconds()
 	resp.SentAt = time.Now()
+	// E1：只有真正委派成功才计当日触达次数。
+	// 放在这里而不是判定处：被策略拒绝的请求不能烧掉配额（否则连续几次拒发之后，
+	// 该客户当天再也发不出去——拒发自己把自己锁死）。
+	if p.config.CompliancePolicy != nil {
+		p.config.CompliancePolicy.RecordSent(ctx, req)
+	}
 	if p.config.AuditLogger != nil {
 		p.config.AuditLogger.LogSend(ctx, req, resp)
 	}
@@ -137,15 +144,103 @@ func (p *defaultSendPipeline) checkQuietHours(ctx context.Context, req *ReachSen
 		deferrer = GetGlobalQuietHoursQueue()
 	}
 	sendAt := nextQuietHoursRelease(now, reachQuietHoursEnd(ctx))
+	return p.deferSend(ctx, req, resp, deferrer, sendAt, "[R-4] quiet hours")
+}
+
+// deferSend 把一条消息放进延迟队列并标记 resp.Deferred。
+//
+// 抽成公共函数是因为现在有两个来源会延后同一条消息：全局静默时段（R-4）与
+// 地区合规静默窗口（E1）。两处各写一遍入队逻辑，早晚会出现「一处失败按拒绝、
+// 另一处失败按成功」的分歧——而这条分歧的后果是消息丢了却回执成功。
+//
+// 入队失败一律按拒绝处理：延迟队列不可用时把消息当"已延后"是静默丢消息。
+func (p *defaultSendPipeline) deferSend(ctx context.Context, req *ReachSendRequest, resp *SendResponse, deferrer SendQuietHoursDeferrer, sendAt time.Time, cause string) bool {
+	if deferrer == nil {
+		logger.Errorf("%s 延迟入队器不可用，按拒绝处理 channel=%s recipient=%s", cause, req.Channel, req.RecipientID)
+		resp.Deferred = false
+		return false
+	}
 	if err := deferrer.Defer(ctx, req, sendAt); err != nil {
-		logger.Errorf("[R-4] quiet hours 延迟入队失败，按拒绝处理 channel=%s recipient=%s: %v",
-			req.Channel, req.RecipientID, err)
+		logger.Errorf("%s 延迟入队失败，按拒绝处理 channel=%s recipient=%s: %v",
+			cause, req.Channel, req.RecipientID, err)
 		resp.Deferred = false
 		return false
 	}
 	resp.Deferred = true
 	resp.DeferredAt = sendAt
 	return true
+}
+
+// runCompliancePolicy E1：地区×行业合规策略判定。
+//
+// 三种结局：
+//   - 判定器未装配（nil）      ⇒ skipped，Success=true（默认路径，零行为变更）
+//   - 策略判 allow            ⇒ Success=true，把 region/industry/policy_scope 打进 Output
+//     （排障要能回答"这次按哪条规则放行的"，D2 可观测性的最小切片）
+//   - 策略判 deny             ⇒ Success=false，Error 带原因码（终态，不重试）
+//   - 策略判 defer（静默窗口）  ⇒ 复用 R-4 的延迟队列，resp.Deferred=true
+func (p *defaultSendPipeline) runCompliancePolicy(ctx context.Context, req *ReachSendRequest, resp *SendResponse) SendStepLog {
+	start := time.Now()
+	log := SendStepLog{Step: SendStepCompliancePolicy, StartedAt: start}
+	defer func() {
+		log.EndedAt = time.Now()
+		log.DurationMs = time.Since(start).Milliseconds()
+	}()
+
+	if p.config.CompliancePolicy == nil {
+		log.Skipped = true
+		log.Success = true
+		return log
+	}
+
+	decision := p.config.CompliancePolicy.Evaluate(ctx, req)
+	recordComplianceDecision(req, decision)
+
+	if decision.Deferred {
+		deferrer := p.config.QuietHoursDeferrer
+		if deferrer == nil {
+			deferrer = GetGlobalQuietHoursQueue()
+		}
+		if p.deferSend(ctx, req, resp, deferrer, decision.SendAt, "[E1] compliance quiet hours") {
+			log.Success = true
+			log.Skipped = true
+			log.Output = []any{map[string]any{
+				"deferred":     true,
+				"send_at":      decision.SendAt.Format(time.RFC3339),
+				"reason":       decision.Reason,
+				"region":       decision.Region,
+				"industry":     decision.Industry,
+				"policy_scope": decision.PolicyScope,
+			}}
+			return log
+		}
+		log.Success = false
+		log.Error = fmt.Sprintf("%s: %s (defer failed)", ErrSendComplianceDenied.Error(), decision.Reason)
+		return log
+	}
+
+	if !decision.Allowed {
+		log.Success = false
+		log.Error = fmt.Sprintf("%s: %s", ErrSendComplianceDenied.Error(), decision.Reason)
+		log.Output = []any{map[string]any{
+			"reason":       decision.Reason,
+			"region":       decision.Region,
+			"industry":     decision.Industry,
+			"policy_scope": decision.PolicyScope,
+		}}
+		logger.Warnf("[E1] 合规策略拒绝外发 channel=%s region=%s industry=%s reason=%s scope=%s",
+			req.Channel, decision.Region, decision.Industry, decision.Reason, decision.PolicyScope)
+		return log
+	}
+
+	log.Success = true
+	log.Output = []any{map[string]any{
+		"reason":       decision.Reason,
+		"region":       decision.Region,
+		"industry":     decision.Industry,
+		"policy_scope": decision.PolicyScope,
+	}}
+	return log
 }
 
 func (p *defaultSendPipeline) runRateLimit(ctx context.Context, req *ReachSendRequest, resp *SendResponse) SendStepLog {
