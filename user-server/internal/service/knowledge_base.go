@@ -343,7 +343,7 @@ func (s *KnowledgeBaseService) DeleteKB(ctx context.Context, id uint) error {
 
 // BindToAgent 入口 (供控制器调用), 内部委托 AgentKBBindingService
 func (s *KnowledgeBaseService) BindToAgent(ctx context.Context, kbID, agentID uint) error {
-	bindingSvc := NewAgentKBBindingServiceWithRepos(s.repo, s.bindingRepo)
+	bindingSvc := NewAgentKBBindingServiceWithRepos(s.bindingRepo)
 	return bindingSvc.Bind(ctx, agentID, kbID, 0)
 }
 

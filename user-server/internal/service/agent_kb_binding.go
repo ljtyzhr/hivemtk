@@ -17,36 +17,16 @@ import (
 // 不再持有 *gorm.DB，也就不存在"有没有开事务取决于调用方传了什么"这种二义性。
 type AgentKBBindingService struct {
 	bindingRepo *repository.AgentKBBindingRepository
-	kbRepo      *repository.KnowledgeBaseRepository
 }
 
 // NewAgentKBBindingService 创建绑定服务
 func NewAgentKBBindingService(db *gorm.DB) *AgentKBBindingService {
-	return &AgentKBBindingService{
-		bindingRepo: repository.NewAgentKBBindingRepository(db),
-		kbRepo:      repository.NewKnowledgeBaseRepository(db),
-	}
+	return &AgentKBBindingService{bindingRepo: repository.NewAgentKBBindingRepository(db)}
 }
 
 // NewAgentKBBindingServiceWithRepos 通过 repo 注入 (供测试和知识库 service 内部调用)
-func NewAgentKBBindingServiceWithRepos(
-	kbRepo *repository.KnowledgeBaseRepository,
-	bindRepo *repository.AgentKBBindingRepository,
-) *AgentKBBindingService {
-	return &AgentKBBindingService{bindingRepo: bindRepo, kbRepo: kbRepo}
-}
-
-// SetRepositories 注入 repository (用于测试)
-func (s *AgentKBBindingService) SetRepositories(
-	kbRepo *repository.KnowledgeBaseRepository,
-	bindRepo *repository.AgentKBBindingRepository,
-) {
-	if kbRepo != nil {
-		s.kbRepo = kbRepo
-	}
-	if bindRepo != nil {
-		s.bindingRepo = bindRepo
-	}
+func NewAgentKBBindingServiceWithRepos(bindRepo *repository.AgentKBBindingRepository) *AgentKBBindingService {
+	return &AgentKBBindingService{bindingRepo: bindRepo}
 }
 
 // Bind 单个绑定 (重复自动覆盖)

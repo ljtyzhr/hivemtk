@@ -177,17 +177,6 @@ func StartMemoryDecayLoop(ctx context.Context, db *gorm.DB, interval time.Durati
 	}()
 }
 
-// RunMemoryDecayOnce L-4 标准入口：执行单轮衰减归档，返回实际归档（软失效）条数
-// db 为 nil 时返回 0；归档语义见 RunMemoryDecayJob（score<0.15 或 confidence<0.2 → InvalidAt=now，不物理删）
-func RunMemoryDecayOnce(db *gorm.DB) int {
-	stats, err := RunMemoryDecayAllTenants(context.Background(), db, false)
-	if err != nil {
-		logger.Warnf("[MemoryDecay] 衰减归档失败: %v", err)
-		return 0
-	}
-	return stats.Archived
-}
-
 func runMemoryDecayOnce(ctx context.Context, db *gorm.DB) {
 	defer func() {
 		if r := recover(); r != nil {

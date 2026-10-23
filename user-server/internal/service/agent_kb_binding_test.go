@@ -200,23 +200,6 @@ func TestBatchBind_NilDB_NoDBFallback(t *testing.T) {
 	}
 }
 
-// TestSetRepositories_NilInputs 验证 nil 输入保留 nil
-func TestSetRepositories_NilInputs(t *testing.T) {
-	svc := &AgentKBBindingService{}
-	svc.SetRepositories(nil, nil)
-	if svc.kbRepo != nil || svc.bindingRepo != nil {
-		t.Error("nil inputs should not set repos")
-	}
-}
-
-// TestSetRepositories_PartialNil 测试部分 nil
-func TestSetRepositories_PartialNil(t *testing.T) {
-	svc := &AgentKBBindingService{}
-	kbRepo := (*repository.KnowledgeBaseRepository)(nil)
-	bindRepo := (*repository.AgentKBBindingRepository)(nil)
-	svc.SetRepositories(kbRepo, bindRepo)
-}
-
 // TestNewAgentKBBindingService_NilDB 测试 nil db 构造
 //
 // nil db 时, NewAgentKBBindingService 内部会构造 typed nil pointer
@@ -228,14 +211,12 @@ func TestNewAgentKBBindingService_NilDB(t *testing.T) {
 		t.Fatal("expected non-nil service")
 	}
 	_ = svc.bindingRepo
-	_ = svc.kbRepo
 }
 
 // TestNewAgentKBBindingServiceWithRepos 测试带 repo 构造
 func TestNewAgentKBBindingServiceWithRepos(t *testing.T) {
-	kbRepo := (*repository.KnowledgeBaseRepository)(nil)
 	bindRepo := (*repository.AgentKBBindingRepository)(nil)
-	svc := NewAgentKBBindingServiceWithRepos(kbRepo, bindRepo)
+	svc := NewAgentKBBindingServiceWithRepos(bindRepo)
 	if svc == nil {
 		t.Fatal("expected non-nil service")
 	}
@@ -362,7 +343,7 @@ func TestBind_UsesRealKBType(t *testing.T) {
 	}
 	kbRepo := repository.NewKnowledgeBaseRepository(database)
 	bindRepo := repository.NewAgentKBBindingRepository(database)
-	svc := NewAgentKBBindingServiceWithRepos(kbRepo, bindRepo)
+	svc := NewAgentKBBindingServiceWithRepos(bindRepo)
 
 	ctx := context.Background()
 	kb := &model.KnowledgeBase{

@@ -99,12 +99,6 @@ func TestDecayRunMemoryDecayJobNilDB(t *testing.T) {
 	}
 }
 
-func TestDecayRunMemoryDecayOnceNilDB(t *testing.T) {
-	if got := RunMemoryDecayOnce(nil); got != 0 {
-		t.Errorf("nil db 应返回 0，got %d", got)
-	}
-}
-
 func TestDecayStartMemoryDecayLoopCancel(t *testing.T) {
 	ctx, cancel := context.WithCancel(context.Background())
 	StartMemoryDecayLoop(ctx, nil, 10*time.Millisecond)
