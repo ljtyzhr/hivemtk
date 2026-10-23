@@ -58,7 +58,7 @@ func NewTenantLeadingIndexMigration(db *gorm.DB) *TenantLeadingIndexMigration {
 }
 
 // withTables 仅测试用：把清单换成临时探针表，验证同一套判据/DDL 在真库上的行为。
-func (m *TenantLeadingIndexMigration) withTables(tables ...string) *TenantLeadingIndexMigration {
+func (m *TenantLeadingIndexMigration) withTables(tables ...string) *TenantLeadingIndexMigration { //nolint:unused //// 仅被 *_test.go 引用，生产路径未用
 	m.tables = tables
 	return m
 }
@@ -117,16 +117,23 @@ func (m *TenantLeadingIndexMigration) Up(ctx context.Context) error {
 	return nil
 }
 
+// Down 走 declineIndexDrop 口径（降级不销毁在用对象），不按名字无脑 DROP。
+//
+// 本迁移只给"确实缺 tenant_id 前导索引"的表补索引；那些本来就有前导索引的表在 Up 里
+// 被跳过，而它们的索引名恰好与本迁移的命名规则相同（`idx_<表>_tenant_id`，模型 tag
+// `index` 经 AutoMigrate 建出来）⇒ 按名字 DROP 会把**不属于本迁移的**在用索引删掉，
+// 降级后的实例就此长期 seq scan（`a_full_chain_migration_test.go` 实测抓出
+// livecode_click_log / qr_code_click_log 两枚）。索引是纯收益对象、off 模式同样有
+// tenant_id 列，留着无副作用。
 func (m *TenantLeadingIndexMigration) Down(ctx context.Context) error {
 	if m.db == nil {
 		return fmt.Errorf("db is nil")
 	}
-	db := m.db.WithContext(ctx)
+	names := make([]string, 0, len(m.tables))
 	for _, table := range m.tables {
-		if err := db.Exec(fmt.Sprintf("DROP INDEX IF EXISTS %s", tenantLeadingIndexName(table))).Error; err != nil {
-			return fmt.Errorf("回滚 %s 的 tenant_id 索引失败: %w", table, err)
-		}
+		names = append(names, tenantLeadingIndexName(table))
 	}
+	declineIndexDrop(m.Version(), names...)
 	return nil
 }
 

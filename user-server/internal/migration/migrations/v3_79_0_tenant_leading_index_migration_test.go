@@ -85,15 +85,30 @@ func TestTenantLeadingIndexMigration(t *testing.T) {
 		t.Fatalf("第二次 Up 应当幂等，实际: %v", err)
 	}
 
-	// 4) Down 只删本迁移建的索引，不动别人的
+	// 4) Down 走 declineIndexDrop 口径：不按名字 DROP，索引留在原地。
+	//
+	// 索引名 `idx_<表>_tenant_id` 与模型 tag 经 AutoMigrate 建出来的名字**同形**，本迁移在
+	// Up 时只能看出"库里有没有"，看不出"这枚是不是我建的"；按名字 DROP 就会把
+	// 模型/别人建的索引一起删掉（a_full_chain_migration_test.go 实测抓出
+	// livecode_click_log / qr_code_click_log 两枚）。索引是纯收益对象（off 模式同样有
+	// tenant_id 列），留着无副作用；删掉则降级后的实例长期 seq scan，且 AutoMigrate
+	// 只在启动时跑，当前进程永不补回。故这里钉"降级不销毁在用对象"，见 down_drop_policy.go。
 	if err := m.Down(ctx); err != nil {
 		t.Fatalf("Down 失败: %v", err)
 	}
-	if has, _ := hasLeadingTenantIndex(db, "a6_probe_gap"); has {
-		t.Fatalf("Down 后 a6_probe_gap 的 tenant_id 索引应当被删掉")
+	if has, _ := hasLeadingTenantIndex(db, "a6_probe_gap"); !has {
+		t.Fatal("Down 把 a6_probe_gap 的 tenant_id 索引删掉了：这枚可能本就是模型的，" +
+			"按名字删等于销毁在用对象，降级后该表长期 seq scan")
 	}
 	if has, _ := hasLeadingTenantIndex(db, "a6_probe_done"); !has {
-		t.Fatalf("Down 不得动别人建的索引（a6_probe_done_tenant_first）")
+		t.Fatal("Down 不得动别人建的索引（a6_probe_done_tenant_first）")
+	}
+	// 5) Down 之后再 Up 必须仍然幂等可用（放弃删除不等于迁移坏掉）
+	if err := m.Up(ctx); err != nil {
+		t.Fatalf("Down 之后再 Up 应当幂等，实际: %v", err)
+	}
+	if has, err := hasLeadingTenantIndex(db, "a6_probe_gap"); err != nil || !has {
+		t.Fatalf("Down→Up 之后 a6_probe_gap 应仍有前导索引，has=%v err=%v", has, err)
 	}
 }
 

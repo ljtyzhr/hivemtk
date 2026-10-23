@@ -106,6 +106,10 @@ func TestReachTablesMigration_UpBuildsModelReadableTables(t *testing.T) {
 		}
 	}
 
+	// Down 走 declineTableDrop：这两张表在真实部署里由 AutoMigrate 持有
+	// （model 挂在 RegisterExtraModels 上），按名字 DROP 会把现网正在写的合规
+	// 审计日志与延迟出站队列一起抹掉，且回滚后的进程永不自动补回。
+	// 故这里钉"降级不销毁在用对象"，见 down_drop_policy.go。
 	if err := m.Down(ctx); err != nil {
 		t.Fatalf("Down() failed: %v", err)
 	}
@@ -113,8 +117,14 @@ func TestReachTablesMigration_UpBuildsModelReadableTables(t *testing.T) {
 		t.Fatalf("二次 Down() 应幂等: %v", err)
 	}
 	for _, tb := range tables {
-		if db.Migrator().HasTable(tb.name) {
-			t.Errorf("Down 后 %s 应已删除", tb.name)
+		if !db.Migrator().HasTable(tb.name) {
+			t.Errorf("Down 把 %s 删了：该表在现网由 AutoMigrate 持有，"+
+				"回滚等于不可恢复的数据丢失，降级只允许放弃删除", tb.name)
+			continue
+		}
+		// 放弃删除不等于迁移坏掉：Down 之后 Up 必须仍然幂等可用
+		if err := m.Up(ctx); err != nil {
+			t.Errorf("Down 之后再 Up 应当幂等，实际: %v", err)
 		}
 	}
 }

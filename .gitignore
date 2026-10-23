@@ -343,6 +343,11 @@ internal-docs/
 logs/
 main
 merchant.key
+# 平台商户身份落盘（internal/platform/sync.go → merchantStateDir()，默认 CWD-relative config/）：
+# 这些文件是**凭据**（merchant key + HMAC 签名密钥），起服目录不同会落在仓库根 config/ 下。
+# 只挡 `merchant.key` 那一行不够——实测量产的就是下面这两个名字。
+**/.merchant_key
+**/.merchant_api_secret
 models/
 mtk-serve
 node_modules/

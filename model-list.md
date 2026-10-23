@@ -2,7 +2,7 @@
 
 - 范围：`user-server/` 下**全部声明 `TableName()` 的 model 文件**（排除 `*_test.go`）
 - 基线 commit：`029ccf7a`（master，与 `gitee-upstream/master` / `upstream/master` 均 0/0）
-- 规模：**205 个 model 文件 / 346 张表声明**
+- 规模：**206 个 model 文件 / 347 张表声明**（206 = 生成时 205 + 2026-10-23 新增的 `kb_item_bindings` 补审）
 - 生成方式：只做「梳理与清洗」的索引；**逐实体四关审查（步骤 3）一律基于编辑器单条推进，禁止脚本批量**
 
 ## 判据（每个实体按此四条过）
@@ -236,6 +236,7 @@
 | 203 | [ ] | `internal/repository/email_account_repo.go` | `EmailAccountRow` | `email_accounts` | 0 | T、U、L |
 | 204 | [ ] | `internal/repository/kb_document_chunk_repo.go` | `KBDocumentChunkRow` | `kb_document_chunks` | 1 | U、L |
 | 205 | [ ] | `internal/service/email.go` | `EmailAccount` | `email_accounts` | 1 | U、L |
+| 206 | [x] | `internal/model/kb_item_binding.go`（本清单生成后新增的表，2026-10-23 补审） | `KBItemBinding` | `kb_item_bindings` | 1 | N → 四关全过并修掉三处：**4.1** 新域的 service 直接持有 `*gorm.DB` 并自行发查询（`itemExists` 三表存在性 + 标题反查 `Scan`），把「内容存在」与「标题列名映射」收进仓储（`ItemExists`/`TitlesByIDs`/`CountEffectiveByKB`），service 现只依赖 repo 与 `KnowledgeBaseService`，`NewKBItemBindingService` 的 `*gorm.DB` 形参随之消失；**4.3** controller 的 `tenantID()` 在 ctx 缺租户时回落**默认租户 1**（正是审计 §三.6「记下了但没用来判定」的同族 fail-open），改为 `tenant.FromContext` 单一来源 + 缺绑定 401 fail-closed，与隔离 callback 取同一处租户；**4.4** `DeleteBindingsForItem`（内容删除时清绑定）全仓零生产调用方（唯一调用方是验收用例自己），按「无引用即删」摘除，改为**读侧一致性修复**：多态 `item_id` 无外键 ⇒ `ListItems` 每页按类型三次 `IN` 回查标题，查不到即内容已删，就地硬删绑定行并从 `total` 扣除，`CountByKB` 同步改走 `CountEffectiveByKB`（只计内容仍存在的绑定，三类型子查询封顶三次），幽灵绑定不再撑大 `item_count`；顺带把 `Bind` 换成 `BindMany`（先整体校验 KB 归属与每条内容存在，再写入，避免「前半批绑上、后半批报错」的半成品响应），错误语义从一律 500 改为 `ErrKBNotFound`/`ErrItemNotFound` ⇒ 404、其余 ⇒ 500。回归：`kb_item_binding_acceptance_test.go` 的④由「手工调 DeleteBindingsForItem」改为断言读侧清理与 `item_count` 回落，新增 `TestKBItemBinding_BindManyAllOrNothing`（2 例） |
 
 ## 附录 A：`allModels()` 登记但索引未捕获 `TableName()` 的结构体（13）
 

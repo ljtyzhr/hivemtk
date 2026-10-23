@@ -157,3 +157,69 @@ admin_password: "${TEST_PLATFORM_ADMIN_PW}"
 		t.Errorf("Expected AdminPassword 'env_injected_password', got %s", PlatformCfg.AdminPassword)
 	}
 }
+
+// TestLoadPlatform_FallsBackToExecutableDir 钉住「CWD 不是二进制目录时也能读到平台配置」。
+//
+// 背景（2026-10-23 双部署起服实测）：从仓库根起 user-server 时 CWD 下没有
+// config/platform.yaml ⇒ 读文件失败 ⇒ PlatformCfg=nil ⇒ 商户注册/心跳/资产市场/模块下发
+// 全部静默哑掉，日志只有一行 error。config/ 是随二进制一起分发的，二进制旁边那份就是
+// 运维真正部署的那份，所以默认相对路径读不到时必须按二进制目录再找一次。
+func TestLoadPlatform_FallsBackToExecutableDir(t *testing.T) {
+	t.Setenv("PLATFORM_ENABLED", "true")
+	t.Setenv("PLATFORM_CONFIG_PATH", "")
+	t.Setenv("PLATFORM_API_HOST", "")
+	t.Setenv("PLATFORM_API_URL", "")
+
+	exeDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(exeDir, "config"), 0o755); err != nil {
+		t.Fatalf("建 config 目录失败: %v", err)
+	}
+	content := `
+api_url: https://exe-dir.example.com
+secret: exe_dir_secret
+admin_password: exe_dir_password
+`
+	if err := os.WriteFile(filepath.Join(exeDir, "config", "platform.yaml"), []byte(content), 0o644); err != nil {
+		t.Fatalf("写二进制旁配置失败: %v", err)
+	}
+	orig := platformConfigRootDir
+	platformConfigRootDir = func() string { return exeDir }
+	t.Cleanup(func() { platformConfigRootDir = orig })
+
+	// CWD 换到没有 config/ 的空目录，复现「从别处起二进制」
+	t.Chdir(t.TempDir())
+
+	if err := LoadPlatform(defaultPlatformConfigPath); err != nil {
+		t.Fatalf("CWD 无 config/ 时应回落到二进制目录，实际报错: %v", err)
+	}
+	if PlatformCfg == nil || PlatformCfg.APIURL != "https://exe-dir.example.com" {
+		t.Fatalf("回落读到的不是二进制旁那份配置：%+v", PlatformCfg)
+	}
+}
+
+// TestLoadPlatform_NoFallbackWhenPathExplicit 钉住回落的边界：显式路径找不到就报错，
+// 不许猜（否则"路径写错"会变成"读到了另一份配置"，比直接报错更难查）。
+func TestLoadPlatform_NoFallbackWhenPathExplicit(t *testing.T) {
+	t.Setenv("PLATFORM_ENABLED", "true")
+	t.Setenv("PLATFORM_CONFIG_PATH", "")
+
+	exeDir := t.TempDir()
+	if err := os.MkdirAll(filepath.Join(exeDir, "config"), 0o755); err != nil {
+		t.Fatalf("建 config 目录失败: %v", err)
+	}
+	content := `
+api_url: https://exe-dir.example.com
+secret: exe_dir_secret
+admin_password: exe_dir_password
+`
+	if err := os.WriteFile(filepath.Join(exeDir, "config", "platform.yaml"), []byte(content), 0o644); err != nil {
+		t.Fatalf("写二进制旁配置失败: %v", err)
+	}
+	orig := platformConfigRootDir
+	platformConfigRootDir = func() string { return exeDir }
+	t.Cleanup(func() { platformConfigRootDir = orig })
+
+	if err := LoadPlatform(filepath.Join(t.TempDir(), "typo-platform.yaml")); err == nil {
+		t.Fatal("显式路径不存在时必须报错，不能回落到二进制目录那份配置")
+	}
+}

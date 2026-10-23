@@ -911,20 +911,20 @@ func postMigrateMessageHubUniqueIndex() {
 	switch indexShapeMatches(DB, "message_hub", "uni_message_hub_platform_msg_conv",
 		[]string{"platform", "msg_id", "conversation_id", "direction"}) {
 	case "exact": // 新形状已就绪，不动（幂等）
-		logger.Info("post-migrate: message_hub (platform, msg_id, conversation_id, direction) 唯一索引已就绪（D-2 方案③：跨方向同文本可共存）")
+		logger.Info("post-migrate: message_hub (tenant_id, platform, msg_id, conversation_id, direction) 唯一索引已就绪（D-2 方案③：跨方向同文本可共存）")
 	case "old_shape": // 旧三列形状 ⇒ D-2 升级：换形状
 		if err := DB.Exec(`DROP INDEX IF EXISTS uni_message_hub_platform_msg_conv`).Error; err != nil {
 			logger.Warn(fmt.Sprintf("post-migrate: DROP 旧三列版 uni_message_hub_platform_msg_conv 失败: %v", err))
 		}
-		if err := DB.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS uni_message_hub_platform_msg_conv ON message_hub (platform, msg_id, conversation_id, direction)`).Error; err != nil {
+		if err := DB.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS uni_message_hub_platform_msg_conv ON message_hub (tenant_id, platform, msg_id, conversation_id, direction)`).Error; err != nil {
 			logger.Warn(fmt.Sprintf("post-migrate: CREATE uni_message_hub_platform_msg_conv 失败: %v", err))
 		} else if why := verifyUniqueIndex(DB, "uni_message_hub_platform_msg_conv"); why != "" {
 			logger.Warn("post-migrate: " + why)
 		} else {
-			logger.Info("post-migrate: message_hub 唯一索引已按 D-2 升级为 (platform, msg_id, conversation_id, direction)")
+			logger.Info("post-migrate: message_hub 唯一索引已按 D-2 升级为 (tenant_id, platform, msg_id, conversation_id, direction)")
 		}
 	default: // 名字被别的形状占住（既非旧三列也非新四列）⇒ 只报不改（同族守卫既有口径）
-		if err := DB.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS uni_message_hub_platform_msg_conv ON message_hub (platform, msg_id, conversation_id, direction)`).Error; err != nil {
+		if err := DB.Exec(`CREATE UNIQUE INDEX IF NOT EXISTS uni_message_hub_platform_msg_conv ON message_hub (tenant_id, platform, msg_id, conversation_id, direction)`).Error; err != nil {
 			logger.Warn(fmt.Sprintf("post-migrate: CREATE uni_message_hub_platform_msg_conv 失败: %v", err))
 		}
 		if why := verifyUniqueIndex(DB, "uni_message_hub_platform_msg_conv"); why != "" {
@@ -935,7 +935,11 @@ func postMigrateMessageHubUniqueIndex() {
 
 // indexShapeMatches 读库里同名索引的列清单：exact=与 want 完全一致、old_shape=与
 // legacy（D-2 前的三列形状）一致、其他=名字被别的形状占用或不存在。
-// 只在 postMigrateMessageHubUniqueIndex 用（D-2 形状升级判据）。
+//
+// 比较前先剥掉租户前缀：SaaS 归一化（`tenancyidx.Normalize`）会把租户表上的唯一索引
+// 原位复合为 `(tenant_id, …)`，所以库里的列清单永远比 want 多一列。不剥的话
+// `exact` 永不命中、`old_shape` 也永不命中 ⇒ 升级分支变成空转，而钩子只在"其他"
+// 分支里 CREATE IF NOT EXISTS（名字已在场 ⇒ 空转）——"库里还是旧形状"这件事就没人管了。
 func indexShapeMatches(db *gorm.DB, table, indexName string, want []string) string {
 	type col struct {
 		Attname string
@@ -960,6 +964,9 @@ func indexShapeMatches(db *gorm.DB, table, indexName string, want []string) stri
 	got := make([]string, 0, len(cols))
 	for _, c := range cols {
 		got = append(got, c.Attname)
+	}
+	if len(got) > 1 && got[0] == "tenant_id" {
+		got = got[1:]
 	}
 	eq := func(a, b []string) bool {
 		if len(a) != len(b) {

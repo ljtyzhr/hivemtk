@@ -320,3 +320,109 @@ psql -h 127.0.0.1 -p 8202 -U admin -d user_db -Atc \
 | `user-server/internal/app/content_guard_wiring.go` | 并发作业留下的 `envInt` 重名编译红（改名为 `envIntWithFallback`） |
 | `specs/001-saas-multi-tenant/tasks.md` | T021/T023/T024/T025/T026/T027/T028 状态按实测改写（消除第二份真相） |
 | `docs/architecture/SAAS_FULLCHAIN_AUDIT_2026-10-23.md` | 本文件 |
+
+---
+
+## 8. 双部署起服实测复盘（SaaS 8411 / 独立 8412 + 真平台 8205）
+
+起服方式：同一份代码、同一个二进制，只换 `TENANT_MODE` 与 `PLATFORM_ENABLED`；平台端用
+`https://manageapi.xapptool.cn` 的本地等价物（8205，参数中心 `platform.api_host` 优先于 env，
+实测生效地址就是 8205 —— 这条优先级本身也在这轮被验证了一次）。
+
+| 观测点 | SaaS（8411） | 独立（8412） | 结论 |
+|---|---|---|---|
+| `init-status` | `INITIALIZED` | `INITIALIZED` | 两形态都能完成初始化 |
+| `edition` | `saas` | `opensource` | 轴一 |
+| `POST /api/tenant/register` | 准入（走到参数校验 4101） | `4104 当前为离线部署模式，注册未开放` | 轴二正交 |
+| 平台商户注册 | `POST /merchant-api/merchant/register` → 200，拿到 key/secret | 不上报 | 平台链只在 SaaS 侧 |
+| 心跳 | `上报心跳成功`（平台侧 `/api/platform/heartbeat` 200） | 不打点 | 同上 |
+| 模块下发 | `modules/sync` 200，8 个基础模块 `active` + `trial` 订阅段 | 空数据但不报错 | 平台关态 fail-empty，不是 fail-crash |
+
+### 8.1 P0：`message_hub` 唯一索引的形状**从未真正升级过**
+
+现场读数（升级前）：`CREATE UNIQUE INDEX uni_message_hub_platform_msg_conv ON message_hub (tenant_id, platform, msg_id, conversation_id)` —— 缺 `direction`，
+即 D-2 方案③想要的"跨方向同文本可共存"在真实库上一直没落地。
+
+根因在判据而不是 DDL：`indexShapeMatches` 拿库里的列清单**原样**跟 `want` 比。SaaS 归一化
+（`tenancyidx.Normalize`）会把租户表上的唯一索引原位复合为 `(tenant_id, …)`，于是
+`exact`（四列）永不命中、`old_shape`（三列）也永不命中 ⇒ 恒落 `other` 分支 ⇒ 那里只有
+`CREATE ... IF NOT EXISTS`，名字已在场 ⇒ **空转**。三层都"没做错"，合起来就是"库里还是旧形状，
+没人管"。修法是把租户前缀在比较前剥掉（单点），并让升级 DDL 显式带上 `tenant_id`，
+避免重建后又被 Normalize 二次复合。
+
+**牙齿**：重启后同一实例日志从 `已就绪`（幂等）之前的 `已按 D-2 升级为 (tenant_id, platform, msg_id, conversation_id, direction)`，
+库内 `indexdef` 实测由四列变五列。`message_hub_unique_batchm5_test.go` 里那句逐字镜像的
+Info 文案同步更新 —— 它是"钩子走到了 ready 分支"的唯一证据，不跟着改就会静默失联。
+
+### 8.2 P0：迁移的 `Down` 会删掉"不是自己建的"对象
+
+两处，同一类错：
+
+- `v3.79.0`（tenant 前导索引）按**名字** `DROP INDEX`。它 `Up` 时只给"确实缺"的表补索引，
+  而那些本来就有前导索引的表，其索引名与本迁移的命名规则**同形**（`idx_<表>_tenant_id`）⇒
+  Down 把不属于它的在用索引删掉，降级后的实例长期 seq scan。实测被
+  `a_full_chain_migration_test.go` 抓出 `livecode_click_log` / `qr_code_click_log` 两枚。
+- `v3.26.0`（触达域两张表）按名字 `DROP TABLE`，而这两张表在**每个真实部署**里都由
+  AutoMigrate 持有（model 挂在 `RegisterExtraModels`）。一次 `POST /api/migration/rollback`
+  就是：现网正在写的合规审计日志 + 延迟出站队列（丢一行 = 一条客户回复永不再发）一起消失，
+  且 AutoMigrate 只在启动时跑 ⇒ 回滚后的进程**永不自动补回**。
+
+均改为 `declineIndexDrop` / `declineTableDrop`（`down_drop_policy.go` 的既有口径：多留一个对象
+不破坏任何功能，删掉一个在用对象则不可恢复），用例从"Down 后应被删掉"翻成"降级不销毁在用对象
++ Down 之后再 Up 仍幂等"——红因里写清两个世界，避免后来人看见红就删断言。
+
+**仍待收口（P2）**：`llm_routing_logs` / `rag_hybrid` / `v3_22_3` / `v3_33_0` 四处的 Down 仍直接
+`DROP TABLE`，需逐个判"表是 AutoMigrate 持有还是本迁移独占"后再决定；`v3_16/v3_17/v3_19/unmultitenant`
+是"drop 迁移"，删表是它的本职，不动。
+
+### 8.3 P1：`v3.26.0` 建表 DDL 缺 model 的 5 列（纯链恢复的库读不了）
+
+E1 策略判定给 `reach_compliance_log` 加了 `decision / reason / region / industry / policy_scope`，
+但建表 DDL 没跟 —— 文件头注释自己写着"模型加字段而这里漏了，用例会当场红"，这轮就红了。
+纯迁移链恢复出来的库第一次读写即 `column does not exist`（现网靠 AutoMigrate 掩盖着）。
+补：新建库走 `CREATE TABLE` 带列，存量库走 `ALTER TABLE ... ADD COLUMN IF NOT EXISTS`（可重入），
+并按 model tag 补齐四条索引。**注意**这轮只补 DDL 同步，不改 AutoMigrate 仍是建表事实源这件事。
+
+### 8.4 P1：平台配置按 CWD 解析 —— 起服目录决定平台链是否活着
+
+从仓库根起 `user-server` 时，`config/platform.yaml` 读不到 ⇒ `PlatformCfg=nil` ⇒
+商户注册、心跳、资产市场、模块下发**全部静默降级**，日志只有一行 error（`平台配置加载失败…`）。
+`PLATFORM_ENABLED` 默认 false，所以这条路径平时不显形，一旦真去连平台就必然踩到。
+
+`config/` 是随二进制一起分发的目录，部署时 CWD 与二进制目录不同是常态（systemd
+`WorkingDirectory`、桌面端双击、容器换 WORKDIR）。故：默认相对路径读不到时按**二进制所在目录**
+再找一次；`PLATFORM_CONFIG_PATH` 显式指定或调用方传了具体路径时**不回落**——显式路径找不到就
+该报错，"猜一份配置来读"比直接报错更难查。两例回归（回落生效 / 边界不回落）。
+
+### 8.5 P1（环境面）：平台端 SQL 迁移 032–035 是**手工**的，漏一条就在运行时炸
+
+新商户首次 `modules/sync` 返回 `平台业务码 400 … SQLSTATE 42P10 there is no unique or
+exclusion constraint matching the ON CONFLICT specification`。根因：平台 `tenant_modules`
+的唯一索引还是旧的 `(merchant_key, module_key)`，而代码
+`UpsertTenantModule/UpsertManyTenantModules` 走 `ON CONFLICT (merchant_key, tenant_code, module_key)`。
+`hivemtk-platform/migrations/034_tenant_modules_tenant_code.sql` 就是干这事的，但**没被应用**，
+且仓库里没有任何自动化引用这几份 SQL（Makefile/scripts/deploy 全无）。
+
+**为什么此前一直是假绿**：`EnsureBaseModules` 只对"还没激活的基础模块"造行，存量商户
+`rows` 为空 ⇒ 提前 return ⇒ 那条 SQL 根本不发。只有**新注册商户**第一次 sync 才会带上行，
+于是这个洞只在"拉新"时暴露——正是最不该出错的时刻。手工应用 034 后 `modules/sync` 200，
+基础模块 8 个 `active`、订阅段 `trial`。
+
+**建议**：平台端起服时把 `migrations/*.sql` 纳入版本化执行（或至少启动自检"模型 tag 声明的
+唯一索引 vs 库内实际"，与该用户端 `indexShapeMatches` 同源），避免"代码在跑新形状、库还是旧形状"。
+本轮只做环境修复 + 留档，不改平台端执行机制（跨仓，且要连带部署脚本）。
+
+### 8.6 本轮改动清单
+
+| 文件 | 改动 |
+|---|---|
+| `user-server/internal/pkg/db/migrate.go` | `indexShapeMatches` 比较前剥租户前缀；升级/兜底 DDL 带 `tenant_id`；日志文案同步 |
+| `user-server/internal/pkg/db/message_hub_unique_batchm5_test.go` | 逐字镜像的 ready 文案更新 + 注释说明"这是唯一证据" |
+| `user-server/internal/migration/migrations/v3_79_0_tenant_leading_index_migration.go` | `Down` 改 `declineIndexDrop` |
+| `user-server/internal/migration/migrations/v3_79_0_tenant_leading_index_migration_test.go` | Down 契约翻转为"不销毁在用对象"+ Down→Up 幂等 |
+| `user-server/internal/migration/migrations/v3_26_0_reach_tables_migration.go` | 补 E1 五列 + 四条索引（新建 + 存量 ADD COLUMN IF NOT EXISTS）；`Down` 改 `declineTableDrop` |
+| `user-server/internal/migration/migrations/v3_26_0_reach_tables_migration_test.go` | Down 契约翻转；Up/Down 幂等 |
+| `user-server/internal/config/platform.go` | 默认路径读不到时按二进制目录回落（显式路径不回落） |
+| `user-server/internal/config/platform_test.go` | 新增 2 例：回落生效 / 显式路径不回落 |
+| `hivemtk-platform/migrations/034_tenant_modules_tenant_code.sql` | 环境面：应用于本地 `platform_db`（未改文件） |
+| `model-list.md` | #206 `kb_item_bindings` 补审行 |

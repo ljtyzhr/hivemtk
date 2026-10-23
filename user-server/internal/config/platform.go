@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"os"
+	"path/filepath"
 	"strings"
 
 	"gopkg.in/yaml.v3"
@@ -203,6 +204,13 @@ func PlatformURLFor(ctx context.Context) string {
 	return ""
 }
 
+// defaultPlatformConfigPath 是平台配置的默认相对路径（相对 CWD，找不到再按二进制目录回落）。
+const defaultPlatformConfigPath = "config/platform.yaml"
+
+// platformConfigRootDir 是"二进制所在目录"的取值出口，单独成变量是为了让
+// 回落用例能把该目录指到临时目录（生产恒为 config.GetRootDir）。
+var platformConfigRootDir = GetRootDir
+
 // LoadPlatform 从 YAML 文件加载平台配置
 //
 // 开关：PLATFORM_ENABLED 未开启时直接早退并把 PlatformCfg 置 nil，
@@ -218,8 +226,9 @@ func PlatformURLFor(ctx context.Context) string {
 // 直接报错——功能还没上线就先把门堵死。
 //
 // 路径：
-//   - 默认 config/platform.yaml
-//   - 可通过环境变量 PLATFORM_CONFIG_PATH 覆盖
+//   - 默认 config/platform.yaml（按 CWD 解析；CWD 下没有时按**二进制所在目录**再找一次，
+//     因为部署时 CWD 常与二进制目录不同，见 LoadPlatform 里的回落注释）
+//   - 可通过环境变量 PLATFORM_CONFIG_PATH 覆盖（覆盖后不做任何回落）
 func LoadPlatform(path string) error {
 	if !PlatformEnabled() {
 		PlatformCfg = nil
@@ -229,6 +238,19 @@ func LoadPlatform(path string) error {
 		path = p
 	}
 	data, err := os.ReadFile(path)
+	if err != nil && os.IsNotExist(err) && os.Getenv("PLATFORM_CONFIG_PATH") == "" &&
+		path == defaultPlatformConfigPath {
+		// 兜底：只对"默认相对路径"生效。config/ 是随二进制分发的目录，但进程的 CWD
+		// 不一定是 user-server/（systemd 的 WorkingDirectory、从仓库根起、桌面端双击
+		// 二进制、容器里换个 WORKDIR 都不同）。不兜底时这里会"读失败→PlatformCfg=nil"，
+		// 而后果是**静默降级**：商户注册、心跳、资产市场、模块下发全哑，日志只有一行
+		// error。显式传进来的路径（含 PLATFORM_CONFIG_PATH）找不到就是找不到，不做猜测。
+		if alt := filepath.Join(platformConfigRootDir(), defaultPlatformConfigPath); alt != path {
+			if b, altErr := os.ReadFile(alt); altErr == nil {
+				data, err, path = b, nil, alt
+			}
+		}
+	}
 	if err != nil {
 		return fmt.Errorf("读取平台配置失败 (%s): %w", path, err)
 	}
