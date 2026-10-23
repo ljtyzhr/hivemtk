@@ -8,6 +8,8 @@ import (
 	"time"
 
 	"hivemtk-user/internal/cache"
+	"hivemtk-user/internal/pkg/tenant"
+	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/logger"
 
 	"github.com/gin-gonic/gin"
@@ -59,6 +61,89 @@ func isValidAppKeyFormat(s string) bool {
 }
 
 var globalRateLimiter *RateLimiter
+
+// rateLimitJWT 仅供限流键取租户用（不写 ctx、不改请求语义）。
+//
+// 为什么限流要自己验签：`RateLimitMiddleware` 挂在**引擎级**（router.go:220 的 `r.Use`），
+// 早于各路由组的 `JWTAuthMiddleware`，此刻 `c.Get(TenantContextKey)` 还没有值。
+// 历史上它只认 `c.ClientIP()`，于是 SaaS 部署下同一 NAT/反代出口后的**所有租户共用一个桶**：
+// 一个租户打出流量，其他租户一起吃 429 —— 隔离缺口，且症状看起来像"限流配小了"。
+var rateLimitJWT = utils.NewJWTUtils(utils.DefaultJWTConfig)
+
+// bearerTokenFromRequest 取请求携带的 Bearer 令牌（与 JWTAuthMiddleware 同一取法，
+// 含 websocket 的 `?token=` 兜底），取不到返回空串。
+func bearerTokenFromRequest(c *gin.Context) string {
+	authHeader := c.GetHeader("Authorization")
+	if authHeader == "" && c.GetHeader("Upgrade") == "websocket" {
+		if q := c.Query("token"); q != "" {
+			authHeader = "Bearer " + q
+		}
+	}
+	if authHeader == "" {
+		return ""
+	}
+	parts := strings.SplitN(authHeader, " ", 2)
+	if len(parts) != 2 || parts[0] != "Bearer" {
+		return ""
+	}
+	return parts[1]
+}
+
+// requestTenantID 从请求令牌里取租户；无令牌/验签失败/令牌无租户维度 ⇒ 0。
+//
+// 故意不把结果写回 gin/request ctx：本中间件在鉴权之前，往 ctx 里塞租户等于
+// 让"未通过鉴权的请求"获得租户绑定，下游 tenancyidx callback 会当真。
+func requestTenantID(c *gin.Context) uint {
+	tok := bearerTokenFromRequest(c)
+	if tok == "" {
+		return 0
+	}
+	claims, err := rateLimitJWT.ParseToken(tok)
+	if err != nil || claims == nil {
+		return 0
+	}
+	return claims.TenantID
+}
+
+// rateLimitTenantPrefix 返回限流键的租户前缀。
+//
+//   - off 模式：返回 ""（**键形逐字节不变**，离线单机零回归；也省掉一次令牌解析）；
+//   - on 模式且令牌带租户：返回 "t<id>:"；
+//   - on 模式但无令牌/坏令牌/令牌无租户：返回 ""，即沿用 IP 口径。
+//
+// 最后一档是**显式登记的语义**而不是遗漏：未登录流量本来就没有租户维度，
+// 只能按 IP 分桶（和 off 模式一致）。它的后果是"同一出口后的未登录请求共用桶"，
+// 这仍需登录才能区分——A5 判据因此写成"已登录流量按租户分桶；未登录仍按 IP"。
+func rateLimitTenantPrefix(c *gin.Context) string {
+	if !tenant.IsMultiTenant() {
+		return ""
+	}
+	tid := requestTenantID(c)
+	if tid == 0 {
+		return ""
+	}
+	return fmt.Sprintf("t%d:", tid)
+}
+
+// scopedRateLimitKey 限流键 = 租户前缀 + 原有客户端标识。
+//
+// **唯一**的键构造处：全局限流、路径配额、监控读数三条路都调它，
+// 分开各拼一次正是"两处实现、其中一处漏租户"这类缺陷的来源。
+func scopedRateLimitKey(c *gin.Context, clientKey string) string {
+	return rateLimitTenantPrefix(c) + clientKey
+}
+
+// scopedRateLimitKeyFromCtx 同 scopedRateLimitKey，但只有 ctx（监控读数口没有 gin 上下文）。
+func scopedRateLimitKeyFromCtx(ctx context.Context, clientKey string) string {
+	if !tenant.IsMultiTenant() {
+		return clientKey
+	}
+	tid, ok := tenant.FromContext(ctx)
+	if !ok || tid == 0 {
+		return clientKey
+	}
+	return fmt.Sprintf("t%d:", tid) + clientKey
+}
 
 // InitRateLimiter 初始化全局限流器
 func InitRateLimiter(config RateLimitConfig) {
@@ -160,6 +245,8 @@ func RateLimitMiddleware(config ...RateLimitConfig) gin.HandlerFunc {
 				}
 			}
 		}
+		// SaaS：已登录流量按租户分桶（off 模式下前缀恒为空串，键形不变）
+		clientKey = scopedRateLimitKey(c, clientKey)
 
 		if !globalRateLimiter.Allow(c.Request.Context(), clientKey) {
 			c.JSON(429, gin.H{
@@ -190,16 +277,20 @@ func (rl *RateLimiter) Allow(ctx context.Context, clientKey string) bool {
 	return cur <= int64(rl.config.RPS*60)
 }
 
-// GetRateLimitStatus 获取限流状态（用于监控）
+// GetRateLimitStatus 读取配额状态（与 Allow 的键域一致）。
 // 返回值：
 //   - remaining: 剩余可用令牌数（向下取整）。-1 表示限流器未初始化。
 //   - resetAfter: 桶填满所需秒数（0 表示已满或限流器未初始化）。
 //
-// GetRateLimitStatus 读取配额状态（与 Allow 的键域一致：on 模式按 ctx 租户分域）。
+// ctx 用于取租户维度，必须与 `RateLimitMiddleware` 用的是同一个租户：
+// 调用方传 `tenant.WithTenantID(ctx, tid)` 才会读到该租户的桶，
+// 传原始 ctx（无租户）读到的是 IP 口径的桶 —— 键函数与写入侧同一处（scopedRateLimitKeyFromCtx），
+// 不存在"读的桶和写的桶不是同一个"。
 func GetRateLimitStatus(ctx context.Context, clientKey string) (remaining int, resetAfter float64) {
 	if globalRateLimiter == nil {
 		return -1, 0
 	}
+	clientKey = scopedRateLimitKeyFromCtx(ctx, clientKey)
 
 	if !cache.GlobalIsRedis() {
 		limiter := globalRateLimiter.getLimiter(clientKey)

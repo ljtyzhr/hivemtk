@@ -265,4 +265,8 @@ func RegisterMigrations(registry *migration.MigrationRegistry, db *gorm.DB) {
 	// （user/merchant）的策略 + 异步审查任务队列 + 审查结论留痕 + 冻结/黑名单处置。
 	// 表都是租户表，唯一索引经 tenancyidx 复合化为 (tenant_id, ...)
 	register(NewContentGuardMigration(db))
+	// v3.79.0：11 张手写 DDL 建表的租户表补 tenant_id 前导索引（SaaS 审计 A6）——
+	// 判据是真库索引族里有没有 tenant_id 打头的列，不 grep 模型 tag：
+	// tag 只对 AutoMigrate 建的表生效，对手写 CREATE TABLE 的表形同虚设（这 11 张就是这么漏的）
+	register(NewTenantLeadingIndexMigration(db))
 }

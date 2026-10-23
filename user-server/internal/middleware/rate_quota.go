@@ -109,7 +109,7 @@ type pathQuotaStats struct {
 
 // pathQuotaLimiterManager 路径级配额限流管理器。
 //
-// 桶键 = ip + "\x00" + path：**每客户端每路径一个桶**。
+// 桶键 = clientKey + "\x00" + path：**每客户端每路径一个桶**（clientKey 含租户前缀）。
 // 做全局共享桶，一个活跃租户就能把 /api/reach 的全站配额打满、所有人吃 429——
 // 按客户端分桶后各桶互不影响，配额语义回到「单客户端单路径的速率上限」。
 //
@@ -148,10 +148,13 @@ func getPathQuotaManager() *pathQuotaLimiterManager {
 	return globalPathQuotaMgr
 }
 
-// allow 取 (ip, path) 桶并消费一个令牌；桶不存在或构建参数与当前 cfg 不一致时
+// allow 取 (clientKey, path) 桶并消费一个令牌；桶不存在或构建参数与当前 cfg 不一致时
 // （参数热更新）按 cfg 重建。返回 false 表示超出该路径配额。
-func (m *pathQuotaLimiterManager) allow(ip, path string, cfg PathQuotaConfig) bool {
-	key := ip + "\x00" + path
+//
+// clientKey 由调用方用 `scopedRateLimitKey` 构造（= 租户前缀 + IP），
+// 本方法不碰租户——键的构造只有一处。
+func (m *pathQuotaLimiterManager) allow(clientKey, path string, cfg PathQuotaConfig) bool {
+	key := clientKey + "\x00" + path
 	now := time.Now()
 	m.mu.Lock()
 	b, ok := m.buckets[key]
@@ -244,13 +247,17 @@ func (m *pathQuotaLimiterManager) stop() { //nolint:unused //// 仅被 *_test.go
 // PathQuotaMiddleware 路径级限流中间件
 //
 // 自过滤：只对 resolvePathQuotas 列出的路径生效，未列入的路径直接放行。
-// 计数维度：每客户端（IP）× 每路径一个令牌桶（pathQuotaLimiterManager），桶参数
+// 计数维度：每客户端 × 每路径一个令牌桶（pathQuotaLimiterManager），桶参数
 // 取该路径 cfg 的 RPS/BucketSize——杜绝「全站共享桶，一个活跃租户把所有人打到 429」。
+// 「客户端」= 租户前缀 + IP（与全局限流同一个键函数 `scopedRateLimitKey`）：
+// SaaS 部署下同一出口后的两个租户各自有桶，不会再互相挤占；
+// off 模式下前缀为空串，键形与接线前逐字节一致。
 // 参数热读：配额表经参数中心 60s 缓存热读，改表后已有桶在参数变化时按新值重建。
 // 超配额：429 + 异步打点 api_rate_logs（recordQuotaTrigger）。
 //
 // 挂载位置约定（见 router.Setup）：JWT 之前——未登录请求也计数，这是保护昂贵端点
-// 的本意，不能让攻击者靠不带 token 绕过配额。
+// 的本意，不能让攻击者靠不带 token 绕过配额。因此租户只能从请求自带的令牌推（见
+// rateLimitTenantPrefix）；无令牌请求按 IP 分桶，语义显式登记在 A5 判据里。
 func PathQuotaMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		path := c.Request.URL.Path
@@ -262,6 +269,8 @@ func PathQuotaMiddleware() gin.HandlerFunc {
 		// Redis 部署下仍按分钟聚合计数写 Redis：GET /api/system/rate-quota 的
 		// Used 读数口（快照 Redis 分支）依赖这个键。限流判定本身走本地桶
 		// （多实例部署时各自计数，见任务边界说明）。
+		// 这个键是**跨租户聚合读数口**（"该路径这一分钟被请求多少次"），刻意不带租户段；
+		// 带上之后读数会按租户碎片化，监控面板反而看不出全站用量。
 		if cache.GlobalIsRedis() {
 			minute := time.Now().Truncate(time.Minute).Unix()
 			key := fmt.Sprintf("mtk:ratelimit:path:%s:%d", path, minute)
@@ -269,9 +278,9 @@ func PathQuotaMiddleware() gin.HandlerFunc {
 				logger.Debugf("[ratelimit] 路径用量计数失败 path=%s: %v", path, err)
 			}
 		}
-		clientIP := c.ClientIP()
-		if !getPathQuotaManager().allow(clientIP, path, cfg) {
-			go recordQuotaTrigger(path, clientIP)
+		clientKey := scopedRateLimitKey(c, c.ClientIP())
+		if !getPathQuotaManager().allow(clientKey, path, cfg) {
+			go recordQuotaTrigger(path, clientKey)
 			c.JSON(429, gin.H{
 				"code":        429,
 				"msg":         "该接口请求过于频繁，请稍后再试",
@@ -286,7 +295,7 @@ func PathQuotaMiddleware() gin.HandlerFunc {
 	}
 }
 
-func recordQuotaTrigger(path, clientIP string) {
+func recordQuotaTrigger(path, clientKey string) {
 	if !cache.GlobalIsRedis() {
 		return
 	}
@@ -296,7 +305,7 @@ func recordQuotaTrigger(path, clientIP string) {
 	ctx, cancel := context.WithTimeout(context.Background(), 2*time.Second)
 	defer cancel()
 	if _, err := c.Incr(ctx, key, 24*time.Hour); err != nil {
-		logger.Debugf("[ratelimit] 记录触发事件失败 path=%s: %v", path, err)
+		logger.Debugf("[ratelimit] 记录触发事件失败 path=%s client=%s: %v", path, clientKey, err)
 	}
 }
 
