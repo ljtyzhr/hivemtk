@@ -152,6 +152,25 @@ scope 存在但为空 → 拒（fail-closed，只对商户面生效）
 | 门禁 | `scripts/check-merchant-scope.sh` | ①`/merchant-api` 组每条路由必挂 `MerchantAuth`；②该组 handler 不得出现 `Query("merchant_key")`/`Param("merchant_key")`；③`merchant_key` 不得从请求体绑进商户面 input |
 | 行为用例 | `internal/router/merchant_isolation_scan_test.go` | 双商户真库扫描：A 签名读 B 的资源恒 404/403；A 试图以 B 的 key 下单恒拒 |
 
+### 5.1 落地结果与三处偏差（回填，平台端仓提交 `3c4ba07`）
+
+| 原计划 | 实际落地 | 偏差原因 |
+|---|---|---|
+| 商户面 22 条路由 | **28 条**（含子组 `assetMarket := merchantAPI.Group("/asset-market")`） | 上文 §2.1 的 22 条是手数 `merchantAPI.*` 直接注册的；子组继承父组中间件，也是商户面。门禁按**路线树**（组 + 子组前缀拼接）枚举，才数得全——手数漏掉子组正是"装配面靠人记"的老毛病 |
+| G1：「商户面路径不再存在"空 = 全部"的分支」 | **分支保留**，改由 scope 决定它看到什么 | 原计划要删分支，实施时发现删不得：同一条方法被运营面共注册，删了运营面就废了。真正的问题不是"分支存在"，而是"谁能让它跑起来"。现在的形状是：`if merchantKey == ""` 保留，商户面 ctx 有 scope ⇒ 框架强制 `AND merchant_key = ?` ⇒ 走进这条分支也只看到自己。**这里不加条件才是对的**，加条件会让运营面 500。两处站点已补注释指向框架收口，判据是 `order_service_merchant_scope_test.go` 里故意传空 key |
+| 门禁 `scripts/check-merchant-scope.sh`，三条：挂 `MerchantAuth` / 不取 query / 不绑 body | `scripts/check-merchant-scope.py`，三道闸：**装配面**（先挂中间件再注册 + 不得绕出组 + 子组继承）/ **身份来源**（query/path/form 取名，共享 handler 白名单双向防腐）/ **接线锁**（注册点 ×2、身份写入↔scope 一一对应、`WithScope` 唯一）；另有 `check-merchant-scope.test.sh` 六条腿证它**能红** | ①"不绑 body"这一条**静态判不了**（要解析 struct tag + 判断哪条路由用哪个 DTO），硬做会写成一层脆弱的字符串匹配；它由运行时腿三（body 填别人 key 的下单用例）覆盖，这里如实标注而不是假装有。②实施中真正撞到的三类回归是"路由绕出组""某分支漏注入 scope""`Register` 被注释掉"，所以闸口改成对准它们；门禁本身必须证明能红，否则它只是一段会 `exit 0` 的代码 |
+
+**用例清单（实际落地，11 + 5 + 3 例）**：
+- `merchantscope/plugin_test.go` 8 例：三档语义、AND fail-closed（拿 B 的 key 查恒空）、Update/Delete 按别人 id 0 行、Create 填空/拒外、裸 SQL 自证闸、身份表豁免、**无 scope 时 DryRun SQL 与未注册连接逐字节相同**；
+- `merchantscope/registry_test.go` 3 例：独立 schema 真库内省双向、ast 扫模型源码双向、豁免须有理由；
+- `router/merchant_isolation_scan_test.go` 5 腿：28 条路由无凭证不成功、探针证明注入在真 HTTP 路径可达、5 条对抗式 query、body 填别人 key 下单、运营面 admin 仍看全两个商户；
+- `service/order_service_merchant_scope_test.go` 3 例：G1 收口（订单 / 钱包流水 / 空 scope 必拒）。
+
+**落地过程被双向判据抓出的两处真错**（这就是为什么不用 grep 推断清单）：
+1. `revenue_records` **没有** `merchant_key` 列 —— 凭印象写进清单 ⇒ 真库内省立刻红；
+2. `merchants` 的列是 `gorm:"column:merchant_key" json:"key"` 声明的 —— 只扫 `json:"merchant_key"` 会把它漏掉，
+   而它恰恰是唯一需要**豁免**的表（身份表：那一列就是登录凭据）。
+
 ---
 
 ## 6. 附：本文用到的取证命令（可复跑）

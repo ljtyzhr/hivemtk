@@ -22,7 +22,8 @@
 | P1-1 | 归属校验缓存的键是 `table:id`、**无租户段** ⇒ 一个租户的归属判定命中另一个租户，且其 record-not-found 语义是 fail-open | 中高 | **已修 + 2 例回归** |
 | P1-2 | 无凭证公开外链（访客 `<img>`、分享页）拿不到租户归属 ⇒ 只能靠 UUID 不可枚举 | 中 | **已修**（A1）：`/files` 在 on 模式只认 `?s=` 签名凭证，缺失/篡改/过期一律 404；签名自指租户目录 ⇒ 跨租户不可表达 |
 | P1-3 | 通用归属中间件 `RequireOwner*` 的 fail-open 分支（`checker==nil ⇒ 放行`、`db==nil ⇒ (0,nil)`）+ not-found 混成 500 | 中（潜在） | **已修**（语义收口 + 6 例回归，见 §3） |
-| P1-4 | 平台端**商户面**（`/merchant-api`，外部主体）的商户分域**全靠手写 `Where("merchant_key = ?")`**，无框架约束、无门禁、失败模式是静默跨商户 | 中高（云端侧） | **二轮改判范围**：运营面"平台本就该看全部"⇒ 登记为**有据不做**；只收商户面（A3 改写版，论证见 `PLATFORM_MERCHANT_ISOLATION_EVALUATION_2026-10-24.md`） |
+| P1-4 | 平台端**商户面**（`/merchant-api`，外部主体）的商户分域**全靠手写 `Where("merchant_key = ?")`**，无框架约束、无门禁、失败模式是静默跨商户 | 中高（云端侧） | **已落地**（A3）：只收商户面 28 条路由，`internal/utils/merchantscope` 三档注入器 + 静态门禁（含"证能红"自检）+ 双商户交叉扫描五腿；运营面**有据不做**（论证见 `PLATFORM_MERCHANT_ISOLATION_EVALUATION_2026-10-24.md`） |
+| P1-6 | `/llm-api/v1` 这个**第二个商户面**没有身份闸：身份取自 `Authorization: Bearer <merchant_key>`，而 `merchant_key` 在整套 HMAC 体系里是**标识符**（每次调用都以 `X-Merchant-Key` 明文出现在请求头、平台管理端列表里 `json:"key"` 直出），真正的凭据是每商户的 `api_secret` ⇒ 知道一个商户 key 就能**烧掉那个商户的 LLM 余额**，且可永久重放 | 高（云端侧） | **已登记 A19（待修）**：两侧都要改（平台要验签、租户部署要发签名），是"一套代码"下**唯一**必须跨端联合发布的一项 ⇒ 兼容窗口必须显式而不能静默 |
 | P1-5 | 云/本地之间**没有版本/契约握手**：老实例连新平台只能靠运行时 500 发现字段不匹配 | 中（运维） | 待批准 |
 | P2-1..6 | 限流键无租户维度 ✅、11 张租户表缺 tenant_id 前导索引 ✅、知识库导入路径未分域 ✅、cron 扇出无门禁 ✅、事件总线 TenantID 靠自觉 ✅、双仓库同名模型漂移 | 低—中 | 6 项中 5 项已修，余 1 项在清单 |
 
@@ -194,6 +195,50 @@ func (h *Hub) BroadcastToMerchant(merchantID string, ...) error {
 
 ---
 
+### P1-6（已登记 A19，待修）LLM 代理把**标识符**当成了**凭据**
+
+**证据（运营端 `hivemtk-platform/platform-server`，活体）**：
+- `internal/router/router.go:215` `llmAPI := r.Group("/llm-api/v1")` **不挂任何中间件**
+  （代码里有一大段注释解释为什么不挂 `JWTAuthMiddleware`——那解释是对的，但结论跳了一步：
+  "不能用管理员令牌"不等于"不需要身份闸"）；
+- `internal/controller/llm_proxy_controller.go:79` `merchantKeyFromBearer` 从
+  `Authorization: Bearer <merchant_key>` 取商户身份，**不验签、不校验时效、不绑定请求体**；
+- 租户侧 `user-server/internal/platform/llm_proxy_client.go:123` 只发 Bearer，
+  不带 `X-Timestamp`/`X-Signature`（同一台机器上它给 `/merchant-api/**` 的请求**是**签名的，
+  `client.go` 的 `do()` 有一套完整 HMAC —— 两条通道一个签一个不签，就是"同一语义两个通道口径不一致"）。
+
+**为什么这是真的洞，而不是"key 本来就是秘密"**：
+在整套 HMAC 体系里，`merchant_key` 被设计成**标识符**，秘密是每商户的 `api_secret`：
+- 每一次正常调用都以 `X-Merchant-Key: <key>` **明文**出现在请求头（`merchant_auth.go:54`）；
+- 平台管理端商户列表 `model.Merchant.Key` 的 tag 是 `json:"key"`，直接下发；
+- 签名载荷是 `method\npath\nts\nbody`，**key 不进签名**，所以 key 从不需要保密。
+
+这套设计本身没问题。问题在于 `/llm-api/v1` **把标识符当成了 bearer 凭据**：
+知道一个 key（不是 secret）就能以那个商户的身份调用平台模型、扣它的钱包、
+并且 query 里还能自己指定 `tenant_code` ⇒ 连"另一个商户的某个租户"都能精确打成。
+又因为没有任何时效/重放约束，一个抓到的请求可以**永久**重放。
+
+**结论**：这是同一个仓里第二次出现"商户面缺身份闸"，但形态与 A3 不同 ——
+A3 是"有闸但隔离靠手写"，这里是"压根没有闸"。严重度按后果定：**高**（直接烧钱，
+且不需要拿到 secret）。它同时是"一套代码一套逻辑"这一轮里唯一**必须跨端联合发布**的一项。
+
+**修法（已定，登记为 A19）**：
+1. 平台侧给 `/llm-api/v1` 挂一个专用验签中间件：`ts` ±300s + `HMAC-SHA256(api_secret, method\npath\nts\nSHA256(body))`
+   ⇒ 无签名/篡改/过期/换 key 一律 401；复用 `MerchantAuth` 的密钥解析链（文件/环境变量/全局回退），
+   但**不复用它的写操作重放去重**（LLM 调用是幂等语义的读，客户端重试会带同一 ts，去重会把正常重试打成 401）。
+2. 租户侧 `llm_proxy_client` 补签名：密钥取同一个来源（把现在散在 `Client.merchantSecret` /
+   `.merchant_api_secret` 文件 / env 三处的解析收成一个包级 `GetMerchantSecret()`，作为唯一事实源）。
+3. 兼容窗口必须**显式**：`PLATFORM_LLM_PROXY_REQUIRE_SIGNATURE`（默认 `true`）。
+   老租户部署（升级了平台、还没升级 user-server）会 401 —— 这是**要暴露的**，
+   所以开关名写成"要求签名"而不是"允许未签名"：默认安全，降级需要动配置并在启动期打**响亮告警**
+   （口径同 A13：不静默降级）。
+4. 判据：无签名/篡改/过期/换 key/重放（过期 ts）各一条用例恒拒；签名正确 200 且扣的是**自己**的钱包；
+   别人的 key + 自己的签名 ⇒ 401（证明 key 与 secret 必须配对）；`PLATFORM_ENABLED=false` 时整组不注册（零回归）。
+
+**为什么不在本轮直接改**：它需要与 user-server 同版本发布（否则老部署的 LLM 代理会断），
+属于 A17 那一类"有部署时序"的项；代码改动本身不大，但要与 `PLATFORM_LLM_PROXY_REQUIRE_SIGNATURE`
+的默认值、告警文案、以及"哪个版本开始强制"一起落。
+
 ### P1-5（待批准）云 / 本地之间没有契约握手
 
 **证据**：`internal/platform/client.go:491,545` 只在 install/heartbeat 载荷里**上报** `version`；平台侧没有任何 `min_version` / 兼容判定（`grep -i "compat|handshake|min_version"` 无命中）。开户登记字段不全时会 500（历史实测记录在 `DEPLOYMENT_MODES_EVALUATION_2026-10.md` §9.2）。
@@ -323,7 +368,7 @@ psql -h 127.0.0.1 -p 8202 -U admin -d user_db -Atc \
 | 项 | 依据 | 判断 |
 |---|---|---|
 | **无凭证外链签名化**（P1-2 / A1 / A12）✅ 已落地 | `/files` 的访客场景 + URL 暴露租户 id | `internal/storage/fileurl.go`：AES-GCM 签名 token（租户 + 相对路径 + 过期），URL 路径不含租户段；`/files` 守卫只认签名（缺失/篡改/过期 ⇒ 404）；`FILE_URL_TTL` 可配（默认不过期，因 URL 会被持久化），撤销靠轮换 `FILE_URL_SECRET`；存量 17 列由 `v3_80_0` 一次性重签。**牙齿**：守卫"验不过就放行" ⇒ 4 条 404 用例红；`PublicURL` 照发明文 ⇒ 形态与签名用例红 |
-| **平台端商户面隔离上框架**（P1-4 / A3） | 两端能力不对称；运营面跨商户是业务本身 | 只收 `/merchant-api` 组（22 条）：框架级注入 + scope 空即拒 + 静态门禁 + 双商户交叉扫描；运营面**有据不做**（论证见 `PLATFORM_MERCHANT_ISOLATION_EVALUATION_2026-10-24.md`） |
+| **平台端商户面隔离上框架**（P1-4 / A3）✅ 已落地 | 两端能力不对称；运营面跨商户是业务本身 | `hivemtk-platform/platform-server`（独立仓，提交 `3c4ba07`）：`internal/utils/merchantscope` 是唯一执行者，三档语义只有**一个判定点**（`scopeTarget`）——有商户 scope ⇒ 六个 callback 强制 `AND merchant_key = ?`；有 scope 但为空 ⇒ 拒；无 scope ⇒ **一行 SQL 都不动**（运营面零回归，有 DryRun 逐字节用例）。注入的是 **AND** 不是替换：漏写条件的仓储只剩框架这一条（依然正确），写反了（拿 B 的 key 查）恒空，失败方向是"查不到"而非"查到别人的"。注册表由**真库内省 + 模型源码 ast** 双向夹住（落地时各抓到一处真错：`revenue_records` 根本没有 `merchant_key` 列、`merchants` 用 `column:merchant_key` 声明）。门禁 `scripts/check-merchant-scope.py` 三道闸（装配面/身份来源/接线锁，判据跑在**去注释后**的源码上），`scripts/check-merchant-scope.test.sh` 六条腿证它**能红**；接进 `make merchant-scope-gate` 与 `platform-ci.yml`。**牙齿**：摘 `testutil` 的 `Register` 或摘 `merchant_auth.go` 的一处 `WithScope` ⇒ 探针腿（`TestMerchantScopeReachesRepositoryThroughRealRequest`）红；给非共享 handler 加一句 `ctx.Query("merchant_key")` ⇒ 门禁闸二红 |
 | **Postgres RLS** | `SAAS_MULTI_TENANT_EVALUATION_2026-10.md` §7 已否（连接池/事务语义、表 owner 绕过、`tenant_id=0` 与 `1` 并存无权威表） | 维持"本轮不做"，但仍是侵入面的理论下限；若做，先补"哪些行该是 `tenant_id=0`"的权威表 |
 | **形态矩阵契约门禁**（方案 E）✅ 已落地 | `DEPLOYMENT_MODES_EVALUATION_2026-10.md` §6 | `internal/app/deployment_matrix_contract_test.go`：四格 × 六条行为（出站/租户上下文/自助开户/初始化态/后台扇出/隔离 callback）= 24 条断言，全部走活体组件。两个轴**正交**是核心断言之一：租户那五条在两列数值必须相同，谁在平台开关里顺手加租户判定就会红。**牙齿**：临时让 off 模式也看 claim、让 `PlatformURLFor` 在关闭态照样返回地址 ⇒ ①②③ 三格全红 |
 | **逐端点双租户交叉扫描**（T028 尾巴）✅ 已落地 | 现有覆盖是"逐域代表用例"，731 条带参数端点无一穷尽判据 | `internal/router/cross_tenant_scan_test.go` 三条互补的腿：①匿名参数路由 32 条必须能说出"租户/行靠什么定位"（链上 `Public*Tenant`/`AppKeyResolve` 自动认 16 条 + 台账登记 16 条，双向校验）；②按行自证类用未知键探测 16 次，不得 200；③真库双租户真扫 6 条不同取数风格端点。**关键口径纠正**：正对照从"状态码 200"升级为"200 且响应体含播种行 marker"——实测 `/api/email/smtp/:id` 两租户都回 200 + `{"code":4301,"message":"该功能模块未开通…"}`，只判状态码是假绿（模块闸挡在取数之前，行根本没读出来）。**牙齿**：`GetByID` 走 `tenant.WithSystemScope`（真绕过 callback；`Unscoped()` 咬不动）⇒ 闸三红；摘 `/share/douyin/:id` 的 `PublicIDTenant` ⇒ 闸一红；`renderCardChatPage` 取不到行回 200 ⇒ 闸二红 |
@@ -365,6 +410,25 @@ psql -h 127.0.0.1 -p 8202 -U admin -d user_db -Atc \
 | `user-server/internal/app/content_guard_wiring.go` | 并发作业留下的 `envInt` 重名编译红（改名为 `envIntWithFallback`） |
 | `specs/001-saas-multi-tenant/tasks.md` | T021/T023/T024/T025/T026/T027/T028 状态按实测改写（消除第二份真相） |
 | `docs/architecture/SAAS_FULLCHAIN_AUDIT_2026-10-23.md` | 本文件 |
+
+### 7.1 平台端（独立仓 `hivemtk-platform`，提交 `3c4ba07`）
+
+| 文件 | 改动 |
+|---|---|
+| `platform-server/internal/utils/merchantscope/registry.go` | 新增（A3）：17 张商户分域表冻结清单 + `merchants` 豁免（身份表，带理由）；`NormalizeIdent` 归一化（库名前缀/引号/大小写） |
+| `platform-server/internal/utils/merchantscope/scope.go` | 新增：私有 ctxKey + `WithScope`/`FromContext`/`IsMerchantRequest`；空身份也记成"商户面"（否则身份解析失败会静默退化成"看全部"） |
+| `platform-server/internal/utils/merchantscope/plugin.go` | 新增：六个 GORM callback（Query/Row/Update/Delete/Create/Raw），`scopeTarget` 是**唯一**的三档判定点；Create 填/拒；裸 SQL 自证闸 |
+| `platform-server/internal/utils/merchantscope/plugin_test.go` | 新增：8 例（三档 / AND fail-closed / Update+Delete 0 行 / Create 填与拒外 / 裸 SQL 闸 / 豁免 / DryRun 逐字节等价） |
+| `platform-server/internal/utils/merchantscope/registry_test.go` | 新增：3 例（独立 schema 真库内省双向 / ast 扫模型源码双向 / 豁免须有理由） |
+| `platform-server/internal/utils/db/db.go` | `Init` 在 `gorm.Open` 之后、`AutoMigrate` 之前 `merchantscope.Register(db)` |
+| `platform-server/internal/testutil/testdb.go` | 测试连接同样注册（同款执法模型；不注册时相关用例的绿是假的） |
+| `platform-server/internal/middleware/merchant_auth.go` | 两条通过分支各注入一次 scope（与 `c.Set("merchant_key")` 一一对应） |
+| `platform-server/internal/router/merchant_isolation_scan_test.go` | 新增：五腿（28 条路由无凭证不成功 / 探针证明注入在真 HTTP 路径可达 / 5 条对抗式 query+body / 运营面 admin 仍看全） |
+| `platform-server/internal/service/order_service_merchant_scope_test.go` | 新增：G1 收口 3 例（故意传空 key 走"空 = 全部"分支，断言只看自己；运营面同一调用仍看全部） |
+| `platform-server/internal/service/order_service.go` / `internal/repository/llm_billing.go` | G1 两处站点补注释指向框架收口（**这里不加条件**才是对的） |
+| `platform-server/scripts/check-merchant-scope.py` | 新增：三道闸（装配面 / 身份来源 / 接线锁），判据跑在去注释后的源码上 |
+| `platform-server/scripts/check-merchant-scope.test.sh` | 新增：六条腿证明上面那道闸**能红**（注入违规⇒必须红⇒还原后 md5 全等且回绿） |
+| `platform-server/Makefile` + `.github/workflows/platform-ci.yml` | 新增 `make merchant-scope-gate`（并挂到 `lint` 前置）与 CI 步骤 |
 
 ---
 
