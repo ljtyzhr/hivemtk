@@ -33,6 +33,7 @@ ENABLE_SWAGGER	待补文档（第三十五轮登记为债）；读取点 user-se
 EXPOSURE_DIAL_TIMEOUT_MS	待补文档（第三十五轮登记为债）；读取点 user-server/internal/security/network_exposure_guard.go
 FEISHU_APP_ID	待补文档（第三十五轮登记为债）；读取点 user-server/internal/aiagent/knowledge/service/knowledge_merchant_external.go
 FEISHU_APP_SECRET	待补文档（第三十五轮登记为债）；读取点 user-server/internal/aiagent/knowledge/service/knowledge_merchant_external.go
+FILE_URL_TTL	待补文档（并行任务登记为债）；读取点 user-server/internal/storage/fileurl.go（签发 URL 时效，Go duration 串，默认不过期）
 FRONTEND_URL	待补文档（第三十五轮登记为债）；读取点 user-server/internal/service/password_reset.go
 GEO_GITHUB_TOKEN	待补文档（第三十五轮登记为债）；读取点 user-server/internal/geo/service/platform.go
 GEO_GITHUB_USER	待补文档（第三十五轮登记为债）；读取点 user-server/internal/geo/service/platform.go

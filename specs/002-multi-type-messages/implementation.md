@@ -36,11 +36,16 @@
 4. **测试库连接**：本机 `.env` 的 POSTGRES_PASSWORD 与运行中容器 `mtk-postgres` 的实际口令不同源（.env 8202 端口对但口令是旧的），实测从容器 env 取真实口令跑通。CI 注入 POSTGRES_TEST_* 不受影响。
 5. **桥端 Task 4/5 改动已先行入库**：`channel-adapter.js`/`types.js`/`downlink.js`/`base-adapter.js`/`multi-type-messages.test.js` 的改动随并行会话的 7e2946a2（桥扩展换会话互斥修复）与 dab8eed6 提交进 master——该 commit 的 diff 里同时包含互斥修复与本任务的上行/下行多类型改动（工作区核验：这些文件 `git status` 干净、`git show HEAD` 已含 typedContentHash/mediaPlaceholder/sendMedia 分派，13 用例桥端测试对 HEAD 版本全绿）。本次提交不再重复包含它们。
 6. **converge 复核**：FR1-FR6 共 14 项实现证据逐条 grep 核验通过（占位符/typed 哈希/巡检类型/downlink 透传/sendMedia 分派/自报类型/两渲染面/SSE MediaURL/两路径 AI 上下文），全部有测试钉死。
+7. **对抗性复核（2026-10-24）补三处缺口**，均有 `multi_type_ai_context_adversarial_test.go` 用例钉死：
+   - 桥端四渠道解析器原样上报 `msg_type='voice'`（douyin/tiktok/xhs/xianyu），`triggerAIForEvent` 用未归一的 `event.MsgType`，Go 词表缺 voice 键 ⇒ AI 上下文出 `[voice]` 而非 `[语音]`。修：`mediaContextTags` 补 `"voice": "[语音]"`（audio/voice 同词，主/补触发口径不因归一时点分叉）；
+   - `RecheckUnrepliedAndTrigger` 重建 ev 漏带 `MediaURL` ⇒ 补触发路径媒体消息丢 URL（FR5.3 口径分叉）。修：ev 构造补 `MediaURL: last.MediaURL`；
+   - `AppendMediaContextToContent("", "image", url)` 产出前导 `\n`。修：空正文时直接返回 `[类型词] URL` 不带换行。
 
 ## 测试证据
 
 - `user-server/internal/service/multi_type_hash_test.go` — Typed 哈希三口径（旧口径逐字节一致/同占位符不同 URL 不碰撞/同图重发稳定）
 - `user-server/internal/service/multi_type_ai_context_test.go` — FR5.3：图片入站 AI content 含 `\n[图片] url`；文本逐字节不变；无 URL 非文本不动；词表/大小写/空白容错 10 例
+- `user-server/internal/service/multi_type_ai_context_adversarial_test.go` — 对抗性复核：voice 别名未归一出 `[语音]`；空正文无前导换行；Recheck 补触发携带 media_url；voice 全链路入站→AI 触发标签正确
 - `user-server/internal/bridge/sse_media_url_test.go` — SSE Data 键集与 outbox JSON 逐键一致（含 media_url）
 - `user-web/bridge/test/multi-type-messages.test.js` — 13 用例：上行五处过滤放开、占位符、typed 去重、下行分派/降级/自报
 - `user-web/tests/unit/chat_embed_multi_type_messages.test.js` — 6 用例：ChatMessages 媒体气泡渲染
