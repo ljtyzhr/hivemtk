@@ -935,5 +935,14 @@ func DefaultParamDefs() []ParamDef {
 		{Group: "platform", Key: "api_host", Name: "平台端 API 地址",
 			Description: "平台端（platform-server）的对外 API 地址，用户端所有平台能力（商户注册/心跳/资产市场/模块订阅/订单/LLM 钱包/站内信）的出站目标。优先级 本参数 > config/platform.yaml 的 api_url > env PLATFORM_API_HOST/PLATFORM_API_URL > 空串。**参数中心优先于 env 是刻意的**：本参数的存在意义就是应对平台端迁移，改完必须在管理端生效，不能被 .env 里的旧值压住。平台级参数（不按租户分叉，见 config_param_tenant_scope.go 的 platformScopedParams）。读取点 internal/config/platform.go 的 PlatformURLFor（provider 注入，60s TTL 缓存），改完约 60 秒内生效、无需重启。PLATFORM_ENABLED 未开启时本参数不生效（关态地址恒为空串）。",
 			ValueType:   "string", DefaultValue: "", Restart: false, Risk: "danger"},
+		// —— content_guard 组：内容安全闸（异步审查流水线）
+		//
+		// 只收"运营真的可能按内容规模调"的那一把：审查长度上限。流水线的并发/批量/
+		// 轮询/重试次数留在 env（装配期读一次），因为它们是部署规模参数而非内容口径，
+		// 与 worker 数量一起随机器规格走，放进按租户可覆盖的参数中心只会让
+		// "同一台进程里不同租户用不同批大小"变成可能，而批大小是进程级资源。
+		{Group: "content_guard", Key: "max_scan_runes", Name: "单条内容审查长度上限",
+			Description: "单条内容送审时的截断上限（rune）。超过它的部分不参与词库匹配，记录里 Truncated=true，默认按「内容超长」转人工（不判 pass）。兜底常量 internal/contentguard/service/engine.go 的 MaxScanRunes=20000，可用区间是它的 [1/20, ×10]。调大＝长文（商户长文案/KB 文档）被完整审，代价是单条扫描更久（匹配随长度线性增长，且它是防 DoS 的上界，不是越大越好）。读取点 internal/app/content_guard_wiring.go 的 contentGuardMaxScanRunes，**装配期读一次 ⇒ 改完要重启 user-server**；越界一律回落到兜底值并打 warn",
+			ValueType:   "int", Unit: "字符", DefaultValue: "20000", Min: strPtr("1000"), Max: strPtr("200000"), Step: strPtr("1000"), Restart: true},
 	}
 }

@@ -5,11 +5,44 @@ import (
 	"errors"
 	"hivemtk-user/internal/pkg/tenant"
 	"runtime/debug"
+	"sync/atomic"
 	"time"
 
 	"hivemtk-user/internal/event"
 	"hivemtk-user/internal/pkg/utils/logger"
 )
+
+// ── 内容审查闸（可选装配；未装配时行为与既有完全一致） ─────────────────
+//
+// 为什么用"注册极小接口"而不是在 agent 域直接 import contentguard：
+// agent 运行时不该依赖审查域的类型，两个域的连接由装配点（internal/app）负责，
+// 这样审查功能的开关不会变成 agent 的编译期依赖，也不会有循环引用。
+// 未装配（nil）时本处是纯 no-op —— 老部署的行为逐字节不变。
+
+// GuardGate 内容审查闸的最小契约（实现方：contentguard 的运行时）。
+type GuardGate interface {
+	// Blocked 报告该主体当前是否处于生效中的处置（冻结/拉黑）。
+	Blocked(ctx context.Context, subjectType, subjectID string) bool
+}
+
+// GuardSubjectUser 审查主体类型：终端用户（与 contentguard/model.SubjectUser 同值，
+// 本包不 import 那个包，所以显式抄一份常量并在此注明来源）。
+const GuardSubjectUser = "user"
+
+// guardGateBox 让 atomic.Value 能承载 nil（直接 Store 一个 nil 接口会 panic）。
+type guardGateBox struct{ gate GuardGate }
+
+var guardGateHolder atomic.Value
+
+// SetGuardGate 装配/卸载内容审查闸（传 nil = 卸载）。
+func SetGuardGate(g GuardGate) { guardGateHolder.Store(guardGateBox{gate: g}) }
+
+func currentGuardGate() GuardGate {
+	if v, ok := guardGateHolder.Load().(guardGateBox); ok {
+		return v.gate
+	}
+	return nil
+}
 
 type eventBusEventSubscriber struct {
 	runtime AgentRuntime
@@ -52,6 +85,16 @@ func (s *eventBusEventSubscriber) handleMessage(ctx context.Context, payload eve
 	if HasReplied(payload.TraceID) {
 		logger.Infof("[agent_runtime] event=%s already replied by sync path, skip bus handling", payload.TraceID)
 		return nil
+	}
+
+	// 内容合规冻结：被处置的主体不再生成回复（这就是"拒收该条用户消息"的落地方式）。
+	// 返回 nil 而不是 error：冻结是**预期状态**，不是故障，不该进错误日志、更不该触发重试。
+	if gate := currentGuardGate(); gate != nil && payload.CustomerID != "" {
+		if gate.Blocked(ctx, GuardSubjectUser, payload.CustomerID) {
+			logger.Warnf("[agent_runtime] customer=%s 处于内容合规冻结期，本条消息不生成回复 channel=%s trace=%s",
+				payload.CustomerID, payload.ChannelType, payload.TraceID)
+			return nil
+		}
 	}
 
 	start := time.Now()

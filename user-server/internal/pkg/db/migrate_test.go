@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"testing"
 
+	guardmodel "hivemtk-user/internal/contentguard/model"
 	geomodel "hivemtk-user/internal/geo/model"
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/testutil"
@@ -102,6 +103,16 @@ func TestAllModels_CoversModelsWithWritePaths(t *testing.T) {
 		&browsermodel.BrowserTask{},
 
 		&model.RAGAnswerCache{},
+
+		// ContentGuard 五张表：生产写入路径全在 worker（service.Pipeline.processOne）
+		// 与装配期的策略/词库写入口。列入 mustCover 的理由与 bad_cases 同一条：
+		// 表没建出来时，消息照发、客服照回，只有"这条内容被审过/被拦过/这个人被冻结过"
+		// 这件事静默消失——而平台的合规责任恰恰落在那一格上。
+		&guardmodel.GuardWord{},
+		&guardmodel.GuardPolicy{},
+		&guardmodel.GuardTask{},
+		&guardmodel.GuardRecord{},
+		&guardmodel.GuardSanction{},
 	}
 
 	registered := make(map[string]bool, 512)

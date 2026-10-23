@@ -261,4 +261,8 @@ func RegisterMigrations(registry *migration.MigrationRegistry, db *gorm.DB) {
 	// 归入默认租户 1 —— 那批行不属于任何租户，谁都读不到，等于隐身；
 	// 写入侧已改为按主键定向更新，不再产生新孤儿行
 	register(NewTenantOrphanRowRepairMigration(db))
+	// v3.78.0：内容安全闸 guard_* 五张表——离线词库（deny/allow）+ 按主体类型
+	// （user/merchant）的策略 + 异步审查任务队列 + 审查结论留痕 + 冻结/黑名单处置。
+	// 表都是租户表，唯一索引经 tenancyidx 复合化为 (tenant_id, ...)
+	register(NewContentGuardMigration(db))
 }

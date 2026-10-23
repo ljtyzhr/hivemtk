@@ -5,6 +5,7 @@ import (
 	"fmt"
 	browsermodel "hivemtk-user/internal/browser_automation/model"
 	contentmodel "hivemtk-user/internal/content/model"
+	guardmodel "hivemtk-user/internal/contentguard/model"
 	geomodel "hivemtk-user/internal/geo/model"
 	"hivemtk-user/internal/model"
 	opsmodel "hivemtk-user/internal/ops/model"
@@ -558,6 +559,17 @@ func allModels() []any {
 		// （本泳道口径：**新表**由标签直建、**存量表加列**走版本化迁移，后者见 v3.43.0 的
 		// browser_steps 三列——两者不是同一条路，别拿这句去省存量表的 DDL 文件）。
 		&browsermodel.BrowserWriteClaim{},
+		// ContentGuard 内容安全闸五张表（moderation 域，见 contentguard/model）：
+		// guard_words 词库、guard_policies 主体策略、guard_tasks 异步审查队列、
+		// guard_records 审查结论、guard_sanctions 冻结/黑名单。
+		// 为什么必须登记：这套表的生产写入路径在 worker 里（service.Pipeline.processOne），
+		// 表没建出来时消息照常收发、日志照常打，只有"审了没有、罚了没有"静默消失——
+		// 而那正是平台承担法律风险的那一格。
+		&guardmodel.GuardWord{},
+		&guardmodel.GuardPolicy{},
+		&guardmodel.GuardTask{},
+		&guardmodel.GuardRecord{},
+		&guardmodel.GuardSanction{},
 	}
 }
 

@@ -267,6 +267,16 @@ curl http://127.0.0.1:8208/v1/models    # Embedding 服务模型清单
 | `TOOL_AUDIT_QUEUE_SIZE` | `10000` | 工具审计异步落库队列的容量，可用区间 `[1,200000]`（`internal/app/tool_audit_wiring.go`）。**队列满 ⇒ 那一条只进内存缓冲、不落库**，所以它是"突发写入从哪一刻开始掉 DB 侧"的唯一可调旋钮；只在 `FF_TOOL_AUDIT_DB` 打开时生效 |
 | `TOOL_RISK_OBSERVED_RETAINED` | `2000` | 风险观察器在保留窗内留存的判定条数上限，可用区间 `[10,100000]`（`internal/app/permission_wiring.go`）。它不改变计数口径（环形留存，见 `tooluse.NewMemoryRiskObserver`），调小只是让"能回看的历史"变短 |
 | `TELEGRAM_POLLING_ENABLED` | 未设置 | `1`/`true`/`yes` 强制启用 polling，`0`/`false`/`no` 强制禁用；**未设置则自动判定**：配了 `external.public_base_url` 就注册 webhook 并禁用 polling，没配（内网/本地）自动启用 polling（`internal/service/telegram_polling.go`）。polling 只能单实例跑，多实例部署须显式设 `0`，否则同一消息被多台机器各拉一遍 |
+| `CONTENT_GUARD_API_ENABLED` | 关 | 内容安全闸的**外部审核源**总开关（`internal/app/content_guard_wiring.go`）。**默认关＝数据零出域**：关着的运行时不构造 HTTP 客户端，一个字节的用户原文都不外发，审查只用本地词库。开它＝把用户原文发给第三方，属数据出域决策，必须由部署方显式做；**开了也只是第一把锁**，策略里的 `api_enabled` 还要再开一次（双重显式），任一处关着都不外发 |
+| `CONTENT_GUARD_API_ENDPOINT` | 空 | 外部审核端点完整 URL（自家网关或云厂商代理，请求/响应形状见 `internal/contentguard/provider/provider.go` 包头注释）。`CONTENT_GUARD_API_ENABLED=true` 但本键为空 ⇒ 打 warn 并按"不启用外部审核"降级（不瞎猜地址） |
+| `CONTENT_GUARD_API_TOKEN` | 空 | 外部审核端点的 Bearer 令牌，空 ⇒ 不带 `Authorization` 头 |
+| `CONTENT_GUARD_API_HOSTS` | 空 | 逗号分隔的主机白名单（`host` 或 `host:port`）。**非空才校验**；为空时只允许 https——即"要么给白名单，要么只能走 TLS 到任意主机"。自建审核服务在私网 http 上时**必须**同时填本键与 `CONTENT_GUARD_API_ALLOW_INSECURE` |
+| `CONTENT_GUARD_API_TIMEOUT_MS` | `3000` | 单次外部审核调用超时（毫秒）。超时／报错一律降级为"仅本地词库结论"，不会因为外部不可用而全量放行或全量拦截；但配得太大会让审查结果滞后于消息（判定仍不影响回复链路，见 ADR-017） |
+| `CONTENT_GUARD_API_ALLOW_INSECURE` | 关 | 允许 `http` 与私网地址（`provider.HTTPConfig.AllowInsecure`）。**仅供本地联调／内网自建审核服务**，公网部署设它等于把用户原文放在明文上送 |
+| `CONTENT_GUARD_WORKERS` | `2` | 异步审查 worker 协程数（装配期读一次 ⇒ 改档要重启）。审查跑在专用 worker 里，不占请求协程；调大只加快积压消化，不会让单条审查变快 |
+| `CONTENT_GUARD_BATCH` | `32` | 单轮领取任务条数（worker 从 `guard_tasks` 领批）。配得比 `CONTENT_GUARD_WORKERS` 小不会报错，但每轮必有 worker 空转一次 |
+| `CONTENT_GUARD_POLL_MS` | `2000` | 队列轮询间隔（毫秒）。正常路径靠进程内 notify channel 唤醒，本值只决定"兜底轮询"多快发现漏唤醒的积压（跨进程写入、notify 丢失时的那条保险） |
+| `CONTENT_GUARD_MAX_ATTEMPTS` | `5` | 单条审查任务最多尝试次数。用尽即转 `failed` 死信（不再重试，也不留在 `pending` 里污染积压数）。死信**落表不落日志**：`guard_tasks` 留有 `status=failed` 行与最后一次错误；**本次没有死信列表端点**（`GET /api/manage/content-guard/stats` 只给 `pending_tasks` 与流水线计数），查死信需直查表——已列入 `docs/architecture/CONTENT_MODERATION_RESEARCH.md` §7 差距 |
 
 > **换掉"已经装好的那台"的超管口令，不能靠重跑 bootstrap。** `SEED_PASSWORD=… bash scripts/bootstrap.sh`
 > 只在**新装 / 库里还没有 admin 行**时决定口令；存量实例上它三重失效：`system_users` 上有 v3_36.0 装的两把守卫触发器

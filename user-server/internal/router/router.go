@@ -586,6 +586,13 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 		// 写端点改动的是全体租户共用的字典项 ⇒ 平台运营方档。
 		setupDictionaryRoutes(auth, systemAdmin, gormDB)
 
+		// 内容安全闸 /api/manage/content-guard/*（词库/策略/审查记录/处置）：
+		// 五张 guard_* 表都是租户表（隔离 callback 限死在本租户），
+		// 改词库/冻结/解冻决定"谁的内容能被放行" ⇒ 租户 admin 档。
+		// 运行时由 app.InitContentGuardRuntime 在 router.Setup 之前装配；
+		// 未装配时端点回 503（路由照挂，前端能拿到明确信号而不是 404）。
+		setupContentGuardRoutes(tenantAdmin)
+
 		setupRoleRoutes(auth)
 
 		setupPermissionRoutes(auth)

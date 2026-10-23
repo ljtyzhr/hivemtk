@@ -673,6 +673,16 @@ func main() {
 	noticeSync := service.StartNoticeSync(context.Background())
 	defer noticeSync.Stop()
 
+	// ── 内容安全闸：词库/策略/异步审查/处置 ──────────────────────
+	//
+	// 必须先于 router.Setup：路由挂载点（setupContentGuardRoutes）从全局登记处取运行时，
+	// 取不到就整组回 503。装配同时启动异步审查 worker 并订阅
+	// customer.message.received —— 业务链路只做一次插队，真正的扫描/外部审核/处置
+	// 都在 worker 里，不会拖慢首响与流式输出。
+	if contentGuard := app.InitContentGuardRuntime(db.GetDB()); contentGuard != nil {
+		defer app.StopContentGuardRuntime(contentGuard)
+	}
+
 	router.Setup(r, db.GetDB())
 
 	// W-5 挽回队列消费：装配落在 internal/app（见 recovery_worker_wiring.go），
