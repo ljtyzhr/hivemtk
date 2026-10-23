@@ -3,6 +3,10 @@ package platform
 import (
 	"bytes"
 	"context"
+	"crypto/hmac"
+	"crypto/rand"
+	"crypto/sha256"
+	"encoding/hex"
 	"encoding/json"
 	"fmt"
 	"io"
@@ -10,9 +14,11 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync"
 	"time"
 
 	"hivemtk-user/internal/config"
+	"hivemtk-user/internal/pkg/utils/logger"
 )
 
 // LLMProxyClient 平台 LLM 代理客户端
@@ -42,6 +48,52 @@ type LLMProxyResponse struct {
 	RequestID        string
 	Provider         string
 }
+
+// ============================================================
+// 请求签名（SaaS 审计 A19）
+//
+// 这条通道原先只发 `Authorization: Bearer <merchant_key>`，而 merchant_key 在整套
+// HMAC 体系里是**标识符**（每次调用都以 X-Merchant-Key 明文出现在对 /merchant-api
+// 的请求里，平台管理端列表 json:"key" 直出），真正的凭据是每商户 api_secret。
+// 也就是说：知道一个 key 就能以那个商户的身份烧掉它的 LLM 余额，且没有时效约束
+// —— 抓到一个请求可以永久重放。
+//
+// 口径与 /merchant-api 那边**刻意不同**（那边是 method\npath\nts\nbody，query 不进签名）：
+//   - 这里必须签**含 query 的 RequestURI**：provider/scenario/tenant_code 全在 query 里
+//     （body 必须是 OpenAI 协议原文），不签 query 就等于允许把 tenant_code 换掉，
+//     账会记到同商户另一个租户头上；
+//   - 签的是 body 的 **sha256** 而不是 body 本身（body 最大 8MB，验签不该与体积挂钩）；
+//   - 带 nonce：同一秒内两次同 prompt 的调用是完全正常的（签名输入里没有随机量，
+//     两次会算出同一个签名），平台侧若按签名去重就会把批量任务打成 401。
+//
+// 两侧口径必须**逐字一致**，由 TestLLMProxySignatureMatchesPlatformContract
+// （本包）与平台侧 internal/middleware/merchant_llm_auth_test.go 双向钉住。
+// ============================================================
+
+const llmProxySignDomain = "llm-proxy-v1"
+
+// LLMProxySignature 计算 `/llm-api/v1` 请求签名。
+func LLMProxySignature(secret, method, requestURI, timestamp, nonce string, body []byte) string {
+	sum := sha256.Sum256(body)
+	payload := llmProxySignDomain + "\n" + method + "\n" + requestURI + "\n" + timestamp + "\n" + nonce + "\n" +
+		hex.EncodeToString(sum[:])
+	mac := hmac.New(sha256.New, []byte(secret))
+	mac.Write([]byte(payload))
+	return hex.EncodeToString(mac.Sum(nil))
+}
+
+// newLLMProxyNonce 生成一次性随机串（16 字节 hex）。
+func newLLMProxyNonce() (string, error) {
+	b := make([]byte, 16)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+	return hex.EncodeToString(b), nil
+}
+
+// llmProxyUnsignedWarn 只在第一次"无密钥可签"时告警：
+// 每个请求都打一条会把日志刷成噪音，而这条信息只需要被看见一次。
+var llmProxyUnsignedWarn sync.Once
 
 // LLMProxyClient 平台模型代理客户端
 type LLMProxyClient struct {
@@ -81,6 +133,37 @@ func merchantKeyForLLM() string {
 		return GetMerchantKey()
 	}
 	return "local-dev-merchant"
+}
+
+// signLLMProxyRequest 给请求补 X-Timestamp / X-Nonce / X-Signature。
+//
+// 取不到签名密钥时**不阻断请求**：照发未签名版本，并在**第一次**打一条告警。
+// 为什么不是直接报错：兼容窗口期（平台把 PLATFORM_LLM_PROXY_REQUIRE_SIGNATURE 关掉时）
+// 未签名仍被接受；而无密钥的部署本来就调不通（Available() 已要求 key），
+// 在这里 raise 只会把"平台说 401"变成"本地报错"，反而更难排查是谁没配。
+// 反过来，静默降级也不行 —— 那就是 A13 那条"不静默降级"的口径。
+func signLLMProxyRequest(req *http.Request, body []byte) error {
+	secret := GetMerchantSecret()
+	if secret == "" {
+		llmProxyUnsignedWarn.Do(func() {
+			logger.Warn("平台 LLM 代理请求**未签名**：本机没有商户 api_secret" +
+				"（.merchant_api_secret / MERCHANT_API_SECRET / PlatformCfg.Secret 全空）。" +
+				"平台开启验签后将一律 401，请先完成商户注册或配置密钥")
+		})
+		return nil
+	}
+	nonce, err := newLLMProxyNonce()
+	if err != nil {
+		return fmt.Errorf("生成请求 nonce 失败: %w", err)
+	}
+	ts := strconv.FormatInt(time.Now().Unix(), 10)
+	// 签的是**实际发出去的** RequestURI（path + query，含 baseURL 里的路径前缀）——
+	// 平台侧算的是它收到的 URL.RequestURI()，两侧必须对着同一个字符串。
+	uri := req.URL.RequestURI()
+	req.Header.Set("X-Timestamp", ts)
+	req.Header.Set("X-Nonce", nonce)
+	req.Header.Set("X-Signature", LLMProxySignature(secret, req.Method, uri, ts, nonce, body))
+	return nil
 }
 
 // Available 平台是否可用（未配置地址/密钥时返回 false，调用方据此把
@@ -127,9 +210,16 @@ func (c *LLMProxyClient) ChatCompletions(ctx context.Context, provider string, b
 		return nil, fmt.Errorf("构造平台代理请求失败: %w", err)
 	}
 	req.Header.Set("Content-Type", "application/json")
+	// Bearer 保留：它让**新客户端**仍能对着**旧平台**（只认 Bearer 的那一版）工作，
+	// 于是升级顺序是自由的 —— 这正是"A19 必须能与 user-server 同版本发布"的落地形态。
+	// 身份本身不再由它决定：平台侧验签通过后用的是签名覆盖的 X-Merchant-Key。
 	req.Header.Set("Authorization", "Bearer "+c.key)
+	req.Header.Set("X-Merchant-Key", c.key)
 	if meta.TraceID != "" {
 		req.Header.Set("X-Trace-Id", meta.TraceID)
+	}
+	if err := signLLMProxyRequest(req, body); err != nil {
+		return nil, err
 	}
 
 	resp, err := c.client.Do(req)

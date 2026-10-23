@@ -60,10 +60,42 @@ func NewPlatformClient(merchantKey string) *Client {
 
 // SetMerchantSecret 注入注册响应下发的每商户独立 HMAC 密钥（契约 §1 落地）。
 // 非空时优先于全局 MERCHANT_API_SECRET / PlatformCfg.Secret 参与签名。
+//
+// 注意它是**实例**状态，刻意不做成包级全局：签名密钥一旦成为进程级可变全局，
+// 「谁在什么时候覆盖了它」就不可追，且单测之间会互相污染 —— 一条用例注入的值会让
+// 另一条"三处皆空应报错"的用例变绿（本仓实测踩到过）。跨消费者的共享通道是**文件**
+// （注册时 saveMerchantSecret 落盘，见 RegisterMerchant），那是显式且有权限位的。
 func (c *Client) SetMerchantSecret(secret string) {
 	if secret != "" {
 		c.merchantSecret = secret
 	}
+}
+
+// GetMerchantSecret 返回本商户的 HMAC 签名密钥 —— **唯一事实源**（SaaS 审计 A19）。
+//
+// 解析链（顺序即优先级，与原 `Client.sign` 的历史行为逐字一致，只是**收成一处**）：
+//
+//  1. 文件 <MERCHANT_STATE_DIR|config>/.merchant_api_secret（平台开户时下发、注册时落盘）
+//  2. env MERCHANT_API_SECRET（全局回退，双读兼容期）
+//  3. config.PlatformCfg.Secret（同上）
+//
+// 为什么必须收成一个函数：A19 新增了第二条**签名**通道（/llm-api/v1），而此前这套解析
+// 散在 `Client.sign`、`Client.loadMerchantSecret`、`merchantSecretFilePath` 三处，
+// 每个新消费者都要照抄一遍 —— 抄错一格（比如漏了文件那一档）的表现是
+// "某些部署的 LLM 代理恒 401"，且与"平台没升级"完全无法区分。
+func GetMerchantSecret() string {
+	if b, err := os.ReadFile(merchantSecretFilePath()); err == nil {
+		if v := strings.TrimSpace(string(b)); v != "" {
+			return v
+		}
+	}
+	if v := strings.TrimSpace(os.Getenv("MERCHANT_API_SECRET")); v != "" {
+		return v
+	}
+	if config.PlatformCfg != nil {
+		return strings.TrimSpace(config.PlatformCfg.Secret)
+	}
+	return ""
 }
 
 func (c *Client) sign(method, path string, body []byte) (string, string, error) {
@@ -74,12 +106,10 @@ func (c *Client) sign(method, path string, body []byte) (string, string, error) 
 	}
 	payload := method + "\n" + pathNoQuery + "\n" + timestamp + "\n" + string(body)
 
+	// 实例值先手（它可能来自构造期注入的显式值），其余一律交给唯一事实源。
 	secret := c.merchantSecret
 	if secret == "" {
-		secret = os.Getenv("MERCHANT_API_SECRET")
-	}
-	if secret == "" && config.PlatformCfg != nil {
-		secret = config.PlatformCfg.Secret
+		secret = GetMerchantSecret()
 	}
 	if secret == "" {
 		return "", "", fmt.Errorf("MERCHANT_API_SECRET 未配置: 请设置环境变量或 PlatformCfg.Secret")

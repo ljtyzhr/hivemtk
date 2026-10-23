@@ -171,6 +171,23 @@ scope 存在但为空 → 拒（fail-closed，只对商户面生效）
 2. `merchants` 的列是 `gorm:"column:merchant_key" json:"key"` 声明的 —— 只扫 `json:"merchant_key"` 会把它漏掉，
    而它恰恰是唯一需要**豁免**的表（身份表：那一列就是登录凭据）。
 
+### 5.2 门禁后续扩到“清单”（A19，平台端仓 `23abf55`）
+
+本轮 A3 的门禁有一个**结构性缺口**，被 A19 直接撞上：判据口径写死成 `MERCHANT_GROUP = "/merchant-api"`，
+于是同仓第二个商户面 `/llm-api/v1` 从头到尾都在**判据视野之外**——它不是“闸被绕过”，而是“没人知道该有闸”。
+
+- `GATED_GROUPS` 取代单个常量：`("/merchant-api", "MerchantAuth()")`、`("/llm-api/v1", "MerchantLLMProxyAuth()")`。
+  每新增一条对外商户通道必须在这里登记它要求的中间件，否则不在判据里。**这是“清单化”而不是“多写一条 if”**：
+  前者要求的是“登记不全会红”，后者只要求“这条路径上有个写着 `MerchantAuth` 的字符串”。
+- 新增闸 2b：`/llm-api/v1` 组下 handler 不得自己从请求里取身份（`Authorization` / `X-Merchant-Key` /
+  `merchant_key`）。这一条与闸 2 同源但**判据不同**：闸 2 判“不得从 query/path/form 取名”，
+  2b 判“不得读凭据头”——A19 的原始形态正是后者。
+- 闸 3b 从“只认 `merchant_auth.go`”改成 `SCOPE_INJECTORS` 白名单：每个登记文件内
+  `c.Set("merchant_key")` 与 `merchantscope.WithScope(` **逐文件一一对应**，且文件里必须含 `hmac.New(`
+  ——写进 ctx 的商户身份必须来自一次**真实**验签，否则它只是“相信请求头”。白名单之外的生产代码
+  既不许注入 scope 也不许写身份（唯一执行者口径不变）。
+- 自检六条腿 → 十条腿（新增四条对准本轮四道新判据），仍要求“注入违规 ⇒ 必须红 ⇒ 还原后 md5 全等且回绿”。
+
 ---
 
 ## 6. 附：本文用到的取证命令（可复跑）
