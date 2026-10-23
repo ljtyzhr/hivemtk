@@ -337,8 +337,9 @@ func (h *WSHandler) handleClose(client *Client, sessionID string) {
 		Msg("close session")
 }
 
-func (h *WSHandler) BroadcastMessage(messageType string, data any) error {
-	return GetHub().BroadcastToMerchant("", messageType, data)
+// BroadcastMessage 向本租户全部坐席广播（ctx 必须携带租户，见 Hub.BroadcastToMerchant）
+func (h *WSHandler) BroadcastMessage(ctx context.Context, messageType string, data any) error {
+	return GetHub().BroadcastToMerchant(ctx, "", messageType, data)
 }
 
 // SendToAgent 发送消息给指定客服

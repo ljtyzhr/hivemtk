@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"context"
 	"encoding/json"
 	"testing"
 	"time"
@@ -130,7 +131,7 @@ func TestHub_BroadcastToMerchant(t *testing.T) {
 	time.Sleep(100 * time.Millisecond)
 
 	payload := map[string]any{"status": "online"}
-	err := hub.BroadcastToMerchant("merchant1", "agent_status", payload)
+	err := hub.BroadcastToMerchant(context.Background(), "merchant1", "agent_status", payload)
 	if err != nil {
 		t.Errorf("BroadcastToMerchant failed: %v", err)
 	}
@@ -228,7 +229,7 @@ func TestBroadcastAgentStatus(t *testing.T) {
 		"status":   "online",
 	}
 
-	err := BroadcastAgentStatus(statusData)
+	err := BroadcastAgentStatus(context.Background(), statusData)
 	_ = err
 }
 

@@ -162,7 +162,7 @@ func (b *MessageNodeBase) Execute(ctx context.Context, ec *ExecutionContext) (*N
 			"source":       contentSource,
 			"timestamp":    time.Now().Format(time.RFC3339),
 		}
-		_ = b.wsHub.BroadcastToMerchant("", websocket.MsgTypeSOP, payload)
+		_ = b.wsHub.BroadcastToMerchant(ctx, "", websocket.MsgTypeSOP, payload)
 	}
 
 	if ec.SessionID != "" {

@@ -1,6 +1,7 @@
 package websocket
 
 import (
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -23,7 +24,7 @@ func TestWSHandler_BroadcastMessage(t *testing.T) {
 	handler := NewWSHandler()
 
 	data := map[string]any{"key": "value"}
-	err := handler.BroadcastMessage("test_message", data)
+	err := handler.BroadcastMessage(context.Background(), "test_message", data)
 	_ = err
 }
 

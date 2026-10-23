@@ -72,21 +72,21 @@ description: "任务清单：SaaS 多租户与离线单机双形态一体化"
 **Independent Test**: 双租户标记数据 × 列表/详情/写/导出 × 后台扇出周期，越权全为"不存在/拒绝"
 
 - [x] T020 [US3] TenantRunner 扇出：`internal/pkg/tenant/runner.go` 枚举 `tenants WHERE status=1` 逐租户构造 ctx 执行；off 模式退化为单租户；`cmd/api/main.go` + `internal/app/` 将 20+ cron/SOP dispatcher/outbox/stuck detector/trace learning/feedback/RFM/churn/rag eval/journey/wecom quota/snooze/report/auto resolve/rule engine/session TTL/hub summary/GEO cron/alert checker/recovery worker/collection job 全部装配点包入 runner；分布式锁 key 带租户段（DB lease 表键值 + T010 Redis 前缀）
-- [x] T021 
-  > 现状 —— 待对方 lane（module 市场事件流）合流后统一补 payload.TenantID 字段
+- [x] T021 [US3] 事件总线租户自证：`internal/event/types.go` 三类载荷（MessageEvent / KnowledgeEvent / 通用 payload）已带 `TenantID`；订阅者经 `tenantCtx` 恢复上下文。
+  > 2026-10-23 复核：**已实现**（原"待对方 lane"表述已过期）。残留：字段由**发布点自行填充**，漏填 ⇒ 订阅者拿到 0 ⇒ 隔离闸 fail-closed（响声而非静默），但目前没有"发布点必须填"的门禁 —— 见 `docs/architecture/SAAS_FULLCHAIN_AUDIT_2026-10-23.md` P2-5。
 - [x] T022 [US3] webhook 解析链：`internal/controller/webhook.go` Receive/各 Verify——account_id → 渠道账号归属租户 → 租户 ctx 贯穿下游 ingress；解析失败 404 + 安全告警日志；off 模式等价现状
-- [x] T023 
-  > 现状 —— bridge OwnershipChecker 升级 (tenant_id,user_id) 待与对方 lane 的 bridge 域改动联调
-- [x] T024 
-  > 现状 —— 访客链 AppKey→channel→tenant 待前端联调收口
-- [x] T025 
-  > 现状 —— telegram per-account 已具备；邮件回调链待收口
-- [x] T026 
-  > 现状 —— WS/SSE 租户分桶待集成轮
-- [x] T027 
-  > 现状 —— 核心待办表行自证已覆盖（agent_checkpoints/reach_delayed_outbound/watermark），全量唯一索引对账并入二期
-- [x] T028 
-  > 现状 —— callback 七态 + offline 回归 + 路由闸已绿；全 API 域双租户交叉扫描待集成轮
+- [x] T023 [US3] bridge 入站租户绑定：`internal/bridge/handler_http.go` `bindBridgeTenant`（HTTP 摄取 / SSE outbox / ack 三条入口均前置解析，失败按 `bridgeTenantHTTPStatus` 拒绝 + `http_ingest_tenant_unresolved` 安全打点）；行自证走 `bridge_accounts.tenant_id`。
+  > 2026-10-23 复核：**已实现**（原"待联调"表述已过期）。`middleware.OwnershipChecker` 那条通用归属中间件**仍未接线**（0 处路由使用），且其 record-not-found 语义是 fail-open —— 见 P1-3。
+- [x] T024 [US3] 访客链 AppKey→channel→tenant：`middleware/app_key_auth.go`（HTTP Widget）+ `websocket/visitor_handler.go`（访客 WS，`resolvedChannel.TenantID` 落到 `client.tenantID` 并注入 ctx）+ `middleware/public_tenant.go`（解析失败 => 拒绝，绝不落默认租户）。
+  > 2026-10-23 复核：**已实现**，且回归用例在位（`websocket/visitor_handler_ref_test.go`、`websocket/visitor_handler_tenant_ctx_test.go`）。
+- [x] T025 [US3] 邮件追踪链租户：`service/email_tracking.go` token claim 签发期捕获 `TenantID`，open/click 回调按 claim 恢复租户 ctx（`tenant.WithTenantID(ctx, claim.TenantID)`）；telegram per-account 走账号行归属。
+  > 2026-10-23 复核：**已实现**（原"待收口"表述已过期）。
+- [x] T026 [US3] 实时通道租户分桶：SSE 侧 `service/sse_hub.go` `Publish` 按 `client.tenantID == 生效租户` 过滤（`TestSSEHub_*` 覆盖）；WS 侧 `Client.tenantID` 在坐席与访客握手时均已绑定。
+  > 2026-10-23 **修**：WS 侧原先只记 `tenantID` 而**不参与任何过滤** —— `Hub.BroadcastToMerchant` 遍历全部连接广播，on 模式下租户 A 的 SOP 载荷会推进租户 B 的工作台。已改为按 ctx 租户过滤 + 无租户 fail-closed，回归 `websocket/hub_tenant_broadcast_test.go`（3 例）。
+- [x] T027 [US3] 行自证 + 唯一索引对账：`agent_checkpoints` / `reach_delayed_outbound` / `aggregation_watermarks` 等队列行写入携租户、消费端读行恢复。
+  > 2026-10-23 真库对账（371 张表 / 12 张全局表 / `tenancyidx.Normalize` 实测）：租户表上**只剩 1 条**非复合唯一索引，且正是刻意豁免的 `global_uniq_system_users_email`（邮箱跨租户全局唯一）—— 复合化闭环，无遗漏。残留：11 张租户表的索引族里没有以 `tenant_id` 打头的列（见 P2-2）。
+- [x] T028 [US3] 越权回归：`pkg/db/tenant_callback_test.go`（七态）+ `tenant_callback_adversarial_test.go`（D1/D2/D3 等 10 例）+ `service/tenant_isolation_test.go`（双租户交叉）+ `service/tenant_offline_test.go`（离线四态等价）+ `router/platform_operator_scope_test.go`（端点归属门禁）。
+  > 2026-10-23 复核：**已实现**。全 API 域"逐端点双租户交叉扫描"仍未做（现状是逐域代表性用例），列入审计报告 §6 二期建议。
 
 **Checkpoint**: 隔离可独立验收（quickstart 场景 B/C/E 留证）
 

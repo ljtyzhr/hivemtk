@@ -4,9 +4,11 @@ import (
 	"context"
 	"net/http"
 	"strconv"
+	"strings"
 	"sync"
 	"time"
 
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils"
 
 	"github.com/gin-gonic/gin"
@@ -224,7 +226,7 @@ func RequireOwnerWithCacheAndChecker(resourceKey, table string, ttl time.Duratio
 			c.Next()
 			return
 		}
-		key := table + ":" + strconv.FormatUint(uint64(resourceID), 10)
+		key := ownershipCacheKey(c.Request.Context(), table, uint(resourceID))
 		if entry, ok := globalOwnershipCache.get(key); ok {
 			if entry.err != nil {
 				c.AbortWithStatusJSON(http.StatusInternalServerError, gin.H{
@@ -267,11 +269,33 @@ func RequireOwnerWithCacheAndChecker(resourceKey, table string, ttl time.Duratio
 	}
 }
 
+// ownershipCacheKey 归属缓存键 = (租户, 表, 资源 ID)。
+//
+// 租户段是**必须**的（2026-10-23 补）：缓存是进程级全局 map，而在 on 模式下
+// 同一条 `SELECT owner_id FROM t WHERE id=?` 在不同租户 ctx 下结果不同
+// （隔离 callback 注入 WHERE tenant_id），键里不带租户就等于让一个租户的查询
+// 结果直接命中另一个租户的判定 —— 而且 getOwnerID 的 record-not-found 语义是
+// "0 = 系统级资源，放行"，缓存串租户的后果是 **fail-open 5 秒**。
+// off 模式租户段恒为空，键形与历史一致（离线单机零回归）。
+func ownershipCacheKey(ctx context.Context, table string, resourceID uint) string {
+	prefix := ""
+	if id, ok := tenant.FromContext(ctx); ok && tenant.IsMultiTenant() {
+		prefix = strconv.FormatUint(uint64(id), 10) + "|"
+	}
+	return prefix + table + ":" + strconv.FormatUint(uint64(resourceID), 10)
+}
+
 // InvalidateOwnershipCache 清除单条缓存（用于资源 owner 变更/删除场景）。
 // 当前未在 main.go 接入；暴露此入口便于业务层主动失效。
 func InvalidateOwnershipCache(table string, resourceID uint) {
-	key := table + ":" + strconv.FormatUint(uint64(resourceID), 10)
+	// 两种键形态都要清：off 模式裸键 + on 模式各租户前缀键（前缀未知 ⇒ 遍历匹配）
+	legacy := table + ":" + strconv.FormatUint(uint64(resourceID), 10)
+	suffix := "|" + legacy
 	globalOwnershipCache.mu.Lock()
 	defer globalOwnershipCache.mu.Unlock()
-	delete(globalOwnershipCache.data, key)
+	for k := range globalOwnershipCache.data {
+		if k == legacy || strings.HasSuffix(k, suffix) {
+			delete(globalOwnershipCache.data, k)
+		}
+	}
 }

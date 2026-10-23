@@ -1,11 +1,14 @@
 package websocket
 
 import (
+	"context"
 	"encoding/json"
+	"fmt"
 	"sync"
 	"sync/atomic"
 	"time"
 
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 )
 
@@ -179,24 +182,38 @@ func (h *Hub) SendToAgent(agentID string, messageType string, payload any) error
 	return nil
 }
 
-// BroadcastToMerchant 广播消息给所有客户端（私域部署：单租户全广播）
-// merchantID 参数保留为接口一致性，实际私域部署中所有客户端共享同一实例
-func (h *Hub) BroadcastToMerchant(merchantID string, messageType string, payload any) error {
+// BroadcastToMerchant 向「同一租户」的全部坐席连接广播。
+//
+// 历史形状：私域单租户部署 ⇒ 直接遍历全部连接，merchantID 参数留作接口一致性。
+// 在 TENANT_MODE=on 下这条形状就是**跨租户泄漏**：租户 A 的 SOP 节点载荷
+// （session_id / customer_id / content）会被推进租户 B 的工作台。同包的 SSE
+// 通道（service/sse_hub.go Publish）早已按租户过滤，WS 这一侧却只把
+// client.tenantID **记下来**、没有任何一处用它过滤——正是"只有注释在守"的形状。
+//
+// 现行口径（与 SSE 同构）：
+//   - off 模式：与历史逐字节一致 —— 发全部坐席（单租户全广播语义不变）
+//   - on 模式：只发 ctx 租户名下的连接；ctx 缺租户 ⇒ 拒绝执行（fail-closed），
+//     绝不退化成"全实例广播"——那是本条要修的缺陷本身
+func (h *Hub) BroadcastToMerchant(ctx context.Context, merchantID string, messageType string, payload any) error {
+	_ = merchantID // 私域语义：merchant 维度不参与过滤（租户维度才是隔离判据）
 	payloadBytes, err := json.Marshal(payload)
 	if err != nil {
 		return err
 	}
 
-	// 只在锁内做快照；Broadcast 的入队（broadcast channel 可能阻塞）必须在 RUnlock 之后，
-	// 否则 channel 打满时持 RLock 阻塞会卡死 Run 循环的 Lock → 整个 hub 死锁
-	h.mu.RLock()
-	agentIDs := make([]string, 0, len(h.clients))
-	for agentID := range h.clients {
-		agentIDs = append(agentIDs, agentID)
+	tid := uint(0)
+	if tenant.IsMultiTenant() {
+		id, ok := tenant.FromContext(ctx)
+		if !ok {
+			logger.GetLogger().Warn().
+				Str("message_type", messageType).
+				Msg("[ws] on 模式下广播缺租户上下文，已拒绝（绝不退化成全实例广播）")
+			return fmt.Errorf("[ws] 广播 %q 缺租户上下文（TENANT_MODE=on 下 fail-closed）", messageType)
+		}
+		tid = id
 	}
-	h.mu.RUnlock()
 
-	for _, agentID := range agentIDs {
+	for _, agentID := range h.agentIDsForTenant(tid) {
 		h.Broadcast(&Message{
 			Type:    messageType,
 			AgentID: agentID,
@@ -204,6 +221,24 @@ func (h *Hub) BroadcastToMerchant(merchantID string, messageType string, payload
 		})
 	}
 	return nil
+}
+
+// agentIDsForTenant 快照目标坐席：tid=0 表示不限租户（off 模式/全实例语义）。
+//
+// 只在锁内做快照；Broadcast 的入队（broadcast channel 可能阻塞）必须在 RUnlock
+// 之后，否则 channel 打满时持 RLock 阻塞会卡死 Run 循环的 Lock → 整个 hub 死锁
+// （与既有 BroadcastToMerchant 同一坑，不是新引入的）。
+func (h *Hub) agentIDsForTenant(tid uint) []string {
+	h.mu.RLock()
+	defer h.mu.RUnlock()
+	agentIDs := make([]string, 0, len(h.clients))
+	for agentID, client := range h.clients {
+		if tid != 0 && client.tenantID != tid {
+			continue
+		}
+		agentIDs = append(agentIDs, agentID)
+	}
+	return agentIDs
 }
 
 // IsAgentOnline 检查客服是否在线
@@ -303,7 +338,7 @@ func NotifySessionUpdate(agentID string, sessionData any) error {
 	return GetHub().SendToAgent(agentID, "session_update", sessionData)
 }
 
-// BroadcastAgentStatus 广播客服状态变更
-func BroadcastAgentStatus(statusData any) error {
-	return GetHub().BroadcastToMerchant("", "agent_status", statusData)
+// BroadcastAgentStatus 广播客服状态变更（按 ctx 租户分域，见 BroadcastToMerchant）
+func BroadcastAgentStatus(ctx context.Context, statusData any) error {
+	return GetHub().BroadcastToMerchant(ctx, "", "agent_status", statusData)
 }

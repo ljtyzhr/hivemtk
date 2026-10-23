@@ -56,6 +56,22 @@ SaaS 化后"配置"不是一张表的事：同一份配置值可能属于平台�
 
 **凭证类不落参数中心**：`tenant_config_params.param_value` 是明文列（只有审计行走 `dbencrypt`），把 client_secret/API key 写进去等于新增一个明文凭证面。凭证走 `system_config_kv` + `internal/secrets`（`enc:v1:` AES-GCM，MASTER_KEY），先例是 `agent.tool_integrations`，本轮新增的是 `sso.providers`（见 `docs/CONFIG_DB_DRIVEN_PLAN.md` §10 R5-4）。
 
+### 三.6 不进 GORM callback 的三条通道（2026-10-23 补）
+
+隔离 callback 的射程是**数据访问**。凡是绕开它把数据带出去的东西，都必须自己有租户判据——
+否则 `make audit` / `make test-go` / `check-gorm-only` 全绿，缺陷照样在。实测三条：
+
+| 通道 | 判据位置 | 口径 |
+|---|---|---|
+| 实时推送（SaaS） | `service/sse_hub.go` `Publish` / `DashboardSSE` 快照 | 只发给 `client.tenantID == ctx 租户` 的连接 |
+| 实时推送（WS 坐席） | `websocket/hub.go` `BroadcastToMerchant` | 同上；ctx 缺租户 ⇒ **拒绝执行**（fail-closed），绝不退化成全实例广播 |
+| 静态文件（`/files/*`） | `router/files_guard.go` `tenantPathAllowed` | on 模式下 `tenant_{id}/` 段与请求 ctx 租户不一致 ⇒ 404；无凭证公开外链（访客 `<img>`）仍放行 |
+| 进程级内存缓存 | `middleware/ownership.go` `ownershipCacheKey` | 缓存键带租户段；否则一个租户的查询结果会命中另一个租户的判定（且该处 not-found 语义是 fail-open） |
+
+> 共同失效模式：**"值被记下来了，但没有任何一处用它判定"**（`Client.tenantID` 在两条握手链路都绑好了，
+> 全仓却只有测试在读它）。评估这类改动时，判据不是"有没有赋值"，而是"有没有一处 `if` 用它"。
+> 完整清单与待办见 [SAAS_FULLCHAIN_AUDIT_2026-10-23.md](SAAS_FULLCHAIN_AUDIT_2026-10-23.md)。
+
 ## 四、后台任务租户化
 
 - `tenant.Fanout(ctx, db, fn)`：off 单次默认租户（等价现状）；on 枚举 `tenants WHERE status=1` 逐租户回调，单租户失败不阻断。
