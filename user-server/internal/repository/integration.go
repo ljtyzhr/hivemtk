@@ -98,7 +98,7 @@ func (r *IntegrationAccountRepository) GetAll(ctx context.Context) ([]*model.Int
 
 // Update 更新对接账号
 func (r *IntegrationAccountRepository) Update(ctx context.Context, account *model.IntegrationAccount) error {
-	return r.db.WithContext(ctx).Save(account).Error
+	return saveWholeRow(r.db.WithContext(ctx), account)
 }
 
 // UpdateToken 更新访问令牌
@@ -166,7 +166,7 @@ func (r *SyncLogRepository) GetAll(ctx context.Context, page, pageSize int) ([]*
 
 // Update 更新同步日志
 func (r *SyncLogRepository) Update(ctx context.Context, log *model.SyncLog) error {
-	return r.db.WithContext(ctx).Save(log).Error
+	return saveWholeRow(r.db.WithContext(ctx), log)
 }
 
 // UpdateStatus 更新同步状态
@@ -247,7 +247,7 @@ func (r *ExternalCustomerRepository) GetByPlatform(ctx context.Context, platform
 
 // Update 更新外部客户
 func (r *ExternalCustomerRepository) Update(ctx context.Context, customer *model.ExternalCustomer) error {
-	return r.db.WithContext(ctx).Save(customer).Error
+	return saveWholeRow(r.db.WithContext(ctx), customer)
 }
 
 // Delete 删除外部客户
@@ -333,7 +333,7 @@ func (r *ExternalOrderRepository) GetByPlatform(ctx context.Context, platform st
 
 // Update 更新外部订单
 func (r *ExternalOrderRepository) Update(ctx context.Context, order *model.ExternalOrder) error {
-	return r.db.WithContext(ctx).Save(order).Error
+	return saveWholeRow(r.db.WithContext(ctx), order)
 }
 
 // Delete 删除外部订单
@@ -408,7 +408,7 @@ func (r *ExternalProductRepository) GetAll(ctx context.Context, page, pageSize i
 
 // Update 更新外部商品
 func (r *ExternalProductRepository) Update(ctx context.Context, product *model.ExternalProduct) error {
-	return r.db.WithContext(ctx).Save(product).Error
+	return saveWholeRow(r.db.WithContext(ctx), product)
 }
 
 // Delete 删除外部商品
@@ -460,48 +460,12 @@ func (r *WebhookEventRepository) GetByID(ctx context.Context, id uint) (*model.W
 	return &event, err
 }
 
-// GetByEventID 根据事件 ID 获取 Webhook 事件
-func (r *WebhookEventRepository) GetByEventID(ctx context.Context, eventID string) (*model.WebhookEvent, error) {
-	if r == nil || r.db == nil {
-		return nil, nil
-	}
-	var event model.WebhookEvent
-	err := r.db.WithContext(ctx).Where("event_id = ?", eventID).First(&event).Error
-	return &event, err
-}
-
-// GetUnprocessed 获取未处理的 Webhook 事件
-func (r *WebhookEventRepository) GetUnprocessed(ctx context.Context, platform string, limit int) ([]*model.WebhookEvent, error) {
-	if r == nil || r.db == nil {
-		return nil, nil
-	}
-	var events []*model.WebhookEvent
-	err := r.db.WithContext(ctx).Where("platform = ? AND processed = ?", platform, false).
-		Order("created_at ASC").
-		Limit(limit).
-		Find(&events).Error
-	return events, err
-}
-
 // Update 更新 Webhook 事件
 func (r *WebhookEventRepository) Update(ctx context.Context, event *model.WebhookEvent) error {
 	if r == nil || r.db == nil {
 		return nil
 	}
-	return r.db.WithContext(ctx).Save(event).Error
-}
-
-// MarkProcessed 标记 Webhook 事件为已处理
-func (r *WebhookEventRepository) MarkProcessed(ctx context.Context, id uint) error {
-	if r == nil || r.db == nil {
-		return nil
-	}
-	now := time.Now()
-	return r.db.WithContext(ctx).Model(&model.WebhookEvent{}).Where("id = ?", id).
-		Updates(map[string]any{
-			"processed":    true,
-			"processed_at": now,
-		}).Error
+	return saveWholeRow(r.db.WithContext(ctx), event)
 }
 
 // CountUnprocessed 统计未处理的 Webhook 事件数
@@ -514,7 +478,7 @@ func (r *WebhookEventRepository) CountUnprocessed(ctx context.Context) (int64, e
 	return c, err
 }
 
-// ListStaleUnprocessed 列出积压的未处理 Webhook 事件候选。
+// ListStaleUnprocessedAfter 列出积压的未处理 Webhook 事件候选（id 游标分页）。
 //
 // 业务背景：webhook 主链路走进程内 chan（重启即丢），本方法供恢复扫描器
 // 兜底重放 processed=false 的历史事件。仅返回 created_at < olderThan 的行
@@ -524,12 +488,6 @@ func (r *WebhookEventRepository) CountUnprocessed(ctx context.Context) (int64, e
 // 跨实例互斥不在 SQL 层做：行锁（FOR UPDATE）在事务提交即释放，覆盖不了
 // 处理窗口；真正的互斥由扫描器的 Redis SetNX 认领门闸承担，重放的副作用
 // 幂等性由下游兜底（message_hub 唯一索引 + AI ClaimReply 事件级防重）。
-func (r *WebhookEventRepository) ListStaleUnprocessed(ctx context.Context, olderThan time.Time, limit int) ([]*model.WebhookEvent, error) {
-	return r.ListStaleUnprocessedAfter(ctx, olderThan, 0, limit)
-}
-
-// ListStaleUnprocessedAfter 在 ListStaleUnprocessed 基础上支持 id 游标
-// （afterID 之后），防止头部反复失败的事件占满批次窗口饿死后续积压。
 func (r *WebhookEventRepository) ListStaleUnprocessedAfter(ctx context.Context, olderThan time.Time, afterID uint64, limit int) ([]*model.WebhookEvent, error) {
 	if r == nil || r.db == nil {
 		return nil, nil

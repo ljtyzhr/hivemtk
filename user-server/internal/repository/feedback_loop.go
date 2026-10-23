@@ -289,12 +289,22 @@ func (r *FeedbackLoopRepository) ListPendingSuggestions(ctx context.Context, min
 	return rows, err
 }
 
-// MarkSuggestionApplied 标记建议为已应用
+// MarkSuggestionApplied 标记建议为已应用。
+//
+// 命中 0 行报不存在：自动应用是"按建议 id 改完 SOP 再回写状态"，
+// 建议被并发删除或跨租户时静默成功会让调度器以为这一轮已经收口。
 func (r *FeedbackLoopRepository) MarkSuggestionApplied(ctx context.Context, id uint, appliedAt time.Time) error {
-	return r.db.WithContext(ctx).
+	res := r.db.WithContext(ctx).
 		Model(&model.OptimizationSuggestion{}).
 		Where("id = ?", id).
-		Updates(map[string]any{"status": model.SuggestionStatusApplied, "applied_at": appliedAt}).Error
+		Updates(map[string]any{"status": model.SuggestionStatusApplied, "applied_at": appliedAt})
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 // GetSOPGraph 读取 SOP 的图结构（供 Service 层 prompt_rewrite 前提取当前 prompt）
@@ -308,11 +318,8 @@ func (r *FeedbackLoopRepository) GetSOPGraph(ctx context.Context, sopID uint) (m
 	return sop.SOPGraph, nil
 }
 
-func (r *FeedbackLoopRepository) CloneSOPAndCreateABTest(ctx context.Context, sopID uint, nameSuffix string, experimentTag string) error {
-	return r.CloneSOPAndCreateABTestMutated(ctx, sopID, nameSuffix, experimentTag, nil)
-}
-
-// CloneSOPAndCreateABTestMutated 同 CloneSOPAndCreateABTest，另支持 Service 层注入图变异器
+// CloneSOPAndCreateABTestMutated 克隆 SOP 建一份 A/B 实验分支，
+// 图结构可经 mutate 注入变异（剪枝/重写等优化动作的唯一落地口）。
 func (r *FeedbackLoopRepository) CloneSOPAndCreateABTestMutated(
 	ctx context.Context, sopID uint, nameSuffix, experimentTag string,
 	mutate func(model.JSONMap) model.JSONMap,

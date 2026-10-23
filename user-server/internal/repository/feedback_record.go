@@ -61,25 +61,3 @@ func (r *FeedbackRecordRepository) UpdateCustomerAcceptBySession(ctx context.Con
 	}
 	return res.RowsAffected, nil
 }
-
-// UpdateTransferredBySession 转人工时标记 feedback_record 的 transferred=true + transfer_reason
-func (r *FeedbackRecordRepository) UpdateTransferredBySession(ctx context.Context, sessionID, reason string) (int64, error) {
-	if r == nil || r.db == nil || sessionID == "" {
-		return 0, nil
-	}
-	updates := map[string]any{
-		"transferred":     true,
-		"transfer_reason": reason,
-	}
-	res := r.db.WithContext(ctx).
-		Model(&model.FeedbackRecordORM{}).
-		Where("session_id = ?", sessionID).
-		Where("transferred = ?", false).
-		Order("id DESC").
-		Limit(1).
-		Updates(updates)
-	if res.Error != nil {
-		return 0, res.Error
-	}
-	return res.RowsAffected, nil
-}

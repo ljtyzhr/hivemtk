@@ -50,24 +50,6 @@ func (r *FeishuAccountRepository) GetByID(ctx context.Context, id uint) (*model.
 	return &acc, nil
 }
 
-// GetByAppID 根据 AppID 获取
-func (r *FeishuAccountRepository) GetByAppID(ctx context.Context, appID string) (*model.FeishuAccount, error) {
-	var acc model.FeishuAccount
-	if err := r.db.WithContext(ctx).Where("app_id = ?", appID).First(&acc).Error; err != nil {
-		return nil, err
-	}
-	return &acc, nil
-}
-
-// GetEnabled 获取所有启用的账号
-func (r *FeishuAccountRepository) GetEnabled(ctx context.Context) ([]*model.FeishuAccount, error) {
-	var accs []*model.FeishuAccount
-	if err := r.db.WithContext(ctx).Where("webhook_enabled = ? AND status = ?", true, 1).Find(&accs).Error; err != nil {
-		return nil, err
-	}
-	return accs, nil
-}
-
 // GetAll 获取所有飞书账号
 func (r *FeishuAccountRepository) GetAll(ctx context.Context) ([]*model.FeishuAccount, error) {
 	var accs []*model.FeishuAccount
@@ -79,12 +61,20 @@ func (r *FeishuAccountRepository) GetAll(ctx context.Context) ([]*model.FeishuAc
 
 // Update 更新飞书账号
 func (r *FeishuAccountRepository) Update(ctx context.Context, acc *model.FeishuAccount) error {
-	return r.db.WithContext(ctx).Save(acc).Error
+	return saveWholeRow(r.db.WithContext(ctx), acc)
 }
 
 // Delete 删除飞书账号
 func (r *FeishuAccountRepository) Delete(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).Delete(&model.FeishuAccount{}, id).Error
+	res := r.db.WithContext(ctx).Delete(&model.FeishuAccount{}, id)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		// 删不存在的 id（含别租户的行）不能回"删除成功"。
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 // UpdateToken 更新访问令牌
@@ -114,7 +104,7 @@ func (r *FeishuCustomerRepository) Create(ctx context.Context, c *model.FeishuCu
 }
 
 func (r *FeishuCustomerRepository) Update(ctx context.Context, c *model.FeishuCustomer) error {
-	return r.db.WithContext(ctx).Save(c).Error
+	return saveWholeRow(r.db.WithContext(ctx), c)
 }
 
 // FeishuMessageRepository 飞书消息仓库
@@ -192,14 +182,6 @@ func (r *TelegramAccountRepository) GetByID(ctx context.Context, id uint) (*mode
 	return &acc, nil
 }
 
-func (r *TelegramAccountRepository) GetEnabled(ctx context.Context) ([]*model.TelegramAccount, error) {
-	var accs []*model.TelegramAccount
-	if err := r.db.WithContext(ctx).Where("webhook_enabled = ? AND status = ?", true, 1).Find(&accs).Error; err != nil {
-		return nil, err
-	}
-	return accs, nil
-}
-
 func (r *TelegramAccountRepository) GetAll(ctx context.Context) ([]*model.TelegramAccount, error) {
 	var accs []*model.TelegramAccount
 	if err := r.db.WithContext(ctx).Order("id DESC").Find(&accs).Error; err != nil {
@@ -209,11 +191,19 @@ func (r *TelegramAccountRepository) GetAll(ctx context.Context) ([]*model.Telegr
 }
 
 func (r *TelegramAccountRepository) Update(ctx context.Context, acc *model.TelegramAccount) error {
-	return r.db.WithContext(ctx).Save(acc).Error
+	return saveWholeRow(r.db.WithContext(ctx), acc)
 }
 
 func (r *TelegramAccountRepository) Delete(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).Delete(&model.TelegramAccount{}, id).Error
+	res := r.db.WithContext(ctx).Delete(&model.TelegramAccount{}, id)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		// 删不存在的 id（含别租户的行）不能回"删除成功"。
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 // WhatsAppCloudAccountRepository WhatsApp Cloud API 账号仓库
@@ -251,14 +241,6 @@ func (r *WhatsAppCloudAccountRepository) GetByPhoneNumberID(ctx context.Context,
 	return &acc, nil
 }
 
-func (r *WhatsAppCloudAccountRepository) GetEnabled(ctx context.Context) ([]*model.WhatsAppCloudAccount, error) {
-	var accs []*model.WhatsAppCloudAccount
-	if err := r.db.WithContext(ctx).Where("webhook_enabled = ? AND status = ?", true, 1).Find(&accs).Error; err != nil {
-		return nil, err
-	}
-	return accs, nil
-}
-
 func (r *WhatsAppCloudAccountRepository) GetAll(ctx context.Context) ([]*model.WhatsAppCloudAccount, error) {
 	var accs []*model.WhatsAppCloudAccount
 	if err := r.db.WithContext(ctx).Order("id DESC").Find(&accs).Error; err != nil {
@@ -268,11 +250,19 @@ func (r *WhatsAppCloudAccountRepository) GetAll(ctx context.Context) ([]*model.W
 }
 
 func (r *WhatsAppCloudAccountRepository) Update(ctx context.Context, acc *model.WhatsAppCloudAccount) error {
-	return r.db.WithContext(ctx).Save(acc).Error
+	return saveWholeRow(r.db.WithContext(ctx), acc)
 }
 
 func (r *WhatsAppCloudAccountRepository) Delete(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).Delete(&model.WhatsAppCloudAccount{}, id).Error
+	res := r.db.WithContext(ctx).Delete(&model.WhatsAppCloudAccount{}, id)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		// 删不存在的 id（含别租户的行）不能回"删除成功"。
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 // GetFirstEnabled 取第一个启用的飞书账号（webhook_enabled=true 且 status=1）
@@ -412,10 +402,18 @@ func (r *QQAccountRepository) GetAll(ctx context.Context) ([]*model.QQAccount, e
 
 // Update 更新
 func (r *QQAccountRepository) Update(ctx context.Context, acc *model.QQAccount) error {
-	return r.db.WithContext(ctx).Save(acc).Error
+	return saveWholeRow(r.db.WithContext(ctx), acc)
 }
 
 // Delete 删除
 func (r *QQAccountRepository) Delete(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).Delete(&model.QQAccount{}, id).Error
+	res := r.db.WithContext(ctx).Delete(&model.QQAccount{}, id)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		// 删不存在的 id（含别租户的行）不能回"删除成功"。
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }

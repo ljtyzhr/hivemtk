@@ -43,28 +43,6 @@ func (r *HumanizeScoreRepository) Save(ctx context.Context, score *model.Humaniz
 	return nil
 }
 
-// ListBySession 按 session 查询评分历史
-func (r *HumanizeScoreRepository) ListBySession(ctx context.Context, sessionID string, limit int) ([]model.HumanizeScore, error) {
-	var list []model.HumanizeScore
-	q := db.GetDB().WithContext(ctx).
-		Where("session_id = ?", sessionID).
-		Order("created_at DESC")
-	q = applyListLimit(q, limit)
-	err := q.Find(&list).Error
-	return list, err
-}
-
-// ListByPersona 按 persona+industry+intent 查询
-func (r *HumanizeScoreRepository) ListByPersona(ctx context.Context, persona, industry, intent string, limit int) ([]model.HumanizeScore, error) {
-	var list []model.HumanizeScore
-	q := db.GetDB().WithContext(ctx).
-		Where("persona = ? AND industry = ? AND intent = ?", persona, industry, intent).
-		Order("created_at DESC")
-	q = applyListLimit(q, limit)
-	err := q.Find(&list).Error
-	return list, err
-}
-
 // GetByID 按 ID 查询
 func (r *HumanizeScoreRepository) GetByID(ctx context.Context, id uint64) (*model.HumanizeScore, error) {
 	var s model.HumanizeScore
@@ -73,16 +51,6 @@ func (r *HumanizeScoreRepository) GetByID(ctx context.Context, id uint64) (*mode
 		return nil, err
 	}
 	return &s, nil
-}
-
-// ListDimensionsByScoreID 查询维度明细
-func (r *HumanizeScoreRepository) ListDimensionsByScoreID(ctx context.Context, scoreID string) ([]model.HumanizeDimensionRecord, error) {
-	var list []model.HumanizeDimensionRecord
-	err := db.GetDB().WithContext(ctx).
-		Where("score_id = ?", scoreID).
-		Order("created_at ASC").
-		Find(&list).Error
-	return list, err
 }
 
 // ChampionBaselineRepositoryImpl 销冠基线仓储

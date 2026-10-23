@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/db"
 	"testing"
@@ -1175,92 +1176,9 @@ func TestWebhookEventRepository_Create(t *testing.T) {
 	}
 }
 
-// TestWebhookEventRepository_GetByEventID 测试根据事件 ID 获取 Webhook 事件
-func TestWebhookEventRepository_GetByEventID(t *testing.T) {
-	ctx := context.Background()
-	_, _, _, _, _, webhookRepo := setupIntegrationRepositories(t)
-
-	event := &model.WebhookEvent{
-		Platform:  "ecommerce_taobao",
-		EventID:   "unique-event-id",
-		EventType: "order.paid",
-		RawData:   `{"data": "test"}`,
-	}
-	webhookRepo.Create(ctx, event)
-
-	tests := []struct {
-		name    string
-		eventID string
-		wantErr bool
-	}{
-		{
-			name:    "get existing event",
-			eventID: "unique-event-id",
-			wantErr: false,
-		},
-		{
-			name:    "get non-existing event",
-			eventID: "non-existing-event",
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result, err := webhookRepo.GetByEventID(context.Background(), tt.eventID)
-
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GetByEventID() error = %v, wantErr %v", err, tt.wantErr)
-			}
-
-			if !tt.wantErr {
-				if result.EventID != tt.eventID {
-					t.Errorf("Expected event ID '%s', got '%s'", tt.eventID, result.EventID)
-				}
-				if result.EventType != "order.paid" {
-					t.Errorf("Expected event type 'order.paid', got '%s'", result.EventType)
-				}
-			}
-		})
-	}
-}
-
-// TestWebhookEventRepository_GetUnprocessed 测试获取未处理的 Webhook 事件
-func TestWebhookEventRepository_GetUnprocessed(t *testing.T) {
-	ctx := context.Background()
-	_, _, _, _, _, webhookRepo := setupIntegrationRepositories(t)
-
-	webhookRepo.Create(ctx, &model.WebhookEvent{
-		Platform:  "ecommerce_taobao",
-		EventID:   "unprocessed-1",
-		EventType: "order.paid",
-		Processed: false,
-	})
-	webhookRepo.Create(ctx, &model.WebhookEvent{
-		Platform:  "ecommerce_taobao",
-		EventID:   "unprocessed-2",
-		EventType: "order.shipped",
-		Processed: false,
-	})
-	webhookRepo.Create(ctx, &model.WebhookEvent{
-		Platform:  "ecommerce_taobao",
-		EventID:   "processed-1",
-		EventType: "order.delivered",
-		Processed: true,
-	})
-
-	results, err := webhookRepo.GetUnprocessed(context.Background(), "ecommerce_taobao", 10)
-	if err != nil {
-		t.Errorf("GetUnprocessed() error = %v", err)
-	}
-
-	if len(results) != 2 {
-		t.Errorf("Expected 2 unprocessed events, got %d", len(results))
-	}
-}
-
-// TestWebhookEventRepository_MarkProcessed 测试标记 Webhook 事件为已处理
-func TestWebhookEventRepository_MarkProcessed(t *testing.T) {
+// TestWebhookEventRepository_UpdateProcessedFlag 覆盖恢复扫描器依赖的 processed 翻转，
+// 以及整行回写命中 0 行（行已被并发删除）时必须报不存在、不能回"已处理"。
+func TestWebhookEventRepository_UpdateProcessedFlag(t *testing.T) {
 	ctx := context.Background()
 	_, _, _, _, _, webhookRepo := setupIntegrationRepositories(t)
 
@@ -1268,21 +1186,36 @@ func TestWebhookEventRepository_MarkProcessed(t *testing.T) {
 		Platform:  "ecommerce_taobao",
 		EventID:   "mark-processed",
 		EventType: "order.paid",
+		RawData:   "{}",
 		Processed: false,
 	}
-	webhookRepo.Create(ctx, event)
-
-	err := webhookRepo.MarkProcessed(context.Background(), event.ID)
-	if err != nil {
-		t.Errorf("MarkProcessed() error = %v", err)
+	if err := webhookRepo.Create(ctx, event); err != nil {
+		t.Fatalf("create: %v", err)
 	}
 
-	updated, _ := webhookRepo.GetByID(ctx, event.ID)
+	now := time.Now()
+	event.Processed = true
+	event.ProcessedAt = &now
+	if err := webhookRepo.Update(ctx, event); err != nil {
+		t.Fatalf("Update() error = %v", err)
+	}
+
+	updated, err := webhookRepo.GetByID(ctx, event.ID)
+	if err != nil {
+		t.Fatalf("GetByID: %v", err)
+	}
 	if !updated.Processed {
 		t.Error("Expected event to be marked as processed")
 	}
 	if updated.ProcessedAt == nil {
 		t.Error("Expected ProcessedAt to be set")
+	}
+
+	// 行已被删（或别租户）时整行回写必须报不存在
+	ghost := &model.WebhookEvent{Platform: "ecommerce_taobao", EventID: "ghost", EventType: "x", Processed: true}
+	ghost.ID = 99999999
+	if err := webhookRepo.Update(ctx, ghost); !errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Errorf("更新不存在的行应报 ErrRecordNotFound，实际 %v", err)
 	}
 }
 

@@ -62,17 +62,7 @@ func (r *domainPoolRepository) Update(ctx context.Context, domainPool *model.Dom
 	if db == nil {
 		return gorm.ErrInvalidDB
 	}
-	res := db.Save(domainPool)
-	if res.Error != nil {
-		return res.Error
-	}
-	if res.RowsAffected == 0 {
-		// 域名池的写入方有五个（探测回写健康分、拉黑、切换活跃、人工编辑），
-		// 都用「先读后整行写」。命中 0 行意味着这行已不可见（被删或跨租户），
-		// Save 本身不报错，调用方会继续把健康分/黑名单当成写成功了。
-		return gorm.ErrRecordNotFound
-	}
-	return nil
+	return saveWholeRow(db, domainPool)
 }
 
 func (r *domainPoolRepository) Delete(ctx context.Context, id int) error {

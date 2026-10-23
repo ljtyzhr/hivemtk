@@ -7,6 +7,7 @@ import (
 	_db "hivemtk-user/internal/pkg/db"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 )
 
 // IntegrationTemplateRepository 第三方对接模板仓库
@@ -33,17 +34,26 @@ func (r *integrationTemplateRepo) Create(ctx context.Context, t *model.Integrati
 	if t.Code == "" {
 		return errors.New("模板编码不能为空")
 	}
-	if existing, _ := r.GetByCode(ctx, t.Code); existing != nil {
+	// 先查后写在并发建模板时两边都能通过预检，后落的那条撞唯一索引直接 500。
+	// 交给 ON CONFLICT（tenant_id, code 唯一）判定，命中 0 行即编码已存在。
+	res := r.db.WithContext(ctx).Clauses(clause.OnConflict{
+		Columns:   []clause.Column{{Name: "tenant_id"}, {Name: "code"}},
+		DoNothing: true,
+	}).Create(t)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
 		return errors.New("模板编码已存在")
 	}
-	return r.db.WithContext(ctx).Create(t).Error
+	return nil
 }
 
 func (r *integrationTemplateRepo) Update(ctx context.Context, t *model.IntegrationTemplate) error {
 	if t.ID == 0 {
 		return errors.New("id 不能为空")
 	}
-	return r.db.WithContext(ctx).Save(t).Error
+	return saveWholeRow(r.db.WithContext(ctx), t)
 }
 
 func (r *integrationTemplateRepo) Delete(ctx context.Context, id uint64) error {

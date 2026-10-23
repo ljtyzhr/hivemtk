@@ -138,14 +138,25 @@ func (r *FeedbackLearningRepository) ListPendingSuggestions(ctx context.Context,
 	return list, nil
 }
 
-// UpdateSuggestionFields 按 ID 更新建议指定字段
+// UpdateSuggestionFields 按 ID 白名单更新建议字段（审核通过/驳回走这条）。
+//
+// 命中 0 行必须报不存在：审核动作是按"建议 id"发起的，建议已被并发删除、
+// 或 id 属于别的租户时，Updates 只是 RowsAffected=0，接口却回"已生效"，
+// 运营会以为策略已经改过——而实际上一条都没动。
 func (r *FeedbackLearningRepository) UpdateSuggestionFields(ctx context.Context, suggestionID uint, fields map[string]any) error {
 	if r == nil || r.db == nil {
 		return errors.New("feedback learning repository not initialized")
 	}
-	return r.db.WithContext(ctx).Model(&model.OptimizationSuggestion{}).
+	res := r.db.WithContext(ctx).Model(&model.OptimizationSuggestion{}).
 		Where("id = ?", suggestionID).
-		Updates(fields).Error
+		Updates(fields)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 // CreateProfileSnapshot 创建画像快照

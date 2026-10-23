@@ -83,17 +83,10 @@ func (r *CustomerSessionRepository) Create(ctx context.Context, session *model.C
 //
 // 这条口径会把内存里的整行（含 message_count / ai_reply_count 这类并发累加的计数）
 // 覆回库里——需要并发安全时用 OptimisticUpdate（带 version 条件）。此处补的只是
-// "0 行不等于成功"：会话已被合并删除、或 id 属于别的租户时，Save 只是 RowsAffected=0，
-// 上层会以为状态推进成功了。
+// "0 行不等于成功"：会话已被合并删除、或 id 属于别的租户时，裸 Save 会回退成
+// INSERT 插出一条新行，上层还以为状态推进成功了。
 func (r *CustomerSessionRepository) Update(ctx context.Context, session *model.CustomerSession) error {
-	res := r.db.WithContext(ctx).Save(session)
-	if res.Error != nil {
-		return res.Error
-	}
-	if res.RowsAffected == 0 {
-		return gorm.ErrRecordNotFound
-	}
-	return nil
+	return saveWholeRow(r.db.WithContext(ctx), session)
 }
 
 // GetByID 根据ID获取会话

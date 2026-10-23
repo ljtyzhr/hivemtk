@@ -77,23 +77,40 @@ func (r *GlossaryRepository) Update(ctx context.Context, g *model.Glossary) erro
 		return errors.New("glossary: id required")
 	}
 	g.UpdatedAt = time.Now()
-	return r.db.WithContext(ctx).Model(&model.Glossary{}).
+	res := r.db.WithContext(ctx).Model(&model.Glossary{}).
 		Where("id = ?", g.ID).
 		Select("term_id", "category", "preserve", "translations", "pattern", "status").
-		Updates(g).Error
+		Updates(g)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		// 术语已被删除、或 id 属于别的租户：白名单 Updates 只体现为 0 行，
+		// 术语表页面会显示"已保存"而库里一行没变。
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
-// Delete 软删除（按 TermID）。Status 置 "disabled"，DeletedAt 置当前时间。
+// Delete 按 TermID 删除术语。
 //
-// 注意：本方法依赖 gorm.DeletedAt 字段；若 model.Glossary 未启用软删除，
-// 调用方应改用物理删除（当前实现兼容两种 —— 优先 Save 整行）。
+// 实现就是 GORM 的 Delete：模型带 gorm.DeletedAt 时是软删除，否则是物理删除，
+// 两种都由 GORM 按模型定义决定，本层不另做分支。
+// 命中 0 行（术语不存在/别租户）报不存在，而不是回"删除成功"。
 func (r *GlossaryRepository) Delete(ctx context.Context, termID string) error {
 	if termID == "" {
 		return errors.New("glossary: empty term_id")
 	}
-	return r.db.WithContext(ctx).
+	res := r.db.WithContext(ctx).
 		Where("term_id = ?", termID).
-		Delete(&model.Glossary{}).Error
+		Delete(&model.Glossary{})
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 // GetByTermID 按 TermID 查询单条术语。

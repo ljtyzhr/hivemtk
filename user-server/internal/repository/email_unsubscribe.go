@@ -41,16 +41,7 @@ func (r *emailUnsubscribeRepo) Create(ctx context.Context, record *model.EmailUn
 }
 
 func (r *emailUnsubscribeRepo) Update(ctx context.Context, record *model.EmailUnsubscribe) error {
-	res := r.db.WithContext(ctx).Save(record)
-	if res.Error != nil {
-		return res.Error
-	}
-	if res.RowsAffected == 0 {
-		// 整行 Save 命中 0 行不报错：记录已删、或 id 属于别的租户时，
-		// 上层会把"什么都没改"当成保存成功。这里显式翻成不存在。
-		return gorm.ErrRecordNotFound
-	}
-	return nil
+	return saveWholeRow(r.db.WithContext(ctx), record)
 }
 
 func (r *emailUnsubscribeRepo) GetByEmail(ctx context.Context, email string) (*model.EmailUnsubscribe, error) {

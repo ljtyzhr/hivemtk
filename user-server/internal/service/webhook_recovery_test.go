@@ -49,7 +49,7 @@ func TestRecoveryListStaleUnprocessed(t *testing.T) {
 	backdateEvent(t, repo, stale, sc.cooldown+time.Minute)
 	backdateEvent(t, repo, done, sc.cooldown+time.Minute)
 
-	events, err := repo.ListStaleUnprocessed(ctx, time.Now().Add(-sc.cooldown), 100)
+	events, err := repo.ListStaleUnprocessedAfter(ctx, time.Now().Add(-sc.cooldown), 0, 100)
 	if err != nil {
 		t.Fatalf("list: %v", err)
 	}
