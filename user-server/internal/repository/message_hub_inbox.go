@@ -67,6 +67,19 @@ func (r *MessageHubRepository) GetByMsgID(ctx context.Context, msgID string) (*m
 	return &hub, err
 }
 
+// GetRecentByMsgIDAnyConv 错归去重闸的查找：同一条裸 msg_id（内容哈希，无 #N 后缀）在时间窗内
+// 是否已在**任意会话**入库。不带会话界是故意的——查的就是「别的会话已经收过这条」，但必须带
+// 时间界：msg_id 即内容哈希，不设窗就是「历史上任何会话说过的原话，今天再在别的会话里说一遍
+// 被静默吞」（与 GetByContentHash 注释同一陷阱）。
+func (r *MessageHubRepository) GetRecentByMsgIDAnyConv(ctx context.Context, msgID string, since time.Time) (*model.MessageHub, error) {
+	var hub model.MessageHub
+	err := r.db.WithContext(ctx).
+		Where("msg_id = ? AND created_at > ?", msgID, since).
+		Order("created_at DESC").
+		First(&hub).Error
+	return &hub, err
+}
+
 // GetByContentHash 按「内容哈希即 msg_id」的幂等键查行。会话与时间界都是必需的：
 // msg_id 只在 (platform,msg_id,conversation_id) 复合索引下唯一，内容哈希又不带会话，
 // 不锁会话就是「任一会话命中即算命中」；不看 sent_at 就是「历史里说过的原话再说一遍被静默吞」。

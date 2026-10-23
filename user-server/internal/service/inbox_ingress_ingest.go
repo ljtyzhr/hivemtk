@@ -199,6 +199,25 @@ func (s *InboxIngressService) interceptInbound(ctx context.Context, event *model
 		}
 	}
 
+	// 错归去重闸（批：Bridge 重复消息根治）：裸 msg_id（内容哈希，无 #N 后缀）在错归
+	// 时间窗内已在任意会话入库，而本次事件却又报了不同会话——线上实证（tz3rmdj 2026-10-22
+	// 20:27:01/03）这是扩展多窗口采集把 A 会话消息错归到 B 会话的上报：同一批 4 条 2 秒内
+	// 二次入库、conversation_id 与 sender_name 整体错配，且因唯一索引含 conversation_id 而
+	// 双双落库，触发重复回复。这种「同 hash 跨会话」在错归窗内不是真实新消息，判重复拦截。
+	// 带 #N 后缀的（上报方明确断言独立消息）与带 channel_msg_id 的（平台给了真实身份）不在此列。
+	if s.hubRepo != nil && event.ConversationID != "" && !eventAssertsDistinctMessage(event.EventID) {
+		misID := event.EventID
+		if chanMsgID != "" {
+			misID = chanMsgID
+		}
+		if misID != "" && !occurrenceMsgIDRe.MatchString(misID) {
+			if dup, derr := s.hubRepo.GetRecentByMsgIDAnyConv(ctx, misID, time.Now().Add(-InboundMisattribWindow)); derr == nil && dup != nil && dup.ConversationID != event.ConversationID {
+				return &IngressDecision{Blocked: true, IsDup: true,
+					Reason: "duplicate(same msg_id ingested in another conversation within misattribution window)"}, nil
+			}
+		}
+	}
+
 	// 内容窗口去重只对「平台不给稳定消息 ID」的渠道有独立价值。带 channel_msg_id 的事件
 	// 必须跳过：客户连发两条同样内容（或一次推两张图片、占位正文同为 "[图片]"）是两条真实
 	// 消息，按内容相同就拦会让第二条既不入库也不回复（N-14 实测）。平台 at-least-once 重投
@@ -268,6 +287,11 @@ const (
 	// 尾部命中取入站最后 12 字：短到能穿过「可以吗？」这类真实短回复，又长到不会被
 	// 常见套话偶然命中。参与比较的出站文本同样要求至少 12 字。
 	echoTailWindowRunes      = 12
+
+	// InboundMisattribWindow 错归去重窗：裸 msg_id（内容哈希）跨会话二次上报的判定窗。
+	// 线上实证的错归间隔是 2 秒（同一批 DOM 采集重扫）；取 2 分钟足以覆盖扩展一轮采集
+	// 抖动，又远小于客户在两个真实会话里发出字节级相同内容的合理间隔下限。
+	InboundMisattribWindow = 2 * time.Minute
 	echoTailMinOutboundRunes = 12
 )
 
