@@ -180,17 +180,13 @@ func (s *stubOrderRepo) GetOrderList(ctx context.Context, page, limit int) ([]*m
 	return nil, 0, nil
 }
 func (s *stubOrderRepo) Delete(ctx context.Context, id string) error { return nil }
-func (s *stubOrderRepo) GetGetLastOrder(ctx context.Context, account_ID string, tgID int64) (*model.Order, error) {
-	return nil, nil
-}
 func (s *stubOrderRepo) UpdateOrderStatusById(ctx context.Context, id string, st _type.OrderStatusType) error {
 	return nil
 }
 func (s *stubOrderRepo) GetRecentOrderList(ctx context.Context) ([]*model.Order, error) {
 	return nil, nil
 }
-func (s *stubOrderRepo) GetDistinctPaidTgIDs(ctx context.Context) ([]int64, error) { return nil, nil }
-func (s *stubOrderRepo) Update(ctx context.Context, order *model.Order) error      { return nil }
+func (s *stubOrderRepo) Update(ctx context.Context, order *model.Order) error { return nil }
 
 // TestComputeRawMetrics_PhoneNotTreatedAsTgID 回归：手机号不得被 ParseInt 当 TgID 查订单。
 // 历史缺陷：accountID=cust.Phone → ParseInt("138...")>0 → GetByTgID(13800138000)

@@ -14,15 +14,12 @@ import (
 
 type OrderRepository interface {
 	Create(ctx context.Context, order *model.Order) error
-	GetByID(ctx context.Context, id uint) (*model.Order, error)
 	GetByStringID(ctx context.Context, id string) (*model.Order, error)
 	GetOrderList(ctx context.Context, page int, limit int) ([]*model.Order, int64, error)
 	Delete(ctx context.Context, id string) error
-	GetGetLastOrder(ctx context.Context, account_ID string, tgID int64) (*model.Order, error)
 	UpdateOrderStatusById(ctx context.Context, id string, status _type.OrderStatusType) error
 	GetRecentOrderList(ctx context.Context) ([]*model.Order, error)
 	GetByTgID(ctx context.Context, tgID int64) ([]*model.Order, error)
-	GetDistinctPaidTgIDs(ctx context.Context) ([]int64, error)
 	Update(ctx context.Context, order *model.Order) error
 	ListByAccountIDs(ctx context.Context, accountIDs []string) ([]*model.Order, error)
 }
@@ -44,12 +41,6 @@ func (r *orderRepo) Create(ctx context.Context, order *model.Order) error {
 	return r.db.WithContext(ctx).Create(order).Error
 }
 
-func (r *orderRepo) GetByID(ctx context.Context, id uint) (*model.Order, error) {
-	var order model.Order
-	err := r.db.WithContext(ctx).First(&order, id).Error
-	return &order, err
-}
-
 func (r *orderRepo) GetByStringID(ctx context.Context, id string) (*model.Order, error) {
 	var order model.Order
 	err := r.db.WithContext(ctx).Where("id = ?", id).First(&order).Error
@@ -60,21 +51,35 @@ func (r *orderRepo) GetByStringID(ctx context.Context, id string) (*model.Order,
 }
 
 func (r *orderRepo) GetOrderList(ctx context.Context, page int, limit int) ([]*model.Order, int64, error) {
+	// 夹取分页：page ≤ 0 时 `(page-1)*limit` 是负 offset（PG 直接报错），
+	// limit 无上界时一次请求可把整表拖进内存。
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
+	}
 	var orders []*model.Order
 	var total int64
-	err := r.db.WithContext(ctx).Offset((page - 1) * limit).Limit(limit).Find(&orders).Count(&total).Error
-	return orders, total, err
+	q := r.db.WithContext(ctx).Model(&model.Order{})
+	if err := q.Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	if err := q.Offset((page - 1) * limit).Limit(limit).Find(&orders).Error; err != nil {
+		return nil, 0, err
+	}
+	return orders, total, nil
 }
 
+// Delete 0 行 ⇒ 该订单不存在（`db.EnsureAffected`）：原样返回 nil 会让
+// 「删错 id / 已被并发删掉」在接口上表现为删除成功。
 func (r *orderRepo) Delete(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&model.Order{}).Error
+	return _db.EnsureAffected(r.db.WithContext(ctx).Where("id = ?", id).Delete(&model.Order{}))
 }
 
-func (r *orderRepo) GetGetLastOrder(ctx context.Context, account_ID string, tgID int64) (*model.Order, error) {
-	var order model.Order
-	err := r.db.WithContext(ctx).Where("account_id = ? and tg_id = ?", account_ID, tgID).Order("create_time desc").First(&order).Error
-	return &order, err
-}
 func (r *orderRepo) UpdateOrderStatusById(ctx context.Context, id string, status _type.OrderStatusType) error {
 	var order model.Order
 	err := r.db.WithContext(ctx).First(&order, "id = ?", id).Error
@@ -82,8 +87,9 @@ func (r *orderRepo) UpdateOrderStatusById(ctx context.Context, id string, status
 		return err
 	}
 	order.Status = _type.OrderStatusType(status)
-	err = r.db.WithContext(ctx).Save(&order).Error
-	return err
+	// 读—改—整行回写。0 行只能是这行在两句之间被删（裸 Save 会回退成 INSERT，
+	// 等于把删掉的订单复活成一张状态被改过的新单）。
+	return _db.SaveWholeRow(r.db.WithContext(ctx), &order)
 }
 
 func (r *orderRepo) GetRecentOrderList(ctx context.Context) ([]*model.Order, error) {
@@ -101,17 +107,8 @@ func (r *orderRepo) GetByTgID(ctx context.Context, tgID int64) ([]*model.Order, 
 	return orders, err
 }
 
-func (r *orderRepo) GetDistinctPaidTgIDs(ctx context.Context) ([]int64, error) {
-	var tgIDs []int64
-	err := r.db.WithContext(ctx).Model(&model.Order{}).
-		Where("status = ?", _type.OrderStatusSuccess).
-		Distinct("tg_id").
-		Pluck("tg_id", &tgIDs).Error
-	return tgIDs, err
-}
-
 func (r *orderRepo) Update(ctx context.Context, order *model.Order) error {
-	return r.db.WithContext(ctx).Save(order).Error
+	return _db.SaveWholeRow(r.db.WithContext(ctx), order)
 }
 
 func (r *orderRepo) ListByAccountIDs(ctx context.Context, accountIDs []string) ([]*model.Order, error) {

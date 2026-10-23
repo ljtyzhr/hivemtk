@@ -43,10 +43,6 @@ func (s *OrderService) GetOrderByID(ctx context.Context, id string) (*model.Orde
 	return s.repo.GetByStringID(ctx, id)
 }
 
-func (s *OrderService) GetOrder(ctx context.Context, id uint) (*model.Order, error) {
-	return s.repo.GetByID(ctx, id)
-}
-
 func (s *OrderService) GetOrderList(ctx context.Context, page int, limit int) ([]*model.Order, int64, error) {
 	return s.repo.GetOrderList(ctx, page, limit)
 }

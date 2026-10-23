@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"hivemtk-user/internal/model"
+	_db "hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/pkg/tenant"
 
 	"gorm.io/gorm"
@@ -110,14 +111,17 @@ func (r *PasswordResetTokenRepository) GetByTokenAnyTenant(ctx context.Context, 
 	return &token, nil
 }
 
-// MarkUsed 标记令牌已使用
+// MarkUsed 标记令牌已使用。
+//
+// 0 行 ⇒ 该令牌不存在（或被并发的那次重置抢先标掉了，`db.EnsureAffected`）：
+// 原样返回 nil 会让"同一枚令牌被用第二次"变成一次成功改密 —— 那正是重放窗口。
 func (r *PasswordResetTokenRepository) MarkUsed(ctx context.Context, id string, usedAt time.Time) error {
 	if r == nil || r.db == nil {
 		return errors.New("password reset token repository not initialized")
 	}
-	return r.db.WithContext(ctx).Model(&model.PasswordResetToken{}).
+	return _db.EnsureAffected(r.db.WithContext(ctx).Model(&model.PasswordResetToken{}).
 		Where("id = ?", id).
-		Update("used_at", usedAt).Error
+		Update("used_at", usedAt))
 }
 
 // CleanupExpiredOlderThan 清理超过 threshold（默认 7 天前）且未使用的过期令牌，返回受影响行数
@@ -156,9 +160,11 @@ func (h *PasswordResetUserTxHelpers) UpdatePasswordInTx(ctx context.Context, use
 	if _, err := fmt.Sscanf(userID, "%d", &uid); err != nil {
 		return fmt.Errorf("invalid user_id format: %w", err)
 	}
-	return h.tx.WithContext(ctx).Model(&model.SystemUser{}).
+	// 同 MarkUsed：命中 0 行意味着用户行已不在（或 id 不属于本租户），
+	// 不能回一句"改密成功"。事务里任一步 0 行都会整体回滚，令牌不会被标成已用。
+	return _db.EnsureAffected(h.tx.WithContext(ctx).Model(&model.SystemUser{}).
 		Where("id = ?", uid).
-		Update("password", hashedPassword).Error
+		Update("password", hashedPassword))
 }
 
 // RunPasswordResetTransaction 事务封口：标记 token 已用 + 更新用户密码（五层 L5：事务在仓储层编排）

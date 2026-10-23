@@ -57,7 +57,10 @@ func TestOrderService_CreateOrder(t *testing.T) {
 	}
 }
 
-func TestOrderService_GetOrder(t *testing.T) {
+// TestOrderService_GetOrderList_ContainsCreated 建单后列表里能看到它（原名 TestOrderService_GetOrder，
+// 实际测的是列表口；OrderService.GetOrder(uint) 已按 4.4 删除——它拿 uint 形参去匹配 varchar(36)
+// uuid 主键，即使被调用也只会让 PG 报 operator does not exist）。
+func TestOrderService_GetOrderList_ContainsCreated(t *testing.T) {
 	setupOrderServiceTestDB(t)
 
 	service := NewOrderService()
@@ -81,17 +84,6 @@ func TestOrderService_GetOrder(t *testing.T) {
 
 	if orders[0].ID != registered.ID {
 		t.Errorf("Expected ID %s, got %s", registered.ID, orders[0].ID)
-	}
-}
-
-func TestOrderService_GetOrder_NotFound(t *testing.T) {
-	setupOrderServiceTestDB(t)
-
-	service := NewOrderService()
-
-	_, err := service.GetOrder(context.Background(), 999)
-	if err == nil {
-		t.Error("Expected error for non-existent order")
 	}
 }
 

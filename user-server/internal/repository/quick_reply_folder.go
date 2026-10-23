@@ -3,7 +3,6 @@ package repository
 
 import (
 	"context"
-	"time"
 
 	"hivemtk-user/internal/model"
 	_db "hivemtk-user/internal/pkg/db"
@@ -50,16 +49,15 @@ func (r *QuickReplyFolderRepository) Create(ctx context.Context, name string) (*
 	return f, nil
 }
 
-// UpdateSortOrder 更新排序
+// UpdateSortOrder 更新排序；0 行 ⇒ 该文件夹不存在（`db.EnsureAffected`）。
 func (r *QuickReplyFolderRepository) UpdateSortOrder(ctx context.Context, id uint, sortOrder int) error {
-	return r.db.WithContext(ctx).
+	return _db.EnsureAffected(r.db.WithContext(ctx).
 		Model(&model.QuickReplyFolder{}).
 		Where("id = ?", id).
-		Update("sort_order", sortOrder).Error
+		Update("sort_order", sortOrder))
 }
 
-var _ = time.Now
-
+// Delete 删除文件夹；0 行 ⇒ 该文件夹不存在（`db.EnsureAffected`）。
 func (r *QuickReplyFolderRepository) Delete(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).Delete(&model.QuickReplyFolder{}, id).Error
+	return _db.EnsureAffected(r.db.WithContext(ctx).Delete(&model.QuickReplyFolder{}, id))
 }

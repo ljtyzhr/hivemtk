@@ -25,14 +25,17 @@ func (r *QuickReplyRepository) Create(ctx context.Context, reply *model.QuickRep
 	return r.db.WithContext(ctx).Create(reply).Error
 }
 
-// Update 更新快捷回复
+// Update 整行回写一条快捷回复。
+//
+// 走 `db.SaveWholeRow`：裸 Save 命中 0 行时会回退成 upsert，等于把已被删掉的那条
+// 复活成一条新行（还带着旧 id），接口却回 200。
 func (r *QuickReplyRepository) Update(ctx context.Context, reply *model.QuickReply) error {
-	return r.db.WithContext(ctx).Save(reply).Error
+	return _db.SaveWholeRow(r.db.WithContext(ctx), reply)
 }
 
-// Delete 删除快捷回复
+// Delete 删除快捷回复；0 行 ⇒ 该条不存在（`db.EnsureAffected`），不是"删成功"。
 func (r *QuickReplyRepository) Delete(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).Delete(&model.QuickReply{}, id).Error
+	return _db.EnsureAffected(r.db.WithContext(ctx).Delete(&model.QuickReply{}, id))
 }
 
 // GetByID 根据ID获取快捷回复

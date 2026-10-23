@@ -133,52 +133,6 @@ func TestOrderRepository_GetOrderList_Empty(t *testing.T) {
 	}
 }
 
-func TestOrderRepository_GetGetLastOrder(t *testing.T) {
-	setupOrderTestDB(t)
-	ctx := context.Background()
-
-	repo := NewOrderRepository()
-
-	order1 := &model.Order{
-		Status:    _type.OrderStatusPending,
-		Price:     "99.00",
-		TgID:      12345,
-		AccountID: "account123",
-	}
-	repo.Create(ctx, order1)
-
-	order2 := &model.Order{
-		Status:    _type.OrderStatusSuccess,
-		Price:     "199.00",
-		TgID:      12346,
-		AccountID: "account123",
-	}
-	repo.Create(ctx, order2)
-
-	lastOrder, err := repo.GetGetLastOrder(context.Background(), "account123", 12345)
-	if err != nil {
-		t.Fatalf("GetGetLastOrder failed: %v", err)
-	}
-
-	if lastOrder.Price != "99.00" {
-		t.Errorf("Expected order price '99.00', got %s", lastOrder.Price)
-	}
-	if lastOrder.Status != _type.OrderStatusPending {
-		t.Errorf("Expected order status Pending, got %d", lastOrder.Status)
-	}
-}
-
-func TestOrderRepository_GetGetLastOrder_NotFound(t *testing.T) {
-	setupOrderTestDB(t)
-
-	repo := NewOrderRepository()
-
-	_, err := repo.GetGetLastOrder(context.Background(), "nonexistent", 99999)
-	if err == nil {
-		t.Error("Expected error for non-existent order")
-	}
-}
-
 func TestOrderRepository_UpdateOrderStatusById(t *testing.T) {
 	setupOrderTestDB(t)
 	ctx := context.Background()
@@ -198,7 +152,10 @@ func TestOrderRepository_UpdateOrderStatusById(t *testing.T) {
 		t.Fatalf("UpdateOrderStatusById failed: %v", err)
 	}
 
-	updatedOrder, _ := repo.GetGetLastOrder(context.Background(), "account123", 12345)
+	updatedOrder, err := repo.GetByStringID(context.Background(), order.ID)
+	if err != nil {
+		t.Fatalf("GetByStringID 回读失败: %v", err)
+	}
 	if updatedOrder.Status != _type.OrderStatusSuccess {
 		t.Errorf("Expected status Success, got %d", updatedOrder.Status)
 	}
@@ -331,31 +288,5 @@ func TestOrderRepository_Create_LargeBatch(t *testing.T) {
 
 	if total != 100 {
 		t.Errorf("Expected total 100, got %d", total)
-	}
-}
-
-func TestOrderRepository_GetGetLastOrder_MultipleUsers(t *testing.T) {
-	setupOrderTestDB(t)
-	ctx := context.Background()
-
-	repo := NewOrderRepository()
-
-	for i := 0; i < 3; i++ {
-		order := &model.Order{
-			Status:    _type.OrderStatusPending,
-			Price:     "99.00",
-			TgID:      int64(10000 + i),
-			AccountID: "account" + string(rune('0'+i)),
-		}
-		repo.Create(ctx, order)
-	}
-
-	lastOrder, err := repo.GetGetLastOrder(context.Background(), "account0", 10000)
-	if err != nil {
-		t.Fatalf("GetGetLastOrder failed: %v", err)
-	}
-
-	if lastOrder.AccountID != "account0" {
-		t.Errorf("Expected account 'account0', got %s", lastOrder.AccountID)
 	}
 }

@@ -169,6 +169,12 @@ func (s *PasswordResetService) ResetPassword(ctx context.Context, req *ResetPass
 		return errors.New("password reset service not initialized")
 	}
 	if err := s.tokenRepo.RunResetTransaction(ctx, token.ID, token.UserID, hashedPassword); err != nil {
+		// 事务里任何一步命中 0 行（令牌已被并发用掉、用户行已不在）都会回滚。
+		// 令牌那条尤其要翻译清楚：重放同一枚链接应当得到"令牌无效或已使用"，
+		// 而不是把 GORM 的 "record not found" 原样吐给前端。
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return ErrInvalidResetToken
+		}
 		return err
 	}
 	// 邮件重置成功＝账号可能已泄露，旧会话一律吊销（含攻击者手上那把令牌）

@@ -5,6 +5,7 @@ import (
 	"errors"
 	"hivemtk-user/internal/aiagent/knowledge/model"
 	sysmodel "hivemtk-user/internal/model"
+	_db "hivemtk-user/internal/pkg/db"
 	"time"
 
 	"github.com/google/uuid"
@@ -94,7 +95,9 @@ func (r *RagConfigRepository) UpsertAccountConfig(ctx context.Context, config *s
 	// ⇒ 这一行的租户被改写成 0，多租户模式下被 tenant 回调 fail-closed 拒掉
 	//（"[tenant] 更新不可改写 tenant_id"），接口 500；独立部署没这层校验 ⇒ 200。
 	config.TenantID = existingConfig.TenantID
-	return r.db.WithContext(ctx).Save(config).Error
+	// 整行回写走统一助手（`db.SaveWholeRow`）：裸 Save 命中 0 行会回退成
+	// `INSERT ... ON CONFLICT (id) DO UPDATE`，等于把"两句之间被删掉的那行"复活。
+	return _db.SaveWholeRow(r.db.WithContext(ctx), config)
 }
 
 func (r *RagConfigRepository) ListRagProducts(ctx context.Context) ([]*model.RagProduct, error) {
