@@ -23,7 +23,7 @@ var tenantExemptTables = map[string]bool{
 	"config_param_audit_logs": true, // 平台侧参数审计
 	"platform_config_kv":      true, // 平台接入令牌/策略（实例唯一，租户不可见）
 	"cron_job_leases":         true, // 进程协调租约：key 是任务名、天然全局（扇出留在租约之内逐租户跑）
-	"bridge_metrics":         true, // 运维指标时间序列（metric_name/labels/ts），无租户维度；按租户切分只会把同一张看板拆成 N 份
+	"bridge_metrics":          true, // 运维指标时间序列（metric_name/labels/ts），无租户维度；按租户切分只会把同一张看板拆成 N 份
 	"dictionaries":            true, // 全局只读共享
 	"dictionary_transitions":  true, // 全局只读共享
 	"backups":                 true, // 系统操作

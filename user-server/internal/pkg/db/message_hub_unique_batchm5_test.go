@@ -53,7 +53,7 @@ import (
 // 否则"运维从启动日志里看得见什么"这条判据就是空的。
 const (
 	// D-2（2026-10-23）：键升级为 (platform, msg_id, conversation_id, direction)——跨方向
-// 同文本可共存（d2_msg_id_cross_direction_test.go 实测 23505 证实冲突）。本腿断言同步升级。
+	// 同文本可共存（d2_msg_id_cross_direction_test.go 实测 23505 证实冲突）。本腿断言同步升级。
 	// 逐字镜像 migrate.go 里那句 Info：租户前缀进索引后库里真实形状就是五列，
 	// 日志跟着改成五列，否则"钩子跑到了 ready 分支"这条证据会静默失联。
 	batchM5LogHubReady   = "post-migrate: message_hub (tenant_id, platform, msg_id, conversation_id, direction) 唯一索引已就绪（D-2 方案③：跨方向同文本可共存）"

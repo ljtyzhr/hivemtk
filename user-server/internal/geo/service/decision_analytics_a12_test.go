@@ -19,7 +19,7 @@ func TestBuildContentFormatAttribution(t *testing.T) {
 		mk("对比", "absent", ""),
 		mk("对比", "first", "https://b.com"),
 		mk("疑问", "absent", ""),
-		mk("疑问", "", ""), // 空 BrandPosition 不算提及（unknown ≠ absent 之外都没证据）
+		mk("疑问", "", ""),     // 空 BrandPosition 不算提及（unknown ≠ absent 之外都没证据）
 		mk("", "absent", ""), // 空意图 → 未分类
 	}
 	rep := BuildContentFormatAttribution(30, chains)

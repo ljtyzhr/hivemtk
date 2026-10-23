@@ -34,9 +34,9 @@ func (r *geoCitationSnapshotRepo) Upsert(ctx context.Context, snap *model.GeoCit
 		Clauses(clause.OnConflict{
 			Columns: []clause.Column{{Name: "tenant_id"}, {Name: "snapshot_date"}},
 			DoUpdates: clause.Assignments(map[string]any{
-				"url_counts":       snap.URLCounts,
-				"total_citations":  snap.TotalCitations,
-				"distinct_urls":    snap.DistinctURLs,
+				"url_counts":      snap.URLCounts,
+				"total_citations": snap.TotalCitations,
+				"distinct_urls":   snap.DistinctURLs,
 			}),
 		}).
 		Create(snap).Error

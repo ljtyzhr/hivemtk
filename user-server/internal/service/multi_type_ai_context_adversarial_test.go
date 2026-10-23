@@ -53,9 +53,9 @@ func TestRecheck_MediaMessageCarriesURL(t *testing.T) {
 		MsgID: "in-media-1", Platform: "douyin", AccountID: "acc1",
 		Direction: "inbound", MsgType: "image", SenderID: "cust1",
 		SenderName: "客户A", Content: "[图片]",
-		MediaURL:        "https://cdn.example.com/recheck.png",
-		ConversationID:  "conv-recheck-media",
-		SentAt:          now.Add(-1 * time.Second),
+		MediaURL:       "https://cdn.example.com/recheck.png",
+		ConversationID: "conv-recheck-media",
+		SentAt:         now.Add(-1 * time.Second),
 	})
 
 	mc := cache.NewMemoryCache()

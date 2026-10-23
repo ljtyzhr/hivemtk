@@ -178,19 +178,19 @@ func safeDivF(a, b int64) float64 {
 
 // ContentFormatAttributionRow 单内容类型（意图）的归因行。
 type ContentFormatAttributionRow struct {
-	Intent        string  `json:"intent"`          // 意图（疑问/对比/推荐/教程/评测/信息/未分类）
-	ContentFormat string  `json:"content_format"`  // 意图矩阵的内容格式（未分类意图为空）
-	Queries       int64   `json:"queries"`         // 该意图下的查询数（样本量）
-	Mentions      int64   `json:"mentions"`        // 品牌被提及的查询数
-	MentionRate   float64 `json:"mention_rate"`    // mentions/queries（0~1）
-	CitedQueries  int64   `json:"cited_queries"`   // 带引用的查询数
-	CitationRate  float64 `json:"citation_rate"`   // cited/queries（0~1）
+	Intent        string  `json:"intent"`         // 意图（疑问/对比/推荐/教程/评测/信息/未分类）
+	ContentFormat string  `json:"content_format"` // 意图矩阵的内容格式（未分类意图为空）
+	Queries       int64   `json:"queries"`        // 该意图下的查询数（样本量）
+	Mentions      int64   `json:"mentions"`       // 品牌被提及的查询数
+	MentionRate   float64 `json:"mention_rate"`   // mentions/queries（0~1）
+	CitedQueries  int64   `json:"cited_queries"`  // 带引用的查询数
+	CitationRate  float64 `json:"citation_rate"`  // cited/queries（0~1）
 }
 
 // ContentFormatAttributionReport A12 报告。
 type ContentFormatAttributionReport struct {
-	Days int                            `json:"days"`
-	Rows []ContentFormatAttributionRow  `json:"rows"`
+	Days int                           `json:"days"`
+	Rows []ContentFormatAttributionRow `json:"rows"`
 }
 
 // GetContentFormatAttribution 近 N 天按内容类型（意图）分组的提及率/引用率。

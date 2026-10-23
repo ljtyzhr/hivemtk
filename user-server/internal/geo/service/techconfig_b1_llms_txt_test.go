@@ -5,9 +5,9 @@ import (
 	"strings"
 	"testing"
 
-	"hivemtk-user/internal/geo/model"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"hivemtk-user/internal/geo/model"
 )
 
 // fakeKBDocs 是 B1 验收用的 KB 文档源替身。

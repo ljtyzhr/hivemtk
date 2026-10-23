@@ -8,7 +8,6 @@ import (
 
 	"hivemtk-user/internal/geo/model"
 	"hivemtk-user/internal/geo/repository"
-
 	// OPT-SEC-06（2026-10-24）：10w+ chunks RAG 压测 harness（规划 §4.3）。
 	//
 	// 判据（规划口径）：固定 query 集、p50/p95/p99、错误率。本机没有生产分布，

@@ -48,9 +48,9 @@ type CitationDomainResult struct {
 
 	// A9（2026-10-24）引用域名覆盖率：自有域引用 / 总引用。
 	// OwnCitations=0 且 Total>0 ⇒ 覆盖率 0%，GEO 的"让 AI 引用你"目标还没兑现第一条。
-	OwnCitations int             `json:"own_citations"`
-	OwnCoverage  float64         `json:"own_coverage"` // 0~1，Total=0 时恒 0
-	TopExternal  []CitationLink  `json:"top_external"` // Top 外链（非自有域），按引用次数降序
+	OwnCitations int            `json:"own_citations"`
+	OwnCoverage  float64        `json:"own_coverage"` // 0~1，Total=0 时恒 0
+	TopExternal  []CitationLink `json:"top_external"` // Top 外链（非自有域），按引用次数降序
 }
 
 // CitationLink 单条外链（A9：Top 外链明细，域名级聚合太粗，运营要看具体 URL）。

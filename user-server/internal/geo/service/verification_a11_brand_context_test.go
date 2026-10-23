@@ -31,7 +31,7 @@ func TestNormalizeBrandContext(t *testing.T) {
 		{"价格对比", "价格对比"},
 		{"price_comparison", "价格对比"}, // 英文枚举归并为中文展示键
 		{"  Feature_Intro ", "功能介绍"}, // 大小写与空白
-		{"", ""},                        // 空 ⇒ 空（不造语义）
+		{"", ""},                     // 空 ⇒ 空（不造语义）
 		{"行业排名 vs 竞品", "行业排名 vs 竞品"}, // 未知短语原样保留——不静默归并掉语义
 	}
 	for _, c := range cases {

@@ -15,8 +15,8 @@ func TestAggregateRunCitationCounts(t *testing.T) {
 	runs := []*model.GeoProbeRun{
 		{Citations: []byte(`[{"url":"https://a.com/x"},{"url":"https://b.com/y"}]`)},
 		{Citations: []byte(`[{"url":"https://a.com/x"}]`)},
-		{Citations: []byte(`bad json`)},          // 坏行跳过不炸
-		{Citations: nil},                          // 空行跳过
+		{Citations: []byte(`bad json`)}, // 坏行跳过不炸
+		{Citations: nil},                // 空行跳过
 	}
 	counts := AggregateRunCitationCounts(runs)
 	assert.Equal(t, map[string]int{"https://a.com/x": 2, "https://b.com/y": 1}, counts)
@@ -50,15 +50,15 @@ func TestBuildDrift_AddRemoveChange(t *testing.T) {
 
 func TestBuildDrift_RemovedAndRank(t *testing.T) {
 	from := map[string]int{
-		"https://a.com/1": 9, // 排名1
-		"https://b.com/2": 5, // 排名2
-		"https://c.com/3": 1, // 排名3
+		"https://a.com/1":  9, // 排名1
+		"https://b.com/2":  5, // 排名2
+		"https://c.com/3":  1, // 排名3
 		"https://gone.com": 4,
 	}
 	to := map[string]int{
-		"https://a.com/1": 2, // 9→2：计数变 + 排名 1→3
-		"https://b.com/2": 5, // 不变
-		"https://c.com/3": 8, // 1→8：计数变 + 排名 3→1
+		"https://a.com/1":   2, // 9→2：计数变 + 排名 1→3
+		"https://b.com/2":   5, // 不变
+		"https://c.com/3":   8, // 1→8：计数变 + 排名 3→1
 		"https://new.com/4": 6,
 	}
 	res := buildDrift("d1", "d2", from, to)

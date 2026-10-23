@@ -26,19 +26,19 @@ const BatchGenerateMaxKeywords = 20
 
 // BatchGenerateItem 单条生成结果（成功带 article，失败带 error——逐条容错）。
 type BatchGenerateItem struct {
-	Keyword string           `json:"keyword"`
-	OK      bool             `json:"ok"`
+	Keyword string            `json:"keyword"`
+	OK      bool              `json:"ok"`
 	Article *model.GeoArticle `json:"article,omitempty"`
-	Error   string           `json:"error,omitempty"`
+	Error   string            `json:"error,omitempty"`
 }
 
 // BatchGenerateResult 批量生成汇总。
 type BatchGenerateResult struct {
-	Total      int                 `json:"total"`       // 请求的关键词数
-	Succeeded  int                 `json:"succeeded"`   // 成功数
-	Failed     int                 `json:"failed"`      // 失败数
-	Items      []BatchGenerateItem `json:"items"`       // 逐条结果（前端进度/下钻渲染）
-	TruncatedTo int                `json:"truncated_to"` // 超上限被截断到的数量；0=未截断
+	Total       int                 `json:"total"`        // 请求的关键词数
+	Succeeded   int                 `json:"succeeded"`    // 成功数
+	Failed      int                 `json:"failed"`       // 失败数
+	Items       []BatchGenerateItem `json:"items"`        // 逐条结果（前端进度/下钻渲染）
+	TruncatedTo int                 `json:"truncated_to"` // 超上限被截断到的数量；0=未截断
 }
 
 // GenerateContentBatch 批量生成：对每个关键词跑与单条**同一**的 GenerateContent。

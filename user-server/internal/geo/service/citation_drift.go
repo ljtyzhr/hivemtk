@@ -82,11 +82,11 @@ func AggregateRunCitationCounts(runs []*model.GeoProbeRun) map[string]int {
 
 // CitationDriftResult 两次快照之间的漂移
 type CitationDriftResult struct {
-	FromDate string           `json:"from_date"`
-	ToDate   string           `json:"to_date"`
-	Added    []CitationDrift  `json:"added"`    // 新增引用（from 无 → to 有）
-	Removed  []CitationDrift  `json:"removed"`  // 消失引用（from 有 → to 无）
-	Changed  []CitationChange `json:"changed"`  // 计数变化（两侧都有）
+	FromDate  string             `json:"from_date"`
+	ToDate    string             `json:"to_date"`
+	Added     []CitationDrift    `json:"added"`      // 新增引用（from 无 → to 有）
+	Removed   []CitationDrift    `json:"removed"`    // 消失引用（from 有 → to 无）
+	Changed   []CitationChange   `json:"changed"`    // 计数变化（两侧都有）
 	RankMoves []CitationRankMove `json:"rank_moves"` // 排名变化（两侧都在且计数>0）
 }
 
@@ -99,19 +99,19 @@ type CitationDrift struct {
 
 // CitationChange 计数变化
 type CitationChange struct {
-	URL     string `json:"url"`
-	Domain  string `json:"domain"`
-	From    int    `json:"from"`
-	To      int    `json:"to"`
-	Delta   int    `json:"delta"`
+	URL    string `json:"url"`
+	Domain string `json:"domain"`
+	From   int    `json:"from"`
+	To     int    `json:"to"`
+	Delta  int    `json:"delta"`
 }
 
 // CitationRankMove 排名变化（按引用次数排名；1 = 最热）
 type CitationRankMove struct {
-	URL        string `json:"url"`
-	Domain     string `json:"domain"`
-	FromRank   int    `json:"from_rank"`
-	ToRank     int    `json:"to_rank"`
+	URL      string `json:"url"`
+	Domain   string `json:"domain"`
+	FromRank int    `json:"from_rank"`
+	ToRank   int    `json:"to_rank"`
 }
 
 // GetDriftBetween diff [fromDate, toDate] 两次快照。from 为空 ⇒ 取 to 之前最近的一次快照。

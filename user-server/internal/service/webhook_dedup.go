@@ -162,6 +162,9 @@ func mediaContextTag(msgType string) string {
 // 非文本入站消息的 content 常是占位符（「[图片]」），AI/坐席只知道「有图」却不知道图在哪。
 // 本函数在 content 后追加 `[<类型词>] <media_url>`，签名与文本链路零破坏：
 //   - msgType 为空/text，或 mediaURL 为空：原样返回（文本消息逐字节不变）；
+//   - content 已含该 URL（双重拼接防御）：原样返回——上游渠道把 URL 写进正文的
+//     形态（如某些 webhook 把 caption 与链接合并下发）不能再追加一份，否则
+//     AI 上下文出现重复 URL，多轮后逐轮膨胀；
 //   - content 非空：content + "\n" + 类型词 + " " + URL（换行保证「正文+附件」可解析）；
 //   - content 为空：不带前导换行（纯媒体无正文的直连渠道会走到这里）。
 //
@@ -174,6 +177,10 @@ func AppendMediaContextToContent(content, msgType, mediaURL string) string {
 	}
 	u := strings.TrimSpace(mediaURL)
 	if u == "" {
+		return content
+	}
+	// 幂等防御：正文里已带同一 URL 时不再追加（防双重拼接，对抗性复核 2026-10-24）。
+	if u != "" && strings.Contains(content, u) {
 		return content
 	}
 	tag := mediaContextTag(t) + " " + u

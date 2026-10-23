@@ -21,9 +21,9 @@ import (
 // 基线值直接写死在本文件：改基线要改测试（显式棘轮动作，不是顺手改脚本）。
 
 const (
-	gormGuardMaxHits   = 169 // 规划基线 180，R25 现树实测 169 —— 只许降
-	gormGuardMaxFiles  = 107
-	gormGuardScope     = "internal/service/" // 含 internal/geo/service 等子包
+	gormGuardMaxHits  = 169 // 规划基线 180，R25 现树实测 169 —— 只许降
+	gormGuardMaxFiles = 107
+	gormGuardScope    = "internal/service/" // 含 internal/geo/service 等子包
 )
 
 func TestArchServiceNoNewGormDB(t *testing.T) {

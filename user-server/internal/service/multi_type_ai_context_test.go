@@ -110,4 +110,12 @@ func TestAppendMediaContextToContent(t *testing.T) {
 	if got := AppendMediaContextToContent("[图片]", "image", "   "); got != "[图片]" {
 		t.Errorf("纯空白 URL 应视为空: %q", got)
 	}
+	// 幂等防御（对抗性复核 2026-10-24）：正文已含同一 URL 时不再追加，防双重拼接。
+	if got := AppendMediaContextToContent("看这张 [图片] https://f/a.png", "image", "https://f/a.png"); got != "看这张 [图片] https://f/a.png" {
+		t.Errorf("正文已含 URL 不得重复追加: %q", got)
+	}
+	// 不同 URL 仍正常追加（不是「有 URL 就不拼」的粗判）
+	if got := AppendMediaContextToContent("看这张 https://f/old.png", "image", "https://f/new.png"); got != "看这张 https://f/old.png\n[图片] https://f/new.png" {
+		t.Errorf("不同 URL 必须正常追加: %q", got)
+	}
 }

@@ -316,7 +316,7 @@ func quoteIdent(s string) string {
 }
 
 // sortedFileURLTargets 供用例断言清单本身（顺序稳定，便于对比）。
-func sortedFileURLTargets(targets []fileURLTarget) []string {
+func sortedFileURLTargets(targets []fileURLTarget) []string { //nolint:unused //// 仅被 *_test.go 引用，生产路径未用
 	out := make([]string, 0, len(targets))
 	for _, t := range targets {
 		out = append(out, t.table+"."+t.column)

@@ -40,11 +40,18 @@
    - 桥端四渠道解析器原样上报 `msg_type='voice'`（douyin/tiktok/xhs/xianyu），`triggerAIForEvent` 用未归一的 `event.MsgType`，Go 词表缺 voice 键 ⇒ AI 上下文出 `[voice]` 而非 `[语音]`。修：`mediaContextTags` 补 `"voice": "[语音]"`（audio/voice 同词，主/补触发口径不因归一时点分叉）；
    - `RecheckUnrepliedAndTrigger` 重建 ev 漏带 `MediaURL` ⇒ 补触发路径媒体消息丢 URL（FR5.3 口径分叉）。修：ev 构造补 `MediaURL: last.MediaURL`；
    - `AppendMediaContextToContent("", "image", url)` 产出前导 `\n`。修：空正文时直接返回 `[类型词] URL` 不带换行。
+8. **对抗性复核第二轮（2026-10-24）**：换攻击面专盯本会话改动本身，6 个怀疑点逐一裁决，发现 1 处防御缺口并加固：
+   - **emoji 类型全链路安全（论证）**：douyin 解析器可产出 `msg_type='emoji'`，但该分支要求 `!text` 且不赋 mediaUrl ⇒ 无 text 无 URL ⇒ `_isUplodableMedia` 判 false 永不上行；即便上行，Go 别名表 `InboundHubMsgType` 已有 emoji→image，`mediaPlaceholder` 缺键场景（无文字 emoji）因不上行而不暴露。无需修；
+   - **直连渠道 content 无 URL 混入**：TG 入站 content = caption + 纯占位符（`[图片]` 等，无 URL），QQ/WA 同口径 ⇒ 无双重拼接；
+   - **TriggerInboundAI 漏斗（webhook_ai.go L395）**：自建 hubMsg 无 MsgType/MediaURL，但 `TriggerInboundMeta` 结构上无媒体字段、调用方只有 content 字符串 ⇒ 该漏斗无媒体可丢，非缺口；
+   - **`AppendMediaContextToContent` 幂等防御（本轮修复）**：若上游渠道把 URL 写进正文（如某些 webhook 把 caption 与链接合并下发），原实现会二次追加同一 URL，多轮后逐轮膨胀。修：content 已含同一 URL 时原样返回（不同 URL 仍正常追加），2 用例钉死在 `multi_type_ai_context_test.go`；
+   - **i18n 门假阴性实验**：字面量∩词条库求交的新口径只救活 6 个键，全部是本任务 `MSG_TYPE_LABELS` 的真实消费键（图片/视频/语音/文件/链接/卡片/位置中 6 个），无「碰巧同名的普通字符串」被误救 ⇒ 无假阴性；
+   - **9 语言包一致性**：ar/de/en/es/fr/ja/pt/ru/zh 键集全一致（各 1652 键）、本任务 7 词条全在、ar/ja 重写句无 FFFD 残留。
 
 ## 测试证据
 
 - `user-server/internal/service/multi_type_hash_test.go` — Typed 哈希三口径（旧口径逐字节一致/同占位符不同 URL 不碰撞/同图重发稳定）
-- `user-server/internal/service/multi_type_ai_context_test.go` — FR5.3：图片入站 AI content 含 `\n[图片] url`；文本逐字节不变；无 URL 非文本不动；词表/大小写/空白容错 10 例
+- `user-server/internal/service/multi_type_ai_context_test.go` — FR5.3：图片入站 AI content 含 `\n[图片] url`；文本逐字节不变；无 URL 非文本不动；词表/大小写/空白容错 10 例；幂等防御（同 URL 不重拼、不同 URL 正常追加）2 例
 - `user-server/internal/service/multi_type_ai_context_adversarial_test.go` — 对抗性复核：voice 别名未归一出 `[语音]`；空正文无前导换行；Recheck 补触发携带 media_url；voice 全链路入站→AI 触发标签正确
 - `user-server/internal/bridge/sse_media_url_test.go` — SSE Data 键集与 outbox JSON 逐键一致（含 media_url）
 - `user-web/bridge/test/multi-type-messages.test.js` — 13 用例：上行五处过滤放开、占位符、typed 去重、下行分派/降级/自报
