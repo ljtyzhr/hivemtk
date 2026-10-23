@@ -11,7 +11,7 @@
 #
 # 用法:  bash scripts/check-cross-repo-drift.sh
 # 退出码: 0 = 无 FAIL（可有 WARN）；1 = 存在 FAIL
-# 调用点: scripts/deploy-user.sh 在 PLATFORM_ENABLED=true 时于发布开头调用，FAIL 即 die。
+# 调用点: 手工发布流程在 PLATFORM_ENABLED=true 时于发布开头调用，FAIL 即停。
 # =============================================================================
 set -euo pipefail
 

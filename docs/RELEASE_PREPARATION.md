@@ -12,7 +12,8 @@
 - **两个独立 git 仓**：
   - 用户端：`…/go/hivemtk/hivemtk`（本文以 `R/` 代指）——user-server + user-web + embed-sdk + 数据层 compose；
   - 平台端：`…/go/hivemtk/hivemtk-platform`（本文以 `P/` 代指）——platform-server + platform-web + platform-contributor + 平台 PG compose。
-- **旧云端已退役**（118.25.236.101 / xapptool.cn 全部下线），`scripts/deploy-user.sh` **无默认远端**，`DEPLOY_HOST` 必须显式指定；官网唯一发布面是 GitHub Pages。
+- **发布一律手工，仓库内无发布脚本**（2026-10-23：`scripts/deploy-user.sh` / `scripts/post_deploy_check.sh` 已删除）：本地构建 → 上传到线上服务器指定目录 → 重启服务。官网发布步骤见 `website/README.md`「发布」章节；后端发布见本文 §发布流程。
+- **线上主机**：`101.35.252.112:57122`（`~/.ssh/config` 别名 `mtk-prod`），站点/服务根 `/www/wwwroot/hivemtk/{website,user-web,user-server,platform-web,platform-contributor,platform-server}`；HTTPS 证书在宝塔（`/www/server/panel/vhost/cert/xapptool.cn/`）；数据库是同机容器 `mtk-postgres`(127.0.0.1:8202) / `mtk-redis`(127.0.0.1:8203)，平台端 `mtk-platform-postgres`(8201)。
 - **仓内没有 systemd unit、没有生效的 nginx 配置、没有 CI 部署任务**——进程守护与反代由站点自建，仓内只有模板（`docs/operations/reverse-proxy/*.template`）。
 - 平台端对用户端是**可选接入**：`PLATFORM_ENABLED=true` 才启用，默认关。
 
@@ -37,7 +38,7 @@
 
 ### 1.2 加载顺序（优先级）
 
-1. **`.env` 注入**：`cmd/api/main.go:111` `utils.LoadDotEnv(".env")` —— **路径相对进程 CWD**，不覆盖已有环境变量。即：在 `user-server/` 目录起进程时读到的是 `user-server/.env`；**根 `.env` 必须由启动 shell 注入**（`scripts/deploy-user.sh:213` 的做法：`set -a && source .env && set +a` 后再启动）。
+1. **`.env` 注入**：`cmd/api/main.go:111` `utils.LoadDotEnv(".env")` —— **路径相对进程 CWD**，不覆盖已有环境变量。即：在 `user-server/` 目录起进程时读到的是 `user-server/.env`；**根 `.env` 必须由启动 shell 注入**（`set -a && source .env && set +a` 后再启动，原 `deploy-user.sh` 的手工等价做法）。
 2. **JWT 密钥**：`internal/pkg/utils/jwt.go` `loadJWTSecret()` → `USER_JWT_SECRET` > `JWT_SECRET`，缺失或 <32 字符直接 **panic**。⚠️ `config.yaml:43 security.jwt_secret` **没有任何 Go 代码读取**（已核实），配了也不生效；JWT 有效期硬编码 24h，`JWT_EXPIRE` **无读取点**（R0 批次已从 `.env` / `.env-example` 删除，代码无任何变化）。
 3. **`config.yaml` 查找**：`internal/config/server.go` `loadAppConfigOnce()` 顺序 `config.yaml` → `../config.yaml` → `user-server/config.yaml` → `<exeDir>/config.yaml` → `<exeDir>/../config.yaml`；全失败回落 Docker 网络默认（`postgres-user:8202`）。
 4. **占位符插值**：`${VAR:default}` 语法；**总优先级：环境变量 > config.yaml > 代码默认值**（例外：`PUBLIC_BASE_URL` env > yaml > `X-Forwarded-*` > Host；proxy：yaml > `HTTP(S)_PROXY` env > 直连）。
@@ -72,7 +73,7 @@
 |---|---|---|
 | 扩展与核心表 | **手动 SQL，仅首次**：`migrations/init-user-db.sql`（vector/uuid-ossp、knowledge_embeddings 1024 维等） | docker 挂载 `docker-entrypoint-initdb.d/01-init.sql` 或 `psql -f` |
 | 业务表 | **每次启动 GORM AutoMigrate**（`allModels()`）；存量表加列走版本化迁移 | `internal/pkg/db/migrate.go` |
-| 编号 SQL `002~058`（55 个） | **Go 不会自动执行**，仅供精确复现历史结构手工按序跑 | `migrations/`（`check-deploy-claims.py` 拦"自动执行"错误说法） |
+| 编号 SQL `002~058`（55 个） | **Go 不会自动执行**，仅供精确复现历史结构手工按序跑 | `migrations/` |
 | 启动期升级 | `ExecuteUpgrade("v1.0.0","v1.0.0")` **固定空跑** | `cmd/api/main.go:389-400` |
 | 参数中心 seed | 启动即 seed `config_params` + 分组元数据 + Wire 注入 | `main.go:151-260` |
 | 安装向导 | `GET /api/system/init-status`（公开）；`POST /api/system/init-admin` 等三条挂 `SetupOnlyGuard`（已初始化 → 403） | `internal/router/admin_routes.go:57-66`、`internal/middleware/init_guard.go` |
@@ -160,11 +161,11 @@
 
 | 产物 | 要点 |
 |---|---|
-| `R/Makefile`（634 行） | `install`（cp .env-example→.env + web/sdk build + 推理栈 + db-up）、`db-up/down/ps/logs`、**`db-backup`/`db-restore FILE=`**、`user-build`/`web-build`/`sdk-build`、`inference-host-*`、`audit`/`audit-artifacts`。⚠️ **`up/down/restart/logs/ps/build` 旧目标只有 `.PHONY 名、无规则`**，敲了"退出 0 但什么都不做"（`scripts/check-deploy-claims.py` 专门拦） |
+| `R/Makefile`（634 行） | `install`（cp .env-example→.env + web/sdk build + 推理栈 + db-up）、`db-up/down/ps/logs`、**`db-backup`/`db-restore FILE=`**、`user-build`/`web-build`/`sdk-build`、`inference-host-*`、`audit`/`audit-artifacts`。⚠️ **`up/down/restart/logs/ps/build` 旧目标只有 `.PHONY 名、无规则`**，敲了"退出 0 但什么都不做" |
 | `R/docker-compose.yml` | **仅数据层**：`mtk-postgres`（pgvector/pg15，127.0.0.1:8202，挂 `init-user-db.sql`，卷 `mtk_user_pg_data`）、`mtk-redis`（redis:7-alpine，8203，`--requirepass ${REDIS_PASSWORD:?}`）。密码缺失即拒启 |
-| `scripts/deploy-user.sh` | 主发布脚本：`--api-only`（本地 `CGO_ENABLED=0 go build` → pkill → `source .env` + nohup → 30s 内 `/api/health` 校验）/ `--web-only` / `--dry-run`；**远端必须显式 `DEPLOY_HOST`**，webroot 默认 `/www/wwwroot/hivemtk/user-web`；`deploy_reverse_proxy()` 函数体**暂缺** |
+| 用户端后端发布 | **手工三步**（脚本已删除）：`CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o user-server-bin ./cmd/api` → `rsync` 到 `mtk-prod:/www/wwwroot/hivemtk/user-server/` → 远端 `set -a && source .env && set +a` 后重启进程，30s 内 `curl 127.0.0.1:8204/api/health` 校验 |
 | `scripts/bootstrap.sh` | 首次初始化：等健康 → 跑 027/028 SQL → Go seed → Python 知识库种子 → 核对 `install.lock.initialized` → admin 登录冒烟 |
-| `scripts/post_deploy_check.sh` | 部署后一键验收（G0–G4 分组，5 步） |
+| 部署后验收 | **手工**（脚本已删除）：按 G0–G4 分组逐项 `curl` 健康端点 + `docker ps` 看容器 + 关键日志 `tail`，判据见 `docs/operations/KNOWLEDGE_GROUP_DEPLOY.md` §5 |
 | 密钥轮换 | `scripts/rotate-secrets.sh`（db_user/db_platform/merchant_hmac/jwt_user）、`rotate-admin-password.sh`、`scripts/ops/rotate-*.sh` |
 | 反代模板 | `docs/operations/reverse-proxy/nginx.conf.template`（`http2 off`、SSE `buffering off` 24h、WS Upgrade 透传）+ caddy/traefik/frpc 模板 |
 | K8s | `deploy/helm/hivemtk/` 骨架（**未经 staging 实测**，targetPort 8204，Secret 5 键） |
@@ -229,7 +230,7 @@
 ### 5.4 启动命令（env 注入是关键差异）
 
 ```bash
-# 用户端（deploy-user.sh 同款）：根 .env 由 shell 注入，进程 CWD=user-server
+# 用户端：根 .env 由 shell 注入，进程 CWD=user-server
 cd "$DEPLOY_DIR" && set -a && source .env && set +a && cd user-server && \
   nohup ../user-server/bin/user-server > logs/user-server.log 2>&1 &
 
@@ -244,7 +245,7 @@ cd "$REMOTE_DEPLOY_DIR" && set -a && source .env && set +a && cd platform-server
 
 - [ ] `curl 127.0.0.1:8204/api/health`、`/healthz`、`/readyz`（用户端）；`curl 127.0.0.1:8205/health`（平台端）
 - [ ] `curl 127.0.0.1:8204/api/system/init-status` → `initialized:true`
-- [ ] `bash scripts/post_deploy_check.sh`（用户端 G0–G4 验收）
+- [ ] 手工跑 G0–G4 验收（健康端点 + 容器 + 日志，判据见 `docs/operations/KNOWLEDGE_GROUP_DEPLOY.md` §5）
 - [ ] `bash scripts/check-admin-default-credential.sh`（超管默认口令检查）
 - [ ] `make db-backup` 出一份基线备份
 

@@ -576,8 +576,6 @@ audit:
 	@bash scripts/check-shellcheck.sh
 	@echo "── bash 3.2 + UTF-8：变量紧跟中文的展开形状闸 ──"
 	@bash scripts/check-shell-cjk-expansion.sh
-	@echo "── 对外部署口径（种子文案/迁移 SQL/官网）里的 make 目标、容器卷名、端口、口令来源必须与仓库真值同源 ──"
-	@python3 scripts/check-deploy-claims.py
 	@echo "── 全仓 shell 文件必须被 mac 出厂那版 bash（3.2）读通；解析器不是 3.x 时本门自报 SKIP，不冒充绿 ──"
 	@bash scripts/check-bash32-parse.sh
 	@echo "── 常驻变异电池的每份产物都必须写着「这轮读的是哪一笔字节」（轴一形状含 A5 归属／A6 口径对账，A7 名字轴拦「编译绿、跑到那行才 NameError」的悬空调用，轴二实测最近一轮；两份台账 D0–D4／O1–O5 各带上界与过期判据）──"

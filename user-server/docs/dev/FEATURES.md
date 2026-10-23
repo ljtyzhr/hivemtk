@@ -347,7 +347,7 @@
 
 > ℹ️ **Swagger 当前未注册**：`router.Setup()` 未挂载任何 `gin-swagger` 路由，故无 `/swagger/*` 端点。如需开启，请在 `router.go` 中自行添加 `gin-swagger` 中间件并生成 swagger doc。
 
-> 私域部署: 无 `/metrics` 外部监控端点。关键指标 (LLM 调用 / RAG 检索 / Fallback 触发) 落库 `layer_decision_logs` / `audit_logs`，通过 SQL + `scripts/post_deploy_check.sh` 巡检。
+> 私域部署: 无 `/metrics` 外部监控端点。关键指标 (LLM 调用 / RAG 检索 / Fallback 触发) 落库 `layer_decision_logs` / `audit_logs`，通过 SQL 手工巡检（`docs/operations/KNOWLEDGE_GROUP_DEPLOY.md` §7.1）。
 
 ---
 

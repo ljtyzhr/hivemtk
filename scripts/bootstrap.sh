@@ -63,7 +63,7 @@ USER_SERVER_DIR="$PROJECT_DIR/user-server"
 
 # 仓库根有 .env 就先加载（set -a 全量导出）：POSTGRES_PASSWORD / JWT 等键都从它来。
 # 历史上本脚本要求用户自己先 `set -a && . ./.env && set +a` 再跑，漏了这步必挂在下面的
-# POSTGRES_PASSWORD 预检；现在脚本自己兜住（与 deploy-user.sh 启动段同语义）。
+# POSTGRES_PASSWORD 预检；现在脚本自己兜住（与手工发布启动段同语义）。
 # 必须放在下面各 ${VAR:-默认} 赋值之前，.env 的值才能压过脚本默认值。
 if [ -f "$PROJECT_DIR/.env" ]; then
     set -a
@@ -72,7 +72,7 @@ if [ -f "$PROJECT_DIR/.env" ]; then
 fi
 
 USER_SERVER_PORT="${USER_SERVER_PORT:-8204}"
-# 端口链与 scripts/post_deploy_check.sh 同一条：先看 .env 的 USER_POSTGRES_HOST_PORT
+# 端口链与验收步骤（KNOWLEDGE_GROUP_DEPLOY §7.1）同一条：先看 .env 的 USER_POSTGRES_HOST_PORT
 # （compose 宿主映射端口，默认 8202），再退 DB_PORT，最后才落 8202。
 # 旧值写死 8232 是宿主机直连 Dev 档的覆盖值，会让默认 Docker 档的等待/校验连错端口。
 PG_PORT="${PG_PORT:-${USER_POSTGRES_HOST_PORT:-${DB_PORT:-8202}}}"
@@ -141,14 +141,14 @@ esac
 
 export PGHOST="$PG_HOST"
 export PGPORT="$PG_PORT"
-# 库名/用户与 .env 同源（不再写字面量；与 scripts/post_deploy_check.sh 同一口径）
+# 库名/用户与 .env 同源（不再写字面量；与验收步骤同一口径）
 export PGUSER="${POSTGRES_USER:-admin}"
 export PGPASSWORD="$POSTGRES_PASSWORD"
 export PGDATABASE="${USER_DB_NAME:-user_db}"
 
 # 1) 等待 user-server 健康
 # 判定不能只看 HTTP 200：/health 的降级分支仍是 200 但 body 带 "status":"degraded"（假绿）。
-# 口径与 scripts/deploy-user.sh probe_ok / post_deploy_check.sh 第 1 步一致：
+# 口径与验收步骤第 1 步一致：
 # 响应体含 "status":"ok" 且不含 degraded 才算就绪。
 log "等待 user-server 健康（http://127.0.0.1:${USER_SERVER_PORT}/health）..."
 for i in {1..60}; do

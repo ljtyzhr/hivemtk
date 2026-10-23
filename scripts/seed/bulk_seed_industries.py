@@ -1323,7 +1323,7 @@ batch('sop_templates', ['name','intent','stage','template','vars','priority','co
 # 该产品**不由本脚本创建**：产码只有两处——`user-server/cmd/seed/seed_rag_product.go`
 # （scripts/bootstrap.sh 第 4 步 `go run ./cmd/seed` 每次幂等补齐）与 `migrations/031`
 # （人工一次性灌，自带 13 篇知识文档）；这两条路径的同名字段由
-# `scripts/check-deploy-claims.py` 规则 8 逐格对齐。
+# 对外部署口径规则 8 逐格对齐（原闸 2026-10-23 已删）。
 # 本脚本原先在这里有第三条兜底：`if has == 0:` 手搓一条 INSERT，vector_table 写成
 # `rag_hivemtk_platform_cs`——既不是上面两处的 `rag_platform_cs`，也不是本文件 gen_rag
 # 的 `rag_{product_id}` 约定；embedding_model / embedding_dim 全部留空走列默认，

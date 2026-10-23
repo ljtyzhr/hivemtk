@@ -148,8 +148,9 @@ router.afterEach((to) => {
   const title = meta.title ? `${meta.title} | ${SITE}` : SITE
   const desc = meta.description || ''
   const keywords = meta.keywords || ''
-  // to.href 带 history base（'/hivemtk/…'），to.fullPath 不带——用 fullPath 拼 canonical
-  // 会让 Pages 子路径下的规范链接指向站点根的 404，等于把 SEO 信号发给一个不存在的 URL。
+  // canonical / og:url 用「当前 origin + 路由路径」现场拼：线上是站点根路径托管
+  // （base='/'），to.href 已带 history base，换成 to.fullPath 等价；写死域名反而会在
+  // 本地预览（127.0.0.1:8213）时把规范链接指到线上站。
   const url = window.location.origin + to.href
 
   document.title = title

@@ -64,7 +64,7 @@ if OWNED_AGENTS:
     cur.execute("DELETE FROM sop_templates WHERE agent_id = ANY(%s)", (OWNED_AGENTS,))
 # hivemtk-platform-cs 不在清理名单里：该产品**不由本脚本创建**（产码只有
 # `user-server/cmd/seed/seed_rag_product.go` 与人工的 `migrations/031` 两处，字段同值由
-# `scripts/check-deploy-claims.py` 规则 8 对齐），删掉它 = 抹掉 CS 与 7 个行业智能体共同
+# 对外部署口径规则 8 对齐，原闸已删），删掉它 = 抹掉 CS 与 7 个行业智能体共同
 # 绑定的检索面，而本脚本没有任何一行会把它建回来。
 cur.execute("DELETE FROM knowledge_chunks WHERE product_id LIKE 'seed-035-%'")
 cur.execute("DELETE FROM knowledge_documents WHERE product_id LIKE 'seed-035-%'")

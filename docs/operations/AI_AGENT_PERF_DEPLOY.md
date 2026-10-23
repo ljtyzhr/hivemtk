@@ -280,8 +280,7 @@ curl http://prod:8204/healthz | jq
 > （顺带一条会误导人的注释：`internal/app/agent_deep_audit_test.go:101` 写作
 > `agent_tool_audit_logs`，该表名在仓库里不存在，工具调用的真实落库表是 `tool_call_audits`。）
 > 巡检**没有**现成脚本：§6.1 的 SQL 手工执行。
-> `scripts/post_deploy_check.sh` 是**知识库分组 G0–G4 的部署后验收脚本**
-> （见其文件头与 `KNOWLEDGE_GROUP_DEPLOY.md`），查的是 `/health`、`knowledge_bases` 表与索引、
+> 知识库分组 G0–G4 的部署后验收步骤（`KNOWLEDGE_GROUP_DEPLOY.md` §7.1，脚本已于 2026-10-23 删除、改为手工逐项）查的是 `/health`、`knowledge_bases` 表与索引、
 > 登录与 KB 建删，**不含**本节的任何 AI 性能指标 —— 旧版本把它当成本特性的巡检入口，属误引。
 
 ```sql
@@ -619,8 +618,7 @@ ssh user-server "uptime"
 > 关键指标 (wall_ms / LCP / Layer1 命中率 / Fallback 触发率 / LLM 错误率)
 > 通过应用层日志 + 数据库审计表落库
 > （`layer_decision_logs` / `llm_routing_logs` / `rag_query_logs` / `web_vital_records`，见 §2.4 的落点分工）。
-> **本节 SQL 手工执行**（`psql` 连接参数见 §2.1 的导出块）：仓库里的
-> `scripts/post_deploy_check.sh` 是知识库分组 G0–G4 的部署后验收脚本，
+> **本节 SQL 手工执行**（`psql` 连接参数见 §2.1 的导出块）：知识库分组 G0–G4 的部署后验收
 > 与本节指标无关，旧版本把它当成本节巡检出口属误引。
 
 ### 6.1 巡检 SQL (建议每小时执行一次)
@@ -770,7 +768,7 @@ psql -c "SELECT count(*) FILTER (WHERE is_fallback) AS fallback_calls, count(*) 
 - [ ] 5 层架构 check 通过
 - [ ] 单元测试覆盖率 > 80%
 - [ ] FAQ 种子数据导入
-- [ ] 关键指标巡检 SQL 已就绪 (§6.1；本特性无专用巡检脚本，勿指向 `scripts/post_deploy_check.sh`)
+- [ ] 关键指标巡检 SQL 已就绪 (§6.1；本特性无专用巡检脚本，勿指向知识库分组的验收步骤)
 - [ ] FeatureFlag 默认值审计
 - [ ] 灰度比例设定
 - [ ] FeatureFlag 一键关闭命令就绪

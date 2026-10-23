@@ -22,7 +22,7 @@
 ### 平台与安全能力
 
 - **认证与权限**：JWT + MFA（双因素）、细粒度 RBAC、操作审计、敏感数据脱敏日志
-- **可观测性**：TraceID 全链路追踪 + 健康检查（`/health` `/healthz` `/readyz`）；私域无外部监控端点，关键指标落库 `layer_decision_logs` / `audit_logs`，巡检通过 SQL + `scripts/post_deploy_check.sh`
+- **可观测性**：TraceID 全链路追踪 + 健康检查（`/health` `/healthz` `/readyz`）；私域无外部监控端点，关键指标落库 `layer_decision_logs` / `audit_logs`，巡检通过 SQL 手工执行（`docs/operations/KNOWLEDGE_GROUP_DEPLOY.md` §7.1）
 - **限流与防滥用**：IP 限流、API Key 限流、登录暴力破解防御
 - **运营能力**：数据库备份 / 恢复、域名池健康巡检、活码轮询、活码统计
 

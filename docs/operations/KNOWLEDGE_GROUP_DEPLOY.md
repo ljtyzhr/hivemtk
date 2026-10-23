@@ -72,7 +72,7 @@ curl -sf http://127.0.0.1:8204/health
 > `50303` 库探测失败、`50304` redis、`50305` 无健康 LLM provider、`50306` embedding，
 > `health.go:162-180`）。
 > 还有第四条在 `/api` 下面：`GET /api/health`（`admin_routes.go:37` 的 public 组 →
-> `systemInfoCtrl.Health`，只回 `data.status = "ok"`、不探任何依赖），`scripts/deploy-user.sh:51` 的
+> `systemInfoCtrl.Health`，只回 `data.status = "ok"`、不探任何依赖），旧 `deploy-user.sh:51`（已删除）的
 > `HEALTH_URL` 用的就是它 ⇒ 看到"发布脚本的健康检查过了"不等于"依赖是好的"。
 > 本机今日实测四条全 200（`/health` 与 `/readyz` 回 `data.checks` / `data.status`，
 > `/api/health` 回 `{"code":0,"message":"ok","data":{"status":"ok"}}`，四条外层都是同一个信封，
@@ -340,26 +340,29 @@ services:
 > `TableName()`、`RolloutPercentage` 列，`internal/service/feature_flag.go` 校验 0–100），
 > 管理入口是 `/api/feature-flags`（`internal/router/business_routes.go:167-178`，另叠加 `AdminAuthMiddleware`）⇒ 见 §3.3。
 
-### 4.3 升级 / 回滚入口：`scripts/deploy-user.sh`
+### 4.3 升级 / 回滚入口：手工三步（无发布脚本）
 
-`docker pull hivemtk/user-server:v0.9.1` 这一条（旧版 §4.3 的第一步）在本仓是**双重不存在**：
-镜像名没有任何构建方（§4 头注：仓内无 Dockerfile），`v0.9.1` 这个 tag 也没有出处（§1.1 那条版本号说明）。
-今天真实存在的升级入口只有一个，就是宿主机形态的发布脚本：
+> **2026-10-23 起仓库内不再有发布脚本**（`scripts/deploy-user.sh`、`scripts/post_deploy_check.sh` 已删除）。
+> 发布一律手工：本地构建 → 上传到线上服务器指定目录 → 重启服务。
+> `docker pull hivemtk/user-server:v0.9.1` 这类写法在本仓是**双重不存在**：镜像名没有构建方，
+> `v0.9.1` 也没有出处（§1.1）。线上真实形态是服务器上的 `mtk-user-server` 容器，
+> 由 `/www/wwwroot/hivemtk/user-server/Dockerfile.user-server` 用同目录的二进制构建。
 
 ```bash
-# 只重构建并重启本地 API（不碰前端、不推远端）
-./scripts/deploy-user.sh --api-only
+# 1) 本地交叉编译（仓库根）
+cd user-server && CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o user-server ./cmd/api
 
-# 先看它将要执行什么，不真做
-./scripts/deploy-user.sh --api-only --dry-run
+# 2) 上传到线上服务器指定目录（该目录即镜像 build context，含 compose/.env/config.yaml）
+rsync -az user-server mtk-prod:/www/wwwroot/hivemtk/user-server/
+
+# 3) 远端重建镜像并重启容器
+ssh mtk-prod 'cd /www/wwwroot/hivemtk/user-server && docker compose up -d --build user-server'
+
+# 4) 等健康：/api/health 是不探依赖的探针，30s 内应 200
+ssh mtk-prod 'curl -fsS -m 5 http://127.0.0.1:8204/api/health'
 ```
 
-它做的事（`scripts/deploy-user.sh:195-235`，逐条对应）：
-`CGO_ENABLED=0 go build -o bin/user-server ./cmd/api` → `pkill -f` 三代可能残留的进程名 +
-`lsof -ti tcp:8204 | xargs kill` 兜底 → `set -a; source .env` 后 `nohup` 起新进程，
-日志重定向到 `user-server/logs/user-server.log` → 打 `$HEALTH_URL`（默认
-`http://127.0.0.1:8204/api/health`，见 §1.3 第四条探针）等健康；超时就 warn 并让你去看那个日志。
-`SKIP_HEALTHCHECK=1` 可跳过等待，`USER_SERVER_PORT` 可换口。
+回滚 = 把上一版二进制重新上传后重复第 2–4 步（服务器保留 `docker-compose.yml.bak-*` 等备份件）。
 
 > 健康检查用的是 `/api/health` 那条**不探依赖**的探针 ⇒ 它过了只说明进程起来了；
 > 要确认 DB/Redis 也活着，另打 `/health`（§1.3）。
@@ -416,7 +419,7 @@ chart 自身的状态与限制（**它是骨架、从没在真集群上跑过，
 
 今天的做法：
 
-1. 升级 / 回退二进制：`./scripts/deploy-user.sh --api-only`（过程与日志位置见 §4.3；
+1. 升级 / 回退二进制：手工三步（本地 build → rsync → 远端 `docker compose up -d --build user-server`，见 §4.3；
    回退就是切到上一个提交再走一遍这条命令）。
 2. 起服务后先 `curl -sf $BASE/health`（带依赖，见 §1.3），再跑 §7.1 的验收脚本。
 3. 数据侧要退：`POST /api/migration/rollback`（§2.3）。**先备份**（§1.2），
@@ -542,18 +545,14 @@ SELECT detail::jsonb->>'path' AS p, count(*) AS n
 
 ## 7. 部署后验收 (Post-Deploy Acceptance)
 
-### 7.1 自动化验收脚本
+### 7.1 验收步骤（手工逐项）
 
-脚本在仓内：`scripts/post_deploy_check.sh`（2026-09-22 本批随本文档一并落仓）。
-旧版这里写的是"把下面这一整块存成该路径再跑"——那等于让每个部署方手抄 90 行，
-而这几步的写法每一格都有一个"看着对、实际吞红"的形态（见下表最后一列），
-手抄时抄掉任一格，得到的就是一份会假绿的验收脚本。
+> **脚本已删除**（2026-10-23，`scripts/post_deploy_check.sh` 不再在仓内）——下面五项按表逐条手工执行，
+> 每格都写明判据与"看着对、实际吞红"的形态。**不要**把这几行拼成一段盲跑：
+> 拼错任一格得到的是一份会假绿的验收。
 
-在**仓库根目录**执行（`.env`、`user-server/` 这些相对路径按仓库根算）：
-
-```bash
-bash scripts/post_deploy_check.sh      # 退出码 0＝五项全过；不过的那格把红因印在屏幕上
-```
+在**仓库根目录**执行（`.env`、`user-server/` 这些相对路径按仓库根算）；下面统一用
+`BASE=${BASE:-http://127.0.0.1:8204}` 与 `ssh mtk-prod` 前缀代表远端执行。
 
 | 步 | 判据 | 这一格为什么长这样 |
 |----|------|--------------------|
@@ -704,7 +703,7 @@ ERROR: null value in column "enabled" of relation "knowledge_bases"
    空输出是"没有慢请求"，不是命令坏了。方法分布上 GET 与写方法都在（`GET /api/knowledge-bases/by-agent/31` 5 行），
    所以这条口子确实覆盖读侧——这是它与 §6.3 那条 SQL 的唯一分工差。
    > 窗口口径：这个文件**没有轮转机制**（`grep -rn lumberjack user-server/` = 0 命中，仓内也没有
-   > logrotate 配置），它是 `scripts/deploy-user.sh:213` 用 `> logs/user-server.log` 重定向起来的
+   > logrotate 配置），它是启动命令用 `> logs/user-server.log` 重定向起来的
    > ⇒ **每次重启清空一次**。本机今日这份的第一行时间是 `2026-09-19T04:45`（＝上一次重启），
    > 共 98,928 行。所以这里的 P99 是"自上次发布以来"的量，别拿它当长窗口基线；
    > 要长窗口得自己加 logrotate，或按 §1.2 的备份口径把文件抄出去再切窗口。
@@ -769,5 +768,5 @@ PUT 上还有一个**没有对称缺陷**但值得知道的形状：`UpdateKB` �
 ---
 
 **最后更新**: 2026-09-22（离线部署批：§1/§2/§4/§5/§6/§7 按本机实跑读数重写，
-§6/§9 里那两个不存在的指标名清除，验收脚本 `scripts/post_deploy_check.sh` 落仓）  
+§6/§9 里那两个不存在的指标名清除，验收步骤见 §7.1）  
 **作者**: HiveMTK SRE 团队
