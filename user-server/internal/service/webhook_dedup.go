@@ -134,13 +134,16 @@ func ContentHashMsgIDTyped(channel, conversationID, msgType, mediaURL, content s
 }
 
 // mediaContextTag 非文本消息的媒体上下文词，与直连渠道占位符词表（feishuInboundPlaceholders 等）
-// 及前端 types.js::mediaPlaceholder 同源同义：image→[图片]、audio→[语音]（voice 已被
-// InboundHubMsgType 归一为 audio，不会走到这里）。未知类型兜 `[<类型>]`，与
-// feishuInboundPlaceholder 的兜底口径一致。
+// 及前端 types.js::mediaPlaceholder 同源同义：image→[图片]、audio→[语音]。
+// voice 在桥端五渠道解析器里原样上报（douyin/tiktok/xhs/xianyu 的 msg_type='voice'），
+// 必须在此收录——triggerAIForEvent 拿到的是未归一的 event.MsgType，落库路径的
+// InboundHubMsgType 归一（voice→audio）救不了这条调用链。未知类型兜 `[<类型>]`，
+// 与 feishuInboundPlaceholder 的兜底口径一致。
 var mediaContextTags = map[string]string{
 	model.MsgTypeImage:    "[图片]",
 	model.MsgTypeVideo:    "[视频]",
 	model.MsgTypeAudio:    "[语音]",
+	"voice":               "[语音]",
 	model.MsgTypeFile:     "[文件]",
 	model.MsgTypeLink:     "[链接]",
 	model.MsgTypeCard:     "[卡片]",
@@ -157,9 +160,10 @@ func mediaContextTag(msgType string) string {
 // AppendMediaContextToContent 把媒体信息拼进 AI 触发的 content（FR5.3，002-multi-type-messages）。
 //
 // 非文本入站消息的 content 常是占位符（「[图片]」），AI/坐席只知道「有图」却不知道图在哪。
-// 本函数在 content 后追加 `\n[<类型词>] <media_url>`，签名与文本链路零破坏：
+// 本函数在 content 后追加 `[<类型词>] <media_url>`，签名与文本链路零破坏：
 //   - msgType 为空/text，或 mediaURL 为空：原样返回（文本消息逐字节不变）；
-//   - 其余：content + "\n" + 类型词 + " " + URL。
+//   - content 非空：content + "\n" + 类型词 + " " + URL（换行保证「正文+附件」可解析）；
+//   - content 为空：不带前导换行（纯媒体无正文的直连渠道会走到这里）。
 //
 // 桥接路径（inbox_ingress.go triggerAIForEvent）与直连路径（webhook_ai.go
 // triggerSmartOrchestrator）共用本函数，保证两条漏斗给 AI 的上下文同一口径。
@@ -172,7 +176,11 @@ func AppendMediaContextToContent(content, msgType, mediaURL string) string {
 	if u == "" {
 		return content
 	}
-	return content + "\n" + mediaContextTag(t) + " " + u
+	tag := mediaContextTag(t) + " " + u
+	if content == "" {
+		return tag
+	}
+	return content + "\n" + tag
 }
 
 // ContentHashWithSender 统一收件去重哈希（渠道 + 发送者名称 + 消息内容）。

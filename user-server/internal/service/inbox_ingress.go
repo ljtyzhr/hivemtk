@@ -765,10 +765,14 @@ func (s *InboxIngressService) RecheckUnrepliedAndTrigger(ctx context.Context, co
 		SenderName:     last.SenderName,
 		Content:        last.Content,
 		MsgType:        last.MsgType,
-		IsGroup:        last.IsGroup,
-		GroupID:        last.GroupID,
-		Timestamp:      last.SentAt,
-		Extra:          map[string]any{"account_id": last.AccountID},
+		// 002-multi-type-messages（FR5.3 对抗性复核补）：GetLastInboundByConversation
+		// 取的是整行（含 media_url），重建 ev 时必须带上——否则补触发路径的媒体消息
+		// 丢失 URL，AI 上下文退回一行占位符（与主路径口径分叉）。
+		MediaURL:  last.MediaURL,
+		IsGroup:   last.IsGroup,
+		GroupID:   last.GroupID,
+		Timestamp: last.SentAt,
+		Extra:     map[string]any{"account_id": last.AccountID},
 	}
 	logger.Ctx(ctx).Info().
 		Str("conv_id", conversationID).

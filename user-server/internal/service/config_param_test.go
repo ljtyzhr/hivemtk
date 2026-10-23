@@ -290,7 +290,8 @@ func TestFallbackNilDB(t *testing.T) {
 // D-7（2026-10-23）：chat_ws_ping_period / chat_ws_pong_wait / chat_ws_write_wait
 // 三条已下架种子随死代码删除 ⇒ 241 → 238。
 // 2026-10-23 content_guard 组新增 max_scan_runes 种子 ⇒ 238 → 239。
-const defaultParamDefsWant = 239
+// 2026-10-23 reach 组新增 compliance_policy_json 种子 ⇒ 239 → 240。
+const defaultParamDefsWant = 240
 
 func TestDefaultParamDefsCount(t *testing.T) {
 	defs := DefaultParamDefs()
