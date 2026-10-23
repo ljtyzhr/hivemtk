@@ -191,7 +191,7 @@ func (h *Hub) BroadcastToMerchant(merchantID string, ...) error {
 | **P2-4**（✅ 已修） | 后台任务扇出**已有门禁**，但扫描面只覆盖 `internal/pkg/cron/` | `scripts/check-tenant-ctx-writes.py` 新增 `SCHEDULER_DIRS`（GEO/browser_automation），任务键改用 `@<路径>::<所在函数>`，登记表补 2 行；注册点 7 → **9**，自检 9 枚控制全 PASS | 不改两个调度器自己的 `AddTask` 形态（那是不必要的小重构）：**判据只需"注册点必须做一次归属决策"**，键取法随形态变即可 |
 | **P2-5**（✅ 已修） | 事件总线 `TenantID` 由**发布点自行填充**（4 处各写一遍） | 新增 `event.PublishCtx`/`PublishEventCtx` + `StampTenantFromCtx`（反射盖章，非 0 不覆盖）；3 处迁移；新增门禁 `scripts/check-event-publish-tenant.py` 禁止裸 `event.Publish(`；on 模式下 `TenantID=0` 打响声 | 执行者收成唯一一个 + 门禁，才不依赖"下一个人记得写" |
 | **P2-6** | 两端同名实体各写一份模型（`ConfigParam`/`ConfigParamAuditLog` 等），schema 靠人对齐 | `hivemtk-platform/platform-server/internal/model/config_param.go` vs `user-server/internal/model/config_param.go` | 两端是两个独立库、两条演进节奏，"共一份代码"未必划算；建议只对**跨端传递的结构**（开户登记、心跳、订单、模块下发）做单一事实源 |
-| **P3** | vendor 域名硬编码为默认值（`internal/config/platform.go:33` `DefaultCloudURL = https://work.xapptool.cn`）、`uploads` URL 暴露租户 id、`SetTrustedProxies` 只信私网（`cmd/api/main.go:423`，反代不在私网时 `ClientIP` 恒为反代 IP ⇒ 全站共用一个限流桶） | 同左 | 展示型/运维型问题；`DefaultCloudURL` 已单点化且可被配置覆盖 |
+| **P3** | vendor 域名硬编码为默认值（`internal/config/platform.go:33` `DefaultCloudURL = https://work.xapptool.cn`）✅ 已修、`uploads` URL 暴露租户 id、`SetTrustedProxies` 只信私网 ⇒ 反代不在私网时 `ClientIP` 恒为反代 IP（全站共用一个限流桶）✅ 已修 | 见左 | P3-1（`DefaultCloudURL` 回落）：新增 `CloudURLSource` 来源标签 + 启动期 WARN，并把 provider 缺省实参从「同一个常量」改成空串（否则「没配」与「配了同一个值」不可区分，builtin 这一档永远看不到）。P3-3（可信反代）：`middleware.ConfigureTrustedProxies` 成唯一装配入口，名单可由 env `TRUSTED_PROXIES` 覆盖（非法条目整体报错而非静默丢弃），并挂观测中间件在「带 XFF 但来源不受信」时响亮一行（同对端去重 + 累计计数）。P3-2（`uploads` URL 暴露租户 id）与 P1-2 签名 URL 同源，未清 |
 
 ---
 

@@ -123,11 +123,13 @@ func TestConfigureTrustedProxies_WiresEngineAndGuard(t *testing.T) {
 	t.Cleanup(func() { SetClientIPGuardWarnHook(nil) })
 
 	r := gin.New()
-	r.GET("/ip", func(c *gin.Context) { c.String(http.StatusOK, c.ClientIP()) })
+	// 顺序即约束：gin 的 `Use` 只对**之后**登记的路由生效，本函数因此必须在注册路由之前调用
+	// （cmd/api/main.go 就是这么装的）。反过来装的话观测中间件会被静默跳过 —— 这正是本用例
+	// 第一版写成"先注册路由"时踩到的坑，留在这里当反例。
 	if _, err := ConfigureTrustedProxies(r); err != nil {
-		// 这个路由先注册了也不用担心：SetTrustedProxies 只改引擎配置，不影响已注册路由的语义
 		t.Fatalf("装配失败: %v", err)
 	}
+	r.GET("/ip", func(c *gin.Context) { c.String(http.StatusOK, c.ClientIP()) })
 
 	get := func(remoteAddr string) string {
 		w := httptest.NewRecorder()

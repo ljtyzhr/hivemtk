@@ -209,8 +209,8 @@ func requestPeerIP(c *gin.Context) string {
 // 而不是带着默认值跑）。当前调用方（cmd/api/main.go）选择记录后继续，因为
 // 名单错只会让限流失真，不该让服务起不来；但**告警文案里写明了修法**。
 //
-// 顺序要求：必须在注册任何业务中间件前调用（gin 的 ClientIP 语义由引擎级配置决定），
-// 而观测中间件本身必须足够靠前才看得到原始请求。
+// 顺序要求：必须在注册**任何路由之前**调用。gin 的 `Use` 只对之后登记的路由生效，
+// 反过来装的话观测中间件会被静默跳过（不留任何报错）；`SetTrustedProxies` 同理应尽早。
 func ConfigureTrustedProxies(r *gin.Engine) ([]string, error) {
 	list, fromEnv, err := TrustedProxiesFromEnv()
 	if err != nil {
