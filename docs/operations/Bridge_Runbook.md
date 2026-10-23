@@ -647,6 +647,55 @@ scripts/check-storage-consistency.sh --repo .
 
 ---
 
+## 7A. 故障七A：Bridge 重复消息（入站错归 → 重复应答）
+
+> 首报：2026-10-23，商户「四川同咨科技」（tenant_id=18, code=tz3rmdj，抖音+小红书双渠道）
+
+### 现象
+
+客户/运营侧看到同一条消息反复出现、AI 同一句话回复多次；`message_hub` 里同 `msg_id`
+多行、大量出站行 `push_error=outbound_push_exhausted`（push_attempts=20）。
+
+### 根因（两个缺陷叠加）
+
+1. **msg_id 是内容哈希**（`mh:<8hex>`），唯一索引
+   `uni_message_hub_platform_msg_conv(tenant_id, platform, msg_id, conversation_id)`
+   把 `conversation_id` 计入键 —— 会话一旦归错，去重完全失效。
+2. **扩展端错归**：多个聊天窗口/标签打开时，DOM 采集把 A 会话消息归到 B 会话二次上报
+   （实证：tz3rmdj 2026-10-22 20:27:01/03，同批 4 条 2 秒内两遍，第二遍 conversation_id
+   与 sender_name 整体错配）。错归行在新"会话"里查不到近期出站，自回声/去重全部放行 →
+   AI 视为新消息再次生成回复 → 同文案出站多行 delivered / 反复 push 至 exhausted。
+
+### 排查路径（DB 取证，日志已被容器重建清掉时也够用）
+
+```sql
+-- 同 (platform,msg_id,direction) 多行组
+SELECT platform, msg_id, direction, count(*) FROM message_hub
+WHERE tenant_id=<tid> AND deleted_at IS NULL GROUP BY 1,2,3 HAVING count(*)>1;
+-- 逐组看：错归组的特征是第二行 created_at 只比首行晚几秒、conversation_id/sender_name 错配
+SELECT msg_id, direction, id, status, conversation_id, sender_name, created_at
+FROM message_hub WHERE tenant_id=<tid> AND msg_id='<hash>' ORDER BY id;
+```
+
+### 处置（2026-10-23 已执行）
+
+- **数据**：软删（deleted_at=now()）错归入站 7 行（id 123-126, 85, 87, 97）与错归触发的
+  出站重复 10 行（32, 86, 94, 128, 136, 139, 188, 214, 258, 281, 326——以各自触发源判定为准）；
+  复核后 tenant 18 零重复组残留。
+- **代码**（commit `fcad787e`）：入站错归去重闸——`interceptInbound` 新增检查：错归窗
+  （`InboundMisattribWindow` = 2min）内同裸 msg_id 已在**其它会话**入库 ⇒ `IsDup` 拦截；
+  `#N` 后缀（上报方断言独立消息）与 `channel_msg_id`（平台真实身份）不在此列；
+  repo 侧新增 `GetRecentByMsgIDAnyConv`（带时间界，防历史原话跨会话误吞）。
+
+### 残留风险（错归闸拦不住的形状）
+
+同一条 DOM 气泡在两个时刻被抓成**不同切片文本**（前缀截断不同 ⇒ hash 不同，如
+`在「知跟在「知「知知识库」…` vs `在「知识库」页上传文档与多轮…`）——hash 维度去重对它无效。
+根治需扩展端做会话锚点校验（sender_name ↔ conversation 绑定一致性，错配即拒收），
+属 HiveBridge 扩展侧改造，未在本批实施。
+
+---
+
 ## 8. 故障升级矩阵
 
 | 故障 | 级别 | 首次响应 | 恢复目标 | 升级路径 |
