@@ -127,15 +127,7 @@ func (s *RecoveryQueueService) MarkRecovered(ctx context.Context, id uint64, val
 	if id == 0 {
 		return errors.New("id 不能为空")
 	}
-	item, err := s.repo.GetByID(ctx, id)
-	if err != nil {
-		return err
-	}
-	now := s.nowFunc()
-	item.RecoveredAt = &now
-	item.RecoveryValue = value
-	item.Stage = model.RecoveryStageSucceed
-	return s.repo.Update(ctx, item)
+	return s.repo.MarkRecovered(ctx, id, value, s.nowFunc())
 }
 
 // Cancel 取消入队
@@ -174,13 +166,7 @@ func (s *RecoveryQueueService) DeferAttempt(ctx context.Context, id uint64, dela
 	if delay <= 0 {
 		return errors.New("delay 必须为正")
 	}
-	item, err := s.repo.GetByID(ctx, id)
-	if err != nil {
-		return err
-	}
-	next := s.nowFunc().Add(delay)
-	item.NextAttemptAt = &next
-	return s.repo.Update(ctx, item)
+	return s.repo.DeferAttempt(ctx, id, s.nowFunc().Add(delay))
 }
 
 func nextDelayPtr(now time.Time, nextDelay time.Duration) *time.Time {

@@ -57,12 +57,21 @@ func (r *dingTalkAppRepo) Update(ctx context.Context, acc *model.DingTalkAppAcco
 
 func (r *dingTalkAppRepo) ListAll(ctx context.Context) ([]model.DingTalkAppAccount, error) {
 	var list []model.DingTalkAppAccount
-	if err := r.db.WithContext(ctx).Order("id desc").Find(&list).Error; err != nil {
+	// 应用账号是租户级配置（个位数），但接口无分页参数，仍给一个上限挡异常数据量。
+	if err := r.db.WithContext(ctx).Order("id desc").Limit(200).Find(&list).Error; err != nil {
 		return nil, err
 	}
 	return list, nil
 }
 
 func (r *dingTalkAppRepo) DeleteByID(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).Delete(&model.DingTalkAppAccount{}, id).Error
+	res := r.db.WithContext(ctx).Delete(&model.DingTalkAppAccount{}, id)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		// 命中 0 行 = 记录不存在或不属于本租户，不回"删除成功"。
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }

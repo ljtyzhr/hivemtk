@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"hivemtk-user/internal/dto"
 	"hivemtk-user/internal/model"
@@ -237,16 +236,12 @@ func (s *ChannelOverviewService) BindChannel(ctx context.Context, req *dto.Custo
 		ChannelUserID: req.ChannelUserID,
 		ChannelName:   req.ChannelName,
 		AccountID:     req.AccountID,
+		GroupID:       req.GroupID,
+		// 首绑即主渠道：这些字段以前只放在仓储的冲突更新集里，
+		// 插入分支拿不到，客户第一绑定会被落成"非主渠道、无群组"。
+		IsPrimary: req.IsPrimary,
 	}
-	assignVals := map[string]any{
-		"channel_user_id": req.ChannelUserID,
-		"channel_name":    req.ChannelName,
-		"account_id":      req.AccountID,
-		"is_primary":      req.IsPrimary,
-		"group_id":        req.GroupID,
-		"updated_at":      time.Now(),
-	}
-	if err := s.repo.UpsertCustomerChannel(ctx, cc, assignVals); err != nil {
+	if err := s.repo.UpsertCustomerChannel(ctx, cc); err != nil {
 		return nil, fmt.Errorf("upsert failed: %w", err)
 	}
 

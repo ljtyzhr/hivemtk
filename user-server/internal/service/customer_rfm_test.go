@@ -150,9 +150,6 @@ func (s *stubRFMRepo) GetByCustomerID(ctx context.Context, id string) (*model.Cu
 func (s *stubRFMRepo) ListBySegment(ctx context.Context, seg string, p, ps int) ([]*model.CustomerRFM, int64, error) {
 	return nil, 0, nil
 }
-func (s *stubRFMRepo) ListChurnCandidates(ctx context.Context, th, lim int) ([]*model.CustomerRFM, error) {
-	return nil, nil
-}
 func (s *stubRFMRepo) CountBySegment(ctx context.Context) (map[string]int64, error) {
 	return map[string]int64{}, nil
 }

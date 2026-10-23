@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"hivemtk-user/internal/model"
 )
@@ -150,12 +151,25 @@ func (r *ChannelOverviewRepository) GetCustomerUnifiedID(ctx context.Context, cu
 	return cust.UnifiedID, nil
 }
 
-// UpsertCustomerChannel 幂等写入客户渠道绑定（one_id+channel 唯一）
-func (r *ChannelOverviewRepository) UpsertCustomerChannel(ctx context.Context, cc *model.CustomerChannel, assignVals map[string]any) error {
-	return r.db.WithContext(ctx).
-		Where("one_id = ? AND channel = ?", cc.OneID, cc.Channel).
-		Assign(assignVals).
-		FirstOrCreate(cc).Error
+// UpsertCustomerChannel 幂等写入客户渠道绑定（tenant_id + one_id + channel 唯一）
+//
+// 原实现是 Where+Assign+FirstOrCreate（先 SELECT 再 INSERT）：同一客户在两个渠道
+// webhook 并发绑定时，两边的 SELECT 都可能未命中，后落的那条撞唯一索引直接 500。
+// 而 FirstOrCreate 的 Create 分支只写 cc 结构体，service 放在 assignVals 里的
+// is_primary / group_id 在首绑时被整批丢掉——第一个绑定的渠道明明是主渠道却落成 false。
+// 现在改为 ON CONFLICT (tenant_id, one_id, channel) DO UPDATE 的单条语句：
+// 插入与冲突更新读同一份入参，首绑字段不再丢，也不再依赖"先查后写"的窗口。
+func (r *ChannelOverviewRepository) UpsertCustomerChannel(ctx context.Context, cc *model.CustomerChannel) error {
+	return r.db.WithContext(ctx).Clauses(clause.OnConflict{
+		Columns: []clause.Column{
+			{Name: "tenant_id"},
+			{Name: "one_id"},
+			{Name: "channel"},
+		},
+		DoUpdates: clause.AssignmentColumns([]string{
+			"channel_user_id", "channel_name", "account_id", "is_primary", "group_id", "updated_at",
+		}),
+	}).Create(cc).Error
 }
 
 // UpdateCustomerChannelField 同步更新 customers 表的渠道主字段（best-effort 场景，错误上抛）

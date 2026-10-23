@@ -15,7 +15,6 @@ type CustomerTagAssignmentRepository interface {
 	GetByCustomerAndTag(ctx context.Context, customerID, tag string) (*model.CustomerTagAssignment, error)
 	ListByCustomerID(ctx context.Context, customerID string) ([]*model.CustomerTagAssignment, error)
 	Create(ctx context.Context, assignment *model.CustomerTagAssignment) error
-	Update(ctx context.Context, assignment *model.CustomerTagAssignment) error
 	DeleteByCustomerAndTag(ctx context.Context, customerID, tag string) error
 	Upsert(ctx context.Context, assignment *model.CustomerTagAssignment) error
 	ListCustomerIDsByTag(ctx context.Context, tag string, limit int) ([]string, int64, error)
@@ -91,14 +90,6 @@ func (r *customerTagAssignmentRepository) Create(ctx context.Context, assignment
 		return err
 	}
 	return database.Create(assignment).Error
-}
-
-func (r *customerTagAssignmentRepository) Update(ctx context.Context, assignment *model.CustomerTagAssignment) error {
-	database, err := r.database(ctx)
-	if err != nil {
-		return err
-	}
-	return database.Save(assignment).Error
 }
 
 func (r *customerTagAssignmentRepository) DeleteByCustomerAndTag(ctx context.Context, customerID, tag string) error {

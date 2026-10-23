@@ -122,17 +122,26 @@ func (r *douyinCardRepository) GetList(ctx context.Context, req CardListFilter) 
 	return cards, total, nil
 }
 
+// IncrementViewCount 卡片浏览量 +1 并返回最新行。
+//
+// 原实现是「读整行 → ViewCount++ → Save 整行」：一是丢了并发（两次同时浏览各读到
+// 同一个基数，回写后只剩 +1），二是整行回写会把期间被别的写口改过的字段一起盖回去。
+// 改成一条原子 UPDATE 再按主键读回；命中 0 行视为卡片不存在。
 func (r *douyinCardRepository) IncrementViewCount(ctx context.Context, id uint) (*model.DouyinCard, error) {
+	res := r.db.WithContext(ctx).Model(&model.DouyinCard{}).
+		Where("id = ?", id).
+		Update("view_count", gorm.Expr("view_count + ?", 1))
+	if res.Error != nil {
+		return nil, res.Error
+	}
+	if res.RowsAffected == 0 {
+		return nil, gorm.ErrRecordNotFound
+	}
+
 	var card model.DouyinCard
 	if err := r.db.WithContext(ctx).First(&card, id).Error; err != nil {
 		return nil, err
 	}
-
-	card.ViewCount++
-	if err := r.db.WithContext(ctx).Save(&card).Error; err != nil {
-		return nil, err
-	}
-
 	return &card, nil
 }
 

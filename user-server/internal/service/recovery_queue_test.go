@@ -136,8 +136,23 @@ func (m *mockRecoveryRepo) Create(ctx context.Context, item *model.RecoveryQueue
 	return nil
 }
 
-func (m *mockRecoveryRepo) Update(ctx context.Context, item *model.RecoveryQueue) error {
-	m.items[item.ID] = item
+func (m *mockRecoveryRepo) MarkRecovered(ctx context.Context, id uint64, value int64, at time.Time) error {
+	item, ok := m.items[id]
+	if !ok {
+		return errNotFound{msg: "队列项不存在"}
+	}
+	item.Stage = model.RecoveryStageSucceed
+	item.RecoveryValue = value
+	item.RecoveredAt = &at
+	return nil
+}
+
+func (m *mockRecoveryRepo) DeferAttempt(ctx context.Context, id uint64, next time.Time) error {
+	item, ok := m.items[id]
+	if !ok {
+		return errNotFound{msg: "队列项不存在"}
+	}
+	item.NextAttemptAt = &next
 	return nil
 }
 

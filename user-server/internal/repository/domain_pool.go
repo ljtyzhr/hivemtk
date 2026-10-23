@@ -58,11 +58,36 @@ func (r *domainPoolRepository) Create(ctx context.Context, domainPool *model.Dom
 }
 
 func (r *domainPoolRepository) Update(ctx context.Context, domainPool *model.DomainPool) error {
-	return r.dbOrDefault(ctx).Save(domainPool).Error
+	db := r.dbOrDefault(ctx)
+	if db == nil {
+		return gorm.ErrInvalidDB
+	}
+	res := db.Save(domainPool)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		// 域名池的写入方有五个（探测回写健康分、拉黑、切换活跃、人工编辑），
+		// 都用「先读后整行写」。命中 0 行意味着这行已不可见（被删或跨租户），
+		// Save 本身不报错，调用方会继续把健康分/黑名单当成写成功了。
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 func (r *domainPoolRepository) Delete(ctx context.Context, id int) error {
-	return r.dbOrDefault(ctx).Delete(&model.DomainPool{}, id).Error
+	db := r.dbOrDefault(ctx)
+	if db == nil {
+		return gorm.ErrInvalidDB
+	}
+	res := db.Delete(&model.DomainPool{}, id)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 func (r *domainPoolRepository) GetByID(ctx context.Context, id int) (*model.DomainPool, error) {
@@ -100,6 +125,14 @@ func (r *domainPoolRepository) List(ctx context.Context, page, pageSize int, dom
 		return nil, 0, err
 	}
 
+	// page/pageSize 直接来自查询参数：page=0 会拼出负 OFFSET（PG 报错）、
+	// pageSize=0 会发成 LIMIT 0（列表恒空），统一夹取。
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 || pageSize > 200 {
+		pageSize = 20
+	}
 	offset := (page - 1) * pageSize
 	if err := query.Offset(offset).Limit(pageSize).Order("created_at DESC").Find(&domainPools).Error; err != nil {
 		return nil, 0, err

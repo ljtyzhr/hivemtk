@@ -29,10 +29,8 @@ type EventStats struct {
 // CustomerEventRepository defines the interface for customer event data access
 type CustomerEventRepository interface {
 	Record(ctx context.Context, event *model.CustomerEvent) error
-	RecordBatch(ctx context.Context, events []*model.CustomerEvent) error
 	ReassignCustomerID(ctx context.Context, fromCustomerID, toCustomerID string) (int64, error)
 	GetByCustomerID(ctx context.Context, customerID string, limit int) ([]*model.CustomerEvent, error)
-	GetByTimeRange(ctx context.Context, start, end time.Time) ([]*model.CustomerEvent, error)
 	GetStats(ctx context.Context, start, end time.Time) (*EventStats, error)
 	DeleteByCustomerID(ctx context.Context, customerID string) (int64, error)
 	ListGlobal(ctx context.Context, eventType string, limit, offset int) ([]*model.CustomerEvent, int64, error)
@@ -47,25 +45,6 @@ func NewCustomerEventRepository() CustomerEventRepository {
 
 func (r *customerEventRepository) Record(ctx context.Context, event *model.CustomerEvent) error {
 	return dbFromCtx(ctx).Create(event).Error
-}
-
-func (r *customerEventRepository) RecordBatch(ctx context.Context, events []*model.CustomerEvent) error {
-	if len(events) == 0 {
-		return nil
-	}
-	filtered := make([]*model.CustomerEvent, 0, len(events))
-	for _, e := range events {
-		if e != nil {
-			filtered = append(filtered, e)
-		}
-	}
-	if len(filtered) == 0 {
-		return nil
-	}
-	if len(filtered) == 1 {
-		return dbFromCtx(ctx).Create(filtered[0]).Error
-	}
-	return dbFromCtx(ctx).Create(filtered).Error
 }
 
 func (r *customerEventRepository) ReassignCustomerID(ctx context.Context, fromCustomerID, toCustomerID string) (int64, error) {
@@ -84,19 +63,6 @@ func (r *customerEventRepository) GetByCustomerID(ctx context.Context, customerI
 	query := dbFromCtx(ctx).Where("customer_id = ?", customerID).Order("occurred_at DESC")
 	query = applyListLimit(query, limit)
 	if err := query.Find(&events).Error; err != nil {
-		return nil, err
-	}
-
-	return events, nil
-}
-
-func (r *customerEventRepository) GetByTimeRange(ctx context.Context, start, end time.Time) ([]*model.CustomerEvent, error) {
-	var events []*model.CustomerEvent
-
-	if err := dbFromCtx(ctx).
-		Where("occurred_at >= ? AND occurred_at <= ?", start, end).
-		Order("occurred_at ASC").
-		Find(&events).Error; err != nil {
 		return nil, err
 	}
 

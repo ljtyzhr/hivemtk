@@ -71,6 +71,25 @@ func (r *customerTagRepository) Delete(ctx context.Context, id string) error {
 	return _db.GetDB().WithContext(ctx).Delete(&model.CustomerTag{}, "id = ?", id).Error
 }
 
+// Update 按主键白名单更新标签规则（name/category/rule）。
+//
+// 原来用 Save 整行回写：连主键与只读列（source/created_at）一起交给 GORM，
+// 且命中 0 行也返回成功——记录已被删、或 id 属于别的租户时，管理端照旧显示
+// "已保存"，库里其实一行没变。
 func (r *customerTagRepository) Update(ctx context.Context, tag *model.CustomerTag) error {
-	return _db.GetDB().WithContext(ctx).Save(tag).Error
+	res := _db.GetDB().WithContext(ctx).
+		Model(&model.CustomerTag{}).
+		Where("id = ?", tag.ID).
+		Updates(map[string]any{
+			"name":     tag.Name,
+			"category": tag.Category,
+			"rule":     tag.Rule,
+		})
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }

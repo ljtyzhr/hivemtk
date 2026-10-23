@@ -2,7 +2,6 @@ package repository
 
 import (
 	"context"
-	"errors"
 
 	"hivemtk-user/internal/model"
 	_db "hivemtk-user/internal/pkg/db"
@@ -58,17 +57,14 @@ func (r *customerDoNotContactRepo) ExistsByOneIDAndChannels(ctx context.Context,
 	return count > 0, nil
 }
 
+// DeleteByOneIDAndChannel 删除标志位（重新订阅）
+//
+// 幂等语义：目标行不存在也算成功。GORM 的 Delete 命中 0 行只体现在
+// RowsAffected 上、不会返回 ErrRecordNotFound，所以这里不需要错误分支。
 func (r *customerDoNotContactRepo) DeleteByOneIDAndChannel(ctx context.Context, oneID, channel string) error {
-	result := r.db.WithContext(ctx).
+	return r.db.WithContext(ctx).
 		Where("one_id = ? AND channel = ?", oneID, channel).
-		Delete(&model.CustomerDoNotContact{})
-	if result.Error != nil {
-		if errors.Is(result.Error, gorm.ErrRecordNotFound) {
-			return nil
-		}
-		return result.Error
-	}
-	return nil
+		Delete(&model.CustomerDoNotContact{}).Error
 }
 
 func (r *customerDoNotContactRepo) ListByOneID(ctx context.Context, oneID string) ([]*model.CustomerDoNotContact, error) {

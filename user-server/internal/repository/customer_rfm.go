@@ -15,7 +15,6 @@ type CustomerRFMRepository interface {
 	Upsert(ctx context.Context, rfm *model.CustomerRFM) error
 	GetByCustomerID(ctx context.Context, customerID string) (*model.CustomerRFM, error)
 	ListBySegment(ctx context.Context, segment string, page, pageSize int) ([]*model.CustomerRFM, int64, error)
-	ListChurnCandidates(ctx context.Context, threshold int, limit int) ([]*model.CustomerRFM, error)
 	CountBySegment(ctx context.Context) (map[string]int64, error)
 	DeleteByCustomerID(ctx context.Context, customerID string) error
 }
@@ -94,17 +93,6 @@ func (r *customerRFMRepo) ListBySegment(ctx context.Context, segment string, pag
 	return rfms, total, nil
 }
 
-func (r *customerRFMRepo) ListChurnCandidates(ctx context.Context, threshold int, limit int) ([]*model.CustomerRFM, error) {
-	if limit < 1 || limit > 500 {
-		limit = 50
-	}
-	var rfms []*model.CustomerRFM
-	err := r.db.WithContext(ctx).Where("churn_risk_level = ? AND churn_score >= ?", "high", threshold).
-		Order("churn_score DESC, recency_days DESC").
-		Limit(limit).Find(&rfms).Error
-	return rfms, err
-}
-
 func (r *customerRFMRepo) CountBySegment(ctx context.Context) (map[string]int64, error) {
 	type row struct {
 		Segment string
@@ -129,7 +117,11 @@ func (r *customerRFMRepo) DeleteByCustomerID(ctx context.Context, customerID str
 // RecoveryQueueRepository 流失挽回队列仓库
 type RecoveryQueueRepository interface {
 	Create(ctx context.Context, item *model.RecoveryQueue) error
-	Update(ctx context.Context, item *model.RecoveryQueue) error
+	// MarkRecovered 按主键白名单写「已挽回」三列（stage/recovered_at/recovery_value）；
+	// 命中 0 行即记录不存在（已删或不属于当前租户），返回 gorm.ErrRecordNotFound。
+	MarkRecovered(ctx context.Context, id uint64, value int64, at time.Time) error
+	// DeferAttempt 只把下次可触达时间推后、不消耗 attempts；命中 0 行同上返回不存在。
+	DeferAttempt(ctx context.Context, id uint64, next time.Time) error
 	GetByID(ctx context.Context, id uint64) (*model.RecoveryQueue, error)
 	GetActiveByCustomerID(ctx context.Context, customerID string) (*model.RecoveryQueue, error)
 	ListByStage(ctx context.Context, stage string, page, pageSize int) ([]*model.RecoveryQueue, int64, error)
@@ -163,11 +155,42 @@ func (r *recoveryQueueRepo) Create(ctx context.Context, item *model.RecoveryQueu
 	return r.db.WithContext(ctx).Create(item).Error
 }
 
-func (r *recoveryQueueRepo) Update(ctx context.Context, item *model.RecoveryQueue) error {
-	if item.ID == 0 {
-		return errors.New("id 不能为空")
+// MarkRecovered 标记已挽回。
+//
+// 只写三列而不是整行 Save：整行回写会把调用方手里那份快照的其它字段（含
+// attempts/next_attempt_at 这类正在被 worker 改的列）一并覆回去，也会在记录已被
+// 保留期清理、或 id 属于别的租户时静默返回成功——客户会一直显示"挽回中"。
+func (r *recoveryQueueRepo) MarkRecovered(ctx context.Context, id uint64, value int64, at time.Time) error {
+	res := r.db.WithContext(ctx).
+		Model(&model.RecoveryQueue{}).
+		Where("id = ?", id).
+		Updates(map[string]any{
+			"stage":          model.RecoveryStageSucceed,
+			"recovered_at":   at,
+			"recovery_value": value,
+		})
+	if res.Error != nil {
+		return res.Error
 	}
-	return r.db.WithContext(ctx).Save(item).Error
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
+}
+
+// DeferAttempt 推后下次可触达时间（不消耗 attempts）
+func (r *recoveryQueueRepo) DeferAttempt(ctx context.Context, id uint64, next time.Time) error {
+	res := r.db.WithContext(ctx).
+		Model(&model.RecoveryQueue{}).
+		Where("id = ?", id).
+		Update("next_attempt_at", next)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 func (r *recoveryQueueRepo) GetByID(ctx context.Context, id uint64) (*model.RecoveryQueue, error) {

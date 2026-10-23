@@ -81,7 +81,7 @@ func (r *FAQRepository) MatchByKeywordForAgent(ctx context.Context, msg string, 
 	if err != nil {
 		return nil, err
 	}
-	return r.scoreAndRank(ctx, all, msg, topK)
+	return r.scoreAndRank(all, msg, topK)
 }
 
 // ListCandidates 返回指定 agent 的 FAQ 候选集（已启用），用于 Service 层命中内存缓存后复用，
@@ -97,7 +97,7 @@ func (r *FAQRepository) ListCandidates(ctx context.Context, agentID uint, limit 
 // ScoreCandidates 对已加载的 FAQ 候选集做内存打分排序（不触发 DB 查询）。
 // 供 Service 层命中内存缓存后复用候选集、仅按不同 query 重新打分。
 func (r *FAQRepository) ScoreCandidates(ctx context.Context, entries []model.FAQEntry, msg string, topK int) ([]model.FAQEntry, error) {
-	return r.scoreAndRank(ctx, entries, msg, topK)
+	return r.scoreAndRank(entries, msg, topK)
 }
 
 func (r *FAQRepository) listEnabledForAgent(ctx context.Context, agentID uint, limit int) ([]model.FAQEntry, error) {
@@ -153,7 +153,7 @@ func (r *FAQRepository) MatchByAgent(ctx context.Context, agentID uint, msg stri
 	if err != nil {
 		return nil, err
 	}
-	return r.scoreAndRank(ctx, entries, msg, topK)
+	return r.scoreAndRank(entries, msg, topK)
 }
 
 // ListByAgent 列出某智能体的 FAQ 集合 (不参与打分, 仅做缓存预热 / 后台同步)
@@ -173,15 +173,19 @@ func (r *FAQRepository) ListByAgent(ctx context.Context, agentID uint, limit int
 	return entries, err
 }
 
-// ScoreFAQCandidates 对已加载的 FAQ 候选集打分排序（不查库）。
+// ScoreFAQCandidates 对已加载的 FAQ 候选集打分排序。
 //
 // 导出它是为了让 service 层的测试能复用**生产同一份**打分口径，而不是另写一份
 // 近似实现 —— 另写一份就等于让用例锁住一份与生产不同的算法。
-func ScoreFAQCandidates(_ context.Context, r *FAQRepository, entries []model.FAQEntry, msg string, topK int) ([]model.FAQEntry, error) {
-	return r.scoreAndRank(context.Background(), entries, msg, topK)
+//
+// 刻意**不收 ctx**：打分是纯内存计算，一处都不查库。以前这个函数收下 ctx 又丢掉、
+// 转手传 context.Background() 给下游，等于给后来加进来的一条查询埋好"静默绕过租户隔离"
+// 的坑（on 模式下无租户 ctx 的查询会被 fail-closed）。既然不查库，就不留这个假入口。
+func ScoreFAQCandidates(r *FAQRepository, entries []model.FAQEntry, msg string, topK int) ([]model.FAQEntry, error) {
+	return r.scoreAndRank(entries, msg, topK)
 }
 
-func (r *FAQRepository) scoreAndRank(ctx context.Context, all []model.FAQEntry, msg string, topK int) ([]model.FAQEntry, error) {
+func (r *FAQRepository) scoreAndRank(all []model.FAQEntry, msg string, topK int) ([]model.FAQEntry, error) {
 	msgTokens := tokenize(msg)
 	if len(msgTokens) == 0 {
 		return nil, nil

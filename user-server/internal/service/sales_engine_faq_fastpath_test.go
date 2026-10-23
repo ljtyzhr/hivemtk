@@ -44,7 +44,7 @@ func (r *faqFastPathRepo) ListCandidates(_ context.Context, agentID uint, _ int)
 }
 
 func (r *faqFastPathRepo) ScoreCandidates(ctx context.Context, entries []model.FAQEntry, msg string, topK int) ([]model.FAQEntry, error) {
-	return repository.ScoreFAQCandidates(ctx, r.base, entries, msg, topK)
+	return repository.ScoreFAQCandidates(r.base, entries, msg, topK)
 }
 
 func (r *faqFastPathRepo) MatchByKeyword(context.Context, string, int) ([]model.FAQEntry, error) {

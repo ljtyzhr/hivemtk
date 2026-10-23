@@ -151,17 +151,46 @@ func (r *customerRepository) GetByDouyinOpenID(ctx context.Context, openID strin
 	return &customer, nil
 }
 
+// Update 整行回写客户主表（调用方先 Get 再改字段）。
+//
+// Save 在命中 0 行时只体现在 RowsAffected 上、不报错：客户已被合并删除、或 id 属于
+// 别的租户时，服务层会当成"改成功了"。这里显式把 0 行翻成 ErrRecordNotFound，
+// 由上层映射成 404 而不是静默成功。
 func (r *customerRepository) Update(ctx context.Context, customer *model.Customer) error {
-	return dbFromCtx(ctx).Save(customer).Error
+	res := dbFromCtx(ctx).Save(customer)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
+// Delete 软删除客户；命中 0 行即客户不存在（已删/别租户）。
 func (r *customerRepository) Delete(ctx context.Context, id string) error {
-	return dbFromCtx(ctx).Delete(&model.Customer{}, "id = ?", id).Error
+	res := dbFromCtx(ctx).Delete(&model.Customer{}, "id = ?", id)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 func (r *customerRepository) List(ctx context.Context, page, limit int, keyword string) ([]*model.Customer, int64, error) {
 	var customers []*model.Customer
 	var total int64
+
+	// page/limit 来自查询参数：page=0 会拼出负 OFFSET 让 PG 直接报错、
+	// limit=0 会发成 LIMIT 0 让列表恒空，这里统一夹取。
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 || limit > 200 {
+		limit = 20
+	}
 
 	offset := (page - 1) * limit
 	q := dbFromCtx(ctx).Model(&model.Customer{})

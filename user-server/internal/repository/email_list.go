@@ -65,7 +65,16 @@ func (r *emailListRepo) List(ctx context.Context, page int, pageSize int) ([]*mo
 }
 
 func (r *emailListRepo) Update(ctx context.Context, list *model.EmailList) error {
-	return r.db.WithContext(ctx).Save(list).Error
+	res := r.db.WithContext(ctx).Save(list)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		// 整行 Save 命中 0 行不报错：记录已删、或 id 属于别的租户时，
+		// 上层会把"什么都没改"当成保存成功。这里显式翻成不存在。
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 func (r *emailListRepo) Delete(ctx context.Context, id uuid.UUID) error {

@@ -63,7 +63,16 @@ func scopeTenantID(ctx context.Context) uint {
 }
 
 func (r *featureFlagRepo) Update(ctx context.Context, f *model.FeatureFlag) error {
-	return r.db.WithContext(ctx).Save(f).Error
+	res := r.db.WithContext(ctx).Save(f)
+	if res.Error != nil {
+		return res.Error
+	}
+	if res.RowsAffected == 0 {
+		// 整行 Save 命中 0 行不报错：记录已删、或 id 属于别的租户时，
+		// 上层会把"什么都没改"当成保存成功。这里显式翻成不存在。
+		return gorm.ErrRecordNotFound
+	}
+	return nil
 }
 
 func (r *featureFlagRepo) Delete(ctx context.Context, id uint) error {

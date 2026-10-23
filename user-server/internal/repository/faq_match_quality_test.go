@@ -1,7 +1,6 @@
 package repository
 
 import (
-	"context"
 	"testing"
 
 	"hivemtk-user/internal/model"
@@ -149,7 +148,7 @@ func TestFAQMatch_NoWrongAnswer(t *testing.T) {
 
 	for _, tc := range cases {
 		t.Run(tc.query, func(t *testing.T) {
-			got, err := repo.scoreAndRank(context.Background(), entries, tc.query, 3)
+			got, err := repo.scoreAndRank(entries, tc.query, 3)
 			if err != nil {
 				t.Fatalf("scoreAndRank 失败: %v", err)
 			}
