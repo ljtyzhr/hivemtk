@@ -1,7 +1,6 @@
 package platform
 
 import (
-	"bytes"
 	"crypto/hmac"
 	"crypto/sha256"
 	"encoding/hex"
@@ -152,7 +151,10 @@ func (c *Client) ensureJWTToken() error {
 		"password": password,
 	})
 	loginURL := config.PlatformURL() + "/api/auth/login"
-	req, _ := http.NewRequest("POST", loginURL, bytes.NewReader(loginBody))
+	req, err := newPlatformRequest(nil, "POST", loginURL, loginBody)
+	if err != nil {
+		return fmt.Errorf("构造平台登录请求失败: %w", err)
+	}
 	req.Header.Set("Content-Type", "application/json")
 
 	resp, err := c.httpClient.Do(req)
@@ -225,7 +227,10 @@ func (c *Client) doRetry(method, path string, reqData, respData any, retried boo
 	}
 	logger.Info(reqLog)
 
-	req, _ := http.NewRequest(method, url, bytes.NewReader(body))
+	req, err := newPlatformRequest(nil, method, url, body)
+	if err != nil {
+		return fmt.Errorf("构造平台请求失败: %w", err)
+	}
 	req.Header.Set("Content-Type", "application/json")
 
 	if strings.HasPrefix(path, "/platform/") {
@@ -275,6 +280,10 @@ func (c *Client) doRetry(method, path string, reqData, respData any, retried boo
 		if bodyStr != "" {
 			_ = json.Unmarshal([]byte(bodyStr), &baseResp)
 		}
+		// 契约版本裁决（SaaS 审计 A4）：426 记进管理端可见的状态。
+		// 放在日志之前/之后都行，但必须在 return 之前 —— 早返回的写法最容易被后来的
+		// 改动插进一条 return 而把记账漏掉。
+		noteContractVerdict(path, resp.StatusCode, rawBody)
 		// 409 是"资源已存在"这类可收敛的业务状态（商户注册每次启动都会命中），
 		// 按 error 打会让正常幂等路径长期占据错误日志；是否算失败由调用方按契约决定。
 		if resp.StatusCode == http.StatusConflict {
@@ -292,6 +301,8 @@ func (c *Client) doRetry(method, path string, reqData, respData any, retried boo
 		logger.Error(err, "读取响应体失败")
 		return err
 	}
+	// 200 ⇒ 闸放行了，说明契约匹配：清掉可能残留的 426 告警（仅对受闸路径生效）。
+	noteContractVerdict(path, resp.StatusCode, respBody)
 	if perr := envelopeRefusal(respBody); perr != nil {
 		if perr.Resp.Code == http.StatusConflict {
 			logger.Warn(fmt.Sprintf("平台业务码 409（状态冲突，交由调用方判定）: %s %s, 耗时: %v, 响应: %s", method, url, duration, perr.RawBody))
@@ -455,7 +466,7 @@ func (c *Client) CheckConnection() error {
 	if config.PlatformCfg == nil {
 		return fmt.Errorf("%w: 未配置平台地址，连通性探测无从发出", ErrPlatformNotConfigured)
 	}
-	req, err := http.NewRequest(http.MethodGet, config.PlatformURL()+"/health", nil)
+	req, err := newPlatformRequest(nil, http.MethodGet, config.PlatformURL()+"/health", nil)
 	if err != nil {
 		return fmt.Errorf("平台连通性探测请求构造失败: %w", err)
 	}
@@ -532,7 +543,10 @@ func (c *Client) ReportInstall(req *ReportInstallReq) error {
 		return fmt.Errorf("序列化安装信息失败: %w", err)
 	}
 	url := strings.TrimRight(config.PlatformURL(), "/") + "/api/platform/install"
-	httpReq, _ := http.NewRequest("POST", url, bytes.NewReader(body))
+	httpReq, err := newPlatformRequest(nil, "POST", url, body)
+	if err != nil {
+		return fmt.Errorf("构造安装上报请求失败: %w", err)
+	}
 	httpReq.Header.Set("Content-Type", "application/json")
 	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
@@ -541,8 +555,12 @@ func (c *Client) ReportInstall(req *ReportInstallReq) error {
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		raw, _ := io.ReadAll(resp.Body)
+		noteContractVerdict("/api/platform/install", resp.StatusCode, raw)
 		return fmt.Errorf("上报安装信息返回 %d: %s", resp.StatusCode, string(raw))
 	}
+	// 200 ⇒ 闸放行了（含"运维开了兼容窗口"这种情形）：清掉可能残留的 426 告警。
+	// 只在受闸路径上有清除资格 —— install 就在闸下，所以它有。
+	noteContractVerdict("/api/platform/install", resp.StatusCode, nil)
 	raw, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return fmt.Errorf("读取安装响应失败: %w", err)
@@ -590,7 +608,10 @@ func (c *Client) ReportHeartbeat(req *ReportHeartbeatReq) error {
 		return fmt.Errorf("序列化心跳数据失败: %w", err)
 	}
 	url := strings.TrimRight(config.PlatformURL(), "/") + "/api/platform/heartbeat"
-	httpReq, _ := http.NewRequest("POST", url, bytes.NewReader(body))
+	httpReq, err := newPlatformRequest(nil, "POST", url, body)
+	if err != nil {
+		return fmt.Errorf("构造心跳上报请求失败: %w", err)
+	}
 	httpReq.Header.Set("Content-Type", "application/json")
 	resp, err := c.httpClient.Do(httpReq)
 	if err != nil {
@@ -599,8 +620,13 @@ func (c *Client) ReportHeartbeat(req *ReportHeartbeatReq) error {
 	defer func() { _ = resp.Body.Close() }()
 	if resp.StatusCode != http.StatusOK {
 		raw, _ := io.ReadAll(resp.Body)
+		noteContractVerdict("/api/platform/heartbeat", resp.StatusCode, raw)
 		return fmt.Errorf("上报心跳返回 %d: %s", resp.StatusCode, string(raw))
 	}
+	// 200 ⇒ 闸放行了：清掉告警。这一条尤其要紧 —— 心跳是周期性调用的，
+	// 若只在 /merchant-api 上清，那么"运维已开窗口、平台不再拒我们"这件事
+	// 会一直显示成 426，管理员只能看到一个不再更新的旧告警。
+	noteContractVerdict("/api/platform/heartbeat", resp.StatusCode, nil)
 	raw, err := io.ReadAll(resp.Body)
 	if err != nil {
 		return fmt.Errorf("读取心跳响应失败: %w", err)

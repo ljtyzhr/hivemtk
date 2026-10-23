@@ -24,7 +24,7 @@
 | P1-3 | 通用归属中间件 `RequireOwner*` 的 fail-open 分支（`checker==nil ⇒ 放行`、`db==nil ⇒ (0,nil)`）+ not-found 混成 500 | 中（潜在） | **已修**（语义收口 + 6 例回归，见 §3） |
 | P1-4 | 平台端**商户面**（`/merchant-api`，外部主体）的商户分域**全靠手写 `Where("merchant_key = ?")`**，无框架约束、无门禁、失败模式是静默跨商户 | 中高（云端侧） | **已落地**（A3）：只收商户面 28 条路由，`internal/utils/merchantscope` 三档注入器 + 静态门禁（含"证能红"自检）+ 双商户交叉扫描五腿；运营面**有据不做**（论证见 `PLATFORM_MERCHANT_ISOLATION_EVALUATION_2026-10-24.md`） |
 | P1-6 | `/llm-api/v1` 这个**第二个商户面**没有身份闸：身份取自 `Authorization: Bearer <merchant_key>`，而 `merchant_key` 在整套 HMAC 体系里是**标识符**（每次调用都以 `X-Merchant-Key` 明文出现在请求头、平台管理端列表里 `json:"key"` 直出），真正的凭据是每商户的 `api_secret` ⇒ 知道一个商户 key 就能**烧掉那个商户的 LLM 余额**，且可永久重放 | 高（云端侧） | **已落地**（A19 · 平台端仓 `23abf55`）：`/llm-api/v1` 挂 `MerchantLLMProxyAuth()`（HMAC over `method→RequestURI→ts→nonce→sha256(body)`、±300s、按 nonce 去重）+ controller 只读 ctx（Bearer 回落已删）+ 兼容窗口显式开关（默认要求签名、关掉则启动告警且放行留痕）+ 租户端同口径签名（保留 Bearer 使升级顺序自由）+ 跨仓契约向量；用例 11 例 + 真装配腿五 + 十条腿"证能红"自检。**落地时对计划稿有三处偏差，逐条记在 §3 P1-6「已落地」** |
-| P1-5 | 云/本地之间**没有版本/契约握手**：老实例连新平台只能靠运行时 500 发现字段不匹配 | 中（运维） | 待批准 |
+| P1-5 | 云/本地之间**没有版本/契约握手**：老实例连新平台只能靠运行时 500 发现字段不匹配 | 中（运维） | **已落地**（A4）：契约版本 `Version=1` / 头 `X-Contract-Version`，两侧各钉一条 pin 用例；平台端 `/merchant-api`+`/llm-api/v1`+`/api/platform` 三组挂 `ContractHandshake()`，**两个方向**都回**真 HTTP 426**（`response.UpgradeRequired`）；默认 fail-closed + `PLATFORM_CONTRACT_MIN_VERSION` 显式窗口（启动告警 + 每次未声明放行留痕 + 非法值回落严格档）；租户端收敛成"唯一构造入口 + 唯一判定点"，426 经 `/api/system/info.platform_contract` 让管理员看见（`omitempty` 保证 off 模式逐字节等价）。`/platform/**` 与 `/api/auth/login` 刻意豁免并有反向防腐判据 |
 | P2-1..6 | 限流键无租户维度 ✅、11 张租户表缺 tenant_id 前导索引 ✅、知识库导入路径未分域 ✅、cron 扇出无门禁 ✅、事件总线 TenantID 靠自觉 ✅、双仓库同名模型漂移 | 低—中 | 6 项中 5 项已修，余 1 项在清单 |
 
 **"一套代码一套逻辑"的实测结论**：部署形态确实由**两个环境变量**（`TENANT_MODE` / `PLATFORM_ENABLED`）单点决定，代码里**没有**任何 `if deploy == "saas"` 式的形态分支——这一条是真的。
@@ -275,13 +275,51 @@ A3 是"有闸但隔离靠手写"，这里是"压根没有闸"。严重度按后�
   逐文件 `c.Set ↔ WithScope` 一一对应 + **每个注入点必须含 `hmac.New(`**（写进 ctx 的身份必须来自一次
   真实验签，否则它只是"相信请求头"）；自检六腿 → 十腿。
 
-### P1-5（待批准）云 / 本地之间没有契约握手
+### P1-5（✅ 已修 · A4）云 / 本地之间没有契约握手
 
 **证据**：`internal/platform/client.go:491,545` 只在 install/heartbeat 载荷里**上报** `version`；平台侧没有任何 `min_version` / 兼容判定（`grep -i "compat|handshake|min_version"` 无命中）。开户登记字段不全时会 500（历史实测记录在 `DEPLOYMENT_MODES_EVALUATION_2026-10.md` §9.2）。
 
 **判定**：独立部署的实例生命周期远长于云端。老实例连新平台时，字段缺失/新增只能靠**运行时报错**发现，且失败常被 `logger.Warn` 吞掉（`internal/platform/sync.go:96` 明确写"可忽略"）。这正好是"一套逻辑跑两种部署"最容易出事的地方。
 
 **建议**：平台在 `/merchant-api/*` 加一道 `X-Client-Version` 校验（低于 `min_supported` ⇒ 明确 426 + 升级指引），用户端把该响应呈现为管理端可见的告警，而不是只进日志。
+
+**已落地（三处对建议的修正，逐条记）**：
+
+- **口径从"`X-Client-Version` 校验"改成"契约版本 + 双向"**。建议稿只写了"低于 min ⇒ 426"一个方向，
+  但独立部署还有一个真实形态：**实例自己先升了级**（它不归平台统一发布）。新字段平台读不懂时的
+  后果与"老实例连新平台"同样是**静默**的——"存进去但永远不生效"。所以 `declared > Version` 也回 426，
+  且两种方向文案不同（运维动作是"升租户"还是"升平台"完全不一样）。
+- **"明确 426"必须是真 HTTP 426**，不能是 `response.Error(c, 426, …)`（本仓的 `Error` 写 HTTP 200 +
+  信封码）。理由就是本项自己的判据：要"一眼认出"的是**旧客户端**，而旧客户端恰恰是那个读不懂新信封的
+  一方；把语义塞进它不认识的地方等于没给。新增 `response.UpgradeRequired`，HTTP 与信封**都**是 426。
+- **挂载面比建议稿宽，也比"全都挂"窄**：`/merchant-api`、`/llm-api/v1`、`/api/platform` 三组
+  （唯一消费者是 user-server）。**刻意豁免** `/platform/**` 与 `/api/auth/login` —— 它们是平台自身
+  Web 前端（platform-web）与租户端共用的前缀，浏览器没有"契约版本"这回事，加了会把平台前端打挂。
+  豁免写进门禁的 `CONTRACT_EXEMPT` 并**反向判据**（谁给豁免前缀挂闸就红），否则下一个人"顺手统一"就打死前端。
+- **默认 fail-closed，窗口显式**：`MinSupported()` 不设环境变量时 = `Version`。若默认放行未声明版本，
+  这道闸在默认配置下永远走不到 —— 判据存在但没有任何生产路径能触发，是本仓最贵的失效模式。
+  要开窗就 `PLATFORM_CONTRACT_MIN_VERSION=0`：启动期响亮告警 + **每次**未声明放行记日志。
+  **非法版本头一律当 0（不是当最新版）**、**非法开关值一律回落 `Version`**：写错的开关/垃圾头
+  不能变成"全放行"。
+- **租户端按"唯一执行者"收**：`newPlatformRequest` 是每一次出站的唯一构造入口（7 处 `http.NewRequest`
+  全替换），`noteContractVerdict` 是唯一判定点。刻意不给构造器留 `if guarded` 开关——那会多出一份
+  要在两处同步的清单；多带一个没人读的头代价是零。
+- **第三档（非 426 非 200 不动）与"只有受闸路径的 200 才能清告警"是这轮最容易写错的地方**：
+  `/health`、登录、`/platform/**`、贡献者接口都没挂闸，它们的 200 只说明"平台活着"。一次周期性探针
+  把 426 告警清掉 ⇒ 真问题被静默掩盖，而且掩盖得很有规律，排查时几乎不可能想到是探针干的。
+  这份"受闸前缀"清单是租户侧对账单，用例钉住（少登记 ⇒ 426 记不下来；多登记 ⇒ 普通 200 清掉
+  别处的 426，两种都静默）。
+- **426 要进管理员可见的状态**（建议稿这一条照做并加强了）：`/api/system/info.platform_contract`
+  （`service.SystemInfo` 加 `*contract.Status` + `omitempty`）。指针 + `omitempty` 是**硬约束**：
+  从未被拒时整个键不出现 ⇒ `off` 模式响应体逐字节等价（去掉 `omitempty` 或"无脑填空结构"两种写法
+  都被用例当场打红）。它也不在 `publicSystemInfo` 白名单里 ⇒ 匿名看不到"这台机器接的平台是哪一版"。
+- **一例白盒走错门（自己抓到）**：`TestNonGuardedSuccessDoesNotClearWarning` 第一版走
+  `CheckConnection`，而那条路径**根本不调**记账函数 ⇒ 把"不判受闸路径"这个变异完全测不出来
+  （变异后仍全绿）。改成打在决策点 `noteContractVerdict` 上并配受闸路径的正对照才真的钉住语义。
+  这是"用例跑错了门"的典型：**它绿着，但它什么都没测**。
+- **顺带修掉两处会被 426 替枪的假绿**：`merchant_isolation_scan_test.go` 腿一/腿五不带头时，
+  "无凭证拿不到业务成功"在**身份闸被摘掉**后依然全绿（426 挡住了）；`TestRequestBodyTooLarge`
+  不带头时 `body.code>=400` 让它因"版本头没带"而假绿。两处均已补 `X-Contract-Version`。
 
 ---
 
@@ -390,6 +428,17 @@ python3 scripts/check-merchant-scope.py                    # ✅ 通过（现覆
 bash scripts/check-merchant-scope.test.sh                  # ✅ 十条腿「先绿后红再绿」
 make llm-proxy-auth-gate                                   # ✅ 11 例 + 真装配腿五 + 十条腿「改坏即红」
 
+# A4 轮（云/本地契约版本握手）
+go test ./internal/platform/ ./internal/pkg/contract/ ./internal/pkg/shared/service/ -count=1  # ✅ 全绿
+# 平台端（独立仓）
+go test ./internal/contract/ ./internal/middleware/ -run 'TestContract|TestParse|TestMinSupported' -count=1  # ✅ 9 例
+go test ./internal/router/ -run TestContractHandshakeEnforcedOnRealEngine -count=1             # ✅ 真装配腿六
+python3 scripts/check-merchant-scope.py                   # ✅ 通过（+ CONTRACT_GUARDED 3 组 / CONTRACT_EXEMPT 2 前缀）
+bash scripts/check-merchant-scope.test.sh                  # ✅ 十二条腿「先绿后红再绿」
+# 变异手验（每条都必须红；④ 第一次没红，见 §3 P1-5 末尾）
+#   ① newPlatformRequest 不设版本头 ② doRetry 426 不记账 ③ 只记不清 ④ 不判受闸路径 ⑤ 心跳 200 不清
+#   ⓐ 删 merchantAPI.Use(middleware.ContractHandshake()) ⇒ 腿六红（"GET /merchant-api/asset-market/assets 未声明契约版本竟未被 426"）
+
 # 1) 真库内省（判定"哪些表是租户表"的唯一事实源）
 psql -h 127.0.0.1 -p 8202 -U admin -d user_db -Atc \
   "select count(*) from information_schema.tables where table_schema='public' and table_type='BASE TABLE'"   # 371
@@ -415,6 +464,7 @@ psql -h 127.0.0.1 -p 8202 -U admin -d user_db -Atc \
 | **平台端商户面隔离上框架**（P1-4 / A3）✅ 已落地 | 两端能力不对称；运营面跨商户是业务本身 | `hivemtk-platform/platform-server`（独立仓，提交 `3c4ba07`）：`internal/utils/merchantscope` 是唯一执行者，三档语义只有**一个判定点**（`scopeTarget`）——有商户 scope ⇒ 六个 callback 强制 `AND merchant_key = ?`；有 scope 但为空 ⇒ 拒；无 scope ⇒ **一行 SQL 都不动**（运营面零回归，有 DryRun 逐字节用例）。注入的是 **AND** 不是替换：漏写条件的仓储只剩框架这一条（依然正确），写反了（拿 B 的 key 查）恒空，失败方向是"查不到"而非"查到别人的"。注册表由**真库内省 + 模型源码 ast** 双向夹住（落地时各抓到一处真错：`revenue_records` 根本没有 `merchant_key` 列、`merchants` 用 `column:merchant_key` 声明）。门禁 `scripts/check-merchant-scope.py` 三道闸（装配面/身份来源/接线锁，判据跑在**去注释后**的源码上），`scripts/check-merchant-scope.test.sh` 六条腿证它**能红**；接进 `make merchant-scope-gate` 与 `platform-ci.yml`。**牙齿**：摘 `testutil` 的 `Register` 或摘 `merchant_auth.go` 的一处 `WithScope` ⇒ 探针腿（`TestMerchantScopeReachesRepositoryThroughRealRequest`）红；给非共享 handler 加一句 `ctx.Query("merchant_key")` ⇒ 门禁闸二红 |
 | **`/llm-api/v1` 验签闸**（P1-6 / A19）✅ 已落地 | 同一仓里第二个商户面，形态是"压根没有身份闸"（与 A3 的"有闸但隔离靠手写"不同） | `hivemtk-platform/platform-server`（独立仓，提交 `23abf55`）：`internal/middleware.MerchantLLMProxyAuth()` 挂在 `/llm-api/v1` 组上 —— HMAC-SHA256 over `"llm-proxy-v1\n"+method+"\n"+RequestURI+"\n"+ts+"\n"+nonce+"\n"+hex(sha256(body))`、`ts`±300s、按 `(商户,"llm:"+nonce)` 去重。三处口径**必须**与 `/merchant-api` 不同且已逐条论证：签 `RequestURI` 不签 `path`（`provider/scenario/tenant_code` 全在 query 里，不签就等于允许换 `tenant_code` 把账记到同商户另一个租户头上）；签 body 的 sha256 而非 body（最大 8MB）；带 nonce（签名输入无随机量，同秒同 prompt 的**合法**批量调用签名相同，照抄"按签名去重"会误杀，误杀的后果是有人把闸关掉）。controller 删掉 Bearer 回落只读 ctx（留着它 = 闸一摘就静默变"谁都能冒充"）。兼容窗口 `PLATFORM_LLM_PROXY_REQUIRE_SIGNATURE`（默认 true，只认环境变量；关掉则启动告警 + 每次放行留痕，且**窗口期仍校验商户存在且 active**）。门禁从"一个组"改成清单 `GATED_GROUPS` + 闸 2b（llm 面 handler 不得自读身份头）+ 闸 3b 逐文件 `c.Set ↔ WithScope` 一一对应且注入点必须含 `hmac.New(`。**牙齿**：`scripts/check-llm-proxy-auth.test.sh` 十条腿（逐条改坏 ⇒ 对应用例必红 ⇒ md5 还原回绿）；真装配腿五要求**拒绝出自闸**（判文案不判状态码——摘掉 `Use(...)` 后 controller 也会 401）；正对照一律看**信封业务码**（`response.Error` 是 HTTP 200 + code，用 `w.Code==200` 判通过会恒绿） |
 | **Postgres RLS** | `SAAS_MULTI_TENANT_EVALUATION_2026-10.md` §7 已否（连接池/事务语义、表 owner 绕过、`tenant_id=0` 与 `1` 并存无权威表） | 维持"本轮不做"，但仍是侵入面的理论下限；若做，先补"哪些行该是 `tenant_id=0`"的权威表 |
+| **跨端契约版本握手**（P1-5 / A4）✅ 已落地 | 独立部署的实例生命周期远长于云端；平台与 user-server 两仓各自发布 | 版本号 `Version=1` + 头 `X-Contract-Version`，两侧各钉一条 pin 用例（跨仓协议号，单方面 +1 会让对面全量 426）。平台端三组（`/merchant-api`、`/llm-api/v1`、`/api/platform`）挂 `ContractHandshake()`，**两个方向**都回**真 HTTP 426**（`response.UpgradeRequired`）——"高于平台实现"这一方向是建议稿漏掉的独立部署真实形态（实例自己先升了级，后果同样是静默的"存进去但永远不生效"）。默认 fail-closed，`PLATFORM_CONTRACT_MIN_VERSION` 是唯一开窗方式（启动告警 + 每次未声明放行留痕 + 非法值回落严格档 + 非法版本头当 0 而不是当最新版）。租户端收成"唯一构造入口 `newPlatformRequest` + 唯一判定点 `noteContractVerdict`"，426 经 `/api/system/info.platform_contract` 变成管理员可见状态（`omitempty` 保证 `off` 模式逐字节等价），且**只有受闸路径的 200 才能清告警**（`/health`/登录/`/platform/**` 的 200 只说明平台活着）。`/platform/**` 与 `/api/auth/login` 刻意豁免并有反向防腐判据。**牙齿**：四个变异逐一验红（不设版本头 / 426 不记账 / 只记不清 / 不判受闸路径），删 `merchantAPI.Use(middleware.ContractHandshake())` ⇒ 真装配腿六红；门禁十二条腿 |
 | **形态矩阵契约门禁**（方案 E）✅ 已落地 | `DEPLOYMENT_MODES_EVALUATION_2026-10.md` §6 | `internal/app/deployment_matrix_contract_test.go`：四格 × 六条行为（出站/租户上下文/自助开户/初始化态/后台扇出/隔离 callback）= 24 条断言，全部走活体组件。两个轴**正交**是核心断言之一：租户那五条在两列数值必须相同，谁在平台开关里顺手加租户判定就会红。**牙齿**：临时让 off 模式也看 claim、让 `PlatformURLFor` 在关闭态照样返回地址 ⇒ ①②③ 三格全红 |
 | **逐端点双租户交叉扫描**（T028 尾巴）✅ 已落地 | 现有覆盖是"逐域代表用例"，731 条带参数端点无一穷尽判据 | `internal/router/cross_tenant_scan_test.go` 三条互补的腿：①匿名参数路由 32 条必须能说出"租户/行靠什么定位"（链上 `Public*Tenant`/`AppKeyResolve` 自动认 16 条 + 台账登记 16 条，双向校验）；②按行自证类用未知键探测 16 次，不得 200；③真库双租户真扫 6 条不同取数风格端点。**关键口径纠正**：正对照从"状态码 200"升级为"200 且响应体含播种行 marker"——实测 `/api/email/smtp/:id` 两租户都回 200 + `{"code":4301,"message":"该功能模块未开通…"}`，只判状态码是假绿（模块闸挡在取数之前，行根本没读出来）。**牙齿**：`GetByID` 走 `tenant.WithSystemScope`（真绕过 callback；`Unscoped()` 咬不动）⇒ 闸三红；摘 `/share/douyin/:id` 的 `PublicIDTenant` ⇒ 闸一红；`renderCardChatPage` 取不到行回 200 ⇒ 闸二红 |
 | **on 模式邮件附件静默丢弃**（A18，本轮顺带审计出） | 修 A1/A12 时顺手查"谁把 `/files/…` 当磁盘路径用" | 附件在 on 模式分域落盘到 `{baseDir}/tenant_{id}/attachments/…`，而解析器只认平根 ⇒ **每一条**附件都 Lstat 不中、静默丢弃（一条 WARN），邮件状态仍写"已发送"，无用例会红。修法：附件根按 URL 里的签名改选（`mail.WithAttachmentDir` + `storage.TenantDirFromFileURL`），并收成唯一构造点 `storage.LocalAttachmentResolver()`（单封投递与营销群发共用；两处各拼一遍正是成因）；验不过不回落猜平根同名文件。**牙齿**：修前 `on 模式附件没解析出来（附件会被静默丢弃）：got=[]` |
@@ -493,6 +543,31 @@ psql -h 127.0.0.1 -p 8202 -U admin -d user_db -Atc \
 | `platform-server/scripts/check-merchant-scope.test.sh` | 六条腿 → 十条腿（新增：摘 `/llm-api/v1` 的闸 / llm handler 自读 Authorization / 删 `merchant_llm_auth.go` 的 `WithScope` / 去掉注入点里的 `hmac.New`） |
 | `platform-server/Makefile` + `.github/workflows/platform-ci.yml` | 新增 `make llm-proxy-auth-gate`（用例 + 自证）与 CI 步骤（`platform-server-test` 第 6 步） |
 | `platform-server/internal/service/llm_proxy_test.go` | A20：`setupProxy` 里 `t.Setenv("LLM_ENC_KEY", …)` 自带密钥（不用 Makefile 注占位——那只覆盖 `make test`，CI 直接跑 `go test ./...` 仍会红），判据 `env -u LLM_ENC_KEY go test -p 1 ./...` 全绿 |
+
+### 7.3 A4 轮（契约版本握手；平台端独立仓 + 本仓同批）
+
+| 文件 | 改动 |
+|---|---|
+| `platform-server/internal/contract/contract.go` | 新增：契约版本**唯一事实源** —— `HeaderName="X-Contract-Version"` / `Version=1` / `MinVersionEnv="PLATFORM_CONTRACT_MIN_VERSION"` / `MinSupported()`（默认 = `Version` 即 fail-closed，非法值回落 `Version`）/ `Parse()`（缺失/空/非法/负数一律当 0，**不能**读成最新版，否则任何人可跳过闸） |
+| `platform-server/internal/contract/contract_test.go` | 新增（3 例）：版本字面量 pin / `Parse` 六档 / `MinSupported` 默认从严 + 显式开窗 + 非法值回落 |
+| `platform-server/internal/middleware/contract_handshake.go` | 新增：`ContractHandshake()` —— 两个方向 426、文案分方向、`contractWarned` 按版本只喊一次、窗口期未声明放行**留痕**、ctx 写 `contract_version` |
+| `platform-server/internal/middleware/contract_handshake_test.go` | 新增（6 例，每条负例配正对照）：未声明 426 / 当前版本放行且 ctx 有版本号 / 高于平台 426 且指向"升平台" / 非法头 426 / 窗口期放行且留痕且不被伪装成最新版 / 非法开关回落严格档 |
+| `platform-server/internal/utils/response/response.go` | 新增 `UpgradeRequired`（**真 HTTP 426** + 信封 426）。不用 `Error(c,426,…)` —— 那是 HTTP 200 + 信封码，而"一眼认出"的主体是读不懂新信封的旧客户端 |
+| `platform-server/internal/router/router.go` | `merchantAPI`/`llmAPI`/`platformPublic` 三组各挂 `ContractHandshake()`（写在 `MerchantAuth`/`MerchantLLMProxyAuth` 之前）+ 一段注释说明**两个豁免前缀**（`/platform/**`、`/api/auth/login`）的理由：它们各有两种消费者，加要求会打挂平台自身前端 |
+| `platform-server/cmd/api/main.go` | 启动期：窗口开着就响亮告警（含"失败会伪装成业务错误"），默认档打一条 info |
+| `platform-server/internal/router/merchant_isolation_scan_test.go` | 腿一/腿五及 `merchantCall` 补 `contract.HeaderName`（否则 426 替身份闸挡枪、断言假绿）；新增腿六 `TestContractHandshakeEnforcedOnRealEngine`（受闸三前缀无头恒 426 + 声明的正对照不得 426 + 豁免前缀不得被挂闸 + "一条豁免都没扫到"也算失败） |
+| `platform-server/tests/api/api_test.go` | `TestRequestBodyTooLarge` 改用 `http.NewRequest` + `X-Contract-Version: 1`（否则 426 让 `code>=400` 假绿） |
+| `platform-server/scripts/check-merchant-scope.py` | 新增 `CONTRACT_GUARDED`/`CONTRACT_EXEMPT` + `check_contract_guard()` 闸 4：组唯一 / 先挂闸再注册路由 / 不得绕出组 / 豁免侧反向防腐 |
+| `platform-server/scripts/check-merchant-scope.test.sh` | 十条腿 → **十二条腿**（⑪ 摘 `/merchant-api` 的 `ContractHandshake`、⑫ 给豁免的 `/platform` 挂闸）；①⑦ 期望文案改为 `没有 MerchantAuth()`/`没有 MerchantLLMProxyAuth()`（摘掉唯一 `Use` 后组上已无第二条 `Use`） |
+| `user-server/internal/pkg/contract/contract.go` | 新增：租户端版本唯一事实源（`HeaderName`/`Version=1`/`HeaderValue()`）+ "平台要求本机升级"状态（`RecordUpgradeRequired`/`ClearUpgradeRequired`/`Status`/`UpgradeRequired()`）。用互斥量而非 atomic：存的是 struct，原子换指针会让读侧拿到半新半旧的一行字 |
+| `user-server/internal/platform/contract_header.go` | 新增：`newPlatformRequest`（**出站唯一构造入口**，无条件打版本头，不留 `if guarded` 开关）+ `contractGuardedPrefixes` 对账单 + `noteContractVerdict`（**唯一判定点**：426 记录 / 200 清除 / 其它不动，且只有受闸路径的 200 有清除资格） |
+| `user-server/internal/platform/client.go` | 登录 / `doRetry` / `CheckConnection` / `ReportInstall` / `ReportHeartbeat` 五处构造改走 `newPlatformRequest`；`doRetry` 与两个上报的非 200 分支补 `noteContractVerdict` |
+| `user-server/internal/platform/llm_proxy_client.go` | 构造改走 `newPlatformRequest`；收到响应后补 `noteContractVerdict`（这条通道最先被平台升级打到，失败表现是"模型调用全报错"） |
+| `user-server/internal/platform/contributor_client.go` | 同款改造（该前缀未挂闸，走同一入口只是不留第二份清单） |
+| `user-server/internal/pkg/shared/service/system_stats.go` | `SystemInfo` 加 `PlatformContract *contract.Status json:"platform_contract,omitempty"`，仅在被拒时填充 ⇒ `off` 模式响应体逐字节等价；不进 `publicSystemInfo` 白名单 |
+| `user-server/internal/pkg/contract/contract_test.go` | 新增（4 例）：版本 pin / 记录→可见→清除的状态机 / 重复上报不堆文案但累加次数 / 原因被最新一条覆盖（两个方向的文案动作不同） |
+| `user-server/internal/platform/contract_header_test.go` | 新增（5 例）：五个真实入口逐个断言带版本头 / 426 记录且原因取自平台信封 + 200 清除的正对照 / 豁免路径 200 不得清告警 + 受闸路径 200 必须清的正对照 / 受闸前缀清单对账 / 心跳 200 也必须能清（它是“只在主通道清”最容易漏的一处，漏了之后告警永不再更新） |
+| `user-server/internal/pkg/shared/service/system_stats_test.go` | 加一例：没被拒过时 JSON 里**连键都不能有**（`omitempty` + 指针，去 `omitempty` 与"无脑填空结构"两种写法实测都会红） |
 
 ---
 

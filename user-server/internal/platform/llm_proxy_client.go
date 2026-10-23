@@ -1,7 +1,6 @@
 package platform
 
 import (
-	"bytes"
 	"context"
 	"crypto/hmac"
 	"crypto/rand"
@@ -205,7 +204,7 @@ func (c *LLMProxyClient) ChatCompletions(ctx context.Context, provider string, b
 	}
 	target := c.baseURL + "/llm-api/v1/chat/completions?" + strings.Join(q, "&")
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, target, bytes.NewReader(body))
+	req, err := newPlatformRequest(ctx, http.MethodPost, target, body)
 	if err != nil {
 		return nil, fmt.Errorf("构造平台代理请求失败: %w", err)
 	}
@@ -231,6 +230,10 @@ func (c *LLMProxyClient) ChatCompletions(ctx context.Context, provider string, b
 	if err != nil {
 		return nil, fmt.Errorf("读取平台代理响应失败: %w", err)
 	}
+	// 契约版本裁决（SaaS 审计 A4）：426 ⇒ 记进管理端可见的状态。
+	// 这条通道尤其要紧 —— 它是最先被平台升级打到的那条（`/llm-api/v1` 同时挂验签闸
+	// 与契约闸），失败表现是"模型调用全部报错"，不看这里就只会去查厂商 key。
+	noteContractVerdict("/llm-api/v1/", resp.StatusCode, raw)
 
 	out := &LLMProxyResponse{
 		StatusCode:  resp.StatusCode,

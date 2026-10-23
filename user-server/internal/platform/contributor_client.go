@@ -1,7 +1,7 @@
 package platform
 
 import (
-	"bytes"
+	"context"
 	"crypto/sha256"
 	"encoding/hex"
 	"encoding/json"
@@ -240,7 +240,10 @@ func (cc *ContributorClient) SubmitAudit(assetID int64) error {
 
 func (cc *ContributorClient) doAuth(method, path string, body []byte, token string) (*contributorResp, error) {
 	url := strings.TrimRight(cc.baseURL, "/") + path
-	req, _ := http.NewRequest(method, url, bytes.NewReader(body))
+	req, err := newPlatformRequest(context.Background(), method, url, body)
+	if err != nil {
+		return nil, fmt.Errorf("构造平台贡献者请求失败: %w", err)
+	}
 	req.Header.Set("Content-Type", "application/json")
 	if token != "" {
 		req.Header.Set("Authorization", "Bearer "+token)
