@@ -537,6 +537,12 @@ func main() {
 
 	service.InitMemorySystem(db.GetDB())
 
+	// L-4 记忆衰减归档：此前只有实现、没有装配点（memory_items 与
+	// customer_long_term_memory 的 invalid_at 永远不会被写，L2 事实只进不出）。
+	// 这里按 1h 一轮接入，跨租户由 RunMemoryDecayAllTenants 经 tenant.Fanout 扇出。
+	service.StartMemoryDecayLoop(context.Background(), db.GetDB(), time.Hour)
+	logger.Info("[MemoryDecay] L-4 记忆衰减归档已装配（1h 一轮，按租户扇出）")
+
 	rfmCron := service.NewCustomerRFMCron(nil)
 	rfmCron.Start(context.Background())
 	defer rfmCron.Stop(context.Background())

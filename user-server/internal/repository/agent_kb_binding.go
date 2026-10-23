@@ -2,6 +2,8 @@ package repository
 
 import (
 	"context"
+	"errors"
+	"fmt"
 
 	"hivemtk-user/internal/model"
 
@@ -103,4 +105,145 @@ func (r *AgentKBBindingRepository) CheckExists(ctx context.Context, agentID, kbI
 		Where("agent_id = ? AND kb_id = ?", agentID, kbID).
 		Count(&count).Error
 	return count > 0, err
+}
+
+// 绑定域的写事务（覆盖 / 全量替换 / 批量覆盖）
+//
+// 事务边界落在仓储而不是 service：这三个动作都是"先删后建"，中途失败必须整体回滚，
+// 否则绑定会凭空消失。此前 service 里同时存在 tx 与"无 db 时退化"两条路径——同一条
+// 业务规则写了两份实现，而且退化那条静默丢掉了原子性。现在只有一份，且永远在事务里。
+//
+// kb_type 一律读知识库的真实类型再落冗余列：写死 faq 会让按类型过滤（ListByAgent 的
+// kbType 参数）把 rag/sop 库整批漏掉。
+
+// ErrKnowledgeBaseNotFound 绑定时引用的知识库不存在。
+//
+// 用独立哨兵而不是回 gorm.ErrRecordNotFound：调用方要把它翻成"知识库不存在"这类
+// 用户可见文案，而不是把"记录没找到"透出去。
+var ErrKnowledgeBaseNotFound = errors.New("知识库不存在")
+
+// KnowledgeBaseNotFoundError 带上 kb_id 的"知识库不存在"。
+//
+// 为什么要一个自定义类型而不是 `fmt.Errorf("知识库 %d 不存在: %w", id, ErrKnowledgeBaseNotFound)`：
+// 那样拼出来的文案是"知识库 7 不存在: 知识库不存在"，同一句话说两遍；而只写 id 不 wrap，
+// 调用方就再也没法用 errors.Is 分支处理这一类错误。Is 方法两头都给到。
+type KnowledgeBaseNotFoundError struct {
+	ID uint
+}
+
+func (e *KnowledgeBaseNotFoundError) Error() string {
+	return fmt.Sprintf("知识库 %d 不存在", e.ID)
+}
+
+func (e *KnowledgeBaseNotFoundError) Is(target error) bool {
+	return target == ErrKnowledgeBaseNotFound
+}
+
+// BindingTarget 批量绑定的单条入参：(agent_id, kb_id) 定位，priority 为覆盖后的优先级。
+type BindingTarget struct {
+	AgentID  uint
+	KBID     uint
+	Priority int
+}
+
+// resolveKBType 读知识库并返回其类型；不存在返回 ErrKnowledgeBaseNotFound。
+func resolveKBType(ctx context.Context, kbs *KnowledgeBaseRepository, kbID uint) (string, error) {
+	kb, err := kbs.GetByID(ctx, kbID)
+	if err != nil {
+		return "", err
+	}
+	if kb == nil {
+		return "", &KnowledgeBaseNotFoundError{ID: kbID}
+	}
+	return kb.Type, nil
+}
+
+// newBinding 组装一条绑定行（enabled 默认 true；nil 指针会被 Create 省略、走列默认值）。
+func newBinding(agentID, kbID uint, kbType string, priority int) *model.AgentKBBinding {
+	enabled := true
+	return &model.AgentKBBinding{
+		AgentID:  agentID,
+		KBID:     kbID,
+		KBType:   kbType,
+		Role:     model.AgentKBBindingRolePrimary,
+		Priority: priority,
+		Enabled:  &enabled,
+	}
+}
+
+// BindOverwrite 覆盖式绑定单个 (agent_id, kb_id)。
+func (r *AgentKBBindingRepository) BindOverwrite(ctx context.Context, agentID, kbID uint, priority int) error {
+	if r.db == nil {
+		return errors.New("binding repo not initialized")
+	}
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		txRepo := NewAgentKBBindingRepository(tx)
+		kbType, err := resolveKBType(ctx, NewKnowledgeBaseRepository(tx), kbID)
+		if err != nil {
+			return err
+		}
+		if err := txRepo.DeleteByAgentAndKB(ctx, agentID, kbID); err != nil {
+			return fmt.Errorf("清除旧绑定失败: %w", err)
+		}
+		if err := txRepo.Create(ctx, newBinding(agentID, kbID, kbType, priority)); err != nil {
+			return fmt.Errorf("创建绑定失败: %w", err)
+		}
+		return nil
+	})
+}
+
+// ReplaceByAgent 全量替换某智能体的知识库挂载（编辑页保存场景）。
+//
+// kbIDs 为空等价于清空；其中任一知识库不存在则整体回滚——半套挂载比没有更难排查。
+func (r *AgentKBBindingRepository) ReplaceByAgent(ctx context.Context, agentID uint, kbIDs []uint) error {
+	if r.db == nil {
+		return errors.New("binding repo not initialized")
+	}
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		txRepo := NewAgentKBBindingRepository(tx)
+		txKB := NewKnowledgeBaseRepository(tx)
+		if err := txRepo.DeleteByAgent(ctx, agentID); err != nil {
+			return fmt.Errorf("清除旧绑定失败: %w", err)
+		}
+		for _, kbID := range kbIDs {
+			if kbID == 0 {
+				continue
+			}
+			kbType, err := resolveKBType(ctx, txKB, kbID)
+			if err != nil {
+				return err
+			}
+			if err := txRepo.Create(ctx, newBinding(agentID, kbID, kbType, 0)); err != nil {
+				return fmt.Errorf("创建绑定失败: %w", err)
+			}
+		}
+		return nil
+	})
+}
+
+// BatchBindOverwrite 批量覆盖绑定（全部成功或全部失败）。
+func (r *AgentKBBindingRepository) BatchBindOverwrite(ctx context.Context, targets []BindingTarget) error {
+	if r.db == nil {
+		return errors.New("binding repo not initialized")
+	}
+	if len(targets) == 0 {
+		return nil
+	}
+	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
+		txRepo := NewAgentKBBindingRepository(tx)
+		txKB := NewKnowledgeBaseRepository(tx)
+		for _, t := range targets {
+			kbType, err := resolveKBType(ctx, txKB, t.KBID)
+			if err != nil {
+				return fmt.Errorf("items[agent=%d]: %w", t.AgentID, err)
+			}
+			if err := txRepo.DeleteByAgentAndKB(ctx, t.AgentID, t.KBID); err != nil {
+				return fmt.Errorf("items[agent=%d kb=%d]: 清除旧绑定失败: %w", t.AgentID, t.KBID, err)
+			}
+			if err := txRepo.Create(ctx, newBinding(t.AgentID, t.KBID, kbType, t.Priority)); err != nil {
+				return fmt.Errorf("items[agent=%d kb=%d]: 创建绑定失败: %w", t.AgentID, t.KBID, err)
+			}
+		}
+		return nil
+	})
 }

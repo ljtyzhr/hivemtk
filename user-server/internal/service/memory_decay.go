@@ -9,7 +9,9 @@ import (
 	"gorm.io/gorm"
 
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
+	"hivemtk-user/internal/repository"
 )
 
 const memoryDecayLambda = math.Ln2 / 168
@@ -64,18 +66,19 @@ func itemDecayConfidence(it model.MemoryItem) float64 {
 // RunMemoryDecayJob L-4：扫描 L2 事实表（memory_items 事实行 + customer_long_term_memory），
 // score<0.15 或 confidence<0.2 的记录归档软标记：InvalidAt=now（无 Archived 列的替代语义，不物理删）
 // dryRun=true 只统计不写。db 为 nil 时返回零统计。
-func RunMemoryDecayJob(ctx context.Context, db *gorm.DB, dryRun bool) (*MemoryDecayStats, error) {
+//
+// **本函数是单租户单元**：ctx 必须已绑定租户（正常路径由 RunMemoryDecayAllTenants 经
+// tenant.Fanout 提供）。不要在 ctx 没有租户绑定时直接调它——on 模式下隔离 callback 会
+// fail-closed，而"跑不起来"与"没有可归档数据"在统计上长得一模一样。
+func RunMemoryDecayJob(ctx context.Context, repo *repository.MemoryDecayRepository, dryRun bool) (*MemoryDecayStats, error) {
 	stats := &MemoryDecayStats{DryRun: dryRun}
-	if db == nil {
+	if repo == nil {
 		return stats, nil
 	}
 	now := time.Now()
 
-	var items []model.MemoryItem
-	if err := db.WithContext(ctx).
-		Where("layer = ? AND invalid_at IS NULL", model.MemoryLayerLongTerm).
-		Limit(memoryDecayScanLimit).
-		Find(&items).Error; err != nil {
+	items, err := repo.ListActiveLongTermItems(ctx, memoryDecayScanLimit)
+	if err != nil {
 		return nil, err
 	}
 	staleItemIDs := make([]uint, 0, 16)
@@ -90,11 +93,8 @@ func RunMemoryDecayJob(ctx context.Context, db *gorm.DB, dryRun bool) (*MemoryDe
 		staleItemIDs = append(staleItemIDs, it.ID)
 	}
 
-	var l2v []model.CustomerLongTermMemory
-	if err := db.WithContext(ctx).
-		Where("invalid_at IS NULL").
-		Limit(memoryDecayScanLimit).
-		Find(&l2v).Error; err != nil {
+	l2v, err := repo.ListActiveLongTermMemory(ctx, memoryDecayScanLimit)
+	if err != nil {
 		return nil, err
 	}
 	staleL2IDs := make([]uint64, 0, 16)
@@ -112,21 +112,42 @@ func RunMemoryDecayJob(ctx context.Context, db *gorm.DB, dryRun bool) (*MemoryDe
 	if dryRun {
 		return stats, nil
 	}
-	if len(staleItemIDs) > 0 {
-		if err := db.WithContext(ctx).Model(&model.MemoryItem{}).
-			Where("id IN ?", staleItemIDs).
-			Update("invalid_at", now).Error; err != nil {
-			return stats, err
-		}
-		stats.Archived += len(staleItemIDs)
+	if err := repo.MarkItemsInvalid(ctx, staleItemIDs, now); err != nil {
+		return stats, err
 	}
-	if len(staleL2IDs) > 0 {
-		if err := db.WithContext(ctx).Model(&model.CustomerLongTermMemory{}).
-			Where("id IN ?", staleL2IDs).
-			Update("invalid_at", now).Error; err != nil {
-			return stats, err
+	stats.Archived += len(staleItemIDs)
+	if err := repo.MarkLongTermMemoryInvalid(ctx, staleL2IDs, now); err != nil {
+		return stats, err
+	}
+	stats.Archived += len(staleL2IDs)
+	return stats, nil
+}
+
+// RunMemoryDecayAllTenants L-4 跨租户入口：按租户扇出后汇总。
+//
+// 为什么必须扇出而不是一把梭全表扫：memory_items / customer_long_term_memory 都是
+// 租户表，on 模式下隔离 callback 只认 ctx 里的租户。用 context.Background() 直接扫
+// 会 fail-closed（一行也读不到、每小时静默空转），用 SystemScope 强扫则是拿"后台任务"
+// 当万能钥匙、绕开整套隔离。tenant.Fanout 两头都不碰：off 模式给默认租户 ctx，on 模式
+// 逐个租户给 ctx，单租户失败不阻断其余租户（见 fanout.go 的取舍说明）。
+func RunMemoryDecayAllTenants(ctx context.Context, db *gorm.DB, dryRun bool) (*MemoryDecayStats, error) {
+	stats := &MemoryDecayStats{DryRun: dryRun}
+	if db == nil {
+		return stats, nil
+	}
+	repo := repository.NewMemoryDecayRepository(db)
+	_, err := tenant.Fanout(ctx, db, func(tctx context.Context, _ uint) (int64, error) {
+		one, jerr := RunMemoryDecayJob(tctx, repo, dryRun)
+		if jerr != nil {
+			return 0, jerr
 		}
-		stats.Archived += len(staleL2IDs)
+		stats.Scanned += one.Scanned
+		stats.Stale += one.Stale
+		stats.Archived += one.Archived
+		return int64(one.Archived), nil
+	})
+	if err != nil {
+		return stats, err
 	}
 	return stats, nil
 }
@@ -159,7 +180,7 @@ func StartMemoryDecayLoop(ctx context.Context, db *gorm.DB, interval time.Durati
 // RunMemoryDecayOnce L-4 标准入口：执行单轮衰减归档，返回实际归档（软失效）条数
 // db 为 nil 时返回 0；归档语义见 RunMemoryDecayJob（score<0.15 或 confidence<0.2 → InvalidAt=now，不物理删）
 func RunMemoryDecayOnce(db *gorm.DB) int {
-	stats, err := RunMemoryDecayJob(context.Background(), db, false)
+	stats, err := RunMemoryDecayAllTenants(context.Background(), db, false)
 	if err != nil {
 		logger.Warnf("[MemoryDecay] 衰减归档失败: %v", err)
 		return 0
@@ -173,7 +194,7 @@ func runMemoryDecayOnce(ctx context.Context, db *gorm.DB) {
 			logger.Errorf("[MemoryDecay] 单轮 panic: %v\n%s", r, debug.Stack())
 		}
 	}()
-	stats, err := RunMemoryDecayJob(ctx, db, false)
+	stats, err := RunMemoryDecayAllTenants(ctx, db, false)
 	if err != nil {
 		logger.Warnf("[MemoryDecay] 衰减归档失败: %v", err)
 		return

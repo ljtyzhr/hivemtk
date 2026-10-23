@@ -8,6 +8,7 @@ import (
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
+	"hivemtk-user/internal/repository"
 
 	"github.com/lib/pq"
 	"gorm.io/gorm"
@@ -51,10 +52,11 @@ func provisionTenantStarterKit(ctx context.Context, tenantID uint, tenantName st
 	}
 	// 注册/初始化 ctx 无租户绑定：走系统域豁免通道，行上显式 TenantID 定归属
 	sysCtx := tenant.WithSystemScope(ctx)
+	repo := repository.NewStarterKitRepository(database)
 
-	provisionTenantSiteConfig(sysCtx, database, tenantID, tenantName)
-	provisionStarterAgent(sysCtx, database, tenantID)
-	provisionStarterBundle(sysCtx, database, tenantID)
+	provisionTenantSiteConfig(sysCtx, repo, tenantID, tenantName)
+	provisionStarterAgent(sysCtx, repo, tenantID)
+	provisionStarterBundle(sysCtx, repo, tenantID)
 }
 
 // provisionTenantSiteConfig 为新租户建一行站点配置（一租户一行，幂等）
@@ -62,10 +64,9 @@ func provisionTenantStarterKit(ctx context.Context, tenantID uint, tenantName st
 // 站点名/主题色/注册开关/上传上限都是租户自己的运营口径：没有这行时读取方会
 // 落 service 层默认值，等于新商户默默继承了一套"别人的默认站点"。开户时显式
 // 建行，默认值与 service.defaultConfig 保持一致。
-func provisionTenantSiteConfig(sysCtx context.Context, db *gorm.DB, tenantID uint, tenantName string) {
-	var existing int64
-	if err := db.WithContext(sysCtx).Model(&model.SystemConfig{}).
-		Where("tenant_id = ?", tenantID).Count(&existing).Error; err != nil {
+func provisionTenantSiteConfig(sysCtx context.Context, repo *repository.StarterKitRepository, tenantID uint, tenantName string) {
+	existing, err := repo.CountSiteConfig(sysCtx, tenantID)
+	if err != nil {
 		logger.Warnf("[starter-kit] tenant=%d 站点配置幂等检查失败（跳过建行，不阻断注册）: %v", tenantID, err)
 		return
 	}
@@ -81,7 +82,7 @@ func provisionTenantSiteConfig(sysCtx context.Context, db *gorm.DB, tenantID uin
 		EnableRAG:            true,
 		MaxUploadSizeMB:      50,
 	}
-	if err := db.WithContext(sysCtx).Create(cfg).Error; err != nil {
+	if err := repo.CreateSiteConfig(sysCtx, cfg); err != nil {
 		logger.Warnf("[starter-kit] tenant=%d 站点配置创建失败（不阻断注册）: %v", tenantID, err)
 		return
 	}
@@ -89,11 +90,9 @@ func provisionTenantSiteConfig(sysCtx context.Context, db *gorm.DB, tenantID uin
 }
 
 // provisionStarterAgent 克隆全局 default_sales 为租户级副本
-func provisionStarterAgent(sysCtx context.Context, db *gorm.DB, tenantID uint) {
-	var existing int64
-	if err := db.WithContext(sysCtx).Model(&model.AIAgent{}).
-		Where("tenant_id = ? AND agent_code = ?", tenantID, starterKitAgentCode).
-		Count(&existing).Error; err != nil {
+func provisionStarterAgent(sysCtx context.Context, repo *repository.StarterKitRepository, tenantID uint) {
+	existing, err := repo.CountAgentByCode(sysCtx, tenantID, starterKitAgentCode)
+	if err != nil {
 		logger.Warnf("[starter-kit] tenant=%d 智能体幂等检查失败（跳过克隆，不阻断注册）: %v", tenantID, err)
 		return
 	}
@@ -103,16 +102,18 @@ func provisionStarterAgent(sysCtx context.Context, db *gorm.DB, tenantID uint) {
 
 	// 全局种子行（tenant_id=1，migration v2.2.0 建）；找不到就 Warn 跳过——
 	// 种子可后补，开户不能被一条 Warn 拖死
-	var source model.AIAgent
-	if err := db.WithContext(sysCtx).
-		Where("tenant_id = ? AND agent_code = ?", uint(1), starterKitAgentCode).
-		First(&source).Error; err != nil {
-		logger.Warnf("[starter-kit] tenant=%d 未找到全局 %s 种子行（跳过克隆）: %v",
+	source, err := repo.FindAgentByCode(sysCtx, 1, starterKitAgentCode)
+	if err != nil {
+		logger.Warnf("[starter-kit] tenant=%d 读全局 %s 种子行失败（跳过克隆）: %v",
 			tenantID, starterKitAgentCode, err)
 		return
 	}
+	if source == nil {
+		logger.Warnf("[starter-kit] tenant=%d 未找到全局 %s 种子行（跳过克隆）", tenantID, starterKitAgentCode)
+		return
+	}
 
-	clone := source
+	clone := *source
 	clone.ID = 0
 	clone.TenantID = tenantID
 	clone.CreatedAt = time.Time{}
@@ -127,7 +128,7 @@ func provisionStarterAgent(sysCtx context.Context, db *gorm.DB, tenantID uint) {
 	clone.ScriptLibraryIDs = pq.StringArray{}
 	clone.ABExperimentIDs = pq.StringArray{}
 
-	if err := db.WithContext(sysCtx).Create(&clone).Error; err != nil {
+	if err := repo.CreateAgent(sysCtx, &clone); err != nil {
 		logger.Warnf("[starter-kit] tenant=%d 智能体克隆失败（不阻断注册）: %v", tenantID, err)
 		return
 	}
@@ -136,11 +137,9 @@ func provisionStarterAgent(sysCtx context.Context, db *gorm.DB, tenantID uint) {
 }
 
 // provisionStarterBundle 创建内置起步资产包（欢迎语/常见问答/话术）
-func provisionStarterBundle(sysCtx context.Context, db *gorm.DB, tenantID uint) {
-	var existing int64
-	if err := db.WithContext(sysCtx).Model(&model.AssetBundle{}).
-		Where("tenant_id = ? AND asset_id = ?", tenantID, starterKitTemplateKey).
-		Count(&existing).Error; err != nil {
+func provisionStarterBundle(sysCtx context.Context, repo *repository.StarterKitRepository, tenantID uint) {
+	existing, err := repo.CountBundleByAssetID(sysCtx, tenantID, starterKitTemplateKey)
+	if err != nil {
 		logger.Warnf("[starter-kit] tenant=%d 资产包幂等检查失败（跳过创建，不阻断注册）: %v", tenantID, err)
 		return
 	}
@@ -176,7 +175,7 @@ func provisionStarterBundle(sysCtx context.Context, db *gorm.DB, tenantID uint) 
 		},
 		Examples: model.JSONArray{},
 	}
-	if err := db.WithContext(sysCtx).Create(bundle).Error; err != nil {
+	if err := repo.CreateBundle(sysCtx, bundle); err != nil {
 		logger.Warnf("[starter-kit] tenant=%d 起步资产包创建失败（不阻断注册）: %v", tenantID, err)
 		return
 	}

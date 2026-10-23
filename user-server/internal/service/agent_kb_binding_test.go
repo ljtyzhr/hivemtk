@@ -235,7 +235,7 @@ func TestNewAgentKBBindingService_NilDB(t *testing.T) {
 func TestNewAgentKBBindingServiceWithRepos(t *testing.T) {
 	kbRepo := (*repository.KnowledgeBaseRepository)(nil)
 	bindRepo := (*repository.AgentKBBindingRepository)(nil)
-	svc := NewAgentKBBindingServiceWithRepos(kbRepo, bindRepo, nil)
+	svc := NewAgentKBBindingServiceWithRepos(kbRepo, bindRepo)
 	if svc == nil {
 		t.Fatal("expected non-nil service")
 	}
@@ -362,7 +362,7 @@ func TestBind_UsesRealKBType(t *testing.T) {
 	}
 	kbRepo := repository.NewKnowledgeBaseRepository(database)
 	bindRepo := repository.NewAgentKBBindingRepository(database)
-	svc := NewAgentKBBindingServiceWithRepos(kbRepo, bindRepo, database)
+	svc := NewAgentKBBindingServiceWithRepos(kbRepo, bindRepo)
 
 	ctx := context.Background()
 	kb := &model.KnowledgeBase{

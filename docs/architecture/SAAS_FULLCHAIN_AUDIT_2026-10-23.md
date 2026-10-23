@@ -452,3 +452,77 @@ exclusion constraint matching the ON CONFLICT specification`。根因：平台 `
 | `user-server/internal/config/platform_test.go` | 新增 2 例：回落生效 / 显式路径不回落 |
 | `hivemtk-platform/migrations/034_tenant_modules_tenant_code.sql` | 环境面：应用于本地 `platform_db`（未改文件） |
 | `model-list.md` | #206 `kb_item_bindings` 补审行 |
+
+## 9. 任务一续审：服务层「自持 gorm」清零 + L-4 归档装配 + 绑定写事务下沉（2026-10-24）
+
+### 9.1 三条全仓扫描（用来定位，不代替逐实体审）
+
+| 扫描 | 命令口径 | 结果 |
+|---|---|---|
+| 服务层直发查询 | `internal/service/*.go` 中出现 `db.WithContext/Raw/Model/Create/...` | 收口前 3 个文件：`tenant_starter_kit.go`(7)、`memory_decay.go`(4)、`agent_kb_binding.go`(2)；收口后 **0** |
+| 服务/控制器裸 SQL（门 2） | `.Raw(`/`.Exec(` | 0（历史已清） |
+| 控制器持 gorm（门 1） | `internal/controller/*.go` 导入 `gorm.io/gorm` | 0 |
+
+`agent_kb_binding.go` 那 2 处不是查询，而是 `db.WithContext(ctx).Transaction(...)`：事务边界。
+但事务边界在 service 的直接后果是「同一条业务规则写了两份」——有 db 走事务、无 db 退化裸写，
+退化那条**静默丢掉原子性**（先删后建中途失败 ⇒ 绑定凭空消失）。所以按缺陷处理，不是纯风格。
+
+### 9.2 三处改动
+
+**a) 开户赠送（`tenant_starter_kit.go`）**：三张表（`system_config` / `ai_agents` / `asset_bundles`）
+的读写进新增 `repository/starter_kit.go`（`CountSiteConfig`/`CreateSiteConfig`/`CountAgentByCode`/
+`FindAgentByCode`/`CreateAgent`/`CountBundleByAssetID`/`CreateBundle`）。单开一个仓储而不是往三个
+既有仓储各加方法：这是**一个流程**（开户赠送），拆三处会让"开户时到底碰了哪几张表"读不出来；
+且 `SystemConfigRepository`/`AssetBundleRepository` 是 interface，各加两三个方法要连带补所有 fake。
+归属靠行上显式 `tenant_id`（注册 ctx 无租户绑定，走 `tenant.WithSystemScope` 豁免通道，该通道下
+callback 不填列 ⇒ 每个方法都把 tenantID 作显式条件）。
+
+**b) L-4 记忆衰减归档（`memory_decay.go`）**：原状是**僵尸**——实现完整、9 个用例齐全，
+但 `StartMemoryDecayLoop`/`RunMemoryDecayOnce` 在全仓**零生产调用方**，兄弟作业
+（RFM/Churn/旅程沉睡/RAG 评测/企微配额）都在 `cmd/api/main.go` 装配，唯独它没有。
+后果不是"功能缺失"而是"数据只进不出"：`memory_items` 与 `customer_long_term_memory` 的
+`invalid_at` 永远不写，L2 事实无界增长。修法：
+
+- 新增 `repository/memory_decay.go`（读 → 判 → 软失效，租户由 ctx 承载）；
+- `RunMemoryDecayJob` 降为**单租户单元**（收 `*repository.MemoryDecayRepository`），
+  新增 `RunMemoryDecayAllTenants` 经 `tenant.Fanout` 逐租户；
+- `cmd/api/main.go` 装配 `StartMemoryDecayLoop(ctx, db, time.Hour)`。
+
+为什么不一把梭全表扫：两张都是租户表，on 模式下隔离 callback 只认 ctx 里的租户，
+用 `context.Background()` 会 fail-closed（一行读不到），而"读不到"与"没数据可归档"在统计上
+完全一样（`scanned=0`）——这正是它漏装这么久没人发现的原因；用 `SystemScope` 强扫则是拿
+后台任务当万能钥匙。`Fanout` 两头都不碰：off 给默认租户 ctx、on 逐租户给 ctx、单租户失败不阻断
+其余租户、枚举器缺失 fail-closed 报错（该枚举器在 `db.AutoMigrate` 里注册，生产有装配）。
+
+**c) 绑定写事务下沉（`agent_kb_binding.go` + `repository/agent_kb_binding.go`）**：新增
+`BindOverwrite`/`ReplaceByAgent`/`BatchBindOverwrite`，各自单一实现且常驻事务；service 只剩
+入参校验与错误文案，不再持 `*gorm.DB`，`txBeginner` 与非事务退化路径一并删除。
+`kb_type` 一律读知识库真实类型（写死 `faq` 会让按类型过滤整批漏掉 rag/sop 库——本轮一并去掉
+"kbRepo 为 nil 时默认 faq"这条兜底，它只会静默写错列）。
+错误用带 id 的自定义类型 `KnowledgeBaseNotFoundError`（`Is` 指向 `ErrKnowledgeBaseNotFound`）：
+`fmt.Errorf("知识库 %d 不存在: %w", id, Err...)` 拼出来的文案是"知识库 7 不存在: 知识库不存在"，
+同一句话说两遍；只写 id 不 wrap，调用方就再也无法用 `errors.Is` 分支。
+
+### 9.3 新增回归用例（12 例）
+
+| 文件 | 用例数 | 锁住的性质 |
+|---|---|---|
+| `internal/repository/memory_decay_tenant_test.go` | 3 | 读侧只看得见本租户；软失效 UPDATE 混入他租户 id 也改不动那一行；无租户 ctx 报错（不退化成全表） |
+| `internal/service/memory_decay_fanout_test.go` | 3 | 生产同款 `context.Background()` 入口下两租户各被归档且不串；枚举器缺失必须报错而非静默 `archived=0`；干跑不落 `invalid_at` |
+| `internal/repository/agent_kb_binding_tx_test.go` | 6 | 坏 kb 整体回滚（既有绑定原样保留）；空列表清空；覆盖语义与优先级；kb_type 取真实类型；批量全或无 |
+
+### 9.4 测试库踩到的两个坑（留档，避免下次再查）
+
+1. `customer_long_term_memory.embedding` 是 `vector(1024)`，GORM 会把零值 `""` 写进去 ⇒
+   `invalid input syntax for type vector: ""`。预置数据要 `Omit("Embedding")` 让列为 NULL
+   （生产写入通路 `memory_system.go:591` 一定带向量，所以这不是线上缺陷）。
+2. 复用带主键的 dest 变量再 `First(&dest, 新id)`，GORM 会把旧主键当附加条件 ⇒ 表现为
+   `record not found`（而不是读错行）。物理回查每次用新变量。
+
+### 9.5 未决（需产品/跨仓决策，不在审计范围内单方面拍定）
+
+- `sop_state_memories`：写入口 `L3SaveSOPState → SaveSOPState` **只有测试调用方**，
+  而 `BuildPrompt` 在生产照读该表 ⇒ prompt 里「L3 SOP 状态」段恒为空。是设计未落地
+  （model 注释 D-6 已记录，并据此判定 NOT NULL 迁移无存量风险）。二选一：接三处 SOP 推进点
+  （`sop.go` 390/490、`sop_dispatcher.go` 578）持久化，或删表并删掉 prompt 中的 L3 段。
+- `hivemtk-platform/migrations/*.sql` 未纳入平台端起服执行（见 §8.5 建议，跨仓 + 部署脚本）。
