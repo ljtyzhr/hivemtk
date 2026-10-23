@@ -7,6 +7,7 @@ import (
 	"sync"
 	"time"
 
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
 )
@@ -60,42 +61,52 @@ func (t *MessageTraceCleanupTask) RunOnce(ctx context.Context) (masked int64, nu
 	return masked, nulled, err
 }
 
+// maskAgedBodies 按租户扇出打码。
+//
+// message_trace 是租户表：不带租户绑定的 ctx 在 on 模式会被隔离 callback 拒，
+// 于是这条清理过去在 saas 形态下必然每轮报错、一行都打不掉码（而 off 模式看不出来）。
+// 逐租户执行与 memory 衰减归档同一个口径。
 func (t *MessageTraceCleanupTask) maskAgedBodies(ctx context.Context) (int64, error) {
-	now := t.nowFn()
-	upper := now.Add(-tracePIIMaskAge)
-	lower := now.Add(-traceTTLLimitAge)
-	var masked int64
-	var lastID uint
-	for {
-		rows, err := t.repo.ListForPIIMask(ctx, upper, lower, lastID, traceMaskBatchSize)
-		if err != nil {
-			return masked, err
-		}
-		if len(rows) == 0 {
-			return masked, nil
-		}
-		for _, r := range rows {
-			lastID = r.ID
-			newIn := MaskPII(r.Input)
-			newOut := MaskPII(r.Output)
-			if newIn == r.Input && newOut == r.Output {
-				continue
-			}
-			n, err := t.repo.UpdateBody(ctx, r.ID, newIn, newOut)
+	return tenant.Fanout(ctx, nil, func(ctx context.Context, _ uint) (int64, error) {
+		now := t.nowFn()
+		upper := now.Add(-tracePIIMaskAge)
+		lower := now.Add(-traceTTLLimitAge)
+		var masked int64
+		var lastID uint
+		for {
+			rows, err := t.repo.ListForPIIMask(ctx, upper, lower, lastID, traceMaskBatchSize)
 			if err != nil {
 				return masked, err
 			}
-			masked += n
+			if len(rows) == 0 {
+				return masked, nil
+			}
+			for _, r := range rows {
+				lastID = r.ID
+				newIn := MaskPII(r.Input)
+				newOut := MaskPII(r.Output)
+				if newIn == r.Input && newOut == r.Output {
+					continue
+				}
+				n, err := t.repo.UpdateBody(ctx, r.ID, newIn, newOut)
+				if err != nil {
+					return masked, err
+				}
+				masked += n
+			}
+			if len(rows) < traceMaskBatchSize {
+				return masked, nil
+			}
 		}
-		if len(rows) < traceMaskBatchSize {
-			return masked, nil
-		}
-	}
+	})
 }
 
+// nullExpiredBodies 同 maskAgedBodies：按租户扇出后再置 NULL。
 func (t *MessageTraceCleanupTask) nullExpiredBodies(ctx context.Context) (int64, error) {
-	cutoff := t.nowFn().Add(-traceTTLLimitAge)
-	return t.repo.NullExpiredBodies(ctx, cutoff)
+	return tenant.Fanout(ctx, nil, func(ctx context.Context, _ uint) (int64, error) {
+		cutoff := t.nowFn().Add(-traceTTLLimitAge)
+		return t.repo.NullExpiredBodies(ctx, cutoff)
+	})
 }
 
 func (t *MessageTraceCleanupTask) Start(ctx context.Context) {

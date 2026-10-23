@@ -24,6 +24,17 @@ func NewLowQualitySampleRepository() *LowQualitySampleRepository {
 
 // List 低质样本分页列表
 func (r *LowQualitySampleRepository) List(ctx context.Context, sampleType string, page, pageSize int) ([]model.LowQualitySample, int64, error) {
+	// 夹取分页：page ≤ 0 时 `(page-1)*pageSize` 是负 offset（PG 直接报错），
+	// pageSize 无上界时 page_size=100000 一条就能把整表读进内存。
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 20
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
 	q := r.db.WithContext(ctx).Model(&model.LowQualitySample{})
 	if sampleType != "" {
 		q = q.Where("sample_type = ?", sampleType)

@@ -21,8 +21,8 @@ import (
 // 基线值直接写死在本文件：改基线要改测试（显式棘轮动作，不是顺手改脚本）。
 
 const (
-	gormGuardMaxHits  = 169 // 规划基线 180，R25 现树实测 169 —— 只许降
-	gormGuardMaxFiles = 107
+	gormGuardMaxHits  = 166 // 规划基线 180，R25 现树实测 169，2026-10-24 任务一收口后现树 166 —— 只许降
+	gormGuardMaxFiles = 106
 	gormGuardScope    = "internal/service/" // 含 internal/geo/service 等子包
 )
 

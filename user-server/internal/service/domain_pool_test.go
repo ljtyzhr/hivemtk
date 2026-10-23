@@ -2,6 +2,7 @@ package service
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
@@ -207,14 +208,18 @@ func TestDomainPoolService_Delete(t *testing.T) {
 	}
 }
 
-// TestDomainPoolService_Delete_NotFound 测试删除不存在的记录
+// TestDomainPoolService_Delete_NotFound 测试删除不存在的记录。
+//
+// 期望 ErrRecordNotFound（而不是静默成功）：bf7553b5 起 repo 的 Delete 对
+// RowsAffected==0 显式报错——与「整行 Save 命中 0 行回退成 INSERT」同批收口，
+// 删不存在的行若是静默成功，调用方会把「ID 打错/行已被并发删掉」当成删干净了。
 func TestDomainPoolService_Delete_NotFound(t *testing.T) {
 	database := setupDomainPoolServiceTestDB(t)
 	service := NewDomainPoolService(database)
 
 	err := service.Delete(context.Background(), 99999)
-	if err != nil {
-		t.Errorf("Delete non-existent record should not return error: %v", err)
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
+		t.Errorf("Delete non-existent record must return gorm.ErrRecordNotFound, got: %v", err)
 	}
 }
 

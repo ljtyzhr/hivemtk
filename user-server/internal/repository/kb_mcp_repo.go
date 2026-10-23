@@ -2,9 +2,8 @@ package repository
 
 import (
 	"context"
-	"time"
 
-	"hivemtk-user/internal/pkg/db"
+	_db "hivemtk-user/internal/pkg/db"
 
 	"hivemtk-user/internal/model"
 
@@ -15,7 +14,7 @@ import (
 type ExternalKBConnectorRepo struct{ db *gorm.DB }
 
 func NewExternalKBConnectorRepo() *ExternalKBConnectorRepo {
-	return &ExternalKBConnectorRepo{db: db.GetDB()}
+	return &ExternalKBConnectorRepo{db: _db.GetDB()}
 }
 
 func (r *ExternalKBConnectorRepo) List(ctx context.Context, limit int) ([]model.ExternalKBConnector, error) {
@@ -39,38 +38,23 @@ func (r *ExternalKBConnectorRepo) Create(ctx context.Context, row *model.Externa
 
 // Update 更新连接器。
 //
-// 0 行受影响时报「不存在」而不是静默成功：GORM 的 Updates 对没有匹配行的
-// Where 不返回错误，于是「改一个不存在的连接器」会回 200「已更新」——
-// 调用方（页面）以为改成功了，实际什么都没发生。改不存在的资源是 404 的语义，
-// 不是 200。
+// 0 行受影响即「不存在」（`db.EnsureAffected`）：GORM 的 Updates 对没有匹配行的
+// Where 不返回错误，于是「改一个不存在的连接器」会回 200「已更新」。
 func (r *ExternalKBConnectorRepo) Update(ctx context.Context, id uint, updates map[string]any) error {
-	res := r.db.WithContext(ctx).Model(&model.ExternalKBConnector{}).Where("id = ?", id).Updates(updates)
-	if res.Error != nil {
-		return res.Error
-	}
-	if res.RowsAffected == 0 {
-		return gorm.ErrRecordNotFound
-	}
-	return nil
+	return _db.EnsureAffected(r.db.WithContext(ctx).
+		Model(&model.ExternalKBConnector{}).Where("id = ?", id).Updates(updates))
 }
 
 // Delete 删除连接器（同 Update：0 行 ⇒ 不存在，而不是静默成功）。
 func (r *ExternalKBConnectorRepo) Delete(ctx context.Context, id uint) error {
-	res := r.db.WithContext(ctx).Delete(&model.ExternalKBConnector{}, id)
-	if res.Error != nil {
-		return res.Error
-	}
-	if res.RowsAffected == 0 {
-		return gorm.ErrRecordNotFound
-	}
-	return nil
+	return _db.EnsureAffected(r.db.WithContext(ctx).Delete(&model.ExternalKBConnector{}, id))
 }
 
 // MCPCredentialRepo MCP 凭证对仓储
 type MCPCredentialRepo struct{ db *gorm.DB }
 
 func NewMCPCredentialRepo() *MCPCredentialRepo {
-	return &MCPCredentialRepo{db: db.GetDB()}
+	return &MCPCredentialRepo{db: _db.GetDB()}
 }
 
 func (r *MCPCredentialRepo) List(ctx context.Context, limit int) ([]model.MCPCredential, error) {
@@ -79,30 +63,15 @@ func (r *MCPCredentialRepo) List(ctx context.Context, limit int) ([]model.MCPCre
 	return rows, err
 }
 
-func (r *MCPCredentialRepo) GetByClientID(ctx context.Context, clientID string) (*model.MCPCredential, error) {
-	var row model.MCPCredential
-	err := r.db.WithContext(ctx).
-		Where("client_id = ? AND enabled = ?", clientID, true).
-		First(&row).Error
-	if err != nil {
-		return nil, err
-	}
-	return &row, nil
-}
-
 func (r *MCPCredentialRepo) Create(ctx context.Context, row *model.MCPCredential) error {
 	return r.db.WithContext(ctx).Create(row).Error
 }
 
 func (r *MCPCredentialRepo) Update(ctx context.Context, id uint, updates map[string]any) error {
-	return r.db.WithContext(ctx).Model(&model.MCPCredential{}).Where("id = ?", id).Updates(updates).Error
+	return _db.EnsureAffected(r.db.WithContext(ctx).
+		Model(&model.MCPCredential{}).Where("id = ?", id).Updates(updates))
 }
 
 func (r *MCPCredentialRepo) Delete(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).Delete(&model.MCPCredential{}, id).Error
-}
-
-func (r *MCPCredentialRepo) TouchLastUsed(ctx context.Context, clientID string, at time.Time) error {
-	return r.db.WithContext(ctx).Model(&model.MCPCredential{}).
-		Where("client_id = ?", clientID).Update("last_used_at", at).Error
+	return _db.EnsureAffected(r.db.WithContext(ctx).Delete(&model.MCPCredential{}, id))
 }

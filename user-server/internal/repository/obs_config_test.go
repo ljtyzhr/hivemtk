@@ -418,46 +418,6 @@ func TestObsConfigRepository_UpdateStatus(t *testing.T) {
 	}
 }
 
-// TestObsConfigRepository_CountByStatus 测试按状态统计数量
-func TestObsConfigRepository_CountByStatus(t *testing.T) {
-	ctx := context.Background()
-	repo := setupObsConfigRepository(t)
-
-	repo.Create(ctx, &model.ObsConfig{
-		Name:     "Active 1",
-		Provider: model.ObsProviderAliyun,
-		Status:   model.ObsStatusActive,
-	})
-
-	repo.Create(ctx, &model.ObsConfig{
-		Name:     "Active 2",
-		Provider: model.ObsProviderQiniu,
-		Status:   model.ObsStatusActive,
-	})
-
-	repo.Create(ctx, &model.ObsConfig{
-		Name:     "Inactive 1",
-		Provider: model.ObsProviderTencent,
-		Status:   model.ObsStatusInactive,
-	})
-
-	activeCount, err := repo.CountByStatus(context.Background(), model.ObsStatusActive)
-	if err != nil {
-		t.Errorf("CountByStatus() error = %v", err)
-	}
-	if activeCount != 2 {
-		t.Errorf("Expected 2 active configs, got %d", activeCount)
-	}
-
-	inactiveCount, err := repo.CountByStatus(context.Background(), model.ObsStatusInactive)
-	if err != nil {
-		t.Errorf("CountByStatus() error = %v", err)
-	}
-	if inactiveCount != 1 {
-		t.Errorf("Expected 1 inactive config, got %d", inactiveCount)
-	}
-}
-
 // TestObsConfigRepository_GetByID_NotFound 测试获取不存在的配置
 func TestObsConfigRepository_GetByID_NotFound(t *testing.T) {
 	ctx := context.Background()

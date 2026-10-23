@@ -130,18 +130,6 @@ func (r *NotificationRepository) UpsertFromPlatform(ctx context.Context, n *mode
 	return res.RowsAffected > 0, nil
 }
 
-// ExistsBySourceMsgID 判断某平台消息在本租户是否已投递过。
-func (r *NotificationRepository) ExistsBySourceMsgID(ctx context.Context, sourceMsgID int64) (bool, error) {
-	if r == nil || r.db == nil {
-		return false, nil
-	}
-	var count int64
-	err := r.db.WithContext(ctx).Model(&model.Notification{}).
-		Where("source_msg_id = ?", sourceMsgID).
-		Count(&count).Error
-	return count > 0, err
-}
-
 // MaxSourceMsgID 取本租户已投递的最大平台消息 ID（= 下一轮同步的游标）。
 //
 // 它就是"已投递过"的全部证据：平台消息 ID 单调递增，而本地落地的行

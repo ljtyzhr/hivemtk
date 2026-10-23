@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"gorm.io/gorm"
@@ -165,7 +166,7 @@ func (r *memoryRepository) GetLatestSummary(ctx context.Context, customerID stri
 		Where("layer = ? AND customer_id = ? AND item_type = ?", model.MemoryLayerLongTerm, customerID, "summary").
 		Order("created_at DESC").First(&item).Error
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
 		return nil, err
@@ -174,7 +175,7 @@ func (r *memoryRepository) GetLatestSummary(ctx context.Context, customerID stri
 }
 
 func (r *memoryRepository) SaveSOPState(ctx context.Context, state *model.SOPStateMemory) error {
-	return r.db.WithContext(ctx).Save(state).Error
+	return _db.SaveWholeRow(r.db.WithContext(ctx), state)
 }
 
 func (r *memoryRepository) GetSOPStateBySession(ctx context.Context, sessionID string) (*model.SOPStateMemory, error) {
@@ -183,7 +184,7 @@ func (r *memoryRepository) GetSOPStateBySession(ctx context.Context, sessionID s
 		Where("session_id = ?", sessionID).
 		Order("updated_at DESC").First(&state).Error
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return nil, nil
 		}
 		return nil, err
@@ -245,7 +246,9 @@ func (r *memoryRepository) CreateLongTermMemory(ctx context.Context, item *model
 }
 
 func (r *memoryRepository) SaveLongTermMemory(ctx context.Context, item *model.CustomerLongTermMemory) error {
-	return r.db.WithContext(ctx).Save(item).Error
+	// 两个调用点都是「读出来改字段再回写」（去重合并、补 metadata），
+	// 命中 0 行只能是那行已被并发清掉 ⇒ 报 not found，而不是让 Save 回退插一条幽灵行。
+	return _db.SaveWholeRow(r.db.WithContext(ctx), item)
 }
 
 func (r *memoryRepository) SearchLongTermMemoriesByVector(ctx context.Context, queryVecStr, customerID string, fetchN int) ([]LongTermMemoryVectorRow, error) {

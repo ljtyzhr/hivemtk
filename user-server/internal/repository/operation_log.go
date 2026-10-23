@@ -62,6 +62,9 @@ func (r *operationLogRepo) GetByID(ctx context.Context, id uint) (*model.Operati
 }
 
 func (r *operationLogRepo) GetAll(ctx context.Context, page, pageSize int, filters map[string]any) ([]*model.OperationLog, int64, error) {
+	// 夹取分页：page ≤ 0 时 offset 为负（PG 直接报错），pageSize 无上界时
+	// 一次请求能把 operation_logs（真库 5 万+ 行、且逐行解密）整表拖进内存。
+	page, pageSize = clampOperationLogPage(page, pageSize)
 	var logs []*model.OperationLog
 	var total int64
 
@@ -110,6 +113,9 @@ func (r *operationLogRepo) GetAllKeyset(ctx context.Context, cursor string, page
 	if pageSize <= 0 {
 		pageSize = 20
 	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
 
 	query := r.db.WithContext(ctx).Model(&model.OperationLog{})
 
@@ -157,6 +163,7 @@ func (r *operationLogRepo) GetAllKeyset(ctx context.Context, cursor string, page
 }
 
 func (r *operationLogRepo) GetByUserID(ctx context.Context, userID uint, page, pageSize int) ([]*model.OperationLog, int64, error) {
+	page, pageSize = clampOperationLogPage(page, pageSize)
 	var logs []*model.OperationLog
 	var total int64
 
@@ -188,10 +195,26 @@ func (r *operationLogRepo) DeleteByIDs(ctx context.Context, ids []uint) (int64, 
 	return result.RowsAffected, result.Error
 }
 
+// UpdateNewValue 只改 new_value 一列；0 行 ⇒ 该条日志不存在（`db.EnsureAffected`），
+// 而不是把"改了个不存在的 id"当成成功回报。
 func (r *operationLogRepo) UpdateNewValue(ctx context.Context, id uint, newValue string) error {
-	return r.db.WithContext(ctx).Model(&model.OperationLog{}).
+	return _db.EnsureAffected(r.db.WithContext(ctx).Model(&model.OperationLog{}).
 		Where("id = ?", id).
-		Update("new_value", newValue).Error
+		Update("new_value", newValue))
+}
+
+// clampOperationLogPage 统一分页夹取（对齐 pagination.MaxPageSize = 100）。
+func clampOperationLogPage(page, pageSize int) (int, int) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 20
+	}
+	if pageSize > 100 {
+		pageSize = 100
+	}
+	return page, pageSize
 }
 
 // decryptOperationLog 读取出口解密单条操作日志的敏感字段（OPT-SEC-04）。

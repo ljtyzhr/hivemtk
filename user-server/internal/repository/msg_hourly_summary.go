@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"hivemtk-user/internal/model"
@@ -60,7 +61,7 @@ func (r *msgHourlySummaryRepo) LoadWatermark(ctx context.Context, source string)
 		Where("source = ?", source).
 		First(&wm).Error
 	if err != nil {
-		if err == gorm.ErrRecordNotFound {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return 0, nil
 		}
 		return 0, err

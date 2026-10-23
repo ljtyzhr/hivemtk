@@ -27,8 +27,12 @@ type ObsConfigRepository interface {
 	SetDefault(ctx context.Context, id string) error
 	// IncrementUsage 累加用量计数；只写 file_count/total_size 两列，不整行写回。
 	IncrementUsage(ctx context.Context, id string, size int64) error
+	// UpdateStatus 只改 status 一列。**测试独占**：生产侧没有任何启停入口
+	// （管理面只有列表/增删改/设默认），它是构造"status ≠ active"状态的唯一最小写面，
+	// 缺了它 obs_config_default_batchm_test.go 就没法钉住
+	// "GetDefault 只认 active" 与 "编辑口不许把 status 写回" 两条契约。
+	// 若日后补上管理面启停接口，这个理由随之消失，改成正常生产方法即可。
 	UpdateStatus(ctx context.Context, id string, status model.ObsStatus) error
-	CountByStatus(ctx context.Context, status model.ObsStatus) (int64, error)
 	Count(ctx context.Context) (int64, error)
 }
 
@@ -48,13 +52,31 @@ func (r *obsConfigRepo) Create(ctx context.Context, config *model.ObsConfig) err
 	return r.db.WithContext(ctx).Create(config).Error
 }
 
+// GetByID 取一台配置；不存在时返回 (nil, gorm.ErrRecordNotFound)。
+//
+// 出错时不回零值行：`&config` 配着 error 一起交出去，任何忽略 err 的调用方
+// 都会拿到一条 ID 为空、各列零值的"配置"继续用（空 bucket、max_size=0 ⇒ 拒绝
+// 一切上传），症状与"没配置"完全不像，排查方向会被带偏。
 func (r *obsConfigRepo) GetByID(ctx context.Context, id string) (*model.ObsConfig, error) {
 	var config model.ObsConfig
-	err := r.db.WithContext(ctx).Where("id = ?", id).First(&config).Error
-	return &config, err
+	if err := r.db.WithContext(ctx).Where("id = ?", id).First(&config).Error; err != nil {
+		return nil, err
+	}
+	return &config, nil
 }
 
 func (r *obsConfigRepo) GetList(ctx context.Context, page int, limit int, provider string, status string) ([]*model.ObsConfig, int64, error) {
+	// 夹取分页：page ≤ 0 会让 offset 变负（PG 直接报错），limit 无上界时
+	// 一次请求就能把整表读进内存。
+	if page < 1 {
+		page = 1
+	}
+	if limit < 1 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
+	}
 	var configs []*model.ObsConfig
 	var total int64
 	offset := (page - 1) * limit
@@ -93,7 +115,8 @@ func (r *obsConfigRepo) Update(ctx context.Context, config *model.ObsConfig) err
 	if config == nil || config.ID == "" {
 		return gorm.ErrRecordNotFound
 	}
-	res := r.db.WithContext(ctx).Model(&model.ObsConfig{}).Where("id = ?", config.ID).
+	// 0 行 ⇒ 该行不存在（`db.EnsureAffected`）：不该回一句"已更新"却没发生任何事。
+	return _db.EnsureAffected(r.db.WithContext(ctx).Model(&model.ObsConfig{}).Where("id = ?", config.ID).
 		Updates(map[string]any{
 			"name":        config.Name,
 			"provider":    config.Provider,
@@ -107,14 +130,7 @@ func (r *obsConfigRepo) Update(ctx context.Context, config *model.ObsConfig) err
 			"config":      config.Config,
 			"max_size":    config.MaxSize,
 			"max_count":   config.MaxCount,
-		})
-	if res.Error != nil {
-		return res.Error
-	}
-	if res.RowsAffected == 0 {
-		return gorm.ErrRecordNotFound
-	}
-	return nil
+		}))
 }
 
 // DeleteNonDefault 删除一条**非默认**配置；删除默认行和删除不存在的行都返回
@@ -129,22 +145,21 @@ func (r *obsConfigRepo) Update(ctx context.Context, config *model.ObsConfig) err
 //
 // 需要"连默认行一起删"（清库/重建）时必须显式另开入口，不许顺手放宽这里。
 func (r *obsConfigRepo) DeleteNonDefault(ctx context.Context, id string) error {
-	res := r.db.WithContext(ctx).Where("id = ? AND is_default = ?", id, false).Delete(&model.ObsConfig{})
-	if res.Error != nil {
-		return res.Error
-	}
-	if res.RowsAffected == 0 {
-		return gorm.ErrRecordNotFound
-	}
-	return nil
+	return _db.EnsureAffected(r.db.WithContext(ctx).
+		Where("id = ? AND is_default = ?", id, false).Delete(&model.ObsConfig{}))
 }
 
+// GetDefault 取唯一默认行；不存在时返回 (nil, gorm.ErrRecordNotFound)。
+// 同 GetByID：失败不交零值行。
 func (r *obsConfigRepo) GetDefault(ctx context.Context) (*model.ObsConfig, error) {
 	var config model.ObsConfig
 	err := r.db.WithContext(ctx).Where("is_default = ? AND status = ?", true, model.ObsStatusActive).
 		Order("created_at ASC").
 		First(&config).Error
-	return &config, err
+	if err != nil {
+		return nil, err
+	}
+	return &config, nil
 }
 
 // SetDefault 把 id 这一行设为唯一默认，并在**同一个事务**里摘掉其余默认行。
@@ -164,14 +179,7 @@ func (r *obsConfigRepo) SetDefault(ctx context.Context, id string) error {
 			Update("is_default", false).Error; err != nil {
 			return err
 		}
-		res := tx.Model(&model.ObsConfig{}).Where("id = ?", id).Update("is_default", true)
-		if res.Error != nil {
-			return res.Error
-		}
-		if res.RowsAffected == 0 {
-			return gorm.ErrRecordNotFound
-		}
-		return nil
+		return _db.EnsureAffected(tx.Model(&model.ObsConfig{}).Where("id = ?", id).Update("is_default", true))
 	})
 }
 
@@ -185,28 +193,18 @@ func (r *obsConfigRepo) SetDefault(ctx context.Context, id string) error {
 // 用 UpdateColumns 而不是 Updates：后者会让 GORM 顺手刷 updated_at，
 // 而"又传了一个文件"不是配置被改过，不该顶掉管理页上的"最后修改时间"。
 func (r *obsConfigRepo) IncrementUsage(ctx context.Context, id string, size int64) error {
-	res := r.db.WithContext(ctx).Model(&model.ObsConfig{}).Where("id = ?", id).
+	return _db.EnsureAffected(r.db.WithContext(ctx).Model(&model.ObsConfig{}).Where("id = ?", id).
 		UpdateColumns(map[string]any{
 			"file_count": gorm.Expr("file_count + 1"),
 			"total_size": gorm.Expr("total_size + ?", size),
-		})
-	if res.Error != nil {
-		return res.Error
-	}
-	if res.RowsAffected == 0 {
-		return gorm.ErrRecordNotFound
-	}
-	return nil
+		}))
 }
 
+// UpdateStatus 启停一台配置；0 行 ⇒ 该行不存在（`db.EnsureAffected`），
+// 而不是回一句"已更新"却什么都没改。
 func (r *obsConfigRepo) UpdateStatus(ctx context.Context, id string, status model.ObsStatus) error {
-	return r.db.WithContext(ctx).Model(&model.ObsConfig{}).Where("id = ?", id).Update("status", status).Error
-}
-
-func (r *obsConfigRepo) CountByStatus(ctx context.Context, status model.ObsStatus) (int64, error) {
-	var count int64
-	err := r.db.WithContext(ctx).Model(&model.ObsConfig{}).Where("status = ?", status).Count(&count).Error
-	return count, err
+	return _db.EnsureAffected(r.db.WithContext(ctx).
+		Model(&model.ObsConfig{}).Where("id = ?", id).Update("status", status))
 }
 
 func (r *obsConfigRepo) Count(ctx context.Context) (int64, error) {

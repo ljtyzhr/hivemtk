@@ -138,10 +138,6 @@ func (r *batchMObsRepo) UpdateStatus(ctx context.Context, id string, status mode
 	return nil
 }
 
-func (r *batchMObsRepo) CountByStatus(ctx context.Context, status model.ObsStatus) (int64, error) {
-	return 0, nil
-}
-
 func (r *batchMObsRepo) Count(ctx context.Context) (int64, error) { return int64(len(r.rows)), nil }
 
 func batchMObsRow(id, name string, provider model.ObsProvider, status model.ObsStatus, isDefault bool) *model.ObsConfig {

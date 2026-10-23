@@ -2,8 +2,6 @@ package service
 
 import (
 	"context"
-	"sync"
-	"time"
 
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/repository"
@@ -67,13 +65,4 @@ func (s *McpCredentialAdminService) Update(ctx context.Context, id uint, updates
 
 func (s *McpCredentialAdminService) Delete(ctx context.Context, id uint) error {
 	return s.repo.Delete(ctx, id)
-}
-
-var mcpTouchMu sync.Mutex
-
-// TouchLastUsed 回写最近使用（节流：每凭证 1 次/分钟）。
-func (s *McpCredentialAdminService) TouchLastUsed(ctx context.Context, clientID string) {
-	mcpTouchMu.Lock()
-	defer mcpTouchMu.Unlock()
-	_ = s.repo.TouchLastUsed(ctx, clientID, time.Now())
 }

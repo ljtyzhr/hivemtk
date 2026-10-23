@@ -4,8 +4,6 @@ import (
 	"context"
 	"fmt"
 
-	"gorm.io/gorm"
-
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/db"
 )
@@ -29,11 +27,7 @@ func (c *HumanizeLowQualitySampleCollector) Collect(
 	if sample == nil {
 		return nil
 	}
-	gormDB := db.GetDB().WithContext(ctx)
-	if err := gormDB.Create(sample).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return nil
-		}
+	if err := db.GetDB().WithContext(ctx).Create(sample).Error; err != nil {
 		return fmt.Errorf("save low quality sample: %w", err)
 	}
 	return nil
