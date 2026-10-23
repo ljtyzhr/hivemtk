@@ -10,7 +10,9 @@ HiveMTK · 私域 AI 营销操作系统的官方网站。基于 Vue 3 + Vite + v
 - **国际化**: vue-i18n 9（中 / 英 / 日 / 阿语）
 - **部署**: 线上 `https://xapptool.cn`——本地 `npm run build` 后把 `dist/` 整目录上传到服务器站点根（见「发布」章节，无发布脚本）
 
-本站是**纯静态站**：运行期对任何后端零依赖，不含 API 调用、iframe 客服浮标或登录态。
+本站是**纯静态站**：不连数据库、不发后端 API、无登录态。**但有一个运行期外部依赖**——右下角网页客服浮标：`index.html` 末尾内联注入 `https://work.xapptool.cn/embed/marketing-chat-widget.iife.js`（连接云端 `work.xapptool.cn` 的 web 渠道智能体，`appKey ak_79Zw7HWzR5wNUnNn6QMnkw8B`）。
+
+> 它是在服能力，**不是死代码**：2026-10-23 曾被误判「指向已下线域名」删除，线上客服整块消失。判死规约、在服依赖清单、发布后自查命令见 `../deploy/README.md` §9（`deploy/` 在仓库外，路径为 `~/Documents/www/go/deploy/README.md`）。构建不会因它缺失而报错，只能靠 §9.4 的 grep 自查发现。
 
 ## 目录结构
 
@@ -92,9 +94,11 @@ npm run build            # vite build + postbuild（按路由铺 <route>/index.h
 #    --exclude=.user.ini：宝塔站点根那个文件带 immutable 属性，--delete 删它必报 EPERM
 rsync -az --delete --exclude='.user.ini' -e 'ssh -p 57122' dist/ mtk-prod:/www/wwwroot/hivemtk/website/
 
-# 3) 冒烟（首页 + 一条深链）
+# 3) 冒烟（状态码 + 客服浮标是否还在页里）
 curl -s -o /dev/null -w '%{http_code}\n' https://xapptool.cn/
 curl -s -o /dev/null -w '%{http_code}\n' https://xapptool.cn/pricing/
+# 浮标自查：每个路由壳应命中 2 次（配置块 URL + 注入脚本 URL），详情见 deploy/README.md §9.4
+curl -s https://xapptool.cn/ | grep -c 'marketing-chat-widget'   # 期望 2
 ```
 
 **服务器侧（一次性配置，与日常发布无关）**
