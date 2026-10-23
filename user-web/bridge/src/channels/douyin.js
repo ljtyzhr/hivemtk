@@ -1,6 +1,6 @@
 import { BaseAdapter } from '../core/channel-adapter.js';
 import { CHANNELS, SENDER } from '../core/types.js';
-import { qs, qsa, cleanText, simulateRealClick, fillContentEditableHumanized, createLogger, findAnyMessageInput, looksLikeMessagePage, sanitizePeerName } from '../core/dom.js';
+import { qs, qsa, cleanText, simulateRealClick, fillContentEditableHumanized, createLogger, findAnyMessageInput, looksLikeMessagePage, sanitizePeerName, assertConvOrAbort } from '../core/dom.js';
 import { humanDelay } from '../core/humanize.js';
 import { SelectorEngine } from '../core/selector-engine.js';
 import { mergeSelectors, customConversationListSelectors } from '../core/selector-ai.js';
@@ -662,7 +662,7 @@ const hooks = {
   getConversationList,
   mergedSelectors,
   getPeerName,
-  async sendText(text) {
+  async sendText(text, opts = {}) {
     const editor = findInputEl();
     if (!editor) {
       log.error('未找到抖音输入框（strict + fallback 均失败）');
@@ -670,6 +670,8 @@ const hooks = {
     }
     await fillContentEditableHumanized(editor, text);
     await humanDelay('click', { channel: CHANNELS.DOUYIN, account: getAccountId() });
+    // 批25：点发送前复核会话归属（漂移 ⇒ 清空输入框并抛 conv-drift，绝不把 A 的文案发给下一个用户）
+    assertConvOrAbort(editor, opts.assertConv);
     const btn = getRealSendButton();
     if (!btn) {
       log.error('未找到抖音发送按钮');

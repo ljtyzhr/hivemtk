@@ -5,7 +5,7 @@ import { SelectorEngine } from '../core/selector-engine.js';
 import {
   qs, qsa, cleanText, setValue, fillContentEditableHumanized, enhancedClick,
   simulateRealClick, createLogger, findAnyMessageInput, looksLikeMessagePage,
-  sanitizePeerName,
+  sanitizePeerName, assertConvOrAbort,
 } from '../core/dom.js';
 import { humanDelay } from '../core/humanize.js';
 import { FRONTEND_DEFAULT_SENDER_TYPE } from '../core/fallback.js';
@@ -682,7 +682,7 @@ const hooks = {
   getConversationList,
   mergedSelectors,
   getPeerName,
-  async sendText(text) {
+  async sendText(text, opts = {}) {
     const input = findInputEl();
     if (!input) {
       log.error('未找到闲鱼输入框（merged + strict + fallback 均失败）');
@@ -694,6 +694,8 @@ const hooks = {
       setValue(input, text);
     }
     await humanDelay('click', { channel: CHANNELS.XIANYU, account: getAccountId() });
+    // 批25：点发送前复核会话归属（漂移 ⇒ 清空输入框并抛 conv-drift，绝不把 A 的文案发给下一个用户）
+    assertConvOrAbort(input, opts.assertConv);
     const sendBtn = findSendButton();
     if (sendBtn) {
       enhancedClick(sendBtn);

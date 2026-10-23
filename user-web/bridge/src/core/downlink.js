@@ -417,14 +417,20 @@ export async function pollDownlink(channel, accountId, getConfig, options = {}) 
       continue;
     }
     const raw = m.content || '';
-    if (!raw) continue; 
+    // 002-multi-type-messages：媒体出站（msg_type 非 text 且带 media_url）content 可为
+    // 空或占位符——不能按 `!raw` 整条丢弃（原先图片出站行在这里被静默跳过、行永远 pending）。
+    const outType = (m.msg_type || '').toLowerCase();
+    const isMediaOut = !!m.media_url && outType !== '' && outType !== 'text' && outType !== 'system' && outType !== 'recall';
+    if (!raw && !isMediaOut) continue;
     // XSS 防护：净化内容（控制长度、去控制字符）
     // Markdown 剥除（与服务端 bridge_outbound_markdown.go 双保险）：纯文本输入框
     // 直发前再剥一遍语法标记，服务端旧版本/离线重放旧信封时仍有兜底。
     const dmText = sanitizeForDisplay ? sanitizeForDisplay(raw) : raw;
     const safeContent = stripMarkdownForDM ? stripMarkdownForDM(dmText) : dmText;
     if (!groups.has(convId)) groups.set(convId, []);
-    groups.get(convId).push({ msg: m, sanitized: safeContent });
+    // 002-multi-type-messages：媒体出站的类型与 URL 随组透传，sendOutbound 侧分派
+    // （原生 sendMedia 或降级 URL 文本）。空正文媒体消息 content 允许为空串。
+    groups.get(convId).push({ msg: m, sanitized: safeContent, mediaOpts: isMediaOut ? { msgType: outType, mediaUrl: m.media_url } : null });
   }
 
   if (dupEntries.length) {
@@ -454,7 +460,7 @@ export async function pollDownlink(channel, accountId, getConfig, options = {}) 
       sentIds.push(msg.msg_id);
       sentEntries.push({ msg_id: msg.msg_id, conversation_id: msg.conversation_id || '' });
     };
-    for (const { msg, sanitized } of group) {
+    for (const { msg, sanitized, mediaOpts } of group) {
       // 跨标签页：同一渠道可能同时开着多个聊天页，两边都会看到同一条 outbox。
       // 按消息键加锁，进临界区后重新读存储再判缓存：先到的页面发送并落盘，
       // 后到的页面看到缓存命中就只补 ack，客户不会收到两遍。
@@ -465,8 +471,9 @@ export async function pollDownlink(channel, accountId, getConfig, options = {}) 
         let result = null;
         try {
           if (sendOutbound) {
+            // 002-multi-type-messages：媒体出站透传 msgType/mediaUrl（sendOutbound 内分派）。
             result = await withTimeout(
-              sendOutbound(sanitized, convId, { viaAdapter: channel }),
+              sendOutbound(sanitized, convId, { viaAdapter: channel, ...(mediaOpts || {}) }),
               outboundStepTimeoutMs(sanitized, sendTimeoutMs),
               `sendOutbound(${channel}:${convId})`
             );
@@ -498,7 +505,7 @@ export async function pollDownlink(channel, accountId, getConfig, options = {}) 
             await sleep(waitMs);
             try {
               const r2 = await withTimeout(
-                sendOutbound(sanitized, convId, { viaAdapter: channel }),
+                sendOutbound(sanitized, convId, { viaAdapter: channel, ...(mediaOpts || {}) }),
                 outboundStepTimeoutMs(sanitized, sendTimeoutMs),
                 `sendOutbound-retry(${channel}:${convId})`
               );
@@ -1024,7 +1031,11 @@ export async function startSSEDelivery(channel, accountId, handlers) {
             try {
               await queue.enqueue(convId, async () => {
                 const raw = data.content || '';
-                if (!raw) return;
+                // 002-multi-type-messages：媒体出站（服务端 SSE Data 已带 media_url）content
+                // 可为空或占位符，不能按 `!raw` 丢弃——与轮询路径同口径。
+                const sseType = (data.msg_type || '').toLowerCase();
+                const sseMedia = !!data.media_url && sseType !== '' && sseType !== 'text' && sseType !== 'system' && sseType !== 'recall';
+                if (!raw && !sseMedia) return;
 
                 // XSS 防护：净化内容
                 const safeContent = sanitizeForDisplay ? sanitizeForDisplay(raw) : raw;
@@ -1049,7 +1060,11 @@ export async function startSSEDelivery(channel, accountId, handlers) {
                   // 预算随文案长度伸缩，防拟人键入长文被固定超时误杀）
                   if (handlers.sendOutbound) {
                     const result = await withTimeout(
-                      handlers.sendOutbound(safeContent, convId, { viaAdapter: channel }),
+                      handlers.sendOutbound(safeContent, convId, {
+                        viaAdapter: channel,
+                        // 002-multi-type-messages：媒体出站透传类型与 URL（sendOutbound 内分派）。
+                        ...(sseMedia ? { msgType: sseType, mediaUrl: data.media_url } : {}),
+                      }),
                       outboundStepTimeoutMs(safeContent),
                       `sendOutbound-SSE(${channel}:${convId})`
                     );

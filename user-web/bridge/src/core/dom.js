@@ -245,6 +245,57 @@ export function cleanText(el) {
 }
 
 /**
+ * 批25：读「消息输入框里现在的内容」（人工草稿 / 上一次下发的残留）。
+ * 巡检换会话前用它判「用户是不是正准备发一条还没发的消息」——把人正在写的字切走
+ * 等于吞掉用户的输入。取不到输入框时返回空串（宁可不拦，不误判成"有人在打字"）。
+ */
+export function readMessageInputDraft() {
+  try {
+    const el = findAnyMessageInput();
+    if (!el) return '';
+    const raw = (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT')
+      ? el.value
+      : (el.innerText || el.textContent || '');
+    return String(raw || '');
+  } catch (_) { return ''; }
+}
+
+/** 清空消息输入框（textarea 走 setValue，contenteditable 摘空子节点并派发 input） */
+export function clearMessageInput(el) {
+  if (!el) return;
+  try {
+    if (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') {
+      setValue(el, '');
+    } else {
+      while (el.firstChild) el.removeChild(el.firstChild);
+      el.dispatchEvent(new InputEvent('input', { bubbles: true }));
+    }
+  } catch (_) {  }
+}
+
+/**
+ * 批25：点发送前的会话归属复核（最后一道闸）。
+ *
+ * 为什么锁不够：`_outboundInFlight` 能让巡检让路，但挡不住 SPA 自身路由变化
+ * （平台自己把活动会话挪走）和用户手点别的会话。一旦漂移，**点击之前**是唯一止损点
+ * —— 点下去就是"发给了下一个用户"，不可撤回。
+ *
+ * @param {Element} el 输入框（漂移时清空它，别留半截草稿给下一个人）
+ * @param {function} assertConv 返回 false 表示会话已漂移
+ * @throws {Error} code='conv-drift' —— 调用方（sendOutbound）据此不 ack、留 pending 重投
+ */
+export function assertConvOrAbort(el, assertConv) {
+  if (typeof assertConv !== 'function') return;
+  let ok = true;
+  try { ok = assertConv() !== false; } catch (_) { ok = true; }
+  if (ok) return;
+  clearMessageInput(el);
+  const err = new Error('conv-drift');
+  err.code = 'conv-drift';
+  throw err;
+}
+
+/**
  * 净化会话列表项文本为稳定昵称，剥离时间戳/状态徽章等易变后缀。
  *
  * 背景（2026-08-07 第十一轮修复）：兜底用 cleanText(activeItem) 派生 conversation_id 时，

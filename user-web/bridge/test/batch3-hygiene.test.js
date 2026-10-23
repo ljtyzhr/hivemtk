@@ -18,7 +18,8 @@ describe('B4 humanSendTimeoutMs（长度感知超时预算）', () => {
   });
   it('静态契约：发送全链三处均走长度感知超时，无裸 await', () => {
     const ca = readSrc('core/channel-adapter.js');
-    expect(ca).toContain('withTimeout(this.rawSendText(text), humanSendTimeoutMs(text)');
+    // 批25：rawSendText 多传一格 opts（{ expectConv, assertConv }），超时包装不得因此被绕过
+    expect(ca).toMatch(/withTimeout\(this\.rawSendText\(sendText, \{ expectConv: conv, assertConv \}\), humanSendTimeoutMs\(sendText\)/);
     const dl = readSrc('core/downlink.js');
     expect(dl).toContain('sendOutbound-SSE'); // SSE 路径对称超时
     expect(dl.match(/(?:humanSendTimeoutMs|outboundStepTimeoutMs)\(/g).length).toBeGreaterThanOrEqual(3); // poll + retry + SSE
@@ -103,17 +104,21 @@ describe('B6 跨上下文全局发送闸', () => {
 
   it('静态契约：fillAndSend 在 rawSendText 前过闸、成功后盖章', () => {
     const ca = readSrc('core/channel-adapter.js');
-    const start = ca.indexOf('async sendOutbound(text');
+    // 批25：sendOutbound 拆成"持锁外壳 + _sendOutboundLocked"，判据看真正干活的那一段。
+    const start = ca.indexOf('async _sendOutboundLocked(text');
     // 方法体边界取"下一个 2 空格缩进的收尾 brace"（sendOutbound 是类里最后一个方法），
     // 而不是固定字符数：注释一多就会把 stampGlobalSendAt() 挤出窗口，那种红跟契约无关。
     const end = ca.indexOf('\n  }', start);
     const body = ca.slice(start, end);
     expect(body.length).toBeGreaterThan(100); // 方法体确实存在
     expect(body.indexOf('globalSendWaitMs')).toBeGreaterThan(-1);
-    expect(body.indexOf('globalSendWaitMs')).toBeLessThan(body.indexOf('rawSendText(text)'));
+    expect(body.indexOf('globalSendWaitMs')).toBeLessThan(body.indexOf('rawSendText(sendText'));
     expect(body).toContain('stampGlobalSendAt()');
     // 批24：回查基线必须取自**点击之前**（点击之后取基线 ⇒ 计数永远不增 ⇒ 恒判未见）
     expect(body.indexOf('_countVisibleText')).toBeGreaterThan(-1);
-    expect(body.indexOf('_countVisibleText')).toBeLessThan(body.indexOf('rawSendText(text)'));
+    expect(body.indexOf('_countVisibleText')).toBeLessThan(body.indexOf('rawSendText(sendText'));
+    // 批25：点击前会话归属复核必须与 rawSendText 同段（漂移 ⇒ 不点、不 ack）
+    expect(body).toContain('assertConv');
+    expect(body.indexOf('assertConv')).toBeLessThan(body.indexOf('rawSendText(sendText'));
   });
 });

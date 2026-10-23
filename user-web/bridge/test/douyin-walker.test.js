@@ -288,7 +288,8 @@ describe('openConversation / sendOutbound 目标会话切换（左侧找用户�
     const ok = await adapter.sendOutbound('您好，请问有什么可以帮您？', 'b2', { sendVerifyMs: 0 });
     expect(ok.ok).toBe(true);
     expect(adapter.getConversationId()).toBe('b2'); 
-    expect(adapter.hooks.sendText).toHaveBeenCalledWith('您好，请问有什么可以帮您？');
+    // 批25：第二格是点击前复核用的 opts（{ expectConv, assertConv }）
+    expect(adapter.hooks.sendText).toHaveBeenCalledWith('您好，请问有什么可以帮您？', expect.objectContaining({ expectConv: 'b2', assertConv: expect.any(Function) }));
   });
 
   it('sendOutbound：目标会话未找到 → 放弃发送（防串台）', async () => {
@@ -304,7 +305,7 @@ describe('openConversation / sendOutbound 目标会话切换（左侧找用户�
     const { adapter } = buildCtx(convList, 'a1');
     const ok = await adapter.sendOutbound('在的', 'a1', { sendVerifyMs: 0 });
     expect(ok.ok).toBe(true);
-    expect(adapter.hooks.sendText).toHaveBeenCalledWith('在的');
+    expect(adapter.hooks.sendText).toHaveBeenCalledWith('在的', expect.objectContaining({ expectConv: 'a1', assertConv: expect.any(Function) }));
   });
 });
 

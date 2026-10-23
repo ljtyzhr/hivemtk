@@ -2,7 +2,7 @@ import { BaseAdapter } from '../core/channel-adapter.js';
 import { CHANNELS, SENDER } from '../core/types.js';
 import { mergeSelectors, customConversationListSelectors } from '../core/selector-ai.js';
 import { SelectorEngine } from '../core/selector-engine.js';
-import { qs, qsa, cleanText, setValue, fillContentEditableHumanized, enhancedClick, createLogger, findAnyMessageInput, looksLikeMessagePage, sanitizePeerName } from '../core/dom.js';
+import { qs, qsa, cleanText, setValue, fillContentEditableHumanized, enhancedClick, createLogger, findAnyMessageInput, looksLikeMessagePage, sanitizePeerName, assertConvOrAbort } from '../core/dom.js';
 import { humanDelay } from '../core/humanize.js';
 import { FRONTEND_DEFAULT_SENDER_TYPE } from '../core/fallback.js';
 
@@ -599,7 +599,7 @@ const hooks = {
   getConversationList,
   mergedSelectors,
   getPeerName,
-  async sendText(text) {
+  async sendText(text, opts = {}) {
     const input = findInputEl();
     if (!input) {
       log.error('未找到小红书输入框（merged + strict + fallback 均失败）');
@@ -610,6 +610,8 @@ const hooks = {
     //   - contenteditable：fillContentEditableHumanized({ clearBefore: true }) 先清空子节点再逐段拟人 insertText
     //   - textarea：setValue(el, '') 先清空再 setValue(el, text) 覆盖
     //   顺序：清空 → 拟人键入 → 拟人点击间隔（humanDelay click 档案）→ 发送 → 立即通知调用方（ack 由 downlin k 队列统一处理）
+    //   批25 补充：清空只解决"输入框内容归属"，不解决"输入框属于哪个会话"——键入期间被巡检
+    //   切走仍会把文案点进下一个会话，故点击前还有一道 assertConvOrAbort 复核（见下）。
     const isContentEditable = input.isContentEditable || input.getAttribute('contenteditable') === 'true' || input.tagName !== 'TEXTAREA';
     if (isContentEditable) {
       await fillContentEditableHumanized(input, text, { clearBefore: true });
@@ -618,6 +620,8 @@ const hooks = {
       setValue(input, text);
     }
     await humanDelay('click', { channel: CHANNELS.XHS, account: getAccountId() });
+    // 批25：点发送前复核会话归属（漂移 ⇒ 清空输入框并抛 conv-drift，绝不把 A 的文案发给下一个用户）
+    assertConvOrAbort(input, opts.assertConv);
     const sendBtn = findSendButton();
     if (sendBtn) {
       enhancedClick(sendBtn);

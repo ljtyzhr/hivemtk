@@ -75,7 +75,8 @@ describe('五适配器 sendText 静态契约', () => {
   function CHANNELS_CHECK(file, key) {
     // vitest 默认 cwd = 包根（npm test 场景）；不用 import.meta.url（vite transform 下为服务器路径）
     const src = readFileSync(join(process.cwd(), 'src', 'channels', `${file}.js`), 'utf8');
-    const start = src.indexOf('async sendText(text)');
+    // 批25：sendText 改为 (text, opts) —— opts 携带点击前复核用的 assertConv
+    const start = src.indexOf('async sendText(text, opts');
     if (start < 0) throw new Error(`${file}.js 无 sendText`);
     return { file, key, body: src.slice(start, start + 1400) };
   }
@@ -86,6 +87,15 @@ describe('五适配器 sendText 静态契约', () => {
       expect(body).toContain(`humanDelay('click', { channel: CHANNELS.${key}`);
       expect(body).toContain('account: getAccountId()');
       expect(body).not.toContain('setTimeout(r');
+      // 批25：点发送前必须走会话归属复核（漂移 ⇒ 清框 + 抛 conv-drift），且必须排在点击之前
+      expect(body).toContain('assertConvOrAbort(');
+      expect(body.indexOf('assertConvOrAbort(')).toBeLessThan(
+        Math.min(
+          ...['getRealSendButton()', 'findSendButton()']
+            .map((m) => body.indexOf(m))
+            .filter((i) => i > -1)
+        )
+      );
       // 同步整段填值不得残留在 sendText（contenteditable 通道）；
       // 只拦裸调用 fillContentEditable(，不误伤 fillContentEditableHumanized(
       expect(body).not.toMatch(/fillContentEditable\(/);

@@ -108,7 +108,8 @@ describe('BaseAdapter sendOutbound 风控通过则回写并上报 outbound 消�
     await vi.advanceTimersByTimeAsync(4000); 
     const ok = await p;
     expect(ok.ok).toBe(true);
-    expect(sendText).toHaveBeenCalledWith('hello');
+    // 批25：第二格是点击前复核用的 opts（{ expectConv, assertConv }）
+    expect(sendText).toHaveBeenCalledWith('hello', expect.objectContaining({ expectConv: 'conv1', assertConv: expect.any(Function) }));
     expect(onMessage).toHaveBeenCalled();
     const msg = onMessage.mock.calls[0][0];
     expect(msg.sender_type).toBe(SENDER.AGENT);

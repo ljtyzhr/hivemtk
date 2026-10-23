@@ -125,6 +125,54 @@ export function contentHash(channel, conversationID, content) {
   return 'mh:' + (h >>> 0).toString(16).padStart(8, '0');
 }
 
+// typedContentHash 带消息类型与媒体 URL 的内容哈希（002-multi-type-messages）。
+//
+// 与服务端 ContentHashMsgIDTyped 逐字节同构：
+//   - msgType 空 / 'text'（大小写不敏感）→ 退化为 contentHash（存量行为不变）；
+//   - 非文本 → 输入 `${channel}|${msgType}|${mediaURL}|${content}`（各段 trim）。
+// 必须同构的原因：非文本消息的 content 常是「[图片]」占位符，media_url 才是身份；
+// 两张同占位符的图若哈希相同，服务端钩子2（msg_id 判等）会把第二条当重复吞掉。
+export function typedContentHash(channel, conversationID, msgType, mediaURL, content) {
+  const t = (msgType || '').trim().toLowerCase();
+  if (!t || t === 'text') return contentHash(channel, conversationID, content);
+  const s = `${channel || ''}|${t}|${(mediaURL || '').trim()}|${(content || '').trim()}`;
+  const bytes = typeof TextEncoder !== 'undefined'
+    ? new TextEncoder().encode(s)
+    : utf8EncodeFallback(s);
+  let h = 0x811c9dc5;
+  for (let i = 0; i < bytes.length; i++) {
+    h ^= bytes[i];
+    h = Math.imul(h, 0x01000193);
+  }
+  return 'mh:' + (h >>> 0).toString(16).padStart(8, '0');
+}
+
+// MEDIA_PLACEHOLDERS 非文本消息占位符词表（002-multi-type-messages）。
+// 与服务端各 webhook_channel_*.go 的中文占位符（douyinPlaceholder / feishuInboundPlaceholders /
+// whatsapp.InboundPlaceholder）同一套词，纯媒体无文字时 content 用它——工作台/AI 至少
+// 能看到「客户发了什么类型」，媒体本体由 media_url 承载。
+export const MEDIA_PLACEHOLDERS = Object.freeze({
+  image: '[图片]',
+  video: '[视频]',
+  audio: '[语音]',
+  voice: '[语音]',
+  file: '[文件]',
+  link: '[链接]',
+  card: '[卡片]',
+  location: '[位置]',
+});
+
+export function mediaPlaceholder(msgType) {
+  const t = (msgType || '').trim().toLowerCase();
+  return MEDIA_PLACEHOLDERS[t] || `[${t || '消息'}]`;
+}
+
+// isMediaMsgType 判定是否为携带媒体的消息类型（system/recall 按系统消息走原路径，不算媒体）。
+export function isMediaMsgType(msgType) {
+  const t = (msgType || '').trim().toLowerCase();
+  return !!t && t !== 'text' && t !== 'system' && t !== 'recall';
+}
+
 // 无 TextEncoder 环境（极旧运行时）的 UTF-8 编码兜底
 function utf8EncodeFallback(s) {
   const out = [];

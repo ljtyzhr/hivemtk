@@ -39,6 +39,13 @@ export class BaseAdapter {
     throw new Error('子类必须实现 sendOutbound')
   }
 
+  // 公共：发送媒体（002-multi-type-messages，可选能力）。
+  // 返回 { ok, rateLimited?, notFound? }；未实现/失败时由 channel-adapter 统一降级为
+  // 「[图片] URL」文本投递——渠道无需为实现原生上传自动化而冒险。
+  async sendMedia(msgType, mediaUrl, conversationId, opts = {}) {
+    return { ok: false, unsupported: true }
+  }
+
   // 公共：订阅事件
   on(event, handler) {
     if (!this.observers[event]) this.observers[event] = []

@@ -1,12 +1,15 @@
 import { createLogger } from './logger.js';
 import { RateLimiter, globalSendWaitMs, stampGlobalSendAt } from './rate-limiter.js';
-import { makeUnifiedMessage, SENDER, DIRECTION, HISTORY_CONTEXT_WINDOW, PATROL_DEFAULTS, contentHash } from './types.js';
+import { makeUnifiedMessage, SENDER, DIRECTION, HISTORY_CONTEXT_WINDOW, PATROL_DEFAULTS, contentHash, typedContentHash, mediaPlaceholder, isMediaMsgType } from './types.js';
 import { mergeSelectors } from './selector-ai.js';
-import { simulateRealClick } from './dom.js';
+import { simulateRealClick, readMessageInputDraft } from './dom.js';
 import { humanSendTimeoutMs, BRIDGE_THREE_CHANNEL } from './constants.js';
 import { withTimeout } from './downlink.js';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+
+// 批25：判「人工正在输入」时要听的事件（键入、输入法组字、粘贴）。
+const INPUT_ACTIVITY_EVENTS = ['input', 'keydown', 'compositionstart', 'paste'];
 
 // 下行告警去抖：下行被全局最小间隔 / 会话未找到拦截时，若每轮轮询都打印会刷屏。
 // 按 key 限频，默认 15s 内同 key 仅打印一次。
@@ -98,6 +101,16 @@ export class BaseAdapter {
     //     判跨会话残留拒收（线上实证 tz3rmdj：说缘 的消息被归到 做点吃的 的会话）。
     this._convAnchor = { cid: null, peerName: '', ts: 0 };      
     this._patrolStats = { rounds: 0, visited: 0, withNew: 0, captured: 0, failures: 0, lastRoundAt: 0, lastDurationMs: 0 };
+    // 批25：换会话互斥（下发/人工键入 优先，巡检让路）——见 beginOutbound 处的论证。
+    this._outboundInFlight = 0;
+    this._outboundStartedAt = 0;
+    this._lastInputActivityAt = 0;
+    this._inputWatchBound = false;
+    this._inputActivityHandler = null;
+    this._draftSeenText = '';
+    this._draftFirstSeenAt = 0;
+    this._draftStaleIgnored = '';
+    this._patrolYield = { sendInFlight: 0, humanTyping: 0 };
   }
 
   setAccount(account) { this.account = account; }
@@ -117,6 +130,132 @@ export class BaseAdapter {
       this._stopPatrol();
     }
     return this._accountEnabled;
+  }
+
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 批25：换会话互斥 —— 不可逆性优先级：人工键入 > 下发 > 巡检
+  // ═══════════════════════════════════════════════════════════════════════════
+  // 问题（结构性必现，不是偶发竞态）：
+  //   巡检（patrol/_patrolVisit）与下发（sendOutbound）都会 openConversation —— 点左栏项换右侧
+  //   会话，而两条链路互相不知道对方在干什么。下发的键入是逐段拟人 insertText
+  //   （dom.js fillContentEditableHumanized：30 字≈2.7s、100 字≈9s，长文案上探 120s）；
+  //   巡检一轮最多 6 个会话、每次切换后 3–5s 一个 ⇒ 切换节拍 < 键入窗，键入期几乎必然被切走。
+  //   后果：文字填进了 A 的输入框，点发送却落在切换后的 B 会话上 ——「正在给 A 打字，跳到了
+  //   下一个用户」。这条路径不可撤销，且 send_verified 回查在错误会话里数气泡只会判"未见"，
+  //   记账侧照样 ack 成功（"已送达"），线上不会报错。
+  // 为什么由巡检让路、下发不让路：
+  //   - 巡检是可延迟的只读扫描：晚一轮的代价只是时延（seenNodes + 稳定键去重保证延迟不漏不重）；
+  //   - 下发是不可撤销的写入：错发人＝隐私事故。
+  // 为什么用"让路"而不是"抢锁"：抢锁要排队，就引入等待与死锁面；单向让路没有反向等待。
+  beginOutbound() {
+    this._outboundInFlight = (this._outboundInFlight || 0) + 1;
+    this._outboundStartedAt = Date.now();
+  }
+
+  endOutbound() {
+    this._outboundInFlight = Math.max(0, (this._outboundInFlight || 0) - 1);
+    if (this._outboundInFlight === 0) this._outboundStartedAt = 0;
+  }
+
+  isSendBusy() { return (this._outboundInFlight || 0) > 0; }
+
+  // 输入框里现在的内容（人工草稿 / 上一次下发失败的残留）
+  getInputDraftText() {
+    try {
+      if (this.hooks.getInputDraftText) return String(this.hooks.getInputDraftText() || '');
+      return readMessageInputDraft();
+    } catch (_) { return ''; }
+  }
+
+  // 人工键入活动监听：挂在 document 捕获阶段，而不是输入框节点 —— 输入框会被 SPA 重渲染换掉，
+  // 挂在会死的节点上就永久失聪。自己下发键入派发的 input 事件不算人工活动
+  // （isSendBusy() 期间忽略），否则每发一条都会让巡检静默 draftQuietMs 秒。
+  _bindInputActivityWatch() {
+    if (this._inputWatchBound) return;
+    if (typeof document === 'undefined' || typeof document.addEventListener !== 'function') return;
+    this._inputWatchBound = true;
+    const onActivity = (ev) => {
+      if (this.isSendBusy()) return;
+      const t = ev && ev.target;
+      if (!t || t.nodeType !== 1) return;
+      let editable = false;
+      try {
+        editable = !!t.isContentEditable
+          || t.getAttribute('contenteditable') === 'true'
+          || t.tagName === 'TEXTAREA'
+          || t.getAttribute('role') === 'textbox';
+      } catch (_) { editable = false; }
+      if (!editable) return;
+      this._lastInputActivityAt = Date.now();
+    };
+    this._inputActivityHandler = onActivity;
+    for (const type of INPUT_ACTIVITY_EVENTS) {
+      try { document.addEventListener(type, onActivity, true); } catch (_) {  }
+    }
+  }
+
+  _unbindInputActivityWatch() {
+    if (!this._inputWatchBound) return;
+    if (this._inputActivityHandler && typeof document !== 'undefined' && typeof document.removeEventListener === 'function') {
+      for (const type of INPUT_ACTIVITY_EVENTS) {
+        try { document.removeEventListener(type, this._inputActivityHandler, true); } catch (_) {  }
+      }
+    }
+    this._inputActivityHandler = null;
+    this._inputWatchBound = false;
+  }
+
+  // 人工是否正在输入：①最近 draftQuietMs 内有过键入；②输入框里已有未发出的草稿。
+  // ② 必须有上界（draftStaleMs）：否则一条被放弃的残留草稿会把巡检永久按停
+  //   —— 那是把一个事故换成另一个（新消息再也不上报）。
+  isHumanTyping(quietMs = PATROL_DEFAULTS.draftQuietMs, staleMs = PATROL_DEFAULTS.draftStaleMs) {
+    const now = Date.now();
+    if (this._lastInputActivityAt && now - this._lastInputActivityAt < quietMs) return true;
+    const draft = String(this.getInputDraftText() || '').trim();
+    if (!draft) {
+      this._draftSeenText = '';
+      this._draftFirstSeenAt = 0;
+      this._draftStaleIgnored = '';
+      return false;
+    }
+    if (draft !== this._draftSeenText) {
+      this._draftSeenText = draft;
+      this._draftFirstSeenAt = now;
+      this._draftStaleIgnored = '';
+    }
+    if (!this._draftFirstSeenAt) this._draftFirstSeenAt = now;
+    if (this._draftStaleIgnored === draft) return false;
+    if (now - this._draftFirstSeenAt > staleMs) {
+      this._draftStaleIgnored = draft;
+      this.log.warn('输入框草稿停留超过上界，巡检不再为其让路（防新消息长期不上报）', { stale_ms: staleMs });
+      return false;
+    }
+    return true;
+  }
+
+  // 换会话的互斥判据：返回 null 表示此刻可以切会话。
+  convSwitchBlocker(quietMs) {
+    if (this.isSendBusy()) return 'send-in-flight';
+    if (this.isHumanTyping(quietMs)) return 'human-typing';
+    return null;
+  }
+
+  _noteYield(blocker) {
+    if (!this._patrolYield) this._patrolYield = { sendInFlight: 0, humanTyping: 0 };
+    if (blocker === 'send-in-flight') this._patrolYield.sendInFlight++;
+    else if (blocker === 'human-typing') this._patrolYield.humanTyping++;
+  }
+
+  // 等一个可切会话的窗口：下发是"发完就有间隙"的，所以让路的粒度是「每次切换」而不是「整轮」，
+  // 巡检照样能在发送间隙里推进，不会因为下行密集而整轮饿死。
+  async _waitForSwitchWindow(maxWaitMs = PATROL_DEFAULTS.switchBlockWaitMs, pollMs = PATROL_DEFAULTS.switchBlockPollMs) {
+    const deadline = Date.now() + Math.max(0, maxWaitMs);
+    for (;;) {
+      const blocker = this.convSwitchBlocker();
+      if (!blocker) return null;
+      if (Date.now() >= deadline) return blocker;
+      await sleep(Math.max(10, pollMs));
+    }
   }
 
   match() { return this.hooks.match ? this.hooks.match() : false; }
@@ -201,15 +340,39 @@ export class BaseAdapter {
   // 为什么必须有 occurrence：同一会话里客户把同一句话说两遍是两条真实消息，只按
   // (会话|发送者|文本) 拦就是把第二条永远吞掉（§8.3-17，客户侧表现＝「说了没回」）。
   // 为什么 0 必须保持旧字节：_sentKeys 落 localStorage（_sentKey() 键），键形一变就等于全部重报一遍。
+  //
+  // 002-multi-type-messages：非文本消息的 text 常是「[图片]」占位符，两张不同图若只按
+  // (会话|发送者|文本) 拦就会互相吞并 ⇒ 媒体消息的键并入 msgType 与 media_url
+  // （与服务端 ContentHashMsgIDTyped 同构）。文本消息的键保持旧字节，_sentKeys 不重算。
   _dedupKey(cid, parsed, occurrence = 0) {
     const sender = parsed.sender_id || parsed.sender_name || '';
+    const type = (parsed.msg_type || '').toLowerCase();
+    const isMedia = isMediaMsgType(type);
     const text = parsed.text || '';
-    const base = this._hash(`${cid}|${sender}|${text}`);
+    const base = isMedia
+      ? this._hash(`${cid}|${sender}|${type}|${parsed.media_url || ''}|${text}`)
+      : this._hash(`${cid}|${sender}|${text}`);
     return occurrence > 0 ? `${base}#${occurrence}` : base;
   }
 
   // 内容键相同的气泡在本轮 items 顺序里排在该节点之前有几条 —— 增量路径一次只拿到一个
   // 节点，编号只能从 DOM 顺序数出来（批量路径用同一份语义的 per-pass 计数器）。
+  // 002-multi-type-messages：非文本消息的可见文本口径。渠道解析器对媒体气泡给出的
+  // text 可能为空（纯图无字）；上行时用统一占位符补齐，让服务端 content 永不为空
+  // （占位符与直连渠道同词表，见 types.js::mediaPlaceholder）。
+  _uptextContent(parsed) {
+    const type = (parsed.msg_type || '').toLowerCase();
+    if (!isMediaMsgType(type)) return parsed.text || '';
+    return parsed.text || mediaPlaceholder(type);
+  }
+
+  // 媒体消息是否可上行：msg_type 非文本且（有媒体 URL 或有文字）。
+  // system/recall 不在此列（走各自的消息 id 前缀路径，由调用方单独处理）。
+  _isUplodableMedia(parsed) {
+    const type = (parsed.msg_type || '').toLowerCase();
+    return isMediaMsgType(type) && (!!parsed.media_url || !!parsed.text);
+  }
+
   _occurrenceInList(item, cid, parsed) {
     let items;
     try { items = this.getMessageItems() || []; } catch (_) { return 0; }
@@ -223,8 +386,8 @@ export class BaseAdapter {
       if (root && node && !root.contains(node)) continue;
       let p;
       try { p = this.parseMessageItem(node); } catch (_) { continue; }
-      if (!p || !p.text) continue;
-      if (p.msg_type && p.msg_type !== 'text') continue;
+      if (!p) continue;
+      if (!p.text && !this._isUplodableMedia(p)) continue;
       if (this._dedupKey(cid, p) === base) n++;
     }
     return n;
@@ -236,7 +399,11 @@ export class BaseAdapter {
   // eventAssertsDistinctMessage）。改这里必须同时看那一边。
   _canonicalMsgId(item, cid, parsed, occurrence = 0) {
     const type = parsed.msg_type || 'text';
-    const hash = contentHash(this.channel, cid || '', parsed.text || '');
+    // 002-multi-type-messages：媒体消息的哈希并入类型与 media_url（typedContentHash
+    // 与服务端 ContentHashMsgIDTyped 同构），纯占位符不再互相碰撞。
+    const hash = isMediaMsgType(type)
+      ? typedContentHash(this.channel, cid || '', type, parsed.media_url || '', parsed.text || '')
+      : contentHash(this.channel, cid || '', parsed.text || '');
     const id = occurrence > 0 ? `${hash}#${occurrence}` : hash;
     if (type === 'system' || type === 'recall') return `${type}:${id}`;
     return id;
@@ -276,7 +443,9 @@ export class BaseAdapter {
   getConversationList() {
     return this.hooks.getConversationList ? this.hooks.getConversationList() : [];
   }
-  rawSendText(text) { return this.hooks.sendText ? this.hooks.sendText(text) : Promise.resolve(false); }
+  // 批25：opts 透传渠道 sendText（目前只有 { expectConv, assertConv }）：渠道在点发送前
+  //   调 assertConvOrAbort 复核会话归属，漂移就清框中止。不传 = 旧行为（无复核）。
+  rawSendText(text, opts) { return this.hooks.sendText ? this.hooks.sendText(text, opts) : Promise.resolve(false); }
   selfTest() { return this.hooks.selfTest ? this.hooks.selfTest() : []; }
 
   getMessages({ limit = 100 } = {}) {
@@ -292,8 +461,8 @@ export class BaseAdapter {
       let parsed;
       try { parsed = this.parseMessageItem(item); } catch (_) { continue; }
       if (!parsed) continue;
-      if (parsed.msg_type && parsed.msg_type !== 'text') continue;
-      if (!parsed.text) continue;
+      // 002-multi-type-messages：媒体消息不再整行丢弃——text 缺失时由上行侧补占位符。
+      if (!parsed.text && !this._isUplodableMedia(parsed)) continue;
       // 会话归属校验：getMessageItems(root=document) 可能返回虚拟列表残留的
       // 上一会话 DOM 节点。检查 item 是否仍在活动消息容器内（getMessageRoot()）。
       // 不在当前会话容器的节点 → 跨会话残留 → 丢弃。
@@ -345,6 +514,8 @@ export class BaseAdapter {
       let parsed;
       try { parsed = this.parseMessageItem(item); } catch (_) { continue; }
       if (!parsed) continue;
+      // 媒体气泡不参与文本回查计数（002-multi-type-messages）：回查判据是
+      // 「同文本可见计数增加」，媒体消息 text 是占位符，混入会把发送回查误判。
       if (parsed.msg_type && parsed.msg_type !== 'text') continue;
       if (normSendText(parsed.text) === want) n++;
     }
@@ -381,6 +552,7 @@ export class BaseAdapter {
       this._loadSentKeys();
       this._scheduleInitialSync();
       this._startRescan();
+      this._bindInputActivityWatch();
       this._startPatrolAuto();
       if (!this._sentSaveTimer) {
         this._sentSaveTimer = setInterval(() => this._saveSentKeys(), 30000);
@@ -406,6 +578,7 @@ export class BaseAdapter {
     this._stopPatrol();
     if (this._sentSaveTimer) { clearInterval(this._sentSaveTimer); this._sentSaveTimer = null; }
     this._saveSentKeys();
+    this._unbindInputActivityWatch();
     this._convWindow.clear();
   }
 
@@ -596,8 +769,19 @@ export class BaseAdapter {
     return null;
   }
 
-  async openConversation(cid, { waitActiveMs = 5000, backfill = false, exact = false } = {}) {
+  async openConversation(cid, { waitActiveMs = 5000, backfill = false, exact = false, preemptible = true } = {}) {
     if (!cid) return null;
+    // 批25：可抢占的换会话（巡检 / 巡检收尾回切 / 全量同步）在"下发在途"或"人工正在输入"时
+    //   一律不切，返回 null 由调用方下一轮/下个窗口再来。下发走 preemptible:false
+    //   —— 下发永不因巡检让路（不可逆性不对称，见 beginOutbound 处的论证）。
+    if (preemptible) {
+      const blocker = this.convSwitchBlocker();
+      if (blocker) {
+        this._noteYield(blocker);
+        this.log.debug(`换会话让路：${blocker}（目标 ${cid}）`);
+        return null;
+      }
+    }
     const cur = this.getConversationId();
     if (cur === cid) {
       if (backfill) {
@@ -735,10 +919,11 @@ export class BaseAdapter {
     let done = 0;
     let failures = 0;
     let scannedTotal = 0;
+    let blockedBy = null;
     try {
       let pass = 0;
       const MAX_PASSES = 16;
-      while (pass < MAX_PASSES) {
+      outer: while (pass < MAX_PASSES) {
         pass++;
         let list = [];
         try {
@@ -761,6 +946,15 @@ export class BaseAdapter {
         if (!list.length) break; 
         for (const conv of list) {
           try {
+            // 批25：全量同步同样是"换会话"，遇下发在途/人工正在输入就让路。本次同步提前收尾，
+            //   已同步进度落在 _syncedConvIds（持久化），下次 rescan/巡检续跑，不会重复扫。
+            const blocker = await this._waitForSwitchWindow();
+            if (blocker) {
+              this._noteYield(blocker);
+              this.log.info(`全量同步让路：${blocker}，本轮提前收尾（已同步进度已落盘）`);
+              blockedBy = blocker;
+              break outer;
+            }
             // 复用 openConversation：左侧列表找会话项 → 点击打开线程（兼容虚拟列表 & React 事件）。
             // 若活动会话已是目标（列表首项=当前打开会话）无需点击，直接回填。
             const opened = await this.openConversation(conv.id, { waitActiveMs, backfill: true });
@@ -799,7 +993,7 @@ export class BaseAdapter {
       this._syncingAll = false;
     }
     this.log.info(`私信会话遍历同步完成：成功 ${done}，失败 ${failures}`);
-    return { synced: done, total: scannedTotal, failures };
+    return { synced: done, total: scannedTotal, failures, yielded: blockedBy || null };
   }
 
 
@@ -845,6 +1039,9 @@ export class BaseAdapter {
       visitAllWhenNoUnread: !!opts.visitAllWhenNoUnread,
       switchMinMs: opts.switchMinMs || PATROL_DEFAULTS.switchMinMs,
       switchMaxMs: opts.switchMaxMs || PATROL_DEFAULTS.switchMaxMs,
+      // 批25：等"可切会话窗口"的上限与轮询节拍（下发在途 / 人工键入 优先）
+      switchBlockWaitMs: opts.switchBlockWaitMs || PATROL_DEFAULTS.switchBlockWaitMs,
+      switchBlockPollMs: opts.switchBlockPollMs || PATROL_DEFAULTS.switchBlockPollMs,
     };
     this._savePatrolInterval(intervalMs);
     if (this._patrolTimer) clearTimeout(this._patrolTimer);
@@ -872,6 +1069,9 @@ export class BaseAdapter {
       intervalMs: this._patrolOpts ? this._patrolOpts.intervalMs : 0,
       inRound: this._patrolling,
       ...this._patrolStats,
+      // 批25：让路计数（下发在途 / 人工正在输入）。不暴露这个，"巡检怎么不走了"线上无从诊断。
+      yielded: { sendInFlight: 0, humanTyping: 0, ...(this._patrolYield || {}) },
+      sendBusy: this.isSendBusy(),
     };
   }
 
@@ -897,6 +1097,8 @@ export class BaseAdapter {
     scanOnly = false,
     switchMinMs = PATROL_DEFAULTS.switchMinMs,
     switchMaxMs = PATROL_DEFAULTS.switchMaxMs,
+    switchBlockWaitMs = PATROL_DEFAULTS.switchBlockWaitMs,
+    switchBlockPollMs = PATROL_DEFAULTS.switchBlockPollMs,
   } = {}) {
     if (this._patrolling) { this.log.warn('巡检已在进行，忽略重复触发'); return { skipped: true, reason: 'in-progress' }; }
     // P1-P6：账号暂停 → 立即返回，不巡检
@@ -906,6 +1108,8 @@ export class BaseAdapter {
     this._patrolling = true;
     const startedAt = Date.now();
     let visited = 0, withNew = 0, captured = 0, failures = 0, scannedTotal, unreadCount = 0;
+    let yieldReason = null;   // 批25：本轮因"下发在途 / 人工正在输入"让路的判据（null=没让路）
+    let yieldSkipped = 0;
 
     // 记住巡检前活动会话，巡检结束后尽量回到它（减少打扰）
     const beforeConv = this.getConversationId();
@@ -952,6 +1156,17 @@ export class BaseAdapter {
           this.log.debug(`巡检跳过：用户已停留在会话 ${conv.id}（依赖 observer 实时捕获）`);
           continue;
         }
+        // 批25：切会话之前先等一个「没有下发在途、也没有人工在打字」的窗口。
+        //   让路的粒度是"每次切换"而不是"整轮"：下发之间有间隙，巡检照样推进，不会因为
+        //   下行密集而整轮饿死；真等不到窗口（人工长时间在输入）就让本轮作废，30s 后下一轮再来。
+        const blocker = await this._waitForSwitchWindow(switchBlockWaitMs, switchBlockPollMs);
+        if (blocker) {
+          yieldReason = blocker;
+          yieldSkipped = targets.length - targets.indexOf(conv);
+          this._noteYield(blocker);
+          this.log.info(`巡检让路：${blocker} ⇒ 本轮剩余 ${yieldSkipped} 个会话推迟到下一轮`);
+          break;
+        }
         try {
           // 限并发：每个 _patrolVisit 占一个 semaphore 槽位
           const prev = nextSlot();
@@ -974,6 +1189,7 @@ export class BaseAdapter {
       this._patrolling = false;
     }
     if (beforeConv && beforeConv !== this.getConversationId()) {
+      // 批25：收尾"切回原会话"也是一次换会话，同样走 preemptible（下发在途/人工键入时放弃回切）。
       try { await this.openConversation(beforeConv, { backfill: false, waitActiveMs: 2000 }); } catch (_) {  }
     }
     const dur = Date.now() - startedAt;
@@ -986,7 +1202,13 @@ export class BaseAdapter {
     this._patrolStats.lastRoundAt = startedAt;
     this._patrolStats.lastDurationMs = dur;
     this.log.debug(`巡检一轮完成：扫描 ${scannedTotal} 个会话，访问 ${visited}，有新消息 ${withNew}，捕获新消息 ${captured}，失败 ${failures}，用时 ${dur}ms`);
-    return { scannedTotal, unreadCount, visited, withNew, captured, failures, durationMs: dur };
+    if (yieldReason) {
+      this.log.info(`巡检本轮让路 ${yieldSkipped} 个会话（${yieldReason}）：下发/人工键入优先，下一轮再访`);
+    }
+    return {
+      scannedTotal, unreadCount, visited, withNew, captured, failures, durationMs: dur,
+      yielded: yieldReason, skippedByYield: yieldSkipped,
+    };
   }
 
   async _patrolVisit(conv, { throttleMs, waitActiveMs }) {
@@ -994,6 +1216,15 @@ export class BaseAdapter {
     if (!opened) return { ok: false, newCount: 0 };
     const renderWaitMs = Math.min(throttleMs, 600);
     await sleep(renderWaitMs);
+    // 批25（对称方向）：这个 sleep 窗口里下发可能已经切走了会话。_collectUnseenText 是同步的
+    //   （内部无 await），一旦跑起来就不会被打断；但若在切走之后才采集，batch 就是**另一个
+    //   会话**的消息，却会被 _emitPatrolMessage 挂在 opened 名下上行 —— 串台：AI 拿 B 的话
+    //   当 A 的上下文来回复。所以采集之前必须复核"还停在 opened"。
+    const cur = this.getConversationId();
+    if (cur && cur !== opened) {
+      this.log.debug(`巡检采集跳过：会话已漂移 ${opened} -> ${cur}`);
+      return { ok: false, newCount: 0, drifted: true };
+    }
     const batch = this._collectUnseenText();
     if (batch.length) this._emitPatrolMessage(opened, conv, batch);
     return { ok: true, newCount: batch.length };
@@ -1032,8 +1263,9 @@ export class BaseAdapter {
       if (root && item && !root.contains(item)) { this.seenNodes.add(item); continue; }
       // 会话锚点校验：与 getMessages 同口径（锚点过期/sender 错配 ⇒ 残留，标记 seen 不再上报）。
       if (this._isConvAnchorStale(cid) || !this._senderMatchesAnchor(parsed)) { this.seenNodes.add(item); continue; }
-      if (parsed.msg_type && parsed.msg_type !== 'text') { this.seenNodes.add(item); continue; }
-      if (!parsed.text) { this.seenNodes.add(item); continue; }
+      // 002-multi-type-messages：媒体消息不再丢弃（原先这里直接 continue 是客户图片
+      // 上行蒸发的根因）。text 为空且无媒体 URL 的仍跳过。
+      if (!parsed.text && !this._isUplodableMedia(parsed)) { this.seenNodes.add(item); continue; }
       // §8.3-17：同内容气泡的发生次数只由「本轮可见消息的顺序」决定，所以 seenNodes 的跳过
       // 必须排在计数之后 —— 否则前面那条被跳过时，后面这条会被编成 0、进而被稳定键吞掉。
       const occurrence = this._bumpOccurrence(occ, cid, parsed);
@@ -1071,8 +1303,11 @@ export class BaseAdapter {
       sender_type: lastSenderType,
       sender_id: isGroup && groupId ? groupId : (last.sender_id || cid),
       sender_name: senderName,
-      content: last.text || '',
-      msg_type: 'text',
+      // 002-multi-type-messages：顶层 content/msg_type 按最后一条真实类型输出，
+      // 媒体消息 text 为空时补占位符（原先写死 'text'，媒体帧到服务端类型失真）。
+      content: last.text || mediaPlaceholder(last.msg_type),
+      msg_type: last.msg_type || 'text',
+      media_url: last.media_url || '',
       timestamp: last.timestamp || Date.now(),
       event_id: last.message_id,
       is_group: isGroup,
@@ -1086,8 +1321,8 @@ export class BaseAdapter {
 
   _ingest(parsed) {
     if (!parsed) return;
-    if (parsed.msg_type && parsed.msg_type !== 'text') return;
-    if (!parsed.text) return;
+    // 002-multi-type-messages：媒体消息放行（占位符补齐在上行构造时做）。
+    if (!parsed.text && !this._isUplodableMedia(parsed)) return;
     this._pushWindow(parsed);
     this._emitMessage(parsed);
   }
@@ -1152,8 +1387,8 @@ export class BaseAdapter {
     for (const item of items) {
       const parsed = this.parseMessageItem(item);
       if (!parsed) continue;
-      if (parsed.msg_type && parsed.msg_type !== 'text') continue;
-      if (!parsed.text) continue;
+      // 002-multi-type-messages：媒体消息参与回填历史（text 为空时占位符在上行构造时补）。
+      if (!parsed.text && !this._isUplodableMedia(parsed)) continue;
       // 批24b：回填与巡检/扫描/回查共用这一条会话归属判据。虚拟列表切换后残留节点仍在
       // 文档里，不判归属就会把上一会话的私信并进**当前**会话的历史帧上行（串台）。
       if (activeRoot && item && !activeRoot.contains(item)) { this.seenNodes.add(item); continue; }
@@ -1202,7 +1437,8 @@ export class BaseAdapter {
       sender_type: st,
       sender_id: senderId,
       sender_name: parsed.sender_name || '',
-      content: parsed.text || '',
+      // 002-multi-type-messages：媒体消息无文字时补占位符，content 永不为空。
+      content: parsed.text || mediaPlaceholder(parsed.msg_type),
       media_url: parsed.media_url || '',
       msg_type: parsed.msg_type || 'text',
       timestamp: parsed.timestamp || Date.now(),
@@ -1258,7 +1494,8 @@ export class BaseAdapter {
       conversation_id: cid,
       sender_type: parsed.sender_type,
       sender_id: parsed.is_group && parsed.group_id ? parsed.group_id : (parsed.sender_id || ''),
-      content: parsed.text,
+      // 002-multi-type-messages：媒体消息无文字时补占位符（与服务端直连渠道同词表）。
+      content: parsed.text || mediaPlaceholder(parsed.msg_type),
       media_url: parsed.media_url || '',
       msg_type: parsed.msg_type || 'text',
       timestamp: parsed.timestamp,
@@ -1275,13 +1512,33 @@ export class BaseAdapter {
     if (this.callbacks.onMessage) this.callbacks.onMessage(msg);
   }
 
+  // 批25：整次下发 = 一个临界区（openConversation → 稳定等待 → 键入 → 点击 → 回查）。
+  //   持锁期间巡检不得换会话；真正危险的不是 openConversation 那一刻，而是后面几秒的键入期
+  //   —— 所以锁必须覆盖整段，而不是包住"切会话"这一瞬。
   async sendOutbound(text, targetConvId, opts = {}) {
-    if (!text) { this.log.warn('回复内容为空，跳过'); return { ok: false, rateLimited: false, notFound: false }; }
+    // 002-multi-type-messages：非文本出站（opts.msgType + opts.mediaUrl）。
+    // 媒体消息的「正文」是占位符或空，`!text` 不能再作为唯一闸门——
+    // 非 text 且有 mediaUrl 时走媒体路径（降级或渠道原生）。
+    const outType = (opts.msgType || '').toLowerCase();
+    if (!text && !(isMediaMsgType(outType) && opts.mediaUrl)) {
+      this.log.warn('回复内容为空，跳过');
+      return { ok: false, rateLimited: false, notFound: false };
+    }
+    this.beginOutbound();
+    try {
+      return await this._sendOutboundLocked(text, targetConvId, opts);
+    } finally {
+      this.endOutbound();
+    }
+  }
+
+  async _sendOutboundLocked(text, targetConvId, opts = {}) {
     const account = this.getAccountId();
     let conv = this.getConversationId();
     if (targetConvId && conv !== targetConvId) {
       // exact=true：只接受精确切到目标会话，杜绝"切到别处也当成功"→ 误发到其他会话
-      const opened = await this.openConversation(targetConvId, { backfill: false, exact: true });
+      // preemptible:false：这次切换是下发的一部分，绝不因巡检/草稿让路（让路＝这条永远发不出去）
+      const opened = await this.openConversation(targetConvId, { backfill: false, exact: true, preemptible: false });
       if (!opened) {
         throttledWarn(this.log, `sendNotOpen:${targetConvId}`, WARN_THROTTLE_MS, `下行目标会话 ${targetConvId} 未打开，放弃发送`, { current: conv });
         return { ok: false, rateLimited: false, notFound: true };
@@ -1325,26 +1582,88 @@ export class BaseAdapter {
     // 两段等待（风控提示 + 全局最小间隔）能睡到秒级，其间客户自己也可能说过同一句话——
     // 用睡前的基线会把别人的那条气泡算成我们发出去的。
     const verifyMs = opts.sendVerifyMs != null ? opts.sendVerifyMs : BRIDGE_THREE_CHANNEL.sendVerifyMs;
-    const textBaseline = this._countVisibleText(text);
+    // 002-multi-type-messages：媒体出站分派。
+    //   - opts.msgType 非 text 且有 mediaUrl：优先渠道原生 hooks.sendMedia（若实现）；
+    //     未实现则统一降级为「[图片] URL」文本走 rawSendText —— 降级也是一次真实投递，
+    //     成功即 ack，行不再无限重推（原先非文本出站在扩展端静默失败、行反复重推）。
+    //   - 降级文本参与同一套限速/回查/自报管线，行为与纯文本完全一致。
+    const outType = (opts.msgType || '').toLowerCase();
+    const isMediaOut = isMediaMsgType(outType) && !!opts.mediaUrl;
+    let sendText = text;
+    let sendMetaType = 'text';
+    let sendMetaUrl = '';
+    if (isMediaOut && typeof this.hooks.sendMedia === 'function') {
+      try {
+        const mres = await withTimeout(
+          this.hooks.sendMedia(outType, opts.mediaUrl, conv, { text }),
+          BRIDGE_THREE_CHANNEL.sendOutboundTimeoutMs,
+          `sendMedia(${this.channel})`
+        );
+        if (mres && mres.ok) {
+          this.rateLimiter.markSent(this.channel, account, conv, opts.mediaUrl);
+          stampGlobalSendAt();
+          this._emitMessage(
+            { sender_type: SENDER.AGENT, text: text || mediaPlaceholder(outType), media_url: opts.mediaUrl, msg_type: outType, timestamp: Date.now(), message_id: typedContentHash(this.channel, conv, outType, opts.mediaUrl, text || '') },
+            { send_verified: true }
+          );
+          return { ok: true, sendVerified: true, rateLimited: false, notFound: false, via: 'sendMedia' };
+        }
+        this.log.warn('sendMedia 未成功，降级为 URL 文本投递', { channel: this.channel, type: outType });
+      } catch (e) {
+        this.log.warn('sendMedia 异常，降级为 URL 文本投递', { channel: this.channel, err: String(e?.message || e) });
+      }
+    }
+    if (isMediaOut) {
+      sendText = `${text ? text + ' ' : ''}${mediaPlaceholder(outType)} ${opts.mediaUrl}`;
+      sendMetaType = outType;
+      sendMetaUrl = opts.mediaUrl;
+    }
+    const textBaseline = this._countVisibleText(sendText);
     let ok;
+    // 批25：最后一道闸 —— 点发送前复核会话归属。
+    //   锁（_outboundInFlight）能挡住巡检，但挡不住 SPA 自己改路由和用户手点别的会话；
+    //   一旦漂移，"点之前"就是唯一止损点（点下去＝发给了下一个用户，不可撤回）。
+    //   判据挂在渠道 sendText 的点击前一刻（各渠道 sendText 调 assertConvOrAbort），
+    //   漂移 ⇒ 清空输入框 + 抛 conv-drift ⇒ 本条不 ack、留 pending 由下一轮重投。
+    const assertConv = () => {
+      const now = this.getConversationId();
+      return !now || now === conv;
+    };
     try {
       // B4（批3）：rawSendText 裸 await——sendText 卡死（DOM 阻塞/框架吞事件）会永久挂起
       // 整条按会话串行的下行队列。统一 withTimeout，预算随文案长度伸缩（B7 拟人键入时长）。
-      await withTimeout(this.rawSendText(text), humanSendTimeoutMs(text), `rawSendText(${this.channel})`);
+      await withTimeout(this.rawSendText(sendText, { expectConv: conv, assertConv }), humanSendTimeoutMs(sendText), `rawSendText(${this.channel})`);
       ok = true;
     } catch (e) {
-      this.log.error('回写失败', String(e?.message || e));
-      return { ok: false, rateLimited: false, notFound: false };
+      const drifted = !!(e && e.code === 'conv-drift');
+      if (drifted) {
+        this.log.warn('下发中止：点发送前检测到会话漂移，已清空输入框、不发送（不 ack，留 pending 重投）', {
+          channel: this.channel, expect_conv: conv, actual_conv: this.getConversationId(),
+        });
+      } else {
+        this.log.error('回写失败', String(e?.message || e));
+      }
+      return { ok: false, rateLimited: false, notFound: false, drifted };
     }
     let sendVerified = false;
     if (ok) {
       // 回查只产结论位：未见**不碰** ok、不碰 markSent、不碰 ack。让"没见着"变成重投，
       // 就是把一次不可撤销的双发交回给一段渲染滞后（与批20b 在 A 链路的取舍同一条）。
-      sendVerified = await this._verifySendLanded(text, textBaseline, verifyMs);
-      this.rateLimiter.markSent(this.channel, account, conv, text);
+      sendVerified = await this._verifySendLanded(sendText, textBaseline, verifyMs);
+      this.rateLimiter.markSent(this.channel, account, conv, sendText);
       stampGlobalSendAt(); // B6：不 await——storage 写失败已在内部吞掉，仅 best-effort 更新共享时钟
+      // 自报出站：媒体降级路径按真实类型与 URL 自报，服务端回声去重按 typed 口径对齐。
       this._emitMessage(
-        { sender_type: SENDER.AGENT, text, media_url: '', timestamp: Date.now(), message_id: contentHash(this.channel, conv, text) },
+        {
+          sender_type: SENDER.AGENT,
+          text: sendText,
+          media_url: sendMetaUrl,
+          msg_type: sendMetaType,
+          timestamp: Date.now(),
+          message_id: sendMetaUrl
+            ? typedContentHash(this.channel, conv, sendMetaType, sendMetaUrl, text || '')
+            : contentHash(this.channel, conv, sendText),
+        },
         { send_verified: sendVerified }
       );
       if (!sendVerified) {
