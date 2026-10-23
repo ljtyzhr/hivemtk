@@ -126,3 +126,79 @@ func TestSeedConfigParamsDoesNotMatchOtherGroupSameKey(t *testing.T) {
 		t.Errorf("别的组的同 key 行被动了（got=%d want=1）", other)
 	}
 }
+
+// TestSeedParamGroups_PrunesRetiredGroupWithoutLiveParams 钉住"从种子里摘掉的组"在存量库上
+// 真的消失，以及那条边界：组里**还有活参数就绝不删**。
+//
+// 现场样本（2026-10-23 审计 #65）：D-7 删掉的 "wechat" 组在库里留着，
+// 带 3 条全部 deprecated 的参数；侧栏一直渲染「微信 0」，点进去是空表 ——
+// 前端有意保留 0 条数的组（好让"整组已下架"仍可点进去），所以这口锅在写入侧：
+// 分组表只有 upsert、没有删除路径，"摘掉"等于没摘。
+func TestSeedParamGroups_PrunesRetiredGroupWithoutLiveParams(t *testing.T) {
+	db := testutil.NewTestDB(t, &model.ConfigParam{}, &model.ConfigParamGroup{})
+	if db == nil {
+		t.Fatal("测试库不可达：分组清理无法判定（不 Skip，跳过等于没锁）")
+	}
+	ctx := context.Background()
+
+	// 表由本用例独占：先清干净，免得别的用例留下的行干扰"删了几个"的读数
+	if err := db.WithContext(ctx).Exec(`DELETE FROM config_param_groups`).Error; err != nil {
+		t.Fatalf("清空分组表失败: %v", err)
+	}
+	if err := db.WithContext(ctx).Where("1 = 1").Delete(&model.ConfigParam{}).Error; err != nil {
+		t.Fatalf("清空参数表失败: %v", err)
+	}
+
+	// ① 已下架组：种子里没有 "zz_retired"，组内只剩一条 deprecated 参数 ⇒ 应被清掉
+	// ② 还有活参数的组：种子里同样没有 "zz_live_group"，但有 deprecated=false 的参数 ⇒ 必须留
+	retired := []model.ConfigParamGroup{
+		{Group: "zz_retired", Label: "已下架组"},
+		{Group: "zz_live_group", Label: "还有活参数的组"},
+	}
+	if err := db.WithContext(ctx).Create(&retired).Error; err != nil {
+		t.Fatalf("预置分组失败: %v", err)
+	}
+	params := []model.ConfigParam{
+		{Group: "zz_retired", Key: "dead_knob", Name: "死旋钮", ValueType: "int",
+			Value: "1", DefaultValue: "1", Deprecated: true},
+		{Group: "zz_live_group", Key: "live_knob", Name: "活旋钮", ValueType: "int",
+			Value: "1", DefaultValue: "1", Deprecated: false},
+	}
+	if err := db.WithContext(ctx).Create(&params).Error; err != nil {
+		t.Fatalf("预置参数失败: %v", err)
+	}
+
+	if err := SeedParamGroups(ctx, db); err != nil {
+		t.Fatalf("SeedParamGroups 失败: %v", err)
+	}
+
+	var retiredLeft, liveLeft int64
+	if err := db.WithContext(ctx).Model(&model.ConfigParamGroup{}).
+		Where("param_group = ?", "zz_retired").Count(&retiredLeft).Error; err != nil {
+		t.Fatalf("读回 zz_retired 失败: %v", err)
+	}
+	if err := db.WithContext(ctx).Model(&model.ConfigParamGroup{}).
+		Where("param_group = ?", "zz_live_group").Count(&liveLeft).Error; err != nil {
+		t.Fatalf("读回 zz_live_group 失败: %v", err)
+	}
+	if retiredLeft != 0 {
+		t.Error("组内只剩已下架参数的分组没被清掉：侧栏会一直挂着一个点进去是空表的分组")
+	}
+	if liveLeft != 1 {
+		t.Error("组内还有在用参数，分组却被清掉了：真正的旋钮连入口一起消失，比留个空组更糟")
+	}
+
+	// 种子里的每个组都必须还在（清理不能把种子声明的组也带走）
+	var keptSeedGroups int64
+	keep := make([]string, 0, len(DefaultParamGroupDefs()))
+	for _, d := range DefaultParamGroupDefs() {
+		keep = append(keep, d.Group)
+	}
+	if err := db.WithContext(ctx).Model(&model.ConfigParamGroup{}).
+		Where("param_group IN ?", keep).Count(&keptSeedGroups).Error; err != nil {
+		t.Fatalf("读回种子分组失败: %v", err)
+	}
+	if int(keptSeedGroups) != len(keep) {
+		t.Errorf("种子声明的 %d 个分组只有 %d 个在库里：清理误伤了在用分组", len(keep), keptSeedGroups)
+	}
+}

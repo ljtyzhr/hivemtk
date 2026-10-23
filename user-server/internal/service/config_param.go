@@ -146,11 +146,13 @@ func InboxStaffLoadLimit(ctx context.Context) int {
 // SeedConfigParams 启动时调用：AutoMigrate + Upsert 默认参数。
 // 首次启动会写入全部 60+ 参数；后续启动只补齐缺失项，不覆盖用户已改值。
 func SeedConfigParams(ctx context.Context, db *gorm.DB) error {
-	// 建表已收敛到启动期 AutoMigrate（db.RegisterExtraModels），此处仅 seed
-	if err := db.WithContext(ctx).First(&model.ConfigParam{}).Error; err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+	// 建表已收敛到启动期 AutoMigrate（db.RegisterExtraModels），此处仅 seed。
+	// 表自检与行写入都在仓储侧：本函数只做「读种子定义 → 比对 → 决定增/刷」，
+	// 不持有查询能力（五层边界）。
+	repo := repository.NewConfigParamRepository(db)
+	if err := repo.TableReady(ctx); err != nil {
 		return fmt.Errorf("config_params 表不可用: %w", err)
 	}
-	repo := repository.NewConfigParamRepository(db)
 	svc := NewConfigParamService(db)
 	SetGlobal(svc)
 
@@ -177,13 +179,13 @@ func SeedConfigParams(ctx context.Context, db *gorm.DB) error {
 		p, err := repo.GetByGroupKey(ctx, def.Group, def.Key)
 		if err == nil && p != nil {
 			existing++
-			if syncParamDef(ctx, db, p, def) {
+			if syncParamDef(ctx, repo, p, def) {
 				refreshed++
 			}
 			continue
 		}
 
-		if err := db.WithContext(ctx).Create(&model.ConfigParam{
+		if err := repo.Create(ctx, &model.ConfigParam{
 			Group:            def.Group,
 			Key:              def.Key,
 			Name:             def.Name,
@@ -202,7 +204,7 @@ func SeedConfigParams(ctx context.Context, db *gorm.DB) error {
 			ReadOnly:         def.ReadOnly,
 			Restart:          def.Restart,
 			Category:         def.Category,
-		}).Error; err != nil {
+		}); err != nil {
 			logger.Errorf("[ConfigParam] seed create %s.%s failed: %v（这条参数没有进库：管理台看不到、代码只会读兜底值）",
 				def.Group, def.Key, err)
 			seedFailures = append(seedFailures, fmt.Sprintf("%s/%s: %v", def.Group, def.Key, err))
@@ -238,13 +240,25 @@ func SeedParamGroups(ctx context.Context, db *gorm.DB) error {
 	return seedParamGroups(ctx, repository.NewConfigParamRepository(db))
 }
 
-// seedParamGroups 把分组元数据 upsert 进库。
+// seedParamGroups 把分组元数据 upsert 进库，并清掉"种子里已经没有、且组内再无活参数"的组。
+//
+// 为什么还要清：分组表只有 upsert、没有删除路径，于是「把某个组从种子里摘掉」在
+// 存量库上等于没摘——组行还在，侧栏照样渲染它（前端有意保留 0 条数的组，好让
+// 「全部参数已下架」的组仍可点进去），点进去是一张空表，外加一个已经下架的旋钮。
+// 那正是 ConfigParam.Deprecated 那段注释要避免的东西，只是升了一级（从"失效的旋钮"
+// 变成"失效的分组"）。实测样本：D-7 删掉的 "wechat" 组在库里带了 3 条全 deprecated
+// 的参数，侧栏一直挂着「微信 0」。
+//
+// 两条边界：① 只在种子是唯一写入方时才这么做（本表确实只有本函数写，无新建分组接口）；
+// ② 组内**还有一条活参数就不删**——删了会把真正的旋钮连入口一起藏掉，代价远大于
+// 留一个空组。
 func seedParamGroups(ctx context.Context, repo *repository.ConfigParamRepository) error {
 	defs := DefaultParamGroupDefs()
 	if len(defs) == 0 {
 		return nil
 	}
 	rows := make([]model.ConfigParamGroup, 0, len(defs))
+	keep := make([]string, 0, len(defs))
 	for _, d := range defs {
 		rows = append(rows, model.ConfigParamGroup{
 			Group:       d.Group,
@@ -252,8 +266,22 @@ func seedParamGroups(ctx context.Context, repo *repository.ConfigParamRepository
 			Description: d.Description,
 			SortOrder:   d.SortOrder,
 		})
+		keep = append(keep, d.Group)
 	}
-	return repo.UpsertGroups(ctx, rows)
+	if err := repo.UpsertGroups(ctx, rows); err != nil {
+		return err
+	}
+	pruned, err := repo.PruneRetiredGroups(ctx, keep)
+	if err != nil {
+		// 清理失败只降级为"多留几个空组"，不能反过来让 seed 报错：
+		// 组元数据只决定侧栏文案，功能不残废（与 SeedParamGroups 分级口径一致）。
+		logger.Warnf("[ConfigParam] 清理已下架分组失败（侧栏会多留空组）: %v", err)
+		return nil
+	}
+	if pruned > 0 {
+		logger.Infof("[ConfigParam] 已清理 %d 个已下架分组（种子里已无该组，且组内无在用参数）", pruned)
+	}
+	return nil
 }
 
 // syncParamDef 把存量行的**定义列**对齐当前种子定义。
@@ -265,7 +293,7 @@ func seedParamGroups(ctx context.Context, repo *repository.ConfigParamRepository
 // 种子是这些文案的唯一事实源，不刷新就等于没有事实源。
 //
 // 唯一不许碰的是 value：运营改过的那个值才是这条链路上要保住的东西。
-func syncParamDef(ctx context.Context, db *gorm.DB, p *model.ConfigParam, def ParamDef) bool {
+func syncParamDef(ctx context.Context, repo *repository.ConfigParamRepository, p *model.ConfigParam, def ParamDef) bool {
 	updates := map[string]any{}
 	if p.Name != def.Name {
 		updates["Name"] = def.Name
@@ -322,8 +350,7 @@ func syncParamDef(ctx context.Context, db *gorm.DB, p *model.ConfigParam, def Pa
 		return false
 	}
 	// 按主键定位，不再用 (group,key) 条件：这两列本身也可能在本次更新里。
-	if err := db.WithContext(ctx).Model(&model.ConfigParam{}).
-		Where("id = ?", p.ID).Updates(updates).Error; err != nil {
+	if err := repo.ApplyDefinitionUpdates(ctx, p.ID, updates); err != nil {
 		logger.Warnf("[ConfigParam] seed 参数定义刷新失败 %s.%s: %v（管理台会继续展示旧说明，事实订正到不了运营眼前）",
 			def.Group, def.Key, err)
 		return false

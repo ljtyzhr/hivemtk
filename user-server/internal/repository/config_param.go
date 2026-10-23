@@ -184,11 +184,76 @@ func (r *ConfigParamRepository) UpdateValue(ctx context.Context, group, key, new
 	})
 }
 
+// TableReady 启动 seed 的前置自检：表能读就打住（空表也算就绪）。
+//
+// 放仓储而不是 service 里就地 `db.WithContext(...)`：五层边界要求 service/controller
+// 不持有 *gorm.DB 自行发查询（同 kb_item_binding 审计 A14 的口径），否则「这条链用了哪
+// 几张表」只在 grep 过全文件之后才知道。
+func (r *ConfigParamRepository) TableReady(ctx context.Context) error {
+	if r == nil || r.db == nil {
+		return ErrConfigParamStoreUnavailable
+	}
+	if err := r.db.WithContext(ctx).First(&model.ConfigParam{}).Error; err != nil && !errors.Is(err, gorm.ErrRecordNotFound) {
+		return err
+	}
+	return nil
+}
+
+// Create 落一条参数行（启动 seed 补齐缺项用）。
+func (r *ConfigParamRepository) Create(ctx context.Context, p *model.ConfigParam) error {
+	if r == nil || r.db == nil {
+		return ErrConfigParamStoreUnavailable
+	}
+	return r.db.WithContext(ctx).Create(p).Error
+}
+
+// ApplyDefinitionUpdates 按主键把「定义列」刷成当前种子定义（不碰 value）。
+//
+// updates 的键是 model 字段名（GORM Updates 的既有口径），由 service 侧算 diff：
+// 「哪些列算定义、哪些改动该放过」是领域策略，落在 service；「怎么写到库里」落在这里。
+func (r *ConfigParamRepository) ApplyDefinitionUpdates(ctx context.Context, id uint, updates map[string]any) error {
+	if r == nil || r.db == nil {
+		return ErrConfigParamStoreUnavailable
+	}
+	if len(updates) == 0 {
+		return nil
+	}
+	return r.db.WithContext(ctx).Model(&model.ConfigParam{}).
+		Where("id = ?", id).Updates(updates).Error
+}
+
+// PruneRetiredGroups 清掉"已从种子摘除、且组内再无在用参数"的分组行。
+//
+// keep 是当前种子的组名全集。两条必须同时成立才删：
+//   - 组名不在 keep 里（种子已经不声明它）
+//   - 该组没有 deprecated=false 的参数（还有活旋钮 ⇒ 删了等于把活旋钮的入口也藏掉）
+//
+// 用 NOT EXISTS 而不是先 SELECT 再 DELETE：并发 seed（多实例同启）下"查完才发现有活参数"
+// 的窗口里刚好有人加了参数的话，先查后删会误删。
+func (r *ConfigParamRepository) PruneRetiredGroups(ctx context.Context, keep []string) (int, error) {
+	if r == nil || r.db == nil {
+		return 0, ErrConfigParamStoreUnavailable
+	}
+	if len(keep) == 0 {
+		// 拿不到种子全集时一律不动：把"没读到"当成"全部下架"会清空整张分组表。
+		return 0, nil
+	}
+	res := r.db.WithContext(ctx).
+		Where("param_group NOT IN ?", keep).
+		Where(`NOT EXISTS (SELECT 1 FROM config_params p
+		         WHERE p.param_group = config_param_groups.param_group
+		           AND p.deprecated = ?)`, false).
+		Delete(&model.ConfigParamGroup{})
+	if res.Error != nil {
+		return 0, res.Error
+	}
+	return int(res.RowsAffected), nil
+}
+
 // ResetToDefault 重置单条为默认值
 //
 // 只读与下架都要拦：整组重置本来就跳过只读行，单条却不判，
 // 等于留了一条「批量拦得住、逐条能绕过」的旁路。
-func ResetToDefaultMarkerPlaceholder() {}
 func (r *ConfigParamRepository) ResetToDefault(ctx context.Context, group, key string, actorID uint) error {
 	if r == nil || r.db == nil {
 		return ErrConfigParamStoreUnavailable
