@@ -22,7 +22,7 @@
 | P1-1 | 归属校验缓存的键是 `table:id`、**无租户段** ⇒ 一个租户的归属判定命中另一个租户，且其 record-not-found 语义是 fail-open | 中高 | **已修 + 2 例回归** |
 | P1-2 | 无凭证公开外链（访客 `<img>`、分享页）拿不到租户归属 ⇒ 只能靠 UUID 不可枚举 | 中 | **已修**（A1）：`/files` 在 on 模式只认 `?s=` 签名凭证，缺失/篡改/过期一律 404；签名自指租户目录 ⇒ 跨租户不可表达 |
 | P1-3 | 通用归属中间件 `RequireOwner*` 的 fail-open 分支（`checker==nil ⇒ 放行`、`db==nil ⇒ (0,nil)`）+ not-found 混成 500 | 中（潜在） | **已修**（语义收口 + 6 例回归，见 §3） |
-| P1-4 | 平台端（运营端）的商户隔离**全靠手写 `Where("merchant_key = ?")`**，无框架约束、无门禁、失败模式是静默跨商户 | 中高（云端侧） | 待批准（设计已给） |
+| P1-4 | 平台端**商户面**（`/merchant-api`，外部主体）的商户分域**全靠手写 `Where("merchant_key = ?")`**，无框架约束、无门禁、失败模式是静默跨商户 | 中高（云端侧） | **二轮改判范围**：运营面"平台本就该看全部"⇒ 登记为**有据不做**；只收商户面（A3 改写版，论证见 `PLATFORM_MERCHANT_ISOLATION_EVALUATION_2026-10-24.md`） |
 | P1-5 | 云/本地之间**没有版本/契约握手**：老实例连新平台只能靠运行时 500 发现字段不匹配 | 中（运维） | 待批准 |
 | P2-1..6 | 限流键无租户维度 ✅、11 张租户表缺 tenant_id 前导索引 ✅、知识库导入路径未分域 ✅、cron 扇出无门禁 ✅、事件总线 TenantID 靠自觉 ✅、双仓库同名模型漂移 | 低—中 | 6 项中 5 项已修，余 1 项在清单 |
 
@@ -157,21 +157,40 @@ func (h *Hub) BroadcastToMerchant(merchantID string, ...) error {
 **"0 处接线"的处置**：保持不接线（不在本轮给真实端点加一层未经产品确认的归属语义），
 但把"接上就会放行"的陷阱拆了 —— 现在接上它只有两种结果：构造期 panic，或按 uid 正确判定。
 
-### P1-4（待批准）平台端商户隔离无框架约束
+### P1-4 平台端商户隔离无框架约束（**二轮更正范围**）
 
-**证据（运营端 `hivemtk-platform/platform-server`）**：
-- `internal/middleware/merchant_auth.go:121` 只做 `c.Set("merchant_id", m.ID)`，**全仓 `merchant_id` 出现 1 次**——没有任何仓储层/回调层拿它过滤；
-- 实际隔离靠每个 repository 方法手写：`internal/repository/order.go:190/216` `Where("merchant_key = ?", merchantKey)`；
-- 单点校验是手写的：`internal/controller/order_controller.go:238` `d.Order.MerchantKey != mk → 403`（**写得对，但属于"每处都得记得写"的形状**）。
+**初稿判断错在把范围写成"平台端"**：平台端的业务本身就是"平台管理所有商户"，
+运营面跨商户查询不是越权而是业务（订单列表、钱包流水、用量报表、调账、模块开通…）。
+照用户端那样全量 fail-closed 会同时造成两件坏事：①运营端每个列表/报表打成 500；
+②为让它跑起来得在 237 处手写条件上再逐一标注"我是系统级"，标注本身会腐烂成第二套真相。
+**收益为零、回归面最大。** 论证与取证（含两侧威胁模型对照表）见
+`PLATFORM_MERCHANT_ISOLATION_EVALUATION_2026-10-24.md`。
 
-**判定**：这是两端最本质的**能力不对称**——用户端把隔离吃进框架（漏了会 fail-closed 报错），运营端把它留在业务代码里（漏了**静默跨商户**）。新增一个 repository 方法忘了 `Where`，没有任何门禁会红。
+**更正后的范围**：两端威胁模型不对称 ⇒ 只收**商户面**（`/merchant-api` 组，22 条路由），
+运营面登记为**"有据不做"**（其越权由 admin 会话 + RBAC 管，商户维度对它是筛选条件、不是安全边界）。
 
-**建议**：按用户端已验证的形态复制最小集，不动业务代码：
-1. `merchant_keys`/订单/资产/账单/订阅等商户域表统一加 `merchant_key` 列（多数已有）；
-2. 注册一个 GORM callback，按 ctx 里的 `merchant_id`（由 `merchant_auth` 注入 ctx）自动注入 `WHERE merchant_key = ?`，`merchant-api` 组 fail-closed；
-3. 加一条仿 `check-gorm-only.sh` 的门禁：`merchant-api` 组内的 repository 方法必须走这个通道。
+**证据（`hivemtk-platform/platform-server`，活体 + 真库）**：
+- `internal/middleware/merchant_auth.go:121` 只做 `c.Set("merchant_id", m.ID)`，全仓 `merchant_id` 出现 1 次
+  —— 没有任何仓储/回调层拿它过滤；手写 `merchant_key` 条件 **237 处 / 20 个非测试文件**；
+- 装配面这一格是好的：`router.go:61` 起 22 条路由**全部**挂 `middleware.MerchantAuth()`（HMAC + ±5min + 写操作重放去重）；
+- 身份来源面今天也没有现成洞：商户面 handler 全走 `c.GetString("merchant_key")` /
+  `merchantKeyOf(c)`；`ctx.Query("merchant_key")` 只出现在运营面 handler；
+- 但有三处**结构性**缺口（今天不流血、任何一次改动都会流血，且**没有任何用例会红**）：
+  - **G1 空串 fail-open**：`service/order_service.go:883` `if merchantKey != "" {…} else { ListOrders(...) }`
+    与 `repository/llm_billing.go:346` 同形 —— 同一条方法被 `/merchant-api/orders` 与 `/platform/orders`
+    共注册，安全与否只取决于 `controller/order_controller.go:54` 那两行的**书写顺序**（先 ctx 后 query）；
+  - **G2 越权判定散落在 controller 的 if 里**：`OrderController.Detail` / `MerchantCreatePay` 先按订单号取行、
+    再比对 `d.Order.MerchantKey != mk ⇒ 403`，而 repo 的 `GetByOrderNo` 不分商户 —— 忘写一次比对就是越权；
+  - **G3 403 vs 404 可枚举**：取不到行与不给取走两条语义，订单号空间成为可枚举面（用户端 A16 那条闸取向相反：
+    不存在与外租户一律 404）。
 
-代价：中（约 15 张表 + 一条 callback + 一条门禁）；收益：把运营端从"约定隔离"拉到"结构隔离"。
+**结论**：这是两端最本质的**能力不对称**——用户端把隔离吃进框架（漏了 fail-closed 报错），
+平台端把它留在业务代码里（漏了**静默跨商户**）。判据改写为（A3 改写版）：
+①`/merchant-api` 组请求 ctx 带商户 scope 时，商户表查询由框架注入；②scope 为空即拒（不退化成"看全部"）；
+③门禁：该组每条路由必挂 `MerchantAuth`、该组 handler 不得从 body/query 取商户身份；
+④双商户交叉扫描：A 的签名读 B 的资源恒 404/403，A 用 B 的 key 下单恒拒。
+注入器三档（有 scope ⇒ 注入 / scope 空 ⇒ 拒 / 无 scope ⇒ 不动）与用户端 `tenancyidx` 是
+**同一执法模型的两个档位**，不是两套逻辑 —— 无 scope 那一档正是"运营面零回归"的保证。
 
 ---
 
@@ -304,7 +323,7 @@ psql -h 127.0.0.1 -p 8202 -U admin -d user_db -Atc \
 | 项 | 依据 | 判断 |
 |---|---|---|
 | **无凭证外链签名化**（P1-2 / A1 / A12）✅ 已落地 | `/files` 的访客场景 + URL 暴露租户 id | `internal/storage/fileurl.go`：AES-GCM 签名 token（租户 + 相对路径 + 过期），URL 路径不含租户段；`/files` 守卫只认签名（缺失/篡改/过期 ⇒ 404）；`FILE_URL_TTL` 可配（默认不过期，因 URL 会被持久化），撤销靠轮换 `FILE_URL_SECRET`；存量 17 列由 `v3_80_0` 一次性重签。**牙齿**：守卫"验不过就放行" ⇒ 4 条 404 用例红；`PublicURL` 照发明文 ⇒ 形态与签名用例红 |
-| **平台端商户隔离上框架**（P1-4） | 两端能力不对称 | 推荐；与用户端 §7 方案 B（能力类型化）同源 |
+| **平台端商户面隔离上框架**（P1-4 / A3） | 两端能力不对称；运营面跨商户是业务本身 | 只收 `/merchant-api` 组（22 条）：框架级注入 + scope 空即拒 + 静态门禁 + 双商户交叉扫描；运营面**有据不做**（论证见 `PLATFORM_MERCHANT_ISOLATION_EVALUATION_2026-10-24.md`） |
 | **Postgres RLS** | `SAAS_MULTI_TENANT_EVALUATION_2026-10.md` §7 已否（连接池/事务语义、表 owner 绕过、`tenant_id=0` 与 `1` 并存无权威表） | 维持"本轮不做"，但仍是侵入面的理论下限；若做，先补"哪些行该是 `tenant_id=0`"的权威表 |
 | **形态矩阵契约门禁**（方案 E）✅ 已落地 | `DEPLOYMENT_MODES_EVALUATION_2026-10.md` §6 | `internal/app/deployment_matrix_contract_test.go`：四格 × 六条行为（出站/租户上下文/自助开户/初始化态/后台扇出/隔离 callback）= 24 条断言，全部走活体组件。两个轴**正交**是核心断言之一：租户那五条在两列数值必须相同，谁在平台开关里顺手加租户判定就会红。**牙齿**：临时让 off 模式也看 claim、让 `PlatformURLFor` 在关闭态照样返回地址 ⇒ ①②③ 三格全红 |
 | **逐端点双租户交叉扫描**（T028 尾巴）✅ 已落地 | 现有覆盖是"逐域代表用例"，731 条带参数端点无一穷尽判据 | `internal/router/cross_tenant_scan_test.go` 三条互补的腿：①匿名参数路由 32 条必须能说出"租户/行靠什么定位"（链上 `Public*Tenant`/`AppKeyResolve` 自动认 16 条 + 台账登记 16 条，双向校验）；②按行自证类用未知键探测 16 次，不得 200；③真库双租户真扫 6 条不同取数风格端点。**关键口径纠正**：正对照从"状态码 200"升级为"200 且响应体含播种行 marker"——实测 `/api/email/smtp/:id` 两租户都回 200 + `{"code":4301,"message":"该功能模块未开通…"}`，只判状态码是假绿（模块闸挡在取数之前，行根本没读出来）。**牙齿**：`GetByID` 走 `tenant.WithSystemScope`（真绕过 callback；`Unscoped()` 咬不动）⇒ 闸三红；摘 `/share/douyin/:id` 的 `PublicIDTenant` ⇒ 闸一红；`renderCardChatPage` 取不到行回 200 ⇒ 闸二红 |
