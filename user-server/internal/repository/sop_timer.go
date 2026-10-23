@@ -22,6 +22,21 @@ func NewSOPTimerRepository(db *gorm.DB) *SOPTimerRepository {
 	return &SOPTimerRepository{db: db}
 }
 
+// clampSOPBatchLimit 夹取批量扫描上限。
+//
+// 下限：GORM 的 `Limit(0)` 等于**不加 limit**，一次误传 0 就把整张 sop_timers
+// 读进内存；上限：这三处都是轮询器每 5 秒跑一次的扫描，一次抓太多会让单轮
+// 耗时超过轮询周期，下一轮立刻叠上来。
+func clampSOPBatchLimit(limit int) int {
+	if limit < 1 {
+		return 100
+	}
+	if limit > 500 {
+		return 500
+	}
+	return limit
+}
+
 // Create 创建 SOP 定时器
 func (r *SOPTimerRepository) Create(ctx context.Context, timer *model.SOPTimer) error {
 	if r == nil || r.db == nil {
@@ -39,9 +54,7 @@ func (r *SOPTimerRepository) FindDueForUpdate(ctx context.Context, now time.Time
 	if r == nil || r.db == nil {
 		return nil, errors.New("sop timer repository not initialized")
 	}
-	if limit <= 0 {
-		limit = 100
-	}
+	limit = clampSOPBatchLimit(limit)
 	var timers []model.SOPTimer
 	err := r.db.WithContext(ctx).
 		Clauses(clause.Locking{Strength: "UPDATE", Options: "SKIP LOCKED"}).
@@ -149,9 +162,7 @@ func (r *SOPTimerRepository) FindClaimExhaustedPendingTimers(ctx context.Context
 	if r == nil || r.db == nil {
 		return nil, errors.New("sop timer repository not initialized")
 	}
-	if limit <= 0 {
-		limit = 100
-	}
+	limit = clampSOPBatchLimit(limit)
 	const claimExpr = `(CASE WHEN payload->>'claim_count' ~ '^[0-9]+$' THEN (payload->>'claim_count')::int ELSE 0 END)`
 	var list []model.SOPTimer
 	err := r.db.WithContext(ctx).
@@ -171,9 +182,7 @@ func (r *SOPTimerRepository) FindMaxWaitOverduePendingTimers(ctx context.Context
 	if r == nil || r.db == nil {
 		return nil, errors.New("sop timer repository not initialized")
 	}
-	if limit <= 0 {
-		limit = 100
-	}
+	limit = clampSOPBatchLimit(limit)
 	const maxWaitExpr = `(CASE WHEN payload->>'max_wait_at' ~ '^\d{4}-\d{2}-\d{2}T' THEN (payload->>'max_wait_at')::timestamptz ELSE NULL END)`
 	var list []model.SOPTimer
 	err := r.db.WithContext(ctx).

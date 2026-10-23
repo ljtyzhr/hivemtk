@@ -9,6 +9,8 @@ import (
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
+
+	"gorm.io/gorm"
 )
 
 var smsUnsubscribeKeywords = []string{
@@ -115,12 +117,25 @@ func (s *SmsUnsubscribeService) IsUnsubscribed(ctx context.Context, phone string
 }
 
 // ResubscribePhone 允许用户重新订阅（合规要求）
+//
+// 幂等：号码本来就不在退订名单里时返回 nil —— 「重新订阅」要达成的状态
+// （这个号码可以继续收到短信）此时**已经成立**，重复调用必须成功，否则合规
+// 动作会因为「你已经不在名单里」而报错。
+//
+// 仓储层对此照实回 gorm.ErrRecordNotFound（删一条不存在的记录就是没删到，
+// 静默回成功会让真正的空操作无从辨别），由这一层把「0 行」翻译成幂等成功。
 func (s *SmsUnsubscribeService) ResubscribePhone(ctx context.Context, phone string) error {
 	phone = NormalizePhone(phone)
 	if phone == "" {
 		return errors.New("phone 不能为空")
 	}
-	return s.repo.DeleteByPhone(ctx, phone)
+	if err := s.repo.DeleteByPhone(ctx, phone); err != nil {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil
+		}
+		return err
+	}
+	return nil
 }
 
 // ProcessUnsubscribeReply 处理上行短信回复

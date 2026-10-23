@@ -682,42 +682,6 @@ func TestSessionMessageRepository_MarkAsRead(t *testing.T) {
 	}
 }
 
-// TestSessionMessageRepository_GetUnreadCount 测试获取未读消息数
-func TestSessionMessageRepository_GetUnreadCount(t *testing.T) {
-	_, messageRepo, _, _, _, _ := setupCustomerSessionRepositories(t)
-	ctx := context.Background()
-
-	messageRepo.Create(ctx, &model.SessionMessage{
-		SessionID:  "session-unread-count",
-		Content:    "Unread 1",
-		SenderType: "user",
-		IsRead:     false,
-	})
-	messageRepo.Create(ctx, &model.SessionMessage{
-		SessionID:  "session-unread-count",
-		Content:    "Unread 2",
-		SenderType: "user",
-		IsRead:     false,
-	})
-	messageRepo.Create(ctx, &model.SessionMessage{
-		SessionID:  "session-unread-count",
-		Content:    "Read 1",
-		SenderType: "user",
-		IsRead:     true,
-	})
-	messageRepo.Create(ctx, &model.SessionMessage{
-		SessionID:  "session-unread-count",
-		Content:    "Agent message",
-		SenderType: "agent",
-		IsRead:     false,
-	})
-
-	count := messageRepo.GetUnreadCount(context.Background(), "session-unread-count", "user")
-	if count != 2 {
-		t.Errorf("Expected 2 unread user messages, got %d", count)
-	}
-}
-
 // TestAgentStatusRepository_Create 测试创建客服状态
 func TestAgentStatusRepository_Create(t *testing.T) {
 	_, _, agentRepo, _, _, _ := setupCustomerSessionRepositories(t)

@@ -311,28 +311,6 @@ func TestShortLinkRepository_Delete(t *testing.T) {
 	}
 }
 
-// TestShortLinkRepository_GetTotalCount 测试获取短链总数
-func TestShortLinkRepository_GetTotalCount(t *testing.T) {
-	ctx := context.Background()
-	repo := setupShortLinkRepository(t)
-
-	for i := 1; i <= 5; i++ {
-		repo.Create(ctx, &model.ShortLink{
-			ShortCode:   "code" + string(rune('0'+i)),
-			OriginalURL: "https://example.com",
-		})
-	}
-
-	count, err := repo.GetTotalCount(context.Background())
-	if err != nil {
-		t.Errorf("GetTotalCount() error = %v", err)
-	}
-
-	if count != 5 {
-		t.Errorf("Expected count 5, got %d", count)
-	}
-}
-
 // TestShortLinkRepository_IncreaseClickCount 测试增加点击次数
 func TestShortLinkRepository_IncreaseClickCount(t *testing.T) {
 	ctx := context.Background()

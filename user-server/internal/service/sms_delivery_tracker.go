@@ -117,20 +117,34 @@ func (s *SmsDeliveryTrackerService) DetectAndRecordPortability(ctx context.Conte
 		return nil
 	}
 
-	s.carrierMu.Lock()
+	// 基线：内存缓存优先，取不到才回库补一份。
+	//
+	// 顺序要留意 —— 不能先把本号码写进缓存再去回库：`loadCarrierCache` 只填空缺
+	// （`if _, ok := s.carrierCache[r.Phone]; !ok`），预写会把库里的基线挡掉，
+	// 回库之后读回来的就是自己刚写进去的 newCarrier ⇒ `original == newCarrier`
+	// 恒成立 ⇒ 「本进程第一次见到这个号码」永远不会被记成一条转网流水。
+	// 库里的基线（上一次回执的 carrier）因此只在「同进程内第二次遇到」时才起作用。
+	s.carrierMu.RLock()
 	original, exists := s.carrierCache[phone]
-	s.carrierCache[phone] = newCarrier
-	s.carrierMu.Unlock()
+	s.carrierMu.RUnlock()
 
 	if !exists {
 		s.loadCarrierCache(ctx)
-		s.carrierMu.Lock()
+		s.carrierMu.RLock()
 		original, exists = s.carrierCache[phone]
-		s.carrierCache[phone] = newCarrier
-		s.carrierMu.Unlock()
+		s.carrierMu.RUnlock()
 	}
 
-	if exists && original == newCarrier {
+	s.carrierMu.Lock()
+	s.carrierCache[phone] = newCarrier
+	s.carrierMu.Unlock()
+
+	// 一条基线都没有（缓存里没有、库里也没有）⇒ 无法判定「变了」。
+	// 不写流水：一行 OriginalCarrier 为空的「转网」事件只会在报表里混进没有前值的噪音。
+	if !exists {
+		return nil
+	}
+	if original == newCarrier {
 		return nil
 	}
 
@@ -146,7 +160,19 @@ func (s *SmsDeliveryTrackerService) DetectAndRecordPortability(ctx context.Conte
 	if s.deliveryRepo == nil {
 		return nil
 	}
-	return s.deliveryRepo.CreatePortability(ctx, rec)
+	// 携号转网流水是「事后出报表」用的旁路凭据，不是回执主流程：落库失败不该
+	// 让运营商重发整条回执（`RecordDeliveryReport` 那次写入已经成功并返回 nil）。
+	// 但**必须留下日志** —— 原来的写法是仓储句柄缺失时 `return nil`，调用方把这个
+	// nil 读成「已记录」，于是这张表可以一直是空的而日志里一行错都没有：等要出
+	// 「携号转网失败率」报表时才发现没有数据，且无从判断是「没发生过」还是「一直
+	// 写不进去」。唯一的生产调用方 `RecordDeliveryReport` 的 goroutine 里就是
+	// `_ = s.DetectAndRecordPortability(...)`（错误被直接丢掉），所以在这里
+	// 显式记 ERROR 是这条旁路唯一能被看见的地方。
+	if err := s.deliveryRepo.CreatePortability(ctx, rec); err != nil {
+		logger.Errorf("[SmsDeliveryTracker] 携号转网流水落库失败 phone=%s %s→%s: %v（该条不重试，报表将缺这一行）",
+			phone, original, newCarrier, err)
+	}
+	return nil
 }
 
 func (s *SmsDeliveryTrackerService) loadCarrierCache(ctx context.Context) {

@@ -3,12 +3,27 @@ package repository
 import (
 	"context"
 	"errors"
+	"time"
+
 	"hivemtk-user/internal/model"
 	_db "hivemtk-user/internal/pkg/db"
-	"time"
 
 	"gorm.io/gorm"
 )
+
+// clampSessionMessageLimit 夹取「取最近 N 条」类读口的 N。
+//
+// GORM 的 `Limit(0)` 等于**不加 limit**：任何一个调用方把配置项/请求参数里的 0
+// 原样传下来，读的就是整张 session_messages（本表 2000+ 行且按会话单调增长）。
+func clampSessionMessageLimit(limit int) int {
+	if limit < 1 {
+		return 50
+	}
+	if limit > 500 {
+		return 500
+	}
+	return limit
+}
 
 // SessionMessageRepository 会话消息仓库
 type SessionMessageRepository struct {
@@ -34,8 +49,21 @@ func (r *SessionMessageRepository) GetDB() *gorm.DB {
 	return r.db
 }
 
-// Create 创建消息
+// errSessionMessageUnavailable 仓储句柄缺失（装配顺序错，不是「没数据」）。
+var errSessionMessageUnavailable = errors.New("session message repository not initialized")
+
+// Create 创建消息。
+//
+// nil 句柄守卫不是形式主义：`NewSessionMessageRepository()` 在构造时取
+// `_db.GetDB()`，而 `init()` 时刻那个全局句柄必然还是 nil（见 tracker #44 的
+// 系统性形状）。裸解引用会在「装配顺序错了」时 panic，而不是返回一个能读懂的错误。
 func (r *SessionMessageRepository) Create(ctx context.Context, message *model.SessionMessage) error {
+	if r == nil || r.db == nil {
+		return errSessionMessageUnavailable
+	}
+	if message == nil {
+		return errors.New("session message: nil 不是写入对象")
+	}
 	return r.db.WithContext(ctx).Create(message).Error
 }
 
@@ -45,11 +73,22 @@ func (r *SessionMessageRepository) Create(ctx context.Context, message *model.Se
 func (r *SessionMessageRepository) FindRecentDuplicate(ctx context.Context, sessionID, senderType, senderID, content string, window time.Duration) (*model.SessionMessage, error) {
 	var existing model.SessionMessage
 	threshold := time.Now().Add(-window)
+	if r == nil || r.db == nil {
+		return nil, errSessionMessageUnavailable
+	}
 	err := r.db.WithContext(ctx).Where("session_id = ? AND sender_type = ? AND sender_id = ? AND content = ? AND created_at >= ?",
 		sessionID, senderType, senderID, content, threshold).
 		Order("id DESC").
 		First(&existing).Error
 	if err != nil {
+		// 「没有重复」是正常结果，不是错误。三个调用方（chat_visitor / orchestrator
+		// 两条保存路径）都写成 `existing, _ := ...; if existing != nil`：把 NotFound
+		// 当错误返回，它们的 `_` 会把「查库失败」和「没有重复」混成同一件事 ——
+		// 查库失败时同样插一条，去重形同不存在。这里把 NotFound 收成 (nil, nil)，
+		// 让「有错误」只剩真正需要调用方处理的那一类。
+		if errors.Is(err, gorm.ErrRecordNotFound) {
+			return nil, nil
+		}
 		return nil, err
 	}
 	return &existing, nil
@@ -60,15 +99,31 @@ func (r *SessionMessageRepository) GetBySessionID(ctx context.Context, sessionID
 	var messages []*model.SessionMessage
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&model.SessionMessage{}).Where("session_id = ?", sessionID)
-
-	err := query.Count(&total).Error
-	if err != nil {
-		return nil, 0, err
+	if r == nil || r.db == nil {
+		return nil, 0, errSessionMessageUnavailable
+	}
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 20
+	}
+	if pageSize > 200 {
+		pageSize = 200
 	}
 
+	// Count 与 Find 各起一条 query。在同一条 `*gorm.DB` 上先 Count 再 Find 是
+	// 靠 GORM 内部子句还原侥幸能跑 —— 链式调用会就地改 Statement（Count 把
+	// Selects 换成 count(*)），下一次 Find 拿到的就是被改过的那份
+	// （判例 #133 GetOrderList、#150 ListLoginEvents/ListSecurityAlerts）。
+	base := func() *gorm.DB {
+		return r.db.WithContext(ctx).Model(&model.SessionMessage{}).Where("session_id = ?", sessionID)
+	}
+	if err := base().Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
 	offset := (page - 1) * pageSize
-	err = query.Order("created_at ASC").Offset(offset).Limit(pageSize).Find(&messages).Error
+	err := base().Order("created_at ASC").Offset(offset).Limit(pageSize).Find(&messages).Error
 	return messages, total, err
 }
 
@@ -123,6 +178,9 @@ func (r *SessionMessageRepository) ListBySessionIDsBatch(ctx context.Context, se
 
 // MarkAsRead 标记消息已读
 func (r *SessionMessageRepository) MarkAsRead(ctx context.Context, sessionID string, beforeTime time.Time) error {
+	if r == nil || r.db == nil {
+		return errSessionMessageUnavailable
+	}
 	now := time.Now()
 	return r.db.WithContext(ctx).Model(&model.SessionMessage{}).
 		Where("session_id = ? AND is_read = ? AND created_at <= ?", sessionID, false, beforeTime).
@@ -130,15 +188,6 @@ func (r *SessionMessageRepository) MarkAsRead(ctx context.Context, sessionID str
 			"is_read": true,
 			"read_at": &now,
 		}).Error
-}
-
-// GetUnreadCount 获取未读消息数
-func (r *SessionMessageRepository) GetUnreadCount(ctx context.Context, sessionID string, senderType string) int64 {
-	var count int64
-	r.db.WithContext(ctx).Model(&model.SessionMessage{}).
-		Where("session_id = ? AND sender_type = ? AND is_read = ?", sessionID, senderType, false).
-		Count(&count)
-	return count
 }
 
 // HasTable 检查 session_messages 表是否存在（用于统一收件箱合并消息流时的兼容判定）
@@ -201,32 +250,39 @@ func (r *SessionMessageRepository) MarkDelivered(ctx context.Context, sessionID 
 		Update("delivered_at", &deliveredAt).Error
 }
 
-// Delete 按 id 删除单条会话消息（统一收件箱消息删除）
+// Delete 按 id 删除单条会话消息（统一收件箱消息删除）。
+//
+// 0 行 ⇒ ErrRecordNotFound：删一条已经被删掉的消息不该回成功，否则前端把
+// 「别人已经删过了」读成「我删成功了」，下一次刷新才发现列表没变。
 func (r *SessionMessageRepository) Delete(ctx context.Context, id uint) error {
 	if r == nil || r.db == nil {
-		return nil
+		return errSessionMessageUnavailable
 	}
-	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&model.SessionMessage{}).Error
+	return _db.EnsureAffected(r.db.WithContext(ctx).Where("id = ?", id).Delete(&model.SessionMessage{}))
 }
-
-var _ = errors.New
 
 // ListInternalBySession 会话内部备注列表（仅 is_internal=true）
 func (r *SessionMessageRepository) ListInternalBySession(ctx context.Context, sessionID string, limit int) ([]*model.SessionMessage, error) {
+	if r == nil || r.db == nil {
+		return nil, errSessionMessageUnavailable
+	}
 	var list []*model.SessionMessage
 	err := r.db.WithContext(ctx).
 		Where("session_id = ? AND is_internal = ?", sessionID, true).
 		Order("created_at DESC").
-		Limit(limit).
+		Limit(clampSessionMessageLimit(limit)).
 		Find(&list).Error
 	return list, err
 }
 
 // ListRecentDescBySessionID 按 session_id 倒序取最近 N 条消息（AI agent loop 上下文用）
 func (r *SessionMessageRepository) ListRecentDescBySessionID(ctx context.Context, sessionID string, limit int) ([]model.SessionMessage, error) {
+	if r == nil || r.db == nil {
+		return nil, errSessionMessageUnavailable
+	}
 	var hist []model.SessionMessage
 	err := r.db.WithContext(ctx).
 		Where("session_id = ?", sessionID).
-		Order("id desc").Limit(limit).Find(&hist).Error
+		Order("id desc").Limit(clampSessionMessageLimit(limit)).Find(&hist).Error
 	return hist, err
 }

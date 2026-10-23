@@ -3,8 +3,10 @@ package repository
 import (
 	"context"
 	"errors"
-	"hivemtk-user/internal/model"
 	"time"
+
+	"hivemtk-user/internal/model"
+	_db "hivemtk-user/internal/pkg/db"
 
 	"gorm.io/gorm"
 )
@@ -73,6 +75,9 @@ func NewSopExecutionRepository(db *gorm.DB) *SopExecutionRepository {
 
 // CountRunningBySOPAndCustomer 统计指定 SOP 对客户的 running 执行数（意图触发去重用）
 func (r *SopExecutionRepository) CountRunningBySOPAndCustomer(ctx context.Context, sopID uint, customerID, runningStatus string) (int64, error) {
+	if r == nil || r.db == nil {
+		return 0, errors.New("sop execution repository not initialized")
+	}
 	var n int64
 	err := r.db.WithContext(ctx).Model(&model.SOPExecution{}).
 		Where("sop_id = ? AND customer_id = ? AND status = ?", sopID, customerID, runningStatus).
@@ -168,13 +173,9 @@ func (r *SopExecutionRepository) Save(ctx context.Context, exec *model.SOPExecut
 			"wait_event":       exec.WaitEvent,
 			"executed_nodes":   exec.ExecutedNodes,
 		})
-	if res.Error != nil {
-		return res.Error
-	}
-	if res.RowsAffected == 0 {
-		return gorm.ErrRecordNotFound
-	}
-	return nil
+	// 手写的 `RowsAffected == 0 → gorm.ErrRecordNotFound` 与 `db.EnsureAffected`
+	// 是同一件事，统一走后者：判据只有一处（见 pkg/db/write_guard.go）。
+	return _db.EnsureAffected(res)
 }
 
 // UpdateAttemptCount 更新执行记录的尝试次数
@@ -266,13 +267,8 @@ func (r *SopAgentRepository) Save(ctx context.Context, agent *model.SOPAgent) er
 			"use_bandit":      agent.UseBandit,
 			"created_by":      agent.CreatedBy,
 		})
-	if res.Error != nil {
-		return res.Error
-	}
-	if res.RowsAffected == 0 {
-		return gorm.ErrRecordNotFound
-	}
-	return nil
+	// 同 SopExecutionRepository.Save：0 行判定统一走 db.EnsureAffected。
+	return _db.EnsureAffected(res)
 }
 
 // DeleteByID 按 ID 删除 SOP 智能体，返回受影响行数
@@ -312,24 +308,29 @@ func (r *SopAgentRepository) List(ctx context.Context, scenario, status string, 
 	if pageSize < 1 || pageSize > 200 {
 		pageSize = 20
 	}
-	q := r.db.WithContext(ctx).Model(&model.SOPAgent{})
-	if scenario != "" {
-		q = q.Where("scenario = ?", scenario)
-	}
-	if status != "" {
-		switch status {
-		case "active":
-			q = q.Where("is_active = ?", true)
-		default:
-			q = q.Where("is_active = ?", false)
+	// Count 与 Find 各起一条 query：同一条链上先 Count 再 Find 靠的是 GORM
+	// 内部子句还原侥幸能跑（判例 #133 / #150）。
+	base := func() *gorm.DB {
+		q := r.db.WithContext(ctx).Model(&model.SOPAgent{})
+		if scenario != "" {
+			q = q.Where("scenario = ?", scenario)
 		}
+		if status != "" {
+			switch status {
+			case "active":
+				q = q.Where("is_active = ?", true)
+			default:
+				q = q.Where("is_active = ?", false)
+			}
+		}
+		return q
 	}
 	var total int64
-	if err := q.Count(&total).Error; err != nil {
+	if err := base().Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 	var list []model.SOPAgent
-	err := q.Order("priority DESC, id DESC").
+	err := base().Order("priority DESC, id DESC").
 		Offset((page - 1) * pageSize).Limit(pageSize).
 		Find(&list).Error
 	return list, total, err
@@ -421,19 +422,23 @@ func (r *SopExecutionRepository) List(ctx context.Context, customerID string, st
 	if pageSize < 1 || pageSize > 200 {
 		pageSize = 20
 	}
-	q := r.db.WithContext(ctx).Model(&model.SOPExecution{})
-	if customerID != "" {
-		q = q.Where("customer_id = ?", customerID)
-	}
-	if status != "" {
-		q = q.Where("status = ?", status)
+	// 同 SopAgentRepository.List：Count 与 Find 各起一条 query。
+	base := func() *gorm.DB {
+		q := r.db.WithContext(ctx).Model(&model.SOPExecution{})
+		if customerID != "" {
+			q = q.Where("customer_id = ?", customerID)
+		}
+		if status != "" {
+			q = q.Where("status = ?", status)
+		}
+		return q
 	}
 	var total int64
-	if err := q.Count(&total).Error; err != nil {
+	if err := base().Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 	var list []model.SOPExecution
-	err := q.Order("id DESC").Offset((page - 1) * pageSize).Limit(pageSize).
+	err := base().Order("id DESC").Offset((page - 1) * pageSize).Limit(pageSize).
 		Find(&list).Error
 	return list, total, err
 }

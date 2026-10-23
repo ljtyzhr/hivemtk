@@ -4,7 +4,6 @@ import (
 	"context"
 	"errors"
 	"fmt"
-	"time"
 
 	"hivemtk-user/internal/model"
 	_db "hivemtk-user/internal/pkg/db"
@@ -18,17 +17,12 @@ type SmsTrackingRepository interface {
 	CreateStatus(ctx context.Context, status *model.SmsDeliveryStatus) error
 	UpdateStatus(ctx context.Context, status *model.SmsDeliveryStatus) error
 	GetByMessageID(ctx context.Context, messageID string) (*model.SmsDeliveryStatus, error)
-	MessageIDExists(ctx context.Context, messageID string) (bool, error)
 	// TenantIDByMessageID 系统作用域反查回执归属租户；跨租户同号时 ok=false（拒猜）
 	TenantIDByMessageID(ctx context.Context, messageID string) (uint, bool, error)
 
 	ListStatusesByJob(ctx context.Context, jobID string, page, limit int) ([]*model.SmsDeliveryStatus, int64, error)
 	ListStatusesByPhone(ctx context.Context, phone string, page, limit int) ([]*model.SmsDeliveryStatus, int64, error)
 	ListRetryableStatuses(ctx context.Context, limit int) ([]*model.SmsDeliveryStatus, error)
-	ListStatusesByRange(ctx context.Context, start, end time.Time) ([]*model.SmsDeliveryStatus, error)
-
-	CountByJob(ctx context.Context, jobID, status string) (int64, error)
-	CountByRange(ctx context.Context, start, end time.Time, status string) (int64, error)
 }
 
 type smsTrackingRepo struct {
@@ -48,6 +42,28 @@ func NewSmsTrackingRepository(db *gorm.DB) SmsTrackingRepository {
 
 var errNilDB = fmt.Errorf("sms tracking repo: db is nil")
 
+// clampSmsStatusLimit 夹取「取最近 N 条」的 N：GORM 的 Limit(0) 等于**不加 limit**
+// （整表），Limit(-1) 同样被忽略。本表是每次发送一行的回执流水，无界读的代价
+// 是随发送量线性增长的内存。
+func clampSmsStatusLimit(limit int) int {
+	if limit < 1 {
+		return 100
+	}
+	if limit > 500 {
+		return 500
+	}
+	return limit
+}
+
+// clampSmsStatusPaging 夹取分页：page = 0 ⇒ offset 为负 ⇒ PG 报
+// "OFFSET must not be negative"；limit = 0 ⇒ 不加 limit。
+func clampSmsStatusPaging(page, limit int) (int, int) {
+	if page < 1 {
+		page = 1
+	}
+	return page, clampSmsStatusLimit(limit)
+}
+
 func (r *smsTrackingRepo) CreateStatus(ctx context.Context, status *model.SmsDeliveryStatus) error {
 	if r == nil || r.db == nil {
 		return errNilDB
@@ -55,11 +71,19 @@ func (r *smsTrackingRepo) CreateStatus(ctx context.Context, status *model.SmsDel
 	return r.db.WithContext(ctx).Create(status).Error
 }
 
+// UpdateStatus 整行回写一条送达状态。
+//
+// 走 `db.SaveWholeRow`：裸 Save 命中 0 行会回退成 `INSERT ... ON CONFLICT (id)
+// DO UPDATE` —— 把「读完待重试列表之后、写回之前被删掉」的回执行按原 id 插回去，
+// 而重试计数（retry_count）带着旧值复活，于是这条短信会被永远重试下去。
 func (r *smsTrackingRepo) UpdateStatus(ctx context.Context, status *model.SmsDeliveryStatus) error {
 	if r == nil || r.db == nil {
 		return errNilDB
 	}
-	return r.db.WithContext(ctx).Save(status).Error
+	if status == nil {
+		return errors.New("sms tracking repo: nil 不是更新对象")
+	}
+	return _db.SaveWholeRow(r.db.WithContext(ctx), status)
 }
 
 func (r *smsTrackingRepo) GetByMessageID(ctx context.Context, messageID string) (*model.SmsDeliveryStatus, error) {
@@ -99,32 +123,25 @@ func (r *smsTrackingRepo) TenantIDByMessageID(ctx context.Context, messageID str
 	return ids[0], true, nil
 }
 
-func (r *smsTrackingRepo) MessageIDExists(ctx context.Context, messageID string) (bool, error) {
-	if r == nil || r.db == nil {
-		return false, errNilDB
-	}
-	var count int64
-	err := r.db.WithContext(ctx).Model(&model.SmsDeliveryStatus{}).Where("message_id = ?", messageID).Count(&count).Error
-	if err != nil {
-		return false, err
-	}
-	return count > 0, nil
-}
-
 func (r *smsTrackingRepo) ListStatusesByJob(ctx context.Context, jobID string, page, limit int) ([]*model.SmsDeliveryStatus, int64, error) {
 	if r == nil || r.db == nil {
 		return nil, 0, nil
 	}
-	var statuses []*model.SmsDeliveryStatus
-	var total int64
+	page, limit = clampSmsStatusPaging(page, limit)
 
-	query := r.db.WithContext(ctx).Model(&model.SmsDeliveryStatus{}).Where("job_id = ?", jobID)
-	if err := query.Count(&total).Error; err != nil {
+	// Count 与 Find 各起一条 query（判例 #133 / #150）。
+	base := func() *gorm.DB {
+		return r.db.WithContext(ctx).Model(&model.SmsDeliveryStatus{}).Where("job_id = ?", jobID)
+	}
+
+	var total int64
+	if err := base().Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
+	var statuses []*model.SmsDeliveryStatus
 	offset := (page - 1) * limit
-	if err := query.Order("received_at DESC").Offset(offset).Limit(limit).Find(&statuses).Error; err != nil {
+	if err := base().Order("received_at DESC").Offset(offset).Limit(limit).Find(&statuses).Error; err != nil {
 		return nil, 0, err
 	}
 	return statuses, total, nil
@@ -134,16 +151,20 @@ func (r *smsTrackingRepo) ListStatusesByPhone(ctx context.Context, phone string,
 	if r == nil || r.db == nil {
 		return nil, 0, nil
 	}
-	var statuses []*model.SmsDeliveryStatus
-	var total int64
+	page, limit = clampSmsStatusPaging(page, limit)
 
-	query := r.db.WithContext(ctx).Model(&model.SmsDeliveryStatus{}).Where("phone = ?", phone)
-	if err := query.Count(&total).Error; err != nil {
+	base := func() *gorm.DB {
+		return r.db.WithContext(ctx).Model(&model.SmsDeliveryStatus{}).Where("phone = ?", phone)
+	}
+
+	var total int64
+	if err := base().Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
+	var statuses []*model.SmsDeliveryStatus
 	offset := (page - 1) * limit
-	if err := query.Order("received_at DESC").Offset(offset).Limit(limit).Find(&statuses).Error; err != nil {
+	if err := base().Order("received_at DESC").Offset(offset).Limit(limit).Find(&statuses).Error; err != nil {
 		return nil, 0, err
 	}
 	return statuses, total, nil
@@ -157,42 +178,7 @@ func (r *smsTrackingRepo) ListRetryableStatuses(ctx context.Context, limit int) 
 	err := r.db.WithContext(ctx).Where("is_retryable = ? AND status = ?",
 		true, model.SmsStatusRetryable).
 		Order("received_at ASC").
-		Limit(limit).
+		Limit(clampSmsStatusLimit(limit)).
 		Find(&statuses).Error
 	return statuses, err
-}
-
-func (r *smsTrackingRepo) ListStatusesByRange(ctx context.Context, start, end time.Time) ([]*model.SmsDeliveryStatus, error) {
-	if r == nil || r.db == nil {
-		return nil, nil
-	}
-	var statuses []*model.SmsDeliveryStatus
-	err := r.db.WithContext(ctx).Where("received_at BETWEEN ? AND ?", start, end).Find(&statuses).Error
-	return statuses, err
-}
-
-func (r *smsTrackingRepo) CountByJob(ctx context.Context, jobID, status string) (int64, error) {
-	if r == nil || r.db == nil {
-		return 0, nil
-	}
-	var count int64
-	query := r.db.WithContext(ctx).Model(&model.SmsDeliveryStatus{}).Where("job_id = ?", jobID)
-	if status != "" {
-		query = query.Where("status = ?", status)
-	}
-	err := query.Count(&count).Error
-	return count, err
-}
-
-func (r *smsTrackingRepo) CountByRange(ctx context.Context, start, end time.Time, status string) (int64, error) {
-	if r == nil || r.db == nil {
-		return 0, nil
-	}
-	var count int64
-	query := r.db.WithContext(ctx).Model(&model.SmsDeliveryStatus{}).Where("received_at BETWEEN ? AND ?", start, end)
-	if status != "" {
-		query = query.Where("status = ?", status)
-	}
-	err := query.Count(&count).Error
-	return count, err
 }

@@ -50,16 +50,38 @@ func NewSmsDeliveryRepository(db *gorm.DB) SmsDeliveryRepository {
 	return &smsDeliveryRepo{db: db}
 }
 
+// errSmsDeliveryUnavailable 仓储句柄缺失。
+//
+// 与读口「没数据就返回空」不同：写口在句柄缺失时必须报错。`CreatePortability`
+// 原先返回 nil —— 调用方（`service/sms_delivery_tracker.go` 的到达率流水）把 nil
+// 读成「已记录」，于是携号转网这条流水凭据被静默丢掉，等要按「携号转网失败率」
+// 出报表时才发现那张表一直是空的，而日志里只有一行「已记录」。
+var errSmsDeliveryUnavailable = fmt.Errorf("sms delivery repository not initialized")
+
 func (r *smsDeliveryRepo) CreatePortability(ctx context.Context, rec *model.SmsNumberPortabilityRecord) error {
 	if r == nil || r.db == nil {
-		return nil
+		return errSmsDeliveryUnavailable
+	}
+	if rec == nil {
+		return fmt.Errorf("sms delivery repository: nil 不是写入对象")
 	}
 	return r.db.WithContext(ctx).Create(rec).Error
 }
 
+// LoadLatestPortability 取最近 N 条携号转网流水。
+//
+// limit 在仓储侧夹取：GORM 的 `Limit(0)` 等于**不加 limit**，`Limit(-1)` 同理
+// 被忽略；本表是「检测到的手机号异动」流水，随发送量单调增长，一次误传 0 就是
+// 整张表读进内存。
 func (r *smsDeliveryRepo) LoadLatestPortability(ctx context.Context, limit int) ([]model.SmsNumberPortabilityRecord, error) {
 	if r == nil || r.db == nil {
 		return []model.SmsNumberPortabilityRecord{}, nil
+	}
+	if limit < 1 {
+		limit = 20
+	}
+	if limit > 200 {
+		limit = 200
 	}
 	rows := []model.SmsNumberPortabilityRecord{}
 	if err := r.db.WithContext(ctx).Order("detected_at DESC").Limit(limit).Find(&rows).Error; err != nil {
@@ -72,17 +94,35 @@ func (r *smsDeliveryRepo) ListPortability(ctx context.Context, phone string, pag
 	if r == nil || r.db == nil {
 		return []model.SmsNumberPortabilityRecord{}, 0, nil
 	}
-	q := r.db.WithContext(ctx).Model(&model.SmsNumberPortabilityRecord{})
-	if phone != "" {
-		q = q.Where("phone = ?", phone)
+	// page = 0 ⇒ offset 为负 ⇒ PG 报 "OFFSET must not be negative"；
+	// limit = 0 ⇒ Limit(0) 等于整表（与 LoadLatestPortability 同一条）。
+	if page < 1 {
+		page = 1
 	}
+	if limit < 1 {
+		limit = 20
+	}
+	if limit > 200 {
+		limit = 200
+	}
+
+	// Count 与 Find 各起一条 query：同一条链上先 Count 再 Find 是就地改 Statement
+	// 的写法，现在能跑靠的是 GORM 内部子句还原（判例 #133 / #150）。
+	base := func() *gorm.DB {
+		q := r.db.WithContext(ctx).Model(&model.SmsNumberPortabilityRecord{})
+		if phone != "" {
+			q = q.Where("phone = ?", phone)
+		}
+		return q
+	}
+
 	var total int64
-	if err := q.Count(&total).Error; err != nil {
+	if err := base().Count(&total).Error; err != nil {
 		return nil, 0, fmt.Errorf("count portability: %w", err)
 	}
 
 	var rows []model.SmsNumberPortabilityRecord
-	if err := q.Order("detected_at DESC").
+	if err := base().Order("detected_at DESC").
 		Offset((page - 1) * limit).
 		Limit(limit).
 		Find(&rows).Error; err != nil {

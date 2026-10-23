@@ -212,34 +212,6 @@ func TestShortLinkAccessRepository_GetByShortLinkID(t *testing.T) {
 	}
 }
 
-// TestShortLinkAccessRepository_GetStatsByShortLinkID 测试获取统计信息
-func TestShortLinkAccessRepository_GetStatsByShortLinkID(t *testing.T) {
-	repo := setupShortLinkAccessRepository(t)
-	ctx := context.Background()
-
-	for i := 1; i <= 10; i++ {
-		repo.Create(ctx, &model.ShortLinkAccess{
-			ShortLinkID: 1,
-			IP:          "192.168.1." + string(rune('0'+i)),
-		})
-	}
-
-	startDate := time.Now().AddDate(0, 0, -7)
-	endDate := time.Now()
-
-	stats, err := repo.GetStatsByShortLinkID(context.Background(), 1, startDate, endDate)
-	if err != nil {
-		t.Errorf("GetStatsByShortLinkID() error = %v", err)
-	}
-
-	if stats == nil {
-		t.Fatal("Expected stats to be returned")
-	}
-	if stats.ShortLinkID != 1 {
-		t.Errorf("Expected ShortLinkID 1, got %d", stats.ShortLinkID)
-	}
-}
-
 // TestShortLinkAccessRepository_GetDailyStatsByShortLinkID 测试获取每日统计
 func TestShortLinkAccessRepository_GetDailyStatsByShortLinkID(t *testing.T) {
 	repo := setupShortLinkAccessRepository(t)

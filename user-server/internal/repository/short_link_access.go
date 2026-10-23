@@ -14,7 +14,6 @@ type ShortLinkAccessRepository interface {
 	Create(ctx context.Context, access *model.ShortLinkAccess) error
 	GetByID(ctx context.Context, id uint) (*model.ShortLinkAccess, error)
 	GetByShortLinkID(ctx context.Context, shortLinkID uint, page, pageSize int) ([]*model.ShortLinkAccess, int64, error)
-	GetStatsByShortLinkID(ctx context.Context, shortLinkID uint, startDate, endDate time.Time) (*model.ShortLinkAccess, error)
 	GetDailyStatsByShortLinkID(ctx context.Context, shortLinkID uint, startDate, endDate time.Time) ([]map[string]any, error)
 	GetDeviceTypeStatsByShortLinkID(ctx context.Context, shortLinkID uint, startDate, endDate time.Time) ([]map[string]any, error)
 	GetAllDailyStats(ctx context.Context, startDate, endDate time.Time) ([]map[string]any, error)
@@ -49,59 +48,42 @@ func (r *shortLinkAccessRepository) GetByID(ctx context.Context, id uint) (*mode
 	return &access, nil
 }
 
+// GetByShortLinkID 分页列出某短链的访问流水。
+//
+// 两个夹取都有真实来源：`page = 0` ⇒ offset 为负 ⇒ PG 直接报
+// "OFFSET must not be negative"；`pageSize = 0` ⇒ GORM 的 Limit(0) 等于**不加 limit**。
+// 后者不是假想 —— `service/short_link.go` 的统计口正是 `GetByShortLinkID(ctx, id, 1, 0)`：
+// 它只取 total、把行丢掉，旧代码因此每统计一次就把该链接的全部流水捞进内存再扔。
+//
+// Count 与 Find 各起一条 query：同一条链上先 Count 再 Find 靠的是 GORM 内部
+// 子句还原侥幸能跑（判例 #133 / #150）。
 func (r *shortLinkAccessRepository) GetByShortLinkID(ctx context.Context, shortLinkID uint, page, pageSize int) ([]*model.ShortLinkAccess, int64, error) {
-	var accesses []*model.ShortLinkAccess
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 20
+	}
+	if pageSize > 200 {
+		pageSize = 200
+	}
+
+	base := func() *gorm.DB {
+		return r.db.WithContext(ctx).Model(&model.ShortLinkAccess{}).Where("short_link_id = ?", shortLinkID)
+	}
+
 	var total int64
-
-	query := r.db.WithContext(ctx).Model(&model.ShortLinkAccess{}).Where("short_link_id = ?", shortLinkID)
-
-	err := query.Count(&total).Error
-	if err != nil {
+	if err := base().Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
+	var accesses []*model.ShortLinkAccess
 	offset := (page - 1) * pageSize
-	err = query.Offset(offset).Limit(pageSize).Order("access_time DESC").Find(&accesses).Error
-	if err != nil {
+	if err := base().Offset(offset).Limit(pageSize).Order("access_time DESC").Find(&accesses).Error; err != nil {
 		return nil, 0, err
 	}
 
 	return accesses, total, nil
-}
-
-func (r *shortLinkAccessRepository) GetStatsByShortLinkID(ctx context.Context, shortLinkID uint, startDate, endDate time.Time) (*model.ShortLinkAccess, error) {
-	var stats struct {
-		TotalCount int64 `json:"total_count"`
-	}
-
-	query := r.db.WithContext(ctx).Model(&model.ShortLinkAccess{}).Where("short_link_id = ?", shortLinkID)
-
-	if !startDate.IsZero() {
-		query = query.Where("DATE(access_time) >= ?", timeutil.BusinessDate(startDate))
-	}
-
-	if !endDate.IsZero() {
-		query = query.Where("DATE(access_time) <= ?", timeutil.BusinessDate(endDate))
-	}
-
-	err := query.Count(&stats.TotalCount).Error
-	if err != nil {
-		return nil, err
-	}
-
-	today := timeutil.BusinessDate(time.Now())
-
-	var todayCount int64
-	err = r.db.WithContext(ctx).Model(&model.ShortLinkAccess{}).
-		Where("short_link_id = ? AND DATE(access_time) = ?", shortLinkID, today).
-		Count(&todayCount).Error
-	if err != nil {
-		return nil, err
-	}
-
-	return &model.ShortLinkAccess{
-		ShortLinkID: shortLinkID,
-	}, nil
 }
 
 func (r *shortLinkAccessRepository) GetDailyStatsByShortLinkID(ctx context.Context, shortLinkID uint, startDate, endDate time.Time) ([]map[string]any, error) {
