@@ -988,8 +988,8 @@ function fmtPatrolStatus(s) {
     `有新消息会话: ${s.withNew || 0}`,
     `捕获新消息: ${s.captured || 0}`,
     `失败: ${s.failures || 0}`,
-    (s.yielded && (s.yielded.sendInFlight || s.yielded.humanTyping))
-      ? `让路次数: 下发中 ${s.yielded.sendInFlight || 0} / 输入中 ${s.yielded.humanTyping || 0}`
+    (s.yielded && s.yielded.sendInFlight)
+      ? `让路次数: 下发中 ${s.yielded.sendInFlight}`
       : '',
     s.lastRoundAt ? `上一轮: ${new Date(s.lastRoundAt).toLocaleTimeString()}（用时 ${s.lastDurationMs || 0}ms）` : '',
   ].filter(Boolean);

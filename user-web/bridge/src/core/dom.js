@@ -244,22 +244,6 @@ export function cleanText(el) {
   return (el.innerText || el.textContent || '').replace(/\s+/g, ' ').trim();
 }
 
-/**
- * 批25：读「消息输入框里现在的内容」（人工草稿 / 上一次下发的残留）。
- * 巡检换会话前用它判「用户是不是正准备发一条还没发的消息」——把人正在写的字切走
- * 等于吞掉用户的输入。取不到输入框时返回空串（宁可不拦，不误判成"有人在打字"）。
- */
-export function readMessageInputDraft() {
-  try {
-    const el = findAnyMessageInput();
-    if (!el) return '';
-    const raw = (el.tagName === 'TEXTAREA' || el.tagName === 'INPUT')
-      ? el.value
-      : (el.innerText || el.textContent || '');
-    return String(raw || '');
-  } catch (_) { return ''; }
-}
-
 /** 清空消息输入框（textarea 走 setValue，contenteditable 摘空子节点并派发 input） */
 export function clearMessageInput(el) {
   if (!el) return;

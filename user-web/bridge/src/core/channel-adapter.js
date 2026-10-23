@@ -2,14 +2,15 @@ import { createLogger } from './logger.js';
 import { RateLimiter, globalSendWaitMs, stampGlobalSendAt } from './rate-limiter.js';
 import { makeUnifiedMessage, SENDER, DIRECTION, HISTORY_CONTEXT_WINDOW, PATROL_DEFAULTS, contentHash, typedContentHash, mediaPlaceholder, isMediaMsgType } from './types.js';
 import { mergeSelectors } from './selector-ai.js';
-import { simulateRealClick, readMessageInputDraft } from './dom.js';
+import { simulateRealClick } from './dom.js';
 import { humanSendTimeoutMs, BRIDGE_THREE_CHANNEL } from './constants.js';
 import { withTimeout } from './downlink.js';
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-// 批25：判「人工正在输入」时要听的事件（键入、输入法组字、粘贴）。
-const INPUT_ACTIVITY_EVENTS = ['input', 'keydown', 'compositionstart', 'paste'];
+// 批25：出站临界区释放后仍算"忙"的尾巴时长（口径见 constants.js:outboundLingerMs）。
+const OUTBOUND_LINGER_MS = BRIDGE_THREE_CHANNEL.outboundLingerMs;
+
 
 // 下行告警去抖：下行被全局最小间隔 / 会话未找到拦截时，若每轮轮询都打印会刷屏。
 // 按 key 限频，默认 15s 内同 key 仅打印一次。
@@ -101,16 +102,11 @@ export class BaseAdapter {
     //     判跨会话残留拒收（线上实证 tz3rmdj：说缘 的消息被归到 做点吃的 的会话）。
     this._convAnchor = { cid: null, peerName: '', ts: 0 };      
     this._patrolStats = { rounds: 0, visited: 0, withNew: 0, captured: 0, failures: 0, lastRoundAt: 0, lastDurationMs: 0 };
-    // 批25：换会话互斥（下发/人工键入 优先，巡检让路）——见 beginOutbound 处的论证。
+    // 批25：换会话互斥（下发优先，巡检让路）——见 beginOutbound 处的论证。
     this._outboundInFlight = 0;
     this._outboundStartedAt = 0;
-    this._lastInputActivityAt = 0;
-    this._inputWatchBound = false;
-    this._inputActivityHandler = null;
-    this._draftSeenText = '';
-    this._draftFirstSeenAt = 0;
-    this._draftStaleIgnored = '';
-    this._patrolYield = { sendInFlight: 0, humanTyping: 0 };
+    this._outboundLingerUntil = 0;
+    this._patrolYield = { sendInFlight: 0 };
   }
 
   setAccount(account) { this.account = account; }
@@ -133,12 +129,12 @@ export class BaseAdapter {
   }
 
   // ═══════════════════════════════════════════════════════════════════════════
-  // 批25：换会话互斥 —— 不可逆性优先级：人工键入 > 下发 > 巡检
+  // 批25：换会话互斥 —— 不可逆性优先级：下发 > 巡检
   // ═══════════════════════════════════════════════════════════════════════════
   // 问题（结构性必现，不是偶发竞态）：
   //   巡检（patrol/_patrolVisit）与下发（sendOutbound）都会 openConversation —— 点左栏项换右侧
-  //   会话，而两条链路互相不知道对方在干什么。下发的键入是逐段拟人 insertText
-  //   （dom.js fillContentEditableHumanized：30 字≈2.7s、100 字≈9s，长文案上探 120s）；
+  //   会话，而两条链路互相不知道对方在干什么。下发的键入是**扩展自己**干的逐段拟人
+  //   insertText（dom.js fillContentEditableHumanized：30 字≈2.7s、100 字≈9s，长文案上探 120s）；
   //   巡检一轮最多 6 个会话、每次切换后 3–5s 一个 ⇒ 切换节拍 < 键入窗，键入期几乎必然被切走。
   //   后果：文字填进了 A 的输入框，点发送却落在切换后的 B 会话上 ——「正在给 A 打字，跳到了
   //   下一个用户」。这条路径不可撤销，且 send_verified 回查在错误会话里数气泡只会判"未见"，
@@ -147,103 +143,42 @@ export class BaseAdapter {
   //   - 巡检是可延迟的只读扫描：晚一轮的代价只是时延（seenNodes + 稳定键去重保证延迟不漏不重）；
   //   - 下发是不可撤销的写入：错发人＝隐私事故。
   // 为什么用"让路"而不是"抢锁"：抢锁要排队，就引入等待与死锁面；单向让路没有反向等待。
+  // 临界区边界（"完成输入、上报才继续巡检"）：
+  //   openConversation → 稳定等待 → 逐段键入 → 点击 → send_verified 回查 → 自报上行入队，
+  //   全程持锁；释放后只剩纯 HTTP（uplink 合并窗 + outbox ack），不碰 DOM。
+  //   再留 lingerMs 的尾巴：downlink 是逐条 sendOutbound 的，两条消息之间有 await 空档，
+  //   不留尾巴巡检就会插进来切一次会话、下一条再切回去（白跑两次切换）。
   beginOutbound() {
     this._outboundInFlight = (this._outboundInFlight || 0) + 1;
     this._outboundStartedAt = Date.now();
+    this._outboundLingerUntil = 0;
   }
 
   endOutbound() {
     this._outboundInFlight = Math.max(0, (this._outboundInFlight || 0) - 1);
-    if (this._outboundInFlight === 0) this._outboundStartedAt = 0;
-  }
-
-  isSendBusy() { return (this._outboundInFlight || 0) > 0; }
-
-  // 输入框里现在的内容（人工草稿 / 上一次下发失败的残留）
-  getInputDraftText() {
-    try {
-      if (this.hooks.getInputDraftText) return String(this.hooks.getInputDraftText() || '');
-      return readMessageInputDraft();
-    } catch (_) { return ''; }
-  }
-
-  // 人工键入活动监听：挂在 document 捕获阶段，而不是输入框节点 —— 输入框会被 SPA 重渲染换掉，
-  // 挂在会死的节点上就永久失聪。自己下发键入派发的 input 事件不算人工活动
-  // （isSendBusy() 期间忽略），否则每发一条都会让巡检静默 draftQuietMs 秒。
-  _bindInputActivityWatch() {
-    if (this._inputWatchBound) return;
-    if (typeof document === 'undefined' || typeof document.addEventListener !== 'function') return;
-    this._inputWatchBound = true;
-    const onActivity = (ev) => {
-      if (this.isSendBusy()) return;
-      const t = ev && ev.target;
-      if (!t || t.nodeType !== 1) return;
-      let editable = false;
-      try {
-        editable = !!t.isContentEditable
-          || t.getAttribute('contenteditable') === 'true'
-          || t.tagName === 'TEXTAREA'
-          || t.getAttribute('role') === 'textbox';
-      } catch (_) { editable = false; }
-      if (!editable) return;
-      this._lastInputActivityAt = Date.now();
-    };
-    this._inputActivityHandler = onActivity;
-    for (const type of INPUT_ACTIVITY_EVENTS) {
-      try { document.addEventListener(type, onActivity, true); } catch (_) {  }
+    if (this._outboundInFlight === 0) {
+      this._outboundStartedAt = 0;
+      this._outboundLingerUntil = Date.now() + OUTBOUND_LINGER_MS;
     }
   }
 
-  _unbindInputActivityWatch() {
-    if (!this._inputWatchBound) return;
-    if (this._inputActivityHandler && typeof document !== 'undefined' && typeof document.removeEventListener === 'function') {
-      for (const type of INPUT_ACTIVITY_EVENTS) {
-        try { document.removeEventListener(type, this._inputActivityHandler, true); } catch (_) {  }
-      }
-    }
-    this._inputActivityHandler = null;
-    this._inputWatchBound = false;
-  }
-
-  // 人工是否正在输入：①最近 draftQuietMs 内有过键入；②输入框里已有未发出的草稿。
-  // ② 必须有上界（draftStaleMs）：否则一条被放弃的残留草稿会把巡检永久按停
-  //   —— 那是把一个事故换成另一个（新消息再也不上报）。
-  isHumanTyping(quietMs = PATROL_DEFAULTS.draftQuietMs, staleMs = PATROL_DEFAULTS.draftStaleMs) {
-    const now = Date.now();
-    if (this._lastInputActivityAt && now - this._lastInputActivityAt < quietMs) return true;
-    const draft = String(this.getInputDraftText() || '').trim();
-    if (!draft) {
-      this._draftSeenText = '';
-      this._draftFirstSeenAt = 0;
-      this._draftStaleIgnored = '';
-      return false;
-    }
-    if (draft !== this._draftSeenText) {
-      this._draftSeenText = draft;
-      this._draftFirstSeenAt = now;
-      this._draftStaleIgnored = '';
-    }
-    if (!this._draftFirstSeenAt) this._draftFirstSeenAt = now;
-    if (this._draftStaleIgnored === draft) return false;
-    if (now - this._draftFirstSeenAt > staleMs) {
-      this._draftStaleIgnored = draft;
-      this.log.warn('输入框草稿停留超过上界，巡检不再为其让路（防新消息长期不上报）', { stale_ms: staleMs });
-      return false;
-    }
-    return true;
+  // 「下发占着页面 DOM」= 在途计数 > 0 或 linger 尾巴未过。
+  isSendBusy() {
+    if ((this._outboundInFlight || 0) > 0) return true;
+    return Date.now() < (this._outboundLingerUntil || 0);
   }
 
   // 换会话的互斥判据：返回 null 表示此刻可以切会话。
-  convSwitchBlocker(quietMs) {
+  //   （"人工也在打字"这一层已按用户口径移除：本条链路的键入全由扩展自己完成，
+  //     混进人的草稿判据会把巡检在未知页面上按停，换不来对下发链路的任何保护。）
+  convSwitchBlocker() {
     if (this.isSendBusy()) return 'send-in-flight';
-    if (this.isHumanTyping(quietMs)) return 'human-typing';
     return null;
   }
 
   _noteYield(blocker) {
-    if (!this._patrolYield) this._patrolYield = { sendInFlight: 0, humanTyping: 0 };
+    if (!this._patrolYield) this._patrolYield = { sendInFlight: 0 };
     if (blocker === 'send-in-flight') this._patrolYield.sendInFlight++;
-    else if (blocker === 'human-typing') this._patrolYield.humanTyping++;
   }
 
   // 等一个可切会话的窗口：下发是"发完就有间隙"的，所以让路的粒度是「每次切换」而不是「整轮」，
@@ -552,7 +487,6 @@ export class BaseAdapter {
       this._loadSentKeys();
       this._scheduleInitialSync();
       this._startRescan();
-      this._bindInputActivityWatch();
       this._startPatrolAuto();
       if (!this._sentSaveTimer) {
         this._sentSaveTimer = setInterval(() => this._saveSentKeys(), 30000);
@@ -578,7 +512,6 @@ export class BaseAdapter {
     this._stopPatrol();
     if (this._sentSaveTimer) { clearInterval(this._sentSaveTimer); this._sentSaveTimer = null; }
     this._saveSentKeys();
-    this._unbindInputActivityWatch();
     this._convWindow.clear();
   }
 
@@ -771,7 +704,7 @@ export class BaseAdapter {
 
   async openConversation(cid, { waitActiveMs = 5000, backfill = false, exact = false, preemptible = true } = {}) {
     if (!cid) return null;
-    // 批25：可抢占的换会话（巡检 / 巡检收尾回切 / 全量同步）在"下发在途"或"人工正在输入"时
+    // 批25：可抢占的换会话（巡检 / 巡检收尾回切 / 全量同步）在"下发在途（含 linger）"时
     //   一律不切，返回 null 由调用方下一轮/下个窗口再来。下发走 preemptible:false
     //   —— 下发永不因巡检让路（不可逆性不对称，见 beginOutbound 处的论证）。
     if (preemptible) {
@@ -946,7 +879,7 @@ export class BaseAdapter {
         if (!list.length) break; 
         for (const conv of list) {
           try {
-            // 批25：全量同步同样是"换会话"，遇下发在途/人工正在输入就让路。本次同步提前收尾，
+            // 批25：全量同步同样是"换会话"，遇下发在途（含 linger）就让路。本次同步提前收尾，
             //   已同步进度落在 _syncedConvIds（持久化），下次 rescan/巡检续跑，不会重复扫。
             const blocker = await this._waitForSwitchWindow();
             if (blocker) {
@@ -1039,7 +972,7 @@ export class BaseAdapter {
       visitAllWhenNoUnread: !!opts.visitAllWhenNoUnread,
       switchMinMs: opts.switchMinMs || PATROL_DEFAULTS.switchMinMs,
       switchMaxMs: opts.switchMaxMs || PATROL_DEFAULTS.switchMaxMs,
-      // 批25：等"可切会话窗口"的上限与轮询节拍（下发在途 / 人工键入 优先）
+      // 批25：等"可切会话窗口"的上限与轮询节拍（下发在途 / linger 优先）
       switchBlockWaitMs: opts.switchBlockWaitMs || PATROL_DEFAULTS.switchBlockWaitMs,
       switchBlockPollMs: opts.switchBlockPollMs || PATROL_DEFAULTS.switchBlockPollMs,
     };
@@ -1069,8 +1002,8 @@ export class BaseAdapter {
       intervalMs: this._patrolOpts ? this._patrolOpts.intervalMs : 0,
       inRound: this._patrolling,
       ...this._patrolStats,
-      // 批25：让路计数（下发在途 / 人工正在输入）。不暴露这个，"巡检怎么不走了"线上无从诊断。
-      yielded: { sendInFlight: 0, humanTyping: 0, ...(this._patrolYield || {}) },
+      // 批25：让路计数（下发在途）。不暴露这个，"巡检怎么不走了"线上无从诊断。
+      yielded: { sendInFlight: 0, ...(this._patrolYield || {}) },
       sendBusy: this.isSendBusy(),
     };
   }
@@ -1108,7 +1041,7 @@ export class BaseAdapter {
     this._patrolling = true;
     const startedAt = Date.now();
     let visited = 0, withNew = 0, captured = 0, failures = 0, scannedTotal, unreadCount = 0;
-    let yieldReason = null;   // 批25：本轮因"下发在途 / 人工正在输入"让路的判据（null=没让路）
+    let yieldReason = null;   // 批25：本轮因"下发在途（含 linger）"让路的判据（null=没让路）
     let yieldSkipped = 0;
 
     // 记住巡检前活动会话，巡检结束后尽量回到它（减少打扰）
@@ -1156,9 +1089,10 @@ export class BaseAdapter {
           this.log.debug(`巡检跳过：用户已停留在会话 ${conv.id}（依赖 observer 实时捕获）`);
           continue;
         }
-        // 批25：切会话之前先等一个「没有下发在途、也没有人工在打字」的窗口。
-        //   让路的粒度是"每次切换"而不是"整轮"：下发之间有间隙，巡检照样推进，不会因为
-        //   下行密集而整轮饿死；真等不到窗口（人工长时间在输入）就让本轮作废，30s 后下一轮再来。
+        // 批25：切会话之前先等一个「没有下发在途（含 linger 尾巴）」的窗口。
+        //   让路的粒度是"每次切换"而不是"整轮"：下发完一条到发下一条之间除了 linger 还可能有
+        //   限速重试/网络等待，巡检照样能推进，不会因为下行密集而整轮饿死；真等不到窗口
+        //   （下发一直占着）就让本轮作废，下个轮询周期再来。
         const blocker = await this._waitForSwitchWindow(switchBlockWaitMs, switchBlockPollMs);
         if (blocker) {
           yieldReason = blocker;
@@ -1189,7 +1123,7 @@ export class BaseAdapter {
       this._patrolling = false;
     }
     if (beforeConv && beforeConv !== this.getConversationId()) {
-      // 批25：收尾"切回原会话"也是一次换会话，同样走 preemptible（下发在途/人工键入时放弃回切）。
+      // 批25：收尾"切回原会话"也是一次换会话，同样走 preemptible（下发在途/linger 内放弃回切）。
       try { await this.openConversation(beforeConv, { backfill: false, waitActiveMs: 2000 }); } catch (_) {  }
     }
     const dur = Date.now() - startedAt;
@@ -1203,7 +1137,7 @@ export class BaseAdapter {
     this._patrolStats.lastDurationMs = dur;
     this.log.debug(`巡检一轮完成：扫描 ${scannedTotal} 个会话，访问 ${visited}，有新消息 ${withNew}，捕获新消息 ${captured}，失败 ${failures}，用时 ${dur}ms`);
     if (yieldReason) {
-      this.log.info(`巡检本轮让路 ${yieldSkipped} 个会话（${yieldReason}）：下发/人工键入优先，下一轮再访`);
+      this.log.info(`巡检本轮让路 ${yieldSkipped} 个会话（${yieldReason}）：下发优先，下一轮再访`);
     }
     return {
       scannedTotal, unreadCount, visited, withNew, captured, failures, durationMs: dur,
@@ -1537,7 +1471,7 @@ export class BaseAdapter {
     let conv = this.getConversationId();
     if (targetConvId && conv !== targetConvId) {
       // exact=true：只接受精确切到目标会话，杜绝"切到别处也当成功"→ 误发到其他会话
-      // preemptible:false：这次切换是下发的一部分，绝不因巡检/草稿让路（让路＝这条永远发不出去）
+      // preemptible:false：这次切换是下发的一部分，绝不因巡检让路（让路＝这条永远发不出去）
       const opened = await this.openConversation(targetConvId, { backfill: false, exact: true, preemptible: false });
       if (!opened) {
         throttledWarn(this.log, `sendNotOpen:${targetConvId}`, WARN_THROTTLE_MS, `下行目标会话 ${targetConvId} 未打开，放弃发送`, { current: conv });

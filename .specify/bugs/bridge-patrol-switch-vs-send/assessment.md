@@ -41,7 +41,7 @@
 | 时长预算 | `constants.js:humanSendTimeoutMs` | 注释自述「逐段停顿均值≈90ms/码点、上探 250ms/码点」，封顶 120s |
 | 同源先例（已修的一侧） | `src/core/downlink.js:pollDownlink` 注释 | 已写明「多个会话并行 openConversation 会相互竞争，A 的文案被填进 B 的输入框 ⇒ 必须按会话串行」——**同一个坑，当时只堵了「下发 vs 下发」这条边** |
 | 既有隐患注释 | `xhs.js:sendText` 注释 | 已承认「用户正在打字时 extension 同时下发」导致内容拼接，用 `clearBefore` 清空解决；**但没解决「输入框属于哪个会话」** |
-| 无草稿/键入探测 | 全仓 `grep draft` | 无任何实现 ⇒ 人工手打草稿同样无人保护 |
+| 键入主体（口径确认） | `downlink.js:pollDownlink` → `channel-adapter.js:sendOutbound` | 下发转发整条链路（轮询 outbox → 切会话 → 键入 → 点击 → 回查 → 自报上行）都由扩展自己实现，**键入是脚本自动的、没有人工参与** ⇒ 互斥只需覆盖「下发在途」这一侧，不必引入「人工草稿」判据 |
 
 ## Root Cause Hypothesis
 
@@ -57,13 +57,16 @@
 
 ## Proposed Remediation
 
-优先级按**不可逆性**排序：人工键入 > 下发 > 巡检。巡检是可延迟的只读扫描（晚一轮只是时延，`seenNodes` + 稳定键去重保证延迟不漏不重）；下发是不可撤销的写入（错发人＝隐私事故）。所以**让巡检让路**，而不是让发送等待（单向让路，无反向等待 ⇒ 无死锁）。
+优先级按**不可逆性**排序：**下发 > 巡检**。巡检是可延迟的只读扫描（晚一轮只是时延，`seenNodes` + 稳定键去重保证延迟不漏不重）；下发是不可撤销的写入（错发人＝隐私事故）。所以**让巡检让路**，而不是让发送等待（单向让路，无反向等待 ⇒ 无死锁）。下发转发与键入都由扩展自己实现（见上方「键入主体」一行），因此互斥只需覆盖「下发在途」。
 
-1. `sendOutbound` 全程持 `_outboundInFlight`（`beginOutbound/endOutbound`），覆盖切会话→稳定等待→键入→点击→回查整段。
+1. `sendOutbound` 全程持 `_outboundInFlight`（`beginOutbound/endOutbound`），覆盖切会话→稳定等待→键入→点击→回查→自报上行入队整段；释放后只剩纯 HTTP（uplink 合并窗 + outbox ack），不碰 DOM。
 2. 换会话唯一入口 `openConversation` 收口 `preemptible`：巡检/巡检收尾回切/全量同步传 `true`（遇锁直接让路，下一轮/下个窗口再来），下发传 `false`（永不让路）。
-3. 让路粒度是**每次切换**而非整轮：`_waitForSwitchWindow` 在发送间隙里推进巡检，避免下行密集时整轮饿死；等不到窗口（人工长输入）就让整轮作废，30s 后下一轮。
-4. 人工键入保护：`isHumanTyping` = 「最近 `draftQuietMs`(15s) 内有过键入」或「输入框已有草稿」；草稿有 `draftStaleMs`(5min) 上界，防一条被放弃的残留草稿把巡检永久按停。
+3. 让路粒度是**每次切换**而非整轮：`_waitForSwitchWindow` 在发送间隙里推进巡检，避免下行密集时整轮饿死；等不到窗口就让整轮作废，下个轮询周期再来。
+4. **linger**（`BRIDGE_THREE_CHANNEL.outboundLingerMs` = 1500ms）：`endOutbound` 归零后仍算忙一小段。理由是 downlink 是**逐条** `sendOutbound` 的，两条消息之间有 `await cache.flush()` 的空档，不留尾巴巡检就会插进来切一次会话、下一条再切回去（正确性有 `assertConv` 兜底，但白跑两次切换）。取 1.5s 只盖「存储读+写+下一条进锁」的常态空档，**不盖**限速重试那种秒级等待——那一段本就该让巡检有机会干活。
 5. 最后一道闸：各渠道 `sendText` 在**点发送前一刻**调 `assertConvOrAbort` 复核归属，漂移 ⇒ 清空输入框 + 抛 `conv-drift` ⇒ 本条不 ack、留 pending 重投（锁挡不住 SPA 自身改路由和用户手点）。
 6. 对称方向：`_patrolVisit` 在采集前复核「还停在 opened」，不一致即丢弃（`_collectUnseenText` 是同步的，采集一开始就不会被打断，故只需采集前一次）。
 
-**Alternatives rejected**：给巡检加锁、让下发抢锁——引入排队与死锁面，而巡检本就允许延迟。
+**Alternatives rejected**：
+- 给巡检加锁、让下发抢锁——引入排队与死锁面，而巡检本就允许延迟。
+- 「人工键入/草稿」让路层（首版曾实现 `isHumanTyping` + `draftQuietMs/draftStaleMs` 与 document 级键入监听）——按用户口径移除：这条链路的键入全部由扩展完成，混进「人的草稿」判据换不来对下发链路的任何保护，却会在未知页面上把巡检按停（contenteditable 误判）。代码更小、行为更可预测。
+- 只靠 linger 不靠锁 / 只靠锁不加 linger——前者盖不住长键入窗（3–9s ≫ 1.5s），后者盖不住批量的条间空档，故两者都要。

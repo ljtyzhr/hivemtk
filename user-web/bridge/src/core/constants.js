@@ -112,9 +112,7 @@ export const PATROL_DEFAULTS = Object.freeze({
   // 巡检与下发都会 openConversation 换右侧会话。下发的键入是逐段拟人 insertText
   // （30 字≈2.7s、100 字≈9s），巡检切换节拍 3–5s ⇒ 键入期被切走是结构性必现，
   // 后果是把 A 的文案点进切换后的 B 会话（发给下一个用户，不可撤回）。
-  // 契约：下发/人工键入持锁期间巡检不换会话（单向优先级，无相互等待 ⇒ 无死锁）。
-  draftQuietMs: 15000,        // 最近一次人工键入距今 < 该值 ⇒ 判"正在输入"
-  draftStaleMs: 300000,       // 草稿停留上界：超时后不再为它让路（防一条被放弃的残留把巡检永久按停）
+  // 契约：下发持锁期间（含 linger）巡检不换会话（单向优先级，无相互等待 ⇒ 无死锁）。
   switchBlockWaitMs: 20000,   // 等一个可切会话窗口的上限（下发之间有间隙，不必整轮作废）
   switchBlockPollMs: 500,     // 等窗口的轮询节拍
 });
@@ -278,6 +276,12 @@ export const BRIDGE_THREE_CHANNEL = Object.freeze({
   // 所以宁可取一个"大概率够、不够就报未见"的小值，也不要为了好看把下行队列按会话堵住 10s。
   sendVerifyMs: 2500,
   sendVerifyPollMs: 250,
+  // 批25：出站临界区的 linger。downlink 是**逐条** sendOutbound 的，两条消息之间有
+  //   `await cache.flush()` 的 await 空档；不留 linger，巡检就会在这个空档插进来切一次会话，
+  //   下一条再把会话切回去（正确性有 assertConv 兜底，但白跑两次切换）。
+  //   取 1.5s：盖住"存储读+写+下一条进锁"的常态空档；不盖限速重试那种秒级等待
+  //   ——那一段本来就该让巡检有机会干活（否则下行密集时巡检会被无限期饿死）。
+  outboundLingerMs: 1500,
 });
 
 // B4（批3）：发送全链统一超时。B7 拟人键入后单次 sendText 时长随文本长度线性增长
