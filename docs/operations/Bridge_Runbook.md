@@ -687,12 +687,27 @@ FROM message_hub WHERE tenant_id=<tid> AND msg_id='<hash>' ORDER BY id;
   `#N` 后缀（上报方断言独立消息）与 `channel_msg_id`（平台真实身份）不在此列；
   repo 侧新增 `GetRecentByMsgIDAnyConv`（带时间界，防历史原话跨会话误吞）。
 
-### 残留风险（错归闸拦不住的形状）
+### 残留风险（错归闸拦不住的形状）→ 已根治（2026-10-23 扩展侧）
 
-同一条 DOM 气泡在两个时刻被抓成**不同切片文本**（前缀截断不同 ⇒ hash 不同，如
-`在「知跟在「知「知知识库」…` vs `在「知识库」页上传文档与多轮…`）——hash 维度去重对它无效。
-根治需扩展端做会话锚点校验（sender_name ↔ conversation 绑定一致性，错配即拒收），
-属 HiveBridge 扩展侧改造，未在本批实施。
+同一条 DOM 气泡在两个时刻被抓成**不同切片文本**（前缀截断不同 ⇒ hash 不同）——服务端
+hash 维度去重对它无效。扩展侧已在 **v1.0.2**（asset_versions id=142）补上源头防线：
+`BaseAdapter._convAnchor` 会话锚点（`{cid, peerName}`），四条采集路径统一校验
+①采集循环内 cid 漂移（SPA 切换中间态）拒收；②1v1 私信 `sender_name` 与会话头昵称
+（`getPeerName`）错配 ⇒ 判跨会话 DOM 残留拒收；群聊/self/系统/名字抓取缺失放行。
+代码 commit `8734ae4b`，专项测试 `test/adapter-conv-anchor.test.js`。
+
+### 发布记录（2026-10-23）
+
+- 平台端 `asset_versions` 新增 1.0.2 行（`asset_id=2`，sha256
+  `056c4951…66f85`，212812 字节）；`assets.latest_version=1.0.2`（status=approved）。
+- **manageapi vhost 补 `/files/` 反代**（对齐 manage.xapptool.cn 同款路由）：
+  `absoluteDownloadURL` 按 `PLATFORM_API_HOST`（manageapi）拼 base，此前
+  `/files/*` 在 manageapi 404 挡住商户端扩展下载。备份
+  `manageapi.xapptool.cn.conf.bak-files-20261023`。
+- 端到端验证：`GET /api/bridge/extension/package` 200 返回 1.0.2 +
+  `download_url` 指向 manageapi `/files/...`；公网下载 sha256 与 DB 一致。
+- ⚠️ 排查中误把参数中心 `api_host` 改成 manage.xapptool.cn 又回滚——
+  **该参数必须留空/manageapi**：`/merchant-api/*` 只在 manageapi 有后端路由。
 
 ---
 
