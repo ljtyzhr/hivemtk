@@ -332,7 +332,7 @@ A3 是"有闸但隔离靠手写"，这里是"压根没有闸"。严重度按后�
 | **P2-3**（✅ 已修） | 知识库导入文件**未按租户分域**（绕过 `LocalDriver`，直接 `uploads/knowledge-base|knowledge|knowledge-text|knowledge-url/…`） | `internal/aiagent/knowledge/service/knowledge_base_import.go:75`、`knowledge_service_import.go:48/113/177`（共 4 条通路） | 分域原先只做在 `LocalDriver.UploadReader` 里 ⇒"上传口分域了、知识库导入口没分域"，同一个 uploads 根下两种布局并存。修法：`storage.TenantPathPrefix(ctx)` 导出为**唯一**前缀函数（驱动内部同款改为调它），4 条通路各自 `filepath.Join(base, prefix, …)`。off 模式前缀为空串 ⇒ 路径逐字节不变；存量根域文件在 on 模式下仍可读（`/files` 守卫只对 `tenant_*` 首段做归属校验） |
 | **P2-4**（✅ 已修） | 后台任务扇出**已有门禁**，但扫描面只覆盖 `internal/pkg/cron/` | `scripts/check-tenant-ctx-writes.py` 新增 `SCHEDULER_DIRS`（GEO/browser_automation），任务键改用 `@<路径>::<所在函数>`，登记表补 2 行；注册点 7 → **9**，自检 9 枚控制全 PASS | 不改两个调度器自己的 `AddTask` 形态（那是不必要的小重构）：**判据只需"注册点必须做一次归属决策"**，键取法随形态变即可 |
 | **P2-5**（✅ 已修） | 事件总线 `TenantID` 由**发布点自行填充**（4 处各写一遍） | 新增 `event.PublishCtx`/`PublishEventCtx` + `StampTenantFromCtx`（反射盖章，非 0 不覆盖）；3 处迁移；新增门禁 `scripts/check-event-publish-tenant.py` 禁止裸 `event.Publish(`；on 模式下 `TenantID=0` 打响声 | 执行者收成唯一一个 + 门禁，才不依赖"下一个人记得写" |
-| **P2-6** | 两端同名实体各写一份模型（`ConfigParam`/`ConfigParamAuditLog` 等），schema 靠人对齐 | `hivemtk-platform/platform-server/internal/model/config_param.go` vs `user-server/internal/model/config_param.go` | 两端是两个独立库、两条演进节奏，"共一份代码"未必划算；建议只对**跨端传递的结构**（开户登记、心跳、订单、模块下发）做单一事实源 |
+| **P2-6** | 两端同名实体各写一份模型（`ConfigParam`/`ConfigParamAuditLog` 等），schema 靠人对齐 | `hivemtk-platform/platform-server/internal/model/config_param.go` vs `user-server/internal/model/config_param.go` | **已落地**（A10，解法改了）：不做"共一份代码"（两端是两个独立库、两条演进节奏，共包会把发布节奏绑在一起），改成**形状清单 + 方向性比对** —— 平台侧把跨端 DTO（开户登记/心跳/订单/模块下发，11 类型）反射成 `docs/contracts/cross-repo-wire.json`，租户侧吐自己那份，`check-wire-contract.py` 判三条：类型集相等 / 租户字段 ⊆ 平台字段 / 平台 `required` ⊆ 租户。`ConfigParam` 这类**各自库内**的同名模型照旧各写一份（谁也不会读对面的那张表） |
 | **P3** | vendor 域名硬编码为默认值（`internal/config/platform.go:33` `DefaultCloudURL = https://work.xapptool.cn`）✅ 已修、`uploads` URL 暴露租户 id、`SetTrustedProxies` 只信私网 ⇒ 反代不在私网时 `ClientIP` 恒为反代 IP（全站共用一个限流桶）✅ 已修 | 见左 | P3-1（`DefaultCloudURL` 回落）：新增 `CloudURLSource` 来源标签 + 启动期 WARN，并把 provider 缺省实参从「同一个常量」改成空串（否则「没配」与「配了同一个值」不可区分，builtin 这一档永远看不到）。P3-3（可信反代）：`middleware.ConfigureTrustedProxies` 成唯一装配入口，名单可由 env `TRUSTED_PROXIES` 覆盖（非法条目整体报错而非静默丢弃），并挂观测中间件在「带 XFF 但来源不受信」时响亮一行（同对端去重 + 累计计数）。P3-2（`uploads` URL 暴露租户 id）✅ 与 P1-2 同源、一并清掉（A12）：URL 形态改为 `?s=` 签名，租户段从路径里消失 |
 
 
@@ -428,6 +428,12 @@ python3 scripts/check-merchant-scope.py                    # ✅ 通过（现覆
 bash scripts/check-merchant-scope.test.sh                  # ✅ 十条腿「先绿后红再绿」
 make llm-proxy-auth-gate                                   # ✅ 11 例 + 真装配腿五 + 十条腿「改坏即红」
 
+# A10 轮（双仓库跨端线上形状清单）
+cd user-server && go test ./internal/pkg/wirecontract/ -count=1   # ✅ 4 例（反射⇄清单）
+cd .. && make wire-contract                                       # ✅ 反射用例 + 跨仓比对（11 类型/11 比对）
+# 平台端（独立仓）
+cd platform-server && make wire-contract                          # ✅ 3 例（11 类型全覆盖）
+
 # A4 轮（云/本地契约版本握手）
 go test ./internal/platform/ ./internal/pkg/contract/ ./internal/pkg/shared/service/ -count=1  # ✅ 全绿
 # 平台端（独立仓）
@@ -464,6 +470,7 @@ psql -h 127.0.0.1 -p 8202 -U admin -d user_db -Atc \
 | **平台端商户面隔离上框架**（P1-4 / A3）✅ 已落地 | 两端能力不对称；运营面跨商户是业务本身 | `hivemtk-platform/platform-server`（独立仓，提交 `3c4ba07`）：`internal/utils/merchantscope` 是唯一执行者，三档语义只有**一个判定点**（`scopeTarget`）——有商户 scope ⇒ 六个 callback 强制 `AND merchant_key = ?`；有 scope 但为空 ⇒ 拒；无 scope ⇒ **一行 SQL 都不动**（运营面零回归，有 DryRun 逐字节用例）。注入的是 **AND** 不是替换：漏写条件的仓储只剩框架这一条（依然正确），写反了（拿 B 的 key 查）恒空，失败方向是"查不到"而非"查到别人的"。注册表由**真库内省 + 模型源码 ast** 双向夹住（落地时各抓到一处真错：`revenue_records` 根本没有 `merchant_key` 列、`merchants` 用 `column:merchant_key` 声明）。门禁 `scripts/check-merchant-scope.py` 三道闸（装配面/身份来源/接线锁，判据跑在**去注释后**的源码上），`scripts/check-merchant-scope.test.sh` 六条腿证它**能红**；接进 `make merchant-scope-gate` 与 `platform-ci.yml`。**牙齿**：摘 `testutil` 的 `Register` 或摘 `merchant_auth.go` 的一处 `WithScope` ⇒ 探针腿（`TestMerchantScopeReachesRepositoryThroughRealRequest`）红；给非共享 handler 加一句 `ctx.Query("merchant_key")` ⇒ 门禁闸二红 |
 | **`/llm-api/v1` 验签闸**（P1-6 / A19）✅ 已落地 | 同一仓里第二个商户面，形态是"压根没有身份闸"（与 A3 的"有闸但隔离靠手写"不同） | `hivemtk-platform/platform-server`（独立仓，提交 `23abf55`）：`internal/middleware.MerchantLLMProxyAuth()` 挂在 `/llm-api/v1` 组上 —— HMAC-SHA256 over `"llm-proxy-v1\n"+method+"\n"+RequestURI+"\n"+ts+"\n"+nonce+"\n"+hex(sha256(body))`、`ts`±300s、按 `(商户,"llm:"+nonce)` 去重。三处口径**必须**与 `/merchant-api` 不同且已逐条论证：签 `RequestURI` 不签 `path`（`provider/scenario/tenant_code` 全在 query 里，不签就等于允许换 `tenant_code` 把账记到同商户另一个租户头上）；签 body 的 sha256 而非 body（最大 8MB）；带 nonce（签名输入无随机量，同秒同 prompt 的**合法**批量调用签名相同，照抄"按签名去重"会误杀，误杀的后果是有人把闸关掉）。controller 删掉 Bearer 回落只读 ctx（留着它 = 闸一摘就静默变"谁都能冒充"）。兼容窗口 `PLATFORM_LLM_PROXY_REQUIRE_SIGNATURE`（默认 true，只认环境变量；关掉则启动告警 + 每次放行留痕，且**窗口期仍校验商户存在且 active**）。门禁从"一个组"改成清单 `GATED_GROUPS` + 闸 2b（llm 面 handler 不得自读身份头）+ 闸 3b 逐文件 `c.Set ↔ WithScope` 一一对应且注入点必须含 `hmac.New(`。**牙齿**：`scripts/check-llm-proxy-auth.test.sh` 十条腿（逐条改坏 ⇒ 对应用例必红 ⇒ md5 还原回绿）；真装配腿五要求**拒绝出自闸**（判文案不判状态码——摘掉 `Use(...)` 后 controller 也会 401）；正对照一律看**信封业务码**（`response.Error` 是 HTTP 200 + code，用 `w.Code==200` 判通过会恒绿） |
 | **Postgres RLS** | `SAAS_MULTI_TENANT_EVALUATION_2026-10.md` §7 已否（连接池/事务语义、表 owner 绕过、`tenant_id=0` 与 `1` 并存无权威表） | 维持"本轮不做"，但仍是侵入面的理论下限；若做，先补"哪些行该是 `tenant_id=0`"的权威表 |
+| **跨端线上形状清单**（P2-6 / A10）✅ 已落地 | 两端各写一套同名结构、靠人对齐；Go 编译器看不见另一侧 | **不共代码，共形状**：平台侧（权威方）`internal/wirecontract` 把四条通道 11 个 DTO 从**活体 struct** 反射成 `docs/contracts/cross-repo-wire.json`；租户侧只对**跨端传递**的结构（开户登记/心跳/订单/模块下发）做单一事实源（`ConfigParam` 这类各自库内的同名模型刻意不收）。跨仓比对**方向性**：类型集相等 + 租户字段 ⊆ 平台字段 + 平台 `binding:"required"` ⊆ 租户；相等会造永久红，而永久红的判据等于没有判据。两侧清单落进**同一命名空间**（租户生成时把嵌套 Go 名改写成平台名）⇒ 配对=键相等，不存在会漏行的映射表。只比 **wire 口径**不比 Go 类型（`SyncedAt` 的 `time.Time`↔`string` 否则永久红），另加一条"两份清单 `version` 相等"（两仓反射器口径分叉的最低成本判据）。**牙齿**：八条变异全红（json tag 改名/口径不一致/类型集缺口/必填反向/平台侧改名/删 rename 登记/退出码三档/清单版本不一致）+ 正对照原样绿；单仓 CI 显式 `--allow-missing-platform` 且**响亮打印**"跨仓那一半证不了" |
 | **跨端契约版本握手**（P1-5 / A4）✅ 已落地 | 独立部署的实例生命周期远长于云端；平台与 user-server 两仓各自发布 | 版本号 `Version=1` + 头 `X-Contract-Version`，两侧各钉一条 pin 用例（跨仓协议号，单方面 +1 会让对面全量 426）。平台端三组（`/merchant-api`、`/llm-api/v1`、`/api/platform`）挂 `ContractHandshake()`，**两个方向**都回**真 HTTP 426**（`response.UpgradeRequired`）——"高于平台实现"这一方向是建议稿漏掉的独立部署真实形态（实例自己先升了级，后果同样是静默的"存进去但永远不生效"）。默认 fail-closed，`PLATFORM_CONTRACT_MIN_VERSION` 是唯一开窗方式（启动告警 + 每次未声明放行留痕 + 非法值回落严格档 + 非法版本头当 0 而不是当最新版）。租户端收成"唯一构造入口 `newPlatformRequest` + 唯一判定点 `noteContractVerdict`"，426 经 `/api/system/info.platform_contract` 变成管理员可见状态（`omitempty` 保证 `off` 模式逐字节等价），且**只有受闸路径的 200 才能清告警**（`/health`/登录/`/platform/**` 的 200 只说明平台活着）。`/platform/**` 与 `/api/auth/login` 刻意豁免并有反向防腐判据。**牙齿**：四个变异逐一验红（不设版本头 / 426 不记账 / 只记不清 / 不判受闸路径），删 `merchantAPI.Use(middleware.ContractHandshake())` ⇒ 真装配腿六红；门禁十二条腿 |
 | **形态矩阵契约门禁**（方案 E）✅ 已落地 | `DEPLOYMENT_MODES_EVALUATION_2026-10.md` §6 | `internal/app/deployment_matrix_contract_test.go`：四格 × 六条行为（出站/租户上下文/自助开户/初始化态/后台扇出/隔离 callback）= 24 条断言，全部走活体组件。两个轴**正交**是核心断言之一：租户那五条在两列数值必须相同，谁在平台开关里顺手加租户判定就会红。**牙齿**：临时让 off 模式也看 claim、让 `PlatformURLFor` 在关闭态照样返回地址 ⇒ ①②③ 三格全红 |
 | **逐端点双租户交叉扫描**（T028 尾巴）✅ 已落地 | 现有覆盖是"逐域代表用例"，731 条带参数端点无一穷尽判据 | `internal/router/cross_tenant_scan_test.go` 三条互补的腿：①匿名参数路由 32 条必须能说出"租户/行靠什么定位"（链上 `Public*Tenant`/`AppKeyResolve` 自动认 16 条 + 台账登记 16 条，双向校验）；②按行自证类用未知键探测 16 次，不得 200；③真库双租户真扫 6 条不同取数风格端点。**关键口径纠正**：正对照从"状态码 200"升级为"200 且响应体含播种行 marker"——实测 `/api/email/smtp/:id` 两租户都回 200 + `{"code":4301,"message":"该功能模块未开通…"}`，只判状态码是假绿（模块闸挡在取数之前，行根本没读出来）。**牙齿**：`GetByID` 走 `tenant.WithSystemScope`（真绕过 callback；`Unscoped()` 咬不动）⇒ 闸三红；摘 `/share/douyin/:id` 的 `PublicIDTenant` ⇒ 闸一红；`renderCardChatPage` 取不到行回 200 ⇒ 闸二红 |
@@ -569,6 +576,24 @@ psql -h 127.0.0.1 -p 8202 -U admin -d user_db -Atc \
 | `user-server/internal/platform/contract_header_test.go` | 新增（5 例）：五个真实入口逐个断言带版本头 / 426 记录且原因取自平台信封 + 200 清除的正对照 / 豁免路径 200 不得清告警 + 受闸路径 200 必须清的正对照 / 受闸前缀清单对账 / 心跳 200 也必须能清（它是“只在主通道清”最容易漏的一处，漏了之后告警永不再更新） |
 | `user-server/internal/pkg/shared/service/system_stats_test.go` | 加一例：没被拒过时 JSON 里**连键都不能有**（`omitempty` + 指针，去 `omitempty` 与"无脑填空结构"两种写法实测都会红） |
 
+### 7.4 A10 轮（跨端线上形状清单；平台端独立仓 + 本仓同批）
+
+| 文件 | 改动 |
+|---|---|
+| `platform-server/internal/wirecontract/wirecontract.go` | 新增：`Describe`/`DescribeWithRenames` 把活体 struct 反射成形状清单（`Manifest`/`Struct`/`Field`）；wire 口径只到 string/integer/number/boolean/array/object/any（`time.Time`→string、`json.RawMessage`/`[]byte`→any、指针记 `Nullable`）；内嵌 struct 就地摊平（`encoding/json` 就是这么做的）；`renames` 让租户侧把嵌套 Go 名改写成规范名 |
+| `platform-server/internal/wirecontract/manifest_test.go` | 新增（3 例）：清单与代码一致（改了 DTO 不重生成即红）/ 四条通道根类型齐全（`platformRoots()` 11 项）/ 无未命名（大驼峰）线上字段 |
+| `platform-server/docs/contracts/cross-repo-wire.json` | 新增：权威侧清单（11 类型，生成物） |
+| `platform-server/docs/contracts/README.md` | 新增：角色（权威方）/ 反射而非手写 / 三条判据 / **这里不跑跨仓比对**的边界 |
+| `platform-server/Makefile` | 新增 `make wire-contract`（只跑本仓反射用例） |
+| `platform-server/docs/dev/CONVENTIONS.md` | 新增 §6.2.5：契约闸管"不兼容"，管不了"没声明的漂移"；清单只记 wire 口径；新增跨端结构两仓各登记一条 |
+| `user-server/internal/pkg/wirecontract/wirecontract.go` | 新增：同款反射器（租户视角注释）+ `canonical()` 改名 |
+| `user-server/internal/pkg/wirecontract/manifest_test.go` | 新增（4 例）：清单与代码一致 / 四条通道根类型齐全（键用**平台类型名**）/ **清单里不许出现自家 Go 名的键**（`tenantRenames` 漏登记在单仓就红）/ 无未命名线上字段 |
+| `user-server/docs/contracts/cross-repo-wire.json` | 新增：租户侧清单（11 类型，键=平台名） |
+| `user-server/docs/contracts/README.md` | 新增：11 组类型对照表 / 三条判据 / **合法子集逐条理由** / 两处"看起来不一致但不该改"（`SyncedAt`、`json.RawMessage`）/ 门禁边界 |
+| `user-server/scripts/check-wire-contract.py` | 新增：跨仓方向性比对（类型集相等 + 租户 ⊆ 平台 + 平台 required ⊆ 租户）；退出码 0/1/2 三档；`--allow-missing-platform` 单仓降级且**响亮打印**；`ONE_SIDED` 是唯一放行口子且要求写理由 |
+| `Makefile` | 新增 `make wire-contract`（反射用例 + 跨仓比对） |
+| `.github/workflows/wire-contract.yml` | 新增：单仓 CI（Go 反射用例 + `--allow-missing-platform` 降级）；`paths:` 含 `user-server/internal/platform/**` —— 反射的输入就是那些 struct |
+
 ---
 
 ## 8. 双部署起服实测复盘（SaaS 8411 / 独立 8412 + 真平台 8205）
@@ -616,8 +641,8 @@ Info 文案同步更新 —— 它是"钩子走到了 ready 分支"的唯一证�
   且 AutoMigrate 只在启动时跑 ⇒ 回滚后的进程**永不自动补回**。
 
 均改为 `declineIndexDrop` / `declineTableDrop`（`down_drop_policy.go` 的既有口径：多留一个对象
-不破坏任何功能，删掉一个在用对象则不可恢复），用例从"Down 后应被删掉"翻成"降级不销毁在用对象
-+ Down 之后再 Up 仍幂等"——红因里写清两个世界，避免后来人看见红就删断言。
+不破坏任何功能，删掉一个在用对象则不可恢复），用例从"Down 后应被删掉"翻成"降级不销毁在用对象，
+且 Down 之后再 Up 仍幂等"——红因里写清两个世界，避免后来人看见红就删断言。
 
 **仍待收口（P2）**：`llm_routing_logs` / `rag_hybrid` / `v3_22_3` / `v3_33_0` 四处的 Down 仍直接
 `DROP TABLE`，需逐个判"表是 AutoMigrate 持有还是本迁移独占"后再决定；`v3_16/v3_17/v3_19/unmultitenant`

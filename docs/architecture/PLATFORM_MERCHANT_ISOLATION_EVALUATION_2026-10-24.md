@@ -48,8 +48,8 @@ POST /orders/:order_no/pay     GET  /llm/plans           GET  /llm/providers
 GET  /llm/wallet               GET  /llm/wallet/txns     + asset-market 9 条
 ```
 
-`MerchantAuth` 的判据是 HMAC（`method\npath\ntimestamp\nbody`）+ ±5min 时间戳 + 写操作重放去重
-+ "商户必须存在且 active"，身份落 `c.Set("merchant_key", …)`。**装配面这一格是好的。**
+`MerchantAuth` 的判据是 HMAC（`method\npath\ntimestamp\nbody`）＋ ±5min 时间戳 ＋ 写操作重放去重，
+并且要求"商户必须存在且 active"，身份落 `c.Set("merchant_key", …)`。**装配面这一格是好的。**
 
 ### 2.2 身份来源面（handler 有没有从 body/query 取商户身份）
 

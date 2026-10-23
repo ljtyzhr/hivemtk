@@ -1,0 +1,381 @@
+{
+  "_note": "生成物，勿手改：由 internal/wirecontract 的测试从活体 struct 反射生成（SaaS 审计 A10）",
+  "version": 1,
+  "structs": {
+    "CreateOrderInput": {
+      "fields": [
+        {
+          "json": "client_order_no",
+          "kind": "string"
+        },
+        {
+          "json": "clientip",
+          "kind": "string",
+          "omitempty": true
+        },
+        {
+          "json": "contact_email",
+          "kind": "string"
+        },
+        {
+          "json": "contact_name",
+          "kind": "string"
+        },
+        {
+          "json": "contact_phone",
+          "kind": "string"
+        },
+        {
+          "json": "module_keys",
+          "kind": "array"
+        },
+        {
+          "json": "options",
+          "kind": "object"
+        },
+        {
+          "json": "order_type",
+          "kind": "string"
+        },
+        {
+          "json": "plan_code",
+          "kind": "string"
+        },
+        {
+          "json": "remark",
+          "kind": "string"
+        },
+        {
+          "json": "tenant_code",
+          "kind": "string",
+          "omitempty": true
+        }
+      ]
+    },
+    "CreateOrderResult": {
+      "fields": [
+        {
+          "json": "duplicate",
+          "kind": "boolean"
+        },
+        {
+          "json": "items",
+          "kind": "array",
+          "elem": "OrderItem"
+        },
+        {
+          "json": "order_no",
+          "kind": "string"
+        },
+        {
+          "json": "payment",
+          "kind": "object",
+          "nullable": true,
+          "omitempty": true,
+          "elem": "EpayPayParams"
+        },
+        {
+          "json": "payment_guide",
+          "kind": "string"
+        },
+        {
+          "json": "status",
+          "kind": "string"
+        },
+        {
+          "json": "total_amount_cents",
+          "kind": "integer"
+        }
+      ]
+    },
+    "EpayPayParams": {
+      "fields": [
+        {
+          "json": "gateway_url",
+          "kind": "string"
+        },
+        {
+          "json": "method",
+          "kind": "string"
+        },
+        {
+          "json": "mock",
+          "kind": "boolean"
+        },
+        {
+          "json": "params",
+          "kind": "object"
+        },
+        {
+          "json": "pay_url",
+          "kind": "string"
+        }
+      ]
+    },
+    "HeartbeatRequest": {
+      "fields": [
+        {
+          "json": "client_ip",
+          "kind": "string"
+        },
+        {
+          "json": "device_fingerprint",
+          "kind": "string"
+        },
+        {
+          "json": "host_info",
+          "kind": "any"
+        },
+        {
+          "json": "install_id",
+          "kind": "string"
+        },
+        {
+          "json": "merchant_key",
+          "kind": "string"
+        },
+        {
+          "json": "metrics",
+          "kind": "any"
+        },
+        {
+          "json": "timestamp",
+          "kind": "string"
+        },
+        {
+          "json": "version",
+          "kind": "string"
+        }
+      ]
+    },
+    "InstallReportRequest": {
+      "fields": [
+        {
+          "json": "client_ip",
+          "kind": "string"
+        },
+        {
+          "json": "contact_email",
+          "kind": "string"
+        },
+        {
+          "json": "contact_name",
+          "kind": "string"
+        },
+        {
+          "json": "contact_phone",
+          "kind": "string"
+        },
+        {
+          "json": "device_fingerprint",
+          "kind": "string"
+        },
+        {
+          "json": "install_id",
+          "kind": "string"
+        },
+        {
+          "json": "merchant_name",
+          "kind": "string"
+        },
+        {
+          "json": "version",
+          "kind": "string"
+        }
+      ]
+    },
+    "MerchantModuleView": {
+      "fields": [
+        {
+          "json": "billing_cycle",
+          "kind": "string"
+        },
+        {
+          "json": "category",
+          "kind": "string"
+        },
+        {
+          "json": "depends_on",
+          "kind": "array"
+        },
+        {
+          "json": "description",
+          "kind": "string"
+        },
+        {
+          "json": "icon",
+          "kind": "string"
+        },
+        {
+          "json": "menu_keys",
+          "kind": "array"
+        },
+        {
+          "json": "module_key",
+          "kind": "string"
+        },
+        {
+          "json": "name",
+          "kind": "string"
+        },
+        {
+          "json": "options",
+          "kind": "array",
+          "elem": "ModuleOption"
+        },
+        {
+          "json": "owned",
+          "kind": "boolean"
+        },
+        {
+          "json": "owned_source",
+          "kind": "string",
+          "omitempty": true
+        },
+        {
+          "json": "owned_status",
+          "kind": "string",
+          "omitempty": true
+        },
+        {
+          "json": "price_cents",
+          "kind": "integer"
+        },
+        {
+          "json": "sort_order",
+          "kind": "integer"
+        },
+        {
+          "json": "summary",
+          "kind": "string"
+        }
+      ]
+    },
+    "ModuleOption": {
+      "fields": [
+        {
+          "json": "enabled",
+          "kind": "boolean"
+        },
+        {
+          "json": "option_key",
+          "kind": "string"
+        },
+        {
+          "json": "option_name",
+          "kind": "string"
+        },
+        {
+          "json": "price_delta_cents",
+          "kind": "integer"
+        }
+      ]
+    },
+    "ModuleSyncSnapshot": {
+      "fields": [
+        {
+          "json": "active_keys",
+          "kind": "array"
+        },
+        {
+          "json": "catalog",
+          "kind": "array",
+          "elem": "MerchantModuleView"
+        },
+        {
+          "json": "menu_keys",
+          "kind": "array"
+        },
+        {
+          "json": "merchant_key",
+          "kind": "string"
+        },
+        {
+          "json": "subscription",
+          "kind": "object",
+          "nullable": true,
+          "omitempty": true,
+          "elem": "SubscriptionView"
+        },
+        {
+          "json": "synced_at",
+          "kind": "string"
+        }
+      ]
+    },
+    "OrderItem": {
+      "fields": [
+        {
+          "json": "amount_cents",
+          "kind": "integer"
+        },
+        {
+          "json": "item_key",
+          "kind": "string"
+        },
+        {
+          "json": "item_name",
+          "kind": "string"
+        },
+        {
+          "json": "item_type",
+          "kind": "string"
+        },
+        {
+          "json": "quantity",
+          "kind": "integer"
+        },
+        {
+          "json": "snapshot",
+          "kind": "string"
+        },
+        {
+          "json": "unit_price_cents",
+          "kind": "integer"
+        }
+      ]
+    },
+    "RegisterReq": {
+      "fields": [
+        {
+          "json": "contact_email",
+          "kind": "string"
+        },
+        {
+          "json": "contact_phone",
+          "kind": "string"
+        },
+        {
+          "json": "device_info",
+          "kind": "string"
+        },
+        {
+          "json": "name",
+          "kind": "string"
+        }
+      ]
+    },
+    "SubscriptionView": {
+      "fields": [
+        {
+          "json": "current_period_end",
+          "kind": "string",
+          "omitempty": true
+        },
+        {
+          "json": "price_cents",
+          "kind": "integer"
+        },
+        {
+          "json": "status",
+          "kind": "string"
+        },
+        {
+          "json": "trial_expires_at",
+          "kind": "string",
+          "omitempty": true
+        }
+      ]
+    }
+  }
+}

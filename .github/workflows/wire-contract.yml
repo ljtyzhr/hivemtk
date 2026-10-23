@@ -1,0 +1,70 @@
+# 跨端线上契约清单（SaaS 审计 A10）
+#
+# 为什么要单独一个作业：这道门的输入是**两份清单 + 两个仓的 struct**。平台仓那份在
+# 另一个 git 仓里，CI 只 checkout 本仓 —— 所以作业要能明确说出"这一半我证不了"，
+# 而不是悄悄只跑一半然后打绿勾（见步骤里那句 ⚠️ 打印）。
+#
+# 守什么：
+#   1. `user-server/internal/pkg/wirecontract` —— 本仓跨端 struct 与
+#      `user-server/docs/contracts/cross-repo-wire.json` 必须一致。改了 DTO 却没重生成
+#      清单即红。反射出来的清单不可能与代码不一致：它就是代码。
+#   2. `user-server/scripts/check-wire-contract.py --allow-missing-platform` —— 本仓清单
+#      自洽（四条通道的根类型齐全）。跨仓比对要平台仓在场，CI 里显式降级并**响亮打印**。
+#
+# 这两条挡的是同一个失效：两个仓各写一套同名结构，一边改了 json tag、两边都能编译、
+# 两边用例都能绿，线上的表现是对面的键被静默忽略、字段永远是零值。
+#
+# 触发面为什么写 `user-server/internal/platform/**`：反射清单的输入就是那些 struct 本身，
+# 只登记脚本路径会让"新增/改名一个跨端字段"这类提交根本不重跑这道门 —— 那正是它要抓的。
+name: Wire Contract
+
+on:
+  push:
+    branches: [master, main]
+    paths:
+      - 'user-server/scripts/check-wire-contract.py'
+      - 'user-server/docs/contracts/cross-repo-wire.json'
+      - 'user-server/internal/pkg/wirecontract/**'
+      - 'user-server/internal/platform/**'
+      - '.github/workflows/wire-contract.yml'
+  pull_request:
+    paths:
+      - 'user-server/scripts/check-wire-contract.py'
+      - 'user-server/docs/contracts/cross-repo-wire.json'
+      - 'user-server/internal/pkg/wirecontract/**'
+      - 'user-server/internal/platform/**'
+      - '.github/workflows/wire-contract.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  wire-contract:
+    name: 跨端线上形状清单（反射 ⇄ 清单 ⇄ 平台侧清单）
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up Go
+        uses: actions/setup-go@v7
+        with:
+          go-version: '1.26.9'
+          cache-dependency-path: user-server/go.sum
+
+      - name: Set up Python
+        uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
+
+      - name: go mod download
+        working-directory: user-server
+        run: go mod download
+
+      - name: 本仓跨端 struct 与清单一致（改了 DTO 没重生成即红）
+        working-directory: user-server
+        run: go test ./internal/pkg/wirecontract/ -count=1
+
+      - name: 跨仓比对（单仓 CI 降级：显式跳过并打印，不静默）
+        run: python3 user-server/scripts/check-wire-contract.py --allow-missing-platform

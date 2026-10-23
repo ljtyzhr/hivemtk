@@ -352,7 +352,7 @@ dev-down:
 # =============================================================================
 # 代码质量护栏（P0-1：架构依赖规则见 user-server/.golangci.yml depguard）
 # =============================================================================
-.PHONY: lint lint-config-verify lint-install lint-install-force lint-version-check vet test-go fmt fmt-check test-db-prune go-cache-trim audit audit-artifacts audit-secrets
+.PHONY: lint lint-config-verify lint-install lint-install-force lint-version-check vet test-go fmt fmt-check test-db-prune go-cache-trim audit audit-artifacts audit-secrets wire-contract
 
 # 必须与 .github/workflows/user-server-ci.yml 里 golangci-lint-action 的 version 同步。
 # 上一版是死 pin v2.1.6：它由 go1.24 构建，跑本仓声明的 go1.25 直接
@@ -466,6 +466,22 @@ fmt-check:
 # （全量耗时数倍拉长，本地不适用）。
 test-go:
 	cd user-server && go test ./... -count=1 -p 1 -timeout 900s
+
+# 跨端线上契约清单（SaaS 审计 A10）
+#
+# 两个仓各自定义同一批跨端结构（开户登记 / 心跳 / 订单 / 模块下发）。Go 编译器看不见
+# 另一侧，所以"一边改了 json tag、两边都能编译、两边用例都能绿"是常态，线上表现是
+# 对面的键被静默忽略、字段永远是零值。两道判据：
+#   1. 本仓 struct ⇄ `user-server/docs/contracts/cross-repo-wire.json`（反射生成）；
+#   2. 本仓清单 ⇄ 平台仓 `platform-server/docs/contracts/cross-repo-wire.json`
+#      （类型集相等 + 租户字段 ⊆ 平台字段 + 平台必填 ⊆ 租户）。
+# 第 2 条要平台仓在场；单仓 CI 是 `.github/workflows/wire-contract.yml`，那里用
+# `--allow-missing-platform` 显式降级并响亮打印。
+#
+# 重新生成清单：cd user-server && UPDATE_WIRE_MANIFEST=1 go test ./internal/pkg/wirecontract/
+wire-contract:
+	cd user-server && go test ./internal/pkg/wirecontract/ -count=1
+	@python3 user-server/scripts/check-wire-contract.py
 
 # 清理 testutil **旧版**遗留的进程级测试库（user_db_test_<pid> / user_db_test_bench_<pid>）。
 #
