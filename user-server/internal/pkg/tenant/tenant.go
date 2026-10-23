@@ -136,6 +136,29 @@ func ContextWithDefault(ctx context.Context) context.Context {
 	return WithTenantID(ctx, DefaultTenantID)
 }
 
+// WriteTenantID 返回「这一行数据应该写进哪个租户」。
+//
+// 为什么需要它：异步/批量写入器（buffered flusher、抽样落库 cron）在**入队那一刻**
+// 拿得到请求 ctx，到**刷盘那一刻**只剩下一个进程级后台 ctx。若不在入队时把这个值抄进
+// 行里，刷盘时就无从知道该绑哪个租户 —— on 模式下 GORM 的隔离 callback 会 fail-closed
+// 拒掉整批写入（表现为"功能从来不生效、日志里只有一行 error"），off 模式下则整批落
+// 列默认值 1。两种症状都不像"漏了租户"。
+//
+// 语义三条：
+//   - ctx 有绑定 ⇒ 用绑定值；
+//   - off 模式（单租户）无绑定 ⇒ 默认租户（与 ContextWithDefault 同口径，写之前仍要显式绑定）；
+//   - on 模式无绑定 ⇒ 返回 0。**调用方必须据此丢弃并出声**，绝不回落默认租户：
+//     那会把一次漏配变成一次静默跨租户写。
+func WriteTenantID(ctx context.Context) uint {
+	if id, ok := FromContext(ctx); ok {
+		return id
+	}
+	if !IsMultiTenant() {
+		return DefaultTenantID
+	}
+	return 0
+}
+
 // detachedCtx 保留父 ctx 的取消与截止时间，但丢弃**全部** value。
 type detachedCtx struct{ context.Context }
 

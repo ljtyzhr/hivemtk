@@ -3,13 +3,36 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"hivemtk-user/internal/model"
+	_db "hivemtk-user/internal/pkg/db"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
+
+// errDelayedOutboundUnavailable 仓储句柄缺失。
+//
+// 与读口「没数据就返回空」不同：写口在句柄缺失时必须报错。调用方
+// （webhook_outbound 的入口分流）拿到错误会**退回直接发送**，而拿到 nil 会认为
+// 「已入延迟队列」并把这条回复吞掉 —— 同一个函数两种返回，一种是消息照发、
+// 一种是消息消失。
+var errDelayedOutboundUnavailable = errors.New("delayed outbound repository not initialized")
+
+// clampBatchLimit 夹取批量上限：GORM 的 Limit(0) 等于**不加 limit**，
+// 一次误传 0 就会把整张待投队列读进内存（本表按设计只该有几打到几百行，
+// 但 0 的含义是「无限」，不是「零条」）。
+func clampBatchLimit(limit int) int {
+	if limit < 1 {
+		return 1
+	}
+	if limit > 200 {
+		return 200
+	}
+	return limit
+}
 
 // DelayedOutboundRepository reach_delayed_outbound 队列收口
 type DelayedOutboundRepository struct {
@@ -21,10 +44,17 @@ func NewDelayedOutboundRepository(db *gorm.DB) *DelayedOutboundRepository {
 	return &DelayedOutboundRepository{db: db}
 }
 
-// CreatePending 写入 pending 延迟回复记录
+// CreatePending 写入 pending 延迟回复记录。
+//
+// 句柄缺失 ⇒ 报错而不是静默成功：调用方把 nil 读成「已入队」，于是这条
+// 被延迟的回复既没进队列也没发出 —— 一条消息凭空消失，且日志里只有一行
+// "已进入延迟队列"。报错会让调用方退回直接发送，行为退化但消息不丢。
 func (r *DelayedOutboundRepository) CreatePending(ctx context.Context, rec *model.DelayedOutboundReply) error {
-	if r.db == nil {
-		return nil
+	if r == nil || r.db == nil {
+		return errDelayedOutboundUnavailable
+	}
+	if rec == nil {
+		return errors.New("delayed outbound: nil 记录不是入队对象")
 	}
 	return r.db.WithContext(ctx).Create(rec).Error
 }
@@ -39,7 +69,7 @@ func (r *DelayedOutboundRepository) PickDueForUpdate(ctx context.Context, now ti
 		if err := tx.Model(&model.DelayedOutboundReply{}).
 			Where("status = ? AND send_at <= ?", "pending", now).
 			Order("send_at ASC").
-			Limit(limit).
+			Limit(clampBatchLimit(limit)).
 			Clauses(clause.Locking{Strength: "UPDATE", Options: "SKIP LOCKED"}).
 			Find(&picked).Error; err != nil {
 			return err
@@ -92,7 +122,7 @@ func (r *DelayedOutboundRepository) PluckDueIDs(ctx context.Context, now time.Ti
 	var ids []uint
 	err := r.db.WithContext(ctx).Model(&model.DelayedOutboundReply{}).
 		Where("status = ? AND send_at <= ?", "pending", now).
-		Order("send_at ASC").Limit(limit).
+		Order("send_at ASC").Limit(clampBatchLimit(limit)).
 		Pluck("id", &ids).Error
 	return ids, err
 }
@@ -114,18 +144,22 @@ func (r *DelayedOutboundRepository) ListSendingByID(ctx context.Context, ids []u
 	}
 	var picked []model.DelayedOutboundReply
 	err := r.db.WithContext(ctx).Where("id IN ? AND status = ?", ids, "sending").
-		Order("send_at ASC").Limit(limit).
+		Order("send_at ASC").Limit(clampBatchLimit(limit)).
 		Find(&picked).Error
 	return picked, err
 }
 
-// MarkSent 重放成功：status → sent
+// MarkSent 重放成功：status → sent。
+//
+// 0 行 ⇒ ErrRecordNotFound：这一行是本轮刚从库里抢出来的（PickDueForUpdate），
+// 命中 0 行只可能是它在投递途中被人删了。吞掉这个错就等于把「状态没回写」
+// 记成「已送达」，下一轮还会把它当 pending 重投一次。
 func (r *DelayedOutboundRepository) MarkSent(ctx context.Context, id uint, sentAt time.Time) error {
-	if r.db == nil {
-		return nil
+	if r == nil || r.db == nil {
+		return errDelayedOutboundUnavailable
 	}
-	return r.db.WithContext(ctx).Model(&model.DelayedOutboundReply{}).Where("id = ?", id).
-		Updates(map[string]any{"status": "sent", "sent_at": &sentAt}).Error
+	return _db.EnsureAffected(r.db.WithContext(ctx).Model(&model.DelayedOutboundReply{}).Where("id = ?", id).
+		Updates(map[string]any{"status": "sent", "sent_at": &sentAt}))
 }
 
 // HasPendingByConversation 该会话是否还有「尚未投递且仍会被投递」的延迟出站。
@@ -146,28 +180,35 @@ func (r *DelayedOutboundRepository) HasPendingByConversation(ctx context.Context
 // ScheduleRetry 重投失败后原地改排：回到 pending、send_at 推到 nextAt、attempts+1、记 last_error。
 // 不新建行：一条待投回复在队列里始终只有一行，避免同一份内容因多次失败被重放多次。
 func (r *DelayedOutboundRepository) ScheduleRetry(ctx context.Context, id uint, nextAt time.Time, lastError string) error {
-	if r.db == nil || id == 0 {
-		return nil
+	if r == nil || r.db == nil {
+		return errDelayedOutboundUnavailable
 	}
-	return r.db.WithContext(ctx).Model(&model.DelayedOutboundReply{}).Where("id = ?", id).
+	if id == 0 {
+		return errors.New("delayed outbound: 空 ID 不是改排对象")
+	}
+	return _db.EnsureAffected(r.db.WithContext(ctx).Model(&model.DelayedOutboundReply{}).Where("id = ?", id).
 		Updates(map[string]any{
 			"status":     model.DelayedStatusPending,
 			"send_at":    nextAt,
 			"attempts":   gorm.Expr("attempts + 1"),
 			"last_error": truncateForColumn(lastError, 1024),
-		}).Error
+		}))
 }
 
 // FinishReplay 重放收口到终态（sent / superseded / failed），失败原因留在 last_error。
 func (r *DelayedOutboundRepository) FinishReplay(ctx context.Context, id uint, status string, at time.Time, lastError string) error {
-	if r.db == nil || id == 0 {
-		return nil
+	if r == nil || r.db == nil {
+		return errDelayedOutboundUnavailable
+	}
+	if id == 0 {
+		return errors.New("delayed outbound: 空 ID 不是收口对象")
 	}
 	updates := map[string]any{"status": status, "sent_at": &at}
 	if lastError != "" {
 		updates["last_error"] = truncateForColumn(lastError, 1024)
 	}
-	return r.db.WithContext(ctx).Model(&model.DelayedOutboundReply{}).Where("id = ?", id).Updates(updates).Error
+	return _db.EnsureAffected(r.db.WithContext(ctx).Model(&model.DelayedOutboundReply{}).
+		Where("id = ?", id).Updates(updates))
 }
 
 // truncateForColumn 按 rune 上限截断入库文本（varchar 超长会整条 UPDATE 失败，

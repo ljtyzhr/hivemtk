@@ -187,6 +187,11 @@ func (s *RagMetricsService) buildQueryLog(ctx context.Context, req *RecordQueryR
 		source = "hybrid"
 	}
 	return &model.RagQueryLog{
+		// 租户在入队这一刻抄进行里：flush 发生在几秒后的后台 goroutine（只有进程级
+		// ctx），rag_query_logs 又是租户表 —— 不抄的话 on 模式下整批写入会被隔离
+		// callback 拒掉（表现为"召回日志从来没落过库"，且报错只出现在刷盘日志里），
+		// off 模式下则全部落列默认值 1。
+		TenantID:        tenant.WriteTenantID(ctx),
 		Query:           req.Query,
 		QueryHash:       hashQueryShort(req.Query),
 		SessionID:       req.SessionID,
@@ -222,13 +227,43 @@ func (s *RagMetricsService) flush(ctx context.Context) error {
 		return nil
 	}
 	// WithoutCancel：入参 ctx 的 trace 值保留，但落库不受调用方取消（含退出路径）影响
-	ctx, cancel := context.WithTimeout(context.WithoutCancel(ctx), utils.RagMetricsTimeout)
-	defer cancel()
-	if err := s.repo.CreateQueryLogsInBatches(ctx, batch, 50); err != nil {
-		logger.Errorf("[RagMetrics] flush batch failed (%d logs): %v", len(batch), err)
-		return err
+	base := context.WithoutCancel(ctx)
+
+	// 按租户分组写：一批队列里可能混着多个租户的检索（同一进程服务多个租户），
+	// 而 rag_query_logs 是租户表。整批共用一个后台 ctx 只有两种下场：on 模式被
+	// 隔离 callback 整批拒掉，off 模式全部落默认租户。分组 + OnlyTenant 才是
+	// 每行各自的真实归属。
+	groups := make(map[uint][]*model.RagQueryLog, 4)
+	order := make([]uint, 0, 4)
+	unattributed := 0
+	for _, row := range batch {
+		if row.TenantID == 0 {
+			unattributed++
+			continue
+		}
+		if _, ok := groups[row.TenantID]; !ok {
+			order = append(order, row.TenantID)
+		}
+		groups[row.TenantID] = append(groups[row.TenantID], row)
 	}
-	return nil
+	if unattributed > 0 {
+		logger.Errorf("[RagMetrics] %d 条召回日志没有租户归属（RecordQuery 的 ctx 未绑定租户），"+
+			"已丢弃：多租户模式下写哪一行都是错的，落默认租户等于串库", unattributed)
+	}
+
+	var firstErr error
+	for _, tid := range order {
+		wctx, cancel := context.WithTimeout(tenant.OnlyTenant(base, tid), utils.RagMetricsTimeout)
+		err := s.repo.CreateQueryLogsInBatches(wctx, groups[tid], 50)
+		cancel()
+		if err != nil {
+			logger.Errorf("[RagMetrics] flush batch failed (tenant %d, %d logs): %v", tid, len(groups[tid]), err)
+			if firstErr == nil {
+				firstErr = err
+			}
+		}
+	}
+	return firstErr
 }
 
 // RecallMetrics 召回指标聚合结果

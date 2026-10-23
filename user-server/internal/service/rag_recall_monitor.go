@@ -11,7 +11,9 @@ import (
 
 	"gorm.io/gorm"
 
+	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils"
+	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
 )
 
@@ -113,12 +115,26 @@ func (s *RagRecallMonitorService) run(ctx context.Context) {
 		case <-s.stopCh:
 			return
 		case <-ticker.C:
-			ctx, cancel := context.WithTimeout(context.Background(), utils.DefaultHTTPTimeout)
-			if _, err := s.CollectAndStore(ctx, time.Now().Add(-s.window), time.Now()); err != nil {
-				cancel()
-				continue
+			// 逐租户扇出：rag_query_logs（聚合的输入）与 rag_recall_monitor_snapshots
+			// （落库的输出）都是租户表，一次采集只能在一个租户上做 —— 聚合 SQL 读的是
+			// **本租户**的检索日志，写回也是**本租户**的快照。
+			//
+			// 原先是 `context.Background()` + 失败 `continue`：on 模式下这个 ctx 没有
+			// 租户绑定，隔离 callback 会 fail-closed 拒掉聚合查询，于是每 5 分钟失败一次、
+			// 而 `continue` 让它在日志里一行痕迹都没有 —— 线上表现是「快照表从建库那天
+			// 起就没长过一行」，没人能从日志看出为什么。
+			if _, err := tenant.Fanout(ctx, nil, func(tctx context.Context, tenantID uint) (int64, error) {
+				cctx, cancel := context.WithTimeout(tctx, utils.DefaultHTTPTimeout)
+				defer cancel()
+				if _, err := s.CollectAndStore(cctx, time.Now().Add(-s.window), time.Now()); err != nil {
+					return 0, err
+				}
+				return 1, nil
+			}); err != nil {
+				// 单租户失败 Fanout 已逐条 Warnf；这里只在「本轮所有租户都失败」时
+				// 落到，补一行汇总，免得只看到一堆 tenant 级告警而不知道整轮是空的。
+				logger.Warnf("[RagRecallMonitor] 本轮采集在所有租户上都失败: %v", err)
 			}
-			cancel()
 		}
 	}
 }

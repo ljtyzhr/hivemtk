@@ -311,7 +311,7 @@ func (s *ProactiveReachService) enforceCompliance(ctx context.Context, sub Reach
 		Industry:    sub.Industry,
 		OptIn:       sub.OptIn,
 	})
-	recordComplianceDecisionEntry(&ReachComplianceLog{
+	recordComplianceDecisionEntry(ctx, &ReachComplianceLog{
 		Channel:     sub.Channel,
 		RecipientID: sub.Recipient,
 		Decision:    decision.Decision(),

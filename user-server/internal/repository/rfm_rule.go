@@ -27,14 +27,22 @@ func (r *RFMRuleRepository) Create(ctx context.Context, rule *model.RFMRule) err
 	return r.db.WithContext(ctx).Create(rule).Error
 }
 
-// Update 更新规则
+// Update 更新规则（整行回写）。
+//
+// 走 `db.SaveWholeRow`：裸 Save 命中 0 行会回退成
+// `INSERT ... ON CONFLICT (id) DO UPDATE` —— 把「service 读出规则之后、写回之前
+// 被删掉的那条」当成一条新规则插回去，而它的 id 是旧的。分位阈值表被这样复活
+// 一次，之后所有打分都按一条没人建过的规则算。
 func (r *RFMRuleRepository) Update(ctx context.Context, rule *model.RFMRule) error {
-	return r.db.WithContext(ctx).Save(rule).Error
+	return _db.SaveWholeRow(r.db.WithContext(ctx), rule)
 }
 
-// Delete 删除规则
+// Delete 删除规则。
+//
+// 0 行 ⇒ ErrRecordNotFound：删一条不存在的规则不该回成功（前端会把
+// 「别人已经删了」读成「我删成功了」）。
 func (r *RFMRuleRepository) Delete(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).Delete(&model.RFMRule{}, id).Error
+	return _db.EnsureAffected(r.db.WithContext(ctx).Delete(&model.RFMRule{}, id))
 }
 
 // GetByID 根据 ID 获取规则
@@ -107,6 +115,7 @@ func (r *UserRFMRepository) GetAll(ctx context.Context, page, pageSize int) ([]*
 		return nil, 0, err
 	}
 
+	page, pageSize = clampRfmPaging(page, pageSize)
 	offset := (page - 1) * pageSize
 	err = db.
 		Order("total_score DESC").
@@ -115,6 +124,30 @@ func (r *UserRFMRepository) GetAll(ctx context.Context, page, pageSize int) ([]*
 		Find(&rfms).Error
 
 	return rfms, total, err
+}
+
+// clampRfmPaging 夹取分页参数。
+//
+// 两个真实后果：`page = 0` ⇒ offset 为负 ⇒ PG 直接报
+// "OFFSET must not be negative"；`pageSize = 0` ⇒ GORM 的 Limit(0) 等于**不加
+// limit** ⇒ 整表读进内存。
+//
+// 上界取 1000 而不是 100（与其它分页口不同）：本表当前唯一的生产调用方是
+// `ops/service/custom_report.go` 的 RFM 报表，它按 `GetByLayer(…, 1, 1000)`
+// 取全量再做分组计数 —— 夹到 100 会让报表的 user_count 静默少算。
+// 「报表应当下推成 GROUP BY count 而不是捞行聚合」本身记作 P2 观察，
+// 那个改动落地后上界可以降到 100。
+func clampRfmPaging(page, pageSize int) (int, int) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 20
+	}
+	if pageSize > 1000 {
+		pageSize = 1000
+	}
+	return page, pageSize
 }
 
 // GetByLayer 根据分层获取用户列表
@@ -128,6 +161,7 @@ func (r *UserRFMRepository) GetByLayer(ctx context.Context, layer string, page, 
 		return nil, 0, err
 	}
 
+	page, pageSize = clampRfmPaging(page, pageSize)
 	offset := (page - 1) * pageSize
 	err = db.Where("layer = ?", layer).
 		Order("total_score DESC").

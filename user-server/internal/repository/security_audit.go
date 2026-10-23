@@ -35,13 +35,34 @@ func (r *SecurityAuditRepository) GetDB(ctx context.Context) *gorm.DB {
 	return r.db.WithContext(ctx)
 }
 
+// errSecurityAuditUnavailable 仓储句柄缺失。
+//
+// 本仓储的构造是**两段式**（`NewSecurityAuditRepository()` 拿到空壳，db 由
+// 装配层的 SetDB 后注入），所以"方法调用时 r.db == nil"不是不可能的状态，
+// 而是「装配顺序错了」这一种真实故障。裸解引用会 panic——在后台审计协程里
+// 一次 panic 会把整个进程带走，只留下一个看不懂的栈。
+var errSecurityAuditUnavailable = errors.New("security audit repository not initialized")
+
 // Create 写入一条审计记录
 func (r *SecurityAuditRepository) Create(ctx context.Context, a *model.SecurityAudit) error {
+	if r == nil || r.db == nil {
+		return errSecurityAuditUnavailable
+	}
 	return r.db.WithContext(ctx).Create(a).Error
 }
 
 // List 分页查询审计记录
 func (r *SecurityAuditRepository) List(ctx context.Context, page, pageSize int) ([]model.SecurityAudit, int64, error) {
+	if r == nil || r.db == nil {
+		return nil, 0, errSecurityAuditUnavailable
+	}
+	// page = 0 ⇒ offset 为负 ⇒ PG 报 "OFFSET must not be negative"；
+	// pageSize = 0 ⇒ Limit(0) 等于**不加 limit** ⇒ 整表读进内存。
+	if page < 1 {
+		page = 1
+	}
+	pageSize = _pagination.ClampLimit(pageSize)
+
 	var total int64
 	if err := r.db.WithContext(ctx).Model(&model.SecurityAudit{}).Count(&total).Error; err != nil {
 		return nil, 0, err
@@ -63,9 +84,12 @@ func (r *SecurityAuditRepository) ListKeyset(ctx context.Context, cursor string,
 	if r.db == nil {
 		return nil, 0, "", errors.New("security audit repository not initialized")
 	}
+	// 上界同样要守：本口直连 HTTP 管理面，`?page_size=100000` 会一次查出
+	// 十万条审计行（每行带 payload），而 keyset 的意义正是「每页小、翻页稳」。
 	if pageSize <= 0 {
 		pageSize = 10
 	}
+	pageSize = _pagination.ClampLimit(pageSize)
 
 	var total int64
 	if err := r.db.WithContext(ctx).Model(&model.SecurityAudit{}).Count(&total).Error; err != nil {
@@ -98,6 +122,9 @@ func (r *SecurityAuditRepository) ListKeyset(ctx context.Context, cursor string,
 
 // GetByID 获取审计详情（含 items）
 func (r *SecurityAuditRepository) GetByID(ctx context.Context, id uint) (*model.SecurityAudit, error) {
+	if r == nil || r.db == nil {
+		return nil, errSecurityAuditUnavailable
+	}
 	var a model.SecurityAudit
 	if err := r.db.WithContext(ctx).Preload("Items").First(&a, id).Error; err != nil {
 		return nil, err

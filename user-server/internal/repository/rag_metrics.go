@@ -8,6 +8,7 @@ import (
 	"gorm.io/gorm"
 
 	"hivemtk-user/internal/model"
+	_db "hivemtk-user/internal/pkg/db"
 )
 
 // RagQueryLogAggRow rag_query_logs 基础聚合行
@@ -104,6 +105,14 @@ func (r *ragMetricsRepo) PluckP99Latency(ctx context.Context, start, end time.Ti
 }
 
 func (r *ragMetricsRepo) FindLowRecallQueryLogs(ctx context.Context, threshold float64, limit int) ([]model.RagQueryLog, error) {
+	// 夹取上限：本口直连管理面（低分召回样本列表），无上界时一次请求能把
+	// rag_query_logs 整表拖进内存。
+	if limit < 1 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
+	}
 	var rows []model.RagQueryLog
 	err := r.db.WithContext(ctx).
 		Model(&model.RagQueryLog{}).
@@ -129,8 +138,12 @@ func (r *ragMetricsRepo) FindDailyByWindow(ctx context.Context, start, end time.
 	return &existing, nil
 }
 
+// SaveDaily 回写「这一窗口已有行」的那条日汇总（service 先 FindDailyByWindow 再落）。
+//
+// 走 `db.SaveWholeRow`：裸 Save 命中 0 行会回退成
+// `INSERT ... ON CONFLICT (id) DO UPDATE`，等于把「两句之间被删掉的那行」复活。
 func (r *ragMetricsRepo) SaveDaily(ctx context.Context, daily *model.RagMetricsDaily) error {
-	return r.db.WithContext(ctx).Save(daily).Error
+	return _db.SaveWholeRow(r.db.WithContext(ctx), daily)
 }
 
 func (r *ragMetricsRepo) CreateDaily(ctx context.Context, daily *model.RagMetricsDaily) error {
@@ -138,6 +151,12 @@ func (r *ragMetricsRepo) CreateDaily(ctx context.Context, daily *model.RagMetric
 }
 
 func (r *ragMetricsRepo) FindLatestDailies(ctx context.Context, limit int) ([]model.RagMetricsDaily, error) {
+	if limit < 1 {
+		limit = 20
+	}
+	if limit > 100 {
+		limit = 100
+	}
 	var rows []model.RagMetricsDaily
 	if err := r.db.WithContext(ctx).
 		Order("window_start DESC").

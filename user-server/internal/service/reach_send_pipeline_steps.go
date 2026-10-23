@@ -14,7 +14,7 @@ import (
 )
 
 func (p *defaultSendPipeline) Send(ctx context.Context, req *ReachSendRequest) *SendResponse {
-	LogComplianceReminder(req.Channel, req.RecipientID)
+	LogComplianceReminder(ctx, req.Channel, req.RecipientID)
 
 	start := time.Now()
 	resp := &SendResponse{
@@ -194,7 +194,7 @@ func (p *defaultSendPipeline) runCompliancePolicy(ctx context.Context, req *Reac
 	}
 
 	decision := p.config.CompliancePolicy.Evaluate(ctx, req)
-	recordComplianceDecision(req, decision)
+	recordComplianceDecision(ctx, req, decision)
 
 	if decision.Deferred {
 		deferrer := p.config.QuietHoursDeferrer

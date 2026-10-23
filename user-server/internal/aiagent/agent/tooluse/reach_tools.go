@@ -132,7 +132,7 @@ func sendViaPipeline(ctx context.Context, deps ReachToolDeps, req *ReachSendRequ
 		return resp.MessageID, resp, nil
 	}
 
-	complianceReminderHook(req.Channel, req.RecipientID)
+	complianceReminderHook(ctx, req.Channel, req.RecipientID)
 	msgID, err := dispatchToAdapter(ctx, deps.Adapter, req)
 	return msgID, &ReachSendResponse{
 		Success:   err == nil,

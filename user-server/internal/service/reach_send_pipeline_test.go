@@ -1350,8 +1350,8 @@ func TestResolvePerUserLimit_Default(t *testing.T) {
 func TestComplianceAuditLogger_FlushWritesDB(t *testing.T) {
 	db := testutil.NewTestDBOrSkip(t, &ReachComplianceLog{})
 	l := &ComplianceAuditLogger{repo: repository.NewReachComplianceLogRepository(db)}
-	l.record("sms", "13800000001")
-	l.record("wecom", "user-b")
+	l.record(context.Background(), "sms", "13800000001")
+	l.record(context.Background(), "wecom", "user-b")
 	if l.BufferedCount() != 2 {
 		t.Fatalf("缓冲应为 2 条，got %d", l.BufferedCount())
 	}
@@ -1377,7 +1377,7 @@ func TestComplianceAuditLogger_FlushWritesDB(t *testing.T) {
 func TestComplianceAuditLogger_BufferFullTriggersSignal(t *testing.T) {
 	l := &ComplianceAuditLogger{flushCh: make(chan struct{}, 1), stop: make(chan struct{})}
 	for i := 0; i < complianceFlushBatchSize+1; i++ {
-		l.record("email", fmt.Sprintf("user-%d", i))
+		l.record(context.Background(), "email", fmt.Sprintf("user-%d", i))
 	}
 	select {
 	case <-l.flushCh:
@@ -1396,5 +1396,5 @@ func TestLogComplianceReminder_NilLoggerNoPanic(t *testing.T) {
 			t.Fatalf("LogComplianceReminder panic: %v", r)
 		}
 	}()
-	LogComplianceReminder("test-channel", "test-recipient")
+	LogComplianceReminder(context.Background(), "test-channel", "test-recipient")
 }

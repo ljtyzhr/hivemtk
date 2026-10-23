@@ -90,6 +90,15 @@ func (r *ragRecallMonitorRepo) CreateSnapshot(ctx context.Context, row map[strin
 }
 
 func (r *ragRecallMonitorRepo) ListSnapshots(ctx context.Context, limit int) ([]map[string]any, error) {
+	// 夹取：GORM 的 Limit(0) 等于**不加 limit**（整表），而 service 那层的
+	// `limit <= 0 → 50` 只在经过 service 时生效。本层自己守一次，
+	// 任何新调用方漏了夹取都不会把快照表整张读进内存。
+	if limit < 1 {
+		limit = 50
+	}
+	if limit > 100 {
+		limit = 100
+	}
 	var rows []map[string]any
 	if err := r.db.WithContext(ctx).
 		Table(RagRecallMonitorTableName).

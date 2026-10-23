@@ -105,19 +105,23 @@ func (r *loginRiskRepo) ListLoginEvents(ctx context.Context, userID uint, page, 
 	if pageSize > 100 {
 		pageSize = 100
 	}
-	var (
-		events []*model.LoginEvent
-		total  int64
-	)
-	q := r.db.WithContext(ctx).Model(&model.LoginEvent{})
-	if userID > 0 {
-		q = q.Where("user_id = ?", userID)
+	// Count 与 Find 各起一条 query：在同一条 `q` 上先 Count 再 Find 是靠
+	// GORM 内部的子句还原侥幸能跑，`*gorm.DB` 的链式调用会就地改 Statement
+	// （Count 会把 Selects 换成 count(*)），下一次 Find 拿到的就是被改过的那份。
+	base := func() *gorm.DB {
+		q := r.db.WithContext(ctx).Model(&model.LoginEvent{})
+		if userID > 0 {
+			q = q.Where("user_id = ?", userID)
+		}
+		return q
 	}
-	if err := q.Count(&total).Error; err != nil {
+	var total int64
+	if err := base().Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
+	var events []*model.LoginEvent
 	offset := (page - 1) * pageSize
-	if err := q.Order("login_at DESC").Offset(offset).Limit(pageSize).Find(&events).Error; err != nil {
+	if err := base().Order("login_at DESC").Offset(offset).Limit(pageSize).Find(&events).Error; err != nil {
 		return nil, 0, err
 	}
 	return events, total, nil
@@ -146,22 +150,24 @@ func (r *loginRiskRepo) ListSecurityAlerts(ctx context.Context, userID uint, sta
 	if pageSize > 100 {
 		pageSize = 100
 	}
-	var (
-		alerts []*model.SecurityAlert
-		total  int64
-	)
-	q := r.db.WithContext(ctx).Model(&model.SecurityAlert{})
-	if userID > 0 {
-		q = q.Where("user_id = ?", userID)
+	// 同 ListLoginEvents：Count 与 Find 各起一条 query，不在同一条链上复用。
+	base := func() *gorm.DB {
+		q := r.db.WithContext(ctx).Model(&model.SecurityAlert{})
+		if userID > 0 {
+			q = q.Where("user_id = ?", userID)
+		}
+		if status != "" {
+			q = q.Where("status = ?", status)
+		}
+		return q
 	}
-	if status != "" {
-		q = q.Where("status = ?", status)
-	}
-	if err := q.Count(&total).Error; err != nil {
+	var total int64
+	if err := base().Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
+	var alerts []*model.SecurityAlert
 	offset := (page - 1) * pageSize
-	if err := q.Order("created_at DESC").Offset(offset).Limit(pageSize).Find(&alerts).Error; err != nil {
+	if err := base().Order("created_at DESC").Offset(offset).Limit(pageSize).Find(&alerts).Error; err != nil {
 		return nil, 0, err
 	}
 	return alerts, total, nil

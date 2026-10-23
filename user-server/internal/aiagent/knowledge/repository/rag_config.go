@@ -220,18 +220,30 @@ func (r *RagConfigRepository) UpdateRagProduct(ctx context.Context, product *mod
 		updates["status"] = product.Status
 	}
 
-	updates["updated_at"] = time.Now()
-
-	if len(updates) == 1 {
+	// 空更新判据放在加 updated_at **之前**：原先是先塞 updated_at 再判
+	// `len(updates) == 1`，两者等价但绑死在"恰好有一个无条件字段"这个事实上 ——
+	// 哪天有人再往里塞第二个无条件列（比如 status 改成无条件写），这个哨兵就
+	// 静默失效，把所有空调用都变成一次只有 updated_at 的写。
+	if len(updates) == 0 {
 		return nil
 	}
-	return r.db.WithContext(ctx).Model(&model.RagProduct{}).
+	updates["updated_at"] = time.Now()
+
+	// 0 行 ⇒ 这一行在 service 读到它之后被删了。映射成 ErrRecordNotFound，
+	// 让 controller 回 404 而不是 200「改好了」。
+	return _db.EnsureAffected(r.db.WithContext(ctx).Model(&model.RagProduct{}).
 		Where("id = ?", product.ID).
-		Updates(updates).Error
+		Updates(updates))
 }
 
+// DeleteRagProduct 按 ID 硬删产品。
+//
+// 与下面的 DeleteRagProductByID **同体两名**（历史遗留：一条来自 knowledge 侧、
+// 一条来自 rag_product 侧的 service），两边调用方都还在用，本轮只在此记明。
+// 新增调用方一律用 DeleteRagProductByID —— 名字里带 ByID 才说得清删的是什么。
 func (r *RagConfigRepository) DeleteRagProduct(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&model.RagProduct{}).Error
+	return _db.EnsureAffected(r.db.WithContext(ctx).
+		Where("id = ?", id).Delete(&model.RagProduct{}))
 }
 
 // UpdateRagProductStats 更新 RAG 产品统计(独立部署模式:存根实现)
@@ -255,9 +267,13 @@ func (r *RagConfigRepository) GetRagProductForUpdate(ctx context.Context, id str
 	return &p, nil
 }
 
-// DeleteRagProductByID 按 ID 硬删产品
+// DeleteRagProductByID 按 ID 硬删产品（与 DeleteRagProduct 同体，见其上的说明）。
+//
+// 0 行 ⇒ ErrRecordNotFound：删一个不存在的产品不该回 200，否则前端会把
+// "别人已经删过了"读成"我删成功了"。
 func (r *RagConfigRepository) DeleteRagProductByID(ctx context.Context, id string) error {
-	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&model.RagProduct{}).Error
+	return _db.EnsureAffected(r.db.WithContext(ctx).
+		Where("id = ?", id).Delete(&model.RagProduct{}))
 }
 
 // CreateRagProductWithVectorTable 创建产品（service 层已补齐 vector_table 默认值）

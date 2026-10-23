@@ -92,10 +92,16 @@ type ReachBatchPipelinePort interface {
 	ListJobs(ctx context.Context, channel, state string, page, pageSize int) ([]any, int64, error)
 }
 
-var complianceReminderHook = func(channel, recipientID string) {}
+// complianceReminderHook 合规提醒钩子。
+//
+// 形参里带 ctx 不是为了日志：合规日志最终落 reach_compliance_log（租户表），
+// 它的租户必须在**入队那一刻**从 ctx 抄走——刷盘发生在几秒后的后台 goroutine，
+// 那里没有请求 ctx。少传一个 ctx，on 模式下整批写入会被隔离 callback 拒掉，
+// 表现为"合规日志从来没落过库"而没有任何报错指向这里。
+var complianceReminderHook = func(ctx context.Context, channel, recipientID string) {}
 
 // SetComplianceReminderHook 注入合规提示实现（仅装配层调用，重复注入以最后一次为准）
-func SetComplianceReminderHook(fn func(channel, recipientID string)) {
+func SetComplianceReminderHook(fn func(ctx context.Context, channel, recipientID string)) {
 	if fn != nil {
 		complianceReminderHook = fn
 	}
