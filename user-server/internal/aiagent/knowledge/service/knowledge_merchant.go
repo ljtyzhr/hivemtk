@@ -9,9 +9,9 @@ import (
 )
 
 // KnowledgeMerchantService 商户自部署场景的 RAG 核心增强服务
-// 对应审计项：商户需要可视化管理 + 外部系统导入 + 检索调试 + 分段编辑 + 反馈
+// （可视化管理 + 外部系统导入 + 检索调试 + 分段编辑 + 反馈）。
 //
-// 包含以下子能力（按子能力拆分至独立文件）：
+// 子能力按文件拆分：
 //  1. BatchImportService    批量导入（CSV/JSON）             → knowledge_merchant_batch.go
 //  2. PlaygroundService     检索 Playground（不同 topK / 阈值 / 调参） → knowledge_merchant_playground.go
 //  3. ChunkEditService      分段编辑（增/改/删/重切）         → knowledge_merchant_chunk.go

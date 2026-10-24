@@ -1,8 +1,7 @@
 // Package service 知识库子域 —— 运行时可配置参数（DB 驱动读取）
 //
-// 设计：本包不 import internal/service（避免循环依赖），
-// 而是通过 SetConfigReader 由装配层在启动时注入 DB 驱动的读取器。
-// 未注入时 fallback 到硬编码默认值。
+// 本包不 import internal/service（避免循环依赖），而是通过 SetConfigReader
+// 由装配层在启动时注入 DB 驱动的读取器；未注入时 fallback 到硬编码默认值。
 package service
 
 import (

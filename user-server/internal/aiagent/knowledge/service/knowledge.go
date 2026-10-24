@@ -1,14 +1,7 @@
 // Package service 知识库子域 —— 核心服务入口
 //
-// 本文件仅保留：
-//   - 类型定义（ImportRequest, ImportResult）
-//   - 构造函数（NewKnowledgeService / NewKnowledgeServiceWithDB）
-//   - Import 统一入口
-//   - 文档管理（List / Get / GetProgress / GetChunks / Delete / Update）
-//   - ListImportLogs
-//   - 检索（Search）
-//   - embedding 配置解析（resolveProductByNumericID / resolveEmbeddingConfig）
-//   - 向量持久化委托（persistChunkEmbeddings / EmbedAndPersistChunks）
+// 包含类型定义（ImportRequest）、Import 统一入口、文档管理（List/Get/GetProgress/
+// GetChunks/Delete/Update）、检索（Search）与 embedding 配置解析。
 package service
 
 import (
@@ -33,7 +26,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// KnowledgeService 知识库服务(V2.0 统一入口)
+// KnowledgeService 知识库服务(统一入口)
 type KnowledgeService struct {
 	db            *gorm.DB
 	processor     *etl.DocumentProcessor

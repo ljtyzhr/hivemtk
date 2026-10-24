@@ -88,7 +88,7 @@ func (s *RagSearcher) bm25Rank(rows []chunkRow, terms []string) []scored {
 
 // ScoreText BM25-lite 文本打分(公开版,供跨包调用)
 //
-// 已迁移到 internal/pkg/utils/bm25.ScoreText,本函数保留为薄包装以维持外部兼容。
+// 薄包装，实现见 internal/pkg/utils/bm25.ScoreText。
 func ScoreText(text string, terms []string) float64 {
 	return bm25.ScoreText(text, terms)
 }

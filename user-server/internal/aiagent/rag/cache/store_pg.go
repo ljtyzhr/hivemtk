@@ -13,7 +13,7 @@ import (
 	"hivemtk-user/internal/pkg/utils/logger"
 )
 
-// Store 语义缓存存储接口（L4 Repository 层抽象，便于单测 mock）
+// Store 语义缓存存储接口（Repository 层抽象，便于单测 mock）
 type Store interface {
 	// GetExact Tier1 精确键：kb_id + prompt_version + query 向量逐位相等
 	GetExact(ctx context.Context, kbID, promptVersion string, vec []float32) (*Entry, error)

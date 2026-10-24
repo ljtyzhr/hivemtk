@@ -408,7 +408,7 @@ func (ctrl *KnowledgeWorkspaceController) ReindexDocument(c *gin.Context) {
 
 // RebuildProductIndex 重建产品级索引
 //
-// 知识库 product_id 现已统一为 RagProduct.ID(string UUID)，直接使用，无需哈希映射。
+// product_id 统一为 RagProduct.ID(string UUID)，直接使用，无需哈希映射。
 func (ctrl *KnowledgeWorkspaceController) RebuildProductIndex(c *gin.Context) {
 	productIDStr := strings.TrimSpace(c.Param("product_id"))
 	if productIDStr == "" {
@@ -425,7 +425,7 @@ func (ctrl *KnowledgeWorkspaceController) RebuildProductIndex(c *gin.Context) {
 
 // GetProductOverview 获取产品级总览
 //
-// 知识库 product_id 现已统一为 string(UUID)，直接透传即可（不再做哈希映射）。
+// product_id 统一为 string(UUID)，直接透传即可（不做哈希映射）。
 func (ctrl *KnowledgeWorkspaceController) GetProductOverview(c *gin.Context) {
 	productIDStr := strings.TrimSpace(c.Param("product_id"))
 	if productIDStr == "" {

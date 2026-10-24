@@ -43,7 +43,8 @@ func NewFAQAnswerCacheService(store Store, kbMeta KBMetaReader, threshold float6
 func (s *FAQAnswerCacheService) SetNowFunc(f func() time.Time) { s.now = f }
 
 // Lookup 三层查询：Tier1 精确 → Tier2 语义 → Miss 回源。
-// 任一层命中前都先做 kb 更新时间失效校验。
+// 任一层命中前都先做 kb 更新时间失效校验；Tier1 命中的 Similarity 恒为 1（按定义逐位相等），
+// 留 0 会被拿 Similarity 做置信度判断的调用方当成最不可信的一条丢掉。
 func (s *FAQAnswerCacheService) Lookup(ctx context.Context, req LookupRequest) (*LookupResult, error) {
 	if s == nil || s.store == nil || len(req.QueryVector) == 0 || req.KBID == "" {
 		return &LookupResult{Tier: TierMiss}, nil
@@ -54,10 +55,7 @@ func (s *FAQAnswerCacheService) Lookup(ctx context.Context, req LookupRequest) (
 		ragRecallTotal.WithLabel("tier1", "false").Inc()
 	} else if e != nil && s.fresh(ctx, e) {
 		ragRecallTotal.WithLabel("tier1", "true").Inc()
-		// Tier1 的判据就是向量逐位相等，相似度按定义是 1。留 0 的话，
-		// 拿 Similarity 做置信度判断的调用方会把精确命中一律当成"最不可信的一条"丢掉
-		// （编排器就是这么用的，接线时实测到这条分支从来没有被采用过）。
-		return &LookupResult{Tier: TierExact, Answer: e.Answer, Similarity: 1}, nil
+	return &LookupResult{Tier: TierExact, Answer: e.Answer, Similarity: 1}, nil
 	} else {
 		ragRecallTotal.WithLabel("tier1", "false").Inc()
 	}
@@ -138,8 +136,7 @@ func (s *FAQAnswerCacheService) CanCache(answer string, fromKnowledgeBase bool) 
 	return true, ""
 }
 
-// fresh 命中资格校验：先看条目有没有过期，再看知识库有没有在它之后被改过。
-// 两种都算"这行不能再用了"，所以都物理删除，而不是每次都重新判一遍。
+// fresh 命中资格校验：条目过期或知识库在缓存之后被改过，都物理删除该行。
 func (s *FAQAnswerCacheService) fresh(ctx context.Context, e *Entry) bool {
 	if s.maxAge > 0 && s.now().Sub(e.CreatedAt) > s.maxAge {
 		age := s.now().Sub(e.CreatedAt)

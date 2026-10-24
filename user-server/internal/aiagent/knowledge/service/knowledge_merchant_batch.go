@@ -47,9 +47,7 @@ type BatchImportResult struct {
 
 // DefaultMerchantBatchMaxFileSize 是参数中心
 // knowledge.merchant_batch_max_file_size 的兜底值（20MB）。
-//
-// 取 20 而不是跟着文档上传那条（50MB）走：20MB 是这个入口的前端一直在标的数，
-// 兜底必须与「接线前的实际行为」对齐，不能借接线的机会顺手放宽。
+// 取 20 而不是跟着文档上传那条（50MB）走：与该入口前端一直标注的上限对齐。
 const DefaultMerchantBatchMaxFileSize int64 = 20 << 20
 
 // merchantBatchMaxFileSizeProvider 由 internal/app 的参数装配层注入。
@@ -140,9 +138,8 @@ func (s *KnowledgeMerchantService) parseBatchFile(ctx context.Context, file mult
 		return nil, errors.New("文件不能为空")
 	}
 	defer func() { _ = file.Close() }()
-	// 接线前这条链路一个字节上限都没判，直接把整个文件 io.ReadAll 进内存：
-	// 页面挡 20MB 只挡住了从页面进来的请求，直连接口即可喂进任意大的文件。
-	// 判在 ReadAll 之前，与 knowledge_base_import.go 的文档口同一形状。
+	// 大小上限判在 ReadAll 之前（此前无任何上限，直连接口可喂进任意大的文件），
+	// 与 knowledge_base_import.go 的文档口同一形状。
 	if header != nil && header.Size > MerchantBatchMaxFileSize() {
 		return nil, fmt.Errorf("文件过大: %d 字节, 上限 %d MB", header.Size, MerchantBatchMaxFileSize()>>20)
 	}

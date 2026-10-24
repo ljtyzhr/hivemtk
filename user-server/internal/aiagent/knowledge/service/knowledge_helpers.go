@@ -1,9 +1,6 @@
 // Package service 知识库子域 —— 通用辅助函数
 //
-// 与 service 业务无关的"通用工具"(哈希、mime 推断)。
-// 单一职责:放可被 service 多个子域复用的最小化工具函数。
-//
-// 本文件仅保留与文件/扩展名相关的服务级工具。
+// 与 service 业务无关的可复用工具（mime 推断）。
 package service
 
 func getMimeType(ext string) string {

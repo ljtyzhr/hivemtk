@@ -272,8 +272,8 @@ func (s *RagSearcher) rankRAGChunks(ctx context.Context, chunks []RAGChunk) []RA
 		}
 	}
 	tracing.RecordRecalledChunks(ctx, chunkIDs)
-	// 观察档出声：这批召回结果里有多少条切到 on 会被版本闸门挡掉。off/on 档零开销
-	// （LogWouldHide 自己判档），它是"要不要开闸"这个决定的数据来源。
+	// 记录这批召回里有多少条会被版本闸门挡掉，是"要不要开闸"这个决定的数据来源；
+	// off/on 档零开销（LogWouldHide 自己判档）。
 	kbrelease.LogWouldHide(ctx, s.db, ids, "", "rankRAGChunks")
 	weights := s.loadChunkWeights(ctx, ids)
 	type ranked struct {

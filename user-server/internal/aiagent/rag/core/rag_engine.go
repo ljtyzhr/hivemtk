@@ -111,8 +111,7 @@ func (r *RemoteEmbedder) EmbedQuery(query string) ([]float32, error) {
 func (r *RemoteEmbedder) GetDimension() int { return r.dimension }
 
 // MockEmbedder 纯内存测试 Embedder：基于 FNV-1a 哈希生成确定性伪向量。
-// 不发起任何网络请求，用于单元测试隔离 embedding 服务依赖。
-// 同一输入文本 → 同一向量，保证 AddDocuments / Search 的可比性。
+// 不发起任何网络请求，同一输入文本 → 同一向量，保证 AddDocuments / Search 的可比性。
 type MockEmbedder struct {
 	dimension int
 }
@@ -160,7 +159,6 @@ func (m *MockEmbedder) EmbedQuery(query string) ([]float32, error) {
 // GetDimension 获取维度
 func (m *MockEmbedder) GetDimension() int { return m.dimension }
 
-// NewRAGEngine 创建新的RAG引擎
 // NewRAGEngine 创建默认 RAG 引擎（dimension 等元信息会由调用方在
 // NewRAGEngineWithConfig / NewRAGEngineWithEmbedder 中按真实 embedding 服务注入）
 func NewRAGEngine(config *RAGConfig) *RAGEngine {

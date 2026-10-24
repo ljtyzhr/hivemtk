@@ -308,9 +308,9 @@ func (dm *InMemoryDialogManager) updateLastActivity(sessionID string) {
 	}
 }
 
-// generateSessionID 后缀里的随机段不可省：本机实测 UnixNano 粒度粗于纳秒（同参连调 20000 次
-// 只得 5136 个不同值），而 sessions 是 map，同 (user,platform) 背靠背两次建会话会撞进同一个 key，
-// 先建的会话被静默覆盖。随机段同时消掉了"按时钟猜他人会话 ID"的面。
+// generateSessionID 随机段不可省：UnixNano 粒度粗于纳秒，同参连调会得到相同值；
+// sessions 是 map，同 (user,platform) 背靠背两次建会话会撞进同一个 key，先建的
+// 会话被静默覆盖。随机段同时消掉了"按时钟猜他人会话 ID"的面。
 func generateSessionID(userID, platform string) string {
 	var b [4]byte
 	_, _ = rand.Read(b[:])
@@ -646,8 +646,8 @@ func calculateSentimentScore(message string) float64 {
 		}
 	}
 
-	// 正面词逐次判定"是否被否定前缀紧挨着"：整张负面词表里没有「不喜欢/不满意/不推荐」这些组合，
-	// 只按子串命中会把「不好」里的「好」也计成正面，正负抵消成 0 ⇒ 所有「不+正面词」都判成中性。
+	// 正面词需逐次判定"是否被否定前缀紧挨着"：按子串命中会把「不好」里的「好」也计成
+	// 正面，正负抵消成 0 ⇒ 所有「不+正面词」都判成中性。
 	// 表内固定正面词（「不错」）按整词先命中且前面不是否定前缀，不会被这条规则误伤。
 	for _, word := range positiveWords {
 		w := toLower(word)

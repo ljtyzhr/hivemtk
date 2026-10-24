@@ -13,10 +13,9 @@ import (
 
 // KnowledgeDocumentRepository 知识库文档仓储(产品维度)
 //
-// 按智能体隔离改造
-//   - 新增 ListByAgent / ListShared / MatchByAgent
-//   - ListWithFilter 新增 AgentID 字段 (nil=不过滤, &0=仅共享, &X=该智能体)
-//   - 严格隔离语义: agentID > 0 仅匹配 (agent_id=X OR agent_id IS NULL) AND enabled
+// 智能体隔离语义：
+//   - AgentID (nil=不过滤, &0=仅共享, &X=该智能体)
+//   - 严格隔离: agentID > 0 仅匹配 (agent_id=X OR agent_id IS NULL) AND enabled
 //   - 共享 = agent_id IS NULL, 由显式白名单控制
 type KnowledgeDocumentRepository struct {
 	db *gorm.DB
@@ -81,11 +80,7 @@ func (r *KnowledgeDocumentRepository) GetByProductAndID(ctx context.Context, pro
 // ListFilter 文档列表筛选
 //
 // KnowledgeDocument.ProductID 是 string（与 RagProduct.ID 同为 UUID），前端直接传入，无需 HashStringToInt64 转换。
-//
-// AgentID 字段
-//   - nil:  不过滤 (兼容旧调用)
-//   - &0:   仅查共享 (agent_id IS NULL)
-//   - &X:   仅查该智能体 (agent_id = X)
+// AgentID: nil=不过滤, &0=仅查共享 (agent_id IS NULL), &X=仅查该智能体 (agent_id = X)。
 type ListFilter struct {
 	ProductID   string
 	EmbedStatus string
@@ -142,7 +137,7 @@ func (r *KnowledgeDocumentRepository) List(ctx context.Context, filter ListFilte
 
 // ListByAgent 列出某智能体的知识库文档 (强 1:1, 不含共享)
 //
-// 严格隔离语义, 仅 agent_id = ? 严格匹配, 不含共享 (agent_id IS NULL)
+// 严格隔离: 仅 agent_id = ? 严格匹配, 不含共享 (agent_id IS NULL)
 func (r *KnowledgeDocumentRepository) ListByAgent(ctx context.Context, agentID uint, limit int) ([]*model.KnowledgeDocument, error) {
 	if agentID == 0 {
 		return nil, nil
@@ -159,14 +154,12 @@ func (r *KnowledgeDocumentRepository) ListByAgent(ctx context.Context, agentID u
 	return docs, err
 }
 
-// MatchByAgent 按智能体严格 1:1 匹配 (: 强 1对1 改造)
+// MatchByAgent 按智能体严格 1:1 匹配
 //
 // 行为:
 //   - agentID == 0  -> 返回 (nil, nil)
-//   - 仅匹配 status = 1 AND agent_id = ? 的文档
-//   - 移除"空数组=全局"分支: 任何 agent 都必须显式绑定才能匹配
-//
-// SQL: WHERE status = 1 AND agent_id = ?  (走 idx_knowledge_doc_agent_id 索引)
+//   - 仅匹配 status = 1 AND agent_id = ? 的文档（走 idx_knowledge_doc_agent_id 索引）
+//   - 任何 agent 都必须显式绑定才能匹配
 func (r *KnowledgeDocumentRepository) MatchByAgent(ctx context.Context, agentID uint, limit int) ([]*model.KnowledgeDocument, error) {
 	if agentID == 0 {
 		return nil, nil
@@ -268,7 +261,7 @@ type DocHit struct {
 
 // SumTotalTokens 累计 token 总和
 //
-// 使用 COALESCE 避免无记录时返回 NULL，productID=0 表示不按 product 过滤。
+// 使用 COALESCE 避免无记录时返回 NULL，productID="" 表示不按 product 过滤。
 func (r *KnowledgeDocumentRepository) SumTotalTokens(ctx context.Context, productID string) (int64, error) {
 	var total int64
 	q := r.db.WithContext(ctx).Model(&model.KnowledgeDocument{}).
@@ -284,7 +277,7 @@ func (r *KnowledgeDocumentRepository) SumTotalTokens(ctx context.Context, produc
 
 // CategoryStats 按 category 统计文档数量，返回前 N
 //
-// 过滤掉空 category（避免未分类聚合干扰 TopN），productID=0 表示不按 product 过滤。
+// 过滤掉空 category（避免未分类聚合干扰 TopN），productID="" 表示不按 product 过滤。
 func (r *KnowledgeDocumentRepository) CategoryStats(ctx context.Context, productID string, limit int) ([]CategoryStat, error) {
 	if limit <= 0 {
 		limit = 20
@@ -307,7 +300,7 @@ func (r *KnowledgeDocumentRepository) CategoryStats(ctx context.Context, product
 
 // TopHitDocuments 命中次数最多的文档（Top N）
 //
-// productID=0 表示不按 product 过滤。
+// productID="" 表示不按 product 过滤。
 func (r *KnowledgeDocumentRepository) TopHitDocuments(ctx context.Context, productID string, limit int) ([]DocHit, error) {
 	if limit <= 0 {
 		limit = 10

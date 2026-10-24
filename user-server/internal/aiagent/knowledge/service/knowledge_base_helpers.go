@@ -1,6 +1,4 @@
 // Package service 知识库子域 —— 辅助工具函数
-//
-// 通用辅助函数。单一职责：与 KnowledgeBase 业务无关的可复用工具。
 package service
 
 import (

@@ -340,48 +340,48 @@
 | 125 | [x] | `internal/aiagent/eval/llm_judge.go` | 9 | 25 | 9 | 0 |
 | 126 | [x] | `internal/aiagent/eval/ragas.go` | 8 | 12 | 8 | 0 |
 | 127 | [x] | `internal/aiagent/knowledge/controller/error_helper.go` | 0 | 0 | 0 | 0 |
-| 128 | [ ] | `internal/aiagent/knowledge/controller/knowledge_base.go` | 4 | 4 | 4 | 0 |
+| 128 | [x] | `internal/aiagent/knowledge/controller/knowledge_base.go` | 4 | 4 | 4 | 0 |
 | 129 | [x] | `internal/aiagent/knowledge/controller/knowledge_merchant.go` | 6 | 20 | 6 | 0 |
-| 130 | [ ] | `internal/aiagent/knowledge/controller/knowledge_workspace.go` | 37 | 46 | 37 | 0 |
+| 130 | [x] | `internal/aiagent/knowledge/controller/knowledge_workspace.go` | 37 | 46 | 37 | 0 |
 | 131 | [x] | `internal/aiagent/knowledge/controller/ports.go` | 0 | 0 | 0 | 0 |
-| 132 | [ ] | `internal/aiagent/knowledge/controller/rag_config.go` | 2 | 2 | 2 | 0 |
-| 133 | [ ] | `internal/aiagent/knowledge/model/aliases.go` | 1 | 1 | 1 | 0 |
-| 134 | [ ] | `internal/aiagent/knowledge/repository/kb_document.go` | 7 | 7 | 7 | 0 |
+| 132 | [x] | `internal/aiagent/knowledge/controller/rag_config.go` | 2 | 2 | 2 | 0 |
+| 133 | [x] | `internal/aiagent/knowledge/model/aliases.go` | 1 | 1 | 1 | 0 |
+| 134 | [x] | `internal/aiagent/knowledge/repository/kb_document.go` | 7 | 7 | 7 | 0 |
 | 135 | [x] | `internal/aiagent/knowledge/repository/knowledge_chunk.go` | 21 | 62 | 21 | 0 |
-| 136 | [ ] | `internal/aiagent/knowledge/repository/knowledge_document.go` | 22 | 53 | 22 | 0 |
-| 137 | [ ] | `internal/aiagent/knowledge/repository/knowledge_import_log.go` | 8 | 10 | 8 | 0 |
-| 138 | [ ] | `internal/aiagent/knowledge/repository/knowledge_merchant.go` | 18 | 18 | 18 | 0 |
-| 139 | [ ] | `internal/aiagent/knowledge/repository/knowledge_openapi.go` | 10 | 10 | 10 | 0 |
-| 140 | [ ] | `internal/aiagent/knowledge/repository/knowledge_search_log.go` | 13 | 13 | 13 | 0 |
-| 141 | [ ] | `internal/aiagent/knowledge/repository/rag_config.go` | 7 | 11 | 7 | 0 |
-| 142 | [ ] | `internal/aiagent/knowledge/service/constants.go` | 19 | 37 | 19 | 0 |
+| 136 | [x] | `internal/aiagent/knowledge/repository/knowledge_document.go` | 22 | 53 | 22 | 0 |
+| 137 | [x] | `internal/aiagent/knowledge/repository/knowledge_import_log.go` | 8 | 10 | 8 | 0 |
+| 138 | [x] | `internal/aiagent/knowledge/repository/knowledge_merchant.go` | 18 | 18 | 18 | 0 |
+| 139 | [x] | `internal/aiagent/knowledge/repository/knowledge_openapi.go` | 10 | 10 | 10 | 0 |
+| 140 | [x] | `internal/aiagent/knowledge/repository/knowledge_search_log.go` | 13 | 13 | 13 | 0 |
+| 141 | [x] | `internal/aiagent/knowledge/repository/rag_config.go` | 7 | 11 | 7 | 0 |
+| 142 | [x] | `internal/aiagent/knowledge/service/constants.go` | 19 | 37 | 19 | 0 |
 | 143 | [x] | `internal/aiagent/knowledge/service/embedding_dim_guard.go` | 0 | 0 | 0 | 0 |
-| 144 | [ ] | `internal/aiagent/knowledge/service/knowledge.go` | 16 | 29 | 16 | 0 |
-| 145 | [ ] | `internal/aiagent/knowledge/service/knowledge_base.go` | 6 | 9 | 6 | 0 |
-| 146 | [ ] | `internal/aiagent/knowledge/service/knowledge_base_helpers.go` | 1 | 3 | 1 | 0 |
-| 147 | [ ] | `internal/aiagent/knowledge/service/knowledge_base_import.go` | 9 | 16 | 9 | 0 |
-| 148 | [ ] | `internal/aiagent/knowledge/service/knowledge_helpers.go` | 1 | 6 | 1 | 0 |
-| 149 | [ ] | `internal/aiagent/knowledge/service/knowledge_merchant.go` | 4 | 13 | 4 | 0 |
-| 150 | [ ] | `internal/aiagent/knowledge/service/knowledge_merchant_batch.go` | 11 | 17 | 11 | 0 |
-| 151 | [ ] | `internal/aiagent/knowledge/service/knowledge_merchant_chunk.go` | 6 | 12 | 6 | 0 |
+| 144 | [x] | `internal/aiagent/knowledge/service/knowledge.go` | 16 | 29 | 16 | 0 |
+| 145 | [x] | `internal/aiagent/knowledge/service/knowledge_base.go` | 6 | 9 | 6 | 0 |
+| 146 | [x] | `internal/aiagent/knowledge/service/knowledge_base_helpers.go` | 1 | 3 | 1 | 0 |
+| 147 | [x] | `internal/aiagent/knowledge/service/knowledge_base_import.go` | 9 | 16 | 9 | 0 |
+| 148 | [x] | `internal/aiagent/knowledge/service/knowledge_helpers.go` | 1 | 6 | 1 | 0 |
+| 149 | [x] | `internal/aiagent/knowledge/service/knowledge_merchant.go` | 4 | 13 | 4 | 0 |
+| 150 | [x] | `internal/aiagent/knowledge/service/knowledge_merchant_batch.go` | 11 | 17 | 11 | 0 |
+| 151 | [x] | `internal/aiagent/knowledge/service/knowledge_merchant_chunk.go` | 6 | 12 | 6 | 0 |
 | 152 | [x] | `internal/aiagent/knowledge/service/knowledge_merchant_external.go` | 11 | 14 | 11 | 0 |
-| 153 | [ ] | `internal/aiagent/knowledge/service/knowledge_merchant_feedback.go` | 4 | 4 | 4 | 0 |
-| 154 | [ ] | `internal/aiagent/knowledge/service/knowledge_merchant_playground.go` | 4 | 4 | 4 | 0 |
-| 155 | [ ] | `internal/aiagent/knowledge/service/knowledge_merchant_token.go` | 10 | 11 | 10 | 0 |
-| 156 | [ ] | `internal/aiagent/knowledge/service/knowledge_security.go` | 1 | 6 | 1 | 0 |
+| 153 | [x] | `internal/aiagent/knowledge/service/knowledge_merchant_feedback.go` | 4 | 4 | 4 | 0 |
+| 154 | [x] | `internal/aiagent/knowledge/service/knowledge_merchant_playground.go` | 4 | 4 | 4 | 0 |
+| 155 | [x] | `internal/aiagent/knowledge/service/knowledge_merchant_token.go` | 10 | 11 | 10 | 0 |
+| 156 | [x] | `internal/aiagent/knowledge/service/knowledge_security.go` | 1 | 6 | 1 | 0 |
 | 157 | [x] | `internal/aiagent/knowledge/service/knowledge_service_contextual.go` | 0 | 0 | 0 | 0 |
-| 158 | [ ] | `internal/aiagent/knowledge/service/knowledge_service_import.go` | 1 | 4 | 1 | 0 |
-| 159 | [ ] | `internal/aiagent/knowledge/service/knowledge_service_log.go` | 1 | 4 | 1 | 0 |
-| 160 | [ ] | `internal/aiagent/knowledge/service/knowledge_service_pipeline.go` | 1 | 5 | 1 | 0 |
-| 161 | [ ] | `internal/aiagent/knowledge/service/knowledge_service_reindex.go` | 3 | 3 | 3 | 0 |
-| 162 | [ ] | `internal/aiagent/knowledge/service/knowledge_statistics.go` | 18 | 21 | 18 | 0 |
-| 163 | [ ] | `internal/aiagent/knowledge/service/rag_config.go` | 7 | 12 | 7 | 0 |
-| 164 | [ ] | `internal/aiagent/knowledge/service/rag_config_account.go` | 3 | 3 | 3 | 0 |
-| 165 | [ ] | `internal/aiagent/knowledge/service/rag_config_rag.go` | 3 | 7 | 3 | 0 |
-| 166 | [ ] | `internal/aiagent/knowledge/service/rag_searcher.go` | 9 | 42 | 9 | 0 |
-| 167 | [ ] | `internal/aiagent/knowledge/service/rag_searcher_bm25.go` | 1 | 3 | 1 | 0 |
+| 158 | [x] | `internal/aiagent/knowledge/service/knowledge_service_import.go` | 1 | 4 | 1 | 0 |
+| 159 | [x] | `internal/aiagent/knowledge/service/knowledge_service_log.go` | 1 | 4 | 1 | 0 |
+| 160 | [ ] 待他 lane 代码落地后复验（本批已清理其文件头注释但与其代码改动同文件，暂缓提交） | `internal/aiagent/knowledge/service/knowledge_service_pipeline.go` | 1 | 5 | 1 | 0 |
+| 161 | [x] | `internal/aiagent/knowledge/service/knowledge_service_reindex.go` | 3 | 3 | 3 | 0 |
+| 162 | [x] | `internal/aiagent/knowledge/service/knowledge_statistics.go` | 18 | 21 | 18 | 0 |
+| 163 | [x] | `internal/aiagent/knowledge/service/rag_config.go` | 7 | 12 | 7 | 0 |
+| 164 | [x] | `internal/aiagent/knowledge/service/rag_config_account.go` | 3 | 3 | 3 | 0 |
+| 165 | [x] | `internal/aiagent/knowledge/service/rag_config_rag.go` | 3 | 7 | 3 | 0 |
+| 166 | [x] | `internal/aiagent/knowledge/service/rag_searcher.go` | 9 | 42 | 9 | 0 |
+| 167 | [x] | `internal/aiagent/knowledge/service/rag_searcher_bm25.go` | 1 | 3 | 1 | 0 |
 | 168 | [x] | `internal/aiagent/knowledge/service/rag_searcher_products.go` | 1 | 5 | 1 | 0 |
-| 169 | [ ] | `internal/aiagent/knowledge/service/rag_searcher_types.go` | 2 | 2 | 2 | 0 |
+| 169 | [x] | `internal/aiagent/knowledge/service/rag_searcher_types.go` | 2 | 2 | 2 | 0 |
 | 170 | [x] | `internal/aiagent/knowledge/service/rag_searcher_vector.go` | 0 | 0 | 0 | 0 |
 | 171 | [x] | `internal/aiagent/llm/dispatcher.go` | 30 | 57 | 30 | 0 |
 | 172 | [x] | `internal/aiagent/llm/dispatcher_alert.go` | 12 | 27 | 12 | 0 |
@@ -409,13 +409,13 @@
 | 194 | [x] | `internal/aiagent/llm/trace_sink.go` | 12 | 28 | 12 | 0 |
 | 195 | [x] | `internal/aiagent/mcp/http.go` | 7 | 11 | 7 | 0 |
 | 196 | [x] | `internal/aiagent/mcp/server.go` | 30 | 40 | 30 | 0 |
-| 197 | [ ] | `internal/aiagent/rag/cache/answer_cache_model.go` | 10 | 11 | 10 | 0 |
+| 197 | [x] | `internal/aiagent/rag/cache/answer_cache_model.go` | 10 | 11 | 10 | 0 |
 | 198 | [x] | `internal/aiagent/rag/cache/metrics.go` | 0 | 0 | 0 | 0 |
-| 199 | [ ] | `internal/aiagent/rag/cache/service.go` | 10 | 20 | 10 | 0 |
-| 200 | [ ] | `internal/aiagent/rag/cache/store_pg.go` | 14 | 31 | 14 | 0 |
-| 201 | [ ] | `internal/aiagent/rag/cache/vector.go` | 1 | 2 | 1 | 0 |
-| 202 | [ ] | `internal/aiagent/rag/core/rag_engine.go` | 25 | 29 | 25 | 0 |
-| 203 | [ ] | `internal/aiagent/rag/customer_service/dialog_manager.go` | 24 | 28 | 24 | 0 |
+| 199 | [x] | `internal/aiagent/rag/cache/service.go` | 10 | 20 | 10 | 0 |
+| 200 | [x] | `internal/aiagent/rag/cache/store_pg.go` | 14 | 31 | 14 | 0 |
+| 201 | [x] | `internal/aiagent/rag/cache/vector.go` | 1 | 2 | 1 | 0 |
+| 202 | [x] | `internal/aiagent/rag/core/rag_engine.go` | 25 | 29 | 25 | 0 |
+| 203 | [x] | `internal/aiagent/rag/customer_service/dialog_manager.go` | 24 | 28 | 24 | 0 |
 | 204 | [ ] | `internal/aiagent/rag/customer_service/interfaces.go` | 22 | 22 | 22 | 0 |
 | 205 | [ ] | `internal/aiagent/rag/customer_service/llm_adapter.go` | 6 | 7 | 6 | 0 |
 | 206 | [ ] | `internal/aiagent/rag/customer_service/pg_dialog_manager.go` | 1 | 2 | 1 | 0 |

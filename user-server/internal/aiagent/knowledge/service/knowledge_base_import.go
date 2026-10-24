@@ -1,7 +1,6 @@
 // Package service 知识库子域 —— 文档导入与异步处理
 //
 // 文档导入（保存文件 + 创建记录）+ 异步处理流水线（分片/向量化/入索引）。
-// 单一职责：所有"把外部文件变成可检索内容"的代码集中在此文件。
 package service
 
 import (
@@ -73,9 +72,8 @@ func (s *KnowledgeBaseService) ImportDocument(ctx context.Context, title string,
 	}
 
 	uploadBase, _, _ := storage.LocalSource()
-	// 租户分域（A7）：on 模式落 `tenant_{id}/`，与 LocalDriver 用**同一个**前缀函数
-	// （storage.TenantPathPrefix）。off 模式前缀为空串 ⇒ 路径与升级前逐字节一致，
-	// 存量文件（根域 `knowledge-base/…`）原地可读，零迁移。
+	// 租户分域：on 模式落 tenant_{id}/，与 LocalDriver 用同一个前缀函数（storage.TenantPathPrefix）；
+	// off 模式前缀为空串，路径与升级前一致，存量文件原地可读。
 	uploadDir := filepath.Join(uploadBase, storage.TenantPathPrefix(ctx), "knowledge-base", time.Now().Format("20060102"))
 	if err := os.MkdirAll(uploadDir, 0755); err != nil {
 		return nil, fmt.Errorf("创建上传目录失败: %w", err)
@@ -171,9 +169,9 @@ func (s *KnowledgeBaseService) IngestLocalFile(ctx context.Context, title, fileP
 }
 
 // ProcessDocumentByID 对已存在（content 直存列里）的文档跑同一套异步处理链路
-// （分段→向量化→索引）。T4 爬虫与 QA 候选发布使用——爬得页面不走磁盘文件，
+// （分段→向量化→索引）。爬虫与 QA 候选发布使用——爬得页面不走磁盘文件，
 // content 直接写 kb_documents.content，因此不能复用 processDocumentAsync 的
-// os.ReadFile 路径。复用的是同一套 processor/vector/indexer 装配。
+// os.ReadFile 路径，但复用同一套 processor/vector/indexer 装配。
 func (s *KnowledgeBaseService) ProcessDocumentByID(ctx context.Context, documentID uint) {
 	defer func() {
 		if r := recover(); r != nil {
@@ -190,7 +188,7 @@ func (s *KnowledgeBaseService) ProcessDocumentByID(ctx context.Context, document
 }
 
 // processContent content → 分片 → 向量化 → 入索引 → 状态推进
-// （processDocumentAsync 的读文件后半段收敛到此，共用同一套 processor/vector/indexer）。
+// （与 processDocumentAsync 的读文件后半段共用同一套 processor/vector/indexer）。
 func (s *KnowledgeBaseService) processContent(ctx context.Context, doc *model.KBDocument, content string) {
 	documentID := doc.ID
 	if err := s.docs.UpdateStatusFields(ctx, documentID, map[string]any{

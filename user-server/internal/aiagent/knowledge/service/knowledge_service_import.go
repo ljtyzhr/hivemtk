@@ -1,7 +1,7 @@
 // Package service 知识库子域 —— 导入实现
 //
-// 多种来源（上传文件/纯文本/URL）的导入实现 + meta 序列化辅助。
-// 单一职责：把外部来源（Upload/Text/URL/OpenAPI/Batch）转成 KnowledgeDocument 行。
+// 多种来源（上传文件/纯文本/URL）的导入实现 + meta 序列化辅助：
+// 把外部来源（Upload/Text/URL/OpenAPI/Batch）转成 KnowledgeDocument 行。
 package service
 
 import (
@@ -46,7 +46,7 @@ func (s *KnowledgeService) importUploadedFile(ctx context.Context, req *ImportRe
 	}
 
 	uploadBase, _, _ := storage.LocalSource()
-	// 租户分域（A7）：与 LocalDriver 同一个前缀函数；off 模式为空串（路径不变）
+	// 租户分域：与 LocalDriver 同一个前缀函数；off 模式为空串（路径不变）
 	uploadDir := filepath.Join(uploadBase, storage.TenantPathPrefix(ctx), "knowledge", req.ProductID, time.Now().Format("20060102"))
 	if err := os.MkdirAll(uploadDir, 0755); err != nil {
 		return nil, fmt.Errorf("创建上传目录失败: %w", err)
@@ -112,7 +112,7 @@ func (s *KnowledgeService) importText(ctx context.Context, req *ImportRequest, p
 	}
 	tagsJSON, _ := json.Marshal(req.Tags)
 	textBase, _, _ := storage.LocalSource()
-	// 租户分域（A7）：与 LocalDriver 同一个前缀函数；off 模式为空串（路径不变）
+	// 租户分域：与 LocalDriver 同一个前缀函数；off 模式为空串（路径不变）
 	tmpDir := filepath.Join(textBase, storage.TenantPathPrefix(ctx), "knowledge-text", req.ProductID, time.Now().Format("20060102"))
 	if err := os.MkdirAll(tmpDir, 0755); err != nil {
 		return nil, fmt.Errorf("创建目录失败: %w", err)
@@ -177,7 +177,7 @@ func (s *KnowledgeService) importFromURL(ctx context.Context, req *ImportRequest
 	}
 	tagsJSON, _ := json.Marshal(req.Tags)
 	urlBase, _, _ := storage.LocalSource()
-	// 租户分域（A7）：与 LocalDriver 同一个前缀函数；off 模式为空串（路径不变）
+	// 租户分域：与 LocalDriver 同一个前缀函数；off 模式为空串（路径不变）
 	tmpDir := filepath.Join(urlBase, storage.TenantPathPrefix(ctx), "knowledge-url", req.ProductID, time.Now().Format("20060102"))
 	if err := os.MkdirAll(tmpDir, 0755); err != nil {
 		return nil, fmt.Errorf("创建目录失败: %w", err)

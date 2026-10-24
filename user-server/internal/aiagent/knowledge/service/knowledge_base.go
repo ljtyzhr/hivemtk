@@ -1,6 +1,4 @@
 // Package service 知识库子域 —— 核心 CRUD
-//
-// 本文件仅保留：服务结构、构造函数、基础 CRUD (List/Get/Delete)。
 package service
 
 import (

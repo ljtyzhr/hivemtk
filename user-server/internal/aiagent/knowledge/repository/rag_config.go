@@ -90,13 +90,11 @@ func (r *RagConfigRepository) UpsertAccountConfig(ctx context.Context, config *s
 	}
 
 	config.ID = existingConfig.ID
-	// 把库里的 tenant_id 带回来（与 openapi source 的 Update 同一族修法）：
-	// 调用方传进来的是**新建的零值 model**（tenant_id=0），而 Save 写**全部字段含零值**
-	// ⇒ 这一行的租户被改写成 0，多租户模式下被 tenant 回调 fail-closed 拒掉
-	//（"[tenant] 更新不可改写 tenant_id"），接口 500；独立部署没这层校验 ⇒ 200。
+	// 库里的 tenant_id 必须带回：调用方传的是新建的零值 model（tenant_id=0），
+	// Save 写全部字段含零值，会把租户改写成 0，被多租户回调 fail-closed 拒掉。
 	config.TenantID = existingConfig.TenantID
-	// 整行回写走统一助手（`db.SaveWholeRow`）：裸 Save 命中 0 行会回退成
-	// `INSERT ... ON CONFLICT (id) DO UPDATE`，等于把"两句之间被删掉的那行"复活。
+	// 整行回写走统一助手：裸 Save 命中 0 行会回退成 INSERT ... ON CONFLICT DO UPDATE，
+	// 等于把两句之间被删掉的那行复活。
 	return _db.SaveWholeRow(r.db.WithContext(ctx), config)
 }
 
@@ -220,10 +218,7 @@ func (r *RagConfigRepository) UpdateRagProduct(ctx context.Context, product *mod
 		updates["status"] = product.Status
 	}
 
-	// 空更新判据放在加 updated_at **之前**：原先是先塞 updated_at 再判
-	// `len(updates) == 1`，两者等价但绑死在"恰好有一个无条件字段"这个事实上 ——
-	// 哪天有人再往里塞第二个无条件列（比如 status 改成无条件写），这个哨兵就
-	// 静默失效，把所有空调用都变成一次只有 updated_at 的写。
+	// 空更新判据放在加 updated_at 之前，不依赖"恰好有一个无条件字段"这一事实。
 	if len(updates) == 0 {
 		return nil
 	}
@@ -238,9 +233,8 @@ func (r *RagConfigRepository) UpdateRagProduct(ctx context.Context, product *mod
 
 // DeleteRagProduct 按 ID 硬删产品。
 //
-// 与下面的 DeleteRagProductByID **同体两名**（历史遗留：一条来自 knowledge 侧、
-// 一条来自 rag_product 侧的 service），两边调用方都还在用，本轮只在此记明。
-// 新增调用方一律用 DeleteRagProductByID —— 名字里带 ByID 才说得清删的是什么。
+// 与 DeleteRagProductByID 同体两名（两边调用方都还在用）；
+// 新增调用方一律用 DeleteRagProductByID。
 func (r *RagConfigRepository) DeleteRagProduct(ctx context.Context, id string) error {
 	return _db.EnsureAffected(r.db.WithContext(ctx).
 		Where("id = ?", id).Delete(&model.RagProduct{}))
@@ -269,8 +263,7 @@ func (r *RagConfigRepository) GetRagProductForUpdate(ctx context.Context, id str
 
 // DeleteRagProductByID 按 ID 硬删产品（与 DeleteRagProduct 同体，见其上的说明）。
 //
-// 0 行 ⇒ ErrRecordNotFound：删一个不存在的产品不该回 200，否则前端会把
-// "别人已经删过了"读成"我删成功了"。
+// 0 行 ⇒ ErrRecordNotFound：删一个不存在的产品不该回 200。
 func (r *RagConfigRepository) DeleteRagProductByID(ctx context.Context, id string) error {
 	return _db.EnsureAffected(r.db.WithContext(ctx).
 		Where("id = ?", id).Delete(&model.RagProduct{}))
