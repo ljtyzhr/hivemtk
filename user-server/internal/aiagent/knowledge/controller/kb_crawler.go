@@ -5,9 +5,11 @@
 package controller
 
 import (
+	"context"
 	"strconv"
 
 	kbservice "hivemtk-user/internal/aiagent/knowledge/service"
+	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/pkg/utils/response"
 
 	"github.com/gin-gonic/gin"
@@ -165,6 +167,13 @@ func (ctrl *KBCrawlerController) SyncSource(c *gin.Context) {
 		response.Error(c, 400, err.Error())
 		return
 	}
+	// 手动同步异步执行（§4.2）：接口只负责建 pending 批次并立即返回，
+	// 实际爬取由后台 goroutine 执行（cron worker 同理）。
+	go func(batchID uint64) {
+		if err := ctrl.svc.RunBatch(context.Background(), batchID); err != nil {
+			logger.Warnf("[kb_crawler] 手动同步批次 %d 执行失败: %v", batchID, err)
+		}
+	}(batch.ID)
 	response.Success(c, gin.H{"batch_no": batch.BatchNo, "status": batch.Status}, "同步已排队")
 }
 
