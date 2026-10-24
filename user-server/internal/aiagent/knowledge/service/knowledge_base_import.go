@@ -56,8 +56,22 @@ func MaxUploadFileSize() int64 {
 	return n
 }
 
+// ImportOptions 导入选项（零值＝与历史行为完全一致）。
+type ImportOptions struct {
+	// QASplit 上传后可选跑 QA 拆分（对标 FastGPT「上传文档可选 QA 增强」）。
+	// 默认关：拆分要调 LLM、产候选行、需要人工审，属于运营显式选择的增强，
+	// 不能因为「能力已装配」就默认对每篇上传扣一次模型调用。
+	QASplit bool
+}
+
 // ImportDocument 导入文档:保存文件 + 创建记录(status=pending) + 异步处理
+// （零选项等价于 ImportDocumentWithOptions(..., ImportOptions{})）
 func (s *KnowledgeBaseService) ImportDocument(ctx context.Context, title string, file multipart.File, header *multipart.FileHeader) (*ImportDocumentResult, error) {
+	return s.ImportDocumentWithOptions(ctx, title, file, header, ImportOptions{})
+}
+
+// ImportDocumentWithOptions 带选项的导入入口。
+func (s *KnowledgeBaseService) ImportDocumentWithOptions(ctx context.Context, title string, file multipart.File, header *multipart.FileHeader, opts ImportOptions) (*ImportDocumentResult, error) {
 	if header == nil {
 		return nil, errors.New("文件不能为空")
 	}
@@ -119,7 +133,7 @@ func (s *KnowledgeBaseService) ImportDocument(ctx context.Context, title string,
 	}
 
 	async.RunWithTimeout(ctx, AsyncProcessingTimeout(), func(procCtx context.Context) {
-		s.processDocumentAsync(procCtx, doc.ID, filePath)
+		s.processDocumentAsyncWithQA(procCtx, doc.ID, filePath, opts.QASplit)
 	})
 
 	return &ImportDocumentResult{
@@ -260,6 +274,12 @@ func (s *KnowledgeBaseService) processContent(ctx context.Context, doc *model.KB
 }
 
 func (s *KnowledgeBaseService) processDocumentAsync(ctx context.Context, documentID uint, filePath string) {
+	s.processDocumentAsyncWithQA(ctx, documentID, filePath, false)
+}
+
+// processDocumentAsyncWithQA 处理流水线 + 可选 QA 拆分投递（P1 观察项②：
+// 上传文档可选 QA 增强，与爬虫侧 T4 的 qa_split_enabled 同一套 QASplitService）。
+func (s *KnowledgeBaseService) processDocumentAsyncWithQA(ctx context.Context, documentID uint, filePath string, qaSplit bool) {
 	bgCtx := ctx
 	defer func() {
 		if r := recover(); r != nil {
@@ -342,6 +362,30 @@ func (s *KnowledgeBaseService) processDocumentAsync(ctx context.Context, documen
 		// 索引已建成但状态写失败：文档将滞留 processing，前端无法感知——必须落日志供运维介入
 		logger.Errorf("[KBImport] 标记文档已索引失败 doc=%d: %v", documentID, err)
 	}
+
+	// QA 增强是**附加**动作：拆分失败不影响文档已入库这一事实（拆分有自己的候选表与人工审）。
+	if qaSplit {
+		s.maybeEnqueueQASplit(bgCtx, documentID)
+	}
+}
+
+// maybeEnqueueQASplit 投递 QA 拆分（未装配拆分服务时静默跳过并记日志）。
+// 投递口单独成字段：单测用替身断言「开关打开才投递」，不必起 LLM。
+func (s *KnowledgeBaseService) maybeEnqueueQASplit(ctx context.Context, documentID uint) {
+	if s.qaSplit == nil && s.qaEnqueue == nil {
+		logger.Warnf("[KBImport] 请求了 QA 增强但拆分服务未装配，跳过 doc=%d", documentID)
+		return
+	}
+	if s.qaEnqueue != nil {
+		s.qaEnqueue(documentID, 0)
+		return
+	}
+	s.qaSplit.EnqueueDocument(documentID, 0)
+}
+
+// SetQASplitService 注入 QA 拆分服务（上传文档可选 QA 增强；crawler 侧同款）。
+func (s *KnowledgeBaseService) SetQASplitService(qa *QASplitService) {
+	s.qaSplit = qa
 }
 
 func (s *KnowledgeBaseService) markDocumentFailed(ctx context.Context, documentID uint, errMsg string) {

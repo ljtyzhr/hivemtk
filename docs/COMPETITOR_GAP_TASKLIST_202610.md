@@ -185,11 +185,11 @@
 
 ## 观察项（不立项，二次审核收录）
 
-| 观察项 | 来源 | 触发条件再评估 |
-|---|---|---|
-| 渠道接入模板化（对标 Chatwoot 多态 Channel） | DEEP_DIVE §2.5 | 新增官方 API 渠道第 2 个起 |
-| SOP 调度器按租户配额（对标 Dify 租户队列） | DEEP_DIVE §2.8 | TENANT_MODE=on 商用前 |
-| 上传文档可选 QA 增强（对标 FastGPT QA 拆分，T4 管道开关扩展） | DEEP_DIVE §2.3 | P0-1 评测读数建立后 |
+| 观察项 | 来源 | 触发条件再评估 | 2026-10-24 复核结论 |
+|---|---|---|---|
+| 渠道接入模板化（对标 Chatwoot 多态 Channel） | DEEP_DIVE §2.5 | 新增官方 API 渠道第 2 个起 | **已触发**（`internal/channelbot/{core,qq,telegram,whatsapp}`：3 个官方 API 渠道 + 1 个共享 core）。处理=现状核查：core 只提供协议错误映射与 HTTP 超时 seam，三渠道的适配器生命周期（连接/重连/心跳/ack）仍各自实现（telegram 1181 行、whatsapp 448 行、qq 独立实现）。**本轮不整批抽象**——三个在用渠道同时搬迁的回归面远大于收益，且与本清单目标无关；转为硬约束：**下一次新增渠道前必须先抽 `Adapter` 模板**（届时三处调用点一并收口） |
+| SOP 调度器按租户配额（对标 Dify 租户队列） | DEEP_DIVE §2.8 | TENANT_MODE=on 商用前 | **未触发**：`TENANT_MODE=off` 为默认且当前部署为单机（`.env-example:146`）。上线 SaaS 前再评估 |
+| 上传文档可选 QA 增强（对标 FastGPT QA 拆分，T4 管道开关扩展） | DEEP_DIVE §2.3 | P0-1 评测读数建立后 | **已触发并落地**：评测体系闭环（`rag_eval_runs` 现读 322 行；dialogue eval 已接线待每日 03:55 首跑，`dialogue_eval_runs`=0）。实现：`/rag/import` 新增 `qa_split=true` 表单开关 → 文档入库后投递同一个 `QASplitService`（与爬虫 T4 共用），默认关、未装配则降级不阻塞；测试 `knowledge_base_qa_hook_test.go` 三格 + 变异两刀。<br>**面**：上传口目前只有 API、没有前端页面消费方，故只暴露表单字段（前端待该页出现时接入） |
 
 ## 开发就绪度补充（二次审核新增，开工前逐项确认）
 

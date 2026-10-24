@@ -19,6 +19,11 @@ func NewKnowledgeBaseController() *KnowledgeBaseController {
 	}
 }
 
+// SetQASplitService 注入 QA 拆分服务（装配层在创建 QASplitService 之后调用）。
+func (ctrl *KnowledgeBaseController) SetQASplitService(qa *service.QASplitService) {
+	ctrl.kbService.SetQASplitService(qa)
+}
+
 func (ctrl *KnowledgeBaseController) RegisterRoutes(router *gin.RouterGroup) {
 	kb := router.Group("/rag")
 	{
@@ -39,8 +44,12 @@ func (ctrl *KnowledgeBaseController) ImportKnowledgeBase(c *gin.Context) {
 	defer func() { _ = file.Close() }()
 
 	title := c.PostForm("title")
+	// 可选 QA 增强（对标 FastGPT「上传文档可选 QA 增强」）：默认关，仅显式传
+	// qa_split=true/1 时在文档入库后投递拆分任务。
+	qaSplit := c.PostForm("qa_split") == "true" || c.PostForm("qa_split") == "1"
 
-	result, err := ctrl.kbService.ImportDocument(c.Request.Context(), title, file, header)
+	result, err := ctrl.kbService.ImportDocumentWithOptions(c.Request.Context(), title, file, header,
+		service.ImportOptions{QASplit: qaSplit})
 	if err != nil {
 		response.Error(c, http.StatusBadRequest, err.Error())
 		return

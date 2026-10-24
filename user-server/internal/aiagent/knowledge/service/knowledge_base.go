@@ -22,6 +22,11 @@ type KnowledgeBaseService struct {
 	processor *etl.DocumentProcessor
 	indexer   ragretrieval.IndexManagerInterface
 	vector    *ragretrieval.Vectorizer
+
+	// qaSplit 可选的 QA 拆分服务（上传文档可选 QA 增强；未装配=nil）。
+	qaSplit *QASplitService
+	// qaEnqueue 投递口替身（仅测试注入；生产走 qaSplit.EnqueueDocument）。
+	qaEnqueue func(docID, kbID uint)
 }
 
 // NewKnowledgeBaseService 创建知识库服务
