@@ -170,6 +170,97 @@ func (s *KnowledgeBaseService) IngestLocalFile(ctx context.Context, title, fileP
 	return doc.ID, nil
 }
 
+// ProcessDocumentByID 对已存在（content 直存列里）的文档跑同一套异步处理链路
+// （分段→向量化→索引）。T4 爬虫与 QA 候选发布使用——爬得页面不走磁盘文件，
+// content 直接写 kb_documents.content，因此不能复用 processDocumentAsync 的
+// os.ReadFile 路径。复用的是同一套 processor/vector/indexer 装配。
+func (s *KnowledgeBaseService) ProcessDocumentByID(ctx context.Context, documentID uint) {
+	defer func() {
+		if r := recover(); r != nil {
+			logger.Errorf("[knowledge-base] ProcessDocumentByID panic doc=%d: %v", documentID, r)
+			s.markDocumentFailed(ctx, documentID, fmt.Sprintf("处理异常: %v", r))
+		}
+	}()
+	var doc model.KBDocument
+	if err := s.db.WithContext(ctx).First(&doc, documentID).Error; err != nil {
+		logger.Errorf("[KBImport] ProcessDocumentByID 读文档失败 doc=%d: %v", documentID, err)
+		return
+	}
+	s.processContent(ctx, &doc, doc.Content)
+}
+
+// processContent content → 分片 → 向量化 → 入索引 → 状态推进
+// （processDocumentAsync 的读文件后半段收敛到此，共用同一套 processor/vector/indexer）。
+func (s *KnowledgeBaseService) processContent(ctx context.Context, doc *model.KBDocument, content string) {
+	documentID := doc.ID
+	if err := s.docs.UpdateStatusFields(ctx, documentID, map[string]any{
+		"status": model.KBDocumentStatusProcessing, "error_msg": "",
+	}); err != nil {
+		// 状态没推进就继续跑没有任何意义：文档会一直停在 pending，重试也无从下手。
+		logger.Errorf("[KBImport] 标记文档处理中失败 doc=%d: %v", documentID, err)
+	}
+
+	ragDoc := rag_core.Document{
+		ID:      fmt.Sprintf("kbdoc_%d", documentID),
+		Content: content,
+		Metadata: map[string]any{
+			"document_id": documentID,
+			"title":       doc.Title,
+		},
+		CreatedAt: time.Now(),
+	}
+
+	chunks, err := s.processor.ProcessDocument(ctx, ragDoc)
+	if err != nil {
+		s.markDocumentFailed(ctx, documentID, fmt.Sprintf("分片失败: %v", err))
+		return
+	}
+
+	if len(chunks) == 0 {
+		s.markDocumentFailed(ctx, documentID, "文档分片结果为空")
+		return
+	}
+
+	texts := make([]string, len(chunks))
+	for i, c := range chunks {
+		texts[i] = c.Content
+	}
+	embeddings, err := s.vector.EmbedBatch(texts)
+	if err != nil {
+		s.markDocumentFailed(ctx, documentID, fmt.Sprintf("向量化失败: %v", err))
+		return
+	}
+
+	idxChunks := make([]ragretrieval.Chunk, len(chunks))
+	for i, c := range chunks {
+		idxChunks[i] = ragretrieval.Chunk{
+			ID:         c.ID,
+			DocumentID: c.DocumentID,
+			Content:    c.Content,
+			Metadata:   c.Metadata,
+			Embedding:  embeddings[i],
+			Score:      c.Score,
+			TokenCount: c.TokenCount,
+		}
+	}
+
+	kbIndexID := fmt.Sprintf("kb_%d", documentID)
+	if err := s.indexer.BuildIndex(ctx, kbIndexID, idxChunks); err != nil {
+		s.markDocumentFailed(ctx, documentID, fmt.Sprintf("构建索引失败: %v", err))
+		return
+	}
+
+	if err := s.docs.UpdateStatusFields(ctx, documentID, map[string]any{
+		"status":      model.KBDocumentStatusIndexed,
+		"chunk_count": len(chunks),
+		"content":     content,
+		"error_msg":   "",
+	}); err != nil {
+		// 索引已建成但状态写失败：文档将滞留 processing，前端无法感知——必须落日志供运维介入
+		logger.Errorf("[KBImport] 标记文档已索引失败 doc=%d: %v", documentID, err)
+	}
+}
+
 func (s *KnowledgeBaseService) processDocumentAsync(ctx context.Context, documentID uint, filePath string) {
 	bgCtx := ctx
 	defer func() {
