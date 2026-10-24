@@ -32,7 +32,13 @@ func NewLLMWalletRepositoryWithDB(gdb *gorm.DB) LLMWalletRepository {
 }
 
 // ApplyMirror 把平台余额落到本地单行镜像
+//
+// 这是 upsert（ON CONFLICT (tenant_id, scope) 只更新余额与同步时间），不是整行
+// 覆盖：镜像行的其他列由别的链路维护，整行写会把它们抹成零值。
 func (r *llmWalletRepo) ApplyMirror(ctx context.Context, inputRemaining, outputRemaining int64) error {
+	if r == nil || r.db == nil {
+		return errors.New("[llm-wallet] 仓储未初始化（DB 未就绪）")
+	}
 	row := &model.LLMWallet{
 		InputTokensRemaining:  inputRemaining,
 		OutputTokensRemaining: outputRemaining,
@@ -48,24 +54,30 @@ func (r *llmWalletRepo) ApplyMirror(ctx context.Context, inputRemaining, outputR
 }
 
 func (r *llmWalletRepo) ListTxns(ctx context.Context, reason string, page, pageSize int) ([]*model.LLMWalletTxn, int64, error) {
+	if r == nil || r.db == nil {
+		return nil, 0, errors.New("[llm-wallet] 仓储未初始化（DB 未就绪）")
+	}
 	if page < 1 {
 		page = 1
 	}
 	if pageSize < 1 || pageSize > 100 {
 		pageSize = 20
 	}
-	q := r.db.WithContext(ctx).Model(&model.LLMWalletTxn{})
-	if reason != "" {
-		q = q.Where("reason = ?", reason)
+	// Count 与 Find 各起一条 query：同一条链上先 Count 再 Find 会就地改 Statement
+	// （判例 #133 / #150）。本表是每次代理转发追加一行的流水，只增不减。
+	base := func() *gorm.DB {
+		q := r.db.WithContext(ctx).Model(&model.LLMWalletTxn{})
+		if reason != "" {
+			q = q.Where("reason = ?", reason)
+		}
+		return q
 	}
 	var total int64
-	if err := q.Count(&total).Error; err != nil {
+	if err := base().Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 	var out []*model.LLMWalletTxn
-	err := q.Order("created_at DESC").
+	err := base().Order("created_at DESC").
 		Offset((page - 1) * pageSize).Limit(pageSize).Find(&out).Error
 	return out, total, err
 }
-
-var _ = errors.Is

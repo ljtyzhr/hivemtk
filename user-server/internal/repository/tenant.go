@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"time"
 
@@ -62,6 +63,9 @@ type TenantRepository interface {
 	GetDB() *gorm.DB
 }
 
+// ErrTenantStoreUnavailable 仓储句柄缺失（装配错，不是「没数据」）。
+var ErrTenantStoreUnavailable = errors.New("tenant repository not initialized")
+
 type tenantRepo struct {
 	db *gorm.DB
 }
@@ -75,6 +79,12 @@ func NewTenantRepository() TenantRepository {
 }
 
 func (r *tenantRepo) Create(ctx context.Context, t *model.Tenant) error {
+	if r == nil || r.db == nil {
+		return ErrTenantStoreUnavailable
+	}
+	if t == nil {
+		return errors.New("tenant: nil 不是写入对象")
+	}
 	return r.db.WithContext(ctx).Create(t).Error
 }
 
@@ -114,22 +124,43 @@ func (r *tenantRepo) GetFirstTenant(ctx context.Context) (*model.Tenant, error) 
 	return &t, nil
 }
 
+// UpdateStatus 改租户状态（启停）。
+//
+// 0 行 ⇒ ErrRecordNotFound：`service.TenantService.UpdateStatus` 会先 GetByID
+// 再改，但那两步之间隔着一个请求窗口；"停用一个已经被删掉的租户"回成功，
+// 运营会以为它已经停了，而租户的业务请求照旧通过（tenants 表里没有那一行，
+// 停用判定落不到任何东西上）。
 func (r *tenantRepo) UpdateStatus(ctx context.Context, id uint, status int16) error {
-	return r.db.WithContext(ctx).Model(&model.Tenant{}).Where("id = ?", id).
-		Update("status", status).Error
+	if r == nil || r.db == nil {
+		return ErrTenantStoreUnavailable
+	}
+	return db.EnsureAffected(r.db.WithContext(ctx).Model(&model.Tenant{}).Where("id = ?", id).
+		Update("status", status))
 }
 
 // UpdateRegistration 局部更新开户登记字段
+//
+// 0 行 ⇒ ErrRecordNotFound，理由同上：开户登记是平台监管必需项，
+// 写了个"已登记"而库里一行没变，比直接报错更难查。
 func (r *tenantRepo) UpdateRegistration(ctx context.Context, id uint, fields map[string]any) error {
+	if r == nil || r.db == nil {
+		return ErrTenantStoreUnavailable
+	}
 	if len(fields) == 0 {
 		return nil
 	}
 	fields["updated_at"] = time.Now()
-	return r.db.WithContext(ctx).Model(&model.Tenant{}).
-		Where("id = ?", id).Updates(fields).Error
+	return db.EnsureAffected(r.db.WithContext(ctx).Model(&model.Tenant{}).
+		Where("id = ?", id).Updates(fields))
 }
 
 func (r *tenantRepo) CreateWithAdmin(ctx context.Context, t *model.Tenant, admin *model.SystemUser) error {
+	if r == nil || r.db == nil {
+		return ErrTenantStoreUnavailable
+	}
+	if t == nil || admin == nil {
+		return errors.New("tenant: 开户需要租户行与管理员行两者")
+	}
 	return r.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := tx.Create(t).Error; err != nil {
 			return err
@@ -147,23 +178,29 @@ func (r *tenantRepo) List(ctx context.Context, f TenantFilter) ([]TenantWithActi
 		f.PageSize = 20
 	}
 
-	q := r.db.WithContext(ctx).Model(&model.Tenant{})
-	if f.Status != nil {
-		q = q.Where("status = ?", *f.Status)
-	}
-	if kw := strings.TrimSpace(f.Keyword); kw != "" {
-		// 模糊匹配企业名或短码（转义 LIKE 通配符，避免 % 注入放大匹配面）
-		like := "%" + escapeLike(kw) + "%"
-		q = q.Where("name ILIKE ? ESCAPE '\\' OR code ILIKE ? ESCAPE '\\'", like, like)
+	// Count 与 Find 各起一条 query：同一条链上先 Count 再 Find 会就地改 Statement
+	// （Count 把 Selects 换成 count(*)，现在能跑靠的是 GORM 内部子句还原的侥幸，
+	// 判例 #133 / #150）。
+	base := func() *gorm.DB {
+		q := r.db.WithContext(ctx).Model(&model.Tenant{})
+		if f.Status != nil {
+			q = q.Where("status = ?", *f.Status)
+		}
+		if kw := strings.TrimSpace(f.Keyword); kw != "" {
+			// 模糊匹配企业名或短码（转义 LIKE 通配符，避免 % 注入放大匹配面）
+			like := "%" + escapeLike(kw) + "%"
+			q = q.Where("name ILIKE ? ESCAPE '\\' OR code ILIKE ? ESCAPE '\\'", like, like)
+		}
+		return q
 	}
 
 	var total int64
-	if err := q.Count(&total).Error; err != nil {
+	if err := base().Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
 	var rows []*model.Tenant
-	if err := q.Order("id DESC").
+	if err := base().Order("id DESC").
 		Offset((f.Page - 1) * f.PageSize).
 		Limit(f.PageSize).
 		Find(&rows).Error; err != nil {

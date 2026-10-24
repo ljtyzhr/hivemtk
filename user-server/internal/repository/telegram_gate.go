@@ -2,13 +2,31 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"hivemtk-user/internal/model"
+	_db "hivemtk-user/internal/pkg/db"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
 )
+
+// clampTGSweepLimit 夹取清扫/补偿循环的单轮上限。
+//
+// 下限：GORM 的 `Limit(0)` 等于**不加 limit**，一次误传 0 就把整张
+// telegram_group_members 读进内存；上限：这些循环每轮都要对每个成员发起
+// Telegram API 往返，抓太多会让单轮远超轮询周期（`ListExpired` 之后还要
+// 逐个 kick，线上实测单成员数秒）。
+func clampTGSweepLimit(limit int) int {
+	if limit < 1 {
+		return 100
+	}
+	if limit > 500 {
+		return 500
+	}
+	return limit
+}
 
 // TelegramGroupGateRepository TG 群组管控网关仓库
 type TelegramGroupGateRepository struct {
@@ -29,12 +47,31 @@ func (r *TelegramGroupGateRepository) Create(ctx context.Context, gate *model.Te
 	return r.db.WithContext(ctx).Create(gate).Error
 }
 
+// Update 整行回写一条群管控配置。
+//
+// 走 db.SaveWholeRow：裸 Save 命中 0 行会回退成 `INSERT ... ON CONFLICT (id)
+// DO UPDATE`，把一条"管理端读出来之后、保存之前被删掉的"网关配置按原 id 插回去。
+// 这张表的行决定"这个群要不要禁言/要不要验证"，凭空多出一条 enabled=true 的行
+// 意味着下一个进群的人被挡在门外，而没有任何人配置过它。
 func (r *TelegramGroupGateRepository) Update(ctx context.Context, gate *model.TelegramGroupGate) error {
-	return r.db.WithContext(ctx).Save(gate).Error
+	if r == nil || r.db == nil {
+		return errors.New("telegram gate repository not initialized")
+	}
+	if gate == nil {
+		return errors.New("telegram gate: nil 不是更新对象")
+	}
+	return _db.SaveWholeRow(r.db.WithContext(ctx), gate)
 }
 
+// Delete 删除一条群管控配置。0 行 ⇒ ErrRecordNotFound。
+//
+// 注意它**不会**连带删台账（telegram_group_members）：台账要留着，
+// 否则「这个群历史上验证过谁」这条审计线索一起没了。
 func (r *TelegramGroupGateRepository) Delete(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).Delete(&model.TelegramGroupGate{}, id).Error
+	if r == nil || r.db == nil {
+		return errors.New("telegram gate repository not initialized")
+	}
+	return _db.EnsureAffected(r.db.WithContext(ctx).Delete(&model.TelegramGroupGate{}, id))
 }
 
 func (r *TelegramGroupGateRepository) GetByID(ctx context.Context, id uint) (*model.TelegramGroupGate, error) {
@@ -53,6 +90,10 @@ func (r *TelegramGroupGateRepository) GetByChatID(ctx context.Context, accountID
 	return &gate, nil
 }
 
+// List 列出群管控配置（可按账号过滤）。
+//
+// 刻意不分页：这是"每群一条"的配置表，一个部署里几十行；截断会让某些群的
+// 管控配置从管理页上消失，而用户没有任何翻页入口能看到它们。
 func (r *TelegramGroupGateRepository) List(ctx context.Context, accountID uint) ([]*model.TelegramGroupGate, error) {
 	var gates []*model.TelegramGroupGate
 	q := r.db.WithContext(ctx)
@@ -65,6 +106,7 @@ func (r *TelegramGroupGateRepository) List(ctx context.Context, accountID uint) 
 	return gates, nil
 }
 
+// ListEnabled 列出所有开启管控的群（不分页，理由同 List）。
 func (r *TelegramGroupGateRepository) ListEnabled(ctx context.Context) ([]*model.TelegramGroupGate, error) {
 	var gates []*model.TelegramGroupGate
 	if err := r.db.WithContext(ctx).Where("enabled = ?", true).Find(&gates).Error; err != nil {
@@ -99,8 +141,19 @@ func (r *TelegramGroupMemberRepository) Upsert(ctx context.Context, m *model.Tel
 	}).Create(m).Error
 }
 
+// Update 整行回写成员台账（`/start <token>` 激活路径）。
+//
+// 走 db.SaveWholeRow：裸 Save 命中 0 行会回退成 INSERT —— 一条被清扫（kicked）
+// 甚至被删掉的成员行按原 id 复活，`authorized=true` 随之回来，而群里那个人
+// 其实早就被踢了。
 func (r *TelegramGroupMemberRepository) Update(ctx context.Context, m *model.TelegramGroupMember) error {
-	return r.db.WithContext(ctx).Save(m).Error
+	if r == nil || r.db == nil {
+		return errors.New("telegram member repository not initialized")
+	}
+	if m == nil {
+		return errors.New("telegram member: nil 不是更新对象")
+	}
+	return _db.SaveWholeRow(r.db.WithContext(ctx), m)
 }
 
 // MarkWelcomeSent 记录群内验证提示已送达，并清零补发计数。
@@ -184,10 +237,7 @@ func (r *TelegramGroupMemberRepository) ListExpired(ctx context.Context, now tim
 	var members []*model.TelegramGroupMember
 	q := r.db.WithContext(ctx).Where("authorized = ? AND join_status IN ? AND expires_at IS NOT NULL AND expires_at < ?",
 		false, []string{model.TGMemberPending, model.TGMemberRestricted}, now)
-	if limit > 0 {
-		q = q.Limit(limit)
-	}
-	if err := q.Find(&members).Error; err != nil {
+	if err := q.Limit(clampTGSweepLimit(limit)).Find(&members).Error; err != nil {
 		return nil, err
 	}
 	return members, nil
@@ -225,10 +275,7 @@ func (r *TelegramGroupMemberRepository) ListStalledRestricted(ctx context.Contex
 		"join_status = ? AND authorized = ? AND welcome_sent_at IS NULL AND (expires_at IS NULL OR expires_at > ?)"+
 			" AND (welcome_resends > 0 OR updated_at IS NULL OR updated_at <= ?)",
 		model.TGMemberRestricted, false, now, idleBefore)
-	if limit > 0 {
-		q = q.Limit(limit)
-	}
-	if err := q.Find(&members).Error; err != nil {
+	if err := q.Limit(clampTGSweepLimit(limit)).Find(&members).Error; err != nil {
 		return nil, err
 	}
 	return members, nil
@@ -238,17 +285,30 @@ func (r *TelegramGroupMemberRepository) ListStalledRestricted(ctx context.Contex
 func (r *TelegramGroupMemberRepository) ListByChat(ctx context.Context, accountID uint, chatID string, status string, limit, offset int) ([]*model.TelegramGroupMember, int64, error) {
 	var members []*model.TelegramGroupMember
 	var total int64
-	q := r.db.WithContext(ctx).Model(&model.TelegramGroupMember{}).Where("account_id = ? AND chat_id = ?", accountID, chatID)
-	if status != "" {
-		q = q.Where("join_status = ?", status)
-	}
-	if err := q.Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
+	// 管理端台账列表：`limit = 0` ⇒ Limit(0) 等于不加 limit（整张台账），
+	// `offset < 0` ⇒ PG 报 "OFFSET must not be negative"。
 	if limit <= 0 {
 		limit = 50
 	}
-	if err := q.Order("id DESC").Limit(limit).Offset(offset).Find(&members).Error; err != nil {
+	if limit > 200 {
+		limit = 200
+	}
+	if offset < 0 {
+		offset = 0
+	}
+	// Count 与 Find 各起一条 query（判例 #133 / #150）。
+	base := func() *gorm.DB {
+		q := r.db.WithContext(ctx).Model(&model.TelegramGroupMember{}).
+			Where("account_id = ? AND chat_id = ?", accountID, chatID)
+		if status != "" {
+			q = q.Where("join_status = ?", status)
+		}
+		return q
+	}
+	if err := base().Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	if err := base().Order("id DESC").Limit(limit).Offset(offset).Find(&members).Error; err != nil {
 		return nil, 0, err
 	}
 	return members, total, nil

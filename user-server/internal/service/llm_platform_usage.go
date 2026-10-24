@@ -2,8 +2,6 @@ package service
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 	"strings"
 	"time"
 
@@ -14,7 +12,6 @@ import (
 	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/platform"
-	"hivemtk-user/internal/repository"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -205,13 +202,6 @@ func llmDefaultIfEmpty(v, def string) string {
 	}
 	return v
 }
-
-var (
-	_ = json.Marshal
-	_ = errors.Is
-	_ = repository.MenuKeysOf
-	_ = gorm.ErrRecordNotFound
-)
 
 // InstallPlatformUsageSink 装配期接线：把 dispatcher 的用量回填接到本地落库。
 //

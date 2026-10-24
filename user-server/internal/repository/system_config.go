@@ -48,20 +48,31 @@ func (r *systemConfigRepo) GetConfig(ctx context.Context) (*model.SystemConfig, 
 
 // SaveConfig 保存系统配置。
 // 每租户一行（tenant_id 唯一索引）：已存在（First 命中，租户由隔离 callback
-// 限定）时必须用 Save 原地更新——原 FirstOrCreate 在已存在时不写入任何传入
-// 字段，前端保存永远是假动作。
+// 限定）时必须原地整行回写（db.SaveWholeRow）——原 FirstOrCreate 在已存在时
+// 不写入任何传入字段，前端保存永远是假动作。
 //
 // TenantID 取自既有行而不是入参：admin 页面回传的 JSON 不带 tenant_id，
-// Save 会连同零值一起 UPDATE，若直接落库就把本租户的配置行写成了 tenant_id=0
+// 整行写会连同零值一起 UPDATE，若直接落库就把本租户的配置行写成了 tenant_id=0
 // （平台公共池），下一次读取立刻"配置消失"。
 func (r *systemConfigRepo) SaveConfig(ctx context.Context, config *model.SystemConfig) (*model.SystemConfig, error) {
+	if r == nil || r.db == nil {
+		return nil, ErrSystemConfigStoreUnavailable
+	}
+	if config == nil {
+		return nil, errors.New("system_config: nil 不是保存对象")
+	}
 	var existing model.SystemConfig
 	err := r.db.WithContext(ctx).First(&existing).Error
 	switch {
 	case err == nil:
 		config.ID = existing.ID
 		config.TenantID = existing.TenantID
-		if err := r.db.WithContext(ctx).Save(config).Error; err != nil {
+		// 走 db.SaveWholeRow 而不是裸 Save：上面那条 First 与这条 UPDATE 之间
+		// 隔着一次"管理端改配置"的时间窗，行被删掉时裸 Save 会**回退成 INSERT**
+		// （gorm@v1.31.2 的 OnConflict{UpdateAll} 分支），把一份带着旧 ID 的
+		// 站点配置重新插出来；而 tenant_id 上是唯一索引，front 下一次读取拿到的
+		// 到底是哪一行就说不清了。
+		if err := _db.SaveWholeRow(r.db.WithContext(ctx), config); err != nil {
 			return nil, err
 		}
 		return config, nil
@@ -79,12 +90,18 @@ func (r *systemConfigRepo) SaveConfig(ctx context.Context, config *model.SystemC
 }
 
 func (r *systemConfigRepo) CountUsers(ctx context.Context) (int64, error) {
+	if r == nil || r.db == nil {
+		return 0, ErrSystemConfigStoreUnavailable
+	}
 	var n int64
 	err := r.db.WithContext(ctx).Model(&model.SystemUser{}).Count(&n).Error
 	return n, err
 }
 
 func (r *systemConfigRepo) PingDB(ctx context.Context) bool {
+	if r == nil || r.db == nil {
+		return false
+	}
 	sqlDB, err := r.db.DB()
 	if err != nil {
 		return false

@@ -53,7 +53,6 @@ type SystemUserRepository interface {
 	FindByUsernameAnyTenant(ctx context.Context, username string, limit int) ([]*model.SystemUser, error)
 	// FindByUsernameInTenant 按租户内用户名解析登录身份（tenant_code 定向登录通道）
 	FindByUsernameInTenant(ctx context.Context, tenantID uint, username string) (*model.SystemUser, error)
-	UsernameExistsInTenant(ctx context.Context, tenantID uint, username string) (bool, error)
 	EmailExistsGlobal(ctx context.Context, email string) (bool, error)
 }
 
@@ -70,12 +69,33 @@ func (r *systemUserRepo) Create(ctx context.Context, u *model.SystemUser) error 
 	return r.db.WithContext(ctx).Create(u).Error
 }
 
+// Update 整行回写一个系统用户。
+//
+// 走 db.SaveWholeRow：裸 Save 在 UPDATE 命中 0 行后会回退成
+// `INSERT ... ON CONFLICT (id) DO UPDATE`（gorm@v1.31.2），于是「改一个已经被
+// 删掉的账号」不是失败，而是把那条账号（连同它的 bcrypt 口令串与角色）按原
+// 主键插回来 —— 一个已经被撤销的登录身份复活，且它以 sudo 权限登录时没有任何
+// 地方会报错。
 func (r *systemUserRepo) Update(ctx context.Context, u *model.SystemUser) error {
-	return r.db.WithContext(ctx).Save(u).Error
+	if r == nil || r.db == nil {
+		return errors.New("system user repository not initialized")
+	}
+	if u == nil {
+		return errors.New("system user: nil 不是更新对象")
+	}
+	return db.SaveWholeRow(r.db.WithContext(ctx), u)
 }
 
+// Delete 删除一个系统用户。0 行 ⇒ ErrRecordNotFound。
+//
+// 调用方（`SystemUserService.DeleteUser`）会先 GetByID 再删，但那两步之间隔着
+// 一个请求窗口；"删一条已经被别人删掉的用户"不该回成功，否则管理端的
+// "已删除"提示是在说谎。
 func (r *systemUserRepo) Delete(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).Delete(&model.SystemUser{}, id).Error
+	if r == nil || r.db == nil {
+		return errors.New("system user repository not initialized")
+	}
+	return db.EnsureAffected(r.db.WithContext(ctx).Delete(&model.SystemUser{}, id))
 }
 
 func (r *systemUserRepo) GetByID(ctx context.Context, id uint) (*model.SystemUser, error) {
@@ -114,6 +134,10 @@ func (r *systemUserRepo) List(ctx context.Context, page, pageSize int) ([]*model
 	if pageSize <= 0 {
 		pageSize = 20
 	}
+	// 上限 200：列表页直连 HTTP，`pageSize=1000000` 会一次把整张 users 表读进内存。
+	if pageSize > 200 {
+		pageSize = 200
+	}
 	if err := r.db.WithContext(ctx).Model(&model.SystemUser{}).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
@@ -138,15 +162,33 @@ func (r *systemUserRepo) Count(ctx context.Context) (int64, error) {
 func (r *systemUserRepo) SearchUsers(ctx context.Context, keyword string, offset, limit int) ([]*model.SystemUser, int64, error) {
 	var users []*model.SystemUser
 	var total int64
-	q := r.db.WithContext(ctx).Model(&model.SystemUser{})
-	if keyword != "" {
-		like := "%" + keyword + "%"
-		q = q.Where("username ILIKE ? OR email ILIKE ? OR real_name ILIKE ?", like, like, like)
+	// 分页参数由调用方算好传进来（offset/limit），这里只做兜底：
+	// `limit = 0` ⇒ GORM 的 Limit(0) 等于**不加 limit**（整表）；
+	// `offset < 0` ⇒ PG 报 "OFFSET must not be negative"。
+	if offset < 0 {
+		offset = 0
 	}
-	if err := q.Count(&total).Error; err != nil {
+	if limit < 1 {
+		limit = 20
+	}
+	if limit > 200 {
+		limit = 200
+	}
+
+	// Count 与 Find 各起一条 query：同一条链上先 Count 再 Find 会就地改 Statement
+	// （判例 #133 / #150）。
+	base := func() *gorm.DB {
+		q := r.db.WithContext(ctx).Model(&model.SystemUser{})
+		if keyword != "" {
+			like := "%" + keyword + "%"
+			q = q.Where("username ILIKE ? OR email ILIKE ? OR real_name ILIKE ?", like, like, like)
+		}
+		return q
+	}
+	if err := base().Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	if err := q.Order("id DESC").Offset(offset).Limit(limit).Find(&users).Error; err != nil {
+	if err := base().Order("id DESC").Offset(offset).Limit(limit).Find(&users).Error; err != nil {
 		return nil, 0, err
 	}
 	return users, total, nil
@@ -215,11 +257,17 @@ func (r *systemUserRepo) ListByRole(ctx context.Context, role string, page, size
 	if size <= 0 {
 		size = 20
 	}
-	q := r.db.WithContext(ctx).Model(&model.SystemUser{}).Where("role = ?", role)
-	if err := q.Count(&total).Error; err != nil {
+	if size > 200 {
+		size = 200
+	}
+	// Count 与 Find 各起一条 query（判例 #133 / #150）。
+	base := func() *gorm.DB {
+		return r.db.WithContext(ctx).Model(&model.SystemUser{}).Where("role = ?", role)
+	}
+	if err := base().Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	if err := q.Order("created_at DESC").
+	if err := base().Order("created_at DESC").
 		Offset((page - 1) * size).
 		Limit(size).
 		Find(&list).Error; err != nil {
@@ -288,11 +336,10 @@ func (r *systemUserRepo) SetEnabled(ctx context.Context, id uint, enabled bool) 
 	res := r.db.WithContext(ctx).Model(&model.SystemUser{}).
 		Where("id = ?", id).
 		Update("enabled", enabled)
-	if res.Error != nil {
-		return fmt.Errorf("update enabled: %w", res.Error)
-	}
-	if res.RowsAffected == 0 {
-		return gorm.ErrRecordNotFound
+	// 0 行 ⇒ ErrRecordNotFound（沿用本方法既有的对外契约），但判据不再手写：
+	// 与其余仓储共用 db.EnsureAffected 一处口径。
+	if err := db.EnsureAffected(res); err != nil {
+		return fmt.Errorf("update enabled: %w", err)
 	}
 	return nil
 }
@@ -311,11 +358,10 @@ func (r *systemUserRepo) UpdatePassword(ctx context.Context, id uint, hashedPass
 	res := r.db.WithContext(ctx).Model(&model.SystemUser{}).
 		Where("id = ?", id).
 		Update("password", hashedPassword)
-	if res.Error != nil {
-		return fmt.Errorf("update password: %w", res.Error)
-	}
-	if res.RowsAffected == 0 {
-		return gorm.ErrRecordNotFound
+	// 0 行 ⇒ ErrRecordNotFound：改口令命中 0 行却回成功，等于告诉用户
+	// "新口令已生效"而旧口令仍然能登录。
+	if err := db.EnsureAffected(res); err != nil {
+		return fmt.Errorf("update password: %w", err)
 	}
 	return nil
 }
@@ -377,21 +423,6 @@ func (r *systemUserRepo) FindByUsernameInTenant(ctx context.Context, tenantID ui
 		return nil, err
 	}
 	return &u, nil
-}
-
-// UsernameExistsInTenant 租户内用户名查重（开户 4102 校验；用户名唯一性语义是租户内）
-func (r *systemUserRepo) UsernameExistsInTenant(ctx context.Context, tenantID uint, username string) (bool, error) {
-	username = strings.TrimSpace(username)
-	if username == "" {
-		return false, nil
-	}
-	var count int64
-	if err := r.db.WithContext(tenant.WithSystemScope(ctx)).Model(&model.SystemUser{}).
-		Where("tenant_id = ? AND username = ?", tenantID, username).
-		Count(&count).Error; err != nil {
-		return false, err
-	}
-	return count > 0, nil
 }
 
 // EmailExistsGlobal 邮箱全局查重（开户 4103 校验；邮箱唯一性语义是跨租户全局）

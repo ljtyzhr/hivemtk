@@ -20,14 +20,19 @@ import (
 type TenantModuleRepository interface {
 	UpsertMany(ctx context.Context, rows []*model.TenantModule) error
 	ListAll(ctx context.Context) ([]*model.TenantModule, error)
-	ListActiveKeys(ctx context.Context, now time.Time) ([]string, error)
 	// UsableCount 统计「当前 ctx 作用域内」某模块的可用行数（FR-5.6 运行时模块闸用）。
 	// 跨租户并集语义由调用方挂 SystemScope 达成（任一租户开通判定，见
 	// service.ModuleGateService.AnyTenantEnabled）—— 本方法只负责单次索引计数，
 	// 不解释租户语义。
 	UsableCount(ctx context.Context, moduleKey string, now time.Time) (int64, error)
+	// Get 取单个模块镜像行；无行返回 (nil, nil)。
+	//
+	// 保留理由：全仓唯一调用方是 module_gate_test.go 对「离线兜底是否真把
+	// geo 落成一行」的单行断言。它读的是**一行**，用 ListAll 去整表捞一行
+	// 不是等价的最小读面（镜像表虽然小，但把"取一个键"写成"取全表再筛"
+	// 会让将来镜像变大时的读放大埋进测试里）。这是本文件唯一被保留的
+	// 测试独占读口。
 	Get(ctx context.Context, moduleKey string) (*model.TenantModule, error)
-	DeleteAll(ctx context.Context) error
 	CreateLog(ctx context.Context, l *model.ModuleSyncLog) error
 	ListLogs(ctx context.Context, limit int) ([]*model.ModuleSyncLog, error)
 }
@@ -67,6 +72,9 @@ func NewTenantModuleRepositoryWithDB(gdb *gorm.DB) TenantModuleRepository {
 // 且 ON CONFLICT 的 (tenant_id, module_key) 目标拿到的是同一个值。
 // off 模式走的同一条路径，直通逐字节等价 —— 故这里不需要任何模式分支。
 func (r *tenantModuleRepo) UpsertMany(ctx context.Context, rows []*model.TenantModule) error {
+	if r == nil || r.db == nil {
+		return errors.New("[module] tenant_modules 仓储未初始化（DB 未就绪）")
+	}
 	if len(rows) == 0 {
 		return nil
 	}
@@ -108,7 +116,12 @@ func (r *tenantModuleRepo) upsertSlow(ctx context.Context, rows []*model.TenantM
 				existing.ActivatedAt = row.ActivatedAt
 				existing.ExpiresAt = row.ExpiresAt
 				existing.UpdatedAt = time.Now()
-				if err := tx.Save(&existing).Error; err != nil {
+				// 走 db.SaveWholeRow 而不是裸 Save：这条 UPDATE 命中 0 行说明
+				// 镜像行在上面的 First 之后被删掉了（并发的重建镜像/手工清理），
+				// 裸 Save 会回退成 INSERT 把它按原 id 插回来 —— 而这条慢路径
+				// 存在的全部意义就是「不依赖库里的索引形状把镜像写对」，顺手
+				// 造一条幽灵行只会让下一次同步多一条对不上的记录。
+				if err := db.SaveWholeRow(tx, &existing); err != nil {
 					return err
 				}
 			case errors.Is(err, gorm.ErrRecordNotFound):
@@ -133,24 +146,15 @@ func isConflictTargetErr(err error) bool {
 		strings.Contains(msg, "42p10")
 }
 
+// ListAll 列出本地模块镜像全量行（不分页：这是"每模块一行"的表，
+// 数量由平台模块目录决定，几十行；截断会让某些模块从管理页上消失）。
 func (r *tenantModuleRepo) ListAll(ctx context.Context) ([]*model.TenantModule, error) {
+	if r == nil || r.db == nil {
+		return nil, errors.New("[module] tenant_modules 仓储未初始化（DB 未就绪）")
+	}
 	var out []*model.TenantModule
 	err := r.db.WithContext(ctx).Order("module_key ASC").Find(&out).Error
 	return out, err
-}
-
-func (r *tenantModuleRepo) ListActiveKeys(ctx context.Context, now time.Time) ([]string, error) {
-	rows, err := r.ListAll(ctx)
-	if err != nil {
-		return nil, err
-	}
-	out := make([]string, 0, len(rows))
-	for _, m := range rows {
-		if model.TenantModuleUsable(m, now) {
-			out = append(out, m.ModuleKey)
-		}
-	}
-	return out, nil
 }
 
 // UsableCount 统计某模块的可用行数（status=active 且未过期），语义与
@@ -179,6 +183,9 @@ func (r *tenantModuleRepo) UsableCount(ctx context.Context, moduleKey string, no
 }
 
 func (r *tenantModuleRepo) Get(ctx context.Context, moduleKey string) (*model.TenantModule, error) {
+	if r == nil || r.db == nil {
+		return nil, errors.New("[module] tenant_modules 仓储未初始化（DB 未就绪）")
+	}
 	var m model.TenantModule
 	err := r.db.WithContext(ctx).Where("module_key = ?", moduleKey).First(&m).Error
 	if errors.Is(err, gorm.ErrRecordNotFound) {
@@ -190,15 +197,22 @@ func (r *tenantModuleRepo) Get(ctx context.Context, moduleKey string) (*model.Te
 	return &m, nil
 }
 
-func (r *tenantModuleRepo) DeleteAll(ctx context.Context) error {
-	return r.db.WithContext(ctx).Where("1 = 1").Delete(&model.TenantModule{}).Error
-}
-
 func (r *tenantModuleRepo) CreateLog(ctx context.Context, l *model.ModuleSyncLog) error {
+	if r == nil || r.db == nil {
+		return errors.New("[module] tenant_modules 仓储未初始化（DB 未就绪）")
+	}
+	if l == nil {
+		return errors.New("[module] 同步日志: nil 不是写入对象")
+	}
 	return r.db.WithContext(ctx).Create(l).Error
 }
 
 func (r *tenantModuleRepo) ListLogs(ctx context.Context, limit int) ([]*model.ModuleSyncLog, error) {
+	if r == nil || r.db == nil {
+		return nil, errors.New("[module] tenant_modules 仓储未初始化（DB 未就绪）")
+	}
+	// limit 夹取在仓储侧：GORM 的 `Limit(0)` 等于**不加 limit**，而同步日志是
+	// 每次同步都追加的流水（心跳周期级），一次误传 0 就把整张表读进内存。
 	if limit < 1 || limit > 200 {
 		limit = 50
 	}
@@ -240,6 +254,12 @@ func NewModuleOrderRepositoryWithDB(gdb *gorm.DB) ModuleOrderRepository {
 }
 
 func (r *moduleOrderRepo) Upsert(ctx context.Context, o *model.ModuleOrder) error {
+	if r == nil || r.db == nil {
+		return errors.New("[module] module_orders 仓储未初始化（DB 未就绪）")
+	}
+	if o == nil {
+		return errors.New("[module] 订单镜像: nil 不是写入对象")
+	}
 	// ID 是 varchar 主键：镜像落库不赋 ID 会插入空串主键，第二单必撞 pkey
 	// （003 活体联调发现）。用 order_no 充当镜像主键，天然幂等。
 	if strings.TrimSpace(o.ID) == "" {
@@ -285,13 +305,17 @@ func (r *moduleOrderRepo) List(ctx context.Context, page, pageSize int) ([]*mode
 	if pageSize < 1 || pageSize > 100 {
 		pageSize = 20
 	}
+	// Count 与 Find 各起一条 query：同一条链上先 Count 再 Find 会就地改 Statement
+	// （判例 #133 / #150）。
+	base := func() *gorm.DB {
+		return r.db.WithContext(ctx).Model(&model.ModuleOrder{})
+	}
 	var total int64
-	q := r.db.WithContext(ctx).Model(&model.ModuleOrder{})
-	if err := q.Count(&total).Error; err != nil {
+	if err := base().Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 	var out []*model.ModuleOrder
-	err := q.Order("created_at DESC").
+	err := base().Order("created_at DESC").
 		Offset((page - 1) * pageSize).Limit(pageSize).Find(&out).Error
 	return out, total, err
 }

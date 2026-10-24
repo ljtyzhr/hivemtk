@@ -738,10 +738,20 @@ func TestStartModuleSyncBootstrapsBaseModules(t *testing.T) {
 	defer r.Stop()
 	r.WaitFirstSync()
 
-	keys, _, err := func() ([]string, int64, error) {
+	keys, err := func() ([]string, error) {
 		repo := repository.NewTenantModuleRepositoryWithDB(rawDB(t))
-		rows, err := repo.ListActiveKeys(context.Background(), time.Now())
-		return rows, int64(len(rows)), err
+		rows, err := repo.ListAll(context.Background())
+		if err != nil {
+			return nil, err
+		}
+		now := time.Now()
+		keys := make([]string, 0, len(rows))
+		for _, m := range rows {
+			if model.TenantModuleUsable(m, now) {
+				keys = append(keys, m.ModuleKey)
+			}
+		}
+		return keys, nil
 	}()
 	if err != nil {
 		t.Fatalf("读取本地模块镜像失败: %v", err)

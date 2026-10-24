@@ -22,10 +22,19 @@ import (
 type SystemConfigKVRepository interface {
 	// Available 报告底层 DB 是否可用（nil 探测收敛到 repository 层）。
 	Available() bool
+
+	// Get 读当前租户的某个 key。**没配过**返回 ("", nil)（调用侧据此回落
+	// 默认值），只有「句柄缺失」（ErrKVStoreUnavailable）与「漏了租户上下文」
+	// （ErrKVTenantContextMissing）才返回 error —— 这三种"空"必须能分开观测，
+	// 合成一种的话，"某租户配置永远不生效"就查不出是装配错还是没配过。
 	Get(ctx context.Context, key string) (string, error)
 
+	// Upsert 幂等写当前租户的一个 key（ON CONFLICT (tenant_id, key) 只更新
+	// value/updated_at）；表不存在时先建表再重试一次（老库升级路径）。
 	Upsert(ctx context.Context, key, value string) (string, error)
 
+	// EnsureTable 建表（AutoMigrate，幂等）。模型已在 allModels 登记，
+	// 这里只是 Upsert 重试路径上的兜底，不是常规建表入口。
 	EnsureTable(ctx context.Context) error
 }
 

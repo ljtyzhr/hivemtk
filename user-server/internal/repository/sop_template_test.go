@@ -272,7 +272,8 @@ func TestSOPTemplateRepository_MatchByAgent_StrictOneToOne(t *testing.T) {
 	}
 }
 
-// ListShared / ListByAgent 测试
+// ListByAgent 测试（ListShared 已按 4.4 删除：全仓零调用方，
+// ListWithFilter(AgentID=&0) 覆盖同一能力）
 func TestSOPTemplateRepository_AgentIsolation_Lists(t *testing.T) {
 	repo, _, done := setupSOPRepoWithTX(t)
 	defer done()
@@ -291,14 +292,6 @@ func TestSOPTemplateRepository_AgentIsolation_Lists(t *testing.T) {
 		if err := repo.Create(ctx, x); err != nil {
 			t.Fatal(err)
 		}
-	}
-
-	shared, err := repo.ListShared(ctx, 100)
-	if err != nil {
-		t.Fatal(err)
-	}
-	if len(shared) != 2 {
-		t.Errorf("ListShared expected 2, got %d", len(shared))
 	}
 
 	aList, err := repo.ListByAgent(ctx, agentA, 100)
