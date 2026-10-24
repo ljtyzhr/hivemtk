@@ -261,3 +261,35 @@
   1. `TestArchServiceNoNewGormDB`：在 **HEAD（641b76f6）本身**就 181 处/111 文件 > 基线 166/106（在 HEAD 的干净 worktree 里实测同数），本批新增文件对该判据零贡献（`dialogue_eval_set.go`/`sales_engine_transfer_policy_sync_test.go` 均无 `*gorm.DB`）。
   2. 默认 600s 超时（`TestM02_WhatsAppMultiMessageBatchFeedsEveryMessageToAI` 卡住）——与本仓「service 包 450–880s 随负载摆动、默认 600s 是抽奖式假红」的在册口径一致；复跑结果（`-timeout 40m`，793s 跑完）：**唯一红就是这条在册的 arch 棘轮**（0 次超时 panic），本批新增/改动用例全绿。
 - `go test ./internal/router/`：1 红 `TestAnonymousParamRoutesDeclareTenantMechanism`（`GET /api/template-market/detail/:id` 匿名参数路由未登记租户机制），摘掉本批新增路由后**同样复现**，归他泳道在册项。
+
+---
+
+## API / UI 真跑验收（2026-10-24，独立实例）
+
+**方法**：干净提交树（`f1867a94`）构建二进制 → 独立库 `user_db_apitest`＋独立端口 `:8301`（不碰在跑的 8204）→ `cmd/seed` 灌演示账号 → 真 HTTP 调用；前端 `vite --port 8212` 代理到 8301，用 CDP 真点击。
+
+### 覆盖清单（全绿）
+
+| 面 | 验证内容 | 结果 |
+|---|---|---|
+| P0-1 CSV | 模板下载（328B）→ 导入 → 列表 → 导出**与导入逐字节相同** → 坏表头整体 400 → 按 `eval_set_id` 跑出 baseline；默认 61 条 gold 双相：baseline 1.0 / degraded 0.049 | ✔ |
+| P1-3 MCP | 可达 server 发现 1 工具；不可达行 `last_status=error`；`/test` 200/502；启停；重名 400；无 token 401；**重启后启动发现**日志「server "live" 已接入 1 个工具」 | ✔ |
+| P1-2 OpenAPI | 内网基址被 SSRF 拒（400）；公网基址导入 `tool_count=2`；凭据 `enc:v1:` 落库且库内无明文片段；**重启后启动重建**日志「重建 1 个 OpenAPI 工具集」 | ✔ |
+| P1-4 LLM | 新建/列表/更新/删除；库内 `api_key` 为 `enc:v1:`；`/api/llm/usage/daily` 三种 `group_by` 均 200 | ✔（修复后） |
+| 父子分段 | `/api/knowledge/import/upload` 长文档 → 5 子块全部带 `parent_chunk_id`、2 个父块（3+2）、`children=5`；`/api/knowledge/search` 返回的是**父块长文本** | ✔ |
+| P0-3/G13 | `/api/rag/import` 伪 PDF → `failed`＋「文本提取失败」＋0 块 | ✔（修复后） |
+| UI 工具接入页 | 菜单显示「工具接入」；OpenAPI 导入（表格出 `uitest-erp … 2`）；删除＋确认框；MCP 页签「测试连通」toast「连通正常 (1)」；开关启停（PUT /enabled）；删除（DELETE + 空表） | ✔ |
+| UI 按日趋势 | 成本页签出现「按日用量趋势」卡片；初始 `group_by=day` 出 4 行日期；切「按日+场景」发 `group_by=day_scenario` 并换成 日期×场景×提供方 行 | ✔ |
+
+### 真跑抓到的四个缺陷（均已修 + 回归测试 + 变异/复跑）
+
+1. **MCP 关→开一次 `tool_count` 掉成 0**：`DiscoverAndRegister` 把「已注册」一律当失败跳过。修：`ErrToolAlreadyExists` 计为可用；并容忍服务端 `-32003 already initialized`（否则重复发现整体失败）。测试 `mcp/rediscover_test.go`；变异红。
+2. **`/api/llm/usage/daily` 恒 500**：SELECT 与 GROUP BY 共用带别名的列串，PG 报 `syntax error at or near "AS"`——接口自上线起从未成功返回。修：两份表达式；顺带把 `stat_date` 裁成 `YYYY-MM-DD`。测试 `llm/daily_usage_test.go`（三种 groupBy + 聚合值）；变异红。
+3. **创建 provider 的响应回显明文 `api_key`**：改为 `api_key_set` 布尔，不回写提交值。
+4. **`/api/rag/import`（上传链路）未过解析**：二进制 PDF 原样当正文入库且永不失败（G13 只修了另一条 pipeline）。修：走 `etl.ParseDocument`，结构化失败 markFailed。测试 `knowledge_base_g13_test.go`；变异红。
+
+### 未覆盖 / 说明
+
+- `qa_split` 开关只在 `/api/rag/import`（该口无前端页面），故 UI 层无法点；API 层已验证「开关生效 + 默认关」。
+- 检索耗时 ~20s（本地 rerank 重试），与本轮改动无关；UI 冒烟因此用了 `await` 等待而非固定 sleep。
+- `make audit` 在**主工作树**上现红于他泳道未跟踪文件 `user-server/internal/reach/card/token.go`（`check-hardcode-tunable`）；提交树复验见提交说明。

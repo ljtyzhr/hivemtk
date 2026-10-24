@@ -331,7 +331,8 @@
     "moduleCenterGroup": "機能モジュール",
     "moduleCenter": "モジュールマーケット",
     "myModules": "自分のモジュール",
-    "moduleOrders": "モジュール注文"
+    "moduleOrders": "モジュール注文",
+    "aiCustomIntegration": "ツール連携"
   },
   "保存": "保存",
   "提交": "送信",

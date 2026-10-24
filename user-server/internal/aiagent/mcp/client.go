@@ -10,6 +10,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -287,7 +288,12 @@ func DiscoverAndRegister(ctx context.Context, cfg ClientConfig, registry *toolus
 		}
 		t := &mcpRemoteTool{client: c, def: def}
 		if err := registry.Register(t); err != nil {
-			continue // 重名等非致命，跳过
+			// 已注册且同名 = 该工具本来就在（重新启用/重复发现）——这是「可用」而不是失败。
+			// 早先把这里一律跳过，导致关→开一次之后 tool_count 掉成 0（API 冒烟抓到的真缺陷）。
+			if errors.Is(err, tooluse.ErrToolAlreadyExists) {
+				n++
+			}
+			continue
 		}
 		n++
 	}
@@ -317,7 +323,12 @@ func (c *Client) EnsureInitialized(ctx context.Context) error {
 		ProtocolVersion: clientProtocolVersion,
 		ClientInfo:      Implementation{Name: "hivemtk", Version: "1.0"},
 	}, &res); err != nil {
-		return fmt.Errorf("mcp %s initialize 失败: %w", c.cfg.Name, err)
+		// 「已经初始化过」不是失败：服务端会话可能被复用（同一 server 被重复发现、
+		// 重新启用后再发现、或实现方按会话保留握手态）。规范允许服务端拒绝重复
+		// initialize，客户端必须把这当作握手已完成，否则关一次再开就整体不可用。
+		if !isAlreadyInitialized(err) {
+			return fmt.Errorf("mcp %s initialize 失败: %w", c.cfg.Name, err)
+		}
 	}
 	// 通知无 id、服务端通常不回 body：不发也行（不少实现接受），发了更贴规范；
 	// 失败不阻断握手（部分 server 对未知通知返回错误体）。
@@ -327,6 +338,15 @@ func (c *Client) EnsureInitialized(ctx context.Context) error {
 	c.initialized = true
 	c.mu.Unlock()
 	return nil
+}
+
+// isAlreadyInitialized 判定错误是否为「服务端已处于初始化态」（-32003 / already initialized）。
+func isAlreadyInitialized(err error) bool {
+	if err == nil {
+		return false
+	}
+	msg := strings.ToLower(err.Error())
+	return strings.Contains(msg, "already initialized") || strings.Contains(msg, "-32003")
 }
 
 // notify 发 JSON-RPC 通知（无 id）。任何响应体/错误都不影响调用方。

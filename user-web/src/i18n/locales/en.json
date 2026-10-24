@@ -331,7 +331,8 @@
     "moduleCenterGroup": "Modules",
     "moduleCenter": "Module Market",
     "myModules": "My Modules",
-    "moduleOrders": "Module Orders"
+    "moduleOrders": "Module Orders",
+    "aiCustomIntegration": "Tool Integrations"
   },
   "保存": "Save",
   "提交": "Submit",

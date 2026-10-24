@@ -55,10 +55,15 @@ func (c *LLMRoutingController) CreateModel(ctx *gin.Context) {
 		ctx.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": "invalid body: " + err.Error()})
 		return
 	}
+	keyProvided := info.APIKey != ""
 	if err := c.routingService.CreateModel(ctx.Request.Context(), info); err != nil {
 		ctx.JSON(http.StatusBadRequest, gin.H{"code": 400, "message": err.Error()})
 		return
 	}
+	// 不回显提交的密钥：响应体会进访问日志/APM，原样回写等于把密钥二次落盘。
+	// 改用 api_key_set 表达「有没有配」，与列表接口同一口径。
+	info.APIKey = ""
+	info.APIKeySet = keyProvided
 	ctx.JSON(http.StatusOK, gin.H{"code": 0, "data": info})
 }
 

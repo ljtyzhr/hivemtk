@@ -331,7 +331,8 @@
     "moduleCenterGroup": "Модули",
     "moduleCenter": "Магазин модулей",
     "myModules": "Мои модули",
-    "moduleOrders": "Заказы модулей"
+    "moduleOrders": "Заказы модулей",
+    "aiCustomIntegration": "Tool Integrations"
   },
   "保存": "Save",
   "提交": "Submit",

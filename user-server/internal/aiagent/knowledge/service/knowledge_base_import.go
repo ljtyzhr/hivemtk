@@ -10,6 +10,7 @@ import (
 	"hivemtk-user/internal/aiagent/knowledge/model"
 	rag_core "hivemtk-user/internal/aiagent/rag/core"
 	ragretrieval "hivemtk-user/internal/aiagent/rag/retrieval"
+	"hivemtk-user/internal/etl"
 	"hivemtk-user/internal/pkg/utils/async"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/storage"
@@ -300,7 +301,19 @@ func (s *KnowledgeBaseService) processDocumentAsyncWithQA(ctx context.Context, d
 		s.markDocumentFailed(bgCtx, documentID, fmt.Sprintf("读取文件失败: %v", err))
 		return
 	}
-	content := string(contentBytes)
+	// G13：这条上传链路此前直接把原始字节当正文（PDF/docx 的二进制垃圾原样进索引，
+	// 且永不失败）。与 knowledge_service_pipeline 同一口径：走 etl.ParseDocument
+	// （纯文本直通内置、结构化文档可走外挂解析），提取失败按文档不可读 markFailed，
+	// 只有纯文本类才允许退化为原始字节。
+	content, parseErr := etl.ParseDocument(bgCtx, filepath.Base(filePath), contentBytes)
+	if parseErr != nil {
+		if !etl.IsPlainTextExt(filePath) {
+			s.markDocumentFailed(bgCtx, documentID, fmt.Sprintf("文本提取失败（可能为扫描件或损坏文档）: %v", parseErr))
+			return
+		}
+		logger.Warnf("[KBImport] 纯文本提取异常 doc=%d: %v，退化为原始内容", documentID, parseErr)
+		content = string(contentBytes)
+	}
 
 	ragDoc := rag_core.Document{
 		ID:      fmt.Sprintf("kbdoc_%d", documentID),

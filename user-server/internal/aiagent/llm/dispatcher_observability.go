@@ -584,17 +584,24 @@ func QueryDailyUsage(ctx context.Context, window, groupBy string, limit int) ([]
 		since = now.AddDate(0, -1, 0)
 	}
 
-	// 本地时区日：created_at::date（PG）；group 维度按 groupBy 选择
-	groupCols := "created_at::date AS stat_date, scenario, provider"
+	// 本地时区日：created_at::date（PG）。
+	//
+	// ⚠️ SELECT 与 GROUP BY 必须是两份表达式：PG 不接受 `GROUP BY expr AS alias`
+	// （报 syntax error at or near "AS"）。此前两者共用同一个带别名的串，
+	// 于是 /api/llm/usage/daily 在任何窗口下都 500——接口存在但从来没成功返回过。
+	selectCols := "created_at::date AS stat_date, scenario, provider"
+	groupCols := "created_at::date, scenario, provider"
 	switch groupBy {
 	case "day":
-		groupCols = "created_at::date AS stat_date"
+		selectCols = "created_at::date AS stat_date"
+		groupCols = "created_at::date"
 	case "day_provider":
-		groupCols = "created_at::date AS stat_date, provider"
+		selectCols = "created_at::date AS stat_date, provider"
+		groupCols = "created_at::date, provider"
 	default: // day_scenario
 	}
 	q := d.WithContext(ctx).Table("llm_routing_logs").
-		Select(groupCols + `, COUNT(*) AS call_count,
+		Select(selectCols + `, COUNT(*) AS call_count,
 				SUM(CASE WHEN success THEN 0 ELSE 1 END) AS failed_count,
 				COALESCE(SUM(total_tokens),0) AS total_tokens,
 				COALESCE(SUM(cost),0) AS total_cost,
@@ -608,6 +615,13 @@ func QueryDailyUsage(ctx context.Context, window, groupBy string, limit int) ([]
 	var rows []DailyUsagePoint
 	if err := q.Scan(&rows).Error; err != nil {
 		return nil, err
+	}
+	// PG date 经驱动扫进 string 会变成 RFC3339（2026-10-24T00:00:00Z），
+	// 前端表格按日期列直接渲染，统一裁成 YYYY-MM-DD。
+	for i := range rows {
+		if len(rows[i].StatDate) > 10 {
+			rows[i].StatDate = rows[i].StatDate[:10]
+		}
 	}
 	return rows, nil
 }
