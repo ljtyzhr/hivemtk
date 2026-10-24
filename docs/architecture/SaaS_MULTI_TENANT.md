@@ -99,7 +99,14 @@ git pull && make build && make restart
   而那种写法会把租户 2 的数据静默搬到租户 1（两个失效里更严重的那个）；
 - `Down()` 是**显式的"不销毁在用对象"**（`tenant_id` 承载归属，回滚删列 = 直接毁掉归属），
   判据是回滚后列与数据都还在、且能再升级；
-- 边界：`tenantExemptTables`（`tenants` / `migration_records` / `cron_job_leases` …）不得被加列。
+- 边界：`tenantExemptTables`（`tenants` / `migration_records` / `cron_job_leases` …）不得被加列；
+- 列形态错的表（如 `tenant_id varchar`）**不得被静默跳过**：枚举口径只认
+  `bigint / NOT NULL`（隔离缺口级），形态错的表进清单，且 Up 末尾有**后复核**
+  （`verifyColumns`）——清单跑完回 `information_schema` 现查，仍有形态错列 ⇒ 报错中断升级。
+  依据：PostgreSQL 的 `ADD COLUMN IF NOT EXISTS` 对已存在列是纯 no-op（15.18 实测连类型
+  不匹配都不报错），静默跳过 = 缺口永远不报错；
+- 生产注册点（`initial_schema.go`）不得携带 `.withTables(...)` 覆盖清单
+  （`TestTenantColumnBatchRegistration` 钉住：真库内省不得退化成"只处理指定表"）。
 
 复跑（两条，-run 只写 `TestTenantUpgradeRehearsal` 会漏掉第二条）：
 

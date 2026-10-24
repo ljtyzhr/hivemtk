@@ -22,6 +22,7 @@ import (
 	"context"
 	"testing"
 
+	"hivemtk-user/internal/migration"
 	"hivemtk-user/internal/pkg/testutil"
 
 	"gorm.io/gorm"
@@ -214,6 +215,12 @@ func TestTenantUpgradeRehearsalOnExistingData(t *testing.T) {
 //
 // 这条**走生产路径**（不过滤入参覆盖），因此它也是"清单确实来自真库内省"的判据：
 // 探针表是临时建的、测试库里有几十张真实表，清单必须自己从 information_schema 里挑。
+//
+// 第三条腿（头脑风暴补）：**形态错的列**。原口径只看"有没有 tenant_id 列"，一张
+// `tenant_id varchar(20) NULL` 的表会被静默跳过，而 `ADD COLUMN IF NOT EXISTS` 对
+// 已存在列是 no-op —— 缺口修不回来、永远不报错。收紧后的口径是"与本迁移产出完全一致"
+// （bigint / NOT NULL / DEFAULT 1），形态错的表**进清单并让 Up 响亮失败**（DDL 报错
+// ⇒ 升级中断 ⇒ 有人看见），而不是静默通过把缺口埋进土里。
 func TestTenantColumnBatchEnumeratesOnlyMigratable(t *testing.T) {
 	db := rehearsalFixture(t)
 	m := NewTenantColumnBatchMigration(db)
@@ -233,6 +240,30 @@ func TestTenantColumnBatchEnumeratesOnlyMigratable(t *testing.T) {
 	}
 	if !contains(tables, rehearsalLegacyTable) {
 		t.Fatalf("升级前形态的表（无 tenant_id）必须进清单，实际清单里没有它（%d 张）", len(tables))
+	}
+
+	// 形态错（列在、但类型/可空/默认值与本迁移产出不一致）必须进清单。
+	// 变异实测：原口径（只看列名）会让它静默消失，于是 varchar 的 tenant_id
+	// 成为一个永远不报错的隔离缺口。
+	t.Cleanup(func() { _ = db.Exec(`DROP TABLE IF EXISTS a17_rehearsal_wrongshape`).Error })
+	if err := db.Exec(`CREATE TABLE a17_rehearsal_wrongshape (id bigserial PRIMARY KEY, tenant_id varchar(20))`).Error; err != nil {
+		t.Fatalf("造形态错探针表失败: %v", err)
+	}
+	wrongShape, err := m.businessTables()
+	if err != nil {
+		t.Fatalf("枚举业务表失败: %v", err)
+	}
+	if !contains(wrongShape, "a17_rehearsal_wrongshape") {
+		t.Fatal("tenant_id 列形态错（varchar）的表不在清单里 —— 它会被静默跳过，" +
+			"而 ADD COLUMN IF NOT EXISTS 修不回来：这是一个永远不报错的隔离缺口")
+	}
+	// 进了清单就必须让 Up 响亮失败（这是"被看见"的唯一途径，比静默通过安全）。
+	// 注意 PostgreSQL 的真实行为（15.18 实测）：`ADD COLUMN IF NOT EXISTS` 对**已存在**
+	// 列是纯 no-op，连类型不匹配都不报错 —— 所以"进清单"本身修不了缺口，Up 必须
+	// 带**后复核**：清单跑完仍有形态错列即报错中断。下面这趟 Up 的判据就来自它。
+	if err := NewTenantColumnBatchMigration(db).withTables("a17_rehearsal_wrongshape").Up(context.Background()); err == nil {
+		t.Fatal("形态错的表 Up 竟然成功 —— PostgreSQL 的 IF NOT EXISTS 对已存在列是纯 no-op（15.18 实测），" +
+			"缺口没修还被盖成绿灯，这与静默跳过同罪")
 	}
 
 	// 豁免表不得进清单。**这条必须自己造**：现成的豁免表（`migration_records` /
@@ -258,5 +289,34 @@ func TestTenantColumnBatchEnumeratesOnlyMigratable(t *testing.T) {
 	if contains(tables, rehearsalMigratedTable) {
 		t.Fatal("已经有 tenant_id 的表仍留在清单里 —— 重入时会重复执行 DDL" +
 			"（`IF NOT EXISTS` 让它在库上变成 no-op，把清单语义错静默盖住了）")
+	}
+}
+
+// TestTenantColumnBatchRegistration 生产注册点不得携带覆盖清单（攻击 G）。
+//
+// `withTables` 是"仅测试用"的约定，不是语言保证：生产装配点在 initial_schema.go 的
+// `register(NewTenantColumnBatchMigration(db))` —— 那里若有人链上 `.withTables("orders")`，
+// "真库内省"就静默退化成"只处理指定表"，而这恰恰是"仅测试用"注释挡不住的未来事故
+// （注释不是闸，判据才是）。这条用例从注册表里现取 v3.58.0 实例，断言它的覆盖清单为空。
+// 取不到实例本身也是红：说明注册点被改掉了（改名/删除都要有人看见）。
+func TestTenantColumnBatchRegistration(t *testing.T) {
+	db := testutil.NewTestDB(t)
+	if db == nil {
+		t.Fatal("测试库不可达：生产注册形态无法判定")
+	}
+	// initial_schema.go 的注册路径：RegisterMigrations → registry.Register(...)。
+	registry := migration.NewMigrationRegistry()
+	RegisterMigrations(registry, db)
+	mig, ok := registry.Get("v3.58.0")
+	if !ok || mig == nil {
+		t.Fatalf("注册表里没有 v3.58.0 —— 生产装配点被移除或改名，tenant_id 补列这条腿退出迁移链")
+	}
+	batch, ok := mig.(*TenantColumnBatchMigration)
+	if !ok {
+		t.Fatalf("v3.58.0 的实现类型变了（%T）—— 注册点被改写，请人工复核", mig)
+	}
+	if len(batch.tables) != 0 {
+		t.Fatalf("生产注册的 v3.58.0 携带覆盖清单 %v —— withTables 是测试专用口子，"+
+			"真库内省会静默退化成只处理这几张表（这是隔离缺口，不是配置）", batch.tables)
 	}
 }

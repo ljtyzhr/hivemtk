@@ -215,6 +215,8 @@ func RegisterMigrations(registry *migration.MigrationRegistry, db *gorm.DB) {
 	register(NewMenuGrantCeilingPruneMigration(db))
 	register(NewClueGeoCaptureTypeSplitMigration(db))
 	register(NewTenantTableMigration(db))
+	// 生产装配点：**不得**链 .withTables(...)（那是测试专用口子，会令"真库内省"退化成
+	// "只处理指定表"）。TestTenantColumnBatchRegistration 钉住这一条。
 	register(NewTenantColumnBatchMigration(db))
 	register(NewTenantUniqueIndexMigration(db))
 	register(NewTenantGlobalEmailUniqueMigration(db))

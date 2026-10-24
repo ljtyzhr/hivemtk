@@ -241,11 +241,17 @@ def main():
         if root in tenant["structs"] and root in platform["structs"]:
             compare_struct(root, tenant, platform, visited, problems, "")
 
-    # 类型集相等之后，凡是"清单里有但没被走到"的类型说明它没有挂进四条通道的任何一条
-    # —— 那是"登记了但没人比"的静默空转，也要说出来。
-    for name in sorted(set(tenant["structs"]) & set(platform["structs"]) - visited):
-        if name not in ONE_SIDED:
-            print("  · 提示：类型 %s 在两侧清单里都有，但没有从任何根类型可达（跳过比对）" % name)
+    # 类型集相等之后，凡是"清单里有但没被走到"的类型说明它没有挂进四条通道的任何一条。
+    #
+    # 变异实测（头脑风暴复盘）：把一条腿从 ROOTS 里删掉 ⇒ 原来只是"提示" + RC=0 ——
+    # 这正是本审计围剿的"看起来在跑、实际永远绿"的同构缺陷，出现在这脚本自己的门上。
+    # ROOTS 是手抄的，它的失效形态恰恰不是"清单缺根类型"（那个有判据），而是"根类型
+    # 从 ROOTS 被删掉"（原来没有判据）。所以这里必须是 ❌ 而不是"提示"。
+    unreached = sorted(set(tenant["structs"]) & set(platform["structs"]) - visited - set(ONE_SIDED))
+    for name in unreached:
+        problems.append(
+            "类型 %s 在两侧清单里都有，但没有从任何根类型可达（ROOTS 漏了它？）—— "
+            "它已登记进清单却不被比对，这条子树静默退出判据" % name)
 
     print()
     if problems:

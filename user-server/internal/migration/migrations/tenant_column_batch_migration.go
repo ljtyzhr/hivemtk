@@ -46,6 +46,12 @@ type TenantColumnBatchMigration struct {
 	// tables 仅测试用覆盖清单（同 v3_79_0 的 withTables 口径）：演练要能在**临时探针表**上
 	// 复现"存量数据升级"，否则断言会被测试库里的其它表搅成不确定。生产路径永远是 nil ⇒
 	// 走 businessTables() 的真库内省。
+	//
+	// 注意：这个字段是"仅测试用"的**约定**，不是语言保证。生产装配点在
+	// initial_schema.go 的 register(NewTenantColumnBatchMigration(db)) —— 那里若有人
+	// 链了 .withTables(...)，单表覆盖会让"真库内省"静默退化成"只处理指定表"。这句话
+	// 没法用 if 防住（字段就是给测试开的口子），靠的是 TestTenantColumnBatchRegistration
+	// 用例钉死生产注册点不得携带覆盖清单。
 	tables []string
 }
 
@@ -119,12 +125,78 @@ func (m *TenantColumnBatchMigration) Up(ctx context.Context) error {
 	if m.db.Migrator() != nil {
 		fmt.Printf("[v3.58.0] tenant_id 加列完成：处理 %d 张业务表\n", altered)
 	}
+
+	// 后复核（头脑风暴补的第三道腿）：PostgreSQL 的 `ADD COLUMN IF NOT EXISTS` 对已存在
+	// 列是纯 no-op（15.18 实测，连类型不匹配都不报错），所以"清单收紧"本身修不了
+	// 形态错的列 —— 必须在跑完之后**回到 information_schema 现查**：本清单里的表若仍有
+	// 隔离缺口级形态错（类型错 / 可空），报错中断升级。静默通过会把"永远查不出的隔离
+	// 缺口"埋进土里；失败被人看见是这类不可逆步骤唯一安全的失败形态。
+	//
+	// 复核口径只判**隔离缺口**（bigint / NOT NULL），不判默认值：`DEFAULT 1` 的语义只属于
+	// 本迁移的加列语境（存量行靠它归默认租户）；别的路径建的列（如 AutoMigrate 从
+	// `TenantConfigParam` 模型建的 `tenant_config_params.tenant_id`，`not null` 无默认）
+	// 写入端必填、无存量行需要归属，是合法形态 —— 全链路实测抓到这两张表，复核若连
+	// 默认值一起判会把合法建表判成必红，而"必红的判据等于没有判据"。
+	if err := m.verifyColumns(tables); err != nil {
+		return err
+	}
+	return nil
+}
+
+// verifyColumns Up 后复核：清单里的每张表都必须有隔离缺口级的正确形态（bigint / NOT NULL）。
+func (m *TenantColumnBatchMigration) verifyColumns(tables []string) error {
+	if len(tables) == 0 {
+		return nil
+	}
+	rows, err := m.db.Raw(`
+		SELECT table_name, data_type, is_nullable
+		FROM information_schema.columns
+		WHERE table_schema = current_schema() AND column_name = 'tenant_id'
+		  AND (data_type <> 'bigint' OR is_nullable <> 'NO')
+	`).Rows()
+	if err != nil {
+		return fmt.Errorf("复核 tenant_id 列形态失败: %w", err)
+	}
+	defer func() { _ = rows.Close() }()
+
+	inList := make(map[string]bool, len(tables))
+	for _, t := range tables {
+		inList[t] = true
+	}
+	var problems []string
+	for rows.Next() {
+		var name, dataType, nullable string
+		if err := rows.Scan(&name, &dataType, &nullable); err != nil {
+			return fmt.Errorf("复核扫描失败: %w", err)
+		}
+		if inList[name] {
+			problems = append(problems, fmt.Sprintf(
+				"表 %s 的 tenant_id 列形态错（%s / 可空=%s）：ADD COLUMN IF NOT EXISTS "+
+					"对已存在列是 no-op，此缺口本迁移修不回来 —— 请人工裁决该表列的来路", name, dataType, nullable))
+		}
+	}
+	if err := rows.Err(); err != nil {
+		return fmt.Errorf("复核遍历失败: %w", err)
+	}
+	if len(problems) > 0 {
+		return fmt.Errorf("v3.58.0 后复核失败（%d 处）：\n  %s", len(problems), strings.Join(problems, "\n  "))
+	}
 	return nil
 }
 
 // businessTables 枚举需要加列的业务表：
 // public schema 全部 BASE TABLE，按 tenantExemptTables（唯一事实源）过滤，
-// 并排除已有 tenant_id 列的表（幂等重入）。
+// 并排除已有**形态正确**的 tenant_id 列的表（幂等重入）。
+//
+// "形态正确"= bigint / NOT NULL（隔离缺口级）。为什么收紧到这个程度：头脑风暴变异实测，
+// 一张 `tenant_id varchar(20) NULL` 的表会被原口径静默跳过（`IF NOT EXISTS` 修不回来 ——
+// 列已存在，ALTER 变 no-op，15.18 实测连报错都没有），于是它**永远**是隔离缺口且没有
+// 任何报错。收进清单后 `ADD COLUMN IF NOT EXISTS` 同样修不回来（纯 no-op），所以 Up 末尾
+// 还有**后复核**：清单跑完仍查到形态错即报错中断。失败被人看见是这类不可逆步骤唯一安全
+// 的失败形态 —— 静默通过则等于把缺口埋进土里。
+// 默认值**刻意不判**：`DEFAULT 1` 的语义只属于本迁移的加列语境（存量行靠它归默认租户）；
+// 别的路径建的列（AutoMigrate 从模型建的 `tenant_config_params.tenant_id`，写入端必填、
+// 无存量行需要归属）是合法形态 —— 判它会把全链路测试打成必红，而必红的判据等于没有判据。
 func (m *TenantColumnBatchMigration) businessTables() ([]string, error) {
 	rows, err := m.db.Raw(`
 		SELECT t.table_name
@@ -136,6 +208,8 @@ func (m *TenantColumnBatchMigration) businessTables() ([]string, error) {
 			WHERE c.table_schema = t.table_schema
 			  AND c.table_name = t.table_name
 			  AND c.column_name = 'tenant_id'
+			  AND c.data_type = 'bigint'
+			  AND c.is_nullable = 'NO'
 		  )
 		ORDER BY t.table_name
 	`).Rows()
