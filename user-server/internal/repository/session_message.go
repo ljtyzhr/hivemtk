@@ -250,6 +250,17 @@ func (r *SessionMessageRepository) MarkDelivered(ctx context.Context, sessionID 
 		Update("delivered_at", &deliveredAt).Error
 }
 
+// UpdateCitations 补写答案引用快照（T2 引用溯源）：编排器先行落行的场景
+// 由去重命中方补齐，仅覆盖空快照，避免覆盖真实历史。
+func (r *SessionMessageRepository) UpdateCitations(ctx context.Context, messageID uint, citations string) error {
+	if r == nil || r.db == nil || messageID == 0 {
+		return nil
+	}
+	return r.db.WithContext(ctx).Model(&model.SessionMessage{}).
+		Where("id = ?", messageID).
+		Update("citations", citations).Error
+}
+
 // Delete 按 id 删除单条会话消息（统一收件箱消息删除）。
 //
 // 0 行 ⇒ ErrRecordNotFound：删一条已经被删掉的消息不该回成功，否则前端把

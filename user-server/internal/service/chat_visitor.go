@@ -561,6 +561,14 @@ func (s *VisitorChatService) SendMessage(ctx context.Context, req *VisitorSendMe
 		existing, _ := s.messageRepo.FindRecentDuplicate(ctx, session.SessionID, "ai", "ai_assistant", handleResult.Reply, 5*time.Second)
 		if existing != nil {
 			_ = s.messageRepo.MarkDelivered(ctx, session.SessionID, []uint{existing.ID}, now)
+			// T2：编排器 saveOutboundMessage 先落了 AI 行（不带引用），
+			// 这里去重命中后补写引用快照，保证刷新/换端回看完整。
+			if len(handleResult.Citations) > 0 && existing.Citations == "[]" {
+				if data, err := json.Marshal(handleResult.Citations); err == nil {
+					_ = s.messageRepo.UpdateCitations(ctx, existing.ID, string(data))
+					existing.Citations = string(data)
+				}
+			}
 			result.AIResponse = existing
 		} else {
 			aiMsg := &model.SessionMessage{
