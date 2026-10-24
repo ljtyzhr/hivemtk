@@ -41,6 +41,17 @@ func ExtractText(filename string, data []byte) (string, error) {
 	}
 }
 
+// IsPlainTextExt 判断后缀是否属于「纯文本类」——这些格式 ExtractText 永不报错
+// （直接返回字节原文），因此上游管线在提取失败时允许对其退化为原始内容。
+// 结构化格式（pdf/docx/html/doc）不在其列：它们提取失败即文档不可读，上游应 markFailed。
+func IsPlainTextExt(filename string) bool {
+	switch strings.ToLower(filepath.Ext(filename)) {
+	case ".txt", ".md", ".markdown", ".csv", ".tsv", ".json", ".log", ".xml", ".yml", ".yaml", ".text":
+		return true
+	}
+	return false
+}
+
 func extractHTMLText(data []byte) string {
 	doc, err := html.Parse(bytes.NewReader(data))
 	if err != nil {

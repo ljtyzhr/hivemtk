@@ -22,7 +22,9 @@ func loadGoldFixture(t *testing.T) []DialogueSample {
 		t.Fatalf("读 fixture 失败: %v", err)
 	}
 	if len(samples) != 8 {
-		t.Fatalf("样本数 = %d want 8", len(samples))
+		if len(samples) < 50 {
+			t.Fatalf("样本数 = %d，应 ≥50（P0-1 扩集下界）", len(samples))
+		}
 	}
 	return samples
 }
@@ -35,7 +37,9 @@ func TestDialogueGold_BaselineIsPerfect(t *testing.T) {
 		t.Fatalf("RunDialogueGold(reference): %v", err)
 	}
 	if res.SampleCount != 8 {
-		t.Errorf("SampleCount = %d want 8", res.SampleCount)
+		if res.SampleCount != len(samples) {
+			t.Errorf("SampleCount = %d want %d", res.SampleCount, len(samples))
+		}
 	}
 	if res.CompositeAvg != 1.0 {
 		t.Errorf("基线 CompositeAvg = %v want 1.0", res.CompositeAvg)
@@ -67,8 +71,10 @@ func TestDialogueGold_DegradedDrops(t *testing.T) {
 	if degraded.ActionMatchRate != 0.0 {
 		t.Errorf("退化 ActionMatchRate = %v want 0.0（全部翻动作）", degraded.ActionMatchRate)
 	}
-	if degraded.KeyCoverageAvg != 0.0 {
-		t.Errorf("退化 KeyCoverageAvg = %v want 0.0（关键词全删）", degraded.KeyCoverageAvg)
+	// P0-1 扩集后 KeyCoverageAvg 不再恒 0：退化 assistant 文本（您好…）可能与部分
+	// must_contain（如"帮您"）重叠，断言改为"显著低于基线"而非写死 0。
+	if degraded.KeyCoverageAvg >= 0.5 {
+		t.Errorf("退化 KeyCoverageAvg = %v，应显著低于基线（<0.5）", degraded.KeyCoverageAvg)
 	}
 }
 
@@ -89,7 +95,9 @@ func TestDialogueGold_BaselinePersisted(t *testing.T) {
 		t.Fatalf("读回基线失败: %v", err)
 	}
 	if back.SampleCount != 8 {
-		t.Errorf("SampleCount = %d want 8", back.SampleCount)
+		if back.SampleCount != len(samples) {
+			t.Errorf("SampleCount = %d want %d", back.SampleCount, len(samples))
+		}
 	}
 	for _, tc := range []struct {
 		name string

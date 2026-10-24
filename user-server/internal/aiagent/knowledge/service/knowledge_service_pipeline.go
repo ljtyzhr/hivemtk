@@ -1,8 +1,7 @@
 // Package service 知识库子域 —— 异步处理流水线
 //
-// 文档异步处理全流程（status update → 文本提取 → 分片 → 写库 → 向量化 → 入索引）。
-// 单一职责：异步 goroutine 内执行的所有步骤集中在此文件，便于追踪"知识库入库
-// 失败"的所有失败点。
+// 文档异步处理全流程（status update → 文本提取 → 分片 → 写库 → 向量化 → 入索引），
+// 异步 goroutine 内执行的所有步骤集中在此文件。
 package service
 
 import (
@@ -42,12 +41,31 @@ func (s *KnowledgeService) processDocumentAsync(bgCtx context.Context, documentI
 			s.markFailed(bgCtx, documentID, fmt.Sprintf("读取文件失败: %v", err))
 			return
 		}
-		extracted, extErr := etl.ExtractText(fileName, bytes)
-		if extErr != nil {
-			logger.Warnf("[knowledge] 文本提取失败 doc=%d: %v，退化为原始内容", documentID, extErr)
-			extracted = string(bytes)
+		// P1-1 图片知识库：图片走本地 VL 描述→文本索引（服务未配置时报不支持格式）
+		if etl.IsImageExt(fileName) {
+			desc, derr := etl.DescribeImage(bgCtx, fileName, bytes)
+			if derr != nil {
+				logger.Warnf("[knowledge] 图片描述失败 doc=%d: %v", documentID, derr)
+				s.markFailed(bgCtx, documentID, fmt.Sprintf("图片处理失败: %v", derr))
+				return
+			}
+			content = desc
+		} else {
+			extracted, extErr := etl.ParseDocument(bgCtx, fileName, bytes)
+			if extErr != nil {
+				// G13：结构化文档（pdf/docx/html）提取失败说明文档本身不可读（扫描件/损坏/炸弹），
+				// 直接失败入库；只有纯文本类后缀（ExtractText 对它们永不报错，这里只兜读取异常）
+				// 才允许退化为原始字节，避免把二进制垃圾当内容分块向量化污染检索库。
+				if !etl.IsPlainTextExt(fileName) {
+					logger.Warnf("[knowledge] 文本提取失败 doc=%d: %v，标记失败", documentID, extErr)
+					s.markFailed(bgCtx, documentID, fmt.Sprintf("文本提取失败（可能为扫描件或损坏文档）: %v", extErr))
+					return
+				}
+				logger.Warnf("[knowledge] 纯文本提取异常 doc=%d: %v，退化为原始内容", documentID, extErr)
+				extracted = string(bytes)
+			}
+			content = extracted
 		}
-		content = extracted
 	}
 	if strings.TrimSpace(content) == "" {
 		s.markFailed(bgCtx, documentID, "文档内容为空（可能为扫描件或空文件）")

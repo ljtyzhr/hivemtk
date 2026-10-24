@@ -495,6 +495,7 @@ func setupLLMRoutingRoutes(auth *gin.RouterGroup) {
 	auth.GET("/llm/audit", llmCtrl.ListAuditHistory)
 	auth.GET("/llm/stats", llmCtrl.Stats)
 	auth.GET("/llm/usage", llmCtrl.Usage)
+	auth.GET("/llm/usage/daily", llmCtrl.DailyUsage)
 	auth.GET("/llm/cost-stats", llmCtrl.CostStats)
 	auth.GET("/llm/fallback", llmCtrl.FallbackConfig)
 	auth.GET("/llm/scene-routing", llmCtrl.ListStrategies)

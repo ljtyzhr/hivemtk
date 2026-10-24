@@ -85,7 +85,7 @@ HiveMtk 是一套**开源自部署**的 AI 私域运营系统，解决一个核�
 
 ### 3.3 工具集与护栏（F3）
 
-- **42 个内置工具**：RAG 检索 4 / 客户管理 8 / 订单售后物流 6 / 全渠道触达 20 / 私信与会话卡片 4；
+- **45 个内置工具**（`Build*Tools()` 七组实测：触达 20 / 客户 8 / 订单售后物流与跟进 6 / 知识库 4 / 浏览器自动化 3 / 私信会话 3 / 卡片 1）：RAG 检索与知识库 4 / 客户管理 8 / 订单售后物流 6 / 全渠道触达 20 / 私信与会话卡片 4 / 浏览器 3；
 - **12 层装饰器链**：权限→限流→熔断→重试→超时→审计→成本→反馈→死信→结果缓存→双拦截→参数校验，每个工具调用都过一遍；
 - **LoopGuard**：同指纹工具调用 60 秒内 3 次即判定循环并拒绝；
 - **MCP Server**：零依赖 JSON-RPC 2.0 实现，外部工具可通过标准协议接入。
@@ -275,13 +275,14 @@ HiveMtk 是一套**开源自部署**的 AI 私域运营系统，解决一个核�
 | G1 | SOP Saga 补偿空壳 | **已修**：`service.InitSOPCompensation` 在 `cmd/api/main.go:300` 按 `FF_LTC_SAGA_COMPENSATION` 注入，补偿器已接线 |
 | G2 | MultiModelVote 无真实投票 | **已修**：`internal/aiagent/llm/dispatcher_dispatch.go:488` 真实多数派投票（`dispatcher_vote_test.go:16`） |
 | G3 | greeting 意图规则不可达 | **已修**：`internal/service/intent_recognition.go:505` 问候语已入词典 |
-| G4 | 置信度两套体系割裂 | 仍存在：编排层启发式置信度与 confidence 五信号体系未打通 |
+| G4 | 置信度两套体系割裂 | 部分修复（2026-10-24 复核）：五信号聚合器已全局接线（`main.go:525` 装配、`sales_engine_factory.go:77/140` 注入 engine 与 SmartCS）；**真残点**＝①`sales_engine_transfer.go:29` 意图置信 0.7 硬编码门槛在五信号聚合之前一票否决；②双阈值源失同步——`confidence/threshold_policy.go:122-136` 已有 per-intent 阈值表（complaint 0.85/objection 0.75…）供聚合器消费，但 transfer 前置门槛是独立通用 0.7，三套阈值数字并存；附带 CtxRelev Embedder 为随机投影（`confidence_init.go`）。改进任务见 `docs/COMPETITOR_GAP_TASKLIST_202610.md` P0-2 |
 | G7 | 行为拟人默认关闭 | 仍存在：分条发送/打字模拟需手动 A/B 灰度开启 |
 | G8 | 异议分类置信度硬编码 0.85 | **已修**：`internal/service/objection_handler.go:131` 按命中数给 0.90/0.70/0.40，非硬编码 |
 | G9 | 四层检索短路式 | 仍存在：可能漏掉冷库中更优结果 |
 | G10 | 模板兜底文案单一 | 仍存在：四级降级最后一级文案无场景区分 |
 | G11 | 主动触达未落地 | 部分修复：双模式（Passive/Active）已有入口，但 `ModeOf`/`IsActive`/`AutoExecute`/`DecisionStrategyIDs` 四格仍 UNWIRED |
-| G12 | 评测较薄 | 仍存在：无对话级端到端评测集，仅单轮 ChrF + LLM Judge |
+| G12 | 评测较薄 | 部分修复（2026-10-24 复核）：对话级 gold 框架已存在（`aiagent/eval/dialogue_gold.go`：turn 级 ChrF/关键词覆盖/动作一致 + 退化对照，`dialogue_eval_runs` 表已建），RAG 侧评测集闭环已有（`rag_eval_auto.go` 每日 cron）；**真残点**＝gold 运行器无生产接线（仅测试调用方）+ gold 集仅 8 样本/3 场景 + 无意图命中维度。改进任务见 `docs/COMPETITOR_GAP_TASKLIST_202610.md` P0-1 |
+| G13 | 知识库解析失败退化为原文入库（2026-10-24 竞品调研二次论证新发现） | 仍存在：`aiagent/knowledge/service/knowledge_service_pipeline.go:47` 提取失败时 `string(bytes)` 把二进制原文当内容入库（扫描件 PDF 常见），污染向量库；同文件 :53 的「疑似扫描件」markFailed 口径被该退化分支先吃掉。改进任务见 `docs/COMPETITOR_GAP_TASKLIST_202610.md` P0-3 |
 
 ---
 

@@ -574,6 +574,11 @@ func main() {
 	defer ragEvalCron.Stop(context.Background())
 	logger.Info("[RagEvalCron] RAG 自动评测每日已装配")
 
+	dialogueEvalCron := service.NewDialogueEvalCron()
+	dialogueEvalCron.Start(context.Background())
+	defer dialogueEvalCron.Stop(context.Background())
+	logger.Info("[DialogueEvalCron] 对话级 gold 评测每日已装配")
+
 	journeySleepCron := service.NewJourneySleepCron(nil)
 	journeySleepCron.Start(context.Background())
 	defer journeySleepCron.Stop(context.Background())

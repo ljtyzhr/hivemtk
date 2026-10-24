@@ -30,9 +30,12 @@ const (
 
 // DialogueTurn 一次对话中的一个回合。
 type DialogueTurn struct {
-	Role           string   `json:"role"`
-	Text           string   `json:"text"`
-	ExpectedAction string   `json:"expected_action,omitempty"`
+	Role           string `json:"role"`
+	Text           string `json:"text"`
+	ExpectedAction string `json:"expected_action,omitempty"`
+	// ExpectedIntent 期望意图（P0-1 新增维度，可选）。非空时与候选回合的
+	// ExpectedIntent 比对得 IntentHit；两相 transcript 都可带。
+	ExpectedIntent string   `json:"expected_intent,omitempty"`
 	MustContain    []string `json:"must_contain,omitempty"`
 }
 
@@ -56,6 +59,9 @@ type DialogueTurnScore struct {
 	KeyCoverage   float64 `json:"key_coverage"`
 	ActionMatch   bool    `json:"action_match"`
 	ActionSkipped bool    `json:"action_skipped"`
+	IntentHit     bool    `json:"intent_hit"`
+	// IntentSkipped 该回合无期望意图标注（IntentHitRate 分母不含它）。
+	IntentSkipped bool    `json:"intent_skipped"`
 	Composite     float64 `json:"composite"`
 }
 
@@ -68,15 +74,20 @@ type DialogueSampleScore struct {
 
 // DialogueGoldResult 一次评测运行的汇总。
 type DialogueGoldResult struct {
-	SampleCount     int                   `json:"sample_count"`
-	CompositeAvg    float64               `json:"composite_avg"`
-	KeyCoverageAvg  float64               `json:"key_coverage_avg"`
-	ActionMatchRate float64               `json:"action_match_rate"`
-	ChrfAvg         float64               `json:"chrf_avg"`
-	Samples         []DialogueSampleScore `json:"samples"`
+	SampleCount     int     `json:"sample_count"`
+	CompositeAvg    float64 `json:"composite_avg"`
+	KeyCoverageAvg  float64 `json:"key_coverage_avg"`
+	ActionMatchRate float64 `json:"action_match_rate"`
+	// IntentHitRate 期望意图命中均分（P0-1 新增；无标注样本时分母不含，无任何标注=1.0）。
+	IntentHitRate float64               `json:"intent_hit_rate"`
+	ChrfAvg       float64               `json:"chrf_avg"`
+	Samples       []DialogueSampleScore `json:"samples"`
 }
 
 // ScoreDialogueTurn 评一个 assistant 回合：cand 是被测，ref 是标准。
+// ScoreDialogueTurn 评一个回合。cand 是待评 transcript 的回合（基线相=s.Turns，
+// 退化相=s.Degraded），ref 是标准回合。ExpectedIntent 非空时参与 intent_hit 判定
+// （P0-1：评测维度从三维扩四维——意图命中独立于动作一致，覆盖"回复像但判错意图"的失败形态）。
 func ScoreDialogueTurn(chrf *ChrFEvaluator, cand, ref DialogueTurn) DialogueTurnScore {
 	out := DialogueTurnScore{}
 	out.Chrf = chrf.Score(cand.Text, ref.Text)
@@ -85,6 +96,12 @@ func ScoreDialogueTurn(chrf *ChrFEvaluator, cand, ref DialogueTurn) DialogueTurn
 		out.ActionSkipped = true
 	} else {
 		out.ActionMatch = strings.TrimSpace(cand.ExpectedAction) == strings.TrimSpace(ref.ExpectedAction)
+	}
+	if strings.TrimSpace(ref.ExpectedIntent) != "" {
+		out.IntentSkipped = false
+		out.IntentHit = strings.TrimSpace(cand.ExpectedIntent) == strings.TrimSpace(ref.ExpectedIntent)
+	} else {
+		out.IntentSkipped = true
 	}
 	actionScore := 0.0
 	if out.ActionMatch {
@@ -117,6 +134,7 @@ func keyCoverage(text string, must []string) float64 {
 func RunDialogueGold(chrf *ChrFEvaluator, samples []DialogueSample, useDegraded bool) (DialogueGoldResult, error) {
 	var out DialogueGoldResult
 	actionHit, actionTotal := 0, 0
+	intentHit, intentTotal := 0, 0
 	for _, s := range samples {
 		transcript := s.Turns
 		if useDegraded {
@@ -143,6 +161,12 @@ func RunDialogueGold(chrf *ChrFEvaluator, samples []DialogueSample, useDegraded 
 				actionTotal++
 				if ts.ActionMatch {
 					actionHit++
+				}
+			}
+			if !ts.IntentSkipped {
+				intentTotal++
+				if ts.IntentHit {
+					intentHit++
 				}
 			}
 		}
@@ -172,6 +196,11 @@ func RunDialogueGold(chrf *ChrFEvaluator, samples []DialogueSample, useDegraded 
 		out.ActionMatchRate = float64(actionHit) / float64(actionTotal)
 	} else {
 		out.ActionMatchRate = 1.0
+	}
+	if intentTotal > 0 {
+		out.IntentHitRate = float64(intentHit) / float64(intentTotal)
+	} else {
+		out.IntentHitRate = 1.0
 	}
 	return out, nil
 }

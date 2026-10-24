@@ -564,3 +564,18 @@ func (c *LLMRoutingController) EgressAlerts(ctx *gin.Context) {
 func (c *LLMRoutingController) EgressAudit(ctx *gin.Context) {
 	c.EgressAlerts(ctx)
 }
+
+// @Summary      按日用量聚合（P1-4 模型管理面看板）
+// @Tags      l-l-m-routing
+// @Router    /api/llm/usage/daily [get]
+// DailyUsage GET /api/llm/usage/daily?window=month&group_by=day_scenario
+func (c *LLMRoutingController) DailyUsage(ctx *gin.Context) {
+	window := ctx.DefaultQuery("window", "month")
+	groupBy := ctx.DefaultQuery("group_by", "day_scenario")
+	points, err := c.routingService.DailyUsage(ctx.Request.Context(), window, groupBy)
+	if err != nil {
+		ctx.JSON(http.StatusInternalServerError, gin.H{"code": 500, "message": err.Error()})
+		return
+	}
+	ctx.JSON(http.StatusOK, gin.H{"code": 0, "data": points})
+}

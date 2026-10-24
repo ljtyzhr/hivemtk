@@ -26,6 +26,16 @@ func setupCompetitorFeatureRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 	auth.GET("/rag-eval/runs", ragEvalCtrl.List)
 	auth.GET("/rag-eval/runs/:id", ragEvalCtrl.Get)
 
+	dialogueEvalCtrl := controller.NewDialogueEvalController()
+	auth.POST("/dialogue-eval/run", dialogueEvalCtrl.Run)
+	auth.GET("/dialogue-eval/runs", dialogueEvalCtrl.List)
+	auth.GET("/dialogue-eval/runs/:id", dialogueEvalCtrl.Get)
+
+	customToolCtrl := controller.NewCustomToolController()
+	auth.POST("/custom-tools/import", customToolCtrl.Import)
+	auth.GET("/custom-tools", customToolCtrl.List)
+	auth.DELETE("/custom-tools/:id", customToolCtrl.Delete)
+
 	agentAttrCtrl := controller.NewAgentAttributionController()
 	auth.GET("/agent-attribution/performance", agentAttrCtrl.GetPerformance)
 

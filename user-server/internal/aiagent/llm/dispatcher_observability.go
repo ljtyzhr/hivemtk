@@ -549,3 +549,65 @@ func InitGlobalDispatcherWithDB(d *Dispatcher, gormDB *gorm.DB) {
 		fo.Start(context.Background())
 	}
 }
+
+// DailyUsagePoint 按日用量点（P1-4 模型管理面：按日/按场景聚合看板维度）。
+type DailyUsagePoint struct {
+	StatDate     string  `json:"stat_date"` // 'YYYY-MM-DD'（本地时区日）
+	Scenario     string  `json:"scenario"`
+	Provider     string  `json:"provider"`
+	CallCount    int64   `json:"call_count"`
+	FailedCount  int64   `json:"failed_count"`
+	TotalTokens  int64   `json:"total_tokens"`
+	TotalCost    float64 `json:"total_cost"`
+	AvgLatencyMs int64   `json:"avg_latency_ms"`
+}
+
+// QueryDailyUsage 按日聚合用量（llm_routing_logs created_at 分日）。
+// window: today / week / month / all（与 QueryScenarioStats 同口径）。
+// groupBy: day / day_scenario / day_provider（默认 day_scenario）。
+func QueryDailyUsage(ctx context.Context, window, groupBy string, limit int) ([]DailyUsagePoint, error) {
+	d := getAuditDB()
+	if d == nil {
+		return nil, nil
+	}
+	if limit <= 0 {
+		limit = 120
+	}
+	var since time.Time
+	now := time.Now()
+	switch window {
+	case "today":
+		since = time.Date(now.Year(), now.Month(), now.Day(), 0, 0, 0, 0, now.Location())
+	case "week":
+		since = now.AddDate(0, 0, -7)
+	case "month":
+		since = now.AddDate(0, -1, 0)
+	}
+
+	// 本地时区日：created_at::date（PG）；group 维度按 groupBy 选择
+	groupCols := "created_at::date AS stat_date, scenario, provider"
+	switch groupBy {
+	case "day":
+		groupCols = "created_at::date AS stat_date"
+	case "day_provider":
+		groupCols = "created_at::date AS stat_date, provider"
+	default: // day_scenario
+	}
+	q := d.WithContext(ctx).Table("llm_routing_logs").
+		Select(groupCols + `, COUNT(*) AS call_count,
+				SUM(CASE WHEN success THEN 0 ELSE 1 END) AS failed_count,
+				COALESCE(SUM(total_tokens),0) AS total_tokens,
+				COALESCE(SUM(cost),0) AS total_cost,
+				COALESCE(AVG(latency_ms),0)::bigint AS avg_latency_ms`).
+		Group(groupCols).
+		Order("stat_date DESC").
+		Limit(limit)
+	if !since.IsZero() {
+		q = q.Where("created_at >= ?", since)
+	}
+	var rows []DailyUsagePoint
+	if err := q.Scan(&rows).Error; err != nil {
+		return nil, err
+	}
+	return rows, nil
+}

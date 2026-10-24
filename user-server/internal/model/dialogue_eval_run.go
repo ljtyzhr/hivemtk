@@ -26,6 +26,8 @@ type DialogueEvalRun struct {
 	KeyCoverageAvg float64 `gorm:"type:decimal(6,4);default:0" json:"key_coverage_avg"`
 	// ActionMatchRate 期望动作一致率（只统计动作非空的回合）。
 	ActionMatchRate float64 `gorm:"type:decimal(6,4);default:0" json:"action_match_rate"`
+	// IntentHitRate 期望意图命中均分（P0-1 新增；无标注回合不计分母，全无标注=1.0）。
+	IntentHitRate float64 `gorm:"type:decimal(6,4);default:0" json:"intent_hit_rate"`
 	// ChrfAvg ChrF 均值。
 	ChrfAvg float64 `gorm:"type:decimal(6,4);default:0" json:"chrf_avg"`
 

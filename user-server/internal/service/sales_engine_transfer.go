@@ -28,7 +28,17 @@ func (e *SalesEngine) shouldTransferToHuman(ctx context.Context, intent *dto.Rec
 		return false, ""
 	}
 
-	if intent.Confidence >= 0.7 &&
+	// G4/P0-2：前置门槛不再用独立常量 0.7，改读 per-intent 阈值策略的单一来源
+	// （confidence/threshold_policy.go 的 BaseThreshold，与聚合器 GetPolicy 同源），
+	// 消除「前置 0.7 / policy 表 / Band 边界」三套数字并存的失同步。
+	// 语义不变：意图置信 ≥ 该意图档位阈值 且非投诉/流失 ⇒ 不进转人工聚合。
+	threshold := 0.70 // fallback：聚合器/策略引擎不可达时保持既有行为
+	if e.confidenceAggregator != nil {
+		if p := e.confidenceAggregator.GetPolicy(ctx, intent.IntentType); p != nil && p.BaseThreshold > 0 {
+			threshold = p.BaseThreshold
+		}
+	}
+	if intent.Confidence >= threshold &&
 		intent.IntentType != IntentComplaint &&
 		intent.IntentType != IntentChurn {
 		return false, ""

@@ -79,6 +79,9 @@ var workerModuleKey = map[string]string{
 
 	// 知识库 cron
 	"rag_eval": model.ModuleKnowledge, // rag_eval_cron.go 每日 RAG 自动评测
+
+	// AI 对话 cron
+	"dialogue_eval": model.ModuleKnowledge, // dialogue_eval_cron.go 每日对话级 gold 评测（知识库/会话域）
 }
 
 // toolModuleKey Agent 工具名 → 模块 key（**保守**：只收归属毫无疑问的工具，

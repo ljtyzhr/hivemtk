@@ -101,6 +101,7 @@ func allModels() []any {
 		&model.ReportSubscription{},
 		&model.RagEvalQuestion{},
 		&model.RagEvalRun{},
+		&model.CustomTool{},
 		&model.DialogueEvalRun{},
 		&model.VisitLog{},
 		&model.DailyStats{},

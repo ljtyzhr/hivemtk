@@ -611,3 +611,9 @@ func operatorFromContext(ctx context.Context) string {
 	}
 	return "system"
 }
+
+// DailyUsage 按日用量聚合（P1-4 模型管理面）。透传 llm.QueryDailyUsage，
+// window/groupBy 口径见该函数注释。
+func (s *LLMRoutingService) DailyUsage(ctx context.Context, window, groupBy string) ([]llm.DailyUsagePoint, error) {
+	return llm.QueryDailyUsage(ctx, window, groupBy, 120)
+}

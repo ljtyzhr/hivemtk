@@ -69,6 +69,16 @@ func (a *ConfidenceAggregator) GetConformal() *ConformalPredictor {
 	return a.conformal
 }
 
+// GetPolicy 返回指定意图的阈值策略（P0-2 G4：sales_engine_transfer 的前置门槛改读
+// per-intent policy 单一来源，消除「前置 0.7 / policy 表 / Band 边界」三套数字并存）。
+// engine 未装配或查不到意图时回 default 档——与 GetPolicy 内部回退一致。
+func (a *ConfidenceAggregator) GetPolicy(ctx context.Context, intentType string) *model.ThresholdPolicy {
+	if a == nil || a.calc == nil || a.calc.policyEngine == nil {
+		return builtinPolicies()["default"]
+	}
+	return a.calc.policyEngine.GetPolicy(ctx, intentType)
+}
+
 // RefreshThresholdPolicies 使指定租户的阈值策略缓存失效（运营后台写入后调用）。
 func (a *ConfidenceAggregator) RefreshThresholdPolicies(tenantID uint) {
 	if a == nil || a.calc == nil || a.calc.policyEngine == nil {

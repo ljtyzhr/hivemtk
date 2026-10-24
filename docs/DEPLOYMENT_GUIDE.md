@@ -654,3 +654,6 @@ inference:
 ---
 
 *最后更新：2026-10-09 · 基于 ports.go / Makefile / docker-compose.yml / .env-example / config.yaml 源码核对（同日补录 §6.2 三装配期旗 `FF_LTC_ORDER_DRAFT_DB` / `FF_LTC_HANDOFF_SLA_JOB` / `FF_LTC_SALES_TRIGGER`，并转义表内反引号中的 `|` 防拆列）。2026-10 增补 §十二 部署向导（scripts/deploy-wizard.py，C1）与 §十三 推理降级档（inference.tier，C2）。*
+| `PARSER_SIDECAR_URL` | 空 | P1-1 可插拔文档解析的外挂解析服务 URL（`internal/etl/parser_seam.go`）。**默认空＝纯内置解析，零外网请求**；配置后仅结构化文档（pdf/docx/html）走外挂（multipart 上传 `file` 字段，200 响应体即提取文本），纯文本类仍直通内置。外挂失败**不回退**内置（扫描件内置必然也失败，回退只会掩盖故障），显式 markFailed。适配上 RAGFlow/MinerU 需一层薄 CGI 适配该契约 |
+| `IMAGE_DESCRIBE_URL` | 空 | P1-1 图片知识库的本地 VL 推理服务（OpenAI chat completions 兼容，如 llama-server 挂 mmproj 模型，`internal/etl/image_describe.go`）。**默认空＝图片导入 markFailed**（报不支持格式）；配置后图片经 base64 内联发给本地服务，拿回文本描述走既有文本管线入库——图片可被文本 query 命中，且与「Embedding/Rerank 强制本地」同构（描述全程不出域） |
+| `IMAGE_DESCRIBE_MODEL` | `vl` | 视觉服务侧模型名（payload `model` 字段），服务侧路由用 |
