@@ -368,3 +368,14 @@ BatchGenerateMaxKeywords
 # 对外 API 的取值契约：调它等于对同一批调用方改协议默认，不是运维调参。要调默认
 # 档位走需求变更 + 契约回归（route 面与看板快照测试），与「参数中心热读阈值」不同域。
 DashboardDefaultWindow
+# ── 2026-10-24 T4 知识库冷启动：爬取配额 4 旋钮暂登记为债 ─────────────────────
+# 均出自 docs/architecture/design/T4-kb-coldstart.md §8.2 的固定配额/护栏，随
+# feature T4（一）（二）首次落地，当前写死在 kb_crawler.go 的 const 块里。
+# 「为什么暂不入库」：T4 爬取管道仍在特性交付中（服务 seam 与装配面持续演进），
+# 参数中心 knowledge 组的接线属特性收口项，由特性提交继续完成；本表先按设计文档
+# §8.2 口径登记默认值，防止新增旋钮门误挡在途特性。接线时应改走
+# knowledge/service/constants.go 的 Default*() accessor + GetInt 兜底范式。
+MaxSourcesPerTenant
+MaxDailyCrawlPages
+MaxConsecutiveFailBatch
+MaxRetryPerBatch
