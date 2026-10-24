@@ -105,6 +105,8 @@ var knowledgeOwnedTables = []string{
 	// kb_item_bindings：知识库成员表（P0-2/P0-3/D-8 方案 A），
 	// 归 knowledge 模块：读写方只有 controller/service/repository 的 kb_item_binding 三件
 	"kb_item_bindings",
+	// T4 知识库冷启动三表：爬取源/爬取批次/QA 候选，随知识库模块开关
+	"kb_crawler_sources", "kb_crawl_batches", "qa_candidates",
 }
 
 // asset 模块独占
