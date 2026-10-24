@@ -4,7 +4,9 @@ import (
 	"context"
 	"errors"
 	"fmt"
+
 	"hivemtk-user/internal/model"
+	_db "hivemtk-user/internal/pkg/db"
 
 	"gorm.io/gorm"
 )
@@ -35,7 +37,10 @@ func (r *xianyuCardRepository) Create(ctx context.Context, card *model.XianyuCar
 }
 
 func (r *xianyuCardRepository) Update(ctx context.Context, card *model.XianyuCard) error {
-	if err := r.db.WithContext(ctx).Save(card).Error; err != nil {
+	if card == nil || card.ID == 0 {
+		return fmt.Errorf("闲鱼卡片: 缺主键，不能整行回写")
+	}
+	if err := _db.SaveWholeRow(r.db.WithContext(ctx), card); err != nil {
 		return fmt.Errorf("更新闲鱼卡片失败: %w", err)
 	}
 	return nil
@@ -81,11 +86,23 @@ func (r *xianyuCardRepository) GetList(ctx context.Context, req CardListFilter) 
 		return nil, 0, fmt.Errorf("获取闲鱼卡片总数失败: %w", err)
 	}
 
-	offset := (req.Page - 1) * req.PageSize
+	// 分页夹取：controller 侧有默认值兜底（page=1/pageSize=10），但仓储不设防
+	// `pageSize=100000`；`page=0` 时 offset 为负 ⇒ PG 报错。
+	page, pageSize := req.Page, req.PageSize
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 20
+	}
+	if pageSize > 200 {
+		pageSize = 200
+	}
+	offset := (page - 1) * pageSize
 	if err := query.
 		Order("created_at DESC").
 		Offset(offset).
-		Limit(req.PageSize).
+		Limit(pageSize).
 		Find(&cards).Error; err != nil {
 		return nil, 0, fmt.Errorf("获取闲鱼卡片列表失败: %w", err)
 	}

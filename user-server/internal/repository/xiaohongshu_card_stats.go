@@ -102,10 +102,21 @@ func (r *xiaohongshuCardStatsRepository) GetCardDailyStats(ctx context.Context, 
 	return stats, nil
 }
 
+// clampStatsLimit limit 参数兜底：<=0 ⇒ 100，封顶 1000（动态表无界 Find 的习惯不能留）。
+func clampStatsLimit(limit int) int {
+	if limit < 1 {
+		return 100
+	}
+	if limit > 1000 {
+		return 1000
+	}
+	return limit
+}
+
 func (r *xiaohongshuCardStatsRepository) GetRecentActivitiesByCard(ctx context.Context, cardID uint, limit int) ([]model.XiaohongshuCardActivity, error) {
 	var activities []model.XiaohongshuCardActivity
 	err := r.db.WithContext(ctx).Where("card_id = ? AND activity_type = ?", cardID, "view").
-		Order("created_at DESC").Limit(limit).Find(&activities).Error
+		Order("created_at DESC").Limit(clampStatsLimit(limit)).Find(&activities).Error
 	return activities, err
 }
 
@@ -129,7 +140,7 @@ func (r *xiaohongshuCardStatsRepository) CountTotalViews(ctx context.Context) (i
 
 func (r *xiaohongshuCardStatsRepository) GetTopCards(ctx context.Context, limit int) ([]model.XiaohongshuCard, error) {
 	var cards []model.XiaohongshuCard
-	err := r.db.WithContext(ctx).Order("view_count DESC").Limit(limit).Find(&cards).Error
+	err := r.db.WithContext(ctx).Order("view_count DESC").Limit(clampStatsLimit(limit)).Find(&cards).Error
 	return cards, err
 }
 
@@ -152,7 +163,7 @@ func (r *xiaohongshuCardStatsRepository) GetOverallDailyStats(ctx context.Contex
 func (r *xiaohongshuCardStatsRepository) GetRecentActivities(ctx context.Context, limit int) ([]model.XiaohongshuCardActivity, error) {
 	var activities []model.XiaohongshuCardActivity
 	err := r.db.WithContext(ctx).Where("activity_type = ?", "view").
-		Order("created_at DESC").Limit(limit).Find(&activities).Error
+		Order("created_at DESC").Limit(clampStatsLimit(limit)).Find(&activities).Error
 	return activities, err
 }
 

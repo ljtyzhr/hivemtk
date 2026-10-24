@@ -386,19 +386,23 @@ func TestChurnPredictionService_CalculateDailyStatistics(t *testing.T) {
 		t.Fatalf("CalculateDailyStatistics failed: %v", err)
 	}
 
-	stats, err := service.statsRepo.GetLatest(ctx)
+	stats, err := service.statsRepo.GetAll(ctx, date, date)
 	if err != nil {
-		t.Fatalf("GetLatest stats failed: %v", err)
+		t.Fatalf("GetAll stats failed: %v", err)
 	}
+	if len(stats) == 0 {
+		t.Fatalf("Expected stats rows for %s, got 0", date)
+	}
+	stats0 := stats[0]
 
-	if stats.TotalUsers != 10 {
-		t.Errorf("Expected total_users 10, got %d", stats.TotalUsers)
+	if stats0.TotalUsers != 10 {
+		t.Errorf("Expected total_users 10, got %d", stats0.TotalUsers)
 	}
-	if stats.HighRiskUsers < 2 {
-		t.Errorf("Expected at least 2 high risk users, got %d", stats.HighRiskUsers)
+	if stats0.HighRiskUsers < 2 {
+		t.Errorf("Expected at least 2 high risk users, got %d", stats0.HighRiskUsers)
 	}
-	if stats.CriticalUsers < 2 {
-		t.Errorf("Expected at least 2 critical users, got %d", stats.CriticalUsers)
+	if stats0.CriticalUsers < 2 {
+		t.Errorf("Expected at least 2 critical users, got %d", stats0.CriticalUsers)
 	}
 }
 
@@ -678,31 +682,6 @@ func TestCalculateConfidence(t *testing.T) {
 	}
 }
 
-// TestChurnPredictionService_GetChurnRate 测试获取流失率
-func TestChurnPredictionService_GetChurnRate(t *testing.T) {
-	service := setupChurnPredictionService(t)
-
-	stats := &model.ChurnStatistics{
-		StatDate:      time.Now().Format("2006-01-02"),
-		TotalUsers:    100,
-		ChurnUsers:    25,
-		ChurnRate:     25.0,
-		HighRiskUsers: 10,
-		CriticalUsers: 5,
-	}
-	service.statsRepo.Create(ctx, stats)
-
-	rate, err := service.GetChurnRate(ctx)
-	if err != nil {
-		t.Fatalf("GetChurnRate failed: %v", err)
-	}
-
-	if rate != 25.0 {
-		t.Errorf("Expected churn rate 25.0, got %f", rate)
-	}
-}
-
-// TestChurnPredictionService_GetChurnWarnings_Pagination 测试分页获取预警
 func TestChurnPredictionService_GetChurnWarnings_Pagination(t *testing.T) {
 	service := setupChurnPredictionService(t)
 

@@ -9,7 +9,6 @@ import (
 	sysmodel "hivemtk-user/internal/model"
 	"hivemtk-user/internal/ops/model"
 	opsrepo "hivemtk-user/internal/ops/repository"
-	"hivemtk-user/internal/pkg/utils/logger"
 	sysrepo "hivemtk-user/internal/repository"
 	"time"
 
@@ -180,20 +179,6 @@ func (s *DashboardScreenService) DeleteScreen(ctx context.Context, id uint) erro
 	return s.screenRepo.Delete(ctx, id)
 }
 
-// GetPublicScreen 公开访问大屏
-func (s *DashboardScreenService) GetPublicScreen(ctx context.Context, code string) (*model.DashboardScreen, error) {
-	screen, err := s.screenRepo.GetByCode(ctx, code)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := s.screenRepo.IncrementViewCount(ctx, screen.ID); err != nil {
-		logger.Warnf("[DashboardScreen] 浏览量计数失败 screenID=%d: %v", screen.ID, err)
-	}
-
-	return screen, nil
-}
-
 // GetPublicScreenCtx 公开访问大屏（匿名）：租户由 code 自证，
 // 后续读取与浏览量自增都钉死在该租户内。
 func (s *DashboardScreenService) GetPublicScreenCtx(ctx context.Context, code string) (*model.DashboardScreen, error) {
@@ -203,11 +188,6 @@ func (s *DashboardScreenService) GetPublicScreenCtx(ctx context.Context, code st
 // GetScreenWidgetsCtx 公开访问路径的 widgets 读取
 func (s *DashboardScreenService) GetScreenWidgetsCtx(ctx context.Context, screenID uint) ([]*model.DashboardWidget, error) {
 	return s.widgetRepo.GetByScreenIDCtx(ctx, screenID)
-}
-
-// GetScreenWidgets 获取大屏 widgets
-func (s *DashboardScreenService) GetScreenWidgets(ctx context.Context, screenID uint) ([]*model.DashboardWidget, error) {
-	return s.widgetRepo.GetByScreenID(ctx, screenID)
 }
 
 // DashboardAggregate 大屏聚合数据（与前端 dashboardScreen/List.vue 契约对齐）
@@ -265,14 +245,6 @@ type RealtimeActivity struct {
 	CreatedAt time.Time `json:"created_at"`
 }
 
-func dataScopeScope(db *gorm.DB, isAdmin bool) *gorm.DB {
-	if isAdmin {
-		return db
-	}
-
-	return db
-}
-
 // AggregateDashboardData 聚合大屏数据（Service 层）
 // isAdmin=true  → 返回全租户数据；
 // isAdmin=false → 按 data_scope 过滤（私域单租户当前无实际隔离，预留接口）。
@@ -287,8 +259,10 @@ func (s *DashboardScreenService) AggregateDashboardData(ctx context.Context, isA
 	thisWeekStart := todayStart.AddDate(0, 0, -int(todayStart.Weekday()))
 	lastWeekStart := thisWeekStart.AddDate(0, 0, -7)
 
+	// isAdmin 预留（私域单租户当前无实际隔离）：原 dataScopeScope 两分支同实现，
+	// 直接内联；接多租户 data_scope 时在此补过滤。
 	scope := func(tx *gorm.DB) *gorm.DB {
-		return dataScopeScope(tx, isAdmin)
+		return tx
 	}
 
 	agg := &DashboardAggregate{}

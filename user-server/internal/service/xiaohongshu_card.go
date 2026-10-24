@@ -16,12 +16,9 @@ type XiaohongshuCardService interface {
 	Update(ctx context.Context, req *dto.XiaohongshuCardUpdateRequest) (*dto.XiaohongshuCardResponse, error)
 	Delete(ctx context.Context, id uint) error
 	GetByID(ctx context.Context, id uint) (*dto.XiaohongshuCardResponse, error)
-	GetCardModelByID(ctx context.Context, id uint) (*model.XiaohongshuCard, error)
 	GetList(ctx context.Context, req *dto.XiaohongshuCardListRequest) (*dto.XiaohongshuCardListResponse, error)
-	GenerateHTMLPage(ctx context.Context, id uint) (string, error)
 	GenerateCardChatPage(ctx context.Context, id uint, baseURL string) (string, error)
 	GenerateShortLink(ctx context.Context, card *model.XiaohongshuCard) error
-	ShareCard(ctx context.Context, id uint, platform string) (*dto.XiaohongshuCardResponse, error)
 }
 
 type xiaohongshuCardService struct {
@@ -161,15 +158,6 @@ func (s *xiaohongshuCardService) GetByID(ctx context.Context, id uint) (*dto.Xia
 	return s.toResponse(ctx, card), nil
 }
 
-func (s *xiaohongshuCardService) GetCardModelByID(ctx context.Context, id uint) (*model.XiaohongshuCard, error) {
-	card, err := s.repo.GetByID(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-
-	return card, nil
-}
-
 func (s *xiaohongshuCardService) GetList(ctx context.Context, req *dto.XiaohongshuCardListRequest) (*dto.XiaohongshuCardListResponse, error) {
 	filter := repository.CardListFilter{Page: req.Page, PageSize: req.PageSize, Keyword: req.Keyword, IsActive: req.IsActive}
 	cards, total, err := s.repo.GetList(ctx, filter)
@@ -210,43 +198,6 @@ func (s *xiaohongshuCardService) GetList(ctx context.Context, req *dto.Xiaohongs
 		List:  responses,
 		Total: total,
 	}, nil
-}
-
-func (s *xiaohongshuCardService) ShareCard(ctx context.Context, id uint, platform string) (*dto.XiaohongshuCardResponse, error) {
-	card, err := s.repo.GetByID(ctx, id)
-	if err != nil {
-		return nil, err
-	}
-
-	activity := &model.XiaohongshuCardActivity{
-		CardID:       id,
-		ActivityType: "share",
-		Content:      platform,
-	}
-	_ = s.repo.CreateActivity(ctx, activity)
-
-	return s.toResponse(ctx, card), nil
-}
-
-func (s *xiaohongshuCardService) GenerateHTMLPage(ctx context.Context, id uint) (string, error) {
-	card, err := s.repo.GetByID(ctx, id)
-	if err != nil {
-		return "", err
-	}
-
-	data := &template.CardTemplateData{
-		Title:       card.Title,
-		Description: card.Description,
-		ImageURL:    card.ImageURL,
-		RedirectURL: card.RedirectURL,
-	}
-
-	html, err := s.templateService.GenerateXiaohongshuCardPage(data)
-	if err != nil {
-		return "", err
-	}
-
-	return html, nil
 }
 
 func (s *xiaohongshuCardService) GenerateCardChatPage(ctx context.Context, id uint, baseURL string) (string, error) {

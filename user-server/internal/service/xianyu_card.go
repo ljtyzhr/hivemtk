@@ -19,10 +19,7 @@ type XianyuCardService interface {
 	Delete(ctx context.Context, id uint) error
 	GetByID(ctx context.Context, id uint) (*dto.XianyuCardResponse, error)
 	GetByIDWithRefresh(ctx context.Context, id uint) (*dto.XianyuCardResponse, error)
-	GetCardModelByID(ctx context.Context, id uint) (*model.XianyuCard, error)
 	GetList(ctx context.Context, req *dto.XianyuCardListRequest) (*dto.XianyuCardListResponse, error)
-	ShareCard(ctx context.Context, id uint, platform string) error
-	GenerateHTMLPage(ctx context.Context, id uint) (string, error)
 	GenerateCardChatPage(ctx context.Context, id uint, baseURL string) (string, error)
 	GenerateShortLink(ctx context.Context, card *model.XianyuCard) error
 }
@@ -120,10 +117,6 @@ func (s *xianyuCardService) GetByIDWithRefresh(ctx context.Context, id uint) (*d
 	return s.convertToResponse(ctx, card), nil
 }
 
-func (s *xianyuCardService) GetCardModelByID(ctx context.Context, id uint) (*model.XianyuCard, error) {
-	return s.repo.GetByID(ctx, id)
-}
-
 func (s *xianyuCardService) GetList(ctx context.Context, req *dto.XianyuCardListRequest) (*dto.XianyuCardListResponse, error) {
 	filter := repository.CardListFilter{Page: req.Page, PageSize: req.PageSize, Keyword: req.Keyword, IsActive: req.IsActive}
 	cards, total, err := s.repo.GetList(ctx, filter)
@@ -148,40 +141,6 @@ func (s *xianyuCardService) GetList(ctx context.Context, req *dto.XianyuCardList
 		PageSize:  req.PageSize,
 		TotalPage: totalPage,
 	}, nil
-}
-
-func (s *xianyuCardService) ShareCard(ctx context.Context, id uint, platform string) error {
-	card, err := s.repo.GetByID(ctx, id)
-	if err != nil {
-		return fmt.Errorf("获取闲鱼卡片失败: %w", err)
-	}
-
-	switch platform {
-	case "wechat", "weixin":
-		card.ShareCount++
-	case "weibo":
-		card.ShareCount++
-	case "qq":
-		card.ShareCount++
-	default:
-		card.ShareCount++
-	}
-
-	return s.repo.Update(ctx, card)
-}
-
-func (s *xianyuCardService) GenerateHTMLPage(ctx context.Context, id uint) (string, error) {
-	card, err := s.repo.GetByID(ctx, id)
-	if err != nil {
-		return "", fmt.Errorf("获取闲鱼卡片失败: %w", err)
-	}
-
-	htmlContent, err := s.templateService.RenderXianyuCard(card)
-	if err != nil {
-		return "", fmt.Errorf("渲染闲鱼卡片模板失败: %w", err)
-	}
-
-	return htmlContent, nil
 }
 
 func (s *xianyuCardService) GenerateCardChatPage(ctx context.Context, id uint, baseURL string) (string, error) {

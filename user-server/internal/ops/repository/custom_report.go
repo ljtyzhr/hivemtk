@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 
 	"hivemtk-user/internal/ops/model"
 	_db "hivemtk-user/internal/pkg/db"
@@ -36,21 +37,26 @@ func (r *CustomReportRepository) GetByID(ctx context.Context, id uint) (*model.C
 	return &report, nil
 }
 
-// GetAll 获取所有报表列表
+// GetAll 获取所有报表列表。
+//
+// Count 与 Find 必须各起一条链：同一 *gorm.DB 上先 Count 再追加分页子句，
+// GORM 会把分页子句叠进 Count 语句（判例 #133/#150）。分页夹取 1..200。
 func (r *CustomReportRepository) GetAll(ctx context.Context, page, pageSize int) ([]*model.CustomReport, int64, error) {
+	page, pageSize = clampPage(page, pageSize)
 	var reports []*model.CustomReport
 	var total int64
 
-	offset := (page - 1) * pageSize
-
-	q := r.db.WithContext(ctx).Model(&model.CustomReport{})
-	if err := q.Count(&total).Error; err != nil {
+	base := func() *gorm.DB {
+		return r.db.WithContext(ctx).Model(&model.CustomReport{})
+	}
+	if err := base().Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	err := q.
+	err := base().
 		Order("created_at DESC").
-		Limit(pageSize).Offset(offset).
+		Offset((page - 1) * pageSize).
+		Limit(pageSize).
 		Find(&reports).Error
 	if err != nil {
 		return nil, 0, err
@@ -59,22 +65,25 @@ func (r *CustomReportRepository) GetAll(ctx context.Context, page, pageSize int)
 	return reports, total, nil
 }
 
-// GetByCreatorOrPublic 获取当前用户创建的或公开的报表列表（普通用户视角）
+// GetByCreatorOrPublic 获取当前用户创建的或公开的报表列表（普通用户视角；
+// Count/Find 拆链 + 夹取，理由同 GetAll）。
 func (r *CustomReportRepository) GetByCreatorOrPublic(ctx context.Context, creatorID uint, page, pageSize int) ([]*model.CustomReport, int64, error) {
+	page, pageSize = clampPage(page, pageSize)
 	var reports []*model.CustomReport
 	var total int64
 
-	offset := (page - 1) * pageSize
-
-	where := r.db.WithContext(ctx).Model(&model.CustomReport{}).Where("created_by = ? OR is_public = ?", creatorID, true)
-
-	if err := where.Count(&total).Error; err != nil {
+	base := func() *gorm.DB {
+		return r.db.WithContext(ctx).Model(&model.CustomReport{}).
+			Where("created_by = ? OR is_public = ?", creatorID, true)
+	}
+	if err := base().Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
 
-	err := where.
+	err := base().
 		Order("created_at DESC").
-		Limit(pageSize).Offset(offset).
+		Offset((page - 1) * pageSize).
+		Limit(pageSize).
 		Find(&reports).Error
 	if err != nil {
 		return nil, 0, err
@@ -83,30 +92,28 @@ func (r *CustomReportRepository) GetByCreatorOrPublic(ctx context.Context, creat
 	return reports, total, nil
 }
 
-// GetByDataSource 根据数据源获取报表(排除公开模板)
-func (r *CustomReportRepository) GetByDataSource(ctx context.Context, dataSource string) ([]*model.CustomReport, error) {
-	var reports []*model.CustomReport
-	err := r.db.WithContext(ctx).Where("data_source = ? AND is_public = ?", dataSource, false).
-		Order("created_at DESC").
-		Find(&reports).Error
-	return reports, err
-}
-
-// Update 更新报表
+// Update 整行回写报表。走 db.SaveWholeRow：裸 Save 命中 0 行会回退成
+// `INSERT ... ON CONFLICT (id) DO UPDATE`（gorm@v1.31.2），把「编辑页读出后、
+// 保存前被删掉」的报表按原 id 插回。
 func (r *CustomReportRepository) Update(ctx context.Context, report *model.CustomReport) error {
-	return r.db.WithContext(ctx).Save(report).Error
+	if report == nil || report.ID == 0 {
+		return errors.New("custom report: 缺主键，不能整行回写")
+	}
+	return _db.SaveWholeRow(r.db.WithContext(ctx), report)
 }
 
-// Delete 删除报表
+// Delete 删除报表。0 行 ⇒ ErrRecordNotFound。
 func (r *CustomReportRepository) Delete(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&model.CustomReport{}).Error
+	return _db.EnsureAffected(r.db.WithContext(ctx).Where("id = ?", id).Delete(&model.CustomReport{}))
 }
 
-// GetPublicTemplates 获取公开报表模板
+// GetPublicTemplates 获取公开报表模板（limit 兜底 200：模板是运营手工建的
+// 配置型数据，行数可控，但无界 Find 的习惯不能留）。
 func (r *CustomReportRepository) GetPublicTemplates(ctx context.Context) ([]*model.CustomReport, error) {
 	var reports []*model.CustomReport
 	err := r.db.WithContext(ctx).Where("is_public = ?", true).
 		Order("created_at DESC").
+		Limit(200).
 		Find(&reports).Error
 	return reports, err
 }

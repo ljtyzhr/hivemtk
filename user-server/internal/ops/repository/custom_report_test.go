@@ -135,44 +135,6 @@ func TestCustomReportRepository_GetByID(t *testing.T) {
 	}
 }
 
-// TestCustomReportRepository_GetByDataSource 测试根据数据源获取报表
-func TestCustomReportRepository_GetByDataSource(t *testing.T) {
-	repo := setupCustomReportRepository(t)
-
-	repo.Create(ctx, &model.CustomReport{
-		Name:       "Sessions Report",
-		DataSource: "sessions",
-		IsPublic:   false,
-	})
-
-	repo.Create(ctx, &model.CustomReport{
-		Name:       "Orders Report",
-		DataSource: "orders",
-		IsPublic:   false,
-	})
-
-	repo.Create(ctx, &model.CustomReport{
-		Name:       "Messages Report",
-		DataSource: "messages",
-		IsPublic:   false,
-	})
-
-	repo.Create(ctx, &model.CustomReport{
-		Name:       "Public Sessions",
-		DataSource: "sessions",
-		IsPublic:   true,
-	})
-
-	results, err := repo.GetByDataSource(ctx, "sessions")
-	if err != nil {
-		t.Errorf("GetByDataSource() error = %v", err)
-	}
-
-	if len(results) != 1 {
-		t.Errorf("Expected 1 sessions report, got %d", len(results))
-	}
-}
-
 // TestCustomReportRepository_Update 测试更新报表
 func TestCustomReportRepository_Update(t *testing.T) {
 	repo := setupCustomReportRepository(t)

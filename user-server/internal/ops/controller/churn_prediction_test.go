@@ -300,6 +300,15 @@ func TestChurnPredictionController_MarkWarningHandled(t *testing.T) {
 	db := setupChurnPredictionTestDB(t)
 	router := setupChurnPredictionRouter(t, db)
 
+	// MarkHandled 现在把 0 行翻成 ErrRecordNotFound（404）：
+	// 「success」用例必须先落一条真实预警行，否则是靠静默成功蒙混的假绿。
+	assert.NoError(t, db.Create(&model.ChurnWarning{
+		UserID:      "user_warn_1",
+		WarningType: "score_drop",
+		Description: "churn score dropped",
+		IsHandled:   false,
+	}).Error)
+
 	tests := []struct {
 		name           string
 		url            string

@@ -332,7 +332,10 @@ func (s *ChurnPredictionService) GetChurnStatistics(ctx context.Context, startDa
 
 // CalculateDailyStatistics 计算每日统计
 func (s *ChurnPredictionService) CalculateDailyStatistics(ctx context.Context, date string) error {
-	predictions, _, _ := s.predictionRepo.GetAll(ctx, 1, 10000)
+	predictions, err := s.predictionRepo.ListAll(ctx, 5000)
+	if err != nil {
+		return err
+	}
 
 	totalUsers := len(predictions)
 	churnUsers := 0
@@ -496,18 +499,12 @@ func (s *ChurnPredictionService) RunChurnCalculationForAllCustomers(ctx context.
 	return len(users), nil
 }
 
-// GetChurnRate 获取流失率
-func (s *ChurnPredictionService) GetChurnRate(ctx context.Context) (float64, error) {
-	stats, err := s.statsRepo.GetLatest(ctx)
-	if err != nil {
-		return 0, err
-	}
-	return stats.ChurnRate, nil
-}
-
 // GetRiskDistribution 获取风险分布
 func (s *ChurnPredictionService) GetRiskDistribution(ctx context.Context) (map[string]int, error) {
-	predictions, _, _ := s.predictionRepo.GetAll(ctx, 1, 10000)
+	predictions, err := s.predictionRepo.ListAll(ctx, 5000)
+	if err != nil {
+		return nil, err
+	}
 
 	distribution := map[string]int{
 		"low":      0,

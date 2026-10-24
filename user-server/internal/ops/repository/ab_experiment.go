@@ -39,8 +39,18 @@ func (r *ABExperimentRepository) GetByID(ctx context.Context, id uint) (*model.A
 	return &experiment, err
 }
 
-// GetAll 获取所有实验列表
+// GetAll 获取所有实验列表（分页夹取 1..200：pageSize=0 ⇒ GORM Limit(0) 等于
+// 不加 limit，page=0 ⇒ offset 为负 ⇒ PG 报错）。
 func (r *ABExperimentRepository) GetAll(ctx context.Context, page, pageSize int) ([]*model.ABExperiment, int64, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 20
+	}
+	if pageSize > 200 {
+		pageSize = 200
+	}
 	var experiments []*model.ABExperiment
 	var total int64
 
@@ -56,9 +66,14 @@ func (r *ABExperimentRepository) GetAll(ctx context.Context, page, pageSize int)
 	return experiments, total, err
 }
 
-// Update 更新实验
+// Update 整行回写实验。走 db.SaveWholeRow：裸 Save 命中 0 行会回退成
+// `INSERT ... ON CONFLICT (id) DO UPDATE`（gorm@v1.31.2），把「详情页读出后、
+// 保存前被删掉」的实验按原 id 插回。
 func (r *ABExperimentRepository) Update(ctx context.Context, experiment *model.ABExperiment) error {
-	return r.db.WithContext(ctx).Save(experiment).Error
+	if experiment == nil || experiment.ID == 0 {
+		return errors.New("ab experiment: 缺主键，不能整行回写")
+	}
+	return _db.SaveWholeRow(r.db.WithContext(ctx), experiment)
 }
 
 // Delete 删除实验
@@ -148,7 +163,20 @@ func (r *ABConversionEventRepository) GetByExperiment(ctx context.Context, exper
 	var events []*model.ABConversionEvent
 	var total int64
 
-	r.db.WithContext(ctx).Model(&model.ABConversionEvent{}).Where("experiment_id = ?", experimentID).Count(&total)
+	// Count 的 error 必须透传（吞掉 ⇒ total=0 而列表有行，分页器错乱）+ 分页夹取。
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 20
+	}
+	if pageSize > 200 {
+		pageSize = 200
+	}
+	if err := r.db.WithContext(ctx).Model(&model.ABConversionEvent{}).
+		Where("experiment_id = ?", experimentID).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
 	err := r.db.WithContext(ctx).Where("experiment_id = ?", experimentID).
 		Order("created_at DESC").
 		Offset((page - 1) * pageSize).
@@ -156,6 +184,23 @@ func (r *ABConversionEventRepository) GetByExperiment(ctx context.Context, exper
 		Find(&events).Error
 
 	return events, total, err
+}
+
+// ListAllByExperiment 清扫式读全量转化事件（统计聚合专用，区别于分页读
+// GetByExperiment 的 200 夹取）：单实验事件量可控，上限 5000。
+func (r *ABConversionEventRepository) ListAllByExperiment(ctx context.Context, experimentID uint, limit int) ([]*model.ABConversionEvent, error) {
+	if limit < 1 {
+		limit = 5000
+	}
+	if limit > 5000 {
+		limit = 5000
+	}
+	var events []*model.ABConversionEvent
+	err := r.db.WithContext(ctx).Where("experiment_id = ?", experimentID).
+		Order("created_at DESC").
+		Limit(limit).
+		Find(&events).Error
+	return events, err
 }
 
 // ABExperimentResultRepository 实验结果仓库
@@ -181,11 +226,13 @@ func (r *ABExperimentResultRepository) Upsert(ctx context.Context, result *model
 	err := r.db.WithContext(ctx).Where("experiment_id = ? AND variant_id = ?", result.ExperimentID, result.VariantID).First(&existing).Error
 	if err == nil {
 		result.ID = existing.ID
-		// Save 会把 Selects 展开为 "*"，tenant_id 与 created_at 必然进 SET；
+		// SaveWholeRow 同样展开为整行 SET，tenant_id 与 created_at 必然进 SET；
 		// 租户归属与创建时间只能沿用库中已有行，不能由调用方传入的空值覆盖。
 		result.TenantID = existing.TenantID
 		result.CreatedAt = existing.CreatedAt
-		return r.db.WithContext(ctx).Save(result).Error
+		// 整行回写而非裸 Save：命中 0 行（行被并发删掉）时裸 Save 会回退成
+		// INSERT 复活已删行，这里翻成 ErrRecordNotFound。
+		return _db.SaveWholeRow(r.db.WithContext(ctx), result)
 	}
 	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		return err
@@ -200,10 +247,14 @@ func (r *ABExperimentResultRepository) GetByExperiment(ctx context.Context, expe
 	return results, err
 }
 
-// UpdateWinner 更新获胜者
+// UpdateWinner 更新获胜者。清零旧 winner 的 UPDATE 错误必须透传：
+// 吞掉的话「清零失败 + 置位成功」会留下两个 is_winner=true 的脏数据。
 func (r *ABExperimentResultRepository) UpdateWinner(ctx context.Context, experimentID uint, winnerVariantID uint) error {
-	r.db.WithContext(ctx).Model(&model.ABExperimentResult{}).Where("experiment_id = ?", experimentID).
-		Update("is_winner", false)
+	if err := r.db.WithContext(ctx).Model(&model.ABExperimentResult{}).
+		Where("experiment_id = ?", experimentID).
+		Update("is_winner", false).Error; err != nil {
+		return err
+	}
 
 	return r.db.WithContext(ctx).Model(&model.ABExperimentResult{}).Where("experiment_id = ? AND variant_id = ?", experimentID, winnerVariantID).
 		Update("is_winner", true).Error

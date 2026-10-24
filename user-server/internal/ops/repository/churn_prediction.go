@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"hivemtk-user/internal/ops/model"
@@ -54,23 +55,31 @@ func (r *ChurnPredictionRepository) Upsert(ctx context.Context, prediction *mode
 	return r.db.WithContext(ctx).Create(prediction).Error
 }
 
-// GetByID 根据 ID 获取流失预测
-func (r *ChurnPredictionRepository) GetByID(ctx context.Context, id uint) (*model.ChurnPrediction, error) {
-	var prediction model.ChurnPrediction
-	err := r.db.WithContext(ctx).First(&prediction, id).Error
-	return &prediction, err
-}
-
-// GetAll 获取所有流失预测列表
+// GetAll 获取所有流失预测列表。
+//
+// Count 与 Find 必须各起一条链：在同一个 *gorm.DB 上先 Count 再追加
+// Order/Offset/Limit，Chained SQL 会把分页子句叠进 Count 语句（判例 #133/#150）。
+// 分页夹取 1..200。
 func (r *ChurnPredictionRepository) GetAll(ctx context.Context, page, pageSize int) ([]*model.ChurnPrediction, int64, error) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 20
+	}
+	if pageSize > 200 {
+		pageSize = 200
+	}
 	var predictions []*model.ChurnPrediction
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&model.ChurnPrediction{})
-	if err := q.Count(&total).Error; err != nil {
+	base := func() *gorm.DB {
+		return r.db.WithContext(ctx).Model(&model.ChurnPrediction{})
+	}
+	if err := base().Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	err := q.
+	err := base().
 		Order("churn_score DESC").
 		Offset((page - 1) * pageSize).
 		Limit(pageSize).
@@ -79,21 +88,21 @@ func (r *ChurnPredictionRepository) GetAll(ctx context.Context, page, pageSize i
 	return predictions, total, err
 }
 
-// GetByRisk 根据风险等级获取流失预测
-func (r *ChurnPredictionRepository) GetByRisk(ctx context.Context, riskLevel string, page, pageSize int) ([]*model.ChurnPrediction, int64, error) {
-	var predictions []*model.ChurnPrediction
-	var total int64
-
-	q := r.db.WithContext(ctx).Model(&model.ChurnPrediction{}).Where("churn_risk = ?", riskLevel)
-	if err := q.Count(&total).Error; err != nil {
-		return nil, 0, err
+// ListAll 清扫式读全量预测（统计聚合专用，区别于分页读 GetAll 的 200 夹取），
+// 上限 5000；Count 错误在聚合场景无需 total，直接忽略行数上限语义。
+func (r *ChurnPredictionRepository) ListAll(ctx context.Context, limit int) ([]*model.ChurnPrediction, error) {
+	if limit < 1 {
+		limit = 5000
 	}
-	err := q.Order("churn_score DESC").
-		Offset((page - 1) * pageSize).
-		Limit(pageSize).
+	if limit > 5000 {
+		limit = 5000
+	}
+	var predictions []*model.ChurnPrediction
+	err := r.db.WithContext(ctx).
+		Order("churn_score DESC").
+		Limit(limit).
 		Find(&predictions).Error
-
-	return predictions, total, err
+	return predictions, err
 }
 
 // GetByUserID 根据用户 ID 获取流失预测
@@ -130,23 +139,34 @@ func (r *ChurnWarningRepository) Create(ctx context.Context, warning *model.Chur
 	return r.db.WithContext(ctx).Create(warning).Error
 }
 
-// GetByID 根据 ID 获取流失预警
-func (r *ChurnWarningRepository) GetByID(ctx context.Context, id uint) (*model.ChurnWarning, error) {
-	var warning model.ChurnWarning
-	err := r.db.WithContext(ctx).First(&warning, id).Error
-	return &warning, err
+// clampPage 分页夹取 1..200（pageSize=0 ⇒ GORM Limit(0) 等于不加 limit，
+// page=0 ⇒ offset 为负 ⇒ PG 报错）。
+func clampPage(page, pageSize int) (int, int) {
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 20
+	}
+	if pageSize > 200 {
+		pageSize = 200
+	}
+	return page, pageSize
 }
 
-// GetAll 获取所有流失预警列表
+// GetAll 获取所有流失预警列表（Count/Find 拆链 + 夹取，理由同 ChurnPredictionRepository.GetAll）。
 func (r *ChurnWarningRepository) GetAll(ctx context.Context, page, pageSize int) ([]*model.ChurnWarning, int64, error) {
+	page, pageSize = clampPage(page, pageSize)
 	var warnings []*model.ChurnWarning
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&model.ChurnWarning{})
-	if err := q.Count(&total).Error; err != nil {
+	base := func() *gorm.DB {
+		return r.db.WithContext(ctx).Model(&model.ChurnWarning{})
+	}
+	if err := base().Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	err := q.
+	err := base().
 		Order("created_at DESC").
 		Offset((page - 1) * pageSize).
 		Limit(pageSize).
@@ -155,16 +175,19 @@ func (r *ChurnWarningRepository) GetAll(ctx context.Context, page, pageSize int)
 	return warnings, total, err
 }
 
-// GetUnhandled 获取未处理的流失预警
+// GetUnhandled 获取未处理的流失预警（Count/Find 拆链 + 夹取）。
 func (r *ChurnWarningRepository) GetUnhandled(ctx context.Context, page, pageSize int) ([]*model.ChurnWarning, int64, error) {
+	page, pageSize = clampPage(page, pageSize)
 	var warnings []*model.ChurnWarning
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&model.ChurnWarning{}).Where("is_handled = ?", false)
-	if err := q.Count(&total).Error; err != nil {
+	base := func() *gorm.DB {
+		return r.db.WithContext(ctx).Model(&model.ChurnWarning{}).Where("is_handled = ?", false)
+	}
+	if err := base().Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	err := q.Order("created_at DESC").
+	err := base().Order("created_at DESC").
 		Offset((page - 1) * pageSize).
 		Limit(pageSize).
 		Find(&warnings).Error
@@ -172,21 +195,26 @@ func (r *ChurnWarningRepository) GetUnhandled(ctx context.Context, page, pageSiz
 	return warnings, total, err
 }
 
-// Update 更新流失预警
+// Update 整行回写流失预警。走 db.SaveWholeRow：裸 Save 命中 0 行会回退成
+// INSERT 把已删预警按原 id 插回。
 func (r *ChurnWarningRepository) Update(ctx context.Context, warning *model.ChurnWarning) error {
-	return r.db.WithContext(ctx).Save(warning).Error
+	if warning == nil || warning.ID == 0 {
+		return errors.New("churn warning: 缺主键，不能整行回写")
+	}
+	return _db.SaveWholeRow(r.db.WithContext(ctx), warning)
 }
 
-// MarkHandled 标记为已处理
+// MarkHandled 标记为已处理。0 行 ⇒ ErrRecordNotFound（运营点了"已处理"却
+// 静默成功，预警会永远挂在未处理列表里）。
 func (r *ChurnWarningRepository) MarkHandled(ctx context.Context, id uint, handledBy uint, note string) error {
 	now := time.Now()
-	return r.db.WithContext(ctx).Model(&model.ChurnWarning{}).Where("id = ?", id).Updates(map[string]any{
+	return _db.EnsureAffected(r.db.WithContext(ctx).Model(&model.ChurnWarning{}).Where("id = ?", id).Updates(map[string]any{
 		"is_handled":   true,
 		"handled_at":   now,
 		"handled_by":   handledBy,
 		"handled_note": note,
 		"updated_at":   now,
-	}).Error
+	}))
 }
 
 // ChurnModelConfigRepository 流失模型配置仓库
@@ -259,15 +287,6 @@ func (r *ChurnStatisticsRepository) GetAll(ctx context.Context, startDate, endDa
 		Order("stat_date DESC").
 		Find(&stats).Error
 	return stats, err
-}
-
-// GetLatest 获取最新的流失统计
-func (r *ChurnStatisticsRepository) GetLatest(ctx context.Context) (*model.ChurnStatistics, error) {
-	var stats model.ChurnStatistics
-	err := r.db.WithContext(ctx).
-		Order("stat_date DESC").
-		First(&stats).Error
-	return &stats, err
 }
 
 // NewChurnPredictionRepositoryWithDB 创建指定数据库连接的流失预测仓库实例（用于测试）

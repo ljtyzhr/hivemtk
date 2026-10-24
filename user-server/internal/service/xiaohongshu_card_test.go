@@ -256,36 +256,6 @@ func TestXiaohongshuCardService_GetByID_NotFound(t *testing.T) {
 	}
 }
 
-// TestXiaohongshuCardService_GetCardModelByID_Success 测试获取卡片模型成功
-func TestXiaohongshuCardService_GetCardModelByID_Success(t *testing.T) {
-	database := setupXiaohongshuCardServiceTestDB(t)
-	service := NewXiaohongshuCardService(database)
-
-	createReq := &dto.XiaohongshuCardCreateRequest{
-		Title:        "Test Card",
-		Description:  "Test description",
-		ImageURL:     "https://example.com/image.jpg",
-		DomainPoolID: uintPtr(1),
-		IsActive:     boolPtr(true),
-	}
-	createdCard, err := service.Create(context.Background(), createReq)
-	if err != nil {
-		t.Fatalf("Create failed: %v", err)
-	}
-
-	modelCard, err := service.GetCardModelByID(context.Background(), createdCard.ID)
-	if err != nil {
-		t.Fatalf("GetCardModelByID failed: %v", err)
-	}
-
-	if modelCard.ID != createdCard.ID {
-		t.Errorf("Expected ID %d, got %d", createdCard.ID, modelCard.ID)
-	}
-	if modelCard.Title != createdCard.Title {
-		t.Errorf("Expected title %s, got %s", createdCard.Title, modelCard.Title)
-	}
-}
-
 // TestXiaohongshuCardService_GetList_Success 测试获取卡片列表成功
 func TestXiaohongshuCardService_GetList_Success(t *testing.T) {
 	database := setupXiaohongshuCardServiceTestDB(t)
@@ -384,40 +354,6 @@ func TestXiaohongshuCardService_GetList_EmptyList(t *testing.T) {
 	}
 	if len(listResp.List) != 0 {
 		t.Errorf("Expected 0 cards, got %d", len(listResp.List))
-	}
-}
-
-// TestXiaohongshuCardService_ShareCard_Success 测试分享卡片成功
-func TestXiaohongshuCardService_ShareCard_Success(t *testing.T) {
-	database := setupXiaohongshuCardServiceTestDB(t)
-	service := NewXiaohongshuCardService(database)
-
-	createReq := &dto.XiaohongshuCardCreateRequest{
-		Title:        "Share Test Card",
-		Description:  "This card will be shared",
-		ImageURL:     "https://example.com/image.jpg",
-		DomainPoolID: uintPtr(1),
-		IsActive:     boolPtr(true),
-	}
-	createdCard, err := service.Create(context.Background(), createReq)
-	if err != nil {
-		t.Fatalf("Create failed: %v", err)
-	}
-
-	_, err = service.ShareCard(context.Background(), createdCard.ID, "wechat")
-	if err != nil {
-		t.Fatalf("ShareCard failed: %v", err)
-	}
-}
-
-// TestXiaohongshuCardService_ShareCard_NotFound 测试分享不存在的卡片
-func TestXiaohongshuCardService_ShareCard_NotFound(t *testing.T) {
-	database := setupXiaohongshuCardServiceTestDB(t)
-	service := NewXiaohongshuCardService(database)
-
-	_, err := service.ShareCard(context.Background(), 999, "wechat")
-	if err == nil {
-		t.Error("Expected error for sharing non-existent card")
 	}
 }
 

@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 
 	"hivemtk-user/internal/ops/model"
 	_db "hivemtk-user/internal/pkg/db"
@@ -34,30 +35,28 @@ func (r *DashboardScreenRepository) GetByID(ctx context.Context, id uint) (*mode
 	return &screen, err
 }
 
-// GetAll 获取所有大屏列表
+// GetAll 获取所有大屏列表。
+//
+// Count 与 Find 必须各起一条链：同一 *gorm.DB 上先 Count 再追加分页子句，
+// GORM 会把分页子句叠进 Count 语句（判例 #133/#150）。分页夹取 1..200。
 func (r *DashboardScreenRepository) GetAll(ctx context.Context, page, pageSize int) ([]*model.DashboardScreen, int64, error) {
+	page, pageSize = clampPage(page, pageSize)
 	var screens []*model.DashboardScreen
 	var total int64
 
-	q := r.db.WithContext(ctx).Model(&model.DashboardScreen{})
-	if err := q.Count(&total).Error; err != nil {
+	base := func() *gorm.DB {
+		return r.db.WithContext(ctx).Model(&model.DashboardScreen{})
+	}
+	if err := base().Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
-	err := q.
+	err := base().
 		Order("created_at DESC").
 		Offset((page - 1) * pageSize).
 		Limit(pageSize).
 		Find(&screens).Error
 
 	return screens, total, err
-}
-
-// GetByCode 根据编码获取大屏
-func (r *DashboardScreenRepository) GetByCode(ctx context.Context, code string) (*model.DashboardScreen, error) {
-	var screen model.DashboardScreen
-
-	err := r.db.WithContext(ctx).Where("code = ? AND is_public = ?", code, true).First(&screen).Error
-	return &screen, err
 }
 
 // GetPublicByCodeCtx 匿名公开访问：code 由分享链接携带，先系统作用域反查
@@ -90,19 +89,19 @@ func (r *DashboardScreenRepository) GetPublicByCodeCtx(ctx context.Context, code
 	return &screen, nil
 }
 
-// Update 更新大屏
+// Update 整行回写大屏。走 db.SaveWholeRow：裸 Save 命中 0 行会回退成
+// `INSERT ... ON CONFLICT (id) DO UPDATE`（gorm@v1.31.2），把「编辑页读出后、
+// 保存前被删掉」的大屏按原 id 插回。
 func (r *DashboardScreenRepository) Update(ctx context.Context, screen *model.DashboardScreen) error {
-	return r.db.WithContext(ctx).Save(screen).Error
+	if screen == nil || screen.ID == 0 {
+		return errors.New("dashboard screen: 缺主键，不能整行回写")
+	}
+	return _db.SaveWholeRow(r.db.WithContext(ctx), screen)
 }
 
-// Delete 删除大屏
+// Delete 删除大屏。0 行 ⇒ ErrRecordNotFound。
 func (r *DashboardScreenRepository) Delete(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).Delete(&model.DashboardScreen{}, id).Error
-}
-
-// IncrementViewCount 增加访问次数
-func (r *DashboardScreenRepository) IncrementViewCount(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).Model(&model.DashboardScreen{}).Where("id = ?", id).Update("view_count", gorm.Expr("view_count + 1")).Error
+	return _db.EnsureAffected(r.db.WithContext(ctx).Delete(&model.DashboardScreen{}, id))
 }
 
 // DashboardWidgetRepository 大屏 Widget 仓库
@@ -120,13 +119,6 @@ func NewDashboardWidgetRepository() *DashboardWidgetRepository {
 // Create 创建 Widget
 func (r *DashboardWidgetRepository) Create(ctx context.Context, widget *model.DashboardWidget) error {
 	return r.db.WithContext(ctx).Create(widget).Error
-}
-
-// GetByScreenID 根据大屏 ID 获取 Widgets
-func (r *DashboardWidgetRepository) GetByScreenID(ctx context.Context, screenID uint) ([]*model.DashboardWidget, error) {
-	var widgets []*model.DashboardWidget
-	err := r.db.WithContext(ctx).Where("screen_id = ?", screenID).Order("sort_order, y, x").Find(&widgets).Error
-	return widgets, err
 }
 
 // GetByScreenIDCtx 公开访问路径的 widgets 读取（必须带已绑定租户的 ctx）

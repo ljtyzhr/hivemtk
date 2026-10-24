@@ -621,156 +621,6 @@ func TestDashboardScreenService_DeleteScreen_NotFound(t *testing.T) {
 	}
 }
 
-// TestDashboardScreenService_GetPublicScreen 测试公开访问大屏
-func TestDashboardScreenService_GetPublicScreen(t *testing.T) {
-	database := setupDashboardScreenTestDB(t)
-	_ = newTestDashboardScreenRepository(database)
-	service := NewDashboardScreenService()
-
-	req := &CreateScreenRequest{
-		Name:     "公开大屏",
-		Layout:   map[string]any{},
-		Theme:    "dark",
-		IsPublic: true,
-	}
-	screen, err := service.CreateScreen(ctx, 1, req)
-	if err != nil {
-		t.Fatalf("CreateScreen failed: %v", err)
-	}
-
-	retrievedScreen, err := service.GetPublicScreen(ctx, screen.Code)
-	if err != nil {
-		t.Fatalf("GetPublicScreen failed: %v", err)
-	}
-
-	if retrievedScreen.Name != "公开大屏" {
-		t.Errorf("Expected name '公开大屏', got %s", retrievedScreen.Name)
-	}
-
-	var updatedScreen model.DashboardScreen
-	database.First(&updatedScreen, screen.ID)
-	if updatedScreen.ViewCount != 1 {
-		t.Errorf("Expected ViewCount 1, got %d", updatedScreen.ViewCount)
-	}
-}
-
-// TestDashboardScreenService_GetPublicScreen_MultipleViews 测试多次访问大屏
-func TestDashboardScreenService_GetPublicScreen_MultipleViews(t *testing.T) {
-	database := setupDashboardScreenTestDB(t)
-	_ = newTestDashboardScreenRepository(database)
-	service := NewDashboardScreenService()
-
-	req := &CreateScreenRequest{
-		Name:     "公开大屏",
-		Layout:   map[string]any{},
-		Theme:    "dark",
-		IsPublic: true,
-	}
-	screen, err := service.CreateScreen(ctx, 1, req)
-	if err != nil {
-		t.Fatalf("CreateScreen failed: %v", err)
-	}
-
-	for i := 0; i < 5; i++ {
-		_, err = service.GetPublicScreen(ctx, screen.Code)
-		if err != nil {
-			t.Fatalf("GetPublicScreen failed: %v", err)
-		}
-	}
-
-	var updatedScreen model.DashboardScreen
-	database.First(&updatedScreen, screen.ID)
-	if updatedScreen.ViewCount != 5 {
-		t.Errorf("Expected ViewCount 5, got %d", updatedScreen.ViewCount)
-	}
-}
-
-// TestDashboardScreenService_GetPublicScreen_NotFound 测试访问不存在的大屏
-func TestDashboardScreenService_GetPublicScreen_NotFound(t *testing.T) {
-	database := setupDashboardScreenTestDB(t)
-	_ = newTestDashboardScreenRepository(database)
-	service := NewDashboardScreenService()
-
-	_, err := service.GetPublicScreen(ctx, "non-existent-code")
-	if err == nil {
-		t.Error("Expected error for non-existent screen")
-	}
-}
-
-// TestDashboardScreenService_GetScreenWidgets 测试获取大屏 widgets
-func TestDashboardScreenService_GetScreenWidgets(t *testing.T) {
-	database := setupDashboardScreenTestDB(t)
-	_ = newTestDashboardScreenRepository(database)
-	service := NewDashboardScreenService()
-
-	req := &CreateScreenRequest{
-		Name:     "测试大屏",
-		Layout:   map[string]any{},
-		Theme:    "dark",
-		IsPublic: false,
-	}
-	screen, err := service.CreateScreen(ctx, 1, req)
-	if err != nil {
-		t.Fatalf("CreateScreen failed: %v", err)
-	}
-
-	widgets := []model.DashboardWidget{
-		{ScreenID: screen.ID, WidgetType: "chart", Title: "图表 1", Config: "{}", X: 0, Y: 0, Width: 4, Height: 3, SortOrder: 0},
-		{ScreenID: screen.ID, WidgetType: "table", Title: "表格 1", Config: "{}", X: 4, Y: 0, Width: 4, Height: 3, SortOrder: 1},
-		{ScreenID: screen.ID, WidgetType: "indicator", Title: "指标 1", Config: "{}", X: 8, Y: 0, Width: 4, Height: 3, SortOrder: 2},
-	}
-	for i := range widgets {
-		database.Create(&widgets[i])
-	}
-
-	retrievedWidgets, err := service.GetScreenWidgets(ctx, screen.ID)
-	if err != nil {
-		t.Fatalf("GetScreenWidgets failed: %v", err)
-	}
-
-	if len(retrievedWidgets) != 3 {
-		t.Errorf("Expected 3 widgets, got %d", len(retrievedWidgets))
-	}
-
-	if retrievedWidgets[0].Title != "图表 1" {
-		t.Errorf("Expected first widget '图表 1', got %s", retrievedWidgets[0].Title)
-	}
-	if retrievedWidgets[1].Title != "表格 1" {
-		t.Errorf("Expected second widget '表格 1', got %s", retrievedWidgets[1].Title)
-	}
-	if retrievedWidgets[2].Title != "指标 1" {
-		t.Errorf("Expected third widget '指标 1', got %s", retrievedWidgets[2].Title)
-	}
-}
-
-// TestDashboardScreenService_GetScreenWidgets_Empty 测试获取空 widgets
-func TestDashboardScreenService_GetScreenWidgets_Empty(t *testing.T) {
-	database := setupDashboardScreenTestDB(t)
-	_ = newTestDashboardScreenRepository(database)
-	service := NewDashboardScreenService()
-
-	req := &CreateScreenRequest{
-		Name:     "测试大屏",
-		Layout:   map[string]any{},
-		Theme:    "dark",
-		IsPublic: false,
-	}
-	screen, err := service.CreateScreen(ctx, 1, req)
-	if err != nil {
-		t.Fatalf("CreateScreen failed: %v", err)
-	}
-
-	widgets, err := service.GetScreenWidgets(ctx, screen.ID)
-	if err != nil {
-		t.Fatalf("GetScreenWidgets failed: %v", err)
-	}
-
-	if len(widgets) != 0 {
-		t.Errorf("Expected 0 widgets, got %d", len(widgets))
-	}
-}
-
-// TestDashboardScreenService_updateWidgets 测试更新 widgets
 func TestDashboardScreenService_updateWidgets(t *testing.T) {
 	database := setupDashboardScreenTestDB(t)
 	_ = newTestDashboardScreenRepository(database)
@@ -983,9 +833,9 @@ func TestDashboardScreenService_ConcurrentAccess(t *testing.T) {
 	}
 
 	for i := 0; i < 10; i++ {
-		_, err := service.GetPublicScreen(ctx, screen.Code)
-		if err != nil {
-			t.Errorf("GetPublicScreen failed: %v", err)
+		// 公开链路现走 GetPublicScreenCtx（租户自证 + 计数内置）。
+		if _, err := service.GetPublicScreenCtx(ctx, screen.Code); err != nil {
+			t.Errorf("GetPublicScreenCtx failed: %v", err)
 		}
 	}
 

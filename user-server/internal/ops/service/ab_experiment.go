@@ -323,7 +323,7 @@ func (s *ABExperimentService) GetDiagnostics(ctx context.Context, experimentID u
 }
 
 func (s *ABExperimentService) countMultiExposeUsers(ctx context.Context, experimentID uint) int {
-	events, _, err := s.conversionRepo.GetByExperiment(ctx, experimentID, 1, 5000)
+	events, err := s.conversionRepo.ListAllByExperiment(ctx, experimentID, 5000)
 	if err != nil {
 		return 0
 	}
@@ -365,7 +365,7 @@ func (s *ABExperimentService) cupedUserMetrics(ctx context.Context, experimentID
 	if err != nil {
 		return nil, err
 	}
-	events, _, err := s.conversionRepo.GetByExperiment(ctx, experimentID, 1, 5000)
+	events, err := s.conversionRepo.ListAllByExperiment(ctx, experimentID, 5000)
 	if err != nil {
 		return nil, err
 	}
@@ -402,7 +402,7 @@ func (s *ABExperimentService) GetResultsWithReach(ctx context.Context, experimen
 	if err != nil {
 		return nil, err
 	}
-	events, _, err := s.conversionRepo.GetByExperiment(ctx, experimentID, 1, 5000)
+	events, err := s.conversionRepo.ListAllByExperiment(ctx, experimentID, 5000)
 	if err != nil {
 		return nil, err
 	}
