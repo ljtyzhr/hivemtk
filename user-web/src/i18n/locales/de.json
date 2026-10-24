@@ -2457,5 +2457,13 @@
       "publish": "Veröffentlichen & indizieren",
       "loadFailed": "QA-Kandidaten konnten nicht geladen werden"
     }
+  },
+  "citation": {
+    "title": "Quellen",
+    "doc": "Dokument",
+    "exact": "Exakte Übereinstimmung",
+    "semantic": "Semantische Übereinstimmung",
+    "fallback": "Möglicherweise verwandt",
+    "kbSnippet": "Wissensbasis-Ausschnitt"
   }
 }

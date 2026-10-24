@@ -2457,5 +2457,13 @@
       "publish": "发布入库",
       "loadFailed": "加载 QA 候选失败"
     }
+  },
+  "citation": {
+    "title": "参考来源",
+    "doc": "文档",
+    "exact": "精确命中",
+    "semantic": "语义匹配",
+    "fallback": "可能相关",
+    "kbSnippet": "知识库片段"
   }
 }

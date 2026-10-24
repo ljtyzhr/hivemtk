@@ -2457,5 +2457,13 @@
       "publish": "Publish & index",
       "loadFailed": "Failed to load QA candidates"
     }
+  },
+  "citation": {
+    "title": "References",
+    "doc": "Document",
+    "exact": "Exact match",
+    "semantic": "Semantic match",
+    "fallback": "Possibly related",
+    "kbSnippet": "Knowledge base snippet"
   }
 }

@@ -2456,5 +2456,13 @@
       "publish": "公開してインデックス",
       "loadFailed": "QA 候補の読み込みに失敗しました"
     }
+  },
+  "citation": {
+    "title": "参考元",
+    "doc": "ドキュメント",
+    "exact": "完全一致",
+    "semantic": "意味的一致",
+    "fallback": "関連の可能性",
+    "kbSnippet": "ナレッジベースの断片"
   }
 }

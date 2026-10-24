@@ -6,7 +6,7 @@
     class="citation-list"
   >
     <div class="citation-title">
-      {{ $t('参考来源') }}
+      {{ $t('citation.title') }}
     </div>
     <div class="citation-cards">
       <template
@@ -32,7 +32,7 @@
         >
           <span class="citation-idx">{{ i + 1 }}</span>
           <span class="citation-q">{{ chunkTitle(c) }}</span>
-          <span class="citation-badge">{{ $t('文档') }}</span>
+          <span class="citation-badge">{{ $t('citation.doc') }}</span>
         </button>
       </template>
     </div>
@@ -52,17 +52,17 @@ defineEmits(['open'])
 const visible = computed(() => (props.citations || []).length > 0)
 
 const matchLabel = (mt) => ({
-  exact: i18n.global.t('精确命中'),
-  token: i18n.global.t('语义匹配'),
-  semantic: i18n.global.t('语义匹配'),
-  keyword_fallback: i18n.global.t('可能相关')
+  exact: i18n.global.t('citation.exact'),
+  token: i18n.global.t('citation.semantic'),
+  semantic: i18n.global.t('citation.semantic'),
+  keyword_fallback: i18n.global.t('citation.fallback')
 }[mt] || mt)
 
 const chunkTitle = (c) => {
   const agg = (c.doc_aggs || [])[0]
   if (agg?.doc_title) return agg.doc_title
   const ch = (c.chunks || [])[0]
-  return ch?.doc_title || i18n.global.t('知识库片段')
+  return ch?.doc_title || i18n.global.t('citation.kbSnippet')
 }
 </script>
 

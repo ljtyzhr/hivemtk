@@ -2457,5 +2457,13 @@
       "publish": "Publicar e indexar",
       "loadFailed": "Falha ao carregar os candidatos QA"
     }
+  },
+  "citation": {
+    "title": "Fontes",
+    "doc": "Documento",
+    "exact": "Correspondência exata",
+    "semantic": "Correspondência semântica",
+    "fallback": "Possivelmente relacionado",
+    "kbSnippet": "Trecho da base de conhecimento"
   }
 }
