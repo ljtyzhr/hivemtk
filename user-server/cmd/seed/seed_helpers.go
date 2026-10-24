@@ -24,17 +24,14 @@ var seededRand = rand.New(rand.NewSource(42))
 // nowRef 当前时间参考点（运行时取 time.Now()，便于单元测试时注入）
 var nowRef = time.Now()
 
-// daysAgo 返回 n 天前的时间
 func daysAgo(n int) time.Time {
 	return nowRef.AddDate(0, 0, -n)
 }
 
-// hoursAgo 返回 n 小时前的时间
 func hoursAgo(n int) time.Time {
 	return nowRef.Add(-time.Duration(n) * time.Hour)
 }
 
-// randInt 在 [min, max] 范围内生成随机整数
 func randInt(min, max int) int {
 	if max <= min {
 		return min
@@ -42,7 +39,6 @@ func randInt(min, max int) int {
 	return seededRand.Intn(max-min+1) + min
 }
 
-// randFloat 在 [min, max] 范围内生成随机浮点数
 func randFloat(min, max float64) float64 {
 	if max <= min {
 		return min
@@ -69,7 +65,6 @@ func zeroVectorString(n int) string {
 	return string(buf)
 }
 
-// randPick 从切片中随机选择一个元素
 func randPick[T any](items []T) T {
 	var zero T
 	if len(items) == 0 {
@@ -78,7 +73,6 @@ func randPick[T any](items []T) T {
 	return items[seededRand.Intn(len(items))]
 }
 
-// toJSONString 将任意值序列化为 JSON 字符串（失败时返回 "{}"）
 func toJSONString(v any) string {
 	b, err := json.Marshal(v)
 	if err != nil {
@@ -87,7 +81,6 @@ func toJSONString(v any) string {
 	return string(b)
 }
 
-// toJSONArrayString 将字符串切片序列化为 JSON 数组字符串
 func toJSONArrayString(items []string) string {
 	if items == nil {
 		items = []string{}

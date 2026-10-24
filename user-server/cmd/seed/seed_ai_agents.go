@@ -177,7 +177,7 @@ func (s *aiAgentsSeeder) Seed(database *gorm.DB, ctx *SeedContext) error {
 	return nil
 }
 
-// boolPtr 生成能力开关的指针值（model 用 *bool 区分「未传」与显式 false）
+// boolPtr 生成能力开关指针：model 用 *bool 区分「未传」与显式 false
 func boolPtr(b bool) *bool { return &b }
 
 func (s *aiAgentsSeeder) buildAIAgents() []model.AIAgent {

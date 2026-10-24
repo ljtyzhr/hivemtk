@@ -8,10 +8,8 @@
 //
 // 每个客服坐席关联一条 AgentStatus，用于实时看板演示。
 //
-// 关键修复：Clean 阶段不再使用 "username IN (白名单)" 硬删，
-// 改为按「real_name 包含 [seed-demo] 标签」或「phone 落在演示号段」精准清理。
-// 原实现会把安装向导创建的真实超管（username 可能是 admin 或其他）一并删掉，
-// 引发"seed 跑完真实超管登不上"的反复失效问题。
+// Clean 按「real_name 含 [seed-demo] 标签」或「phone 落在演示号段」精准清理，
+// 不用 "username IN (白名单)"：那会把安装向导创建的真实超管一并删掉。
 package main
 
 import (
@@ -26,9 +24,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// seedPasswordDefault 是随开源仓库公开的演示口令，也是本常量的历史唯一取值。
-// 它仍然作为未配置时的默认值保留（e2e/bootstrap 的既有流程依赖它），
-// 但部署方现在可以不改代码就换掉写入的口令，见 seedPassword。
+// seedPasswordDefault 是随开源仓库公开的演示口令，也是未配置时的默认值
+// （e2e/bootstrap 的既有流程依赖它）；部署方可用 SEED_PASSWORD 覆盖，见 seedPassword。
 const seedPasswordDefault = "Seed@123456"
 
 // seedPassword 本次 seed 实际写入 system_users 的统一密码。

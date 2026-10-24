@@ -4,7 +4,7 @@
 // llm_routing_logs (120) 每次 Dispatch 调用一条，覆盖本地/云端 × 7 场景 × 三档 token_source
 // llm_routing_audit (15) 路由变更审计，覆盖 create/update/rollback/gray_switch 等 action
 //
-// 关键约束（来自 project_memory）：
+// 关键约束：
 // trace_id 全链路追踪；scenario 7 个业务场景
 // model_type=local/cloud；vendor 由 base_url 推断
 // token_source=actual/estimated/missing；失败调用 is_fallback=true
@@ -41,12 +41,10 @@ func (s *llmLogsSeeder) Clean(database *gorm.DB) error {
 }
 
 func (s *llmLogsSeeder) Seed(database *gorm.DB, ctx *SeedContext) error {
-	// 检查基础表是否已建立
 	var tableExists int64
 	if err := database.Raw("SELECT COUNT(1) FROM information_schema.tables WHERE table_name = 'llm_routing_logs'").Scan(&tableExists).Error; err != nil || tableExists == 0 {
 		return fmt.Errorf("llm_routing_logs 表不存在，请先执行迁移 migrations/llm_routing_logs_migration.go")
 	}
-	// 检查扩展字段是否存在（v3.7.0 扩展迁移）
 	var extColExists int64
 	if err := database.Raw("SELECT COUNT(1) FROM information_schema.columns WHERE table_name='llm_routing_logs' AND column_name='model_type'").Scan(&extColExists).Error; err != nil || extColExists == 0 {
 		return fmt.Errorf("llm_routing_logs 缺少扩展字段（model_type 等），请先执行迁移 migrations/llm_routing_logs_extend_migration.go")
@@ -73,7 +71,6 @@ func (s *llmLogsSeeder) Seed(database *gorm.DB, ctx *SeedContext) error {
 	return nil
 }
 
-// routingLogSpec 单条 dispatch 日志规格
 type routingLogSpec struct {
 	Scenario         string
 	Provider         string
@@ -98,7 +95,7 @@ type routingLogSpec struct {
 	HoursAgo         int
 }
 
-// 7 个业务场景（来自 project_memory：intent/sop/objection/…）
+// 7 个业务场景：intent/sop/objection/…
 var llmScenarios = []string{
 	"intent",
 	"sop",
@@ -319,7 +316,6 @@ func (s *llmLogsSeeder) buildRoutingLogs() []routingLogSpec {
 	return specs
 }
 
-// routingAuditSpec 单条路由变更审计规格
 type routingAuditSpec struct {
 	Scenario      string
 	Version       int
@@ -414,7 +410,6 @@ func (s *llmLogsSeeder) insertRoutingAudits(database *gorm.DB, specs []routingAu
 	return nil
 }
 
-// isTableMissingErr 判断是否为表不存在的错误（容错）
 func isTableMissingErr(err error) bool {
 	msg := err.Error()
 	return strings.Contains(msg, "does not exist") || strings.Contains(msg, "no such table") ||

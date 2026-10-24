@@ -63,7 +63,6 @@ func main() {
 		&geomodel.GeoVerifyResult{}, &geomodel.GeoAPICall{}, &geomodel.GeoConfig{},
 		&geomodel.GeoWorkflow{}, &geomodel.GeoWorkflowExecution{}, &geomodel.GeoWorkflowTemplate{},
 		&geomodel.GeoQueryChain{}, &geomodel.GeoContentTask{},
-		// ⬇️ 新增 GEO v2 全链路模型
 		&geomodel.GeoPushRecord{},
 		&geomodel.GeoSite{},
 		&geomodel.GeoPusherConfig{},

@@ -11,17 +11,10 @@ package main
 //   go run ./cmd/gen-module-bindings     （在 hivemtk/user-server 下执行）
 //
 // 默认输出到 <工作区>/hivemtk-platform/platform-server/config/module_catalog_seed.json。
-//
-// ⚠️ 这条路径错了**两次**，两次命令都打印了"已生成"。记在这里免得第三次：
-//   1. 写成 `../hivemtk-platform/…`。命令在 hivemtk/user-server 下执行，
-//      `..` 只回到 hivemtk/，于是解析成 hivemtk/hivemtk-platform/…（多一层）。
-//      正确是从 user-server 上两级：../../hivemtk-platform/…
-//   2. 输出目录不能叫 seed/：仓库里 platform-server/seed 是一个未入库的构建
-//      残留二进制（go build ./cmd/seed 的产物），同名会让路径解析失败。
-//
-// 因此 defaultOutPath 不写死相对路径，而是**向上找工作区根**（含
-// hivemtk-platform 的那一层），并由 writeSeed 带写后存在性断言：
-// 生成类命令的"成功输出"不是验证，落点才是。
+// 故 defaultOutPath 不写死相对路径，而是**向上找工作区根**（含 hivemtk-platform 的那一层），
+// 并由 writeSeed 带写后存在性断言：生成类命令的"成功输出"不是验证，落点才是。
+// 输出目录也不能叫 seed/：platform-server/seed 是 `go build ./cmd/seed` 的未入库二进制，
+// 同名会让路径解析失败。
 
 import (
 	"encoding/json"
@@ -59,17 +52,9 @@ type payload struct {
 
 // defaultOutPath 反推 platform-server 的绝对路径。
 //
-// ============================================================
-// 为什么不用相对路径，也不数"上几级"
-// ============================================================
-// 这条路径错了三次，三次命令都打印了"已生成"：
-//  1. `../hivemtk-platform/…`（从 user-server 起算 → 解析成 hivemtk/hivemtk-platform）
-//  2. `../../hivemtk-platform/…`（数了两级 → 解析到工作区**上面**一层）
-//  3. 按 CWD 往上数三级（go run 的 CWD 是包目录，三级只到主仓，仍差一级）
-//
-// 共同点：都在**猜层级**，而层级会因 checkout 位置、软链、执行目录而变。
+// 不数"上几级"：层级会因 checkout 位置、软链、执行目录而变（go run 的 CWD 是包目录）。
 // 改为**认标识**：向上找到同时含 `hivemtk` 与 `hivemtk-platform` 两个子目录的那一层，
-// 也就是工作区根。找不到就报错退出 —— 绝不猜。
+// 也就是工作区根。找不到就返回空由调用方报错 —— 绝不猜。
 func defaultOutPath() string {
 	wd, err := os.Getwd()
 	if err != nil {

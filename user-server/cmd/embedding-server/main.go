@@ -44,26 +44,23 @@ import (
 	"hivemtk-user/internal/pkg/utils/logger"
 )
 
-// EmbeddingRequest 通用 OpenAI 兼容请求
 type EmbeddingRequest struct {
 	Model string   `json:"model"`
 	Input []string `json:"input"`
 }
 
-// EmbeddingItem 单个向量结果
 type EmbeddingItem struct {
 	Object    string    `json:"object"`
 	Index     int       `json:"index"`
 	Embedding []float32 `json:"embedding"`
 }
 
-// Usage token 统计（粗略按字符数计）
+// Usage 按字符数粗略统计 token
 type Usage struct {
 	PromptTokens int `json:"prompt_tokens"`
 	TotalTokens  int `json:"total_tokens"`
 }
 
-// EmbeddingResponse 通用 OpenAI 兼容响应
 type EmbeddingResponse struct {
 	Object string          `json:"object"`
 	Data   []EmbeddingItem `json:"data"`
@@ -71,7 +68,7 @@ type EmbeddingResponse struct {
 	Usage  Usage           `json:"usage"`
 }
 
-// ErrorResponse 错误响应（OpenAI 格式）
+// ErrorResponse 沿用 OpenAI 错误响应格式
 type ErrorResponse struct {
 	Error struct {
 		Message string `json:"message"`
@@ -80,7 +77,6 @@ type ErrorResponse struct {
 	} `json:"error"`
 }
 
-// Server 持有引擎实例
 type Server struct {
 	engine     *embedding.LocalEmbedding
 	defaultDim int

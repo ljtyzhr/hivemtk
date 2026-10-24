@@ -96,7 +96,6 @@ func (s *customersSeeder) Seed(database *gorm.DB, ctx *SeedContext) error {
 	return nil
 }
 
-// buildTags 构建 12 个客户标签
 func (s *customersSeeder) buildTags() []model.CustomerTag {
 	specs := []struct {
 		Name     string
@@ -127,11 +126,7 @@ func (s *customersSeeder) buildTags() []model.CustomerTag {
 	return tags
 }
 
-// buildCustomers 构建 50 个客户，覆盖 5 渠道 + 5 RFM 分层
 func (s *customersSeeder) buildCustomers() []model.Customer {
-	// 渠道分布（共 50 个客户）
-	// phone(15) + email(10) + wechat(12) + douyin(8) + xiaohongshu(5)
-
 	industries := []string{"电商", "教育", "金融", "医疗", "本地生活"}
 	cities := []string{"北京", "上海", "广州", "深圳", "杭州", "成都", "武汉", "南京", "苏州", "西安"}
 	customers := make([]model.Customer, 0, 50)
@@ -171,7 +166,6 @@ func (s *customersSeeder) buildCustomers() []model.Customer {
 	return customers
 }
 
-// buildRFM 为 50 客户生成 RFM 记录，分布到 5 个分层
 func (s *customersSeeder) buildRFM(customers []model.Customer) []model.CustomerRFM {
 	segmentSpecs := []struct {
 		Count    int
@@ -228,7 +222,6 @@ func (s *customersSeeder) buildRFM(customers []model.Customer) []model.CustomerR
 	return rfms
 }
 
-// buildEvents 为每个客户生成 5-10 个行为事件
 func (s *customersSeeder) buildEvents(customers []model.Customer) []model.CustomerEvent {
 	eventTypes := []model.EventType{
 		model.EventTypePageView, model.EventTypeClick, model.EventTypePurchase,
@@ -277,7 +270,6 @@ func (s *customersSeeder) buildEvents(customers []model.Customer) []model.Custom
 	return events
 }
 
-// buildLongTermMemories 为前 15 个高价值客户生成 15 条长期记忆
 func (s *customersSeeder) buildLongTermMemories(customers []model.Customer) []model.CustomerLongTermMemory {
 	type memSpec struct {
 		MType      model.LongTermMemoryType
@@ -323,7 +315,6 @@ func (s *customersSeeder) buildLongTermMemories(customers []model.Customer) []mo
 	return memories
 }
 
-// buildRecoveryQueue 为 5 个流失客户创建挽回队列
 func (s *customersSeeder) buildRecoveryQueue(customers []model.Customer) []model.RecoveryQueue {
 	strategies := []string{"sms_coupon", "email_winback", "wecom_reach", "card_recomment", "ai_call"}
 	reasons := []string{"churn", "downgrade", "complaint"}
@@ -354,7 +345,6 @@ func (s *customersSeeder) buildRecoveryQueue(customers []model.Customer) []model
 	return queue
 }
 
-// randInt64 生成 64 位随机整数
 func randInt64(min, max int64) int64 {
 	if max <= min {
 		return min

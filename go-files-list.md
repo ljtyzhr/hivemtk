@@ -214,36 +214,36 @@
 | # | 状态 | 文件 | 注释块 | 注释行 | doc块 | 行内块 |
 |---|---|---|---|---|---|---|
 | 1 | [x] | `cmd/api/main.go` | 43 | 152 | 43 | 0 |
-| 2 | [ ] | `cmd/api/serve_unix.go` | 4 | 14 | 4 | 0 |
-| 3 | [ ] | `cmd/api/serve_windows.go` | 2 | 4 | 2 | 0 |
-| 4 | [ ] | `cmd/bridge-mock/main.go` | 1 | 25 | 1 | 0 |
-| 5 | [ ] | `cmd/embedding-server/main.go` | 7 | 33 | 7 | 0 |
+| 2 | [x] | `cmd/api/serve_unix.go` | 4 | 14 | 4 | 0 |
+| 3 | [x] | `cmd/api/serve_windows.go` | 2 | 4 | 2 | 0 |
+| 4 | [x] | `cmd/bridge-mock/main.go` | 1 | 25 | 1 | 0 |
+| 5 | [x] | `cmd/embedding-server/main.go` | 7 | 33 | 7 | 0 |
 | 6 | [x] | `cmd/eval-trace/main.go` | 0 | 0 | 0 | 0 |
-| 7 | [ ] | `cmd/gen-module-bindings/main.go` | 3 | 36 | 3 | 0 |
+| 7 | [x] | `cmd/gen-module-bindings/main.go` | 3 | 36 | 3 | 0 |
 | 8 | [x] | `cmd/gen-module-route-patterns/main.go` | 2 | 22 | 2 | 0 |
-| 9 | [ ] | `cmd/geo-run/main.go` | 1 | 1 | 1 | 0 |
-| 10 | [ ] | `cmd/importfaq/main.go` | 1 | 22 | 1 | 0 |
+| 9 | [x] | `cmd/geo-run/main.go` | 1 | 1 | 1 | 0 |
+| 10 | [x] | `cmd/importfaq/main.go` | 1 | 22 | 1 | 0 |
 | 11 | [x] | `cmd/minttoken/main.go` | 0 | 0 | 0 | 0 |
 | 12 | [x] | `cmd/nm-host/main.go` | 45 | 102 | 45 | 0 |
-| 13 | [ ] | `cmd/perf/main.go` | 1 | 13 | 1 | 0 |
-| 14 | [ ] | `cmd/pwtool/main.go` | 3 | 8 | 3 | 0 |
+| 13 | [x] | `cmd/perf/main.go` | 1 | 13 | 1 | 0 |
+| 14 | [x] | `cmd/pwtool/main.go` | 3 | 8 | 3 | 0 |
 | 15 | [x] | `cmd/routeinspect/main.go` | 0 | 0 | 0 | 0 |
-| 16 | [ ] | `cmd/seed/main.go` | 6 | 47 | 6 | 0 |
-| 17 | [ ] | `cmd/seed/seed_ai_agents.go` | 3 | 23 | 3 | 0 |
-| 18 | [ ] | `cmd/seed/seed_assets.go` | 2 | 11 | 2 | 0 |
-| 19 | [ ] | `cmd/seed/seed_clues.go` | 2 | 7 | 2 | 0 |
-| 20 | [ ] | `cmd/seed/seed_customers.go` | 9 | 18 | 9 | 0 |
+| 16 | [x] | `cmd/seed/main.go` | 6 | 47 | 6 | 0 |
+| 17 | [x] | `cmd/seed/seed_ai_agents.go` | 3 | 23 | 3 | 0 |
+| 18 | [x] | `cmd/seed/seed_assets.go` | 2 | 11 | 2 | 0 |
+| 19 | [x] | `cmd/seed/seed_clues.go` | 2 | 7 | 2 | 0 |
+| 20 | [x] | `cmd/seed/seed_customers.go` | 9 | 18 | 9 | 0 |
 | 21 | [x] | `cmd/seed/seed_faq_sop.go` | 19 | 41 | 19 | 0 |
-| 22 | [ ] | `cmd/seed/seed_helpers.go` | 15 | 32 | 15 | 0 |
-| 23 | [ ] | `cmd/seed/seed_llm_logs.go` | 9 | 19 | 9 | 0 |
-| 24 | [ ] | `cmd/seed/seed_messages.go` | 2 | 8 | 2 | 0 |
+| 22 | [x] | `cmd/seed/seed_helpers.go` | 15 | 32 | 15 | 0 |
+| 23 | [x] | `cmd/seed/seed_llm_logs.go` | 9 | 19 | 9 | 0 |
+| 24 | [x] | `cmd/seed/seed_messages.go` | 2 | 8 | 2 | 0 |
 | 25 | [x] | `cmd/seed/seed_rag_product.go` | 5 | 23 | 5 | 0 |
-| 26 | [ ] | `cmd/seed/seed_reach.go` | 1 | 15 | 1 | 0 |
-| 27 | [ ] | `cmd/seed/seed_sessions.go` | 6 | 6 | 6 | 0 |
-| 28 | [ ] | `cmd/seed/seed_stats.go` | 9 | 27 | 9 | 0 |
-| 29 | [ ] | `cmd/seed/seed_users.go` | 6 | 25 | 6 | 0 |
+| 26 | [x] | `cmd/seed/seed_reach.go` | 1 | 15 | 1 | 0 |
+| 27 | [x] | `cmd/seed/seed_sessions.go` | 6 | 6 | 6 | 0 |
+| 28 | [x] | `cmd/seed/seed_stats.go` | 9 | 27 | 9 | 0 |
+| 29 | [x] | `cmd/seed/seed_users.go` | 6 | 25 | 6 | 0 |
 | 30 | [x] | `cmd/seedkw/main.go` | 0 | 0 | 0 | 0 |
-| 31 | [ ] | `cmd/syncscripts/main.go` | 1 | 10 | 1 | 0 |
+| 31 | [x] | `cmd/syncscripts/main.go` | 1 | 10 | 1 | 0 |
 | 32 | [x] | `internal/aiagent/agent/lifecycle/active.go` | 18 | 49 | 18 | 0 |
 | 33 | [x] | `internal/aiagent/agent/lifecycle/lifecycle.go` | 10 | 38 | 10 | 0 |
 | 34 | [ ] | `internal/aiagent/agent/portcontract/aftersale.go` | 5 | 9 | 5 | 0 |

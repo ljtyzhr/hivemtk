@@ -1,7 +1,5 @@
 // Package main 提供 importfaq 命令行工具
 //
-// 设计依据: AI 智能体性能优化
-//
 // 职责:
 //   - 读取 faq_seed.json (由 extract_faq.py 生成)
 //   - 批量 upsert 到 faq_entries 表 (按 question 唯一性判断)

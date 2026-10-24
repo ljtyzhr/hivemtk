@@ -1,4 +1,4 @@
-// Package main 提供 syncscripts 命令行工具（T-5 双体系桥接手动触发入口）
+// Package main 提供 syncscripts 命令行工具
 //
 // 职责:
 //   - 读取管理端话术模板库（script_templates）

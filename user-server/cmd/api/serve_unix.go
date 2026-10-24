@@ -10,14 +10,12 @@ import (
 )
 
 func serveHTTP(addr string, r *gin.Engine) error {
-	// F2（批5e 真机实测更正）：本路径的优雅停机一直是 endless 在管（SIGTERM/SIGINT →
-	// shutdown() 关监听 + 等在途请求收敛），不是「没有 os/signal」。真机踩到的是它的
-	// 另一半语义：被 Hijack 的长连接（浏览器 Host WS、SSE）永不 WaitGroup.Done，
-	// 于是旧进程要活满 DefaultHammerTime（库默认 60s）才被强制收掉——期间监听端口已释放，
-	// 新实例已可绑定，旧实例的 cron/outbox 轮询还在跑（双 worker 并存窗口）。
-	// 压到 15s：普通 API 请求仍有充分收敛时间，双跑窗口从 60s 降到 15s。
-	// 运维即时停：`kill -USR2 <pid>` 走 endless.hammerTime(0)，立刻强制退出（不等收敛）。
-	// 另注意 `kill -HUP` 不是重启单机进程而是 endless.fork()（会并存第二个 server）。
+	// 优雅停机由 endless 管（SIGTERM/SIGINT → 关监听 + 等在途请求收敛）。被 Hijack 的
+	// 长连接（Host WS、SSE）永不 WaitGroup.Done，旧进程必须活满 DefaultHammerTime
+	// （库默认 60s）才被强制收掉；期间端口已释放、旧实例 cron/outbox 仍在跑（双 worker
+	// 并存窗口）。压到 15s：普通请求收敛够用，双跑窗口 60s→15s。
+	// 运维即时停用 `kill -USR2 <pid>`（endless.hammerTime(0) 立即强退）；
+	// `kill -HUP` 是 endless.fork() 会并存第二个 server，不是重启。
 	endless.DefaultHammerTime = 15 * time.Second
 
 	// 只设 ReadHeaderTimeout/IdleTimeout:不设 ReadTimeout(知识库大文件上传)与

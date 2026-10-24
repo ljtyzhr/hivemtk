@@ -53,7 +53,6 @@ import (
 	gormLogger "gorm.io/gorm/logger"
 )
 
-// Seeder 模块接口
 type Seeder interface {
 	Name() string
 	Description() string
@@ -103,10 +102,6 @@ type SeedContext struct {
 }
 
 // 所有注册的 seeder（按依赖顺序）
-//
-// 已实现 users/customers/sessions/ai_agents/reach/clues/assets/messages/llm_logs/stats；
-// 新增 faq_sop（FAQ 知识库 + SOP 模板，电商客服方向，60+ FAQ / 30+ SOP）
-// 全部 11 个模块均已就绪，按依赖顺序执行。
 var allSeeders = []Seeder{
 	&usersSeeder{},
 	&customersSeeder{},
@@ -182,7 +177,7 @@ func main() {
 	log.Printf("=== 种子数据写入完成：成功 %d / 失败 %d / 总计 %d ===", success, failed, len(targets))
 }
 
-// initDB 初始化数据库连接（独立初始化，不走全局 db.InitDB 避免影响其他依赖）
+// initDB 独立初始化连接，不走全局 db.InitDB（避免影响其他依赖）
 func initDB() *gorm.DB {
 	cfg := config.GetAppConfig()
 	pg := cfg.Database.Postgres
@@ -218,7 +213,6 @@ func initDB() *gorm.DB {
 	return database
 }
 
-// selectSeeders 根据命令行参数选择要执行的 seeder
 func selectSeeders(moduleFlag string) []Seeder {
 	if moduleFlag == "" {
 		return allSeeders

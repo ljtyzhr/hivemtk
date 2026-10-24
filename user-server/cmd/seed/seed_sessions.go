@@ -78,7 +78,6 @@ func (s *sessionsSeeder) Seed(database *gorm.DB, ctx *SeedContext) error {
 	return nil
 }
 
-// buildSessions 构建 30 个客服会话
 func (s *sessionsSeeder) buildSessions(ctx *SeedContext) []model.CustomerSession {
 	platforms := []model.Platform{
 		model.PlatformDouyin, model.PlatformXiaohongshu, model.PlatformWeChat,
@@ -159,7 +158,6 @@ func (s *sessionsSeeder) buildSessions(ctx *SeedContext) []model.CustomerSession
 	return sessions
 }
 
-// buildMessages 为每个会话生成 10-30 条消息
 func (s *sessionsSeeder) buildMessages(sessions []model.CustomerSession, ctx *SeedContext) []model.SessionMessage {
 	userMsgs := []string{
 		"你好，HiveMTK 怎么私有化部署？",
@@ -245,7 +243,6 @@ func (s *sessionsSeeder) buildMessages(sessions []model.CustomerSession, ctx *Se
 	return messages
 }
 
-// buildAISuggestions 为进行中的会话生成 AI 建议
 func (s *sessionsSeeder) buildAISuggestions(ctx *SeedContext) []model.AISuggestion {
 	if len(ctx.ActiveSessionIDs) == 0 {
 		return nil
@@ -274,7 +271,6 @@ func (s *sessionsSeeder) buildAISuggestions(ctx *SeedContext) []model.AISuggesti
 	return suggestions
 }
 
-// buildBlacklist 创建 3 条用户黑名单
 func (s *sessionsSeeder) buildBlacklist(ctx *SeedContext) []model.UserBlacklist {
 	blacklist := make([]model.UserBlacklist, 0, 3)
 	reasons := []string{
@@ -303,7 +299,6 @@ func (s *sessionsSeeder) buildBlacklist(ctx *SeedContext) []model.UserBlacklist 
 	return blacklist
 }
 
-// buildQuickReplies 创建 18 条快捷回复（6 通用 + 12 渠道专属）
 func (s *sessionsSeeder) buildQuickReplies() []model.QuickReply {
 	specs := []struct {
 		Category string

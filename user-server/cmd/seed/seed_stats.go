@@ -69,18 +69,15 @@ func (s *statsSeeder) Seed(database *gorm.DB, ctx *SeedContext) error {
 
 	log.Printf("  ✓ 已写入 漏斗%d+销冠画像%d+企微健康度%d",
 		len(funnels), len(personas), len(healths))
-	// "演示表不是真实源"这件事最容易在跑完 seed 的第二天被忘掉，所以每次 seed 都打出来。
+	// 每次 seed 都把「演示表不是真实源」打到日志里。
 	log.Printf("  ⚠️ conversion_funnels 是演示表：GET /api/conversion-funnel 不读它（走 ops/service 实时聚合），" +
 		"两边阶段名也不成套 ⇒ 看板/报表都别从这张表取数（R-4；判据见 model.ConversionFunnel 注释）")
 	return nil
 }
 
-// buildFunnels 生成 7 天 × 5 阶段的漏斗数据
-// 漏斗阶段：曝光 → 点击 → 咨询 → 加微 → 成交
-//
-// 这五个阶段名是**本文件自造的演示词表**，与线上漏斗真正用的
-// `ops/repository.FunnelStageKey`（visit/clue/intent/session）不成一套。刻意不去对齐：
-// 对齐了只会让这张僵尸表看起来更像真的（R-4 要的是能辨真伪，不是看起来一致）。
+// 这里的五个阶段名（曝光/点击/咨询/加微/成交）是**本文件自造的演示词表**，与线上漏斗
+// 真正用的 `ops/repository.FunnelStageKey`（visit/clue/intent/session）不成一套。
+// 刻意不对齐：对齐只会让这张僵尸表看起来更像真的。
 func (s *statsSeeder) buildFunnels() []model.ConversionFunnel {
 	funnelType := "sales"
 	stages := []struct {
@@ -97,7 +94,6 @@ func (s *statsSeeder) buildFunnels() []model.ConversionFunnel {
 	funnels := make([]model.ConversionFunnel, 0, 35)
 	for d := 0; d < 7; d++ {
 		statDate := daysAgo(d).Format("2006-01-02")
-		// 引入 ±10% 浮动
 		var prevCount int
 		for _, st := range stages {
 			count := st.Base
@@ -135,7 +131,6 @@ func (s *statsSeeder) buildFunnels() []model.ConversionFunnel {
 	return funnels
 }
 
-// buildSalesPersonas 生成 8 个销冠画像，覆盖 S/A/B/C 四个等级
 func (s *statsSeeder) buildSalesPersonas(ctx *SeedContext) []model.SalesPersona {
 	specs := []struct {
 		Name      string
@@ -193,7 +188,6 @@ func (s *statsSeeder) buildSalesPersonas(ctx *SeedContext) []model.SalesPersona 
 	return personas
 }
 
-// buildWecomHealth 生成 8 个企微账号的健康度记录
 func (s *statsSeeder) buildWecomHealth(ctx *SeedContext) []model.WeComAccountHealth {
 	riskSpecs := []struct {
 		Risk        string
@@ -251,7 +245,6 @@ func (s *statsSeeder) buildWecomHealth(ctx *SeedContext) []model.WeComAccountHea
 	return healths
 }
 
-// toAnySlice 将 []string 转为 []any（便于构造 JSONArray）
 func toAnySlice(ss []string) []any {
 	out := make([]any, 0, len(ss))
 	for _, s := range ss {
