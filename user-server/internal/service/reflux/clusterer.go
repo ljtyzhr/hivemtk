@@ -8,8 +8,12 @@ package reflux
 import (
 	"context"
 	"fmt"
+	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
+
+	"hivemtk-user/internal/model"
 )
 
 // similarityThreshold trgm 归簇阈值（设计文档 §4.3）
@@ -32,17 +36,22 @@ func NewClusterer(db *gorm.DB) *Clusterer { return &Clusterer{db: db} }
 func (cl *Clusterer) Assign(ctx context.Context, hash, question string) error {
 	// 1) 该问题已归属簇则跳过
 	var clusterID int64
-	if err := cl.db.WithContext(ctx).Raw(
-		`SELECT COALESCE(cluster_id,0) FROM unknown_questions WHERE question_hash = ? LIMIT 1`, hash).
+	if err := cl.db.WithContext(ctx).
+		Model(&model.UnknownQuestion{}).
+		Select("COALESCE(cluster_id, 0)").
+		Where("question_hash = ?", hash).
+		Limit(1).
 		Scan(&clusterID).Error; err != nil {
 		return fmt.Errorf("lookup cluster_id: %w", err)
 	}
 	if clusterID > 0 {
 		// 刷新簇频次合计（问题频次可能 +1 了）
-		if err := cl.db.WithContext(ctx).Exec(`UPDATE unknown_question_clusters c
-			SET total_frequency = (SELECT COALESCE(SUM(frequency),0) FROM unknown_questions q
-				WHERE q.cluster_id = c.id AND q.tenant_id = c.tenant_id)
-			WHERE c.id = ?`, clusterID).Error; err != nil {
+		if err := cl.db.WithContext(ctx).Model(&model.UnknownQuestionCluster{}).
+			Where("id = ?", clusterID).
+			Update("total_frequency", gorm.Expr(`(SELECT COALESCE(SUM(frequency), 0)
+				FROM unknown_questions q
+				WHERE q.cluster_id = unknown_question_clusters.id
+				  AND q.tenant_id = unknown_question_clusters.tenant_id)`)).Error; err != nil {
 			return fmt.Errorf("refresh cluster freq: %w", err)
 		}
 		return nil
@@ -53,11 +62,16 @@ func (cl *Clusterer) Assign(ctx context.Context, hash, question string) error {
 		ID    int64  `gorm:"column:id"`
 		Title string `gorm:"column:title"`
 	}
-	err := cl.db.WithContext(ctx).Raw(`SELECT id, title FROM unknown_question_clusters
-		WHERE status = 'pending_review'
-		  AND similarity(title, ?) > ?
-		ORDER BY similarity(title, ?) DESC
-		LIMIT 1`, question, similarityThreshold, question).Scan(&hit).Error
+	err := cl.db.WithContext(ctx).
+		Model(&model.UnknownQuestionCluster{}).
+		Select("id", "title").
+		Where("status = ?", model.UQStatusPendingReview).
+		Where("similarity(title, ?) > ?", question, similarityThreshold).
+		Order(clause.OrderBy{
+			Expression: clause.Expr{SQL: "similarity(title, ?) DESC", Vars: []interface{}{question}},
+		}).
+		Limit(1).
+		Scan(&hit).Error
 	if err != nil {
 		return fmt.Errorf("similarity search: %w", err)
 	}
@@ -70,18 +84,24 @@ func (cl *Clusterer) Assign(ctx context.Context, hash, question string) error {
 
 func (cl *Clusterer) joinCluster(ctx context.Context, clusterID int64, hash, question string) error {
 	return cl.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
-		if err := tx.Exec(`UPDATE unknown_questions SET cluster_id = ? WHERE question_hash = ? AND cluster_id = 0`,
-			clusterID, hash).Error; err != nil {
+		if err := tx.Model(&model.UnknownQuestion{}).
+			Where("question_hash = ? AND cluster_id = 0", hash).
+			Update("cluster_id", clusterID).Error; err != nil {
 			return err
 		}
-		if err := tx.Exec(`UPDATE unknown_question_clusters
-			SET question_count = (SELECT COUNT(*) FROM unknown_questions q WHERE q.cluster_id = ?),
-			    total_frequency = (SELECT COALESCE(SUM(frequency),0) FROM unknown_questions q WHERE q.cluster_id = ?),
-			    sample_questions = (
-			      SELECT COALESCE(array_agg(q), sample_questions) FROM (
-			        SELECT question AS q FROM unknown_questions WHERE cluster_id = ? ORDER BY last_seen_at DESC LIMIT ?
-			      ) s)
-			WHERE id = ?`, clusterID, clusterID, clusterID, maxSamples, clusterID).Error; err != nil {
+		if err := tx.Model(&model.UnknownQuestionCluster{}).
+			Where("id = ?", clusterID).
+			Updates(map[string]any{
+				"question_count": gorm.Expr(
+					`(SELECT COUNT(*) FROM unknown_questions q WHERE q.cluster_id = ?)`, clusterID),
+				"total_frequency": gorm.Expr(
+					`(SELECT COALESCE(SUM(frequency), 0) FROM unknown_questions q WHERE q.cluster_id = ?)`, clusterID),
+				"sample_questions": gorm.Expr(
+					`(SELECT COALESCE(array_agg(q), unknown_question_clusters.sample_questions) FROM (
+						SELECT question AS q FROM unknown_questions
+						WHERE cluster_id = ? ORDER BY last_seen_at DESC LIMIT ?
+					) s)`, clusterID, maxSamples),
+			}).Error; err != nil {
 			return err
 		}
 		return nil
@@ -91,30 +111,51 @@ func (cl *Clusterer) joinCluster(ctx context.Context, clusterID int64, hash, que
 func (cl *Clusterer) createCluster(ctx context.Context, hash, question string) error {
 	return cl.db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		var q struct {
-			TenantID uint   `gorm:"column:tenant_id"`
-			AgentID  uint   `gorm:"column:agent_id"`
-			ID       int64  `gorm:"column:id"`
+			TenantID uint  `gorm:"column:tenant_id"`
+			AgentID  uint  `gorm:"column:agent_id"`
+			ID       int64 `gorm:"column:id"`
 		}
-		if err := tx.Raw(`SELECT tenant_id, COALESCE(agent_id,0) AS agent_id, id
-			FROM unknown_questions WHERE question_hash = ? LIMIT 1`, hash).Scan(&q).Error; err != nil {
+		if err := tx.Model(&model.UnknownQuestion{}).
+			Select("tenant_id", "COALESCE(agent_id, 0) AS agent_id", "id").
+			Where("question_hash = ?", hash).
+			Limit(1).
+			Scan(&q).Error; err != nil {
 			return err
 		}
-		res := tx.Exec(`INSERT INTO unknown_question_clusters
-			(tenant_id, cluster_hash, title, agent_id, status, question_count, total_frequency,
-			 sample_questions, created_at, updated_at)
-			VALUES ((?),(?),(?),(?),'pending_review',1,1,ARRAY[?]::text[],NOW(),NOW())
-			ON CONFLICT (tenant_id, cluster_hash) DO NOTHING`,
-			q.TenantID, hash, truncate(question, 255), q.AgentID, truncate(question, 255))
+		now := time.Now()
+		cluster := model.UnknownQuestionCluster{
+			TenantID:        q.TenantID,
+			ClusterHash:     hash,
+			Title:           truncate(question, 255),
+			AgentID:         q.AgentID,
+			Status:          model.UQStatusPendingReview,
+			QuestionCount:   1,
+			TotalFrequency:  1,
+			SampleQuestions: []string{truncate(question, 255)},
+			CreatedAt:       now,
+			UpdatedAt:       now,
+		}
+		res := tx.Select(
+			"TenantID", "ClusterHash", "Title", "AgentID", "Status", "QuestionCount",
+			"TotalFrequency", "SampleQuestions", "CreatedAt", "UpdatedAt",
+		).Clauses(clause.OnConflict{
+			Columns:   []clause.Column{{Name: "tenant_id"}, {Name: "cluster_hash"}},
+			DoNothing: true,
+		}).Create(&cluster)
 		if res.Error != nil {
 			return res.Error
 		}
 		var clusterID int64
-		if err := tx.Raw(`SELECT id FROM unknown_question_clusters WHERE cluster_hash = ? LIMIT 1`, hash).
+		if err := tx.Model(&model.UnknownQuestionCluster{}).
+			Select("id").
+			Where("cluster_hash = ?", hash).
+			Limit(1).
 			Scan(&clusterID).Error; err != nil {
 			return err
 		}
-		return tx.Exec(`UPDATE unknown_questions SET cluster_id = ? WHERE question_hash = ? AND cluster_id = 0`,
-			clusterID, hash).Error
+		return tx.Model(&model.UnknownQuestion{}).
+			Where("question_hash = ? AND cluster_id = 0", hash).
+			Update("cluster_id", clusterID).Error
 	})
 }
 

@@ -12,15 +12,16 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"hivemtk-user/internal/model"
 )
 
 // Event 一次未知问题触发事件
 type Event struct {
-	Question     string  // 原始问句
-	Source       string  // model.UQSource*
-	SourceID     string  // signal_id / decision_id / bad_case_id / csat_id
+	Question     string // 原始问句
+	Source       string // model.UQSource*
+	SourceID     string // signal_id / decision_id / bad_case_id / csat_id
 	SessionID    string
 	CustomerID   string
 	AgentID      uint
@@ -108,19 +109,38 @@ func (c *Collector) processOne(ev Event) {
 
 	hash := QuestionHash(ev.Question)
 	now := time.Now()
-	// upsert：命中指纹则频次+1、刷新 last_seen；否则新建 draft
-	res := c.db.WithContext(ctx).Exec(`INSERT INTO unknown_questions
-		(tenant_id, question_hash, question, status, source, source_id, session_id, customer_id,
-		 agent_id, intent_type, low_conf_score, frequency, first_seen_at, last_seen_at, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)
-		ON CONFLICT (tenant_id, question_hash) DO UPDATE SET
-		 frequency = unknown_questions.frequency + 1,
-		 last_seen_at = EXCLUDED.last_seen_at,
-		 source_id = EXCLUDED.source_id`,
-		0, hash, ev.Question, model.UQStatusDraft, ev.Source, ev.SourceID, ev.SessionID,
-		ev.CustomerID, ev.AgentID, ev.IntentType, ev.LowConfScore,
-		1, now, now, now, now,
-	)
+	// upsert：命中指纹则频次+1、刷新 last_seen；否则新建 draft。
+	// 走 GORM 链式 API：clause.OnConflict 表达覆盖式写入（gate 禁 .Exec 直连）。
+	row := model.UnknownQuestion{
+		TenantID:     0,
+		QuestionHash: hash,
+		Question:     ev.Question,
+		Status:       model.UQStatusDraft,
+		Source:       ev.Source,
+		SourceID:     ev.SourceID,
+		SessionID:    ev.SessionID,
+		CustomerID:   ev.CustomerID,
+		AgentID:      ev.AgentID,
+		IntentType:   ev.IntentType,
+		LowConfScore: ev.LowConfScore,
+		Frequency:    1,
+		FirstSeenAt:  now,
+		LastSeenAt:   now,
+		CreatedAt:    now,
+		UpdatedAt:    now,
+	}
+	res := c.db.WithContext(ctx).Select(
+		"TenantID", "QuestionHash", "Question", "Status", "Source", "SourceID",
+		"SessionID", "CustomerID", "AgentID", "IntentType", "LowConfScore",
+		"Frequency", "FirstSeenAt", "LastSeenAt", "CreatedAt", "UpdatedAt",
+	).Clauses(clause.OnConflict{
+		Columns: []clause.Column{{Name: "tenant_id"}, {Name: "question_hash"}},
+		DoUpdates: clause.Assignments(map[string]any{
+			"frequency":    gorm.Expr("unknown_questions.frequency + 1"),
+			"last_seen_at": gorm.Expr("EXCLUDED.last_seen_at"),
+			"source_id":    gorm.Expr("EXCLUDED.source_id"),
+		}),
+	}).Create(&row)
 	if res.Error != nil {
 		log.Printf("[reflux] upsert unknown_question: %v (q=%q)", res.Error, ev.Question)
 		return

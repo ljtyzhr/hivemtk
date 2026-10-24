@@ -592,6 +592,12 @@ func allModels() []any {
 		// UnifiedReply（unified_replies）：统一回复行，与 UnifiedMessage 同域；写路径
 		// 在统一消息回复链路，漏登记 ⇒ 全新部署回复落不了库。
 		&model.UnifiedReply{},
+		// T1 未知问题回流三表（unknown_questions / unknown_question_clusters /
+		// unknown_question_review_logs）：低置信/未命中问题沉淀→聚类→审核→写回 FAQ 的
+		// 全链路事实源，写路径在 service/reflux；漏登记 ⇒ 沉淀与聚类静默失效。
+		&model.UnknownQuestion{},
+		&model.UnknownQuestionCluster{},
+		&model.UnknownQuestionReviewLog{},
 	}
 }
 
