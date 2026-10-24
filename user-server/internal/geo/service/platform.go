@@ -63,7 +63,7 @@ func findPlatform(name string) *platformDef {
 	return nil
 }
 
-// PlatformService GEO 平台同步发布服务（迁移自 AIGEOTOOLS platform/service.go）
+// PlatformService GEO 平台同步发布服务
 type PlatformService struct {
 	accountRepo repository.GeoPlatformAccountRepository
 	recordRepo  repository.GeoPublishRecordRepository
@@ -269,7 +269,7 @@ func (s *PlatformService) DeleteAccount(ctx context.Context, id string) error {
 	return s.accountRepo.Delete(ctx, id)
 }
 
-// Publish 发布文章到平台（迁移自 Publish + publishGitHub）
+// Publish 发布文章到平台
 func (s *PlatformService) Publish(ctx context.Context, req *dto.PublishRequest) (*dto.PublishResponse, error) {
 
 	article, err := s.articleRepo.GetByID(ctx, req.ArticleID)

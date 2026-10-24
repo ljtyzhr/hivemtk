@@ -17,7 +17,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// KBService GEO 品牌知识库服务（迁移自 AIGEOTOOLS kb/service.go）
+// KBService GEO 品牌知识库服务
 type KBService struct {
 	docRepo repository.GeoKnowledgeDocumentRepository
 	llm     *LLMAdapter
@@ -79,7 +79,7 @@ func (s *KBService) List(ctx context.Context) ([]*model.GeoKnowledgeDocument, er
 }
 
 // Delete 删除文档
-// ListDocuments 是 B1（llms.txt 自动装配）需要的直读口：返回 KB 文档原行，
+// ListDocuments 返回 KB 文档原行（llms.txt 自动装配需要）：
 // 供 TechConfigService 拼装 llms.txt 的 Docs 段（与 List 的 dto 化不同——这里要 SourceURL/Content 原字段）。
 func (s *KBService) ListDocuments(ctx context.Context) ([]*model.GeoKnowledgeDocument, error) {
 	return s.docRepo.GetList(ctx)
@@ -89,7 +89,7 @@ func (s *KBService) Delete(ctx context.Context, id string) error {
 	return s.docRepo.Delete(ctx, id)
 }
 
-// Search 关键词检索（标题命中 0.6 + 内容命中 0.4，迁移自 AIGEOTOOLS keyword fallback 路径）
+// Search 关键词检索（标题命中 0.6 + 内容命中 0.4）
 func (s *KBService) Search(ctx context.Context, q string, limit int) ([]*dto.KBSearchResult, error) {
 	if limit <= 0 {
 		limit = 10

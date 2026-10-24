@@ -34,7 +34,7 @@ type MetricsResult struct {
 	Structure           StructureElements `json:"structure"`
 }
 
-// MetricsService GEO 内容质量指标服务（迁移自 AIGEOTOOLS metrics/service.go）
+// MetricsService GEO 内容质量指标服务
 type MetricsService struct{}
 
 // NewMetricsService 创建内容质量指标服务

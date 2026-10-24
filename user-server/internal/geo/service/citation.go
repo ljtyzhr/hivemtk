@@ -46,14 +46,14 @@ type CitationDomainResult struct {
 	Domains []CitationDomainStat `json:"domains"`
 	Total   int                  `json:"total"`
 
-	// A9（2026-10-24）引用域名覆盖率：自有域引用 / 总引用。
+	// 引用域名覆盖率：自有域引用 / 总引用。
 	// OwnCitations=0 且 Total>0 ⇒ 覆盖率 0%，GEO 的"让 AI 引用你"目标还没兑现第一条。
 	OwnCitations int            `json:"own_citations"`
 	OwnCoverage  float64        `json:"own_coverage"` // 0~1，Total=0 时恒 0
 	TopExternal  []CitationLink `json:"top_external"` // Top 外链（非自有域），按引用次数降序
 }
 
-// CitationLink 单条外链（A9：Top 外链明细，域名级聚合太粗，运营要看具体 URL）。
+// CitationLink 单条外链（域名级聚合太粗，运营要看具体 URL）。
 type CitationLink struct {
 	URL    string `json:"url"`
 	Domain string `json:"domain"`
@@ -309,7 +309,7 @@ func (s *CitationService) loadClassifyContext(ctx context.Context) (string, []st
 
 // DomainStats 聚合近 N 天探针引用域名
 //
-// A9（2026-10-24）：结果附带自有域覆盖率（OwnCoverage）与 Top 外链明细——
+// 结果附带自有域覆盖率（OwnCoverage）与 Top 外链明细——
 // 只有"own/competitor/earned 分类"读不出"GEO 做得怎么样"这一句话，覆盖率才是判据。
 func (s *CitationService) DomainStats(ctx context.Context, days int) (*CitationDomainResult, error) {
 	if days <= 0 || days > 90 {
@@ -331,7 +331,7 @@ func (s *CitationService) DomainStats(ctx context.Context, days int) (*CitationD
 	return res, nil
 }
 
-// topExternalLinksWithURLs 在域名分类之上聚合 URL 级明细（A9 的 Top 外链要能给到具体 URL）。
+// topExternalLinksWithURLs 在域名分类之上聚合 URL 级明细（Top 外链要能给到具体 URL）。
 func topExternalLinksWithURLs(runs []*model.GeoProbeRun, ownDomain string, competitorDomains []string, n int) []CitationLink {
 	compSet := make(map[string]bool, len(competitorDomains))
 	for _, d := range competitorDomains {

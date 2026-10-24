@@ -167,7 +167,7 @@ func extractCitationsFromText(text string) []Citation {
 // 优先级：DB 中 enabled=true 的 provider 在前，本地 LLM 兜底在后。
 // 环境变量仅作为补充（兼容老部署），不再硬编码任何 endpoint/model。
 func NewEngineProbes() []SearchProbe {
-	// 判读：llm_providers（探针引擎配置）与 geo_config（品牌提示词）都在租户登记表内，
+	// llm_providers（探针引擎配置）与 geo_config（品牌提示词）都在租户登记表内，
 	// 但探针装配是**平台级全局**动作（进程内共享一份引擎清单，与请求租户无关）：
 	// 传请求 ctx 会把装配结果按租户过滤成空清单，传裸 Background 又会被隔离
 	// callback fail-closed（search_probe.go:190 生产日志形态）。装配期统一走
@@ -305,8 +305,8 @@ func probeWithRetry(ctx context.Context, p SearchProbe, query string) (*ProbeRes
 	return nil, err
 }
 
-// matchBrandNames 响应命中任一品牌名/别名即算提及（大小写不敏感）
-// 对标 elmo 品牌别名归一：HiveMtk/微蜂/HiveMTK 等写法统一识别。
+// matchBrandNames 响应命中任一品牌名/别名即算提及（大小写不敏感），
+// HiveMtk/微蜂/HiveMTK 等写法统一识别。
 func matchBrandNames(response string, names []string) bool {
 	lr := strings.ToLower(response)
 	for _, n := range names {

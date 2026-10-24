@@ -50,14 +50,14 @@ type verifyLLMResponse struct {
 	MentionPositions     []string `json:"mention_positions"`
 	Sentiment            string   `json:"sentiment"`
 	CompetitorsMentioned []string `json:"competitors_mentioned"`
-	// BrandContext A11（2026-10-24）：品牌语境——品牌在什么语境下被提及
+	// BrandContext 品牌语境——品牌在什么语境下被提及
 	//（如"价格对比"、"功能介绍"、"用户评价"、"行业排名"）。枚举值见
 	// brandContextKnown；LLM 给出未知值时原样入库（varchar(50) 放得下短语），
 	// 不硬猜——宁可存原文也不要静默归并掉语义。
 	BrandContext string `json:"brand_context"`
 }
 
-// brandContextKnown 是品牌语境的常见枚举（A11）。仅用于报表分组提示，
+// brandContextKnown 是品牌语境的常见枚举。仅用于报表分组提示，
 // 不做写入拦截：LLM 的短语命中即归并，未命中原样保留。
 var brandContextKnown = map[string]bool{
 	"价格对比": true, "功能介绍": true, "用户评价": true, "行业排名": true,
@@ -156,7 +156,7 @@ func (s *VerificationService) VerifyArticle(ctx context.Context, req dto.VerifyR
 		BrandMentioned: parsed.BrandMentioned,
 		MentionCount:   parsed.MentionCount,
 		Sentiment:      parsed.Sentiment,
-		// A11：品牌语境入库（此前该列从未被写过——模型列悬空半年）
+		// 品牌语境入库（此前该列从未被写过——模型列悬空半年）
 		BrandContext: normalizeBrandContext(parsed.BrandContext),
 		Position:     strings.Join(parsed.MentionPositions, "; "),
 	}

@@ -14,7 +14,7 @@ import (
 	"hivemtk-user/internal/reporting"
 )
 
-// GeoDecisionAnalyticsService 竞品对齐分析服务（v3 吸收 A1/A2/A6/A7）
+// GeoDecisionAnalyticsService 竞品对齐分析服务
 type GeoDecisionAnalyticsService struct {
 	verifyRepo  repository.GeoVerifyResultRepository
 	probeRepo   repository.GeoProbeRunRepository
@@ -52,7 +52,7 @@ type SOVEntry struct {
 	AvgSentiment string  `json:"avg_sentiment"`
 }
 
-// GetShareOfVoice 按意图分组计算各品牌声量占比（Peec 三子指标对齐：可见性/位置/情感）
+// GetShareOfVoice 按意图分组计算各品牌声量占比（可见性/位置/情感三子指标）
 // 数据源：geo_probe_runs（真实云端探针引擎）+ geo_config（品牌/竞品列表）
 // days>0 时仅统计最近 N 天的探针记录，支撑 SOV 趋势环比。
 func (s *GeoDecisionAnalyticsService) GetShareOfVoice(ctx context.Context, intent string) ([]SOVEntry, error) {
@@ -169,7 +169,7 @@ func safeDivF(a, b int64) float64 {
 	return float64(a) / float64(b)
 }
 
-// ---- A12 内容类型归因（2026-10-24）----
+// ---- 内容类型归因 ----
 //
 // ContentFormat 之前只活在意图矩阵里（生成提示词用），没有读侧报表：
 // "哪类内容带来了提及/引用"这一问没有答案。本节按 query 的意图分类，把
@@ -187,7 +187,7 @@ type ContentFormatAttributionRow struct {
 	CitationRate  float64 `json:"citation_rate"`  // cited/queries（0~1）
 }
 
-// ContentFormatAttributionReport A12 报告。
+// ContentFormatAttributionReport 内容类型归因报告。
 type ContentFormatAttributionReport struct {
 	Days int                           `json:"days"`
 	Rows []ContentFormatAttributionRow `json:"rows"`
@@ -215,7 +215,7 @@ func (s *GeoDecisionAnalyticsService) GetContentFormatAttribution(ctx context.Co
 // ContentFormatAttributionSampleFloor 样本量下限提示阈值：低于它的分组读数不可下结论。
 const ContentFormatAttributionSampleFloor = 10
 
-// BuildContentFormatAttribution 纯聚合（A12 验收：按内容类型分组统计提及率/引用率，样本量标注）。
+// BuildContentFormatAttribution 纯聚合：按内容类型分组统计提及率/引用率，样本量标注。
 func BuildContentFormatAttribution(days int, chains []*model.GeoQueryChain) *ContentFormatAttributionReport {
 	ctx := context.Background()
 	type agg struct {
@@ -269,7 +269,7 @@ func BuildContentFormatAttribution(days int, chains []*model.GeoQueryChain) *Con
 		}
 		if st := GetIntentStrategy(ctx, intent); intent != "未分类" && st.Intent == intent {
 			// 只在矩阵里有该意图时挂 ContentFormat——"未分类"回退到"信息"策略
-			// 会伪造一个不存在的归因（A12 的读数要诚实）。
+			// 会伪造一个不存在的归因。
 			row.ContentFormat = st.ContentFormat
 		}
 		out = append(out, row)
@@ -314,25 +314,23 @@ func (s *GeoDecisionAnalyticsService) RecordCrawlerVisit(ctx context.Context, ke
 
 // CrawlerStatsResponse 爬虫统计前端友好返回
 type CrawlerStatsResponse struct {
-	Summary      CrawlerStatsSummary         `json:"summary"`
-	KeywordStats []repository.KeywordStatRow `json:"keyword_stats"`
-	DomainStats  []repository.DomainStatRow  `json:"domain_stats"`
-	// 新增：HiveMTK vs 竞品 对比维度（业务核心）
-	KeywordCompare []KeywordCompareRow `json:"keyword_compare"`
-	DomainCompare  []DomainCompareRow  `json:"domain_compare"`
-	CoverageScore  float64             `json:"coverage_score"`
+	Summary        CrawlerStatsSummary         `json:"summary"`
+	KeywordStats   []repository.KeywordStatRow `json:"keyword_stats"`
+	DomainStats    []repository.DomainStatRow  `json:"domain_stats"`
+	KeywordCompare []KeywordCompareRow         `json:"keyword_compare"`
+	DomainCompare  []DomainCompareRow          `json:"domain_compare"`
+	CoverageScore  float64                     `json:"coverage_score"`
 }
 
 type CrawlerStatsSummary struct {
-	TodayVisits    int64   `json:"today_visits"`
-	ActiveKeywords int64   `json:"active_keywords"`
-	ActiveEngines  int64   `json:"active_engines"`
-	ActiveDomains  int64   `json:"active_domains"`
-	ALevelCount    int64   `json:"a_level_count"`
-	AvgSOV         float64 `json:"avg_sov"`
-	// 新增
-	HiveMTKVisits    int64 `json:"hivemtk_visits"`
-	CompetitorVisits int64 `json:"competitor_visits"`
+	TodayVisits      int64   `json:"today_visits"`
+	ActiveKeywords   int64   `json:"active_keywords"`
+	ActiveEngines    int64   `json:"active_engines"`
+	ActiveDomains    int64   `json:"active_domains"`
+	ALevelCount      int64   `json:"a_level_count"`
+	AvgSOV           float64 `json:"avg_sov"`
+	HiveMTKVisits    int64   `json:"hivemtk_visits"`
+	CompetitorVisits int64   `json:"competitor_visits"`
 }
 
 // KeywordCompareRow 关键词维度 HiveMTK vs 竞品 对比
@@ -509,7 +507,7 @@ type InaccurateClaim struct {
 	Severity   string `json:"severity"`
 }
 
-// DetectInaccurateClaims 对指定品牌的验证回答做不准确声明检测（Profound 独有能力对齐）。
+// DetectInaccurateClaims 对指定品牌的验证回答做不准确声明检测。
 // 返回检测到的错误/可疑陈述列表；每条自动落 negative_counter 任务供人工审核。
 func (s *GeoDecisionAnalyticsService) DetectInaccurateClaims(ctx context.Context, brandName string) ([]InaccurateClaim, error) {
 	prompt := fmt.Sprintf(`你是品牌声誉审计员。请针对品牌 "%s" 进行准确性审计：

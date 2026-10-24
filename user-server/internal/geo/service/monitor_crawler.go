@@ -384,11 +384,11 @@ func CrawlerMonitorCron() {
 }
 
 // CrawlerMonitorCronSync 同步执行爬虫（手动触发入口，返回写入数和错误）
-// 判读（二审 P1-2）：RunCrawlerCron 读 geo_keywords/geo_competitors（逐租户词表
-// 与竞品清单）、写 geo_crawler_visits（均带 tenant_id）⇒ 触达租户表。调用方
-// （report 控制器 RunCrawler）在 goroutine 里调用、请求已返回，没有可绑的请求
-// 租户 ⇒ 用 tenant.Fanout 逐活跃租户执行（off 模式退化单默认租户），而不是
-// system scope —— 那会把词表/竞品读成跨租户 union、访问记录落列默认租户 1。
+// RunCrawlerCron 读 geo_keywords/geo_competitors（逐租户词表与竞品清单）、
+// 写 geo_crawler_visits（均带 tenant_id）⇒ 触达租户表。调用方（report 控制器
+// RunCrawler）在 goroutine 里调用、请求已返回，没有可绑的请求租户 ⇒ 用
+// tenant.Fanout 逐活跃租户执行（off 模式退化单默认租户），而不是 system scope
+// —— 那会把词表/竞品读成跨租户 union、访问记录落列默认租户 1。
 // 与经 JobManager 的 crawlerMonitorJob 是两条平行路径，互不嵌套、不会双重扇出。
 func CrawlerMonitorCronSync() (int, error) {
 	ctx, cancel := context.WithTimeout(context.Background(), 10*time.Minute)

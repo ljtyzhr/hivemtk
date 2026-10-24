@@ -960,49 +960,49 @@
 | 745 | [x] | `internal/geo/repository/seed_term.go` | 8 | 9 | 8 | 0 |
 | 746 | [x] | `internal/geo/repository/source_catalog.go` | 3 | 4 | 3 | 0 |
 | 747 | [x] | `internal/geo/repository/verification.go` | 4 | 4 | 4 | 0 |
-| 748 | [ ] | `internal/geo/repository/workflow.go` | 3 | 3 | 3 | 0 |
-| 749 | [ ] | `internal/geo/service/alert.go` | 8 | 11 | 8 | 0 |
-| 750 | [ ] | `internal/geo/service/browser_publisher.go` | 1 | 3 | 1 | 0 |
-| 751 | [ ] | `internal/geo/service/citation.go` | 17 | 23 | 17 | 0 |
-| 752 | [ ] | `internal/geo/service/citation_export.go` | 2 | 2 | 2 | 0 |
+| 748 | [x] | `internal/geo/repository/workflow.go` | 3 | 3 | 3 | 0 |
+| 749 | [x] | `internal/geo/service/alert.go` | 8 | 11 | 8 | 0 |
+| 750 | [x] | `internal/geo/service/browser_publisher.go` | 1 | 3 | 1 | 0 |
+| 751 | [x] | `internal/geo/service/citation.go` | 17 | 23 | 17 | 0 |
+| 752 | [x] | `internal/geo/service/citation_export.go` | 2 | 2 | 2 | 0 |
 | 753 | [x] | `internal/geo/service/competitor.go` | 0 | 0 | 0 | 0 |
-| 754 | [ ] | `internal/geo/service/config.go` | 5 | 7 | 5 | 0 |
-| 755 | [ ] | `internal/geo/service/content.go` | 9 | 14 | 9 | 0 |
-| 756 | [ ] | `internal/geo/service/crawler.go` | 5 | 22 | 5 | 0 |
-| 757 | [ ] | `internal/geo/service/decision_analytics.go` | 17 | 28 | 17 | 0 |
-| 758 | [ ] | `internal/geo/service/decision_executors.go` | 8 | 12 | 8 | 0 |
+| 754 | [x] | `internal/geo/service/config.go` | 5 | 7 | 5 | 0 |
+| 755 | [x] | `internal/geo/service/content.go` | 9 | 14 | 9 | 0 |
+| 756 | [x] | `internal/geo/service/crawler.go` | 5 | 22 | 5 | 0 |
+| 757 | [x] | `internal/geo/service/decision_analytics.go` | 17 | 28 | 17 | 0 |
+| 758 | [x] | `internal/geo/service/decision_executors.go` | 8 | 12 | 8 | 0 |
 | 759 | [x] | `internal/geo/service/dict.go` | 12 | 23 | 12 | 0 |
-| 760 | [ ] | `internal/geo/service/entity_extractor.go` | 3 | 16 | 3 | 0 |
-| 761 | [ ] | `internal/geo/service/geo_audit.go` | 7 | 7 | 7 | 0 |
-| 762 | [ ] | `internal/geo/service/geo_audit_live.go` | 5 | 7 | 5 | 0 |
-| 763 | [ ] | `internal/geo/service/index_tracker.go` | 24 | 33 | 24 | 0 |
-| 764 | [ ] | `internal/geo/service/intent_matrix.go` | 6 | 9 | 6 | 0 |
+| 760 | [x] | `internal/geo/service/entity_extractor.go` | 3 | 16 | 3 | 0 |
+| 761 | [x] | `internal/geo/service/geo_audit.go` | 7 | 7 | 7 | 0 |
+| 762 | [x] | `internal/geo/service/geo_audit_live.go` | 5 | 7 | 5 | 0 |
+| 763 | [x] | `internal/geo/service/index_tracker.go` | 24 | 33 | 24 | 0 |
+| 764 | [x] | `internal/geo/service/intent_matrix.go` | 6 | 9 | 6 | 0 |
 | 765 | [x] | `internal/geo/service/job_manager.go` | 38 | 118 | 38 | 0 |
-| 766 | [ ] | `internal/geo/service/kb.go` | 10 | 10 | 10 | 0 |
-| 767 | [ ] | `internal/geo/service/keyword.go` | 11 | 17 | 11 | 0 |
-| 768 | [ ] | `internal/geo/service/keyword_enhance.go` | 5 | 7 | 5 | 0 |
+| 766 | [x] | `internal/geo/service/kb.go` | 10 | 10 | 10 | 0 |
+| 767 | [x] | `internal/geo/service/keyword.go` | 11 | 17 | 11 | 0 |
+| 768 | [x] | `internal/geo/service/keyword_enhance.go` | 5 | 7 | 5 | 0 |
 | 769 | [x] | `internal/geo/service/keyword_mining.go` | 63 | 140 | 63 | 0 |
 | 770 | [x] | `internal/geo/service/keyword_pipeline.go` | 20 | 43 | 20 | 0 |
-| 771 | [ ] | `internal/geo/service/keyword_seeds.go` | 17 | 42 | 17 | 0 |
-| 772 | [ ] | `internal/geo/service/llm.go` | 9 | 12 | 9 | 0 |
-| 773 | [ ] | `internal/geo/service/metrics.go` | 17 | 20 | 17 | 0 |
-| 774 | [ ] | `internal/geo/service/monitor_crawler.go` | 10 | 25 | 10 | 0 |
-| 775 | [ ] | `internal/geo/service/opportunity.go` | 11 | 11 | 11 | 0 |
-| 776 | [ ] | `internal/geo/service/platform.go` | 9 | 9 | 9 | 0 |
-| 777 | [ ] | `internal/geo/service/prompt_fanout.go` | 6 | 10 | 6 | 0 |
-| 778 | [ ] | `internal/geo/service/prompt_manager.go` | 6 | 16 | 6 | 0 |
-| 779 | [ ] | `internal/geo/service/prompts.go` | 15 | 26 | 15 | 0 |
-| 780 | [ ] | `internal/geo/service/publish_pipeline.go` | 17 | 21 | 17 | 0 |
-| 781 | [ ] | `internal/geo/service/push.go` | 39 | 72 | 39 | 0 |
-| 782 | [ ] | `internal/geo/service/report.go` | 5 | 5 | 5 | 0 |
-| 783 | [ ] | `internal/geo/service/scheduler.go` | 9 | 31 | 9 | 0 |
-| 784 | [ ] | `internal/geo/service/search_probe.go` | 23 | 42 | 23 | 0 |
-| 785 | [ ] | `internal/geo/service/seed_term.go` | 5 | 10 | 5 | 0 |
+| 771 | [x] | `internal/geo/service/keyword_seeds.go` | 17 | 42 | 17 | 0 |
+| 772 | [x] | `internal/geo/service/llm.go` | 9 | 12 | 9 | 0 |
+| 773 | [x] | `internal/geo/service/metrics.go` | 17 | 20 | 17 | 0 |
+| 774 | [x] | `internal/geo/service/monitor_crawler.go` | 10 | 25 | 10 | 0 |
+| 775 | [x] | `internal/geo/service/opportunity.go` | 11 | 11 | 11 | 0 |
+| 776 | [x] | `internal/geo/service/platform.go` | 9 | 9 | 9 | 0 |
+| 777 | [x] | `internal/geo/service/prompt_fanout.go` | 6 | 10 | 6 | 0 |
+| 778 | [x] | `internal/geo/service/prompt_manager.go` | 6 | 16 | 6 | 0 |
+| 779 | [x] | `internal/geo/service/prompts.go` | 15 | 26 | 15 | 0 |
+| 780 | [x] | `internal/geo/service/publish_pipeline.go` | 17 | 21 | 17 | 0 |
+| 781 | [x] | `internal/geo/service/push.go` | 39 | 72 | 39 | 0 |
+| 782 | [x] | `internal/geo/service/report.go` | 5 | 5 | 5 | 0 |
+| 783 | [x] | `internal/geo/service/scheduler.go` | 9 | 31 | 9 | 0 |
+| 784 | [x] | `internal/geo/service/search_probe.go` | 23 | 42 | 23 | 0 |
+| 785 | [x] | `internal/geo/service/seed_term.go` | 5 | 10 | 5 | 0 |
 | 786 | [x] | `internal/geo/service/site.go` | 21 | 33 | 21 | 0 |
-| 787 | [ ] | `internal/geo/service/techconfig.go` | 8 | 10 | 8 | 0 |
-| 788 | [ ] | `internal/geo/service/verification.go` | 3 | 3 | 3 | 0 |
-| 789 | [ ] | `internal/geo/service/visibility.go` | 15 | 30 | 15 | 0 |
-| 790 | [ ] | `internal/geo/service/workflow.go` | 16 | 16 | 16 | 0 |
+| 787 | [x] | `internal/geo/service/techconfig.go` | 8 | 10 | 8 | 0 |
+| 788 | [x] | `internal/geo/service/verification.go` | 3 | 3 | 3 | 0 |
+| 789 | [x] | `internal/geo/service/visibility.go` | 15 | 30 | 15 | 0 |
+| 790 | [x] | `internal/geo/service/workflow.go` | 16 | 16 | 16 | 0 |
 | 791 | [ ] | `internal/identity/normalize.go` | 8 | 27 | 8 | 0 |
 | 792 | [ ] | `internal/integration/templates/presets.go` | 2 | 6 | 2 | 0 |
 | 793 | [ ] | `internal/kbconnector/ima.go` | 3 | 8 | 3 | 0 |

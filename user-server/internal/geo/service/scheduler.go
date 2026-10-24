@@ -21,7 +21,7 @@ func runeTruncate(s string, n int) string {
 	return string(r[:n])
 }
 
-// citationDriftJob A10 引用漂移快照（2026-10-24）：聚合当日探针引用 URL 计数。
+// citationDriftJob 引用漂移快照：聚合当日探针引用 URL 计数。
 // 租户行（geo_probe_runs / geo_citation_snapshots 都是租户表）⇒ 与 sovRefreshJob
 // 同一执行形态：JobManager 保证按 (任务, 租户) 注册，进来时 ctx 已绑定本租户。
 func citationDriftJob(ctx context.Context) (string, error) {
@@ -38,7 +38,7 @@ func citationDriftJob(ctx context.Context) (string, error) {
 }
 
 func sovRefreshJob(ctx context.Context) (string, error) {
-	// 判读（二审 P1-2）：触达租户表 —— geo_keywords（采样）、geo_probe_runs（逐词
+	// 触达租户表 —— geo_keywords（采样）、geo_probe_runs（逐词
 	// 探针落行）、geo_daily_stats（聚合写入），且采样对象是**本租户的词表** ⇒ 必须
 	// 逐租户执行，不能"执行一次 + 全平台聚合"（探针行/聚合行是租户行，跨租户 union
 	// 采样会把 A 租户的词探完记到 B 名下）。执行形态由 JobManager 保证：cron 条目按
@@ -197,7 +197,7 @@ func loadNegativeKeywords(ctx context.Context, config *model.GeoConfig) []string
 }
 
 func negativeMonitorJob(ctx context.Context) (string, error) {
-	// 判读（二审 P1-2）：触达租户表 —— geo_config（读**本租户**品牌名/负面词）、
+	// 触达租户表 —— geo_config（读**本租户**品牌名/负面词）、
 	// geo_probe_runs（探针落行）、geo_alerts（命中写告警）。品牌名是逐租户配置，
 	// system scope 下 cfgRepo.Get 会读成跨租户 union 的首行（拿 A 租户的品牌去探、
 	// 告警落默认租户）⇒ 必须逐租户执行。ctx 已由 JobManager 绑定本租户（见
@@ -276,7 +276,7 @@ func negativeMonitorJob(ctx context.Context) (string, error) {
 }
 
 func sourceCatalogSyncJob(ctx context.Context) (string, error) {
-	// 判读（二审 P1-2）：触达租户表 geo_source_catalog（读**本租户**种子 URL +
+	// 触达租户表 geo_source_catalog（读**本租户**种子 URL +
 	// 回写 last_checked）。信源种子是逐租户配置 ⇒ 必须逐租户执行；ctx 已由
 	// JobManager 绑定本租户，这里不再包 system scope（跨租户 union 读会把别的
 	// 租户的种子拿来探、回写也落错行）。
@@ -310,7 +310,7 @@ func sourceCatalogSyncJob(ctx context.Context) (string, error) {
 }
 
 func crawlerMonitorJob(ctx context.Context) (string, error) {
-	// 判读（二审 P1-2）：CrawlerMonitorCronWithContext 读 geo_keywords/geo_competitors
+	// CrawlerMonitorCronWithContext 读 geo_keywords/geo_competitors
 	// （**本租户**词表与竞品清单）、写 geo_crawler_visits（均带 tenant_id）⇒ 必须
 	// 逐租户执行。ctx 已由 JobManager 绑定本租户，这里不再包 system scope。
 	// 注意：手动同步入口 CrawlerMonitorCronSync 是另一条不经 JobManager 的路径，

@@ -9,9 +9,9 @@ import (
 	"hivemtk-user/internal/geo/model"
 )
 
-// TechConfigService GEO 技术配置生成服务（迁移自 AIGEOTOOLS techconfig/techconfig.go）
+// TechConfigService GEO 技术配置生成服务
 //
-// B1（2026-10-24）：llms.txt 的 Documents 支持从 GEO KB 文档表自动装配——
+// llms.txt 的 Documents 支持从 GEO KB 文档表自动装配——
 // kbDocs 由装配处注入（geo_routes.go）；为 nil 时保持旧行为（只用请求体传入的
 // Documents），不引入新的硬依赖。手工覆盖优先：请求体里显式给的条目不会被自动条目挤掉。
 type TechConfigService struct {
@@ -29,7 +29,7 @@ func NewTechConfigService() *TechConfigService {
 	return &TechConfigService{}
 }
 
-// NewTechConfigServiceWithKB 创建带 KB 自动装配能力的实例（B1）。
+// NewTechConfigServiceWithKB 创建带 KB 自动装配能力的实例。
 func NewTechConfigServiceWithKB(kb GeoKBDocsSource) *TechConfigService {
 	return &TechConfigService{kbDocs: kb}
 }
@@ -97,7 +97,7 @@ func (s *TechConfigService) GenerateSitemap(cfg *SitemapConfig) string {
 	return b.String()
 }
 
-// LLMsTxtConfig llms.txt 生成配置（v3 竞品对齐 A4）
+// LLMsTxtConfig llms.txt 生成配置
 // llms.txt 是面向 AI 引擎的站点知识索引约定（类比 robots.txt 之于搜索引擎），
 // 帮助 LLM 快速定位品牌权威文档，提升被引用概率。
 type LLMsTxtConfig struct {
@@ -116,7 +116,7 @@ type LLMsDocEntry struct {
 
 // GenerateLLMsTxt 输出 Markdown 格式的 llms.txt 内容
 //
-// B1（2026-10-24）：请求体未带 Documents（或带了还要求自动补）时，从 GEO KB 文档表
+// 请求体未带 Documents（或带了还要求自动补）时，从 GEO KB 文档表
 // 自动装配——KB 文档就是品牌权威资料的第一现场，llms.txt 的受众（AI 引擎）恰恰
 // 需要它们。手工覆盖语义：请求体里显式传入的条目排前面且不重复追加。
 func (s *TechConfigService) GenerateLLMsTxt(cfg *LLMsTxtConfig) string {

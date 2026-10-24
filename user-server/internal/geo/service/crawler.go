@@ -9,7 +9,7 @@ import (
 	"hivemtk-user/internal/geo/repository"
 )
 
-// CrawlerService AI 引擎爬虫访问追踪 + 信源等级查询（G5.3）
+// CrawlerService AI 引擎爬虫访问追踪 + 信源等级查询
 //
 // 负责两件事：
 //  1. RecordVisit：记录一次爬虫访问，并将信源 URL 关联到 geo_source_catalogs；

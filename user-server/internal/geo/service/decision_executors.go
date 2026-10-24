@@ -29,7 +29,7 @@ type DecisionChainDeps struct {
 }
 
 // RegisterDecisionChainExecutors 向工作流注册四个决策链步骤类型。
-// 全部遵守 _step_results 上游产物传递契约（红队 F2 修正）。
+// 全部遵守 _step_results 上游产物传递契约。
 func (s *WorkflowService) RegisterDecisionChainExecutors(deps DecisionChainDeps) {
 	if deps.Probe == nil {
 		deps.Probe = NewDefaultSearchProbe()
@@ -248,7 +248,7 @@ func (s *WorkflowService) RegisterCaptureLeadExecutor(port LeadCapturePort) {
 	registerCaptureLeadExecutor(s, DecisionChainDeps{LeadPort: port})
 }
 
-// InboxChainSync inbox 侧思维链回填（v3 决策链化 Phase3 收口）：
+// InboxChainSync inbox 侧思维链回填：
 // 已绑定 OneID 的 GEO 归因链，其客户的真实会话消息回写为 source=inbox 行，
 // 完成"探针模拟 → 真实用户行为"的数据闭环。
 type InboxChainSync struct {

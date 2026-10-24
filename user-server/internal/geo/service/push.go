@@ -569,7 +569,7 @@ func (s *PushService) rollQuotaDay() {
 func (s *PushService) persistQuota(ctx context.Context, platform string) {
 	used := s.quota.Used(platform)
 	err := s.configs.UpdateUsage(ctx, platform, used)
-	// 回写失败必须出声（二审 P1-9）：静默丢会让 used_today 停在旧值 —— 跨天/重启
+	// 回写失败必须出声：静默丢会让 used_today 停在旧值 —— 跨天/重启
 	// 后按 DB 复原已用量时拿到脏值，当日配额被成倍超发或凭空归零。
 	if err != nil {
 		logger.Warnf("[push] 配额回写失败 platform=%s used_today=%d: %v", platform, used, err)

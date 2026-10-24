@@ -12,7 +12,7 @@ import (
 	"hivemtk-user/internal/pkg/utils/logger"
 )
 
-// EntityExtractorService 实体抽取服务（G7.2）
+// EntityExtractorService 实体抽取服务
 //
 // 从 GeoKnowledgeDocument 中通过 LLM 批量抽取实体（产品/人物/组织/地点/概念）
 // 和实体关系（is_a/used_for/competitor_of/part_of）。写入 geo_entities /

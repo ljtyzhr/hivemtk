@@ -12,11 +12,10 @@ import (
 // geo.default_visibility_days。走直连而不造 provider seam：本包已 import
 // internal/service（llm.go、keyword_pipeline.go），不存在反向依赖问题。
 //
-// 原来的 30 是写死在 `q.Days <= 0 || q.Days > 365` 这一个条件里的，也就是
-// "没给"和"给超了"共用同一个兜底值。现在拆开：没给走参数中心，给超了仍夹到 365
+// 没给走参数中心，给超了仍夹到 365
 // —— 上限是查询成本闸（一次要回 365 行按引擎的聚合），不该跟着默认值一起被调大。
 //
-// 读不到参数中心时回落编译期默认 30，与改造前逐字节一致。
+// 读不到参数中心时回落编译期默认 30。
 func defaultTrendDays(ctx context.Context) int {
 	const fallback = 30
 	if ctx == nil {
@@ -38,8 +37,7 @@ func DefaultVisibilityDays(ctx context.Context) int {
 
 // VisibilityService AI 可见性趋势分析服务
 //
-// 基于 geo_daily_stats 预聚合表输出每日可见率序列与环比变化，
-// 对标 Peec AI / Otterly 的 Visibility Trend 能力。
+// 基于 geo_daily_stats 预聚合表输出每日可见率序列与环比变化。
 type VisibilityService struct {
 	dailyRepo repository.GeoDailyStatRepository
 }

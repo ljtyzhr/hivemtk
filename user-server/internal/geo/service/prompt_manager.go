@@ -2,7 +2,7 @@ package service
 
 import "context"
 
-// PromptManager GEO 模块国际化 Prompt 管理器（G13.1）
+// PromptManager GEO 模块国际化 Prompt 管理器
 //
 // 按 language (zh/en/ja) 返回不同 prompt template。
 // 支持的语言：

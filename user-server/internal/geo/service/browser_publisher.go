@@ -114,7 +114,7 @@ func (a *apiPublisher) doPost(ctx context.Context, endpoint, token string, body 
 
 // NewDefaultPublishers 返回真实可发布的平台发布器
 // GitHub 平台由 PlatformService.publishGitHub 直接处理（不经过 PublishPipeline）
-// 掘金/小红书/知乎/CSDN 等无公开 API 平台已移除 stub，需要时可接 Playwright
+// 掘金/小红书/知乎/CSDN 等无公开 API 平台需要接 Playwright 类方案
 func NewDefaultPublishers() []PlatformPublisher {
 	return []PlatformPublisher{
 		&apiPublisher{

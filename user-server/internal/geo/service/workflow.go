@@ -21,7 +21,7 @@ type StepExecutor func(ctx context.Context, step map[string]interface{}) (string
 // ProgressCallback 进度回调
 type ProgressCallback func(workflowID string, stepName string, status string, progress int, message string)
 
-// WorkflowService GEO 工作流自动化服务（迁移自 AIGEOTOOLS workflow/service.go）
+// WorkflowService GEO 工作流自动化服务
 type WorkflowService struct {
 	wfRepo     repository.GeoWorkflowRepository
 	execRepo   repository.GeoWorkflowExecutionRepository
