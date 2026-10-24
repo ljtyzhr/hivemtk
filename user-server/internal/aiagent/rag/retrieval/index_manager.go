@@ -12,14 +12,13 @@ import (
 )
 
 // InMemoryIndexManager 内存索引管理器实现
-// 注意：在实际生产环境中，这里应该使用专门的向量数据库（如FAISS、Milvus、Pinecone等）
+// （生产环境应使用专门的向量数据库；本实现仅 cosine 相似度暴力检索）
 type InMemoryIndexManager struct {
 	indices   map[string][]Chunk
 	mutex     sync.RWMutex
 	dimension int
 }
 
-// NewInMemoryIndexManager 创建新的内存索引管理器
 func NewInMemoryIndexManager(dimension int) *InMemoryIndexManager {
 	if dimension <= 0 {
 		dimension = 1024
@@ -31,7 +30,6 @@ func NewInMemoryIndexManager(dimension int) *InMemoryIndexManager {
 	}
 }
 
-// BuildIndex 构建索引
 func (im *InMemoryIndexManager) BuildIndex(ctx context.Context, kbID string, chunks []Chunk) error {
 	if kbID == "" {
 		return errors.New("kbID cannot be empty")
@@ -57,7 +55,6 @@ func (im *InMemoryIndexManager) BuildIndex(ctx context.Context, kbID string, chu
 	return nil
 }
 
-// AddToIndex 向索引中添加向量
 func (im *InMemoryIndexManager) AddToIndex(ctx context.Context, kbID string, chunk Chunk) error {
 	if kbID == "" {
 		return errors.New("kbID cannot be empty")
@@ -80,7 +77,6 @@ func (im *InMemoryIndexManager) AddToIndex(ctx context.Context, kbID string, chu
 	return nil
 }
 
-// RemoveFromIndex 从索引中删除向量
 func (im *InMemoryIndexManager) RemoveFromIndex(ctx context.Context, kbID, chunkID string) error {
 	if kbID == "" {
 		return errors.New("kbID cannot be empty")
@@ -118,7 +114,6 @@ func (im *InMemoryIndexManager) RemoveFromIndex(ctx context.Context, kbID, chunk
 	return nil
 }
 
-// SearchIndex 在索引中检索
 func (im *InMemoryIndexManager) SearchIndex(ctx context.Context, kbID string, queryVec []float32, topK int) ([]Chunk, error) {
 	if kbID == "" {
 		return nil, errors.New("kbID cannot be empty")
@@ -175,7 +170,6 @@ func (im *InMemoryIndexManager) SearchIndex(ctx context.Context, kbID string, qu
 	return result, nil
 }
 
-// DropIndex 删除索引
 func (im *InMemoryIndexManager) DropIndex(ctx context.Context, kbID string) error {
 	if kbID == "" {
 		return errors.New("kbID cannot be empty")
@@ -189,7 +183,6 @@ func (im *InMemoryIndexManager) DropIndex(ctx context.Context, kbID string) erro
 	return nil
 }
 
-// GetIndexStats 获取索引统计信息
 func (im *InMemoryIndexManager) GetIndexStats(ctx context.Context, kbID string) (*IndexStats, error) {
 	if kbID == "" {
 		return nil, errors.New("kbID cannot be empty")
@@ -221,14 +214,12 @@ func (im *InMemoryIndexManager) GetIndexStats(ctx context.Context, kbID string) 
 	return stats, nil
 }
 
-// FAISSIndexManager FAISS索引管理器
-// 使用 InMemoryIndexManager 作为后端，提供完整的向量索引功能
-// 当未来需要接入FAISS C++库时，可替换后端实现
+// FAISSIndexManager FAISS索引管理器：当前以 InMemoryIndexManager 为后端，
+// 未来接入 FAISS C++ 库时可替换后端实现。
 type FAISSIndexManager struct {
 	backend *InMemoryIndexManager
 }
 
-// NewFAISSIndexManager 创建FAISS索引管理器
 func NewFAISSIndexManager(dimension int) *FAISSIndexManager {
 	if dimension <= 0 {
 		dimension = 1024
@@ -238,25 +229,21 @@ func NewFAISSIndexManager(dimension int) *FAISSIndexManager {
 	}
 }
 
-// BuildIndex 构建索引
 func (fm *FAISSIndexManager) BuildIndex(ctx context.Context, kbID string, chunks []Chunk) error {
 	logger.Info(fmt.Sprintf("[FAISSIndexManager] Building index for KB: %s with %d chunks", kbID, len(chunks)))
 	return fm.backend.BuildIndex(ctx, kbID, chunks)
 }
 
-// AddToIndex 向索引中添加向量
 func (fm *FAISSIndexManager) AddToIndex(ctx context.Context, kbID string, chunk Chunk) error {
 	logger.Info(fmt.Sprintf("[FAISSIndexManager] Adding chunk %s to KB: %s", chunk.ID, kbID))
 	return fm.backend.AddToIndex(ctx, kbID, chunk)
 }
 
-// RemoveFromIndex 从索引中删除向量
 func (fm *FAISSIndexManager) RemoveFromIndex(ctx context.Context, kbID, chunkID string) error {
 	logger.Info(fmt.Sprintf("[FAISSIndexManager] Removing chunk %s from KB: %s", chunkID, kbID))
 	return fm.backend.RemoveFromIndex(ctx, kbID, chunkID)
 }
 
-// SearchIndex 在索引中检索
 func (fm *FAISSIndexManager) SearchIndex(ctx context.Context, kbID string, queryVec []float32, topK int) ([]Chunk, error) {
 	logger.Info(fmt.Sprintf("[FAISSIndexManager] Searching in KB: %s with topK=%d", kbID, topK))
 	results, err := fm.backend.SearchIndex(ctx, kbID, queryVec, topK)
@@ -267,13 +254,11 @@ func (fm *FAISSIndexManager) SearchIndex(ctx context.Context, kbID string, query
 	return results, nil
 }
 
-// DropIndex 删除索引
 func (fm *FAISSIndexManager) DropIndex(ctx context.Context, kbID string) error {
 	logger.Info(fmt.Sprintf("[FAISSIndexManager] Dropping index for KB: %s", kbID))
 	return fm.backend.DropIndex(ctx, kbID)
 }
 
-// GetIndexStats 获取索引统计信息
 func (fm *FAISSIndexManager) GetIndexStats(ctx context.Context, kbID string) (*IndexStats, error) {
 	logger.Info(fmt.Sprintf("[FAISSIndexManager] Getting stats for KB: %s", kbID))
 	stats, err := fm.backend.GetIndexStats(ctx, kbID)

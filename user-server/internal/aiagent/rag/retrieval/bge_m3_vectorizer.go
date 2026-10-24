@@ -25,11 +25,8 @@ const BGEM3DefaultDimension = 1024
 // BGEM3DefaultModel bge-m3 默认模型名
 const BGEM3DefaultModel = "BAAI/bge-m3"
 
-// BGEM3Config bge-m3 embedding provider 配置
-//
-// 与 InferenceEmbeddingConfig 的差异：
-//   - 本配置面向 i18n 多语言路径，可独立于默认推理栈 inference.embedding
-//   - 新增 normalize / batch_size 参数（bge-m3 专属）
+// BGEM3Config bge-m3 embedding provider 配置，面向 i18n 多语言路径，
+// 可独立于默认推理栈 inference.embedding；normalize/batch_size 为 bge-m3 专属参数。
 type BGEM3Config struct {
 	Provider       string `yaml:"provider" json:"provider"`
 	Model          string `yaml:"model" json:"model"`
@@ -42,10 +39,8 @@ type BGEM3Config struct {
 	MaxRetries     int    `yaml:"max_retries" json:"max_retries"`
 }
 
-// DefaultBGEM3Config 默认 bge-m3 配置
-//
-// 默认走本地 llama.cpp / TEI（http://localhost:8080/v1），
-// 私域部署数据不出域；可通过 BaseURL/APIKey 切换到 OpenAI 兼容云端服务。
+// DefaultBGEM3Config 默认 bge-m3 配置：默认走本地 llama.cpp / TEI
+// （私域部署数据不出域），可通过 BaseURL/APIKey 切换到 OpenAI 兼容云端服务。
 func DefaultBGEM3Config() BGEM3Config {
 	return BGEM3Config{
 		Provider:       BGEM3ProviderName,
@@ -60,10 +55,8 @@ func DefaultBGEM3Config() BGEM3Config {
 	}
 }
 
-// BGEM3Vectorizer bge-m3 多语言 embedding provider
-//
-// 支持本地部署（FlagEmbedding + ONNX / llama.cpp / TEI）和 API 模式
-// （SiliconFlow / 智谱等 OpenAI 兼容服务）。
+// BGEM3Vectorizer bge-m3 多语言 embedding provider，支持本地部署
+// （llama.cpp / TEI）和 API 模式（OpenAI 兼容服务）。
 type BGEM3Vectorizer struct {
 	baseURL    string
 	apiKey     string
@@ -76,10 +69,7 @@ type BGEM3Vectorizer struct {
 	mu         sync.RWMutex
 }
 
-// NewBGEM3Vectorizer 构造 bge-m3 向量化器
-//
-// cfg.Dimension <= 0 时使用默认 1024；cfg.BatchSize <= 0 时使用默认 32。
-// cfg.BaseURL 为空时使用默认 http://localhost:8080/v1。
+// NewBGEM3Vectorizer 构造 bge-m3 向量化器，字段为空/非正值时取默认配置。
 func NewBGEM3Vectorizer(cfg BGEM3Config) *BGEM3Vectorizer {
 	if cfg.Model == "" {
 		cfg.Model = BGEM3DefaultModel
@@ -111,7 +101,6 @@ func NewBGEM3Vectorizer(cfg BGEM3Config) *BGEM3Vectorizer {
 	}
 }
 
-// EmbedText 将文本转换为向量
 func (v *BGEM3Vectorizer) EmbedText(text string) ([]float32, error) {
 	if strings.TrimSpace(text) == "" {
 		return nil, errors.New("text cannot be empty")
@@ -126,9 +115,7 @@ func (v *BGEM3Vectorizer) EmbedText(text string) ([]float32, error) {
 	return vecs[0], nil
 }
 
-// EmbedBatch 批量向量化
-//
-// 超过 batchSize 时自动分片串行请求，合并结果保持原始顺序。
+// EmbedBatch 批量向量化，超过 batchSize 时自动分片串行请求，合并结果保持原始顺序。
 func (v *BGEM3Vectorizer) EmbedBatch(texts []string) ([][]float32, error) {
 	if len(texts) == 0 {
 		return [][]float32{}, nil
@@ -158,7 +145,6 @@ func (v *BGEM3Vectorizer) EmbedBatch(texts []string) ([][]float32, error) {
 	return result, nil
 }
 
-// GetDimension 返回向量维度
 func (v *BGEM3Vectorizer) GetDimension() int { return v.dimension }
 
 // ValidateEmbedding 验证向量有效性
@@ -174,7 +160,6 @@ func (v *BGEM3Vectorizer) ValidateEmbedding(embedding []float32) bool {
 	return true
 }
 
-// Name 返回 provider 名
 func (v *BGEM3Vectorizer) Name() string { return BGEM3ProviderName }
 
 func (v *BGEM3Vectorizer) embedWithRetry(ctx context.Context, texts []string) ([][]float32, error) {

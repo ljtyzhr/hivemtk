@@ -416,49 +416,49 @@
 | 201 | [x] | `internal/aiagent/rag/cache/vector.go` | 1 | 2 | 1 | 0 |
 | 202 | [x] | `internal/aiagent/rag/core/rag_engine.go` | 25 | 29 | 25 | 0 |
 | 203 | [x] | `internal/aiagent/rag/customer_service/dialog_manager.go` | 24 | 28 | 24 | 0 |
-| 204 | [ ] | `internal/aiagent/rag/customer_service/interfaces.go` | 22 | 22 | 22 | 0 |
-| 205 | [ ] | `internal/aiagent/rag/customer_service/llm_adapter.go` | 6 | 7 | 6 | 0 |
-| 206 | [ ] | `internal/aiagent/rag/customer_service/pg_dialog_manager.go` | 1 | 2 | 1 | 0 |
-| 207 | [ ] | `internal/aiagent/rag/customer_service/prompt_templates.go` | 1 | 10 | 1 | 0 |
-| 208 | [ ] | `internal/aiagent/rag/customer_service/quality_assessor.go` | 7 | 7 | 7 | 0 |
-| 209 | [ ] | `internal/aiagent/rag/customer_service/rag_customer.go` | 21 | 21 | 21 | 0 |
-| 210 | [ ] | `internal/aiagent/rag/customer_service/response_generator.go` | 25 | 83 | 25 | 0 |
-| 211 | [ ] | `internal/aiagent/rag/eval/lightweight.go` | 9 | 24 | 9 | 0 |
-| 212 | [ ] | `internal/aiagent/rag/eval/rag_eval.go` | 6 | 16 | 6 | 0 |
-| 213 | [ ] | `internal/aiagent/rag/incremental/incremental_indexer.go` | 8 | 42 | 8 | 0 |
-| 214 | [ ] | `internal/aiagent/rag/retrieval/bge_m3_vectorizer.go` | 12 | 27 | 12 | 0 |
-| 215 | [ ] | `internal/aiagent/rag/retrieval/cached_embedding_client.go` | 10 | 16 | 10 | 0 |
-| 216 | [ ] | `internal/aiagent/rag/retrieval/contextual_retrieval.go` | 5 | 22 | 5 | 0 |
-| 217 | [ ] | `internal/aiagent/rag/retrieval/default_implementations.go` | 18 | 21 | 18 | 0 |
-| 218 | [ ] | `internal/aiagent/rag/retrieval/hybrid_searcher.go` | 10 | 16 | 10 | 0 |
-| 219 | [ ] | `internal/aiagent/rag/retrieval/hyde_generator.go` | 6 | 18 | 6 | 0 |
-| 220 | [ ] | `internal/aiagent/rag/retrieval/index_manager.go` | 18 | 21 | 18 | 0 |
-| 221 | [ ] | `internal/aiagent/rag/retrieval/index_manager_factory.go` | 3 | 4 | 3 | 0 |
-| 222 | [ ] | `internal/aiagent/rag/retrieval/interfaces.go` | 9 | 9 | 9 | 0 |
-| 223 | [ ] | `internal/aiagent/rag/retrieval/lexical_retriever.go` | 2 | 2 | 2 | 0 |
-| 224 | [ ] | `internal/aiagent/rag/retrieval/llm_chat.go` | 8 | 20 | 8 | 0 |
-| 225 | [ ] | `internal/aiagent/rag/retrieval/llm_chat_intent.go` | 8 | 21 | 8 | 0 |
-| 226 | [ ] | `internal/aiagent/rag/retrieval/lru_cache.go` | 9 | 10 | 9 | 0 |
-| 227 | [ ] | `internal/aiagent/rag/retrieval/markdown_chunk_strategy.go` | 2 | 2 | 2 | 0 |
-| 228 | [ ] | `internal/aiagent/rag/retrieval/multi_query_generator.go` | 6 | 15 | 6 | 0 |
-| 229 | [ ] | `internal/aiagent/rag/retrieval/pgvector_index_ops.go` | 6 | 18 | 6 | 0 |
+| 204 | [x] | `internal/aiagent/rag/customer_service/interfaces.go` | 22 | 22 | 22 | 0 |
+| 205 | [x] | `internal/aiagent/rag/customer_service/llm_adapter.go` | 6 | 7 | 6 | 0 |
+| 206 | [x] | `internal/aiagent/rag/customer_service/pg_dialog_manager.go` | 1 | 2 | 1 | 0 |
+| 207 | [x] | `internal/aiagent/rag/customer_service/prompt_templates.go` | 1 | 10 | 1 | 0 |
+| 208 | [x] | `internal/aiagent/rag/customer_service/quality_assessor.go` | 7 | 7 | 7 | 0 |
+| 209 | [x] | `internal/aiagent/rag/customer_service/rag_customer.go` | 21 | 21 | 21 | 0 |
+| 210 | [x] | `internal/aiagent/rag/customer_service/response_generator.go` | 25 | 83 | 25 | 0 |
+| 211 | [x] | `internal/aiagent/rag/eval/lightweight.go` | 9 | 24 | 9 | 0 |
+| 212 | [x] | `internal/aiagent/rag/eval/rag_eval.go` | 6 | 16 | 6 | 0 |
+| 213 | [x] | `internal/aiagent/rag/incremental/incremental_indexer.go` | 8 | 42 | 8 | 0 |
+| 214 | [x] | `internal/aiagent/rag/retrieval/bge_m3_vectorizer.go` | 12 | 27 | 12 | 0 |
+| 215 | [x] | `internal/aiagent/rag/retrieval/cached_embedding_client.go` | 10 | 16 | 10 | 0 |
+| 216 | [x] | `internal/aiagent/rag/retrieval/contextual_retrieval.go` | 5 | 22 | 5 | 0 |
+| 217 | [x] | `internal/aiagent/rag/retrieval/default_implementations.go` | 18 | 21 | 18 | 0 |
+| 218 | [x] | `internal/aiagent/rag/retrieval/hybrid_searcher.go` | 10 | 16 | 10 | 0 |
+| 219 | [x] | `internal/aiagent/rag/retrieval/hyde_generator.go` | 6 | 18 | 6 | 0 |
+| 220 | [x] | `internal/aiagent/rag/retrieval/index_manager.go` | 18 | 21 | 18 | 0 |
+| 221 | [x] | `internal/aiagent/rag/retrieval/index_manager_factory.go` | 3 | 4 | 3 | 0 |
+| 222 | [x] | `internal/aiagent/rag/retrieval/interfaces.go` | 9 | 9 | 9 | 0 |
+| 223 | [x] | `internal/aiagent/rag/retrieval/lexical_retriever.go` | 2 | 2 | 2 | 0 |
+| 224 | [x] | `internal/aiagent/rag/retrieval/llm_chat.go` | 8 | 20 | 8 | 0 |
+| 225 | [x] | `internal/aiagent/rag/retrieval/llm_chat_intent.go` | 8 | 21 | 8 | 0 |
+| 226 | [x] | `internal/aiagent/rag/retrieval/lru_cache.go` | 9 | 10 | 9 | 0 |
+| 227 | [x] | `internal/aiagent/rag/retrieval/markdown_chunk_strategy.go` | 2 | 2 | 2 | 0 |
+| 228 | [x] | `internal/aiagent/rag/retrieval/multi_query_generator.go` | 6 | 15 | 6 | 0 |
+| 229 | [x] | `internal/aiagent/rag/retrieval/pgvector_index_ops.go` | 6 | 18 | 6 | 0 |
 | 230 | [x] | `internal/aiagent/rag/retrieval/pgvector_session.go` | 3 | 8 | 3 | 0 |
-| 231 | [ ] | `internal/aiagent/rag/retrieval/query_rewriter.go` | 8 | 25 | 8 | 0 |
-| 232 | [ ] | `internal/aiagent/rag/retrieval/query_weight.go` | 3 | 8 | 3 | 0 |
-| 233 | [ ] | `internal/aiagent/rag/retrieval/rag_retrieval.go` | 18 | 22 | 18 | 0 |
-| 234 | [ ] | `internal/aiagent/rag/retrieval/redis_cache.go` | 2 | 6 | 2 | 0 |
-| 235 | [ ] | `internal/aiagent/rag/retrieval/redis_client.go` | 6 | 10 | 6 | 0 |
+| 231 | [x] | `internal/aiagent/rag/retrieval/query_rewriter.go` | 8 | 25 | 8 | 0 |
+| 232 | [x] | `internal/aiagent/rag/retrieval/query_weight.go` | 3 | 8 | 3 | 0 |
+| 233 | [x] | `internal/aiagent/rag/retrieval/rag_retrieval.go` | 18 | 22 | 18 | 0 |
+| 234 | [x] | `internal/aiagent/rag/retrieval/redis_cache.go` | 2 | 6 | 2 | 0 |
+| 235 | [x] | `internal/aiagent/rag/retrieval/redis_client.go` | 6 | 10 | 6 | 0 |
 | 236 | [x] | `internal/aiagent/rag/retrieval/rerank.go` | 49 | 158 | 49 | 0 |
-| 237 | [ ] | `internal/aiagent/rag/retrieval/rerank_advanced.go` | 31 | 72 | 31 | 0 |
-| 238 | [ ] | `internal/aiagent/rag/retrieval/reranker_adapter.go` | 1 | 4 | 1 | 0 |
-| 239 | [ ] | `internal/aiagent/rag/retrieval/rrf_fusion.go` | 5 | 16 | 5 | 0 |
-| 240 | [ ] | `internal/aiagent/rag/retrieval/three_tier.go` | 14 | 17 | 14 | 0 |
-| 241 | [ ] | `internal/aiagent/rag/retrieval/three_tier_adapter.go` | 4 | 5 | 4 | 0 |
-| 242 | [ ] | `internal/aiagent/rag/retrieval/translation_cache.go` | 12 | 38 | 12 | 0 |
+| 237 | [x] | `internal/aiagent/rag/retrieval/rerank_advanced.go` | 31 | 72 | 31 | 0 |
+| 238 | [x] | `internal/aiagent/rag/retrieval/reranker_adapter.go` | 1 | 4 | 1 | 0 |
+| 239 | [x] | `internal/aiagent/rag/retrieval/rrf_fusion.go` | 5 | 16 | 5 | 0 |
+| 240 | [x] | `internal/aiagent/rag/retrieval/three_tier.go` | 14 | 17 | 14 | 0 |
+| 241 | [x] | `internal/aiagent/rag/retrieval/three_tier_adapter.go` | 4 | 5 | 4 | 0 |
+| 242 | [x] | `internal/aiagent/rag/retrieval/translation_cache.go` | 12 | 38 | 12 | 0 |
 | 243 | [x] | `internal/aiagent/rag/retrieval/vec_pg.go` | 0 | 0 | 0 | 0 |
-| 244 | [ ] | `internal/aiagent/rag/retrieval/vector_retriever.go` | 5 | 19 | 5 | 0 |
-| 245 | [ ] | `internal/aiagent/rag/retrieval/vectorizer.go` | 11 | 22 | 11 | 0 |
-| 246 | [ ] | `internal/aiagent/rag/service/rag.go` | 15 | 16 | 15 | 0 |
+| 244 | [x] | `internal/aiagent/rag/retrieval/vector_retriever.go` | 5 | 19 | 5 | 0 |
+| 245 | [x] | `internal/aiagent/rag/retrieval/vectorizer.go` | 11 | 22 | 11 | 0 |
+| 246 | [x] | `internal/aiagent/rag/service/rag.go` | 15 | 16 | 15 | 0 |
 | 247 | [x] | `internal/aiagent/vector/vector_model.go` | 27 | 29 | 27 | 0 |
 | 248 | [ ] | `internal/app/agent_checkpoint_wiring.go` | 5 | 13 | 5 | 0 |
 | 249 | [x] | `internal/app/agent_lifecycle_wiring.go` | 15 | 55 | 15 | 0 |

@@ -11,28 +11,22 @@ import (
 )
 
 const (
-	// HNSWMinRowsForIndex 建议建 HNSW 索引的最小行数（R-7：<5 万不建）
+	// HNSWMinRowsForIndex 建议建 HNSW 索引的最小行数（小表建索引得不偿失）
 	HNSWMinRowsForIndex int64 = 50000
 
-	// HNSWM HNSW 图的最大连接数（R-7 落地值 m16）
+	// HNSWM HNSW 图的最大连接数
 	HNSWM = 16
 
-	// HNSWEfConstruction 建索引时的候选队列长度（R-7 落地值 ef200）
+	// HNSWEfConstruction 建索引时的候选队列长度
 	HNSWEfConstruction = 200
 
-	// HNSWEfSearch 查询时候选队列长度（R-7 落地值 ef_search=100）
+	// HNSWEfSearch 查询时候选队列长度
 	HNSWEfSearch = 100
 )
 
-// EnsureHNSWIndexIfNeeded R-7 迁移辅助：行数超过阈值且索引缺失时创建 HNSW 索引。
-//
-// 参数：
-//   - db: 数据库句柄
-//   - table: 表名（如 knowledge_chunks）
-//   - column: 向量列名（如 embedding）
-//   - indexName: 索引名（如 idx_knowledge_chunks_embedding_hnsw）
-//
-// 返回 created=true 表示本次实际创建了索引。行数未达阈值或索引已存在时不做任何事。
+// EnsureHNSWIndexIfNeeded 迁移辅助：行数超过阈值且索引缺失时创建 HNSW 索引
+//（vector_cosine_ops）。created=true 表示本次实际创建了索引；
+// 行数未达阈值或索引已存在时不做任何事。
 // 注意：本函数使用普通 CREATE INDEX（迁移框架内执行）；生产大表建议运维手工
 // 用 CREATE INDEX CONCURRENTLY 执行同等 DDL 以避免锁写。
 func EnsureHNSWIndexIfNeeded(ctx context.Context, db *gorm.DB, table, column, indexName string) (bool, error) {
@@ -74,9 +68,9 @@ func EnsureHNSWIndexIfNeeded(ctx context.Context, db *gorm.DB, table, column, in
 	return true, nil
 }
 
-// ApplyHNSWSessionParams 会话级查询调参（R-7：ef_search=100 + iterative_scan）。
+// ApplyHNSWSessionParams 会话级查询调参（ef_search=100 + iterative_scan）。
 // 在执行向量检索的连接/事务内调用；iterative_scan 用于带过滤条件的近邻查询，
-// 避免 HNSW 在过滤后候选不足时召回塌陷。pgvector 版本不支持 iterative_scan 时静默忽略。
+// 避免 HNSW 在过滤后候选不足时召回塌陷。pgvector 版本不支持时静默忽略。
 func ApplyHNSWSessionParams(ctx context.Context, db *gorm.DB) error {
 	if db == nil {
 		return fmt.Errorf("db 未初始化")

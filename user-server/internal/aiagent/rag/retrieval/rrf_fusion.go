@@ -9,9 +9,7 @@ type RRFFusion struct {
 	k int
 }
 
-// NewRRFFusion 创建 RRF 融合器
-//
-// k <= 0 时使用默认值 60（Cormack 2009 SIGIR 推荐值）
+// NewRRFFusion 创建 RRF 融合器，k <= 0 时使用默认值 60（Cormack 2009 SIGIR 推荐值）。
 func NewRRFFusion(k int) *RRFFusion {
 	if k <= 0 {
 		k = 60
@@ -19,7 +17,6 @@ func NewRRFFusion(k int) *RRFFusion {
 	return &RRFFusion{k: k}
 }
 
-// K 返回平滑常数 k
 func (f *RRFFusion) K() int { return f.k }
 
 type rrfEntry struct {
@@ -27,16 +24,9 @@ type rrfEntry struct {
 	score float64
 }
 
-// Fuse 融合多路召回结果
-//
-// 输入: vecResults, bm25Results（按各自 score 降序）
-// 输出: 融合后 topN（按 RRF score 降序）
-//
-// 注意:
-//   - 融合后 Chunk.Score 被覆盖为 RRF score（0 ~ 2/k，单路命中 1/k，双路命中 2/k）
-//   - topN <= 0 时使用默认值 20
-//   - 输入切片可以为空（一路无结果时也能正常融合）
-//   - 同一 chunk ID 在两路都出现时聚合分数；不同 chunk ID 各自独立计分
+// Fuse 融合多路召回结果：vecResults / bm25Results 须按各自 score 降序，
+// 同一 chunk ID 在两路都出现时聚合分数，输出按 RRF score 降序的 topN（默认 20）。
+// 融合后 Chunk.Score 被覆盖为 RRF score（单路命中 1/k，双路命中 2/k）。
 func (f *RRFFusion) Fuse(vecResults, bm25Results []Chunk, topN int) []Chunk {
 	if topN <= 0 {
 		topN = 20
@@ -84,7 +74,7 @@ func (f *RRFFusion) Fuse(vecResults, bm25Results []Chunk, topN int) []Chunk {
 	return out
 }
 
-func trimChunks(chunks []Chunk, topK int) []Chunk { //nolint:unused //// 仅被 *_test.go 引用，生产路径未用
+func trimChunks(chunks []Chunk, topK int) []Chunk { //nolint:unused // 仅被 *_test.go 引用，生产路径未用
 	if topK <= 0 {
 		return chunks
 	}

@@ -33,10 +33,8 @@ type StorageInterface interface {
 	ListKnowledgeBases(ctx context.Context, ownerID string, includePublic bool) ([]KnowledgeBaseInfo, error)
 }
 
-// CacheInterface 缓存接口
-//
-// 方法显式接收 ctx：实现必须按 ctx 中的租户作用域读写键，
-// 避免同一缓存实例跨租户命中。
+// CacheInterface 缓存接口。
+// 方法显式接收 ctx：实现必须按 ctx 中的租户作用域读写键，避免跨租户命中。
 type CacheInterface interface {
 	Get(ctx context.Context, key string) (any, bool)
 	Set(ctx context.Context, key string, value any, ttl time.Duration)
@@ -72,7 +70,6 @@ type ChunkConfig struct {
 	Strategy     string `json:"strategy"`
 }
 
-// NewRagRetrievalService 创建新的RAG检索服务
 func NewRagRetrievalService(
 	vectorizer VectorizerInterface,
 	indexer IndexManagerInterface,
@@ -103,7 +100,6 @@ func NewRagRetrievalService(
 	}
 }
 
-// IndexDocuments 向知识库中添加文档
 func (r *RagRetrievalServiceImpl) IndexDocuments(ctx context.Context, kbID string, documents []Document) error {
 	if kbID == "" {
 		return errors.New("kbID cannot be empty")
@@ -262,7 +258,6 @@ func (r *RagRetrievalServiceImpl) Search(ctx context.Context, kbID string, query
 	return results, nil
 }
 
-// DeleteKnowledgeBase 删除整个知识库
 func (r *RagRetrievalServiceImpl) DeleteKnowledgeBase(ctx context.Context, kbID string) error {
 	if kbID == "" {
 		return errors.New("kbID cannot be empty")
@@ -283,7 +278,6 @@ func (r *RagRetrievalServiceImpl) DeleteKnowledgeBase(ctx context.Context, kbID 
 	return nil
 }
 
-// DeleteDocumentFromKB 从知识库中删除特定文档
 func (r *RagRetrievalServiceImpl) DeleteDocumentFromKB(ctx context.Context, kbID, docID string) error {
 	if kbID == "" {
 		return errors.New("kbID cannot be empty")
@@ -349,7 +343,6 @@ func (r *RagRetrievalServiceImpl) DeleteDocumentFromKB(ctx context.Context, kbID
 	return nil
 }
 
-// UpdateDocumentInKB 更新知识库中的文档
 func (r *RagRetrievalServiceImpl) UpdateDocumentInKB(ctx context.Context, kbID, docID string, document Document) error {
 	if kbID == "" {
 		return errors.New("kbID cannot be empty")
@@ -382,7 +375,6 @@ func (r *RagRetrievalServiceImpl) UpdateDocumentInKB(ctx context.Context, kbID, 
 	return nil
 }
 
-// GetKnowledgeBaseInfo 获取知识库信息
 func (r *RagRetrievalServiceImpl) GetKnowledgeBaseInfo(ctx context.Context, kbID string) (*KnowledgeBaseInfo, error) {
 	if kbID == "" {
 		return nil, errors.New("kbID cannot be empty")
@@ -396,7 +388,6 @@ func (r *RagRetrievalServiceImpl) GetKnowledgeBaseInfo(ctx context.Context, kbID
 	return info, nil
 }
 
-// ListKnowledgeBases 列出所有知识库
 func (r *RagRetrievalServiceImpl) ListKnowledgeBases(ctx context.Context, ownerID string, includePublic bool) ([]KnowledgeBaseInfo, error) {
 	kbs, err := r.storage.ListKnowledgeBases(ctx, ownerID, includePublic)
 	if err != nil {
@@ -406,7 +397,6 @@ func (r *RagRetrievalServiceImpl) ListKnowledgeBases(ctx context.Context, ownerI
 	return kbs, nil
 }
 
-// CreateKnowledgeBase 创建知识库
 func (r *RagRetrievalServiceImpl) CreateKnowledgeBase(ctx context.Context, kbInfo KnowledgeBaseInfo) error {
 	if kbInfo.ID == "" {
 		return errors.New("knowledge base ID cannot be empty")

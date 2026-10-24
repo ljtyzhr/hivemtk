@@ -14,13 +14,11 @@ type MultiQueryGenerator struct {
 	variantN   int
 }
 
-// MultiQueryGeneratorConfig Multi-Query 配置
 type MultiQueryGeneratorConfig struct {
 	Enabled  bool
 	VariantN int
 }
 
-// DefaultMultiQueryGeneratorConfig 默认配置
 func DefaultMultiQueryGeneratorConfig() *MultiQueryGeneratorConfig {
 	return &MultiQueryGeneratorConfig{
 		Enabled:  true,
@@ -28,9 +26,7 @@ func DefaultMultiQueryGeneratorConfig() *MultiQueryGeneratorConfig {
 	}
 }
 
-// NewMultiQueryGenerator 创建 Multi-Query 生成器
-//
-// chatClient 为 nil 时自动 disabled
+// NewMultiQueryGenerator 创建 Multi-Query 生成器，chatClient 为 nil 时自动 disabled。
 func NewMultiQueryGenerator(chatClient LLMChatClient, cfg *MultiQueryGeneratorConfig) *MultiQueryGenerator {
 	if cfg == nil {
 		cfg = DefaultMultiQueryGeneratorConfig()
@@ -50,19 +46,12 @@ func NewMultiQueryGenerator(chatClient LLMChatClient, cfg *MultiQueryGeneratorCo
 	}
 }
 
-// IsEnabled 是否启用
 func (g *MultiQueryGenerator) IsEnabled() bool {
 	return g != nil && g.enabled && g.chatClient != nil
 }
 
-// Generate 生成 Multi-Query 变体
-//
-// 输出: []string 变体列表（已去空白、去重）
-// 失败场景:
-//   - 未启用 → 返回 (nil, nil)
-//   - LLM 调用失败 → 返回 error
-//   - JSON 解析失败 → 返回 error
-//   - 空数组 → 返回 error
+// Generate 生成 Multi-Query 变体（已去空白、去重）。
+// 未启用返回 (nil, nil)；LLM 失败、JSON 解析失败或去重后为空返回 error。
 func (g *MultiQueryGenerator) Generate(ctx context.Context, query string) ([]string, error) {
 	if !g.IsEnabled() {
 		return nil, nil

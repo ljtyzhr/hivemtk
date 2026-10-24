@@ -1,10 +1,7 @@
-// rag_eval.go 提供 RAG 评测的增量口径（R-4），与 lightweight.go 互补：
+// rag_eval.go 提供 RAG 评测的增量口径，与 lightweight.go 互补：
 //   - ContextRecallAtK：仅以 top-k 召回片段为基准的软召回，衡量排序列表头部命中；
 //   - AnswerRelevance：问题-答案字符二元组（bigram）Jaccard 相似度；
 //   - RunRAGEval：批量评测输出「三指标均值 + 逐条明细」摘要。
-//
-// 均为纯函数，复用 lightweight.go 的 EvalCase / FaithfulnessLite / ContextRecallLite /
-// bigramSet 实现，无外部依赖，可安全用于 CI 冒烟。
 package eval
 
 const ragEvalRecallK = 3

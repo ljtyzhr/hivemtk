@@ -1,12 +1,6 @@
-// Package rag 提供 RAG 知识库相关能力。
-//
-// 本包当前职责：
-//  1. IncrementalIndexer 增量索引器
-//     订阅 event.TopicKnowledgeDocumentChanged 事件
-//     监听知识库文档变更(创建/更新/删除)
-//     触发向量化与 chunk 更新
-//
-// 设计依据： §2.5 (子项 2 增量索引更新)
+// Package rag 提供 RAG 知识库相关能力，当前仅含 IncrementalIndexer：
+// 订阅 event.TopicKnowledgeDocumentChanged 事件，监听知识库文档变更
+// （创建/更新/删除）并触发向量化与 chunk 更新。
 package rag
 
 import (
@@ -32,18 +26,11 @@ import (
 	"hivemtk-user/internal/pkg/utils/logger"
 )
 
-// IncrementalIndexer 知识库文档增量索引器
-//
-// 职责：
-//  1. 订阅 event.TopicKnowledgeDocumentChanged 事件
-//  2. 根据 ChangeType(create/update/delete)执行不同动作
-//  3. create/update:解析 → 切块 → Embedding → 写 chunks
-//  4. delete:只清本索引器的内存视图；分段行的级联删除由
-//     KnowledgeService.Delete 在同一个请求里落库（本索引器再删一次是重复且
-//     会把"事件重放"变成二次删除）
-//
-// 并发：内部 RWMutex 保证线程安全
-// 失败：仅记录日志,不重试(主流程可重新发布事件)
+// IncrementalIndexer 知识库文档增量索引器。
+// 订阅文档变更事件，按 ChangeType 分发：create/update 走解析 → 切块 →
+// Embedding → 写 chunks；delete 只清本索引器的内存视图——分段行的级联删除
+// 由 KnowledgeService.Delete 在同一请求里落库（这里再删会因事件重放变成二次删除）。
+// 失败仅记录日志不重试（主流程可重新发布事件）。
 type IncrementalIndexer struct {
 	mu          sync.RWMutex
 	chunksByDoc map[string][]*eventIndexedChunk
@@ -65,12 +52,9 @@ type eventIndexedChunk struct {
 	IndexedAt   time.Time
 }
 
-// NewIncrementalIndexer 创建增量索引器
-//
-// 参数：
-//   - embedder:  向量服务(可为 nil,nil 时跳过 embedding 仅切块)
-//   - processor: 文档处理器(可为 nil,nil 时使用默认配置)
-//   - db:        数据库连接(可为 nil,nil 时退化为内存索引模式;不查库、不持久化 chunks)
+// NewIncrementalIndexer 创建增量索引器。
+// embedder 为 nil 时跳过 embedding 仅切块；processor 为 nil 时使用默认配置；
+// db 为 nil 时退化为内存索引模式（不查库、不持久化 chunks）。
 func NewIncrementalIndexer(embedder llm.EmbeddingServiceInterface, processor *etl.DocumentProcessor, db *gorm.DB) *IncrementalIndexer {
 	if processor == nil {
 		processor = etl.NewDocumentProcessor(nil)
@@ -88,14 +72,8 @@ func NewIncrementalIndexer(embedder llm.EmbeddingServiceInterface, processor *et
 	return idx
 }
 
-// Handle 处理知识库文档变更事件
-//
-// 实现 event.Handler 接口
-//
-// 步骤：
-//  1. 类型断言载荷
-//  2. 根据 ChangeType 分发
-//  3. 异常隔离(panic 不影响 worker)
+// Handle 处理知识库文档变更事件（实现 event.Handler 接口），异常 panic 被隔离
+// 以不影响 worker。
 func (i *IncrementalIndexer) Handle(evt event.Event) error {
 	defer func() {
 		if r := recover(); r != nil {
@@ -119,9 +97,9 @@ func (i *IncrementalIndexer) Handle(evt event.Event) error {
 	return i.handlePayload(ctxFromPayload(payload), payload)
 }
 
-// ctxFromPayload 从事件载荷恢复租户上下文（T021 的订阅侧半边）：事件线程拿不到
-// 发布点的 ctx，归属靠载荷随行传递。载荷没带租户（off 模式或系统级发布）时保持
-// 无绑定——on 模式下下游隔离 callback 会 fail-closed，绝不回落默认租户，
+// ctxFromPayload 从事件载荷恢复租户上下文：事件线程拿不到发布点的 ctx，
+// 租户归属靠载荷随行传递。载荷没带租户（off 模式或系统级发布）时保持无绑定——
+// on 模式下下游隔离 callback 会 fail-closed，绝不回落默认租户，
 // 那会把某个租户的文档索引进别人的库。
 func ctxFromPayload(payload event.KnowledgeDocumentChangePayload) context.Context {
 	ctx := context.Background()
@@ -266,7 +244,7 @@ func (i *IncrementalIndexer) deleteDocument(docIDStr string) error {
 	return nil
 }
 
-// GetIndexedChunks 查询已索引的 chunks(供测试 + 上层使用)
+// GetIndexedChunks 查询已索引的 chunks（返回副本）。
 func (i *IncrementalIndexer) GetIndexedChunks(docIDStr string) []*eventIndexedChunk {
 	i.mu.RLock()
 	defer i.mu.RUnlock()
@@ -276,14 +254,13 @@ func (i *IncrementalIndexer) GetIndexedChunks(docIDStr string) []*eventIndexedCh
 	return result
 }
 
-// ChunkCount 文档 chunk 数
 func (i *IncrementalIndexer) ChunkCount(docIDStr string) int {
 	i.mu.RLock()
 	defer i.mu.RUnlock()
 	return len(i.chunksByDoc[docIDStr])
 }
 
-// Stop 关闭索引器
+// Stop 关闭索引器，后续事件不再处理。
 func (i *IncrementalIndexer) Stop() {
 	i.mu.Lock()
 	defer i.mu.Unlock()

@@ -7,18 +7,16 @@ import (
 	rag_service "hivemtk-user/internal/aiagent/rag/service"
 )
 
-// RAGThreeTierAdapter 将 RAGThreeTierService 适配为 rag_service.ThreeTierSearcher 接口
-// 解决 rag_service 不直接依赖 rag_retrieval 包的问题
+// RAGThreeTierAdapter 将 RAGThreeTierService 适配为 rag_service.ThreeTierSearcher
+// 接口（rag_service 不直接依赖 rag_retrieval 包）。
 type RAGThreeTierAdapter struct {
 	svc *RAGThreeTierService
 }
 
-// NewRAGThreeTierAdapter 构造适配器
 func NewRAGThreeTierAdapter(svc *RAGThreeTierService) *RAGThreeTierAdapter {
 	return &RAGThreeTierAdapter{svc: svc}
 }
 
-// Search 适配 Search 接口
 func (a *RAGThreeTierAdapter) Search(ctx context.Context, kbID, query string, topK int) (*rag_service.ThreeTierResult, error) {
 	if a.svc == nil {
 		return nil, nil
@@ -49,7 +47,6 @@ func (a *RAGThreeTierAdapter) Search(ctx context.Context, kbID, query string, to
 	}, nil
 }
 
-// Stats 适配 Stats 接口
 func (a *RAGThreeTierAdapter) Stats() rag_service.ThreeTierStats {
 	if a.svc == nil {
 		return rag_service.ThreeTierStats{}

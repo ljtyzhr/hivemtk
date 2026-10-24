@@ -20,9 +20,7 @@ type GoRedisAdapter struct {
 	client *redis.Client
 }
 
-// NewGoRedisAdapter 创建适配器
-//
-// client 为 nil 时返回 nil（表示禁用 Redis 缓存）
+// NewGoRedisAdapter 创建适配器，client 为 nil 时返回 nil（表示禁用 Redis 缓存）。
 func NewGoRedisAdapter(client *redis.Client) *GoRedisAdapter {
 	if client == nil {
 		return nil
@@ -30,7 +28,6 @@ func NewGoRedisAdapter(client *redis.Client) *GoRedisAdapter {
 	return &GoRedisAdapter{client: client}
 }
 
-// Get 实现 RedisClient 接口
 func (a *GoRedisAdapter) Get(ctx context.Context, key string) (string, error) {
 	if a == nil || a.client == nil {
 		return "", redis.Nil
@@ -38,7 +35,6 @@ func (a *GoRedisAdapter) Get(ctx context.Context, key string) (string, error) {
 	return a.client.Get(ctx, key).Result()
 }
 
-// Set 实现 RedisClient 接口
 func (a *GoRedisAdapter) Set(ctx context.Context, key, value string, ttl time.Duration) error {
 	if a == nil || a.client == nil {
 		return nil

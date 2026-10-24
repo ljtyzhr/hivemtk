@@ -25,10 +25,8 @@ const (
 	TierL4Keyword   RAGTier = "L4_keyword"
 )
 
-// RAGThreeTierService 三级 RAG 检索服务
-// RAG 三级架构贯通
-// 调度策略：L1 → L2 → L3 → L4，按层级下沉，命中即返回
-// 适用于客服/销售/营销场景的知识检索
+// RAGThreeTierService 三级 RAG 检索服务：
+// 调度策略 L1（热缓存）→ L2（暖索引）→ L3（冷索引）→ L4（关键词），命中即返回。
 type RAGThreeTierService struct {
 	cache   *LRUCache
 	storage StorageInterface
@@ -67,7 +65,6 @@ type TierSearchResult struct {
 	FromCache bool           `json:"from_cache"`
 }
 
-// NewRAGThreeTierService 构造三级服务
 func NewRAGThreeTierService(
 	storage StorageInterface,
 	vector VectorizerInterface,
@@ -95,7 +92,6 @@ func NewRAGThreeTierService(
 	}
 }
 
-// Search 三级检索入口
 func (s *RAGThreeTierService) Search(ctx context.Context, kbID, query string, topK int) (*TierSearchResult, error) {
 	if s == nil {
 		return nil, errors.New("nil service")
@@ -247,7 +243,6 @@ func (s *RAGThreeTierService) updateAvg(ms int64) {
 	s.stats.AvgMs = (s.stats.AvgMs*(n-1) + ms) / n
 }
 
-// Stats 获取统计
 func (s *RAGThreeTierService) Stats() TierStats {
 	s.mu.Lock()
 	defer s.mu.Unlock()
@@ -261,14 +256,12 @@ func (s *RAGThreeTierService) EnableTier(tier RAGTier, enabled bool) {
 	s.enabled[tier] = enabled
 }
 
-// IsEnabled 查询某层是否启用
 func (s *RAGThreeTierService) IsEnabled(tier RAGTier) bool {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	return s.enabled[tier]
 }
 
-// ClearCache 清空 L1
 func (s *RAGThreeTierService) ClearCache() {
 	s.cache.Clear()
 }
@@ -302,12 +295,10 @@ func (s *RAGThreeTierService) MergeResults(results ...[]Chunk) []Chunk {
 	return merged
 }
 
-// EncodeResult 序列化结果（用于跨服务传递）
 func (s *RAGThreeTierService) EncodeResult(r *TierSearchResult) ([]byte, error) {
 	return json.Marshal(r)
 }
 
-// DecodeResult 反序列化
 func (s *RAGThreeTierService) DecodeResult(b []byte) (*TierSearchResult, error) {
 	var r TierSearchResult
 	if err := json.Unmarshal(b, &r); err != nil {

@@ -34,11 +34,9 @@ type RankedDoc struct {
 	Recomputed bool
 }
 
-// Reranker 高级别重排接口（C 域）
-//
-// 与 RerankerInterface 区别：
-//   - RerankerInterface（rerank.go）只做单路打分（LocalReranker 调 TEI /rerank）
-//   - Reranker 在其上封装多策略组合（RRF / Cross-Encoder / Hybrid）+ 缓存 + 限制
+// Reranker 高级别重排接口。
+// 与 RerankerInterface（rerank.go，单路打分）的区别：本接口封装
+// 多策略组合（RRF / Cross-Encoder / Hybrid）+ 缓存 + 数量限制。
 type Reranker interface {
 	Rerank(ctx context.Context, query string, docs []RetrievedDoc, topK int) ([]RankedDoc, error)
 
@@ -141,18 +139,15 @@ const (
 	StrategyHybrid       RerankStrategy = "hybrid"
 )
 
-// CrossEncoderScorer 通过 RerankerInterface（LocalReranker）给 query-doc 对打分
-//
-// LocalReranker.Rerank(ctx, query, []RerankDoc) 返回 []RerankResult{ID, Score}
-// 内部走本地 TEI /rerank 端点（bge-reranker-v2-m3 跨编码器）
+// CrossEncoderScorer 通过 RerankerInterface（LocalReranker）给 query-doc 对打分，
+// 内部走本地 TEI /rerank 端点（bge-reranker-v2-m3 跨编码器）。
 type CrossEncoderScorer struct {
 	delegate RerankerInterface
 	cache    *rerankScoreCache
 }
 
-// NewCrossEncoderScorer 构造 Cross-Encoder 评分器
-//
-// delegate 为 nil 时返回 nil scorer（HybridReranker 会降级为纯 RRF）
+// NewCrossEncoderScorer 构造 Cross-Encoder 评分器。
+// delegate 为 nil 时返回 nil scorer（HybridReranker 会降级为纯 RRF）。
 func NewCrossEncoderScorer(delegate RerankerInterface, cache *rerankScoreCache) *CrossEncoderScorer {
 	if delegate == nil {
 		return nil
@@ -163,10 +158,8 @@ func NewCrossEncoderScorer(delegate RerankerInterface, cache *rerankScoreCache) 
 	return &CrossEncoderScorer{delegate: delegate, cache: cache}
 }
 
-// Score 对每个 doc 调用 Cross-Encoder 评估分数
-//
-// 返回 docID → score 映射；命中缓存的不重复调用
-// 失败的 doc 不计入结果（由调用方决定降级策略）
+// Score 对每个 doc 调用 Cross-Encoder 评估分数，返回 docID → score 映射；
+// 命中缓存的不重复调用，失败的 doc 不计入结果（由调用方决定降级策略）。
 func (s *CrossEncoderScorer) Score(ctx context.Context, query string, docs []RetrievedDoc) (map[string]float64, error) {
 	if s == nil || s.delegate == nil {
 		return nil, errors.New("cross-encoder scorer 未初始化")
@@ -212,7 +205,6 @@ type CrossEncoderReranker struct {
 	scoreFloor float64
 }
 
-// NewCrossEncoderReranker 构造纯 Cross-Encoder 重排器
 func NewCrossEncoderReranker(scorer *CrossEncoderScorer) *CrossEncoderReranker {
 	if scorer == nil {
 		return nil
@@ -226,10 +218,8 @@ func (r *CrossEncoderReranker) SetScoreFloor(floor float64) {
 	r.scoreFloor = floor
 }
 
-// Strategy 策略名
 func (r *CrossEncoderReranker) Strategy() string { return string(StrategyCrossEncoder) }
 
-// Rerank 实现 Reranker 接口
 func (r *CrossEncoderReranker) Rerank(ctx context.Context, query string, docs []RetrievedDoc, topK int) ([]RankedDoc, error) {
 	if r == nil || r.scorer == nil {
 		return nil, errors.New("cross-encoder reranker 未初始化")
@@ -266,7 +256,7 @@ func (r *CrossEncoderReranker) Rerank(ctx context.Context, query string, docs []
 	return finalize(applyScoreFloor(r.scoreFloor, ranked), topK), nil
 }
 
-const rerankScoreFloorDefault = 0.3 //nolint:unused //// 仅被 *_test.go 引用，生产路径未用
+const rerankScoreFloorDefault = 0.3 //nolint:unused // 仅被 *_test.go 引用，生产路径未用
 
 func applyScoreFloor(floor float64, ranked []RankedDoc) []RankedDoc {
 	if floor <= 0 || len(ranked) == 0 {
@@ -285,17 +275,14 @@ func applyScoreFloor(floor float64, ranked []RankedDoc) []RankedDoc {
 	return kept
 }
 
-// RRFReranker 纯 RRF 融合重排（不需要 LLM，纯算法层）
-//
-// 把所有候选视为"多路召回结果"，按 RRF 公式重新打分
+// RRFReranker 纯 RRF 融合重排（不需要 LLM，纯算法层）：
+// 把所有候选按 Source 视为多路召回结果，按 RRF 公式重新打分。
 type RRFReranker struct {
 	k     int
 	cache *rerankScoreCache
 }
 
-// NewRRFReranker 构造 RRF 重排器
-//
-// k ≤ 0 时用默认值 60（与 rrf_fusion.go 一致）
+// NewRRFReranker 构造 RRF 重排器，k ≤ 0 时用默认值 60（与 rrf_fusion.go 一致）。
 func NewRRFReranker(k int, cache *rerankScoreCache) *RRFReranker {
 	if k <= 0 {
 		k = 60
@@ -306,16 +293,10 @@ func NewRRFReranker(k int, cache *rerankScoreCache) *RRFReranker {
 	return &RRFReranker{k: k, cache: cache}
 }
 
-// Strategy 策略名
 func (r *RRFReranker) Strategy() string { return string(StrategyRRF) }
 
-// Rerank 实现 Reranker 接口
-//
-// 算法：
-//  1. 按 Source 分组（vector / bm25 / rrf / unknown 等），各自视为一路召回
-//  2. 对每路按 Original 分数降序得到 rank
-//  3. RRF 公式：score = Σ 1 / (k + rank)
-//  4. 同一 doc 在多路出现会累加分数
+// Rerank 实现 Reranker 接口：按 Source 分组各成一路，每路按分数降序取 rank，
+// score = Σ 1/(k+rank)，同一 doc 在多路出现会累加分数。
 func (r *RRFReranker) Rerank(ctx context.Context, query string, docs []RetrievedDoc, topK int) ([]RankedDoc, error) {
 	docs = clampDocs(docs)
 	topK = clampTopK(topK)
@@ -375,12 +356,9 @@ func (r *RRFReranker) Rerank(ctx context.Context, query string, docs []Retrieved
 	return finalize(ranked, topK), nil
 }
 
-// HybridReranker 混合策略：先 RRF 后 Cross-Encoder
-//
-// 流程：
-//  1. 用 RRFReranker 对所有候选重新打分（得到 RRF 排序）
-//  2. 取 RRF top N（默认 = min(topK*3, 30)）送 Cross-Encoder 精排
-//  3. Cross-Encoder 失败则回退 RRF 排序
+// HybridReranker 混合策略：先用 RRFReranker 重打分，
+// 取 RRF top N（默认 = min(topK*3, 30)）送 Cross-Encoder 精排；
+// Cross-Encoder 失败则回退 RRF 排序。
 type HybridReranker struct {
 	rrf        *RRFReranker
 	crossEnc   *CrossEncoderReranker
@@ -389,10 +367,8 @@ type HybridReranker struct {
 	maxCross   int
 }
 
-// NewHybridReranker 构造混合策略重排器
-//
-// rrfK: RRF 平滑常数（≤0 用默认 60）
-// delegate: Cross-Encoder 底层评估器（LocalReranker），nil 时降级为纯 RRF
+// NewHybridReranker 构造混合策略重排器。rrfK 为 RRF 平滑常数（≤0 用默认 60）；
+// delegate 为 Cross-Encoder 底层评估器，nil 时降级为纯 RRF。
 func NewHybridReranker(rrfK int, delegate RerankerInterface, cache *rerankScoreCache) *HybridReranker {
 	if cache == nil {
 		cache = newRerankScoreCache(2048, time.Hour)
@@ -410,10 +386,8 @@ func NewHybridReranker(rrfK int, delegate RerankerInterface, cache *rerankScoreC
 	return r
 }
 
-// Strategy 策略名
 func (r *HybridReranker) Strategy() string { return string(StrategyHybrid) }
 
-// Rerank 实现 Reranker 接口
 func (r *HybridReranker) Rerank(ctx context.Context, query string, docs []RetrievedDoc, topK int) ([]RankedDoc, error) {
 	if r == nil {
 		return nil, errors.New("hybrid reranker 未初始化")
@@ -469,20 +443,15 @@ func (r *HybridReranker) Rerank(ctx context.Context, query string, docs []Retrie
 	return finalize(ceRanked, topK), nil
 }
 
-// DefaultReranker 默认 Reranker（混合策略）
-//
-// 用 LocalReranker（rerank.go）作为 Cross-Encoder 底层评估器
-// 当 LocalReranker 配置不可达（DefaultRerankConfig().Enabled=false）时，
-// 自动降级为纯 RRF 策略（仍可用，只是不走 LLM 精排）
+// DefaultReranker 默认 Reranker（混合策略），用 LocalReranker（rerank.go）
+// 作为 Cross-Encoder 底层评估器；LocalReranker 配置不可达时自动降级为纯 RRF。
 func DefaultReranker() Reranker {
 	delegate := NewLocalReranker()
 	cache := newRerankScoreCache(2048, time.Hour)
 	return NewHybridReranker(60, delegate, cache)
 }
 
-// NewDefaultRerankerWithConfig 显式注入 Cross-Encoder 底层评估器
-//
-// delegate 为 nil 时降级为纯 RRF
+// NewDefaultRerankerWithConfig 显式注入 Cross-Encoder 底层评估器（nil 时降级为纯 RRF）。
 func NewDefaultRerankerWithConfig(delegate RerankerInterface) Reranker {
 	cache := newRerankScoreCache(2048, time.Hour)
 	return NewHybridReranker(60, delegate, cache)
@@ -542,19 +511,16 @@ func fallbackByOriginal(docs []RetrievedDoc, topK int, strategy string) []Ranked
 	return finalize(ranked, topK)
 }
 
-// RerankerToInterfaceAdapter 把高级 Reranker 适配为旧的 RerankerInterface
-//
-// 用于让 HybridSearcher（hybrid_searcher.go）透明地使用新的混合策略 Reranker
+// RerankerToInterfaceAdapter 把高级 Reranker 适配为旧的 RerankerInterface，
+// 让 HybridSearcher 透明地使用新的混合策略 Reranker。
 type RerankerToInterfaceAdapter struct {
 	reranker Reranker
 }
 
-// NewRerankerToInterfaceAdapter 构造适配器
 func NewRerankerToInterfaceAdapter(reranker Reranker) *RerankerToInterfaceAdapter {
 	return &RerankerToInterfaceAdapter{reranker: reranker}
 }
 
-// Rerank 实现 RerankerInterface（接受 []RerankDoc 返回 []RerankResult）
 func (a *RerankerToInterfaceAdapter) Rerank(ctx context.Context, query string, docs []RerankDoc) ([]RerankResult, error) {
 	if a == nil || a.reranker == nil {
 		return nil, errors.New("adapter 未初始化")
@@ -582,8 +548,6 @@ var (
 )
 
 // ChunksToRetrievedDocs 把 []Chunk 转为 []RetrievedDoc
-//
-// 用于让 HybridSearcher 现有调用点（chunks → RerankChunks）平滑接入新 Reranker
 func ChunksToRetrievedDocs(chunks []Chunk, source string) []RetrievedDoc {
 	if len(chunks) == 0 {
 		return nil
@@ -618,7 +582,6 @@ func RankedDocsToChunks(ranked []RankedDoc, original map[string]Chunk) []Chunk {
 	return out
 }
 
-// String 用于日志/调试
 func (r RankedDoc) String() string {
 	return fmt.Sprintf("RankedDoc{ID=%s, Score=%.4f, Rank=%d, Strategy=%s}", r.ID, r.Score, r.Rank, r.Strategy)
 }

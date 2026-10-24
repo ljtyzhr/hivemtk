@@ -42,23 +42,18 @@ type QueryRewriter struct {
 	redisTTL    time.Duration
 }
 
-// QueryRewriterConfig 查询改写配置
 type QueryRewriterConfig struct {
 	RedisTTL time.Duration
 }
 
-// DefaultQueryRewriterConfig 默认配置
 func DefaultQueryRewriterConfig() *QueryRewriterConfig {
 	return &QueryRewriterConfig{
 		RedisTTL: 24 * time.Hour,
 	}
 }
 
-// NewQueryRewriter 创建查询改写器
-//
-// db 可为 nil（仅用 Redis 缓存，跳过 DB 缓存层）
-// redisClient 可为 nil（仅用 DB 缓存，跳过 Redis 缓存层）
-// hydeGen / multiGen 可为 nil（自动视为禁用该策略）
+// NewQueryRewriter 创建查询改写器。
+// db / redisClient 可为 nil（跳过对应缓存层）；hydeGen / multiGen 为 nil 时视为禁用该策略。
 func NewQueryRewriter(
 	hydeGen *HyDEGenerator,
 	multiGen *MultiQueryGenerator,
@@ -78,20 +73,11 @@ func NewQueryRewriter(
 	}
 }
 
-// Rewrite 执行查询改写
-//
-// 流程:
-//  1. 空 query 直接返回（UsedStrategy=none）
-//  2. 计算 query_hash = SHA256(normalized_query)
-//  3. 查 Redis 缓存（key: rag:rewrite:{query_hash}），命中直接返回
-//  4. 未命中查 DB query_rewrite_cache 表
-//  5. 仍未命中则并行调用 HyDE + Multi-Query 生成
-//  6. 写入 Redis (TTL 24h) + DB（异步）
-//
-// 容错:
-//   - Redis / DB 失败不阻断，直接走生成路径
-//   - HyDE / Multi-Query 失败不阻断对方，独立决策
-//   - 二者均失败时 UsedStrategy=none, Rewritten=原 query
+// Rewrite 执行查询改写：空 query 直接返回（UsedStrategy=none）；
+// 依次查 Redis（key: rag:rewrite:{sha256(normalized_query)}）与 DB
+// query_rewrite_cache 表，未命中则并行调用 HyDE + Multi-Query 生成，
+// 写回 Redis（TTL 24h）+ DB（异步）。缓存失败不阻断；HyDE / Multi-Query
+// 独立决策，二者均失败时 UsedStrategy=none、Rewritten=原 query。
 func (q *QueryRewriter) Rewrite(ctx context.Context, query string) (*RewrittenQuery, error) {
 	if query == "" {
 		return &RewrittenQuery{
@@ -182,7 +168,7 @@ func (q *QueryRewriter) Rewrite(ctx context.Context, query string) (*RewrittenQu
 	return rw, nil
 }
 
-// rewriteCacheTableExists 表存在性检查（链式，T012 清偿：原三处 information_schema Raw 收敛于此）
+// rewriteCacheTableExists 检查 query_rewrite_cache 表是否存在（缺表时静默跳过缓存层）。
 func (q *QueryRewriter) rewriteCacheTableExists(ctx context.Context) bool {
 	if q.db == nil {
 		return false

@@ -6,16 +6,10 @@ import (
 	"hivemtk-user/internal/pkg/i18n"
 )
 
-// MultilingualSystemPromptTemplate 多语言 system prompt 模板
-//
-// 跨语言生成路径（CrossLingual=true）使用本模板渲染 system prompt。
-// 注入变量：TargetLangName, SourceLangName, GlossaryBlock, FewShotBlock
-//
-// 设计要点：
-//   - 强制 LLM 仅以 target_language 输出，避免混语
-//   - 明确知识库语种（source_language），要求自然翻译
-//   - 术语表（GlossaryBlock）与 few-shot（FewShotBlock）作为可插拔扩展点，
-//     当前留空，后续由 service/translation 层注入
+// MultilingualSystemPromptTemplate 多语言 system prompt 模板（跨语言生成路径使用），
+// 注入变量：TargetLangName, SourceLangName, GlossaryBlock, FewShotBlock。
+// 强制 LLM 仅以 target_language 输出；GlossaryBlock/FewShotBlock 为可插拔扩展点，
+// 由 service/translation 层注入。
 const MultilingualSystemPromptTemplate = `You are a professional cross-border e-commerce customer service agent.
 
 ## LANGUAGE REQUIREMENT (CRITICAL)

@@ -12,7 +12,6 @@ import (
 	"hivemtk-user/internal/pkg/utils/logger"
 )
 
-// RagCustomerServiceImpl RAG客服服务实现
 type RagCustomerServiceImpl struct {
 	dialogManager        DialogManagerInterface
 	contextUnderstanding ContextUnderstandingInterface
@@ -23,7 +22,6 @@ type RagCustomerServiceImpl struct {
 	config               *CustomerServiceConfig
 }
 
-// CustomerServiceConfig 客服服务配置
 type CustomerServiceConfig struct {
 	MaxHistoryLength        int           `json:"max_history_length"`
 	DefaultMaxHistoryLength int           `json:"default_max_history_length"`
@@ -39,7 +37,6 @@ type CustomerServiceConfig struct {
 	FallbackResponse        string        `json:"fallback_response"`
 }
 
-// NewRagCustomerService 创建新的RAG客服服务
 func NewRagCustomerService(
 	dialogManager DialogManagerInterface,
 	contextUnderstanding ContextUnderstandingInterface,
@@ -76,7 +73,6 @@ func NewRagCustomerService(
 	}
 }
 
-// ProcessMessage 处理用户消息
 func (r *RagCustomerServiceImpl) ProcessMessage(ctx context.Context, session Session, message Message) (Response, error) {
 	startTime := time.Now()
 
@@ -250,7 +246,6 @@ func (r *RagCustomerServiceImpl) ProcessMessage(ctx context.Context, session Ses
 	return response, nil
 }
 
-// CreateSession 创建新会话
 func (r *RagCustomerServiceImpl) CreateSession(ctx context.Context, userID, platform, kbID string, config SessionConfig) (*Session, error) {
 	if config.MaxHistoryLength == 0 {
 		config.MaxHistoryLength = r.config.DefaultMaxHistoryLength
@@ -273,7 +268,6 @@ func (r *RagCustomerServiceImpl) CreateSession(ctx context.Context, userID, plat
 	return session, nil
 }
 
-// GetSession 获取会话信息
 func (r *RagCustomerServiceImpl) GetSession(ctx context.Context, sessionID string) (*Session, error) {
 	session, err := r.dialogManager.GetSession(ctx, sessionID)
 	if err != nil {
@@ -283,7 +277,6 @@ func (r *RagCustomerServiceImpl) GetSession(ctx context.Context, sessionID strin
 	return session, nil
 }
 
-// UpdateSession 更新会话信息
 func (r *RagCustomerServiceImpl) UpdateSession(ctx context.Context, sessionID string, updates map[string]any) error {
 	err := r.dialogManager.UpdateSessionMetadata(ctx, sessionID, updates)
 	if err != nil {
@@ -293,7 +286,6 @@ func (r *RagCustomerServiceImpl) UpdateSession(ctx context.Context, sessionID st
 	return nil
 }
 
-// EndSession 结束会话
 func (r *RagCustomerServiceImpl) EndSession(ctx context.Context, sessionID string) error {
 	err := r.dialogManager.CloseSession(ctx, sessionID)
 	if err != nil {
@@ -303,7 +295,6 @@ func (r *RagCustomerServiceImpl) EndSession(ctx context.Context, sessionID strin
 	return nil
 }
 
-// GetSessionHistory 获取会话历史
 func (r *RagCustomerServiceImpl) GetSessionHistory(ctx context.Context, sessionID string, limit int) ([]Message, error) {
 	conversation, err := r.dialogManager.GetConversationHistory(ctx, sessionID, limit)
 	if err != nil {
@@ -313,7 +304,6 @@ func (r *RagCustomerServiceImpl) GetSessionHistory(ctx context.Context, sessionI
 	return conversation.Messages, nil
 }
 
-// ProcessBatchMessages 批量处理消息
 func (r *RagCustomerServiceImpl) ProcessBatchMessages(ctx context.Context, session Session, messages []Message) ([]Response, error) {
 	responses := make([]Response, len(messages))
 
@@ -328,7 +318,6 @@ func (r *RagCustomerServiceImpl) ProcessBatchMessages(ctx context.Context, sessi
 	return responses, nil
 }
 
-// UpdateKnowledge 更新知识库
 func (r *RagCustomerServiceImpl) UpdateKnowledge(ctx context.Context, kbID string, feedback Feedback) error {
 	err := r.feedbackLearner.ProcessFeedback(ctx, feedback)
 	if err != nil {
@@ -352,7 +341,6 @@ func (r *RagCustomerServiceImpl) UpdateKnowledge(ctx context.Context, kbID strin
 	return nil
 }
 
-// GetSessionMetrics 获取会话指标
 func (r *RagCustomerServiceImpl) GetSessionMetrics(ctx context.Context, sessionID string) (*SessionMetrics, error) {
 	metrics := &SessionMetrics{
 		SessionID:        sessionID,
@@ -368,7 +356,6 @@ func (r *RagCustomerServiceImpl) GetSessionMetrics(ctx context.Context, sessionI
 	return metrics, nil
 }
 
-// ListSessions 列出会话
 func (r *RagCustomerServiceImpl) ListSessions(ctx context.Context, userID, platform string, status SessionStatus) ([]Session, error) {
 	sessions, err := r.dialogManager.ListUserSessions(ctx, userID, platform, status)
 	if err != nil {
@@ -378,7 +365,6 @@ func (r *RagCustomerServiceImpl) ListSessions(ctx context.Context, userID, platf
 	return sessions, nil
 }
 
-// GetUserContext 获取用户上下文
 func (r *RagCustomerServiceImpl) GetUserContext(ctx context.Context, userID, platform string) (*Context, error) {
 	sessions, err := r.dialogManager.ListUserSessions(ctx, userID, platform, SessionActive)
 	if err != nil {
@@ -415,7 +401,6 @@ func generateMessageID() string {
 	return fmt.Sprintf("msg_%d_%s", time.Now().UnixNano(), hex.EncodeToString(b))
 }
 
-// NewDefaultRagCustomerService 创建默认实现的RAG客服服务
 func NewDefaultRagCustomerService(retrievalService ragretrieval.RagRetrievalService) *RagCustomerServiceImpl {
 	dialogManager := NewInMemoryDialogManager(nil)
 	contextUnderstanding := NewContextUnderstandingService(nil)
@@ -439,15 +424,12 @@ func NewDefaultRagCustomerService(retrievalService ragretrieval.RagRetrievalServ
 	)
 }
 
-// SimpleFeedbackLearner 简单的反馈学习器实现
 type SimpleFeedbackLearner struct{}
 
-// NewSimpleFeedbackLearner 创建简单反馈学习器
 func NewSimpleFeedbackLearner() *SimpleFeedbackLearner {
 	return &SimpleFeedbackLearner{}
 }
 
-// ProcessFeedback 处理反馈
 func (sfl *SimpleFeedbackLearner) ProcessFeedback(ctx context.Context, feedback Feedback) error {
 	logger.Infof("Received feedback for session %s, response %s: rating=%d, helpful=%t, comment=%s",
 		feedback.SessionID, feedback.ResponseID, feedback.Rating, feedback.IsHelpful, feedback.Comment)
@@ -455,17 +437,14 @@ func (sfl *SimpleFeedbackLearner) ProcessFeedback(ctx context.Context, feedback 
 	return nil
 }
 
-// LearnFromFeedback 从反馈中学习
 func (sfl *SimpleFeedbackLearner) LearnFromFeedback(ctx context.Context, feedback Feedback) error {
 	return nil
 }
 
-// GetLearningInsights 获取学习洞察
 func (sfl *SimpleFeedbackLearner) GetLearningInsights(ctx context.Context, sessionID string) ([]LearningInsight, error) {
 	return []LearningInsight{}, nil
 }
 
-// UpdateKnowledgeBase 更新知识库
 func (sfl *SimpleFeedbackLearner) UpdateKnowledgeBase(ctx context.Context, kbID string, insights []LearningInsight) error {
 	return nil
 }

@@ -25,7 +25,6 @@ type lruEntry struct {
 	expireAt time.Time
 }
 
-// NewLRUCache 构造 LRU 缓存
 func NewLRUCache(capacity int, ttl time.Duration) *LRUCache {
 	if capacity <= 0 {
 		capacity = 100
@@ -41,7 +40,6 @@ func NewLRUCache(capacity int, ttl time.Duration) *LRUCache {
 	}
 }
 
-// Get 获取缓存值（命中且未过期）
 func (c *LRUCache) Get(ctx context.Context, key string) (any, bool) {
 	key = tenant.RedisKey(ctx, key)
 	c.mu.Lock()
@@ -60,7 +58,6 @@ func (c *LRUCache) Get(ctx context.Context, key string) (any, bool) {
 	return entry.value, true
 }
 
-// Set 设置缓存
 func (c *LRUCache) Set(ctx context.Context, key string, value any, ttl time.Duration) {
 	key = tenant.RedisKey(ctx, key)
 	c.mu.Lock()
@@ -88,7 +85,6 @@ func (c *LRUCache) Set(ctx context.Context, key string, value any, ttl time.Dura
 	}
 }
 
-// Delete 删除
 func (c *LRUCache) Delete(ctx context.Context, key string) {
 	key = tenant.RedisKey(ctx, key)
 	c.mu.Lock()
@@ -99,7 +95,6 @@ func (c *LRUCache) Delete(ctx context.Context, key string) {
 	}
 }
 
-// Clear 清空
 func (c *LRUCache) Clear() {
 	c.mu.Lock()
 	defer c.mu.Unlock()
@@ -107,17 +102,14 @@ func (c *LRUCache) Clear() {
 	c.order = list.New()
 }
 
-// Len 数量
 func (c *LRUCache) Len() int {
 	c.mu.Lock()
 	defer c.mu.Unlock()
 	return c.order.Len()
 }
 
-// Capacity 容量
 func (c *LRUCache) Capacity() int { return c.capacity }
 
-// CleanupExpired 清理过期项
 func (c *LRUCache) CleanupExpired() int {
 	c.mu.Lock()
 	defer c.mu.Unlock()

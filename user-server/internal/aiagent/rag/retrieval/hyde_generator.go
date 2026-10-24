@@ -14,14 +14,12 @@ type HyDEGenerator struct {
 	minDocLength int
 }
 
-// HyDEGeneratorConfig HyDE 配置
 type HyDEGeneratorConfig struct {
 	Enabled      bool
 	MaxDocTokens int
 	MinDocLength int
 }
 
-// DefaultHyDEGeneratorConfig 默认配置
 func DefaultHyDEGeneratorConfig() *HyDEGeneratorConfig {
 	return &HyDEGeneratorConfig{
 		Enabled:      true,
@@ -30,9 +28,8 @@ func DefaultHyDEGeneratorConfig() *HyDEGeneratorConfig {
 	}
 }
 
-// NewHyDEGenerator 创建 HyDE 生成器
-//
-// chatClient 为 nil 时自动 disabled（保持构造不报错，调用方按需启用）
+// NewHyDEGenerator 创建 HyDE 生成器，chatClient 为 nil 时自动 disabled
+//（保持构造不报错，调用方按需启用）。
 func NewHyDEGenerator(chatClient LLMChatClient, cfg *HyDEGeneratorConfig) *HyDEGenerator {
 	if cfg == nil {
 		cfg = DefaultHyDEGeneratorConfig()
@@ -49,22 +46,13 @@ func NewHyDEGenerator(chatClient LLMChatClient, cfg *HyDEGeneratorConfig) *HyDEG
 	}
 }
 
-// IsEnabled 是否启用
 func (g *HyDEGenerator) IsEnabled() bool {
 	return g != nil && g.enabled && g.chatClient != nil
 }
 
-// Generate 生成 HyDE 假设文档
-//
-// Prompt 关键:
-//   - 强调"用文档风格写一段 ~150 词的答案"
-//   - 强调"答案可能不准确，但词汇/句式要与真实文档相似"
-//   - 严禁提及"我是 AI"等元话语
-//
-// 失败场景:
-//   - 未启用 → 返回 ("", nil)（QueryRewriter 据此降级）
-//   - LLM 调用失败 → 返回 error
-//   - 输出过短 → 返回 error
+// Generate 生成 HyDE 假设文档。Prompt 要求 LLM 用文档风格写 ~150 词的假设答案，
+// 内容不必准确但词汇/句式须与真实文档相似，禁止元话语。
+// 未启用时返回 ("", nil)（QueryRewriter 据此降级）；LLM 失败或输出过短返回 error。
 func (g *HyDEGenerator) Generate(ctx context.Context, query string) (string, error) {
 	if !g.IsEnabled() {
 		return "", nil

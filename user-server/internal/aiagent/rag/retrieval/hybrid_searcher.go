@@ -136,7 +136,6 @@ func (h *HybridSearcher) Search(ctx context.Context, query string, topK int) ([]
 	return h.SearchIndex(ctx, "", query, topK)
 }
 
-// SearchIndex 带 productID 过滤的检索
 func (h *HybridSearcher) SearchIndex(ctx context.Context, productID string, query string, topK int) ([]Chunk, error) {
 	if topK <= 0 {
 		topK = h.config.DefaultTopK
@@ -218,12 +217,8 @@ func (h *HybridSearcher) SearchIndex(ctx context.Context, productID string, quer
 		fused = fused[:h.config.CandidatePool]
 	}
 
-	// FinalTopK 是**上限**，不是对调用方 topK 的覆盖。
-	// 写成覆盖时，默认配置（FinalTopK=5）会让 topK=1..4 的请求全部拿到 5 条：
-	// 实测 RagSearcher.Search(query, 3) 在默认配置下回了 4 条（种子只有 4 条）。
-	// 调用方用 topK 控制进 prompt 的分片数与计费（如 knowledge_merchant_playground.go
-	// 直接透传 req.TopK、tooluse/knowledge_tools.go 透传模型给的 topK），
-	// 多回来的每一条都是静默的预算超支。
+	// FinalTopK 是上限，不是对调用方 topK 的覆盖：调用方用 topK 控制进 prompt
+	// 的分片数与计费，多回来的每一条都是静默的预算超支。
 	finalK := topK
 	if h.config.FinalTopK > 0 && h.config.FinalTopK < finalK {
 		finalK = h.config.FinalTopK
@@ -237,17 +232,12 @@ func (h *HybridSearcher) SearchIndex(ctx context.Context, productID string, quer
 	return fused, nil
 }
 
-// applyRerankToFused 对融合结果做重排，把**名次分**换成**绝对相关度分**。
-//
-// 为什么"候选池不比 topK 大"也必须做：rerank 的作用是换量纲，不是筛数量。
-// 早先的触发条件是 `len(fused) > topK` —— 拿候选池跟**截断阈值**比大小，
-// 于是小知识库（官网只有 6 个 chunk、rag_top_k=3 ⇒ 候选池恰好 3 条）永远
-// 条件不成立、rerank 整段被跳过，分数停在 RRF 名次分上（top1 恒 1.0、其余 0.1~0.3）。
-// 上层把这种名次分当绝对相关度用，于是语义上完全命中的召回被说成"质量 0.13"，
-// 把总置信度压到阈值以下 ⇒ 官网客服对正常问题一律转人工。
-//
-// 候选池为空、或重排未开启/不可用时，原样返回（调用方据 rerankCount 决定要不要
-// 退回 RRF 归一化）。
+// applyRerankToFused 对融合结果做重排，把名次分换成绝对相关度分。
+// 候选池不比 topK 大也必须做：rerank 的作用是换量纲，不是筛数量——
+// 若按「候选池 > topK」触发，小知识库的分数会永远停在 RRF 名次分上
+// （top1 恒 1.0、其余 0.1~0.3），被上层当绝对相关度用会把正常命中压到阈值以下。
+// 候选池为空、或重排未开启/不可用时原样返回（调用方据 rerankCount 决定
+// 要不要退回 RRF 归一化）。
 func (h *HybridSearcher) applyRerankToFused(ctx context.Context, query string, fused []Chunk, topK int) ([]Chunk, int) {
 	if !h.config.EnableRerank || h.reranker == nil || len(fused) == 0 {
 		return fused, 0
@@ -339,17 +329,10 @@ func (h *HybridSearcher) vectorSearchPG(ctx context.Context, productID string, q
 	return rowsToChunks(rows), nil
 }
 
-// detectTSVectorConfig 探测本库可用的文本搜索配置与 tsvector 列。
-//
-// 原实现用 `plainto_tsquery('test')`（**单参**形式）去探：这个形式用的是库的
-// **默认**配置（线上 default_text_search_config = pg_catalog.english），
-// 与被探测的 zh_rag 毫无关系 ⇒ 结构上就测不出"zh_rag 存不存在"，
-// 于是恒返回第一个候选 zh_rag。随后用 zh_rag 查必然 42704，cfg 被置 nil，
-// 再回头循环 ["zh_rag","simple"] 又先撞一次 zh_rag ——
-// 每次检索两条注定失败的查询 + 两条 ERROR 日志，探测本身毫无用处。
-//
-// 现在改成：只认**库里真实存在**的配置（availableTSConfigs），
-// 并用**带配置名**的 plainto_tsquery('cfg','test') 探列是否可用。
+// detectTSVectorConfig 探测本库可用的文本搜索配置与 tsvector 列：
+// 只认库里真实存在的配置（availableTSConfigs），并用带配置名的
+// plainto_tsquery('cfg','test') 探列是否可用。不能用单参 plainto_tsquery 探测——
+// 它走库默认配置，与被探测的 zh_rag 无关，测不出配置是否存在。
 func (h *HybridSearcher) detectTSVectorConfig(ctx context.Context) {
 	for _, tsConfig := range availableTSConfigs(ctx, h.db) {
 		for _, tsvCol := range []string{"contextual_tsv", "content_tsv"} {
@@ -411,8 +394,8 @@ func (h *HybridSearcher) keywordSearchPG(ctx context.Context, productID string, 
 		h.tsvectorMu.Unlock()
 	}
 
-	// 兜底链同样只走库里真实存在的配置（见 tsconfig_probe.go）：
-	// 缺 zh_rag 的库不再先撞一次 42704。
+	// 兜底链同样只走库里真实存在的配置（见 tsconfig_probe.go），
+	// 缺 zh_rag 的库不会先撞一次 42704。
 	for _, tsConfig := range availableTSConfigs(ctx, h.db) {
 		for _, tsvCol := range []string{"contextual_tsv", "content_tsv"} {
 			if rows, err := h.tsvectorSearch(ctx, tsConfig, tsvCol, productID, query, topK); err == nil && len(rows) > 0 {
@@ -475,8 +458,7 @@ func (h *HybridSearcher) reciprocalRankFusion(vecResults, kwResults []Chunk, vec
 		pairs = append(pairs, kv{k, v})
 	}
 	sort.Slice(pairs, func(i, j int) bool {
-		// pairs 由 scores(map) 摊出，只比 score 时同分块次的先后取自 map 迭代序（每轮随机）；
-		// 下游按顺序截 Top-K 当 LLM 上下文 ⇒ 同一个查询两次能取到不同的召回片段。
+		// 同分时按 key 决胜，避免取 map 迭代序导致同一查询两次截到不同 Top-K。
 		if pairs[i].score != pairs[j].score {
 			return pairs[i].score > pairs[j].score
 		}

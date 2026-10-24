@@ -21,13 +21,11 @@ type ContextualRetrievalEnhancer struct {
 	maxCtxToken int
 }
 
-// ContextualEnhancerConfig 配置
 type ContextualEnhancerConfig struct {
 	BatchSize   int
 	MaxCtxToken int
 }
 
-// DefaultContextualEnhancerConfig 默认配置
 func DefaultContextualEnhancerConfig() *ContextualEnhancerConfig {
 	return &ContextualEnhancerConfig{
 		BatchSize:   10,
@@ -35,9 +33,8 @@ func DefaultContextualEnhancerConfig() *ContextualEnhancerConfig {
 	}
 }
 
-// NewContextualRetrievalEnhancer 创建上下文增强器
-//
-// chatClient / embedding 为 nil 时仅更新 contextual_context 列（不重新 embedding）
+// NewContextualRetrievalEnhancer 创建上下文增强器。
+// chatClient / embedding 为 nil 时仅更新 contextual_context 列（不重新 embedding）。
 func NewContextualRetrievalEnhancer(
 	db *gorm.DB,
 	chatClient LLMChatClient,
@@ -64,22 +61,11 @@ func NewContextualRetrievalEnhancer(
 	}
 }
 
-// EnhanceDocument 对单个文档的所有 chunk 做上下文增强（索引期一次性调用）
-//
-// 流程:
-//  1. 拉取文档元信息（title / source_ref）
-//  2. 拉取该文档所有 chunk（按 chunk_index 排序）
-//  3. 分批（batchSize 个/批）处理：
-//     a. 对每个 chunk 调用 LLM 生成 50-100 token 上下文
-//     b. 增强后内容 = ctx + "\n\n" + content
-//     c. 批量重新 embedding 增强后内容
-//     d. UPDATE knowledge_chunks SET contextual_context, embedding, embedding_id, embed_status
-//  4. 单 chunk 失败仅记录日志，不阻断整批
-//
-// 容错:
-//   - chatClient 为 nil 时仅跳过上下文生成（保留原 content）
-//   - embedding 为 nil 时跳过重新 embedding（仅更新 contextual_context）
-//   - 文档无 chunk 时直接返回 nil
+// EnhanceDocument 对单个文档的所有 chunk 做上下文增强（索引期一次性调用）：
+// 按 chunk_index 分批，对每个 chunk 调 LLM 生成 50-100 token 上下文，
+// 增强内容 = ctx + "\n\n" + content，批量重新 embedding 后回写
+// knowledge_chunks 的 contextual_context/embedding/embedding_id/embed_status。
+// 单 chunk 失败仅记录日志，不阻断整批；文档无 chunk 时直接返回 nil。
 func (e *ContextualRetrievalEnhancer) EnhanceDocument(ctx context.Context, documentID uint64) error {
 	if e == nil || e.db == nil {
 		return fmt.Errorf("contextual enhancer 未初始化")

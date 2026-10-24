@@ -18,8 +18,8 @@ type RAGService struct {
 	threeTier ThreeTierSearcher
 }
 
-// ThreeTierSearcher 三级检索接口（由 rag_retrieval.RAGThreeTierService 实现）
-// 接口隔离，避免 rag_service 直接依赖 rag_retrieval 包
+// ThreeTierSearcher 三级检索接口（由 rag_retrieval.RAGThreeTierService 实现）；
+// 接口隔离，避免 rag_service 直接依赖 rag_retrieval 包。
 type ThreeTierSearcher interface {
 	Search(ctx context.Context, kbID, query string, topK int) (*ThreeTierResult, error)
 	Stats() ThreeTierStats
@@ -46,7 +46,6 @@ type ThreeTierStats struct {
 	AvgMs  int64 `json:"avg_ms"`
 }
 
-// NewRAGService 创建新的RAG服务
 func NewRAGService(llmService *llm.LLMService, ragEngine *rag_core.RAGEngine) *RAGService {
 	return &RAGService{
 		llmService: llmService,
@@ -59,7 +58,6 @@ func (r *RAGService) SetThreeTier(t ThreeTierSearcher) {
 	r.threeTier = t
 }
 
-// HasThreeTier 是否已注入三级检索
 func (r *RAGService) HasThreeTier() bool {
 	return r.threeTier != nil
 }
@@ -96,7 +94,6 @@ type QueryResponse struct {
 	ExecTime   time.Duration    `json:"exec_time"`
 }
 
-// Query 执行RAG查询
 func (r *RAGService) Query(ctx context.Context, req *QueryRequest) (*QueryResponse, error) {
 	startTime := time.Now()
 
@@ -188,23 +185,19 @@ func buildRAGPrompt(query, contextStr string, contextData map[string]any) string
 	return prompt
 }
 
-// AddKnowledgeBaseDocument 添加知识库文档
 func (r *RAGService) AddKnowledgeBaseDocument(ctx context.Context, doc rag_core.Document) error {
 	docs := []rag_core.Document{doc}
 	return r.ragEngine.AddDocuments(ctx, docs)
 }
 
-// BatchAddKnowledgeBaseDocuments 批量添加知识库文档
 func (r *RAGService) BatchAddKnowledgeBaseDocuments(ctx context.Context, docs []rag_core.Document) error {
 	return r.ragEngine.AddDocuments(ctx, docs)
 }
 
-// DeleteKnowledgeBaseDocument 删除知识库文档
 func (r *RAGService) DeleteKnowledgeBaseDocument(ctx context.Context, docID string) error {
 	return r.ragEngine.DeleteDocument(ctx, docID)
 }
 
-// StructuredQuery 结构化RAG查询
 func (r *RAGService) StructuredQuery(ctx context.Context, req *QueryRequest, responseSchema any) (any, error) {
 	startTime := time.Now()
 

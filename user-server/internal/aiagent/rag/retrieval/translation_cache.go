@@ -18,15 +18,12 @@ const TranslationCacheTTLDefault = 1 * time.Hour
 // TranslationCacheKeyPrefixDefault 默认 key 前缀
 const TranslationCacheKeyPrefixDefault = "i18n:trans:"
 
-// TranslationCacheMaxEntriesDefault 默认最大条目数（用于 Stats 上限保护参考）
+// TranslationCacheMaxEntriesDefault 默认最大条目数
 const TranslationCacheMaxEntriesDefault = 100000
 
-// TranslationCache 翻译缓存
-//
-// 缓存 key: hash(internal_lang + target_lang + query + kb_version)
-// 缓存 value: LLM 生成的目标语言回复
-//
-// 线程安全：底层 RedisClient 自带并发保护；本结构无状态字段。
+// TranslationCache 翻译缓存：
+// key 为 hash(internal_lang + target_lang + query + kb_version)，
+// value 为 LLM 生成的目标语言回复。底层 RedisClient 自带并发保护。
 type TranslationCache struct {
 	redis      RedisClient
 	ttl        time.Duration
@@ -34,11 +31,8 @@ type TranslationCache struct {
 	maxEntries int
 }
 
-// NewTranslationCache 构造翻译缓存
-//
-// redisClient 为 nil 时返回的 cache 所有方法为 no-op（缓存禁用模式），
-// 调用方可放心调用 Get/Set 而无需 nil 检查。
-//
+// NewTranslationCache 构造翻译缓存。
+// redisClient 为 nil 时所有方法为 no-op（缓存禁用模式），调用方无需 nil 检查；
 // ttl <= 0 时使用默认 1h；keyPrefix 为空时使用默认 "i18n:trans:"。
 func NewTranslationCache(redisClient RedisClient, ttl time.Duration, keyPrefix string) *TranslationCache {
 	if ttl <= 0 {
@@ -55,9 +49,8 @@ func NewTranslationCache(redisClient RedisClient, ttl time.Duration, keyPrefix s
 	}
 }
 
-// Get 命中缓存返回目标语言回复，未命中返回 ("", nil)
-//
-// 失败降级：Redis 不可用时返回 ("", nil)，不抛错，保证主流程不阻塞。
+// Get 命中缓存返回目标语言回复，未命中返回 ("", nil)；
+// Redis 不可用时降级返回 ("", nil)，不阻塞主流程。
 func (c *TranslationCache) Get(ctx context.Context, internalLang, targetLang, query, kbVersion string) (string, error) {
 	if c == nil || c.redis == nil {
 		return "", nil
@@ -74,9 +67,7 @@ func (c *TranslationCache) Get(ctx context.Context, internalLang, targetLang, qu
 	return val, nil
 }
 
-// Set 写入缓存
-//
-// 失败降级：写入失败仅记录日志，不影响主流程。
+// Set 写入缓存，写入失败仅记录日志，不影响主流程。
 func (c *TranslationCache) Set(ctx context.Context, internalLang, targetLang, query, kbVersion, reply string) error {
 	if c == nil || c.redis == nil {
 		return nil
@@ -92,15 +83,8 @@ func (c *TranslationCache) Set(ctx context.Context, internalLang, targetLang, qu
 	return nil
 }
 
-// Invalidate 失效某语言对的所有缓存
-//
-// 当前实现：扫描 c.keyPrefix + "*" 删除所有翻译缓存。
-// 注意：KEYS 命令在大数据量下会阻塞 Redis，生产环境建议用 SCAN；
-// 但本缓存 key 数量受 maxEntries 上限保护，且 Invalidate 为运维操作，
-// 调用频率低，使用 KEYS 可接受。后续如有性能问题可换 SCAN。
-//
-// lang 为空时清空所有语言对缓存；非空时仅清空包含该语言的缓存
-// （internalLang 或 targetLang 任一匹配）。
+// Invalidate 失效某语言对的所有缓存。lang 为空时清空所有语言对；
+// 非空时仅清空包含该语言的缓存（internalLang 或 targetLang 任一匹配）。
 func (c *TranslationCache) Invalidate(ctx context.Context, lang string) error {
 	if c == nil || c.redis == nil {
 		return nil
@@ -119,10 +103,7 @@ type CacheStats struct {
 	MaxEntries  int     `json:"max_entries"`
 }
 
-// Stats 缓存统计
-//
-// 当前实现返回静态配置信息（TTL/KeyPrefix/MaxEntries），
-// 命中率统计需要额外引入计数器，后续按需扩展。
+// Stats 缓存统计：当前仅返回静态配置信息（TTL/KeyPrefix/MaxEntries）。
 func (c *TranslationCache) Stats(ctx context.Context) (*CacheStats, error) {
 	if c == nil {
 		return nil, errors.New("TranslationCache is nil")

@@ -34,14 +34,12 @@ const (
 	defaultTaskQueue   = 20
 )
 
-// CachedEmbeddingClientConfig 配置
 type CachedEmbeddingClientConfig struct {
 	TTLRedis     time.Duration
 	TTLDB        time.Duration
 	DisableCache bool
 }
 
-// DefaultCachedEmbeddingClientConfig 默认配置
 func DefaultCachedEmbeddingClientConfig() *CachedEmbeddingClientConfig {
 	return &CachedEmbeddingClientConfig{
 		TTLRedis:     7 * 24 * time.Hour,
@@ -50,10 +48,8 @@ func DefaultCachedEmbeddingClientConfig() *CachedEmbeddingClientConfig {
 	}
 }
 
-// NewCachedEmbeddingClient 构造装饰器
-//
-// inner 必须非 nil（通常为 *llm.EmbeddingService）
-// redis / db 可为 nil（禁用对应缓存层）
+// NewCachedEmbeddingClient 构造装饰器。inner 必须非 nil；
+// redis / db 可为 nil（禁用对应缓存层）。
 func NewCachedEmbeddingClient(
 	inner llm.EmbeddingServiceInterface,
 	redis RedisClient,
@@ -77,9 +73,8 @@ func NewCachedEmbeddingClient(
 	return c
 }
 
-// Embed 批量 embedding（带缓存）
-//
-// 批量场景：每个 text 独立查缓存，未命中的批量调 TEI，再回填缓存
+// Embed 批量 embedding（带缓存）：每个 text 独立查缓存（先 Redis 后 PG），
+// 未命中的批量调 inner，再后台回填缓存。
 func (c *CachedEmbeddingClient) Embed(ctx context.Context, cfg *llm.EmbeddingConfig, texts []string) ([][]float32, error) {
 	if len(texts) == 0 {
 		return [][]float32{}, nil
@@ -164,7 +159,6 @@ func (c *CachedEmbeddingClient) Embed(ctx context.Context, cfg *llm.EmbeddingCon
 	return results, nil
 }
 
-// EmbedOne 单条 embedding（带缓存）
 func (c *CachedEmbeddingClient) EmbedOne(ctx context.Context, cfg *llm.EmbeddingConfig, text string) ([]float32, error) {
 	vectors, err := c.Embed(ctx, cfg, []string{text})
 	if err != nil {
@@ -176,7 +170,6 @@ func (c *CachedEmbeddingClient) EmbedOne(ctx context.Context, cfg *llm.Embedding
 	return vectors[0], nil
 }
 
-// DefaultConfig 透传给 inner
 func (c *CachedEmbeddingClient) DefaultConfig() *llm.EmbeddingConfig {
 	return c.inner.DefaultConfig()
 }
@@ -217,7 +210,7 @@ func (c *CachedEmbeddingClient) cacheKey(model, text string) string {
 	return fmt.Sprintf("rag:emb:%s:%s", model, sha256Hex(normalizeQuery(text)))
 }
 
-// embeddingCacheTableExists embedding_cache 表存在性检查（链式，T012 清偿：原两处 Raw 收敛）
+// embeddingCacheTableExists 检查 embedding_cache 表是否存在（缺表时缓存层静默降级）。
 func (c *CachedEmbeddingClient) embeddingCacheTableExists(ctx context.Context) bool {
 	if c.db == nil {
 		return false

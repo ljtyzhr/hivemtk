@@ -14,16 +14,13 @@ import (
 )
 
 // FewShotRenderer few-shot 示例渲染接口（由 service/translation.FewShotService 实现）。
-//
-// 通过依赖倒置避免 aiagent 层直接依赖 service 层，由调用方在装配期注入。
-// 返回的 block 直接填充 MultilingualSystemPromptTemplate 的 {{.FewShotBlock}}。
+// 依赖倒置避免 aiagent 层反向依赖 service 层；返回的 block 填充
+// MultilingualSystemPromptTemplate 的 {{.FewShotBlock}}。
 type FewShotRenderer interface {
 	Render(ctx context.Context, lang string) (string, error)
 }
 
 // FallbackBridge 低资源语言降级桥接口（由 service/translation.FallbackBridge 实现）。
-//
-// 通过依赖倒置避免 aiagent 层直接依赖 service 层。
 // Enabled() 返回 false 时主流程不调用 Generate，走标准跨语言路径。
 type FallbackBridge interface {
 	Enabled() bool
@@ -32,45 +29,29 @@ type FallbackBridge interface {
 }
 
 // EvalHook 评估钩子接口（由 service/translation.EvalService 实现）。
-//
 // 在 LLM 生成回复后异步抽样评估质量（chrF++ + LLM-as-Judge）。
-// 通过依赖倒置避免 aiagent 层直接依赖 service 层（五层架构方向：
-// service → aiagent，不可反向），由调用方在装配期注入。
-//
-// reference 为空时 EvalService 自动跳过（无参考答案无法计算 chrF），
-// 因此正常生成链路（无 reference）不会触发评估；仅在评测 / 测试场景
-// 下由调用方提供 reference 才会触发。
+// reference 为空时自动跳过（无参考答案无法计算 chrF），因此正常生成链路
+// （无 reference）不会触发评估；仅评测/测试场景由调用方提供 reference 才触发。
 type EvalHook interface {
 	MaybeEvaluate(ctx context.Context, log *model.LLMRoutingLog, query, candidate, reference string)
 }
 
 // GlossaryRenderer 术语表渲染接口（由 service/translation.GlossaryService 实现）。
-//
-// 通过依赖倒置避免 aiagent 层直接依赖 service 层。返回的 block 填充
-// MultilingualSystemPromptTemplate 的 {{.GlossaryBlock}}，把品牌术语在目标语言下的
-// 正确写法注入 system prompt，约束 LLM 输出用词。
+// 返回的 block 填充 MultilingualSystemPromptTemplate 的 {{.GlossaryBlock}}，
+// 把品牌术语在目标语言下的正确写法注入 system prompt，约束 LLM 输出用词。
 type GlossaryRenderer interface {
 	Render(ctx context.Context, lang string) string
 }
 
 // OutputCalibrator 输出后置校准接口（由 service/translation.GlossaryService 适配实现）。
-//
 // 在 LLM 生成文本返回前做术语校准与敏感模式保护（SKU/金额/URL/邮箱等不被误翻译）。
-// 通过依赖倒置避免 aiagent 层反向依赖 service 层（service → aiagent 合法）。
 type OutputCalibrator interface {
 	Calibrate(ctx context.Context, text string, targetLang string) (string, error)
 }
 
-// ResponseGeneratorImpl 回复生成器实现
-//
-// 翻译缓存（TranslationCache）：
-//   - transCache 为可选注入的翻译缓存（Redis 后端），nil 时禁用缓存
-//   - 仅跨语言路径（generateCrossLingualResponse）查/写缓存
-//   - 同语种路径（generateSameLangResponse）零开销，不查缓存
-//
-// few-shot 与降级桥：
-//   - fewShot 为可选注入的 few-shot 示例渲染器，跨语言路径注入 FewShotBlock
-//   - fallbackBridge 为可选注入的低资源语言降级桥，命中低资源语言时走翻译路径
+// ResponseGeneratorImpl 回复生成器实现。
+// transCache 为可选翻译缓存（Redis 后端，nil 禁用），仅跨语言路径查/写缓存，
+// 同语种路径零开销。fewShot/fallbackBridge/evalHook/glossary/calibrator 均可选注入。
 type ResponseGeneratorImpl struct {
 	llmService     LLMServiceInterface
 	config         *ResponseGenerationConfig
@@ -82,60 +63,45 @@ type ResponseGeneratorImpl struct {
 	calibrator     OutputCalibrator
 }
 
-// WithTranslationCache 注入翻译缓存（可选）
-//
-// 链式调用风格：返回 receiver 便于在构造时配置。
-// 传入 nil 表示禁用缓存（向后兼容，不影响主流程）。
+// WithTranslationCache 注入翻译缓存（nil 禁用）。
 func (g *ResponseGeneratorImpl) WithTranslationCache(cache *ragretrieval.TranslationCache) *ResponseGeneratorImpl {
 	g.transCache = cache
 	return g
 }
 
-// WithFewShotRenderer 注入 few-shot 示例渲染器（可选）。
-//
-// 仅跨语言路径（generateCrossLingualResponse）调用 Render 填充 FewShotBlock。
-// 传入 nil 表示禁用 few-shot 注入（向后兼容，不影响主流程）。
+// WithFewShotRenderer 注入 few-shot 示例渲染器（nil 禁用），
+// 仅跨语言路径调用 Render 填充 FewShotBlock。
 func (g *ResponseGeneratorImpl) WithFewShotRenderer(r FewShotRenderer) *ResponseGeneratorImpl {
 	g.fewShot = r
 	return g
 }
 
-// WithFallbackBridge 注入低资源语言降级桥（可选）。
-//
-// 跨语言路径前会先判断是否低资源语言：命中且 bridge 启用时走翻译降级路径，
-// 否则走标准跨语言 LLM 生成路径。传入 nil 表示禁用降级（向后兼容）。
+// WithFallbackBridge 注入低资源语言降级桥（nil 禁用）。跨语言路径前先判断
+// 是否低资源语言：命中且 bridge 启用时走翻译降级路径，否则走标准跨语言 LLM 生成。
 func (g *ResponseGeneratorImpl) WithFallbackBridge(b FallbackBridge) *ResponseGeneratorImpl {
 	g.fallbackBridge = b
 	return g
 }
 
-// WithEvalHook 注入质量评估钩子（可选）。
-//
-// 在 LLM 生成回复成功后异步触发 chrF++ + LLM-as-Judge 评估。
-// 传入 nil 表示禁用评估（向后兼容，不影响主流程）。
-// 钩子内部使用 goroutine 异步执行，不阻塞 GenerateResponse 主流程。
+// WithEvalHook 注入质量评估钩子（nil 禁用）。LLM 生成成功后异步触发评估，
+// 不阻塞 GenerateResponse 主流程。
 func (g *ResponseGeneratorImpl) WithEvalHook(h EvalHook) *ResponseGeneratorImpl {
 	g.evalHook = h
 	return g
 }
 
-// WithGlossaryRenderer 注入术语表渲染器（可选）。
-//
-// 仅跨语言路径调用 Render 填充 GlossaryBlock。传入 nil 表示禁用（向后兼容）。
+// WithGlossaryRenderer 注入术语表渲染器（nil 禁用），仅跨语言路径填充 GlossaryBlock。
 func (g *ResponseGeneratorImpl) WithGlossaryRenderer(r GlossaryRenderer) *ResponseGeneratorImpl {
 	g.glossary = r
 	return g
 }
 
-// WithOutputCalibrator 注入输出后置校准器（可选）。
-//
-// 在 LLM 生成回复后做术语校准与敏感模式保护。传入 nil 表示禁用（向后兼容）。
+// WithOutputCalibrator 注入输出后置校准器（nil 禁用）。
 func (g *ResponseGeneratorImpl) WithOutputCalibrator(c OutputCalibrator) *ResponseGeneratorImpl {
 	g.calibrator = c
 	return g
 }
 
-// LLMServiceInterface LLM服务接口
 type LLMServiceInterface interface {
 	Generate(ctx context.Context, config any, prompt string) (string, error)
 	GenerateStructured(ctx context.Context, config any, prompt string, schema any) (any, error)
@@ -154,7 +120,6 @@ type ResponseGenerationConfig struct {
 	SystemPrompt       string  `json:"system_prompt"`
 }
 
-// NewResponseGeneratorImpl 创建新的回复生成器
 func NewResponseGeneratorImpl(llmService LLMServiceInterface, config *ResponseGenerationConfig) *ResponseGeneratorImpl {
 	if config == nil {
 		config = &ResponseGenerationConfig{
@@ -174,17 +139,11 @@ func NewResponseGeneratorImpl(llmService LLMServiceInterface, config *ResponseGe
 	}
 }
 
-// GenerateResponse 生成回复
-//
-// 多语言方案：
-//   - CrossLingual=false（同语种）：走原逻辑，零开销，保持向后兼容
-//   - CrossLingual=true（跨语言）：
-//   - 若 fallbackBridge 启用且 targetLang 为低资源语言 → 走翻译降级路径
-//     （中文生成 + DeepL 翻译 + Glossary 后处理）
-//   - 否则 → 走标准跨语言 LLM 生成路径（多语言 system prompt + few-shot）
-//
-// 生成成功后触发 EvalHook 异步抽样评估（reference 为空时
-// EvalService 自动跳过，因此正常生成链路无额外开销）。
+// GenerateResponse 生成回复。
+// 多语言方案：CrossLingual=false 走同语种路径（零开销）；CrossLingual=true 时
+// 若 fallbackBridge 启用且 targetLang 为低资源语言 → 走翻译降级路径
+// （中文生成 + DeepL 翻译 + Glossary 后处理），否则走标准跨语言 LLM 生成
+// （多语言 system prompt + few-shot）。生成成功后触发 EvalHook 异步抽样评估。
 func (g *ResponseGeneratorImpl) GenerateResponse(ctx context.Context, request ResponseGenerationRequest) (string, error) {
 	internalLang := i18n.GetInternalLang(ctx)
 	configuredTarget := i18n.GetTargetLang(ctx)
@@ -322,7 +281,6 @@ Customer service reply:`, systemPrompt, contextStr, request.Query)
 	return g.llmService.Generate(ctx, llmConfig, prompt)
 }
 
-// GenerateStructuredResponse 生成结构化回复
 func (g *ResponseGeneratorImpl) GenerateStructuredResponse(ctx context.Context, request ResponseGenerationRequest, schema any) (any, error) {
 	contextStr := g.buildContextString(request.SearchResults, request.Context)
 
@@ -347,12 +305,10 @@ func (g *ResponseGeneratorImpl) GenerateStructuredResponse(ctx context.Context, 
 	return response, nil
 }
 
-// BuildContextString 构建上下文字符串
 func (g *ResponseGeneratorImpl) BuildContextString(results []any, context Context) string {
 	return g.buildContextString(results, context)
 }
 
-// BuildResponsePrompt 构建回复提示词
 func (g *ResponseGeneratorImpl) BuildResponsePrompt(query, contextStr string, session Session, context Context) string {
 	return g.buildResponsePrompt(query, contextStr, session, context)
 }
@@ -485,18 +441,16 @@ const defaultSystemPrompt = `你是专业的电商客服助手，正在为客户
 4. 积极态度：展现积极解决问题的态度
 5. 个性化：根据用户的具体情况进行个性化回复`
 
-// RemoteLLMService 真实 LLM 服务适配器(对接 OpenAI 兼容 /v1/chat/completions)
+// RemoteLLMService 真实 LLM 服务适配器（对接 OpenAI 兼容 /v1/chat/completions），
 // Session 级别配置会覆盖全局默认。
 type RemoteLLMService struct {
 	svc *llm.LLMService
 }
 
-// NewRemoteLLMService 创建真实 LLM 服务
 func NewRemoteLLMService() *RemoteLLMService {
 	return &RemoteLLMService{svc: llm.NewLLMService()}
 }
 
-// Generate 真实调用 LLM
 func (r *RemoteLLMService) Generate(ctx context.Context, config any, prompt string) (string, error) {
 	llmCfg, err := toLLMConfig(r.svc, config)
 	if err != nil {
@@ -505,7 +459,6 @@ func (r *RemoteLLMService) Generate(ctx context.Context, config any, prompt stri
 	return r.svc.Generate(ctx, llmCfg, prompt)
 }
 
-// GenerateStructured 真实结构化调用
 func (r *RemoteLLMService) GenerateStructured(ctx context.Context, config any, prompt string, schema any) (any, error) {
 	llmCfg, err := toLLMConfig(r.svc, config)
 	if err != nil {
@@ -515,7 +468,6 @@ func (r *RemoteLLMService) GenerateStructured(ctx context.Context, config any, p
 	return r.svc.GenerateStructured(ctx, llmCfg, prompt, schema)
 }
 
-// ValidateConfig 校验配置
 func (r *RemoteLLMService) ValidateConfig(config any) error {
 	llmCfg, err := toLLMConfig(r.svc, config)
 	if err != nil {
@@ -524,7 +476,6 @@ func (r *RemoteLLMService) ValidateConfig(config any) error {
 	return r.svc.ValidateConfig(llmCfg)
 }
 
-// GetDefaultConfig 返回默认 LLMConfig
 func (r *RemoteLLMService) GetDefaultConfig() any {
 	return r.svc.GetDefaultConfig()
 }

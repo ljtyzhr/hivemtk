@@ -25,9 +25,8 @@ type Vectorizer struct {
 	config    *llm.EmbeddingConfig
 }
 
-// NewVectorizer 创建真实向量化器
-// dimension: 期望向量维度,0 表示跟随 embedding 模型默认维度
-// 默认 1024（bge-m3 维度），与本地 TEI 容器真实 bge-m3 输出一致。
+// NewVectorizer 创建真实向量化器。dimension 为期望向量维度（<=0 时默认 1024，
+// 即 bge-m3 维度，与本地 TEI 容器真实输出一致）。
 func NewVectorizer(dimension int, embedder EmbeddingClient) *Vectorizer {
 	if embedder == nil {
 		embedder = llm.NewEmbeddingService()
@@ -44,14 +43,8 @@ func NewVectorizer(dimension int, embedder EmbeddingClient) *Vectorizer {
 	return v
 }
 
-// NewVectorizerFromConfig 根据 provider 配置选择向量化器实现
-//
-// 配置驱动：根据 provider 字段切换实现，不硬编码
-//   - "openai"（默认）：返回 *Vectorizer（基于 llm.EmbeddingService，OpenAI 兼容）
-//   - "bge-m3"：返回 *BGEM3Vectorizer（直接走 OpenAI 兼容 /v1/embeddings，支持 normalize/batch_size）
-//   - 其他值：回退到 "openai" 并记录警告
-//
-// 向后兼容：provider 为空时使用默认 "openai"，行为与 NewVectorizer 一致。
+// NewVectorizerFromConfig 根据 provider 配置选择向量化器实现：
+// "bge-m3" → *BGEM3Vectorizer；"openai"（默认）或其他值 → *Vectorizer。
 func NewVectorizerFromConfig(provider string, bgeM3Cfg BGEM3Config) VectorizerInterface {
 	provider = strings.TrimSpace(strings.ToLower(provider))
 	if provider == "" {
@@ -67,7 +60,6 @@ func NewVectorizerFromConfig(provider string, bgeM3Cfg BGEM3Config) VectorizerIn
 	}
 }
 
-// EmbedText 将文本转换为向量(真实 API 调用)
 func (v *Vectorizer) EmbedText(text string) ([]float32, error) {
 	if strings.TrimSpace(text) == "" {
 		return nil, errors.New("text cannot be empty")
@@ -79,7 +71,6 @@ func (v *Vectorizer) EmbedText(text string) ([]float32, error) {
 	return vec, nil
 }
 
-// EmbedBatch 批量向量化(真实 API 调用)
 func (v *Vectorizer) EmbedBatch(texts []string) ([][]float32, error) {
 	if len(texts) == 0 {
 		return [][]float32{}, nil
@@ -96,7 +87,6 @@ func (v *Vectorizer) EmbedBatch(texts []string) ([][]float32, error) {
 	return vectors, nil
 }
 
-// GetDimension 获取向量维度
 func (v *Vectorizer) GetDimension() int { return v.dimension }
 
 // ValidateEmbedding 验证向量有效性

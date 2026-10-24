@@ -117,10 +117,9 @@ func FaithfulnessLite(answer string, contexts []string) float64 {
 }
 
 // ContextRecallLite 上下文召回率：groundTruth 分句后，逐句计算其 token 被 contexts
-// 并集覆盖的比例，再对全部句子取算术平均（软召回；句子被完整复述时得满分 1，
-// 与上下文完全无交集的句子计 0 分）。采用软语义的原因：黄金集真值为人工撰写
-// 的改述文案，与召回片段极少逐字一致，硬性「整句全覆盖」判据会把正常情况
-// 全部误杀为 0 分。question 参数保留以对齐 RAGAS 接口形态，当前不参与计算。
+// 并集覆盖的比例，再对全部句子取算术平均（软召回）。采用软语义是因为黄金集真值为
+// 人工撰写的改述文案，与召回片段极少逐字一致，硬性「整句全覆盖」判据会全部误判为 0。
+// question 参数保留以对齐 RAGAS 接口形态，当前不参与计算。
 func ContextRecallLite(question string, contexts []string, groundTruth string) float64 {
 	_ = question
 	if strings.TrimSpace(groundTruth) == "" || len(contexts) == 0 {

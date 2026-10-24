@@ -6,12 +6,10 @@ import (
 	"strings"
 )
 
-// QualityAssessorImpl 质量评估器实现
 type QualityAssessorImpl struct {
 	config *QualityAssessmentConfig
 }
 
-// QualityAssessmentConfig 质量评估配置
 type QualityAssessmentConfig struct {
 	RelevanceWeight   float64 `json:"relevance_weight"`
 	AccuracyWeight    float64 `json:"accuracy_weight"`
@@ -20,7 +18,6 @@ type QualityAssessmentConfig struct {
 	MinimumScore      float64 `json:"minimum_score"`
 }
 
-// NewQualityAssessorImpl 创建新的质量评估器
 func NewQualityAssessorImpl(config *QualityAssessmentConfig) *QualityAssessorImpl {
 	if config == nil {
 		config = &QualityAssessmentConfig{
@@ -37,7 +34,6 @@ func NewQualityAssessorImpl(config *QualityAssessmentConfig) *QualityAssessorImp
 	}
 }
 
-// EvaluateResponse 评估回复质量
 func (qa *QualityAssessorImpl) EvaluateResponse(ctx context.Context, responseContent, query string, searchResults []any) (float64, error) {
 	if responseContent == "" {
 		return 0.0, nil
@@ -68,7 +64,6 @@ func (qa *QualityAssessorImpl) EvaluateResponse(ctx context.Context, responseCon
 	return compositeScore, nil
 }
 
-// EvaluateRelevance 评估相关性
 func (qa *QualityAssessorImpl) EvaluateRelevance(ctx context.Context, response, query string) (float64, error) {
 	if response == "" || query == "" {
 		return 0.0, nil
@@ -103,7 +98,6 @@ func (qa *QualityAssessorImpl) EvaluateRelevance(ctx context.Context, response, 
 	return finalScore, nil
 }
 
-// EvaluateAccuracy 评估准确性
 func (qa *QualityAssessorImpl) EvaluateAccuracy(ctx context.Context, response string, referenceSources []string) (float64, error) {
 	if response == "" {
 		return 0.0, nil
@@ -132,7 +126,6 @@ func (qa *QualityAssessorImpl) EvaluateAccuracy(ctx context.Context, response st
 	return consistencyScore, nil
 }
 
-// EvaluateCoherence 评估连贯性
 func (qa *QualityAssessorImpl) EvaluateCoherence(ctx context.Context, response string) (float64, error) {
 	if response == "" {
 		return 0.0, nil

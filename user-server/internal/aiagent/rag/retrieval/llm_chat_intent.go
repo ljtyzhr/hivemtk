@@ -64,14 +64,9 @@ var keyIntentKeywords = map[KeyIntentType][]string{
 	KeyIntentRefundRequest:       {"退款", "退货", "退钱", "退换", "退订", "要退", "能退"},
 }
 
-// ClassifyKeyIntent 精细意图识别入口
-//
-// 流程：
-//  1. 规则匹配（快速、零 LLM 调用）：返回 KeyIntentResult（method=rule）
-//  2. 规则未命中：调用 LLM 识别（method=llm）；chat 为 nil 时直接返回 no_match
-//  3. chat 调用失败时：返回 rule 降级结果（method=rule, confidence=0.4）
-//
-// chat 必传 LLMChatClient（业务层注入）；nil 时仅走规则匹配。
+// ClassifyKeyIntent 精细意图识别入口：先规则匹配（零 LLM 调用，method=rule），
+// 未命中时调 LLM 识别（method=llm）；chat 为 nil 或调用失败时返回 rule 降级结果
+// （confidence=0.4）。
 func ClassifyKeyIntent(ctx context.Context, text string, chat LLMChatClient) KeyIntentResult {
 	if strings.TrimSpace(text) == "" {
 		return KeyIntentResult{Method: "rule", Confidence: 0.0}
@@ -89,8 +84,8 @@ func ClassifyKeyIntent(ctx context.Context, text string, chat LLMChatClient) Key
 	return *llmResult
 }
 
-// IsKeyIntent 判定文本是否命中指定核心意图
-// 规则匹配即可，命中返回 true；规则未命中且 chat 非 nil 时调用 LLM 二次判定
+// IsKeyIntent 判定文本是否命中指定核心意图：
+// 规则命中即返回；规则未命中且 chat 非 nil 时调用 LLM 二次判定。
 func IsKeyIntent(ctx context.Context, text string, target KeyIntentType, chat LLMChatClient) bool {
 	if strings.TrimSpace(text) == "" {
 		return false
@@ -108,8 +103,7 @@ func IsKeyIntent(ctx context.Context, text string, target KeyIntentType, chat LL
 	return res.Intent == target
 }
 
-// ExtractKeyIntents 批量识别多条消息的核心意图
-// 返回每条消息的 KeyIntentResult（顺序与输入一致）
+// ExtractKeyIntents 批量识别多条消息的核心意图（顺序与输入一致）。
 func ExtractKeyIntents(ctx context.Context, texts []string, chat LLMChatClient) []KeyIntentResult {
 	out := make([]KeyIntentResult, len(texts))
 	for i, t := range texts {
@@ -242,11 +236,7 @@ func extractJSONFromStr(s string) string {
 	return s[start:]
 }
 
-// ClassifyKeyIntentWithDispatcher 便捷方法：直接使用 *llm.Dispatcher 包装成 LLMChatClient
-//
-// 用法：
-//
-//	result := ClassifyKeyIntentWithDispatcher(ctx, text, dispatcher)
+// ClassifyKeyIntentWithDispatcher 便捷方法：直接使用 *llm.Dispatcher 包装成 LLMChatClient。
 func ClassifyKeyIntentWithDispatcher(ctx context.Context, text string, dispatcher *llm.Dispatcher) KeyIntentResult {
 	adapter := NewDispatcherChatAdapter(dispatcher)
 	return ClassifyKeyIntent(ctx, text, adapter)

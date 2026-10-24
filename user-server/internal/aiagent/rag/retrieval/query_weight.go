@@ -1,4 +1,4 @@
-// Package retrieval 查询权重自适应（D17）。
+// Package retrieval 查询权重自适应。
 //
 // 作用范围声明：仅 HybridSearcher.SearchIndex 路径生效；
 // RagRetrievalServiceImpl（rag_retrieval.go）不经 HybridSearcher，自适应对其不生效——预期内。

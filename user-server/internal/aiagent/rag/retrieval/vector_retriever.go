@@ -21,11 +21,9 @@ type VectorRetriever struct {
 	efSearch        int
 }
 
-// NewVectorRetriever 创建向量召回器
-//
-// efSearch <= 0 时使用默认值 80（设计文档推荐）
-// embeddingClient 通常应传入 *CachedEmbeddingClient 装饰后的实例；
-// 若直接传入 *llm.EmbeddingService 也能工作，只是无缓存。
+// NewVectorRetriever 创建向量召回器。
+// efSearch <= 0 时使用默认值 80；embeddingClient 建议传 *CachedEmbeddingClient
+// 装饰后的实例（直接传 *llm.EmbeddingService 也可用，只是无缓存）。
 func NewVectorRetriever(db *gorm.DB, embeddingClient llm.EmbeddingServiceInterface, efSearch int) *VectorRetriever {
 	if efSearch <= 0 {
 		efSearch = 80
@@ -44,7 +42,6 @@ type chunkScanRow struct {
 	Score      float64 `gorm:"column:score"`
 }
 
-// SearchVector 实现 VectorSearcher 接口（从向量检索）
 func (r *VectorRetriever) SearchVector(ctx context.Context, kbID string, queryVec []float32, topK int) ([]Chunk, error) {
 	if r == nil || r.db == nil {
 		return nil, fmt.Errorf("vector retriever 未初始化")
@@ -76,16 +73,8 @@ func (r *VectorRetriever) SearchVector(ctx context.Context, kbID string, queryVe
 	return rowsToChunks(rows), nil
 }
 
-// Retrieve 向量召回
-//
-// 参数:
-//   - productID != "" 时按产品过滤；= 0 时全产品检索
-//   - query 原始查询文本（将被 embeddingClient 编码为向量）
-//   - topK 返回结果数（<= 0 时使用默认值 50）
-//
-// 返回:
-//   - []Chunk 已按相似度降序排序
-//   - 维度非法 / embedding 失败 / DB 错误均返回 error
+// Retrieve 向量召回：productID 非空时按产品过滤，否则全产品检索；
+// 返回按相似度降序的 []Chunk。维度非法 / embedding 失败 / DB 错误均返回 error。
 func (r *VectorRetriever) Retrieve(ctx context.Context, productID string, query string, topK int) ([]Chunk, error) {
 	if r == nil || r.db == nil {
 		return nil, fmt.Errorf("vector retriever 未初始化")
