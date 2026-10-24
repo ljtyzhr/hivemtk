@@ -105,6 +105,11 @@
                 class="bubble-content"
                 v-html="formatContent(msg.content)"
               />
+              <!-- T2 引用溯源：AI 消息气泡下方的参考来源行 -->
+              <CitationList
+                v-if="isAI(msg) && msg.citations?.length"
+                :citations="msg.citations"
+              />
             </div>
             <div class="time">
               {{ formatTime(msg.created_at) }}
@@ -141,6 +146,7 @@ import i18n from '@/i18n'
 import { ref, watch, nextTick, onMounted } from 'vue'
 import DOMPurify from 'dompurify';
 import RichCard from './RichCard.vue'
+import CitationList from './citation/CitationList.vue'
 
 const props = defineProps({
   messages: { type: Array, default: () => [] },
@@ -166,6 +172,9 @@ const bubbleClass = (msg) => {
 const displayName = (msg) => {
   if (msg.sender_type === 'user' || msg.sender_type === 'system') return ''
   if (msg.sender_type === 'ai') return '客服'
+
+// T2：引用行只挂在 AI 消息上
+const isAI = (msg) => msg?.sender_type === 'ai'
   return msg.sender_name || '客服'
 };
 

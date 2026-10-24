@@ -260,6 +260,21 @@ const initVisitorId = () => {
   visitorId.value = id
 };
 
+// T2：历史消息行内 citations 是 jsonb 字符串（空为 '[]'），安全解析
+const parseCitations = (raw) => {
+  if (!raw) return null
+  if (Array.isArray(raw)) return raw.length ? raw : null
+  if (typeof raw === 'string') {
+    try {
+      const arr = JSON.parse(raw)
+      return Array.isArray(arr) && arr.length ? arr : null
+    } catch {
+      return null
+    }
+  }
+  return null
+}
+
 const buildUiMessage = (m) => ({
   id: m.id,
   sender_type: m.sender_type,
@@ -269,6 +284,9 @@ const buildUiMessage = (m) => ({
   card: m.card,
   ai_source: m.ai_source,
   confidence: m.confidence || m.ai_confidence,
+  // T2 引用溯源：HTTP 响应顶层 citations / WS 帧 citations / 历史消息行内
+  // citations（jsonb 反序列化可能是字符串，做一次安全解析）
+  citations: parseCitations(m.citations),
   created_at: m.created_at
 });
 
@@ -340,7 +358,10 @@ const connectWebSocket = () => {
     onMessage: (payload) => {
       typing.value = false
       if (payload.reply || payload.content) {
-        messages.value.push(buildUiMessage(payload))
+        const uiMsg = buildUiMessage(payload)
+        // T2：WS new_message 尾帧携带的引用
+        if (payload.citations?.length) uiMsg.citations = payload.citations
+        messages.value.push(uiMsg)
       } else if (payload.system_msg) {
         messages.value.push({
           sender_type: 'system',
@@ -425,7 +446,10 @@ const onSend = async (payload) => {
     const data = res?.data || res
     if (data.ai_response) {
       typing.value = false
-      messages.value.push(buildUiMessage(data.ai_response))
+      const uiMsg = buildUiMessage(data.ai_response)
+      // T2：HTTP 同步响应顶层的 citations 附加到 AI 消息
+      if (data.citations?.length) uiMsg.citations = data.citations
+      messages.value.push(uiMsg)
     }
     if (data.ai_cards && data.ai_cards.length) {
       typing.value = false
