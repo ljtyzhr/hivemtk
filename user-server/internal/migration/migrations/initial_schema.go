@@ -285,4 +285,8 @@ func RegisterMigrations(registry *migration.MigrationRegistry, db *gorm.DB) {
 	// (platform, account_id, platform_msg_id) 索引；存量行按行键格式回填，
 	// 不能无歧义解析的留空（读路径有 platformMessageID 解析兜底）
 	register(NewMessageHubPlatformMsgIDMigration(db))
+	// v3.83.0（T3 观测报表）：llm_usage_daily 日聚合表（复合唯一索引 = upsert 冲突目标）+
+	// llm_routing_logs / platform_llm_usage_records 补 channel、error_class 列 +
+	// 存量失败行 error_class 回填 unknown
+	register(NewLLMUsageDailyMigration(db))
 }

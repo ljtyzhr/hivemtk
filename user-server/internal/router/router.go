@@ -821,6 +821,9 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 
 		setupSupportMetricsRoutes(auth, gormDB)
 
+		// T3 观测报表：读侧 + 聚合定时任务（docs/architecture/design/T3-observability-reports.md）
+		SetupReportRoutes(auth, gormDB)
+
 		setupBatchRoutes(auth)
 
 		setupAIContentRoutes(auth)
