@@ -1,0 +1,226 @@
+<template>
+  <div class="qa-candidates-page">
+    <el-card class="toolbar-card">
+      <div class="toolbar">
+        <div class="toolbar-left">
+          <el-radio-group
+            v-model="filter.source_type"
+            @change="loadList"
+          >
+            <el-radio-button value="">
+              {{ $t('全部') }}
+            </el-radio-button>
+            <el-radio-button value="crawl">
+              {{ $t('网站拆分') }}
+            </el-radio-button>
+            <el-radio-button value="feedback">
+              {{ $t('客户反馈') }}
+            </el-radio-button>
+            <el-radio-button value="manual">
+              {{ $t('手动') }}
+            </el-radio-button>
+          </el-radio-group>
+          <el-select
+            v-model="filter.status"
+            :placeholder="$t('状态')"
+            clearable
+            style="width: 140px"
+            @change="loadList"
+          >
+            <el-option
+              :label="$t('待审核')"
+              value="pending_review"
+            />
+            <el-option
+              :label="$t('已通过')"
+              value="approved"
+            />
+            <el-option
+              :label="$t('已驳回')"
+              value="rejected"
+            />
+            <el-option
+              :label="$t('已入库')"
+              value="indexed"
+            />
+          </el-select>
+        </div>
+        <el-button @click="loadList">
+          {{ $t('刷新') }}
+        </el-button>
+      </div>
+    </el-card>
+
+    <el-card v-loading="loading">
+      <el-table
+        :data="items"
+        stripe
+      >
+        <el-table-column
+          prop="id"
+          label="ID"
+          width="80"
+        />
+        <el-table-column
+          :label="$t('来源')"
+          width="110"
+        >
+          <template #default="{ row }">
+            <el-tag :type="sourceTag(row.source_type)">
+              {{ sourceLabel(row.source_type) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column
+          prop="question"
+          :label="$t('问题')"
+          min-width="200"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          prop="answer"
+          :label="$t('答案')"
+          min-width="240"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          prop="answer_anchor"
+          :label="$t('原文锚点')"
+          min-width="180"
+          show-overflow-tooltip
+        />
+        <el-table-column
+          :label="$t('状态')"
+          width="100"
+        >
+          <template #default="{ row }">
+            <el-tag :type="statusTag(row.status)">
+              {{ statusLabel(row.status) }}
+            </el-tag>
+          </template>
+        </el-table-column>
+        <el-table-column
+          prop="created_at"
+          :label="$t('创建时间')"
+          width="160"
+        >
+          <template #default="{ row }">
+            {{ formatDate(row.created_at) }}
+          </template>
+        </el-table-column>
+        <el-table-column
+          :label="$t('操作')"
+          width="220"
+          fixed="right"
+        >
+          <template #default="{ row }">
+            <template v-if="row.status === 'pending_review'">
+              <el-button
+                size="small"
+                type="success"
+                @click="act(kbQaCandidateApi.approve, row)"
+              >
+                {{ $t('通过') }}
+              </el-button>
+              <el-button
+                size="small"
+                type="danger"
+                @click="act(kbQaCandidateApi.reject, row)"
+              >
+                {{ $t('驳回') }}
+              </el-button>
+            </template>
+            <el-button
+              v-if="row.status === 'approved'"
+              size="small"
+              type="primary"
+              @click="act(kbQaCandidateApi.publish, row)"
+            >
+              {{ $t('发布入库') }}
+            </el-button>
+          </template>
+        </el-table-column>
+      </el-table>
+      <div class="pager">
+        <el-pagination
+          v-model:current-page="page"
+          :page-size="pageSize"
+          :total="total"
+          layout="prev, pager, next, total"
+          @current-change="loadList"
+        />
+      </div>
+    </el-card>
+  </div>
+</template>
+
+<script setup>
+import { ref, reactive, onMounted } from 'vue'
+import { ElMessage } from 'element-plus'
+import { kbQaCandidateApi } from '@/api/kbCrawler'
+
+const loading = ref(false)
+const items = ref([])
+const total = ref(0)
+const page = ref(1)
+const pageSize = 20
+const filter = reactive({ source_type: '', status: '' })
+
+const loadList = async () => {
+  loading.value = true
+  try {
+    const params = { page: page.value, page_size: pageSize }
+    if (filter.source_type) params.source_type = filter.source_type
+    if (filter.status) params.status = filter.status
+    const res = await kbQaCandidateApi.list(params)
+    items.value = res?.items || res || []
+    total.value = res?.total || 0
+  } catch (e) {
+    ElMessage.error($t('加载 QA 候选失败') + ': ' + (e.message || ''))
+  } finally {
+    loading.value = false
+  }
+}
+
+const act = async (fn, row) => {
+  try {
+    await fn(row.id)
+    ElMessage.success($t('操作成功'))
+    await loadList()
+  } catch (e) {
+    ElMessage.error($t('操作失败') + ': ' + (e.message || ''))
+  }
+}
+
+const sourceTag = (s) => ({ crawl: 'warning', feedback: 'primary', manual: 'info' }[s] || 'info')
+const sourceLabel = (s) => ({ crawl: '网站拆分', feedback: '客户反馈', manual: '手动' }[s] || s)
+const statusTag = (s) => ({ pending_review: 'warning', approved: 'success', rejected: 'danger', indexed: 'success' }[s] || 'info')
+const statusLabel = (s) => ({ pending_review: '待审核', approved: '已通过', rejected: '已驳回', indexed: '已入库' }[s] || s)
+const formatDate = (d) => d ? new Date(d).toLocaleString('zh-CN') : '-'
+
+onMounted(loadList)
+</script>
+
+<style scoped lang="scss">
+.qa-candidates-page {
+  padding: 16px;
+}
+
+.toolbar-card {
+  margin-bottom: 16px;
+}
+
+.toolbar {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.pager {
+  margin-top: 16px;
+  display: flex;
+  justify-content: flex-end;
+}
+</style>

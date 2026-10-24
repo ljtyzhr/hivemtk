@@ -24,6 +24,18 @@ export default [
     meta: { title: '外部连接器', group: 'knowledge', icon: 'Link', requiresAuth: true }
   },
   {
+    path: '/knowledge/crawler-sources',
+    name: 'KnowledgeCrawlerSources',
+    component: () => import('@/views/KnowledgeWorkspace/CrawlerSources.vue'),
+    meta: { title: '网站爬取', group: 'knowledge', icon: 'Download', requiresAuth: true }
+  },
+  {
+    path: '/knowledge/qa-candidates',
+    name: 'KnowledgeQACandidates',
+    component: () => import('@/views/KnowledgeWorkspace/QACandidates.vue'),
+    meta: { title: 'QA 审核队列', group: 'knowledge', icon: 'Finished', requiresAuth: true }
+  },
+  {
     path: '/knowledge/feedbacks',
     name: 'KnowledgeFeedbacks',
     component: () => import('@/views/KnowledgeWorkspace/FeedbackList.vue'),
