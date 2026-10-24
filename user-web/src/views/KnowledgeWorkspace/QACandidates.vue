@@ -8,45 +8,45 @@
             @change="loadList"
           >
             <el-radio-button value="">
-              {{ $t('全部') }}
+              {{ $t('common.all') }}
             </el-radio-button>
             <el-radio-button value="crawl">
-              {{ $t('网站拆分') }}
+              {{ $t('knowledge.qaCandidate.sourceCrawl') }}
             </el-radio-button>
             <el-radio-button value="feedback">
-              {{ $t('客户反馈') }}
+              {{ $t('knowledge.qaCandidate.sourceFeedback') }}
             </el-radio-button>
             <el-radio-button value="manual">
-              {{ $t('手动') }}
+              {{ $t('knowledge.qaCandidate.sourceManual') }}
             </el-radio-button>
           </el-radio-group>
           <el-select
             v-model="filter.status"
-            :placeholder="$t('状态')"
+            :placeholder="$t('knowledge.qaCandidate.status')"
             clearable
             style="width: 140px"
             @change="loadList"
           >
             <el-option
-              :label="$t('待审核')"
+              :label="$t('knowledge.qaCandidate.pending')"
               value="pending_review"
             />
             <el-option
-              :label="$t('已通过')"
+              :label="$t('knowledge.qaCandidate.approved')"
               value="approved"
             />
             <el-option
-              :label="$t('已驳回')"
+              :label="$t('knowledge.qaCandidate.rejected')"
               value="rejected"
             />
             <el-option
-              :label="$t('已入库')"
+              :label="$t('knowledge.qaCandidate.indexed')"
               value="indexed"
             />
           </el-select>
         </div>
         <el-button @click="loadList">
-          {{ $t('刷新') }}
+          {{ $t('common.refresh') }}
         </el-button>
       </div>
     </el-card>
@@ -62,46 +62,46 @@
           width="80"
         />
         <el-table-column
-          :label="$t('来源')"
+          :label="$t('knowledge.qaCandidate.source')"
           width="110"
         >
           <template #default="{ row }">
             <el-tag :type="sourceTag(row.source_type)">
-              {{ sourceLabel(row.source_type) }}
+              {{ $t(sourceLabel(row.source_type)) }}
             </el-tag>
           </template>
         </el-table-column>
         <el-table-column
           prop="question"
-          :label="$t('问题')"
+          :label="$t('knowledge.qaCandidate.question')"
           min-width="200"
           show-overflow-tooltip
         />
         <el-table-column
           prop="answer"
-          :label="$t('答案')"
+          :label="$t('knowledge.qaCandidate.answer')"
           min-width="240"
           show-overflow-tooltip
         />
         <el-table-column
           prop="answer_anchor"
-          :label="$t('原文锚点')"
+          :label="$t('knowledge.qaCandidate.anchor')"
           min-width="180"
           show-overflow-tooltip
         />
         <el-table-column
-          :label="$t('状态')"
+          :label="$t('knowledge.qaCandidate.status')"
           width="100"
         >
           <template #default="{ row }">
             <el-tag :type="statusTag(row.status)">
-              {{ statusLabel(row.status) }}
+              {{ $t(statusLabel(row.status)) }}
             </el-tag>
           </template>
         </el-table-column>
         <el-table-column
           prop="created_at"
-          :label="$t('创建时间')"
+          :label="$t('knowledge.qaCandidate.createdAt')"
           width="160"
         >
           <template #default="{ row }">
@@ -109,7 +109,7 @@
           </template>
         </el-table-column>
         <el-table-column
-          :label="$t('操作')"
+          :label="$t('knowledge.qaCandidate.actions')"
           width="220"
           fixed="right"
         >
@@ -120,14 +120,14 @@
                 type="success"
                 @click="act(kbQaCandidateApi.approve, row)"
               >
-                {{ $t('通过') }}
+                {{ $t('knowledge.qaCandidate.approve') }}
               </el-button>
               <el-button
                 size="small"
                 type="danger"
                 @click="act(kbQaCandidateApi.reject, row)"
               >
-                {{ $t('驳回') }}
+                {{ $t('knowledge.qaCandidate.reject') }}
               </el-button>
             </template>
             <el-button
@@ -136,7 +136,7 @@
               type="primary"
               @click="act(kbQaCandidateApi.publish, row)"
             >
-              {{ $t('发布入库') }}
+              {{ $t('knowledge.qaCandidate.publish') }}
             </el-button>
           </template>
         </el-table-column>
@@ -157,6 +157,7 @@
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
 import { ElMessage } from 'element-plus'
+import i18n from '@/i18n'
 import { kbQaCandidateApi } from '@/api/kbCrawler'
 
 const loading = ref(false)
@@ -176,7 +177,7 @@ const loadList = async () => {
     items.value = res?.items || res || []
     total.value = res?.total || 0
   } catch (e) {
-    ElMessage.error($t('加载 QA 候选失败') + ': ' + (e.message || ''))
+    ElMessage.error(i18n.global.t('knowledge.qaCandidate.loadFailed') + ': ' + (e.message || ''))
   } finally {
     loading.value = false
   }
@@ -185,17 +186,17 @@ const loadList = async () => {
 const act = async (fn, row) => {
   try {
     await fn(row.id)
-    ElMessage.success($t('操作成功'))
+    ElMessage.success(i18n.global.t('common.operationSuccess'))
     await loadList()
   } catch (e) {
-    ElMessage.error($t('操作失败') + ': ' + (e.message || ''))
+    ElMessage.error(i18n.global.t('common.operationFailed') + ': ' + (e.message || ''))
   }
 }
 
 const sourceTag = (s) => ({ crawl: 'warning', feedback: 'primary', manual: 'info' }[s] || 'info')
-const sourceLabel = (s) => ({ crawl: '网站拆分', feedback: '客户反馈', manual: '手动' }[s] || s)
+const sourceLabel = (s) => ({ crawl: 'knowledge.qaCandidate.sourceCrawl', feedback: 'knowledge.qaCandidate.sourceFeedback', manual: 'knowledge.qaCandidate.sourceManual' }[s] || s)
 const statusTag = (s) => ({ pending_review: 'warning', approved: 'success', rejected: 'danger', indexed: 'success' }[s] || 'info')
-const statusLabel = (s) => ({ pending_review: '待审核', approved: '已通过', rejected: '已驳回', indexed: '已入库' }[s] || s)
+const statusLabel = (s) => ({ pending_review: 'knowledge.qaCandidate.pending', approved: 'knowledge.qaCandidate.approved', rejected: 'knowledge.qaCandidate.rejected', indexed: 'knowledge.qaCandidate.indexed' }[s] || s)
 const formatDate = (d) => d ? new Date(d).toLocaleString('zh-CN') : '-'
 
 onMounted(loadList)
