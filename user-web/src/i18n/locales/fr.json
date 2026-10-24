@@ -297,7 +297,6 @@
     "sopTemplateMarket": "Marché SOP",
     "bridgeToken": "Jetons Bridge",
     "bridgeExtension": "Paquet d'Extension",
-
     "whatsappLeadGroup": "Groupes de leads",
     "whatsappBulkMatrix": "Matrice stats envois",
     "cohortPath": "Parcours de cohorte",
@@ -2464,6 +2463,7 @@
     "exact": "Correspondance exacte",
     "semantic": "Correspondance sémantique",
     "fallback": "Éventuellement lié",
-    "kbSnippet": "Extrait de la base de connaissances"
+    "kbSnippet": "Extrait de la base de connaissances",
+    "faqTitle": "FAQ"
   }
 }

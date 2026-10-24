@@ -297,7 +297,6 @@
     "sopTemplateMarket": "Маркет SOP",
     "bridgeToken": "Мост-токены",
     "bridgeExtension": "Пакет расширения",
-
     "whatsappLeadGroup": "Группы лидов",
     "whatsappBulkMatrix": "Матрица рассылок",
     "cohortPath": "Путь когорты",
@@ -2464,6 +2463,7 @@
     "exact": "Точное совпадение",
     "semantic": "Семантическое совпадение",
     "fallback": "Возможно связано",
-    "kbSnippet": "Фрагмент базы знаний"
+    "kbSnippet": "Фрагмент базы знаний",
+    "faqTitle": "FAQ"
   }
 }

@@ -2463,6 +2463,7 @@
     "exact": "完全一致",
     "semantic": "意味的一致",
     "fallback": "関連の可能性",
-    "kbSnippet": "ナレッジベースの断片"
+    "kbSnippet": "ナレッジベースの断片",
+    "faqTitle": "よくある質問"
   }
 }

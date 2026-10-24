@@ -109,6 +109,7 @@
               <CitationList
                 v-if="isAI(msg) && msg.citations?.length"
                 :citations="msg.citations"
+                @open="openCitation"
               />
             </div>
             <div class="time">
@@ -137,6 +138,39 @@
         </div>
       </div>
     </template>
+
+    <!-- T2 引用详情浮窗：FAQ 问/答或文档片段 -->
+    <Teleport to="body">
+      <div
+        v-if="citationDetail"
+        class="citation-overlay"
+        @click.self="citationDetail = null"
+      >
+        <div class="citation-detail">
+          <div class="citation-detail-head">
+            <span>{{ citationDetail.type === 'chunk' ? $t('citation.doc') : $t('citation.faqTitle') }}</span>
+            <button
+              class="citation-close"
+              type="button"
+              @click="citationDetail = null"
+            >×</button>
+          </div>
+          <template v-if="citationDetail.type === 'faq' && citationDetail.faq">
+            <div class="citation-q-block">
+              <strong>Q</strong>{{ citationDetail.faq.question }}
+            </div>
+            <div class="citation-a-block">
+              <strong>A</strong>{{ citationDetail.faq.answer }}
+            </div>
+          </template>
+          <template v-else-if="citationDetail.type === 'chunk'">
+            <div class="citation-a-block">
+              <strong>{{ chunkTitle(citationDetail) }}</strong>{{ citationDetail.chunk?.content || citationDetail.content || '' }}
+            </div>
+          </template>
+        </div>
+      </div>
+    </Teleport>
   </div>
 </template>
 
@@ -169,12 +203,18 @@ const bubbleClass = (msg) => {
   return 'ai'
 }
 
+// T2：引用行只挂在 AI 消息上
+const isAI = (msg) => msg?.sender_type === 'ai'
+
+// T2：点击引用卡片 → 浮窗呈现引用详情（FAQ 问/答或文档片段）
+const citationDetail = ref(null)
+const openCitation = (c) => {
+  citationDetail.value = c || null
+}
+
 const displayName = (msg) => {
   if (msg.sender_type === 'user' || msg.sender_type === 'system') return ''
   if (msg.sender_type === 'ai') return '客服'
-
-// T2：引用行只挂在 AI 消息上
-const isAI = (msg) => msg?.sender_type === 'ai'
   return msg.sender_name || '客服'
 };
 
@@ -418,5 +458,33 @@ defineExpose({ scrollToBottom })
 @keyframes typingBounce {
   0%, 60%, 100% { transform: translateY(0); opacity: 0.4; }
   30% { transform: translateY(-4px); opacity: 1; }
+}
+
+/* T2 引用详情浮窗（Teleport 到 body，scoped 不生效，用独立类名） */
+.citation-overlay {
+  position: fixed; inset: 0; z-index: 3000;
+  background: rgba(0,0,0,.35);
+  display: flex; align-items: center; justify-content: center;
+}
+.citation-detail {
+  max-width: 480px; width: 88%; max-height: 70vh; overflow: auto;
+  background: #fff; border-radius: 10px; padding: 14px 16px;
+  box-shadow: 0 8px 30px rgba(0,0,0,.18);
+  font-size: 14px; color: #303133;
+}
+.citation-detail-head {
+  display: flex; justify-content: space-between; align-items: center;
+  font-weight: 600; margin-bottom: 10px;
+}
+.citation-close {
+  border: none; background: none; font-size: 20px; line-height: 1;
+  color: #909399; cursor: pointer;
+}
+.citation-q-block, .citation-a-block {
+  margin: 8px 0; padding: 8px 10px; border-radius: 6px;
+  background: #f5f7fa; line-height: 1.6; white-space: pre-wrap;
+}
+.citation-q-block strong, .citation-a-block strong {
+  display: inline-block; margin-right: 8px; color: #1989fa;
 }
 </style>

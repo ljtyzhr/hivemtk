@@ -297,7 +297,6 @@
     "sopTemplateMarket": "SOP Market",
     "bridgeToken": "Bridge Tokens",
     "bridgeExtension": "Extension Package",
-
     "whatsappLeadGroup": "Lead Groups",
     "whatsappBulkMatrix": "Bulk Stats Matrix",
     "cohortPath": "Cohort Path",
@@ -2464,6 +2463,7 @@
     "exact": "Exact match",
     "semantic": "Semantic match",
     "fallback": "Possibly related",
-    "kbSnippet": "Knowledge base snippet"
+    "kbSnippet": "Knowledge base snippet",
+    "faqTitle": "FAQ"
   }
 }

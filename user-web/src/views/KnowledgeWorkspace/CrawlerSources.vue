@@ -349,7 +349,8 @@ const currentSource = ref(null)
 
 const loadKBs = async () => {
   const res = await listKBs({ page: 1, page_size: 100 })
-  kbList.value = res?.items || res || []
+  // request.js 拦截器已解包为 data.data，分页键是 list（对齐 Connectors.vue）
+  kbList.value = res?.list || res?.items || res?.data?.list || []
 }
 
 const loadSources = async () => {

@@ -340,13 +340,14 @@ export default defineConfig({
     },
     proxy: {
       '/api': {
-        target: 'http://localhost:8204',
+        // 本地冒烟可用 USER_SERVER_PORT 覆盖后端端口（默认 8204）
+        target: `http://localhost:${process.env.USER_SERVER_PORT || 8204}`,
         changeOrigin: true,
         secure: false,
         ws: true
       },
       '/files': {
-        target: 'http://localhost:8204',
+        target: `http://localhost:${process.env.USER_SERVER_PORT || 8204}`,
         changeOrigin: true,
         secure: false
       }

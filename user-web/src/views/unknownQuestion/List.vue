@@ -172,20 +172,19 @@ async function refresh() {
   loading.value = true
   try {
     if (tab.value === 'questions') {
-      const { data } = await unknownQuestionApi.list({
+      // http 拦截器已解包到业务 payload（{list,total,...}），再取 .data 会拿空
+      const d = await unknownQuestionApi.list({
         page: page.value, page_size: pageSize,
         status: filters.status || undefined,
         source: filters.source || undefined,
         keyword: filters.keyword || undefined
-      })
-      const d = data?.data || {}
+      }) || {}
       rows.value = d.items || d.list || d.rows || []
       total.value = Number(d.total || 0)
     } else {
-      const { data } = await unknownQuestionApi.clusterList({
+      const d = await unknownQuestionApi.clusterList({
         page: page.value, page_size: pageSize, status: filters.status || undefined
-      })
-      const d = data?.data || {}
+      }) || {}
       clusters.value = d.items || d.list || d.rows || []
       total.value = Number(d.total || 0)
     }

@@ -297,7 +297,6 @@
     "sopTemplateMarket": "SOP 模板市场",
     "bridgeToken": "桥接凭证",
     "bridgeExtension": "扩展安装包",
-
     "whatsappLeadGroup": "群发线索分组",
     "whatsappBulkMatrix": "群发统计矩阵",
     "cohortPath": "同期群路径分析",
@@ -2464,6 +2463,7 @@
     "exact": "精确命中",
     "semantic": "语义匹配",
     "fallback": "可能相关",
-    "kbSnippet": "知识库片段"
+    "kbSnippet": "知识库片段",
+    "faqTitle": "常见问题"
   }
 }
