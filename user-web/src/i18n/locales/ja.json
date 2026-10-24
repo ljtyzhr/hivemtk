@@ -282,6 +282,7 @@
     "systemFeatureFlags": "機能フラグ",
     "ltcConfig": "LTC運用スイッチ",
     "opsOverview": "運用オーバービュー",
+    "observabilityDashboard": "AI可観測性とチャネルヘルス",
     "knowledgeRagEval": "RAG評価",
     "oneidMergeRules": "マージルール",
     "emailDeliverability": "配信分析",

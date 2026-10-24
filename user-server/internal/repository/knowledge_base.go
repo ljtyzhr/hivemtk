@@ -147,6 +147,33 @@ func (r *KnowledgeBaseRepository) ListByAgent(ctx context.Context, agentID uint)
 	return kbs, nil
 }
 
+// CountByAgent 统计指定智能体名下的知识库数量。
+//
+// 口径与 ListByAgent 严格一致（私有直属 + 共享且已绑定），只是把 Find 换成 Count：
+// 两侧各写一份会量出互相矛盾的「该智能体有几个库」。agentID == 0 返回 0（与
+// ListByAgent 的空参短路口径相同），不把「未指定智能体」当成一次真实计数。
+func (r *KnowledgeBaseRepository) CountByAgent(ctx context.Context, agentID uint) (int64, error) {
+	if agentID == 0 {
+		return 0, nil
+	}
+
+	subQuery := r.db.WithContext(ctx).
+		Model(&model.AgentKBBinding{}).
+		Select("kb_id").
+		Where("agent_id = ? AND enabled = ?", agentID, true)
+
+	var count int64
+	err := r.db.WithContext(ctx).Model(&model.KnowledgeBase{}).
+		Where("enabled = ?", true).
+		Where("owner_agent_id = ? OR (owner_type = ? AND id IN (?))",
+			agentID, model.KnowledgeBaseOwnerShared, subQuery).
+		Count(&count).Error
+	if err != nil {
+		return 0, err
+	}
+	return count, nil
+}
+
 // Update 更新知识库
 func (r *KnowledgeBaseRepository) Update(ctx context.Context, id uint, kb *model.KnowledgeBase) error {
 	return _db.EnsureAffected(r.db.WithContext(ctx).Model(&model.KnowledgeBase{}).

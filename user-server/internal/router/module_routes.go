@@ -53,6 +53,14 @@ func setupModuleRoutes(public, auth, tenantAdmin, systemAdmin *gin.RouterGroup) 
 			ctrl.List)
 		public.GET("/module-market/payment-guide", ctrl.PaymentGuide)
 		public.GET("/tenant/regulatory-notice", ctrl.RegulatoryNotice)
+
+		// 模板/技能市场（F2，specs/013）：只读橱窗，目录元数据不含个人/租户数据，
+		// 未登录可逛（与 module-market/list 同为公开档；本目录无 owned 概念，
+		// 不上 OptionalAuth）。
+		tmCtrl := controller.NewTemplateMarketController()
+		public.GET("/template-market/list", tmCtrl.List)
+		public.GET("/template-market/categories", tmCtrl.Categories)
+		public.GET("/template-market/detail/:id", tmCtrl.Detail)
 	}
 
 	if auth != nil {

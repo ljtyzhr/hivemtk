@@ -746,4 +746,5 @@ user	GET	/api/ws/channel
 user	POST	/api/monitor/trace-eval/trigger
 user	GET	/api/monitor/trace-eval/logs
 user	GET	/api/monitor/knowledge-weights
+user	GET	/api/observability/dashboard
 user	POST	/api/upload

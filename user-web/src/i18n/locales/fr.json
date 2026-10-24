@@ -282,6 +282,7 @@
     "systemFeatureFlags": "Feature flags",
     "ltcConfig": "Interrupteur des opérations LTC",
     "opsOverview": "Vue d'ensemble des opérations",
+    "observabilityDashboard": "Observabilité IA & santé des canaux",
     "knowledgeRagEval": "Évaluation RAG",
     "oneidMergeRules": "Règles de fusion",
     "emailDeliverability": "Analyse de délivrabilité",

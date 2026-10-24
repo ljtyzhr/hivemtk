@@ -282,6 +282,7 @@
     "systemFeatureFlags": "Feature Flags",
     "ltcConfig": "LTC Operations Switch",
     "opsOverview": "Ops Overview",
+    "observabilityDashboard": "AI Observability & Channel Health",
     "knowledgeRagEval": "RAG Evaluation",
     "oneidMergeRules": "Merge Rules",
     "emailDeliverability": "Deliverability",

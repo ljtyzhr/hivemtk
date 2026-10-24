@@ -127,6 +127,12 @@ var adminOnlyRoutes = []adminRouteRule{
 	// —— 渠道账号清单的兼容别名（权威口在 admin 组，别名曾落在登录档）——
 	{Pattern: "/api/feishu/accounts/list"},
 	{Pattern: "/api/telegram/accounts/list"},
+
+	// —— 统一看板（D2/B2，specs/007）：租户内 LLM 成本/送达/渠道健康聚合 ——
+	// 判据 1（全局共享态）：看板回的是整个租户的经营/成本口径，不是调用者自己的数据；
+	// 判据 2（前端零消费点或仅 admin 菜单）：页面只在 admin 菜单节点
+	// observabilityDashboard 下出现，无其它角色消费点。
+	{Pattern: "/api/observability/dashboard"},
 }
 
 // IsAdminOnlyRoute 判定 (method, path) 是否落在"仅超管"表内。

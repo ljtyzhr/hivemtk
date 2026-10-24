@@ -403,6 +403,9 @@ var SystemMenuTree = []SystemMenuNode{
 					{Key: "systemFeatureFlags", Title: "功能开关", Icon: "Switch", Path: "/system/feature-flags", Roles: []string{"admin"}},
 					{Key: "ltcConfig", Title: "LTC 运营开关", Icon: "Open", Path: "/system/ltc-config", Roles: []string{"admin"}},
 					{Key: "opsOverview", Title: "运维总览", Icon: "Monitor", Path: "/ops-overview", Roles: []string{"admin"}},
+					// AI 全链路可观测性 + 渠道健康（D2+B2，specs/007）：只读聚合看板，
+					// 与 systemMonitor/systemTrace 同族但归属独立的 admin 页。
+					{Key: "observabilityDashboard", Title: "AI 观测与渠道健康", Icon: "Odometer", Path: "/observability-dashboard", Roles: []string{"admin"}},
 					// 功能模块市场：付费能力的**购买入口**。
 				},
 			},

@@ -240,6 +240,7 @@
     "systemFeatureFlags": "مفاتيح الميزات",
     "ltcConfig": "مفتاح LTC التشغيلي",
     "opsOverview": "نظرة عامة على العمليات",
+    "observabilityDashboard": "مراقبة الذكاء الاصطناعي وصحة القنوات",
     "knowledgeRagEval": "تقييم RAG",
     "oneidMergeRules": "قواعد الدمج",
     "emailDeliverability": "تحليل التسليم",

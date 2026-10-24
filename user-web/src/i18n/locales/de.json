@@ -282,6 +282,7 @@
     "systemFeatureFlags": "Feature Flags",
     "ltcConfig": "LTC-Betriebsschalter",
     "opsOverview": "Betriebsübersicht",
+    "observabilityDashboard": "KI-Observability & Kanalzustand",
     "knowledgeRagEval": "RAG-Bewertung",
     "oneidMergeRules": "Merge-Regeln",
     "emailDeliverability": "Zustellungsanalyse",

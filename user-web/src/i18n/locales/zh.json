@@ -282,6 +282,7 @@
     "systemFeatureFlags": "功能开关",
     "ltcConfig": "LTC 运营开关",
     "opsOverview": "运维总览",
+    "observabilityDashboard": "AI 观测与渠道健康",
     "knowledgeRagEval": "RAG 评测",
     "oneidMergeRules": "合并规则配置",
     "emailDeliverability": "送达分析",
