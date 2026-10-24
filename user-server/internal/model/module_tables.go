@@ -115,6 +115,8 @@ var assetOwnedTables = []string{
 	"asset_bundles", "asset_bundle_version_logs", "script_library",
 	"script_versions", "script_exposure_logs", "prompt_ab_tests",
 	"prompt_candidates",
+	// T5 资产市场商店化五表：上架单/版本/举报/评分/扩展用量月账，随 asset 模块开关
+	"asset_listings", "asset_versions", "asset_reports", "asset_ratings", "extension_usage_monthly",
 }
 
 // ai-agent 模块独占
