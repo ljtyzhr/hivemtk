@@ -73,10 +73,8 @@ func NewInMemoryAlertSink(cap int) *InMemoryAlertSink {
 	return &InMemoryAlertSink{cap: cap, buffer: make([]AlertEvent, 0, cap)}
 }
 
-// InitDefaultAlertHook 初始化默认告警（LoggingAlertHook + InMemoryAlertSink 组合）
-//
-// 建议在 main.go 启动期调用，把全局 alertHook 替换为 logging + memory 双写。
-// 用法：
+// InitDefaultAlertHook 初始化默认告警（LoggingAlertHook + InMemoryAlertSink 双写）。
+// 建议在 main.go 启动期调用：
 //
 //	sink := llm.NewInMemoryAlertSink(200)
 //	llm.InitDefaultAlertHook(sink)

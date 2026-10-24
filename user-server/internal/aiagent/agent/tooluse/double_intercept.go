@@ -93,14 +93,9 @@ func NewDoubleInterceptOrchestrator(cfg OrchestratorConfig) (*DoubleInterceptOrc
 	}, nil
 }
 
-// Run 完整执行双拦截流程
-//
-// 入参：
-//   - ctx: 上下文
-//   - originalContent: 原始用户消息（用于二进宫）
-//   - firstPassStream: 第一次 LLM 推理的流（chan string）
-//
-// 返回：最终回复 + 错误
+// Run 完整执行双拦截流程。
+// originalContent 为原始用户消息（用于二进宫），
+// firstPassStream 为第一次 LLM 推理的流（chan string）；返回最终回复 + 错误。
 func (o *DoubleInterceptOrchestrator) Run(ctx context.Context, originalContent string, firstPassStream <-chan string) (string, error) {
 	o.stateMachine.Reset()
 	o.mu.Lock()

@@ -156,7 +156,7 @@ func (d *Dispatcher) callProvider(ctx context.Context, provider *ProviderConfig,
 		Model:       provider.Model,
 		Temperature: temperature,
 		MaxTokens:   maxTokens,
-		// 与同包 GetDefaultConfig 对齐取 3：这里曾是 1，网关一次瞬时 5xx 就直接降级成
+		// 与同包 GetDefaultConfig 对齐取 3：取 1 时网关一次瞬时 5xx 就直接降级成
 		// "抱歉，AI 服务暂时不可用"落到客户脸上（route 无 fallbacks 时无人接手）。
 		MaxRetries:     3,
 		RequestTimeout: route.MaxLatency / 1000,
@@ -246,18 +246,11 @@ func (d *Dispatcher) callProvider(ctx context.Context, provider *ProviderConfig,
 	completionTokens := result.Usage.CompletionTokens
 	totalTokens := result.Usage.TotalTokens
 
-	// total_tokens 缺失时的分层处理。
+	// total_tokens 缺失时的分层处理。部分自建网关/中转只回 prompt+completion、不回 total，
+	// 这时必须信任分列值（total = 分列之和）；全部缺失才按字符数估算兜底——
+	// 否则会把厂商给的真实用量丢掉换成估算值，预付费场景下商户账单与厂商账单对不上。
 	//
-	// 原实现只看 totalTokens<=0 就**把 prompt/completion 一起覆盖成估算值**，
-	// 于是「厂商只回 prompt+completion、不回 total」这种完全合法的报文
-	// （部分自建网关/中转就是这形状）会把厂商给的真实用量丢掉，
-	// 换成按字符数估算的数 —— 而计费是按这些数算的。
-	// 在预付费场景下这意味着按估算扣费，商户账单与厂商账单对不上。
-	//
-	// 三层判据：
-	//  1. total 有 → 直接用（并按分列补齐 total，保持三者自洽）
-	//  2. total 无但分列有 → **信任分列**，total = 分列之和
-	//  3. 全无 → 才是估算兜底
+	// 1. total 有 → 直接用；2. total 无但分列有 → 信任分列；3. 全无 → 估算兜底。
 	if totalTokens <= 0 && (promptTokens > 0 || completionTokens > 0) {
 		totalTokens = promptTokens + completionTokens
 	}
@@ -271,9 +264,8 @@ func (d *Dispatcher) callProvider(ctx context.Context, provider *ProviderConfig,
 	if totalTokens <= 0 {
 		totalTokens = 1 // 兜底：绝不能是 0，否则下面除以它的地方会得到 NaN
 	}
-	// 计价：按输入/输出分别乘各自单价（computeCost），不再是「总价按比例劈两半」。
-	// 这条是需求「输入和输出分别计价」的落地点，也决定了 llm_routing_logs 里
-	// prompt_cost / completion_cost 两列的口径 —— 旧数据是比例拆分，新数据是真值。
+	// 计价：按输入/输出分别乘各自单价（computeCost），非「总价按比例劈两半」。
+	// 这决定了 llm_routing_logs 里 prompt_cost / completion_cost 两列的口径。
 	cost, promptCost, completionCost := computeCost(*provider, promptTokens, completionTokens)
 	tokenSource := InferTokenSource(result.Usage.TotalTokens, result.Content)
 	estimator := ClassifyEstimator(tokenSource)
@@ -308,12 +300,9 @@ func (d *Dispatcher) callProvider(ctx context.Context, provider *ProviderConfig,
 	}
 
 	// 平台垫资 provider：把本次用量回填给上层（落本地明细 + 更新余额镜像）。
-	//
-	// 位置在**成功之后**、react 适配之后：失败调用不计量（厂商没返回内容，
-	// 也没花钱）；而 react 适配不改变 token 数，放在它之后逻辑更直白。
-	//
+	// 位置在成功之后（失败调用不计量）、react 适配之后（其不改变 token 数）。
 	// 这里**不扣费** —— 扣费的权威在平台代理侧（转发时实时扣），本地再扣一次
-	// 就是两本账，重试时会二次扣。详见 service/llm_platform_usage.go 的文件头。
+	// 就是两本账，重试时会二次扣。
 	if provider.IsPlatformProvider() && dispatchResult != nil {
 		if sink := PlatformUsageSink(); sink != nil {
 			tenantID, _ := tenant.FromContext(ctx)
@@ -347,8 +336,7 @@ func (d *Dispatcher) DispatchStructured(ctx context.Context, req DispatchRequest
 
 	jsonStr := extractJSON(result.Content)
 	if jsonStr == "" {
-		// response_format=json_object 只是入参约定，兼容网关可以整段忽略它回散文（实测 sensenova
-		// 对线索判定回了整篇 markdown，导致 lead-mining 27 次调用全判失败、一条线索都没落库）。
+		// response_format=json_object 只是入参约定，兼容网关可以整段忽略它回散文。
 		// 兜底：把"只输出 JSON"补成最后一条消息再打一次，仍取不到才认失败。
 		retryReq := req
 		retryReq.CacheKey = "" // 重试不得复用首轮缓存，否则原样取回同一段散文
@@ -414,12 +402,9 @@ func (d *Dispatcher) GetProviderList() []ProviderConfig {
 	return list
 }
 
-// GetAllProviders 获取所有 provider（GetProviderList 的语义别名）
-//
+// GetAllProviders 获取所有 provider（GetProviderList 的语义别名）。
 // 注意：GetProviderList / GetProvider / GetRoute / RemoveProvider 的实际定义
-// 在 dispatcher_registry.go（保持向后兼容的返回签名）。本文件仅提供
-// GetAllProviders / GetAllRoutes / SetRoute / SetRouteWithAudit / Dispatch /
-// RegisterProvider / CallProviderForTest 等 dispatcher 核心逻辑。
+// 在 dispatcher_registry.go（保持向后兼容的返回签名）。
 func (d *Dispatcher) GetAllProviders() []ProviderConfig {
 	return d.GetProviderList()
 }
@@ -435,17 +420,9 @@ func (d *Dispatcher) GetAllRoutes() []ScenarioRoute {
 	return out
 }
 
-// CallProviderForTest 调 provider 一次（不触发告警/熔断/统计）
-//
-// 用途：LLMRoutingService.TestModel 在管理后台测试 provider 连通性。
-// 关键不变量：
-//   - 不调 AlertProviderFailure/Success
-//   - 不调 LogRoutingDecision
-//   - 不更新 provider.AvgLatencyMs
-//   - 走 callProvider 同一逻辑，但屏蔽所有副作用
-//
-// 实现：通过一个开关字段（isTest）让 callProvider 跳过告警/统计。
-// 本方法在 callProvider 之前注入 isTest，callProvider 检查后跳过副作用。
+// CallProviderForTest 调 provider 一次（用于管理后台测试 provider 连通性），不触发告警/熔断/统计：
+// 不调 AlertProviderFailure/Success、不调 LogRoutingDecision、不更新 provider.AvgLatencyMs；
+// 走 callProvider 同一逻辑（testMode 开关屏蔽副作用）。
 func (d *Dispatcher) CallProviderForTest(ctx context.Context, provider *ProviderConfig, req DispatchRequest, route *ScenarioRoute) (*DispatchResult, error) {
 
 	d.testMode.Store(true)
@@ -556,13 +533,11 @@ func bigramJaccard(a, b string) float64 {
 	return float64(inter) / float64(union)
 }
 
-// MultiModelVote 多模型投票返回最一致答案。
-//
-// v3.1 重构（修复"名为投票实为取质量分"缺陷）：
-//  1. 归一化后计算两两 bigram-Jaccard 相似度
-//  2. 支持数 = 与自身相似度 ≥0.8 的答案数（含自身）
-//  3. 存在严格过半多数派 → 返回该派系中 QualityScore 最高者的原文
-//  4. 无过半多数派 → 回退 QualityScore 最高者（原行为保底）
+// MultiModelVote 多模型投票返回最一致答案：
+// 1. 归一化后计算两两 bigram-Jaccard 相似度；
+// 2. 支持数 = 与自身相似度 ≥阈值 的答案数（含自身）；
+// 3. 存在严格过半多数派 → 返回该派系中 QualityScore 最高者的原文；
+// 4. 无过半多数派 → 回退 QualityScore 最高者。
 func (d *Dispatcher) MultiModelVote(results []*DispatchResult) string {
 	if len(results) == 0 {
 		return ""

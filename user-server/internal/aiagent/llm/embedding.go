@@ -19,7 +19,7 @@ import (
 
 // EmbeddingConfig Embedding 配置
 //
-// 私域部署基线（， 修订）：Embedding 必须在本地推理服务内完成，
+// 私域部署基线：Embedding 必须在本地推理服务内完成，
 // 跑真实 BGE 模型（bge-m3，1024 维），不允许静默走公网 LLM 厂商 API，
 // 也不允许静默降级到哈希伪向量。
 //
@@ -255,7 +255,7 @@ func (s *EmbeddingService) Embed(ctx context.Context, cfg *EmbeddingConfig, text
 	return s.EmbedWithLane(ctx, cfg, texts, EmbeddingLaneOnline)
 }
 
-// EmbedWithSource 带来源标记的向量化（D16）：返回本批向量来源（"tei"/"hash"）。
+// EmbedWithSource 带来源标记的向量化：返回本批向量来源（"tei"/"hash"）。
 // 批内同源：AllowFallback=true 整批走 fallback；false 整批走 provider（失败即返错，无批内静默降级）。
 // 仅新调用方使用；旧 Embed 语义不变。
 func (s *EmbeddingService) EmbedWithSource(ctx context.Context, cfg *EmbeddingConfig, texts []string) ([][]float32, string, error) {
@@ -270,13 +270,13 @@ func (s *EmbeddingService) EmbedWithSource(ctx context.Context, cfg *EmbeddingCo
 	return vecs, EmbedSourceTEI, err
 }
 
-// 向量来源常量（D16）
+// 向量来源常量
 const (
 	EmbedSourceTEI  = "tei"
 	EmbedSourceHash = "hash"
 )
 
-// EmbedWithLane 按指定车道向量化（N-1：批量入库传 EmbeddingLaneBatch 为在线检索让路）。
+// EmbedWithLane 按指定车道向量化（批量入库传 EmbeddingLaneBatch 为在线检索让路）。
 func (s *EmbeddingService) EmbedWithLane(ctx context.Context, cfg *EmbeddingConfig, texts []string, lane EmbeddingLane) ([][]float32, error) {
 	if len(texts) == 0 {
 		return [][]float32{}, nil
@@ -355,8 +355,8 @@ func (s *EmbeddingService) callProviderWithRetry(ctx context.Context, cfg *Embed
 			}
 			lastErr = err
 			// "连不上"和"连上了但失败"是两类故障：前者（端口无人监听/域名不存在）在
-			// 一次请求的生命周期内不会自愈，退避重试只会把一次检索拖成 30s（实测把
-			// bridge 的 AI 回复从秒级推到 60–260s）；后者（5xx/超时/限流）才值得退避。
+			// 一次请求的生命周期内不会自愈，退避重试只会把一次检索拖成 30s；
+			// 后者（5xx/超时/限流）才值得退避。
 			if isUnreachable(err) {
 				if ci < len(candidates)-1 {
 					logger.Warnf("[Embedding] %s 拒绝连接，立即改试候选 BaseURL: %v", baseURL, err)

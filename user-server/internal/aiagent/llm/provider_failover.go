@@ -25,18 +25,11 @@ const (
 	ProviderStatusDegraded ProviderStatus = "degraded"
 )
 
-// 熔断器默认参数
-//
-// 这四个值同时是「参数中心」的兜底：运维在 config_params 的 agent_llm 组改了
-// default_health_check_interval / default_failure_threshold /
-// default_circuit_open_duration / default_health_check_timeout 之后，
-// 由 internal/app 的装配层经下面四个 SetXxxProvider 注入，实际生效点走
-// HealthCheckInterval() / FailureThreshold() / CircuitOpenDuration() /
-// HealthCheckTimeout()，而不是直接读常量。
-//
-// 分层口径：降级策略整体住在参数中心的 agent_llm 组——单条旋钮（default_*）给全局默认，
-// 整份 JSON（provider_failover_policy）是**按部署的覆盖**，JSON 里 >0/非空的字段优先，
-// 缺省才回落到下面的常量。
+// 熔断器默认参数，同时是「参数中心」的兜底：运维在 config_params 的 agent_llm 组改
+// default_* 值后由 internal/app 装配层经 SetXxxProvider 注入，实际生效点走
+// HealthCheckInterval() / FailureThreshold() / CircuitOpenDuration() / HealthCheckTimeout()。
+// 分层口径：单条旋钮（default_*）给全局默认，整份 JSON（provider_failover_policy）是
+// 按部署的覆盖，JSON 里 >0/非空的字段优先，缺省才回落到下面的常量。
 const (
 	DefaultHealthCheckInterval = 30 * time.Second
 	DefaultFailureThreshold    = 5
@@ -74,9 +67,6 @@ func SetHealthCheckTimeoutProvider(fn func() time.Duration) {
 
 // SetFailoverPolicyProvider 注入降级策略 JSON 的读取口（参数中心 agent_llm.provider_failover_policy）。
 // 传 nil 视为不注入，LoadPolicy 回落到 DefaultFailoverPolicy。
-//
-// 迁走的是原先对 system_kv_config 的裸 SQL 直查（D12 配置层统一）：那张表既没有缓存也没有
-// 管理端写路径，改一次策略要手工写 SQL，且健康检查循环每个 tick 都打一次 DB。
 func SetFailoverPolicyProvider(fn func(context.Context) string) {
 	failoverPolicyProvider = fn
 }

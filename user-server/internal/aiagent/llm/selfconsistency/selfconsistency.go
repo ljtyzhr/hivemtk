@@ -1,22 +1,7 @@
-// Package selfconsistency 实现 Self-Consistency 多采样投票
-//
-// 学术依据：
-//   - Wang, X. et al. (2022). "Self-Consistency Improves Chain of Thought Reasoning in Language Models".
-//   - 业界：CoT 推理任务的事实标准增强（GSM8K 17.9% → 78.9%）
-//
-// 原理：
-//   - 同一 prompt 采样 N 次（不同 temperature）
-//   - 多数投票（majority vote）选最一致答案
-//   - 业界 N 默认 5-10（成本 / 收益 trade-off）
-//
-// 适用：
-//   - 推理 / 数学 / 事实性问题（答案可枚举）
-//   - 不可用于开放式生成（每个答案都不一样）
-//
-// 业界集成模式：
-//   - LLM Router + Self-Consistency（router 选择不同 provider 投票）
-//   - 同 provider + 不同 temperature（控制方差）
-//   - 同 provider + 不同 seed（random）
+// Package selfconsistency 实现 Self-Consistency 多采样投票：同一 prompt 采样 N 次
+// （不同 temperature），多数投票选最一致答案。适用于推理 / 数学 / 事实性等答案可
+// 枚举的问题，不可用于开放式生成。业界集成模式：Router 选不同 provider 投票，或
+// 同 provider + 不同 temperature（控制方差）/ 不同 seed（random）。
 package selfconsistency
 
 import (
@@ -42,9 +27,7 @@ type SelfConsistency[T any] struct {
 	samples int
 }
 
-// NewSelfConsistency 构造投票器
-//
-// samples <= 0 默认 5（业界推荐）
+// NewSelfConsistency 构造投票器；samples <= 0 默认 5（业界推荐）。
 func NewSelfConsistency[T any](samples int) *SelfConsistency[T] {
 	if samples <= 0 {
 		samples = 5
@@ -69,18 +52,8 @@ type VoteCount[T any] struct {
 	Sample T
 }
 
-// Run 并发采样 N 次 + 投票
-//
-// 流程：
-//  1. 并发 N 次 Sample
-//  2. Key 提取用于投票
-//  3. 多数票胜出
-//  4. 返回 Winner + Confidence
-//
-// 设计：
-//   - 并发采样：N 个 goroutine 同步执行（总时间 ≈ 1 次采样时间）
-//   - 错误处理：单个失败不阻断整体，err 返回到 result 字段
-//   - 平票：取最先出现的 key
+// Run 并发采样 N 次 + 投票：并发 N 个 Sample（总时间 ≈ 1 次采样），Key 提取等价答案，
+// 多数票胜出。单个采样失败不阻断整体；平票取最先出现的 key。
 func (sc *SelfConsistency[T]) Run(ctx context.Context, sampler Sampler[T], voter Voter[T]) (VoteResult[T], error) {
 	if sampler == nil {
 		return VoteResult[T]{}, ErrNilSampler

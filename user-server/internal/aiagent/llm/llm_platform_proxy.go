@@ -18,7 +18,7 @@ import (
 //   自带 Key：user-server ──────────────→ 厂商（Key 由商户自己保管）
 //   平台垫资：user-server → 平台代理 ──→ 厂商（Key 只在平台侧）
 //
-// 平台不下发真实 Key（plan.md ADR-M7）：下发等于把垫资凭据交出去，
+// 平台不下发真实 Key：下发等于把垫资凭据交出去，
 // 商户可以直连厂商无限量用，平台既无法计量也无法止损。
 //
 // 扣费的**权威在平台侧**：代理转发时按「输入 token × 输入单价 +
@@ -123,10 +123,8 @@ var ErrInsufficientLLMBalance = errors.New("平台模型余额不足，请购买
 func IsBalanceInsufficient(err error) bool { return errors.Is(err, ErrInsufficientLLMBalance) }
 
 // traceContextTraceID 从 ctx 取 trace_id（计量幂等键的一半）。
-//
-// 放在这里而不是让 dispatcher 传进来：dispatcher 里那段取 trace 的代码在
-// config 构造**之后**，而 config 构造就需要 trace_id。抽一个小函数在两处共用，
-// 比把 dispatcher 里那几行整体前移更安全 —— 前移会改变 reactMode 分支的位置。
+// 放在这里而不是让 dispatcher 传进来：dispatcher 里取 trace 的代码在
+// config 构造**之后**，而 config 构造就需要 trace_id。
 func traceContextTraceID(ctx context.Context) string {
 	if c := tracing.CarrierFromContext(ctx); c != nil && c.TraceID != "" {
 		return c.TraceID

@@ -8,9 +8,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// ToolProvider 工具集提供者接口
-//
-// 一个 Provider 对应一类工具集（如 5 个内置：reach/pm/customer/knowledge/business）
+// ToolProvider 工具集提供者接口：一个 Provider 对应一类工具集
+// （内置 5 个：reach/pm/customer/knowledge/business）。
 type ToolProvider interface {
 	Name() string
 
@@ -21,18 +20,15 @@ type ToolProvider interface {
 	Provide(ctx ProviderContext) ([]Tool, error)
 }
 
-// ProviderContext 提供者上下文（依赖注入容器）
-//
-// 通过此结构向 Provider 注入运行时依赖，避免 Provider 直接访问全局状态
+// ProviderContext 提供者上下文（依赖注入容器）：
+// 通过此结构向 Provider 注入运行时依赖，避免 Provider 直接访问全局状态。
 type ProviderContext struct {
 	DB *gorm.DB
 
 	Config ProviderConfig
 }
 
-// ProviderConfig 提供者配置
-//
-// 支持配置驱动的启停与工具级禁用
+// ProviderConfig 提供者配置：支持配置驱动的启停与工具级禁用。
 type ProviderConfig struct {
 	Enabled bool
 
@@ -41,9 +37,8 @@ type ProviderConfig struct {
 	Custom map[string]any
 }
 
-// ProviderRegistrationResult 单个 Provider 的注册结果
-//
-// 由 ProviderRegistry.RegisterAll 返回，用于日志、监控和 /api/agent/tools/providers 接口
+// ProviderRegistrationResult 单个 Provider 的注册结果，
+// 由 ProviderRegistry.RegisterAll 返回，用于日志、监控和 /api/agent/tools/providers 接口。
 type ProviderRegistrationResult struct {
 	ProviderName    string        `json:"provider_name"`
 	Category        ToolCategory  `json:"category"`
@@ -63,10 +58,7 @@ var ErrProviderAlreadyExists = fmt.Errorf("tool provider already exists")
 // ErrProviderNotFound Provider 不存在错误
 var ErrProviderNotFound = fmt.Errorf("tool provider not found")
 
-// ProviderRegistry 提供者注册中心
-//
-// 管理 ToolProvider 的注册、注销、批量装配
-// 线程安全（sync.RWMutex 保护）
+// ProviderRegistry 提供者注册中心：管理 ToolProvider 的注册、注销、批量装配，线程安全。
 type ProviderRegistry struct {
 	providers map[string]ToolProvider
 	order     []string
@@ -108,10 +100,8 @@ func (r *ProviderRegistry) MustRegisterProvider(p ToolProvider) {
 	}
 }
 
-// UnregisterProvider 注销一个 Provider
-//
-// 注意：此操作不会从 ToolRegistry 中删除已注册的工具
-// 若需同步删除工具，请在调用方手动处理
+// UnregisterProvider 注销一个 Provider。
+// 注意：此操作不会从 ToolRegistry 中删除已注册的工具，若需同步删除工具请调用方手动处理。
 func (r *ProviderRegistry) UnregisterProvider(name string) error {
 	r.mu.Lock()
 	defer r.mu.Unlock()
@@ -167,19 +157,11 @@ func (r *ProviderRegistry) Count() int {
 	return len(r.providers)
 }
 
-// RegisterAll 批量装配所有 Provider 到 ToolRegistry
-//
-// 流程：
-//  1. 按注册顺序遍历 Provider
-//  2. 检查 ctx.Config.Enabled（默认 true）
-//  3. 调用 Provider.Provide(ctx) 获取 []Tool
-//  4. 跳过 DisabledTools 命中的工具
-//  5. 调用 toolRegistry.Register(t) 注册
-//  6. 记录 ProviderRegistrationResult
-//
-// 返回：
-//   - []ProviderRegistrationResult：每个 Provider 的注册结果
-//   - error：整体装配过程中是否发生致命错误（单个 Provider 失败不会中断）
+// RegisterAll 批量装配所有 Provider 到 ToolRegistry：
+// 按注册顺序遍历 Provider，检查 ctx.Config.Enabled（默认 true），
+// 调用 Provide 获取 []Tool，跳过 DisabledTools 命中的工具后注册，
+// 并记录每个 Provider 的 ProviderRegistrationResult。
+// 单个 Provider 失败不会中断整体装配；仅当全部失败或跳过时才返回 error。
 func (r *ProviderRegistry) RegisterAll(ctx ProviderContext, toolRegistry *ToolRegistry) ([]ProviderRegistrationResult, error) {
 	if toolRegistry == nil {
 		return nil, fmt.Errorf("tool registry is nil")
@@ -266,9 +248,7 @@ func (r *ProviderRegistry) RegisterAll(ctx ProviderContext, toolRegistry *ToolRe
 	return results, nil
 }
 
-// Results 返回最近一次 RegisterAll 的结果
-//
-// 用于 /api/agent/tools/providers 接口展示
+// Results 返回最近一次 RegisterAll 的结果（用于 /api/agent/tools/providers 接口展示）。
 func (r *ProviderRegistry) Results() []ProviderRegistrationResult {
 	r.mu.RLock()
 	defer r.mu.RUnlock()

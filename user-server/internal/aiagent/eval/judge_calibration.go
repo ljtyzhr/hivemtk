@@ -1,8 +1,8 @@
-// Package eval LLM Judge 锚点校准（D18）。
+// Package eval LLM Judge 锚点校准。
 //
-// 业界契约（REFINEMENT §7.6）：judge 上岗前须与人工标注对拍——
+// 业界契约：judge 上岗前须与人工标注对拍——
 //   - Cohen's Kappa ≥ 0.6（Landis-Koch substantial），
-//   - precision/recall 分开报（Eugene Yan：80% raw agreement 可能仅 κ=0.62）。
+//   - precision/recall 分开报（80% raw agreement 可能仅 κ=0.62）。
 //
 // 校准流程：人工标注 gold labels（pass/fail 二值，优于 1-10 打分）→
 // judge 对同批样本给分 → 本文件计算一致性 → κ<0.6 不上岗。

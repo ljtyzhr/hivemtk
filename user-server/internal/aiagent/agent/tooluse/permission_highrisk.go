@@ -10,14 +10,11 @@ import (
 
 // HighRiskToolNames 高危工具清单（按类别归类）。
 //
-// 与 WhitelistPermissionChecker 配合：Whitelist 决定"是否能调用"，本文件
-// 提供的 HighRiskCheckers 决定"是否能无约束调用"。两者叠加形成纵深防御。
-//
-// 当前覆盖三个最高危类别：
-//   - 邮件发送类（reach.email.*）：触达即付费/反垃圾邮件法规风险
-//   - 知识库写类（knowledge.add_doc/feedback）：污染 RAG 数据
-//   - 熔断器重置类（system.circuit_breaker.reset）：错误状态机自愈
-//
+// 与 WhitelistPermissionChecker 配合：Whitelist 决定"是否能调用"，
+// 本文件提供的 HighRiskCheckers 决定"是否能无约束调用"，两者叠加形成纵深防御。
+// 当前覆盖三个最高危类别：邮件发送类（reach.email.*，触达即付费/反垃圾邮件法规风险）、
+// 知识库写类（knowledge.add_doc/feedback，污染 RAG 数据）、
+// 熔断器重置类（system.circuit_breaker.reset，错误状态机自愈）。
 // 高危工具后续扩展时，只需追加常量并在该类别对应 checker 的 Check 里加分支。
 const (
 	ToolEmailSend           = "reach.email.send"
@@ -38,10 +35,8 @@ type HighRiskPermissionChecker interface {
 }
 
 // CompositeHighRiskChecker 多高危 checker 组合（fail-closed：任一拒绝即拒绝）。
-//
-// 用法：构造一个包含多个 HighRiskPermissionChecker 的 Composite，
-// 注入到 WhitelistPermissionChecker 的 globalWhitelist 后即可生效。
-// 当前未在主流程启用，仅作为示例展示"如何叠加多个独立检查器"。
+// 注入到 WhitelistPermissionChecker 的 globalWhitelist 后即可生效；
+// 当前未在主流程启用，仅作为叠加多个独立检查器的示例。
 type CompositeHighRiskChecker struct {
 	mu       sync.RWMutex
 	checkers []HighRiskPermissionChecker
@@ -83,10 +78,8 @@ func (c *CompositeHighRiskChecker) Check(ctx context.Context, toolName string, t
 // Name 标识自身。
 func (c *CompositeHighRiskChecker) Name() string { return "composite_high_risk" }
 
-// EmailSendRateChecker 邮件发送限流示例（每小时最多 N 封）。
-//
+// EmailSendRateChecker 邮件发送限流示例（每小时最多 N 封，按 agentID 计数）。
 // 仅作为示例 checker 模板；生产实现应接入真实限流器（Redis token bucket）。
-// 单元测试可通过 atomic 操作验证逻辑分支，不依赖外部存储。
 type EmailSendRateChecker struct {
 	mu         sync.Mutex
 	maxPerHour int
@@ -138,11 +131,9 @@ func (c *EmailSendRateChecker) Check(ctx context.Context, toolName string, tc *T
 }
 
 // KnowledgeWritePermissionChecker 知识库写入授权示例。
-//
-// 规则：仅允许显式带 "knowledge.write" 权限的 caller 写入；
-// 否则拒绝（与 WhitelistPermissionChecker 的 agent 白名单叠加生效）。
-//
-// 注意：本 checker 故意对读类工具（knowledge.list_kb / rag.search）放行。
+// 规则：仅允许显式带 "knowledge.write" 权限的 caller 写入，否则拒绝
+// （与 WhitelistPermissionChecker 的 agent 白名单叠加生效）；
+// 本 checker 故意对读类工具（knowledge.list_kb / rag.search）放行。
 type KnowledgeWritePermissionChecker struct{}
 
 // Name 标识自身。
@@ -168,12 +159,9 @@ func (c *KnowledgeWritePermissionChecker) Check(ctx context.Context, toolName st
 }
 
 // CircuitBreakerResetGuardChecker 熔断器重置二次确认示例。
-//
-// 规则：仅 admin 角色可重置；其他用户拒绝（fail-closed）。
-//
-// 实现要点：从 ToolContext.CallerID 读取用户身份（与现有 audit 系统对齐），
-// 角色判定建议通过 caller → user service 查 role；本示例为不引入依赖，
-// 直接读 ToolContext.AuditTrace 字段并约定前缀 "admin:" 表示 admin。
+// 规则：仅 admin 权限可重置，其他用户拒绝（fail-closed）。
+// 身份从 ToolContext 读取；生产中角色判定建议经 caller → user service 查 role，
+// 本示例为不引入依赖，约定 Permissions 含 "admin" 即为 admin。
 type CircuitBreakerResetGuardChecker struct{}
 
 // Name 标识自身。

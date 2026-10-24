@@ -484,9 +484,7 @@ func NewReachCardSendTool(deps ReachToolDeps) *ReachCardSendTool {
 					"channel": {
 						Type:        "string",
 						Description: "目标渠道",
-						// 只有这五个渠道有卡片模板表。此前枚举里的 wecom/weixin 恒失败
-						// （企微/公众号没有"卡片模板"这一层），而 xiaohongshu/tiktok/xianyu
-						// 明明可发却没进枚举——模型只能按枚举挑，等于关掉了三条能力。
+						// 仅这五个渠道有卡片模板表；企微/公众号没有"卡片模板"这一层。
 						Enum: []string{"douyin", "kuaishou", "xiaohongshu", "tiktok", "xianyu"},
 					},
 					"account_id":       {Type: "string", Description: "发送账号 ID"},

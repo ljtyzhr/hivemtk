@@ -9,9 +9,7 @@ import (
 	"hivemtk-user/internal/model"
 )
 
-// PrivateMessageToolDeps 私信工具依赖
-//
-// 所有方法统一走 portcontract.SessionPort。
+// PrivateMessageToolDeps 私信工具依赖：所有方法统一走 portcontract.SessionPort。
 type PrivateMessageToolDeps struct {
 	Session portcontract.SessionPort
 }
@@ -26,10 +24,8 @@ func NewPrivateMessageToolDepsWithPort(session portcontract.SessionPort) Private
 	return PrivateMessageToolDeps{Session: session}
 }
 
-// BuildPrivateMessageTools 构造全部 3 个私信工具（不注册到 Registry）
-//
+// BuildPrivateMessageTools 构造全部 3 个私信工具（不注册到 Registry，调用方 PrivateMessageToolProvider.Provide()）。
 // deps.Session 为 nil 时工具以 "port not injected" 应答（fail-closed）。
-// 调用方：PrivateMessageToolProvider.Provide()
 func BuildPrivateMessageTools(deps PrivateMessageToolDeps) []Tool {
 	port := deps.Session
 	return []Tool{

@@ -107,10 +107,9 @@ func BuildChainWithCircuitBreaker(
 		CircuitBreakerDecorator(circuitBreaker), policy, timeout, logger, costTracker)
 }
 
-// BuildChainWithBreakerDecorator 用调用方自备的熔断装饰器建链。
-//
-// 存在的理由：熔断有生效/观察两种形态（见 CircuitBreakerShadowDecorator），
-// 只传 *CircuitBreakerRegistry 无法表达这一选择。breaker 为 nil 时等价 BuildDefaultChain。
+// BuildChainWithBreakerDecorator 用调用方自备的熔断装饰器建链：
+// 熔断有生效/观察两种形态（见 CircuitBreakerShadowDecorator），只传 *CircuitBreakerRegistry
+// 无法表达这一选择；breaker 为 nil 时等价 BuildDefaultChain。
 func BuildChainWithBreakerDecorator(
 	handler ToolHandler,
 	checker PermissionChecker,
@@ -201,9 +200,8 @@ func (p *ExponentialBackoffPolicy) MaxAttempts() int {
 	return p.MaxAttemptsValue
 }
 
-// NextBackoff 下一次重试延迟
-// attempt 从 1 开始（第 1 次重试的延迟）
-// delay = baseDelay * 2^(attempt-1)，最大不超过 maxDelay
+// NextBackoff 下一次重试延迟；attempt 从 1 开始，
+// delay = baseDelay * 2^(attempt-1)，最大不超过 maxDelay。
 func (p *ExponentialBackoffPolicy) NextBackoff(attempt int, lastErr error) (time.Duration, bool) {
 	if attempt < 1 {
 		return 0, false
@@ -314,8 +312,8 @@ func (t *MemoryCostTracker) Reset() {
 // RetriableError 判断函数类型
 type RetriableError func(error) bool
 
-// WithRetriable 为 ExponentialBackoffPolicy 增加自定义可重试错误判断
-// 返回一个新的 policy，当 err 不是 retryable 时不再重试
+// WithRetriable 为 ExponentialBackoffPolicy 增加自定义可重试错误判断，
+// 返回一个新的 policy，当 err 不是 retryable 时不再重试。
 func (p *ExponentialBackoffPolicy) WithRetriable(fn RetriableError) RetryPolicy {
 	return &retriablePolicy{inner: p, retriable: fn}
 }

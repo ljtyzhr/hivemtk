@@ -41,10 +41,9 @@ func (d *Dispatcher) LoadProvidersFromDB() error {
 	// 启动期读路径：无租户 ctx，system scope 豁免（详见 systemScopeCtx 注释）
 	sysCtx := systemScopeCtx()
 	var rows []model.LLMProvider
-	// 只装默认租户（tenant_id = 1）：
-	// dispatcher 全局单键 map（AddProvider/路由按 Name 索引），仅装默认租户；
-	// 多租户需按租户分 map，本过滤是防跨租户 Key 泄漏的下限。
-	// TENANT_MODE=off 时数据本就全部归属默认租户，行为不变（callback 直通不受影响）。
+	// 只装默认租户（tenant_id = 1）：dispatcher 全局单键 map（AddProvider/路由按 Name 索引），
+	// 多租户需按租户分 map，本过滤是防跨租户 Key 泄漏的下限；
+	// TENANT_MODE=off 时数据本就全部归属默认租户，行为不变。
 	if err := g.WithContext(sysCtx).Where("tenant_id = ?", tenant.DefaultTenantID).
 		Order("sort_order ASC, id ASC").Find(&rows).Error; err != nil {
 		return err
@@ -81,23 +80,13 @@ func (d *Dispatcher) LoadProvidersFromDB() error {
 // 直接镜像内存态 pc（含 APIKey）：与 dispatcher 内存保持一致。
 // 清空密钥由调用方通过 APIKeyClearSentinel 解析后传 "" 实现。
 //
-// ============================================================
-// 写库必须走 system scope + 显式 tenant_id（两个都缺一不可）
-//
-//  1. **system scope**：llm_providers 有 tenant_id 列 ⇒ 被 tenancyidx 自动
-//     登记为租户表（登记按 information_schema 内省，不是硬编码清单）。
-//     TENANT_MODE=on 时，隔离 callback 对「ctx 未绑租户」的写是 fail-closed 的
-//     （tenancyidx.tenantGuardFail），报错原文：
-//     [tenant] 表 llm_providers 需要租户上下文但 ctx 未绑定（query）
-//     本函数是**平台级装配写库**（dispatcher 的 provider 注册表是全局单键 map，
-//     按 Name 索引，本就不分租户），与同文件读路径
-//     （LoadProvidersFromDB → g.WithContext(systemScopeCtx())）同一口径。
-//     隔离本身**不放宽**：带请求 ctx 的 HTTP 路径仍然 fail-closed。
-//
-//  2. **显式 tenant_id**：Save 一个 TenantID 零值的结构体时，GORM 的
-//     ConvertToAssignments 仍会写 tenant_id 列，值 0 把行**移出本租户**
-//     （D2 缺陷，见 .specify/bugs/saas-tenant-isolation-audit/）。
-//     显式写 DefaultTenantID 才既不串租户、也不依赖列默认值。
+// 写库必须走 system scope + 显式 tenant_id（两个都缺一不可）：
+//  1. **system scope**：llm_providers 有 tenant_id 列，TENANT_MODE=on 时隔离 callback
+//     对「ctx 未绑租户」的写是 fail-closed 的。本函数是平台级装配写库（provider 注册表
+//     是全局单键 map，按 Name 索引，本就不分租户），与读路径同一口径；
+//     隔离本身不放宽，带请求 ctx 的 HTTP 路径仍然 fail-closed。
+//  2. **显式 tenant_id**：Save 一个 TenantID 零值的结构体时 GORM 仍会写 tenant_id 列，
+//     值 0 会把行移出本租户；显式写 DefaultTenantID 才既不串租户、也不依赖列默认值。
 func (d *Dispatcher) UpsertProviderToDB(pc ProviderConfig) error {
 	g := providerDB()
 	if g == nil {

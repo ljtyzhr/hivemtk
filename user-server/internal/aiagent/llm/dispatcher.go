@@ -40,13 +40,9 @@ type ProviderConfig struct {
 	BaseURL string `json:"base_url"`
 	APIType string `json:"api_type"`
 	Model   string `json:"model"`
-	// CostPer1k 单一单价（元 / 1k token，**不分输入输出**）。
-	//
-	// 这是 2026-10 之前的口径：一次调用的总价 = totalTokens/1000 × CostPer1k，
-	// 再由 splitCost 按 token 比例劈成"输入部分/输出部分"。那不是分别计价 ——
-	// 它数学上等价于输入输出同价，无法表达"输出单价是输入的 4 倍"这个事实。
-	//
-	// 保留它是为了**兼容**：只填了 CostPer1k 的 provider 仍按老口径计算，
+	// CostPer1k 单一单价（元 / 1k token，**不分输入输出**），为兼容旧口径保留：
+	// 一次调用总价 = totalTokens/1000 × CostPer1k，再按 token 比例劈成输入/输出部分，
+	// 数学上等价于输入输出同价。只填 CostPer1k 的 provider 仍按此口径计算，
 	// 见 EffectiveInputCostPer1k / EffectiveOutputCostPer1k。
 	CostPer1k float64 `json:"cost_per_1k"`
 	// CostPer1kInput / CostPer1kOutput 分别计价单价（元 / 1k token）。
@@ -138,12 +134,10 @@ func (d *Dispatcher) SetRoute(r ScenarioRoute) ScenarioRoute {
 }
 
 func (d *Dispatcher) Dispatch(ctx context.Context, req DispatchRequest) (*DispatchResult, error) {
-	// 空接收者保护：*Dispatcher 为 nil 时，下面 d.mu.RLock() 会空指针 panic。
-	//
-	// 为什么必须在这里兜底：本类型的指针常被塞进接口（例如 trace_learning.InsightLLM）。
-	// Go 里「值为 nil 的具名指针」装进接口后，接口本身**非 nil**，
-	// 于是调用方惯用的 `if iface == nil` 判断会失效（typed-nil 陷阱），
-	// 最终把空指针一路带到方法体内炸掉。在方法入口兜底可一次性覆盖全部调用点。
+	// 空接收者保护：本类型指针常被塞进接口（例如 trace_learning.InsightLLM），
+	// Go 里「值为 nil 的具名指针」装进接口后接口本身**非 nil**（typed-nil 陷阱），
+	// 调用方惯用的 `if iface == nil` 判断失效，会把空指针一路带到方法体内炸掉。
+	// 在方法入口兜底可一次性覆盖全部调用点。
 	if d == nil {
 		return nil, errors.New("llm dispatcher is nil")
 	}
@@ -233,12 +227,9 @@ func (d *Dispatcher) Dispatch(ctx context.Context, req DispatchRequest) (*Dispat
 			logger.Infof("[LLM] candidate skip scenario=%s provider=%q reason=disabled", req.Scenario, providerName)
 			continue
 		}
-		// 平台垫资 provider 在「平台未配置」时直接跳过候选，让调度走 fallback。
-		//
-		// 不这么做的后果：平台地址没配（离线部署、或平台改域名）时，
-		// 这些 provider 仍然 Enabled，会被选中，然后每次派发都发一次
-		// 注定失败的请求 —— 用户看到的是"AI 一直报错"，
-		// 而真实原因是平台没连上。自带 Key 的 provider 不受任何影响。
+		// 平台垫资 provider 在「平台未配置」时直接跳过候选，让调度走 fallback：
+		// 否则平台地址没配（离线部署、或平台改域名）时这些 provider 仍 Enabled，
+		// 每次派发都发一次注定失败的请求，用户看到"AI 一直报错"而真实原因是平台没连上。
 		if provider.IsPlatformProvider() && !IsPlatformProxyConfigured() {
 			logger.Infof("[LLM] candidate skip scenario=%s provider=%q reason=platform_not_configured",
 				req.Scenario, providerName)
@@ -531,8 +522,8 @@ func (d *Dispatcher) dispatchFanOut(ctx context.Context, req DispatchRequest, ro
 		timeout = req.FanOut.Timeout
 	}
 
-	// 准入校验排在并发发起**之前**：原先非法 strategy 要先把两路真请求打完（花钱、吃限流额度、
-	// 等 timeout），结果全部丢掉再报 "not implemented"。
+	// 准入校验排在并发发起**之前**：否则非法 strategy 要先把两路真请求打完
+	// （花钱、吃限流额度、等 timeout），结果全部丢掉再报 "not implemented"。
 	if !fanOutStrategyImplemented(strategy) {
 		return nil, fmt.Errorf("fan-out strategy %q 不支持（已实现：%s）", strategy, strings.Join(fanOutStrategies, "、"))
 	}
@@ -614,8 +605,8 @@ func (d *Dispatcher) dispatchFanOut(ctx context.Context, req DispatchRequest, ro
 		}
 		return results[0], nil
 	default:
-		// 正常走不到：上面的准入校验用同一份名单先挡过。留着是为了「往 fanOutStrategies
-		// 里加了新名字却忘了实现分支」时报错，而不是静默按 vote 执行。
+	// 正常走不到：上面的准入校验用同一份名单先挡过。留着是为了「往 fanOutStrategies
+	// 里加了新名字却忘了实现分支」时报错，而不是静默按 vote 执行。
 		return nil, fmt.Errorf("fan-out strategy %q 在名单内但未实现分派分支", strategy)
 	}
 }
@@ -666,10 +657,8 @@ func (d *Dispatcher) HasHealthyProvider(scenario DispatchScenario) bool {
 	return false
 }
 
-// ProviderSource 取 provider 来源；空值按 self（商户自带 Key）处理。
-//
-// 判空取 self 而不是 platform 的理由：漏填 Source 的 provider 绝大多数是
-// 用户自己在后台加的，让它落到 platform 会凭空产生一笔"欠平台的账"。
+// ProviderSource 取 provider 来源；空值按 self（商户自带 Key）处理：
+// 漏填 Source 的 provider 绝大多数是用户自己在后台加的，落到 platform 会凭空产生"欠平台的账"。
 func (p ProviderConfig) ProviderSource() string {
 	if p.Source == "" {
 		return "self"
@@ -699,9 +688,7 @@ func (p ProviderConfig) EffectiveOutputCostPer1k() float64 {
 }
 
 // HasSeparatePricing 是否配置了输入/输出分列单价。
-//
-// 判据是"两个单价是否不同"，不是"是否都填了"：填了两个相同的值在效果上
-// 与只填单一单价等价，报表上也不该把它算成"已启用分别计价"。
+// 判据是"两个单价是否不同"而非"是否都填了"：填了两个相同的值效果上与只填单一单价等价。
 func (p ProviderConfig) HasSeparatePricing() bool {
 	return p.CostPer1kInput > 0 && p.CostPer1kOutput > 0 &&
 		p.EffectiveInputCostPer1k() != p.EffectiveOutputCostPer1k()

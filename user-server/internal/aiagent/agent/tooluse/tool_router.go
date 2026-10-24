@@ -92,14 +92,7 @@ type RouteResult struct {
 	Cost        float64
 }
 
-// Route 路由并执行
-//
-// 流程：
-//  1. 检查熔断
-//  2. 检查限流
-//  3. 执行工具
-//  4. 记录成本 + 更新熔断计数
-//  5. 返回结果
+// Route 路由并执行：检查熔断 → 检查限流 → 执行工具 → 记录成本 + 更新熔断计数 → 返回结果。
 func (r *ToolRouter) Route(ctx context.Context, toolName string, args map[string]any, tc *ToolContext) RouteResult {
 	if r.executor == nil {
 		return RouteResult{Err: errors.New("executor not set")}
@@ -256,11 +249,10 @@ func defaultKeyBuilder(toolName string, tc *ToolContext) string {
 // ErrRouterUnavailable 路由不可用
 var ErrRouterUnavailable = errors.New("tool router unavailable")
 
-// DefaultRouterFailThreshold ToolRouter 内置熔断（失败即切同类工具）的连续失败
-// 次数兜底值。
+// DefaultRouterFailThreshold ToolRouter 内置熔断（失败即切同类工具）的连续失败次数兜底值。
 const DefaultRouterFailThreshold = 5
 
-// DefaultRouterCooldownDuration 上面那个熔断的冷却期兜底值。
+// DefaultRouterCooldownDuration 上述熔断的冷却期兜底值。
 const DefaultRouterCooldownDuration = 30 * time.Second
 
 var (

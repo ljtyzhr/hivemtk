@@ -40,10 +40,8 @@ type LLMConfig struct {
 	// Source provider 来源："" / "self" = 商户自带 Key（直连厂商）；
 	// "platform" = 平台垫资（**不直连**，改走平台代理）。
 	//
-	// 为什么在这里分而不是在 dispatcher 分：dispatcher 只负责选 provider，
-	// 真正发 HTTP 的是 LLMService.callProvider。分在 dispatcher 就得把整条
-	// 报文的构造逻辑复制一份到代理路径上，两份很快会漂移（新增参数时只改一处
-	// 是这类 bug 的标准成因）。
+	// 为什么在这里分而不是在 dispatcher 分：真正发 HTTP 的是 LLMService.callProvider，
+	// 分在 dispatcher 就得把整条报文的构造逻辑复制一份到代理路径上，两份很快会漂移。
 	Source string
 	// ProviderName provider 标识。代理路径用它寻址平台侧的真实 provider
 	ProviderName string
@@ -382,8 +380,7 @@ func (s *LLMService) GenerateWithTools(ctx context.Context, config *LLMConfig, p
 	content := choice.Message.Content
 	if content == "" {
 		// 绝不回退取 reasoning/reasoning_content：那是模型思考过程，不是给客户看的回复。
-		// 曾经回退导致「用户要求简单回复一个字。但根据系统指令…」这类推理文本经 polish 后
-		// 原样投递给真实客户（message_hub id=432）。保持为空，由上游空回复兜底处理。
+		// 回退会导致推理文本经 polish 后原样投递给真实客户。保持为空，由上游空回复兜底处理。
 		if r := choice.Message.ReasoningContent + choice.Message.ReasoningContent2; r != "" {
 			runes := []rune(r)
 			head := runes

@@ -51,7 +51,6 @@ type NoopLogisticsPort struct{}
 // NewNoopLogisticsPort 构造空物流端口
 func NewNoopLogisticsPort() *NoopLogisticsPort { return &NoopLogisticsPort{} }
 
-// Track 空实现
 func (p *NoopLogisticsPort) Track(_ context.Context, req *LogisticsTrackRequest) (*LogisticsTrackResult, error) {
 	return &LogisticsTrackResult{
 		TrackingNo: req.TrackingNo,

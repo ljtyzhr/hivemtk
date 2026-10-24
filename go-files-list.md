@@ -246,16 +246,16 @@
 | 31 | [x] | `cmd/syncscripts/main.go` | 1 | 10 | 1 | 0 |
 | 32 | [x] | `internal/aiagent/agent/lifecycle/active.go` | 18 | 49 | 18 | 0 |
 | 33 | [x] | `internal/aiagent/agent/lifecycle/lifecycle.go` | 10 | 38 | 10 | 0 |
-| 34 | [ ] | `internal/aiagent/agent/portcontract/aftersale.go` | 5 | 9 | 5 | 0 |
-| 35 | [ ] | `internal/aiagent/agent/portcontract/asset_bundle.go` | 9 | 36 | 9 | 0 |
-| 36 | [ ] | `internal/aiagent/agent/portcontract/customer.go` | 4 | 19 | 4 | 0 |
-| 37 | [ ] | `internal/aiagent/agent/portcontract/doc.go` | 1 | 27 | 1 | 0 |
-| 38 | [ ] | `internal/aiagent/agent/portcontract/followup.go` | 2 | 12 | 2 | 0 |
-| 39 | [ ] | `internal/aiagent/agent/portcontract/journey_reach.go` | 3 | 9 | 3 | 0 |
-| 40 | [ ] | `internal/aiagent/agent/portcontract/logistics.go` | 9 | 10 | 9 | 0 |
-| 41 | [ ] | `internal/aiagent/agent/portcontract/order.go` | 2 | 7 | 2 | 0 |
-| 42 | [ ] | `internal/aiagent/agent/portcontract/session.go` | 3 | 11 | 3 | 0 |
-| 43 | [ ] | `internal/aiagent/agent/portcontract/tool_result.go` | 4 | 6 | 4 | 0 |
+| 34 | [x] | `internal/aiagent/agent/portcontract/aftersale.go` | 5 | 9 | 5 | 0 |
+| 35 | [x] | `internal/aiagent/agent/portcontract/asset_bundle.go` | 9 | 36 | 9 | 0 |
+| 36 | [x] | `internal/aiagent/agent/portcontract/customer.go` | 4 | 19 | 4 | 0 |
+| 37 | [x] | `internal/aiagent/agent/portcontract/doc.go` | 1 | 27 | 1 | 0 |
+| 38 | [x] | `internal/aiagent/agent/portcontract/followup.go` | 2 | 12 | 2 | 0 |
+| 39 | [x] | `internal/aiagent/agent/portcontract/journey_reach.go` | 3 | 9 | 3 | 0 |
+| 40 | [x] | `internal/aiagent/agent/portcontract/logistics.go` | 9 | 10 | 9 | 0 |
+| 41 | [x] | `internal/aiagent/agent/portcontract/order.go` | 2 | 7 | 2 | 0 |
+| 42 | [x] | `internal/aiagent/agent/portcontract/session.go` | 3 | 11 | 3 | 0 |
+| 43 | [x] | `internal/aiagent/agent/portcontract/tool_result.go` | 4 | 6 | 4 | 0 |
 | 44 | [x] | `internal/aiagent/agent/runtime/alignment_stage.go` | 7 | 9 | 7 | 0 |
 | 45 | [x] | `internal/aiagent/agent/runtime/asset_bundle_loader.go` | 4 | 13 | 4 | 0 |
 | 46 | [x] | `internal/aiagent/agent/runtime/chat_history_redis.go` | 4 | 26 | 4 | 0 |
@@ -290,55 +290,55 @@
 | 75 | [x] | `internal/aiagent/agent/tooluse/customer_tools.go` | 32 | 62 | 32 | 0 |
 | 76 | [x] | `internal/aiagent/agent/tooluse/db_audit_persister.go` | 39 | 101 | 39 | 0 |
 | 77 | [x] | `internal/aiagent/agent/tooluse/dead_letter.go` | 20 | 58 | 20 | 0 |
-| 78 | [ ] | `internal/aiagent/agent/tooluse/decorator.go` | 18 | 24 | 18 | 0 |
+| 78 | [x] | `internal/aiagent/agent/tooluse/decorator.go` | 18 | 24 | 18 | 0 |
 | 79 | [x] | `internal/aiagent/agent/tooluse/decorator_approval.go` | 10 | 43 | 10 | 0 |
 | 80 | [x] | `internal/aiagent/agent/tooluse/decorator_audit.go` | 7 | 14 | 7 | 0 |
-| 81 | [ ] | `internal/aiagent/agent/tooluse/decorator_dnc.go` | 9 | 22 | 9 | 0 |
+| 81 | [x] | `internal/aiagent/agent/tooluse/decorator_dnc.go` | 9 | 22 | 9 | 0 |
 | 82 | [x] | `internal/aiagent/agent/tooluse/decorator_permission.go` | 0 | 0 | 0 | 0 |
 | 83 | [x] | `internal/aiagent/agent/tooluse/decorator_ratelimit.go` | 0 | 0 | 0 | 0 |
 | 84 | [x] | `internal/aiagent/agent/tooluse/decorator_retry.go` | 0 | 0 | 0 | 0 |
 | 85 | [x] | `internal/aiagent/agent/tooluse/decorator_timeout.go` | 0 | 0 | 0 | 0 |
-| 86 | [ ] | `internal/aiagent/agent/tooluse/discovery.go` | 35 | 35 | 35 | 0 |
-| 87 | [ ] | `internal/aiagent/agent/tooluse/double_intercept.go` | 12 | 21 | 12 | 0 |
+| 86 | [x] | `internal/aiagent/agent/tooluse/discovery.go` | 35 | 35 | 35 | 0 |
+| 87 | [x] | `internal/aiagent/agent/tooluse/double_intercept.go` | 12 | 21 | 12 | 0 |
 | 88 | [x] | `internal/aiagent/agent/tooluse/executor.go` | 44 | 84 | 44 | 0 |
 | 89 | [x] | `internal/aiagent/agent/tooluse/feedback_decorator.go` | 19 | 69 | 19 | 0 |
 | 90 | [x] | `internal/aiagent/agent/tooluse/fingerprint.go` | 0 | 0 | 0 | 0 |
-| 91 | [ ] | `internal/aiagent/agent/tooluse/knowledge_tools.go` | 18 | 20 | 18 | 0 |
-| 92 | [ ] | `internal/aiagent/agent/tooluse/loop_guard.go` | 18 | 44 | 18 | 0 |
-| 93 | [ ] | `internal/aiagent/agent/tooluse/param_validator.go` | 2 | 13 | 2 | 0 |
-| 94 | [ ] | `internal/aiagent/agent/tooluse/permission_highrisk.go` | 17 | 48 | 17 | 0 |
-| 95 | [ ] | `internal/aiagent/agent/tooluse/permission_whitelist.go` | 14 | 39 | 14 | 0 |
-| 96 | [ ] | `internal/aiagent/agent/tooluse/ports.go` | 11 | 11 | 11 | 0 |
-| 97 | [ ] | `internal/aiagent/agent/tooluse/private_message_tools.go` | 3 | 13 | 3 | 0 |
-| 98 | [ ] | `internal/aiagent/agent/tooluse/provider.go` | 17 | 47 | 17 | 0 |
-| 99 | [ ] | `internal/aiagent/agent/tooluse/reach_ports.go` | 9 | 15 | 9 | 0 |
-| 100 | [ ] | `internal/aiagent/agent/tooluse/reach_service_registry.go` | 5 | 10 | 5 | 0 |
-| 101 | [ ] | `internal/aiagent/agent/tooluse/reach_tools.go` | 10 | 12 | 10 | 0 |
+| 91 | [x] | `internal/aiagent/agent/tooluse/knowledge_tools.go` | 18 | 20 | 18 | 0 |
+| 92 | [x] | `internal/aiagent/agent/tooluse/loop_guard.go` | 18 | 44 | 18 | 0 |
+| 93 | [x] | `internal/aiagent/agent/tooluse/param_validator.go` | 2 | 13 | 2 | 0 |
+| 94 | [x] | `internal/aiagent/agent/tooluse/permission_highrisk.go` | 17 | 48 | 17 | 0 |
+| 95 | [x] | `internal/aiagent/agent/tooluse/permission_whitelist.go` | 14 | 39 | 14 | 0 |
+| 96 | [x] | `internal/aiagent/agent/tooluse/ports.go` | 11 | 11 | 11 | 0 |
+| 97 | [x] | `internal/aiagent/agent/tooluse/private_message_tools.go` | 3 | 13 | 3 | 0 |
+| 98 | [x] | `internal/aiagent/agent/tooluse/provider.go` | 17 | 47 | 17 | 0 |
+| 99 | [x] | `internal/aiagent/agent/tooluse/reach_ports.go` | 9 | 15 | 9 | 0 |
+| 100 | [x] | `internal/aiagent/agent/tooluse/reach_service_registry.go` | 5 | 10 | 5 | 0 |
+| 101 | [x] | `internal/aiagent/agent/tooluse/reach_tools.go` | 10 | 12 | 10 | 0 |
 | 102 | [x] | `internal/aiagent/agent/tooluse/reach_tools_email.go` | 0 | 0 | 0 | 0 |
-| 103 | [ ] | `internal/aiagent/agent/tooluse/reach_tools_feishu.go` | 1 | 1 | 1 | 0 |
+| 103 | [x] | `internal/aiagent/agent/tooluse/reach_tools_feishu.go` | 1 | 1 | 1 | 0 |
 | 104 | [x] | `internal/aiagent/agent/tooluse/reach_tools_noop.go` | 0 | 0 | 0 | 0 |
 | 105 | [x] | `internal/aiagent/agent/tooluse/reach_tools_sms.go` | 0 | 0 | 0 | 0 |
 | 106 | [x] | `internal/aiagent/agent/tooluse/reach_tools_social.go` | 0 | 0 | 0 | 0 |
-| 107 | [ ] | `internal/aiagent/agent/tooluse/reach_tools_telegram.go` | 1 | 1 | 1 | 0 |
+| 107 | [x] | `internal/aiagent/agent/tooluse/reach_tools_telegram.go` | 1 | 1 | 1 | 0 |
 | 108 | [x] | `internal/aiagent/agent/tooluse/reach_tools_util.go` | 0 | 0 | 0 | 0 |
-| 109 | [ ] | `internal/aiagent/agent/tooluse/reach_tools_web.go` | 1 | 1 | 1 | 0 |
+| 109 | [x] | `internal/aiagent/agent/tooluse/reach_tools_web.go` | 1 | 1 | 1 | 0 |
 | 110 | [x] | `internal/aiagent/agent/tooluse/reach_tools_wecom.go` | 0 | 0 | 0 | 0 |
 | 111 | [x] | `internal/aiagent/agent/tooluse/reach_tools_weixin.go` | 0 | 0 | 0 | 0 |
-| 112 | [ ] | `internal/aiagent/agent/tooluse/reach_tools_whatsapp.go` | 1 | 1 | 1 | 0 |
+| 112 | [x] | `internal/aiagent/agent/tooluse/reach_tools_whatsapp.go` | 1 | 1 | 1 | 0 |
 | 113 | [x] | `internal/aiagent/agent/tooluse/registry.go` | 23 | 32 | 23 | 0 |
-| 114 | [ ] | `internal/aiagent/agent/tooluse/result_cache.go` | 13 | 30 | 13 | 0 |
+| 114 | [x] | `internal/aiagent/agent/tooluse/result_cache.go` | 13 | 30 | 13 | 0 |
 | 115 | [x] | `internal/aiagent/agent/tooluse/risk_gate.go` | 28 | 98 | 28 | 0 |
-| 116 | [ ] | `internal/aiagent/agent/tooluse/stream_state_machine.go` | 20 | 50 | 20 | 0 |
+| 116 | [x] | `internal/aiagent/agent/tooluse/stream_state_machine.go` | 20 | 50 | 20 | 0 |
 | 117 | [x] | `internal/aiagent/agent/tooluse/tool.go` | 19 | 28 | 19 | 0 |
 | 118 | [x] | `internal/aiagent/agent/tooluse/tool_risk.go` | 7 | 35 | 7 | 0 |
-| 119 | [ ] | `internal/aiagent/agent/tooluse/tool_router.go` | 17 | 27 | 17 | 0 |
-| 120 | [ ] | `internal/aiagent/embedding/embedding.go` | 12 | 32 | 12 | 0 |
-| 121 | [ ] | `internal/aiagent/eval/chrf_eval.go` | 5 | 17 | 5 | 0 |
+| 119 | [x] | `internal/aiagent/agent/tooluse/tool_router.go` | 17 | 27 | 17 | 0 |
+| 120 | [x] | `internal/aiagent/embedding/embedding.go` | 12 | 32 | 12 | 0 |
+| 121 | [x] | `internal/aiagent/eval/chrf_eval.go` | 5 | 17 | 5 | 0 |
 | 122 | [x] | `internal/aiagent/eval/dialogue_gold.go` | 13 | 31 | 13 | 0 |
-| 123 | [ ] | `internal/aiagent/eval/evaluator.go` | 8 | 17 | 8 | 0 |
-| 124 | [ ] | `internal/aiagent/eval/judge_calibration.go` | 5 | 13 | 5 | 0 |
-| 125 | [ ] | `internal/aiagent/eval/llm_judge.go` | 9 | 25 | 9 | 0 |
-| 126 | [ ] | `internal/aiagent/eval/ragas.go` | 8 | 12 | 8 | 0 |
+| 123 | [x] | `internal/aiagent/eval/evaluator.go` | 8 | 17 | 8 | 0 |
+| 124 | [x] | `internal/aiagent/eval/judge_calibration.go` | 5 | 13 | 5 | 0 |
+| 125 | [x] | `internal/aiagent/eval/llm_judge.go` | 9 | 25 | 9 | 0 |
+| 126 | [x] | `internal/aiagent/eval/ragas.go` | 8 | 12 | 8 | 0 |
 | 127 | [x] | `internal/aiagent/knowledge/controller/error_helper.go` | 0 | 0 | 0 | 0 |
 | 128 | [ ] | `internal/aiagent/knowledge/controller/knowledge_base.go` | 4 | 4 | 4 | 0 |
 | 129 | [x] | `internal/aiagent/knowledge/controller/knowledge_merchant.go` | 6 | 20 | 6 | 0 |
@@ -383,32 +383,32 @@
 | 168 | [x] | `internal/aiagent/knowledge/service/rag_searcher_products.go` | 1 | 5 | 1 | 0 |
 | 169 | [ ] | `internal/aiagent/knowledge/service/rag_searcher_types.go` | 2 | 2 | 2 | 0 |
 | 170 | [x] | `internal/aiagent/knowledge/service/rag_searcher_vector.go` | 0 | 0 | 0 | 0 |
-| 171 | [ ] | `internal/aiagent/llm/dispatcher.go` | 30 | 57 | 30 | 0 |
-| 172 | [ ] | `internal/aiagent/llm/dispatcher_alert.go` | 12 | 27 | 12 | 0 |
-| 173 | [ ] | `internal/aiagent/llm/dispatcher_cache.go` | 4 | 12 | 4 | 0 |
-| 174 | [ ] | `internal/aiagent/llm/dispatcher_dispatch.go` | 21 | 69 | 21 | 0 |
+| 171 | [x] | `internal/aiagent/llm/dispatcher.go` | 30 | 57 | 30 | 0 |
+| 172 | [x] | `internal/aiagent/llm/dispatcher_alert.go` | 12 | 27 | 12 | 0 |
+| 173 | [x] | `internal/aiagent/llm/dispatcher_cache.go` | 4 | 12 | 4 | 0 |
+| 174 | [x] | `internal/aiagent/llm/dispatcher_dispatch.go` | 21 | 69 | 21 | 0 |
 | 175 | [x] | `internal/aiagent/llm/dispatcher_observability.go` | 17 | 86 | 17 | 0 |
-| 176 | [ ] | `internal/aiagent/llm/dispatcher_persistence.go` | 10 | 27 | 10 | 0 |
+| 176 | [x] | `internal/aiagent/llm/dispatcher_persistence.go` | 10 | 27 | 10 | 0 |
 | 177 | [x] | `internal/aiagent/llm/dispatcher_register.go` | 0 | 0 | 0 | 0 |
-| 178 | [ ] | `internal/aiagent/llm/dispatcher_registry.go` | 8 | 13 | 8 | 0 |
-| 179 | [ ] | `internal/aiagent/llm/embed_dim.go` | 2 | 2 | 2 | 0 |
-| 180 | [ ] | `internal/aiagent/llm/embedding.go` | 18 | 55 | 18 | 0 |
-| 181 | [ ] | `internal/aiagent/llm/embedding_global_config.go` | 7 | 47 | 7 | 0 |
-| 182 | [ ] | `internal/aiagent/llm/embedding_hash.go` | 5 | 9 | 5 | 0 |
-| 183 | [ ] | `internal/aiagent/llm/embedding_registry.go` | 3 | 4 | 3 | 0 |
-| 184 | [ ] | `internal/aiagent/llm/fallback_tree.go` | 12 | 38 | 12 | 0 |
-| 185 | [ ] | `internal/aiagent/llm/llm.go` | 23 | 50 | 23 | 0 |
-| 186 | [ ] | `internal/aiagent/llm/llm_platform_proxy.go` | 21 | 57 | 21 | 0 |
+| 178 | [x] | `internal/aiagent/llm/dispatcher_registry.go` | 8 | 13 | 8 | 0 |
+| 179 | [x] | `internal/aiagent/llm/embed_dim.go` | 2 | 2 | 2 | 0 |
+| 180 | [x] | `internal/aiagent/llm/embedding.go` | 18 | 55 | 18 | 0 |
+| 181 | [x] | `internal/aiagent/llm/embedding_global_config.go` | 7 | 47 | 7 | 0 |
+| 182 | [x] | `internal/aiagent/llm/embedding_hash.go` | 5 | 9 | 5 | 0 |
+| 183 | [x] | `internal/aiagent/llm/embedding_registry.go` | 3 | 4 | 3 | 0 |
+| 184 | [x] | `internal/aiagent/llm/fallback_tree.go` | 12 | 38 | 12 | 0 |
+| 185 | [x] | `internal/aiagent/llm/llm.go` | 23 | 50 | 23 | 0 |
+| 186 | [x] | `internal/aiagent/llm/llm_platform_proxy.go` | 21 | 57 | 21 | 0 |
 | 187 | [x] | `internal/aiagent/llm/provider_crypto.go` | 0 | 0 | 0 | 0 |
-| 188 | [ ] | `internal/aiagent/llm/provider_failover.go` | 39 | 66 | 39 | 0 |
-| 189 | [ ] | `internal/aiagent/llm/rate_limit_error.go` | 1 | 8 | 1 | 0 |
-| 190 | [ ] | `internal/aiagent/llm/react_adapter.go` | 9 | 54 | 9 | 0 |
-| 191 | [ ] | `internal/aiagent/llm/selfconsistency/selfconsistency.go` | 12 | 44 | 12 | 0 |
-| 192 | [ ] | `internal/aiagent/llm/trace_context.go` | 33 | 48 | 33 | 0 |
-| 193 | [ ] | `internal/aiagent/llm/trace_query.go` | 7 | 14 | 7 | 0 |
+| 188 | [x] | `internal/aiagent/llm/provider_failover.go` | 39 | 66 | 39 | 0 |
+| 189 | [x] | `internal/aiagent/llm/rate_limit_error.go` | 1 | 8 | 1 | 0 |
+| 190 | [x] | `internal/aiagent/llm/react_adapter.go` | 9 | 54 | 9 | 0 |
+| 191 | [x] | `internal/aiagent/llm/selfconsistency/selfconsistency.go` | 12 | 44 | 12 | 0 |
+| 192 | [x] | `internal/aiagent/llm/trace_context.go` | 33 | 48 | 33 | 0 |
+| 193 | [x] | `internal/aiagent/llm/trace_query.go` | 7 | 14 | 7 | 0 |
 | 194 | [x] | `internal/aiagent/llm/trace_sink.go` | 12 | 28 | 12 | 0 |
-| 195 | [ ] | `internal/aiagent/mcp/http.go` | 7 | 11 | 7 | 0 |
-| 196 | [ ] | `internal/aiagent/mcp/server.go` | 30 | 40 | 30 | 0 |
+| 195 | [x] | `internal/aiagent/mcp/http.go` | 7 | 11 | 7 | 0 |
+| 196 | [x] | `internal/aiagent/mcp/server.go` | 30 | 40 | 30 | 0 |
 | 197 | [ ] | `internal/aiagent/rag/cache/answer_cache_model.go` | 10 | 11 | 10 | 0 |
 | 198 | [x] | `internal/aiagent/rag/cache/metrics.go` | 0 | 0 | 0 | 0 |
 | 199 | [ ] | `internal/aiagent/rag/cache/service.go` | 10 | 20 | 10 | 0 |
@@ -459,7 +459,7 @@
 | 244 | [ ] | `internal/aiagent/rag/retrieval/vector_retriever.go` | 5 | 19 | 5 | 0 |
 | 245 | [ ] | `internal/aiagent/rag/retrieval/vectorizer.go` | 11 | 22 | 11 | 0 |
 | 246 | [ ] | `internal/aiagent/rag/service/rag.go` | 15 | 16 | 15 | 0 |
-| 247 | [ ] | `internal/aiagent/vector/vector_model.go` | 27 | 29 | 27 | 0 |
+| 247 | [x] | `internal/aiagent/vector/vector_model.go` | 27 | 29 | 27 | 0 |
 | 248 | [ ] | `internal/app/agent_checkpoint_wiring.go` | 5 | 13 | 5 | 0 |
 | 249 | [x] | `internal/app/agent_lifecycle_wiring.go` | 15 | 55 | 15 | 0 |
 | 250 | [x] | `internal/app/agent_llm_params_wiring.go` | 2 | 18 | 2 | 0 |

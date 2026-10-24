@@ -1,13 +1,12 @@
 // Package tooluse 提供 DNC (Do-Not-Contact) 网关：在 cold outreach 工具前
 // 先查询全局退订状态，命中即拒绝，保证不会被遗漏。
 //
-// 落地 R-3a 决策 —— "全局请勿打扰"。
 // 设计要点：
 //   - 默认放行（resolver=nil）：保持现有行为，避免线上事故
-//   - 任何 DB 异常一律放行并记录：与 IsBlocked 一致（fail-open）；DNC 是用户可见的合规防线，
-//     但它的缺漏已经被前置 IsBlocked 调用覆盖（其他合规检查兜底）
+//   - 任何 DB 异常一律放行并记录（fail-open）：DNC 是用户可见的合规防线，
+//     其缺漏已被前置 IsBlocked 调用兜底
 //   - 通过 approvalDecorator 的同样路径（Tool 接口）实现，可被替换/降级
-//   - 仅 cold outreach 类工具触发（proactive / batch_send / reach.*.dm），与 A-1 一致
+//   - 仅 cold outreach 类工具触发（proactive / batch_send / reach.*.dm）
 package tooluse
 
 import (
@@ -59,7 +58,7 @@ type dncTool struct {
 }
 
 // WithDNCGuard 用全局 DNC resolver 包装工具。
-// resolver 未接线时（nil）行为与现状完全一致（向后兼容硬性要求）。
+// resolver 未接线时（nil）行为与无包装完全一致（向后兼容硬性要求）。
 func WithDNCGuard(t Tool) Tool {
 	if t == nil {
 		return nil

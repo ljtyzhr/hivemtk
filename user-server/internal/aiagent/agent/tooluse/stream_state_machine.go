@@ -33,9 +33,8 @@ const (
 	EventTimeout         StreamEvent = "timeout"
 )
 
-// StreamStateMachine 流式状态机
-//
-// 用途：在 LLM 流式输出过程中，识别工具调用触发词、截取 JSON、执行工具、二次组装
+// StreamStateMachine 流式状态机：
+// 在 LLM 流式输出过程中识别工具调用触发词、截取 JSON、执行工具、二次组装。
 //
 // 典型用法：
 //
@@ -83,9 +82,7 @@ type StateTransition struct {
 	At     time.Time   `json:"at"`
 }
 
-// ToolExecutorAPI 工具执行器接口（用于状态机）
-//
-// 状态机只需要"按名称+参数执行工具"的能力，通过接口解耦
+// ToolExecutorAPI 工具执行器接口：状态机只需要"按名称+参数执行工具"的能力，通过接口解耦。
 type ToolExecutorAPI interface {
 	ExecuteByName(ctx context.Context, toolName string, args map[string]any) (ToolResult, error)
 }
@@ -146,14 +143,10 @@ func (sm *StreamStateMachine) State() StreamState {
 	return sm.state
 }
 
-// Process 处理一个 chunk
-//
-// 返回 (action, error)：
-//   - ActionForwardToClient: 调用方应把 chunk 推给前端
-//   - ActionBuffer: 调用方应丢弃 chunk（不推送）
-//   - ActionExecuteTool: 调用方应执行工具（通过 sm.Executor）
-//   - ActionDone: 流处理完成
-//   - ActionFail: 处理失败（错误已写入 sm.LastError）
+// Process 处理一个 chunk，返回 (action, error)：
+// ActionForwardToClient → 调用方应把 chunk 推给前端；ActionBuffer → 丢弃 chunk（不推送）；
+// ActionExecuteTool → 调用方应执行工具（通过 sm.Executor）；ActionDone → 流处理完成；
+// ActionFail → 处理失败。
 func (sm *StreamStateMachine) Process(ctx context.Context, chunk string) (StreamAction, error) {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
@@ -242,18 +235,15 @@ func (sm *StreamStateMachine) processDetected() (StreamAction, error) {
 	return ActionExecuteTool, nil
 }
 
-// MarkToolExecuted 标记工具执行完成（外部调用方在收到 ActionExecuteTool 后执行工具，然后调用本方法）
-//
-// 内部转换：Executing → Reassembling
+// MarkToolExecuted 标记工具执行完成（外部调用方在收到 ActionExecuteTool 后执行工具，然后调用本方法）。
+// 内部转换：Executing → Reassembling。
 func (sm *StreamStateMachine) MarkToolExecuted(_ ToolResult, _ error) {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()
 	sm.transition(StateReassembling, EventToolExecuted, "")
 }
 
-// MarkReassembled 标记二进宫组装完成
-//
-// 内部转换：Reassembling → Done
+// MarkReassembled 标记二进宫组装完成。内部转换：Reassembling → Done。
 func (sm *StreamStateMachine) MarkReassembled() {
 	sm.mu.Lock()
 	defer sm.mu.Unlock()

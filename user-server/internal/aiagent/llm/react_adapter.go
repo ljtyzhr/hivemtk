@@ -75,10 +75,8 @@ func ParseReActResponse(content string) (*ReActParseResult, error) {
 	}, nil
 }
 
-// ToToolCall 将 ReAct Action 转换为 OpenAI 兼容的 ToolCall 结构
-//
-// 用于将 ReAct 解析结果注入到 DispatchResult.ToolCalls 中，
-// 让上层 Agent Loop 可以统一处理 FC 和 ReAct 两种路径
+// ToToolCall 将 ReAct Action 转换为 OpenAI 兼容的 ToolCall 结构，
+// 让上层 Agent Loop 统一处理 FC 和 ReAct 两种路径。
 func (r *ReActParseResult) ToToolCall(id string) *ToolCall {
 	if r == nil || r.IsFinal || r.Action == "" {
 		return nil
@@ -93,15 +91,10 @@ func (r *ReActParseResult) ToToolCall(id string) *ToolCall {
 	}
 }
 
-// ReActAdapter 将无 FC 能力的 LLM 适配为 ReAct 协议
-//
-// 工作流程：
-//  1. 在 Dispatch 调用前，将 Tools 转为 ReAct 系统提示词追加到 SystemPrompt
-//  2. 在 Dispatch 调用后，解析 LLM 输出为 ReActParseResult
-//  3. 若含 Action：构造 ToolCall 注入 DispatchResult.ToolCalls
-//  4. 若含 Final Answer：直接作为 Content 返回
-//
-// 适配器是无状态的，可安全并发使用
+// ReActAdapter 将无 FC 能力的 LLM 适配为 ReAct 协议：Dispatch 前把 Tools 转为
+// ReAct 系统提示词，Dispatch 后解析输出——含 Action 则构造 ToolCall 注入
+// DispatchResult.ToolCalls，含 Final Answer 则直接作为 Content 返回。
+// 适配器无状态，可安全并发使用。
 type ReActAdapter struct {
 	toolCallSeq uint64
 }
@@ -111,13 +104,7 @@ func NewReActAdapter() *ReActAdapter {
 	return &ReActAdapter{}
 }
 
-// WrapSystemPrompt 在原 SystemPrompt 后追加 ReAct 工具描述
-//
-// 参数：
-//   - originalSystemPrompt: 原 SystemPrompt（可为空）
-//   - tools: 可用工具列表
-//
-// 返回：追加 ReAct 协议描述后的 SystemPrompt
+// WrapSystemPrompt 在原 SystemPrompt 后追加 ReAct 工具描述与协议说明（原提示词可为空）。
 func (a *ReActAdapter) WrapSystemPrompt(originalSystemPrompt string, tools []ToolDefinition) string {
 	var sb strings.Builder
 	if originalSystemPrompt != "" {
@@ -153,15 +140,10 @@ func (a *ReActAdapter) WrapSystemPrompt(originalSystemPrompt string, tools []Too
 	return sb.String()
 }
 
-// AdaptResult 将 LLM 文本响应适配为 DispatchResult
-//
-// 参数：
-//   - result: 原 DispatchResult（含 LLM 文本输出）
-//
-// 返回：
-//   - 若 LLM 输出含 Action：在 result.ToolCalls 注入对应 ToolCall，FinishReason 改为 "tool_calls"
-//   - 若 LLM 输出含 Final Answer：result.Content 改为 Final Answer 文本
-//   - 若都未匹配：保持原 result 不变（兼容性降级）
+// AdaptResult 将 LLM 文本响应适配为 DispatchResult：
+//   - 含 Action：在 result.ToolCalls 注入对应 ToolCall，FinishReason 改为 "tool_calls"
+//   - 含 Final Answer：result.Content 改为 Final Answer 文本
+//   - 都未匹配：保持原 result 不变（兼容性降级）
 func (a *ReActAdapter) AdaptResult(result *DispatchResult) *DispatchResult {
 	if result == nil || result.Content == "" {
 		return result
@@ -193,15 +175,9 @@ func (a *ReActAdapter) nextToolCallID() string {
 	return fmt.Sprintf("react_%d_%d", time.Now().UnixNano(), seq)
 }
 
-// BuildObservationMessage 构造 ReAct Observation 消息
-//
-// 在 Agent Loop 中，工具执行结果需要回灌给 LLM。
-// 原生 FC 路径用 role=tool 消息，ReAct 路径用 role=user 消息
-// （因为无 FC 能力 LLM 不识别 role=tool）
-//
-// 格式：
-//
-//	Observation: <工具返回 JSON>
+// BuildObservationMessage 构造 ReAct Observation 消息。
+// 工具结果回灌时，原生 FC 路径用 role=tool，ReAct 路径用 role=user
+// （无 FC 能力 LLM 不识别 role=tool）。格式：Observation: <工具返回 JSON>
 func BuildObservationMessage(toolName, toolCallID, observation string) ChatMessage {
 	content := fmt.Sprintf("Observation: %s\n", observation)
 	return ChatMessage{
@@ -212,14 +188,9 @@ func BuildObservationMessage(toolName, toolCallID, observation string) ChatMessa
 	}
 }
 
-// IsReActMode 判断当前 DispatchRequest 是否走 ReAct 模式
-//
-// 触发条件：
-//  1. 请求中含 Tools（智能体模式）
-//  2. provider 配置中标记为 NoFC（无 Function Calling 能力）
-//
-// 简化判断：在 Dispatcher 层根据 provider 标记决定是否启用 ReAct
-// 此处仅做工具是否存在的判断，provider 标记由 Dispatcher 处理
+// IsReActMode 判断当前 DispatchRequest 是否走 ReAct 模式：
+// provider 标记为 NoFC 且请求含 Tools（智能体模式）时启用。
+// provider 标记由 Dispatcher 处理，此处仅做工具存在性判断。
 func IsReActMode(req *DispatchRequest, providerNoFC bool) bool {
 	if providerNoFC && req != nil && len(req.Tools) > 0 {
 		return true

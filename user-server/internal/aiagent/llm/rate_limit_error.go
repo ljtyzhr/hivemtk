@@ -6,14 +6,13 @@ import (
 	"time"
 )
 
-// RateLimitError 429 限流的结构化错误（D05）。
+// RateLimitError 429 限流的结构化错误。
 //
 // 业界契约（对齐 LiteLLM cooldown_handlers / OpenRouter 文档）：
 //   - 429 单次即冷却，绕过连续失败计数（限流不是健康问题，是配额问题）；
-//   - 冷却时长优先读响应 Retry-After 头（秒数形式，OpenAI/Anthropic/OpenRouter 均如此），
-//     头缺失或不可解析时由熔断层取默认值（15s）。
+//   - 冷却时长优先读响应 Retry-After 头（秒数），头缺失或不可解析时由熔断层取默认值（15s）。
 //
-// Error() 文案保持与原 "LLM API error: status=..." 同构，日志与监控不破相容。
+// Error() 文案保持与 "LLM API error: status=..." 同构，日志与监控不破相容。
 type RateLimitError struct {
 	StatusCode int
 	RetryAfter time.Duration

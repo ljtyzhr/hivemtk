@@ -29,9 +29,7 @@ import (
 //
 // 为什么是两条注入接缝而不是直接调参数中心：本包不能 import internal/service
 // （service 依赖本包取 LLM，反向依赖会成环），所以读写口由装配层注入闭包。
-// 读口每次调用都回源参数中心，本层**不再自建缓存**：上一版在这里另有一份 60s
-// 进程内缓存，叠在参数中心那份 60s 之上，最坏情况改完配置要等两分钟才生效，
-// 而写侧刚刚把参数中心的缓存失效掉——第二层缓存把"在线改、免重启"这句话打了对折。
+// 读口每次调用都回源参数中心，本层不再自建缓存（叠缓存会让改配置的生效时间翻倍）。
 // =============================================================================
 
 // GlobalEmbeddingOverride 全局 embedding 手动配置。
@@ -51,10 +49,8 @@ var (
 	embeddingOverrideWriter   func(context.Context, string, uint) error
 )
 
-// ErrEmbeddingOverrideUnwired 写口没注入时 SetGlobalEmbeddingOverride 的报错。
-//
-// 只在装配缺失时出现。这里不回落"直接写库"：那正是本文件刚拆掉的裸 SQL 直查，
-// 留着它等于给旧路径留一条后门。
+// ErrEmbeddingOverrideUnwired 写口没注入时 SetGlobalEmbeddingOverride 的报错（仅在装配缺失时出现）。
+// 这里不回落"直接写库"：留后门等于绕过参数中心与审计。
 var ErrEmbeddingOverrideUnwired = errors.New("embedding 全局配置: 参数中心写口未注入（装配缺失），本次未保存")
 
 // SetEmbeddingOverrideProvider 注入读取口（参数中心 embedding.global_override）。
@@ -64,8 +60,7 @@ func SetEmbeddingOverrideProvider(fn func(context.Context) string) {
 }
 
 // SetEmbeddingOverrideWriter 注入写入口。第三个参数是操作者 id，
-// 由参数中心那一侧写进变更审计——本层原来那条 INSERT 没有任何人来路记录，
-// "是谁把向量服务指到外部端点的"这件事今天才查得到。
+// 由参数中心那一侧写进变更审计（记录"是谁把向量服务指到外部端点的"）。
 func SetEmbeddingOverrideWriter(fn func(context.Context, string, uint) error) {
 	embeddingOverrideWriter = fn
 }

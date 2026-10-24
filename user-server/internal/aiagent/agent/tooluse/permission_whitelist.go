@@ -18,13 +18,13 @@ type WhitelistPermissionChecker struct {
 	defaultAllow bool
 }
 
-// NewWhitelistPermissionChecker 创建白名单权限检查器
+// NewWhitelistPermissionChecker 创建白名单权限检查器。
 //
 // 默认策略由环境变量 TOOL_PERMISSION_DEFAULT_DENY 控制：
 //   - 未设置或 != "true"：默认放行（向后兼容，未启用白名单时放行所有工具）
 //   - 设置为 "true"：默认拒绝（未配置白名单的 Agent 一律拒绝，纵深防御）
 //
-// 无论默认如何，Check 的优先级保证：Agent 已配置白名单时其白名单为权威（"*" 通配也不绕过，
+// Check 的优先级：Agent 已配置白名单时其白名单为权威（"*" 通配也不绕过，
 // 防覆盖式逃逸）；全局白名单始终放行；仅当 Agent 未配置白名单时才回退到 defaultAllow。
 func NewWhitelistPermissionChecker() *WhitelistPermissionChecker {
 	return &WhitelistPermissionChecker{
@@ -186,13 +186,12 @@ func (c *WhitelistPermissionChecker) ListAgentWhitelist(agentID string) []string
 
 // AgentHasTool 查询"这个 Agent 的白名单里有没有这一个工具"，不走任何兜底。
 //
-// 与 Check 的差别是这条查询存在的理由：Check 在白名单未命中时还会看全局白名单、
-// tc.Permissions 里的 "*" 和 defaultAllow，任何一级命中都返回 nil（放行）。
-// 分级判定（RiskVerdict）要的是"这个 Agent 被逐条授权过这个工具吗"，
-// 兜底出来的"放行"不是授权。因此这里只查 agentWhitelist 这一张表。
+// 与 Check 的差别：Check 在白名单未命中时还会看全局白名单、tc.Permissions 里的
+// "*" 和 defaultAllow，任何一级命中都放行；而分级判定（RiskVerdict）要的是
+// "这个 Agent 被逐条授权过这个工具吗"，兜底出来的"放行"不是授权。
 //
-// 注意 ["*"] 也返回 false：Agent 白名单里写 "*" 是授权层的通配写法，
-// 不构成"reach.sms.send 已被逐条授权"。是否为通配由 AgentWildcard 单独观测。
+// ["*"] 也返回 false：Agent 白名单里写 "*" 是授权层的通配写法，不构成逐条授权，
+// 是否为通配由 AgentWildcard 单独观测。
 func (c *WhitelistPermissionChecker) AgentHasTool(agentID, toolName string) bool {
 	if c == nil || agentID == "" || toolName == "" {
 		return false
@@ -204,8 +203,7 @@ func (c *WhitelistPermissionChecker) AgentHasTool(agentID, toolName string) bool
 }
 
 // AgentWhitelistConfigured 该 Agent 是否配置过白名单（配过又清空视为未配置）。
-//
-// 单独可判是必要的：未配置与"配了但没包含这个工具"在阻断时是两个后果 ——
+// 未配置与"配了但没包含这个工具"在阻断时是两个后果：
 // 前者要给运营补配置，后者是明确的不授权决定。
 func (c *WhitelistPermissionChecker) AgentWhitelistConfigured(agentID string) bool {
 	if c == nil || agentID == "" {

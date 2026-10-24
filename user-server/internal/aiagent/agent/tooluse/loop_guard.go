@@ -11,10 +11,8 @@ import (
 // ErrLoopDetected 工具调用循环被检测到
 var ErrLoopDetected = fmt.Errorf("tool loop detected: same tool called too many times with equivalent args")
 
-// StopReason Agent Loop 结构化停止原因（A-3）。
-//
-// 统一枚举供 Guard 停止判定与 trace span status 使用；
-// 与 MASTER_COMPETITIVE_DECISIONS.md 接口契约速查保持一致。
+// StopReason Agent Loop 结构化停止原因，
+// 统一枚举供 Guard 停止判定与 trace span status 使用。
 type StopReason string
 
 const (
@@ -27,7 +25,7 @@ const (
 	StopReasonError          StopReason = "error"
 )
 
-// StopReasonOf 将错误分类为结构化 StopReason（A-3：统一出口，供调用方写 trace span status）。
+// StopReasonOf 将错误分类为结构化 StopReason（统一出口，供调用方写 trace span status）。
 func StopReasonOf(err error) StopReason {
 	switch {
 	case err == nil:
@@ -43,7 +41,7 @@ func StopReasonOf(err error) StopReason {
 	}
 }
 
-// CostDriftFactor 成本漂移熔断倍率（A-2 简化版）：单轮成本 > 已有轮次均值 × 该倍数即熔断。
+// CostDriftFactor 成本漂移熔断倍率：单轮成本 > 已有轮次均值 × 该倍数即熔断。
 const CostDriftFactor = 5.0
 
 // LoopGuardConfig 循环检测配置
@@ -52,7 +50,7 @@ type LoopGuardConfig struct {
 	WindowSize     time.Duration
 	MaxTraces      int
 	Enabled        bool
-	// CostBudgetUSD 单 trace 累计美元成本预算（A-2）；<=0 表示禁用成本护栏
+	// CostBudgetUSD 单 trace 累计美元成本预算；<=0 表示禁用成本护栏
 	CostBudgetUSD float64
 }
 
@@ -169,14 +167,14 @@ func (g *LoopGuard) CheckAndRecord(traceID, toolName string, args map[string]any
 	return nil
 }
 
-// RecordCost 记录一轮 LLM 调用的美元成本（A-2：调用方每轮传入，由 LoopGuard 累计）。
+// RecordCost 记录一轮 LLM 调用的美元成本（调用方每轮传入，由 LoopGuard 累计）。
 //
 // 返回触发的 StopReason（StopReasonNone 表示未触发可继续）：
 //   - 累计成本 >= CostBudgetUSD → StopReasonCostLimit（超预算熔断）
 //   - 单轮成本 > 已有轮次均值 × CostDriftFactor → StopReasonCostLimit（漂移熔断，
 //     在总预算耗尽前拦截上下文膨胀型故障；无历史轮次或历史均值为 0 时不触发）
 //
-// 成本护栏独立于 Enabled 开关之外仍受其约束：guard 为 nil 或未启用时不追踪。
+// guard 为 nil 或未启用（Enabled=false）时不追踪。
 func (g *LoopGuard) RecordCost(traceID string, costUSD float64) StopReason {
 	if g == nil || !g.config.Enabled || costUSD <= 0 {
 		return StopReasonNone
@@ -221,7 +219,7 @@ func (g *LoopGuard) RecordCost(traceID string, costUSD float64) StopReason {
 	return StopReasonNone
 }
 
-// TraceStopReason 返回该 trace 最近一次触发的结构化停止原因（A-3 暴露给调用方）。
+// TraceStopReason 返回该 trace 最近一次触发的结构化停止原因。
 // 无记录返回 StopReasonNone。
 func (g *LoopGuard) TraceStopReason(traceID string) StopReason {
 	if g == nil {
@@ -300,15 +298,12 @@ func (g *LoopGuard) Stats() LoopGuardStats {
 	}
 }
 
-// LoopGuardDecorator 工具级循环检测装饰器
+// LoopGuardDecorator 工具级循环检测装饰器：
+// 在工具执行前检查是否陷入循环，若陷入则返回 ErrLoopDetected；guard 为 nil 时直接放行（零开销）。
 //
-// 在工具执行前检查是否陷入循环，若陷入则返回 ErrLoopDetected。
-// guard 为 nil 时直接放行（零开销）。
-//
-// 装饰器链位置：重试之外（避免重试触发的多次调用被误判为循环）
-//   - 位于重试之外：重试是同一逻辑调用的多次尝试，不应触发循环检测
-//   - 位于反馈回流之内：循环命中时反馈仍能记录失败事件
-//   - 位于死信之内：ErrLoopDetected 是不可重试错误，死信队列自动跳过
+// 装饰器链位置约束：位于重试之外（重试是同一逻辑调用的多次尝试，不应触发循环检测）、
+// 反馈回流之内（循环命中时反馈仍能记录失败事件）、死信之内
+// （ErrLoopDetected 是不可重试错误，死信队列自动跳过）。
 func LoopGuardDecorator(guard *LoopGuard) ToolDecorator {
 	return func(next ToolHandler) ToolHandler {
 		return func(ctx context.Context, args map[string]any) (ToolResult, error) {

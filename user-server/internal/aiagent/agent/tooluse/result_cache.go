@@ -18,9 +18,7 @@ type cacheEntry struct {
 	key        string
 }
 
-// ResultCache 工具执行结果缓存器
-//
-// 线程安全；使用 sync.LRU 简化实现（标准库无 LRU，这里实现简易双向链表 + map）
+// ResultCache 工具执行结果缓存器，线程安全（标准库无 LRU，这里用双向链表 + map 简易实现）。
 type ResultCache struct {
 	mu            sync.Mutex
 	entries       map[string]*cacheEntry
@@ -46,11 +44,7 @@ var defaultCacheDisabledTools = map[string]bool{
 	"reach.send":           true,
 }
 
-// NewResultCache 创建结果缓存器
-//
-// 参数：
-//   - maxEntries: 最大缓存条目数（默认 1000）
-//   - defaultTTL: 默认 TTL（默认 60s）
+// NewResultCache 创建结果缓存器（maxEntries 默认 1000，defaultTTL 默认 60s）
 func NewResultCache(maxEntries int, defaultTTL time.Duration) *ResultCache {
 	if maxEntries <= 0 {
 		maxEntries = 1000
@@ -116,11 +110,7 @@ func cacheKey(toolName string, args map[string]any) string {
 	return fmt.Sprintf("%s:%s", toolName, hex.EncodeToString(h[:16]))
 }
 
-// Get 从缓存获取结果
-//
-// 返回：
-//   - (result, true): 缓存命中
-//   - (ToolResult{}, false): 缓存未命中或已过期
+// Get 从缓存获取结果：(result, true) 命中；(ToolResult{}, false) 未命中或已过期。
 func (c *ResultCache) Get(toolName string, args map[string]any) (ToolResult, bool) {
 	if c.IsDisabled(toolName) {
 		return ToolResult{}, false
@@ -144,9 +134,7 @@ func (c *ResultCache) Get(toolName string, args map[string]any) (ToolResult, boo
 	return result, true
 }
 
-// Set 写入缓存
-//
-// 仅缓存 Success=true 的结果；失败结果不缓存
+// Set 写入缓存（仅缓存 Success=true 的结果，失败结果不缓存）
 func (c *ResultCache) Set(toolName string, args map[string]any, result ToolResult, ttl time.Duration) {
 	if !result.Success {
 		return
@@ -260,11 +248,9 @@ func (c *ResultCache) moveToFront(e *cacheEntry) {
 	c.entries[e.key] = e
 }
 
-// ResultCacheDecorator 结果缓存装饰器
-//
-// 装饰器链位置：权限 → 限流 → 熔断 → 参数校验 → 缓存 → 重试 → 超时 → 审计
-//   - 缓存命中：直接返回缓存结果（不进入后续链路）
-//   - 缓存未命中：执行工具，结果若 Success=true 则写入缓存
+// ResultCacheDecorator 结果缓存装饰器。
+// 装饰器链位置：权限 → 限流 → 熔断 → 参数校验 → 缓存 → 重试 → 超时 → 审计；
+// 缓存命中直接返回（不进入后续链路），未命中执行工具，结果 Success=true 时写入缓存。
 func ResultCacheDecorator(cache *ResultCache) ToolDecorator {
 	return func(next ToolHandler) ToolHandler {
 		return func(ctx context.Context, args map[string]any) (ToolResult, error) {
@@ -288,8 +274,7 @@ func ResultCacheDecorator(cache *ResultCache) ToolDecorator {
 	}
 }
 
-// NoOpResultCache 空操作缓存（不进行任何缓存）
-// 用于不需要缓存的场景（如写入类工具的强制不缓存）
+// NoOpResultCache 空操作缓存（不进行任何缓存），用于不需要缓存的场景（如写入类工具强制不缓存）。
 type NoOpResultCache struct{}
 
 func (NoOpResultCache) Get(toolName string, args map[string]any) (ToolResult, bool) {

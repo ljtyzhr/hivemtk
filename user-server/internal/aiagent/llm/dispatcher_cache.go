@@ -97,10 +97,9 @@ func (d *Dispatcher) allowRequestLocal(providerName string, maxRPM int) bool {
 
 // CacheKey 生成缓存 key（仅覆盖 scenario + user prompt）。
 //
-// ⚠️ 新代码请优先用 CacheKeyWithSystem：知识库召回内容注入在 system message
-// （service.renderRAGReferenceBlock），若 key 不覆盖 system prompt，
-// 同一句客户消息在不同知识库上下文下会命中同一条缓存，把「按 A 知识库生成的回复」
-// 当作「B 知识库上下文」的结果返回。本函数保留仅为兼容既有调用与用例。
+// ⚠️ 新代码请优先用 CacheKeyWithSystem：知识库召回内容注入在 system message，
+// 若 key 不覆盖 system prompt，同一句客户消息在不同知识库上下文下会命中同一条缓存，
+// 把「按 A 知识库生成的回复」当作「B 知识库上下文」的结果返回。本函数保留仅为兼容既有调用。
 func CacheKey(scenario DispatchScenario, prompt string) string {
 	h := fnv.New64a()
 	h.Write([]byte(string(scenario)))

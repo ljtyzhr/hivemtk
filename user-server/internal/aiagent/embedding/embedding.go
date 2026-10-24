@@ -1,4 +1,4 @@
-// Package local 提供纯 Go 实现的本地 Embedding 算法
+// Package local 提供纯 Go 实现的本地 Embedding 算法。
 //
 // 设计目标：
 //  1. 零外部依赖：不需要下载 BGE / Sentence-Transformers 模型，不需要 TEI / TorchServe 等容器
@@ -7,16 +7,13 @@
 //  4. 语义可分：相同/相近文本 cosine 相似度高，全随机文本相似度低
 //  5. 决定性：相同输入永远得到相同输出（哈希 + 固定投影矩阵）
 //
-// 算法说明（Hashing n-gram TF-IDF + 随机投影）：
-//   - 文本分词：Unicode-aware 字符级 + 简单中文按字切分 + 2/3-gram
-//   - 特征哈希：MurmurHash3 → 16384 维稀疏向量（带符号）
-//   - 随机投影：16384 → targetDim（Johnson-Lindenstrauss 保留 pairwise 距离）
-//   - L2 归一化：cosine 相似度 = 点积
+// 算法（Hashing n-gram TF-IDF + 随机投影）：Unicode-aware 字符级切分 + 2/3-gram →
+// MurmurHash3 特征哈希到 16384 维稀疏向量（带符号）→ 随机投影到 targetDim
+// （Johnson-Lindenstrauss 保留 pairwise 距离）→ L2 归一化（cosine 相似度 = 点积）。
 //
-// 局限说明：
-//   - 这是 "能用的本地向量化"，不是 "BGE 同等质量的向量化"
-//   - 推荐用法：私域部署 RAG 起步 + 单元测试 + 离线场景
-//   - 升级路径：等价的本地推理服务（http://mtk-embedding:8208/v1）协议不变，可以无侵入替换
+// 局限：这是"能用的本地向量化"，不是 BGE 同等质量的向量化；
+// 推荐用于私域部署 RAG 起步、单元测试、离线场景；
+// 升级路径：等价的本地推理服务（http://mtk-embedding:8208/v1）协议不变，可无侵入替换。
 package embedding
 
 import (

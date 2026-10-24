@@ -183,14 +183,9 @@ func NewServer(registry *tooluse.ToolRegistry) *Server {
 	}
 }
 
-// HandleRequest 处理单个 JSON-RPC 2.0 请求
-//
-// 返回：JSON-RPC 2.0 响应（已序列化）
-//
-// 错误处理：
-//   - 未初始化的客户端调用非 initialize 方法 → ErrCodeNotInitialized
-//   - 重复 initialize → ErrCodeAlreadyInit
-//   - 方法未实现 → ErrCodeMethodNotFound
+// HandleRequest 处理单个 JSON-RPC 2.0 请求，返回已序列化的 JSON-RPC 2.0 响应。
+// 错误处理：未初始化调用非 initialize 方法 → ErrCodeNotInitialized；
+// 重复 initialize → ErrCodeAlreadyInit；方法未实现 → ErrCodeMethodNotFound。
 func (s *Server) HandleRequest(ctx context.Context, rawReq []byte) ([]byte, error) {
 	var req JSONRPCRequest
 	if err := json.Unmarshal(rawReq, &req); err != nil {

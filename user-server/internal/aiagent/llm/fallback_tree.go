@@ -87,15 +87,9 @@ func NewDecisionTree(cfg DecisionTreeConfig) *DecisionTree {
 	}
 }
 
-// Decide 决策: 在某一级别失败时, 决定下一级别
-//
-// 参数:
-//   - currentLevel 当前失败的级别
-//   - reason 失败原因
-//   - cacheKey 缓存键 (供 LevelCache 查询)
-//   - hasCacheHit 缓存是否命中
-//
-// 返回: FallbackDecision
+// Decide 决策: 在某一级别失败时, 决定下一级别。
+// currentLevel 为当前失败的级别，reason 为失败原因，
+// cacheKey 供 LevelCache 查询，hasCacheHit 表示缓存是否命中；返回 FallbackDecision。
 func (t *DecisionTree) Decide(
 	ctx context.Context,
 	currentLevel FallbackLevel,
@@ -310,7 +304,7 @@ func isDefaultTemplateReply(s string) bool {
 	return ok
 }
 
-// ResolveDegradedTemplate 解析降级文案：显式定制的 TemplateReply 优先，否则按场景轮换（M11）
+// ResolveDegradedTemplate 解析降级文案：显式定制的 TemplateReply 优先，否则按场景轮换
 func ResolveDegradedTemplate(scenario DispatchScenario, configured string) string {
 	if configured != "" && !isDefaultTemplateReply(configured) {
 		return configured
@@ -318,7 +312,7 @@ func ResolveDegradedTemplate(scenario DispatchScenario, configured string) strin
 	return TemplateReplyFor(scenario)
 }
 
-// TemplateReplyFor 返回指定场景的兜底文案（M11）
+// TemplateReplyFor 返回指定场景的兜底文案。
 //
 // 匹配规则：
 //   - 命中场景模板表 → 同场景文案池内原子轮换

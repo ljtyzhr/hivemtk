@@ -219,11 +219,9 @@ func InitGlobalTraceBus() *InMemoryTraceBus {
 }
 
 // GetGlobalTraceBus 获取全局追踪事件总线（懒初始化，并发安全）。
-//
-// 不能"先裸读 globalTraceBus、为 nil 才去 Init"：那次读与 InitGlobalTraceBus 在
-// Once 闭包内对同一变量的写之间没有任何同步 ⇒ CI 的 `-race` 实测把它判成数据竞争。
-// 统一走 Once.Do：Do 会阻塞到初始化完成，既保证只建一个 bus，也让返回值对每个
-// 调用方都是"已发布"的值（happens-after）。
+// 不能"先裸读 globalTraceBus、为 nil 才去 Init"：那次读与 Once 闭包内的写之间
+// 无同步，`-race` 会判成数据竞争。统一走 Once.Do：既保证只建一个 bus，也让
+// 返回值对每个调用方都是已发布的值（happens-after）。
 func GetGlobalTraceBus() *InMemoryTraceBus {
 	globalTraceBusOnce.Do(func() {
 		globalTraceBus = NewInMemoryTraceBus()

@@ -2,12 +2,11 @@ package portcontract
 
 import "context"
 
-// 售后类型
+// 售后状态（本系统侧记录，真实状态由电商回写）
 const (
 	AfterSaleRefund = "refund"
 )
 
-// 售后状态（本系统侧记录，真实状态由电商回写）
 const (
 	AfterSalePending = "pending"
 )

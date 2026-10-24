@@ -8,8 +8,8 @@ import (
 )
 
 // ToolResult 工具执行结果的唯一形状。定义在叶子包而不是 tooluse：agent_runtime 也要用它，
-// 而 tooluse 经 knowledge/service 间接依赖 agent_runtime；两侧各自定义过一次并漂移（runtime
-// 那份缺 error_code/card），方法也只能定义在这份定义上，消费方以类型别名引用。
+// 而 tooluse 经 knowledge/service 间接依赖 agent_runtime；方法只能定义在这份定义上，
+// 消费方以类型别名引用。
 type ToolResult struct {
 	Success    bool            `json:"success"`
 	Data       any             `json:"data,omitempty"`

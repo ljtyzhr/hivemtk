@@ -62,9 +62,7 @@ func NewKnowledgeToolDepsWithDB(gdb *gorm.DB) KnowledgeToolDeps {
 	}
 }
 
-// BuildKnowledgeTools 构造全部 4 个知识工具（不注册到 Registry）
-//
-// 调用方：KnowledgeToolProvider.Provide()
+// BuildKnowledgeTools 构造全部 4 个知识工具（不注册到 Registry，调用方 KnowledgeToolProvider.Provide()）
 func BuildKnowledgeTools(deps KnowledgeToolDeps) []Tool {
 	return []Tool{
 		NewRagSearchTool(deps),

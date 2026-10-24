@@ -9,18 +9,14 @@ import (
 // ErrParamValidationFailed 参数校验失败（公开错误，调用方可用 errors.Is 判定）
 var ErrParamValidationFailed = fmt.Errorf("param validation failed")
 
-// ParamValidatorDecorator 参数校验装饰器
+// ParamValidatorDecorator 参数校验装饰器：
+// 从 ToolRegistry 获取工具的 Parameters（JSON Schema），校验传入 args，
+// 校验失败立即返回，不进入后续装饰器链。装饰器链位置：权限 → 限流 → 熔断 →
+// 参数校验 → 重试 → 超时 → 审计（参数校验在重试之前：避免无效参数被重试浪费 token）。
 //
-// 从 ToolRegistry 获取工具的 Parameters（JSON Schema），校验传入 args。
-// 校验失败立即返回，不进入后续装饰器链。
-//
-// 装饰器链位置：权限 → 限流 → 熔断 → 参数校验 → 重试 → 超时 → 审计
-// （参数校验在重试之前：避免无效参数被重试浪费 token/时间）
-//
-// 业界依据（OpenAI Function Calling / Anthropic Tool Use / MCP 均要求严格 schema 校验）：
-//   - LLM 在 tool call 中经常产生类型幻觉（如把 array 写成 string、数字写成 string）
-//   - 业界共识：必须在工具执行前严格校验参数，否则下游服务会 panic 或产生不可预期行为
-//   - 校验失败时返回清晰错误，让 LLM 下一轮能根据错误修正（业界 pattern：tool_result is_error）
+// LLM 在 tool call 中经常产生类型幻觉（array 写成 string、数字写成 string），
+// 必须在工具执行前严格校验参数，否则下游服务会 panic 或产生不可预期行为；
+// 校验失败返回清晰错误，让 LLM 下一轮能根据错误修正（tool_result is_error 模式）。
 func ParamValidatorDecorator(registry *ToolRegistry) ToolDecorator {
 	return func(next ToolHandler) ToolHandler {
 		return func(ctx context.Context, args map[string]any) (ToolResult, error) {
