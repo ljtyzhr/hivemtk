@@ -379,3 +379,15 @@ MaxSourcesPerTenant
 MaxDailyCrawlPages
 MaxConsecutiveFailBatch
 MaxRetryPerBatch
+# ── 2026-10-24 T2 答案引用溯源（da7bb38d）：引用契约常量刻意不入库 ─────────────
+# 三者定义的是「答案引用面板」这条对外响应契约的形状，不是运维阈值：
+#   CitationCountMax —— 引用透传条数上限（FAQ top3）。调大＝把引用面板变成
+#     检索 dump（design §6.3 泛化防护的配对护栏）；调小＝同一前端卡片少一个来源。
+#     它是 dto / service / 前端三处共识的响应形状，改它走需求变更，不是调参。
+#   CitationSnippetMax —— chunk 摘要截断长度（阶段二 chunk 引用 snippet 字段）。
+#     ChunkCitation.Snippet 按它截断，前端渲染引用原文时按「固定 500 字」排版。
+#   FAQAnswerSummaryMax —— FAQ 卡片答案摘要长度（Answer 字段前 200 字），
+#     与前端「标准答案摘要」卡片的展示契约一致。
+CitationCountMax
+CitationSnippetMax
+FAQAnswerSummaryMax
