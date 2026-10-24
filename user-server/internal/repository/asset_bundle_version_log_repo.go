@@ -1,7 +1,4 @@
 // Package repository 提供 AssetBundleVersionLog 的 CRUD 仓储。
-//
-// 方向9：资产包版本变更日志
-// 文档依据：docs/企业级架构优化/资产包模式.md §五
 package repository
 
 import (
@@ -22,7 +19,6 @@ type assetBundleVersionLogRepo struct {
 	db *gorm.DB
 }
 
-// NewAssetBundleVersionLogRepository 构造版本日志仓储
 func NewAssetBundleVersionLogRepository(db *gorm.DB) AssetBundleVersionLogRepository {
 	return &assetBundleVersionLogRepo{db: db}
 }

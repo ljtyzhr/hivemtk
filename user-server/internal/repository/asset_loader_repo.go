@@ -14,7 +14,6 @@ type AssetLoaderRepository struct {
 	db *gorm.DB
 }
 
-// NewAssetLoaderRepository 构造
 func NewAssetLoaderRepository(db *gorm.DB) *AssetLoaderRepository {
 	return &AssetLoaderRepository{db: db}
 }

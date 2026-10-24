@@ -1459,57 +1459,57 @@
 | 1244 | [ ] | `internal/platform/tenant_code.go` | 1 | 15 | 1 | 0 |
 | 1245 | [ ] | `internal/reach/card/template/template.go` | 16 | 23 | 16 | 0 |
 | 1246 | [ ] | `internal/reporting/window.go` | 5 | 21 | 5 | 0 |
-| 1247 | [ ] | `internal/repository/ab_exposure.go` | 2 | 3 | 2 | 0 |
-| 1248 | [ ] | `internal/repository/account.go` | 1 | 1 | 1 | 0 |
-| 1249 | [ ] | `internal/repository/aftersale.go` | 8 | 11 | 8 | 0 |
-| 1250 | [ ] | `internal/repository/agent_attribution.go` | 8 | 15 | 8 | 0 |
-| 1251 | [ ] | `internal/repository/agent_checkpoint_repo.go` | 6 | 11 | 6 | 0 |
-| 1252 | [ ] | `internal/repository/agent_kb_binding.go` | 14 | 17 | 14 | 0 |
-| 1253 | [ ] | `internal/repository/agent_status.go` | 17 | 23 | 17 | 0 |
-| 1254 | [ ] | `internal/repository/ai_agent.go` | 44 | 60 | 44 | 0 |
-| 1255 | [ ] | `internal/repository/ai_performance_repo.go` | 6 | 6 | 6 | 0 |
-| 1256 | [ ] | `internal/repository/ai_suggestion.go` | 6 | 6 | 6 | 0 |
-| 1257 | [ ] | `internal/repository/ai_tool_account_binding_repo.go` | 10 | 10 | 10 | 0 |
-| 1258 | [ ] | `internal/repository/ai_tool_config_repo.go` | 11 | 11 | 11 | 0 |
+| 1247 | [x] | `internal/repository/ab_exposure.go` | 2 | 3 | 2 | 0 |
+| 1248 | [x] | `internal/repository/account.go` | 1 | 1 | 1 | 0 |
+| 1249 | [x] | `internal/repository/aftersale.go` | 8 | 11 | 8 | 0 |
+| 1250 | [x] | `internal/repository/agent_attribution.go` | 8 | 15 | 8 | 0 |
+| 1251 | [x] | `internal/repository/agent_checkpoint_repo.go` | 6 | 11 | 6 | 0 |
+| 1252 | [x] | `internal/repository/agent_kb_binding.go` | 14 | 17 | 14 | 0 |
+| 1253 | [x] | `internal/repository/agent_status.go` | 17 | 23 | 17 | 0 |
+| 1254 | [x] | `internal/repository/ai_agent.go` | 44 | 60 | 44 | 0 |
+| 1255 | [x] | `internal/repository/ai_performance_repo.go` | 6 | 6 | 6 | 0 |
+| 1256 | [x] | `internal/repository/ai_suggestion.go` | 6 | 6 | 6 | 0 |
+| 1257 | [x] | `internal/repository/ai_tool_account_binding_repo.go` | 10 | 10 | 10 | 0 |
+| 1258 | [x] | `internal/repository/ai_tool_config_repo.go` | 11 | 11 | 11 | 0 |
 | 1259 | [x] | `internal/repository/alert_history.go` | 4 | 4 | 4 | 0 |
-| 1260 | [ ] | `internal/repository/alert_rule.go` | 2 | 2 | 2 | 0 |
+| 1260 | [x] | `internal/repository/alert_rule.go` | 2 | 2 | 2 | 0 |
 | 1261 | [x] | `internal/repository/approval_request.go` | 21 | 111 | 21 | 0 |
-| 1262 | [ ] | `internal/repository/asset_bundle_repo.go` | 5 | 15 | 5 | 0 |
-| 1263 | [ ] | `internal/repository/asset_bundle_version_log_repo.go` | 3 | 6 | 3 | 0 |
-| 1264 | [ ] | `internal/repository/asset_loader_repo.go` | 6 | 7 | 6 | 0 |
-| 1265 | [ ] | `internal/repository/backup.go` | 18 | 18 | 18 | 0 |
-| 1266 | [ ] | `internal/repository/backup_data.go` | 4 | 5 | 4 | 0 |
-| 1267 | [ ] | `internal/repository/bad_case.go` | 29 | 72 | 29 | 0 |
+| 1262 | [x] | `internal/repository/asset_bundle_repo.go` | 5 | 15 | 5 | 0 |
+| 1263 | [x] | `internal/repository/asset_bundle_version_log_repo.go` | 3 | 6 | 3 | 0 |
+| 1264 | [x] | `internal/repository/asset_loader_repo.go` | 6 | 7 | 6 | 0 |
+| 1265 | [x] | `internal/repository/backup.go` | 18 | 18 | 18 | 0 |
+| 1266 | [x] | `internal/repository/backup_data.go` | 4 | 5 | 4 | 0 |
+| 1267 | [x] | `internal/repository/bad_case.go` | 29 | 72 | 29 | 0 |
 | 1268 | [x] | `internal/repository/bandit_allocator.go` | 12 | 29 | 12 | 0 |
 | 1269 | [x] | `internal/repository/bill.go` | 24 | 114 | 24 | 0 |
-| 1270 | [ ] | `internal/repository/bridge_offline_replay_repo.go` | 18 | 62 | 18 | 0 |
+| 1270 | [x] | `internal/repository/bridge_offline_replay_repo.go` | 18 | 62 | 18 | 0 |
 | 1271 | [x] | `internal/repository/bridge_online_predicate.go` | 2 | 13 | 2 | 0 |
-| 1272 | [ ] | `internal/repository/champion_dialogue.go` | 7 | 30 | 7 | 0 |
-| 1273 | [ ] | `internal/repository/channel_overview.go` | 28 | 34 | 28 | 0 |
+| 1272 | [x] | `internal/repository/champion_dialogue.go` | 7 | 30 | 7 | 0 |
+| 1273 | [x] | `internal/repository/channel_overview.go` | 28 | 34 | 28 | 0 |
 | 1274 | [x] | `internal/repository/chat_channel.go` | 16 | 28 | 16 | 0 |
-| 1275 | [ ] | `internal/repository/churn_score.go` | 4 | 4 | 4 | 0 |
-| 1276 | [ ] | `internal/repository/clue.go` | 3 | 3 | 3 | 0 |
-| 1277 | [ ] | `internal/repository/clue_query.go` | 3 | 4 | 3 | 0 |
-| 1278 | [ ] | `internal/repository/clue_score.go` | 4 | 4 | 4 | 0 |
+| 1275 | [x] | `internal/repository/churn_score.go` | 4 | 4 | 4 | 0 |
+| 1276 | [x] | `internal/repository/clue.go` | 3 | 3 | 3 | 0 |
+| 1277 | [x] | `internal/repository/clue_query.go` | 3 | 4 | 3 | 0 |
+| 1278 | [x] | `internal/repository/clue_score.go` | 4 | 4 | 4 | 0 |
 | 1279 | [x] | `internal/repository/community.go` | 0 | 0 | 0 | 0 |
-| 1280 | [ ] | `internal/repository/confidence_repositories.go` | 41 | 42 | 41 | 0 |
+| 1280 | [x] | `internal/repository/confidence_repositories.go` | 41 | 42 | 41 | 0 |
 | 1281 | [x] | `internal/repository/config_param.go` | 14 | 53 | 14 | 0 |
-| 1282 | [ ] | `internal/repository/config_param_tenant.go` | 9 | 13 | 9 | 0 |
-| 1283 | [ ] | `internal/repository/cron_job_lease.go` | 6 | 16 | 6 | 0 |
-| 1284 | [ ] | `internal/repository/csat.go` | 12 | 24 | 12 | 0 |
-| 1285 | [ ] | `internal/repository/csplus_ops_repo.go` | 14 | 15 | 14 | 0 |
-| 1286 | [ ] | `internal/repository/customer.go` | 5 | 17 | 5 | 0 |
-| 1287 | [ ] | `internal/repository/customer_do_not_contact.go` | 6 | 8 | 6 | 0 |
-| 1288 | [ ] | `internal/repository/customer_event.go` | 5 | 5 | 5 | 0 |
-| 1289 | [ ] | `internal/repository/customer_profile_insight.go` | 5 | 5 | 5 | 0 |
-| 1290 | [ ] | `internal/repository/customer_rfm.go` | 2 | 2 | 2 | 0 |
+| 1282 | [x] | `internal/repository/config_param_tenant.go` | 9 | 13 | 9 | 0 |
+| 1283 | [x] | `internal/repository/cron_job_lease.go` | 6 | 16 | 6 | 0 |
+| 1284 | [x] | `internal/repository/csat.go` | 12 | 24 | 12 | 0 |
+| 1285 | [x] | `internal/repository/csplus_ops_repo.go` | 14 | 15 | 14 | 0 |
+| 1286 | [x] | `internal/repository/customer.go` | 5 | 17 | 5 | 0 |
+| 1287 | [x] | `internal/repository/customer_do_not_contact.go` | 6 | 8 | 6 | 0 |
+| 1288 | [x] | `internal/repository/customer_event.go` | 5 | 5 | 5 | 0 |
+| 1289 | [x] | `internal/repository/customer_profile_insight.go` | 5 | 5 | 5 | 0 |
+| 1290 | [x] | `internal/repository/customer_rfm.go` | 2 | 2 | 2 | 0 |
 | 1291 | [x] | `internal/repository/customer_session.go` | 47 | 142 | 47 | 0 |
-| 1292 | [ ] | `internal/repository/customer_tag.go` | 2 | 2 | 2 | 0 |
-| 1293 | [ ] | `internal/repository/customer_tag_assignment.go` | 3 | 7 | 3 | 0 |
-| 1294 | [ ] | `internal/repository/dashboard_stats.go` | 9 | 9 | 9 | 0 |
-| 1295 | [ ] | `internal/repository/data_export_repo.go` | 8 | 8 | 8 | 0 |
-| 1296 | [ ] | `internal/repository/data_scope_owner.go` | 4 | 24 | 4 | 0 |
-| 1297 | [ ] | `internal/repository/db_util.go` | 1 | 2 | 1 | 0 |
+| 1292 | [x] | `internal/repository/customer_tag.go` | 2 | 2 | 2 | 0 |
+| 1293 | [x] | `internal/repository/customer_tag_assignment.go` | 3 | 7 | 3 | 0 |
+| 1294 | [x] | `internal/repository/dashboard_stats.go` | 9 | 9 | 9 | 0 |
+| 1295 | [x] | `internal/repository/data_export_repo.go` | 8 | 8 | 8 | 0 |
+| 1296 | [x] | `internal/repository/data_scope_owner.go` | 4 | 24 | 4 | 0 |
+| 1297 | [x] | `internal/repository/db_util.go` | 1 | 2 | 1 | 0 |
 | 1298 | [x] | `internal/repository/delayed_outbound_repo.go` | 16 | 26 | 16 | 0 |
 | 1299 | [ ] | `internal/repository/dialogue_memory.go` | 3 | 3 | 3 | 0 |
 | 1300 | [x] | `internal/repository/dictionary.go` | 6 | 13 | 6 | 0 |

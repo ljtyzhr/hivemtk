@@ -11,7 +11,7 @@ import (
 	"hivemtk-user/internal/model"
 )
 
-// ChurnScoreRepository D22b：churn_scores 数据访问（纯 GORM，无业务判断）
+// ChurnScoreRepository churn_scores 数据访问（纯 GORM，无业务判断）
 type ChurnScoreRepository struct {
 	db *gorm.DB
 }

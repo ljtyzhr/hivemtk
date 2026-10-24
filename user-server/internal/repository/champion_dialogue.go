@@ -35,7 +35,6 @@ type ChampionDialogueRow struct {
 // 加条件）。而 session_id 在两个租户里**可以是同一个值**（两边各自一套会话命名空间）
 // ⇒ 不带租户条件的子查询会按 session_id 命中**别的租户**那一行，把它的客户消息与
 // AI 回包原文带进本租户的销冠对话语料（外层行仍是本租户的，所以从外层看「一切正常」）。
-// 这条跨租户读已由 champion_dialogue_tenant_test.go 实证（去掉条件即复现）。
 //
 // 租户号取自 ctx（scopeTenantID）：on 模式无绑定时返回 0，由隔离 callback fail-closed
 // —— 绝不因为「取不到租户号」就退化成不带条件（那等于把跨租户读打开）。

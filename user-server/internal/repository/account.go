@@ -19,7 +19,7 @@ type accountRepo struct {
 	db *gorm.DB
 }
 
-// NewAccountRepositoryWithDB 创建账号仓库实例（显式注入 db，兼容测试与五层架构调用方）
+// NewAccountRepositoryWithDB 显式注入 db（兼容测试与五层架构调用方）
 func NewAccountRepositoryWithDB(db *gorm.DB) AccountRepository {
 	return &accountRepo{db: db}
 }

@@ -25,8 +25,8 @@ import (
 func LookupRowOwner(ctx context.Context, table, idColumn, ownerColumn, idValue string) (string, bool, error) {
 	var owner *string
 	// 归属列在本仓有 bigint（customer_sessions.agent_id）和 varchar（按用户名存的那几列）两类，
-	// 一律让驱动按列类型转成字符串扫进 **string（实测 bigint 列回 "4242"），
-	// 所以不需要在 SQL 里额外 CAST。用 **string 而不是 string：NULL 归属（未分配）要能扫成功，
+	// 一律让驱动按列类型转成字符串扫进 **string，不需要在 SQL 里额外 CAST。
+	// 用 **string 而不是 string：NULL 归属（未分配）要能扫成功，
 	// 扫描失败必须是真错误而不是"空归属"。
 	//
 	// deleted_at 这一条必须自己补：走 Table() 的原生查询不套模型的软删除条件，少了它，

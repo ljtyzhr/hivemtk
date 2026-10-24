@@ -19,7 +19,6 @@ type AgentKBBindingRepository struct {
 	db *gorm.DB
 }
 
-// NewAgentKBBindingRepository 创建仓储
 func NewAgentKBBindingRepository(db *gorm.DB) *AgentKBBindingRepository {
 	return &AgentKBBindingRepository{db: db}
 }
@@ -110,8 +109,7 @@ func (r *AgentKBBindingRepository) CheckExists(ctx context.Context, agentID, kbI
 // 绑定域的写事务（覆盖 / 全量替换 / 批量覆盖）
 //
 // 事务边界落在仓储而不是 service：这三个动作都是"先删后建"，中途失败必须整体回滚，
-// 否则绑定会凭空消失。此前 service 里同时存在 tx 与"无 db 时退化"两条路径——同一条
-// 业务规则写了两份实现，而且退化那条静默丢掉了原子性。现在只有一份，且永远在事务里。
+// 否则绑定会凭空消失。三个动作永远在事务里执行。
 //
 // kb_type 一律读知识库的真实类型再落冗余列：写死 faq 会让按类型过滤（ListByAgent 的
 // kbType 参数）把 rag/sop 库整批漏掉。
@@ -124,9 +122,8 @@ var ErrKnowledgeBaseNotFound = errors.New("知识库不存在")
 
 // KnowledgeBaseNotFoundError 带上 kb_id 的"知识库不存在"。
 //
-// 为什么要一个自定义类型而不是 `fmt.Errorf("知识库 %d 不存在: %w", id, ErrKnowledgeBaseNotFound)`：
-// 那样拼出来的文案是"知识库 7 不存在: 知识库不存在"，同一句话说两遍；而只写 id 不 wrap，
-// 调用方就再也没法用 errors.Is 分支处理这一类错误。Is 方法两头都给到。
+// 用自定义类型而不是 fmt.Errorf 拼 id：既保证 errors.Is(ErrKnowledgeBaseNotFound)
+// 可分支处理，又不让文案里同一句话说两遍。
 type KnowledgeBaseNotFoundError struct {
 	ID uint
 }

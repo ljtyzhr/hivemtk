@@ -23,7 +23,6 @@ type AgentCheckpointRepository struct {
 	db *gorm.DB
 }
 
-// NewAgentCheckpointRepository 构造
 func NewAgentCheckpointRepository(db *gorm.DB) *AgentCheckpointRepository {
 	return &AgentCheckpointRepository{db: db}
 }

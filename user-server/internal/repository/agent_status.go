@@ -23,24 +23,20 @@ type AgentStatusRepository struct {
 	db *gorm.DB
 }
 
-// NewAgentStatusRepository 创建客服状态仓库实例
 func NewAgentStatusRepository() *AgentStatusRepository {
 	return &AgentStatusRepository{
 		db: _db.GetDB(),
 	}
 }
 
-// NewAgentStatusRepositoryWithDB 创建指定数据库连接的客服状态仓库实例
 func NewAgentStatusRepositoryWithDB(db *gorm.DB) *AgentStatusRepository {
 	return &AgentStatusRepository{db: db}
 }
 
-// Create 创建客服状态
 func (r *AgentStatusRepository) Create(ctx context.Context, status *model.AgentStatus) error {
 	return r.db.WithContext(ctx).Create(status).Error
 }
 
-// GetByAgentID 根据客服ID获取状态
 func (r *AgentStatusRepository) GetByAgentID(ctx context.Context, agentID uint) (*model.AgentStatus, error) {
 	var status model.AgentStatus
 	err := r.db.WithContext(ctx).Where("agent_id = ?", agentID).First(&status).Error
@@ -50,7 +46,6 @@ func (r *AgentStatusRepository) GetByAgentID(ctx context.Context, agentID uint) 
 	return &status, nil
 }
 
-// GetOnlineAgents 获取在线客服列表
 func (r *AgentStatusRepository) GetOnlineAgents(ctx context.Context) ([]*model.AgentStatus, error) {
 	var agents []*model.AgentStatus
 	cutoff := time.Now().Add(-5 * time.Minute)
@@ -64,7 +59,7 @@ func (r *AgentStatusRepository) GetOnlineAgents(ctx context.Context) ([]*model.A
 func (r *AgentStatusRepository) ListAllAgents(ctx context.Context) ([]*model.AgentStatus, error) {
 	var agents []*model.AgentStatus
 	// 必须 WithContext：on 模式 tenancyidx 从 ctx 取租户注入过滤，
-	// 丢 ctx 会触发 fail-closed 5000（003 生产联调发现）
+	// 丢 ctx 会触发 fail-closed 5000
 	err := r.db.WithContext(ctx).Order("agent_id ASC").Limit(agentAllListLimit).Find(&agents).Error
 	return agents, err
 }
@@ -137,7 +132,6 @@ func (r *AgentStatusRepository) CountByStatus(ctx context.Context, status string
 
 // AutoAssignAgentTx 自动分配事务：行锁锁定最闲在线坐席 → 会话分配 → 坐席负载 +1，原子提交。
 // 返回被分配的坐席（供调用方做 WS 通知）；无可用坐席返回 gorm.ErrRecordNotFound。
-// 该方法为 data-integrity R6 的 SELECT FOR UPDATE 行锁分配链路的仓储收口（原 service 层直连 tx 实现）。
 func (r *AgentStatusRepository) AutoAssignAgentTx(ctx context.Context, sessionID uint) (*model.AgentStatus, error) {
 	tx := r.db.WithContext(ctx).Begin()
 	if tx.Error != nil {

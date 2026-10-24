@@ -19,7 +19,6 @@ type CSATSurveyRepository struct {
 	db *gorm.DB
 }
 
-// NewCSATSurveyRepository 构造
 func NewCSATSurveyRepository() *CSATSurveyRepository {
 	return &CSATSurveyRepository{db: _db.GetDB()}
 }
@@ -71,10 +70,9 @@ func (r *CSATSurveyRepository) SubmitResponse(ctx context.Context, sessionID str
 // MarkSent 标记已发送
 //
 // 已回收评分（status=responded）的调查单**不得**被推回 sent：会话再次关闭/手动重触发
-// 会再走一次 Trigger→MarkSent，原实现无条件覆写状态，于是 score/responded_at 还留着、
-// status 回到 sent——而 Stats 与差评列表都按 status='responded' 过滤，
-// 结果是客户明明打了分，看板上那一条凭空消失（库里实测到 2 条这种行）。
-// 评分一旦回收就是既成事实，重触发只补发邀请，不改回收状态。
+// 会再走一次 Trigger→MarkSent，若无条件覆写状态，score/responded_at 还留着、status
+// 却回到 sent——而 Stats 与差评列表都按 status='responded' 过滤，客户明明打了分，
+// 看板上那一条会凭空消失。评分一旦回收就是既成事实，重触发只补发邀请，不改回收状态。
 func (r *CSATSurveyRepository) MarkSent(ctx context.Context, sessionID string) error {
 	now := time.Now()
 	return r.db.WithContext(ctx).

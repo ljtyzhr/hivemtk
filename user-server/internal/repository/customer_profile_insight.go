@@ -1,4 +1,4 @@
-// Package repository 客户画像洞察数据访问（P-4 画像字段实现）
+// Package repository 客户画像洞察数据访问
 package repository
 
 import (

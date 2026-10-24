@@ -27,7 +27,6 @@ type backupDataRepo struct {
 	db *gorm.DB
 }
 
-// NewBackupDataRepository 创建备份数据仓储
 func NewBackupDataRepository() BackupDataRepository {
 	return &backupDataRepo{db: _db.GetDB()}
 }

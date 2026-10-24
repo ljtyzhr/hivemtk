@@ -17,7 +17,7 @@ type AfterSaleRepository struct {
 	db *gorm.DB
 }
 
-// NewAfterSaleRepositoryWithDB 创建售后单仓库实例（显式注入 db，由装配层传入）。
+// NewAfterSaleRepositoryWithDB 显式注入 db，由装配层传入。
 func NewAfterSaleRepositoryWithDB(db *gorm.DB) *AfterSaleRepository {
 	return &AfterSaleRepository{db: db}
 }

@@ -18,7 +18,6 @@ type AgentAttributionRepository struct {
 	db *gorm.DB
 }
 
-// NewAgentAttributionRepository 构造
 func NewAgentAttributionRepository() *AgentAttributionRepository {
 	return &AgentAttributionRepository{db: GetDB()}
 }
@@ -71,9 +70,9 @@ func (r *AgentAttributionRepository) AggregateSessionsByAgent(ctx context.Contex
 
 // AggregateCSATByAgent 按agent聚合时间窗口内的 CSAT 评分
 //
-// 坐席归属只存在于 customer_sessions（csat_surveys 从来没有 agent_id 列）：
-// 早先按 cs.agent_id 取列会让这条 SQL 直接报 42703，而调用方把错误降级成"无 CSAT 数据"，
-// 于是坐席绩效页的均分/回收数长期静默为 0，看不出是坏了。
+// 坐席归属只存在于 customer_sessions（csat_surveys 没有 agent_id 列）：
+// 直接取 cs.agent_id 会让 SQL 报列不存在，且调用方把错误降级成"无数据"，
+// 坐席绩效页会长期静默为 0。必须 JOIN customer_sessions 取 sess.agent_id。
 func (r *AgentAttributionRepository) AggregateCSATByAgent(ctx context.Context, start, end time.Time) ([]CSATAggRow, error) {
 	var rows []CSATAggRow
 	if err := r.db.WithContext(ctx).

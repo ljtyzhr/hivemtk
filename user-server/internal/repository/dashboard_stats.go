@@ -38,7 +38,7 @@ type FunnelStatusRow struct {
 	Count  int64
 }
 
-// MessageVolumeRawRow message_hub 原生 SQL 小时聚合行（X-8 双读之兜底路径）
+// MessageVolumeRawRow message_hub 原生 SQL 小时聚合行（summary 双读之兜底路径）
 type MessageVolumeRawRow struct {
 	HourBucket   time.Time
 	Platform     string
@@ -58,7 +58,7 @@ type DashboardStatsRepository interface {
 
 	// QueryMessageVolumeFromSummary 读 summary 表（主路径）
 	QueryMessageVolumeFromSummary(ctx context.Context, since time.Time) ([]model.MsgHourlySummary, error)
-	// LatestSummaryBucket summary 最近一次聚合刷新时间（MAX(updated_at)，X-8 陈旧判定）
+	// LatestSummaryBucket summary 最近一次聚合刷新时间（MAX(updated_at)，陈旧判定）
 	LatestSummaryBucket(ctx context.Context) (*time.Time, error)
 	// QueryMessageVolumeRaw 回源 message_hub 原生 SQL 聚合（兜底路径）
 	QueryMessageVolumeRaw(ctx context.Context, since time.Time) ([]MessageVolumeRawRow, error)
@@ -69,7 +69,6 @@ type dashboardStatsRepo struct {
 	summaryRepo MessageHubSummaryRepository
 }
 
-// NewDashboardStatsRepository 创建实时驾驶舱统计仓库
 func NewDashboardStatsRepository(db *gorm.DB) DashboardStatsRepository {
 	return &dashboardStatsRepo{db: db, summaryRepo: NewMessageHubSummaryRepository(db)}
 }

@@ -14,7 +14,6 @@ type CSPlusOpsRepository struct {
 	db *gorm.DB
 }
 
-// NewCSPlusOpsRepository 构造
 // NewCSPlusOpsRepository 构造（无参，内部取全局 DB；对齐 customer_session.go 先例）
 func NewCSPlusOpsRepository() *CSPlusOpsRepository {
 	return &CSPlusOpsRepository{db: _db.GetDB()}

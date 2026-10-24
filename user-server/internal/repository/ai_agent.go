@@ -27,7 +27,6 @@ func NewAIAgentRepository() *AIAgentRepository {
 	return &AIAgentRepository{db: GetDB()}
 }
 
-// NewAIAgentRepositoryWithDB 创建指定数据库连接的智能体仓库
 func NewAIAgentRepositoryWithDB(db *gorm.DB) *AIAgentRepository {
 	return &AIAgentRepository{db: db}
 }
@@ -53,7 +52,6 @@ func (r *AIAgentRepository) CountServiceMountsByAgent(ctx context.Context, agent
 	return n, err
 }
 
-// GetByID 根据 ID 获取
 func (r *AIAgentRepository) GetByID(ctx context.Context, id uint) (*model.AIAgent, error) {
 	var a model.AIAgent
 	if err := r.db.WithContext(ctx).First(&a, id).Error; err != nil {
@@ -105,7 +103,7 @@ func (r *AIAgentRepository) ListEnabled(ctx context.Context) ([]*model.AIAgent, 
 //
 // 不用 Save：Save 的 UPDATE 命中 0 行时会回退成 ON CONFLICT(裸主键) DO UPDATE，
 // 而租户闸对 excluded.tenant_id 是放行的 —— 跨租户按主键 Save 会把整行搬到
-// 调用方租户下（#14 真库探针复现）。这里用显式列 map：谓词只剩 WHERE id +
+// 调用方租户下。这里用显式列 map：谓词只剩 WHERE id +
 // 注入的 tenant_id，0 行就是 0 行；同时 map 不做零值裁剪，显式 false/0 能落库。
 // 四个 *bool 能力开关为 nil 时跳过该列（保留原值），不解引用、不写 NULL。
 func (r *AIAgentRepository) Update(ctx context.Context, agent *model.AIAgent) error {
@@ -183,12 +181,10 @@ type ChannelAgentBindingRepository struct {
 	db *gorm.DB
 }
 
-// NewChannelAgentBindingRepository 创建渠道绑定仓库（绑定全局默认 DB，仅兼容存量测试）
 func NewChannelAgentBindingRepository() *ChannelAgentBindingRepository {
 	return &ChannelAgentBindingRepository{db: GetDB()}
 }
 
-// NewChannelAgentBindingRepositoryWithDB 创建指定数据库连接的渠道绑定仓库
 func NewChannelAgentBindingRepositoryWithDB(db *gorm.DB) *ChannelAgentBindingRepository {
 	return &ChannelAgentBindingRepository{db: db}
 }
@@ -233,7 +229,6 @@ func (r *ChannelAgentBindingRepository) ReplacePrimaryBinding(ctx context.Contex
 	return created, nil
 }
 
-// GetByID 根据 ID 获取
 func (r *ChannelAgentBindingRepository) GetByID(ctx context.Context, id uint) (*model.ChannelAgentBinding, error) {
 	var b model.ChannelAgentBinding
 	if err := r.db.WithContext(ctx).First(&b, id).Error; err != nil {
@@ -405,12 +400,10 @@ type CustomerServiceAgentRepository struct {
 	db *gorm.DB
 }
 
-// NewCustomerServiceAgentRepository 创建客服挂载仓库（绑定全局默认 DB，仅兼容存量测试）
 func NewCustomerServiceAgentRepository() *CustomerServiceAgentRepository {
 	return &CustomerServiceAgentRepository{db: GetDB()}
 }
 
-// NewCustomerServiceAgentRepositoryWithDB 创建指定数据库连接的客服挂载仓库
 func NewCustomerServiceAgentRepositoryWithDB(db *gorm.DB) *CustomerServiceAgentRepository {
 	return &CustomerServiceAgentRepository{db: db}
 }
@@ -420,7 +413,6 @@ func (r *CustomerServiceAgentRepository) Create(ctx context.Context, c *model.Cu
 	return r.db.WithContext(ctx).Create(c).Error
 }
 
-// GetByID 根据 ID 获取
 func (r *CustomerServiceAgentRepository) GetByID(ctx context.Context, id uint) (*model.CustomerServiceAgent, error) {
 	var c model.CustomerServiceAgent
 	if err := r.db.WithContext(ctx).First(&c, id).Error; err != nil {

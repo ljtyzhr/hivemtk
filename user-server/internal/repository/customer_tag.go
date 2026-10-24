@@ -73,9 +73,8 @@ func (r *customerTagRepository) Delete(ctx context.Context, id string) error {
 
 // Update 按主键白名单更新标签规则（name/category/rule）。
 //
-// 原来用 Save 整行回写：连主键与只读列（source/created_at）一起交给 GORM，
-// 且命中 0 行也返回成功——记录已被删、或 id 属于别的租户时，管理端照旧显示
-// "已保存"，库里其实一行没变。
+// 不用 Save 整行回写：会把主键与只读列（source/created_at）一起交给 GORM，
+// 且命中 0 行也返回成功——记录已删或 id 属于别的租户时，管理端照旧显示"已保存"。
 func (r *customerTagRepository) Update(ctx context.Context, tag *model.CustomerTag) error {
 	res := _db.GetDB().WithContext(ctx).
 		Model(&model.CustomerTag{}).

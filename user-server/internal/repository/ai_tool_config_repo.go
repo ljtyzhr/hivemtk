@@ -13,7 +13,6 @@ type AIToolConfigRepository struct {
 	db *gorm.DB
 }
 
-// NewAIToolConfigRepository 创建AI工具配置仓储
 func NewAIToolConfigRepository(db *gorm.DB) *AIToolConfigRepository {
 	return &AIToolConfigRepository{db: db}
 }

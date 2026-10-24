@@ -17,7 +17,6 @@ type BridgeOfflineReplayRepository struct {
 	db *gorm.DB
 }
 
-// NewBridgeOfflineReplayRepository 构造
 // NewBridgeOfflineReplayRepository 构造（无参，内部取全局 DB；对齐 customer_session.go 先例）
 func NewBridgeOfflineReplayRepository() *BridgeOfflineReplayRepository {
 	return NewBridgeOfflineReplayRepositoryWithDB(_db.GetDB())
@@ -31,8 +30,8 @@ func NewBridgeOfflineReplayRepositoryWithDB(db *gorm.DB) *BridgeOfflineReplayRep
 // BridgeChannelRow 桥接渠道账号快照。
 //
 // 列集合必须与 model.BridgeAccount 一致：bridge_accounts 的渠道列叫 channel 不叫 platform，
-// 而 bridge_metrics 是指标时间序列（metric_name/labels/value/ts），根本没有渠道维度 ——
-// 拿它当"渠道最近活跃"的数据源，两条查询都撞 42703，回扫于是永远静默空转。
+// 而 bridge_metrics 是指标时间序列（metric_name/labels/value/ts），没有渠道维度 ——
+// 拿它当"渠道最近活跃"的数据源，两条查询都会报列不存在，回扫永远静默空转。
 type BridgeChannelRow struct {
 	Channel    string     `gorm:"column:channel"`
 	AccountID  string     `gorm:"column:account_id"`
@@ -101,7 +100,7 @@ func (r *BridgeOfflineReplayRepository) ListPendingDelayedOutbound(ctx context.C
 
 // ClaimDelayedOutboundForReplay 抢占重放权：pending → sending，返回是否拿到入场券。
 //
-// H-3 主链路 drain 的是同一张表的同一批到期 pending 行，两边都直接投递就是
+// 主链路 drain 的是同一张表的同一批到期 pending 行，两边都直接投递就是
 // 一次周期里把同一份内容发给客户两次；只有把这条 CAS 的 RowsAffected 当门票才互斥。
 func (r *BridgeOfflineReplayRepository) ClaimDelayedOutboundForReplay(ctx context.Context, id uint) (bool, error) {
 	if r.db == nil {
@@ -171,8 +170,7 @@ type OrphanOutboundGroup struct {
 //     里根本没这行"（未注册渠道）落进 IS NULL 这一支，与"注册过但早已不同步"同判。
 //
 // 不看 bridge_accounts.status：那一列只有 SSE 正常收尾时 SetOffline 会改回 offline，
-// 扩展崩溃 / 浏览器被杀 / 断网都不走那条路径，列就粘在 online 上（实测 155 行里 152 行标 online，
-// 按最后同步时间判定的真值是 0）。可达性只按 last_sync_at 判。
+// 扩展崩溃 / 浏览器被杀 / 断网都不走那条路径，列就粘在 online 上。可达性只按 last_sync_at 判。
 const orphanOutboundAgePredicate = `m.direction = 'outbound'
 	  AND m.deleted_at IS NULL
 	  AND m.status IN ('pending','inflight')
@@ -230,8 +228,7 @@ func (r *BridgeOfflineReplayRepository) SettleOrphanOutbound(ctx context.Context
 	affected := int64(0)
 	// 依赖 (platform, account_id) 成对匹配：不能拆成两个 IN 列表，那样 A 渠道 + B 账号的
 	// 组合也会被选中，等于跨渠道误烧。
-	// 原 UPDATE...WHERE id IN (子查询)（T012 清偿）：事务内同谓词取号再按 id 更新，
-	// 原语句无显式锁子句（外连接可空侧不接受 FOR UPDATE），互斥由 UPDATE 行锁承担。
+	// 事务内同谓词取号再按 id 更新：外连接可空侧不接受 FOR UPDATE，互斥由 UPDATE 行锁承担。
 	pairConds := make([]string, 0, len(pairs))
 	for range pairs {
 		pairConds = append(pairConds, "(m.platform = ? AND m.account_id = ?)")

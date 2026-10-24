@@ -120,7 +120,7 @@ func (r *customerTagAssignmentRepository) Upsert(ctx context.Context, assignment
 	}).Create(assignment).Error
 }
 
-// ListCustomerIDsByTag 按标签取客户 ID（T-P5-01 圈选侧消费），按最近打标时间倒序。
+// ListCustomerIDsByTag 按标签取客户 ID（圈选侧消费），按最近打标时间倒序。
 //
 // total 是"打过该标的总行数"，与 ids 是否被 limit 截断无关 —— 调用方要据此区分
 // "这个标签根本没人打"（total=0）和"有人但一轮取不完"（len(ids)<total）。

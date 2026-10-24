@@ -13,7 +13,6 @@ type AIPerformanceRepository struct {
 	db *gorm.DB
 }
 
-// NewAIPerformanceRepository 构造
 func NewAIPerformanceRepository(db *gorm.DB) *AIPerformanceRepository {
 	return &AIPerformanceRepository{db: db}
 }

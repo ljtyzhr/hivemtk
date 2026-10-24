@@ -14,14 +14,12 @@ type AISuggestionRepository struct {
 	db *gorm.DB
 }
 
-// NewAISuggestionRepository 创建AI建议仓库实例
 func NewAISuggestionRepository() *AISuggestionRepository {
 	return &AISuggestionRepository{
 		db: _db.GetDB(),
 	}
 }
 
-// NewAISuggestionRepositoryWithDB 创建指定数据库连接AI建议仓库实例
 func NewAISuggestionRepositoryWithDB(db *gorm.DB) *AISuggestionRepository {
 	return &AISuggestionRepository{db: db}
 }

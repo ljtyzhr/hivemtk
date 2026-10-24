@@ -1,8 +1,5 @@
 // Package repository 提供 AssetBundle（资产包）的 CRUD 仓储实现。
 //
-// 方向9：资产包模式
-// 文档依据：docs/企业级架构优化/资产包模式.md
-//
 // 设计原则：
 //  1. 五层架构：Repository 只做 GORM 映射，不做业务校验（业务校验放 Service）
 //  2. 软删除：使用 gorm.DeletedAt
@@ -58,7 +55,6 @@ type assetBundleRepo struct {
 	db *gorm.DB
 }
 
-// NewAssetBundleRepository 构造资产包仓储
 func NewAssetBundleRepository(db *gorm.DB) AssetBundleRepository {
 	return &assetBundleRepo{db: db}
 }

@@ -1,11 +1,10 @@
-// bad_case.go Bad Case 读写仓储（新规划任务清单 T-P8-03 / G-2）。
+// bad_case.go Bad Case 读写仓储。
 //
-// 与 human_tasks 同一取舍：**没有内存版底座**。Bad Case 的全部意义是"进程外还记着
-// 这条判过、判成什么"，一份重启即空的队列比没有队列更坏 —— 打标的人会以为今天没坏例，
-// 而事实是上一次发布把没导完的那批抹掉了。
+// 没有内存版底座：Bad Case 的全部意义是"进程外还记着这条判过、判成什么"，
+// 一份重启即空的队列比没有队列更坏。
 //
-// 读侧一律给三件东西（结果、总数、错误），理由与待办仓储同一句：
-// "一条坏例都没有"是业务结论，"读不动"只能支撑"未知"。
+// 读侧一律给三件东西（结果、总数、错误）："一条坏例都没有"是业务结论，
+// "读不动"只能支撑"未知"。
 package repository
 
 import (
@@ -34,12 +33,12 @@ var ErrBadCaseInputInvalid = errors.New("bad_case: 查询条件非法")
 var ErrBadCaseAlreadyClaimed = errors.New("bad_case: 待导出的行已被其他导出取走")
 
 const (
-	// badCaseMaxPageSize 列表单页上限（同待办：一句 page_size=999999 不该能拉整表）。
+	// badCaseMaxPageSize 列表单页上限（一句 page_size=999999 不该能拉整表）。
 	badCaseMaxPageSize = 200
 	// badCaseMaxExportRows 单次导出的行数上限。
 	//
-	// 有上限不是因为导出慢，是因为导出产物会变成评测集：一次"手滑全选"把三年的坏例
-	// 灌进 gold set，T-P8-04 的基线分数当场被一坨未复核样本淹没，而分数是拿来比好坏的。
+	// 导出产物会变成评测集：一次"手滑全选"会把未复核样本灌进 gold set，
+	// 基线分数随之失真。
 	badCaseMaxExportRows = 2000
 )
 
@@ -64,8 +63,8 @@ type BadCaseListQuery struct {
 	// Statuses 为空 = 只列**未落定**的（pending）—— 打标队列的默认视图就是"还没人判的"；
 	// 非空 = 精确列这些状态（每个都必须是已知 status）。
 	//
-	// 这里刻意不像 human_tasks 那样把"已打标"也算未落定：坏例判完没导出，
-	// 那是"等导出"而不是"等人判"，两拨人不看同一个队列。
+	// 这里刻意不把"已打标"算未落定：坏例判完没导出是"等导出"而不是"等人判"，
+	// 两拨人不看同一个队列。
 	Statuses []string
 	Labels   []string
 	FixLayer string
@@ -112,7 +111,6 @@ type badCaseRepo struct {
 	db *gorm.DB
 }
 
-// NewBadCaseRepositoryWithDB 创建指定数据库连接的实例（用于测试与装配注入）
 func NewBadCaseRepositoryWithDB(db *gorm.DB) BadCaseRepository {
 	return &badCaseRepo{db: db}
 }

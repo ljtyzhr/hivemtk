@@ -17,7 +17,6 @@ type ChannelOverviewRepository struct {
 	db *gorm.DB
 }
 
-// NewChannelOverviewRepository 创建渠道概览仓储
 func NewChannelOverviewRepository(db *gorm.DB) *ChannelOverviewRepository {
 	return &ChannelOverviewRepository{db: db}
 }
@@ -153,12 +152,9 @@ func (r *ChannelOverviewRepository) GetCustomerUnifiedID(ctx context.Context, cu
 
 // UpsertCustomerChannel 幂等写入客户渠道绑定（tenant_id + one_id + channel 唯一）
 //
-// 原实现是 Where+Assign+FirstOrCreate（先 SELECT 再 INSERT）：同一客户在两个渠道
-// webhook 并发绑定时，两边的 SELECT 都可能未命中，后落的那条撞唯一索引直接 500。
-// 而 FirstOrCreate 的 Create 分支只写 cc 结构体，service 放在 assignVals 里的
-// is_primary / group_id 在首绑时被整批丢掉——第一个绑定的渠道明明是主渠道却落成 false。
-// 现在改为 ON CONFLICT (tenant_id, one_id, channel) DO UPDATE 的单条语句：
-// 插入与冲突更新读同一份入参，首绑字段不再丢，也不再依赖"先查后写"的窗口。
+// 单条 ON CONFLICT 语句：插入与冲突更新读同一份入参。
+// 不能用 Where+Assign+FirstOrCreate（先 SELECT 再 INSERT）——并发首绑会撞唯一索引，
+// 且其 Create 分支只写结构体字段，service 附加的 is_primary / group_id 首绑时会被丢掉。
 func (r *ChannelOverviewRepository) UpsertCustomerChannel(ctx context.Context, cc *model.CustomerChannel) error {
 	return r.db.WithContext(ctx).Clauses(clause.OnConflict{
 		Columns: []clause.Column{

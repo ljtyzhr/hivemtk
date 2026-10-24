@@ -28,7 +28,6 @@ type alertRuleRepo struct {
 	db *gorm.DB
 }
 
-// NewAlertRuleRepository 构造（绑定全局 DB，兼容存量调用）
 func NewAlertRuleRepository() AlertRuleRepository {
 	return &alertRuleRepo{db: db.GetDB()}
 }
@@ -45,7 +44,7 @@ func (r *alertRuleRepo) Create(ctx context.Context, m *model.AlertRule) error {
 // Update 更新告警规则
 //
 // 不用 Save：Save 命中 0 行会回退成 ON CONFLICT(裸主键) DO UPDATE，跨租户按主键
-// Save 能把整行搬到调用方租户下（#14 真库探针复现）。这里用显式列 map，
+// Save 能把整行搬到调用方租户下。这里用显式列 map，
 // 谓词只剩 WHERE id + 注入的 tenant_id，0 行就是 0 行；map 写入保留零值
 // （enabled=false / threshold=0 能落库）。last_triggered_at 仅在非 nil 时写入，
 // 避免一次普通编辑把冷却计时清成 NULL。

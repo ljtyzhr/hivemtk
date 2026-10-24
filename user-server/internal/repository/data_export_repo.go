@@ -14,7 +14,6 @@ type DataExportRepository struct {
 	db *gorm.DB
 }
 
-// NewDataExportRepository 构造
 func NewDataExportRepository(db *gorm.DB) *DataExportRepository {
 	return &DataExportRepository{db: db}
 }

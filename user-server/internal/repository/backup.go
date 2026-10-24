@@ -28,7 +28,6 @@ type BackupRepository struct {
 	db *gorm.DB
 }
 
-// NewBackupRepository 创建备份仓库实例
 func NewBackupRepository() *BackupRepository {
 	return &BackupRepository{
 		db: _db.GetDB(),
@@ -123,7 +122,6 @@ type RestoreRecordRepository struct {
 	db *gorm.DB
 }
 
-// NewRestoreRecordRepository 创建恢复记录仓库实例
 func NewRestoreRecordRepository() *RestoreRecordRepository {
 	return &RestoreRecordRepository{
 		db: _db.GetDB(),

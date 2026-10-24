@@ -28,7 +28,6 @@ type customerDoNotContactRepo struct {
 	db *gorm.DB
 }
 
-// NewCustomerDoNotContactRepository 创建全局退订标志位仓库实例
 func NewCustomerDoNotContactRepository(db *gorm.DB) CustomerDoNotContactRepository {
 	if db == nil {
 		db = _db.GetDB()

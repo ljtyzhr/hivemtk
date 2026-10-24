@@ -13,7 +13,6 @@ type AIToolAccountBindingRepository struct {
 	db *gorm.DB
 }
 
-// NewAIToolAccountBindingRepository 创建AI工具-账号绑定仓储
 func NewAIToolAccountBindingRepository(db *gorm.DB) *AIToolAccountBindingRepository {
 	return &AIToolAccountBindingRepository{db: db}
 }
