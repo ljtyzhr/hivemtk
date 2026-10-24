@@ -10,7 +10,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// EmailListRepository 列表仓库接口
 type EmailListRepository interface {
 	Create(ctx context.Context, list *model.EmailList) error
 	BatchCreate(ctx context.Context, list []*model.EmailList) (int64, error)
@@ -27,7 +26,6 @@ type emailListRepo struct {
 	db *gorm.DB
 }
 
-// NewEmailListRepository 创建列表仓库实例
 func NewEmailListRepository() EmailListRepository {
 	return &emailListRepo{db: _db.GetDB()}
 }

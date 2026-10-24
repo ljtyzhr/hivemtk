@@ -9,7 +9,6 @@ import (
 	_db "hivemtk-user/internal/pkg/db"
 )
 
-// DialogueMemoryRepository 对话记忆仓储接口
 type DialogueMemoryRepository interface {
 	GetDialogueMemoryBySession(ctx context.Context, sessionID string) (*model.DialogueMemory, error)
 	CreateDialogueMemory(ctx context.Context, mem *model.DialogueMemory) error
@@ -23,12 +22,10 @@ type dialogueMemoryRepository struct {
 	db *gorm.DB
 }
 
-// NewDialogueMemoryRepository 构造（无参，内部取库句柄）
 func NewDialogueMemoryRepository() DialogueMemoryRepository {
 	return &dialogueMemoryRepository{db: _db.GetDB()}
 }
 
-// NewDialogueMemoryRepositoryWithDB 创建指定数据库连接的 DialogueMemoryRepository 实例（用于测试）
 func NewDialogueMemoryRepositoryWithDB(db *gorm.DB) DialogueMemoryRepository {
 	return &dialogueMemoryRepository{db: db}
 }

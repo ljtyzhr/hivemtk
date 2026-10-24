@@ -9,7 +9,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// EmailDraftRepository 草稿仓库接口
 type EmailDraftRepository interface {
 	Create(ctx context.Context, draft *model.EmailDraft) error
 	GetByID(ctx context.Context, id uuid.UUID) (*model.EmailDraft, error)
@@ -22,7 +21,6 @@ type emailDraftRepo struct {
 	db *gorm.DB
 }
 
-// NewEmailDraftRepository 创建草稿仓库实例
 func NewEmailDraftRepository() EmailDraftRepository {
 	return &emailDraftRepo{db: _db.GetDB()}
 }

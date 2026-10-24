@@ -10,7 +10,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// KuaishouCardRepository 快手卡片仓储接口
 type KuaishouCardRepository interface {
 	Create(ctx context.Context, card *model.KuaishouCard) (*model.KuaishouCard, error)
 	Update(ctx context.Context, card *model.KuaishouCard) (*model.KuaishouCard, error)
@@ -28,7 +27,6 @@ type kuaishouCardRepository struct {
 	db *gorm.DB
 }
 
-// NewKuaishouCardRepository 创建快手卡片仓储实例
 func NewKuaishouCardRepository(db *gorm.DB) KuaishouCardRepository {
 	return &kuaishouCardRepository{
 		db: db,

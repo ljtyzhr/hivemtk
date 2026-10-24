@@ -9,7 +9,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// EmailJobsRepository 任务仓库接口
 type EmailJobsRepository interface {
 	Create(ctx context.Context, jobs *model.EmailJobs) error
 	GetByID(ctx context.Context, id uuid.UUID) (*model.EmailJobs, error)
@@ -22,7 +21,6 @@ type emailJobsRepo struct {
 	db *gorm.DB
 }
 
-// NewEmailJobsRepository 创建任务仓库实例
 func NewEmailJobsRepository() EmailJobsRepository {
 	return &emailJobsRepo{db: _db.GetDB()}
 }

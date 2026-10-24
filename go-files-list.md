@@ -1511,61 +1511,61 @@
 | 1296 | [x] | `internal/repository/data_scope_owner.go` | 4 | 24 | 4 | 0 |
 | 1297 | [x] | `internal/repository/db_util.go` | 1 | 2 | 1 | 0 |
 | 1298 | [x] | `internal/repository/delayed_outbound_repo.go` | 16 | 26 | 16 | 0 |
-| 1299 | [ ] | `internal/repository/dialogue_memory.go` | 3 | 3 | 3 | 0 |
+| 1299 | [x] | `internal/repository/dialogue_memory.go` | 3 | 3 | 3 | 0 |
 | 1300 | [x] | `internal/repository/dictionary.go` | 6 | 13 | 6 | 0 |
-| 1301 | [ ] | `internal/repository/dingtalk_app.go` | 2 | 4 | 2 | 0 |
-| 1302 | [ ] | `internal/repository/domain_pool.go` | 13 | 13 | 13 | 0 |
-| 1303 | [ ] | `internal/repository/douyin_card.go` | 3 | 4 | 3 | 0 |
-| 1304 | [ ] | `internal/repository/douyin_card_stats.go` | 6 | 8 | 6 | 0 |
-| 1305 | [ ] | `internal/repository/email_account_repo.go` | 9 | 10 | 9 | 0 |
-| 1306 | [ ] | `internal/repository/email_draft.go` | 2 | 2 | 2 | 0 |
-| 1307 | [ ] | `internal/repository/email_jobs.go` | 2 | 2 | 2 | 0 |
-| 1308 | [ ] | `internal/repository/email_list.go` | 2 | 2 | 2 | 0 |
+| 1301 | [x] | `internal/repository/dingtalk_app.go` | 2 | 4 | 2 | 0 |
+| 1302 | [x] | `internal/repository/domain_pool.go` | 13 | 13 | 13 | 0 |
+| 1303 | [x] | `internal/repository/douyin_card.go` | 3 | 4 | 3 | 0 |
+| 1304 | [x] | `internal/repository/douyin_card_stats.go` | 6 | 8 | 6 | 0 |
+| 1305 | [x] | `internal/repository/email_account_repo.go` | 9 | 10 | 9 | 0 |
+| 1306 | [x] | `internal/repository/email_draft.go` | 2 | 2 | 2 | 0 |
+| 1307 | [x] | `internal/repository/email_jobs.go` | 2 | 2 | 2 | 0 |
+| 1308 | [x] | `internal/repository/email_list.go` | 2 | 2 | 2 | 0 |
 | 1309 | [x] | `internal/repository/email_send.go` | 6 | 25 | 6 | 0 |
 | 1310 | [x] | `internal/repository/email_smtp.go` | 0 | 0 | 0 | 0 |
-| 1311 | [ ] | `internal/repository/email_tracking.go` | 4 | 7 | 4 | 0 |
-| 1312 | [ ] | `internal/repository/email_unsubscribe.go` | 4 | 5 | 4 | 0 |
-| 1313 | [ ] | `internal/repository/faq_entry.go` | 18 | 64 | 18 | 0 |
-| 1314 | [ ] | `internal/repository/feature_flag.go` | 5 | 7 | 5 | 0 |
-| 1315 | [ ] | `internal/repository/feedback_learning.go` | 12 | 35 | 12 | 0 |
+| 1311 | [x] | `internal/repository/email_tracking.go` | 4 | 7 | 4 | 0 |
+| 1312 | [x] | `internal/repository/email_unsubscribe.go` | 4 | 5 | 4 | 0 |
+| 1313 | [x] | `internal/repository/faq_entry.go` | 18 | 64 | 18 | 0 |
+| 1314 | [x] | `internal/repository/feature_flag.go` | 5 | 7 | 5 | 0 |
+| 1315 | [x] | `internal/repository/feedback_learning.go` | 12 | 35 | 12 | 0 |
 | 1316 | [x] | `internal/repository/feedback_loop.go` | 35 | 46 | 35 | 0 |
-| 1317 | [ ] | `internal/repository/feedback_record.go` | 6 | 15 | 6 | 0 |
-| 1318 | [ ] | `internal/repository/feishu.go` | 36 | 51 | 36 | 0 |
+| 1317 | [x] | `internal/repository/feedback_record.go` | 6 | 15 | 6 | 0 |
+| 1318 | [x] | `internal/repository/feishu.go` | 36 | 51 | 36 | 0 |
 | 1319 | [x] | `internal/repository/generic.go` | 24 | 28 | 24 | 0 |
-| 1320 | [ ] | `internal/repository/glossary_repo.go` | 13 | 23 | 13 | 0 |
-| 1321 | [ ] | `internal/repository/growth_repo.go` | 29 | 32 | 29 | 0 |
+| 1320 | [x] | `internal/repository/glossary_repo.go` | 13 | 23 | 13 | 0 |
+| 1321 | [x] | `internal/repository/growth_repo.go` | 29 | 32 | 29 | 0 |
 | 1322 | [x] | `internal/repository/handoff_chain_repo.go` | 14 | 34 | 14 | 0 |
 | 1323 | [x] | `internal/repository/help_center.go` | 16 | 16 | 16 | 0（整文件已删：`HelpCenterRepo` 全仓零调用，任务一 #107 的 4.4） |
 | 1324 | [x] | `internal/repository/help_center_repo.go` | 17 | 21 | 17 | 0 |
 | 1325 | [x] | `internal/repository/human_task.go` | 41 | 125 | 41 | 0 |
-| 1326 | [ ] | `internal/repository/humanize_low_quality_collector.go` | 3 | 6 | 3 | 0 |
-| 1327 | [ ] | `internal/repository/humanize_repositories.go` | 27 | 38 | 27 | 0 |
-| 1328 | [ ] | `internal/repository/i18n_stats_repo.go` | 7 | 8 | 7 | 0 |
-| 1329 | [ ] | `internal/repository/integration.go` | 61 | 86 | 61 | 0 |
-| 1330 | [ ] | `internal/repository/integration_template.go` | 1 | 1 | 1 | 0 |
-| 1331 | [ ] | `internal/repository/intent_example.go` | 5 | 5 | 5 | 0 |
-| 1332 | [ ] | `internal/repository/intent_recognition.go` | 21 | 24 | 21 | 0 |
+| 1326 | [x] | `internal/repository/humanize_low_quality_collector.go` | 3 | 6 | 3 | 0 |
+| 1327 | [x] | `internal/repository/humanize_repositories.go` | 27 | 38 | 27 | 0 |
+| 1328 | [x] | `internal/repository/i18n_stats_repo.go` | 7 | 8 | 7 | 0 |
+| 1329 | [x] | `internal/repository/integration.go` | 61 | 86 | 61 | 0 |
+| 1330 | [x] | `internal/repository/integration_template.go` | 1 | 1 | 1 | 0 |
+| 1331 | [x] | `internal/repository/intent_example.go` | 5 | 5 | 5 | 0 |
+| 1332 | [x] | `internal/repository/intent_recognition.go` | 21 | 24 | 21 | 0 |
 | 1333 | [x] | `internal/repository/kb_document_chunk_repo.go` | 10 | 19 | 10 | 0 |
-| 1334 | [ ] | `internal/repository/kb_mcp_repo.go` | 2 | 2 | 2 | 0 |
+| 1334 | [x] | `internal/repository/kb_mcp_repo.go` | 2 | 2 | 2 | 0 |
 | 1335 | [x] | `internal/repository/kb_release.go` | 54 | 165 | 54 | 0 |
-| 1336 | [ ] | `internal/repository/knowledge.go` | 4 | 8 | 4 | 0 |
-| 1337 | [ ] | `internal/repository/knowledge_base.go` | 16 | 36 | 16 | 0 |
-| 1338 | [ ] | `internal/repository/kuaishou_card.go` | 2 | 2 | 2 | 0 |
-| 1339 | [ ] | `internal/repository/kuaishou_card_stats.go` | 5 | 8 | 5 | 0 |
-| 1340 | [ ] | `internal/repository/layer_decision_log.go` | 8 | 8 | 8 | 0 |
-| 1341 | [ ] | `internal/repository/lead_mining_config.go` | 1 | 1 | 1 | 0 |
-| 1342 | [ ] | `internal/repository/live_code.go` | 3 | 3 | 3 | 0 |
-| 1343 | [ ] | `internal/repository/live_code_click_log.go` | 2 | 3 | 2 | 0 |
-| 1344 | [ ] | `internal/repository/live_code_qr.go` | 2 | 2 | 2 | 0 |
-| 1345 | [ ] | `internal/repository/llm_wallet.go` | 5 | 9 | 5 | 0 |
-| 1346 | [ ] | `internal/repository/local_asset_repo.go` | 5 | 5 | 5 | 0 |
-| 1347 | [ ] | `internal/repository/login_risk.go` | 3 | 6 | 3 | 0 |
-| 1348 | [ ] | `internal/repository/low_quality_sample.go` | 3 | 6 | 3 | 0 |
-| 1349 | [ ] | `internal/repository/macro_repo.go` | 8 | 9 | 8 | 0 |
-| 1350 | [ ] | `internal/repository/macro_session_ops_repo.go` | 12 | 16 | 12 | 0 |
+| 1336 | [x] | `internal/repository/knowledge.go` | 4 | 8 | 4 | 0 |
+| 1337 | [x] | `internal/repository/knowledge_base.go` | 16 | 36 | 16 | 0 |
+| 1338 | [x] | `internal/repository/kuaishou_card.go` | 2 | 2 | 2 | 0 |
+| 1339 | [x] | `internal/repository/kuaishou_card_stats.go` | 5 | 8 | 5 | 0 |
+| 1340 | [x] | `internal/repository/layer_decision_log.go` | 8 | 8 | 8 | 0 |
+| 1341 | [x] | `internal/repository/lead_mining_config.go` | 1 | 1 | 1 | 0 |
+| 1342 | [x] | `internal/repository/live_code.go` | 3 | 3 | 3 | 0 |
+| 1343 | [x] | `internal/repository/live_code_click_log.go` | 2 | 3 | 2 | 0 |
+| 1344 | [x] | `internal/repository/live_code_qr.go` | 2 | 2 | 2 | 0 |
+| 1345 | [x] | `internal/repository/llm_wallet.go` | 5 | 9 | 5 | 0 |
+| 1346 | [x] | `internal/repository/local_asset_repo.go` | 5 | 5 | 5 | 0 |
+| 1347 | [x] | `internal/repository/login_risk.go` | 3 | 6 | 3 | 0 |
+| 1348 | [x] | `internal/repository/low_quality_sample.go` | 3 | 6 | 3 | 0 |
+| 1349 | [x] | `internal/repository/macro_repo.go` | 8 | 9 | 8 | 0 |
+| 1350 | [x] | `internal/repository/macro_session_ops_repo.go` | 12 | 16 | 12 | 0 |
 | 1351 | [x] | `internal/repository/memory.go` | 5 | 6 | 5 | 0 |
 | 1352 | [x] | `internal/repository/message.go` | 0 | 0 | 0 | 0 |
-| 1353 | [ ] | `internal/repository/message_hub_inbox.go` | 4 | 8 | 4 | 0 |
+| 1353 | [x] | `internal/repository/message_hub_inbox.go` | 4 | 8 | 4 | 0 |
 | 1354 | [ ] | `internal/repository/message_hub_inbox_assignment.go` | 12 | 18 | 12 | 0 |
 | 1355 | [ ] | `internal/repository/message_hub_inbox_conversation.go` | 20 | 34 | 20 | 0 |
 | 1356 | [x] | `internal/repository/message_hub_inbox_conversation_query.go` | 8 | 27 | 8 | 0 |

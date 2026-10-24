@@ -11,7 +11,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// EmailUnsubscribeRepository 邮件退订仓库接口
 type EmailUnsubscribeRepository interface {
 	Create(ctx context.Context, record *model.EmailUnsubscribe) error
 	Update(ctx context.Context, record *model.EmailUnsubscribe) error
@@ -28,7 +27,6 @@ type emailUnsubscribeRepo struct {
 	db *gorm.DB
 }
 
-// NewEmailUnsubscribeRepository 创建邮件退订仓库实例
 func NewEmailUnsubscribeRepository(db *gorm.DB) EmailUnsubscribeRepository {
 	if db == nil {
 		db = _db.GetDB()

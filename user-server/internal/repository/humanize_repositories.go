@@ -11,16 +11,13 @@ import (
 	"hivemtk-user/internal/pkg/db"
 )
 
-// HumanizeScoreRepository 评分仓储
 type HumanizeScoreRepository struct{}
 
-// NewHumanizeScoreRepository 构造
 func NewHumanizeScoreRepository() *HumanizeScoreRepository {
 	return &HumanizeScoreRepository{}
 }
 
-// Save 保存评分结果（含维度明细）
-// score 和 dimensions 由 service 层构建，仓储仅负责持久化
+// Save 保存评分结果（含维度明细；score/dimensions 由 service 层构建）
 func (r *HumanizeScoreRepository) Save(ctx context.Context, score *model.HumanizeScore, dimensions []model.HumanizeDimensionRecord) error {
 	if score == nil {
 		return fmt.Errorf("score is nil")
@@ -53,10 +50,8 @@ func (r *HumanizeScoreRepository) GetByID(ctx context.Context, id uint64) (*mode
 	return &s, nil
 }
 
-// ChampionBaselineRepositoryImpl 销冠基线仓储
 type ChampionBaselineRepositoryImpl struct{}
 
-// NewChampionBaselineRepository 构造
 func NewChampionBaselineRepository() *ChampionBaselineRepositoryImpl {
 	return &ChampionBaselineRepositoryImpl{}
 }
@@ -104,8 +99,7 @@ type HumanizeScoreStat struct {
 	Total    int64   `json:"total_count"`
 }
 
-// List 分页查询拟人度评分（管理面）
-// 注意：模型无 calculated_at 列，原 controller 使用 calculated_at 为潜在 bug，此处修正为 created_at。
+// List 分页查询拟人度评分（管理面）。模型无 calculated_at 列，排序用 created_at。
 func (r *HumanizeScoreRepository) List(ctx context.Context, sessionID string, passed *bool, page, pageSize int) ([]model.HumanizeScore, int64, error) {
 	q := db.GetDB().WithContext(ctx).Model(&model.HumanizeScore{})
 	if sessionID != "" {
@@ -153,8 +147,7 @@ type BaselineMetricAggregate struct {
 }
 
 // AggregateBaselineMetrics 聚合指定时间窗口内 humanize_scores 的 5 维均值 + 标准差 + 计数
-// 用于 FeedbackLoopCron 月度刷新 ChampionBaseline
-// 注意：原 feedback_loop_cron.go Raw SQL 中误用 final_score，实际表字段为 total_score，此处修正
+//（供 FeedbackLoopCron 月度刷新 ChampionBaseline；聚合字段是 total_score 不是 final_score）。
 func (r *HumanizeScoreRepository) AggregateBaselineMetrics(
 	ctx context.Context, start, end time.Time,
 ) (*BaselineMetricAggregate, error) {
@@ -178,8 +171,7 @@ func (r *HumanizeScoreRepository) AggregateBaselineMetrics(
 	return &row, nil
 }
 
-// ListEnabledModels 返回启用中的销冠基线（model 实体，供管理面展示）
-// 注意：模型启用列是 enabled，原 controller 使用 is_enabled 为潜在 bug，此处修正。
+// ListEnabledModels 返回启用中的销冠基线（model 实体，供管理面展示）。
 func (r *ChampionBaselineRepositoryImpl) ListEnabledModels(ctx context.Context) ([]model.ChampionBaseline, error) {
 	var list []model.ChampionBaseline
 	if err := db.GetDB().WithContext(ctx).
@@ -191,8 +183,7 @@ func (r *ChampionBaselineRepositoryImpl) ListEnabledModels(ctx context.Context) 
 	return list, nil
 }
 
-// MaxVersion 查询指定三元组 (persona, industry, intent) 的最大版本号
-// 用于 ChampionBaseline 版本递增（FeedbackLoopCron 月度刷新）
+// MaxVersion 查询指定三元组 (persona, industry, intent) 的最大版本号（基线版本递增用）。
 func (r *ChampionBaselineRepositoryImpl) MaxVersion(
 	ctx context.Context, persona, industry, intent string,
 ) (int, error) {
@@ -208,8 +199,7 @@ func (r *ChampionBaselineRepositoryImpl) MaxVersion(
 	return maxVersion, nil
 }
 
-// DisableOldVersions 禁用指定三元组下小于 keepVersion 的所有旧版本
-// 用于 ChampionBaseline 新版本启用后自动禁用旧版本（仅保留最新启用）
+// DisableOldVersions 禁用指定三元组下小于 keepVersion 的所有旧版本。
 func (r *ChampionBaselineRepositoryImpl) DisableOldVersions(
 	ctx context.Context, persona, industry, intent string, keepVersion int,
 ) error {
@@ -220,8 +210,7 @@ func (r *ChampionBaselineRepositoryImpl) DisableOldVersions(
 		Update("enabled", false).Error
 }
 
-// CreateBaseline 创建新的 ChampionBaseline 记录
-// 用于 FeedbackLoopCron 月度刷新写入新版本
+// CreateBaseline 创建新的 ChampionBaseline 记录。
 func (r *ChampionBaselineRepositoryImpl) CreateBaseline(
 	ctx context.Context, baseline *model.ChampionBaseline,
 ) error {

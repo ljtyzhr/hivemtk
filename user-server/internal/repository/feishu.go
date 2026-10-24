@@ -8,17 +8,14 @@ import (
 	"gorm.io/gorm"
 )
 
-// FeishuAccountRepository 飞书账号仓库
 type FeishuAccountRepository struct {
 	db *gorm.DB
 }
 
-// NewFeishuAccountRepository 创建飞书账号仓库
 func NewFeishuAccountRepository() *FeishuAccountRepository {
 	return &FeishuAccountRepository{db: _db.GetDB()}
 }
 
-// SetDB 注入 db（用于测试）
 func (r *FeishuAccountRepository) SetDB(ctx context.Context, db *gorm.DB) {
 	if db != nil {
 		r.db = db
@@ -33,15 +30,13 @@ func (r *FeishuAccountRepository) GetDB() *gorm.DB {
 	return r.db
 }
 
-// Create 创建飞书账号
 func (r *FeishuAccountRepository) Create(ctx context.Context, acc *model.FeishuAccount) error {
 	return r.db.WithContext(ctx).Create(acc).Error
 }
 
-// GetByID 根据 ID 获取
 func (r *FeishuAccountRepository) GetByID(ctx context.Context, id uint) (*model.FeishuAccount, error) {
 	var acc model.FeishuAccount
-	if r.db == nil { // DB 未装配：nil 语义收口在 repo 边界（对齐 kb_document_chunk_repo），service 不摸全局句柄
+	if r.db == nil { // DB 未装配：nil 语义收口在 repo 边界，service 不摸全局句柄
 		return nil, gorm.ErrInvalidDB
 	}
 	if err := r.db.WithContext(ctx).First(&acc, id).Error; err != nil {
@@ -59,12 +54,10 @@ func (r *FeishuAccountRepository) GetAll(ctx context.Context) ([]*model.FeishuAc
 	return accs, nil
 }
 
-// Update 更新飞书账号
 func (r *FeishuAccountRepository) Update(ctx context.Context, acc *model.FeishuAccount) error {
 	return saveWholeRow(r.db.WithContext(ctx), acc)
 }
 
-// Delete 删除飞书账号
 func (r *FeishuAccountRepository) Delete(ctx context.Context, id uint) error {
 	res := r.db.WithContext(ctx).Delete(&model.FeishuAccount{}, id)
 	if res.Error != nil {
@@ -77,7 +70,6 @@ func (r *FeishuAccountRepository) Delete(ctx context.Context, id uint) error {
 	return nil
 }
 
-// UpdateToken 更新访问令牌
 func (r *FeishuAccountRepository) UpdateToken(ctx context.Context, id uint, token string, expires *int64) error {
 	updates := map[string]any{
 		"access_token": token,
@@ -143,12 +135,6 @@ func NewTelegramAccountRepository() *TelegramAccountRepository {
 	return &TelegramAccountRepository{db: _db.GetDB()}
 }
 
-// NewTelegramAccountRepositoryWithDB 显式注入 DB（推荐）。
-//
-// 无参版本读全局 _db.GetDB()，在未初始化全局句柄的场景（测试、独立装配）会拿到
-// nil 并在首次查询时报 gorm.ErrInvalidDB —— 调用方只能再补一次 SetDB。
-// 与 NewTelegramGroupGateRepositoryWithDB / NewTelegramGroupMemberRepositoryWithDB
-// 保持同一约定，避免调用点各写一套。
 func NewTelegramAccountRepositoryWithDB(db *gorm.DB) *TelegramAccountRepository {
 	return &TelegramAccountRepository{db: db}
 }
@@ -159,21 +145,17 @@ func (r *TelegramAccountRepository) SetDB(ctx context.Context, db *gorm.DB) {
 	}
 }
 
-// TelegramAccountRepository Telegram 账号仓库。
-//
-// 每条查询/写入都必须 WithContext(ctx)：on 模式（TENANT_MODE=on）的隔离 callback 从
-// stmt.Context 取租户身份，忽略 ctx 等于恒用无租户 ctx ⇒ telegram_accounts 的读写全部被
-// fail-closed 拒绝（生产日志实证："[TG-Bootstrap] 列举 Telegram 账号失败: [tenant] 表
-// telegram_accounts 需要租户上下文但 ctx 未绑定（query）"）。ctx 由调用方给：HTTP 路径传
-// 请求 ctx（中间件已绑租户），启动期对账/平台级扫描传 tenant.WithSystemScope(ctx)。
-// 与下方 QQAccountRepository 同一口径。
+// TelegramAccountRepository 的每条查询/写入都必须 WithContext(ctx)：on 模式的隔离
+// callback 从 stmt.Context 取租户身份，忽略 ctx 等于恒用无租户 ctx ⇒ 读写全部被
+// fail-closed 拒绝。ctx 由调用方给：HTTP 路径传请求 ctx（中间件已绑租户），
+// 启动期对账/平台级扫描传 tenant.WithSystemScope(ctx)。与 QQAccountRepository 同一口径。
 func (r *TelegramAccountRepository) Create(ctx context.Context, acc *model.TelegramAccount) error {
 	return r.db.WithContext(ctx).Create(acc).Error
 }
 
 func (r *TelegramAccountRepository) GetByID(ctx context.Context, id uint) (*model.TelegramAccount, error) {
 	var acc model.TelegramAccount
-	if r.db == nil { // DB 未装配：nil 语义在 repo 边界收口（对齐 kb_document_chunk_repo），service 不摸全局句柄
+	if r.db == nil { // DB 未装配：nil 语义在 repo 边界收口，service 不摸全局句柄
 		return nil, gorm.ErrInvalidDB
 	}
 	if err := r.db.WithContext(ctx).First(&acc, id).Error; err != nil {
@@ -357,32 +339,27 @@ func (r *WhatsAppCloudAccountRepository) GetFirst(ctx context.Context) (*model.W
 // QQAccountRepository QQ 机器人账号仓库
 // ---------------------------------------------------------------------------
 
-// QQAccountRepository QQ 账号仓库
 type QQAccountRepository struct {
 	db *gorm.DB
 }
 
-// NewQQAccountRepository 创建 QQ 账号仓库
 func NewQQAccountRepository() *QQAccountRepository {
 	return &QQAccountRepository{db: _db.GetDB()}
 }
 
-// SetDB 注入 db（用于测试）
 func (r *QQAccountRepository) SetDB(ctx context.Context, db *gorm.DB) {
 	if db != nil {
 		r.db = db
 	}
 }
 
-// Create 创建 QQ 账号
 func (r *QQAccountRepository) Create(ctx context.Context, acc *model.QQAccount) error {
 	return r.db.WithContext(ctx).Create(acc).Error
 }
 
-// GetByID 按 ID 查询
 func (r *QQAccountRepository) GetByID(ctx context.Context, id uint) (*model.QQAccount, error) {
 	var acc model.QQAccount
-	if r.db == nil { // DB 未装配：nil 语义收口在 repo 边界（对齐 kb_document_chunk_repo），service 不摸全局句柄
+	if r.db == nil { // DB 未装配：nil 语义收口在 repo 边界，service 不摸全局句柄
 		return nil, gorm.ErrInvalidDB
 	}
 	if err := r.db.WithContext(ctx).First(&acc, id).Error; err != nil {
@@ -400,12 +377,10 @@ func (r *QQAccountRepository) GetAll(ctx context.Context) ([]*model.QQAccount, e
 	return accs, nil
 }
 
-// Update 更新
 func (r *QQAccountRepository) Update(ctx context.Context, acc *model.QQAccount) error {
 	return saveWholeRow(r.db.WithContext(ctx), acc)
 }
 
-// Delete 删除
 func (r *QQAccountRepository) Delete(ctx context.Context, id uint) error {
 	res := r.db.WithContext(ctx).Delete(&model.QQAccount{}, id)
 	if res.Error != nil {

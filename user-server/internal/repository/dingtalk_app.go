@@ -8,9 +8,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// DingTalkAppRepository 钉钉企业内部应用账号仓储接口
-//
-// 配套 service.DingTalkAppService 的 CRUD 能力，service 不再直接持有 *gorm.DB。
 type DingTalkAppRepository interface {
 	Create(ctx context.Context, acc *model.DingTalkAppAccount) error
 	FindByID(ctx context.Context, id uint) (*model.DingTalkAppAccount, error)
@@ -23,7 +20,6 @@ type dingTalkAppRepo struct {
 	db *gorm.DB
 }
 
-// NewDingTalkAppRepository 创建钉钉应用账号仓储
 func NewDingTalkAppRepository(db *gorm.DB) DingTalkAppRepository {
 	return &dingTalkAppRepo{db: db}
 }

@@ -10,7 +10,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// ExternalKBConnectorRepo 第三方知识库连接器仓储（L3 controller 禁直连 DB）
 type ExternalKBConnectorRepo struct{ db *gorm.DB }
 
 func NewExternalKBConnectorRepo() *ExternalKBConnectorRepo {
@@ -36,21 +35,18 @@ func (r *ExternalKBConnectorRepo) Create(ctx context.Context, row *model.Externa
 	return r.db.WithContext(ctx).Create(row).Error
 }
 
-// Update 更新连接器。
-//
-// 0 行受影响即「不存在」（`db.EnsureAffected`）：GORM 的 Updates 对没有匹配行的
-// Where 不返回错误，于是「改一个不存在的连接器」会回 200「已更新」。
+// Update 0 行受影响即「不存在」（db.EnsureAffected）：GORM 的 Updates 对没有
+// 匹配行的 Where 不返回错误，否则「改一个不存在的连接器」会回 200「已更新」。
 func (r *ExternalKBConnectorRepo) Update(ctx context.Context, id uint, updates map[string]any) error {
 	return _db.EnsureAffected(r.db.WithContext(ctx).
 		Model(&model.ExternalKBConnector{}).Where("id = ?", id).Updates(updates))
 }
 
-// Delete 删除连接器（同 Update：0 行 ⇒ 不存在，而不是静默成功）。
+// Delete 同 Update：0 行 ⇒ 不存在，而不是静默成功。
 func (r *ExternalKBConnectorRepo) Delete(ctx context.Context, id uint) error {
 	return _db.EnsureAffected(r.db.WithContext(ctx).Delete(&model.ExternalKBConnector{}, id))
 }
 
-// MCPCredentialRepo MCP 凭证对仓储
 type MCPCredentialRepo struct{ db *gorm.DB }
 
 func NewMCPCredentialRepo() *MCPCredentialRepo {

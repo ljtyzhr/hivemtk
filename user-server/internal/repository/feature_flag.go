@@ -1,4 +1,3 @@
-// feature_flag.go FeatureFlag 仓储（K2 五层 L4）
 package repository
 
 import (
@@ -12,7 +11,6 @@ import (
 	"hivemtk-user/internal/pkg/tenant"
 )
 
-// FeatureFlagRepository FeatureFlag 仓储接口
 type FeatureFlagRepository interface {
 	Create(ctx context.Context, f *model.FeatureFlag) error
 	Update(ctx context.Context, f *model.FeatureFlag) error
@@ -32,12 +30,10 @@ type featureFlagRepo struct {
 	db *gorm.DB
 }
 
-// NewFeatureFlagRepository 构造
 func NewFeatureFlagRepository(db *gorm.DB) FeatureFlagRepository {
 	return &featureFlagRepo{db: db}
 }
 
-// NewFeatureFlagRepositoryFromGlobal 便捷构造（内部调用 db.GetDB()）
 func NewFeatureFlagRepositoryFromGlobal() FeatureFlagRepository {
 	return NewFeatureFlagRepository(_db.GetDB())
 }

@@ -14,14 +14,12 @@ type IntentExampleRepository struct {
 	db *gorm.DB
 }
 
-// NewIntentExampleRepository 创建意图示例句仓储实例
 func NewIntentExampleRepository() *IntentExampleRepository {
 	return &IntentExampleRepository{
 		db: _db.GetDB(),
 	}
 }
 
-// SetDB 注入 db（用于测试）
 func (r *IntentExampleRepository) SetDB(ctx context.Context, db *gorm.DB) {
 	if db != nil {
 		r.db = db
@@ -37,7 +35,7 @@ func (r *IntentExampleRepository) ListAll(ctx context.Context) ([]model.IntentEx
 	return rows, nil
 }
 
-// Count 统计总行数（索引导入幂等判断用）
+// Count 统计总行数
 func (r *IntentExampleRepository) Count(ctx context.Context) (int64, error) {
 	var n int64
 	if err := r.db.WithContext(ctx).Model(&model.IntentExample{}).Count(&n).Error; err != nil {

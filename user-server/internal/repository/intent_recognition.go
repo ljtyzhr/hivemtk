@@ -10,19 +10,16 @@ import (
 	_db "hivemtk-user/internal/pkg/db"
 )
 
-// IntentRecordRepository 意图识别记录仓储
 type IntentRecordRepository struct {
 	db *gorm.DB
 }
 
-// NewIntentRecordRepository 创建意图识别记录仓储实例
 func NewIntentRecordRepository() *IntentRecordRepository {
 	return &IntentRecordRepository{
 		db: _db.GetDB(),
 	}
 }
 
-// SetDB 注入 db（用于测试）
 func (r *IntentRecordRepository) SetDB(ctx context.Context, db *gorm.DB) {
 	if db != nil {
 		r.db = db
@@ -36,7 +33,6 @@ func (r *IntentRecordRepository) GetDB(ctx context.Context) *gorm.DB {
 	return r.db.WithContext(ctx)
 }
 
-// Create 创建意图识别记录
 func (r *IntentRecordRepository) Create(ctx context.Context, rec *model.IntentRecord) error {
 	return r.db.WithContext(ctx).Create(rec).Error
 }
@@ -61,8 +57,7 @@ func (r *IntentRecordRepository) ListByCustomerID(ctx context.Context, customerI
 	return records, nil
 }
 
-// ListPaged 分页查询意图记录，支持 customerID 和 intentType 可选过滤
-// 返回 (records, total, error)
+// ListPaged 分页查询意图记录，支持 customerID 和 intentType 可选过滤。
 func (r *IntentRecordRepository) ListPaged(ctx context.Context, customerID, intentType string, page, pageSize int) ([]model.IntentRecord, int64, error) {
 	q := r.db.WithContext(ctx).Model(&model.IntentRecord{})
 	if customerID != "" {
@@ -85,14 +80,13 @@ func (r *IntentRecordRepository) ListPaged(ctx context.Context, customerID, inte
 	return records, total, nil
 }
 
-// IntentMethodLevelRow method/level 维度统计行
 type IntentMethodLevelRow struct {
 	Method          string
 	ConfidenceLevel string
 }
 
-// GetMethodLevelStatsSince 获取 method/level 维度统计（created_at > since）
-// 返回 method/level 行数据，由 service 聚合为 byMethod/byLevel
+// GetMethodLevelStatsSince 获取 method/level 维度统计（created_at > since），
+// 返回原始行，由 service 聚合为 byMethod/byLevel。
 func (r *IntentRecordRepository) GetMethodLevelStatsSince(ctx context.Context, since time.Time) ([]IntentMethodLevelRow, error) {
 	var rows []IntentMethodLevelRow
 	if err := r.db.WithContext(ctx).Model(&model.IntentRecord{}).
@@ -104,19 +98,16 @@ func (r *IntentRecordRepository) GetMethodLevelStatsSince(ctx context.Context, s
 	return rows, nil
 }
 
-// IntentLogRepository 精细意图识别日志仓储
 type IntentLogRepository struct {
 	db *gorm.DB
 }
 
-// NewIntentLogRepository 创建精细意图识别日志仓储实例
 func NewIntentLogRepository() *IntentLogRepository {
 	return &IntentLogRepository{
 		db: _db.GetDB(),
 	}
 }
 
-// SetDB 注入 db（用于测试）
 func (r *IntentLogRepository) SetDB(ctx context.Context, db *gorm.DB) {
 	if db != nil {
 		r.db = db
@@ -131,8 +122,7 @@ func (r *IntentLogRepository) Create(ctx context.Context, log *model.IntentLog) 
 	return r.db.WithContext(ctx).Create(log).Error
 }
 
-// List 查询精细意图识别日志
-// customerID/major 空字符串表示不筛选；limit 上限 1000
+// List 查询精细意图识别日志（customerID/major 空字符串表示不筛选；limit 收口到 1~1000）。
 func (r *IntentLogRepository) List(ctx context.Context, customerID, major string, limit int) ([]model.IntentLog, error) {
 	q := r.db.WithContext(ctx).Model(&model.IntentLog{}).
 		Where("source = ?", model.IntentLogSource)
@@ -142,9 +132,8 @@ func (r *IntentLogRepository) List(ctx context.Context, customerID, major string
 	if major != "" {
 		q = q.Where("intent_type = ?", major)
 	}
-	// limit 由 `/api/intent/logs` 的 `strconv.Atoi(ctx.DefaultQuery("limit","100"))`
-	// 转入，且解析错误被丢弃：传 -1 时 GORM 的 Limit(-1) 等于**取消 LIMIT**（全表扫描），
-	// 传 0 是 LIMIT 0（恒空），传 100000 也是全表。三种都不是调用方要的，这里收口。
+	// limit 由 HTTP query 经 strconv.Atoi 转入且解析错误被丢弃：
+	// Limit(-1) 等于取消 LIMIT（全表扫描）、0 是恒空、过大也是全表，这里统一收口。
 	if limit <= 0 {
 		limit = 100
 	}

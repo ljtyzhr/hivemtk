@@ -9,25 +9,21 @@ import (
 	"gorm.io/gorm"
 )
 
-// FeedbackRecordRepository 反馈记录仓储
-//
-// 负责 feedback_records 表的写入与查询。FeedbackLearner 在 RecordFeedback
+// FeedbackRecordRepository 反馈记录仓储。FeedbackLearner 在 RecordFeedback
 // 时通过本仓储落库，失败仅记 warn 不影响内存缓存与业务链路。
 type FeedbackRecordRepository struct {
 	db *gorm.DB
 }
 
-// NewFeedbackRecordRepository 创建反馈记录仓储
 func NewFeedbackRecordRepository(db *gorm.DB) *FeedbackRecordRepository {
 	return &FeedbackRecordRepository{db: db}
 }
 
-// NewFeedbackRecordRepositoryWithTx 在事务中复用仓储
 func NewFeedbackRecordRepositoryWithTx(tx *gorm.DB) *FeedbackRecordRepository {
 	return &FeedbackRecordRepository{db: tx}
 }
 
-// Create 写入一条反馈记录
+// Create 写入一条反馈记录（失败仅由调用方记 warn，不阻断业务链路）
 func (r *FeedbackRecordRepository) Create(ctx context.Context, orm *model.FeedbackRecordORM) error {
 	if r == nil || r.db == nil {
 		return errors.New("feedback record repository not initialized")
@@ -38,13 +34,10 @@ func (r *FeedbackRecordRepository) Create(ctx context.Context, orm *model.Feedba
 	return r.db.WithContext(ctx).Create(orm).Error
 }
 
-// UpdateCustomerAcceptBySession 客户消息抵达时，按 session_id 标记最近一条 feedback_record 的 customer_accept=true
-//
-// 设计意图：FeedbackRecorder.recordFeedback 创建时 CustomerAccept=false（生成时尚未知客户是否接受），
-// 当客户下一条消息进来时（inbound 落库成功后），意味着客户收到了 AI 回复并继续对话 = 接受了。
-// 此方法在 inbox persist 钩子中调用，标记后自学习闭环才能拿到有效信号。
-//
-// 幂等：UPDATE customer_accept=true 是幂等操作，重复调用不产生副作用。
+// UpdateCustomerAcceptBySession 客户消息抵达时，按 session_id 标记最近一条
+// feedback_record 的 customer_accept=true：创建时 CustomerAccept=false（生成时尚
+// 不知客户是否接受），客户下一条消息进来 = 收到 AI 回复并继续对话 = 接受了。
+// 幂等，重复调用无副作用。
 func (r *FeedbackRecordRepository) UpdateCustomerAcceptBySession(ctx context.Context, sessionID string) (int64, error) {
 	if r == nil || r.db == nil || sessionID == "" {
 		return 0, nil

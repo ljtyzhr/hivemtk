@@ -16,7 +16,7 @@ func NewLayerDecisionLogRepository(db *gorm.DB) *LayerDecisionLogRepository {
 	return &LayerDecisionLogRepository{db: db}
 }
 
-// Record 新增决策日志
+// Record 记录决策日志
 func (r *LayerDecisionLogRepository) Record(ctx context.Context, log *model.LayerDecisionLog) error {
 	return r.db.WithContext(ctx).Create(log).Error
 }

@@ -12,21 +12,16 @@ import (
 	"gorm.io/gorm"
 )
 
-// IntegrationAccountRepository 第三方对接账号仓库
 type IntegrationAccountRepository struct {
 	db *gorm.DB
 }
 
-// NewIntegrationAccountRepository 创建第三方对接账号仓库实例
 func NewIntegrationAccountRepository() *IntegrationAccountRepository {
 	return &IntegrationAccountRepository{
 		db: _db.GetDB(),
 	}
 }
 
-// SetDB 注入 db
-//
-// 五层架构 §三.5 + §七：仓库方法必须首参为 ctx context.Context。
 func (r *IntegrationAccountRepository) SetDB(ctx context.Context, db *gorm.DB) {
 	if db != nil {
 		r.db = db
@@ -38,12 +33,10 @@ func SetIntegrationAccountRepoDB(r *IntegrationAccountRepository, db *gorm.DB) {
 	r.SetDB(context.Background(), db)
 }
 
-// Create 创建对接账号
 func (r *IntegrationAccountRepository) Create(ctx context.Context, account *model.IntegrationAccount) error {
 	return r.db.WithContext(ctx).Create(account).Error
 }
 
-// GetByID 根据 ID 获取对接账号
 func (r *IntegrationAccountRepository) GetByID(ctx context.Context, id uint) (*model.IntegrationAccount, error) {
 	var account model.IntegrationAccount
 	err := r.db.WithContext(ctx).First(&account, id).Error
@@ -61,10 +54,8 @@ func (r *IntegrationAccountRepository) GetByPlatformAndAccount(ctx context.Conte
 }
 
 // TenantIDByPlatform 由平台名自证回调归属租户（公开 webhook 入口用）。
-//
-// on 模式下回调到达时租户尚未建立；平台 HMAC 密钥是实例级凭证、不能区分租户，
-// 因此只能看 integration_accounts：该平台只被一个租户配置过才可自证，
-// 多租户共用同一平台名时返回 ok=false，由入口要求显式 tenant_code。
+// 回调到达时租户尚未建立、平台 HMAC 密钥不能区分租户，只能看 integration_accounts：
+// 该平台只被一个租户配置过才可自证，多租户共用同一平台名时返回 ok=false。
 func (r *IntegrationAccountRepository) TenantIDByPlatform(ctx context.Context, platform string) (uint, bool, error) {
 	if platform == "" {
 		return 0, false, nil
@@ -96,12 +87,10 @@ func (r *IntegrationAccountRepository) GetAll(ctx context.Context) ([]*model.Int
 	return accounts, err
 }
 
-// Update 更新对接账号
 func (r *IntegrationAccountRepository) Update(ctx context.Context, account *model.IntegrationAccount) error {
 	return saveWholeRow(r.db.WithContext(ctx), account)
 }
 
-// UpdateToken 更新访问令牌
 func (r *IntegrationAccountRepository) UpdateToken(ctx context.Context, id uint, token string, expires *time.Time) error {
 	return r.db.WithContext(ctx).Model(&model.IntegrationAccount{}).Where("id = ?", id).
 		Updates(map[string]any{
@@ -110,12 +99,10 @@ func (r *IntegrationAccountRepository) UpdateToken(ctx context.Context, id uint,
 		}).Error
 }
 
-// Delete 删除对接账号
 func (r *IntegrationAccountRepository) Delete(ctx context.Context, id uint) error {
 	return r.db.WithContext(ctx).Delete(&model.IntegrationAccount{}, id).Error
 }
 
-// UpdateSyncTime 更新同步时间
 func (r *IntegrationAccountRepository) UpdateSyncTime(ctx context.Context, id uint) error {
 	now := time.Now()
 	return r.db.WithContext(ctx).Model(&model.IntegrationAccount{}).Where("id = ?", id).
@@ -124,31 +111,26 @@ func (r *IntegrationAccountRepository) UpdateSyncTime(ctx context.Context, id ui
 		}).Error
 }
 
-// SyncLogRepository 同步日志仓库
 type SyncLogRepository struct {
 	db *gorm.DB
 }
 
-// NewSyncLogRepository 创建同步日志仓库实例
 func NewSyncLogRepository() *SyncLogRepository {
 	return &SyncLogRepository{
 		db: _db.GetDB(),
 	}
 }
 
-// Create 创建同步日志
 func (r *SyncLogRepository) Create(ctx context.Context, log *model.SyncLog) error {
 	return r.db.WithContext(ctx).Create(log).Error
 }
 
-// GetByID 根据 ID 获取同步日志
 func (r *SyncLogRepository) GetByID(ctx context.Context, id uint) (*model.SyncLog, error) {
 	var log model.SyncLog
 	err := r.db.WithContext(ctx).First(&log, id).Error
 	return &log, err
 }
 
-// GetAll 获取所有同步日志(单租户)
 func (r *SyncLogRepository) GetAll(ctx context.Context, page, pageSize int) ([]*model.SyncLog, int64, error) {
 	var logs []*model.SyncLog
 	var total int64
@@ -164,12 +146,10 @@ func (r *SyncLogRepository) GetAll(ctx context.Context, page, pageSize int) ([]*
 	return logs, total, err
 }
 
-// Update 更新同步日志
 func (r *SyncLogRepository) Update(ctx context.Context, log *model.SyncLog) error {
 	return saveWholeRow(r.db.WithContext(ctx), log)
 }
 
-// UpdateStatus 更新同步状态
 func (r *SyncLogRepository) UpdateStatus(ctx context.Context, id uint, status int, recordCount int, errorMessage string) error {
 	updates := map[string]any{
 		"status":        status,
@@ -181,24 +161,20 @@ func (r *SyncLogRepository) UpdateStatus(ctx context.Context, id uint, status in
 	return r.db.WithContext(ctx).Model(&model.SyncLog{}).Where("id = ?", id).Updates(updates).Error
 }
 
-// ExternalCustomerRepository 外部客户仓库
 type ExternalCustomerRepository struct {
 	db *gorm.DB
 }
 
-// NewExternalCustomerRepository 创建外部客户仓库实例
 func NewExternalCustomerRepository() *ExternalCustomerRepository {
 	return &ExternalCustomerRepository{
 		db: _db.GetDB(),
 	}
 }
 
-// Create 创建外部客户
 func (r *ExternalCustomerRepository) Create(ctx context.Context, customer *model.ExternalCustomer) error {
 	return r.db.WithContext(ctx).Create(customer).Error
 }
 
-// GetByID 根据 ID 获取外部客户
 func (r *ExternalCustomerRepository) GetByID(ctx context.Context, id uint) (*model.ExternalCustomer, error) {
 	var customer model.ExternalCustomer
 	err := r.db.WithContext(ctx).First(&customer, id).Error
@@ -255,24 +231,20 @@ func (r *ExternalCustomerRepository) Delete(ctx context.Context, id uint) error 
 	return r.db.WithContext(ctx).Delete(&model.ExternalCustomer{}, id).Error
 }
 
-// ExternalOrderRepository 外部订单仓库
 type ExternalOrderRepository struct {
 	db *gorm.DB
 }
 
-// NewExternalOrderRepository 创建外部订单仓库实例
 func NewExternalOrderRepository() *ExternalOrderRepository {
 	return &ExternalOrderRepository{
 		db: _db.GetDB(),
 	}
 }
 
-// Create 创建外部订单
 func (r *ExternalOrderRepository) Create(ctx context.Context, order *model.ExternalOrder) error {
 	return r.db.WithContext(ctx).Create(order).Error
 }
 
-// GetByID 根据 ID 获取外部订单
 func (r *ExternalOrderRepository) GetByID(ctx context.Context, id uint) (*model.ExternalOrder, error) {
 	var order model.ExternalOrder
 	err := r.db.WithContext(ctx).First(&order, id).Error
@@ -280,12 +252,10 @@ func (r *ExternalOrderRepository) GetByID(ctx context.Context, id uint) (*model.
 }
 
 // GetByOrderID 按 (platform, order_id) 复合键读一行镜像。
-//
 // 三种返回值互不重叠：命中 (行, nil)、未命中 (nil, nil)、读故障 (nil, err)。
-// 老形状是"未命中也回非 nil 空结构体 + ErrRecordNotFound"，而三个调用点全都写成
-// `existing, _ :=`（把错误丢掉、只判 nil），于是**查不动库**与**第一次见这单**
-// 在判据上长成同一个样子 —— 后果是走 Create：轻则撞唯一键丢单，重则在改成
-// 复合键之后插出同一单的第二行。T-P7-02 / G15 第④条。
+// 未命中不得回非 nil 空结构体 + ErrRecordNotFound——调用方普遍只判 nil 丢错误，
+// 「查不动库」与「第一次见这单」会被当成同一回事而走 Create，
+// 轻则撞唯一键丢单，重则插出同一单的第二行。
 func (r *ExternalOrderRepository) GetByOrderID(ctx context.Context, platform, orderID string) (*model.ExternalOrder, error) {
 	var order model.ExternalOrder
 	err := r.db.WithContext(ctx).Where("platform = ? AND order_id = ?", platform, orderID).First(&order).Error
@@ -359,24 +329,20 @@ func (r *ExternalOrderRepository) GetByCustomer(ctx context.Context, phone, name
 	return orders, err
 }
 
-// ExternalProductRepository 外部商品仓库
 type ExternalProductRepository struct {
 	db *gorm.DB
 }
 
-// NewExternalProductRepository 创建外部商品仓库实例
 func NewExternalProductRepository() *ExternalProductRepository {
 	return &ExternalProductRepository{
 		db: _db.GetDB(),
 	}
 }
 
-// Create 创建外部商品
 func (r *ExternalProductRepository) Create(ctx context.Context, product *model.ExternalProduct) error {
 	return r.db.WithContext(ctx).Create(product).Error
 }
 
-// GetByID 根据 ID 获取外部商品
 func (r *ExternalProductRepository) GetByID(ctx context.Context, id uint) (*model.ExternalProduct, error) {
 	var product model.ExternalProduct
 	err := r.db.WithContext(ctx).First(&product, id).Error
@@ -421,16 +387,12 @@ type WebhookEventRepository struct {
 	db *gorm.DB
 }
 
-// NewWebhookEventRepository 创建 Webhook 事件仓库实例
 func NewWebhookEventRepository() *WebhookEventRepository {
 	return &WebhookEventRepository{
 		db: _db.GetDB(),
 	}
 }
 
-// SetDB 注入 db（用于测试）
-//
-// 五层架构 §三.5 + §七：仓库方法必须首参为 ctx context.Context。
 func (r *WebhookEventRepository) SetDB(ctx context.Context, db *gorm.DB) {
 	if db != nil {
 		r.db = db
@@ -479,15 +441,11 @@ func (r *WebhookEventRepository) CountUnprocessed(ctx context.Context) (int64, e
 }
 
 // ListStaleUnprocessedAfter 列出积压的未处理 Webhook 事件候选（id 游标分页）。
-//
-// 业务背景：webhook 主链路走进程内 chan（重启即丢），本方法供恢复扫描器
-// 兜底重放 processed=false 的历史事件。仅返回 created_at < olderThan 的行
-// （冷却期，避免与内存队列 fast path 竞争刚落库的事件，fast path 处理成功
-// 即会翻转 processed）。
-//
-// 跨实例互斥不在 SQL 层做：行锁（FOR UPDATE）在事务提交即释放，覆盖不了
-// 处理窗口；真正的互斥由扫描器的 Redis SetNX 认领门闸承担，重放的副作用
-// 幂等性由下游兜底（message_hub 唯一索引 + AI ClaimReply 事件级防重）。
+// webhook 主链路走进程内 chan（重启即丢），本方法供恢复扫描器兜底重放
+// processed=false 的历史事件。仅返回 created_at < olderThan 的行（冷却期，
+// 避免与内存队列 fast path 竞争刚落库的事件）。
+// 跨实例互斥不在 SQL 层做：行锁覆盖不了处理窗口，由扫描器的 Redis SetNX
+// 认领门闸承担；重放副作用幂等性由下游兜底（message_hub 唯一索引 + AI ClaimReply 防重）。
 func (r *WebhookEventRepository) ListStaleUnprocessedAfter(ctx context.Context, olderThan time.Time, afterID uint64, limit int) ([]*model.WebhookEvent, error) {
 	if r == nil || r.db == nil {
 		return nil, nil
@@ -515,14 +473,8 @@ func (r *WebhookEventRepository) GetDB() *gorm.DB {
 	return r.db
 }
 
-// Connected 判 DB 句柄是否已注入（E-4 webhook 域下沉，2026-10-24）。
-//
-// service 层原先用 lazyDB()==nil 判"装配好了没有"——那要求 service 拿着
-// *gorm.DB 本体比 nil。下沉后 service 只允许问 repo 这一句是非题，
-// 不许再把句柄拿回自己手里。语义与原 lazyDB 的第一优先级一致
-// （eventRepo 有没有 DB）；原先的"兜底全局 repository.GetDB()"分支
-// 被有意删除：装配面（NewWebhookService / WithRepos）必须显式给 repo
-// 注入 DB，隐式全局兜底正是 E-4 要消灭的那种"装配顺序决定的隐式句柄"。
+// Connected 判 DB 句柄是否已注入。service 层只允许问这一句是非题，
+// 不许把 *gorm.DB 句柄拿回自己手里；也没有全局兜底——装配面必须显式注入。
 func (r *WebhookEventRepository) Connected() bool {
 	return r != nil && r.db != nil
 }

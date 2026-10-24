@@ -29,7 +29,6 @@ type KuaishouRecentActivity struct {
 	CreatedAt time.Time
 }
 
-// KuaishouCardStatsRepository 快手卡片统计仓库接口
 type KuaishouCardStatsRepository interface {
 	GetCardByID(ctx context.Context, cardID uint) (*model.KuaishouCard, error)
 	CountCardViews(ctx context.Context, cardID uint) (int64, error)
@@ -40,10 +39,8 @@ type KuaishouCardStatsRepository interface {
 	GetPopularCards(ctx context.Context, limit int) ([]model.KuaishouCard, error)
 	GetOverallDailyStats(ctx context.Context, startDate, endDate time.Time) ([]KuaishouCardStatsDailyResult, error)
 	GetRecentActivitiesWithJoin(ctx context.Context, limit int) ([]KuaishouRecentActivity, error)
-	// GetRecentActivitiesByCard 单卡维度的最近浏览记录。原先仓储只有不带 cardID 的
-	// GetRecentActivitiesWithJoin，导致 /api/kuaishou/stats/card/:id 拿不到该卡的
-	// 活动记录，前端 kuaishouCard/CardStats.vue 的「最近活动」表格恒空
-	// （抖音/小红书两仓都有同名方法，快手是漏实现）。
+	// GetRecentActivitiesByCard 单卡维度的最近浏览记录（抖音/小红书两仓都有
+	// 同名方法，快手此前漏实现导致单卡统计页「最近活动」恒空）。
 	GetRecentActivitiesByCard(ctx context.Context, cardID uint, limit int) ([]KuaishouRecentActivity, error)
 	CreateActivity(ctx context.Context, activity *model.KuaishouCardActivity) error
 	IncrementViewCount(ctx context.Context, id uint) error
@@ -53,7 +50,6 @@ type kuaishouCardStatsRepository struct {
 	db *gorm.DB
 }
 
-// NewKuaishouCardStatsRepository 创建快手卡片统计仓库
 func NewKuaishouCardStatsRepository(db *gorm.DB) KuaishouCardStatsRepository {
 	return &kuaishouCardStatsRepository{db: db}
 }

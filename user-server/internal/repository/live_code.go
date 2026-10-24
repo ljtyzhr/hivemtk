@@ -10,7 +10,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// LiveCodeRepository 活码仓储接口
 type LiveCodeRepository interface {
 	Create(ctx context.Context, liveCode *model.LiveCode) error
 	Update(ctx context.Context, liveCode *model.LiveCode) error
@@ -26,7 +25,6 @@ type liveCodeRepository struct {
 	db *gorm.DB
 }
 
-// NewLiveCodeRepository 创建活码仓储实例
 func NewLiveCodeRepository(db *gorm.DB) LiveCodeRepository {
 	return &liveCodeRepository{db: db}
 }
@@ -126,8 +124,8 @@ func (r *liveCodeRepository) GetByShortLink(ctx context.Context, shortLink strin
 }
 
 func (r *liveCodeRepository) GetList(ctx context.Context, page, pageSize int, name, status string) ([]*model.LiveCode, int64, error) {
-	// page/pageSize 在此夹取：`(page-1)*pageSize` 在 page<=0 时给出负 offset
-	// （PG 直接报错），pageSize 无上界时一条 `page_size=100000` 就把整表读进内存。
+	// page/pageSize 在此夹取：page<=0 时 (page-1)*pageSize 是负 offset（PG 报错），
+	// pageSize 无上界时一条 page_size=100000 就把整表读进内存。
 	if page < 1 {
 		page = 1
 	}

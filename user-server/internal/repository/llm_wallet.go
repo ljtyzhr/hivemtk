@@ -11,11 +11,9 @@ import (
 	"hivemtk-user/internal/pkg/db"
 )
 
-// LLMWalletRepository LLM 余额的本地镜像仓储
-//
-// 一期只做「镜像展示」，不做本地扣减：扣减的权威在平台侧（代理转发时实时扣），
-// 本地再扣一遍就是两本账。镜像的作用是**平台不可达时仍能给用户一个可解释的
-// 余额数字**，而不是在页面上直接崩掉。
+// LLMWalletRepository LLM 余额的本地镜像仓储。
+// 一期只做「镜像展示」不做本地扣减：扣减权威在平台侧（代理转发时实时扣），
+// 镜像的作用是平台不可达时仍能给用户一个可解释的余额数字。
 type LLMWalletRepository interface {
 	ApplyMirror(ctx context.Context, inputRemaining, outputRemaining int64) error
 	ListTxns(ctx context.Context, reason string, page, pageSize int) ([]*model.LLMWalletTxn, int64, error)
@@ -23,18 +21,15 @@ type LLMWalletRepository interface {
 
 type llmWalletRepo struct{ db *gorm.DB }
 
-// NewLLMWalletRepository 构造
 func NewLLMWalletRepository() LLMWalletRepository { return &llmWalletRepo{db: db.GetDB()} }
 
-// NewLLMWalletRepositoryWithDB 带显式 DB（测试注入）
 func NewLLMWalletRepositoryWithDB(gdb *gorm.DB) LLMWalletRepository {
 	return &llmWalletRepo{db: gdb}
 }
 
-// ApplyMirror 把平台余额落到本地单行镜像
-//
-// 这是 upsert（ON CONFLICT (tenant_id, scope) 只更新余额与同步时间），不是整行
-// 覆盖：镜像行的其他列由别的链路维护，整行写会把它们抹成零值。
+// ApplyMirror 把平台余额落到本地单行镜像。
+// 是 upsert（ON CONFLICT (tenant_id, scope) 只更新余额与同步时间）不是整行覆盖：
+// 镜像行其他列由别的链路维护，整行写会把它们抹成零值。
 func (r *llmWalletRepo) ApplyMirror(ctx context.Context, inputRemaining, outputRemaining int64) error {
 	if r == nil || r.db == nil {
 		return errors.New("[llm-wallet] 仓储未初始化（DB 未就绪）")
@@ -63,8 +58,7 @@ func (r *llmWalletRepo) ListTxns(ctx context.Context, reason string, page, pageS
 	if pageSize < 1 || pageSize > 100 {
 		pageSize = 20
 	}
-	// Count 与 Find 各起一条 query：同一条链上先 Count 再 Find 会就地改 Statement
-	// （判例 #133 / #150）。本表是每次代理转发追加一行的流水，只增不减。
+	// Count 与 Find 必须各起一条 query：同一条链上先 Count 再 Find 会就地改 Statement。
 	base := func() *gorm.DB {
 		q := r.db.WithContext(ctx).Model(&model.LLMWalletTxn{})
 		if reason != "" {

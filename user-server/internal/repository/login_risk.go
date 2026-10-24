@@ -12,10 +12,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// LoginRiskRepository 登录风险评估数据仓储
-//
-// 封装 login_events / security_alerts / notifications 三张表,
-// 避免 service 层直接调 db.GetDB()。
+// LoginRiskRepository 登录风险评估数据仓储，封装 login_events /
+// security_alerts / notifications 三张表，避免 service 层直接调 db.GetDB()。
 type LoginRiskRepository interface {
 	CountRecentFailures(ctx context.Context, userID uint, username string, since time.Time) (int64, error)
 	GetLastSuccessLocation(ctx context.Context, userID uint) (location, ip string, found bool, err error)
@@ -35,12 +33,10 @@ type loginRiskRepo struct {
 	db *gorm.DB
 }
 
-// NewLoginRiskRepository 创建登录风险仓储
 func NewLoginRiskRepository() LoginRiskRepository {
 	return &loginRiskRepo{db: _db.GetDB()}
 }
 
-// NewLoginRiskRepositoryWithDB 通过 *gorm.DB 创建(用于测试)
 func NewLoginRiskRepositoryWithDB(gormDB *gorm.DB) LoginRiskRepository {
 	return &loginRiskRepo{db: gormDB}
 }
@@ -105,9 +101,8 @@ func (r *loginRiskRepo) ListLoginEvents(ctx context.Context, userID uint, page, 
 	if pageSize > 100 {
 		pageSize = 100
 	}
-	// Count 与 Find 各起一条 query：在同一条 `q` 上先 Count 再 Find 是靠
-	// GORM 内部的子句还原侥幸能跑，`*gorm.DB` 的链式调用会就地改 Statement
-	// （Count 会把 Selects 换成 count(*)），下一次 Find 拿到的就是被改过的那份。
+	// Count 与 Find 必须各起一条 query：链式调用会就地改 Statement
+	//（Count 把 Selects 换成 count(*)），下一次 Find 拿到的就是被改过的那份。
 	base := func() *gorm.DB {
 		q := r.db.WithContext(ctx).Model(&model.LoginEvent{})
 		if userID > 0 {

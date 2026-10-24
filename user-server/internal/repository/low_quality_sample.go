@@ -9,23 +9,20 @@ import (
 	"gorm.io/gorm"
 )
 
-// LowQualitySampleRepository 低质样本仓储（拟人度域 管理面读模型）
-//
-// 写入由 HumanizeLowQualitySampleCollector 负责，本仓储仅提供管理面列表查询，
-// 命名按业务域（low_quality_sample），不按管理角色或优先级。
+// LowQualitySampleRepository 低质样本仓储（拟人度域 管理面读模型）。
+// 写入由 HumanizeLowQualitySampleCollector 负责，本仓储仅提供管理面列表查询。
 type LowQualitySampleRepository struct {
 	db *gorm.DB
 }
 
-// NewLowQualitySampleRepository 构造（无参，内部取库句柄）
 func NewLowQualitySampleRepository() *LowQualitySampleRepository {
 	return &LowQualitySampleRepository{db: db.GetDB()}
 }
 
 // List 低质样本分页列表
 func (r *LowQualitySampleRepository) List(ctx context.Context, sampleType string, page, pageSize int) ([]model.LowQualitySample, int64, error) {
-	// 夹取分页：page ≤ 0 时 `(page-1)*pageSize` 是负 offset（PG 直接报错），
-	// pageSize 无上界时 page_size=100000 一条就能把整表读进内存。
+	// 夹取分页：page ≤ 0 会拼出负 offset（PG 直接报错），
+	// pageSize 无上界会把整表读进内存。
 	if page < 1 {
 		page = 1
 	}

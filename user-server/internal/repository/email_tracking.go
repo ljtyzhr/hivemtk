@@ -12,7 +12,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// EmailTrackingRepository 邮件追踪仓库接口
 type EmailTrackingRepository interface {
 	CreateEvent(ctx context.Context, event *model.EmailTrackingEvent) error
 	EventExists(ctx context.Context, eventID string) (bool, error)
@@ -35,7 +34,6 @@ type emailTrackingRepo struct {
 	db *gorm.DB
 }
 
-// NewEmailTrackingRepository 创建邮件追踪仓库
 func NewEmailTrackingRepository(db *gorm.DB) EmailTrackingRepository {
 	if db == nil {
 		db = _db.GetDB()

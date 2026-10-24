@@ -1,4 +1,3 @@
-// growth_repo.go 增长功能域仓储（出站订阅/保存视图/报表订阅/客服增强聚合）（五层 L5）
 package repository
 
 import (
@@ -16,13 +15,10 @@ type WebhookSubscriptionRepository struct {
 	db *gorm.DB
 }
 
-// NewWebhookSubscriptionRepository 构造
-// NewWebhookSubscriptionRepository 构造（无参，内部取全局 DB；对齐 customer_session.go 先例）
 func NewWebhookSubscriptionRepository() *WebhookSubscriptionRepository {
 	return NewWebhookSubscriptionRepositoryWithDB(_db.GetDB())
 }
 
-// NewWebhookSubscriptionRepositoryWithDB 显式注入 DB（测试/装配用）
 func NewWebhookSubscriptionRepositoryWithDB(db *gorm.DB) *WebhookSubscriptionRepository {
 	return &WebhookSubscriptionRepository{db: db}
 }
@@ -65,18 +61,14 @@ func (r *WebhookSubscriptionRepository) ListEnabledByEvent(ctx context.Context, 
 	return subs, err
 }
 
-// SavedViewRepository 保存视图收口
 type SavedViewRepository struct {
 	db *gorm.DB
 }
 
-// NewSavedViewRepository 构造
-// NewSavedViewRepository 构造（无参，内部取全局 DB；对齐 customer_session.go 先例）
 func NewSavedViewRepository() *SavedViewRepository {
 	return &SavedViewRepository{db: _db.GetDB()}
 }
 
-// NewSavedViewRepositoryWithDB 显式注入 DB（测试用）
 func NewSavedViewRepositoryWithDB(db *gorm.DB) *SavedViewRepository {
 	return &SavedViewRepository{db: db}
 }
@@ -124,18 +116,14 @@ func (r *SavedViewRepository) DeleteOwned(ctx context.Context, id, userID uint) 
 	return res.RowsAffected > 0, res.Error
 }
 
-// ReportSubscriptionRepository 报表订阅收口
 type ReportSubscriptionRepository struct {
 	db *gorm.DB
 }
 
-// NewReportSubscriptionRepository 构造
-// NewReportSubscriptionRepository 构造（无参，内部取全局 DB；对齐 customer_session.go 先例）
 func NewReportSubscriptionRepository() *ReportSubscriptionRepository {
 	return &ReportSubscriptionRepository{db: _db.GetDB()}
 }
 
-// NewReportSubscriptionRepositoryWithDB 显式注入 DB（测试用）
 func NewReportSubscriptionRepositoryWithDB(db *gorm.DB) *ReportSubscriptionRepository {
 	return &ReportSubscriptionRepository{db: db}
 }
@@ -203,7 +191,6 @@ func (r *ReportSubscriptionRepository) DailyReportSummary(ctx context.Context, d
 	if r.db == nil {
 		return nil, nil
 	}
-	// 原 UNION ALL 四段计数（T012 清偿）：拆四条 Count + Go 组装，语义一致
 	countOf := func(table, where string) int64 {
 		var n int64
 		_ = r.db.WithContext(ctx).Table(table).Where(where, day).Count(&n).Error

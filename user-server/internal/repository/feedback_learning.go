@@ -10,21 +10,16 @@ import (
 	"hivemtk-user/internal/model"
 )
 
-// FeedbackLearningRepository 反馈学习域仓储
 type FeedbackLearningRepository struct {
 	db *gorm.DB
 }
 
-// NewFeedbackLearningRepository 创建反馈学习域仓储
 func NewFeedbackLearningRepository(db *gorm.DB) *FeedbackLearningRepository {
 	return &FeedbackLearningRepository{db: db}
 }
 
-// ListAIMessagesByPeriod 查询指定时间段内的 AI 回复消息
-//
-// 过滤：sender_type=ai AND created_at BETWEEN start AND end
-// 排序：created_at ASC
-// 限制：limit 条（limit<=0 时不限制）
+// ListAIMessagesByPeriod 查询指定时间段内的 AI 回复消息（sender_type=ai，
+// created_at 升序；limit<=0 时不限制）。
 func (r *FeedbackLearningRepository) ListAIMessagesByPeriod(ctx context.Context, start, end time.Time, limit int) ([]model.SessionMessage, error) {
 	if r == nil || r.db == nil {
 		return nil, errors.New("feedback learning repository not initialized")
@@ -40,11 +35,7 @@ func (r *FeedbackLearningRepository) ListAIMessagesByPeriod(ctx context.Context,
 	return messages, nil
 }
 
-// ListCustomerMessagesBySessions 查询指定 sessionIDs 内的客户消息
-//
-// 过滤：session_id IN ? AND sender_type=user AND created_at BETWEEN start AND end
-// 排序：created_at ASC
-// sessionIDs 为空时返回 nil
+// ListCustomerMessagesBySessions 查询指定 sessionIDs 内的客户消息；sessionIDs 为空返回 nil。
 func (r *FeedbackLearningRepository) ListCustomerMessagesBySessions(ctx context.Context, sessionIDs []string, start, end time.Time) ([]model.SessionMessage, error) {
 	if r == nil || r.db == nil {
 		return nil, errors.New("feedback learning repository not initialized")
@@ -64,8 +55,7 @@ func (r *FeedbackLearningRepository) ListCustomerMessagesBySessions(ctx context.
 	return msgs, nil
 }
 
-// CreateNodeTransition 创建节点流转记录
-// t 为 nil 时直接返回 nil（与原 service 实现一致）
+// CreateNodeTransition 创建节点流转记录（t 为 nil 时直接返回 nil）
 func (r *FeedbackLearningRepository) CreateNodeTransition(ctx context.Context, t *model.SOPNodeTransition) error {
 	if r == nil || r.db == nil {
 		return errors.New("feedback learning repository not initialized")
@@ -76,10 +66,7 @@ func (r *FeedbackLearningRepository) CreateNodeTransition(ctx context.Context, t
 	return r.db.WithContext(ctx).Create(t).Error
 }
 
-// ListNodeTransitionsBySOPAndVariant 查询节点流转记录
-//
-// 过滤：sop_id=? AND (variant=? 若 variant 非空)
-// 排序：created_at ASC
+// ListNodeTransitionsBySOPAndVariant 查询节点流转记录（variant 非空时过滤）。
 func (r *FeedbackLearningRepository) ListNodeTransitionsBySOPAndVariant(ctx context.Context, sopID uint, variant string) ([]model.SOPNodeTransition, error) {
 	if r == nil || r.db == nil {
 		return nil, errors.New("feedback learning repository not initialized")
@@ -90,7 +77,7 @@ func (r *FeedbackLearningRepository) ListNodeTransitionsBySOPAndVariant(ctx cont
 		q = q.Where("variant = ?", variant)
 	}
 	var transitions []model.SOPNodeTransition
-	// 无界兜底:默认 500,节点迁移记录随 SOP 执行持续增长;已达上限时调用方需分页重取
+	// 无界兜底：默认 500；已达上限时调用方需分页重取。
 	q = applyListLimit(q.Order("created_at ASC"), 500)
 	if err := q.Find(&transitions).Error; err != nil {
 		return nil, err
@@ -98,10 +85,7 @@ func (r *FeedbackLearningRepository) ListNodeTransitionsBySOPAndVariant(ctx cont
 	return transitions, nil
 }
 
-// CreateSuggestionsInBatches 批量创建优化建议
-//
-// batchSize 为每批写入条数（与原 CreateInBatches 一致）
-// suggestions 为空时直接返回 nil
+// CreateSuggestionsInBatches 批量创建优化建议（suggestions 为空时直接返回 nil）。
 func (r *FeedbackLearningRepository) CreateSuggestionsInBatches(ctx context.Context, suggestions []model.OptimizationSuggestion, batchSize int) error {
 	if r == nil || r.db == nil {
 		return errors.New("feedback learning repository not initialized")
@@ -112,11 +96,7 @@ func (r *FeedbackLearningRepository) CreateSuggestionsInBatches(ctx context.Cont
 	return r.db.WithContext(ctx).CreateInBatches(suggestions, batchSize).Error
 }
 
-// ListPendingSuggestions 列出待审核建议
-//
-// 过滤：status=pending AND (sop_id=? 若 sopID>0)
-// 排序：priority DESC, generated_at DESC
-// 限制：limit 条（limit<=0 时默认 50）
+// ListPendingSuggestions 列出待审核建议（sopID>0 时过滤；limit<=0 默认 50）。
 func (r *FeedbackLearningRepository) ListPendingSuggestions(ctx context.Context, sopID uint, limit int) ([]model.OptimizationSuggestion, error) {
 	if r == nil || r.db == nil {
 		return nil, errors.New("feedback learning repository not initialized")
@@ -139,10 +119,8 @@ func (r *FeedbackLearningRepository) ListPendingSuggestions(ctx context.Context,
 }
 
 // UpdateSuggestionFields 按 ID 白名单更新建议字段（审核通过/驳回走这条）。
-//
-// 命中 0 行必须报不存在：审核动作是按"建议 id"发起的，建议已被并发删除、
-// 或 id 属于别的租户时，Updates 只是 RowsAffected=0，接口却回"已生效"，
-// 运营会以为策略已经改过——而实际上一条都没动。
+// 命中 0 行必须报不存在：建议已被并发删除或属于别的租户时，
+// 静默回「已生效」会让运营误以为策略已改。
 func (r *FeedbackLearningRepository) UpdateSuggestionFields(ctx context.Context, suggestionID uint, fields map[string]any) error {
 	if r == nil || r.db == nil {
 		return errors.New("feedback learning repository not initialized")
@@ -167,11 +145,7 @@ func (r *FeedbackLearningRepository) CreateProfileSnapshot(ctx context.Context, 
 	return r.db.WithContext(ctx).Create(snapshot).Error
 }
 
-// ListLatestProfileSnapshots 列出最新画像快照
-//
-// 过滤：(staff_id=? 若 staffID>0) AND (scenario=? 若 scenario 非空)
-// 排序：generated_at DESC
-// 限制：limit 条
+// ListLatestProfileSnapshots 列出最新画像快照（staffID>0 / scenario 非空时过滤）。
 func (r *FeedbackLearningRepository) ListLatestProfileSnapshots(ctx context.Context, staffID uint, scenario string, limit int) ([]model.SalesChampionProfileSnapshot, error) {
 	if r == nil || r.db == nil {
 		return nil, errors.New("feedback learning repository not initialized")

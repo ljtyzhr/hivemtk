@@ -16,7 +16,6 @@ type DouyinCardStatsTempStat struct {
 	Count  int
 }
 
-// DouyinCardStatsRepository 抖音卡片统计仓库接口
 type DouyinCardStatsRepository interface {
 	GetCardByID(ctx context.Context, cardID uint) (*model.DouyinCard, error)
 	CountCardViews(ctx context.Context, cardID uint) (int64, error)
@@ -36,7 +35,6 @@ type douyinCardStatsRepository struct {
 	db *gorm.DB
 }
 
-// NewDouyinCardStatsRepository 创建抖音卡片统计仓库
 func NewDouyinCardStatsRepository(db *gorm.DB) DouyinCardStatsRepository {
 	return &douyinCardStatsRepository{db: db}
 }
@@ -57,9 +55,8 @@ func (r *douyinCardStatsRepository) CountCardViews(ctx context.Context, cardID u
 	return views, err
 }
 
-// applyDouyinStatsGroupBy 与 applyXiaohongshuStatsGroupBy 同源同改：
-// MySQL 的 YEARWEEK/DATE_FORMAT 换成本仓实际使用的 PG 函数，
-// 且分桶表达式必须在 SELECT 与 GROUP BY 里逐字一致（否则 42803）。
+// applyDouyinStatsGroupBy 分桶表达式必须在 SELECT 与 GROUP BY 里逐字一致
+//（否则 PG 报 42803）；与 applyXiaohongshuStatsGroupBy 需同步修改。
 func applyDouyinStatsGroupBy(query *gorm.DB, groupBy string) *gorm.DB {
 	bucket := "DATE(created_at)"
 	switch groupBy {
@@ -75,7 +72,7 @@ func applyDouyinStatsGroupBy(query *gorm.DB, groupBy string) *gorm.DB {
 
 func (r *douyinCardStatsRepository) GetCardDailyStats(ctx context.Context, cardID uint, startDate, endDate, groupBy string) ([]DouyinCardStatsTempStat, error) {
 	query := r.db.WithContext(ctx).Model(&model.DouyinCardActivity{}).Where("card_id = ?", cardID)
-	// 日期边界口径见 xiaohongshu_card_stats.go 的同名说明（半开区间，结束日全天计入）。
+	// 日期边界为半开区间（结束日全天计入），口径说明见 xiaohongshu_card_stats.go。
 	if startDate != "" {
 		query = query.Where("created_at >= ?::date", startDate)
 	}
@@ -123,7 +120,7 @@ func (r *douyinCardStatsRepository) GetTopCards(ctx context.Context, limit int) 
 
 func (r *douyinCardStatsRepository) GetOverallDailyStats(ctx context.Context, startDate, endDate, groupBy string) ([]DouyinCardStatsTempStat, error) {
 	query := r.db.WithContext(ctx).Model(&model.DouyinCardActivity{})
-	// 半开区间：`<= 'YYYY-MM-DD'` 只到当天 00:00，会把结束日整天丢掉（详见 xiaohongshu_card_stats.go）。
+	// 半开区间：`<= 'YYYY-MM-DD'` 只到当天 00:00，会把结束日整天丢掉。
 	if startDate != "" {
 		query = query.Where("created_at >= ?::date", startDate)
 	}

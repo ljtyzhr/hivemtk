@@ -10,26 +10,19 @@ import (
 	"gorm.io/gorm"
 )
 
-// KnowledgeRepository 知识库仓库
-//
-// 从 service/unified_message.go 迁出,五层架构合规:
-// service 层不持有 *gorm.DB 也不应内嵌 repository 实现,统一在 repository 包管理。
 type KnowledgeRepository struct {
 	db *gorm.DB
 }
 
-// NewKnowledgeRepository 创建知识库仓库实例(无参,内部用 _db.GetDB())
 func NewKnowledgeRepository() *KnowledgeRepository {
 	return &KnowledgeRepository{db: _db.GetDB()}
 }
 
-// NewKnowledgeRepositoryWithDB 创建知识库仓库实例(显式注入 db)
 func NewKnowledgeRepositoryWithDB(db *gorm.DB) *KnowledgeRepository {
 	return &KnowledgeRepository{db: db}
 }
 
-// Search 全文搜索知识库文章
-// 简化版:基于 LIKE 的全文搜索,生产环境应替换为向量检索(FAISS/Milvus 等)
+// Search 基于 LIKE 的全文搜索（生产环境应替换为向量检索）
 func (r *KnowledgeRepository) Search(ctx context.Context, query string, topK int) ([]*model.KnowledgeHit, error) {
 	var hits []*model.KnowledgeHit
 

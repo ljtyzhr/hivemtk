@@ -1,7 +1,5 @@
-// macro_session_ops_repo.go 会话动作仓储（五层 L5）
-//
-// 供 MacroService/RuleEngineService 等编排层执行会话级动作
-// （打标签/指派/关单/延迟出站入队），SQL 全部收口在本文件。
+// macro_session_ops_repo.go 会话动作仓储：供 MacroService/RuleEngineService 等
+// 编排层执行会话级动作（打标签/指派/关单/延迟出站入队），SQL 全部收口在本文件。
 package repository
 
 import (
@@ -16,18 +14,14 @@ import (
 	"gorm.io/gorm"
 )
 
-// SessionActionRepository customer_sessions 动作仓储
 type SessionActionRepository struct {
 	db *gorm.DB
 }
 
-// NewSessionActionRepository 构造
-// NewSessionActionRepository 构造（无参，内部取全局 DB；对齐 customer_session.go 先例）
 func NewSessionActionRepository() *SessionActionRepository {
 	return NewSessionActionRepositoryWithDB(_db.GetDB())
 }
 
-// NewSessionActionRepositoryWithDB 显式注入 DB（测试/装配用）
 func NewSessionActionRepositoryWithDB(db *gorm.DB) *SessionActionRepository {
 	return &SessionActionRepository{db: db}
 }

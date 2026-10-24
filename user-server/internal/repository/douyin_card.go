@@ -35,7 +35,6 @@ type douyinCardRepository struct {
 	db *gorm.DB
 }
 
-// NewDouyinCardRepository 创建抖音卡片仓储实例
 func NewDouyinCardRepository(db *gorm.DB) DouyinCardRepository {
 	return &douyinCardRepository{
 		db: db,
@@ -123,10 +122,7 @@ func (r *douyinCardRepository) GetList(ctx context.Context, req CardListFilter) 
 }
 
 // IncrementViewCount 卡片浏览量 +1 并返回最新行。
-//
-// 原实现是「读整行 → ViewCount++ → Save 整行」：一是丢了并发（两次同时浏览各读到
-// 同一个基数，回写后只剩 +1），二是整行回写会把期间被别的写口改过的字段一起盖回去。
-// 改成一条原子 UPDATE 再按主键读回；命中 0 行视为卡片不存在。
+// 必须是原子 UPDATE 再读回：读整行回写会丢并发增量、且会覆盖期间其他写口改的字段。
 func (r *douyinCardRepository) IncrementViewCount(ctx context.Context, id uint) (*model.DouyinCard, error) {
 	res := r.db.WithContext(ctx).Model(&model.DouyinCard{}).
 		Where("id = ?", id).

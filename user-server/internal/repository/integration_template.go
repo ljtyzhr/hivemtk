@@ -10,7 +10,6 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-// IntegrationTemplateRepository 第三方对接模板仓库
 type IntegrationTemplateRepository interface {
 	Create(ctx context.Context, t *model.IntegrationTemplate) error
 	Update(ctx context.Context, t *model.IntegrationTemplate) error
@@ -34,8 +33,8 @@ func (r *integrationTemplateRepo) Create(ctx context.Context, t *model.Integrati
 	if t.Code == "" {
 		return errors.New("模板编码不能为空")
 	}
-	// 先查后写在并发建模板时两边都能通过预检，后落的那条撞唯一索引直接 500。
-	// 交给 ON CONFLICT（tenant_id, code 唯一）判定，命中 0 行即编码已存在。
+	// 用 ON CONFLICT（tenant_id, code 唯一）判定编码已存在：先查后写在并发建
+	// 模板时两边都能通过预检，后落的那条撞唯一索引会直接 500。
 	res := r.db.WithContext(ctx).Clauses(clause.OnConflict{
 		Columns:   []clause.Column{{Name: "tenant_id"}, {Name: "code"}},
 		DoNothing: true,

@@ -11,7 +11,6 @@ import (
 	"hivemtk-user/internal/reporting"
 )
 
-// I18nStatsRepository 多语言统计仓库接口
 type I18nStatsRepository interface {
 	LangDistribution(ctx context.Context, since time.Time) ([]LangDistRow, error)
 
@@ -61,13 +60,11 @@ type i18nStatsRepo struct {
 	db *gorm.DB
 }
 
-// NewI18nStatsRepository 创建多语言统计仓库（绑定全局默认 DB）
 func NewI18nStatsRepository() I18nStatsRepository {
 	return &i18nStatsRepo{db: _db.GetDB()}
 }
 
-// NewI18nStatsRepositoryWithDB 创建指定 DB 的统计仓库实例（用于依赖注入 / 测试）
-// db 为 nil 时回退全局 DB。
+// NewI18nStatsRepositoryWithDB 创建指定 DB 的统计仓库实例；db 为 nil 时回退全局 DB。
 func NewI18nStatsRepositoryWithDB(db *gorm.DB) I18nStatsRepository {
 	if db == nil {
 		return &i18nStatsRepo{db: _db.GetDB()}

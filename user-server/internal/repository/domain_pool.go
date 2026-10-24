@@ -10,7 +10,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// DomainPoolRepository 域名池仓储接口
 type DomainPoolRepository interface {
 	Create(ctx context.Context, domainPool *model.DomainPool) error
 	Update(ctx context.Context, domainPool *model.DomainPool) error
@@ -32,12 +31,10 @@ type domainPoolRepository struct {
 	db *gorm.DB
 }
 
-// NewDomainPoolRepository 创建域名池仓储实例
 func NewDomainPoolRepository(db *gorm.DB) DomainPoolRepository {
 	return &domainPoolRepository{db: db}
 }
 
-// NewDomainPoolRepositoryWithDB 测试用：显式指定 db
 func NewDomainPoolRepositoryWithDB(db *gorm.DB) DomainPoolRepository {
 	return &domainPoolRepository{db: db}
 }
@@ -202,12 +199,10 @@ func (r *domainPoolRepository) DeactivateAll(ctx context.Context) error {
 	return r.dbOrDefault(ctx).Model(&model.DomainPool{}).Where("is_active = ?", true).Update("is_active", false).Error
 }
 
-// DomainHealthLogRepository 健康度日志仓储
 type DomainHealthLogRepository struct {
 	db *gorm.DB
 }
 
-// NewDomainHealthLogRepository 创建健康度日志仓储
 func NewDomainHealthLogRepository(db *gorm.DB) *DomainHealthLogRepository {
 	if db == nil {
 		db = _db.GetDB()
@@ -215,7 +210,6 @@ func NewDomainHealthLogRepository(db *gorm.DB) *DomainHealthLogRepository {
 	return &DomainHealthLogRepository{db: db}
 }
 
-// Create 创建一条健康度日志
 func (r *DomainHealthLogRepository) Create(ctx context.Context, log *model.DomainHealthLog) error {
 	if log.CheckedAt.IsZero() {
 		log.CheckedAt = time.Now()
@@ -223,7 +217,7 @@ func (r *DomainHealthLogRepository) Create(ctx context.Context, log *model.Domai
 	return r.db.WithContext(ctx).Create(log).Error
 }
 
-// ListByDomain 查询指定域名的最近 N 条日志
+// ListByDomain 查询指定域名的最近日志
 func (r *DomainHealthLogRepository) ListByDomain(ctx context.Context, domainID int, limit int) ([]*model.DomainHealthLog, error) {
 	if limit <= 0 {
 		limit = 50
@@ -233,12 +227,10 @@ func (r *DomainHealthLogRepository) ListByDomain(ctx context.Context, domainID i
 	return rows, err
 }
 
-// DomainBlacklistRepository 黑名单仓储
 type DomainBlacklistRepository struct {
 	db *gorm.DB
 }
 
-// NewDomainBlacklistRepository 创建黑名单仓储
 func NewDomainBlacklistRepository(db *gorm.DB) *DomainBlacklistRepository {
 	if db == nil {
 		db = _db.GetDB()

@@ -11,7 +11,6 @@ import (
 	"gorm.io/gorm"
 )
 
-// LiveCodeQRRepository 活码二维码仓储接口
 type LiveCodeQRRepository interface {
 	Create(ctx context.Context, qrCode *model.LiveCodeQR) error
 	Update(ctx context.Context, qrCode *model.LiveCodeQR) error
@@ -29,7 +28,6 @@ type liveCodeQRRepository struct {
 	db *gorm.DB
 }
 
-// NewLiveCodeQRRepository 创建活码二维码仓储实例
 func NewLiveCodeQRRepository(db *gorm.DB) LiveCodeQRRepository {
 	return &liveCodeQRRepository{db: db}
 }
@@ -73,14 +71,9 @@ func (r *liveCodeQRRepository) GetStats(ctx context.Context, qrID string) ([]*mo
 	return stats, nil
 }
 
-// incrementStat 给「二维码 × 业务日」那一行的计数列 +1。
-//
-// 先 UPDATE、命中 0 行才 INSERT：原先的「先 First 再 Create/UpdateColumn」多一次往返，
-// 且把"查不到行"写成 `err == gorm.ErrRecordNotFound`（哨兵比较，包一层就失效）。
-// 表上没有 (tenant_id, qr_code_id, date) 唯一索引，所以首次并发点击仍可能插出两行日桶；
-// 这不影响 SumStats 的合计（SUM 跨行累加），只是日桶重复 —— 没有唯一索引就用不了
-// ON CONFLICT，这个窗口记在 model-list.md #116 的观察里。
-//
+// incrementStat 给「二维码 × 业务日」那一行的计数列 +1：先 UPDATE、命中 0 行才
+// INSERT。表上没有 (tenant_id, qr_code_id, date) 唯一索引，首次并发点击仍可能
+// 插出两行日桶（不影响 SumStats 合计，只是日桶重复）。
 // column 只由本文件两个固定调用点传入（view_count / click_count），不接受外部输入。
 func (r *liveCodeQRRepository) incrementStat(ctx context.Context, qrID, column string) error {
 	day := timeutil.StartOfBusinessDay(time.Now())
@@ -123,8 +116,8 @@ func (r *liveCodeQRRepository) SumStats(ctx context.Context, qrID string) (int64
 
 func (r *liveCodeQRRepository) SumLiveCodeStats(ctx context.Context, liveCodeID string) (int64, int64, error) {
 	var views, clicks int64
-	// 子查询选 live_code_qrs 的**主键 id**（qr_code_id 是 live_code_qr_stats 的列，
-	// live_code_qrs 上没有这一列 —— 选了它 PG 会直接报 column does not exist）。
+	// 子查询选 live_code_qrs 的主键 id（qr_code_id 是 live_code_qr_stats 的列，
+	// live_code_qrs 上没有这一列，选了它 PG 直接报 column does not exist）。
 	if err := r.db.WithContext(ctx).Model(&model.LiveCodeQRStat{}).
 		Where("qr_code_id IN (?)",
 			r.db.WithContext(ctx).Model(&model.LiveCodeQR{}).
