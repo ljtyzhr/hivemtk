@@ -13,8 +13,10 @@ import (
 	"time"
 
 	"gorm.io/gorm"
+	"gorm.io/gorm/clause"
 
 	"hivemtk-user/internal/model"
+	dbutil "hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/pkg/utils/logger"
 )
 
@@ -87,20 +89,24 @@ func (s *ReportService) aggregateWindow(ctx context.Context, from, to time.Time)
 // AggregateDaily 把 (from, to] 窗口内的 llm_routing_logs 明细聚合 upsert 进
 // llm_usage_daily。幂等：同一窗口重跑结果一致（ON CONFLICT DO UPDATE 覆盖式写入）。
 //
-// advisory lock 用本仓惯用写法 FROM (SELECT 1) AS t（裸 SELECT pg_try_advisory_lock
-// 在部分驱动下不可解析）；Group 用真实列名（Group("1") 在 PG 上是坏的）。
+// advisory lock 走 dbutil.TryAdvisoryLock/ReleaseAdvisoryLock（GORM 形态，
+// FROM (SELECT 1) AS t 的派生表写法封在 internal/pkg/db/advisory_lock.go，避免
+// GORM 无 Model 时拼出 `SELECT <expr> FROM ` 的坏 SQL）；Group 用真实列名
+// （Group("1") 在 PG 上是坏的）。
 func (s *ReportService) AggregateDaily(ctx context.Context, from, to time.Time) error {
-	var locked bool
-	if err := s.db.WithContext(ctx).Raw(
-		`SELECT pg_try_advisory_lock(?) AS locked FROM (SELECT 1) AS t`, advisoryLockKey).
-		Scan(&locked).Error; err != nil {
+	locked, err := dbutil.TryAdvisoryLock(ctx, s.db, advisoryLockKey)
+	if err != nil {
 		return fmt.Errorf("advisory lock: %w", err)
 	}
 	if !locked {
 		return nil // 其他实例正在聚合，本轮跳过（下轮增量会覆盖）
 	}
 	defer func() {
-		_ = s.db.Exec(`SELECT pg_advisory_unlock(?) FROM (SELECT 1) AS t`, advisoryLockKey).Error
+		// 释放不依赖调用方 ctx（其可能已随请求结束被取消）：与 geo/job_manager
+		// 同形，用短超时 Background，保证锁一定被还回去。
+		rctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
+		defer cancel()
+		_ = dbutil.ReleaseAdvisoryLock(rctx, s.db, advisoryLockKey)
 	}()
 
 	// 明细 → 维度桶聚合。列名分组；tenant_id 取 routing_logs 自身列（迁移 v3.6.0 起有此列）
@@ -167,22 +173,42 @@ func (s *ReportService) aggregateWindowLocked(ctx context.Context, from, to time
 		}
 		// 覆盖式 upsert：冲突目标 = 迁移建的 uk_llm_usage_daily_dims 复合唯一索引
 		//（列序严格一致——42P10 教训）。同一窗口重跑时整行覆盖，保证幂等。
-		if err := s.db.WithContext(ctx).Exec(`INSERT INTO llm_usage_daily
-			(tenant_id, stat_date, provider, model, scenario, channel, source, error_class,
-			 call_count, error_count, cache_hit_count, prompt_tokens, completion_tokens,
-			 total_cost_cents, latency_sum_ms, p50_latency_ms, p95_latency_ms, sum_squares_latency_ms, updated_at)
-			VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)
-			ON CONFLICT (tenant_id, stat_date, provider, model, scenario, channel, source, error_class) DO UPDATE SET
-			 call_count = EXCLUDED.call_count, error_count = EXCLUDED.error_count,
-			 cache_hit_count = EXCLUDED.cache_hit_count, prompt_tokens = EXCLUDED.prompt_tokens,
-			 completion_tokens = EXCLUDED.completion_tokens, total_cost_cents = EXCLUDED.total_cost_cents,
-			 latency_sum_ms = EXCLUDED.latency_sum_ms, p50_latency_ms = EXCLUDED.p50_latency_ms,
-			 p95_latency_ms = EXCLUDED.p95_latency_ms, sum_squares_latency_ms = EXCLUDED.sum_squares_latency_ms,
-			 updated_at = EXCLUDED.updated_at`,
-			r.TenantID, r.StatDate, r.Provider, r.Model, r.Scenario, r.Channel, r.Source, r.ErrorClass,
-			r.CallCount, r.ErrorCount, r.CacheHitCount, r.PromptTokens, r.CompletionTokens,
-			costCents, r.LatencySumMs, avg, avg, r.SumSquaresLat, time.Now(),
-		).Error; err != nil {
+		// 用 clause.OnConflict 表达（GORM 链式 API，禁止 .Exec 直连）。
+		row := model.LLMUsageDaily{
+			TenantID:         r.TenantID,
+			StatDate:         r.StatDate,
+			Provider:         r.Provider,
+			Model:            r.Model,
+			Scenario:         r.Scenario,
+			Channel:          r.Channel,
+			Source:           r.Source,
+			ErrorClass:       r.ErrorClass,
+			CallCount:        r.CallCount,
+			ErrorCount:       r.ErrorCount,
+			CacheHitCount:    r.CacheHitCount,
+			PromptTokens:     r.PromptTokens,
+			CompletionTokens: r.CompletionTokens,
+			TotalCostCents:   costCents,
+			LatencySumMs:     r.LatencySumMs,
+			P50LatencyMs:     avg,
+			P95LatencyMs:     avg,
+			SumSquaresLat:    r.SumSquaresLat,
+			UpdatedAt:        time.Now(),
+		}
+		if err := s.db.WithContext(ctx).
+			Clauses(clause.OnConflict{
+				Columns: []clause.Column{
+					{Name: "tenant_id"}, {Name: "stat_date"}, {Name: "provider"},
+					{Name: "model"}, {Name: "scenario"}, {Name: "channel"},
+					{Name: "source"}, {Name: "error_class"},
+				},
+				DoUpdates: clause.AssignmentColumns([]string{
+					"call_count", "error_count", "cache_hit_count", "prompt_tokens",
+					"completion_tokens", "total_cost_cents", "latency_sum_ms",
+					"p50_latency_ms", "p95_latency_ms", "sum_squares_latency_ms", "updated_at",
+				}),
+			}).
+			Create(&row).Error; err != nil {
 			return 0, fmt.Errorf("upsert llm_usage_daily: %w", err)
 		}
 	}

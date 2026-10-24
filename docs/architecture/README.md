@@ -1,7 +1,7 @@
 # HiveMtk 架构层导航（docs/architecture/）
 
 > 本页是 `hivemtk/docs/architecture/` 的分层索引，补齐此前「架构文档散落、无层内导航」的缺口。
-> 权威入口仍是顶层 [`docs/INDEX.md`](../../../docs/INDEX.md)；本页只做层内归类，不重复造数。
+> 权威入口仍是顶层 [`docs/INDEX.md`](../INDEX.md)；本页只做层内归类，不重复造数。
 > 基线：`hivemtk/` 仓库 main，复核 2026-10-24。ADR 决策记录见 [`adr/README.md`](adr/README.md)。
 
 ## 一、总览与基线

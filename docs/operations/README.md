@@ -1,7 +1,7 @@
 # HiveMtk 运维层导航（docs/operations/）
 
 > 本页是 `hivemtk/docs/operations/` 的分层索引，补齐运维文档散落、无层内导航的缺口。
-> 权威入口仍是顶层 [`docs/INDEX.md`](../../../docs/INDEX.md)。基线：复核 2026-10-24。
+> 权威入口仍是顶层 [`docs/INDEX.md`](../INDEX.md)。基线：复核 2026-10-24。
 
 ## 一、部署与初始化
 

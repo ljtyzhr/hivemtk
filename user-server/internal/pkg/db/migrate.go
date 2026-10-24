@@ -584,6 +584,14 @@ func allModels() []any {
 		&guardmodel.GuardTask{},
 		&guardmodel.GuardRecord{},
 		&guardmodel.GuardSanction{},
+
+		// T3 观测报表（LLMUsageDaily）：llm_usage_daily 日聚合表，写路径是
+		// service/report_service.go 的聚合任务 upsert；漏登记 ⇒ 全新部署聚合写不进、
+		// 报表 API 全部读空。表形状以 v3.83.0 迁移为准，此处登记供 AutoMigrate 兜底。
+		&model.LLMUsageDaily{},
+		// UnifiedReply（unified_replies）：统一回复行，与 UnifiedMessage 同域；写路径
+		// 在统一消息回复链路，漏登记 ⇒ 全新部署回复落不了库。
+		&model.UnifiedReply{},
 	}
 }
 

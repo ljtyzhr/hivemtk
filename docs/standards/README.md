@@ -14,7 +14,7 @@
 
 ## 术语与命名
 
-- 命名规范统一见顶层 [`docs/DOCS_SYSTEM.md`](../../../docs/DOCS_SYSTEM.md) §3（文件命名 / 标题规范）。
+- 命名规范统一见 [`user-server/docs/dev/CONVENTIONS.md`](../../user-server/docs/dev/CONVENTIONS.md) §2（文件命名 / 标题规范）。
 - 官网命名统一规范见 [`hivemtk/website/TERMINOLOGY.md`](../../website/TERMINOLOGY.md)。
 - 智能体命名铁律（禁「机器人/助手」）见 [`architecture/ARCHITECTURE_DIAGRAM.md`](../architecture/ARCHITECTURE_DIAGRAM.md) §九 与 [`DEV_DOCS_INDEX.md`](../DEV_DOCS_INDEX.md) E6/E7。
 

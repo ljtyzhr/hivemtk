@@ -2358,7 +2358,6 @@
     "queriesPlaceholder": "每行一个问题，可粘贴关键词",
     "run": "验证",
     "resultTitle": "验证结果",
-    "colModel": "验证模型",
     "colQuery": "问题",
     "colBrand": "品牌",
     "colMentioned": "品牌提及",
@@ -2384,11 +2383,6 @@
     "failed": "验证失败",
     "negativeDone": "负面检测完成",
     "negativeFailed": "负面检测失败",
-    "loadModelsFailed": "加载可用模型列表失败",
-    "sentimentPositive": "正面",
-    "sentimentNeutral": "中性",
-    "sentimentNegative": "负面",
-    "riskHigh": "高",
-    "riskMedium": "中"
+    "loadModelsFailed": "加载可用模型列表失败"
   }
 }

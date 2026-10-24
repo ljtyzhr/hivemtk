@@ -362,3 +362,9 @@ SelectorHealthMinAttempts
 #     （无进度持久化、无取消）；真要大批量走 keyword_pipeline cron。契约常量不参数化。
 ContentFormatAttributionSampleFloor
 BatchGenerateMaxKeywords
+# ── 2026-10-24 T3 观测看板（007）：DashboardDefaultWindow 刻意不入库 ──────────
+# 它是 GET /api/observability/dashboard 的 window 查询参数在非法值时的**回落默认**
+# （24h/7d/30d 三档取值之外的兜底 7d），与 windowDuration/normalizeWindow 共同构成
+# 对外 API 的取值契约：调它等于对同一批调用方改协议默认，不是运维调参。要调默认
+# 档位走需求变更 + 契约回归（route 面与看板快照测试），与「参数中心热读阈值」不同域。
+DashboardDefaultWindow

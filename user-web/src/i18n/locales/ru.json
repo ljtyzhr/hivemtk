@@ -2358,7 +2358,6 @@
     "queriesPlaceholder": "One query per line",
     "run": "Verify",
     "resultTitle": "Results",
-    "colModel": "Model",
     "colQuery": "Query",
     "colBrand": "Brand",
     "colMentioned": "Mentioned",
@@ -2384,11 +2383,6 @@
     "failed": "Verification failed",
     "negativeDone": "Negative detection completed",
     "negativeFailed": "Negative detection failed",
-    "loadModelsFailed": "Failed to load models",
-    "sentimentPositive": "Positive",
-    "sentimentNeutral": "Neutral",
-    "sentimentNegative": "Negative",
-    "riskHigh": "High",
-    "riskMedium": "Medium"
+    "loadModelsFailed": "Failed to load models"
   }
 }
