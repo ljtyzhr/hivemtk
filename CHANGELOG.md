@@ -45,6 +45,20 @@
   - **R2（并发）记决策点**：`RecordPartialRefund`「退款额 ≤ 净到账」校验与 `Create` 之间无锁，同账单并发退款可总超额。修法需跨层事务（`SELECT … FOR UPDATE`）或 DDL，且 E-10 尚无入口（见 R4），接线时并入
   - **R4（架构）记决策点**：E-10 实现已入库但无 controller/router 接线、退款 webhook 契约形状未定；当前行为=回款口大声拒 `status=refunded` 不静默丢。本提交补入此前 untracked 的 `payment_partial_refund_test.go`（实现必须带测试，零遗留）
 
+#### 007–013 · Wave 3 + Wave 4 全量交付（2026-10-24，主智能体调度 7 条子泳道并行）
+
+一次交付剩余 11 个改进项（D2/D1/B2/C1/C2/A1/A3/F1/F2/F3/C4），每条泳道独立走 规划→设计→调研→论证→开发→测试→交付，交付四件套在 `specs/007~013`。集成时主智能体补齐前端路由懒装配接线（`pathToModule` 深链映射 + `moduleNames` 白名单），后端/前端 build、gofmt、vet、纯单测全绿：
+
+- **007 D2+B2 观测与渠道健康**（`specs/007`）：`/api/observability/dashboard` 统一看板口径——LLM 成本/送达率/漏斗转化/渠道账号/选择器健康/封禁域名六节聚合（repository 六方法 + service 纯函数判定 `classifyChannelHealth` 顺序固定 + controller/router），前端 `observabilityDashboard` 看板页（requiresAdmin）。真库 SQL 落地受「并发 lane 占用测试库」约束未实跑，已声明
+- **008 C1+C2 部署与推理**（`specs/008`）：`scripts/deploy-wizard.py`（纯 Python3 stdlib，交互向导 + `--check` 只读自检，`.env` 原子写、占位值自动换强随机）`--check` 实测 rc=0；C2 推理降级档 `internal/app/inference_tier.go`（档位枚举/HTTP 探测/启动期定档，云端回退默认 **false** 合规基线，Embedding 不分档本地）——决策点：云端判据与 `registerCloudProvidersFromConfig` 一致、探测钉 `/health`
+- **009 F1+F3+C4 文档收口**（`specs/009`）：4 层导航 README（architecture/operations/standards/specs）+ 后端文案 i18n 口径 `BACKEND_MESSAGE_I18N_POLICY.md`（127 项缺口清单）+ 多租户复核 `TENANT_MODE_REVIEW.md`（245 带租户表/12 豁免，勘误「业务表无需多租户字段」旧口径）；i18n 三道门禁全绿
+- **010 A1 executor 拆分**（`specs/010`）：`browser_automation/service/executor.go` 1901 行 → 8 文件 1978 行（函数体按锚点逐字节搬运、公开 API 零改动），7 个既有测试仅改读取文件、新增 6 例纯函数测试。135 个 DB 用例因本地 PG SASL 口令不匹配未实跑（与拆前基线一致），待 CI 真库
+- **011 D1 Lead-to-Cash 闭环**（`specs/011`）：`service/ltc_pipeline.go` 状态机（quote_draft→price_confirmed→order_created→bill_derived，恰向前一步无回退）+ 域门映射 + CAS 幂等愈合 + 回款 callout（编译期断言 `*PaymentService` 满足 `ltcPaymentRecorder`）；状态是派生态不建新表、订单走 DTO；18 测试纯内存全绿
+- **012 A3 模块契约注册表**（`specs/012`）：`internal/modulekit/` 契约接口 + 内存注册表（7 哨兵、fail-closed 生命周期、RWMutex 并发安全）+ 2 内建示例模块；10 测试 + `-race` 全绿。决策点：`auth_plugin.so` 不迁移（外部产物无源码，独立切片）
+- **013 F2 模板技能市场**（`specs/013`）：后端 `template_market` 契约 + 内存假仓储（13 条种子：9 模板 + 4 技能）+ service 过滤/详情 fail-closed；前端独立市场页 + 3 例渲染测试（vitest 3/3）+ `npm run build` 绿。决策点：写侧/支付审核闭环留待立项、`market_catalog_entries` 表只记不建
+
+**集成决策（主智能体）**：① 前端懒装配深链修复——`observability-dashboard`/`template-market` 两个连字符路径补 `pathToModule` 映射、`templateMarket` 进 `moduleNames`，否则刷新/深链落 404；② 后端菜单行（menus 表）与观测路由 policy/adminOnly 收紧、`tests/e2e/routes_user.tsv` 补行留待 lane 空闲时接线（`menu.go` 与 e2e 路由面均为并发 lane 在途）；③ 全仓 `go vet ./...` 唯一红点 `test/integration/knowledge_base_crud_test.go` 的 `CountByAgent` 是并发 lane 在途重构（`service/knowledge_base.go` M）造成，非本批引入，未触碰
+
 #### 003 · SaaS 计费二期（2026-10-19，`.specify/003-saas-billing-v2`）
 
 - **定价改版（显式覆盖 002 年度收费口径）**：功能模块 **23 个全部 0 元**（注册/初始化自动赠予开通，`FreeToEnable`），**浏览器自动化 ¥99 买断**（`billing_cycle=once`，9900 分、不写 `ExpiresAt`，由旧建议 1680 元/年 改为 ¥99，2026-10-19 用户裁决），软件订阅 **149 元/月仅按月**，新商户 **15 天体验期**（`SUBSCRIPTION_TRIAL_DAYS` 默认 15）

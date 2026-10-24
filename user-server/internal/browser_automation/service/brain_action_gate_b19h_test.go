@@ -78,9 +78,9 @@ func TestB19HRejectionEchoBounded(t *testing.T) {
 // 边界取「下一个顶层 func」，不然会把 post_comment 分支里嵌套 switch 的 case 一起收进来。
 func b19hDispatchCases(t *testing.T) map[string]bool {
 	t.Helper()
-	b, err := os.ReadFile("executor.go")
+	b, err := os.ReadFile("executor_dispatch.go")
 	if err != nil {
-		t.Fatalf("读 executor.go 失败：%v", err)
+		t.Fatalf("读 executor_dispatch.go 失败：%v", err)
 	}
 	src := string(b)
 	start := strings.Index(src, "func (e *Executor) dispatchStep(")

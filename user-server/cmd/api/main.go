@@ -356,6 +356,19 @@ func main() {
 		logger.Info("[LLM] 已从数据库加载持久化场景路由规则")
 	}
 
+	// C2 推理降级档：启动时显式定档并记录，不修改 Dispatcher 运行时路由。
+	//
+	// 为什么放在 provider/路由装载之后：等 Dispatcher 就绪后再定档，日志顺序与
+	// 运行时事实一致。档位输入的"云端是否已配置"按 config.yaml 的 cloud_providers
+	// 口径判定（与 registerCloudProvidersFromConfig 一致）；从数据库加载的 provider
+	// 走 Dispatcher 运行时回落链，本档位不参与改路由。探测只读 GET /health，
+	// 不写库、不改配置。
+	app.SelectAndRecordInferenceTier(
+		context.Background(),
+		app.BuildTierPolicyFromConfig(appCfg),
+		app.NewHTTPInferenceProbe(3*time.Second),
+	)
+
 	service.InitIntentRecognizer(db.GetDB(), llm.GetGlobalDispatcher(), nil)
 	logger.Info("[IntentRecognition] global instance initialized, dispatcher wired")
 

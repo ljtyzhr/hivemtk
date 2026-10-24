@@ -256,7 +256,7 @@ func TestRetryBackoffGrowsExponentially(t *testing.T) {
 		}
 	}
 	// 执行循环必须真的用这个函数：只测纯函数、循环里另写一份算式，就是又一条没有牙的腿。
-	if src := readSrc(t, "executor.go"); !strings.Contains(src, "retryBackoffDelay(backoff, attempt)") {
+	if src := readSrc(t, "executor_step.go"); !strings.Contains(src, "retryBackoffDelay(backoff, attempt)") {
 		t.Error("executeStepWithRetry 未走 retryBackoffDelay（就地算式钉不住，退避形状会漂移）")
 	}
 }
@@ -345,7 +345,7 @@ func TestWriteStepKeyDistinguishesLocatorFacets(t *testing.T) {
 // 插入早返必须重跑」，而没人会在改码那天去翻 spec。这条腿把前提本身钉住：
 // 两个落账点之间一旦长出 return/break/continue，等价类立即失效，M7 必须重判。
 func TestSentToFinalLedgerWritePathHasNoEarlyReturn(t *testing.T) {
-	src := readSrc(t, "executor.go")
+	src := readSrc(t, "executor_dispatch.go")
 	i := strings.Index(src, "sentLedgerErr := e.recordSubmitState(")
 	j := strings.Index(src, "finalLedgerErr := e.recordSubmitState(")
 	if i < 0 || j < 0 || j < i {

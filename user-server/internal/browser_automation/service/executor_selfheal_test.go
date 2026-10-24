@@ -28,7 +28,7 @@ func TestIsSelectorMiss(t *testing.T) {
 // TestSelfHealWiredSingleShot 静态契约：prep/send 各自只挂一次自愈+一次重下发；
 // 自愈触发前置条件是精确 token；finalize 循环体内禁止出现自愈/重提交。
 func TestSelfHealWiredSingleShot(t *testing.T) {
-	src := readSrc(t, "executor.go")
+	src := readSrc(t, "executor_dispatch.go")
 	// prep 分支：healCommentInput 只在 commentPrep 错误处理内出现一次
 	if n := strings.Count(src, "e.healCommentInput("); n != 1 {
 		t.Errorf("healCommentInput 应恰好调用 1 处，got %d", n)

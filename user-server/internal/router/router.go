@@ -463,6 +463,10 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 		// 挂错位置会让这 7 个监控接口全部匿名可访问。
 		monitor.RegisterRoutes(auth)
 
+		// 统一看板（D2 AI 全链路可观测性 + B2 渠道健康，specs/007）：只读、
+		// 登录态可见，与 monitor 同组同调用点（鉴权语义一致）。
+		RegisterObservabilityDashboardRoutes(auth, gormDB)
+
 		// 链路自学习监控口：/monitor/trace-eval/logs 与 /monitor/knowledge-weights 在
 		// 能力表里归 systemTrace，注册必须在 auth.Use(RoutePolicyGuard()) 之后，
 		// 否则那两行表对它们不生效（gin 注册时快照当时的 handler 链）。

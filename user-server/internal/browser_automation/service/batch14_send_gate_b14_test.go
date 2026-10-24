@@ -84,7 +84,7 @@ func TestWSE2E_SendGateRejectStaysPrepared(t *testing.T) {
 
 // 4) 静态契约：闸门早返必须排在落 sent 台账之前（顺序错一处，上面的断言就全是摆设）
 func TestSendGateOrderedBeforeSentLedger(t *testing.T) {
-	src := readSrc(t, "executor.go")
+	src := readSrc(t, "executor_dispatch.go")
 	iSend := strings.Index(src, "e.hand.commentSend(")
 	iGate := strings.Index(src, "isSendGateReject(sendErr)")
 	// 只锁状态 token、不锁参数尾巴：recordSubmitState 的签名会变（加了 crossed），

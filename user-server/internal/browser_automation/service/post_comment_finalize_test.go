@@ -48,7 +48,7 @@ func (f *fakeSessionRepo) UpdateExtractedData(_ context.Context, id uint, data r
 // 1) 编排顺序契约：dispatchStep 的 post_comment 分支必须 prep→send→finalize，
 // 且全文件不得再有一站式 postComment 调用（双路径分叉=红线）。
 func TestPostCommentThreePhaseOrder(t *testing.T) {
-	src := readSrc(t, "executor.go")
+	src := readSrc(t, "executor_dispatch.go")
 	iPrep := strings.Index(src, "e.hand.commentPrep(")
 	iSend := strings.Index(src, "e.hand.commentSend(")
 	iFin := strings.Index(src, "e.finalizeComment(")
@@ -67,7 +67,7 @@ func TestPostCommentThreePhaseOrder(t *testing.T) {
 // 2) finalize 只读轮询契约：finalizeComment 循环体内只允许 commentVerify（只读），
 // 绝不允许出现 commentSend/commentPrep（验证态任何重提交=双发红线 G11）。
 func TestFinalizeNeverResubmits(t *testing.T) {
-	src := readSrc(t, "executor.go")
+	src := readSrc(t, "executor_dispatch.go")
 	start := strings.Index(src, "func (e *Executor) finalizeComment")
 	if start < 0 {
 		t.Fatal("finalizeComment 不存在")
@@ -156,7 +156,7 @@ func TestInjectTimeoutAttribution(t *testing.T) {
 		t.Error("nil/业务错误不得识别为注入超时")
 	}
 	// dispatchStep 里 send 路径：注入超时早返，其余进 finalize
-	src := readSrc(t, "executor.go")
+	src := readSrc(t, "executor_dispatch.go")
 	iSend := strings.Index(src, "e.hand.commentSend(")
 	iFin := strings.Index(src, "e.finalizeComment(")
 	iGuard := strings.Index(src, "isInjectTimeout(sendErr)")

@@ -165,7 +165,12 @@ func TestWaitForConfirmBudgetDecoupled(t *testing.T) {
 // ② waitForConfirm 只能被 awaitConfirmGate 调起（绕过它=挂起不留审计痕迹、不绑载荷）；
 // ③ 登记先于落帧（顺序反了会有一个「帧已写、注册表还空着」的窗口把真放行答成「没有闸门」）。
 func TestConfirmGatePrecedesIrreversibleSend(t *testing.T) {
-	src := readSrc(t, "executor.go")
+	// executor.go 拆分后，D7 闸门的三个锚点落在三个文件里：闸门原语（executor_confirm.go）、
+	// 派生写闸门与命令帧（executor_step.go）、post_comment 原语内的 prep/send（executor_dispatch.go）。
+	// 按「confirm → step → dispatch」拼接后，LastIndex(awaitConfirmGate) 仍落在 post_comment 调用点，
+	// prep/send/register/frame/wait 的相对次序与拆分前逐字一致。
+	src := readSrc(t, "executor.go") + readSrc(t, "executor_confirm.go") +
+		readSrc(t, "executor_step.go") + readSrc(t, "executor_dispatch.go")
 	iPrep := strings.Index(src, "e.hand.commentPrep(")
 	// 派生写闸门在文件里排在 post_comment 原语之前，所以 prep→gate 的定序必须取最后一个调用点
 	iGate := strings.LastIndex(src, "e.awaitConfirmGate(")

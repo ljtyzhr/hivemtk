@@ -1,6 +1,6 @@
 # HiveMtk 文档索引
 
-> 单商户本地部署（私域模式）
+> 双形态部署：**离线单机（私域，TENANT_MODE=off 默认）** + **SaaS 多租户（TENANT_MODE=on）**
 > 三份主文档回答三个问题：**有哪些功能**（官方文档）· **如何安装运维**（运维手册）· **出问题怎么办**（排查手册）
 
 ---
@@ -25,6 +25,7 @@
 | [handbook/OPERATIONS-FOR-HUMANS.md](handbook/OPERATIONS-FOR-HUMANS.md) | 部署 · 配置 · 日常运营 · 备份恢复（人读） |
 | [handbook/FEATURES-FOR-AI.md](handbook/FEATURES-FOR-AI.md) | 路由表 · 模块地图 · 文件位置 · 数据结构（AI 读） |
 | [handbook/OPERATIONS-FOR-AI.md](handbook/OPERATIONS-FOR-AI.md) | 分层铁律 · 命令 · 门禁 · 新增功能流程（AI 读） |
+| [handbook/SAAS_PRODUCTION_CONSTRAINTS.md](handbook/SAAS_PRODUCTION_CONSTRAINTS.md) | SaaS 生产部署约束与教训（多租户编码硬约束，改相关代码前必读） |
 
 ---
 
@@ -32,6 +33,7 @@
 
 | 文档 | 描述 |
 |------|------|
+| [operations/README.md](operations/README.md) | 运维层导航（部署初始化 / 运行保障 / 功能专题 / 反代模板） |
 | [RELEASE_PREPARATION.md](RELEASE_PREPARATION.md) | 发布准备：用户端/平台端配置、数据初始化、安装部署逻辑核查 + 上服务器清单 |
 | [operations/MERCHANT_DEPLOYMENT.md](operations/MERCHANT_DEPLOYMENT.md) | 商户部署手册 |
 | [operations/MERCHANT_INITIALIZATION_FLOW.md](operations/MERCHANT_INITIALIZATION_FLOW.md) | 首次启动初始化流程（/setup 开户字段、静默合规采集、开户赠送） |
@@ -47,6 +49,8 @@
 
 | 文档 | 描述 |
 |------|------|
+| [architecture/README.md](architecture/README.md) | 架构层导航（总览 / 深度解析 / 多租户与部署形态 / 模块专题 / ADR） |
+| [architecture/TENANT_MODE_REVIEW.md](architecture/TENANT_MODE_REVIEW.md) | 多租户文档口径与授权策略复核（009 · C4） |
 | [architecture/部署方案_用户端.md](architecture/部署方案_用户端.md) | 用户端部署架构 |
 | [architecture/HOST_INFERENCE_PLAN.md](architecture/HOST_INFERENCE_PLAN.md) | llama.cpp 推理方案 |
 | [architecture/adr/](architecture/adr/) | 架构决策记录 |
@@ -69,7 +73,9 @@
 
 | 文档 | 描述 |
 |------|------|
+| [standards/README.md](standards/README.md) | 标准与口径层导航（规则 / 模板 / 后端 i18n 口径） |
 | [standards/MASTER_RULES.md](standards/MASTER_RULES.md) | 项目核心规则与编码规范 |
+| [standards/BACKEND_MESSAGE_I18N_POLICY.md](standards/BACKEND_MESSAGE_I18N_POLICY.md) | 后端文案国际化口径与清单（F3） |
 
 ---
 
@@ -96,7 +102,11 @@
 
 | 文档 | 说明 |
 |------|------|
+| [../specs/README.md](../specs/README.md) | spec 施工源索引（001/002/005/006/009） |
 | [../specs/001-saas-multi-tenant/](../specs/001-saas-multi-tenant/) | 001 多租户底座（TENANT_MODE 双形态、tenancy、契约） |
+| [../specs/005-reach-compliance-policy/](../specs/005-reach-compliance-policy/) | 005 主动触达合规策略（E1，已交付） |
+| [../specs/006-wave2-gates-and-selector-health/](../specs/006-wave2-gates-and-selector-health/) | 006 Wave2 门禁与选择器健康（lane 在途） |
+| [../specs/009-docs-and-i18n-closeout/](../specs/009-docs-and-i18n-closeout/) | 009 F1 文档分层 + F3 国际化收口 + C4 多租户口径（本 lane） |
 | [../.specify/002-modular-subscription/](../.specify/002-modular-subscription/) | 002 模块订阅一期（模块闸、订单状态机、MarkPaid 唯一入账口、LLM 双轨计费） |
 | [../.specify/003-saas-billing-v2/](../.specify/003-saas-billing-v2/) | 003 SaaS 计费二期：订阅 + 易支付 + 初始化赠送 + 官网云端入口（`plan.md` 含 ADR-M8/M9 与「审查修订」） |
 
@@ -104,4 +114,4 @@
 
 ---
 
-*最后更新: 2026-10-19 · 补录 002/003 规格与施工文档、003 运维文档（初始化流程勘误 / 易支付上线验收清单）；三份主文档与 AI 功能清单基线口径不变*
+*最后更新: 2026-10-24 · 009 收口：修正头句为双形态、挂入 architecture/operations/standards/specs 四层导航、补 SAAS_PRODUCTION_CONSTRAINTS 与 TENANT_MODE_REVIEW、补 005/006/009 规格施工源；三份主文档与 AI 功能清单基线口径不变*

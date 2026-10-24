@@ -112,7 +112,7 @@ func TestBudgetDecoupleWiringLocks(t *testing.T) {
 	if strings.Contains(taskSrc, "time.Duration(t.TimeoutSec)*time.Second") {
 		t.Error("task.go 仍有一处直接用 TimeoutSec 计预算（解耦未收口）")
 	}
-	execSrc := readSrc(t, "executor.go")
+	execSrc := readSrc(t, "executor.go") + readSrc(t, "executor_session.go")
 	if !strings.Contains(execSrc, "deadline := time.Now().Add(taskExecBudget(task) + taskWatchdogGrace)") {
 		t.Error("Brain 真钟期限未改用解耦后的预算（LLM 编排的确认挂起会被旧期限掐死）")
 	}

@@ -101,6 +101,8 @@ const moduleNames = [
   'followups',
   "kbConnector",
   "mcpCredential",
+  "observabilityDashboard",
+  "templateMarket",
   // 功能模块市场 + 商户注册（模块化改造）
   "moduleMarket",
 ];
@@ -184,6 +186,10 @@ const pathToModule = {
   // 功能模块市场（模块化改造）
   'module-market': 'moduleMarket',
   'register': 'moduleMarket',
+  // 观测看板（007 D2/B2）与模板市场（013 F2）：路由路径含连字符，首段映射到
+  // 驼峰模块名，否则深链/刷新按首段找不到模块、落 404（与 asset-market 同族）。
+  'observability-dashboard': 'observabilityDashboard',
+  'template-market': 'templateMarket',
   // 续费墙（003 T023）：4305 跳转目标，路由注册在 moduleMarket 模块内
   'subscription-wall': 'moduleMarket',
   'confidence': 'tuning',

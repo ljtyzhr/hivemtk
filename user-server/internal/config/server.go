@@ -130,6 +130,8 @@ func DefaultInferenceConfig() InferenceConfig {
 			TimeoutSeconds: 720,
 			MaxRetries:     1,
 		},
+		// Tier 缺省为 false（禁止云端降级，合规基线）；显式写出便于 grep 审计。
+		Tier: InferenceTierConfig{FallbackToCloudLLM: false},
 	}
 }
 
@@ -179,6 +181,17 @@ type InferenceConfig struct {
 	Embedding InferenceEmbeddingConfig `yaml:"embedding" json:"embedding"`
 	Rerank    InferenceRerankConfig    `yaml:"rerank" json:"rerank"`
 	LLM       InferenceLLMConfig       `yaml:"llm" json:"llm"`
+	Tier      InferenceTierConfig      `yaml:"tier" json:"tier"`
+}
+
+// InferenceTierConfig 推理降级档配置（C2）。
+//
+// 默认 false：本地 LLM 不可达时不自动回退云端（合规基线——云端 LLM 出域必须显式开启）。
+// 开启后，启动期档位选择器（internal/app/inference_tier.go）才会在本地 LLM 不可达时
+// 选择 cloud_llm_local_embedding 档；Embedding 无论档位都保持本地，数据不出域。
+type InferenceTierConfig struct {
+	// FallbackToCloudLLM 本地 LLM 不可达时是否允许回退云端 LLM。
+	FallbackToCloudLLM bool `yaml:"fallback_to_cloud_llm" json:"fallback_to_cloud_llm"`
 }
 
 // InferenceEmbeddingConfig 文本向量配置

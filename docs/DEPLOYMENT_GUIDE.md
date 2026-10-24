@@ -19,6 +19,8 @@
 9. [日常运维操作](#九日常运维操作)
 10. [备份与恢复](#十备份与恢复)
 11. [升级与回滚](#十一升级与回滚)
+12. [部署向导（scripts/deploy-wizard.py）](#十二部署向导scriptsdeploy-wizardpy)
+13. [推理降级档（inference.tier）](#十三推理降级档inferencetier)
 
 ---
 
@@ -137,6 +139,11 @@ MERCHANT_API_SECRET=      # 仅开启平台集成时需要：出站请求的 HMA
 
 > 历史版本这里还要求 `PLATFORM_LICENSE_SECRET`（商户授权签名）。该键在 user-server 与
 > platform-server 两侧代码里都已无任何读取点（2026-09-21 逐仓 grep 复核），授权流程整体下线后不再需要设置。
+
+> **推荐：用部署向导代替手工编辑 `.env`。** `python3 scripts/deploy-wizard.py` 会交互收集
+> 上面这些密钥，对仍是占位值（`ChangeMe_*` / `your_*`）的自动替换为强随机值，其余键与注释
+> 逐字节保留；生成后用 `python3 scripts/deploy-wizard.py --check` 只读自检（退出码 0=无硬错误）。
+> 详见[第十二节](#十二部署向导scriptsdeploy-wizardpy)。
 
 ### 第 2 步：启动数据层
 
@@ -527,6 +534,114 @@ make user-build web-build
 - `FIELD_ENCRYPTION_KEY` **不可直接轮换**：会使 api_logs / audit_logs 已加密字段无法解密。必须先解密存量数据再换钥；
 - `JWT_SECRET` 轮换会使所有在线登录态失效（用户需重新登录），选择低峰期操作。
 
+## 十二、部署向导（scripts/deploy-wizard.py）
+
+`scripts/deploy-wizard.py` 是纯 Python3 标准库实现的部署向导，替代「手工编辑 `.env`」这一步。
+它只读写项目根目录 `.env`，不触碰其它任何文件。
+
+### 12.1 交互模式（默认）
+
+```bash
+python3 scripts/deploy-wizard.py
+```
+
+行为：
+
+- 收集必改密钥：`POSTGRES_PASSWORD`、`REDIS_PASSWORD`、`JWT_SECRET`、`FIELD_ENCRYPTION_KEY`；
+- 对仍是占位值（`ChangeMe_*` / `your_*`）的密钥，回车即自动替换为强随机值（`secrets.token_hex(32)`，64 字符）；
+  已设置成非占位值的则回车保持不变；
+- 可选补齐 `MASTER_KEY`（生产环境缺失会拒绝启动，向导默认生成）与 `SEED_PASSWORD`；
+- 询问是否开启平台集成（`PLATFORM_ENABLED`），开启时再补齐 `MERCHANT_API_SECRET`、`PLATFORM_ADMIN_PASSWORD`；
+- 写入 `.env` 时保留全部注释与既有键（原子写入：临时文件 + rename）。
+
+非交互初始化（CI / 一键脚本用）：
+
+```bash
+python3 scripts/deploy-wizard.py --yes   # 占位密钥全部自动强随机替换，其余保持现状
+```
+
+### 12.2 `--check` 只读自检（CI / 巡检）
+
+```bash
+python3 scripts/deploy-wizard.py --check
+echo $?   # 0=无 FAIL，1=有 FAIL，2=自检自身无法执行
+```
+
+只读探测，不写任何文件。检查项与判定口径：
+
+| 检查项 | 判定 |
+|--------|------|
+| Python / 项目根目录 / `.env-example` 模板 | 不可用 ⇒ `rc=2`（自检无法执行）或 WARN |
+| `.env` 是否存在 | 缺失 ⇒ WARN（按纯环境变量注入模式继续，K8s Secret 场景属正常） |
+| JWT 密钥（`USER_JWT_SECRET` > `JWT_SECRET` 优先） | `.env` 存在但缺失或 <32 字符 ⇒ **FAIL**（启动会 panic） |
+| `FIELD_ENCRYPTION_KEY` | `.env` 存在但缺失或 <32 字符 ⇒ **FAIL** |
+| 密钥仍是占位值 | 长度合规 ⇒ 只 WARN，不挡 rc |
+| PostgreSQL TCP（`DB_HOST`/`DB_PORT`，默认 `127.0.0.1:8202`） | 不可达 ⇒ WARN（组件可能尚未拉起） |
+| Redis TCP（`REDIS_HOST`/`REDIS_PORT`，默认 `127.0.0.1:8203`） | 不可达 ⇒ WARN |
+| LLM / Embedding / Rerank `GET /health`（2xx） | 不可达 ⇒ WARN（本地 LLM 未就绪正好演示降级档场景） |
+
+> **FAIL 只留给硬配置错误**（`.env` 存在但密钥缺失/过短）。组件不可达、占位密钥、缺 `.env`、
+> 缺工具链都只是 WARN——这样一台「推理栈还没拉起」的机器 `--check` 也能 rc=0，不误报为配置失败。
+> 组件健康探测口径与 `scripts/inference-host/_common.sh` 的 `wait_health` 一致：根路径 `/health`。
+
+### 12.3 接线建议（CI / Makefile，由主智能体实施）
+
+建议在 Makefile 增加：
+
+```makefile
+deploy-check:
+	python3 scripts/deploy-wizard.py --check
+deploy-init:
+	python3 scripts/deploy-wizard.py --yes
+```
+
+并把 `deploy-check` 挂到发布门禁（与 `make lint vet test-go` 并列），`deploy-init` 作为 `make install`
+的向导替代入口。
+
+## 十三、推理降级档（inference.tier）
+
+### 13.1 要解决什么
+
+本地 LLM（llama.cpp / 宿主机推理栈）挂掉时，默认行为是「LLM 请求在运行时逐个试候选 provider、
+熔断、最后模板兜底」——这套回落链一直存在（`pickEnabledFallback` + `ProviderFailover`），但它是
+**运行时**动作，日志里只有一串 warn，没有一条「现在跑在哪一档」的可判定状态。
+
+推理降级档（C2）补的是**启动时显式定档 + 记录 + 打日志**这个缺口：user-server 启动时探测一次
+本地 LLM / Embedding 可达性，结合云端 LLM 是否已配置、降级是否被允许，把档位定下来并打印
+`[inference-tier]` 日志。它**不修改 Dispatcher 路由**，运行时回落链保持原样。
+
+### 13.2 配置项
+
+`user-server/config.yaml`：
+
+```yaml
+inference:
+  tier:
+    # 本地 LLM 不可达时是否允许回退云端 LLM。默认 false（合规基线：云端出域必须显式开启）。
+    fallback_to_cloud_llm: false
+```
+
+「云端 LLM 已配置」的判据与 Dispatcher 注册云端 provider 的口径一致：`llm.cloud_providers` 里存在
+`enabled=true` 且 `api_key` 非空且 `base_url` 非空的条目。三者缺一（只填了 api_key 之类）不算已配置。
+
+### 13.3 档位与判定顺序
+
+| 档位 | 含义 |
+|------|------|
+| `full_local` | 本地 LLM 可达，全本地档（Embedding / Rerank 亦本地） |
+| `cloud_llm_local_embedding` | 本地 LLM 不可达，且允许降级 + 已配置云端 LLM：LLM 回退云端，**Embedding 仍走本地（数据不出域）** |
+| `local_down_no_cloud` | 本地 LLM 不可达且无可用云端降级（未配置云端 LLM 或降级被禁用）：LLM 走运行时模板兜底 |
+
+判定顺序固定：① 本地 LLM 可达 ⇒ `full_local`；② 否则允许降级且已配云端 ⇒ `cloud_llm_local_embedding`；
+③ 其余 ⇒ `local_down_no_cloud`。Embedding 无论档位都保持本地，不参与该开关。
+
+### 13.4 观测
+
+- 启动日志：`[inference-tier] 档位=...`（`full_local` 为 Info，降级档为 Warn 并附原因）；
+- 探测只读 `GET /health`（根路径，与 inference-host 同口径），不写库、不改配置；
+- 代码落点：`user-server/internal/app/inference_tier.go`（选择器 + 探测 + 全局记录），
+  `cmd/api/main.go` 在 provider / 路由装载后调用 `app.SelectAndRecordInferenceTier`。
+
 ---
 
 ## 相关文档
@@ -538,4 +653,4 @@ make user-build web-build
 
 ---
 
-*最后更新：2026-10-09 · 基于 ports.go / Makefile / docker-compose.yml / .env-example / config.yaml 源码核对（同日补录 §6.2 三装配期旗 `FF_LTC_ORDER_DRAFT_DB` / `FF_LTC_HANDOFF_SLA_JOB` / `FF_LTC_SALES_TRIGGER`，并转义表内反引号中的 `|` 防拆列）*
+*最后更新：2026-10-09 · 基于 ports.go / Makefile / docker-compose.yml / .env-example / config.yaml 源码核对（同日补录 §6.2 三装配期旗 `FF_LTC_ORDER_DRAFT_DB` / `FF_LTC_HANDOFF_SLA_JOB` / `FF_LTC_SALES_TRIGGER`，并转义表内反引号中的 `|` 防拆列）。2026-10 增补 §十二 部署向导（scripts/deploy-wizard.py，C1）与 §十三 推理降级档（inference.tier，C2）。*
