@@ -28,6 +28,8 @@ type Chunk struct {
 	Weight     float64        `json:"weight"`
 	TokenCount int            `json:"token_count"`
 	ChunkIndex int            `json:"chunk_index"`
+	// ParentChunkID 父块 ID（父子分段；0=无父块，检索侧按原样返回）。
+	ParentChunkID uint64 `json:"parent_chunk_id,omitempty"`
 }
 
 // SearchResult 检索结果结构

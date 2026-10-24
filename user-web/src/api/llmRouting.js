@@ -1,6 +1,12 @@
 import { http } from '@/utils/request'
 
 export const LlmRoutingApi = {
+  // 按日聚合（P1-4）：window=today/week/month/all，groupBy=day/day_scenario/day_provider。
+  // 后端 /api/llm/usage/daily 早已存在，此前后台页面没有任何消费方（数据面空转）。
+  getDailyUsage: (window, groupBy) => {
+    return http.get('/api/llm/usage/daily', { window, group_by: groupBy })
+  },
+
   getModelList: (params) => {
     return http.get('/api/llm/models', params)
   },

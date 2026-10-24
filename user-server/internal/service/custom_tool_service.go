@@ -69,8 +69,9 @@ func (s *CustomToolService) Import(ctx context.Context, in ImportInput) (int, *m
 		return 0, nil, fmt.Errorf("落库失败: %w", err)
 	}
 
-	// 经 tooluse 层自注册通道挂 Provider：既覆盖「导入时已装配」（下一节即时注册），
-	// 也覆盖「先导入后重启」（registerAllAgentToolsViaProviders 会拉 GetAutoRegisteredProviders）。
+	// 即时注册：导入成功后本进程立刻可调。**重启后的恢复不靠这里**——
+	// 自注册切片是进程内的，重启即空；启动期由 tooluse.LoadCustomToolProviders
+	// 从 custom_tools 表重建（装配点见 app/tool_provider_wiring.go）。
 	tooluse.RegisterToolProvider(provider)
 	if tr := tooluse.GetGlobalRegistry(); tr != nil {
 		tools, perr := provider.Provide(tooluse.ProviderContext{})
@@ -88,6 +89,7 @@ func (s *CustomToolService) Import(ctx context.Context, in ImportInput) (int, *m
 }
 
 // List 导入记录列表（不含凭据明文/密文）。
+// 隔离由 tenancyidx 全局 callback 负责（见 mcp_client_service.List 同注），不手写过滤。
 func (s *CustomToolService) List(ctx context.Context) ([]*model.CustomTool, error) {
 	var out []*model.CustomTool
 	err := dbpkg.GetDB().WithContext(ctx).Order("id DESC").Find(&out).Error

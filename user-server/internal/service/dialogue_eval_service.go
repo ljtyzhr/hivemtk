@@ -15,9 +15,9 @@ import (
 	"runtime"
 	"time"
 
-	dbpkg "hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/aiagent/eval"
 	"hivemtk-user/internal/model"
+	dbpkg "hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/pkg/utils/logger"
 )
 
@@ -79,6 +79,45 @@ func (s *DialogueEvalService) RunGoldEvaluation(ctx context.Context, name string
 	if err != nil {
 		return nil, err
 	}
+	return s.runGold(ctx, name, samples, fed)
+}
+
+// RunGoldEvaluationWithSet 对导入的评测集（dialogue_eval_sets）跑一轮：与 bad_case
+// 送料并行的那条入口。evalSetID 为 0 时等价于 RunGoldEvaluation。
+func (s *DialogueEvalService) RunGoldEvaluationWithSet(ctx context.Context, name string, badCaseLimit int, evalSetID uint) ([]*model.DialogueEvalRun, error) {
+	if evalSetID == 0 {
+		return s.RunGoldEvaluation(ctx, name, badCaseLimit)
+	}
+	if name == "" {
+		name = "dialogue_set_" + time.Now().Format("20060102")
+	}
+	samples, err := s.loadEvalSetSamples(ctx, evalSetID)
+	if err != nil {
+		return nil, err
+	}
+	fed := 0
+	if s.badCase != nil && s.badCase.Available() && badCaseLimit > 0 {
+		exp, err := s.badCase.ExportEvalSet(ctx, nil, badCaseLimit)
+		if err != nil {
+			logger.Ctx(ctx).Warn().Err(err).Msg("[dialogue_eval] bad_case 导出失败，本轮只用导入集")
+		} else {
+			for i := range exp.Rows {
+				samples = append(samples, eval.BadCaseToDialogueSample(&model.BadCase{
+					ID:         exp.Rows[i].CaseID,
+					Label:      exp.Rows[i].Label,
+					FixLayer:   exp.Rows[i].FixLayer,
+					QueryText:  exp.Rows[i].QueryText,
+					AnswerText: exp.Rows[i].AnswerText,
+				}))
+				fed++
+			}
+		}
+	}
+	return s.runGold(ctx, name, samples, fed)
+}
+
+// runGold 双相评分并落库（两个入口的公共后半段）。
+func (s *DialogueEvalService) runGold(ctx context.Context, name string, samples []eval.DialogueSample, fed int) ([]*model.DialogueEvalRun, error) {
 	if len(samples) == 0 {
 		return nil, fmt.Errorf("dialogue gold: 样本集为空")
 	}

@@ -122,6 +122,7 @@ var SystemMenuTree = []SystemMenuNode{
 					{Key: "scriptTemplate", Title: "销冠话术库", Icon: "ChatLineSquare", Path: "/scriptTemplate/list"},
 					{Key: "scriptTemplateAbStats", Title: "话术 AB 统计", Icon: "DataLine", Path: "/scriptTemplate/ab-stats"},
 					{Key: "aiToolManagement", Title: "AI 工具管理", Icon: "Tools", Path: "/aiAgent/tools", Roles: []string{"admin", "manager"}},
+					{Key: "aiCustomIntegration", Title: "工具接入", Icon: "Link", Path: "/aiAgent/integrations", Roles: []string{"admin", "manager"}},
 				},
 			},
 			{

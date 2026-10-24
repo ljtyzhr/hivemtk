@@ -30,6 +30,18 @@ func setupCompetitorFeatureRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 	auth.POST("/dialogue-eval/run", dialogueEvalCtrl.Run)
 	auth.GET("/dialogue-eval/runs", dialogueEvalCtrl.List)
 	auth.GET("/dialogue-eval/runs/:id", dialogueEvalCtrl.Get)
+	// CSV 评测集（P0-1 残点 5）：模板 → 导入 → 列表 → 导出（字节对账）
+	auth.GET("/dialogue-eval/sets/template", dialogueEvalCtrl.Template)
+	auth.POST("/dialogue-eval/sets/import", dialogueEvalCtrl.ImportSet)
+	auth.GET("/dialogue-eval/sets", dialogueEvalCtrl.ListSets)
+	auth.GET("/dialogue-eval/sets/:id/export", dialogueEvalCtrl.ExportSet)
+
+	mcpClientCtrl := controller.NewMCPClientController()
+	auth.GET("/mcp-servers", mcpClientCtrl.List)
+	auth.POST("/mcp-servers", mcpClientCtrl.Create)
+	auth.DELETE("/mcp-servers/:id", mcpClientCtrl.Delete)
+	auth.PUT("/mcp-servers/:id/enabled", mcpClientCtrl.SetEnabled)
+	auth.GET("/mcp-servers/:id/test", mcpClientCtrl.Test)
 
 	customToolCtrl := controller.NewCustomToolController()
 	auth.POST("/custom-tools/import", customToolCtrl.Import)

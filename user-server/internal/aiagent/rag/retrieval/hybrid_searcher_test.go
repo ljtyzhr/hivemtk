@@ -87,6 +87,7 @@ func setupHybridTestDB(t *testing.T) *gorm.DB {
 			content_tsv_jieba tsvector,
 			embedding_source VARCHAR(16) NOT NULL DEFAULT 'tei',
 			kb_version BIGINT NOT NULL DEFAULT 0,
+			parent_chunk_id BIGINT NOT NULL DEFAULT 0,
 			retired_version BIGINT NOT NULL DEFAULT 0,
 			change_id VARCHAR(40) NOT NULL DEFAULT ''
 		)`,

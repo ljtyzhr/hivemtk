@@ -644,6 +644,69 @@ inference:
 
 ---
 
+## 外挂解析与图片知识库（P1-1，默认关闭）
+
+两条能力都**默认关闭**且默认零外网请求：不设 `PARSER_SIDECAR_URL` / `IMAGE_DESCRIBE_URL`
+时，结构化文档走内置 `ExtractText`、图片导入直接 markFailed（与 G13 口径一致）。
+两条都是「显式 opt-in 才生效」的本地/私域服务，**不引入任何云 API 依赖**。
+
+### 外挂解析服务契约（`PARSER_SIDECAR_URL`）
+
+```
+POST {PARSER_SIDECAR_URL}          # 例 http://127.0.0.1:8211/parse
+Content-Type: multipart/form-data
+  file=@<原始文档>                  # 不是 base64、不是路径，整份文件体
+→ 200 text/plain                    # 响应体即提取后的纯文本（markdown 表格保留 |-行）
+→ 其它状态码/超时(120s)/空体        # 上游按解析失败 markFailed，不回退内置
+```
+
+只有**结构化后缀**（pdf/docx/html 等）走外挂；纯文本类直通内置（外挂对 .txt 无增量价值）。
+
+**表格感知分块随外挂自动开启**：配置 sidecar 后，分块器把 markdown 表格整体成块
+（超长按行拆、每片重复表头+分隔行），避免单元格被切断导致「按 SKU 查价格」召回到半张表。
+未配置 sidecar 时该分支不启用，分块结果与历史版本逐字节一致（`internal/etl/table_chunking.go`，
+回归用例 `TestTableAware_OffMatchesLegacyByteForByte`）。
+
+### compose 片段（sidecar 适配器 + 本地 VL）
+
+```yaml
+services:
+  # 外挂解析：需自行提供一个 20 行左右的 HTTP 适配器，把 RAGFlow / MinerU 的
+  # 「上传→轮询→取文本」流水线包成上面的单请求契约。本仓不含该镜像（不内置第三方引擎）。
+  parser-sidecar:
+    image: your-registry/parser-adapter:local
+    environment:
+      UPSTREAM: http://ragflow:9380      # 或 http://mineru:8000
+    ports: ["127.0.0.1:8211:8211"]
+    restart: unless-stopped
+
+  # 图片知识库：本地 VL 推理（OpenAI chat completions 兼容，端口与推理栈同私域口径）
+  vl-server:
+    image: ghcr.io/ggerganov/llama.cpp:server
+    command: ["-m", "/models/qwen2.5-vl-7b.gguf", "--mmproj", "/models/mmproj.gguf",
+              "--host", "0.0.0.0", "--port", "8212"]
+    volumes: ["./models:/models:ro"]
+    ports: ["127.0.0.1:8212:8212"]
+    restart: unless-stopped
+```
+
+```bash
+# .env（显式开启；不写即全关）
+PARSER_SIDECAR_URL=http://127.0.0.1:8211/parse
+IMAGE_DESCRIBE_URL=http://127.0.0.1:8212/v1/chat/completions
+IMAGE_DESCRIBE_MODEL=qwen2.5-vl-7b
+```
+
+### 隐私口径与验收
+
+- **默认零外网**：两变量皆空时，解析/描述路径不发起任何 HTTP 请求（`internal/etl` 的
+  `TestSidecar_E2E_TableOutputChunksKeepRows` 用极性对锁定：配了 URL 必命中 1 次、
+  清空后再跑命中数不增）；
+- 图片描述走 base64 内联，全程不出域，与「Embedding/Rerank 强制本地」同构；
+- 外挂失败/图片服务不可用 → 文档 markFailed 并带原因，不会把二进制垃圾入库（G13）。
+
+---
+
 ## 相关文档
 
 - [产品功能总览（官方文档）](marketing-features/README.md)

@@ -227,6 +227,10 @@ func (h *HybridSearcher) SearchIndex(ctx context.Context, productID string, quer
 		fused = fused[:finalK]
 	}
 
+	// 父子分段：命中子块 → 回拼父块进 prompt（P1-1 前置小刀）。
+	// 放在 finalK 截断之后：只为本轮真正返回的条目取父块，不为候选池里的落选者付查询。
+	fused = h.attachParentContext(ctx, fused)
+
 	h.logSearch(ctx, query, productID, finalK, len(vecResults), len(kwResults), len(fused), rerankCount, vectorMs, bm25Ms)
 
 	return fused, nil
@@ -311,7 +315,7 @@ func (h *HybridSearcher) vectorSearchPG(ctx context.Context, productID string, q
 	}
 	vecStr := vecToPGString(queryVec)
 	q := h.db.WithContext(ctx).Table("knowledge_chunks").
-		Select("id, document_id, content, embedding <=> ?::vector AS score", vecStr).
+		Select("id, document_id, content, parent_chunk_id, embedding <=> ?::vector AS score", vecStr).
 		Where("embedding IS NOT NULL AND embedding_source = 'tei'")
 	if productID != "" {
 		q = q.Where("product_id = ?", productID)
@@ -353,7 +357,7 @@ func (h *HybridSearcher) detectTSVectorConfig(ctx context.Context) {
 
 func (h *HybridSearcher) tsvectorSearch(ctx context.Context, tsConfig, tsvCol, productID, query string, topK int) ([]Chunk, error) {
 	q := h.db.WithContext(ctx).Table("knowledge_chunks").
-		Select(fmt.Sprintf("id, document_id, content, ts_rank(%s, plainto_tsquery(?, ?))::float8 AS score", tsvCol),
+		Select(fmt.Sprintf("id, document_id, content, parent_chunk_id, ts_rank(%s, plainto_tsquery(?, ?))::float8 AS score", tsvCol),
 			tsConfig, query).
 		Where(fmt.Sprintf("%s @@ plainto_tsquery(?, ?)", tsvCol), tsConfig, query)
 	if productID != "" {
@@ -410,7 +414,7 @@ func (h *HybridSearcher) keywordSearchPGFallback(ctx context.Context, productID 
 	escaped := strings.NewReplacer("%", "\\%", "_", "\\_").Replace(query)
 	pattern := "%" + escaped + "%"
 	q := h.db.WithContext(ctx).Table("knowledge_chunks").
-		Select("id, document_id, content, 1.0::float8 AS score").
+		Select("id, document_id, content, parent_chunk_id, 1.0::float8 AS score").
 		Where("content ILIKE ?", pattern)
 	if productID != "" {
 		q = q.Where("product_id = ?", productID)

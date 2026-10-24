@@ -40,6 +40,8 @@ type chunkScanRow struct {
 	DocumentID uint64  `gorm:"column:document_id"`
 	Content    string  `gorm:"column:content"`
 	Score      float64 `gorm:"column:score"`
+	// ParentID 父子分段的父块引用（历史数据与短文档为 0 ⇒ 检索侧原样返回）。
+	ParentID uint64 `gorm:"column:parent_chunk_id"`
 }
 
 func (r *VectorRetriever) SearchVector(ctx context.Context, kbID string, queryVec []float32, topK int) ([]Chunk, error) {
@@ -148,10 +150,11 @@ func rowsToChunks(rows []chunkScanRow) []Chunk {
 	out := make([]Chunk, 0, len(rows))
 	for _, r := range rows {
 		out = append(out, Chunk{
-			ID:         strconv.FormatUint(r.ID, 10),
-			DocumentID: strconv.FormatUint(r.DocumentID, 10),
-			Content:    truncateContent(r.Content, 500),
-			Score:      r.Score,
+			ID:            strconv.FormatUint(r.ID, 10),
+			DocumentID:    strconv.FormatUint(r.DocumentID, 10),
+			Content:       truncateContent(r.Content, 500),
+			Score:         r.Score,
+			ParentChunkID: r.ParentID,
 		})
 	}
 	return out

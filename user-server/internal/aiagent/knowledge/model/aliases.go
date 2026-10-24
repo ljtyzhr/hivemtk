@@ -23,6 +23,7 @@ type (
 
 	KnowledgeDocument      = model.KnowledgeDocument
 	KnowledgeChunk         = model.KnowledgeChunk
+	KnowledgeChunkParent   = model.KnowledgeChunkParent
 	KnowledgeImportLog     = model.KnowledgeImportLog
 	KnowledgeSearchLog     = model.KnowledgeSearchLog
 	KnowledgeOpenAPISource = model.KnowledgeOpenAPISource

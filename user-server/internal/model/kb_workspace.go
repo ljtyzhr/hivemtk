@@ -74,10 +74,16 @@ func (KnowledgeDocument) TableName() string {
 type KnowledgeChunk struct {
 	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
 
-	ID              uint64  `gorm:"primaryKey;autoIncrement" json:"id"`
-	DocumentID      uint64  `gorm:"index;not null" json:"document_id"`
-	ProductID       string  `gorm:"index;not null;default:''" json:"product_id"`
-	ChunkIndex      int     `gorm:"not null" json:"chunk_index"`
+	ID         uint64 `gorm:"primaryKey;autoIncrement" json:"id"`
+	DocumentID uint64 `gorm:"index;not null" json:"document_id"`
+	ProductID  string `gorm:"index;not null;default:''" json:"product_id"`
+	ChunkIndex int    `gorm:"not null" json:"chunk_index"`
+	// ParentChunkID 父块 ID（knowledge_chunk_parents.id；0=无父块）。
+	//
+	// 父子分段（对标 Dify parent-child chunk）：检索命中子块、送进 prompt 的是父块
+	// 上下文。短文档（单块）与历史数据一律为 0——检索侧见 0 就走原行为，
+	// 这条零值就是「行为与现状逐字节一致」的判据。
+	ParentChunkID   uint64  `gorm:"column:parent_chunk_id;default:0;index" json:"parent_chunk_id,omitempty"`
 	Content         string  `gorm:"type:text;not null" json:"content"`
 	ContentHash     string  `gorm:"size:64;index" json:"content_hash"`
 	TokenCount      int     `gorm:"default:0" json:"token_count"`

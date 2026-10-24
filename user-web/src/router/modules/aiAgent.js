@@ -24,6 +24,12 @@ export default [
     meta: { title: '编辑智能体', group: 'aiAgent', icon: 'Edit' }
   },
   {
+    path: '/aiAgent/integrations',
+    name: 'AICustomIntegration',
+    component: () => import('@/views/aiAgent/CustomIntegration.vue'),
+    meta: { title: '工具接入', group: 'aiAgent', icon: 'Link' }
+  },
+  {
     path: '/aiAgent/tools',
     name: 'AIToolManagement',
     component: () => import('@/views/aiAgent/ToolManagement/ToolList.vue'),

@@ -592,6 +592,47 @@
             </el-table-column>
           </el-table>
         </el-card>
+        <el-card style="margin-top: 20px">
+          <template #header>
+            <div style="display: flex; align-items: center; justify-content: space-between">
+              <span>按日用量趋势</span>
+              <el-radio-group v-model="dailyGroupBy" size="small" @change="loadDaily">
+                <el-radio-button value="day">按日</el-radio-button>
+                <el-radio-button value="day_scenario">按日+场景</el-radio-button>
+                <el-radio-button value="day_provider">按日+提供方</el-radio-button>
+              </el-radio-group>
+            </div>
+          </template>
+          <el-table
+            v-loading="loading.daily"
+            :data="dailyUsage"
+            stripe
+            max-height="420"
+          >
+            <template #empty>
+              <el-empty description="暂无按日数据（当日未聚合时由日志兜底，需有真实调用）" />
+            </template>
+            <el-table-column prop="stat_date" label="日期" width="130" />
+            <el-table-column prop="scenario" label="场景" min-width="140">
+              <template #default="{ row }">
+                {{ row.scenario || '—' }}
+              </template>
+            </el-table-column>
+            <el-table-column prop="provider" label="提供方" min-width="140">
+              <template #default="{ row }">
+                {{ row.provider || '—' }}
+              </template>
+            </el-table-column>
+            <el-table-column prop="call_count" label="调用" width="90" align="center" />
+            <el-table-column prop="failed_count" label="失败" width="90" align="center" />
+            <el-table-column prop="total_tokens" label="Token" width="120" align="center">
+              <template #default="{ row }">
+                {{ formatNumber(row.total_tokens) }}
+              </template>
+            </el-table-column>
+            <el-table-column prop="avg_latency_ms" label="平均延迟(ms)" width="130" align="center" />
+          </el-table>
+        </el-card>
       </el-tab-pane>
 
       
@@ -1167,13 +1208,16 @@ import { Plus, Refresh } from '@element-plus/icons-vue'
 import { LlmRoutingApi } from '@/api/llmRouting.js'
 
 const activeTab = ref('models')
-const loading = reactive({ models: false, routing: false, fallback: false, cost: false, audit: false, modelType: false, health: false, egress: false })
+const loading = reactive({ models: false, routing: false, fallback: false, cost: false, audit: false, modelType: false, health: false, egress: false, daily: false })
 
 const models = ref([]);
 const sceneRouting = ref([])
 const costStats = ref({})
 const auditList = ref([])
 const costWindow = ref('month')
+// 按日趋势（P1-4）：groupBy 决定维度，接口同一份
+const dailyGroupBy = ref('day')
+const dailyUsage = ref([])
 
 const modelTypeWindow = ref('month');
 const modelTypeStats = ref({ by_provider_type: [], self_sufficiency: 0, total_calls: 0 })
@@ -1275,6 +1319,21 @@ const loadCost = async () => {
     costStats.value = {}
   } finally {
     loading.cost = false
+  }
+  loadDaily()
+}
+
+// loadDaily 按日聚合读 /api/llm/usage/daily（window 跟随成本页签的窗口）。
+// 空数组不等于故障：当日尚无调用时后端按日志兜底也返回空。
+const loadDaily = async () => {
+  loading.daily = true
+  try {
+    const res = await LlmRoutingApi.getDailyUsage(costWindow.value, dailyGroupBy.value)
+    dailyUsage.value = Array.isArray(res) ? res : (res?.list || [])
+  } catch (e) {
+    dailyUsage.value = []
+  } finally {
+    loading.daily = false
   }
 }
 

@@ -105,6 +105,17 @@ func (s *KnowledgeService) processDocumentAsync(bgCtx context.Context, documentI
 	for k, v := range docMeta {
 		baseMeta[k] = v
 	}
+	// 父子分段（P1-1 前置小刀）：先把本轮的父块落库，再让子块引用它们。
+	// 失败按「分块阶段失败」处理——父块缺一半而子块全量入库，会让部分命中回拼不到上下文，
+	// 这种半套状态比整篇失败更难排查，且重切一次即可恢复。
+	parentIDs, err := s.createChunkParents(bgCtx, documentID, productID, len(chunks), func(i int) (string, int) {
+		return chunks[i].Content, chunks[i].TokenCount
+	})
+	if err != nil {
+		s.markFailed(bgCtx, documentID, fmt.Sprintf("写入父块失败: %v", err))
+		return
+	}
+
 	chunkModels := make([]model.KnowledgeChunk, 0, len(chunks))
 	totalTokens := 0
 	for idx, c := range chunks {
@@ -116,14 +127,15 @@ func (s *KnowledgeService) processDocumentAsync(bgCtx context.Context, documentI
 		}
 		metaBytes, _ := json.Marshal(chunkMeta)
 		chunkModels = append(chunkModels, model.KnowledgeChunk{
-			DocumentID:  documentID,
-			ProductID:   productID,
-			ChunkIndex:  idx,
-			Content:     c.Content,
-			ContentHash: hashStr,
-			TokenCount:  c.TokenCount,
-			CharCount:   len(c.Content),
-			Metadata:    string(metaBytes),
+			ParentChunkID: parentIDs[idx],
+			DocumentID:    documentID,
+			ProductID:     productID,
+			ChunkIndex:    idx,
+			Content:       c.Content,
+			ContentHash:   hashStr,
+			TokenCount:    c.TokenCount,
+			CharCount:     len(c.Content),
+			Metadata:      string(metaBytes),
 		})
 		totalTokens += c.TokenCount
 	}

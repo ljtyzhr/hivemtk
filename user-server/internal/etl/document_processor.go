@@ -23,6 +23,10 @@ type ProcessingConfig struct {
 	SimilarityThreshold float64
 	MaxLengthPerChunk   int
 	MinLengthPerChunk   int
+	// TableAware 表格感知分块（P1-1 步骤 4）。默认值由 NewDocumentProcessor
+	// 按「是否配置了外挂解析」推导——外挂引擎输出 markdown 表格才需要它。
+	// false 时 ProcessDocument 走原路径，行为与改造前逐字节一致。
+	TableAware bool
 }
 
 // NewDocumentProcessor 创建新的文档处理器
@@ -35,6 +39,7 @@ func NewDocumentProcessor(config *ProcessingConfig) *DocumentProcessor {
 			SimilarityThreshold: 0.8,
 			MaxLengthPerChunk:   1000,
 			MinLengthPerChunk:   50,
+			TableAware:          sidecarURL != "",
 		}
 	}
 	return &DocumentProcessor{config: config}
@@ -45,6 +50,10 @@ func (dp *DocumentProcessor) ProcessDocument(ctx context.Context, doc rag_core.D
 	text := doc.Content
 
 	text = dp.preprocessText(text)
+
+	if dp.config.TableAware {
+		return dp.processWithTables(ctx, doc, text), nil
+	}
 
 	var chunks []rag_core.Chunk
 	switch {
@@ -59,6 +68,54 @@ func (dp *DocumentProcessor) ProcessDocument(ctx context.Context, doc rag_core.D
 	chunks = dp.postProcessChunks(chunks)
 
 	return chunks, nil
+}
+
+// processWithTables 表格感知分块：正文段走原策略，表格块整体保留（行边界拆分）。
+// 表格块不过 postProcessChunks 的 MinChunkSize 过滤——小表也是完整语义单元。
+func (dp *DocumentProcessor) processWithTables(_ context.Context, doc rag_core.Document, text string) []rag_core.Chunk {
+	segs := splitTableSegments(text)
+	if len(segs) == 0 {
+		return nil
+	}
+	// 没有表格时与默认路径完全同构（避免两套分块逻辑在小差异上漂移）
+	hasTable := false
+	for _, s := range segs {
+		if s.table {
+			hasTable = true
+			break
+		}
+	}
+	if !hasTable {
+		return dp.chunkProse(doc, text)
+	}
+
+	var out []rag_core.Chunk
+	seq := 0
+	for _, seg := range segs {
+		if seg.table {
+			out = append(out, dp.chunkTableBlock(doc, seg.text, &seq)...)
+			continue
+		}
+		if strings.TrimSpace(seg.text) == "" {
+			continue
+		}
+		out = append(out, dp.chunkProse(doc, seg.text)...)
+	}
+	return out
+}
+
+// chunkProse 正文段分块（原三条策略 + 后处理），与默认路径同一实现，不复制逻辑。
+func (dp *DocumentProcessor) chunkProse(doc rag_core.Document, text string) []rag_core.Chunk {
+	var chunks []rag_core.Chunk
+	switch {
+	case dp.shouldUseHeadingSplit(text):
+		chunks = dp.splitByHeadings(text, doc)
+	case dp.shouldUseSentenceSplit(text):
+		chunks = dp.splitBySentences(text, doc)
+	default:
+		chunks = dp.splitByFixedLength(text, doc)
+	}
+	return dp.postProcessChunks(chunks)
 }
 
 func (dp *DocumentProcessor) preprocessText(text string) string {

@@ -7,6 +7,7 @@ import (
 	"gorm.io/gorm"
 
 	"hivemtk-user/internal/aiagent/agent/tooluse"
+	mcpclient "hivemtk-user/internal/aiagent/mcp"
 	"hivemtk-user/internal/bridge"
 	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
@@ -195,6 +196,20 @@ func registerAllAgentToolsViaProviders(gormDB *gorm.DB) {
 	globalProviderRegistry = providerRegistry
 
 	initBuiltinToolProviders(providerRegistry)
+
+	// P1-2：OpenAPI 导入的工具体现在 custom_tools 表里，进程内注册表重启即空——
+	// 必须每次启动从表里重建，否则「前端显示已导入、Agent 调不到」。
+	for _, p := range tooluse.LoadCustomToolProviders(gormDB) {
+		if err := providerRegistry.RegisterProvider(p); err != nil {
+			logger.Errorf("[agent] 注册 OpenAPI 工具集 %s 失败: %v", p.Name(), err)
+		}
+	}
+
+	// P1-3：外部 MCP server 同理——配置在 mcp_servers 表里，工具要靠启动发现补回。
+	// 单个 server 不可达只跳过它自己（LoadConfiguredServers 内部隔离）。
+	if nSrv, nTool := mcpclient.LoadConfiguredServers(context.Background(), gormDB, tooluse.GetGlobalRegistry()); nSrv > 0 || nTool > 0 {
+		logger.Infof("[agent] ✅ 外部 MCP server 接入 %d 个 / 工具 %d 个", nSrv, nTool)
+	}
 
 	autoProviders := tooluse.GetAutoRegisteredProviders()
 	for _, p := range autoProviders {

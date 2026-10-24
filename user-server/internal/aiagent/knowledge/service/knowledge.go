@@ -35,6 +35,7 @@ type KnowledgeService struct {
 	ragRepo       *repository.RagConfigRepository
 	docRepo       *repository.KnowledgeDocumentRepository
 	chunkRepo     *repository.KnowledgeChunkRepository
+	parentRepo    *repository.KnowledgeChunkParentRepository
 	importLogRepo *repository.KnowledgeImportLogRepository
 	searchLogRepo *repository.KnowledgeSearchLogRepository
 	embeddingSvc  *llm.EmbeddingService
@@ -61,6 +62,7 @@ func newKnowledgeServiceWithDB(gdb *gorm.DB) *KnowledgeService {
 		ragRepo:       repository.NewRagConfigRepository(gdb),
 		docRepo:       repository.NewKnowledgeDocumentRepository(gdb),
 		chunkRepo:     repository.NewKnowledgeChunkRepository(gdb),
+		parentRepo:    repository.NewKnowledgeChunkParentRepository(gdb),
 		importLogRepo: repository.NewKnowledgeImportLogRepository(gdb),
 		searchLogRepo: repository.NewKnowledgeSearchLogRepository(gdb),
 		embeddingSvc:  llm.NewEmbeddingService(),
@@ -194,6 +196,12 @@ func (s *KnowledgeService) Delete(ctx context.Context, productID string, id int6
 	uid := uint64(id)
 	if err := s.chunkRepo.DeleteByDocumentID(ctx, uid); err != nil {
 		logger.Errorf("[knowledge] 删除分段失败: %v", err)
+	}
+	// 父块与子块同生命周期：子块删了父块留着就是一组永远回拼不到的孤儿行。
+	if s.parentRepo != nil {
+		if err := s.parentRepo.DeleteByDocumentID(ctx, uid); err != nil {
+			logger.Errorf("[knowledge] 删除父块失败: %v", err)
+		}
 	}
 	if doc.FilePath != "" {
 		_ = os.Remove(doc.FilePath)

@@ -39,6 +39,13 @@ type Client struct {
 	mu        sync.Mutex
 	failCnt   int
 	openUntil time.Time // 熔断开启截止时刻（零值=未开）
+
+	// initialized 本 client 是否已完成 MCP 握手（initialize + notifications/initialized）。
+	// 未握手就发 tools/list，合规 server 一律回 -32002（对方要求先 initialize），
+	// 这正是「连不上任何标准 MCP server」的第一个断点。
+	initialized bool
+	// sessionID 服务端在 initialize 响应头下发的 Mcp-Session-Id（无状态实现可为空）。
+	sessionID string
 }
 
 // NewClient 构造。
@@ -96,10 +103,20 @@ func (c *Client) call(ctx context.Context, method string, params any, out any) e
 	if c.cfg.APIKey != "" {
 		req.Header.Set("Authorization", "Bearer "+c.cfg.APIKey)
 	}
+	c.mu.Lock()
+	if c.sessionID != "" {
+		req.Header.Set("Mcp-Session-Id", c.sessionID)
+	}
+	c.mu.Unlock()
 	resp, err := c.client.Do(req)
 	if err != nil {
 		c.recordFailure()
 		return err
+	}
+	if sid := resp.Header.Get("Mcp-Session-Id"); sid != "" {
+		c.mu.Lock()
+		c.sessionID = sid
+		c.mu.Unlock()
 	}
 	defer resp.Body.Close()
 	body, err := io.ReadAll(io.LimitReader(resp.Body, 1<<20))
@@ -141,6 +158,9 @@ func (c *Client) recordFailure() {
 
 // ListTools 发现外部工具集。
 func (c *Client) ListTools(ctx context.Context) ([]MCPTool, error) {
+	if err := c.EnsureInitialized(ctx); err != nil {
+		return nil, err
+	}
 	var res ListToolsResult
 	if err := c.call(ctx, "tools/list", map[string]any{}, &res); err != nil {
 		return nil, err
@@ -150,6 +170,9 @@ func (c *Client) ListTools(ctx context.Context) ([]MCPTool, error) {
 
 // CallTool 转发 tools/call。
 func (c *Client) CallTool(ctx context.Context, name string, args map[string]any) (string, bool, error) {
+	if err := c.EnsureInitialized(ctx); err != nil {
+		return "", true, err
+	}
 	var res CallToolResult
 	if err := c.call(ctx, "tools/call", CallToolParams{Name: name, Arguments: args}, &res); err != nil {
 		return "", true, err
@@ -269,4 +292,64 @@ func DiscoverAndRegister(ctx context.Context, cfg ClientConfig, registry *toolus
 		n++
 	}
 	return n, nil
+}
+
+// clientProtocolVersion 我方声明的 MCP 协议版本（与服务端 NegotiateProtocolVersion 的候选集一致）。
+const clientProtocolVersion = "2024-11-05"
+
+// EnsureInitialized 完成 MCP 握手：initialize → notifications/initialized。
+//
+// 为什么必须做：MCP 规范要求 tools/list、tools/call 之前先 initialize，合规 server
+// （含本仓 mcp.Server 自己）在未握手时一律回 -32002。缺这一步的客户端看起来"协议写完了"
+// 但对任何真 server 都不可用——本地单测若 mock 掉传输层就发现不了。
+//
+// 失败不缓存：server 可能稍后才起来，下一次发现可重试（熔断由 call 的失败计数负责）。
+func (c *Client) EnsureInitialized(ctx context.Context) error {
+	c.mu.Lock()
+	if c.initialized {
+		c.mu.Unlock()
+		return nil
+	}
+	c.mu.Unlock()
+
+	var res InitializeResult
+	if err := c.call(ctx, "initialize", InitializeParams{
+		ProtocolVersion: clientProtocolVersion,
+		ClientInfo:      Implementation{Name: "hivemtk", Version: "1.0"},
+	}, &res); err != nil {
+		return fmt.Errorf("mcp %s initialize 失败: %w", c.cfg.Name, err)
+	}
+	// 通知无 id、服务端通常不回 body：不发也行（不少实现接受），发了更贴规范；
+	// 失败不阻断握手（部分 server 对未知通知返回错误体）。
+	c.notify(ctx, "notifications/initialized")
+
+	c.mu.Lock()
+	c.initialized = true
+	c.mu.Unlock()
+	return nil
+}
+
+// notify 发 JSON-RPC 通知（无 id）。任何响应体/错误都不影响调用方。
+func (c *Client) notify(ctx context.Context, method string) {
+	raw, _ := json.Marshal(map[string]any{"jsonrpc": "2.0", "method": method})
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, c.cfg.Endpoint, bytes.NewReader(raw))
+	if err != nil {
+		return
+	}
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set("Accept", "application/json")
+	if c.cfg.APIKey != "" {
+		req.Header.Set("Authorization", "Bearer "+c.cfg.APIKey)
+	}
+	c.mu.Lock()
+	if c.sessionID != "" {
+		req.Header.Set("Mcp-Session-Id", c.sessionID)
+	}
+	c.mu.Unlock()
+	resp, err := c.client.Do(req)
+	if err != nil {
+		return
+	}
+	_, _ = io.Copy(io.Discard, io.LimitReader(resp.Body, 1<<20))
+	_ = resp.Body.Close()
 }

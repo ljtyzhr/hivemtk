@@ -275,14 +275,14 @@ HiveMtk 是一套**开源自部署**的 AI 私域运营系统，解决一个核�
 | G1 | SOP Saga 补偿空壳 | **已修**：`service.InitSOPCompensation` 在 `cmd/api/main.go:300` 按 `FF_LTC_SAGA_COMPENSATION` 注入，补偿器已接线 |
 | G2 | MultiModelVote 无真实投票 | **已修**：`internal/aiagent/llm/dispatcher_dispatch.go:488` 真实多数派投票（`dispatcher_vote_test.go:16`） |
 | G3 | greeting 意图规则不可达 | **已修**：`internal/service/intent_recognition.go:505` 问候语已入词典 |
-| G4 | 置信度两套体系割裂 | 部分修复（2026-10-24 复核）：五信号聚合器已全局接线（`main.go:525` 装配、`sales_engine_factory.go:77/140` 注入 engine 与 SmartCS）；**真残点**＝①`sales_engine_transfer.go:29` 意图置信 0.7 硬编码门槛在五信号聚合之前一票否决；②双阈值源失同步——`confidence/threshold_policy.go:122-136` 已有 per-intent 阈值表（complaint 0.85/objection 0.75…）供聚合器消费，但 transfer 前置门槛是独立通用 0.7，三套阈值数字并存；附带 CtxRelev Embedder 为随机投影（`confidence_init.go`）。改进任务见 `docs/COMPETITOR_GAP_TASKLIST_202610.md` P0-2 |
+| G4 | 置信度两套体系割裂 | **已修（2026-10-24 验收）**：五信号聚合器全局接线（`main.go:525` 装配、`sales_engine_factory.go:77/140` 注入）；转人工前置门槛改读 per-intent 策略单一来源 `confidenceAggregator.GetPolicy(...).BaseThreshold`（`sales_engine_transfer.go:30-40`，聚合器不可达时 fallback 0.70 保持既有行为），「前置 0.7 / policy 表」两套数字并存已消除；DB policy 改动 → 门槛行为双向跟随的反向测试 `service/sales_engine_transfer_policy_sync_test.go`（变异回退常量实测红）；运营旋钮=`PUT /api/admin/tuning/confidence/policies`（版本递增 + 缓存失效）。**剩余观察项**：CtxRelev Embedder 仍是本地随机投影（字符 n-gram），语义相关性有限，但误判方向偏保守（压低置信 ⇒ 更倾向转人工）；升级结论与触发条件见 `docs/COMPETITOR_GAP_TASKLIST_202610.md` P0-2 残点 3 |
 | G7 | 行为拟人默认关闭 | 仍存在：分条发送/打字模拟需手动 A/B 灰度开启 |
 | G8 | 异议分类置信度硬编码 0.85 | **已修**：`internal/service/objection_handler.go:131` 按命中数给 0.90/0.70/0.40，非硬编码 |
 | G9 | 四层检索短路式 | 仍存在：可能漏掉冷库中更优结果 |
 | G10 | 模板兜底文案单一 | 仍存在：四级降级最后一级文案无场景区分 |
 | G11 | 主动触达未落地 | 部分修复：双模式（Passive/Active）已有入口，但 `ModeOf`/`IsActive`/`AutoExecute`/`DecisionStrategyIDs` 四格仍 UNWIRED |
-| G12 | 评测较薄 | 部分修复（2026-10-24 复核）：对话级 gold 框架已存在（`aiagent/eval/dialogue_gold.go`：turn 级 ChrF/关键词覆盖/动作一致 + 退化对照，`dialogue_eval_runs` 表已建），RAG 侧评测集闭环已有（`rag_eval_auto.go` 每日 cron）；**真残点**＝gold 运行器无生产接线（仅测试调用方）+ gold 集仅 8 样本/3 场景 + 无意图命中维度。改进任务见 `docs/COMPETITOR_GAP_TASKLIST_202610.md` P0-1 |
-| G13 | 知识库解析失败退化为原文入库（2026-10-24 竞品调研二次论证新发现） | 仍存在：`aiagent/knowledge/service/knowledge_service_pipeline.go:47` 提取失败时 `string(bytes)` 把二进制原文当内容入库（扫描件 PDF 常见），污染向量库；同文件 :53 的「疑似扫描件」markFailed 口径被该退化分支先吃掉。改进任务见 `docs/COMPETITOR_GAP_TASKLIST_202610.md` P0-3 |
+| G12 | 评测较薄 | **已修（2026-10-24 验收）**：对话级 gold 运行器生产接线已完成（`cmd/api/main.go:577` `NewDialogueEvalCron` 每日 03:55，租户门 `AllowWorker`+`tenant.Fanout`；`controller/dialogue_eval.go` run/list/get 三端点）；gold 集 61 样本 / 20 场景（含 objection 五类否决链各 ≥2），bad_case 运行期送料（`BadCaseToDialogueSample`，`sample.CaseID` 可追溯）；`intent_hit` 维度入 Details 且有单测；基线与退化两相各落一行 `dialogue_eval_runs`；CSV 评测集导入/导出端点已补（`/api/dialogue-eval/sets/*`，导入→读回→导出字节对账）。覆盖对账闸 `internal/aiagent/eval/dialogue_gold_coverage_test.go`。验收记录见 `docs/COMPETITOR_GAP_TASKLIST_202610.md` P0-1 |
+| G13 | 知识库解析失败退化为原文入库（2026-10-24 竞品调研二次论证新发现） | **已修（2026-10-24 验收）**：`aiagent/knowledge/service/knowledge_service_pipeline.go:59` 结构化后缀（pdf/docx/html）提取失败直接 `markFailed`（错误信息含「文本提取失败（可能为扫描件或损坏文档）」），仅纯文本类后缀保留退化原始字节；反向测试 `service/knowledge_pipeline_g13_test.go`（伪 PDF → `embed_status=failed` 且 `knowledge_chunks` 零行；摘掉分支实测红）。验收记录见 `docs/COMPETITOR_GAP_TASKLIST_202610.md` P0-3 |
 
 ---
 
