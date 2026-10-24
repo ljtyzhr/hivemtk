@@ -396,6 +396,7 @@ user-web/tests/e2e/audit/reach/
 user-web/tests/e2e/audit/summary.json
 user-web/tests/e2e/audit/system/
 user-web/tests/e2e/audit/workspace/
+user-web/tests/e2e/reports/
 user-web/tests/e2e/UI_AUDIT_REPORT.md
 vendor/
 yarn-debug.log*

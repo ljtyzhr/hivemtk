@@ -125,6 +125,20 @@ internal/aiagent/knowledge/controller/uploads/
 # cmd/importfaq/ 源码目录（前者曾导致 12 个 seed 源码文件从未入库）。
 /seed
 /importfaq
+# `go build ./...` 会给每个 cmd 包在 user-server/ 下落一枚同名二进制（CWD 产出），
+# 同样只按前导 `/` 锚定根目录，逐个点名，禁止用裸模式（会吞 cmd/<同名>/ 源码）。
+/geo-run
+/perf
+/pwtool
+/routeinspect
+/nm-host
+/eval-trace
+/minttoken
+/seedkw
+/syncscripts
+/websitekb
+/gen-module-bindings
+/gen-module-route-patterns
 
 # ---------- 运行时密钥（平台商户 api_secret，user-server 启动时写回）----------
 config/.merchant_api_secret
