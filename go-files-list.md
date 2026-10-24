@@ -885,43 +885,43 @@
 | 670 | [x] | `internal/etl/document_text.go` | 8 | 21 | 8 | 0 |
 | 671 | [ ] | `internal/event/bus.go` | 14 | 44 | 14 | 0 |
 | 672 | [ ] | `internal/event/types.go` | 12 | 52 | 12 | 0 |
-| 673 | [ ] | `internal/geo/controller/alert.go` | 6 | 15 | 6 | 0 |
-| 674 | [ ] | `internal/geo/controller/citation.go` | 5 | 7 | 5 | 0 |
-| 675 | [ ] | `internal/geo/controller/competitor.go` | 6 | 6 | 6 | 0 |
-| 676 | [ ] | `internal/geo/controller/config.go` | 5 | 8 | 5 | 0 |
-| 677 | [ ] | `internal/geo/controller/content.go` | 10 | 18 | 10 | 0 |
-| 678 | [ ] | `internal/geo/controller/decision.go` | 4 | 8 | 4 | 0 |
-| 679 | [ ] | `internal/geo/controller/dict.go` | 4 | 4 | 4 | 0 |
-| 680 | [ ] | `internal/geo/controller/geo_pusher_config.go` | 1 | 1 | 1 | 0 |
-| 681 | [ ] | `internal/geo/controller/geo_schema_template.go` | 1 | 1 | 1 | 0 |
-| 682 | [ ] | `internal/geo/controller/geo_site.go` | 1 | 1 | 1 | 0 |
-| 683 | [ ] | `internal/geo/controller/index_tracker.go` | 4 | 4 | 4 | 0 |
-| 684 | [ ] | `internal/geo/controller/job.go` | 6 | 10 | 6 | 0 |
-| 685 | [ ] | `internal/geo/controller/kb.go` | 8 | 14 | 8 | 0 |
-| 686 | [ ] | `internal/geo/controller/keyword.go` | 7 | 12 | 7 | 0 |
-| 687 | [ ] | `internal/geo/controller/keyword_enhance.go` | 4 | 6 | 4 | 0 |
-| 688 | [ ] | `internal/geo/controller/keyword_mining.go` | 6 | 13 | 6 | 0 |
-| 689 | [ ] | `internal/geo/controller/opportunity.go` | 3 | 4 | 3 | 0 |
-| 690 | [ ] | `internal/geo/controller/platform.go` | 8 | 14 | 8 | 0 |
-| 691 | [ ] | `internal/geo/controller/probe.go` | 17 | 28 | 17 | 0 |
-| 692 | [ ] | `internal/geo/controller/push.go` | 4 | 5 | 4 | 0 |
-| 693 | [ ] | `internal/geo/controller/report.go` | 10 | 19 | 10 | 0 |
-| 694 | [ ] | `internal/geo/controller/seed_term.go` | 3 | 4 | 3 | 0 |
-| 695 | [ ] | `internal/geo/controller/site.go` | 6 | 7 | 6 | 0 |
-| 696 | [ ] | `internal/geo/controller/tech_metrics.go` | 7 | 15 | 7 | 0 |
-| 697 | [ ] | `internal/geo/controller/verification.go` | 5 | 8 | 5 | 0 |
-| 698 | [ ] | `internal/geo/controller/visibility.go` | 5 | 6 | 5 | 0 |
-| 699 | [ ] | `internal/geo/controller/workflow.go` | 11 | 22 | 11 | 0 |
-| 700 | [ ] | `internal/geo/doc.go` | 1 | 37 | 1 | 0 |
-| 701 | [ ] | `internal/geo/dto/content.go` | 5 | 5 | 5 | 0 |
-| 702 | [ ] | `internal/geo/dto/keyword.go` | 5 | 5 | 5 | 0 |
-| 703 | [ ] | `internal/geo/dto/keyword_enhance.go` | 2 | 2 | 2 | 0 |
-| 704 | [ ] | `internal/geo/dto/knowledge.go` | 5 | 5 | 5 | 0 |
-| 705 | [ ] | `internal/geo/dto/platform.go` | 8 | 9 | 8 | 0 |
-| 706 | [ ] | `internal/geo/dto/report.go` | 4 | 4 | 4 | 0 |
-| 707 | [ ] | `internal/geo/dto/verification.go` | 2 | 2 | 2 | 0 |
-| 708 | [ ] | `internal/geo/dto/workflow.go` | 10 | 13 | 10 | 0 |
-| 709 | [ ] | `internal/geo/model/alert.go` | 1 | 2 | 1 | 0 |
+| 673 | [x] | `internal/geo/controller/alert.go` | 6 | 15 | 6 | 0 |
+| 674 | [x] | `internal/geo/controller/citation.go` | 5 | 7 | 5 | 0 |
+| 675 | [x] | `internal/geo/controller/competitor.go` | 6 | 6 | 6 | 0 |
+| 676 | [x] | `internal/geo/controller/config.go` | 5 | 8 | 5 | 0 |
+| 677 | [x] | `internal/geo/controller/content.go` | 10 | 18 | 10 | 0 |
+| 678 | [x] | `internal/geo/controller/decision.go` | 4 | 8 | 4 | 0 |
+| 679 | [x] | `internal/geo/controller/dict.go` | 4 | 4 | 4 | 0 |
+| 680 | [x] | `internal/geo/controller/geo_pusher_config.go` | 1 | 1 | 1 | 0 |
+| 681 | [x] | `internal/geo/controller/geo_schema_template.go` | 1 | 1 | 1 | 0 |
+| 682 | [x] | `internal/geo/controller/geo_site.go` | 1 | 1 | 1 | 0 |
+| 683 | [x] | `internal/geo/controller/index_tracker.go` | 4 | 4 | 4 | 0 |
+| 684 | [x] | `internal/geo/controller/job.go` | 6 | 10 | 6 | 0 |
+| 685 | [x] | `internal/geo/controller/kb.go` | 8 | 14 | 8 | 0 |
+| 686 | [x] | `internal/geo/controller/keyword.go` | 7 | 12 | 7 | 0 |
+| 687 | [x] | `internal/geo/controller/keyword_enhance.go` | 4 | 6 | 4 | 0 |
+| 688 | [x] | `internal/geo/controller/keyword_mining.go` | 6 | 13 | 6 | 0 |
+| 689 | [x] | `internal/geo/controller/opportunity.go` | 3 | 4 | 3 | 0 |
+| 690 | [x] | `internal/geo/controller/platform.go` | 8 | 14 | 8 | 0 |
+| 691 | [x] | `internal/geo/controller/probe.go` | 17 | 28 | 17 | 0 |
+| 692 | [x] | `internal/geo/controller/push.go` | 4 | 5 | 4 | 0 |
+| 693 | [x] | `internal/geo/controller/report.go` | 10 | 19 | 10 | 0 |
+| 694 | [x] | `internal/geo/controller/seed_term.go` | 3 | 4 | 3 | 0 |
+| 695 | [x] | `internal/geo/controller/site.go` | 6 | 7 | 6 | 0 |
+| 696 | [x] | `internal/geo/controller/tech_metrics.go` | 7 | 15 | 7 | 0 |
+| 697 | [x] | `internal/geo/controller/verification.go` | 5 | 8 | 5 | 0 |
+| 698 | [x] | `internal/geo/controller/visibility.go` | 5 | 6 | 5 | 0 |
+| 699 | [x] | `internal/geo/controller/workflow.go` | 11 | 22 | 11 | 0 |
+| 700 | [x] | `internal/geo/doc.go` | 1 | 37 | 1 | 0 |
+| 701 | [x] | `internal/geo/dto/content.go` | 5 | 5 | 5 | 0 |
+| 702 | [x] | `internal/geo/dto/keyword.go` | 5 | 5 | 5 | 0 |
+| 703 | [x] | `internal/geo/dto/keyword_enhance.go` | 2 | 2 | 2 | 0 |
+| 704 | [x] | `internal/geo/dto/knowledge.go` | 5 | 5 | 5 | 0 |
+| 705 | [x] | `internal/geo/dto/platform.go` | 8 | 9 | 8 | 0 |
+| 706 | [x] | `internal/geo/dto/report.go` | 4 | 4 | 4 | 0 |
+| 707 | [x] | `internal/geo/dto/verification.go` | 2 | 2 | 2 | 0 |
+| 708 | [x] | `internal/geo/dto/workflow.go` | 10 | 13 | 10 | 0 |
+| 709 | [x] | `internal/geo/model/alert.go` | 1 | 2 | 1 | 0 |
 | 710 | [ ] | `internal/geo/model/competitor.go` | 1 | 1 | 1 | 0 |
 | 711 | [ ] | `internal/geo/model/config.go` | 5 | 5 | 5 | 0 |
 | 712 | [ ] | `internal/geo/model/content.go` | 4 | 4 | 4 | 0 |

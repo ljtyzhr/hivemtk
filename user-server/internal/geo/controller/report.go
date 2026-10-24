@@ -93,10 +93,10 @@ func (c *ReportController) ShareOfVoice(ctx *gin.Context) {
 	response.Success(ctx, result, "ok")
 }
 
-// @Summary      A12 内容类型归因（2026-10-24）
+// @Summary      内容类型归因
 // @Tags      report
 // @Router    /api/geo/reports/content-format [get]
-// ContentFormatAttribution A12 内容类型归因（2026-10-24）
+// ContentFormatAttribution 内容类型归因
 // GET /geo/reports/content-format?days=30
 // 按内容类型（意图）分组统计提及率/引用率；样本量同行标注，低于
 // ContentFormatAttributionSampleFloor 的分组读数不可下结论（SampleSizeHint 字段）。

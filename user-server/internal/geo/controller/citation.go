@@ -11,8 +11,6 @@ import (
 )
 
 // CitationController 引用智能控制器
-//
-// A10（2026-10-24）：driftSvc 注入引用漂移读端（/geo/citations/drift）。
 type CitationController struct {
 	citeSvc  *service.CitationService
 	driftSvc *service.CitationDriftService
@@ -26,10 +24,10 @@ func NewCitationControllerWithDrift(citeSvc *service.CitationService, driftSvc *
 	return &CitationController{citeSvc: citeSvc, driftSvc: driftSvc}
 }
 
-// @Summary      引用漂移 diff（A10）
+// @Summary      引用漂移 diff
 // @Tags      citation
 // @Router    /api/geo/citations/drift [get]
-// Drift 引用漂移 diff（A10）
+// Drift 引用漂移 diff
 // GET /geo/citations/drift?from=2026-10-23&to=2026-10-24
 // from 缺省取 to 之前最近一次快照；任一侧快照缺失返回明确错误（不冒充"没有漂移"）。
 func (c *CitationController) Drift(ctx *gin.Context) {

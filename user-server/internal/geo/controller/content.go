@@ -42,7 +42,7 @@ func (c *ContentController) GenerateContent(ctx *gin.Context) {
 // @Summary      批量生成完成
 // @Tags      content
 // @Router    /api/geo/content/batch-generate [post]
-// GenerateContentBatch B2 批量生成（2026-10-24）
+// GenerateContentBatch 批量生成
 // POST /geo/content/batch-generate
 // 同步有界批（上限 BatchGenerateMaxKeywords=20），逐条容错，失败单条回传 error
 // 由前端标记可重试；超上限截断回传 truncated_to。

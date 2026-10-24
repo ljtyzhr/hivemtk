@@ -13,7 +13,7 @@ type GenerateContentRequest struct {
 	Lang       string   `json:"lang"`
 }
 
-// BatchGenerateRequest B2 批量生成请求（2026-10-24）
+// BatchGenerateRequest 批量生成请求
 type BatchGenerateRequest struct {
 	Keywords   []string `json:"keywords" binding:"required,min=1"`
 	BrandName  string   `json:"brand_name"`

@@ -7,10 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// TechMetricsController GEO 技术配置生成 + 内容质量指标分析。
-// （原 ResourceController 的 resourceSvc 硬编码静态数据已删除，
-//
-//	techconfig/metrics 两个真实子服务保留并独立成 controller）
+// TechMetricsController GEO 技术配置生成 + 内容质量指标分析控制器。
 type TechMetricsController struct {
 	techconfigSvc *service.TechConfigService
 	metricsSvc    *service.MetricsService
@@ -18,8 +15,8 @@ type TechMetricsController struct {
 
 // NewTechMetricsController 构造技术配置+指标控制器
 //
-// B1（2026-10-24）：TechConfigService 注入 KB 文档源，llms.txt 的 Docs 段
-// 在请求体未显式给文档时从 GEO KB 自动装配（手工条目优先，见 techconfig.go）。
+// llms.txt 的 Docs 段在请求体未显式给文档时，由 TechConfigService 从 GEO KB
+// 自动装配（手工条目优先，见 techconfig.go）。
 func NewTechMetricsController(kbSvc *service.KBService) *TechMetricsController {
 	return &TechMetricsController{
 		techconfigSvc: service.NewTechConfigServiceWithKB(kbSvc),
@@ -43,7 +40,7 @@ func (c *TechMetricsController) GenerateRobots(ctx *gin.Context) {
 // @Summary      生成成功
 // @Tags      tech-metrics
 // @Router    /api/geo/techconfig/llms-txt [post]
-// GenerateLLMsTxt 生成 llms.txt（AI 引擎知识索引，v3 竞品对齐 A4）
+// GenerateLLMsTxt 生成 llms.txt（AI 引擎知识索引）
 // POST /geo/techconfig/llms-txt
 func (c *TechMetricsController) GenerateLLMsTxt(ctx *gin.Context) {
 	var cfg service.LLMsTxtConfig

@@ -19,7 +19,7 @@ type VerifyResultResponse struct {
 	BrandMentioned bool      `json:"brand_mentioned"`
 	MentionCount   int       `json:"mention_count"`
 	Sentiment      string    `json:"sentiment"`
-	BrandContext   string    `json:"brand_context,omitempty"` // A11：品牌语境（验证时由 LLM 判定入库）
+	BrandContext   string    `json:"brand_context,omitempty"` // 品牌语境（验证时由 LLM 判定入库）
 	Position       string    `json:"position"`
 	CreatedAt      time.Time `json:"created_at"`
 }

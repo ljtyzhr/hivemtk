@@ -62,9 +62,8 @@ func (c *KeywordMiningController) CombineLongtail(ctx *gin.Context) {
 	if !response.BindJSON(ctx, &req) {
 		return
 	}
-	// 缺省模板走 DB 优先字典（ActiveLongtailTemplates：缺行自动播种、故障 fail-open 回内置）。
-	// 原先直引 service.DefaultLongtailTemplates，会让管理员对 geo_dicts/longtail_templates
-	// 的修改在这条入口上被静默忽略——管线那条入口已经走字典，两条口径会分叉。
+	// 缺省模板走 DB 优先字典（ActiveLongtailTemplates：缺行自动播种、故障 fail-open 回内置），
+	// 保证管理员对 geo_dicts/longtail_templates 的修改在这条入口同样生效，与管线入口口径一致。
 	templates := []service.LongtailTemplate{}
 	if req.UseDefaultTpls || len(req.CustomTemplates) == 0 {
 		templates = service.ActiveLongtailTemplates(ctx.Request.Context())
