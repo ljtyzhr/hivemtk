@@ -21,6 +21,7 @@ ChurnCalculationCron	fanout	user-server/internal/pkg/cron/cron.go::tenant.Fanout
 PasswordResetTokenCleanupCron	fanout	user-server/internal/pkg/cron/cron.go::fanoutTask(context.Background(), resetService.CleanupExpiredTokens)
 bridge_offline_replay	fanout	user-server/internal/service/bridge_offline_replay.go::func (s *BridgeOfflineReplayService) RunOnceAllTenants(ctx context.Context) ReplayStats {
 handoff_chain	fanout	user-server/internal/pkg/cron/cron.go::service.NewHandoffChainService().RunCron(ctx, 200)
+kb_crawler	fanout	user-server/internal/pkg/cron/kb_crawler_cron.go::fanoutTask(ctx, KBSourceDueScanner(crawler))
 daily_backup	tenant-free	backups 表无 tenant_id（internal/model/backup.go:26-34）：整库文件备份不写任何租户行，扇出反而会把同一份备份按租户重复做 N 次
 
 # ── 自带调度器的包（2026-10-23 纳入扫描面，见脚本 SCHEDULER_DIRS）──
