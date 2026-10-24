@@ -11,31 +11,26 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-// NotificationRepository 系统通知仓库
 type NotificationRepository struct {
 	db *gorm.DB
 }
 
-// NewNotificationRepository 创建通知仓库实例
 func NewNotificationRepository() *NotificationRepository {
 	return &NotificationRepository{db: _db.GetDB()}
 }
 
-// NewNotificationRepositoryWithDB 创建指定数据库连接的 NotificationRepository 实例（用于测试 / 服务层注入）
+// NewNotificationRepositoryWithDB 指定数据库连接构造（用于测试 / 服务层注入）
 func NewNotificationRepositoryWithDB(db *gorm.DB) *NotificationRepository {
 	return &NotificationRepository{db: db}
 }
 
 // SetDB 注入 db（用于测试）
-//
-// 五层架构 §三.5 + §七：仓库方法必须首参为 ctx context.Context。
 func (r *NotificationRepository) SetDB(ctx context.Context, db *gorm.DB) {
 	if db != nil {
 		r.db = db
 	}
 }
 
-// NotificationListQuery 通知列表查询条件（避免依赖 service 包）
 type NotificationListQuery struct {
 	UserID  uint
 	Page    int
@@ -46,7 +41,6 @@ type NotificationListQuery struct {
 	Keyword string
 }
 
-// NotificationListResult 通知列表查询结果
 type NotificationListResult struct {
 	List  []model.Notification
 	Total int64
@@ -98,17 +92,9 @@ func (r *NotificationRepository) List(ctx context.Context, q NotificationListQue
 }
 
 // UpsertFromPlatform 幂等写入一条平台下发的通知。
-//
-// 幂等靠 (tenant_id, source_msg_id) 部分唯一索引
-// （uq_notification_tenant_source_msg, WHERE source_msg_id > 0）。
-//
-// 关键：PG 的 ON CONFLICT 必须**重复索引的部分索引谓词**才能推断出
-// 用哪个唯一索引 —— 只写列名会报 42P10
-// （there is no unique or exclusion constraint matching the ON CONFLICT
-// specification）。所以这里带上 TargetWhere，与模型上的 where 标签一致。
-//
-// 冲突时**什么都不更新**：平台消息的正文/标题是不可变快照，用户端已经
-// 看过的那条不应该因为平台改了草稿而变样。
+// 幂等靠 (tenant_id, source_msg_id) 部分唯一索引（WHERE source_msg_id > 0）；
+// PG 的 ON CONFLICT 必须带上部分索引谓词才能推断用哪个唯一索引（只写列名会报 42P10）。
+// 冲突时什么都不更新：平台消息正文是不可变快照，已展示给用户的行不应随平台改稿而变。
 func (r *NotificationRepository) UpsertFromPlatform(ctx context.Context, n *model.Notification) (bool, error) {
 	if r == nil || r.db == nil {
 		return false, nil
@@ -131,10 +117,7 @@ func (r *NotificationRepository) UpsertFromPlatform(ctx context.Context, n *mode
 }
 
 // MaxSourceMsgID 取本租户已投递的最大平台消息 ID（= 下一轮同步的游标）。
-//
-// 它就是"已投递过"的全部证据：平台消息 ID 单调递增，而本地落地的行
-// 逐条对应一条已投递消息，所以最大值天然是正确游标。不另存游标 ⇒ 不会
-// 与真实投递情况漂移。
+// 平台消息 ID 单调递增，本地行逐条对应已投递消息，取最大值即为正确游标，不另存以免漂移。
 func (r *NotificationRepository) MaxSourceMsgID(ctx context.Context) (int64, error) {
 	if r == nil || r.db == nil {
 		return 0, nil
@@ -153,11 +136,7 @@ func (r *NotificationRepository) MaxSourceMsgID(ctx context.Context) (int64, err
 	return *max, nil
 }
 
-// ExistsInTenant 判断某条通知是否存在于当前租户。
-//
-// 用途：标记已读前的归属校验 —— 不属于本租户就报"不存在或无权限"，
-// 不泄露"这条消息存在但不属于你"。读面带 tenant_id 条件（隔离 callback
-// 注入），所以这里天然只查得到本租户的行。
+// ExistsInTenant 判断某条通知是否存在于当前租户（标记已读前的归属校验，不泄露跨租户存在性）。
 func (r *NotificationRepository) ExistsInTenant(ctx context.Context, tenantID, id uint) (bool, error) {
 	if r == nil || r.db == nil {
 		return false, nil
@@ -199,13 +178,9 @@ func (r *NotificationRepository) MarkReadByID(ctx context.Context, userID, id ui
 	return res.RowsAffected, nil
 }
 
-// MarkAllRead 全部标记已读，返回受影响行数
-// MarkAllRead 把该用户的**本地业务通知**全部标记已读，返回受影响条数。
-//
-// 平台消息不在这里处理：它们的已读由 notification_reads 回执表按人记录
-// （service 层另走 readRepo.MarkAllRead）。若这里也把平台消息的 is_read
-// 置上，等于给"一条消息 N 个人"的语义又加了一条全局位 —— 那正是本模块
-// 要消灭的东西（一人点开，全场清零）。
+// MarkAllRead 把该用户的本地业务通知全部标记已读，返回受影响条数。
+// 平台消息不在这里处理：其已读由 notification_reads 回执表按人记录（service 层另走 readRepo），
+// 若在此置 is_read 会破坏"一条消息 N 个人"的语义（一人点开全场清零）。
 func (r *NotificationRepository) MarkAllRead(ctx context.Context, userID uint) (int64, error) {
 	if r == nil || r.db == nil {
 		return 0, nil
@@ -224,12 +199,9 @@ func (r *NotificationRepository) MarkAllRead(ctx context.Context, userID uint) (
 	return res.RowsAffected, nil
 }
 
-// CountUnread 统计未读数（**仅本地业务通知**）。
-//
-// 平台消息的未读**不在这里算**：它们的已读状态由 notification_reads 回执表
-// 按人记录，service 层另有 CountUnread(ctx, tenantID, userID) 走回执口径。
-// 若这里也把平台消息算进去，service 再把回执口径加一遍 ⇒ 未读数翻倍
-// （实测角标 11 / 接口 10，差值正是那条平台消息）。
+// CountUnread 统计未读数（仅本地业务通知）。
+// 平台消息的未读由 notification_reads 回执表按人记录，service 层另走回执口径；
+// 两个口径都算会未读数翻倍。
 func (r *NotificationRepository) CountUnread(ctx context.Context, userID uint) (int64, error) {
 	if r == nil || r.db == nil {
 		return 0, nil
@@ -242,7 +214,6 @@ func (r *NotificationRepository) CountUnread(ctx context.Context, userID uint) (
 	return count, err
 }
 
-// Create 创建一条通知
 func (r *NotificationRepository) Create(ctx context.Context, n *model.Notification) error {
 	if r == nil || r.db == nil {
 		return nil
@@ -262,12 +233,8 @@ func (r *NotificationRepository) CountAll(ctx context.Context) (int64, error) {
 	return count, nil
 }
 
-// CountByTypeLinkSince 统计 type=ntype 且 link=link 且 created_at >= since 的通知条数。
-//
-// 存在的唯一理由是**去重**：待办 SLA 的节拍器每轮都会重新扫到同一批逾期行，
-// 没有这一问，"逾期提醒"会在每个节拍给坐席刷一条新通知，提醒本身变成噪音。
-// 用 type+link 而不是 metadata 里的 JSON 串做键：前者是建了索引的列，
-// 后者要 LIKE 全表，而这张表会被通知中心每次打开都读。
+// CountByTypeLinkSince 统计 type=ntype 且 link=link 且 created_at >= since 的通知条数，
+// 用于提醒去重（节拍器每轮都扫到同一批逾期行，不去重会反复刷通知）。
 func (r *NotificationRepository) CountByTypeLinkSince(ctx context.Context, ntype, link string, since time.Time) (int64, error) {
 	if r == nil || r.db == nil {
 		return 0, nil

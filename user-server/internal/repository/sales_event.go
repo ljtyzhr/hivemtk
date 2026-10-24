@@ -1,6 +1,4 @@
-// Package repository 销售事件流数据访问层（H2 技术债修复）。
-//
-// 严格遵循五层架构：Service 层不直接访问 DB，一律经由本仓库。
+// Package repository 销售事件流数据访问层。
 package repository
 
 import (
@@ -12,12 +10,11 @@ import (
 	"gorm.io/gorm"
 )
 
-// SalesEventRepository 销售事件仓库接口
 type SalesEventRepository interface {
 	Create(ctx context.Context, ev *model.SalesEvent) error
 	// ListByType 按事件类型查询；ownerID 为空表示不限销售，since 为零值表示不限起始时间
 	ListByType(ctx context.Context, eventType, ownerID string, sinceUnix int64) ([]*model.SalesEvent, error)
-	// ListByOpportunityID T-P8-01 首个生产读口：按 opportunity_id 取全链路事件，
+	// ListByOpportunityID 按 opportunity_id 取全链路事件，
 	// occurred_at ASC、id ASC（同秒并列由自增 id 破序，链序 = 写入序）。
 	ListByOpportunityID(ctx context.Context, opportunityID string) ([]*model.SalesEvent, error)
 }
@@ -26,12 +23,10 @@ type salesEventRepo struct {
 	db *gorm.DB
 }
 
-// NewSalesEventRepository 创建销售事件仓库实例
 func NewSalesEventRepository() SalesEventRepository {
 	return &salesEventRepo{db: _db.GetDB()}
 }
 
-// NewSalesEventRepositoryWithDB 创建指定数据库连接的销售事件仓库实例（用于测试）
 func NewSalesEventRepositoryWithDB(db *gorm.DB) SalesEventRepository {
 	return &salesEventRepo{db: db}
 }

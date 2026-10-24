@@ -24,18 +24,14 @@ func (r *MessageHubRepository) GetLastByPlatformAccount(ctx context.Context, pla
 	return &msg, nil
 }
 
-// undeliveredOutboundCond 排除「投递失败的出站行」：这类行客户从未收到，
-// 不能充当「已回复」的证据。status 列可空（默认 'pending'，历史/直插行为 NULL），
-// 故必须 NULL 安全：直接写 status <> 'send_failed' 会把 NULL 行一起滤掉，
-// 于是每条正常出站都不再算回复 → 补触发风暴复发。
+// undeliveredOutboundCond 排除投递失败的出站行（客户从未收到，不能充当「已回复」证据）。
+// status 列可空（历史/直插行为 NULL），必须 NULL 安全比较，否则正常出站被误滤、补触发风暴复发。
 const undeliveredOutboundCond = "NOT (direction = ? AND COALESCE(status, '') = ?)"
 
 var undeliveredOutboundArgs = []any{"outbound", "send_failed"}
 
-// notSystemEventCond 排除渠道系统事件行（msg_type='event'：TG 入群/退群、审批通知等）。
-// 这类行不是客户发来的问话，入站主路径按设计不回它；把它当"未回复的客户消息"，
-// 补触发就会拿系统通知正文去问 AI ⇒ 刚被门控禁言的新人收到一条欢迎语。
-// msg_type 列 NOT NULL，但历史/直插行可能是空串，与上面 status 同样走 NULL 安全口径。
+// notSystemEventCond 排除渠道系统事件行（msg_type='event'：TG 入群/退群、审批通知等），
+// 这类行不是客户问话，入站主路径不回它。历史/直插行 msg_type 可能为空串，同样走 NULL 安全口径。
 const notSystemEventCond = "COALESCE(msg_type, '') <> ?"
 
 var notSystemEventArgs = []any{"event"}

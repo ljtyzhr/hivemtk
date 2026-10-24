@@ -10,7 +10,6 @@ import (
 	"hivemtk-user/internal/pkg/db"
 )
 
-// PasswordHistoryRepository 密码历史仓储接口
 type PasswordHistoryRepository interface {
 	Create(ctx context.Context, h *model.PasswordHistory) error
 
@@ -23,7 +22,6 @@ type passwordHistoryRepo struct {
 	db *gorm.DB
 }
 
-// NewPasswordHistoryRepository 构造仓储（内部获取 db）
 func NewPasswordHistoryRepository() PasswordHistoryRepository {
 	return &passwordHistoryRepo{db: db.GetDB()}
 }

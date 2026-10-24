@@ -1,4 +1,4 @@
-// quick_reply_folder.go 快捷回复文件夹仓储（K11 五层 L4）
+// quick_reply_folder.go 快捷回复文件夹仓储。
 package repository
 
 import (
@@ -11,24 +11,20 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-// QuickReplyFolderRepository 快捷回复文件夹仓储
 type QuickReplyFolderRepository struct {
 	db *gorm.DB
 }
 
-// NewQuickReplyFolderRepository 构造
 func NewQuickReplyFolderRepository() *QuickReplyFolderRepository {
 	return &QuickReplyFolderRepository{db: _db.GetDB()}
 }
 
-// List 按排序返回全部文件夹
 func (r *QuickReplyFolderRepository) List(ctx context.Context) ([]*model.QuickReplyFolder, error) {
 	var list []*model.QuickReplyFolder
 	err := r.db.WithContext(ctx).Order("sort_order ASC, id ASC").Find(&list).Error
 	return list, err
 }
 
-// Create 创建（重名幂等返回现有行）
 func (r *QuickReplyFolderRepository) Create(ctx context.Context, name string) (*model.QuickReplyFolder, error) {
 	f := &model.QuickReplyFolder{Name: name, SortOrder: 0}
 	err := r.db.WithContext(ctx).Clauses(clause.OnConflict{
@@ -49,7 +45,7 @@ func (r *QuickReplyFolderRepository) Create(ctx context.Context, name string) (*
 	return f, nil
 }
 
-// UpdateSortOrder 更新排序；0 行 ⇒ 该文件夹不存在（`db.EnsureAffected`）。
+// UpdateSortOrder 更新排序；0 行 ⇒ 该文件夹不存在（db.EnsureAffected）。
 func (r *QuickReplyFolderRepository) UpdateSortOrder(ctx context.Context, id uint, sortOrder int) error {
 	return _db.EnsureAffected(r.db.WithContext(ctx).
 		Model(&model.QuickReplyFolder{}).
@@ -57,7 +53,7 @@ func (r *QuickReplyFolderRepository) UpdateSortOrder(ctx context.Context, id uin
 		Update("sort_order", sortOrder))
 }
 
-// Delete 删除文件夹；0 行 ⇒ 该文件夹不存在（`db.EnsureAffected`）。
+// Delete 删除文件夹；0 行 ⇒ 该文件夹不存在（db.EnsureAffected）。
 func (r *QuickReplyFolderRepository) Delete(ctx context.Context, id uint) error {
 	return _db.EnsureAffected(r.db.WithContext(ctx).Delete(&model.QuickReplyFolder{}, id))
 }

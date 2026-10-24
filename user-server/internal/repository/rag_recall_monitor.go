@@ -8,14 +8,9 @@ import (
 	"gorm.io/gorm"
 )
 
-// RagRecallMonitorTableName 监控快照表名
-//
-// 与 service 层常量保持一致；放此处以便 repository 内部使用，避免循环引用。
+// RagRecallMonitorTableName 监控快照表名（与 service 层常量保持一致，避免循环引用）。
 const RagRecallMonitorTableName = "rag_recall_monitor_snapshots"
 
-// RagRecallAggRow rag_query_logs 召回监控聚合行
-//
-// 包含 Top-K / Top-1 命中率与平均相似度等监控指标所需字段。
 type RagRecallAggRow struct {
 	Total         int64
 	AvgRecall     float64
@@ -27,7 +22,6 @@ type RagRecallAggRow struct {
 	Top1Hit       int64
 }
 
-// RagRecallMonitorRepository RAG 召回率监控仓储接口
 type RagRecallMonitorRepository interface {
 	AggregateRecallLogs(ctx context.Context, start, end time.Time) (*RagRecallAggRow, error)
 	PluckP95Latency(ctx context.Context, start, end time.Time, offset int) (int64, error)
@@ -40,9 +34,7 @@ type ragRecallMonitorRepo struct {
 	db *gorm.DB
 }
 
-// NewRagRecallMonitorRepository 创建 RAG 召回率监控仓储
-//
-// ARC-01：db 为 nil 时返回 nil 接口，service 侧以 repo == nil 作为未初始化守卫。
+// NewRagRecallMonitorRepository db 为 nil 时返回 nil 接口，service 以 repo == nil 守卫。
 func NewRagRecallMonitorRepository(db *gorm.DB) RagRecallMonitorRepository {
 	if db == nil {
 		return nil
@@ -90,9 +82,7 @@ func (r *ragRecallMonitorRepo) CreateSnapshot(ctx context.Context, row map[strin
 }
 
 func (r *ragRecallMonitorRepo) ListSnapshots(ctx context.Context, limit int) ([]map[string]any, error) {
-	// 夹取：GORM 的 Limit(0) 等于**不加 limit**（整表），而 service 那层的
-	// `limit <= 0 → 50` 只在经过 service 时生效。本层自己守一次，
-	// 任何新调用方漏了夹取都不会把快照表整张读进内存。
+	// 本层自行夹取：GORM 的 Limit(0) 等于不加 limit（整表），不能依赖调用方兜底。
 	if limit < 1 {
 		limit = 50
 	}
@@ -111,7 +101,7 @@ func (r *ragRecallMonitorRepo) ListSnapshots(ctx context.Context, limit int) ([]
 }
 
 func (r *ragRecallMonitorRepo) EnsureSchema(ctx context.Context) error {
-	// 原 CREATE TABLE+INDEX 裸 DDL（T012 清偿）：模型已在 allModels 登记，AutoMigrate 幂等建表
+	// AutoMigrate 幂等建表
 	return r.db.WithContext(ctx).AutoMigrate(&model.RagRecallMonitorSnapshot{})
 }
 

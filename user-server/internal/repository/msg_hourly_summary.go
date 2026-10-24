@@ -24,8 +24,6 @@ type MsgHourlyDelta struct {
 }
 
 // MessageHubSummaryRepository message_hub 小时汇总（msg_hourly_summary）仓库接口。
-//
-// 五层架构归属：L3 仓库层，封装全部 SQL；service 不直接持有 *gorm.DB。
 type MessageHubSummaryRepository interface {
 	// LoadWatermark 读取水位线；不存在时返回 0（无错误）。
 	LoadWatermark(ctx context.Context, source string) (int64, error)
@@ -37,7 +35,7 @@ type MessageHubSummaryRepository interface {
 	// QuerySince 查询 bucket >= since 的 summary 行（驾驶舱双读之主路径）。
 	QuerySince(ctx context.Context, since time.Time) ([]model.MsgHourlySummary, error)
 	// LatestUpdate 返回最近一次聚合刷新时间 MAX(updated_at)；表空返回 nil。
-	// 用于 X-8 陈旧判定（hour_bucket 是小时粒度，不能反映聚合任务新鲜度）。
+	// 用于陈旧判定（hour_bucket 是小时粒度，不能反映聚合任务新鲜度）。
 	LatestUpdate(ctx context.Context) (*time.Time, error)
 	// LoadBatchSince 按水位线分批拉取原始消息（id > since，升序，limit 上限）。
 	// 供聚合服务消费；返回空 slice 表示已无新数据。

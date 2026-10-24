@@ -216,9 +216,7 @@ func (r *UserRFMRepository) BatchUpsert(ctx context.Context, rfms []*model.UserR
 				return err
 			} else {
 				rfm.ID = existing.ID
-				// Save 写全部字段（含零值），必须带回库里的 tenant_id：
-				// 调用方传进来的是零值 model（tenant_id=0），直接 Save 等于把租户改写成 0，
-				// 多租户模式下 tenant 回调会当场拒掉（"更新不可改写 tenant_id"）。
+				// Save 写全部字段（含零值），必须带回库里的 tenant_id，否则多租户下 tenant 回调会拒绝更新。
 				rfm.TenantID = existing.TenantID
 				if err := tx.Save(rfm).Error; err != nil {
 					return err

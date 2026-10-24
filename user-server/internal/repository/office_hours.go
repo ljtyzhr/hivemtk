@@ -11,13 +11,11 @@ import (
 	"gorm.io/gorm"
 )
 
-// OfficeHoursRepo 办公时间仓储
 type OfficeHoursRepo struct {
 	db *gorm.DB
 }
 
-// NewOfficeHoursRepo 构造
-// NewOfficeHoursRepo 构造（无参，内部取全局 DB；对齐 customer_session.go 先例）
+// NewOfficeHoursRepo 构造（无参，内部取全局 DB）
 func NewOfficeHoursRepo() *OfficeHoursRepo {
 	return &OfficeHoursRepo{db: _db.GetDB()}
 }

@@ -13,9 +13,7 @@ import (
 )
 
 // PlatformConfigKVRepository 平台级 KV 配置仓储接口（实例级，无租户分域）。
-//
-// 键空间见 model.PlatformConfigKV 注释：桥接/MCP/回调验签/宿主令牌与平台
-// 安全、备份策略。这些键在登录前或非租户入口被读取，必须与租户上下文解耦。
+// 这些键在登录前或非租户入口被读取，必须与租户上下文解耦。
 type PlatformConfigKVRepository interface {
 	Available() bool
 	Get(ctx context.Context, key string) (string, error)
@@ -27,12 +25,11 @@ type platformConfigKVRepo struct {
 	db *gorm.DB
 }
 
-// NewPlatformConfigKVRepository 构造（捕获调用那一刻的全局句柄，语义同 KV 仓储）。
 func NewPlatformConfigKVRepository() PlatformConfigKVRepository {
 	return &platformConfigKVRepo{db: db.GetDB()}
 }
 
-// NewPlatformConfigKVRepositoryWithDB 用显式句柄构造（装配点句柄一致性，同 WithDB 口径）。
+// NewPlatformConfigKVRepositoryWithDB 用显式句柄构造。
 func NewPlatformConfigKVRepositoryWithDB(gormDB *gorm.DB) PlatformConfigKVRepository {
 	return &platformConfigKVRepo{db: gormDB}
 }

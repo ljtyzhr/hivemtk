@@ -11,7 +11,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// ListOnlineAgentIDs 返回当前在线（status='online'）的坐席 agent_id 列表（字符串形式，可直接用于分配）。
+// ListOnlineAgentIDs 返回当前在线坐席的 agent_id 列表（经 CAST 为字符串形式）。
 func (r *InboxConversationRepository) ListOnlineAgentIDs(ctx context.Context) ([]string, error) {
 	if r == nil || r.db == nil {
 		return nil, nil
@@ -26,7 +26,7 @@ func (r *InboxConversationRepository) ListOnlineAgentIDs(ctx context.Context) ([
 	return ids, nil
 }
 
-// CountByAssignedToStatus 按 assigned_to + status 集合统计会话数（用于客服负载查询）
+// CountByAssignedToStatus 按 assigned_to + status 统计会话数（用于客服负载查询）
 func (r *InboxConversationRepository) CountByAssignedToStatus(ctx context.Context, staffUserID string, statuses []string) (int64, error) {
 	if r == nil || r.db == nil {
 		return 0, nil
@@ -38,7 +38,6 @@ func (r *InboxConversationRepository) CountByAssignedToStatus(ctx context.Contex
 	return n, err
 }
 
-// AssignTxInput 分配事务入参
 type AssignTxInput struct {
 	ConversationID uint
 	Action         string
@@ -49,8 +48,6 @@ type AssignTxInput struct {
 	Remark         string
 }
 
-// AssignTxOutput 分配事务出参
-//
 // OldAssignedTo / NewAssignedTo 用于 service 层同步内存负载缓存（不属于 DB 操作）。
 type AssignTxOutput struct {
 	OldAssignedTo string
@@ -58,10 +55,8 @@ type AssignTxOutput struct {
 	History       *model.InboxAssignment
 }
 
-// AssignTx 在单个事务内完成「更新会话 + 写入分配历史」
-//
-// 五层架构 §三.5：原 service 层 s.db.Transaction 收敛到 repo。
-// 错误约定：会话不存在时返回 errors.New("conversation not found")（service 层据此映射 ErrInboxConversationMissing）。
+// AssignTx 在单个事务内完成「更新会话 + 写入分配历史」。
+// 会话不存在时返回 errors.New("conversation not found")，service 层据此映射 ErrInboxConversationMissing。
 func (r *InboxConversationRepository) AssignTx(ctx context.Context, in AssignTxInput) (*AssignTxOutput, error) {
 	if r == nil || r.db == nil {
 		return nil, nil
@@ -157,30 +152,25 @@ func (r *InboxConversationRepository) AssignTx(ctx context.Context, in AssignTxI
 	return out, nil
 }
 
-// InboxAssignmentRepository 统一收件箱分配历史仓库
 type InboxAssignmentRepository struct {
 	db *gorm.DB
 }
 
-// NewInboxAssignmentRepository 创建分配历史仓库实例
 func NewInboxAssignmentRepository() *InboxAssignmentRepository {
 	return &InboxAssignmentRepository{db: _db.GetDB()}
 }
 
-// NewInboxAssignmentRepositoryWithDB 创建指定数据库连接的 InboxAssignmentRepository 实例
-// 用于 service 层依赖注入与单元测试；db 为 nil 时所有方法做无操作短路。
+// db 为 nil 时所有方法做无操作短路。
 func NewInboxAssignmentRepositoryWithDB(db *gorm.DB) *InboxAssignmentRepository {
 	return &InboxAssignmentRepository{db: db}
 }
 
-// SetDB 注入 db（用于测试）
 func (r *InboxAssignmentRepository) SetDB(ctx context.Context, db *gorm.DB) {
 	if db != nil {
 		r.db = db
 	}
 }
 
-// ListByConversationID 按会话 ID 分页查询分配历史
 func (r *InboxAssignmentRepository) ListByConversationID(ctx context.Context, conversationID uint, page, pageSize int) ([]*model.InboxAssignment, int64, error) {
 	if r == nil || r.db == nil {
 		return []*model.InboxAssignment{}, 0, nil
@@ -209,7 +199,6 @@ func (r *InboxAssignmentRepository) ListByConversationID(ctx context.Context, co
 	return list, total, nil
 }
 
-// AssignmentCount 分配计数（按 to_user_id 聚合）
 type AssignmentCount struct {
 	AssignedTo string
 	N          int64

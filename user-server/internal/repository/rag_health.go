@@ -8,7 +8,6 @@ import (
 	"hivemtk-user/internal/model"
 )
 
-// RagHealthRepository RAG 健康度仓储接口
 type RagHealthRepository interface {
 	CountKnowledgeChunks(ctx context.Context) (int64, error)
 }
@@ -17,9 +16,7 @@ type ragHealthRepo struct {
 	db *gorm.DB
 }
 
-// NewRagHealthRepository 创建 RAG 健康度仓储
-//
-// ARC-01：db 为 nil 时返回 nil 接口，service 侧以 repo == nil 作为未初始化守卫。
+// NewRagHealthRepository db 为 nil 时返回 nil 接口，service 以 repo == nil 守卫。
 func NewRagHealthRepository(db *gorm.DB) RagHealthRepository {
 	if db == nil {
 		return nil

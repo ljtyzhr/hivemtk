@@ -9,12 +9,10 @@ import (
 	"gorm.io/gorm"
 )
 
-// PromptRepo PromptCandidate + PromptABTest 仓库
 type PromptRepo struct {
 	db *gorm.DB
 }
 
-// NewPromptRepo 构造
 func NewPromptRepo() *PromptRepo {
 	return &PromptRepo{db: _db.GetDB()}
 }
@@ -24,8 +22,6 @@ func NewPromptRepoWithDB(db *gorm.DB) *PromptRepo {
 	return &PromptRepo{db: db}
 }
 
-// ListVersions 按 id / sop_id / sop_node_id 查询 prompt 版本列表
-// idStr: 既作为字符串匹配 id，也作为 uint 匹配 sop_id
 func (r *PromptRepo) ListVersions(ctx context.Context, idStr string, sopID uint, sopNodeID string, status string) ([]model.PromptCandidate, error) {
 	q := r.db.WithContext(ctx).Model(&model.PromptCandidate{}).
 		Where("id = ? OR sop_id = ? OR sop_node_id = ?", idStr, sopID, idStr)
@@ -39,7 +35,6 @@ func (r *PromptRepo) ListVersions(ctx context.Context, idStr string, sopID uint,
 	return versions, nil
 }
 
-// RetireActiveBySOPNode 将同一 sop_node_id 下状态为 active 的版本降为 retired
 func (r *PromptRepo) RetireActiveBySOPNode(ctx context.Context, sopNodeID string) error {
 	return r.db.WithContext(ctx).
 		Model(&model.PromptCandidate{}).
@@ -47,12 +42,10 @@ func (r *PromptRepo) RetireActiveBySOPNode(ctx context.Context, sopNodeID string
 		Update("status", model.PromptCandidateStatusRetired).Error
 }
 
-// CreateCandidate 创建新版本
 func (r *PromptRepo) CreateCandidate(ctx context.Context, c *model.PromptCandidate) error {
 	return r.db.WithContext(ctx).Create(c).Error
 }
 
-// ListABTests 列出所有 A/B 实验（可按 status 过滤）
 func (r *PromptRepo) ListABTests(ctx context.Context, status string) ([]model.PromptABTest, error) {
 	q := r.db.WithContext(ctx).Model(&model.PromptABTest{})
 	if status != "" {
@@ -65,12 +58,10 @@ func (r *PromptRepo) ListABTests(ctx context.Context, status string) ([]model.Pr
 	return experiments, nil
 }
 
-// Create 创建 Prompt 候选（CRUD 基础方法）
 func (r *PromptRepo) Create(ctx context.Context, p *model.PromptCandidate) error {
 	return r.db.WithContext(ctx).Create(p).Error
 }
 
-// GetByID 按 ID 查询 Prompt 候选
 func (r *PromptRepo) GetByID(ctx context.Context, id uint) (*model.PromptCandidate, error) {
 	var p model.PromptCandidate
 	if err := r.db.WithContext(ctx).First(&p, id).Error; err != nil {
@@ -79,7 +70,6 @@ func (r *PromptRepo) GetByID(ctx context.Context, id uint) (*model.PromptCandida
 	return &p, nil
 }
 
-// List 分页查询 Prompt 候选（可按 status / sop_node_id / sop_id 过滤）
 func (r *PromptRepo) List(ctx context.Context, page, pageSize int, status, sopNodeID string, sopID uint) ([]model.PromptCandidate, int64, error) {
 	q := r.db.WithContext(ctx).Model(&model.PromptCandidate{})
 	if status != "" {

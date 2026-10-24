@@ -9,20 +9,18 @@ import (
 	"gorm.io/gorm"
 )
 
-// SalesPersonaRepository 销冠能力画像聚合查询仓储
-// 注意：本仓储的查询为 PostgreSQL 原生 SQL（含窗口函数/EXTRACT EPOCH），
-// 仅在 PostgreSQL 上能产生业务正确结果。
+// SalesPersonaRepository 销冠能力画像聚合查询仓储。
+// 查询为 PostgreSQL 原生 SQL（含窗口函数/EXTRACT EPOCH），仅 PG 上结果正确。
 type SalesPersonaRepository struct {
 	db *gorm.DB
 }
 
-// NewSalesPersonaRepository 创建销冠画像仓储
 func NewSalesPersonaRepository(db *gorm.DB) *SalesPersonaRepository {
 	return &SalesPersonaRepository{db: db}
 }
 
-// AvgHumanResponseSec 统计近 30 天人工座席的平均响应时长（秒）
-// 来自 customer_session_messages 表，按 session_id 分区取相邻消息时间差
+// AvgHumanResponseSec 统计近 30 天人工座席的平均响应时长（秒），
+// 按 session_id 分区取相邻消息时间差。
 func (r *SalesPersonaRepository) AvgHumanResponseSec(ctx context.Context) (float64, error) {
 	if r == nil || r.db == nil {
 		return 0, nil
@@ -41,7 +39,6 @@ func (r *SalesPersonaRepository) AvgHumanResponseSec(ctx context.Context) (float
 	return avg, nil
 }
 
-// SessionOrderCount 近 30 天某员工的会话数与全局订单数
 func (r *SalesPersonaRepository) SessionOrderCount(ctx context.Context, staffID uint) (sessions int64, orders int64, err error) {
 	if r == nil || r.db == nil {
 		return 0, 0, nil
@@ -61,7 +58,6 @@ func (r *SalesPersonaRepository) SessionOrderCount(ctx context.Context, staffID 
 	return sessions, orders, nil
 }
 
-// CountSopExecutionsByStaff 统计某员工的 SOP 执行次数
 func (r *SalesPersonaRepository) CountSopExecutionsByStaff(ctx context.Context, staffID uint) (int64, error) {
 	if r == nil || r.db == nil {
 		return 0, nil
@@ -76,7 +72,6 @@ func (r *SalesPersonaRepository) CountSopExecutionsByStaff(ctx context.Context, 
 	return count, nil
 }
 
-// CountRagQueryLogsByUser 统计某员工的知识库查询次数
 func (r *SalesPersonaRepository) CountRagQueryLogsByUser(ctx context.Context, staffID uint) (int64, error) {
 	if r == nil || r.db == nil {
 		return 0, nil
@@ -90,7 +85,6 @@ func (r *SalesPersonaRepository) CountRagQueryLogsByUser(ctx context.Context, st
 	return count, nil
 }
 
-// CountObjectionRecordsByStaff 统计某员工的异议处理记录数
 func (r *SalesPersonaRepository) CountObjectionRecordsByStaff(ctx context.Context, staffID uint) (int64, error) {
 	if r == nil || r.db == nil {
 		return 0, nil
@@ -107,13 +101,11 @@ func (r *SalesPersonaRepository) CountObjectionRecordsByStaff(ctx context.Contex
 	return count, nil
 }
 
-// SatisfactionStats 某员工客户满意度统计
 type SatisfactionStats struct {
 	Avg   float64
 	Count int64
 }
 
-// SatisfactionByStaff 统计某员工的客户满意度（平均评分 + 评分样本数）
 func (r *SalesPersonaRepository) SatisfactionByStaff(ctx context.Context, staffID uint) (*SatisfactionStats, error) {
 	if r == nil || r.db == nil {
 		return &SatisfactionStats{}, nil
@@ -128,13 +120,11 @@ func (r *SalesPersonaRepository) SatisfactionByStaff(ctx context.Context, staffI
 	return &stats, nil
 }
 
-// SessionCloseStats 某员工的会话关单统计
 type SessionCloseStats struct {
 	Total  int64
 	Closed int64
 }
 
-// SessionCloseByStaff 统计某员工的总会话数与已关单会话数
 func (r *SalesPersonaRepository) SessionCloseByStaff(ctx context.Context, staffID uint) (*SessionCloseStats, error) {
 	if r == nil || r.db == nil {
 		return &SessionCloseStats{}, nil
@@ -153,13 +143,11 @@ func (r *SalesPersonaRepository) SessionCloseByStaff(ctx context.Context, staffI
 	return &stats, nil
 }
 
-// StaffSessionCount 员工会话数排行
 type StaffSessionCount struct {
 	AgentID uint  `gorm:"column:agent_id"`
 	Count   int64 `gorm:"column:count"`
 }
 
-// ListTopStaffsBySession 列出近 30 天会话数 Top 50 的员工
 func (r *SalesPersonaRepository) ListTopStaffsBySession(ctx context.Context) ([]StaffSessionCount, error) {
 	if r == nil || r.db == nil {
 		return nil, nil

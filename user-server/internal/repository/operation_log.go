@@ -13,10 +13,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// OperationLogRepository 操作日志仓库接口
-// 独立部署版本：移除 merchantID 作用域
-//
-// 所有方法第一参数为 ctx context.Context。
+// OperationLogRepository 操作日志仓库接口（独立部署版本，无 merchantID 作用域）。
 type OperationLogRepository interface {
 	Create(ctx context.Context, log *model.OperationLog) error
 	GetByID(ctx context.Context, id uint) (*model.OperationLog, error)
@@ -34,18 +31,17 @@ type operationLogRepo struct {
 	db *gorm.DB
 }
 
-// NewOperationLogRepository 创建操作日志仓库实例
 func NewOperationLogRepository() OperationLogRepository {
 	return &operationLogRepo{db: _db.GetDB()}
 }
 
-// NewOperationLogRepositoryWithDB 创建带数据库连接的操作日志仓库实例（用于测试 / 多 DB 场景）
+// NewOperationLogRepositoryWithDB 指定数据库连接构造（用于测试 / 多 DB 场景）
 func NewOperationLogRepositoryWithDB(db *gorm.DB) OperationLogRepository {
 	return &operationLogRepo{db: db}
 }
 
 func (r *operationLogRepo) Create(ctx context.Context, log *model.OperationLog) error {
-	// OPT-SEC-04：敏感字段 IP / User-Agent 落库前加密；dbencrypt 永不失败，
+	// 敏感字段 IP / User-Agent 落库前加密；dbencrypt 永不失败，
 	// MASTER_KEY 缺失时降级明文，存量明文行读取时原样透传。
 	log.IP = dbencrypt.Encrypt(log.IP)
 	log.UserAgent = dbencrypt.Encrypt(log.UserAgent)
@@ -62,8 +58,7 @@ func (r *operationLogRepo) GetByID(ctx context.Context, id uint) (*model.Operati
 }
 
 func (r *operationLogRepo) GetAll(ctx context.Context, page, pageSize int, filters map[string]any) ([]*model.OperationLog, int64, error) {
-	// 夹取分页：page ≤ 0 时 offset 为负（PG 直接报错），pageSize 无上界时
-	// 一次请求能把 operation_logs（真库 5 万+ 行、且逐行解密）整表拖进内存。
+	// 夹取分页：page ≤ 0 时 offset 为负（PG 直接报错），pageSize 无上界时会整表拖进内存。
 	page, pageSize = clampOperationLogPage(page, pageSize)
 	var logs []*model.OperationLog
 	var total int64
@@ -101,11 +96,8 @@ func (r *operationLogRepo) GetAll(ctx context.Context, page, pageSize int, filte
 }
 
 // GetAllKeyset 使用 keyset（cursor）分页读取操作日志。
-//
-// operation_logs 为 uint 自增 ID + created_at，直接复用 pagination 包的
-// EncodeCursor/DecodeCursor（格式 <unix_nano>:<id>）。排序统一为
-// created_at DESC, id DESC，行值比较走 (created_at, id) < (?, ?)。
-// 多取 1 条用于判断是否还有下一页。
+// cursor 复用 pagination 包 EncodeCursor/DecodeCursor（<unix_nano>:<id>），
+// 排序统一为 created_at DESC, id DESC；多取 1 条判断是否还有下一页。
 func (r *operationLogRepo) GetAllKeyset(ctx context.Context, cursor string, pageSize int, filters map[string]any) ([]*model.OperationLog, int64, string, error) {
 	var logs []*model.OperationLog
 	var total int64
@@ -195,8 +187,7 @@ func (r *operationLogRepo) DeleteByIDs(ctx context.Context, ids []uint) (int64, 
 	return result.RowsAffected, result.Error
 }
 
-// UpdateNewValue 只改 new_value 一列；0 行 ⇒ 该条日志不存在（`db.EnsureAffected`），
-// 而不是把"改了个不存在的 id"当成成功回报。
+// UpdateNewValue 只改 new_value 一列；0 行经 db.EnsureAffected 报错，不把改不存在的 id 当成功。
 func (r *operationLogRepo) UpdateNewValue(ctx context.Context, id uint, newValue string) error {
 	return _db.EnsureAffected(r.db.WithContext(ctx).Model(&model.OperationLog{}).
 		Where("id = ?", id).
@@ -217,7 +208,7 @@ func clampOperationLogPage(page, pageSize int) (int, int) {
 	return page, pageSize
 }
 
-// decryptOperationLog 读取出口解密单条操作日志的敏感字段（OPT-SEC-04）。
+// decryptOperationLog 读取出口解密单条操作日志的敏感字段。
 // dbencrypt.Decrypt 对非 enc:v1: 前缀（存量明文）原样透传，故可无条件调用。
 func decryptOperationLog(log *model.OperationLog) {
 	if log == nil {
@@ -227,7 +218,6 @@ func decryptOperationLog(log *model.OperationLog) {
 	log.UserAgent = dbencrypt.Decrypt(log.UserAgent)
 }
 
-// decryptOperationLogs 批量读取出口解密。
 func decryptOperationLogs(logs []*model.OperationLog) {
 	for _, l := range logs {
 		decryptOperationLog(l)

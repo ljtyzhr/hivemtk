@@ -6,7 +6,6 @@ import (
 	"time"
 )
 
-// PlatformAssetPayload 平台同步返回
 type PlatformAssetPayload struct {
 	AssetID     string          `json:"asset_id"`
 	AssetType   string          `json:"asset_type"`

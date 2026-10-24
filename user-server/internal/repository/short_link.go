@@ -12,10 +12,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// errShortLinkUnavailable 仓储句柄缺失（装配错，不是「没数据」）。
 var errShortLinkUnavailable = errors.New("short link repository not initialized")
 
-// ShortLinkRepository 短链仓储接口
 type ShortLinkRepository interface {
 	Create(ctx context.Context, shortLink *model.ShortLink) error
 	Update(ctx context.Context, shortLink *model.ShortLink) error
@@ -32,7 +30,6 @@ type shortLinkRepository struct {
 	db *gorm.DB
 }
 
-// NewShortLinkRepository 创建短链仓储实例
 func NewShortLinkRepository(db *gorm.DB) ShortLinkRepository {
 	return &shortLinkRepository{db: db}
 }
@@ -48,11 +45,8 @@ func (r *shortLinkRepository) Create(ctx context.Context, shortLink *model.Short
 	return nil
 }
 
-// Update 更新短链（整行回写）。
-//
-// 走 `db.SaveWholeRow`：裸 Save 命中 0 行会回退成 `INSERT ... ON CONFLICT (id)
-// DO UPDATE` —— 把「service 读出之后、写回之前被删掉」的短链按原 id 复活，
-// 而它的短码可能已经被别的链接占用。
+// Update 更新短链（整行回写）；走 db.SaveWholeRow，裸 Save 命中 0 行会回退成 upsert
+// 把句间被删的短链按原 id 复活，而其短码可能已被别的链接占用。
 func (r *shortLinkRepository) Update(ctx context.Context, shortLink *model.ShortLink) error {
 	if r == nil || r.db == nil {
 		return errShortLinkUnavailable
@@ -63,11 +57,8 @@ func (r *shortLinkRepository) Update(ctx context.Context, shortLink *model.Short
 	return _db.SaveWholeRow(r.db.WithContext(ctx), shortLink)
 }
 
-// Delete 删除短链。0 行 ⇒ ErrRecordNotFound（删一条已经被删的链接不该回成功）。
-//
-// 注意本方法只删 short_links 行；访问流水由 service 在同一个删除动作里
-// 另外调 `accessRepo.DeleteByShortLinkID`（那里删 0 行是正常的：从未被访问过的
-// 链接没有流水，不该因此报错）。
+// Delete 删除短链。0 行 ⇒ ErrRecordNotFound。
+// 本方法只删 short_links 行；访问流水由 service 另调 accessRepo.DeleteByShortLinkID。
 func (r *shortLinkRepository) Delete(ctx context.Context, id uint) error {
 	if r == nil || r.db == nil {
 		return errShortLinkUnavailable
@@ -124,8 +115,7 @@ func (r *shortLinkRepository) GetList(ctx context.Context, page, pageSize int, s
 	if page < 1 {
 		page = 1
 	}
-	// pageSize = 0 ⇒ GORM 的 Limit(0) 等于**不加 limit**：列表页一次请求就能把
-	// 整张 short_links 读进内存（前台 /shortlink/list 是直连 HTTP 的口）。
+	// pageSize = 0 ⇒ GORM 的 Limit(0) 等于不加 limit，列表口必须自行夹取。
 	if pageSize < 1 {
 		pageSize = 20
 	}
@@ -136,8 +126,7 @@ func (r *shortLinkRepository) GetList(ctx context.Context, page, pageSize int, s
 	var shortLinks []*model.ShortLink
 	var total int64
 
-	// Count 与 Find 各起一条 query：同一条链上先 Count 再 Find 是靠 GORM 内部
-	// 子句还原侥幸能跑（判例 #133 / #150）。
+	// Count 与 Find 各起一条 query：同一条链上先 Count 再 Find 会就地改 Statement。
 	base := func() *gorm.DB {
 		q := r.db.WithContext(ctx).Model(&model.ShortLink{})
 		if shortCode != "" {
@@ -163,11 +152,8 @@ func (r *shortLinkRepository) GetList(ctx context.Context, page, pageSize int, s
 	return shortLinks, total, nil
 }
 
-// IncreaseClickCount 点击计数 +1。
-//
-// 用 `UpdateColumn` 而不是 `Update`：这里刻意**不**刷新 updated_at —— 这是
-// 匿名跳转路径上最高频的一条写，刷 updated_at 会让「链接什么时候改过配置」
-// 这个字段失去意义，也让每一行都变成脏页。
+// IncreaseClickCount 点击计数 +1。用 UpdateColumn 刻意不刷新 updated_at：
+// 这是匿名跳转路径上最高频的一条写，updated_at 应保持「配置何时被改过」的语义。
 func (r *shortLinkRepository) IncreaseClickCount(ctx context.Context, id uint) error {
 	if r == nil || r.db == nil {
 		return errShortLinkUnavailable

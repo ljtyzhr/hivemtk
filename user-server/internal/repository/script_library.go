@@ -11,12 +11,10 @@ import (
 	_db "hivemtk-user/internal/pkg/db"
 )
 
-// ScriptLibraryRepository 话术库仓储
 type ScriptLibraryRepository struct {
 	db *gorm.DB
 }
 
-// NewScriptLibraryRepository 创建话术库仓储
 func NewScriptLibraryRepository(db *gorm.DB) *ScriptLibraryRepository {
 	return &ScriptLibraryRepository{db: db}
 }
@@ -26,12 +24,8 @@ func NewScriptLibraryRepositoryFromGlobal() *ScriptLibraryRepository {
 	return NewScriptLibraryRepository(_db.GetDB())
 }
 
-// ListObjectionTemplates 查询异议处理模板
-//
-// 匹配规则：category=objection 或 subcategory=objectionCategory
-// 排序：usage_count DESC
-// 限制：limit 条（limit<=0 时不限制）
-// T-6 过期拦截：status 非空时仅取 active；expires_at 已过期的跳过
+// ListObjectionTemplates 查询异议处理模板：category=objection 或 subcategory=objectionCategory，
+// usage_count DESC，limit<=0 不限制；仅取 active 且未过期的。
 func (r *ScriptLibraryRepository) ListObjectionTemplates(ctx context.Context, objectionCategory string, limit int) ([]model.ScriptLibrary, error) {
 	if r == nil || r.db == nil {
 		return nil, errors.New("script library repository not initialized")
@@ -49,13 +43,8 @@ func (r *ScriptLibraryRepository) ListObjectionTemplates(ctx context.Context, ob
 	return scripts, nil
 }
 
-// IncrementUsageStats 更新话术使用统计
-//
-//   - 始终增加 usage_count
-//   - success=true 时同时增加 success_count，并按 success_count / GREATEST(usage_count, 1) 重算 conversion_rate
-//   - success=false 时仅增加 usage_count
-//
-// 保留原 ObjectionHandlerService.RecordUsage 的 gorm.Expr 表达式以保持等价行为。
+// IncrementUsageStats 更新话术使用统计：始终 +usage_count；success=true 时同时
+// +success_count 并按 success_count / GREATEST(usage_count, 1) 重算 conversion_rate。
 func (r *ScriptLibraryRepository) IncrementUsageStats(ctx context.Context, templateID uint, success bool) error {
 	if r == nil || r.db == nil {
 		return errors.New("script library repository not initialized")
@@ -118,7 +107,7 @@ func (r *ScriptLibraryRepository) CreateScriptVersion(ctx context.Context, v *mo
 	return r.db.WithContext(ctx).Create(v).Error
 }
 
-// UpdateScriptActivation 更新话术当前生效版本与状态（T-6 激活/过期）
+// UpdateScriptActivation 更新话术当前生效版本与状态（激活/过期）。
 func (r *ScriptLibraryRepository) UpdateScriptActivation(ctx context.Context, scriptID uint, version int, status string, expiresAt *time.Time) error {
 	if r == nil || r.db == nil {
 		return errors.New("script library repository not initialized")
@@ -186,7 +175,6 @@ func (r *ScriptLibraryRepository) ListScriptIDsByExposureAnchor(ctx context.Cont
 	return ids, err
 }
 
-// ScriptVersionStats 单版本曝光统计行
 type ScriptVersionStats struct {
 	ScriptID       uint    `json:"script_id"`
 	Version        int     `json:"version"`
@@ -215,7 +203,6 @@ func (r *ScriptLibraryRepository) ScriptExposureStats(ctx context.Context, scrip
 	return rows, err
 }
 
-// FirstScriptByID 按 ID 加载话术（RecordNotFound 上抛）
 func (r *ScriptLibraryRepository) FirstScriptByID(ctx context.Context, id uint, out *model.ScriptLibrary) error {
 	if r == nil || r.db == nil {
 		return errors.New("script library repository not initialized")
@@ -223,7 +210,6 @@ func (r *ScriptLibraryRepository) FirstScriptByID(ctx context.Context, id uint, 
 	return r.db.WithContext(ctx).First(out, id).Error
 }
 
-// FirstVersionByID 加载指定版本（RecordNotFound 上抛）
 func (r *ScriptLibraryRepository) FirstVersionByID(ctx context.Context, scriptID uint, version int, out *model.ScriptVersion) error {
 	if r == nil || r.db == nil {
 		return errors.New("script library repository not initialized")

@@ -11,7 +11,6 @@ import (
 // ErrSecurityRulesNotFound 尚未写入过配置。
 var ErrSecurityRulesNotFound = errors.New("security rules not found")
 
-// SecurityRulesRepository 安全规则配置仓储接口。
 type SecurityRulesRepository interface {
 	Available() bool
 	Get(ctx context.Context) (*model.SecurityRules, error)
@@ -22,7 +21,6 @@ type securityRulesRepo struct {
 	kv PlatformConfigKVRepository
 }
 
-// NewSecurityRulesRepository 构造安全规则仓储（复用 platform_config_kv）。
 func NewSecurityRulesRepository(kv PlatformConfigKVRepository) SecurityRulesRepository {
 	if kv == nil {
 		return nil
@@ -30,12 +28,10 @@ func NewSecurityRulesRepository(kv PlatformConfigKVRepository) SecurityRulesRepo
 	return &securityRulesRepo{kv: kv}
 }
 
-// Available 配置存储是否可用。
 func (r *securityRulesRepo) Available() bool {
 	return r != nil && r.kv != nil
 }
 
-// Get 读取安全规则配置。
 func (r *securityRulesRepo) Get(ctx context.Context) (*model.SecurityRules, error) {
 	if !r.Available() {
 		return nil, ErrSecurityRulesNotFound
@@ -54,7 +50,6 @@ func (r *securityRulesRepo) Get(ctx context.Context) (*model.SecurityRules, erro
 	return &rules, nil
 }
 
-// Upsert 写入安全规则配置。
 func (r *securityRulesRepo) Upsert(ctx context.Context, rules *model.SecurityRules) error {
 	if !r.Available() || rules == nil {
 		return ErrSecurityRulesNotFound

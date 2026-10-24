@@ -32,7 +32,6 @@ func NewOrderRepository() OrderRepository {
 	return &orderRepo{db: _db.GetDB()}
 }
 
-// NewOrderRepositoryWithDB 创建指定数据库连接的 OrderRepository 实例（用于测试）
 func NewOrderRepositoryWithDB(db *gorm.DB) OrderRepository {
 	return &orderRepo{db: db}
 }
@@ -51,8 +50,7 @@ func (r *orderRepo) GetByStringID(ctx context.Context, id string) (*model.Order,
 }
 
 func (r *orderRepo) GetOrderList(ctx context.Context, page int, limit int) ([]*model.Order, int64, error) {
-	// 夹取分页：page ≤ 0 时 `(page-1)*limit` 是负 offset（PG 直接报错），
-	// limit 无上界时一次请求可把整表拖进内存。
+	// 夹取分页：page ≤ 0 时 `(page-1)*limit` 是负 offset（PG 直接报错），limit 无上界会整表拖进内存。
 	if page < 1 {
 		page = 1
 	}
@@ -74,8 +72,7 @@ func (r *orderRepo) GetOrderList(ctx context.Context, page int, limit int) ([]*m
 	return orders, total, nil
 }
 
-// Delete 0 行 ⇒ 该订单不存在（`db.EnsureAffected`）：原样返回 nil 会让
-// 「删错 id / 已被并发删掉」在接口上表现为删除成功。
+// Delete 0 行 ⇒ 该订单不存在（db.EnsureAffected），不把删错 id 当删除成功。
 func (r *orderRepo) Delete(ctx context.Context, id string) error {
 	return _db.EnsureAffected(r.db.WithContext(ctx).Where("id = ?", id).Delete(&model.Order{}))
 }
@@ -87,8 +84,7 @@ func (r *orderRepo) UpdateOrderStatusById(ctx context.Context, id string, status
 		return err
 	}
 	order.Status = _type.OrderStatusType(status)
-	// 读—改—整行回写。0 行只能是这行在两句之间被删（裸 Save 会回退成 INSERT，
-	// 等于把删掉的订单复活成一张状态被改过的新单）。
+	// 读—改—整行回写。0 行只能是这行在两句之间被删（裸 Save 会回退成 INSERT，把删掉的订单复活）。
 	return _db.SaveWholeRow(r.db.WithContext(ctx), &order)
 }
 

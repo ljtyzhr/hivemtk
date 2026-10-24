@@ -1,4 +1,4 @@
-// proactive_reach_repo.go 主动触达仓储（客户读取/偏好渠道/账号查找）（五层 L5）
+// proactive_reach_repo.go 主动触达仓储（客户读取/偏好渠道/账号查找）
 package repository
 
 import (
@@ -11,17 +11,14 @@ import (
 	"gorm.io/gorm"
 )
 
-// ProactiveReachRepository 主动触达数据访问收口
 type ProactiveReachRepository struct {
 	db *gorm.DB
 }
 
-// NewProactiveReachRepository 构造
 func NewProactiveReachRepository(db *gorm.DB) *ProactiveReachRepository {
 	return &ProactiveReachRepository{db: db}
 }
 
-// GetCustomerByID 按 PK 读客户（未命中返回 nil）
 func (r *ProactiveReachRepository) GetCustomerByID(ctx context.Context, id string) (*model.Customer, error) {
 	if r.db == nil {
 		return nil, nil
@@ -33,7 +30,6 @@ func (r *ProactiveReachRepository) GetCustomerByID(ctx context.Context, id strin
 	return &c, nil
 }
 
-// GetCustomerByUnifiedID 按 OneID 读客户（未命中返回 nil）
 func (r *ProactiveReachRepository) GetCustomerByUnifiedID(ctx context.Context, oneID string) (*model.Customer, error) {
 	if r.db == nil {
 		return nil, nil
@@ -58,15 +54,10 @@ func (r *ProactiveReachRepository) ListCustomerChannelsByOneID(ctx context.Conte
 	return rows, err
 }
 
-// FindActiveAccountID 按渠道查找第一个可用账号，返回账号业务 ID
-//
-// 各渠道账号表结构不同，此处按渠道分派查询；无可用账号返回错误。
-//
-// bridgeGraceSeconds 只作用于五个桥接渠道（抖音/小红书/TikTok/快手/闲鱼）：
-// 那些账号的可达性按"最后同步时间落在窗口内"判，与 bridge.isOnlineByLastSync、渠道总览计数同一条口径。
-// 不能按 status='online' 选号——那一列只在 SSE 正常收尾时才改回离线，扩展崩溃/断网会把它粘在 online，
-// 于是选中的是一台永远不会来取消息的账号：出站行安静地挂在 pending，客户收不到，日志里也没有失败。
-// 无人在 grace 内 ⇒ 返回"查无账号"错误，由调用方报失败，而不是挑一台死的。
+// FindActiveAccountID 按渠道查找第一个可用账号，返回账号业务 ID；
+// 各渠道账号表结构不同，此处按渠道分派查询，无可用账号返回错误。
+// 桥接渠道的可达性按"最后同步时间落在 grace 窗口内"判（与渠道总览同口径），
+// 不能按 status='online' 选号——扩展崩溃/断网会把该列粘在 online，选中的是永远不来取消息的账号。
 func (r *ProactiveReachRepository) FindActiveAccountID(ctx context.Context, channel string, bridgeGraceSeconds int) (string, error) {
 	if r.db == nil {
 		return "", errors.New("db not available")
@@ -105,8 +96,7 @@ func (r *ProactiveReachRepository) FindActiveAccountID(ctx context.Context, chan
 		}
 		return fmt.Sprintf("%d", acc.ID), nil
 	case "douyin", "tiktok", "kuaishou", "xiaohongshu", "xianyu":
-		// 在线判定串与渠道总览共用 bridgeOnlineSQLPredicate：主动触达挑中的账号，
-		// 必须就是总览报为可达的那批，否则「面板说在线」与「消息真发得出去」会分叉。
+		// 在线判定与渠道总览共用 bridgeOnlineSQLPredicate，保证面板报可达与消息真发得出去不分叉。
 		var acc struct {
 			AccountID string
 		}

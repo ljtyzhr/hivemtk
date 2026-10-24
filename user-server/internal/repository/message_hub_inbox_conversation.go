@@ -70,8 +70,6 @@ type InboxConversationQuery struct {
 }
 
 // SetDB 注入 db（用于测试）
-//
-// 五层架构 §三.5 + §七：仓库方法必须首参为 ctx context.Context。
 func (r *InboxConversationRepository) SetDB(ctx context.Context, db *gorm.DB) {
 	if db != nil {
 		r.db = db
@@ -89,8 +87,8 @@ func (r *InboxConversationRepository) FindByPlatformAccountCustomer(ctx context.
 	return &conv, nil
 }
 
-// CreateOrUpdateByChannel 创建会话；若并发下撞唯一键 uk_inbox_conv_channel (platform,account_id,customer_id)，
-// 则退回查找并更新 last_message，保证 webhook 重发不会产生重复会话。
+// CreateOrUpdateByChannel 创建会话；并发撞唯一键 uk_inbox_conv_channel (platform,account_id,customer_id)
+// 时退回查找并更新 last_message，保证 webhook 重发不产生重复会话。
 func (r *InboxConversationRepository) CreateOrUpdateByChannel(ctx context.Context, conv *model.InboxConversation) error {
 	if r == nil || r.db == nil {
 		return nil
@@ -115,7 +113,6 @@ func (r *InboxConversationRepository) CreateOrUpdateByChannel(ctx context.Contex
 	}(), 1)
 }
 
-// Create 创建会话
 func (r *InboxConversationRepository) Create(ctx context.Context, conv *model.InboxConversation) error {
 	if r == nil || r.db == nil {
 		return nil
@@ -123,8 +120,7 @@ func (r *InboxConversationRepository) Create(ctx context.Context, conv *model.In
 	return r.db.WithContext(ctx).Create(conv).Error
 }
 
-// defaultPreviewMaxLen 消息预览最大字符数的代码兜底值，与参数中心
-// `misc.preview_max_len` 的 DefaultValue 一致。
+// defaultPreviewMaxLen 预览长度兜底值，与参数中心 `misc.preview_max_len` 的 DefaultValue 一致。
 const defaultPreviewMaxLen = 500
 
 // previewMaxLenProvider 由装配层注入；未注入时回落默认值。
@@ -159,14 +155,12 @@ func (r *InboxConversationRepository) UpdateLastMessage(ctx context.Context, id 
 		}).Error
 }
 
-// GetByID 按 ID 获取会话
 func (r *InboxConversationRepository) GetByID(ctx context.Context, id uint) (*model.InboxConversation, error) {
 	var conv model.InboxConversation
 	err := r.db.WithContext(ctx).First(&conv, id).Error
 	return &conv, err
 }
 
-// ListByAccount 按账号列出会话
 func (r *InboxConversationRepository) ListByAccount(ctx context.Context, platform, accountID string, page, pageSize int) ([]*model.InboxConversation, int64, error) {
 	var items []*model.InboxConversation
 	var total int64
@@ -188,7 +182,6 @@ func (r *InboxConversationRepository) ListByAccount(ctx context.Context, platfor
 	return items, total, err
 }
 
-// UpsertFromMessageInput upsert 入参（与 service 层字段一一对应）
 type UpsertFromMessageInput struct {
 	Platform           string
 	AccountID          string
@@ -201,12 +194,8 @@ type UpsertFromMessageInput struct {
 	LastMessageFrom    string
 }
 
-// UpsertFromMessage 根据消息 upsert 会话（事务封装在 repo 内）
-//
-// 行为保持与原 service 层 upsertInternal 一致：
-//   - 客户首条消息：unread_count=1，status=unread
-//   - 客户后续消息：unread_count+1，closed 状态自动转 unread，assigned+无 assigned_to 也转 unread
-//   - 非客户消息：不修改 unread_count
+// UpsertFromMessage 根据消息 upsert 会话（事务封装在 repo 内）：
+// 客户消息 unread_count+1 且 closed/assigned(无人) 转 unread；非客户消息重置未读。
 func (r *InboxConversationRepository) UpsertFromMessage(ctx context.Context, in UpsertFromMessageInput) error {
 	if r == nil || r.db == nil {
 		return nil
@@ -288,10 +277,8 @@ func (r *InboxConversationRepository) UpsertFromMessageTx(ctx context.Context, t
 		Updates(updates).Error
 }
 
-// DeleteOrphanInboxByConversation 删除同一 (platform, account_id, conversation_id)
-// 下、customer_id 与 keepCustomerID 不一致的孤儿收件箱行。群聊 sender_id 被时间戳
-// 污染后，同一会话会生成多条 customer_id 各异的碎片行，合并为按 conversation_id
-// 归属的单行后，其余碎片需清理以免在收件箱 UI 重复出现。
+// DeleteOrphanInboxByConversation 删除同一 (platform, account_id, conversation_id) 下
+// customer_id 与 keepCustomerID 不一致的孤儿收件箱行（群聊 sender_id 被时间戳污染产生的碎片行）。
 func (r *InboxConversationRepository) DeleteOrphanInboxByConversation(ctx context.Context, platform, accountID, conversationID, keepCustomerID string) (int64, error) {
 	if r == nil || r.db == nil {
 		return 0, nil
@@ -313,7 +300,6 @@ func sanitizeUTF8(s string) string {
 	return strings.ToValidUTF8(s, "�")
 }
 
-// MarkRead 标记会话已读（重置未读计数 + 状态置为 open）
 func (r *InboxConversationRepository) MarkRead(ctx context.Context, conversationID uint) error {
 	if r == nil || r.db == nil {
 		return nil
@@ -326,7 +312,6 @@ func (r *InboxConversationRepository) MarkRead(ctx context.Context, conversation
 		}).Error
 }
 
-// UpdateField 更新单个字段（用于 Pin/Star/Mute/Tag 等开关型操作）
 func (r *InboxConversationRepository) UpdateField(ctx context.Context, conversationID uint, field string, value any) error {
 	if r == nil || r.db == nil {
 		return nil

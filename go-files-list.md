@@ -1566,57 +1566,57 @@
 | 1351 | [x] | `internal/repository/memory.go` | 5 | 6 | 5 | 0 |
 | 1352 | [x] | `internal/repository/message.go` | 0 | 0 | 0 | 0 |
 | 1353 | [x] | `internal/repository/message_hub_inbox.go` | 4 | 8 | 4 | 0 |
-| 1354 | [ ] | `internal/repository/message_hub_inbox_assignment.go` | 12 | 18 | 12 | 0 |
-| 1355 | [ ] | `internal/repository/message_hub_inbox_conversation.go` | 20 | 34 | 20 | 0 |
+| 1354 | [x] | `internal/repository/message_hub_inbox_assignment.go` | 12 | 18 | 12 | 0 |
+| 1355 | [x] | `internal/repository/message_hub_inbox_conversation.go` | 20 | 34 | 20 | 0 |
 | 1356 | [x] | `internal/repository/message_hub_inbox_conversation_query.go` | 8 | 27 | 8 | 0 |
-| 1357 | [ ] | `internal/repository/message_hub_inbox_ctx.go` | 2 | 8 | 2 | 0 |
-| 1358 | [ ] | `internal/repository/message_hub_inbox_media.go` | 3 | 17 | 3 | 0 |
+| 1357 | [x] | `internal/repository/message_hub_inbox_ctx.go` | 2 | 8 | 2 | 0 |
+| 1358 | [x] | `internal/repository/message_hub_inbox_media.go` | 3 | 17 | 3 | 0 |
 | 1359 | [x] | `internal/repository/message_hub_inbox_message.go` | 7 | 28 | 7 | 0 |
-| 1360 | [ ] | `internal/repository/message_hub_inbox_outbound.go` | 11 | 57 | 11 | 0 |
-| 1361 | [ ] | `internal/repository/message_hub_inbox_stats.go` | 2 | 8 | 2 | 0 |
+| 1360 | [x] | `internal/repository/message_hub_inbox_outbound.go` | 11 | 57 | 11 | 0 |
+| 1361 | [x] | `internal/repository/message_hub_inbox_stats.go` | 2 | 8 | 2 | 0 |
 | 1362 | [x] | `internal/repository/message_hub_inbox_syncgap.go` | 0 | 0 | 0 | 0 |
-| 1363 | [ ] | `internal/repository/message_queue.go` | 13 | 28 | 13 | 0 |
-| 1364 | [ ] | `internal/repository/message_trace_cleanup.go` | 8 | 9 | 8 | 0 |
-| 1365 | [ ] | `internal/repository/msg_hourly_summary.go` | 8 | 16 | 8 | 0 |
-| 1366 | [ ] | `internal/repository/notification.go` | 13 | 20 | 13 | 0 |
+| 1363 | [x] | `internal/repository/message_queue.go` | 13 | 28 | 13 | 0 |
+| 1364 | [x] | `internal/repository/message_trace_cleanup.go` | 8 | 9 | 8 | 0 |
+| 1365 | [x] | `internal/repository/msg_hourly_summary.go` | 8 | 16 | 8 | 0 |
+| 1366 | [x] | `internal/repository/notification.go` | 13 | 20 | 13 | 0 |
 | 1367 | [x] | `internal/repository/obs_config.go` | 8 | 51 | 8 | 0 |
-| 1368 | [ ] | `internal/repository/office_hours.go` | 6 | 7 | 6 | 0 |
-| 1369 | [ ] | `internal/repository/operation_log.go` | 8 | 19 | 8 | 0 |
+| 1368 | [x] | `internal/repository/office_hours.go` | 6 | 7 | 6 | 0 |
+| 1369 | [x] | `internal/repository/operation_log.go` | 8 | 19 | 8 | 0 |
 | 1370 | [x] | `internal/repository/opportunity.go` | 27 | 116 | 27 | 0 |
-| 1371 | [ ] | `internal/repository/order.go` | 1 | 1 | 1 | 0 |
-| 1372 | [ ] | `internal/repository/order_draft.go` | 22 | 68 | 22 | 0 |
-| 1373 | [ ] | `internal/repository/password_history.go` | 2 | 2 | 2 | 0 |
-| 1374 | [ ] | `internal/repository/password_reset_token.go` | 16 | 27 | 16 | 0 |
+| 1371 | [x] | `internal/repository/order.go` | 1 | 1 | 1 | 0 |
+| 1372 | [x] | `internal/repository/order_draft.go` | 22 | 68 | 22 | 0 |
+| 1373 | [x] | `internal/repository/password_history.go` | 2 | 2 | 2 | 0 |
+| 1374 | [x] | `internal/repository/password_reset_token.go` | 16 | 27 | 16 | 0 |
 | 1375 | [x] | `internal/repository/payment.go` | 20 | 68 | 20 | 0 |
-| 1376 | [ ] | `internal/repository/platform_api_client.go` | 2 | 2 | 2 | 0 |
-| 1377 | [ ] | `internal/repository/platform_config_kv.go` | 3 | 6 | 3 | 0 |
-| 1378 | [ ] | `internal/repository/proactive_reach_repo.go` | 8 | 17 | 8 | 0 |
-| 1379 | [ ] | `internal/repository/prompt.go` | 10 | 11 | 10 | 0 |
-| 1380 | [ ] | `internal/repository/prompt_iterator.go` | 7 | 19 | 7 | 0 |
-| 1381 | [ ] | `internal/repository/quick_reply.go` | 7 | 7 | 7 | 0 |
-| 1382 | [ ] | `internal/repository/quick_reply_folder.go` | 6 | 6 | 6 | 0 |
+| 1376 | [x] | `internal/repository/platform_api_client.go` | 2 | 2 | 2 | 0 |
+| 1377 | [x] | `internal/repository/platform_config_kv.go` | 3 | 6 | 3 | 0 |
+| 1378 | [x] | `internal/repository/proactive_reach_repo.go` | 8 | 17 | 8 | 0 |
+| 1379 | [x] | `internal/repository/prompt.go` | 10 | 11 | 10 | 0 |
+| 1380 | [x] | `internal/repository/prompt_iterator.go` | 7 | 19 | 7 | 0 |
+| 1381 | [x] | `internal/repository/quick_reply.go` | 7 | 7 | 7 | 0 |
+| 1382 | [x] | `internal/repository/quick_reply_folder.go` | 6 | 6 | 6 | 0 |
 | 1383 | [x] | `internal/repository/quote.go` | 31 | 137 | 31 | 0 |
-| 1384 | [ ] | `internal/repository/r44_gap.go` | 47 | 50 | 47 | 0 |
+| 1384 | [x] | `internal/repository/r44_gap.go` | 47 | 50 | 47 | 0 |
 | 1385 | [x] | `internal/repository/rag_eval.go` | 17 | 18 | 17 | 0 |
-| 1386 | [ ] | `internal/repository/rag_health.go` | 2 | 4 | 2 | 0 |
-| 1387 | [ ] | `internal/repository/rag_metrics.go` | 5 | 10 | 5 | 0 |
-| 1388 | [ ] | `internal/repository/rag_recall_monitor.go` | 5 | 11 | 5 | 0 |
-| 1389 | [ ] | `internal/repository/reach_compliance_log_repo.go` | 4 | 4 | 4 | 0 |
-| 1390 | [ ] | `internal/repository/reach_pipeline.go` | 23 | 55 | 23 | 0 |
-| 1391 | [ ] | `internal/repository/rfm_rule.go` | 20 | 20 | 20 | 0 |
-| 1392 | [ ] | `internal/repository/role_menu.go` | 3 | 5 | 3 | 0 |
-| 1393 | [ ] | `internal/repository/sales_cockpit_repo.go` | 9 | 10 | 9 | 0 |
-| 1394 | [ ] | `internal/repository/sales_event.go` | 6 | 9 | 6 | 0 |
-| 1395 | [ ] | `internal/repository/sales_persona.go` | 13 | 16 | 13 | 0 |
-| 1396 | [ ] | `internal/repository/scope/tenant.go` | 8 | 42 | 8 | 0 |
-| 1397 | [ ] | `internal/repository/script_library.go` | 14 | 25 | 14 | 0 |
-| 1398 | [ ] | `internal/repository/security_audit.go` | 14 | 18 | 14 | 0 |
-| 1399 | [ ] | `internal/repository/security_rules.go` | 6 | 6 | 6 | 0 |
-| 1400 | [ ] | `internal/repository/session_ai.go` | 7 | 7 | 7 | 0 |
-| 1401 | [ ] | `internal/repository/session_chain_repo.go` | 25 | 27 | 25 | 0 |
+| 1386 | [x] | `internal/repository/rag_health.go` | 2 | 4 | 2 | 0 |
+| 1387 | [x] | `internal/repository/rag_metrics.go` | 5 | 10 | 5 | 0 |
+| 1388 | [x] | `internal/repository/rag_recall_monitor.go` | 5 | 11 | 5 | 0 |
+| 1389 | [x] | `internal/repository/reach_compliance_log_repo.go` | 4 | 4 | 4 | 0 |
+| 1390 | [x] | `internal/repository/reach_pipeline.go` | 23 | 55 | 23 | 0 |
+| 1391 | [x] | `internal/repository/rfm_rule.go` | 20 | 20 | 20 | 0 |
+| 1392 | [x] | `internal/repository/role_menu.go` | 3 | 5 | 3 | 0 |
+| 1393 | [x] | `internal/repository/sales_cockpit_repo.go` | 9 | 10 | 9 | 0 |
+| 1394 | [x] | `internal/repository/sales_event.go` | 6 | 9 | 6 | 0 |
+| 1395 | [x] | `internal/repository/sales_persona.go` | 13 | 16 | 13 | 0 |
+| 1396 | [x] 文件已不存在（f2883132 删除） | `internal/repository/scope/tenant.go` | 8 | 42 | 8 | 0 |
+| 1397 | [x] | `internal/repository/script_library.go` | 14 | 25 | 14 | 0 |
+| 1398 | [x] | `internal/repository/security_audit.go` | 14 | 18 | 14 | 0 |
+| 1399 | [x] | `internal/repository/security_rules.go` | 6 | 6 | 6 | 0 |
+| 1400 | [x] | `internal/repository/session_ai.go` | 7 | 7 | 7 | 0 |
+| 1401 | [x] | `internal/repository/session_chain_repo.go` | 25 | 27 | 25 | 0 |
 | 1402 | [x] | `internal/repository/session_message.go` | 17 | 36 | 17 | 0 |
-| 1403 | [ ] | `internal/repository/session_tag.go` | 7 | 7 | 7 | 0 |
-| 1404 | [ ] | `internal/repository/short_link.go` | 4 | 5 | 4 | 0 |
+| 1403 | [x] | `internal/repository/session_tag.go` | 7 | 7 | 7 | 0 |
+| 1404 | [x] | `internal/repository/short_link.go` | 4 | 5 | 4 | 0 |
 | 1405 | [ ] | `internal/repository/short_link_access.go` | 2 | 2 | 2 | 0 |
 | 1406 | [ ] | `internal/repository/sm_list.go` | 1 | 1 | 1 | 0 |
 | 1407 | [ ] | `internal/repository/sms.go` | 2 | 5 | 2 | 0 |

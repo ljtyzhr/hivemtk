@@ -1,4 +1,4 @@
-// session_chain_repo.go 会话生命周期链与自动化规则仓储（五层 L5）
+// session_chain_repo.go 会话生命周期链与自动化规则仓储。
 package repository
 
 import (
@@ -12,23 +12,19 @@ import (
 	"gorm.io/gorm"
 )
 
-// SessionChainRepository 会话生命周期链查询/更新收口
 type SessionChainRepository struct {
 	db *gorm.DB
 }
 
-// NewSessionChainRepository 构造
-// NewSessionChainRepository 构造（无参，内部取全局 DB；对齐 customer_session.go 先例）
+// NewSessionChainRepository 构造（无参，内部取全局 DB）。
 func NewSessionChainRepository() *SessionChainRepository {
 	return NewSessionChainRepositoryWithDB(_db.GetDB())
 }
 
-// NewSessionChainRepositoryWithDB 显式注入 DB（测试/装配用）
 func NewSessionChainRepositoryWithDB(db *gorm.DB) *SessionChainRepository {
 	return &SessionChainRepository{db: db}
 }
 
-// ListStaleSessions SLA 扫描：取可自动关闭的超时会话
 func (r *SessionChainRepository) ListStaleSessions(ctx context.Context, threshold time.Time) ([]*model.CustomerSession, error) {
 	if r.db == nil {
 		return nil, nil
@@ -43,7 +39,6 @@ func (r *SessionChainRepository) ListStaleSessions(ctx context.Context, threshol
 	return sessions, err
 }
 
-// UpdateSessionTags 按 PK 更新会话标签 JSON
 func (r *SessionChainRepository) UpdateSessionTags(ctx context.Context, id uint, tagsJSON string) error {
 	if r.db == nil {
 		return nil
@@ -52,7 +47,6 @@ func (r *SessionChainRepository) UpdateSessionTags(ctx context.Context, id uint,
 		Where("id = ?", id).Update("tags", tagsJSON).Error
 }
 
-// CloseSessionByPK 按 PK 关闭会话
 func (r *SessionChainRepository) CloseSessionByPK(ctx context.Context, id uint) error {
 	if r.db == nil {
 		return nil
@@ -61,7 +55,6 @@ func (r *SessionChainRepository) CloseSessionByPK(ctx context.Context, id uint) 
 		Where("id = ?", id).Update("status", model.SessionStatusClosed).Error
 }
 
-// ReopenSessionOnInbound resolved/closed 会话在收到访客消息后回 waiting，返回是否发生迁移
 func (r *SessionChainRepository) ReopenSessionOnInbound(ctx context.Context, sessionID string) (bool, error) {
 	if r.db == nil {
 		return false, nil
@@ -78,7 +71,6 @@ func (r *SessionChainRepository) ReopenSessionOnInbound(ctx context.Context, ses
 	return res.RowsAffected > 0, nil
 }
 
-// GetSessionBySessionID 按 session_id 取会话（SessionChainService.GetSession 收口）
 func (r *SessionChainRepository) GetSessionBySessionID(ctx context.Context, sessionID string) (*model.CustomerSession, error) {
 	if r.db == nil {
 		return nil, gorm.ErrInvalidDB
@@ -90,23 +82,19 @@ func (r *SessionChainRepository) GetSessionBySessionID(ctx context.Context, sess
 	return &sess, nil
 }
 
-// AutomationRuleRepository 自动化规则 CRUD 与延迟执行收口
 type AutomationRuleRepository struct {
 	db *gorm.DB
 }
 
-// NewAutomationRuleRepository 构造
-// NewAutomationRuleRepository 构造（无参，内部取全局 DB；对齐 customer_session.go 先例）
+// NewAutomationRuleRepository 构造（无参，内部取全局 DB）。
 func NewAutomationRuleRepository() *AutomationRuleRepository {
 	return NewAutomationRuleRepositoryWithDB(_db.GetDB())
 }
 
-// NewAutomationRuleRepositoryWithDB 显式注入 DB（测试/装配用）
 func NewAutomationRuleRepositoryWithDB(db *gorm.DB) *AutomationRuleRepository {
 	return &AutomationRuleRepository{db: db}
 }
 
-// ListRules 按 event 过滤规则列表
 func (r *AutomationRuleRepository) ListRules(ctx context.Context, event string) ([]*model.AutomationRule, error) {
 	if r.db == nil {
 		return nil, nil
@@ -120,7 +108,6 @@ func (r *AutomationRuleRepository) ListRules(ctx context.Context, event string) 
 	return list, err
 }
 
-// ListEnabledRulesByEvent 按 event 取启用规则（调度入口，限 20 条）
 func (r *AutomationRuleRepository) ListEnabledRulesByEvent(ctx context.Context, event string) ([]*model.AutomationRule, error) {
 	if r.db == nil {
 		return nil, nil
@@ -133,7 +120,6 @@ func (r *AutomationRuleRepository) ListEnabledRulesByEvent(ctx context.Context, 
 	return rules, err
 }
 
-// IncrementRuleRunCount 规则执行次数自增
 func (r *AutomationRuleRepository) IncrementRuleRunCount(ctx context.Context, rule *model.AutomationRule) error {
 	if r.db == nil {
 		return nil
@@ -141,7 +127,6 @@ func (r *AutomationRuleRepository) IncrementRuleRunCount(ctx context.Context, ru
 	return r.db.WithContext(ctx).Model(rule).UpdateColumn("run_count", gorm.Expr("run_count + 1")).Error
 }
 
-// CreatePendingRuleExecution 写延迟执行记录
 func (r *AutomationRuleRepository) CreatePendingRuleExecution(ctx context.Context, pending *model.RulePendingExecution) error {
 	if r.db == nil {
 		return nil
@@ -149,7 +134,6 @@ func (r *AutomationRuleRepository) CreatePendingRuleExecution(ctx context.Contex
 	return r.db.WithContext(ctx).Create(pending).Error
 }
 
-// ListDuePendingExecutions 取到期 pending 执行记录
 func (r *AutomationRuleRepository) ListDuePendingExecutions(ctx context.Context, now time.Time) ([]*model.RulePendingExecution, error) {
 	if r.db == nil {
 		return nil, nil
@@ -161,7 +145,6 @@ func (r *AutomationRuleRepository) ListDuePendingExecutions(ctx context.Context,
 	return pendings, err
 }
 
-// UpdatePendingExecutionStatus 更新延迟执行记录状态
 func (r *AutomationRuleRepository) UpdatePendingExecutionStatus(ctx context.Context, id uint, status string) error {
 	if r.db == nil {
 		return nil
@@ -170,7 +153,6 @@ func (r *AutomationRuleRepository) UpdatePendingExecutionStatus(ctx context.Cont
 		Where("id = ?", id).Update("status", status).Error
 }
 
-// GetRuleByID 按 PK 取规则
 func (r *AutomationRuleRepository) GetRuleByID(ctx context.Context, id uint) (*model.AutomationRule, error) {
 	if r.db == nil {
 		return nil, errors.New("automation rule repository not initialized")
@@ -182,7 +164,6 @@ func (r *AutomationRuleRepository) GetRuleByID(ctx context.Context, id uint) (*m
 	return &rule, nil
 }
 
-// GetSessionBySessionID 按 session_id 取会话（规则执行上下文）
 func (r *AutomationRuleRepository) GetSessionBySessionID(ctx context.Context, sessionID string) (*model.CustomerSession, error) {
 	if r.db == nil {
 		return nil, errors.New("automation rule repository not initialized")
@@ -194,7 +175,6 @@ func (r *AutomationRuleRepository) GetSessionBySessionID(ctx context.Context, se
 	return &sess, nil
 }
 
-// UpdateSessionFieldsBySessionID 按 session_id 更新会话单字段
 func (r *AutomationRuleRepository) UpdateSessionFieldsBySessionID(ctx context.Context, sessionID, field string, value any) error {
 	if r.db == nil {
 		return nil
@@ -203,7 +183,6 @@ func (r *AutomationRuleRepository) UpdateSessionFieldsBySessionID(ctx context.Co
 		Where("session_id = ?", sessionID).Update(field, value).Error
 }
 
-// CreateRuleOutboundMessage 写规则自动外发消息
 func (r *AutomationRuleRepository) CreateRuleOutboundMessage(ctx context.Context, rec *model.MessageHub) error {
 	if r.db == nil {
 		return nil

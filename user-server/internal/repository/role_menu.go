@@ -9,8 +9,7 @@ import (
 	"hivemtk-user/internal/pkg/db"
 )
 
-// RoleMenuPermissionRepository 角色↔菜单分配仓储接口
-//
+// RoleMenuPermissionRepository 角色↔菜单分配仓储接口。
 // admin 恒全量不落库；仅 customer_service/staff 两档存行。
 type RoleMenuPermissionRepository interface {
 	ListKeysByRole(ctx context.Context, role string) ([]string, error)
@@ -23,7 +22,6 @@ type roleMenuRepo struct {
 	db *gorm.DB
 }
 
-// NewRoleMenuPermissionRepository 构造
 func NewRoleMenuPermissionRepository() RoleMenuPermissionRepository {
 	return &roleMenuRepo{db: db.GetDB()}
 }

@@ -1,4 +1,4 @@
-// sales_cockpit_repo.go 驾驶舱聚合查询仓储（五层 L5）
+// sales_cockpit_repo.go 驾驶舱聚合查询仓储。
 package repository
 
 import (
@@ -9,18 +9,15 @@ import (
 	"gorm.io/gorm"
 )
 
-// SalesCockpitRepository 驾驶舱聚合 SQL 收口
 type SalesCockpitRepository struct {
 	db *gorm.DB
 }
 
-// NewSalesCockpitRepository 构造
-// NewSalesCockpitRepository 构造（无参，内部取全局 DB；对齐 customer_session.go 先例）
+// NewSalesCockpitRepository 构造（无参，内部取全局 DB）。
 func NewSalesCockpitRepository() *SalesCockpitRepository {
 	return NewSalesCockpitRepositoryWithDB(_db.GetDB())
 }
 
-// NewSalesCockpitRepositoryWithDB 显式注入 DB（测试/装配用）
 func NewSalesCockpitRepositoryWithDB(db *gorm.DB) *SalesCockpitRepository {
 	return &SalesCockpitRepository{db: db}
 }
@@ -37,7 +34,7 @@ func (r *SalesCockpitRepository) CountWhere(ctx context.Context, table, cond str
 	return n
 }
 
-// LLMRouteStats 驾驶舱：LLM 路由调用分布（原 GroupQuery 固定 SQL 逐一链化，T012）
+// LLMRouteStats 驾驶舱：LLM 路由调用分布。
 func (r *SalesCockpitRepository) LLMRouteStats(ctx context.Context, since string) []map[string]any {
 	if r.db == nil {
 		return []map[string]any{}

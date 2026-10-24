@@ -1,10 +1,5 @@
-// order_draft.go 订单草稿仓储（T-P2-01 / R-1）
-//
-// 五层架构里本文件是 service.OrderDraftService 与 order_drafts 表之间唯一的一层：
-// service 不碰 *gorm.DB，只依赖本接口（内存实现见 service/order_draft_store.go）。
-//
-// 刻意没有"写失败就退回内存"这条路：草稿是销售要拿去成单的工作数据，静默丢一份
-// 比明确报错严重得多（对照 T-P1-08 的审计落库——审计可以降级，业务数据不行）。
+// order_draft.go 订单草稿仓储。service 只依赖本接口，不碰 *gorm.DB。
+// 刻意没有"写失败就退回内存"这条路：草稿是成单工作数据，静默丢一份比明确报错严重。
 package repository
 
 import (
@@ -21,16 +16,10 @@ import (
 )
 
 // ErrOrderDraftPendingConflict 同一客户同一产品已存在他人先建的 pending 草稿。
-//
-// 单列成错误而非让调用方去匹配 PG 约束名：判据要写在代码里才能测，
-// 而 "23505" 这种字符串比较散在 service 里等于没有判据。
 var ErrOrderDraftPendingConflict = errors.New("order_draft: 该客户同产品已有 pending 草稿")
 
 // draftWriteColumns 更新时整行覆盖的列（不含 id/created_at）。
-//
-// 为什么显式列清单而不是 UpdateAll：`Select("*")` 在 GORM 里会连 created_at 一起写，
-// 于是一次普通编辑会把草稿的创建时间挪到现在 —— 列表排序与"7 天未确认过期"都按
-// created_at/expires_at 算，创建时间被挪等于把草稿的寿命无限续期。
+// 不用 Select("*")：GORM 会连 created_at 一起写，等于把草稿寿命无限续期。
 var draftWriteColumns = []string{
 	"customer_id", "one_id", "owner_id", "product_name", "product_id", "category",
 	"quantity", "unit_price", "total_amount", "confidence",
@@ -51,9 +40,8 @@ type OrderDraftRepository interface {
 	// GetByID 按草稿 ID 读取；不存在返回 (nil, nil)。
 	GetByID(ctx context.Context, id string) (*model.OrderDraft, error)
 
-	// ListPendingByCustomer 列出某客户仍处于 pending 的草稿（按创建时间升序）。
-	// 供 service 做"同名/包含关系"模糊去重：SQL 只负责收窄候选集，
-	// 匹配规则留在业务层，避免把业务判据劈成两处各说各话。
+	// ListPendingByCustomer 列出某客户仍处于 pending 的草稿（按创建时间升序），
+	// SQL 只收窄候选集，匹配规则留在 service 层。
 	ListPendingByCustomer(ctx context.Context, customerID string) ([]*model.OrderDraft, error)
 
 	// ListPending 列出未过期的 pending 草稿，排序 = 置信度↓、金额↓、到期时间↑。
@@ -67,19 +55,13 @@ type OrderDraftRepository interface {
 	ListByOwner(ctx context.Context, ownerID string) ([]*model.OrderDraft, error)
 
 	// ExpirePendingBatch 在一条事务里锁定一批"已到期且仍 pending"的草稿并翻成 expired，
-	// 返回**实际被翻转**的行（供上层逐条发统计事件）。limit<=0 表示整批不限。
-	//
-	// 为什么不用"先查一批再按 id 更新"：那样查到的集合与真正被改写的行之间可以夹进
-	// 一次 Confirm —— 结果是把刚成交的草稿刷成过期，且统计里多一条假的 expired 事件。
-	// FOR UPDATE SKIP LOCKED 同时解决两件事：锁住本轮要改的行，并让多副本 worker 各拿
-	// 一份不相交的集合（而不是两个进程把同一批草稿各过期一次、事件记两遍）。
+	// 返回实际被翻转的行（供上层逐条发统计事件）。limit<=0 表示整批不限。
+	// FOR UPDATE SKIP LOCKED 防止查到集合与改写行之间夹进一次 Confirm（把刚成交的刷成过期），
+	// 并让多副本 worker 各拿一份不相交集合。
 	ExpirePendingBatch(ctx context.Context, now time.Time, limit int) ([]*model.OrderDraft, error)
 
 	// MutatePending 在一条事务里锁住某行、确认仍是 pending 后交 fn 就地改，再写回。
-	// 返回 false = 行不存在或已不是 pending（fn 未被调用）。
-	//
-	// "读—判—写"三步合成一次加锁读，是为了让 Confirm/Cancel/Edit 不必各写一遍
-	// 乐观重试：两个销售同时点确认时，落败方拿到的是 false 而不是"成功"。
+	// 返回 false = 行不存在或已不是 pending（fn 未被调用）——并发点确认时落败方拿到 false 而不是"成功"。
 	MutatePending(ctx context.Context, id string, fn func(*model.OrderDraft)) (bool, error)
 
 	// PurgeTerminal 删除终态（cancelled/expired）且 updated_at 早于 before 的行，
@@ -94,12 +76,10 @@ type orderDraftRepo struct {
 	db *gorm.DB
 }
 
-// NewOrderDraftRepository 创建草稿仓库实例（用全局 DB）
 func NewOrderDraftRepository() OrderDraftRepository {
 	return &orderDraftRepo{db: _db.GetDB()}
 }
 
-// NewOrderDraftRepositoryWithDB 创建指定数据库连接的草稿仓库实例（用于测试）
 func NewOrderDraftRepositoryWithDB(db *gorm.DB) OrderDraftRepository {
 	return &orderDraftRepo{db: db}
 }
@@ -140,21 +120,11 @@ func (r *orderDraftRepo) Upsert(ctx context.Context, d *model.OrderDraft) error 
 	return err
 }
 
-// quoteIdent 双引号包裹标识符。
-//
-// 本函数的输入全部来自包内常量 draftWriteColumns（不是用户输入），加引号不是为了
-// 防注入，而是让 EXCLUDED.<col> 在 GORM 的表达式解析里保持原样；写在这里是
-// 免得每列手拼一遍把引号漏掉。
+// quoteIdent 双引号包裹标识符。输入全部来自包内常量 draftWriteColumns（非用户输入）。
 func quoteIdent(s string) string { return `"` + s + `"` }
 
-// isPendingConflict 判定"命中的是 uq_order_draft_pending 还是别的约束"。
-//
-// 必须区分：id 主键冲突已被 ON CONFLICT 消化，正常情况下不会回到这里；真回到这里的
-// 唯一预期就是那个部分唯一索引。误把别的唯一约束当 pending 会让 service 去做一次
-// 毫无意义的重查，所以 SQLSTATE 与约束名两个条件都要命中。
-//
-// 不认 gorm.ErrDuplicatedKey：那个类型只在 Open 时设 `TranslateError: true` 才产出，
-// 本仓连接配置没开，这里拿到的是底层 *pgconn.PgError（错误串含 23505 与约束名）。
+// isPendingConflict 判定命中 uq_order_draft_pending 而非其他约束（id 主键冲突已被 ON CONFLICT 消化）。
+// 不认 gorm.ErrDuplicatedKey：本仓连接未开 TranslateError，拿到的是底层错误串。
 func isPendingConflict(err error) bool {
 	if err == nil {
 		return false
@@ -224,8 +194,7 @@ func (r *orderDraftRepo) ListByOwner(ctx context.Context, ownerID string) ([]*mo
 	if err := r.require(); err != nil {
 		return nil, err
 	}
-	// GORM 1.30 的 Order 只收单个表达式、不接占位符参数，所以 pending 的字面量只能内联。
-	// 拼进去的是本包编译期常量（值 "pending"），不是入参 —— owner_id 仍走占位符绑定。
+	// 拼进 Order 的是本包编译期常量（值 "pending"），不是入参；owner_id 仍走占位符绑定。
 	pendingFirst := "CASE WHEN status = '" + model.OrderDraftStatusPending + "' THEN 0 ELSE 1 END"
 	var rows []*model.OrderDraft
 	err := r.db.WithContext(ctx).
@@ -280,11 +249,7 @@ func (r *orderDraftRepo) ExpirePendingBatch(ctx context.Context, now time.Time, 
 }
 
 // MutatePending 一次加锁读 + 判态 + 写回，返回 fn 是否真的落库。
-//
-// 为什么不写成"GetByID → 判 status → Save"三步：那样两个销售同时点确认时，两边都
-// 读到 pending、都去创建订单，结果是**一单变两单**。SELECT ... FOR UPDATE 把
-// 读—判—写收进同一个行锁，落败方拿到的是 applied=false（调用方据此报"状态已变"），
-// 顺带覆盖多副本进程。
+// SELECT ... FOR UPDATE 把读—判—写收进同一行锁，防止两个并发确认都读到 pending 而一单变两单。
 func (r *orderDraftRepo) MutatePending(ctx context.Context, id string, fn func(*model.OrderDraft)) (bool, error) {
 	if err := r.require(); err != nil {
 		return false, err
@@ -325,8 +290,7 @@ func (r *orderDraftRepo) PurgeTerminal(ctx context.Context, before time.Time, li
 	if err := r.require(); err != nil {
 		return 0, err
 	}
-	// 先取 id 再删：PG 不支持 DELETE ... LIMIT，直接删会让"单轮清理多少行"失去控制；
-	// 分批的意义在于让一次清理的最坏耗时与锁范围有上界（同 recovery worker 的单轮上限口径）。
+	// 先取 id 再删：PG 不支持 DELETE ... LIMIT，分批让单轮清理的耗时与锁范围有上界。
 	q := r.db.WithContext(ctx).Model(&model.OrderDraft{}).
 		Where("status IN ? AND updated_at < ?", model.OrderDraftTerminalStatuses, before).
 		Order("updated_at ASC, id ASC")

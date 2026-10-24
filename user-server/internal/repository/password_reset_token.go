@@ -13,10 +13,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// PasswordResetTokenRepository 密码重置令牌仓储
-//
-// 负责 password_reset_tokens 表的 CRUD。提供 NewPasswordResetTokenRepository(db)
-// 与 NewPasswordResetTokenRepositoryWithTx(tx) 两种构造，便于在事务内复用。
+// PasswordResetTokenRepository 密码重置令牌仓储（password_reset_tokens 表）。
 type PasswordResetTokenRepository struct {
 	db *gorm.DB
 }
@@ -36,7 +33,6 @@ func NewPasswordResetTokenRepositoryWithTx(tx *gorm.DB) *PasswordResetTokenRepos
 }
 
 // GetUserByEmail 按 email 查 system_user（用于密码重置前置校验）
-// 修复 A3：原实现查 model.User（老表），现改为查 model.SystemUser（统一用户表）
 func (r *PasswordResetTokenRepository) GetUserByEmail(ctx context.Context, email string) (*model.SystemUser, error) {
 	if r == nil || r.db == nil {
 		return nil, errors.New("password reset token repository not initialized")
@@ -112,9 +108,7 @@ func (r *PasswordResetTokenRepository) GetByTokenAnyTenant(ctx context.Context, 
 }
 
 // MarkUsed 标记令牌已使用。
-//
-// 0 行 ⇒ 该令牌不存在（或被并发的那次重置抢先标掉了，`db.EnsureAffected`）：
-// 原样返回 nil 会让"同一枚令牌被用第二次"变成一次成功改密 —— 那正是重放窗口。
+// 0 行 ⇒ 令牌不存在或已被并发重置标掉（db.EnsureAffected 报错），防同一枚令牌重放改密。
 func (r *PasswordResetTokenRepository) MarkUsed(ctx context.Context, id string, usedAt time.Time) error {
 	if r == nil || r.db == nil {
 		return errors.New("password reset token repository not initialized")
@@ -144,13 +138,11 @@ type PasswordResetUserTxHelpers struct {
 	tx *gorm.DB
 }
 
-// NewPasswordResetUserTxHelpers 创建事务内 user 更新辅助器
 func NewPasswordResetUserTxHelpers(tx *gorm.DB) *PasswordResetUserTxHelpers {
 	return &PasswordResetUserTxHelpers{tx: tx}
 }
 
 // UpdatePasswordInTx 事务内更新 system_user 密码
-// 修复 A3：原实现查 model.User（老表），现改为查 model.SystemUser（统一用户表）
 func (h *PasswordResetUserTxHelpers) UpdatePasswordInTx(ctx context.Context, userID, hashedPassword string) error {
 	if h == nil || h.tx == nil {
 		return errors.New("password reset tx helper not initialized")
@@ -160,14 +152,13 @@ func (h *PasswordResetUserTxHelpers) UpdatePasswordInTx(ctx context.Context, use
 	if _, err := fmt.Sscanf(userID, "%d", &uid); err != nil {
 		return fmt.Errorf("invalid user_id format: %w", err)
 	}
-	// 同 MarkUsed：命中 0 行意味着用户行已不在（或 id 不属于本租户），
-	// 不能回一句"改密成功"。事务里任一步 0 行都会整体回滚，令牌不会被标成已用。
+	// 同 MarkUsed：0 行意味着用户行已不在或 id 不属于本租户；事务任一步 0 行整体回滚，令牌不会被标成已用。
 	return _db.EnsureAffected(h.tx.WithContext(ctx).Model(&model.SystemUser{}).
 		Where("id = ?", uid).
 		Update("password", hashedPassword))
 }
 
-// RunPasswordResetTransaction 事务封口：标记 token 已用 + 更新用户密码（五层 L5：事务在仓储层编排）
+// RunPasswordResetTransaction 事务封口：标记 token 已用 + 更新用户密码。
 func RunPasswordResetTransaction(ctx context.Context, db *gorm.DB, tokenID, userID, hashedPassword string) error {
 	return db.WithContext(ctx).Transaction(func(tx *gorm.DB) error {
 		if err := NewPasswordResetTokenRepositoryWithTx(tx).MarkUsed(ctx, tokenID, time.Now()); err != nil {
@@ -177,8 +168,7 @@ func RunPasswordResetTransaction(ctx context.Context, db *gorm.DB, tokenID, user
 	})
 }
 
-// RunResetTransaction 实例方法版事务封口，供 service 层通过仓储自身 db 调用，
-// 避免 service 持有 *gorm.DB（ARC-01 五层架构约束）。
+// RunResetTransaction 实例方法版事务封口，service 不持有 *gorm.DB。
 func (r *PasswordResetTokenRepository) RunResetTransaction(ctx context.Context, tokenID, userID, hashedPassword string) error {
 	if r == nil || r.db == nil {
 		return errors.New("password reset token repository not initialized")

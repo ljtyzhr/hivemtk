@@ -16,7 +16,7 @@ type MessageTraceCleanupRepo struct {
 	db *gorm.DB
 }
 
-// NewMessageTraceCleanupRepo 构造（无参，内部取全局 DB；对齐 customer_session.go 先例）
+// NewMessageTraceCleanupRepo 构造（无参，内部取全局 DB）
 func NewMessageTraceCleanupRepo() *MessageTraceCleanupRepo {
 	return NewMessageTraceCleanupRepoWithDB(_db.GetDB())
 }
@@ -26,11 +26,9 @@ func NewMessageTraceCleanupRepoWithDB(db *gorm.DB) *MessageTraceCleanupRepo {
 	return &MessageTraceCleanupRepo{db: db}
 }
 
-// conn 返回当前可用的句柄：显式注入的优先，否则**每次现取**全局句柄。
-//
-// 本仓储由 service 包的 init() 构造，那一刻 db.InitDB 还没跑，`_db.GetDB()`
-// 必然是 nil —— 把 nil 存进字段就意味着清理任务此后每次都对 nil 句柄取 WithContext
-// 而 panic（被循环里的 recover 吞掉），表正文永远打不掉码、也永远不置 NULL。
+// conn 返回当前可用的句柄：显式注入的优先，否则每次现取全局句柄。
+// 本仓储在 service 包 init() 时构造，那一刻全局 DB 尚未就绪，
+// 缓存 nil 句柄会让清理任务每次都 panic 被吞、正文永远清不掉。
 func (r *MessageTraceCleanupRepo) conn() (*gorm.DB, error) {
 	if r.db != nil {
 		return r.db, nil
@@ -41,7 +39,6 @@ func (r *MessageTraceCleanupRepo) conn() (*gorm.DB, error) {
 	return nil, gorm.ErrInvalidDB
 }
 
-// TraceMaskRow PII 打码批次行
 type TraceMaskRow struct {
 	ID     uint
 	Input  string
@@ -64,7 +61,6 @@ func (r *MessageTraceCleanupRepo) ListForPIIMask(ctx context.Context, upper, low
 	return rows, err
 }
 
-// UpdateBody 更新单行 input/output
 func (r *MessageTraceCleanupRepo) UpdateBody(ctx context.Context, id uint, newIn, newOut string) (int64, error) {
 	db, err := r.conn()
 	if err != nil {

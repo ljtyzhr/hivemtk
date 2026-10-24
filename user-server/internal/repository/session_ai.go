@@ -10,17 +10,14 @@ import (
 	"gorm.io/gorm"
 )
 
-// SessionAIRepo AI 会话摘要仓储
 type SessionAIRepo struct {
 	db *gorm.DB
 }
 
-// NewSessionAIRepo 构造
 func NewSessionAIRepo(db *gorm.DB) *SessionAIRepo {
 	return &SessionAIRepo{db: db}
 }
 
-// MsgRow 会话消息行
 type MsgRow struct {
 	SenderType string
 	SenderName string
@@ -28,7 +25,6 @@ type MsgRow struct {
 	CreatedAt  string
 }
 
-// ListRecentMessages 取会话最近 N 条消息（用于生成摘要）
 func (r *SessionAIRepo) ListRecentMessages(ctx context.Context, sessionID string, limit int) ([]MsgRow, error) {
 	var rows []MsgRow
 	err := r.db.WithContext(ctx).
@@ -39,7 +35,6 @@ func (r *SessionAIRepo) ListRecentMessages(ctx context.Context, sessionID string
 	return rows, err
 }
 
-// UpsertSummary 按 session_id 覆盖写摘要
 func (r *SessionAIRepo) UpsertSummary(ctx context.Context, rec *model.SessionAISummary) error {
 	if err := r.db.WithContext(ctx).
 		Where("session_id = ?", rec.SessionID).
@@ -49,7 +44,6 @@ func (r *SessionAIRepo) UpsertSummary(ctx context.Context, rec *model.SessionAIS
 	return r.db.WithContext(ctx).Create(rec).Error
 }
 
-// GetLatestSummary 取最近一条摘要
 func (r *SessionAIRepo) GetLatestSummary(ctx context.Context, sessionID string) (*model.SessionAISummary, bool, error) {
 	var rec model.SessionAISummary
 	err := r.db.WithContext(ctx).
