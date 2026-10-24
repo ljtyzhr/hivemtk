@@ -9,6 +9,7 @@ import (
 	"hivemtk-user/internal/dto"
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/featureflag"
+	"hivemtk-user/internal/repository"
 )
 
 func withLayer1Flag(t *testing.T, val string) {
@@ -253,4 +254,17 @@ func TestLayerRouter_Route_FFToggle(t *testing.T) {
 	if dec2.Reason == dto.ReasonLayer1Disabled {
 		t.Error("expected reason != layer1_disabled when FF on")
 	}
+}
+
+// ScoreCandidatesScored T2 引用溯源接口的 mock 兜底。
+func (m *mockFAQRepo) ScoreCandidatesScored(ctx context.Context, entries []model.FAQEntry, msg string, topK int) ([]repository.FAQScoredEntry, error) {
+	ents, err := m.ScoreCandidates(ctx, entries, msg, topK)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]repository.FAQScoredEntry, 0, len(ents))
+	for _, e := range ents {
+		out = append(out, repository.FAQScoredEntry{Entry: e, MatchType: dto.FAQMatchExact, Score: e.Confidence})
+	}
+	return out, nil
 }

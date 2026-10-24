@@ -616,3 +616,17 @@ func TestFAQService_MatchByAgent_DefaultTopK(t *testing.T) {
 }
 
 func ptrBoolUniq(b bool) *bool { return &b }
+
+// ScoreCandidatesScored T2 引用溯源接口的 mock 兜底（词元层语义无法从 entry 还原，
+// mock 场景统一按 exact 处理即可——decay 用例不消费 MatchType）。
+func (m *mockFAQRepoForDecay) ScoreCandidatesScored(ctx context.Context, entries []model.FAQEntry, msg string, topK int) ([]repository.FAQScoredEntry, error) {
+	ents, err := m.ScoreCandidates(ctx, entries, msg, topK)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]repository.FAQScoredEntry, 0, len(ents))
+	for _, e := range ents {
+		out = append(out, repository.FAQScoredEntry{Entry: e, MatchType: dto.FAQMatchExact, Score: e.Confidence})
+	}
+	return out, nil
+}

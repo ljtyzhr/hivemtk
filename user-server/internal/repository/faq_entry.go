@@ -7,6 +7,7 @@ import (
 	"time"
 	"unicode/utf8"
 
+	"hivemtk-user/internal/dto"
 	"hivemtk-user/internal/model"
 
 	"gorm.io/gorm"
@@ -186,14 +187,43 @@ func ScoreFAQCandidates(r *FAQRepository, entries []model.FAQEntry, msg string, 
 }
 
 func (r *FAQRepository) scoreAndRank(all []model.FAQEntry, msg string, topK int) ([]model.FAQEntry, error) {
+	scored, err := r.scoreAndRanked(all, msg, topK)
+	if err != nil {
+		return nil, err
+	}
+	out := make([]model.FAQEntry, 0, len(scored))
+	for _, s := range scored {
+		e := s.Entry
+		e.Confidence = s.Score
+		out = append(out, e)
+	}
+	return out, nil
+}
+
+// FAQScoredEntry 打分结果带显式匹配方式（T2 引用溯源：MatchType 一并带出，
+// 泛词兜底命中不得作为高置信引用展示——设计红线，见 T2-answer-citation.md §1.3）。
+type FAQScoredEntry struct {
+	Entry     model.FAQEntry
+	MatchType string  // dto.FAQMatchExact / FAQMatchToken / FAQMatchKeywordFallback
+	Score     float64 // 排序分（与 Confidence 透传值同源）
+}
+
+// ScoreCandidatesScored ScoreCandidates 的带 MatchType 变体：T2 引用链路专用，
+// 旧签名 ScoreCandidates 保持不变（4 个既有调用方零改动）。
+func (r *FAQRepository) ScoreCandidatesScored(ctx context.Context, entries []model.FAQEntry, msg string, topK int) ([]FAQScoredEntry, error) {
+	return r.scoreAndRanked(entries, msg, topK)
+}
+
+func (r *FAQRepository) scoreAndRanked(all []model.FAQEntry, msg string, topK int) ([]FAQScoredEntry, error) {
 	msgTokens := tokenize(msg)
 	if len(msgTokens) == 0 {
 		return nil, nil
 	}
 	type scored struct {
-		entry model.FAQEntry
-		score float64
-		level float64
+		entry     model.FAQEntry
+		score     float64
+		level     float64
+		matchType string
 	}
 	var results []scored
 	for i := range all {
@@ -258,7 +288,18 @@ func (r *FAQRepository) scoreAndRank(all []model.FAQEntry, msg string, topK int)
 			// 精确命中与词元命中都没有 ⇒ 这条与用户问法无关。
 			continue
 		}
-		results = append(results, scored{entry: e, score: score, level: level})
+		// T2：匹配方式显式化。精确层=exact；词元层里，若该条**配了关键词**
+		// 且关键词与问句共用词元（faqTokenHits 路径），按 token；
+		// 若走的是"无关键词条目的问法词元重合"（faqTokenOverlapCount 路径），
+		// 视为泛化兜底（keyword_fallback），引用侧会按分数过滤。
+		matchType := dto.FAQMatchExact
+		if level == faqMatchLevelToken {
+			matchType = dto.FAQMatchToken
+			if len(e.Keywords) == 0 {
+				matchType = dto.FAQMatchKeywordFallback
+			}
+		}
+		results = append(results, scored{entry: e, score: score, level: level, matchType: matchType})
 	}
 	// 层是主键：先按层排，层内按强度排，强度相同才看问法相似度。
 	sort.SliceStable(results, func(i, j int) bool {
@@ -270,10 +311,9 @@ func (r *FAQRepository) scoreAndRank(all []model.FAQEntry, msg string, topK int)
 	if topK <= 0 || topK > len(results) {
 		topK = len(results)
 	}
-	out := make([]model.FAQEntry, 0, topK)
+	out := make([]FAQScoredEntry, 0, topK)
 	for i := 0; i < topK; i++ {
-		results[i].entry.Confidence = results[i].score
-		out = append(out, results[i].entry)
+		out = append(out, FAQScoredEntry{Entry: results[i].entry, MatchType: results[i].matchType, Score: results[i].score})
 	}
 	return out, nil
 }

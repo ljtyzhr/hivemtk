@@ -248,6 +248,9 @@ type HandleResult struct {
 	Cards          []model.RichCard `json:"cards,omitempty"`
 	SuggestionID   uint             `json:"suggestion_id,omitempty"`
 	SalesResponse  *SalesResponse   `json:"sales_response,omitempty"`
+	// Citations 答案引用溯源（T2）：透传本轮回答的引用（旁路字段），
+	// 转人工轮次恒为空。webhook/桥接出站侧不拼接（IM 无富文本引用 UI）。
+	Citations []dto.Citation `json:"citations,omitempty"`
 }
 
 // HandleIncoming 处理入站消息（智能体主入口，默认配置）
@@ -428,6 +431,9 @@ func (o *SmartCSOrchestrator) HandleIncomingWithAgent(ctx context.Context, in *I
 	conf, confDec := o.extractConfidenceWithTopK(ctx, salesResp, session.SessionID, in.Content, ragTopKOf(finalAgentCtx))
 	result.Confidence = conf
 	result.Cards = RichCardsFromDTO(salesResp.Cards)
+	// T2 引用溯源：严格在 extractConfidenceWithTopK 之后组装（旁路，
+	// 不进置信度计算——website_handoff_regression_test 红线）。
+	result.Citations = salesResp.Citations
 
 	suggestionID := o.saveAISuggestion(ctx, session.SessionID, salesResp, in.Content, conf)
 	result.SuggestionID = suggestionID

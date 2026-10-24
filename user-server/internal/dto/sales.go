@@ -302,6 +302,9 @@ type SalesResponse struct {
 	Memory              *DialogueMemory  `json:"memory,omitempty"`
 	MatchedSOP          *SOPAgent        `json:"matched_sop,omitempty"`
 	RAGChunks           []RAGChunk       `json:"rag_chunks,omitempty"`
+	// Citations 答案引用溯源（T2）：FAQ 级/chunk 级引用，纯旁路字段，
+	// 不参与置信度判定（组装发生在 extractConfidenceWithTopK 之后）。
+	Citations           []Citation       `json:"citations,omitempty"`
 	ScriptTemplate      *ScriptTemplate  `json:"script_template,omitempty"`
 	PlaybookSuggestions []*PlaybookEntry `json:"playbook_suggestions,omitempty"`
 	LLMProvider         string           `json:"llm_provider,omitempty"`

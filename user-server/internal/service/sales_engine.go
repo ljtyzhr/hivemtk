@@ -213,6 +213,13 @@ func (e *SalesEngine) tryFAQFastPath(ctx context.Context, req *SalesRequest) (*S
 		return nil, false
 	}
 
+	// T2 引用溯源：FAQ 命中即带出引用（来源卡片 + match_type + confidence 快照）。
+	// 旁路字段，不影响命中判定；转人工/低分兜底轮次天然无引用。
+	var citations []dto.Citation
+	if e.faqSvc != nil {
+		citations = e.faqSvc.MatchCitationsForAgent(ctx, agentID, req.UserMessage)
+	}
+
 	resp := &SalesResponse{
 		Reply:  entry.Answer,
 		Intent: &dto.RecognizeResult{IntentType: entry.Intent, Confidence: top.Score},
@@ -223,6 +230,7 @@ func (e *SalesEngine) tryFAQFastPath(ctx context.Context, req *SalesRequest) (*S
 		},
 		// 标记为确定答案：编排器据此跳过置信度判据（标准答案不需要再判可不可信）。
 		DefiniteAnswer: true,
+		Citations:      citations,
 		Steps: []dto.SalesStepLog{{
 			Step:   "layer1_faq_fastpath",
 			Status: "ok",

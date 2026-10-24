@@ -19,6 +19,9 @@ type SessionMessage struct {
 	SenderAvatar string       `gorm:"type:varchar(500)" json:"sender_avatar"`
 	AIConfidence float64      `gorm:"type:decimal(5,2)" json:"ai_confidence"`
 	AISource     string       `gorm:"type:varchar(20)" json:"ai_source"`
+	// Citations 答案引用快照（T2 引用溯源，JSON 数组，结构见 dto.Citation）。
+	// 与 AIConfidence 同期写入，构成一次回答的可追溯证据链；空串 = 无引用。
+	Citations    string       `gorm:"type:jsonb;not null;default:'[]'" json:"citations,omitempty"`
 	IsInternal   bool         `gorm:"default:false;index" json:"is_internal"`
 	IsRead       bool         `gorm:"default:false" json:"is_read"`
 	ReadAt       *time.Time   `json:"read_at"`

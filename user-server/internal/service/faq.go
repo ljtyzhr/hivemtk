@@ -71,6 +71,8 @@ type faqRepoIface interface {
 	ListEnabled(ctx context.Context, limit int) ([]model.FAQEntry, error)
 	ListCandidates(ctx context.Context, agentID uint, limit int) ([]model.FAQEntry, error)
 	ScoreCandidates(ctx context.Context, entries []model.FAQEntry, msg string, topK int) ([]model.FAQEntry, error)
+	// ScoreCandidatesScored T2 引用溯源用带 MatchType 变体
+	ScoreCandidatesScored(ctx context.Context, entries []model.FAQEntry, msg string, topK int) ([]repository.FAQScoredEntry, error)
 	Create(ctx context.Context, entry *model.FAQEntry) error
 	Update(ctx context.Context, id uint, entry *model.FAQEntry) error
 	SetEnabled(ctx context.Context, id uint, enabled bool) error
@@ -270,6 +272,43 @@ func (s *FAQService) toMatchResults(entries []model.FAQEntry, matchType string) 
 		})
 	}
 	return out
+}
+
+// MatchCitationsForAgent T2 引用溯源（阶段一）：按 agent 匹配并组装 FAQ 引用。
+//
+// 泛化防护（设计 §6.3）：keyword_fallback 且 score<0.3 的直接丢弃；
+// 只返回 top3（dto.CitationCountMax），防止引用面板变成检索 dump。
+// 纯旁路：不改任何命中/置信度判定路径。
+func (s *FAQService) MatchCitationsForAgent(ctx context.Context, agentID uint, msg string) []dto.Citation {
+	if s.repo == nil || agentID == 0 || strings.TrimSpace(msg) == "" {
+		return nil
+	}
+	entries, err := s.cachedEntries(ctx, agentID)
+	if err != nil {
+		return nil
+	}
+	scored, err := s.repo.ScoreCandidatesScored(ctx, entries, msg, dto.CitationCountMax)
+	if err != nil {
+		return nil
+	}
+	citations := make([]dto.Citation, 0, len(scored))
+	for _, sc := range scored {
+		c := &dto.Citation{
+			Type: dto.CitationTypeFAQ,
+			FAQ: &dto.FAQCitation{
+				FAQEntryID: sc.Entry.ID,
+				Question:   sc.Entry.Question,
+				Answer:     dto.TruncateRunes(sc.Entry.Answer, dto.FAQAnswerSummaryMax),
+				MatchType:  sc.MatchType,
+				Score:      sc.Score,
+			},
+		}
+		if dto.ShouldDropCitation(c) {
+			continue
+		}
+		citations = append(citations, *c)
+	}
+	return citations
 }
 
 // List 列表查询

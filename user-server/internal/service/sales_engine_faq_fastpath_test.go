@@ -139,3 +139,9 @@ func TestTryFAQFastPath_NoServiceNoHit(t *testing.T) {
 		t.Error("未注入 FAQ 服务时不应命中")
 	}
 }
+
+// ScoreCandidatesScored T2 引用溯源：复用真实打分口径并按层还原 MatchType。
+func (r *faqFastPathRepo) ScoreCandidatesScored(ctx context.Context, entries []model.FAQEntry, msg string, topK int) ([]repository.FAQScoredEntry, error) {
+	// 走真实 repo 的 ScoreCandidatesScored（真实打分口径 + 层信息）
+	return r.base.ScoreCandidatesScored(ctx, entries, msg, topK)
+}

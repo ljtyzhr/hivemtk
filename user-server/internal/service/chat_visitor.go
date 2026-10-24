@@ -14,6 +14,7 @@ import (
 	"gorm.io/gorm"
 
 	"hivemtk-user/internal/config"
+	"hivemtk-user/internal/dto"
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/security"
 	"hivemtk-user/internal/pkg/utils/logger"
@@ -367,6 +368,9 @@ type VisitorSendMessageResult struct {
 	Confidence     float64               `json:"confidence"`
 	HandlerType    string                `json:"handler_type"`
 	SuggestionID   uint                  `json:"suggestion_id,omitempty"`
+	// Citations 答案引用溯源（T2）：本轮 AI 回答的引用（FAQ 卡/chunk 聚合），
+	// omitempty 保证旧前端忽略未知字段。
+	Citations []dto.Citation `json:"citations,omitempty"`
 }
 
 // SendMessage 访客发送消息（核心入口）
@@ -549,6 +553,7 @@ func (s *VisitorChatService) SendMessage(ctx context.Context, req *VisitorSendMe
 		TransferReason: handleResult.TransferReason,
 		HandlerType:    string(handleResult.HandlerType),
 		SuggestionID:   handleResult.SuggestionID,
+		Citations:      handleResult.Citations,
 	}
 
 	if handleResult.AIReplied && handleResult.Reply != "" {
@@ -569,11 +574,28 @@ func (s *VisitorChatService) SendMessage(ctx context.Context, req *VisitorSendMe
 				AISource:     "rag",
 				DeliveredAt:  &now,
 			}
+			// T2：引用快照落库（session_messages.citations），供刷新/换端回看
+			// 与坐席端只读展示；空引用存 '[]'。
+			if data, err := json.Marshal(handleResult.Citations); err == nil {
+				aiMsg.Citations = string(data)
+			} else {
+				aiMsg.Citations = "[]"
+			}
 			_ = s.messageRepo.Create(ctx, aiMsg)
 			_ = s.sessionRepo.IncrementAIReplyCount(ctx, session.ID)
 			result.AIResponse = aiMsg
 		}
 		_ = s.sessionRepo.UpdateLastMessage(ctx, session.ID, handleResult.Reply, "ai")
+
+		// T2：引用随回复完整落定后的尾帧下发（RAGFlow 式 reference 范式，
+		// 复用 message 帧不新增 type，旧前端忽略未知字段）。
+		if len(handleResult.Citations) > 0 {
+			_ = websocket.SendToVisitor(websocket.TypeNewMessage, map[string]any{
+				"session_id": session.SessionID,
+				"message":    result.AIResponse,
+				"citations":  handleResult.Citations,
+			}, session.SessionID)
+		}
 	}
 
 	if len(handleResult.Cards) > 0 {
