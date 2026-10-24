@@ -16,9 +16,7 @@ import (
 // 五层架构合规:封装 user_mfa 表的 CRUD,避免 service 层直接调 db.GetDB()。
 type UserMFARepository interface {
 	GetByUserID(ctx context.Context, userID uint) (*model.UserMFA, error)
-	FindByUserID(ctx context.Context, userID uint) (*model.UserMFA, error)
 	Create(ctx context.Context, mfa *model.UserMFA) error
-	Update(ctx context.Context, mfa *model.UserMFA) error
 	Save(ctx context.Context, mfa *model.UserMFA) error
 	UpdateBackupCodes(ctx context.Context, userID uint, backupCodesJSON string) error
 	UpdateLastUsed(ctx context.Context, userID uint, code string, now interface{}) error
@@ -46,20 +44,21 @@ func (r *userMFARepository) GetByUserID(ctx context.Context, userID uint) (*mode
 	return &mfa, nil
 }
 
-func (r *userMFARepository) FindByUserID(ctx context.Context, userID uint) (*model.UserMFA, error) {
-	return r.GetByUserID(ctx, userID)
-}
-
 func (r *userMFARepository) Create(ctx context.Context, mfa *model.UserMFA) error {
 	return r.db.WithContext(ctx).Create(mfa).Error
 }
 
-func (r *userMFARepository) Update(ctx context.Context, mfa *model.UserMFA) error {
-	return r.db.WithContext(ctx).Save(mfa).Error
-}
-
+// Save 整行回写 MFA 配置。
+//
+// 走 db.SaveWholeRow：裸 Save 命中 0 行会回退成 `INSERT ... ON CONFLICT (id)
+// DO UPDATE`（gorm@v1.31.2）。调用方（mfa.go 的绑定/校验流程）都是 GetByUserID
+// 后改字段再 Save，若行在窗口期被删，裸 Save 会把「已解绑用户」的 MFA 配置按
+// 原 id 插回来。
 func (r *userMFARepository) Save(ctx context.Context, mfa *model.UserMFA) error {
-	return r.db.WithContext(ctx).Save(mfa).Error
+	if mfa == nil || mfa.ID == 0 {
+		return errors.New("user_mfa: 缺主键，不能整行回写")
+	}
+	return _db.SaveWholeRow(r.db.WithContext(ctx), mfa)
 }
 
 func (r *userMFARepository) UpdateBackupCodes(ctx context.Context, userID uint, backupCodesJSON string) error {
@@ -76,10 +75,12 @@ func (r *userMFARepository) UpdateBackupCodes(ctx context.Context, userID uint, 
 }
 
 func (r *userMFARepository) UpdateLastUsed(ctx context.Context, userID uint, code string, now interface{}) error {
-	return r.db.WithContext(ctx).Model(&model.UserMFA{}).
+	// 0 行 ⇒ ErrRecordNotFound：调用方刚 GetByUserID 读到行才走到这里，
+	// 行在窗口期消失说明 MFA 已被并发解绑，审计层面不该静默吞掉。
+	return _db.EnsureAffected(r.db.WithContext(ctx).Model(&model.UserMFA{}).
 		Where("user_id = ?", userID).
 		Updates(map[string]interface{}{
 			"last_used_code": code,
 			"last_used_at":   now,
-		}).Error
+		}))
 }

@@ -2,9 +2,11 @@ package repository
 
 import (
 	"context"
+	"errors"
+	"time"
+
 	"hivemtk-user/internal/model"
 	_db "hivemtk-user/internal/pkg/db"
-	"time"
 
 	"gorm.io/gorm"
 )
@@ -34,29 +36,35 @@ func (r *UpgradeTaskRepository) GetByID(ctx context.Context, id uint) (*model.Up
 }
 
 func (r *UpgradeTaskRepository) GetAll(ctx context.Context, page, pageSize int) ([]*model.UpgradeTask, int64, error) {
-	var tasks []*model.UpgradeTask
-	var total int64
+	// 分页夹取：controller 侧 pagination.Parse 已夹，仓储侧自设防 ——
+	// `pageSize = 0` ⇒ GORM 的 Limit(0) 等于**不加 limit**，`page = 0` ⇒ offset 为负。
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 20
+	}
+	if pageSize > 200 {
+		pageSize = 200
+	}
 
-	db := r.db.WithContext(ctx)
-	db.Model(&model.UpgradeTask{}).Count(&total)
-	err := db.Order("created_at DESC").
+	// Count 与 Find 各起一条 query（判例 #133 / #150）；原实现还把 Count 的
+	// error 直接丢掉 —— Count 失败时 total=0，管理页把「有历史任务」显示成空列表。
+	base := func() *gorm.DB {
+		return r.db.WithContext(ctx).Model(&model.UpgradeTask{})
+	}
+
+	var total int64
+	if err := base().Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	var tasks []*model.UpgradeTask
+	err := base().Order("created_at DESC").
 		Offset((page - 1) * pageSize).
 		Limit(pageSize).
 		Find(&tasks).Error
 
 	return tasks, total, err
-}
-
-// GetLatestTask 获取最新的升级任务（独立部署版本）
-func (r *UpgradeTaskRepository) GetLatestTask(ctx context.Context) (*model.UpgradeTask, error) {
-	var task model.UpgradeTask
-	err := r.db.WithContext(ctx).Order("created_at DESC").First(&task).Error
-	return &task, err
-}
-
-// Update 更新升级任务
-func (r *UpgradeTaskRepository) Update(ctx context.Context, task *model.UpgradeTask) error {
-	return r.db.WithContext(ctx).Save(task).Error
 }
 
 // UpdateStatus 更新升级任务状态
@@ -113,9 +121,17 @@ func (r *MigrationRecordRepository) GetExecutedVersions(ctx context.Context) ([]
 	return versions, err
 }
 
-// Update 更新迁移记录
+// Update 整行回写迁移记录。
+//
+// 走 db.SaveWholeRow：裸 Save 命中 0 行会回退成 `INSERT ... ON CONFLICT (id)
+// DO UPDATE`（gorm@v1.31.2）。唯一调用方 Rollback 在 GetByVersion 之后改状态，
+// 若记录在两步之间被清表，裸 Save 会把状态行按原 id 插回 —— 迁移簿记被伪造
+// 出一条「已回滚」的记录。
 func (r *MigrationRecordRepository) Update(ctx context.Context, record *model.MigrationRecord) error {
-	return r.db.WithContext(ctx).Save(record).Error
+	if record == nil || record.ID == 0 {
+		return errors.New("migration record: 缺主键，不能整行回写")
+	}
+	return _db.SaveWholeRow(r.db.WithContext(ctx), record)
 }
 
 // MigrationCheckpointRepository 迁移检查点仓库
@@ -143,12 +159,20 @@ func (r *MigrationCheckpointRepository) GetAll(ctx context.Context) ([]*model.Mi
 	return checkpoints, err
 }
 
-// Upsert 创建或更新检查点
+// Upsert 创建或更新检查点。
+//
+// 走 db.SaveWholeRow：裸 Save 命中 0 行会回退成 `INSERT ... ON CONFLICT (id)
+// DO UPDATE`（gorm@v1.31.2）。
+//
+// 已知竞态（记录不修）：read-then-write 窗口里同一 checkpoint 被并发 upsert
+// 会撞 checkpoint 唯一索引（一方报错）或双写两行；checkpoint 链当前零生产
+// 调用方（见 tracker 批 11 待决策），接线时应改 `ON CONFLICT (checkpoint)
+// DO UPDATE` 一条语句。
 func (r *MigrationCheckpointRepository) Upsert(ctx context.Context, checkpoint *model.MigrationCheckpoint) error {
 	existing, err := r.GetByCheckpoint(ctx, checkpoint.Checkpoint)
 	if err == nil && existing != nil {
 		checkpoint.ID = existing.ID
-		return r.db.WithContext(ctx).Save(checkpoint).Error
+		return _db.SaveWholeRow(r.db.WithContext(ctx), checkpoint)
 	}
 	return r.db.WithContext(ctx).Create(checkpoint).Error
 }

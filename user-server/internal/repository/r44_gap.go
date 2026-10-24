@@ -162,34 +162,6 @@ func (r *RagEvalGapRepo) CreateRunCompleted(ctx context.Context, run *model.RagE
 	return r.db.WithContext(ctx).Create(run).Error
 }
 
-// LatestRun 最新一次 run
-func (r *RagEvalGapRepo) LatestRun(ctx context.Context) (*model.RagEvalRun, error) {
-	var run model.RagEvalRun
-	if err := r.db.WithContext(ctx).Order("id DESC").First(&run).Error; err != nil {
-		if err == gorm.ErrRecordNotFound {
-			return &model.RagEvalRun{}, nil
-		}
-		return nil, err
-	}
-	return &run, nil
-}
-
-// ListRuns 历史
-func (r *RagEvalGapRepo) ListRuns(ctx context.Context, limit int) ([]*model.RagEvalRun, error) {
-	var runs []*model.RagEvalRun
-	err := r.db.WithContext(ctx).Order("id DESC").Limit(limit).Find(&runs).Error
-	return runs, err
-}
-
-// GetRun 按 ID 取一次 run（Diff 用）
-func (r *RagEvalGapRepo) GetRun(ctx context.Context, id uint) (*model.RagEvalRun, error) {
-	var run model.RagEvalRun
-	if err := r.db.WithContext(ctx).First(&run, id).Error; err != nil {
-		return nil, err
-	}
-	return &run, nil
-}
-
 // CohortGapRepo 留存/路径分析仓储
 type CohortGapRepo struct {
 	db *gorm.DB

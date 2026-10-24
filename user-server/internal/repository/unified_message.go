@@ -10,16 +10,16 @@ import (
 )
 
 // UnifiedMessageRepository 统一消息仓库接口
+// UnifiedMessageRepository 统一收件箱的读口（写口只有 Create，来自 webhook 入站）。
+//
+// 批 11（4.4）删掉六个零生产引用的方法：GetByMessageID / GetByChat /
+// UpdateStatus / Delete / GetMessages / GetMessageByID（最后两个是 service
+// 绕开直接调 GetByMerchant / GetByID 后留下的无人走的包装）。留下的四个方法
+// 就是这条链路的全部生产读/写面。
 type UnifiedMessageRepository interface {
 	Create(ctx context.Context, msg *model.UnifiedMessage) error
 	GetByID(ctx context.Context, id uint) (*model.UnifiedMessage, error)
-	GetByMessageID(ctx context.Context, messageID string) (*model.UnifiedMessage, error)
 	GetByMerchant(ctx context.Context, platform model.Platform, page, pageSize int) ([]*model.UnifiedMessage, int64, error)
-	GetByChat(ctx context.Context, chatID string, page, pageSize int) ([]*model.UnifiedMessage, int64, error)
-	UpdateStatus(ctx context.Context, id uint, status model.MessageStatus) error
-	Delete(ctx context.Context, id uint) error
-	GetMessages(ctx context.Context, platform string, page, pageSize int) ([]*model.UnifiedMessage, int, error)
-	GetMessageByID(ctx context.Context, id uint) (*model.UnifiedMessage, error)
 }
 
 type unifiedMessageRepo struct {
@@ -46,129 +46,37 @@ func (r *unifiedMessageRepo) GetByID(ctx context.Context, id uint) (*model.Unifi
 	return &msg, err
 }
 
-func (r *unifiedMessageRepo) GetByMessageID(ctx context.Context, messageID string) (*model.UnifiedMessage, error) {
-	var msg model.UnifiedMessage
-	err := r.db.WithContext(ctx).Where("message_id = ?", messageID).First(&msg).Error
-	return &msg, err
-}
-
 func (r *unifiedMessageRepo) GetByMerchant(ctx context.Context, platform model.Platform, page, pageSize int) ([]*model.UnifiedMessage, int64, error) {
+	// 分页夹取：controller 侧用了 pagination.Parse，但 service/repo 不设防 ——
+	// `pageSize = 0` ⇒ GORM 的 Limit(0) 等于**不加 limit**（收件箱只增不减），
+	// `page = 0` ⇒ offset 为负 ⇒ PG 报 "OFFSET must not be negative"。
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 20
+	}
+	if pageSize > 200 {
+		pageSize = 200
+	}
+
+	// Count 与 Find 各起一条 query（判例 #133 / #150）。
+	base := func() *gorm.DB {
+		q := r.db.WithContext(ctx).Model(&model.UnifiedMessage{})
+		if platform != "" {
+			q = q.Where("platform = ?", platform)
+		}
+		return q
+	}
+
+	var total int64
+	if err := base().Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
 	var messages []*model.UnifiedMessage
-	var total int64
-
-	query := r.db.WithContext(ctx).Model(&model.UnifiedMessage{})
-	if platform != "" {
-		query = query.Where("platform = ?", platform)
-	}
-
-	err := query.Count(&total).Error
-	if err != nil {
-		return nil, 0, err
-	}
-
-	offset := (page - 1) * pageSize
-	err = query.Offset(offset).Limit(pageSize).Order("created_at DESC").Find(&messages).Error
+	err := base().Offset((page - 1) * pageSize).Limit(pageSize).
+		Order("created_at DESC").Find(&messages).Error
 	return messages, total, err
-}
-
-func (r *unifiedMessageRepo) GetByChat(ctx context.Context, chatID string, page, pageSize int) ([]*model.UnifiedMessage, int64, error) {
-	var messages []*model.UnifiedMessage
-	var total int64
-
-	query := r.db.WithContext(ctx).Model(&model.UnifiedMessage{}).Where("chat_id = ?", chatID)
-
-	err := query.Count(&total).Error
-	if err != nil {
-		return nil, 0, err
-	}
-
-	offset := (page - 1) * pageSize
-	err = query.Offset(offset).Limit(pageSize).Order("created_at DESC").Find(&messages).Error
-	return messages, total, err
-}
-
-func (r *unifiedMessageRepo) UpdateStatus(ctx context.Context, id uint, status model.MessageStatus) error {
-	return r.db.WithContext(ctx).Model(&model.UnifiedMessage{}).Where("id = ?", id).Update("status", status).Error
-}
-
-func (r *unifiedMessageRepo) Delete(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).Delete(&model.UnifiedMessage{}, id).Error
-}
-
-func (r *unifiedMessageRepo) GetMessages(ctx context.Context, platform string, page, pageSize int) ([]*model.UnifiedMessage, int, error) {
-	msgs, total, err := r.GetByMerchant(ctx, model.Platform(platform), page, pageSize)
-	if err != nil {
-		return nil, 0, err
-	}
-	return msgs, int(total), nil
-}
-
-func (r *unifiedMessageRepo) GetMessageByID(ctx context.Context, id uint) (*model.UnifiedMessage, error) {
-	return r.GetByID(ctx, id)
-}
-
-// UnifiedReplyRepository 统一回复仓库接口
-type UnifiedReplyRepository interface {
-	Create(ctx context.Context, reply *model.UnifiedReply) error
-	GetByID(ctx context.Context, id uint) (*model.UnifiedReply, error)
-	GetByMessageID(ctx context.Context, messageID string) ([]*model.UnifiedReply, error)
-	GetByMerchant(ctx context.Context, page, pageSize int) ([]*model.UnifiedReply, int64, error)
-	UpdateStatus(ctx context.Context, id uint, status model.ReplyStatus) error
-	Delete(ctx context.Context, id uint) error
-}
-
-type unifiedReplyRepo struct {
-	db *gorm.DB
-}
-
-// NewUnifiedReplyRepository 创建统一回复仓库实例
-func NewUnifiedReplyRepository() UnifiedReplyRepository {
-	return &unifiedReplyRepo{db: _db.GetDB()}
-}
-
-// NewUnifiedReplyRepositoryWithDB 创建指定数据库连接的 UnifiedReplyRepository 实例（用于测试）
-func NewUnifiedReplyRepositoryWithDB(db *gorm.DB) UnifiedReplyRepository {
-	return &unifiedReplyRepo{db: db}
-}
-
-func (r *unifiedReplyRepo) Create(ctx context.Context, reply *model.UnifiedReply) error {
-	return r.db.WithContext(ctx).Create(reply).Error
-}
-
-func (r *unifiedReplyRepo) GetByID(ctx context.Context, id uint) (*model.UnifiedReply, error) {
-	var reply model.UnifiedReply
-	err := r.db.WithContext(ctx).First(&reply, id).Error
-	return &reply, err
-}
-
-func (r *unifiedReplyRepo) GetByMessageID(ctx context.Context, messageID string) ([]*model.UnifiedReply, error) {
-	var replies []*model.UnifiedReply
-	err := r.db.WithContext(ctx).Where("message_id = ?", messageID).Order("created_at ASC").Find(&replies).Error
-	return replies, err
-}
-
-func (r *unifiedReplyRepo) GetByMerchant(ctx context.Context, page, pageSize int) ([]*model.UnifiedReply, int64, error) {
-	var replies []*model.UnifiedReply
-	var total int64
-
-	query := r.db.WithContext(ctx).Model(&model.UnifiedReply{})
-
-	err := query.Count(&total).Error
-	if err != nil {
-		return nil, 0, err
-	}
-
-	offset := (page - 1) * pageSize
-	err = query.Offset(offset).Limit(pageSize).Order("created_at DESC").Find(&replies).Error
-	return replies, total, err
-}
-
-func (r *unifiedReplyRepo) UpdateStatus(ctx context.Context, id uint, status model.ReplyStatus) error {
-	return r.db.WithContext(ctx).Model(&model.UnifiedReply{}).Where("id = ?", id).Update("status", status).Error
-}
-
-func (r *unifiedReplyRepo) Delete(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).Delete(&model.UnifiedReply{}, id).Error
 }
 
 // PlatformAccountRepository 平台账号仓库接口

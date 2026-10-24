@@ -31,11 +31,6 @@ func (r *RagEvalRepository) CreateRun(ctx context.Context, run *model.RagEvalRun
 	return r.db.WithContext(ctx).Create(run).Error
 }
 
-// UpdateRun 更新评测运行
-func (r *RagEvalRepository) UpdateRun(ctx context.Context, run *model.RagEvalRun) error {
-	return r.db.WithContext(ctx).Save(run).Error
-}
-
 // GetRun 按 ID 查询
 func (r *RagEvalRepository) GetRun(ctx context.Context, id uint) (*model.RagEvalRun, error) {
 	var run model.RagEvalRun
@@ -45,10 +40,14 @@ func (r *RagEvalRepository) GetRun(ctx context.Context, id uint) (*model.RagEval
 	return &run, nil
 }
 
-// ListRuns 列出评测运行记录
+// ListRuns 列出评测运行记录（limit 夹取 1..200：controller 的 strconv.Atoi
+// 只挡了 <=0，没挡大数）。
 func (r *RagEvalRepository) ListRuns(ctx context.Context, limit int) ([]*model.RagEvalRun, error) {
 	if limit <= 0 {
 		limit = 20
+	}
+	if limit > 200 {
+		limit = 200
 	}
 	var runs []*model.RagEvalRun
 	err := r.db.WithContext(ctx).Order("id DESC").Limit(limit).Find(&runs).Error
@@ -80,7 +79,9 @@ func (r *RagEvalRepository) CompleteRun(ctx context.Context, runID uint) error {
 		AvgRecall    float64 `gorm:"column:avg_recall"`
 		AvgPrecision float64 `gorm:"column:avg_precision"`
 	}
-	r.db.WithContext(ctx).Model(&model.RagEvalQuestion{}).
+	// 聚合查询的错误必须透传：吞掉的话 Scan 落零值，run 会带着
+	// total=0 / avg_recall=0 的假指标落成 completed。
+	if err := r.db.WithContext(ctx).Model(&model.RagEvalQuestion{}).
 		Select(`
 			COUNT(*) as total,
 			COUNT(*) FILTER (WHERE hit = true) as hit_count,
@@ -88,7 +89,9 @@ func (r *RagEvalRepository) CompleteRun(ctx context.Context, runID uint) error {
 			AVG(precision) as avg_precision
 		`).
 		Where("run_id = ?", runID).
-		Scan(&result)
+		Scan(&result).Error; err != nil {
+		return err
+	}
 
 	now := time.Now()
 	return r.db.WithContext(ctx).Model(&model.RagEvalRun{}).

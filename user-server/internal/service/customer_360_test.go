@@ -31,7 +31,6 @@ func setupCustomer360Service(t *testing.T, db *gorm.DB) *Customer360Service {
 		clueRepo:         repository.NewClueRepositoryWithDB(db),
 		orderRepo:        repository.NewOrderRepositoryWithDB(db),
 		unifiedMsgRepo:   repository.NewUnifiedMessageRepositoryWithDB(db),
-		unifiedReplyRepo: repository.NewUnifiedReplyRepositoryWithDB(db),
 		customerRepo:     repository.NewCustomerRepository(),
 		eventRepo:        repository.NewCustomerEventRepository(),
 	}

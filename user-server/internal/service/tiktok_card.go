@@ -94,9 +94,10 @@ func (s *tiktokCardService) Update(ctx context.Context, req *dto.TikTokCardUpdat
 	card.RedirectURL = redirectURL
 	card.DomainPoolID = req.DomainPoolID
 	card.Tags = req.Tags
-	card.ViewCount = req.ViewCount
-	card.LikeCount = req.LikeCount
-	card.ShareCount = req.ShareCount
+	// ViewCount/LikeCount/ShareCount 不从 req 回写：这三个计数是行为数据
+	// （匿名跳转 IncrementViewCount / 活动流水），不是管理员可编辑的配置。
+	// 旧写法把 req 里的计数（前端表单根本不带这三个字段 ⇒ 恒 0）整行写回，
+	// 每次保存配置都会把真实累计的浏览/点赞/分享数清零。
 	if req.IsActive != nil {
 		card.IsActive = *req.IsActive
 	}

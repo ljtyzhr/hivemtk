@@ -1,10 +1,12 @@
 package repository
 
 import (
-	"hivemtk-user/internal/model"
-
 	"context"
+	"errors"
 	"time"
+
+	"hivemtk-user/internal/model"
+	_db "hivemtk-user/internal/pkg/db"
 
 	"gorm.io/gorm"
 )
@@ -17,12 +19,9 @@ type TikTokCardRepository interface {
 	GetByID(ctx context.Context, id uint) (*model.TikTokCard, error)
 	GetList(ctx context.Context, req CardListFilter) ([]model.TikTokCard, int64, error)
 	IncrementViewCount(ctx context.Context, id uint) error
-	IncrementLikeCount(ctx context.Context, id uint) error
-	IncrementShareCount(ctx context.Context, id uint) error
 	CreateActivity(ctx context.Context, activity *model.TikTokCardActivity) error
 	GetOverallStats(ctx context.Context) (int64, int64, int64, []model.TikTokCard, error)
 	GetCardStats(ctx context.Context, id uint, days int) (*model.TikTokCard, []model.TikTokCardActivity, error)
-	ListAll(ctx context.Context) ([]model.TikTokCard, error)
 	CountDailyView(ctx context.Context, day string) (int64, error)
 	CountCardDailyView(ctx context.Context, cardID uint, day string) (int64, error)
 	ListRecentActivities(ctx context.Context, limit int) ([]model.TikTokCardActivity, error)
@@ -44,15 +43,24 @@ func (r *tiktokCardRepository) Create(ctx context.Context, card *model.TikTokCar
 	return card, nil
 }
 
+// Update 整行回写一张卡片。
+//
+// 走 db.SaveWholeRow：裸 Save 命中 0 行会回退成 `INSERT ... ON CONFLICT (id)
+// DO UPDATE`（gorm@v1.31.2），把一张「管理端读出来之后、保存之前被删掉的」
+// 卡片按原 id 插回去 —— 而它的短码可能已被别的卡片占用。
 func (r *tiktokCardRepository) Update(ctx context.Context, card *model.TikTokCard) (*model.TikTokCard, error) {
-	if err := r.db.WithContext(ctx).Save(card).Error; err != nil {
+	if card == nil {
+		return nil, errors.New("tiktok card: nil 不是更新对象")
+	}
+	if err := _db.SaveWholeRow(r.db.WithContext(ctx), card); err != nil {
 		return nil, err
 	}
 	return card, nil
 }
 
+// Delete 删除一张卡片。0 行 ⇒ ErrRecordNotFound（删一条已经被删的卡片不该回成功）。
 func (r *tiktokCardRepository) Delete(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).Where("id = ?", id).Delete(&model.TikTokCard{}).Error
+	return _db.EnsureAffected(r.db.WithContext(ctx).Where("id = ?", id).Delete(&model.TikTokCard{}))
 }
 
 func (r *tiktokCardRepository) GetByID(ctx context.Context, id uint) (*model.TikTokCard, error) {
@@ -67,20 +75,9 @@ func (r *tiktokCardRepository) GetList(ctx context.Context, req CardListFilter) 
 	var cards []model.TikTokCard
 	var total int64
 
-	query := r.db.WithContext(ctx).Model(&model.TikTokCard{})
-
-	if req.Keyword != "" {
-		like := "%" + req.Keyword + "%"
-		query = query.Where("title LIKE ? OR description LIKE ? OR tags LIKE ?", like, like, like)
-	}
-	if req.IsActive != nil {
-		query = query.Where("is_active = ?", *req.IsActive)
-	}
-
-	if err := query.Count(&total).Error; err != nil {
-		return nil, 0, err
-	}
-
+	// 分页夹取：`pageSize = 0` ⇒ GORM 的 Limit(0) 等于**不加 limit**；无上限 ⇒
+	// `page_size=100000` 一次把整张卡片表读进内存（controller 侧用的是裸
+	// strconv.Atoi，不是 pagination.Parse，所以仓储层必须自己设防）。
 	page := 1
 	pageSize := 20
 	if req.Page > 0 {
@@ -89,8 +86,30 @@ func (r *tiktokCardRepository) GetList(ctx context.Context, req CardListFilter) 
 	if req.PageSize > 0 {
 		pageSize = req.PageSize
 	}
-	offset := (page - 1) * pageSize
-	if err := query.Order("created_at DESC").Offset(offset).Limit(pageSize).Find(&cards).Error; err != nil {
+	if pageSize > 200 {
+		pageSize = 200
+	}
+
+	// Count 与 Find 各起一条 query：同一条链上先 Count 再 Find 会就地改 Statement
+	// （判例 #133 / #150）。
+	base := func() *gorm.DB {
+		q := r.db.WithContext(ctx).Model(&model.TikTokCard{})
+		if req.Keyword != "" {
+			like := "%" + req.Keyword + "%"
+			q = q.Where("title LIKE ? OR description LIKE ? OR tags LIKE ?", like, like, like)
+		}
+		if req.IsActive != nil {
+			q = q.Where("is_active = ?", *req.IsActive)
+		}
+		return q
+	}
+
+	if err := base().Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
+	if err := base().Order("created_at DESC").
+		Offset((page - 1) * pageSize).Limit(pageSize).
+		Find(&cards).Error; err != nil {
 		return nil, 0, err
 	}
 
@@ -101,18 +120,6 @@ func (r *tiktokCardRepository) IncrementViewCount(ctx context.Context, id uint) 
 	return r.db.WithContext(ctx).Model(&model.TikTokCard{}).
 		Where("id = ?", id).
 		UpdateColumn("view_count", gorm.Expr("view_count + 1")).Error
-}
-
-func (r *tiktokCardRepository) IncrementLikeCount(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).Model(&model.TikTokCard{}).
-		Where("id = ?", id).
-		UpdateColumn("like_count", gorm.Expr("like_count + 1")).Error
-}
-
-func (r *tiktokCardRepository) IncrementShareCount(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).Model(&model.TikTokCard{}).
-		Where("id = ?", id).
-		UpdateColumn("share_count", gorm.Expr("share_count + 1")).Error
 }
 
 func (r *tiktokCardRepository) CreateActivity(ctx context.Context, activity *model.TikTokCardActivity) error {
@@ -156,14 +163,6 @@ func (r *tiktokCardRepository) GetCardStats(ctx context.Context, id uint, days i
 	return &card, activities, nil
 }
 
-func (r *tiktokCardRepository) ListAll(ctx context.Context) ([]model.TikTokCard, error) {
-	var cards []model.TikTokCard
-	if err := r.db.WithContext(ctx).Find(&cards).Error; err != nil {
-		return nil, err
-	}
-	return cards, nil
-}
-
 func (r *tiktokCardRepository) CountDailyView(ctx context.Context, day string) (int64, error) {
 	var n int64
 	if err := r.db.WithContext(ctx).Model(&model.TikTokCardActivity{}).
@@ -185,6 +184,13 @@ func (r *tiktokCardRepository) CountCardDailyView(ctx context.Context, cardID ui
 }
 
 func (r *tiktokCardRepository) ListRecentActivities(ctx context.Context, limit int) ([]model.TikTokCardActivity, error) {
+	// `limit = 0` ⇒ GORM 的 Limit(0) 等于不加 limit（活动流水只增不减）。
+	if limit < 1 {
+		limit = 10
+	}
+	if limit > 200 {
+		limit = 200
+	}
 	var list []model.TikTokCardActivity
 	if err := r.db.WithContext(ctx).Order("created_at DESC").Limit(limit).Find(&list).Error; err != nil {
 		return nil, err

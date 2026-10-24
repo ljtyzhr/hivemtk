@@ -200,7 +200,6 @@ func allModels() []any {
 		&contentmodel.AIGenerationRecord{},
 		&contentmodel.PromptTemplate{},
 		&model.UnifiedMessage{},
-		&model.UnifiedReply{},
 		&model.PlatformAccount{},
 		&model.UpgradeTask{},
 		&model.MigrationRecord{},

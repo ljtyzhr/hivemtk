@@ -195,68 +195,6 @@ func TestUpgradeTaskRepository_GetAll(t *testing.T) {
 	}
 }
 
-// TestUpgradeTaskRepository_GetLatestTask 测试获取最新的升级任务
-func TestUpgradeTaskRepository_GetLatestTask(t *testing.T) {
-	repo, _, _ := setupUpgradeRepositories(t)
-	ctx := context.Background()
-
-	repo.Create(ctx, &model.UpgradeTask{
-		FromVersion: "1.0.0",
-		ToVersion:   "1.5.0",
-		Status:      "completed",
-	})
-
-	latestTask := &model.UpgradeTask{
-		FromVersion: "1.5.0",
-		ToVersion:   "2.0.0",
-		Status:      "running",
-	}
-	repo.Create(ctx, latestTask)
-
-	result, err := repo.GetLatestTask(context.Background())
-	if err != nil {
-		t.Errorf("GetLatestTask() error = %v", err)
-	}
-
-	if result.ToVersion != "2.0.0" {
-		t.Errorf("Expected ToVersion '2.0.0', got '%s'", result.ToVersion)
-	}
-}
-
-// TestUpgradeTaskRepository_Update 测试更新升级任务
-func TestUpgradeTaskRepository_Update(t *testing.T) {
-	repo, _, _ := setupUpgradeRepositories(t)
-	ctx := context.Background()
-
-	task := &model.UpgradeTask{
-		FromVersion:     "1.0.0",
-		ToVersion:       "2.0.0",
-		Status:          "pending",
-		Progress:        0,
-		CurrentStep:     0,
-		CurrentStepDesc: "Waiting",
-	}
-	repo.Create(ctx, task)
-
-	task.Status = "running"
-	task.Progress = 50
-	task.CurrentStep = 3
-	task.CurrentStepDesc = "Processing"
-
-	err := repo.Update(ctx, task)
-	if err != nil {
-		t.Errorf("Update() error = %v", err)
-	}
-
-	updated, _ := repo.GetByID(ctx, task.ID)
-	if updated.Status != "running" {
-		t.Errorf("Expected status 'running', got '%s'", updated.Status)
-	}
-	if updated.Progress != 50 {
-		t.Errorf("Expected Progress 50, got %d", updated.Progress)
-	}
-}
-
 // TestUpgradeTaskRepository_UpdateStatus 测试更新状态
 func TestUpgradeTaskRepository_UpdateStatus(t *testing.T) {
 	repo, _, _ := setupUpgradeRepositories(t)

@@ -27,7 +27,6 @@ type Customer360Service struct {
 	clueRepo         repository.ClueRepository
 	orderRepo        repository.OrderRepository
 	unifiedMsgRepo   repository.UnifiedMessageRepository
-	unifiedReplyRepo repository.UnifiedReplyRepository
 	customerRepo     repository.CustomerRepository
 	eventRepo        repository.CustomerEventRepository
 
@@ -46,7 +45,6 @@ func NewCustomer360Service(db *gorm.DB) *Customer360Service {
 		clueRepo:         repository.NewClueRepositoryWithDB(db),
 		orderRepo:        repository.NewOrderRepository(),
 		unifiedMsgRepo:   repository.NewUnifiedMessageRepository(),
-		unifiedReplyRepo: repository.NewUnifiedReplyRepository(),
 		customerRepo:     repository.NewCustomerRepository(),
 		eventRepo:        repository.NewCustomerEventRepository(),
 		tagRepo:          repository.NewCustomerTagAssignmentRepository(),
@@ -1067,7 +1065,6 @@ type Customer360ServiceForTest struct {
 	ClueRepo         repository.ClueRepository
 	OrderRepo        repository.OrderRepository
 	UnifiedMsgRepo   repository.UnifiedMessageRepository
-	UnifiedReplyRepo repository.UnifiedReplyRepository
 }
 
 // GetCustomer360 获取客户 360 视图（测试版本）
@@ -1078,7 +1075,6 @@ func (s *Customer360ServiceForTest) GetCustomer360(ctx context.Context, userID s
 		clueRepo:         s.ClueRepo,
 		orderRepo:        s.OrderRepo,
 		unifiedMsgRepo:   s.UnifiedMsgRepo,
-		unifiedReplyRepo: s.UnifiedReplyRepo,
 	}
 	return realService.GetCustomer360(ctx, userID)
 }
@@ -1091,7 +1087,6 @@ func (s *Customer360ServiceForTest) GetCustomerList(ctx context.Context, page, p
 		clueRepo:         s.ClueRepo,
 		orderRepo:        s.OrderRepo,
 		unifiedMsgRepo:   s.UnifiedMsgRepo,
-		unifiedReplyRepo: s.UnifiedReplyRepo,
 	}
 	return realService.GetCustomerList(ctx, page, pageSize, filters)
 }
