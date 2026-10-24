@@ -15,6 +15,9 @@ func NewSLOController() *SLOController {
 	return &SLOController{}
 }
 
+// [AUTO] List
+// @Tags      s-l-o
+// @Router    /api/manage/slo [get]
 // List 获取所有 SLO 状态
 // GET /api/manage/slo
 func (ctrl *SLOController) List(c *gin.Context) {

@@ -25,6 +25,9 @@ func NewWeComHealthController(svc *service.WeComAccountHealthService, integ *ser
 	}
 }
 
+// [AUTO] ReportHealth
+// @Tags      we-com-health
+// @Router    /api/wecom/health/accounts/{id} [post]
 // ReportHealth 上报健康度
 func (c *WeComHealthController) ReportHealth(ctx *gin.Context) {
 	var req service.ReportHealthRequest
@@ -41,6 +44,9 @@ func (c *WeComHealthController) ReportHealth(ctx *gin.Context) {
 	response.Success(ctx, rec, "上报成功")
 }
 
+// [AUTO] GetLatestHealth
+// @Tags      we-com-health
+// @Router    /api/wecom/health/accounts/{id} [get]
 // GetLatestHealth 拉取最新健康度
 func (c *WeComHealthController) GetLatestHealth(ctx *gin.Context) {
 	accID, err := strconv.ParseUint(ctx.Param("id"), 10, 32)
@@ -56,6 +62,9 @@ func (c *WeComHealthController) GetLatestHealth(ctx *gin.Context) {
 	response.Success(ctx, rec, "查询成功")
 }
 
+// [AUTO] ListHealthHistory
+// @Tags      we-com-health
+// @Router    /api/wecom/health/accounts/{id}/history [get]
 // ListHealthHistory 健康度历史
 func (c *WeComHealthController) ListHealthHistory(ctx *gin.Context) {
 	accID, err := strconv.ParseUint(ctx.Param("id"), 10, 32)
@@ -76,6 +85,9 @@ func (c *WeComHealthController) ListHealthHistory(ctx *gin.Context) {
 	response.SuccessWithPage(ctx, list, int64(page), int64(pageSize), total)
 }
 
+// [AUTO] GetRiskAccounts
+// @Tags      we-com-health
+// @Router    /api/wecom/health/accounts/risks [get]
 // GetRiskAccounts 风险账号
 func (c *WeComHealthController) GetRiskAccounts(ctx *gin.Context) {
 	list, err := c.svc.GetRiskAccounts(ctx.Request.Context())
@@ -86,6 +98,9 @@ func (c *WeComHealthController) GetRiskAccounts(ctx *gin.Context) {
 	response.Success(ctx, list, "查询成功")
 }
 
+// [AUTO] SelectHealthyAccount
+// @Tags      we-com-health
+// @Router    /api/wecom/health/accounts/select [get]
 // SelectHealthyAccount 选最优账号
 //
 // 降级语义：service 内部已实现三步降级（健康账号 → 降级账号 → ErrWeComAccountNotFound）。
@@ -101,6 +116,9 @@ func (c *WeComHealthController) SelectHealthyAccount(ctx *gin.Context) {
 	response.Success(ctx, acc, "查询成功")
 }
 
+// [AUTO] GetHealthSummary
+// @Tags      we-com-health
+// @Router    /api/wecom/health/accounts/summary [get]
 // GetHealthSummary 健康度概览
 func (c *WeComHealthController) GetHealthSummary(ctx *gin.Context) {
 	summary, err := c.svc.GetHealthSummary(ctx.Request.Context())
@@ -111,6 +129,9 @@ func (c *WeComHealthController) GetHealthSummary(ctx *gin.Context) {
 	response.Success(ctx, summary, "查询成功")
 }
 
+// [AUTO] ConsumeQuota
+// @Tags      we-com-health
+// @Router    /api/wecom/health/accounts/{id}/quota/consume [post]
 // ConsumeQuota 消耗配额
 func (c *WeComHealthController) ConsumeQuota(ctx *gin.Context) {
 	accID, err := strconv.ParseUint(ctx.Param("id"), 10, 32)
@@ -132,6 +153,9 @@ func (c *WeComHealthController) ConsumeQuota(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"count": req.Count}, "消耗成功")
 }
 
+// [AUTO] ResetDailyQuota
+// @Tags      we-com-health
+// @Router    /api/wecom/health/accounts/quota/reset [post]
 // ResetDailyQuota 重置日配额
 func (c *WeComHealthController) ResetDailyQuota(ctx *gin.Context) {
 	n, err := c.svc.ResetDailyQuota(ctx.Request.Context())
@@ -142,6 +166,9 @@ func (c *WeComHealthController) ResetDailyQuota(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"affected": n}, "重置成功")
 }
 
+// [AUTO] IngestMessage
+// @Tags      we-com-health
+// @Router    /api/wecom/messages/ingest [post]
 // IngestMessage 接入企微消息
 func (c *WeComHealthController) IngestMessage(ctx *gin.Context) {
 	var req service.IngestRequest
@@ -158,6 +185,9 @@ func (c *WeComHealthController) IngestMessage(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"hub": hubMsg, "conversation": conv}, "接入成功")
 }
 
+// [AUTO] SendMessage
+// @Tags      we-com-health
+// @Router    /api/wecom/messages/send [post]
 // SendMessage 发送消息
 func (c *WeComHealthController) SendMessage(ctx *gin.Context) {
 	var req service.WeComSendRequest
@@ -174,6 +204,9 @@ func (c *WeComHealthController) SendMessage(ctx *gin.Context) {
 	response.Success(ctx, hubMsg, "发送成功")
 }
 
+// [AUTO] ListAccountsWithHealth
+// @Tags      we-com-health
+// @Router    /api/wecom/health/accounts [get]
 // ListAccountsWithHealth 列出账号与最新健康度
 func (c *WeComHealthController) ListAccountsWithHealth(ctx *gin.Context) {
 	list, err := c.integ.ListAccountsWithHealth(ctx.Request.Context())
@@ -186,6 +219,9 @@ func (c *WeComHealthController) ListAccountsWithHealth(ctx *gin.Context) {
 	response.Success(ctx, list, "查询成功")
 }
 
+// [AUTO] UpdateAccountStatus
+// @Tags      we-com-health
+// @Router    /api/wecom/health/accounts/{id}/status [post]
 // UpdateAccountStatus 更新账号状态
 func (c *WeComHealthController) UpdateAccountStatus(ctx *gin.Context) {
 	accID, err := strconv.ParseUint(ctx.Param("id"), 10, 32)

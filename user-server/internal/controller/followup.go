@@ -56,6 +56,9 @@ func requireOwner(ctx *gin.Context) (string, bool) {
 	return owner, true
 }
 
+// [AUTO] GetToday
+// @Tags      follow-up
+// @Router    /api/followups/today [get]
 // GetToday GET /api/followups/today?owner_id=&date=2006-01-02
 //
 // date 可选（缺省今天），格式错 400 —— 不做静默兜底，垃圾日期进读侧
@@ -87,6 +90,9 @@ func (c *FollowUpController) GetToday(ctx *gin.Context) {
 	}, "ok")
 }
 
+// [AUTO] GetPending
+// @Tags      follow-up
+// @Router    /api/followups/pending [get]
 // GetPending GET /api/followups/pending?owner_id=&limit=50
 //
 // limit 可选（缺省 50），给了就必须 1..500：跟 service 的 limit≤0=不过滤
@@ -113,6 +119,9 @@ func (c *FollowUpController) GetPending(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": list}, "ok")
 }
 
+// [AUTO] GetOverdue
+// @Tags      follow-up
+// @Router    /api/followups/overdue [get]
 // GetOverdue GET /api/followups/overdue?owner_id=
 func (c *FollowUpController) GetOverdue(ctx *gin.Context) {
 	if c.svc == nil {
@@ -153,6 +162,9 @@ func writeErr(ctx *gin.Context, err error, action string) {
 	}
 }
 
+// [AUTO] Complete
+// @Tags      follow-up
+// @Router    /api/followups/{id}/complete [post]
 // Complete POST /api/followups/:id/complete  body {result, note}
 //
 // result 可选（缺省 contacted，与 service.Complete 默认一致）、非法→400；
@@ -188,6 +200,9 @@ func (c *FollowUpController) Complete(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"id": id, "status": "done"}, "ok")
 }
 
+// [AUTO] Cancel
+// @Tags      follow-up
+// @Router    /api/followups/{id}/cancel [post]
 // Cancel POST /api/followups/:id/cancel
 func (c *FollowUpController) Cancel(ctx *gin.Context) {
 	if c.svc == nil {

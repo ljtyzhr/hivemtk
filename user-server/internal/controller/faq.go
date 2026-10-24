@@ -188,6 +188,9 @@ func (c *FAQController) Update(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"id": id}, "更新成功")
 }
 
+// [AUTO] Toggle
+// @Tags      f-a-q
+// @Router    /api/faqs/{id}/toggle [patch]
 // Toggle 切换启用状态（列表页开关专用，只收 enabled，不走全量 required 校验）
 func (c *FAQController) Toggle(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
@@ -209,6 +212,9 @@ func (c *FAQController) Toggle(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"id": id, "enabled": *req.Enabled}, "状态已更新")
 }
 
+// [AUTO] Delete
+// @Tags      f-a-q
+// @Router    /api/faqs/{id} [delete]
 // Delete 删除
 func (c *FAQController) Delete(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
@@ -229,6 +235,9 @@ type faqMatchReq struct {
 	AgentID uint   `json:"agent_id" binding:"required"`
 }
 
+// [AUTO] Match
+// @Tags      f-a-q
+// @Router    /api/faqs/match [post]
 // Match 关键词匹配 (调试接口 + 未来 RAG 引擎调用)
 func (c *FAQController) Match(ctx *gin.Context) {
 	var req faqMatchReq
@@ -248,6 +257,9 @@ func (c *FAQController) Match(ctx *gin.Context) {
 	response.Success(ctx, matches, "匹配成功")
 }
 
+// [AUTO] Stats
+// @Tags      f-a-q
+// @Router    /api/faqs/stats [get]
 // Stats 统计
 func (c *FAQController) Stats(ctx *gin.Context) {
 	total, enabled, err := c.svc.Stats(ctx.Request.Context())
@@ -261,6 +273,9 @@ func (c *FAQController) Stats(ctx *gin.Context) {
 	}, "查询成功")
 }
 
+// [AUTO] AnnotateFromSession
+// @Tags      f-a-q
+// @Router    /api/faqs/annotate [post]
 func (c *FAQController) AnnotateFromSession(ctx *gin.Context) {
 	var req struct {
 		SessionID      string `json:"session_id" binding:"required"`

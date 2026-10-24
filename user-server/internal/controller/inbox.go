@@ -45,6 +45,9 @@ func writeScopedError(ctx *gin.Context, err error) {
 	}
 }
 
+// [AUTO] List
+// @Tags      inbox
+// @Router    /api/inbox/conversations [get]
 // List 列表
 func (c *InboxController) List(ctx *gin.Context) {
 	q := service.InboxQuery{
@@ -84,6 +87,9 @@ func (c *InboxController) List(ctx *gin.Context) {
 	response.SuccessWithPage(ctx, list, int64(q.Page), int64(q.PageSize), total)
 }
 
+// [AUTO] GetByID
+// @Tags      inbox
+// @Router    /api/inbox/conversations/{id} [get]
 // GetByID 详情
 func (c *InboxController) GetByID(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 32)
@@ -99,6 +105,9 @@ func (c *InboxController) GetByID(ctx *gin.Context) {
 	response.Success(ctx, conv, "获取成功")
 }
 
+// [AUTO] MarkRead
+// @Tags      inbox
+// @Router    /api/inbox/conversations/{id}/read [post]
 // MarkRead 标记已读
 func (c *InboxController) MarkRead(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 32)
@@ -113,6 +122,9 @@ func (c *InboxController) MarkRead(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"id": id}, "标记已读成功")
 }
 
+// [AUTO] Pin
+// @Tags      inbox
+// @Router    /api/inbox/conversations/{id}/pin [post]
 // Pin 置顶
 func (c *InboxController) Pin(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 32)
@@ -134,6 +146,9 @@ func (c *InboxController) Pin(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"pinned": req.Pinned}, "操作成功")
 }
 
+// [AUTO] Star
+// @Tags      inbox
+// @Router    /api/inbox/conversations/{id}/star [post]
 // Star 标星
 func (c *InboxController) Star(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 32)
@@ -155,6 +170,9 @@ func (c *InboxController) Star(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"starred": req.Starred}, "操作成功")
 }
 
+// [AUTO] Mute
+// @Tags      inbox
+// @Router    /api/inbox/conversations/{id}/mute [post]
 // Mute 静音
 func (c *InboxController) Mute(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 32)
@@ -176,6 +194,9 @@ func (c *InboxController) Mute(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"muted": req.Muted}, "操作成功")
 }
 
+// [AUTO] AddTag
+// @Tags      inbox
+// @Router    /api/inbox/conversations/{id}/tags [post]
 // AddTag 添加标签
 func (c *InboxController) AddTag(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 32)
@@ -197,6 +218,9 @@ func (c *InboxController) AddTag(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"tag": req.Tag}, "添加成功")
 }
 
+// [AUTO] RemoveTag
+// @Tags      inbox
+// @Router    /api/inbox/conversations/{id}/tags/{tag} [delete]
 // RemoveTag 移除标签
 func (c *InboxController) RemoveTag(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 32)
@@ -216,6 +240,9 @@ func (c *InboxController) RemoveTag(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"tag": tag}, "移除成功")
 }
 
+// [AUTO] Assign
+// @Tags      inbox
+// @Router    /api/inbox/assign [post]
 // Assign 分配
 func (c *InboxController) Assign(ctx *gin.Context) {
 	var req struct {
@@ -257,6 +284,9 @@ func (c *InboxController) Assign(ctx *gin.Context) {
 	response.Success(ctx, h, "操作成功")
 }
 
+// [AUTO] AutoAssign
+// @Tags      inbox
+// @Router    /api/inbox/assign/auto [post]
 // AutoAssign 自动分配
 func (c *InboxController) AutoAssign(ctx *gin.Context) {
 	var req struct {
@@ -297,6 +327,9 @@ func (c *InboxController) AutoAssign(ctx *gin.Context) {
 	response.Success(ctx, h, "分配成功")
 }
 
+// [AUTO] Stats
+// @Tags      inbox
+// @Router    /api/inbox/stats [get]
 // Stats 统计
 func (c *InboxController) Stats(ctx *gin.Context) {
 	stats, err := c.svc.GetStatsScoped(ctx.Request.Context(), inboxScopeFromCtx(ctx))
@@ -307,6 +340,9 @@ func (c *InboxController) Stats(ctx *gin.Context) {
 	response.Success(ctx, stats, "统计成功")
 }
 
+// [AUTO] Reconcile
+// @Tags      inbox
+// @Router    /api/inbox/reconcile [post]
 // Reconcile 收件箱对账 / 治理
 //   - mode=unread（默认）：以 message_hub 最后一条消息为事实源，重算全部会话未读/状态（修正历史“AI 已处理却仍显示未读”）。
 //   - mode=overdue：将“超时未响应”的会话转给在线人工坐席处理（否则默认由 AI 处理）。
@@ -325,6 +361,9 @@ func (c *InboxController) Reconcile(ctx *gin.Context) {
 	response.Success(ctx, res, res.Message)
 }
 
+// [AUTO] ListAssignments
+// @Tags      inbox
+// @Router    /api/inbox/assignments [get]
 // ListAssignments 分配历史
 func (c *InboxController) ListAssignments(ctx *gin.Context) {
 	var convID uint
@@ -354,6 +393,9 @@ func (c *InboxController) ListAssignments(ctx *gin.Context) {
 	response.SuccessWithPage(ctx, list, int64(page), int64(pageSize), total)
 }
 
+// [AUTO] GetMessages
+// @Tags      inbox
+// @Router    /api/inbox/conversations/{id}/messages [get]
 // GetMessages 拉取会话下的消息
 func (c *InboxController) GetMessages(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 32)
@@ -371,6 +413,9 @@ func (c *InboxController) GetMessages(ctx *gin.Context) {
 	response.SuccessWithPage(ctx, list, int64(page), int64(pageSize), total)
 }
 
+// [AUTO] DeleteMessage
+// @Tags      inbox
+// @Router    /api/inbox/conversations/{id}/messages/{mid} [delete]
 // DeleteMessage 删除统一收件箱会话中的单条消息
 // DELETE /api/inbox/:id/messages/:mid?source=hub|session
 func (c *InboxController) DeleteMessage(ctx *gin.Context) {
@@ -396,6 +441,9 @@ func (c *InboxController) DeleteMessage(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"deleted": mid, "source": source}, "删除成功")
 }
 
+// [AUTO] StaffLoad
+// @Tags      inbox
+// @Router    /api/inbox/staff/{staff}/load [get]
 // StaffLoad 客服负载
 //
 // 这条口读的是"某个坐席手上还有几会话"，属于同事的工作量数据，不是调用者自己的行，
@@ -418,6 +466,9 @@ func (c *InboxController) StaffLoad(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"staff": staff, "load": load}, "查询成功")
 }
 
+// [AUTO] Agents
+// @Tags      inbox
+// @Router    /api/inbox/agents [get]
 // Agents 可分配坐席名单（脱敏四列）
 //
 // 收件箱的分配下拉与自动分配候选都从这里取：它随工作台一起授予坐席，
@@ -456,6 +507,9 @@ func (c *InboxIngressController) SetSessionService(svc *service.CustomerSessionS
 	c.sessionSvc = svc
 }
 
+// [AUTO] Ingress
+// @Tags      inbox-ingress
+// @Router    /api/chat/ingress [post]
 // Ingress 渠道消息统一入口
 func (c *InboxIngressController) Ingress(ctx *gin.Context) {
 	var event model.MessageEvent
@@ -471,6 +525,9 @@ func (c *InboxIngressController) Ingress(ctx *gin.Context) {
 	response.Success(ctx, result, "消息入站成功")
 }
 
+// [AUTO] LockHuman
+// @Tags      inbox-ingress
+// @Router    /api/inbox/lock-human [post]
 // LockHuman 锁定会话为人工接管（内部 API，由转人工硬闸调用）
 func (c *InboxIngressController) LockHuman(ctx *gin.Context) {
 	var req struct {
@@ -499,6 +556,9 @@ func (c *InboxIngressController) LockHuman(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"session_id": req.SessionID, "locked": true}, "人工接管锁定成功")
 }
 
+// [AUTO] UnlockHuman
+// @Tags      inbox-ingress
+// @Router    /api/inbox/unlock-human/{session_id} [post]
 // UnlockHuman 解除人工接管
 func (c *InboxIngressController) UnlockHuman(ctx *gin.Context) {
 	sessionID := ctx.Param("session_id")

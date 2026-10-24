@@ -21,6 +21,9 @@ func NewCustomerServicePlusController() *CustomerServicePlusController {
 	return &CustomerServicePlusController{svc: service.NewCustomerServicePlusServiceFromGlobal()}
 }
 
+// [AUTO] AcquireEditLock
+// @Tags      customer-service-plus
+// @Router    /api/customer-sessions/{id}/edit-lock [post]
 // AcquireEditLock POST /api/customer-sessions/:id/edit-lock {holder}
 func (c *CustomerServicePlusController) AcquireEditLock(ctx *gin.Context) {
 	sessionID := ctx.Param("id")
@@ -39,6 +42,9 @@ func (c *CustomerServicePlusController) AcquireEditLock(ctx *gin.Context) {
 	response.Success(ctx, lock, "编辑锁已获取")
 }
 
+// [AUTO] ReleaseEditLock
+// @Tags      customer-service-plus
+// @Router    /api/customer-sessions/{id}/edit-lock [delete]
 // ReleaseEditLock DELETE /api/customer-sessions/:id/edit-lock {holder}
 func (c *CustomerServicePlusController) ReleaseEditLock(ctx *gin.Context) {
 	sessionID := ctx.Param("id")
@@ -53,6 +59,9 @@ func (c *CustomerServicePlusController) ReleaseEditLock(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"released": true}, "编辑锁已释放")
 }
 
+// [AUTO] GetEditLock
+// @Tags      customer-service-plus
+// @Router    /api/customer-sessions/{id}/edit-lock [get]
 // GetEditLock GET /api/customer-sessions/:id/edit-lock
 func (c *CustomerServicePlusController) GetEditLock(ctx *gin.Context) {
 	lock, ok := c.svc.GetEditLock(ctx.Request.Context(), ctx.Param("id"))
@@ -63,6 +72,9 @@ func (c *CustomerServicePlusController) GetEditLock(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"locked": true, "lock": lock}, "ok")
 }
 
+// [AUTO] AddInternalNote
+// @Tags      customer-service-plus
+// @Router    /api/customer-sessions/{id}/internal-notes [post]
 // AddInternalNote POST /api/customer-sessions/:id/internal-notes {content}
 func (c *CustomerServicePlusController) AddInternalNote(ctx *gin.Context) {
 	sessionID := ctx.Param("id")
@@ -81,6 +93,9 @@ func (c *CustomerServicePlusController) AddInternalNote(ctx *gin.Context) {
 	response.Success(ctx, msg, "内部备注已保存")
 }
 
+// [AUTO] ListInternalNotes
+// @Tags      customer-service-plus
+// @Router    /api/customer-sessions/{id}/internal-notes [get]
 // ListInternalNotes GET /api/customer-sessions/:id/internal-notes
 func (c *CustomerServicePlusController) ListInternalNotes(ctx *gin.Context) {
 	limit, _ := strconv.Atoi(ctx.DefaultQuery("limit", "50"))
@@ -91,6 +106,9 @@ func (c *CustomerServicePlusController) ListInternalNotes(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": list, "total": len(list)}, "ok")
 }
 
+// [AUTO] ListTagRules
+// @Tags      customer-service-plus
+// @Router    /api/session-tag/rules [get]
 // ListTagRules GET /api/session-tag/rules
 func (c *CustomerServicePlusController) ListTagRules(ctx *gin.Context) {
 	list, err := c.svc.ListTagRules(ctx.Request.Context())
@@ -100,6 +118,9 @@ func (c *CustomerServicePlusController) ListTagRules(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": list, "total": len(list)}, "ok")
 }
 
+// [AUTO] SaveTagRule
+// @Tags      customer-service-plus
+// @Router    /api/session-tag/rules [post]
 // SaveTagRule POST /api/session-tag/rules {code, rule_condition}
 func (c *CustomerServicePlusController) SaveTagRule(ctx *gin.Context) {
 	var req service.TagRuleRequest
@@ -113,6 +134,9 @@ func (c *CustomerServicePlusController) SaveTagRule(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"saved": true}, "规则已保存")
 }
 
+// [AUTO] ApplyTagRule
+// @Tags      customer-service-plus
+// @Router    /api/customer-sessions/{id}/apply-tag-rule [post]
 // ApplyTagRule POST /api/customer-sessions/:id/apply-tag-rule
 func (c *CustomerServicePlusController) ApplyTagRule(ctx *gin.Context) {
 	res, err := c.svc.ApplyTagRule(ctx.Request.Context(), ctx.Param("id"))
@@ -122,6 +146,9 @@ func (c *CustomerServicePlusController) ApplyTagRule(ctx *gin.Context) {
 	response.Success(ctx, res, "标签规则已执行")
 }
 
+// [AUTO] GetAgentStatusBoard
+// @Tags      customer-service-plus
+// @Router    /api/customer-service/agent-status-board [get]
 // GetAgentStatusBoard GET /api/customer-service/agent-status-board
 func (c *CustomerServicePlusController) GetAgentStatusBoard(ctx *gin.Context) {
 	board, err := c.svc.GetAgentStatusBoard(ctx.Request.Context())
@@ -131,6 +158,9 @@ func (c *CustomerServicePlusController) GetAgentStatusBoard(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": board, "total": len(board)}, "ok")
 }
 
+// [AUTO] ListQuickReplyFolders
+// @Tags      customer-service-plus
+// @Router    /api/quick-reply/folders [get]
 // ListQuickReplyFolders GET /api/quick-reply/folders
 func (c *CustomerServicePlusController) ListQuickReplyFolders(ctx *gin.Context) {
 	list, err := c.svc.ListFolders(ctx.Request.Context())
@@ -140,6 +170,9 @@ func (c *CustomerServicePlusController) ListQuickReplyFolders(ctx *gin.Context) 
 	response.Success(ctx, gin.H{"list": list, "total": len(list)}, "ok")
 }
 
+// [AUTO] CreateQuickReplyFolder
+// @Tags      customer-service-plus
+// @Router    /api/quick-reply/folders [post]
 // CreateQuickReplyFolder POST /api/quick-reply/folders {name}
 func (c *CustomerServicePlusController) CreateQuickReplyFolder(ctx *gin.Context) {
 	var req struct {
@@ -156,6 +189,9 @@ func (c *CustomerServicePlusController) CreateQuickReplyFolder(ctx *gin.Context)
 	response.Success(ctx, f, "文件夹已创建")
 }
 
+// [AUTO] ReorderQuickReplyFolder
+// @Tags      customer-service-plus
+// @Router    /api/quick-reply/folders/{id}/reorder [post]
 // ReorderQuickReplyFolder POST /api/quick-reply/folders/:id/reorder {sort_order}
 func (c *CustomerServicePlusController) ReorderQuickReplyFolder(ctx *gin.Context) {
 	id, ok := parseUintParam(ctx, "id")
@@ -200,6 +236,9 @@ func currentStaffInfo(ctx *gin.Context) (string, string) {
 	return id, name
 }
 
+// [AUTO] DeleteQuickReplyFolder
+// @Tags      customer-service-plus
+// @Router    /api/quick-reply/folders/{id} [delete]
 func (c *CustomerServicePlusController) DeleteQuickReplyFolder(ctx *gin.Context) {
 	id, ok := parseUintParam(ctx, "id")
 	if !ok {
@@ -211,6 +250,9 @@ func (c *CustomerServicePlusController) DeleteQuickReplyFolder(ctx *gin.Context)
 	response.Success(ctx, gin.H{"deleted": true}, "文件夹已删除")
 }
 
+// [AUTO] CreateSegment
+// @Tags      customer-service-plus
+// @Router    /api/user-segments [post]
 // CreateSegment POST /api/user-segments {name, rules, trigger}
 // （where_sql 注入通道已移除，多余字段被绑定层静默忽略）
 func (c *CustomerServicePlusController) CreateSegment(ctx *gin.Context) {
@@ -226,6 +268,9 @@ func (c *CustomerServicePlusController) CreateSegment(ctx *gin.Context) {
 	response.Success(ctx, seg, "分群已保存")
 }
 
+// [AUTO] ListSegments
+// @Tags      customer-service-plus
+// @Router    /api/user-segments [get]
 // ListSegments GET /api/user-segments
 func (c *CustomerServicePlusController) ListSegments(ctx *gin.Context) {
 	limit := 100
@@ -241,6 +286,9 @@ func (c *CustomerServicePlusController) ListSegments(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": list, "total": len(list)}, "ok")
 }
 
+// [AUTO] DLQList
+// @Tags      customer-service-plus
+// @Router    /api/message-hub/dlq [get]
 // DLQList GET /api/message-hub/dlq?limit=50
 func (c *CustomerServicePlusController) DLQList(ctx *gin.Context) {
 	limit := 50
@@ -256,6 +304,9 @@ func (c *CustomerServicePlusController) DLQList(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": list, "total": total}, "ok")
 }
 
+// [AUTO] DLQRetryOne
+// @Tags      customer-service-plus
+// @Router    /api/message-hub/dlq/{id}/retry [post]
 // DLQRetryOne POST /api/message-hub/dlq/:id/retry
 func (c *CustomerServicePlusController) DLQRetryOne(ctx *gin.Context) {
 	id, ok := parseUintParam(ctx, "id")
@@ -268,6 +319,9 @@ func (c *CustomerServicePlusController) DLQRetryOne(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"retried": true}, "已重新入队")
 }
 
+// [AUTO] DLQDrop
+// @Tags      customer-service-plus
+// @Router    /api/message-hub/dlq/{id} [delete]
 // DLQDrop DELETE /api/message-hub/dlq/:id
 func (c *CustomerServicePlusController) DLQDrop(ctx *gin.Context) {
 	id, ok := parseUintParam(ctx, "id")
@@ -280,6 +334,9 @@ func (c *CustomerServicePlusController) DLQDrop(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"dropped": true}, "已丢弃")
 }
 
+// [AUTO] DLQBatchRetry
+// @Tags      customer-service-plus
+// @Router    /api/message-hub/dlq/batch-retry [post]
 // DLQBatchRetry POST /api/message-hub/dlq/batch-retry（真实数量返回）
 func (c *CustomerServicePlusController) DLQBatchRetry(ctx *gin.Context) {
 	n, err := c.svc.DLQBatchRetry(ctx.Request.Context())
@@ -289,11 +346,17 @@ func (c *CustomerServicePlusController) DLQBatchRetry(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"requeued": n}, "批量重试完成")
 }
 
+// [AUTO] GetOfficeHours
+// @Tags      customer-service-plus
+// @Router    /api/office-hours [get]
 // GetOfficeHours GET /api/office-hours
 func (c *CustomerServicePlusController) GetOfficeHours(ctx *gin.Context) {
 	response.Success(ctx, service.GetOfficeHoursService().GetConfig(ctx.Request.Context()), "ok")
 }
 
+// [AUTO] SaveOfficeHours
+// @Tags      customer-service-plus
+// @Router    /api/office-hours [put]
 // SaveOfficeHours PUT /api/office-hours
 func (c *CustomerServicePlusController) SaveOfficeHours(ctx *gin.Context) {
 	var cfg service.OfficeHoursConfig
@@ -307,6 +370,9 @@ func (c *CustomerServicePlusController) SaveOfficeHours(ctx *gin.Context) {
 	response.Success(ctx, cfg, "办公时间策略已保存")
 }
 
+// [AUTO] SetSessionPriority
+// @Tags      customer-service-plus
+// @Router    /api/customer-sessions/{id}/priority [put]
 // SetSessionPriority PUT /api/customer-sessions/:id/priority {level}
 func (c *CustomerServicePlusController) SetSessionPriority(ctx *gin.Context) {
 	var req struct {
@@ -322,6 +388,9 @@ func (c *CustomerServicePlusController) SetSessionPriority(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"priority": *req.Level}, "优先级已更新")
 }
 
+// [AUTO] SnoozeSession
+// @Tags      customer-service-plus
+// @Router    /api/customer-sessions/{id}/snooze [post]
 // SnoozeSession POST /api/customer-sessions/:id/snooze {hours}
 func (c *CustomerServicePlusController) SnoozeSession(ctx *gin.Context) {
 	var req struct {
@@ -338,6 +407,9 @@ func (c *CustomerServicePlusController) SnoozeSession(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"snoozed_until": until}, "会话已暂缓")
 }
 
+// [AUTO] UnsnoozeSession
+// @Tags      customer-service-plus
+// @Router    /api/customer-sessions/{id}/snooze [delete]
 // UnsnoozeSession DELETE /api/customer-sessions/:id/snooze
 func (c *CustomerServicePlusController) UnsnoozeSession(ctx *gin.Context) {
 	if err := c.svc.UnsnoozeSession(ctx.Request.Context(), ctx.Param("id")); HandleServiceError(ctx, err) {

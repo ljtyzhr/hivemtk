@@ -51,14 +51,19 @@ const minE2EInventoryCoverage = 738
 // 只许升不许降：补了新注解就把这个数改成当次实测值；注解被删导致守卫红，
 // 说明有对外端点正在失去文档，需显式改这里并写明原因，不允许静默降。
 // 不设"百分比"目标：分母（全仓 handler 函数）含大量未接线函数，占比无意义（规划 §4.2）。
-const minLiveAnnotations = 148
+// 2026-10-24 上调 148 → 1226：E-2 机械补齐批次（dump_routes + backfill_swagger_annotations.py）
+// 给全部真实注册路由的服务 handler 补齐 @Router/@Tags 注解（占位 Summary 标 [AUTO]）。
+// 2026-10-24 复核：提交树实测 1227（他人并行提交 +8 端点含注解；工作区含未提交 WIP
+// 时读数更高，以干净提交树为准）。
+const minLiveAnnotations = 1227
 
 // minLiveAPIRoutes 是运行时路由表里 /api/ 路由条数的棘轮下界（E-2 同批，2026-10-23 实测 1770）。
 //
 // 2026-10-24 上调 1773 → 1792：E-8 批次新增 GEO 端点
-//（/geo/reports/content-format、/geo/citations/drift、/geo/content/batch-generate
+// （/geo/reports/content-format、/geo/citations/drift、/geo/content/batch-generate
 // 及同批装配变化带来的形状去重增量），实测 1792。
-const minLiveAPIRoutes = 1792
+const minLiveAPIRoutes = 1793
+
 // 守的对象与 minE2EInventoryCoverage 不同：那个守的是冒烟清单覆盖面，这个守的是
 // 注册面本身——路由被静默删除（接线被摘、注册循环被改坏）时这条先红。
 

@@ -21,6 +21,9 @@ func NewKBController(svc *service.KBService) *KBController {
 	return &KBController{svc: svc}
 }
 
+// [AUTO] List
+// @Tags      k-b
+// @Router    /api/geo/kb/documents [get]
 // List 文档列表
 // GET /geo/kb/documents
 func (c *KBController) List(ctx *gin.Context) {
@@ -32,6 +35,9 @@ func (c *KBController) List(ctx *gin.Context) {
 	response.Success(ctx, docs, "获取文档列表成功")
 }
 
+// [AUTO] Get
+// @Tags      k-b
+// @Router    /api/geo/kb/documents/{id} [get]
 // Get 文档详情
 // GET /geo/kb/documents/:id
 func (c *KBController) Get(ctx *gin.Context) {
@@ -43,6 +49,9 @@ func (c *KBController) Get(ctx *gin.Context) {
 	response.Success(ctx, doc, "获取文档成功")
 }
 
+// [AUTO] Save
+// @Tags      k-b
+// @Router    /api/geo/kb/documents [post]
 // Save 新增/更新文档
 // POST /geo/kb/documents
 func (c *KBController) Save(ctx *gin.Context) {
@@ -58,6 +67,9 @@ func (c *KBController) Save(ctx *gin.Context) {
 	response.Success(ctx, doc, "保存文档成功")
 }
 
+// [AUTO] Delete
+// @Tags      k-b
+// @Router    /api/geo/kb/documents/{id} [delete]
 // Delete 删除文档
 // DELETE /geo/kb/documents/:id
 func (c *KBController) Delete(ctx *gin.Context) {
@@ -68,6 +80,9 @@ func (c *KBController) Delete(ctx *gin.Context) {
 	response.Success(ctx, nil, "删除文档成功")
 }
 
+// [AUTO] Search
+// @Tags      k-b
+// @Router    /api/geo/kb/search [get]
 // Search 关键词检索
 // GET /geo/kb/search?q=&limit=
 func (c *KBController) Search(ctx *gin.Context) {
@@ -90,6 +105,9 @@ func (c *KBController) Search(ctx *gin.Context) {
 	response.Success(ctx, results, "检索完成")
 }
 
+// [AUTO] Ask
+// @Tags      k-b
+// @Router    /api/geo/kb/ask [post]
 // Ask 知识库问答
 // POST /geo/kb/ask
 func (c *KBController) Ask(ctx *gin.Context) {

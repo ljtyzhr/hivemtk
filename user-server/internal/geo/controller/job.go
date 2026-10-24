@@ -20,12 +20,18 @@ func NewJobController(jm *service.JobManager) *JobController {
 	return &JobController{jm: jm}
 }
 
+// [AUTO] List
+// @Tags      job
+// @Router    /api/geo/jobs [get]
 // List 任务列表（含调度配置/运行中状态/最近一次运行）
 // GET /geo/jobs
 func (c *JobController) List(ctx *gin.Context) {
 	response.Success(ctx, c.jm.ListJobs(ctx.Request.Context()), "ok")
 }
 
+// [AUTO] Runs
+// @Tags      job
+// @Router    /api/geo/jobs/runs [get]
 // Runs 运行历史分页
 // GET /geo/jobs/runs?job_name=sov_refresh&page=1&limit=50
 func (c *JobController) Runs(ctx *gin.Context) {
@@ -40,6 +46,9 @@ func (c *JobController) Runs(ctx *gin.Context) {
 	response.SuccessWithList(ctx, list, total)
 }
 
+// [AUTO] Trigger
+// @Tags      job
+// @Router    /api/geo/jobs/{name}/trigger [post]
 // Trigger 手动触发任务
 // POST /geo/jobs/:name/trigger
 func (c *JobController) Trigger(ctx *gin.Context) {
@@ -55,6 +64,9 @@ func (c *JobController) Trigger(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"started": true}, "任务已启动，可在 /geo/jobs/runs 查看执行历史")
 }
 
+// [AUTO] UpdateSchedule
+// @Tags      job
+// @Router    /api/geo/jobs/{name}/schedule [put]
 // UpdateSchedule 调整任务 cron 调度（持久化到 geo_config.cron_specs）
 // PUT /geo/jobs/:name/schedule  body: {"spec":"0 0 2 * * *"}
 func (c *JobController) UpdateSchedule(ctx *gin.Context) {

@@ -87,6 +87,9 @@ func (c *OrderDraftController) RegisterRoutes(router *gin.RouterGroup) {
 	}
 }
 
+// [AUTO] List
+// @Tags      order-draft
+// @Router    /api/manage/order-drafts [get]
 // List GET /api/manage/order-drafts
 //
 // 三种视图靠参数选，而不是三条路径：读法完全相同（都走服务层现有的读口），
@@ -160,6 +163,9 @@ func (c *OrderDraftController) listByCustomer(ctx *gin.Context, customerID strin
 	}, "ok")
 }
 
+// [AUTO] Get
+// @Tags      order-draft
+// @Router    /api/manage/order-drafts/{id} [get]
 // Get GET /api/manage/order-drafts/:id
 func (c *OrderDraftController) Get(ctx *gin.Context) {
 	if c.svc == nil {
@@ -176,6 +182,9 @@ func (c *OrderDraftController) Get(ctx *gin.Context) {
 	response.Success(ctx, draft, "ok")
 }
 
+// [AUTO] Confirm
+// @Tags      order-draft
+// @Router    /api/manage/order-drafts/{id}/confirm [post]
 // Confirm POST /api/manage/order-drafts/:id/confirm —— 一键确认成单。
 //
 // 先读一次草稿是为了把"不存在"报成 404 而不是 500；并发不在这里管：
@@ -219,6 +228,9 @@ func (c *OrderDraftController) Confirm(ctx *gin.Context) {
 	response.Success(ctx, result, message)
 }
 
+// [AUTO] Cancel
+// @Tags      order-draft
+// @Router    /api/manage/order-drafts/{id}/cancel [post]
 // Cancel POST /api/manage/order-drafts/:id/cancel  body: {"reason":"…"}
 //
 // reason 必填：取消理由是"哪些产品/价格/阶段容易被取消"这一整套分析唯一的原料，
@@ -267,6 +279,9 @@ func (c *OrderDraftController) Cancel(ctx *gin.Context) {
 	c.replyDraftAfterWrite(ctx, draft.ID)
 }
 
+// [AUTO] Edit
+// @Tags      order-draft
+// @Router    /api/manage/order-drafts/{id} [patch]
 // Edit PATCH /api/manage/order-drafts/:id —— 确认前改价/改数量/改产品名/加备注。
 //
 // 四个字段全是指针（service.DraftUpdates 的形状），"没给"与"给了零值"在这里分开：

@@ -20,6 +20,9 @@ func NewPromptController() *PromptController {
 	return &PromptController{svc: service.NewPromptService()}
 }
 
+// [AUTO] GetVersions
+// @Tags      prompt
+// @Router    /api/prompts/{id}/versions [get]
 // GetVersions 获取某个 SOP Node / Prompt ID 的所有旧版本（prompt_candidates）
 // GET /api/prompts/:id/versions?sop_node_id=xxx&status=active
 func (c *PromptController) GetVersions(ctx *gin.Context) {
@@ -49,6 +52,9 @@ type PublishRequest struct {
 	Variables          string `json:"variables,omitempty"`
 }
 
+// [AUTO] GetABExperiments
+// @Tags      prompt
+// @Router    /api/prompts/ab-experiments [get]
 // GetABExperiments 获取所有 Prompt A/B 实验列表
 // GET /api/prompts/ab-experiments?status=running
 func (c *PromptController) GetABExperiments(ctx *gin.Context) {
@@ -76,6 +82,9 @@ type PromptCandidateRequest struct {
 	Variables          string `json:"variables,omitempty"`
 }
 
+// [AUTO] Create
+// @Tags      prompt
+// @Router    /api/prompts [post]
 // Create 创建 Prompt 候选（模板）
 // POST /api/prompts
 func (c *PromptController) Create(ctx *gin.Context) {
@@ -105,6 +114,9 @@ func (c *PromptController) Create(ctx *gin.Context) {
 	response.Success(ctx, p, "创建成功")
 }
 
+// [AUTO] GetByID
+// @Tags      prompt
+// @Router    /api/prompts/{id} [get]
 // GetByID 按 ID 查询 Prompt 候选
 // GET /api/prompts/:id
 func (c *PromptController) GetByID(ctx *gin.Context) {
@@ -122,6 +134,9 @@ func (c *PromptController) GetByID(ctx *gin.Context) {
 	response.Success(ctx, p, "获取成功")
 }
 
+// [AUTO] List
+// @Tags      prompt
+// @Router    /api/prompts [get]
 // List 分页查询 Prompt 候选（可按 sop_node_id / sop_id / status 过滤）
 // GET /api/prompts?page=1&page_size=20&sop_node_id=xxx&sop_id=1&status=active
 func (c *PromptController) List(ctx *gin.Context) {

@@ -121,6 +121,9 @@ func (c *KnowledgeBaseController) Get(ctx *gin.Context) {
 	response.Success(ctx, kb, "查询成功")
 }
 
+// [AUTO] Stats
+// @Tags      knowledge-base
+// @Router    /api/knowledge-bases/{id}/stats [get]
 // Stats 知识库统计（前端 KBDrawer: GET /api/knowledge-bases/:id/stats）
 func (c *KnowledgeBaseController) Stats(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
@@ -140,6 +143,9 @@ func (c *KnowledgeBaseController) Stats(ctx *gin.Context) {
 	response.Success(ctx, stats, "查询成功")
 }
 
+// [AUTO] ListByAgent
+// @Tags      knowledge-base
+// @Router    /api/knowledge-bases/by-agent/{aid} [get]
 // ListByAgent 查某智能体可用的知识库
 func (c *KnowledgeBaseController) ListByAgent(ctx *gin.Context) {
 	aid, err := strconv.ParseUint(ctx.Param("aid"), 10, 64)
@@ -159,6 +165,9 @@ func (c *KnowledgeBaseController) ListByAgent(ctx *gin.Context) {
 	response.Success(ctx, list, "查询成功")
 }
 
+// [AUTO] ListByType
+// @Tags      knowledge-base
+// @Router    /api/knowledge-bases/by-type/{type} [get]
 // ListByType 按类型查
 func (c *KnowledgeBaseController) ListByType(ctx *gin.Context) {
 	kbType := ctx.Param("type")
@@ -184,6 +193,9 @@ type knowledgeBaseCreateReq struct {
 	Enabled      *bool  `json:"enabled"`
 }
 
+// [AUTO] Create
+// @Tags      knowledge-base
+// @Router    /api/knowledge-bases [post]
 // Create 新增
 func (c *KnowledgeBaseController) Create(ctx *gin.Context) {
 	var req knowledgeBaseCreateReq
@@ -216,6 +228,9 @@ type knowledgeBaseUpdateReq struct {
 	Enabled      *bool  `json:"enabled"`
 }
 
+// [AUTO] Update
+// @Tags      knowledge-base
+// @Router    /api/knowledge-bases/{id} [put]
 // Update 更新
 func (c *KnowledgeBaseController) Update(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
@@ -243,6 +258,9 @@ func (c *KnowledgeBaseController) Update(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"id": id}, "更新成功")
 }
 
+// [AUTO] Delete
+// @Tags      knowledge-base
+// @Router    /api/knowledge-bases/{id} [delete]
 // Delete 删除 (业务级联: 同步删除 agent_kb_bindings)
 func (c *KnowledgeBaseController) Delete(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
@@ -261,6 +279,9 @@ type knowledgeBaseBindReq struct {
 	AgentID uint `json:"agent_id" binding:"required"`
 }
 
+// [AUTO] BindToAgent
+// @Tags      knowledge-base
+// @Router    /api/knowledge-bases/{id}/bind [post]
 // BindToAgent 绑定到智能体
 func (c *KnowledgeBaseController) BindToAgent(ctx *gin.Context) {
 	kbID, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
@@ -284,6 +305,9 @@ func (c *KnowledgeBaseController) BindToAgent(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"kb_id": kbID, "agent_id": req.AgentID}, "绑定成功")
 }
 
+// [AUTO] UnbindFromAgent
+// @Tags      knowledge-base
+// @Router    /api/knowledge-bases/{id}/unbind [post]
 // UnbindFromAgent 从智能体解绑
 func (c *KnowledgeBaseController) UnbindFromAgent(ctx *gin.Context) {
 	kbID, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
@@ -315,6 +339,9 @@ type knowledgeBaseVersionSwitchReq struct {
 	Version *int `json:"version"`
 }
 
+// [AUTO] SwitchVersion
+// @Tags      knowledge-base
+// @Router    /api/knowledge-bases/{id}/version [post]
 // SwitchVersion 切版本（转正 / 回滚），语义详见 service.PublishKBVersion。
 //
 // 切完直接回读整份版本信息，运营不用二次查询就能看到"新稳定命名空间是哪个号、
@@ -361,6 +388,9 @@ type knowledgeBaseCanaryReq struct {
 	Percent *int  `json:"percent" binding:"required"`
 }
 
+// [AUTO] PutCanary
+// @Tags      knowledge-base
+// @Router    /api/knowledge-bases/{id}/canary [put]
 // PutCanary 设置灰度比例（只改参数，不动内容，也不 bump updated_at）。
 func (c *KnowledgeBaseController) PutCanary(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
@@ -390,6 +420,9 @@ func (c *KnowledgeBaseController) PutCanary(ctx *gin.Context) {
 	response.Success(ctx, info, "灰度配置已更新")
 }
 
+// [AUTO] VersionInfo
+// @Tags      knowledge-base
+// @Router    /api/knowledge-bases/{id}/versions [get]
 // VersionInfo 读版本与灰度现状 + rag_answer_cache 各命名空间行数。
 //
 // 缺行口径与同文件的 Get 一致：service 回 (nil, nil) ⇒ response.NotFound。

@@ -29,6 +29,9 @@ func (c *BridgeExtensionController) RegisterRoutes(auth *gin.RouterGroup) {
 	auth.GET("/bridge/extension/package", c.Package)
 }
 
+// [AUTO] Package
+// @Tags      bridge-extension
+// @Router    /api/bridge/extension/package [get]
 // Package GET /api/bridge/extension/package
 //
 // 返回平台上最新一版桥接扩展安装包信息（含绝对下载地址与 sha256）。

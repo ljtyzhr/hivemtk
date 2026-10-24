@@ -22,6 +22,9 @@ func NewNotificationController(svc *service.NotificationService) *NotificationCo
 	return &NotificationController{svc: svc}
 }
 
+// [AUTO] List
+// @Tags      notification
+// @Router    /api/auth/notifications [get]
 // List 拉取通知列表
 // GET /api/auth/notifications
 // Query: page, page_size, type, is_read, keyword
@@ -58,6 +61,9 @@ func (ctrl *NotificationController) List(c *gin.Context) {
 	response.Success(c, resp, "ok")
 }
 
+// [AUTO] MarkRead
+// @Tags      notification
+// @Router    /api/auth/notifications/{id}/read [post]
 // MarkRead 标记单条已读
 // POST /api/auth/notifications/:id/read
 func (ctrl *NotificationController) MarkRead(c *gin.Context) {
@@ -80,6 +86,9 @@ func (ctrl *NotificationController) MarkRead(c *gin.Context) {
 	response.Success(c, nil, "已标记为已读")
 }
 
+// [AUTO] MarkAllRead
+// @Tags      notification
+// @Router    /api/auth/notifications/read-all [post]
 // MarkAllRead 全部标记已读
 // POST /api/auth/notifications/read-all
 func (ctrl *NotificationController) MarkAllRead(c *gin.Context) {
@@ -97,6 +106,9 @@ func (ctrl *NotificationController) MarkAllRead(c *gin.Context) {
 	response.Success(c, gin.H{"marked": n}, "已全部标记为已读")
 }
 
+// [AUTO] UnreadCount
+// @Tags      notification
+// @Router    /api/auth/notifications/unread-count [get]
 // UnreadCount 未读数（顶部铃铛 badge）
 // GET /api/auth/notifications/unread-count
 func (ctrl *NotificationController) UnreadCount(c *gin.Context) {

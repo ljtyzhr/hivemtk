@@ -145,6 +145,9 @@ func (c *DashboardSSEController) StreamEventStream(ctx *gin.Context) {
 	}
 }
 
+// [AUTO] Snapshot
+// @Tags      dashboard-s-s-e
+// @Router    /api/dashboards/snapshot [get]
 // Snapshot 返回当前快照（一次性 JSON）
 func (c *DashboardSSEController) Snapshot(ctx *gin.Context) {
 	tenantID, ok := streamTenant(ctx.Request.Context())
@@ -160,6 +163,9 @@ func (c *DashboardSSEController) Snapshot(ctx *gin.Context) {
 	response.Success(ctx, snapshot, "ok")
 }
 
+// [AUTO] Metrics
+// @Tags      dashboard-s-s-e
+// @Router    /api/dashboards/metrics [get]
 // Metrics 完整指标（含历史趋势）
 func (c *DashboardSSEController) Metrics(ctx *gin.Context) {
 	tenantID, ok := streamTenant(ctx.Request.Context())

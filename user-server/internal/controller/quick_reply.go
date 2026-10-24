@@ -21,6 +21,9 @@ func NewQuickReplyController() *QuickReplyController {
 	}
 }
 
+// [AUTO] GetReplies
+// @Tags      quick-reply
+// @Router    /api/quick-replies [get]
 // GetReplies 获取快捷回复列表
 func (c *QuickReplyController) GetReplies(ctx *gin.Context) {
 	category := ctx.Query("category")
@@ -33,6 +36,9 @@ func (c *QuickReplyController) GetReplies(ctx *gin.Context) {
 	response.Success(ctx, replies, "获取成功")
 }
 
+// [AUTO] CreateReply
+// @Tags      quick-reply
+// @Router    /api/quick-replies [post]
 // CreateReply 创建快捷回复
 func (c *QuickReplyController) CreateReply(ctx *gin.Context) {
 	createdBy := getUserIDFromContext(ctx)
@@ -52,6 +58,9 @@ func (c *QuickReplyController) CreateReply(ctx *gin.Context) {
 	response.Success(ctx, reply, "创建成功")
 }
 
+// [AUTO] UpdateReply
+// @Tags      quick-reply
+// @Router    /api/quick-replies/{id} [put]
 // UpdateReply 更新快捷回复
 func (c *QuickReplyController) UpdateReply(ctx *gin.Context) {
 	idStr := ctx.Param("id")
@@ -76,6 +85,9 @@ func (c *QuickReplyController) UpdateReply(ctx *gin.Context) {
 	response.Success(ctx, reply, "更新成功")
 }
 
+// [AUTO] DeleteReply
+// @Tags      quick-reply
+// @Router    /api/quick-replies/{id} [delete]
 // DeleteReply 删除快捷回复
 func (c *QuickReplyController) DeleteReply(ctx *gin.Context) {
 	idStr := ctx.Param("id")
@@ -93,6 +105,9 @@ func (c *QuickReplyController) DeleteReply(ctx *gin.Context) {
 	response.Success(ctx, nil, "删除成功")
 }
 
+// [AUTO] GetReplyCategories
+// @Tags      quick-reply
+// @Router    /api/quick-replies/categories [get]
 // GetReplyCategories 获取快捷回复分类
 func (c *QuickReplyController) GetReplyCategories(ctx *gin.Context) {
 	categories, err := c.replyService.GetCategories(ctx.Request.Context())

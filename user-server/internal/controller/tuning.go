@@ -32,6 +32,9 @@ func NewTuningController(svc service.TuningService) *TuningController {
 	return &TuningController{svc: svc}
 }
 
+// [AUTO] ListConfidenceSignals
+// @Tags      tuning
+// @Router    /api/admin/tuning/confidence/signals [get]
 // ListConfidenceSignals 信号列表
 func (c *TuningController) ListConfidenceSignals(ctx *gin.Context) {
 	page, pageSize, err := pagination.Parse(ctx)
@@ -49,6 +52,9 @@ func (c *TuningController) ListConfidenceSignals(ctx *gin.Context) {
 	c.jsonList(ctx, rows, total, page, pageSize)
 }
 
+// [AUTO] GetConfidenceSignal
+// @Tags      tuning
+// @Router    /api/admin/tuning/confidence/signals/{id} [get]
 // GetConfidenceSignal 信号详情
 func (c *TuningController) GetConfidenceSignal(ctx *gin.Context) {
 	id := ctx.Param("id")
@@ -64,6 +70,9 @@ func (c *TuningController) GetConfidenceSignal(ctx *gin.Context) {
 	response.Success(ctx, row, "")
 }
 
+// [AUTO] StatsConfidenceSignals
+// @Tags      tuning
+// @Router    /api/admin/tuning/confidence/signals/stats [get]
 // StatsConfidenceSignals 聚合统计
 func (c *TuningController) StatsConfidenceSignals(ctx *gin.Context) {
 	days, _ := strconv.Atoi(ctx.DefaultQuery("days", "7"))
@@ -80,6 +89,9 @@ func (c *TuningController) StatsConfidenceSignals(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"days": days, "bands": rows}, "")
 }
 
+// [AUTO] ListCalibrations
+// @Tags      tuning
+// @Router    /api/admin/tuning/confidence/calibrations [get]
 // ListCalibrations 校准记录列表
 func (c *TuningController) ListCalibrations(ctx *gin.Context) {
 	page, pageSize, err := pagination.Parse(ctx)
@@ -97,6 +109,9 @@ func (c *TuningController) ListCalibrations(ctx *gin.Context) {
 	c.jsonList(ctx, rows, total, page, pageSize)
 }
 
+// [AUTO] ListThresholdPolicies
+// @Tags      tuning
+// @Router    /api/admin/tuning/confidence/policies [get]
 // ListThresholdPolicies 策略列表
 func (c *TuningController) ListThresholdPolicies(ctx *gin.Context) {
 	rows, err := c.svc.ListThresholdPolicies(ctx.Request.Context())
@@ -107,6 +122,9 @@ func (c *TuningController) ListThresholdPolicies(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": rows}, "")
 }
 
+// [AUTO] UpsertThresholdPolicy
+// @Tags      tuning
+// @Router    /api/admin/tuning/confidence/policies [put]
 // UpsertThresholdPolicy 创建/更新策略
 func (c *TuningController) UpsertThresholdPolicy(ctx *gin.Context) {
 	var body dto.ThresholdPolicyRequest
@@ -122,6 +140,9 @@ func (c *TuningController) UpsertThresholdPolicy(ctx *gin.Context) {
 	response.Success(ctx, policy, "")
 }
 
+// [AUTO] ListHumanizeScores
+// @Tags      tuning
+// @Router    /api/admin/tuning/humanize/scores [get]
 // ListHumanizeScores 评分列表
 func (c *TuningController) ListHumanizeScores(ctx *gin.Context) {
 	page, pageSize, err := pagination.Parse(ctx)
@@ -149,6 +170,9 @@ func (c *TuningController) ListHumanizeScores(ctx *gin.Context) {
 	c.jsonList(ctx, rows, total, page, pageSize)
 }
 
+// [AUTO] StatsHumanizeScores
+// @Tags      tuning
+// @Router    /api/admin/tuning/humanize/scores/stats [get]
 // StatsHumanizeScores 拟人度统计
 func (c *TuningController) StatsHumanizeScores(ctx *gin.Context) {
 	days, _ := strconv.Atoi(ctx.DefaultQuery("days", "7"))
@@ -172,6 +196,9 @@ func (c *TuningController) StatsHumanizeScores(ctx *gin.Context) {
 	}, "")
 }
 
+// [AUTO] ListChampionBaselines
+// @Tags      tuning
+// @Router    /api/admin/tuning/humanize/baselines [get]
 // ListChampionBaselines 基线列表
 func (c *TuningController) ListChampionBaselines(ctx *gin.Context) {
 	rows, err := c.svc.ListChampionBaselines(ctx.Request.Context())
@@ -182,6 +209,9 @@ func (c *TuningController) ListChampionBaselines(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": rows}, "")
 }
 
+// [AUTO] ListFeedbackEvents
+// @Tags      tuning
+// @Router    /api/admin/tuning/feedback/events [get]
 // ListFeedbackEvents 事件列表
 func (c *TuningController) ListFeedbackEvents(ctx *gin.Context) {
 	page, pageSize, err := pagination.Parse(ctx)
@@ -201,6 +231,9 @@ func (c *TuningController) ListFeedbackEvents(ctx *gin.Context) {
 	c.jsonListWithCursor(ctx, rows, total, page, pageSize)
 }
 
+// [AUTO] StatsFeedbackEvents
+// @Tags      tuning
+// @Router    /api/admin/tuning/feedback/events/stats [get]
 // StatsFeedbackEvents 反馈事件统计
 func (c *TuningController) StatsFeedbackEvents(ctx *gin.Context) {
 	days, _ := strconv.Atoi(ctx.DefaultQuery("days", "7"))
@@ -217,6 +250,9 @@ func (c *TuningController) StatsFeedbackEvents(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"days": days, "signals": rows}, "")
 }
 
+// [AUTO] ListChampionDialogues
+// @Tags      tuning
+// @Router    /api/admin/tuning/feedback/dialogues [get]
 // ListChampionDialogues 销冠对话列表
 func (c *TuningController) ListChampionDialogues(ctx *gin.Context) {
 	page, pageSize, err := pagination.Parse(ctx)
@@ -236,6 +272,9 @@ func (c *TuningController) ListChampionDialogues(ctx *gin.Context) {
 	c.jsonListWithCursor(ctx, rows, total, page, pageSize)
 }
 
+// [AUTO] ListPromptCandidates
+// @Tags      tuning
+// @Router    /api/admin/tuning/prompt/candidates [get]
 // ListPromptCandidates 候选列表
 func (c *TuningController) ListPromptCandidates(ctx *gin.Context) {
 	page, pageSize, err := pagination.Parse(ctx)
@@ -254,6 +293,9 @@ func (c *TuningController) ListPromptCandidates(ctx *gin.Context) {
 	c.jsonListWithCursor(ctx, rows, total, page, pageSize)
 }
 
+// [AUTO] UpdatePromptCandidateStatus
+// @Tags      tuning
+// @Router    /api/admin/tuning/prompt/candidates/{id}/status [put]
 // UpdatePromptCandidateStatus 更新候选状态
 func (c *TuningController) UpdatePromptCandidateStatus(ctx *gin.Context) {
 	id := ctx.Param("id")
@@ -269,6 +311,9 @@ func (c *TuningController) UpdatePromptCandidateStatus(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"id": id, "status": status}, "")
 }
 
+// [AUTO] ListBanditArms
+// @Tags      tuning
+// @Router    /api/admin/tuning/bandit/arms [get]
 // ListBanditArms 臂列表
 func (c *TuningController) ListBanditArms(ctx *gin.Context) {
 	page, pageSize, err := pagination.Parse(ctx)
@@ -288,6 +333,9 @@ func (c *TuningController) ListBanditArms(ctx *gin.Context) {
 	c.jsonListWithCursor(ctx, rows, total, page, pageSize)
 }
 
+// [AUTO] ListLowQualitySamples
+// @Tags      tuning
+// @Router    /api/admin/tuning/humanize/low-quality [get]
 // ListLowQualitySamples 低质样本列表
 func (c *TuningController) ListLowQualitySamples(ctx *gin.Context) {
 	page, pageSize, err := pagination.Parse(ctx)

@@ -22,6 +22,9 @@ func NewAgentCoPilotController() *AgentCoPilotController {
 	}
 }
 
+// [AUTO] GetConfig
+// @Tags      agent-co-pilot
+// @Router    /api/agent/co-pilot/config [get]
 // GetConfig GET /api/agent/co-pilot/config
 func (c *AgentCoPilotController) GetConfig(ctx *gin.Context) {
 	cfg, err := c.svc.GetConfig(ctx.Request.Context())
@@ -32,6 +35,9 @@ func (c *AgentCoPilotController) GetConfig(ctx *gin.Context) {
 	response.Success(ctx, cfg, "获取成功")
 }
 
+// [AUTO] SaveConfig
+// @Tags      agent-co-pilot
+// @Router    /api/agent/co-pilot/config [put]
 // SaveConfig PUT /api/agent/co-pilot/config
 func (c *AgentCoPilotController) SaveConfig(ctx *gin.Context) {
 	var req service.CoPilotAutoExecuteConfig
@@ -45,6 +51,9 @@ func (c *AgentCoPilotController) SaveConfig(ctx *gin.Context) {
 	response.Success(ctx, req, "保存成功")
 }
 
+// [AUTO] Evaluate
+// @Tags      agent-co-pilot
+// @Router    /api/agent/co-pilot/evaluate [post]
 // Evaluate POST /api/agent/co-pilot/evaluate
 // 请求体: {"confidence": 0.92, "estimated_cost": 0.05}
 // 返回: auto_approved + reason
@@ -94,6 +103,9 @@ func (c *ManageCoPilotController) Evaluate(ctx *gin.Context) {
 	response.Success(ctx, decision, "评估完成")
 }
 
+// [AUTO] GetConfig
+// @Tags      manage-co-pilot
+// @Router    /api/manage/co-pilot/config [get]
 // GetConfig GET /api/manage/co-pilot/config
 func (c *ManageCoPilotController) GetConfig(ctx *gin.Context) {
 	cfg, err := c.svc.GetConfig(ctx.Request.Context())

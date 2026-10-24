@@ -18,6 +18,9 @@ func NewMCPController() *MCPController {
 	return &MCPController{}
 }
 
+// [AUTO] Handle
+// @Tags      m-c-p
+// @Router    /api/mcp [post]
 // Handle POST /api/mcp。
 //
 // 流程：

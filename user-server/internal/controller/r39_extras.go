@@ -25,6 +25,9 @@ func NewMarketingFlowSyncController() *MarketingFlowSyncController {
 	return &MarketingFlowSyncController{abService: opssvc.NewABExperimentService()}
 }
 
+// [AUTO] SyncABResults
+// @Tags      marketing-flow-sync
+// @Router    /api/marketing-flows/{id}/sync-ab-results [post]
 // SyncABResults POST /api/marketing-flows/:id/sync-ab-results
 //
 // 语义：查找绑定该流程（source_id=flowID）的实验 → 重算结果并返回
@@ -67,6 +70,9 @@ func NewCustomerEventBatchController() *CustomerEventBatchController {
 	return &CustomerEventBatchController{tracker: service.NewEventTracker(service.NewCustomerService())}
 }
 
+// [AUTO] TrackBatch
+// @Tags      customer-event-batch
+// @Router    /api/customer-events/batch [post]
 // TrackBatch POST /api/customer-events/batch {events: [{event, properties, user_id, ...}]}
 func (c *CustomerEventBatchController) TrackBatch(ctx *gin.Context) {
 	var req struct {
@@ -130,6 +136,9 @@ func NewWebVitalsController() *WebVitalsController {
 	return &WebVitalsController{svc: opssvc.NewWebVitalService()}
 }
 
+// [AUTO] Report
+// @Tags      web-vitals
+// @Router    /api/monitor/web-vitals [post]
 // Report POST /api/monitor/web-vitals
 func (c *WebVitalsController) Report(ctx *gin.Context) {
 	var req struct {

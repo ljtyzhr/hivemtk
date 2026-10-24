@@ -28,6 +28,9 @@ func NewBridgeSelectorHealthController(svc *service.SelectorHealthService) *Brid
 	return &BridgeSelectorHealthController{svc: svc}
 }
 
+// [AUTO] Ingest
+// @Tags      bridge-selector-health
+// @Router    /api/bridge/selector-health [post]
 // Ingest POST /api/bridge/selector-health
 //
 // 响应体刻意保持扁平稳定（扩展侧直接读它打日志，不经过 response 包装层的 i18n）：
@@ -71,6 +74,9 @@ func (c *BridgeSelectorHealthController) Ingest(ctx *gin.Context) {
 	})
 }
 
+// [AUTO] List
+// @Tags      bridge-selector-health
+// @Router    /api/bridge/selector-health [get]
 // List GET /api/bridge/selector-health
 //
 // 运营面读数：按渠道 + 字段逐行给判定。`threshold` 一并返回，便于运营知道

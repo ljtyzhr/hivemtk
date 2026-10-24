@@ -56,6 +56,9 @@ func (c *BadCaseController) RegisterRoutes(router *gin.RouterGroup) {
 // 收窄是因为下面会把 id 回显进提示里：无上限的回显等于给调用方一个免费的响应体放大器。
 const badCaseIDParamMaxLen = 64
 
+// [AUTO] List
+// @Tags      bad-case
+// @Router    /api/bad-cases [get]
 // List GET /api/bad-cases
 func (c *BadCaseController) List(ctx *gin.Context) {
 	if !c.svc.Available() {
@@ -74,6 +77,9 @@ func (c *BadCaseController) List(ctx *gin.Context) {
 	response.SuccessWithList(ctx, list, total)
 }
 
+// [AUTO] Stats
+// @Tags      bad-case
+// @Router    /api/bad-cases/stats [get]
 // Stats GET /api/bad-cases/stats —— 队列读数（已判率是本处北极星）。
 func (c *BadCaseController) Stats(ctx *gin.Context) {
 	if !c.svc.Available() {
@@ -88,6 +94,9 @@ func (c *BadCaseController) Stats(ctx *gin.Context) {
 	response.Success(ctx, stats, "ok")
 }
 
+// [AUTO] Taxonomy
+// @Tags      bad-case
+// @Router    /api/bad-cases/taxonomy [get]
 // Taxonomy GET /api/bad-cases/taxonomy —— 把来源/状态/类目/责任层四张表交回前端。
 //
 // 为什么要一条端点：下拉框里的类目一旦在前端抄一份，库里加一个类目就会出现
@@ -108,6 +117,9 @@ func (c *BadCaseController) Taxonomy(ctx *gin.Context) {
 	}, "ok")
 }
 
+// [AUTO] Get
+// @Tags      bad-case
+// @Router    /api/bad-cases/{id} [get]
 // Get GET /api/bad-cases/:id
 func (c *BadCaseController) Get(ctx *gin.Context) {
 	if !c.svc.Available() {
@@ -131,6 +143,9 @@ func (c *BadCaseController) Get(ctx *gin.Context) {
 	response.Success(ctx, row, "ok")
 }
 
+// [AUTO] CreateManual
+// @Tags      bad-case
+// @Router    /api/bad-cases [post]
 // CreateManual POST /api/bad-cases —— 坐席补录一条（不等置信度判它低质）。
 func (c *BadCaseController) CreateManual(ctx *gin.Context) {
 	if !c.svc.Available() {
@@ -173,6 +188,9 @@ func (c *BadCaseController) CreateManual(ctx *gin.Context) {
 	response.Success(ctx, row, "ok")
 }
 
+// [AUTO] Label
+// @Tags      bad-case
+// @Router    /api/bad-cases/{id}/label [post]
 // Label POST /api/bad-cases/:id/label  body: {"label":"…","note":"…"}
 func (c *BadCaseController) Label(ctx *gin.Context) {
 	if !c.svc.Available() {
@@ -208,6 +226,9 @@ func (c *BadCaseController) Label(ctx *gin.Context) {
 	response.Success(ctx, row, "ok")
 }
 
+// [AUTO] Dismiss
+// @Tags      bad-case
+// @Router    /api/bad-cases/{id}/dismiss [post]
 // Dismiss POST /api/bad-cases/:id/dismiss  body: {"reason":"…"}（必须给理由）
 func (c *BadCaseController) Dismiss(ctx *gin.Context) {
 	if !c.svc.Available() {
@@ -242,6 +263,9 @@ func (c *BadCaseController) Dismiss(ctx *gin.Context) {
 	response.Success(ctx, row, "ok")
 }
 
+// [AUTO] Export
+// @Tags      bad-case
+// @Router    /api/bad-cases/export [post]
 // Export POST /api/bad-cases/export  body: {"labels":[…],"limit":N} → 一份评测集
 func (c *BadCaseController) Export(ctx *gin.Context) {
 	if !c.svc.Available() {

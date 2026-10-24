@@ -25,6 +25,9 @@ type QuotaSnapshot struct {
 	Triggered       int64   `json:"triggered"`
 }
 
+// [AUTO] GetRateQuota
+// @Tags      rate-quota
+// @Router    /api/system/rate-quota [get]
 // GetRateQuota 获取全局限流配额和当前用量
 // GET /api/system/rate-quota
 func (c *RateQuotaController) GetRateQuota(ctx *gin.Context) {

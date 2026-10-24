@@ -27,6 +27,9 @@ func NewBridgeCapabilitiesController() *BridgeCapabilitiesController {
 	return &BridgeCapabilitiesController{}
 }
 
+// [AUTO] GetCapabilities
+// @Tags      bridge-capabilities
+// @Router    /api/bridge/capabilities [get]
 // GetCapabilities GET /api/bridge/capabilities。
 //
 // 响应体保持向后兼容：

@@ -43,6 +43,9 @@ func (c *SOPTemplateController) RegisterRoutes(router *gin.RouterGroup) {
 	}
 }
 
+// [AUTO] List
+// @Tags      s-o-p-template
+// @Router    /api/sop-templates [get]
 // List 列表查询
 func (c *SOPTemplateController) List(ctx *gin.Context) {
 	page, pageSize, err := pagination.Parse(ctx)
@@ -70,6 +73,9 @@ func (c *SOPTemplateController) List(ctx *gin.Context) {
 	response.SuccessWithPage(ctx, list, int64(page), int64(pageSize), total)
 }
 
+// [AUTO] Get
+// @Tags      s-o-p-template
+// @Router    /api/sop-templates/{id} [get]
 // Get 详情
 func (c *SOPTemplateController) Get(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
@@ -97,6 +103,9 @@ type sopTemplateCreateReq struct {
 	AgentID    uint    `json:"agent_id" binding:"required"`
 }
 
+// [AUTO] Create
+// @Tags      s-o-p-template
+// @Router    /api/sop-templates [post]
 // Create 新增
 func (c *SOPTemplateController) Create(ctx *gin.Context) {
 	var req sopTemplateCreateReq
@@ -123,6 +132,9 @@ func (c *SOPTemplateController) Create(ctx *gin.Context) {
 	response.Success(ctx, tpl, "创建成功")
 }
 
+// [AUTO] Update
+// @Tags      s-o-p-template
+// @Router    /api/sop-templates/{id} [put]
 // Update 更新
 func (c *SOPTemplateController) Update(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
@@ -154,6 +166,9 @@ func (c *SOPTemplateController) Update(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"id": id}, "更新成功")
 }
 
+// [AUTO] Toggle
+// @Tags      s-o-p-template
+// @Router    /api/sop-templates/{id}/toggle [patch]
 // Toggle 切换启用状态（列表页开关专用，只收 enabled，不走全量 required 校验）
 func (c *SOPTemplateController) Toggle(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
@@ -175,6 +190,9 @@ func (c *SOPTemplateController) Toggle(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"id": id, "enabled": *req.Enabled}, "状态已更新")
 }
 
+// [AUTO] Delete
+// @Tags      s-o-p-template
+// @Router    /api/sop-templates/{id} [delete]
 // Delete 删除
 func (c *SOPTemplateController) Delete(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
@@ -196,6 +214,9 @@ type sopTemplateMatchReq struct {
 	AgentID uint   `json:"agent_id" binding:"required"`
 }
 
+// [AUTO] Match
+// @Tags      s-o-p-template
+// @Router    /api/sop-templates/match [post]
 // Match 按 (agent_id, intent, stage) 匹配 (Task 16 强 1对1 改造后)
 func (c *SOPTemplateController) Match(ctx *gin.Context) {
 	var req sopTemplateMatchReq

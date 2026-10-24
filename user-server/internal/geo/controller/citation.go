@@ -14,8 +14,8 @@ import (
 //
 // A10（2026-10-24）：driftSvc 注入引用漂移读端（/geo/citations/drift）。
 type CitationController struct {
-	citeSvc   *service.CitationService
-	driftSvc  *service.CitationDriftService
+	citeSvc  *service.CitationService
+	driftSvc *service.CitationDriftService
 }
 
 func NewCitationController(citeSvc *service.CitationService) *CitationController {
@@ -26,6 +26,9 @@ func NewCitationControllerWithDrift(citeSvc *service.CitationService, driftSvc *
 	return &CitationController{citeSvc: citeSvc, driftSvc: driftSvc}
 }
 
+// [AUTO] Drift
+// @Tags      citation
+// @Router    /api/geo/citations/drift [get]
 // Drift 引用漂移 diff（A10）
 // GET /geo/citations/drift?from=2026-10-23&to=2026-10-24
 // from 缺省取 to 之前最近一次快照；任一侧快照缺失返回明确错误（不冒充"没有漂移"）。
@@ -42,6 +45,9 @@ func (c *CitationController) Drift(ctx *gin.Context) {
 	response.Success(ctx, res, "ok")
 }
 
+// [AUTO] Domains
+// @Tags      citation
+// @Router    /api/geo/citations/domains [get]
 // Domains 引用域名聚合（自有/竞品/earned 分类）
 // GET /geo/citations/domains?days=30&format=json|csv
 func (c *CitationController) Domains(ctx *gin.Context) {
@@ -58,6 +64,9 @@ func (c *CitationController) Domains(ctx *gin.Context) {
 	response.Success(ctx, res, "ok")
 }
 
+// [AUTO] Matrix
+// @Tags      citation
+// @Router    /api/geo/citations/matrix [get]
 // Matrix keyword×domain 矩阵
 // GET /geo/citations/matrix?days=30&top_queries=20&top_domains=10&format=json|csv
 func (c *CitationController) Matrix(ctx *gin.Context) {

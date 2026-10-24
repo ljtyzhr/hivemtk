@@ -29,6 +29,9 @@ type PredictRequest struct {
 	SessionID string `json:"session_id,omitempty"`
 }
 
+// [AUTO] Predict
+// @Tags      typing-predict
+// @Router    /api/chat/typing-predict/predict [post]
 // Predict 同步预测接口（最简化）
 // POST /api/chat/typing-predict/predict
 //
@@ -51,6 +54,9 @@ func (c *TypingPredictController) Predict(ctx *gin.Context) {
 	response.Success(ctx, pred, "预测成功")
 }
 
+// [AUTO] SSEStream
+// @Tags      typing-predict
+// @Router    /api/chat/typing-predict/sse [get]
 // SSEStream SSE 推送模式（可选，用于高实时性场景）
 // GET /api/chat/typing-predict/sse?session_id=xxx
 //
@@ -116,6 +122,9 @@ func NewManageTypingPredictController() *ManageTypingPredictController {
 	return &ManageTypingPredictController{svc: service.GetTypingPredictService()}
 }
 
+// [AUTO] Predict
+// @Tags      manage-typing-predict
+// @Router    /api/manage/typing-predict [get]
 // Predict GET /api/manage/typing-predict?text=&session_id=
 func (c *ManageTypingPredictController) Predict(ctx *gin.Context) {
 	text := ctx.Query("text")

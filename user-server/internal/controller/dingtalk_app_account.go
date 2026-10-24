@@ -89,6 +89,9 @@ func toDingTalkAppVO(a *model.DingTalkAppAccount) *dingTalkAppAccountVO {
 	}
 }
 
+// [AUTO] List
+// @Tags      ding-talk-app-account
+// @Router    /api/dingtalk-app/accounts [get]
 // List 列出所有钉钉应用账号
 func (ctrl *DingTalkAppAccountController) List(c *gin.Context) {
 	accs, err := ctrl.svc.ListAccounts(c.Request.Context())
@@ -103,6 +106,9 @@ func (ctrl *DingTalkAppAccountController) List(c *gin.Context) {
 	response.Success(c, out, "查询成功")
 }
 
+// [AUTO] Get
+// @Tags      ding-talk-app-account
+// @Router    /api/dingtalk-app/accounts/{id} [get]
 // Get 查询单个账号
 func (ctrl *DingTalkAppAccountController) Get(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
@@ -121,6 +127,9 @@ func (ctrl *DingTalkAppAccountController) Get(c *gin.Context) {
 	response.Success(c, toDingTalkAppVO(acc), "查询成功")
 }
 
+// [AUTO] Create
+// @Tags      ding-talk-app-account
+// @Router    /api/dingtalk-app/accounts [post]
 // Create 创建账号
 func (ctrl *DingTalkAppAccountController) Create(c *gin.Context) {
 	var req dingTalkAppAccountRequest
@@ -150,6 +159,9 @@ func (ctrl *DingTalkAppAccountController) Create(c *gin.Context) {
 	response.Success(c, toDingTalkAppVO(acc), "创建成功")
 }
 
+// [AUTO] Update
+// @Tags      ding-talk-app-account
+// @Router    /api/dingtalk-app/accounts/{id} [put]
 // Update 更新账号
 func (ctrl *DingTalkAppAccountController) Update(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
@@ -196,6 +208,9 @@ func (ctrl *DingTalkAppAccountController) Update(c *gin.Context) {
 	response.Success(c, toDingTalkAppVO(acc), "更新成功")
 }
 
+// [AUTO] Delete
+// @Tags      ding-talk-app-account
+// @Router    /api/dingtalk-app/accounts/{id} [delete]
 // Delete 删除账号
 func (ctrl *DingTalkAppAccountController) Delete(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
@@ -218,6 +233,9 @@ func (ctrl *DingTalkAppAccountController) Delete(c *gin.Context) {
 	response.Success(c, nil, "删除成功")
 }
 
+// [AUTO] Test
+// @Tags      ding-talk-app-account
+// @Router    /api/dingtalk-app/accounts/{id}/test [post]
 // Test 测试账号配置（校验必填项是否已填写）
 func (ctrl *DingTalkAppAccountController) Test(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)

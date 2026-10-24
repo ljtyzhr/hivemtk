@@ -786,3 +786,12 @@ func (s *MessageHubService) UpdateExtra(ctx context.Context, id uint, extra map[
 	}
 	return s.repo.UpdateExtra(ctx, id, model.JSONMap(extra))
 }
+
+// UpdatePlatformMsgID D-9（2026-10-24）：发送成功后把平台侧消息号写入 hub 行
+// （一等列，v3.82.0 迁移）。echo 拦截与 Recall 反查优先按它定位。
+func (s *MessageHubService) UpdatePlatformMsgID(ctx context.Context, id uint, platformMsgID string) error {
+	if s == nil || s.repo == nil {
+		return nil
+	}
+	return s.repo.UpdatePlatformMsgID(ctx, id, platformMsgID)
+}

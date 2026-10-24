@@ -118,6 +118,9 @@ func (c *ClueController) GetClueStatistics(ctx *gin.Context) {
 	response.Success(ctx, statistics, "获取线索统计成功")
 }
 
+// [AUTO] ImportClues
+// @Tags      clue
+// @Router    /api/clues/import [post]
 func (c *ClueController) ImportClues(ctx *gin.Context) {
 	var req []dto.ImportClueRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
@@ -144,6 +147,9 @@ func (c *ClueController) ImportClues(ctx *gin.Context) {
 	}, "导入线索成功")
 }
 
+// [AUTO] GetClueTypes
+// @Tags      clue
+// @Router    /api/clues/type [get]
 // GetClueTypes 获取线索类型列表
 func (c *ClueController) GetClueTypes(ctx *gin.Context) {
 	types, err := c.svc.GetClueTypes(ctx.Request.Context())

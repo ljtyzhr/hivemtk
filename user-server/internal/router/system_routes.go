@@ -108,7 +108,10 @@ func setupKnowledgeBaseRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 	// 挂在同一个路由组，不新增 /api/knowledge 顶层域名（规划 §2.2 契约第 1 条）。
 	kbItemCtrl := controller.NewKBItemBindingController(
 		service.NewKBItemBindingService(
-			service.NewKnowledgeBaseService(gormDB),
+			service.NewKnowledgeBaseServiceWithRepos(
+				repository.NewKnowledgeBaseRepository(gormDB),
+				repository.NewAgentKBBindingRepository(gormDB),
+				repository.NewKBItemBindingRepository(gormDB)),
 			repository.NewKBItemBindingRepository(gormDB)))
 	kbItemCtrl.RegisterRoutes(auth.Group("/knowledge-bases"))
 

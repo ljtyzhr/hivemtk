@@ -40,14 +40,21 @@ type MessageHub struct {
 	// PushAttempts/PushError（批20d-A3）只给出站行记账：服务端每把一行交给桥端一次计一次，
 	// 到 MaxOutboundPushAttempts 即落终态 failed，PushError 写明「为什么不再是 pending」。
 	// 计数留在行上而不是内存里：SW 回收/进程重启都要能接着算，否则预算每次重启都白送一轮。
-	PushAttempts int            `gorm:"not null;default:0" json:"push_attempts"`
-	PushError    string         `gorm:"type:varchar(200);not null;default:''" json:"push_error"`
-	IsRead       bool           `gorm:"default:false" json:"is_read"`
-	ReadAt       *time.Time     `json:"read_at"`
-	SentAt       time.Time      `gorm:"index" json:"sent_at"`
-	Extra        JSONMap        `gorm:"type:text" json:"extra"`
-	CreatedAt    time.Time      `gorm:"autoCreateTime" json:"created_at"`
-	DeletedAt    gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
+	PushAttempts int        `gorm:"not null;default:0" json:"push_attempts"`
+	PushError    string     `gorm:"type:varchar(200);not null;default:''" json:"push_error"`
+	IsRead       bool       `gorm:"default:false" json:"is_read"`
+	ReadAt       *time.Time `json:"read_at"`
+	SentAt       time.Time  `gorm:"index" json:"sent_at"`
+	Extra        JSONMap    `gorm:"type:text" json:"extra"`
+	// PlatformMsgID D-9（2026-10-24）：平台侧消息号（发送成功后由平台返回；
+	// hub 行键 msg_id 是 ContentHash/合成键，两者不是一回事）。可空：发送时
+	// 平台还没返回；历史行不回填（TG/飞书可按行键格式解析，见 platformMessageID）。
+	// 复合索引 (platform, account_id, platform_msg_id) 由迁移 v3.82.0 建——模型
+	// **有意**不用 index 标签（同 v3.81.0 教训：链路 Down 会删掉 AutoMigrate
+	// 在用的索引，判"越权删除在用索引"）。
+	PlatformMsgID string         `gorm:"type:varchar(100)" json:"platform_msg_id,omitempty"`
+	CreatedAt     time.Time      `gorm:"autoCreateTime" json:"created_at"`
+	DeletedAt     gorm.DeletedAt `gorm:"index" json:"deleted_at,omitempty"`
 }
 
 func (MessageHub) TableName() string { return "message_hub" }

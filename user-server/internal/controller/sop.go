@@ -133,6 +133,9 @@ func (c *SOPController) List(ctx *gin.Context) {
 	response.SuccessWithPage(ctx, list, int64(page), int64(pageSize), total)
 }
 
+// [AUTO] Delete
+// @Tags      s-o-p
+// @Router    /api/sop/{id} [delete]
 // Delete 删除
 func (c *SOPController) Delete(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 32)
@@ -147,6 +150,9 @@ func (c *SOPController) Delete(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"id": id}, "删除成功")
 }
 
+// [AUTO] Activate
+// @Tags      s-o-p
+// @Router    /api/sop/{id}/activate [post]
 // Activate 启用
 func (c *SOPController) Activate(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 32)
@@ -161,6 +167,9 @@ func (c *SOPController) Activate(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"id": id}, "启用成功")
 }
 
+// [AUTO] Deactivate
+// @Tags      s-o-p
+// @Router    /api/sop/{id}/deactivate [post]
 // Deactivate 停用
 func (c *SOPController) Deactivate(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 32)
@@ -175,6 +184,9 @@ func (c *SOPController) Deactivate(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"id": id}, "停用成功")
 }
 
+// [AUTO] Execute
+// @Tags      s-o-p
+// @Router    /api/sop/execute [post]
 // Execute 启动执行
 func (c *SOPController) Execute(ctx *gin.Context) {
 	var req dto.ExecuteRequest
@@ -191,6 +203,9 @@ func (c *SOPController) Execute(ctx *gin.Context) {
 	response.Success(ctx, redactExecution(exec), "执行成功")
 }
 
+// [AUTO] Step
+// @Tags      s-o-p
+// @Router    /api/sop/step [post]
 // Step 单步推进
 func (c *SOPController) Step(ctx *gin.Context) {
 	var req dto.StepRequest
@@ -206,6 +221,9 @@ func (c *SOPController) Step(ctx *gin.Context) {
 	response.Success(ctx, redactExecution(exec), "推进成功")
 }
 
+// [AUTO] Pause
+// @Tags      s-o-p
+// @Router    /api/sop/executions/{id}/pause [post]
 // Pause 暂停
 func (c *SOPController) Pause(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 32)
@@ -220,6 +238,9 @@ func (c *SOPController) Pause(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"id": id}, "暂停成功")
 }
 
+// [AUTO] Resume
+// @Tags      s-o-p
+// @Router    /api/sop/executions/{id}/resume [post]
 // Resume 恢复
 func (c *SOPController) Resume(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 32)
@@ -234,6 +255,9 @@ func (c *SOPController) Resume(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"id": id}, "恢复成功")
 }
 
+// [AUTO] Cancel
+// @Tags      s-o-p
+// @Router    /api/sop/executions/{id}/cancel [post]
 // Cancel 取消
 func (c *SOPController) Cancel(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 32)
@@ -248,6 +272,9 @@ func (c *SOPController) Cancel(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"id": id}, "取消成功")
 }
 
+// [AUTO] GetExecution
+// @Tags      s-o-p
+// @Router    /api/sop/executions/{id} [get]
 // GetExecution 详情
 func (c *SOPController) GetExecution(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 32)
@@ -270,6 +297,9 @@ func (c *SOPController) GetExecution(ctx *gin.Context) {
 	response.Success(ctx, redactExecution(exec), "查询成功")
 }
 
+// [AUTO] ListExecutions
+// @Tags      s-o-p
+// @Router    /api/sop/executions [get]
 // ListExecutions 列表
 func (c *SOPController) ListExecutions(ctx *gin.Context) {
 	customerID := ctx.Query("customer_id")
@@ -332,6 +362,9 @@ func redactExecution(exec *model.SOPExecution) *model.SOPExecution {
 	return &out
 }
 
+// [AUTO] MatchByIntent
+// @Tags      s-o-p
+// @Router    /api/sop/match [get]
 // MatchByIntent 意图匹配
 func (c *SOPController) MatchByIntent(ctx *gin.Context) {
 	intent := ctx.Query("intent")
@@ -343,6 +376,9 @@ func (c *SOPController) MatchByIntent(ctx *gin.Context) {
 	response.Success(ctx, list, "查询成功")
 }
 
+// [AUTO] Stats
+// @Tags      s-o-p
+// @Router    /api/sop/stats [get]
 // Stats 统计
 func (c *SOPController) Stats(ctx *gin.Context) {
 	stats, err := c.svc.Stats(ctx.Request.Context())
@@ -353,6 +389,9 @@ func (c *SOPController) Stats(ctx *gin.Context) {
 	response.Success(ctx, stats, "查询成功")
 }
 
+// [AUTO] GetABTestStats
+// @Tags      s-o-p
+// @Router    /api/sop/{id}/abtest/stats [get]
 // GetABTestStats 查询 SOP 的 A/B 测试 variant 统计
 func (c *SOPController) GetABTestStats(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 32)
@@ -368,6 +407,9 @@ func (c *SOPController) GetABTestStats(ctx *gin.Context) {
 	response.Success(ctx, stats, "查询成功")
 }
 
+// [AUTO] UpdateABTestConfig
+// @Tags      s-o-p
+// @Router    /api/sop/{id}/abtest/config [put]
 // UpdateABTestConfig 更新 SOP 的 A/B 测试配置
 func (c *SOPController) UpdateABTestConfig(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 32)

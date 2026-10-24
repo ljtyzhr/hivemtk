@@ -39,6 +39,9 @@ func (r schemaTemplateRequest) toInput() service.SchemaTemplateInput {
 	}
 }
 
+// [AUTO] List
+// @Tags      geo-schema-template
+// @Router    /api/geo/schema-templates [get]
 func (c *GeoSchemaTemplateController) List(ctx *gin.Context) {
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(ctx.DefaultQuery("limit", "20"))
@@ -50,6 +53,9 @@ func (c *GeoSchemaTemplateController) List(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": list, "total": total}, "ok")
 }
 
+// [AUTO] Get
+// @Tags      geo-schema-template
+// @Router    /api/geo/schema-templates/{id} [get]
 func (c *GeoSchemaTemplateController) Get(ctx *gin.Context) {
 	item, err := c.svc.Get(ctx.Request.Context(), ctx.Param("id"))
 	if err != nil {
@@ -63,6 +69,9 @@ func (c *GeoSchemaTemplateController) Get(ctx *gin.Context) {
 	response.Success(ctx, item, "ok")
 }
 
+// [AUTO] Create
+// @Tags      geo-schema-template
+// @Router    /api/geo/schema-templates [post]
 func (c *GeoSchemaTemplateController) Create(ctx *gin.Context) {
 	var req schemaTemplateRequest
 	if !response.BindJSON(ctx, &req) {
@@ -76,6 +85,9 @@ func (c *GeoSchemaTemplateController) Create(ctx *gin.Context) {
 	response.Success(ctx, item, "created")
 }
 
+// [AUTO] Update
+// @Tags      geo-schema-template
+// @Router    /api/geo/schema-templates/{id} [put]
 func (c *GeoSchemaTemplateController) Update(ctx *gin.Context) {
 	var req schemaTemplateRequest
 	if !response.BindJSON(ctx, &req) {
@@ -93,6 +105,9 @@ func (c *GeoSchemaTemplateController) Update(ctx *gin.Context) {
 	response.Success(ctx, item, "updated")
 }
 
+// [AUTO] Delete
+// @Tags      geo-schema-template
+// @Router    /api/geo/schema-templates/{id} [delete]
 func (c *GeoSchemaTemplateController) Delete(ctx *gin.Context) {
 	if err := c.svc.Delete(ctx.Request.Context(), ctx.Param("id")); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

@@ -511,7 +511,8 @@ const handleLogin = async () => {
   border-top: 1px solid #E2E8F0;
   font-size: 11.5px;
   line-height: 1.7;
-  color: #94A3B8;
+  /* FE-13：#94A3B8 对白底仅约 2.9:1，不达 WCAG AA（4.5:1）；换 slate-500（≈4.76:1） */
+  color: #64748B;
   text-align: justify;
 }
 

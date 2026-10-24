@@ -75,13 +75,26 @@ func (r *MessageHubRepository) UpdateMsgID(ctx context.Context, id uint, platfor
 
 // GetOutgoingByPlatformMsgID 按平台消息 ID 精确查找出站行（echo 拦截用）。
 // 范围限定单账号 + 出站方向，避免跨账号/跨方向的偶然 ID 碰撞误判。
+// D-9（2026-10-24）：两段式——先查 platform_msg_id 列（新合同），未命中回退
+// msg_id 行键（WA 行键=wamid 本体、回填前的存量行——语义与旧口径一致）。
 func (r *MessageHubRepository) GetOutgoingByPlatformMsgID(ctx context.Context, platform, accountID, msgID string) (*model.MessageHub, error) {
 	if r == nil || r.db == nil || msgID == "" {
 		return nil, gorm.ErrRecordNotFound
 	}
 	var existing model.MessageHub
 	err := r.db.WithContext(ctx).
-		Where("platform = ? AND account_id = ? AND msg_id = ? AND direction = ?", platform, accountID, msgID, "outbound").
+		Where("platform = ? AND account_id = ? AND direction = ? AND platform_msg_id = ?",
+			platform, accountID, "outbound", msgID).
+		First(&existing).Error
+	if err == nil {
+		return &existing, nil
+	}
+	if err != gorm.ErrRecordNotFound {
+		return nil, err
+	}
+	err = r.db.WithContext(ctx).
+		Where("platform = ? AND account_id = ? AND direction = ? AND msg_id = ?",
+			platform, accountID, "outbound", msgID).
 		First(&existing).Error
 	if err != nil {
 		return nil, err
@@ -91,14 +104,26 @@ func (r *MessageHubRepository) GetOutgoingByPlatformMsgID(ctx context.Context, p
 
 // GetOutgoingByPlatformMsgIDInConv 在 GetOutgoingByPlatformMsgID 基础上限定
 // 会话范围（TG message_id 按聊天独立计数等场景防跨会话误拦）。
+// D-9（2026-10-24）：同 GetOutgoingByPlatformMsgID 的两段式口径
+// （platform_msg_id 优先，未命中回退 msg_id 行键）。
 func (r *MessageHubRepository) GetOutgoingByPlatformMsgIDInConv(ctx context.Context, platform, accountID, conversationID, msgID string) (*model.MessageHub, error) {
 	if r == nil || r.db == nil || msgID == "" || conversationID == "" {
 		return nil, gorm.ErrRecordNotFound
 	}
 	var existing model.MessageHub
 	err := r.db.WithContext(ctx).
-		Where("platform = ? AND account_id = ? AND msg_id = ? AND direction = ? AND conversation_id = ?",
-			platform, accountID, msgID, "outbound", conversationID).
+		Where("platform = ? AND account_id = ? AND direction = ? AND conversation_id = ? AND platform_msg_id = ?",
+			platform, accountID, "outbound", conversationID, msgID).
+		First(&existing).Error
+	if err == nil {
+		return &existing, nil
+	}
+	if err != gorm.ErrRecordNotFound {
+		return nil, err
+	}
+	err = r.db.WithContext(ctx).
+		Where("platform = ? AND account_id = ? AND direction = ? AND conversation_id = ? AND msg_id = ?",
+			platform, accountID, "outbound", conversationID, msgID).
 		First(&existing).Error
 	if err != nil {
 		return nil, err
@@ -210,4 +235,15 @@ func (r *MessageHubRepository) UpdateExtra(ctx context.Context, id uint, extra m
 	return r.db.WithContext(ctx).Model(&model.MessageHub{}).
 		Where("id = ?", id).
 		Update("extra", extra).Error
+}
+
+// UpdatePlatformMsgID D-9（2026-10-24）：发送成功后把平台侧消息号写入 hub 行。
+// platform_msg_id 是一等列（v3.82.0），echo 拦截与 Recall 反查优先走它。
+func (r *MessageHubRepository) UpdatePlatformMsgID(ctx context.Context, id uint, platformMsgID string) error {
+	if r == nil || r.db == nil || id == 0 || platformMsgID == "" {
+		return nil
+	}
+	return r.db.WithContext(ctx).Model(&model.MessageHub{}).
+		Where("id = ?", id).
+		Update("platform_msg_id", platformMsgID).Error
 }

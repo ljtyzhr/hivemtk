@@ -45,6 +45,9 @@ var transparent1x1PNG = []byte{
 	0x42, 0x60, 0x82,
 }
 
+// [AUTO] TrackingPixel
+// @Tags      email-tracking
+// @Router    /api/email/track/open/{token} [get]
 // TrackingPixel GET /api/email/track/open/{token}.png
 //
 // 路由路径形如 /api/email/track/open/abc.def.png
@@ -66,6 +69,9 @@ func (c *EmailTrackingController) TrackingPixel(ctx *gin.Context) {
 	ctx.Data(http.StatusOK, "image/png", transparent1x1PNG)
 }
 
+// [AUTO] ClickRedirect
+// @Tags      email-tracking
+// @Router    /api/email/track/click/{token} [get]
 // ClickRedirect GET /api/email/track/click/{token}
 //
 // 记录点击事件后 302 跳转到目标 URL。
@@ -100,6 +106,9 @@ func (c *EmailTrackingController) ClickRedirect(ctx *gin.Context) {
 	ctx.Redirect(http.StatusFound, target)
 }
 
+// [AUTO] GetJobMetrics
+// @Tags      email-tracking
+// @Router    /api/email/track/jobs/{id}/metrics [get]
 // GetJobMetrics GET /api/email/track/jobs/:id/metrics
 func (c *EmailTrackingController) GetJobMetrics(ctx *gin.Context) {
 	jobID := ctx.Param("id")
@@ -117,6 +126,9 @@ func (c *EmailTrackingController) GetJobMetrics(ctx *gin.Context) {
 	response.Success(ctx, metric, "success")
 }
 
+// [AUTO] ListJobEvents
+// @Tags      email-tracking
+// @Router    /api/email/track/jobs/{id}/events [get]
 // ListJobEvents GET /api/email/track/jobs/:id/events
 func (c *EmailTrackingController) ListJobEvents(ctx *gin.Context) {
 	jobID := ctx.Param("id")
@@ -143,6 +155,9 @@ type GetRangeMetricsRequest struct {
 	End   string `form:"end" binding:"required"`
 }
 
+// [AUTO] GetRangeMetrics
+// @Tags      email-tracking
+// @Router    /api/email/track/metrics [get]
 // GetRangeMetrics GET /api/email/track/metrics?start=...&end=...
 //
 // 时间格式： 或 RFC3339

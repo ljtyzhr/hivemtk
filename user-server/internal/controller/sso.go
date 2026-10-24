@@ -69,6 +69,9 @@ func (c *SSOController) providerScope(ctx *gin.Context) context.Context {
 	return bound
 }
 
+// [AUTO] ListProviders
+// @Tags      s-s-o
+// @Router    /api/sso/providers [get]
 // ListProviders 列出该租户已启用的 SSO 登录方式
 func (c *SSOController) ListProviders(ctx *gin.Context) {
 	scope := c.providerScope(ctx)
@@ -82,6 +85,9 @@ func (c *SSOController) ListProviders(ctx *gin.Context) {
 	}, "获取登录方式成功")
 }
 
+// [AUTO] Login
+// @Tags      s-s-o
+// @Router    /api/sso/login/{provider} [get]
 // Login 发起 SSO 登录：生成 state + nonce + PKCE verifier，重定向到 IdP
 func (c *SSOController) Login(ctx *gin.Context) {
 	provider := ctx.Param("provider")
@@ -139,6 +145,9 @@ func (c *SSOController) Login(ctx *gin.Context) {
 	ctx.Redirect(http.StatusFound, authURL)
 }
 
+// [AUTO] Callback
+// @Tags      s-s-o
+// @Router    /api/sso/callback/{provider} [get]
 // Callback 处理 IdP 回调
 func (c *SSOController) Callback(ctx *gin.Context) {
 	provider := ctx.Param("provider")
@@ -210,6 +219,9 @@ func (c *SSOController) resolveRedirectTarget(ctx *gin.Context, requestCtx conte
 	return strings.TrimRight(config.GetPublicBaseURLFor(requestCtx), "/")
 }
 
+// [AUTO] GetTenantProviders
+// @Tags      s-s-o
+// @Router    /api/sso/config [get]
 // GetTenantProviders 回显本租户自配的 IdP（GET /api/sso/config）
 //
 // client_secret 一律打码成 ***：把密钥渲染进 input 等于把它交给浏览器历史与
@@ -223,6 +235,9 @@ func (c *SSOController) GetTenantProviders(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"providers": service.MaskTenantSSOClientSecrets(providers)}, "获取成功")
 }
 
+// [AUTO] SaveTenantProviders
+// @Tags      s-s-o
+// @Router    /api/sso/config [put]
 // SaveTenantProviders 保存本租户自配的 IdP（PUT /api/sso/config）
 //
 // 提交里 client_secret 为 *** 的那条沿用库里那份（回显打码的必然结果），

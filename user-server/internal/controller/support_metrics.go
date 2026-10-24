@@ -21,6 +21,9 @@ func NewSupportMetricsController(svc service.SupportMetricsService) *SupportMetr
 	return &SupportMetricsController{svc: svc}
 }
 
+// [AUTO] GetSupportMetrics
+// @Tags      support-metrics
+// @Router    /api/metrics/support [get]
 // GetSupportMetrics GET /api/metrics/support?days=30
 func (c *SupportMetricsController) GetSupportMetrics(ctx *gin.Context) {
 	if !c.svc.Available() {

@@ -123,6 +123,9 @@ func (pc *PlatformController) RegisterMerchant(c *gin.Context) {
 	pc.platformCall(c, "POST", "/merchant-api/merchant/register", platformReq, &resp, "注册商户失败")
 }
 
+// [AUTO] GetDashboard
+// @Tags      platform
+// @Router    /api/platform/dashboard [get]
 // 平台端方法 - 驾驶舱 - GET /platform/dashboard
 func (pc *PlatformController) GetDashboard(c *gin.Context) {
 	var resp struct {
@@ -134,6 +137,9 @@ func (pc *PlatformController) GetDashboard(c *gin.Context) {
 	pc.platformCall(c, "GET", "/platform/dashboard", nil, &resp, "获取驾驶舱失败")
 }
 
+// [AUTO] GetMerchantList
+// @Tags      platform
+// @Router    /api/platform/merchant/list [get]
 func (pc *PlatformController) GetMerchantList(c *gin.Context) {
 	page, pageSize, err := pagination.Parse(c)
 	if err != nil {
@@ -155,6 +161,9 @@ func (pc *PlatformController) GetMerchantList(c *gin.Context) {
 	pc.platformCall(c, "GET", path, nil, &resp, "获取商户列表失败")
 }
 
+// [AUTO] GetMerchantStats
+// @Tags      platform
+// @Router    /api/platform/merchant/{id}/stats [get]
 func (pc *PlatformController) GetMerchantStats(c *gin.Context) {
 	merchantID := c.Param("id")
 	if merchantID == "" {
@@ -171,6 +180,9 @@ func (pc *PlatformController) GetMerchantStats(c *gin.Context) {
 	pc.platformCall(c, "GET", path, nil, &resp, "获取商户统计失败")
 }
 
+// [AUTO] GetMessageList
+// @Tags      platform
+// @Router    /api/platform/message/list [get]
 // 平台端方法 - 站内信列表 - GET /platform/message/list
 func (pc *PlatformController) GetMessageList(c *gin.Context) {
 	page, pageSize, err := pagination.Parse(c)
@@ -188,6 +200,9 @@ func (pc *PlatformController) GetMessageList(c *gin.Context) {
 	pc.platformCall(c, "GET", path, nil, &resp, "获取站内信列表失败")
 }
 
+// [AUTO] SendMessage
+// @Tags      platform
+// @Router    /api/platform/message/send [post]
 // 平台端方法 - 发送站内信 - POST /platform/message/send
 func (pc *PlatformController) SendMessage(c *gin.Context) {
 	var req struct {
@@ -205,6 +220,9 @@ func (pc *PlatformController) SendMessage(c *gin.Context) {
 	pc.platformCall(c, "POST", "/platform/message/send", req, &resp, "发送站内信失败")
 }
 
+// [AUTO] MarkPlatformMessageRead
+// @Tags      platform
+// @Router    /api/platform/message/{id}/read [post]
 // 平台端方法 - 标记站内信已读 - POST /platform/message/{id}/read
 func (pc *PlatformController) MarkPlatformMessageRead(c *gin.Context) {
 	messageID := c.Param("id")
@@ -218,6 +236,9 @@ func (pc *PlatformController) MarkPlatformMessageRead(c *gin.Context) {
 	pc.platformCall(c, "POST", path, nil, &resp, "标记站内信已读失败")
 }
 
+// [AUTO] GetLatestMessage
+// @Tags      platform
+// @Router    /api/platform/message/latest [get]
 // 平台端方法 - 最新站内信 - GET /platform/message/latest
 // 供前端 MessageNotification 全局轮询。平台客户端未初始化或平台不可达/无该端点时，
 // 静默返回 null（而非 404/5xx），避免每次页面加载都产生控制台噪声。
@@ -243,6 +264,9 @@ func (pc *PlatformController) GetLatestMessage(c *gin.Context) {
 	response.Success(c, nil, "")
 }
 
+// [AUTO] GetUserList
+// @Tags      platform
+// @Router    /api/platform/user/list [get]
 // 平台端方法 - 用户管理 - GET /platform/user/list
 func (pc *PlatformController) GetUserList(c *gin.Context) {
 	page, pageSize, err := pagination.Parse(c)
@@ -260,6 +284,9 @@ func (pc *PlatformController) GetUserList(c *gin.Context) {
 	pc.platformCall(c, "GET", path, nil, &resp, "获取用户列表失败")
 }
 
+// [AUTO] CreateUser
+// @Tags      platform
+// @Router    /api/platform/user [post]
 // 平台端方法 - 创建用户 - POST /platform/user/create
 func (pc *PlatformController) CreateUser(c *gin.Context) {
 	var req struct {
@@ -278,6 +305,9 @@ func (pc *PlatformController) CreateUser(c *gin.Context) {
 	pc.platformCall(c, "POST", "/platform/user/create", req, &resp, "创建用户失败")
 }
 
+// [AUTO] DeleteUser
+// @Tags      platform
+// @Router    /api/platform/user/{id} [delete]
 // 平台端方法 - 删除用户 - DELETE /platform/user/{id}
 func (pc *PlatformController) DeleteUser(c *gin.Context) {
 	userID := c.Param("id")
@@ -291,6 +321,9 @@ func (pc *PlatformController) DeleteUser(c *gin.Context) {
 	pc.platformCall(c, "DELETE", path, nil, &resp, "删除用户失败")
 }
 
+// [AUTO] GetSystemStats
+// @Tags      platform
+// @Router    /api/platform/stats/system [get]
 // 平台端方法 - 系统统计 - GET /platform/stats/system
 func (pc *PlatformController) GetSystemStats(c *gin.Context) {
 	var resp struct {
@@ -303,6 +336,9 @@ func (pc *PlatformController) GetSystemStats(c *gin.Context) {
 	pc.platformCall(c, "GET", "/platform/stats/system", nil, &resp, "获取系统统计失败")
 }
 
+// [AUTO] GetPlatformStats
+// @Tags      platform
+// @Router    /api/platform/stats/overview [get]
 // 平台端方法 - 平台总览统计 - GET /platform/stats/overview
 func (pc *PlatformController) GetPlatformStats(c *gin.Context) {
 	var resp struct {
@@ -319,6 +355,9 @@ func (pc *PlatformController) GetPlatformStats(c *gin.Context) {
 	pc.platformCall(c, "GET", "/platform/stats/overview", nil, &resp, "获取平台统计失败")
 }
 
+// [AUTO] GetPlatformMerchantStats
+// @Tags      platform
+// @Router    /api/platform/stats/merchant [get]
 func (pc *PlatformController) GetPlatformMerchantStats(c *gin.Context) {
 	days := c.DefaultQuery("days", "7")
 

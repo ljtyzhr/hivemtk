@@ -24,6 +24,9 @@ func NewSalesWorkbenchController(svc *service.SalesWorkbenchService) *SalesWorkb
 	return &SalesWorkbenchController{svc: svc}
 }
 
+// [AUTO] GetOverview
+// @Tags      sales-workbench
+// @Router    /api/sales-workbench/overview [get]
 // GetOverview GET /api/sales-workbench/overview?sales_id=xxx
 //
 // sales_id 由查询参数给：工作台是"某个销售看自己的概览"，排行/待办全按它聚合。
@@ -63,6 +66,9 @@ func windowDays(ctx *gin.Context) (int, bool) {
 	return days, true
 }
 
+// [AUTO] GetTeamDashboard
+// @Tags      sales-workbench
+// @Router    /api/sales-workbench/team-dashboard [get]
 // GetTeamDashboard GET /api/sales-workbench/team-dashboard?days=30
 //
 // 团队排行 + AI 产能 + 销冠画像 + 漏斗的事件流读口。与 SQL 口径的
@@ -86,6 +92,9 @@ func (c *SalesWorkbenchController) GetTeamDashboard(ctx *gin.Context) {
 	response.Success(ctx, data, "ok")
 }
 
+// [AUTO] GetChampionProfile
+// @Tags      sales-workbench
+// @Router    /api/sales-workbench/champion [get]
 // GetChampionProfile GET /api/sales-workbench/champion?days=30
 // 销冠画像的事件流读口，口径同上。
 func (c *SalesWorkbenchController) GetChampionProfile(ctx *gin.Context) {
@@ -106,6 +115,9 @@ func (c *SalesWorkbenchController) GetChampionProfile(ctx *gin.Context) {
 	response.Success(ctx, data, "ok")
 }
 
+// [AUTO] GetQuickActions
+// @Tags      sales-workbench
+// @Router    /api/sales-workbench/quick-actions [get]
 // GetQuickActions GET /api/sales-workbench/quick-actions
 //
 // 快链区读口（A10）：服务方法 GetQuickActions 在此之前零 HTTP 暴露——建了

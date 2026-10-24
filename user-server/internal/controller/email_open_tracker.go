@@ -31,6 +31,9 @@ func verifyWebhookSharedSecret(ctx *gin.Context) bool {
 	return subtle.ConstantTimeCompare([]byte(got), []byte(want)) == 1
 }
 
+// [AUTO] PostmarkWebhook
+// @Tags      email-open-tracker
+// @Router    /api/email/track/webhook/postmark [post]
 func (c *EmailOpenTrackerController) PostmarkWebhook(ctx *gin.Context) {
 	if !verifyWebhookSharedSecret(ctx) {
 		ctx.String(http.StatusUnauthorized, "invalid webhook secret")
@@ -57,6 +60,9 @@ func (c *EmailOpenTrackerController) PostmarkWebhook(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"recorded": true, "type": evt.RecordType}, "ok")
 }
 
+// [AUTO] SendCloudWebhook
+// @Tags      email-open-tracker
+// @Router    /api/email/track/webhook/sendcloud [post]
 // SendCloudWebhook POST /api/email/track/webhook/sendcloud
 func (c *EmailOpenTrackerController) SendCloudWebhook(ctx *gin.Context) {
 	if !verifyWebhookSharedSecret(ctx) {
@@ -84,6 +90,9 @@ func (c *EmailOpenTrackerController) SendCloudWebhook(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"recorded": true, "event": evt.Event}, "ok")
 }
 
+// [AUTO] GetOpenMetrics
+// @Tags      email-open-tracker
+// @Router    /api/email/track/open-metrics [get]
 // GetOpenMetrics GET /api/email/track/open-metrics?job_id=xxx&total_sent=100
 func (c *EmailOpenTrackerController) GetOpenMetrics(ctx *gin.Context) {
 	if c.svc == nil {

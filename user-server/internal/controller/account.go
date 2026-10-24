@@ -17,6 +17,9 @@ func NewAccountController(svc *service.AccountService) *AccountController {
 	return &AccountController{svc: svc}
 }
 
+// [AUTO] GetAccounts
+// @Tags      account
+// @Router    /api/account/list [get]
 func (c *AccountController) GetAccounts(ctx *gin.Context) {
 	accounts, err := c.svc.GetAccountList(ctx.Request.Context())
 	if err != nil {
@@ -46,6 +49,9 @@ func (c *AccountController) GetAccounts(ctx *gin.Context) {
 	response.Success(ctx, resp, "success")
 }
 
+// [AUTO] GetAccount
+// @Tags      account
+// @Router    /api/account/{id} [get]
 func (c *AccountController) GetAccount(ctx *gin.Context) {
 	accountIDStr := ctx.Param("id")
 	if accountIDStr == "" {

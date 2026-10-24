@@ -37,13 +37,24 @@ func NewKnowledgeBaseServiceDefault() *KnowledgeBaseService {
 	return NewKnowledgeBaseService(dbUtil.GetDB())
 }
 
-// NewKnowledgeBaseService 创建知识库服务
+// NewKnowledgeBaseService 创建知识库服务。
+//
+// E-4（2026-10-24）：本构造仍是 db 进 service 的入口之一，但**域内不再新增**——
+// 三个 repo 的注入构造见 NewKnowledgeBaseServiceWithRepos（装配方逐域迁移用）。
+// 按域下沉是长期债（规划 §4.4），棘轮见 arch_gorm_guard_test.go（只许降）。
 func NewKnowledgeBaseService(db *gorm.DB) *KnowledgeBaseService {
 	return &KnowledgeBaseService{
 		repo:        repository.NewKnowledgeBaseRepository(db),
 		bindingRepo: repository.NewAgentKBBindingRepository(db),
 		itemRepo:    repository.NewKBItemBindingRepository(db),
 	}
+}
+
+// NewKnowledgeBaseServiceWithRepos repo 注入构造（E-4 按域下沉的迁移目标形状）。
+// 装配方自己 New repo，service 不再伸手要 DB 句柄。
+func NewKnowledgeBaseServiceWithRepos(kbRepo *repository.KnowledgeBaseRepository,
+	bindRepo *repository.AgentKBBindingRepository, itemRepo *repository.KBItemBindingRepository) *KnowledgeBaseService {
+	return &KnowledgeBaseService{repo: kbRepo, bindingRepo: bindRepo, itemRepo: itemRepo}
 }
 
 // SetRepositories 注入 repository (用于测试)

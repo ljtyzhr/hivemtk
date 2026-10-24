@@ -19,6 +19,9 @@ func NewConfigController(svc *service.ConfigService) *ConfigController {
 	return &ConfigController{svc: svc}
 }
 
+// [AUTO] GetConfig
+// @Tags      config
+// @Router    /api/geo/config [get]
 // GetConfig 获取 GEO 配置
 // GET /geo/config
 func (c *ConfigController) GetConfig(ctx *gin.Context) {
@@ -30,6 +33,9 @@ func (c *ConfigController) GetConfig(ctx *gin.Context) {
 	response.Success(ctx, result, "获取配置成功")
 }
 
+// [AUTO] UpdateConfig
+// @Tags      config
+// @Router    /api/geo/config [put]
 // UpdateConfig 更新 GEO 配置（管理员）
 // PUT /geo/config
 func (c *ConfigController) UpdateConfig(ctx *gin.Context) {
@@ -55,6 +61,9 @@ func (c *ConfigController) UpdateConfig(ctx *gin.Context) {
 	response.Success(ctx, nil, "更新配置成功")
 }
 
+// [AUTO] OptimizeConfig
+// @Tags      config
+// @Router    /api/geo/config/optimize [post]
 // OptimizeConfig 优化 GEO 配置（管理员）
 // POST /geo/config/optimize
 func (c *ConfigController) OptimizeConfig(ctx *gin.Context) {

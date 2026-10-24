@@ -33,6 +33,9 @@ func NewCustomer360Controller(customer360Service *service.Customer360Service) *C
 	}
 }
 
+// [AUTO] GetCustomer360
+// @Tags      customer360
+// @Router    /api/customer-360 [get]
 // GetCustomer360 获取客户 360° 视图
 func (c *Customer360Controller) GetCustomer360(ctx *gin.Context) {
 	userID := ctx.Query("user_id")
@@ -50,6 +53,9 @@ func (c *Customer360Controller) GetCustomer360(ctx *gin.Context) {
 	response.Success(ctx, dto, "获取成功")
 }
 
+// [AUTO] GetCustomerList
+// @Tags      customer360
+// @Router    /api/customer-360/list [get]
 // GetCustomerList 获取客户列表
 func (c *Customer360Controller) GetCustomerList(ctx *gin.Context) {
 	page := 1
@@ -95,6 +101,9 @@ func (c *Customer360Controller) GetCustomerList(ctx *gin.Context) {
 	}, "获取成功")
 }
 
+// [AUTO] GetCustomerBasicInfo
+// @Tags      customer360
+// @Router    /api/customer-360/basic [get]
 // GetCustomerBasicInfo 获取客户基本信息（快速接口）
 func (c *Customer360Controller) GetCustomerBasicInfo(ctx *gin.Context) {
 	userID := ctx.Query("user_id")
@@ -115,6 +124,9 @@ func (c *Customer360Controller) GetCustomerBasicInfo(ctx *gin.Context) {
 	}, "获取成功")
 }
 
+// [AUTO] GetCustomerStats
+// @Tags      customer360
+// @Router    /api/customer-360/stats [get]
 // GetCustomerStats 获取客户统计信息
 func (c *Customer360Controller) GetCustomerStats(ctx *gin.Context) {
 	userID := ctx.Query("user_id")
@@ -135,6 +147,9 @@ func (c *Customer360Controller) GetCustomerStats(ctx *gin.Context) {
 	}, "获取成功")
 }
 
+// [AUTO] GetCustomerSessions
+// @Tags      customer360
+// @Router    /api/customer-360/sessions [get]
 // GetCustomerSessions 获取客户会话历史
 func (c *Customer360Controller) GetCustomerSessions(ctx *gin.Context) {
 	userID := ctx.Query("user_id")
@@ -155,6 +170,9 @@ func (c *Customer360Controller) GetCustomerSessions(ctx *gin.Context) {
 	}, "获取成功")
 }
 
+// [AUTO] GetCustomerEvents
+// @Tags      customer360
+// @Router    /api/customer-360/events [get]
 // GetCustomerEvents 获取客户行为事件流水（前端 GET /api/customer-360/events?user_id=&limit=）
 func (c *Customer360Controller) GetCustomerEvents(ctx *gin.Context) {
 	customerID := ctx.Query("user_id")
@@ -179,6 +197,9 @@ func (c *Customer360Controller) GetCustomerEvents(ctx *gin.Context) {
 	}, "获取成功")
 }
 
+// [AUTO] GetCustomerOrders
+// @Tags      customer360
+// @Router    /api/customer-360/orders [get]
 // GetCustomerOrders 获取客户订单（前端 GET /api/customer-360/orders?user_id=&limit=）
 func (c *Customer360Controller) GetCustomerOrders(ctx *gin.Context) {
 	customerID := ctx.Query("user_id")
@@ -207,6 +228,9 @@ func (c *Customer360Controller) GetCustomerOrders(ctx *gin.Context) {
 	}, "获取成功")
 }
 
+// [AUTO] GetCustomerMessages
+// @Tags      customer360
+// @Router    /api/customer-360/messages [get]
 // GetCustomerMessages 获取客户消息记录
 func (c *Customer360Controller) GetCustomerMessages(ctx *gin.Context) {
 	userID := ctx.Query("user_id")
@@ -227,6 +251,9 @@ func (c *Customer360Controller) GetCustomerMessages(ctx *gin.Context) {
 	}, "获取成功")
 }
 
+// [AUTO] UpdateCustomerTags
+// @Tags      customer360
+// @Router    /api/customer-360/tags [put]
 // UpdateCustomerTags 更新客户标签
 func (c *Customer360Controller) UpdateCustomerTags(ctx *gin.Context) {
 	userID := ctx.Query("user_id")
@@ -256,6 +283,9 @@ func (c *Customer360Controller) UpdateCustomerTags(ctx *gin.Context) {
 	}, "更新成功")
 }
 
+// [AUTO] GetCustomerTags
+// @Tags      customer360
+// @Router    /api/customer-360/tags [get]
 // GetCustomerTags 获取客户标签
 func (c *Customer360Controller) GetCustomerTags(ctx *gin.Context) {
 	userID := ctx.Query("user_id")
@@ -276,6 +306,9 @@ func (c *Customer360Controller) GetCustomerTags(ctx *gin.Context) {
 	}, "获取成功")
 }
 
+// [AUTO] GetCustomer360ByID
+// @Tags      customer360
+// @Router    /api/customer/360/{id} [get]
 // GetCustomer360ByID 通过路径参数 :id 获取客户 360° 视图（兼容前端 /api/customer/360/:id）
 func (c *Customer360Controller) GetCustomer360ByID(ctx *gin.Context) {
 	userID := ctx.Param("id")
@@ -330,6 +363,9 @@ func (c *Customer360Controller) AddCustomerTag(ctx *gin.Context) {
 	}, "添加成功")
 }
 
+// [AUTO] RemoveCustomerTag
+// @Tags      customer360
+// @Router    /api/customer/{id}/tags/{tag} [delete]
 // RemoveCustomerTag 移除客户标签（兼容前端 DELETE /api/customer/:id/tags/:tag）
 func (c *Customer360Controller) RemoveCustomerTag(ctx *gin.Context) {
 	userID := ctx.Param("id")
@@ -382,6 +418,9 @@ func (c *Customer360Controller) GetCustomerDetail(ctx *gin.Context) {
 	response.Success(ctx, dto, "获取成功")
 }
 
+// [AUTO] UpdateCustomer
+// @Tags      customer360
+// @Router    /api/customer/{id} [put]
 // UpdateCustomer 更新客户信息（兼容前端 PUT /api/customer/:id）
 func (c *Customer360Controller) UpdateCustomer(ctx *gin.Context) {
 	userID := ctx.Param("id")
@@ -440,6 +479,9 @@ func (c *Customer360Controller) UpdateCustomer(ctx *gin.Context) {
 	response.Success(ctx, dto, "更新成功")
 }
 
+// [AUTO] GetCustomerBehaviors
+// @Tags      customer360
+// @Router    /api/customer/{id}/behaviors [get]
 // GetCustomerBehaviors 获取客户行为记录（兼容前端 GET /api/customer/:id/behaviors）
 func (c *Customer360Controller) GetCustomerBehaviors(ctx *gin.Context) {
 	userID := ctx.Param("id")
@@ -461,6 +503,9 @@ func (c *Customer360Controller) GetCustomerBehaviors(ctx *gin.Context) {
 	}, "获取成功")
 }
 
+// [AUTO] GetCustomerCommunications
+// @Tags      customer360
+// @Router    /api/customer/{id}/communications [get]
 // GetCustomerCommunications 获取客户沟通记录（兼容前端 GET /api/customer/:id/communications）
 func (c *Customer360Controller) GetCustomerCommunications(ctx *gin.Context) {
 	customerID := ctx.Param("id")
@@ -485,6 +530,9 @@ func (c *Customer360Controller) GetCustomerCommunications(ctx *gin.Context) {
 	}, "获取成功")
 }
 
+// [AUTO] ListTagRules
+// @Tags      customer360
+// @Router    /api/customer-360/tag-rules [get]
 // ListTagRules 获取自动标签规则列表
 // GET /api/customer-360/tag-rules
 func (c *Customer360Controller) ListTagRules(ctx *gin.Context) {
@@ -507,6 +555,9 @@ type saveTagRuleRequest struct {
 	Active   *bool          `json:"active"`
 }
 
+// [AUTO] SaveTagRule
+// @Tags      customer360
+// @Router    /api/customer-360/tag-rules [post]
 // SaveTagRule 创建或更新自动标签规则
 // POST /api/customer-360/tag-rules
 func (c *Customer360Controller) SaveTagRule(ctx *gin.Context) {
@@ -529,6 +580,9 @@ func (c *Customer360Controller) SaveTagRule(ctx *gin.Context) {
 	response.Success(ctx, result, "保存成功")
 }
 
+// [AUTO] UpdateTagRule
+// @Tags      customer360
+// @Router    /api/customer-360/tag-rules/{id} [put]
 // UpdateTagRule 更新指定自动标签规则
 // PUT /api/customer-360/tag-rules/:id
 func (c *Customer360Controller) UpdateTagRule(ctx *gin.Context) {
@@ -560,6 +614,9 @@ func (c *Customer360Controller) UpdateTagRule(ctx *gin.Context) {
 	response.Success(ctx, result, "更新成功")
 }
 
+// [AUTO] DeleteTagRule
+// @Tags      customer360
+// @Router    /api/customer-360/tag-rules/{id} [delete]
 // DeleteTagRule 删除自动标签规则
 // DELETE /api/customer-360/tag-rules/:id
 func (c *Customer360Controller) DeleteTagRule(ctx *gin.Context) {
@@ -575,6 +632,9 @@ func (c *Customer360Controller) DeleteTagRule(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"id": id}, "删除成功")
 }
 
+// [AUTO] GetTagStats
+// @Tags      customer360
+// @Router    /api/customer-360/tag-stats [get]
 // GetTagStats 获取标签统计
 // GET /api/customer-360/tag-stats
 func (c *Customer360Controller) GetTagStats(ctx *gin.Context) {

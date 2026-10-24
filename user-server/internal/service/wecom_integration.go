@@ -186,6 +186,10 @@ func (s *WeComIntegrationService) SendMessage(ctx context.Context, req *WeComSen
 			} else if msgID != "" {
 				// 把企微平台 msgid 写入 hub 行 Extra，供 recallWeCom 撤回时读取。
 				// 旧消息无此字段 → 撤回会返回 "wecom hub extra missing msgid"（预期行为）。
+				// D-9（2026-10-24）：同步写 platform_msg_id 一等列（v3.82.0 回执合同）。
+				if err := s.hub.UpdatePlatformMsgID(ctx, hubMsg.ID, msgID); err != nil {
+					logger.Warnf("[WeCom] 回填 platform_msg_id 到 hub 行失败 hub_id=%d msgid=%s: %v", hubMsg.ID, msgID, err)
+				}
 				if err := s.hub.UpdateExtra(ctx, hubMsg.ID, map[string]any{"msgid": msgID}); err != nil {
 					logger.Warnf("[WeCom] 回填 msgid 到 hub 行失败 hub_id=%d msgid=%s: %v", hubMsg.ID, msgID, err)
 				}

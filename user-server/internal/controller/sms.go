@@ -162,6 +162,9 @@ func (c *SmsController) GetJobRecords(ctx *gin.Context) {
 	}, "success")
 }
 
+// [AUTO] GetSmsList
+// @Tags      sms
+// @Router    /api/sms/records [get]
 // GetSmsList 获取短信列表
 func (c *SmsController) GetSmsList(ctx *gin.Context) {
 	var req dto.SmsListRequest
@@ -197,6 +200,9 @@ func (c *SmsController) GetSmsList(ctx *gin.Context) {
 	}, "success")
 }
 
+// [AUTO] GetSmsDetail
+// @Tags      sms
+// @Router    /api/sms/detail/{id} [get]
 // GetSmsDetail 获取短信详情
 func (c *SmsController) GetSmsDetail(ctx *gin.Context) {
 	idStr := ctx.Param("id")
@@ -214,6 +220,9 @@ func (c *SmsController) GetSmsDetail(ctx *gin.Context) {
 	response.Success(ctx, sms, "success")
 }
 
+// [AUTO] SendSms
+// @Tags      sms
+// @Router    /api/sms/send [post]
 // SendSms 发送短信
 func (c *SmsController) SendSms(ctx *gin.Context) {
 	var req dto.SmsSendRequest
@@ -241,6 +250,9 @@ func (c *SmsController) SendSms(ctx *gin.Context) {
 	response.Success(ctx, nil, "success")
 }
 
+// [AUTO] ResendSms
+// @Tags      sms
+// @Router    /api/sms/resend/{id} [post]
 // ResendSms 重发短信
 func (c *SmsController) ResendSms(ctx *gin.Context) {
 	idStr := ctx.Param("id")
@@ -257,6 +269,9 @@ func (c *SmsController) ResendSms(ctx *gin.Context) {
 	response.Success(ctx, nil, "success")
 }
 
+// [AUTO] GetDraftList
+// @Tags      sms
+// @Router    /api/sms/draft/list [get]
 // GetDraftList 获取草稿列表
 func (c *SmsController) GetDraftList(ctx *gin.Context) {
 	var req dto.SmsDraftListRequest
@@ -286,6 +301,9 @@ func (c *SmsController) GetDraftList(ctx *gin.Context) {
 	}, "success")
 }
 
+// [AUTO] GetDraft
+// @Tags      sms
+// @Router    /api/sms/draft/{id} [get]
 // GetDraft 获取草稿详情
 func (c *SmsController) GetDraft(ctx *gin.Context) {
 	idStr := ctx.Param("id")
@@ -303,6 +321,9 @@ func (c *SmsController) GetDraft(ctx *gin.Context) {
 	response.Success(ctx, draft, "success")
 }
 
+// [AUTO] CreateDraft
+// @Tags      sms
+// @Router    /api/sms/draft [post]
 // CreateDraft 创建草稿
 func (c *SmsController) CreateDraft(ctx *gin.Context) {
 	var req dto.SmsDraftCreateRequest
@@ -319,6 +340,9 @@ func (c *SmsController) CreateDraft(ctx *gin.Context) {
 	response.Success(ctx, nil, "success")
 }
 
+// [AUTO] UpdateDraft
+// @Tags      sms
+// @Router    /api/sms/draft/{id} [put]
 // UpdateDraft 更新草稿
 func (c *SmsController) UpdateDraft(ctx *gin.Context) {
 	idStr := ctx.Param("id")
@@ -341,6 +365,9 @@ func (c *SmsController) UpdateDraft(ctx *gin.Context) {
 	response.Success(ctx, nil, "success")
 }
 
+// [AUTO] DeleteDraft
+// @Tags      sms
+// @Router    /api/sms/draft/{id} [delete]
 // DeleteDraft 删除草稿
 func (c *SmsController) DeleteDraft(ctx *gin.Context) {
 	idStr := ctx.Param("id")
@@ -357,6 +384,9 @@ func (c *SmsController) DeleteDraft(ctx *gin.Context) {
 	response.Success(ctx, nil, "success")
 }
 
+// [AUTO] SendDraft
+// @Tags      sms
+// @Router    /api/sms/draft/send/{id} [post]
 // SendDraft 发送草稿
 func (c *SmsController) SendDraft(ctx *gin.Context) {
 	idStr := ctx.Param("id")
@@ -386,6 +416,9 @@ func (c *SmsController) SendDraft(ctx *gin.Context) {
 	response.Success(ctx, nil, "success")
 }
 
+// [AUTO] GetJobList
+// @Tags      sms
+// @Router    /api/sms/job/list [get]
 // GetJobList 获取任务列表
 func (c *SmsController) GetJobList(ctx *gin.Context) {
 	var req dto.SmsJobListRequest
@@ -417,6 +450,9 @@ func (c *SmsController) GetJobList(ctx *gin.Context) {
 	}, "success")
 }
 
+// [AUTO] GetJob
+// @Tags      sms
+// @Router    /api/sms/job/{id} [get]
 // GetJob 获取任务详情
 func (c *SmsController) GetJob(ctx *gin.Context) {
 	idStr := ctx.Param("id")
@@ -434,6 +470,9 @@ func (c *SmsController) GetJob(ctx *gin.Context) {
 	response.Success(ctx, job, "success")
 }
 
+// [AUTO] CreateJob
+// @Tags      sms
+// @Router    /api/sms/job [post]
 // CreateJob 创建任务
 func (c *SmsController) CreateJob(ctx *gin.Context) {
 	var req dto.SmsJobCreateRequest
@@ -450,6 +489,9 @@ func (c *SmsController) CreateJob(ctx *gin.Context) {
 	response.Success(ctx, nil, "success")
 }
 
+// [AUTO] PauseJob
+// @Tags      sms
+// @Router    /api/sms/job/pause/{id} [post]
 // PauseJob 暂停任务
 // PauseJob 暂停任务。
 //
@@ -473,6 +515,9 @@ func (c *SmsController) PauseJob(ctx *gin.Context) {
 	response.Success(ctx, nil, "success")
 }
 
+// [AUTO] ResumeJob
+// @Tags      sms
+// @Router    /api/sms/job/resume/{id} [post]
 // ResumeJob 继续任务
 func (c *SmsController) ResumeJob(ctx *gin.Context) {
 	idStr := ctx.Param("id")
@@ -489,6 +534,9 @@ func (c *SmsController) ResumeJob(ctx *gin.Context) {
 	response.Success(ctx, nil, "success")
 }
 
+// [AUTO] StopJob
+// @Tags      sms
+// @Router    /api/sms/job/stop/{id} [post]
 // StopJob 停止任务
 func (c *SmsController) StopJob(ctx *gin.Context) {
 	idStr := ctx.Param("id")

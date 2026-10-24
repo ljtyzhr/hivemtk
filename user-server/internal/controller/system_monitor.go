@@ -17,6 +17,9 @@ func NewSystemMonitorController() *SystemMonitorController {
 	return &SystemMonitorController{svc: service.NewSystemMonitorService()}
 }
 
+// [AUTO] GetMetrics
+// @Tags      system-monitor
+// @Router    /api/system-monitor/metrics [get]
 func (c *SystemMonitorController) GetMetrics(ctx *gin.Context) {
 	stats, err := c.svc.GetSystemStats(ctx.Request.Context())
 	if err != nil {
@@ -26,6 +29,9 @@ func (c *SystemMonitorController) GetMetrics(ctx *gin.Context) {
 	response.Success(ctx, stats, "ok")
 }
 
+// [AUTO] GetHealth
+// @Tags      system-monitor
+// @Router    /api/system-monitor/health [get]
 func (c *SystemMonitorController) GetHealth(ctx *gin.Context) {
 	details, err := c.svc.GetDetailedSystemStats(ctx.Request.Context())
 	if err != nil {

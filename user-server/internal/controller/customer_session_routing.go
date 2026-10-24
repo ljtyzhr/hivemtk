@@ -9,6 +9,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// [AUTO] AssignSession
+// @Tags      customer-session
+// @Router    /api/customer-sessions/assign [post]
 // AssignSession 分配会话
 func (c *CustomerSessionController) AssignSession(ctx *gin.Context) {
 	var req service.AssignSessionRequest
@@ -31,6 +34,9 @@ func (c *CustomerSessionController) AssignSession(ctx *gin.Context) {
 	response.Success(ctx, nil, "分配成功")
 }
 
+// [AUTO] AutoAssignSession
+// @Tags      customer-session
+// @Router    /api/customer-sessions/{id}/auto-assign [post]
 // AutoAssignSession 自动分配会话
 func (c *CustomerSessionController) AutoAssignSession(ctx *gin.Context) {
 	idStr := ctx.Param("id")
@@ -54,6 +60,9 @@ func (c *CustomerSessionController) AutoAssignSession(ctx *gin.Context) {
 	response.Success(ctx, nil, "分配成功")
 }
 
+// [AUTO] TransferSession
+// @Tags      customer-session
+// @Router    /api/customer-sessions/{id}/transfer [post]
 // TransferSession 转接会话
 func (c *CustomerSessionController) TransferSession(ctx *gin.Context) {
 	idStr := ctx.Param("id")

@@ -20,6 +20,9 @@ func NewMenuController() *MenuController {
 	return &MenuController{svc: service.NewMenuService()}
 }
 
+// [AUTO] GetMyMenus
+// @Tags      menu
+// @Router    /api/menus [get]
 // GetMyMenus GET /api/menus
 //
 // 当前登录用户可见菜单树（JWT 中 role 决定），供前端渲染导航与路由守卫。
@@ -37,6 +40,9 @@ func (ctrl *MenuController) GetMyMenus(c *gin.Context) {
 	response.Success(c, gin.H{"tree": tree, "all": role == "admin"}, "获取菜单成功")
 }
 
+// [AUTO] AdminGetAllMenus
+// @Tags      menu
+// @Router    /api/system/menus [get]
 // AdminGetAllMenus GET /api/system/menus
 //
 // 完整菜单注册表（管理端分配界面 el-tree 数据源）。
@@ -44,6 +50,9 @@ func (ctrl *MenuController) AdminGetAllMenus(c *gin.Context) {
 	response.Success(c, gin.H{"tree": ctrl.svc.GetAllMenuTree()}, "获取菜单注册表成功")
 }
 
+// [AUTO] AdminGetRoleMenus
+// @Tags      menu
+// @Router    /api/system/roles/{code}/menus [get]
 // AdminGetRoleMenus GET /api/system/roles/:code/menus
 //
 // 某角色已分配的菜单 key 列表。
@@ -61,6 +70,9 @@ func (ctrl *MenuController) AdminGetRoleMenus(c *gin.Context) {
 	response.Success(c, gin.H{"menu_keys": keys}, "获取角色菜单权限成功")
 }
 
+// [AUTO] AdminUpdateRoleMenus
+// @Tags      menu
+// @Router    /api/system/roles/{code}/menus [put]
 // AdminUpdateRoleMenus PUT /api/system/roles/:code/menus
 //
 // 覆盖式保存某角色的菜单分配。Body: {"menu_keys": ["key1", ...]}

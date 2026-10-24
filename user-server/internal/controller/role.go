@@ -20,6 +20,9 @@ func NewRoleController() *RoleController {
 	return &RoleController{svc: service.NewRoleService()}
 }
 
+// [AUTO] ListRoles
+// @Tags      role
+// @Router    /api/system/roles [get]
 // ListRoles GET /api/system/roles
 //
 // 列出 3 档系统角色 + 成员数。
@@ -32,6 +35,9 @@ func (ctrl *RoleController) ListRoles(c *gin.Context) {
 	response.Success(c, roles, "获取角色列表成功")
 }
 
+// [AUTO] GetRole
+// @Tags      role
+// @Router    /api/system/roles/{code} [get]
 // GetRole GET /api/system/roles/:code
 //
 // 单个角色详情（带成员数）。
@@ -49,6 +55,9 @@ func (ctrl *RoleController) GetRole(c *gin.Context) {
 	response.Success(c, role, "获取角色详情成功")
 }
 
+// [AUTO] ListMembers
+// @Tags      role
+// @Router    /api/system/roles/{code}/members [get]
 // ListMembers GET /api/system/roles/:code/members
 //
 // 角色下成员列表（分页）。

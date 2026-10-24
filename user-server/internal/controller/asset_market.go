@@ -57,6 +57,9 @@ func rejectPlatformDisabled(c *gin.Context) bool {
 	return true
 }
 
+// [AUTO] ListMarket
+// @Tags      asset-market
+// @Router    /api/v1/asset-market/list [get]
 // ListMarket GET /api/v1/asset-market/list
 func (h *AssetMarketController) ListMarket(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -70,6 +73,9 @@ func (h *AssetMarketController) ListMarket(c *gin.Context) {
 	response.SuccessWithList(c, list, total)
 }
 
+// [AUTO] MarketDetail
+// @Tags      asset-market
+// @Router    /api/v1/asset-market/detail/{asset_id} [get]
 // MarketDetail GET /api/v1/asset-market/detail/:asset_id
 func (h *AssetMarketController) MarketDetail(c *gin.Context) {
 	detail, err := h.marketSvc.GetMarketAssetDetail(c.Request.Context(), c.Param("asset_id"))
@@ -80,6 +86,9 @@ func (h *AssetMarketController) MarketDetail(c *gin.Context) {
 	assetOK(c, detail)
 }
 
+// [AUTO] Purchase
+// @Tags      asset-market
+// @Router    /api/v1/asset-market/purchase [post]
 // Purchase POST /api/v1/asset-market/purchase
 func (h *AssetMarketController) Purchase(c *gin.Context) {
 	if rejectPlatformDisabled(c) {
@@ -98,6 +107,9 @@ func (h *AssetMarketController) Purchase(c *gin.Context) {
 	assetOK(c, gin.H{"message": "购买并同步成功"})
 }
 
+// [AUTO] Sync
+// @Tags      asset-market
+// @Router    /api/v1/asset-market/sync [post]
 // Sync POST /api/v1/asset-market/sync
 func (h *AssetMarketController) Sync(c *gin.Context) {
 	if rejectPlatformDisabled(c) {
@@ -116,6 +128,9 @@ func (h *AssetMarketController) Sync(c *gin.Context) {
 	assetOK(c, gin.H{"message": "同步成功"})
 }
 
+// [AUTO] ListLocal
+// @Tags      asset-market
+// @Router    /api/v1/local-assets [get]
 // ListLocal GET /api/v1/local-assets
 func (h *AssetMarketController) ListLocal(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
@@ -135,6 +150,9 @@ func (h *AssetMarketController) ListLocal(c *gin.Context) {
 	response.SuccessWithList(c, list, total)
 }
 
+// [AUTO] GetLocal
+// @Tags      asset-market
+// @Router    /api/v1/local-assets/{id} [get]
 // GetLocal GET /api/v1/local-assets/:id
 func (h *AssetMarketController) GetLocal(c *gin.Context) {
 	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
@@ -150,6 +168,9 @@ func (h *AssetMarketController) GetLocal(c *gin.Context) {
 	assetOK(c, gin.H{"asset": la, "data": parsed})
 }
 
+// [AUTO] CreateLocal
+// @Tags      asset-market
+// @Router    /api/v1/local-assets [post]
 // CreateLocal POST /api/v1/local-assets
 func (h *AssetMarketController) CreateLocal(c *gin.Context) {
 	body, _ := io.ReadAll(c.Request.Body)
@@ -174,6 +195,9 @@ func (h *AssetMarketController) CreateLocal(c *gin.Context) {
 	assetOK(c, la)
 }
 
+// [AUTO] UpdateLocal
+// @Tags      asset-market
+// @Router    /api/v1/local-assets/{id} [put]
 // UpdateLocal PUT /api/v1/local-assets/:id
 func (h *AssetMarketController) UpdateLocal(c *gin.Context) {
 	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
@@ -198,6 +222,9 @@ func (h *AssetMarketController) UpdateLocal(c *gin.Context) {
 	assetOK(c, gin.H{"message": "更新成功"})
 }
 
+// [AUTO] DeleteLocal
+// @Tags      asset-market
+// @Router    /api/v1/local-assets/{id} [delete]
 // DeleteLocal DELETE /api/v1/local-assets/:id
 func (h *AssetMarketController) DeleteLocal(c *gin.Context) {
 	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
@@ -208,6 +235,9 @@ func (h *AssetMarketController) DeleteLocal(c *gin.Context) {
 	assetOK(c, gin.H{"message": "删除成功"})
 }
 
+// [AUTO] ToggleActive
+// @Tags      asset-market
+// @Router    /api/v1/local-assets/{id}/toggle-active [put]
 // ToggleActive PUT /api/v1/local-assets/:id/toggle-active
 func (h *AssetMarketController) ToggleActive(c *gin.Context) {
 	id, _ := strconv.ParseInt(c.Param("id"), 10, 64)
@@ -223,6 +253,9 @@ func (h *AssetMarketController) ToggleActive(c *gin.Context) {
 	assetOK(c, gin.H{"message": "操作成功"})
 }
 
+// [AUTO] SyncLog
+// @Tags      asset-market
+// @Router    /api/v1/local-assets/sync-log [get]
 // SyncLog GET /api/v1/local-assets/sync-log
 func (h *AssetMarketController) SyncLog(c *gin.Context) {
 	limit, _ := strconv.Atoi(c.DefaultQuery("limit", "50"))
@@ -234,6 +267,9 @@ func (h *AssetMarketController) SyncLog(c *gin.Context) {
 	assetOK(c, list)
 }
 
+// [AUTO] ReportUsage
+// @Tags      asset-market
+// @Router    /api/v1/asset-market/report-usage [post]
 // ReportUsage POST /api/asset-market/report-usage
 // 将本地累计使用次数回传平台（闭环：本地使用 → 平台统计）。
 func (h *AssetMarketController) ReportUsage(c *gin.Context) {
@@ -253,6 +289,9 @@ func (h *AssetMarketController) ReportUsage(c *gin.Context) {
 	assetOK(c, gin.H{"message": "上报成功"})
 }
 
+// [AUTO] MyPurchases
+// @Tags      asset-market
+// @Router    /api/v1/asset-market/my-purchases [get]
 // MyPurchases GET /api/v1/asset-market/my-purchases
 func (h *AssetMarketController) MyPurchases(c *gin.Context) {
 	list, err := h.marketSvc.MyPurchases(c.Request.Context())
@@ -263,6 +302,9 @@ func (h *AssetMarketController) MyPurchases(c *gin.Context) {
 	assetOK(c, list)
 }
 
+// [AUTO] BindToAgent
+// @Tags      asset-market
+// @Router    /api/v1/asset-market/bind [post]
 // BindToAgent POST /api/v1/asset-market/bind
 // 将平台同步下来的资产（local_assets.AssetID，即平台 AssetCode）绑定到智能体，
 // 使其成为该智能体的资产包（运行期 ResolveSystemPrompt 回退消费），闭合

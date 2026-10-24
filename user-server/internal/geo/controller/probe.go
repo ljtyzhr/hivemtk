@@ -21,6 +21,9 @@ func NewProbeController(probeSvc *service.ProbeService) *ProbeController {
 	return &ProbeController{probeSvc: probeSvc}
 }
 
+// [AUTO] TestSingle
+// @Tags      probe
+// @Router    /api/geo/probe/test [post]
 // TestSingle 调试单引擎探针
 // POST /geo/probe/test  body: {"engine":"openai","query":"..."}
 func (c *ProbeController) TestSingle(ctx *gin.Context) {
@@ -43,6 +46,9 @@ func (c *ProbeController) TestSingle(ctx *gin.Context) {
 	response.Success(ctx, result, "ok")
 }
 
+// [AUTO] ProbeAll
+// @Tags      probe
+// @Router    /api/geo/probe/all [post]
 // ProbeAll 触发所有引擎探针
 // POST /geo/probe/all  body: {"query":"...", "rounds":1}（rounds 可选 1-5，多轮采样展示提及率）
 func (c *ProbeController) ProbeAll(ctx *gin.Context) {
@@ -75,6 +81,9 @@ func errlistStrings(errs []error) []string {
 	return out
 }
 
+// [AUTO] RunNegativeMonitor
+// @Tags      probe
+// @Router    /api/geo/probe/run-negative [post]
 // RunNegativeMonitor 手动触发负面监控
 // POST /geo/probe/run-negative
 func (c *ProbeController) RunNegativeMonitor(ctx *gin.Context) {
@@ -85,6 +94,9 @@ func (c *ProbeController) RunNegativeMonitor(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"started": true}, "已启动负面监控任务")
 }
 
+// [AUTO] RunSOVRefresh
+// @Tags      probe
+// @Router    /api/geo/probe/run-sov [post]
 // RunSOVRefresh 手动触发 SOV 刷新（SovBoard.vue 刷新按钮依赖）
 // POST /geo/probe/run-sov
 func (c *ProbeController) RunSOVRefresh(ctx *gin.Context) {
@@ -95,6 +107,9 @@ func (c *ProbeController) RunSOVRefresh(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"started": true}, "已启动 SOV 刷新任务")
 }
 
+// [AUTO] RunSourceSync
+// @Tags      probe
+// @Router    /api/geo/probe/run-source-sync [post]
 // RunSourceSync 手动触发信源目录同步
 // POST /geo/probe/run-source-sync
 func (c *ProbeController) RunSourceSync(ctx *gin.Context) {
@@ -105,6 +120,9 @@ func (c *ProbeController) RunSourceSync(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"started": true}, "已启动信源同步任务")
 }
 
+// [AUTO] ListAvailableEngines
+// @Tags      probe
+// @Router    /api/geo/probe/engines [get]
 // ListAvailableEngines 返回当前装配的所有引擎名
 // GET /geo/probe/engines
 func (c *ProbeController) ListAvailableEngines(ctx *gin.Context) {
@@ -116,6 +134,9 @@ func (c *ProbeController) ListAvailableEngines(ctx *gin.Context) {
 	response.Success(ctx, names, "ok")
 }
 
+// [AUTO] ListRuns
+// @Tags      probe
+// @Router    /api/geo/probe/runs [get]
 // ListRuns 最近探针运行记录（支持引擎过滤）
 // GET /geo/probe/runs?limit=20&engine=
 func (c *ProbeController) ListRuns(ctx *gin.Context) {
@@ -151,6 +172,9 @@ func NewSourceCatalogController(crawlerSvc *service.CrawlerService) *SourceCatal
 	return &SourceCatalogController{crawlerSvc: crawlerSvc}
 }
 
+// [AUTO] LookupLevels
+// @Tags      source-catalog
+// @Router    /api/geo/source-catalog/levels [get]
 // ListLevels 根据 query 查 SOV 用 — 直接用 crawler.LookupSourceLevel
 // GET /geo/source-catalog/levels?url=...
 func (c *SourceCatalogController) LookupLevels(ctx *gin.Context) {
@@ -178,6 +202,9 @@ func NewEntityController(es *service.EntityService, ex *service.EntityExtractorS
 	return &EntityController{entitySvc: es, extractor: ex}
 }
 
+// [AUTO] ListEntities
+// @Tags      entity
+// @Router    /api/geo/entity/list [get]
 // ListEntities 查询实体列表
 // GET /geo/entity/list?search=&type=&page=&limit=
 func (c *EntityController) ListEntities(ctx *gin.Context) {
@@ -193,6 +220,9 @@ func (c *EntityController) ListEntities(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": list, "total": total, "page": page, "page_size": limit}, "ok")
 }
 
+// [AUTO] GetGraph
+// @Tags      entity
+// @Router    /api/geo/entity/{id}/graph [get]
 // GetGraph 查询实体关系子图
 // GET /geo/entity/:id/graph?depth=2
 func (c *EntityController) GetGraph(ctx *gin.Context) {
@@ -210,6 +240,9 @@ func (c *EntityController) GetGraph(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"entity_id": id, "depth": depth, "entities": entities, "relations": rels}, "ok")
 }
 
+// [AUTO] Extract
+// @Tags      entity
+// @Router    /api/geo/entities/extract [post]
 // Extract 从指定文档抽取实体
 // POST /geo/entities/extract
 func (c *EntityController) Extract(ctx *gin.Context) {

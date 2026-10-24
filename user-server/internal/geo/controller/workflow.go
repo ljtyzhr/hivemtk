@@ -18,6 +18,9 @@ func NewWorkflowController(svc *service.WorkflowService) *WorkflowController {
 	return &WorkflowController{svc: svc}
 }
 
+// [AUTO] List
+// @Tags      workflow
+// @Router    /api/geo/workflow/workflows [get]
 // List 工作流列表
 // GET /geo/workflow/workflows
 func (c *WorkflowController) List(ctx *gin.Context) {
@@ -29,6 +32,9 @@ func (c *WorkflowController) List(ctx *gin.Context) {
 	response.Success(ctx, list, "获取工作流列表成功")
 }
 
+// [AUTO] Get
+// @Tags      workflow
+// @Router    /api/geo/workflow/workflows/{id} [get]
 // Get 工作流详情
 // GET /geo/workflow/workflows/:id
 func (c *WorkflowController) Get(ctx *gin.Context) {
@@ -40,6 +46,9 @@ func (c *WorkflowController) Get(ctx *gin.Context) {
 	response.Success(ctx, wf, "获取工作流成功")
 }
 
+// [AUTO] Create
+// @Tags      workflow
+// @Router    /api/geo/workflow/workflows [post]
 // Create 创建工作流
 // POST /geo/workflow/workflows
 func (c *WorkflowController) Create(ctx *gin.Context) {
@@ -55,6 +64,9 @@ func (c *WorkflowController) Create(ctx *gin.Context) {
 	response.Success(ctx, wf, "创建工作流成功")
 }
 
+// [AUTO] Update
+// @Tags      workflow
+// @Router    /api/geo/workflow/workflows/{id} [put]
 // Update 更新工作流
 // PUT /geo/workflow/workflows/:id
 func (c *WorkflowController) Update(ctx *gin.Context) {
@@ -70,6 +82,9 @@ func (c *WorkflowController) Update(ctx *gin.Context) {
 	response.Success(ctx, wf, "更新工作流成功")
 }
 
+// [AUTO] Delete
+// @Tags      workflow
+// @Router    /api/geo/workflow/workflows/{id} [delete]
 // Delete 删除工作流
 // DELETE /geo/workflow/workflows/:id
 func (c *WorkflowController) Delete(ctx *gin.Context) {
@@ -80,6 +95,9 @@ func (c *WorkflowController) Delete(ctx *gin.Context) {
 	response.Success(ctx, nil, "删除工作流成功")
 }
 
+// [AUTO] Run
+// @Tags      workflow
+// @Router    /api/geo/workflow/workflows/{id}/run [post]
 // Run 执行工作流
 // POST /geo/workflow/workflows/:id/run
 // 语义约定：result==nil 表示执行未能开始（DB 错误等），返回错误；
@@ -97,6 +115,9 @@ func (c *WorkflowController) Run(ctx *gin.Context) {
 	response.Success(ctx, result, "工作流执行完成")
 }
 
+// [AUTO] ListExecutions
+// @Tags      workflow
+// @Router    /api/geo/workflow/workflows/{id}/executions [get]
 // ListExecutions 执行记录列表
 // GET /geo/workflow/workflows/:id/executions
 func (c *WorkflowController) ListExecutions(ctx *gin.Context) {
@@ -108,6 +129,9 @@ func (c *WorkflowController) ListExecutions(ctx *gin.Context) {
 	response.Success(ctx, execs, "获取执行记录成功")
 }
 
+// [AUTO] ListTemplates
+// @Tags      workflow
+// @Router    /api/geo/workflow/templates [get]
 // ListTemplates 模板列表
 // GET /geo/workflow/templates
 func (c *WorkflowController) ListTemplates(ctx *gin.Context) {
@@ -119,6 +143,9 @@ func (c *WorkflowController) ListTemplates(ctx *gin.Context) {
 	response.Success(ctx, tpls, "获取模板列表成功")
 }
 
+// [AUTO] CreateTemplate
+// @Tags      workflow
+// @Router    /api/geo/workflow/templates [post]
 // CreateTemplate 创建模板
 // POST /geo/workflow/templates
 func (c *WorkflowController) CreateTemplate(ctx *gin.Context) {

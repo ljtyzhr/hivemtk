@@ -262,6 +262,9 @@ func (c *WebhookController) ReceiveWithoutAccount(ctx *gin.Context) {
 	ctx.JSON(status, result)
 }
 
+// [AUTO] WeComVerify
+// @Tags      webhook
+// @Router    /api/webhook/wecom/{account_id} [get]
 // WeComVerify 企微 URL 验证（GET 挑战）
 // 路由: GET /api/webhook/wecom/{account_id}?msg_signature=...&timestamp=...&nonce=...&echostr=...
 func (c *WebhookController) WeComVerify(ctx *gin.Context) {
@@ -387,6 +390,9 @@ func (c *WebhookController) WhatsAppVerify(ctx *gin.Context) {
 	ctx.String(http.StatusOK, challenge)
 }
 
+// [AUTO] DingTalkVerify
+// @Tags      webhook
+// @Router    /api/webhook/dingtalk/{account_id} [get]
 // DingTalkVerify 钉钉回调 URL 验证（GET）
 // 路由: GET /api/webhook/dingtalk/{account_id}?signature=...&timestamp=...&nonce=...&echostr=...
 // 钉钉对配置的回调地址发起 GET，携带 signature/timestamp/nonce/echostr。
@@ -418,6 +424,9 @@ func (c *WebhookController) DingTalkVerify(ctx *gin.Context) {
 	ctx.String(http.StatusOK, plain)
 }
 
+// [AUTO] DingTalkReceive
+// @Tags      webhook
+// @Router    /api/webhook/dingtalk/{account_id} [post]
 // DingTalkReceive 钉钉回调收消息（POST）
 // 路由: POST /api/webhook/dingtalk/{account_id}
 // 请求体为 {"encrypt":"..."}（配置 AESKey 时）或明文消息 JSON。
@@ -446,6 +455,9 @@ func (c *WebhookController) DingTalkReceive(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"accepted": true})
 }
 
+// [AUTO] Stats
+// @Tags      webhook
+// @Router    /api/webhook/stats [get]
 // Stats 统计
 func (c *WebhookController) Stats(ctx *gin.Context) {
 	pending := c.svc.PendingCount(ctx.Request.Context())
@@ -456,6 +468,9 @@ func (c *WebhookController) Stats(ctx *gin.Context) {
 	}, "ok")
 }
 
+// [AUTO] Health
+// @Tags      webhook
+// @Router    /api/webhook/health [get]
 // Health 健康检查
 func (c *WebhookController) Health(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"status": "ok"}, "ok")

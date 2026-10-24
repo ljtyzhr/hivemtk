@@ -196,6 +196,10 @@ func InitApprovalRuntime(db *gorm.DB) *ApprovalRuntime {
 	service.SetApprovalResumeBridge(bridge)
 	// 推送出口装在服务上：裁决与到期都经它叫醒等待中的流程（只省时间，正确性走点火回读）。
 	svc.SetWaitNotifier(bridge)
+	// E-10（2026-10-24，产品可复议）：审批通过 → 报价自动外发的第二个订阅者。
+	// quoteSend 走全局实例（InitQuoteRuntime 可能在本函数之前或之后跑——
+	// 持"取全局"的闭包而不是实例，谁先装配都能接上；发送腿未装配时桥静默=手动档）。
+	svc.AddWaitNotifier(service.NewApprovalAutoSendBridge(service.GlobalQuoteSendService))
 	publishApprovalRuntime(rt)
 
 	logger.Infof("[approval-runtime] ✅ 审批运行时已装配：mode=on（开关 %s）。SOP 的 wait 节点可用 "+

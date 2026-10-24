@@ -21,6 +21,9 @@ func NewContentController(svc *service.ContentService) *ContentController {
 	return &ContentController{svc: svc}
 }
 
+// [AUTO] GenerateContent
+// @Tags      content
+// @Router    /api/geo/content/generate [post]
 // GenerateContent 生成 GEO 内容
 // POST /geo/content/generate
 func (c *ContentController) GenerateContent(ctx *gin.Context) {
@@ -36,6 +39,9 @@ func (c *ContentController) GenerateContent(ctx *gin.Context) {
 	response.Success(ctx, result, "内容生成成功")
 }
 
+// [AUTO] GenerateContentBatch
+// @Tags      content
+// @Router    /api/geo/content/batch-generate [post]
 // GenerateContentBatch B2 批量生成（2026-10-24）
 // POST /geo/content/batch-generate
 // 同步有界批（上限 BatchGenerateMaxKeywords=20），逐条容错，失败单条回传 error
@@ -49,6 +55,9 @@ func (c *ContentController) GenerateContentBatch(ctx *gin.Context) {
 	response.Success(ctx, result, "批量生成完成")
 }
 
+// [AUTO] OptimizeContent
+// @Tags      content
+// @Router    /api/geo/content/optimize [post]
 // OptimizeContent 优化内容
 // POST /geo/content/optimize
 func (c *ContentController) OptimizeContent(ctx *gin.Context) {
@@ -64,6 +73,9 @@ func (c *ContentController) OptimizeContent(ctx *gin.Context) {
 	response.Success(ctx, result, "内容优化成功")
 }
 
+// [AUTO] ScoreContent
+// @Tags      content
+// @Router    /api/geo/content/score [post]
 // ScoreContent 内容评分
 // POST /geo/content/score
 func (c *ContentController) ScoreContent(ctx *gin.Context) {
@@ -79,6 +91,9 @@ func (c *ContentController) ScoreContent(ctx *gin.Context) {
 	response.Success(ctx, result, "内容评分成功")
 }
 
+// [AUTO] EnhanceEEAT
+// @Tags      content
+// @Router    /api/geo/content/eeat [post]
 // EnhanceEEAT 增强 E-E-A-T
 // POST /geo/content/eeat
 func (c *ContentController) EnhanceEEAT(ctx *gin.Context) {
@@ -99,6 +114,9 @@ func (c *ContentController) EnhanceEEAT(ctx *gin.Context) {
 	response.Success(ctx, result, "E-E-A-T 增强成功")
 }
 
+// [AUTO] GenerateSchema
+// @Tags      content
+// @Router    /api/geo/content/schema [post]
 // GenerateSchema 生成结构化数据 Schema
 // POST /geo/content/schema
 func (c *ContentController) GenerateSchema(ctx *gin.Context) {
@@ -119,6 +137,9 @@ func (c *ContentController) GenerateSchema(ctx *gin.Context) {
 	response.Success(ctx, result, "Schema 生成成功")
 }
 
+// [AUTO] CheckUniqueness
+// @Tags      content
+// @Router    /api/geo/content/uniqueness [post]
 // CheckUniqueness 内容查重
 // POST /geo/content/uniqueness
 func (c *ContentController) CheckUniqueness(ctx *gin.Context) {
@@ -136,6 +157,9 @@ func (c *ContentController) CheckUniqueness(ctx *gin.Context) {
 	response.Success(ctx, result, "内容查重成功")
 }
 
+// [AUTO] GetArticleList
+// @Tags      content
+// @Router    /api/geo/content/list [get]
 // GetArticleList 获取文章列表
 // GET /geo/content/list
 func (c *ContentController) GetArticleList(ctx *gin.Context) {
@@ -156,6 +180,9 @@ func (c *ContentController) GetArticleList(ctx *gin.Context) {
 	response.SuccessWithPage(ctx, list, int64(page), int64(limit), total)
 }
 
+// [AUTO] GetArticleByID
+// @Tags      content
+// @Router    /api/geo/content/{id} [get]
 // GetArticleByID 获取文章详情
 // GET /geo/content/:id
 func (c *ContentController) GetArticleByID(ctx *gin.Context) {

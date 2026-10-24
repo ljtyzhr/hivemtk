@@ -163,6 +163,9 @@ func (h *BridgeIngestHandler) SetLeadMiner(fn func(ctx context.Context, ev *mode
 	h.leadMiner = fn
 }
 
+// [AUTO] HandleOutboxSSE
+// @Tags      bridge-ingest-handler
+// @Router    /api/bridge/outbox/sse [get]
 func (h *BridgeIngestHandler) HandleOutboxSSE(c *gin.Context) {
 	if h.sseHandler == nil {
 		if h.outboxFetcher == nil {
@@ -334,6 +337,9 @@ func (h *BridgeIngestHandler) callPersistHistory(ctx context.Context, ev *model.
 	return h.ingress.PersistBridgeHistory(ctx, ev, direction)
 }
 
+// [AUTO] HandleHTTPIngest
+// @Tags      bridge-ingest-handler
+// @Router    /api/bridge/ingest [post]
 func (h *BridgeIngestHandler) HandleHTTPIngest(c *gin.Context) {
 	info := collectHTTPRequestInfo(c)
 	channel := info.Channel
@@ -782,6 +788,9 @@ func _bridgeOutboxHubsForLog(hubs []*model.MessageHub) []map[string]any {
 	return out
 }
 
+// [AUTO] GetBridgeOutbox
+// @Tags      bridge-ingest-handler
+// @Router    /api/bridge/outbox [get]
 func (h *BridgeIngestHandler) GetBridgeOutbox(c *gin.Context) {
 	// 渠道必须归一（与 HandleOutboxSSE 同一条口径）：message_hub 与 bridge_accounts 都只存
 	// 规范渠道，别名入参会让 ClaimPendingOutbound 查不到行、在线位也刷不到账号行。
@@ -876,6 +885,9 @@ type BridgeOutboxAckResponse struct {
 	Items            []service.AckOutboundItem `json:"items"`
 }
 
+// [AUTO] AckBridgeOutbox
+// @Tags      bridge-ingest-handler
+// @Router    /api/bridge/outbox/ack [post]
 func (h *BridgeIngestHandler) AckBridgeOutbox(c *gin.Context) {
 	c.Request.Body = http.MaxBytesReader(c.Writer, c.Request.Body, 1<<20)
 	// 三个 HTTP 入口里只有这里曾经不归一渠道（ingest 在 httpMessageToEvent 里归一、

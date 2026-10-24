@@ -20,6 +20,9 @@ func NewSmartRouterController(svc *service.SmartRouter) *SmartRouterController {
 	return &SmartRouterController{svc: svc}
 }
 
+// [AUTO] SelectAgent
+// @Tags      smart-router
+// @Router    /api/smart-router/select [post]
 // SelectAgent POST /api/smart-router/select
 // 请求体: {"intent": "refund", "skills_needed": ["refund", "vip"]}
 func (c *SmartRouterController) SelectAgent(ctx *gin.Context) {

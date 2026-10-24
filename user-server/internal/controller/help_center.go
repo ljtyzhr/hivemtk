@@ -19,6 +19,9 @@ func NewHelpCenterController() *HelpCenterController {
 	return &HelpCenterController{svc: service.NewHelpCenterServiceFromGlobal()}
 }
 
+// [AUTO] Categories
+// @Tags      help-center
+// @Router    /api/public/help-center/categories [get]
 // Categories GET /api/public/help-center/categories（免登录）
 func (c *HelpCenterController) Categories(ctx *gin.Context) {
 	requestCtx, err := resolvePublicTenantCtx(ctx, ctx.Query("tenant_code"))
@@ -33,6 +36,9 @@ func (c *HelpCenterController) Categories(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": list, "total": len(list)}, "ok")
 }
 
+// [AUTO] Articles
+// @Tags      help-center
+// @Router    /api/public/help-center/articles [get]
 // Articles GET /api/public/help-center/articles?category=&q=
 func (c *HelpCenterController) Articles(ctx *gin.Context) {
 	requestCtx, err := resolvePublicTenantCtx(ctx, ctx.Query("tenant_code"))
@@ -47,6 +53,9 @@ func (c *HelpCenterController) Articles(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": list, "total": len(list)}, "ok")
 }
 
+// [AUTO] Search
+// @Tags      help-center
+// @Router    /api/public/help-center/search [get]
 func (c *HelpCenterController) Search(ctx *gin.Context) {
 	keyword := ctx.Query("keyword")
 	limit := 20
@@ -71,6 +80,9 @@ func (c *HelpCenterController) Search(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": list, "total": len(list)}, "ok")
 }
 
+// [AUTO] ArticleDetail
+// @Tags      help-center
+// @Router    /api/public/help-center/articles/{id} [get]
 // ArticleDetail GET /api/public/help-center/articles/:id（含 views 自增）
 func (c *HelpCenterController) ArticleDetail(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
@@ -91,6 +103,9 @@ func (c *HelpCenterController) ArticleDetail(ctx *gin.Context) {
 	response.Success(ctx, art, "ok")
 }
 
+// [AUTO] SetStatus
+// @Tags      help-center
+// @Router    /api/knowledge/documents/{id}/help-center-status [patch]
 // SetStatus PATCH /api/knowledge/documents/:id/help-center-status {status}
 func (c *HelpCenterController) SetStatus(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
@@ -111,6 +126,9 @@ func (c *HelpCenterController) SetStatus(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"help_center_status": req.Status}, "状态已更新")
 }
 
+// [AUTO] TopArticles
+// @Tags      help-center
+// @Router    /api/knowledge/help-center/top [get]
 // TopArticles GET /api/knowledge/help-center/top?limit=10（效果统计）
 func (c *HelpCenterController) TopArticles(ctx *gin.Context) {
 	limit := 10
@@ -126,6 +144,9 @@ func (c *HelpCenterController) TopArticles(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": list, "total": len(list)}, "ok")
 }
 
+// [AUTO] RetrievalTest
+// @Tags      help-center
+// @Router    /api/knowledge/help-center/retrieval-test [post]
 // RetrievalTest POST /api/knowledge/help-center/retrieval-test {product_id,query,top_k}
 func (c *HelpCenterController) RetrievalTest(ctx *gin.Context) {
 	var req struct {
@@ -144,6 +165,9 @@ func (c *HelpCenterController) RetrievalTest(ctx *gin.Context) {
 	response.Success(ctx, res, "ok")
 }
 
+// [AUTO] SetVisibility
+// @Tags      help-center
+// @Router    /api/knowledge/documents/{id}/public-visibility [patch]
 // SetVisibility PATCH /api/knowledge/documents/:id/public-visibility（管理端，登录）
 func (c *HelpCenterController) SetVisibility(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)

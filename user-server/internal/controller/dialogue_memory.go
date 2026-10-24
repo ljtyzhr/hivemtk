@@ -30,6 +30,9 @@ type AppendMessageRequest struct {
 	Content    string `json:"content" binding:"required"`
 }
 
+// [AUTO] AppendMessage
+// @Tags      dialogue-memory
+// @Router    /api/memory/messages [post]
 // AppendMessage 追加消息
 func (c *DialogueMemoryController) AppendMessage(ctx *gin.Context) {
 	var req AppendMessageRequest
@@ -49,6 +52,9 @@ func (c *DialogueMemoryController) AppendMessage(ctx *gin.Context) {
 	response.Success(ctx, nil, "追加成功")
 }
 
+// [AUTO] ShortTerm
+// @Tags      dialogue-memory
+// @Router    /api/memory/short [get]
 // ShortTerm 短期记忆
 func (c *DialogueMemoryController) ShortTerm(ctx *gin.Context) {
 	sessionID := ctx.Query("session_id")
@@ -64,6 +70,9 @@ func (c *DialogueMemoryController) ShortTerm(ctx *gin.Context) {
 	response.Success(ctx, msgs, "查询成功")
 }
 
+// [AUTO] LongTerm
+// @Tags      dialogue-memory
+// @Router    /api/memory/long [get]
 // LongTerm 长期记忆
 func (c *DialogueMemoryController) LongTerm(ctx *gin.Context) {
 	sessionID := ctx.Query("session_id")
@@ -81,6 +90,9 @@ type UpdateKeyFactsRequest struct {
 	Facts     map[string]string `json:"facts" binding:"required"`
 }
 
+// [AUTO] UpdateKeyFacts
+// @Tags      dialogue-memory
+// @Router    /api/memory/facts [post]
 // UpdateKeyFacts 更新关键事实
 func (c *DialogueMemoryController) UpdateKeyFacts(ctx *gin.Context) {
 	var req UpdateKeyFactsRequest
@@ -103,6 +115,9 @@ type RecordObjectionRequest struct {
 	Content       string `json:"content" binding:"required"`
 }
 
+// [AUTO] RecordObjection
+// @Tags      dialogue-memory
+// @Router    /api/memory/objections [post]
 // RecordObjection 记录异议
 func (c *DialogueMemoryController) RecordObjection(ctx *gin.Context) {
 	var req RecordObjectionRequest
@@ -124,6 +139,9 @@ type UpdatePurchaseIntentRequest struct {
 	Level     string `json:"level" binding:"required"`
 }
 
+// [AUTO] UpdatePurchaseIntent
+// @Tags      dialogue-memory
+// @Router    /api/memory/purchase-intent [post]
 // UpdatePurchaseIntent 更新购买意向
 func (c *DialogueMemoryController) UpdatePurchaseIntent(ctx *gin.Context) {
 	var req UpdatePurchaseIntentRequest
@@ -145,6 +163,9 @@ type RecordIntentRequest struct {
 	IntentType string `json:"intent_type" binding:"required"`
 }
 
+// [AUTO] RecordIntent
+// @Tags      dialogue-memory
+// @Router    /api/memory/intent-trail [post]
 // RecordIntent 记录意图
 func (c *DialogueMemoryController) RecordIntent(ctx *gin.Context) {
 	var req RecordIntentRequest
@@ -166,6 +187,9 @@ type RecordSOPRequest struct {
 	SOPName   string `json:"sop_name" binding:"required"`
 }
 
+// [AUTO] RecordSOP
+// @Tags      dialogue-memory
+// @Router    /api/memory/sop-history [post]
 // RecordSOP 记录 SOP
 func (c *DialogueMemoryController) RecordSOP(ctx *gin.Context) {
 	var req RecordSOPRequest
@@ -181,6 +205,9 @@ func (c *DialogueMemoryController) RecordSOP(ctx *gin.Context) {
 	response.Success(ctx, nil, "记录成功")
 }
 
+// [AUTO] BuildContext
+// @Tags      dialogue-memory
+// @Router    /api/memory/context [get]
 // BuildContext 上下文
 func (c *DialogueMemoryController) BuildContext(ctx *gin.Context) {
 	sessionID := ctx.Query("session_id")
@@ -193,6 +220,9 @@ func (c *DialogueMemoryController) BuildContext(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"context": s}, "查询成功")
 }
 
+// [AUTO] Stats
+// @Tags      dialogue-memory
+// @Router    /api/memory/list [get]
 // Stats 客户会话列表
 func (c *DialogueMemoryController) Stats(ctx *gin.Context) {
 	customerID := ctx.Query("customer_id")

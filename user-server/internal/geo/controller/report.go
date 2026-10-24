@@ -25,6 +25,9 @@ func NewReportController(svc *service.ReportService, analyticsSvc *service.GeoDe
 	return &ReportController{svc: svc, analyticsSvc: analyticsSvc}
 }
 
+// [AUTO] GetReport
+// @Tags      report
+// @Router    /api/geo/reports/summary [get]
 // GetReport 获取 GEO 汇总报表
 // GET /geo/reports/summary
 func (c *ReportController) GetReport(ctx *gin.Context) {
@@ -39,6 +42,9 @@ func (c *ReportController) GetReport(ctx *gin.Context) {
 	response.Success(ctx, result, "获取汇总报表成功")
 }
 
+// [AUTO] GetROI
+// @Tags      report
+// @Router    /api/geo/reports/roi [get]
 // GetROI 获取 ROI 分析
 // GET /geo/reports/roi
 func (c *ReportController) GetROI(ctx *gin.Context) {
@@ -55,6 +61,9 @@ func (c *ReportController) GetROI(ctx *gin.Context) {
 	response.Success(ctx, result, "获取 ROI 分析成功")
 }
 
+// [AUTO] GetAPICosts
+// @Tags      report
+// @Router    /api/geo/reports/api-costs [get]
 // GetAPICosts 获取 API 调用成本
 // GET /geo/reports/api-costs
 func (c *ReportController) GetAPICosts(ctx *gin.Context) {
@@ -66,6 +75,9 @@ func (c *ReportController) GetAPICosts(ctx *gin.Context) {
 	response.Success(ctx, result, "获取 API 成本成功")
 }
 
+// [AUTO] ShareOfVoice
+// @Tags      report
+// @Router    /api/geo/sov [get]
 // ShareOfVoice SOV 竞品率分析
 // GET /geo/sov
 func (c *ReportController) ShareOfVoice(ctx *gin.Context) {
@@ -81,6 +93,9 @@ func (c *ReportController) ShareOfVoice(ctx *gin.Context) {
 	response.Success(ctx, result, "ok")
 }
 
+// [AUTO] ContentFormatAttribution
+// @Tags      report
+// @Router    /api/geo/reports/content-format [get]
 // ContentFormatAttribution A12 内容类型归因（2026-10-24）
 // GET /geo/reports/content-format?days=30
 // 按内容类型（意图）分组统计提及率/引用率；样本量同行标注，低于
@@ -99,6 +114,9 @@ func (c *ReportController) ContentFormatAttribution(ctx *gin.Context) {
 	response.Success(ctx, res, "ok")
 }
 
+// [AUTO] ShareOfVoiceTrend
+// @Tags      report
+// @Router    /api/geo/sov/trend [get]
 // ShareOfVoiceTrend SOV 趋势环比：当前窗口 vs 上一窗口// GET /geo/sov/trend?intent=&days=30
 // current = 最近 days 天；previous = 其前一个 days 天（两窗口不重叠）
 func (c *ReportController) ShareOfVoiceTrend(ctx *gin.Context) {
@@ -131,6 +149,9 @@ func (c *ReportController) ShareOfVoiceTrend(ctx *gin.Context) {
 	}, "ok")
 }
 
+// [AUTO] CrawlerStats
+// @Tags      report
+// @Router    /api/geo/crawler-stats [get]
 // CrawlerStats 爬虫统计
 // GET /geo/crawler-stats
 func (c *ReportController) CrawlerStats(ctx *gin.Context) {
@@ -146,6 +167,9 @@ func (c *ReportController) CrawlerStats(ctx *gin.Context) {
 	response.Success(ctx, result, "ok")
 }
 
+// [AUTO] InaccurateClaims
+// @Tags      report
+// @Router    /api/geo/inaccurate-claims [post]
 // InaccurateClaims 不准确声明检测
 // POST /geo/inaccurate-claims
 func (c *ReportController) InaccurateClaims(ctx *gin.Context) {
@@ -167,6 +191,9 @@ func (c *ReportController) InaccurateClaims(ctx *gin.Context) {
 	response.Success(ctx, result, "ok")
 }
 
+// [AUTO] RunCrawler
+// @Tags      report
+// @Router    /api/geo/crawler/run [post]
 // RunCrawler 手动触发竞品监控爬虫
 // POST /geo/crawler/run
 func (c *ReportController) RunCrawler(ctx *gin.Context) {

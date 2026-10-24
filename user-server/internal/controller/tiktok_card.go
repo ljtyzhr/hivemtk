@@ -37,6 +37,9 @@ func (ctrl *TikTokCardController) RegisterRoutes(router *gin.RouterGroup) {
 	}
 }
 
+// [AUTO] List
+// @Tags      tik-tok-card
+// @Router    /api/tiktok-card/list [get]
 func (ctrl *TikTokCardController) List(c *gin.Context) {
 	page, _ := strconv.Atoi(c.DefaultQuery("page", "1"))
 	pageSize, _ := strconv.Atoi(c.DefaultQuery("page_size", "20"))
@@ -63,6 +66,9 @@ func (ctrl *TikTokCardController) List(c *gin.Context) {
 	response.Success(c, list, "获取成功")
 }
 
+// [AUTO] Get
+// @Tags      tik-tok-card
+// @Router    /api/tiktok-card/{id} [get]
 func (ctrl *TikTokCardController) Get(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -78,6 +84,9 @@ func (ctrl *TikTokCardController) Get(c *gin.Context) {
 	response.Success(c, card, "获取成功")
 }
 
+// [AUTO] Create
+// @Tags      tik-tok-card
+// @Router    /api/tiktok-card [post]
 func (ctrl *TikTokCardController) Create(c *gin.Context) {
 	var req dto.TikTokCardCreateRequest
 	if err := c.ShouldBindJSON(&req); err != nil {
@@ -93,6 +102,9 @@ func (ctrl *TikTokCardController) Create(c *gin.Context) {
 	response.Success(c, card, "创建成功")
 }
 
+// [AUTO] Update
+// @Tags      tik-tok-card
+// @Router    /api/tiktok-card/{id} [put]
 func (ctrl *TikTokCardController) Update(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -114,6 +126,9 @@ func (ctrl *TikTokCardController) Update(c *gin.Context) {
 	response.Success(c, card, "更新成功")
 }
 
+// [AUTO] Delete
+// @Tags      tik-tok-card
+// @Router    /api/tiktok-card/{id} [delete]
 func (ctrl *TikTokCardController) Delete(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {
@@ -127,6 +142,9 @@ func (ctrl *TikTokCardController) Delete(c *gin.Context) {
 	response.Success(c, nil, "删除成功")
 }
 
+// [AUTO] GenerateShortLink
+// @Tags      tik-tok-card
+// @Router    /api/tiktok-card/generate-short-link [post]
 func (ctrl *TikTokCardController) GenerateShortLink(c *gin.Context) {
 	// 入参名以**前端实际发的**为准：`user-web/src/api/tiktokCard.js` 传的是
 	// `{ card_id: cardId }`（snake_case，与本仓其它卡片 DTO 一致）。
@@ -166,6 +184,9 @@ func (ctrl *TikTokCardController) GenerateShortLink(c *gin.Context) {
 	}, "生成成功")
 }
 
+// [AUTO] StatsOverall
+// @Tags      tik-tok-card
+// @Router    /api/tiktok-card/stats/overall [get]
 func (ctrl *TikTokCardController) StatsOverall(c *gin.Context) {
 	data, err := ctrl.svc.StatsOverall(c.Request.Context())
 	if err != nil {
@@ -175,6 +196,9 @@ func (ctrl *TikTokCardController) StatsOverall(c *gin.Context) {
 	response.Success(c, data, "获取成功")
 }
 
+// [AUTO] Stats
+// @Tags      tik-tok-card
+// @Router    /api/tiktok-card/{id}/stats [get]
 func (ctrl *TikTokCardController) Stats(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 32)
 	if err != nil {

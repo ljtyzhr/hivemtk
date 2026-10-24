@@ -20,6 +20,9 @@ func NewGeoDecisionController(svc *service.DecisionService) *GeoDecisionControll
 	return &GeoDecisionController{svc: svc}
 }
 
+// [AUTO] GetTasks
+// @Tags      geo-decision
+// @Router    /api/geo/decision/tasks [get]
 // GetTasks 待处理补位任务列表（内容生产管线消费入口）
 // GET /api/geo/decision/tasks?limit=50
 func (c *GeoDecisionController) GetTasks(ctx *gin.Context) {
@@ -32,6 +35,9 @@ func (c *GeoDecisionController) GetTasks(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": tasks, "total": len(tasks)}, "ok")
 }
 
+// [AUTO] MarkTaskDone
+// @Tags      geo-decision
+// @Router    /api/geo/decision/tasks/{id}/done [post]
 // MarkTaskDone 标记任务完成
 // POST /api/geo/decision/tasks/:id/done
 func (c *GeoDecisionController) MarkTaskDone(ctx *gin.Context) {
@@ -46,6 +52,9 @@ func (c *GeoDecisionController) MarkTaskDone(ctx *gin.Context) {
 	response.Success(ctx, nil, "已完成")
 }
 
+// [AUTO] GetDecisionReport
+// @Tags      geo-decision
+// @Router    /api/geo/decision/report [get]
 // GetDecisionReport L4 决策链总览：
 // 思维链规模 / 补位任务漏斗 / 捕获线索数（OneID→成交归因的前置层）
 // GET /api/geo/decision/report

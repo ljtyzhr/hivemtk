@@ -30,6 +30,9 @@ func NewBackupGapController(backupSvc *service.BackupService, restoreSvc *servic
 	}
 }
 
+// [AUTO] List
+// @Tags      backup-gap
+// @Router    /api/backup/list [get]
 // List GET /api/backup/list → [{id, createdAt, size, checksum, status, type, name}]（复用既有 backups 表）
 func (c *BackupGapController) List(ctx *gin.Context) {
 	rows, err := c.svc.ListBackups(ctx.Request.Context())
@@ -46,6 +49,9 @@ func (c *BackupGapController) List(ctx *gin.Context) {
 	response.Success(ctx, out, "ok")
 }
 
+// [AUTO] Stats
+// @Tags      backup-gap
+// @Router    /api/backup/stats [get]
 // Stats GET /api/backup/stats
 func (c *BackupGapController) Stats(ctx *gin.Context) {
 	st, err := c.svc.Stats(ctx.Request.Context())
@@ -60,6 +66,9 @@ func (c *BackupGapController) GetStrategy(ctx *gin.Context) {
 	response.Success(ctx, c.svc.GetStrategy(ctx.Request.Context()), "ok")
 }
 
+// [AUTO] SaveStrategy
+// @Tags      backup-gap
+// @Router    /api/backup/strategy [put]
 // SaveStrategy PUT /api/backup/strategy
 func (c *BackupGapController) SaveStrategy(ctx *gin.Context) {
 	var req service.BackupStrategy
@@ -73,6 +82,9 @@ func (c *BackupGapController) SaveStrategy(ctx *gin.Context) {
 	response.Success(ctx, req, "策略已保存")
 }
 
+// [AUTO] Create
+// @Tags      backup-gap
+// @Router    /api/backup/create [post]
 // Create POST /api/backup/create（复用 BackupService.CreateBackupSimple，异步执行）
 func (c *BackupGapController) Create(ctx *gin.Context) {
 	b, err := c.backupSvc.CreateBackupSimple(ctx.Request.Context(), 0, "manual-"+time.Now().Format("20060102150405"), "full")
@@ -104,6 +116,9 @@ func NewRagEvalGapController() *RagEvalGapController {
 	return &RagEvalGapController{svc: svc}
 }
 
+// [AUTO] Latest
+// @Tags      rag-eval-gap
+// @Router    /api/rag/eval/latest [get]
 // Latest GET /api/rag/eval/latest
 func (c *RagEvalGapController) Latest(ctx *gin.Context) {
 	run, err := c.svc.Latest(ctx.Request.Context())
@@ -113,6 +128,9 @@ func (c *RagEvalGapController) Latest(ctx *gin.Context) {
 	response.Success(ctx, run, "ok")
 }
 
+// [AUTO] Runs
+// @Tags      rag-eval-gap
+// @Router    /api/rag/eval/runs [get]
 // Runs GET /api/rag/eval/runs?limit=20
 func (c *RagEvalGapController) Runs(ctx *gin.Context) {
 	limit, _ := strconv.Atoi(ctx.DefaultQuery("limit", "20"))
@@ -123,6 +141,9 @@ func (c *RagEvalGapController) Runs(ctx *gin.Context) {
 	response.Success(ctx, runs, "ok")
 }
 
+// [AUTO] Run
+// @Tags      rag-eval-gap
+// @Router    /api/rag/eval/run [post]
 // Run POST /api/rag/eval/run
 func (c *RagEvalGapController) Run(ctx *gin.Context) {
 	var body struct {
@@ -136,6 +157,9 @@ func (c *RagEvalGapController) Run(ctx *gin.Context) {
 	response.Success(ctx, run, "评测已启动（后台执行，稍后刷新查看结果）")
 }
 
+// [AUTO] Upload
+// @Tags      rag-eval-gap
+// @Router    /api/rag/eval/upload [post]
 // Upload POST /api/rag/eval/upload (multipart file)
 func (c *RagEvalGapController) Upload(ctx *gin.Context) {
 	file, _, err := ctx.Request.FormFile("file")
@@ -151,6 +175,9 @@ func (c *RagEvalGapController) Upload(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"imported": n}, "评估集已上传")
 }
 
+// [AUTO] Diff
+// @Tags      rag-eval-gap
+// @Router    /api/rag/eval/diff [get]
 // Diff GET /api/rag/eval/diff?baseline=N
 func (c *RagEvalGapController) Diff(ctx *gin.Context) {
 	bid, err := strconv.ParseUint(ctx.Query("baseline"), 10, 64)
@@ -175,6 +202,9 @@ func NewAnalyticsGapController() *AnalyticsGapController {
 	return &AnalyticsGapController{svc: service.NewCohortGapServiceFromGlobal()}
 }
 
+// [AUTO] Cohort
+// @Tags      analytics-gap
+// @Router    /api/analytics/cohort [get]
 // Cohort GET /api/analytics/cohort?period=weekly
 func (c *AnalyticsGapController) Cohort(ctx *gin.Context) {
 	res, err := c.svc.Cohort(ctx.Request.Context(), 8)
@@ -184,6 +214,9 @@ func (c *AnalyticsGapController) Cohort(ctx *gin.Context) {
 	response.Success(ctx, res, "ok")
 }
 
+// [AUTO] Path
+// @Tags      analytics-gap
+// @Router    /api/analytics/path [get]
 // Path GET /api/analytics/path?limit=5
 func (c *AnalyticsGapController) Path(ctx *gin.Context) {
 	limit, _ := strconv.Atoi(ctx.DefaultQuery("limit", "5"))
@@ -204,6 +237,9 @@ func NewEmailGapController() *EmailGapController {
 	return &EmailGapController{svc: service.NewEmailGapServiceFromGlobal()}
 }
 
+// [AUTO] Deliverability
+// @Tags      email-gap
+// @Router    /api/email/deliverability [get]
 // Deliverability GET /api/email/deliverability?days=30
 func (c *EmailGapController) Deliverability(ctx *gin.Context) {
 	days, _ := strconv.Atoi(ctx.DefaultQuery("days", strconv.Itoa(reporting.DefaultWindowDays(ctx.Request.Context()))))
@@ -214,6 +250,9 @@ func (c *EmailGapController) Deliverability(ctx *gin.Context) {
 	response.Success(ctx, st, "ok")
 }
 
+// [AUTO] BounceBreakdown
+// @Tags      email-gap
+// @Router    /api/email/bounces/breakdown [get]
 // BounceBreakdown GET /api/email/bounces/breakdown
 func (c *EmailGapController) BounceBreakdown(ctx *gin.Context) {
 	days, _ := strconv.Atoi(ctx.DefaultQuery("days", strconv.Itoa(reporting.DefaultWindowDays(ctx.Request.Context()))))
@@ -224,6 +263,9 @@ func (c *EmailGapController) BounceBreakdown(ctx *gin.Context) {
 	response.Success(ctx, res, "ok")
 }
 
+// [AUTO] DomainReputation
+// @Tags      email-gap
+// @Router    /api/email/domain-reputation [get]
 // DomainReputation GET /api/email/domain-reputation
 func (c *EmailGapController) DomainReputation(ctx *gin.Context) {
 	res, err := c.svc.DomainReputation(ctx.Request.Context())
@@ -233,6 +275,9 @@ func (c *EmailGapController) DomainReputation(ctx *gin.Context) {
 	response.Success(ctx, res, "ok")
 }
 
+// [AUTO] SuspendDomain
+// @Tags      email-gap
+// @Router    /api/email/domains/{id}/suspend [post]
 // SuspendDomain POST /api/email/domains/:id/suspend {domain}（Deliverability.vue 暂停按钮）
 // 前端当前只传 row.id；id = 域名列表序号（1-based），按序号回查域名后写入暂停清单
 func (c *EmailGapController) SuspendDomain(ctx *gin.Context) {
@@ -259,6 +304,9 @@ func (c *EmailGapController) SuspendDomain(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"domain": req.Domain, "suspended": true}, "已暂停")
 }
 
+// [AUTO] TestSend
+// @Tags      email-gap
+// @Router    /api/email/test-send [post]
 // TestSend POST /api/email/test-send {subject, html, to[]}
 func (c *EmailGapController) TestSend(ctx *gin.Context) {
 	var req struct {
@@ -288,6 +336,9 @@ func (c *EmailGapController) TestSend(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"sent": sent, "failed": failed}, "测试发送完成")
 }
 
+// [AUTO] RFMMatrix
+// @Tags      email-gap
+// @Router    /api/user-segments/rfm [get]
 // RFMMatrix GET /api/user-segments/rfm（矩阵行 [{recency, frequency, count}]）
 func (c *EmailGapController) RFMMatrix(ctx *gin.Context) {
 	rows, _, err := c.svc.RFMMatrix(ctx.Request.Context())
@@ -297,6 +348,9 @@ func (c *EmailGapController) RFMMatrix(ctx *gin.Context) {
 	response.Success(ctx, rows, "ok")
 }
 
+// [AUTO] RFMMatrixStats
+// @Tags      email-gap
+// @Router    /api/user-segments/rfm/stats [get]
 // RFMMatrixStats GET /api/user-segments/rfm/stats
 func (c *EmailGapController) RFMMatrixStats(ctx *gin.Context) {
 	_, stats, err := c.svc.RFMMatrix(ctx.Request.Context())
@@ -316,6 +370,9 @@ func (c *EmailGapController) DLQBatchRetry(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"requeued": n}, "批量重试已入队")
 }
 
+// [AUTO] PlaygroundPresets
+// @Tags      email-gap
+// @Router    /api/knowledge/playground/presets [get]
 // PlaygroundPresets GET /api/knowledge/playground/presets（检索调参预设）
 func (c *EmailGapController) PlaygroundPresets(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": []gin.H{
@@ -327,6 +384,9 @@ func (c *EmailGapController) PlaygroundPresets(ctx *gin.Context) {
 	}, "total": 5}, "ok")
 }
 
+// [AUTO] ClueApplySuggestions
+// @Tags      email-gap
+// @Router    /api/clues/import/apply-suggestions [post]
 func (c *EmailGapController) ClueApplySuggestions(ctx *gin.Context) {
 	var req struct {
 		Duplicates []struct {
@@ -347,6 +407,9 @@ func (c *EmailGapController) ClueApplySuggestions(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"merged": res.Merged, "skipped": res.Skipped, "failed": res.Failed}, "处理完成")
 }
 
+// [AUTO] ClueMerge
+// @Tags      email-gap
+// @Router    /api/clues/{id}/merge [post]
 // ClueMerge POST /api/clues/:id/merge {from:{...row}}
 func (c *EmailGapController) ClueMerge(ctx *gin.Context) {
 	id, err := strconv.ParseInt(ctx.Param("id"), 10, 64)
@@ -369,6 +432,9 @@ func (c *EmailGapController) ClueMerge(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"merged": ok}, "已合并")
 }
 
+// [AUTO] ClueForceCreate
+// @Tags      email-gap
+// @Router    /api/clues/force-create [post]
 // ClueForceCreate POST /api/clues/force-create {row}
 func (c *EmailGapController) ClueForceCreate(ctx *gin.Context) {
 	var row map[string]any
@@ -384,6 +450,9 @@ func (c *EmailGapController) ClueForceCreate(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"created": ok}, "已强制创建")
 }
 
+// [AUTO] Preview
+// @Tags      backup-gap
+// @Router    /api/backup/{id}/preview [get]
 // BackupPreview GET /api/backup/:id/preview
 func (c *BackupGapController) Preview(ctx *gin.Context) {
 	id, ok := parseUintParam(ctx, "id")
@@ -404,6 +473,9 @@ func (c *BackupGapController) Preview(ctx *gin.Context) {
 	response.Success(ctx, out, "恢复将覆盖上述表现有数据（备份: "+b.BackupName+"），操作不可逆")
 }
 
+// [AUTO] Restore
+// @Tags      backup-gap
+// @Router    /api/backup/{id}/restore [post]
 // BackupRestore POST /api/backup/:id/restore
 func (c *BackupGapController) Restore(ctx *gin.Context) {
 	id, ok := parseUintParam(ctx, "id")
@@ -417,6 +489,9 @@ func (c *BackupGapController) Restore(ctx *gin.Context) {
 	response.Success(ctx, rec, "恢复指令已下发")
 }
 
+// [AUTO] Delete
+// @Tags      backup-gap
+// @Router    /api/backup/{id} [delete]
 // BackupDelete DELETE /api/backup/:id
 func (c *BackupGapController) Delete(ctx *gin.Context) {
 	id, ok := parseUintParam(ctx, "id")

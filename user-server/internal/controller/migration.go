@@ -39,6 +39,9 @@ func NewMigrationController(migrationService *migration.MigrationService) *Migra
 	return &MigrationController{migrationService: migrationService}
 }
 
+// [AUTO] GetUpgradeTask
+// @Tags      migration
+// @Router    /api/migration/task/{id} [get]
 // GetUpgradeTask 获取迁移任务详情（保留方法名以兼容 router）
 func (c *MigrationController) GetUpgradeTask(ctx *gin.Context) {
 	idStr := ctx.Param("id")
@@ -57,6 +60,9 @@ func (c *MigrationController) GetUpgradeTask(ctx *gin.Context) {
 	response.Success(ctx, task, "获取成功")
 }
 
+// [AUTO] GetUpgradeHistory
+// @Tags      migration
+// @Router    /api/migration/history [get]
 // GetUpgradeHistory 获取迁移历史
 func (c *MigrationController) GetUpgradeHistory(ctx *gin.Context) {
 	page, pageSize, err := pagination.Parse(ctx)
@@ -79,6 +85,9 @@ func (c *MigrationController) GetUpgradeHistory(ctx *gin.Context) {
 	}, "获取成功")
 }
 
+// [AUTO] GetMigrationRecords
+// @Tags      migration
+// @Router    /api/migration/records [get]
 // GetMigrationRecords 获取迁移记录
 func (c *MigrationController) GetMigrationRecords(ctx *gin.Context) {
 	records, err := c.migrationService.GetMigrationRecords(ctx.Request.Context())
@@ -90,6 +99,9 @@ func (c *MigrationController) GetMigrationRecords(ctx *gin.Context) {
 	response.Success(ctx, records, "获取成功")
 }
 
+// [AUTO] GetCurrentVersion
+// @Tags      migration
+// @Router    /api/migration/current-version [get]
 // GetCurrentVersion 获取当前数据库版本
 func (c *MigrationController) GetCurrentVersion(ctx *gin.Context) {
 	version, err := c.migrationService.GetCurrentVersion(ctx.Request.Context())
@@ -101,6 +113,9 @@ func (c *MigrationController) GetCurrentVersion(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"version": version}, "获取成功")
 }
 
+// [AUTO] CreateUpgradeTask
+// @Tags      migration
+// @Router    /api/migration/task [post]
 // CreateUpgradeTask 创建迁移任务
 func (c *MigrationController) CreateUpgradeTask(ctx *gin.Context) {
 	var req struct {
@@ -126,6 +141,9 @@ func (c *MigrationController) CreateUpgradeTask(ctx *gin.Context) {
 	response.Success(ctx, task, "迁移任务已创建")
 }
 
+// [AUTO] Rollback
+// @Tags      migration
+// @Router    /api/migration/rollback [post]
 // Rollback 回滚到指定版本
 func (c *MigrationController) Rollback(ctx *gin.Context) {
 	var req struct {
@@ -144,6 +162,9 @@ func (c *MigrationController) Rollback(ctx *gin.Context) {
 	response.Success(ctx, nil, "回滚成功")
 }
 
+// [AUTO] GetAvailableUpgrades
+// @Tags      migration
+// @Router    /api/migration/available [get]
 // GetAvailableUpgrades 获取可执行的迁移列表
 func (c *MigrationController) GetAvailableUpgrades(ctx *gin.Context) {
 	currentVersion, err := c.migrationService.GetCurrentVersion(ctx.Request.Context())

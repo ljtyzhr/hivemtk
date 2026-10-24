@@ -46,6 +46,9 @@ type platformConnectivityResp struct {
 	LatencyMs int64 `json:"latency_ms"`
 }
 
+// [AUTO] TestConnectivity
+// @Tags      platform-connectivity
+// @Router    /api/manage/platform-host/connectivity [post]
 // TestConnectivity POST /api/manage/platform-host/connectivity
 //
 // 请求体（可空）：{"address": "https://new-platform.example.com"}
@@ -118,6 +121,9 @@ func (c *PlatformConnectivityController) TestConnectivity(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"code": 0, "data": resp, "message": resp.Message})
 }
 
+// [AUTO] SetPlatformHost
+// @Tags      platform-connectivity
+// @Router    /api/manage/platform-host [put]
 // SetPlatformHost PUT /api/manage/platform-host
 //
 // 请求体：{"address": "https://new-platform.example.com"}

@@ -21,6 +21,9 @@ func NewDouyinCardStatsController(service service.DouyinCardStatsService) *Douyi
 	}
 }
 
+// [AUTO] GetCardStats
+// @Tags      douyin-card-stats
+// @Router    /api/douyin-card/stats/{id} [get]
 // GetCardStats 获取单个卡片的统计数据
 func (c *DouyinCardStatsController) GetCardStats(ctx *gin.Context) {
 	cardIDStr := ctx.Param("id")
@@ -49,6 +52,9 @@ func (c *DouyinCardStatsController) GetCardStats(ctx *gin.Context) {
 	response.Success(ctx, stats, "获取成功")
 }
 
+// [AUTO] GetOverallStats
+// @Tags      douyin-card-stats
+// @Router    /api/douyin-card/overall-stats [get]
 // GetOverallStats 获取所有卡片的总体统计数据
 func (c *DouyinCardStatsController) GetOverallStats(ctx *gin.Context) {
 	groupBy := ctx.DefaultQuery("groupBy", "day")

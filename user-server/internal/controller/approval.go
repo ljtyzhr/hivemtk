@@ -94,6 +94,9 @@ func (c *ApprovalController) detail(row *model.ApprovalRequest) approvalDetail {
 	}
 }
 
+// [AUTO] Get
+// @Tags      approval
+// @Router    /api/approvals/{id} [get]
 // Get GET /api/approvals/:id
 func (c *ApprovalController) Get(ctx *gin.Context) {
 	if !c.svc.Available() {
@@ -117,6 +120,9 @@ func (c *ApprovalController) Get(ctx *gin.Context) {
 	response.Success(ctx, c.detail(row), "ok")
 }
 
+// [AUTO] Decide
+// @Tags      approval
+// @Router    /api/approvals/{id}/decide [post]
 // Decide POST /api/approvals/:id/decide  body: {"verdict":"approved|rejected","note":"…"}
 func (c *ApprovalController) Decide(ctx *gin.Context) {
 	if !c.svc.Available() {

@@ -53,6 +53,9 @@ func publicSystemInfo(info *service.SystemInfo) gin.H {
 	return gin.H{"platform_enabled": info.PlatformEnabled}
 }
 
+// [AUTO] Health
+// @Tags      system-info
+// @Router    /api/health [get]
 func (c *SystemInfoController) Health(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"status": "ok"}, "ok")
 }

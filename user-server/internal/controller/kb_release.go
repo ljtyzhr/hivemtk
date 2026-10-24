@@ -75,6 +75,9 @@ func (c *KBReleaseController) RegisterRoutes(router *gin.RouterGroup) {
 // 等于给调用方一个免费的慢查询。
 const kbChangeIDParamMaxLen = 64
 
+// [AUTO] SubmitChange
+// @Tags      k-b-release
+// @Router    /api/kb-changes [post]
 // SubmitChange POST /api/kb-changes —— 提交一条变更（同时入队一条审批）。
 func (c *KBReleaseController) SubmitChange(ctx *gin.Context) {
 	if !c.svc.Available() {
@@ -114,6 +117,9 @@ func (c *KBReleaseController) SubmitChange(ctx *gin.Context) {
 	response.Success(ctx, row, "ok")
 }
 
+// [AUTO] WithdrawChange
+// @Tags      k-b-release
+// @Router    /api/kb-changes/{id}/withdraw [post]
 // WithdrawChange POST /api/kb-changes/:id/withdraw —— 发起人撤回一条还没发布的变更。
 //
 // 不收请求体：撤回的"为什么"在 AC③ 里由跃迁本身表达（pending→withdrawn + 谁按的），
@@ -141,6 +147,9 @@ func (c *KBReleaseController) WithdrawChange(ctx *gin.Context) {
 	response.Success(ctx, row, "ok")
 }
 
+// [AUTO] ListChanges
+// @Tags      k-b-release
+// @Router    /api/kb-changes [get]
 // ListChanges GET /api/kb-changes
 func (c *KBReleaseController) ListChanges(ctx *gin.Context) {
 	if !c.svc.Available() {
@@ -165,6 +174,9 @@ func (c *KBReleaseController) ListChanges(ctx *gin.Context) {
 	response.SuccessWithList(ctx, list, total)
 }
 
+// [AUTO] GetChange
+// @Tags      k-b-release
+// @Router    /api/kb-changes/{id} [get]
 // GetChange GET /api/kb-changes/:id
 func (c *KBReleaseController) GetChange(ctx *gin.Context) {
 	if !c.svc.Available() {
@@ -188,6 +200,9 @@ func (c *KBReleaseController) GetChange(ctx *gin.Context) {
 	response.Success(ctx, row, "ok")
 }
 
+// [AUTO] ChangeAudit
+// @Tags      k-b-release
+// @Router    /api/kb-changes/{id}/audit [get]
 // ChangeAudit GET /api/kb-changes/:id/audit —— 一条变更的全部动作（AC③ 的读口）
 func (c *KBReleaseController) ChangeAudit(ctx *gin.Context) {
 	if !c.svc.Available() {
@@ -205,6 +220,9 @@ func (c *KBReleaseController) ChangeAudit(ctx *gin.Context) {
 	response.SuccessWithList(ctx, rows, int64(len(rows)))
 }
 
+// [AUTO] ReleaseAudit
+// @Tags      k-b-release
+// @Router    /api/kb-releases/{product}/audit [get]
 // ReleaseAudit GET /api/kb-releases/:product/audit —— 一个库发布指针的全部移动
 func (c *KBReleaseController) ReleaseAudit(ctx *gin.Context) {
 	if !c.svc.Available() {
@@ -248,6 +266,9 @@ func (c *KBReleaseController) audit(ctx *gin.Context, subjectKey string) ([]mode
 	return rows, true
 }
 
+// [AUTO] ListReleases
+// @Tags      k-b-release
+// @Router    /api/kb-releases [get]
 // ListReleases GET /api/kb-releases —— 已启用发布制的库
 func (c *KBReleaseController) ListReleases(ctx *gin.Context) {
 	if !c.svc.Available() {
@@ -266,6 +287,9 @@ func (c *KBReleaseController) ListReleases(ctx *gin.Context) {
 	response.Success(ctx, rows, "ok")
 }
 
+// [AUTO] GetRelease
+// @Tags      k-b-release
+// @Router    /api/kb-releases/{product} [get]
 // GetRelease GET /api/kb-releases/:product —— 一个库的发布指针
 func (c *KBReleaseController) GetRelease(ctx *gin.Context) {
 	if !c.svc.Available() {
@@ -290,6 +314,9 @@ func (c *KBReleaseController) GetRelease(ctx *gin.Context) {
 	response.Success(ctx, rel, "ok")
 }
 
+// [AUTO] Stats
+// @Tags      k-b-release
+// @Router    /api/kb-releases/{product}/stats [get]
 // Stats GET /api/kb-releases/:product/stats —— 分条数 / 在服数 / 待办数 / 闸门档位
 func (c *KBReleaseController) Stats(ctx *gin.Context) {
 	if !c.svc.Available() {
@@ -308,6 +335,9 @@ func (c *KBReleaseController) Stats(ctx *gin.Context) {
 	response.Success(ctx, stats, "ok")
 }
 
+// [AUTO] Publish
+// @Tags      k-b-release
+// @Router    /api/kb-releases/{product}/publish [post]
 // Publish POST /api/kb-releases/:product/publish —— 把已批准的变更落库并前移指针
 //
 // 返回体是"两块账"而不是一个布尔：verdicts 说这次每条待办变更的去向（带上 / 等审批 /
@@ -338,11 +368,17 @@ func (c *KBReleaseController) Publish(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"verdicts": verdicts, "result": result}, "ok")
 }
 
+// [AUTO] Rollback
+// @Tags      k-b-release
+// @Router    /api/kb-releases/{product}/rollback [post]
 // Rollback POST /api/kb-releases/:product/rollback —— 生效指针回拨一格（不碰语料）
 func (c *KBReleaseController) Rollback(ctx *gin.Context) {
 	c.movePointer(ctx, false)
 }
 
+// [AUTO] Restore
+// @Tags      k-b-release
+// @Router    /api/kb-releases/{product}/restore [post]
 // Restore POST /api/kb-releases/:product/restore —— 把刚被回滚掉的那一版放回去
 func (c *KBReleaseController) Restore(ctx *gin.Context) {
 	c.movePointer(ctx, true)
@@ -381,6 +417,9 @@ func (c *KBReleaseController) movePointer(ctx *gin.Context, forward bool) {
 	response.Success(ctx, res, "ok")
 }
 
+// [AUTO] SetGoverned
+// @Tags      k-b-release
+// @Router    /api/kb-releases/{product}/governed [patch]
 // SetGoverned PATCH /api/kb-releases/:product/governed  body: {"governed":true}
 //
 // 用 PATCH 而不是 POST：这里改的是"这个库受不受管"这一个布尔属性，不创建也不删除发布行
@@ -421,6 +460,9 @@ func (c *KBReleaseController) SetGoverned(ctx *gin.Context) {
 	response.Success(ctx, rel, "ok")
 }
 
+// [AUTO] Gate
+// @Tags      k-b-release
+// @Router    /api/kb-releases/gate [get]
 // Gate GET /api/kb-releases/gate —— 闸门档位回显
 //
 // 这条端点**不查底座是否可用**：档位是进程事实（读 env），与有没有 DB 句柄无关。
@@ -456,6 +498,9 @@ func (c *KBReleaseController) Gate(ctx *gin.Context) {
 	response.Success(ctx, snap, "ok")
 }
 
+// [AUTO] Taxonomy
+// @Tags      k-b-release
+// @Router    /api/kb-changes/taxonomy [get]
 // Taxonomy GET /api/kb-changes/taxonomy —— 动作与状态的值域
 //
 // 与坏例那条同理：值域一旦在前端抄一份，库里加一个状态就会出现"判得出来、选不到"。

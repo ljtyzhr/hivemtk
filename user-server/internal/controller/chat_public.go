@@ -75,6 +75,9 @@ func NewChatPublicController(visitorSvc *service.VisitorChatService, channelSvc 
 	return &ChatPublicController{visitorSvc: visitorSvc, channelSvc: channelSvc}
 }
 
+// [AUTO] GetChannelInfoByAppKey
+// @Tags      chat-public
+// @Router    /api/chat/public/channel/{app_key}/info [get]
 // GetChannelInfoByAppKey 根据 app_key 查询渠道公开信息（用于 widget 安装引导的连通性测试）
 // GET /api/chat/public/channel/:app_key/info
 func (ctrl *ChatPublicController) GetChannelInfoByAppKey(c *gin.Context) {
@@ -114,6 +117,9 @@ func resolveChannelID(c *gin.Context, reqBody *service.VisitorOpenSessionRequest
 	return middleware.GetChatChannelID(c)
 }
 
+// [AUTO] OpenSession
+// @Tags      chat-public
+// @Router    /api/chat/public/sessions [post]
 // OpenSession 打开（或续接）会话
 // POST /api/chat/public/sessions
 func (ctrl *ChatPublicController) OpenSession(c *gin.Context) {
@@ -141,6 +147,9 @@ func (ctrl *ChatPublicController) OpenSession(c *gin.Context) {
 	response.Success(c, result, "会话已打开")
 }
 
+// [AUTO] GetMessages
+// @Tags      chat-public
+// @Router    /api/chat/public/sessions/{session_id}/messages [get]
 // GetMessages 获取历史消息
 // GET /api/chat/public/sessions/:session_id/messages
 //
@@ -182,6 +191,9 @@ func (ctrl *ChatPublicController) GetMessages(c *gin.Context) {
 	response.SuccessWithList(c, messages, total)
 }
 
+// [AUTO] SendMessage
+// @Tags      chat-public
+// @Router    /api/chat/public/sessions/{session_id}/messages [post]
 // SendMessage 发送访客消息
 // POST /api/chat/public/sessions/:session_id/messages
 //
@@ -245,6 +257,9 @@ func (ctrl *ChatPublicController) SendMessage(c *gin.Context) {
 	response.Success(c, result, "消息已发送")
 }
 
+// [AUTO] GetActiveSession
+// @Tags      chat-public
+// @Router    /api/chat/public/sessions/active [get]
 // GetActiveSession 获取访客最近活跃会话（用于离线消息续接）
 // GET /api/chat/public/sessions/active
 func (ctrl *ChatPublicController) GetActiveSession(c *gin.Context) {
@@ -270,6 +285,9 @@ func (ctrl *ChatPublicController) GetActiveSession(c *gin.Context) {
 	response.Success(c, session, "ok")
 }
 
+// [AUTO] GetRecentClosedSessions
+// @Tags      chat-public
+// @Router    /api/chat/public/sessions/recent-closed [get]
 // GetRecentClosedSessions 获取最近 7 天已结束会话
 // GET /api/chat/public/sessions/recent-closed
 func (ctrl *ChatPublicController) GetRecentClosedSessions(c *gin.Context) {
@@ -292,6 +310,9 @@ func (ctrl *ChatPublicController) GetRecentClosedSessions(c *gin.Context) {
 	response.SuccessWithList(c, sessions, int64(len(sessions)))
 }
 
+// [AUTO] ExchangeSessionToken
+// @Tags      chat-public
+// @Router    /api/chat/public/sessions/{session_id}/token [post]
 // ExchangeSessionToken 访客为历史会话列表里的某一条会话换回 visitor_token
 // POST /api/chat/public/sessions/:session_id/token
 //
@@ -332,6 +353,9 @@ func (ctrl *ChatPublicController) ExchangeSessionToken(c *gin.Context) {
 	response.Success(c, gin.H{"visitor_token": token}, "ok")
 }
 
+// [AUTO] GetOfflineMessages
+// @Tags      chat-public
+// @Router    /api/chat/public/sessions/{session_id}/offline-messages [get]
 // GetOfflineMessages 拉取访客离线期间的坐席/AI 回复消息
 // GET /api/chat/public/sessions/:session_id/offline-messages
 // 用于访客重新连接 WebSocket 时，一次性拉取离线期间的所有回复。
@@ -366,6 +390,9 @@ func (ctrl *ChatPublicController) GetOfflineMessages(c *gin.Context) {
 	response.SuccessWithList(c, messages, int64(len(messages)))
 }
 
+// [AUTO] RequestHumanTransfer
+// @Tags      chat-public
+// @Router    /api/chat/public/sessions/{session_id}/transfer [post]
 // RequestHumanTransfer 访客主动转人工
 // POST /api/chat/public/sessions/:session_id/transfer
 //
@@ -403,6 +430,9 @@ func (ctrl *ChatPublicController) RequestHumanTransfer(c *gin.Context) {
 	response.Success(c, nil, "已为您转接人工客服")
 }
 
+// [AUTO] CloseSession
+// @Tags      chat-public
+// @Router    /api/chat/public/sessions/{session_id}/close [post]
 // CloseSession 访客关闭会话
 // POST /api/chat/public/sessions/:session_id/close
 //
@@ -430,6 +460,9 @@ func (ctrl *ChatPublicController) CloseSession(c *gin.Context) {
 	response.Success(c, nil, "会话已关闭")
 }
 
+// [AUTO] RateSession
+// @Tags      chat-public
+// @Router    /api/chat/public/sessions/{session_id}/rate [post]
 // RateSession 访客评分
 // POST /api/chat/public/sessions/:session_id/rate
 //
@@ -471,6 +504,9 @@ func (ctrl *ChatPublicController) RateSession(c *gin.Context) {
 	response.Success(c, nil, "感谢您的评价")
 }
 
+// [AUTO] CountAvailableAgents
+// @Tags      chat-public
+// @Router    /api/chat/public/agents/available [get]
 // CountAvailableAgents 公开可用坐席数（用于显示"当前 X 位客服在线"）
 // GET /api/chat/public/agents/available
 func (ctrl *ChatPublicController) CountAvailableAgents(c *gin.Context) {
@@ -482,6 +518,9 @@ func (ctrl *ChatPublicController) CountAvailableAgents(c *gin.Context) {
 	response.Success(c, gin.H{"available": count}, "ok")
 }
 
+// [AUTO] GetUploadToken
+// @Tags      chat-public
+// @Router    /api/chat/public/upload-token [get]
 // GetUploadToken 生成七牛上传凭证
 // GET /api/chat/public/upload-token?file_type=image&ext=jpg&size=102400
 //

@@ -20,6 +20,9 @@ func NewTraceLearningController(svc *trace_learning.Service) *TraceLearningContr
 	return &TraceLearningController{svc: svc}
 }
 
+// [AUTO] TriggerEval
+// @Tags      trace-learning
+// @Router    /api/monitor/trace-eval/trigger [post]
 // TriggerEval POST /api/monitor/trace-eval/trigger?hours=0&limit=20&dry=false
 // 手动触发：扫描未评估的 trace，批量打分并调整知识库权重。
 //   - hours：opt-in 时间窗（小时）；默认 0=评估全部未评估 trace（不漏评）。>0 时仅该时间窗内。
@@ -40,6 +43,9 @@ func (c *TraceLearningController) TriggerEval(ctx *gin.Context) {
 	response.Success(ctx, resp, "ok")
 }
 
+// [AUTO] EvalLogs
+// @Tags      trace-learning
+// @Router    /api/monitor/trace-eval/logs [get]
 // EvalLogs GET /api/monitor/trace-eval/logs?limit=50
 // 查询最近打分审计记录（供前端展示「自学习打分」）。
 func (c *TraceLearningController) EvalLogs(ctx *gin.Context) {
@@ -52,6 +58,9 @@ func (c *TraceLearningController) EvalLogs(ctx *gin.Context) {
 	response.Success(ctx, logs, "ok")
 }
 
+// [AUTO] KnowledgeWeights
+// @Tags      trace-learning
+// @Router    /api/monitor/knowledge-weights [get]
 // KnowledgeWeights GET /api/monitor/knowledge-weights?limit=50
 // 查询知识库权重排行（权重偏离 1.0 最大的 chunk，供前端展示「自学习影响」）。
 func (c *TraceLearningController) KnowledgeWeights(ctx *gin.Context) {

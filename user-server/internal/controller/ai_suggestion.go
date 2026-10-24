@@ -19,6 +19,9 @@ func NewAISuggestionController(svc *service.AISuggestionService) *AISuggestionCo
 	return &AISuggestionController{suggestionService: svc}
 }
 
+// [AUTO] GetSuggestions
+// @Tags      a-i-suggestion
+// @Router    /api/customer-service/ai-suggestions [get]
 // GetSuggestions 获取AI建议
 //
 // 同一 handler 挂两种路由：带路径参数的 `/ai-suggestions/:session_id`，
@@ -43,6 +46,9 @@ func (c *AISuggestionController) GetSuggestions(ctx *gin.Context) {
 	response.Success(ctx, suggestions, "获取成功")
 }
 
+// [AUTO] UseSuggestion
+// @Tags      a-i-suggestion
+// @Router    /api/ai-suggestions/{id}/use [post]
 // UseSuggestion 使用AI建议
 func (c *AISuggestionController) UseSuggestion(ctx *gin.Context) {
 	idStr := ctx.Param("id")

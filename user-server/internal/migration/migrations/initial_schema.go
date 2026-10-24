@@ -281,4 +281,8 @@ func RegisterMigrations(registry *migration.MigrationRegistry, db *gorm.DB) {
 	// v3.81.0（A10 引用漂移）：geo_citation_snapshots 唯一键 (tenant_id, snapshot_date)
 	// ——快照 UPSERT 的 ON CONFLICT 依赖它；模型有意不用 uniqueIndex 标签（同 v3.71.0 教训）
 	register(NewGeoCitationSnapshotUniqueKeyMigration(db))
+	// v3.82.0（D-9 存储半项）：message_hub 加 platform_msg_id 列 +
+	// (platform, account_id, platform_msg_id) 索引；存量行按行键格式回填，
+	// 不能无歧义解析的留空（读路径有 platformMessageID 解析兜底）
+	register(NewMessageHubPlatformMsgIDMigration(db))
 }

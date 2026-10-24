@@ -23,6 +23,9 @@ func NewAgentAttributionController() *AgentAttributionController {
 	}
 }
 
+// [AUTO] GetPerformance
+// @Tags      agent-attribution
+// @Router    /api/agent-attribution/performance [get]
 // GetPerformance GET /api/agent-attribution/performance?period_days=7&agent_id=0
 func (c *AgentAttributionController) GetPerformance(ctx *gin.Context) {
 	var q service.PerformanceQuery

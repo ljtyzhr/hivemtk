@@ -53,6 +53,9 @@ func (ctrl *FeishuAccountController) RegisterRoutes(router *gin.RouterGroup) {
 	}
 }
 
+// [AUTO] TestSendQuery
+// @Tags      feishu-account
+// @Router    /api/feishu/accounts/{id}/test-send [get]
 // TestSendQuery 兼容 GET 请求的测试发送：从 query 读取 open_id 与 content，
 // 用于前端探测或浏览器直接访问场景。
 // GET /api/feishu/accounts/:id/test-send?open_id=xxx&content=hello
@@ -124,6 +127,9 @@ func toFeishuVO(a *model.FeishuAccount) *feishuAccountVO {
 	}
 }
 
+// [AUTO] List
+// @Tags      feishu-account
+// @Router    /api/feishu/accounts [get]
 // List 列出所有飞书账号
 func (ctrl *FeishuAccountController) List(c *gin.Context) {
 	accs, err := ctrl.svc.ListAccounts(c.Request.Context())
@@ -138,6 +144,9 @@ func (ctrl *FeishuAccountController) List(c *gin.Context) {
 	response.Success(c, out, "查询成功")
 }
 
+// [AUTO] Get
+// @Tags      feishu-account
+// @Router    /api/feishu/accounts/{id} [get]
 // Get 获取单个飞书账号
 func (ctrl *FeishuAccountController) Get(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
@@ -166,6 +175,9 @@ type feishuCreateReq struct {
 	AIAgentEnabled    bool   `json:"ai_agent_enabled"`
 }
 
+// [AUTO] Create
+// @Tags      feishu-account
+// @Router    /api/feishu/accounts [post]
 // Create 创建飞书账号
 func (ctrl *FeishuAccountController) Create(c *gin.Context) {
 	var req feishuCreateReq
@@ -202,6 +214,9 @@ type feishuUpdateReq struct {
 	Status            *int    `json:"status"`
 }
 
+// [AUTO] Update
+// @Tags      feishu-account
+// @Router    /api/feishu/accounts/{id} [put]
 // Update 更新飞书账号
 func (ctrl *FeishuAccountController) Update(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
@@ -252,6 +267,9 @@ func (ctrl *FeishuAccountController) Update(c *gin.Context) {
 	response.Success(c, toFeishuVO(acc), "更新成功")
 }
 
+// [AUTO] Delete
+// @Tags      feishu-account
+// @Router    /api/feishu/accounts/{id} [delete]
 // Delete 删除飞书账号
 func (ctrl *FeishuAccountController) Delete(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
@@ -279,6 +297,9 @@ type feishuTestSendReq struct {
 	Content string `json:"content" binding:"required"`
 }
 
+// [AUTO] TestSend
+// @Tags      feishu-account
+// @Router    /api/feishu/accounts/{id}/test-send [post]
 // TestSend 测试发送文本消息
 func (ctrl *FeishuAccountController) TestSend(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
@@ -309,6 +330,9 @@ func (ctrl *FeishuAccountController) TestSend(c *gin.Context) {
 	response.Success(c, nil, "发送成功")
 }
 
+// [AUTO] RefreshToken
+// @Tags      feishu-account
+// @Router    /api/feishu/accounts/{id}/refresh-token [get]
 // RefreshToken 刷新 access_token
 func (ctrl *FeishuAccountController) RefreshToken(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)

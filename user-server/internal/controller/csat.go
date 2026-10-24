@@ -22,6 +22,9 @@ func NewCSATController() *CSATController {
 	return &CSATController{svc: service.NewCSATService()}
 }
 
+// [AUTO] Submit
+// @Tags      c-s-a-t
+// @Router    /api/customer-sessions/{id}/csat [post]
 // Submit POST /api/customer-sessions/:id/csat {score, comment}
 func (c *CSATController) Submit(ctx *gin.Context) {
 	var req struct {
@@ -39,6 +42,9 @@ func (c *CSATController) Submit(ctx *gin.Context) {
 	response.Success(ctx, survey, "评分已提交")
 }
 
+// [AUTO] Trigger
+// @Tags      c-s-a-t
+// @Router    /api/customer-sessions/{id}/csat/trigger [post]
 // Trigger POST /api/customer-sessions/:id/csat/trigger
 func (c *CSATController) Trigger(ctx *gin.Context) {
 	survey, err := c.svc.Trigger(ctx.Request.Context(), ctx.Param("id"), "manual")
@@ -48,6 +54,9 @@ func (c *CSATController) Trigger(ctx *gin.Context) {
 	response.Success(ctx, survey, "调查已触发")
 }
 
+// [AUTO] Stats
+// @Tags      c-s-a-t
+// @Router    /api/csat/stats [get]
 // Stats GET /api/csat/stats?window=month|week|7d|30d（缺省=全量）
 func (c *CSATController) Stats(ctx *gin.Context) {
 	stats, err := c.svc.Stats(ctx.Request.Context(), ctx.Query("window"))
@@ -57,6 +66,9 @@ func (c *CSATController) Stats(ctx *gin.Context) {
 	response.Success(ctx, stats, "ok")
 }
 
+// [AUTO] Trend
+// @Tags      c-s-a-t
+// @Router    /api/csat/trend [get]
 // Trend GET /api/csat/trend?days=30
 func (c *CSATController) Trend(ctx *gin.Context) {
 	days := queryInt(ctx, "days", reporting.DefaultWindowDays(ctx.Request.Context()))
@@ -67,6 +79,9 @@ func (c *CSATController) Trend(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": list, "total": len(list)}, "ok")
 }
 
+// [AUTO] Negative
+// @Tags      c-s-a-t
+// @Router    /api/csat/negative [get]
 // Negative GET /api/csat/negative
 func (c *CSATController) Negative(ctx *gin.Context) {
 	limit := queryInt(ctx, "limit", 50)
@@ -77,11 +92,17 @@ func (c *CSATController) Negative(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": list, "total": len(list), "threshold": threshold}, "ok")
 }
 
+// [AUTO] GetTemplate
+// @Tags      c-s-a-t
+// @Router    /api/csat/template [get]
 // GetTemplate GET /api/csat/template
 func (c *CSATController) GetTemplate(ctx *gin.Context) {
 	response.Success(ctx, c.svc.GetTemplate(ctx.Request.Context()), "ok")
 }
 
+// [AUTO] SaveTemplate
+// @Tags      c-s-a-t
+// @Router    /api/csat/template [put]
 // SaveTemplate PUT /api/csat/template
 func (c *CSATController) SaveTemplate(ctx *gin.Context) {
 	var req map[string]any

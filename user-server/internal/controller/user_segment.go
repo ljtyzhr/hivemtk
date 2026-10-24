@@ -28,6 +28,9 @@ func NewUserSegmentController() *UserSegmentController {
 	}
 }
 
+// [AUTO] GetRFMRule
+// @Tags      user-segment
+// @Router    /api/user-segment/rfm/rule [get]
 // GetRFMRule 获取 RFM 规则
 // 若未配置 RFM 规则（表为空或无 active 规则），返回成功态 + nil 数据，提示前端使用系统默认。
 func (c *UserSegmentController) GetRFMRule(ctx *gin.Context) {
@@ -44,6 +47,9 @@ func (c *UserSegmentController) GetRFMRule(ctx *gin.Context) {
 	response.Success(ctx, rule, "获取成功")
 }
 
+// [AUTO] ListRFMRules
+// @Tags      user-segment
+// @Router    /api/user-segment/rfm/rules [get]
 // ListRFMRules 列出所有 RFM 规则（分页）
 func (c *UserSegmentController) ListRFMRules(ctx *gin.Context) {
 	page := 1
@@ -70,6 +76,9 @@ func (c *UserSegmentController) ListRFMRules(ctx *gin.Context) {
 	}, "获取成功")
 }
 
+// [AUTO] SaveRFMRule
+// @Tags      user-segment
+// @Router    /api/user-segment/rfm/rule [post]
 // SaveRFMRule 保存 RFM 规则
 func (c *UserSegmentController) SaveRFMRule(ctx *gin.Context) {
 	var req service.SaveRFMRuleRequest
@@ -87,6 +96,9 @@ func (c *UserSegmentController) SaveRFMRule(ctx *gin.Context) {
 	response.Success(ctx, rule, "保存成功")
 }
 
+// [AUTO] UpdateRFMRule
+// @Tags      user-segment
+// @Router    /api/user-segment/rfm/rule/{id} [put]
 // UpdateRFMRule 更新 RFM 规则
 func (c *UserSegmentController) UpdateRFMRule(ctx *gin.Context) {
 	idStr := ctx.Param("id")
@@ -111,6 +123,9 @@ func (c *UserSegmentController) UpdateRFMRule(ctx *gin.Context) {
 	response.Success(ctx, rule, "更新成功")
 }
 
+// [AUTO] DeleteRFMRule
+// @Tags      user-segment
+// @Router    /api/user-segment/rfm/rule/{id} [delete]
 // DeleteRFMRule 删除 RFM 规则
 func (c *UserSegmentController) DeleteRFMRule(ctx *gin.Context) {
 	idStr := ctx.Param("id")
@@ -127,6 +142,9 @@ func (c *UserSegmentController) DeleteRFMRule(ctx *gin.Context) {
 	response.Success(ctx, nil, "删除成功")
 }
 
+// [AUTO] GetRFMList
+// @Tags      user-segment
+// @Router    /api/user-segment/rfm/list [get]
 // GetRFMList 获取客户 RFM 列表（新口径：customer_rfm / segment）
 // 兼容参数：layer 沿用旧查询键，值按 segment 解释；空值返回全量分页。
 func (c *UserSegmentController) GetRFMList(ctx *gin.Context) {
@@ -167,6 +185,9 @@ func (c *UserSegmentController) GetRFMList(ctx *gin.Context) {
 	}, "获取成功")
 }
 
+// [AUTO] GetRFMStats
+// @Tags      user-segment
+// @Router    /api/user-segment/rfm/stats [get]
 // GetRFMStats 获取 RFM 统计（新口径：segment 分布）
 // 保留 layer_count 键以兼容前端，同时提供 segment_count 同义键。
 func (c *UserSegmentController) GetRFMStats(ctx *gin.Context) {
@@ -188,6 +209,9 @@ func (c *UserSegmentController) GetRFMStats(ctx *gin.Context) {
 	}, "获取成功")
 }
 
+// [AUTO] CalculateRFM
+// @Tags      user-segment
+// @Router    /api/user-segment/rfm/calculate [post]
 // CalculateRFM 手动触发 RFM 全量计算（CustomerRFMService.ComputeAll，含挽回队列联动）
 func (c *UserSegmentController) CalculateRFM(ctx *gin.Context) {
 	count, err := c.rfmService.ComputeAll(ctx.Request.Context(), 0)
@@ -201,6 +225,9 @@ func (c *UserSegmentController) CalculateRFM(ctx *gin.Context) {
 	}, "计算完成")
 }
 
+// [AUTO] GetUserRFM
+// @Tags      user-segment
+// @Router    /api/user-segment/rfm/user [get]
 // GetUserRFM 获取单个客户的 RFM
 // 口径适配：旧接口查询键 user_id 现按 customer_id 解释（string）。
 func (c *UserSegmentController) GetUserRFM(ctx *gin.Context) {
@@ -222,6 +249,9 @@ func (c *UserSegmentController) GetUserRFM(ctx *gin.Context) {
 	response.Success(ctx, rfm, "获取成功")
 }
 
+// [AUTO] GetLayerDescription
+// @Tags      user-segment
+// @Router    /api/user-segment/layers [get]
 // GetLayerDescription 获取分层说明（新口径 segment 五档）
 func (c *UserSegmentController) GetLayerDescription(ctx *gin.Context) {
 	layers := []map[string]string{

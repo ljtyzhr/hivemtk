@@ -21,6 +21,9 @@ func NewVisibilityController(visibilitySvc *service.VisibilityService, fanoutSvc
 	return &VisibilityController{visibilitySvc: visibilitySvc, fanoutSvc: fanoutSvc}
 }
 
+// [AUTO] Trend
+// @Tags      visibility
+// @Router    /api/geo/visibility/trend [get]
 // Trend GET /geo/visibility/trend?engine=&intent=&days=
 func (c *VisibilityController) Trend(ctx *gin.Context) {
 	days, _ := strconv.Atoi(ctx.DefaultQuery("days", strconv.Itoa(service.DefaultVisibilityDays(ctx.Request.Context()))))
@@ -36,6 +39,9 @@ func (c *VisibilityController) Trend(ctx *gin.Context) {
 	response.Success(ctx, result, "ok")
 }
 
+// [AUTO] EngineCompare
+// @Tags      visibility
+// @Router    /api/geo/visibility/engine-compare [get]
 // EngineCompare GET /geo/visibility/engine-compare?intent=&days=
 // 引擎维度对比（可见率/负面/引用 + 单日拆分），观测页主数据源
 func (c *VisibilityController) EngineCompare(ctx *gin.Context) {
@@ -52,6 +58,9 @@ func (c *VisibilityController) EngineCompare(ctx *gin.Context) {
 	response.Success(ctx, result, "ok")
 }
 
+// [AUTO] Fanout
+// @Tags      visibility
+// @Router    /api/geo/prompt/fanout [post]
 // Fanout POST /geo/prompt/fanout
 func (c *VisibilityController) Fanout(ctx *gin.Context) {
 	var req service.FanoutRequest

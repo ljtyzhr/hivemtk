@@ -5,7 +5,7 @@
       class="form-card"
     >
       <template #header>
-        <span class="card-title">验证配置</span>
+        <span class="card-title">{{ t('geoVerificationPage.title') }}</span>
       </template>
       <el-form
         :model="form"
@@ -16,10 +16,10 @@
             :xs="24"
             :sm="12"
           >
-            <el-form-item label="验证文章">
+            <el-form-item :label="t('geoVerificationPage.article')">
               <el-select
                 v-model="form.article_id"
-                placeholder="选择已生成文章（或粘贴内容）"
+                :placeholder="t('geoVerificationPage.articlePlaceholder')"
                 filterable
                 clearable
                 style="width: 100%"
@@ -38,10 +38,10 @@
             :xs="24"
             :sm="12"
           >
-            <el-form-item label="品牌名称">
+            <el-form-item :label="t('geoVerificationPage.brand')">
               <el-input
                 v-model="form.brand_name"
-                placeholder="如：hivemtk"
+                :placeholder="t('geoVerificationPage.brandPlaceholder')"
                 clearable
               />
             </el-form-item>
@@ -50,13 +50,13 @@
             :xs="24"
             :sm="12"
           >
-            <el-form-item label="验证模型">
+            <el-form-item :label="t('geoVerificationPage.models')">
               <el-select
                 v-model="form.models"
                 multiple
                 collapse-tags
                 collapse-tags-tooltip
-                placeholder="选择参与验证的 LLM"
+                :placeholder="t('geoVerificationPage.modelsPlaceholder')"
                 style="width: 100%"
               >
                 <el-option
@@ -69,12 +69,12 @@
             </el-form-item>
           </el-col>
         </el-row>
-        <el-form-item label="测试问题">
+        <el-form-item :label="t('geoVerificationPage.queries')">
           <el-input
             v-model="form.queries"
             type="textarea"
             :rows="4"
-            placeholder="每行一个问题，可粘贴关键词"
+            :placeholder="t('geoVerificationPage.queriesPlaceholder')"
           />
         </el-form-item>
         <el-form-item>
@@ -83,7 +83,7 @@
             :loading="verifying"
             @click="handleVerify"
           >
-            <el-icon><CircleCheck /></el-icon><span>验证</span>
+            <el-icon><CircleCheck /></el-icon><span>{{ t('geoVerificationPage.run') }}</span>
           </el-button>
         </el-form-item>
       </el-form>
@@ -96,7 +96,7 @@
       class="result-card"
     >
       <template #header>
-        <span class="card-title">验证结果</span>
+        <span class="card-title">{{ t('geoVerificationPage.resultTitle') }}</span>
       </template>
       <el-table
         v-loading="verifying"
@@ -106,23 +106,23 @@
       >
         <el-table-column
           prop="model"
-          label="验证模型"
+          :label="t('geoVerificationPage.models')"
           width="140"
         />
         <el-table-column
           prop="query"
-          label="问题"
+          :label="t('geoVerificationPage.colQuery')"
           min-width="200"
           show-overflow-tooltip
         />
         <el-table-column
           prop="brand_name"
-          label="品牌"
+          :label="t('geoVerificationPage.colBrand')"
           width="120"
         />
         <el-table-column
           prop="brand_mentioned"
-          label="品牌提及"
+          :label="t('geoVerificationPage.colMentioned')"
           width="100"
           align="center"
         >
@@ -131,19 +131,32 @@
               :type="row.brand_mentioned ? 'success' : 'info'"
               size="small"
             >
-              {{ row.brand_mentioned ? '是' : '否' }}
+              {{ row.brand_mentioned ? t('geoVerificationPage.yes') : t('geoVerificationPage.no') }}
             </el-tag>
           </template>
         </el-table-column>
         <el-table-column
+          prop="brand_context"
+          :label="t('geoVerificationPage.colContext')"
+          width="110"
+          align="center"
+        >
+          <template #default="{ row }">
+            <el-tag v-if="row.brand_context" size="small" type="warning">
+              {{ row.brand_context }}
+            </el-tag>
+            <span v-else>—</span>
+          </template>
+        </el-table-column>
+        <el-table-column
           prop="mention_count"
-          label="提及次数"
+          :label="t('geoVerificationPage.colCount')"
           width="100"
           align="right"
         />
         <el-table-column
           prop="sentiment"
-          label="情感"
+          :label="t('geoVerificationPage.colSentiment')"
           width="90"
         >
           <template #default="{ row }">
@@ -157,7 +170,7 @@
         </el-table-column>
         <el-table-column
           prop="position"
-          label="提及位置"
+          :label="t('geoVerificationPage.colPosition')"
           width="130"
         />
       </el-table>
@@ -170,9 +183,9 @@
     >
       <template #header>
         <div class="card-header">
-          <span class="card-title">负面监控</span>
+          <span class="card-title">{{ t('geoVerificationPage.negativeTitle') }}</span>
           <el-tooltip
-            :content="form.brand_name.trim() ? '' : '请先填写品牌名称'"
+            :content="form.brand_name.trim() ? '' : t('geoVerificationPage.fillBrandFirst')"
             :disabled="!!form.brand_name.trim()"
             placement="top"
           >
@@ -182,14 +195,14 @@
               :disabled="!form.brand_name.trim()"
               @click="handleMonitorNegative"
             >
-              <el-icon><Warning /></el-icon><span>检测负面</span>
+              <el-icon><Warning /></el-icon><span>{{ t('geoVerificationPage.negativeBtn') }}</span>
             </el-button>
           </el-tooltip>
         </div>
       </template>
       <el-empty
         v-if="!negativeResults.length"
-        description="暂无负面监控数据，点击「检测负面」生成"
+        :description="t('geoVerificationPage.negativeEmpty')"
         :image-size="60"
       />
       <el-table
@@ -200,25 +213,25 @@
       >
         <el-table-column
           prop="query"
-          label="负面查询"
+          :label="t('geoVerificationPage.colNegativeQuery')"
           min-width="200"
           show-overflow-tooltip
         />
         <el-table-column
           prop="mention_count"
-          label="提及次数"
+          :label="t('geoVerificationPage.colCount')"
           width="100"
           align="right"
         />
         <el-table-column
           prop="negative_score"
-          label="负面得分"
+          :label="t('geoVerificationPage.colNegativeScore')"
           width="100"
           align="right"
         />
         <el-table-column
           prop="risk_level"
-          label="风险等级"
+          :label="t('geoVerificationPage.colRiskLevel')"
           width="100"
         >
           <template #default="{ row }">
@@ -226,13 +239,13 @@
               size="small"
               :type="riskType(row.risk_level)"
             >
-              {{ row.risk_level || '低' }}
+              {{ row.risk_level || t('geoVerificationPage.riskLow') }}
             </el-tag>
           </template>
         </el-table-column>
         <el-table-column
           prop="risk_description"
-          label="风险说明"
+          :label="t('geoVerificationPage.colRiskDesc')"
           min-width="220"
           show-overflow-tooltip
         />
@@ -243,10 +256,14 @@
 
 <script setup>
 import { ref, reactive, onMounted } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { ElMessage } from 'element-plus'
 import { CircleCheck, Warning } from '@element-plus/icons-vue'
 import { geoApi } from '@/api/geo'
 import { http } from '@/utils/request'
+
+// OPT-FE-06（2026-10-24）：本视图分批替换为 $t()（词条 geoVerificationPage.*）。
+const { t } = useI18n()
 
 const modelOptions = ref([])
 
@@ -272,7 +289,7 @@ const loadModelOptions = async () => {
       form.models = [options[0].value]
     }
   } catch (e) {
-    console.warn('加载可用模型列表失败:', e.message)
+    console.warn(t('geoVerificationPage.loadModelsFailed'), e.message)
   }
 }
 
@@ -312,17 +329,17 @@ const onArticleChange = async (id) => {
   try {
     await geoApi.getArticleByID(id)
   } catch (e) {
-    ElMessage.error(e.message || '文章加载失败')
+    ElMessage.error(e.message || t('geoVerificationPage.loadArticlesFailed'))
   }
 }
 
 const handleVerify = async () => {
   if (!form.queries.trim()) {
-    ElMessage.warning('请输入测试问题')
+    ElMessage.warning(t('geoVerificationPage.inputQueries'))
     return
   }
   if (!form.brand_name.trim()) {
-    ElMessage.warning('请填写品牌名称')
+    ElMessage.warning(t('geoVerificationPage.inputBrand'))
     return
   }
   verifying.value = true
@@ -338,9 +355,9 @@ const handleVerify = async () => {
       })
       if (res) results.value.push(res)
     }
-    ElMessage.success('验证完成')
+    ElMessage.success(t('geoVerificationPage.done'))
   } catch (e) {
-    ElMessage.error(e.message || '验证失败')
+    ElMessage.error(e.message || t('geoVerificationPage.failed'))
   } finally {
     verifying.value = false
   }
@@ -348,7 +365,7 @@ const handleVerify = async () => {
 
 const handleMonitorNegative = async () => {
   if (!form.brand_name.trim()) {
-    ElMessage.warning('请先填写品牌名称')
+    ElMessage.warning(t('geoVerificationPage.fillBrandFirst'))
     return
   }
   monitoring.value = true
@@ -357,9 +374,9 @@ const handleMonitorNegative = async () => {
       brand_name: form.brand_name
     })
     negativeResults.value = res?.queries || []
-    ElMessage.success('负面检测完成')
+    ElMessage.success(t('geoVerificationPage.negativeDone'))
   } catch (e) {
-    ElMessage.error(e.message || '负面检测失败')
+    ElMessage.error(e.message || t('geoVerificationPage.negativeFailed'))
   } finally {
     monitoring.value = false
   }

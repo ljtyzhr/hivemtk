@@ -37,6 +37,9 @@ func subscriptionFail(ctx *gin.Context, err error) {
 	}
 }
 
+// [AUTO] Status
+// @Tags      subscription
+// @Router    /api/subscription/status [get]
 // Status GET /api/subscription/status
 //
 // 读镜像 + 本地惰性判定（与平台 CurrentStatus 同款），不回源平台 ——
@@ -50,6 +53,9 @@ func (c *SubscriptionController) Status(ctx *gin.Context) {
 	response.Success(ctx, snap, "ok")
 }
 
+// [AUTO] Renew
+// @Tags      subscription
+// @Router    /api/subscription/renew [post]
 // Renew POST /api/subscription/renew
 //
 // 续费下单（代理平台 MerchantCreate type=subscription）→ 返回 payment 参数。

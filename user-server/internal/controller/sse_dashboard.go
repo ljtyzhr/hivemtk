@@ -31,6 +31,9 @@ func (c *SSEDashboardController) WithHub(hub *service.SSEHub) *SSEDashboardContr
 	return c
 }
 
+// [AUTO] Stream
+// @Tags      s-s-e-dashboard
+// @Router    /api/dashboard/sse [get]
 // Stream SSE 流连接
 // GET /api/dashboard/sse?topics=llm_calls,intent_recognition
 func (c *SSEDashboardController) Stream(ctx *gin.Context) {
@@ -59,6 +62,9 @@ func (c *SSEDashboardController) Stream(ctx *gin.Context) {
 	service.SSEStreamHandler(ctx, c.hub, client)
 }
 
+// [AUTO] ListClients
+// @Tags      s-s-e-dashboard
+// @Router    /api/dashboard/clients [get]
 // ListClients 列出所有 SSE 客户端
 // GET /api/dashboard/clients
 func (c *SSEDashboardController) ListClients(ctx *gin.Context) {
@@ -107,6 +113,9 @@ func (c *SSEDashboardController) Broadcast(ctx *gin.Context) {
 	}, "broadcast success")
 }
 
+// [AUTO] ListTopics
+// @Tags      s-s-e-dashboard
+// @Router    /api/dashboard/topics [get]
 // ListTopics 返回可用的 SSE topic 列表
 // GET /api/dashboard/topics
 func (c *SSEDashboardController) ListTopics(ctx *gin.Context) {
@@ -139,6 +148,9 @@ func (c *SSEDashboardController) ListTopics(ctx *gin.Context) {
 	response.SuccessWithList(ctx, topics, int64(len(topics)))
 }
 
+// [AUTO] Stats
+// @Tags      s-s-e-dashboard
+// @Router    /api/dashboard/stats [get]
 // Stats SSE Hub 统计
 // GET /api/dashboard/stats
 // Deprecated: 该接口已废弃，请使用 /api/manage/dashboard_sse_stats（dashboard_sse_stats 服务）。

@@ -19,6 +19,9 @@ func NewMacroController() *MacroController {
 	return &MacroController{svc: service.NewMacroServiceFromGlobal()}
 }
 
+// [AUTO] List
+// @Tags      macro
+// @Router    /api/macros [get]
 // List GET /api/macros
 func (c *MacroController) List(ctx *gin.Context) {
 	list, err := c.svc.List(ctx.Request.Context())
@@ -28,6 +31,9 @@ func (c *MacroController) List(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": list, "total": len(list)}, "ok")
 }
 
+// [AUTO] Create
+// @Tags      macro
+// @Router    /api/macros [post]
 // Create POST /api/macros {name, actions:[{type,value}]}
 func (c *MacroController) Create(ctx *gin.Context) {
 	var req struct {
@@ -45,6 +51,9 @@ func (c *MacroController) Create(ctx *gin.Context) {
 	response.Success(ctx, m, "宏已创建")
 }
 
+// [AUTO] Delete
+// @Tags      macro
+// @Router    /api/macros/{id} [delete]
 // Delete DELETE /api/macros/:id
 func (c *MacroController) Delete(ctx *gin.Context) {
 	id, ok := parseUintParam(ctx, "id")
@@ -88,6 +97,9 @@ func NewSessionAIController(svc *service.SessionAIService) *SessionAIController 
 	return &SessionAIController{svc: svc}
 }
 
+// [AUTO] Generate
+// @Tags      session-a-i
+// @Router    /api/customer-sessions/{id}/ai-summary [post]
 // Generate POST /api/customer-sessions/:id/ai-summary
 func (c *SessionAIController) Generate(ctx *gin.Context) {
 	rec, err := c.svc.Generate(ctx.Request.Context(), ctx.Param("id"))
@@ -97,6 +109,9 @@ func (c *SessionAIController) Generate(ctx *gin.Context) {
 	response.Success(ctx, rec, "摘要已生成")
 }
 
+// [AUTO] Get
+// @Tags      session-a-i
+// @Router    /api/customer-sessions/{id}/ai-summary [get]
 // Get GET /api/customer-sessions/:id/ai-summary
 func (c *SessionAIController) Get(ctx *gin.Context) {
 	rec, ok, err := c.svc.GetLatest(ctx.Request.Context(), ctx.Param("id"))

@@ -19,6 +19,9 @@ func NewAdminConfigController() *AdminConfigController {
 	return &AdminConfigController{}
 }
 
+// [AUTO] GetAdminConfig
+// @Tags      admin-config
+// @Router    /api/admin/config [get]
 // GetAdminConfig 获取管理员配置
 //
 // 返回非敏感的 UI 行为配置（前端用于登录页/自动登录的开关）。

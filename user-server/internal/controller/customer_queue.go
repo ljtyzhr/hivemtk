@@ -19,6 +19,9 @@ func NewCustomerServiceController() *CustomerServiceController {
 // QueueSnapshot 队列快照
 type QueueSnapshot = service.QueueSnapshot
 
+// [AUTO] GetQueue
+// @Tags      customer-service
+// @Router    /api/customer-service/queue [get]
 // GetQueue 获取客服队列长度（等待中的会话数）
 // GET /api/customer-service/queue
 func (c *CustomerServiceController) GetQueue(ctx *gin.Context) {
@@ -33,6 +36,9 @@ func (c *CustomerServiceController) GetQueue(ctx *gin.Context) {
 // CapacitySnapshot 坐席容量快照
 type CapacitySnapshot = service.CapacitySnapshot
 
+// [AUTO] GetCapacity
+// @Tags      customer-service
+// @Router    /api/customer-service/capacity [get]
 // GetCapacity 获取坐席容量聚合视图
 // GET /api/customer-service/capacity
 func (c *CustomerServiceController) GetCapacity(ctx *gin.Context) {
@@ -47,6 +53,9 @@ func (c *CustomerServiceController) GetCapacity(ctx *gin.Context) {
 // AgentStatusItem 简化的坐席状态项（不含敏感字段）
 type AgentStatusItem = service.AgentStatusItem
 
+// [AUTO] GetAgents
+// @Tags      customer-service
+// @Router    /api/customer-service/agents [get]
 // GetAgents 获取所有坐席的实时状态列表
 // GET /api/customer-service/agents
 func (c *CustomerServiceController) GetAgents(ctx *gin.Context) {

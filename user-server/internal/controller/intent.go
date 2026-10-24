@@ -134,6 +134,9 @@ func (c *IntentController) BatchRecognize(ctx *gin.Context) {
 	response.Success(ctx, out, "批量识别成功")
 }
 
+// [AUTO] Stats
+// @Tags      intent
+// @Router    /api/intent/stats [get]
 // Stats 意图统计
 func (c *IntentController) Stats(ctx *gin.Context) {
 	days, _ := strconv.Atoi(ctx.DefaultQuery("days", "7"))
@@ -177,6 +180,9 @@ func sortDistributionDesc(arr []map[string]any) {
 	}
 }
 
+// [AUTO] RecentIntents
+// @Tags      intent
+// @Router    /api/intent/recent [get]
 // RecentIntents 客户近期意图（分页 + 意图筛选）
 func (c *IntentController) RecentIntents(ctx *gin.Context) {
 	customerID := ctx.Query("customer_id")
@@ -206,6 +212,9 @@ func (c *IntentController) RecentIntents(ctx *gin.Context) {
 	response.Success(ctx, resp, "查询成功")
 }
 
+// [AUTO] Intents
+// @Tags      intent
+// @Router    /api/intent/dict [get]
 // Intents 意图词典
 func (c *IntentController) Intents(ctx *gin.Context) {
 	response.Success(ctx, service.DefaultIntents, "查询成功")
@@ -218,6 +227,9 @@ type RecognizeFineRequest struct {
 	SessionID  string `json:"session_id"`
 }
 
+// [AUTO] RecognizeFine
+// @Tags      intent
+// @Router    /api/intent/recognize/fine [post]
 // RecognizeFine 精细意图识别
 // POST /api/intent/recognize/fine
 func (c *IntentController) RecognizeFine(ctx *gin.Context) {
@@ -234,6 +246,9 @@ func (c *IntentController) RecognizeFine(ctx *gin.Context) {
 	response.Success(ctx, result, "识别成功")
 }
 
+// [AUTO] IntentLogs
+// @Tags      intent
+// @Router    /api/intent/logs [get]
 // IntentLogs 查询意图识别日志
 // GET /api/intent/logs?customer_id=xxx&major=xxx&limit=100
 func (c *IntentController) IntentLogs(ctx *gin.Context) {
@@ -248,6 +263,9 @@ func (c *IntentController) IntentLogs(ctx *gin.Context) {
 	response.Success(ctx, logs, "查询成功")
 }
 
+// [AUTO] IntentStatsFine
+// @Tags      intent
+// @Router    /api/intent/stats/fine [get]
 // IntentStatsFine 精细意图统计
 // GET /api/intent/stats/fine?days=7
 func (c *IntentController) IntentStatsFine(ctx *gin.Context) {
@@ -260,6 +278,9 @@ func (c *IntentController) IntentStatsFine(ctx *gin.Context) {
 	response.Success(ctx, stats, "查询成功")
 }
 
+// [AUTO] GetConfig
+// @Tags      intent
+// @Router    /api/intent/config [get]
 // GetConfig 获取意图识别配置
 // GET /api/intent/config
 //
@@ -282,6 +303,9 @@ type UpdateConfigRequest struct {
 	Enabled *bool `json:"enabled" binding:"required"`
 }
 
+// [AUTO] UpdateConfig
+// @Tags      intent
+// @Router    /api/intent/config [put]
 // UpdateConfig 更新意图识别配置
 // PUT /api/intent/config
 //
@@ -319,6 +343,9 @@ func (c *IntentController) UpdateConfig(ctx *gin.Context) {
 	response.Success(ctx, cfg, "更新成功")
 }
 
+// [AUTO] GetKeywordOverride
+// @Tags      intent
+// @Router    /api/intent-records/keywords-override [get]
 // GetKeywordOverride GET /api/intent-records/keywords-override
 func (c *IntentController) GetKeywordOverride(ctx *gin.Context) {
 	response.Success(ctx, service.GetIntentKeywordOverride(ctx.Request.Context()), "查询成功")
@@ -329,6 +356,9 @@ type UpdateKeywordOverrideRequest struct {
 	Override map[string][]string `json:"override"`
 }
 
+// [AUTO] UpdateKeywordOverride
+// @Tags      intent
+// @Router    /api/intent-records/keywords-override [put]
 // UpdateKeywordOverride PUT /api/intent-records/keywords-override
 //
 // 覆盖语义为追加（不删除默认词表），保存即热生效。

@@ -28,6 +28,9 @@ import (
 // 也就是说：wallet/plans 是"开通后才看账"的门，而"开通"这扇门从不被 llm-cloud
 // 自己锁住 —— 买完就能看，不买就看到前端空态页（余额 0/无套餐）+4301 引导。
 
+// [AUTO] PaymentGuide
+// @Tags      module-market
+// @Router    /api/module-market/payment-guide [get]
 // PaymentGuide GET /api/module-market/payment-guide
 //
 // 文案来自平台端配置（site_contact_config），运营换联系方式后用户端自动跟着变。
@@ -43,6 +46,9 @@ func (c *ModuleMarketController) PaymentGuide(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"payment_guide": guide}, "ok")
 }
 
+// [AUTO] RegulatoryNotice
+// @Tags      module-market
+// @Router    /api/tenant/regulatory-notice [get]
 // RegulatoryNotice GET /api/tenant/regulatory-notice
 //
 // 开户注册的监管告知与协议版本。未登录可取：注册页在用户还没有任何身份时
@@ -57,6 +63,9 @@ func (c *ModuleMarketController) RegulatoryNotice(ctx *gin.Context) {
 	}, "ok")
 }
 
+// [AUTO] LLMWallet
+// @Tags      module-market
+// @Router    /api/llm/wallet [get]
 // LLMWallet GET /api/llm/wallet
 func (c *ModuleMarketController) LLMWallet(ctx *gin.Context) {
 	w, err := service.NewLLMWalletService().Wallet(ctx.Request.Context())
@@ -68,6 +77,9 @@ func (c *ModuleMarketController) LLMWallet(ctx *gin.Context) {
 	response.Success(ctx, w, "ok")
 }
 
+// [AUTO] LLMWalletTxns
+// @Tags      module-market
+// @Router    /api/llm/wallet/txns [get]
 // LLMWalletTxns GET /api/llm/wallet/txns
 func (c *ModuleMarketController) LLMWalletTxns(ctx *gin.Context) {
 	list, total, err := service.NewLLMWalletService().Txns(ctx.Request.Context(),
@@ -80,6 +92,9 @@ func (c *ModuleMarketController) LLMWalletTxns(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": list, "total": total}, "ok")
 }
 
+// [AUTO] LLMPlans
+// @Tags      module-market
+// @Router    /api/llm/plans [get]
 // LLMPlans GET /api/llm/plans
 func (c *ModuleMarketController) LLMPlans(ctx *gin.Context) {
 	list, err := service.NewLLMWalletService().Plans(ctx.Request.Context())
@@ -91,6 +106,9 @@ func (c *ModuleMarketController) LLMPlans(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": list, "total": len(list)}, "ok")
 }
 
+// [AUTO] CreateLLMOrder
+// @Tags      module-market
+// @Router    /api/llm/recharge [post]
 // CreateLLMOrder POST /api/llm/recharge
 //
 // 购买平台 LLM 套餐（预付费 token 包）。与功能模块订单走**同一个** MarkPaid

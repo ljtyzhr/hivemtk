@@ -18,6 +18,9 @@ func NewSalesCockpitController() *SalesCockpitController {
 	return &SalesCockpitController{svc: service.NewSalesCockpitService()}
 }
 
+// [AUTO] GetCockpit
+// @Tags      sales-cockpit
+// @Router    /api/ai/sales-cockpit [get]
 // GetCockpit GET /api/ai/sales-cockpit
 func (c *SalesCockpitController) GetCockpit(ctx *gin.Context) {
 	data, err := c.svc.GetCockpit(ctx.Request.Context())

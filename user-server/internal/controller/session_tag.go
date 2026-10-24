@@ -21,6 +21,9 @@ func NewSessionTagController() *SessionTagController {
 	}
 }
 
+// [AUTO] GetTags
+// @Tags      session-tag
+// @Router    /api/session-tags [get]
 // GetTags 获取标签列表
 func (c *SessionTagController) GetTags(ctx *gin.Context) {
 	tags, err := c.tagService.GetTags(ctx.Request.Context())
@@ -32,6 +35,9 @@ func (c *SessionTagController) GetTags(ctx *gin.Context) {
 	response.Success(ctx, tags, "获取成功")
 }
 
+// [AUTO] CreateTag
+// @Tags      session-tag
+// @Router    /api/session-tags [post]
 // CreateTag 创建标签
 func (c *SessionTagController) CreateTag(ctx *gin.Context) {
 	var req service.CreateTagRequest
@@ -49,6 +55,9 @@ func (c *SessionTagController) CreateTag(ctx *gin.Context) {
 	response.Success(ctx, tag, "创建成功")
 }
 
+// [AUTO] UpdateTag
+// @Tags      session-tag
+// @Router    /api/session-tags/{id} [put]
 // UpdateTag 更新标签
 func (c *SessionTagController) UpdateTag(ctx *gin.Context) {
 	idStr := ctx.Param("id")
@@ -73,6 +82,9 @@ func (c *SessionTagController) UpdateTag(ctx *gin.Context) {
 	response.Success(ctx, tag, "更新成功")
 }
 
+// [AUTO] DeleteTag
+// @Tags      session-tag
+// @Router    /api/session-tags/{id} [delete]
 // DeleteTag 删除标签
 func (c *SessionTagController) DeleteTag(ctx *gin.Context) {
 	idStr := ctx.Param("id")

@@ -47,6 +47,9 @@ func currentUserID(ctx *gin.Context) uint {
 	return 0
 }
 
+// [AUTO] RestartServer
+// @Tags      system-ops
+// @Router    /api/system/restart [post]
 // RestartServer 系统热重启（高危，仅限 admin）。
 // 实际重启由进程守护（systemd/Docker restart=always）接管：先回写响应，
 // 仅当显式设置 ALLOW_SELF_RESTART=true 时才退出进程，避免误杀开发/调试进程。
@@ -61,6 +64,9 @@ func (c *SystemOpsController) RestartServer(ctx *gin.Context) {
 	}
 }
 
+// [AUTO] GetSystemLogs
+// @Tags      system-ops
+// @Router    /api/system/logs [get]
 // GetSystemLogs 查看日志文件内容。file 参数缺省时读取默认日志。
 func (c *SystemOpsController) GetSystemLogs(ctx *gin.Context) {
 	file := ctx.Query("file")
@@ -95,6 +101,9 @@ func defaultLogPath() string {
 	return abs
 }
 
+// [AUTO] GetSystemStats
+// @Tags      system-ops
+// @Router    /api/system/stats [get]
 // GetSystemStats 获取系统统计信息
 func (c *SystemOpsController) GetSystemStats(ctx *gin.Context) {
 	stats, err := c.monitorService.GetSystemStats(ctx.Request.Context())
@@ -106,6 +115,9 @@ func (c *SystemOpsController) GetSystemStats(ctx *gin.Context) {
 	response.Success(ctx, stats, "获取成功")
 }
 
+// [AUTO] GetBackupList
+// @Tags      system-ops
+// @Router    /api/system/backup [get]
 // GetBackupList 获取备份列表
 func (c *SystemOpsController) GetBackupList(ctx *gin.Context) {
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
@@ -125,6 +137,9 @@ func (c *SystemOpsController) GetBackupList(ctx *gin.Context) {
 	}, "获取成功")
 }
 
+// [AUTO] CreateBackup
+// @Tags      system-ops
+// @Router    /api/system/backup [post]
 // CreateBackup 创建备份
 func (c *SystemOpsController) CreateBackup(ctx *gin.Context) {
 	var req service.CreateBackupRequest
@@ -144,6 +159,9 @@ func (c *SystemOpsController) CreateBackup(ctx *gin.Context) {
 	response.Success(ctx, backup, "创建备份任务成功")
 }
 
+// [AUTO] RestoreBackup
+// @Tags      system-ops
+// @Router    /api/system/restore [post]
 // RestoreBackup 恢复备份
 func (c *SystemOpsController) RestoreBackup(ctx *gin.Context) {
 	var req service.RestoreBackupRequest

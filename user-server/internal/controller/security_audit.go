@@ -25,6 +25,9 @@ type runAuditReq struct {
 	AuditName string `json:"audit_name"`
 }
 
+// [AUTO] ListSecurityAudits
+// @Tags      security-audit
+// @Router    /api/security/audit/list [get]
 // ListSecurityAudits GET /api/security/audit/list
 func (c *SecurityAuditController) ListSecurityAudits(ctx *gin.Context) {
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
@@ -59,6 +62,9 @@ func (c *SecurityAuditController) ListSecurityAudits(ctx *gin.Context) {
 	response.SuccessWithPage(ctx, list, int64(page), int64(pageSize), total)
 }
 
+// [AUTO] RunSecurityAudit
+// @Tags      security-audit
+// @Router    /api/security/audit [post]
 // RunSecurityAudit POST /api/security/audit
 func (c *SecurityAuditController) RunSecurityAudit(ctx *gin.Context) {
 	var req runAuditReq
@@ -71,6 +77,9 @@ func (c *SecurityAuditController) RunSecurityAudit(ctx *gin.Context) {
 	response.Success(ctx, audit, "ok")
 }
 
+// [AUTO] GetSecurityAudit
+// @Tags      security-audit
+// @Router    /api/security/audit/{id} [get]
 // GetSecurityAudit GET /api/security/audit/:id
 func (c *SecurityAuditController) GetSecurityAudit(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)

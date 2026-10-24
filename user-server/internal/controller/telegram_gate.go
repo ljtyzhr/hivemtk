@@ -64,6 +64,9 @@ func toTelegramGateVO(g *model.TelegramGroupGate) telegramGateVO {
 	}
 }
 
+// [AUTO] List
+// @Tags      telegram-gate
+// @Router    /api/telegram/gates [get]
 // List 网关列表（?account_id= 过滤）
 func (ctrl *TelegramGateController) List(c *gin.Context) {
 	accountID := uint(0)
@@ -99,6 +102,9 @@ type telegramGateReq struct {
 	AIAgentEnabled *bool  `json:"ai_agent_enabled"`
 }
 
+// [AUTO] Create
+// @Tags      telegram-gate
+// @Router    /api/telegram/gates [post]
 // Create 创建网关配置
 func (ctrl *TelegramGateController) Create(c *gin.Context) {
 	var req telegramGateReq
@@ -127,6 +133,9 @@ func (ctrl *TelegramGateController) Create(c *gin.Context) {
 	response.Success(c, toTelegramGateVO(gate), "ok")
 }
 
+// [AUTO] Update
+// @Tags      telegram-gate
+// @Router    /api/telegram/gates/{id} [put]
 // Update 更新网关配置
 func (ctrl *TelegramGateController) Update(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
@@ -164,6 +173,9 @@ func (ctrl *TelegramGateController) Update(c *gin.Context) {
 	response.Success(c, toTelegramGateVO(gate), "ok")
 }
 
+// [AUTO] Delete
+// @Tags      telegram-gate
+// @Router    /api/telegram/gates/{id} [delete]
 // Delete 删除网关配置
 func (ctrl *TelegramGateController) Delete(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
@@ -178,6 +190,9 @@ func (ctrl *TelegramGateController) Delete(c *gin.Context) {
 	response.Success(c, nil, "ok")
 }
 
+// [AUTO] Members
+// @Tags      telegram-gate
+// @Router    /api/telegram/gates/{id}/members [get]
 // Members 成员验证台账（?status=）
 func (ctrl *TelegramGateController) Members(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
@@ -200,6 +215,9 @@ func (ctrl *TelegramGateController) Members(c *gin.Context) {
 	response.SuccessWithList(c, members, total)
 }
 
+// [AUTO] AuthorizeMember
+// @Tags      telegram-gate
+// @Router    /api/telegram/gates/{id}/members/{member_id}/authorize [post]
 // AuthorizeMember 人工放行兜底（管理员手动验证通过）
 func (ctrl *TelegramGateController) AuthorizeMember(c *gin.Context) {
 	memberID, err := strconv.ParseUint(c.Param("member_id"), 10, 64)

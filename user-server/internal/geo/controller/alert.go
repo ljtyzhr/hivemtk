@@ -22,6 +22,9 @@ func NewAlertController(svc *service.AlertService) *AlertController {
 	return &AlertController{svc: svc}
 }
 
+// [AUTO] List
+// @Tags      alert
+// @Router    /api/geo/alerts [get]
 // List GET /geo/alerts?type=&level=&page=&limit=
 func (c *AlertController) List(ctx *gin.Context) {
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
@@ -39,6 +42,9 @@ func (c *AlertController) List(ctx *gin.Context) {
 	response.Success(ctx, result, "ok")
 }
 
+// [AUTO] UnreadCount
+// @Tags      alert
+// @Router    /api/geo/alerts/unread-count [get]
 // UnreadCount GET /geo/alerts/unread-count
 func (c *AlertController) UnreadCount(ctx *gin.Context) {
 	n, err := c.svc.CountUnread(ctx.Request.Context())
@@ -49,6 +55,9 @@ func (c *AlertController) UnreadCount(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"count": n}, "ok")
 }
 
+// [AUTO] MarkNotified
+// @Tags      alert
+// @Router    /api/geo/alerts/{id}/ack [post]
 // MarkNotified POST /geo/alerts/:id/ack 确认（已读）
 func (c *AlertController) MarkNotified(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 32)

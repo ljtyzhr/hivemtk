@@ -52,6 +52,9 @@ func (c *WechatController) RegisterWebhookRoutes(r *gin.RouterGroup) {
 	r.POST("/webhook/wechat/:account_id", c.ReceiveMessage)
 }
 
+// [AUTO] ListAccounts
+// @Tags      wechat
+// @Router    /api/wechat/accounts [get]
 // ListAccounts 列出公众号账号
 func (c *WechatController) ListAccounts(ctx *gin.Context) {
 	accounts, err := c.svc.ListAccounts(ctx.Request.Context())
@@ -71,6 +74,9 @@ type createWechatAccountReq struct {
 	AgentID        string `json:"agent_id,omitempty"`
 }
 
+// [AUTO] CreateAccount
+// @Tags      wechat
+// @Router    /api/wechat/accounts [post]
 func (c *WechatController) CreateAccount(ctx *gin.Context) {
 	var req createWechatAccountReq
 	if err := ctx.ShouldBindJSON(&req); err != nil {
@@ -94,6 +100,9 @@ func (c *WechatController) CreateAccount(ctx *gin.Context) {
 	response.Success(ctx, nil, "创建成功")
 }
 
+// [AUTO] UpdateAccount
+// @Tags      wechat
+// @Router    /api/wechat/accounts/{id} [put]
 // UpdateAccount 更新公众号账号
 func (c *WechatController) UpdateAccount(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
@@ -125,6 +134,9 @@ func (c *WechatController) UpdateAccount(ctx *gin.Context) {
 	response.Success(ctx, nil, "更新成功")
 }
 
+// [AUTO] DeleteAccount
+// @Tags      wechat
+// @Router    /api/wechat/accounts/{id} [delete]
 // DeleteAccount 删除公众号账号
 func (c *WechatController) DeleteAccount(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
@@ -146,6 +158,9 @@ type sendWechatMsgReq struct {
 	Content   string `json:"content" binding:"required"`
 }
 
+// [AUTO] SendMessage
+// @Tags      wechat
+// @Router    /api/wechat/send [post]
 func (c *WechatController) SendMessage(ctx *gin.Context) {
 	var req sendWechatMsgReq
 	if err := ctx.ShouldBindJSON(&req); err != nil {
@@ -197,6 +212,9 @@ func (c *WechatController) bindWebhookTenant(ctx *gin.Context, accountID uint) (
 	return bound, true
 }
 
+// [AUTO] VerifyURL
+// @Tags      wechat
+// @Router    /api/webhook/wechat/{account_id} [get]
 // VerifyURL 微信服务器配置验证
 // GET /api/webhook/wechat/{account_id}?signature=xxx&timestamp=xxx&nonce=xxx&echostr=xxx
 func (c *WechatController) VerifyURL(ctx *gin.Context) {
@@ -235,6 +253,9 @@ func (c *WechatController) VerifyURL(ctx *gin.Context) {
 	ctx.String(http.StatusForbidden, "signature verification failed")
 }
 
+// [AUTO] ReceiveMessage
+// @Tags      wechat
+// @Router    /api/webhook/wechat/{account_id} [post]
 // ReceiveMessage 接收微信消息
 // POST /api/webhook/wechat/{account_id}
 // 安全：必须校验微信签名，防伪造消息注入（与 GET VerifyURL 一致）

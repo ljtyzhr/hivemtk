@@ -18,6 +18,9 @@ func NewKeywordMiningController(svc *service.KeywordMiningService) *KeywordMinin
 	return &KeywordMiningController{svc: svc}
 }
 
+// [AUTO] CrawlSuggest
+// @Tags      keyword-mining
+// @Router    /api/geo/keyword-mining/crawl-suggest [post]
 // CrawlSuggest POST /geo/keyword-mining/crawl-suggest
 // body: {"seeds": ["CRM", "SCRM"], "engines": ["baidu","bing","google","360","sogou"]}
 // 返回带 per_engine（各引擎去重前条数）与 errors（逐条抓取报错）：
@@ -45,6 +48,9 @@ func (c *KeywordMiningController) CrawlSuggest(ctx *gin.Context) {
 	}, "ok")
 }
 
+// [AUTO] CombineLongtail
+// @Tags      keyword-mining
+// @Router    /api/geo/keyword-mining/longtail [post]
 // CombineLongtail POST /geo/keyword-mining/longtail
 // body: {"seeds": ["CRM"], "use_default_templates": true}
 func (c *KeywordMiningController) CombineLongtail(ctx *gin.Context) {
@@ -79,6 +85,9 @@ func (c *KeywordMiningController) CombineLongtail(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"count": len(results), "saved": saved, "keywords": results}, "ok")
 }
 
+// [AUTO] BuildFunnel
+// @Tags      keyword-mining
+// @Router    /api/geo/keyword-mining/funnel [get]
 // BuildFunnel GET /geo/keyword-mining/funnel
 func (c *KeywordMiningController) BuildFunnel(ctx *gin.Context) {
 	f, err := c.svc.BuildFunnel(ctx.Request.Context())
@@ -89,6 +98,9 @@ func (c *KeywordMiningController) BuildFunnel(ctx *gin.Context) {
 	response.Success(ctx, f, "ok")
 }
 
+// [AUTO] TriggerPipeline
+// @Tags      keyword-mining
+// @Router    /api/geo/keyword-mining/pipeline [post]
 // TriggerPipeline POST /geo/keyword-mining/pipeline
 // 异步触发关键词批量管线（4业务线×技术栈→展开→落库→有界SEO），执行历史查 /geo/jobs/runs
 func (c *KeywordMiningController) TriggerPipeline(ctx *gin.Context) {

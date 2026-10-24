@@ -30,6 +30,9 @@ func NewOperationLogController() *OperationLogController {
 	}
 }
 
+// [AUTO] GetList
+// @Tags      operation-log
+// @Router    /api/operation-logs [get]
 // GetList 获取操作日志列表
 func (c *OperationLogController) GetList(ctx *gin.Context) {
 	cursor, cursorLimit, useCursor := utils.ParseCursorParams(ctx, 20)
@@ -93,6 +96,9 @@ func (c *OperationLogController) GetList(ctx *gin.Context) {
 	}, "获取操作日志成功")
 }
 
+// [AUTO] GetByID
+// @Tags      operation-log
+// @Router    /api/operation-logs/{id} [get]
 // GetByID 获取操作日志详情
 func (c *OperationLogController) GetByID(ctx *gin.Context) {
 	idStr := ctx.Param("id")
@@ -154,6 +160,9 @@ func (c *OperationLogController) GetMyLogs(ctx *gin.Context) {
 	}, "获取操作日志成功")
 }
 
+// [AUTO] GetStatistics
+// @Tags      operation-log
+// @Router    /api/operation-logs/statistics [get]
 // GetStatistics 获取操作日志统计
 func (c *OperationLogController) GetStatistics(ctx *gin.Context) {
 	stats, err := c.logSvc.GetStatistics(ctx.Request.Context())
@@ -170,6 +179,9 @@ func (c *OperationLogController) GetStatistics(ctx *gin.Context) {
 	}, "获取统计信息成功")
 }
 
+// [AUTO] ExportLogs
+// @Tags      operation-log
+// @Router    /api/operation-logs/export [get]
 // ExportLogs 导出操作日志(返回 CSV 文件流)
 // 支持 query: start_date, end_date, module
 func (c *OperationLogController) ExportLogs(ctx *gin.Context) {
@@ -206,6 +218,9 @@ func (c *OperationLogController) ExportLogs(ctx *gin.Context) {
 	ctx.Data(http.StatusOK, "text/csv; charset=utf-8", buf.Bytes())
 }
 
+// [AUTO] CleanLogs
+// @Tags      operation-log
+// @Router    /api/operation-logs/clean [post]
 // CleanLogs 清理指定日期之前的操作日志
 // 入参 JSON 可选: { before_date: "" } 或 { days: 90 }，缺省默认清理 90 天前
 func (c *OperationLogController) CleanLogs(ctx *gin.Context) {
@@ -270,6 +285,9 @@ func (c *OperationLogController) DeleteLogs(ctx *gin.Context) {
 	}, "删除成功")
 }
 
+// [AUTO] RollbackLog
+// @Tags      operation-log
+// @Router    /api/operation-logs/{id}/rollback [post]
 // RollbackLog 回滚一条操作日志（Enhanced.vue 回滚按钮）
 // POST /api/operation-logs/:id/rollback
 func (c *OperationLogController) RollbackLog(ctx *gin.Context) {

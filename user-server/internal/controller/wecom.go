@@ -29,6 +29,9 @@ func NewWeComController(wecomService *service.WeComService) *WeComController {
 	}
 }
 
+// [AUTO] CreateAccount
+// @Tags      we-com
+// @Router    /api/wecom/accounts [post]
 // CreateAccount 创建企业微信账号
 func (c *WeComController) CreateAccount(ctx *gin.Context) {
 
@@ -50,6 +53,9 @@ func (c *WeComController) CreateAccount(ctx *gin.Context) {
 	response.Success(ctx, account, "创建成功")
 }
 
+// [AUTO] GetAccountList
+// @Tags      we-com
+// @Router    /api/wecom/accounts [get]
 // GetAccountList 获取企业微信账号列表
 func (c *WeComController) GetAccountList(ctx *gin.Context) {
 
@@ -63,6 +69,9 @@ func (c *WeComController) GetAccountList(ctx *gin.Context) {
 	response.Success(ctx, accounts, "获取成功")
 }
 
+// [AUTO] GetAccountByID
+// @Tags      we-com
+// @Router    /api/wecom/accounts/{id} [get]
 // GetAccountByID 获取企业微信账号详情
 func (c *WeComController) GetAccountByID(ctx *gin.Context) {
 
@@ -83,6 +92,9 @@ func (c *WeComController) GetAccountByID(ctx *gin.Context) {
 	response.Success(ctx, account, "获取成功")
 }
 
+// [AUTO] UpdateAccount
+// @Tags      we-com
+// @Router    /api/wecom/accounts/{id} [put]
 // UpdateAccount 更新企业微信账号
 func (c *WeComController) UpdateAccount(ctx *gin.Context) {
 
@@ -109,6 +121,9 @@ func (c *WeComController) UpdateAccount(ctx *gin.Context) {
 	response.Success(ctx, account, "更新成功")
 }
 
+// [AUTO] DeleteAccount
+// @Tags      we-com
+// @Router    /api/wecom/accounts/{id} [delete]
 // DeleteAccount 删除企业微信账号
 func (c *WeComController) DeleteAccount(ctx *gin.Context) {
 
@@ -131,6 +146,9 @@ func (c *WeComController) DeleteAccount(ctx *gin.Context) {
 	response.Success(ctx, nil, "删除成功")
 }
 
+// [AUTO] SyncCustomers
+// @Tags      we-com
+// @Router    /api/wecom/accounts/{id}/sync-customers [post]
 // SyncCustomers 同步企业微信客户
 func (c *WeComController) SyncCustomers(ctx *gin.Context) {
 
@@ -156,6 +174,9 @@ func (c *WeComController) SyncCustomers(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"count": count}, "同步成功")
 }
 
+// [AUTO] GetCustomerList
+// @Tags      we-com
+// @Router    /api/wecom/customers [get]
 // GetCustomerList 获取企业微信客户列表
 func (c *WeComController) GetCustomerList(ctx *gin.Context) {
 
@@ -179,6 +200,9 @@ func (c *WeComController) GetCustomerList(ctx *gin.Context) {
 	}, "获取成功")
 }
 
+// [AUTO] SyncGroups
+// @Tags      we-com
+// @Router    /api/wecom/accounts/{id}/sync-groups [post]
 // SyncGroups 同步企业微信客户群
 func (c *WeComController) SyncGroups(ctx *gin.Context) {
 
@@ -204,6 +228,9 @@ func (c *WeComController) SyncGroups(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"count": count}, "同步成功")
 }
 
+// [AUTO] GetGroupList
+// @Tags      we-com
+// @Router    /api/wecom/groups [get]
 // GetGroupList 获取企业微信客户群列表
 func (c *WeComController) GetGroupList(ctx *gin.Context) {
 
@@ -227,6 +254,9 @@ func (c *WeComController) GetGroupList(ctx *gin.Context) {
 	}, "获取成功")
 }
 
+// [AUTO] SendMessage
+// @Tags      we-com
+// @Router    /api/wecom/accounts/{id}/send-message [post]
 // SendMessage 发送企业微信消息
 func (c *WeComController) SendMessage(ctx *gin.Context) {
 
@@ -258,6 +288,9 @@ func (c *WeComController) SendMessage(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"msg_id": msgID}, "发送成功")
 }
 
+// [AUTO] RefreshAccount
+// @Tags      we-com
+// @Router    /api/wecom/accounts/{id}/refresh [post]
 // RefreshAccount 刷新 access_token（清空本地缓存，强制向企业微信重新换取）
 func (c *WeComController) RefreshAccount(ctx *gin.Context) {
 
@@ -290,6 +323,9 @@ func (c *WeComController) RefreshAccount(ctx *gin.Context) {
 	response.Success(ctx, account, "刷新成功")
 }
 
+// [AUTO] GetMessageList
+// @Tags      we-com
+// @Router    /api/wecom/messages [get]
 // GetMessageList 获取企业微信消息列表
 func (c *WeComController) GetMessageList(ctx *gin.Context) {
 
@@ -313,6 +349,9 @@ func (c *WeComController) GetMessageList(ctx *gin.Context) {
 	}, "获取成功")
 }
 
+// [AUTO] GetTagList
+// @Tags      we-com
+// @Router    /api/wecom/tags [get]
 // GetTagList 获取企业微信标签列表
 func (c *WeComController) GetTagList(ctx *gin.Context) {
 
@@ -325,6 +364,9 @@ func (c *WeComController) GetTagList(ctx *gin.Context) {
 	response.Success(ctx, tags, "获取成功")
 }
 
+// [AUTO] SyncTags
+// @Tags      we-com
+// @Router    /api/wecom/accounts/{id}/sync-tags [post]
 // SyncTags 同步企业微信标签
 func (c *WeComController) SyncTags(ctx *gin.Context) {
 

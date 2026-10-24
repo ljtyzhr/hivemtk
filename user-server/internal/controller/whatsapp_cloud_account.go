@@ -88,6 +88,9 @@ func toWhatsAppCloudVO(a *model.WhatsAppCloudAccount) *whatsAppCloudAccountVO {
 	}
 }
 
+// [AUTO] List
+// @Tags      whats-app-cloud-account
+// @Router    /api/whatsapp-cloud/accounts [get]
 // List 列出所有 WhatsApp Cloud 账号
 func (ctrl *WhatsAppCloudAccountController) List(c *gin.Context) {
 	accs, err := ctrl.svc.ListAccounts(c.Request.Context())
@@ -102,6 +105,9 @@ func (ctrl *WhatsAppCloudAccountController) List(c *gin.Context) {
 	response.Success(c, out, "查询成功")
 }
 
+// [AUTO] Get
+// @Tags      whats-app-cloud-account
+// @Router    /api/whatsapp-cloud/accounts/{id} [get]
 // Get 获取单个 WhatsApp Cloud 账号
 func (ctrl *WhatsAppCloudAccountController) Get(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
@@ -131,6 +137,9 @@ type whatsAppCloudCreateReq struct {
 	AIAgentEnabled     bool   `json:"ai_agent_enabled"`
 }
 
+// [AUTO] Create
+// @Tags      whats-app-cloud-account
+// @Router    /api/whatsapp-cloud/accounts [post]
 // Create 创建 WhatsApp Cloud 账号
 func (ctrl *WhatsAppCloudAccountController) Create(c *gin.Context) {
 	var req whatsAppCloudCreateReq
@@ -168,6 +177,9 @@ type whatsAppCloudUpdateReq struct {
 	Status         *int    `json:"status"`
 }
 
+// [AUTO] Update
+// @Tags      whats-app-cloud-account
+// @Router    /api/whatsapp-cloud/accounts/{id} [put]
 // Update 更新 WhatsApp Cloud 账号
 func (ctrl *WhatsAppCloudAccountController) Update(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
@@ -216,6 +228,9 @@ func (ctrl *WhatsAppCloudAccountController) Update(c *gin.Context) {
 	response.Success(c, toWhatsAppCloudVO(acc), "更新成功")
 }
 
+// [AUTO] Delete
+// @Tags      whats-app-cloud-account
+// @Router    /api/whatsapp-cloud/accounts/{id} [delete]
 // Delete 删除 WhatsApp Cloud 账号
 func (ctrl *WhatsAppCloudAccountController) Delete(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)
@@ -243,6 +258,9 @@ type whatsAppCloudTestSendReq struct {
 	Content string `json:"content" binding:"required"`
 }
 
+// [AUTO] TestSend
+// @Tags      whats-app-cloud-account
+// @Router    /api/whatsapp-cloud/accounts/{id}/test-send [post]
 // TestSend 测试发送文本消息
 func (ctrl *WhatsAppCloudAccountController) TestSend(c *gin.Context) {
 	id, err := strconv.ParseUint(c.Param("id"), 10, 64)

@@ -18,6 +18,9 @@ func NewPushController(svc *service.PushService) *PushController {
 	return &PushController{svc: svc}
 }
 
+// [AUTO] PushURLs
+// @Tags      push
+// @Router    /api/geo/push/urls [post]
 // PushURLs POST /geo/push/urls
 // body: {"urls": [...], "platforms": ["baidu","indexnow","google"]}
 func (c *PushController) PushURLs(ctx *gin.Context) {
@@ -49,12 +52,18 @@ func (c *PushController) PushURLs(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"count": len(req.URLs), "records": records}, "ok")
 }
 
+// [AUTO] QuotaStatus
+// @Tags      push
+// @Router    /api/geo/push/quota [get]
 // QuotaStatus GET /geo/push/quota
 func (c *PushController) QuotaStatus(ctx *gin.Context) {
 	status := c.svc.QuotaStatus()
 	response.Success(ctx, status, "ok")
 }
 
+// [AUTO] GenerateSitemap
+// @Tags      push
+// @Router    /api/geo/push/sitemap [get]
 // GenerateSitemap GET /geo/push/sitemap
 func (c *PushController) GenerateSitemap(ctx *gin.Context) {
 	sitemap, err := c.svc.GenerateAndSubmitSitemap(ctx.Request.Context())

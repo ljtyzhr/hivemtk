@@ -297,6 +297,9 @@ func (c *AuthController) ChangePassword(ctx *gin.Context) {
 	response.Success(ctx, nil, "修改密码成功")
 }
 
+// [AUTO] SetupMFA
+// @Tags      auth
+// @Router    /api/auth/mfa/setup [post]
 // SetupMFA 设置 MFA：生成 TOTP 密钥并返回 otpauth URL
 // 用户使用 Google Authenticator 扫描二维码
 func (c *AuthController) SetupMFA(ctx *gin.Context) {
@@ -323,6 +326,9 @@ func (c *AuthController) SetupMFA(ctx *gin.Context) {
 	response.Success(ctx, resp, "请使用 Google Authenticator 扫描二维码")
 }
 
+// [AUTO] ConfirmMFASetup
+// @Tags      auth
+// @Router    /api/auth/mfa/confirm [post]
 // ConfirmMFASetup 确认 MFA 设置：用户输入 6 位码验证，验证成功后启用 MFA
 func (c *AuthController) ConfirmMFASetup(ctx *gin.Context) {
 	userID, exists := ctx.Get("user_id")
@@ -353,6 +359,9 @@ func (c *AuthController) ConfirmMFASetup(ctx *gin.Context) {
 	}, "MFA 启用成功")
 }
 
+// [AUTO] DisableMFA
+// @Tags      auth
+// @Router    /api/auth/mfa/disable [post]
 // DisableMFA 禁用 MFA
 // 需要校验密码 + TOTP 码（双重保护）
 func (c *AuthController) DisableMFA(ctx *gin.Context) {
@@ -384,6 +393,9 @@ func (c *AuthController) DisableMFA(ctx *gin.Context) {
 	}, "MFA 已禁用")
 }
 
+// [AUTO] VerifyMFALogin
+// @Tags      auth
+// @Router    /api/auth/mfa/verify [post]
 // VerifyMFALogin MFA 登录验证（登录第二步）
 // POST /api/auth/mfa/verify
 // Body: { "temp_token": "...", "code": "123456" }
@@ -437,6 +449,9 @@ func (c *AuthController) VerifyMFALogin(ctx *gin.Context) {
 	response.Success(ctx, resp, "MFA 验证成功，登录完成")
 }
 
+// [AUTO] GetMFAStatus
+// @Tags      auth
+// @Router    /api/auth/mfa/status [get]
 // GetMFAStatus 查询当前用户的 MFA 启用状态
 func (c *AuthController) GetMFAStatus(ctx *gin.Context) {
 	userID, exists := ctx.Get("user_id")
@@ -461,6 +476,9 @@ func (c *AuthController) GetMFAStatus(ctx *gin.Context) {
 	}, "查询成功")
 }
 
+// [AUTO] GenerateBackupCodes
+// @Tags      auth
+// @Router    /api/auth/mfa/backup-codes [post]
 // GenerateBackupCodes 生成新的 MFA 恢复码（使旧码全部失效）
 // POST /api/auth/mfa/backup-codes
 // 返回 10 个明文恢复码（仅展示一次，后续只存 bcrypt 哈希）
@@ -489,6 +507,9 @@ func (c *AuthController) GenerateBackupCodes(ctx *gin.Context) {
 	}, "生成成功")
 }
 
+// [AUTO] ListLoginEvents
+// @Tags      auth
+// @Router    /api/auth/login-events [get]
 // ListLoginEvents 查询登录事件列表
 // GET /api/auth/login-events?page=1&page_size=20
 func (c *AuthController) ListLoginEvents(ctx *gin.Context) {
@@ -518,6 +539,9 @@ func (c *AuthController) ListLoginEvents(ctx *gin.Context) {
 	}, "查询成功")
 }
 
+// [AUTO] ListSecurityAlerts
+// @Tags      auth
+// @Router    /api/auth/security-alerts [get]
 // ListSecurityAlerts 查询安全告警列表
 // GET /api/auth/security-alerts?status=open&page=1&page_size=20
 func (c *AuthController) ListSecurityAlerts(ctx *gin.Context) {
@@ -548,6 +572,9 @@ func (c *AuthController) ListSecurityAlerts(ctx *gin.Context) {
 	}, "查询成功")
 }
 
+// [AUTO] ResolveSecurityAlert
+// @Tags      auth
+// @Router    /api/auth/security-alerts/{id}/resolve [post]
 // ResolveSecurityAlert 处理安全告警
 // POST /api/auth/security-alerts/:id/resolve
 func (c *AuthController) ResolveSecurityAlert(ctx *gin.Context) {
@@ -574,6 +601,9 @@ func (c *AuthController) ResolveSecurityAlert(ctx *gin.Context) {
 	response.Success(ctx, nil, "告警已处理")
 }
 
+// [AUTO] GetPasswordPolicy
+// @Tags      auth
+// @Router    /api/auth/password-policy [get]
 // GetPasswordPolicy 查询当前密码策略
 // GET /api/auth/password-policy
 func (c *AuthController) GetPasswordPolicy(ctx *gin.Context) {
@@ -582,6 +612,9 @@ func (c *AuthController) GetPasswordPolicy(ctx *gin.Context) {
 	response.Success(ctx, policy, "查询成功")
 }
 
+// [AUTO] SavePasswordPolicy
+// @Tags      auth
+// @Router    /api/auth/password-policy [put]
 // SavePasswordPolicy 更新密码策略（仅 admin）
 // PUT /api/auth/password-policy
 func (c *AuthController) SavePasswordPolicy(ctx *gin.Context) {
@@ -619,6 +652,9 @@ func NewSystemUserController() *SystemUserController {
 	}
 }
 
+// [AUTO] GetUsers
+// @Tags      system-user
+// @Router    /api/users [get]
 // GetUsers 获取用户列表
 func (c *SystemUserController) GetUsers(ctx *gin.Context) {
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
@@ -645,6 +681,9 @@ func (c *SystemUserController) GetUsers(ctx *gin.Context) {
 	}, "获取用户列表成功")
 }
 
+// [AUTO] SearchUsers
+// @Tags      system-user
+// @Router    /api/users/search [get]
 // SearchUsers GET /api/users/search?keyword=xxx
 func (c *SystemUserController) SearchUsers(ctx *gin.Context) {
 	keyword := ctx.Query("keyword")
@@ -669,6 +708,9 @@ func (c *SystemUserController) SearchUsers(ctx *gin.Context) {
 	}, "搜索成功")
 }
 
+// [AUTO] GetUser
+// @Tags      system-user
+// @Router    /api/users/{id} [get]
 // GetUser 获取用户详情
 func (c *SystemUserController) GetUser(ctx *gin.Context) {
 	idStr := ctx.Param("id")
@@ -687,6 +729,9 @@ func (c *SystemUserController) GetUser(ctx *gin.Context) {
 	response.Success(ctx, user, "获取用户信息成功")
 }
 
+// [AUTO] CreateUser
+// @Tags      system-user
+// @Router    /api/users [post]
 // CreateUser 创建用户
 func (c *SystemUserController) CreateUser(ctx *gin.Context) {
 	var req service.CreateUserRequest
@@ -704,6 +749,9 @@ func (c *SystemUserController) CreateUser(ctx *gin.Context) {
 	response.Success(ctx, user, "创建用户成功")
 }
 
+// [AUTO] UpdateUser
+// @Tags      system-user
+// @Router    /api/users/{id} [put]
 // UpdateUser 更新用户
 func (c *SystemUserController) UpdateUser(ctx *gin.Context) {
 	idStr := ctx.Param("id")
@@ -728,6 +776,9 @@ func (c *SystemUserController) UpdateUser(ctx *gin.Context) {
 	response.Success(ctx, user, "更新用户成功")
 }
 
+// [AUTO] DeleteUser
+// @Tags      system-user
+// @Router    /api/users/{id} [delete]
 // DeleteUser 删除用户
 //
 // 安全（Round32 复测发现）：旧别名端点 /api/user/:id、/api/users/:id 此前走
@@ -755,6 +806,9 @@ func (c *SystemUserController) DeleteUser(ctx *gin.Context) {
 	response.Success(ctx, nil, "删除用户成功")
 }
 
+// [AUTO] ResetPassword
+// @Tags      system-user
+// @Router    /api/users/{id}/password [put]
 // ResetPassword 重置用户密码
 func (c *SystemUserController) ResetPassword(ctx *gin.Context) {
 	idStr := ctx.Param("id")
@@ -780,6 +834,9 @@ func (c *SystemUserController) ResetPassword(ctx *gin.Context) {
 	response.Success(ctx, nil, "重置密码成功")
 }
 
+// [AUTO] InitAdmin
+// @Tags      auth
+// @Router    /api/system/init-admin [post]
 // InitAdmin 公开：初始化系统超管
 // 路由：POST /api/system/init-admin（详见 admin_routes.go setupPublicRoutes）
 // 流程：SetupOnlyGuard（已初始化直接 403）→ 本方法的安装态快检 → BindJSON → service.AuthService.InitAdmin → install.lock
@@ -879,6 +936,9 @@ func (c *SystemUserController) CreateDefaultAdmin(ctx *gin.Context) {
 	}, "默认管理员创建成功")
 }
 
+// [AUTO] CreateDefaultAdmin
+// @Tags      auth
+// @Router    /api/system/create-default-admin [post]
 func (c *AuthController) CreateDefaultAdmin(ctx *gin.Context) {
 	c.InitAdmin(ctx)
 }

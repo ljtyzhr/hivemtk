@@ -22,6 +22,9 @@ func NewSiteController(deploySvc *service.SiteDeployService, pushSvc *service.Pu
 	return &SiteController{deploySvc: deploySvc, pushSvc: pushSvc, configRepo: configRepo}
 }
 
+// [AUTO] ExportToHugo
+// @Tags      site
+// @Router    /api/geo/site/export [post]
 // ExportToHugo POST /geo/site/export
 func (c *SiteController) ExportToHugo(ctx *gin.Context) {
 	n, err := c.deploySvc.ExportToHugo(ctx.Request.Context())
@@ -32,6 +35,9 @@ func (c *SiteController) ExportToHugo(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"exported": n}, "ok")
 }
 
+// [AUTO] TriggerDeploy
+// @Tags      site
+// @Router    /api/geo/site/deploy [post]
 // TriggerDeploy POST /geo/site/deploy
 func (c *SiteController) TriggerDeploy(ctx *gin.Context) {
 	url, err := c.deploySvc.TriggerDeploy(ctx.Request.Context())
@@ -42,6 +48,9 @@ func (c *SiteController) TriggerDeploy(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"site_url": url}, "ok")
 }
 
+// [AUTO] FullPipeline
+// @Tags      site
+// @Router    /api/geo/site/full-pipeline [post]
 // FullPipeline POST /geo/site/full-pipeline
 // Export → Deploy → Push 一键全链路
 func (c *SiteController) FullPipeline(ctx *gin.Context) {
@@ -58,6 +67,9 @@ func (c *SiteController) FullPipeline(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"exported": n, "site_url": url}, "ok")
 }
 
+// [AUTO] LlmsTxtPreview
+// @Tags      site
+// @Router    /api/geo/site/llms-txt-preview [get]
 // LlmsTxtPreview GET /geo/site/llms-txt-preview?domain=example.com
 func (c *SiteController) LlmsTxtPreview(ctx *gin.Context) {
 	domain := ctx.DefaultQuery("domain", "example.com")
@@ -70,6 +82,9 @@ func (c *SiteController) LlmsTxtPreview(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"content": service.GenerateLLMsTxt(brand, domain, nil)}, "ok")
 }
 
+// [AUTO] RobotsTxtPreview
+// @Tags      site
+// @Router    /api/geo/site/robots-preview [get]
 // RobotsTxtPreview GET /geo/site/robots-preview
 func (c *SiteController) RobotsTxtPreview(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"content": service.GenerateRobots()}, "ok")

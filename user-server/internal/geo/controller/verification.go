@@ -20,6 +20,9 @@ func NewVerificationController(svc *service.VerificationService) *VerificationCo
 	return &VerificationController{svc: svc}
 }
 
+// [AUTO] VerifyArticle
+// @Tags      verification
+// @Router    /api/geo/verification/verify [post]
 // VerifyArticle 执行 AI 搜索验证
 // POST /geo/verification/verify
 func (c *VerificationController) VerifyArticle(ctx *gin.Context) {
@@ -35,6 +38,9 @@ func (c *VerificationController) VerifyArticle(ctx *gin.Context) {
 	response.Success(ctx, result, "AI 搜索验证成功")
 }
 
+// [AUTO] MonitorNegative
+// @Tags      verification
+// @Router    /api/geo/verification/negative [post]
 // MonitorNegative 负面提及监控
 // POST /geo/verification/negative
 func (c *VerificationController) MonitorNegative(ctx *gin.Context) {
@@ -52,6 +58,9 @@ func (c *VerificationController) MonitorNegative(ctx *gin.Context) {
 	response.Success(ctx, result, "负面监控成功")
 }
 
+// [AUTO] GetVerifyResults
+// @Tags      verification
+// @Router    /api/geo/verification/results/{article_id} [get]
 // GetVerifyResults 获取验证结果
 // GET /geo/verification/results/:article_id
 func (c *VerificationController) GetVerifyResults(ctx *gin.Context) {

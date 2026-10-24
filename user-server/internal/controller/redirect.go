@@ -62,6 +62,9 @@ func NewRedirectController(
 	}
 }
 
+// [AUTO] RedirectShortLink
+// @Tags      redirect
+// @Router    /api/s/{code} [get]
 // RedirectShortLink 重定向短链
 func (ctrl *RedirectController) RedirectShortLink(ctx *gin.Context) {
 	code := ctx.Param("code")

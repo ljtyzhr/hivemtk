@@ -18,6 +18,9 @@ func NewCommunityController(svc *service.CommunityService) *CommunityController 
 	return &CommunityController{svc: svc}
 }
 
+// [AUTO] GetGroups
+// @Tags      community
+// @Router    /api/community/groups [get]
 // GetGroups 获取社群列表
 func (c *CommunityController) GetGroups(ctx *gin.Context) {
 	var req dto.GetCommunityGroupsRequest
@@ -40,6 +43,9 @@ func (c *CommunityController) GetGroups(ctx *gin.Context) {
 	response.Success(ctx, resp, "获取社群列表成功")
 }
 
+// [AUTO] GetGroupByID
+// @Tags      community
+// @Router    /api/community/groups/{id} [get]
 // GetGroupByID 获取社群详情
 func (c *CommunityController) GetGroupByID(ctx *gin.Context) {
 	groupID := ctx.Param("id")
@@ -56,6 +62,9 @@ func (c *CommunityController) GetGroupByID(ctx *gin.Context) {
 	response.Success(ctx, group, "获取社群详情成功")
 }
 
+// [AUTO] CreateGroup
+// @Tags      community
+// @Router    /api/community/groups [post]
 // CreateGroup 创建社群
 func (c *CommunityController) CreateGroup(ctx *gin.Context) {
 	var req dto.CreateCommunityGroupRequest
@@ -73,6 +82,9 @@ func (c *CommunityController) CreateGroup(ctx *gin.Context) {
 	response.Success(ctx, group, "创建社群成功")
 }
 
+// [AUTO] UpdateGroup
+// @Tags      community
+// @Router    /api/community/groups/{id} [put]
 // UpdateGroup 更新社群
 func (c *CommunityController) UpdateGroup(ctx *gin.Context) {
 	groupID := ctx.Param("id")
@@ -90,6 +102,9 @@ func (c *CommunityController) UpdateGroup(ctx *gin.Context) {
 	response.Success(ctx, nil, "更新社群成功")
 }
 
+// [AUTO] DeleteGroup
+// @Tags      community
+// @Router    /api/community/groups/{id} [delete]
 // DeleteGroup 删除社群
 func (c *CommunityController) DeleteGroup(ctx *gin.Context) {
 	groupID := ctx.Param("id")
@@ -101,6 +116,9 @@ func (c *CommunityController) DeleteGroup(ctx *gin.Context) {
 	response.Success(ctx, nil, "删除社群成功")
 }
 
+// [AUTO] GetMembers
+// @Tags      community
+// @Router    /api/community/members [get]
 // GetMembers 获取社群成员列表
 func (c *CommunityController) GetMembers(ctx *gin.Context) {
 	var req dto.GetCommunityMembersRequest
@@ -123,6 +141,9 @@ func (c *CommunityController) GetMembers(ctx *gin.Context) {
 	response.Success(ctx, resp, "获取成员列表成功")
 }
 
+// [AUTO] GetMemberByID
+// @Tags      community
+// @Router    /api/community/members/{id} [get]
 // GetMemberByID 获取社群成员详情
 func (c *CommunityController) GetMemberByID(ctx *gin.Context) {
 	memberID := ctx.Param("id")
@@ -139,6 +160,9 @@ func (c *CommunityController) GetMemberByID(ctx *gin.Context) {
 	response.Success(ctx, member, "获取成员详情成功")
 }
 
+// [AUTO] AddMember
+// @Tags      community
+// @Router    /api/community/members [post]
 // AddMember 添加社群成员
 func (c *CommunityController) AddMember(ctx *gin.Context) {
 	var req dto.AddCommunityMemberRequest
@@ -156,6 +180,9 @@ func (c *CommunityController) AddMember(ctx *gin.Context) {
 	response.Success(ctx, member, "添加成员成功")
 }
 
+// [AUTO] UpdateMember
+// @Tags      community
+// @Router    /api/community/members/{id} [put]
 // UpdateMember 更新社群成员
 func (c *CommunityController) UpdateMember(ctx *gin.Context) {
 	memberID := ctx.Param("id")
@@ -173,6 +200,9 @@ func (c *CommunityController) UpdateMember(ctx *gin.Context) {
 	response.Success(ctx, nil, "更新成员成功")
 }
 
+// [AUTO] RemoveMember
+// @Tags      community
+// @Router    /api/community/members/{id} [delete]
 // RemoveMember 移除社群成员
 func (c *CommunityController) RemoveMember(ctx *gin.Context) {
 	memberID := ctx.Param("id")
@@ -184,6 +214,9 @@ func (c *CommunityController) RemoveMember(ctx *gin.Context) {
 	response.Success(ctx, nil, "移除成员成功")
 }
 
+// [AUTO] GetMessages
+// @Tags      community
+// @Router    /api/community/messages [get]
 // GetMessages 获取社群消息
 func (c *CommunityController) GetMessages(ctx *gin.Context) {
 	var req dto.GetCommunityMessagesRequest
@@ -206,6 +239,9 @@ func (c *CommunityController) GetMessages(ctx *gin.Context) {
 	response.Success(ctx, resp, "获取消息列表成功")
 }
 
+// [AUTO] GetStatistics
+// @Tags      community
+// @Router    /api/community/stats [get]
 // GetStatistics 获取社群统计
 func (c *CommunityController) GetStatistics(ctx *gin.Context) {
 	stats, err := c.svc.GetStatistics(ctx.Request.Context())
@@ -217,6 +253,9 @@ func (c *CommunityController) GetStatistics(ctx *gin.Context) {
 	response.Success(ctx, stats, "获取统计信息成功")
 }
 
+// [AUTO] ImportData
+// @Tags      community
+// @Router    /api/community/import [post]
 // ImportData 导入社群数据
 func (c *CommunityController) ImportData(ctx *gin.Context) {
 	var req struct {
@@ -245,6 +284,9 @@ func (c *CommunityController) ImportData(ctx *gin.Context) {
 	}, "导入完成")
 }
 
+// [AUTO] ExportData
+// @Tags      community
+// @Router    /api/community/export [post]
 // ExportData 导出社群数据
 func (c *CommunityController) ExportData(ctx *gin.Context) {
 	groups, _, err := c.svc.GetGroups(ctx.Request.Context(), 1, 10000, "")

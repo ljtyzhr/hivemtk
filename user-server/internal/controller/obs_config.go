@@ -25,6 +25,9 @@ func NewObsConfigController() *ObsConfigController {
 	}
 }
 
+// [AUTO] GetConfigList
+// @Tags      obs-config
+// @Router    /api/obs-configs [get]
 // GetConfigList 获取配置列表（全局）
 func (c *ObsConfigController) GetConfigList(ctx *gin.Context) {
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
@@ -48,6 +51,9 @@ func (c *ObsConfigController) GetConfigList(ctx *gin.Context) {
 	response.Success(ctx, resp, "查询成功")
 }
 
+// [AUTO] GetConfig
+// @Tags      obs-config
+// @Router    /api/obs-configs/{id} [get]
 // GetConfig 获取配置详情
 func (c *ObsConfigController) GetConfig(ctx *gin.Context) {
 	id := ctx.Param("id")
@@ -69,6 +75,9 @@ func (c *ObsConfigController) GetConfig(ctx *gin.Context) {
 	response.Success(ctx, config, "查询成功")
 }
 
+// [AUTO] CreateConfig
+// @Tags      obs-config
+// @Router    /api/obs/config [post]
 // CreateConfig 创建配置
 func (c *ObsConfigController) CreateConfig(ctx *gin.Context) {
 	var req dto.CreateObsConfigRequest
@@ -85,6 +94,9 @@ func (c *ObsConfigController) CreateConfig(ctx *gin.Context) {
 	response.Success(ctx, config, "创建成功")
 }
 
+// [AUTO] UpdateConfig
+// @Tags      obs-config
+// @Router    /api/obs/config/{id} [put]
 // UpdateConfig 更新配置
 func (c *ObsConfigController) UpdateConfig(ctx *gin.Context) {
 	id := ctx.Param("id")
@@ -107,6 +119,9 @@ func (c *ObsConfigController) UpdateConfig(ctx *gin.Context) {
 	response.Success(ctx, config, "更新成功")
 }
 
+// [AUTO] DeleteConfig
+// @Tags      obs-config
+// @Router    /api/obs/config/{id} [delete]
 // DeleteConfig 删除配置
 func (c *ObsConfigController) DeleteConfig(ctx *gin.Context) {
 	id := ctx.Param("id")
@@ -122,6 +137,9 @@ func (c *ObsConfigController) DeleteConfig(ctx *gin.Context) {
 	response.Success(ctx, nil, "删除成功")
 }
 
+// [AUTO] TestConnection
+// @Tags      obs-config
+// @Router    /api/obs/config/{id}/test [post]
 // TestConnection 测试连接
 func (c *ObsConfigController) TestConnection(ctx *gin.Context) {
 	id := ctx.Param("id")
@@ -148,6 +166,9 @@ func (c *ObsConfigController) TestConnection(ctx *gin.Context) {
 	response.Success(ctx, nil, "连接测试成功")
 }
 
+// [AUTO] SetDefault
+// @Tags      obs-config
+// @Router    /api/obs/config/{id}/default [post]
 // SetDefault 设为默认配置（开源版：全局唯一默认）
 func (c *ObsConfigController) SetDefault(ctx *gin.Context) {
 	id := ctx.Param("id")
@@ -168,6 +189,9 @@ func (c *ObsConfigController) SetDefault(ctx *gin.Context) {
 	response.Success(ctx, nil, "设为默认配置成功")
 }
 
+// [AUTO] GetDefaultConfig
+// @Tags      obs-config
+// @Router    /api/obs-configs/default [get]
 // GetDefaultConfig 获取默认配置（开源版：全局默认）
 func (c *ObsConfigController) GetDefaultConfig(ctx *gin.Context) {
 	config, err := c.service.GetDefaultConfig(ctx.Request.Context())

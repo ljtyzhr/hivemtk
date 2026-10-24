@@ -15,6 +15,9 @@ func NewAgentSettingsController() *AgentSettingsController {
 	return &AgentSettingsController{}
 }
 
+// [AUTO] GetConfig
+// @Tags      agent-settings
+// @Router    /api/agent/settings [get]
 // GetConfig 读取 Agent Loop 运行期调参（GET /api/agent/settings）
 func (c *AgentSettingsController) GetConfig(ctx *gin.Context) {
 	cfg, err := service.LoadAgentSettingsConfig(ctx.Request.Context())
@@ -25,6 +28,9 @@ func (c *AgentSettingsController) GetConfig(ctx *gin.Context) {
 	response.Success(ctx, cfg, "ok")
 }
 
+// [AUTO] SaveConfig
+// @Tags      agent-settings
+// @Router    /api/agent/settings [put]
 // SaveConfig 保存 Agent Loop 运行期调参（PUT /api/agent/settings）
 func (c *AgentSettingsController) SaveConfig(ctx *gin.Context) {
 	var cfg service.AgentSettingsConfig

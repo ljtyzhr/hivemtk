@@ -23,6 +23,9 @@ func NewDouyinCardController(service service.DouyinCardService) *DouyinCardContr
 	}
 }
 
+// [AUTO] Create
+// @Tags      douyin-card
+// @Router    /api/douyin/create [post]
 // Create 创建抖音卡片
 func (c *DouyinCardController) Create(ctx *gin.Context) {
 	var req dto.DouyinCardCreateRequest
@@ -39,6 +42,9 @@ func (c *DouyinCardController) Create(ctx *gin.Context) {
 	response.Success(ctx, card, response.ErrCreateSuccess)
 }
 
+// [AUTO] Update
+// @Tags      douyin-card
+// @Router    /api/douyin-card/{id} [put]
 // Update 更新抖音卡片
 func (c *DouyinCardController) Update(ctx *gin.Context) {
 	var req dto.DouyinCardUpdateRequest
@@ -79,6 +85,9 @@ func (c *DouyinCardController) Update(ctx *gin.Context) {
 	response.Success(ctx, card, response.ErrUpdateSuccess)
 }
 
+// [AUTO] Delete
+// @Tags      douyin-card
+// @Router    /api/douyin-card/{id} [delete]
 // Delete 删除抖音卡片
 func (c *DouyinCardController) Delete(ctx *gin.Context) {
 	idStr := ctx.Param("id")
@@ -95,6 +104,9 @@ func (c *DouyinCardController) Delete(ctx *gin.Context) {
 	response.Success(ctx, nil, response.ErrDeleteSuccess)
 }
 
+// [AUTO] GetByID
+// @Tags      douyin-card
+// @Router    /api/douyin-card/{id} [get]
 // GetByID 根据 ID 获取抖音卡片
 func (c *DouyinCardController) GetByID(ctx *gin.Context) {
 	idStr := ctx.Param("id")
@@ -113,6 +125,9 @@ func (c *DouyinCardController) GetByID(ctx *gin.Context) {
 	response.Success(ctx, card, response.ErrGetSuccess)
 }
 
+// [AUTO] GetList
+// @Tags      douyin-card
+// @Router    /api/douyin-card/list [get]
 // GetList 获取抖音卡片列表
 func (c *DouyinCardController) GetList(ctx *gin.Context) {
 	var req dto.DouyinCardListRequest
@@ -137,6 +152,9 @@ func (c *DouyinCardController) GetList(ctx *gin.Context) {
 	response.Success(ctx, list, response.ErrGetSuccess)
 }
 
+// [AUTO] GenerateShortLink
+// @Tags      douyin-card
+// @Router    /api/douyin/{id}/generate-short-link [post]
 // GenerateShortLink 为抖音卡片生成短链
 func (c *DouyinCardController) GenerateShortLink(ctx *gin.Context) {
 	idStr := ctx.Param("id")
@@ -163,6 +181,9 @@ func (c *DouyinCardController) GenerateShortLink(ctx *gin.Context) {
 	response.Success(ctx, cardResp, response.ErrSuccess)
 }
 
+// [AUTO] SharePage
+// @Tags      douyin-card
+// @Router    /share/douyin/{id} [get]
 // SharePage 渲染卡片分享页面（统一卡片聊天页，含联系客服按钮）
 func (c *DouyinCardController) SharePage(ctx *gin.Context) {
 	idStr := ctx.Param("id")

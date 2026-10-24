@@ -123,6 +123,9 @@ func (c *CustomerEventController) DeleteEvent(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"deleted_count": count}, "删除成功")
 }
 
+// [AUTO] GetEventStats
+// @Tags      customer-event
+// @Router    /api/customer-events [get]
 func (c *CustomerEventController) GetEventStats(ctx *gin.Context) {
 	start := ctx.Query("start")
 	end := ctx.Query("end")
@@ -313,6 +316,9 @@ func (c *CustomerEventController) TrackAddToCart(ctx *gin.Context) {
 	response.Success(ctx, nil, "加购事件追踪成功")
 }
 
+// [AUTO] ListGlobal
+// @Tags      customer-event
+// @Router    /api/customer-events/list [get]
 func (c *CustomerEventController) ListGlobal(ctx *gin.Context) {
 	limit, _ := strconv.Atoi(ctx.DefaultQuery("page_size", "50"))
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))

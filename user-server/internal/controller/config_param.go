@@ -27,6 +27,9 @@ func NewConfigParamController(svc *service.ConfigParamService) *ConfigParamContr
 	return &ConfigParamController{svc: svc}
 }
 
+// [AUTO] List
+// @Tags      config-param
+// @Router    /api/manage/config-params [get]
 // List GET /api/manage/config-params
 // 全部参数（分组按 group 字段排序）
 //
@@ -52,6 +55,9 @@ func (c *ConfigParamController) List(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"code": 0, "data": list, "message": "ok"})
 }
 
+// [AUTO] ListGroups
+// @Tags      config-param
+// @Router    /api/manage/config-params/groups [get]
 // ListGroups GET /api/manage/config-params/groups
 // 分组元数据（中文名 / 说明 / 排序）。
 //
@@ -72,6 +78,9 @@ func (c *ConfigParamController) ListGroups(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"code": 0, "data": groups, "message": "ok"})
 }
 
+// [AUTO] Update
+// @Tags      config-param
+// @Router    /api/manage/config-params/{group}/{key} [put]
 // Update PUT /api/manage/config-params/:group/:key
 // 更新单个参数值（请求体 { "value": <标量> }）
 func (c *ConfigParamController) Update(ctx *gin.Context) {
@@ -152,6 +161,9 @@ func firstTokenOf(raw json.RawMessage) string {
 	return "无法识别的 JSON 值"
 }
 
+// [AUTO] ResetToDefault
+// @Tags      config-param
+// @Router    /api/manage/config-params/{group}/{key}/reset [post]
 // ResetToDefault POST /api/manage/config-params/:group/:key/reset
 // 重置单条为默认值
 func (c *ConfigParamController) ResetToDefault(ctx *gin.Context) {
@@ -166,6 +178,9 @@ func (c *ConfigParamController) ResetToDefault(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"code": 0, "message": "ok"})
 }
 
+// [AUTO] BulkResetGroup
+// @Tags      config-param
+// @Router    /api/manage/config-params/{group}/reset [post]
 // BulkResetGroup POST /api/manage/config-params/:group/reset
 // 整组重置为默认值
 func (c *ConfigParamController) BulkResetGroup(ctx *gin.Context) {
@@ -179,6 +194,9 @@ func (c *ConfigParamController) BulkResetGroup(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"code": 0, "message": "ok"})
 }
 
+// [AUTO] AuditLogs
+// @Tags      config-param
+// @Router    /api/manage/config-params/audit-logs [get]
 // AuditLogs GET /api/manage/config-params/audit-logs?limit=100
 // 变更日志（管理端只读，用于审计回溯）
 func (c *ConfigParamController) AuditLogs(ctx *gin.Context) {

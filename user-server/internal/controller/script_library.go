@@ -32,6 +32,9 @@ func parseUintParam(ctx *gin.Context, name string) (uint, bool) {
 	return uint(id), true
 }
 
+// [AUTO] ListVersions
+// @Tags      script-library
+// @Router    /api/script-library/{id}/versions [get]
 // ListVersions GET /api/script-library/:id/versions
 func (c *ScriptLibraryController) ListVersions(ctx *gin.Context) {
 	id, ok := parseUintParam(ctx, "id")
@@ -45,6 +48,9 @@ func (c *ScriptLibraryController) ListVersions(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": versions, "total": len(versions)}, "ok")
 }
 
+// [AUTO] CreateVersion
+// @Tags      script-library
+// @Router    /api/script-library/{id}/versions [post]
 // CreateVersion POST /api/script-library/:id/versions（发布新版本=创建快照并激活）
 func (c *ScriptLibraryController) CreateVersion(ctx *gin.Context) {
 	id, ok := parseUintParam(ctx, "id")
@@ -64,6 +70,9 @@ func (c *ScriptLibraryController) CreateVersion(ctx *gin.Context) {
 	response.Success(ctx, v, "新版本已发布并激活")
 }
 
+// [AUTO] ActivateVersion
+// @Tags      script-library
+// @Router    /api/script-library/{id}/versions/{vid}/activate [put]
 // ActivateVersion PUT /api/script-library/:id/versions/:vid/activate（回滚=激活旧版本）
 func (c *ScriptLibraryController) ActivateVersion(ctx *gin.Context) {
 	id, ok := parseUintParam(ctx, "id")
@@ -80,6 +89,9 @@ func (c *ScriptLibraryController) ActivateVersion(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"script_id": id, "version": vid}, "版本已激活")
 }
 
+// [AUTO] ExpireScript
+// @Tags      script-library
+// @Router    /api/script-library/{id}/expire [post]
 // ExpireScript POST /api/script-library/:id/expire（过期下线）
 func (c *ScriptLibraryController) ExpireScript(ctx *gin.Context) {
 	id, ok := parseUintParam(ctx, "id")
@@ -92,6 +104,9 @@ func (c *ScriptLibraryController) ExpireScript(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"script_id": id, "status": "expired"}, "话术已过期下线")
 }
 
+// [AUTO] GetABStats
+// @Tags      script-library
+// @Router    /api/script-library/{id}/ab-stats [get]
 // GetABStats GET /api/script-library/:id/ab-stats
 func (c *ScriptLibraryController) GetABStats(ctx *gin.Context) {
 	id, ok := parseUintParam(ctx, "id")
@@ -105,6 +120,9 @@ func (c *ScriptLibraryController) GetABStats(ctx *gin.Context) {
 	response.Success(ctx, stats, "ok")
 }
 
+// [AUTO] UpdateABConfig
+// @Tags      script-library
+// @Router    /api/script-library/{id}/ab-config [put]
 // UpdateABConfig PUT /api/script-library/:id/ab-config
 func (c *ScriptLibraryController) UpdateABConfig(ctx *gin.Context) {
 	id, ok := parseUintParam(ctx, "id")
@@ -122,6 +140,9 @@ func (c *ScriptLibraryController) UpdateABConfig(ctx *gin.Context) {
 	response.Success(ctx, req, "AB 配置已保存")
 }
 
+// [AUTO] RecordConversion
+// @Tags      script-library
+// @Router    /api/script-ab/conversion [post]
 // RecordConversion POST /api/script-ab/conversion（转化回写：one_id/conversation_id/outcome）
 func (c *ScriptLibraryController) RecordConversion(ctx *gin.Context) {
 	var req struct {

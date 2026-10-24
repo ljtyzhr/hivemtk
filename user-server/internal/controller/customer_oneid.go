@@ -106,6 +106,9 @@ func (c *CustomerOneIDController) OneIDStats(ctx *gin.Context) {
 	response.Success(ctx, stats, "获取成功")
 }
 
+// [AUTO] ListConflicts
+// @Tags      customer-one-i-d
+// @Router    /api/customer/oneid/conflicts [get]
 // ListConflicts 列出潜在的身份冲突（同一手机号/邮箱/openid 关联到不同客户）
 func (c *CustomerOneIDController) ListConflicts(ctx *gin.Context) {
 	page := parsePage(ctx.Query("page"))
@@ -126,6 +129,9 @@ type ResolveConflictRequest struct {
 	Action      string `json:"action"`
 }
 
+// [AUTO] ResolveConflict
+// @Tags      customer-one-i-d
+// @Router    /api/customer/oneid/conflicts/{id}/resolve [post]
 // ResolveConflict 解决身份冲突
 func (c *CustomerOneIDController) ResolveConflict(ctx *gin.Context) {
 	id := ctx.Param("id")
@@ -158,6 +164,9 @@ func (c *CustomerOneIDController) ResolveConflict(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"id": id, "primary": primary, "merged_id": req.SecondaryID}, "冲突已解决")
 }
 
+// [AUTO] GetIdentityMappings
+// @Tags      customer-one-i-d
+// @Router    /api/customer-oneid/{customer_id}/identities [get]
 // GetIdentityMappings 获取指定客户的所有身份映射
 func (c *CustomerOneIDController) GetIdentityMappings(ctx *gin.Context) {
 	customerID := ctx.Param("customer_id")
@@ -192,6 +201,9 @@ func (c *CustomerOneIDController) GetIdentityMappings(ctx *gin.Context) {
 	}, "获取成功")
 }
 
+// [AUTO] LinkIdentity
+// @Tags      customer-one-i-d
+// @Router    /api/customer-oneid/{customer_id}/identities [post]
 // LinkIdentity 链接新身份到指定客户
 func (c *CustomerOneIDController) LinkIdentity(ctx *gin.Context) {
 	customerID := ctx.Param("customer_id")
@@ -211,6 +223,9 @@ func (c *CustomerOneIDController) LinkIdentity(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"customer_id": customerID, "identifiers": identifiers}, "链接成功")
 }
 
+// [AUTO] ResolveIdentity
+// @Tags      customer-one-i-d
+// @Router    /api/customer/oneid/resolve [post]
 // ResolveIdentity 解析身份标识（识别或创建）
 // 接收一个或多个渠道标识，返回所有匹配到的客户及归一化结果
 func (c *CustomerOneIDController) ResolveIdentity(ctx *gin.Context) {
@@ -309,6 +324,9 @@ func (c *CustomerOneIDController) SaveMergeRules(ctx *gin.Context) {
 	response.Success(ctx, out, "保存成功")
 }
 
+// [AUTO] DeleteMergeRule
+// @Tags      customer-one-i-d
+// @Router    /api/oneid/merge-rules/{id} [delete]
 // DeleteMergeRule DELETE /api/oneid/merge-rules/:id（MergeRuleConfig.vue 删除按钮）
 func (c *CustomerOneIDController) DeleteMergeRule(ctx *gin.Context) {
 	id, err := strconv.ParseInt(ctx.Param("id"), 10, 64)

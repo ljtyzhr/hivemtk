@@ -42,6 +42,9 @@ func (c *EmailListController) CreateEmailList(ctx *gin.Context) {
 	}, "success")
 }
 
+// [AUTO] GetEmailListList
+// @Tags      email-list
+// @Router    /api/email/list [get]
 // GetEmailListList 获取列表列表
 func (c *EmailListController) GetEmailListList(ctx *gin.Context) {
 	var req dto.GetEmailListRequest
@@ -63,6 +66,9 @@ func (c *EmailListController) GetEmailListList(ctx *gin.Context) {
 	response.Success(ctx, resp, "success")
 }
 
+// [AUTO] GetEmailListDetail
+// @Tags      email-list
+// @Router    /api/email/lists/{id} [get]
 // GetEmailListDetail 获取列表详情
 func (c *EmailListController) GetEmailListDetail(ctx *gin.Context) {
 	var req struct {
@@ -106,6 +112,9 @@ func (c *EmailListController) UpdateEmailList(ctx *gin.Context) {
 	response.Success(ctx, nil, "success")
 }
 
+// [AUTO] DeleteEmailList
+// @Tags      email-list
+// @Router    /api/email/list/{id} [delete]
 // DeleteEmailList 删除列表
 func (c *EmailListController) DeleteEmailList(ctx *gin.Context) {
 	var req struct {
@@ -161,6 +170,9 @@ func (c *EmailListController) TraceEmail(ctx *gin.Context) {
 	ctx.Data(200, "image/png", buf.Bytes())
 }
 
+// [AUTO] GetTracking
+// @Tags      email-list
+// @Router    /api/email/lists/{id}/tracking [get]
 // GetTracking 获取邮件列表关联的追踪事件（基于 JobsID 查询，返回 JSON）
 func (c *EmailListController) GetTracking(ctx *gin.Context) {
 	var req struct {

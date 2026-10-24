@@ -19,6 +19,9 @@ func NewSystemConfigController() *SystemConfigController {
 	return &SystemConfigController{svc: service.NewSystemConfigService()}
 }
 
+// [AUTO] GetConfig
+// @Tags      system-config
+// @Router    /api/system/config [get]
 // GetConfig 获取系统配置
 func (c *SystemConfigController) GetConfig(ctx *gin.Context) {
 	config, err := c.svc.GetConfig(ctx.Request.Context())
@@ -29,6 +32,9 @@ func (c *SystemConfigController) GetConfig(ctx *gin.Context) {
 	response.Success(ctx, config, "success")
 }
 
+// [AUTO] SaveConfig
+// @Tags      system-config
+// @Router    /api/system/config [post]
 // SaveConfig 保存系统配置
 func (c *SystemConfigController) SaveConfig(ctx *gin.Context) {
 	var req *model.SystemConfig

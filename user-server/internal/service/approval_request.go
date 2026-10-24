@@ -261,8 +261,9 @@ type ApprovalRequestService struct {
 	// 裁决期（HTTP 线程 / worker 线程），与写入没有先后保证 ——
 	// 无锁读写是数据竞争（-race 可复现），口径同 SOPExecutionDispatcher.compensationMu。
 	notifierMu sync.RWMutex
-	notifier   ApprovalWaitNotifier // nil = 无人等（本服务可独立使用，见 T-P3-01 的零装配）
-	taskSink   ApprovalTaskSink     // nil = 不进待办池（装配未接齐时的默认档）
+	notifier   ApprovalWaitNotifier   // nil = 无人等（本服务可独立使用，见 T-P3-01 的零装配）
+	notifiers  []ApprovalWaitNotifier // E-10：追加订阅者（fan-out）；SetWaitNotifier 置空本切片
+	taskSink   ApprovalTaskSink       // nil = 不进待办池（装配未接齐时的默认档）
 }
 
 // NewApprovalRequestService 构造。policy 可为 nil（见上）。
@@ -294,14 +295,32 @@ func (s *ApprovalRequestService) Available() bool {
 
 // SetWaitNotifier 装配唤醒出口。传 nil 等于撤掉（回滚到"只靠定时器到期"那一档）。
 //
-// 装配点：internal/app/approval_runtime_wiring.go。刻意允许在 Start 之后调用，
-// 因为审批服务要先于 SOP 调度器存在、而桥接器要拿到调度器才能唤醒（两者构造顺序相反）。
+// E-10（2026-10-24，产品可复议）：审批通过自动外发需要第二个订阅者（报价自动外发桥），
+// 而本槽位只有一个。AddWaitNotifier 追加订阅者（fan-out 顺序通知，逐个失败只出声不拦截）；
+// SetWaitNotifier 保留并改为"清空后装一个"，既有装配点行为不变。
 func (s *ApprovalRequestService) SetWaitNotifier(n ApprovalWaitNotifier) {
 	if s == nil {
 		return
 	}
 	s.notifierMu.Lock()
-	s.notifier = n
+	if n == nil {
+		s.notifiers = nil
+		s.notifier = nil
+	} else {
+		s.notifiers = nil
+		s.notifier = n
+	}
+	s.notifierMu.Unlock()
+}
+
+// AddWaitNotifier 追加一个唤醒订阅者（E-10）。nil 忽略。去重不做：
+// 重复装配同一实例是装配 bug，日志里看得见两次通知比静默吞掉便宜。
+func (s *ApprovalRequestService) AddWaitNotifier(n ApprovalWaitNotifier) {
+	if s == nil || n == nil {
+		return
+	}
+	s.notifierMu.Lock()
+	s.notifiers = append(s.notifiers, n)
 	s.notifierMu.Unlock()
 }
 
@@ -312,15 +331,35 @@ func (s *ApprovalRequestService) waitNotifier() ApprovalWaitNotifier {
 }
 
 // notifyWait 把结论推给等待方；未装配时静默（那是默认档，不是故障）。
+// E-10：主槽（SetWaitNotifier 装的）先通知，再逐个通知追加订阅者——
+// 顺序失败只出声不拦截（同一判据：人的裁决已经落库，不能因为叫不醒某个订阅者回滚它）。
 func (s *ApprovalRequestService) notifyWait(ctx context.Context, req *model.ApprovalRequest) {
 	if s == nil || req == nil {
 		return
 	}
-	n := s.waitNotifier()
-	if n == nil {
-		return
+	s.notifierMu.RLock()
+	primary := s.notifier
+	extra := make([]ApprovalWaitNotifier, len(s.notifiers))
+	copy(extra, s.notifiers)
+	s.notifierMu.RUnlock()
+	if primary != nil {
+		primary.NotifyDecided(ctx, req)
 	}
-	n.NotifyDecided(ctx, req)
+	for _, n := range extra {
+		if n == nil {
+			continue
+		}
+		func() {
+			defer func() {
+				if r := recover(); r != nil {
+					logger.Ctx(ctx).Error().Any("panic", r).
+						Str("approval_id", req.ID).
+						Msg("[approval] 追加订阅者通知 panic ⇒ 已拦住，不影响裁决与其他订阅者")
+				}
+			}()
+			n.NotifyDecided(ctx, req)
+		}()
+	}
 }
 
 // SetTaskSink 装配待办池出口；传 nil 等于撤掉（回到 T-P3-02 的交付态：审批只落自己的表）。

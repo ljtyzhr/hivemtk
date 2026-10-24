@@ -20,12 +20,18 @@ func NewPlatformController(svc *service.PlatformService) *PlatformController {
 	return &PlatformController{svc: svc}
 }
 
+// [AUTO] ListPlatforms
+// @Tags      platform
+// @Router    /api/geo/platform/platforms [get]
 // ListPlatforms 获取支持的平台列表
 // GET /geo/platform/platforms
 func (c *PlatformController) ListPlatforms(ctx *gin.Context) {
 	response.Success(ctx, c.svc.ListPlatforms(ctx.Request.Context()), "获取平台列表成功")
 }
 
+// [AUTO] ListAccounts
+// @Tags      platform
+// @Router    /api/geo/platform/accounts [get]
 // ListAccounts 平台账号列表
 // GET /geo/platform/accounts?platform=&page=&limit=
 func (c *PlatformController) ListAccounts(ctx *gin.Context) {
@@ -39,6 +45,9 @@ func (c *PlatformController) ListAccounts(ctx *gin.Context) {
 	response.SuccessWithPage(ctx, list, int64(page), int64(limit), total)
 }
 
+// [AUTO] SaveAccount
+// @Tags      platform
+// @Router    /api/geo/platform/accounts [post]
 // SaveAccount 新增平台账号
 // POST /geo/platform/accounts
 func (c *PlatformController) SaveAccount(ctx *gin.Context) {
@@ -54,6 +63,9 @@ func (c *PlatformController) SaveAccount(ctx *gin.Context) {
 	response.Success(ctx, account, "保存账号成功")
 }
 
+// [AUTO] DeleteAccount
+// @Tags      platform
+// @Router    /api/geo/platform/accounts/{id} [delete]
 // DeleteAccount 删除平台账号
 // DELETE /geo/platform/accounts/:id
 func (c *PlatformController) DeleteAccount(ctx *gin.Context) {
@@ -64,6 +76,9 @@ func (c *PlatformController) DeleteAccount(ctx *gin.Context) {
 	response.Success(ctx, nil, "删除账号成功")
 }
 
+// [AUTO] Publish
+// @Tags      platform
+// @Router    /api/geo/platform/publish [post]
 // Publish 发布文章到平台
 // POST /geo/platform/publish
 func (c *PlatformController) Publish(ctx *gin.Context) {
@@ -79,6 +94,9 @@ func (c *PlatformController) Publish(ctx *gin.Context) {
 	response.Success(ctx, result, "发布请求已处理")
 }
 
+// [AUTO] ListPublishRecords
+// @Tags      platform
+// @Router    /api/geo/platform/records [get]
 // ListPublishRecords 发布记录列表
 // GET /geo/platform/records?article_id=&platform=&page=&limit=
 func (c *PlatformController) ListPublishRecords(ctx *gin.Context) {

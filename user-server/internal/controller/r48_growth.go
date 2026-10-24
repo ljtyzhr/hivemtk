@@ -25,6 +25,9 @@ func NewGrowthController() *GrowthController {
 	}
 }
 
+// [AUTO] ListWebhookSubs
+// @Tags      growth
+// @Router    /api/webhook-subscriptions [get]
 // ListWebhookSubs GET /api/webhook-subscriptions
 func (c *GrowthController) ListWebhookSubs(ctx *gin.Context) {
 	list, err := c.webhook.List(ctx.Request.Context())
@@ -46,6 +49,9 @@ func (c *GrowthController) ListWebhookSubs(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": list, "total": len(list)}, "ok")
 }
 
+// [AUTO] CreateWebhookSub
+// @Tags      growth
+// @Router    /api/webhook-subscriptions [post]
 // CreateWebhookSub POST /api/webhook-subscriptions {url, events}
 func (c *GrowthController) CreateWebhookSub(ctx *gin.Context) {
 	var req struct {
@@ -63,6 +69,9 @@ func (c *GrowthController) CreateWebhookSub(ctx *gin.Context) {
 	response.Success(ctx, sub, "订阅已创建（请保存 secret，用于签名校验）")
 }
 
+// [AUTO] DeleteWebhookSub
+// @Tags      growth
+// @Router    /api/webhook-subscriptions/{id} [delete]
 // DeleteWebhookSub DELETE /api/webhook-subscriptions/:id
 func (c *GrowthController) DeleteWebhookSub(ctx *gin.Context) {
 	id, ok := parseUintParam(ctx, "id")
@@ -75,6 +84,9 @@ func (c *GrowthController) DeleteWebhookSub(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"deleted": true}, "已删除")
 }
 
+// [AUTO] SetCustomAttributes
+// @Tags      growth
+// @Router    /api/customers/{id}/custom-attributes [put]
 // SetCustomAttributes PUT /api/customers/:id/custom-attributes {attrs}
 func (c *GrowthController) SetCustomAttributes(ctx *gin.Context) {
 	var req struct {
@@ -116,6 +128,9 @@ func (c *GrowthController) CreateSavedView(ctx *gin.Context) {
 	response.Success(ctx, v, "视图已保存")
 }
 
+// [AUTO] ListSavedViews
+// @Tags      growth
+// @Router    /api/saved-views [get]
 // ListSavedViews GET /api/saved-views?route=
 func (c *GrowthController) ListSavedViews(ctx *gin.Context) {
 	var uid uint
@@ -149,6 +164,9 @@ func (c *GrowthController) DeleteSavedView(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"deleted": true}, "视图已删除")
 }
 
+// [AUTO] CreateReportSub
+// @Tags      growth
+// @Router    /api/report-subscriptions [post]
 // CreateReportSub POST /api/report-subscriptions {email, schedule}
 func (c *GrowthController) CreateReportSub(ctx *gin.Context) {
 	var req struct {
@@ -166,6 +184,9 @@ func (c *GrowthController) CreateReportSub(ctx *gin.Context) {
 	response.Success(ctx, sub, "订阅成功")
 }
 
+// [AUTO] ListReportSubs
+// @Tags      growth
+// @Router    /api/report-subscriptions [get]
 // ListReportSubs GET /api/report-subscriptions
 func (c *GrowthController) ListReportSubs(ctx *gin.Context) {
 	list, err := c.csPlus.ListReportSubscriptions(ctx.Request.Context())
@@ -175,6 +196,9 @@ func (c *GrowthController) ListReportSubs(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": list, "total": len(list)}, "ok")
 }
 
+// [AUTO] DeleteReportSub
+// @Tags      growth
+// @Router    /api/report-subscriptions/{id} [delete]
 // DeleteReportSub DELETE /api/report-subscriptions/:id
 func (c *GrowthController) DeleteReportSub(ctx *gin.Context) {
 	id, ok := parseUintParam(ctx, "id")
@@ -187,6 +211,9 @@ func (c *GrowthController) DeleteReportSub(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"deleted": true}, "已退订")
 }
 
+// [AUTO] SendReportsNow
+// @Tags      growth
+// @Router    /api/report-subscriptions/send-now [post]
 // SendReportsNow POST /api/report-subscriptions/send-now（手动触发一次）
 func (c *GrowthController) SendReportsNow(ctx *gin.Context) {
 	sent, err := c.csPlus.SendScheduledReports(ctx.Request.Context())
@@ -196,6 +223,9 @@ func (c *GrowthController) SendReportsNow(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"sent": sent}, "报表已发送")
 }
 
+// [AUTO] Transcript
+// @Tags      growth
+// @Router    /api/customer-sessions/{id}/transcript [get]
 // Transcript GET /api/customer-sessions/:id/transcript?format=txt|csv
 func (c *GrowthController) Transcript(ctx *gin.Context) {
 	format := ctx.DefaultQuery("format", "txt")
@@ -211,6 +241,9 @@ func (c *GrowthController) Transcript(ctx *gin.Context) {
 	ctx.Data(http.StatusOK, contentType+"; charset=utf-8", []byte(body))
 }
 
+// [AUTO] AIPerformance
+// @Tags      growth
+// @Router    /api/analytics/ai-performance [get]
 // AIPerformance GET /api/analytics/ai-performance?days=7
 func (c *GrowthController) AIPerformance(ctx *gin.Context) {
 	days, _ := strconv.Atoi(ctx.DefaultQuery("days", "7"))

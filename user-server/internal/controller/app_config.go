@@ -221,6 +221,9 @@ func (c *AppConfigController) SyncWithPlatform(ctx *gin.Context) {
 	response.Success(ctx, resp, syncMsg)
 }
 
+// [AUTO] HealthCheck
+// @Tags      app-config
+// @Router    /api/app-config/health [get]
 // HealthCheck 健康检查
 func (c *AppConfigController) HealthCheck(ctx *gin.Context) {
 	platformConnection := "connected"

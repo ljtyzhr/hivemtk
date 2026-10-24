@@ -86,6 +86,9 @@ func (c *ShortLinkController) Update(ctx *gin.Context) {
 	response.Success(ctx, resp, "更新成功")
 }
 
+// [AUTO] Delete
+// @Tags      short-link
+// @Router    /api/shortlink/delete/{id} [delete]
 // Delete 删除短链
 func (c *ShortLinkController) Delete(ctx *gin.Context) {
 	idStr := ctx.Param("id")
@@ -103,6 +106,9 @@ func (c *ShortLinkController) Delete(ctx *gin.Context) {
 	response.Success(ctx, nil, "删除成功")
 }
 
+// [AUTO] GetByID
+// @Tags      short-link
+// @Router    /api/short-link/{id} [get]
 // GetByID 根据ID获取短链
 func (c *ShortLinkController) GetByID(ctx *gin.Context) {
 	idStr := ctx.Param("id")
@@ -120,6 +126,9 @@ func (c *ShortLinkController) GetByID(ctx *gin.Context) {
 	response.Success(ctx, resp, "获取成功")
 }
 
+// [AUTO] GetList
+// @Tags      short-link
+// @Router    /api/short-link/list [get]
 // GetList 获取短链列表
 func (c *ShortLinkController) GetList(ctx *gin.Context) {
 	var req dto.ListShortLinkRequest
@@ -136,6 +145,9 @@ func (c *ShortLinkController) GetList(ctx *gin.Context) {
 	response.Success(ctx, resp, "获取成功")
 }
 
+// [AUTO] AccessShortLink
+// @Tags      short-link
+// @Router    /api/shortlink/access [post]
 // AccessShortLink 访问短链
 func (c *ShortLinkController) AccessShortLink(ctx *gin.Context) {
 	var req dto.AccessShortLinkRequest

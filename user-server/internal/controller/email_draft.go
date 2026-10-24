@@ -20,6 +20,9 @@ func NewEmailDraftController() *EmailDraftController {
 	return &EmailDraftController{svc: email.NewEmailDraftService()}
 }
 
+// [AUTO] CreateEmailDraft
+// @Tags      email-draft
+// @Router    /api/email/drafts [post]
 // CreateEmailDraft 创建草稿
 func (c *EmailDraftController) CreateEmailDraft(ctx *gin.Context) {
 	var req dto.CreateEmailDraftRequest
@@ -36,6 +39,9 @@ func (c *EmailDraftController) CreateEmailDraft(ctx *gin.Context) {
 	response.Success(ctx, resp, "创建成功")
 }
 
+// [AUTO] GetEmailDraftList
+// @Tags      email-draft
+// @Router    /api/email/drafts [get]
 // GetEmailDraftList 获取草稿列表
 func (c *EmailDraftController) GetEmailDraftList(ctx *gin.Context) {
 	resp, err := c.svc.GetEmailDraftListDTO(ctx.Request.Context())
@@ -46,6 +52,9 @@ func (c *EmailDraftController) GetEmailDraftList(ctx *gin.Context) {
 	response.Success(ctx, resp, "获取成功")
 }
 
+// [AUTO] GetEmailDraftDetail
+// @Tags      email-draft
+// @Router    /api/email/drafts/{id} [get]
 // GetEmailDraftDetail 获取草稿详情
 func (c *EmailDraftController) GetEmailDraftDetail(ctx *gin.Context) {
 	var req struct {
@@ -74,6 +83,9 @@ func (c *EmailDraftController) GetEmailDraftDetail(ctx *gin.Context) {
 	response.Success(ctx, resp, "获取成功")
 }
 
+// [AUTO] UpdateEmailDraft
+// @Tags      email-draft
+// @Router    /api/email/drafts/{id} [put]
 // UpdateEmailDraft 更新草稿
 // PUT /api/email/drafts/:id
 //
@@ -110,6 +122,9 @@ func (c *EmailDraftController) UpdateEmailDraft(ctx *gin.Context) {
 	response.Success(ctx, nil, "更新成功")
 }
 
+// [AUTO] DeleteEmailDraft
+// @Tags      email-draft
+// @Router    /api/email/drafts/{id} [delete]
 // DeleteEmailDraft 删除草稿
 func (c *EmailDraftController) DeleteEmailDraft(ctx *gin.Context) {
 	var req struct {

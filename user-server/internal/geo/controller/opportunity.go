@@ -17,6 +17,9 @@ func NewOpportunityController(oppSvc *service.OpportunityService) *OpportunityCo
 	return &OpportunityController{oppSvc: oppSvc}
 }
 
+// [AUTO] List
+// @Tags      opportunity
+// @Router    /api/geo/opportunities [get]
 // List 数据驱动的优先级行动清单
 // GET /geo/opportunities
 func (c *OpportunityController) List(ctx *gin.Context) {

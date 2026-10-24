@@ -23,6 +23,9 @@ func NewRagEvalController() *RagEvalController {
 	}
 }
 
+// [AUTO] Run
+// @Tags      rag-eval
+// @Router    /api/rag-eval/run [post]
 // Run POST /api/rag-eval/run
 // 请求体: {"name": "my_eval", "max_questions": 30}
 func (c *RagEvalController) Run(ctx *gin.Context) {
@@ -39,6 +42,9 @@ func (c *RagEvalController) Run(ctx *gin.Context) {
 	response.Success(ctx, run, "评测完成")
 }
 
+// [AUTO] List
+// @Tags      rag-eval
+// @Router    /api/rag-eval/runs [get]
 // List GET /api/rag-eval/runs?limit=20
 func (c *RagEvalController) List(ctx *gin.Context) {
 	limit := 20
@@ -55,6 +61,9 @@ func (c *RagEvalController) List(ctx *gin.Context) {
 	response.Success(ctx, runs, "获取成功")
 }
 
+// [AUTO] Get
+// @Tags      rag-eval
+// @Router    /api/rag-eval/runs/{id} [get]
 // Get GET /api/rag-eval/runs/:id
 func (c *RagEvalController) Get(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
@@ -96,6 +105,9 @@ func (c *ManageRagEvalController) Run(ctx *gin.Context) {
 	response.Success(ctx, run, "评测完成")
 }
 
+// [AUTO] List
+// @Tags      manage-rag-eval
+// @Router    /api/manage/rag-eval/runs [get]
 // List GET /api/manage/rag-eval/runs
 func (c *ManageRagEvalController) List(ctx *gin.Context) {
 	runs, err := c.svc.ListRuns(ctx.Request.Context(), 20)
@@ -105,6 +117,9 @@ func (c *ManageRagEvalController) List(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": runs, "total": len(runs)}, "ok")
 }
 
+// [AUTO] Detail
+// @Tags      manage-rag-eval
+// @Router    /api/manage/rag-eval/runs/{id} [get]
 // Detail GET /api/manage/rag-eval/runs/:id
 func (c *ManageRagEvalController) Detail(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)

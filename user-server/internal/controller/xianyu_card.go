@@ -26,6 +26,9 @@ func NewXianyuCardController(service service.XianyuCardService, statsSvc service
 	}
 }
 
+// [AUTO] Create
+// @Tags      xianyu-card
+// @Router    /api/xianyu/create [post]
 // Create 创建闲鱼卡片
 func (c *XianyuCardController) Create(ctx *gin.Context) {
 	var req dto.XianyuCardCreateRequest
@@ -42,6 +45,9 @@ func (c *XianyuCardController) Create(ctx *gin.Context) {
 	response.Success(ctx, card, response.ErrSuccess)
 }
 
+// [AUTO] Update
+// @Tags      xianyu-card
+// @Router    /api/xianyu-card/{id} [put]
 // Update 更新闲鱼卡片
 func (c *XianyuCardController) Update(ctx *gin.Context) {
 	var req dto.XianyuCardUpdateRequest
@@ -58,6 +64,9 @@ func (c *XianyuCardController) Update(ctx *gin.Context) {
 	response.Success(ctx, card, response.ErrUpdateSuccess)
 }
 
+// [AUTO] Delete
+// @Tags      xianyu-card
+// @Router    /api/xianyu-card/{id} [delete]
 // Delete 删除闲鱼卡片
 func (c *XianyuCardController) Delete(ctx *gin.Context) {
 	idStr := ctx.Param("id")
@@ -74,6 +83,9 @@ func (c *XianyuCardController) Delete(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"id": id}, response.ErrDeleteSuccess)
 }
 
+// [AUTO] GetByID
+// @Tags      xianyu-card
+// @Router    /api/xianyu-card/{id} [get]
 // GetByID 根据ID获取闲鱼卡片
 func (c *XianyuCardController) GetByID(ctx *gin.Context) {
 	idStr := ctx.Param("id")
@@ -91,6 +103,9 @@ func (c *XianyuCardController) GetByID(ctx *gin.Context) {
 	response.Success(ctx, card, response.ErrGetSuccess)
 }
 
+// [AUTO] GetList
+// @Tags      xianyu-card
+// @Router    /api/xianyu-card/list [get]
 // GetList 获取闲鱼卡片列表
 func (c *XianyuCardController) GetList(ctx *gin.Context) {
 	var req dto.XianyuCardListRequest
@@ -115,6 +130,9 @@ func (c *XianyuCardController) GetList(ctx *gin.Context) {
 	response.Success(ctx, cards, response.ErrGetSuccess)
 }
 
+// [AUTO] GenerateShortLink
+// @Tags      xianyu-card
+// @Router    /api/xianyu/{id}/generate-short-link [post]
 // GenerateShortLink 生成短链
 func (c *XianyuCardController) GenerateShortLink(ctx *gin.Context) {
 	idStr := ctx.Param("id")
@@ -248,6 +266,9 @@ func (c *XianyuCardController) PostRecordShare(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"id": id}, response.ErrSuccess)
 }
 
+// [AUTO] SharePage
+// @Tags      xianyu-card
+// @Router    /share/xianyu/{id} [get]
 // SharePage 渲染卡片分享页面（统一卡片聊天页，含联系客服按钮）
 func (c *XianyuCardController) SharePage(ctx *gin.Context) {
 	idStr := ctx.Param("id")

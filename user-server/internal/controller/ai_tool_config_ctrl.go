@@ -20,6 +20,9 @@ func NewAIToolConfigController(service *service.AIToolConfigService) *AIToolConf
 	return &AIToolConfigController{service: service}
 }
 
+// [AUTO] ListTools
+// @Tags      a-i-tool-config
+// @Router    /api/ai-tools [get]
 // ListTools 获取工具列表
 // GET /api/ai-tools?category=reach&enabled=true&page=1&page_size=20
 func (c *AIToolConfigController) ListTools(ctx *gin.Context) {
@@ -51,6 +54,9 @@ func (c *AIToolConfigController) ListTools(ctx *gin.Context) {
 	response.Success(ctx, result, "ok")
 }
 
+// [AUTO] GetTool
+// @Tags      a-i-tool-config
+// @Router    /api/ai-tools/{name} [get]
 // GetTool 获取工具详情
 // GET /api/ai-tools/:name
 func (c *AIToolConfigController) GetTool(ctx *gin.Context) {
@@ -68,6 +74,9 @@ func (c *AIToolConfigController) GetTool(ctx *gin.Context) {
 	response.Success(ctx, result, "ok")
 }
 
+// [AUTO] UpdateToolStatus
+// @Tags      a-i-tool-config
+// @Router    /api/ai-tools/{name}/status [put]
 // UpdateToolStatus 更新工具状态
 // PUT /api/ai-tools/:name/status
 func (c *AIToolConfigController) UpdateToolStatus(ctx *gin.Context) {
@@ -98,6 +107,9 @@ func (c *AIToolConfigController) UpdateToolStatus(ctx *gin.Context) {
 	response.Success(ctx, nil, "success")
 }
 
+// [AUTO] BatchUpdateStatus
+// @Tags      a-i-tool-config
+// @Router    /api/ai-tools/batch-status [post]
 // BatchUpdateStatus 批量更新工具状态
 // POST /api/ai-tools/batch-status
 func (c *AIToolConfigController) BatchUpdateStatus(ctx *gin.Context) {
@@ -126,6 +138,9 @@ func (c *AIToolConfigController) BatchUpdateStatus(ctx *gin.Context) {
 	response.Success(ctx, nil, "success")
 }
 
+// [AUTO] GetToolAccounts
+// @Tags      a-i-tool-config
+// @Router    /api/ai-tools/{name}/accounts [get]
 // GetToolAccounts 获取工具绑定的账号
 // GET /api/ai-tools/:name/accounts
 func (c *AIToolConfigController) GetToolAccounts(ctx *gin.Context) {
@@ -143,6 +158,9 @@ func (c *AIToolConfigController) GetToolAccounts(ctx *gin.Context) {
 	response.Success(ctx, result, "ok")
 }
 
+// [AUTO] BindAccount
+// @Tags      a-i-tool-config
+// @Router    /api/ai-tools/{name}/accounts [post]
 // BindAccount 绑定账号到工具
 // POST /api/ai-tools/:name/accounts
 func (c *AIToolConfigController) BindAccount(ctx *gin.Context) {
@@ -174,6 +192,9 @@ func (c *AIToolConfigController) BindAccount(ctx *gin.Context) {
 	response.Success(ctx, nil, "success")
 }
 
+// [AUTO] UnbindAccount
+// @Tags      a-i-tool-config
+// @Router    /api/ai-tools/{name}/accounts/{account_type}/{account_id} [delete]
 // UnbindAccount 解绑账号
 // DELETE /api/ai-tools/:name/accounts/:account_type/:account_id
 func (c *AIToolConfigController) UnbindAccount(ctx *gin.Context) {

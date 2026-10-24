@@ -107,6 +107,9 @@ func requireAdminAuth(ctx *gin.Context) (uint, bool) {
 	return uid, true
 }
 
+// [AUTO] CreateBackup
+// @Tags      backup
+// @Router    /api/backups [post]
 // CreateBackup 创建备份
 func (c *BackupController) CreateBackup(ctx *gin.Context) {
 	uid, ok := requireAdminAuth(ctx)
@@ -128,6 +131,9 @@ func (c *BackupController) CreateBackup(ctx *gin.Context) {
 	response.Success(ctx, backup, "创建备份任务成功")
 }
 
+// [AUTO] GetBackupList
+// @Tags      backup
+// @Router    /api/backups [get]
 // GetBackupList 获取备份列表
 func (c *BackupController) GetBackupList(ctx *gin.Context) {
 
@@ -158,6 +164,9 @@ func (c *BackupController) GetBackupList(ctx *gin.Context) {
 	}, "获取成功")
 }
 
+// [AUTO] GetBackupByID
+// @Tags      backup
+// @Router    /api/backups/{id} [get]
 // GetBackupByID 获取备份详情
 func (c *BackupController) GetBackupByID(ctx *gin.Context) {
 
@@ -187,6 +196,9 @@ func (c *BackupController) GetBackupByID(ctx *gin.Context) {
 	response.Success(ctx, backup, "获取成功")
 }
 
+// [AUTO] DeleteBackup
+// @Tags      backup
+// @Router    /api/backups/{id} [delete]
 // DeleteBackup 删除备份
 func (c *BackupController) DeleteBackup(ctx *gin.Context) {
 
@@ -224,6 +236,9 @@ func NewRestoreController(svc *service.RestoreService) *RestoreController {
 	return &RestoreController{restoreService: svc}
 }
 
+// [AUTO] RestoreBackup
+// @Tags      restore
+// @Router    /api/restore [post]
 // RestoreBackup 恢复备份
 func (c *RestoreController) RestoreBackup(ctx *gin.Context) {
 
@@ -252,6 +267,9 @@ func (c *RestoreController) RestoreBackup(ctx *gin.Context) {
 	response.Success(ctx, record, "创建恢复任务成功")
 }
 
+// [AUTO] GetRestoreList
+// @Tags      restore
+// @Router    /api/restore/list [get]
 // GetRestoreList 获取恢复记录列表
 func (c *RestoreController) GetRestoreList(ctx *gin.Context) {
 
@@ -282,6 +300,9 @@ func (c *RestoreController) GetRestoreList(ctx *gin.Context) {
 	}, "获取成功")
 }
 
+// [AUTO] GetLastRestore
+// @Tags      restore
+// @Router    /api/restore/last [get]
 // GetLastRestore 获取最近一次恢复记录
 //
 // 无恢复记录是正常状态（从未执行过恢复），应降级返回 code=0, data=null，

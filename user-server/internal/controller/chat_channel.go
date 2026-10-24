@@ -27,6 +27,9 @@ func NewChatChannelController(svc *service.ChatChannelService) *ChatChannelContr
 	return &ChatChannelController{svc: svc}
 }
 
+// [AUTO] List
+// @Tags      chat-channel
+// @Router    /api/chat-channels [get]
 // List 列出渠道
 // GET /api/chat-channels
 func (ctrl *ChatChannelController) List(c *gin.Context) {
@@ -48,6 +51,9 @@ func (ctrl *ChatChannelController) List(c *gin.Context) {
 	response.SuccessWithPage(c, list, int64(page), int64(pageSize), total)
 }
 
+// [AUTO] Get
+// @Tags      chat-channel
+// @Router    /api/chat-channels/{channel_id} [get]
 // Get 查询单个渠道
 // GET /api/chat-channels/:channel_id
 func (ctrl *ChatChannelController) Get(c *gin.Context) {
@@ -60,6 +66,9 @@ func (ctrl *ChatChannelController) Get(c *gin.Context) {
 	response.Success(c, channel, "ok")
 }
 
+// [AUTO] Create
+// @Tags      chat-channel
+// @Router    /api/chat-channels [post]
 // Create 创建渠道
 // POST /api/chat-channels
 func (ctrl *ChatChannelController) Create(c *gin.Context) {
@@ -84,6 +93,9 @@ func (ctrl *ChatChannelController) Create(c *gin.Context) {
 	response.Success(c, result, "渠道已创建")
 }
 
+// [AUTO] Update
+// @Tags      chat-channel
+// @Router    /api/chat-channels/{channel_id} [put]
 // Update 更新渠道
 // PUT /api/chat-channels/:channel_id
 func (ctrl *ChatChannelController) Update(c *gin.Context) {
@@ -101,6 +113,9 @@ func (ctrl *ChatChannelController) Update(c *gin.Context) {
 	response.Success(c, channel, "已更新")
 }
 
+// [AUTO] Delete
+// @Tags      chat-channel
+// @Router    /api/chat-channels/{channel_id} [delete]
 // Delete 禁用渠道（软删除）
 // DELETE /api/chat-channels/:channel_id
 func (ctrl *ChatChannelController) Delete(c *gin.Context) {
@@ -112,6 +127,9 @@ func (ctrl *ChatChannelController) Delete(c *gin.Context) {
 	response.Success(c, nil, "已禁用")
 }
 
+// [AUTO] RotateAppKey
+// @Tags      chat-channel
+// @Router    /api/chat-channels/{channel_id}/rotate-key [post]
 // RotateAppKey 轮换 AppKey
 // POST /api/chat-channels/:channel_id/rotate-key
 func (ctrl *ChatChannelController) RotateAppKey(c *gin.Context) {
@@ -124,6 +142,9 @@ func (ctrl *ChatChannelController) RotateAppKey(c *gin.Context) {
 	response.Success(c, gin.H{"app_key": newKey}, "AppKey 已轮换")
 }
 
+// [AUTO] ResetAppSecret
+// @Tags      chat-channel
+// @Router    /api/chat-channels/{channel_id}/reset-secret [post]
 // ResetAppSecret 重置 AppSecret
 // POST /api/chat-channels/:channel_id/reset-secret
 func (ctrl *ChatChannelController) ResetAppSecret(c *gin.Context) {

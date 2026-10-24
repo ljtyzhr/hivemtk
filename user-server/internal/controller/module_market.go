@@ -49,6 +49,9 @@ func moduleMarketFail(ctx *gin.Context, err error) {
 	}
 }
 
+// [AUTO] List
+// @Tags      module-market
+// @Router    /api/module-market/list [get]
 // List GET /api/module-market/list
 //
 // 未连接平台时返回**空列表 + platform_enabled=false**，而不是报错：
@@ -86,6 +89,9 @@ func (c *ModuleMarketController) List(ctx *gin.Context) {
 	}, "ok")
 }
 
+// [AUTO] Detail
+// @Tags      module-market
+// @Router    /api/module-market/detail/{key} [get]
 // Detail GET /api/module-market/detail/:key
 func (c *ModuleMarketController) Detail(ctx *gin.Context) {
 	d, err := c.svc().MarketDetail(ctx.Request.Context(), ctx.Param("key"))
@@ -107,6 +113,9 @@ func withBuyerIP(ctx *gin.Context) context.Context {
 	return platform.WithClientIP(ctx.Request.Context(), ctx.ClientIP())
 }
 
+// [AUTO] CreateOrder
+// @Tags      module-market
+// @Router    /api/module-market/order [post]
 // CreateOrder POST /api/module-market/order
 func (c *ModuleMarketController) CreateOrder(ctx *gin.Context) {
 	var in service.MarketOrderInput
@@ -122,6 +131,9 @@ func (c *ModuleMarketController) CreateOrder(ctx *gin.Context) {
 	response.Success(ctx, res, "订单已提交，请完成支付")
 }
 
+// [AUTO] Orders
+// @Tags      module-market
+// @Router    /api/module-market/orders [get]
 // Orders GET /api/module-market/orders
 func (c *ModuleMarketController) Orders(ctx *gin.Context) {
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
@@ -134,6 +146,9 @@ func (c *ModuleMarketController) Orders(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": list, "total": total}, "ok")
 }
 
+// [AUTO] OrderDetail
+// @Tags      module-market
+// @Router    /api/module-market/orders/{order_no} [get]
 // OrderDetail GET /api/module-market/orders/:order_no
 func (c *ModuleMarketController) OrderDetail(ctx *gin.Context) {
 	o, err := c.svc().OrderDetail(ctx.Request.Context(), ctx.Param("order_no"))
@@ -144,6 +159,9 @@ func (c *ModuleMarketController) OrderDetail(ctx *gin.Context) {
 	response.Success(ctx, o, "ok")
 }
 
+// [AUTO] PayStatus
+// @Tags      module-market
+// @Router    /api/module-market/orders/{order_no}/pay-status [get]
 // PayStatus GET /api/module-market/orders/:order_no/pay-status
 //
 // 支付确认后前端轮询它（比 10 分钟 sync 快）。直查平台走既有 merchant-api
@@ -161,6 +179,9 @@ func (c *ModuleMarketController) PayStatus(ctx *gin.Context) {
 	}, "ok")
 }
 
+// [AUTO] PayOrder
+// @Tags      module-market
+// @Router    /api/module-market/orders/{order_no}/pay [post]
 // PayOrder POST /api/module-market/orders/:order_no/pay
 //
 // 订单页「去支付」：给已下的待支付订单重新取一次在线支付参数，前端拿 payment 段
@@ -180,6 +201,9 @@ func (c *ModuleMarketController) PayOrder(ctx *gin.Context) {
 	response.Success(ctx, res, "ok")
 }
 
+// [AUTO] MyModules
+// @Tags      module-market
+// @Router    /api/modules/my [get]
 // MyModules GET /api/modules/my
 func (c *ModuleMarketController) MyModules(ctx *gin.Context) {
 	list, err := c.svc().MyModules(ctx.Request.Context())
@@ -196,6 +220,9 @@ func (c *ModuleMarketController) MyModules(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": list, "total": len(list), "owned": owned}, "ok")
 }
 
+// [AUTO] Sync
+// @Tags      module-market
+// @Router    /api/modules/sync [post]
 // Sync POST /api/modules/sync
 //
 // 手动触发一次下发（设置页的「立即同步」按钮）。平台未连接时
@@ -209,6 +236,9 @@ func (c *ModuleMarketController) Sync(ctx *gin.Context) {
 	response.Success(ctx, res, res.Message)
 }
 
+// [AUTO] SyncLogs
+// @Tags      module-market
+// @Router    /api/modules/sync-logs [get]
 // SyncLogs GET /api/modules/sync-logs
 func (c *ModuleMarketController) SyncLogs(ctx *gin.Context) {
 	limit, _ := strconv.Atoi(ctx.DefaultQuery("limit", "20"))
@@ -220,6 +250,9 @@ func (c *ModuleMarketController) SyncLogs(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": logs, "total": len(logs)}, "ok")
 }
 
+// [AUTO] UncoveredRoutes
+// @Tags      module-market
+// @Router    /api/modules/uncovered-routes [get]
 // UncoveredRoutes GET /api/modules/uncovered-routes
 //
 // 采集面：列出"见过但未挂模块"的接口路径（middleware 三态里的 ③）。

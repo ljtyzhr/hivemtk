@@ -30,6 +30,9 @@ func actorIDFrom(ctx *gin.Context) uint {
 	return 0
 }
 
+// [AUTO] List
+// @Tags      feature-flag
+// @Router    /api/feature-flags [get]
 // List GET /api/feature-flags
 func (c *FeatureFlagController) List(ctx *gin.Context) {
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
@@ -41,6 +44,9 @@ func (c *FeatureFlagController) List(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": list, "total": total}, "ok")
 }
 
+// [AUTO] Get
+// @Tags      feature-flag
+// @Router    /api/feature-flags/{id} [get]
 // Get GET /api/feature-flags/:id（兼容数字 ID 与 key）
 func (c *FeatureFlagController) Get(ctx *gin.Context) {
 	f, err := c.svc.GetByIDOrKey(ctx.Request.Context(), ctx.Param("id"))
@@ -50,6 +56,9 @@ func (c *FeatureFlagController) Get(ctx *gin.Context) {
 	response.Success(ctx, f, "ok")
 }
 
+// [AUTO] Create
+// @Tags      feature-flag
+// @Router    /api/feature-flags [post]
 // Create POST /api/feature-flags
 func (c *FeatureFlagController) Create(ctx *gin.Context) {
 	var req service.FlagCreateRequest
@@ -64,6 +73,9 @@ func (c *FeatureFlagController) Create(ctx *gin.Context) {
 	response.Success(ctx, f, "创建成功")
 }
 
+// [AUTO] Update
+// @Tags      feature-flag
+// @Router    /api/feature-flags/{id} [put]
 // Update PUT /api/feature-flags/:id
 func (c *FeatureFlagController) Update(ctx *gin.Context) {
 	id, ok := parseUintParam(ctx, "id")
@@ -82,6 +94,9 @@ func (c *FeatureFlagController) Update(ctx *gin.Context) {
 	response.Success(ctx, f, "更新成功")
 }
 
+// [AUTO] Delete
+// @Tags      feature-flag
+// @Router    /api/feature-flags/{id} [delete]
 // Delete DELETE /api/feature-flags/:id
 func (c *FeatureFlagController) Delete(ctx *gin.Context) {
 	id, ok := parseUintParam(ctx, "id")
@@ -94,6 +109,9 @@ func (c *FeatureFlagController) Delete(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"deleted": true}, "删除成功")
 }
 
+// [AUTO] Enable
+// @Tags      feature-flag
+// @Router    /api/feature-flags/{id}/enable [post]
 // Enable POST /api/feature-flags/:id/enable
 func (c *FeatureFlagController) Enable(ctx *gin.Context) {
 	id, ok := parseUintParam(ctx, "id")
@@ -107,6 +125,9 @@ func (c *FeatureFlagController) Enable(ctx *gin.Context) {
 	response.Success(ctx, f, "已启用")
 }
 
+// [AUTO] Disable
+// @Tags      feature-flag
+// @Router    /api/feature-flags/{id}/disable [post]
 // Disable POST /api/feature-flags/:id/disable
 func (c *FeatureFlagController) Disable(ctx *gin.Context) {
 	id, ok := parseUintParam(ctx, "id")
@@ -120,6 +141,9 @@ func (c *FeatureFlagController) Disable(ctx *gin.Context) {
 	response.Success(ctx, f, "已禁用")
 }
 
+// [AUTO] Rollout
+// @Tags      feature-flag
+// @Router    /api/feature-flags/{id}/rollout [post]
 // Rollout POST /api/feature-flags/:id/rollout {percentage}
 func (c *FeatureFlagController) Rollout(ctx *gin.Context) {
 	id, ok := parseUintParam(ctx, "id")
@@ -140,6 +164,9 @@ func (c *FeatureFlagController) Rollout(ctx *gin.Context) {
 	response.Success(ctx, f, "灰度已更新")
 }
 
+// [AUTO] Evaluate
+// @Tags      feature-flag
+// @Router    /api/feature-flags/evaluate [post]
 // Evaluate POST /api/feature-flags/evaluate {key, attributes}
 func (c *FeatureFlagController) Evaluate(ctx *gin.Context) {
 	var req struct {
@@ -154,6 +181,9 @@ func (c *FeatureFlagController) Evaluate(ctx *gin.Context) {
 	response.Success(ctx, res, "ok")
 }
 
+// [AUTO] EvaluateBatch
+// @Tags      feature-flag
+// @Router    /api/feature-flags/evaluate-batch [post]
 // EvaluateBatch POST /api/feature-flags/evaluate-batch {keys[], attributes}
 func (c *FeatureFlagController) EvaluateBatch(ctx *gin.Context) {
 	var req struct {
@@ -167,6 +197,9 @@ func (c *FeatureFlagController) EvaluateBatch(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"results": c.svc.EvaluateBatch(ctx.Request.Context(), req.Keys, req.Attributes)}, "ok")
 }
 
+// [AUTO] Audit
+// @Tags      feature-flag
+// @Router    /api/feature-flags/{id}/audit [get]
 // Audit GET /api/feature-flags/:id/audit
 func (c *FeatureFlagController) Audit(ctx *gin.Context) {
 	id, ok := parseUintParam(ctx, "id")
@@ -180,6 +213,9 @@ func (c *FeatureFlagController) Audit(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": logs, "total": len(logs)}, "ok")
 }
 
+// [AUTO] EvalLogs
+// @Tags      feature-flag
+// @Router    /api/feature-flags/{id}/eval-log [get]
 // EvalLogs GET /api/feature-flags/:id/eval-log（兼容数字 ID 与 key）
 func (c *FeatureFlagController) EvalLogs(ctx *gin.Context) {
 	f, err := c.svc.GetByIDOrKey(ctx.Request.Context(), ctx.Param("id"))
@@ -193,6 +229,9 @@ func (c *FeatureFlagController) EvalLogs(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": logs, "total": len(logs)}, "ok")
 }
 
+// [AUTO] Stale
+// @Tags      feature-flag
+// @Router    /api/feature-flags/stale [get]
 // Stale GET /api/feature-flags/stale
 func (c *FeatureFlagController) Stale(ctx *gin.Context) {
 	list, err := c.svc.ListStale(ctx.Request.Context())

@@ -775,7 +775,12 @@ func (a *IntegrationReachAdapter) recallWeCom(ctx context.Context, hub *model.Me
 }
 
 // platformMessageID 从 hub 行反查平台消息标识。
+// D-9（2026-10-24）：platform_msg_id 一等列（v3.82.0 迁移 + 发送侧回填）优先；
+// 列为空时按原解析口径兜底（存量行 / 迁移不能无歧义解析的行）。
 func platformMessageID(hub *model.MessageHub) (string, error) {
+	if hub.PlatformMsgID != "" {
+		return hub.PlatformMsgID, nil
+	}
 	switch hub.Platform {
 	case "telegram", "feishu":
 		parts := strings.Split(hub.MsgID, "-")

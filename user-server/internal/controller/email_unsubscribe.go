@@ -30,6 +30,9 @@ func NewEmailUnsubscribeController(svc *service.EmailUnsubscribeService) *EmailU
 	return &EmailUnsubscribeController{svc: svc}
 }
 
+// [AUTO] UnsubscribePage
+// @Tags      email-unsubscribe
+// @Router    /api/email/unsubscribe [get]
 // UnsubscribePage GET /api/email/unsubscribe?token=xxx
 // 返回 HTML 退订确认页（合规要求：退订链接点击后落地页可确认）
 func (c *EmailUnsubscribeController) UnsubscribePage(ctx *gin.Context) {
@@ -64,6 +67,9 @@ type UnsubscribeConfirmRequest struct {
 	Reason string `json:"reason"`
 }
 
+// [AUTO] UnsubscribeConfirm
+// @Tags      email-unsubscribe
+// @Router    /api/email/unsubscribe/confirm [post]
 // UnsubscribeConfirm POST /api/email/unsubscribe/confirm
 func (c *EmailUnsubscribeController) UnsubscribeConfirm(ctx *gin.Context) {
 	var req UnsubscribeConfirmRequest
@@ -93,6 +99,9 @@ func (c *EmailUnsubscribeController) UnsubscribeConfirm(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"email": claim.Email, "status": "unsubscribed"}, "退订成功")
 }
 
+// [AUTO] ListUnsubscribes
+// @Tags      email-unsubscribe
+// @Router    /api/email/unsubscribe/list [get]
 // ListUnsubscribes GET /api/email/unsubscribe/list
 func (c *EmailUnsubscribeController) ListUnsubscribes(ctx *gin.Context) {
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
@@ -108,6 +117,9 @@ func (c *EmailUnsubscribeController) ListUnsubscribes(ctx *gin.Context) {
 	response.SuccessWithPage(ctx, records, int64(page), int64(limit), total)
 }
 
+// [AUTO] ExportUnsubscribes
+// @Tags      email-unsubscribe
+// @Router    /api/email/unsubscribe/export [get]
 // ExportUnsubscribes GET /api/email/unsubscribe/export
 // 导出退订名单 CSV
 func (c *EmailUnsubscribeController) ExportUnsubscribes(ctx *gin.Context) {
@@ -135,6 +147,9 @@ type ResubscribeRequest struct {
 	Email string `json:"email" binding:"required,email"`
 }
 
+// [AUTO] Resubscribe
+// @Tags      email-unsubscribe
+// @Router    /api/email/unsubscribe/resubscribe [post]
 // Resubscribe POST /api/email/unsubscribe/resubscribe
 // 允许用户重新订阅（合规要求）
 func (c *EmailUnsubscribeController) Resubscribe(ctx *gin.Context) {

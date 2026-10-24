@@ -30,6 +30,9 @@ func NewAgentStatusController(
 	}
 }
 
+// [AUTO] CreateAgent
+// @Tags      agent-status
+// @Router    /api/agents [post]
 // CreateAgent 创建客服
 func (c *AgentStatusController) CreateAgent(ctx *gin.Context) {
 	var req service.CreateAgentRequest
@@ -47,6 +50,9 @@ func (c *AgentStatusController) CreateAgent(ctx *gin.Context) {
 	response.Success(ctx, agent, "创建成功")
 }
 
+// [AUTO] GetAgentStatus
+// @Tags      agent-status
+// @Router    /api/agent-statuses/{id} [get]
 // GetAgentStatus 获取客服状态
 func (c *AgentStatusController) GetAgentStatus(ctx *gin.Context) {
 	idStr := ctx.Param("id")
@@ -65,6 +71,9 @@ func (c *AgentStatusController) GetAgentStatus(ctx *gin.Context) {
 	response.Success(ctx, agent, "获取成功")
 }
 
+// [AUTO] GetOnlineAgents
+// @Tags      agent-status
+// @Router    /api/agent-statuses [get]
 // GetOnlineAgents 获取在线客服列表
 func (c *AgentStatusController) GetOnlineAgents(ctx *gin.Context) {
 	agents, err := c.agentService.GetOnlineAgents(ctx.Request.Context())
@@ -76,6 +85,9 @@ func (c *AgentStatusController) GetOnlineAgents(ctx *gin.Context) {
 	response.Success(ctx, agents, "获取成功")
 }
 
+// [AUTO] GetMyAgent
+// @Tags      agent-status
+// @Router    /api/agents/me [get]
 // GetMyAgent 获取当前登录用户对应的坐席身份（接入登录态，杜绝"列表首位猜测"）
 // GET /api/agents/me
 func (c *AgentStatusController) GetMyAgent(ctx *gin.Context) {
@@ -109,6 +121,9 @@ func (c *AgentStatusController) GetMyAgent(ctx *gin.Context) {
 	response.Success(ctx, st, "获取成功")
 }
 
+// [AUTO] ListAllAgents
+// @Tags      agent-status
+// @Router    /api/agent-statuses/list [get]
 // ListAllAgents 列出全部客服（监管控制台）
 //
 // 数据隔离：admin 看全部；其余角色只回自己那条坐席记录（AgentID=系统用户ID），
@@ -134,6 +149,9 @@ func (c *AgentStatusController) ListAllAgents(ctx *gin.Context) {
 	response.Success(ctx, agents, "获取成功")
 }
 
+// [AUTO] UpdateAgentStatus
+// @Tags      agent-status
+// @Router    /api/agent-statuses/{id}/status [put]
 // UpdateAgentStatus 更新客服状态
 func (c *AgentStatusController) UpdateAgentStatus(ctx *gin.Context) {
 	idStr := ctx.Param("id")
@@ -159,6 +177,9 @@ func (c *AgentStatusController) UpdateAgentStatus(ctx *gin.Context) {
 	response.Success(ctx, nil, "更新成功")
 }
 
+// [AUTO] GoOnline
+// @Tags      agent-status
+// @Router    /api/agent-statuses/{id}/online [post]
 // GoOnline 客服上线
 func (c *AgentStatusController) GoOnline(ctx *gin.Context) {
 	idStr := ctx.Param("id")
@@ -176,6 +197,9 @@ func (c *AgentStatusController) GoOnline(ctx *gin.Context) {
 	response.Success(ctx, nil, "上线成功")
 }
 
+// [AUTO] GoOffline
+// @Tags      agent-status
+// @Router    /api/agent-statuses/{id}/offline [post]
 // GoOffline 客服下线
 func (c *AgentStatusController) GoOffline(ctx *gin.Context) {
 	idStr := ctx.Param("id")
@@ -193,6 +217,9 @@ func (c *AgentStatusController) GoOffline(ctx *gin.Context) {
 	response.Success(ctx, nil, "下线成功")
 }
 
+// [AUTO] GetAgentSessions
+// @Tags      agent-status
+// @Router    /api/agent-statuses/{id}/sessions [get]
 // GetAgentSessions 获取客服的会话
 //
 // 数据隔离：admin 可看任意坐席；其余角色只允许查自己的会话（:id 即 AgentID=用户ID）。

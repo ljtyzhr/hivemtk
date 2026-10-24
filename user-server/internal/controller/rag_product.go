@@ -18,6 +18,9 @@ func NewRagProductController() *RagProductController {
 	return &RagProductController{svc: service.NewRagProductServiceFromGlobal()}
 }
 
+// [AUTO] List
+// @Tags      rag-product
+// @Router    /api/rag-product-configs [get]
 func (c *RagProductController) List(ctx *gin.Context) {
 	products, err := c.svc.List(ctx.Request.Context())
 	if err != nil {
@@ -27,6 +30,9 @@ func (c *RagProductController) List(ctx *gin.Context) {
 	response.Success(ctx, products, "ok")
 }
 
+// [AUTO] Stats
+// @Tags      rag-product
+// @Router    /api/rag-product-configs/stats [get]
 func (c *RagProductController) Stats(ctx *gin.Context) {
 	stats, err := c.svc.Stats(ctx.Request.Context())
 	if err != nil {
@@ -36,6 +42,9 @@ func (c *RagProductController) Stats(ctx *gin.Context) {
 	response.Success(ctx, stats, "ok")
 }
 
+// [AUTO] Get
+// @Tags      rag-product
+// @Router    /api/rag-product-configs/{id} [get]
 func (c *RagProductController) Get(ctx *gin.Context) {
 	id := ctx.Param("id")
 	if id == "" {

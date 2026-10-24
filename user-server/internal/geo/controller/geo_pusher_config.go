@@ -39,6 +39,9 @@ func (r pusherConfigRequest) toInput() service.PusherConfigInput {
 	}
 }
 
+// [AUTO] List
+// @Tags      geo-pusher-config
+// @Router    /api/geo/pushers [get]
 func (c *GeoPusherConfigController) List(ctx *gin.Context) {
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(ctx.DefaultQuery("limit", "20"))
@@ -50,6 +53,9 @@ func (c *GeoPusherConfigController) List(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": list, "total": total}, "ok")
 }
 
+// [AUTO] Get
+// @Tags      geo-pusher-config
+// @Router    /api/geo/pushers/{id} [get]
 func (c *GeoPusherConfigController) Get(ctx *gin.Context) {
 	item, err := c.svc.Get(ctx.Request.Context(), ctx.Param("id"))
 	if err != nil {
@@ -63,6 +69,9 @@ func (c *GeoPusherConfigController) Get(ctx *gin.Context) {
 	response.Success(ctx, item, "ok")
 }
 
+// [AUTO] Create
+// @Tags      geo-pusher-config
+// @Router    /api/geo/pushers [post]
 func (c *GeoPusherConfigController) Create(ctx *gin.Context) {
 	var req pusherConfigRequest
 	if !response.BindJSON(ctx, &req) {
@@ -76,6 +85,9 @@ func (c *GeoPusherConfigController) Create(ctx *gin.Context) {
 	response.Success(ctx, item, "created")
 }
 
+// [AUTO] Update
+// @Tags      geo-pusher-config
+// @Router    /api/geo/pushers/{id} [put]
 func (c *GeoPusherConfigController) Update(ctx *gin.Context) {
 	var req pusherConfigRequest
 	if !response.BindJSON(ctx, &req) {
@@ -93,6 +105,9 @@ func (c *GeoPusherConfigController) Update(ctx *gin.Context) {
 	response.Success(ctx, item, "updated")
 }
 
+// [AUTO] Delete
+// @Tags      geo-pusher-config
+// @Router    /api/geo/pushers/{id} [delete]
 func (c *GeoPusherConfigController) Delete(ctx *gin.Context) {
 	if err := c.svc.Delete(ctx.Request.Context(), ctx.Param("id")); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

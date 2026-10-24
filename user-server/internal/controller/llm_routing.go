@@ -30,6 +30,9 @@ func (c *LLMRoutingController) SetFailover(f *service.LLMFailoverService) {
 	c.failoverSvc = f
 }
 
+// [AUTO] ListModels
+// @Tags      l-l-m-routing
+// @Router    /api/llm/models [get]
 // ListModels 列出所有 LLM provider
 //
 // GET /api/llm/models
@@ -39,6 +42,9 @@ func (c *LLMRoutingController) ListModels(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"code": 0, "data": models})
 }
 
+// [AUTO] CreateModel
+// @Tags      l-l-m-routing
+// @Router    /api/llm/models [post]
 // CreateModel 注册新 provider
 //
 // POST /api/llm/models
@@ -56,6 +62,9 @@ func (c *LLMRoutingController) CreateModel(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"code": 0, "data": info})
 }
 
+// [AUTO] GetModel
+// @Tags      l-l-m-routing
+// @Router    /api/llm/models/{name} [get]
 // GetModel 获取单个 provider
 //
 // GET /api/llm/models/:name
@@ -76,6 +85,9 @@ func (c *LLMRoutingController) GetModel(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"code": 0, "data": nil, "message": "model not found"})
 }
 
+// [AUTO] UpdateModel
+// @Tags      l-l-m-routing
+// @Router    /api/llm/models/{name} [put]
 // UpdateModel 更新 provider
 //
 // PUT /api/llm/models/:name
@@ -98,6 +110,9 @@ func (c *LLMRoutingController) UpdateModel(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"code": 0, "data": name})
 }
 
+// [AUTO] DeleteModel
+// @Tags      l-l-m-routing
+// @Router    /api/llm/models/{name} [delete]
 // DeleteModel 删除 provider
 //
 // DELETE /api/llm/models/:name
@@ -120,6 +135,9 @@ func (c *LLMRoutingController) DeleteModel(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"code": 0, "data": resolved})
 }
 
+// [AUTO] TestModel
+// @Tags      l-l-m-routing
+// @Router    /api/llm/models/{name}/test [post]
 // TestModel 测试 provider 连通性（独立路径，不污染全局路由/告警/熔断）
 //
 // POST /api/llm/models/:name/test
@@ -156,6 +174,9 @@ func (c *LLMRoutingController) TestModel(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"code": 0, "data": result})
 }
 
+// [AUTO] ListStrategies
+// @Tags      l-l-m-routing
+// @Router    /api/llm/scene-routing [get]
 // ListStrategies 列出所有场景路由
 //
 // GET /api/llm/strategies
@@ -166,6 +187,9 @@ func (c *LLMRoutingController) ListStrategies(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"code": 0, "data": routes})
 }
 
+// [AUTO] UpdateStrategies
+// @Tags      l-l-m-routing
+// @Router    /api/llm/strategies [post]
 // UpdateStrategies 批量更新场景路由
 //
 // PUT /api/llm/strategies
@@ -184,6 +208,9 @@ func (c *LLMRoutingController) UpdateStrategies(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"code": 0, "data": routes})
 }
 
+// [AUTO] UpdateSceneRouting
+// @Tags      l-l-m-routing
+// @Router    /api/llm/scene-routing [post]
 // UpdateSceneRouting 兼容旧接口（PUT /api/llm/scene-routing）
 //
 // Body 兼容：{ routes: [...] } 或 { scenario: "...", provider: "...", fallbacks: [...] }
@@ -211,6 +238,9 @@ func (c *LLMRoutingController) UpdateSceneRouting(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"code": 0, "data": single})
 }
 
+// [AUTO] ListAuditHistory
+// @Tags      l-l-m-routing
+// @Router    /api/llm/audit [get]
 // ListAuditHistory 列出路由变更审计历史
 //
 // GET /api/llm/audit?scenario=xxx&limit=50
@@ -225,6 +255,9 @@ func (c *LLMRoutingController) ListAuditHistory(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"code": 0, "data": rows})
 }
 
+// [AUTO] Stats
+// @Tags      l-l-m-routing
+// @Router    /api/llm/stats [get]
 // Stats 进程内实时 provider 维度统计
 //
 // GET /api/llm/stats
@@ -233,6 +266,9 @@ func (c *LLMRoutingController) Stats(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"code": 0, "data": stats})
 }
 
+// [AUTO] Usage
+// @Tags      l-l-m-routing
+// @Router    /api/llm/usage [get]
 // Usage 跨进程历史统计（按 window）
 //
 // GET /api/llm/usage?window=today|week|month|all
@@ -246,6 +282,9 @@ func (c *LLMRoutingController) Usage(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"code": 0, "data": summary})
 }
 
+// [AUTO] CostStats
+// @Tags      l-l-m-routing
+// @Router    /api/llm/cost-stats [get]
 // CostStats 用量 + 成本统计（前端 cost-stats tab 使用）
 //
 // GET /api/llm/cost-stats?window=...
@@ -271,6 +310,9 @@ func (c *LLMRoutingController) CostStats(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"code": 0, "data": out})
 }
 
+// [AUTO] FallbackConfig
+// @Tags      l-l-m-routing
+// @Router    /api/llm/fallback [get]
 // FallbackConfig 兜底配置查询（兼容旧前端）
 //
 // GET /api/llm/fallback
@@ -289,6 +331,9 @@ func (c *LLMRoutingController) FallbackConfig(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"code": 0, "data": out})
 }
 
+// [AUTO] ListScenarios
+// @Tags      l-l-m-routing
+// @Router    /api/llm/scenarios [get]
 // ListScenarios 场景列表（与 strategies 同义）
 //
 // GET /api/llm/scenarios
@@ -313,6 +358,9 @@ func (c *LLMRoutingController) ListScenarios(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"code": 0, "data": out})
 }
 
+// [AUTO] Health
+// @Tags      l-l-m-routing
+// @Router    /api/llm/health [get]
 // Health 整体健康度
 //
 // GET /api/llm/health
@@ -375,6 +423,9 @@ func (c *LLMRoutingController) Health(ctx *gin.Context) {
 	})
 }
 
+// [AUTO] ScenarioStats
+// @Tags      l-l-m-routing
+// @Router    /api/llm/scenario-stats [get]
 // ScenarioStats 场景聚合统计（Usage 别名）
 //
 // GET /api/llm/scenario-stats?window=today|week|month|all
@@ -397,6 +448,9 @@ func (c *LLMRoutingController) ScenarioStats(ctx *gin.Context) {
 	})
 }
 
+// [AUTO] ModelTypeStats
+// @Tags      l-l-m-routing
+// @Router    /api/llm/model-type-stats [get]
 // ModelTypeStats 模型类型聚合（local / cloud）
 //
 // GET /api/llm/model-type-stats?window=today|week|month|all
@@ -465,6 +519,9 @@ func (c *LLMRoutingController) ModelTypeStats(ctx *gin.Context) {
 	})
 }
 
+// [AUTO] EgressAlerts
+// @Tags      l-l-m-routing
+// @Router    /api/llm/egress-alerts [get]
 // EgressAlerts 出域告警（"应该本地推理但出域到云端"）
 //
 // GET /api/llm/egress-alerts
@@ -498,6 +555,9 @@ func (c *LLMRoutingController) EgressAlerts(ctx *gin.Context) {
 	})
 }
 
+// [AUTO] EgressAudit
+// @Tags      l-l-m-routing
+// @Router    /api/llm/egress-audit [get]
 // EgressAudit 出域审计（同 EgressAlerts，别名）
 //
 // GET /api/llm/egress-audit?window=hour

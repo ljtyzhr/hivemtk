@@ -14,6 +14,9 @@ func NewLeadMiningController() *LeadMiningController {
 	return &LeadMiningController{}
 }
 
+// [AUTO] GetConfig
+// @Tags      lead-mining
+// @Router    /api/lead-mining/config [get]
 func (c *LeadMiningController) GetConfig(ctx *gin.Context) {
 	cfg, err := service.GetLeadMiningConfig(ctx.Request.Context())
 	if err != nil {
@@ -23,11 +26,17 @@ func (c *LeadMiningController) GetConfig(ctx *gin.Context) {
 	response.Success(ctx, cfg, "success")
 }
 
+// [AUTO] GetStatus
+// @Tags      lead-mining
+// @Router    /api/lead-mining/status [get]
 func (c *LeadMiningController) GetStatus(ctx *gin.Context) {
 	status := service.GetStatus()
 	response.Success(ctx, status, "success")
 }
 
+// [AUTO] SaveConfig
+// @Tags      lead-mining
+// @Router    /api/lead-mining/config [post]
 func (c *LeadMiningController) SaveConfig(ctx *gin.Context) {
 	var cfg dto.LeadMiningConfig
 	if err := ctx.ShouldBindJSON(&cfg); err != nil {

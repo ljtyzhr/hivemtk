@@ -23,6 +23,9 @@ func NewDictionaryController(svc *service.DictionaryService) *DictionaryControll
 	return &DictionaryController{svc: svc}
 }
 
+// [AUTO] ListParents
+// @Tags      dictionary
+// @Router    /api/manage/dictionaries [get]
 // ListParents GET /api/manage/dictionaries
 // 目录：全部字典域。
 func (c *DictionaryController) ListParents(ctx *gin.Context) {
@@ -39,6 +42,9 @@ func (c *DictionaryController) ListParents(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"code": 0, "data": parents, "message": "ok"})
 }
 
+// [AUTO] GetDictionary
+// @Tags      dictionary
+// @Router    /api/manage/dictionaries/{parent} [get]
 // GetDictionary GET /api/manage/dictionaries/:parent
 // 一个域的完整定义（项 + 跃迁）。
 func (c *DictionaryController) GetDictionary(ctx *gin.Context) {
@@ -64,6 +70,9 @@ func (c *DictionaryController) GetDictionary(ctx *gin.Context) {
 	}, "message": "ok"})
 }
 
+// [AUTO] PublicDictionary
+// @Tags      dictionary
+// @Router    /api/config/dictionaries/{parent} [get]
 // PublicDictionary GET /api/config/dictionaries/:parent
 // 终端用户读一个域的值域（只读）。
 //
@@ -93,6 +102,9 @@ func (c *DictionaryController) PublicDictionary(ctx *gin.Context) {
 	}, "message": "ok"})
 }
 
+// [AUTO] UpsertItem
+// @Tags      dictionary
+// @Router    /api/manage/dictionaries/{parent}/items [put]
 // UpsertItem PUT /api/manage/dictionaries/:parent/items
 // 建/改一条字典项。请求体即 model.Dictionary（除 parent_code 从路径取）。
 func (c *DictionaryController) UpsertItem(ctx *gin.Context) {
@@ -136,6 +148,9 @@ func (c *DictionaryController) UpsertItem(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"code": 0, "message": "ok"})
 }
 
+// [AUTO] ReplaceTransitions
+// @Tags      dictionary
+// @Router    /api/manage/dictionaries/{parent}/transitions [put]
 // ReplaceTransitions PUT /api/manage/dictionaries/:parent/transitions
 // 整体替换一个域的跃迁。请求体 { "transitions": [{from,to,description}] }。
 func (c *DictionaryController) ReplaceTransitions(ctx *gin.Context) {

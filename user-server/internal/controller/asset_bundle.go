@@ -78,6 +78,9 @@ func (c *AssetBundleController) Register(rg *gin.RouterGroup) {
 	}
 }
 
+// [AUTO] SubmitToPlatform
+// @Tags      asset-bundle
+// @Router    /api/asset-bundle/{id}/submit-platform [post]
 // SubmitToPlatform 将本地资产包提交平台审核上架（开发者上架链路）
 //
 // 路由参数 :id 的语义与兄弟路由（publish/archive/enable/disable）保持一致：资产包主键 id。
@@ -127,6 +130,9 @@ func (c *AssetBundleController) resolveAssetID(ctx *gin.Context, rawID string) (
 	return bundle.AssetID, nil
 }
 
+// [AUTO] Create
+// @Tags      asset-bundle
+// @Router    /api/asset-bundle [post]
 // Create 创建
 func (c *AssetBundleController) Create(ctx *gin.Context) {
 	var req dto.AssetBundleCreateRequest
@@ -153,6 +159,9 @@ func (c *AssetBundleController) Create(ctx *gin.Context) {
 	response.Success(ctx, bundle, "ok")
 }
 
+// [AUTO] Update
+// @Tags      asset-bundle
+// @Router    /api/asset-bundle/{id} [put]
 // Update 更新
 func (c *AssetBundleController) Update(ctx *gin.Context) {
 	id, err := strconv.ParseInt(ctx.Param("id"), 10, 64)
@@ -187,6 +196,9 @@ func (c *AssetBundleController) Update(ctx *gin.Context) {
 	response.Success(ctx, bundle, "ok")
 }
 
+// [AUTO] Get
+// @Tags      asset-bundle
+// @Router    /api/asset-bundle/{id} [get]
 // Get 按 ID 查
 func (c *AssetBundleController) Get(ctx *gin.Context) {
 	id, err := strconv.ParseInt(ctx.Param("id"), 10, 64)
@@ -202,6 +214,9 @@ func (c *AssetBundleController) Get(ctx *gin.Context) {
 	response.Success(ctx, bundle, "ok")
 }
 
+// [AUTO] GetByAssetID
+// @Tags      asset-bundle
+// @Router    /api/asset-bundle/by-aid/{aid} [get]
 // GetByAssetID 按业务键查
 func (c *AssetBundleController) GetByAssetID(ctx *gin.Context) {
 	aid := ctx.Param("aid")
@@ -213,6 +228,9 @@ func (c *AssetBundleController) GetByAssetID(ctx *gin.Context) {
 	response.Success(ctx, bundle, "ok")
 }
 
+// [AUTO] List
+// @Tags      asset-bundle
+// @Router    /api/asset-bundle/list [post]
 // List 分页
 func (c *AssetBundleController) List(ctx *gin.Context) {
 	var req dto.AssetBundleListRequest
@@ -233,6 +251,9 @@ func (c *AssetBundleController) List(ctx *gin.Context) {
 	}, "ok")
 }
 
+// [AUTO] Publish
+// @Tags      asset-bundle
+// @Router    /api/asset-bundle/{id}/publish [post]
 // Publish 启用
 func (c *AssetBundleController) Publish(ctx *gin.Context) {
 	id, err := strconv.ParseInt(ctx.Param("id"), 10, 64)
@@ -247,6 +268,9 @@ func (c *AssetBundleController) Publish(ctx *gin.Context) {
 	response.Success(ctx, "ok", "ok")
 }
 
+// [AUTO] Archive
+// @Tags      asset-bundle
+// @Router    /api/asset-bundle/{id}/archive [post]
 // Archive 归档
 func (c *AssetBundleController) Archive(ctx *gin.Context) {
 	id, err := strconv.ParseInt(ctx.Param("id"), 10, 64)
@@ -261,6 +285,9 @@ func (c *AssetBundleController) Archive(ctx *gin.Context) {
 	response.Success(ctx, "ok", "ok")
 }
 
+// [AUTO] Enable
+// @Tags      asset-bundle
+// @Router    /api/asset-bundle/{id}/enable [post]
 // Enable 热启用资产包（方向 D1，立即生效，无需重启）
 func (c *AssetBundleController) Enable(ctx *gin.Context) {
 	id, err := strconv.ParseInt(ctx.Param("id"), 10, 64)
@@ -277,6 +304,9 @@ func (c *AssetBundleController) Enable(ctx *gin.Context) {
 	response.Success(ctx, bundle, "enabled")
 }
 
+// [AUTO] Disable
+// @Tags      asset-bundle
+// @Router    /api/asset-bundle/{id}/disable [post]
 // Disable 热禁用资产包（方向 D1，立即生效，无需重启）
 func (c *AssetBundleController) Disable(ctx *gin.Context) {
 	id, err := strconv.ParseInt(ctx.Param("id"), 10, 64)
@@ -293,6 +323,9 @@ func (c *AssetBundleController) Disable(ctx *gin.Context) {
 	response.Success(ctx, bundle, "disabled")
 }
 
+// [AUTO] GetEnabled
+// @Tags      asset-bundle
+// @Router    /api/asset-bundle/enabled/list [post]
 // GetEnabled 查询已热启用的资产包列表
 func (c *AssetBundleController) GetEnabled(ctx *gin.Context) {
 	list, err := c.svc.GetEnabledBundles(ctx.Request.Context())
@@ -303,6 +336,9 @@ func (c *AssetBundleController) GetEnabled(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": list, "total": len(list)}, "ok")
 }
 
+// [AUTO] Delete
+// @Tags      asset-bundle
+// @Router    /api/asset-bundle/{id} [delete]
 // Delete 软删
 func (c *AssetBundleController) Delete(ctx *gin.Context) {
 	id, err := strconv.ParseInt(ctx.Param("id"), 10, 64)
@@ -317,6 +353,9 @@ func (c *AssetBundleController) Delete(ctx *gin.Context) {
 	response.Success(ctx, "ok", "ok")
 }
 
+// [AUTO] Weave
+// @Tags      asset-bundle
+// @Router    /api/asset-bundle/weave [post]
 // Weave 织布算法
 func (c *AssetBundleController) Weave(ctx *gin.Context) {
 	var req dto.WeaveRequest
@@ -364,6 +403,9 @@ func (c *AssetBundleController) Weave(ctx *gin.Context) {
 	}, "ok")
 }
 
+// [AUTO] MerchantSave
+// @Tags      asset-bundle
+// @Router    /api/asset-bundle/merchant-save [post]
 // MerchantSave 商户低代码表单保存（把表单反向翻译成标准 messages 数组）
 func (c *AssetBundleController) MerchantSave(ctx *gin.Context) {
 	var req dto.MerchantFormSaveRequest
@@ -391,6 +433,9 @@ func (c *AssetBundleController) MerchantSave(ctx *gin.Context) {
 	response.Success(ctx, bundle, "ok")
 }
 
+// [AUTO] MerchantParse
+// @Tags      asset-bundle
+// @Router    /api/asset-bundle/merchant-parse/{aid} [post]
 // MerchantParse 解析 messages 数组为商户表单（前端回显用）
 func (c *AssetBundleController) MerchantParse(ctx *gin.Context) {
 	aid := ctx.Param("aid")

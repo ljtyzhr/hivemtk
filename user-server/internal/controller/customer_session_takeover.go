@@ -10,6 +10,9 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+// [AUTO] Takeover
+// @Tags      customer-session
+// @Router    /api/customer-sessions/{id}/takeover [post]
 // Takeover 坐席接管 AI 会话
 //
 //	POST /api/customer-sessions/:id/takeover
@@ -50,6 +53,9 @@ func (c *CustomerSessionController) Takeover(ctx *gin.Context) {
 	}, "接管成功")
 }
 
+// [AUTO] Release
+// @Tags      customer-session
+// @Router    /api/customer-sessions/{id}/release [post]
 // Release 坐席释放会话回 AI
 //
 //	POST /api/customer-sessions/:id/release
@@ -83,6 +89,9 @@ func (c *CustomerSessionController) Release(ctx *gin.Context) {
 	}, "释放成功")
 }
 
+// [AUTO] SwitchHandler
+// @Tags      customer-session
+// @Router    /api/customer-sessions/{id}/switch-handler [post]
 // SwitchHandler 统一 AI/人工切换接口
 //
 //	POST /api/customer-sessions/:id/switch-handler

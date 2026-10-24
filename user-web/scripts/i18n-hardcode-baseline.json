@@ -1,6 +1,6 @@
 {
-  "total": 10497,
+  "total": 10460,
   "files": 220,
   "generated": "2026-10-24",
-  "note": "OPT-FE-06 起点基线（user-web src/views 硬编码中文行数）。只许降：每替换一批视图就跑 check-i18n-hardcode.cjs 并按提示下调。platform-web 建同形基线。"
+  "note": "OPT-FE-06 起点基线（user-web src/views 硬编码中文行数）。只许降：每替换一批视图就跑 check-i18n-hardcode.cjs 并按提示下调。platform-web 建同形基线。2026-10-24 下调 10497→10460：geo/Verification.vue 分批替换为 $t()（geoVerificationPage 词条，zh/en 源语言，其余语言暂随 en，待翻译批次）。"
 }

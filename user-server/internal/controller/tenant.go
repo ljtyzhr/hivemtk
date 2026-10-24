@@ -40,6 +40,9 @@ func tenantFail(c *gin.Context, err error) {
 	response.ErrorWithBusinessCode(c, bizerr.CodeInternal, err.Error(), gin.H{})
 }
 
+// [AUTO] Register
+// @Tags      tenant
+// @Router    /api/tenant/register [post]
 // Register 自助开户
 //
 // 公开端点：off 模式由 Service 判 4104；限流在 Service 层按来源键计数（4105）。
@@ -57,6 +60,9 @@ func (c *TenantController) Register(ctx *gin.Context) {
 	response.Success(ctx, resp, "注册成功")
 }
 
+// [AUTO] Info
+// @Tags      tenant
+// @Router    /api/tenant/info [get]
 // Info 当前租户信息
 func (c *TenantController) Info(ctx *gin.Context) {
 	info, err := c.tenantService.GetTenantInfo(ctx.Request.Context())
@@ -67,6 +73,9 @@ func (c *TenantController) Info(ctx *gin.Context) {
 	response.Success(ctx, info, "ok")
 }
 
+// [AUTO] ListTenants
+// @Tags      tenant
+// @Router    /api/manage/tenants [get]
 // ListTenants 租户运营清单（分页 + 状态/关键词过滤）
 func (c *TenantController) ListTenants(ctx *gin.Context) {
 	var q service.TenantFilter
@@ -99,6 +108,9 @@ func (c *TenantController) ListTenants(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": rows, "total": total}, "ok")
 }
 
+// [AUTO] UpdateTenantStatus
+// @Tags      tenant
+// @Router    /api/manage/tenants/{id}/status [patch]
 // UpdateTenantStatus 租户停用/启用
 func (c *TenantController) UpdateTenantStatus(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)
@@ -120,6 +132,9 @@ func (c *TenantController) UpdateTenantStatus(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"tenant_id": id, "status": body.Status}, "ok")
 }
 
+// [AUTO] Registration
+// @Tags      tenant
+// @Router    /api/tenant/registration [get]
 // Registration 登记状态（登录后查：是否已上报平台 / 失败原因）
 func (c *TenantController) Registration(ctx *gin.Context) {
 	info, err := c.tenantService.RegistrationInfo(ctx.Request.Context())
@@ -130,6 +145,9 @@ func (c *TenantController) Registration(ctx *gin.Context) {
 	response.Success(ctx, info, "ok")
 }
 
+// [AUTO] RetrySync
+// @Tags      tenant
+// @Router    /api/manage/tenants/{id}/retry-registration-sync [post]
 // RetrySync 补同步（超管）
 func (c *TenantController) RetrySync(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 64)

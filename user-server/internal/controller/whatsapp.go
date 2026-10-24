@@ -25,6 +25,9 @@ func NewWhatsappController(svc *service.WhatsappService) *WhatsappController {
 	return &WhatsappController{svc: svc}
 }
 
+// [AUTO] ListAccounts
+// @Tags      whatsapp
+// @Router    /api/whatsapp/accounts [get]
 // Accounts
 func (c *WhatsappController) ListAccounts(ctx *gin.Context) {
 	list, err := c.svc.ListAccounts(ctx.Request.Context())
@@ -69,6 +72,9 @@ type createAccountReq struct {
 	Remark string `json:"remark"`
 }
 
+// [AUTO] CreateAccount
+// @Tags      whatsapp
+// @Router    /api/whatsapp/accounts [post]
 func (c *WhatsappController) CreateAccount(ctx *gin.Context) {
 	var req createAccountReq
 	if err := ctx.ShouldBindJSON(&req); err != nil {
@@ -85,6 +91,9 @@ func (c *WhatsappController) CreateAccount(ctx *gin.Context) {
 	response.Success(ctx, acc, "创建账号成功")
 }
 
+// [AUTO] StartLogin
+// @Tags      whatsapp
+// @Router    /api/whatsapp/accounts/{id}/login/start [post]
 // Login
 func (c *WhatsappController) StartLogin(ctx *gin.Context) {
 	idStr := ctx.Param("id")
@@ -106,6 +115,9 @@ func (c *WhatsappController) StartLogin(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"qr": qr}, "登录二维码生成成功")
 }
 
+// [AUTO] LoginStatus
+// @Tags      whatsapp
+// @Router    /api/whatsapp/accounts/{id}/login/status [get]
 func (c *WhatsappController) LoginStatus(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	accID, err := uuid.Parse(idStr)
@@ -127,6 +139,9 @@ type createDraftReq struct {
 	Content string `json:"content"`
 }
 
+// [AUTO] ListDrafts
+// @Tags      whatsapp
+// @Router    /api/whatsapp/drafts [get]
 func (c *WhatsappController) ListDrafts(ctx *gin.Context) {
 	list, err := c.svc.ListDrafts(ctx.Request.Context())
 	if err != nil {
@@ -136,6 +151,9 @@ func (c *WhatsappController) ListDrafts(ctx *gin.Context) {
 	response.Success(ctx, list, "获取草稿成功")
 }
 
+// [AUTO] CreateDraft
+// @Tags      whatsapp
+// @Router    /api/whatsapp/drafts [post]
 func (c *WhatsappController) CreateDraft(ctx *gin.Context) {
 	var req createDraftReq
 	if err := ctx.ShouldBindJSON(&req); err != nil {
@@ -154,6 +172,9 @@ type createJobReq struct {
 	DraftID string `json:"draft_id"`
 }
 
+// [AUTO] CreateJob
+// @Tags      whatsapp
+// @Router    /api/whatsapp/jobs [post]
 func (c *WhatsappController) CreateJob(ctx *gin.Context) {
 	var req createJobReq
 	if err := ctx.ShouldBindJSON(&req); err != nil {
@@ -173,6 +194,9 @@ func (c *WhatsappController) CreateJob(ctx *gin.Context) {
 	response.Success(ctx, job, "群发任务已创建")
 }
 
+// [AUTO] UpdateAccount
+// @Tags      whatsapp
+// @Router    /api/whatsapp/accounts/{id} [put]
 // UpdateAccount 更新账号
 func (c *WhatsappController) UpdateAccount(ctx *gin.Context) {
 	idStr := ctx.Param("id")
@@ -206,6 +230,9 @@ func (c *WhatsappController) UpdateAccount(ctx *gin.Context) {
 	response.Success(ctx, acc, "更新账号成功")
 }
 
+// [AUTO] DeleteAccount
+// @Tags      whatsapp
+// @Router    /api/whatsapp/accounts/{id} [delete]
 // DeleteAccount 删除账号
 func (c *WhatsappController) DeleteAccount(ctx *gin.Context) {
 	idStr := ctx.Param("id")
@@ -221,6 +248,9 @@ func (c *WhatsappController) DeleteAccount(ctx *gin.Context) {
 	response.Success(ctx, nil, "删除账号成功")
 }
 
+// [AUTO] UpdateDraft
+// @Tags      whatsapp
+// @Router    /api/whatsapp/drafts/{id} [put]
 // UpdateDraft 更新草稿
 func (c *WhatsappController) UpdateDraft(ctx *gin.Context) {
 	idStr := ctx.Param("id")
@@ -252,6 +282,9 @@ func (c *WhatsappController) UpdateDraft(ctx *gin.Context) {
 	response.Success(ctx, draft, "更新草稿成功")
 }
 
+// [AUTO] DeleteDraft
+// @Tags      whatsapp
+// @Router    /api/whatsapp/drafts/{id} [delete]
 // DeleteDraft 删除草稿
 func (c *WhatsappController) DeleteDraft(ctx *gin.Context) {
 	idStr := ctx.Param("id")
@@ -267,6 +300,9 @@ func (c *WhatsappController) DeleteDraft(ctx *gin.Context) {
 	response.Success(ctx, nil, "删除草稿成功")
 }
 
+// [AUTO] ListJobs
+// @Tags      whatsapp
+// @Router    /api/whatsapp/jobs [get]
 // ListJobs 列出群发任务
 func (c *WhatsappController) ListJobs(ctx *gin.Context) {
 	list, err := c.svc.ListJobs(ctx.Request.Context())
@@ -277,6 +313,9 @@ func (c *WhatsappController) ListJobs(ctx *gin.Context) {
 	response.Success(ctx, list, "获取任务列表成功")
 }
 
+// [AUTO] GetJob
+// @Tags      whatsapp
+// @Router    /api/whatsapp/jobs/{id} [get]
 // GetJob 获取群发任务详情
 func (c *WhatsappController) GetJob(ctx *gin.Context) {
 	idStr := ctx.Param("id")
@@ -297,6 +336,9 @@ func (c *WhatsappController) GetJob(ctx *gin.Context) {
 	response.Success(ctx, job, "获取任务成功")
 }
 
+// [AUTO] DeleteJob
+// @Tags      whatsapp
+// @Router    /api/whatsapp/jobs/{id} [delete]
 // DeleteJob 删除群发任务
 func (c *WhatsappController) DeleteJob(ctx *gin.Context) {
 	idStr := ctx.Param("id")

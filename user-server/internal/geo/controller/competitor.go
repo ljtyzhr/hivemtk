@@ -21,6 +21,9 @@ func NewCompetitorController(svc *service.GeoCompetitorService) *CompetitorContr
 	return &CompetitorController{svc: svc}
 }
 
+// [AUTO] List
+// @Tags      competitor
+// @Router    /api/geo/competitors [get]
 // List GET /geo/competitors?status=active
 func (c *CompetitorController) List(ctx *gin.Context) {
 	status := ctx.Query("status")
@@ -32,6 +35,9 @@ func (c *CompetitorController) List(ctx *gin.Context) {
 	response.Success(ctx, list, "ok")
 }
 
+// [AUTO] Get
+// @Tags      competitor
+// @Router    /api/geo/competitors/{id} [get]
 // Get GET /geo/competitors/:id
 func (c *CompetitorController) Get(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 32)
@@ -51,6 +57,9 @@ func (c *CompetitorController) Get(ctx *gin.Context) {
 	response.Success(ctx, dto, "ok")
 }
 
+// [AUTO] Create
+// @Tags      competitor
+// @Router    /api/geo/competitors [post]
 // Create POST /geo/competitors
 func (c *CompetitorController) Create(ctx *gin.Context) {
 	var dto service.CompetitorDTO
@@ -65,6 +74,9 @@ func (c *CompetitorController) Create(ctx *gin.Context) {
 	response.Success(ctx, result, "创建成功")
 }
 
+// [AUTO] Update
+// @Tags      competitor
+// @Router    /api/geo/competitors/{id} [put]
 // Update PUT /geo/competitors/:id
 func (c *CompetitorController) Update(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 32)
@@ -88,6 +100,9 @@ func (c *CompetitorController) Update(ctx *gin.Context) {
 	response.Success(ctx, result, "更新成功")
 }
 
+// [AUTO] Delete
+// @Tags      competitor
+// @Router    /api/geo/competitors/{id} [delete]
 // Delete DELETE /geo/competitors/:id
 func (c *CompetitorController) Delete(ctx *gin.Context) {
 	id, err := strconv.ParseUint(ctx.Param("id"), 10, 32)

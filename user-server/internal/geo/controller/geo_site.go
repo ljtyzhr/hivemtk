@@ -42,6 +42,9 @@ func (r geoSiteRequest) toInput() service.SiteConfigInput {
 	}
 }
 
+// [AUTO] List
+// @Tags      geo-site
+// @Router    /api/geo/sites [get]
 func (c *GeoSiteController) List(ctx *gin.Context) {
 	page, _ := strconv.Atoi(ctx.DefaultQuery("page", "1"))
 	limit, _ := strconv.Atoi(ctx.DefaultQuery("limit", "20"))
@@ -53,6 +56,9 @@ func (c *GeoSiteController) List(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": list, "total": total}, "ok")
 }
 
+// [AUTO] Get
+// @Tags      geo-site
+// @Router    /api/geo/sites/{id} [get]
 func (c *GeoSiteController) Get(ctx *gin.Context) {
 	item, err := c.svc.Get(ctx.Request.Context(), ctx.Param("id"))
 	if err != nil {
@@ -66,6 +72,9 @@ func (c *GeoSiteController) Get(ctx *gin.Context) {
 	response.Success(ctx, item, "ok")
 }
 
+// [AUTO] Create
+// @Tags      geo-site
+// @Router    /api/geo/sites [post]
 func (c *GeoSiteController) Create(ctx *gin.Context) {
 	var req geoSiteRequest
 	if !response.BindJSON(ctx, &req) {
@@ -79,6 +88,9 @@ func (c *GeoSiteController) Create(ctx *gin.Context) {
 	response.Success(ctx, item, "created")
 }
 
+// [AUTO] Update
+// @Tags      geo-site
+// @Router    /api/geo/sites/{id} [put]
 func (c *GeoSiteController) Update(ctx *gin.Context) {
 	var req geoSiteRequest
 	if !response.BindJSON(ctx, &req) {
@@ -96,6 +108,9 @@ func (c *GeoSiteController) Update(ctx *gin.Context) {
 	response.Success(ctx, item, "updated")
 }
 
+// [AUTO] Delete
+// @Tags      geo-site
+// @Router    /api/geo/sites/{id} [delete]
 func (c *GeoSiteController) Delete(ctx *gin.Context) {
 	if err := c.svc.Delete(ctx.Request.Context(), ctx.Param("id")); err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {

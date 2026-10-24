@@ -27,6 +27,9 @@ func NewDataExportController() *DataExportController {
 	}
 }
 
+// [AUTO] Export
+// @Tags      data-export
+// @Router    /api/gdpr/export/{customer_id} [get]
 // Export GET /api/gdpr/export/:customer_id
 // 返回 JSON 流（Content-Type: application/json，带缩进便于人工查看）
 func (c *DataExportController) Export(ctx *gin.Context) {
@@ -72,6 +75,9 @@ func NewManageDataExportController() *ManageDataExportController {
 	return &ManageDataExportController{svc: service.NewDataExportService()}
 }
 
+// [AUTO] Export
+// @Tags      manage-data-export
+// @Router    /api/manage/data-export/{customer_id} [get]
 // Export GET /api/manage/data-export/:customer_id
 // data 用 json.RawMessage 嵌入原始导出 JSON
 func (c *ManageDataExportController) Export(ctx *gin.Context) {

@@ -29,6 +29,9 @@ func (ctrl *BridgeAccountController) RegisterRoutes(auth *gin.RouterGroup) {
 	auth.POST("/bridge/send", ctrl.SendManual)
 }
 
+// [AUTO] List
+// @Tags      bridge-account
+// @Router    /api/bridge/accounts [get]
 // List 列出当前用户的全部桥接账号
 func (ctrl *BridgeAccountController) List(c *gin.Context) {
 	uidAny, _ := c.Get("user_id")
@@ -52,6 +55,9 @@ type bridgeSendReq struct {
 	Content        string `json:"content"`
 }
 
+// [AUTO] SendManual
+// @Tags      bridge-account
+// @Router    /api/bridge/send [post]
 func (ctrl *BridgeAccountController) SendManual(c *gin.Context) {
 	var req bridgeSendReq
 	if err := c.ShouldBindJSON(&req); err != nil {

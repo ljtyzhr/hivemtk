@@ -21,6 +21,9 @@ func NewKuaishouCardStatsController(statsService *service.KuaishouCardStatsServi
 	}
 }
 
+// [AUTO] GetCardStats
+// @Tags      kuaishou-card-stats
+// @Router    /api/kuaishou-card/stats/{id} [get]
 // GetCardStats 获取单个快手卡片的统计数据
 func (c *KuaishouCardStatsController) GetCardStats(ctx *gin.Context) {
 	var req dto.KuaishouCardStatsRequest
@@ -46,6 +49,9 @@ func (c *KuaishouCardStatsController) GetCardStats(ctx *gin.Context) {
 	response.Success(ctx, stats, "获取统计数据成功")
 }
 
+// [AUTO] GetOverallStats
+// @Tags      kuaishou-card-stats
+// @Router    /api/kuaishou-card/overall-stats [get]
 // GetOverallStats 获取快手卡片总体统计数据
 func (c *KuaishouCardStatsController) GetOverallStats(ctx *gin.Context) {
 	var req dto.KuaishouCardOverallStatsRequest

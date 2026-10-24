@@ -21,6 +21,9 @@ func NewSecurityRulesController(svc service.SecurityRulesService) *SecurityRules
 	return &SecurityRulesController{svc: svc}
 }
 
+// [AUTO] GetRules
+// @Tags      security-rules
+// @Router    /api/security/rules [get]
 // GetRules GET /api/security/rules
 func (c *SecurityRulesController) GetRules(ctx *gin.Context) {
 	if !c.svc.Available() {

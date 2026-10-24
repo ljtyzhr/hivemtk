@@ -19,6 +19,9 @@ func NewEmailSmtpController() *EmailSmtpController {
 	return &EmailSmtpController{svc: email.NewEmailSmtpService()}
 }
 
+// [AUTO] CreateEmailSmtp
+// @Tags      email-smtp
+// @Router    /api/email/smtp [post]
 // CreateEmailSmtp 创建SMTP配置
 func (c *EmailSmtpController) CreateEmailSmtp(ctx *gin.Context) {
 	var req dto.CreateEmailSmtpRequest
@@ -35,6 +38,9 @@ func (c *EmailSmtpController) CreateEmailSmtp(ctx *gin.Context) {
 	response.Success(ctx, resp, "创建成功")
 }
 
+// [AUTO] GetEmailSmtpList
+// @Tags      email-smtp
+// @Router    /api/email/smtp [get]
 // GetEmailSmtpList 获取SMTP配置列表
 func (c *EmailSmtpController) GetEmailSmtpList(ctx *gin.Context) {
 	resp, err := c.svc.GetEmailSmtpListDTO(ctx.Request.Context())
@@ -45,6 +51,9 @@ func (c *EmailSmtpController) GetEmailSmtpList(ctx *gin.Context) {
 	response.Success(ctx, resp, "获取成功")
 }
 
+// [AUTO] GetEmailSmtp
+// @Tags      email-smtp
+// @Router    /api/email/smtps/{id} [get]
 // GetEmailSmtp 获取SMTP配置详情
 func (c *EmailSmtpController) GetEmailSmtp(ctx *gin.Context) {
 	smtpIDStr := ctx.Param("id")
@@ -65,6 +74,9 @@ func (c *EmailSmtpController) GetEmailSmtp(ctx *gin.Context) {
 	response.Success(ctx, resp, "获取成功")
 }
 
+// [AUTO] UpdateEmailSmtp
+// @Tags      email-smtp
+// @Router    /api/email/smtp/{id} [put]
 // UpdateEmailSmtp 更新SMTP配置
 func (c *EmailSmtpController) UpdateEmailSmtp(ctx *gin.Context) {
 	var req dto.UpdateEmailSmtpRequest
@@ -80,6 +92,9 @@ func (c *EmailSmtpController) UpdateEmailSmtp(ctx *gin.Context) {
 	response.Success(ctx, nil, "更新成功")
 }
 
+// [AUTO] DeleteEmailSmtp
+// @Tags      email-smtp
+// @Router    /api/email/smtp/{id} [delete]
 // DeleteEmailSmtp 删除SMTP配置
 func (c *EmailSmtpController) DeleteEmailSmtp(ctx *gin.Context) {
 	var req dto.DeleteEmailSmtpRequest

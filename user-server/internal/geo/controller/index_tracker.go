@@ -20,6 +20,9 @@ func NewIndexTrackerController(svc *service.IndexTrackerService) *IndexTrackerCo
 	return &IndexTrackerController{svc: svc}
 }
 
+// [AUTO] VerifyFull
+// @Tags      index-tracker
+// @Router    /api/geo/index-tracking/verify/{article_id} [post]
 // VerifyFull POST /geo/index-tracking/verify/:article_id
 func (c *IndexTrackerController) VerifyFull(ctx *gin.Context) {
 	articleID := ctx.Param("article_id")
@@ -35,6 +38,9 @@ func (c *IndexTrackerController) VerifyFull(ctx *gin.Context) {
 	response.Success(ctx, standing, "ok")
 }
 
+// [AUTO] FunnelStats
+// @Tags      index-tracker
+// @Router    /api/geo/index-tracking/funnel [get]
 // FunnelStats GET /geo/index-tracking/funnel
 func (c *IndexTrackerController) FunnelStats(ctx *gin.Context) {
 	fs, err := c.svc.FunnelStats(ctx.Request.Context())
@@ -45,6 +51,9 @@ func (c *IndexTrackerController) FunnelStats(ctx *gin.Context) {
 	response.Success(ctx, fs, "ok")
 }
 
+// [AUTO] ManualVerifyAll
+// @Tags      index-tracker
+// @Router    /api/geo/index-tracking/verify-all [post]
 // ManualVerifyAll POST /geo/index-tracking/verify-all（触发 cron）
 func (c *IndexTrackerController) ManualVerifyAll(ctx *gin.Context) {
 	err := c.svc.AutoVerifyCron(ctx.Request.Context())

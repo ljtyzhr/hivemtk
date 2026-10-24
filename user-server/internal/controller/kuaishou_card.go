@@ -23,6 +23,9 @@ func NewKuaishouCardController(service service.KuaishouCardService) *KuaishouCar
 	}
 }
 
+// [AUTO] Create
+// @Tags      kuaishou-card
+// @Router    /api/kuaishou/create [post]
 // Create 创建快手卡片
 func (c *KuaishouCardController) Create(ctx *gin.Context) {
 	var req dto.KuaishouCardCreateRequest
@@ -39,6 +42,9 @@ func (c *KuaishouCardController) Create(ctx *gin.Context) {
 	response.Success(ctx, card, response.ErrSuccess)
 }
 
+// [AUTO] Update
+// @Tags      kuaishou-card
+// @Router    /api/kuaishou-card/{id} [put]
 // Update 更新快手卡片
 func (c *KuaishouCardController) Update(ctx *gin.Context) {
 	var req dto.KuaishouCardUpdateRequest
@@ -74,6 +80,9 @@ func (c *KuaishouCardController) Update(ctx *gin.Context) {
 	response.Success(ctx, card, response.ErrUpdateSuccess)
 }
 
+// [AUTO] Delete
+// @Tags      kuaishou-card
+// @Router    /api/kuaishou-card/{id} [delete]
 // Delete 删除快手卡片
 func (c *KuaishouCardController) Delete(ctx *gin.Context) {
 	idStr := ctx.Param("id")
@@ -91,6 +100,9 @@ func (c *KuaishouCardController) Delete(ctx *gin.Context) {
 	response.Success(ctx, nil, response.ErrDeleteSuccess)
 }
 
+// [AUTO] GetByID
+// @Tags      kuaishou-card
+// @Router    /api/kuaishou-card/{id} [get]
 // GetByID 根据ID获取快手卡片
 func (c *KuaishouCardController) GetByID(ctx *gin.Context) {
 	idStr := ctx.Param("id")
@@ -109,6 +121,9 @@ func (c *KuaishouCardController) GetByID(ctx *gin.Context) {
 	response.Success(ctx, card, response.ErrGetSuccess)
 }
 
+// [AUTO] GetList
+// @Tags      kuaishou-card
+// @Router    /api/kuaishou-card/list [get]
 // GetList 获取快手卡片列表
 func (c *KuaishouCardController) GetList(ctx *gin.Context) {
 	var req dto.KuaishouCardListRequest
@@ -150,6 +165,9 @@ func (c *KuaishouCardController) ViewCard(ctx *gin.Context) {
 	response.Success(ctx, nil, response.ErrSuccess)
 }
 
+// [AUTO] LikeCard
+// @Tags      kuaishou-card
+// @Router    /api/kuaishou/like/{id} [post]
 // LikeCard 点赞卡片
 func (c *KuaishouCardController) LikeCard(ctx *gin.Context) {
 	idStr := ctx.Param("id")
@@ -167,6 +185,9 @@ func (c *KuaishouCardController) LikeCard(ctx *gin.Context) {
 	response.Success(ctx, nil, response.ErrSuccess)
 }
 
+// [AUTO] ShareCard
+// @Tags      kuaishou-card
+// @Router    /api/kuaishou/share/{id} [post]
 // ShareCard 分享卡片
 func (c *KuaishouCardController) ShareCard(ctx *gin.Context) {
 	idStr := ctx.Param("id")
@@ -189,6 +210,9 @@ func (c *KuaishouCardController) ShareCard(ctx *gin.Context) {
 	response.Success(ctx, card, response.ErrSuccess)
 }
 
+// [AUTO] GenerateShortLink
+// @Tags      kuaishou-card
+// @Router    /api/kuaishou/{id}/generate-short-link [post]
 // GenerateShortLink 生成短链接
 func (c *KuaishouCardController) GenerateShortLink(ctx *gin.Context) {
 	idStr := ctx.Param("id")
@@ -218,6 +242,9 @@ func (c *KuaishouCardController) GenerateShortLink(ctx *gin.Context) {
 	response.Success(ctx, updatedCard, response.ErrSuccess)
 }
 
+// [AUTO] SharePage
+// @Tags      kuaishou-card
+// @Router    /share/kuaishou/{id} [get]
 // SharePage 渲染卡片分享页面（统一卡片聊天页，含联系客服按钮）
 func (c *KuaishouCardController) SharePage(ctx *gin.Context) {
 	idStr := ctx.Param("id")
