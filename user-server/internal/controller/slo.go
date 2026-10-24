@@ -15,7 +15,7 @@ func NewSLOController() *SLOController {
 	return &SLOController{}
 }
 
-// [AUTO] List
+// @Summary      获取所有 SLO 状态
 // @Tags      s-l-o
 // @Router    /api/manage/slo [get]
 // List 获取所有 SLO 状态

@@ -163,7 +163,7 @@ func (h *BridgeIngestHandler) SetLeadMiner(fn func(ctx context.Context, ev *mode
 	h.leadMiner = fn
 }
 
-// [AUTO] HandleOutboxSSE
+// @Summary      桥接出站 SSE 长连接拉取（outbox 轮询推送）
 // @Tags      bridge-ingest-handler
 // @Router    /api/bridge/outbox/sse [get]
 func (h *BridgeIngestHandler) HandleOutboxSSE(c *gin.Context) {
@@ -337,7 +337,7 @@ func (h *BridgeIngestHandler) callPersistHistory(ctx context.Context, ev *model.
 	return h.ingress.PersistBridgeHistory(ctx, ev, direction)
 }
 
-// [AUTO] HandleHTTPIngest
+// @Summary      抖音网页
 // @Tags      bridge-ingest-handler
 // @Router    /api/bridge/ingest [post]
 func (h *BridgeIngestHandler) HandleHTTPIngest(c *gin.Context) {
@@ -788,7 +788,7 @@ func _bridgeOutboxHubsForLog(hubs []*model.MessageHub) []map[string]any {
 	return out
 }
 
-// [AUTO] GetBridgeOutbox
+// @Summary      客户端活着
 // @Tags      bridge-ingest-handler
 // @Router    /api/bridge/outbox [get]
 func (h *BridgeIngestHandler) GetBridgeOutbox(c *gin.Context) {
@@ -885,7 +885,7 @@ type BridgeOutboxAckResponse struct {
 	Items            []service.AckOutboundItem `json:"items"`
 }
 
-// [AUTO] AckBridgeOutbox
+// @Summary      欠交付
 // @Tags      bridge-ingest-handler
 // @Router    /api/bridge/outbox/ack [post]
 func (h *BridgeIngestHandler) AckBridgeOutbox(c *gin.Context) {

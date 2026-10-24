@@ -30,7 +30,7 @@ func NewOperationLogController() *OperationLogController {
 	}
 }
 
-// [AUTO] GetList
+// @Summary      获取操作日志成功
 // @Tags      operation-log
 // @Router    /api/operation-logs [get]
 // GetList 获取操作日志列表
@@ -96,7 +96,7 @@ func (c *OperationLogController) GetList(ctx *gin.Context) {
 	}, "获取操作日志成功")
 }
 
-// [AUTO] GetByID
+// @Summary      获取日志详情成功
 // @Tags      operation-log
 // @Router    /api/operation-logs/{id} [get]
 // GetByID 获取操作日志详情
@@ -160,7 +160,7 @@ func (c *OperationLogController) GetMyLogs(ctx *gin.Context) {
 	}, "获取操作日志成功")
 }
 
-// [AUTO] GetStatistics
+// @Summary      获取统计信息成功
 // @Tags      operation-log
 // @Router    /api/operation-logs/statistics [get]
 // GetStatistics 获取操作日志统计
@@ -179,7 +179,7 @@ func (c *OperationLogController) GetStatistics(ctx *gin.Context) {
 	}, "获取统计信息成功")
 }
 
-// [AUTO] ExportLogs
+// @Summary      导出操作日志(返回 CSV 文件流)
 // @Tags      operation-log
 // @Router    /api/operation-logs/export [get]
 // ExportLogs 导出操作日志(返回 CSV 文件流)
@@ -218,7 +218,7 @@ func (c *OperationLogController) ExportLogs(ctx *gin.Context) {
 	ctx.Data(http.StatusOK, "text/csv; charset=utf-8", buf.Bytes())
 }
 
-// [AUTO] CleanLogs
+// @Summary      清理完成
 // @Tags      operation-log
 // @Router    /api/operation-logs/clean [post]
 // CleanLogs 清理指定日期之前的操作日志
@@ -285,7 +285,7 @@ func (c *OperationLogController) DeleteLogs(ctx *gin.Context) {
 	}, "删除成功")
 }
 
-// [AUTO] RollbackLog
+// @Summary      已回滚
 // @Tags      operation-log
 // @Router    /api/operation-logs/{id}/rollback [post]
 // RollbackLog 回滚一条操作日志（Enhanced.vue 回滚按钮）

@@ -37,7 +37,7 @@ func NewReachPipelineController(svc *service.ReachPipelineService) *ReachPipelin
 	return &ReachPipelineController{svc: svc}
 }
 
-// [AUTO] CreatePipeline
+// @Summary      创建触达管道
 // @Tags      reach-pipeline
 // @Router    /api/reach/pipelines [post]
 // CreatePipeline 创建 Pipeline
@@ -62,7 +62,7 @@ func (c *ReachPipelineController) CreatePipeline(ctx *gin.Context) {
 	response.Success(ctx, pipe, "创建成功")
 }
 
-// [AUTO] UpdatePipeline
+// @Summary      更新触达管道
 // @Tags      reach-pipeline
 // @Router    /api/reach/pipelines/{id} [put]
 // UpdatePipeline 更新
@@ -85,7 +85,7 @@ func (c *ReachPipelineController) UpdatePipeline(ctx *gin.Context) {
 	response.Success(ctx, pipe, "更新成功")
 }
 
-// [AUTO] GetPipeline
+// @Summary      查询触达管道详情
 // @Tags      reach-pipeline
 // @Router    /api/reach/pipelines/{id} [get]
 // GetPipeline 详情
@@ -103,7 +103,7 @@ func (c *ReachPipelineController) GetPipeline(ctx *gin.Context) {
 	response.Success(ctx, pipe, "查询成功")
 }
 
-// [AUTO] ListPipelines
+// @Summary      列表
 // @Tags      reach-pipeline
 // @Router    /api/reach/pipelines [get]
 // ListPipelines 列表
@@ -120,7 +120,7 @@ func (c *ReachPipelineController) ListPipelines(ctx *gin.Context) {
 	response.SuccessWithPage(ctx, list, int64(page), int64(pageSize), total)
 }
 
-// [AUTO] DeletePipeline
+// @Summary      删除触达管道
 // @Tags      reach-pipeline
 // @Router    /api/reach/pipelines/{id} [delete]
 // DeletePipeline 删除
@@ -137,7 +137,7 @@ func (c *ReachPipelineController) DeletePipeline(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"id": id}, "删除成功")
 }
 
-// [AUTO] PausePipeline
+// @Summary      暂停成功
 // @Tags      reach-pipeline
 // @Router    /api/reach/pipelines/{id}/pause [post]
 // PausePipeline 暂停
@@ -154,7 +154,7 @@ func (c *ReachPipelineController) PausePipeline(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"id": id}, "暂停成功")
 }
 
-// [AUTO] ResumePipeline
+// @Summary      恢复成功
 // @Tags      reach-pipeline
 // @Router    /api/reach/pipelines/{id}/resume [post]
 // ResumePipeline 恢复
@@ -171,7 +171,7 @@ func (c *ReachPipelineController) ResumePipeline(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"id": id}, "恢复成功")
 }
 
-// [AUTO] ArchivePipeline
+// @Summary      归档成功
 // @Tags      reach-pipeline
 // @Router    /api/reach/pipelines/{id}/archive [post]
 // ArchivePipeline 归档
@@ -188,7 +188,7 @@ func (c *ReachPipelineController) ArchivePipeline(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"id": id}, "归档成功")
 }
 
-// [AUTO] EnqueueJob
+// @Summary      入队成功
 // @Tags      reach-pipeline
 // @Router    /api/reach/jobs [post]
 // EnqueueJob 入队任务
@@ -211,7 +211,7 @@ func (c *ReachPipelineController) EnqueueJob(ctx *gin.Context) {
 	response.Success(ctx, job, "入队成功")
 }
 
-// [AUTO] GetJob
+// @Summary      查询触达任务详情
 // @Tags      reach-pipeline
 // @Router    /api/reach/jobs/{id} [get]
 // GetJob 任务详情
@@ -229,7 +229,7 @@ func (c *ReachPipelineController) GetJob(ctx *gin.Context) {
 	response.Success(ctx, job, "查询成功")
 }
 
-// [AUTO] ListJobs
+// @Summary      任务列表
 // @Tags      reach-pipeline
 // @Router    /api/reach/jobs [get]
 // ListJobs 任务列表
@@ -246,7 +246,7 @@ func (c *ReachPipelineController) ListJobs(ctx *gin.Context) {
 	response.SuccessWithPage(ctx, list, int64(page), int64(pageSize), total)
 }
 
-// [AUTO] CancelJob
+// @Summary      取消成功
 // @Tags      reach-pipeline
 // @Router    /api/reach/jobs/{id}/cancel [post]
 // CancelJob 取消任务
@@ -263,7 +263,7 @@ func (c *ReachPipelineController) CancelJob(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"id": id}, "取消成功")
 }
 
-// [AUTO] RetryJob
+// @Summary      重试成功
 // @Tags      reach-pipeline
 // @Router    /api/reach/jobs/{id}/retry [post]
 // RetryJob 重试任务
@@ -280,7 +280,7 @@ func (c *ReachPipelineController) RetryJob(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"id": id}, "重试成功")
 }
 
-// [AUTO] ExecuteJob
+// @Summary      任务被限流
 // @Tags      reach-pipeline
 // @Router    /api/reach/jobs/{id}/execute [post]
 // ExecuteJob 立即执行
@@ -302,7 +302,7 @@ func (c *ReachPipelineController) ExecuteJob(ctx *gin.Context) {
 	response.Success(ctx, job, "执行成功")
 }
 
-// [AUTO] Stats
+// @Summary      触达统计
 // @Tags      reach-pipeline
 // @Router    /api/reach/stats [get]
 // Stats 统计
@@ -315,7 +315,7 @@ func (c *ReachPipelineController) Stats(ctx *gin.Context) {
 	response.Success(ctx, stats, "查询成功")
 }
 
-// [AUTO] ResetRateLimit
+// @Summary      重置成功
 // @Tags      reach-pipeline
 // @Router    /api/reach/rate-limit/reset [post]
 // ResetRateLimit 重置限流
@@ -329,7 +329,7 @@ func (c *ReachPipelineController) ResetRateLimit(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"channel": channel}, "重置成功")
 }
 
-// [AUTO] ListJobsWithExperiment
+// @Summary      查询失败
 // @Tags      reach-pipeline
 // @Router    /api/reach/jobs/with-experiment [get]
 // ListJobsWithExperiment GET /api/reach/jobs/with-experiment?experiment_id=xxx

@@ -27,7 +27,7 @@ func NewDataExportController() *DataExportController {
 	}
 }
 
-// [AUTO] Export
+// @Summary      customer_id 不能为空
 // @Tags      data-export
 // @Router    /api/gdpr/export/{customer_id} [get]
 // Export GET /api/gdpr/export/:customer_id
@@ -75,7 +75,7 @@ func NewManageDataExportController() *ManageDataExportController {
 	return &ManageDataExportController{svc: service.NewDataExportService()}
 }
 
-// [AUTO] Export
+// @Summary      customer_id 不能为空
 // @Tags      manage-data-export
 // @Router    /api/manage/data-export/{customer_id} [get]
 // Export GET /api/manage/data-export/:customer_id

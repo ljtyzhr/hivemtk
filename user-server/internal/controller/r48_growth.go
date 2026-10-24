@@ -25,7 +25,7 @@ func NewGrowthController() *GrowthController {
 	}
 }
 
-// [AUTO] ListWebhookSubs
+// @Summary      secret 只给看一次
 // @Tags      growth
 // @Router    /api/webhook-subscriptions [get]
 // ListWebhookSubs GET /api/webhook-subscriptions
@@ -49,7 +49,7 @@ func (c *GrowthController) ListWebhookSubs(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": list, "total": len(list)}, "ok")
 }
 
-// [AUTO] CreateWebhookSub
+// @Summary      订阅已创建（请保存 secret，用于签名校验）
 // @Tags      growth
 // @Router    /api/webhook-subscriptions [post]
 // CreateWebhookSub POST /api/webhook-subscriptions {url, events}
@@ -69,7 +69,7 @@ func (c *GrowthController) CreateWebhookSub(ctx *gin.Context) {
 	response.Success(ctx, sub, "订阅已创建（请保存 secret，用于签名校验）")
 }
 
-// [AUTO] DeleteWebhookSub
+// @Summary      已删除
 // @Tags      growth
 // @Router    /api/webhook-subscriptions/{id} [delete]
 // DeleteWebhookSub DELETE /api/webhook-subscriptions/:id
@@ -84,7 +84,7 @@ func (c *GrowthController) DeleteWebhookSub(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"deleted": true}, "已删除")
 }
 
-// [AUTO] SetCustomAttributes
+// @Summary      自定义属性已更新
 // @Tags      growth
 // @Router    /api/customers/{id}/custom-attributes [put]
 // SetCustomAttributes PUT /api/customers/:id/custom-attributes {attrs}
@@ -128,7 +128,7 @@ func (c *GrowthController) CreateSavedView(ctx *gin.Context) {
 	response.Success(ctx, v, "视图已保存")
 }
 
-// [AUTO] ListSavedViews
+// @Summary      查询已保存的分析视图（按路由）
 // @Tags      growth
 // @Router    /api/saved-views [get]
 // ListSavedViews GET /api/saved-views?route=
@@ -164,7 +164,7 @@ func (c *GrowthController) DeleteSavedView(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"deleted": true}, "视图已删除")
 }
 
-// [AUTO] CreateReportSub
+// @Summary      订阅成功
 // @Tags      growth
 // @Router    /api/report-subscriptions [post]
 // CreateReportSub POST /api/report-subscriptions {email, schedule}
@@ -184,7 +184,7 @@ func (c *GrowthController) CreateReportSub(ctx *gin.Context) {
 	response.Success(ctx, sub, "订阅成功")
 }
 
-// [AUTO] ListReportSubs
+// @Summary      查询报表订阅列表
 // @Tags      growth
 // @Router    /api/report-subscriptions [get]
 // ListReportSubs GET /api/report-subscriptions
@@ -196,7 +196,7 @@ func (c *GrowthController) ListReportSubs(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": list, "total": len(list)}, "ok")
 }
 
-// [AUTO] DeleteReportSub
+// @Summary      已退订
 // @Tags      growth
 // @Router    /api/report-subscriptions/{id} [delete]
 // DeleteReportSub DELETE /api/report-subscriptions/:id
@@ -211,7 +211,7 @@ func (c *GrowthController) DeleteReportSub(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"deleted": true}, "已退订")
 }
 
-// [AUTO] SendReportsNow
+// @Summary      报表已发送
 // @Tags      growth
 // @Router    /api/report-subscriptions/send-now [post]
 // SendReportsNow POST /api/report-subscriptions/send-now（手动触发一次）
@@ -223,7 +223,7 @@ func (c *GrowthController) SendReportsNow(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"sent": sent}, "报表已发送")
 }
 
-// [AUTO] Transcript
+// @Summary      导出会话转写文本（txt/csv 附件下载）
 // @Tags      growth
 // @Router    /api/customer-sessions/{id}/transcript [get]
 // Transcript GET /api/customer-sessions/:id/transcript?format=txt|csv
@@ -241,7 +241,7 @@ func (c *GrowthController) Transcript(ctx *gin.Context) {
 	ctx.Data(http.StatusOK, contentType+"; charset=utf-8", []byte(body))
 }
 
-// [AUTO] AIPerformance
+// @Summary      AI 性能分析（按天窗口）
 // @Tags      growth
 // @Router    /api/analytics/ai-performance [get]
 // AIPerformance GET /api/analytics/ai-performance?days=7

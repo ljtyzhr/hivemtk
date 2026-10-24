@@ -18,7 +18,7 @@ func NewSalesCockpitController() *SalesCockpitController {
 	return &SalesCockpitController{svc: service.NewSalesCockpitService()}
 }
 
-// [AUTO] GetCockpit
+// @Summary      获取销售驾驶舱数据
 // @Tags      sales-cockpit
 // @Router    /api/ai/sales-cockpit [get]
 // GetCockpit GET /api/ai/sales-cockpit

@@ -18,7 +18,7 @@ func NewKeywordMiningController(svc *service.KeywordMiningService) *KeywordMinin
 	return &KeywordMiningController{svc: svc}
 }
 
-// [AUTO] CrawlSuggest
+// @Summary      下拉词落库失败
 // @Tags      keyword-mining
 // @Router    /api/geo/keyword-mining/crawl-suggest [post]
 // CrawlSuggest POST /geo/keyword-mining/crawl-suggest
@@ -48,7 +48,7 @@ func (c *KeywordMiningController) CrawlSuggest(ctx *gin.Context) {
 	}, "ok")
 }
 
-// [AUTO] CombineLongtail
+// @Summary      长尾词落库失败
 // @Tags      keyword-mining
 // @Router    /api/geo/keyword-mining/longtail [post]
 // CombineLongtail POST /geo/keyword-mining/longtail
@@ -85,7 +85,7 @@ func (c *KeywordMiningController) CombineLongtail(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"count": len(results), "saved": saved, "keywords": results}, "ok")
 }
 
-// [AUTO] BuildFunnel
+// @Summary      构建关键词挖掘漏斗
 // @Tags      keyword-mining
 // @Router    /api/geo/keyword-mining/funnel [get]
 // BuildFunnel GET /geo/keyword-mining/funnel
@@ -98,7 +98,7 @@ func (c *KeywordMiningController) BuildFunnel(ctx *gin.Context) {
 	response.Success(ctx, f, "ok")
 }
 
-// [AUTO] TriggerPipeline
+// @Summary      管线上一轮仍在运行，已跳过
 // @Tags      keyword-mining
 // @Router    /api/geo/keyword-mining/pipeline [post]
 // TriggerPipeline POST /geo/keyword-mining/pipeline

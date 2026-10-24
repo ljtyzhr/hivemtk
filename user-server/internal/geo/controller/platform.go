@@ -20,7 +20,7 @@ func NewPlatformController(svc *service.PlatformService) *PlatformController {
 	return &PlatformController{svc: svc}
 }
 
-// [AUTO] ListPlatforms
+// @Summary      获取平台列表成功
 // @Tags      platform
 // @Router    /api/geo/platform/platforms [get]
 // ListPlatforms 获取支持的平台列表
@@ -29,7 +29,7 @@ func (c *PlatformController) ListPlatforms(ctx *gin.Context) {
 	response.Success(ctx, c.svc.ListPlatforms(ctx.Request.Context()), "获取平台列表成功")
 }
 
-// [AUTO] ListAccounts
+// @Summary      平台账号列表
 // @Tags      platform
 // @Router    /api/geo/platform/accounts [get]
 // ListAccounts 平台账号列表
@@ -45,7 +45,7 @@ func (c *PlatformController) ListAccounts(ctx *gin.Context) {
 	response.SuccessWithPage(ctx, list, int64(page), int64(limit), total)
 }
 
-// [AUTO] SaveAccount
+// @Summary      保存账号成功
 // @Tags      platform
 // @Router    /api/geo/platform/accounts [post]
 // SaveAccount 新增平台账号
@@ -63,7 +63,7 @@ func (c *PlatformController) SaveAccount(ctx *gin.Context) {
 	response.Success(ctx, account, "保存账号成功")
 }
 
-// [AUTO] DeleteAccount
+// @Summary      删除账号成功
 // @Tags      platform
 // @Router    /api/geo/platform/accounts/{id} [delete]
 // DeleteAccount 删除平台账号
@@ -76,7 +76,7 @@ func (c *PlatformController) DeleteAccount(ctx *gin.Context) {
 	response.Success(ctx, nil, "删除账号成功")
 }
 
-// [AUTO] Publish
+// @Summary      发布请求已处理
 // @Tags      platform
 // @Router    /api/geo/platform/publish [post]
 // Publish 发布文章到平台
@@ -94,7 +94,7 @@ func (c *PlatformController) Publish(ctx *gin.Context) {
 	response.Success(ctx, result, "发布请求已处理")
 }
 
-// [AUTO] ListPublishRecords
+// @Summary      发布记录列表
 // @Tags      platform
 // @Router    /api/geo/platform/records [get]
 // ListPublishRecords 发布记录列表

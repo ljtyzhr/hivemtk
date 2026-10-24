@@ -27,7 +27,7 @@ func NewChatChannelController(svc *service.ChatChannelService) *ChatChannelContr
 	return &ChatChannelController{svc: svc}
 }
 
-// [AUTO] List
+// @Summary      列出渠道
 // @Tags      chat-channel
 // @Router    /api/chat-channels [get]
 // List 列出渠道
@@ -51,7 +51,7 @@ func (ctrl *ChatChannelController) List(c *gin.Context) {
 	response.SuccessWithPage(c, list, int64(page), int64(pageSize), total)
 }
 
-// [AUTO] Get
+// @Summary      查询单个渠道
 // @Tags      chat-channel
 // @Router    /api/chat-channels/{channel_id} [get]
 // Get 查询单个渠道
@@ -66,7 +66,7 @@ func (ctrl *ChatChannelController) Get(c *gin.Context) {
 	response.Success(c, channel, "ok")
 }
 
-// [AUTO] Create
+// @Summary      渠道已创建
 // @Tags      chat-channel
 // @Router    /api/chat-channels [post]
 // Create 创建渠道
@@ -93,7 +93,7 @@ func (ctrl *ChatChannelController) Create(c *gin.Context) {
 	response.Success(c, result, "渠道已创建")
 }
 
-// [AUTO] Update
+// @Summary      已更新
 // @Tags      chat-channel
 // @Router    /api/chat-channels/{channel_id} [put]
 // Update 更新渠道
@@ -113,7 +113,7 @@ func (ctrl *ChatChannelController) Update(c *gin.Context) {
 	response.Success(c, channel, "已更新")
 }
 
-// [AUTO] Delete
+// @Summary      已禁用
 // @Tags      chat-channel
 // @Router    /api/chat-channels/{channel_id} [delete]
 // Delete 禁用渠道（软删除）
@@ -127,7 +127,7 @@ func (ctrl *ChatChannelController) Delete(c *gin.Context) {
 	response.Success(c, nil, "已禁用")
 }
 
-// [AUTO] RotateAppKey
+// @Summary      AppKey 已轮换
 // @Tags      chat-channel
 // @Router    /api/chat-channels/{channel_id}/rotate-key [post]
 // RotateAppKey 轮换 AppKey
@@ -142,7 +142,7 @@ func (ctrl *ChatChannelController) RotateAppKey(c *gin.Context) {
 	response.Success(c, gin.H{"app_key": newKey}, "AppKey 已轮换")
 }
 
-// [AUTO] ResetAppSecret
+// @Summary      AppSecret 已重置（仅返回一次）
 // @Tags      chat-channel
 // @Router    /api/chat-channels/{channel_id}/reset-secret [post]
 // ResetAppSecret 重置 AppSecret

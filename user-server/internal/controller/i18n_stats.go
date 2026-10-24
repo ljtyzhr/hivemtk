@@ -49,7 +49,7 @@ func parseDays(c *gin.Context, def int) int {
 	return n
 }
 
-// [AUTO] GetStats
+// @Summary      i18n 翻译统计总览
 // @Tags      i18n-stats
 // @Router    /api/i18n/stats [get]
 // GetStats 总览统计（看板首页）
@@ -64,7 +64,7 @@ func (ctrl *I18nStatsController) GetStats(c *gin.Context) {
 	response.Success(c, overview, "获取成功")
 }
 
-// [AUTO] GetLangDistribution
+// @Summary      语言分布
 // @Tags      i18n-stats
 // @Router    /api/i18n/stats/lang-dist [get]
 // GetLangDistribution 语言分布
@@ -79,7 +79,7 @@ func (ctrl *I18nStatsController) GetLangDistribution(c *gin.Context) {
 	response.SuccessWithList(c, rows, int64(len(rows)))
 }
 
-// [AUTO] GetCacheHitRate
+// @Summary      i18n 缓存命中率统计
 // @Tags      i18n-stats
 // @Router    /api/i18n/stats/cache [get]
 // GetCacheHitRate 缓存命中率
@@ -97,7 +97,7 @@ func (ctrl *I18nStatsController) GetCacheHitRate(c *gin.Context) {
 	}, "获取成功")
 }
 
-// [AUTO] GetGlossaryCoverage
+// @Summary      术语覆盖率
 // @Tags      i18n-stats
 // @Router    /api/i18n/stats/glossary [get]
 // GetGlossaryCoverage 术语覆盖率
@@ -111,7 +111,7 @@ func (ctrl *I18nStatsController) GetGlossaryCoverage(c *gin.Context) {
 	response.SuccessWithList(c, rows, int64(len(rows)))
 }
 
-// [AUTO] GetQualityTrend
+// @Summary      质量趋势
 // @Tags      i18n-stats
 // @Router    /api/i18n/stats/quality [get]
 // GetQualityTrend 质量趋势
@@ -126,7 +126,7 @@ func (ctrl *I18nStatsController) GetQualityTrend(c *gin.Context) {
 	response.SuccessWithList(c, rows, int64(len(rows)))
 }
 
-// [AUTO] GetLatencyStats
+// @Summary      延迟统计
 // @Tags      i18n-stats
 // @Router    /api/i18n/stats/latency [get]
 // GetLatencyStats 延迟统计
@@ -141,7 +141,7 @@ func (ctrl *I18nStatsController) GetLatencyStats(c *gin.Context) {
 	response.SuccessWithList(c, rows, int64(len(rows)))
 }
 
-// [AUTO] GetFallbackRate
+// @Summary      i18n 回退率统计
 // @Tags      i18n-stats
 // @Router    /api/i18n/stats/fallback [get]
 // GetFallbackRate 降级率

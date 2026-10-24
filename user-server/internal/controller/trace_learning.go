@@ -20,7 +20,7 @@ func NewTraceLearningController(svc *trace_learning.Service) *TraceLearningContr
 	return &TraceLearningController{svc: svc}
 }
 
-// [AUTO] TriggerEval
+// @Summary      手动触发 trace 自学习评估（调知识库权重）
 // @Tags      trace-learning
 // @Router    /api/monitor/trace-eval/trigger [post]
 // TriggerEval POST /api/monitor/trace-eval/trigger?hours=0&limit=20&dry=false
@@ -43,7 +43,7 @@ func (c *TraceLearningController) TriggerEval(ctx *gin.Context) {
 	response.Success(ctx, resp, "ok")
 }
 
-// [AUTO] EvalLogs
+// @Summary      查询自学习打分审计记录
 // @Tags      trace-learning
 // @Router    /api/monitor/trace-eval/logs [get]
 // EvalLogs GET /api/monitor/trace-eval/logs?limit=50
@@ -58,7 +58,7 @@ func (c *TraceLearningController) EvalLogs(ctx *gin.Context) {
 	response.Success(ctx, logs, "ok")
 }
 
-// [AUTO] KnowledgeWeights
+// @Summary      查询知识库权重排行（自学习影响）
 // @Tags      trace-learning
 // @Router    /api/monitor/knowledge-weights [get]
 // KnowledgeWeights GET /api/monitor/knowledge-weights?limit=50

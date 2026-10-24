@@ -57,6 +57,20 @@ const minE2EInventoryCoverage = 738
 // 时读数更高，以干净提交树为准）。
 const minLiveAnnotations = 1227
 
+// maxAutoPlaceholderSummaries 是「[AUTO] 占位 Summary」的棘轮上限（E-2 收尾，2026-10-24）。
+// 只许降不许升：1079 条占位已由 scripts/humanize_swagger_summaries.py + 人工全部人工化，
+// 基线归零。新增 handler 再落「// [AUTO] FuncName」这种机器占位会在这里开红——
+// Summary 必须手写成这个接口做什么（"创建用户""查询知识库列表"），不许再靠
+// backfill 脚本生成的占位凑形状；形状交给 @Router/@Tags，文案交给写这条接口的人。
+// 注：这条门只数占位标记行，与上面的 minLiveAnnotations 互补——那个守"注解条数不缩水"，
+// 这个守"缩不掉的注解不许是空壳文案"。
+const maxAutoPlaceholderSummaries = 0
+
+// autoPlaceholderRe 匹配 backfill 批次生成的占位 Summary 行（「// [AUTO] FuncName」）。
+// 用拼接写法还原标记：理由同 routerDocToken——本文件自己的源码里不能出现完整的
+// 占位形状，否则守卫自己就被自己数进去。
+var autoPlaceholderRe = regexp.MustCompile(`^// \[` + "AUTO" + `\] \w+$`)
+
 // minLiveAPIRoutes 是运行时路由表里 /api/ 路由条数的棘轮下界（E-2 同批，2026-10-23 实测 1770）。
 //
 // 2026-10-24 上调 1773 → 1792：E-8 批次新增 GEO 端点
@@ -279,6 +293,53 @@ func handlerNames(ginName, owner string) bool {
 		return strings.Contains(ginName, owner)
 	}
 	return strings.Contains(ginName, "."+owner) && !strings.Contains(ginName, "(*")
+}
+
+// TestNoAutoPlaceholderSummaries 断言接口注解里不再有「[AUTO]」机器占位 Summary（E-2 收尾棘轮）。
+//
+// 判据：扫描非测试 .go 源码里的 doc 注释行，形如「// [AUTO] FuncName」的占位行数必须为 0。
+// 这条门守的是文档文案的诚实性：占位 Summary 生成出来的 swagger 摘要等于函数名复读，
+// 对读文档的人零信息量；backfill 批次（minLiveAnnotations 注释里那 1227 条）当时用占位
+// 是形状先行的过渡态，收尾批（scripts/humanize_swagger_summaries.py + 人工）已全部人工化。
+// 上限是 0：新增 handler 必须手写 @Summary（说明这个接口做什么），不许再落占位。
+// 扫描面与 collectAnnotations 同根（annotationScanRoot），门的面不小于它在守的面。
+func TestNoAutoPlaceholderSummaries(t *testing.T) {
+	var hits []string
+	fset := token.NewFileSet()
+	walkErr := filepath.Walk(annotationScanRoot, func(path string, info os.FileInfo, err error) error {
+		if err != nil {
+			return err
+		}
+		if info.IsDir() {
+			if skipAnnotationDirs[info.Name()] {
+				return filepath.SkipDir
+			}
+			return nil
+		}
+		if !strings.HasSuffix(path, ".go") || strings.HasSuffix(path, "_test.go") {
+			return nil
+		}
+		file, perr := parser.ParseFile(fset, path, nil, parser.ParseComments)
+		if perr != nil {
+			return fmt.Errorf("解析 %s 失败：%w", path, perr)
+		}
+		for _, cg := range file.Comments {
+			for _, cm := range cg.List {
+				if autoPlaceholderRe.MatchString(strings.TrimRight(cm.Text, " \t")) {
+					hits = append(hits, fmt.Sprintf("%s:%d  %s", path, fset.Position(cm.Slash).Line, cm.Text))
+				}
+			}
+		}
+		return nil
+	})
+	if walkErr != nil {
+		t.Fatalf("扫描占位 Summary 失败：%v", walkErr)
+	}
+	if len(hits) > maxAutoPlaceholderSummaries {
+		sort.Strings(hits)
+		t.Errorf("接口注解里还有 %d 条 [AUTO] 占位 Summary（上限 %d）：新增 handler 必须手写 @Summary，"+
+			"不许再落 [AUTO] 占位：\n  %s", len(hits), maxAutoPlaceholderSummaries, strings.Join(hits, "\n  "))
+	}
 }
 
 // pageTemplateDirs 是"服务端自己生成出去的那张页面"这一面的位置。

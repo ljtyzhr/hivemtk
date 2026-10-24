@@ -52,7 +52,7 @@ func (c *WechatController) RegisterWebhookRoutes(r *gin.RouterGroup) {
 	r.POST("/webhook/wechat/:account_id", c.ReceiveMessage)
 }
 
-// [AUTO] ListAccounts
+// @Summary      查询微信账号列表
 // @Tags      wechat
 // @Router    /api/wechat/accounts [get]
 // ListAccounts 列出公众号账号
@@ -74,7 +74,7 @@ type createWechatAccountReq struct {
 	AgentID        string `json:"agent_id,omitempty"`
 }
 
-// [AUTO] CreateAccount
+// @Summary      创建微信账号
 // @Tags      wechat
 // @Router    /api/wechat/accounts [post]
 func (c *WechatController) CreateAccount(ctx *gin.Context) {
@@ -100,7 +100,7 @@ func (c *WechatController) CreateAccount(ctx *gin.Context) {
 	response.Success(ctx, nil, "创建成功")
 }
 
-// [AUTO] UpdateAccount
+// @Summary      更新微信账号
 // @Tags      wechat
 // @Router    /api/wechat/accounts/{id} [put]
 // UpdateAccount 更新公众号账号
@@ -134,7 +134,7 @@ func (c *WechatController) UpdateAccount(ctx *gin.Context) {
 	response.Success(ctx, nil, "更新成功")
 }
 
-// [AUTO] DeleteAccount
+// @Summary      删除微信账号
 // @Tags      wechat
 // @Router    /api/wechat/accounts/{id} [delete]
 // DeleteAccount 删除公众号账号
@@ -158,7 +158,7 @@ type sendWechatMsgReq struct {
 	Content   string `json:"content" binding:"required"`
 }
 
-// [AUTO] SendMessage
+// @Summary      发送微信消息
 // @Tags      wechat
 // @Router    /api/wechat/send [post]
 func (c *WechatController) SendMessage(ctx *gin.Context) {
@@ -212,7 +212,7 @@ func (c *WechatController) bindWebhookTenant(ctx *gin.Context, accountID uint) (
 	return bound, true
 }
 
-// [AUTO] VerifyURL
+// @Summary      微信服务器配置验证
 // @Tags      wechat
 // @Router    /api/webhook/wechat/{account_id} [get]
 // VerifyURL 微信服务器配置验证
@@ -253,7 +253,7 @@ func (c *WechatController) VerifyURL(ctx *gin.Context) {
 	ctx.String(http.StatusForbidden, "signature verification failed")
 }
 
-// [AUTO] ReceiveMessage
+// @Summary      接收微信消息
 // @Tags      wechat
 // @Router    /api/webhook/wechat/{account_id} [post]
 // ReceiveMessage 接收微信消息

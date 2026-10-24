@@ -49,7 +49,7 @@ func moduleMarketFail(ctx *gin.Context, err error) {
 	}
 }
 
-// [AUTO] List
+// @Summary      分页查询模块市场列表（平台未连接返回空列表）
 // @Tags      module-market
 // @Router    /api/module-market/list [get]
 // List GET /api/module-market/list
@@ -89,7 +89,7 @@ func (c *ModuleMarketController) List(ctx *gin.Context) {
 	}, "ok")
 }
 
-// [AUTO] Detail
+// @Summary      模块不存在
 // @Tags      module-market
 // @Router    /api/module-market/detail/{key} [get]
 // Detail GET /api/module-market/detail/:key
@@ -113,7 +113,7 @@ func withBuyerIP(ctx *gin.Context) context.Context {
 	return platform.WithClientIP(ctx.Request.Context(), ctx.ClientIP())
 }
 
-// [AUTO] CreateOrder
+// @Summary      订单已提交，请完成支付
 // @Tags      module-market
 // @Router    /api/module-market/order [post]
 // CreateOrder POST /api/module-market/order
@@ -131,7 +131,7 @@ func (c *ModuleMarketController) CreateOrder(ctx *gin.Context) {
 	response.Success(ctx, res, "订单已提交，请完成支付")
 }
 
-// [AUTO] Orders
+// @Summary      分页查询模块购买订单列表
 // @Tags      module-market
 // @Router    /api/module-market/orders [get]
 // Orders GET /api/module-market/orders
@@ -146,7 +146,7 @@ func (c *ModuleMarketController) Orders(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": list, "total": total}, "ok")
 }
 
-// [AUTO] OrderDetail
+// @Summary      按订单号查询订单详情
 // @Tags      module-market
 // @Router    /api/module-market/orders/{order_no} [get]
 // OrderDetail GET /api/module-market/orders/:order_no
@@ -159,7 +159,7 @@ func (c *ModuleMarketController) OrderDetail(ctx *gin.Context) {
 	response.Success(ctx, o, "ok")
 }
 
-// [AUTO] PayStatus
+// @Summary      查询订单支付状态（支付后前端轮询）
 // @Tags      module-market
 // @Router    /api/module-market/orders/{order_no}/pay-status [get]
 // PayStatus GET /api/module-market/orders/:order_no/pay-status
@@ -179,7 +179,7 @@ func (c *ModuleMarketController) PayStatus(ctx *gin.Context) {
 	}, "ok")
 }
 
-// [AUTO] PayOrder
+// @Summary      在线支付暂不可用，请稍后重试或联系平台运营
 // @Tags      module-market
 // @Router    /api/module-market/orders/{order_no}/pay [post]
 // PayOrder POST /api/module-market/orders/:order_no/pay
@@ -201,7 +201,7 @@ func (c *ModuleMarketController) PayOrder(ctx *gin.Context) {
 	response.Success(ctx, res, "ok")
 }
 
-// [AUTO] MyModules
+// @Summary      查询我方已购/可用模块清单
 // @Tags      module-market
 // @Router    /api/modules/my [get]
 // MyModules GET /api/modules/my
@@ -220,7 +220,7 @@ func (c *ModuleMarketController) MyModules(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": list, "total": len(list), "owned": owned}, "ok")
 }
 
-// [AUTO] Sync
+// @Summary      手动触发模块下发同步
 // @Tags      module-market
 // @Router    /api/modules/sync [post]
 // Sync POST /api/modules/sync
@@ -236,7 +236,7 @@ func (c *ModuleMarketController) Sync(ctx *gin.Context) {
 	response.Success(ctx, res, res.Message)
 }
 
-// [AUTO] SyncLogs
+// @Summary      查询模块同步日志
 // @Tags      module-market
 // @Router    /api/modules/sync-logs [get]
 // SyncLogs GET /api/modules/sync-logs
@@ -250,7 +250,7 @@ func (c *ModuleMarketController) SyncLogs(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": logs, "total": len(logs)}, "ok")
 }
 
-// [AUTO] UncoveredRoutes
+// @Summary      查询未挂模块覆盖的接口路径（补漏发现手段）
 // @Tags      module-market
 // @Router    /api/modules/uncovered-routes [get]
 // UncoveredRoutes GET /api/modules/uncovered-routes

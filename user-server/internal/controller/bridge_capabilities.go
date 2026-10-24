@@ -27,7 +27,7 @@ func NewBridgeCapabilitiesController() *BridgeCapabilitiesController {
 	return &BridgeCapabilitiesController{}
 }
 
-// [AUTO] GetCapabilities
+// @Summary      查询桥接通道能力清单（向后兼容形状）
 // @Tags      bridge-capabilities
 // @Router    /api/bridge/capabilities [get]
 // GetCapabilities GET /api/bridge/capabilities。

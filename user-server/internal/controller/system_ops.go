@@ -47,7 +47,7 @@ func currentUserID(ctx *gin.Context) uint {
 	return 0
 }
 
-// [AUTO] RestartServer
+// @Summary      重启指令已下发，服务即将重启
 // @Tags      system-ops
 // @Router    /api/system/restart [post]
 // RestartServer 系统热重启（高危，仅限 admin）。
@@ -64,7 +64,7 @@ func (c *SystemOpsController) RestartServer(ctx *gin.Context) {
 	}
 }
 
-// [AUTO] GetSystemLogs
+// @Summary      查询系统日志
 // @Tags      system-ops
 // @Router    /api/system/logs [get]
 // GetSystemLogs 查看日志文件内容。file 参数缺省时读取默认日志。
@@ -101,7 +101,7 @@ func defaultLogPath() string {
 	return abs
 }
 
-// [AUTO] GetSystemStats
+// @Summary      查询系统运行统计
 // @Tags      system-ops
 // @Router    /api/system/stats [get]
 // GetSystemStats 获取系统统计信息
@@ -115,7 +115,7 @@ func (c *SystemOpsController) GetSystemStats(ctx *gin.Context) {
 	response.Success(ctx, stats, "获取成功")
 }
 
-// [AUTO] GetBackupList
+// @Summary      查询系统备份列表
 // @Tags      system-ops
 // @Router    /api/system/backup [get]
 // GetBackupList 获取备份列表
@@ -137,7 +137,7 @@ func (c *SystemOpsController) GetBackupList(ctx *gin.Context) {
 	}, "获取成功")
 }
 
-// [AUTO] CreateBackup
+// @Summary      创建备份任务成功
 // @Tags      system-ops
 // @Router    /api/system/backup [post]
 // CreateBackup 创建备份
@@ -159,7 +159,7 @@ func (c *SystemOpsController) CreateBackup(ctx *gin.Context) {
 	response.Success(ctx, backup, "创建备份任务成功")
 }
 
-// [AUTO] RestoreBackup
+// @Summary      创建恢复任务成功
 // @Tags      system-ops
 // @Router    /api/system/restore [post]
 // RestoreBackup 恢复备份

@@ -17,7 +17,7 @@ func NewSystemMonitorController() *SystemMonitorController {
 	return &SystemMonitorController{svc: service.NewSystemMonitorService()}
 }
 
-// [AUTO] GetMetrics
+// @Summary      查询系统运行指标
 // @Tags      system-monitor
 // @Router    /api/system-monitor/metrics [get]
 func (c *SystemMonitorController) GetMetrics(ctx *gin.Context) {
@@ -29,7 +29,7 @@ func (c *SystemMonitorController) GetMetrics(ctx *gin.Context) {
 	response.Success(ctx, stats, "ok")
 }
 
-// [AUTO] GetHealth
+// @Summary      查询系统健康详情
 // @Tags      system-monitor
 // @Router    /api/system-monitor/health [get]
 func (c *SystemMonitorController) GetHealth(ctx *gin.Context) {

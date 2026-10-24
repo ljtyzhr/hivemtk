@@ -23,7 +23,7 @@ func waMessageContent(msgType string, body string) string {
 }
 
 func (s *WebhookService) dispatchWhatsApp(ctx context.Context, accountID string, p *ParsedPayload, raw []byte) (*model.MessageHub, error) {
-	if s.lazyDB() == nil {
+	if !s.connected() {
 		return nil, nil
 	}
 	s.ensureReposFromDB(ctx)
@@ -218,12 +218,12 @@ func (s *WebhookService) persistWhatsAppMediaAsync(ctx context.Context, accountI
 
 // waCloudSecrets 取 WA Cloud 账号 token（复用 WhatsAppCloudService）。
 func (s *WebhookService) waCloudSecrets(ctx context.Context, accountID string) (token, appSecret string, err error) {
-	svc := NewWhatsAppCloudService(s.lazyDB())
+	svc := s.integrations.waCloud()
 	return svc.GetSecretsByAccountID(ctx, accountID)
 }
 
 // waCloudAccount 取 WA Cloud 账号（需要 PhoneNumberID 拼下载 URL）。
 func (s *WebhookService) waCloudAccount(ctx context.Context, id uint64) (*model.WhatsAppCloudAccount, error) {
-	svc := NewWhatsAppCloudService(s.lazyDB())
+	svc := s.integrations.waCloud()
 	return svc.GetAccount(ctx, uint(id))
 }

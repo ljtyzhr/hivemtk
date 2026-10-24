@@ -28,7 +28,7 @@ import (
 // 也就是说：wallet/plans 是"开通后才看账"的门，而"开通"这扇门从不被 llm-cloud
 // 自己锁住 —— 买完就能看，不买就看到前端空态页（余额 0/无套餐）+4301 引导。
 
-// [AUTO] PaymentGuide
+// @Summary      获取模块付费引导文案（平台配置）
 // @Tags      module-market
 // @Router    /api/module-market/payment-guide [get]
 // PaymentGuide GET /api/module-market/payment-guide
@@ -46,7 +46,7 @@ func (c *ModuleMarketController) PaymentGuide(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"payment_guide": guide}, "ok")
 }
 
-// [AUTO] RegulatoryNotice
+// @Summary      获取开户注册监管告知与协议版本
 // @Tags      module-market
 // @Router    /api/tenant/regulatory-notice [get]
 // RegulatoryNotice GET /api/tenant/regulatory-notice
@@ -63,7 +63,7 @@ func (c *ModuleMarketController) RegulatoryNotice(ctx *gin.Context) {
 	}, "ok")
 }
 
-// [AUTO] LLMWallet
+// @Summary      平台未连接，无法查询 LLM 余额
 // @Tags      module-market
 // @Router    /api/llm/wallet [get]
 // LLMWallet GET /api/llm/wallet
@@ -77,7 +77,7 @@ func (c *ModuleMarketController) LLMWallet(ctx *gin.Context) {
 	response.Success(ctx, w, "ok")
 }
 
-// [AUTO] LLMWalletTxns
+// @Summary      平台未连接，无法查询 LLM 流水
 // @Tags      module-market
 // @Router    /api/llm/wallet/txns [get]
 // LLMWalletTxns GET /api/llm/wallet/txns
@@ -92,7 +92,7 @@ func (c *ModuleMarketController) LLMWalletTxns(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": list, "total": total}, "ok")
 }
 
-// [AUTO] LLMPlans
+// @Summary      平台未连接，无法查看 LLM 套餐
 // @Tags      module-market
 // @Router    /api/llm/plans [get]
 // LLMPlans GET /api/llm/plans
@@ -106,7 +106,7 @@ func (c *ModuleMarketController) LLMPlans(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": list, "total": len(list)}, "ok")
 }
 
-// [AUTO] CreateLLMOrder
+// @Summary      订单已提交，请完成支付；支付成功后余额自动入账
 // @Tags      module-market
 // @Router    /api/llm/recharge [post]
 // CreateLLMOrder POST /api/llm/recharge

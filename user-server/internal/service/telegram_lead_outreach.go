@@ -58,8 +58,9 @@ func (s *TelegramDMOutreachService) TriggerDMOutreach(ctx context.Context, accou
 	}
 
 	template := s.buildDMWelcomeTemplate(groupTitle, originalText)
-	if s.svc.tgIntegration == nil && s.svc.lazyDB() != nil {
-		s.svc.tgIntegration = NewTelegramIntegrationService(s.svc.lazyDB())
+	// E-4 下沉：下游构造走 integrations 工厂（判据从"句柄非 nil"改为"装配了工厂"）。
+	if s.svc.tgIntegration == nil && s.svc.integrations.tg != nil {
+		s.svc.tgIntegration = s.svc.integrations.tg()
 	}
 	if s.svc.tgIntegration == nil {
 		logger.Warnf("[TG-DM-Outreach] tgIntegration 未初始化，跳过私信发送 account=%s user=%d group=%s",

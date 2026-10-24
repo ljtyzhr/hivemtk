@@ -45,7 +45,7 @@ var transparent1x1PNG = []byte{
 	0x42, 0x60, 0x82,
 }
 
-// [AUTO] TrackingPixel
+// @Summary      邮件打开追踪像素（1x1 PNG，记开信）
 // @Tags      email-tracking
 // @Router    /api/email/track/open/{token} [get]
 // TrackingPixel GET /api/email/track/open/{token}.png
@@ -69,7 +69,7 @@ func (c *EmailTrackingController) TrackingPixel(ctx *gin.Context) {
 	ctx.Data(http.StatusOK, "image/png", transparent1x1PNG)
 }
 
-// [AUTO] ClickRedirect
+// @Summary      缺少 token 参数
 // @Tags      email-tracking
 // @Router    /api/email/track/click/{token} [get]
 // ClickRedirect GET /api/email/track/click/{token}
@@ -106,7 +106,7 @@ func (c *EmailTrackingController) ClickRedirect(ctx *gin.Context) {
 	ctx.Redirect(http.StatusFound, target)
 }
 
-// [AUTO] GetJobMetrics
+// @Summary      缺少 job_id
 // @Tags      email-tracking
 // @Router    /api/email/track/jobs/{id}/metrics [get]
 // GetJobMetrics GET /api/email/track/jobs/:id/metrics
@@ -126,7 +126,7 @@ func (c *EmailTrackingController) GetJobMetrics(ctx *gin.Context) {
 	response.Success(ctx, metric, "success")
 }
 
-// [AUTO] ListJobEvents
+// @Summary      缺少 job_id
 // @Tags      email-tracking
 // @Router    /api/email/track/jobs/{id}/events [get]
 // ListJobEvents GET /api/email/track/jobs/:id/events
@@ -155,7 +155,7 @@ type GetRangeMetricsRequest struct {
 	End   string `form:"end" binding:"required"`
 }
 
-// [AUTO] GetRangeMetrics
+// @Summary      参数错误
 // @Tags      email-tracking
 // @Router    /api/email/track/metrics [get]
 // GetRangeMetrics GET /api/email/track/metrics?start=...&end=...

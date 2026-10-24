@@ -29,7 +29,7 @@ func (c *BridgeExtensionController) RegisterRoutes(auth *gin.RouterGroup) {
 	auth.GET("/bridge/extension/package", c.Package)
 }
 
-// [AUTO] Package
+// @Summary      当前部署未接入平台，或平台尚未上架桥接扩展包
 // @Tags      bridge-extension
 // @Router    /api/bridge/extension/package [get]
 // Package GET /api/bridge/extension/package

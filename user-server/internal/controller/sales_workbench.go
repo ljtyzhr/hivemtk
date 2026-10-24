@@ -24,7 +24,7 @@ func NewSalesWorkbenchController(svc *service.SalesWorkbenchService) *SalesWorkb
 	return &SalesWorkbenchController{svc: svc}
 }
 
-// [AUTO] GetOverview
+// @Summary      工作台服务未装配
 // @Tags      sales-workbench
 // @Router    /api/sales-workbench/overview [get]
 // GetOverview GET /api/sales-workbench/overview?sales_id=xxx
@@ -66,7 +66,7 @@ func windowDays(ctx *gin.Context) (int, bool) {
 	return days, true
 }
 
-// [AUTO] GetTeamDashboard
+// @Summary      工作台服务未装配
 // @Tags      sales-workbench
 // @Router    /api/sales-workbench/team-dashboard [get]
 // GetTeamDashboard GET /api/sales-workbench/team-dashboard?days=30
@@ -92,7 +92,7 @@ func (c *SalesWorkbenchController) GetTeamDashboard(ctx *gin.Context) {
 	response.Success(ctx, data, "ok")
 }
 
-// [AUTO] GetChampionProfile
+// @Summary      工作台服务未装配
 // @Tags      sales-workbench
 // @Router    /api/sales-workbench/champion [get]
 // GetChampionProfile GET /api/sales-workbench/champion?days=30
@@ -115,7 +115,7 @@ func (c *SalesWorkbenchController) GetChampionProfile(ctx *gin.Context) {
 	response.Success(ctx, data, "ok")
 }
 
-// [AUTO] GetQuickActions
+// @Summary      工作台服务未装配
 // @Tags      sales-workbench
 // @Router    /api/sales-workbench/quick-actions [get]
 // GetQuickActions GET /api/sales-workbench/quick-actions

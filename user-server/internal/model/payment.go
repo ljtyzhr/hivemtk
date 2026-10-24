@@ -74,6 +74,17 @@ type Payment struct {
 	// （预留索引与预留列同罪，见 bills.status 上那条）。
 	Status string `gorm:"type:varchar(16)" json:"status"`
 
+	// Reason 这笔资金变动的**业务原因**（E-10 部分退款行，2026-10-24）。
+	//
+	// 规划 §4.10 退款行的四格之一："金额、原因、渠道引用、状态"。回款行（confirmed）
+	// 的原因就是"到账"本身，恒空；退款行（refunded）填渠道给的退款原因
+	// （如"仅退款不退货"/"商品退货"），渠道没给则空——空表示"渠道没说"，
+	// 不是"没有原因"。
+	//
+	// varchar(255)：渠道退款原因是有界外部文本，与 paymentChannelRefMaxLen 同一
+	// 判据——不设上界就是让渠道用超长文本占住一行凭据。长度校验在 service 入参侧。
+	Reason string `gorm:"type:varchar(255)" json:"reason,omitempty"`
+
 	// Platform 带来这笔回款的渠道平台（抄回调路径上的 :platform，不采信载荷自述）。
 	//
 	// 凭据不留来路就没法回答渠道方与运营那句"这笔是哪单的钱"。平台名取自**路由参数**：

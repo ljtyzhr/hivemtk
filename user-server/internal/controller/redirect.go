@@ -62,7 +62,7 @@ func NewRedirectController(
 	}
 }
 
-// [AUTO] RedirectShortLink
+// @Summary      重定向短链
 // @Tags      redirect
 // @Router    /api/s/{code} [get]
 // RedirectShortLink 重定向短链

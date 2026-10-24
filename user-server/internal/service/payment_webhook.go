@@ -30,9 +30,14 @@ import (
 // 用接口而不是直接持 *PaymentService 还有一个实际作用：装配失败的环境里
 // SetOrderPaymentSink(nil) 之后这一腿必须**明确报错**而不是静默少记一笔钱，
 // 而"静默少记"正是本处 AC① 之外最贵的一种坏法。
+//
+// E-10（2026-10-24）：加 RecordPartialRefund 一格——status=refunded 的载荷
+// 分流到退款腿（它有独立的幂等键与退款额上限校验）。最小依赖面从"记一笔钱"
+// 扩成"记一笔钱或一笔退款"，仍是两个入口，没有开任何改账单/读账单的口。
 type OrderPaymentSink interface {
 	Available() bool
 	RecordPayment(ctx context.Context, in RecordPaymentInput) (*PaymentReceipt, error)
+	RecordPartialRefund(ctx context.Context, in RecordPartialRefundInput) (*PaymentReceipt, error)
 }
 
 // OrderWebhookResult 一次订单回调的结论（控制器的 data 就是它）。
@@ -52,6 +57,7 @@ type OrderWebhookResult struct {
 // 白名单而不是"认识的就取、不认识的原样忽略"：未知格子说明**渠道在按另一份契约推送**，
 // 而那多半是同一笔钱的另一种写法（比如 bill_amount 与 amount 并存且不相等）。
 // 忽略它 = 按半份契约把钱记进去，而这里记的是钱。
+// reason：退款行四格之一——status=refunded 时渠道给的退款原因。
 var orderWebhookPaymentKeys = map[string]bool{
 	"bill_id":     true,
 	"channel_ref": true,
@@ -59,6 +65,7 @@ var orderWebhookPaymentKeys = map[string]bool{
 	"currency":    true,
 	"paid_at":     true,
 	"status":      true,
+	"reason":      true,
 }
 
 // ParseOrderWebhookPayment 从订单载荷里取那一笔钱。
@@ -86,7 +93,7 @@ func ParseOrderWebhookPayment(body map[string]any, platform, orderID string) (Re
 	for k := range obj {
 		if !orderWebhookPaymentKeys[k] {
 			return RecordPaymentInput{}, true, fmt.Errorf(
-				"%w: payment 里有不认识的字段 %q（认识的只有 bill_id/channel_ref/amount/currency/paid_at/status）", ErrPaymentInputInvalid, k)
+				"%w: payment 里有不认识的字段 %q（认识的只有 bill_id/channel_ref/amount/currency/paid_at/status/reason）", ErrPaymentInputInvalid, k)
 		}
 	}
 
@@ -145,6 +152,24 @@ func ParseOrderWebhookPayment(body map[string]any, platform, orderID string) (Re
 			return RecordPaymentInput{}, true, fmt.Errorf("%w: payment.paid_at 解析不出时间（%T）", ErrPaymentInputInvalid, t)
 		}
 		in.PaidAt = parsed
+	}
+
+	// reason（E-10，2026-10-24）：退款原因。只在 status=refunded 时有业务含义，
+	// 但形状校验对任何状态都做——渠道把 reason 配在 confirmed 载荷里说明
+	// 契约两边各说各话，按半份契约记钱正是白名单要挡的那种坏法。
+	// 非字符串拒而不忽略；超长在此层就拒，不让它走到 service 再炸——
+	// 解析层报的错渠道看得懂，落库层的错没人修。
+	if r, exists := obj["reason"]; exists && r != nil {
+		s, isStr := r.(string)
+		if !isStr {
+			return RecordPaymentInput{}, true, fmt.Errorf("%w: payment.reason 不是字符串（%T）", ErrPaymentInputInvalid, r)
+		}
+		s = strings.TrimSpace(s)
+		if len([]rune(s)) > paymentReasonMaxRunes {
+			return RecordPaymentInput{}, true, fmt.Errorf(
+				"%w: payment.reason 超过 %d 字（渠道按另一份契约推送，截断会伪造渠道陈述）", ErrPaymentInputInvalid, paymentReasonMaxRunes)
+		}
+		in.Reason = s
 	}
 
 	return in, true, nil

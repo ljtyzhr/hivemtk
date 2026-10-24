@@ -75,7 +75,7 @@ func (c *KBReleaseController) RegisterRoutes(router *gin.RouterGroup) {
 // 等于给调用方一个免费的慢查询。
 const kbChangeIDParamMaxLen = 64
 
-// [AUTO] SubmitChange
+// @Summary      提交变更必须带操作者身份（未登录或会话里没有 user id）
 // @Tags      k-b-release
 // @Router    /api/kb-changes [post]
 // SubmitChange POST /api/kb-changes —— 提交一条变更（同时入队一条审批）。
@@ -117,7 +117,7 @@ func (c *KBReleaseController) SubmitChange(ctx *gin.Context) {
 	response.Success(ctx, row, "ok")
 }
 
-// [AUTO] WithdrawChange
+// @Summary      撤回变更必须带操作者身份（未登录或会话里没有 user id）
 // @Tags      k-b-release
 // @Router    /api/kb-changes/{id}/withdraw [post]
 // WithdrawChange POST /api/kb-changes/:id/withdraw —— 发起人撤回一条还没发布的变更。
@@ -147,7 +147,7 @@ func (c *KBReleaseController) WithdrawChange(ctx *gin.Context) {
 	response.Success(ctx, row, "ok")
 }
 
-// [AUTO] ListChanges
+// @Summary      空列表是一句业务结论
 // @Tags      k-b-release
 // @Router    /api/kb-changes [get]
 // ListChanges GET /api/kb-changes
@@ -174,7 +174,7 @@ func (c *KBReleaseController) ListChanges(ctx *gin.Context) {
 	response.SuccessWithList(ctx, list, total)
 }
 
-// [AUTO] GetChange
+// @Summary      读不到
 // @Tags      k-b-release
 // @Router    /api/kb-changes/{id} [get]
 // GetChange GET /api/kb-changes/:id
@@ -200,7 +200,7 @@ func (c *KBReleaseController) GetChange(ctx *gin.Context) {
 	response.Success(ctx, row, "ok")
 }
 
-// [AUTO] ChangeAudit
+// @Summary      查询一条知识库变更的全部审核动作
 // @Tags      k-b-release
 // @Router    /api/kb-changes/{id}/audit [get]
 // ChangeAudit GET /api/kb-changes/:id/audit —— 一条变更的全部动作（AC③ 的读口）
@@ -220,7 +220,7 @@ func (c *KBReleaseController) ChangeAudit(ctx *gin.Context) {
 	response.SuccessWithList(ctx, rows, int64(len(rows)))
 }
 
-// [AUTO] ReleaseAudit
+// @Summary      查询知识库发布指针的全部移动记录
 // @Tags      k-b-release
 // @Router    /api/kb-releases/{product}/audit [get]
 // ReleaseAudit GET /api/kb-releases/:product/audit —— 一个库发布指针的全部移动
@@ -266,7 +266,7 @@ func (c *KBReleaseController) audit(ctx *gin.Context, subjectKey string) ([]mode
 	return rows, true
 }
 
-// [AUTO] ListReleases
+// @Summary      还没有库进发布制
 // @Tags      k-b-release
 // @Router    /api/kb-releases [get]
 // ListReleases GET /api/kb-releases —— 已启用发布制的库
@@ -287,7 +287,7 @@ func (c *KBReleaseController) ListReleases(ctx *gin.Context) {
 	response.Success(ctx, rows, "ok")
 }
 
-// [AUTO] GetRelease
+// @Summary      没有行
 // @Tags      k-b-release
 // @Router    /api/kb-releases/{product} [get]
 // GetRelease GET /api/kb-releases/:product —— 一个库的发布指针
@@ -314,7 +314,7 @@ func (c *KBReleaseController) GetRelease(ctx *gin.Context) {
 	response.Success(ctx, rel, "ok")
 }
 
-// [AUTO] Stats
+// @Summary      知识库发布统计（分条数/在服数/待办数/闸门档位）
 // @Tags      k-b-release
 // @Router    /api/kb-releases/{product}/stats [get]
 // Stats GET /api/kb-releases/:product/stats —— 分条数 / 在服数 / 待办数 / 闸门档位
@@ -335,7 +335,7 @@ func (c *KBReleaseController) Stats(ctx *gin.Context) {
 	response.Success(ctx, stats, "ok")
 }
 
-// [AUTO] Publish
+// @Summary      发布必须带操作者身份（留痕里的 changed_by 是追责依据）
 // @Tags      k-b-release
 // @Router    /api/kb-releases/{product}/publish [post]
 // Publish POST /api/kb-releases/:product/publish —— 把已批准的变更落库并前移指针
@@ -368,7 +368,7 @@ func (c *KBReleaseController) Publish(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"verdicts": verdicts, "result": result}, "ok")
 }
 
-// [AUTO] Rollback
+// @Summary      知识库发布指针回拨一格（不碰语料）
 // @Tags      k-b-release
 // @Router    /api/kb-releases/{product}/rollback [post]
 // Rollback POST /api/kb-releases/:product/rollback —— 生效指针回拨一格（不碰语料）
@@ -376,7 +376,7 @@ func (c *KBReleaseController) Rollback(ctx *gin.Context) {
 	c.movePointer(ctx, false)
 }
 
-// [AUTO] Restore
+// @Summary      把刚回滚掉的知识库版本放回去
 // @Tags      k-b-release
 // @Router    /api/kb-releases/{product}/restore [post]
 // Restore POST /api/kb-releases/:product/restore —— 把刚被回滚掉的那一版放回去
@@ -417,7 +417,7 @@ func (c *KBReleaseController) movePointer(ctx *gin.Context, forward bool) {
 	response.Success(ctx, res, "ok")
 }
 
-// [AUTO] SetGoverned
+// @Summary      启停发布制必须带操作者身份（governed 翻转是治理动作，要落到人）
 // @Tags      k-b-release
 // @Router    /api/kb-releases/{product}/governed [patch]
 // SetGoverned PATCH /api/kb-releases/:product/governed  body: {"governed":true}
@@ -460,7 +460,7 @@ func (c *KBReleaseController) SetGoverned(ctx *gin.Context) {
 	response.Success(ctx, rel, "ok")
 }
 
-// [AUTO] Gate
+// @Summary      变更底座未装配（无 DB 句柄）⇒ 受治理库名单读不出来，上面三项仍为进程真实档位
 // @Tags      k-b-release
 // @Router    /api/kb-releases/gate [get]
 // Gate GET /api/kb-releases/gate —— 闸门档位回显
@@ -498,7 +498,7 @@ func (c *KBReleaseController) Gate(ctx *gin.Context) {
 	response.Success(ctx, snap, "ok")
 }
 
-// [AUTO] Taxonomy
+// @Summary      查询知识库变更动作与状态的值域
 // @Tags      k-b-release
 // @Router    /api/kb-changes/taxonomy [get]
 // Taxonomy GET /api/kb-changes/taxonomy —— 动作与状态的值域

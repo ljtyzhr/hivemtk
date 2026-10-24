@@ -4,11 +4,13 @@
 //	   退 30 ⇒ 净 70，账单退回 partial，且订单/回款/冲销三处金额自洽；
 //	② 幂等：同一退款流水号重投两次 ⇒ payments 只多一行、第二次 Reused=true；
 //	③ 全额退款仍走整笔冲销路径（reversed），退款行不越权替代它；
-//	④ 退款额超过净到账 ⇒ 拒，且库里没有任何新行（拒写判据全在第一次写之前）。
+//	④ 退款额超过净到账 ⇒ 拒，且库里没有任何新行（拒写判据全在第一次写之前）；
+//	⑤ 退款原因（reason 格，规划 §4.10 四格之一）：落库、随视图回显、超长拒。
 package service
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"hivemtk-user/internal/model"
@@ -153,5 +155,59 @@ func TestRefundOverSettledRejected(t *testing.T) {
 	}
 	if got := payBillRow(t, db, bill.ID).Status; got != model.BillStatusPartial {
 		t.Fatalf("拒后账单应保持 partial，得到 %s", got)
+	}
+}
+
+func TestPartialRefundCarriesReason(t *testing.T) {
+	if testing.Short() {
+		t.Skip("需要测试库")
+	}
+	db := testutil.NewTestDB(t, &model.Bill{}, &model.Payment{})
+	ctx := context.Background()
+	bill := payBill(t, db, "b_refund_5", "q_refund", "qr_refund", 100)
+	svc := paySvc(t, db)
+
+	if _, err := svc.RecordPayment(ctx, payIn(bill.ID, "pay-5", 100)); err != nil {
+		t.Fatalf("入账失败: %v", err)
+	}
+	// 判据⑤：reason 落库 + 视图回显（空渠道原因的对照格也在同一用例里）
+	receipt, err := svc.RecordPartialRefund(ctx, RecordPartialRefundInput{
+		BillID: bill.ID, RefundRef: "refund-5a", Amount: 25,
+		Platform: "taobao", OrderID: "ord-refund-5", Reason: "商品退货",
+	})
+	if err != nil {
+		t.Fatalf("带原因退款失败: %v", err)
+	}
+	if receipt.Payment.Reason != "商品退货" {
+		t.Fatalf("视图应回显退款原因，得到 %q", receipt.Payment.Reason)
+	}
+	if row := payPaymentRow(t, db, "refund-5a"); row.Reason != "商品退货" {
+		t.Fatalf("退款行应落 reason 列，得到 %q", row.Reason)
+	}
+	// 渠道没给原因 ⇒ 空串（空=渠道没说，不是没有这一格）
+	receipt2, err := svc.RecordPartialRefund(ctx, RecordPartialRefundInput{
+		BillID: bill.ID, RefundRef: "refund-5b", Amount: 10,
+		Platform: "taobao", OrderID: "ord-refund-5",
+	})
+	if err != nil {
+		t.Fatalf("无原因退款失败: %v", err)
+	}
+	if receipt2.Payment.Reason != "" {
+		t.Fatalf("未给原因时应为空串，得到 %q", receipt2.Payment.Reason)
+	}
+	// 回款行（confirmed）的 reason 恒空——原因格只属于退款语义
+	if row := payPaymentRow(t, db, "pay-5"); row.Reason != "" {
+		t.Fatalf("回款行 reason 应恒空，得到 %q", row.Reason)
+	}
+	// 超长拒（paymentReasonMaxRunes=85，超界=渠道按另一份契约推送）
+	long := strings.Repeat("退", 86)
+	if _, err := svc.RecordPartialRefund(ctx, RecordPartialRefundInput{
+		BillID: bill.ID, RefundRef: "refund-5c", Amount: 5,
+		Platform: "taobao", OrderID: "ord-refund-5", Reason: long,
+	}); err == nil {
+		t.Fatal("超长退款原因应拒绝（截断会伪造渠道陈述）")
+	}
+	if _, err := svc.payments.GetByChannelRef(ctx, "refund-5c"); err != nil {
+		t.Fatalf("回读失败: %v", err)
 	}
 }

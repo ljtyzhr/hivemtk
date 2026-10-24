@@ -26,7 +26,7 @@ func NewCitationControllerWithDrift(citeSvc *service.CitationService, driftSvc *
 	return &CitationController{citeSvc: citeSvc, driftSvc: driftSvc}
 }
 
-// [AUTO] Drift
+// @Summary      引用漂移 diff（A10）
 // @Tags      citation
 // @Router    /api/geo/citations/drift [get]
 // Drift 引用漂移 diff（A10）
@@ -45,7 +45,7 @@ func (c *CitationController) Drift(ctx *gin.Context) {
 	response.Success(ctx, res, "ok")
 }
 
-// [AUTO] Domains
+// @Summary      引用域名聚合（自有/竞品/earned 分类）
 // @Tags      citation
 // @Router    /api/geo/citations/domains [get]
 // Domains 引用域名聚合（自有/竞品/earned 分类）
@@ -64,7 +64,7 @@ func (c *CitationController) Domains(ctx *gin.Context) {
 	response.Success(ctx, res, "ok")
 }
 
-// [AUTO] Matrix
+// @Summary      keyword×domain 矩阵
 // @Tags      citation
 // @Router    /api/geo/citations/matrix [get]
 // Matrix keyword×domain 矩阵

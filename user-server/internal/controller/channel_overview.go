@@ -20,7 +20,7 @@ func NewChannelOverviewController(svc *service.ChannelOverviewService) *ChannelO
 	return &ChannelOverviewController{svc: svc}
 }
 
-// [AUTO] Overview
+// @Summary      列出全部 13 个渠道的当前状态
 // @Tags      channel-overview
 // @Router    /api/channels/overview [get]
 // Overview 列出所有 13 渠道的当前状态
@@ -50,7 +50,7 @@ func (ctrl *ChannelOverviewController) BindChannel(ctx *gin.Context) {
 	response.Success(ctx, data, "绑定成功")
 }
 
-// [AUTO] ListCustomerChannels
+// @Summary      列出客户的所有渠道绑定
 // @Tags      channel-overview
 // @Router    /api/channels/customer/{customer_id} [get]
 // ListCustomerChannels 列出客户的所有渠道绑定

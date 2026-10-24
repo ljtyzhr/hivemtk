@@ -25,7 +25,7 @@ type QuotaSnapshot struct {
 	Triggered       int64   `json:"triggered"`
 }
 
-// [AUTO] GetRateQuota
+// @Summary      获取全局限流配额与当前用量
 // @Tags      rate-quota
 // @Router    /api/system/rate-quota [get]
 // GetRateQuota 获取全局限流配额和当前用量

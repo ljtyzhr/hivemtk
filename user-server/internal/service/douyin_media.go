@@ -12,7 +12,6 @@ import (
 	"sync"
 	"time"
 
-	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/httpclient"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/logger"
@@ -490,27 +489,25 @@ func (s *WebhookService) persistDouyinMediaAsync(ctx context.Context, channel We
 
 // backfillDouyinMedia 回填 media_url（不抹 Extra：官方 server_message_id 是报障时对号的唯一抓手）。
 func (s *WebhookService) backfillDouyinMedia(ctx context.Context, accountID, hubMsgID, publicURL string) {
-	db := s.lazyDB()
-	if db == nil || hubMsgID == "" || publicURL == "" {
+	if hubMsgID == "" || publicURL == "" {
 		return
 	}
-	var hub model.MessageHub
-	if err := db.WithContext(ctx).
-		Where("platform = ? AND account_id = ? AND msg_id = ?", string(ChannelDouyin), accountID, hubMsgID).
-		First(&hub).Error; err != nil {
-		logger.Ctx(ctx).Warn().Err(err).Str("msg_id", hubMsgID).
+	// E-4 下沉：直查两段式（First+Updates）改走 repo 的 BackfillMediaByRowKey。
+	// messageHubRepo 懒建判据与 dispatch 路径同一句（connected）。
+	if !s.connected() {
+		s.ensureReposFromDB(ctx)
+	}
+	if s.messageHubRepo == nil {
+		return
+	}
+	found, err := s.messageHubRepo.BackfillMediaByRowKey(ctx, string(ChannelDouyin), accountID, hubMsgID, publicURL, []string{publicURL})
+	if err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Str("msg_id", hubMsgID).Uint("scope", 0).Msg("[Douyin] 媒体回填写库失败")
+		return
+	}
+	if !found {
+		logger.Ctx(ctx).Warn().Str("msg_id", hubMsgID).
 			Msg("[Douyin] 媒体回填失败：找不到 hub 行")
-		return
-	}
-	extra := hub.Extra
-	if extra == nil {
-		extra = model.JSONMap{}
-	}
-	extra["media_urls"] = []string{publicURL}
-	if err := db.WithContext(ctx).Model(&model.MessageHub{}).
-		Where("id = ?", hub.ID).
-		Updates(map[string]any{"media_url": publicURL, "extra": extra}).Error; err != nil {
-		logger.Ctx(ctx).Warn().Err(err).Uint("hub_id", hub.ID).Msg("[Douyin] 媒体回填写库失败")
 	}
 }
 

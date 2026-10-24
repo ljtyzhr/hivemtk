@@ -20,7 +20,7 @@ func NewRoleController() *RoleController {
 	return &RoleController{svc: service.NewRoleService()}
 }
 
-// [AUTO] ListRoles
+// @Summary      获取角色列表成功
 // @Tags      role
 // @Router    /api/system/roles [get]
 // ListRoles GET /api/system/roles
@@ -35,7 +35,7 @@ func (ctrl *RoleController) ListRoles(c *gin.Context) {
 	response.Success(c, roles, "获取角色列表成功")
 }
 
-// [AUTO] GetRole
+// @Summary      获取角色详情成功
 // @Tags      role
 // @Router    /api/system/roles/{code} [get]
 // GetRole GET /api/system/roles/:code
@@ -55,7 +55,7 @@ func (ctrl *RoleController) GetRole(c *gin.Context) {
 	response.Success(c, role, "获取角色详情成功")
 }
 
-// [AUTO] ListMembers
+// @Summary      角色 code 不能为空
 // @Tags      role
 // @Router    /api/system/roles/{code}/members [get]
 // ListMembers GET /api/system/roles/:code/members

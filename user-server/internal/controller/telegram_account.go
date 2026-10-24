@@ -100,7 +100,7 @@ func maskBotToken(token string) string {
 	return token[:4] + strings.Repeat("*", len(token)-8) + token[len(token)-4:]
 }
 
-// [AUTO] List
+// @Summary      列表
 // @Tags      telegram-account
 // @Router    /api/telegram/accounts [get]
 // List 列表
@@ -117,7 +117,7 @@ func (ctrl *TelegramAccountController) List(c *gin.Context) {
 	response.SuccessWithList(c, list, int64(len(list)))
 }
 
-// [AUTO] Get
+// @Summary      按 ID 查询 Telegram 账号详情
 // @Tags      telegram-account
 // @Router    /api/telegram/accounts/{id} [get]
 // Get 详情
@@ -149,7 +149,7 @@ type telegramAccountCreateReq struct {
 	Status         *int   `json:"status" binding:"omitempty"`           // optional：默认 1（正常）
 }
 
-// [AUTO] Create
+// @Summary      创建成功（Bot Token 验证 + Webhook/Polling 配置正在后台自动处理中）
 // @Tags      telegram-account
 // @Router    /api/telegram/accounts [post]
 // Create 创建
@@ -206,7 +206,7 @@ func (ctrl *TelegramAccountController) Create(c *gin.Context) {
 	response.Success(c, toTelegramAccountVO(created), "创建成功（Bot Token 验证 + Webhook/Polling 配置正在后台自动处理中）")
 }
 
-// [AUTO] Update
+// @Summary      更新 Telegram 账号
 // @Tags      telegram-account
 // @Router    /api/telegram/accounts/{id} [put]
 // Update 更新（Bot Token 为空时保持原值）
@@ -266,7 +266,7 @@ func (ctrl *TelegramAccountController) Update(c *gin.Context) {
 	response.Success(c, toTelegramAccountVO(acc), "更新成功")
 }
 
-// [AUTO] Delete
+// @Summary      删除 Telegram 账号
 // @Tags      telegram-account
 // @Router    /api/telegram/accounts/{id} [delete]
 // Delete 删除
@@ -291,7 +291,7 @@ func (ctrl *TelegramAccountController) Delete(c *gin.Context) {
 	response.Success(c, nil, "删除成功")
 }
 
-// [AUTO] RegisterWebhook
+// @Summary      Webhook 注册成功
 // @Tags      telegram-account
 // @Router    /api/telegram/accounts/{id}/register-webhook [post]
 // RegisterWebhook 调用 Telegram setWebhook 接口注册 webhook
@@ -395,7 +395,7 @@ func deriveTelegramWebhookURLWithBase(c *gin.Context, accountID uint, publicBase
 	return fmt.Sprintf("%s://%s/api/webhook/telegram/%d", scheme, host, accountID)
 }
 
-// [AUTO] Status
+// @Summary      获取状态成功
 // @Tags      telegram-account
 // @Router    /api/telegram/accounts/{id}/status [get]
 // Status 校验 Bot Token 与 webhook 注册状态（无需改动账号）
@@ -445,7 +445,7 @@ func errToStr(e error) string {
 	return e.Error()
 }
 
-// [AUTO] TestSend
+// @Summary      Telegram 账号测试发送
 // @Tags      telegram-account
 // @Router    /api/telegram/accounts/{id}/test-send [post]
 // TestSend 测试向指定 chat_id 发送一条消息，验证 Bot Token 可用性

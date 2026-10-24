@@ -48,7 +48,7 @@ func (c *CardStatsFactoryController) resolve(ctx *gin.Context) (service.Platform
 	return svc, true
 }
 
-// [AUTO] GetCardStats
+// @Summary      统一获取单卡片统计（按平台）
 // @Tags      card-stats-factory
 // @Router    /api/card-stats/{platform}/stats/{id} [get]
 // GetCardStats 统一获取单卡片统计
@@ -76,7 +76,7 @@ func (c *CardStatsFactoryController) GetCardStats(ctx *gin.Context) {
 	response.Success(ctx, stats, "获取成功")
 }
 
-// [AUTO] GetOverallStats
+// @Summary      统一获取全部卡片总体统计（按平台）
 // @Tags      card-stats-factory
 // @Router    /api/card-stats/{platform}/overall [get]
 // GetOverallStats 统一获取全部卡片总体统计

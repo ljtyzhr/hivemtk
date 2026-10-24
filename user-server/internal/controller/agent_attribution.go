@@ -23,7 +23,7 @@ func NewAgentAttributionController() *AgentAttributionController {
 	}
 }
 
-// [AUTO] GetPerformance
+// @Summary      智能体成单归因绩效（按周期/智能体）
 // @Tags      agent-attribution
 // @Router    /api/agent-attribution/performance [get]
 // GetPerformance GET /api/agent-attribution/performance?period_days=7&agent_id=0

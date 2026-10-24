@@ -28,7 +28,7 @@ func NewIntegrationController() *IntegrationController {
 	}
 }
 
-// [AUTO] CreateAccount
+// @Summary      创建平台集成账号
 // @Tags      integration
 // @Router    /api/integrations [post]
 // CreateAccount 创建对接账号
@@ -58,7 +58,7 @@ func maskCredential(s string) string {
 	return s[:2] + "****" + s[len(s)-2:]
 }
 
-// [AUTO] GetAccountList
+// @Summary      获取平台集成账号列表
 // @Tags      integration
 // @Router    /api/integrations [get]
 func (c *IntegrationController) GetAccountList(ctx *gin.Context) {
@@ -77,7 +77,7 @@ func (c *IntegrationController) GetAccountList(ctx *gin.Context) {
 	response.Success(ctx, accounts, "获取成功")
 }
 
-// [AUTO] GetAccountByID
+// @Summary      获取平台集成账号详情
 // @Tags      integration
 // @Router    /api/integrations/{id} [get]
 // GetAccountByID 获取对接账号详情
@@ -102,7 +102,7 @@ func (c *IntegrationController) GetAccountByID(ctx *gin.Context) {
 	response.Success(ctx, account, "获取成功")
 }
 
-// [AUTO] UpdateAccount
+// @Summary      更新平台集成账号
 // @Tags      integration
 // @Router    /api/integrations/{id} [put]
 // UpdateAccount 更新对接账号
@@ -129,7 +129,7 @@ func (c *IntegrationController) UpdateAccount(ctx *gin.Context) {
 	response.Success(ctx, account, "更新成功")
 }
 
-// [AUTO] DeleteAccount
+// @Summary      删除平台集成账号
 // @Tags      integration
 // @Router    /api/integrations/{id} [delete]
 // DeleteAccount 删除对接账号
@@ -149,7 +149,7 @@ func (c *IntegrationController) DeleteAccount(ctx *gin.Context) {
 	response.Success(ctx, nil, "删除成功")
 }
 
-// [AUTO] SyncCustomers
+// @Summary      同步平台外部客户
 // @Tags      integration
 // @Router    /api/integrations/{id}/sync-customers [post]
 // SyncCustomers 同步客户数据
@@ -202,7 +202,7 @@ func (c *IntegrationController) SyncOrders(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"count": count}, "同步成功")
 }
 
-// [AUTO] SyncProducts
+// @Summary      同步平台商品数据
 // @Tags      integration
 // @Router    /api/integrations/{id}/sync-products [post]
 // SyncProducts 同步商品数据
@@ -230,7 +230,7 @@ func (c *IntegrationController) SyncProducts(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"count": count}, "同步成功")
 }
 
-// [AUTO] TestIntegration
+// @Summary      连接测试成功
 // @Tags      integration
 // @Router    /api/integrations/{id}/test [post]
 // TestIntegration 测试对接账号连接
@@ -261,7 +261,7 @@ func (c *IntegrationController) TestIntegration(ctx *gin.Context) {
 	}, "连接测试成功")
 }
 
-// [AUTO] GetSyncLogs
+// @Summary      获取平台同步日志
 // @Tags      integration
 // @Router    /api/integration/sync-logs [get]
 // GetSyncLogs 获取同步日志
@@ -287,7 +287,7 @@ func (c *IntegrationController) GetSyncLogs(ctx *gin.Context) {
 	}, "获取成功")
 }
 
-// [AUTO] GetExternalCustomers
+// @Summary      获取平台外部客户列表
 // @Tags      integration
 // @Router    /api/integration/external-customers [get]
 // GetExternalCustomers 获取外部客户列表
@@ -314,7 +314,7 @@ func (c *IntegrationController) GetExternalCustomers(ctx *gin.Context) {
 	}, "获取成功")
 }
 
-// [AUTO] GetExternalOrders
+// @Summary      获取平台外部订单列表
 // @Tags      integration
 // @Router    /api/integration/external-orders [get]
 // GetExternalOrders 获取外部订单列表
@@ -341,7 +341,7 @@ func (c *IntegrationController) GetExternalOrders(ctx *gin.Context) {
 	}, "获取成功")
 }
 
-// [AUTO] GetExternalOrdersByCustomer
+// @Summary      按客户获取平台外部订单
 // @Tags      integration
 // @Router    /api/integration/external-orders-by-customer [get]
 // GetExternalOrdersByCustomer 按客户手机/姓名查询近期外部订单（客服 360 视图）
@@ -360,7 +360,7 @@ func (c *IntegrationController) GetExternalOrdersByCustomer(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": orders, "count": len(orders)}, "获取成功")
 }
 
-// [AUTO] ReceiveOrderWebhook
+// @Summary      已接收并处理
 // @Tags      integration
 // @Router    /api/integration/webhook/order/{platform} [post]
 // ReceiveOrderWebhook 接收电商订单状态推送（近实时刷新本地订单镜像）。
@@ -461,7 +461,7 @@ func orderWebhookFailure(ctx *gin.Context, err error) {
 	}
 }
 
-// [AUTO] GetTemplates
+// @Summary      第三方对接模板列表（integration_templates 表）
 // @Tags      integration
 // @Router    /api/integrations/templates [get]
 // GetTemplates 第三方对接模板列表（integration_templates 表）
@@ -488,7 +488,7 @@ func (c *IntegrationController) GetTemplates(ctx *gin.Context) {
 	response.SuccessWithPage(ctx, templates, int64(page), int64(pageSize), total)
 }
 
-// [AUTO] GetCategories
+// @Summary      获取平台商品类目
 // @Tags      integration
 // @Router    /api/integrations/categories [get]
 // GetCategories 对接模板分类分组（从 integration_templates 聚合 distinct category）
@@ -546,7 +546,7 @@ func categoryLabel(cat string) string {
 	return cat
 }
 
-// [AUTO] GetExternalProducts
+// @Summary      获取平台外部商品列表
 // @Tags      integration
 // @Router    /api/integration/external-products [get]
 // GetExternalProducts 获取外部商品列表

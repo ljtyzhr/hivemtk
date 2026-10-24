@@ -20,7 +20,7 @@ func NewIndexTrackerController(svc *service.IndexTrackerService) *IndexTrackerCo
 	return &IndexTrackerController{svc: svc}
 }
 
-// [AUTO] VerifyFull
+// @Summary      文章不存在
 // @Tags      index-tracker
 // @Router    /api/geo/index-tracking/verify/{article_id} [post]
 // VerifyFull POST /geo/index-tracking/verify/:article_id
@@ -38,7 +38,7 @@ func (c *IndexTrackerController) VerifyFull(ctx *gin.Context) {
 	response.Success(ctx, standing, "ok")
 }
 
-// [AUTO] FunnelStats
+// @Summary      查询收录追踪漏斗统计
 // @Tags      index-tracker
 // @Router    /api/geo/index-tracking/funnel [get]
 // FunnelStats GET /geo/index-tracking/funnel
@@ -51,7 +51,7 @@ func (c *IndexTrackerController) FunnelStats(ctx *gin.Context) {
 	response.Success(ctx, fs, "ok")
 }
 
-// [AUTO] ManualVerifyAll
+// @Summary      手动触发全量收录核验（cron）
 // @Tags      index-tracker
 // @Router    /api/geo/index-tracking/verify-all [post]
 // ManualVerifyAll POST /geo/index-tracking/verify-all（触发 cron）

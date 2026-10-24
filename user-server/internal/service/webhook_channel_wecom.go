@@ -591,10 +591,10 @@ func validateWeComAgentID(payload map[string]any, expected int) bool {
 
 func (s *WebhookService) getWechatSecrets(ctx context.Context, accountID string) (string, string) {
 	if s.wechatIntegration == nil {
-		if s.lazyDB() == nil {
+		if !s.connected() {
 			return "", ""
 		}
-		s.wechatIntegration = NewWechatService(s.lazyDB())
+		s.wechatIntegration = s.integrations.wechat()
 	}
 	var acc *model.WechatAccount
 	if id, err := strconv.ParseUint(accountID, 10, 64); err == nil && id > 0 {
@@ -622,7 +622,7 @@ func (s *WebhookService) getWeComSecrets(ctx context.Context, accountID string) 
 	if s.wecomRepo == nil {
 		return "", "", errors.New("wecomRepo nil")
 	}
-	if s.lazyDB() == nil {
+	if !s.connected() {
 		return "", "", nil
 	}
 

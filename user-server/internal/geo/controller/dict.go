@@ -20,7 +20,7 @@ func NewDictController(svc *service.DictService) *DictController {
 	return &DictController{svc: svc}
 }
 
-// [AUTO] List
+// @Summary      category 必填
 // @Tags      dict
 // @Router    /api/geo/dicts [get]
 // List GET /geo/dicts?category=xxx
@@ -47,7 +47,7 @@ type dictSetRequest struct {
 	Sort     int    `json:"sort"`
 }
 
-// [AUTO] Set
+// @Summary      幂等写入 GEO 字典
 // @Tags      dict
 // @Router    /api/geo/dicts [put]
 // Set PUT /geo/dicts（幂等写入）
@@ -68,7 +68,7 @@ func (c *DictController) Set(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"category": req.Category, "key": req.Key}, "ok")
 }
 
-// [AUTO] Delete
+// @Summary      category/key 必填
 // @Tags      dict
 // @Router    /api/geo/dicts/{category}/{key} [delete]
 // Delete DELETE /geo/dicts/:category/:key

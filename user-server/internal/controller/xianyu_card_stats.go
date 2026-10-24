@@ -27,7 +27,7 @@ func NewXianyuCardStatsController(service service.XianyuCardStatsService) *Xiany
 	}
 }
 
-// [AUTO] GetCardStats
+// @Summary      获取闲鱼卡片统计数据
 // @Tags      xianyu-card-stats
 // @Router    /api/xianyu-card/stats/{id} [get]
 // GetCardStats 获取卡片统计数据
@@ -152,7 +152,7 @@ func (c *XianyuCardStatsController) GetCardStats(ctx *gin.Context) {
 	response.Success(ctx, data, "获取成功")
 }
 
-// [AUTO] GetOverallStats
+// @Summary      获取闲鱼卡片整体统计
 // @Tags      xianyu-card-stats
 // @Router    /api/xianyu-card/overall-stats [get]
 // GetOverallStats 获取整体统计数据

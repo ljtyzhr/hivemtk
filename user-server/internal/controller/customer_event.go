@@ -123,7 +123,7 @@ func (c *CustomerEventController) DeleteEvent(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"deleted_count": count}, "删除成功")
 }
 
-// [AUTO] GetEventStats
+// @Summary      客户事件统计（按时间范围聚合）
 // @Tags      customer-event
 // @Router    /api/customer-events [get]
 func (c *CustomerEventController) GetEventStats(ctx *gin.Context) {
@@ -316,7 +316,7 @@ func (c *CustomerEventController) TrackAddToCart(ctx *gin.Context) {
 	response.Success(ctx, nil, "加购事件追踪成功")
 }
 
-// [AUTO] ListGlobal
+// @Summary      分页查询全局客户事件列表
 // @Tags      customer-event
 // @Router    /api/customer-events/list [get]
 func (c *CustomerEventController) ListGlobal(ctx *gin.Context) {

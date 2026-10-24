@@ -106,7 +106,7 @@ func (c *CustomerOneIDController) OneIDStats(ctx *gin.Context) {
 	response.Success(ctx, stats, "获取成功")
 }
 
-// [AUTO] ListConflicts
+// @Summary      查询 OneID 身份冲突列表
 // @Tags      customer-one-i-d
 // @Router    /api/customer/oneid/conflicts [get]
 // ListConflicts 列出潜在的身份冲突（同一手机号/邮箱/openid 关联到不同客户）
@@ -129,7 +129,7 @@ type ResolveConflictRequest struct {
 	Action      string `json:"action"`
 }
 
-// [AUTO] ResolveConflict
+// @Summary      已忽略冲突
 // @Tags      customer-one-i-d
 // @Router    /api/customer/oneid/conflicts/{id}/resolve [post]
 // ResolveConflict 解决身份冲突
@@ -164,7 +164,7 @@ func (c *CustomerOneIDController) ResolveConflict(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"id": id, "primary": primary, "merged_id": req.SecondaryID}, "冲突已解决")
 }
 
-// [AUTO] GetIdentityMappings
+// @Summary      查询客户身份映射列表
 // @Tags      customer-one-i-d
 // @Router    /api/customer-oneid/{customer_id}/identities [get]
 // GetIdentityMappings 获取指定客户的所有身份映射
@@ -201,7 +201,7 @@ func (c *CustomerOneIDController) GetIdentityMappings(ctx *gin.Context) {
 	}, "获取成功")
 }
 
-// [AUTO] LinkIdentity
+// @Summary      链接成功
 // @Tags      customer-one-i-d
 // @Router    /api/customer-oneid/{customer_id}/identities [post]
 // LinkIdentity 链接新身份到指定客户
@@ -223,7 +223,7 @@ func (c *CustomerOneIDController) LinkIdentity(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"customer_id": customerID, "identifiers": identifiers}, "链接成功")
 }
 
-// [AUTO] ResolveIdentity
+// @Summary      未找到匹配客户
 // @Tags      customer-one-i-d
 // @Router    /api/customer/oneid/resolve [post]
 // ResolveIdentity 解析身份标识（识别或创建）
@@ -324,7 +324,7 @@ func (c *CustomerOneIDController) SaveMergeRules(ctx *gin.Context) {
 	response.Success(ctx, out, "保存成功")
 }
 
-// [AUTO] DeleteMergeRule
+// @Summary      删除 OneID 合并规则
 // @Tags      customer-one-i-d
 // @Router    /api/oneid/merge-rules/{id} [delete]
 // DeleteMergeRule DELETE /api/oneid/merge-rules/:id（MergeRuleConfig.vue 删除按钮）

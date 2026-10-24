@@ -24,7 +24,7 @@ func NewXiaohongshuCardController(service service.XiaohongshuCardService) *Xiaoh
 	}
 }
 
-// [AUTO] Create
+// @Summary      创建小红书卡片
 // @Tags      xiaohongshu-card
 // @Router    /api/xiaohongshu/create [post]
 // Create 创建小红书卡片
@@ -44,7 +44,7 @@ func (c *XiaohongshuCardController) Create(ctx *gin.Context) {
 	response.Success(ctx, card, response.ErrSuccess)
 }
 
-// [AUTO] Update
+// @Summary      更新小红书卡片
 // @Tags      xiaohongshu-card
 // @Router    /api/xiaohongshu-card/{id} [put]
 // Update 更新小红书卡片
@@ -64,7 +64,7 @@ func (c *XiaohongshuCardController) Update(ctx *gin.Context) {
 	response.Success(ctx, card, response.ErrUpdateSuccess)
 }
 
-// [AUTO] Delete
+// @Summary      删除小红书卡片
 // @Tags      xiaohongshu-card
 // @Router    /api/xiaohongshu-card/{id} [delete]
 // Delete 删除小红书卡片
@@ -83,7 +83,7 @@ func (c *XiaohongshuCardController) Delete(ctx *gin.Context) {
 	response.Success(ctx, nil, response.ErrDeleteSuccess)
 }
 
-// [AUTO] GetByID
+// @Summary      根据ID获取小红书卡片
 // @Tags      xiaohongshu-card
 // @Router    /api/xiaohongshu-card/{id} [get]
 // GetByID 根据ID获取小红书卡片
@@ -103,7 +103,7 @@ func (c *XiaohongshuCardController) GetByID(ctx *gin.Context) {
 	response.Success(ctx, card, response.ErrGetSuccess)
 }
 
-// [AUTO] GetList
+// @Summary      获取小红书卡片列表
 // @Tags      xiaohongshu-card
 // @Router    /api/xiaohongshu-card/list [get]
 // GetList 获取小红书卡片列表
@@ -123,7 +123,7 @@ func (c *XiaohongshuCardController) GetList(ctx *gin.Context) {
 	response.Success(ctx, cards, response.ErrGetSuccess)
 }
 
-// [AUTO] GenerateShortLink
+// @Summary      为小红书卡片生成短链
 // @Tags      xiaohongshu-card
 // @Router    /api/xiaohongshu/{id}/generate-short-link [post]
 // GenerateShortLink 为小红书卡片生成短链
@@ -153,7 +153,7 @@ func (c *XiaohongshuCardController) GenerateShortLink(ctx *gin.Context) {
 	response.Success(ctx, cardResp, response.ErrSuccess)
 }
 
-// [AUTO] SharePage
+// @Summary      渲染卡片分享页面（统一卡片聊天页，含联系客服按钮）
 // @Tags      xiaohongshu-card
 // @Router    /share/xiaohongshu/{id} [get]
 // SharePage 渲染卡片分享页面（统一卡片聊天页，含联系客服按钮）

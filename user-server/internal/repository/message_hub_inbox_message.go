@@ -2,6 +2,7 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"time"
 
 	"hivemtk-user/internal/model"
@@ -89,7 +90,11 @@ func (r *MessageHubRepository) GetOutgoingByPlatformMsgID(ctx context.Context, p
 	if err == nil {
 		return &existing, nil
 	}
-	if err != gorm.ErrRecordNotFound {
+	// errors.Is 而非裸 !=：GORM 的驱动层可能把 ErrRecordNotFound 包在
+	// *pgconn 错误链里（尤其事务/重试路径），裸比较会把真"没查到"
+	// 当成"查库出错"抛出去——echo 拦截与回执对账都要把"没有这一行"
+	// 与"读不了库"分开说清。
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, err
 	}
 	err = r.db.WithContext(ctx).
@@ -118,7 +123,8 @@ func (r *MessageHubRepository) GetOutgoingByPlatformMsgIDInConv(ctx context.Cont
 	if err == nil {
 		return &existing, nil
 	}
-	if err != gorm.ErrRecordNotFound {
+	// 同上：errors.Is 判"没有这一行"，包裹形态的 not found 不许漏进错误分支。
+	if !errors.Is(err, gorm.ErrRecordNotFound) {
 		return nil, err
 	}
 	err = r.db.WithContext(ctx).
@@ -225,6 +231,72 @@ func (r *MessageHubRepository) UpdateMediaURLByMsgID(ctx context.Context, platfo
 	return r.db.WithContext(ctx).Model(&model.MessageHub{}).
 		Where("platform = ? AND msg_id = ?", platform, msgID).
 		Update("media_url", mediaURL).Error
+}
+
+// BackfillMediaByRowKey 按平台+账号+行键定位 hub 行，写 media_url 并把
+// media_urls 列表**合并进** Extra（保留行上已有的其他 Extra 键——
+// 官方 server_message_id 是报障对号的唯一抓手，不许抹）。
+//
+// E-4 webhook 域下沉（2026-10-24）：抖音/QQ 的媒体回填原先在 service 层
+// 直拿 *gorm.DB 两段式（First + Updates），是本域最后两处 service 层直查。
+// 返回 found=false 表示行不存在（调用方按原语义 WARN 后继续，不是错误）。
+func (r *MessageHubRepository) BackfillMediaByRowKey(ctx context.Context, platform, accountID, rowKey, mediaURL string, mediaURLs []string) (found bool, err error) {
+	if r == nil || r.db == nil || rowKey == "" {
+		return false, nil
+	}
+	var hub model.MessageHub
+	if err := r.db.WithContext(ctx).
+		Where("platform = ? AND account_id = ? AND msg_id = ?", platform, accountID, rowKey).
+		First(&hub).Error; err != nil {
+		return false, nil // 行不存在：媒体回填是 best-effort，找不到就跳过（原语义）
+	}
+	extra := hub.Extra
+	if extra == nil {
+		extra = model.JSONMap{}
+	}
+	extra["media_urls"] = mediaURLs
+	fields := map[string]any{"extra": extra}
+	if mediaURL != "" {
+		fields["media_url"] = mediaURL
+	}
+	if err := r.db.WithContext(ctx).Model(&model.MessageHub{}).
+		Where("id = ?", hub.ID).
+		Updates(fields).Error; err != nil {
+		return false, err
+	}
+	return true, nil
+}
+
+// BackfillMediaByRowKeyExtra BackfillMediaByRowKey 的多键变体：Extra 的合并键集
+// 由调用方给（TG 除了 media_urls 还要 media_file_ids——file_id 长期有效，留痕后
+// 链接失效或存储迁移时还能重新拉取原件）。已有键被覆盖、其余键保留。
+func (r *MessageHubRepository) BackfillMediaByRowKeyExtra(ctx context.Context, platform, accountID, rowKey, mediaURL string, extraPatch model.JSONMap) (found bool, err error) {
+	if r == nil || r.db == nil || rowKey == "" {
+		return false, nil
+	}
+	var hub model.MessageHub
+	if err := r.db.WithContext(ctx).
+		Where("platform = ? AND account_id = ? AND msg_id = ?", platform, accountID, rowKey).
+		First(&hub).Error; err != nil {
+		return false, nil // 行不存在：best-effort，跳过（原语义）
+	}
+	extra := hub.Extra
+	if extra == nil {
+		extra = model.JSONMap{}
+	}
+	for k, v := range extraPatch {
+		extra[k] = v
+	}
+	fields := map[string]any{"extra": extra}
+	if mediaURL != "" {
+		fields["media_url"] = mediaURL
+	}
+	if err := r.db.WithContext(ctx).Model(&model.MessageHub{}).
+		Where("id = ?", hub.ID).
+		Updates(fields).Error; err != nil {
+		return false, err
+	}
+	return true, nil
 }
 
 // UpdateExtra 全量覆盖 hub 行的 extra 字段（用于发送侧回填平台消息 ID 等元数据）。

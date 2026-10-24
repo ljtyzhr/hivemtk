@@ -22,7 +22,7 @@ func NewCSATController() *CSATController {
 	return &CSATController{svc: service.NewCSATService()}
 }
 
-// [AUTO] Submit
+// @Summary      评分已提交
 // @Tags      c-s-a-t
 // @Router    /api/customer-sessions/{id}/csat [post]
 // Submit POST /api/customer-sessions/:id/csat {score, comment}
@@ -42,7 +42,7 @@ func (c *CSATController) Submit(ctx *gin.Context) {
 	response.Success(ctx, survey, "评分已提交")
 }
 
-// [AUTO] Trigger
+// @Summary      调查已触发
 // @Tags      c-s-a-t
 // @Router    /api/customer-sessions/{id}/csat/trigger [post]
 // Trigger POST /api/customer-sessions/:id/csat/trigger
@@ -54,7 +54,7 @@ func (c *CSATController) Trigger(ctx *gin.Context) {
 	response.Success(ctx, survey, "调查已触发")
 }
 
-// [AUTO] Stats
+// @Summary      CSAT 满意度统计（可按时间窗）
 // @Tags      c-s-a-t
 // @Router    /api/csat/stats [get]
 // Stats GET /api/csat/stats?window=month|week|7d|30d（缺省=全量）
@@ -66,7 +66,7 @@ func (c *CSATController) Stats(ctx *gin.Context) {
 	response.Success(ctx, stats, "ok")
 }
 
-// [AUTO] Trend
+// @Summary      CSAT 满意度趋势（按天）
 // @Tags      c-s-a-t
 // @Router    /api/csat/trend [get]
 // Trend GET /api/csat/trend?days=30
@@ -79,7 +79,7 @@ func (c *CSATController) Trend(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": list, "total": len(list)}, "ok")
 }
 
-// [AUTO] Negative
+// @Summary      查询差评会话列表
 // @Tags      c-s-a-t
 // @Router    /api/csat/negative [get]
 // Negative GET /api/csat/negative
@@ -92,7 +92,7 @@ func (c *CSATController) Negative(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": list, "total": len(list), "threshold": threshold}, "ok")
 }
 
-// [AUTO] GetTemplate
+// @Summary      获取 CSAT 评价模板
 // @Tags      c-s-a-t
 // @Router    /api/csat/template [get]
 // GetTemplate GET /api/csat/template
@@ -100,7 +100,7 @@ func (c *CSATController) GetTemplate(ctx *gin.Context) {
 	response.Success(ctx, c.svc.GetTemplate(ctx.Request.Context()), "ok")
 }
 
-// [AUTO] SaveTemplate
+// @Summary      模板已保存
 // @Tags      c-s-a-t
 // @Router    /api/csat/template [put]
 // SaveTemplate PUT /api/csat/template

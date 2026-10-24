@@ -33,7 +33,7 @@ func (c *LLMProviderController) guardFailover(ctx *gin.Context) bool {
 	return true
 }
 
-// [AUTO] GetHealth
+// @Summary      查询所有 provider 健康度
 // @Tags      l-l-m-provider
 // @Router    /api/llm/providers/health [get]
 // GetHealth 查询所有 provider 健康度
@@ -47,7 +47,7 @@ func (c *LLMProviderController) GetHealth(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"code": 0, "data": healths})
 }
 
-// [AUTO] GetProviderHealth
+// @Summary      查询单个 provider 健康度
 // @Tags      l-l-m-provider
 // @Router    /api/llm/providers/health/{provider} [get]
 // GetProviderHealth 查询单个 provider 健康度
@@ -97,7 +97,7 @@ func (c *LLMProviderController) ResetCircuit(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"code": 0, "data": gin.H{"name": body.Name, "reset": ok}})
 }
 
-// [AUTO] GetPolicy
+// @Summary      查询降级策略
 // @Tags      l-l-m-provider
 // @Router    /api/llm/providers/policy [get]
 // GetPolicy 查询降级策略
@@ -129,7 +129,7 @@ func (c *LLMProviderController) UpdatePolicy(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"code": 0, "data": policy})
 }
 
-// [AUTO] ResolveRoute
+// @Summary      根据 scenario + canary key 决定走哪个 provider（决策可观测）
 // @Tags      l-l-m-provider
 // @Router    /api/llm-routings/resolve [post]
 // ResolveRoute 根据 scenario + canary key 决定走哪个 provider（决策可观测）

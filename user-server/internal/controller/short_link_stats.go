@@ -22,7 +22,7 @@ func NewShortLinkStatsController(shortLinkService service.ShortLinkService) *Sho
 	}
 }
 
-// [AUTO] GetStats
+// @Summary      获取短链统计成功
 // @Tags      short-link-stats
 // @Router    /api/short-link/{id}/stats [get]
 // GetStats 获取短链统计
@@ -55,7 +55,7 @@ func (c *ShortLinkStatsController) GetStats(ctx *gin.Context) {
 	response.Success(ctx, stats, "获取短链统计成功")
 }
 
-// [AUTO] GetAllStats
+// @Summary      获取所有短链统计成功
 // @Tags      short-link-stats
 // @Router    /api/short-link/all-stats [get]
 // GetAllStats 获取所有短链统计
@@ -76,7 +76,7 @@ func (c *ShortLinkStatsController) GetAllStats(ctx *gin.Context) {
 	response.Success(ctx, stats, "获取所有短链统计成功")
 }
 
-// [AUTO] ShareShortLink
+// @Summary      获取短链分享信息成功
 // @Tags      short-link-stats
 // @Router    /api/shortlink/{id}/share [post]
 // ShareShortLink 分享短链

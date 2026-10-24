@@ -31,7 +31,7 @@ func (c *SSEDashboardController) WithHub(hub *service.SSEHub) *SSEDashboardContr
 	return c
 }
 
-// [AUTO] Stream
+// @Summary      SSE 流连接
 // @Tags      s-s-e-dashboard
 // @Router    /api/dashboard/sse [get]
 // Stream SSE 流连接
@@ -62,7 +62,7 @@ func (c *SSEDashboardController) Stream(ctx *gin.Context) {
 	service.SSEStreamHandler(ctx, c.hub, client)
 }
 
-// [AUTO] ListClients
+// @Summary      列出所有 SSE 客户端
 // @Tags      s-s-e-dashboard
 // @Router    /api/dashboard/clients [get]
 // ListClients 列出所有 SSE 客户端
@@ -113,7 +113,7 @@ func (c *SSEDashboardController) Broadcast(ctx *gin.Context) {
 	}, "broadcast success")
 }
 
-// [AUTO] ListTopics
+// @Summary      返回可用的 SSE topic 列表
 // @Tags      s-s-e-dashboard
 // @Router    /api/dashboard/topics [get]
 // ListTopics 返回可用的 SSE topic 列表
@@ -148,7 +148,7 @@ func (c *SSEDashboardController) ListTopics(ctx *gin.Context) {
 	response.SuccessWithList(ctx, topics, int64(len(topics)))
 }
 
-// [AUTO] Stats
+// @Summary      SSE Hub 统计
 // @Tags      s-s-e-dashboard
 // @Router    /api/dashboard/stats [get]
 // Stats SSE Hub 统计

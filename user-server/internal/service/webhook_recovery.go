@@ -51,14 +51,14 @@ func newWebhookRecoveryScanner(svc *WebhookService) *webhookRecoveryScanner {
 	if svc == nil {
 		return nil
 	}
-	db := svc.lazyDB()
-	if db == nil {
+	// E-4 下沉：装配判据走 connected（eventRepo 有 DB），不再拿句柄比 nil。
+	// 恢复扫描器的职责是重放 webhook_events：eventRepo 没连上 ⇒ 没有可扫的表。
+	if !svc.connected() {
 		return nil
 	}
 	eventRepo := svc.eventRepo
 	if eventRepo == nil {
 		eventRepo = repository.NewWebhookEventRepository()
-		repository.SetWebhookEventRepoDB(eventRepo, db)
 	}
 	return &webhookRecoveryScanner{
 		svc:            svc,

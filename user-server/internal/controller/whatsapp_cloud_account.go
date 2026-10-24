@@ -88,7 +88,7 @@ func toWhatsAppCloudVO(a *model.WhatsAppCloudAccount) *whatsAppCloudAccountVO {
 	}
 }
 
-// [AUTO] List
+// @Summary      查询 WhatsApp Cloud 账号列表
 // @Tags      whats-app-cloud-account
 // @Router    /api/whatsapp-cloud/accounts [get]
 // List 列出所有 WhatsApp Cloud 账号
@@ -105,7 +105,7 @@ func (ctrl *WhatsAppCloudAccountController) List(c *gin.Context) {
 	response.Success(c, out, "查询成功")
 }
 
-// [AUTO] Get
+// @Summary      按 ID 查询 WhatsApp Cloud 账号详情
 // @Tags      whats-app-cloud-account
 // @Router    /api/whatsapp-cloud/accounts/{id} [get]
 // Get 获取单个 WhatsApp Cloud 账号
@@ -137,7 +137,7 @@ type whatsAppCloudCreateReq struct {
 	AIAgentEnabled     bool   `json:"ai_agent_enabled"`
 }
 
-// [AUTO] Create
+// @Summary      创建 WhatsApp Cloud 账号
 // @Tags      whats-app-cloud-account
 // @Router    /api/whatsapp-cloud/accounts [post]
 // Create 创建 WhatsApp Cloud 账号
@@ -177,7 +177,7 @@ type whatsAppCloudUpdateReq struct {
 	Status         *int    `json:"status"`
 }
 
-// [AUTO] Update
+// @Summary      更新 WhatsApp Cloud 账号
 // @Tags      whats-app-cloud-account
 // @Router    /api/whatsapp-cloud/accounts/{id} [put]
 // Update 更新 WhatsApp Cloud 账号
@@ -228,7 +228,7 @@ func (ctrl *WhatsAppCloudAccountController) Update(c *gin.Context) {
 	response.Success(c, toWhatsAppCloudVO(acc), "更新成功")
 }
 
-// [AUTO] Delete
+// @Summary      删除 WhatsApp Cloud 账号
 // @Tags      whats-app-cloud-account
 // @Router    /api/whatsapp-cloud/accounts/{id} [delete]
 // Delete 删除 WhatsApp Cloud 账号
@@ -258,7 +258,7 @@ type whatsAppCloudTestSendReq struct {
 	Content string `json:"content" binding:"required"`
 }
 
-// [AUTO] TestSend
+// @Summary      WhatsApp Cloud 账号测试发送
 // @Tags      whats-app-cloud-account
 // @Router    /api/whatsapp-cloud/accounts/{id}/test-send [post]
 // TestSend 测试发送文本消息

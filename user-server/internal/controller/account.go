@@ -17,7 +17,7 @@ func NewAccountController(svc *service.AccountService) *AccountController {
 	return &AccountController{svc: svc}
 }
 
-// [AUTO] GetAccounts
+// @Summary      查询 TG 账户列表（bot token 掩码）
 // @Tags      account
 // @Router    /api/account/list [get]
 func (c *AccountController) GetAccounts(ctx *gin.Context) {
@@ -49,7 +49,7 @@ func (c *AccountController) GetAccounts(ctx *gin.Context) {
 	response.Success(ctx, resp, "success")
 }
 
-// [AUTO] GetAccount
+// @Summary      账户ID不能为空
 // @Tags      account
 // @Router    /api/account/{id} [get]
 func (c *AccountController) GetAccount(ctx *gin.Context) {

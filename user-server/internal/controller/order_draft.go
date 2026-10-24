@@ -87,7 +87,7 @@ func (c *OrderDraftController) RegisterRoutes(router *gin.RouterGroup) {
 	}
 }
 
-// [AUTO] List
+// @Summary      本次返回了几条
 // @Tags      order-draft
 // @Router    /api/manage/order-drafts [get]
 // List GET /api/manage/order-drafts
@@ -163,7 +163,7 @@ func (c *OrderDraftController) listByCustomer(ctx *gin.Context, customerID strin
 	}, "ok")
 }
 
-// [AUTO] Get
+// @Summary      查看草稿
 // @Tags      order-draft
 // @Router    /api/manage/order-drafts/{id} [get]
 // Get GET /api/manage/order-drafts/:id
@@ -182,7 +182,7 @@ func (c *OrderDraftController) Get(ctx *gin.Context) {
 	response.Success(ctx, draft, "ok")
 }
 
-// [AUTO] Confirm
+// @Summary      确认草稿
 // @Tags      order-draft
 // @Router    /api/manage/order-drafts/{id}/confirm [post]
 // Confirm POST /api/manage/order-drafts/:id/confirm —— 一键确认成单。
@@ -228,7 +228,7 @@ func (c *OrderDraftController) Confirm(ctx *gin.Context) {
 	response.Success(ctx, result, message)
 }
 
-// [AUTO] Cancel
+// @Summary      取消草稿
 // @Tags      order-draft
 // @Router    /api/manage/order-drafts/{id}/cancel [post]
 // Cancel POST /api/manage/order-drafts/:id/cancel  body: {"reason":"…"}
@@ -279,7 +279,7 @@ func (c *OrderDraftController) Cancel(ctx *gin.Context) {
 	c.replyDraftAfterWrite(ctx, draft.ID)
 }
 
-// [AUTO] Edit
+// @Summary      编辑草稿
 // @Tags      order-draft
 // @Router    /api/manage/order-drafts/{id} [patch]
 // Edit PATCH /api/manage/order-drafts/:id —— 确认前改价/改数量/改产品名/加备注。

@@ -86,7 +86,7 @@ func toQQAccountVO(ctx context.Context, acc *model.QQAccount) qqAccountVO {
 	}
 }
 
-// [AUTO] List
+// @Summary      列表
 // @Tags      q-q-account
 // @Router    /api/qq/accounts [get]
 // List 列表
@@ -103,7 +103,7 @@ func (ctrl *QQAccountController) List(c *gin.Context) {
 	response.SuccessWithList(c, list, int64(len(list)))
 }
 
-// [AUTO] Get
+// @Summary      按 ID 查询 QQ 账号详情
 // @Tags      q-q-account
 // @Router    /api/qq/accounts/{id} [get]
 // Get 详情
@@ -135,7 +135,7 @@ type qqAccountCreateReq struct {
 	Status         int    `json:"status"`
 }
 
-// [AUTO] Create
+// @Summary      创建 QQ 账号
 // @Tags      q-q-account
 // @Router    /api/qq/accounts [post]
 // Create 创建
@@ -183,7 +183,7 @@ func (ctrl *QQAccountController) Create(c *gin.Context) {
 	response.Success(c, toQQAccountVO(c.Request.Context(), acc), "创建成功")
 }
 
-// [AUTO] Update
+// @Summary      更新 QQ 账号
 // @Tags      q-q-account
 // @Router    /api/qq/accounts/{id} [put]
 // Update 更新（AppSecret / WebhookSecret 为空时保留原值）
@@ -241,7 +241,7 @@ func (ctrl *QQAccountController) Update(c *gin.Context) {
 	response.Success(c, toQQAccountVO(c.Request.Context(), acc), "更新成功")
 }
 
-// [AUTO] Delete
+// @Summary      删除 QQ 账号
 // @Tags      q-q-account
 // @Router    /api/qq/accounts/{id} [delete]
 // Delete 删除
@@ -266,7 +266,7 @@ func (ctrl *QQAccountController) Delete(c *gin.Context) {
 	response.Success(c, nil, "删除成功")
 }
 
-// [AUTO] TestSend
+// @Summary      QQ 账号测试发送
 // @Tags      q-q-account
 // @Router    /api/qq/accounts/{id}/test-send [post]
 // TestSend 测试向指定 openid 发送一条消息，验证 AppID/AppSecret 可用性
@@ -303,7 +303,7 @@ func (ctrl *QQAccountController) TestSend(c *gin.Context) {
 	response.Success(c, gin.H{"ok": true}, "发送成功")
 }
 
-// [AUTO] VerifyCallback
+// @Summary      本地签名链路连通。将上方回调地址粘贴到 q.qq.com → 开发者 → 回调配置，平台将发起真实 op13 验证以确认 BotSecret 正确。
 // @Tags      q-q-account
 // @Router    /api/qq/accounts/{id}/verify-callback [post]
 // VerifyCallback 本地 op13 验签自检：模拟平台回调验证请求，返回签名应答。

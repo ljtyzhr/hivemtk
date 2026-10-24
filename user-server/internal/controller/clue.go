@@ -118,7 +118,7 @@ func (c *ClueController) GetClueStatistics(ctx *gin.Context) {
 	response.Success(ctx, statistics, "获取线索统计成功")
 }
 
-// [AUTO] ImportClues
+// @Summary      导入线索成功
 // @Tags      clue
 // @Router    /api/clues/import [post]
 func (c *ClueController) ImportClues(ctx *gin.Context) {
@@ -147,7 +147,7 @@ func (c *ClueController) ImportClues(ctx *gin.Context) {
 	}, "导入线索成功")
 }
 
-// [AUTO] GetClueTypes
+// @Summary      获取线索类型成功
 // @Tags      clue
 // @Router    /api/clues/type [get]
 // GetClueTypes 获取线索类型列表

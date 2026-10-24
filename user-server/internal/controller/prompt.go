@@ -20,7 +20,7 @@ func NewPromptController() *PromptController {
 	return &PromptController{svc: service.NewPromptService()}
 }
 
-// [AUTO] GetVersions
+// @Summary      获取某个 SOP Node / Prompt ID 的所有旧版本（prompt_candidates）
 // @Tags      prompt
 // @Router    /api/prompts/{id}/versions [get]
 // GetVersions 获取某个 SOP Node / Prompt ID 的所有旧版本（prompt_candidates）
@@ -52,7 +52,7 @@ type PublishRequest struct {
 	Variables          string `json:"variables,omitempty"`
 }
 
-// [AUTO] GetABExperiments
+// @Summary      获取所有 Prompt A/B 实验列表
 // @Tags      prompt
 // @Router    /api/prompts/ab-experiments [get]
 // GetABExperiments 获取所有 Prompt A/B 实验列表
@@ -82,7 +82,7 @@ type PromptCandidateRequest struct {
 	Variables          string `json:"variables,omitempty"`
 }
 
-// [AUTO] Create
+// @Summary      创建 Prompt 候选（模板）
 // @Tags      prompt
 // @Router    /api/prompts [post]
 // Create 创建 Prompt 候选（模板）
@@ -114,7 +114,7 @@ func (c *PromptController) Create(ctx *gin.Context) {
 	response.Success(ctx, p, "创建成功")
 }
 
-// [AUTO] GetByID
+// @Summary      按 ID 查询 Prompt 候选
 // @Tags      prompt
 // @Router    /api/prompts/{id} [get]
 // GetByID 按 ID 查询 Prompt 候选
@@ -134,7 +134,7 @@ func (c *PromptController) GetByID(ctx *gin.Context) {
 	response.Success(ctx, p, "获取成功")
 }
 
-// [AUTO] List
+// @Summary      分页查询 Prompt 候选（可按 sop_node_id / sop_id / status 过滤）
 // @Tags      prompt
 // @Router    /api/prompts [get]
 // List 分页查询 Prompt 候选（可按 sop_node_id / sop_id / status 过滤）

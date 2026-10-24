@@ -31,7 +31,7 @@ func verifyWebhookSharedSecret(ctx *gin.Context) bool {
 	return subtle.ConstantTimeCompare([]byte(got), []byte(want)) == 1
 }
 
-// [AUTO] PostmarkWebhook
+// @Summary      邮件打开追踪服务未初始化
 // @Tags      email-open-tracker
 // @Router    /api/email/track/webhook/postmark [post]
 func (c *EmailOpenTrackerController) PostmarkWebhook(ctx *gin.Context) {
@@ -60,7 +60,7 @@ func (c *EmailOpenTrackerController) PostmarkWebhook(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"recorded": true, "type": evt.RecordType}, "ok")
 }
 
-// [AUTO] SendCloudWebhook
+// @Summary      邮件打开追踪服务未初始化
 // @Tags      email-open-tracker
 // @Router    /api/email/track/webhook/sendcloud [post]
 // SendCloudWebhook POST /api/email/track/webhook/sendcloud
@@ -90,7 +90,7 @@ func (c *EmailOpenTrackerController) SendCloudWebhook(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"recorded": true, "event": evt.Event}, "ok")
 }
 
-// [AUTO] GetOpenMetrics
+// @Summary      邮件打开追踪服务未初始化
 // @Tags      email-open-tracker
 // @Router    /api/email/track/open-metrics [get]
 // GetOpenMetrics GET /api/email/track/open-metrics?job_id=xxx&total_sent=100

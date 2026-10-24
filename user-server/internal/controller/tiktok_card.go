@@ -37,7 +37,7 @@ func (ctrl *TikTokCardController) RegisterRoutes(router *gin.RouterGroup) {
 	}
 }
 
-// [AUTO] List
+// @Summary      查询 TikTok 卡片列表
 // @Tags      tik-tok-card
 // @Router    /api/tiktok-card/list [get]
 func (ctrl *TikTokCardController) List(c *gin.Context) {
@@ -66,7 +66,7 @@ func (ctrl *TikTokCardController) List(c *gin.Context) {
 	response.Success(c, list, "获取成功")
 }
 
-// [AUTO] Get
+// @Summary      按 ID 获取 TikTok 卡片详情
 // @Tags      tik-tok-card
 // @Router    /api/tiktok-card/{id} [get]
 func (ctrl *TikTokCardController) Get(c *gin.Context) {
@@ -84,7 +84,7 @@ func (ctrl *TikTokCardController) Get(c *gin.Context) {
 	response.Success(c, card, "获取成功")
 }
 
-// [AUTO] Create
+// @Summary      创建 TikTok 卡片
 // @Tags      tik-tok-card
 // @Router    /api/tiktok-card [post]
 func (ctrl *TikTokCardController) Create(c *gin.Context) {
@@ -102,7 +102,7 @@ func (ctrl *TikTokCardController) Create(c *gin.Context) {
 	response.Success(c, card, "创建成功")
 }
 
-// [AUTO] Update
+// @Summary      更新 TikTok 卡片
 // @Tags      tik-tok-card
 // @Router    /api/tiktok-card/{id} [put]
 func (ctrl *TikTokCardController) Update(c *gin.Context) {
@@ -126,7 +126,7 @@ func (ctrl *TikTokCardController) Update(c *gin.Context) {
 	response.Success(c, card, "更新成功")
 }
 
-// [AUTO] Delete
+// @Summary      删除 TikTok 卡片
 // @Tags      tik-tok-card
 // @Router    /api/tiktok-card/{id} [delete]
 func (ctrl *TikTokCardController) Delete(c *gin.Context) {
@@ -142,7 +142,7 @@ func (ctrl *TikTokCardController) Delete(c *gin.Context) {
 	response.Success(c, nil, "删除成功")
 }
 
-// [AUTO] GenerateShortLink
+// @Summary      生成成功
 // @Tags      tik-tok-card
 // @Router    /api/tiktok-card/generate-short-link [post]
 func (ctrl *TikTokCardController) GenerateShortLink(c *gin.Context) {
@@ -184,7 +184,7 @@ func (ctrl *TikTokCardController) GenerateShortLink(c *gin.Context) {
 	}, "生成成功")
 }
 
-// [AUTO] StatsOverall
+// @Summary      查询 TikTok 卡片整体统计
 // @Tags      tik-tok-card
 // @Router    /api/tiktok-card/stats/overall [get]
 func (ctrl *TikTokCardController) StatsOverall(c *gin.Context) {
@@ -196,7 +196,7 @@ func (ctrl *TikTokCardController) StatsOverall(c *gin.Context) {
 	response.Success(c, data, "获取成功")
 }
 
-// [AUTO] Stats
+// @Summary      查询指定 TikTok 卡片统计
 // @Tags      tik-tok-card
 // @Router    /api/tiktok-card/{id}/stats [get]
 func (ctrl *TikTokCardController) Stats(c *gin.Context) {

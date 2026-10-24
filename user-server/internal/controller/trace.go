@@ -23,7 +23,7 @@ func NewTraceController() *TraceController {
 	return &TraceController{}
 }
 
-// [AUTO] GetTrace
+// @Summary      查询 trace 详情
 // @Tags      trace
 // @Router    /api/trace/{traceId} [get]
 // GetTrace 查询 trace 详情
@@ -59,7 +59,7 @@ func (c *TraceController) GetTrace(ctx *gin.Context) {
 	})
 }
 
-// [AUTO] ListRecent
+// @Summary      查询最近 N 条 trace 概要（limit 可选，默认 50，上限 500）
 // @Tags      trace
 // @Router    /api/traces/recent [get]
 // ListRecent 查询最近 N 条 trace 概要（limit 可选，默认 50，上限 500）

@@ -133,7 +133,7 @@ func (c *SOPController) List(ctx *gin.Context) {
 	response.SuccessWithPage(ctx, list, int64(page), int64(pageSize), total)
 }
 
-// [AUTO] Delete
+// @Summary      删除 SOP
 // @Tags      s-o-p
 // @Router    /api/sop/{id} [delete]
 // Delete 删除
@@ -150,7 +150,7 @@ func (c *SOPController) Delete(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"id": id}, "删除成功")
 }
 
-// [AUTO] Activate
+// @Summary      启用成功
 // @Tags      s-o-p
 // @Router    /api/sop/{id}/activate [post]
 // Activate 启用
@@ -167,7 +167,7 @@ func (c *SOPController) Activate(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"id": id}, "启用成功")
 }
 
-// [AUTO] Deactivate
+// @Summary      停用成功
 // @Tags      s-o-p
 // @Router    /api/sop/{id}/deactivate [post]
 // Deactivate 停用
@@ -184,7 +184,7 @@ func (c *SOPController) Deactivate(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"id": id}, "停用成功")
 }
 
-// [AUTO] Execute
+// @Summary      启动执行 SOP
 // @Tags      s-o-p
 // @Router    /api/sop/execute [post]
 // Execute 启动执行
@@ -203,7 +203,7 @@ func (c *SOPController) Execute(ctx *gin.Context) {
 	response.Success(ctx, redactExecution(exec), "执行成功")
 }
 
-// [AUTO] Step
+// @Summary      推进成功
 // @Tags      s-o-p
 // @Router    /api/sop/step [post]
 // Step 单步推进
@@ -221,7 +221,7 @@ func (c *SOPController) Step(ctx *gin.Context) {
 	response.Success(ctx, redactExecution(exec), "推进成功")
 }
 
-// [AUTO] Pause
+// @Summary      暂停成功
 // @Tags      s-o-p
 // @Router    /api/sop/executions/{id}/pause [post]
 // Pause 暂停
@@ -238,7 +238,7 @@ func (c *SOPController) Pause(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"id": id}, "暂停成功")
 }
 
-// [AUTO] Resume
+// @Summary      恢复成功
 // @Tags      s-o-p
 // @Router    /api/sop/executions/{id}/resume [post]
 // Resume 恢复
@@ -255,7 +255,7 @@ func (c *SOPController) Resume(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"id": id}, "恢复成功")
 }
 
-// [AUTO] Cancel
+// @Summary      取消成功
 // @Tags      s-o-p
 // @Router    /api/sop/executions/{id}/cancel [post]
 // Cancel 取消
@@ -272,7 +272,7 @@ func (c *SOPController) Cancel(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"id": id}, "取消成功")
 }
 
-// [AUTO] GetExecution
+// @Summary      查询 SOP 执行详情
 // @Tags      s-o-p
 // @Router    /api/sop/executions/{id} [get]
 // GetExecution 详情
@@ -297,7 +297,7 @@ func (c *SOPController) GetExecution(ctx *gin.Context) {
 	response.Success(ctx, redactExecution(exec), "查询成功")
 }
 
-// [AUTO] ListExecutions
+// @Summary      列表
 // @Tags      s-o-p
 // @Router    /api/sop/executions [get]
 // ListExecutions 列表
@@ -362,7 +362,7 @@ func redactExecution(exec *model.SOPExecution) *model.SOPExecution {
 	return &out
 }
 
-// [AUTO] MatchByIntent
+// @Summary      按意图匹配 SOP
 // @Tags      s-o-p
 // @Router    /api/sop/match [get]
 // MatchByIntent 意图匹配
@@ -376,7 +376,7 @@ func (c *SOPController) MatchByIntent(ctx *gin.Context) {
 	response.Success(ctx, list, "查询成功")
 }
 
-// [AUTO] Stats
+// @Summary      SOP 统计
 // @Tags      s-o-p
 // @Router    /api/sop/stats [get]
 // Stats 统计
@@ -389,7 +389,7 @@ func (c *SOPController) Stats(ctx *gin.Context) {
 	response.Success(ctx, stats, "查询成功")
 }
 
-// [AUTO] GetABTestStats
+// @Summary      查询 SOP 的 A/B 测试 variant 统计
 // @Tags      s-o-p
 // @Router    /api/sop/{id}/abtest/stats [get]
 // GetABTestStats 查询 SOP 的 A/B 测试 variant 统计
@@ -407,7 +407,7 @@ func (c *SOPController) GetABTestStats(ctx *gin.Context) {
 	response.Success(ctx, stats, "查询成功")
 }
 
-// [AUTO] UpdateABTestConfig
+// @Summary      更新 SOP 的 A/B 测试配置
 // @Tags      s-o-p
 // @Router    /api/sop/{id}/abtest/config [put]
 // UpdateABTestConfig 更新 SOP 的 A/B 测试配置

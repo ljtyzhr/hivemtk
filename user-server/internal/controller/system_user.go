@@ -77,7 +77,7 @@ func writeServiceError(c *gin.Context, err error) {
 	response.ErrorFromDB(c, err, err.Error())
 }
 
-// [AUTO] GetUsers
+// @Summary      分页查询系统用户（关键字/角色筛选）
 // @Tags      system-user-admin
 // @Router    /api/system/users [get]
 // GetUsers GET /api/system/users
@@ -111,7 +111,7 @@ func (c *SystemUserAdminController) GetUsers(ctx *gin.Context) {
 	response.SuccessWithPage(ctx, resp.List, int64(p), int64(s), resp.Total)
 }
 
-// [AUTO] GetByID
+// @Summary      获取账号详情成功
 // @Tags      system-user-admin
 // @Router    /api/system/users/{id} [get]
 // GetByID GET /api/system/users/:id
@@ -128,7 +128,7 @@ func (c *SystemUserAdminController) GetByID(ctx *gin.Context) {
 	response.Success(ctx, user, "获取账号详情成功")
 }
 
-// [AUTO] Create
+// @Summary      账号创建成功
 // @Tags      system-user-admin
 // @Router    /api/system/users [post]
 // Create POST /api/system/users
@@ -149,7 +149,7 @@ func (c *SystemUserAdminController) Create(ctx *gin.Context) {
 	response.Success(ctx, user, "账号创建成功")
 }
 
-// [AUTO] Update
+// @Summary      账号更新成功
 // @Tags      system-user-admin
 // @Router    /api/system/users/{id} [put]
 // Update PUT /api/system/users/:id
@@ -174,7 +174,7 @@ func (c *SystemUserAdminController) Update(ctx *gin.Context) {
 	response.Success(ctx, user, "账号更新成功")
 }
 
-// [AUTO] Delete
+// @Summary      账号删除成功
 // @Tags      system-user-admin
 // @Router    /api/system/users/{id} [delete]
 // Delete DELETE /api/system/users/:id

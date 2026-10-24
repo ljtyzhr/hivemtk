@@ -25,7 +25,7 @@ func NewMarketingFlowSyncController() *MarketingFlowSyncController {
 	return &MarketingFlowSyncController{abService: opssvc.NewABExperimentService()}
 }
 
-// [AUTO] SyncABResults
+// @Summary      流程未绑定实验
 // @Tags      marketing-flow-sync
 // @Router    /api/marketing-flows/{id}/sync-ab-results [post]
 // SyncABResults POST /api/marketing-flows/:id/sync-ab-results
@@ -70,7 +70,7 @@ func NewCustomerEventBatchController() *CustomerEventBatchController {
 	return &CustomerEventBatchController{tracker: service.NewEventTracker(service.NewCustomerService())}
 }
 
-// [AUTO] TrackBatch
+// @Summary      批量事件已入库
 // @Tags      customer-event-batch
 // @Router    /api/customer-events/batch [post]
 // TrackBatch POST /api/customer-events/batch {events: [{event, properties, user_id, ...}]}
@@ -136,7 +136,7 @@ func NewWebVitalsController() *WebVitalsController {
 	return &WebVitalsController{svc: opssvc.NewWebVitalService()}
 }
 
-// [AUTO] Report
+// @Summary      请求参数错误
 // @Tags      web-vitals
 // @Router    /api/monitor/web-vitals [post]
 // Report POST /api/monitor/web-vitals

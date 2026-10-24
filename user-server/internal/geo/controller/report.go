@@ -25,7 +25,7 @@ func NewReportController(svc *service.ReportService, analyticsSvc *service.GeoDe
 	return &ReportController{svc: svc, analyticsSvc: analyticsSvc}
 }
 
-// [AUTO] GetReport
+// @Summary      获取汇总报表成功
 // @Tags      report
 // @Router    /api/geo/reports/summary [get]
 // GetReport 获取 GEO 汇总报表
@@ -42,7 +42,7 @@ func (c *ReportController) GetReport(ctx *gin.Context) {
 	response.Success(ctx, result, "获取汇总报表成功")
 }
 
-// [AUTO] GetROI
+// @Summary      获取 ROI 分析成功
 // @Tags      report
 // @Router    /api/geo/reports/roi [get]
 // GetROI 获取 ROI 分析
@@ -61,7 +61,7 @@ func (c *ReportController) GetROI(ctx *gin.Context) {
 	response.Success(ctx, result, "获取 ROI 分析成功")
 }
 
-// [AUTO] GetAPICosts
+// @Summary      获取 API 成本成功
 // @Tags      report
 // @Router    /api/geo/reports/api-costs [get]
 // GetAPICosts 获取 API 调用成本
@@ -75,7 +75,7 @@ func (c *ReportController) GetAPICosts(ctx *gin.Context) {
 	response.Success(ctx, result, "获取 API 成本成功")
 }
 
-// [AUTO] ShareOfVoice
+// @Summary      SOV 竞品率分析
 // @Tags      report
 // @Router    /api/geo/sov [get]
 // ShareOfVoice SOV 竞品率分析
@@ -93,7 +93,7 @@ func (c *ReportController) ShareOfVoice(ctx *gin.Context) {
 	response.Success(ctx, result, "ok")
 }
 
-// [AUTO] ContentFormatAttribution
+// @Summary      A12 内容类型归因（2026-10-24）
 // @Tags      report
 // @Router    /api/geo/reports/content-format [get]
 // ContentFormatAttribution A12 内容类型归因（2026-10-24）
@@ -114,7 +114,7 @@ func (c *ReportController) ContentFormatAttribution(ctx *gin.Context) {
 	response.Success(ctx, res, "ok")
 }
 
-// [AUTO] ShareOfVoiceTrend
+// @Summary      SOV 趋势环比：当前窗口 vs 上一窗口
 // @Tags      report
 // @Router    /api/geo/sov/trend [get]
 // ShareOfVoiceTrend SOV 趋势环比：当前窗口 vs 上一窗口// GET /geo/sov/trend?intent=&days=30
@@ -149,7 +149,7 @@ func (c *ReportController) ShareOfVoiceTrend(ctx *gin.Context) {
 	}, "ok")
 }
 
-// [AUTO] CrawlerStats
+// @Summary      爬虫统计
 // @Tags      report
 // @Router    /api/geo/crawler-stats [get]
 // CrawlerStats 爬虫统计
@@ -167,7 +167,7 @@ func (c *ReportController) CrawlerStats(ctx *gin.Context) {
 	response.Success(ctx, result, "ok")
 }
 
-// [AUTO] InaccurateClaims
+// @Summary      不准确声明检测
 // @Tags      report
 // @Router    /api/geo/inaccurate-claims [post]
 // InaccurateClaims 不准确声明检测
@@ -191,7 +191,7 @@ func (c *ReportController) InaccurateClaims(ctx *gin.Context) {
 	response.Success(ctx, result, "ok")
 }
 
-// [AUTO] RunCrawler
+// @Summary      爬虫已启动
 // @Tags      report
 // @Router    /api/geo/crawler/run [post]
 // RunCrawler 手动触发竞品监控爬虫

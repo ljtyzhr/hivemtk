@@ -63,7 +63,7 @@ func (s *WebhookService) HandleQQCallbackChallenge(ctx context.Context, accountI
 //
 // 流程：解析事件 → Ingress 进消息中台（幂等 EventID）→ upsert inbox → 返回 hub 消息供 AI 触发判定。
 func (s *WebhookService) dispatchQQ(ctx context.Context, accountID string, p *ParsedPayload, raw []byte) (*model.MessageHub, error) {
-	if s.lazyDB() == nil {
+	if !s.connected() {
 		return nil, nil
 	}
 	s.ensureReposFromDB(ctx)

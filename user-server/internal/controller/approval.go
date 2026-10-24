@@ -94,7 +94,7 @@ func (c *ApprovalController) detail(row *model.ApprovalRequest) approvalDetail {
 	}
 }
 
-// [AUTO] Get
+// @Summary      读不到
 // @Tags      approval
 // @Router    /api/approvals/{id} [get]
 // Get GET /api/approvals/:id
@@ -120,7 +120,7 @@ func (c *ApprovalController) Get(ctx *gin.Context) {
 	response.Success(ctx, c.detail(row), "ok")
 }
 
-// [AUTO] Decide
+// @Summary      裁决必须带操作者身份（未登录或会话里没有 user id）
 // @Tags      approval
 // @Router    /api/approvals/{id}/decide [post]
 // Decide POST /api/approvals/:id/decide  body: {"verdict":"approved|rejected","note":"…"}

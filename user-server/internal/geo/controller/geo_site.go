@@ -42,7 +42,7 @@ func (r geoSiteRequest) toInput() service.SiteConfigInput {
 	}
 }
 
-// [AUTO] List
+// @Summary      查询 GEO 站点列表
 // @Tags      geo-site
 // @Router    /api/geo/sites [get]
 func (c *GeoSiteController) List(ctx *gin.Context) {
@@ -56,7 +56,7 @@ func (c *GeoSiteController) List(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": list, "total": total}, "ok")
 }
 
-// [AUTO] Get
+// @Summary      站点配置不存在
 // @Tags      geo-site
 // @Router    /api/geo/sites/{id} [get]
 func (c *GeoSiteController) Get(ctx *gin.Context) {
@@ -72,7 +72,7 @@ func (c *GeoSiteController) Get(ctx *gin.Context) {
 	response.Success(ctx, item, "ok")
 }
 
-// [AUTO] Create
+// @Summary      创建 GEO 站点
 // @Tags      geo-site
 // @Router    /api/geo/sites [post]
 func (c *GeoSiteController) Create(ctx *gin.Context) {
@@ -88,7 +88,7 @@ func (c *GeoSiteController) Create(ctx *gin.Context) {
 	response.Success(ctx, item, "created")
 }
 
-// [AUTO] Update
+// @Summary      站点配置不存在
 // @Tags      geo-site
 // @Router    /api/geo/sites/{id} [put]
 func (c *GeoSiteController) Update(ctx *gin.Context) {
@@ -108,7 +108,7 @@ func (c *GeoSiteController) Update(ctx *gin.Context) {
 	response.Success(ctx, item, "updated")
 }
 
-// [AUTO] Delete
+// @Summary      站点配置不存在
 // @Tags      geo-site
 // @Router    /api/geo/sites/{id} [delete]
 func (c *GeoSiteController) Delete(ctx *gin.Context) {

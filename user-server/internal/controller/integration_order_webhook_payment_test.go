@@ -45,6 +45,23 @@ func (s *stubPaymentSink) RecordPayment(_ context.Context, in service.RecordPaym
 	return &service.PaymentReceipt{}, nil
 }
 
+// RecordPartialRefund E-10 退款分流后接口多的一格：stub 默认复用 RecordPayment 的
+// 应答形状（controller 侧测试关注状态码映射，不区分两条腿）。
+func (s *stubPaymentSink) RecordPartialRefund(_ context.Context, in service.RecordPartialRefundInput) (*service.PaymentReceipt, error) {
+	s.calls = append(s.calls, service.RecordPaymentInput{
+		BillID: in.BillID, ChannelRef: in.RefundRef, Amount: in.Amount, Currency: in.Currency,
+		PaidAt: in.RefundedAt, Platform: in.Platform, OrderID: in.OrderID,
+		Status: model.PaymentStatusRefunded, Reason: in.Reason,
+	})
+	if s.err != nil {
+		return nil, s.err
+	}
+	if s.receipt != nil {
+		return s.receipt, nil
+	}
+	return &service.PaymentReceipt{}, nil
+}
+
 func TestReceiveOrderWebhook_PaymentStatusCodes(t *testing.T) {
 	database := setupOrderWebhookControllerDB(t)
 
@@ -70,6 +87,18 @@ func TestReceiveOrderWebhook_PaymentStatusCodes(t *testing.T) {
 			name:       "带钱且记上了",
 			wantCalls:  1,
 			body:       `{"order_id":"HTTP-OK","status":"paid","payment":{"bill_id":"b_1","channel_ref":"r_1","amount":100}}`,
+			sink:       &stubPaymentSink{avail: true},
+			injectSink: true,
+			wantCode:   http.StatusOK,
+			wantInBody: `"payment_present":true`,
+			wantMirror: 1,
+		},
+		{
+			// E-10 退款端点（复用回款回调路径）：status=refunded 的载荷 200 入账，
+			// 不再被"回款口不收退款词"守卫弹 400。reason 字段进白名单。
+			name:       "退款载荷（status=refunded + reason）照常入账",
+			wantCalls:  1,
+			body:       `{"order_id":"HTTP-REFUND","status":"refunded","payment":{"bill_id":"b_2","channel_ref":"rr_1","amount":30,"status":"refunded","reason":"商品退货"}}`,
 			sink:       &stubPaymentSink{avail: true},
 			injectSink: true,
 			wantCode:   http.StatusOK,

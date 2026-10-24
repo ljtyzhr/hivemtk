@@ -19,7 +19,7 @@ func NewEmailSmtpController() *EmailSmtpController {
 	return &EmailSmtpController{svc: email.NewEmailSmtpService()}
 }
 
-// [AUTO] CreateEmailSmtp
+// @Summary      创建 SMTP 发信配置
 // @Tags      email-smtp
 // @Router    /api/email/smtp [post]
 // CreateEmailSmtp 创建SMTP配置
@@ -38,7 +38,7 @@ func (c *EmailSmtpController) CreateEmailSmtp(ctx *gin.Context) {
 	response.Success(ctx, resp, "创建成功")
 }
 
-// [AUTO] GetEmailSmtpList
+// @Summary      查询 SMTP 发信配置列表
 // @Tags      email-smtp
 // @Router    /api/email/smtp [get]
 // GetEmailSmtpList 获取SMTP配置列表
@@ -51,7 +51,7 @@ func (c *EmailSmtpController) GetEmailSmtpList(ctx *gin.Context) {
 	response.Success(ctx, resp, "获取成功")
 }
 
-// [AUTO] GetEmailSmtp
+// @Summary      按 ID 查询 SMTP 配置详情
 // @Tags      email-smtp
 // @Router    /api/email/smtps/{id} [get]
 // GetEmailSmtp 获取SMTP配置详情
@@ -74,7 +74,7 @@ func (c *EmailSmtpController) GetEmailSmtp(ctx *gin.Context) {
 	response.Success(ctx, resp, "获取成功")
 }
 
-// [AUTO] UpdateEmailSmtp
+// @Summary      更新 SMTP 发信配置
 // @Tags      email-smtp
 // @Router    /api/email/smtp/{id} [put]
 // UpdateEmailSmtp 更新SMTP配置
@@ -92,7 +92,7 @@ func (c *EmailSmtpController) UpdateEmailSmtp(ctx *gin.Context) {
 	response.Success(ctx, nil, "更新成功")
 }
 
-// [AUTO] DeleteEmailSmtp
+// @Summary      删除 SMTP 发信配置
 // @Tags      email-smtp
 // @Router    /api/email/smtp/{id} [delete]
 // DeleteEmailSmtp 删除SMTP配置

@@ -43,7 +43,7 @@ func (c *SOPTemplateController) RegisterRoutes(router *gin.RouterGroup) {
 	}
 }
 
-// [AUTO] List
+// @Summary      列表查询
 // @Tags      s-o-p-template
 // @Router    /api/sop-templates [get]
 // List 列表查询
@@ -73,7 +73,7 @@ func (c *SOPTemplateController) List(ctx *gin.Context) {
 	response.SuccessWithPage(ctx, list, int64(page), int64(pageSize), total)
 }
 
-// [AUTO] Get
+// @Summary      按 ID 查询 SOP 模板
 // @Tags      s-o-p-template
 // @Router    /api/sop-templates/{id} [get]
 // Get 详情
@@ -103,7 +103,7 @@ type sopTemplateCreateReq struct {
 	AgentID    uint    `json:"agent_id" binding:"required"`
 }
 
-// [AUTO] Create
+// @Summary      创建 SOP 模板
 // @Tags      s-o-p-template
 // @Router    /api/sop-templates [post]
 // Create 新增
@@ -132,7 +132,7 @@ func (c *SOPTemplateController) Create(ctx *gin.Context) {
 	response.Success(ctx, tpl, "创建成功")
 }
 
-// [AUTO] Update
+// @Summary      更新 SOP 模板
 // @Tags      s-o-p-template
 // @Router    /api/sop-templates/{id} [put]
 // Update 更新
@@ -166,7 +166,7 @@ func (c *SOPTemplateController) Update(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"id": id}, "更新成功")
 }
 
-// [AUTO] Toggle
+// @Summary      状态已更新
 // @Tags      s-o-p-template
 // @Router    /api/sop-templates/{id}/toggle [patch]
 // Toggle 切换启用状态（列表页开关专用，只收 enabled，不走全量 required 校验）
@@ -190,7 +190,7 @@ func (c *SOPTemplateController) Toggle(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"id": id, "enabled": *req.Enabled}, "状态已更新")
 }
 
-// [AUTO] Delete
+// @Summary      删除 SOP 模板
 // @Tags      s-o-p-template
 // @Router    /api/sop-templates/{id} [delete]
 // Delete 删除
@@ -214,7 +214,7 @@ type sopTemplateMatchReq struct {
 	AgentID uint   `json:"agent_id" binding:"required"`
 }
 
-// [AUTO] Match
+// @Summary      匹配成功
 // @Tags      s-o-p-template
 // @Router    /api/sop-templates/match [post]
 // Match 按 (agent_id, intent, stage) 匹配 (Task 16 强 1对1 改造后)

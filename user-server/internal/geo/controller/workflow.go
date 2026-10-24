@@ -18,7 +18,7 @@ func NewWorkflowController(svc *service.WorkflowService) *WorkflowController {
 	return &WorkflowController{svc: svc}
 }
 
-// [AUTO] List
+// @Summary      获取工作流列表成功
 // @Tags      workflow
 // @Router    /api/geo/workflow/workflows [get]
 // List 工作流列表
@@ -32,7 +32,7 @@ func (c *WorkflowController) List(ctx *gin.Context) {
 	response.Success(ctx, list, "获取工作流列表成功")
 }
 
-// [AUTO] Get
+// @Summary      获取工作流成功
 // @Tags      workflow
 // @Router    /api/geo/workflow/workflows/{id} [get]
 // Get 工作流详情
@@ -46,7 +46,7 @@ func (c *WorkflowController) Get(ctx *gin.Context) {
 	response.Success(ctx, wf, "获取工作流成功")
 }
 
-// [AUTO] Create
+// @Summary      创建工作流成功
 // @Tags      workflow
 // @Router    /api/geo/workflow/workflows [post]
 // Create 创建工作流
@@ -64,7 +64,7 @@ func (c *WorkflowController) Create(ctx *gin.Context) {
 	response.Success(ctx, wf, "创建工作流成功")
 }
 
-// [AUTO] Update
+// @Summary      更新工作流成功
 // @Tags      workflow
 // @Router    /api/geo/workflow/workflows/{id} [put]
 // Update 更新工作流
@@ -82,7 +82,7 @@ func (c *WorkflowController) Update(ctx *gin.Context) {
 	response.Success(ctx, wf, "更新工作流成功")
 }
 
-// [AUTO] Delete
+// @Summary      删除工作流成功
 // @Tags      workflow
 // @Router    /api/geo/workflow/workflows/{id} [delete]
 // Delete 删除工作流
@@ -95,7 +95,7 @@ func (c *WorkflowController) Delete(ctx *gin.Context) {
 	response.Success(ctx, nil, "删除工作流成功")
 }
 
-// [AUTO] Run
+// @Summary      工作流执行失败
 // @Tags      workflow
 // @Router    /api/geo/workflow/workflows/{id}/run [post]
 // Run 执行工作流
@@ -115,7 +115,7 @@ func (c *WorkflowController) Run(ctx *gin.Context) {
 	response.Success(ctx, result, "工作流执行完成")
 }
 
-// [AUTO] ListExecutions
+// @Summary      获取执行记录成功
 // @Tags      workflow
 // @Router    /api/geo/workflow/workflows/{id}/executions [get]
 // ListExecutions 执行记录列表
@@ -129,7 +129,7 @@ func (c *WorkflowController) ListExecutions(ctx *gin.Context) {
 	response.Success(ctx, execs, "获取执行记录成功")
 }
 
-// [AUTO] ListTemplates
+// @Summary      获取模板列表成功
 // @Tags      workflow
 // @Router    /api/geo/workflow/templates [get]
 // ListTemplates 模板列表
@@ -143,7 +143,7 @@ func (c *WorkflowController) ListTemplates(ctx *gin.Context) {
 	response.Success(ctx, tpls, "获取模板列表成功")
 }
 
-// [AUTO] CreateTemplate
+// @Summary      创建模板成功
 // @Tags      workflow
 // @Router    /api/geo/workflow/templates [post]
 // CreateTemplate 创建模板

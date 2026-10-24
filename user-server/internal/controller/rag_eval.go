@@ -23,7 +23,7 @@ func NewRagEvalController() *RagEvalController {
 	}
 }
 
-// [AUTO] Run
+// @Summary      评测完成
 // @Tags      rag-eval
 // @Router    /api/rag-eval/run [post]
 // Run POST /api/rag-eval/run
@@ -42,7 +42,7 @@ func (c *RagEvalController) Run(ctx *gin.Context) {
 	response.Success(ctx, run, "评测完成")
 }
 
-// [AUTO] List
+// @Summary      查询 RAG 评测运行列表
 // @Tags      rag-eval
 // @Router    /api/rag-eval/runs [get]
 // List GET /api/rag-eval/runs?limit=20
@@ -61,7 +61,7 @@ func (c *RagEvalController) List(ctx *gin.Context) {
 	response.Success(ctx, runs, "获取成功")
 }
 
-// [AUTO] Get
+// @Summary      按 ID 查询 RAG 评测运行详情
 // @Tags      rag-eval
 // @Router    /api/rag-eval/runs/{id} [get]
 // Get GET /api/rag-eval/runs/:id
@@ -105,7 +105,7 @@ func (c *ManageRagEvalController) Run(ctx *gin.Context) {
 	response.Success(ctx, run, "评测完成")
 }
 
-// [AUTO] List
+// @Summary      查询 RAG 评测运行列表（管理端）
 // @Tags      manage-rag-eval
 // @Router    /api/manage/rag-eval/runs [get]
 // List GET /api/manage/rag-eval/runs
@@ -117,7 +117,7 @@ func (c *ManageRagEvalController) List(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": runs, "total": len(runs)}, "ok")
 }
 
-// [AUTO] Detail
+// @Summary      无效的 id
 // @Tags      manage-rag-eval
 // @Router    /api/manage/rag-eval/runs/{id} [get]
 // Detail GET /api/manage/rag-eval/runs/:id

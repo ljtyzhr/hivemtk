@@ -157,7 +157,7 @@ type aiAgentCreateReq struct {
 	TargetLanguage       string  `json:"target_language"`
 }
 
-// [AUTO] Create
+// @Summary      创建 AI 智能体
 // @Tags      a-i-agent
 // @Router    /api/ai-agents [post]
 func (ctrl *AIAgentController) Create(c *gin.Context) {
@@ -229,7 +229,7 @@ func (ctrl *AIAgentController) Create(c *gin.Context) {
 	response.Success(c, agent, "创建成功")
 }
 
-// [AUTO] Update
+// @Summary      更新 AI 智能体
 // @Tags      a-i-agent
 // @Router    /api/ai-agents/{id} [put]
 func (ctrl *AIAgentController) Update(c *gin.Context) {
@@ -360,7 +360,7 @@ func (ctrl *AIAgentController) Update(c *gin.Context) {
 	response.Success(c, existing, "更新成功")
 }
 
-// [AUTO] Delete
+// @Summary      删除 AI 智能体
 // @Tags      a-i-agent
 // @Router    /api/ai-agents/{id} [delete]
 func (ctrl *AIAgentController) Delete(c *gin.Context) {
@@ -376,7 +376,7 @@ func (ctrl *AIAgentController) Delete(c *gin.Context) {
 	response.Success(c, nil, "删除成功")
 }
 
-// [AUTO] Toggle
+// @Summary      状态更新成功
 // @Tags      a-i-agent
 // @Router    /api/ai-agents/{id}/toggle [post]
 func (ctrl *AIAgentController) Toggle(c *gin.Context) {
@@ -414,7 +414,7 @@ func (ctrl *AIAgentController) Toggle(c *gin.Context) {
 	response.Success(c, gin.H{"id": id, "status": newStatus}, "状态更新成功")
 }
 
-// [AUTO] Test
+// @Summary      测试成功
 // @Tags      a-i-agent
 // @Router    /api/ai-agents/{id}/test [post]
 func (ctrl *AIAgentController) Test(c *gin.Context) {
@@ -443,7 +443,7 @@ func (ctrl *AIAgentController) Test(c *gin.Context) {
 	response.Success(c, resp, "测试成功")
 }
 
-// [AUTO] GetContext
+// @Summary      加载 AI 智能体运行上下文
 // @Tags      a-i-agent
 // @Router    /api/ai-agents/{id}/context [get]
 func (ctrl *AIAgentController) GetContext(c *gin.Context) {
@@ -484,7 +484,7 @@ func (ctrl *ChannelAgentBindingController) RegisterRoutes(router *gin.RouterGrou
 	}
 }
 
-// [AUTO] List
+// @Summary      参数缺失
 // @Tags      channel-agent-binding
 // @Router    /api/channel-agent-bindings [get]
 func (ctrl *ChannelAgentBindingController) List(c *gin.Context) {
@@ -503,7 +503,7 @@ func (ctrl *ChannelAgentBindingController) List(c *gin.Context) {
 	response.SuccessWithList(c, list, int64(len(list)))
 }
 
-// [AUTO] ListByAgent
+// @Summary      无效的智能体ID
 // @Tags      channel-agent-binding
 // @Router    /api/channel-agent-bindings/by-agent/{agent_id} [get]
 func (ctrl *ChannelAgentBindingController) ListByAgent(c *gin.Context) {
@@ -532,7 +532,7 @@ type channelBindingReq struct {
 	Enabled   *bool `json:"enabled"`
 }
 
-// [AUTO] Create
+// @Summary      创建渠道-智能体绑定
 // @Tags      channel-agent-binding
 // @Router    /api/channel-agent-bindings [post]
 func (ctrl *ChannelAgentBindingController) Create(c *gin.Context) {
@@ -558,7 +558,7 @@ func (ctrl *ChannelAgentBindingController) Create(c *gin.Context) {
 	response.Success(c, b, "创建成功")
 }
 
-// [AUTO] Update
+// @Summary      更新渠道-智能体绑定
 // @Tags      channel-agent-binding
 // @Router    /api/channel-agent-bindings/{id} [put]
 func (ctrl *ChannelAgentBindingController) Update(c *gin.Context) {
@@ -598,7 +598,7 @@ func (ctrl *ChannelAgentBindingController) Update(c *gin.Context) {
 	response.Success(c, existing, "更新成功")
 }
 
-// [AUTO] Delete
+// @Summary      删除渠道-智能体绑定
 // @Tags      channel-agent-binding
 // @Router    /api/channel-agent-bindings/{id} [delete]
 func (ctrl *ChannelAgentBindingController) Delete(c *gin.Context) {
@@ -635,7 +635,7 @@ func (ctrl *CustomerServiceAgentController) RegisterRoutes(router *gin.RouterGro
 	}
 }
 
-// [AUTO] List
+// @Summary      参数缺失
 // @Tags      customer-service-agent
 // @Router    /api/customer-service-agents [get]
 func (ctrl *CustomerServiceAgentController) List(c *gin.Context) {
@@ -657,7 +657,7 @@ func (ctrl *CustomerServiceAgentController) List(c *gin.Context) {
 	response.SuccessWithList(c, list, int64(len(list)))
 }
 
-// [AUTO] ListByAIAgent
+// @Summary      无效的智能体ID
 // @Tags      customer-service-agent
 // @Router    /api/customer-service-agents/by-ai-agent/{ai_agent_id} [get]
 func (ctrl *CustomerServiceAgentController) ListByAIAgent(c *gin.Context) {
@@ -682,7 +682,7 @@ type csAgentMountReq struct {
 	Enabled   *bool `json:"enabled"`
 }
 
-// [AUTO] Create
+// @Summary      创建客服智能体挂载
 // @Tags      customer-service-agent
 // @Router    /api/customer-service-agents [post]
 func (ctrl *CustomerServiceAgentController) Create(c *gin.Context) {
@@ -704,7 +704,7 @@ func (ctrl *CustomerServiceAgentController) Create(c *gin.Context) {
 	response.Success(c, m, "创建成功")
 }
 
-// [AUTO] Update
+// @Summary      更新客服智能体挂载
 // @Tags      customer-service-agent
 // @Router    /api/customer-service-agents/{id} [put]
 // Update 更新挂载
@@ -741,7 +741,7 @@ func (ctrl *CustomerServiceAgentController) Update(c *gin.Context) {
 	response.Success(c, existing, "更新成功")
 }
 
-// [AUTO] Delete
+// @Summary      删除客服智能体挂载
 // @Tags      customer-service-agent
 // @Router    /api/customer-service-agents/{id} [delete]
 // Delete 删除挂载
@@ -759,7 +759,7 @@ func (ctrl *CustomerServiceAgentController) Delete(c *gin.Context) {
 	response.Success(c, nil, "删除成功")
 }
 
-// [AUTO] ListByUser
+// @Summary      按用户ID查询挂载（团队成员即座席）
 // @Tags      customer-service-agent
 // @Router    /api/customer-service-agents/by-user/{user_id} [get]
 // ListByUser 按用户ID查询挂载（团队成员即座席）
@@ -778,7 +778,7 @@ func (ctrl *CustomerServiceAgentController) ListByUser(c *gin.Context) {
 	response.SuccessWithList(c, list, int64(len(list)))
 }
 
-// [AUTO] CreateByUser
+// @Summary      按用户 ID 创建座席挂载（自动创建座席状态）
 // @Tags      customer-service-agent
 // @Router    /api/customer-service-agents/by-user/{user_id} [post]
 // CreateByUser 按用户ID创建挂载（自动创建座席状态）

@@ -22,7 +22,7 @@ func NewAlertController(svc *service.AlertService) *AlertController {
 	return &AlertController{svc: svc}
 }
 
-// [AUTO] List
+// @Summary      查询告警失败
 // @Tags      alert
 // @Router    /api/geo/alerts [get]
 // List GET /geo/alerts?type=&level=&page=&limit=
@@ -42,7 +42,7 @@ func (c *AlertController) List(ctx *gin.Context) {
 	response.Success(ctx, result, "ok")
 }
 
-// [AUTO] UnreadCount
+// @Summary      查询未读告警数失败
 // @Tags      alert
 // @Router    /api/geo/alerts/unread-count [get]
 // UnreadCount GET /geo/alerts/unread-count
@@ -55,7 +55,7 @@ func (c *AlertController) UnreadCount(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"count": n}, "ok")
 }
 
-// [AUTO] MarkNotified
+// @Summary      已确认
 // @Tags      alert
 // @Router    /api/geo/alerts/{id}/ack [post]
 // MarkNotified POST /geo/alerts/:id/ack 确认（已读）

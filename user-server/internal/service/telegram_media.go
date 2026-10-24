@@ -151,30 +151,28 @@ func (s *WebhookService) persistTelegramMediaAsync(ctx context.Context, accountI
 // file_id 官方说明可复用于下载（与 QQ 的 CDN 链接、WA 的 7 天 media_id 不同，TG 的 file_id
 // 长期有效）⇒ 留痕后，链接失效或存储迁移时还能重新拉取原件。
 func (s *WebhookService) backfillTGMedia(ctx context.Context, accountID, hubMsgID string, urls, fileIDs []string) {
-	d := s.lazyDB()
-	if d == nil || hubMsgID == "" {
+	if hubMsgID == "" || len(urls) == 0 {
 		return
 	}
-	var hub model.MessageHub
-	if err := d.WithContext(ctx).
-		Where("platform = ? AND account_id = ? AND msg_id = ?", "telegram", accountID, hubMsgID).
-		First(&hub).Error; err != nil {
-		logger.Ctx(ctx).Warn().Err(err).Str("msg_id", hubMsgID).
-			Msg("[Telegram] 媒体回填失败：找不到 hub 行")
+	// E-4 下沉：直查两段式改走 repo（与抖音/QQ 同一路径）+ Extra 追加 media_file_ids。
+	if !s.connected() {
+		s.ensureReposFromDB(ctx)
+	}
+	if s.messageHubRepo == nil {
 		return
 	}
-	extra := hub.Extra
-	if extra == nil {
-		extra = model.JSONMap{}
-	}
-	extra["media_urls"] = urls
+	extraPatch := model.JSONMap{"media_urls": urls}
 	if len(fileIDs) > 0 {
-		extra["media_file_ids"] = fileIDs
+		extraPatch["media_file_ids"] = fileIDs
 	}
-	if err := d.WithContext(ctx).Model(&model.MessageHub{}).
-		Where("id = ?", hub.ID).
-		Updates(map[string]any{"media_url": urls[0], "extra": extra}).Error; err != nil {
-		logger.Ctx(ctx).Warn().Err(err).Uint("hub_id", hub.ID).Msg("[Telegram] 媒体回填写库失败")
+	found, err := s.messageHubRepo.BackfillMediaByRowKeyExtra(ctx, "telegram", accountID, hubMsgID, urls[0], extraPatch)
+	if err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Str("msg_id", hubMsgID).Msg("[Telegram] 媒体回填写库失败")
+		return
+	}
+	if !found {
+		logger.Ctx(ctx).Warn().Str("msg_id", hubMsgID).
+			Msg("[Telegram] 媒体回填失败：找不到 hub 行")
 	}
 }
 

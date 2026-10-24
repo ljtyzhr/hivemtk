@@ -9,7 +9,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// [AUTO] AssignSession
+// @Summary      分配成功
 // @Tags      customer-session
 // @Router    /api/customer-sessions/assign [post]
 // AssignSession 分配会话
@@ -34,7 +34,7 @@ func (c *CustomerSessionController) AssignSession(ctx *gin.Context) {
 	response.Success(ctx, nil, "分配成功")
 }
 
-// [AUTO] AutoAssignSession
+// @Summary      分配成功
 // @Tags      customer-session
 // @Router    /api/customer-sessions/{id}/auto-assign [post]
 // AutoAssignSession 自动分配会话
@@ -60,7 +60,7 @@ func (c *CustomerSessionController) AutoAssignSession(ctx *gin.Context) {
 	response.Success(ctx, nil, "分配成功")
 }
 
-// [AUTO] TransferSession
+// @Summary      转接成功
 // @Tags      customer-session
 // @Router    /api/customer-sessions/{id}/transfer [post]
 // TransferSession 转接会话

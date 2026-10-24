@@ -25,7 +25,7 @@ func NewWhatsappController(svc *service.WhatsappService) *WhatsappController {
 	return &WhatsappController{svc: svc}
 }
 
-// [AUTO] ListAccounts
+// @Summary      获取账号列表成功
 // @Tags      whatsapp
 // @Router    /api/whatsapp/accounts [get]
 // Accounts
@@ -72,7 +72,7 @@ type createAccountReq struct {
 	Remark string `json:"remark"`
 }
 
-// [AUTO] CreateAccount
+// @Summary      创建账号成功
 // @Tags      whatsapp
 // @Router    /api/whatsapp/accounts [post]
 func (c *WhatsappController) CreateAccount(ctx *gin.Context) {
@@ -91,7 +91,7 @@ func (c *WhatsappController) CreateAccount(ctx *gin.Context) {
 	response.Success(ctx, acc, "创建账号成功")
 }
 
-// [AUTO] StartLogin
+// @Summary      登录二维码生成成功
 // @Tags      whatsapp
 // @Router    /api/whatsapp/accounts/{id}/login/start [post]
 // Login
@@ -115,7 +115,7 @@ func (c *WhatsappController) StartLogin(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"qr": qr}, "登录二维码生成成功")
 }
 
-// [AUTO] LoginStatus
+// @Summary      登录状态获取成功
 // @Tags      whatsapp
 // @Router    /api/whatsapp/accounts/{id}/login/status [get]
 func (c *WhatsappController) LoginStatus(ctx *gin.Context) {
@@ -139,7 +139,7 @@ type createDraftReq struct {
 	Content string `json:"content"`
 }
 
-// [AUTO] ListDrafts
+// @Summary      获取草稿成功
 // @Tags      whatsapp
 // @Router    /api/whatsapp/drafts [get]
 func (c *WhatsappController) ListDrafts(ctx *gin.Context) {
@@ -151,7 +151,7 @@ func (c *WhatsappController) ListDrafts(ctx *gin.Context) {
 	response.Success(ctx, list, "获取草稿成功")
 }
 
-// [AUTO] CreateDraft
+// @Summary      创建草稿成功
 // @Tags      whatsapp
 // @Router    /api/whatsapp/drafts [post]
 func (c *WhatsappController) CreateDraft(ctx *gin.Context) {
@@ -172,7 +172,7 @@ type createJobReq struct {
 	DraftID string `json:"draft_id"`
 }
 
-// [AUTO] CreateJob
+// @Summary      群发任务已创建
 // @Tags      whatsapp
 // @Router    /api/whatsapp/jobs [post]
 func (c *WhatsappController) CreateJob(ctx *gin.Context) {
@@ -194,7 +194,7 @@ func (c *WhatsappController) CreateJob(ctx *gin.Context) {
 	response.Success(ctx, job, "群发任务已创建")
 }
 
-// [AUTO] UpdateAccount
+// @Summary      更新账号成功
 // @Tags      whatsapp
 // @Router    /api/whatsapp/accounts/{id} [put]
 // UpdateAccount 更新账号
@@ -230,7 +230,7 @@ func (c *WhatsappController) UpdateAccount(ctx *gin.Context) {
 	response.Success(ctx, acc, "更新账号成功")
 }
 
-// [AUTO] DeleteAccount
+// @Summary      删除账号成功
 // @Tags      whatsapp
 // @Router    /api/whatsapp/accounts/{id} [delete]
 // DeleteAccount 删除账号
@@ -248,7 +248,7 @@ func (c *WhatsappController) DeleteAccount(ctx *gin.Context) {
 	response.Success(ctx, nil, "删除账号成功")
 }
 
-// [AUTO] UpdateDraft
+// @Summary      更新草稿成功
 // @Tags      whatsapp
 // @Router    /api/whatsapp/drafts/{id} [put]
 // UpdateDraft 更新草稿
@@ -282,7 +282,7 @@ func (c *WhatsappController) UpdateDraft(ctx *gin.Context) {
 	response.Success(ctx, draft, "更新草稿成功")
 }
 
-// [AUTO] DeleteDraft
+// @Summary      删除草稿成功
 // @Tags      whatsapp
 // @Router    /api/whatsapp/drafts/{id} [delete]
 // DeleteDraft 删除草稿
@@ -300,7 +300,7 @@ func (c *WhatsappController) DeleteDraft(ctx *gin.Context) {
 	response.Success(ctx, nil, "删除草稿成功")
 }
 
-// [AUTO] ListJobs
+// @Summary      获取任务列表成功
 // @Tags      whatsapp
 // @Router    /api/whatsapp/jobs [get]
 // ListJobs 列出群发任务
@@ -313,7 +313,7 @@ func (c *WhatsappController) ListJobs(ctx *gin.Context) {
 	response.Success(ctx, list, "获取任务列表成功")
 }
 
-// [AUTO] GetJob
+// @Summary      获取任务成功
 // @Tags      whatsapp
 // @Router    /api/whatsapp/jobs/{id} [get]
 // GetJob 获取群发任务详情
@@ -336,7 +336,7 @@ func (c *WhatsappController) GetJob(ctx *gin.Context) {
 	response.Success(ctx, job, "获取任务成功")
 }
 
-// [AUTO] DeleteJob
+// @Summary      删除任务成功
 // @Tags      whatsapp
 // @Router    /api/whatsapp/jobs/{id} [delete]
 // DeleteJob 删除群发任务

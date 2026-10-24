@@ -18,7 +18,7 @@ func NewPushController(svc *service.PushService) *PushController {
 	return &PushController{svc: svc}
 }
 
-// [AUTO] PushURLs
+// @Summary      推送 URL 到各搜索引擎平台
 // @Tags      push
 // @Router    /api/geo/push/urls [post]
 // PushURLs POST /geo/push/urls
@@ -52,7 +52,7 @@ func (c *PushController) PushURLs(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"count": len(req.URLs), "records": records}, "ok")
 }
 
-// [AUTO] QuotaStatus
+// @Summary      查询推送配额状态
 // @Tags      push
 // @Router    /api/geo/push/quota [get]
 // QuotaStatus GET /geo/push/quota
@@ -61,7 +61,7 @@ func (c *PushController) QuotaStatus(ctx *gin.Context) {
 	response.Success(ctx, status, "ok")
 }
 
-// [AUTO] GenerateSitemap
+// @Summary      生成并提交站点 sitemap
 // @Tags      push
 // @Router    /api/geo/push/sitemap [get]
 // GenerateSitemap GET /geo/push/sitemap

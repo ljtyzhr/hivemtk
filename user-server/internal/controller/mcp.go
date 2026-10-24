@@ -18,7 +18,7 @@ func NewMCPController() *MCPController {
 	return &MCPController{}
 }
 
-// [AUTO] Handle
+// @Summary      MCP JSON-RPC 请求处理入口
 // @Tags      m-c-p
 // @Router    /api/mcp [post]
 // Handle POST /api/mcp。

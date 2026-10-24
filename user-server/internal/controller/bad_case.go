@@ -56,7 +56,7 @@ func (c *BadCaseController) RegisterRoutes(router *gin.RouterGroup) {
 // 收窄是因为下面会把 id 回显进提示里：无上限的回显等于给调用方一个免费的响应体放大器。
 const badCaseIDParamMaxLen = 64
 
-// [AUTO] List
+// @Summary      查询坏例队列列表
 // @Tags      bad-case
 // @Router    /api/bad-cases [get]
 // List GET /api/bad-cases
@@ -77,7 +77,7 @@ func (c *BadCaseController) List(ctx *gin.Context) {
 	response.SuccessWithList(ctx, list, total)
 }
 
-// [AUTO] Stats
+// @Summary      坏例队列读数统计（已判率为北极星）
 // @Tags      bad-case
 // @Router    /api/bad-cases/stats [get]
 // Stats GET /api/bad-cases/stats —— 队列读数（已判率是本处北极星）。
@@ -94,7 +94,7 @@ func (c *BadCaseController) Stats(ctx *gin.Context) {
 	response.Success(ctx, stats, "ok")
 }
 
-// [AUTO] Taxonomy
+// @Summary      查询坏例来源/状态/类目/责任层值域
 // @Tags      bad-case
 // @Router    /api/bad-cases/taxonomy [get]
 // Taxonomy GET /api/bad-cases/taxonomy —— 把来源/状态/类目/责任层四张表交回前端。
@@ -117,7 +117,7 @@ func (c *BadCaseController) Taxonomy(ctx *gin.Context) {
 	}, "ok")
 }
 
-// [AUTO] Get
+// @Summary      读不到
 // @Tags      bad-case
 // @Router    /api/bad-cases/{id} [get]
 // Get GET /api/bad-cases/:id
@@ -143,7 +143,7 @@ func (c *BadCaseController) Get(ctx *gin.Context) {
 	response.Success(ctx, row, "ok")
 }
 
-// [AUTO] CreateManual
+// @Summary      补录必须带操作者身份（未登录或会话里没有 user id）
 // @Tags      bad-case
 // @Router    /api/bad-cases [post]
 // CreateManual POST /api/bad-cases —— 坐席补录一条（不等置信度判它低质）。
@@ -188,7 +188,7 @@ func (c *BadCaseController) CreateManual(ctx *gin.Context) {
 	response.Success(ctx, row, "ok")
 }
 
-// [AUTO] Label
+// @Summary      打标必须带操作者身份（未登录或会话里没有 user id）
 // @Tags      bad-case
 // @Router    /api/bad-cases/{id}/label [post]
 // Label POST /api/bad-cases/:id/label  body: {"label":"…","note":"…"}
@@ -226,7 +226,7 @@ func (c *BadCaseController) Label(ctx *gin.Context) {
 	response.Success(ctx, row, "ok")
 }
 
-// [AUTO] Dismiss
+// @Summary      撤销必须带操作者身份（未登录或会话里没有 user id）
 // @Tags      bad-case
 // @Router    /api/bad-cases/{id}/dismiss [post]
 // Dismiss POST /api/bad-cases/:id/dismiss  body: {"reason":"…"}（必须给理由）
@@ -263,7 +263,7 @@ func (c *BadCaseController) Dismiss(ctx *gin.Context) {
 	response.Success(ctx, row, "ok")
 }
 
-// [AUTO] Export
+// @Summary      全选导出
 // @Tags      bad-case
 // @Router    /api/bad-cases/export [post]
 // Export POST /api/bad-cases/export  body: {"labels":[…],"limit":N} → 一份评测集

@@ -262,7 +262,7 @@ func (c *WebhookController) ReceiveWithoutAccount(ctx *gin.Context) {
 	ctx.JSON(status, result)
 }
 
-// [AUTO] WeComVerify
+// @Summary      企微 URL 验证（GET 挑战）
 // @Tags      webhook
 // @Router    /api/webhook/wecom/{account_id} [get]
 // WeComVerify 企微 URL 验证（GET 挑战）
@@ -390,7 +390,7 @@ func (c *WebhookController) WhatsAppVerify(ctx *gin.Context) {
 	ctx.String(http.StatusOK, challenge)
 }
 
-// [AUTO] DingTalkVerify
+// @Summary      钉钉回调 URL 验证（GET）
 // @Tags      webhook
 // @Router    /api/webhook/dingtalk/{account_id} [get]
 // DingTalkVerify 钉钉回调 URL 验证（GET）
@@ -424,7 +424,7 @@ func (c *WebhookController) DingTalkVerify(ctx *gin.Context) {
 	ctx.String(http.StatusOK, plain)
 }
 
-// [AUTO] DingTalkReceive
+// @Summary      钉钉回调收消息（POST）
 // @Tags      webhook
 // @Router    /api/webhook/dingtalk/{account_id} [post]
 // DingTalkReceive 钉钉回调收消息（POST）
@@ -455,7 +455,7 @@ func (c *WebhookController) DingTalkReceive(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"accepted": true})
 }
 
-// [AUTO] Stats
+// @Summary      Webhook 队列统计（待处理/队列长度）
 // @Tags      webhook
 // @Router    /api/webhook/stats [get]
 // Stats 统计
@@ -468,7 +468,7 @@ func (c *WebhookController) Stats(ctx *gin.Context) {
 	}, "ok")
 }
 
-// [AUTO] Health
+// @Summary      健康检查
 // @Tags      webhook
 // @Router    /api/webhook/health [get]
 // Health 健康检查

@@ -39,7 +39,7 @@ func (ctrl *GlossaryController) RegisterRoutes(router *gin.RouterGroup) {
 	}
 }
 
-// [AUTO] Create
+// @Summary      创建术语表词条
 // @Tags      glossary
 // @Router    /api/glossaries [post]
 // Create 创建术语
@@ -58,7 +58,7 @@ func (ctrl *GlossaryController) Create(c *gin.Context) {
 	response.Success(c, translation.FromGlossaryModel(g), "创建成功")
 }
 
-// [AUTO] List
+// @Summary      列表查询（支持 category/status/keyword 过滤 + 分页）
 // @Tags      glossary
 // @Router    /api/glossaries [get]
 // List 列表查询（支持 category/status/keyword 过滤 + 分页）
@@ -94,7 +94,7 @@ func (ctrl *GlossaryController) List(c *gin.Context) {
 	response.SuccessWithPage(c, translation.FromGlossaryModelList(list), int64(req.Page), int64(req.PageSize), total)
 }
 
-// [AUTO] Get
+// @Summary      按词条 ID 查询术语
 // @Tags      glossary
 // @Router    /api/glossaries/{term_id} [get]
 // Get 查询单条术语
@@ -117,7 +117,7 @@ func (ctrl *GlossaryController) Get(c *gin.Context) {
 	response.Success(c, translation.FromGlossaryModel(g), "获取成功")
 }
 
-// [AUTO] Update
+// @Summary      更新术语表词条
 // @Tags      glossary
 // @Router    /api/glossaries/{term_id} [put]
 // Update 更新术语
@@ -156,7 +156,7 @@ func (ctrl *GlossaryController) Update(c *gin.Context) {
 	response.Success(c, translation.FromGlossaryModel(updated), "更新成功")
 }
 
-// [AUTO] Delete
+// @Summary      删除术语表词条
 // @Tags      glossary
 // @Router    /api/glossaries/{term_id} [delete]
 // Delete 删除术语
@@ -174,7 +174,7 @@ func (ctrl *GlossaryController) Delete(c *gin.Context) {
 	response.Success(c, nil, "删除成功")
 }
 
-// [AUTO] Validate
+// @Summary      校验完成
 // @Tags      glossary
 // @Router    /api/glossaries/validate [post]
 // Validate 预览某段文本的术语校验结果

@@ -72,7 +72,7 @@ const (
 )
 
 func (s *WebhookService) dispatchTelegram(ctx context.Context, accountID string, p *ParsedPayload, raw []byte) (*model.MessageHub, *tgDispatchExtra, error) {
-	if s.lazyDB() == nil {
+	if !s.connected() {
 		return nil, nil, nil
 	}
 	s.ensureReposFromDB(ctx)
@@ -644,7 +644,7 @@ func (s *WebhookService) triggerTelegramJoinSales(ctx context.Context, accountID
 		return
 	}
 	if s.tgIntegration == nil {
-		s.tgIntegration = NewTelegramIntegrationService(s.lazyDB())
+		s.tgIntegration = s.integrations.tg()
 	}
 	accID, err := strconv.ParseUint(accountID, 10, 64)
 	if err != nil || accID == 0 {

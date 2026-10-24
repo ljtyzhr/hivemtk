@@ -22,7 +22,7 @@ func NewSiteController(deploySvc *service.SiteDeployService, pushSvc *service.Pu
 	return &SiteController{deploySvc: deploySvc, pushSvc: pushSvc, configRepo: configRepo}
 }
 
-// [AUTO] ExportToHugo
+// @Summary      导出站点为 Hugo 静态站
 // @Tags      site
 // @Router    /api/geo/site/export [post]
 // ExportToHugo POST /geo/site/export
@@ -35,7 +35,7 @@ func (c *SiteController) ExportToHugo(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"exported": n}, "ok")
 }
 
-// [AUTO] TriggerDeploy
+// @Summary      触发站点部署
 // @Tags      site
 // @Router    /api/geo/site/deploy [post]
 // TriggerDeploy POST /geo/site/deploy
@@ -48,7 +48,7 @@ func (c *SiteController) TriggerDeploy(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"site_url": url}, "ok")
 }
 
-// [AUTO] FullPipeline
+// @Summary      一键全链路：导出→部署→推送
 // @Tags      site
 // @Router    /api/geo/site/full-pipeline [post]
 // FullPipeline POST /geo/site/full-pipeline
@@ -67,7 +67,7 @@ func (c *SiteController) FullPipeline(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"exported": n, "site_url": url}, "ok")
 }
 
-// [AUTO] LlmsTxtPreview
+// @Summary      预览 llms.txt 内容
 // @Tags      site
 // @Router    /api/geo/site/llms-txt-preview [get]
 // LlmsTxtPreview GET /geo/site/llms-txt-preview?domain=example.com
@@ -82,7 +82,7 @@ func (c *SiteController) LlmsTxtPreview(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"content": service.GenerateLLMsTxt(brand, domain, nil)}, "ok")
 }
 
-// [AUTO] RobotsTxtPreview
+// @Summary      预览 robots.txt 内容
 // @Tags      site
 // @Router    /api/geo/site/robots-preview [get]
 // RobotsTxtPreview GET /geo/site/robots-preview

@@ -27,7 +27,7 @@ func NewTechMetricsController(kbSvc *service.KBService) *TechMetricsController {
 	}
 }
 
-// [AUTO] GenerateRobots
+// @Summary      生成成功
 // @Tags      tech-metrics
 // @Router    /api/geo/techconfig/robots [post]
 // GenerateRobots 生成 robots.txt
@@ -40,7 +40,7 @@ func (c *TechMetricsController) GenerateRobots(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"content": c.techconfigSvc.GenerateRobots(&cfg)}, "生成成功")
 }
 
-// [AUTO] GenerateLLMsTxt
+// @Summary      生成成功
 // @Tags      tech-metrics
 // @Router    /api/geo/techconfig/llms-txt [post]
 // GenerateLLMsTxt 生成 llms.txt（AI 引擎知识索引，v3 竞品对齐 A4）
@@ -53,7 +53,7 @@ func (c *TechMetricsController) GenerateLLMsTxt(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"content": c.techconfigSvc.GenerateLLMsTxt(&cfg)}, "生成成功")
 }
 
-// [AUTO] GenerateSitemap
+// @Summary      生成成功
 // @Tags      tech-metrics
 // @Router    /api/geo/techconfig/sitemap [post]
 // GenerateSitemap 生成 sitemap.xml
@@ -66,7 +66,7 @@ func (c *TechMetricsController) GenerateSitemap(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"content": c.techconfigSvc.GenerateSitemap(&cfg)}, "生成成功")
 }
 
-// [AUTO] AuditContent
+// @Summary      审计完成（含真实技术检查）
 // @Tags      tech-metrics
 // @Router    /api/geo/techconfig/audit [post]
 // AuditContent 内容审计（25 因子评分 + 等级 + 修复清单）
@@ -90,7 +90,7 @@ func (c *TechMetricsController) AuditContent(ctx *gin.Context) {
 	response.Success(ctx, c.techconfigSvc.RunGEOAudit(req.URL, req.Title, req.Content, req.MetaDesc, req.SchemaJSONLD), "审计完成")
 }
 
-// [AUTO] AnalyzeMetrics
+// @Summary      分析完成
 // @Tags      tech-metrics
 // @Router    /api/geo/metrics/analyze [post]
 // AnalyzeMetrics 分析内容质量指标

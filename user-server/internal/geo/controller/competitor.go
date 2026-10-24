@@ -21,7 +21,7 @@ func NewCompetitorController(svc *service.GeoCompetitorService) *CompetitorContr
 	return &CompetitorController{svc: svc}
 }
 
-// [AUTO] List
+// @Summary      查询竞品失败
 // @Tags      competitor
 // @Router    /api/geo/competitors [get]
 // List GET /geo/competitors?status=active
@@ -35,7 +35,7 @@ func (c *CompetitorController) List(ctx *gin.Context) {
 	response.Success(ctx, list, "ok")
 }
 
-// [AUTO] Get
+// @Summary      竞品不存在
 // @Tags      competitor
 // @Router    /api/geo/competitors/{id} [get]
 // Get GET /geo/competitors/:id
@@ -57,7 +57,7 @@ func (c *CompetitorController) Get(ctx *gin.Context) {
 	response.Success(ctx, dto, "ok")
 }
 
-// [AUTO] Create
+// @Summary      新增竞品
 // @Tags      competitor
 // @Router    /api/geo/competitors [post]
 // Create POST /geo/competitors
@@ -74,7 +74,7 @@ func (c *CompetitorController) Create(ctx *gin.Context) {
 	response.Success(ctx, result, "创建成功")
 }
 
-// [AUTO] Update
+// @Summary      更新竞品
 // @Tags      competitor
 // @Router    /api/geo/competitors/{id} [put]
 // Update PUT /geo/competitors/:id
@@ -100,7 +100,7 @@ func (c *CompetitorController) Update(ctx *gin.Context) {
 	response.Success(ctx, result, "更新成功")
 }
 
-// [AUTO] Delete
+// @Summary      删除竞品
 // @Tags      competitor
 // @Router    /api/geo/competitors/{id} [delete]
 // Delete DELETE /geo/competitors/:id

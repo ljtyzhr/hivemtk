@@ -15,7 +15,7 @@ func NewToolIntegrationConfigController() *ToolIntegrationConfigController {
 	return &ToolIntegrationConfigController{}
 }
 
-// [AUTO] GetConfig
+// @Summary      读取工具集成配置（GET /api/agent/tool-integrations）
 // @Tags      tool-integration-config
 // @Router    /api/agent/tool-integrations [get]
 // GetConfig 读取工具集成配置（GET /api/agent/tool-integrations）
@@ -28,7 +28,7 @@ func (c *ToolIntegrationConfigController) GetConfig(ctx *gin.Context) {
 	response.Success(ctx, cfg, "ok")
 }
 
-// [AUTO] SaveConfig
+// @Summary      保存工具集成配置（PUT /api/agent/tool-integrations）
 // @Tags      tool-integration-config
 // @Router    /api/agent/tool-integrations [put]
 // SaveConfig 保存工具集成配置（PUT /api/agent/tool-integrations）

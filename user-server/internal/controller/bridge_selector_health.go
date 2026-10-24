@@ -28,7 +28,7 @@ func NewBridgeSelectorHealthController(svc *service.SelectorHealthService) *Brid
 	return &BridgeSelectorHealthController{svc: svc}
 }
 
-// [AUTO] Ingest
+// @Summary      上报桥接选择器健康数据（扩展侧打点）
 // @Tags      bridge-selector-health
 // @Router    /api/bridge/selector-health [post]
 // Ingest POST /api/bridge/selector-health
@@ -74,7 +74,7 @@ func (c *BridgeSelectorHealthController) Ingest(ctx *gin.Context) {
 	})
 }
 
-// [AUTO] List
+// @Summary      查询桥接选择器健康读数（按渠道+字段）
 // @Tags      bridge-selector-health
 // @Router    /api/bridge/selector-health [get]
 // List GET /api/bridge/selector-health

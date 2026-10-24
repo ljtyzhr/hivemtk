@@ -29,7 +29,7 @@ func NewMessageHubController(svc *service.MessageHubService) *MessageHubControll
 	}
 }
 
-// [AUTO] Push
+// @Summary      消息已存在(幂等)
 // @Tags      message-hub
 // @Router    /api/message-hub/push [post]
 // Push 推送消息
@@ -73,7 +73,7 @@ func (c *MessageHubController) Push(ctx *gin.Context) {
 	response.Success(ctx, msg, "推送成功")
 }
 
-// [AUTO] PushBatch
+// @Summary      批量推送完成
 // @Tags      message-hub
 // @Router    /api/message-hub/push-batch [post]
 // PushBatch 批量推送
@@ -100,7 +100,7 @@ func (c *MessageHubController) PushBatch(ctx *gin.Context) {
 	response.Success(ctx, resp, "批量推送完成")
 }
 
-// [AUTO] List
+// @Summary      列表
 // @Tags      message-hub
 // @Router    /api/message-hub/list [get]
 // List 列表
@@ -152,7 +152,7 @@ func (c *MessageHubController) List(ctx *gin.Context) {
 	response.SuccessWithPage(ctx, list, int64(q.Page), int64(q.PageSize), total)
 }
 
-// [AUTO] GetByID
+// @Summary      按 ID 查询统一消息详情
 // @Tags      message-hub
 // @Router    /api/message-hub/{id} [get]
 // GetByID 详情
@@ -175,7 +175,7 @@ func (c *MessageHubController) GetByID(ctx *gin.Context) {
 	response.Success(ctx, msg, "获取成功")
 }
 
-// [AUTO] MarkRead
+// @Summary      标记已读成功
 // @Tags      message-hub
 // @Router    /api/message-hub/{id}/read [post]
 // MarkRead 标记已读
@@ -194,7 +194,7 @@ func (c *MessageHubController) MarkRead(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"updated": len(req.IDs)}, "标记已读成功")
 }
 
-// [AUTO] Stats
+// @Summary      统计成功
 // @Tags      message-hub
 // @Router    /api/message-hub/stats [get]
 // Stats 统计
@@ -218,7 +218,7 @@ func (c *MessageHubController) Stats(ctx *gin.Context) {
 	response.Success(ctx, stats, "统计成功")
 }
 
-// [AUTO] Platforms
+// @Summary      列出消息中心支持的平台
 // @Tags      message-hub
 // @Router    /api/message-hub/platforms [get]
 // Platforms 列出支持平台
@@ -229,7 +229,7 @@ func (c *MessageHubController) Platforms(ctx *gin.Context) {
 	}, "获取成功")
 }
 
-// [AUTO] PushFromChannel
+// @Summary      消息已存在(幂等)
 // @Tags      message-hub
 // @Router    /api/message-hub/push-from-channel [post]
 // PushFromChannel 从渠道原始消息推送

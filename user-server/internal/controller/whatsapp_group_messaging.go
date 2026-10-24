@@ -54,7 +54,7 @@ func NewGroupMessagingController(
 	}
 }
 
-// [AUTO] GetLeadGroups
+// @Summary      获取线索成功
 // @Tags      group-messaging
 // @Router    /api/whatsapp/lead-groups [get]
 // 获取线索库中的群体
@@ -102,7 +102,7 @@ func (gmc *GroupMessagingController) GetLeadGroups(c *gin.Context) {
 	}, "获取线索成功")
 }
 
-// [AUTO] SelectGroupAndSendMessage
+// @Summary      消息已添加到发送队列
 // @Tags      group-messaging
 // @Router    /api/whatsapp/group-messaging/send [post]
 // 选择群体并群发消息
@@ -326,7 +326,7 @@ func (gmc *GroupMessagingController) recordSendFailure(message model.QueuedMessa
 	logger.Errorf("消息发送失败: ID=%s, Phone=%s, Content=%s", message.ID, utils.MaskPhone(message.PhoneNumber), content)
 }
 
-// [AUTO] GetMessageStatus
+// @Summary      获取状态成功
 // @Tags      group-messaging
 // @Router    /api/whatsapp/group-messaging/status/{queue_id} [get]
 // 获取发送状态
@@ -341,7 +341,7 @@ func (gmc *GroupMessagingController) GetMessageStatus(c *gin.Context) {
 	}, "获取状态成功")
 }
 
-// [AUTO] GetTemplates
+// @Summary      获取模板成功
 // @Tags      group-messaging
 // @Router    /api/whatsapp/templates [get]
 // 获取消息模板列表
@@ -366,7 +366,7 @@ func (gmc *GroupMessagingController) GetTemplates(c *gin.Context) {
 	response.Success(c, gin.H{"data": templates}, "获取模板成功")
 }
 
-// [AUTO] GetTemplateByID
+// @Summary      获取模板成功
 // @Tags      group-messaging
 // @Router    /api/whatsapp/templates/{id} [get]
 // GetTemplateByID 获取消息模板详情
@@ -385,7 +385,7 @@ func (gmc *GroupMessagingController) GetTemplateByID(c *gin.Context) {
 	response.Success(c, template, "获取模板成功")
 }
 
-// [AUTO] CreateTemplate
+// @Summary      创建模板成功
 // @Tags      group-messaging
 // @Router    /api/whatsapp/templates [post]
 // 创建消息模板
@@ -404,7 +404,7 @@ func (gmc *GroupMessagingController) CreateTemplate(c *gin.Context) {
 	response.Success(c, template, "创建模板成功")
 }
 
-// [AUTO] UpdateTemplate
+// @Summary      更新模板成功
 // @Tags      group-messaging
 // @Router    /api/whatsapp/templates/{id} [put]
 // 更新消息模板
@@ -447,7 +447,7 @@ func (gmc *GroupMessagingController) UpdateTemplate(c *gin.Context) {
 	response.Success(c, updated, "更新模板成功")
 }
 
-// [AUTO] DeleteTemplate
+// @Summary      删除模板成功
 // @Tags      group-messaging
 // @Router    /api/whatsapp/templates/{id} [delete]
 // 删除消息模板
@@ -461,7 +461,7 @@ func (gmc *GroupMessagingController) DeleteTemplate(c *gin.Context) {
 	response.Success(c, nil, "删除模板成功")
 }
 
-// [AUTO] GetSendRecords
+// @Summary      获取发送记录成功
 // @Tags      group-messaging
 // @Router    /api/whatsapp/group-messaging/records [get]
 // 获取发送记录
@@ -512,7 +512,7 @@ func (gmc *GroupMessagingController) GetSendRecords(c *gin.Context) {
 	}, "获取发送记录成功")
 }
 
-// [AUTO] BulkSend
+// @Summary      批量发送任务已启动
 // @Tags      group-messaging
 // @Router    /api/whatsapp/bulk-send [post]
 // BulkSend 模板批量发送（BulkMatrix.vue 依赖）
@@ -613,7 +613,7 @@ func (gmc *GroupMessagingController) BulkSend(c *gin.Context) {
 	}, "批量发送任务已启动")
 }
 
-// [AUTO] GetJobProgress
+// @Summary      获取进度成功
 // @Tags      group-messaging
 // @Router    /api/whatsapp/jobs/{id}/progress [get]
 // GetJobProgress 批量发送进度（BulkMatrix.vue 轮询依赖）

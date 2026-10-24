@@ -18,6 +18,8 @@ package service
 
 import (
 	"context"
+	"os"
+	"strings"
 
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/utils/logger"
@@ -33,11 +35,48 @@ const approvalAutoSendOperator = "approval-auto-send"
 // 装配顺序不固定，持全局句柄可以让"谁先装配都能接上"（nil 时本桥静默 = 手动档）。
 type ApprovalAutoSendBridge struct {
 	quoteSend func() *QuoteSendService
+	enabled   bool
+}
+
+// approvalAutoSendFlagEnv 自动外发开关（E-10，2026-10-24）。
+//
+// 规划 §4.10 判据"关闭开关时行为与现在一致"：此前桥装配后**无法单独关闭**
+// （只能卸整个审批运行时），与 FF_LTC_APPROVAL_RESUME 开关家族不一致。
+// 本开关是独立的一格：off=桥装着但静默（等价手动档），on=审批通过即外发。
+//
+// 与 ApprovalResumeFlagEnv 的分工（两把旗子不是一把）：那把管**审批运行时**
+// 挂不挂（挂起/恢复/清扫），本把只管**通过之后要不要替人发**。运行时 off 时
+// 本开关无意义（没有裁决就没有外发）；运行时 on 而本开关 off 是合法且有用的
+// 组合——流程照样挂起等人工，批了以后外发仍是人工动作。
+//
+// 默认 on（最优默认实现，产品可复议）：桥的存在本身就是 E-10 的交付物，
+// 默认关等于交付了但没人用得上；显式写 off 才降回手动档。
+const approvalAutoSendFlagEnv = "FF_LTC_APPROVAL_AUTO_SEND"
+
+// parseApprovalAutoSendFlag 开关值解析。与 parseApprovalRuntimeMode 同一取向：
+// 认不清的值宁可降档（off）也不猜着开——错关一次外发，运营还能手动补发；
+// 错开一次外发，报价已经发到客户手里了。
+func parseApprovalAutoSendFlag(raw string) bool {
+	v := strings.ToLower(strings.TrimSpace(raw))
+	switch v {
+	case "":
+		return true // 缺省 on（见 approvalAutoSendFlagEnv 注释）
+	case "on", "true", "1", "yes":
+		return true
+	case "off", "false", "0", "no":
+		return false
+	}
+	logger.Warnf("[approval-auto-send] %s=%q 无法识别 ⇒ 按 off 处理（自动外发关闭，需人工发送）；可用值：on|off",
+		approvalAutoSendFlagEnv, raw)
+	return false
 }
 
 // NewApprovalAutoSendBridge 构造。quoteSend 允许回 nil（运行时未装配）。
+// 开关读环境变量（见 approvalAutoSendFlagEnv）：off 时桥仍构造、仍订阅，
+// 但 NotifyDecided 第一行就静默返回——不摘订阅者的原因是装配面的订阅清单
+// 是 fan-out（AddWaitNotifier），摘装要过两把锁，静默判据一行就够。
 func NewApprovalAutoSendBridge(quoteSend func() *QuoteSendService) *ApprovalAutoSendBridge {
-	return &ApprovalAutoSendBridge{quoteSend: quoteSend}
+	return &ApprovalAutoSendBridge{quoteSend: quoteSend, enabled: parseApprovalAutoSendFlag(os.Getenv(approvalAutoSendFlagEnv))}
 }
 
 // NotifyDecided 实现 ApprovalWaitNotifier（E-10）。
@@ -46,6 +85,12 @@ func NewApprovalAutoSendBridge(quoteSend func() *QuoteSendService) *ApprovalAuto
 // 运营可按原有手动路径重发（QuoteSendResult 的 awaiting/sent 语义不变）。
 func (b *ApprovalAutoSendBridge) NotifyDecided(ctx context.Context, req *model.ApprovalRequest) {
 	if b == nil || req == nil {
+		return
+	}
+	if !b.enabled {
+		// 开关 off（FF_LTC_APPROVAL_AUTO_SEND=off）：行为与装桥之前一致——
+		// 审批照常裁决，外发留给人工。静默（不打日志）：off 是正常配置档，
+		// 每次裁决都打一行"没发"的噪音会把真告警淹掉。
 		return
 	}
 	if req.SubjectType != QuoteApprovalSubjectType {

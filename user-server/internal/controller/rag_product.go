@@ -18,7 +18,7 @@ func NewRagProductController() *RagProductController {
 	return &RagProductController{svc: service.NewRagProductServiceFromGlobal()}
 }
 
-// [AUTO] List
+// @Summary      查询 RAG 产品配置列表
 // @Tags      rag-product
 // @Router    /api/rag-product-configs [get]
 func (c *RagProductController) List(ctx *gin.Context) {
@@ -30,7 +30,7 @@ func (c *RagProductController) List(ctx *gin.Context) {
 	response.Success(ctx, products, "ok")
 }
 
-// [AUTO] Stats
+// @Summary      RAG 产品配置统计
 // @Tags      rag-product
 // @Router    /api/rag-product-configs/stats [get]
 func (c *RagProductController) Stats(ctx *gin.Context) {
@@ -42,7 +42,7 @@ func (c *RagProductController) Stats(ctx *gin.Context) {
 	response.Success(ctx, stats, "ok")
 }
 
-// [AUTO] Get
+// @Summary      按 ID 查询 RAG 产品配置
 // @Tags      rag-product
 // @Router    /api/rag-product-configs/{id} [get]
 func (c *RagProductController) Get(ctx *gin.Context) {

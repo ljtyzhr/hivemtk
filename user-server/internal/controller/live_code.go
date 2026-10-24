@@ -24,7 +24,7 @@ func NewLiveCodeController(liveCodeService service.LiveCodeService) *LiveCodeCon
 	}
 }
 
-// [AUTO] Create
+// @Summary      创建活码
 // @Tags      live-code
 // @Router    /api/live-codes/create [post]
 // Create 创建活码
@@ -43,7 +43,7 @@ func (c *LiveCodeController) Create(ctx *gin.Context) {
 	response.Success(ctx, liveCode, "创建成功")
 }
 
-// [AUTO] Update
+// @Summary      更新活码
 // @Tags      live-code
 // @Router    /api/live-codes/{id}/update [put]
 // Update 更新活码
@@ -64,7 +64,7 @@ func (c *LiveCodeController) Update(ctx *gin.Context) {
 	response.Success(ctx, liveCode, "更新成功")
 }
 
-// [AUTO] Delete
+// @Summary      删除活码
 // @Tags      live-code
 // @Router    /api/live-codes/{id}/delete [delete]
 // Delete 删除活码
@@ -79,7 +79,7 @@ func (c *LiveCodeController) Delete(ctx *gin.Context) {
 	response.Success(ctx, nil, "删除成功")
 }
 
-// [AUTO] GetByID
+// @Summary      按 ID 获取活码详情
 // @Tags      live-code
 // @Router    /api/live-codes/{id} [get]
 // GetByID 根据ID获取活码
@@ -94,7 +94,7 @@ func (c *LiveCodeController) GetByID(ctx *gin.Context) {
 	response.Success(ctx, liveCode, "获取成功")
 }
 
-// [AUTO] GetList
+// @Summary      分页查询活码列表（名称/状态筛选）
 // @Tags      live-code
 // @Router    /api/live-codes [get]
 // GetList 获取活码列表
@@ -126,7 +126,7 @@ func (c *LiveCodeController) GetList(ctx *gin.Context) {
 	}, "获取成功")
 }
 
-// [AUTO] GetStats
+// @Summary      获取活码统计（浏览/点击等）
 // @Tags      live-code
 // @Router    /api/live-codes/{id}/stats [get]
 // GetStats 获取活码统计
@@ -141,7 +141,7 @@ func (c *LiveCodeController) GetStats(ctx *gin.Context) {
 	response.Success(ctx, stats, "获取成功")
 }
 
-// [AUTO] GenerateQRCode
+// @Summary      生成成功
 // @Tags      live-code
 // @Router    /api/live-codes/{id}/qrcodes/create [post]
 // GenerateQRCode 生成活码二维码
@@ -162,7 +162,7 @@ func (c *LiveCodeController) GenerateQRCode(ctx *gin.Context) {
 	response.Success(ctx, qrCode, "生成成功")
 }
 
-// [AUTO] GetQRCodes
+// @Summary      获取活码二维码列表
 // @Tags      live-code
 // @Router    /api/live-codes/{id}/qrcodes [get]
 // GetQRCodes 获取活码二维码列表
@@ -177,7 +177,7 @@ func (c *LiveCodeController) GetQRCodes(ctx *gin.Context) {
 	response.Success(ctx, qrCodes, "获取成功")
 }
 
-// [AUTO] GetQRStats
+// @Summary      获取活码二维码扫码统计
 // @Tags      live-code
 // @Router    /api/live-codes/qrcodes/{qr_id}/stats [get]
 // GetQRStats 获取活码二维码统计
@@ -192,7 +192,7 @@ func (c *LiveCodeController) GetQRStats(ctx *gin.Context) {
 	response.Success(ctx, stats, "获取成功")
 }
 
-// [AUTO] Share
+// @Summary      分享成功
 // @Tags      live-code
 // @Router    /api/live-codes/{id}/share [post]
 // Share 分享活码
@@ -212,7 +212,7 @@ func (c *LiveCodeController) Share(ctx *gin.Context) {
 	response.Success(ctx, shareResponse, "分享成功")
 }
 
-// [AUTO] RedirectLiveCode
+// @Summary      活码短链重定向
 // @Tags      live-code
 // @Router    /api/l/{code} [get]
 // RedirectLiveCode 活码短链重定向
@@ -255,7 +255,7 @@ func (c *LiveCodeController) RedirectLiveCode(ctx *gin.Context) {
 	ctx.Redirect(http.StatusMovedPermanently, response.LandingLink)
 }
 
-// [AUTO] RenderLiveCodePage
+// @Summary      渲染活码页面
 // @Tags      live-code
 // @Router    /api/livecode/{id} [get]
 // RenderLiveCodePage 渲染活码页面
@@ -310,7 +310,7 @@ func (c *LiveCodeController) RenderLiveCodePage(ctx *gin.Context) {
 	ctx.String(http.StatusOK, html)
 }
 
-// [AUTO] RecordClick
+// @Summary      记录成功
 // @Tags      live-code
 // @Router    /api/livecode/{id}/click [post]
 // RecordClick 记录点击统计
@@ -336,7 +336,7 @@ func (c *LiveCodeController) RecordClick(ctx *gin.Context) {
 	response.Success(ctx, nil, "记录成功")
 }
 
-// [AUTO] DeleteLiveCodeQR
+// @Summary      删除活码二维码
 // @Tags      live-code
 // @Router    /api/live-codes/qrcodes/{qr_id}/delete [delete]
 // DeleteLiveCodeQR 删除活码二维码
@@ -360,7 +360,7 @@ func (c *LiveCodeController) DeleteLiveCodeQR(ctx *gin.Context) {
 	response.Success(ctx, nil, "删除成功")
 }
 
-// [AUTO] UpdateLiveCodeQR
+// @Summary      更新活码二维码
 // @Tags      live-code
 // @Router    /api/live-codes/qrcodes/{qr_id}/update [put]
 // UpdateLiveCodeQR 更新活码二维码

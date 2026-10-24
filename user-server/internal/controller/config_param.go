@@ -27,7 +27,7 @@ func NewConfigParamController(svc *service.ConfigParamService) *ConfigParamContr
 	return &ConfigParamController{svc: svc}
 }
 
-// [AUTO] List
+// @Summary      查询配置参数列表（可按分组/含已下架）
 // @Tags      config-param
 // @Router    /api/manage/config-params [get]
 // List GET /api/manage/config-params
@@ -55,7 +55,7 @@ func (c *ConfigParamController) List(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"code": 0, "data": list, "message": "ok"})
 }
 
-// [AUTO] ListGroups
+// @Summary      查询配置分组元数据（唯一事实源）
 // @Tags      config-param
 // @Router    /api/manage/config-params/groups [get]
 // ListGroups GET /api/manage/config-params/groups
@@ -78,7 +78,7 @@ func (c *ConfigParamController) ListGroups(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"code": 0, "data": groups, "message": "ok"})
 }
 
-// [AUTO] Update
+// @Summary      参数错误
 // @Tags      config-param
 // @Router    /api/manage/config-params/{group}/{key} [put]
 // Update PUT /api/manage/config-params/:group/:key
@@ -161,7 +161,7 @@ func firstTokenOf(raw json.RawMessage) string {
 	return "无法识别的 JSON 值"
 }
 
-// [AUTO] ResetToDefault
+// @Summary      重置单条配置参数为默认值
 // @Tags      config-param
 // @Router    /api/manage/config-params/{group}/{key}/reset [post]
 // ResetToDefault POST /api/manage/config-params/:group/:key/reset
@@ -178,7 +178,7 @@ func (c *ConfigParamController) ResetToDefault(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"code": 0, "message": "ok"})
 }
 
-// [AUTO] BulkResetGroup
+// @Summary      整组重置配置参数为默认值
 // @Tags      config-param
 // @Router    /api/manage/config-params/{group}/reset [post]
 // BulkResetGroup POST /api/manage/config-params/:group/reset
@@ -194,7 +194,7 @@ func (c *ConfigParamController) BulkResetGroup(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"code": 0, "message": "ok"})
 }
 
-// [AUTO] AuditLogs
+// @Summary      查询配置参数变更日志（审计回溯）
 // @Tags      config-param
 // @Router    /api/manage/config-params/audit-logs [get]
 // AuditLogs GET /api/manage/config-params/audit-logs?limit=100

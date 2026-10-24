@@ -19,7 +19,7 @@ func NewMacroController() *MacroController {
 	return &MacroController{svc: service.NewMacroServiceFromGlobal()}
 }
 
-// [AUTO] List
+// @Summary      查询宏（快捷话术）列表
 // @Tags      macro
 // @Router    /api/macros [get]
 // List GET /api/macros
@@ -31,7 +31,7 @@ func (c *MacroController) List(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": list, "total": len(list)}, "ok")
 }
 
-// [AUTO] Create
+// @Summary      宏已创建
 // @Tags      macro
 // @Router    /api/macros [post]
 // Create POST /api/macros {name, actions:[{type,value}]}
@@ -51,7 +51,7 @@ func (c *MacroController) Create(ctx *gin.Context) {
 	response.Success(ctx, m, "宏已创建")
 }
 
-// [AUTO] Delete
+// @Summary      已删除
 // @Tags      macro
 // @Router    /api/macros/{id} [delete]
 // Delete DELETE /api/macros/:id
@@ -97,7 +97,7 @@ func NewSessionAIController(svc *service.SessionAIService) *SessionAIController 
 	return &SessionAIController{svc: svc}
 }
 
-// [AUTO] Generate
+// @Summary      摘要已生成
 // @Tags      session-a-i
 // @Router    /api/customer-sessions/{id}/ai-summary [post]
 // Generate POST /api/customer-sessions/:id/ai-summary
@@ -109,7 +109,7 @@ func (c *SessionAIController) Generate(ctx *gin.Context) {
 	response.Success(ctx, rec, "摘要已生成")
 }
 
-// [AUTO] Get
+// @Summary      尚未生成摘要
 // @Tags      session-a-i
 // @Router    /api/customer-sessions/{id}/ai-summary [get]
 // Get GET /api/customer-sessions/:id/ai-summary

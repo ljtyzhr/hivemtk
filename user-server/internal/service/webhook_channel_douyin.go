@@ -246,7 +246,7 @@ func (s *WebhookService) HandleDouyinURLVerification(ctx context.Context, accoun
 // 渠道分开**：原先写死 "douyin"，TikTok 的客户消息在 message_hub、线索表里全被
 // 记成抖音，且两平台的同一 message_id 会共用幂等键、互相吞消息（审计 D-01）。
 func (s *WebhookService) dispatchDouyin(ctx context.Context, channel WebhookChannel, accountID string, p *ParsedPayload, raw []byte) (*model.MessageHub, *tgDispatchExtra, error) {
-	if s.lazyDB() == nil {
+	if !s.connected() {
 		return nil, nil, nil
 	}
 	s.ensureReposFromDB(ctx)

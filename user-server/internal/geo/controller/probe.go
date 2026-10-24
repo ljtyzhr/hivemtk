@@ -21,7 +21,7 @@ func NewProbeController(probeSvc *service.ProbeService) *ProbeController {
 	return &ProbeController{probeSvc: probeSvc}
 }
 
-// [AUTO] TestSingle
+// @Summary      调试单引擎探针
 // @Tags      probe
 // @Router    /api/geo/probe/test [post]
 // TestSingle 调试单引擎探针
@@ -46,7 +46,7 @@ func (c *ProbeController) TestSingle(ctx *gin.Context) {
 	response.Success(ctx, result, "ok")
 }
 
-// [AUTO] ProbeAll
+// @Summary      触发所有引擎探针
 // @Tags      probe
 // @Router    /api/geo/probe/all [post]
 // ProbeAll 触发所有引擎探针
@@ -81,7 +81,7 @@ func errlistStrings(errs []error) []string {
 	return out
 }
 
-// [AUTO] RunNegativeMonitor
+// @Summary      已启动负面监控任务
 // @Tags      probe
 // @Router    /api/geo/probe/run-negative [post]
 // RunNegativeMonitor 手动触发负面监控
@@ -94,7 +94,7 @@ func (c *ProbeController) RunNegativeMonitor(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"started": true}, "已启动负面监控任务")
 }
 
-// [AUTO] RunSOVRefresh
+// @Summary      已启动 SOV 刷新任务
 // @Tags      probe
 // @Router    /api/geo/probe/run-sov [post]
 // RunSOVRefresh 手动触发 SOV 刷新（SovBoard.vue 刷新按钮依赖）
@@ -107,7 +107,7 @@ func (c *ProbeController) RunSOVRefresh(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"started": true}, "已启动 SOV 刷新任务")
 }
 
-// [AUTO] RunSourceSync
+// @Summary      已启动信源同步任务
 // @Tags      probe
 // @Router    /api/geo/probe/run-source-sync [post]
 // RunSourceSync 手动触发信源目录同步
@@ -120,7 +120,7 @@ func (c *ProbeController) RunSourceSync(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"started": true}, "已启动信源同步任务")
 }
 
-// [AUTO] ListAvailableEngines
+// @Summary      返回当前装配的所有引擎名
 // @Tags      probe
 // @Router    /api/geo/probe/engines [get]
 // ListAvailableEngines 返回当前装配的所有引擎名
@@ -134,7 +134,7 @@ func (c *ProbeController) ListAvailableEngines(ctx *gin.Context) {
 	response.Success(ctx, names, "ok")
 }
 
-// [AUTO] ListRuns
+// @Summary      最近探针运行记录（支持引擎过滤）
 // @Tags      probe
 // @Router    /api/geo/probe/runs [get]
 // ListRuns 最近探针运行记录（支持引擎过滤）
@@ -172,7 +172,7 @@ func NewSourceCatalogController(crawlerSvc *service.CrawlerService) *SourceCatal
 	return &SourceCatalogController{crawlerSvc: crawlerSvc}
 }
 
-// [AUTO] LookupLevels
+// @Summary      url 必填
 // @Tags      source-catalog
 // @Router    /api/geo/source-catalog/levels [get]
 // ListLevels 根据 query 查 SOV 用 — 直接用 crawler.LookupSourceLevel
@@ -202,7 +202,7 @@ func NewEntityController(es *service.EntityService, ex *service.EntityExtractorS
 	return &EntityController{entitySvc: es, extractor: ex}
 }
 
-// [AUTO] ListEntities
+// @Summary      查询实体列表
 // @Tags      entity
 // @Router    /api/geo/entity/list [get]
 // ListEntities 查询实体列表
@@ -220,7 +220,7 @@ func (c *EntityController) ListEntities(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": list, "total": total, "page": page, "page_size": limit}, "ok")
 }
 
-// [AUTO] GetGraph
+// @Summary      查询实体关系子图
 // @Tags      entity
 // @Router    /api/geo/entity/{id}/graph [get]
 // GetGraph 查询实体关系子图
@@ -240,7 +240,7 @@ func (c *EntityController) GetGraph(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"entity_id": id, "depth": depth, "entities": entities, "relations": rels}, "ok")
 }
 
-// [AUTO] Extract
+// @Summary      实体抽取完成
 // @Tags      entity
 // @Router    /api/geo/entities/extract [post]
 // Extract 从指定文档抽取实体

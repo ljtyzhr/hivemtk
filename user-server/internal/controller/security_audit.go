@@ -25,7 +25,7 @@ type runAuditReq struct {
 	AuditName string `json:"audit_name"`
 }
 
-// [AUTO] ListSecurityAudits
+// @Summary      获取审计列表失败
 // @Tags      security-audit
 // @Router    /api/security/audit/list [get]
 // ListSecurityAudits GET /api/security/audit/list
@@ -62,7 +62,7 @@ func (c *SecurityAuditController) ListSecurityAudits(ctx *gin.Context) {
 	response.SuccessWithPage(ctx, list, int64(page), int64(pageSize), total)
 }
 
-// [AUTO] RunSecurityAudit
+// @Summary      执行审计失败
 // @Tags      security-audit
 // @Router    /api/security/audit [post]
 // RunSecurityAudit POST /api/security/audit
@@ -77,7 +77,7 @@ func (c *SecurityAuditController) RunSecurityAudit(ctx *gin.Context) {
 	response.Success(ctx, audit, "ok")
 }
 
-// [AUTO] GetSecurityAudit
+// @Summary      无效的审计ID
 // @Tags      security-audit
 // @Router    /api/security/audit/{id} [get]
 // GetSecurityAudit GET /api/security/audit/:id

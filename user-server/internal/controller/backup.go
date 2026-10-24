@@ -107,7 +107,7 @@ func requireAdminAuth(ctx *gin.Context) (uint, bool) {
 	return uid, true
 }
 
-// [AUTO] CreateBackup
+// @Summary      创建备份任务成功
 // @Tags      backup
 // @Router    /api/backups [post]
 // CreateBackup 创建备份
@@ -131,7 +131,7 @@ func (c *BackupController) CreateBackup(ctx *gin.Context) {
 	response.Success(ctx, backup, "创建备份任务成功")
 }
 
-// [AUTO] GetBackupList
+// @Summary      查询备份列表
 // @Tags      backup
 // @Router    /api/backups [get]
 // GetBackupList 获取备份列表
@@ -164,7 +164,7 @@ func (c *BackupController) GetBackupList(ctx *gin.Context) {
 	}, "获取成功")
 }
 
-// [AUTO] GetBackupByID
+// @Summary      按 ID 查询备份详情
 // @Tags      backup
 // @Router    /api/backups/{id} [get]
 // GetBackupByID 获取备份详情
@@ -196,7 +196,7 @@ func (c *BackupController) GetBackupByID(ctx *gin.Context) {
 	response.Success(ctx, backup, "获取成功")
 }
 
-// [AUTO] DeleteBackup
+// @Summary      删除备份
 // @Tags      backup
 // @Router    /api/backups/{id} [delete]
 // DeleteBackup 删除备份
@@ -236,7 +236,7 @@ func NewRestoreController(svc *service.RestoreService) *RestoreController {
 	return &RestoreController{restoreService: svc}
 }
 
-// [AUTO] RestoreBackup
+// @Summary      创建恢复任务成功
 // @Tags      restore
 // @Router    /api/restore [post]
 // RestoreBackup 恢复备份
@@ -267,7 +267,7 @@ func (c *RestoreController) RestoreBackup(ctx *gin.Context) {
 	response.Success(ctx, record, "创建恢复任务成功")
 }
 
-// [AUTO] GetRestoreList
+// @Summary      查询恢复任务列表
 // @Tags      restore
 // @Router    /api/restore/list [get]
 // GetRestoreList 获取恢复记录列表
@@ -300,7 +300,7 @@ func (c *RestoreController) GetRestoreList(ctx *gin.Context) {
 	}, "获取成功")
 }
 
-// [AUTO] GetLastRestore
+// @Summary      暂无恢复记录
 // @Tags      restore
 // @Router    /api/restore/last [get]
 // GetLastRestore 获取最近一次恢复记录

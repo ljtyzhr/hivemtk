@@ -75,7 +75,7 @@ func NewChatPublicController(visitorSvc *service.VisitorChatService, channelSvc 
 	return &ChatPublicController{visitorSvc: visitorSvc, channelSvc: channelSvc}
 }
 
-// [AUTO] GetChannelInfoByAppKey
+// @Summary      根据 app_key 查询渠道公开信息（用于 widget 安装引导的连通性测试）
 // @Tags      chat-public
 // @Router    /api/chat/public/channel/{app_key}/info [get]
 // GetChannelInfoByAppKey 根据 app_key 查询渠道公开信息（用于 widget 安装引导的连通性测试）
@@ -117,7 +117,7 @@ func resolveChannelID(c *gin.Context, reqBody *service.VisitorOpenSessionRequest
 	return middleware.GetChatChannelID(c)
 }
 
-// [AUTO] OpenSession
+// @Summary      会话已打开
 // @Tags      chat-public
 // @Router    /api/chat/public/sessions [post]
 // OpenSession 打开（或续接）会话
@@ -147,7 +147,7 @@ func (ctrl *ChatPublicController) OpenSession(c *gin.Context) {
 	response.Success(c, result, "会话已打开")
 }
 
-// [AUTO] GetMessages
+// @Summary      获取历史消息
 // @Tags      chat-public
 // @Router    /api/chat/public/sessions/{session_id}/messages [get]
 // GetMessages 获取历史消息
@@ -191,7 +191,7 @@ func (ctrl *ChatPublicController) GetMessages(c *gin.Context) {
 	response.SuccessWithList(c, messages, total)
 }
 
-// [AUTO] SendMessage
+// @Summary      消息已发送
 // @Tags      chat-public
 // @Router    /api/chat/public/sessions/{session_id}/messages [post]
 // SendMessage 发送访客消息
@@ -257,7 +257,7 @@ func (ctrl *ChatPublicController) SendMessage(c *gin.Context) {
 	response.Success(c, result, "消息已发送")
 }
 
-// [AUTO] GetActiveSession
+// @Summary      无活跃会话
 // @Tags      chat-public
 // @Router    /api/chat/public/sessions/active [get]
 // GetActiveSession 获取访客最近活跃会话（用于离线消息续接）
@@ -285,7 +285,7 @@ func (ctrl *ChatPublicController) GetActiveSession(c *gin.Context) {
 	response.Success(c, session, "ok")
 }
 
-// [AUTO] GetRecentClosedSessions
+// @Summary      获取最近 7 天已结束会话
 // @Tags      chat-public
 // @Router    /api/chat/public/sessions/recent-closed [get]
 // GetRecentClosedSessions 获取最近 7 天已结束会话
@@ -310,7 +310,7 @@ func (ctrl *ChatPublicController) GetRecentClosedSessions(c *gin.Context) {
 	response.SuccessWithList(c, sessions, int64(len(sessions)))
 }
 
-// [AUTO] ExchangeSessionToken
+// @Summary      访客为历史会话列表里的某一条会话换回 visitor_token
 // @Tags      chat-public
 // @Router    /api/chat/public/sessions/{session_id}/token [post]
 // ExchangeSessionToken 访客为历史会话列表里的某一条会话换回 visitor_token
@@ -353,7 +353,7 @@ func (ctrl *ChatPublicController) ExchangeSessionToken(c *gin.Context) {
 	response.Success(c, gin.H{"visitor_token": token}, "ok")
 }
 
-// [AUTO] GetOfflineMessages
+// @Summary      拉取访客离线期间的坐席/AI 回复消息
 // @Tags      chat-public
 // @Router    /api/chat/public/sessions/{session_id}/offline-messages [get]
 // GetOfflineMessages 拉取访客离线期间的坐席/AI 回复消息
@@ -390,7 +390,7 @@ func (ctrl *ChatPublicController) GetOfflineMessages(c *gin.Context) {
 	response.SuccessWithList(c, messages, int64(len(messages)))
 }
 
-// [AUTO] RequestHumanTransfer
+// @Summary      已为您转接人工客服
 // @Tags      chat-public
 // @Router    /api/chat/public/sessions/{session_id}/transfer [post]
 // RequestHumanTransfer 访客主动转人工
@@ -430,7 +430,7 @@ func (ctrl *ChatPublicController) RequestHumanTransfer(c *gin.Context) {
 	response.Success(c, nil, "已为您转接人工客服")
 }
 
-// [AUTO] CloseSession
+// @Summary      会话已关闭
 // @Tags      chat-public
 // @Router    /api/chat/public/sessions/{session_id}/close [post]
 // CloseSession 访客关闭会话
@@ -460,7 +460,7 @@ func (ctrl *ChatPublicController) CloseSession(c *gin.Context) {
 	response.Success(c, nil, "会话已关闭")
 }
 
-// [AUTO] RateSession
+// @Summary      感谢您的评价
 // @Tags      chat-public
 // @Router    /api/chat/public/sessions/{session_id}/rate [post]
 // RateSession 访客评分
@@ -504,7 +504,7 @@ func (ctrl *ChatPublicController) RateSession(c *gin.Context) {
 	response.Success(c, nil, "感谢您的评价")
 }
 
-// [AUTO] CountAvailableAgents
+// @Summary      公开可用坐席数（用于显示"当前 X 位客服在线"）
 // @Tags      chat-public
 // @Router    /api/chat/public/agents/available [get]
 // CountAvailableAgents 公开可用坐席数（用于显示"当前 X 位客服在线"）
@@ -518,7 +518,7 @@ func (ctrl *ChatPublicController) CountAvailableAgents(c *gin.Context) {
 	response.Success(c, gin.H{"available": count}, "ok")
 }
 
-// [AUTO] GetUploadToken
+// @Summary      生成七牛上传凭证
 // @Tags      chat-public
 // @Router    /api/chat/public/upload-token [get]
 // GetUploadToken 生成七牛上传凭证

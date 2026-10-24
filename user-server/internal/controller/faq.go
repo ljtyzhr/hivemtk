@@ -188,7 +188,7 @@ func (c *FAQController) Update(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"id": id}, "更新成功")
 }
 
-// [AUTO] Toggle
+// @Summary      状态已更新
 // @Tags      f-a-q
 // @Router    /api/faqs/{id}/toggle [patch]
 // Toggle 切换启用状态（列表页开关专用，只收 enabled，不走全量 required 校验）
@@ -212,7 +212,7 @@ func (c *FAQController) Toggle(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"id": id, "enabled": *req.Enabled}, "状态已更新")
 }
 
-// [AUTO] Delete
+// @Summary      删除 FAQ 条目
 // @Tags      f-a-q
 // @Router    /api/faqs/{id} [delete]
 // Delete 删除
@@ -235,7 +235,7 @@ type faqMatchReq struct {
 	AgentID uint   `json:"agent_id" binding:"required"`
 }
 
-// [AUTO] Match
+// @Summary      匹配成功
 // @Tags      f-a-q
 // @Router    /api/faqs/match [post]
 // Match 关键词匹配 (调试接口 + 未来 RAG 引擎调用)
@@ -257,7 +257,7 @@ func (c *FAQController) Match(ctx *gin.Context) {
 	response.Success(ctx, matches, "匹配成功")
 }
 
-// [AUTO] Stats
+// @Summary      FAQ 统计
 // @Tags      f-a-q
 // @Router    /api/faqs/stats [get]
 // Stats 统计
@@ -273,7 +273,7 @@ func (c *FAQController) Stats(ctx *gin.Context) {
 	}, "查询成功")
 }
 
-// [AUTO] AnnotateFromSession
+// @Summary      已更新既有标注（下次 Layer1 命中将直接返回标准答案）
 // @Tags      f-a-q
 // @Router    /api/faqs/annotate [post]
 func (c *FAQController) AnnotateFromSession(ctx *gin.Context) {

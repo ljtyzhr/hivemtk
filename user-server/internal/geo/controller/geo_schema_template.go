@@ -39,7 +39,7 @@ func (r schemaTemplateRequest) toInput() service.SchemaTemplateInput {
 	}
 }
 
-// [AUTO] List
+// @Summary      查询 Schema 模板列表
 // @Tags      geo-schema-template
 // @Router    /api/geo/schema-templates [get]
 func (c *GeoSchemaTemplateController) List(ctx *gin.Context) {
@@ -53,7 +53,7 @@ func (c *GeoSchemaTemplateController) List(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": list, "total": total}, "ok")
 }
 
-// [AUTO] Get
+// @Summary      Schema 模板不存在
 // @Tags      geo-schema-template
 // @Router    /api/geo/schema-templates/{id} [get]
 func (c *GeoSchemaTemplateController) Get(ctx *gin.Context) {
@@ -69,7 +69,7 @@ func (c *GeoSchemaTemplateController) Get(ctx *gin.Context) {
 	response.Success(ctx, item, "ok")
 }
 
-// [AUTO] Create
+// @Summary      创建 Schema 模板
 // @Tags      geo-schema-template
 // @Router    /api/geo/schema-templates [post]
 func (c *GeoSchemaTemplateController) Create(ctx *gin.Context) {
@@ -85,7 +85,7 @@ func (c *GeoSchemaTemplateController) Create(ctx *gin.Context) {
 	response.Success(ctx, item, "created")
 }
 
-// [AUTO] Update
+// @Summary      Schema 模板不存在
 // @Tags      geo-schema-template
 // @Router    /api/geo/schema-templates/{id} [put]
 func (c *GeoSchemaTemplateController) Update(ctx *gin.Context) {
@@ -105,7 +105,7 @@ func (c *GeoSchemaTemplateController) Update(ctx *gin.Context) {
 	response.Success(ctx, item, "updated")
 }
 
-// [AUTO] Delete
+// @Summary      Schema 模板不存在
 // @Tags      geo-schema-template
 // @Router    /api/geo/schema-templates/{id} [delete]
 func (c *GeoSchemaTemplateController) Delete(ctx *gin.Context) {

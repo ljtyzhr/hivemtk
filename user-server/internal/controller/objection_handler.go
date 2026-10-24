@@ -20,7 +20,7 @@ func NewObjectionHandlerController(svc *service.ObjectionHandlerService) *Object
 	return &ObjectionHandlerController{svc: svc}
 }
 
-// [AUTO] Handle
+// @Summary      处理客户异议（生成应对话术）
 // @Tags      objection-handler
 // @Router    /api/objection/handle [post]
 // Handle 处理异议
@@ -38,7 +38,7 @@ func (c *ObjectionHandlerController) Handle(ctx *gin.Context) {
 	response.Success(ctx, resp, "处理成功")
 }
 
-// [AUTO] Classify
+// @Summary      分类成功
 // @Tags      objection-handler
 // @Router    /api/objection/classify [post]
 // Classify 分类
@@ -57,7 +57,7 @@ func (c *ObjectionHandlerController) Classify(ctx *gin.Context) {
 	}, "分类成功")
 }
 
-// [AUTO] ListCategories
+// @Summary      列出类别
 // @Tags      objection-handler
 // @Router    /api/objection-templates [get]
 // ListCategories 列出类别
@@ -66,7 +66,7 @@ func (c *ObjectionHandlerController) ListCategories(ctx *gin.Context) {
 	response.SuccessWithList(ctx, cats, int64(len(cats)))
 }
 
-// [AUTO] RecordUsage
+// @Summary      记录成功
 // @Tags      objection-handler
 // @Router    /api/objection/usage [post]
 // RecordUsage 记录使用（需登录，与同目录其他 controller 鉴权惯例对齐）

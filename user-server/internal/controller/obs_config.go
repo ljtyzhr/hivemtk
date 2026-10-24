@@ -25,7 +25,7 @@ func NewObsConfigController() *ObsConfigController {
 	}
 }
 
-// [AUTO] GetConfigList
+// @Summary      查询 OBS 存储配置列表
 // @Tags      obs-config
 // @Router    /api/obs-configs [get]
 // GetConfigList 获取配置列表（全局）
@@ -51,7 +51,7 @@ func (c *ObsConfigController) GetConfigList(ctx *gin.Context) {
 	response.Success(ctx, resp, "查询成功")
 }
 
-// [AUTO] GetConfig
+// @Summary      按 ID 查询 OBS 存储配置
 // @Tags      obs-config
 // @Router    /api/obs-configs/{id} [get]
 // GetConfig 获取配置详情
@@ -75,7 +75,7 @@ func (c *ObsConfigController) GetConfig(ctx *gin.Context) {
 	response.Success(ctx, config, "查询成功")
 }
 
-// [AUTO] CreateConfig
+// @Summary      创建 OBS 存储配置
 // @Tags      obs-config
 // @Router    /api/obs/config [post]
 // CreateConfig 创建配置
@@ -94,7 +94,7 @@ func (c *ObsConfigController) CreateConfig(ctx *gin.Context) {
 	response.Success(ctx, config, "创建成功")
 }
 
-// [AUTO] UpdateConfig
+// @Summary      更新 OBS 存储配置
 // @Tags      obs-config
 // @Router    /api/obs/config/{id} [put]
 // UpdateConfig 更新配置
@@ -119,7 +119,7 @@ func (c *ObsConfigController) UpdateConfig(ctx *gin.Context) {
 	response.Success(ctx, config, "更新成功")
 }
 
-// [AUTO] DeleteConfig
+// @Summary      删除 OBS 存储配置
 // @Tags      obs-config
 // @Router    /api/obs/config/{id} [delete]
 // DeleteConfig 删除配置
@@ -137,7 +137,7 @@ func (c *ObsConfigController) DeleteConfig(ctx *gin.Context) {
 	response.Success(ctx, nil, "删除成功")
 }
 
-// [AUTO] TestConnection
+// @Summary      连接测试成功
 // @Tags      obs-config
 // @Router    /api/obs/config/{id}/test [post]
 // TestConnection 测试连接
@@ -166,7 +166,7 @@ func (c *ObsConfigController) TestConnection(ctx *gin.Context) {
 	response.Success(ctx, nil, "连接测试成功")
 }
 
-// [AUTO] SetDefault
+// @Summary      设为默认配置成功
 // @Tags      obs-config
 // @Router    /api/obs/config/{id}/default [post]
 // SetDefault 设为默认配置（开源版：全局唯一默认）
@@ -189,7 +189,7 @@ func (c *ObsConfigController) SetDefault(ctx *gin.Context) {
 	response.Success(ctx, nil, "设为默认配置成功")
 }
 
-// [AUTO] GetDefaultConfig
+// @Summary      暂无默认配置
 // @Tags      obs-config
 // @Router    /api/obs-configs/default [get]
 // GetDefaultConfig 获取默认配置（开源版：全局默认）

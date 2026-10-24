@@ -28,7 +28,7 @@ func NewUserSegmentController() *UserSegmentController {
 	}
 }
 
-// [AUTO] GetRFMRule
+// @Summary      RFM 规则未配置，将使用系统默认
 // @Tags      user-segment
 // @Router    /api/user-segment/rfm/rule [get]
 // GetRFMRule 获取 RFM 规则
@@ -47,7 +47,7 @@ func (c *UserSegmentController) GetRFMRule(ctx *gin.Context) {
 	response.Success(ctx, rule, "获取成功")
 }
 
-// [AUTO] ListRFMRules
+// @Summary      分页列出 RFM 规则
 // @Tags      user-segment
 // @Router    /api/user-segment/rfm/rules [get]
 // ListRFMRules 列出所有 RFM 规则（分页）
@@ -76,7 +76,7 @@ func (c *UserSegmentController) ListRFMRules(ctx *gin.Context) {
 	}, "获取成功")
 }
 
-// [AUTO] SaveRFMRule
+// @Summary      保存 RFM 规则（创建或更新）
 // @Tags      user-segment
 // @Router    /api/user-segment/rfm/rule [post]
 // SaveRFMRule 保存 RFM 规则
@@ -96,7 +96,7 @@ func (c *UserSegmentController) SaveRFMRule(ctx *gin.Context) {
 	response.Success(ctx, rule, "保存成功")
 }
 
-// [AUTO] UpdateRFMRule
+// @Summary      更新指定 RFM 规则
 // @Tags      user-segment
 // @Router    /api/user-segment/rfm/rule/{id} [put]
 // UpdateRFMRule 更新 RFM 规则
@@ -123,7 +123,7 @@ func (c *UserSegmentController) UpdateRFMRule(ctx *gin.Context) {
 	response.Success(ctx, rule, "更新成功")
 }
 
-// [AUTO] DeleteRFMRule
+// @Summary      删除 RFM 规则
 // @Tags      user-segment
 // @Router    /api/user-segment/rfm/rule/{id} [delete]
 // DeleteRFMRule 删除 RFM 规则
@@ -142,7 +142,7 @@ func (c *UserSegmentController) DeleteRFMRule(ctx *gin.Context) {
 	response.Success(ctx, nil, "删除成功")
 }
 
-// [AUTO] GetRFMList
+// @Summary      分页获取客户 RFM 列表（按 segment 筛选）
 // @Tags      user-segment
 // @Router    /api/user-segment/rfm/list [get]
 // GetRFMList 获取客户 RFM 列表（新口径：customer_rfm / segment）
@@ -185,7 +185,7 @@ func (c *UserSegmentController) GetRFMList(ctx *gin.Context) {
 	}, "获取成功")
 }
 
-// [AUTO] GetRFMStats
+// @Summary      获取 RFM 统计（segment 分布）
 // @Tags      user-segment
 // @Router    /api/user-segment/rfm/stats [get]
 // GetRFMStats 获取 RFM 统计（新口径：segment 分布）
@@ -209,7 +209,7 @@ func (c *UserSegmentController) GetRFMStats(ctx *gin.Context) {
 	}, "获取成功")
 }
 
-// [AUTO] CalculateRFM
+// @Summary      计算完成
 // @Tags      user-segment
 // @Router    /api/user-segment/rfm/calculate [post]
 // CalculateRFM 手动触发 RFM 全量计算（CustomerRFMService.ComputeAll，含挽回队列联动）
@@ -225,7 +225,7 @@ func (c *UserSegmentController) CalculateRFM(ctx *gin.Context) {
 	}, "计算完成")
 }
 
-// [AUTO] GetUserRFM
+// @Summary      获取单个客户的 RFM 分层
 // @Tags      user-segment
 // @Router    /api/user-segment/rfm/user [get]
 // GetUserRFM 获取单个客户的 RFM
@@ -249,7 +249,7 @@ func (c *UserSegmentController) GetUserRFM(ctx *gin.Context) {
 	response.Success(ctx, rfm, "获取成功")
 }
 
-// [AUTO] GetLayerDescription
+// @Summary      获取客户分层说明（segment 五档）
 // @Tags      user-segment
 // @Router    /api/user-segment/layers [get]
 // GetLayerDescription 获取分层说明（新口径 segment 五档）

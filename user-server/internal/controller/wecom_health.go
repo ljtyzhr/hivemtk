@@ -25,7 +25,7 @@ func NewWeComHealthController(svc *service.WeComAccountHealthService, integ *ser
 	}
 }
 
-// [AUTO] ReportHealth
+// @Summary      上报成功
 // @Tags      we-com-health
 // @Router    /api/wecom/health/accounts/{id} [post]
 // ReportHealth 上报健康度
@@ -44,7 +44,7 @@ func (c *WeComHealthController) ReportHealth(ctx *gin.Context) {
 	response.Success(ctx, rec, "上报成功")
 }
 
-// [AUTO] GetLatestHealth
+// @Summary      拉取企微账号最新健康度
 // @Tags      we-com-health
 // @Router    /api/wecom/health/accounts/{id} [get]
 // GetLatestHealth 拉取最新健康度
@@ -62,7 +62,7 @@ func (c *WeComHealthController) GetLatestHealth(ctx *gin.Context) {
 	response.Success(ctx, rec, "查询成功")
 }
 
-// [AUTO] ListHealthHistory
+// @Summary      健康度历史
 // @Tags      we-com-health
 // @Router    /api/wecom/health/accounts/{id}/history [get]
 // ListHealthHistory 健康度历史
@@ -85,7 +85,7 @@ func (c *WeComHealthController) ListHealthHistory(ctx *gin.Context) {
 	response.SuccessWithPage(ctx, list, int64(page), int64(pageSize), total)
 }
 
-// [AUTO] GetRiskAccounts
+// @Summary      查询企微风险账号列表
 // @Tags      we-com-health
 // @Router    /api/wecom/health/accounts/risks [get]
 // GetRiskAccounts 风险账号
@@ -98,7 +98,7 @@ func (c *WeComHealthController) GetRiskAccounts(ctx *gin.Context) {
 	response.Success(ctx, list, "查询成功")
 }
 
-// [AUTO] SelectHealthyAccount
+// @Summary      无可用账号，请先在系统中配置企业微信账号
 // @Tags      we-com-health
 // @Router    /api/wecom/health/accounts/select [get]
 // SelectHealthyAccount 选最优账号
@@ -116,7 +116,7 @@ func (c *WeComHealthController) SelectHealthyAccount(ctx *gin.Context) {
 	response.Success(ctx, acc, "查询成功")
 }
 
-// [AUTO] GetHealthSummary
+// @Summary      查询企微健康度概览
 // @Tags      we-com-health
 // @Router    /api/wecom/health/accounts/summary [get]
 // GetHealthSummary 健康度概览
@@ -129,7 +129,7 @@ func (c *WeComHealthController) GetHealthSummary(ctx *gin.Context) {
 	response.Success(ctx, summary, "查询成功")
 }
 
-// [AUTO] ConsumeQuota
+// @Summary      消耗成功
 // @Tags      we-com-health
 // @Router    /api/wecom/health/accounts/{id}/quota/consume [post]
 // ConsumeQuota 消耗配额
@@ -153,7 +153,7 @@ func (c *WeComHealthController) ConsumeQuota(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"count": req.Count}, "消耗成功")
 }
 
-// [AUTO] ResetDailyQuota
+// @Summary      重置成功
 // @Tags      we-com-health
 // @Router    /api/wecom/health/accounts/quota/reset [post]
 // ResetDailyQuota 重置日配额
@@ -166,7 +166,7 @@ func (c *WeComHealthController) ResetDailyQuota(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"affected": n}, "重置成功")
 }
 
-// [AUTO] IngestMessage
+// @Summary      接入成功
 // @Tags      we-com-health
 // @Router    /api/wecom/messages/ingest [post]
 // IngestMessage 接入企微消息
@@ -185,7 +185,7 @@ func (c *WeComHealthController) IngestMessage(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"hub": hubMsg, "conversation": conv}, "接入成功")
 }
 
-// [AUTO] SendMessage
+// @Summary      发送企业微信消息
 // @Tags      we-com-health
 // @Router    /api/wecom/messages/send [post]
 // SendMessage 发送消息
@@ -204,7 +204,7 @@ func (c *WeComHealthController) SendMessage(ctx *gin.Context) {
 	response.Success(ctx, hubMsg, "发送成功")
 }
 
-// [AUTO] ListAccountsWithHealth
+// @Summary      列出企微账号与最新健康度（出参脱敏）
 // @Tags      we-com-health
 // @Router    /api/wecom/health/accounts [get]
 // ListAccountsWithHealth 列出账号与最新健康度
@@ -219,7 +219,7 @@ func (c *WeComHealthController) ListAccountsWithHealth(ctx *gin.Context) {
 	response.Success(ctx, list, "查询成功")
 }
 
-// [AUTO] UpdateAccountStatus
+// @Summary      更新企微账号登录状态
 // @Tags      we-com-health
 // @Router    /api/wecom/health/accounts/{id}/status [post]
 // UpdateAccountStatus 更新账号状态

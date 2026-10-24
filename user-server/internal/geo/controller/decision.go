@@ -20,7 +20,7 @@ func NewGeoDecisionController(svc *service.DecisionService) *GeoDecisionControll
 	return &GeoDecisionController{svc: svc}
 }
 
-// [AUTO] GetTasks
+// @Summary      待处理补位任务列表（内容生产管线消费入口）
 // @Tags      geo-decision
 // @Router    /api/geo/decision/tasks [get]
 // GetTasks 待处理补位任务列表（内容生产管线消费入口）
@@ -35,7 +35,7 @@ func (c *GeoDecisionController) GetTasks(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": tasks, "total": len(tasks)}, "ok")
 }
 
-// [AUTO] MarkTaskDone
+// @Summary      已完成
 // @Tags      geo-decision
 // @Router    /api/geo/decision/tasks/{id}/done [post]
 // MarkTaskDone 标记任务完成
@@ -52,7 +52,7 @@ func (c *GeoDecisionController) MarkTaskDone(ctx *gin.Context) {
 	response.Success(ctx, nil, "已完成")
 }
 
-// [AUTO] GetDecisionReport
+// @Summary      L4 决策链总览
 // @Tags      geo-decision
 // @Router    /api/geo/decision/report [get]
 // GetDecisionReport L4 决策链总览：

@@ -106,7 +106,7 @@ func (c *UnknownQuestionController) Stats(ctx *gin.Context) {
 
 // Get godoc
 // @Summary      未知问题详情（含审核流水）
-// @Router       /api/unknown-questions/:id [get]
+// @Router       /api/unknown-questions/{id} [get]
 func (c *UnknownQuestionController) Get(ctx *gin.Context) {
 	if !c.requireSvc(ctx) {
 		return
@@ -126,7 +126,7 @@ func (c *UnknownQuestionController) Get(ctx *gin.Context) {
 
 // Submit godoc
 // @Summary      提交审核 draft→pending_review
-// @Router       /api/unknown-questions/:id/submit [post]
+// @Router       /api/unknown-questions/{id}/submit [post]
 func (c *UnknownQuestionController) Submit(ctx *gin.Context) {
 	if !c.requireSvc(ctx) {
 		return
@@ -149,7 +149,7 @@ func (c *UnknownQuestionController) Submit(ctx *gin.Context) {
 
 // Review godoc
 // @Summary      单条审核 adopt|ignore|merge
-// @Router       /api/unknown-questions/:id/review [post]
+// @Router       /api/unknown-questions/{id}/review [post]
 func (c *UnknownQuestionController) Review(ctx *gin.Context) {
 	if !c.requireSvc(ctx) {
 		return
@@ -202,7 +202,7 @@ func (c *UnknownQuestionController) ClusterList(ctx *gin.Context) {
 
 // ClusterGet godoc
 // @Summary      簇详情（成员 + 样本 + 流水）
-// @Router       /api/unknown-questions/clusters/:id [get]
+// @Router       /api/unknown-questions/clusters/{id} [get]
 func (c *UnknownQuestionController) ClusterGet(ctx *gin.Context) {
 	if !c.requireSvc(ctx) {
 		return
@@ -222,7 +222,7 @@ func (c *UnknownQuestionController) ClusterGet(ctx *gin.Context) {
 
 // ClusterReview godoc
 // @Summary      簇级审核 adopt|ignore（adopt 对全簇生效生成一条 FAQ）
-// @Router       /api/unknown-questions/clusters/:id/review [post]
+// @Router       /api/unknown-questions/clusters/{id}/review [post]
 func (c *UnknownQuestionController) ClusterReview(ctx *gin.Context) {
 	if !c.requireSvc(ctx) {
 		return

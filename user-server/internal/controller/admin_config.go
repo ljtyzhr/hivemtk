@@ -19,7 +19,7 @@ func NewAdminConfigController() *AdminConfigController {
 	return &AdminConfigController{}
 }
 
-// [AUTO] GetAdminConfig
+// @Summary      获取管理员配置成功
 // @Tags      admin-config
 // @Router    /api/admin/config [get]
 // GetAdminConfig 获取管理员配置

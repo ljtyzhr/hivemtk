@@ -39,7 +39,7 @@ func NewMigrationController(migrationService *migration.MigrationService) *Migra
 	return &MigrationController{migrationService: migrationService}
 }
 
-// [AUTO] GetUpgradeTask
+// @Summary      查询升级任务状态
 // @Tags      migration
 // @Router    /api/migration/task/{id} [get]
 // GetUpgradeTask 获取迁移任务详情（保留方法名以兼容 router）
@@ -60,7 +60,7 @@ func (c *MigrationController) GetUpgradeTask(ctx *gin.Context) {
 	response.Success(ctx, task, "获取成功")
 }
 
-// [AUTO] GetUpgradeHistory
+// @Summary      查询升级历史记录
 // @Tags      migration
 // @Router    /api/migration/history [get]
 // GetUpgradeHistory 获取迁移历史
@@ -85,7 +85,7 @@ func (c *MigrationController) GetUpgradeHistory(ctx *gin.Context) {
 	}, "获取成功")
 }
 
-// [AUTO] GetMigrationRecords
+// @Summary      查询迁移执行记录
 // @Tags      migration
 // @Router    /api/migration/records [get]
 // GetMigrationRecords 获取迁移记录
@@ -99,7 +99,7 @@ func (c *MigrationController) GetMigrationRecords(ctx *gin.Context) {
 	response.Success(ctx, records, "获取成功")
 }
 
-// [AUTO] GetCurrentVersion
+// @Summary      获取当前数据库版本
 // @Tags      migration
 // @Router    /api/migration/current-version [get]
 // GetCurrentVersion 获取当前数据库版本
@@ -113,7 +113,7 @@ func (c *MigrationController) GetCurrentVersion(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"version": version}, "获取成功")
 }
 
-// [AUTO] CreateUpgradeTask
+// @Summary      迁移任务已创建
 // @Tags      migration
 // @Router    /api/migration/task [post]
 // CreateUpgradeTask 创建迁移任务
@@ -141,7 +141,7 @@ func (c *MigrationController) CreateUpgradeTask(ctx *gin.Context) {
 	response.Success(ctx, task, "迁移任务已创建")
 }
 
-// [AUTO] Rollback
+// @Summary      回滚成功
 // @Tags      migration
 // @Router    /api/migration/rollback [post]
 // Rollback 回滚到指定版本
@@ -162,7 +162,7 @@ func (c *MigrationController) Rollback(ctx *gin.Context) {
 	response.Success(ctx, nil, "回滚成功")
 }
 
-// [AUTO] GetAvailableUpgrades
+// @Summary      获取可执行的迁移列表
 // @Tags      migration
 // @Router    /api/migration/available [get]
 // GetAvailableUpgrades 获取可执行的迁移列表

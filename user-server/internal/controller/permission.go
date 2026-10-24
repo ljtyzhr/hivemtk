@@ -21,7 +21,7 @@ func NewPermissionController() *PermissionController {
 	return &PermissionController{svc: service.NewAuthorizationService()}
 }
 
-// [AUTO] SetEnabled
+// @Summary      账号
 // @Tags      permission
 // @Router    /api/system/permissions/{id}/enabled [put]
 // SetEnabled PUT /api/system/permissions/:id/enabled
@@ -56,7 +56,7 @@ func (ctrl *PermissionController) SetEnabled(c *gin.Context) {
 	response.Success(c, nil, "账号"+action+"成功")
 }
 
-// [AUTO] ResetPassword
+// @Summary      密码重置成功
 // @Tags      permission
 // @Router    /api/system/permissions/{id}/password [put]
 // ResetPassword PUT /api/system/permissions/:id/password
@@ -90,7 +90,7 @@ func (ctrl *PermissionController) ResetPassword(c *gin.Context) {
 	response.Success(c, nil, "密码重置成功")
 }
 
-// [AUTO] ListAuditLogs
+// @Summary      查询权限变更审计日志（按人/动作筛选）
 // @Tags      permission
 // @Router    /api/system/permissions/audit-logs [get]
 // ListAuditLogs GET /api/system/permissions/audit-logs

@@ -22,7 +22,7 @@ func NewAgentCoPilotController() *AgentCoPilotController {
 	}
 }
 
-// [AUTO] GetConfig
+// @Summary      查询副驾驶自动执行配置
 // @Tags      agent-co-pilot
 // @Router    /api/agent/co-pilot/config [get]
 // GetConfig GET /api/agent/co-pilot/config
@@ -35,7 +35,7 @@ func (c *AgentCoPilotController) GetConfig(ctx *gin.Context) {
 	response.Success(ctx, cfg, "获取成功")
 }
 
-// [AUTO] SaveConfig
+// @Summary      保存副驾驶自动执行配置
 // @Tags      agent-co-pilot
 // @Router    /api/agent/co-pilot/config [put]
 // SaveConfig PUT /api/agent/co-pilot/config
@@ -51,7 +51,7 @@ func (c *AgentCoPilotController) SaveConfig(ctx *gin.Context) {
 	response.Success(ctx, req, "保存成功")
 }
 
-// [AUTO] Evaluate
+// @Summary      评估完成
 // @Tags      agent-co-pilot
 // @Router    /api/agent/co-pilot/evaluate [post]
 // Evaluate POST /api/agent/co-pilot/evaluate
@@ -103,7 +103,7 @@ func (c *ManageCoPilotController) Evaluate(ctx *gin.Context) {
 	response.Success(ctx, decision, "评估完成")
 }
 
-// [AUTO] GetConfig
+// @Summary      查询副驾驶配置（管理端）
 // @Tags      manage-co-pilot
 // @Router    /api/manage/co-pilot/config [get]
 // GetConfig GET /api/manage/co-pilot/config

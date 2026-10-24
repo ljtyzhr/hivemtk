@@ -23,7 +23,7 @@ func NewUnifiedMessageController() *UnifiedMessageController {
 	}
 }
 
-// [AUTO] GetMessages
+// @Summary      分页查询统一消息列表（按平台筛选）
 // @Tags      unified-message
 // @Router    /api/messages [get]
 // GetMessages 获取消息列表
@@ -50,7 +50,7 @@ func (c *UnifiedMessageController) GetMessages(ctx *gin.Context) {
 	}, "获取成功")
 }
 
-// [AUTO] GetMessageByID
+// @Summary      按 ID 获取消息详情
 // @Tags      unified-message
 // @Router    /api/messages/{id} [get]
 // GetMessageByID 获取消息详情
@@ -84,7 +84,7 @@ func NewPlatformAccountController() *PlatformAccountController {
 	}
 }
 
-// [AUTO] GetAccounts
+// @Summary      获取平台账号列表
 // @Tags      platform-account
 // @Router    /api/platform-accounts [get]
 // GetAccounts 获取平台账号列表
@@ -99,7 +99,7 @@ func (c *PlatformAccountController) GetAccounts(ctx *gin.Context) {
 	response.Success(ctx, accounts, "获取成功")
 }
 
-// [AUTO] GetAccountByID
+// @Summary      按 ID 获取平台账号详情
 // @Tags      platform-account
 // @Router    /api/platform-accounts/{id} [get]
 // GetAccountByID 获取平台账号详情
@@ -120,7 +120,7 @@ func (c *PlatformAccountController) GetAccountByID(ctx *gin.Context) {
 	response.Success(ctx, account, "获取成功")
 }
 
-// [AUTO] CreateAccount
+// @Summary      创建平台账号
 // @Tags      platform-account
 // @Router    /api/platform-accounts [post]
 // CreateAccount 创建平台账号
@@ -141,7 +141,7 @@ func (c *PlatformAccountController) CreateAccount(ctx *gin.Context) {
 	response.Success(ctx, account, "创建成功")
 }
 
-// [AUTO] UpdateAccount
+// @Summary      更新平台账号
 // @Tags      platform-account
 // @Router    /api/platform-accounts/{id} [put]
 // UpdateAccount 更新平台账号
@@ -168,7 +168,7 @@ func (c *PlatformAccountController) UpdateAccount(ctx *gin.Context) {
 	response.Success(ctx, account, "更新成功")
 }
 
-// [AUTO] DeleteAccount
+// @Summary      删除平台账号
 // @Tags      platform-account
 // @Router    /api/platform-accounts/{id} [delete]
 // DeleteAccount 删除平台账号
@@ -188,7 +188,7 @@ func (c *PlatformAccountController) DeleteAccount(ctx *gin.Context) {
 	response.Success(ctx, nil, "删除成功")
 }
 
-// [AUTO] LoginAccount
+// @Summary      登录成功
 // @Tags      platform-account
 // @Router    /api/platform-accounts/{id}/login [post]
 // LoginAccount 登录平台账号
@@ -215,7 +215,7 @@ func (c *PlatformAccountController) LoginAccount(ctx *gin.Context) {
 	response.Success(ctx, account, "登录成功")
 }
 
-// [AUTO] CheckLoginStatus
+// @Summary      检查成功
 // @Tags      platform-account
 // @Router    /api/platform-accounts/{id}/status [get]
 // CheckLoginStatus 检查登录状态
@@ -238,7 +238,7 @@ func (c *PlatformAccountController) CheckLoginStatus(ctx *gin.Context) {
 	}, "检查成功")
 }
 
-// [AUTO] GetSupportedPlatforms
+// @Summary      获取支持的平台静态清单
 // @Tags      platform-account
 // @Router    /api/platform-accounts/platforms [get]
 // GetSupportedPlatforms 获取支持的平台列表

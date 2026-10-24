@@ -299,7 +299,7 @@ func recordUnifiedLeadScore(ctx context.Context, s *WebhookService, clue *model.
 	if s == nil || clue == nil || clue.ID == "" {
 		return
 	}
-	db := s.lazyDB()
+	db := s.dbHandle() // E-4：经 repo 回拿句柄（不再兜底全局）
 	if db == nil {
 		return
 	}

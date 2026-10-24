@@ -110,6 +110,10 @@ type RecordPaymentInput struct {
 	Platform   string     // 必填：取自回调路径上的 :platform（载荷自述不作数）
 	OrderID    string     // 必填：触发这笔回款的外部订单号
 	Status     string     // 可空 ⇒ confirmed；只接受 confirmed / reversed 两个词
+	Reason     string     // 可空：渠道给的原因（E-10 起解析层透传；回款腿 RecordPayment
+	// 不落这一格——reason 列只属于 refunded 行，confirmed/reversed 的原因
+	// 就是状态本身。透传到这里是为了让解析层不裁剪渠道事实，退款分流
+	// （bookOrderPayment）会把它带给 RecordPartialRefund）
 }
 
 // PaymentView 一行回款凭据的对外视图。
@@ -126,6 +130,7 @@ type PaymentView struct {
 	Status       string    `json:"status"`
 	Platform     string    `json:"platform"`
 	OrderID      string    `json:"order_id"`
+	Reason       string    `json:"reason,omitempty"`
 	FilledPaidAt bool      `json:"filled_paid_at,omitempty"`
 }
 
@@ -291,6 +296,12 @@ func (s *PaymentService) Available() bool {
 // 也不该把"还差一分"读成"已结清"。取半个最小单位是唯一不会误伤的方向。
 const paymentCentEpsilon = 0.005
 
+// paymentReasonMaxRunes 退款原因（model.Payment.Reason，varchar(255)）的入参上限，
+// 按字符计而不是字节：中文原因三字节一个字，按字节卡会把合法的中文原因误杀。
+// 与 repository.paymentChannelRefMaxLen 同一取向——外部文本必须设界，
+// 但两者的界各随自己的列宽（255 字节按 UTF-8 平均≈85 个汉字，取整 85）。
+const paymentReasonMaxRunes = 85
+
 // RecordPayment 记下一笔回款，并把那张应收折算到位。
 //
 // 顺序与账单派生腿同一取向：所有只读判据（来路、值域、币种、幂等比对）
@@ -431,6 +442,11 @@ func (s *PaymentService) RecordPartialRefund(ctx context.Context, in RecordParti
 	platform := strings.TrimSpace(in.Platform)
 	orderID := strings.TrimSpace(in.OrderID)
 	currency := strings.ToUpper(strings.TrimSpace(in.Currency))
+	reason := strings.TrimSpace(in.Reason)
+	if len([]rune(reason)) > paymentReasonMaxRunes {
+		return nil, fmt.Errorf("%w: 退款原因超过 %d 字（当前 %d 字，截断会伪造渠道陈述）",
+			ErrPaymentInputInvalid, paymentReasonMaxRunes, len([]rune(reason)))
+	}
 	if billID == "" {
 		return nil, fmt.Errorf("%w: bill_id 为空（退款必须钉在一张应收上，否则净到账和对账都没法算）", ErrPaymentInputInvalid)
 	}
@@ -495,7 +511,7 @@ func (s *PaymentService) RecordPartialRefund(ctx context.Context, in RecordParti
 		Amount: money2(in.Amount), Currency: currency,
 		PaidAt:     payTimeOf(in.RefundedAt, now),
 		ChannelRef: ref, Status: model.PaymentStatusRefunded,
-		Platform: platform, OrderID: orderID,
+		Platform: platform, OrderID: orderID, Reason: reason,
 		CreatedAt: now, UpdatedAt: now,
 	}
 	if err := s.payments.Create(ctx, row); err != nil {
@@ -531,6 +547,7 @@ type RecordPartialRefundInput struct {
 	RefundedAt *time.Time // 可空 ⇒ 填接收时刻
 	Platform   string     // 必填
 	OrderID    string     // 必填
+	Reason     string     // 可空 ⇒ 渠道给的退款原因（规划 §4.10 退款行四格之一；空=渠道没说）
 }
 
 // settleKnown 幂等通路上的三种结论：复用（无写入）、冲销（只改 status）、拒（内容不符）。
@@ -732,7 +749,7 @@ func paymentViewOf(p *model.Payment, filled bool) PaymentView {
 	return PaymentView{
 		ID: p.ID, BillID: p.BillID, Amount: p.Amount, Currency: p.Currency, PaidAt: p.PaidAt,
 		ChannelRef: p.ChannelRef, Status: p.Status, Platform: p.Platform, OrderID: p.OrderID,
-		FilledPaidAt: filled,
+		Reason: p.Reason, FilledPaidAt: filled,
 	}
 }
 

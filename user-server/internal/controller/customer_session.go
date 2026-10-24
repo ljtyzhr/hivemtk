@@ -60,7 +60,7 @@ func writeSessionScopedError(ctx *gin.Context, err error, notFoundMsg string) {
 	}
 }
 
-// [AUTO] GetSessions
+// @Summary      获取会话列表
 // @Tags      customer-session
 // @Router    /api/customer-sessions [get]
 // GetSessions 获取会话列表
@@ -83,7 +83,7 @@ func (c *CustomerSessionController) GetSessions(ctx *gin.Context) {
 	}, "获取成功")
 }
 
-// [AUTO] GetSessionByID
+// @Summary      获取会话详情
 // @Tags      customer-session
 // @Router    /api/customer-sessions/{id} [get]
 // GetSessionByID 获取会话详情
@@ -104,7 +104,7 @@ func (c *CustomerSessionController) GetSessionByID(ctx *gin.Context) {
 	response.Success(ctx, session, "获取成功")
 }
 
-// [AUTO] CreateSession
+// @Summary      创建会话
 // @Tags      customer-session
 // @Router    /api/customer-sessions [post]
 // CreateSession 创建会话
@@ -123,7 +123,7 @@ func (c *CustomerSessionController) CreateSession(ctx *gin.Context) {
 	response.Success(ctx, session, "创建成功")
 }
 
-// [AUTO] GetMessages
+// @Summary      获取会话消息
 // @Tags      customer-session
 // @Router    /api/customer-sessions/{id}/messages [get]
 // GetMessages 获取会话消息
@@ -165,7 +165,7 @@ func (c *CustomerSessionController) GetMessages(ctx *gin.Context) {
 	}, "获取成功")
 }
 
-// [AUTO] SendMessage
+// @Summary      发送消息
 // @Tags      customer-session
 // @Router    /api/customer-sessions/{id}/messages [post]
 // SendMessage 发送消息
@@ -244,7 +244,7 @@ func (c *CustomerSessionController) SendMessage(ctx *gin.Context) {
 	response.Success(ctx, message, "发送成功")
 }
 
-// [AUTO] UpdateSessionStatus
+// @Summary      更新会话状态
 // @Tags      customer-session
 // @Router    /api/customer-sessions/{id}/status [put]
 // UpdateSessionStatus 更新会话状态
@@ -278,7 +278,7 @@ func (c *CustomerSessionController) UpdateSessionStatus(ctx *gin.Context) {
 	response.Success(ctx, nil, "更新成功")
 }
 
-// [AUTO] RateSession
+// @Summary      评价成功
 // @Tags      customer-session
 // @Router    /api/customer-sessions/{id}/rate [post]
 // RateSession 评价会话
@@ -313,7 +313,7 @@ func (c *CustomerSessionController) RateSession(ctx *gin.Context) {
 	response.Success(ctx, nil, "评价成功")
 }
 
-// [AUTO] TagSession
+// @Summary      标记成功
 // @Tags      customer-session
 // @Router    /api/customer-sessions/{id}/tags [post]
 // TagSession 标记会话
@@ -347,7 +347,7 @@ func (c *CustomerSessionController) TagSession(ctx *gin.Context) {
 	response.Success(ctx, nil, "标记成功")
 }
 
-// [AUTO] GetPendingSessions
+// @Summary      获取待处理会话
 // @Tags      customer-session
 // @Router    /api/customer-sessions/pending [get]
 // GetPendingSessions 获取待处理会话
@@ -377,7 +377,7 @@ func (c *CustomerSessionController) GetPendingSessions(ctx *gin.Context) {
 	}, "获取成功")
 }
 
-// [AUTO] CloseSession
+// @Summary      关闭成功
 // @Tags      customer-session
 // @Router    /api/customer-sessions/{id}/close [post]
 // CloseSession 关闭会话

@@ -21,7 +21,7 @@ func NewCustomerJourneyController() *CustomerJourneyController {
 	return &CustomerJourneyController{svc: service.NewCustomerJourneyService()}
 }
 
-// [AUTO] GetOverview
+// @Summary      客户旅程总览
 // @Tags      customer-journey
 // @Router    /api/customer-journey/overview [get]
 // GetOverview 获取全旅程总览：每个阶段的客户数 + 转化率
@@ -38,7 +38,7 @@ func (c *CustomerJourneyController) GetOverview(ctx *gin.Context) {
 	response.Success(ctx, overview, "查询成功")
 }
 
-// [AUTO] TransitionStage
+// @Summary      迁移成功
 // @Tags      customer-journey
 // @Router    /api/customer-journey/transition [post]
 // TransitionStage 手动迁移阶段
@@ -65,7 +65,7 @@ func (c *CustomerJourneyController) TransitionStage(ctx *gin.Context) {
 	response.Success(ctx, event, "迁移成功")
 }
 
-// [AUTO] TouchCustomer
+// @Summary      互动已记录
 // @Tags      customer-journey
 // @Router    /api/customer-journey/touch [post]
 // TouchCustomer 记录互动（不改变阶段）
@@ -82,7 +82,7 @@ func (c *CustomerJourneyController) TouchCustomer(ctx *gin.Context) {
 	response.Success(ctx, nil, "互动已记录")
 }
 
-// [AUTO] ListByStage
+// @Summary      按阶段查询客户旅程
 // @Tags      customer-journey
 // @Router    /api/customer-journey/by-stage [get]
 // ListByStage 按阶段列出客户
@@ -96,7 +96,7 @@ func (c *CustomerJourneyController) ListByStage(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"stage": stage, "customer_ids": ids, "count": len(ids)}, "查询成功")
 }
 
-// [AUTO] ListStages
+// @Summary      查询客户旅程阶段清单
 // @Tags      customer-journey
 // @Router    /api/customer-journey/stages [get]
 // ListStages 列出所有阶段配置

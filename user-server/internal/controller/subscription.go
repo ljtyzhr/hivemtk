@@ -37,7 +37,7 @@ func subscriptionFail(ctx *gin.Context, err error) {
 	}
 }
 
-// [AUTO] Status
+// @Summary      查询订阅状态（本地镜像，不回源平台）
 // @Tags      subscription
 // @Router    /api/subscription/status [get]
 // Status GET /api/subscription/status
@@ -53,7 +53,7 @@ func (c *SubscriptionController) Status(ctx *gin.Context) {
 	response.Success(ctx, snap, "ok")
 }
 
-// [AUTO] Renew
+// @Summary      参数错误
 // @Tags      subscription
 // @Router    /api/subscription/renew [post]
 // Renew POST /api/subscription/renew

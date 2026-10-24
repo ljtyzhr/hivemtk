@@ -26,7 +26,7 @@ func NewObservabilityDashboardController(svc *service.ObservabilityDashboardServ
 	return &ObservabilityDashboardController{svc: svc}
 }
 
-// [AUTO] Snapshot
+// @Summary      可观测性仪表盘快照（按时间窗）
 // @Tags      observability-dashboard
 // @Router    /api/observability/dashboard [get]
 // Snapshot GET /api/observability/dashboard?window=7d

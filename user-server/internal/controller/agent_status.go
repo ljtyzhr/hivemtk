@@ -30,7 +30,7 @@ func NewAgentStatusController(
 	}
 }
 
-// [AUTO] CreateAgent
+// @Summary      创建客服
 // @Tags      agent-status
 // @Router    /api/agents [post]
 // CreateAgent 创建客服
@@ -50,7 +50,7 @@ func (c *AgentStatusController) CreateAgent(ctx *gin.Context) {
 	response.Success(ctx, agent, "创建成功")
 }
 
-// [AUTO] GetAgentStatus
+// @Summary      获取客服状态
 // @Tags      agent-status
 // @Router    /api/agent-statuses/{id} [get]
 // GetAgentStatus 获取客服状态
@@ -71,7 +71,7 @@ func (c *AgentStatusController) GetAgentStatus(ctx *gin.Context) {
 	response.Success(ctx, agent, "获取成功")
 }
 
-// [AUTO] GetOnlineAgents
+// @Summary      获取在线客服列表
 // @Tags      agent-status
 // @Router    /api/agent-statuses [get]
 // GetOnlineAgents 获取在线客服列表
@@ -85,7 +85,7 @@ func (c *AgentStatusController) GetOnlineAgents(ctx *gin.Context) {
 	response.Success(ctx, agents, "获取成功")
 }
 
-// [AUTO] GetMyAgent
+// @Summary      获取当前登录用户的坐席身份
 // @Tags      agent-status
 // @Router    /api/agents/me [get]
 // GetMyAgent 获取当前登录用户对应的坐席身份（接入登录态，杜绝"列表首位猜测"）
@@ -121,7 +121,7 @@ func (c *AgentStatusController) GetMyAgent(ctx *gin.Context) {
 	response.Success(ctx, st, "获取成功")
 }
 
-// [AUTO] ListAllAgents
+// @Summary      列出全部客服（监管控制台）
 // @Tags      agent-status
 // @Router    /api/agent-statuses/list [get]
 // ListAllAgents 列出全部客服（监管控制台）
@@ -149,7 +149,7 @@ func (c *AgentStatusController) ListAllAgents(ctx *gin.Context) {
 	response.Success(ctx, agents, "获取成功")
 }
 
-// [AUTO] UpdateAgentStatus
+// @Summary      更新客服状态
 // @Tags      agent-status
 // @Router    /api/agent-statuses/{id}/status [put]
 // UpdateAgentStatus 更新客服状态
@@ -177,7 +177,7 @@ func (c *AgentStatusController) UpdateAgentStatus(ctx *gin.Context) {
 	response.Success(ctx, nil, "更新成功")
 }
 
-// [AUTO] GoOnline
+// @Summary      上线成功
 // @Tags      agent-status
 // @Router    /api/agent-statuses/{id}/online [post]
 // GoOnline 客服上线
@@ -197,7 +197,7 @@ func (c *AgentStatusController) GoOnline(ctx *gin.Context) {
 	response.Success(ctx, nil, "上线成功")
 }
 
-// [AUTO] GoOffline
+// @Summary      下线成功
 // @Tags      agent-status
 // @Router    /api/agent-statuses/{id}/offline [post]
 // GoOffline 客服下线
@@ -217,7 +217,7 @@ func (c *AgentStatusController) GoOffline(ctx *gin.Context) {
 	response.Success(ctx, nil, "下线成功")
 }
 
-// [AUTO] GetAgentSessions
+// @Summary      获取客服的会话
 // @Tags      agent-status
 // @Router    /api/agent-statuses/{id}/sessions [get]
 // GetAgentSessions 获取客服的会话

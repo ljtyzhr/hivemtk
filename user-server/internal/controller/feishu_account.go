@@ -53,7 +53,7 @@ func (ctrl *FeishuAccountController) RegisterRoutes(router *gin.RouterGroup) {
 	}
 }
 
-// [AUTO] TestSendQuery
+// @Summary      测试发送参数缺失，账号校验通过
 // @Tags      feishu-account
 // @Router    /api/feishu/accounts/{id}/test-send [get]
 // TestSendQuery 兼容 GET 请求的测试发送：从 query 读取 open_id 与 content，
@@ -127,7 +127,7 @@ func toFeishuVO(a *model.FeishuAccount) *feishuAccountVO {
 	}
 }
 
-// [AUTO] List
+// @Summary      查询飞书账号列表
 // @Tags      feishu-account
 // @Router    /api/feishu/accounts [get]
 // List 列出所有飞书账号
@@ -144,7 +144,7 @@ func (ctrl *FeishuAccountController) List(c *gin.Context) {
 	response.Success(c, out, "查询成功")
 }
 
-// [AUTO] Get
+// @Summary      按 ID 查询飞书账号详情
 // @Tags      feishu-account
 // @Router    /api/feishu/accounts/{id} [get]
 // Get 获取单个飞书账号
@@ -175,7 +175,7 @@ type feishuCreateReq struct {
 	AIAgentEnabled    bool   `json:"ai_agent_enabled"`
 }
 
-// [AUTO] Create
+// @Summary      创建飞书账号
 // @Tags      feishu-account
 // @Router    /api/feishu/accounts [post]
 // Create 创建飞书账号
@@ -214,7 +214,7 @@ type feishuUpdateReq struct {
 	Status            *int    `json:"status"`
 }
 
-// [AUTO] Update
+// @Summary      更新飞书账号
 // @Tags      feishu-account
 // @Router    /api/feishu/accounts/{id} [put]
 // Update 更新飞书账号
@@ -267,7 +267,7 @@ func (ctrl *FeishuAccountController) Update(c *gin.Context) {
 	response.Success(c, toFeishuVO(acc), "更新成功")
 }
 
-// [AUTO] Delete
+// @Summary      删除飞书账号
 // @Tags      feishu-account
 // @Router    /api/feishu/accounts/{id} [delete]
 // Delete 删除飞书账号
@@ -297,7 +297,7 @@ type feishuTestSendReq struct {
 	Content string `json:"content" binding:"required"`
 }
 
-// [AUTO] TestSend
+// @Summary      飞书账号测试发送
 // @Tags      feishu-account
 // @Router    /api/feishu/accounts/{id}/test-send [post]
 // TestSend 测试发送文本消息
@@ -330,7 +330,7 @@ func (ctrl *FeishuAccountController) TestSend(c *gin.Context) {
 	response.Success(c, nil, "发送成功")
 }
 
-// [AUTO] RefreshToken
+// @Summary      刷新成功
 // @Tags      feishu-account
 // @Router    /api/feishu/accounts/{id}/refresh-token [get]
 // RefreshToken 刷新 access_token

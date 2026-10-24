@@ -26,7 +26,7 @@ func NewXianyuCardController(service service.XianyuCardService, statsSvc service
 	}
 }
 
-// [AUTO] Create
+// @Summary      创建闲鱼卡片
 // @Tags      xianyu-card
 // @Router    /api/xianyu/create [post]
 // Create 创建闲鱼卡片
@@ -45,7 +45,7 @@ func (c *XianyuCardController) Create(ctx *gin.Context) {
 	response.Success(ctx, card, response.ErrSuccess)
 }
 
-// [AUTO] Update
+// @Summary      更新闲鱼卡片
 // @Tags      xianyu-card
 // @Router    /api/xianyu-card/{id} [put]
 // Update 更新闲鱼卡片
@@ -64,7 +64,7 @@ func (c *XianyuCardController) Update(ctx *gin.Context) {
 	response.Success(ctx, card, response.ErrUpdateSuccess)
 }
 
-// [AUTO] Delete
+// @Summary      删除闲鱼卡片
 // @Tags      xianyu-card
 // @Router    /api/xianyu-card/{id} [delete]
 // Delete 删除闲鱼卡片
@@ -83,7 +83,7 @@ func (c *XianyuCardController) Delete(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"id": id}, response.ErrDeleteSuccess)
 }
 
-// [AUTO] GetByID
+// @Summary      根据ID获取闲鱼卡片
 // @Tags      xianyu-card
 // @Router    /api/xianyu-card/{id} [get]
 // GetByID 根据ID获取闲鱼卡片
@@ -103,7 +103,7 @@ func (c *XianyuCardController) GetByID(ctx *gin.Context) {
 	response.Success(ctx, card, response.ErrGetSuccess)
 }
 
-// [AUTO] GetList
+// @Summary      获取闲鱼卡片列表
 // @Tags      xianyu-card
 // @Router    /api/xianyu-card/list [get]
 // GetList 获取闲鱼卡片列表
@@ -130,7 +130,7 @@ func (c *XianyuCardController) GetList(ctx *gin.Context) {
 	response.Success(ctx, cards, response.ErrGetSuccess)
 }
 
-// [AUTO] GenerateShortLink
+// @Summary      生成短链
 // @Tags      xianyu-card
 // @Router    /api/xianyu/{id}/generate-short-link [post]
 // GenerateShortLink 生成短链
@@ -153,7 +153,7 @@ func (c *XianyuCardController) GenerateShortLink(ctx *gin.Context) {
 	}, response.ErrSuccess)
 }
 
-// [AUTO] SharePage
+// @Summary      渲染卡片分享页面（统一卡片聊天页，含联系客服按钮）
 // @Tags      xianyu-card
 // @Router    /share/xianyu/{id} [get]
 // SharePage 渲染卡片分享页面（统一卡片聊天页，含联系客服按钮）

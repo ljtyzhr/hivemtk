@@ -31,6 +31,28 @@ import (
 	"gorm.io/gorm"
 )
 
+// webhookIntegrations 各渠道出站/外呼 service 的构造工厂（E-4 webhook 域下沉，
+// 2026-10-24）。
+//
+// 原形状：dispatch/outbound 里 `if s.xxxIntegration == nil { s.xxxIntegration =
+// NewXxxIntegrationService(s.lazyDB()) }`——service 伸手要 DB 句柄自己造下游，
+// 这正是规划 §4.4 点名的债。下沉后：构造工厂在**装配时**注入（WithRepos），
+// 惰性构造保留（首用时才建），但建的时候调的是工厂函数而不是 DB 句柄——
+// service 层从此不再出现 gorm 句柄字样。
+//
+// 工厂返回 service 而不是装配时直接建好实例：WebhookService 构造在 router
+// 装配序列的最前面，那时下游 service 依赖的某些全局（agent binding 等）
+// 可能还没就位；"首用时才建"的惰性语义保持原行为不变。
+type webhookIntegrations struct {
+	feishu func() *FeishuIntegrationService
+	tg     func() *TelegramIntegrationService
+	wa     func() *WhatsAppCloudIntegrationService
+	qq     func() *QQIntegrationService
+	wechat func() *WechatService
+	// waCloud：WhatsApp Cloud 账号管理 service（channel_whatsapp 两处构造点共用）
+	waCloud func() *WhatsAppCloudService
+}
+
 type WebhookService struct {
 	eventRepo   *repository.WebhookEventRepository
 	accountRepo *repository.IntegrationAccountRepository
@@ -60,6 +82,9 @@ type WebhookService struct {
 	clueRepo repository.ClueRepository
 
 	ingressSvc *InboxIngressService
+
+	// integrations 渠道 service 构造工厂（E-4：见 webhookIntegrations 注释）。
+	integrations webhookIntegrations
 
 	salesEngine       *SalesEngine
 	smartOrchestrator *SmartCSOrchestrator
@@ -163,11 +188,21 @@ func NewWebhookService(db *gorm.DB) *WebhookService {
 		unifiedMsgRepo:    unifiedMsgRepo,
 		delayedRepo:       repository.NewDelayedOutboundRepository(db),
 		ingressSvc:        NewInboxIngressService(),
-		rlBuckets:         make(map[string]*tokenBucket),
-		workerCount:       webhookWorkerCount(context.Background()),
-		queue:             make(chan *webhookJob, webhookQueueSize(context.Background())),
-		stopCh:            make(chan struct{}),
-		replySem:          make(chan struct{}, webhookReplyConcurrency(context.Background())),
+		integrations: webhookIntegrations{
+			feishu: func() *FeishuIntegrationService { return NewFeishuIntegrationService(db) },
+			tg:     func() *TelegramIntegrationService { return NewTelegramIntegrationService(db) },
+			wa:     func() *WhatsAppCloudIntegrationService { return NewWhatsAppCloudIntegrationService(db) },
+			qq:     func() *QQIntegrationService { return NewQQIntegrationService(db) },
+			wechat: func() *WechatService { return NewWechatService(db) },
+			waCloud: func() *WhatsAppCloudService {
+				return NewWhatsAppCloudService(db)
+			},
+		},
+		rlBuckets:   make(map[string]*tokenBucket),
+		workerCount: webhookWorkerCount(context.Background()),
+		queue:       make(chan *webhookJob, webhookQueueSize(context.Background())),
+		stopCh:      make(chan struct{}),
+		replySem:    make(chan struct{}, webhookReplyConcurrency(context.Background())),
 	}
 	s.startWorkers(context.Background())
 	s.startRLJanitor(context.Background())
@@ -191,19 +226,31 @@ func (s *WebhookService) SetIngressSvc(ingress *InboxIngressService) {
 	}
 }
 
-// lazyDB 惰性获取底层连接：优先 eventRepo（构造器必设），兜底全局 repository。
-// ARC-01：WebhookService 不再自持 db 字段，统一经此取源。
-func (s *WebhookService) lazyDB() *gorm.DB {
-	if s.eventRepo != nil {
-		if db := s.eventRepo.GetDB(); db != nil {
-			return db
-		}
+// dbHandle E-4 webhook 域下沉（2026-10-24）后 service 层取 DB 的**唯一**合法口：
+// 从 eventRepo（构造器必设）回拿句柄，且只用于给同域 repo 注入——
+// 不再兜底全局 repository.GetDB()（隐式全局句柄正是 E-4 要消灭的形状），
+// 不再直接构造下游 service（走 integrations 工厂）。
+//
+// 为什么还留这个口而不是全数搬进构造器：ensureReposFromDB 的懒建语义
+// （messageHubRepo 等四件在 dispatch 首用时才建）是既有行为，测试构造
+// （NewWebhookService(testDB)）依赖它把 repo 建齐；把四件全搬进构造器
+// 会改变"未装配 DB 时 service 照常可构造"的行为。句柄的**持有者**是 repo，
+// service 只在装配 repo 的瞬间经手——与 knowledge 域样板同一取向。
+func (s *WebhookService) dbHandle() *gorm.DB {
+	if s == nil || s.eventRepo == nil {
+		return nil
 	}
-	return repository.GetDB()
+	return s.eventRepo.GetDB()
+}
+
+// connected 装配判据：eventRepo 有没有 DB。原先 lazyDB()==nil 的 9 处判装配
+// 全部改走这一句——service 不再自己拿句柄比 nil。
+func (s *WebhookService) connected() bool {
+	return s != nil && s.eventRepo != nil && s.eventRepo.Connected()
 }
 
 func (s *WebhookService) ensureReposFromDB(ctx context.Context) {
-	db := s.lazyDB()
+	db := s.dbHandle()
 	if db == nil {
 		return
 	}

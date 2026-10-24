@@ -43,7 +43,7 @@ type InboundSmsWebhookRequest struct {
 	SequenceId string `json:"sequenceId"`
 }
 
-// [AUTO] InboundSmsWebhook
+// @Summary      上行短信已接收，未命中退订关键词
 // @Tags      sms-unsubscribe
 // @Router    /api/sms/webhook/inbound [post]
 // InboundSmsWebhook POST /api/sms/webhook/inbound
@@ -101,7 +101,7 @@ type SmsManualAddRequest struct {
 	Reason string `json:"reason"`
 }
 
-// [AUTO] ManualAdd
+// @Summary      添加成功
 // @Tags      sms-unsubscribe
 // @Router    /api/sms/unsubscribe/manual-add [post]
 // ManualAdd POST /api/sms/unsubscribe/manual-add
@@ -122,7 +122,7 @@ func (c *SmsUnsubscribeController) ManualAdd(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"phone": req.Phone, "status": "unsubscribed"}, "添加成功")
 }
 
-// [AUTO] DeleteByPhone
+// @Summary      删除短信退订号码（重新订阅时用）
 // @Tags      sms-unsubscribe
 // @Router    /api/sms/unsubscribe/{phone} [delete]
 // DeleteByPhone DELETE /api/sms/unsubscribe/:phone
@@ -143,7 +143,7 @@ func (c *SmsUnsubscribeController) DeleteByPhone(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"phone": phone, "status": "resubscribed"}, "删除成功")
 }
 
-// [AUTO] ListUnsubscribes
+// @Summary      查询退订名单失败
 // @Tags      sms-unsubscribe
 // @Router    /api/sms/unsubscribe/list [get]
 // ListUnsubscribes GET /api/sms/unsubscribe/list
@@ -161,7 +161,7 @@ func (c *SmsUnsubscribeController) ListUnsubscribes(ctx *gin.Context) {
 	response.SuccessWithPage(ctx, records, int64(page), int64(limit), total)
 }
 
-// [AUTO] ExportUnsubscribes
+// @Summary      导出退订名单失败
 // @Tags      sms-unsubscribe
 // @Router    /api/sms/unsubscribe/export [get]
 // ExportUnsubscribes GET /api/sms/unsubscribe/export

@@ -61,7 +61,7 @@ func TestSendOutbound_Bridge_UndeliverableIsNotSent(t *testing.T) {
 	svc, ctx := newBridgeSentTestService(t)
 	defer svc.Stop(ctx)
 
-	db := svc.lazyDB()
+	db := svc.dbHandle()
 	hub := bridgeInboundHub("xiaohongshu", "xiaohongshu-unknown", "conv-d02-undel", "cust-d02-undel")
 	if err := db.Create(hub).Error; err != nil {
 		t.Fatalf("seed inbound: %v", err)
@@ -96,7 +96,7 @@ func TestSendOutbound_Bridge_PersistFailureIsNotSent(t *testing.T) {
 	svc, ctx := newBridgeSentTestService(t)
 	defer svc.Stop(ctx)
 
-	db := svc.lazyDB()
+	db := svc.dbHandle()
 	// message_hub.conversation_id 是 varchar(100)，用超长会话号真实触发一次出库行入库失败
 	// （入站行只在内存里造，避免先撞同一个长度限制）；
 	// delayed_outbound_reply.conversation_id 是 varchar(128)，重试记录写得下。
@@ -129,7 +129,7 @@ func TestSendOutbound_Bridge_QueuedIsSent(t *testing.T) {
 	svc, ctx := newBridgeSentTestService(t)
 	defer svc.Stop(ctx)
 
-	db := svc.lazyDB()
+	db := svc.dbHandle()
 	hub := bridgeInboundHub("douyin", "acct-d02-ok", "conv-d02-ok", "cust-d02-ok")
 	if err := db.Create(hub).Error; err != nil {
 		t.Fatalf("seed inbound: %v", err)

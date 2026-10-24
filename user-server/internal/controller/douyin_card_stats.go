@@ -21,7 +21,7 @@ func NewDouyinCardStatsController(service service.DouyinCardStatsService) *Douyi
 	}
 }
 
-// [AUTO] GetCardStats
+// @Summary      获取单个抖音卡片的统计数据
 // @Tags      douyin-card-stats
 // @Router    /api/douyin-card/stats/{id} [get]
 // GetCardStats 获取单个卡片的统计数据
@@ -52,7 +52,7 @@ func (c *DouyinCardStatsController) GetCardStats(ctx *gin.Context) {
 	response.Success(ctx, stats, "获取成功")
 }
 
-// [AUTO] GetOverallStats
+// @Summary      获取所有抖音卡片的总体统计
 // @Tags      douyin-card-stats
 // @Router    /api/douyin-card/overall-stats [get]
 // GetOverallStats 获取所有卡片的总体统计数据

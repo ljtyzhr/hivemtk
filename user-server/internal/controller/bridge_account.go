@@ -29,7 +29,7 @@ func (ctrl *BridgeAccountController) RegisterRoutes(auth *gin.RouterGroup) {
 	auth.POST("/bridge/send", ctrl.SendManual)
 }
 
-// [AUTO] List
+// @Summary      列出当前用户的全部桥接账号
 // @Tags      bridge-account
 // @Router    /api/bridge/accounts [get]
 // List 列出当前用户的全部桥接账号
@@ -55,7 +55,7 @@ type bridgeSendReq struct {
 	Content        string `json:"content"`
 }
 
-// [AUTO] SendManual
+// @Summary      桥接账号手动发送消息
 // @Tags      bridge-account
 // @Router    /api/bridge/send [post]
 func (ctrl *BridgeAccountController) SendManual(c *gin.Context) {

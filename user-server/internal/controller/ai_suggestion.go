@@ -19,7 +19,7 @@ func NewAISuggestionController(svc *service.AISuggestionService) *AISuggestionCo
 	return &AISuggestionController{suggestionService: svc}
 }
 
-// [AUTO] GetSuggestions
+// @Summary      获取会话的 AI 建议（支持路径参数与 query 两种路由）
 // @Tags      a-i-suggestion
 // @Router    /api/customer-service/ai-suggestions [get]
 // GetSuggestions 获取AI建议
@@ -46,7 +46,7 @@ func (c *AISuggestionController) GetSuggestions(ctx *gin.Context) {
 	response.Success(ctx, suggestions, "获取成功")
 }
 
-// [AUTO] UseSuggestion
+// @Summary      使用成功
 // @Tags      a-i-suggestion
 // @Router    /api/ai-suggestions/{id}/use [post]
 // UseSuggestion 使用AI建议

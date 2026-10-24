@@ -48,7 +48,7 @@ func agentIDParam(ctx *gin.Context) string {
 	return ctx.Param("aid")
 }
 
-// [AUTO] ListByAgent
+// @Summary      查询智能体绑定的知识库列表
 // @Tags      agent-k-b-binding
 // @Router    /api/agent-kb-bindings/by-agent/{agentId} [get]
 // ListByAgent 查某智能体的所有绑定
@@ -70,7 +70,7 @@ func (c *AgentKBBindingController) ListByAgent(ctx *gin.Context) {
 	response.Success(ctx, list, "查询成功")
 }
 
-// [AUTO] ListByKB
+// @Summary      查询知识库绑定的智能体列表
 // @Tags      agent-k-b-binding
 // @Router    /api/agent-kb-bindings/by-kb/{kbId} [get]
 // ListByKB 查某知识库被哪些智能体绑定
@@ -100,7 +100,7 @@ type agentKBReplaceReq struct {
 	KbIDs []string `json:"kb_ids"`
 }
 
-// [AUTO] ReplaceByAgent
+// @Summary      整体替换智能体的知识库绑定
 // @Tags      agent-k-b-binding
 // @Router    /api/agent-kb-bindings/by-agent/{agentId} [put]
 // ReplaceByAgent 全量替换某智能体的知识库挂载（编辑页保存场景）
@@ -131,7 +131,7 @@ func (c *AgentKBBindingController) ReplaceByAgent(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"agent_id": aid, "count": len(kbIDs)}, "同步成功")
 }
 
-// [AUTO] UnbindByPath
+// @Summary      解绑成功
 // @Tags      agent-k-b-binding
 // @Router    /api/agent-kb-bindings/{agentId}/{kbId} [delete]
 // UnbindByPath 按路径参数解绑（兼容前端 DELETE /:agentId/:kbId）
@@ -155,7 +155,7 @@ type agentKBBindReq struct {
 	Priority        int  `json:"priority"`
 }
 
-// [AUTO] Bind
+// @Summary      绑定成功
 // @Tags      agent-k-b-binding
 // @Router    /api/agent-kb-bindings [post]
 // Bind 单个绑定 (重复自动覆盖)
@@ -188,7 +188,7 @@ type agentKBBatchBindReq struct {
 	Items []service.BatchBindItem `json:"items" binding:"required"`
 }
 
-// [AUTO] BatchBind
+// @Summary      批量绑定成功
 // @Tags      agent-k-b-binding
 // @Router    /api/agent-kb-bindings/batch [post]
 // BatchBind 批量绑定 (事务, 任一失败整体回滚)
@@ -212,7 +212,7 @@ type agentKBUnbindReq struct {
 	KnowledgeBaseID uint `json:"knowledge_base_id" binding:"required"`
 }
 
-// [AUTO] Unbind
+// @Summary      解绑成功
 // @Tags      agent-k-b-binding
 // @Router    /api/agent-kb-bindings [delete]
 // Unbind 单个解绑

@@ -21,7 +21,7 @@ func NewHandoffChainController() *HandoffChainController {
 	}
 }
 
-// [AUTO] GetAutoResolveConfig
+// @Summary      获取转人工自动解决 SLA 配置
 // @Tags      handoff-chain
 // @Router    /api/manage/session-chain/sla-config [get]
 // GetAutoResolveConfig GET /api/manage/session-chain/sla-config
@@ -60,7 +60,7 @@ func (c *HandoffChainController) ReopenOnInboundMessage(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"session_id": req.SessionID, "reopened": reopened}, "ok")
 }
 
-// [AUTO] ListRules
+// @Summary      查询转人工规则列表（按事件筛选）
 // @Tags      handoff-chain
 // @Router    /api/manage/rules [get]
 // ListRules GET /api/manage/rules?event=

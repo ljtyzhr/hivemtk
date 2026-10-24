@@ -39,7 +39,7 @@ func (r pusherConfigRequest) toInput() service.PusherConfigInput {
 	}
 }
 
-// [AUTO] List
+// @Summary      查询 GEO 推送平台配置列表
 // @Tags      geo-pusher-config
 // @Router    /api/geo/pushers [get]
 func (c *GeoPusherConfigController) List(ctx *gin.Context) {
@@ -53,7 +53,7 @@ func (c *GeoPusherConfigController) List(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": list, "total": total}, "ok")
 }
 
-// [AUTO] Get
+// @Summary      推送平台配置不存在
 // @Tags      geo-pusher-config
 // @Router    /api/geo/pushers/{id} [get]
 func (c *GeoPusherConfigController) Get(ctx *gin.Context) {
@@ -69,7 +69,7 @@ func (c *GeoPusherConfigController) Get(ctx *gin.Context) {
 	response.Success(ctx, item, "ok")
 }
 
-// [AUTO] Create
+// @Summary      新增 GEO 推送平台配置
 // @Tags      geo-pusher-config
 // @Router    /api/geo/pushers [post]
 func (c *GeoPusherConfigController) Create(ctx *gin.Context) {
@@ -85,7 +85,7 @@ func (c *GeoPusherConfigController) Create(ctx *gin.Context) {
 	response.Success(ctx, item, "created")
 }
 
-// [AUTO] Update
+// @Summary      推送平台配置不存在
 // @Tags      geo-pusher-config
 // @Router    /api/geo/pushers/{id} [put]
 func (c *GeoPusherConfigController) Update(ctx *gin.Context) {
@@ -105,7 +105,7 @@ func (c *GeoPusherConfigController) Update(ctx *gin.Context) {
 	response.Success(ctx, item, "updated")
 }
 
-// [AUTO] Delete
+// @Summary      推送平台配置不存在
 // @Tags      geo-pusher-config
 // @Router    /api/geo/pushers/{id} [delete]
 func (c *GeoPusherConfigController) Delete(ctx *gin.Context) {

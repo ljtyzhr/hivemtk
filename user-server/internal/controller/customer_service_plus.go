@@ -21,7 +21,7 @@ func NewCustomerServicePlusController() *CustomerServicePlusController {
 	return &CustomerServicePlusController{svc: service.NewCustomerServicePlusServiceFromGlobal()}
 }
 
-// [AUTO] AcquireEditLock
+// @Summary      编辑锁已获取
 // @Tags      customer-service-plus
 // @Router    /api/customer-sessions/{id}/edit-lock [post]
 // AcquireEditLock POST /api/customer-sessions/:id/edit-lock {holder}
@@ -42,7 +42,7 @@ func (c *CustomerServicePlusController) AcquireEditLock(ctx *gin.Context) {
 	response.Success(ctx, lock, "编辑锁已获取")
 }
 
-// [AUTO] ReleaseEditLock
+// @Summary      编辑锁已释放
 // @Tags      customer-service-plus
 // @Router    /api/customer-sessions/{id}/edit-lock [delete]
 // ReleaseEditLock DELETE /api/customer-sessions/:id/edit-lock {holder}
@@ -59,7 +59,7 @@ func (c *CustomerServicePlusController) ReleaseEditLock(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"released": true}, "编辑锁已释放")
 }
 
-// [AUTO] GetEditLock
+// @Summary      查询会话编辑锁状态
 // @Tags      customer-service-plus
 // @Router    /api/customer-sessions/{id}/edit-lock [get]
 // GetEditLock GET /api/customer-sessions/:id/edit-lock
@@ -72,7 +72,7 @@ func (c *CustomerServicePlusController) GetEditLock(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"locked": true, "lock": lock}, "ok")
 }
 
-// [AUTO] AddInternalNote
+// @Summary      内部备注已保存
 // @Tags      customer-service-plus
 // @Router    /api/customer-sessions/{id}/internal-notes [post]
 // AddInternalNote POST /api/customer-sessions/:id/internal-notes {content}
@@ -93,7 +93,7 @@ func (c *CustomerServicePlusController) AddInternalNote(ctx *gin.Context) {
 	response.Success(ctx, msg, "内部备注已保存")
 }
 
-// [AUTO] ListInternalNotes
+// @Summary      查询会话内部备注列表
 // @Tags      customer-service-plus
 // @Router    /api/customer-sessions/{id}/internal-notes [get]
 // ListInternalNotes GET /api/customer-sessions/:id/internal-notes
@@ -106,7 +106,7 @@ func (c *CustomerServicePlusController) ListInternalNotes(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": list, "total": len(list)}, "ok")
 }
 
-// [AUTO] ListTagRules
+// @Summary      查询会话标签规则列表
 // @Tags      customer-service-plus
 // @Router    /api/session-tag/rules [get]
 // ListTagRules GET /api/session-tag/rules
@@ -118,7 +118,7 @@ func (c *CustomerServicePlusController) ListTagRules(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": list, "total": len(list)}, "ok")
 }
 
-// [AUTO] SaveTagRule
+// @Summary      规则已保存
 // @Tags      customer-service-plus
 // @Router    /api/session-tag/rules [post]
 // SaveTagRule POST /api/session-tag/rules {code, rule_condition}
@@ -134,7 +134,7 @@ func (c *CustomerServicePlusController) SaveTagRule(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"saved": true}, "规则已保存")
 }
 
-// [AUTO] ApplyTagRule
+// @Summary      标签规则已执行
 // @Tags      customer-service-plus
 // @Router    /api/customer-sessions/{id}/apply-tag-rule [post]
 // ApplyTagRule POST /api/customer-sessions/:id/apply-tag-rule
@@ -146,7 +146,7 @@ func (c *CustomerServicePlusController) ApplyTagRule(ctx *gin.Context) {
 	response.Success(ctx, res, "标签规则已执行")
 }
 
-// [AUTO] GetAgentStatusBoard
+// @Summary      查询客服座席状态看板
 // @Tags      customer-service-plus
 // @Router    /api/customer-service/agent-status-board [get]
 // GetAgentStatusBoard GET /api/customer-service/agent-status-board
@@ -158,7 +158,7 @@ func (c *CustomerServicePlusController) GetAgentStatusBoard(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": board, "total": len(board)}, "ok")
 }
 
-// [AUTO] ListQuickReplyFolders
+// @Summary      查询快捷回复文件夹列表
 // @Tags      customer-service-plus
 // @Router    /api/quick-reply/folders [get]
 // ListQuickReplyFolders GET /api/quick-reply/folders
@@ -170,7 +170,7 @@ func (c *CustomerServicePlusController) ListQuickReplyFolders(ctx *gin.Context) 
 	response.Success(ctx, gin.H{"list": list, "total": len(list)}, "ok")
 }
 
-// [AUTO] CreateQuickReplyFolder
+// @Summary      文件夹已创建
 // @Tags      customer-service-plus
 // @Router    /api/quick-reply/folders [post]
 // CreateQuickReplyFolder POST /api/quick-reply/folders {name}
@@ -189,7 +189,7 @@ func (c *CustomerServicePlusController) CreateQuickReplyFolder(ctx *gin.Context)
 	response.Success(ctx, f, "文件夹已创建")
 }
 
-// [AUTO] ReorderQuickReplyFolder
+// @Summary      顺序已更新
 // @Tags      customer-service-plus
 // @Router    /api/quick-reply/folders/{id}/reorder [post]
 // ReorderQuickReplyFolder POST /api/quick-reply/folders/:id/reorder {sort_order}
@@ -236,7 +236,7 @@ func currentStaffInfo(ctx *gin.Context) (string, string) {
 	return id, name
 }
 
-// [AUTO] DeleteQuickReplyFolder
+// @Summary      文件夹已删除
 // @Tags      customer-service-plus
 // @Router    /api/quick-reply/folders/{id} [delete]
 func (c *CustomerServicePlusController) DeleteQuickReplyFolder(ctx *gin.Context) {
@@ -250,7 +250,7 @@ func (c *CustomerServicePlusController) DeleteQuickReplyFolder(ctx *gin.Context)
 	response.Success(ctx, gin.H{"deleted": true}, "文件夹已删除")
 }
 
-// [AUTO] CreateSegment
+// @Summary      分群已保存
 // @Tags      customer-service-plus
 // @Router    /api/user-segments [post]
 // CreateSegment POST /api/user-segments {name, rules, trigger}
@@ -268,7 +268,7 @@ func (c *CustomerServicePlusController) CreateSegment(ctx *gin.Context) {
 	response.Success(ctx, seg, "分群已保存")
 }
 
-// [AUTO] ListSegments
+// @Summary      查询用户分群列表
 // @Tags      customer-service-plus
 // @Router    /api/user-segments [get]
 // ListSegments GET /api/user-segments
@@ -286,7 +286,7 @@ func (c *CustomerServicePlusController) ListSegments(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": list, "total": len(list)}, "ok")
 }
 
-// [AUTO] DLQList
+// @Summary      查询消息中心死信队列列表
 // @Tags      customer-service-plus
 // @Router    /api/message-hub/dlq [get]
 // DLQList GET /api/message-hub/dlq?limit=50
@@ -304,7 +304,7 @@ func (c *CustomerServicePlusController) DLQList(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": list, "total": total}, "ok")
 }
 
-// [AUTO] DLQRetryOne
+// @Summary      已重新入队
 // @Tags      customer-service-plus
 // @Router    /api/message-hub/dlq/{id}/retry [post]
 // DLQRetryOne POST /api/message-hub/dlq/:id/retry
@@ -319,7 +319,7 @@ func (c *CustomerServicePlusController) DLQRetryOne(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"retried": true}, "已重新入队")
 }
 
-// [AUTO] DLQDrop
+// @Summary      已丢弃
 // @Tags      customer-service-plus
 // @Router    /api/message-hub/dlq/{id} [delete]
 // DLQDrop DELETE /api/message-hub/dlq/:id
@@ -334,7 +334,7 @@ func (c *CustomerServicePlusController) DLQDrop(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"dropped": true}, "已丢弃")
 }
 
-// [AUTO] DLQBatchRetry
+// @Summary      批量重试完成
 // @Tags      customer-service-plus
 // @Router    /api/message-hub/dlq/batch-retry [post]
 // DLQBatchRetry POST /api/message-hub/dlq/batch-retry（真实数量返回）
@@ -346,7 +346,7 @@ func (c *CustomerServicePlusController) DLQBatchRetry(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"requeued": n}, "批量重试完成")
 }
 
-// [AUTO] GetOfficeHours
+// @Summary      查询办公时间策略配置
 // @Tags      customer-service-plus
 // @Router    /api/office-hours [get]
 // GetOfficeHours GET /api/office-hours
@@ -354,7 +354,7 @@ func (c *CustomerServicePlusController) GetOfficeHours(ctx *gin.Context) {
 	response.Success(ctx, service.GetOfficeHoursService().GetConfig(ctx.Request.Context()), "ok")
 }
 
-// [AUTO] SaveOfficeHours
+// @Summary      办公时间策略已保存
 // @Tags      customer-service-plus
 // @Router    /api/office-hours [put]
 // SaveOfficeHours PUT /api/office-hours
@@ -370,7 +370,7 @@ func (c *CustomerServicePlusController) SaveOfficeHours(ctx *gin.Context) {
 	response.Success(ctx, cfg, "办公时间策略已保存")
 }
 
-// [AUTO] SetSessionPriority
+// @Summary      优先级已更新
 // @Tags      customer-service-plus
 // @Router    /api/customer-sessions/{id}/priority [put]
 // SetSessionPriority PUT /api/customer-sessions/:id/priority {level}
@@ -388,7 +388,7 @@ func (c *CustomerServicePlusController) SetSessionPriority(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"priority": *req.Level}, "优先级已更新")
 }
 
-// [AUTO] SnoozeSession
+// @Summary      会话已暂缓
 // @Tags      customer-service-plus
 // @Router    /api/customer-sessions/{id}/snooze [post]
 // SnoozeSession POST /api/customer-sessions/:id/snooze {hours}
@@ -407,7 +407,7 @@ func (c *CustomerServicePlusController) SnoozeSession(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"snoozed_until": until}, "会话已暂缓")
 }
 
-// [AUTO] UnsnoozeSession
+// @Summary      已恢复活跃
 // @Tags      customer-service-plus
 // @Router    /api/customer-sessions/{id}/snooze [delete]
 // UnsnoozeSession DELETE /api/customer-sessions/:id/snooze

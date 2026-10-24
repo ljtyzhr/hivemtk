@@ -134,7 +134,7 @@ func (c *IntentController) BatchRecognize(ctx *gin.Context) {
 	response.Success(ctx, out, "批量识别成功")
 }
 
-// [AUTO] Stats
+// @Summary      意图识别统计
 // @Tags      intent
 // @Router    /api/intent/stats [get]
 // Stats 意图统计
@@ -180,7 +180,7 @@ func sortDistributionDesc(arr []map[string]any) {
 	}
 }
 
-// [AUTO] RecentIntents
+// @Summary      客户近期意图列表（分页+意图筛选）
 // @Tags      intent
 // @Router    /api/intent/recent [get]
 // RecentIntents 客户近期意图（分页 + 意图筛选）
@@ -212,7 +212,7 @@ func (c *IntentController) RecentIntents(ctx *gin.Context) {
 	response.Success(ctx, resp, "查询成功")
 }
 
-// [AUTO] Intents
+// @Summary      意图词典
 // @Tags      intent
 // @Router    /api/intent/dict [get]
 // Intents 意图词典
@@ -227,7 +227,7 @@ type RecognizeFineRequest struct {
 	SessionID  string `json:"session_id"`
 }
 
-// [AUTO] RecognizeFine
+// @Summary      识别成功
 // @Tags      intent
 // @Router    /api/intent/recognize/fine [post]
 // RecognizeFine 精细意图识别
@@ -246,7 +246,7 @@ func (c *IntentController) RecognizeFine(ctx *gin.Context) {
 	response.Success(ctx, result, "识别成功")
 }
 
-// [AUTO] IntentLogs
+// @Summary      查询意图识别日志
 // @Tags      intent
 // @Router    /api/intent/logs [get]
 // IntentLogs 查询意图识别日志
@@ -263,7 +263,7 @@ func (c *IntentController) IntentLogs(ctx *gin.Context) {
 	response.Success(ctx, logs, "查询成功")
 }
 
-// [AUTO] IntentStatsFine
+// @Summary      精细意图统计
 // @Tags      intent
 // @Router    /api/intent/stats/fine [get]
 // IntentStatsFine 精细意图统计
@@ -278,7 +278,7 @@ func (c *IntentController) IntentStatsFine(ctx *gin.Context) {
 	response.Success(ctx, stats, "查询成功")
 }
 
-// [AUTO] GetConfig
+// @Summary      获取意图识别配置（enabled/更新人）
 // @Tags      intent
 // @Router    /api/intent/config [get]
 // GetConfig 获取意图识别配置
@@ -303,7 +303,7 @@ type UpdateConfigRequest struct {
 	Enabled *bool `json:"enabled" binding:"required"`
 }
 
-// [AUTO] UpdateConfig
+// @Summary      更新意图识别配置（热生效不重启）
 // @Tags      intent
 // @Router    /api/intent/config [put]
 // UpdateConfig 更新意图识别配置
@@ -343,7 +343,7 @@ func (c *IntentController) UpdateConfig(ctx *gin.Context) {
 	response.Success(ctx, cfg, "更新成功")
 }
 
-// [AUTO] GetKeywordOverride
+// @Summary      获取意图关键词覆盖词表
 // @Tags      intent
 // @Router    /api/intent-records/keywords-override [get]
 // GetKeywordOverride GET /api/intent-records/keywords-override
@@ -356,7 +356,7 @@ type UpdateKeywordOverrideRequest struct {
 	Override map[string][]string `json:"override"`
 }
 
-// [AUTO] UpdateKeywordOverride
+// @Summary      词表已更新并热生效
 // @Tags      intent
 // @Router    /api/intent-records/keywords-override [put]
 // UpdateKeywordOverride PUT /api/intent-records/keywords-override

@@ -14,7 +14,7 @@ func NewLeadMiningController() *LeadMiningController {
 	return &LeadMiningController{}
 }
 
-// [AUTO] GetConfig
+// @Summary      获取线索挖掘配置
 // @Tags      lead-mining
 // @Router    /api/lead-mining/config [get]
 func (c *LeadMiningController) GetConfig(ctx *gin.Context) {
@@ -26,7 +26,7 @@ func (c *LeadMiningController) GetConfig(ctx *gin.Context) {
 	response.Success(ctx, cfg, "success")
 }
 
-// [AUTO] GetStatus
+// @Summary      获取线索挖掘运行状态
 // @Tags      lead-mining
 // @Router    /api/lead-mining/status [get]
 func (c *LeadMiningController) GetStatus(ctx *gin.Context) {
@@ -34,7 +34,7 @@ func (c *LeadMiningController) GetStatus(ctx *gin.Context) {
 	response.Success(ctx, status, "success")
 }
 
-// [AUTO] SaveConfig
+// @Summary      请求体不能为空：至少提供一个配置字段（如 keywords、requirement）
 // @Tags      lead-mining
 // @Router    /api/lead-mining/config [post]
 func (c *LeadMiningController) SaveConfig(ctx *gin.Context) {

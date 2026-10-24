@@ -36,7 +36,7 @@ func (c *EmailJobsController) CreateEmailJobs(ctx *gin.Context) {
 	response.Success(ctx, resp, "创建成功")
 }
 
-// [AUTO] GetEmailJobsList
+// @Summary      查询邮件任务列表
 // @Tags      email-jobs
 // @Router    /api/email/jobs [get]
 // GetEmailJobsList 获取任务列表
@@ -60,7 +60,7 @@ func (c *EmailJobsController) GetEmailJobsList(ctx *gin.Context) {
 	response.Success(ctx, resp, "获取成功")
 }
 
-// [AUTO] GetEmailJobsDetail
+// @Summary      查询邮件任务详情
 // @Tags      email-jobs
 // @Router    /api/email/jobs/{id} [get]
 // GetEmailJobsDetail 获取任务详情
@@ -138,7 +138,7 @@ func (c *EmailJobsController) UpdateSendTotal(ctx *gin.Context) {
 	response.Success(ctx, nil, "更新成功")
 }
 
-// [AUTO] DeleteEmailJobs
+// @Summary      删除邮件任务
 // @Tags      email-jobs
 // @Router    /api/email/jobs/{id} [delete]
 // DeleteEmailJobs 删除任务

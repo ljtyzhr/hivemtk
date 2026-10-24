@@ -66,7 +66,7 @@ const humanTaskHTTPPageSize = 20
 // 收窄是为了下面把 id 回显进提示里：无上限的回显等于给调用方一个免费的响应体放大器。
 const humanTaskIDParamMaxLen = 64
 
-// [AUTO] List
+// @Summary      查询统一待办列表
 // @Tags      human-task
 // @Router    /api/human-tasks [get]
 // List GET /api/human-tasks
@@ -87,7 +87,7 @@ func (c *HumanTaskController) List(ctx *gin.Context) {
 	response.SuccessWithList(ctx, list, total)
 }
 
-// [AUTO] Counts
+// @Summary      待办未读数与每类逾期数聚合
 // @Tags      human-task
 // @Router    /api/human-tasks/counts [get]
 // Counts GET /api/human-tasks/counts —— 未读数聚合与每类逾期数。
@@ -104,7 +104,7 @@ func (c *HumanTaskController) Counts(ctx *gin.Context) {
 	response.Success(ctx, counts, "ok")
 }
 
-// [AUTO] Get
+// @Summary      读不到
 // @Tags      human-task
 // @Router    /api/human-tasks/{id} [get]
 // Get GET /api/human-tasks/:id
@@ -142,7 +142,7 @@ func (c *HumanTaskController) Get(ctx *gin.Context) {
 	response.Success(ctx, task, "ok")
 }
 
-// [AUTO] Claim
+// @Summary      认领
 // @Tags      human-task
 // @Router    /api/human-tasks/{id}/claim [post]
 // Claim POST /api/human-tasks/:id/claim（仅会话类，服务侧拒其余两类）。
@@ -150,7 +150,7 @@ func (c *HumanTaskController) Claim(ctx *gin.Context) {
 	c.doAction(ctx, "认领", c.svc.Claim)
 }
 
-// [AUTO] Release
+// @Summary      释放
 // @Tags      human-task
 // @Router    /api/human-tasks/{id}/release [post]
 // Release POST /api/human-tasks/:id/release（仅当前认领人）。
@@ -158,7 +158,7 @@ func (c *HumanTaskController) Release(ctx *gin.Context) {
 	c.doAction(ctx, "释放", c.svc.Release)
 }
 
-// [AUTO] Complete
+// @Summary      完成
 // @Tags      human-task
 // @Router    /api/human-tasks/{id}/complete [post]
 // Complete POST /api/human-tasks/:id/complete（三类通用：坐席处理完 / 审批裁决 / 催收升级处理完）。
@@ -166,7 +166,7 @@ func (c *HumanTaskController) Complete(ctx *gin.Context) {
 	c.doAction(ctx, "完成", c.svc.Complete)
 }
 
-// [AUTO] Cancel
+// @Summary      撤销必须带操作者身份（未登录或会话里没有 user id）
 // @Tags      human-task
 // @Router    /api/human-tasks/{id}/cancel [post]
 // Cancel POST /api/human-tasks/:id/cancel  body: {"reason":"…"}（必须给理由）。

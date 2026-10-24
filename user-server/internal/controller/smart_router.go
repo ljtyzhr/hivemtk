@@ -20,7 +20,7 @@ func NewSmartRouterController(svc *service.SmartRouter) *SmartRouterController {
 	return &SmartRouterController{svc: svc}
 }
 
-// [AUTO] SelectAgent
+// @Summary      无可用坐席，请降级到 round-robin
 // @Tags      smart-router
 // @Router    /api/smart-router/select [post]
 // SelectAgent POST /api/smart-router/select

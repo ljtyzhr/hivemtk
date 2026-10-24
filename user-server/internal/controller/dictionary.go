@@ -23,7 +23,7 @@ func NewDictionaryController(svc *service.DictionaryService) *DictionaryControll
 	return &DictionaryController{svc: svc}
 }
 
-// [AUTO] ListParents
+// @Summary      字典服务未装配
 // @Tags      dictionary
 // @Router    /api/manage/dictionaries [get]
 // ListParents GET /api/manage/dictionaries
@@ -42,7 +42,7 @@ func (c *DictionaryController) ListParents(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"code": 0, "data": parents, "message": "ok"})
 }
 
-// [AUTO] GetDictionary
+// @Summary      字典服务未装配
 // @Tags      dictionary
 // @Router    /api/manage/dictionaries/{parent} [get]
 // GetDictionary GET /api/manage/dictionaries/:parent
@@ -70,7 +70,7 @@ func (c *DictionaryController) GetDictionary(ctx *gin.Context) {
 	}, "message": "ok"})
 }
 
-// [AUTO] PublicDictionary
+// @Summary      字典服务未装配
 // @Tags      dictionary
 // @Router    /api/config/dictionaries/{parent} [get]
 // PublicDictionary GET /api/config/dictionaries/:parent
@@ -102,7 +102,7 @@ func (c *DictionaryController) PublicDictionary(ctx *gin.Context) {
 	}, "message": "ok"})
 }
 
-// [AUTO] UpsertItem
+// @Summary      参数错误
 // @Tags      dictionary
 // @Router    /api/manage/dictionaries/{parent}/items [put]
 // UpsertItem PUT /api/manage/dictionaries/:parent/items
@@ -148,7 +148,7 @@ func (c *DictionaryController) UpsertItem(ctx *gin.Context) {
 	ctx.JSON(http.StatusOK, gin.H{"code": 0, "message": "ok"})
 }
 
-// [AUTO] ReplaceTransitions
+// @Summary      参数错误
 // @Tags      dictionary
 // @Router    /api/manage/dictionaries/{parent}/transitions [put]
 // ReplaceTransitions PUT /api/manage/dictionaries/:parent/transitions

@@ -10,7 +10,6 @@ import (
 	"sync"
 
 	"hivemtk-user/internal/channelbot/qq"
-	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/httpclient"
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/logger"
@@ -158,26 +157,24 @@ func (s *WebhookService) persistQQMediaAsync(ctx context.Context, accountID, hub
 // backfillQQMedia 回填 media_url 与 Extra.media_urls。
 // 不用 EnrichHubMediaURLByMsgID：那条只写单值列，多附件会在逐次写里互相覆盖。
 func (s *WebhookService) backfillQQMedia(ctx context.Context, accountID, hubMsgID string, urls []string) {
-	d := s.lazyDB()
-	if d == nil || hubMsgID == "" {
+	if hubMsgID == "" || len(urls) == 0 {
 		return
 	}
-	var hub model.MessageHub
-	if err := d.WithContext(ctx).
-		Where("platform = ? AND account_id = ? AND msg_id = ?", "qq", accountID, hubMsgID).
-		First(&hub).Error; err != nil {
-		logger.Ctx(ctx).Warn().Err(err).Str("msg_id", hubMsgID).
+	// E-4 下沉：直查两段式改走 repo 的 BackfillMediaByRowKey（与抖音同一路径，
+	// media_url 取首附件——多附件的完整列表在 Extra.media_urls）。
+	if !s.connected() {
+		s.ensureReposFromDB(ctx)
+	}
+	if s.messageHubRepo == nil {
+		return
+	}
+	found, err := s.messageHubRepo.BackfillMediaByRowKey(ctx, "qq", accountID, hubMsgID, urls[0], urls)
+	if err != nil {
+		logger.Ctx(ctx).Warn().Err(err).Str("msg_id", hubMsgID).Msg("[QQ] 媒体回填写库失败")
+		return
+	}
+	if !found {
+		logger.Ctx(ctx).Warn().Str("msg_id", hubMsgID).
 			Msg("[QQ] 媒体回填失败：找不到 hub 行")
-		return
-	}
-	extra := hub.Extra
-	if extra == nil {
-		extra = model.JSONMap{}
-	}
-	extra["media_urls"] = urls
-	if err := d.WithContext(ctx).Model(&model.MessageHub{}).
-		Where("id = ?", hub.ID).
-		Updates(map[string]any{"media_url": urls[0], "extra": extra}).Error; err != nil {
-		logger.Ctx(ctx).Warn().Err(err).Uint("hub_id", hub.ID).Msg("[QQ] 媒体回填写库失败")
 	}
 }

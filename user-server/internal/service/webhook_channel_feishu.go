@@ -125,7 +125,7 @@ func (t *feishuTimestamp) UnmarshalJSON(b []byte) error {
 }
 
 func (s *WebhookService) dispatchFeishu(ctx context.Context, accountID string, p *ParsedPayload, raw []byte) (*model.MessageHub, error) {
-	if s.lazyDB() == nil {
+	if !s.connected() {
 		return nil, nil
 	}
 	s.ensureReposFromDB(ctx)
@@ -424,7 +424,7 @@ func (s *WebhookService) persistFeishuMediaAsync(ctx context.Context, accountID,
 		}
 		integration := s.feishuIntegration
 		if integration == nil {
-			integration = NewFeishuIntegrationService(s.lazyDB())
+			integration = s.integrations.feishu()
 		}
 		tenantToken, tkerr := tenantTokenFn(gctx, integration, acc)
 		if tkerr != nil || tenantToken == "" {

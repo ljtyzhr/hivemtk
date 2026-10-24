@@ -68,7 +68,7 @@ var runtimeCrossGroupKeys = map[string]struct{}{
 	"knowledge.merchant_batch_max_file_size": {},
 }
 
-// [AUTO] Runtime
+// @Summary      查询运行时配置（按分组）
 // @Tags      config-param
 // @Router    /api/config/runtime [get]
 // Runtime GET /api/config/runtime?groups=frontend_ws,pagination

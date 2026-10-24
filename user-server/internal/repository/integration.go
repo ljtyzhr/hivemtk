@@ -514,3 +514,15 @@ func (r *WebhookEventRepository) GetDB() *gorm.DB {
 	}
 	return r.db
 }
+
+// Connected 判 DB 句柄是否已注入（E-4 webhook 域下沉，2026-10-24）。
+//
+// service 层原先用 lazyDB()==nil 判"装配好了没有"——那要求 service 拿着
+// *gorm.DB 本体比 nil。下沉后 service 只允许问 repo 这一句是非题，
+// 不许再把句柄拿回自己手里。语义与原 lazyDB 的第一优先级一致
+// （eventRepo 有没有 DB）；原先的"兜底全局 repository.GetDB()"分支
+// 被有意删除：装配面（NewWebhookService / WithRepos）必须显式给 repo
+// 注入 DB，隐式全局兜底正是 E-4 要消灭的那种"装配顺序决定的隐式句柄"。
+func (r *WebhookEventRepository) Connected() bool {
+	return r != nil && r.db != nil
+}

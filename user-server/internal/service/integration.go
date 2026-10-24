@@ -1295,12 +1295,30 @@ func (s *IntegrationService) saveOrderMirror(ctx context.Context, o *model.Exter
 //
 // 三条分支的共同点：**都回错误**，都不静默。少记一笔钱的代价是"应收挂着、客户说付过了"，
 // 而对账时两边都有数据、只差我们这一行 —— 那种账只能在报错的当天查。
+//
+// E-10（2026-10-24）：status=refunded 分流到 RecordPartialRefund（独立的幂等键
+// 与退款额校验），不再被 RecordPayment 的"回款口不收退款词"守卫弹回 400——
+// 那个守卫守的是**错口误投**，而这里是由回调载荷正确路由的退款。规划 §4.10
+// "再加端点"的落法：复用回款回调路径（order-webhook payment 格子），不另开
+// 运营端点——退款是渠道推送的资金事实，来路与回款同一条。
 func (s *IntegrationService) bookOrderPayment(ctx context.Context, res *OrderWebhookResult, in RecordPaymentInput, perr error) error {
 	if perr != nil {
 		return fmt.Errorf("载荷报了钱而这一笔没被记下（订单镜像已写入，重推同一份载荷只补这一腿）：%w", perr)
 	}
 	if s.payments == nil || !s.payments.Available() {
 		return fmt.Errorf("回款腿未装配，载荷里的这笔钱没有入账（订单镜像已写入；装配修好后重推同一份载荷即可补上）：%w", ErrPaymentServiceUnavailable)
+	}
+	if in.Status == model.PaymentStatusRefunded {
+		receipt, err := s.payments.RecordPartialRefund(ctx, RecordPartialRefundInput{
+			BillID: in.BillID, RefundRef: in.ChannelRef, Amount: in.Amount,
+			Currency: in.Currency, RefundedAt: in.PaidAt,
+			Platform: in.Platform, OrderID: in.OrderID, Reason: in.Reason,
+		})
+		if err != nil {
+			return fmt.Errorf("退款腿拒了这笔退款（bill_id=%s refund_ref=%s，订单镜像已写入）：%w", in.BillID, in.ChannelRef, err)
+		}
+		res.Payment = receipt
+		return nil
 	}
 	receipt, err := s.payments.RecordPayment(ctx, in)
 	if err != nil {

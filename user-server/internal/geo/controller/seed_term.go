@@ -18,7 +18,7 @@ func NewSeedTermController(svc *service.SeedTermService) *SeedTermController {
 	return &SeedTermController{svc: svc}
 }
 
-// [AUTO] List
+// @Summary      查询 GEO 种子词条列表
 // @Tags      seed-term
 // @Router    /api/geo/seed-terms [get]
 // List GET /geo/seed-terms
@@ -31,7 +31,7 @@ func (c *SeedTermController) List(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"total": len(terms), "terms": terms}, "ok")
 }
 
-// [AUTO] Reseed
+// @Summary      幂等重播内置缺省种子词包
 // @Tags      seed-term
 // @Router    /api/geo/seed-terms/reseed [post]
 // Reseed POST /geo/seed-terms/reseed

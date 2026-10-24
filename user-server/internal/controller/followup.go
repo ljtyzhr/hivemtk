@@ -56,7 +56,7 @@ func requireOwner(ctx *gin.Context) (string, bool) {
 	return owner, true
 }
 
-// [AUTO] GetToday
+// @Summary      跟进服务未装配
 // @Tags      follow-up
 // @Router    /api/followups/today [get]
 // GetToday GET /api/followups/today?owner_id=&date=2006-01-02
@@ -90,7 +90,7 @@ func (c *FollowUpController) GetToday(ctx *gin.Context) {
 	}, "ok")
 }
 
-// [AUTO] GetPending
+// @Summary      跟进服务未装配
 // @Tags      follow-up
 // @Router    /api/followups/pending [get]
 // GetPending GET /api/followups/pending?owner_id=&limit=50
@@ -119,7 +119,7 @@ func (c *FollowUpController) GetPending(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"list": list}, "ok")
 }
 
-// [AUTO] GetOverdue
+// @Summary      跟进服务未装配
 // @Tags      follow-up
 // @Router    /api/followups/overdue [get]
 // GetOverdue GET /api/followups/overdue?owner_id=
@@ -162,7 +162,7 @@ func writeErr(ctx *gin.Context, err error, action string) {
 	}
 }
 
-// [AUTO] Complete
+// @Summary      跟进服务未装配
 // @Tags      follow-up
 // @Router    /api/followups/{id}/complete [post]
 // Complete POST /api/followups/:id/complete  body {result, note}
@@ -200,7 +200,7 @@ func (c *FollowUpController) Complete(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"id": id, "status": "done"}, "ok")
 }
 
-// [AUTO] Cancel
+// @Summary      跟进服务未装配
 // @Tags      follow-up
 // @Router    /api/followups/{id}/cancel [post]
 // Cancel POST /api/followups/:id/cancel

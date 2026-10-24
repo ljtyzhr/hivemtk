@@ -19,7 +19,7 @@ func NewSystemConfigController() *SystemConfigController {
 	return &SystemConfigController{svc: service.NewSystemConfigService()}
 }
 
-// [AUTO] GetConfig
+// @Summary      获取系统配置
 // @Tags      system-config
 // @Router    /api/system/config [get]
 // GetConfig 获取系统配置
@@ -32,7 +32,7 @@ func (c *SystemConfigController) GetConfig(ctx *gin.Context) {
 	response.Success(ctx, config, "success")
 }
 
-// [AUTO] SaveConfig
+// @Summary      保存系统配置
 // @Tags      system-config
 // @Router    /api/system/config [post]
 // SaveConfig 保存系统配置

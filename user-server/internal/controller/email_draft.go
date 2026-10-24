@@ -20,7 +20,7 @@ func NewEmailDraftController() *EmailDraftController {
 	return &EmailDraftController{svc: email.NewEmailDraftService()}
 }
 
-// [AUTO] CreateEmailDraft
+// @Summary      创建邮件草稿
 // @Tags      email-draft
 // @Router    /api/email/drafts [post]
 // CreateEmailDraft 创建草稿
@@ -39,7 +39,7 @@ func (c *EmailDraftController) CreateEmailDraft(ctx *gin.Context) {
 	response.Success(ctx, resp, "创建成功")
 }
 
-// [AUTO] GetEmailDraftList
+// @Summary      查询邮件草稿列表
 // @Tags      email-draft
 // @Router    /api/email/drafts [get]
 // GetEmailDraftList 获取草稿列表
@@ -52,7 +52,7 @@ func (c *EmailDraftController) GetEmailDraftList(ctx *gin.Context) {
 	response.Success(ctx, resp, "获取成功")
 }
 
-// [AUTO] GetEmailDraftDetail
+// @Summary      查询邮件草稿详情
 // @Tags      email-draft
 // @Router    /api/email/drafts/{id} [get]
 // GetEmailDraftDetail 获取草稿详情
@@ -83,7 +83,7 @@ func (c *EmailDraftController) GetEmailDraftDetail(ctx *gin.Context) {
 	response.Success(ctx, resp, "获取成功")
 }
 
-// [AUTO] UpdateEmailDraft
+// @Summary      更新邮件草稿
 // @Tags      email-draft
 // @Router    /api/email/drafts/{id} [put]
 // UpdateEmailDraft 更新草稿
@@ -122,7 +122,7 @@ func (c *EmailDraftController) UpdateEmailDraft(ctx *gin.Context) {
 	response.Success(ctx, nil, "更新成功")
 }
 
-// [AUTO] DeleteEmailDraft
+// @Summary      删除邮件草稿
 // @Tags      email-draft
 // @Router    /api/email/drafts/{id} [delete]
 // DeleteEmailDraft 删除草稿

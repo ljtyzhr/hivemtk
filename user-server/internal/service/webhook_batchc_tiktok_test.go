@@ -50,7 +50,7 @@ func TestDispatchDouyin_TikTokMustNotBeLabelledDouyin(t *testing.T) {
 	}
 
 	var cnt int64
-	if err := svc.lazyDB().Model(&model.MessageHub{}).
+	if err := svc.dbHandle().Model(&model.MessageHub{}).
 		Where("conversation_id = ?", "@c_1").Count(&cnt).Error; err != nil {
 		t.Fatalf("count hub: %v", err)
 	}

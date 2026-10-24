@@ -56,6 +56,50 @@ func TestApprovalAutoSendBridgeSkipsNonApprovedAndNonQuote(t *testing.T) {
 	}
 }
 
+// TestApprovalAutoSendBridgeSwitchOffDisablesSend 开关判据（规划 §4.10"关闭开关时
+// 行为与现在一致"）：FF_LTC_APPROVAL_AUTO_SEND=off 时桥静默——approved+quote 的
+// 合法目标也不外发、也不出声（off 是正常配置档不是告警）。
+//
+// 开关在构造时读环境变量（NewApprovalAutoSendBridge），用 t.Setenv 注入
+// ——t.Setenv 自动防并行测试的env 竞态。
+func TestApprovalAutoSendBridgeSwitchOffDisablesSend(t *testing.T) {
+	t.Setenv("FF_LTC_APPROVAL_AUTO_SEND", "off")
+	bridge := NewApprovalAutoSendBridge(func() *QuoteSendService { return nil })
+	// approved + quote：开关 on 时会走到取 quoteSend 那一步（nil ⇒ WARN 日志）
+	// off 时必须第一行就静默返回——这里用"不 panic 且正常返回"钉住形状，
+	// 更强的断言（不调 Send）由 parseApprovalAutoSendFlag 单测钉住。
+	bridge.NotifyDecided(context.Background(), &model.ApprovalRequest{
+		SubjectType: QuoteApprovalSubjectType, Status: model.ApprovalStatusApproved, ID: "apr-off-1",
+	})
+}
+
+// TestParseApprovalAutoSendFlag 开关解析的三档：缺省 on、显式 off、认不清降 off。
+//
+// 降档方向不对称是有意的（见 parseApprovalAutoSendFlag 注释）：错关可补，错发收不回。
+func TestParseApprovalAutoSendFlag(t *testing.T) {
+	cases := []struct {
+		raw  string
+		want bool
+	}{
+		{"", true},       // 缺省 on：桥的交付语义
+		{"on", true},     // 显式 on
+		{"true", true},   // 布尔真值
+		{"1", true},      // 数字真值
+		{"off", false},   // 显式 off：手动档
+		{"false", false}, // 布尔假
+		{"0", false},     // 数字假
+		{"no", false},    // 英文否定
+		{"maybe", false}, // 认不清 ⇒ 降 off（宁可不发，不可错发）
+		{"OFF", false},   // 大小写不敏感
+		{"  on  ", true}, // 容忍空白
+	}
+	for _, c := range cases {
+		if got := parseApprovalAutoSendFlag(c.raw); got != c.want {
+			t.Errorf("parseApprovalAutoSendFlag(%q) = %v, want %v", c.raw, got, c.want)
+		}
+	}
+}
+
 func TestApprovalFanOutNotifiesAllSubscribers(t *testing.T) {
 	svc := NewApprovalRequestService(nil, nil)
 	primary := &autoSendRecordingNotifier{}

@@ -30,7 +30,7 @@ func NewBackupGapController(backupSvc *service.BackupService, restoreSvc *servic
 	}
 }
 
-// [AUTO] List
+// @Summary      查询备份列表（id/大小/校验和/状态）
 // @Tags      backup-gap
 // @Router    /api/backup/list [get]
 // List GET /api/backup/list → [{id, createdAt, size, checksum, status, type, name}]（复用既有 backups 表）
@@ -49,7 +49,7 @@ func (c *BackupGapController) List(ctx *gin.Context) {
 	response.Success(ctx, out, "ok")
 }
 
-// [AUTO] Stats
+// @Summary      查询备份统计（数量与总大小）
 // @Tags      backup-gap
 // @Router    /api/backup/stats [get]
 // Stats GET /api/backup/stats
@@ -66,7 +66,7 @@ func (c *BackupGapController) GetStrategy(ctx *gin.Context) {
 	response.Success(ctx, c.svc.GetStrategy(ctx.Request.Context()), "ok")
 }
 
-// [AUTO] SaveStrategy
+// @Summary      策略已保存
 // @Tags      backup-gap
 // @Router    /api/backup/strategy [put]
 // SaveStrategy PUT /api/backup/strategy
@@ -82,7 +82,7 @@ func (c *BackupGapController) SaveStrategy(ctx *gin.Context) {
 	response.Success(ctx, req, "策略已保存")
 }
 
-// [AUTO] Create
+// @Summary      备份已启动
 // @Tags      backup-gap
 // @Router    /api/backup/create [post]
 // Create POST /api/backup/create（复用 BackupService.CreateBackupSimple，异步执行）
@@ -116,7 +116,7 @@ func NewRagEvalGapController() *RagEvalGapController {
 	return &RagEvalGapController{svc: svc}
 }
 
-// [AUTO] Latest
+// @Summary      查询最近一次 RAG 评测结果
 // @Tags      rag-eval-gap
 // @Router    /api/rag/eval/latest [get]
 // Latest GET /api/rag/eval/latest
@@ -128,7 +128,7 @@ func (c *RagEvalGapController) Latest(ctx *gin.Context) {
 	response.Success(ctx, run, "ok")
 }
 
-// [AUTO] Runs
+// @Summary      查询 RAG 评测历史记录
 // @Tags      rag-eval-gap
 // @Router    /api/rag/eval/runs [get]
 // Runs GET /api/rag/eval/runs?limit=20
@@ -141,7 +141,7 @@ func (c *RagEvalGapController) Runs(ctx *gin.Context) {
 	response.Success(ctx, runs, "ok")
 }
 
-// [AUTO] Run
+// @Summary      评测已启动（后台执行，稍后刷新查看结果）
 // @Tags      rag-eval-gap
 // @Router    /api/rag/eval/run [post]
 // Run POST /api/rag/eval/run
@@ -157,7 +157,7 @@ func (c *RagEvalGapController) Run(ctx *gin.Context) {
 	response.Success(ctx, run, "评测已启动（后台执行，稍后刷新查看结果）")
 }
 
-// [AUTO] Upload
+// @Summary      评估集已上传
 // @Tags      rag-eval-gap
 // @Router    /api/rag/eval/upload [post]
 // Upload POST /api/rag/eval/upload (multipart file)
@@ -175,7 +175,7 @@ func (c *RagEvalGapController) Upload(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"imported": n}, "评估集已上传")
 }
 
-// [AUTO] Diff
+// @Summary      baseline 必填（run id）
 // @Tags      rag-eval-gap
 // @Router    /api/rag/eval/diff [get]
 // Diff GET /api/rag/eval/diff?baseline=N
@@ -202,7 +202,7 @@ func NewAnalyticsGapController() *AnalyticsGapController {
 	return &AnalyticsGapController{svc: service.NewCohortGapServiceFromGlobal()}
 }
 
-// [AUTO] Cohort
+// @Summary      查询用户留存队列（cohort）分析
 // @Tags      analytics-gap
 // @Router    /api/analytics/cohort [get]
 // Cohort GET /api/analytics/cohort?period=weekly
@@ -214,7 +214,7 @@ func (c *AnalyticsGapController) Cohort(ctx *gin.Context) {
 	response.Success(ctx, res, "ok")
 }
 
-// [AUTO] Path
+// @Summary      查询用户行为路径分析
 // @Tags      analytics-gap
 // @Router    /api/analytics/path [get]
 // Path GET /api/analytics/path?limit=5
@@ -237,7 +237,7 @@ func NewEmailGapController() *EmailGapController {
 	return &EmailGapController{svc: service.NewEmailGapServiceFromGlobal()}
 }
 
-// [AUTO] Deliverability
+// @Summary      查询邮件送达率统计（按天窗口）
 // @Tags      email-gap
 // @Router    /api/email/deliverability [get]
 // Deliverability GET /api/email/deliverability?days=30
@@ -250,7 +250,7 @@ func (c *EmailGapController) Deliverability(ctx *gin.Context) {
 	response.Success(ctx, st, "ok")
 }
 
-// [AUTO] BounceBreakdown
+// @Summary      查询邮件退信原因分布
 // @Tags      email-gap
 // @Router    /api/email/bounces/breakdown [get]
 // BounceBreakdown GET /api/email/bounces/breakdown
@@ -263,7 +263,7 @@ func (c *EmailGapController) BounceBreakdown(ctx *gin.Context) {
 	response.Success(ctx, res, "ok")
 }
 
-// [AUTO] DomainReputation
+// @Summary      查询发信域名信誉
 // @Tags      email-gap
 // @Router    /api/email/domain-reputation [get]
 // DomainReputation GET /api/email/domain-reputation
@@ -275,7 +275,7 @@ func (c *EmailGapController) DomainReputation(ctx *gin.Context) {
 	response.Success(ctx, res, "ok")
 }
 
-// [AUTO] SuspendDomain
+// @Summary      已暂停
 // @Tags      email-gap
 // @Router    /api/email/domains/{id}/suspend [post]
 // SuspendDomain POST /api/email/domains/:id/suspend {domain}（Deliverability.vue 暂停按钮）
@@ -304,7 +304,7 @@ func (c *EmailGapController) SuspendDomain(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"domain": req.Domain, "suspended": true}, "已暂停")
 }
 
-// [AUTO] TestSend
+// @Summary      测试发送完成
 // @Tags      email-gap
 // @Router    /api/email/test-send [post]
 // TestSend POST /api/email/test-send {subject, html, to[]}
@@ -336,7 +336,7 @@ func (c *EmailGapController) TestSend(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"sent": sent, "failed": failed}, "测试发送完成")
 }
 
-// [AUTO] RFMMatrix
+// @Summary      查询 RFM 用户分层矩阵
 // @Tags      email-gap
 // @Router    /api/user-segments/rfm [get]
 // RFMMatrix GET /api/user-segments/rfm（矩阵行 [{recency, frequency, count}]）
@@ -348,7 +348,7 @@ func (c *EmailGapController) RFMMatrix(ctx *gin.Context) {
 	response.Success(ctx, rows, "ok")
 }
 
-// [AUTO] RFMMatrixStats
+// @Summary      查询 RFM 分层汇总统计
 // @Tags      email-gap
 // @Router    /api/user-segments/rfm/stats [get]
 // RFMMatrixStats GET /api/user-segments/rfm/stats
@@ -370,7 +370,7 @@ func (c *EmailGapController) DLQBatchRetry(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"requeued": n}, "批量重试已入队")
 }
 
-// [AUTO] PlaygroundPresets
+// @Summary      精确匹配
 // @Tags      email-gap
 // @Router    /api/knowledge/playground/presets [get]
 // PlaygroundPresets GET /api/knowledge/playground/presets（检索调参预设）
@@ -384,7 +384,7 @@ func (c *EmailGapController) PlaygroundPresets(ctx *gin.Context) {
 	}, "total": 5}, "ok")
 }
 
-// [AUTO] ClueApplySuggestions
+// @Summary      处理完成
 // @Tags      email-gap
 // @Router    /api/clues/import/apply-suggestions [post]
 func (c *EmailGapController) ClueApplySuggestions(ctx *gin.Context) {
@@ -407,7 +407,7 @@ func (c *EmailGapController) ClueApplySuggestions(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"merged": res.Merged, "skipped": res.Skipped, "failed": res.Failed}, "处理完成")
 }
 
-// [AUTO] ClueMerge
+// @Summary      已合并
 // @Tags      email-gap
 // @Router    /api/clues/{id}/merge [post]
 // ClueMerge POST /api/clues/:id/merge {from:{...row}}
@@ -432,7 +432,7 @@ func (c *EmailGapController) ClueMerge(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"merged": ok}, "已合并")
 }
 
-// [AUTO] ClueForceCreate
+// @Summary      已强制创建
 // @Tags      email-gap
 // @Router    /api/clues/force-create [post]
 // ClueForceCreate POST /api/clues/force-create {row}
@@ -450,7 +450,7 @@ func (c *EmailGapController) ClueForceCreate(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"created": ok}, "已强制创建")
 }
 
-// [AUTO] Preview
+// @Summary      恢复将覆盖上述表现有数据（备份
 // @Tags      backup-gap
 // @Router    /api/backup/{id}/preview [get]
 // BackupPreview GET /api/backup/:id/preview
@@ -473,7 +473,7 @@ func (c *BackupGapController) Preview(ctx *gin.Context) {
 	response.Success(ctx, out, "恢复将覆盖上述表现有数据（备份: "+b.BackupName+"），操作不可逆")
 }
 
-// [AUTO] Restore
+// @Summary      恢复指令已下发
 // @Tags      backup-gap
 // @Router    /api/backup/{id}/restore [post]
 // BackupRestore POST /api/backup/:id/restore
@@ -489,7 +489,7 @@ func (c *BackupGapController) Restore(ctx *gin.Context) {
 	response.Success(ctx, rec, "恢复指令已下发")
 }
 
-// [AUTO] Delete
+// @Summary      已删除
 // @Tags      backup-gap
 // @Router    /api/backup/{id} [delete]
 // BackupDelete DELETE /api/backup/:id

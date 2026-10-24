@@ -28,10 +28,11 @@ import (
 
 // paySink 记录"回调递给回款腿的入参"，并按开关决定报不报错。
 type paySink struct {
-	calls   []RecordPaymentInput
-	receipt *PaymentReceipt
-	err     error
-	avail   bool
+	calls       []RecordPaymentInput
+	refundCalls []RecordPartialRefundInput
+	receipt     *PaymentReceipt
+	err         error
+	avail       bool
 }
 
 func (s *paySink) Available() bool { return s.avail }
@@ -48,6 +49,24 @@ func (s *paySink) RecordPayment(_ context.Context, in RecordPaymentInput) (*Paym
 		BillID: in.BillID, Amount: in.Amount, Currency: in.Currency,
 		ChannelRef: in.ChannelRef, Status: model.PaymentStatusConfirmed,
 		Platform: in.Platform, OrderID: in.OrderID,
+	}}, nil
+}
+
+// refundCalls 记退款分流的调用（E-10：status=refunded 走 RecordPartialRefund，
+// 不再弹回 400）。与 calls 分开记：两腿混在一个切片里，断言"退款没走回款口"
+// 就得靠读 minds 而不是读数据。
+func (s *paySink) RecordPartialRefund(_ context.Context, in RecordPartialRefundInput) (*PaymentReceipt, error) {
+	s.refundCalls = append(s.refundCalls, in)
+	if s.err != nil {
+		return nil, s.err
+	}
+	if s.receipt != nil {
+		return s.receipt, nil
+	}
+	return &PaymentReceipt{Payment: PaymentView{
+		BillID: in.BillID, Amount: in.Amount, Currency: in.Currency,
+		ChannelRef: in.RefundRef, Status: model.PaymentStatusRefunded,
+		Platform: in.Platform, OrderID: in.OrderID, Reason: in.Reason,
 	}}, nil
 }
 
@@ -145,6 +164,64 @@ func TestOrderWebhook_PaymentObjectBecomesAnInput(t *testing.T) {
 	}
 	if in.PaidAt == nil || in.PaidAt.Year() != 2026 {
 		t.Errorf("paid_at 没解析出来: %v", in.PaidAt)
+	}
+}
+
+// TestOrderWebhook_RefundIsRoutedToRefundLeg status=refunded 的载荷分流到退款腿
+// （E-10 规划 §4.10 "再加端点"——退款端点复用回款回调路径的判据）：
+//
+//	① 解析层认 reason + status=refunded；
+//	② bookOrderPayment 分流到 RecordPartialRefund（不走 RecordPayment——
+//	  那一口会把退款弹回 400，钱就永远进不了库）；
+//	③ refund_ref 占 channel_ref 键、reason 透传；
+//	④ 幂等重投两次，退款腿只被叫一次。
+func TestOrderWebhook_RefundIsRoutedToRefundLeg(t *testing.T) {
+	db := setupIntegrationServiceTestDB(t)
+	_ = db
+	svc := NewIntegrationService()
+	sink := &paySink{avail: true}
+	svc.SetOrderPaymentSink(sink)
+
+	body := map[string]any{
+		"order_no": "NO-REFUND", "pay_amount": float64(36999),
+		"payment": map[string]any{
+			"bill_id": "b_refund", "channel_ref": "ali-refund-0001", "amount": 100,
+			"currency": "CNY", "status": "refunded", "reason": "商品退货",
+		},
+	}
+	res, err := svc.UpsertOrderFromWebhook(context.Background(), "taobao", "REFUND-001", "refunded", body)
+	if err != nil {
+		t.Fatalf("退款载荷处理失败: %v", err)
+	}
+	if !res.PaymentPresent || res.Payment == nil {
+		t.Fatalf("结论里没带回退款那一格: %+v", res)
+	}
+	// 判据②：走退款腿而不是回款腿
+	if len(sink.calls) != 0 {
+		t.Fatalf("退款被记成回款（RecordPayment 被叫 %d 次，期望 0）", len(sink.calls))
+	}
+	if len(sink.refundCalls) != 1 {
+		t.Fatalf("退款腿被叫 %d 次，期望 1", len(sink.refundCalls))
+	}
+	in := sink.refundCalls[0]
+	// 判据③：refund_ref 占 channel_ref 键；reason 透传；来路取路径
+	if in.BillID != "b_refund" || in.RefundRef != "ali-refund-0001" || in.Amount != 100 {
+		t.Errorf("退款入参三格不对: %+v", in)
+	}
+	if in.Reason != "商品退货" {
+		t.Errorf("退款原因没透传: %q", in.Reason)
+	}
+	if in.Platform != "taobao" || in.OrderID != "REFUND-001" {
+		t.Errorf("来路两格取自载荷而非路径: %+v", in)
+	}
+	// 判据④：幂等重投——订单腿不挡重投（幂等键在退款腿的 channel_ref 唯一索引上，
+	// 见 payment_partial_refund_test 的 TestPartialRefundIdempotentReplay），
+	// 这里钉住的是重投仍走**退款腿**而不是被镜像判重弹回。
+	if _, err := svc.UpsertOrderFromWebhook(context.Background(), "taobao", "REFUND-001", "refunded", body); err != nil {
+		t.Fatalf("退款重投失败: %v", err)
+	}
+	if len(sink.refundCalls) != 2 || len(sink.calls) != 0 {
+		t.Errorf("重投后调用形状不对（refund=%d pay=%d，期望重投仍走退款腿）", len(sink.refundCalls), len(sink.calls))
 	}
 }
 

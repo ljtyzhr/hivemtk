@@ -10,7 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// [AUTO] Blacklist
+// @Summary      拉黑成功
 // @Tags      customer-session
 // @Router    /api/customer-sessions/{id}/blacklist [post]
 // Blacklist 拉黑当前会话对应的访客
@@ -54,7 +54,7 @@ func (c *CustomerSessionController) Blacklist(ctx *gin.Context) {
 	}, "拉黑成功")
 }
 
-// [AUTO] Unblacklist
+// @Summary      解除拉黑成功
 // @Tags      customer-session
 // @Router    /api/customer-sessions/blacklist/remove [post]
 // Unblacklist 解除拉黑
@@ -84,7 +84,7 @@ func (c *CustomerSessionController) Unblacklist(ctx *gin.Context) {
 	response.Success(ctx, nil, "解除拉黑成功")
 }
 
-// [AUTO] IsUserBlacklisted
+// @Summary      判断访客是否在会话黑名单
 // @Tags      customer-session
 // @Router    /api/customer-sessions/blacklist/check [get]
 // IsUserBlacklisted 判断访客是否在黑名单
@@ -105,7 +105,7 @@ func (c *CustomerSessionController) IsUserBlacklisted(ctx *gin.Context) {
 	response.Success(ctx, gin.H{"blacklisted": ok}, "查询成功")
 }
 
-// [AUTO] ListActiveBlacklist
+// @Summary      分页查询生效中的会话黑名单
 // @Tags      customer-session
 // @Router    /api/customer-sessions/blacklist [get]
 // ListActiveBlacklist 分页查询生效中的黑名单

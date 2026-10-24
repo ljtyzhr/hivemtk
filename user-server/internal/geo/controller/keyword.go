@@ -21,7 +21,7 @@ func NewKeywordController(svc *service.KeywordService) *KeywordController {
 	return &KeywordController{svc: svc}
 }
 
-// [AUTO] MineKeywords
+// @Summary      关键词挖掘成功
 // @Tags      keyword
 // @Router    /api/geo/keywords/mine [post]
 // MineKeywords 挖掘关键词
@@ -39,7 +39,7 @@ func (c *KeywordController) MineKeywords(ctx *gin.Context) {
 	response.Success(ctx, result, "关键词挖掘成功")
 }
 
-// [AUTO] SemanticExpand
+// @Summary      语义扩展成功
 // @Tags      keyword
 // @Router    /api/geo/keywords/expand [post]
 // SemanticExpand 语义扩展关键词
@@ -57,7 +57,7 @@ func (c *KeywordController) SemanticExpand(ctx *gin.Context) {
 	response.Success(ctx, result, "语义扩展成功")
 }
 
-// [AUTO] TopicCluster
+// @Summary      话题集群成功
 // @Tags      keyword
 // @Router    /api/geo/keywords/cluster [post]
 // TopicCluster 关键词话题集群
@@ -75,7 +75,7 @@ func (c *KeywordController) TopicCluster(ctx *gin.Context) {
 	response.Success(ctx, result, "话题集群成功")
 }
 
-// [AUTO] GetKeywordList
+// @Summary      获取关键词列表
 // @Tags      keyword
 // @Router    /api/geo/keywords/list [get]
 // GetKeywordList 获取关键词列表
@@ -101,7 +101,7 @@ func (c *KeywordController) GetKeywordList(ctx *gin.Context) {
 	response.SuccessWithPage(ctx, list, int64(page), int64(limit), total)
 }
 
-// [AUTO] DeleteKeyword
+// @Summary      删除关键词成功
 // @Tags      keyword
 // @Router    /api/geo/keywords/{id} [delete]
 // DeleteKeyword 删除关键词
