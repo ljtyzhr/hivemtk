@@ -26,7 +26,7 @@ type systemConfigRepo struct {
 	db *gorm.DB
 }
 
-// NewSystemConfigRepository 创建系统配置仓库实例
+// NewSystemConfigRepository 创建系统配置仓库
 func NewSystemConfigRepository() SystemConfigRepository {
 	return &systemConfigRepo{db: _db.GetDB()}
 }
@@ -47,13 +47,11 @@ func (r *systemConfigRepo) GetConfig(ctx context.Context) (*model.SystemConfig, 
 }
 
 // SaveConfig 保存系统配置。
-// 每租户一行（tenant_id 唯一索引）：已存在（First 命中，租户由隔离 callback
-// 限定）时必须原地整行回写（db.SaveWholeRow）——原 FirstOrCreate 在已存在时
-// 不写入任何传入字段，前端保存永远是假动作。
+// 每租户一行（tenant_id 唯一索引）：已存在时必须原地整行回写（db.SaveWholeRow），
+// 否则传入字段不会落库，前端保存是假动作。
 //
 // TenantID 取自既有行而不是入参：admin 页面回传的 JSON 不带 tenant_id，
-// 整行写会连同零值一起 UPDATE，若直接落库就把本租户的配置行写成了 tenant_id=0
-// （平台公共池），下一次读取立刻"配置消失"。
+// 整行写会把本租户的配置行写成 tenant_id=0（平台公共池），下一次读取立刻"配置消失"。
 func (r *systemConfigRepo) SaveConfig(ctx context.Context, config *model.SystemConfig) (*model.SystemConfig, error) {
 	if r == nil || r.db == nil {
 		return nil, ErrSystemConfigStoreUnavailable
@@ -67,11 +65,9 @@ func (r *systemConfigRepo) SaveConfig(ctx context.Context, config *model.SystemC
 	case err == nil:
 		config.ID = existing.ID
 		config.TenantID = existing.TenantID
-		// 走 db.SaveWholeRow 而不是裸 Save：上面那条 First 与这条 UPDATE 之间
-		// 隔着一次"管理端改配置"的时间窗，行被删掉时裸 Save 会**回退成 INSERT**
-		// （gorm@v1.31.2 的 OnConflict{UpdateAll} 分支），把一份带着旧 ID 的
-		// 站点配置重新插出来；而 tenant_id 上是唯一索引，front 下一次读取拿到的
-		// 到底是哪一行就说不清了。
+		// 走 db.SaveWholeRow 而不是裸 Save：First 与 UPDATE 之间行可能被删，
+		// 裸 Save 命中 0 行会回退成 INSERT，把带着旧 ID 的站点配置重新插出来，
+		// 而 tenant_id 上有唯一索引，下一次读取拿到的行就说不清了。
 		if err := _db.SaveWholeRow(r.db.WithContext(ctx), config); err != nil {
 			return nil, err
 		}

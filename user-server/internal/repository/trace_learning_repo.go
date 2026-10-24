@@ -1,4 +1,4 @@
-// trace_learning_repo.go 追踪自学习仓储（评估日志/批次候选/权重排行）（五层 L5）
+// trace_learning_repo.go 追踪自学习仓储（评估日志/批次候选/权重排行）
 package repository
 
 import (

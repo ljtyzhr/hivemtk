@@ -25,7 +25,7 @@ type smsUnsubscribeRepo struct {
 	db *gorm.DB
 }
 
-// NewSmsUnsubscribeRepository 创建短信退订仓库实例
+// NewSmsUnsubscribeRepository 创建短信退订仓库
 func NewSmsUnsubscribeRepository(db *gorm.DB) SmsUnsubscribeRepository {
 	if db == nil {
 		db = _db.GetDB()
@@ -117,7 +117,7 @@ func (r *smsUnsubscribeRepo) List(ctx context.Context, page, limit int, keyword 
 		limit = 200
 	}
 
-	// Count 与 Find 各起一条 query（判例 #133 / #150）。
+	// Count 与 Find 必须各起一条 query（见 base()），不能在同一条链上先 Count 再 Find。
 	base := func() *gorm.DB {
 		q := r.db.WithContext(ctx).Model(&model.SmsUnsubscribe{})
 		if keyword != "" {

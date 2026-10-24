@@ -1,9 +1,7 @@
-// tool_audit_repo.go 工具调用审计的 DB 读侧仓储（T-P1-08 / W-6）
+// tool_audit_repo.go 工具调用审计的 DB 读侧仓储。
 //
-// 写侧在 tooluse.DBAuditLogger（装饰器链上，异步批量落库），本文件只负责读。
-// 为什么要有读侧：只有写入的话，"持久化"就停留在 psql 里 —— 调试端点
-// GET /api/agent/tools/audit 原本读的是进程内存（重启即空、且只最近 10000 条），
-// 接了 DB 之后如果端点还只看内存，运维根本无从判断"这条审计到底落库了没有"。
+// 写侧在 tooluse.DBAuditLogger（装饰器链上，异步批量落库），本文件只负责读：
+// 调试端点 GET /api/agent/tools/audit 需要能判断「这条审计到底落库了没有」。
 package repository
 
 import (
@@ -52,9 +50,8 @@ func (r *ToolAuditRepository) Recent(ctx context.Context, toolName string, limit
 
 // CountAll 总行数。
 //
-// 存在的唯一理由：本表**刻意不做自动清理**。内存版是 10000 条环形缓冲，落库后变成
-// 无上限增长（每次工具调用一行），保留期该多长属合规口径而非工程默认，故交运营决定，
-// 但决定之前必须看得见规模 —— 没有这个数，"要不要清理"就无从讨论。
+// 本表**刻意不做自动清理**（保留期属合规口径，交运营决定），这个数是
+// 「要不要清理」讨论的规模依据。
 func (r *ToolAuditRepository) CountAll(ctx context.Context) (int64, error) {
 	if !r.Available() {
 		return 0, fmt.Errorf("tool audit repository: db handle is nil")

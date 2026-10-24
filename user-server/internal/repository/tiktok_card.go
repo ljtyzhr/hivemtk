@@ -31,7 +31,7 @@ type tiktokCardRepository struct {
 	db *gorm.DB
 }
 
-// NewTikTokCardRepository 创建 TikTok 卡片仓储实例
+// NewTikTokCardRepository 创建 TikTok 卡片仓储
 func NewTikTokCardRepository(db *gorm.DB) TikTokCardRepository {
 	return &tiktokCardRepository{db: db}
 }
@@ -45,9 +45,8 @@ func (r *tiktokCardRepository) Create(ctx context.Context, card *model.TikTokCar
 
 // Update 整行回写一张卡片。
 //
-// 走 db.SaveWholeRow：裸 Save 命中 0 行会回退成 `INSERT ... ON CONFLICT (id)
-// DO UPDATE`（gorm@v1.31.2），把一张「管理端读出来之后、保存之前被删掉的」
-// 卡片按原 id 插回去 —— 而它的短码可能已被别的卡片占用。
+// 走 db.SaveWholeRow：裸 Save 命中 0 行会回退成 INSERT，
+// 把已删除的卡片按原 id 复活——而它的短码可能已被别的卡片占用。
 func (r *tiktokCardRepository) Update(ctx context.Context, card *model.TikTokCard) (*model.TikTokCard, error) {
 	if card == nil {
 		return nil, errors.New("tiktok card: nil 不是更新对象")
@@ -75,9 +74,9 @@ func (r *tiktokCardRepository) GetList(ctx context.Context, req CardListFilter) 
 	var cards []model.TikTokCard
 	var total int64
 
-	// 分页夹取：`pageSize = 0` ⇒ GORM 的 Limit(0) 等于**不加 limit**；无上限 ⇒
-	// `page_size=100000` 一次把整张卡片表读进内存（controller 侧用的是裸
-	// strconv.Atoi，不是 pagination.Parse，所以仓储层必须自己设防）。
+	// 分页夹取：pageSize = 0 ⇒ GORM 的 Limit(0) 等于**不加 limit**；无上限 ⇒
+	// page_size=100000 一次把整张卡片表读进内存（controller 侧是裸 strconv.Atoi，
+	// 不是 pagination.Parse，仓储层必须自己设防）。
 	page := 1
 	pageSize := 20
 	if req.Page > 0 {
@@ -90,8 +89,7 @@ func (r *tiktokCardRepository) GetList(ctx context.Context, req CardListFilter) 
 		pageSize = 200
 	}
 
-	// Count 与 Find 各起一条 query：同一条链上先 Count 再 Find 会就地改 Statement
-	// （判例 #133 / #150）。
+	// Count 与 Find 必须各起一条 query（见 base()），不能在同一条链上先 Count 再 Find。
 	base := func() *gorm.DB {
 		q := r.db.WithContext(ctx).Model(&model.TikTokCard{})
 		if req.Keyword != "" {

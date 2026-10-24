@@ -9,13 +9,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// UnifiedMessageRepository 统一消息仓库接口
 // UnifiedMessageRepository 统一收件箱的读口（写口只有 Create，来自 webhook 入站）。
-//
-// 批 11（4.4）删掉六个零生产引用的方法：GetByMessageID / GetByChat /
-// UpdateStatus / Delete / GetMessages / GetMessageByID（最后两个是 service
-// 绕开直接调 GetByMerchant / GetByID 后留下的无人走的包装）。留下的四个方法
-// 就是这条链路的全部生产读/写面。
 type UnifiedMessageRepository interface {
 	Create(ctx context.Context, msg *model.UnifiedMessage) error
 	GetByID(ctx context.Context, id uint) (*model.UnifiedMessage, error)
@@ -26,12 +20,12 @@ type unifiedMessageRepo struct {
 	db *gorm.DB
 }
 
-// NewUnifiedMessageRepository 创建统一消息仓库实例
+// NewUnifiedMessageRepository 创建统一消息仓库
 func NewUnifiedMessageRepository() UnifiedMessageRepository {
 	return &unifiedMessageRepo{db: _db.GetDB()}
 }
 
-// NewUnifiedMessageRepositoryWithDB 创建指定数据库连接的 UnifiedMessageRepository 实例（用于测试）
+// NewUnifiedMessageRepositoryWithDB 创建指定数据库连接的 UnifiedMessageRepository（测试用）
 func NewUnifiedMessageRepositoryWithDB(db *gorm.DB) UnifiedMessageRepository {
 	return &unifiedMessageRepo{db: db}
 }
@@ -60,7 +54,7 @@ func (r *unifiedMessageRepo) GetByMerchant(ctx context.Context, platform model.P
 		pageSize = 200
 	}
 
-	// Count 与 Find 各起一条 query（判例 #133 / #150）。
+	// Count 与 Find 必须各起一条 query（见 base()），不能在同一条链上先 Count 再 Find。
 	base := func() *gorm.DB {
 		q := r.db.WithContext(ctx).Model(&model.UnifiedMessage{})
 		if platform != "" {
@@ -95,7 +89,7 @@ type platformAccountRepo struct {
 	db *gorm.DB
 }
 
-// NewPlatformAccountRepository 创建平台账号仓库实例
+// NewPlatformAccountRepository 创建平台账号仓库
 func NewPlatformAccountRepository() PlatformAccountRepository {
 	return &platformAccountRepo{db: _db.GetDB()}
 }

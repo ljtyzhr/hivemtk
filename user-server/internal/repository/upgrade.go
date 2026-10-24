@@ -16,7 +16,7 @@ type UpgradeTaskRepository struct {
 	db *gorm.DB
 }
 
-// NewUpgradeTaskRepository 创建升级任务仓库实例
+// NewUpgradeTaskRepository 创建升级任务仓库
 func NewUpgradeTaskRepository() *UpgradeTaskRepository {
 	return &UpgradeTaskRepository{
 		db: _db.GetDB(),
@@ -48,9 +48,9 @@ func (r *UpgradeTaskRepository) GetAll(ctx context.Context, page, pageSize int) 
 		pageSize = 200
 	}
 
-	// Count 与 Find 各起一条 query（判例 #133 / #150）；原实现还把 Count 的
-	// error 直接丢掉 —— Count 失败时 total=0，管理页把「有历史任务」显示成空列表。
-	base := func() *gorm.DB {
+// Count 与 Find 必须各起一条 query（见 base()），不能在同一条链上先 Count 再 Find；
+// Count 失败时若不检查错误，total=0，管理页会把「有历史任务」显示成空列表。
+base := func() *gorm.DB {
 		return r.db.WithContext(ctx).Model(&model.UpgradeTask{})
 	}
 
@@ -88,7 +88,7 @@ type MigrationRecordRepository struct {
 	db *gorm.DB
 }
 
-// NewMigrationRecordRepository 创建迁移记录仓库实例
+// NewMigrationRecordRepository 创建迁移记录仓库
 func NewMigrationRecordRepository() *MigrationRecordRepository {
 	return &MigrationRecordRepository{
 		db: _db.GetDB(),
@@ -106,7 +106,7 @@ func (r *MigrationRecordRepository) GetAll(ctx context.Context) ([]*model.Migrat
 	return records, err
 }
 
-// GetByVersion 根据版本获取迁移记录
+// GetByVersion 按版本获取迁移记录
 func (r *MigrationRecordRepository) GetByVersion(ctx context.Context, version string) (*model.MigrationRecord, error) {
 	var record model.MigrationRecord
 	err := r.db.WithContext(ctx).Where("version = ?", version).First(&record).Error
@@ -123,10 +123,9 @@ func (r *MigrationRecordRepository) GetExecutedVersions(ctx context.Context) ([]
 
 // Update 整行回写迁移记录。
 //
-// 走 db.SaveWholeRow：裸 Save 命中 0 行会回退成 `INSERT ... ON CONFLICT (id)
-// DO UPDATE`（gorm@v1.31.2）。唯一调用方 Rollback 在 GetByVersion 之后改状态，
-// 若记录在两步之间被清表，裸 Save 会把状态行按原 id 插回 —— 迁移簿记被伪造
-// 出一条「已回滚」的记录。
+// 走 db.SaveWholeRow：裸 Save 命中 0 行会回退成 INSERT。唯一调用方 Rollback
+// 在 GetByVersion 之后改状态，若记录在两步之间被清表，裸 Save 会把状态行按原 id
+// 插回——迁移簿记被伪造出一条「已回滚」的记录。
 func (r *MigrationRecordRepository) Update(ctx context.Context, record *model.MigrationRecord) error {
 	if record == nil || record.ID == 0 {
 		return errors.New("migration record: 缺主键，不能整行回写")
@@ -139,14 +138,14 @@ type MigrationCheckpointRepository struct {
 	db *gorm.DB
 }
 
-// NewMigrationCheckpointRepository 创建迁移检查点仓库实例
+// NewMigrationCheckpointRepository 创建迁移检查点仓库
 func NewMigrationCheckpointRepository() *MigrationCheckpointRepository {
 	return &MigrationCheckpointRepository{
 		db: _db.GetDB(),
 	}
 }
 
-// GetByCheckpoint 根据检查点名称获取
+// GetByCheckpoint 按检查点名称获取
 func (r *MigrationCheckpointRepository) GetByCheckpoint(ctx context.Context, checkpoint string) (*model.MigrationCheckpoint, error) {
 	var cp model.MigrationCheckpoint
 	err := r.db.WithContext(ctx).Where("checkpoint = ?", checkpoint).First(&cp).Error
@@ -161,13 +160,11 @@ func (r *MigrationCheckpointRepository) GetAll(ctx context.Context) ([]*model.Mi
 
 // Upsert 创建或更新检查点。
 //
-// 走 db.SaveWholeRow：裸 Save 命中 0 行会回退成 `INSERT ... ON CONFLICT (id)
-// DO UPDATE`（gorm@v1.31.2）。
+// 走 db.SaveWholeRow：裸 Save 命中 0 行会回退成 INSERT。
 //
 // 已知竞态（记录不修）：read-then-write 窗口里同一 checkpoint 被并发 upsert
 // 会撞 checkpoint 唯一索引（一方报错）或双写两行；checkpoint 链当前零生产
-// 调用方（见 tracker 批 11 待决策），接线时应改 `ON CONFLICT (checkpoint)
-// DO UPDATE` 一条语句。
+// 调用方，接线时应改 `ON CONFLICT (checkpoint) DO UPDATE` 一条语句。
 func (r *MigrationCheckpointRepository) Upsert(ctx context.Context, checkpoint *model.MigrationCheckpoint) error {
 	existing, err := r.GetByCheckpoint(ctx, checkpoint.Checkpoint)
 	if err == nil && existing != nil {

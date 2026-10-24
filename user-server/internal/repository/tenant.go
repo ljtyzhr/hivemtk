@@ -34,9 +34,9 @@ type TenantWithActivity struct {
 	Activity TenantActivity `json:"activity"`
 }
 
-// TenantRepository 租户仓储接口（specs/001-saas-multi-tenant T029/T033）
+// TenantRepository 租户仓储接口
 //
-// 说明：tenants 表在 tenancyidx 登记表中标记为全局表（豁免隔离），
+// tenants 表在 tenancyidx 登记表中标记为全局表（豁免隔离），
 // 因此租户本体的 CRUD 不需要租户上下文；跨租户聚合（成员数/最近活跃）
 // 走 tenant.WithSystemScope 显式绕过隔离注入，属平台运营语义。
 type TenantRepository interface {
@@ -59,7 +59,7 @@ type TenantRepository interface {
 	// 故不走 callback 上下文填充路径，见 fillCreateForTenant 的显式值放行）。
 	CreateWithAdmin(ctx context.Context, t *model.Tenant, admin *model.SystemUser) error
 	// GetDB 供起步赠送等系统域直写场景取句柄（service 不得全局摸 db.GetDB，
-	// 经仓储转发是唯一合规通道；架构门 L4）。
+	// 经仓储转发是唯一合规通道）。
 	GetDB() *gorm.DB
 }
 
@@ -70,7 +70,7 @@ type tenantRepo struct {
 	db *gorm.DB
 }
 
-// GetDB 返回底层连接（架构门 L4：service 取句柄经仓储，不走全局单例）。
+// GetDB 返回底层连接（service 取句柄经仓储，不走全局单例）。
 func (r *tenantRepo) GetDB() *gorm.DB { return r.db }
 
 // NewTenantRepository 构造
@@ -109,13 +109,11 @@ func (r *tenantRepo) GetByCode(ctx context.Context, code string) (*model.Tenant,
 // 用途：判定「平台运营方」——SaaS 模式下首个租户就是平台自己开的那个，
 // 它的管理员是唯一有权看全部租户、停用租户、做实例级操作的角色。
 //
-// 判据用 ID 最小而不是 code 前缀：租户是只增不删的（停用是软删，不改 ID），
-// ID 最小 ⇒ 恒定不变 ⇒ 判据稳定；而 code 前缀（"local-" / "t"）是生成策略的
-// 副产品，改了生成规则就会漂移。
+// 判据用 ID 最小而不是 code 前缀：租户只增不删（停用是软删，不改 ID），
+// ID 最小恒定不变；code 前缀是生成策略的副产品，改了生成规则就会漂移。
 //
 // tenants 是全局表（无 tenant_id 列），不受隔离 callback 约束；
-// 这里刻意不挂 SystemScope —— 调用方传入的 ctx 若带租户绑定也不影响结果，
-// 因为查的是全局表第一行。
+// 刻意不挂 SystemScope——查的是全局表第一行，ctx 带不带租户绑定不影响结果。
 func (r *tenantRepo) GetFirstTenant(ctx context.Context) (*model.Tenant, error) {
 	var t model.Tenant
 	if err := r.db.WithContext(ctx).Order("id ASC").First(&t).Error; err != nil {
@@ -126,10 +124,8 @@ func (r *tenantRepo) GetFirstTenant(ctx context.Context) (*model.Tenant, error) 
 
 // UpdateStatus 改租户状态（启停）。
 //
-// 0 行 ⇒ ErrRecordNotFound：`service.TenantService.UpdateStatus` 会先 GetByID
-// 再改，但那两步之间隔着一个请求窗口；"停用一个已经被删掉的租户"回成功，
-// 运营会以为它已经停了，而租户的业务请求照旧通过（tenants 表里没有那一行，
-// 停用判定落不到任何东西上）。
+// 0 行 ⇒ ErrRecordNotFound：「停用一个已被删掉的租户」回成功，运营会以为它已停，
+// 而租户的业务请求照旧通过（tenants 表里没有那一行，停用判定落不到任何东西上）。
 func (r *tenantRepo) UpdateStatus(ctx context.Context, id uint, status int16) error {
 	if r == nil || r.db == nil {
 		return ErrTenantStoreUnavailable
@@ -140,8 +136,8 @@ func (r *tenantRepo) UpdateStatus(ctx context.Context, id uint, status int16) er
 
 // UpdateRegistration 局部更新开户登记字段
 //
-// 0 行 ⇒ ErrRecordNotFound，理由同上：开户登记是平台监管必需项，
-// 写了个"已登记"而库里一行没变，比直接报错更难查。
+// 0 行 ⇒ ErrRecordNotFound：开户登记是平台监管必需项，
+// 写了「已登记」而库里一行没变，比直接报错更难查。
 func (r *tenantRepo) UpdateRegistration(ctx context.Context, id uint, fields map[string]any) error {
 	if r == nil || r.db == nil {
 		return ErrTenantStoreUnavailable
@@ -178,9 +174,8 @@ func (r *tenantRepo) List(ctx context.Context, f TenantFilter) ([]TenantWithActi
 		f.PageSize = 20
 	}
 
-	// Count 与 Find 各起一条 query：同一条链上先 Count 再 Find 会就地改 Statement
-	// （Count 把 Selects 换成 count(*)，现在能跑靠的是 GORM 内部子句还原的侥幸，
-	// 判例 #133 / #150）。
+	// Count 与 Find 必须各起一条 query（见 base()），不能在同一条链上先 Count 再 Find
+	// （Count 会把 Selects 换成 count(*)，就地改 Statement）。
 	base := func() *gorm.DB {
 		q := r.db.WithContext(ctx).Model(&model.Tenant{})
 		if f.Status != nil {
@@ -255,7 +250,6 @@ func (r *tenantRepo) activities(ctx context.Context, rows []*model.Tenant) (map[
 	return out, nil
 }
 
-// escapeLike 转义 LIKE 模式元字符，配合 ESCAPE '\' 使用
 func escapeLike(s string) string {
 	r := strings.NewReplacer(`\`, `\\`, `%`, `\%`, `_`, `\_`)
 	return r.Replace(s)

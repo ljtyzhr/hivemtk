@@ -26,7 +26,6 @@ type shortLinkAccessRepository struct {
 	db *gorm.DB
 }
 
-// NewShortLinkAccessRepository 创建短链访问统计仓储实例
 func NewShortLinkAccessRepository(db *gorm.DB) ShortLinkAccessRepository {
 	return &shortLinkAccessRepository{db: db}
 }
@@ -50,13 +49,11 @@ func (r *shortLinkAccessRepository) GetByID(ctx context.Context, id uint) (*mode
 
 // GetByShortLinkID 分页列出某短链的访问流水。
 //
-// 两个夹取都有真实来源：`page = 0` ⇒ offset 为负 ⇒ PG 直接报
-// "OFFSET must not be negative"；`pageSize = 0` ⇒ GORM 的 Limit(0) 等于**不加 limit**。
-// 后者不是假想 —— `service/short_link.go` 的统计口正是 `GetByShortLinkID(ctx, id, 1, 0)`：
-// 它只取 total、把行丢掉，旧代码因此每统计一次就把该链接的全部流水捞进内存再扔。
+// 入参必须夹取：page = 0 ⇒ offset 为负 ⇒ PG 直接报 "OFFSET must not be negative"；
+// pageSize = 0 ⇒ GORM 的 Limit(0) 等于**不加 limit**——service/short_link.go
+// 的统计口正是 GetByShortLinkID(ctx, id, 1, 0)，只取 total、把行丢掉。
 //
-// Count 与 Find 各起一条 query：同一条链上先 Count 再 Find 靠的是 GORM 内部
-// 子句还原侥幸能跑（判例 #133 / #150）。
+// Count 与 Find 必须各起一条 query（见下方 base()），不能在同一条链上先 Count 再 Find。
 func (r *shortLinkAccessRepository) GetByShortLinkID(ctx context.Context, shortLinkID uint, page, pageSize int) ([]*model.ShortLinkAccess, int64, error) {
 	if page < 1 {
 		page = 1

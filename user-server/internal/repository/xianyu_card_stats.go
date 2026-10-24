@@ -63,8 +63,8 @@ func NewXianyuCardStatsRepository(db *gorm.DB) XianyuCardStatsRepository {
 
 func (r *xianyuCardStatsRepository) GetCardStats(ctx context.Context, cardID uint, startDate, endDate time.Time) (*CardStatsResult, error) {
 	var stats CardStatsResult
-	// endDate 是**含端点**的日历日 ⇒ 对时间戳列用半开区间 `>= start AND < 次日零点`。
-	// 原写法 `<= 次日零点` 会把次日 00:00:00 那一瞬也算进来。
+	// endDate 是**含端点**的日历日 ⇒ 对时间戳列用半开区间 `>= start AND < 次日零点`
+	// （`<= 次日零点` 会把次日 00:00:00 那一瞬也算进来）。
 	endExclusive := endDate.AddDate(0, 0, 1)
 
 	type basicStats struct {

@@ -15,7 +15,7 @@ type WhatsappTemplateRepository struct {
 	db *gorm.DB
 }
 
-// NewWhatsappTemplateRepository 创建 WhatsApp 消息模板仓库实例
+// NewWhatsappTemplateRepository 创建 WhatsApp 消息模板仓库
 func NewWhatsappTemplateRepository() *WhatsappTemplateRepository {
 	return &WhatsappTemplateRepository{db: _db.GetDB()}
 }
@@ -37,9 +37,8 @@ func (r *WhatsappTemplateRepository) Create(ctx context.Context, template *model
 	return r.db.WithContext(ctx).Create(template).Error
 }
 
-// Save 整行回写模板。走 db.SaveWholeRow：裸 Save 命中 0 行会回退成
-// `INSERT ... ON CONFLICT (id) DO UPDATE`（gorm@v1.31.2），把「编辑页读出后、
-// 保存前被删掉」的模板按原 id 插回。
+// Save 整行回写模板。走 db.SaveWholeRow：裸 Save 命中 0 行会回退成 INSERT，
+// 把「编辑页读出后、保存前被删掉」的模板按原 id 插回。
 func (r *WhatsappTemplateRepository) Save(ctx context.Context, template *model.WhatsappMessageTemplate) error {
 	if template == nil || template.ID == "" {
 		return errors.New("whatsapp template: 缺主键，不能整行回写")

@@ -19,12 +19,10 @@ type SopAgentRepository struct {
 	db *gorm.DB
 }
 
-// NewSopAgentRepository 创建 SOP 智能体仓储
 func NewSopAgentRepository(db *gorm.DB) *SopAgentRepository {
 	return &SopAgentRepository{db: db}
 }
 
-// ListActiveByTriggerType 列出指定触发类型的活跃 SOP
 func (r *SopAgentRepository) ListActiveByTriggerType(ctx context.Context, triggerType string) ([]model.SOPAgent, error) {
 	if r == nil || r.db == nil {
 		return nil, nil
@@ -48,8 +46,7 @@ func (r *SopAgentRepository) UpdateTriggerConfig(ctx context.Context, id uint, t
 		Update("trigger_config", triggerConfig).Error
 }
 
-// ListByUseBandit 列出所有启用/禁用 Bandit 流量分配的 SOP
-// 用于 FeedbackLoopCron 日度 Prompt 迭代：仅遍历 use_bandit=true 的 SOP
+// ListByUseBandit 列出启用/禁用 Bandit 流量分配的 SOP（FeedbackLoopCron 日度迭代用）。
 func (r *SopAgentRepository) ListByUseBandit(ctx context.Context, useBandit bool) ([]model.SOPAgent, error) {
 	if r == nil || r.db == nil {
 		return nil, nil
@@ -68,7 +65,6 @@ type SopExecutionRepository struct {
 	db *gorm.DB
 }
 
-// NewSopExecutionRepository 创建 SOP 执行记录仓储
 func NewSopExecutionRepository(db *gorm.DB) *SopExecutionRepository {
 	return &SopExecutionRepository{db: db}
 }
@@ -133,7 +129,6 @@ func (r *SopExecutionRepository) CountBySOPIDAndCustomerIDAndStatus(ctx context.
 	return count, nil
 }
 
-// GetByID 按 ID 获取 SOP 执行记录
 func (r *SopExecutionRepository) GetByID(ctx context.Context, id uint) (*model.SOPExecution, error) {
 	if r == nil || r.db == nil {
 		return nil, errors.New("sop execution repository not initialized")
@@ -173,8 +168,7 @@ func (r *SopExecutionRepository) Save(ctx context.Context, exec *model.SOPExecut
 			"wait_event":       exec.WaitEvent,
 			"executed_nodes":   exec.ExecutedNodes,
 		})
-	// 手写的 `RowsAffected == 0 → gorm.ErrRecordNotFound` 与 `db.EnsureAffected`
-	// 是同一件事，统一走后者：判据只有一处（见 pkg/db/write_guard.go）。
+	// 0 行 ⇒ ErrRecordNotFound，统一走 db.EnsureAffected（见 pkg/db/write_guard.go）。
 	return _db.EnsureAffected(res)
 }
 
@@ -230,7 +224,6 @@ func (r *SopAgentRepository) Create(ctx context.Context, agent *model.SOPAgent) 
 	return r.db.WithContext(ctx).Create(agent).Error
 }
 
-// GetByID 按 ID 获取 SOP 智能体
 func (r *SopAgentRepository) GetByID(ctx context.Context, id uint) (*model.SOPAgent, error) {
 	if r == nil || r.db == nil {
 		return nil, errors.New("sop agent repository not initialized")
@@ -267,7 +260,6 @@ func (r *SopAgentRepository) Save(ctx context.Context, agent *model.SOPAgent) er
 			"use_bandit":      agent.UseBandit,
 			"created_by":      agent.CreatedBy,
 		})
-	// 同 SopExecutionRepository.Save：0 行判定统一走 db.EnsureAffected。
 	return _db.EnsureAffected(res)
 }
 
@@ -308,8 +300,7 @@ func (r *SopAgentRepository) List(ctx context.Context, scenario, status string, 
 	if pageSize < 1 || pageSize > 200 {
 		pageSize = 20
 	}
-	// Count 与 Find 各起一条 query：同一条链上先 Count 再 Find 靠的是 GORM
-	// 内部子句还原侥幸能跑（判例 #133 / #150）。
+	// Count 与 Find 必须各起一条 query（见 base()），不能在同一条链上先 Count 再 Find。
 	base := func() *gorm.DB {
 		q := r.db.WithContext(ctx).Model(&model.SOPAgent{})
 		if scenario != "" {

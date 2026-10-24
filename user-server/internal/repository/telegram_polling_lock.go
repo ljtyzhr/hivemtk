@@ -43,16 +43,13 @@ type TelegramPollingLockRepository struct {
 	db *gorm.DB
 }
 
-// NewTelegramPollingLockRepository 创建 Telegram Polling 锁仓库实例
-//
-// 绑定全局默认 DB（与项目其他 repository 一致）。
+// NewTelegramPollingLockRepository 创建 Telegram Polling 锁仓库（绑定全局默认 DB）
 func NewTelegramPollingLockRepository() *TelegramPollingLockRepository {
 	return &TelegramPollingLockRepository{db: _db.GetDB()}
 }
 
 // NewTelegramPollingLockRepositoryWithDB 创建指定 DB 连接的锁仓库
-//
-// 用于 service 依赖注入 / 多 DB 切换 / 测试场景。
+// （service 依赖注入 / 多 DB 切换 / 测试场景用）。
 func NewTelegramPollingLockRepositoryWithDB(db *gorm.DB) *TelegramPollingLockRepository {
 	if db == nil {
 		return &TelegramPollingLockRepository{db: _db.GetDB()}

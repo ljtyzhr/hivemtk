@@ -76,9 +76,9 @@ func (r *ssoIdentityRepo) ListByUserID(ctx context.Context, userID uint) ([]*mod
 
 // Delete 解绑一条 SSO 身份。
 //
-// 0 行仍然翻成领域哨兵 ErrSSOIdentityNotFound（`service/sso.go:403` 靠
-// errors.Is 判它来决定"解绑一个已经解过的绑定"该怎么回），但判据本身不再手写：
-// 走 db.EnsureAffected，与其余仓储共用同一处口径（pkg/db/write_guard.go）。
+// 0 行翻成领域哨兵 ErrSSOIdentityNotFound（service 层靠 errors.Is 判它决定
+// 「解绑一个已解过的绑定」怎么回），判据统一走 db.EnsureAffected
+// （pkg/db/write_guard.go）。
 func (r *ssoIdentityRepo) Delete(ctx context.Context, id uint) error {
 	if r == nil || r.db == nil {
 		return errSSOIdentityUnavailable

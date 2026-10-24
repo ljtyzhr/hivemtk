@@ -25,12 +25,12 @@ type userTagRepo struct {
 	db *gorm.DB
 }
 
-// NewUserTagRepository 创建用户标签仓库实例
+// NewUserTagRepository 创建用户标签仓库
 func NewUserTagRepository() UserTagRepository {
 	return &userTagRepo{db: _db.GetDB()}
 }
 
-// NewUserTagRepositoryWithDB 创建用户标签仓库实例（带数据库连接，用于测试）
+// NewUserTagRepositoryWithDB 创建用户标签仓库（带数据库连接，测试用）
 func NewUserTagRepositoryWithDB(db *gorm.DB) UserTagRepository {
 	return &userTagRepo{db: db}
 }

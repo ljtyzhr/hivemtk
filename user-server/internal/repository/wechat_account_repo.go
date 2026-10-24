@@ -1,4 +1,4 @@
-// wechat_account_repo.go 微信公众号账号与消息仓储（五层 L5）
+// wechat_account_repo.go 微信公众号账号与消息仓储
 package repository
 
 import (

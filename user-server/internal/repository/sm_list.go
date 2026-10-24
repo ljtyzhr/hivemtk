@@ -61,8 +61,8 @@ func (r *smlistRepo) Create(ctx context.Context, smlist *model.Smlist) error {
 
 // GetByID 按 ID 取短信列表行。
 //
-// 出错时返回 nil 而不是「零值行 + 错误」：原写法 `return &smlist, err` 让调用方
-// 可以选择性忽略 err 而拿到一条内容为空的记录，把它当成「存在但字段为空」渲染出去。
+// 出错时必须返回 nil 而不是零值行 + 错误：调用方可能选择性忽略 err，
+// 若拿到内容为空的记录会当成「存在但字段为空」渲染出去。
 func (r *smlistRepo) GetByID(ctx context.Context, id string) (*model.Smlist, error) {
 	if r == nil || r.db == nil {
 		return nil, errSmlistUnavailable
@@ -82,8 +82,8 @@ func (r *smlistRepo) GetSmlistList(ctx context.Context, page int, limit int) ([]
 
 	var smlists []*model.Smlist
 	var total int64
-	// Count 的错误原先被直接丢掉（`Count(&total)` 不接 `.Error`）：统计失败时
-	// total 是 0，前端看到「共 0 条」而列表里却有行 —— 分页器当场错乱。
+	// Count 的错误必须检查：统计失败时 total 是 0，前端会看到「共 0 条」
+	// 而列表里却有行，分页器错乱。
 	if err := r.db.WithContext(ctx).Model(&model.Smlist{}).Count(&total).Error; err != nil {
 		return nil, 0, err
 	}
@@ -92,11 +92,7 @@ func (r *smlistRepo) GetSmlistList(ctx context.Context, page int, limit int) ([]
 }
 
 // GetSmlistAllList 取「全部」短信列表，最多 200 行（超过时调用方需分页重取）。
-//
-// 原写法把 ctx 丢在了半路：`applyListLimit(r.db, 200)` 和一个不带 WithContext 的
-// `Find` —— 那条 query 的 Statement 没有 ctx，on 模式下隔离 callback 读不到租户
-// 绑定，整条查询被 fail-closed 拒掉（表现为「这个接口一直报错但看不出原因」）。
-// 同时 Count 的错误也被丢掉。
+// query 必须带 ctx：隔离 callback 要从 ctx 读租户绑定，缺 ctx 会被 fail-closed 拒掉。
 func (r *smlistRepo) GetSmlistAllList(ctx context.Context) ([]*model.Smlist, int64, error) {
 	if r == nil || r.db == nil {
 		return nil, 0, errSmlistUnavailable

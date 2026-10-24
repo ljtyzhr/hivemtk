@@ -1617,46 +1617,46 @@
 | 1402 | [x] | `internal/repository/session_message.go` | 17 | 36 | 17 | 0 |
 | 1403 | [x] | `internal/repository/session_tag.go` | 7 | 7 | 7 | 0 |
 | 1404 | [x] | `internal/repository/short_link.go` | 4 | 5 | 4 | 0 |
-| 1405 | [ ] | `internal/repository/short_link_access.go` | 2 | 2 | 2 | 0 |
-| 1406 | [ ] | `internal/repository/sm_list.go` | 1 | 1 | 1 | 0 |
-| 1407 | [ ] | `internal/repository/sms.go` | 2 | 5 | 2 | 0 |
-| 1408 | [ ] | `internal/repository/sms_delivery.go` | 4 | 7 | 4 | 0 |
-| 1409 | [ ] | `internal/repository/sms_tracking.go` | 4 | 9 | 4 | 0 |
-| 1410 | [ ] | `internal/repository/sms_unsubscribe.go` | 2 | 2 | 2 | 0 |
-| 1411 | [ ] | `internal/repository/sop.go` | 36 | 43 | 36 | 0 |
-| 1412 | [ ] | `internal/repository/sop_exec_event.go` | 4 | 12 | 4 | 0 |
-| 1413 | [ ] | `internal/repository/sop_template.go` | 15 | 34 | 15 | 0 |
-| 1414 | [ ] | `internal/repository/sop_timer.go` | 15 | 56 | 15 | 0 |
-| 1415 | [ ] | `internal/repository/sso_identity.go` | 2 | 2 | 2 | 0 |
-| 1416 | [ ] | `internal/repository/support_metrics.go` | 5 | 5 | 5 | 0 |
-| 1417 | [ ] | `internal/repository/system_config.go` | 5 | 16 | 5 | 0 |
+| 1405 | [x] | `internal/repository/short_link_access.go` | 2 | 2 | 2 | 0 |
+| 1406 | [x] | `internal/repository/sm_list.go` | 1 | 1 | 1 | 0 |
+| 1407 | [x] | `internal/repository/sms.go` | 2 | 5 | 2 | 0 |
+| 1408 | [x] | `internal/repository/sms_delivery.go` | 4 | 7 | 4 | 0 |
+| 1409 | [x] | `internal/repository/sms_tracking.go` | 4 | 9 | 4 | 0 |
+| 1410 | [x] | `internal/repository/sms_unsubscribe.go` | 2 | 2 | 2 | 0 |
+| 1411 | [x] | `internal/repository/sop.go` | 36 | 43 | 36 | 0 |
+| 1412 | [x] | `internal/repository/sop_exec_event.go` | 4 | 12 | 4 | 0 |
+| 1413 | [x] | `internal/repository/sop_template.go` | 15 | 34 | 15 | 0 |
+| 1414 | [x] | `internal/repository/sop_timer.go` | 15 | 56 | 15 | 0 |
+| 1415 | [x] | `internal/repository/sso_identity.go` | 2 | 2 | 2 | 0 |
+| 1416 | [x] | `internal/repository/support_metrics.go` | 5 | 5 | 5 | 0 |
+| 1417 | [x] | `internal/repository/system_config.go` | 5 | 16 | 5 | 0 |
 | 1418 | [x] | `internal/repository/system_config_kv.go` | 9 | 30 | 9 | 0 |
-| 1419 | [ ] | `internal/repository/system_stats.go` | 3 | 10 | 3 | 0 |
-| 1420 | [ ] | `internal/repository/system_user.go` | 16 | 36 | 16 | 0 |
-| 1421 | [ ] | `internal/repository/telegram_gate.go` | 13 | 60 | 13 | 0 |
-| 1422 | [ ] | `internal/repository/telegram_polling_lock.go` | 14 | 42 | 14 | 0 |
-| 1423 | [ ] | `internal/repository/tenant.go` | 14 | 26 | 14 | 0 |
+| 1419 | [x] | `internal/repository/system_stats.go` | 3 | 10 | 3 | 0 |
+| 1420 | [x] | `internal/repository/system_user.go` | 16 | 36 | 16 | 0 |
+| 1421 | [x] | `internal/repository/telegram_gate.go` | 13 | 60 | 13 | 0 |
+| 1422 | [x] | `internal/repository/telegram_polling_lock.go` | 14 | 42 | 14 | 0 |
+| 1423 | [x] | `internal/repository/tenant.go` | 14 | 26 | 14 | 0 |
 | 1424 | [x] | `internal/repository/tenant_module.go` | 14 | 47 | 14 | 0 |
 | 1425 | [x] | `internal/repository/tenant_subscription_mirror.go` | 6 | 10 | 6 | 0 |
-| 1426 | [ ] | `internal/repository/tiktok_card.go` | 2 | 2 | 2 | 0 |
-| 1427 | [ ] | `internal/repository/tool_audit_repo.go` | 10 | 26 | 10 | 0 |
-| 1428 | [ ] | `internal/repository/trace_learning_repo.go` | 8 | 8 | 8 | 0 |
-| 1429 | [ ] | `internal/repository/unified_message.go` | 8 | 8 | 8 | 0 |
-| 1430 | [ ] | `internal/repository/upgrade.go` | 16 | 16 | 16 | 0 |
+| 1426 | [x] | `internal/repository/tiktok_card.go` | 2 | 2 | 2 | 0 |
+| 1427 | [x] | `internal/repository/tool_audit_repo.go` | 10 | 26 | 10 | 0 |
+| 1428 | [x] | `internal/repository/trace_learning_repo.go` | 8 | 8 | 8 | 0 |
+| 1429 | [x] | `internal/repository/unified_message.go` | 8 | 8 | 8 | 0 |
+| 1430 | [x] | `internal/repository/upgrade.go` | 16 | 16 | 16 | 0 |
 | 1431 | [x] | `internal/repository/user.go` | 0 | 0 | 0 | 0 |
-| 1432 | [ ] | `internal/repository/user_blacklist.go` | 7 | 7 | 7 | 0 |
-| 1433 | [ ] | `internal/repository/user_mfa.go` | 3 | 5 | 3 | 0 |
-| 1434 | [ ] | `internal/repository/user_tag.go` | 3 | 3 | 3 | 0 |
-| 1435 | [ ] | `internal/repository/wechat_account_repo.go` | 10 | 10 | 10 | 0 |
-| 1436 | [ ] | `internal/repository/wecom.go` | 53 | 63 | 53 | 0 |
+| 1432 | [x] | `internal/repository/user_blacklist.go` | 7 | 7 | 7 | 0 |
+| 1433 | [x] | `internal/repository/user_mfa.go` | 3 | 5 | 3 | 0 |
+| 1434 | [x] | `internal/repository/user_tag.go` | 3 | 3 | 3 | 0 |
+| 1435 | [x] | `internal/repository/wechat_account_repo.go` | 10 | 10 | 10 | 0 |
+| 1436 | [x] | `internal/repository/wecom.go` | 53 | 63 | 53 | 0 |
 | 1437 | [x] | `internal/repository/wecom_account_health_quota.go` | 1 | 13 | 1 | 0 |
 | 1438 | [x] | `internal/repository/whatsapp.go` | 0 | 0 | 0 | 0 |
-| 1439 | [ ] | `internal/repository/whatsapp_template.go` | 9 | 9 | 9 | 0 |
-| 1440 | [ ] | `internal/repository/workflow_orchestrator.go` | 26 | 26 | 26 | 0 |
-| 1441 | [ ] | `internal/repository/xianyu_card.go` | 2 | 2 | 2 | 0 |
-| 1442 | [ ] | `internal/repository/xianyu_card_stats.go` | 8 | 9 | 8 | 0 |
-| 1443 | [ ] | `internal/repository/xiaohongshu_card.go` | 2 | 2 | 2 | 0 |
-| 1444 | [ ] | `internal/repository/xiaohongshu_card_stats.go` | 5 | 19 | 5 | 0 |
+| 1439 | [x] | `internal/repository/whatsapp_template.go` | 9 | 9 | 9 | 0 |
+| 1440 | [x] | `internal/repository/workflow_orchestrator.go` | 26 | 26 | 26 | 0 |
+| 1441 | [x] | `internal/repository/xianyu_card.go` | 2 | 2 | 2 | 0 |
+| 1442 | [x] | `internal/repository/xianyu_card_stats.go` | 8 | 9 | 8 | 0 |
+| 1443 | [x] | `internal/repository/xiaohongshu_card.go` | 2 | 2 | 2 | 0 |
+| 1444 | [x] | `internal/repository/xiaohongshu_card_stats.go` | 5 | 19 | 5 | 0 |
 | 1445 | [ ] | `internal/router/admin_routes.go` | 5 | 18 | 5 | 0 |
 | 1446 | [x] | `internal/router/approval_routes.go` | 2 | 10 | 2 | 0 |
 | 1447 | [x] | `internal/router/asset_bundle_routes.go` | 0 | 0 | 0 | 0 |

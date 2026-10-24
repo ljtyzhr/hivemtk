@@ -16,8 +16,7 @@ import (
 //
 // 下限：GORM 的 `Limit(0)` 等于**不加 limit**，一次误传 0 就把整张
 // telegram_group_members 读进内存；上限：这些循环每轮都要对每个成员发起
-// Telegram API 往返，抓太多会让单轮远超轮询周期（`ListExpired` 之后还要
-// 逐个 kick，线上实测单成员数秒）。
+// Telegram API 往返，抓太多会让单轮远超轮询周期。
 func clampTGSweepLimit(limit int) int {
 	if limit < 1 {
 		return 100
@@ -49,10 +48,9 @@ func (r *TelegramGroupGateRepository) Create(ctx context.Context, gate *model.Te
 
 // Update 整行回写一条群管控配置。
 //
-// 走 db.SaveWholeRow：裸 Save 命中 0 行会回退成 `INSERT ... ON CONFLICT (id)
-// DO UPDATE`，把一条"管理端读出来之后、保存之前被删掉的"网关配置按原 id 插回去。
-// 这张表的行决定"这个群要不要禁言/要不要验证"，凭空多出一条 enabled=true 的行
-// 意味着下一个进群的人被挡在门外，而没有任何人配置过它。
+// 走 db.SaveWholeRow：裸 Save 命中 0 行会回退成 INSERT，把已删除的网关配置
+// 按原 id 复活。这张表的行决定「这个群要不要禁言/要不要验证」，
+// 凭空多出一条 enabled=true 的行意味着下一个进群的人被挡在门外。
 func (r *TelegramGroupGateRepository) Update(ctx context.Context, gate *model.TelegramGroupGate) error {
 	if r == nil || r.db == nil {
 		return errors.New("telegram gate repository not initialized")
@@ -143,9 +141,8 @@ func (r *TelegramGroupMemberRepository) Upsert(ctx context.Context, m *model.Tel
 
 // Update 整行回写成员台账（`/start <token>` 激活路径）。
 //
-// 走 db.SaveWholeRow：裸 Save 命中 0 行会回退成 INSERT —— 一条被清扫（kicked）
-// 甚至被删掉的成员行按原 id 复活，`authorized=true` 随之回来，而群里那个人
-// 其实早就被踢了。
+// 走 db.SaveWholeRow：裸 Save 命中 0 行会回退成 INSERT —— 被清扫（kicked）
+// 甚至删掉的成员行按原 id 复活，authorized=true 随之回来，而群里那个人其实早被踢了。
 func (r *TelegramGroupMemberRepository) Update(ctx context.Context, m *model.TelegramGroupMember) error {
 	if r == nil || r.db == nil {
 		return errors.New("telegram member repository not initialized")
@@ -245,29 +242,22 @@ func (r *TelegramGroupMemberRepository) ListExpired(ctx context.Context, now tim
 
 // ListStalledRestricted 找出需要补偿循环补发入群提示的成员：
 // 禁言中、未验证、welcome_sent_at 为空（提示从未送达）、验证窗口还没到期，
-// 并且这一行当前没有正被入群请求内路径处理（idleBefore 之前就没再被写过，
-// 或者已经留下一次失败尝试的痕迹）。
+// 并且这一行当前没有正被入群请求内路径处理（idleBefore 之前没再被写过，
+// 或已留下一次失败尝试的痕迹）。
 //
-// 三组条件各拦一种线上故障：
-//   - welcome_sent_at IS NULL 是必要条件。已送达提示的人该由 SweepExpired 按到期口径
-//     处置，把他捞进来就会一遍遍给他续期，TTL 形同虚设——"同一名成员一天被重播 60+ 次
-//     入群提示"就是这么来的（旧版用"临近到期"当提示没送达的代理，两个信号根本无关）。
-//   - expires_at 还没到期（没有窗口视为待补，人工/迁移留下的行不该被静默漏掉）。窗口一旦
-//     走完就交给 SweepExpired：他按"从未送达不处置"放过，补偿循环不再空转。
-//   - 这一行不在请求内路径手里。HandleNewMembers 从写台账到收尾（登记送达或计一次失败）
-//     之间要夹两次 TG 往返（实测 8–10 秒，受渠道层超时约束上界到分钟级），这段时间里这一行
-//     恰好也满足"从未送达 + 窗口开着"，补偿循环跳进去就是给同一个人第二次禁言 + 第二次
-//     播报（线上实测同一次入群收到三条提示）。归属信号是 updated_at：写台账（Upsert 覆盖列）
-//     与每一次尝试的收尾（失败计数、认领、送达登记）都会把它顶到现在，所以
-//     "updated_at 早于 idleBefore"＝这一行已经没人管了，可以补。
-//     welcome_resends > 0 单独放行：计数 +1 是请求内路径在这一行上的最后一笔写入，
-//     看见它就等于看见"这次尝试已经失败并交棒了"，补偿该立刻接手——否则安静窗口比
-//     verify_ttl_min 还长的那些群会整批丢掉补偿能力。
-//     这条是**延迟**判据而不是"年轻就永久跳过"：只要一直没人登记送达，跨过窗口就补；
-//     updated_at 为 NULL（手工/迁移写入的行）一律视为早已安静，照补。
+// 三组条件各拦一种故障：
+//   - welcome_sent_at IS NULL：已送达的人该由 SweepExpired 按到期口径处置，
+//     捞进来就会一遍遍给他续期，TTL 形同虚设。
+//   - expires_at 还没到期（没有窗口视为待补）：窗口走完就交给 SweepExpired，
+//     补偿循环不再空转。
+//   - 这一行不在请求内路径手里：HandleNewMembers 从写台账到收尾之间要夹两次
+//     TG 往返，期间这一行也满足「从未送达 + 窗口开着」，补偿跳进去就是给同一人
+//     第二次禁言 + 第二次播报。归属信号是 updated_at：早于 idleBefore ＝没人管了。
+//     welcome_resends > 0 单独放行：那笔 +1 是请求内路径的最后一笔写入，等于
+//     「这次尝试已失败并交棒」，补偿该立刻接手。updated_at 为 NULL 视为早已安静，照补。
 //
-// 安静窗口取多长由调用方算成 idleBefore 传进来。补发次数的上限不在这一条 SQL 上执行：
-// 它在 ClaimStalledResend 的认领谓词里（读到写之间的竞态只有落库那一侧拦得住），
+// 安静窗口由调用方算成 idleBefore 传进来。补发次数上限不在这一条 SQL 上执行：
+// 它在 ClaimStalledResend 的认领谓词里（读写到之间的竞态只有落库那一侧拦得住），
 // service 侧的预检只是省一次注定失败的认领。
 func (r *TelegramGroupMemberRepository) ListStalledRestricted(ctx context.Context, now, idleBefore time.Time, limit int) ([]*model.TelegramGroupMember, error) {
 	var members []*model.TelegramGroupMember
@@ -296,7 +286,7 @@ func (r *TelegramGroupMemberRepository) ListByChat(ctx context.Context, accountI
 	if offset < 0 {
 		offset = 0
 	}
-	// Count 与 Find 各起一条 query（判例 #133 / #150）。
+	// Count 与 Find 必须各起一条 query（见 base()），不能在同一条链上先 Count 再 Find。
 	base := func() *gorm.DB {
 		q := r.db.WithContext(ctx).Model(&model.TelegramGroupMember{}).
 			Where("account_id = ? AND chat_id = ?", accountID, chatID)

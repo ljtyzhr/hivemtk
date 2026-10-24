@@ -10,21 +10,17 @@ import (
 )
 
 // SOPExecEventRepository SOP 执行事件仓储
-//
-// 负责 sop_exec_events 表的读写，服务于 SOPExecutionDispatcher（写事件）
-// 与 SOPStuckDetector（查询最近事件以判断是否卡死）。
 type SOPExecEventRepository struct {
 	db *gorm.DB
 }
 
-// NewSOPExecEventRepository 创建 SOP 执行事件仓储
 func NewSOPExecEventRepository(db *gorm.DB) *SOPExecEventRepository {
 	return &SOPExecEventRepository{db: db}
 }
 
 // Create 创建 SOP 执行事件
 //
-// 事件日志的幂等性由唯一约束 (execution_id, node_id, attempt) 保证，
+// 幂等性由唯一约束 (execution_id, node_id, attempt) 保证，
 // 调用方应对重复写入错误降级处理（仅记录日志，不影响主流程）。
 func (r *SOPExecEventRepository) Create(ctx context.Context, event *model.SOPExecEvent) error {
 	if r == nil || r.db == nil {

@@ -45,17 +45,14 @@ type smsDeliveryRepo struct {
 	db *gorm.DB
 }
 
-// NewSmsDeliveryRepository 创建短信到达率追踪仓库
 func NewSmsDeliveryRepository(db *gorm.DB) SmsDeliveryRepository {
 	return &smsDeliveryRepo{db: db}
 }
 
 // errSmsDeliveryUnavailable 仓储句柄缺失。
 //
-// 与读口「没数据就返回空」不同：写口在句柄缺失时必须报错。`CreatePortability`
-// 原先返回 nil —— 调用方（`service/sms_delivery_tracker.go` 的到达率流水）把 nil
-// 读成「已记录」，于是携号转网这条流水凭据被静默丢掉，等要按「携号转网失败率」
-// 出报表时才发现那张表一直是空的，而日志里只有一行「已记录」。
+// 与读口「没数据就返回空」不同：写口在句柄缺失时必须报错，否则调用方会把
+// 写失败读成「已记录」，携号转网流水凭据被静默丢掉。
 var errSmsDeliveryUnavailable = fmt.Errorf("sms delivery repository not initialized")
 
 func (r *smsDeliveryRepo) CreatePortability(ctx context.Context, rec *model.SmsNumberPortabilityRecord) error {
@@ -106,8 +103,7 @@ func (r *smsDeliveryRepo) ListPortability(ctx context.Context, phone string, pag
 		limit = 200
 	}
 
-	// Count 与 Find 各起一条 query：同一条链上先 Count 再 Find 是就地改 Statement
-	// 的写法，现在能跑靠的是 GORM 内部子句还原（判例 #133 / #150）。
+	// Count 与 Find 必须各起一条 query（见 base()），不能在同一条链上先 Count 再 Find。
 	base := func() *gorm.DB {
 		q := r.db.WithContext(ctx).Model(&model.SmsNumberPortabilityRecord{})
 		if phone != "" {

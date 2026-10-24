@@ -24,9 +24,8 @@ func NewWorkflowVersionRepository(db *gorm.DB) *WorkflowVersionRepository {
 
 // Save 保存工作流版本（存在则更新，不存在则创建）。
 //
-// 双语义：w.ID == 0 走 Create（新建草稿），否则走 db.SaveWholeRow ——
-// 裸 Save 命中 0 行会回退成 `INSERT ... ON CONFLICT (id) DO UPDATE`
-// （gorm@v1.31.2），把「发布页读出后、保存前被删掉」的版本按原 id 插回。
+// 双语义：w.ID == 0 走 Create（新建草稿），否则走 db.SaveWholeRow——
+// 裸 Save 命中 0 行会回退成 INSERT，把「发布页读出后、保存前被删掉」的版本按原 id 插回。
 func (r *WorkflowVersionRepository) Save(ctx context.Context, w *model.WorkflowVersion) error {
 	if r == nil || r.db == nil {
 		return errors.New("workflow version repository not initialized")

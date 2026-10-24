@@ -26,7 +26,7 @@ type xiaohongshuCardRepository struct {
 	db *gorm.DB
 }
 
-// NewXiaohongshuCardRepository 创建小红书卡片仓储实例
+// NewXiaohongshuCardRepository 创建小红书卡片仓储
 func NewXiaohongshuCardRepository(db *gorm.DB) XiaohongshuCardRepository {
 	return &xiaohongshuCardRepository{
 		db: db,
@@ -66,9 +66,8 @@ func (r *xiaohongshuCardRepository) GetList(ctx context.Context, req CardListFil
 	var cards []model.XiaohongshuCard
 	var total int64
 
-	// 分页夹取（同 xianyu_card 口径）；且分页子句必须只挂在 Find 链上 ——
-	// 原实现把 Offset/Limit 挂上后再 Count，total 是本页行数不是全表数，
-	// 前端分页器在第二页起就全错。
+	// 分页夹取（同 xianyu_card 口径）；分页子句必须只挂在 Find 链上——
+	// 先挂 Offset/Limit 再 Count，total 会是本页行数而不是全表数。
 	page, pageSize := req.Page, req.PageSize
 	if page < 1 {
 		page = 1

@@ -45,13 +45,11 @@ func (r *UserBlacklistRepository) Add(ctx context.Context, b *model.UserBlacklis
 		existing.SessionID = b.SessionID
 		existing.ExpiresAt = b.ExpiresAt
 		existing.UpdatedAt = time.Now()
-		// 走 db.SaveWholeRow：裸 Save 命中 0 行会回退成 `INSERT ... ON CONFLICT
-		// (id) DO UPDATE`（gorm@v1.31.2）。
+		// 走 db.SaveWholeRow：裸 Save 命中 0 行会回退成 INSERT。
 		//
 		// 已知竞态（记录不修）：read-then-First 窗口里并发 Add 同一 (user_id,
 		// platform) 会有一方 Create 撞唯一约束（若建了索引）或双写两行；
-		// user_blacklist 无 (user_id, platform) 唯一索引（P2 观察），接线幂等
-		// 语义时应改 upsert 一条语句。
+		// user_blacklist 无 (user_id, platform) 唯一索引，接线幂等语义时应改 upsert。
 		return _db.SaveWholeRow(r.db.WithContext(ctx), &existing)
 	}
 	return r.db.WithContext(ctx).Create(b).Error
@@ -97,8 +95,7 @@ func (r *UserBlacklistRepository) ListActive(ctx context.Context, page, pageSize
 		rows  []*model.UserBlacklist
 		total int64
 	)
-	// Count 与 Find 各起一条 query：同一条链上先 Count 再 Find 会就地改
-	// Statement（判例 #133 / #150）。
+	// Count 与 Find 必须各起一条 query（见 base()），不能在同一条链上先 Count 再 Find。
 	base := func() *gorm.DB {
 		return r.db.WithContext(ctx).Model(&model.UserBlacklist{}).Where("active = ?", true)
 	}

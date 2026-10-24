@@ -129,7 +129,7 @@ func (r *smsTrackingRepo) ListStatusesByJob(ctx context.Context, jobID string, p
 	}
 	page, limit = clampSmsStatusPaging(page, limit)
 
-	// Count 与 Find 各起一条 query（判例 #133 / #150）。
+	// Count 与 Find 必须各起一条 query（见 base()），不能在同一条链上先 Count 再 Find。
 	base := func() *gorm.DB {
 		return r.db.WithContext(ctx).Model(&model.SmsDeliveryStatus{}).Where("job_id = ?", jobID)
 	}

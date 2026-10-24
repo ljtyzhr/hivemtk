@@ -47,8 +47,7 @@ type SystemUserRepository interface {
 	CountEnabledAdmins(ctx context.Context) (int64, error)
 	UpdatePassword(ctx context.Context, id uint, hashedPassword string) error
 
-	// 租户身份解析（specs/001-saas-multi-tenant T031）：登录时租户未知，
-	// 四组方法均显式 SystemScope，结果自带 tenant_id
+	// 租户身份解析：登录时租户未知，四组方法均显式 SystemScope，结果自带 tenant_id
 	ResolveByEmailGlobal(ctx context.Context, email string) (*model.SystemUser, error)
 	FindByUsernameAnyTenant(ctx context.Context, username string, limit int) ([]*model.SystemUser, error)
 	// FindByUsernameInTenant 按租户内用户名解析登录身份（tenant_code 定向登录通道）
@@ -71,11 +70,8 @@ func (r *systemUserRepo) Create(ctx context.Context, u *model.SystemUser) error 
 
 // Update 整行回写一个系统用户。
 //
-// 走 db.SaveWholeRow：裸 Save 在 UPDATE 命中 0 行后会回退成
-// `INSERT ... ON CONFLICT (id) DO UPDATE`（gorm@v1.31.2），于是「改一个已经被
-// 删掉的账号」不是失败，而是把那条账号（连同它的 bcrypt 口令串与角色）按原
-// 主键插回来 —— 一个已经被撤销的登录身份复活，且它以 sudo 权限登录时没有任何
-// 地方会报错。
+// 走 db.SaveWholeRow：裸 Save 命中 0 行会回退成 INSERT，把已被删除的账号
+// （连同口令串与角色）按原主键复活——一个已撤销的登录身份复活且无任何报错。
 func (r *systemUserRepo) Update(ctx context.Context, u *model.SystemUser) error {
 	if r == nil || r.db == nil {
 		return errors.New("system user repository not initialized")
@@ -86,11 +82,8 @@ func (r *systemUserRepo) Update(ctx context.Context, u *model.SystemUser) error 
 	return db.SaveWholeRow(r.db.WithContext(ctx), u)
 }
 
-// Delete 删除一个系统用户。0 行 ⇒ ErrRecordNotFound。
-//
-// 调用方（`SystemUserService.DeleteUser`）会先 GetByID 再删，但那两步之间隔着
-// 一个请求窗口；"删一条已经被别人删掉的用户"不该回成功，否则管理端的
-// "已删除"提示是在说谎。
+// Delete 删除一个系统用户。0 行 ⇒ ErrRecordNotFound：
+// 「删一条已被别人删掉的用户」不该回成功，否则管理端提示在说谎。
 func (r *systemUserRepo) Delete(ctx context.Context, id uint) error {
 	if r == nil || r.db == nil {
 		return errors.New("system user repository not initialized")
@@ -175,8 +168,7 @@ func (r *systemUserRepo) SearchUsers(ctx context.Context, keyword string, offset
 		limit = 200
 	}
 
-	// Count 与 Find 各起一条 query：同一条链上先 Count 再 Find 会就地改 Statement
-	// （判例 #133 / #150）。
+	// Count 与 Find 必须各起一条 query（见 base()），不能在同一条链上先 Count 再 Find。
 	base := func() *gorm.DB {
 		q := r.db.WithContext(ctx).Model(&model.SystemUser{})
 		if keyword != "" {
@@ -223,11 +215,9 @@ func (r *systemUserRepo) EmailExists(ctx context.Context, email string, excludeI
 
 // GetFirstAdminUsername 取系统中第一个超管用户名（按创建时间升序）
 //
-// 仅服务于 install 状态探针（install.SetAdminProbe → probeDBAdmin 以
-// context.Background() 周期探测）：探测是平台级安装态判断，不属于任何租户，
-// TENANT_MODE=on 时无租户 ctx 的查询会被隔离 callback fail-closed（生产日志
-// 实证："查询首个超管失败"）。与 ResolveByEmailGlobal/FindByUsernameAnyTenant
-// 同口径显式挂 SystemScope（登录/安装态解析皆为「租户由查询结果携带」场景）。
+// 仅服务于 install 状态探针（平台级安装态判断，不属于任何租户）：
+// TENANT_MODE=on 时无租户 ctx 的查询会被隔离 callback fail-closed，
+// 故与 ResolveByEmailGlobal/FindByUsernameAnyTenant 同口径显式挂 SystemScope。
 func (r *systemUserRepo) GetFirstAdminUsername(ctx context.Context) (string, error) {
 	var u model.SystemUser
 	if err := r.db.WithContext(tenant.WithSystemScope(ctx)).Where("role = ?", "admin").Order("id ASC").First(&u).Error; err != nil {
@@ -260,7 +250,7 @@ func (r *systemUserRepo) ListByRole(ctx context.Context, role string, page, size
 	if size > 200 {
 		size = 200
 	}
-	// Count 与 Find 各起一条 query（判例 #133 / #150）。
+	// Count 与 Find 必须各起一条 query（见 base()），不能在同一条链上先 Count 再 Find。
 	base := func() *gorm.DB {
 		return r.db.WithContext(ctx).Model(&model.SystemUser{}).Where("role = ?", role)
 	}
@@ -336,8 +326,7 @@ func (r *systemUserRepo) SetEnabled(ctx context.Context, id uint, enabled bool) 
 	res := r.db.WithContext(ctx).Model(&model.SystemUser{}).
 		Where("id = ?", id).
 		Update("enabled", enabled)
-	// 0 行 ⇒ ErrRecordNotFound（沿用本方法既有的对外契约），但判据不再手写：
-	// 与其余仓储共用 db.EnsureAffected 一处口径。
+	// 0 行 ⇒ ErrRecordNotFound（本方法既有对外契约），判据统一走 db.EnsureAffected。
 	if err := db.EnsureAffected(res); err != nil {
 		return fmt.Errorf("update enabled: %w", err)
 	}
@@ -366,7 +355,7 @@ func (r *systemUserRepo) UpdatePassword(ctx context.Context, id uint, hashedPass
 	return nil
 }
 
-// ── 租户身份解析（specs/001-saas-multi-tenant T031 登录通道）────────────────
+// ── 租户身份解析（登录通道）────────────────
 //
 // 登录发生在「尚未解析出租户」的时刻，因此这四组方法一律显式挂 SystemScope
 // 绕过隔离注入：租户由查询结果自身携带，而不是由 ctx 假定。

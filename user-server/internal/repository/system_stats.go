@@ -1,12 +1,9 @@
-// Package repository 提供系统监控统计的数据库访问层。
-//
-// 本文件封装 system_monitor service 中所需的全部统计查询。
-// 严格遵循五层架构:Service 层不直接调用 db.GetDB(),必须通过 Repository。
+// Package repository 提供系统监控统计的数据库访问层（system_monitor service 用）。
+// Service 层不直接调用 db.GetDB()，必须通过 Repository。
 //
 // 注意:
-//   - 每个读口都显式 WithContext:on 模式下租户绑定就在 ctx 里,丢了 ctx 的
-//     那条 query 会被隔离 callback fail-closed 拒掉(旧注释说"ctx 暂未透传",
-//     那句话早就与代码不符了)
+//   - 每个读口都显式 WithContext:on 模式下租户绑定在 ctx 里,丢 ctx 的
+//     query 会被隔离 callback fail-closed 拒掉
 //   - 不在 Repository 层做业务判断(仅按表聚合)
 package repository
 
@@ -39,18 +36,15 @@ type systemStatsRepo struct {
 	db *gorm.DB
 }
 
-// NewSystemStatsRepository 创建系统统计仓库实例
+// NewSystemStatsRepository 创建系统统计仓库
 func NewSystemStatsRepository() SystemStatsRepository {
 	return &systemStatsRepo{db: _db.GetDB()}
 }
 
 // ErrStatsStoreUnavailable 仓储句柄缺失（装配错，不是「没数据」）。
 //
-// 本仓储没有 WithDB 变体，句柄来自构造那一刻的 db.GetDB()：装配顺序不对时
-// 拿到的是 nil，而 WithContext 在 nil *gorm.DB 上直接空指针崩 —— 崩在监控页
-// 等于整个后台 500。这里的每个数字本来就只是"尽力而为"的展示值（调用侧
-// service/system_monitor.go 一律 `_` 丢弃错误、缺值渲染成 0），所以句柄缺失
-// 应当是「这一页的某个数字是 0」，不是「这一页打不开」。
+// 本仓储没有 WithDB 变体，句柄来自构造那一刻的 db.GetDB()。调用侧一律丢弃
+// 错误、缺值渲染成 0，所以句柄缺失应当是「这一页的某个数字是 0」，而不是崩溃。
 var ErrStatsStoreUnavailable = errors.New("system_stats: 未装配数据库句柄")
 
 // ready 取本次查询要用的句柄。
@@ -111,10 +105,9 @@ func (r *systemStatsRepo) CountOrders(ctx context.Context) (int64, error) {
 
 // CountCards 汇总四个平台的卡片总数。
 //
-// 单表失败只跳过、不整体报错：四张卡片表是按平台逐个上线的，离线部署里
-// 真有可能缺某一张（`relation does not exist`），而「系统监控概览页整页 500」
-// 比「少算一个平台的卡片数」糟糕得多。缺表这件事按租户维度看是噪声，
-// 所以这里不写日志——每天都在刷的日志只会被忽略。
+// 单表失败只跳过、不整体报错：离线部署里可能缺某张卡片表
+// （relation does not exist），整页 500 比少算一个平台的数更糟。
+// 缺表按租户维度看是噪声，故不写日志。
 func (r *systemStatsRepo) CountCards(ctx context.Context) (int64, error) {
 	q, err := r.ready()
 	if err != nil {

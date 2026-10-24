@@ -17,7 +17,7 @@ type WeComAccountRepository struct {
 	db *gorm.DB
 }
 
-// NewWeComAccountRepository 创建企业微信账号仓库实例
+// NewWeComAccountRepository 创建企业微信账号仓库
 func NewWeComAccountRepository() *WeComAccountRepository {
 	return &WeComAccountRepository{
 		db: _db.GetDB(),
@@ -51,10 +51,9 @@ func (r *WeComAccountRepository) GetByMerchant(ctx context.Context) ([]*model.We
 
 // Update 整行回写账号。
 //
-// 走 db.SaveWholeRow：裸 Save 命中 0 行会回退成 `INSERT ... ON CONFLICT (id)
-// DO UPDATE`（gorm@v1.31.2）。唯一调用方 UpdateAccount 是 Get 后改字段再回写，
-// 若账号在窗口期被删，裸 Save 会把它按原 id 插回 —— 而其回调配置（CallbackToken/
-// EncodingAESKey）可能已被新账号占用。
+// 走 db.SaveWholeRow：裸 Save 命中 0 行会回退成 INSERT。唯一调用方 UpdateAccount
+// 是 Get 后改字段再回写，若账号在窗口期被删，裸 Save 会把它按原 id 插回——
+// 而其回调配置（CallbackToken/EncodingAESKey）可能已被新账号占用。
 func (r *WeComAccountRepository) Update(ctx context.Context, account *model.WeComAccount) error {
 	if account == nil || account.ID == 0 {
 		return errors.New("wecom account: 缺主键，不能整行回写")
@@ -89,7 +88,7 @@ type WeComCustomerRepository struct {
 	db *gorm.DB
 }
 
-// NewWeComCustomerRepository 创建企业微信客户仓库实例
+// NewWeComCustomerRepository 创建企业微信客户仓库
 func NewWeComCustomerRepository() *WeComCustomerRepository {
 	return &WeComCustomerRepository{
 		db: _db.GetDB(),
@@ -116,8 +115,8 @@ func (r *WeComCustomerRepository) GetByExternalUserID(ctx context.Context, exter
 }
 
 func (r *WeComCustomerRepository) GetByMerchant(ctx context.Context, page, pageSize int) ([]*model.WeComCustomer, int64, error) {
-	// 分页夹取：`pageSize = 0` ⇒ GORM 的 Limit(0) 等于**不加 limit**，
-	// `page = 0` ⇒ offset 为负 ⇒ PG 报 "OFFSET must not be negative"。
+	// 分页夹取：pageSize = 0 ⇒ GORM 的 Limit(0) 等于**不加 limit**，
+	// page = 0 ⇒ offset 为负 ⇒ PG 报 "OFFSET must not be negative"。
 	if page < 1 {
 		page = 1
 	}
@@ -158,7 +157,7 @@ type WeComGroupRepository struct {
 	db *gorm.DB
 }
 
-// NewWeComGroupRepository 创建企业微信客户群仓库实例
+// NewWeComGroupRepository 创建企业微信客户群仓库
 func NewWeComGroupRepository() *WeComGroupRepository {
 	return &WeComGroupRepository{
 		db: _db.GetDB(),
@@ -218,7 +217,7 @@ type WeComMessageRepository struct {
 	db *gorm.DB
 }
 
-// NewWeComMessageRepository 创建企业微信消息仓库实例
+// NewWeComMessageRepository 创建企业微信消息仓库
 func NewWeComMessageRepository() *WeComMessageRepository {
 	return &WeComMessageRepository{
 		db: _db.GetDB(),
@@ -332,7 +331,7 @@ type WeComAccountHealthRepository struct {
 	db *gorm.DB
 }
 
-// NewWeComAccountHealthRepository 创建企业微信账号健康度仓库实例（绑定全局 DB，仅兼容存量调用）
+// NewWeComAccountHealthRepository 创建企业微信账号健康度仓库（绑定全局 DB）
 func NewWeComAccountHealthRepository() *WeComAccountHealthRepository {
 	return &WeComAccountHealthRepository{
 		db: _db.GetDB(),
@@ -345,8 +344,6 @@ func NewWeComAccountHealthRepositoryWithDB(db *gorm.DB) *WeComAccountHealthRepos
 }
 
 // SetDB 注入 db（用于测试）
-//
-// 五层架构 §三.5 + §七：仓库方法必须首参为 ctx context.Context。
 func (r *WeComAccountHealthRepository) SetDB(ctx context.Context, db *gorm.DB) {
 	if db != nil {
 		r.db = db

@@ -11,9 +11,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// UserMFARepository 用户 MFA 仓储接口
-//
-// 五层架构合规:封装 user_mfa 表的 CRUD,避免 service 层直接调 db.GetDB()。
+// UserMFARepository 用户 MFA 仓储接口（封装 user_mfa 表 CRUD，service 层不直接摸 DB）。
 type UserMFARepository interface {
 	GetByUserID(ctx context.Context, userID uint) (*model.UserMFA, error)
 	Create(ctx context.Context, mfa *model.UserMFA) error
@@ -26,12 +24,12 @@ type userMFARepository struct {
 	db *gorm.DB
 }
 
-// NewUserMFARepository 创建 UserMFA 仓储实例
+// NewUserMFARepository 创建 UserMFA 仓储
 func NewUserMFARepository() UserMFARepository {
 	return &userMFARepository{db: _db.GetDB()}
 }
 
-// NewUserMFARepositoryWithDB 通过 *gorm.DB 创建 UserMFA 仓储实例(用于测试 / router 装配)
+// NewUserMFARepositoryWithDB 通过 *gorm.DB 创建 UserMFA 仓储（测试 / router 装配用）
 func NewUserMFARepositoryWithDB(gormDB *gorm.DB) UserMFARepository {
 	return &userMFARepository{db: gormDB}
 }
@@ -50,10 +48,9 @@ func (r *userMFARepository) Create(ctx context.Context, mfa *model.UserMFA) erro
 
 // Save 整行回写 MFA 配置。
 //
-// 走 db.SaveWholeRow：裸 Save 命中 0 行会回退成 `INSERT ... ON CONFLICT (id)
-// DO UPDATE`（gorm@v1.31.2）。调用方（mfa.go 的绑定/校验流程）都是 GetByUserID
-// 后改字段再 Save，若行在窗口期被删，裸 Save 会把「已解绑用户」的 MFA 配置按
-// 原 id 插回来。
+// 走 db.SaveWholeRow：裸 Save 命中 0 行会回退成 INSERT。调用方都是
+// GetByUserID 后改字段再 Save，若行在窗口期被删，裸 Save 会把
+// 「已解绑用户」的 MFA 配置按原 id 插回来。
 func (r *userMFARepository) Save(ctx context.Context, mfa *model.UserMFA) error {
 	if mfa == nil || mfa.ID == 0 {
 		return errors.New("user_mfa: 缺主键，不能整行回写")
@@ -75,8 +72,8 @@ func (r *userMFARepository) UpdateBackupCodes(ctx context.Context, userID uint, 
 }
 
 func (r *userMFARepository) UpdateLastUsed(ctx context.Context, userID uint, code string, now interface{}) error {
-	// 0 行 ⇒ ErrRecordNotFound：调用方刚 GetByUserID 读到行才走到这里，
-	// 行在窗口期消失说明 MFA 已被并发解绑，审计层面不该静默吞掉。
+	// 0 行 ⇒ ErrRecordNotFound：行在窗口期消失说明 MFA 已被并发解绑，
+	// 审计层面不该静默吞掉。
 	return _db.EnsureAffected(r.db.WithContext(ctx).Model(&model.UserMFA{}).
 		Where("user_id = ?", userID).
 		Updates(map[string]interface{}{

@@ -59,13 +59,10 @@ func (r *xiaohongshuCardStatsRepository) CountCardViews(ctx context.Context, car
 
 // applyXiaohongshuStatsGroupBy 按 groupBy 选定分桶表达式，并把它**原样**同时放进 SELECT 和 GROUP BY。
 //
-// 必须是同一个字符串：PG 不做表达式等价推导，
-// `SELECT TO_CHAR(created_at,'YYYY-MM') … GROUP BY DATE_TRUNC('month', created_at)`
-// 直接 42803（column … must appear in the GROUP BY clause）。
-//
-// 原实现抄的是 MySQL 的 YEARWEEK()/DATE_FORMAT()，而本仓只跑 PostgreSQL
-// （pkg/db/db.go 用 postgres.Open）⇒「按周/按月统计」这两个已经暴露给前端的旋钮一直在报错。
-// DATE_TRUNC 作用于 timestamptz 时按会话时区（连接串钉 Asia/Shanghai）切桶，与 day 分支同口径。
+// 必须是同一个字符串：PG 不做表达式等价推导，SELECT 与 GROUP BY 表达式不一致
+// 会直接 42803。本仓只跑 PostgreSQL（不能用 MySQL 的 YEARWEEK()/DATE_FORMAT()）；
+// DATE_TRUNC 作用于 timestamptz 时按会话时区（连接串钉 Asia/Shanghai）切桶，
+// 与 day 分支同口径。
 func applyXiaohongshuStatsGroupBy(query *gorm.DB, groupBy string) *gorm.DB {
 	bucket := "DATE(created_at)"
 	switch groupBy {
@@ -80,12 +77,11 @@ func applyXiaohongshuStatsGroupBy(query *gorm.DB, groupBy string) *gorm.DB {
 }
 
 // 统计接口的日期边界一律用「半开区间」：
-//   - `created_at <= 'YYYY-MM-DD'` 会被 PG 解释成**当天 00:00**，结束日那天除了零点整
-//     全部静默丢失；而 controller 的默认结束日就是"今天"
-//     （controller/xiaohongshu_card_stats.go:40）⇒ 默认视图永远看不到当天数据。
-//   - 两个边界原先还要求"同时非空才生效"，只传 start_date 会被整段忽略。
-//   - 日期串由调用方按业务日生成（timeutil.BusinessDate），口径与 DATE(created_at) 的
-//     会话时区分桶一致。
+//   - `created_at <= 'YYYY-MM-DD'` 会被 PG 解释成**当天 00:00**，结束日那天除了
+//     零点整全部静默丢失；而 controller 的默认结束日就是「今天」，
+//     ⇒ 默认视图永远看不到当天数据。
+//   - 日期串由调用方按业务日生成（timeutil.BusinessDate），口径与 DATE(created_at)
+//     的会话时区分桶一致。
 func (r *xiaohongshuCardStatsRepository) GetCardDailyStats(ctx context.Context, cardID uint, startDate, endDate, groupBy string) ([]XiaohongshuCardStatsTempStat, error) {
 	query := r.db.WithContext(ctx).Model(&model.XiaohongshuCardActivity{}).Where("card_id = ?", cardID)
 	if startDate != "" {
