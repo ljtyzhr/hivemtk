@@ -207,14 +207,16 @@ func ExtractLinks(html, pageURL string, includePatterns []string) []string {
 
 // MatchInclude URL 是否命中 include 前缀白名单（空 = 全放行）
 func MatchInclude(rawURL string, patterns []string) bool {
-	if len(patterns) == 0 {
-		return true
-	}
+	nonEmpty := 0
 	for _, p := range patterns {
 		p = strings.TrimSpace(p)
-		if p != "" && strings.HasPrefix(rawURL, p) {
+		if p == "" {
+			continue
+		}
+		nonEmpty++
+		if strings.HasPrefix(rawURL, p) {
 			return true
 		}
 	}
-	return false
+	return nonEmpty == 0 // 无有效 pattern = 不过滤（include_patterns 为空时不该吞掉所有页面）
 }
