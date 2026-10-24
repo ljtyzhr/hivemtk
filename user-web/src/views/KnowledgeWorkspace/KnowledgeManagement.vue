@@ -661,7 +661,7 @@
 <script setup>
 import i18n from '@/i18n'
 
-import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
+import { ref, reactive, computed, onMounted, onUnmounted, watch } from 'vue'
 import { useRouter } from 'vue-router'
 import { ElMessage, ElMessageBox } from 'element-plus'
 import { Upload, Refresh, UploadFilled, Search, Document, ChatDotRound, Plus, List } from '@element-plus/icons-vue'
@@ -678,6 +678,11 @@ const router = useRouter()
 const loading = ref(false)
 const importing = ref(false)
 const showImportDialog = ref(false)
+// uploadRef 之前只在模板里写了 ref="uploadRef" 却没在 setup 里声明：
+// 于是没有任何句柄能清掉 el-upload 的内部文件列表——导入成功后重开弹窗，
+// 上一次的文件仍显示在列表里，而 importForm.file 已被 resetImportForm 置空，
+// 用户再点「开始导入」只会得到「请选择文件」。
+const uploadRef = ref(null)
 const showDetailDialog = ref(false)
 const importTab = ref('upload')
 
@@ -874,7 +879,14 @@ const resetImportForm = () => {
   importForm.content = ''
   importForm.url = ''
   importForm.file = null
+  // 同步清掉组件内部列表：只清 form 会让「看起来选着文件」与「实际没文件」并存。
+  uploadRef.value?.clearFiles?.()
 }
+
+// 每次打开导入弹窗都回到干净状态（上一次的文件/标题/分类不留）。
+watch(showImportDialog, (open) => {
+  if (open) resetImportForm()
+})
 
 const showDocumentDetail = async (row) => {
   currentDoc.value = row

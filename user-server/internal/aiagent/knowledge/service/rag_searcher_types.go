@@ -36,7 +36,7 @@ func chunksToRAGChunks(chunks []ragretrieval.Chunk) []RAGChunk {
 	result := make([]RAGChunk, 0, len(chunks))
 	for _, c := range chunks {
 		result = append(result, RAGChunk{
-			Content: truncateText(c.Content, ChunkContentPreview()),
+			Content: previewOrFull(c),
 			Source:  "hybrid",
 			Score:   c.Score,
 			DocID:   c.DocumentID,
@@ -66,7 +66,7 @@ func chunksToMerchantChunks(chunks []ragretrieval.Chunk) []MerchantRAGChunk {
 		result = append(result, MerchantRAGChunk{
 			ID:         id,
 			DocumentID: docID,
-			Content:    truncateText(c.Content, ChunkContentPreview()),
+			Content:    previewOrFull(c),
 			Score:      c.Score,
 			Metadata:   meta,
 			Weight:     c.Weight,
@@ -129,4 +129,16 @@ func chunkMatchesMetadata(meta map[string]any, filters map[string]string) bool {
 
 func truncateText(s string, max int) string {
 	return text.Truncate(s, max)
+}
+
+// previewOrFull 预览截断：**父块回拼过的命中原样返回**。
+//
+// 父子分段的意义就是「进 prompt 的上下文要覆盖整窗」，而这里按 chunk_preview_max_len(500)
+// 截断会把刚拼好的父块（可能 1500+ 字）重新砍回 500——回拼在接口层等于白做。
+// 未拼父块的命中保持原有预览口径，避免响应体无谓膨胀。
+func previewOrFull(c ragretrieval.Chunk) string {
+	if c.ParentChunkID != 0 {
+		return c.Content
+	}
+	return truncateText(c.Content, ChunkContentPreview())
 }

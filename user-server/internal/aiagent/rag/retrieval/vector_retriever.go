@@ -59,7 +59,7 @@ func (r *VectorRetriever) SearchVector(ctx context.Context, kbID string, queryVe
 			return err
 		}
 		q := tx.Table("knowledge_chunks").
-			Select("id, document_id, content, (1 - (embedding <=> ?::vector))::float8 AS score", vecLiteral).
+			Select("id, document_id, content, parent_chunk_id, (1 - (embedding <=> ?::vector))::float8 AS score", vecLiteral).
 			Where("embedding IS NOT NULL AND embedding_source = 'tei'")
 		if kbID != "" {
 			q = q.Where("product_id = ?"+kbrelease.AndVisible(), kbID)
@@ -108,7 +108,7 @@ func (r *VectorRetriever) Retrieve(ctx context.Context, productID string, query 
 			return err
 		}
 		q := tx.Table("knowledge_chunks").
-			Select("id, document_id, content, (1 - (embedding <=> ?::vector))::float8 AS score", vecLiteral).
+			Select("id, document_id, content, parent_chunk_id, (1 - (embedding <=> ?::vector))::float8 AS score", vecLiteral).
 			Where("embedding IS NOT NULL AND embedding_source = 'tei'")
 		if productID != "" {
 			q = q.Where("product_id = ?"+kbrelease.AndVisible(), productID)

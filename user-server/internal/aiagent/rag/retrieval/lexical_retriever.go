@@ -69,7 +69,7 @@ func (r *LexicalRetriever) tryTSQuery(ctx context.Context, productID string, que
 		return nil, fmt.Errorf("invalid text search config: %s", tsConfig)
 	}
 	q := r.db.WithContext(ctx).Table("knowledge_chunks").
-		Select(fmt.Sprintf("id, document_id, content, ts_rank(%s, plainto_tsquery('%s', ?))::float8 AS score", safeCol, safeConfig), query).
+		Select(fmt.Sprintf("id, document_id, content, parent_chunk_id, ts_rank(%s, plainto_tsquery('%s', ?))::float8 AS score", safeCol, safeConfig), query).
 		Where(fmt.Sprintf("%s @@ plainto_tsquery('%s', ?)", safeCol, safeConfig), query)
 	if productID != "" {
 		q = q.Where("product_id = ?"+kbrelease.AndVisible(), productID)
@@ -88,7 +88,7 @@ func (r *LexicalRetriever) ilikeFallback(ctx context.Context, productID string, 
 	escaped := strings.NewReplacer("%", "\\%", "_", "\\_").Replace(query)
 	pattern := "%" + escaped + "%"
 	q := r.db.WithContext(ctx).Table("knowledge_chunks").
-		Select("id, document_id, content, 1.0::float8 AS score").
+		Select("id, document_id, content, parent_chunk_id, 1.0::float8 AS score").
 		Where("content ILIKE ?", pattern)
 	if productID != "" {
 		q = q.Where("product_id = ?"+kbrelease.AndVisible(), productID)

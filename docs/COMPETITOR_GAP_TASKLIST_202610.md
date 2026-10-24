@@ -293,3 +293,44 @@
 - `qa_split` 开关只在 `/api/rag/import`（该口无前端页面），故 UI 层无法点；API 层已验证「开关生效 + 默认关」。
 - 检索耗时 ~20s（本地 rerank 重试），与本轮改动无关；UI 冒烟因此用了 `await` 等待而非固定 sleep。
 - `make audit` 在**主工作树**上现红于他泳道未跟踪文件 `user-server/internal/reach/card/token.go`（`check-hardcode-tunable`）；提交树复验见提交说明。
+
+### UI 点击矩阵（2026-10-24，CDP 真点击，端口 8302/8213，独立库）
+
+覆盖本会话所有**有 UI 面**的改动，逐项断"看得见的结果"：
+
+| 面 | 点击路径 | 结果 |
+|---|---|---|
+| 工具接入 · OpenAPI | 菜单进入 → 空态 | 表格「暂无数据」✔ |
+| | 全空点「导入」 | toast「请填写必填项」✔ |
+| | 填写+导入 | toast「已保存」+ 表格新行（工具数 2）+ 表单清空 ✔ |
+| | 同名重导 | toast「工具集 "ui-erp" 已存在，请先删除再导入」✔ |
+| | 内网 base_url | toast「base_url 指向环回/链路本地地址，拒绝导入」✔ |
+| | 删除→取消 | 行仍在（1 行）✔ |
+| | 删除→确定 | 行消失（0 行）+ toast「已删除」✔ |
+| 工具接入 · MCP | 切页签 → 空态 | 「暂无数据」✔ |
+| | 空表单保存 | 「请填写必填项」✔ |
+| | 建可达 server | 「已保存」+ 行 `live … 1 ok` ✔ |
+| | 建不可达 server | 「已保存」+ 行 `dead … 0 error <连接失败原因>` ✔ |
+| | 测试连通（可达/不可达） | 「连通正常 (1)」 / 502 错误 toast（含具体原因）✔ |
+| | 开关 关→开 | 行 tool_count 保持 1（修复前会掉 0）✔ |
+| | 删除 | 行消失 + 「已删除」✔ |
+| 菜单 i18n | 切 English | 菜单「Tool Integrations」、页签「OpenAPI Tool Sets / External MCP Servers」✔；切回中文 ✔ |
+| 模型管理 | 新增模型弹窗 | 「新增成功」+ 行出现；响应无明文 Key（`api_key_set=true`）✔ |
+| | 编辑质量分 | 「更新成功」✔ |
+| | 删除→取消/确定 | 取消行在；确定「删除成功」+ 行消失 ✔ |
+| 按日趋势 | 窗口 今日/7天/30天 | `window=today/week/month`，行数 1/7/8 ✔ |
+| | 维度 按日/按日+场景/按日+提供方 | `group_by=day/day_scenario/day_provider`，列随维度变 ✔ |
+| 知识库上传 | 伪 PDF | 行「失败 · 分段 0」；详情错误信息「文本提取失败（可能为扫描件或损坏文档）: 打开 pdf 失败…」✔ |
+| | 长 txt | 行「已索引 · 5 段」；详情分段预览 5 条正文 ✔ |
+| | markdown 表格 | 行「已索引 · 1 段」；详情分段保留完整表行 ✔ |
+| | DB 对账 | 5 子块全带 parent_chunk_id、2 个父块、children=5 ✔ |
+| 检索 Playground | 查询「父子分段验证正文」 | 命中 5 条；**单条内容 1532 字（父块整窗）**，非 500 字碎片 ✔ |
+| 置信度调优页 | 转人工阈值策略页签 | 11 行策略（base 0.80/0.70/0.85…），与 GetPolicy 单源一致 ✔ |
+
+**本轮 UI 抓到并已修的 3 个缺陷**（另有 2 个来自上一轮 API 走查，已单独提交）：
+
+1. **导入弹窗复用旧文件**：`resetImportForm()` 只清 `importForm.file`，没清 el-upload 内部列表（`uploadRef` 甚至没在 setup 里声明）⇒ 重开弹窗显示上次文件，再提交只说「请选择文件」。修：声明 `uploadRef` + `clearFiles()` + 打开弹窗即重置。
+2. **父块回拼的取数腿缺列**：正常装配下向量腿走 `VectorRetriever.SearchVector`、关键词腿走 `LexicalRetriever.SearchKeyword`，两者 SELECT 都没取 `parent_chunk_id`（此前只补了 HybridSearcher 自带的三条 SQL）⇒ 命中条目父块 ID 恒 0，回拼整段空转。修：两条 SQL 补列（各 2 处）；回归测试直接打真实 SQL（`vector_retriever_parent_test.go`），变异红。
+3. **预览截断把父块砍回 500**：`chunksToRAGChunks`/`chunksToMerchantChunks` 统一按 `chunk_preview_max_len(500)` 截断，拼好的 1532 字父块被重新砍成 501 —— 回拼在接口层等于白做。修：`previewOrFull()`（有父块=原样、无父块=预览）；回归测试 `rag_searcher_preview_test.go`。
+
+**无 UI 面的项（说明）**：P0-1 对话评测 CSV 四端点（前端零消费方，`/knowledge/rag-eval` 页走的是另一套 `/api/rag/eval/*`）、`/api/rag/import` 的 `qa_split` 开关（该口无页面）——两者只在 API 层验收，见上一节。
