@@ -14,26 +14,21 @@ type AIPerfFAQSOPLayerMigration struct {
 	db *gorm.DB
 }
 
-// NewAIPerfFAQSOPLayerMigration 创建迁移实例
 func NewAIPerfFAQSOPLayerMigration(db *gorm.DB) *AIPerfFAQSOPLayerMigration {
 	return &AIPerfFAQSOPLayerMigration{db: db}
 }
 
-// Version 返回版本号
-// 注：v3.13.0 已被 knowledge_weight_migration 占用，本迁移排在之后，故用 v3.13.1 避免注册表 map 覆盖。
+// 注：v3.13.0 已被 knowledge_weight_migration 占用，故用 v3.13.1 避免注册表 map 覆盖。
 func (m *AIPerfFAQSOPLayerMigration) Version() string { return "v3.13.1" }
 
-// Name 返回迁移名称
 func (m *AIPerfFAQSOPLayerMigration) Name() string {
 	return "AI 性能优化 - FAQ/SOP 知识库 + Layer 决策日志"
 }
 
-// Description 返回迁移描述
 func (m *AIPerfFAQSOPLayerMigration) Description() string {
 	return "2026-07-31 AI 智能体性能优化：创建 faq_entries / sop_templates / layer_decision_logs 三张表，支撑双层架构 (Layer1 FAQ/SOP 模板 <100ms + Layer2 LLM 兜底)，同时提供 Layer 决策可观测性"
 }
 
-// Up 执行迁移
 func (m *AIPerfFAQSOPLayerMigration) Up(ctx context.Context) error {
 	if m.db == nil {
 		return fmt.Errorf("db is nil")
@@ -106,7 +101,6 @@ func (m *AIPerfFAQSOPLayerMigration) Up(ctx context.Context) error {
 	return nil
 }
 
-// Down 回滚
 func (m *AIPerfFAQSOPLayerMigration) Down(ctx context.Context) error {
 	if m.db == nil {
 		return fmt.Errorf("db is nil")

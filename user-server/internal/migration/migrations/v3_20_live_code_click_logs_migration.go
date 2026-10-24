@@ -23,7 +23,6 @@ type LiveCodeClickLogsMigration struct {
 
 var _ migration.Migration = (*LiveCodeClickLogsMigration)(nil)
 
-// NewLiveCodeClickLogsMigration 构造函数
 func NewLiveCodeClickLogsMigration(db *gorm.DB) *LiveCodeClickLogsMigration {
 	return &LiveCodeClickLogsMigration{db: db}
 }

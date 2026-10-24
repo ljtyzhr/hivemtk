@@ -17,25 +17,20 @@ type SOPHeatmapIndexMigration struct {
 	db *gorm.DB
 }
 
-// NewSOPHeatmapIndexMigration 创建迁移实例
 func NewSOPHeatmapIndexMigration(db *gorm.DB) *SOPHeatmapIndexMigration {
 	return &SOPHeatmapIndexMigration{db: db}
 }
 
-// Version 返回版本号
 func (m *SOPHeatmapIndexMigration) Version() string { return "v3.27.1" }
 
-// Name 返回迁移名称
 func (m *SOPHeatmapIndexMigration) Name() string {
 	return "SOP 热力图复合索引 (sop_id, created_at DESC)"
 }
 
-// Description 返回迁移描述
 func (m *SOPHeatmapIndexMigration) Description() string {
 	return "为 sop_executions 创建复合索引 idx_sop_executions_sop_created，优化热力图查询 WHERE sop_id = ? ORDER BY created_at DESC LIMIT N"
 }
 
-// Up 执行升级
 func (m *SOPHeatmapIndexMigration) Up(ctx context.Context) error {
 	if m.db == nil {
 		return fmt.Errorf("db is nil")
@@ -50,7 +45,6 @@ func (m *SOPHeatmapIndexMigration) Up(ctx context.Context) error {
 	return nil
 }
 
-// Down 执行降级
 func (m *SOPHeatmapIndexMigration) Down(ctx context.Context) error {
 	if m.db == nil {
 		return fmt.Errorf("db is nil")

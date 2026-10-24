@@ -14,10 +14,8 @@ import (
 //
 // 两类代价不对称：多留一个对象不破坏任何功能（升级路径靠 IF NOT EXISTS 幂等，
 // 闲置的可空列与索引只是占位），删掉一个在用对象则当前进程永不补回（AutoMigrate 只在启动时跑），
-// 表与列是数据丢失、索引是长期 seq scan。故 Down 一律只撤销自己 Up 新建的对象。
-//
-// 判据在 a_full_chain_migration_test.go：逐迁移比对「Down 删掉的表/列/索引 ⊆ 该迁移 Up 新建的」，
-// 并核一轮 Up→Down 后基线对象不得净丢失。
+// 表与列是数据丢失、索引是长期 seq scan。故 Down 一律只撤销自己 Up 新建的对象；
+// a_full_chain_migration_test.go 逐迁移比对「Down 删掉的表/列/索引 ⊆ 该迁移 Up 新建的」钉住这一纪律。
 func declineDrop(version, kind string, objects ...string) {
 	if len(objects) == 0 {
 		return

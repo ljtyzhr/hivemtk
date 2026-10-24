@@ -55,7 +55,7 @@ func (m *BrowserOutreachDedupeMigration) Up(ctx context.Context) error {
 }
 
 // Down 不删表：去重行是「已触达」这一事实的唯一持久证据，
-// 删表等于让所有历史触达重新变成可打扰对象（口径同 v3.39/v3.42–v3.49）。
+// 删表等于让所有历史触达重新变成可打扰对象。
 func (m *BrowserOutreachDedupeMigration) Down(ctx context.Context) error {
 	if m.db == nil {
 		return fmt.Errorf("db is nil")

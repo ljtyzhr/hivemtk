@@ -9,17 +9,17 @@ import (
 	"gorm.io/gorm"
 )
 
-// BrowserWriteLedgerConfirmBudgetMigration v3.43.0：批6–批8 的浏览器自动化列补齐。
+// BrowserWriteLedgerConfirmBudgetMigration v3.43.0：浏览器自动化列补齐。
 //
 // 一条迁移管两件事，因为它们同属「写链路上不可逆那一段」的可追溯性：
-//   - browser_steps 台账三列（批6 submit_state/text_hash + 批7 is_write）：
+//   - browser_steps 台账三列（submit_state/text_hash/is_write）：
 //     步状态回答「跑成什么样」，台账三列回答「有没有真的提交过、提交的是什么、这一步算不算写」。
 //     缺任何一个，防双发闸门就只能靠内存态，进程一重启就把「已提交」忘干净。
-//   - browser_tasks.confirm_wait_sec（批8）：D7 确认等待的执行预算解耦列。
+//   - browser_tasks.confirm_wait_sec：确认等待的执行预算解耦列。
 //     默认 600s 而非 0——列的缺省值必须等于代码里的缺省值，否则老行读出来是 0，
 //     「不等待」和「按默认等待」在库里就无法区分。
 //
-// Down 丢弃这四列即丢弃台账本身（重放历史不可追），与 v3.42.0 的 require_confirm 同口径。
+// Down 丢弃这四列即丢弃台账本身（重放历史不可追）。
 type BrowserWriteLedgerConfirmBudgetMigration struct {
 	db *gorm.DB
 }

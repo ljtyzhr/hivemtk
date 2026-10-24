@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// BrowserRequireConfirmMigration v3.42.0：D7 写操作人工确认开关。
+// BrowserRequireConfirmMigration v3.42.0：写操作人工确认开关。
 // browser_tasks 增加 require_confirm 列（默认 false）——铁律 4「默认全自动」不变；
 // 置 true 的任务在 post_comment 不可逆提交点前挂起，等 POST /sessions/:id/confirm 放行。
 type BrowserRequireConfirmMigration struct {

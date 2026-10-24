@@ -18,27 +18,22 @@ type AIAgentSchemaMigration struct {
 	db *gorm.DB
 }
 
-// NewAIAgentSchemaMigration 创建迁移实例
 func NewAIAgentSchemaMigration(db *gorm.DB) *AIAgentSchemaMigration {
 	return &AIAgentSchemaMigration{db: db}
 }
 
-// Version 返回版本号
 func (m *AIAgentSchemaMigration) Version() string {
 	return "v2.2.0"
 }
 
-// Name 返回迁移名称
 func (m *AIAgentSchemaMigration) Name() string {
 	return "多 AI 智能体架构"
 }
 
-// Description 返回迁移描述
 func (m *AIAgentSchemaMigration) Description() string {
 	return "创建 ai_agents / channel_agent_bindings / customer_service_agents 三张表，支持多 AI 智能体、渠道绑定、客服挂载"
 }
 
-// Up 执行迁移
 func (m *AIAgentSchemaMigration) Up(ctx context.Context) error {
 	if err := m.db.AutoMigrate(&model.AIAgent{}); err != nil {
 		return fmt.Errorf("migrate ai_agents failed: %w", err)
@@ -53,10 +48,10 @@ func (m *AIAgentSchemaMigration) Up(ctx context.Context) error {
 	}
 
 	var count int64
-	// 种子写入挂 SystemScope（003 T014 复核）：迁移在 on 模式跑时无租户绑定，
+	// 种子写入挂 SystemScope：迁移在 on 模式跑时无租户绑定，
 	// 裸查/裸写 ai_agents 会被隔离 callback fail-closed（count 恒 0、Create 报错
-	// 仅 Warn）——fresh on 安装从此没有 default_sales 种子，T013 的租户级克隆
-	// 也就无源可克。SystemScope 是系统域写入的豁免通道；行上显式 TenantID=1。
+	// 仅 Warn）——fresh on 安装从此没有 default_sales 种子，租户级克隆也就无源可克。
+	// SystemScope 是系统域写入的豁免通道；行上显式 TenantID=1。
 	sysCtx := tenant.WithSystemScope(ctx)
 	if err := m.db.WithContext(sysCtx).Model(&model.AIAgent{}).Count(&count).Error; err != nil {
 		logger.Errorf("[migration] count default ai_agent warning: %v", err)
@@ -80,7 +75,6 @@ func (m *AIAgentSchemaMigration) Up(ctx context.Context) error {
 	return nil
 }
 
-// Down 回滚
 func (m *AIAgentSchemaMigration) Down(ctx context.Context) error {
 	declineTableDrop(m.Version(), "customer_service_agents", "channel_agent_bindings", "ai_agents")
 	return nil

@@ -15,23 +15,18 @@ type ConfidenceMigration struct {
 	db *gorm.DB
 }
 
-// NewConfidenceMigration 创建迁移实例
 func NewConfidenceMigration(db *gorm.DB) *ConfidenceMigration {
 	return &ConfidenceMigration{db: db}
 }
 
-// Version 返回版本号
 func (m *ConfidenceMigration) Version() string { return "v2.8.0" }
 
-// Name 返回迁移名称
 func (m *ConfidenceMigration) Name() string { return "置信度驱动转人工（7+1 张表）" }
 
-// Description 返回迁移描述
 func (m *ConfidenceMigration) Description() string {
 	return "创建 confidence_signals / confidence_calibrations / handoff_decisions / threshold_policies 4 张表"
 }
 
-// Up 执行升级
 func (m *ConfidenceMigration) Up(ctx context.Context) error {
 	if m.db == nil {
 		return fmt.Errorf("db is nil")

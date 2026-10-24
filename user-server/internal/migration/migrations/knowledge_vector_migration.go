@@ -26,27 +26,22 @@ type KnowledgeVectorMigration struct {
 	db *gorm.DB
 }
 
-// NewKnowledgeVectorMigration 创建 RAG 向量迁移
 func NewKnowledgeVectorMigration(db *gorm.DB) *KnowledgeVectorMigration {
 	return &KnowledgeVectorMigration{db: db}
 }
 
-// Version 返回版本号
 func (m *KnowledgeVectorMigration) Version() string {
 	return "v2.6.0"
 }
 
-// Name 返回迁移名称
 func (m *KnowledgeVectorMigration) Name() string {
 	return "RAG 向量存储(pgvector)"
 }
 
-// Description 返回迁移描述
 func (m *KnowledgeVectorMigration) Description() string {
 	return "为 knowledge_chunks 表增加 embedding vector(1024) 列与 HNSW 索引,使 RAG 检索走真正的余弦相似度而非 BM25-lite"
 }
 
-// Up 执行升级
 func (m *KnowledgeVectorMigration) Up(ctx context.Context) error {
 	if m.db == nil {
 		return fmt.Errorf("db is nil")
@@ -77,7 +72,6 @@ func (m *KnowledgeVectorMigration) Up(ctx context.Context) error {
 	return nil
 }
 
-// Down 执行降级
 func (m *KnowledgeVectorMigration) Down(ctx context.Context) error {
 	if err := m.db.Exec(`DROP INDEX IF EXISTS idx_knowledge_chunks_embedding`).Error; err != nil {
 		return err

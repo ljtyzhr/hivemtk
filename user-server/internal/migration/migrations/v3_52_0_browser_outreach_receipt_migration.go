@@ -59,8 +59,7 @@ func (m *BrowserOutreachReceiptMigration) Up(ctx context.Context) error {
 	)`).Error
 }
 
-// Down 不删表：回执行是对外交付的验收证据，删表等于让已验收的触达变成「没发生过」
-// （口径同 v3.39/v3.42–v3.51）。
+// Down 不删表：回执行是对外交付的验收证据，删表等于让已验收的触达变成「没发生过」。
 func (m *BrowserOutreachReceiptMigration) Down(ctx context.Context) error {
 	if m.db == nil {
 		return fmt.Errorf("db is nil")

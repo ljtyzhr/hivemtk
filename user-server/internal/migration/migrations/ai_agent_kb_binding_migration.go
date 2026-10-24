@@ -14,25 +14,20 @@ type AIAgentKBBindingMigration struct {
 	db *gorm.DB
 }
 
-// NewAIAgentKBBindingMigration 创建迁移实例
 func NewAIAgentKBBindingMigration(db *gorm.DB) *AIAgentKBBindingMigration {
 	return &AIAgentKBBindingMigration{db: db}
 }
 
-// Version 返回版本号
 func (m *AIAgentKBBindingMigration) Version() string { return "v3.14.0" }
 
-// Name 返回迁移名称
 func (m *AIAgentKBBindingMigration) Name() string {
 	return "AI 智能体知识库绑定 - faq_entry_ids / sop_template_ids"
 }
 
-// Description 返回迁移描述
 func (m *AIAgentKBBindingMigration) Description() string {
 	return "2026-07-31：在 ai_agents 表新增 faq_entry_ids / sop_template_ids 两个 text[] 字段，绑定关系与现有 rag_product_ids / sop_ids / script_library_ids 一致；Layer1 匹配按 agent_id 过滤实现多渠道/多场景知识库隔离"
 }
 
-// Up 执行迁移
 func (m *AIAgentKBBindingMigration) Up(ctx context.Context) error {
 	if m.db == nil {
 		return fmt.Errorf("db is nil")
@@ -49,7 +44,6 @@ func (m *AIAgentKBBindingMigration) Up(ctx context.Context) error {
 	return nil
 }
 
-// Down 回滚
 func (m *AIAgentKBBindingMigration) Down(ctx context.Context) error {
 	if m.db == nil {
 		return fmt.Errorf("db is nil")

@@ -15,25 +15,20 @@ type RagAlertsDropMigration struct {
 	db *gorm.DB
 }
 
-// NewRagAlertsDropMigration 创建迁移实例
 func NewRagAlertsDropMigration(db *gorm.DB) *RagAlertsDropMigration {
 	return &RagAlertsDropMigration{db: db}
 }
 
-// Version 返回版本号
 func (m *RagAlertsDropMigration) Version() string { return "v3.17.0" }
 
-// Name 返回迁移名称
 func (m *RagAlertsDropMigration) Name() string {
 	return "清理孤儿表 rag_alerts (commit 4 二次审查)"
 }
 
-// Description 返回迁移描述
 func (m *RagAlertsDropMigration) Description() string {
 	return "2026-08-01 二次深度审查: RagAlertService 已删, rag_alerts 表无任何 Go 引用, 4 个索引全是孤儿。DROP 4 索引 + DROP 表。"
 }
 
-// Up 执行迁移
 func (m *RagAlertsDropMigration) Up(ctx context.Context) error {
 	if m.db == nil {
 		return fmt.Errorf("db is nil")
@@ -69,7 +64,7 @@ func (m *RagAlertsDropMigration) Up(ctx context.Context) error {
 	return nil
 }
 
-// Down 执行回滚 (谨慎: 重建空表, 不补任何数据)
+// Down 执行回滚（重建空表，不补任何数据）
 func (m *RagAlertsDropMigration) Down(ctx context.Context) error {
 	if m.db == nil {
 		return fmt.Errorf("db is nil")

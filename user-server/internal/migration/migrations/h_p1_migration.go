@@ -14,25 +14,20 @@ type HP1Migration struct {
 	db *gorm.DB
 }
 
-// NewHP1Migration 创建迁移实例
 func NewHP1Migration(db *gorm.DB) *HP1Migration {
 	return &HP1Migration{db: db}
 }
 
-// Version 返回版本号
 func (m *HP1Migration) Version() string { return "v3.2.0" }
 
-// Name 返回迁移名称
 func (m *HP1Migration) Name() string {
 	return "H 域 P1 缺口修复 - 线索评分 + RFM + 流失挽回"
 }
 
-// Description 返回迁移描述
 func (m *HP1Migration) Description() string {
 	return "创建 clue_scores / clue_engagement_events / customer_rfm / recovery_queue 4 张表，支撑线索评分（0-100）、RFM 分层、流失客户自动加入挽回队列"
 }
 
-// Up 执行升级
 func (m *HP1Migration) Up(ctx context.Context) error {
 	if m.db == nil {
 		return fmt.Errorf("db is nil")
@@ -163,7 +158,6 @@ func (m *HP1Migration) createRecoveryQueue(ctx context.Context) error {
 	return execAllMP1(ctx, m.db, stmts)
 }
 
-// Down 回滚
 func (m *HP1Migration) Down(ctx context.Context) error {
 	// customer_rfm 已登记为 GORM 模型（&model.CustomerRFM{}，见 internal/pkg/db/migrate.go 的 allModels），
 	// 建表事实源是 AutoMigrate ⇒ 本迁移的 Up 里的 CREATE TABLE IF NOT EXISTS 是空操作，

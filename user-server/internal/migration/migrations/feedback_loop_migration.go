@@ -14,25 +14,20 @@ type FeedbackLoopMigration struct {
 	db *gorm.DB
 }
 
-// NewFeedbackLoopMigration 创建迁移实例
 func NewFeedbackLoopMigration(db *gorm.DB) *FeedbackLoopMigration {
 	return &FeedbackLoopMigration{db: db}
 }
 
-// Version 返回版本号
 func (m *FeedbackLoopMigration) Version() string { return "v3.0.0" }
 
-// Name 返回迁移名称
 func (m *FeedbackLoopMigration) Name() string {
 	return "反馈学习闭环（6 张新表 + 2 张表扩展）"
 }
 
-// Description 返回迁移描述
 func (m *FeedbackLoopMigration) Description() string {
 	return "创建 feedback_events/feedback_signals/champion_dialogues/prompt_candidates/bandit_arms/prompt_ab_tests 6 张表，并扩展 sop_agents/script_templates 字段"
 }
 
-// Up 执行升级
 func (m *FeedbackLoopMigration) Up(ctx context.Context) error {
 	if m.db == nil {
 		return fmt.Errorf("db is nil")

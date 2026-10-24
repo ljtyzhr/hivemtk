@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// AgentCheckpointMigration D06：agent_checkpoints 表（Agent Runtime 五阶段断点续跑）
+// AgentCheckpointMigration agent_checkpoints 表（Agent Runtime 五阶段断点续跑）
 //
 // LangGraph Checkpointer 三表设计的单表简化（阶段级粒度足够）：
 // 每 stage 完成即 upsert 一行 (thread_id, stage, state)；恢复按 updated_at 最新行续跑。

@@ -56,8 +56,7 @@ func (m *BrowserTaskCampaignBudgetMigration) Up(ctx context.Context) error {
 		ADD COLUMN IF NOT EXISTS campaign_act_used BIGINT NOT NULL DEFAULT 0`).Error
 }
 
-// Down 不丢列：活动预算的累计值是成本核算的账本（口径同 v3.39/v3.42–v3.48 的
-// 「降级不销毁在用列」）。
+// Down 不丢列：活动预算的累计值是成本核算的账本。
 func (m *BrowserTaskCampaignBudgetMigration) Down(ctx context.Context) error {
 	if m.db == nil {
 		return fmt.Errorf("db is nil")

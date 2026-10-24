@@ -14,23 +14,18 @@ type AuthSecurityMigration struct {
 	db *gorm.DB
 }
 
-// NewAuthSecurityMigration 创建迁移实例
 func NewAuthSecurityMigration(db *gorm.DB) *AuthSecurityMigration {
 	return &AuthSecurityMigration{db: db}
 }
 
-// Version 返回版本号
 func (m *AuthSecurityMigration) Version() string { return "v2.10.0" }
 
-// Name 返回迁移名称
 func (m *AuthSecurityMigration) Name() string { return "认证与安全相关表结构" }
 
-// Description 返回迁移描述
 func (m *AuthSecurityMigration) Description() string {
 	return "创建 user_mfa / login_events / security_alerts / password_history 4 张表，支持 MFA / 异常登录预警 / 密码策略 / 行级权限"
 }
 
-// Up 执行升级
 func (m *AuthSecurityMigration) Up(ctx context.Context) error {
 	if m.db == nil {
 		return fmt.Errorf("db is nil")

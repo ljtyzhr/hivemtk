@@ -14,25 +14,20 @@ type CustomerSessionUpdatedAtMigration struct {
 	db *gorm.DB
 }
 
-// NewCustomerSessionUpdatedAtMigration 创建迁移实例
 func NewCustomerSessionUpdatedAtMigration(db *gorm.DB) *CustomerSessionUpdatedAtMigration {
 	return &CustomerSessionUpdatedAtMigration{db: db}
 }
 
-// Version 返回版本号
 func (m *CustomerSessionUpdatedAtMigration) Version() string { return "v2.12.0" }
 
-// Name 返回迁移名称
 func (m *CustomerSessionUpdatedAtMigration) Name() string {
 	return "customer_sessions 补齐 updated_at 列"
 }
 
-// Description 返回迁移描述
 func (m *CustomerSessionUpdatedAtMigration) Description() string {
 	return "补齐 customer_sessions 缺失的 updated_at 列，修复全渠道会话 upsert 的 SQLSTATE 42703"
 }
 
-// Up 执行升级
 func (m *CustomerSessionUpdatedAtMigration) Up(ctx context.Context) error {
 	if m.db == nil {
 		return fmt.Errorf("db is nil")

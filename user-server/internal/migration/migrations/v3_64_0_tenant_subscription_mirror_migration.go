@@ -9,9 +9,9 @@ import (
 	"gorm.io/gorm"
 )
 
-// TenantSubscriptionMirrorMigration 订阅镜像表（003 T022 · ADR-M8 修订 #4）
+// TenantSubscriptionMirrorMigration 订阅镜像表
 //
-// 建表时是部署级单行；003 生产联调后改为**每租户一行**（行锚 id = tenant_id，
+// 建表时是部署级单行；生产联调后改为每租户一行（行锚 id = tenant_id，
 // tenant_id 列由启动期 AutoMigrate 按模型补齐）。后台同步跑在 SystemScope，
 // 落默认租户那一行；租户内手动同步保留租户绑定，落本租户。
 //
@@ -22,12 +22,11 @@ import (
 //	  current_period_end  TIMESTAMPTZ NULL
 //	  trial_expires_at    TIMESTAMPTZ NULL
 //	  price_cents         BIGINT       —— 月价快照（分）
-//	  fetched_at          TIMESTAMPTZ  —— 只 Warn 不参与锁（修订 #2）
+//	  fetched_at          TIMESTAMPTZ  —— 只 Warn 不参与锁
 type TenantSubscriptionMirrorMigration struct {
 	db *gorm.DB
 }
 
-// NewTenantSubscriptionMirrorMigration 创建迁移实例
 func NewTenantSubscriptionMirrorMigration(db *gorm.DB) *TenantSubscriptionMirrorMigration {
 	return &TenantSubscriptionMirrorMigration{db: db}
 }

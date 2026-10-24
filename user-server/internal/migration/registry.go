@@ -9,7 +9,6 @@ import (
 	"strings"
 )
 
-// Migration 迁移接口
 type Migration interface {
 	Version() string
 	Name() string
@@ -18,12 +17,10 @@ type Migration interface {
 	Down(ctx context.Context) error
 }
 
-// MigrationRegistry 迁移注册表
 type MigrationRegistry struct {
 	migrations map[string]Migration
 }
 
-// NewMigrationRegistry 创建迁移注册表
 func NewMigrationRegistry() *MigrationRegistry {
 	return &MigrationRegistry{
 		migrations: make(map[string]Migration),
@@ -40,7 +37,6 @@ func (r *MigrationRegistry) Register(migration Migration) error {
 	return nil
 }
 
-// Get 获取迁移
 func (r *MigrationRegistry) Get(version string) (Migration, bool) {
 	m, ok := r.migrations[version]
 	return m, ok

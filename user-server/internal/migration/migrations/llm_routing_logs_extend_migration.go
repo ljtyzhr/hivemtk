@@ -14,25 +14,20 @@ type LLMRoutingLogsExtendMigration struct {
 	db *gorm.DB
 }
 
-// NewLLMRoutingLogsExtendMigration 创建扩展迁移实例
 func NewLLMRoutingLogsExtendMigration(db *gorm.DB) *LLMRoutingLogsExtendMigration {
 	return &LLMRoutingLogsExtendMigration{db: db}
 }
 
-// Version 返回版本号
 func (m *LLMRoutingLogsExtendMigration) Version() string { return "v3.7.0" }
 
-// Name 返回迁移名称
 func (m *LLMRoutingLogsExtendMigration) Name() string {
 	return "扩展 llm_routing_logs 字段（model_type / vendor / base_url / is_fallback / cost_split / token_source）"
 }
 
-// Description 描述
 func (m *LLMRoutingLogsExtendMigration) Description() string {
 	return "为支撑本地/云端 token 计量三档（actual/estimated/missing）、厂商成本归集、出域审计、降级率统计，扩展 llm_routing_logs 表的 10 个字段"
 }
 
-// Up 执行升级
 func (m *LLMRoutingLogsExtendMigration) Up(ctx context.Context) error {
 	if m.db == nil {
 		return fmt.Errorf("db is nil")
@@ -68,7 +63,6 @@ func min(a, b int) int {
 	return b
 }
 
-// Down 回滚
 func (m *LLMRoutingLogsExtendMigration) Down(ctx context.Context) error {
 	declineIndexDrop(m.Version(), "idx_llm_routing_logs_vendor", "idx_llm_routing_logs_token_source",
 		"idx_llm_routing_logs_model_type_created", "idx_llm_routing_logs_scenario_provider")

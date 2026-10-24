@@ -13,27 +13,22 @@ type AIAgentExtensionMigration struct {
 	db *gorm.DB
 }
 
-// NewAIAgentExtensionMigration 创建迁移实例
 func NewAIAgentExtensionMigration(db *gorm.DB) *AIAgentExtensionMigration {
 	return &AIAgentExtensionMigration{db: db}
 }
 
-// Version 返回版本号（必须全局唯一）
 func (m *AIAgentExtensionMigration) Version() string {
 	return "v2.2.1"
 }
 
-// Name 返回迁移名称
 func (m *AIAgentExtensionMigration) Name() string {
 	return "ai_agents 扩展 2 字段（决策策略 / A/B 实验）"
 }
 
-// Description 返回迁移描述
 func (m *AIAgentExtensionMigration) Description() string {
 	return "为 ai_agents 表新增 decision_strategy_ids / ab_experiment_ids 字段（TEXT[]），支持 智能体挂载多逻辑"
 }
 
-// Up 执行迁移
 func (m *AIAgentExtensionMigration) Up(ctx context.Context) error {
 	if !m.db.Migrator().HasTable("ai_agents") {
 		return nil
@@ -58,7 +53,6 @@ func (m *AIAgentExtensionMigration) Up(ctx context.Context) error {
 	return nil
 }
 
-// Down 回滚
 func (m *AIAgentExtensionMigration) Down(ctx context.Context) error {
 	if !m.db.Migrator().HasTable("ai_agents") {
 		return nil

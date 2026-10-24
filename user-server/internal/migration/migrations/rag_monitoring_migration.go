@@ -14,25 +14,20 @@ type RagMonitoringMigration struct {
 	db *gorm.DB
 }
 
-// NewRagMonitoringMigration 创建迁移实例
 func NewRagMonitoringMigration(db *gorm.DB) *RagMonitoringMigration {
 	return &RagMonitoringMigration{db: db}
 }
 
-// Version 返回版本号
 func (m *RagMonitoringMigration) Version() string { return "v2.8.1" }
 
-// Name 返回迁移名称
 func (m *RagMonitoringMigration) Name() string {
 	return "RAG 监控与风控（召回率日志/聚合/预警）"
 }
 
-// Description 返回迁移描述
 func (m *RagMonitoringMigration) Description() string {
 	return "新建 rag_query_logs / rag_metrics_daily 表, 支撑召回率监控、5 分钟聚合、健康度评分 (rag_alerts 表由 v3.17 单独清理)"
 }
 
-// Up 执行升级
 func (m *RagMonitoringMigration) Up(ctx context.Context) error {
 	if m.db == nil {
 		return fmt.Errorf("db is nil")
@@ -95,7 +90,6 @@ func (m *RagMonitoringMigration) createRagMetricsDaily(ctx context.Context) erro
 	return m.db.WithContext(ctx).Exec(stmt).Error
 }
 
-// Down 执行降级
 //
 // 注意：删除监控表会丢失历史数据，但业务核心数据（knowledge_documents 等）不受影响
 // 私域部署: rag_alerts 由 v3.17 单独 DROP, 本 Down 不再处理

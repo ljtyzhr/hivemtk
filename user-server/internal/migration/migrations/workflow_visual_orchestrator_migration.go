@@ -13,27 +13,22 @@ type WorkflowVisualOrchestratorMigration struct {
 	db *gorm.DB
 }
 
-// NewWorkflowVisualOrchestratorMigration 创建可视化工作流编排器迁移
 func NewWorkflowVisualOrchestratorMigration(db *gorm.DB) *WorkflowVisualOrchestratorMigration {
 	return &WorkflowVisualOrchestratorMigration{db: db}
 }
 
-// Version 返回版本号
 func (m *WorkflowVisualOrchestratorMigration) Version() string {
 	return "v1.8.0"
 }
 
-// Name 返回迁移名称
 func (m *WorkflowVisualOrchestratorMigration) Name() string {
 	return "可视化工作流编排器"
 }
 
-// Description 返回迁移描述
 func (m *WorkflowVisualOrchestratorMigration) Description() string {
 	return "新增工作流版本表、执行实例表，支持可视化编排器的版本管理与执行监控"
 }
 
-// Up 执行升级
 func (m *WorkflowVisualOrchestratorMigration) Up(ctx context.Context) error {
 
 	m.db.Exec(`
@@ -109,7 +104,6 @@ func (m *WorkflowVisualOrchestratorMigration) Up(ctx context.Context) error {
 	return nil
 }
 
-// Down 执行降级
 func (m *WorkflowVisualOrchestratorMigration) Down(ctx context.Context) error {
 	declineTableDrop(m.Version(), "workflow_node_executions", "workflow_executions", "workflow_versions")
 	return nil

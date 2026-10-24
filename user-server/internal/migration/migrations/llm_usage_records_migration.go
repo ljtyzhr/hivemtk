@@ -14,23 +14,18 @@ type LLMUsageRecordsMigration struct {
 	db *gorm.DB
 }
 
-// NewLLMUsageRecordsMigration 创建迁移实例
 func NewLLMUsageRecordsMigration(db *gorm.DB) *LLMUsageRecordsMigration {
 	return &LLMUsageRecordsMigration{db: db}
 }
 
-// Version 返回版本号
 func (m *LLMUsageRecordsMigration) Version() string { return "v3.4.0" }
 
-// Name 返回迁移名称
 func (m *LLMUsageRecordsMigration) Name() string { return "创建 llm_usage_records 表" }
 
-// Description 返回迁移描述
 func (m *LLMUsageRecordsMigration) Description() string {
 	return "创建 llm_usage_records 表（id, total_tokens, cost, created_at），支撑 AI 生产力 LLM 成本统计"
 }
 
-// Up 执行升级
 func (m *LLMUsageRecordsMigration) Up(ctx context.Context) error {
 	if m.db == nil {
 		return fmt.Errorf("db is nil")
@@ -52,7 +47,6 @@ func (m *LLMUsageRecordsMigration) Up(ctx context.Context) error {
 	return nil
 }
 
-// Down 回滚
 func (m *LLMUsageRecordsMigration) Down(ctx context.Context) error {
 	// 该表同时被 ops/ai_productivity 的聚合查询与后续模块化改造使用，
 	// 共享测试库/存量库场景下它可能先于本迁移存在——Down 只撤销自己新建的对象，

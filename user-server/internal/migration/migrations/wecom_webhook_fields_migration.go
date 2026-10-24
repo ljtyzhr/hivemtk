@@ -7,33 +7,28 @@ import (
 	"gorm.io/gorm"
 )
 
-// WecomWebhookFieldsMigration Phase 1: 为 wecom_accounts 表添加 webhook 接收和 智能体字段
+// WecomWebhookFieldsMigration 为 wecom_accounts 表添加 webhook 接收和智能体字段
 // 独立部署：单租户，无 merchant_id
 type WecomWebhookFieldsMigration struct {
 	db *gorm.DB
 }
 
-// NewWecomWebhookFieldsMigration 创建迁移实例
 func NewWecomWebhookFieldsMigration(db *gorm.DB) *WecomWebhookFieldsMigration {
 	return &WecomWebhookFieldsMigration{db: db}
 }
 
-// Version 返回版本号
 func (m *WecomWebhookFieldsMigration) Version() string {
 	return "v2.1.1"
 }
 
-// Name 返回迁移名称
 func (m *WecomWebhookFieldsMigration) Name() string {
 	return "企业微信 webhook + 智能体字段"
 }
 
-// Description 返回迁移描述
 func (m *WecomWebhookFieldsMigration) Description() string {
 	return "为 wecom_accounts 表添加 callback_token、encoding_aes_key、webhook_enabled、webhook_path、ai_agent_enabled 字段，打通企微用户全链路入站+AI 自动回复闭环"
 }
 
-// Up 执行迁移
 func (m *WecomWebhookFieldsMigration) Up(ctx context.Context) error {
 	if !m.db.Migrator().HasTable("wecom_accounts") {
 		return nil
@@ -80,7 +75,6 @@ func (m *WecomWebhookFieldsMigration) Up(ctx context.Context) error {
 	return nil
 }
 
-// Down 回滚
 func (m *WecomWebhookFieldsMigration) Down(ctx context.Context) error {
 	if !m.db.Migrator().HasTable("wecom_accounts") {
 		return nil

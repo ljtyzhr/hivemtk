@@ -14,25 +14,20 @@ type LLMRoutingLogsMigration struct {
 	db *gorm.DB
 }
 
-// NewLLMRoutingLogsMigration 创建迁移实例
 func NewLLMRoutingLogsMigration(db *gorm.DB) *LLMRoutingLogsMigration {
 	return &LLMRoutingLogsMigration{db: db}
 }
 
-// Version 返回版本号
 func (m *LLMRoutingLogsMigration) Version() string { return "v3.6.0" }
 
-// Name 返回迁移名称
 func (m *LLMRoutingLogsMigration) Name() string {
 	return "创建 llm_routing_logs + llm_routing_audit 两张表"
 }
 
-// Description 返回迁移描述
 func (m *LLMRoutingLogsMigration) Description() string {
 	return "创建 llm_routing_logs（dispatch 调用日志）与 llm_routing_audit（路由变更审计）两张表，支撑本地模型总量统计与场景路由审计/灰度"
 }
 
-// Up 执行升级
 func (m *LLMRoutingLogsMigration) Up(ctx context.Context) error {
 	if m.db == nil {
 		return fmt.Errorf("db is nil")
@@ -82,7 +77,6 @@ func (m *LLMRoutingLogsMigration) Up(ctx context.Context) error {
 	return nil
 }
 
-// Down 回滚
 func (m *LLMRoutingLogsMigration) Down(ctx context.Context) error {
 	stmts := []string{
 		"DROP INDEX IF EXISTS idx_llm_routing_audit_created_at",

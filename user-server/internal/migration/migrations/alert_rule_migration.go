@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// AlertRuleMigration 告警规则引擎表结构迁移（plan v3.1 §T8）
+// AlertRuleMigration 告警规则引擎表结构迁移
 //
 // 创建两张表：
 //   - alert_rules: 规则定义（source/operator/threshold/window/cooldown/channels/targets）
@@ -20,23 +20,18 @@ type AlertRuleMigration struct {
 	db *gorm.DB
 }
 
-// NewAlertRuleMigration 构造
 func NewAlertRuleMigration(db *gorm.DB) *AlertRuleMigration {
 	return &AlertRuleMigration{db: db}
 }
 
-// Version 返回版本号
 func (m *AlertRuleMigration) Version() string { return "v3.23.0" }
 
-// Name 返回迁移名称
 func (m *AlertRuleMigration) Name() string { return "告警规则引擎" }
 
-// Description 返回迁移描述
 func (m *AlertRuleMigration) Description() string {
 	return "创建 alert_rules / alert_histories 两张表，支持告警规则 CRUD、分级、冷却期、通知渠道与触发历史"
 }
 
-// Up 执行升级
 func (m *AlertRuleMigration) Up(ctx context.Context) error {
 	if m.db == nil {
 		return fmt.Errorf("db is nil")

@@ -17,25 +17,20 @@ type CustomerOwnerAgentMigration struct {
 	db *gorm.DB
 }
 
-// NewCustomerOwnerAgentMigration 创建迁移实例
 func NewCustomerOwnerAgentMigration(db *gorm.DB) *CustomerOwnerAgentMigration {
 	return &CustomerOwnerAgentMigration{db: db}
 }
 
-// Version 返回版本号
 func (m *CustomerOwnerAgentMigration) Version() string { return "v3.25.0" }
 
-// Name 返回迁移名称
 func (m *CustomerOwnerAgentMigration) Name() string {
 	return "customers 增加 owner_agent_id 专属坐席列"
 }
 
-// Description 返回迁移描述
 func (m *CustomerOwnerAgentMigration) Description() string {
 	return "M19/S-4 专属坐席定向路由：customers 表新增可空列 owner_agent_id（指向 agent_statuses.agent_id）+ 索引"
 }
 
-// Up 执行升级
 func (m *CustomerOwnerAgentMigration) Up(ctx context.Context) error {
 	if m.db == nil {
 		return fmt.Errorf("db is nil")

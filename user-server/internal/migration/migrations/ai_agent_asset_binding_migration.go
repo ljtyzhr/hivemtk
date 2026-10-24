@@ -15,25 +15,20 @@ type AgentAssetBindingMigration struct {
 	db *gorm.DB
 }
 
-// NewAgentAssetBindingMigration 创建迁移实例
 func NewAgentAssetBindingMigration(db *gorm.DB) *AgentAssetBindingMigration {
 	return &AgentAssetBindingMigration{db: db}
 }
 
-// Version 返回版本号
 func (m *AgentAssetBindingMigration) Version() string { return "v3.9.0" }
 
-// Name 返回迁移名称
 func (m *AgentAssetBindingMigration) Name() string {
 	return "智能体绑定资产包（ai_agents.asset_bundle_id）"
 }
 
-// Description 返回迁移描述
 func (m *AgentAssetBindingMigration) Description() string {
 	return "为 ai_agents 表新增 asset_bundle_id 列，打通 智能体→资产包 绑定"
 }
 
-// Up 执行升级
 func (m *AgentAssetBindingMigration) Up(ctx context.Context) error {
 	if m.db == nil {
 		return fmt.Errorf("db is nil")

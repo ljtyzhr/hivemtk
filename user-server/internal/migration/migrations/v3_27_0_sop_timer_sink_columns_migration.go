@@ -13,25 +13,20 @@ type SOPTimerSinkColumnsMigration struct {
 	db *gorm.DB
 }
 
-// NewSOPTimerSinkColumnsMigration 创建迁移实例
 func NewSOPTimerSinkColumnsMigration(db *gorm.DB) *SOPTimerSinkColumnsMigration {
 	return &SOPTimerSinkColumnsMigration{db: db}
 }
 
-// Version 返回版本号
 func (m *SOPTimerSinkColumnsMigration) Version() string { return "v3.27.0" }
 
-// Name 返回迁移名称
 func (m *SOPTimerSinkColumnsMigration) Name() string {
 	return "sop_timers 列下沉（expires_at/max_wait_at/claim_count + 部分索引）"
 }
 
-// Description 返回迁移描述
 func (m *SOPTimerSinkColumnsMigration) Description() string {
 	return "sop_timers 补齐 expires_at/max_wait_at/claim_count 实体列、回填历史数据、建 pending 部分索引"
 }
 
-// Up 执行升级
 func (m *SOPTimerSinkColumnsMigration) Up(ctx context.Context) error {
 	if m.db == nil {
 		return fmt.Errorf("db is nil")

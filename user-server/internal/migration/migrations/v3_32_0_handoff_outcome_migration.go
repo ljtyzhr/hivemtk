@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// HandoffOutcomeMigration D20：会话 outcome 追踪列（借鉴 Chatwoot ConversationOutcomeTracker）
+// HandoffOutcomeMigration 会话 outcome 追踪列（借鉴 Chatwoot ConversationOutcomeTracker）
 //
 // handoff_at/handoff_reason/first_human_reply_at 三字段构成转人工 episode 的最小闭环：
 // 解决率 = 有 handoff_at 且 first_human_reply_at-handoff_at 后会话完结的比例，

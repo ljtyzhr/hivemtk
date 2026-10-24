@@ -14,25 +14,20 @@ type MultilingualI18nP13Migration struct {
 	db *gorm.DB
 }
 
-// NewMultilingualI18nP13Migration 创建迁移实例
 func NewMultilingualI18nP13Migration(db *gorm.DB) *MultilingualI18nP13Migration {
 	return &MultilingualI18nP13Migration{db: db}
 }
 
-// Version 返回版本号
 func (m *MultilingualI18nP13Migration) Version() string { return "v3.12.1" }
 
-// Name 返回迁移名称
 func (m *MultilingualI18nP13Migration) Name() string {
 	return "多语言 i18n P1-3 - knowledge_chunks.translated_versions 字段"
 }
 
-// Description 返回迁移描述
 func (m *MultilingualI18nP13Migration) Description() string {
 	return "v1.2 出海多语言方案 P1-3：为 knowledge_chunks 新增 translated_versions JSONB 字段，存储高频条目预翻译版本"
 }
 
-// Up 执行升级
 func (m *MultilingualI18nP13Migration) Up(ctx context.Context) error {
 	if m.db == nil {
 		return fmt.Errorf("db is nil")
@@ -49,7 +44,6 @@ func (m *MultilingualI18nP13Migration) Up(ctx context.Context) error {
 	return nil
 }
 
-// Down 回滚
 func (m *MultilingualI18nP13Migration) Down(ctx context.Context) error {
 	if m.db == nil {
 		return fmt.Errorf("db is nil")

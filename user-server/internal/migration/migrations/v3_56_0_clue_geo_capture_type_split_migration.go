@@ -26,7 +26,7 @@ const geoTypeSplitBatch = 5000
 // ClueGeoCaptureTypeSplitMigration v3.56.0：把 GEO 决策链捕获的线索从「与抖音共用的 9」
 // 改判到独立类型号 18，代码侧常量 service.ClueTypeGeoCapture 同批改值。
 //
-// 为什么必须连存量一起改：只改常量影响的是**新写入**的行，老库里 GEO 捕获的行仍写着 9，
+// 为什么必须连存量一起改：只改常量影响的是新写入的行，老库里 GEO 捕获的行仍写着 9，
 // 同一个来源被拆成两类 —— 列表页按类型筛选时旧行归抖音、新行归 GEO，比统一错标更难读。
 //
 // 撞号在三处是实打实的错账，不是显示瑕疵（都按 (type, account) 或 type 取数）：

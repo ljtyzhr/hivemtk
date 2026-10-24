@@ -13,27 +13,22 @@ type SOPExecutorMigration struct {
 	db *gorm.DB
 }
 
-// NewSOPExecutorMigration 创建迁移实例
 func NewSOPExecutorMigration(db *gorm.DB) *SOPExecutorMigration {
 	return &SOPExecutorMigration{db: db}
 }
 
-// Version 返回版本号（必须全局唯一）
 func (m *SOPExecutorMigration) Version() string {
 	return "v2.7.1"
 }
 
-// Name 返回迁移名称
 func (m *SOPExecutorMigration) Name() string {
 	return "SOP 执行器表（sop_exec_events / sop_timers / sop_outbox）"
 }
 
-// Description 返回迁移描述
 func (m *SOPExecutorMigration) Description() string {
 	return "创建 SOP 节点执行器所需的 3 张表（事件流/定时器/Outbox），并扩展 sop_executions 表 4 个字段"
 }
 
-// Up 执行迁移
 func (m *SOPExecutorMigration) Up(ctx context.Context) error {
 	if err := m.db.Exec(`CREATE TABLE IF NOT EXISTS sop_exec_events (
 		id BIGSERIAL PRIMARY KEY,
@@ -100,7 +95,6 @@ func (m *SOPExecutorMigration) Up(ctx context.Context) error {
 	return nil
 }
 
-// Down 回滚
 func (m *SOPExecutorMigration) Down(ctx context.Context) error {
 	declineIndexDrop(m.Version(), "idx_sop_executions_wait")
 	declineColumnDrop(m.Version(), "sop_executions.wait_event", "sop_executions.trace_id",

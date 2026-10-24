@@ -102,14 +102,14 @@ func (m *ReachTablesMigration) Up(ctx context.Context) error {
 	return nil
 }
 
-// Down 走 declineTableDrop 口径（降级不销毁在用对象）。
+// Down 走 declineTableDrop（降级不销毁在用对象）。
 //
-// 这两张表在本项目的每个真实部署里都是 **AutoMigrate 建的**（model 挂在
+// 这两张表在本项目的每个真实部署里都是 AutoMigrate 建的（model 挂在
 // internal/service 的 init() → db.RegisterExtraModels 上），本迁移只是"纯迁移链
 // 恢复"路径的补建。Down 按名字 DROP 就等于：一次 `POST /api/migration/rollback`
 // 把现网正在写的 reach_compliance_log（合规审计日志）连同 reach_delayed_outbound
 // （AI 回复延迟出站队列，丢一行就是一条客户回复永远不发）一起抹掉，而 AutoMigrate
-// 只在启动时跑，回滚后的进程里这两张表**永不自动补回**。
+// 只在启动时跑，回滚后的进程里这两张表永不自动补回。
 // 两张表的代价完全不对称：留着只是多占一行元数据，删掉是不可恢复的数据丢失。
 func (m *ReachTablesMigration) Down(ctx context.Context) error {
 	if m.db == nil {

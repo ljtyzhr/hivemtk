@@ -14,23 +14,18 @@ type AmountMoneyMigration struct {
 	db *gorm.DB
 }
 
-// NewAmountMoneyMigration 创建迁移实例
 func NewAmountMoneyMigration(db *gorm.DB) *AmountMoneyMigration {
 	return &AmountMoneyMigration{db: db}
 }
 
-// Version 返回版本号
 func (m *AmountMoneyMigration) Version() string { return "v2.9.0" }
 
-// Name 返回迁移名称
 func (m *AmountMoneyMigration) Name() string { return "金额字段 BIGINT 重构（分）" }
 
-// Description 返回迁移描述
 func (m *AmountMoneyMigration) Description() string {
 	return "将 market_templates.price / rfm_rules.m_amount_* / user_rfms.total_amount / sales_personas.avg_deal_amount 等 decimal 金额字段重构为 bigint（单位：分）"
 }
 
-// Up 执行升级
 func (m *AmountMoneyMigration) Up(ctx context.Context) error {
 	if m.db == nil {
 		return fmt.Errorf("db is nil")

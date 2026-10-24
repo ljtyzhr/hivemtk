@@ -7,28 +7,24 @@ import (
 	"gorm.io/gorm"
 )
 
-// UnmultitenantSchemaMigration 彻底移除多租户结构迁移(原 V200Migration 重命名)
+// UnmultitenantSchemaMigration 彻底移除多租户结构迁移
 // 私域部署版本:删除 merchants 表,移除所有业务表中的 merchant_id 字段,重建唯一索引
 type UnmultitenantSchemaMigration struct {
 	db *gorm.DB
 }
 
-// NewUnmultitenantSchemaMigration 创建单租户迁移
 func NewUnmultitenantSchemaMigration(db *gorm.DB) *UnmultitenantSchemaMigration {
 	return &UnmultitenantSchemaMigration{db: db}
 }
 
-// Version 返回版本号
 func (m *UnmultitenantSchemaMigration) Version() string {
 	return "v2.0.0"
 }
 
-// Name 返回迁移名称
 func (m *UnmultitenantSchemaMigration) Name() string {
 	return "彻底移除多租户结构"
 }
 
-// Description 返回迁移描述
 func (m *UnmultitenantSchemaMigration) Description() string {
 	return "独立部署版本：删除 merchants 表，移除所有业务表中的 merchant_id 字段，重建唯一索引"
 }
@@ -117,7 +113,6 @@ var businessTablesWithMerchantID = []string{
 	"accounts",
 }
 
-// Up 执行升级
 func (m *UnmultitenantSchemaMigration) Up(ctx context.Context) error {
 	for _, table := range businessTablesWithMerchantID {
 		m.db.Exec("ALTER TABLE " + table + " DROP COLUMN IF EXISTS merchant_id")
@@ -131,7 +126,6 @@ func (m *UnmultitenantSchemaMigration) Up(ctx context.Context) error {
 	return nil
 }
 
-// Down 执行降级
 func (m *UnmultitenantSchemaMigration) Down(ctx context.Context) error {
 	return nil
 }

@@ -8,70 +8,59 @@ import (
 	"gorm.io/gorm"
 )
 
-// InitialSchemaMigration 初始版本迁移(原 V110Migration 重命名,语义化命名)
+// InitialSchemaMigration 初始版本迁移
 // 私域部署: 单租户,无 merchant_id 字段
 type InitialSchemaMigration struct {
 	db *gorm.DB
 }
 
-// NewInitialSchemaMigration 创建初始版本迁移
 func NewInitialSchemaMigration(db *gorm.DB) *InitialSchemaMigration {
 	return &InitialSchemaMigration{db: db}
 }
 
-// Version 返回版本号
 func (m *InitialSchemaMigration) Version() string {
 	return "v1.1.0"
 }
 
-// Name 返回迁移名称
 func (m *InitialSchemaMigration) Name() string {
 	return "初始版本迁移"
 }
 
-// Description 返回迁移描述
 func (m *InitialSchemaMigration) Description() string {
 	return "创建基础表结构"
 }
 
-// Up 执行升级
 func (m *InitialSchemaMigration) Up(ctx context.Context) error {
 	return nil
 }
 
-// Down 执行降级
 func (m *InitialSchemaMigration) Down(ctx context.Context) error {
 	return nil
 }
 
 var _ migration.Migration = (*InitialSchemaMigration)(nil)
 
-// MarketingFlowSchemaMigration 营销自动化迁移(原 V130Migration 重命名)
+// MarketingFlowSchemaMigration 营销自动化迁移
 type MarketingFlowSchemaMigration struct {
 	db *gorm.DB
 }
 
-// NewMarketingFlowSchemaMigration 创建营销流程迁移
 func NewMarketingFlowSchemaMigration(db *gorm.DB) *MarketingFlowSchemaMigration {
 	return &MarketingFlowSchemaMigration{db: db}
 }
 
-// Version 返回版本号
 func (m *MarketingFlowSchemaMigration) Version() string {
 	return "v1.3.0"
 }
 
-// Name 返回迁移名称
 func (m *MarketingFlowSchemaMigration) Name() string {
 	return "营销自动化"
 }
 
-// Description 返回迁移描述
 func (m *MarketingFlowSchemaMigration) Description() string {
 	return "添加营销流程、触发器、动作表"
 }
 
-// Up 执行升级
 func (m *MarketingFlowSchemaMigration) Up(ctx context.Context) error {
 	m.db.Exec(`
 		CREATE TABLE IF NOT EXISTS marketing_flows (
@@ -110,7 +99,6 @@ func (m *MarketingFlowSchemaMigration) Up(ctx context.Context) error {
 	return nil
 }
 
-// Down 执行降级
 func (m *MarketingFlowSchemaMigration) Down(ctx context.Context) error {
 	declineTableDrop(m.Version(), "flow_executions", "marketing_flows")
 	return nil
@@ -215,7 +203,7 @@ func RegisterMigrations(registry *migration.MigrationRegistry, db *gorm.DB) {
 	register(NewMenuGrantCeilingPruneMigration(db))
 	register(NewClueGeoCaptureTypeSplitMigration(db))
 	register(NewTenantTableMigration(db))
-	// 生产装配点：**不得**链 .withTables(...)（那是测试专用口子，会令"真库内省"退化成
+	// 生产装配点：不得链 .withTables(...)（那是测试专用口子，会把"真库内省"退化成
 	// "只处理指定表"）。TestTenantColumnBatchRegistration 钉住这一条。
 	register(NewTenantColumnBatchMigration(db))
 	register(NewTenantUniqueIndexMigration(db))
@@ -223,9 +211,9 @@ func RegisterMigrations(registry *migration.MigrationRegistry, db *gorm.DB) {
 	register(NewAggregationWatermarkPKMigration(db))
 	// v3.62.0：LLM 输入/输出分列计价与 provider 来源（模块化改造 · 任务五）
 	register(NewLLMSeparatePricingMigration(db))
-	// v3.63.0：tenants 静默合规采集三列（003 计费二期 T010）
+	// v3.63.0：tenants 静默合规采集三列
 	register(NewTenantInitComplianceColumnsMigration(db))
-	// v3.64.0：订阅镜像表（003 计费二期 T022）
+	// v3.64.0：订阅镜像表
 	register(NewTenantSubscriptionMirrorMigration(db))
 	// v3.65.0：system_config_kv 租户分域（平台键迁至 platform_config_kv，主键复合化）
 	register(NewPlatformKVTenantSplitMigration(db))
@@ -270,15 +258,15 @@ func RegisterMigrations(registry *migration.MigrationRegistry, db *gorm.DB) {
 	// （user/merchant）的策略 + 异步审查任务队列 + 审查结论留痕 + 冻结/黑名单处置。
 	// 表都是租户表，唯一索引经 tenancyidx 复合化为 (tenant_id, ...)
 	register(NewContentGuardMigration(db))
-	// v3.79.0：11 张手写 DDL 建表的租户表补 tenant_id 前导索引（SaaS 审计 A6）——
+	// v3.79.0：11 张手写 DDL 建表的租户表补 tenant_id 前导索引——
 	// 判据是真库索引族里有没有 tenant_id 打头的列，不 grep 模型 tag：
 	// tag 只对 AutoMigrate 建的表生效，对手写 CREATE TABLE 的表形同虚设（这 11 张就是这么漏的）
 	register(NewTenantLeadingIndexMigration(db))
-	// v3.80.0：存量"明文租户段"文件 URL 就地重签（SaaS 审计 A1/A12）——/files 在 on 模式下
+	// v3.80.0：存量"明文租户段"文件 URL 就地重签——/files 在 on 模式下
 	// 只认签名凭证，把租户归属与过期时间搬进 ?s= token、URL 路径里不再出现 tenant_{id}。
 	// 不改库形状、不删东西；幂等（签名后的值不再匹配 /files/tenant_<数字>/ 形态）
 	register(NewFileURLSignMigration(db))
-	// v3.81.0（A10 引用漂移）：geo_citation_snapshots 唯一键 (tenant_id, snapshot_date)
+	// v3.81.0（引用漂移）：geo_citation_snapshots 唯一键 (tenant_id, snapshot_date)
 	// ——快照 UPSERT 的 ON CONFLICT 依赖它；模型有意不用 uniqueIndex 标签（同 v3.71.0 教训）
 	register(NewGeoCitationSnapshotUniqueKeyMigration(db))
 	// v3.82.0（D-9 存储半项）：message_hub 加 platform_msg_id 列 +
@@ -292,4 +280,7 @@ func RegisterMigrations(registry *migration.MigrationRegistry, db *gorm.DB) {
 	// v3.83.1（T1 低置信度回流）：unknown_questions 三表（沉淀/聚类/审核流水，均带 tenant_id）
 	// + pg_trgm 扩展与 question GIN trigram 索引（相似归簇）
 	register(NewUnknownQuestionRefluxMigration(db))
+	// v3.84.0（退款行"原因"格）：payments 加可空 reason 列——
+	// 退款行四格（金额/原因/渠道引用/状态）的第四格补齐，refunded 行填渠道退款原因
+	register(NewPaymentReasonMigration(db))
 }

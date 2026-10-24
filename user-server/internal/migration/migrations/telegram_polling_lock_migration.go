@@ -22,27 +22,22 @@ type TelegramPollingLockMigration struct {
 	db *gorm.DB
 }
 
-// NewTelegramPollingLockMigration 创建迁移实例
 func NewTelegramPollingLockMigration(db *gorm.DB) *TelegramPollingLockMigration {
 	return &TelegramPollingLockMigration{db: db}
 }
 
-// Version 返回版本号
 func (m *TelegramPollingLockMigration) Version() string {
 	return "v2.1.2"
 }
 
-// Name 返回迁移名称
 func (m *TelegramPollingLockMigration) Name() string {
 	return "Telegram polling 分布式锁字段"
 }
 
-// Description 返回迁移描述
 func (m *TelegramPollingLockMigration) Description() string {
 	return "为 telegram_accounts 表添加 polling_owner + polling_heartbeat_at 字段，实现多实例 polling 互斥（修复 S3-6）"
 }
 
-// Up 执行迁移
 func (m *TelegramPollingLockMigration) Up(ctx context.Context) error {
 	if !m.db.Migrator().HasTable("telegram_accounts") {
 		return nil
@@ -69,7 +64,6 @@ func (m *TelegramPollingLockMigration) Up(ctx context.Context) error {
 	return nil
 }
 
-// Down 回滚
 func (m *TelegramPollingLockMigration) Down(ctx context.Context) error {
 	if !m.db.Migrator().HasTable("telegram_accounts") {
 		return nil

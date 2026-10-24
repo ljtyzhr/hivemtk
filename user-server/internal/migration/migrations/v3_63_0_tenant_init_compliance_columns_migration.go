@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// TenantInitComplianceColumnsMigration 初始化静默合规采集列（003 T010）
+// TenantInitComplianceColumnsMigration 初始化静默合规采集列
 //
 // tenants 表加三列（只加列不改老列，零回滚风险）：
 //
@@ -24,7 +24,6 @@ type TenantInitComplianceColumnsMigration struct {
 	db *gorm.DB
 }
 
-// NewTenantInitComplianceColumnsMigration 创建迁移实例
 func NewTenantInitComplianceColumnsMigration(db *gorm.DB) *TenantInitComplianceColumnsMigration {
 	return &TenantInitComplianceColumnsMigration{db: db}
 }

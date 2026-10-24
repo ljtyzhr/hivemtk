@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// ChurnScoreMigration D22b：churn_scores 表（BG/NBD 流失概率周批输出）
+// ChurnScoreMigration churn_scores 表（BG/NBD 流失概率周批输出）
 //
 // 每客户一行：BG/NBD 统计量 (x, tx, T) + 拟合参数快照 + P(alive)/E[Y(30)] 输出。
 // 周批全量重算 upsert（customer_key 唯一）；params JSONB 存本轮拟合参数，

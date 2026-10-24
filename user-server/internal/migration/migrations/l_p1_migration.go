@@ -14,23 +14,18 @@ type LP1Migration struct {
 	db *gorm.DB
 }
 
-// NewLP1Migration 创建迁移实例
 func NewLP1Migration(db *gorm.DB) *LP1Migration {
 	return &LP1Migration{db: db}
 }
 
-// Version 返回版本号
 func (m *LP1Migration) Version() string { return "v3.3.0" }
 
-// Name 返回迁移名称
 func (m *LP1Migration) Name() string { return "L 域 P1 缺口修复 - 第三方对接模板" }
 
-// Description 返回迁移描述
 func (m *LP1Migration) Description() string {
 	return "创建 integration_templates 表，支撑 ERP/CRM 预置对接模板（钉钉/企微/飞书/用友/金蝶/管家婆/SAP）的 JSON 导入导出与字段映射"
 }
 
-// Up 执行升级
 func (m *LP1Migration) Up(ctx context.Context) error {
 	if m.db == nil {
 		return fmt.Errorf("db is nil")
@@ -65,7 +60,6 @@ func (m *LP1Migration) Up(ctx context.Context) error {
 	return execAllMP1(ctx, m.db, stmts)
 }
 
-// Down 回滚
 func (m *LP1Migration) Down(ctx context.Context) error {
 	if m.db == nil {
 		return fmt.Errorf("db is nil")

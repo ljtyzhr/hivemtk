@@ -9,10 +9,10 @@ import (
 	"gorm.io/gorm"
 )
 
-// TenantGlobalEmailUniqueMigration 登录邮箱跨租户全局唯一索引（specs/001-saas-multi-tenant T029/T031）
+// TenantGlobalEmailUniqueMigration 登录邮箱跨租户全局唯一索引
 //
 // 背景：data-model.md 规定「邮箱全局唯一登录通道」——跨租户歧义的用户名由邮箱消解，
-// 因此 email 的唯一性语义是**全局**，与 username 的「租户内唯一」相反。
+// 因此 email 的唯一性语义是全局，与 username 的「租户内唯一」相反。
 //
 // 为什么需要数据库兜底：开户事务内的应用层查重在读已提交隔离下留有竞态窗口
 // （两个并发开户请求可同时通过 EmailExists 检查）。若不加索引，跨租户重复邮箱
@@ -32,10 +32,8 @@ func NewTenantGlobalEmailUniqueMigration(db *gorm.DB) *TenantGlobalEmailUniqueMi
 }
 
 // Version 返回版本号
-//
 // v3.61.0 而非 v3.60.0：v3.60.0 已被 AggregationWatermarkPKMigration 占用，
-// 而迁移注册表对重复版本是**启动即 panic**（duplicate migration version）——
-// 两个迁移撞号会让整个进程起不来，而症状出现在启动那一刻，与"谁改的"毫无关系。
+// 迁移注册表对重复版本是启动即 panic（duplicate migration version）。
 func (m *TenantGlobalEmailUniqueMigration) Version() string { return "v3.61.0" }
 
 // Name 返回迁移名称

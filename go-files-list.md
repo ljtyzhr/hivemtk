@@ -1046,105 +1046,105 @@
 | 831 | [ ] | `internal/middleware/visitor_rate_limit.go` | 4 | 8 | 4 | 0 |
 | 832 | [ ] | `internal/middleware/webhook_signature.go` | 39 | 95 | 39 | 0 |
 | 833 | [ ] | `internal/middleware/webhook_tenant.go` | 5 | 15 | 5 | 0 |
-| 834 | [ ] | `internal/migration/migrations/a_domain_p1_migration.go` | 7 | 7 | 7 | 0 |
-| 835 | [ ] | `internal/migration/migrations/aggregation_watermark_pk_migration.go` | 8 | 12 | 8 | 0 |
-| 836 | [ ] | `internal/migration/migrations/ai_agent_asset_binding_migration.go` | 7 | 10 | 7 | 0 |
-| 837 | [ ] | `internal/migration/migrations/ai_agent_kb_binding_migration.go` | 7 | 7 | 7 | 0 |
-| 838 | [ ] | `internal/migration/migrations/ai_agent_logic_migration.go` | 7 | 7 | 7 | 0 |
-| 839 | [ ] | `internal/migration/migrations/ai_agent_schema_migration.go` | 8 | 11 | 8 | 0 |
-| 840 | [ ] | `internal/migration/migrations/ai_perf_faq_sop_layer_migration.go` | 7 | 8 | 7 | 0 |
-| 841 | [ ] | `internal/migration/migrations/alert_rule_migration.go` | 7 | 13 | 7 | 0 |
-| 842 | [ ] | `internal/migration/migrations/amount_money_migration.go` | 7 | 10 | 7 | 0 |
-| 843 | [ ] | `internal/migration/migrations/asset_bundle_migration.go` | 7 | 7 | 7 | 0 |
-| 844 | [ ] | `internal/migration/migrations/auth_security_migration.go` | 7 | 8 | 7 | 0 |
-| 845 | [ ] | `internal/migration/migrations/bridge_account_migration.go` | 1 | 1 | 1 | 0 |
-| 846 | [ ] | `internal/migration/migrations/bridge_channel_normalize_migration.go` | 1 | 2 | 1 | 0 |
-| 847 | [ ] | `internal/migration/migrations/compliance_d_e_migration.go` | 7 | 7 | 7 | 0 |
-| 848 | [ ] | `internal/migration/migrations/confidence_migration.go` | 7 | 12 | 7 | 0 |
-| 849 | [ ] | `internal/migration/migrations/customer_session_updated_at_migration.go` | 7 | 7 | 7 | 0 |
-| 850 | [ ] | `internal/migration/migrations/down_drop_policy.go` | 1 | 13 | 1 | 0 |
-| 851 | [ ] | `internal/migration/migrations/feedback_loop_migration.go` | 7 | 12 | 7 | 0 |
-| 852 | [ ] | `internal/migration/migrations/h_p1_migration.go` | 7 | 7 | 7 | 0 |
-| 853 | [ ] | `internal/migration/migrations/humanize_evaluator_migration.go` | 7 | 11 | 7 | 0 |
-| 854 | [ ] | `internal/migration/migrations/initial_schema.go` | 20 | 22 | 20 | 0 |
-| 855 | [ ] | `internal/migration/migrations/knowledge_search_log_product_optional_migration.go` | 7 | 7 | 7 | 0 |
-| 856 | [ ] | `internal/migration/migrations/knowledge_vector_migration.go` | 7 | 19 | 7 | 0 |
-| 857 | [ ] | `internal/migration/migrations/knowledge_weight_migration.go` | 7 | 7 | 7 | 0 |
-| 858 | [ ] | `internal/migration/migrations/l_p1_migration.go` | 8 | 9 | 8 | 0 |
-| 859 | [ ] | `internal/migration/migrations/llm_routing_logs_extend_migration.go` | 7 | 7 | 7 | 0 |
-| 860 | [ ] | `internal/migration/migrations/llm_routing_logs_migration.go` | 7 | 7 | 7 | 0 |
+| 834 | [x] | `internal/migration/migrations/a_domain_p1_migration.go` | 7 | 7 | 7 | 0 |
+| 835 | [x] | `internal/migration/migrations/aggregation_watermark_pk_migration.go` | 8 | 12 | 8 | 0 |
+| 836 | [x] | `internal/migration/migrations/ai_agent_asset_binding_migration.go` | 7 | 10 | 7 | 0 |
+| 837 | [x] | `internal/migration/migrations/ai_agent_kb_binding_migration.go` | 7 | 7 | 7 | 0 |
+| 838 | [x] | `internal/migration/migrations/ai_agent_logic_migration.go` | 7 | 7 | 7 | 0 |
+| 839 | [x] | `internal/migration/migrations/ai_agent_schema_migration.go` | 8 | 11 | 8 | 0 |
+| 840 | [x] | `internal/migration/migrations/ai_perf_faq_sop_layer_migration.go` | 7 | 8 | 7 | 0 |
+| 841 | [x] | `internal/migration/migrations/alert_rule_migration.go` | 7 | 13 | 7 | 0 |
+| 842 | [x] | `internal/migration/migrations/amount_money_migration.go` | 7 | 10 | 7 | 0 |
+| 843 | [x] | `internal/migration/migrations/asset_bundle_migration.go` | 7 | 7 | 7 | 0 |
+| 844 | [x] | `internal/migration/migrations/auth_security_migration.go` | 7 | 8 | 7 | 0 |
+| 845 | [x] | `internal/migration/migrations/bridge_account_migration.go` | 1 | 1 | 1 | 0 |
+| 846 | [x] | `internal/migration/migrations/bridge_channel_normalize_migration.go` | 1 | 2 | 1 | 0 |
+| 847 | [x] | `internal/migration/migrations/compliance_d_e_migration.go` | 7 | 7 | 7 | 0 |
+| 848 | [x] | `internal/migration/migrations/confidence_migration.go` | 7 | 12 | 7 | 0 |
+| 849 | [x] | `internal/migration/migrations/customer_session_updated_at_migration.go` | 7 | 7 | 7 | 0 |
+| 850 | [x] | `internal/migration/migrations/down_drop_policy.go` | 1 | 13 | 1 | 0 |
+| 851 | [x] | `internal/migration/migrations/feedback_loop_migration.go` | 7 | 12 | 7 | 0 |
+| 852 | [x] | `internal/migration/migrations/h_p1_migration.go` | 7 | 7 | 7 | 0 |
+| 853 | [x] | `internal/migration/migrations/humanize_evaluator_migration.go` | 7 | 11 | 7 | 0 |
+| 854 | [x] | `internal/migration/migrations/initial_schema.go` | 20 | 22 | 20 | 0 |
+| 855 | [x] | `internal/migration/migrations/knowledge_search_log_product_optional_migration.go` | 7 | 7 | 7 | 0 |
+| 856 | [x] | `internal/migration/migrations/knowledge_vector_migration.go` | 7 | 19 | 7 | 0 |
+| 857 | [x] | `internal/migration/migrations/knowledge_weight_migration.go` | 7 | 7 | 7 | 0 |
+| 858 | [x] | `internal/migration/migrations/l_p1_migration.go` | 8 | 9 | 8 | 0 |
+| 859 | [x] | `internal/migration/migrations/llm_routing_logs_extend_migration.go` | 7 | 7 | 7 | 0 |
+| 860 | [x] | `internal/migration/migrations/llm_routing_logs_migration.go` | 7 | 7 | 7 | 0 |
 | 861 | [x] | `internal/migration/migrations/llm_separate_pricing_migration.go` | 9 | 34 | 9 | 0 |
-| 862 | [ ] | `internal/migration/migrations/llm_usage_records_migration.go` | 8 | 10 | 8 | 0 |
-| 863 | [ ] | `internal/migration/migrations/m_p1_migration.go` | 7 | 7 | 7 | 0 |
-| 864 | [ ] | `internal/migration/migrations/merchant_id_nullable_migration.go` | 7 | 11 | 7 | 0 |
-| 865 | [ ] | `internal/migration/migrations/multilingual_i18n_migration.go` | 7 | 7 | 7 | 0 |
-| 866 | [ ] | `internal/migration/migrations/multilingual_i18n_p13_migration.go` | 7 | 7 | 7 | 0 |
-| 867 | [ ] | `internal/migration/migrations/rag_hybrid_migration.go` | 7 | 12 | 7 | 0 |
-| 868 | [ ] | `internal/migration/migrations/rag_monitoring_migration.go` | 7 | 10 | 7 | 0 |
-| 869 | [ ] | `internal/migration/migrations/session_id_length_migration.go` | 7 | 8 | 7 | 0 |
-| 870 | [ ] | `internal/migration/migrations/shortlink_columns_migration.go` | 7 | 7 | 7 | 0 |
-| 871 | [ ] | `internal/migration/migrations/sop_executor_migration.go` | 7 | 7 | 7 | 0 |
-| 872 | [ ] | `internal/migration/migrations/sop_heatmap_index_migration.go` | 7 | 10 | 7 | 0 |
-| 873 | [ ] | `internal/migration/migrations/telegram_polling_lock_migration.go` | 7 | 17 | 7 | 0 |
-| 874 | [ ] | `internal/migration/migrations/tenant_column_batch_migration.go` | 24 | 35 | 24 | 0 |
-| 875 | [ ] | `internal/migration/migrations/tenant_global_email_unique_migration.go` | 8 | 24 | 8 | 0 |
-| 876 | [ ] | `internal/migration/migrations/tenant_table_migration.go` | 7 | 10 | 7 | 0 |
-| 877 | [ ] | `internal/migration/migrations/tenant_unique_index_migration.go` | 7 | 15 | 7 | 0 |
-| 878 | [ ] | `internal/migration/migrations/unmultitenant_migration.go` | 7 | 8 | 7 | 0 |
-| 879 | [ ] | `internal/migration/migrations/user_blacklist_migration.go` | 7 | 11 | 7 | 0 |
+| 862 | [x] | `internal/migration/migrations/llm_usage_records_migration.go` | 8 | 10 | 8 | 0 |
+| 863 | [x] | `internal/migration/migrations/m_p1_migration.go` | 7 | 7 | 7 | 0 |
+| 864 | [x] | `internal/migration/migrations/merchant_id_nullable_migration.go` | 7 | 11 | 7 | 0 |
+| 865 | [x] | `internal/migration/migrations/multilingual_i18n_migration.go` | 7 | 7 | 7 | 0 |
+| 866 | [x] | `internal/migration/migrations/multilingual_i18n_p13_migration.go` | 7 | 7 | 7 | 0 |
+| 867 | [x] | `internal/migration/migrations/rag_hybrid_migration.go` | 7 | 12 | 7 | 0 |
+| 868 | [x] | `internal/migration/migrations/rag_monitoring_migration.go` | 7 | 10 | 7 | 0 |
+| 869 | [x] | `internal/migration/migrations/session_id_length_migration.go` | 7 | 8 | 7 | 0 |
+| 870 | [x] | `internal/migration/migrations/shortlink_columns_migration.go` | 7 | 7 | 7 | 0 |
+| 871 | [x] | `internal/migration/migrations/sop_executor_migration.go` | 7 | 7 | 7 | 0 |
+| 872 | [x] | `internal/migration/migrations/sop_heatmap_index_migration.go` | 7 | 10 | 7 | 0 |
+| 873 | [x] | `internal/migration/migrations/telegram_polling_lock_migration.go` | 7 | 17 | 7 | 0 |
+| 874 | [x] | `internal/migration/migrations/tenant_column_batch_migration.go` | 24 | 35 | 24 | 0 |
+| 875 | [x] | `internal/migration/migrations/tenant_global_email_unique_migration.go` | 8 | 24 | 8 | 0 |
+| 876 | [x] | `internal/migration/migrations/tenant_table_migration.go` | 7 | 10 | 7 | 0 |
+| 877 | [x] | `internal/migration/migrations/tenant_unique_index_migration.go` | 7 | 15 | 7 | 0 |
+| 878 | [x] | `internal/migration/migrations/unmultitenant_migration.go` | 7 | 8 | 7 | 0 |
+| 879 | [x] | `internal/migration/migrations/user_blacklist_migration.go` | 7 | 11 | 7 | 0 |
 | 880 | [x] | `internal/migration/migrations/v3_15_kb_unification_migration.go` | 7 | 7 | 7 | 0 |
-| 881 | [ ] | `internal/migration/migrations/v3_16_drop_rag_safety_audit_migration.go` | 7 | 7 | 7 | 0 |
-| 882 | [ ] | `internal/migration/migrations/v3_17_drop_rag_alerts_migration.go` | 7 | 7 | 7 | 0 |
+| 881 | [x] | `internal/migration/migrations/v3_16_drop_rag_safety_audit_migration.go` | 7 | 7 | 7 | 0 |
+| 882 | [x] | `internal/migration/migrations/v3_17_drop_rag_alerts_migration.go` | 7 | 7 | 7 | 0 |
 | 883 | [x] | `internal/migration/migrations/v3_18_1_legacy_web_purge_migration.go` | 0 | 0 | 0 | 0 |
 | 884 | [x] | `internal/migration/migrations/v3_18_channel_unify_migration.go` | 0 | 0 | 0 | 0 |
-| 885 | [ ] | `internal/migration/migrations/v3_19_drop_cdp_auto_reply_migration.go` | 2 | 10 | 2 | 0 |
-| 886 | [ ] | `internal/migration/migrations/v3_20_live_code_click_logs_migration.go` | 2 | 7 | 2 | 0 |
+| 885 | [x] | `internal/migration/migrations/v3_19_drop_cdp_auto_reply_migration.go` | 2 | 10 | 2 | 0 |
+| 886 | [x] | `internal/migration/migrations/v3_20_live_code_click_logs_migration.go` | 2 | 7 | 2 | 0 |
 | 887 | [x] | `internal/migration/migrations/v3_21_bridge_metrics_migration.go` | 2 | 7 | 2 | 0 |
-| 888 | [ ] | `internal/migration/migrations/v3_22_0_customer_id_standardize_migration.go` | 2 | 5 | 2 | 0 |
+| 888 | [x] | `internal/migration/migrations/v3_22_0_customer_id_standardize_migration.go` | 2 | 5 | 2 | 0 |
 | 889 | [x] | `internal/migration/migrations/v3_22_1_soft_delete_migration.go` | 0 | 0 | 0 | 0 |
 | 890 | [x] | `internal/migration/migrations/v3_22_2_enum_optimize_migration.go` | 0 | 0 | 0 | 0 |
-| 891 | [ ] | `internal/migration/migrations/v3_22_3_intent_merge_migration.go` | 1 | 2 | 1 | 0 |
+| 891 | [x] | `internal/migration/migrations/v3_22_3_intent_merge_migration.go` | 1 | 2 | 1 | 0 |
 | 892 | [x] | `internal/migration/migrations/v3_23_0_unified_id_widen_migration.go` | 0 | 0 | 0 | 0 |
-| 893 | [ ] | `internal/migration/migrations/v3_25_0_customer_owner_agent_migration.go` | 7 | 10 | 7 | 0 |
-| 894 | [ ] | `internal/migration/migrations/v3_26_0_reach_tables_migration.go` | 7 | 13 | 7 | 0 |
-| 895 | [ ] | `internal/migration/migrations/v3_27_0_sop_timer_sink_columns_migration.go` | 6 | 6 | 6 | 0 |
+| 893 | [x] | `internal/migration/migrations/v3_25_0_customer_owner_agent_migration.go` | 7 | 10 | 7 | 0 |
+| 894 | [x] | `internal/migration/migrations/v3_26_0_reach_tables_migration.go` | 7 | 13 | 7 | 0 |
+| 895 | [x] | `internal/migration/migrations/v3_27_0_sop_timer_sink_columns_migration.go` | 6 | 6 | 6 | 0 |
 | 896 | [x] | `internal/migration/migrations/v3_28_0_email_smtp_password_encrypt_migration.go` | 0 | 0 | 0 | 0 |
-| 897 | [ ] | `internal/migration/migrations/v3_29_0_sop_executed_nodes_migration.go` | 1 | 10 | 1 | 0 |
-| 898 | [ ] | `internal/migration/migrations/v3_30_0_bandit_reflux_log_migration.go` | 1 | 8 | 1 | 0 |
+| 897 | [x] | `internal/migration/migrations/v3_29_0_sop_executed_nodes_migration.go` | 1 | 10 | 1 | 0 |
+| 898 | [x] | `internal/migration/migrations/v3_30_0_bandit_reflux_log_migration.go` | 1 | 8 | 1 | 0 |
 | 899 | [x] | `internal/migration/migrations/v3_31_0_embedding_source_migration.go` | 0 | 0 | 0 | 0 |
-| 900 | [ ] | `internal/migration/migrations/v3_32_0_handoff_outcome_migration.go` | 1 | 5 | 1 | 0 |
-| 901 | [ ] | `internal/migration/migrations/v3_33_0_agent_checkpoint_migration.go` | 1 | 5 | 1 | 0 |
-| 902 | [ ] | `internal/migration/migrations/v3_34_0_churn_score_migration.go` | 1 | 5 | 1 | 0 |
-| 903 | [ ] | `internal/migration/migrations/v3_35_0_telegram_group_gate_migration.go` | 1 | 1 | 1 | 0 |
-| 904 | [ ] | `internal/migration/migrations/v3_36_0_admin_password_guard_migration.go` | 3 | 14 | 3 | 0 |
-| 905 | [ ] | `internal/migration/migrations/v3_37_0_browser_automation_migration.go` | 6 | 6 | 6 | 0 |
-| 906 | [ ] | `internal/migration/migrations/v3_38_0_browser_command_log_migration.go` | 1 | 2 | 1 | 0 |
-| 907 | [ ] | `internal/migration/migrations/v3_39_0_browser_task_platform_migration.go` | 1 | 2 | 1 | 0 |
-| 908 | [ ] | `internal/migration/migrations/v3_40_0_browser_audit_retry_tz_migration.go` | 1 | 7 | 1 | 0 |
-| 909 | [ ] | `internal/migration/migrations/v3_41_0_operation_log_encrypt_fields_migration.go` | 7 | 18 | 7 | 0 |
-| 910 | [ ] | `internal/migration/migrations/v3_42_0_browser_require_confirm_migration.go` | 1 | 3 | 1 | 0 |
-| 911 | [ ] | `internal/migration/migrations/v3_43_0_browser_write_ledger_confirm_budget_migration.go` | 1 | 11 | 1 | 0 |
-| 912 | [ ] | `internal/migration/migrations/v3_44_0_browser_command_log_ok_tristate_migration.go` | 4 | 19 | 4 | 0 |
-| 913 | [ ] | `internal/migration/migrations/v3_45_0_message_hub_outbound_push_budget_migration.go` | 4 | 19 | 4 | 0 |
-| 914 | [ ] | `internal/migration/migrations/v3_46_0_browser_audit_prune_cutoff_source_migration.go` | 3 | 14 | 3 | 0 |
-| 915 | [ ] | `internal/migration/migrations/v3_47_0_config_param_group_key_unique_migration.go` | 4 | 20 | 4 | 0 |
-| 916 | [ ] | `internal/migration/migrations/v3_48_0_browser_task_copy_text_migration.go` | 3 | 11 | 3 | 0 |
-| 917 | [ ] | `internal/migration/migrations/v3_49_0_browser_profile_health_migration.go` | 2 | 9 | 2 | 0 |
-| 918 | [ ] | `internal/migration/migrations/v3_50_0_browser_outreach_dedupe_migration.go` | 2 | 10 | 2 | 0 |
-| 919 | [ ] | `internal/migration/migrations/v3_51_0_browser_task_campaign_budget_migration.go` | 3 | 16 | 3 | 0 |
-| 920 | [ ] | `internal/migration/migrations/v3_52_0_browser_outreach_receipt_migration.go` | 2 | 12 | 2 | 0 |
-| 921 | [ ] | `internal/migration/migrations/v3_53_0_failover_policy_to_config_param_migration.go` | 6 | 30 | 6 | 0 |
-| 922 | [ ] | `internal/migration/migrations/v3_54_0_embedding_global_to_config_param_migration.go` | 6 | 23 | 6 | 0 |
+| 900 | [x] | `internal/migration/migrations/v3_32_0_handoff_outcome_migration.go` | 1 | 5 | 1 | 0 |
+| 901 | [x] | `internal/migration/migrations/v3_33_0_agent_checkpoint_migration.go` | 1 | 5 | 1 | 0 |
+| 902 | [x] | `internal/migration/migrations/v3_34_0_churn_score_migration.go` | 1 | 5 | 1 | 0 |
+| 903 | [x] | `internal/migration/migrations/v3_35_0_telegram_group_gate_migration.go` | 1 | 1 | 1 | 0 |
+| 904 | [x] | `internal/migration/migrations/v3_36_0_admin_password_guard_migration.go` | 3 | 14 | 3 | 0 |
+| 905 | [x] | `internal/migration/migrations/v3_37_0_browser_automation_migration.go` | 6 | 6 | 6 | 0 |
+| 906 | [x] | `internal/migration/migrations/v3_38_0_browser_command_log_migration.go` | 1 | 2 | 1 | 0 |
+| 907 | [x] | `internal/migration/migrations/v3_39_0_browser_task_platform_migration.go` | 1 | 2 | 1 | 0 |
+| 908 | [x] | `internal/migration/migrations/v3_40_0_browser_audit_retry_tz_migration.go` | 1 | 7 | 1 | 0 |
+| 909 | [x] | `internal/migration/migrations/v3_41_0_operation_log_encrypt_fields_migration.go` | 7 | 18 | 7 | 0 |
+| 910 | [x] | `internal/migration/migrations/v3_42_0_browser_require_confirm_migration.go` | 1 | 3 | 1 | 0 |
+| 911 | [x] | `internal/migration/migrations/v3_43_0_browser_write_ledger_confirm_budget_migration.go` | 1 | 11 | 1 | 0 |
+| 912 | [x] | `internal/migration/migrations/v3_44_0_browser_command_log_ok_tristate_migration.go` | 4 | 19 | 4 | 0 |
+| 913 | [x] | `internal/migration/migrations/v3_45_0_message_hub_outbound_push_budget_migration.go` | 4 | 19 | 4 | 0 |
+| 914 | [x] | `internal/migration/migrations/v3_46_0_browser_audit_prune_cutoff_source_migration.go` | 3 | 14 | 3 | 0 |
+| 915 | [x] | `internal/migration/migrations/v3_47_0_config_param_group_key_unique_migration.go` | 4 | 20 | 4 | 0 |
+| 916 | [x] | `internal/migration/migrations/v3_48_0_browser_task_copy_text_migration.go` | 3 | 11 | 3 | 0 |
+| 917 | [x] | `internal/migration/migrations/v3_49_0_browser_profile_health_migration.go` | 2 | 9 | 2 | 0 |
+| 918 | [x] | `internal/migration/migrations/v3_50_0_browser_outreach_dedupe_migration.go` | 2 | 10 | 2 | 0 |
+| 919 | [x] | `internal/migration/migrations/v3_51_0_browser_task_campaign_budget_migration.go` | 3 | 16 | 3 | 0 |
+| 920 | [x] | `internal/migration/migrations/v3_52_0_browser_outreach_receipt_migration.go` | 2 | 12 | 2 | 0 |
+| 921 | [x] | `internal/migration/migrations/v3_53_0_failover_policy_to_config_param_migration.go` | 6 | 30 | 6 | 0 |
+| 922 | [x] | `internal/migration/migrations/v3_54_0_embedding_global_to_config_param_migration.go` | 6 | 23 | 6 | 0 |
 | 923 | [x] | `internal/migration/migrations/v3_55_0_menu_grant_ceiling_prune_migration.go` | 10 | 42 | 10 | 0 |
-| 924 | [ ] | `internal/migration/migrations/v3_56_0_clue_geo_capture_type_split_migration.go` | 9 | 43 | 9 | 0 |
-| 925 | [ ] | `internal/migration/migrations/v3_63_0_tenant_init_compliance_columns_migration.go` | 4 | 14 | 4 | 0 |
-| 926 | [ ] | `internal/migration/migrations/v3_64_0_tenant_subscription_mirror_migration.go` | 3 | 14 | 3 | 0 |
+| 924 | [x] | `internal/migration/migrations/v3_56_0_clue_geo_capture_type_split_migration.go` | 9 | 43 | 9 | 0 |
+| 925 | [x] | `internal/migration/migrations/v3_63_0_tenant_init_compliance_columns_migration.go` | 4 | 14 | 4 | 0 |
+| 926 | [x] | `internal/migration/migrations/v3_64_0_tenant_subscription_mirror_migration.go` | 3 | 14 | 3 | 0 |
 | 927 | [x] | `internal/migration/migrations/v3_65_0_platform_kv_tenant_split_migration.go` | 15 | 37 | 15 | 0 |
 | 928 | [x] | `internal/migration/migrations/v3_66_0_tenant_site_config_and_feature_flags_migration.go` | 12 | 28 | 12 | 0 |
-| 929 | [ ] | `internal/migration/migrations/wecom_webhook_fields_migration.go` | 7 | 8 | 7 | 0 |
-| 930 | [ ] | `internal/migration/migrations/workflow_visual_orchestrator_migration.go` | 7 | 8 | 7 | 0 |
-| 931 | [ ] | `internal/migration/registry.go` | 8 | 8 | 8 | 0 |
-| 932 | [ ] | `internal/migration/service.go` | 15 | 22 | 15 | 0 |
+| 929 | [x] | `internal/migration/migrations/wecom_webhook_fields_migration.go` | 7 | 8 | 7 | 0 |
+| 930 | [x] | `internal/migration/migrations/workflow_visual_orchestrator_migration.go` | 7 | 8 | 7 | 0 |
+| 931 | [x] | `internal/migration/registry.go` | 8 | 8 | 8 | 0 |
+| 932 | [x] | `internal/migration/service.go` | 15 | 22 | 15 | 0 |
 | 933 | [x] | `internal/model/account.go` | 0 | 0 | 0 | 0 |
 | 934 | [ ] | `internal/model/aftersale.go` | 1 | 4 | 1 | 0 |
 | 935 | [ ] | `internal/model/agent_kb_binding.go` | 3 | 26 | 3 | 0 |

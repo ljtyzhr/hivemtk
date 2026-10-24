@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// BrowserCommandLogOkTriStateMigration v3.44.0：审计流的 ok 收成三态（批20b / A2）。
+// BrowserCommandLogOkTriStateMigration v3.44.0：审计流的 ok 收成三态。
 //
 // v3.38.0 建表时 ok 是 `BOOLEAN NOT NULL DEFAULT FALSE`，模型也就只能是 bool。
 // 代码侧改成 *bool（nil=此帧不携带结论）后，库里两件事必须先解决：
@@ -77,8 +77,8 @@ func (m *BrowserCommandLogOkTriStateMigration) Up(ctx context.Context) error {
 }
 
 // Down 不动可空性与存量：把 ok 改回 NOT NULL 必须先把每一行 NULL 折成一个布尔值，
-// 那是给「无结论」补一个编出来的结论——降级撤销自己的变更可以，伪造审计事实不行（口径同
-// v3.42/v3.43 的「降级不销毁在用对象」）。列本身仍被模型持有，故此处只声明不改。
+// 那是给「无结论」补一个编出来的结论——降级撤销自己的变更可以，伪造审计事实不行。
+// 列本身仍被模型持有，故此处只声明不改。
 func (m *BrowserCommandLogOkTriStateMigration) Down(ctx context.Context) error {
 	if m.db == nil {
 		return fmt.Errorf("db is nil")

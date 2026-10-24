@@ -31,7 +31,6 @@ func (m *CustomerIDStandardizeMigration) Description() string {
 	return "将所有 customer_id 列统一为 varchar(64)，消除 JOIN 隐式类型转换"
 }
 
-// Up 执行升级
 // PostgreSQL: 扫描 information_schema.columns 找出所有名为 customer_id 的列，
 // 对 data_type 不是 'character varying' 或 character_maximum_length ≠ 64 的列执行 ALTER。
 func (m *CustomerIDStandardizeMigration) Up(ctx context.Context) error {

@@ -51,7 +51,7 @@ func (m *BrowserProfileHealthMigration) Up(ctx context.Context) error {
 	)`).Error
 }
 
-// Down 不删表：熔断行是审计证据（口径同 v3.39/v3.42–v3.48 的「降级不销毁在用对象」）。
+// Down 不删表：熔断行是审计证据。
 func (m *BrowserProfileHealthMigration) Down(ctx context.Context) error {
 	if m.db == nil {
 		return fmt.Errorf("db is nil")

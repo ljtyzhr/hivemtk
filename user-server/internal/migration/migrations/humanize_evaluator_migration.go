@@ -14,23 +14,18 @@ type HumanizeEvaluatorMigration struct {
 	db *gorm.DB
 }
 
-// NewHumanizeEvaluatorMigration 创建迁移实例
 func NewHumanizeEvaluatorMigration(db *gorm.DB) *HumanizeEvaluatorMigration {
 	return &HumanizeEvaluatorMigration{db: db}
 }
 
-// Version 返回版本号
 func (m *HumanizeEvaluatorMigration) Version() string { return "v2.9.1" }
 
-// Name 返回迁移名称
 func (m *HumanizeEvaluatorMigration) Name() string { return "拟人度评估器（4 张表）" }
 
-// Description 返回迁移描述
 func (m *HumanizeEvaluatorMigration) Description() string {
 	return "创建 humanize_scores / humanize_dimensions / champion_baselines / champion_phrases 4 张表"
 }
 
-// Up 执行升级
 func (m *HumanizeEvaluatorMigration) Up(ctx context.Context) error {
 	if m.db == nil {
 		return fmt.Errorf("db is nil")

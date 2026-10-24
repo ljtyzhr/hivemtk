@@ -18,9 +18,9 @@ import (
 //
 //	idx_group_key | CREATE UNIQUE INDEX idx_group_key ON public.config_params USING btree (key)
 //
-// 于是不同 group 的同名 key 在**库里**是互斥的。今天 114 条种子恰好没有重名，所以没人
+// 于是不同 group 的同名 key 在库里是互斥的。今天 114 条种子恰好没有重名，所以没人
 // 看见它坏；而 SeedConfigParams 的插入失败只打一行 Warnf 就 continue —— 下一次有人加
-// `reach.max_attempts` 而 `bridge.max_attempts` 已存在时，那条参数会**静默不存在**：
+// `reach.max_attempts` 而 `bridge.max_attempts` 已存在时，那条参数会静默不存在：
 // 管理台看不到它，代码里的 GetDuration 永远读到 fallback，改配置页面也没有任何反应。
 // 换句话说这一版索引把「加参数」变成了要看运气的操作。
 //
@@ -63,7 +63,7 @@ func (m *ConfigParamGroupKeyUniqueMigration) Up(ctx context.Context) error {
 	return nil
 }
 
-// Down 回成单列唯一索引：这是**收紧**约束，存量里已有跨 group 同名 key 时 PG 会直接报错。
+// Down 回成单列唯一索引：这是收紧约束，存量里已有跨 group 同名 key 时 PG 会直接报错。
 // 报错就是正确答案——那说明降级会把正在用的参数行判成冲突数据，不该由迁移静默删行来"成功"。
 func (m *ConfigParamGroupKeyUniqueMigration) Down(ctx context.Context) error {
 	if m.db == nil {

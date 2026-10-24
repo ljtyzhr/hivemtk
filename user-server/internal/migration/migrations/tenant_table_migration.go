@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// TenantTableMigration tenants 表创建（specs/001-saas-multi-tenant T004）
+// TenantTableMigration tenants 表创建
 //
 // SaaS 多租户形态的租户实体表。离线单机部署同样建表（空表为正常状态），
 // 保证同一份代码两种形态共享同一 schema 演进。
@@ -17,23 +17,18 @@ type TenantTableMigration struct {
 	db *gorm.DB
 }
 
-// NewTenantTableMigration 创建 tenants 表迁移
 func NewTenantTableMigration(db *gorm.DB) *TenantTableMigration {
 	return &TenantTableMigration{db: db}
 }
 
-// Version 返回版本号
 func (m *TenantTableMigration) Version() string { return "v3.57.0" }
 
-// Name 返回迁移名称
 func (m *TenantTableMigration) Name() string { return "tenants 表创建" }
 
-// Description 返回迁移描述
 func (m *TenantTableMigration) Description() string {
 	return "SaaS 多租户：创建租户实体表（code 全局唯一/status 正常·停用/plan 预留），幂等可重入"
 }
 
-// Up 执行升级
 func (m *TenantTableMigration) Up(ctx context.Context) error {
 	if m.db == nil {
 		return fmt.Errorf("db is nil")

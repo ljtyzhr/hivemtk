@@ -17,27 +17,22 @@ type MerchantIDNullableMigration struct {
 	db *gorm.DB
 }
 
-// NewMerchantIDNullableMigration 创建 merchant_id 可空化迁移
 func NewMerchantIDNullableMigration(db *gorm.DB) *MerchantIDNullableMigration {
 	return &MerchantIDNullableMigration{db: db}
 }
 
-// Version 返回版本号
 func (m *MerchantIDNullableMigration) Version() string {
 	return "v2.1.0"
 }
 
-// Name 返回迁移名称
 func (m *MerchantIDNullableMigration) Name() string {
 	return "merchant_id 字段可空化"
 }
 
-// Description 返回迁移描述
 func (m *MerchantIDNullableMigration) Description() string {
 	return "私域部署：所有业务表的 merchant_id 字段允许为 NULL，幂等可重入"
 }
 
-// Up 执行升级
 // PostgreSQL: 动态扫描 information_schema 找出所有 is_nullable='NO' 的 merchant_id 列,逐一 ALTER
 func (m *MerchantIDNullableMigration) Up(ctx context.Context) error {
 	if m.db == nil {
@@ -95,7 +90,6 @@ func (m *MerchantIDNullableMigration) upPostgres() error {
 	return nil
 }
 
-// Down 执行降级
 // 私域部署:无需回滚 merchant_id 可空限制(回滚会破坏业务数据)
 func (m *MerchantIDNullableMigration) Down(ctx context.Context) error {
 	return nil

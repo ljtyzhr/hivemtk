@@ -14,25 +14,20 @@ type ShortLinkColumnsMigration struct {
 	db *gorm.DB
 }
 
-// NewShortLinkColumnsMigration 创建迁移实例
 func NewShortLinkColumnsMigration(db *gorm.DB) *ShortLinkColumnsMigration {
 	return &ShortLinkColumnsMigration{db: db}
 }
 
-// Version 返回版本号
 func (m *ShortLinkColumnsMigration) Version() string { return "v2.11.1" }
 
-// Name 返回迁移名称
 func (m *ShortLinkColumnsMigration) Name() string {
 	return "short_links 字段补齐 (title/description/domain_id/password/expire_time)"
 }
 
-// Description 返回迁移描述
 func (m *ShortLinkColumnsMigration) Description() string {
 	return "补齐 short_links 缺失列，修复短链创建 500（column title does not exist）"
 }
 
-// Up 执行升级
 func (m *ShortLinkColumnsMigration) Up(ctx context.Context) error {
 	if m.db == nil {
 		return fmt.Errorf("db is nil")

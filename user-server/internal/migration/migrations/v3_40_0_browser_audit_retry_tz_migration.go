@@ -10,11 +10,11 @@ import (
 )
 
 // BrowserAuditRetryTzMigration v3.40.0：浏览器自动化三项收口
-//  1. G3/D3：browser_llm_plans 增加 session_id + kind 列——plan/judge/summary 三类 token 全落库，
-//     session 级成本账可审计（BRAIN_PRODUCT_SPEC P1-1 欠账）；
-//  2. G5/D4b：browser_tasks 增加 next_retry_at 列——失败重试从内存定时器升级为 DB 持久化
+//  1. browser_llm_plans 增加 session_id + kind 列——plan/judge/summary 三类 token 全落库，
+//     session 级成本账可审计；
+//  2. browser_tasks 增加 next_retry_at 列——失败重试从内存定时器升级为 DB 持久化
 //     （进程重启不丢，扫描器认领后触发）；
-//  3. G20：browser_cron_triggers 增加 time_zone 列——注册时前缀 CRON_TZ=（robfig v3 原生支持），
+//  3. browser_cron_triggers 增加 time_zone 列——注册时前缀 CRON_TZ=（robfig v3 原生支持），
 //     不再依赖服务器本地时区。
 type BrowserAuditRetryTzMigration struct {
 	db *gorm.DB

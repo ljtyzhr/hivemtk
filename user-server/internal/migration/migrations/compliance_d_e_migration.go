@@ -14,25 +14,20 @@ type ComplianceDEMigration struct {
 	db *gorm.DB
 }
 
-// NewComplianceDEMigration 创建迁移实例
 func NewComplianceDEMigration(db *gorm.DB) *ComplianceDEMigration {
 	return &ComplianceDEMigration{db: db}
 }
 
-// Version 返回版本号
 func (m *ComplianceDEMigration) Version() string { return "v2.10.1" }
 
-// Name 返回迁移名称
 func (m *ComplianceDEMigration) Name() string {
 	return "D+E 域合规（邮件+短信退订与追踪 5 张表）"
 }
 
-// Description 返回迁移描述
 func (m *ComplianceDEMigration) Description() string {
 	return "创建 email_unsubscribes / email_tracking_events / email_job_metrics / sms_unsubscribes / sms_delivery_statuses 5 张表"
 }
 
-// Up 执行升级
 func (m *ComplianceDEMigration) Up(ctx context.Context) error {
 	if m.db == nil {
 		return fmt.Errorf("db is nil")
@@ -183,7 +178,6 @@ func (m *ComplianceDEMigration) createSmsDeliveryStatuses(ctx context.Context) e
 	return execAllComplianceDE(ctx, m.db, stmts)
 }
 
-// Down 执行降级
 //
 // 这 5 张表均已登记为 GORM 模型（internal/pkg/db/migrate.go 的 allModels），
 // 建表事实源是启动期 AutoMigrate；本迁移 Up 里的 CREATE TABLE IF NOT EXISTS

@@ -25,25 +25,20 @@ type OperationLogEncryptFieldsMigration struct {
 	db *gorm.DB
 }
 
-// NewOperationLogEncryptFieldsMigration 创建迁移实例
 func NewOperationLogEncryptFieldsMigration(db *gorm.DB) *OperationLogEncryptFieldsMigration {
 	return &OperationLogEncryptFieldsMigration{db: db}
 }
 
-// Version 返回版本号
 func (m *OperationLogEncryptFieldsMigration) Version() string { return "v3.41.0" }
 
-// Name 返回迁移名称
 func (m *OperationLogEncryptFieldsMigration) Name() string {
 	return "operation_logs ip/user_agent 扩列至 text（加密前置）"
 }
 
-// Description 返回迁移描述
 func (m *OperationLogEncryptFieldsMigration) Description() string {
 	return "OPT-SEC-04: operation_logs.ip varchar(50)、user_agent varchar(255) 扩展为 text，容纳 enc:v1 AES-GCM 密文"
 }
 
-// Up 执行升级
 func (m *OperationLogEncryptFieldsMigration) Up(ctx context.Context) error {
 	if m.db == nil {
 		return fmt.Errorf("db is nil")

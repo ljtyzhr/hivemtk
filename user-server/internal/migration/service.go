@@ -15,10 +15,8 @@ import (
 	"gorm.io/gorm"
 )
 
-// RegistryInitializer 迁移注册初始化函数类型
 type RegistryInitializer func(*MigrationRegistry, *gorm.DB)
 
-// MigrationService 迁移服务
 type MigrationService struct {
 	registry       *MigrationRegistry
 	db             *gorm.DB
@@ -44,7 +42,6 @@ func NewMigrationServiceDefault(registry *MigrationRegistry, initFunc RegistryIn
 	return NewMigrationService(registry, dbUtil.GetDB(), initFunc)
 }
 
-// ExecuteUpgrade 执行升级
 func (s *MigrationService) ExecuteUpgrade(ctx context.Context, fromVersion, toVersion string) (*model.UpgradeTask, error) {
 	task := &model.UpgradeTask{
 		FromVersion: fromVersion,
@@ -150,22 +147,18 @@ func (s *MigrationService) executeUpgradeAsync(parentCtx context.Context, taskID
 	}
 }
 
-// GetUpgradeTask 获取升级任务
 func (s *MigrationService) GetUpgradeTask(ctx context.Context, id uint) (*model.UpgradeTask, error) {
 	return s.taskRepo.GetByID(ctx, id)
 }
 
-// GetUpgradeHistory 获取升级历史
 func (s *MigrationService) GetUpgradeHistory(ctx context.Context, page, pageSize int) ([]*model.UpgradeTask, int64, error) {
 	return s.taskRepo.GetAll(ctx, page, pageSize)
 }
 
-// GetMigrationRecords 获取迁移记录
 func (s *MigrationService) GetMigrationRecords(ctx context.Context) ([]*model.MigrationRecord, error) {
 	return s.recordRepo.GetAll(ctx)
 }
 
-// GetCurrentVersion 获取当前版本
 func (s *MigrationService) GetCurrentVersion(ctx context.Context) (string, error) {
 	versions, err := s.recordRepo.GetExecutedVersions(ctx)
 	if err != nil {
@@ -177,7 +170,6 @@ func (s *MigrationService) GetCurrentVersion(ctx context.Context) (string, error
 	return versions[len(versions)-1], nil
 }
 
-// GetPendingMigrations 获取待执行的迁移
 func (s *MigrationService) GetPendingMigrations(ctx context.Context) ([]Migration, error) {
 	executedVersions, err := s.recordRepo.GetExecutedVersions(ctx)
 	if err != nil {
@@ -186,7 +178,6 @@ func (s *MigrationService) GetPendingMigrations(ctx context.Context) ([]Migratio
 	return s.registry.GetPending(executedVersions), nil
 }
 
-// SaveCheckpoint 保存检查点
 func (s *MigrationService) SaveCheckpoint(ctx context.Context, checkpoint string, data any) error {
 	dataJSON, err := json.Marshal(data)
 	if err != nil {
@@ -200,7 +191,6 @@ func (s *MigrationService) SaveCheckpoint(ctx context.Context, checkpoint string
 	return s.checkpointRepo.Upsert(ctx, cp)
 }
 
-// GetCheckpoint 获取检查点
 func (s *MigrationService) GetCheckpoint(ctx context.Context, checkpoint string) (any, error) {
 	cp, err := s.checkpointRepo.GetByCheckpoint(ctx, checkpoint)
 	if err != nil {
@@ -214,7 +204,6 @@ func (s *MigrationService) GetCheckpoint(ctx context.Context, checkpoint string)
 	return data, nil
 }
 
-// Rollback 回滚到指定版本
 func (s *MigrationService) Rollback(ctx context.Context, targetVersion string) error {
 	migration, ok := s.registry.Get(targetVersion)
 	if !ok {

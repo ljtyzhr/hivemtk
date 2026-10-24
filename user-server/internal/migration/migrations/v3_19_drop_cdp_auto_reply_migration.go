@@ -24,7 +24,6 @@ type DropCdpAutoReplyMigration struct {
 
 var _ migration.Migration = (*DropCdpAutoReplyMigration)(nil)
 
-// NewDropCdpAutoReplyMigration 构造函数
 func NewDropCdpAutoReplyMigration(db *gorm.DB) *DropCdpAutoReplyMigration {
 	return &DropCdpAutoReplyMigration{db: db}
 }

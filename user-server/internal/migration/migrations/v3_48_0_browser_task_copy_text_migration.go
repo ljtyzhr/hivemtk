@@ -48,8 +48,7 @@ func (m *BrowserTaskCopyTextMigration) Up(ctx context.Context) error {
 		ADD COLUMN IF NOT EXISTS copy_text TEXT NOT NULL DEFAULT ''`).Error
 }
 
-// Down 不丢列：任务文案是触达回执的输入证据之一（口径同 v3.39/v3.42–v3.46 的
-// 「降级不销毁在用列」）。
+// Down 不丢列：任务文案是触达回执的输入证据之一。
 func (m *BrowserTaskCopyTextMigration) Down(ctx context.Context) error {
 	if m.db == nil {
 		return fmt.Errorf("db is nil")

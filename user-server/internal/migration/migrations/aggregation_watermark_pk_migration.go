@@ -10,7 +10,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// AggregationWatermarkPKMigration aggregation_watermarks 主键复合化（specs/001-saas-multi-tenant）
+// AggregationWatermarkPKMigration aggregation_watermarks 主键复合化
 //
 // 水位线原主键 (source) 是实例级单行游标；SaaS 多租户下各租户消费水位必须互不越线，
 // 主键升级为 (tenant_id, source)。与仓储层 ON CONFLICT (tenant_id, source) 配套，
@@ -19,25 +19,20 @@ type AggregationWatermarkPKMigration struct {
 	db *gorm.DB
 }
 
-// NewAggregationWatermarkPKMigration 创建水位线主键复合化迁移
 func NewAggregationWatermarkPKMigration(db *gorm.DB) *AggregationWatermarkPKMigration {
 	return &AggregationWatermarkPKMigration{db: db}
 }
 
-// Version 返回版本号
 func (m *AggregationWatermarkPKMigration) Version() string { return "v3.60.0" }
 
-// Name 返回迁移名称
 func (m *AggregationWatermarkPKMigration) Name() string {
 	return "aggregation_watermarks 主键复合化"
 }
 
-// Description 返回迁移描述
 func (m *AggregationWatermarkPKMigration) Description() string {
 	return "SaaS 多租户：水位线主键 (source) → (tenant_id, source)，各租户消费水位互不越线；幂等可重入"
 }
 
-// Up 执行升级
 func (m *AggregationWatermarkPKMigration) Up(ctx context.Context) error {
 	if m.db == nil {
 		return fmt.Errorf("db is nil")

@@ -15,25 +15,20 @@ type SessionIDLengthMigration struct {
 	db *gorm.DB
 }
 
-// NewSessionIDLengthMigration 创建迁移实例
 func NewSessionIDLengthMigration(db *gorm.DB) *SessionIDLengthMigration {
 	return &SessionIDLengthMigration{db: db}
 }
 
-// Version 返回版本号
 func (m *SessionIDLengthMigration) Version() string { return "v3.22.4" }
 
-// Name 返回迁移名称
 func (m *SessionIDLengthMigration) Name() string {
 	return "session_id 长度扩展至 120"
 }
 
-// Description 返回迁移描述
 func (m *SessionIDLengthMigration) Description() string {
 	return "扩展 customer_sessions 及关联表 session_id varchar(50) → varchar(120)，修复小红书 stable_id 超长 SQLSTATE 22001"
 }
 
-// Up 执行升级
 func (m *SessionIDLengthMigration) Up(ctx context.Context) error {
 	if m.db == nil {
 		return fmt.Errorf("db is nil")

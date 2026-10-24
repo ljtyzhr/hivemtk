@@ -15,23 +15,18 @@ type RagHybridMigration struct {
 	db *gorm.DB
 }
 
-// NewRagHybridMigration 创建迁移实例
 func NewRagHybridMigration(db *gorm.DB) *RagHybridMigration {
 	return &RagHybridMigration{db: db}
 }
 
-// Version 返回版本号
 func (m *RagHybridMigration) Version() string { return "v2.7.0" }
 
-// Name 返回迁移名称
 func (m *RagHybridMigration) Name() string { return "RAG 混合检索（tsvector + 缓存表）" }
 
-// Description 返回迁移描述
 func (m *RagHybridMigration) Description() string {
 	return "为 knowledge_chunks 增加 tsvector 列/触发器，新建 query_rewrite_cache / embedding_cache 表，增强 knowledge_search_logs 监控字段"
 }
 
-// Up 执行升级
 func (m *RagHybridMigration) Up(ctx context.Context) error {
 	if m.db == nil {
 		return fmt.Errorf("db is nil")
@@ -305,7 +300,6 @@ func (m *RagHybridMigration) enhanceKnowledgeSearchLogs(ctx context.Context) err
 	return nil
 }
 
-// Down 执行降级
 //
 // 注意:
 //   - 不删除 knowledge_chunks 表（业务数据，仅删除新增列）

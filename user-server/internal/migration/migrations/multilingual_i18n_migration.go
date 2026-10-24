@@ -15,25 +15,20 @@ type MultilingualI18nMigration struct {
 	db *gorm.DB
 }
 
-// NewMultilingualI18nMigration 创建迁移实例
 func NewMultilingualI18nMigration(db *gorm.DB) *MultilingualI18nMigration {
 	return &MultilingualI18nMigration{db: db}
 }
 
-// Version 返回版本号
 func (m *MultilingualI18nMigration) Version() string { return "v3.12.0" }
 
-// Name 返回迁移名称
 func (m *MultilingualI18nMigration) Name() string {
 	return "多语言 i18n 方案 - glossaries 表 + 5 张表扩展字段"
 }
 
-// Description 返回迁移描述
 func (m *MultilingualI18nMigration) Description() string {
 	return "v1.2 出海多语言方案：新建 glossaries 术语表；扩展 ai_agents/chat_channels/llm_routing_logs/knowledge_chunks/asset_bundles 多语言字段"
 }
 
-// Up 执行升级
 func (m *MultilingualI18nMigration) Up(ctx context.Context) error {
 	if m.db == nil {
 		return fmt.Errorf("db is nil")
@@ -73,7 +68,6 @@ func (m *MultilingualI18nMigration) Up(ctx context.Context) error {
 	return nil
 }
 
-// Down 回滚
 func (m *MultilingualI18nMigration) Down(ctx context.Context) error {
 	if m.db == nil {
 		return fmt.Errorf("db is nil")

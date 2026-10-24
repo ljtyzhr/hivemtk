@@ -25,7 +25,7 @@ func NewBridgeChannelNormalizeMigration(db *gorm.DB) *BridgeChannelNormalizeMigr
 	return &BridgeChannelNormalizeMigration{db: db}
 }
 
-// 注：v3.17.0 已被 v3_17_drop_rag_alerts_migration 占用，本迁移排在之后（且在 unify v3.18.0 之前），
+// 注：v3.17.0 已被 v3_17_drop_rag_alerts_migration 占用，
 // 故用 v3.17.1 避免注册表 map 覆盖导致本迁移被静默丢弃。
 func (m *BridgeChannelNormalizeMigration) Version() string { return "v3.17.1" }
 func (m *BridgeChannelNormalizeMigration) Name() string    { return "归一化旧 bridge channel 数据" }

@@ -10,8 +10,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// tenantExemptTables 不参与租户隔离的全局/系统表（specs/001-saas-multi-tenant data-model.md 全局表清单）。
-// 与 model 侧登记（T006 交叉校验测试）互为对账：
+// tenantExemptTables 不参与租户隔离的全局/系统表（与 model 侧登记的清单互为对账）：
 //   - 清单外的表一律视为租户表（fail-safe：多余加列可回滚清理，漏加列即隔离缺口）
 //   - platform_accounts/platform_account_configs 属业务数据，不在豁免之列
 var tenantExemptTables = map[string]bool{
@@ -33,7 +32,7 @@ var tenantExemptTables = map[string]bool{
 // tenantColumnBatchSize 每批处理的表数：批间独立事务，中断可续跑（幂等）
 const tenantColumnBatchSize = 30
 
-// TenantColumnBatchMigration 业务表批量补 tenant_id 列（specs/001-saas-multi-tenant T007）
+// TenantColumnBatchMigration 业务表批量补 tenant_id 列
 //
 // 动态扫描 public schema 全部 BASE TABLE（豁免清单除外），幂等加列：
 //
@@ -43,11 +42,11 @@ const tenantColumnBatchSize = 30
 type TenantColumnBatchMigration struct {
 	db *gorm.DB
 
-	// tables 仅测试用覆盖清单（同 v3_79_0 的 withTables 口径）：演练要能在**临时探针表**上
+	// tables 仅测试用覆盖清单（与 v3_79_0 的 withTables 同一惯例）：演练要能在临时探针表上
 	// 复现"存量数据升级"，否则断言会被测试库里的其它表搅成不确定。生产路径永远是 nil ⇒
 	// 走 businessTables() 的真库内省。
 	//
-	// 注意：这个字段是"仅测试用"的**约定**，不是语言保证。生产装配点在
+	// 注意：这个字段是"仅测试用"的约定，不是语言保证。生产装配点在
 	// initial_schema.go 的 register(NewTenantColumnBatchMigration(db)) —— 那里若有人
 	// 链了 .withTables(...)，单表覆盖会让"真库内省"静默退化成"只处理指定表"。这句话
 	// 没法用 if 防住（字段就是给测试开的口子），靠的是 TestTenantColumnBatchRegistration
@@ -61,23 +60,18 @@ func (m *TenantColumnBatchMigration) withTables(tables ...string) *TenantColumnB
 	return m
 }
 
-// NewTenantColumnBatchMigration 创建业务表加列迁移
 func NewTenantColumnBatchMigration(db *gorm.DB) *TenantColumnBatchMigration {
 	return &TenantColumnBatchMigration{db: db}
 }
 
-// Version 返回版本号
 func (m *TenantColumnBatchMigration) Version() string { return "v3.58.0" }
 
-// Name 返回迁移名称
 func (m *TenantColumnBatchMigration) Name() string { return "业务表批量补 tenant_id 列" }
 
-// Description 返回迁移描述
 func (m *TenantColumnBatchMigration) Description() string {
 	return "SaaS 多租户：public schema 全部业务表幂等加 tenant_id bigint NOT NULL DEFAULT 1（存量数据归默认租户），分批独立事务可中断续跑"
 }
 
-// Up 执行升级
 func (m *TenantColumnBatchMigration) Up(ctx context.Context) error {
 	if m.db == nil {
 		return fmt.Errorf("db is nil")
@@ -126,17 +120,15 @@ func (m *TenantColumnBatchMigration) Up(ctx context.Context) error {
 		fmt.Printf("[v3.58.0] tenant_id 加列完成：处理 %d 张业务表\n", altered)
 	}
 
-	// 后复核（头脑风暴补的第三道腿）：PostgreSQL 的 `ADD COLUMN IF NOT EXISTS` 对已存在
-	// 列是纯 no-op（15.18 实测，连类型不匹配都不报错），所以"清单收紧"本身修不了
-	// 形态错的列 —— 必须在跑完之后**回到 information_schema 现查**：本清单里的表若仍有
-	// 隔离缺口级形态错（类型错 / 可空），报错中断升级。静默通过会把"永远查不出的隔离
-	// 缺口"埋进土里；失败被人看见是这类不可逆步骤唯一安全的失败形态。
+	// 后复核：PostgreSQL 的 `ADD COLUMN IF NOT EXISTS` 对已存在列是纯 no-op
+	// （连类型不匹配都不报错），"清单收紧"修不了形态错的列 —— 必须跑完后回到
+	// information_schema 现查：清单里的表若仍有隔离缺口级形态错（类型错 / 可空），
+	// 报错中断升级。静默通过等于把"永远查不出的隔离缺口"埋进土里。
 	//
-	// 复核口径只判**隔离缺口**（bigint / NOT NULL），不判默认值：`DEFAULT 1` 的语义只属于
+	// 复核口径只判隔离缺口（bigint / NOT NULL），不判默认值：`DEFAULT 1` 的语义只属于
 	// 本迁移的加列语境（存量行靠它归默认租户）；别的路径建的列（如 AutoMigrate 从
 	// `TenantConfigParam` 模型建的 `tenant_config_params.tenant_id`，`not null` 无默认）
-	// 写入端必填、无存量行需要归属，是合法形态 —— 全链路实测抓到这两张表，复核若连
-	// 默认值一起判会把合法建表判成必红，而"必红的判据等于没有判据"。
+	// 写入端必填、无存量行需要归属，是合法形态 —— 复核若连默认值一起判，会把合法建表判红。
 	if err := m.verifyColumns(tables); err != nil {
 		return err
 	}
@@ -186,17 +178,14 @@ func (m *TenantColumnBatchMigration) verifyColumns(tables []string) error {
 
 // businessTables 枚举需要加列的业务表：
 // public schema 全部 BASE TABLE，按 tenantExemptTables（唯一事实源）过滤，
-// 并排除已有**形态正确**的 tenant_id 列的表（幂等重入）。
+// 并排除已有形态正确的 tenant_id 列的表（幂等重入）。
 //
-// "形态正确"= bigint / NOT NULL（隔离缺口级）。为什么收紧到这个程度：头脑风暴变异实测，
-// 一张 `tenant_id varchar(20) NULL` 的表会被原口径静默跳过（`IF NOT EXISTS` 修不回来 ——
-// 列已存在，ALTER 变 no-op，15.18 实测连报错都没有），于是它**永远**是隔离缺口且没有
-// 任何报错。收进清单后 `ADD COLUMN IF NOT EXISTS` 同样修不回来（纯 no-op），所以 Up 末尾
-// 还有**后复核**：清单跑完仍查到形态错即报错中断。失败被人看见是这类不可逆步骤唯一安全
-// 的失败形态 —— 静默通过则等于把缺口埋进土里。
-// 默认值**刻意不判**：`DEFAULT 1` 的语义只属于本迁移的加列语境（存量行靠它归默认租户）；
+// "形态正确"= bigint / NOT NULL（隔离缺口级）：一张 `tenant_id varchar(20) NULL` 的表
+// 会被 `IF NOT EXISTS` 静默跳过（列已存在，ALTER 变 no-op），成为永不报错的隔离缺口，
+// 所以 Up 末尾还有后复核：清单跑完仍查到形态错即报错中断。
+// 默认值刻意不判：`DEFAULT 1` 的语义只属于本迁移的加列语境（存量行靠它归默认租户）；
 // 别的路径建的列（AutoMigrate 从模型建的 `tenant_config_params.tenant_id`，写入端必填、
-// 无存量行需要归属）是合法形态 —— 判它会把全链路测试打成必红，而必红的判据等于没有判据。
+// 无存量行需要归属）是合法形态，判它会把合法建表判红。
 func (m *TenantColumnBatchMigration) businessTables() ([]string, error) {
 	rows, err := m.db.Raw(`
 		SELECT t.table_name
@@ -237,7 +226,7 @@ func (m *TenantColumnBatchMigration) Down(ctx context.Context) error {
 	return nil
 }
 
-// TenantExemptTablesSnapshot 供 T006 交叉校验测试对账用（只读快照，调用方不得修改）
+// TenantExemptTablesSnapshot 供测试对账用（只读快照，调用方不得修改）
 func TenantExemptTablesSnapshot() []string {
 	out := make([]string, 0, len(tenantExemptTables))
 	for k := range tenantExemptTables {
