@@ -6,7 +6,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// GeoSourceCatalog GEO 信源目录表（v3 信源分级 G5.1）
+// GeoSourceCatalog GEO 信源目录表
 //
 // 维护品牌相关的外部信源列表（央媒/省市/行业/无效），并给出信源等级
 // （A/B/C/D）。爬虫任务定期刷新 last_checked 时间，LookupSourceLevel 供

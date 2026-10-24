@@ -32,10 +32,9 @@ func NewGeoKeywordGroupRepositoryWithDB(db *gorm.DB) GeoKeywordGroupRepository {
 	return &geoKeywordGroupRepo{db: db}
 }
 
-// UpsertByName 冲突键与 v3.74.0 的唯一索引 (tenant_id, name) 一致。
-// 原先「SELECT 后 Save/Create」有两个问题：并发聚类会建出同名分组；
-// Save 命中软删除行时会把它原地复活（且 resurrections 不刷新 updated_at 之外的语义）。
-// 这里统一走 ON CONFLICT DO UPDATE，并把软删除标记清空（upsert 语义即「让该分组可用」）。
+// UpsertByName 冲突键与唯一索引 (tenant_id, name) 一致。
+// 不用「SELECT 后 Save/Create」：并发聚类会建出同名分组，Save 命中软删除行会原地复活。
+// 统一走 ON CONFLICT DO UPDATE，并清空软删除标记（upsert 语义即「让该分组可用」）。
 func (r *geoKeywordGroupRepo) UpsertByName(ctx context.Context, name string, keywords []string) (*model.GeoKeywordGroup, error) {
 	kwJSON, err := json.Marshal(keywords)
 	if err != nil {

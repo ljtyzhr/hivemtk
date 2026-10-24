@@ -6,7 +6,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// GeoDailyStat GEO 每日统计聚合表（v3 统计层 G4.1）
+// GeoDailyStat GEO 每日统计聚合表
 //
 // 按日期 × 引擎 × 意图 三元组唯一，对 geo_probe_runs 做预聚合。
 // 写入由 ProbeAnalyzer 定时任务完成，读取端直接查此表避免实时大聚合。

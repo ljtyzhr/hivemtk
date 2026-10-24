@@ -8,7 +8,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// GeoWorkflow GEO 工作流定义模型（迁移自 AIGEOTOOLS storage.Workflow）
+// GeoWorkflow GEO 工作流定义模型
 type GeoWorkflow struct {
 	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
 
@@ -93,7 +93,7 @@ func (m *GeoWorkflowExecution) BeforeCreate(tx *gorm.DB) error {
 	return nil
 }
 
-// GeoWorkflowTemplate GEO 工作流模板模型（迁移自 storage.WorkflowTemplate）
+// GeoWorkflowTemplate GEO 工作流模板模型
 type GeoWorkflowTemplate struct {
 	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
 

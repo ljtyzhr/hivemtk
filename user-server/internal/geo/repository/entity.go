@@ -110,7 +110,7 @@ func (r *geoEntityRepo) GetRelationGraph(ctx context.Context, entityID uint, dep
 	return rels, entities, nil
 }
 
-// UpsertRelation 幂等写入关系：冲突键与 v3.72.0 的唯一索引
+// UpsertRelation 幂等写入关系：冲突键与唯一索引
 // (tenant_id, entity_a_id, entity_b_id, relation) 完全一致。
 // 不用 FirstOrCreate：SELECT 后 INSERT 在并发抽取下会各写一行、同一关系出现重复边。
 func (r *geoEntityRepo) UpsertRelation(ctx context.Context, rel *model.GeoEntityRelation) error {

@@ -9,7 +9,7 @@ import (
 	"gorm.io/gorm/clause"
 )
 
-// GeoSeedTermRepository GEO 关键词种子词条（数据库驱动的 TechStackAttrs 替代）
+// GeoSeedTermRepository GEO 关键词种子词条仓储
 type GeoSeedTermRepository interface {
 	// ListActive 按 sort 升序列出全部启用词条（pipeline 与管理端共用）
 	ListActive(ctx context.Context) ([]*model.GeoSeedTerm, error)

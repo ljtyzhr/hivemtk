@@ -7,7 +7,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// GeoKnowledgeDocument GEO 品牌知识库文档模型（迁移自 AIGEOTOOLS kb Document）
+// GeoKnowledgeDocument GEO 品牌知识库文档模型
 type GeoKnowledgeDocument struct {
 	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`
 

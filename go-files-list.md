@@ -922,44 +922,44 @@
 | 707 | [x] | `internal/geo/dto/verification.go` | 2 | 2 | 2 | 0 |
 | 708 | [x] | `internal/geo/dto/workflow.go` | 10 | 13 | 10 | 0 |
 | 709 | [x] | `internal/geo/model/alert.go` | 1 | 2 | 1 | 0 |
-| 710 | [ ] | `internal/geo/model/competitor.go` | 1 | 1 | 1 | 0 |
-| 711 | [ ] | `internal/geo/model/config.go` | 5 | 5 | 5 | 0 |
-| 712 | [ ] | `internal/geo/model/content.go` | 4 | 4 | 4 | 0 |
-| 713 | [ ] | `internal/geo/model/crawler_visit.go` | 1 | 1 | 1 | 0 |
-| 714 | [ ] | `internal/geo/model/daily_stats.go` | 1 | 4 | 1 | 0 |
-| 715 | [ ] | `internal/geo/model/dict.go` | 12 | 16 | 12 | 0 |
-| 716 | [ ] | `internal/geo/model/entity.go` | 2 | 8 | 2 | 0 |
-| 717 | [ ] | `internal/geo/model/index_tracking.go` | 2 | 6 | 2 | 0 |
-| 718 | [ ] | `internal/geo/model/job_run.go` | 1 | 2 | 1 | 0 |
-| 719 | [ ] | `internal/geo/model/keyword.go` | 8 | 8 | 8 | 0 |
-| 720 | [ ] | `internal/geo/model/knowledge.go` | 1 | 1 | 1 | 0 |
-| 721 | [ ] | `internal/geo/model/probe.go` | 1 | 5 | 1 | 0 |
-| 722 | [ ] | `internal/geo/model/push_record.go` | 2 | 5 | 2 | 0 |
-| 723 | [ ] | `internal/geo/model/pusher_config.go` | 1 | 4 | 1 | 0 |
-| 724 | [ ] | `internal/geo/model/query_chain.go` | 5 | 9 | 5 | 0 |
-| 725 | [ ] | `internal/geo/model/schema_template.go` | 3 | 6 | 3 | 0 |
-| 726 | [ ] | `internal/geo/model/seed_term.go` | 2 | 6 | 2 | 0 |
-| 727 | [ ] | `internal/geo/model/site.go` | 1 | 4 | 1 | 0 |
-| 728 | [ ] | `internal/geo/model/source_catalog.go` | 1 | 5 | 1 | 0 |
-| 729 | [ ] | `internal/geo/model/verification.go` | 2 | 2 | 2 | 0 |
-| 730 | [ ] | `internal/geo/model/workflow.go` | 9 | 9 | 9 | 0 |
-| 731 | [ ] | `internal/geo/repository/alert.go` | 2 | 2 | 2 | 0 |
-| 732 | [ ] | `internal/geo/repository/competitor.go` | 1 | 1 | 1 | 0 |
-| 733 | [ ] | `internal/geo/repository/config.go` | 6 | 11 | 6 | 0 |
-| 734 | [ ] | `internal/geo/repository/content.go` | 4 | 4 | 4 | 0 |
-| 735 | [ ] | `internal/geo/repository/crawler_visit.go` | 15 | 25 | 15 | 0 |
-| 736 | [ ] | `internal/geo/repository/daily_stats.go` | 2 | 6 | 2 | 0 |
-| 737 | [ ] | `internal/geo/repository/dict.go` | 11 | 16 | 11 | 0 |
-| 738 | [ ] | `internal/geo/repository/entity.go` | 3 | 4 | 3 | 0 |
-| 739 | [ ] | `internal/geo/repository/job_run.go` | 4 | 4 | 4 | 0 |
-| 740 | [ ] | `internal/geo/repository/keyword.go` | 2 | 2 | 2 | 0 |
-| 741 | [ ] | `internal/geo/repository/keyword_group.go` | 4 | 4 | 4 | 0 |
-| 742 | [ ] | `internal/geo/repository/knowledge.go` | 2 | 2 | 2 | 0 |
-| 743 | [ ] | `internal/geo/repository/probe.go` | 2 | 2 | 2 | 0 |
-| 744 | [ ] | `internal/geo/repository/query_chain.go` | 6 | 10 | 6 | 0 |
-| 745 | [ ] | `internal/geo/repository/seed_term.go` | 8 | 9 | 8 | 0 |
+| 710 | [x] | `internal/geo/model/competitor.go` | 1 | 1 | 1 | 0 |
+| 711 | [x] | `internal/geo/model/config.go` | 5 | 5 | 5 | 0 |
+| 712 | [x] | `internal/geo/model/content.go` | 4 | 4 | 4 | 0 |
+| 713 | [x] | `internal/geo/model/crawler_visit.go` | 1 | 1 | 1 | 0 |
+| 714 | [x] | `internal/geo/model/daily_stats.go` | 1 | 4 | 1 | 0 |
+| 715 | [x] | `internal/geo/model/dict.go` | 12 | 16 | 12 | 0 |
+| 716 | [x] | `internal/geo/model/entity.go` | 2 | 8 | 2 | 0 |
+| 717 | [x] | `internal/geo/model/index_tracking.go` | 2 | 6 | 2 | 0 |
+| 718 | [x] | `internal/geo/model/job_run.go` | 1 | 2 | 1 | 0 |
+| 719 | [x] | `internal/geo/model/keyword.go` | 8 | 8 | 8 | 0 |
+| 720 | [x] | `internal/geo/model/knowledge.go` | 1 | 1 | 1 | 0 |
+| 721 | [x] | `internal/geo/model/probe.go` | 1 | 5 | 1 | 0 |
+| 722 | [x] | `internal/geo/model/push_record.go` | 2 | 5 | 2 | 0 |
+| 723 | [x] | `internal/geo/model/pusher_config.go` | 1 | 4 | 1 | 0 |
+| 724 | [x] | `internal/geo/model/query_chain.go` | 5 | 9 | 5 | 0 |
+| 725 | [x] | `internal/geo/model/schema_template.go` | 3 | 6 | 3 | 0 |
+| 726 | [x] | `internal/geo/model/seed_term.go` | 2 | 6 | 2 | 0 |
+| 727 | [x] | `internal/geo/model/site.go` | 1 | 4 | 1 | 0 |
+| 728 | [x] | `internal/geo/model/source_catalog.go` | 1 | 5 | 1 | 0 |
+| 729 | [x] | `internal/geo/model/verification.go` | 2 | 2 | 2 | 0 |
+| 730 | [x] | `internal/geo/model/workflow.go` | 9 | 9 | 9 | 0 |
+| 731 | [x] | `internal/geo/repository/alert.go` | 2 | 2 | 2 | 0 |
+| 732 | [x] | `internal/geo/repository/competitor.go` | 1 | 1 | 1 | 0 |
+| 733 | [x] | `internal/geo/repository/config.go` | 6 | 11 | 6 | 0 |
+| 734 | [x] | `internal/geo/repository/content.go` | 4 | 4 | 4 | 0 |
+| 735 | [x] | `internal/geo/repository/crawler_visit.go` | 15 | 25 | 15 | 0 |
+| 736 | [x] | `internal/geo/repository/daily_stats.go` | 2 | 6 | 2 | 0 |
+| 737 | [x] | `internal/geo/repository/dict.go` | 11 | 16 | 11 | 0 |
+| 738 | [x] | `internal/geo/repository/entity.go` | 3 | 4 | 3 | 0 |
+| 739 | [x] | `internal/geo/repository/job_run.go` | 4 | 4 | 4 | 0 |
+| 740 | [x] | `internal/geo/repository/keyword.go` | 2 | 2 | 2 | 0 |
+| 741 | [x] | `internal/geo/repository/keyword_group.go` | 4 | 4 | 4 | 0 |
+| 742 | [x] | `internal/geo/repository/knowledge.go` | 2 | 2 | 2 | 0 |
+| 743 | [x] | `internal/geo/repository/probe.go` | 2 | 2 | 2 | 0 |
+| 744 | [x] | `internal/geo/repository/query_chain.go` | 6 | 10 | 6 | 0 |
+| 745 | [x] | `internal/geo/repository/seed_term.go` | 8 | 9 | 8 | 0 |
 | 746 | [x] | `internal/geo/repository/source_catalog.go` | 3 | 4 | 3 | 0 |
-| 747 | [ ] | `internal/geo/repository/verification.go` | 4 | 4 | 4 | 0 |
+| 747 | [x] | `internal/geo/repository/verification.go` | 4 | 4 | 4 | 0 |
 | 748 | [ ] | `internal/geo/repository/workflow.go` | 3 | 3 | 3 | 0 |
 | 749 | [ ] | `internal/geo/service/alert.go` | 8 | 11 | 8 | 0 |
 | 750 | [ ] | `internal/geo/service/browser_publisher.go` | 1 | 3 | 1 | 0 |

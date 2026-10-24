@@ -7,7 +7,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// GeoProbeRun AI 搜索引擎探针运行记录（v3 GEO Probe 模块核心表）
+// GeoProbeRun AI 搜索引擎探针运行记录
 //
 // 每次对 AI 引擎（Perplexity / Copilot / Gemini 等）发起的探测查询
 // 都会落一条此记录，支撑后续品牌提及率、情感倾向、竞品对比的

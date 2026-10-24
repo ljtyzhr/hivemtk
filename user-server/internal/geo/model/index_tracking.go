@@ -14,7 +14,7 @@ import (
 // FunnelDashboard / IndexTracking 页面读取。
 // engine 字段同时覆盖搜索引擎（baidu/google/bing）和 AI 引擎（doubao/wenxin/kimi/deepseek）。
 //
-// 业务唯一键 (tenant_id, article_id, engine) 由 v3.73.0 迁移建唯一索引（先去重再建）。
+// 业务唯一键 (tenant_id, article_id, engine) 由迁移建唯一索引（先去重再建）。
 // 模型不写 uniqueIndex 标签：AutoMigrate 先于迁移执行且不去重，存量库有重复行时会阻断启动。
 type GeoIndexTracking struct {
 	TenantID uint `gorm:"not null;default:1;index" json:"tenant_id"`

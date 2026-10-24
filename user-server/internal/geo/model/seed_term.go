@@ -16,7 +16,7 @@ const (
 
 // GeoSeedTerm GEO 关键词种子词条（数据库驱动，替代硬编码 TechStackAttrs）。
 //
-// 设计：独立部署的首轮运行时若表为空，由 SeedTermService 用内置缺省包
+// 独立部署的首轮运行时若表为空，由 SeedTermService 用内置缺省包
 // （TechStackAttrs + BusinessLines + 品牌组合）自动播种；之后 DB 即唯一
 // 真实来源，可经 /geo/seed-terms 接口查看与维护。
 type GeoSeedTerm struct {

@@ -87,9 +87,8 @@ func (r *geoDictRepo) Upsert(ctx context.Context, d *model.GeoDict) error {
 	if err != nil {
 		return err
 	}
-	// 原生 Exec 的历史原因（GORM 结构体 Create 的 default:true 零值吞写）对
-	// map 形态 Create 不成立：map 绑定按值落列，false 就是 false（T012 清偿）。
-	// BeforeCreate 在 Table+Create(map) 下不触发，显式补 UUID（与 model 钩子一致）。
+	// map 形态的 Create 按值落列，Active=false 不会被吞写；BeforeCreate 在
+	// Table+Create(map) 下不触发，需显式补 UUID（与 model 钩子一致）。
 	if d.ID == "" {
 		d.ID = uuid.NewString()
 	}

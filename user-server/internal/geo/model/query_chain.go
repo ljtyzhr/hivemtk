@@ -7,7 +7,7 @@ import (
 	"gorm.io/gorm"
 )
 
-// GeoQueryChain 用户查询思维链（v3 GEO 决策链化 Phase1）
+// GeoQueryChain 用户查询思维链
 //
 // 以 chain_id 聚合同一用户决策会话的多次查询，记录每跳的意图、
 // 品牌位置与被引信源，支撑"针对提问深度与多轮交互信源做反推迭代"。
@@ -56,7 +56,7 @@ type GeoContentTask struct {
 
 func (GeoContentTask) TableName() string { return "geo_content_tasks" }
 
-// BeforeCreate 同上：字符串主键生成
+// BeforeCreate 字符串主键需显式生成 UUID
 func (t *GeoContentTask) BeforeCreate(tx *gorm.DB) error {
 	if t.ID == "" {
 		t.ID = uuid.NewString()
