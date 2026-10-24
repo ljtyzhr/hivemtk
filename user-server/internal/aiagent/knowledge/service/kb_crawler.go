@@ -88,6 +88,9 @@ func NewCrawlerService(db *gorm.DB, kb *KnowledgeBaseService) *CrawlerService {
 // SetQASplitService 注入 QA 拆分服务（qa_split 开启时装配）
 func (s *CrawlerService) SetQASplitService(qa *QASplitService) { s.qa = qa }
 
+// KB 返回底层 KnowledgeBaseService（controller publish 链路用）
+func (s *CrawlerService) KB() *KnowledgeBaseService { return s.kb }
+
 // checkPublicAddr SSRF：解析地址属内网段则拒绝建连
 func checkPublicAddr(address string) error {
 	host, _, err := net.SplitHostPort(address)
