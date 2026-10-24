@@ -30,8 +30,8 @@ func PublishCustomerMessage(ctx context.Context, channelType, accountID, custome
 	}
 
 	payload := event.CustomerMessagePayload{
-		// 租户**不再在此手填**：由 event.PublishCtx 从 ctx 统一盖章（A9）。
-		// 发布点分散在 4 处、各写一遍 `TenantID: tenantIDFromCtx(ctx)` 是漏填的来源。
+		// 租户不在此手填：由 event.PublishCtx 从 ctx 统一盖章，
+		// 发布点分散多处、各自手填是漏填的来源。
 		ChannelType: channelType,
 		AccountID:   accountID,
 		CustomerID:  customerID,

@@ -1,7 +1,5 @@
 // Package agent_runtime 提供 AI 智能体运行时隔离层。
 //
-// 设计依据：docs/architecture/adr/-agent-runtime-isolation.md
-//
 // 核心职责：
 //  1. 加载智能体上下文（从 ai_agents 表 + channel_agent_bindings 表）
 //  2. 桥接 SalesEngine / SmartCSOrchestrator（只通过 interface）

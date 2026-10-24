@@ -17,12 +17,8 @@ import (
 
 // ToolCallAuditRecord 工具调用审计记录（DB 模型别名）
 //
-// 实体已收敛到 internal/model.ToolCallAudit（表名 tool_call_audits 不变）。
-// 为什么要收敛：本仓建表由 internal/pkg/db 的 AutoMigrate() 清单驱动，模型留在本包
-// 时它只在 AutoMigrateAuditTable 里出现 —— 而那个函数**从未被任何生产代码调用过**，
-// 于是 check_model_migration.py 的 "文件里含 .AutoMigrate( 就算已登记" 启发式把它
-// 误判成已登记（实测库内根本没有 tool_call_audits 表）。现在登记走 allModels()，
-// 本包只留别名，写入口径逐字段不变。
+// 实体收敛在 internal/model.ToolCallAudit（表名 tool_call_audits）：
+// 本仓建表由 internal/pkg/db 的 AutoMigrate() 清单（allModels()）驱动，模型必须登记在那里。
 type ToolCallAuditRecord = model.ToolCallAudit
 
 // DBAuditLogger DB 持久化 AuditLogger

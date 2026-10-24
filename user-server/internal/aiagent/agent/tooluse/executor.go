@@ -77,8 +77,8 @@ type ToolExecutorConfig struct {
 	// 由接线方设定；本字段为 true 时 ApprovalGateDecorator 不存在任何拒绝路径。
 	ApprovalShadow bool
 
-	// RiskGrants/RiskObserver 工具后果分级判定（T-P3-05 / G-3）。任一为 nil 时该层不挂。
-	// RiskEnforce=true 时挂 RiskGateBlockDecorator（T-P9-01：deny ⟺ WouldDeny）；
+	// RiskGrants/RiskObserver 工具后果分级判定。任一为 nil 时该层不挂。
+	// RiskEnforce=true 时挂 RiskGateBlockDecorator（deny ⟺ WouldDeny）；
 	// 为 false（默认）时挂 RiskGateDecorator（纯观察，永远透传）。
 	// FF_TOOL_PERMISSION_ENFORCE=block 置 true，off/shadow 置 false。
 	RiskGrants   AgentGrantReader
@@ -337,19 +337,17 @@ func (e *ToolExecutor) buildHandler(tool Tool) ToolHandler {
 		chain = FeedbackCollectorDecorator(e.config.FeedbackSink)(chain)
 	}
 	if e.config.ApprovalChecker != nil && IsColdOutreachTool(tool) {
-		// 审批门放在整条链之外（含 feedback）：被拒的冷触达不应消耗限流令牌、不应进重试、
-		// 不应被 audit 记成"执行过一次外发"、也不应产生一条工具反馈（它的留痕走 checker 自己的 OnDecision）。
-		// shadow 态下这一层是纯透传；block 态它开始真拦，"被拒的调用不消耗配额、
-		// 不进重试"这些性质随之外层成立——所以拦与不拦用的是同一个位置，观察期攒下的
-		// would_deny 与阻断期的实际拦截量因此可比。
+		// 审批门放在整条链之外（含 feedback）：被拒的冷触达不消耗限流令牌、不进重试、
+		// 不被 audit 记成"执行过一次外发"、也不产生工具反馈（留痕走 checker 自己的 OnDecision）。
+		// shadow 态这一层纯透传；block 态开始真拦，观察期攒下的 would_deny 与
+		// 阻断期的实际拦截量因此可比。
 		chain = ApprovalGateDecorator(tool, e.config.ApprovalChecker, e.config.ApprovalShadow)(chain)
 	}
 	if e.config.RiskGrants != nil && e.config.RiskObserver != nil {
-		// 分级判定放在**比审批门还外层**：它要观察到的是"有人发起了这次调用"，
-		// 与调用最终是被审批门拒了还是被执行了无关。挪到里层会让被审批拒掉的高危调用
-		// 从 would_deny 统计里消失，P9 拿到的破坏面因此偏小。
-		// RiskEnforce=false（默认）时这一层永远透传（见 RiskGateDecorator），
-		// 所以外层与否不改变任何放行结果；=true 时 WouldDeny 的调用在这里被拦下。
+		// 分级判定放在比审批门还外层：它要观察到的是"有人发起了这次调用"，
+		// 与调用最终被审批门拒掉还是被执行无关；挪到里层会让被审批拒掉的高危调用
+		// 从 would_deny 统计里消失。RiskEnforce=false（默认）时这一层永远透传，
+		// 外层与否不改变任何放行结果。
 		if e.config.RiskEnforce {
 			chain = RiskGateBlockDecorator(tool, e.config.RiskGrants, e.config.RiskObserver)(chain)
 		} else {
@@ -360,7 +358,7 @@ func (e *ToolExecutor) buildHandler(tool Tool) ToolHandler {
 }
 
 // circuitBreakerDecorator 按配置选出熔断装饰器；未接熔断时返回 nil，
-// 使 BuildChainWithBreakerDecorator 退化为 BuildDefaultChain（链序与接线前逐字节一致）。
+// 使 BuildChainWithBreakerDecorator 退化为 BuildDefaultChain。
 func (e *ToolExecutor) circuitBreakerDecorator() ToolDecorator {
 	if e.config.CircuitBreaker == nil {
 		return nil
@@ -470,10 +468,7 @@ type LLMToolResult struct {
 // DispatchByLLMToolCall 根据 LLM 返回的 tool_call 调度执行
 // 一次接收多个 tool_call，并发执行，返回每个 tool_call 的结果
 //
-// 并发上限控制（默认 5）
-// 设计依据：防止 LLM 一次返回 10+ tool_calls 时打爆下游服务
-// 5 并发是经过权衡的平衡值：足够覆盖常见业务场景（如 customer.search + order.query 并行），
-// 又能保护下游 DB/外部 API 不被突发流量打垮
+// 并发上限见 MaxConcurrent()：防止 LLM 一次返回大量 tool_calls 时打爆下游服务。
 func (e *ToolExecutor) DispatchByLLMToolCall(ctx context.Context, toolCalls []LLMToolCall, toolCtx *ToolContext) []LLMToolResult {
 	if len(toolCalls) == 0 {
 		return nil

@@ -5,8 +5,6 @@ import (
 )
 
 // Sentiment 情绪标签
-//
-// 来源：方向6 情绪感知模块；本文件先定义枚举，便于测试
 type Sentiment string
 
 const (

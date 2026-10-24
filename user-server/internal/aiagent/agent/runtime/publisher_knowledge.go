@@ -27,7 +27,7 @@ func PublishKnowledgeDocumentChange(ctx context.Context, workspaceID string, doc
 	}
 
 	payload := event.KnowledgeDocumentChangePayload{
-		// 租户由 event.PublishCtx 从 ctx 统一盖章（A9）：订阅者跑在事件线程上、拿不到发布点 ctx，
+		// 租户由 event.PublishCtx 从 ctx 统一盖章：订阅者跑在事件线程上、拿不到发布点 ctx，
 		// 归属只能随载荷传递——漏填时 on 模式下索引器 fail-closed，增量索引整条链静默失效。
 		WorkspaceID: workspaceID,
 		DocumentID:  documentID,

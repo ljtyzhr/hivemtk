@@ -12,12 +12,11 @@ import (
 	"hivemtk-user/internal/pkg/utils/logger"
 )
 
-// ── 内容审查闸（可选装配；未装配时行为与既有完全一致） ─────────────────
+// ── 内容审查闸（可选装配） ─────────────────
 //
-// 为什么用"注册极小接口"而不是在 agent 域直接 import contentguard：
-// agent 运行时不该依赖审查域的类型，两个域的连接由装配点（internal/app）负责，
-// 这样审查功能的开关不会变成 agent 的编译期依赖，也不会有循环引用。
-// 未装配（nil）时本处是纯 no-op —— 老部署的行为逐字节不变。
+// 用「注册极小接口」而非直接 import contentguard：
+// agent 运行时不依赖审查域的类型，连接由装配点（internal/app）负责，
+// 未装配（nil）时本处是纯 no-op。
 
 // GuardGate 内容审查闸的最小契约（实现方：contentguard 的运行时）。
 type GuardGate interface {
@@ -136,9 +135,9 @@ func convertFromEventPayload(ep event.CustomerMessagePayload) CustomerMessagePay
 	}
 }
 
-// tenantCtx 从事件载荷恢复租户上下文（specs/001-saas-multi-tenant T021 行自证）：
+// tenantCtx 从事件载荷恢复租户上下文：
 // 发布点（入站解析链）已绑定租户的 payload 携带 TenantID，订阅侧据此重建；
-// 0 = 历史发布方未填（off 模式等价默认租户语义，由列默认值兜底）。
+// 0 = 历史发布方未填（等价默认租户语义，由列默认值兜底）。
 func tenantCtx(ctx context.Context, payload event.CustomerMessagePayload) context.Context {
 	if payload.TenantID == 0 {
 		return ctx

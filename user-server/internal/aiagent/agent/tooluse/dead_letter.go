@@ -227,17 +227,10 @@ type DeadLetterStats struct {
 
 // DeadLetterQueueDecorator 死信队列装饰器
 //
-// 在工具调用最终失败时（重试耗尽、超时、panic 等）推入死信队列
-// 装饰器链位置：权限 → 限流 → 熔断 → 参数校验 → 缓存 → 重试 → 超时 → 审计 → 死信队列
-//   - 死信队列在最后：仅捕获最终失败结果
-//   - 已成功的调用不推入死信队列
-//
-// 设计说明：
-//
-//	死信队列装饰器位于审计之后，确保失败结果先被审计记录，
-//	再由死信队列持久化便于后续重放。
-//	但为了简化实现，本装饰器直接在装饰器链最后（即最接近 handler 的位置），
-//	避免与其他装饰器（重试/超时）冲突。
+// 在工具调用最终失败时（重试耗尽、超时、panic 等）推入死信队列。
+// 装饰器链位置：权限 → 限流 → 熔断 → 参数校验 → 缓存 → 重试 → 超时 → 审计 → 死信队列；
+// 位于审计之后，确保失败结果先被审计记录再持久化。
+//   - 仅捕获最终失败结果，已成功的调用不推入
 func DeadLetterQueueDecorator(queue *DeadLetterQueue) ToolDecorator {
 	return func(next ToolHandler) ToolHandler {
 		return func(ctx context.Context, args map[string]any) (ToolResult, error) {

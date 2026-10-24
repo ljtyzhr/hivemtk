@@ -367,11 +367,9 @@ type circuitToolStat struct {
 // CircuitDecisionCounter 熔断判定累计器。
 //
 // 存在的理由：shadow 模式的价值全在"和生效后的行为对比"，若判定只打在日志里，
-// 想回答"这一周会被拦多少次"就得去 grep 日志。T-P1-06 转阻断前必须给出这份对比报告，
-// 所以在观察态就把计数留在进程内，由调试 API 直接读。
-//
-// 键空间有界：toolName 来自 ToolRegistry 已注册工具（Executor 先查表再走装饰链），
-// 未注册名根本到不了这里。并发安全。
+// 想回答"这一周会被拦多少次"就得去 grep 日志；观察态就把计数留在进程内，
+// 由调试 API 直接读。键空间有界：toolName 来自 ToolRegistry 已注册工具
+// （Executor 先查表再走装饰链），未注册名根本到不了这里。并发安全。
 type CircuitDecisionCounter struct {
 	mu      sync.Mutex
 	perTool map[string]*circuitToolStat

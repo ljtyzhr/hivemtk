@@ -126,9 +126,8 @@ func (s *DefaultAlignmentScorer) Score(ctx context.Context, ic *InferenceContext
 	return score
 }
 
-// IntentAppreciIntent 辅助：把 Intent 转为 Sentiment 用于对比
-//
-// 实际不做转换；这里用 helper 处理 IntentAppreci（语义赞赏的意图）
+// IntentAppreciIntent 辅助：语义赞赏意图的占位映射（当前映射到 Greeting，
+// 使其走「热情度=5」分支；不做真正的 Intent→Sentiment 转换）
 func IntentAppreciIntent() Intent {
 	return IntentGreeting
 }

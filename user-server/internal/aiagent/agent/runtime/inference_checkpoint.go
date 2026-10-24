@@ -1,4 +1,4 @@
-// inference_checkpoint.go 推理闭环的阶段边界检查点挂载（D06 / 新规划 T-P1-01）。
+// inference_checkpoint.go 推理闭环的阶段边界检查点挂载。
 //
 // 语义：每阶段成功返回后 upsert 一份 (thread, stage) 快照；同一逻辑运行被中断后
 // 重试时，从"已完成的最后一个阶段"的下一个阶段续跑，已完成阶段不再执行、其产出
@@ -23,7 +23,7 @@ const checkpointStateVersion = 1
 //
 // 实现方：internal/app/agent_checkpoint_wiring.go（委托 service.SaveCheckpoint /
 // LoadLatestCheckpoint / ResumeStage）。 Enabled 为假时运行时的 checkpoint 路径
-// 完全短路，行为与挂载前逐字节一致。
+// 完全短路。
 type StageCheckpointStore interface {
 	// Enabled 本次运行是否挂载 checkpoint（每次 RunOnce 只判定一次，读写同侧）。
 	Enabled() bool

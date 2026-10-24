@@ -145,7 +145,7 @@ func (r *ToolRegistry) ToLLMFunctions() []LLMFunction {
 	return list
 }
 
-// ---------- TL-3（MASTER_COMPETITIVE_DECISIONS M13）场景→工具类别白名单 ----------
+// ---------- 场景→工具类别白名单 ----------
 //
 // 场景裁剪映射表集中在此一处维护：
 //   - intent_recognize 类场景只暴露 knowledge/customer 类工具（降低 prompt 体积+误触面）

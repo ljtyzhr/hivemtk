@@ -61,7 +61,7 @@ type ToolResult = portcontract.ToolResult
 // ToolTiming 执行耗时统计
 type ToolTiming = portcontract.ToolTiming
 
-// 工具失败分类枚举（D08）：随 ToolResult.error_code 回灌给 LLM。
+// 工具失败分类枚举：随 ToolResult.error_code 回灌给 LLM。
 // 语义约定：INVALID_PARAMS→修参重试；RATE_LIMITED/CIRCUIT_OPEN→等待或降级；
 // PERMISSION_DENIED/APPROVAL_DENIED/DNC_BLOCKED→放弃该路径；其余→INTERNAL。
 const (
