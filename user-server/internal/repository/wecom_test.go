@@ -256,51 +256,6 @@ func TestWeComCustomerRepository_Create(t *testing.T) {
 }
 
 // TestWeComCustomerRepository_GetByID 测试根据 ID 获取客户
-func TestWeComCustomerRepository_GetByID(t *testing.T) {
-	_, customerRepo, _ := setupWeComRepositories(t)
-	ctx := context.Background()
-
-	customer := &model.WeComCustomer{
-		EmployeeID:     "emp123",
-		ExternalUserID: "ext123",
-		Name:           "Test Customer",
-	}
-	customerRepo.Create(ctx, customer)
-
-	tests := []struct {
-		name    string
-		id      uint
-		wantErr bool
-	}{
-		{
-			name:    "get existing customer",
-			id:      customer.ID,
-			wantErr: false,
-		},
-		{
-			name:    "get non-existing customer",
-			id:      99999,
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result, err := customerRepo.GetByID(ctx, tt.id)
-
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GetByID() error = %v, wantErr %v", err, tt.wantErr)
-			}
-
-			if !tt.wantErr {
-				if result.Name != "Test Customer" {
-					t.Errorf("Expected name 'Test Customer', got '%s'", result.Name)
-				}
-			}
-		})
-	}
-}
-
 // TestWeComCustomerRepository_Update 测试更新客户
 func TestWeComCustomerRepository_Update(t *testing.T) {
 	_, customerRepo, _ := setupWeComRepositories(t)
@@ -320,64 +275,14 @@ func TestWeComCustomerRepository_Update(t *testing.T) {
 		t.Errorf("Update() error = %v", err)
 	}
 
-	updated, _ := customerRepo.GetByID(ctx, customer.ID)
-	if updated.Name != "Updated Name" {
-		t.Errorf("Expected name 'Updated Name', got '%s'", updated.Name)
+	updated, _ := customerRepo.GetByExternalUserID(ctx, customer.ExternalUserID)
+	if updated == nil || updated.Name != "Updated Name" {
+		t.Errorf("Expected name 'Updated Name', got %+v", updated)
 	}
 }
 
 // TestWeComCustomerRepository_Delete 测试删除客户
-func TestWeComCustomerRepository_Delete(t *testing.T) {
-	_, customerRepo, _ := setupWeComRepositories(t)
-	ctx := context.Background()
-
-	customer := &model.WeComCustomer{
-		EmployeeID:     "emp123",
-		ExternalUserID: "ext123",
-	}
-	customerRepo.Create(ctx, customer)
-
-	err := customerRepo.Delete(ctx, customer.ID)
-	if err != nil {
-		t.Errorf("Delete() error = %v", err)
-	}
-
-	_, err = customerRepo.GetByID(ctx, customer.ID)
-	if err == nil {
-		t.Error("Expected customer to be deleted")
-	}
-}
-
 // TestWeComCustomerRepository_GetByEmployeeID 测试根据员工 ID 获取客户列表
-func TestWeComCustomerRepository_GetByEmployeeID(t *testing.T) {
-	_, customerRepo, _ := setupWeComRepositories(t)
-	ctx := context.Background()
-
-	for i := 1; i <= 3; i++ {
-		customerRepo.Create(ctx, &model.WeComCustomer{
-			EmployeeID:     "emp123",
-			ExternalUserID: "ext" + string(rune('0'+i)),
-		})
-	}
-	customerRepo.Create(ctx, &model.WeComCustomer{
-		EmployeeID:     "emp456",
-		ExternalUserID: "ext999",
-	})
-
-	customers, total, err := customerRepo.GetByEmployeeID(context.Background(), "emp123", 1, 10)
-	if err != nil {
-		t.Errorf("GetByEmployeeID() error = %v", err)
-	}
-
-	if len(customers) != 3 {
-		t.Errorf("Expected 3 customers, got %d", len(customers))
-	}
-
-	if int(total) != 3 {
-		t.Errorf("Expected total 3, got %d", total)
-	}
-}
-
 // TestWeComGroupRepository_Create 测试创建企业微信客户群
 func TestWeComGroupRepository_Create(t *testing.T) {
 	_, _, groupRepo := setupWeComRepositories(t)
@@ -423,50 +328,6 @@ func TestWeComGroupRepository_Create(t *testing.T) {
 }
 
 // TestWeComGroupRepository_GetByID 测试根据 ID 获取群
-func TestWeComGroupRepository_GetByID(t *testing.T) {
-	_, _, groupRepo := setupWeComRepositories(t)
-	ctx := context.Background()
-
-	group := &model.WeComGroup{
-		ChatID: "chat123",
-		Name:   "Test Group",
-	}
-	groupRepo.Create(ctx, group)
-
-	tests := []struct {
-		name    string
-		id      uint
-		wantErr bool
-	}{
-		{
-			name:    "get existing group",
-			id:      group.ID,
-			wantErr: false,
-		},
-		{
-			name:    "get non-existing group",
-			id:      99999,
-			wantErr: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			result, err := groupRepo.GetByID(ctx, tt.id)
-
-			if (err != nil) != tt.wantErr {
-				t.Errorf("GetByID() error = %v, wantErr %v", err, tt.wantErr)
-			}
-
-			if !tt.wantErr {
-				if result.Name != "Test Group" {
-					t.Errorf("Expected name 'Test Group', got '%s'", result.Name)
-				}
-			}
-		})
-	}
-}
-
 // TestWeComGroupRepository_GetByChatID 测试根据群 ID 获取群
 func TestWeComGroupRepository_GetByChatID(t *testing.T) {
 	_, _, groupRepo := setupWeComRepositories(t)
@@ -530,51 +391,8 @@ func TestWeComGroupRepository_Update(t *testing.T) {
 		t.Errorf("Update() error = %v", err)
 	}
 
-	updated, _ := groupRepo.GetByID(ctx, group.ID)
-	if updated.Name != "Updated Name" {
-		t.Errorf("Expected name 'Updated Name', got '%s'", updated.Name)
-	}
-}
-
-// TestWeComGroupRepository_Delete 测试删除群
-func TestWeComGroupRepository_Delete(t *testing.T) {
-	_, _, groupRepo := setupWeComRepositories(t)
-	ctx := context.Background()
-
-	group := &model.WeComGroup{
-		ChatID: "chat123",
-	}
-	groupRepo.Create(ctx, group)
-
-	err := groupRepo.Delete(ctx, group.ID)
-	if err != nil {
-		t.Errorf("Delete() error = %v", err)
-	}
-
-	_, err = groupRepo.GetByID(ctx, group.ID)
-	if err == nil {
-		t.Error("Expected group to be deleted")
-	}
-}
-
-// TestWeComGroupRepository_UpdateMemberCount 测试更新成员数量
-func TestWeComGroupRepository_UpdateMemberCount(t *testing.T) {
-	_, _, groupRepo := setupWeComRepositories(t)
-	ctx := context.Background()
-
-	group := &model.WeComGroup{
-		ChatID:      "chat123",
-		MemberCount: 5,
-	}
-	groupRepo.Create(ctx, group)
-
-	err := groupRepo.UpdateMemberCount(context.Background(), "chat123", 15)
-	if err != nil {
-		t.Errorf("UpdateMemberCount() error = %v", err)
-	}
-
-	updated, _ := groupRepo.GetByChatID(context.Background(), "chat123")
-	if updated.MemberCount != 15 {
-		t.Errorf("Expected MemberCount 15, got %d", updated.MemberCount)
+	updated, _ := groupRepo.GetByChatID(ctx, group.ChatID)
+	if updated == nil || updated.Name != "Updated Name" {
+		t.Errorf("Expected name 'Updated Name', got %+v", updated)
 	}
 }

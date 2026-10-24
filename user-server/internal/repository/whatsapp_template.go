@@ -2,6 +2,8 @@ package repository
 
 import (
 	"context"
+	"errors"
+
 	"hivemtk-user/internal/model"
 	_db "hivemtk-user/internal/pkg/db"
 
@@ -35,9 +37,14 @@ func (r *WhatsappTemplateRepository) Create(ctx context.Context, template *model
 	return r.db.WithContext(ctx).Create(template).Error
 }
 
-// Save 保存模板（全字段更新）
+// Save 整行回写模板。走 db.SaveWholeRow：裸 Save 命中 0 行会回退成
+// `INSERT ... ON CONFLICT (id) DO UPDATE`（gorm@v1.31.2），把「编辑页读出后、
+// 保存前被删掉」的模板按原 id 插回。
 func (r *WhatsappTemplateRepository) Save(ctx context.Context, template *model.WhatsappMessageTemplate) error {
-	return r.db.WithContext(ctx).Save(template).Error
+	if template == nil || template.ID == "" {
+		return errors.New("whatsapp template: 缺主键，不能整行回写")
+	}
+	return _db.SaveWholeRow(r.db.WithContext(ctx), template)
 }
 
 // GetByID 按 ID 获取模板
@@ -50,10 +57,11 @@ func (r *WhatsappTemplateRepository) GetByID(ctx context.Context, id string) (*m
 	return &template, nil
 }
 
-// ListByFilters 按条件列出模板
+// ListByFilters 按条件列出模板（limit 夹取 1..200：模板表是配置表，
+// 行数可控，但无界 Find 的习惯不能留）。
 func (r *WhatsappTemplateRepository) ListByFilters(ctx context.Context, category string, isActive *bool) ([]*model.WhatsappMessageTemplate, error) {
 	var templates []*model.WhatsappMessageTemplate
-	query := r.db.WithContext(ctx).Model(&model.WhatsappMessageTemplate{})
+	query := r.db.WithContext(ctx).Model(&model.WhatsappMessageTemplate{}).Limit(200)
 	if category != "" {
 		query = query.Where("category = ?", category)
 	}

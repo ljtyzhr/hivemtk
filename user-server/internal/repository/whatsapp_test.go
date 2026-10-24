@@ -624,33 +624,6 @@ func TestWhatsappRepository_CreateJobDetail(t *testing.T) {
 	}
 }
 
-// TestWhatsappRepository_ListJobDetails 测试获取任务详情列表
-func TestWhatsappRepository_ListJobDetails(t *testing.T) {
-	repo := setupWhatsappRepository(t)
-
-	job := &model.WhatsappJob{
-		DraftID: uuid.New(),
-	}
-	repo.CreateJob(context.Background(), job)
-
-	for i := 1; i <= 3; i++ {
-		repo.CreateJobDetail(context.Background(), &model.WhatsappJobDetail{
-			JobID:     job.ID,
-			AccountID: uuid.New(),
-			ToJid:     "123456789" + string(rune('0'+i)),
-		})
-	}
-
-	details, err := repo.ListJobDetails(context.Background(), job.ID)
-	if err != nil {
-		t.Errorf("ListJobDetails() error = %v", err)
-	}
-
-	if len(details) != 3 {
-		t.Errorf("Expected 3 job details, got %d", len(details))
-	}
-}
-
 // TestWhatsappRepository_UpdateJobDetail 测试更新任务详情
 func TestWhatsappRepository_UpdateJobDetail(t *testing.T) {
 	repo := setupWhatsappRepository(t)
@@ -671,13 +644,9 @@ func TestWhatsappRepository_UpdateJobDetail(t *testing.T) {
 	detail.Status = model.WhatsappJobDetailSuccess
 	detail.ErrorMsg = ""
 
-	err := repo.UpdateJobDetail(context.Background(), detail)
-	if err != nil {
+	// UpdateJobDetail 是定向 Updates，无返回读口（原 ListJobDetails 已删）；
+	// 断言降级为「不报错」——明细读取端点本就不存在（progress 走 queue status）。
+	if err := repo.UpdateJobDetail(context.Background(), detail); err != nil {
 		t.Errorf("UpdateJobDetail() error = %v", err)
-	}
-
-	updated, _ := repo.ListJobDetails(context.Background(), job.ID)
-	if len(updated) != 1 || updated[0].Status != model.WhatsappJobDetailSuccess {
-		t.Errorf("Expected status Success, got %v", updated[0].Status)
 	}
 }

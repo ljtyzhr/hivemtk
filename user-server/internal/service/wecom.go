@@ -30,7 +30,6 @@ type WeComService struct {
 	accountRepo  *repository.WeComAccountRepository
 	customerRepo *repository.WeComCustomerRepository
 	groupRepo    *repository.WeComGroupRepository
-	memberRepo   *repository.WeComGroupMemberRepository
 	messageRepo  *repository.WeComMessageRepository
 	tagRepo      *repository.WeComTagRepository
 }
@@ -41,7 +40,6 @@ func NewWeComService() *WeComService {
 		accountRepo:  repository.NewWeComAccountRepository(),
 		customerRepo: repository.NewWeComCustomerRepository(),
 		groupRepo:    repository.NewWeComGroupRepository(),
-		memberRepo:   repository.NewWeComGroupMemberRepository(),
 		messageRepo:  repository.NewWeComMessageRepository(),
 		tagRepo:      repository.NewWeComTagRepository(repository.GetDB()),
 	}

@@ -3,6 +3,8 @@ package repository
 import (
 	"context"
 	"errors"
+
+	_db "hivemtk-user/internal/pkg/db"
 	"time"
 
 	"hivemtk-user/internal/model"
@@ -20,12 +22,22 @@ func NewWorkflowVersionRepository(db *gorm.DB) *WorkflowVersionRepository {
 	return &WorkflowVersionRepository{db: db}
 }
 
-// Save 保存工作流版本（存在则更新，不存在则创建）
+// Save 保存工作流版本（存在则更新，不存在则创建）。
+//
+// 双语义：w.ID == 0 走 Create（新建草稿），否则走 db.SaveWholeRow ——
+// 裸 Save 命中 0 行会回退成 `INSERT ... ON CONFLICT (id) DO UPDATE`
+// （gorm@v1.31.2），把「发布页读出后、保存前被删掉」的版本按原 id 插回。
 func (r *WorkflowVersionRepository) Save(ctx context.Context, w *model.WorkflowVersion) error {
 	if r == nil || r.db == nil {
 		return errors.New("workflow version repository not initialized")
 	}
-	return r.db.WithContext(ctx).Save(w).Error
+	if w == nil {
+		return errors.New("workflow version: nil 不是保存对象")
+	}
+	if w.ID == 0 {
+		return r.db.WithContext(ctx).Create(w).Error
+	}
+	return _db.SaveWholeRow(r.db.WithContext(ctx), w)
 }
 
 // GetByID 按 ID 获取工作流版本
@@ -175,12 +187,17 @@ func (r *WorkflowExecutionRepository) GetByID(ctx context.Context, id uint) (*mo
 	return &e, nil
 }
 
-// Update 更新执行实例
+// Update 整行回写执行实例。走 db.SaveWholeRow（理由同版本：dispatcher 是
+// Get 后改状态再回写，行被并发清掉时裸 Save 会把执行实例按原 id 插回 ——
+// 一个「已不存在」的执行还在跑）。
 func (r *WorkflowExecutionRepository) Update(ctx context.Context, e *model.WorkflowExecution) error {
 	if r == nil || r.db == nil {
 		return errors.New("workflow execution repository not initialized")
 	}
-	return r.db.WithContext(ctx).Save(e).Error
+	if e == nil || e.ID == 0 {
+		return errors.New("workflow execution: 缺主键，不能整行回写")
+	}
+	return _db.SaveWholeRow(r.db.WithContext(ctx), e)
 }
 
 // UpdateFields 按字段更新
@@ -222,25 +239,6 @@ func (r *WorkflowExecutionRepository) List(ctx context.Context, workflowID, stat
 	return list, total, err
 }
 
-// ListByWorkflowID 按 workflow_id 列出执行实例（不分页，用于详情）
-func (r *WorkflowExecutionRepository) ListByWorkflowID(ctx context.Context, workflowID string, limit int) ([]model.WorkflowExecution, error) {
-	if r == nil || r.db == nil {
-		return nil, errors.New("workflow execution repository not initialized")
-	}
-	if limit <= 0 {
-		limit = 50
-	}
-	var list []model.WorkflowExecution
-	if err := r.db.WithContext(ctx).
-		Where("workflow_id = ?", workflowID).
-		Order("started_at DESC").
-		Limit(limit).
-		Find(&list).Error; err != nil {
-		return nil, err
-	}
-	return list, nil
-}
-
 // FindStuck 查询卡死的执行实例
 func (r *WorkflowExecutionRepository) FindStuck(ctx context.Context, threshold time.Time, limit int) ([]model.WorkflowExecution, error) {
 	if r == nil || r.db == nil {
@@ -276,12 +274,15 @@ func (r *WorkflowNodeExecutionRepository) Create(ctx context.Context, n *model.W
 	return r.db.WithContext(ctx).Create(n).Error
 }
 
-// Update 更新节点执行记录
+// Update 整行回写节点执行记录。走 db.SaveWholeRow（理由同执行实例）。
 func (r *WorkflowNodeExecutionRepository) Update(ctx context.Context, n *model.WorkflowNodeExecution) error {
 	if r == nil || r.db == nil {
 		return errors.New("workflow node execution repository not initialized")
 	}
-	return r.db.WithContext(ctx).Save(n).Error
+	if n == nil || n.ID == 0 {
+		return errors.New("workflow node execution: 缺主键，不能整行回写")
+	}
+	return _db.SaveWholeRow(r.db.WithContext(ctx), n)
 }
 
 // ListByExecutionID 按 execution_id 列出节点执行明细（按 started_at ASC）
@@ -297,18 +298,4 @@ func (r *WorkflowNodeExecutionRepository) ListByExecutionID(ctx context.Context,
 		return nil, err
 	}
 	return list, nil
-}
-
-// CountByExecutionIDAndStatus 统计节点执行状态
-func (r *WorkflowNodeExecutionRepository) CountByExecutionIDAndStatus(ctx context.Context, executionID uint, status string) (int64, error) {
-	if r == nil || r.db == nil {
-		return 0, errors.New("workflow node execution repository not initialized")
-	}
-	var count int64
-	if err := r.db.WithContext(ctx).Model(&model.WorkflowNodeExecution{}).
-		Where("execution_id = ? AND status = ?", executionID, status).
-		Count(&count).Error; err != nil {
-		return 0, err
-	}
-	return count, nil
 }

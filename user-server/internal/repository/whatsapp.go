@@ -34,7 +34,6 @@ type WhatsappRepository interface {
 
 	CreateJobDetail(ctx context.Context, d *model.WhatsappJobDetail) error
 	UpdateJobDetail(ctx context.Context, d *model.WhatsappJobDetail) error
-	ListJobDetails(ctx context.Context, jobID uuid.UUID) ([]*model.WhatsappJobDetail, error)
 }
 
 type whatsappRepo struct {
@@ -72,6 +71,12 @@ func (r *whatsappRepo) GetAccount(ctx context.Context, id uuid.UUID) (*model.Wha
 	return &acc, err
 }
 
+// UpsertSession 按 account_id 幂等保存会话凭证。
+//
+// 已知竞态（记录不修）：read-then-write 窗口里并发 Upsert 同一账号会有一方
+// Create 撞 account_id 唯一约束（若建了索引）或双写两行。接线幂等语义时应改
+// `ON CONFLICT (account_id) DO UPDATE` 一条语句；当前唯一调用方是登录流程
+// （单账号单次会话），窗口期撞上的概率可忽略。
 func (r *whatsappRepo) UpsertSession(ctx context.Context, sess *model.WhatsappSession) error {
 	var exist model.WhatsappSession
 	err := r.db.WithContext(ctx).Where("account_id = ?", sess.AccountID).First(&exist).Error
@@ -145,9 +150,4 @@ func (r *whatsappRepo) CreateJobDetail(ctx context.Context, d *model.WhatsappJob
 }
 func (r *whatsappRepo) UpdateJobDetail(ctx context.Context, d *model.WhatsappJobDetail) error {
 	return r.db.WithContext(ctx).Model(&model.WhatsappJobDetail{}).Where("id = ?", d.ID).Updates(d).Error
-}
-func (r *whatsappRepo) ListJobDetails(ctx context.Context, jobID uuid.UUID) ([]*model.WhatsappJobDetail, error) {
-	var list []*model.WhatsappJobDetail
-	err := r.db.WithContext(ctx).Where("job_id = ?", jobID).Order("created_at asc").Find(&list).Error
-	return list, err
 }

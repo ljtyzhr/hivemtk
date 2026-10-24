@@ -2,10 +2,12 @@ package repository
 
 import (
 	"context"
+	"errors"
 	"fmt"
+	"time"
+
 	"hivemtk-user/internal/model"
 	_db "hivemtk-user/internal/pkg/db"
-	"time"
 
 	"gorm.io/gorm"
 )
@@ -47,30 +49,39 @@ func (r *WeComAccountRepository) GetByMerchant(ctx context.Context) ([]*model.We
 	return accounts, err
 }
 
-// Update 更新账号
+// Update 整行回写账号。
+//
+// 走 db.SaveWholeRow：裸 Save 命中 0 行会回退成 `INSERT ... ON CONFLICT (id)
+// DO UPDATE`（gorm@v1.31.2）。唯一调用方 UpdateAccount 是 Get 后改字段再回写，
+// 若账号在窗口期被删，裸 Save 会把它按原 id 插回 —— 而其回调配置（CallbackToken/
+// EncodingAESKey）可能已被新账号占用。
 func (r *WeComAccountRepository) Update(ctx context.Context, account *model.WeComAccount) error {
-	return r.db.WithContext(ctx).Save(account).Error
+	if account == nil || account.ID == 0 {
+		return errors.New("wecom account: 缺主键，不能整行回写")
+	}
+	return _db.SaveWholeRow(r.db.WithContext(ctx), account)
 }
 
-// UpdateToken 更新访问令牌
+// UpdateToken 更新访问令牌。0 行 ⇒ ErrRecordNotFound（给已删账号刷令牌不该静默成功，
+// 否则同步循环拿着失效 token 每 5 分钟失败一次却查不到原因）。
 func (r *WeComAccountRepository) UpdateToken(ctx context.Context, id uint, token string, expires time.Time) error {
-	return r.db.WithContext(ctx).Model(&model.WeComAccount{}).Where("id = ?", id).
+	return _db.EnsureAffected(r.db.WithContext(ctx).Model(&model.WeComAccount{}).Where("id = ?", id).
 		Updates(map[string]any{
 			"access_token":  token,
 			"token_expires": expires,
-		}).Error
+		}))
 }
 
-// Delete 删除账号
+// Delete 删除账号。0 行 ⇒ ErrRecordNotFound。
 func (r *WeComAccountRepository) Delete(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).Delete(&model.WeComAccount{}, id).Error
+	return _db.EnsureAffected(r.db.WithContext(ctx).Delete(&model.WeComAccount{}, id))
 }
 
-// UpdateSyncTime 更新同步时间
+// UpdateSyncTime 更新同步时间。0 行 ⇒ ErrRecordNotFound（同 UpdateToken）。
 func (r *WeComAccountRepository) UpdateSyncTime(ctx context.Context, id uint) error {
 	now := make(map[string]any)
 	now["last_sync_at"] = gorm.Expr("NOW()")
-	return r.db.WithContext(ctx).Model(&model.WeComAccount{}).Where("id = ?", id).Updates(now).Error
+	return _db.EnsureAffected(r.db.WithContext(ctx).Model(&model.WeComAccount{}).Where("id = ?", id).Updates(now))
 }
 
 // WeComCustomerRepository 企业微信客户仓库
@@ -105,10 +116,25 @@ func (r *WeComCustomerRepository) GetByExternalUserID(ctx context.Context, exter
 }
 
 func (r *WeComCustomerRepository) GetByMerchant(ctx context.Context, page, pageSize int) ([]*model.WeComCustomer, int64, error) {
+	// 分页夹取：`pageSize = 0` ⇒ GORM 的 Limit(0) 等于**不加 limit**，
+	// `page = 0` ⇒ offset 为负 ⇒ PG 报 "OFFSET must not be negative"。
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 20
+	}
+	if pageSize > 200 {
+		pageSize = 200
+	}
+
 	var customers []*model.WeComCustomer
 	var total int64
 
-	r.db.WithContext(ctx).Model(&model.WeComCustomer{}).Count(&total)
+	// Count 的 error 必须透传：吞掉的话 total=0 而列表有行，分页器当场错乱。
+	if err := r.db.WithContext(ctx).Model(&model.WeComCustomer{}).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
 	err := r.db.WithContext(ctx).
 		Order("created_at DESC").
 		Offset((page - 1) * pageSize).
@@ -118,29 +144,13 @@ func (r *WeComCustomerRepository) GetByMerchant(ctx context.Context, page, pageS
 	return customers, total, err
 }
 
-// Update 更新客户
+// Update 整行回写客户。走 db.SaveWholeRow（理由同账号：SyncCustomers 是
+// read-then-Save，行被并发删掉时裸 Save 会把客户按原 id 插回）。
 func (r *WeComCustomerRepository) Update(ctx context.Context, customer *model.WeComCustomer) error {
-	return r.db.WithContext(ctx).Save(customer).Error
-}
-
-// Delete 删除客户
-func (r *WeComCustomerRepository) Delete(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).Delete(&model.WeComCustomer{}, id).Error
-}
-
-// GetByEmployeeID 根据员工 ID 获取客户列表（独立部署：单租户）
-func (r *WeComCustomerRepository) GetByEmployeeID(ctx context.Context, employeeID string, page, pageSize int) ([]*model.WeComCustomer, int64, error) {
-	var customers []*model.WeComCustomer
-	var total int64
-
-	r.db.WithContext(ctx).Model(&model.WeComCustomer{}).Where("employee_id = ?", employeeID).Count(&total)
-	err := r.db.WithContext(ctx).Where("employee_id = ?", employeeID).
-		Order("created_at DESC").
-		Offset((page - 1) * pageSize).
-		Limit(pageSize).
-		Find(&customers).Error
-
-	return customers, total, err
+	if customer == nil || customer.ID == 0 {
+		return errors.New("wecom customer: 缺主键，不能整行回写")
+	}
+	return _db.SaveWholeRow(r.db.WithContext(ctx), customer)
 }
 
 // WeComGroupRepository 企业微信客户群仓库
@@ -160,13 +170,6 @@ func (r *WeComGroupRepository) Create(ctx context.Context, group *model.WeComGro
 	return r.db.WithContext(ctx).Create(group).Error
 }
 
-// GetByID 根据 ID 获取群
-func (r *WeComGroupRepository) GetByID(ctx context.Context, id uint) (*model.WeComGroup, error) {
-	var group model.WeComGroup
-	err := r.db.WithContext(ctx).First(&group, id).Error
-	return &group, err
-}
-
 // GetByChatID 根据群 ID 获取群（独立部署：单租户）
 func (r *WeComGroupRepository) GetByChatID(ctx context.Context, chatID string) (*model.WeComGroup, error) {
 	var group model.WeComGroup
@@ -175,10 +178,23 @@ func (r *WeComGroupRepository) GetByChatID(ctx context.Context, chatID string) (
 }
 
 func (r *WeComGroupRepository) GetByMerchant(ctx context.Context, page, pageSize int) ([]*model.WeComGroup, int64, error) {
+	// 分页夹取 + Count 错误透传（理由同 WeComCustomerRepository.GetByMerchant）。
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 20
+	}
+	if pageSize > 200 {
+		pageSize = 200
+	}
+
 	var groups []*model.WeComGroup
 	var total int64
 
-	r.db.WithContext(ctx).Model(&model.WeComGroup{}).Count(&total)
+	if err := r.db.WithContext(ctx).Model(&model.WeComGroup{}).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
 	err := r.db.WithContext(ctx).
 		Order("created_at DESC").
 		Offset((page - 1) * pageSize).
@@ -188,61 +204,13 @@ func (r *WeComGroupRepository) GetByMerchant(ctx context.Context, page, pageSize
 	return groups, total, err
 }
 
-// Update 更新群
+// Update 整行回写群。走 db.SaveWholeRow（理由同账号：SyncGroups 是
+// read-then-Save，行被并发删掉时裸 Save 会把群按原 id 插回）。
 func (r *WeComGroupRepository) Update(ctx context.Context, group *model.WeComGroup) error {
-	return r.db.WithContext(ctx).Save(group).Error
-}
-
-// Delete 删除群
-func (r *WeComGroupRepository) Delete(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).Delete(&model.WeComGroup{}, id).Error
-}
-
-// UpdateMemberCount 更新成员数量
-func (r *WeComGroupRepository) UpdateMemberCount(ctx context.Context, chatID string, count int) error {
-	return r.db.WithContext(ctx).Model(&model.WeComGroup{}).Where("chat_id = ?", chatID).Update("member_count", count).Error
-}
-
-// WeComGroupMemberRepository 企业微信客户群成员仓库
-type WeComGroupMemberRepository struct {
-	db *gorm.DB
-}
-
-// NewWeComGroupMemberRepository 创建企业微信客户群成员仓库实例
-func NewWeComGroupMemberRepository() *WeComGroupMemberRepository {
-	return &WeComGroupMemberRepository{
-		db: _db.GetDB(),
+	if group == nil || group.ID == 0 {
+		return errors.New("wecom group: 缺主键，不能整行回写")
 	}
-}
-
-// Create 创建群成员
-func (r *WeComGroupMemberRepository) Create(ctx context.Context, member *model.WeComGroupMember) error {
-	return r.db.WithContext(ctx).Create(member).Error
-}
-
-// GetByGroupID 根据群 ID 获取成员列表
-func (r *WeComGroupMemberRepository) GetByGroupID(ctx context.Context, groupID uint, page, pageSize int) ([]*model.WeComGroupMember, int64, error) {
-	var members []*model.WeComGroupMember
-	var total int64
-
-	r.db.WithContext(ctx).Model(&model.WeComGroupMember{}).Where("group_id = ?", groupID).Count(&total)
-	err := r.db.WithContext(ctx).Where("group_id = ?", groupID).
-		Order("join_time DESC").
-		Offset((page - 1) * pageSize).
-		Limit(pageSize).
-		Find(&members).Error
-
-	return members, total, err
-}
-
-// Delete 删除群成员
-func (r *WeComGroupMemberRepository) Delete(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).Delete(&model.WeComGroupMember{}, id).Error
-}
-
-// DeleteByGroupID 删除群下所有成员
-func (r *WeComGroupMemberRepository) DeleteByGroupID(ctx context.Context, groupID uint) error {
-	return r.db.WithContext(ctx).Where("group_id = ?", groupID).Delete(&model.WeComGroupMember{}).Error
+	return _db.SaveWholeRow(r.db.WithContext(ctx), group)
 }
 
 // WeComMessageRepository 企业微信消息仓库
@@ -262,18 +230,24 @@ func (r *WeComMessageRepository) Create(ctx context.Context, message *model.WeCo
 	return r.db.WithContext(ctx).Create(message).Error
 }
 
-// GetByID 根据 ID 获取消息
-func (r *WeComMessageRepository) GetByID(ctx context.Context, id uint) (*model.WeComMessage, error) {
-	var message model.WeComMessage
-	err := r.db.WithContext(ctx).First(&message, id).Error
-	return &message, err
-}
-
 func (r *WeComMessageRepository) GetByMerchant(ctx context.Context, page, pageSize int) ([]*model.WeComMessage, int64, error) {
+	// 分页夹取 + Count 错误透传（理由同 WeComCustomerRepository.GetByMerchant）。
+	if page < 1 {
+		page = 1
+	}
+	if pageSize < 1 {
+		pageSize = 20
+	}
+	if pageSize > 200 {
+		pageSize = 200
+	}
+
 	var messages []*model.WeComMessage
 	var total int64
 
-	r.db.WithContext(ctx).Model(&model.WeComMessage{}).Count(&total)
+	if err := r.db.WithContext(ctx).Model(&model.WeComMessage{}).Count(&total).Error; err != nil {
+		return nil, 0, err
+	}
 	err := r.db.WithContext(ctx).
 		Order("created_at DESC").
 		Offset((page - 1) * pageSize).
@@ -281,20 +255,6 @@ func (r *WeComMessageRepository) GetByMerchant(ctx context.Context, page, pageSi
 		Find(&messages).Error
 
 	return messages, total, err
-}
-
-// UpdateStatus 更新消息状态
-func (r *WeComMessageRepository) UpdateStatus(ctx context.Context, id uint, status int, sendTime time.Time, errorMsg string) error {
-	updates := map[string]any{
-		"status": status,
-	}
-	if sendTime.IsZero() {
-		updates["send_time"] = gorm.Expr("NOW()")
-	}
-	if errorMsg != "" {
-		updates["error_msg"] = errorMsg
-	}
-	return r.db.WithContext(ctx).Model(&model.WeComMessage{}).Where("id = ?", id).Updates(updates).Error
 }
 
 // WeComTagRepository 企业微信标签仓库
@@ -318,16 +278,6 @@ func (r *WeComTagRepository) GetByMerchant(ctx context.Context) ([]*model.WeComT
 	var tags []*model.WeComTag
 	err := r.db.WithContext(ctx).Find(&tags).Error
 	return tags, err
-}
-
-// Update 更新标签
-func (r *WeComTagRepository) Update(ctx context.Context, tag *model.WeComTag) error {
-	return r.db.WithContext(ctx).Save(tag).Error
-}
-
-// Delete 删除标签
-func (r *WeComTagRepository) Delete(ctx context.Context, id uint) error {
-	return r.db.WithContext(ctx).Delete(&model.WeComTag{}, id).Error
 }
 
 // FindByRiskLevels 按风险等级列表筛选账号（私域独立部署：无 merchant_id）
