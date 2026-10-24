@@ -1,11 +1,6 @@
-// Package dto 提供数据传输对象 (Layer 决策 / FAQ 匹配 / 流式输出)
-//
-// 设计依据: AI 智能体性能优化 (/ /)
-//
-// 三个核心 DTO:
-//   - LayerDecision       双层架构路由决策 (Layer1 / Layer2)
-//   - FAQMatchResult      FAQ 匹配结果 (含 score + 命中后元数据)
-//   - StreamChunk         WebSocket 流式输出 (start/delta/final/error 4 类)
+// Package dto 提供数据传输对象 (Layer 决策 / FAQ 匹配 / 流式输出)。
+// 三个核心 DTO：LayerDecision（双层架构路由决策）、FAQMatchResult（FAQ 匹配结果）、
+// StreamChunk（WebSocket 流式输出，start/delta/final/error 4 类）。
 package dto
 
 // Layer 取值
@@ -62,7 +57,7 @@ type FAQEntry struct {
 	UpdatedAt  string   `json:"updated_at,omitempty"`
 }
 
-// SOPTemplate SOP 模板 DTO (: 前端 SOP 模板管理页面)
+// SOPTemplate SOP 模板 DTO（前端 SOP 模板管理页面）
 type SOPTemplate struct {
 	ID         uint    `json:"id"`
 	Name       string  `json:"name"`
@@ -86,13 +81,11 @@ const (
 	ChunkTypeError = "error"
 )
 
-// StreamChunk WebSocket 流式输出
-//
-// 协议:
-//   - {"type":"start", "trace_id":"xxx", "intent":"greeting"} -> 流开始
-//   - {"type":"delta", "text":"你好"} -> 增量 chunk
-//   - {"type":"final", "text":"完整回复", "steps":[...], "wall_ms":1234} -> 结束
-//   - {"type":"error", "msg":"llm_timeout"} -> 错误
+// StreamChunk WebSocket 流式输出。
+// 协议：{"type":"start","trace_id":"xxx","intent":"greeting"} -> 流开始；
+// {"type":"delta","text":"你好"} -> 增量 chunk；
+// {"type":"final","text":"完整回复","steps":[...],"wall_ms":1234} -> 结束；
+// {"type":"error","msg":"llm_timeout"} -> 错误。
 type StreamChunk struct {
 	Type     string         `json:"type"`
 	TraceID  string         `json:"trace_id"`

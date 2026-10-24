@@ -1,12 +1,4 @@
-// Package dto 提供 AssetBundle（资产包）的 API 传输对象。
-//
-// 方向9：资产包模式 - 严格的 API 入参/出参契约
-// 文档依据：docs/企业级架构优化/资产包模式.md §一/§六
-//
-// 关键设计：
-//  1. 开发者模式：直接双向绑定 messages 数组（Playground）
-//  2. 商户模式：低代码表单（促销活动/优惠比例/常见问答卡片）→ 后端翻译成 messages
-//  3. DTO 统一管理这两套视图，让 Service 保持业务内聚
+// Package dto 提供 AssetBundle（资产包）的 API 传输对象，统一开发者模式（messages 数组直传）与商户低代码表单两套视图的出入参契约。
 package dto
 
 import (
@@ -98,11 +90,8 @@ type AssetBundleListResponse struct {
 	Size  int                `json:"size"`
 }
 
-// MerchantFormSaveRequest 商户低代码表单保存请求
-//
-// 文档：方向9 §六
-// 商户在前端看到的不是 messages 数组，而是表单（活动名称/优惠比例/常见问答卡片）
-// 后端把表单反向翻译成标准 messages 数组
+// MerchantFormSaveRequest 商户低代码表单保存请求。
+// 商户在前端看到的是表单（活动名称/优惠比例/常见问答卡片），后端将其反向翻译成标准 messages 数组。
 type MerchantFormSaveRequest struct {
 	AssetID         string             `json:"asset_id" binding:"required"`
 	Title           string             `json:"title"`
@@ -146,11 +135,8 @@ type MerchantCardButton struct {
 	Order   int    `json:"order"`
 }
 
-// MerchantFormParseResponse 解析 messages 数组后的商户表单响应
-//
-// 文档：方向9 §六
-// 前端用正则解析 messages[0].content 提取参数
-// 解析结果返回给前端用于回显
+// MerchantFormParseResponse 解析 messages 数组后的商户表单响应，供前端回显。
+// 前端用正则解析 messages[0].content 提取参数。
 type MerchantFormParseResponse struct {
 	ShopName        string             `json:"shop_name"`
 	CampaignName    string             `json:"campaign_name"`

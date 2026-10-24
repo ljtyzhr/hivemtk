@@ -81,8 +81,6 @@ type SOPABTestConfig struct {
 }
 
 // CreateRequest 创建 SOP 请求
-// 已从 service 包迁入，引用 dto.SOPGraph / dto.SOPABTestConfig 无循环依赖
-// 清理：移除残留的 MerchantID 多租户字段（独立部署模式无 merchant_id）
 type CreateRequest struct {
 	Name          string          `json:"name" binding:"required"`
 	Scenario      string          `json:"scenario" binding:"required"`

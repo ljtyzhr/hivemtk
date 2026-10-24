@@ -16,10 +16,9 @@ type KuaishouCardStatsResponse struct {
 	CardTitle  string      `json:"cardTitle"`
 	TotalViews int         `json:"totalViews"`
 	DailyStats []DailyStat `json:"dailyStats"`
-	// RecentActivity 该卡的最近浏览记录。原先本结构没有这个字段，
-	// 而前端 kuaishouCard/CardStats.vue 的「最近活动」表格正是绑它
-	// （:data="cardStats.recentActivity.filter(...)"），字段缺失时只能兜成空数组
-	// ⇒ 表格永远空。字段名用单数 recentActivity，与抖音/小红书的单卡响应保持一致。
+	// RecentActivity 该卡的最近浏览记录（前端「最近活动」表格绑定此字段，
+	// 缺失时只能兜成空数组）。字段名用单数 recentActivity，
+	// 与抖音/小红书的单卡响应保持一致。
 	RecentActivity []Activity `json:"recentActivity"`
 }
 

@@ -1,8 +1,7 @@
 package dto
 
 // LeadMiningConfig 线索发掘全局配置（请求/响应 DTO）。
-// 与 model.LeadMiningConfig 字段一一对应，由 service 层完成转换，
-// controller 不再直接引用 model（五层架构 L3 约束）。
+// 与 model.LeadMiningConfig 字段一一对应，由 service 层完成转换，controller 不直接引用 model。
 type LeadMiningConfig struct {
 	ID             int64    `json:"id"`
 	Enabled        bool     `json:"enabled"`

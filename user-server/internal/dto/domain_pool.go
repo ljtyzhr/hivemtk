@@ -26,7 +26,6 @@ type DomainPoolListRequest struct {
 }
 
 // DomainPoolResponse 域名池响应
-// G 域 ：扩展健康度评分、黑名单、活跃标记
 type DomainPoolResponse struct {
 	ID                  int    `json:"id"`
 	Domain              string `json:"domain"`

@@ -19,9 +19,7 @@ type ClueListResponse struct {
 	UpdatedAt    int64  `json:"updated_at"`
 }
 
-// GetClueRequest 列表筛选条件全部下推到 DB：
-// 页面上的「线索类型/关键字/验证状态」原先只在前端过滤当前这一页（10 条），
-// 选中库里真实存在 29 条的类型也会显示「暂无线索数据」而分页仍写「共 214 条」。
+// GetClueRequest 列表筛选条件全部下推到 DB，避免只在前端过滤当前页。
 // Type / IsVerify 用指针区分"没传"与"传了 0"（未验证＝0）。
 type GetClueRequest struct {
 	Page     int    `form:"page"`

@@ -10,11 +10,7 @@ type FAQFilter struct {
 }
 
 // SOPTemplateFilter SOP 模板查询过滤器（前端管理页面）。
-//
-// AgentID 字段
-//   - nil:  不过滤（兼容旧调用）
-//   - &0:   仅查共享（agent_id IS NULL）
-//   - &X:   仅查该智能体（agent_id = X）
+// AgentID：nil 不过滤（兼容旧调用）；&0 仅查共享（agent_id IS NULL）；&X 仅查该智能体。
 type SOPTemplateFilter struct {
 	Keyword  string
 	Intent   string

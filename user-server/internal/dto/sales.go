@@ -256,8 +256,7 @@ type AgentContext struct {
 	Version int `json:"version"`
 }
 
-// AgentContextToSalesEngineConfig 将 AgentContext 转换为 SalesEngineConfig
-// 包级函数,架构文档 §三 L4 要求(type alias 不允许定义方法,故用包级函数)
+// AgentContextToSalesEngineConfig 将 AgentContext 转换为 SalesEngineConfig（包级函数，type alias 不能定义方法）
 func AgentContextToSalesEngineConfig(a *AgentContext) *SalesEngineConfig {
 	if a == nil {
 		return DefaultSalesEngineConfig()
@@ -286,11 +285,11 @@ type SalesRequest struct {
 
 	AgentContext *AgentContext `json:"agent_context,omitempty"`
 
-	// IsFirstTurn 标记是否为会话首条消息（用于行为层拟人 thinking pause 判定）
+	// IsFirstTurn 标记是否为会话首条消息（用于行为层拟人 thinking pause 判定），
 	// 由上游 chat_visitor / web_chat 等入口根据 session 消息历史判断后填入
 	IsFirstTurn bool `json:"is_first_turn,omitempty"`
 
-	// EmotionHint P1g 情感分层策略提示（焦虑=进度可视化 / 满意=裂变引导），空=无情绪干预。
+	// EmotionHint 情感分层策略提示（焦虑=进度可视化 / 满意=裂变引导），空=无情绪干预；
 	// 由 SmartCSOrchestrator 按 ClassifyEmotion 结果注入，buildPrompt 消费。
 	EmotionHint string `json:"emotion_hint,omitempty"`
 }
@@ -302,7 +301,7 @@ type SalesResponse struct {
 	Memory              *DialogueMemory  `json:"memory,omitempty"`
 	MatchedSOP          *SOPAgent        `json:"matched_sop,omitempty"`
 	RAGChunks           []RAGChunk       `json:"rag_chunks,omitempty"`
-	// Citations 答案引用溯源（T2）：FAQ 级/chunk 级引用，纯旁路字段，
+	// Citations 答案引用溯源：FAQ 级/chunk 级引用，纯旁路字段，
 	// 不参与置信度判定（组装发生在 extractConfidenceWithTopK 之后）。
 	Citations           []Citation       `json:"citations,omitempty"`
 	ScriptTemplate      *ScriptTemplate  `json:"script_template,omitempty"`
@@ -316,12 +315,9 @@ type SalesResponse struct {
 	AuditIssues         []string         `json:"audit_issues,omitempty"`
 	TransferredToHuman  bool             `json:"transferred_to_human"`
 
-	// DefiniteAnswer 标记本条回复来自**确定答案**（FAQ 标准答案 / 人工标注答案），
-	// 而不是模型现场生成。
-	//
-	// 编排器据此跳过置信度判据：确定答案不需要再判"这个回答可不可信" ——
-	// 它就是标准答案本身。线上 FAQ 的 intent 字段多为空，早先的意图判据
-	// 会把空串当成"已知意图"，于是 FAQ 已经答对了仍被低置信判据推翻去转人工。
+	// DefiniteAnswer 标记本条回复来自确定答案（FAQ 标准答案 / 人工标注答案），
+	// 而不是模型现场生成。编排器据此跳过置信度判据——确定答案就是标准答案本身，
+	// 不需要再判"这个回答可不可信"。
 	DefiniteAnswer bool           `json:"definite_answer,omitempty"`
 	TransferReason string         `json:"transfer_reason,omitempty"`
 	Cards          []RichCard     `json:"cards,omitempty"`
@@ -333,8 +329,8 @@ type SalesResponse struct {
 	HumanizePassed  bool    `json:"humanize_passed,omitempty"`
 	HumanizeAttempt int     `json:"humanize_attempt,omitempty"`
 
-	// SendPlan 行为层拟人发送计划（业界：打字延迟 + 分条发送）
-	// 为 nil 表示未启用行为层拟人；前端应直接用 Reply
+	// SendPlan 行为层拟人发送计划（打字延迟 + 分条发送）。
+	// 为 nil 表示未启用行为层拟人，前端应直接用 Reply
 	SendPlan *SendPlanDTO `json:"send_plan,omitempty"`
 }
 
@@ -345,8 +341,7 @@ type SendPlanDTO struct {
 	TotalDelay float64   `json:"total_delay"`
 }
 
-// SalesRequestHasAgentContext 判断 SalesRequest 是否携带智能体上下文
-// 供 recallRAG / matchSOP 等内部方法判断是否按智能体过滤(包级函数,架构文档 §三 L4 要求)
+// SalesRequestHasAgentContext 判断 SalesRequest 是否携带智能体上下文（包级函数，type alias 不能定义方法）
 func SalesRequestHasAgentContext(r *SalesRequest) bool {
 	return r != nil && r.AgentContext != nil
 }

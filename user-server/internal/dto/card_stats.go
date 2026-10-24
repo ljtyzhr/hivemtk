@@ -1,9 +1,7 @@
 package dto
 
-// PlatformCardStatsRequest 平台卡片统计请求（统一入口）
-//
-// LM-：用于替代各平台自有的 *CardStatsRequest 命名差异（douyin / kuaishou / xiaohongshu
-// / xianyu / tiktok），统一通过 Platform 字段路由到具体平台 service。
+// PlatformCardStatsRequest 平台卡片统计请求（统一入口）。
+// Platform 字段路由到 douyin/kuaishou/xiaohongshu/xianyu/tiktok 各平台的 service。
 type PlatformCardStatsRequest struct {
 	Platform  string `json:"platform" form:"platform"`
 	CardID    uint   `json:"cardId" form:"cardId"`

@@ -2,11 +2,10 @@ package dto
 
 import "time"
 
-// ObsConfigRequest OBS配置请求
-//
-// provider 校验规则：
-//   - local：只需 Name，Endpoint 存本地目录（默认 ./uploads），Domain 存公开访问前缀（默认 /files）
-//   - 云厂商 (aliyun/qiniu/tencent/aws)：必须填 AccessKey / SecretKey / Bucket / Region
+// ObsConfigRequest OBS配置请求。
+// provider 校验规则：local 只需 Name，Endpoint 存本地目录（默认 ./uploads），
+// Domain 存公开访问前缀（默认 /files）；
+// 云厂商 (aliyun/qiniu/tencent/aws) 必须填 AccessKey/SecretKey/Bucket/Region。
 type CreateObsConfigRequest struct {
 	Name       string `json:"name" binding:"required"`
 	Provider   string `json:"provider" binding:"required,oneof=aliyun qiniu tencent aws local"`

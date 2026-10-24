@@ -830,51 +830,51 @@
 | 615 | [ ] | `internal/domain/asset/entity.go` | 4 | 4 | 4 | 0 |
 | 616 | [ ] | `internal/domain/asset/validator.go` | 1 | 1 | 1 | 0 |
 | 617 | [ ] | `internal/domain/errors/codes.go` | 20 | 43 | 20 | 0 |
-| 618 | [ ] | `internal/dto/account.go` | 1 | 2 | 1 | 0 |
-| 619 | [ ] | `internal/dto/asset_bundle.go` | 17 | 34 | 17 | 0 |
-| 620 | [ ] | `internal/dto/asset_market.go` | 4 | 4 | 4 | 0 |
+| 618 | [x] | `internal/dto/account.go` | 1 | 2 | 1 | 0 |
+| 619 | [x] | `internal/dto/asset_bundle.go` | 17 | 34 | 17 | 0 |
+| 620 | [x] | `internal/dto/asset_market.go` | 4 | 4 | 4 | 0 |
 | 621 | [x] | `internal/dto/auth.go` | 0 | 0 | 0 | 0 |
-| 622 | [ ] | `internal/dto/card_stats.go` | 4 | 7 | 4 | 0 |
-| 623 | [ ] | `internal/dto/channel_overview.go` | 4 | 4 | 4 | 0 |
-| 624 | [ ] | `internal/dto/clue.go` | 2 | 5 | 2 | 0 |
-| 625 | [ ] | `internal/dto/clue_score.go` | 7 | 7 | 7 | 0 |
-| 626 | [ ] | `internal/dto/community.go` | 14 | 14 | 14 | 0 |
-| 627 | [ ] | `internal/dto/confidence.go` | 7 | 18 | 7 | 0 |
-| 628 | [ ] | `internal/dto/customer_rfm.go` | 6 | 6 | 6 | 0 |
-| 629 | [ ] | `internal/dto/domain_pool.go` | 6 | 7 | 6 | 0 |
-| 630 | [ ] | `internal/dto/douyincard.go` | 7 | 7 | 7 | 0 |
-| 631 | [ ] | `internal/dto/douyincardstats.go` | 7 | 11 | 7 | 0 |
-| 632 | [ ] | `internal/dto/emaildraft.go` | 4 | 4 | 4 | 0 |
-| 633 | [ ] | `internal/dto/emailjobs.go` | 4 | 4 | 4 | 0 |
-| 634 | [ ] | `internal/dto/emaillist.go` | 4 | 4 | 4 | 0 |
-| 635 | [ ] | `internal/dto/emailsend.go` | 2 | 2 | 2 | 0 |
+| 622 | [x] | `internal/dto/card_stats.go` | 4 | 7 | 4 | 0 |
+| 623 | [x] | `internal/dto/channel_overview.go` | 4 | 4 | 4 | 0 |
+| 624 | [x] | `internal/dto/clue.go` | 2 | 5 | 2 | 0 |
+| 625 | [x] | `internal/dto/clue_score.go` | 7 | 7 | 7 | 0 |
+| 626 | [x] | `internal/dto/community.go` | 14 | 14 | 14 | 0 |
+| 627 | [x] | `internal/dto/confidence.go` | 7 | 18 | 7 | 0 |
+| 628 | [x] | `internal/dto/customer_rfm.go` | 6 | 6 | 6 | 0 |
+| 629 | [x] | `internal/dto/domain_pool.go` | 6 | 7 | 6 | 0 |
+| 630 | [x] | `internal/dto/douyincard.go` | 7 | 7 | 7 | 0 |
+| 631 | [x] | `internal/dto/douyincardstats.go` | 7 | 11 | 7 | 0 |
+| 632 | [x] | `internal/dto/emaildraft.go` | 4 | 4 | 4 | 0 |
+| 633 | [x] | `internal/dto/emailjobs.go` | 4 | 4 | 4 | 0 |
+| 634 | [x] | `internal/dto/emaillist.go` | 4 | 4 | 4 | 0 |
+| 635 | [x] | `internal/dto/emailsend.go` | 2 | 2 | 2 | 0 |
 | 636 | [x] | `internal/dto/emailsmtp.go` | 0 | 0 | 0 | 0 |
 | 637 | [x] | `internal/dto/feedback_loop.go` | 10 | 20 | 10 | 0 |
-| 638 | [ ] | `internal/dto/filters.go` | 1 | 6 | 1 | 0 |
-| 639 | [ ] | `internal/dto/glossary.go` | 7 | 7 | 7 | 0 |
-| 640 | [ ] | `internal/dto/humanize.go` | 10 | 17 | 10 | 0 |
-| 641 | [ ] | `internal/dto/integration_template.go` | 4 | 4 | 4 | 0 |
-| 642 | [ ] | `internal/dto/intent.go` | 1 | 1 | 1 | 0 |
-| 643 | [ ] | `internal/dto/kuaishoucard.go` | 7 | 7 | 7 | 0 |
-| 644 | [ ] | `internal/dto/kuaishoucardstats.go` | 7 | 10 | 7 | 0 |
-| 645 | [ ] | `internal/dto/layer_chunk.go` | 9 | 22 | 9 | 0 |
-| 646 | [ ] | `internal/dto/lead_mining.go` | 1 | 3 | 1 | 0 |
-| 647 | [ ] | `internal/dto/livecode.go` | 12 | 12 | 12 | 0 |
-| 648 | [ ] | `internal/dto/memory.go` | 2 | 2 | 2 | 0 |
-| 649 | [ ] | `internal/dto/obs_config.go` | 5 | 9 | 5 | 0 |
-| 650 | [ ] | `internal/dto/recovery_queue.go` | 12 | 16 | 12 | 0 |
-| 651 | [ ] | `internal/dto/sales.go` | 30 | 39 | 30 | 0 |
-| 652 | [ ] | `internal/dto/shortlink.go` | 11 | 11 | 11 | 0 |
-| 653 | [ ] | `internal/dto/shortlink_stats.go` | 10 | 10 | 10 | 0 |
-| 654 | [ ] | `internal/dto/sms.go` | 12 | 12 | 12 | 0 |
-| 655 | [ ] | `internal/dto/sop.go` | 10 | 13 | 10 | 0 |
-| 656 | [ ] | `internal/dto/tiktok_card.go` | 10 | 11 | 10 | 0 |
+| 638 | [x] | `internal/dto/filters.go` | 1 | 6 | 1 | 0 |
+| 639 | [x] | `internal/dto/glossary.go` | 7 | 7 | 7 | 0 |
+| 640 | [x] | `internal/dto/humanize.go` | 10 | 17 | 10 | 0 |
+| 641 | [x] | `internal/dto/integration_template.go` | 4 | 4 | 4 | 0 |
+| 642 | [x] | `internal/dto/intent.go` | 1 | 1 | 1 | 0 |
+| 643 | [x] | `internal/dto/kuaishoucard.go` | 7 | 7 | 7 | 0 |
+| 644 | [x] | `internal/dto/kuaishoucardstats.go` | 7 | 10 | 7 | 0 |
+| 645 | [x] | `internal/dto/layer_chunk.go` | 9 | 22 | 9 | 0 |
+| 646 | [x] | `internal/dto/lead_mining.go` | 1 | 3 | 1 | 0 |
+| 647 | [x] | `internal/dto/livecode.go` | 12 | 12 | 12 | 0 |
+| 648 | [x] | `internal/dto/memory.go` | 2 | 2 | 2 | 0 |
+| 649 | [x] | `internal/dto/obs_config.go` | 5 | 9 | 5 | 0 |
+| 650 | [x] | `internal/dto/recovery_queue.go` | 12 | 16 | 12 | 0 |
+| 651 | [x] | `internal/dto/sales.go` | 30 | 39 | 30 | 0 |
+| 652 | [x] | `internal/dto/shortlink.go` | 11 | 11 | 11 | 0 |
+| 653 | [x] | `internal/dto/shortlink_stats.go` | 10 | 10 | 10 | 0 |
+| 654 | [x] | `internal/dto/sms.go` | 12 | 12 | 12 | 0 |
+| 655 | [x] | `internal/dto/sop.go` | 10 | 13 | 10 | 0 |
+| 656 | [x] | `internal/dto/tiktok_card.go` | 10 | 11 | 10 | 0 |
 | 657 | [x] | `internal/dto/user.go` | 0 | 0 | 0 | 0 |
-| 658 | [ ] | `internal/dto/workflow_orchestrator.go` | 3 | 3 | 3 | 0 |
-| 659 | [ ] | `internal/dto/xianyucard.go` | 5 | 5 | 5 | 0 |
-| 660 | [ ] | `internal/dto/xianyucardstats.go` | 8 | 8 | 8 | 0 |
-| 661 | [ ] | `internal/dto/xiaohongshucard.go` | 5 | 5 | 5 | 0 |
-| 662 | [ ] | `internal/dto/xiaohongshucardstats.go` | 4 | 4 | 4 | 0 |
+| 658 | [x] | `internal/dto/workflow_orchestrator.go` | 3 | 3 | 3 | 0 |
+| 659 | [x] | `internal/dto/xianyucard.go` | 5 | 5 | 5 | 0 |
+| 660 | [x] | `internal/dto/xianyucardstats.go` | 8 | 8 | 8 | 0 |
+| 661 | [x] | `internal/dto/xiaohongshucard.go` | 5 | 5 | 5 | 0 |
+| 662 | [x] | `internal/dto/xiaohongshucardstats.go` | 4 | 4 | 4 | 0 |
 | 663 | [ ] | `internal/email/service/email_draft.go` | 11 | 14 | 11 | 0 |
 | 664 | [x] | `internal/email/service/email_drain_worker.go` | 9 | 25 | 9 | 0 |
 | 665 | [ ] | `internal/email/service/email_jobs.go` | 15 | 15 | 15 | 0 |

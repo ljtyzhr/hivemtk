@@ -1,10 +1,8 @@
 package dto
 
-// RecoveryEnqueueRequest 入队请求
-//
+// RecoveryEnqueueRequest 入队请求。
 // Content 是消费 worker 唯一认的外发文案（见 service.RecoveryMessage）：
-// 留空可以入队，但 worker 只会一直跳过它 —— 入队 ≠ 会发出去，这一点必须在字段注释里说明白，
-// 否则运维会以为"排进去了就一定会触达"。
+// 留空可以入队，但 worker 会一直跳过——入队 ≠ 会发出去。
 type RecoveryEnqueueRequest struct {
 	CustomerID string `json:"customer_id" binding:"required"`
 	UnifiedID  string `json:"unified_id"`

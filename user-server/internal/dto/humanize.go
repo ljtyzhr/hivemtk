@@ -22,14 +22,9 @@ var AllHumanizeDimensions = []HumanizeDimension{
 	HumanizeDimPersuasiveness,
 }
 
-// HumanizeDimensionWeight 5 维度权重（合计 1.0）
-//
-// 设计依据: §16.2.1
-//   - Naturalness 0.25（强判别力，业界 A-03 标准）
-//   - Conciseness 0.15（次要维度）
-//   - Empathy 0.20（投诉场景必须共情）
-//   - Professionalism 0.20（人设一致性）
-//   - Persuasiveness 0.20（推进交易）
+// HumanizeDimensionWeight 5 维度权重（合计 1.0）：
+// Naturalness 0.25（强判别力）、Conciseness 0.15（次要维度）、Empathy 0.20（投诉场景必须共情）、
+// Professionalism 0.20（人设一致性）、Persuasiveness 0.20（推进交易）。
 var HumanizeDimensionWeight = map[HumanizeDimension]float64{
 	HumanizeDimNaturalness:     0.25,
 	HumanizeDimConciseness:     0.15,
@@ -75,7 +70,7 @@ type HumanizeEvalResult struct {
 	CalculatedAt       time.Time                `json:"calculated_at"`
 }
 
-// ScoreHumanizeEvalByDimension 按维度查询得分(包级函数,架构文档 §三 L4 要求)
+// ScoreHumanizeEvalByDimension 按维度查询得分（包级函数）
 func ScoreHumanizeEvalByDimension(r *HumanizeEvalResult, dim HumanizeDimension) (float64, bool) {
 	if r == nil {
 		return 0, false
