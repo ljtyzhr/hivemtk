@@ -40,6 +40,8 @@
    N. 该产物对应清单里声明的**直接依赖**必须全部出现在产物里 ⇒ `MISSING_DEP`
       （这条才真正回答「这份 SBOM 是不是本仓的」；A/L 只回答「有个文件」）；
    O. 产物大小 < 1KB ⇒ `SUSPICIOUS_SIZE`（结构合法但近似空壳的常见形态）。
+   P. 清单读得到但**直接依赖为空**且不在零依赖白名单里 ⇒ `EMPTY_DEPS`
+      （bridge 空掉合法；别的清单空掉 = 依赖被清空/清单被顶掉，SBOM 覆盖不到任何东西）。
 
 口径边界（把"没数到"写成"没数到"）：
   - **只对账直接依赖**：`go.mod` 不带 `// indirect` 的行、`package.json` 的 `dependencies`。
@@ -59,7 +61,7 @@
   本地 `python3 scripts/check-sbom-artifacts.py --workflow`（只需 PyYAML，不需要 syft）
         `python3 scripts/check-sbom-artifacts.py --dir .`（有产物时）
   CI：`sbom.yml` 的 gate 步骤 + `user-server-ci.yml` 的 static gates。
-牙齿：`python3 scripts/check-sbom-artifacts.py --self-check`（13 枚控制，A–O 每类至少一枚正向 + 极性对）。
+牙齿：`python3 scripts/check-sbom-artifacts.py --self-check`（19 枚控制，A–P 每类至少一枚正向 + 极性对）。
 """
 
 from __future__ import annotations
@@ -97,6 +99,12 @@ SCAN_CMD = re.compile(r"^\s*syft\s+scan\b")
 OUT_ARG = re.compile(r"(?:-o|--output|--outputs|-o=)[\s=]+([\w.-]+=[^\s'\"]+)")
 RELEASE_USES = re.compile(r"(action-gh-release|actions/create-release|softprops/action-gh-release)", re.I)
 MIN_ARTIFACT_BYTES = 1024
+
+# 允许「零直接依赖」的清单（manifest 读得到、dependencies 为空是合法形状）。
+# 只有 bridge 这一个：纯 Manifest V3 扩展，运行时零依赖，devDeps 只服务构建/测试。
+# 别的清单（user-web/package.json、user-server/go.mod）空掉是**回归**——有人把依赖
+# 清空了或清单被顶掉了，SBOM 从此覆盖不到任何东西，必须红而不是当合法形状放过。
+ZERO_DEP_MANIFESTS = {"user-web/bridge/package.json"}
 
 
 class Finding:
@@ -407,12 +415,17 @@ def check_artifacts(root: Path) -> tuple[list[Finding], dict[str, int]]:
                                 f"清单没了就不该继续认为这份 SBOM 覆盖了本仓"))
             continue
         if not deps:
-            # 清单在读得到的前提下 dependencies 为空：这是合法形状（如 bridge 的
-            # 纯 MV3 扩展——运行时零依赖，devDeps 只服务构建/测试，刻意不进判据）。
-            # 什么都不判，但要打印出来：空清单的「覆盖」是空洞真，读数不能把它
-            # 假装成对账过了。
-            print(f"  note: {fname}: 清单 {manifest_rel} 无直接依赖（dependencies 为空），"
-                  f"跳过依赖对账；产物含 {len(pkgs)} 个包（devDeps/传递依赖只打印不判）")
+            if manifest_rel in ZERO_DEP_MANIFESTS:
+                # 合法形状：bridge 的纯 MV3 扩展运行时零依赖（devDeps 只服务构建/测试）。
+                # 什么都不判，但要打印出来：空清单的「覆盖」是空洞真，读数不能把它
+                # 假装成对账过了。
+                print(f"  note: {fname}: 清单 {manifest_rel} 无直接依赖（dependencies 为空），"
+                      f"跳过依赖对账；产物含 {len(pkgs)} 个包（devDeps/传递依赖只打印不判）")
+                continue
+            # 白名单之外的清单空掉 = 回归：从前有直接依赖、现在没有了，SBOM 覆盖不到任何东西。
+            findings.append(Finding(
+                "EMPTY_DEPS", f"{fname}: 清单 {manifest_rel} 读得到但 dependencies 为空 —— "
+                              f"bridge 空掉是合法（运行时零依赖），别的清单空掉说明直接依赖被清空或清单被顶掉"))
             continue
         stats["deps_checked"] += len(deps)
         have = sbom_names(doc)
@@ -535,7 +548,7 @@ def self_check() -> int:
     import tempfile
 
     def artifact_checks(go_names: list[str], pkgs_extra: int = 5, spdx_version: str = "SPDX-2.3",
-                        empty: bool = False):
+                        empty: bool = False, empty_deps: str = ""):
         root = Path(tempfile.mkdtemp())
         (root / "user-server").mkdir(parents=True, exist_ok=True)
         (root / "user-web" / "bridge").mkdir(parents=True, exist_ok=True)
@@ -544,16 +557,18 @@ def self_check() -> int:
             "".join(f"\t{n} v1.0.0\n" for n in go_names) +
             "\tgithub.com/indirect/only v1.0.0 // indirect\n)\n", encoding="utf-8")
         (root / "user-web" / "package.json").write_text(
-            json.dumps({"dependencies": {"vue": "^3.5.0"}}), encoding="utf-8")
+            json.dumps({"devDependencies": {"vite": "^8.0.0"}} if empty_deps == "frontend"
+                       else {"dependencies": {"vue": "^3.5.0"}}), encoding="utf-8")
         (root / "user-web" / "bridge" / "package.json").write_text(
-            json.dumps({"dependencies": {"webextension-polyfill": "^0.12.0"}}), encoding="utf-8")
+            json.dumps({"devDependencies": {"esbuild": "^0.28.0"}} if empty_deps == "bridge"
+                       else {"dependencies": {"webextension-polyfill": "^0.12.0"}}), encoding="utf-8")
         for fname, scope, _m in EXPECTED:
             if scope == "user-server":
                 names = go_names
             elif scope == "user-web/bridge":
-                names = ["webextension-polyfill"]
+                names = [] if empty_deps == "bridge" else ["webextension-polyfill"]
             else:
-                names = ["vue"]
+                names = [] if empty_deps == "frontend" else ["vue"]
             packages = [] if empty else [
                 {"name": "hivemtk-dir", "SPDXID": "SPDXRef-DOCUMENT", "versionInfo": "0"}] + [
                 {"name": n, "SPDXID": f"SPDXRef-{i}", "versionInfo": "1.0.0",
@@ -605,6 +620,31 @@ def self_check() -> int:
     root = Path(tempfile.mkdtemp())
     findings, _ = check_artifacts(root)
     controls.append(("三份产物都不在 ⇒ MISSING_FILE", "MISSING_FILE" in {f.code for f in findings}))
+    # 17 清单读得到但 dependencies 为空、且在零依赖白名单（bridge）⇒ note 跳过，不判红（极性对）
+    codes, stats = artifact_checks(["github.com/gin-gonic/gin", "gorm.io/gorm"], empty_deps="bridge")
+    controls.append(("bridge 清单零直接依赖 ⇒ 合法形状 note 跳过（不红），go+frontend 仍对账",
+                     not codes and stats["deps_checked"] == 3))
+    # 18 白名单之外的清单空掉（frontend）⇒ EMPTY_DEPS（从前有依赖、现在没有 = 回归）
+    codes, _ = artifact_checks(["github.com/gin-gonic/gin"], empty_deps="frontend")
+    controls.append(("frontend 清单 dependencies 为空 ⇒ EMPTY_DEPS", "EMPTY_DEPS" in codes))
+    # 19 清单文件缺失而产物还在 ⇒ MISSING_FILE（None 分支：清单没了 ≠ 零依赖）
+    root = Path(tempfile.mkdtemp())
+    (root / "user-server").mkdir(parents=True, exist_ok=True)
+    (root / "user-web" / "bridge").mkdir(parents=True, exist_ok=True)
+    (root / "user-web" / "package.json").write_text(json.dumps({"dependencies": {"vue": "^3.5.0"}}), encoding="utf-8")
+    (root / "user-web" / "bridge" / "package.json").write_text(
+        json.dumps({"dependencies": {"webextension-polyfill": "^0.12.0"}}), encoding="utf-8")
+    for fname, scope, _m in EXPECTED:
+        names = ["webextension-polyfill"] if scope == "user-web/bridge" else ["vue"]
+        pkgs = [{"name": n, "SPDXID": f"SPDXRef-{i}"} for i, n in enumerate(names)]
+        pkgs += [{"name": f"pad-{i}", "SPDXID": f"SPDXRef-p{i}"} for i in range(5)]
+        body = json.dumps({"spdxVersion": "SPDX-2.3", "packages": pkgs})
+        if len(body) < MIN_ARTIFACT_BYTES:
+            body = body[:-1] + ", \"_pad\": \"" + "x" * MIN_ARTIFACT_BYTES + "\"}"
+        (root / fname).write_text(body, encoding="utf-8")
+    findings, _ = check_artifacts(root)
+    controls.append(("清单文件缺失而产物在 ⇒ MISSING_FILE（manifest_deps 的 None 分支）",
+                     "MISSING_FILE" in {f.code for f in findings}))
 
     failed = [n for n, ok in controls if not ok]
     for name, ok in controls:

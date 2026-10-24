@@ -238,6 +238,21 @@ def refresh_baseline() -> int:
     data = json.loads(classified.read_text(encoding="utf-8"))
     names = sorted({r.get("name") for r in (data.get("rows") or [])
                     if r.get("bucket") == "TUNABLE" and r.get("name")})
+    basename = REPO_ROOT / BASELINE_REL
+    # 手工补登段必须原样保留：基线里从第一个 `# ──` 分隔线到文件尾的部分，是人工写明的
+    # 「为什么不入库」理由（B1-a 四条、geo 两条）。全量重写会把它连名字带理由一起吞掉，
+    # 下一次 `make audit` 又红在那些常量上——「刷基线」于是变成了「把判据删掉」。
+    # 自动段只负责「扫描器认定的 TUNABLE 存量名」，手工段单独成尾、绝不覆盖。
+    manual_tail = ""
+    if basename.is_file():
+        lines = basename.read_text(encoding="utf-8").splitlines()
+        for i, ln in enumerate(lines):
+            if ln.startswith("# ──"):
+                manual_tail = "\n" + "\n".join(lines[i:]).rstrip() + "\n"
+                break
+    manual_names = {ln.strip() for ln in manual_tail.splitlines()
+                    if ln.strip() and not ln.startswith("#")}
+    names = [n for n in names if n not in manual_names]
     header = (
         "# 存量「可调旋钮」常量名基线（scripts/check-hardcode-tunable.py 读取）。\n"
         "# 一行一个 Go 常量名。它代表的是「存量已经数过、判定为存量待收口」，\n"
@@ -245,10 +260,11 @@ def refresh_baseline() -> int:
         f"# 来源：{CLASSIFIED_REL} 的 TUNABLE 归类；刷新命令：\n"
         "#   python3 scripts/check-hardcode-tunable.py --refresh-baseline\n"
         "# 刷新前先确认这次是「把该收口的收口了」而不是「想把这笔从门里摘出去」。\n"
+        "# 手工补登段（从 `# ──` 到文件尾）刷新时原样保留，不在自动段内。\n"
     )
-    (REPO_ROOT / BASELINE_REL).write_text(
-        header + "\n".join(names) + "\n", encoding="utf-8")
-    print(f"✅ 基线已刷新: {BASELINE_REL}（{len(names)} 个存量常量名）")
+    basename.write_text(
+        header + "\n".join(names) + "\n" + manual_tail, encoding="utf-8")
+    print(f"✅ 基线已刷新: {BASELINE_REL}（{len(names)} 个自动存量名 + 手工补登段保留）")
     return 0
 
 

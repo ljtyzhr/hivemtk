@@ -7,7 +7,7 @@
 | 项 | 新增 | 修改 | 牙齿 |
 |---|---|---|---|
 | A2-a | `scripts/check-dependency-policy.py`、`scripts/dependency-policy.baseline` | `Makefile`、`user-server-ci.yml` | `--self-check` 10 枚 |
-| A2-b | `scripts/check-sbom-artifacts.py` | `Makefile`、`user-server-ci.yml`、`sbom.yml` | `--self-check` 16 枚 |
+| A2-b | `scripts/check-sbom-artifacts.py` | `Makefile`、`user-server-ci.yml`、`sbom.yml` | `--self-check` 19 枚 |
 | A2-c | `internal/service/whatsapp_provider.go` | `internal/service/whatsapp.go`（重写为纯委派） | `go build` + 既有用例 |
 | A4-a | `scripts/check-core-coverage.py`、`scripts/core-coverage.baseline` | `Makefile`、`user-server-ci.yml` | `--self-check` 8 枚 |
 | B1-a | `web/bridge/src/core/selector-health.js`、`web/bridge/test/selector-health.test.js`、`model/bridge_selector_health.go`、`repository/bridge_selector_health.go`、`service/selector_health.go`、`service/selector_health_test.go`、`repository/bridge_selector_health_test.go`、`controller/bridge_selector_health.go` | `channel-adapter.js`、`background/index.js`、`router.go`、`migrate.go`、`config_param_seeds.go`、`hardcode-tunable.baseline` | 前端 20 例 + 后端 service/repo 用例 |

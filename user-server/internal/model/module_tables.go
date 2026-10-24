@@ -44,10 +44,12 @@ var coreOwnedTables = []string{
 	// tenant_id、租户豁免表）——看板维度是系统健康而不是任何业务面，挂到业务模块
 	// 下会让"关模块 ⇒ 表停写"说假话。与 bridge_selector_health 同口径归 core。
 	"bridge_metrics",
-	// email_accounts：一租户多账号的 SMTP 发信凭据。它不是 reach-email 模块的
-	// 运行数据（那是 email_jobs / email_list 那六张），而是**所有用到邮件的模块
-	// 共用的账号配置源（告警通知 / 审批抄送 / reach-email 全读它）；关掉
-	// reach-email 不该导致这张配置表失主。
+	// email_accounts：一租户多账号的 SMTP 发信凭据。它**不是** reach-email 模块的
+	// 运行数据（那是 email_jobs / email_list 那六张——reach-email 自己的发信走
+	// email_smtp），而是被跨切面服务共用的账号配置源：EmailService（密码重置、
+	// 注册/换绑通知、proactive 触达、告警通知经 EmailSender 抽象、customer_service_plus）
+	// 全读它，channel_overview 数它的行、backup 在导出白名单里。关掉 reach-email
+	// 不该导致这张配置表失主，也不存在「随某个可售模块停写」的边界。
 	"email_accounts",
 	// B1-a：桥接选择器健康度计数（每渠道×字段一行）。随基座常在而不是随某个可售模块：
 	// 它观测的是**扩展活着与否**，任何用到桥接渠道的模块都依赖它，且它没有自己的

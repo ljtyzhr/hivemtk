@@ -14,7 +14,7 @@
 |---|---|---|---|
 | 新增 | `scripts/check-dependency-policy.py` | ~470 行 | A2-a 门，`--self-check` 10 枚控制 |
 | 新增 | `scripts/dependency-policy.baseline` | 3 条登记 | gowa / endless / gomail，review 2027-03-31 |
-| 新增 | `scripts/check-sbom-artifacts.py` | ~700 行 | A2-b 门，`--workflow` / `--dir` / `--self-check` 16 枚；第二轮实测后修正「清单缺失 vs 零依赖」判据 |
+| 新增 | `scripts/check-sbom-artifacts.py` | ~700 行 | A2-b 门，`--workflow` / `--dir` / `--self-check` 19 枚；第二轮实测后修正「清单缺失 vs 零依赖」判据 |
 | 新增 | `scripts/check-core-coverage.py` | ~330 行 | A4-a 门，8 枚控制 + 棘轮 |
 | 新增 | `scripts/core-coverage.baseline` | 44 条底线 | 由**真实 profile** 生成 |
 | 新增 | `user-server/internal/service/whatsapp_provider.go` | ~340 行 | A2-c 唯一 gowa seam + 三实现 |
@@ -50,7 +50,7 @@ python3 scripts/check-dependency-policy.py                → rc=0
 ### A2-b SBOM 产物断言
 
 ```
---self-check → 16 枚控制，失败 0（含本轮口径修正后复跑）
+--self-check → 19 枚控制，失败 0（含本轮口径修正后复跑）
 --workflow（真实 sbom.yml）→ 3 扫描站点 / 3 产物 / 1 upload，rc=0
 --dir → 在干净提交树（git worktree @ 3a5d9f2e，含 53b9dbf0）上用真实 syft
   v1.55.0（本地 `go install` 源码构建——GitHub Release / Docker Hub / ghproxy
@@ -62,6 +62,12 @@ python3 scripts/check-dependency-policy.py                → rc=0
     **为空**（只有 devDeps），产物含 14740 个包。该树无 node_modules（与 CI
     同形），实测证明 syft 的 JS cataloger 在仅 lockfile 场景下能解析直接依赖——
     此前"CI 上可能解析不出"的口径担忧不成立。
+    （第三轮对抗性审查再修一处盲区）：零依赖豁免从「任何清单都放行」收紧为
+      白名单 `ZERO_DEP_MANIFESTS = {user-web/bridge/package.json}`——bridge 空掉
+      合法，别的清单（go.mod / user-web/package.json）空掉是**回归**，新增
+      `EMPTY_DEPS` 判据（红）。自检相应补 3 枚控制（bridge 空=note 跳过不红、
+      frontend 空=EMPTY_DEPS、清单缺失而产物在=MISSING_FILE 的 None 分支），
+      `--self-check` 19 枚全过。
 ```
 
 ### A2-c WhatsApp 接口化
@@ -160,5 +166,24 @@ user-server: go test ./internal/service -run "SelectorHealth|Classify" → ok
   却报红。bridge 是纯 MV3 扩展（运行时零依赖，构建/测试工具全在 devDeps），真实产物
   实跑当场暴露：`--dir` 对 sbom-bridge.spdx.json 误报 MISSING_FILE。已改为
   `list | None` 两种判据（None ⇒ 红；空 ⇒ 打印说明并跳过对账——空清单的"覆盖"是
-  空洞真，读数必须如实写出来，不能假装对账过了），`--self-check` 16 枚复跑全过，
+  空洞真，读数必须如实写出来，不能假装对账过了），`--self-check` 19 枚复跑全过，
   三份真实产物 `--dir` rc=0。
+
+## 第三轮：多角色对抗性审查（2026-10-24，随 ed920471 之后的收口）
+
+按「安全 / 并发 / 测试 / 架构 / 产品 / CI」六个角色对本切片涉及的模块交叉审查，
+发现并处置如下（全部已修，未修的按决策点记录）：
+
+| # | 角色 | 发现 | 处置 |
+|---|---|---|---|
+| R1 | 安全 | `settleKnown` 守卫不对称：回款口幂等通路对 `existing.Status==refunded` 不设防，退款口对 `!=refunded` 设防。回款重投撞上被退款行占用的 channel_ref 会复用退款行（`Reused=true`），那笔 confirmed 的钱库里根本不存在；冲销重投会把退款行 `MarkReversed` | **已修**：`settleKnown` 顶上加 refunded 占用拒（`ErrPaymentRefReuse`），并补 `TestPaymentServiceRejectsRefundSquattingChannelRef`（回款+冲销两路重投 + 行数/状态不变三断言） |
+| R2 | 并发 | `RecordPartialRefund` 的「退款额 ≤ 净到账」校验与 `Create` 之间无锁：同账单两笔并发退款可总超额 → 净到账为负、账单从 paid 退回 open、`Oversettled` 落地，无 DB 约束兜底 | **记录为决策点**（未修）：E-10 尚无 controller/router 入口（生产不可达），修法需跨仓储/服务层的事务（`SELECT … FOR UPDATE` 锁账单行）或 DDL（部分唯一索引/约束触发器），属契约级改动；在接线时并入。见 R4 |
+| R3 | 测试 | `check-sbom-artifacts.py` 的 16 枚自检没盖住新增的「dependencies 为空→note 跳过」与「清单缺失但产物在→MISSING_FILE(None)」两分支，docstring 还写「13 枚」 | **已修**：自检扩到 19 枚（bridge 空=note 不红 / frontend 空=EMPTY_DEPS / 清单缺失=MISSING_FILE），docstring 与全部 9 处「16 枚」文档改为 19 |
+| R4 | 架构 | E-10 半固化：`RecordPartialRefund` 实现已入库（ed920471），但 `payment_partial_refund_test.go` untracked、无 controller/router 接线；webhook 里 `status=refunded` 会被 `RecordPayment` 拒绝（大声报错，不静默） | **测试文件已随本提交入库**（实现必须带测试，零遗留）；接线留决策点：退款 webhook 的契约形状（用哪个键做幂等、status 词表）未定，不擅自拍。当前行为=回款口拒 refunded 并报错，退款不会静默丢 |
+| R5 | 产品 | `email_accounts` 归 core 的注释原写「告警通知/审批抄送/reach-email 全读它」过度声称：reach-email 自己的发信走 `email_smtp`，不读 `email_accounts` | **已修**：注释改为引用面实测口径——EmailService（密码重置/注册通知/proactive/告警 EmailSender/customer_service_plus）、channel_overview 计数、backup 白名单 |
+| R6 | CI | `hardcode-tunable --refresh-baseline` 全量 `write_text` 会吞掉手工补登段（B1-a 四条 + geo 两条的理由），下次 `make audit` 又红；实测刷一次还伴随分类器漂移（`InboundMisattribWindow` 被丢、`DefaultMaxKeys` 加入） | **已修**：`refresh_baseline` 保留手工段（第一个 `# ──` 到文件尾原样续写、自动段名字去重），头注释写明；分类器漂移属「刷基线前须人工确认」的既有语义，不展开 |
+| R7 | 测试 | 空 dependencies 盲区：删空 user-web 的 58 条依赖只会 note 跳过、rc=0，门对「依赖被清空」瞎 | **已修**：零依赖豁免收紧为白名单，非白名单清单空掉 ⇒ `EMPTY_DEPS` 红（见 R3） |
+
+回归：`go test ./internal/service/ -count=1`（定向：回款/退款 E-10 四判据 + R1 新测试 + webhook 解析）真库全绿；`go test ./internal/model/`（表归属/值域）真库全绿；`go build ./...`、`gofmt -l`、`go vet` 干净；`check-sbom-artifacts.py --self-check` 19 枚 rc=0、`--workflow` rc=0；`check-hardcode-tunable` rc=0。
+
+全量 `go test ./internal/service/ -count=1 -short`（15 分钟限时）本轮**超时未跑完**：无任何 `--- FAIL` 断言失败（rc=1 仅因超时 panic），超时点卡在 `TestXiaohongshuCardService_Create_EmptyRedirectURL` 的 `NewTestDB` 建表，正是 `testdb.go` 注释里已记录的 fsync/DDL 卡顿形态；且当时并发 lane 同时在全量跑同包（同库竞争）。结论：与本次改动无关，非回归——R1 改动覆盖的测试全部在定向运行中通过。

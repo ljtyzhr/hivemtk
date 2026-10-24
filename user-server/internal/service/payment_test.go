@@ -264,6 +264,49 @@ func TestPaymentServiceRejectsReusedRefWithDifferentContent(t *testing.T) {
 	}
 }
 
+// TestPaymentServiceRejectsRefundSquattingChannelRef 退款行占着的 channel_ref 不许被回款/冲销重投复用。
+//
+// 反向守卫（RecordPartialRefund 拒非 refunded 占用）早已在；这一条钉的是**回款口**的对称侧：
+// 不设防时，一次普通回款重投会被 settleKnown 读成「这一笔已经记过」而 Reused=true——那笔
+// confirmed 的钱在库里根本不存在，等于把真回款静默吞掉；冲销重投则会把退款行 MarkReversed。
+func TestPaymentServiceRejectsRefundSquattingChannelRef(t *testing.T) {
+	db := paySetupDB(t)
+	if db == nil {
+		t.Fatal("测试库不可达")
+	}
+	ctx := context.Background()
+	payBill(t, db, "b_squat", "QT-SQUAT", "q_squat_v1", 300.00)
+	svc := paySvc(t, db)
+
+	if _, err := svc.RecordPayment(ctx, payIn("b_squat", "ref-squat", 300.00)); err != nil {
+		t.Fatalf("入账失败: %v", err)
+	}
+	if _, err := svc.RecordPartialRefund(ctx, RecordPartialRefundInput{
+		BillID: "b_squat", RefundRef: "refund-squat", Amount: 100,
+		Platform: "taobao", OrderID: "ord-squat",
+	}); err != nil {
+		t.Fatalf("部分退款失败: %v", err)
+	}
+
+	// 普通回款重投撞上退款行占用的流水号 ⇒ 拒，不是「已记过」的幂等复用。
+	if _, err := svc.RecordPayment(ctx, payIn("b_squat", "refund-squat", 100)); !errors.Is(err, ErrPaymentRefReuse) {
+		t.Errorf("回款重投复用退款行：期望 ErrPaymentRefReuse，实际 %v", err)
+	}
+	// 冲销重投撞上同一把键 ⇒ 同样拒，不得把退款行 MarkReversed。
+	revIn := payIn("b_squat", "refund-squat", 100)
+	revIn.Status = model.PaymentStatusReversed
+	if _, err := svc.RecordPayment(ctx, revIn); !errors.Is(err, ErrPaymentRefReuse) {
+		t.Errorf("冲销重投复用退款行：期望 ErrPaymentRefReuse，实际 %v", err)
+	}
+
+	if n := payRows(t, db); n != 2 {
+		t.Errorf("被拒之后库里 %d 行，期望仍是 2（confirmed + refunded）", n)
+	}
+	if got := payPaymentRow(t, db, "refund-squat").Status; got != model.PaymentStatusRefunded {
+		t.Errorf("退款行状态 %q 被改动了，期望仍是 %q", got, model.PaymentStatusRefunded)
+	}
+}
+
 // —— ③ 冲销 ——————————————————————————————————————————————
 
 // TestPaymentServiceReversalMovesStatusBack 渠道把这笔钱冲掉时，欠额必须回来。

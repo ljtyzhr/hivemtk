@@ -21,7 +21,7 @@
 - [x] T008 `scripts/check-sbom-artifacts.py`：工作流段判据 A–J（`EXPECTED` 列死三份产物）
 - [x] T009 产物段判据 K–O（SPDX 结构 / `packages` 非空 / `SPDXID` 唯一 /
       **直接依赖全覆盖** / 体积下界）
-- [x] T010 `--self-check` 16 枚控制
+- [x] T010 `--self-check` 19 枚控制
 - [x] T011 `sbom.yml` 加 `pull_request.paths`（依赖清单 + 本门脚本）与
       `--dir .` 断言步（在 Generate 之后、upload 之前）
 - [x] T012 真实 `sbom.yml` 实测：3 扫描站点 / 3 产物 / 1 upload，rc=0
@@ -79,7 +79,7 @@
 - [x] T044 遗留收口（2026-10-24 第二轮）：A2-b `--dir` 真实产物实跑 rc=0
       （syft v1.55.0 本地源码构建，干净提交树 + 无 node_modules 的 CI 同形场景；
       实跑暴露并修正 `manifest_deps` 判据混淆：清单缺失=红、零依赖=说明后跳过，
-      `--self-check` 16 枚复跑全过）；
+      `--self-check` 19 枚复跑全过）；
       `hardcode-tunable.baseline` 补登 geo 两常量（口径/契约护栏，附理由）⇒
       `check-hardcode-tunable` rc=0；完整全仓 profile（CI 同款命令、单条跑）
       44 条基线复核 rc=0、核心域 50.7% 无回落；`go vet ./...` 全仓干净；

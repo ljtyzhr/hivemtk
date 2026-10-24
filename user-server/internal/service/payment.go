@@ -544,6 +544,15 @@ func (s *PaymentService) settleKnown(ctx context.Context, existing *model.Paymen
 			ErrPaymentRefReuse, existing.BillID, existing.Amount, existing.Currency,
 			bill.ID, amount, currency)
 	}
+	// refunded 行占着这把 channel_ref：回款重投与冲销重投都不许复用。反向守卫在
+	// RecordPartialRefund 的幂等通路里（非 refunded 占用同样拒）。这里不设防的后果是
+	// 一次普通回款重投被读成「这一笔已经记过」（复用退款行、Reused=true），而那一笔
+	// confirmed 的钱在库里根本不存在；冲销重投则会用 MarkReversed 把退款行标掉。
+	// 退款流水号与回款流水号是两把键，共用同一把说明载荷拼错了，必须拒而不是猜。
+	if existing.Status == model.PaymentStatusRefunded {
+		return nil, fmt.Errorf("%w: channel_ref=%s 已被一笔 refunded 占用（退款流水号与回款流水号不能共用）",
+			ErrPaymentRefReuse, ref)
+	}
 	if reversal {
 		// 已是 reversed 的这一支是**幂等重投**：同一笔冲销通知再来一次，不再写任何东西。
 		if existing.Status == model.PaymentStatusReversed {
