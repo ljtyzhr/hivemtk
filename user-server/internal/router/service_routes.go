@@ -7,8 +7,11 @@ import (
 	"time"
 
 	"hivemtk-user/internal/app"
+	knowledgectrl "hivemtk-user/internal/aiagent/knowledge/controller"
+	knowledgeservice "hivemtk-user/internal/aiagent/knowledge/service"
 	"hivemtk-user/internal/controller"
 	"hivemtk-user/internal/middleware"
+	"hivemtk-user/internal/pkg/cron"
 	opsctrl "hivemtk-user/internal/ops/controller"
 	"hivemtk-user/internal/repository"
 	"hivemtk-user/internal/model"
@@ -382,6 +385,13 @@ func setupSOPRoutes(auth *gin.RouterGroup, db *gorm.DB) {
 
 	kbCtrl := controller.NewKnowledgeBaseController()
 	kbCtrl.RegisterRoutes(auth)
+
+	// T4 知识库冷启动：网站爬取 + QA 自动拆分（设计文档 docs/architecture/design/T4-kb-coldstart.md）
+	crawlerSvc := knowledgeservice.NewCrawlerService(db, knowledgeservice.NewKnowledgeBaseServiceWithDB(db))
+	qaSplitSvc := knowledgeservice.NewQASplitService(db, knowledgeservice.NewGatewayLLMClient())
+	crawlerSvc.SetQASplitService(qaSplitSvc)
+	cron.RegisterKBCrawlerTask(crawlerSvc)
+	knowledgectrl.NewKBCrawlerController(crawlerSvc, qaSplitSvc).RegisterRoutes(auth)
 
 	bindCtrl := controller.NewAgentKBBindingController(service.NewAgentKBBindingService(db))
 	bindCtrl.RegisterRoutes(auth)
