@@ -22,7 +22,7 @@ const traceHeader = "X-Trace-Id"
 //
 // 解析顺序（按业界惯例）：
 //  1. W3C `traceparent`（最高优先级，跨服务标准）。
-//  2. legacy `X-Trace-Id`（项目历史兼容）。
+//  2. legacy `X-Trace-Id`（项目兼容）。
 //  3. 本层生成 UUIDv4。
 //
 // 行为：

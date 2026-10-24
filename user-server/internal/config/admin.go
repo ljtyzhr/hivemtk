@@ -1,13 +1,8 @@
-// user-server 管理员配置：
-//   - 私域合规基线：超管账号/密码完全由 InitAdmin 接口入库（POST /api/system/init-admin），
-//     不再读取任何 .env / 配置文件中的密码，杜绝「部署即被入侵」风险。
-//   - 本文件仅保留：UI 文案相关的非敏感默认值（登录页提示、自动登录开关等）。
-//   - 真正的超管密码 → 唯一来源：system_users.password（bcrypt 哈希）。
+// user-server 管理员配置：仅承载非敏感的 UI 行为配置。
 //
-// 删除项：
-//   - os.Getenv("PLATFORM_ADMIN_PASSWORD")  // 平台代理管理员密码改由 config/platform.yaml 的 admin_password 读取
-//   - GetDefaultAdminCredentials()              // 移除暴露密码的辅助函数
-//   - defaultAdminConfig.DefaultAdmin.Password // 永远为空，禁止任何硬编码默认密码
+// 安全基线：超管账号/密码完全由 InitAdmin 接口入库（POST /api/system/init-admin），
+// 不读取任何 .env / 配置文件中的密码；超管密码唯一来源是
+// system_users.password（bcrypt 哈希），任何代码路径都不应持有「默认密码」概念。
 package config
 
 import (
@@ -24,10 +19,7 @@ type AdminConfig struct {
 	Login        LoginConfig        `json:"login" yaml:"login"`
 }
 
-// DefaultAdminConfig 默认管理员展示信息
-//
-// Password 字段已彻底移除：超管密码只能由 InitAdmin 流程写入 DB，
-// 任何代码路径都不应再持有「默认密码」概念。
+// DefaultAdminConfig 默认管理员展示信息（无密码字段，见包注释的安全基线）
 type DefaultAdminConfig struct {
 	Username string `json:"username" yaml:"username"`
 	Email    string `json:"email" yaml:"email"`
@@ -62,9 +54,7 @@ var defaultAdminConfig = AdminConfig{
 	},
 }
 
-// GetAdminConfig 获取管理员配置（仅 UI 行为）
-//
-// 不再返回任何形式的密码字段；调用方若需要登录凭据，必须查询 DB。
+// GetAdminConfig 获取管理员配置（仅 UI 行为，不返回任何形式的密码字段）
 func GetAdminConfig() *AdminConfig {
 	config := defaultAdminConfig
 

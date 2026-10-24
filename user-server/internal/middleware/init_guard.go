@@ -19,7 +19,6 @@ import (
 //   - 白名单路由（init-*/login/health 等）直接放行
 //
 // 本守卫只看一件事：install.lock 里 initialized 是否为真。
-// hivemtk 已全面开源，没有授权态可拦，也不再强制新账号改密。
 func InitGuard() gin.HandlerFunc {
 	return func(c *gin.Context) {
 		path := c.FullPath()

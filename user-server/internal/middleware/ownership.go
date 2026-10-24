@@ -18,14 +18,14 @@ import (
 
 // ErrOwnershipNotFound 资源不存在（或不属于任何可见租户）。
 //
-// 引入它的理由是**区分两种"查不到"**：资源不存在应回 404（不泄漏存在性），
-// 而 DB 故障应回 500（可重试、可告警）。历史实现把两者都压成 500。
+// 引入它是为了**区分两种"查不到"**：资源不存在应回 404（不泄漏存在性），
+// 而 DB 故障应回 500（可重试、可告警）。
 var ErrOwnershipNotFound = errors.New("ownership: resource not found")
 
 // ErrOwnershipMisconfigured 归属查询器未正确装配（如 db == nil）。
 //
-// 历史实现此时返回 (0, nil)，中间件据此按"系统级资源"放行 —— 是 fail-open。
-// 现取一律返回本错误，由中间件转 500：装配错必须在请求上响亮，而不是静默放行。
+// 此时一律返回本错误，由中间件转 500：装配错必须在请求上响亮，而不是静默放行
+// （把"未装配"当"系统级资源"放行是 fail-open）。
 var ErrOwnershipMisconfigured = errors.New("ownership: checker not configured")
 
 // OwnershipChecker 资源归属查询接口。
@@ -64,8 +64,8 @@ func NewDBOwnershipChecker(db *gorm.DB) *DBOwnershipChecker {
 
 // GetOwnerID 查询资源 owner_id。
 //
-// 错误语义（2026-10-23 更正，历史注释与实现是反的）：
-//   - db 为 nil / 未装配 → `ErrOwnershipMisconfigured`（调用方 500，**不再返回 (0, nil) 放行**）
+// 错误语义：
+//   - db 为 nil / 未装配 → `ErrOwnershipMisconfigured`（调用方 500，绝不返回 (0, nil) 放行）
 //   - 记录不存在（`gorm.ErrRecordNotFound`）→ `ErrOwnershipNotFound`（调用方 404）
 //   - 其它 DB 错误 → 透传 error（调用方 500）
 func (c *DBOwnershipChecker) GetOwnerID(ctx context.Context, table string, resourceID uint) (uint, error) {
@@ -163,14 +163,12 @@ func newOwnershipPolicy(opts []OwnershipOption) OwnershipPolicy {
 
 // RequireOwnerWithChecker 归属校验中间件（无缓存）。
 //
-// **checker 必须非 nil，构造期 panic**。历史上有 `RequireOwner` / `RequireOwnerWithCache`
-// 两个"不带 checker"的构造器，它们把 nil 传下来、请求期 `c.Next()` 放行——
-// 也就是说任何路由接上它就是"一律放行"，而它在 review 里长得像一个安全件。
-// 两者已于 2026-10-23 删除（0 处接线，无兼容负担）。
+// **checker 必须非 nil，构造期 panic**：nil checker 若按放行处理，
+// 任何路由接上它就等于"一律放行"，而它在 review 里长得像一个安全件。
 //
 // 判定流程：
 //  1. 未登录 → 401；资源 ID 非法 → 400
-//  2. checker 返回 `ErrOwnershipNotFound` → **404**（原来一律 500）
+//  2. checker 返回 `ErrOwnershipNotFound` → **404**（不回 500/403）
 //  3. checker 返回其它错误 → 500（fail-closed）
 //  4. ownerID == uid → 放行；ownerID == 0 → 404（除非 `WithSystemOwnedAllowed()`）；其它 → 403
 func RequireOwnerWithChecker(resourceKey, table string, checker OwnershipChecker, opts ...OwnershipOption) gin.HandlerFunc {
@@ -205,8 +203,8 @@ func RequireOwnerWithChecker(resourceKey, table string, checker OwnershipChecker
 
 // ownershipVerdict 把 (ownerID, err) 折算成响应；返回 true 表示已 abort（调用方必须 return）。
 //
-// 无缓存路径与缓存命中路径**必须走同一个函数**：两处各写一遍就是 2026-10-23 之前
-// 「同一语义两个实现、其中一个漏判」那类缺陷的温床。
+// 无缓存路径与缓存命中路径**必须走同一个函数**：两处各写一遍会造成
+// 「同一语义两个实现、其中一个漏判」的缺陷。
 func ownershipVerdict(c *gin.Context, ownerID uint, err error, uid uint, pol OwnershipPolicy) bool {
 	switch {
 	case errors.Is(err, ErrOwnershipNotFound):
@@ -320,12 +318,12 @@ func RequireOwnerWithCacheAndChecker(resourceKey, table string, ttl time.Duratio
 
 // ownershipCacheKey 归属缓存键 = (租户, 表, 资源 ID)。
 //
-// 租户段是**必须**的（2026-10-23 补）：缓存是进程级全局 map，而在 on 模式下
+// 租户段是**必须**的：缓存是进程级全局 map，而在 on 模式下
 // 同一条 `SELECT owner_id FROM t WHERE id=?` 在不同租户 ctx 下结果不同
 // （隔离 callback 注入 WHERE tenant_id），键里不带租户就等于让一个租户的查询
-// 结果直接命中另一个租户的判定 —— 而且 getOwnerID 的 record-not-found 语义是
-// "0 = 系统级资源，放行"，缓存串租户的后果是 **fail-open 5 秒**。
-// off 模式租户段恒为空，键形与历史一致（离线单机零回归）。
+// 结果直接命中另一个租户的判定 —— 而且 record-not-found 语义是
+// "0 = 系统级资源，放行"，缓存串租户的后果是 **fail-open 一个 TTL 窗口**。
+// off 模式租户段恒为空（单机部署无租户隔离，键形退化为裸键）。
 func ownershipCacheKey(ctx context.Context, table string, resourceID uint) string {
 	prefix := ""
 	if id, ok := tenant.FromContext(ctx); ok && tenant.IsMultiTenant() {

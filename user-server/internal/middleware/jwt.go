@@ -69,7 +69,7 @@ func JWTAuthMiddleware() gin.HandlerFunc {
 		}
 
 		// 按用户维度的即时吊销（禁用/删除/改角色/改密）：
-		// 令牌签发时间早于该用户的作废水位线 ⇒ 一律拒绝，不再等到 24h 自然过期。
+		// 令牌签发时间早于该用户的作废水位线 ⇒ 一律拒绝，不等 24h 自然过期。
 		if utils.IsTokenRevoked(c.Request.Context(), claims.UserID, claims.IssuedAt) {
 			response.Error(c, http.StatusUnauthorized, "账号状态已变更，请重新登录")
 			c.Abort()

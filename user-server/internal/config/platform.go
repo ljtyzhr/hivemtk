@@ -10,12 +10,9 @@ import (
 	"gopkg.in/yaml.v3"
 )
 
-// PlatformConfig 平台上报配置（开源版精简版）
-//
-// 背景：hivemtk 全面开源后不再有 License / 授权同步，
-// 这里只保留"商户上报"用到的配置（APIURL / Secret / Admin*）。
-// 兼容老字段（LogReportInterval / LicenseSyncInterval）仅作占位，
-// 读不到也允许（给前端 / 监控保持 schema 兼容）。
+// PlatformConfig 平台上报配置（开源版精简版）：仅保留"商户上报"用到的配置
+// （APIURL / Secret / Admin*）。兼容老字段（LogReportInterval / LicenseSyncInterval）
+// 仅作占位，读不到也允许（给前端 / 监控保持 schema 兼容）。
 type PlatformConfig struct {
 	APIURL              string `yaml:"api_url" json:"api_url"`
 	Secret              string `yaml:"secret" json:"secret"`
@@ -23,19 +20,19 @@ type PlatformConfig struct {
 	AdminPassword       string `yaml:"admin_password" json:"admin_password"`
 	LogReportInterval   int    `yaml:"log_report_interval" json:"log_report_interval"`
 	LicenseSyncInterval int    `yaml:"license_sync_interval" json:"license_sync_interval"`
-	// CloudURL 云端版对外地址（可选，003 T003）。留空回落 DefaultCloudURL；
+	// CloudURL 云端版对外地址（可选）。留空回落 DefaultCloudURL；
 	// 不参与 LoadPlatform 的必填校验 —— 它只影响 public config 的展示字段，
 	// 缺配置不该阻断启动。
 	CloudURL string `yaml:"cloud_url" json:"cloud_url"`
 }
 
-// DefaultCloudURL 云端版对外地址（003 spec R1）—— **厂商自己的**生产域名。
+// DefaultCloudURL 云端版对外地址回落常量 —— **厂商自己的**生产域名。
 //
 // ⚠️ 它是"最后一级回落"，不是"推荐值"：一套自建 SaaS / 私有化部署如果没配
 // `urls.cloud_url`、`PLATFORM_CLOUD_URL` 与平台配置的 cloud_url，前端"云端版入口"
 // 就会指向厂商的站点 —— 用户点过去就是别人的生产环境（托管方自己的实例反倒没人访问）。
 //
-// 因此有两条约束（A11）：
+// 因此有两条约束：
 //  1. 全仓只此一处字面量（改域名只改这里）；
 //  2. **回落到它就等于没配置**，启动期必须打一行 WARN（见 CloudURLSource 与
 //     app.WarnIfCloudURLIsBuiltinDefault），不允许"安静地指错地方"。
@@ -49,8 +46,8 @@ const (
 	CloudURLSourceBuiltin     = "builtin_default(vendor)"
 )
 
-// cloudURLProvider 是 urls.cloud_url 参数中心取值口（R2 参数化，R5-3 起按 ctx 取租户覆盖）。
-// 默认返回空串 = 未装配，CloudURLFor() 会继续回落到 env/常量，等价于接线前行为。
+// cloudURLProvider 是 urls.cloud_url 参数中心取值口（按 ctx 取租户覆盖）。
+// 默认返回空串 = 未装配，CloudURLFor() 会继续回落到 env/常量。
 //
 // 做成 provider 而不是在这里调 config_param service：config 不能反向依赖 service
 // （service 层 import 了 config，反向会成环），装配点在 internal/app/url_params_wiring.go。
@@ -79,8 +76,8 @@ func CloudURLFor(ctx context.Context) string {
 
 // CloudURLSource 返回生效的云端版地址与它的来源标签。
 //
-// 抽出 source 的理由：`CloudURLFor` 只回答"是什么"，而 A11 要回答的是
-// "**这个值是谁给的**"——没配置时它会安静地等于厂商域名，只比较字符串无法区分
+// 抽出 source 的理由：`CloudURLFor` 只回答"是什么"，还需要回答"**这个值是谁给的**"
+// ——没配置时它会安静地等于厂商域名，只比较字符串无法区分
 // "运维显式填了同一个域名"和"什么都没填"。启动期据此打响声。
 func CloudURLSource(ctx context.Context) (url, source string) {
 	if PlatformCfg != nil && strings.TrimSpace(PlatformCfg.CloudURL) != "" {
@@ -98,10 +95,7 @@ func CloudURLSource(ctx context.Context) (url, source string) {
 // CloudURL 无 ctx 形态：平台级调用（无租户归属）等价于未绑定租户读取。
 func CloudURL() string { return CloudURLFor(context.Background()) }
 
-// PlatformCfg 全局平台配置（运行时唯一实例）
-//
-// 开源版：仅承载"上报地址 + 签名密钥 + 平台管理员账号"，
-// 不再做 License 授权同步 / 续期 / 校验。
+// PlatformCfg 全局平台配置（运行时唯一实例）：仅承载"上报地址 + 签名密钥 + 平台管理员账号"。
 var PlatformCfg *PlatformConfig
 
 // PlatformEnabled 平台集成总开关。默认关闭 = 纯本地模式：

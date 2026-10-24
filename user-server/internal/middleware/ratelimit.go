@@ -64,10 +64,10 @@ var globalRateLimiter *RateLimiter
 
 // rateLimitJWT 仅供限流键取租户用（不写 ctx、不改请求语义）。
 //
-// 为什么限流要自己验签：`RateLimitMiddleware` 挂在**引擎级**（router.go:220 的 `r.Use`），
+// 为什么限流要自己验签：`RateLimitMiddleware` 挂在**引擎级**，
 // 早于各路由组的 `JWTAuthMiddleware`，此刻 `c.Get(TenantContextKey)` 还没有值。
-// 历史上它只认 `c.ClientIP()`，于是 SaaS 部署下同一 NAT/反代出口后的**所有租户共用一个桶**：
-// 一个租户打出流量，其他租户一起吃 429 —— 隔离缺口，且症状看起来像"限流配小了"。
+// 若只认 `c.ClientIP()`，SaaS 部署下同一 NAT/反代出口后的**所有租户共用一个桶**：
+// 一个租户打出流量，其他租户一起吃 429 —— 隔离缺口。
 var rateLimitJWT = utils.NewJWTUtils(utils.DefaultJWTConfig)
 
 // bearerTokenFromRequest 取请求携带的 Bearer 令牌（与 JWTAuthMiddleware 同一取法，
@@ -107,13 +107,13 @@ func requestTenantID(c *gin.Context) uint {
 
 // rateLimitTenantPrefix 返回限流键的租户前缀。
 //
-//   - off 模式：返回 ""（**键形逐字节不变**，离线单机零回归；也省掉一次令牌解析）；
+//   - off 模式：返回 ""（键形不变，离线单机行为一致；也省掉一次令牌解析）；
 //   - on 模式且令牌带租户：返回 "t<id>:"；
 //   - on 模式但无令牌/坏令牌/令牌无租户：返回 ""，即沿用 IP 口径。
 //
 // 最后一档是**显式登记的语义**而不是遗漏：未登录流量本来就没有租户维度，
 // 只能按 IP 分桶（和 off 模式一致）。它的后果是"同一出口后的未登录请求共用桶"，
-// 这仍需登录才能区分——A5 判据因此写成"已登录流量按租户分桶；未登录仍按 IP"。
+// 这仍需登录才能区分——判据因此是"已登录流量按租户分桶；未登录仍按 IP"。
 func rateLimitTenantPrefix(c *gin.Context) string {
 	if !tenant.IsMultiTenant() {
 		return ""

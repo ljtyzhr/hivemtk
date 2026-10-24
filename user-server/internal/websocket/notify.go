@@ -36,7 +36,7 @@ func SendToAgent(ctx context.Context, messageType string, payload any, agentID u
 // 客户端发 `{"type":"ack","seq":N}` 后由 GlobalPendingAck().Ack 清理。
 // 通过 sessionID 路由到对应的访客 WebSocket 连接。
 //
-// 鲁棒性加固（方向B）：
+// 鲁棒性约定：
 //   - 走 MustEnvelope 分配 seq，与 visitor_handler.onConnect / hub.Broadcast 对齐
 //   - 自动 GlobalPendingAck().Track，确保重连后可通过 PendingSince 拉取未确认
 //   - 客户端断开时由 visitor_handler.readPump 的 defer Drop 清理
@@ -54,8 +54,8 @@ func BroadcastToAll(ctx context.Context, messageType string, payload any) error 
 // BroadcastToAgents 广播给所有坐席（排除访客）
 //
 // ctx 必带租户：on 模式下只发本租户（on 无租户 ⇒ fail-closed）。
-// 这条修前是**真泄漏**：访客会话开场/转人工时 service 层调它广播 session 详情，
-// 一级 map 下这是"全实例所有坐席"，租户 B 的工作台会弹出租户 A 的会话。
+// 租户过滤是硬性语义：不加过滤时，访客会话开场/转人工时 service 层广播的
+// session 详情会推给全实例所有坐席，租户 B 的工作台会弹出租户 A 的会话。
 func BroadcastToAgents(ctx context.Context, messageType string, payload any) error {
 	return GetHub().BroadcastToAgentsCtx(ctx, messageType, payload)
 }

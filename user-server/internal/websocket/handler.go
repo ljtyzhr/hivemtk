@@ -20,7 +20,7 @@ import (
 // isAllowedOrigin 判定 WS 握手 Origin 是否放行。
 //
 // r 传入请求是为了做同源判定：同源（Origin 的 host == 请求 Host）一律放行，
-// 见 config.IsSameOriginWS 的说明（任务四实测：同源部署下白名单漏配会让坐席
+// 见 config.IsSameOriginWS 的说明（同源部署下白名单漏配会让坐席
 // 实时通知 WS 恒 403 并触发前端重连循环）。
 func isAllowedOrigin(r *http.Request) bool {
 	origin := ""
@@ -94,8 +94,8 @@ type VisitorChannelView struct {
 	TenantID  uint
 }
 
-// VisitorChannelResolver 访客侧渠道解析窄接口（specs/001-saas-multi-tenant T024，
-// 装配层由 service.ChatChannelService 适配注入；nil = 未装配，访客连接不绑租户）
+// VisitorChannelResolver 访客侧渠道解析窄接口（装配层由 service.ChatChannelService
+// 适配注入；nil = 未装配，访客连接不绑租户）
 type VisitorChannelResolver interface {
 	ResolveByChannelID(ctx context.Context, channelID string) (*VisitorChannelView, error)
 }
@@ -142,7 +142,7 @@ func (h *WSHandler) HandleWebSocket(c *gin.Context) {
 	if os.Getenv("WS_AGENT_ALLOW_ALL_USERS") != "true" {
 		// 坐席订阅按设计面向客服工作台角色：admin/manager 及坐席（staff/customer_service）
 		// 管理端页面 /api/agents/me 会为坐席返回 agent_id，messageHub/customerSession 据此自动订阅；
-		// 若仅放行 admin，坐席登录后将陷入 403 重连循环（R14-3）
+		// 若仅放行 admin，坐席登录后将陷入 403 重连循环
 		if role, _ := c.Get("role"); !wsAgentAllowedRoles[roleStrOf(role)] {
 			c.JSON(http.StatusForbidden, gin.H{"error": "仅管理员或坐席可订阅坐席通知"})
 			return
@@ -162,7 +162,7 @@ func (h *WSHandler) HandleWebSocket(c *gin.Context) {
 
 	client := NewWSClient(h.hub, agentIDStr, agentName)
 	client.hub = h.hub
-	// 租户分桶（specs/001-saas-multi-tenant T026）：auth 组已把租户绑进请求 ctx
+	// 租户分桶：auth 组已把租户绑进请求 ctx
 	if tid, ok := tenant.FromContext(ctx); ok {
 		client.tenantID = tid
 	}

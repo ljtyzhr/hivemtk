@@ -195,8 +195,9 @@ type SanitizeConfig struct {
 
 // DefaultSanitizeConfig 默认配置。
 //
-// 读体上限这里留空：体积上限只有一个事实源，就是 BodyLimit 的全局值。本字段曾写死 1MB，
-// 而全局默认 8MB，两份不一致的表现不是报错，是 1~8MB 的 JSON 请求被静默截断成半份再交给处理器。
+// 读体上限这里留空：体积上限只有一个事实源，就是 BodyLimit 的全局值。
+// 若本字段单独写死，与全局默认不一致时不会报错，而是区间内的 JSON 请求
+// 被静默截断成半份再交给处理器。
 var DefaultSanitizeConfig = SanitizeConfig{
 	SanitizeRequest:  true,
 	SanitizeResponse: false,

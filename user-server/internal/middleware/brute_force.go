@@ -106,18 +106,9 @@ var DefaultBruteForceConfig = BruteForceConfig{
 //	控制器中失败时调用：middleware.RecordBruteForceFailure(c, "auth.login")
 //	控制器中成功时调用：middleware.ClearBruteForceFailure(c, "auth.login")
 //
-// # BruteForceGuard 防爆破守卫前置检查
-//
-// 职责仅限"判定是否已锁定"，避免把计数放在两条路径上引起歧义。
-// 真实计数 / 加锁由 RecordBruteForceFailure（控制器失败时调用）单点维护。
-//
-// 修复：原实现同时在 Guard 与 RecordBruteForceFailure 中自增失败计数，
-//  1. 同一 entry 在两条路径上各 ++ 一次，实际触发阈值 = MaxFailures/2（实测 3 次失败即锁），
-//     行为与配置的 MaxFailures=5 不一致；
-//  2. Guard 内的 `failures = 0` 复位逻辑在并发序列下是死代码（被 RecordBruteForceFailure
-//     抢先触发锁定），且 `getBruteForceEntry` 在 entry 不存在时返回临时 struct，
-//     自增后被丢弃 — 对从未失败过的成功请求是浪费 + 误导。
-//  3. 调用点唯一：`/api/auth/login`，单点维护更清晰。
+// 职责仅限"判定是否已锁定"：真实计数 / 加锁由 RecordBruteForceFailure（控制器
+// 失败时调用）单点维护，避免计数放在两条路径上导致实际触发阈值减半、
+// 行为与配置的 MaxFailures 不一致。
 func BruteForceGuard(endpoint string) gin.HandlerFunc {
 	startBruteForceJanitor()
 	return func(c *gin.Context) {

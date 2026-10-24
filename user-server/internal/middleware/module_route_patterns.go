@@ -1,20 +1,13 @@
-// Package middleware 模块路由模式（功能模块化 · FR-5.3）
+// Package middleware 模块路由模式（功能模块化）
 //
 // 模块闸读这张表把「请求路径 → 模块 key」，再问 ModuleGateService 该模块是否开通。
 //
 // 为什么不逐条路由挂中间件：仓内 2000+ 条路由跨 37 个文件、且跨模块交叉引用
 // （AI 销冠的接口要用客户中心的 service），逐条挂会漏挂且无法测试覆盖。
-// 形态复刻同包既有的能力面守卫（route_policy），判据一致、读法一致。
 //
 // 为什么这张表是**生成件**而不是手写：它由
-//
-//	internal/model/menu_capability_routes.go（人工审过的「路径形状 → 菜单 key」
-//
-// 251 条能力面）
-// 接上
-//
-//	internal/model/module_bindings.go（菜单 key → 模块）
-//
+// internal/model/menu_capability_routes.go（人工审过的「路径形状 → 菜单 key」能力面）
+// 接上 internal/model/menu_capability_routes.go 的菜单归属（菜单 key → 模块）
 // 两跳推导得出。另手写一张「路径 → 模块」的表，等于让"这条口属于哪"这个问题
 // 出现两份人工答案，迟早漂移；而这张表的好处是：改菜单归属只需改一处。
 package middleware
@@ -26,7 +19,7 @@ type ModuleRouteRule struct {
 }
 
 // 本文件由 cmd/gen-module-route-patterns 生成（勿手改）。
-// 事实源：internal/model/module_bindings.go 的菜单归属 + 本文件头所述生成命令。
+// 事实源：internal/model/module_bindings.go 的菜单归属。
 
 // ModuleRouteRules 生成的对照表
 var ModuleRouteRules = []ModuleRouteRule{

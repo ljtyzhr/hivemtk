@@ -602,14 +602,14 @@
 | 387 | [ ] | `internal/channelgw/protocol.go` | 17 | 74 | 17 | 0 |
 | 388 | [x] | `internal/channelgw/registry.go` | 12 | 22 | 12 | 0 |
 | 389 | [x] | `internal/channelgw/ws.go` | 10 | 28 | 10 | 0 |
-| 390 | [ ] | `internal/config/admin.go` | 6 | 20 | 6 | 0 |
-| 391 | [ ] | `internal/config/init.go` | 1 | 4 | 1 | 0 |
-| 392 | [ ] | `internal/config/platform.go` | 11 | 53 | 11 | 0 |
+| 390 | [x] | `internal/config/admin.go` | 6 | 20 | 6 | 0 |
+| 391 | [x] | `internal/config/init.go` | 1 | 4 | 1 | 0 |
+| 392 | [x] | `internal/config/platform.go` | 11 | 53 | 11 | 0 |
 | 393 | [x] | `internal/config/ports.go` | 5 | 14 | 5 | 0 |
-| 394 | [ ] | `internal/config/server.go` | 42 | 163 | 42 | 0 |
-| 395 | [ ] | `internal/config/sso.go` | 1 | 1 | 1 | 0 |
-| 396 | [ ] | `internal/config/website.go` | 6 | 20 | 6 | 0 |
-| 397 | [ ] | `internal/config/ws_origin.go` | 3 | 16 | 3 | 0 |
+| 394 | [x] | `internal/config/server.go` | 42 | 163 | 42 | 0 |
+| 395 | [x] | `internal/config/sso.go` | 1 | 1 | 1 | 0 |
+| 396 | [x] | `internal/config/website.go` | 6 | 20 | 6 | 0 |
+| 397 | [x] | `internal/config/ws_origin.go` | 3 | 16 | 3 | 0 |
 | 398 | [ ] | `internal/content/controller/ai_content.go` | 16 | 16 | 16 | 0 |
 | 399 | [ ] | `internal/content/controller/batch_operation.go` | 26 | 34 | 26 | 0 |
 | 400 | [ ] | `internal/content/controller/marketing_flow.go` | 14 | 15 | 14 | 0 |
@@ -1009,43 +1009,43 @@
 | 794 | [ ] | `internal/kbconnector/provider.go` | 10 | 11 | 10 | 0 |
 | 795 | [ ] | `internal/kbconnector/sync.go` | 5 | 9 | 5 | 0 |
 | 796 | [ ] | `internal/kbconnector/webhttp.go` | 1 | 6 | 1 | 0 |
-| 797 | [ ] | `internal/middleware/ai_crawler_monitor.go` | 2 | 4 | 2 | 0 |
-| 798 | [ ] | `internal/middleware/api_logger.go` | 1 | 9 | 1 | 0 |
-| 799 | [ ] | `internal/middleware/app_key_auth.go` | 10 | 39 | 10 | 0 |
-| 800 | [ ] | `internal/middleware/audit.go` | 20 | 24 | 20 | 0 |
+| 797 | [x] | `internal/middleware/ai_crawler_monitor.go` | 2 | 4 | 2 | 0 |
+| 798 | [x] | `internal/middleware/api_logger.go` | 1 | 9 | 1 | 0 |
+| 799 | [x] | `internal/middleware/app_key_auth.go` | 10 | 39 | 10 | 0 |
+| 800 | [x] | `internal/middleware/audit.go` | 20 | 24 | 20 | 0 |
 | 801 | [x] | `internal/middleware/body_limit.go` | 8 | 57 | 8 | 0 |
-| 802 | [ ] | `internal/middleware/bridge_ingress_guard.go` | 1 | 2 | 1 | 0 |
-| 803 | [ ] | `internal/middleware/brute_force.go` | 12 | 36 | 12 | 0 |
-| 804 | [ ] | `internal/middleware/context.go` | 1 | 1 | 1 | 0 |
-| 805 | [ ] | `internal/middleware/data_scope.go` | 6 | 43 | 6 | 0 |
-| 806 | [ ] | `internal/middleware/init_guard.go` | 4 | 26 | 4 | 0 |
+| 802 | [x] | `internal/middleware/bridge_ingress_guard.go` | 1 | 2 | 1 | 0 |
+| 803 | [x] | `internal/middleware/brute_force.go` | 12 | 36 | 12 | 0 |
+| 804 | [x] | `internal/middleware/context.go` | 1 | 1 | 1 | 0 |
+| 805 | [x] | `internal/middleware/data_scope.go` | 6 | 43 | 6 | 0 |
+| 806 | [x] | `internal/middleware/init_guard.go` | 4 | 26 | 4 | 0 |
 | 807 | [x] | `internal/middleware/install_status.go` | 10 | 18 | 10 | 0 |
-| 808 | [ ] | `internal/middleware/jwt.go` | 7 | 12 | 7 | 0 |
-| 809 | [ ] | `internal/middleware/lang_resolver.go` | 2 | 17 | 2 | 0 |
-| 810 | [ ] | `internal/middleware/locale.go` | 1 | 5 | 1 | 0 |
+| 808 | [x] | `internal/middleware/jwt.go` | 7 | 12 | 7 | 0 |
+| 809 | [x] | `internal/middleware/lang_resolver.go` | 2 | 17 | 2 | 0 |
+| 810 | [x] | `internal/middleware/locale.go` | 1 | 5 | 1 | 0 |
 | 811 | [x] | `internal/middleware/ltc_gate.go` | 6 | 39 | 6 | 0 |
 | 812 | [x] | `internal/middleware/mcp_guard.go` | 17 | 83 | 17 | 0 |
 | 813 | [x] | `internal/middleware/metrics.go` | 4 | 14 | 4 | 0 |
-| 814 | [ ] | `internal/middleware/mfa.go` | 7 | 18 | 7 | 0 |
+| 814 | [x] | `internal/middleware/mfa.go` | 7 | 18 | 7 | 0 |
 | 815 | [x] | `internal/middleware/module_gate.go` | 15 | 45 | 15 | 0 |
-| 816 | [ ] | `internal/middleware/module_route_patterns.go` | 4 | 23 | 4 | 0 |
-| 817 | [ ] | `internal/middleware/module_route_supplement.go` | 4 | 31 | 4 | 0 |
-| 818 | [ ] | `internal/middleware/ownership.go` | 13 | 52 | 13 | 0 |
-| 819 | [ ] | `internal/middleware/permission.go` | 8 | 8 | 8 | 0 |
-| 820 | [ ] | `internal/middleware/ports.go` | 9 | 12 | 9 | 0 |
-| 821 | [ ] | `internal/middleware/public_tenant.go` | 7 | 21 | 7 | 0 |
+| 816 | [x] | `internal/middleware/module_route_patterns.go` | 4 | 23 | 4 | 0 |
+| 817 | [x] | `internal/middleware/module_route_supplement.go` | 4 | 31 | 4 | 0 |
+| 818 | [x] | `internal/middleware/ownership.go` | 13 | 52 | 13 | 0 |
+| 819 | [x] | `internal/middleware/permission.go` | 8 | 8 | 8 | 0 |
+| 820 | [x] | `internal/middleware/ports.go` | 9 | 12 | 9 | 0 |
+| 821 | [x] | `internal/middleware/public_tenant.go` | 7 | 21 | 7 | 0 |
 | 822 | [x] | `internal/middleware/rate_quota.go` | 17 | 66 | 17 | 0 |
-| 823 | [ ] | `internal/middleware/ratelimit.go` | 8 | 14 | 8 | 0 |
-| 824 | [ ] | `internal/middleware/require_admin.go` | 1 | 12 | 1 | 0 |
-| 825 | [ ] | `internal/middleware/route_capability.go` | 9 | 25 | 9 | 0 |
-| 826 | [ ] | `internal/middleware/route_policy.go` | 19 | 69 | 19 | 0 |
-| 827 | [ ] | `internal/middleware/sanitize.go` | 12 | 20 | 12 | 0 |
-| 828 | [ ] | `internal/middleware/subscription_guard.go` | 21 | 52 | 21 | 0 |
+| 823 | [x] | `internal/middleware/ratelimit.go` | 8 | 14 | 8 | 0 |
+| 824 | [x] | `internal/middleware/require_admin.go` | 1 | 12 | 1 | 0 |
+| 825 | [x] | `internal/middleware/route_capability.go` | 9 | 25 | 9 | 0 |
+| 826 | [x] | `internal/middleware/route_policy.go` | 19 | 69 | 19 | 0 |
+| 827 | [x] | `internal/middleware/sanitize.go` | 12 | 20 | 12 | 0 |
+| 828 | [x] | `internal/middleware/subscription_guard.go` | 21 | 52 | 21 | 0 |
 | 829 | [x] | `internal/middleware/tenant.go` | 3 | 12 | 3 | 0 |
-| 830 | [ ] | `internal/middleware/trace.go` | 5 | 24 | 5 | 0 |
-| 831 | [ ] | `internal/middleware/visitor_rate_limit.go` | 4 | 8 | 4 | 0 |
-| 832 | [ ] | `internal/middleware/webhook_signature.go` | 39 | 95 | 39 | 0 |
-| 833 | [ ] | `internal/middleware/webhook_tenant.go` | 5 | 15 | 5 | 0 |
+| 830 | [x] | `internal/middleware/trace.go` | 5 | 24 | 5 | 0 |
+| 831 | [x] | `internal/middleware/visitor_rate_limit.go` | 4 | 8 | 4 | 0 |
+| 832 | [x] | `internal/middleware/webhook_signature.go` | 39 | 95 | 39 | 0 |
+| 833 | [x] | `internal/middleware/webhook_tenant.go` | 5 | 15 | 5 | 0 |
 | 834 | [x] | `internal/migration/migrations/a_domain_p1_migration.go` | 7 | 7 | 7 | 0 |
 | 835 | [x] | `internal/migration/migrations/aggregation_watermark_pk_migration.go` | 8 | 12 | 8 | 0 |
 | 836 | [x] | `internal/migration/migrations/ai_agent_asset_binding_migration.go` | 7 | 10 | 7 | 0 |
@@ -2138,17 +2138,17 @@
 | 1923 | [ ] | `internal/storage/storage.go` | 12 | 23 | 12 | 0 |
 | 1924 | [x] | `internal/storage/storagetest/storagetest.go` | 6 | 33 | 6 | 0 |
 | 1925 | [ ] | `internal/system/install/install.go` | 22 | 69 | 22 | 0 |
-| 1926 | [ ] | `internal/websocket/ack_tracker.go` | 9 | 17 | 9 | 0 |
-| 1927 | [ ] | `internal/websocket/envelope.go` | 3 | 5 | 3 | 0 |
-| 1928 | [ ] | `internal/websocket/handler.go` | 13 | 17 | 13 | 0 |
-| 1929 | [ ] | `internal/websocket/hub.go` | 27 | 35 | 27 | 0 |
+| 1926 | [x] | `internal/websocket/ack_tracker.go` | 9 | 17 | 9 | 0 |
+| 1927 | [x] | `internal/websocket/envelope.go` | 3 | 5 | 3 | 0 |
+| 1928 | [x] | `internal/websocket/handler.go` | 13 | 17 | 13 | 0 |
+| 1929 | [x] | `internal/websocket/hub.go` | 27 | 35 | 27 | 0 |
 | 1930 | [x] | `internal/websocket/lang_inject.go` | 0 | 0 | 0 | 0 |
-| 1931 | [ ] | `internal/websocket/notify.go` | 8 | 30 | 8 | 0 |
+| 1931 | [x] | `internal/websocket/notify.go` | 8 | 30 | 8 | 0 |
 | 1932 | [x] | `internal/websocket/seq.go` | 0 | 0 | 0 | 0 |
-| 1933 | [ ] | `internal/websocket/seq_redis.go` | 3 | 4 | 3 | 0 |
-| 1934 | [ ] | `internal/websocket/types.go` | 4 | 26 | 4 | 0 |
+| 1933 | [x] | `internal/websocket/seq_redis.go` | 3 | 4 | 3 | 0 |
+| 1934 | [x] | `internal/websocket/types.go` | 4 | 26 | 4 | 0 |
 | 1935 | [x] | `internal/websocket/visitor_handler.go` | 8 | 56 | 8 | 0 |
-| 1936 | [ ] | `internal/websocket/visitor_registry.go` | 3 | 4 | 3 | 0 |
+| 1936 | [x] | `internal/websocket/visitor_registry.go` | 3 | 4 | 3 | 0 |
 | 1940 | [x] | `internal/middleware/platform_operator.go` | - | - | - | - |
 | 1941 | [x] | `internal/migration/migrations/v3_67_0_browser_cron_trigger_tombstone_migration.go` | - | - | - | - |
 | 1942 | [x] | `internal/migration/migrations/v3_71_0_geo_daily_stat_unique_key_migration.go` | - | - | - | - |

@@ -13,20 +13,17 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// AppKeyResolve AppKey 软解析中间件（不再强制鉴权）
+// AppKeyResolve AppKey 软解析中间件（不强制鉴权，放行语义如下）
 //
-// 设计原则（私域部署优化）：
-//  1. 不再强制要求 X-Chat-App-Key Header
-//  2. 如果请求带 X-Chat-App-Key -> 解析出 channel 注入上下文（保留溯源能力）
-//  3. 如果请求带 X-Chat-Channel-Id Header 或 body.channel_id -> 用 channel_id 反查 channel
-//  4. 都未提供 -> 注入 DEFAULT channel（"default"）并放行
-//  5. 渠道禁用返回 403（防误用）
-//  6. 不再做 Origin 白名单阻断（仅记录，不影响访问）
-//
-// 使用方式：r.Group("/api/chat/public").Use(AppKeyResolve(resolver))
+// 解析顺序：
+//  1. 请求带 X-Chat-App-Key -> 解析出 channel 注入上下文（保留溯源能力）
+//  2. 请求带 X-Chat-Channel-Id Header 或 body.channel_id -> 用 channel_id 反查 channel
+//  3. 都未提供 -> 注入 DEFAULT channel（"default"）并放行
+//  4. 渠道禁用返回 403（防误用）
+//  5. Origin 白名单不匹配仅记录（X-Origin-Not-Allowed），不阻断访问
 //
 // 适用场景：用户自己部署本系统后，作为通道嵌入到自有网站，无需 AppKey 鉴权。
-// AppKey 仍保留为渠道的软标识（用于日志追踪 + 未来多渠道管理），但不再作为强制凭证。
+// AppKey 仍保留为渠道的软标识（用于日志追踪 + 未来多渠道管理），但不是强制凭证。
 // resolver 由装配层注入（service.ChatChannelService 的适配器）。
 func AppKeyResolve(resolver ChatChannelResolver) gin.HandlerFunc {
 	return func(c *gin.Context) {
@@ -53,10 +50,9 @@ func AppKeyResolve(resolver ChatChannelResolver) gin.HandlerFunc {
 				c.Set("chat_channel", channel)
 				c.Set("chat_channel_id", channel.ChannelID)
 				c.Set("chat_app_key", appKey)
-				// 访客链租户解析（specs/001-saas-multi-tenant T024）：
-				// channel 行自带租户归属（写入时行自证），此处绑定请求 ctx——
+				// 访客链租户解析：channel 行自带租户归属（写入时行自证），此处绑定请求 ctx——
 				// /api/chat/public/* 全链的 GORM 访问自动按租户隔离。
-				// off 模式 channel.TenantID 恒为默认租户 1，等价现状。
+				// off 模式 channel.TenantID 恒为默认租户 1，等价单租户现状。
 				if channel.TenantID != 0 {
 					c.Request = c.Request.WithContext(tenant.WithTenantID(c.Request.Context(), channel.TenantID))
 				}
@@ -129,10 +125,9 @@ func AppKeyResolve(resolver ChatChannelResolver) gin.HandlerFunc {
 		if resolvedViaAppKey {
 			c.Set("chat_app_key", channelID)
 		}
-		// 访客链租户绑定（specs/001-saas-multi-tenant T024）：channel 行自带租户
-		// 归属（写入时行自证），与上方 app_key 分支同语义。此前只有 app_key 分支
-		// 绑定租户，channel_id 槽位解析成功的请求在 on 模式会于下游 GORM 隔离
-		// callback 处 fail-closed（如 agent_statuses 拒绝无租户上下文的查询）。
+		// 访客链租户绑定：channel 行自带租户归属（写入时行自证），与上方 app_key 分支同语义。
+		// channel_id 槽位解析成功的请求同样要绑定租户，否则 on 模式下会在下游 GORM
+		// 隔离 callback 处 fail-closed（如 agent_statuses 拒绝无租户上下文的查询）。
 		if channel.TenantID != 0 {
 			c.Request = c.Request.WithContext(tenant.WithTenantID(c.Request.Context(), channel.TenantID))
 		}

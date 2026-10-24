@@ -6,8 +6,8 @@ import (
 	"strings"
 )
 
-// websiteBaseURLProvider 是 urls.geo_site_base_url 参数中心取值口（R2 参数化，R5-3 起按 ctx 取租户覆盖）。
-// 默认返回空串 = 未装配，WebsiteBaseURLFor() 会继续回落到 env/常量，等价于接线前行为。
+// websiteBaseURLProvider 是 urls.geo_site_base_url 参数中心取值口（按 ctx 取租户覆盖）。
+// 默认返回空串 = 未装配，WebsiteBaseURLFor() 会继续回落到 env/常量。
 //
 // 做成 provider 而不是在这里调 config_param service：config 不能反向依赖 service
 // （service 层 import 了 config，反向会成环），装配点在 internal/app/url_params_wiring.go。

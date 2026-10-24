@@ -43,7 +43,7 @@ func publicResourceTenant(db *gorm.DB, l publicLookup) gin.HandlerFunc {
 			}
 			value = uint(id)
 		}
-		// 业务键复合化后同键可能在多个租户各有一行（T008），按键 First() 会把访客
+		// 业务键复合化后同键可能在多个租户各有一行，按键 First() 会把访客
 		// 随机指派给某个租户。只接受"全部命中行同属一个租户"的自证结果。
 		tenantID, err := tenant.SingleTenantByKey(c.Request.Context(), db, l.table, l.column+" = ?", value)
 		if err != nil {

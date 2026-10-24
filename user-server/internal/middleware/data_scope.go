@@ -69,11 +69,11 @@ var dataScopeLookup = model.DataScopeFor
 // scope（internal/service/customer_session_scope.go 的 SessionScope、
 // internal/service/inbox_scope.go 的 InboxScope），它们放开全量的条件都只有"角色是超管"。
 // 守卫若额外认 data_scope=all，就会出现"列表看不到别人的会话、按 id 却读得到"——同一域内
-// 两套口径，窄的那套被宽的那套旁路，正是本次要根治的形状。要按部门/团队放宽，得先把
+// 两套口径，窄的那套被宽的那套旁路。要按部门/团队放宽，得先把
 // 成员关系事实源建回来，并让三处消费点同时改（见下）。
 //
 // data_scope 的 department/team 在本仓**当前无法兑现**：system_users 有 department_id/
-// team_id 两列，但成员关系表 team_users 已被阶段 1 单表化重构 DROP（见
+// team_id 两列，但成员关系表 team_users 已被单表化重构 DROP（见
 // internal/migration/migrations/a_domain_p1_migration.go），没有"谁和谁同部门"的事实源。
 // 所以这两种取值按 self 收（向窄处收），并打一条进程级告警——把它当 all 是越权，
 // 把它当"未实现所以不管"是静默失效，两者都比收窄更坏。

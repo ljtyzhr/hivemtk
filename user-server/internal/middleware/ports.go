@@ -73,7 +73,7 @@ type ChatChannelView struct {
 	Status         string
 	Active         bool
 	AllowedOrigins []string
-	// TenantID 渠道归属租户（specs/001-saas-multi-tenant T024 访客链解析源）
+	// TenantID 渠道归属租户（访客链租户解析源）
 	TenantID uint
 }
 

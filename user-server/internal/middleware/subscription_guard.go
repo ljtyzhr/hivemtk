@@ -13,21 +13,19 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
-// 订阅闸（003 T022 · ADR-M8 修订 #1/#2）
+// 订阅闸
 //
-// ===== 三层判定（修订 #1，替代「第二张路径白名单表」方案）=====
+// 三层判定：
 //  ① 显式小白名单（续费必需面，逐路径列全 + 对账测试）→ 放行；
 //  ② 客户面显式不锁清单（产品裁决：商户存量客户的 AI 应答不断线）→ 放行；
-//  ③ 其余路径走 ModuleOwnerOf(path)（复用 4300+ 路由归属表）：
+//  ③ 其余路径走 ModuleOwnerOf(path)（复用模块路由归属表）：
 //     有归属模块 → 4305 拦；无归属 → 放行 + WARN（与 4301 同风险等级取舍）。
 //
-// ===== 锁判定本地化（修订 #2）=====
-// 判定在 service.SubscriptionMirrorService 内完成：镜像的
+// 锁判定本地化：判定在 service.SubscriptionMirrorService 内完成：镜像的
 // current_period_end / trial_expires_at 与 now 惰性比较，**与平台可达性无关**；
 // fetched_at 只 Warn 不参与锁；fail-open 仅对「镜像无 period_end 数据」。
 //
-// ===== 执行位置 =====
-// 与 GuardModulePath 同位置挂接（鉴权之后、角色权限之前），仅 on 模式装配。
+// 执行位置：与 GuardModulePath 同位置挂接（鉴权之后、角色权限之前），仅 on 模式装配。
 // expired 时登录态仍有效 —— 锁的是业务面，不是身份（否则续费墙自己都打不开）。
 
 // subscriptionLockChecker 判定接口（装配期由 service.SubscriptionMirrorService 注入）
@@ -82,9 +80,7 @@ var subscriptionAllowExact = []string{
 // 在 expired 时保持可用 —— 商户存量客户的 AI 应答不断线；锁的是员工工作台业务面。
 // 模式语义与 module_gate 相同：`*` 吃掉恰好一段；前缀以 `/*` 结尾表示整棵子树。
 var subscriptionCustomerFacing = []string{
-	"/api/chat/public/*", // setupChatPublicRoutes（widget 对话面）
-	// "/ws/chat" 已随 D-7 删除（2026-10-23）：ChatWS 控制器与路由从未接线，
-	// 死代码整体移除；将来若上真坐席 WS，参照 /api/ws/visitor 的五层防护重新登记。
+	"/api/chat/public/*", // widget 对话面
 	"/api/ws/visitor",    // 访客 WebSocket
 	"/api/bridge/ingest", // bridge ingress（扩展端上报）
 	"/api/bridge/outbox", // bridge outbox（含 /ack /sse 子路径见下）

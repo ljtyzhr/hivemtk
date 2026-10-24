@@ -105,7 +105,7 @@ const (
 // DefaultInferenceConfig 返回本地推理栈默认配置（私域部署基线）
 //
 // 用于 config.yaml 缺失时的回落，确保消费方拿到的 InferenceConfig 永远非零值。
-// 消费方（dispatcher 等）不再需要任何模型名/URL 兜底硬编码。
+// 消费方（dispatcher 等）可从该默认配置取得模型名/URL，无需各自兜底硬编码。
 func DefaultInferenceConfig() InferenceConfig {
 	return InferenceConfig{
 		Profile: "dev",
@@ -417,7 +417,7 @@ type ExternalConfig struct {
 	PublicBaseURL string `yaml:"public_base_url" json:"public_base_url"`
 }
 
-// publicBaseURLProvider 是 urls.public_base_url 参数中心取值口（R5-3）。
+// publicBaseURLProvider 是 urls.public_base_url 参数中心取值口。
 // 默认返回空串 = 未装配，GetPublicBaseURLFor() 继续回落 env / config.yaml / 空串。
 //
 // 做成 provider 而不是在这里调 config_param service：config 不能反向依赖 service

@@ -16,11 +16,10 @@ import (
 //
 // connections 是**两级桶**：租户 → (agentID → 连接)。
 //
-// 修前是一级 `map[agentID]*Client`（A14）：坐席 ID 只是数据库里的自增主键，
-// 两个租户各有一个 id=7 的坐席是**正常现象**；一级 map 下后连的会把先连的顶掉，
-// 于是租户 B 的坐席一上线，租户 A 的坐席就静默"消失"（收不到任何推送、
-// 而且顶掉的那条连接不会被清理，谁也发现不了）。send 时只按 agentID 找，
-// 命中谁全看谁先注册 —— 这不是"没做隔离"，是**误投**。
+// 坐席 ID 只是数据库里的自增主键，两个租户各有一个 id=7 的坐席是**正常现象**；
+// 一级 `map[agentID]*Client` 下后连的会把先连的顶掉，于是租户 B 的坐席一上线，
+// 租户 A 的坐席就静默"消失"（收不到任何推送、而且顶掉的那条连接不会被清理）。
+// send 时只按 agentID 找，命中谁全看谁先注册 —— 这不是"没做隔离"，是**误投**。
 //
 // 两级之后每层语义都是确定的：桶外的事（谁来发、发给谁）必须显式带租户。
 type Hub struct {
@@ -53,7 +52,7 @@ type Client struct {
 	sessionID  string
 	visitorID  string
 	channelID  string
-	// tenantID 连接归属租户（specs/001-saas-multi-tenant T026）：
+	// tenantID 连接归属租户：
 	// 握手时从 JWT 租户 claim 绑定，推送按租户过滤（0=off 模式/系统广播）
 	tenantID          uint
 	onConnectInflight atomic.Bool
@@ -204,10 +203,10 @@ func (h *Hub) Unregister(client *Client) {
 
 // resolveSendTenant 解析一次推送的目标租户桶。**所有** WS 下行都必须经过它。
 //
-//   - off 模式：返回 0（= 不限桶，全实例语义；与升级前逐字节一致，不多付令牌成本）
+//   - off 模式：返回 0（= 不限桶，全实例语义）
 //   - on 模式 + ctx 有租户：返回该租户（精确落桶）
 //   - on 模式 + ctx 无租户：报错 fail-closed。绝不回落到 0 —— 0 在这条链上是
-//     "全部租户"，一旦回落就等于把漏配变成跨租户群发（A14 修的正是这个形状）。
+//     "全部租户"，一旦回落就等于把漏配变成跨租户群发。
 func resolveSendTenant(ctx context.Context, op string) (uint, error) {
 	if !tenant.IsMultiTenant() {
 		return 0, nil
@@ -266,16 +265,12 @@ func (h *Hub) sendToAgentWithEnvelopeCtx(ctx context.Context, agentID string, en
 
 // BroadcastToMerchant 向「同一租户」的全部坐席连接广播。
 //
-// 历史形状：私域单租户部署 ⇒ 直接遍历全部连接，merchantID 参数留作接口一致性。
-// 在 TENANT_MODE=on 下那条形状就是**跨租户泄漏**：租户 A 的 SOP 节点载荷
-// （session_id / customer_id / content）会被推进租户 B 的工作台。同包的 SSE
-// 通道（service/sse_hub.go Publish）早已按租户过滤，WS 这一侧却只把
-// client.tenantID **记下来**、没有任何一处用它过滤——正是"只有注释在守"的形状。
-//
-// 现行口径（与 SSE 同构）：
-//   - off 模式：与历史逐字节一致 —— 发全部坐席（单租户全广播语义不变）
+// 租户过滤是硬性语义：在 TENANT_MODE=on 下不做过滤就是**跨租户泄漏**——租户 A 的
+// 会话载荷（session_id / customer_id / content）会被推进租户 B 的工作台。
+// 与同包 SSE 通道（service/sse_hub.go Publish）同构：
+//   - off 模式：发全部坐席（单租户全广播语义）
 //   - on 模式：只发 ctx 租户名下的连接；ctx 缺租户 ⇒ 拒绝执行（fail-closed），
-//     绝不退化成"全实例广播"——那是本条要修的缺陷本身
+//     绝不退化成"全实例广播"
 func (h *Hub) BroadcastToMerchant(ctx context.Context, merchantID string, messageType string, payload any) error {
 	_ = merchantID // 私域语义：merchant 维度不参与过滤（租户维度才是隔离判据）
 	tid, err := resolveSendTenant(ctx, "BroadcastToMerchant "+messageType)
@@ -345,9 +340,7 @@ func (h *Hub) IsAgentOnline(ctx context.Context, agentID string) bool {
 
 // GetOnlineAgents 获取「ctx 租户名下」的在线客服列表。
 //
-// 原来的 merchantID 形参一直是 `_ = merchantID`（写而不用）：merchant 维度在私域
-// 单租户里恒等于"全部"，留着一个不参与判定的参数只会让人以为它参与过滤。
-// 现在换成 ctx 租户，签名与语义一致。
+// merchant 维度不参与过滤（租户维度才是隔离判据），以 ctx 租户为准。
 func (h *Hub) GetOnlineAgents(ctx context.Context) []string {
 	tid, err := resolveSendTenant(ctx, "GetOnlineAgents")
 	if err != nil {
