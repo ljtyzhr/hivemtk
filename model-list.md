@@ -232,9 +232,9 @@
 | 199 | [x] | `internal/ops/model/dashboard_screen.go` | `DashboardScreen`, `DashboardWidget` | `~>`, `~>` | 2 | **4.1** `router/business_routes.go`（/api/dashboard/*）+ 公开分享链 `GetPublicScreenCtx`（匿名，租户由 code 自证——`GetPublicByCodeCtx` 是租户自证读法的样板）→ `ops/service/dashboard_screen.go` → 两仓储。**4.2** 全 GORM。**4.3** 两表带 `tenant_id`。**4.4 删 3 僵尸 + 修 4 处**：① 删 `DashboardScreenRepository.GetByCode`/`IncrementViewCount`（传递性僵尸：唯一调用方 service.GetPublicScreen 零生产调用——公开路径走 GetPublicScreenCtx，计数内置于 GetPublicByCodeCtx）；② 删 `DashboardWidgetRepository.GetByScreenID`（同上，公开路径走 GetByScreenIDCtx）；③ 删 service `GetPublicScreen`/`GetScreenWidgets` + 5 个独占测试（ConcurrentAccess 改走 GetPublicScreenCtx）；④ `Update` 裸 `Save` → `SaveWholeRow` + 主键守卫；`Delete` → `EnsureAffected`；⑤ `GetAll` 同链拆 `base()` + 夹取；⑥ 删 `dataScopeScope` 死函数（两分支同实现）内联 scope 闭包。**观察**：service `AggregateDashboardData`/`FetchRealtimeActivities` 直连 `sysrepo.GetDB()` 记 #44 族 |
 | 200 | [x] | `internal/ops/model/performance_test_result.go` | `PerformanceTestResult` | `performance_test_results` | 1 | **4.1 断头链（记待决策）**：controller `RunTest` 存在但路由只注册了 `GET /perf/list` 与 `GET /perf/:id`（service_routes.go:534-535）——`POST` 启动压测从未接线；且 `executeTest` 是**假压测**（rand 模拟延迟/失败率，不发真实请求，`select <-context.Background().Done()` 永不触发）。读链完整：`ListResults`/`GetResult` 有路由。**4.2** 全 GORM。**4.3** 带 `tenant_id`。**4.4 修 2 处 + 待决策整链**：① `UpdateFields` → `EnsureAffected`（0 行静默成功会让压测永远停在 running）；② `List` 夹取 + Count/Find 已拆链。**待决策 批13-#22**：RunTest+executeTest 假压测整链（controller 方法+service 方法+表）删或接真 |
 | 201 | [~] | `internal/model/bridge_metric.go`（原 `internal/pkg/metrics/bridge_sink.go`） | `BridgeMetricRow` | `bridge_metrics` | 0（平台级） | T、U、L → 已消除两项，4.4 待决策（见「待决策 #4」）。4.1 拆干净：模型搬进 `internal/model`，写入口收进 `repository.BridgeMetricsRepository`，`pkg/metrics` 改为只依赖自己声明的 `BridgeMetricWriter` 接口（原先该包自己持 `*gorm.DB` 并 `db.Create`，等于任何 pkg 都能写任意表）；4.2 全 GORM；4.3 论证为平台级（维度是 metric_name/labels/ts，无租户归属）并登记豁免清单——注：存量 SaaS 库已被批量补列迁移加过 nullable `tenant_id`，新装库不再加，写入走系统域故该列留 NULL；4.4 **未过**：`StartBridgeMetricsSink` 全仓零生产调用方（`bridge_metrics` 实测 0 行），且无任何保留期/归档策略 ⇒ 直接接线就是每分钟一批无界写入。接线与保留期需一并决策 |
-| 202 | [ ] | `internal/repository/ab_exposure.go` | `AbExposure` | `ab_exposures` | 1 | U、L |
+| 202 | [~] | `internal/repository/ab_exposure.go` | `AbExposure` | `ab_exposures` | 1 | U、L → **4.4 未过（待决策 批13-#23）**。**4.1 L 越层**：行模型声明在 repository 包（模型应上移 `internal/model`）；service 层配套框架 `service/ab_experiment.go`（T-7 交付物：FNV 分桶 Assign + 异步落库 worker + 转化回填 + 汇总）。**4.2** 全 GORM。**4.3** `tenant_id` 列齐，进 `RegisterExtraModels` 统一迁移。**4.4 整链零生产调用**：`InitABExperiment` 全仓（含 cmd）零调用 ⇒ 全局实例恒 nil；`Assign/LogExposure/MarkConversion/Summaries` 零生产调用（`GetABExperiment` 字样命中全是 prompt.go 的 `GetABExperiments`——prompt 域自己的 A/B，不同实体）；`AbExposureBufferSize` 只被框架自身消费；唯一外部引用是 init 的 `RegisterExtraModels(&AbExposure{})` 建表副作用 + config_param 的缓冲容量参数（也在为死框架供参）。唯一读者是自己的 `ab_experiment_test.go`。**不删原因**：删整链会同时移除建表登记（`ab_exposures` 表生命周期）与 config 参数语义，属 schema/产品决策——「话术/提示词 A/B 曝光追踪」能力是放弃还是接线，见 待决策 批13-#23 |
 | 203 | [x] | `internal/repository/email_account_repo.go` | `EmailAccountRow → model.EmailAccount` | `email_accounts` | 0 → 1（并档） | T、U、L → 已消除。**同一张表两份结构体**：这份"gorm 扫描用"的行结构缺 `tenant_id` 与 `created_at/updated_at`，与 `allModels` 建表描述不一致且漂移不报错；现删除该副本，仓储 `GetByID`/`ListActiveBelowQuota`/`IncDailyUsed` 一律收发 `model.EmailAccount` |
-| 204 | [ ] | `internal/repository/kb_document_chunk_repo.go` | `KBDocumentChunkRow` | `kb_document_chunks` | 1 | U、L |
+| 204 | [~] | `internal/repository/kb_document_chunk_repo.go` | `KBDocumentChunkRow` | `kb_document_chunks` | 1 | U、L → **4.4 未过（待决策 批13-#24）**。**4.1 L 越层**：行模型在 repository 包（文件头自述「service 域内私有 gorm 行模型」历史原因；service 有别名 `KBDocumentChunk = repository.KBDocumentChunkRow`）。**4.2** 全 GORM。**4.3** `tenant_id` 列齐，`RegisterExtraModels` 迁移兜底（此前漏建表已修）。**4.4 整链零生产调用**：`KnowledgeUpdateService`（唯一消费者）全仓零构造——`UpdateDocumentDelta`（差分切片编排：ListActiveByDocument/Create/MarkSuperseded 三口全覆盖）无任何生产调用方、无 router、无 controller；唯一读者是自己的测试。**不删原因**：同 #202——删整链连带移除 `RegisterExtraModels` 建表登记与 service 别名，属 schema/产品决策（知识库「文档增量切片更新」能力是放弃还是接线到 KB 文档写入流，见 待决策 批13-#24）|
 | 205 | [x] | `internal/model/email_account.go`（原 `internal/service/email.go`） | `EmailAccount` | `email_accounts` | 1 | U、L → 已消除。4.1 模型搬进 `internal/model`（原在 service 包、靠 `init()` 的 `RegisterExtraModels` 绕 import 环登记）⇒ 正常进 `allModels()`，`RegisterExtraModels` 与 `emailAccountFromRow` 逐字段拷贝一并删除（那份拷贝是两份结构体漂移的放大器）；4.2 全 GORM；4.3 有 `tenant_id` 列+索引，`TestExtraModelsRegisteredAndTenantScoped` 的 `email_accounts` 条目随迁移移除（该用例转为守护剩余四个外挂模型）；4.4 写入路径在生产（`EmailService.Send` 7 处调用点 + 配额计数）|
 | 206 | [x] | `internal/model/kb_item_binding.go`（本清单生成后新增的表，2026-10-23 补审） | `KBItemBinding` | `kb_item_bindings` | 1 | N → 四关全过并修掉三处：**4.1** 新域的 service 直接持有 `*gorm.DB` 并自行发查询（`itemExists` 三表存在性 + 标题反查 `Scan`），把「内容存在」与「标题列名映射」收进仓储（`ItemExists`/`TitlesByIDs`/`CountEffectiveByKB`），service 现只依赖 repo 与 `KnowledgeBaseService`，`NewKBItemBindingService` 的 `*gorm.DB` 形参随之消失；**4.3** controller 的 `tenantID()` 在 ctx 缺租户时回落**默认租户 1**（正是审计 §三.6「记下了但没用来判定」的同族 fail-open），改为 `tenant.FromContext` 单一来源 + 缺绑定 401 fail-closed，与隔离 callback 取同一处租户；**4.4** `DeleteBindingsForItem`（内容删除时清绑定）全仓零生产调用方（唯一调用方是验收用例自己），按「无引用即删」摘除，改为**读侧一致性修复**：多态 `item_id` 无外键 ⇒ `ListItems` 每页按类型三次 `IN` 回查标题，查不到即内容已删，就地硬删绑定行并从 `total` 扣除，`CountByKB` 同步改走 `CountEffectiveByKB`（只计内容仍存在的绑定，三类型子查询封顶三次），幽灵绑定不再撑大 `item_count`；顺带把 `Bind` 换成 `BindMany`（先整体校验 KB 归属与每条内容存在，再写入，避免「前半批绑上、后半批报错」的半成品响应），错误语义从一律 500 改为 `ErrKBNotFound`/`ErrItemNotFound` ⇒ 404、其余 ⇒ 500。回归：`kb_item_binding_acceptance_test.go` 的④由「手工调 DeleteBindingsForItem」改为断言读侧清理与 `item_count` 回落，新增 `TestKBItemBinding_BindManyAllOrNothing`（2 例） |
 
@@ -806,3 +806,26 @@ U 标记的反向核对：这些模型注册进建表清单，但 `TableName()` 
 | # | 遗留项 | 需决策的原因 |
 |---|---|---|
 | 1 | RunTest+executeTest 假压测整链 | 三选一：**(a) 整链删**（controller RunTest + service RunTest/executeTest + percentile/average + performance_test_results 表——「性能测试」能力放弃，读端点与表一并清）；**(b) 接真**（换成真实 HTTP 压测实现，如 resty 并发打点——需安全评估：谁有权对任意的 targetURL 发起压测本身就是 SSRF 风险）；**(c) 只删假实现保留表**（结果表清空归档）。(b) 的 SSRF 面必须先过安全评审 |
+### 批13-#23 AbExposure（T-7 A/B 曝光框架）整链零接线（2026-10-24）
+
+**证据链**：
+
+- 框架完整：`service/ab_experiment.go`（FNV 稳定分桶 Assign、异步落库 worker + 缓冲丢弃计数、MarkConversion 首次转化回填、Summaries 窗口汇总、幂等 Stop）+ `repository/ab_exposure.go`（Create/MarkConversion/ListSince）。
+- 接线为零：`InitABExperiment` 全仓零调用（main 装配阶段从未调用）⇒ 全局实例恒 nil；框架方法零生产调用。config_param 的 `ab_exposure_buffer` 参数只为死框架供参。
+- 表副作用活着：init `RegisterExtraModels(&AbExposure{})` —— 每个新部署都会建 `ab_exposures` 表，然后永远 0 行。
+
+| # | 遗留项 | 需决策的原因 |
+|---|---|---|
+| 1 | T-7 曝光追踪框架 + ab_exposures 表 | 二选一：**(a) 整链删**（service 框架 + repo + 表登记 + config 参数——曝光追踪能力放弃；注意 prompt 域另有自己的 A/B（prompt.go GetABExperiments），与本链无关不受影响）；**(b) 接线**（在话术/提示词投递路径调用 Assign + LogExposure、转化回填接订单/会话闭环——T-7 设计文档有完整方案）。删除牵动 RegisterExtraModels 登记与 config 参数语义 |
+
+### 批13-#24 KnowledgeUpdateService（文档增量切片）整链零接线（2026-10-24）
+
+**证据链**：
+
+- 实现完整：`service/knowledge_update.go` UpdateDocumentDelta（内容 hash 差分 → 新增 active 切片 / 旧切片标 superseded）+ `repository/kb_document_chunk_repo.go`（ListActiveByDocument/Create/MarkSuperseded）。
+- 接线为零：KnowledgeUpdateService 全仓零构造；无 router、无 controller。
+- 表副作用活着：repo init `RegisterExtraModels(&KBDocumentChunkRow{})`（此前漏建表的修复仍值得保留——若能力保留）。
+
+| # | 遗留项 | 需决策的原因 |
+|---|---|---|
+| 1 | 文档增量切片能力 + kb_document_chunks 表 | 二选一：**(a) 整链删**（service+repo+表登记——增量切片能力放弃，KB 文档维持全量重建）；**(b) 接线**（挂到 KB 文档写入/更新流，或作为 RAG 评测链路的预处理步骤）。RAG 检索若未来需要 chunk 级索引，此实现是现成的 |

@@ -289,4 +289,7 @@ func RegisterMigrations(registry *migration.MigrationRegistry, db *gorm.DB) {
 	// llm_routing_logs / platform_llm_usage_records 补 channel、error_class 列 +
 	// 存量失败行 error_class 回填 unknown
 	register(NewLLMUsageDailyMigration(db))
+	// v3.83.1（T1 低置信度回流）：unknown_questions 三表（沉淀/聚类/审核流水，均带 tenant_id）
+	// + pg_trgm 扩展与 question GIN trigram 索引（相似归簇）
+	register(NewUnknownQuestionRefluxMigration(db))
 }

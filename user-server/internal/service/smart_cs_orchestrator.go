@@ -22,6 +22,7 @@ import (
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
 	confidencesvc "hivemtk-user/internal/service/confidence"
+	"hivemtk-user/internal/service/reflux"
 )
 
 const faqPromptVersion = "v1"
@@ -45,6 +46,9 @@ type SmartCSOrchestrator struct {
 	maxAIConsecutive    int
 
 	confidenceAgg *confidencesvc.ConfidenceAggregator
+
+	// refluxCollector 低置信问题回流收集器（T1，可注入可 nil；nil = 关闭，零开销）。
+	refluxCollector reflux.RefluxEmitter
 
 	faqCache    *ragcache.FAQAnswerCacheService
 	faqEmbedder llm.EmbeddingServiceInterface
@@ -93,6 +97,11 @@ func (o *SmartCSOrchestrator) SetSuggestionRepo(repo *repository.AISuggestionRep
 }
 
 // SetConfidenceAggregator 注入五信号置信度聚合器（D01；factory 层从 engine 取同实例）
+// SetRefluxCollector 注入低置信问题回流收集器（T1；nil 关闭）
+func (o *SmartCSOrchestrator) SetRefluxCollector(c reflux.RefluxEmitter) {
+	o.refluxCollector = c
+}
+
 func (o *SmartCSOrchestrator) SetConfidenceAggregator(agg *confidencesvc.ConfidenceAggregator) {
 	o.confidenceAgg = agg
 }
@@ -1220,6 +1229,17 @@ func (o *SmartCSOrchestrator) extractConfidenceWithTopK(ctx context.Context, res
 			in.RawIntentConf = resp.Intent.Confidence
 		}
 		if dec, err := o.confidenceAgg.Aggregate(ctx, in); err == nil && dec != nil {
+			// T1 低置信回流：handoff/fallback 带沉淀为 unknown_question（异步非阻塞，nil 关闭）
+			if o.refluxCollector != nil && (dec.DecisionBand == "handoff" || dec.DecisionBand == "fallback") {
+				o.refluxCollector.Emit(reflux.Event{
+					Question:     in.Text,
+					Source:       model.UQSourceLowConfidence,
+					SessionID:    in.SessionID,
+					CustomerID:   in.CustomerID,
+					IntentType:   in.IntentType,
+					LowConfScore: dec.AggregatedConf,
+				})
+			}
 			return dec.AggregatedConf, dec
 		} else if err != nil {
 			logger.Ctx(ctx).Warn().Err(err).Msg("[Orchestrator] confidence aggregate failed, fallback to heuristic")

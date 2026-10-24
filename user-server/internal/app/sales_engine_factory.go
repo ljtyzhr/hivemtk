@@ -2,6 +2,7 @@ package app
 
 import (
 	"context"
+	"os"
 
 	"hivemtk-user/internal/aiagent/agent/tooluse"
 	knowledgesvc "hivemtk-user/internal/aiagent/knowledge/service"
@@ -12,6 +13,7 @@ import (
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/repository"
 	"hivemtk-user/internal/service"
+	"hivemtk-user/internal/service/reflux"
 	"hivemtk-user/internal/service/translation"
 
 	"gorm.io/gorm"
@@ -138,6 +140,13 @@ func BuildSmartOrchestrator(engine *service.SalesEngine, kbRepo *repository.Know
 	o.SetConfidenceAggregator(engine.ConfidenceAggregator())
 
 	if gormDB != nil {
+		// T1 低置信回流：异步收集器（有界队列 + 灰度开关 REFLUX_ENABLED，默认关）。
+		// 归簇器随装配注入；采集失败只记日志，绝不影响问答主链路。
+		refluxEnabled := os.Getenv("REFLUX_ENABLED") == "true"
+		collector := reflux.NewCollector(gormDB, 512, refluxEnabled)
+		collector.SetClusterer(reflux.NewClusterer(gormDB))
+		o.SetRefluxCollector(collector)
+
 		dncRepo := repository.NewCustomerDoNotContactRepository(gormDB)
 		dncSvc := service.NewDoNotContactService(dncRepo)
 		o.SetDNCChecker(dncSvc)

@@ -2,6 +2,7 @@ package router
 
 import (
 	"context"
+	"fmt"
 	"os"
 	"time"
 
@@ -10,7 +11,9 @@ import (
 	"hivemtk-user/internal/middleware"
 	opsctrl "hivemtk-user/internal/ops/controller"
 	"hivemtk-user/internal/repository"
+	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/service"
+	"hivemtk-user/internal/service/reflux"
 	"hivemtk-user/internal/service/translation"
 	"hivemtk-user/internal/websocket"
 
@@ -352,6 +355,27 @@ func setupSOPRoutes(auth *gin.RouterGroup, db *gorm.DB) {
 
 	faqCtrl := controller.NewFAQController()
 	faqCtrl.RegisterRoutes(auth)
+
+	// T1 低置信度回流：unknown-questions 运营读写口（docs/architecture/design/T1-confidence-reflux.md）
+	refluxSvc := reflux.NewRefluxService(db)
+	refluxSvc.SetFAQCreate(func(ctx context.Context, req reflux.FAQCreateReq) (uint, error) {
+		// 复用 FAQService.Create（Layer1 关键词索引维护一致）；agent 强绑定语义照旧
+		agentID := req.AgentID
+		if agentID == 0 {
+			return 0, fmt.Errorf("agent_id 必填 (Task 15 强 1对1)")
+		}
+		enabled := true
+		entry := &model.FAQEntry{
+			Question: req.Question, Answer: req.Answer,
+			Keywords: req.Keywords, Category: req.Category,
+			AgentID: &agentID, Intent: req.Intent, Enabled: &enabled,
+		}
+		if err := service.NewFAQServiceDefault().Create(ctx, entry); err != nil {
+			return 0, err
+		}
+		return entry.ID, nil
+	})
+	controller.NewUnknownQuestionController(refluxSvc).RegisterRoutes(auth)
 
 	sopTplCtrl := controller.NewSOPTemplateController()
 	sopTplCtrl.RegisterRoutes(auth)

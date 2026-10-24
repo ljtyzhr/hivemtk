@@ -88,17 +88,11 @@ func (m *LLMUsageDailyMigration) Up(ctx context.Context) error {
 }
 
 func (m *LLMUsageDailyMigration) Down(ctx context.Context) error {
-	// Down 只删本迁移新建的形状，回填数据不还原（无源可还原）
-	if err := m.db.WithContext(ctx).Exec(`DROP INDEX IF EXISTS uk_llm_usage_daily_dims`).Error; err != nil {
-		return err
-	}
-	if err := m.db.WithContext(ctx).Exec(`DROP INDEX IF EXISTS idx_llm_usage_daily_tenant_date`).Error; err != nil {
-		return err
-	}
-	if err := m.db.WithContext(ctx).Exec(`DROP INDEX IF EXISTS idx_llm_usage_daily_model`).Error; err != nil {
-		return err
-	}
-	return m.db.WithContext(ctx).Migrator().DropTable("llm_usage_daily")
+	// Down 只删本迁移显式创建的复合唯一索引。表与 idx_llm_usage_daily_tenant_date /
+	// idx_llm_usage_daily_model 由模型声明 + AutoMigrate 持有（全链路回滚测试的归属
+	// 判据：Down 不得删模型在用对象），故此处不 DropTable、不删那两个索引。
+	// error_class 回填数据不还原（无源可还原）。
+	return m.db.WithContext(ctx).Exec(`DROP INDEX IF EXISTS uk_llm_usage_daily_dims`).Error
 }
 
 // modelLLMUsageDaily 迁移侧最小模型（与 model.LLMUsageDaily 同形状，避免循环依赖）。

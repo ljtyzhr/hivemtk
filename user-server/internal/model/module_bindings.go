@@ -210,6 +210,8 @@ var ModuleMenuBindings = map[string][]string{
 		// 「未绑定 ⇒ 永远放行」分支 —— 模块闸对它完全失效。
 		"bridgeExtension",
 		"operationLog", "securityAudit",
+		// AI 观测与渠道健康：admin 只读看板，与 systemMonitor/systemTrace 同族，归 core
+		"observabilityDashboard",
 		// 备份
 		"backupList", "backupEnhanced",
 		// 客服 Web Widget 渠道（embed-sdk 在客户网站上的凭据来源，见文件头原则 1）

@@ -60,7 +60,7 @@ var coreOwnedTables = []string{
 	"tenants", "tenant_modules", "module_sync_logs", "module_orders",
 	"tenant_subscription_mirror",
 	"llm_providers", "llm_routing_rules", "llm_routing_logs", "llm_usage_records",
-	"trace_events",
+	"llm_usage_daily", "trace_events",
 	// 升级 / 迁移 / 运维
 	"upgrade_tasks", "migration_checkpoints", "migration_records",
 	"backups", "restore_records", "system_metrics", "visit_logs",
@@ -98,6 +98,8 @@ var knowledgeOwnedTables = []string{
 	"kb_releases", "kb_change_audit_logs", "kb_change_requests",
 	"external_kb_connectors", "external_kb_sync_items", "external_import_jobs",
 	"faq_entries", "rag_products", "rag_metrics_daily", "rag_query_logs",
+	// T1 低置信回流三表：写回 faq_entries，归 knowledge 模块（随知识库开关）
+	"unknown_questions", "unknown_question_clusters", "unknown_question_review_logs",
 	"rag_eval_runs", "rag_eval_questions", "rag_recall_monitor_snapshots",
 	"rag_answer_cache",
 	// kb_item_bindings：知识库成员表（P0-2/P0-3/D-8 方案 A），
