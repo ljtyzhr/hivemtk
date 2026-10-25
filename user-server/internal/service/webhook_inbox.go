@@ -5,11 +5,11 @@ import (
 
 	"errors"
 
-	"strings"
-
 	"time"
 
 	"hivemtk-user/internal/model"
+
+	"hivemtk-user/internal/repository"
 )
 
 func (s *WebhookService) upsertInboxFromHub(ctx context.Context, hub *model.MessageHub, customerName string) {
@@ -47,7 +47,7 @@ func (s *WebhookService) dispatchToUnified(ctx context.Context, um *model.Unifie
 
 	if err := s.unifiedMsgRepo.Create(ctx, um); err != nil {
 
-		if strings.Contains(err.Error(), "UNIQUE") || strings.Contains(err.Error(), "duplicate") {
+		if repository.IsDuplicateKeyErr(err) {
 			return nil
 		}
 		return err

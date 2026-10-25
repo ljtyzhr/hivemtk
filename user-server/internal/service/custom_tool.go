@@ -10,16 +10,21 @@ import (
 
 	"hivemtk-user/internal/aiagent/agent/tooluse"
 	"hivemtk-user/internal/model"
-	dbpkg "hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/pkg/dbencrypt"
 	"hivemtk-user/internal/pkg/utils/logger"
+	"hivemtk-user/internal/repository"
 )
 
 // CustomToolService OpenAPI 自定义工具服务。
-type CustomToolService struct{}
+// 2026-10-25：DB 访问下沉 repository（L3 铁律，P1-2 收口）。
+type CustomToolService struct {
+	repo *repository.CustomToolRepository
+}
 
 // NewCustomToolService 构造。
-func NewCustomToolService() *CustomToolService { return &CustomToolService{} }
+func NewCustomToolService() *CustomToolService {
+	return &CustomToolService{repo: repository.NewCustomToolRepository()}
+}
 
 // ImportInput 导入请求。
 type ImportInput struct {
@@ -51,9 +56,7 @@ func (s *CustomToolService) Import(ctx context.Context, in ImportInput) (int, *m
 	}
 
 	// 去重
-	var existing model.CustomTool
-	err = dbpkg.GetDB().WithContext(ctx).Where("name = ?", in.Name).First(&existing).Error
-	if err == nil {
+	if _, err := s.repo.FindByName(ctx, in.Name); err == nil {
 		return 0, nil, fmt.Errorf("工具集 %q 已存在，请先删除再导入", in.Name)
 	}
 
@@ -65,7 +68,7 @@ func (s *CustomToolService) Import(ctx context.Context, in ImportInput) (int, *m
 	if in.AuthValue != "" {
 		rec.AuthValueEnc = dbencrypt.Encrypt(in.AuthValue)
 	}
-	if err := dbpkg.GetDB().WithContext(ctx).Create(rec).Error; err != nil {
+	if err := s.repo.Create(ctx, rec); err != nil {
 		return 0, nil, fmt.Errorf("落库失败: %w", err)
 	}
 
@@ -82,7 +85,7 @@ func (s *CustomToolService) Import(ctx context.Context, in ImportInput) (int, *m
 		}
 	}
 	n := countOps(in.SchemaJSON)
-	dbpkg.GetDB().WithContext(ctx).Model(rec).Update("tool_count", n)
+	_ = s.repo.UpdateToolCount(ctx, rec.ID, n)
 	rec.ToolCount = n
 	logger.Ctx(ctx).Info().Str("name", in.Name).Int("tools", n).Msg("[custom-tool] OpenAPI 工具集已导入并注册")
 	return n, rec, nil
@@ -91,20 +94,14 @@ func (s *CustomToolService) Import(ctx context.Context, in ImportInput) (int, *m
 // List 导入记录列表（不含凭据明文/密文）。
 // 隔离由 tenancyidx 全局 callback 负责（见 mcp_client_service.List 同注），不手写过滤。
 func (s *CustomToolService) List(ctx context.Context) ([]*model.CustomTool, error) {
-	var out []*model.CustomTool
-	err := dbpkg.GetDB().WithContext(ctx).Order("id DESC").Find(&out).Error
-	return out, err
+	return s.repo.List(ctx)
 }
 
 // Delete 删除记录。已注册工具的卸载交给重启装配（tooluse.UnregisterProvider
 // 注释口径：注销 Provider 不删除已注册工具，同步清理由调用方处理；重启后
 // auto_register 列表已无此项，自然收敛）。
 func (s *CustomToolService) Delete(ctx context.Context, id uint) error {
-	var rec model.CustomTool
-	if err := dbpkg.GetDB().WithContext(ctx).First(&rec, id).Error; err != nil {
-		return err
-	}
-	return dbpkg.GetDB().WithContext(ctx).Delete(&model.CustomTool{}, id).Error
+	return s.repo.Delete(ctx, id)
 }
 
 // countOps 统计 schema 中的操作数（ToolCount 展示用）。

@@ -17,6 +17,9 @@ import (
 	"gorm.io/gorm"
 )
 
+// flagOrTrue 三态布尔测试辅助：nil = 默认启用（model 层方法删除后测试内联判定）。
+func flagOrTrue(v *bool) bool { return v == nil || *v }
+
 const (
 	aaTenantA = uint(101)
 	aaTenantB = uint(102)
@@ -148,7 +151,7 @@ func TestAIAgentRepository_UpdateWritesZeroValuesTenantScoped(t *testing.T) {
 	if got.Name != "renamed" {
 		t.Errorf("名称未落库: %s", got.Name)
 	}
-	if got.RAGEnabled() {
+	if flagOrTrue(got.EnableRAG) {
 		t.Error("零值字段未写入：EnableRAG 应为 false")
 	}
 	if got.MaxAIConsecutive != 7 {
@@ -192,9 +195,9 @@ func TestAIAgentRepository_CreatePersistsExplicitFalseFlags(t *testing.T) {
 	if err != nil {
 		t.Fatalf("回读失败: %v", err)
 	}
-	if got.RAGEnabled() || got.ScriptMatchEnabled() || got.HumanizePolishEnabled() || got.PlaybookEnabled() {
+	if flagOrTrue(got.EnableRAG) || flagOrTrue(got.EnableScriptMatch) || flagOrTrue(got.EnableHumanizePolish) || flagOrTrue(got.EnablePlaybook) {
 		t.Errorf("显式 false 被默认值覆盖：rag=%v script=%v polish=%v playbook=%v",
-			got.RAGEnabled(), got.ScriptMatchEnabled(), got.HumanizePolishEnabled(), got.PlaybookEnabled())
+			flagOrTrue(got.EnableRAG), flagOrTrue(got.EnableScriptMatch), flagOrTrue(got.EnableHumanizePolish), flagOrTrue(got.EnablePlaybook))
 	}
 
 	// nil = 未传 → DB 默认 true，且 GORM 把真值回填进结构体。
@@ -206,9 +209,9 @@ func TestAIAgentRepository_CreatePersistsExplicitFalseFlags(t *testing.T) {
 	if err != nil {
 		t.Fatalf("回读默认值行失败: %v", err)
 	}
-	if !gotImplicit.RAGEnabled() || !gotImplicit.PlaybookEnabled() {
+	if !flagOrTrue(gotImplicit.EnableRAG) || !flagOrTrue(gotImplicit.EnablePlaybook) {
 		t.Errorf("未传开关时应落默认 true：rag=%v playbook=%v",
-			gotImplicit.RAGEnabled(), gotImplicit.PlaybookEnabled())
+			flagOrTrue(gotImplicit.EnableRAG), flagOrTrue(gotImplicit.EnablePlaybook))
 	}
 }
 
@@ -224,7 +227,7 @@ func TestAIAgentRepository_UpdateNilFlagsKeepExisting(t *testing.T) {
 	if err != nil {
 		t.Fatalf("读取失败: %v", err)
 	}
-	if !loaded.RAGEnabled() {
+	if !flagOrTrue(loaded.EnableRAG) {
 		t.Fatal("预置行应默认启用 RAG")
 	}
 	loaded.Name = "renamed-keep"
@@ -243,7 +246,7 @@ func TestAIAgentRepository_UpdateNilFlagsKeepExisting(t *testing.T) {
 	if got.EnableRAG == nil {
 		t.Fatal("nil 开关被写成了 NULL：后续读取无法区分「未传」与「显式 false」")
 	}
-	if !got.RAGEnabled() {
+	if !flagOrTrue(got.EnableRAG) {
 		t.Error("nil 开关应保留原值 true，却被改写为 false")
 	}
 }

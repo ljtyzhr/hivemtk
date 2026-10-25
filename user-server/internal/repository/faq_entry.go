@@ -7,7 +7,6 @@ import (
 	"time"
 	"unicode/utf8"
 
-	"hivemtk-user/internal/dto"
 	"hivemtk-user/internal/model"
 
 	"gorm.io/gorm"
@@ -173,7 +172,7 @@ func (r *FAQRepository) scoreAndRank(all []model.FAQEntry, msg string, topK int)
 // FAQScoredEntry 打分结果带显式匹配方式：泛词兜底命中不得作为高置信引用展示。
 type FAQScoredEntry struct {
 	Entry     model.FAQEntry
-	MatchType string  // dto.FAQMatchExact / FAQMatchToken / FAQMatchKeywordFallback
+	MatchType string  // model.FAQMatchExact / FAQMatchToken / FAQMatchKeywordFallback
 	Score     float64 // 排序分（与 Confidence 透传值同源）
 }
 
@@ -238,11 +237,11 @@ func (r *FAQRepository) scoreAndRanked(all []model.FAQEntry, msg string, topK in
 		}
 		// 匹配方式显式化：精确层=exact；词元层里配了关键词且共用词元的按 token；
 		// 无关键词条目的问法词元重合视为泛化兜底（keyword_fallback），引用侧按分数过滤。
-		matchType := dto.FAQMatchExact
+		matchType := model.FAQMatchExact
 		if level == faqMatchLevelToken {
-			matchType = dto.FAQMatchToken
+			matchType = model.FAQMatchToken
 			if len(e.Keywords) == 0 {
-				matchType = dto.FAQMatchKeywordFallback
+				matchType = model.FAQMatchKeywordFallback
 			}
 		}
 		results = append(results, scored{entry: e, score: score, level: level, matchType: matchType})

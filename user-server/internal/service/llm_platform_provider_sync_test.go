@@ -7,9 +7,19 @@ import (
 
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/pkg/tenant"
+	"hivemtk-user/internal/repository"
+
+	"gorm.io/gorm"
 	"hivemtk-user/internal/pkg/testutil"
 	"hivemtk-user/internal/platform"
 )
+
+// savePlatformProvidersViaRepo 仓储化后的等价入口：映射留 service，落库走
+// PlatformLLMUsageRepository（savePlatformProviders 已按 L3 铁律下沉删除）。
+func savePlatformProvidersViaRepo(db *gorm.DB, rows []platform.PlatformLLMProvider) (int, error) {
+	sysCtx := tenant.WithSystemScope(context.Background())
+	return repository.NewPlatformLLMUsageRepositoryWithDB(db).UpsertProviders(sysCtx, platformProviderRowsToModels(rows))
+}
 
 // 回归钉死 TENANT_MODE=on 时「平台 provider 同步」落库被隔离 fail-closed 拦截的缺陷
 // （生产日志实证，2026-10-22）：
@@ -37,7 +47,7 @@ func TestSavePlatformProviders_OnModeWithoutTenantCtx(t *testing.T) {
 	}
 
 	// 装配层写库（system scope）必须成功
-	n, err := savePlatformProviders(database, []platform.PlatformLLMProvider{
+	n, err := savePlatformProvidersViaRepo(database, []platform.PlatformLLMProvider{
 		{ProviderName: "platform-sensenova", DisplayName: "SenseNova（平台垫资）",
 			Model: "deepseek-v4-flash", APIType: "openai", Vendor: "sensenova", PlanCode: "starter"},
 	})
@@ -128,12 +138,12 @@ func TestSavePlatformProviders_OnConflictTargetMatchesIndex(t *testing.T) {
 		ProviderName: "platform-conflict-probe", DisplayName: "冲突目标探针",
 		Model: "m", APIType: "openai",
 	}
-	if _, err := savePlatformProviders(database, []platform.PlatformLLMProvider{row}); err != nil {
+	if _, err := savePlatformProvidersViaRepo(database, []platform.PlatformLLMProvider{row}); err != nil {
 		t.Fatalf("首次落库失败: %v", err)
 	}
 	// 第二次：走冲突分支（DO UPDATE）。冲突目标不匹配索引时这里会报 42P10。
 	row.DisplayName = "改名了"
-	if _, err := savePlatformProviders(database, []platform.PlatformLLMProvider{row}); err != nil {
+	if _, err := savePlatformProvidersViaRepo(database, []platform.PlatformLLMProvider{row}); err != nil {
 		t.Fatalf("冲突分支失败（ON CONFLICT 目标与实际索引形状不匹配）: %v", err)
 	}
 
@@ -177,7 +187,7 @@ func TestSavePlatformProviders_KeepsMerchantAPIKey(t *testing.T) {
 	}
 
 	// 平台下发同名 provider（不含 Key）
-	if _, err := savePlatformProviders(database, []platform.PlatformLLMProvider{
+	if _, err := savePlatformProvidersViaRepo(database, []platform.PlatformLLMProvider{
 		{ProviderName: "merchant-own", Model: "platform-model", APIType: "openai"},
 	}); err != nil {
 		t.Fatalf("同步失败: %v", err)

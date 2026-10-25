@@ -715,10 +715,10 @@ func validateOpportunityRow(row *model.Opportunity) error {
 		return fmt.Errorf("%w: 状态 %q", ErrOpportunityStateInvalid, row.Status)
 	}
 	if err := validateOpportunityAmount(row.Amount); err != nil {
-		return fmt.Errorf("%w（现值）: %v", ErrOpportunityStateInvalid, err)
+		return fmt.Errorf("%w（现值）: %w", ErrOpportunityStateInvalid, err)
 	}
 	if err := validateOpportunityCurrency(row.Currency); err != nil {
-		return fmt.Errorf("%w（现值）: %v", ErrOpportunityStateInvalid, err)
+		return fmt.Errorf("%w（现值）: %w", ErrOpportunityStateInvalid, err)
 	}
 	if row.WinProbability < 0 || row.WinProbability > model.OpportunityWinProbabilityMax {
 		return fmt.Errorf("%w: 赢率 %v 越出 0–1", ErrOpportunityStateInvalid, row.WinProbability)

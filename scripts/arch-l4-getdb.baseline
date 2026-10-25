@@ -25,7 +25,6 @@ user-server/internal/service/objection_handler.go	1	存量：service 直接取 D
 user-server/internal/service/openapi.go	2	存量：service 直接取 DB 句柄，收口需改构造注入（R22 登记，勿新增）
 user-server/internal/service/r44_gap_services.go	4	存量：service 直接取 DB 句柄，收口需改构造注入（R22 登记，勿新增）
 user-server/internal/service/rag_product.go	1	存量：service 直接取 DB 句柄，收口需改构造注入（R22 登记，勿新增）
-user-server/internal/service/rag_metrics.go	2	存量：租户 ctx 扫描批次直取句柄，收口需改构造注入（2026-10-20 复登记）
 user-server/internal/service/sales_persona.go	2	存量：service 直接取 DB 句柄，收口需改构造注入（R22 登记，勿新增）
 user-server/internal/service/security_audit.go	1	存量：service 直接取 DB 句柄，收口需改构造注入（R22 登记，勿新增）
 user-server/internal/service/sop_template.go	1	存量：service 直接取 DB 句柄，收口需改构造注入（R22 登记，勿新增）

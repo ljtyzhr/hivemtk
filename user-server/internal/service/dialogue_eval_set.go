@@ -13,7 +13,6 @@ import (
 
 	"hivemtk-user/internal/aiagent/eval"
 	"hivemtk-user/internal/model"
-	dbpkg "hivemtk-user/internal/pkg/db"
 )
 
 // ImportEvalSetCSV 解析 CSV 并落一行 dialogue_eval_sets。
@@ -34,7 +33,7 @@ func (s *DialogueEvalService) ImportEvalSetCSV(ctx context.Context, name, csvTex
 		name = "imported_eval_set"
 	}
 	set := &model.DialogueEvalSet{Name: name, SampleCount: len(samples), Payload: string(payload)}
-	if err := dbpkg.GetDB().WithContext(ctx).Create(set).Error; err != nil {
+	if err := s.repo.CreateSet(ctx, set); err != nil {
 		return nil, fmt.Errorf("落库失败: %w", err)
 	}
 	return set, nil
@@ -45,17 +44,13 @@ func (s *DialogueEvalService) ListEvalSets(ctx context.Context, limit int) ([]mo
 	if limit <= 0 || limit > 200 {
 		limit = 20
 	}
-	var sets []model.DialogueEvalSet
-	err := dbpkg.GetDB().WithContext(ctx).
-		Omit("payload").
-		Order("id DESC").Limit(limit).Find(&sets).Error
-	return sets, err
+	return s.repo.ListSets(ctx, limit)
 }
 
 // ExportEvalSetCSV 按规范形导出该评测集，返回 CSV 文本。
 func (s *DialogueEvalService) ExportEvalSetCSV(ctx context.Context, id uint) (string, *model.DialogueEvalSet, error) {
-	var set model.DialogueEvalSet
-	if err := dbpkg.GetDB().WithContext(ctx).First(&set, id).Error; err != nil {
+	set, err := s.repo.GetSet(ctx, id)
+	if err != nil {
 		return "", nil, fmt.Errorf("评测集不存在")
 	}
 	var samples []eval.DialogueSample
@@ -66,13 +61,13 @@ func (s *DialogueEvalService) ExportEvalSetCSV(ctx context.Context, id uint) (st
 	if err := eval.ExportDialogueCSV(&buf, samples); err != nil {
 		return "", nil, err
 	}
-	return buf.String(), &set, nil
+	return buf.String(), set, nil
 }
 
 // loadEvalSetSamples 读回导入集的样本（RunGoldEvaluation 的 evalSetID 入口）。
 func (s *DialogueEvalService) loadEvalSetSamples(ctx context.Context, id uint) ([]eval.DialogueSample, error) {
-	var set model.DialogueEvalSet
-	if err := dbpkg.GetDB().WithContext(ctx).First(&set, id).Error; err != nil {
+	set, err := s.repo.GetSet(ctx, id)
+	if err != nil {
 		return nil, fmt.Errorf("评测集 %d 不存在", id)
 	}
 	var samples []eval.DialogueSample

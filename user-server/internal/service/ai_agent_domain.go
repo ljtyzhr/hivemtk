@@ -16,6 +16,16 @@ func boolDefaultTrue(v *bool) *bool {
 	return &b
 }
 
+// boolOrDefaultTrue 三态布尔落到「默认启用」开关：nil（未传）= true。
+// 2026-10-25：model 层三态布尔方法（RAGEnabled/Primary 等）按架构铁律删除后，
+// 默认值判定收敛到 service 层这一处。
+func boolOrDefaultTrue(v *bool) bool {
+	if v == nil {
+		return true
+	}
+	return *v
+}
+
 // boolOrDefaultFalse 三态布尔落到「默认关闭」开关：nil（未传）= false。
 func boolOrDefaultFalse(v *bool) bool {
 	return v != nil && *v

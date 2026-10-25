@@ -64,3 +64,14 @@ type FAQEntry struct {
 
 // TableName GORM 表名
 func (FAQEntry) TableName() string { return "faq_entries" }
+
+// FAQ 匹配方式常量（2026-10-25 自 dto/faq_citation.go 下沉：repository 不得引用 dto，
+// 架构文档 L5；dto 侧同名常量与其保持同值，收敛后由 dto 别名引用）。
+const (
+	// FAQMatchExact 问题串/关键词原样命中（强证据，可作高置信引用）
+	FAQMatchExact = "exact"
+	// FAQMatchToken 词元命中（兜底）
+	FAQMatchToken = "token"
+	// FAQMatchKeywordFallback 泛词兜底命中（前端折叠展示，低分直接丢弃）
+	FAQMatchKeywordFallback = "keyword_fallback"
+)

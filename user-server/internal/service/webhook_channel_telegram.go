@@ -17,6 +17,8 @@ import (
 
 	"hivemtk-user/internal/model"
 
+	"hivemtk-user/internal/repository"
+
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/logger"
 
@@ -170,7 +172,7 @@ func (s *WebhookService) dispatchTelegram(ctx context.Context, accountID string,
 				GroupID:        chatIDStr,
 			}
 			if err := s.messageHubRepo.Create(ctx, hub); err != nil {
-				if !strings.Contains(err.Error(), "UNIQUE") && !strings.Contains(err.Error(), "duplicate") {
+				if !repository.IsDuplicateKeyErr(err) {
 					return nil, nil, err
 				}
 			}
@@ -213,7 +215,7 @@ func (s *WebhookService) dispatchTelegram(ctx context.Context, accountID string,
 			GroupID:        chatIDStr,
 		}
 		if err := s.messageHubRepo.Create(ctx, hub); err != nil {
-			if !strings.Contains(err.Error(), "UNIQUE") && !strings.Contains(err.Error(), "duplicate") {
+			if !repository.IsDuplicateKeyErr(err) {
 				return nil, nil, err
 			}
 		}

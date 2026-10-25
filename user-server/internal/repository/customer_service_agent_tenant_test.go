@@ -91,10 +91,10 @@ func TestCustomerServiceAgentExplicitFalsePersists(t *testing.T) {
 	if err := db.WithContext(ctxA).First(&got, row.ID).Error; err != nil {
 		t.Fatalf("回读失败: %v", err)
 	}
-	if got.Primary() {
+	if flagOrTrue(got.IsPrimary) {
 		t.Error("is_primary 显式 false 被 DB 默认值覆盖成 true：辅助挂载会变成主挂载")
 	}
-	if got.IsActive() {
+	if flagOrTrue(got.Enabled) {
 		t.Error("enabled 显式 false 被 DB 默认值覆盖成 true：停用挂载会直接生效")
 	}
 }

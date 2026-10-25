@@ -638,7 +638,7 @@ func (s *QuoteService) loadTemplate(ctx context.Context, code string) (quoteTemp
 	}
 	var tpl quoteTemplate
 	if err := json.Unmarshal([]byte(raw), &tpl); err != nil {
-		return quoteTemplate{}, fmt.Errorf("%w: %s 不是合法 JSON（%v）", ErrQuoteTemplateInvalid, key, err)
+		return quoteTemplate{}, fmt.Errorf("%w: %s 不是合法 JSON（%w）", ErrQuoteTemplateInvalid, key, err)
 	}
 	return tpl, s.validateTemplate(key, tpl)
 }
@@ -664,7 +664,7 @@ func (s *QuoteService) validateTemplate(key string, tpl quoteTemplate) error {
 		// 同一品项**允许**出现两次（一个 SKU 两种数量是真实价目表），所以这里不查重；
 		// 代价是覆盖项按 product_id 命中时只能有确定答案 —— 取第一条，见 mergeQuoteLines。
 		if err := checkQuoteLineShape(l.ProductID, l.Title, l.Quantity, l.UnitPrice, l.DiscountPercent); err != nil {
-			return fmt.Errorf("%w: %s 第 %d 行 —— %v", ErrQuoteTemplateInvalid, key, i+1, err)
+			return fmt.Errorf("%w: %s 第 %d 行 —— %w", ErrQuoteTemplateInvalid, key, i+1, err)
 		}
 	}
 	return nil

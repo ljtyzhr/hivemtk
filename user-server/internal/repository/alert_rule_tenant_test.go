@@ -167,7 +167,7 @@ func TestAlertRuleRepository_BatchStatusAndLastTriggeredTenantScoped(t *testing.
 	if err := db.WithContext(tenant.WithSystemScope(context.Background())).First(&after, seedB.ID).Error; err != nil {
 		t.Fatalf("回查租户 B 规则失败: %v", err)
 	}
-	if !after.IsEnabled() {
+	if !flagOrTrue(after.Enabled) {
 		t.Fatal("租户 B 的规则被跨租户禁用")
 	}
 	if err := repo.BatchUpdateStatus(ctxB, []uint{seedB.ID}, false); err != nil {
@@ -176,7 +176,7 @@ func TestAlertRuleRepository_BatchStatusAndLastTriggeredTenantScoped(t *testing.
 	if err := db.WithContext(tenant.WithSystemScope(context.Background())).First(&after, seedB.ID).Error; err != nil {
 		t.Fatalf("回查租户 B 规则失败: %v", err)
 	}
-	if after.IsEnabled() {
+	if flagOrTrue(after.Enabled) {
 		t.Fatal("本租户禁用未落库")
 	}
 
@@ -224,13 +224,13 @@ func TestAlertRuleRepository_ExplicitDisabledCreatePersists(t *testing.T) {
 	if err := db.WithContext(tenant.WithSystemScope(context.Background())).First(&gotDisabled, disabled.ID).Error; err != nil {
 		t.Fatalf("回查停用规则失败: %v", err)
 	}
-	if gotDisabled.IsEnabled() {
+	if flagOrTrue(gotDisabled.Enabled) {
 		t.Fatal("显式 false 被 default:true 吞掉，规则仍为启用")
 	}
 	if err := db.WithContext(tenant.WithSystemScope(context.Background())).First(&gotImplicit, implicit.ID).Error; err != nil {
 		t.Fatalf("回查默认规则失败: %v", err)
 	}
-	if !gotImplicit.IsEnabled() {
+	if !flagOrTrue(gotImplicit.Enabled) {
 		t.Fatal("nil 应走列默认 true")
 	}
 }

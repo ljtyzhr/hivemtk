@@ -67,11 +67,6 @@ type AlertRule struct {
 	UpdatedAt       time.Time  `json:"updated_at" gorm:"autoUpdateTime"`
 }
 
-// IsEnabled 返回规则是否启用：指针为 nil（未赋值）时按列默认 true 处理。
-func (r *AlertRule) IsEnabled() bool {
-	return r == nil || r.Enabled == nil || *r.Enabled
-}
-
 // TableName 返回表名
 func (AlertRule) TableName() string {
 	return "alert_rules"

@@ -79,7 +79,7 @@ func (s *OpenAPIService) UpdateSource(ctx context.Context, src *model.KnowledgeO
 	// 先确认存在，避免 repo.Save 对不存在的 id 变成 INSERT（upsert 语义错误）
 	existing, err := s.srcRepo.GetByID(ctx, src.ID)
 	if err != nil {
-		if errors.Is(err, gorm.ErrRecordNotFound) || strings.Contains(err.Error(), "not found") {
+		if errors.Is(err, gorm.ErrRecordNotFound) {
 			return fmt.Errorf("数据源不存在: id=%d", src.ID)
 		}
 		return err

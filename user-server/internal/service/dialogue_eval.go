@@ -17,18 +17,20 @@ import (
 
 	"hivemtk-user/internal/aiagent/eval"
 	"hivemtk-user/internal/model"
-	dbpkg "hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/pkg/utils/logger"
+	"hivemtk-user/internal/repository"
 )
 
 // DialogueEvalService 对话级 gold 评测服务。
 type DialogueEvalService struct {
 	badCase *BadCaseService
+	repo    *repository.DialogueEvalRepository
 }
 
 // NewDialogueEvalService 构造。badCase 可为 nil（只用内置 gold 集）。
+// 2026-10-25：落库/查询下沉 repository（L3 铁律）。
 func NewDialogueEvalService(badCase *BadCaseService) *DialogueEvalService {
-	return &DialogueEvalService{badCase: badCase}
+	return &DialogueEvalService{badCase: badCase, repo: repository.NewDialogueEvalRepository()}
 }
 
 // dialogueGoldSamples 组装本轮评测样本：内置 testdata 基线集 + bad_case 导出（送料口
@@ -166,7 +168,7 @@ func (s *DialogueEvalService) saveRun(ctx context.Context, name, phase string, f
 		ChrfAvg:         res.ChrfAvg,
 		Details:         string(details),
 	}
-	if err := dbpkg.GetDB().WithContext(ctx).Create(run).Error; err != nil {
+	if err := s.repo.CreateRun(ctx, run); err != nil {
 		logger.Ctx(ctx).Error().Err(err).Str("name", run.Name).Msg("[dialogue_eval] 落库失败")
 		return run
 	}
@@ -183,17 +185,10 @@ func (s *DialogueEvalService) ListDialogueEvalRuns(ctx context.Context, limit in
 	if limit <= 0 || limit > 200 {
 		limit = 20
 	}
-	var runs []*model.DialogueEvalRun
-	err := dbpkg.GetDB().WithContext(ctx).
-		Order("created_at DESC").Limit(limit).Find(&runs).Error
-	return runs, err
+	return s.repo.ListRuns(ctx, limit)
 }
 
 // GetDialogueEvalRun 单条详情。
 func (s *DialogueEvalService) GetDialogueEvalRun(ctx context.Context, id uint) (*model.DialogueEvalRun, error) {
-	var run model.DialogueEvalRun
-	if err := dbpkg.GetDB().WithContext(ctx).First(&run, id).Error; err != nil {
-		return nil, err
-	}
-	return &run, nil
+	return s.repo.GetRun(ctx, id)
 }

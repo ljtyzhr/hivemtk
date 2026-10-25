@@ -470,8 +470,12 @@ for f in $(find "$TARGET/internal/repository" -name "*.go" ! -name '*_test.go' 2
     if [[ "$line" =~ ^func\ \([a-zA-Z_]+\ \*[a-zA-Z_]+\)\ ([A-Z][a-zA-Z]+)\(.*\)\  ]]; then
       method_name="${BASH_REMATCH[1]}"
       # 跳过纯内存访问器（不涉及 DB 操作）
+      # 2026-10-25 补：Error/Is/Unwrap 是 error 接口实现（如 KnowledgeBaseNotFoundError），
+      # 不是数据访问方法，此前把它们误报为缺 ctx（agent_kb_binding.go 2 条假红）。
+      # 2026-10-25 再补：Bound/Connected 是「句柄是否已注入」纯状态探针（r.db != nil，
+      # 不触 DB），与 Available/IsNil 同类——给纯谓词加 ctx 是仪式不是透传。
       case "$method_name" in
-        Available|IsNil|GetDB|SetDB|DialectName)
+        Available|IsNil|GetDB|SetDB|DialectName|Error|Is|Unwrap|Bound|Connected)
           continue
           ;;
       esac

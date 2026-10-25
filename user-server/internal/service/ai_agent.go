@@ -197,11 +197,11 @@ func (s *AIAgentService) LoadContext(ctx context.Context, agentID uint) (*AgentC
 		TopP:                 agent.TopP,
 		FrequencyPenalty:     agent.FrequencyPenalty,
 		PresencePenalty:      agent.PresencePenalty,
-		EnableRAG:            agent.RAGEnabled(),
-		EnableScriptMatch:    agent.ScriptMatchEnabled(),
-		EnableHumanizePolish: agent.HumanizePolishEnabled(),
+		EnableRAG:            boolOrDefaultTrue(agent.EnableRAG),
+		EnableScriptMatch:    boolOrDefaultTrue(agent.EnableScriptMatch),
+		EnableHumanizePolish: boolOrDefaultTrue(agent.EnableHumanizePolish),
 		EnableContentAudit:   agent.EnableContentAudit,
-		EnablePlaybook:       agent.PlaybookEnabled(),
+		EnablePlaybook:       boolOrDefaultTrue(agent.EnablePlaybook),
 		RAGTopK:              agent.RAGTopK,
 		ConfidenceThreshold:  agent.ConfidenceThreshold,
 		MaxAIConsecutive:     agent.MaxAIConsecutive,
@@ -317,7 +317,7 @@ func (s *ChannelAgentBindingService) Create(ctx context.Context, b *model.Channe
 	if agent.Status != 1 {
 		return errors.New("智能体已禁用，无法绑定")
 	}
-	if b.Primary() {
+	if boolOrDefaultTrue(b.IsPrimary) {
 		if err := s.repo.ClearPrimaryByChannelAccount(ctx, b.ChannelType, b.AccountID); err != nil {
 			return fmt.Errorf("清除旧主绑定失败: %w", err)
 		}
@@ -342,7 +342,7 @@ func (s *ChannelAgentBindingService) GetByID(ctx context.Context, id uint) (*mod
 
 // Update 更新绑定
 func (s *ChannelAgentBindingService) Update(ctx context.Context, b *model.ChannelAgentBinding) error {
-	if b.Primary() {
+	if boolOrDefaultTrue(b.IsPrimary) {
 		existing, _ := s.repo.GetByID(ctx, b.ID)
 		if existing != nil && (existing.ChannelType != b.ChannelType || existing.AccountID != b.AccountID) {
 			if err := s.repo.ClearPrimaryByChannelAccount(ctx, b.ChannelType, b.AccountID); err != nil {
@@ -547,7 +547,7 @@ func (s *CustomerServiceAgentService) Create(ctx context.Context, c *model.Custo
 	if agent.Status != 1 {
 		return errors.New("智能体已禁用，无法挂载")
 	}
-	if c.Primary() {
+	if boolOrDefaultTrue(c.IsPrimary) {
 		if err := s.repo.ClearPrimaryByAgentStatusID(ctx, c.AgentStatusID); err != nil {
 			return fmt.Errorf("清除旧主挂载失败: %w", err)
 		}
@@ -572,7 +572,7 @@ func (s *CustomerServiceAgentService) GetByID(ctx context.Context, id uint) (*mo
 
 // Update 更新挂载
 func (s *CustomerServiceAgentService) Update(ctx context.Context, c *model.CustomerServiceAgent) error {
-	if c.Primary() {
+	if boolOrDefaultTrue(c.IsPrimary) {
 		existing, _ := s.repo.GetByID(ctx, c.ID)
 		if existing != nil {
 			if err := s.repo.ClearPrimaryByAgentStatusID(ctx, existing.AgentStatusID); err != nil {

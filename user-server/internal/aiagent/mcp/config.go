@@ -12,6 +12,7 @@ import (
 
 	"hivemtk-user/internal/aiagent/agent/tooluse"
 	"hivemtk-user/internal/model"
+	dbpkg "hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/pkg/dbencrypt"
 	"hivemtk-user/internal/pkg/utils/logger"
 
@@ -33,6 +34,15 @@ func ServerConfigFromRow(row *model.MCPServer) ClientConfig {
 		cfg.Cooldown = time.Duration(row.CooldownSeconds) * time.Second
 	}
 	return cfg
+}
+
+// DiscoverAndRegisterRowDefaultDB 用全局默认句柄 + 全局注册表的变体。
+//
+// 2026-10-25：service 层不得取 DB 句柄（架构 L3），repository 包又不能反向依赖
+// tooluse（会与 business_tools 的 portcontract→repository 成环），而「发现并落库」
+// 本来就住在本包——所以默认句柄的解析也留在这里，调用方只传行。
+func DiscoverAndRegisterRowDefaultDB(ctx context.Context, row *model.MCPServer) (int, error) {
+	return DiscoverAndRegisterRow(ctx, dbpkg.GetDB(), row, tooluse.GetGlobalRegistry())
 }
 
 // DiscoverAndRegisterRow 发现一个已配置 server 并登记结果（tool_count/last_status）。

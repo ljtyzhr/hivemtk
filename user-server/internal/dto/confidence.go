@@ -52,8 +52,9 @@ func NoneAvailable() SignalAvailability {
 	return SignalAvailability{Set: true}
 }
 
-// IsZero 是否为"零值"（= 未设置 ⇒ 全部可用）。
-func (a SignalAvailability) IsZero() bool {
+// IsZeroAvailability 是否为"零值"（= 未设置 ⇒ 全部可用）。
+// 2026-10-25：DTO 禁止方法体（架构文档 L5），原 SignalAvailability.IsZero 改包级函数。
+func IsZeroAvailability(a SignalAvailability) bool {
 	return !a.Set
 }
 

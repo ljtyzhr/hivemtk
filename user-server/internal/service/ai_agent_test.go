@@ -366,7 +366,7 @@ func TestChannelBinding_PrimarySwitch(t *testing.T) {
 	}
 	primaryCount := 0
 	for _, b := range list {
-		if b.Primary() {
+		if boolOrDefaultTrue(b.IsPrimary) {
 			primaryCount++
 		}
 	}
@@ -487,7 +487,7 @@ func TestCSAgentMount_PrimarySwitch(t *testing.T) {
 	list, _ := mountSvc.ListByAgentStatusID(context.Background(), st.ID)
 	primaryCount := 0
 	for _, m := range list {
-		if m.Primary() {
+		if boolOrDefaultTrue(m.IsPrimary) {
 			primaryCount++
 		}
 	}

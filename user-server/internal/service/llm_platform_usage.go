@@ -2,19 +2,17 @@ package service
 
 import (
 	"context"
+	"errors"
 	"strings"
 	"time"
 
 	"hivemtk-user/internal/aiagent/llm"
 	"hivemtk-user/internal/config"
 	"hivemtk-user/internal/model"
-	dbUtil "hivemtk-user/internal/pkg/db"
 	"hivemtk-user/internal/pkg/tenant"
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/platform"
-
-	"gorm.io/gorm"
-	"gorm.io/gorm/clause"
+	"hivemtk-user/internal/repository"
 )
 
 // 平台垫资模型的本地镜像与用量落库。
@@ -75,11 +73,7 @@ func recordPlatformUsage(ctx context.Context, u PlatformLLMUsage) {
 		requestID = "no-trace:" + u.Provider + ":" + u.Model + ":" + time.Now().Format("20060102150405.000")
 	}
 	inc, outc := u.CostCents()
-	gormDB := dbUtil.GetDB()
-	if gormDB == nil {
-		logger.Warnf("[llm-usage] db 未就绪，跳过本地用量落库 provider=%s tenant=%s", u.Provider, u.TenantCode)
-		return
-	}
+	repo := repository.NewPlatformLLMUsageRepository()
 	rec := &model.PlatformLLMUsageRecord{
 		RequestID:        requestID,
 		Provider:         u.Provider,
@@ -97,7 +91,11 @@ func recordPlatformUsage(ctx context.Context, u PlatformLLMUsage) {
 		OccurredAt:       time.Now(),
 	}
 	// 幂等：trace_id 撞唯一索引就跳过（重试/重放不重复记账）
-	if err := gormDB.WithContext(ctx).Clauses(clause.OnConflict{DoNothing: true}).Create(rec).Error; err != nil {
+	if err := repo.InsertUsageRecord(ctx, rec); err != nil {
+		if errors.Is(err, repository.ErrDBNotReady) {
+			logger.Warnf("[llm-usage] db 未就绪，跳过本地用量落库 provider=%s tenant=%s", u.Provider, u.TenantCode)
+			return
+		}
 		logger.Warnf("[llm-usage] 本地用量落库失败 provider=%s tenant=%s trace=%s: %v",
 			u.Provider, u.TenantCode, u.TraceID, err)
 		return
@@ -117,53 +115,28 @@ func syncPlatformProviders(ctx context.Context) (int, error) {
 	if err != nil {
 		return 0, err
 	}
-	gormDB := dbUtil.GetDB()
-	if gormDB == nil || len(rows) == 0 {
+	if len(rows) == 0 {
 		return 0, nil
 	}
-	return savePlatformProviders(gormDB, rows)
+	sysCtx := tenant.WithSystemScope(context.Background())
+	n, err := repository.NewPlatformLLMUsageRepository().UpsertProviders(sysCtx, platformProviderRowsToModels(rows))
+	if err != nil {
+		logger.Warnf("[llm-provider] 平台 provider 落库失败: %v", err)
+	}
+	logger.Infof("[llm-provider] 平台下发 provider 同步完成：%d 条", n)
+	return n, nil
 }
 
-// savePlatformProviders 把平台下发的 provider 元信息落库（装配层写库）。
-//
-// ============================================================
-// 三个必须同时满足的条件（缺一个就是"平台 provider 永远同步不到"）
-//
-//  1. **显式 tenant_id**（行自证）：llm_providers 声明了 TenantID，属租户隔离
-//     覆盖表。隔离 callback 在 on 模式下对「无租户 ctx」的写是 fail-closed 的
-//     （tenancyidx.fillOneForTenant → tenantGuardFail），报错原文：
-//     [tenant] 表 llm_providers 需要租户上下文但 ctx 未绑定（create）
-//     —— 这正是生产日志里的那一条。
-//     隔离的**行自证**通道（callback 里 !bound 且行上已有显式非零 tenant_id
-//     ⇒ 放行）就是本函数显式写 TenantID 的依据。原文不写 TenantID ⇒ 无从自证
-//     ⇒ 每次落库都被拒。
-//
-//  2. **system scope**（装配层语义）：本函数是**启动期/装配层**操作
-//     （cmd/api/main.go 调用，不是 HTTP 请求路径），没有 HTTP 租户 ctx 可绑。
-//     与 dispatcher_persistence.go 的 systemScopeCtx() 同类，走
-//     tenant.WithSystemScope 这条唯一豁免通道。隔离本身**不放宽**：
-//     带请求 ctx 的 HTTP 路径仍然 fail-closed。
-//
-//  3. **复合冲突目标**：(tenant_id, name)。tenancyidx.Normalize 在框架层把
-//     租户表的唯一索引原位复合化为 (tenant_id, name)，写 ON CONFLICT (name)
-//     会与库里实际索引匹配不上 → 42P10
-//     「there is no unique or exclusion constraint matching the ON CONFLICT
-//     specification」→ 落库照样失败。
-//
-// 落库行归属**默认租户**：平台下发的是全局 provider 定义（dispatcher 是全局
-// 单键 map、按 Name 索引），归属单个租户是错的；且 dispatcher 的
-// LoadProvidersFromDB 只装 tenant_id=1，写到别的租户上会变成
-// 「写进去但读不出来」（provider 永远不可见）。
-func savePlatformProviders(gormDB *gorm.DB, rows []platform.PlatformLLMProvider) (int, error) {
-	// 装配层写库的唯一豁免通道（与 dispatcher_persistence.go:systemScopeCtx 同一口径）
-	sysCtx := tenant.WithSystemScope(context.Background())
-	now := time.Now()
-	n := 0
+// platformProviderRowsToModels 平台行 → 本地模型行（业务默认值归业务层；
+// 落库归仓储）。归属默认租户：平台下发的是全局 provider 定义，dispatcher 的
+// LoadProvidersFromDB 只装 tenant_id=1，写到别的租户会「写进去但读不出来」。
+func platformProviderRowsToModels(rows []platform.PlatformLLMProvider) []model.LLMProvider {
+	mapped := make([]model.LLMProvider, 0, len(rows))
 	for _, r := range rows {
 		if strings.TrimSpace(r.ProviderName) == "" {
 			continue
 		}
-		row := model.LLMProvider{
+		mapped = append(mapped, model.LLMProvider{
 			TenantID:    tenant.DefaultTenantID,
 			Name:        r.ProviderName,
 			DisplayName: r.DisplayName,
@@ -173,27 +146,9 @@ func savePlatformProviders(gormDB *gorm.DB, rows []platform.PlatformLLMProvider)
 			Source:      model.LLMSourcePlatform,
 			PlanCode:    r.PlanCode,
 			Enabled:     true,
-			UpdatedAt:   now,
-			CreatedAt:   now,
-		}
-		if err := gormDB.WithContext(sysCtx).Clauses(clause.OnConflict{
-			// 冲突目标必须与库里实际索引形状一致：(tenant_id, name)。
-			// 见函数头第 2) 条。
-			Columns: []clause.Column{{Name: "tenant_id"}, {Name: "name"}},
-			// 只更新平台下发的元信息与 source；**不动 api_key** ——
-			// 商户自己填的密钥要留着，否则 provider 从 platform 转回 self 就废了。
-			DoUpdates: clause.AssignmentColumns([]string{
-				"display_name", "model", "api_type", "vendor",
-				"source", "plan_code", "enabled", "updated_at",
-			}),
-		}).Create(&row).Error; err != nil {
-			logger.Warnf("[llm-provider] 平台 provider 落库失败 %s: %v", r.ProviderName, err)
-			continue
-		}
-		n++
+		})
 	}
-	logger.Infof("[llm-provider] 平台下发 provider 同步完成：%d 条", n)
-	return n, nil
+	return mapped
 }
 
 func llmDefaultIfEmpty(v, def string) string {

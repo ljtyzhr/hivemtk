@@ -96,28 +96,6 @@ func (AIAgent) TableName() string {
 	return "ai_agents"
 }
 
-// boolOrDefault 三态布尔取值：nil 表示「未传」，按能力默认值处理。
-func boolOrDefault(v *bool, def bool) bool {
-	if v == nil {
-		return def
-	}
-	return *v
-}
-
-// RAGEnabled 是否启用 RAG（nil = 默认启用）
-func (a *AIAgent) RAGEnabled() bool { return boolOrDefault(a.EnableRAG, true) }
-
-// ScriptMatchEnabled 是否启用话术匹配（nil = 默认启用）
-func (a *AIAgent) ScriptMatchEnabled() bool { return boolOrDefault(a.EnableScriptMatch, true) }
-
-// HumanizePolishEnabled 是否启用拟人润色（nil = 默认启用）
-func (a *AIAgent) HumanizePolishEnabled() bool {
-	return boolOrDefault(a.EnableHumanizePolish, true)
-}
-
-// PlaybookEnabled 是否启用 Playbook（nil = 默认启用）
-func (a *AIAgent) PlaybookEnabled() bool { return boolOrDefault(a.EnablePlaybook, true) }
-
 // ChannelType 渠道类型枚举
 type ChannelType string
 
@@ -192,12 +170,6 @@ func (ChannelAgentBinding) TableName() string {
 	return "channel_agent_bindings"
 }
 
-// Primary 是否主绑定（nil = 默认主绑定）
-func (b *ChannelAgentBinding) Primary() bool { return boolOrDefault(b.IsPrimary, true) }
-
-// IsActive 是否启用（nil = 默认启用）
-func (b *ChannelAgentBinding) IsActive() bool { return boolOrDefault(b.Enabled, true) }
-
 // CustomerServiceAgent 客服座席 ↔ 智能体挂载
 //
 // 同一座席可挂载多个智能体，但只有一个 is_primary=true
@@ -222,9 +194,3 @@ type CustomerServiceAgent struct {
 func (CustomerServiceAgent) TableName() string {
 	return "customer_service_agents"
 }
-
-// Primary 是否主挂载（nil = 默认主挂载）
-func (c *CustomerServiceAgent) Primary() bool { return boolOrDefault(c.IsPrimary, true) }
-
-// IsActive 是否启用（nil = 默认启用）
-func (c *CustomerServiceAgent) IsActive() bool { return boolOrDefault(c.Enabled, true) }

@@ -18,8 +18,10 @@ import (
 	"time"
 
 	"hivemtk-user/internal/model"
+
 	"hivemtk-user/internal/pkg/utils"
 	"hivemtk-user/internal/pkg/utils/logger"
+	"hivemtk-user/internal/repository"
 )
 
 func (s *WebhookService) getFeishuEncryptKey(ctx context.Context, accountID string) string {
@@ -227,7 +229,7 @@ func (s *WebhookService) dispatchFeishu(ctx context.Context, accountID string, p
 		}
 	}
 	if err := s.messageHubRepo.Create(ctx, hub); err != nil {
-		if !strings.Contains(err.Error(), "UNIQUE") && !strings.Contains(err.Error(), "duplicate") {
+		if !repository.IsDuplicateKeyErr(err) {
 			return nil, err
 		}
 	}

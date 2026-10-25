@@ -189,10 +189,10 @@ func TestChannelAgentBindingExplicitFalsePersists(t *testing.T) {
 	if err := db.WithContext(ctxA).First(&got, row.ID).Error; err != nil {
 		t.Fatalf("回读失败: %v", err)
 	}
-	if got.Primary() {
+	if flagOrTrue(got.IsPrimary) {
 		t.Error("is_primary 显式 false 被 DB 默认值覆盖成 true：辅助绑定会变成第二条主绑定")
 	}
-	if got.IsActive() {
+	if flagOrTrue(got.Enabled) {
 		t.Error("enabled 显式 false 被 DB 默认值覆盖成 true：停用绑定会直接上线")
 	}
 
@@ -208,9 +208,9 @@ func TestChannelAgentBindingExplicitFalsePersists(t *testing.T) {
 	if err := db.WithContext(ctxA).First(&gotImplicit, implicit.ID).Error; err != nil {
 		t.Fatalf("回读默认绑定失败: %v", err)
 	}
-	if !gotImplicit.Primary() || !gotImplicit.IsActive() {
+	if !flagOrTrue(gotImplicit.IsPrimary) || !flagOrTrue(gotImplicit.Enabled) {
 		t.Errorf("未传开关时应落默认 true，实际 primary=%v enabled=%v",
-			gotImplicit.Primary(), gotImplicit.IsActive())
+			flagOrTrue(gotImplicit.IsPrimary), flagOrTrue(gotImplicit.Enabled))
 	}
 }
 

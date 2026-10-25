@@ -60,7 +60,7 @@ func (a *WeightedAggregator) Aggregate(signals *dto.FiveSignals) float64 {
 		return 0
 	}
 	avail := signals.Available
-	if avail.IsZero() {
+	if dto.IsZeroAvailability(avail) {
 		// 未标可用性（零值）= 全部可用，与本字段引入前的行为逐字一致。
 		avail = dto.AllAvailable()
 	}

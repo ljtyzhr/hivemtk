@@ -3,6 +3,7 @@ package repository
 import (
 	"context"
 	"errors"
+	"fmt"
 	"hivemtk-user/internal/aiagent/knowledge/model"
 	_db "hivemtk-user/internal/pkg/db"
 	"time"
@@ -51,7 +52,9 @@ func (r *KnowledgeOpenAPIRepository) GetByID(ctx context.Context, id uint64) (*m
 	var src model.KnowledgeOpenAPISource
 	if err := r.db.WithContext(ctx).Where("id = ?", id).First(&src).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("openapi source not found")
+			// 2026-10-25：改 %w 包装——原 errors.New 丢弃错误链，调用方只能字符串匹配
+			// "not found" 兜底判定（CONVENTIONS §3.3 反模式）。
+			return nil, fmt.Errorf("openapi source not found: %w", gorm.ErrRecordNotFound)
 		}
 		return nil, err
 	}
@@ -67,7 +70,9 @@ func (r *KnowledgeOpenAPIRepository) GetByProductAndID(ctx context.Context, prod
 	}
 	if err := q.First(&src).Error; err != nil {
 		if errors.Is(err, gorm.ErrRecordNotFound) {
-			return nil, errors.New("openapi source not found")
+			// 2026-10-25：改 %w 包装——原 errors.New 丢弃错误链，调用方只能字符串匹配
+			// "not found" 兜底判定（CONVENTIONS §3.3 反模式）。
+			return nil, fmt.Errorf("openapi source not found: %w", gorm.ErrRecordNotFound)
 		}
 		return nil, err
 	}
