@@ -1,6 +1,6 @@
 /** @type { import('@storybook/vue3-vite').StorybookConfig } */
 // =============================================================================
-// Storybook 主配置 (OPT-FE-EXT-2)
+// Storybook 主配置 ()
 // 创建日期: 2026-08-16
 // 目标: user-web 组件库独立开发环境 + 视觉回归基线
 //

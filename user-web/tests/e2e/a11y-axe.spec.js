@@ -1,7 +1,7 @@
 // @ts-nocheck
-// OPT-FE-13（2026-10-24）：a11y 扫描 harness（axe-core）。
+// a11y 扫描 harness（axe-core）。
 //
-// 规划口径（未完成事项实施规划 §4.1 FE-13）：引入 axe-core + Playwright 基座，
+// 规划口径：引入 axe-core + Playwright 基座，
 // 先覆盖登录、知识库、消息列表三个高频页；**CI 只报告不阻断**（test.fail() 形态，
 // 违规收集到 reports/a11y/summary.json，稳定后再设阈值收口）。
 //

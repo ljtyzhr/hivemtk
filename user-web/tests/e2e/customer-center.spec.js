@@ -7,7 +7,7 @@ const API = process.env.E2E_API_URL || 'http://localhost:8204'
 const ADMIN = process.env.E2E_ADMIN || 'admin'
 const ADMIN_PW = process.env.E2E_ADMIN_PW || 'Admin@12345678'
 
-// 客户中心 8 个页面（来自 docs/CUSTOMER_CENTER_CHECKLIST.md）
+// 客户中心 8 个页面
 const PAGES = [
   { key: 'clueList', name: '线索列表', path: '/clue/list' },
   { key: 'clueStatistics', name: '线索统计', path: '/clue/statistics' },

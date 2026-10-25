@@ -5,8 +5,8 @@ import { settle } from './settle-helper'
 
 // 同期群路径分析页：两张图共用一个 el-tabs，未激活的那页是 v-show 藏着的（宽高 0）。
 //
-// 原来两个页签的图都在 onMounted 里画。echarts 在 0 宽容器上 init 会把画布宽度回退成
-// 100px，而 safeInit 拿到的是同一个已存在实例、setOption 不会重算尺寸 ⇒ 切到「行为路径」
+// echarts 在 0 宽容器上 init 会把画布宽度回退成 100px，而 safeInit 拿到的是同一个
+// 已存在实例、setOption 不会重算尺寸 ⇒ 都在 onMounted 里画的话，切到「行为路径」
 // 看到的是一条挤在卡片左侧、标签互相压着读的桑基图（控制台还会留一行 ECharts 警告）。
 // 这里守的是"给哪张图画"：只有当前页签的容器该被 init，换页签时才补画另一张。
 //

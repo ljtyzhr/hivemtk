@@ -1,6 +1,6 @@
 import { test, expect } from '@playwright/test'
 
-// 系统设置模块全部页面（来自 docs/system-settings-e2e-checklist.md）
+// 系统设置模块全部页面
 const PAGES = [
   { group: '站点配置', name: '站点设置', path: '/system/config' },
   { group: '站点配置', name: '存储配置', path: '/system/obs-config' },

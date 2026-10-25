@@ -1,4 +1,4 @@
-// @hivemtk/http-core 单测（OPT-FE-05 验收：抽包后行为不变，bridge/platform-web
+// @hivemtk/http-core 单测（验收：抽包后行为不变，bridge/platform-web
 // 迁移时以本套用例为契约）。零依赖，node --test 或 vitest 均可跑。
 import { describe, it, expect } from 'vitest'
 import {
