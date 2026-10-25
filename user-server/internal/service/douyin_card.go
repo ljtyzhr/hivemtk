@@ -9,8 +9,6 @@ import (
 	"hivemtk-user/internal/reach/card/template"
 	"hivemtk-user/internal/repository"
 	"time"
-
-	"gorm.io/gorm"
 )
 
 // DouyinCardService 抖音卡片服务接口
@@ -38,7 +36,7 @@ type douyinCardService struct {
 
 // NewDouyinCardService 创建抖音卡片服务
 func NewDouyinCardService(db any) DouyinCardService {
-	gormDB := db.(*gorm.DB)
+	gormDB := repository.AsGormDB(db)
 	return &douyinCardService{
 		repo:              repository.NewDouyinCardRepository(gormDB),
 		statsService:      NewDouyinCardStatsService(repository.NewDouyinCardStatsRepository(gormDB)),

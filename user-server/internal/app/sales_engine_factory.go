@@ -142,8 +142,9 @@ func BuildSmartOrchestrator(engine *service.SalesEngine, kbRepo *repository.Know
 		// T1 低置信回流：异步收集器（有界队列 + 灰度开关 REFLUX_ENABLED，默认关）。
 		// 归簇器随装配注入；采集失败只记日志，绝不影响问答主链路。
 		refluxEnabled := os.Getenv("REFLUX_ENABLED") == "true"
-		collector := reflux.NewCollector(gormDB, 512, refluxEnabled)
-		collector.SetClusterer(reflux.NewClusterer(gormDB))
+		refluxRepo := repository.NewRefluxRepository(gormDB)
+		collector := reflux.NewCollector(refluxRepo, 512, refluxEnabled)
+		collector.SetClusterer(reflux.NewClusterer(refluxRepo))
 		o.SetRefluxCollector(collector)
 
 		dncRepo := repository.NewCustomerDoNotContactRepository(gormDB)

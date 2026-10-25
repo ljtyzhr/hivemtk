@@ -9,8 +9,6 @@ import (
 	"hivemtk-user/internal/reach/card/template"
 	"hivemtk-user/internal/repository"
 	"time"
-
-	"gorm.io/gorm"
 )
 
 // KuaishouCardService 快手卡片服务接口
@@ -39,7 +37,7 @@ type kuaishouCardService struct {
 
 // NewKuaishouCardService 创建快手卡片服务实例
 func NewKuaishouCardService(db any) KuaishouCardService {
-	gormDB := db.(*gorm.DB)
+	gormDB := repository.AsGormDB(db)
 	return &kuaishouCardService{
 		repo:              repository.NewKuaishouCardRepository(gormDB),
 		shortLinkService:  NewShortLinkService(repository.NewShortLinkRepository(gormDB), repository.NewDomainPoolRepository(gormDB), repository.NewShortLinkAccessRepository(gormDB)),

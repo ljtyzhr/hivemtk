@@ -10,8 +10,6 @@ import (
 	"context"
 	"fmt"
 
-	"gorm.io/gorm"
-
 	"hivemtk-user/internal/repository"
 )
 
@@ -27,8 +25,8 @@ type Clusterer struct {
 }
 
 // NewClusterer 构造（db 为瞬时参量：即建 repo，不存句柄）
-func NewClusterer(db *gorm.DB) *Clusterer {
-	return &Clusterer{repo: repository.NewRefluxRepository(db)}
+func NewClusterer(repo *repository.RefluxRepository) *Clusterer {
+	return &Clusterer{repo: repo}
 }
 
 // Assign 把 (hash, question) 归入最相似的已有簇或新建簇。

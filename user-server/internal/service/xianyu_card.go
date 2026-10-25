@@ -8,8 +8,6 @@ import (
 	"hivemtk-user/internal/pkg/utils/logger"
 	"hivemtk-user/internal/reach/card/template"
 	"hivemtk-user/internal/repository"
-
-	"gorm.io/gorm"
 )
 
 // XianyuCardService 闲鱼卡片服务接口
@@ -34,7 +32,7 @@ type xianyuCardService struct {
 
 // NewXianyuCardService 创建闲鱼卡片服务
 func NewXianyuCardService(db any) XianyuCardService {
-	gormDB := db.(*gorm.DB)
+	gormDB := repository.AsGormDB(db)
 	return &xianyuCardService{
 		repo:              repository.NewXianyuCardRepository(gormDB),
 		statsService:      NewXianyuCardStatsService(gormDB),

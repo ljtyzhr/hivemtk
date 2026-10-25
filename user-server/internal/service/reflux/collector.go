@@ -11,8 +11,6 @@ import (
 	"sync/atomic"
 	"time"
 
-	"gorm.io/gorm"
-
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/repository"
 )
@@ -43,11 +41,11 @@ type Collector struct {
 
 // NewCollector 构造并启动消费 goroutine。
 // queueSize 有界队列容量；refluxEnabled=false 时仅建结构不消费（灰度开关）。
-func NewCollector(db *gorm.DB, queueSize int, refluxEnabled bool) *Collector {
+func NewCollector(repo *repository.RefluxRepository, queueSize int, refluxEnabled bool) *Collector {
 	if queueSize <= 0 {
 		queueSize = 512
 	}
-	c := &Collector{repo: repository.NewRefluxRepository(db), ch: make(chan Event, queueSize), enabled: refluxEnabled}
+	c := &Collector{repo: repo, ch: make(chan Event, queueSize), enabled: refluxEnabled}
 	if refluxEnabled {
 		c.wg.Add(1)
 		go c.consumeLoop()

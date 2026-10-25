@@ -96,7 +96,7 @@ func TestTransitionWhitelist(t *testing.T) {
 
 // Collector 关闭语义：Emit 零开销不 panic
 func TestCollectorDisabledNoop(t *testing.T) {
-	c := NewCollector(nil, 8, false)
+	c := NewCollector(nil, 8, false) // repo 形参允许 nil（refluxEnabled=false 不消费）
 	c.Emit(Event{Question: "测试问题"})
 	if c.Enabled() {
 		t.Error("refluxEnabled=false 时应保持关闭")

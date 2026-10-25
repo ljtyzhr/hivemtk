@@ -360,7 +360,7 @@ func setupSOPRoutes(auth *gin.RouterGroup, db *gorm.DB) {
 	faqCtrl.RegisterRoutes(auth)
 
 	// T1 低置信度回流：unknown-questions 运营读写口（docs/architecture/design/T1-confidence-reflux.md）
-	refluxSvc := reflux.NewRefluxService(db)
+	refluxSvc := reflux.NewRefluxService(repository.NewRefluxRepository(db))
 	refluxSvc.SetFAQCreate(func(ctx context.Context, req reflux.FAQCreateReq) (uint, error) {
 		// 复用 FAQService.Create（Layer1 关键词索引维护一致）；agent 强绑定语义照旧
 		agentID := req.AgentID

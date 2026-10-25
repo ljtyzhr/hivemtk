@@ -270,3 +270,11 @@ func (r *BaseRepository[T]) Log(ctx context.Context, format string, args ...any)
 	msg := fmt.Sprintf(format, args...)
 	logger.Info(msg)
 }
+
+// AsGormDB 遗留兼容 shim：把历史 `db any` 形态构造器的入参还原成 *gorm.DB。
+// 仅限既有构造器（card 系四个 New*Service(db any)）在收 repo 化之前过渡使用；
+// 新代码禁止 `db any` 形态——直接收 repository 类型（五层 §三.4）。
+func AsGormDB(v any) *gorm.DB {
+	g, _ := v.(*gorm.DB)
+	return g
+}

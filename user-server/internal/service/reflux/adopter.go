@@ -13,8 +13,6 @@ import (
 	"fmt"
 	"time"
 
-	"gorm.io/gorm"
-
 	"hivemtk-user/internal/model"
 	"hivemtk-user/internal/repository"
 )
@@ -65,8 +63,8 @@ type FAQCreateReq struct {
 
 // NewRefluxService 构造（db 为瞬时参量：即建 repo，service 不存句柄——
 // 保持既有签名，router/service_routes.go 装配与集成测试零改动）
-func NewRefluxService(db *gorm.DB) *RefluxService {
-	return &RefluxService{repo: repository.NewRefluxRepository(db)}
+func NewRefluxService(repo *repository.RefluxRepository) *RefluxService {
+	return &RefluxService{repo: repo}
 }
 
 // SetFAQCreate 装配层注入 FAQService.Create 钩子

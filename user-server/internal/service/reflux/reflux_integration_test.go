@@ -12,6 +12,7 @@ import (
 	"hivemtk-user/internal/pkg/testutil"
 
 	"gorm.io/gorm"
+	"hivemtk-user/internal/repository"
 )
 
 func newRefluxDB(t *testing.T) *gorm.DB {
@@ -30,8 +31,9 @@ func newRefluxDB(t *testing.T) *gorm.DB {
 // TestCollectorUpsertDedup 同一指纹并发 10 写 → 1 行 frequency=10
 func TestCollectorUpsertDedup(t *testing.T) {
 	db := newRefluxDB(t)
-	c := NewCollector(db, 64, true)
-	c.SetClusterer(NewClusterer(db))
+	repo := repository.NewRefluxRepository(db)
+	c := NewCollector(repo, 64, true)
+	c.SetClusterer(NewClusterer(repo))
 	defer c.Stop()
 
 	var wg sync.WaitGroup
@@ -75,7 +77,7 @@ func TestTenantIsolation(t *testing.T) {
 // TestAdoptTransaction 采纳事务性：FAQ 写回 + 全簇 adopted + review_log 落行
 func TestAdoptTransaction(t *testing.T) {
 	db := newRefluxDB(t)
-	svc := NewRefluxService(db)
+	svc := NewRefluxService(repository.NewRefluxRepository(db))
 	faqCreated := uint(88)
 	svc.SetFAQCreate(func(ctx context.Context, req FAQCreateReq) (uint, error) {
 		if req.Answer == "" {
@@ -124,7 +126,7 @@ func TestAdoptTransaction(t *testing.T) {
 // TestIllegalTransition draft 直接 adopt 拒绝
 func TestIllegalTransition(t *testing.T) {
 	db := newRefluxDB(t)
-	svc := NewRefluxService(db)
+	svc := NewRefluxService(repository.NewRefluxRepository(db))
 	uq := &model.UnknownQuestion{QuestionHash: "h-draft", Question: "随便什么问题",
 		Status: model.UQStatusDraft, Source: model.UQSourceNoMatch,
 		FirstSeenAt: time.Now(), LastSeenAt: time.Now()}

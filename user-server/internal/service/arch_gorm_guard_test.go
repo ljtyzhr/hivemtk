@@ -35,9 +35,9 @@ import (
 
 const (
 	// gormGuardMaxHandles 句柄档基线（字段/形参）。**只许降**：下沉一域就把这个数改小。
-	gormGuardMaxHandles = 12
+	gormGuardMaxHandles = 9
 	// gormGuardMaxTxCallbacks 事务回调档基线（架构允许，但只许降：能不下沉 tx 的就不用 tx）。
-	gormGuardMaxTxCallbacks = 5
+	gormGuardMaxTxCallbacks = 1
 	gormGuardScope          = "internal/service/" // 含 internal/geo/service 等子包（cwd 相对）
 )
 

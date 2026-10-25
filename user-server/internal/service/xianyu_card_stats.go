@@ -6,8 +6,6 @@ import (
 	"hivemtk-user/internal/dto"
 	"hivemtk-user/internal/pkg/timeutil"
 	"hivemtk-user/internal/repository"
-
-	"gorm.io/gorm"
 )
 
 // XianyuCardStatsService 闲鱼卡片统计服务接口
@@ -27,7 +25,7 @@ type xianyuCardStatsService struct {
 
 // NewXianyuCardStatsService 创建闲鱼卡片统计服务
 func NewXianyuCardStatsService(db any) XianyuCardStatsService {
-	gormDB := db.(*gorm.DB)
+	gormDB := repository.AsGormDB(db)
 	return &xianyuCardStatsService{
 		repo: repository.NewXianyuCardStatsRepository(gormDB),
 	}
