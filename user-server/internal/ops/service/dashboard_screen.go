@@ -70,6 +70,21 @@ func generateScreenCode() string {
 	return "screen_" + timestamp + "_" + hex.EncodeToString(randomBytes)
 }
 
+// CreateScreenWithWidgets 建屏并落 widgets（大屏模板 clone 的复用入口）。
+// 先建屏再覆盖式写 widgets；widgets 为空时等价 CreateScreen。
+func (s *DashboardScreenService) CreateScreenWithWidgets(ctx context.Context, createdBy uint, req *CreateScreenRequest, widgets []WidgetConfig) (*model.DashboardScreen, error) {
+	screen, err := s.CreateScreen(ctx, createdBy, req)
+	if err != nil {
+		return nil, err
+	}
+	if len(widgets) > 0 {
+		if err := s.updateWidgets(ctx, screen.ID, widgets); err != nil {
+			return nil, err
+		}
+	}
+	return screen, nil
+}
+
 // GetScreenList 获取大屏列表
 func (s *DashboardScreenService) GetScreenList(ctx context.Context, page, pageSize int) ([]*model.DashboardScreen, int64, error) {
 	return s.screenRepo.GetAll(ctx, page, pageSize)

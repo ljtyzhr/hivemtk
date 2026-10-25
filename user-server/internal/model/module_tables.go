@@ -27,6 +27,8 @@ var coreOwnedTables = []string{
 	"password_reset_tokens", "sso_identities", "role_menu_permissions",
 	"security_audits", "security_audit_items", "security_alerts",
 	"operation_logs", "user_blacklist",
+	// R39 面板模板（仪表盘模板）：管理面板的展示配置，随基座常在，不属可售模块
+	"dashboard_templates",
 	// 告警规则：阈值/静默/通知策略，属系统基座而非某个业务模块
 	"alert_rules", "alert_histories", "mcp_credentials",
 	"layer_decision_logs", "tool_call_audits", "sync_logs", "saved_views",
@@ -110,6 +112,9 @@ var knowledgeOwnedTables = []string{
 	// 父子分段的父块表（P1-1 项0，对标 Dify parent-child chunk）：检索命中小块后
 	// 回拼父块上下文，读写方只有 knowledge 分片/检索两处，随知识库模块开关。
 	"knowledge_chunk_parents",
+	// R39-K7 知识库模板：目录橱窗的开箱模板，读写方只有 kb_template 三件套，
+	// 随知识库模块开关。
+	"kb_templates",
 }
 
 // asset 模块独占
