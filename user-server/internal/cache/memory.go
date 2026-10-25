@@ -280,6 +280,13 @@ func (m *MemoryCache) LPush(ctx context.Context, key string, value any, expirati
 	var item *cacheItem
 	if ele, ok := m.data[key]; ok {
 		item = ele.Value.(*cacheItem)
+		// 已过期的列表键对 Redis 而言等价于"不存在"：本次推入必须把键复活成
+		// 新列表（旧元素作废），而不是往一条僵尸列表里追加后仍不可见。
+		if !item.expiration.IsZero() && item.expiration.Before(time.Now()) {
+			item.listMode = false
+			item.listItems = nil
+			item.expiration = time.Time{}
+		}
 		m.touch(ele)
 	}
 	if item == nil || !item.listMode {
@@ -306,6 +313,11 @@ func (m *MemoryCache) RPush(ctx context.Context, key string, value any, expirati
 	var item *cacheItem
 	if ele, ok := m.data[key]; ok {
 		item = ele.Value.(*cacheItem)
+		if !item.expiration.IsZero() && item.expiration.Before(time.Now()) {
+			item.listMode = false
+			item.listItems = nil
+			item.expiration = time.Time{}
+		}
 		m.touch(ele)
 	}
 	if item == nil || !item.listMode {
@@ -338,6 +350,12 @@ func (m *MemoryCache) LPop(ctx context.Context, key string) (string, error) {
 		return "", ErrCacheMiss
 	}
 	item := ele.Value.(*cacheItem)
+	// 过期列表对 Redis 是"键不存在"：必须与未命中同哨兵，不能把死值弹给调用方。
+	if !item.expiration.IsZero() && item.expiration.Before(time.Now()) {
+		m.order.Remove(ele)
+		delete(m.data, key)
+		return "", ErrCacheMiss
+	}
 	if !item.listMode || len(item.listItems) == 0 {
 		return "", ErrCacheMiss
 	}
@@ -389,6 +407,10 @@ func (m *MemoryCache) LRange(ctx context.Context, key string, start, stop int64)
 		return []string{}, nil
 	}
 	item := ele.Value.(*cacheItem)
+	// 过期列表对 Redis 是"键不存在"：返回空区间（与 LPop 同一判据）。
+	if !item.expiration.IsZero() && item.expiration.Before(time.Now()) {
+		return []string{}, nil
+	}
 	if !item.listMode || len(item.listItems) == 0 {
 		return []string{}, nil
 	}
@@ -423,6 +445,10 @@ func (m *MemoryCache) LLen(ctx context.Context, key string) (int64, error) {
 		return 0, nil
 	}
 	item := ele.Value.(*cacheItem)
+	// 过期列表对 Redis 是"键不存在"：长度报 0（与 LPop/LRange 同一判据）。
+	if !item.expiration.IsZero() && item.expiration.Before(time.Now()) {
+		return 0, nil
+	}
 	if !item.listMode {
 		return 0, nil
 	}
