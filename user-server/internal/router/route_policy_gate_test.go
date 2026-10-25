@@ -100,6 +100,8 @@ var anonymousAllowedRoutes = map[string]string{
 	"GET /api/email/track/open/:token":                           "渠道/邮件/短信回调：签名或一次性 token 自证身份（订单回调另有 VerifyWebhookKey 复核）",
 	"GET /api/email/unsubscribe":                                 "渠道/邮件/短信回调：签名或一次性 token 自证身份（订单回调另有 VerifyWebhookKey 复核）",
 	"GET /api/health":                                            "存活/就绪探针：只回进程状态",
+	"GET /api/knowledge":                                         "已下线老域名墓碑路由（D-10）：恒 410 + 迁移指引，不读库、不读租户数据、不写状态，属终点态",
+	"GET /api/knowledge/search":                                  "已下线老域名墓碑路由（D-10）：恒 410 + 迁移指引，不读库、不读租户数据、不写状态，属终点态",
 	"GET /api/l/:code":                                           "访客侧短链/直播码/看板分享：凭 code 可达，回的是分享者主动公开的内容",
 	"GET /api/livecode/:id":                                      "访客侧短链/直播码/看板分享：凭 code 可达，回的是分享者主动公开的内容",
 	"POST /api/tenant/register":                                  "SaaS 自助开户（specs/001-saas-multi-tenant）：登录前唯一可写端点，限流 + 参数校验 + off 模式 4104",
@@ -176,6 +178,9 @@ var anonymousAllowedRoutes = map[string]string{
 	"POST /api/webhook/:channel/:account_id":              "渠道/邮件/短信回调：签名或一次性 token 自证身份（订单回调另有 VerifyWebhookKey 复核）",
 	"POST /api/webhook/dingtalk/:account_id":              "渠道/邮件/短信回调：签名或一次性 token 自证身份（订单回调另有 VerifyWebhookKey 复核）",
 	"POST /api/webhook/wechat/:account_id":                "渠道/邮件/短信回调：签名或一次性 token 自证身份（订单回调另有 VerifyWebhookKey 复核）",
+	"POST /api/xianyu/:id/click":                          "闲鱼卡片落地页埋点：页面无登录态，凭渲染时按卡片 id + 过期时间签发的 HMAC 凭证自证（handler 内校验），全局限流覆盖",
+	"POST /api/xianyu/:id/share":                          "闲鱼卡片落地页埋点：页面无登录态，凭渲染时按卡片 id + 过期时间签发的 HMAC 凭证自证（handler 内校验），全局限流覆盖",
+	"POST /api/xianyu/:id/view":                           "闲鱼卡片落地页埋点：页面无登录态，凭渲染时按卡片 id + 过期时间签发的 HMAC 凭证自证（handler 内校验），全局限流覆盖",
 }
 
 // liveRouteGuardChains 装配生产路由表并抓每条路由注册时的完整 handler 链。

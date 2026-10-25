@@ -363,12 +363,10 @@ var pageMethodRe = regexp.MustCompile(`method:\s*'([A-Z]+)'`)
 // 每条都写清它为什么还留着、等什么处置；这张表是棘轮：
 // 新增一条坏引用必须显式在这里登记，而这里登记的条目一旦哪天被注册上了、
 // 或者被删掉了，下面那条"豁免已失效"的判据就会开火，逼着登记它的人回来删掉这行。
-var pageLinkExempt = map[string]string{
-	"POST /api/xianyu/:x/click": "闲鱼卡片的三个计数口从未注册过（xianyu_card.go 的 PostRecordClick 是写完没接线的处理器），" +
-		"注册无鉴权写口还是删上报属产品决策，先记在这里，不在本门里代拍",
-	"POST /api/xianyu/:x/share": "同上，分享计数无注册口",
-	"POST /api/xianyu/:x/view":  "同上，浏览计数无注册口",
-}
+//
+// 闲鱼卡片的 click/share/view 三条上报口已经从"无注册"改成"公网组 + per-card
+// HMAC 凭证"正式注册（见 card_routes.go setupXianyuCardTrackRoutes），原三条豁免已失效并删除。
+var pageLinkExempt = map[string]string{}
 
 // TestPageTemplateLinksMatchLiveRoutes 断言服务端生成的落地页里每一个 /api 引用都指向已注册的路由。
 func TestPageTemplateLinksMatchLiveRoutes(t *testing.T) {

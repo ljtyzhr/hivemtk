@@ -288,6 +288,10 @@
     </div>
     
     <script>
+        // 卡片埋点凭证：渲染时由服务端按卡片 ID + 过期时间签发的 HMAC，
+        // 三条上报口都必须带上它，服务端会校验凭证与 URL 里的 ID 是否绑定。
+        const XIANYU_CARD_TOKEN = '{{.ReportToken}}';
+
         // 处理点击事件
         function handleClick() {
             // 记录点击统计
@@ -295,6 +299,7 @@
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'X-Xianyu-Card-Token': XIANYU_CARD_TOKEN,
                 },
                 body: JSON.stringify({
                     ip: '{{.ClientIP}}',
@@ -311,6 +316,7 @@
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'X-Xianyu-Card-Token': XIANYU_CARD_TOKEN,
                 },
                 body: JSON.stringify({
                     ip: '{{.ClientIP}}',
@@ -351,6 +357,7 @@
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/json',
+                    'X-Xianyu-Card-Token': XIANYU_CARD_TOKEN,
                 },
                 body: JSON.stringify({
                     ip: '{{.ClientIP}}',

@@ -346,7 +346,7 @@ BASELINE=(
   #       与 17 同一课：`wired` 只要求命中 ≥1，所以这里刻意不写成 `New.*RepositoryWithDB\(`
   #       那种"三个源一起算一格"的宽式（RFM 那副底座另有 customer_360 的消费点，会永远命中）。
   "18|SOP 调度器的启动入口（摘掉即 auto/schedule 两类 SOP 一起静默停摆、service 包全绿）|func InitSOPScheduler|InitSOPScheduler\\(|cmd/api|wired"
-  "18|圈选器在调度器构造点的注入（摘掉即 audience 型 SOP 永久零开工、只剩一行 Warn）|func NewAudienceSelectorWithDB|audience:[[:space:]]*NewAudienceSelectorWithDB\\(|internal/service|wired"
+  "18|圈选器在调度器构造点的注入（摘掉即 audience 型 SOP 永久零开工、只剩一行 Warn）|func NewAudienceSelectorWithSources|audience[[:space:]]*=[[:space:]]*NewAudienceSelectorWithSources\\(|internal/service|wired"
   "18|标签条件取数在圈选器里的那一跳（换成就地拼 SQL 即让新仓储读法变成零消费方资产、用例全绿）|func \\(r \\*customerTagAssignmentRepository\\) ListCustomerIDsByTag|ListCustomerIDsByTag\\(|internal/service|wired"
   # ---- T-P5-02（Active 生命周期 + 按 agent_mode 分派）新增六格 ------------------------
   # 前两格守"入口这一侧"：app 包自己的用例是**直接调** SetupAgentLifecycleRoutes /

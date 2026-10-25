@@ -70,6 +70,21 @@ func setupCardRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 	auth.POST("/xianyu/:id/generate-short-link", xianyuCardCtrl.GenerateShortLink)
 }
 
+// setupXianyuCardTrackRoutes 注册闲鱼卡片落地页的三条埋点写口。
+//
+// 卡片页由外部客户直接打开，没有登录态，所以这三条只能挂在公网组；鉴权不在
+// 路由组上，而在 handler 内：模板渲染时按卡片 ID 签发 HMAC 凭证
+// （internal/reach/card/token.go），上报必须带 X-Xianyu-Card-Token，且凭证
+// 必须与 :id 绑定。未带/伪造凭证分别为 401/403，任何匿名请求都写不进库。
+// 租户归属仍由 PublicIDTenant 按卡片 id 反查后绑定，统计写入落在卡片所属租户。
+func setupXianyuCardTrackRoutes(public *gin.RouterGroup, gormDB *gorm.DB) {
+	xianyuCardCtrl := controller.NewXianyuCardController(service.NewXianyuCardService(gormDB), service.NewXianyuCardStatsService(gormDB))
+	track := public.Group("/xianyu/:id", middleware.PublicIDTenant(gormDB, "xianyu_cards"))
+	track.POST("/click", xianyuCardCtrl.RecordClick)
+	track.POST("/share", xianyuCardCtrl.RecordShare)
+	track.POST("/view", xianyuCardCtrl.RecordView)
+}
+
 func setupCardStatsRoutes(auth *gin.RouterGroup, gormDB *gorm.DB) {
 	douyinStatsCtrl := controller.NewDouyinCardStatsController(service.NewDouyinCardStatsService(gormDB))
 	auth.GET("/douyin-card/stats/:id", douyinStatsCtrl.GetCardStats)

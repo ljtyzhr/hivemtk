@@ -102,6 +102,10 @@ var ErrorMessages = map[string]map[Locale]string{
 	"UPLOAD_FAILED_7003": {
 		ZH: "上传失败", EN: "Upload failed", JA: "アップロードに失敗しました", AR: "فشل الرفع",
 	},
+	"LEGACY_GONE_4100": {
+		ZH: "该接口已废弃，请迁移到新地址", EN: "This endpoint is gone; migrate to the new path",
+		JA: "このエンドポイントは廃止されました。新しいパスに移行してください", AR: "تم إيقاف نقطة النهاية هذه؛ يرجى الانتقال إلى المسار الجديد",
+	},
 }
 
 // Messages 业务提示字典（错误码之外的通用文案，使用语义化 key）。

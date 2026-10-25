@@ -248,6 +248,10 @@ func errorCodeFromHTTPCode(code int) utils.ErrorCode {
 		return utils.ErrorCodeNotFound
 	case http.StatusConflict:
 		return utils.ErrorCodeDuplicateEntry
+	case http.StatusGone:
+		// 410 = 曾经存在、永久移走（墓碑路由）。与 404 的修法不同：
+		// 前者改调用方地址，后者查路由表，不能都叫"资源不存在"。
+		return utils.ErrorCodeLegacyGone
 	case http.StatusTooManyRequests:
 		return utils.ErrorCodeInsufficientQuota
 	case http.StatusInternalServerError:

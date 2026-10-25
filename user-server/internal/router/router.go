@@ -354,6 +354,7 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 		setupChatPublicRoutes(public, gormDB, orchestrator, langResolver)
 		setupSSORoutes(public, ssoCtrl)
 		setupSelfServiceRoutes(public, gormDB)
+		setupLegacyRoutes(public) // 已下线的 /api/knowledge 顶层域名：410 + 迁移指引（见 legacy_routes.go）
 
 		// 电商订单回调：外部平台没有会话凭证，只能走公开组 + HMAC 验签。
 		// 与 auth 组里那条旧路径并存，旧路径已标 deprecation。
@@ -372,6 +373,10 @@ func Setup(r *gin.Engine, gormDB *gorm.DB) {
 		public.GET("/public/help-center/articles", hcCtrl.Articles)
 		public.GET("/public/help-center/articles/:id", hcCtrl.ArticleDetail)
 		public.GET("/public/help-center/search", hcCtrl.Search)
+
+		// 闲鱼卡片落地页的三条埋点写口：页面无登录态，所以挂在公开组；
+		// 凭证是渲染时按卡片 ID 签发的 HMAC token，handler 内校验后才写库。
+		setupXianyuCardTrackRoutes(public, gormDB)
 	}
 
 	setupChatPublicWebSocket(r, langResolver)

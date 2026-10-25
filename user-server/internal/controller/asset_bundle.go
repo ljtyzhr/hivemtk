@@ -193,6 +193,14 @@ func (c *AssetBundleController) Update(ctx *gin.Context) {
 		response.ErrorFromDB(ctx, err, err.Error())
 		return
 	}
+	// W-5：Update 只回写 DTO 携带的列（tenant_id 等身份列不在更新白名单内），
+	// 直接回显请求 DTO 构造的模型会让 tenant_id 恒为 0。更新成功后按主键回读，
+	// 让响应反映库内真相；回读失败不推翻已成功的更新，降级回显原模型并告警。
+	if updated, getErr := c.svc.GetBundle(ctx.Request.Context(), id); getErr != nil || updated == nil {
+		logger.Warnf("[asset-bundle] update succeeded but re-read failed: id=%d err=%v", id, getErr)
+	} else {
+		bundle = updated
+	}
 	response.Success(ctx, bundle, "ok")
 }
 

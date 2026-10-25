@@ -452,6 +452,17 @@ var SystemMenuTree = []SystemMenuNode{
 					{Key: "moduleOrders", Title: "模块订单", Icon: "Tickets", Path: "/module-market/orders"},
 				},
 			},
+			// 模板/技能市场（F2，specs/013）：只读目录橱窗（模板 + 技能），
+			// 与「功能模块」平级 —— 同属「去哪找现成能力」这一族入口，
+			// 而不是站点部署设置（故不塞进 siteConfig）。角色口径沿用
+			// specs/013/delivery.md §4 的建议（admin/manager）。
+			{
+				Key: "templateMarketGroup", Title: "模板/技能", Icon: "Shop",
+				Roles: []string{"admin", "manager"},
+				Children: []SystemMenuNode{
+					{Key: "templateMarket", Title: "模板/技能市场", Icon: "Shop", Path: "/template-market"},
+				},
+			},
 			{
 				Key: "assetBundle", Title: "资产包", Icon: "Box",
 				Roles: []string{"admin", "manager", "sales", "viewer", "staff"},

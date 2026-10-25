@@ -7,6 +7,8 @@ import (
 	"net/url"
 	"path/filepath"
 	"strings"
+
+	cardpkg "hivemtk-user/internal/reach/card"
 )
 
 // CardTemplateData 卡片模板数据
@@ -28,6 +30,25 @@ type CardChatTemplateData struct {
 	PlatformLabel string
 	ThemeColor    string
 	ChatURL       string
+}
+
+// XianyuCardPageData 闲鱼卡片落地页模板数据。
+//
+// ReportToken 是这张卡片的埋点上报凭证：由 RenderXianyuCard 在渲染时签发，
+// 模板把它放进三条 fetch 的 X-Xianyu-Card-Token 请求头，服务端按 :id 验签。
+type XianyuCardPageData struct {
+	ID           uint
+	Title        string
+	Description  string
+	ImageURL     string
+	RedirectURL  string
+	ShortLinkURL string
+	ClientIP     string
+	Tags         []string
+	ViewCount    int
+	LikeCount    int
+	ShareCount   int
+	ReportToken  string
 }
 
 // LiveCodeTemplateData 活码模板数据
@@ -123,7 +144,23 @@ func (s *TemplateService) GenerateKuaishouCardPage(data *CardTemplateData) (stri
 }
 
 // RenderXianyuCard 渲染闲鱼卡片
-func (s *TemplateService) RenderXianyuCard(card any) (string, error) {
+//
+// 渲染即签发埋点凭证：卡片页没有登录态，三条上报口的唯一凭证就是这里写进
+// 页面的 per-card token（id + 过期时间的 HMAC，见 internal/reach/card/token.go）。
+// 调用方传入的 ReportToken 会被保留（测试/重放场景），为空时现场签发。
+func (s *TemplateService) RenderXianyuCard(data *XianyuCardPageData) (string, error) {
+	if data == nil || data.ID == 0 {
+		return "", fmt.Errorf("渲染闲鱼卡片失败：卡片 ID 不能为空")
+	}
+	page := *data
+	if page.ReportToken == "" {
+		token, err := cardpkg.GenerateXianyuReportToken(page.ID, 0)
+		if err != nil {
+			return "", fmt.Errorf("签发闲鱼卡片埋点凭证失败: %w", err)
+		}
+		page.ReportToken = token
+	}
+
 	tmplPath := filepath.Join(s.templateDir, "xianyu_card.html")
 	tmpl, err := template.ParseFiles(tmplPath)
 	if err != nil {
@@ -131,7 +168,7 @@ func (s *TemplateService) RenderXianyuCard(card any) (string, error) {
 	}
 
 	var buf bytes.Buffer
-	if err := tmpl.Execute(&buf, card); err != nil {
+	if err := tmpl.Execute(&buf, &page); err != nil {
 		return "", err
 	}
 

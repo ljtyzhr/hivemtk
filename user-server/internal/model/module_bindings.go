@@ -264,6 +264,12 @@ var ModuleMenuBindings = map[string][]string{
 	// 注释写在这里以免后人"顺手修正"成绑到某个付费模块。
 	ModulePlatformLink: {
 		"moduleCenterGroup", "moduleCenter", "myModules", "moduleOrders",
+		// 模板/技能市场（F2，specs/013）：目录是编译期种子、接口是公开橱窗
+		// （/api/template-market/* 无需登录），页面本身不绑定任何付费权益。
+		// 归 platform-link（基础模块，恒开）与上面的市场入口同一条理由：
+		// 绑定到某个付费模块后，未开通的用户会连带看不到「有哪些现成能力可用」，
+		// 而这份目录恰恰是他们决定买什么的前置信息。
+		"templateMarketGroup", "templateMarket",
 	},
 
 	// ========== llm-cloud：平台模型算力（0 菜单节点）==========
@@ -272,9 +278,12 @@ var ModuleMenuBindings = map[string][]string{
 	// 但**接口层仍过闸**（/api/llm/wallet、/api/llm/plans 等按本 key 拦截）。
 	ModuleLLMCloud: {},
 
-	// ========== ai-agent：AI 智能体（4 节点）==========
+	// ========== ai-agent：AI 智能体（5 节点）==========
 	ModuleAIAgent: {
 		"aiAgent", "agentManage", "aiAgentList", "aiAgentCreate", "aiToolManagement",
+		// aiCustomIntegration（工具接入）：P1-3 的自定义工具/MCP server 配置面，
+		// 与 aiToolManagement 同一装配链（"AI 能调用什么"），随 ai-agent 开关。
+		"aiCustomIntegration",
 	},
 
 	// ========== ai-sales：AI 销冠（16 节点）==========

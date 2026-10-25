@@ -376,7 +376,7 @@ test.describe('权限系统 UI 多角色验证', () => {
   // ----- 7. 客服登录后顶栏/侧边栏不可见团队菜单 -----
   test('7. 客服登录后侧边栏不显示"团队"', async ({ page }) => {
     test.setTimeout(60000)
-    test.skip(!csUsername, '客服账号不可用（/api/system/users 路由未注册）')
+    test.skip(!csUsername, '客服账号不可用（beforeAll 未能经 API 创建客服账号；/api/system/users 路由已注册，勿再引用旧结论）')
 
     await webLogin(page, csUsername, csPassword, csToken, csUserInfo)
     await page.screenshot({ path: `${SCREENSHOT_DIR}/cs-home.png`, fullPage: true })

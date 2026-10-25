@@ -65,6 +65,13 @@ const (
 	ErrorCodeLTCStageDisabled  ErrorCode = "LTC_STAGE_DISABLED_8101"
 	ErrorCodeLTCConfigDegraded ErrorCode = "LTC_CONFIG_DEGRADED_8102"
 	ErrorCodeLTCStageUnknown   ErrorCode = "LTC_STAGE_UNKNOWN_8103"
+
+	// 终态下线域（N-5）：已下线端点的 410 墓碑响应。此前 response.Error(c, 410, …)
+	// 走 int 反向映射落 UNKNOWN_1000（"未知错误"）——老客户端拿到的码在说一件
+	// 没发生过的事，监控/按码分流都无法把"地址该换了"从"服务器坏了"里分出来。
+	// 码名带 LEGACY 前缀而不是复用 NOT_FOUND_1002：410 是"曾经存在、永久移走"，
+	// 与"从未存在"的修法不同（前者改调用方地址，后者查路由表）。
+	ErrorCodeLegacyGone ErrorCode = "LEGACY_GONE_4100"
 )
 
 // ErrorCodeConfig 错误码配置
@@ -120,6 +127,8 @@ var errorCodeRegistry = map[ErrorCode]ErrorCodeConfig{
 	ErrorCodeLTCStageDisabled:  {Code: ErrorCodeLTCStageDisabled, HTTPCode: 409, Message: "LTC 阶段未启用"},
 	ErrorCodeLTCConfigDegraded: {Code: ErrorCodeLTCConfigDegraded, HTTPCode: 409, Message: "LTC 运营配置读不动，已按关闭处理"},
 	ErrorCodeLTCStageUnknown:   {Code: ErrorCodeLTCStageUnknown, HTTPCode: 409, Message: "LTC 阶段名未注册"},
+
+	ErrorCodeLegacyGone: {Code: ErrorCodeLegacyGone, HTTPCode: 410, Message: "该接口已废弃"},
 }
 
 // GetErrorCodeConfig 获取错误码配置

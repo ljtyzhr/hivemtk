@@ -83,4 +83,15 @@ func setupRecoveryQueueRoutes(auth *gin.RouterGroup) {
 	auth.GET("/recovery-queue/list", ctrl.ListByStage)
 	auth.GET("/recovery-queue/distribution", ctrl.Distribution)
 	auth.GET("/recovery-queue/ready", ctrl.ListReadyForAttempt)
+
+	// 写口收在 admin 档：入队/推进/完结/取消改的是"要不要继续给流失客户发消息"，
+	// 与三条只读口（登录态可读）分开注册。路径与只读口同一风格：
+	// 动作是末段（enqueue），带 ID 的动作是 /:id/<verb>。
+	admin := auth.Group("/recovery-queue", middleware.AdminAuthMiddleware())
+	{
+		admin.POST("/enqueue", ctrl.Enqueue)
+		admin.POST("/:id/attempt", ctrl.MarkAttempt)
+		admin.POST("/:id/recovered", ctrl.MarkRecovered)
+		admin.POST("/:id/cancel", ctrl.Cancel)
+	}
 }

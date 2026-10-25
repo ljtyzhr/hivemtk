@@ -91,6 +91,10 @@ var anonymousParamMechanisms = map[string]string{
 	"GET /api/webhook/wecom/:account_id":            "URL 校验握手（WeComVerify）：先解析账号归属租户，解析不到即拒",
 	"GET /api/webhook/whatsapp/:account_id":         "URL 校验握手（WhatsAppVerify）：先解析账号归属租户，解析不到即拒",
 	"POST /api/integration/webhook/order/:platform": "订单回调：VerifyWebhookKey 复核 + 平台侧渠道账号定位租户",
+	// 模板/技能市场（F2 只读橱窗）：目录是平台级静态清单（TemplateMarketEntry 无
+	// tenant_id，数据源是代码内建目录），行由模板 ID 定位；响应只有名称/分类/简介/
+	// 来源/可用性/标签，无个人与租户数据 ⇒ 没有"租户表访问"要限定。
+	"GET /api/template-market/detail/:id": "公开橱窗详情：行由模板 ID 定位（平台级目录，无 tenant_id），只回元数据",
 }
 
 // alwaysOK 闸二的豁免：这些匿名参数路由按契约必须恒 200（追踪像素），不是"漏了 404"。

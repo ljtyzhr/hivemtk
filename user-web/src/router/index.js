@@ -100,7 +100,6 @@ const moduleNames = [
   "salesWorkbench",
   'followups',
   "unknownQuestion",
-  "assetAdmin",
   "llmReport",
   "kbConnector",
   "mcpCredential",
@@ -188,8 +187,6 @@ const pathToModule = {
   'asset-bundle': 'assetBundle',
   // T1 未知问题运营页挂在 /unknown-questions（含连字符）
   'unknown-questions': 'unknownQuestion',
-  // T5 平台审核后台挂在 /asset-admin（含连字符）
-  'asset-admin': 'assetAdmin',
   // T3 LLM 观测报表挂在 /reports/llm（首段 reports）
   'reports': 'llmReport',
   // 功能模块市场（模块化改造）

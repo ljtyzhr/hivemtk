@@ -3,8 +3,11 @@ package template
 import (
 	"os"
 	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
+
+	cardpkg "hivemtk-user/internal/reach/card"
 )
 
 func TestCardTemplateData(t *testing.T) {
@@ -198,9 +201,8 @@ func TestTemplateService_RenderXianyuCard(t *testing.T) {
 	}
 
 	service := NewTemplateService(tempDir)
-	card := struct {
-		Title string
-	}{
+	card := &XianyuCardPageData{
+		ID:    1,
 		Title: "Test Card Title",
 	}
 
@@ -217,9 +219,8 @@ func TestTemplateService_RenderXianyuCard(t *testing.T) {
 func TestTemplateService_RenderXianyuCard_NonExistentTemplate(t *testing.T) {
 	tempDir := t.TempDir()
 	service := NewTemplateService(tempDir)
-	card := struct {
-		Title string
-	}{
+	card := &XianyuCardPageData{
+		ID:    1,
 		Title: "Test Card Title",
 	}
 
@@ -428,7 +429,8 @@ func TestTemplateService_RenderXianyuCard_AllFields(t *testing.T) {
 	}
 
 	service := NewTemplateService(tempDir)
-	card := &CardTemplateData{
+	card := &XianyuCardPageData{
+		ID:          1,
 		Title:       "Xianyu Item Title",
 		Description: "Xianyu Item Description",
 		ImageURL:    "https://example.com/xianyu.jpg",
@@ -496,5 +498,40 @@ func TestTemplateService_GenerateDouyinCardPage_AllFields(t *testing.T) {
 		if !strings.Contains(result, expected) {
 			t.Errorf("Expected result to contain '%s', but it doesn't", expected)
 		}
+	}
+}
+
+// TestRenderXianyuCard_EmbedsReportToken 用仓库里的真实模板断言：
+// 三条埋点 fetch 都带 X-Xianyu-Card-Token，且渲染时现场签发的凭证能按卡片 id 验签。
+func TestRenderXianyuCard_EmbedsReportToken(t *testing.T) {
+	// go test 的 CWD 就是本包目录，模板 xianyu_card.html 与测试文件同目录。
+	service := NewTemplateService(".")
+
+	html, err := service.RenderXianyuCard(&XianyuCardPageData{
+		ID:    42,
+		Title: "闲鱼卡片",
+	})
+	if err != nil {
+		t.Fatalf("RenderXianyuCard failed: %v", err)
+	}
+
+	for _, action := range []string{"click", "share", "view"} {
+		if !strings.Contains(html, "/api/xianyu/42/"+action) {
+			t.Errorf("渲染结果里缺少 /api/xianyu/42/%s 上报地址", action)
+		}
+	}
+	if got := strings.Count(html, "'X-Xianyu-Card-Token': XIANYU_CARD_TOKEN"); got != 3 {
+		t.Errorf("三条上报口都应带 X-Xianyu-Card-Token，实际命中 %d 处", got)
+	}
+
+	m := regexp.MustCompile(`const XIANYU_CARD_TOKEN = '([^']+)'`).FindStringSubmatch(html)
+	if len(m) != 2 {
+		t.Fatalf("渲染结果里没找到 XIANYU_CARD_TOKEN：卡片页会不带凭证上报")
+	}
+	if err := cardpkg.VerifyXianyuReportToken(42, m[1]); err != nil {
+		t.Errorf("渲染时签发的凭证验签失败: %v", err)
+	}
+	if err := cardpkg.VerifyXianyuReportToken(43, m[1]); err == nil {
+		t.Error("凭证必须与卡片 id 绑定，42 的凭证不应通过 43 的校验")
 	}
 }

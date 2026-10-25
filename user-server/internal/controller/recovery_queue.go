@@ -1,30 +1,34 @@
 package controller
 
 import (
-	"context"
-	"hivemtk-user/internal/dto"
-	"hivemtk-user/internal/pkg/utils/response"
-	"hivemtk-user/internal/service"
+	"errors"
+	"io"
 	"net/http"
 	"strconv"
 	"time"
+
+	"hivemtk-user/internal/dto"
+	"hivemtk-user/internal/pkg/utils/response"
+	"hivemtk-user/internal/service"
 
 	"github.com/gin-gonic/gin"
 )
 
 // RecoveryQueueController 流失挽回队列控制器
 //
-// 路由表里只有三条读接口（GET /api/recovery-queue/list、/distribution、/ready），
-// 下面四个写方法一条都没注册（用 gin 的 RouteInfo 现跑路由表核对过）。队列的真实数据面是这样：
-//   - 入队：CustomerRFMService.enqueueRecovery（internal/service/customer_rfm.go，
-//     由 ComputeForCustomer 与 computeForCustomerLoaded 调用）直接走 repository.Create，
-//     绕过了本控制器与 service.Enqueue，所以队列有数据、但不是从 service 的入队口径来的；
-//   - 推进：worker 只用 service.MarkAttempt 与 service.DeferAttempt
-//     （internal/service/recovery_queue_worker.go），
-//     失败耗尽次数置 failed、命中免打扰置 cancelled，都由 worker 传 stage 完成；
-//   - 缺口：全仓没有任何代码把队列项写成 succeed——RecoveryStageSucceed 只出现在
-//     service.MarkRecovered 里，而它的唯一调用方就是下面那个没有路由的方法。
-//     客户回流后这条记录不会收敛成"已挽回"，只会一路走到 failed。
+// 队列的数据面分三条腿：
+//   - 入队：RFM 计算（internal/service/customer_rfm.go 的 enqueueRecovery）直接走
+//     repository.Create；POST /api/recovery-queue/enqueue 则提供带文案/模板/渠道偏好的
+//     完整入队口径，供运营手工补录；
+//   - 推进：worker（internal/service/recovery_queue_worker.go）用 service.MarkAttempt /
+//     DeferAttempt 自己记尝试并推进 stage；POST /:id/attempt 只给人工补记/纠错用；
+//   - 收敛：客户实际回流后由管理员 POST /:id/recovered 落 succeed —— 这是全仓唯一
+//     写 succeed 的入口，repository.MarkRecovered 会同时写 recovered_at/recovery_value；
+//     退订/放弃走 POST /:id/cancel。
+//
+// 四条写方法统一挂在 middleware.AdminAuthMiddleware() 之后（见
+// internal/router/content_routes.go 的 setupRecoveryQueueRoutes）：它们动的是
+// "要不要继续给流失客户发消息"的队列状态，不该是所有登录态都点得动的。
 type RecoveryQueueController struct {
 	svc *service.RecoveryQueueService
 }
@@ -41,15 +45,16 @@ func NewRecoveryQueueController() *RecoveryQueueController {
 // @Produce json
 // @Param request body dto.RecoveryEnqueueRequest true "入队参数"
 // @Success 200 {object} object{data=dto.RecoveryQueueResponse}
-// 未接线：路由表里没有这条 POST；且 service.Enqueue 也没有任何生产调用方——
-// 现在的入队来自 RFM 计算里对 repository 的直接写入，带文案/模板/渠道偏好的完整入队口径无人使用。
+// @Router /api/recovery-queue/enqueue [post]
+// 路由：POST /api/recovery-queue/enqueue（admin）。RFM 自动入队另走 repository.Create，
+// 这条给的是带文案/模板/渠道偏好的完整口径。
 func (c *RecoveryQueueController) Enqueue(ctx *gin.Context) {
 	var req dto.RecoveryEnqueueRequest
 	if err := ctx.ShouldBindJSON(&req); err != nil {
 		response.Error(ctx, http.StatusBadRequest, "参数错误: "+err.Error())
 		return
 	}
-	item, err := c.svc.Enqueue(context.Background(), &service.RecoveryEnqueueInput{
+	item, err := c.svc.Enqueue(ctx.Request.Context(), &service.RecoveryEnqueueInput{
 		CustomerID:        req.CustomerID,
 		UnifiedID:         req.UnifiedID,
 		Account:           req.Account,
@@ -78,8 +83,10 @@ func (c *RecoveryQueueController) Enqueue(ctx *gin.Context) {
 // @Param id path int true "队列 ID"
 // @Param request body dto.RecoveryMarkAttemptRequest true "尝试参数"
 // @Success 200 {object} object{message=string}
-// 未接线：路由表里没有这个 POST。这里的活由恢复队列 worker 自己推进
-// （internal/service/recovery_queue_worker.go 调 service.MarkAttempt 记尝试并推 stage），无 HTTP 出口。
+// @Router /api/recovery-queue/{id}/attempt [post]
+// 路由：POST /api/recovery-queue/:id/attempt（admin）。worker 内部仍直接调 service.MarkAttempt；
+// 这条给人工补记/纠错一个出口。stage 只收 queued/running/failed/cancelled，
+// succeed 必须走 /recovered（要同时写 recovered_at/recovery_value）。
 func (c *RecoveryQueueController) MarkAttempt(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
@@ -108,9 +115,10 @@ func (c *RecoveryQueueController) MarkAttempt(ctx *gin.Context) {
 // @Param id path int true "队列 ID"
 // @Param request body dto.RecoveryMarkRecoveredRequest true "挽回金额"
 // @Success 200 {object} object{message=string}
-// 未接线：路由表里没有这个 POST，且 service.MarkRecovered 也没有任何调用方——
-// 它是全仓唯一把队列项写成 succeed 的地方（RecoveryStageSucceed 只出现在那个方法里），
-// 所以客户回流后这条记录没有收敛出口，只会走到 queued/running/failed/cancelled。
+// @Router /api/recovery-queue/{id}/recovered [post]
+// 路由：POST /api/recovery-queue/:id/recovered（admin）。全仓唯一把队列项写成 succeed 的入口：
+// 客户实际回流后由管理员确认，repository.MarkRecovered 同一笔写 recovered_at/recovery_value。
+// 合法迁移见 service.MarkRecovered（queued/running/failed → succeed；cancelled 拒绝）。
 func (c *RecoveryQueueController) MarkRecovered(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)
@@ -119,7 +127,12 @@ func (c *RecoveryQueueController) MarkRecovered(ctx *gin.Context) {
 		return
 	}
 	var req dto.RecoveryMarkRecoveredRequest
-	_ = ctx.ShouldBindJSON(&req)
+	// 空 body 合法（只标记成功、不记金额）；有 body 但 JSON 坏了要报 400，
+	// 不能静默当成 recovery_value=0 落库。
+	if err := ctx.ShouldBindJSON(&req); err != nil && !errors.Is(err, io.EOF) {
+		response.Error(ctx, http.StatusBadRequest, "参数错误: "+err.Error())
+		return
+	}
 	if err := c.svc.MarkRecovered(ctx.Request.Context(), id, req.RecoveryValue); err != nil {
 		response.ErrorFromDB(ctx, err, "标记失败: "+err.Error())
 		return
@@ -132,10 +145,10 @@ func (c *RecoveryQueueController) MarkRecovered(ctx *gin.Context) {
 // @Tags 挽回队列
 // @Param id path int true "队列 ID"
 // @Success 200 {object} object{message=string}
-// 未接线：路由表里的取消接口属于跟进/SOP 执行（POST /api/followups/:id/cancel 等，另一个服务）；
-// 本方法的 service.Cancel 也没有调用方。队列项确实会被置成 cancelled，但那是 worker 命中
-// 免打扰时自己传 stage 走 MarkAttempt 做的（internal/service/recovery_queue_worker.go），
-// 不是从这个入口。
+// @Router /api/recovery-queue/{id}/cancel [post]
+// 路由：POST /api/recovery-queue/:id/cancel（admin）。worker 命中免打扰时也会把它置
+// cancelled（走 MarkAttempt 传 stage），两条路共用同一终态；service.Cancel 只收
+// queued/running，failed/succeed 是终态不许再取消。
 func (c *RecoveryQueueController) Cancel(ctx *gin.Context) {
 	idStr := ctx.Param("id")
 	id, err := strconv.ParseUint(idStr, 10, 64)

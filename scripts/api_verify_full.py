@@ -19,7 +19,7 @@ api_verify_full.py — API 三端验收脚本（CLAUDE.md 验收标准实现）
 凭证（必填，脚本内无任何明文口令）:
   HIVEMTK_DB_PASSWORD   DB 口令（也可用 POSTGRES_PASSWORD 代替）
   HIVEMTK_ADMIN_PASS    e2e_admin 登录口令
-  HIVEMTK_BRIDGE_TOKEN  可选；缺省时回退读 DB system_config_kv.bridge_ingest_token
+  HIVEMTK_BRIDGE_TOKEN  可选；缺省时回退读 DB platform_config_kv.bridge_ingest_token
 缺失即以退出码 3 终止并打印所需变量名。
 """
 import argparse
@@ -235,6 +235,30 @@ def login_admin():
 # ---------------------------------------------------------------------------
 # 核心业务链路: 消息入库 → 幂等/回声闸门 → message_hub → AI处理 → outbox → ack 送达
 # ---------------------------------------------------------------------------
+def _bridge_default_tenant_code(channel):
+    """首次上报的归属租户短码（on 模式必需，判据见 internal/bridge/tenant_binding.go）。
+
+    bridge 入口在 TENANT_MODE=on 下要求 (channel, account_id) 自证归属，自证只有两条
+    线索：bridge_accounts 里该账号的行，或显式 tenant_code(query)/X-Tenant-Code 头
+    （bridgeTenantHintFromRequest）。本脚本每轮新造 account_id，库里必然没有行
+    ⇒ 恒属「首次上报」，不带短码就必然 404 ErrBridgeTenantUnresolved
+    （"该渠道账号尚未归属任何租户，首次上报请携带 tenant_code"）。
+
+    选哪个租户：优先该渠道既有 bridge_accounts 行所属的租户（日常流量的真实形态，
+    也是 e2e 历史账号落地的租户）；该渠道尚无行时退回最小的启用租户。
+    HIVEMTK_BRIDGE_TENANT_CODE 可显式覆盖（多租户环境下指定落到哪个租户）。
+    """
+    row = q1("SELECT tenant_id FROM bridge_accounts WHERE channel=%s ORDER BY id DESC LIMIT 1",
+             (channel,))
+    tid = (row or {}).get("tenant_id")
+    if tid:
+        t = q1("SELECT code FROM tenants WHERE id=%s AND status=1", (tid,))
+        if t and t.get("code"):
+            return t["code"]
+    t = q1("SELECT code FROM tenants WHERE status=1 ORDER BY id LIMIT 1")
+    return (t or {}).get("code", "")
+
+
 def run_chain(keep=False):
     section("核心业务链路 E2E：消息入库→AI处理→出库→ack 全流程")
     run_id = uuid.uuid4().hex[:8]
@@ -245,15 +269,29 @@ def run_chain(keep=False):
     msg_content = f"你好，我想了解一下HiveMtk的渠道接入方案 e2e-{run_id}"
     event_id = f"evt-e2e-{run_id}-1"
 
-    # bridge 通道守卫凭证：DB system_config_kv 为主源（与 guard 中间件一致）
+    # bridge 通道守卫凭证：与 middleware.BridgeIngressGuard 同源 —— 它读的是
+    # platform_config_kv（实例级，无 tenant_id），不是 system_config_kv（租户业务配置）。
+    # 读取顺序也照 guard：env（本脚本的显式覆盖）→ DB 现行键 → DB 上一版键。
     global BRIDGE_TOKEN
     if not BRIDGE_TOKEN:
-        row = q1("SELECT value FROM system_config_kv WHERE key='bridge_ingest_token'")
+        row = q1("SELECT value FROM platform_config_kv WHERE key='bridge_ingest_token'")
         BRIDGE_TOKEN = (row or {}).get("value", "") if row else ""
     if not BRIDGE_TOKEN:
-        check("S0 bridge token 可用", False, "system_config_kv 无 bridge_ingest_token 且未设 HIVEMTK_BRIDGE_TOKEN")
+        row = q1("SELECT value FROM platform_config_kv WHERE key='bridge_ingest_token_prev'")
+        BRIDGE_TOKEN = (row or {}).get("value", "") if row else ""
+    if not BRIDGE_TOKEN:
+        check("S0 bridge token 可用", False,
+              "platform_config_kv 无 bridge_ingest_token 且未设 HIVEMTK_BRIDGE_TOKEN")
         return finish(keep)
     bridge = APIClient(bridge_token=BRIDGE_TOKEN)  # bridge 通道无需 JWT
+    # on 模式首次上报必须显式指认归属租户：脚本每轮都是新 account_id，
+    # 自证查不到 bridge_accounts 行，只能靠短码（见 _bridge_default_tenant_code）。
+    # 走请求头而不是 query，一条 session 覆盖 ingest/outbox/ack/sse 四个入口
+    # ——四者都经 bindBridgeTenant → bridgeTenantHintFromRequest 读同一个头。
+    tenant_code = os.environ.get("HIVEMTK_BRIDGE_TENANT_CODE") or _bridge_default_tenant_code(channel)
+    if tenant_code:
+        bridge.s.headers["X-Tenant-Code"] = tenant_code
+        print(f"【入参】bridge 请求统一携带 X-Tenant-Code={tenant_code}（on 模式首次上报必需）")
     login_admin()
 
     # ---- Step1 消息入库 (ingest) ----
@@ -554,7 +592,7 @@ def run_ltc(keep=False):
         "type": "1", "city": "杭州", "source_id": LTC_CLUE_SRC,
         "one_id": LTC_ONE_ID, "owner_account": ADMIN_USER,
     }]
-    j, ok = adm.req("POST", "/api/clue/import", "L1 线索导入", expect_code=0, json=clue_body)
+    j, ok = adm.req("POST", "/api/clues/import", "L1 线索导入", expect_code=0, json=clue_body)
     clue = q1("SELECT id, source_id FROM clues WHERE source_id=%s", (LTC_CLUE_SRC,))
     check("L1.1 【DB】clues 行存在", clue is not None, f"row={dict(clue) if clue else None}")
     if not ok or not clue:
@@ -570,10 +608,12 @@ def run_ltc(keep=False):
     qexec("INSERT INTO customers (id, unified_id, name, phone, email, created_at, updated_at)"
           " VALUES (%s,%s,%s,'','',now(),now()) ON CONFLICT (id) DO NOTHING",
           (LTC_CUST_ID, LTC_ONE_ID, f"LTC验证客户-{LTC_TAG}"))
+    # 唯一约束是 (tenant_id, one_id, channel)（多租户改造后列前缀带 tenant_id）；
+    # 只写 (one_id, channel) 在 PG 上会因「没有匹配 ON CONFLICT 的唯一/排除约束」直接报错。
     qexec("INSERT INTO customer_channels (one_id, channel, channel_user_id, channel_name, account_id,"
           " is_primary, created_at, updated_at)"
           " VALUES (%s,'wechat',%s,'LTC验证客户',%s,true,now(),now())"
-          " ON CONFLICT (one_id, channel) DO NOTHING",
+          " ON CONFLICT (tenant_id, one_id, channel) DO NOTHING",
           (LTC_ONE_ID, LTC_ONE_ID, f"ltc-acct-{LTC_TAG}"))
     qexec("INSERT INTO opportunities (id, code, customer_id, one_id, clue_id, stage, status,"
           " amount, currency, version, created_at, updated_at)"
@@ -633,8 +673,9 @@ def run_ltc(keep=False):
             conn.commit()
         finally:
             conn.close()
+        # system_config_kv 的主键是 (tenant_id, key)；单写 (key) 在 PG 上匹配不到唯一约束。
         qexec("INSERT INTO system_config_kv (key, value, updated_at) VALUES ('quote.script_id',%s,now())"
-              " ON CONFLICT (key) DO UPDATE SET value=EXCLUDED.value, updated_at=now()",
+              " ON CONFLICT (tenant_id, key) DO UPDATE SET value=EXCLUDED.value, updated_at=now()",
               (str(seeded_script_id),))
         print(f"【DB】已 seed 最小话术分片 id={seeded_script_id}")
 
@@ -855,7 +896,7 @@ _GET_ACTION_SEG = frozenset((
     "import", "verify", "bind", "unbind",
 ))
 # 允许匿名写成功的公开端点白名单（命中才不判「未鉴权写」）
-_PUBLIC_MUT_OK = frozenset(("/api/auth/login", "/api/auth/logout", "/api/auth/refresh"))
+_PUBLIC_MUT_OK = frozenset(("/api/auth/login", "/api/auth/logout", "/api/auth/refresh-token"))
 # 独立令牌闸门端点：不认 JWT，匿名与持 JWT 的 admin 一律被拦。对它套用
 # 「admin 必须 code=0」会把设计内行为误判成失败。
 # /api/browser/host-ws 是唯一一条，且它有两道门（见 browser_automation/controller/host.go）：
@@ -997,6 +1038,10 @@ def _judge(kind, path, status, j, ctype, text, err):
         return False, "未鉴权写被接受 code=0（写端点缺鉴权/校验）"
     if rejected:
         return True, f"拒绝 code={code} HTTP{status}"
+    # 离线(reg_mode=off)自助开户：Service 层设计内拒绝，HTTP 恒 200 + 业务码 4104，
+    # 匿名空体到不了建租户分支 ⇒ 零写入（controller/tenant.go:48 注释；2026-10-25 §7.1 实测 DB 探针租户 0 行）。
+    if path == "/api/tenant/register" and code == 4104 and 200 <= status < 300:
+        return True, "离线模式设计内(200+4104,匿名空体零写入)"
     return False, f"code={code!r} HTTP{status} 期望鉴权/校验拒绝"
 
 

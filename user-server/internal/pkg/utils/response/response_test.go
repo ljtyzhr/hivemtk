@@ -268,6 +268,7 @@ func TestErrorCodeFromHTTPCode(t *testing.T) {
 		{http.StatusForbidden, utils.ErrorCodeForbidden, "403"},
 		{http.StatusNotFound, utils.ErrorCodeNotFound, "404"},
 		{http.StatusConflict, utils.ErrorCodeDuplicateEntry, "409"},
+		{http.StatusGone, utils.ErrorCodeLegacyGone, "410"},
 		{http.StatusTooManyRequests, utils.ErrorCodeInsufficientQuota, "429"},
 		{http.StatusInternalServerError, utils.ErrorCodeInternalError, "500"},
 		{http.StatusServiceUnavailable, utils.ErrorCodeServiceUnavailable, "503"},
