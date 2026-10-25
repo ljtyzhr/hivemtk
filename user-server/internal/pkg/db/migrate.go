@@ -256,6 +256,10 @@ func allModels() []any {
 		&model.FeatureFlag{},
 		&model.FeatureFlagAuditLog{},
 		&model.FeatureFlagEvalLog{},
+		// R39-K7/K8 三面板收编（业务闭环 C-6）：模板两只。漏登记时全新部署
+		// 建不出这两张表，r39_panel_routes 的端点全数 500（relation does not exist）。
+		&model.KbTemplate{},
+		&model.DashboardTemplate{},
 		// 功能模块化（specs .specify/002-modular-subscription）：
 		// 租户模块本地镜像 + 同步日志 + 订单镜像。
 		// 漏登记时全新部署建不出这三张表，而模块闸是**启动即读**的：

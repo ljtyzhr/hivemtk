@@ -6,7 +6,7 @@
  *   2. API 新增失败请求
  *   3. UI 渲染变化（DOM/文本 diff）
  *   4. 写操作后 2xx 写API 请求作为落库证据（POST/PUT/PATCH/DELETE 成功回执）
- * 新增深化：
+ * 深化覆盖：
  *   - 搜索框输入+回车+清空、el-select 下拉选一项、表头排序、空提交表单校验（el-form-item__error）
  *   - 单路由 25s 硬超时；每 8 路由重启 browser 清理 SSE/内存；崩溃自动恢复重登
  *   - 失败路由自动截图到 interact-shots/
