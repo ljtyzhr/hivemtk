@@ -21,15 +21,43 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"sync/atomic"
 
-	// 知识模块自己的 repository 管文档/分块；KB 行（knowledge_bases）的属主在核心
-	// repository（internal/repository.KnowledgeBaseRepository）。内容变更失效锚
-	// 要抬 KB 行 updated_at，向下引核心仓储层，不构成反向依赖。
-	corerepository "hivemtk-user/internal/repository"
 	"time"
 
 	"gorm.io/gorm"
 )
+
+// kbAnchor 内容变更失效锚端口：抬 KB 行 updated_at 的能力。
+// 实现在核心 repository（KnowledgeBaseRepository.TouchAllEnabled），但 aiagent
+// 不得 import 核心 repository（depguard aiagent-layer）——与 pkg/tenant 的
+// activeTenantLoader 同款：包级默认 + 装配层注入（SetDefaultKBAnchor）。
+type kbAnchor interface {
+	TouchAllEnabled(ctx context.Context) error
+}
+
+// atomicValue 装配期一次写入的进程级锚实现（对 sync/atomic.Value 的薄封装，
+// 与 pkg/tenant.activeTenantLoader 同款语义）。
+type atomicValue struct{ v atomic.Value }
+
+func (a *atomicValue) Store(x kbAnchor) { a.v.Store(x) }
+func (a *atomicValue) Load() any        { return a.v.Load() }
+
+var defaultKBAnchor atomicValue
+
+// SetDefaultKBAnchor 装配层注入失效锚实现（app wiring 启动期调用一次）。
+func SetDefaultKBAnchor(a kbAnchor) {
+	if a != nil {
+		defaultKBAnchor.Store(a)
+	}
+}
+
+func anchorOrDefault() kbAnchor {
+	if v, ok := defaultKBAnchor.Load().(kbAnchor); ok {
+		return v
+	}
+	return nil
+}
 
 // KnowledgeService 知识库服务(统一入口)
 type KnowledgeService struct {
@@ -43,7 +71,7 @@ type KnowledgeService struct {
 	parentRepo    *repository.KnowledgeChunkParentRepository
 	importLogRepo *repository.KnowledgeImportLogRepository
 	searchLogRepo *repository.KnowledgeSearchLogRepository
-	kbRepo        *corerepository.KnowledgeBaseRepository
+	kbRepo        kbAnchor
 	embeddingSvc  *llm.EmbeddingService
 	llmSvc        *llm.LLMService
 	ragSearcher   *RagSearcher
@@ -71,7 +99,7 @@ func newKnowledgeServiceWithDB(gdb *gorm.DB) *KnowledgeService {
 		parentRepo:    repository.NewKnowledgeChunkParentRepository(gdb),
 		importLogRepo: repository.NewKnowledgeImportLogRepository(gdb),
 		searchLogRepo: repository.NewKnowledgeSearchLogRepository(gdb),
-		kbRepo:        corerepository.NewKnowledgeBaseRepository(gdb),
+		kbRepo:        anchorOrDefault(),
 		embeddingSvc:  llm.NewEmbeddingService(),
 		llmSvc:        llm.NewLLMService(),
 		ragSearcher:   NewRagSearcherWithDB(gdb),

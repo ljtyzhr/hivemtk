@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"hivemtk-user/internal/model"
+	"hivemtk-user/internal/pkg/utils/logger"
 
 	"gorm.io/gorm"
 	"gorm.io/gorm/clause"
@@ -66,7 +67,8 @@ func (r *PlatformLLMUsageRepository) UpsertProviders(ctx context.Context, rows [
 			}),
 		}).Create(&row).Error; err != nil {
 			// 逐行容错（原 savePlatformProviders 语义）：单行失败不阻断整批，
-			// 返回首个错误供调用方留痕，n 只计成功行。
+			// 逐行留痕（观测口径与原实现一致），另返回首个错误，n 只计成功行。
+			logger.Warnf("[llm-provider] 平台 provider 落库失败 %s: %v", row.Name, err)
 			if firstErr == nil {
 				firstErr = err
 			}

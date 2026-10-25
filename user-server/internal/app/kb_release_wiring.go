@@ -42,6 +42,10 @@ func InitKBReleaseRuntime(db *gorm.DB) *service.KBReleaseService {
 		return nil
 	}
 
+	// 内容变更失效锚端口注入（aiagent 不得 import 核心 repository，depguard）：
+	// 实现由装配层提供，knowledgesvc 经包级默认取用。
+	knowledgesvc.SetDefaultKBAnchor(repository.NewKnowledgeBaseRepository(db))
+
 	approvals, approvalsFromGlobal := approvalSubmitReader(db)
 	svc := service.NewKBReleaseService(
 		repository.NewKBReleaseRepository(db),
