@@ -23,6 +23,5 @@
 # ─────────────────────────────────────────────────────────────────────────────
 # module | seam | review | why
 # ─────────────────────────────────────────────────────────────────────────────
-github.com/Rhymen/go-whatsapp | user-server/internal/service/whatsapp_provider.go | 2027-03-31 | 个人版 WhatsApp Web 协议库（QR 登录 + 老式会话发送），上游 2021 后停更、协议已被 Meta 收紧。本仓已经把它的引用收敛到唯一 seam：Cloud API 走 channelbot/whatsapp，个人版只在 whatsapp_provider.go 里实现 WhatsAppProvider（Legacy 实现）。换掉的方式已就位：删掉该文件里的 legacy 实现 + 下线 QR 登录入口，上层 service 不用改。到期日按「Meta 关闭个人版 Web 协议的最后支持窗口」估，不是按开发排期估
 github.com/fvbock/endless | user-server/cmd/api/serve_unix.go | 2027-03-31 | 2017 年后无提交的优雅重启库。收敛成本极低（http.Server.Shutdown + signal.Notify 约 30 行），但它是 cmd/api 的启动路径，改它要连带复验「重启不丢连接」的部署行为，所以排在依赖治理之后。seam 只有一个文件，替换时不需要动任何业务代码
 gopkg.in/gomail.v2 | user-server/internal/pkg/mail user-server/internal/email/service/email_send.go | 2027-03-31 | 2016 年后无提交（作者已声明不再维护）。本仓的改动面只有 internal/pkg/mail 一个包 + email_send.go 一处直连；替换目标是把该包换成标准库 net/smtp（本仓已支持它）或一个维护中的 SMTP 客户端。之所以不现在换：unsubscribe 头、附件编码、编码兼容这几块有既有用例钉着，需要一个专门切片而不是顺手改

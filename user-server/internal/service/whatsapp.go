@@ -15,17 +15,14 @@ import (
 
 // WhatsappService WhatsApp 账号 / 会话 / 群发作业的业务入口。
 //
-// A2-c 之后它**不再直接持有任何协议客户端**：发送、登录、取二维码全部经
+// A2-c 之后它**不直接持有任何协议客户端**：发送、登录、取二维码全部经
 // `WhatsAppProvider`（见 whatsapp_provider.go）。这一层的职责只剩
-// 「读账号 → 选实现 → 计费/节奏校验 → 委派」，所以将来删掉个人版实现时，
-// 本文件一行都不用改。
+// 「读账号 → 选实现 → 计费/节奏校验 → 委派」。W-3 换库收口（2026-10-25）
+// 删掉个人版实现时，本文件确实只动了三行：legacy 字段、构造、loginProvider。
 type WhatsappService struct {
 	repo     repository.WhatsappRepository
 	clueRepo repository.ClueRepository
 
-	// legacy 个人版（gowa）实现。**唯一**持有 gowa 连接的地方在其内部；
-	// 这里只留一个接口引用，避免 service 层知道 gowa 存在。
-	legacy *legacyWhatsAppProvider
 	// cloud Cloud API 实现（无状态，按账号凭据临时构造客户端）。
 	cloud WhatsAppProvider
 }
@@ -37,7 +34,6 @@ func NewWhatsappService(clueRepo repository.ClueRepository) *WhatsappService {
 	return &WhatsappService{
 		repo:     repo,
 		clueRepo: clueRepo,
-		legacy:   newLegacyWhatsAppProvider(repo),
 		cloud:    cloudWhatsAppProvider{},
 	}
 }
@@ -50,7 +46,7 @@ func (s *WhatsappService) providerFor(acc *model.WhatsappAccount) WhatsAppProvid
 		}
 		return cloudWhatsAppProvider{}
 	}
-	return whatsAppProviderFor(acc, s.legacy)
+	return whatsAppProviderFor(acc)
 }
 
 // Accounts
@@ -75,39 +71,17 @@ func (s *WhatsappService) GetAccount(ctx context.Context, id uuid.UUID) (*model.
 	return s.repo.GetAccount(ctx, id)
 }
 
-// Login 个人版扫码登录。Cloud API 账号没有这一步，返回明确错误而不是空二维码。
-func (s *WhatsappService) StartLogin(ctx context.Context, accountID uuid.UUID, timeout time.Duration) (string, error) {
-	login, ok := s.loginProvider(accountID)
-	if !ok {
-		return "", fmt.Errorf("%w: 账号 %s 不是个人版（Cloud API 账号无需扫码登录）",
-			ErrWhatsAppProviderUnsupported, accountID)
-	}
-	return login.StartLogin(ctx, accountID, timeout)
+// StartLogin / GetLoginQR 个人版扫码登录已随 gowa 下线（W-3 换库收口）。
+// 端点保留并回**明确错误**（老前端拿到文案而不是 404/panic）；Cloud API 账号
+// 本就没有扫码登录这一步。个人版存量会话行（whatsapp_sessions）只读不写，
+// LoginStatus 的读路径不受影响。
+func (s *WhatsappService) StartLogin(_ context.Context, _ uuid.UUID, _ time.Duration) (string, error) {
+	return "", fmt.Errorf("%w: 个人版扫码登录已下线（gowa 弃维护，W-3 换库收口），请使用 Cloud API 账号（PhoneID+Token）",
+		ErrWhatsAppProviderUnsupported)
 }
 
-func (s *WhatsappService) GetLoginQR(ctx context.Context, accountID uuid.UUID) (string, bool) {
-	login, ok := s.loginProvider(accountID)
-	if !ok {
-		return "", false
-	}
-	return login.LoginQR(accountID)
-}
-
-// loginProvider 取支持扫码登录的实现。
-//
-// 先按账号形态判：Cloud API 账号**不该**拿到个人版登录能力（否则给它建一条
-// gowa 连接、把会话落进 whatsapp_sessions，而那条会话永远不会被用到）。
-// 账号查不到时（建号请求与登录请求并发时可能发生）回落到个人版——
-// 那正是「刚建号、还没选形态」的默认路径。
-func (s *WhatsappService) loginProvider(accountID uuid.UUID) (WhatsAppLoginProvider, bool) {
-	acc, err := s.repo.GetAccount(context.Background(), accountID)
-	if err == nil && acc != nil && acc.Type == "cloud" && acc.PhoneID != "" && acc.Token != "" {
-		return nil, false
-	}
-	if s.legacy == nil {
-		return nil, false
-	}
-	return s.legacy, true
+func (s *WhatsappService) GetLoginQR(_ context.Context, _ uuid.UUID) (string, bool) {
+	return "", false
 }
 
 func (s *WhatsappService) LoginStatus(ctx context.Context, accountID uuid.UUID) (bool, error) {
