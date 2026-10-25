@@ -30,6 +30,12 @@ type CardChatTemplateData struct {
 	PlatformLabel string
 	ThemeColor    string
 	ChatURL       string
+	// CardID 卡片主键，闲鱼相位埋点上报用（其它平台当前无上报口，只作占位）。
+	CardID uint
+	// ReportToken 埋点上报凭证（N-1 方案 A·闲鱼相位）：仅 Platform=="xianyu"
+	// 时签发；为空（含签名密钥未配置的容错路径）则模板整体不渲染上报脚本。
+	// share 事件在本页没有自然触发点（无分享按钮），不造假上报，只接 view/click。
+	ReportToken string
 }
 
 // XianyuCardPageData 闲鱼卡片落地页模板数据。
@@ -275,6 +281,15 @@ func (s *TemplateService) RenderCardChatPage(platform string, cardID uint, title
 		PlatformLabel: PlatformLabel(platform),
 		ThemeColor:    PlatformThemeColor(platform),
 		ChatURL:       BuildChatURL(platform, cardID, baseURL, title),
+		CardID:        cardID,
+	}
+	// N-1 方案 A·闲鱼相位：用户实际打开的卡片页是这一份（RenderXianyuCard 零生产
+	// 调用方），埋点必须落在这里才有数。只在闲鱼签发；签发失败（如部署缺 JWT
+	// 秘密）不让分享页跟着 404——token 留空，模板按无上报脚本渲染。
+	if platform == "xianyu" && cardID != 0 {
+		if token, err := cardpkg.GenerateXianyuReportToken(cardID, 0); err == nil {
+			data.ReportToken = token
+		}
 	}
 	return s.GenerateCardChatPage(data)
 }

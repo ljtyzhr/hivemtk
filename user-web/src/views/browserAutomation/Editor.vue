@@ -655,6 +655,13 @@ async function reconcileDependency(taskId) {
 }
 
 async function save() {
+  // F-1 收口：提示不拦保存 = 允许配出必失败的任务。M3 之前，不支持的平台
+  // 直接拒绝保存（与 onPlatformChange 的警告同判据：can_post_comment）。
+  const plat = platforms.value.find((x) => x.identifier === form.value.platform)
+  if (plat && !plat.can_post_comment && form.value.steps.some((s) => s.action === 'post_comment')) {
+    ElMessage.error(`${platformLabel(plat)} 暂不支持发评论（接口未公开/待 M3），请移除 post_comment 步骤或换平台后再保存`)
+    return
+  }
   saving.value = true
   try {
     const payload = { ...form.value }

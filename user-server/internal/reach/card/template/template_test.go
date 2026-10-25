@@ -535,3 +535,67 @@ func TestRenderXianyuCard_EmbedsReportToken(t *testing.T) {
 		t.Error("凭证必须与卡片 id 绑定，42 的凭证不应通过 43 的校验")
 	}
 }
+
+// TestRenderCardChatPage_XianyuEmbedsReportTracking N-1 方案 A·闲鱼相位：用户实际
+// 打开的卡片页是 card_chat.html（RenderXianyuCard 零生产调用方），埋点必须落在这份
+// 模板里才有数。断言：闲鱼渲染签发凭证、脚本只接 view/click 两个自然事件、凭证与
+// 卡片 ID 绑定。
+func TestRenderCardChatPage_XianyuEmbedsReportTracking(t *testing.T) {
+	realTmpl, err := os.ReadFile("../../../template/card_chat.html")
+	if err != nil {
+		t.Fatalf("读取真实 card_chat.html 失败: %v", err)
+	}
+	tempDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(tempDir, "card_chat.html"), realTmpl, 0644); err != nil {
+		t.Fatalf("布置临时模板失败: %v", err)
+	}
+	service := NewTemplateService(tempDir)
+
+	html, err := service.RenderCardChatPage("xianyu", 7, "标题", "描述", "https://img", "a,b", "https://base")
+	if err != nil {
+		t.Fatalf("RenderCardChatPage(xianyu) failed: %v", err)
+	}
+	if !strings.Contains(html, "X-Xianyu-Card-Token") {
+		t.Error("闲鱼聊天页应带 X-Xianyu-Card-Token 上报头")
+	}
+	// 只有两个自然事件：打开=view、点 CTA=click；share 在本页没有触发点，不造假。
+	if !strings.Contains(html, "report('view')") || !strings.Contains(html, "report('click')") {
+		t.Error("埋点脚本应挂 view 与 click 两个事件")
+	}
+	if strings.Contains(html, "report('share')") {
+		t.Error("本页没有分享入口，不应出现 share 上报")
+	}
+
+	m := regexp.MustCompile(`var TOKEN = '([^']+)'`).FindStringSubmatch(html)
+	if len(m) != 2 {
+		t.Fatalf("渲染结果里没找到 TOKEN：聊天页会不带凭证上报")
+	}
+	if err := cardpkg.VerifyXianyuReportToken(7, m[1]); err != nil {
+		t.Errorf("聊天页签发的凭证验签失败: %v", err)
+	}
+	if err := cardpkg.VerifyXianyuReportToken(8, m[1]); err == nil {
+		t.Error("凭证必须与卡片 id 绑定，7 的凭证不应通过 8 的校验")
+	}
+}
+
+// TestRenderCardChatPage_OtherPlatformsNoTracking 其它平台当前没有上报口：
+// 模板必须整体不渲染上报脚本（{{if .ReportToken}} 分支），不发出必然 403 的请求。
+func TestRenderCardChatPage_OtherPlatformsNoTracking(t *testing.T) {
+	realTmpl, err := os.ReadFile("../../../template/card_chat.html")
+	if err != nil {
+		t.Fatalf("读取真实 card_chat.html 失败: %v", err)
+	}
+	tempDir := t.TempDir()
+	if err := os.WriteFile(filepath.Join(tempDir, "card_chat.html"), realTmpl, 0644); err != nil {
+		t.Fatalf("布置临时模板失败: %v", err)
+	}
+	service := NewTemplateService(tempDir)
+
+	html, err := service.RenderCardChatPage("douyin", 7, "标题", "描述", "https://img", "a,b", "https://base")
+	if err != nil {
+		t.Fatalf("RenderCardChatPage(douyin) failed: %v", err)
+	}
+	if strings.Contains(html, "X-Xianyu-Card-Token") || strings.Contains(html, "report(") {
+		t.Error("非闲鱼平台不应渲染埋点脚本（没有对应上报口，只会产出 403 噪音）")
+	}
+}
