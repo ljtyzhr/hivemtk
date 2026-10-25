@@ -11,6 +11,7 @@ const mobileNavOpen = ref(false)
 const sections = computed(() => [
   { id: 'quickstart', title: i18n.global.t('快速开始'), group: '入门' },
   { id: 'architecture', title: i18n.global.t('架构与分工'), group: '入门' },
+  { id: 'arch-map', title: i18n.global.t('架构图与数据流'), group: '入门' },
   { id: 'requirements', title: i18n.global.t('系统要求'), group: '入门' },
   { id: 'docker-deploy', title: i18n.global.t('Docker 部署'), group: '部署' },
   { id: 'source-deploy', title: i18n.global.t('源码部署'), group: '部署' },
@@ -160,6 +161,18 @@ make dev               # {{ $t('启动 user-server（监听 8204；生产可 mak
           </div>
           <p class="note">{{ $t('用户端默认') }} <code>PLATFORM_ENABLED=false</code> {{ $t('，不接任何平台端即可私有化部署；确需本地平台端时把它改为') }} <code>true</code> {{ $t('，并用') }} <code>PLATFORM_API_HOST</code> {{ $t('指向本机地址。') }}</p>
           <p class="note">{{ $t('开源仓库：') }}<a class="inline-link" href="https://gitee.com/xhpmayun/hivemtk" target="_blank" rel="noopener">gitee.com/xhpmayun/hivemtk</a></p>
+        </section>
+
+        <!-- 架构图与数据流 -->
+        <section id="arch-map" class="doc-section">
+          <h2>{{ $t('架构图与数据流') }}</h2>
+          <p class="lead">{{ $t('三份完整架构文档（含完整功能清单、多层级架构图、数据流向图）由四路并行代码实读生成，全部条目带代码坐标证据：') }}</p>
+          <ul class="doc-list">
+            <li>{{ $t('完整功能清单：用户端 40+ 业务域（消息渠道 / AI Agent / RAG 知识库 / LTC 线索到回款 / GEO / 触达 / 浏览器自动化 / 观测运维 / 资产市场）+ 平台端 9 大运营域 + 投稿者经济线') }}</li>
+            <li>{{ $t('多层级架构图：L1 系统上下文 → L2 容器 → L3 模块（五层 Router/Controller/Service/Repository/Model）→ L4 部署拓扑') }}</li>
+            <li>{{ $t('数据流向图：12 条主链路——webhook 入站 / 双轨出站（官方 API + 蜂桥网页）/ LTC 流水线 / RAG 检索 / JEV 浏览器自动化 / cron 租户扇出 / 跨端平台集成 / 资产包产线') }}</li>
+          </ul>
+          <p class="note">{{ $t('架构文档（代码实读证据版）见仓库') }} <code>docs/architecture/</code>：{{ $t('') }}<code>FULL_FEATURE_INVENTORY.md</code> / <code>MULTI_LEVEL_ARCHITECTURE.md</code> / <code>DATA_FLOW_DIAGRAMS.md</code>。</p>
         </section>
 
         <!-- 系统要求 -->

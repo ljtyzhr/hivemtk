@@ -1,6 +1,6 @@
 # 密钥文件挂载与轮换演练（OPT-SEC-08）
 
-> 2026-10-24 补齐。对应《未完成事项实施规划-2026-10-23》§4.3 E-3。
+> 2026-10-24 补齐。对应原《未完成事项实施规划-2026-10-23》§4.3 E-3（该文档已归档，结论并入 `docs/任务总表-2026-10-24.md`）。
 > 实现通道：`user-server/internal/secrets/fileloader.go`（`LoadFiles`），启动预加载在
 > `cmd/api/main.go`（`HIVEMTK_SECRETS_DIR`，默认 `/run/secrets`）。
 > **决策口径（规划推荐）**：文件挂载是一等方案，不接 Vault/KMS SDK；只有需要动态租约
